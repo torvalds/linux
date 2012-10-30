@@ -1102,27 +1102,20 @@ static struct hvcs_struct *hvcs_get_by_index(int index)
 	return NULL;
 }
 
-/*
- * This is invoked via the tty_open interface when a user app connects to the
- * /dev node.
- */
-static int hvcs_open(struct tty_struct *tty, struct file *filp)
+static int hvcs_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct hvcs_struct *hvcsd;
-	int rc, retval = 0;
-	unsigned long flags;
-	unsigned int irq;
 	struct vio_dev *vdev;
-	unsigned long unit_address;
-
-	if (tty->driver_data)
-		goto fast_open;
+	unsigned long unit_address, flags;
+	unsigned int irq;
+	int retval;
 
 	/*
 	 * Is there a vty-server that shares the same index?
 	 * This function increments the kref index.
 	 */
-	if (!(hvcsd = hvcs_get_by_index(tty->index))) {
+	hvcsd = hvcs_get_by_index(tty->index);
+	if (!hvcsd) {
 		printk(KERN_WARNING "HVCS: open failed, no device associated"
 				" with tty->index %d.\n", tty->index);
 		return -ENODEV;
@@ -1130,11 +1123,16 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
-	if (hvcsd->connected == 0)
-		if ((retval = hvcs_partner_connect(hvcsd)))
-			goto error_release;
+	if (hvcsd->connected == 0) {
+		retval = hvcs_partner_connect(hvcsd);
+		if (retval) {
+			spin_unlock_irqrestore(&hvcsd->lock, flags);
+			printk(KERN_WARNING "HVCS: partner connect failed.\n");
+			goto err_put;
+		}
+	}
 
-	hvcsd->port.count = 1;
+	hvcsd->port.count = 0;
 	hvcsd->port.tty = tty;
 	tty->driver_data = hvcsd;
 
@@ -1155,37 +1153,48 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 	 * This must be done outside of the spinlock because it requests irqs
 	 * and will grab the spinlock and free the connection if it fails.
 	 */
-	if (((rc = hvcs_enable_device(hvcsd, unit_address, irq, vdev)))) {
-		tty_port_put(&hvcsd->port);
+	retval = hvcs_enable_device(hvcsd, unit_address, irq, vdev);
+	if (retval) {
 		printk(KERN_WARNING "HVCS: enable device failed.\n");
-		return rc;
+		goto err_put;
 	}
 
-	goto open_success;
+	retval = tty_port_install(&hvcsd->port, driver, tty);
+	if (retval)
+		goto err_irq;
 
-fast_open:
-	hvcsd = tty->driver_data;
+	return 0;
+err_irq:
+	spin_lock_irqsave(&hvcsd->lock, flags);
+	vio_disable_interrupts(hvcsd->vdev);
+	spin_unlock_irqrestore(&hvcsd->lock, flags);
+	free_irq(irq, hvcsd);
+err_put:
+	tty_port_put(&hvcsd->port);
+
+	return retval;
+}
+
+/*
+ * This is invoked via the tty_open interface when a user app connects to the
+ * /dev node.
+ */
+static int hvcs_open(struct tty_struct *tty, struct file *filp)
+{
+	struct hvcs_struct *hvcsd = tty->driver_data;
+	unsigned long flags;
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
-	tty_port_get(&hvcsd->port);
 	hvcsd->port.count++;
 	hvcsd->todo_mask |= HVCS_SCHED_READ;
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 
-open_success:
 	hvcs_kick();
 
 	printk(KERN_INFO "HVCS: vty-server@%X connection opened.\n",
 		hvcsd->vdev->unit_address );
 
 	return 0;
-
-error_release:
-	spin_unlock_irqrestore(&hvcsd->lock, flags);
-	tty_port_put(&hvcsd->port);
-
-	printk(KERN_WARNING "HVCS: partner connect failed.\n");
-	return retval;
 }
 
 static void hvcs_close(struct tty_struct *tty, struct file *filp)
@@ -1236,7 +1245,6 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		tty->driver_data = NULL;
 
 		free_irq(irq, hvcsd);
-		tty_port_put(&hvcsd->port);
 		return;
 	} else if (hvcsd->port.count < 0) {
 		printk(KERN_ERR "HVCS: vty-server@%X open_count: %d"
@@ -1245,6 +1253,12 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 	}
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
+}
+
+static void hvcs_cleanup(struct tty_struct * tty)
+{
+	struct hvcs_struct *hvcsd = tty->driver_data;
+
 	tty_port_put(&hvcsd->port);
 }
 
@@ -1431,8 +1445,10 @@ static int hvcs_chars_in_buffer(struct tty_struct *tty)
 }
 
 static const struct tty_operations hvcs_ops = {
+	.install = hvcs_install,
 	.open = hvcs_open,
 	.close = hvcs_close,
+	.cleanup = hvcs_cleanup,
 	.hangup = hvcs_hangup,
 	.write = hvcs_write,
 	.write_room = hvcs_write_room,

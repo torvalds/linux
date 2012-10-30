@@ -24,7 +24,7 @@
 #include <linux/amba/serial.h>
 #include <mach/hardware.h>
 
-u32 ux500_uart_base;
+void __iomem *ux500_uart_base;
 
 static void putc(const char c)
 {
@@ -51,7 +51,7 @@ static void flush(void)
 static inline void arch_decomp_setup(void)
 {
 	/* Use machine_is_foo() macro if you need to switch base someday */
-	ux500_uart_base = U8500_UART2_BASE;
+	ux500_uart_base = (void __iomem *)U8500_UART2_BASE;
 }
 
 #define arch_decomp_wdog() /* nothing to do here */

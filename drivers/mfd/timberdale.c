@@ -757,25 +757,25 @@ static int __devinit timb_probe(struct pci_dev *dev,
 		err = mfd_add_devices(&dev->dev, -1,
 			timberdale_cells_bar0_cfg0,
 			ARRAY_SIZE(timberdale_cells_bar0_cfg0),
-			&dev->resource[0], msix_entries[0].vector);
+			&dev->resource[0], msix_entries[0].vector, NULL);
 		break;
 	case TIMB_HW_VER1:
 		err = mfd_add_devices(&dev->dev, -1,
 			timberdale_cells_bar0_cfg1,
 			ARRAY_SIZE(timberdale_cells_bar0_cfg1),
-			&dev->resource[0], msix_entries[0].vector);
+			&dev->resource[0], msix_entries[0].vector, NULL);
 		break;
 	case TIMB_HW_VER2:
 		err = mfd_add_devices(&dev->dev, -1,
 			timberdale_cells_bar0_cfg2,
 			ARRAY_SIZE(timberdale_cells_bar0_cfg2),
-			&dev->resource[0], msix_entries[0].vector);
+			&dev->resource[0], msix_entries[0].vector, NULL);
 		break;
 	case TIMB_HW_VER3:
 		err = mfd_add_devices(&dev->dev, -1,
 			timberdale_cells_bar0_cfg3,
 			ARRAY_SIZE(timberdale_cells_bar0_cfg3),
-			&dev->resource[0], msix_entries[0].vector);
+			&dev->resource[0], msix_entries[0].vector, NULL);
 		break;
 	default:
 		dev_err(&dev->dev, "Uknown IP setup: %d.%d.%d\n",
@@ -792,7 +792,7 @@ static int __devinit timb_probe(struct pci_dev *dev,
 
 	err = mfd_add_devices(&dev->dev, 0,
 		timberdale_cells_bar1, ARRAY_SIZE(timberdale_cells_bar1),
-		&dev->resource[1], msix_entries[0].vector);
+		&dev->resource[1], msix_entries[0].vector, NULL);
 	if (err) {
 		dev_err(&dev->dev, "mfd_add_devices failed: %d\n", err);
 		goto err_mfd2;
@@ -803,7 +803,7 @@ static int __devinit timb_probe(struct pci_dev *dev,
 		((priv->fw.config & TIMB_HW_VER_MASK) == TIMB_HW_VER3)) {
 		err = mfd_add_devices(&dev->dev, 1, timberdale_cells_bar2,
 			ARRAY_SIZE(timberdale_cells_bar2),
-			&dev->resource[2], msix_entries[0].vector);
+			&dev->resource[2], msix_entries[0].vector, NULL);
 		if (err) {
 			dev_err(&dev->dev, "mfd_add_devices failed: %d\n", err);
 			goto err_mfd2;

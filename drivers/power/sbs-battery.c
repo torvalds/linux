@@ -759,6 +759,16 @@ static int __devinit sbs_probe(struct i2c_client *client,
 	chip->irq = irq;
 
 skip_gpio:
+	/*
+	 * Before we register, we need to make sure we can actually talk
+	 * to the battery.
+	 */
+	rc = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
+	if (rc < 0) {
+		dev_err(&client->dev, "%s: Failed to get device status\n",
+			__func__);
+		goto exit_psupply;
+	}
 
 	rc = power_supply_register(&client->dev, &chip->power_supply);
 	if (rc) {

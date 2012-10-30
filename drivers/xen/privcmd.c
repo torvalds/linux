@@ -76,7 +76,7 @@ static void free_page_list(struct list_head *pages)
  */
 static int gather_array(struct list_head *pagelist,
 			unsigned nelem, size_t size,
-			void __user *data)
+			const void __user *data)
 {
 	unsigned pageidx;
 	void *pagedata;
@@ -246,61 +246,117 @@ struct mmap_batch_state {
 	domid_t domain;
 	unsigned long va;
 	struct vm_area_struct *vma;
-	int err;
+	/* A tristate:
+	 *      0 for no errors
+	 *      1 if at least one error has happened (and no
+	 *          -ENOENT errors have happened)
+	 *      -ENOENT if at least 1 -ENOENT has happened.
+	 */
+	int global_error;
+	/* An array for individual errors */
+	int *err;
 
-	xen_pfn_t __user *user;
+	/* User-space mfn array to store errors in the second pass for V1. */
+	xen_pfn_t __user *user_mfn;
 };
 
 static int mmap_batch_fn(void *data, void *state)
 {
 	xen_pfn_t *mfnp = data;
 	struct mmap_batch_state *st = state;
+	int ret;
 
-	if (xen_remap_domain_mfn_range(st->vma, st->va & PAGE_MASK, *mfnp, 1,
-				       st->vma->vm_page_prot, st->domain) < 0) {
-		*mfnp |= 0xf0000000U;
-		st->err++;
+	ret = xen_remap_domain_mfn_range(st->vma, st->va & PAGE_MASK, *mfnp, 1,
+					 st->vma->vm_page_prot, st->domain);
+
+	/* Store error code for second pass. */
+	*(st->err++) = ret;
+
+	/* And see if it affects the global_error. */
+	if (ret < 0) {
+		if (ret == -ENOENT)
+			st->global_error = -ENOENT;
+		else {
+			/* Record that at least one error has happened. */
+			if (st->global_error == 0)
+				st->global_error = 1;
+		}
 	}
 	st->va += PAGE_SIZE;
 
 	return 0;
 }
 
-static int mmap_return_errors(void *data, void *state)
+static int mmap_return_errors_v1(void *data, void *state)
 {
 	xen_pfn_t *mfnp = data;
 	struct mmap_batch_state *st = state;
+	int err = *(st->err++);
 
-	return put_user(*mfnp, st->user++);
+	/*
+	 * V1 encodes the error codes in the 32bit top nibble of the
+	 * mfn (with its known limitations vis-a-vis 64 bit callers).
+	 */
+	*mfnp |= (err == -ENOENT) ?
+				PRIVCMD_MMAPBATCH_PAGED_ERROR :
+				PRIVCMD_MMAPBATCH_MFN_ERROR;
+	return __put_user(*mfnp, st->user_mfn++);
 }
 
 static struct vm_operations_struct privcmd_vm_ops;
 
-static long privcmd_ioctl_mmap_batch(void __user *udata)
+static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 {
 	int ret;
-	struct privcmd_mmapbatch m;
+	struct privcmd_mmapbatch_v2 m;
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long nr_pages;
 	LIST_HEAD(pagelist);
+	int *err_array = NULL;
 	struct mmap_batch_state state;
 
 	if (!xen_initial_domain())
 		return -EPERM;
 
-	if (copy_from_user(&m, udata, sizeof(m)))
-		return -EFAULT;
+	switch (version) {
+	case 1:
+		if (copy_from_user(&m, udata, sizeof(struct privcmd_mmapbatch)))
+			return -EFAULT;
+		/* Returns per-frame error in m.arr. */
+		m.err = NULL;
+		if (!access_ok(VERIFY_WRITE, m.arr, m.num * sizeof(*m.arr)))
+			return -EFAULT;
+		break;
+	case 2:
+		if (copy_from_user(&m, udata, sizeof(struct privcmd_mmapbatch_v2)))
+			return -EFAULT;
+		/* Returns per-frame error code in m.err. */
+		if (!access_ok(VERIFY_WRITE, m.err, m.num * (sizeof(*m.err))))
+			return -EFAULT;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	nr_pages = m.num;
 	if ((m.num <= 0) || (nr_pages > (LONG_MAX >> PAGE_SHIFT)))
 		return -EINVAL;
 
-	ret = gather_array(&pagelist, m.num, sizeof(xen_pfn_t),
-			   m.arr);
+	ret = gather_array(&pagelist, m.num, sizeof(xen_pfn_t), m.arr);
 
-	if (ret || list_empty(&pagelist))
+	if (ret)
 		goto out;
+	if (list_empty(&pagelist)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	err_array = kcalloc(m.num, sizeof(int), GFP_KERNEL);
+	if (err_array == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	down_write(&mm->mmap_sem);
 
@@ -315,24 +371,37 @@ static long privcmd_ioctl_mmap_batch(void __user *udata)
 		goto out;
 	}
 
-	state.domain = m.dom;
-	state.vma = vma;
-	state.va = m.addr;
-	state.err = 0;
+	state.domain        = m.dom;
+	state.vma           = vma;
+	state.va            = m.addr;
+	state.global_error  = 0;
+	state.err           = err_array;
 
-	ret = traverse_pages(m.num, sizeof(xen_pfn_t),
-			     &pagelist, mmap_batch_fn, &state);
+	/* mmap_batch_fn guarantees ret == 0 */
+	BUG_ON(traverse_pages(m.num, sizeof(xen_pfn_t),
+			     &pagelist, mmap_batch_fn, &state));
 
 	up_write(&mm->mmap_sem);
 
-	if (state.err > 0) {
-		state.user = m.arr;
+	if (state.global_error && (version == 1)) {
+		/* Write back errors in second pass. */
+		state.user_mfn = (xen_pfn_t *)m.arr;
+		state.err      = err_array;
 		ret = traverse_pages(m.num, sizeof(xen_pfn_t),
-			       &pagelist,
-			       mmap_return_errors, &state);
+				     &pagelist, mmap_return_errors_v1, &state);
+	} else if (version == 2) {
+		ret = __copy_to_user(m.err, err_array, m.num * sizeof(int));
+		if (ret)
+			ret = -EFAULT;
 	}
 
+	/* If we have not had any EFAULT-like global errors then set the global
+	 * error to -ENOENT if necessary. */
+	if ((ret == 0) && (state.global_error == -ENOENT))
+		ret = -ENOENT;
+
 out:
+	kfree(err_array);
 	free_page_list(&pagelist);
 
 	return ret;
@@ -354,7 +423,11 @@ static long privcmd_ioctl(struct file *file,
 		break;
 
 	case IOCTL_PRIVCMD_MMAPBATCH:
-		ret = privcmd_ioctl_mmap_batch(udata);
+		ret = privcmd_ioctl_mmap_batch(udata, 1);
+		break;
+
+	case IOCTL_PRIVCMD_MMAPBATCH_V2:
+		ret = privcmd_ioctl_mmap_batch(udata, 2);
 		break;
 
 	default:
@@ -380,13 +453,10 @@ static struct vm_operations_struct privcmd_vm_ops = {
 
 static int privcmd_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	/* Unsupported for auto-translate guests. */
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return -ENOSYS;
-
 	/* DONTCOPY is essential for Xen because copy_page_range doesn't know
 	 * how to recreate these mappings */
-	vma->vm_flags |= VM_RESERVED | VM_IO | VM_DONTCOPY | VM_PFNMAP;
+	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTCOPY |
+			 VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &privcmd_vm_ops;
 	vma->vm_private_data = NULL;
 

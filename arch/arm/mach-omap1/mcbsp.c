@@ -20,9 +20,9 @@
 #include <linux/slab.h>
 
 #include <plat/dma.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/cpu.h>
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include <mach/irqs.h>
 

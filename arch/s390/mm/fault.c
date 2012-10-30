@@ -111,7 +111,7 @@ static inline int user_space_fault(unsigned long trans_exc_code)
 	if (trans_exc_code == 2)
 		/* Access via secondary space, set_fs setting decides */
 		return current->thread.mm_segment.ar4;
-	if (addressing_mode == HOME_SPACE_MODE)
+	if (s390_user_mode == HOME_SPACE_MODE)
 		/* User space if the access has been done via home space. */
 		return trans_exc_code == 3;
 	/*
@@ -163,7 +163,7 @@ static noinline void do_no_context(struct pt_regs *regs)
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
 	if (fixup) {
-		regs->psw.addr = fixup->fixup | PSW_ADDR_AMODE;
+		regs->psw.addr = extable_fixup(fixup) | PSW_ADDR_AMODE;
 		return;
 	}
 
@@ -367,6 +367,7 @@ retry:
 			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
 			 * of starvation. */
 			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
 			down_read(&mm->mmap_sem);
 			goto retry;
 		}
@@ -628,9 +629,8 @@ static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
 	struct thread_struct *thread, *next;
 	struct task_struct *tsk;
 
-	switch (action) {
+	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
 		spin_lock_irq(&pfault_lock);
 		list_for_each_entry_safe(thread, next, &pfault_list, list) {
 			thread->pfault_wait = 0;

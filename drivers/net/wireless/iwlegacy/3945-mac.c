@@ -460,7 +460,9 @@ il3945_build_tx_cmd_basic(struct il_priv *il, struct il_device_cmd *cmd,
  * start C_TX command process
  */
 static int
-il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
+il3945_tx_skb(struct il_priv *il,
+	      struct ieee80211_sta *sta,
+	      struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -512,7 +514,7 @@ il3945_tx_skb(struct il_priv *il, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find idx into station table for destination station */
-	sta_id = il_sta_id_or_broadcast(il, info->control.sta);
+	sta_id = il_sta_id_or_broadcast(il, sta);
 	if (sta_id == IL_INVALID_STATION) {
 		D_DROP("Dropping - INVALID STATION: %pM\n", hdr->addr1);
 		goto drop;
@@ -2859,7 +2861,9 @@ il3945_mac_stop(struct ieee80211_hw *hw)
 }
 
 static void
-il3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+il3945_mac_tx(struct ieee80211_hw *hw,
+	       struct ieee80211_tx_control *control,
+	       struct sk_buff *skb)
 {
 	struct il_priv *il = hw->priv;
 
@@ -2868,7 +2872,7 @@ il3945_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	D_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
 	     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
-	if (il3945_tx_skb(il, skb))
+	if (il3945_tx_skb(il, control->sta, skb))
 		dev_kfree_skb_any(skb);
 
 	D_MAC80211("leave\n");

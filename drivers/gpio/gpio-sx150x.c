@@ -311,11 +311,9 @@ static int sx150x_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 
 static void sx150x_irq_mask(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n;
 
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 	n = d->irq - chip->irq_base;
 	chip->irq_masked |= (1 << n);
 	chip->irq_update = n;
@@ -323,27 +321,22 @@ static void sx150x_irq_mask(struct irq_data *d)
 
 static void sx150x_irq_unmask(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n;
 
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 	n = d->irq - chip->irq_base;
-
 	chip->irq_masked &= ~(1 << n);
 	chip->irq_update = n;
 }
 
 static int sx150x_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n, val = 0;
 
 	if (flow_type & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW))
 		return -EINVAL;
 
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 	n = d->irq - chip->irq_base;
 
 	if (flow_type & IRQ_TYPE_EDGE_RISING)
@@ -391,21 +384,15 @@ static irqreturn_t sx150x_irq_thread_fn(int irq, void *dev_id)
 
 static void sx150x_irq_bus_lock(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
-
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 
 	mutex_lock(&chip->lock);
 }
 
 static void sx150x_irq_bus_sync_unlock(struct irq_data *d)
 {
-	struct irq_chip *ic = irq_data_get_irq_chip(d);
-	struct sx150x_chip *chip;
+	struct sx150x_chip *chip = irq_data_get_irq_chip_data(d);
 	unsigned n;
-
-	chip = container_of(ic, struct sx150x_chip, irq_chip);
 
 	if (chip->irq_update == NO_UPDATE_PENDING)
 		goto out;
@@ -551,6 +538,7 @@ static int sx150x_install_irq_chip(struct sx150x_chip *chip,
 
 	for (n = 0; n < chip->dev_cfg->ngpios; ++n) {
 		irq = irq_base + n;
+		irq_set_chip_data(irq, chip);
 		irq_set_chip_and_handler(irq, &chip->irq_chip, handle_edge_irq);
 		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM

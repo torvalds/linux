@@ -584,7 +584,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 		goto irq_init_err;
 
 	ret = request_threaded_irq(twl6040->irq_base + TWL6040_IRQ_READY,
-				   NULL, twl6040_naudint_handler, 0,
+				   NULL, twl6040_naudint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_ready", twl6040);
 	if (ret) {
 		dev_err(twl6040->dev, "READY IRQ request failed: %d\n",
@@ -631,8 +631,23 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 		children++;
 	}
 
+	/*
+	 * Enable the GPO driver in the following cases:
+	 * DT booted kernel or legacy boot with valid gpo platform_data
+	 */
+	if (!pdata || (pdata && pdata->gpo)) {
+		cell = &twl6040->cells[children];
+		cell->name = "twl6040-gpo";
+
+		if (pdata) {
+			cell->platform_data = pdata->gpo;
+			cell->pdata_size = sizeof(*pdata->gpo);
+		}
+		children++;
+	}
+
 	ret = mfd_add_devices(&client->dev, -1, twl6040->cells, children,
-			      NULL, 0);
+			      NULL, 0, NULL);
 	if (ret)
 		goto mfd_err;
 

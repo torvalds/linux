@@ -1,12 +1,12 @@
 /*
- *  Copyright (c) 2000-2011 LSI Corporation.
+ *  Copyright (c) 2000-2012 LSI Corporation.
  *
  *
  *           Name:  mpi2_ioc.h
  *          Title:  MPI IOC, Port, Event, FW Download, and FW Upload messages
  *  Creation Date:  October 11, 2006
  *
- *  mpi2_ioc.h Version:  02.00.19
+ *  mpi2_ioc.h Version:  02.00.21
  *
  *  Version History
  *  ---------------
@@ -117,6 +117,7 @@
  *  08-24-11  02.00.19  Added PhysicalPort field to
  *                      MPI2_EVENT_DATA_SAS_DEVICE_STATUS_CHANGE structure.
  *                      Marked MPI2_PM_CONTROL_FEATURE_PCIE_LINK as obsolete.
+ *  03-29-12  02.00.21  Added a product specific range to event values.
  *  --------------------------------------------------------------------------
  */
 
@@ -492,7 +493,8 @@ typedef struct _MPI2_EVENT_NOTIFICATION_REPLY
 #define MPI2_EVENT_SAS_NOTIFY_PRIMITIVE             (0x0026)
 #define MPI2_EVENT_TEMP_THRESHOLD                   (0x0027)
 #define MPI2_EVENT_HOST_MESSAGE                     (0x0028)
-
+#define MPI2_EVENT_MIN_PRODUCT_SPECIFIC             (0x006E)
+#define MPI2_EVENT_MAX_PRODUCT_SPECIFIC             (0x007F)
 
 /* Log Entry Added Event data */
 

@@ -75,7 +75,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 	magic = le32_to_cpu(ch->magic);
 
 	if (magic == 0xFFFFFFFF) {
-		dbg_scan("hit empty space");
+		dbg_scan("hit empty space at LEB %d:%d", lnum, offs);
 		return SCANNED_EMPTY_SPACE;
 	}
 
@@ -85,7 +85,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 	if (len < UBIFS_CH_SZ)
 		return SCANNED_GARBAGE;
 
-	dbg_scan("scanning %s", dbg_ntype(ch->node_type));
+	dbg_scan("scanning %s at LEB %d:%d",
+		 dbg_ntype(ch->node_type), lnum, offs);
 
 	if (ubifs_check_node(c, buf, lnum, offs, quiet, 1))
 		return SCANNED_A_CORRUPT_NODE;
@@ -114,8 +115,8 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 			return SCANNED_A_BAD_PAD_NODE;
 		}
 
-		dbg_scan("%d bytes padded, offset now %d",
-			 pad_len, ALIGN(offs + node_len + pad_len, 8));
+		dbg_scan("%d bytes padded at LEB %d:%d, offset now %d", pad_len,
+			 lnum, offs, ALIGN(offs + node_len + pad_len, 8));
 
 		return node_len + pad_len;
 	}
@@ -150,8 +151,8 @@ struct ubifs_scan_leb *ubifs_start_scan(const struct ubifs_info *c, int lnum,
 
 	err = ubifs_leb_read(c, lnum, sbuf + offs, offs, c->leb_size - offs, 0);
 	if (err && err != -EBADMSG) {
-		ubifs_err("cannot read %d bytes from LEB %d:%d,"
-			  " error %d", c->leb_size - offs, lnum, offs, err);
+		ubifs_err("cannot read %d bytes from LEB %d:%d, error %d",
+			  c->leb_size - offs, lnum, offs, err);
 		kfree(sleb);
 		return ERR_PTR(err);
 	}
@@ -240,8 +241,6 @@ void ubifs_scanned_corruption(const struct ubifs_info *c, int lnum, int offs,
 	int len;
 
 	ubifs_err("corruption at LEB %d:%d", lnum, offs);
-	if (dbg_is_tst_rcvry(c))
-		return;
 	len = c->leb_size - offs;
 	if (len > 8192)
 		len = 8192;

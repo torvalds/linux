@@ -1018,7 +1018,6 @@ static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	offset += vinfo->vram_start;
 	pgprot_val(vma->vm_page_prot) |= _PAGE_PCD;
 	pgprot_val(vma->vm_page_prot) &= ~_PAGE_PWT;
-	vma->vm_flags |= VM_RESERVED | VM_IO;
 	if (remap_pfn_range(vma, vma->vm_start, offset >> PAGE_SHIFT,
 						size, vma->vm_page_prot))
 		return -EAGAIN;
@@ -1168,8 +1167,7 @@ void vmlfb_unregister_subsys(struct vml_sys *sys)
 	list_for_each_entry_safe(entry, next, &global_has_mode, head) {
 		printk(KERN_DEBUG MODULE_NAME ": subsys disable pipe\n");
 		vmlfb_disable_pipe(entry);
-		list_del(&entry->head);
-		list_add_tail(&entry->head, &global_no_mode);
+		list_move_tail(&entry->head, &global_no_mode);
 	}
 	mutex_unlock(&vml_mutex);
 }

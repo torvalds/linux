@@ -36,6 +36,7 @@
 #include <linux/mtd/partitions.h>
 
 #include "devices.h"
+#include "common.h"
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -65,8 +66,6 @@ static struct platform_device *devices[] __initdata = {
 	&msm_device_i2c,
 	&smc91x_device,
 };
-
-extern struct sys_timer msm_timer;
 
 static void __init halibut_init_early(void)
 {
@@ -107,5 +106,5 @@ MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
 	.init_irq	= halibut_init_irq,
 	.init_machine	= halibut_init,
 	.init_late	= halibut_init_late,
-	.timer		= &msm_timer,
+	.timer		= &msm7x01_timer,
 MACHINE_END

@@ -1,0 +1,22 @@
+* Generic 8-bits shift register GPIO driver
+
+Required properties:
+- compatible : Should be "fairchild,74hc595"
+- reg : chip select number
+- gpio-controller : Marks the device node as a gpio controller.
+- #gpio-cells : Should be two.  The first cell is the pin number and
+  the second cell is used to specify the gpio polarity:
+      0 = active high
+      1 = active low
+- registers-number: Number of daisy-chained shift registers
+
+Example:
+
+gpio5: gpio5@0 {
+	compatible = "fairchild,74hc595";
+	reg = <0>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	registers-number = <4>;
+	spi-max-frequency = <100000>;
+};

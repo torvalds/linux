@@ -594,7 +594,7 @@ static int __devinit pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 		printk(KERN_ERR PFX "Strange virtual-dma[%08x:%08x].\n",
 		       vdma[0], vdma[1]);
 		return -EINVAL;
-	};
+	}
 
 	dma_mask = (roundup_pow_of_two(vdma[1]) - 1UL);
 	num_tsb_entries = vdma[1] / IO_PAGE_SIZE;

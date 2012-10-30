@@ -278,7 +278,7 @@ static int rcu_boost(void)
 	    rcu_preempt_ctrlblk.exp_tasks == NULL)
 		return 0;  /* Nothing to boost. */
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 
 	/*
 	 * Recheck with irqs disabled: all tasks in need of boosting
@@ -287,7 +287,7 @@ static int rcu_boost(void)
 	 */
 	if (rcu_preempt_ctrlblk.boost_tasks == NULL &&
 	    rcu_preempt_ctrlblk.exp_tasks == NULL) {
-		raw_local_irq_restore(flags);
+		local_irq_restore(flags);
 		return 0;
 	}
 
@@ -317,7 +317,7 @@ static int rcu_boost(void)
 	t = container_of(tb, struct task_struct, rcu_node_entry);
 	rt_mutex_init_proxy_locked(&mtx, t);
 	t->rcu_boost_mutex = &mtx;
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 	rt_mutex_lock(&mtx);
 	rt_mutex_unlock(&mtx);  /* Keep lockdep happy. */
 
@@ -991,9 +991,9 @@ static void rcu_trace_sub_qlen(struct rcu_ctrlblk *rcp, int n)
 {
 	unsigned long flags;
 
-	raw_local_irq_save(flags);
+	local_irq_save(flags);
 	rcp->qlen -= n;
-	raw_local_irq_restore(flags);
+	local_irq_restore(flags);
 }
 
 /*

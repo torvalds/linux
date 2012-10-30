@@ -61,6 +61,16 @@
 #define OM_MATCH_5XXX_FAMILY_MODELS     0x20000000
 /* Match all cn6XXX Octeon models. */
 #define OM_MATCH_6XXX_FAMILY_MODELS     0x40000000
+/* Match all cnf7XXX Octeon models. */
+#define OM_MATCH_F7XXX_FAMILY_MODELS    0x80000000
+
+/*
+ * CNF7XXX models with new revision encoding
+ */
+#define OCTEON_CNF71XX_PASS1_0  0x000d9400
+
+#define OCTEON_CNF71XX          (OCTEON_CNF71XX_PASS1_0 | OM_IGNORE_REVISION)
+#define OCTEON_CNF71XX_PASS1_X  (OCTEON_CNF71XX_PASS1_0 | OM_IGNORE_MINOR_REVISION)
 
 /*
  * CN6XXX models with new revision encoding
@@ -313,6 +323,14 @@ static inline int __octeon_is_model_runtime__(uint32_t model)
 const char *octeon_model_get_string(uint32_t chip_id);
 const char *octeon_model_get_string_buffer(uint32_t chip_id, char *buffer);
 
-#include "octeon-feature.h"
+/*
+ * Return the octeon family, i.e., ProcessorID of the PrID register.
+ */
+static inline uint32_t cvmx_get_octeon_family(void)
+{
+	return cvmx_get_proc_id() & OCTEON_FAMILY_MASK;
+}
+
+#include <asm/octeon/octeon-feature.h>
 
 #endif /* __OCTEON_MODEL_H__ */

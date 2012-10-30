@@ -497,7 +497,7 @@ void ath9k_hw_wow_enable(struct ath_hw *ah, u32 pattern_enable)
 
 	REG_RMW(ah, AR_PCIE_PM_CTRL, set, clr);
 
-	if (AR_SREV_9462(ah)) {
+	if (AR_SREV_9462(ah) || AR_SREV_9565(ah)) {
 		/*
 		 * this is needed to prevent the chip waking up
 		 * the host within 3-4 seconds with certain

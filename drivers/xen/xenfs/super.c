@@ -30,7 +30,8 @@ static struct inode *xenfs_make_inode(struct super_block *sb, int mode)
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_uid = ret->i_gid = 0;
+		ret->i_uid = GLOBAL_ROOT_UID;
+		ret->i_gid = GLOBAL_ROOT_GID;
 		ret->i_blocks = 0;
 		ret->i_atime = ret->i_mtime = ret->i_ctime = CURRENT_TIME;
 	}

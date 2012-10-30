@@ -182,7 +182,7 @@ static void bfin_serial_start_tx(struct uart_port *port)
 	 * To avoid losting RX interrupt, we reset IR function
 	 * before sending data.
 	 */
-	if (tty->termios->c_line == N_IRDA)
+	if (tty->termios.c_line == N_IRDA)
 		bfin_serial_reset_irda(port);
 
 #ifdef CONFIG_SERIAL_BFIN_DMA

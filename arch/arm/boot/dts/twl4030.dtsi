@@ -19,19 +19,19 @@
 		interrupts = <11>;
 	};
 
-	vdac: regulator@0 {
+	vdac: regulator-vdac {
 		compatible = "ti,twl4030-vdac";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
 
-	vpll2: regulator@1 {
+	vpll2: regulator-vpll2 {
 		compatible = "ti,twl4030-vpll2";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
 
-	vmmc1: regulator@2 {
+	vmmc1: regulator-vmmc1 {
 		compatible = "ti,twl4030-vmmc1";
 		regulator-min-microvolt = <1850000>;
 		regulator-max-microvolt = <3150000>;

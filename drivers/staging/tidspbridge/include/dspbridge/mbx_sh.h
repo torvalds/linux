@@ -22,7 +22,7 @@
  *  mailbox interrupt's cmd value received. The class value are defined
  *  as a bit (10 thru 15) being set.
  *
- *  Note: Only 16 bits of each  is used. Other 16 bit data reg available.
+ *  Note: Only 16 bits of each is used. Other 16 bit data reg available.
  *
  *   16 bit Mbx bit defns:
  *

@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
 #ifdef CONFIG_X86
 #include <asm/mtrr.h>
@@ -28,7 +29,6 @@
 #include <asm/addrspace.h>
 #endif
 #include <asm/byteorder.h>
-#include <asm/io.h>
 #include <asm/tlbflush.h>
 
 #include <video/gbe.h>
@@ -1024,7 +1024,7 @@ static int gbefb_mmap(struct fb_info *info,
 	pgprot_val(vma->vm_page_prot) =
 		pgprot_fb(pgprot_val(vma->vm_page_prot));
 
-	vma->vm_flags |= VM_IO | VM_RESERVED;
+	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 
 	/* look for the starting tile */
 	tile = &gbe_tiles.cpu[offset >> TILE_SHIFT];
@@ -1156,7 +1156,8 @@ static int __devinit gbefb_probe(struct platform_device *p_dev)
 		goto out_release_framebuffer;
 	}
 
-	gbe = (struct sgi_gbe *) ioremap(GBE_BASE, sizeof(struct sgi_gbe));
+	gbe = (struct sgi_gbe *) devm_ioremap(&p_dev->dev, GBE_BASE,
+					      sizeof(struct sgi_gbe));
 	if (!gbe) {
 		printk(KERN_ERR "gbefb: couldn't map mmio region\n");
 		ret = -ENXIO;
@@ -1170,12 +1171,13 @@ static int __devinit gbefb_probe(struct platform_device *p_dev)
 	if (!gbe_tiles.cpu) {
 		printk(KERN_ERR "gbefb: couldn't allocate tiles table\n");
 		ret = -ENOMEM;
-		goto out_unmap;
+		goto out_release_mem_region;
 	}
 
 	if (gbe_mem_phys) {
 		/* memory was allocated at boot time */
-		gbe_mem = ioremap_nocache(gbe_mem_phys, gbe_mem_size);
+		gbe_mem = devm_ioremap_nocache(&p_dev->dev, gbe_mem_phys,
+					       gbe_mem_size);
 		if (!gbe_mem) {
 			printk(KERN_ERR "gbefb: couldn't map framebuffer\n");
 			ret = -ENOMEM;
@@ -1241,13 +1243,9 @@ static int __devinit gbefb_probe(struct platform_device *p_dev)
 out_gbe_unmap:
 	if (gbe_dma_addr)
 		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
-	else
-		iounmap(gbe_mem);
 out_tiles_free:
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
-out_unmap:
-	iounmap(gbe);
 out_release_mem_region:
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
 out_release_framebuffer:
@@ -1264,12 +1262,9 @@ static int __devexit gbefb_remove(struct platform_device* p_dev)
 	gbe_turn_off();
 	if (gbe_dma_addr)
 		dma_free_coherent(NULL, gbe_mem_size, gbe_mem, gbe_mem_phys);
-	else
-		iounmap(gbe_mem);
 	dma_free_coherent(NULL, GBE_TLB_SIZE * sizeof(uint16_t),
 			  (void *)gbe_tiles.cpu, gbe_tiles.dma);
 	release_mem_region(GBE_BASE, sizeof(struct sgi_gbe));
-	iounmap(gbe);
 	gbefb_remove_sysfs(&p_dev->dev);
 	framebuffer_release(info);
 

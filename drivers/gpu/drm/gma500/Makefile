@@ -3,7 +3,7 @@
 #
 ccflags-y += -I$(srctree)/include/drm
 
-gma500_gfx-y += gem_glue.o \
+gma500_gfx-y += \
 	  accel_2d.o \
 	  backlight.o \
 	  framebuffer.o \
@@ -30,7 +30,8 @@ gma500_gfx-$(CONFIG_DRM_GMA3600) +=  cdv_device.o \
 	  cdv_intel_crt.o \
 	  cdv_intel_display.o \
 	  cdv_intel_hdmi.o \
-	  cdv_intel_lvds.o
+	  cdv_intel_lvds.o \
+	  cdv_intel_dp.o
 
 gma500_gfx-$(CONFIG_DRM_GMA600) += oaktrail_device.o \
 	  oaktrail_crtc.o \

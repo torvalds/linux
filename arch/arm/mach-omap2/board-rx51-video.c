@@ -17,9 +17,9 @@
 #include <asm/mach-types.h>
 #include <video/omapdss.h>
 #include <plat/vram.h>
-#include <plat/mcspi.h>
+#include <linux/platform_data/spi-omap2-mcspi.h>
 
-#include <mach/board-rx51.h>
+#include "board-rx51.h"
 
 #include "mux.h"
 

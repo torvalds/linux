@@ -23,16 +23,18 @@
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-#include <linux/dma-buf.h>
-#include "drmP.h"
-#include "drm.h"
 
-#include "nouveau_drv.h"
+#include <linux/dma-buf.h>
+
+#include <subdev/fb.h>
+
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_fence.h"
+#include "nouveau_abi16.h"
 
-#define nouveau_gem_pushbuf_sync(chan) 0
+#include "nouveau_ttm.h"
+#include "nouveau_gem.h"
 
 int
 nouveau_gem_object_new(struct drm_gem_object *gem)
@@ -67,19 +69,19 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 int
 nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
-	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (!fpriv->vm)
+	if (!cli->base.vm)
 		return 0;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, 0);
 	if (ret)
 		return ret;
 
-	vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
+	vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
 	if (!vma) {
 		vma = kzalloc(sizeof(*vma), GFP_KERNEL);
 		if (!vma) {
@@ -87,7 +89,7 @@ nouveau_gem_object_open(struct drm_gem_object *gem, struct drm_file *file_priv)
 			goto out;
 		}
 
-		ret = nouveau_bo_vma_add(nvbo, fpriv->vm, vma);
+		ret = nouveau_bo_vma_add(nvbo, cli->base.vm, vma);
 		if (ret) {
 			kfree(vma);
 			goto out;
@@ -104,19 +106,19 @@ out:
 void
 nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
-	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_vma *vma;
 	int ret;
 
-	if (!fpriv->vm)
+	if (!cli->base.vm)
 		return;
 
 	ret = ttm_bo_reserve(&nvbo->bo, false, false, false, 0);
 	if (ret)
 		return;
 
-	vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
+	vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
 	if (vma) {
 		if (--vma->refcount == 0) {
 			nouveau_bo_vma_del(nvbo, vma);
@@ -131,7 +133,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 		uint32_t tile_mode, uint32_t tile_flags,
 		struct nouveau_bo **pnvbo)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_bo *nvbo;
 	u32 flags = 0;
 	int ret;
@@ -155,7 +157,7 @@ nouveau_gem_new(struct drm_device *dev, int size, int align, uint32_t domain,
 	 */
 	nvbo->valid_domains = NOUVEAU_GEM_DOMAIN_VRAM |
 			      NOUVEAU_GEM_DOMAIN_GART;
-	if (dev_priv->card_type >= NV_50)
+	if (nv_device(drm->device)->card_type >= NV_50)
 		nvbo->valid_domains &= domain;
 
 	nvbo->gem = drm_gem_object_alloc(dev, nvbo->bo.mem.size);
@@ -173,7 +175,7 @@ static int
 nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		 struct drm_nouveau_gem_info *rep)
 {
-	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
+	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_bo *nvbo = nouveau_gem_object(gem);
 	struct nouveau_vma *vma;
 
@@ -183,8 +185,8 @@ nouveau_gem_info(struct drm_file *file_priv, struct drm_gem_object *gem,
 		rep->domain = NOUVEAU_GEM_DOMAIN_VRAM;
 
 	rep->offset = nvbo->bo.offset;
-	if (fpriv->vm) {
-		vma = nouveau_bo_vma_find(nvbo, fpriv->vm);
+	if (cli->base.vm) {
+		vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
 		if (!vma)
 			return -EINVAL;
 
@@ -202,15 +204,16 @@ int
 nouveau_gem_ioctl_new(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_fb *pfb = nouveau_fb(drm->device);
 	struct drm_nouveau_gem_new *req = data;
 	struct nouveau_bo *nvbo = NULL;
 	int ret = 0;
 
-	dev_priv->ttm.bdev.dev_mapping = dev->dev_mapping;
+	drm->ttm.bdev.dev_mapping = drm->dev->dev_mapping;
 
-	if (!dev_priv->engine.vram.flags_valid(dev, req->info.tile_flags)) {
-		NV_ERROR(dev, "bad page flags: 0x%08x\n", req->info.tile_flags);
+	if (!pfb->memtype_valid(pfb, req->info.tile_flags)) {
+		NV_ERROR(drm, "bad page flags: 0x%08x\n", req->info.tile_flags);
 		return -EINVAL;
 	}
 
@@ -312,16 +315,16 @@ validate_init(struct nouveau_channel *chan, struct drm_file *file_priv,
 	      struct drm_nouveau_gem_pushbuf_bo *pbbo,
 	      int nr_buffers, struct validate_op *op)
 {
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct drm_device *dev = chan->drm->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	uint32_t sequence;
 	int trycnt = 0;
 	int ret, i;
 
-	sequence = atomic_add_return(1, &dev_priv->ttm.validate_sequence);
+	sequence = atomic_add_return(1, &drm->ttm.validate_sequence);
 retry:
 	if (++trycnt > 100000) {
-		NV_ERROR(dev, "%s failed and gave up.\n", __func__);
+		NV_ERROR(drm, "%s failed and gave up.\n", __func__);
 		return -EINVAL;
 	}
 
@@ -332,14 +335,14 @@ retry:
 
 		gem = drm_gem_object_lookup(dev, file_priv, b->handle);
 		if (!gem) {
-			NV_ERROR(dev, "Unknown handle 0x%08x\n", b->handle);
+			NV_ERROR(drm, "Unknown handle 0x%08x\n", b->handle);
 			validate_fini(op, NULL);
 			return -ENOENT;
 		}
 		nvbo = gem->driver_private;
 
 		if (nvbo->reserved_by && nvbo->reserved_by == file_priv) {
-			NV_ERROR(dev, "multiple instances of buffer %d on "
+			NV_ERROR(drm, "multiple instances of buffer %d on "
 				      "validation list\n", b->handle);
 			drm_gem_object_unreference_unlocked(gem);
 			validate_fini(op, NULL);
@@ -354,7 +357,7 @@ retry:
 			drm_gem_object_unreference_unlocked(gem);
 			if (unlikely(ret)) {
 				if (ret != -ERESTARTSYS)
-					NV_ERROR(dev, "fail reserve\n");
+					NV_ERROR(drm, "fail reserve\n");
 				return ret;
 			}
 			goto retry;
@@ -373,7 +376,7 @@ retry:
 		if (b->valid_domains & NOUVEAU_GEM_DOMAIN_GART)
 			list_add_tail(&nvbo->entry, &op->gart_list);
 		else {
-			NV_ERROR(dev, "invalid valid domains: 0x%08x\n",
+			NV_ERROR(drm, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
 			list_add_tail(&nvbo->entry, &op->both_list);
 			validate_fini(op, NULL);
@@ -407,10 +410,9 @@ static int
 validate_list(struct nouveau_channel *chan, struct list_head *list,
 	      struct drm_nouveau_gem_pushbuf_bo *pbbo, uint64_t user_pbbo_ptr)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
+	struct nouveau_drm *drm = chan->drm;
 	struct drm_nouveau_gem_pushbuf_bo __user *upbbo =
 				(void __force __user *)(uintptr_t)user_pbbo_ptr;
-	struct drm_device *dev = chan->dev;
 	struct nouveau_bo *nvbo;
 	int ret, relocs = 0;
 
@@ -419,7 +421,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 
 		ret = validate_sync(chan, nvbo);
 		if (unlikely(ret)) {
-			NV_ERROR(dev, "fail pre-validate sync\n");
+			NV_ERROR(drm, "fail pre-validate sync\n");
 			return ret;
 		}
 
@@ -427,24 +429,24 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 					     b->write_domains,
 					     b->valid_domains);
 		if (unlikely(ret)) {
-			NV_ERROR(dev, "fail set_domain\n");
+			NV_ERROR(drm, "fail set_domain\n");
 			return ret;
 		}
 
 		ret = nouveau_bo_validate(nvbo, true, false, false);
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
-				NV_ERROR(dev, "fail ttm_validate\n");
+				NV_ERROR(drm, "fail ttm_validate\n");
 			return ret;
 		}
 
 		ret = validate_sync(chan, nvbo);
 		if (unlikely(ret)) {
-			NV_ERROR(dev, "fail post-validate sync\n");
+			NV_ERROR(drm, "fail post-validate sync\n");
 			return ret;
 		}
 
-		if (dev_priv->card_type < NV_50) {
+		if (nv_device(drm->device)->card_type < NV_50) {
 			if (nvbo->bo.offset == b->presumed.offset &&
 			    ((nvbo->bo.mem.mem_type == TTM_PL_VRAM &&
 			      b->presumed.domain & NOUVEAU_GEM_DOMAIN_VRAM) ||
@@ -476,7 +478,7 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 			     uint64_t user_buffers, int nr_buffers,
 			     struct validate_op *op, int *apply_relocs)
 {
-	struct drm_device *dev = chan->dev;
+	struct nouveau_drm *drm = chan->drm;
 	int ret, relocs = 0;
 
 	INIT_LIST_HEAD(&op->vram_list);
@@ -489,14 +491,14 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	ret = validate_init(chan, file_priv, pbbo, nr_buffers, op);
 	if (unlikely(ret)) {
 		if (ret != -ERESTARTSYS)
-			NV_ERROR(dev, "validate_init\n");
+			NV_ERROR(drm, "validate_init\n");
 		return ret;
 	}
 
 	ret = validate_list(chan, &op->vram_list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
-			NV_ERROR(dev, "validate vram_list\n");
+			NV_ERROR(drm, "validate vram_list\n");
 		validate_fini(op, NULL);
 		return ret;
 	}
@@ -505,7 +507,7 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	ret = validate_list(chan, &op->gart_list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
-			NV_ERROR(dev, "validate gart_list\n");
+			NV_ERROR(drm, "validate gart_list\n");
 		validate_fini(op, NULL);
 		return ret;
 	}
@@ -514,7 +516,7 @@ nouveau_gem_pushbuf_validate(struct nouveau_channel *chan,
 	ret = validate_list(chan, &op->both_list, pbbo, user_buffers);
 	if (unlikely(ret < 0)) {
 		if (ret != -ERESTARTSYS)
-			NV_ERROR(dev, "validate both_list\n");
+			NV_ERROR(drm, "validate both_list\n");
 		validate_fini(op, NULL);
 		return ret;
 	}
@@ -547,6 +549,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 				struct drm_nouveau_gem_pushbuf *req,
 				struct drm_nouveau_gem_pushbuf_bo *bo)
 {
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_nouveau_gem_pushbuf_reloc *reloc = NULL;
 	int ret = 0;
 	unsigned i;
@@ -562,7 +565,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 		uint32_t data;
 
 		if (unlikely(r->bo_index > req->nr_buffers)) {
-			NV_ERROR(dev, "reloc bo index invalid\n");
+			NV_ERROR(drm, "reloc bo index invalid\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -572,7 +575,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 			continue;
 
 		if (unlikely(r->reloc_bo_index > req->nr_buffers)) {
-			NV_ERROR(dev, "reloc container bo index invalid\n");
+			NV_ERROR(drm, "reloc container bo index invalid\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -580,7 +583,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 
 		if (unlikely(r->reloc_bo_offset + 4 >
 			     nvbo->bo.mem.num_pages << PAGE_SHIFT)) {
-			NV_ERROR(dev, "reloc outside of bo\n");
+			NV_ERROR(drm, "reloc outside of bo\n");
 			ret = -EINVAL;
 			break;
 		}
@@ -589,7 +592,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 			ret = ttm_bo_kmap(&nvbo->bo, 0, nvbo->bo.mem.num_pages,
 					  &nvbo->kmap);
 			if (ret) {
-				NV_ERROR(dev, "failed kmap for reloc\n");
+				NV_ERROR(drm, "failed kmap for reloc\n");
 				break;
 			}
 			nvbo->validate_mapped = true;
@@ -614,7 +617,7 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 		ret = ttm_bo_wait(&nvbo->bo, false, false, false);
 		spin_unlock(&nvbo->bo.bdev->fence_lock);
 		if (ret) {
-			NV_ERROR(dev, "reloc wait_idle failed: %d\n", ret);
+			NV_ERROR(drm, "reloc wait_idle failed: %d\n", ret);
 			break;
 		}
 
@@ -629,62 +632,67 @@ int
 nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
+	struct nouveau_abi16_chan *temp;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_nouveau_gem_pushbuf *req = data;
 	struct drm_nouveau_gem_pushbuf_push *push;
 	struct drm_nouveau_gem_pushbuf_bo *bo;
-	struct nouveau_channel *chan;
+	struct nouveau_channel *chan = NULL;
 	struct validate_op op;
 	struct nouveau_fence *fence = NULL;
 	int i, j, ret = 0, do_reloc = 0;
 
-	chan = nouveau_channel_get(file_priv, req->channel);
-	if (IS_ERR(chan))
-		return PTR_ERR(chan);
+	if (unlikely(!abi16))
+		return -ENOMEM;
 
-	req->vram_available = dev_priv->fb_aper_free;
-	req->gart_available = dev_priv->gart_info.aper_free;
+	list_for_each_entry(temp, &abi16->channels, head) {
+		if (temp->chan->handle == (NVDRM_CHAN | req->channel)) {
+			chan = temp->chan;
+			break;
+		}
+	}
+
+	if (!chan)
+		return nouveau_abi16_put(abi16, -ENOENT);
+
+	req->vram_available = drm->gem.vram_available;
+	req->gart_available = drm->gem.gart_available;
 	if (unlikely(req->nr_push == 0))
 		goto out_next;
 
 	if (unlikely(req->nr_push > NOUVEAU_GEM_MAX_PUSH)) {
-		NV_ERROR(dev, "pushbuf push count exceeds limit: %d max %d\n",
+		NV_ERROR(drm, "pushbuf push count exceeds limit: %d max %d\n",
 			 req->nr_push, NOUVEAU_GEM_MAX_PUSH);
-		nouveau_channel_put(&chan);
-		return -EINVAL;
+		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 
 	if (unlikely(req->nr_buffers > NOUVEAU_GEM_MAX_BUFFERS)) {
-		NV_ERROR(dev, "pushbuf bo count exceeds limit: %d max %d\n",
+		NV_ERROR(drm, "pushbuf bo count exceeds limit: %d max %d\n",
 			 req->nr_buffers, NOUVEAU_GEM_MAX_BUFFERS);
-		nouveau_channel_put(&chan);
-		return -EINVAL;
+		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 
 	if (unlikely(req->nr_relocs > NOUVEAU_GEM_MAX_RELOCS)) {
-		NV_ERROR(dev, "pushbuf reloc count exceeds limit: %d max %d\n",
+		NV_ERROR(drm, "pushbuf reloc count exceeds limit: %d max %d\n",
 			 req->nr_relocs, NOUVEAU_GEM_MAX_RELOCS);
-		nouveau_channel_put(&chan);
-		return -EINVAL;
+		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 
 	push = u_memcpya(req->push, req->nr_push, sizeof(*push));
-	if (IS_ERR(push)) {
-		nouveau_channel_put(&chan);
-		return PTR_ERR(push);
-	}
+	if (IS_ERR(push))
+		return nouveau_abi16_put(abi16, PTR_ERR(push));
 
 	bo = u_memcpya(req->buffers, req->nr_buffers, sizeof(*bo));
 	if (IS_ERR(bo)) {
 		kfree(push);
-		nouveau_channel_put(&chan);
-		return PTR_ERR(bo);
+		return nouveau_abi16_put(abi16, PTR_ERR(bo));
 	}
 
 	/* Ensure all push buffers are on validate list */
 	for (i = 0; i < req->nr_push; i++) {
 		if (push[i].bo_index >= req->nr_buffers) {
-			NV_ERROR(dev, "push %d buffer not in list\n", i);
+			NV_ERROR(drm, "push %d buffer not in list\n", i);
 			ret = -EINVAL;
 			goto out_prevalid;
 		}
@@ -695,7 +703,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 					   req->nr_buffers, &op, &do_reloc);
 	if (ret) {
 		if (ret != -ERESTARTSYS)
-			NV_ERROR(dev, "validate: %d\n", ret);
+			NV_ERROR(drm, "validate: %d\n", ret);
 		goto out_prevalid;
 	}
 
@@ -703,7 +711,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (do_reloc) {
 		ret = nouveau_gem_pushbuf_reloc_apply(dev, req, bo);
 		if (ret) {
-			NV_ERROR(dev, "reloc apply: %d\n", ret);
+			NV_ERROR(drm, "reloc apply: %d\n", ret);
 			goto out;
 		}
 	}
@@ -711,7 +719,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	if (chan->dma.ib_max) {
 		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
 		if (ret) {
-			NV_INFO(dev, "nv50cal_space: %d\n", ret);
+			NV_ERROR(drm, "nv50cal_space: %d\n", ret);
 			goto out;
 		}
 
@@ -723,36 +731,33 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 				      push[i].length);
 		}
 	} else
-	if (dev_priv->chipset >= 0x25) {
+	if (nv_device(drm->device)->chipset >= 0x25) {
 		ret = RING_SPACE(chan, req->nr_push * 2);
 		if (ret) {
-			NV_ERROR(dev, "cal_space: %d\n", ret);
+			NV_ERROR(drm, "cal_space: %d\n", ret);
 			goto out;
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
 			struct nouveau_bo *nvbo = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
-			struct drm_mm_node *mem = nvbo->bo.mem.mm_node;
 
-			OUT_RING(chan, ((mem->start << PAGE_SHIFT) +
-					push[i].offset) | 2);
+			OUT_RING(chan, (nvbo->bo.offset + push[i].offset) | 2);
 			OUT_RING(chan, 0);
 		}
 	} else {
 		ret = RING_SPACE(chan, req->nr_push * (2 + NOUVEAU_DMA_SKIPS));
 		if (ret) {
-			NV_ERROR(dev, "jmp_space: %d\n", ret);
+			NV_ERROR(drm, "jmp_space: %d\n", ret);
 			goto out;
 		}
 
 		for (i = 0; i < req->nr_push; i++) {
 			struct nouveau_bo *nvbo = (void *)(unsigned long)
 				bo[push[i].bo_index].user_priv;
-			struct drm_mm_node *mem = nvbo->bo.mem.mm_node;
 			uint32_t cmd;
 
-			cmd = chan->pushbuf_base + ((chan->dma.cur + 2) << 2);
+			cmd = chan->push.vma.offset + ((chan->dma.cur + 2) << 2);
 			cmd |= 0x20000000;
 			if (unlikely(cmd != req->suffix0)) {
 				if (!nvbo->kmap.virtual) {
@@ -771,8 +776,8 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 						push[i].length - 8) / 4, cmd);
 			}
 
-			OUT_RING(chan, ((mem->start << PAGE_SHIFT) +
-					push[i].offset) | 0x20000000);
+			OUT_RING(chan, 0x20000000 |
+				      (nvbo->bo.offset + push[i].offset));
 			OUT_RING(chan, 0);
 			for (j = 0; j < NOUVEAU_DMA_SKIPS; j++)
 				OUT_RING(chan, 0);
@@ -781,7 +786,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 
 	ret = nouveau_fence_new(chan, &fence);
 	if (ret) {
-		NV_ERROR(dev, "error fencing pushbuf: %d\n", ret);
+		NV_ERROR(drm, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
 		goto out;
 	}
@@ -799,17 +804,16 @@ out_next:
 		req->suffix0 = 0x00000000;
 		req->suffix1 = 0x00000000;
 	} else
-	if (dev_priv->chipset >= 0x25) {
+	if (nv_device(drm->device)->chipset >= 0x25) {
 		req->suffix0 = 0x00020000;
 		req->suffix1 = 0x00000000;
 	} else {
 		req->suffix0 = 0x20000000 |
-			      (chan->pushbuf_base + ((chan->dma.cur + 2) << 2));
+			      (chan->push.vma.offset + ((chan->dma.cur + 2) << 2));
 		req->suffix1 = 0x00000000;
 	}
 
-	nouveau_channel_put(&chan);
-	return ret;
+	return nouveau_abi16_put(abi16, ret);
 }
 
 static inline uint32_t

@@ -341,7 +341,7 @@ static const struct ide_port_ops ht6560b_port_ops = {
 	.set_pio_mode		= ht6560b_set_pio_mode,
 };
 
-static const struct ide_port_info ht6560b_port_info __initdata = {
+static const struct ide_port_info ht6560b_port_info __initconst = {
 	.name			= DRV_NAME,
 	.chipset		= ide_ht6560b,
 	.tp_ops 		= &ht6560b_tp_ops,

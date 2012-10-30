@@ -64,60 +64,77 @@ static void scan_delay_timer_fn(unsigned long data)
 	struct cmd_ctrl_node *cmd_node, *tmp_node;
 	unsigned long flags;
 
-	if (!mwifiex_wmm_lists_empty(adapter)) {
-		if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT) {
+	if (adapter->scan_delay_cnt == MWIFIEX_MAX_SCAN_DELAY_CNT) {
+		/*
+		 * Abort scan operation by cancelling all pending scan
+		 * commands
+		 */
+		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
+		list_for_each_entry_safe(cmd_node, tmp_node,
+					 &adapter->scan_pending_q, list) {
+			list_del(&cmd_node->list);
+			mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
+		}
+		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
+
+		spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
+		adapter->scan_processing = false;
+		adapter->scan_delay_cnt = 0;
+		adapter->empty_tx_q_cnt = 0;
+		spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock, flags);
+
+		if (priv->user_scan_cfg) {
+			dev_dbg(priv->adapter->dev,
+				"info: %s: scan aborted\n", __func__);
+			cfg80211_scan_done(priv->scan_request, 1);
+			priv->scan_request = NULL;
+			kfree(priv->user_scan_cfg);
+			priv->user_scan_cfg = NULL;
+		}
+
+		if (priv->scan_pending_on_block) {
+			priv->scan_pending_on_block = false;
+			up(&priv->async_sem);
+		}
+		goto done;
+	}
+
+	if (!atomic_read(&priv->adapter->is_tx_received)) {
+		adapter->empty_tx_q_cnt++;
+		if (adapter->empty_tx_q_cnt == MWIFIEX_MAX_EMPTY_TX_Q_CNT) {
 			/*
-			 * Abort scan operation by cancelling all pending scan
-			 * command
+			 * No Tx traffic for 200msec. Get scan command from
+			 * scan pending queue and put to cmd pending queue to
+			 * resume scan operation
 			 */
+			adapter->scan_delay_cnt = 0;
+			adapter->empty_tx_q_cnt = 0;
 			spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
-			list_for_each_entry_safe(cmd_node, tmp_node,
-						 &adapter->scan_pending_q,
-						 list) {
-				list_del(&cmd_node->list);
-				cmd_node->wait_q_enabled = false;
-				mwifiex_insert_cmd_to_free_q(adapter, cmd_node);
-			}
+			cmd_node = list_first_entry(&adapter->scan_pending_q,
+						    struct cmd_ctrl_node, list);
+			list_del(&cmd_node->list);
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
 
-			spin_lock_irqsave(&adapter->mwifiex_cmd_lock, flags);
-			adapter->scan_processing = false;
-			spin_unlock_irqrestore(&adapter->mwifiex_cmd_lock,
-					       flags);
-
-			if (priv->user_scan_cfg) {
-				dev_dbg(priv->adapter->dev,
-					"info: %s: scan aborted\n", __func__);
-				cfg80211_scan_done(priv->scan_request, 1);
-				priv->scan_request = NULL;
-				kfree(priv->user_scan_cfg);
-				priv->user_scan_cfg = NULL;
-			}
-		} else {
-			/*
-			 * Tx data queue is still not empty, delay scan
-			 * operation further by 20msec.
-			 */
-			mod_timer(&priv->scan_delay_timer, jiffies +
-				  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
-			adapter->scan_delay_cnt++;
+			mwifiex_insert_cmd_to_pending_q(adapter, cmd_node,
+							true);
+			queue_work(adapter->workqueue, &adapter->main_work);
+			goto done;
 		}
-		queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
 	} else {
-		/*
-		 * Tx data queue is empty. Get scan command from scan_pending_q
-		 * and put to cmd_pending_q to resume scan operation
-		 */
-		adapter->scan_delay_cnt = 0;
-		spin_lock_irqsave(&adapter->scan_pending_q_lock, flags);
-		cmd_node = list_first_entry(&adapter->scan_pending_q,
-					    struct cmd_ctrl_node, list);
-		list_del(&cmd_node->list);
-		spin_unlock_irqrestore(&adapter->scan_pending_q_lock, flags);
-
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+		adapter->empty_tx_q_cnt = 0;
 	}
+
+	/* Delay scan operation further by 20msec */
+	mod_timer(&priv->scan_delay_timer, jiffies +
+		  msecs_to_jiffies(MWIFIEX_SCAN_DELAY_MSEC));
+	adapter->scan_delay_cnt++;
+
+done:
+	if (atomic_read(&priv->adapter->is_tx_received))
+		atomic_set(&priv->adapter->is_tx_received, false);
+
+	return;
 }
 
 /*
@@ -127,7 +144,7 @@ static void scan_delay_timer_fn(unsigned long data)
  * Additionally, it also initializes all the locks and sets up all the
  * lists.
  */
-static int mwifiex_init_priv(struct mwifiex_private *priv)
+int mwifiex_init_priv(struct mwifiex_private *priv)
 {
 	u32 i;
 
@@ -196,6 +213,8 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->curr_bcn_size = 0;
 	priv->wps_ie = NULL;
 	priv->wps_ie_len = 0;
+	priv->ap_11n_enabled = 0;
+	memset(&priv->roc_cfg, 0, sizeof(priv->roc_cfg));
 
 	priv->scan_block = false;
 
@@ -345,6 +364,7 @@ static void mwifiex_init_adapter(struct mwifiex_adapter *adapter)
 	memset(&adapter->arp_filter, 0, sizeof(adapter->arp_filter));
 	adapter->arp_filter_size = 0;
 	adapter->max_mgmt_ie_index = MAX_MGMT_IE_INDEX;
+	adapter->empty_tx_q_cnt = 0;
 }
 
 /*
@@ -410,6 +430,7 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 				list_del(&priv->wmm.tid_tbl_ptr[j].ra_list);
 			list_del(&priv->tx_ba_stream_tbl_ptr);
 			list_del(&priv->rx_reorder_tbl_ptr);
+			list_del(&priv->sta_list);
 		}
 	}
 }
@@ -472,6 +493,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 			spin_lock_init(&priv->rx_pkt_lock);
 			spin_lock_init(&priv->wmm.ra_list_spinlock);
 			spin_lock_init(&priv->curr_bcn_buf_lock);
+			spin_lock_init(&priv->sta_list_spinlock);
 		}
 	}
 
@@ -504,6 +526,7 @@ int mwifiex_init_lock_list(struct mwifiex_adapter *adapter)
 		}
 		INIT_LIST_HEAD(&priv->tx_ba_stream_tbl_ptr);
 		INIT_LIST_HEAD(&priv->rx_reorder_tbl_ptr);
+		INIT_LIST_HEAD(&priv->sta_list);
 
 		spin_lock_init(&priv->tx_ba_stream_tbl_lock);
 		spin_lock_init(&priv->rx_reorder_tbl_lock);
@@ -623,6 +646,17 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 			*cur = (struct mwifiex_bss_prio_node *)head;
 		}
 	}
+}
+
+/*
+ * This function frees the private structure, including cleans
+ * up the TX and RX queues and frees the BSS priority tables.
+ */
+void mwifiex_free_priv(struct mwifiex_private *priv)
+{
+	mwifiex_clean_txrx(priv);
+	mwifiex_delete_bss_prio_tbl(priv);
+	mwifiex_free_curr_bcn(priv);
 }
 
 /*

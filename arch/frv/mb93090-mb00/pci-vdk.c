@@ -330,10 +330,8 @@ void __init pcibios_fixup_bus(struct pci_bus *bus)
 	pci_read_bridge_bases(bus);
 
 	if (bus->number == 0) {
-		struct list_head *ln;
 		struct pci_dev *dev;
-		for (ln=bus->devices.next; ln != &bus->devices; ln=ln->next) {
-			dev = pci_dev_b(ln);
+		list_for_each_entry(dev, &bus->devices, bus_list) {
 			if (dev->devfn == 0) {
 				dev->resource[0].start = 0;
 				dev->resource[0].end = 0;

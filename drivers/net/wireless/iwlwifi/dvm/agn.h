@@ -201,7 +201,9 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
 
 /* tx */
-int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
+int iwlagn_tx_skb(struct iwl_priv *priv,
+		  struct ieee80211_sta *sta,
+		  struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
@@ -485,15 +487,12 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
-void iwl_dbgfs_unregister(struct iwl_priv *priv);
+int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir);
 #else
-static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
+static inline int iwl_dbgfs_register(struct iwl_priv *priv,
+				     struct dentry *dbgfs_dir)
 {
 	return 0;
-}
-static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
-{
 }
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 

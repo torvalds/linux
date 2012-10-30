@@ -397,7 +397,6 @@ static ssize_t ib_ucm_event(struct ib_ucm_file *file,
 	struct ib_ucm_event_get cmd;
 	struct ib_ucm_event *uevent;
 	int result = 0;
-	DEFINE_WAIT(wait);
 
 	if (out_len < sizeof(struct ib_ucm_event_resp))
 		return -ENOSPC;

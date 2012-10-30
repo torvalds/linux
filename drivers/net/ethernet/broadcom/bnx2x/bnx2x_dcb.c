@@ -91,25 +91,21 @@ static void bnx2x_pfc_set(struct bnx2x *bp)
 	/*
 	 * Rx COS configuration
 	 * Changing PFC RX configuration .
-	 * In RX COS0 will always be configured to lossy and COS1 to lossless
+	 * In RX COS0 will always be configured to lossless and COS1 to lossy
 	 */
 	for (i = 0 ; i < MAX_PFC_PRIORITIES ; i++) {
 		pri_bit = 1 << i;
 
-		if (pri_bit & DCBX_PFC_PRI_PAUSE_MASK(bp))
+		if (!(pri_bit & DCBX_PFC_PRI_PAUSE_MASK(bp)))
 			val |= 1 << (i * 4);
 	}
 
 	pfc_params.pkt_priority_to_cos = val;
 
 	/* RX COS0 */
-	pfc_params.llfc_low_priority_classes = 0;
+	pfc_params.llfc_low_priority_classes = DCBX_PFC_PRI_PAUSE_MASK(bp);
 	/* RX COS1 */
-	pfc_params.llfc_high_priority_classes = DCBX_PFC_PRI_PAUSE_MASK(bp);
-
-	/* BRB configuration */
-	pfc_params.cos0_pauseable = false;
-	pfc_params.cos1_pauseable = true;
+	pfc_params.llfc_high_priority_classes = 0;
 
 	bnx2x_acquire_phy_lock(bp);
 	bp->link_params.feature_config_flags |= FEATURE_CONFIG_PFC_ENABLED;

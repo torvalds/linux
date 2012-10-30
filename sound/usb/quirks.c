@@ -761,3 +761,27 @@ void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 	}
 }
 
+void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
+{
+	/*
+	 * "Playback Design" products send bogus feedback data at the start
+	 * of the stream. Ignore them.
+	 */
+	if ((le16_to_cpu(ep->chip->dev->descriptor.idVendor) == 0x23ba) &&
+	    ep->type == SND_USB_ENDPOINT_TYPE_SYNC)
+		ep->skip_packets = 4;
+}
+
+void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
+			   __u8 request, __u8 requesttype, __u16 value,
+			   __u16 index, void *data, __u16 size)
+{
+	/*
+	 * "Playback Design" products need a 20ms delay after each
+	 * class compliant request
+	 */
+	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x23ba) &&
+	    (requesttype & USB_TYPE_MASK) == USB_TYPE_CLASS)
+		mdelay(20);
+}
+

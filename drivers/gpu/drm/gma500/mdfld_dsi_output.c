@@ -299,17 +299,8 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 		if (drm_connector_property_set_value(connector, property,
 									value))
 			goto set_prop_error;
-		else {
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-			struct backlight_device *psb_bd;
-
-			psb_bd = mdfld_get_backlight_device();
-			if (psb_bd) {
-				psb_bd->props.brightness = value;
-				mdfld_set_brightness(psb_bd);
-			}
-#endif
-		}
+		else
+			gma_backlight_set(encoder->dev, value);
 	}
 set_prop_done:
 	return 0;

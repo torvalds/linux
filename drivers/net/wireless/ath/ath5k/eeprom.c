@@ -1482,7 +1482,7 @@ ath5k_eeprom_read_target_rate_pwr_info(struct ath5k_hw *ah, unsigned int mode)
 	case AR5K_EEPROM_MODE_11A:
 		offset += AR5K_EEPROM_TARGET_PWR_OFF_11A(ee->ee_version);
 		rate_pcal_info = ee->ee_rate_tpwr_a;
-		ee->ee_rate_target_pwr_num[mode] = AR5K_EEPROM_N_5GHZ_CHAN;
+		ee->ee_rate_target_pwr_num[mode] = AR5K_EEPROM_N_5GHZ_RATE_CHAN;
 		break;
 	case AR5K_EEPROM_MODE_11B:
 		offset += AR5K_EEPROM_TARGET_PWR_OFF_11B(ee->ee_version);

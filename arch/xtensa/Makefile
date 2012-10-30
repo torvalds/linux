@@ -21,6 +21,18 @@ variant-$(CONFIG_XTENSA_VARIANT_LINUX_CUSTOM)	:= custom
 VARIANT = $(variant-y)
 export VARIANT
 
+# Test for cross compiling
+
+ifneq ($(VARIANT),)
+  COMPILE_ARCH = $(shell uname -m)
+
+  ifneq ($(COMPILE_ARCH), xtensa)
+    ifndef CROSS_COMPILE
+      CROSS_COMPILE = xtensa_$(VARIANT)-
+    endif
+  endif
+endif
+
 # Platform configuration
 
 platform-$(CONFIG_XTENSA_PLATFORM_XT2000)	:= xt2000
@@ -31,7 +43,7 @@ PLATFORM = $(platform-y)
 export PLATFORM
 
 # temporarily until string.h is fixed
-KBUILD_CFLAGS += -ffreestanding
+KBUILD_CFLAGS += -ffreestanding -D__linux__
 
 KBUILD_CFLAGS += -pipe -mlongcalls
 
@@ -47,24 +59,6 @@ KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(vardirs) $(plfdirs))
 endif
 
 KBUILD_DEFCONFIG := iss_defconfig
-
-# ramdisk/initrd support
-# You need a compressed ramdisk image, named ramdisk.gz in
-# arch/xtensa/boot/ramdisk
-
-core-$(CONFIG_EMBEDDED_RAMDISK)	+= arch/xtensa/boot/ramdisk/
-
-# Test for cross compiling
-
-ifneq ($(VARIANT),)
-  COMPILE_ARCH = $(shell uname -m)
-
-  ifneq ($(COMPILE_ARCH), xtensa)
-    ifndef CROSS_COMPILE
-      CROSS_COMPILE = xtensa_$(VARIANT)-
-    endif
-  endif
-endif
 
 # Only build variant and/or platform if it includes a Makefile
 
@@ -87,7 +81,7 @@ all: zImage
 
 bzImage : zImage
 
-zImage zImage.initrd: vmlinux
+zImage: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $@
 
 define archhelp

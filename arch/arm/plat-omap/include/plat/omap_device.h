@@ -60,6 +60,7 @@ extern struct dev_pm_domain omap_device_pm_domain;
  * @_dev_wakeup_lat_limit: dev wakeup latency limit in nsec - set by OMAP PM
  * @_state: one of OMAP_DEVICE_STATE_* (see above)
  * @flags: device flags
+ * @_driver_status: one of BUS_NOTIFY_*_DRIVER from <linux/device.h>
  *
  * Integrates omap_hwmod data into Linux platform_device.
  *
@@ -73,6 +74,7 @@ struct omap_device {
 	struct omap_device_pm_latency	*pm_lats;
 	u32				dev_wakeup_lat;
 	u32				_dev_wakeup_lat_limit;
+	unsigned long			_driver_status;
 	u8				pm_lats_cnt;
 	s8				pm_lat_level;
 	u8				hwmods_cnt;
@@ -118,6 +120,10 @@ int omap_device_get_context_loss_count(struct platform_device *pdev);
 
 /* Other */
 
+int omap_device_assert_hardreset(struct platform_device *pdev,
+				 const char *name);
+int omap_device_deassert_hardreset(struct platform_device *pdev,
+				 const char *name);
 int omap_device_idle_hwmods(struct omap_device *od);
 int omap_device_enable_hwmods(struct omap_device *od);
 

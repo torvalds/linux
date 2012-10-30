@@ -94,7 +94,7 @@ static const struct ide_port_ops cs5520_port_ops = {
 	.set_dma_mode		= cs5520_set_dma_mode,
 };
 
-static const struct ide_port_info cyrix_chipset __devinitdata = {
+static const struct ide_port_info cyrix_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.enablebits	= { { 0x60, 0x01, 0x01 }, { 0x60, 0x02, 0x02 } },
 	.port_ops	= &cs5520_port_ops,

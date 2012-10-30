@@ -28,6 +28,8 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/i2c/twl.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/twl4030-audio.h>
@@ -156,47 +158,70 @@ unsigned int twl4030_audio_get_mclk(void)
 }
 EXPORT_SYMBOL_GPL(twl4030_audio_get_mclk);
 
+static bool twl4030_audio_has_codec(struct twl4030_audio_data *pdata,
+			      struct device_node *node)
+{
+	if (pdata && pdata->codec)
+		return true;
+
+	if (of_find_node_by_name(node, "codec"))
+		return true;
+
+	return false;
+}
+
+static bool twl4030_audio_has_vibra(struct twl4030_audio_data *pdata,
+			      struct device_node *node)
+{
+	int vibra;
+
+	if (pdata && pdata->vibra)
+		return true;
+
+	if (!of_property_read_u32(node, "ti,enable-vibra", &vibra) && vibra)
+		return true;
+
+	return false;
+}
+
 static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 {
 	struct twl4030_audio *audio;
 	struct twl4030_audio_data *pdata = pdev->dev.platform_data;
+	struct device_node *node = pdev->dev.of_node;
 	struct mfd_cell *cell = NULL;
 	int ret, childs = 0;
 	u8 val;
 
-	if (!pdata) {
+	if (!pdata && !node) {
 		dev_err(&pdev->dev, "Platform data is missing\n");
 		return -EINVAL;
 	}
 
+	audio = devm_kzalloc(&pdev->dev, sizeof(struct twl4030_audio),
+			     GFP_KERNEL);
+	if (!audio)
+		return -ENOMEM;
+
+	mutex_init(&audio->mutex);
+	audio->audio_mclk = twl_get_hfclk_rate();
+
 	/* Configure APLL_INFREQ and disable APLL if enabled */
-	val = 0;
-	switch (pdata->audio_mclk) {
+	switch (audio->audio_mclk) {
 	case 19200000:
-		val |= TWL4030_APLL_INFREQ_19200KHZ;
+		val = TWL4030_APLL_INFREQ_19200KHZ;
 		break;
 	case 26000000:
-		val |= TWL4030_APLL_INFREQ_26000KHZ;
+		val = TWL4030_APLL_INFREQ_26000KHZ;
 		break;
 	case 38400000:
-		val |= TWL4030_APLL_INFREQ_38400KHZ;
+		val = TWL4030_APLL_INFREQ_38400KHZ;
 		break;
 	default:
 		dev_err(&pdev->dev, "Invalid audio_mclk\n");
 		return -EINVAL;
 	}
-	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
-					val, TWL4030_REG_APLL_CTL);
-
-	audio = kzalloc(sizeof(struct twl4030_audio), GFP_KERNEL);
-	if (!audio)
-		return -ENOMEM;
-
-	platform_set_drvdata(pdev, audio);
-
-	twl4030_audio_dev = pdev;
-	mutex_init(&audio->mutex);
-	audio->audio_mclk = pdata->audio_mclk;
+	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE, val, TWL4030_REG_APLL_CTL);
 
 	/* Codec power */
 	audio->resource[TWL4030_AUDIO_RES_POWER].reg = TWL4030_REG_CODEC_MODE;
@@ -206,62 +231,72 @@ static int __devinit twl4030_audio_probe(struct platform_device *pdev)
 	audio->resource[TWL4030_AUDIO_RES_APLL].reg = TWL4030_REG_APLL_CTL;
 	audio->resource[TWL4030_AUDIO_RES_APLL].mask = TWL4030_APLL_EN;
 
-	if (pdata->codec) {
+	if (twl4030_audio_has_codec(pdata, node)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-codec";
-		cell->platform_data = pdata->codec;
-		cell->pdata_size = sizeof(*pdata->codec);
+		if (pdata) {
+			cell->platform_data = pdata->codec;
+			cell->pdata_size = sizeof(*pdata->codec);
+		}
 		childs++;
 	}
-	if (pdata->vibra) {
+	if (twl4030_audio_has_vibra(pdata, node)) {
 		cell = &audio->cells[childs];
 		cell->name = "twl4030-vibra";
-		cell->platform_data = pdata->vibra;
-		cell->pdata_size = sizeof(*pdata->vibra);
+		if (pdata) {
+			cell->platform_data = pdata->vibra;
+			cell->pdata_size = sizeof(*pdata->vibra);
+		}
 		childs++;
 	}
 
+	platform_set_drvdata(pdev, audio);
+	twl4030_audio_dev = pdev;
+
 	if (childs)
 		ret = mfd_add_devices(&pdev->dev, pdev->id, audio->cells,
-				      childs, NULL, 0);
+				      childs, NULL, 0, NULL);
 	else {
 		dev_err(&pdev->dev, "No platform data found for childs\n");
 		ret = -ENODEV;
 	}
 
-	if (!ret)
-		return 0;
+	if (ret) {
+		platform_set_drvdata(pdev, NULL);
+		twl4030_audio_dev = NULL;
+	}
 
-	platform_set_drvdata(pdev, NULL);
-	kfree(audio);
-	twl4030_audio_dev = NULL;
 	return ret;
 }
 
 static int __devexit twl4030_audio_remove(struct platform_device *pdev)
 {
-	struct twl4030_audio *audio = platform_get_drvdata(pdev);
-
 	mfd_remove_devices(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(audio);
 	twl4030_audio_dev = NULL;
 
 	return 0;
 }
 
-MODULE_ALIAS("platform:twl4030-audio");
+static const struct of_device_id twl4030_audio_of_match[] = {
+	{.compatible = "ti,twl4030-audio", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, twl4030_audio_of_match);
 
 static struct platform_driver twl4030_audio_driver = {
-	.probe		= twl4030_audio_probe,
-	.remove		= __devexit_p(twl4030_audio_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "twl4030-audio",
+		.of_match_table = twl4030_audio_of_match,
 	},
+	.probe		= twl4030_audio_probe,
+	.remove		= __devexit_p(twl4030_audio_remove),
 };
 
 module_platform_driver(twl4030_audio_driver);
 
 MODULE_AUTHOR("Peter Ujfalusi <peter.ujfalusi@ti.com>");
+MODULE_DESCRIPTION("TWL4030 audio block MFD driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:twl4030-audio");

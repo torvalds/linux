@@ -42,12 +42,6 @@ enum isp_interface_type {
 };
 
 enum {
-	ISP_BRIDGE_DISABLE = 0,
-	ISP_BRIDGE_LITTLE_ENDIAN = 2,
-	ISP_BRIDGE_BIG_ENDIAN = 3,
-};
-
-enum {
 	ISP_LANE_SHIFT_0 = 0,
 	ISP_LANE_SHIFT_2 = 1,
 	ISP_LANE_SHIFT_4 = 2,
@@ -67,17 +61,15 @@ enum {
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity
  *		0 - Active high, 1 - Active low
- * @bridge: CCDC Bridge input control
- *		ISP_BRIDGE_DISABLE - Disable
- *		ISP_BRIDGE_LITTLE_ENDIAN - Little endian
- *		ISP_BRIDGE_BIG_ENDIAN - Big endian
+ * @data_pol: Data polarity
+ *		0 - Normal, 1 - One's complement
  */
 struct isp_parallel_platform_data {
 	unsigned int data_lane_shift:2;
 	unsigned int clk_pol:1;
 	unsigned int hs_pol:1;
 	unsigned int vs_pol:1;
-	unsigned int bridge:2;
+	unsigned int data_pol:1;
 };
 
 enum {

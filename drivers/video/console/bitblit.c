@@ -162,7 +162,7 @@ static void bit_putcs(struct vc_data *vc, struct fb_info *info,
 	image.depth = 1;
 
 	if (attribute) {
-		buf = kmalloc(cellsize, GFP_KERNEL);
+		buf = kmalloc(cellsize, GFP_ATOMIC);
 		if (!buf)
 			return;
 	}

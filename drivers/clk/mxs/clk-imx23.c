@@ -14,6 +14,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <mach/common.h>
 #include <mach/mx23.h>
 #include "clk.h"
@@ -71,44 +72,6 @@ static void __init clk_misc_init(void)
 	__mxs_setl(30 << BP_FRAC_IOFRAC, FRAC);
 }
 
-static struct clk_lookup uart_lookups[] = {
-	{ .dev_id = "duart", },
-	{ .dev_id = "mxs-auart.0", },
-	{ .dev_id = "mxs-auart.1", },
-	{ .dev_id = "8006c000.serial", },
-	{ .dev_id = "8006e000.serial", },
-	{ .dev_id = "80070000.serial", },
-};
-
-static struct clk_lookup hbus_lookups[] = {
-	{ .dev_id = "imx23-dma-apbh", },
-	{ .dev_id = "80004000.dma-apbh", },
-};
-
-static struct clk_lookup xbus_lookups[] = {
-	{ .dev_id = "duart", .con_id = "apb_pclk"},
-	{ .dev_id = "80070000.serial", .con_id = "apb_pclk"},
-	{ .dev_id = "imx23-dma-apbx", },
-	{ .dev_id = "80024000.dma-apbx", },
-};
-
-static struct clk_lookup ssp_lookups[] = {
-	{ .dev_id = "imx23-mmc.0", },
-	{ .dev_id = "imx23-mmc.1", },
-	{ .dev_id = "80010000.ssp", },
-	{ .dev_id = "80034000.ssp", },
-};
-
-static struct clk_lookup lcdif_lookups[] = {
-	{ .dev_id = "imx23-fb", },
-	{ .dev_id = "80030000.lcdif", },
-};
-
-static struct clk_lookup gpmi_lookups[] = {
-	{ .dev_id = "imx23-gpmi-nand", },
-	{ .dev_id = "8000c000.gpmi-nand", },
-};
-
 static const char *sel_pll[]  __initconst = { "pll", "ref_xtal", };
 static const char *sel_cpu[]  __initconst = { "ref_cpu", "ref_xtal", };
 static const char *sel_pix[]  __initconst = { "ref_pix", "ref_xtal", };
@@ -127,6 +90,7 @@ enum imx23_clk {
 };
 
 static struct clk *clks[clk_max];
+static struct clk_onecell_data clk_data;
 
 static enum imx23_clk clks_init_on[] __initdata = {
 	cpu, hbus, xbus, emi, uart,
@@ -134,6 +98,7 @@ static enum imx23_clk clks_init_on[] __initdata = {
 
 int __init mx23_clocks_init(void)
 {
+	struct device_node *np;
 	int i;
 
 	clk_misc_init();
@@ -188,19 +153,19 @@ int __init mx23_clocks_init(void)
 			return PTR_ERR(clks[i]);
 		}
 
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
+	if (np) {
+		clk_data.clks = clks;
+		clk_data.clk_num = ARRAY_SIZE(clks);
+		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	}
+
 	clk_register_clkdev(clks[clk32k], NULL, "timrot");
-	clk_register_clkdev(clks[pwm], NULL, "80064000.pwm");
-	clk_register_clkdevs(clks[hbus], hbus_lookups, ARRAY_SIZE(hbus_lookups));
-	clk_register_clkdevs(clks[xbus], xbus_lookups, ARRAY_SIZE(xbus_lookups));
-	clk_register_clkdevs(clks[uart], uart_lookups, ARRAY_SIZE(uart_lookups));
-	clk_register_clkdevs(clks[ssp], ssp_lookups, ARRAY_SIZE(ssp_lookups));
-	clk_register_clkdevs(clks[gpmi], gpmi_lookups, ARRAY_SIZE(gpmi_lookups));
-	clk_register_clkdevs(clks[lcdif], lcdif_lookups, ARRAY_SIZE(lcdif_lookups));
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
 
-	mxs_timer_init(MX23_INT_TIMER0);
+	mxs_timer_init();
 
 	return 0;
 }

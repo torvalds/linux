@@ -29,12 +29,11 @@
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
+#include <linux/platform_data/clk-realview.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/leds.h>
 #include <asm/mach-types.h>
-#include <asm/pmu.h>
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -280,7 +279,7 @@ static struct resource pmu_resource = {
 
 static struct platform_device pmu_device = {
 	.name			= "arm-pmu",
-	.id			= ARM_PMU_DEVICE_CPU,
+	.id			= -1,
 	.num_resources		= 1,
 	.resource		= &pmu_resource,
 };
@@ -326,6 +325,7 @@ static void __init realview_pb1176_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PB1176_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PB1176_TIMER2_3_BASE) + 0x20;
 
+	realview_clk_init(__io_address(REALVIEW_SYS_BASE), true);
 	realview_timer_init(IRQ_DC1176_TIMER0);
 }
 
@@ -375,10 +375,6 @@ static void __init realview_pb1176_init(void)
 		struct amba_device *d = amba_devs[i];
 		amba_device_register(d, &iomem_resource);
 	}
-
-#ifdef CONFIG_LEDS
-	leds_event = realview_leds_event;
-#endif
 }
 
 MACHINE_START(REALVIEW_PB1176, "ARM-RealView PB1176")

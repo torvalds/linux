@@ -25,41 +25,41 @@
 /*
  *	Define the 5249 SIM register set addresses.
  */
-#define	MCFSIM_RSR		0x00		/* Reset Status reg (r/w) */
-#define	MCFSIM_SYPCR		0x01		/* System Protection reg (r/w)*/
-#define	MCFSIM_SWIVR		0x02		/* SW Watchdog intr reg (r/w) */
-#define	MCFSIM_SWSR		0x03		/* SW Watchdog service (r/w) */
-#define	MCFSIM_PAR		0x04		/* Pin Assignment reg (r/w) */
-#define	MCFSIM_IRQPAR		0x06		/* Interrupt Assignment reg (r/w) */
-#define	MCFSIM_MPARK		0x0C		/* BUS Master Control Reg*/
-#define	MCFSIM_IPR		0x40		/* Interrupt Pend reg (r/w) */
-#define	MCFSIM_IMR		0x44		/* Interrupt Mask reg (r/w) */
-#define	MCFSIM_AVR		0x4b		/* Autovector Ctrl reg (r/w) */
-#define	MCFSIM_ICR0		0x4c		/* Intr Ctrl reg 0 (r/w) */
-#define	MCFSIM_ICR1		0x4d		/* Intr Ctrl reg 1 (r/w) */
-#define	MCFSIM_ICR2		0x4e		/* Intr Ctrl reg 2 (r/w) */
-#define	MCFSIM_ICR3		0x4f		/* Intr Ctrl reg 3 (r/w) */
-#define	MCFSIM_ICR4		0x50		/* Intr Ctrl reg 4 (r/w) */
-#define	MCFSIM_ICR5		0x51		/* Intr Ctrl reg 5 (r/w) */
-#define	MCFSIM_ICR6		0x52		/* Intr Ctrl reg 6 (r/w) */
-#define	MCFSIM_ICR7		0x53		/* Intr Ctrl reg 7 (r/w) */
-#define	MCFSIM_ICR8		0x54		/* Intr Ctrl reg 8 (r/w) */
-#define	MCFSIM_ICR9		0x55		/* Intr Ctrl reg 9 (r/w) */
-#define	MCFSIM_ICR10		0x56		/* Intr Ctrl reg 10 (r/w) */
-#define	MCFSIM_ICR11		0x57		/* Intr Ctrl reg 11 (r/w) */
+#define	MCFSIM_RSR		(MCF_MBAR + 0x00)	/* Reset Status */
+#define	MCFSIM_SYPCR		(MCF_MBAR + 0x01)	/* System Protection */
+#define	MCFSIM_SWIVR		(MCF_MBAR + 0x02)	/* SW Watchdog intr */
+#define	MCFSIM_SWSR		(MCF_MBAR + 0x03)	/* SW Watchdog srv */
+#define	MCFSIM_PAR		(MCF_MBAR + 0x04)	/* Pin Assignment */
+#define	MCFSIM_IRQPAR		(MCF_MBAR + 0x06)	/* Intr Assignment */
+#define	MCFSIM_MPARK		(MCF_MBAR + 0x0C)	/* BUS Master Ctrl */
+#define	MCFSIM_IPR		(MCF_MBAR + 0x40)	/* Interrupt Pending */
+#define	MCFSIM_IMR		(MCF_MBAR + 0x44)	/* Interrupt Mask */
+#define	MCFSIM_AVR		(MCF_MBAR + 0x4b)	/* Autovector Ctrl */
+#define	MCFSIM_ICR0		(MCF_MBAR + 0x4c)	/* Intr Ctrl reg 0 */
+#define	MCFSIM_ICR1		(MCF_MBAR + 0x4d)	/* Intr Ctrl reg 1 */
+#define	MCFSIM_ICR2		(MCF_MBAR + 0x4e)	/* Intr Ctrl reg 2 */
+#define	MCFSIM_ICR3		(MCF_MBAR + 0x4f)	/* Intr Ctrl reg 3 */
+#define	MCFSIM_ICR4		(MCF_MBAR + 0x50)	/* Intr Ctrl reg 4 */
+#define	MCFSIM_ICR5		(MCF_MBAR + 0x51)	/* Intr Ctrl reg 5 */
+#define	MCFSIM_ICR6		(MCF_MBAR + 0x52)	/* Intr Ctrl reg 6 */
+#define	MCFSIM_ICR7		(MCF_MBAR + 0x53)	/* Intr Ctrl reg 7 */
+#define	MCFSIM_ICR8		(MCF_MBAR + 0x54)	/* Intr Ctrl reg 8 */
+#define	MCFSIM_ICR9		(MCF_MBAR + 0x55)	/* Intr Ctrl reg 9 */
+#define	MCFSIM_ICR10		(MCF_MBAR + 0x56)	/* Intr Ctrl reg 10 */
+#define	MCFSIM_ICR11		(MCF_MBAR + 0x57)	/* Intr Ctrl reg 11 */
 
-#define MCFSIM_CSAR0		0x80		/* CS 0 Address 0 reg (r/w) */
-#define MCFSIM_CSMR0		0x84		/* CS 0 Mask 0 reg (r/w) */
-#define MCFSIM_CSCR0		0x8a		/* CS 0 Control reg (r/w) */
-#define MCFSIM_CSAR1		0x8c		/* CS 1 Address reg (r/w) */
-#define MCFSIM_CSMR1		0x90		/* CS 1 Mask reg (r/w) */
-#define MCFSIM_CSCR1		0x96		/* CS 1 Control reg (r/w) */
-#define MCFSIM_CSAR2		0x98		/* CS 2 Address reg (r/w) */
-#define MCFSIM_CSMR2		0x9c		/* CS 2 Mask reg (r/w) */
-#define MCFSIM_CSCR2		0xa2		/* CS 2 Control reg (r/w) */
-#define MCFSIM_CSAR3		0xa4		/* CS 3 Address reg (r/w) */
-#define MCFSIM_CSMR3		0xa8		/* CS 3 Mask reg (r/w) */
-#define MCFSIM_CSCR3		0xae		/* CS 3 Control reg (r/w) */
+#define	MCFSIM_CSAR0		(MCF_MBAR + 0x80)	/* CS 0 Address reg */
+#define	MCFSIM_CSMR0		(MCF_MBAR + 0x84)	/* CS 0 Mask reg */
+#define	MCFSIM_CSCR0		(MCF_MBAR + 0x8a)	/* CS 0 Control reg */
+#define	MCFSIM_CSAR1		(MCF_MBAR + 0x8c)	/* CS 1 Address reg */
+#define	MCFSIM_CSMR1		(MCF_MBAR + 0x90)	/* CS 1 Mask reg */
+#define	MCFSIM_CSCR1		(MCF_MBAR + 0x96)	/* CS 1 Control reg */
+#define	MCFSIM_CSAR2		(MCF_MBAR + 0x98)	/* CS 2 Address reg */
+#define	MCFSIM_CSMR2		(MCF_MBAR + 0x9c)	/* CS 2 Mask reg */
+#define	MCFSIM_CSCR2		(MCF_MBAR + 0xa2)	/* CS 2 Control reg */
+#define	MCFSIM_CSAR3		(MCF_MBAR + 0xa4)	/* CS 3 Address reg */
+#define	MCFSIM_CSMR3		(MCF_MBAR + 0xa8)	/* CS 3 Mask reg */
+#define	MCFSIM_CSCR3		(MCF_MBAR + 0xae)	/* CS 3 Control reg */
 
 #define MCFSIM_DCR		(MCF_MBAR + 0x100)	/* DRAM Control */
 #define MCFSIM_DACR0		(MCF_MBAR + 0x108)	/* DRAM 0 Addr/Ctrl */
@@ -134,23 +134,23 @@
 #define	MCFSIM2_GPIO1ENABLE	(MCF_MBAR2 + 0x0B8)	/* GPIO1 enabled */
 #define	MCFSIM2_GPIO1FUNC	(MCF_MBAR2 + 0x0BC)	/* GPIO1 function */
 
-#define	MCFSIM2_GPIOINTSTAT	0xc0		/* GPIO interrupt status */
-#define	MCFSIM2_GPIOINTCLEAR	0xc0		/* GPIO interrupt clear */
-#define	MCFSIM2_GPIOINTENABLE	0xc4		/* GPIO interrupt enable */
+#define	MCFSIM2_GPIOINTSTAT	(MCF_MBAR2 + 0xc0)	/* GPIO intr status */
+#define	MCFSIM2_GPIOINTCLEAR	(MCF_MBAR2 + 0xc0)	/* GPIO intr clear */
+#define	MCFSIM2_GPIOINTENABLE	(MCF_MBAR2 + 0xc4)	/* GPIO intr enable */
 
-#define	MCFSIM2_INTLEVEL1	0x140		/* Interrupt level reg 1 */
-#define	MCFSIM2_INTLEVEL2	0x144		/* Interrupt level reg 2 */
-#define	MCFSIM2_INTLEVEL3	0x148		/* Interrupt level reg 3 */
-#define	MCFSIM2_INTLEVEL4	0x14c		/* Interrupt level reg 4 */
-#define	MCFSIM2_INTLEVEL5	0x150		/* Interrupt level reg 5 */
-#define	MCFSIM2_INTLEVEL6	0x154		/* Interrupt level reg 6 */
-#define	MCFSIM2_INTLEVEL7	0x158		/* Interrupt level reg 7 */
-#define	MCFSIM2_INTLEVEL8	0x15c		/* Interrupt level reg 8 */
+#define	MCFSIM2_INTLEVEL1	(MCF_MBAR2 + 0x140)	/* Intr level reg 1 */
+#define	MCFSIM2_INTLEVEL2	(MCF_MBAR2 + 0x144)	/* Intr level reg 2 */
+#define	MCFSIM2_INTLEVEL3	(MCF_MBAR2 + 0x148)	/* Intr level reg 3 */
+#define	MCFSIM2_INTLEVEL4	(MCF_MBAR2 + 0x14c)	/* Intr level reg 4 */
+#define	MCFSIM2_INTLEVEL5	(MCF_MBAR2 + 0x150)	/* Intr level reg 5 */
+#define	MCFSIM2_INTLEVEL6	(MCF_MBAR2 + 0x154)	/* Intr level reg 6 */
+#define	MCFSIM2_INTLEVEL7	(MCF_MBAR2 + 0x158)	/* Intr level reg 7 */
+#define	MCFSIM2_INTLEVEL8	(MCF_MBAR2 + 0x15c)	/* Intr level reg 8 */
 
-#define	MCFSIM2_DMAROUTE	0x188		/* DMA routing */
+#define	MCFSIM2_DMAROUTE	(MCF_MBAR2 + 0x188)	/* DMA routing */
 
-#define	MCFSIM2_IDECONFIG1	0x18c		/* IDEconfig1 */
-#define	MCFSIM2_IDECONFIG2	0x190		/* IDEconfig2 */
+#define	MCFSIM2_IDECONFIG1	(MCF_MBAR2 + 0x18c)	/* IDEconfig1 */
+#define	MCFSIM2_IDECONFIG2	(MCF_MBAR2 + 0x190)	/* IDEconfig2 */
 
 /*
  * Define the base interrupt for the second interrupt controller.

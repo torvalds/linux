@@ -124,6 +124,9 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	const struct fw_img *img;
 	size_t bufsz;
 
+	if (!iwl_is_ready_rf(priv))
+		return -EAGAIN;
+
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
 		priv->dbgfs_sram_offset = 0x800000;
@@ -2349,24 +2352,19 @@ DEBUGFS_READ_WRITE_FILE_OPS(calib_disabled);
  * Create the debugfs files and directories
  *
  */
-int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
+int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 {
-	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
-	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_debug;
+	struct dentry *dir_data, *dir_rf, *dir_debug;
 
-	dir_drv = debugfs_create_dir(name, phyd);
-	if (!dir_drv)
-		return -ENOMEM;
+	priv->debugfs_dir = dbgfs_dir;
 
-	priv->debugfs_dir = dir_drv;
-
-	dir_data = debugfs_create_dir("data", dir_drv);
+	dir_data = debugfs_create_dir("data", dbgfs_dir);
 	if (!dir_data)
 		goto err;
-	dir_rf = debugfs_create_dir("rf", dir_drv);
+	dir_rf = debugfs_create_dir("rf", dbgfs_dir);
 	if (!dir_rf)
 		goto err;
-	dir_debug = debugfs_create_dir("debug", dir_drv);
+	dir_debug = debugfs_create_dir("debug", dbgfs_dir);
 	if (!dir_debug)
 		goto err;
 
@@ -2412,25 +2410,30 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	/* Calibrations disabled/enabled status*/
 	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IWUSR | S_IRUSR);
 
-	if (iwl_trans_dbgfs_register(priv->trans, dir_debug))
-		goto err;
+	/*
+	 * Create a symlink with mac80211. This is not very robust, as it does
+	 * not remove the symlink created. The implicit assumption is that
+	 * when the opmode exits, mac80211 will also exit, and will remove
+	 * this symlink as part of its cleanup.
+	 */
+	if (priv->mac80211_registered) {
+		char buf[100];
+		struct dentry *mac80211_dir, *dev_dir, *root_dir;
+
+		dev_dir = dbgfs_dir->d_parent;
+		root_dir = dev_dir->d_parent;
+		mac80211_dir = priv->hw->wiphy->debugfsdir;
+
+		snprintf(buf, 100, "../../%s/%s", root_dir->d_name.name,
+			 dev_dir->d_name.name);
+
+		if (!debugfs_create_symlink("iwlwifi", mac80211_dir, buf))
+			goto err;
+	}
+
 	return 0;
 
 err:
-	IWL_ERR(priv, "Can't create the debugfs directory\n");
-	iwl_dbgfs_unregister(priv);
+	IWL_ERR(priv, "failed to create the dvm debugfs entries\n");
 	return -ENOMEM;
-}
-
-/**
- * Remove the debugfs files and directories
- *
- */
-void iwl_dbgfs_unregister(struct iwl_priv *priv)
-{
-	if (!priv->debugfs_dir)
-		return;
-
-	debugfs_remove_recursive(priv->debugfs_dir);
-	priv->debugfs_dir = NULL;
 }

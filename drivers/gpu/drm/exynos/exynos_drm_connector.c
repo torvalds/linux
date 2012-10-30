@@ -25,8 +25,8 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "drmP.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include <drm/exynos_drm.h>
 #include "exynos_drm_drv.h"
@@ -40,6 +40,7 @@ struct exynos_drm_connector {
 	struct drm_connector	drm_connector;
 	uint32_t		encoder_id;
 	struct exynos_drm_manager *manager;
+	uint32_t		dpms;
 };
 
 /* convert exynos_video_timings to drm_display_mode */
@@ -147,12 +148,14 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 
 		drm_mode_connector_update_edid_property(connector, edid);
 		count = drm_add_edid_modes(connector, edid);
-
-		kfree(connector->display_info.raw_edid);
-		connector->display_info.raw_edid = edid;
+		kfree(edid);
 	} else {
-		struct drm_display_mode *mode = drm_mode_create(connector->dev);
 		struct exynos_drm_panel_info *panel;
+		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		if (!mode) {
+			DRM_ERROR("failed to create a new display mode.\n");
+			return 0;
+		}
 
 		if (display_ops->get_panel)
 			panel = display_ops->get_panel(manager->dev);
@@ -196,8 +199,7 @@ static int exynos_drm_connector_mode_valid(struct drm_connector *connector,
 	return ret;
 }
 
-static struct drm_encoder *exynos_drm_best_encoder(
-						struct drm_connector *connector)
+struct drm_encoder *exynos_drm_best_encoder(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct exynos_drm_connector *exynos_connector =
@@ -225,6 +227,43 @@ static struct drm_connector_helper_funcs exynos_connector_helper_funcs = {
 	.mode_valid	= exynos_drm_connector_mode_valid,
 	.best_encoder	= exynos_drm_best_encoder,
 };
+
+void exynos_drm_display_power(struct drm_connector *connector, int mode)
+{
+	struct drm_encoder *encoder = exynos_drm_best_encoder(connector);
+	struct exynos_drm_connector *exynos_connector;
+	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
+	struct exynos_drm_display_ops *display_ops = manager->display_ops;
+
+	exynos_connector = to_exynos_connector(connector);
+
+	if (exynos_connector->dpms == mode) {
+		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
+		return;
+	}
+
+	if (display_ops && display_ops->power_on)
+		display_ops->power_on(manager->dev, mode);
+
+	exynos_connector->dpms = mode;
+}
+
+static void exynos_drm_connector_dpms(struct drm_connector *connector,
+					int mode)
+{
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/*
+	 * in case that drm_crtc_helper_set_mode() is called,
+	 * encoder/crtc->funcs->dpms() will be just returned
+	 * because they already were DRM_MODE_DPMS_ON so only
+	 * exynos_drm_display_power() will be called.
+	 */
+	drm_helper_connector_dpms(connector, mode);
+
+	exynos_drm_display_power(connector, mode);
+
+}
 
 static int exynos_drm_connector_fill_modes(struct drm_connector *connector,
 				unsigned int max_width, unsigned int max_height)
@@ -285,7 +324,7 @@ static void exynos_drm_connector_destroy(struct drm_connector *connector)
 }
 
 static struct drm_connector_funcs exynos_connector_funcs = {
-	.dpms		= drm_helper_connector_dpms,
+	.dpms		= exynos_drm_connector_dpms,
 	.fill_modes	= exynos_drm_connector_fill_modes,
 	.detect		= exynos_drm_connector_detect,
 	.destroy	= exynos_drm_connector_destroy,
@@ -334,6 +373,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 
 	exynos_connector->encoder_id = encoder->base.id;
 	exynos_connector->manager = manager;
+	exynos_connector->dpms = DRM_MODE_DPMS_OFF;
 	connector->encoder = encoder;
 
 	err = drm_mode_connector_attach_encoder(connector, encoder);

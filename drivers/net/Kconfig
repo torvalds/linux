@@ -107,8 +107,6 @@ config MII
 	  or internal device.  It is safe to say Y or M here even if your
 	  ethernet card lacks MII.
 
-source "drivers/ieee802154/Kconfig"
-
 config IFB
 	tristate "Intermediate Functional Block support"
 	depends on NET_CLS_ACT
@@ -150,6 +148,19 @@ config MACVTAP
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvtap.
+
+config VXLAN
+       tristate "Virtual eXtensible Local Area Network (VXLAN)"
+       depends on EXPERIMENTAL && INET
+       ---help---
+	  This allows one to create vxlan virtual interfaces that provide
+	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
+	  to tunnel virtual network infrastructure in virtualized environments.
+	  For more information see:
+	    http://tools.ietf.org/html/draft-mahalingam-dutt-dcops-vxlan-02
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called vxlan.
 
 config NETCONSOLE
 	tristate "Network console logging support"
@@ -289,6 +300,8 @@ source "drivers/net/wireless/Kconfig"
 source "drivers/net/wimax/Kconfig"
 
 source "drivers/net/wan/Kconfig"
+
+source "drivers/net/ieee802154/Kconfig"
 
 config XEN_NETDEV_FRONTEND
 	tristate "Xen network device frontend driver"

@@ -28,6 +28,7 @@
 #include <asm/mach-types.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
@@ -38,15 +39,14 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
-#include <plat/ts.h>
-#include <plat/ata.h>
-#include <plat/iic.h>
+#include <linux/platform_data/touchscreen-s3c2410.h>
+#include <linux/platform_data/ata-samsung_cf.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/keypad.h>
 #include <plat/pm.h>
 #include <plat/fb.h>
 #include <plat/s5p-time.h>
 #include <plat/backlight.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/mfc.h>
 #include <plat/clock.h>
 

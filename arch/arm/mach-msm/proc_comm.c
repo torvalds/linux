@@ -19,7 +19,6 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <mach/msm_iomap.h>
-#include <mach/system.h>
 
 #include "proc_comm.h"
 

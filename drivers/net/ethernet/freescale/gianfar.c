@@ -100,7 +100,6 @@
 #include <linux/of_net.h>
 
 #include "gianfar.h"
-#include "fsl_pq_mdio.h"
 
 #define TX_TIMEOUT      (1*HZ)
 
@@ -395,7 +394,13 @@ static void gfar_init_mac(struct net_device *ndev)
 	if (ndev->features & NETIF_F_IP_CSUM)
 		tctrl |= TCTRL_INIT_CSUM;
 
-	tctrl |= TCTRL_TXSCHED_PRIO;
+	if (priv->prio_sched_en)
+		tctrl |= TCTRL_TXSCHED_PRIO;
+	else {
+		tctrl |= TCTRL_TXSCHED_WRRS;
+		gfar_write(&regs->tr03wt, DEFAULT_WRRS_WEIGHT);
+		gfar_write(&regs->tr47wt, DEFAULT_WRRS_WEIGHT);
+	}
 
 	gfar_write(&regs->tctrl, tctrl);
 
@@ -1041,7 +1046,7 @@ static int gfar_probe(struct platform_device *ofdev)
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_VLAN) {
 		dev->hw_features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+		dev->features |= NETIF_F_HW_VLAN_RX;
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {
@@ -1161,6 +1166,9 @@ static int gfar_probe(struct platform_device *ofdev)
 	priv->rx_filer_enable = 1;
 	/* Enable most messages by default */
 	priv->msg_enable = (NETIF_MSG_IFUP << 1 ) - 1;
+	/* use pritority h/w tx queue scheduling for single queue devices */
+	if (priv->num_tx_queues == 1)
+		priv->prio_sched_en = 1;
 
 	/* Carrier starts down, phylib will bring it up */
 	netif_carrier_off(dev);
@@ -1757,7 +1765,6 @@ static void free_skb_resources(struct gfar_private *priv)
 			  sizeof(struct rxbd8) * priv->total_rx_ring_size,
 			  priv->tx_queue[0]->tx_bd_base,
 			  priv->tx_queue[0]->tx_bd_dma_base);
-	skb_queue_purge(&priv->rx_recycle);
 }
 
 void gfar_start(struct net_device *dev)
@@ -1934,8 +1941,6 @@ static int gfar_enet_open(struct net_device *dev)
 	int err;
 
 	enable_napi(priv);
-
-	skb_queue_head_init(&priv->rx_recycle);
 
 	/* Initialize a bunch of registers */
 	init_registers(dev);
@@ -2525,16 +2530,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		bytes_sent += skb->len;
 
-		/* If there's room in the queue (limit it to rx_buffer_size)
-		 * we add this skb back into the pool, if it's the right size
-		 */
-		if (skb_queue_len(&priv->rx_recycle) < rx_queue->rx_ring_size &&
-		    skb_recycle_check(skb, priv->rx_buffer_size +
-				      RXBUF_ALIGNMENT)) {
-			gfar_align_skb(skb);
-			skb_queue_head(&priv->rx_recycle, skb);
-		} else
-			dev_kfree_skb_any(skb);
+		dev_kfree_skb_any(skb);
 
 		tx_queue->tx_skbuff[skb_dirtytx] = NULL;
 
@@ -2600,7 +2596,7 @@ static void gfar_new_rxbdp(struct gfar_priv_rx_q *rx_queue, struct rxbd8 *bdp,
 static struct sk_buff *gfar_alloc_skb(struct net_device *dev)
 {
 	struct gfar_private *priv = netdev_priv(dev);
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
 	skb = netdev_alloc_skb(dev, priv->rx_buffer_size + RXBUF_ALIGNMENT);
 	if (!skb)
@@ -2613,14 +2609,7 @@ static struct sk_buff *gfar_alloc_skb(struct net_device *dev)
 
 struct sk_buff *gfar_new_skb(struct net_device *dev)
 {
-	struct gfar_private *priv = netdev_priv(dev);
-	struct sk_buff *skb = NULL;
-
-	skb = skb_dequeue(&priv->rx_recycle);
-	if (!skb)
-		skb = gfar_alloc_skb(dev);
-
-	return skb;
+	return gfar_alloc_skb(dev);
 }
 
 static inline void count_errors(unsigned short status, struct net_device *dev)
@@ -2779,7 +2768,7 @@ int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit)
 			if (unlikely(!newskb))
 				newskb = skb;
 			else if (skb)
-				skb_queue_head(&priv->rx_recycle, skb);
+				dev_kfree_skb(skb);
 		} else {
 			/* Increment the number of packets */
 			rx_queue->stats.rx_packets++;

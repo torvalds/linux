@@ -1,3 +1,15 @@
+ARM Integrator/AP (Application Platform) and Integrator/CP (Compact Platform)
+-----------------------------------------------------------------------------
+ARM's oldest Linux-supported platform with connectors for different core
+tiles of ARMv4, ARMv5 and ARMv6 type.
+
+Required properties (in root node):
+	compatible = "arm,integrator-ap";  /* Application Platform */
+	compatible = "arm,integrator-cp";  /* Compact Platform */
+
+FPGA type interrupt controllers, see the versatile-fpga-irq binding doc.
+
+
 ARM Versatile Application and Platform Baseboards
 -------------------------------------------------
 ARM's development hardware platform with connectors for customizable

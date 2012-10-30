@@ -27,9 +27,10 @@
 
 #include <asm/hardware/gic.h>
 
-#include <mach/omap-wakeupgen.h>
-#include <mach/omap-secure.h>
+#include "omap-wakeupgen.h"
+#include "omap-secure.h"
 
+#include "soc.h"
 #include "omap4-sar-layout.h"
 #include "common.h"
 
@@ -46,7 +47,7 @@
 static void __iomem *wakeupgen_base;
 static void __iomem *sar_base;
 static DEFINE_SPINLOCK(wakeupgen_lock);
-static unsigned int irq_target_cpu[NR_IRQS];
+static unsigned int irq_target_cpu[MAX_IRQS];
 static unsigned int irq_banks = MAX_NR_REG_BANKS;
 static unsigned int max_irqs = MAX_IRQS;
 static unsigned int omap_secure_apis;
@@ -229,13 +230,7 @@ static inline void omap4_irq_save_context(void)
 	/* Save AuxBoot* registers */
 	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
 	__raw_writel(val, sar_base + AUXCOREBOOT0_OFFSET);
-	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
-	__raw_writel(val, sar_base + AUXCOREBOOT1_OFFSET);
-
-	/* Save SyncReq generation logic */
-	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
-	__raw_writel(val, sar_base + AUXCOREBOOT0_OFFSET);
-	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_0);
+	val = __raw_readl(wakeupgen_base + OMAP_AUX_CORE_BOOT_1);
 	__raw_writel(val, sar_base + AUXCOREBOOT1_OFFSET);
 
 	/* Save SyncReq generation logic */

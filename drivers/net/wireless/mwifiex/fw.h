@@ -65,10 +65,12 @@ enum KEY_TYPE_ID {
 	KEY_TYPE_ID_TKIP,
 	KEY_TYPE_ID_AES,
 	KEY_TYPE_ID_WAPI,
+	KEY_TYPE_ID_AES_CMAC,
 };
 #define KEY_MCAST	BIT(0)
 #define KEY_UNICAST	BIT(1)
 #define KEY_ENABLED	BIT(2)
+#define KEY_IGTK	BIT(10)
 
 #define WAPI_KEY_LEN			50
 
@@ -92,6 +94,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 };
 
 #define CAL_SNR(RSSI, NF)		((s16)((s16)(RSSI)-(s16)(NF)))
+#define CAL_RSSI(SNR, NF)		((s16)((s16)(SNR)+(s16)(NF)))
 
 #define UAP_BSS_PARAMS_I			0
 #define UAP_CUSTOM_IE_I				1
@@ -106,6 +109,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define MGMT_MASK_BEACON			0x100
 
 #define TLV_TYPE_UAP_SSID			0x0000
+#define TLV_TYPE_UAP_RATES			0x0001
 
 #define PROPRIETARY_TLV_BASE_ID                 0x0100
 #define TLV_TYPE_KEY_MATERIAL       (PROPRIETARY_TLV_BASE_ID + 0)
@@ -124,6 +128,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
 #define TLV_TYPE_UAP_BCAST_SSID     (PROPRIETARY_TLV_BASE_ID + 48)
 #define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
+#define TLV_TYPE_UAP_AO_TIMER       (PROPRIETARY_TLV_BASE_ID + 57)
 #define TLV_TYPE_UAP_WEP_KEY        (PROPRIETARY_TLV_BASE_ID + 59)
 #define TLV_TYPE_UAP_WPA_PASSPHRASE (PROPRIETARY_TLV_BASE_ID + 60)
 #define TLV_TYPE_UAP_ENCRY_PROTOCOL (PROPRIETARY_TLV_BASE_ID + 64)
@@ -138,6 +143,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_MGMT_IE            (PROPRIETARY_TLV_BASE_ID + 105)
 #define TLV_TYPE_AUTO_DS_PARAM      (PROPRIETARY_TLV_BASE_ID + 113)
 #define TLV_TYPE_PS_PARAM           (PROPRIETARY_TLV_BASE_ID + 114)
+#define TLV_TYPE_UAP_PS_AO_TIMER    (PROPRIETARY_TLV_BASE_ID + 123)
 #define TLV_TYPE_PWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 145)
 #define TLV_TYPE_GWK_CIPHER         (PROPRIETARY_TLV_BASE_ID + 146)
 
@@ -257,9 +263,12 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_TX_RATE_CFG                       0x00d6
 #define HostCmd_CMD_802_11_PS_MODE_ENH                0x00e4
 #define HostCmd_CMD_802_11_HS_CFG_ENH                 0x00e5
+#define HostCmd_CMD_P2P_MODE_CFG                      0x00eb
 #define HostCmd_CMD_CAU_REG_ACCESS                    0x00ed
 #define HostCmd_CMD_SET_BSS_MODE                      0x00f7
 #define HostCmd_CMD_PCIE_DESC_DETAILS                 0x00fa
+#define HostCmd_CMD_MGMT_FRAME_REG                    0x010c
+#define HostCmd_CMD_REMAIN_ON_CHAN                    0x010d
 
 #define PROTOCOL_NO_SECURITY        0x01
 #define PROTOCOL_STATIC_WEP         0x02
@@ -285,9 +294,17 @@ enum ENH_PS_MODES {
 	DIS_AUTO_PS = 0xfe,
 };
 
+enum P2P_MODES {
+	P2P_MODE_DISABLE = 0,
+	P2P_MODE_DEVICE = 1,
+	P2P_MODE_GO = 2,
+	P2P_MODE_CLIENT = 3,
+};
+
 #define HostCmd_RET_BIT                       0x8000
 #define HostCmd_ACT_GEN_GET                   0x0000
 #define HostCmd_ACT_GEN_SET                   0x0001
+#define HostCmd_ACT_GEN_REMOVE                0x0004
 #define HostCmd_ACT_BITWISE_SET               0x0002
 #define HostCmd_ACT_BITWISE_CLR               0x0003
 #define HostCmd_RESULT_OK                     0x0000
@@ -307,7 +324,7 @@ enum ENH_PS_MODES {
 #define HostCmd_SCAN_RADIO_TYPE_A           1
 
 #define HOST_SLEEP_CFG_CANCEL		0xffffffff
-#define HOST_SLEEP_CFG_COND_DEF		0x0000000f
+#define HOST_SLEEP_CFG_COND_DEF		0x00000000
 #define HOST_SLEEP_CFG_GPIO_DEF		0xff
 #define HOST_SLEEP_CFG_GAP_DEF		0
 
@@ -385,6 +402,7 @@ enum ENH_PS_MODES {
 #define EVENT_BW_CHANGE                 0x00000048
 #define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
+#define EVENT_REMAIN_ON_CHAN_EXPIRED    0x0000005f
 
 #define EVENT_ID_MASK                   0xffff
 #define BSS_NUM_MASK                    0xf
@@ -424,10 +442,10 @@ struct txpd {
 struct rxpd {
 	u8 bss_type;
 	u8 bss_num;
-	u16 rx_pkt_length;
-	u16 rx_pkt_offset;
-	u16 rx_pkt_type;
-	u16 seq_num;
+	__le16 rx_pkt_length;
+	__le16 rx_pkt_offset;
+	__le16 rx_pkt_type;
+	__le16 seq_num;
 	u8 priority;
 	u8 rx_rate;
 	s8 snr;
@@ -438,6 +456,31 @@ struct rxpd {
 	u8 ht_info;
 	u8 reserved;
 } __packed;
+
+struct uap_txpd {
+	u8 bss_type;
+	u8 bss_num;
+	__le16 tx_pkt_length;
+	__le16 tx_pkt_offset;
+	__le16 tx_pkt_type;
+	__le32 tx_control;
+	u8 priority;
+	u8 flags;
+	u8 pkt_delay_2ms;
+	u8 reserved1;
+	__le32 reserved2;
+};
+
+struct uap_rxpd {
+	u8 bss_type;
+	u8 bss_num;
+	__le16 rx_pkt_length;
+	__le16 rx_pkt_offset;
+	__le16 rx_pkt_type;
+	__le16 seq_num;
+	u8 priority;
+	u8 reserved1;
+};
 
 enum mwifiex_chan_scan_mode_bitmasks {
 	MWIFIEX_PASSIVE_SCAN = BIT(0),
@@ -556,6 +599,13 @@ struct mwifiex_ie_type_key_param_set {
 	__le16 key_info;
 	__le16 key_len;
 	u8 key[50];
+} __packed;
+
+#define IGTK_PN_LEN		8
+
+struct mwifiex_cmac_param {
+	u8 ipn[IGTK_PN_LEN];
+	u8 key[WLAN_KEY_LEN_AES_CMAC];
 } __packed;
 
 struct host_cmd_ds_802_11_key_material {
@@ -1250,6 +1300,11 @@ struct host_cmd_tlv_ssid {
 	u8 ssid[0];
 } __packed;
 
+struct host_cmd_tlv_rates {
+	struct host_cmd_tlv tlv;
+	u8 rates[0];
+} __packed;
+
 struct host_cmd_tlv_bcast_ssid {
 	struct host_cmd_tlv tlv;
 	u8 bcast_ctl;
@@ -1291,9 +1346,33 @@ struct host_cmd_tlv_channel_band {
 	u8 channel;
 } __packed;
 
+struct host_cmd_tlv_ageout_timer {
+	struct host_cmd_tlv tlv;
+	__le32 sta_ao_timer;
+} __packed;
+
 struct host_cmd_ds_version_ext {
 	u8 version_str_sel;
 	char version_str[128];
+} __packed;
+
+struct host_cmd_ds_mgmt_frame_reg {
+	__le16 action;
+	__le32 mask;
+} __packed;
+
+struct host_cmd_ds_p2p_mode_cfg {
+	__le16 action;
+	__le16 mode;
+} __packed;
+
+struct host_cmd_ds_remain_on_chan {
+	__le16 action;
+	u8 status;
+	u8 reserved;
+	u8 band_cfg;
+	u8 channel;
+	__le32 duration;
 } __packed;
 
 struct host_cmd_ds_802_11_ibss_status {
@@ -1307,6 +1386,7 @@ struct host_cmd_ds_802_11_ibss_status {
 
 #define CONNECTION_TYPE_INFRA   0
 #define CONNECTION_TYPE_ADHOC   1
+#define CONNECTION_TYPE_AP      2
 
 struct host_cmd_ds_set_bss_mode {
 	u8 con_type;
@@ -1404,6 +1484,9 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_wmm_get_status get_wmm_status;
 		struct host_cmd_ds_802_11_key_material key_material;
 		struct host_cmd_ds_version_ext verext;
+		struct host_cmd_ds_mgmt_frame_reg reg_mask;
+		struct host_cmd_ds_remain_on_chan roc_cfg;
+		struct host_cmd_ds_p2p_mode_cfg mode_cfg;
 		struct host_cmd_ds_802_11_ibss_status ibss_coalescing;
 		struct host_cmd_ds_mac_reg_access mac_reg;
 		struct host_cmd_ds_bbp_reg_access bbp_reg;

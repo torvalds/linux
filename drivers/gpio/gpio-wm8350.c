@@ -116,7 +116,8 @@ static int __devinit wm8350_gpio_probe(struct platform_device *pdev)
 	struct wm8350_gpio_data *wm8350_gpio;
 	int ret;
 
-	wm8350_gpio = kzalloc(sizeof(*wm8350_gpio), GFP_KERNEL);
+	wm8350_gpio = devm_kzalloc(&pdev->dev, sizeof(*wm8350_gpio),
+				   GFP_KERNEL);
 	if (wm8350_gpio == NULL)
 		return -ENOMEM;
 
@@ -131,30 +132,20 @@ static int __devinit wm8350_gpio_probe(struct platform_device *pdev)
 
 	ret = gpiochip_add(&wm8350_gpio->gpio_chip);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not register gpiochip, %d\n",
-			ret);
-		goto err;
+		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, wm8350_gpio);
 
-	return ret;
-
-err:
-	kfree(wm8350_gpio);
 	return ret;
 }
 
 static int __devexit wm8350_gpio_remove(struct platform_device *pdev)
 {
 	struct wm8350_gpio_data *wm8350_gpio = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = gpiochip_remove(&wm8350_gpio->gpio_chip);
-	if (ret == 0)
-		kfree(wm8350_gpio);
-
-	return ret;
+	return gpiochip_remove(&wm8350_gpio->gpio_chip);
 }
 
 static struct platform_driver wm8350_gpio_driver = {

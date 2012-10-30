@@ -1014,7 +1014,7 @@ static void vfio_group_try_dissolve_container(struct vfio_group *group)
 
 static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 {
-	struct file *filep;
+	struct fd f;
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
 	int ret = 0;
@@ -1022,17 +1022,17 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 	if (atomic_read(&group->container_users))
 		return -EINVAL;
 
-	filep = fget(container_fd);
-	if (!filep)
+	f = fdget(container_fd);
+	if (!f.file)
 		return -EBADF;
 
 	/* Sanity check, is this really our fd? */
-	if (filep->f_op != &vfio_fops) {
-		fput(filep);
+	if (f.file->f_op != &vfio_fops) {
+		fdput(f);
 		return -EINVAL;
 	}
 
-	container = filep->private_data;
+	container = f.file->private_data;
 	WARN_ON(!container); /* fget ensures we don't race vfio_release */
 
 	mutex_lock(&container->group_lock);
@@ -1054,8 +1054,7 @@ static int vfio_group_set_container(struct vfio_group *group, int container_fd)
 
 unlock_out:
 	mutex_unlock(&container->group_lock);
-	fput(filep);
-
+	fdput(f);
 	return ret;
 }
 

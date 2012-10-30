@@ -521,25 +521,25 @@ static char *dynamic_emit_prefix(const struct _ddebug *desc, char *buf)
 	int pos_after_tid;
 	int pos = 0;
 
-	pos += snprintf(buf + pos, remaining(pos), "%s", KERN_DEBUG);
+	*buf = '\0';
+
 	if (desc->flags & _DPRINTK_FLAGS_INCL_TID) {
 		if (in_interrupt())
-			pos += snprintf(buf + pos, remaining(pos), "%s ",
-						"<intr>");
+			pos += snprintf(buf + pos, remaining(pos), "<intr> ");
 		else
 			pos += snprintf(buf + pos, remaining(pos), "[%d] ",
-						task_pid_vnr(current));
+					task_pid_vnr(current));
 	}
 	pos_after_tid = pos;
 	if (desc->flags & _DPRINTK_FLAGS_INCL_MODNAME)
 		pos += snprintf(buf + pos, remaining(pos), "%s:",
-					desc->modname);
+				desc->modname);
 	if (desc->flags & _DPRINTK_FLAGS_INCL_FUNCNAME)
 		pos += snprintf(buf + pos, remaining(pos), "%s:",
-					desc->function);
+				desc->function);
 	if (desc->flags & _DPRINTK_FLAGS_INCL_LINENO)
 		pos += snprintf(buf + pos, remaining(pos), "%d:",
-					desc->lineno);
+				desc->lineno);
 	if (pos - pos_after_tid)
 		pos += snprintf(buf + pos, remaining(pos), " ");
 	if (pos >= PREFIX_SIZE)
@@ -559,9 +559,13 @@ int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...)
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
+
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	res = printk("%s%pV", dynamic_emit_prefix(descriptor, buf), &vaf);
+
+	res = printk(KERN_DEBUG "%s%pV",
+		     dynamic_emit_prefix(descriptor, buf), &vaf);
+
 	va_end(args);
 
 	return res;
@@ -574,15 +578,26 @@ int __dynamic_dev_dbg(struct _ddebug *descriptor,
 	struct va_format vaf;
 	va_list args;
 	int res;
-	char buf[PREFIX_SIZE];
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
+
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	res = __dev_printk(dynamic_emit_prefix(descriptor, buf), dev, &vaf);
+
+	if (!dev) {
+		res = printk(KERN_DEBUG "(NULL device *): %pV", &vaf);
+	} else {
+		char buf[PREFIX_SIZE];
+
+		res = dev_printk_emit(7, dev, "%s%s %s: %pV",
+				      dynamic_emit_prefix(descriptor, buf),
+				      dev_driver_string(dev), dev_name(dev),
+				      &vaf);
+	}
+
 	va_end(args);
 
 	return res;
@@ -592,20 +607,35 @@ EXPORT_SYMBOL(__dynamic_dev_dbg);
 #ifdef CONFIG_NET
 
 int __dynamic_netdev_dbg(struct _ddebug *descriptor,
-		      const struct net_device *dev, const char *fmt, ...)
+			 const struct net_device *dev, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
 	int res;
-	char buf[PREFIX_SIZE];
 
 	BUG_ON(!descriptor);
 	BUG_ON(!fmt);
 
 	va_start(args, fmt);
+
 	vaf.fmt = fmt;
 	vaf.va = &args;
-	res = __netdev_printk(dynamic_emit_prefix(descriptor, buf), dev, &vaf);
+
+	if (dev && dev->dev.parent) {
+		char buf[PREFIX_SIZE];
+
+		res = dev_printk_emit(7, dev->dev.parent,
+				      "%s%s %s %s: %pV",
+				      dynamic_emit_prefix(descriptor, buf),
+				      dev_driver_string(dev->dev.parent),
+				      dev_name(dev->dev.parent),
+				      netdev_name(dev), &vaf);
+	} else if (dev) {
+		res = printk(KERN_DEBUG "%s: %pV", netdev_name(dev), &vaf);
+	} else {
+		res = printk(KERN_DEBUG "(NULL net_device): %pV", &vaf);
+	}
+
 	va_end(args);
 
 	return res;

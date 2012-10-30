@@ -1,0 +1,10 @@
+* OMAP OCP2SCP - ocp interface to scp interface
+
+properties:
+- compatible : Should be "ti,omap-ocp2scp"
+- #address-cells, #size-cells : Must be present if the device has sub-nodes
+- ranges : the child address space are mapped 1:1 onto the parent address space
+- ti,hwmods : must be "ocp2scp_usb_phy"
+
+Sub-nodes:
+All the devices connected to ocp2scp are described using sub-node to ocp2scp

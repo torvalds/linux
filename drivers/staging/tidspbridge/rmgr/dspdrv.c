@@ -72,7 +72,7 @@ u32 dsp_init(u32 *init_status)
 
 	/* Unwind whatever was loaded */
 	if (status) {
-		/* irrespective of the status of dev_remove_device we conitinue
+		/* irrespective of the status of dev_remove_device we continue
 		 * unloading. Get the Driver Object iterate through and remove.
 		 * Reset the status to E_FAIL to avoid going through
 		 * api_init_complete2. */
@@ -92,7 +92,7 @@ u32 dsp_init(u32 *init_status)
 func_cont:
 	/* Attempt to Start the Board */
 	if (!status) {
-		/* BRD_AutoStart could fail if the dsp execuetable is not the
+		/* BRD_AutoStart could fail if the dsp executable is not the
 		 * correct one. We should not propagate that error
 		 * into the device loader. */
 		(void)api_init_complete2();

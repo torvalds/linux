@@ -86,7 +86,7 @@ static void intc_irq_mask(struct irq_data *d)
 		u32 v;
 		irq -= MCFINT_VECBASE;
 		v = 0x8 << intc_irqmap[irq].index;
-		writel(v, MCF_MBAR + intc_irqmap[irq].icr);
+		writel(v, intc_irqmap[irq].icr);
 	}
 }
 
@@ -98,7 +98,7 @@ static void intc_irq_unmask(struct irq_data *d)
 		u32 v;
 		irq -= MCFINT_VECBASE;
 		v = 0xd << intc_irqmap[irq].index;
-		writel(v, MCF_MBAR + intc_irqmap[irq].icr);
+		writel(v, intc_irqmap[irq].icr);
 	}
 }
 
@@ -111,10 +111,10 @@ static void intc_irq_ack(struct irq_data *d)
 		irq -= MCFINT_VECBASE;
 		if (intc_irqmap[irq].ack) {
 			u32 v;
-			v = readl(MCF_MBAR + intc_irqmap[irq].icr);
+			v = readl(intc_irqmap[irq].icr);
 			v &= (0x7 << intc_irqmap[irq].index);
 			v |= (0x8 << intc_irqmap[irq].index);
-			writel(v, MCF_MBAR + intc_irqmap[irq].icr);
+			writel(v, intc_irqmap[irq].icr);
 		}
 	}
 }
@@ -127,12 +127,12 @@ static int intc_irq_set_type(struct irq_data *d, unsigned int type)
 		irq -= MCFINT_VECBASE;
 		if (intc_irqmap[irq].ack) {
 			u32 v;
-			v = readl(MCF_MBAR + MCFSIM_PITR);
+			v = readl(MCFSIM_PITR);
 			if (type == IRQ_TYPE_EDGE_FALLING)
 				v &= ~(0x1 << (32 - irq));
 			else
 				v |= (0x1 << (32 - irq));
-			writel(v, MCF_MBAR + MCFSIM_PITR);
+			writel(v, MCFSIM_PITR);
 		}
 	}
 	return 0;
@@ -163,10 +163,10 @@ void __init init_IRQ(void)
 	int irq, edge;
 
 	/* Mask all interrupt sources */
-	writel(0x88888888, MCF_MBAR + MCFSIM_ICR1);
-	writel(0x88888888, MCF_MBAR + MCFSIM_ICR2);
-	writel(0x88888888, MCF_MBAR + MCFSIM_ICR3);
-	writel(0x88888888, MCF_MBAR + MCFSIM_ICR4);
+	writel(0x88888888, MCFSIM_ICR1);
+	writel(0x88888888, MCFSIM_ICR2);
+	writel(0x88888888, MCFSIM_ICR3);
+	writel(0x88888888, MCFSIM_ICR4);
 
 	for (irq = 0; (irq < NR_IRQS); irq++) {
 		irq_set_chip(irq, &intc_irq_chip);

@@ -12,8 +12,8 @@
 #ifndef CEPH_FS_H
 #define CEPH_FS_H
 
-#include "msgr.h"
-#include "rados.h"
+#include <linux/ceph/msgr.h>
+#include <linux/ceph/rados.h>
 
 /*
  * subprotocol versions.  when specific messages types or high-level

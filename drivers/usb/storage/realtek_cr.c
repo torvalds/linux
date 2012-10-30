@@ -172,7 +172,7 @@ static int init_realtek_cr(struct us_data *us);
 		    initFunction, flags) \
 {\
 	USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
-	.driver_info = (flags)|(USB_US_TYPE_STOR<<24)\
+	.driver_info = (flags) \
 }
 
 static const struct usb_device_id realtek_cr_ids[] = {

@@ -215,36 +215,54 @@ static noinline __init void init_kernel_storage_key(void)
 				     PAGE_DEFAULT_KEY, 0);
 }
 
-static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
+static __initdata char sysinfo_page[PAGE_SIZE] __aligned(PAGE_SIZE);
 
 static noinline __init void detect_machine_type(void)
 {
+	struct sysinfo_3_2_2 *vmms = (struct sysinfo_3_2_2 *)&sysinfo_page;
+
 	/* Check current-configuration-level */
-	if ((stsi(NULL, 0, 0, 0) >> 28) <= 2) {
+	if (stsi(NULL, 0, 0, 0) <= 2) {
 		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
 		return;
 	}
 	/* Get virtual-machine cpu information. */
-	if (stsi(&vmms, 3, 2, 2) == -ENOSYS || !vmms.count)
+	if (stsi(vmms, 3, 2, 2) || !vmms->count)
 		return;
 
 	/* Running under KVM? If not we assume z/VM */
-	if (!memcmp(vmms.vm[0].cpi, "\xd2\xe5\xd4", 3))
+	if (!memcmp(vmms->vm[0].cpi, "\xd2\xe5\xd4", 3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_KVM;
 	else
 		S390_lowcore.machine_flags |= MACHINE_FLAG_VM;
 }
 
+static __init void setup_topology(void)
+{
+#ifdef CONFIG_64BIT
+	int max_mnest;
+
+	if (!test_facility(11))
+		return;
+	S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
+	for (max_mnest = 6; max_mnest > 1; max_mnest--) {
+		if (stsi(&sysinfo_page, 15, 1, max_mnest) == 0)
+			break;
+	}
+	topology_max_mnest = max_mnest;
+#endif
+}
+
 static void early_pgm_check_handler(void)
 {
-	unsigned long addr;
 	const struct exception_table_entry *fixup;
+	unsigned long addr;
 
 	addr = S390_lowcore.program_old_psw.addr;
 	fixup = search_exception_tables(addr & PSW_ADDR_INSN);
 	if (!fixup)
 		disabled_wait(0);
-	S390_lowcore.program_old_psw.addr = fixup->fixup | PSW_ADDR_AMODE;
+	S390_lowcore.program_old_psw.addr = extable_fixup(fixup)|PSW_ADDR_AMODE;
 }
 
 static noinline __init void setup_lowcore_early(void)
@@ -263,16 +281,6 @@ static noinline __init void setup_facility_list(void)
 {
 	stfle(S390_lowcore.stfle_fac_list,
 	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
-}
-
-static noinline __init void setup_hpage(void)
-{
-#ifndef CONFIG_DEBUG_PAGEALLOC
-	if (!test_facility(2) || !test_facility(8))
-		return;
-	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;
-	__ctl_set_bit(0, 23);
-#endif
 }
 
 static __init void detect_mvpg(void)
@@ -362,16 +370,22 @@ static __init void detect_diag44(void)
 static __init void detect_machine_facilities(void)
 {
 #ifdef CONFIG_64BIT
+	if (test_facility(8)) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
+		__ctl_set_bit(0, 23);
+	}
+	if (test_facility(78))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(8))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
-	if (test_facility(11))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_TOPOLOGY;
 	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_SPP;
+	if (test_facility(50) && test_facility(73))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_TE;
+	if (test_facility(66))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_RRBM;
 #endif
 }
 
@@ -441,7 +455,6 @@ static void __init setup_boot_command_line(void)
 	append_to_cmdline(append_ipl_scpdata);
 }
 
-
 /*
  * Save ipl parameters, clear bss memory, initialize storage keys
  * and create a kernel NSS at startup if the SAVESYS= parm is defined
@@ -467,7 +480,7 @@ void __init startup_init(void)
 	detect_diag9c();
 	detect_diag44();
 	detect_machine_facilities();
-	setup_hpage();
+	setup_topology();
 	sclp_facilities_detect();
 	detect_memory_layout(memory_chunk);
 #ifdef CONFIG_DYNAMIC_FTRACE

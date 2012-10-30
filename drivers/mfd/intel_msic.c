@@ -344,13 +344,13 @@ static int __devinit intel_msic_init_devices(struct intel_msic *msic)
 			continue;
 
 		ret = mfd_add_devices(&pdev->dev, -1, &msic_devs[i], 1, NULL,
-				      pdata->irq[i]);
+				      pdata->irq[i], NULL);
 		if (ret)
 			goto fail;
 	}
 
 	ret = mfd_add_devices(&pdev->dev, 0, msic_other_devs,
-			      ARRAY_SIZE(msic_other_devs), NULL, 0);
+			      ARRAY_SIZE(msic_other_devs), NULL, 0, NULL);
 	if (ret)
 		goto fail;
 

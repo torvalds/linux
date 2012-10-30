@@ -152,11 +152,6 @@
 #define H_VASI_RESUMED          5
 #define H_VASI_COMPLETED        6
 
-/* DABRX flags */
-#define H_DABRX_HYPERVISOR	(1UL<<(63-61))
-#define H_DABRX_KERNEL		(1UL<<(63-62))
-#define H_DABRX_USER		(1UL<<(63-63))
-
 /* Each control block has to be on a 4K boundary */
 #define H_CB_ALIGNMENT          4096
 

@@ -31,7 +31,7 @@
 #ifndef _TTM_BO_API_H_
 #define _TTM_BO_API_H_
 
-#include "drm_hashtab.h"
+#include <drm/drm_hashtab.h>
 #include <linux/kref.h>
 #include <linux/list.h>
 #include <linux/wait.h>

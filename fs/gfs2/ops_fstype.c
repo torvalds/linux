@@ -19,6 +19,7 @@
 #include <linux/mount.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/quotaops.h>
+#include <linux/lockdep.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -766,6 +767,7 @@ fail:
 	return error;
 }
 
+static struct lock_class_key gfs2_quota_imutex_key;
 
 static int init_inodes(struct gfs2_sbd *sdp, int undo)
 {
@@ -803,6 +805,12 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		fs_err(sdp, "can't get quota file inode: %d\n", error);
 		goto fail_rindex;
 	}
+	/*
+	 * i_mutex on quota files is special. Since this inode is hidden system
+	 * file, we are safe to define locking ourselves.
+	 */
+	lockdep_set_class(&sdp->sd_quota_inode->i_mutex,
+			  &gfs2_quota_imutex_key);
 
 	error = gfs2_rindex_update(sdp);
 	if (error)

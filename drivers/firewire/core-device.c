@@ -32,6 +32,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/random.h>
 #include <linux/rwsem.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -1066,6 +1067,8 @@ static void fw_device_init(struct work_struct *work)
 		device->config_rom_retries = 0;
 
 		set_broadcast_channel(device, device->generation);
+
+		add_device_randomness(&device->config_rom[3], 8);
 	}
 
 	/*

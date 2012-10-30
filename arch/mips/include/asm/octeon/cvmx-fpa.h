@@ -36,8 +36,8 @@
 #ifndef __CVMX_FPA_H__
 #define __CVMX_FPA_H__
 
-#include "cvmx-address.h"
-#include "cvmx-fpa-defs.h"
+#include <asm/octeon/cvmx-address.h>
+#include <asm/octeon/cvmx-fpa-defs.h>
 
 #define CVMX_FPA_NUM_POOLS      8
 #define CVMX_FPA_MIN_BLOCK_SIZE 128

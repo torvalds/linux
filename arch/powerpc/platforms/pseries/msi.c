@@ -210,6 +210,7 @@ static struct device_node *find_pe_total_msi(struct pci_dev *dev, int *total)
 static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 {
 	struct device_node *dn;
+	struct eeh_dev *edev;
 
 	/* Found our PE and assume 8 at that point. */
 
@@ -217,7 +218,10 @@ static struct device_node *find_pe_dn(struct pci_dev *dev, int *total)
 	if (!dn)
 		return NULL;
 
-	dn = eeh_find_device_pe(dn);
+	/* Get the top level device in the PE */
+	edev = of_node_to_eeh_dev(dn);
+	edev = list_first_entry(&edev->pe->edevs, struct eeh_dev, list);
+	dn = eeh_dev_to_of_node(edev);
 	if (!dn)
 		return NULL;
 
@@ -387,12 +391,13 @@ static int check_msix_entries(struct pci_dev *pdev)
 	return 0;
 }
 
-static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
+static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 {
 	struct pci_dn *pdn;
 	int hwirq, virq, i, rc;
 	struct msi_desc *entry;
 	struct msi_msg msg;
+	int nvec = nvec_in;
 
 	pdn = get_pdn(pdev);
 	if (!pdn)
@@ -402,10 +407,23 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		return -EINVAL;
 
 	/*
+	 * Firmware currently refuse any non power of two allocation
+	 * so we round up if the quota will allow it.
+	 */
+	if (type == PCI_CAP_ID_MSIX) {
+		int m = roundup_pow_of_two(nvec);
+		int quota = msi_quota_for_device(pdev, m);
+
+		if (quota >= m)
+			nvec = m;
+	}
+
+	/*
 	 * Try the new more explicit firmware interface, if that fails fall
 	 * back to the old interface. The old interface is known to never
 	 * return MSI-Xs.
 	 */
+again:
 	if (type == PCI_CAP_ID_MSI) {
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
 
@@ -417,6 +435,10 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
 
 	if (rc != nvec) {
+		if (nvec != nvec_in) {
+			nvec = nvec_in;
+			goto again;
+		}
 		pr_debug("rtas_msi: rtas_change_msi() failed\n");
 		return rc;
 	}

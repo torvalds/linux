@@ -396,4 +396,9 @@ config SIGNATURE
 config LIBFDT
 	bool
 
+config OID_REGISTRY
+	tristate
+	help
+	  Enable fast lookup object identifier registry.
+
 endmenu

@@ -44,7 +44,7 @@ struct nfqnl_instance {
 	struct hlist_node hlist;		/* global list of queues */
 	struct rcu_head rcu;
 
-	int peer_pid;
+	int peer_portid;
 	unsigned int queue_maxlen;
 	unsigned int copy_range;
 	unsigned int queue_dropped;
@@ -92,7 +92,7 @@ instance_lookup(u_int16_t queue_num)
 }
 
 static struct nfqnl_instance *
-instance_create(u_int16_t queue_num, int pid)
+instance_create(u_int16_t queue_num, int portid)
 {
 	struct nfqnl_instance *inst;
 	unsigned int h;
@@ -111,7 +111,7 @@ instance_create(u_int16_t queue_num, int pid)
 	}
 
 	inst->queue_num = queue_num;
-	inst->peer_pid = pid;
+	inst->peer_portid = portid;
 	inst->queue_maxlen = NFQNL_QMAX_DEFAULT;
 	inst->copy_range = 0xfffff;
 	inst->copy_mode = NFQNL_COPY_NONE;
@@ -225,7 +225,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 {
 	sk_buff_data_t old_tail;
 	size_t size;
-	size_t data_len = 0;
+	size_t data_len = 0, cap_len = 0;
 	struct sk_buff *skb;
 	struct nlattr *nla;
 	struct nfqnl_msg_packet_hdr *pmsg;
@@ -247,7 +247,8 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 #endif
 		+ nla_total_size(sizeof(u_int32_t))	/* mark */
 		+ nla_total_size(sizeof(struct nfqnl_msg_packet_hw))
-		+ nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp));
+		+ nla_total_size(sizeof(struct nfqnl_msg_packet_timestamp)
+		+ nla_total_size(sizeof(u_int32_t)));	/* cap_len */
 
 	outdev = entry->outdev;
 
@@ -266,6 +267,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 			data_len = entskb->len;
 
 		size += nla_total_size(data_len);
+		cap_len = entskb->len;
 		break;
 	}
 
@@ -402,12 +404,14 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 	if (ct && nfqnl_ct_put(skb, ct, ctinfo) < 0)
 		goto nla_put_failure;
 
+	if (cap_len > 0 && nla_put_be32(skb, NFQA_CAP_LEN, htonl(cap_len)))
+		goto nla_put_failure;
+
 	nlh->nlmsg_len = skb->tail - old_tail;
 	return skb;
 
 nla_put_failure:
-	if (skb)
-		kfree_skb(skb);
+	kfree_skb(skb);
 	net_err_ratelimited("nf_queue: error creating packet message\n");
 	return NULL;
 }
@@ -440,7 +444,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	}
 	spin_lock_bh(&queue->lock);
 
-	if (!queue->peer_pid) {
+	if (!queue->peer_portid) {
 		err = -EINVAL;
 		goto err_out_free_nskb;
 	}
@@ -459,7 +463,7 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 	*packet_id_ptr = htonl(entry->id);
 
 	/* nfnetlink_unicast will either free the nskb or add it to a socket */
-	err = nfnetlink_unicast(nskb, &init_net, queue->peer_pid, MSG_DONTWAIT);
+	err = nfnetlink_unicast(nskb, &init_net, queue->peer_portid, MSG_DONTWAIT);
 	if (err < 0) {
 		queue->queue_user_dropped++;
 		goto err_out_unlock;
@@ -527,9 +531,13 @@ nfqnl_set_mode(struct nfqnl_instance *queue,
 
 	case NFQNL_COPY_PACKET:
 		queue->copy_mode = mode;
-		/* we're using struct nlattr which has 16bit nla_len */
-		if (range > 0xffff)
-			queue->copy_range = 0xffff;
+		/* We're using struct nlattr which has 16bit nla_len. Note that
+		 * nla_len includes the header length. Thus, the maximum packet
+		 * length that we support is 65531 bytes. We send truncated
+		 * packets if the specified length is larger than that.
+		 */
+		if (range > 0xffff - NLA_HDRLEN)
+			queue->copy_range = 0xffff - NLA_HDRLEN;
 		else
 			queue->copy_range = range;
 		break;
@@ -616,7 +624,7 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 	if (event == NETLINK_URELEASE && n->protocol == NETLINK_NETFILTER) {
 		int i;
 
-		/* destroy all instances for this pid */
+		/* destroy all instances for this portid */
 		spin_lock(&instances_lock);
 		for (i = 0; i < INSTANCE_BUCKETS; i++) {
 			struct hlist_node *tmp, *t2;
@@ -625,7 +633,7 @@ nfqnl_rcv_nl_event(struct notifier_block *this,
 
 			hlist_for_each_entry_safe(inst, tmp, t2, head, hlist) {
 				if ((n->net == &init_net) &&
-				    (n->pid == inst->peer_pid))
+				    (n->portid == inst->peer_portid))
 					__instance_destroy(inst);
 			}
 		}
@@ -650,7 +658,7 @@ static const struct nla_policy nfqa_verdict_batch_policy[NFQA_MAX+1] = {
 	[NFQA_MARK]		= { .type = NLA_U32 },
 };
 
-static struct nfqnl_instance *verdict_instance_lookup(u16 queue_num, int nlpid)
+static struct nfqnl_instance *verdict_instance_lookup(u16 queue_num, int nlportid)
 {
 	struct nfqnl_instance *queue;
 
@@ -658,7 +666,7 @@ static struct nfqnl_instance *verdict_instance_lookup(u16 queue_num, int nlpid)
 	if (!queue)
 		return ERR_PTR(-ENODEV);
 
-	if (queue->peer_pid != nlpid)
+	if (queue->peer_portid != nlportid)
 		return ERR_PTR(-EPERM);
 
 	return queue;
@@ -698,7 +706,7 @@ nfqnl_recv_verdict_batch(struct sock *ctnl, struct sk_buff *skb,
 	LIST_HEAD(batch_list);
 	u16 queue_num = ntohs(nfmsg->res_id);
 
-	queue = verdict_instance_lookup(queue_num, NETLINK_CB(skb).pid);
+	queue = verdict_instance_lookup(queue_num, NETLINK_CB(skb).portid);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 
@@ -749,7 +757,7 @@ nfqnl_recv_verdict(struct sock *ctnl, struct sk_buff *skb,
 	queue = instance_lookup(queue_num);
 	if (!queue)
 
-	queue = verdict_instance_lookup(queue_num, NETLINK_CB(skb).pid);
+	queue = verdict_instance_lookup(queue_num, NETLINK_CB(skb).portid);
 	if (IS_ERR(queue))
 		return PTR_ERR(queue);
 
@@ -832,7 +840,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 
 	rcu_read_lock();
 	queue = instance_lookup(queue_num);
-	if (queue && queue->peer_pid != NETLINK_CB(skb).pid) {
+	if (queue && queue->peer_portid != NETLINK_CB(skb).portid) {
 		ret = -EPERM;
 		goto err_out_unlock;
 	}
@@ -844,7 +852,7 @@ nfqnl_recv_config(struct sock *ctnl, struct sk_buff *skb,
 				ret = -EBUSY;
 				goto err_out_unlock;
 			}
-			queue = instance_create(queue_num, NETLINK_CB(skb).pid);
+			queue = instance_create(queue_num, NETLINK_CB(skb).portid);
 			if (IS_ERR(queue)) {
 				ret = PTR_ERR(queue);
 				goto err_out_unlock;
@@ -1016,7 +1024,7 @@ static int seq_show(struct seq_file *s, void *v)
 
 	return seq_printf(s, "%5d %6d %5d %1d %5d %5d %5d %8d %2d\n",
 			  inst->queue_num,
-			  inst->peer_pid, inst->queue_total,
+			  inst->peer_portid, inst->queue_total,
 			  inst->copy_mode, inst->copy_range,
 			  inst->queue_dropped, inst->queue_user_dropped,
 			  inst->id_sequence, 1);

@@ -80,11 +80,12 @@ static const struct snmp_mib sctp_snmp_list[] = {
 /* Display sctp snmp mib statistics(/proc/net/sctp/snmp). */
 static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 {
+	struct net *net = seq->private;
 	int i;
 
 	for (i = 0; sctp_snmp_list[i].name != NULL; i++)
 		seq_printf(seq, "%-32s\t%ld\n", sctp_snmp_list[i].name,
-			   snmp_fold_field((void __percpu **)sctp_statistics,
+			   snmp_fold_field((void __percpu **)net->sctp.sctp_statistics,
 				      sctp_snmp_list[i].entry));
 
 	return 0;
@@ -93,7 +94,7 @@ static int sctp_snmp_seq_show(struct seq_file *seq, void *v)
 /* Initialize the seq file operations for 'snmp' object. */
 static int sctp_snmp_seq_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, sctp_snmp_seq_show, NULL);
+	return single_open_net(inode, file, sctp_snmp_seq_show);
 }
 
 static const struct file_operations sctp_snmp_seq_fops = {
@@ -105,11 +106,12 @@ static const struct file_operations sctp_snmp_seq_fops = {
 };
 
 /* Set up the proc fs entry for 'snmp' object. */
-int __init sctp_snmp_proc_init(void)
+int __net_init sctp_snmp_proc_init(struct net *net)
 {
 	struct proc_dir_entry *p;
 
-	p = proc_create("snmp", S_IRUGO, proc_net_sctp, &sctp_snmp_seq_fops);
+	p = proc_create("snmp", S_IRUGO, net->sctp.proc_net_sctp,
+			&sctp_snmp_seq_fops);
 	if (!p)
 		return -ENOMEM;
 
@@ -117,9 +119,9 @@ int __init sctp_snmp_proc_init(void)
 }
 
 /* Cleanup the proc fs entry for 'snmp' object. */
-void sctp_snmp_proc_exit(void)
+void sctp_snmp_proc_exit(struct net *net)
 {
-	remove_proc_entry("snmp", proc_net_sctp);
+	remove_proc_entry("snmp", net->sctp.proc_net_sctp);
 }
 
 /* Dump local addresses of an association/endpoint. */
@@ -213,10 +215,13 @@ static int sctp_eps_seq_show(struct seq_file *seq, void *v)
 	sctp_for_each_hentry(epb, node, &head->chain) {
 		ep = sctp_ep(epb);
 		sk = epb->sk;
+		if (!net_eq(sock_net(sk), seq_file_net(seq)))
+			continue;
 		seq_printf(seq, "%8pK %8pK %-3d %-3d %-4d %-5d %5d %5lu ", ep, sk,
 			   sctp_sk(sk)->type, sk->sk_state, hash,
 			   epb->bind_addr.port,
-			   sock_i_uid(sk), sock_i_ino(sk));
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
+			   sock_i_ino(sk));
 
 		sctp_seq_dump_local_addrs(seq, epb);
 		seq_printf(seq, "\n");
@@ -238,7 +243,8 @@ static const struct seq_operations sctp_eps_ops = {
 /* Initialize the seq file operations for 'eps' object. */
 static int sctp_eps_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &sctp_eps_ops);
+	return seq_open_net(inode, file, &sctp_eps_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations sctp_eps_seq_fops = {
@@ -249,11 +255,12 @@ static const struct file_operations sctp_eps_seq_fops = {
 };
 
 /* Set up the proc fs entry for 'eps' object. */
-int __init sctp_eps_proc_init(void)
+int __net_init sctp_eps_proc_init(struct net *net)
 {
 	struct proc_dir_entry *p;
 
-	p = proc_create("eps", S_IRUGO, proc_net_sctp, &sctp_eps_seq_fops);
+	p = proc_create("eps", S_IRUGO, net->sctp.proc_net_sctp,
+			&sctp_eps_seq_fops);
 	if (!p)
 		return -ENOMEM;
 
@@ -261,9 +268,9 @@ int __init sctp_eps_proc_init(void)
 }
 
 /* Cleanup the proc fs entry for 'eps' object. */
-void sctp_eps_proc_exit(void)
+void sctp_eps_proc_exit(struct net *net)
 {
-	remove_proc_entry("eps", proc_net_sctp);
+	remove_proc_entry("eps", net->sctp.proc_net_sctp);
 }
 
 
@@ -316,6 +323,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 	sctp_for_each_hentry(epb, node, &head->chain) {
 		assoc = sctp_assoc(epb);
 		sk = epb->sk;
+		if (!net_eq(sock_net(sk), seq_file_net(seq)))
+			continue;
 		seq_printf(seq,
 			   "%8pK %8pK %-3d %-3d %-2d %-4d "
 			   "%4d %8d %8d %7d %5lu %-5d %5d ",
@@ -324,7 +333,8 @@ static int sctp_assocs_seq_show(struct seq_file *seq, void *v)
 			   assoc->assoc_id,
 			   assoc->sndbuf_used,
 			   atomic_read(&assoc->rmem_alloc),
-			   sock_i_uid(sk), sock_i_ino(sk),
+			   from_kuid_munged(seq_user_ns(seq), sock_i_uid(sk)),
+			   sock_i_ino(sk),
 			   epb->bind_addr.port,
 			   assoc->peer.port);
 		seq_printf(seq, " ");
@@ -354,7 +364,8 @@ static const struct seq_operations sctp_assoc_ops = {
 /* Initialize the seq file operations for 'assocs' object. */
 static int sctp_assocs_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &sctp_assoc_ops);
+	return seq_open_net(inode, file, &sctp_assoc_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations sctp_assocs_seq_fops = {
@@ -365,11 +376,11 @@ static const struct file_operations sctp_assocs_seq_fops = {
 };
 
 /* Set up the proc fs entry for 'assocs' object. */
-int __init sctp_assocs_proc_init(void)
+int __net_init sctp_assocs_proc_init(struct net *net)
 {
 	struct proc_dir_entry *p;
 
-	p = proc_create("assocs", S_IRUGO, proc_net_sctp,
+	p = proc_create("assocs", S_IRUGO, net->sctp.proc_net_sctp,
 			&sctp_assocs_seq_fops);
 	if (!p)
 		return -ENOMEM;
@@ -378,9 +389,9 @@ int __init sctp_assocs_proc_init(void)
 }
 
 /* Cleanup the proc fs entry for 'assocs' object. */
-void sctp_assocs_proc_exit(void)
+void sctp_assocs_proc_exit(struct net *net)
 {
-	remove_proc_entry("assocs", proc_net_sctp);
+	remove_proc_entry("assocs", net->sctp.proc_net_sctp);
 }
 
 static void *sctp_remaddr_seq_start(struct seq_file *seq, loff_t *pos)
@@ -426,6 +437,8 @@ static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)
 	sctp_local_bh_disable();
 	read_lock(&head->lock);
 	sctp_for_each_hentry(epb, node, &head->chain) {
+		if (!net_eq(sock_net(epb->sk), seq_file_net(seq)))
+			continue;
 		assoc = sctp_assoc(epb);
 		list_for_each_entry(tsp, &assoc->peer.transport_addr_list,
 					transports) {
@@ -489,14 +502,15 @@ static const struct seq_operations sctp_remaddr_ops = {
 };
 
 /* Cleanup the proc fs entry for 'remaddr' object. */
-void sctp_remaddr_proc_exit(void)
+void sctp_remaddr_proc_exit(struct net *net)
 {
-	remove_proc_entry("remaddr", proc_net_sctp);
+	remove_proc_entry("remaddr", net->sctp.proc_net_sctp);
 }
 
 static int sctp_remaddr_seq_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &sctp_remaddr_ops);
+	return seq_open_net(inode, file, &sctp_remaddr_ops,
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations sctp_remaddr_seq_fops = {
@@ -506,11 +520,12 @@ static const struct file_operations sctp_remaddr_seq_fops = {
 	.release = seq_release,
 };
 
-int __init sctp_remaddr_proc_init(void)
+int __net_init sctp_remaddr_proc_init(struct net *net)
 {
 	struct proc_dir_entry *p;
 
-	p = proc_create("remaddr", S_IRUGO, proc_net_sctp, &sctp_remaddr_seq_fops);
+	p = proc_create("remaddr", S_IRUGO, net->sctp.proc_net_sctp,
+			&sctp_remaddr_seq_fops);
 	if (!p)
 		return -ENOMEM;
 	return 0;

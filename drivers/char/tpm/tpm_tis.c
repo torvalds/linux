@@ -705,6 +705,7 @@ out_err:
 	return rc;
 }
 
+#if defined(CONFIG_PNP) || defined(CONFIG_PM_SLEEP)
 static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 {
 	u32 intmask;
@@ -725,7 +726,7 @@ static void tpm_tis_reenable_interrupts(struct tpm_chip *chip)
 	iowrite32(intmask,
 		  chip->vendor.iobase + TPM_INT_ENABLE(chip->vendor.locality));
 }
-
+#endif
 
 #ifdef CONFIG_PNP
 static int __devinit tpm_tis_pnp_init(struct pnp_dev *pnp_dev,

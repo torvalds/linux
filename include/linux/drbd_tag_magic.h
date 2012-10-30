@@ -12,7 +12,7 @@ enum packet_types {
 #define NL_INT64(pn, pr, member)
 #define NL_BIT(pn, pr, member)
 #define NL_STRING(pn, pr, member, len)
-#include "drbd_nl.h"
+#include <linux/drbd_nl.h>
 	P_nl_after_last_packet,
 };
 
@@ -37,7 +37,7 @@ static const int tag_list_sizes[] = {
 #define NL_INT64(pn, pr, member)        + 4 + 8
 #define NL_BIT(pn, pr, member)          + 4 + 1
 #define NL_STRING(pn, pr, member, len)  + 4 + (len)
-#include "drbd_nl.h"
+#include <linux/drbd_nl.h>
 };
 
 /* The two highest bits are used for the tag type */
@@ -62,7 +62,7 @@ enum drbd_tags {
 #define NL_INT64(pn, pr, member)       T_ ## member = pn | TT_INT64   | pr ,
 #define NL_BIT(pn, pr, member)         T_ ## member = pn | TT_BIT     | pr ,
 #define NL_STRING(pn, pr, member, len) T_ ## member = pn | TT_STRING  | pr ,
-#include "drbd_nl.h"
+#include <linux/drbd_nl.h>
 };
 
 struct tag {
@@ -78,7 +78,7 @@ static const struct tag tag_descriptions[] = {
 #define NL_INT64(pn, pr, member)       [ pn ] = { #member, TT_INT64   | pr, sizeof(__u64) },
 #define NL_BIT(pn, pr, member)         [ pn ] = { #member, TT_BIT     | pr, sizeof(int)   },
 #define NL_STRING(pn, pr, member, len) [ pn ] = { #member, TT_STRING  | pr, (len)         },
-#include "drbd_nl.h"
+#include <linux/drbd_nl.h>
 };
 
 #endif

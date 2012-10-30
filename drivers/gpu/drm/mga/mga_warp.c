@@ -32,9 +32,8 @@
 #include <linux/platform_device.h>
 #include <linux/module.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "mga_drm.h"
+#include <drm/drmP.h>
+#include <drm/mga_drm.h>
 #include "mga_drv.h"
 
 #define FIRMWARE_G200 "matrox/g200_warp.fw"

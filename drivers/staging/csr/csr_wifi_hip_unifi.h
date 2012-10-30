@@ -98,7 +98,6 @@ extern "C" {
 #include "csr_framework_ext.h"  /* from the synergy porting folder */
 #include "csr_sdio.h"           /* from the synergy porting folder */
 #include "csr_macro.h"          /* from the synergy porting folder */
-#include "csr_formatted_io.h"   /* from the synergy gsp folder */
 #include "csr_wifi_result.h"
 
 /* Utility MACROS. Note that UNIFI_MAC_ADDRESS_CMP returns TRUE on success */

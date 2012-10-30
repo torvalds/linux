@@ -22,7 +22,7 @@ menuconfig DRM
 config DRM_USB
 	tristate
 	depends on DRM
-	depends on USB_ARCH_HAS_HCD
+	depends on USB_SUPPORT && USB_ARCH_HAS_HCD
 	select USB
 
 config DRM_KMS_HELPER
@@ -53,6 +53,21 @@ config DRM_TTM
 	  GPU memory management subsystem for devices with multiple
 	  GPU memory types. Will be enabled automatically if a device driver
 	  uses it.
+
+config DRM_GEM_CMA_HELPER
+	bool
+	depends on DRM
+	help
+	  Choose this if you need the GEM CMA helper functions
+
+config DRM_KMS_CMA_HELPER
+	bool
+	select DRM_GEM_CMA_HELPER
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	help
+	  Choose this if you need the KMS CMA helper functions
 
 config DRM_TDFX
 	tristate "3dfx Banshee/Voodoo3+"
@@ -193,3 +208,5 @@ source "drivers/gpu/drm/ast/Kconfig"
 source "drivers/gpu/drm/mgag200/Kconfig"
 
 source "drivers/gpu/drm/cirrus/Kconfig"
+
+source "drivers/gpu/drm/shmobile/Kconfig"

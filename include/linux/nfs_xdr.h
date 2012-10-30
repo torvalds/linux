@@ -251,7 +251,6 @@ struct nfs4_layoutget_res {
 struct nfs4_layoutget {
 	struct nfs4_layoutget_args args;
 	struct nfs4_layoutget_res res;
-	struct pnfs_layout_segment **lsegpp;
 	gfp_t gfp_flags;
 };
 
@@ -335,6 +334,7 @@ struct nfs_openargs {
 	struct nfs_seqid *	seqid;
 	int			open_flags;
 	fmode_t			fmode;
+	u32			access;
 	__u64                   clientid;
 	struct stateowner_id	id;
 	union {
@@ -369,6 +369,9 @@ struct nfs_openres {
 	struct nfs4_string	*owner;
 	struct nfs4_string	*group_owner;
 	struct nfs4_sequence_res	seq_res;
+	__u32			access_request;
+	__u32			access_supported;
+	__u32			access_result;
 };
 
 /*
@@ -652,7 +655,7 @@ struct nfs_getaclargs {
 };
 
 /* getxattr ACL interface flags */
-#define NFS4_ACL_LEN_REQUEST	0x0001	/* zero length getxattr buffer */
+#define NFS4_ACL_TRUNC		0x0001	/* ACL was truncated */
 struct nfs_getaclres {
 	size_t				acl_len;
 	size_t				acl_data_offset;

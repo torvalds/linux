@@ -47,6 +47,12 @@
 #define MCF_IRQ_UART3		(MCFINT_VECBASE + 32)
 
 /*
+ *	Slice Timer support.
+ */
+#define MCFSLT_TIMER0		(MCF_MBAR + 0x900)	/* Base addr TIMER0 */
+#define MCFSLT_TIMER1		(MCF_MBAR + 0x910)	/* Base addr TIMER1 */
+
+/*
  *	Generic GPIO support
  */
 #define MCFGPIO_PIN_MAX		0	/* I am too lazy to count */
@@ -64,15 +70,25 @@
 #define	MCFEPORT_EPFR		(MCF_MBAR + 0xf0c)	/* Flags */
 
 /*
- *	Some PSC related definitions
+ *	Pin Assignment register definitions
  */
-#define MCF_PAR_PSC(x)		(0x000A4F-((x)&0x3))
+#define MCFGPIO_PAR_FBCTL	(MCF_MBAR + 0xA40)
+#define MCFGPIO_PAR_FBCS	(MCF_MBAR + 0xA42)
+#define MCFGPIO_PAR_DMA		(MCF_MBAR + 0xA43)
+#define MCFGPIO_PAR_FECI2CIRQ	(MCF_MBAR + 0xA44)
+#define MCFGPIO_PAR_PCIBG	(MCF_MBAR + 0xA48)	/* PCI bus grant */
+#define MCFGPIO_PAR_PCIBR	(MCF_MBAR + 0xA4A)	/* PCI */
+#define MCFGPIO_PAR_PSC0	(MCF_MBAR + 0xA4F)
+#define MCFGPIO_PAR_PSC1	(MCF_MBAR + 0xA4E)
+#define MCFGPIO_PAR_PSC2	(MCF_MBAR + 0xA4D)
+#define MCFGPIO_PAR_PSC3	(MCF_MBAR + 0xA4C)
+#define MCFGPIO_PAR_DSPI	(MCF_MBAR + 0xA50)
+#define MCFGPIO_PAR_TIMER	(MCF_MBAR + 0xA52)
+
 #define MCF_PAR_SDA		(0x0008)
 #define MCF_PAR_SCL		(0x0004)
 #define MCF_PAR_PSC_TXD		(0x04)
 #define MCF_PAR_PSC_RXD		(0x08)
-#define MCF_PAR_PSC_RTS(x)	(((x)&0x03)<<4)
-#define MCF_PAR_PSC_CTS(x)	(((x)&0x03)<<6)
 #define MCF_PAR_PSC_CTS_GPIO	(0x00)
 #define MCF_PAR_PSC_CTS_BCLK	(0x80)
 #define MCF_PAR_PSC_CTS_CTS	(0xC0)
@@ -80,8 +96,5 @@
 #define MCF_PAR_PSC_RTS_FSYNC	(0x20)
 #define MCF_PAR_PSC_RTS_RTS	(0x30)
 #define MCF_PAR_PSC_CANRX	(0x40)
-
-#define MCF_PAR_PCIBG		(CONFIG_MBAR + 0xa48)	/* PCI bus grant */
-#define MCF_PAR_PCIBR		(CONFIG_MBAR + 0xa4a)	/* PCI */
 
 #endif	/* m54xxsim_h */

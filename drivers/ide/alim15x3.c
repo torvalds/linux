@@ -512,7 +512,7 @@ static const struct ide_dma_ops ali_dma_ops = {
 	.dma_sff_read_status	= ide_dma_sff_read_status,
 };
 
-static const struct ide_port_info ali15x3_chipset __devinitdata = {
+static const struct ide_port_info ali15x3_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_ali15x3,
 	.init_hwif	= init_hwif_ali15x3,

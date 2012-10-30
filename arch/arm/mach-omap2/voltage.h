@@ -16,7 +16,7 @@
 
 #include <linux/err.h>
 
-#include <plat/voltage.h>
+#include <linux/platform_data/voltage-omap.h>
 
 #include "vc.h"
 #include "vp.h"

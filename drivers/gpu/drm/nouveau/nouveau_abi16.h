@@ -3,6 +3,7 @@
 
 #define ABI16_IOCTL_ARGS                                                       \
 	struct drm_device *dev, void *data, struct drm_file *file_priv
+
 int nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_setparam(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS);
@@ -10,6 +11,37 @@ int nouveau_abi16_ioctl_channel_free(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_grobj_alloc(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS);
 int nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS);
+
+struct nouveau_abi16_ntfy {
+	struct list_head head;
+	struct nouveau_mm_node *node;
+	u32 handle;
+};
+
+struct nouveau_abi16_chan {
+	struct list_head head;
+	struct nouveau_channel *chan;
+	struct list_head notifiers;
+	struct nouveau_bo *ntfy;
+	struct nouveau_vma ntfy_vma;
+	struct nouveau_mm  heap;
+};
+
+struct nouveau_abi16 {
+	struct nouveau_object *client;
+	struct nouveau_object *device;
+	struct list_head channels;
+	u64 handles;
+};
+
+struct nouveau_drm;
+struct nouveau_abi16 *nouveau_abi16_get(struct drm_file *, struct drm_device *);
+int  nouveau_abi16_put(struct nouveau_abi16 *, int);
+void nouveau_abi16_fini(struct nouveau_abi16 *);
+u16  nouveau_abi16_swclass(struct nouveau_drm *);
+
+#define NOUVEAU_GEM_DOMAIN_VRAM      (1 << 1)
+#define NOUVEAU_GEM_DOMAIN_GART      (1 << 2)
 
 struct drm_nouveau_channel_alloc {
 	uint32_t     fb_ctxdma_handle;

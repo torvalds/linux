@@ -1,0 +1,31 @@
+PXA3xx NAND DT bindings
+
+Required properties:
+
+ - compatible:		Should be "marvell,pxa3xx-nand"
+ - reg: 		The register base for the controller
+ - interrupts:		The interrupt to map
+ - #address-cells:	Set to <1> if the node includes partitions
+
+Optional properties:
+
+ - marvell,nand-enable-arbiter:	Set to enable the bus arbiter
+ - marvell,nand-keep-config:	Set to keep the NAND controller config as set
+				by the bootloader
+ - num-cs:			Number of chipselect lines to usw
+
+Example:
+
+	nand0: nand@43100000 {
+		compatible = "marvell,pxa3xx-nand";
+		reg = <0x43100000 90>;
+		interrupts = <45>;
+		#address-cells = <1>;
+
+		marvell,nand-enable-arbiter;
+		marvell,nand-keep-config;
+		num-cs = <1>;
+
+		/* partitions (optional) */
+	};
+

@@ -405,7 +405,7 @@ c4_linux_xmit (struct sk_buff * skb, struct net_device * ndev)
     priv = hdlc->priv;
 
     rval = musycc_start_xmit (priv->ci, priv->channum, skb);
-    return -rval;
+    return rval;
 }
 
 static const struct net_device_ops chan_ops = {
@@ -1169,11 +1169,11 @@ cleanup_hdlc (void)
 STATIC void __exit
 c4_mod_remove (void)
 {
-    cleanup_hdlc ();            /* delete any missed channels */
-    cleanup_devs ();
-    c4_cleanup ();
-    cleanup_ioremap ();
-    pr_info("SBE - driver removed.\n");
+	cleanup_hdlc();            /* delete any missed channels */
+	cleanup_devs();
+	c4_cleanup();
+	cleanup_ioremap();
+	pr_info("SBE - driver removed.\n");
 }
 
 module_init (c4_mod_init);

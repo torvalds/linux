@@ -65,6 +65,7 @@
 #define X86_CR4_PCIDE	0x00020000 /* enable PCID support */
 #define X86_CR4_OSXSAVE 0x00040000 /* enable xsave and xrestore */
 #define X86_CR4_SMEP	0x00100000 /* enable SMEP support */
+#define X86_CR4_SMAP	0x00200000 /* enable SMAP support */
 
 /*
  * x86-64 Task Priority Register, CR8

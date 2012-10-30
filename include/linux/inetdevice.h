@@ -104,9 +104,14 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 #define IN_DEV_ANDCONF(in_dev, attr) \
 	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) && \
 	 IN_DEV_CONF_GET((in_dev), attr))
-#define IN_DEV_ORCONF(in_dev, attr) \
-	(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr) || \
+
+#define IN_DEV_NET_ORCONF(in_dev, net, attr) \
+	(IPV4_DEVCONF_ALL(net, attr) || \
 	 IN_DEV_CONF_GET((in_dev), attr))
+
+#define IN_DEV_ORCONF(in_dev, attr) \
+	IN_DEV_NET_ORCONF(in_dev, dev_net(in_dev->dev), attr)
+
 #define IN_DEV_MAXCONF(in_dev, attr) \
 	(max(IPV4_DEVCONF_ALL(dev_net(in_dev->dev), attr), \
 	     IN_DEV_CONF_GET((in_dev), attr)))
@@ -133,6 +138,8 @@ static inline void ipv4_devconf_setall(struct in_device *in_dev)
 					IN_DEV_ORCONF((in_dev), \
 						      PROMOTE_SECONDARIES)
 #define IN_DEV_ROUTE_LOCALNET(in_dev)	IN_DEV_ORCONF(in_dev, ROUTE_LOCALNET)
+#define IN_DEV_NET_ROUTE_LOCALNET(in_dev, net)	\
+	IN_DEV_NET_ORCONF(in_dev, net, ROUTE_LOCALNET)
 
 #define IN_DEV_RX_REDIRECTS(in_dev) \
 	((IN_DEV_FORWARD(in_dev) && \

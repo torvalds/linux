@@ -38,7 +38,7 @@
 #include <mach/map.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-ldm.h>
-#include <mach/fb.h>
+#include <linux/platform_data/video-nuc900fb.h>
 
 #include "nuc900fb.h"
 
@@ -387,7 +387,7 @@ static int nuc900fb_init_registers(struct fb_info *info)
  *    The buffer should be a non-cached, non-buffered, memory region
  *    to allow palette and pixel writes without flushing the cache.
  */
-static int __init nuc900fb_map_video_memory(struct fb_info *info)
+static int __devinit nuc900fb_map_video_memory(struct fb_info *info)
 {
 	struct nuc900fb_info *fbi = info->par;
 	dma_addr_t map_dma;

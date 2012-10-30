@@ -425,9 +425,9 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	pc_host->io_resource.flags = IORESOURCE_IO | IORESOURCE_PCI_FIXED;
 
 	/* Reset RC */
-	udelay(3000);
+	usleep_range(3000, 5000);
 	pcicore_write32(pc, BCMA_CORE_PCI_CTL, BCMA_CORE_PCI_CTL_RST_OE);
-	udelay(1000);
+	usleep_range(1000, 2000);
 	pcicore_write32(pc, BCMA_CORE_PCI_CTL, BCMA_CORE_PCI_CTL_RST |
 			BCMA_CORE_PCI_CTL_RST_OE);
 
@@ -481,7 +481,7 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	 * before issuing configuration requests to PCI Express
 	 * devices.
 	 */
-	udelay(100000);
+	msleep(100);
 
 	bcma_core_pci_enable_crs(pc);
 
@@ -501,7 +501,7 @@ void __devinit bcma_core_pci_hostmode_init(struct bcma_drv_pci *pc)
 	set_io_port_base(pc_host->pci_controller.io_map_base);
 	/* Give some time to the PCI controller to configure itself with the new
 	 * values. Not waiting at this point causes crashes of the machine. */
-	mdelay(10);
+	usleep_range(10000, 15000);
 	register_pci_controller(&pc_host->pci_controller);
 	return;
 }

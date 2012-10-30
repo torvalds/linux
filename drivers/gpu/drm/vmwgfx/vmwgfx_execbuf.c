@@ -27,8 +27,8 @@
 
 #include "vmwgfx_drv.h"
 #include "vmwgfx_reg.h"
-#include "ttm/ttm_bo_api.h"
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_bo_api.h>
+#include <drm/ttm/ttm_placement.h>
 
 static int vmw_cmd_invalid(struct vmw_private *dev_priv,
 			   struct vmw_sw_context *sw_context,

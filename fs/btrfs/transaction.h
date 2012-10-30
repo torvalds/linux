@@ -47,6 +47,14 @@ struct btrfs_transaction {
 	int aborted;
 };
 
+enum btrfs_trans_type {
+	TRANS_START,
+	TRANS_JOIN,
+	TRANS_USERSPACE,
+	TRANS_JOIN_NOLOCK,
+	TRANS_ATTACH,
+};
+
 struct btrfs_trans_handle {
 	u64 transid;
 	u64 bytes_reserved;
@@ -58,8 +66,9 @@ struct btrfs_trans_handle {
 	struct btrfs_transaction *transaction;
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *orig_rsv;
-	int aborted;
-	int adding_csums;
+	short aborted;
+	short adding_csums;
+	enum btrfs_trans_type type;
 	/*
 	 * this root is only needed to validate that the root passed to
 	 * start_transaction is the same as the one passed to end_transaction.
@@ -68,6 +77,7 @@ struct btrfs_trans_handle {
 	struct btrfs_root *root;
 	struct seq_list delayed_ref_elem;
 	struct list_head qgroup_ref_list;
+	struct list_head new_bgs;
 };
 
 struct btrfs_pending_snapshot {
@@ -88,16 +98,18 @@ static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 {
 	BTRFS_I(inode)->last_trans = trans->transaction->transid;
 	BTRFS_I(inode)->last_sub_trans = BTRFS_I(inode)->root->log_transid;
+	BTRFS_I(inode)->last_log_commit = BTRFS_I(inode)->root->last_log_commit;
 }
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
-int btrfs_end_transaction_nolock(struct btrfs_trans_handle *trans,
-				 struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   int num_items);
+struct btrfs_trans_handle *btrfs_start_transaction_noflush(
+					struct btrfs_root *root, int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root);
 int btrfs_wait_for_commit(struct btrfs_root *root, u64 transid);
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,

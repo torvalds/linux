@@ -59,6 +59,16 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #define FIND_LABEL(labels, label) seccomp_bpf_label((labels), #label)
 
 #define EXPAND(...) __VA_ARGS__
+
+/* Ensure that we load the logically correct offset. */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
+#elif __BYTE_ORDER == __BIG_ENDIAN
+#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
+#else
+#error "Unknown endianness"
+#endif
+
 /* Map all width-sensitive operations */
 #if __BITS_PER_LONG == 32
 
@@ -70,21 +80,16 @@ void seccomp_bpf_print(struct sock_filter *filter, size_t count);
 #define JLE(x, jt) JLE32(x, EXPAND(jt))
 #define JA(x, jt) JA32(x, EXPAND(jt))
 #define ARG(i) ARG_32(i)
-#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
 
 #elif __BITS_PER_LONG == 64
 
 /* Ensure that we load the logically correct offset. */
 #if __BYTE_ORDER == __LITTLE_ENDIAN
 #define ENDIAN(_lo, _hi) _lo, _hi
-#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
 #define HI_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
 #elif __BYTE_ORDER == __BIG_ENDIAN
 #define ENDIAN(_lo, _hi) _hi, _lo
-#define LO_ARG(idx) offsetof(struct seccomp_data, args[(idx)]) + sizeof(__u32)
 #define HI_ARG(idx) offsetof(struct seccomp_data, args[(idx)])
-#else
-#error "Unknown endianness"
 #endif
 
 union arg64 {

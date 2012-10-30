@@ -25,7 +25,7 @@
 
 #include <asm/irq.h>
 
-#include <mach/arcom-pcmcia.h>
+#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
 
 #include "soc_common.h"
 #include "pxa2xx_base.h"

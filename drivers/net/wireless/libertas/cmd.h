@@ -96,6 +96,7 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv);
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
 
 void lbs_set_mac_control(struct lbs_private *priv);
+int lbs_set_mac_control_sync(struct lbs_private *priv);
 
 int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 		     s16 *maxlevel);

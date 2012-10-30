@@ -1,0 +1,57 @@
+/*
+ * Device Tree Include file for Marvell Armada XP family SoC
+ *
+ * Copyright (C) 2012 Marvell
+ *
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ *
+ * Contains definitions specific to the Armada XP MV78230 SoC that are not
+ * common to all Armada XP SoCs.
+ */
+
+/include/ "armada-xp.dtsi"
+
+/ {
+	model = "Marvell Armada XP MV78230 SoC";
+	compatible = "marvell,armadaxp-mv78230", "marvell,armadaxp", "marvell,armada-370-xp";
+
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+	};
+
+	soc {
+		pinctrl {
+			compatible = "marvell,mv78230-pinctrl";
+			reg = <0xd0018000 0x38>;
+		};
+
+		gpio0: gpio@d0018100 {
+			compatible = "marvell,armadaxp-gpio";
+			reg = <0xd0018100 0x40>,
+			    <0xd0018800 0x30>;
+			ngpios = <32>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupts-cells = <2>;
+			interrupts = <16>, <17>, <18>, <19>;
+		};
+
+		gpio1: gpio@d0018140 {
+			compatible = "marvell,armadaxp-gpio";
+			reg = <0xd0018140 0x40>,
+			    <0xd0018840 0x30>;
+			ngpios = <17>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupts-cells = <2>;
+			interrupts = <20>, <21>, <22>;
+		};
+	};
+};

@@ -320,7 +320,7 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id)
 
 	us->subclass = idesc->bInterfaceSubClass;
 	us->protocol = idesc->bInterfaceProtocol;
-	us->fflags = USB_US_ORIG_FLAGS(id->driver_info);
+	us->fflags = id->driver_info;
 	us->Power_IsResum = false;
 
 	if (us->fflags & US_FL_IGNORE_DEVICE)

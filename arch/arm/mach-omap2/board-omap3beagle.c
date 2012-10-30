@@ -24,6 +24,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/opp.h>
+#include <linux/cpu.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -33,18 +34,16 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <plat/board.h>
 #include "common.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 #include <plat/gpmc.h>
-#include <plat/nand.h>
+#include <linux/platform_data/mtd-nand-omap2.h>
 #include <plat/usb.h>
 #include <plat/omap_device.h>
 
@@ -297,9 +296,6 @@ static int beagle_twl_gpio_setup(struct device *dev,
 }
 
 static struct twl4030_gpio_platform_data beagle_gpio_data = {
-	.gpio_base	= OMAP_MAX_GPIO_LINES,
-	.irq_base	= TWL4030_GPIO_IRQ_BASE,
-	.irq_end	= TWL4030_GPIO_IRQ_END,
 	.use_leds	= true,
 	.pullups	= BIT(1),
 	.pulldowns	= BIT(2) | BIT(6) | BIT(7) | BIT(8) | BIT(13)
@@ -449,27 +445,31 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static void __init beagle_opp_init(void)
+static int __init beagle_opp_init(void)
 {
 	int r = 0;
 
-	/* Initialize the omap3 opp table */
-	if (omap3_opp_init()) {
+	if (!machine_is_omap3_beagle())
+		return 0;
+
+	/* Initialize the omap3 opp table if not already created. */
+	r = omap3_opp_init();
+	if (IS_ERR_VALUE(r) && (r != -EEXIST)) {
 		pr_err("%s: opp default init failed\n", __func__);
-		return;
+		return r;
 	}
 
 	/* Custom OPP enabled for all xM versions */
 	if (cpu_is_omap3630()) {
 		struct device *mpu_dev, *iva_dev;
 
-		mpu_dev = omap_device_get_by_hwmod_name("mpu");
+		mpu_dev = get_cpu_device(0);
 		iva_dev = omap_device_get_by_hwmod_name("iva");
 
-		if (!mpu_dev || !iva_dev) {
+		if (IS_ERR(mpu_dev) || IS_ERR(iva_dev)) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
 				__func__, mpu_dev, iva_dev);
-			return;
+			return -ENODEV;
 		}
 		/* Enable MPU 1GHz and lower opps */
 		r = opp_enable(mpu_dev, 800000000);
@@ -489,8 +489,9 @@ static void __init beagle_opp_init(void)
 			opp_disable(iva_dev, 660000000);
 		}
 	}
-	return;
+	return 0;
 }
+device_initcall(beagle_opp_init);
 
 static void __init omap3_beagle_init(void)
 {
@@ -519,6 +520,7 @@ static void __init omap3_beagle_init(void)
 	usbhs_init(&usbhs_bdata);
 	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3beagle_nand_partitions,
 			     ARRAY_SIZE(omap3beagle_nand_partitions));
+	omap_twl4030_audio_init("omap3beagle");
 
 	/* Ensure msecure is mux'd to be able to set the RTC. */
 	omap_mux_init_signal("sys_drm_msecure", OMAP_PIN_OFF_OUTPUT_HIGH);
@@ -526,8 +528,6 @@ static void __init omap3_beagle_init(void)
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
-
-	beagle_opp_init();
 }
 
 MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")

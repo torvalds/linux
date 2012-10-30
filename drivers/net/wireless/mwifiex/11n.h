@@ -28,8 +28,6 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 			  struct host_cmd_ds_command *resp);
 int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
-int mwifiex_ret_11n_cfg(struct host_cmd_ds_command *resp,
-			struct mwifiex_ds_11n_tx_cfg *tx_cfg);
 int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd, u16 cmd_action,
 			struct mwifiex_ds_11n_tx_cfg *txcfg);
 
@@ -60,15 +58,13 @@ int mwifiex_get_rx_reorder_tbl(struct mwifiex_private *priv,
 			      struct mwifiex_ds_rx_reorder_tbl *buf);
 int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 			       struct mwifiex_ds_tx_ba_stream_tbl *buf);
-int mwifiex_ret_amsdu_aggr_ctrl(struct host_cmd_ds_command *resp,
-				struct mwifiex_ds_11n_amsdu_aggr_ctrl
-				*amsdu_aggr_ctrl);
 int mwifiex_cmd_recfg_tx_buf(struct mwifiex_private *priv,
 			     struct host_cmd_ds_command *cmd,
 			     int cmd_action, u16 *buf_size);
 int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
 				int cmd_action,
 				struct mwifiex_ds_11n_amsdu_aggr_ctrl *aa_ctrl);
+void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra);
 
 /*
  * This function checks whether AMPDU is allowed or not for a particular TID.
@@ -156,5 +152,19 @@ mwifiex_is_ba_stream_setup(struct mwifiex_private *priv,
 		return true;
 
 	return false;
+}
+
+/*
+ * This function checks whether associated station is 11n enabled
+ */
+static inline int mwifiex_is_sta_11n_enabled(struct mwifiex_private *priv,
+					     struct mwifiex_sta_node *node)
+{
+
+	if (!node || (priv->bss_role != MWIFIEX_BSS_ROLE_UAP) ||
+	    !priv->ap_11n_enabled)
+		return 0;
+
+	return node->is_11n_enabled;
 }
 #endif /* !_MWIFIEX_11N_H_ */

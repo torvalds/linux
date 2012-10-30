@@ -6,7 +6,29 @@ Required properties:
 - interrupts : Should contain SPI controller interrupt
 
 Optional properties:
+- num-cs : total number of chipselects
 - cs-gpios : should specify GPIOs used for chipselects.
   The gpios will be referred to as reg = <index> in the SPI child nodes.
   If unspecified, a single SPI device without a chip select can be used.
+- pl022,autosuspend-delay : delay in ms following transfer completion before
+			    the runtime power management system suspends the
+			    device. A setting of 0 indicates no delay and the
+                            device will be suspended immediately
+- pl022,rt : indicates the controller should run the message pump with realtime
+             priority to minimise the transfer latency on the bus (boolean)
+
+
+SPI slave nodes must be children of the SPI master node and can
+contain the following properties.
+
+- pl022,interface : interface type:
+	0: SPI
+	1: Texas Instruments Synchronous Serial Frame Format
+	2: Microwire (Half Duplex)
+- pl022,com-mode : polling, interrupt or dma
+- pl022,rx-level-trig : Rx FIFO watermark level
+- pl022,tx-level-trig : Tx FIFO watermark level
+- pl022,ctrl-len : Microwire interface: Control length
+- pl022,wait-state : Microwire interface: Wait state
+- pl022,duplex : Microwire interface: Full/Half duplex
 

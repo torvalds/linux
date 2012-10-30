@@ -87,6 +87,10 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 
+#define	BIF_FB_EN						0x5490
+#define		FB_READ_EN					(1 << 0)
+#define		FB_WRITE_EN					(1 << 1)
+
 #define	CP_COHER_BASE					0x85F8
 #define	CP_STALLED_STAT1			0x8674
 #define	CP_STALLED_STAT2			0x8678
@@ -429,6 +433,9 @@
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x00003000
 #define MC_SHARED_CHREMAP					0x2008
+
+#define MC_SHARED_BLACKOUT_CNTL           		0x20ac
+#define		BLACKOUT_MODE_MASK			0x00000007
 
 #define	MC_ARB_RAMCFG					0x2760
 #define		NOOFBANK_SHIFT					0

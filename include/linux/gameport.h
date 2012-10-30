@@ -1,6 +1,3 @@
-#ifndef _GAMEPORT_H
-#define _GAMEPORT_H
-
 /*
  *  Copyright (c) 1999-2002 Vojtech Pavlik
  *
@@ -8,8 +5,9 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
+#ifndef _GAMEPORT_H
+#define _GAMEPORT_H
 
-#ifdef __KERNEL__
 #include <asm/io.h>
 #include <linux/types.h>
 #include <linux/list.h>
@@ -17,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/timer.h>
 #include <linux/slab.h>
+#include <uapi/linux/gameport.h>
 
 struct gameport {
 
@@ -166,24 +165,6 @@ void gameport_unregister_driver(struct gameport_driver *drv);
 	module_driver(__gameport_driver, gameport_register_driver, \
 		       gameport_unregister_driver)
 
-#endif /* __KERNEL__ */
-
-#define GAMEPORT_MODE_DISABLED		0
-#define GAMEPORT_MODE_RAW		1
-#define GAMEPORT_MODE_COOKED		2
-
-#define GAMEPORT_ID_VENDOR_ANALOG	0x0001
-#define GAMEPORT_ID_VENDOR_MADCATZ	0x0002
-#define GAMEPORT_ID_VENDOR_LOGITECH	0x0003
-#define GAMEPORT_ID_VENDOR_CREATIVE	0x0004
-#define GAMEPORT_ID_VENDOR_GENIUS	0x0005
-#define GAMEPORT_ID_VENDOR_INTERACT	0x0006
-#define GAMEPORT_ID_VENDOR_MICROSOFT	0x0007
-#define GAMEPORT_ID_VENDOR_THRUSTMASTER	0x0008
-#define GAMEPORT_ID_VENDOR_GRAVIS	0x0009
-#define GAMEPORT_ID_VENDOR_GUILLEMOT	0x000a
-
-#ifdef __KERNEL__
 
 static inline void gameport_trigger(struct gameport *gameport)
 {
@@ -235,5 +216,4 @@ static inline void gameport_set_poll_interval(struct gameport *gameport, unsigne
 void gameport_start_polling(struct gameport *gameport);
 void gameport_stop_polling(struct gameport *gameport);
 
-#endif /* __KERNEL__ */
 #endif

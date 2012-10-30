@@ -183,18 +183,18 @@ int nfsd_nrthreads(void)
 	return rv;
 }
 
-static int nfsd_init_socks(int port)
+static int nfsd_init_socks(void)
 {
 	int error;
 	if (!list_empty(&nfsd_serv->sv_permsocks))
 		return 0;
 
-	error = svc_create_xprt(nfsd_serv, "udp", &init_net, PF_INET, port,
+	error = svc_create_xprt(nfsd_serv, "udp", &init_net, PF_INET, NFS_PORT,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
 
-	error = svc_create_xprt(nfsd_serv, "tcp", &init_net, PF_INET, port,
+	error = svc_create_xprt(nfsd_serv, "tcp", &init_net, PF_INET, NFS_PORT,
 					SVC_SOCK_DEFAULTS);
 	if (error < 0)
 		return error;
@@ -204,7 +204,7 @@ static int nfsd_init_socks(int port)
 
 static bool nfsd_up = false;
 
-static int nfsd_startup(unsigned short port, int nrservs)
+static int nfsd_startup(int nrservs)
 {
 	int ret;
 
@@ -218,7 +218,7 @@ static int nfsd_startup(unsigned short port, int nrservs)
 	ret = nfsd_racache_init(2*nrservs);
 	if (ret)
 		return ret;
-	ret = nfsd_init_socks(port);
+	ret = nfsd_init_socks();
 	if (ret)
 		goto out_racache;
 	ret = lockd_up(&init_net);
@@ -436,7 +436,7 @@ int nfsd_set_nrthreads(int n, int *nthreads)
  * this is the first time nrservs is nonzero.
  */
 int
-nfsd_svc(unsigned short port, int nrservs)
+nfsd_svc(int nrservs)
 {
 	int	error;
 	bool	nfsd_up_before;
@@ -458,7 +458,7 @@ nfsd_svc(unsigned short port, int nrservs)
 
 	nfsd_up_before = nfsd_up;
 
-	error = nfsd_startup(port, nrservs);
+	error = nfsd_startup(nrservs);
 	if (error)
 		goto out_destroy;
 	error = svc_set_num_threads(nfsd_serv, NULL, nrservs);
@@ -487,7 +487,7 @@ static int
 nfsd(void *vrqstp)
 {
 	struct svc_rqst *rqstp = (struct svc_rqst *) vrqstp;
-	int err, preverr = 0;
+	int err;
 
 	/* Lock module and set up kernel thread */
 	mutex_lock(&nfsd_mutex);
@@ -534,16 +534,6 @@ nfsd(void *vrqstp)
 			;
 		if (err == -EINTR)
 			break;
-		else if (err < 0) {
-			if (err != preverr) {
-				printk(KERN_WARNING "%s: unexpected error "
-					"from svc_recv (%d)\n", __func__, -err);
-				preverr = err;
-			}
-			schedule_timeout_uninterruptible(HZ);
-			continue;
-		}
-
 		validate_process_creds();
 		svc_process(rqstp);
 		validate_process_creds();

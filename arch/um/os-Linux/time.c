@@ -8,8 +8,8 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 #include "internal.h"
 
 int set_interval(void)
@@ -114,7 +114,7 @@ static void deliver_alarm(void)
 	skew += this_tick - last_tick;
 
 	while (skew >= one_tick) {
-		alarm_handler(SIGVTALRM, NULL);
+		alarm_handler(SIGVTALRM, NULL, NULL);
 		skew -= one_tick;
 	}
 

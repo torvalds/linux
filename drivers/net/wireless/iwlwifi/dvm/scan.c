@@ -612,9 +612,9 @@ static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 		return 0;
 
 	frame->frame_control = cpu_to_le16(IEEE80211_STYPE_PROBE_REQ);
-	memcpy(frame->da, iwl_bcast_addr, ETH_ALEN);
+	eth_broadcast_addr(frame->da);
 	memcpy(frame->sa, ta, ETH_ALEN);
-	memcpy(frame->bssid, iwl_bcast_addr, ETH_ALEN);
+	eth_broadcast_addr(frame->bssid);
 	frame->seq_ctrl = 0;
 
 	len += 24;

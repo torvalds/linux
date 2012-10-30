@@ -21,7 +21,7 @@
 * hcfcfg.tpl list all #defines which must be specified to:
 *   adjust the HCF functions defined in HCF.C to the characteristics of a specific environment
 *		o maximum sizes for messages
-*		o Endianess
+*		o Endianness
 *	Compiler specific macros
 *		o port I/O macros
 *		o type definitions

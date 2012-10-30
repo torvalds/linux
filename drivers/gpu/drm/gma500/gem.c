@@ -25,7 +25,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 
 int psb_gem_init_object(struct drm_gem_object *obj)
@@ -36,7 +36,12 @@ int psb_gem_init_object(struct drm_gem_object *obj)
 void psb_gem_free_object(struct drm_gem_object *obj)
 {
 	struct gtt_range *gtt = container_of(obj, struct gtt_range, gem);
-	drm_gem_object_release_wrap(obj);
+
+	/* Remove the list map if one is present */
+	if (obj->map_list.map)
+		drm_gem_free_mmap_offset(obj);
+	drm_gem_object_release(obj);
+
 	/* This must occur last as it frees up the memory of the GEM object */
 	psb_gtt_free_range(obj->dev, gtt);
 }
@@ -77,7 +82,7 @@ int psb_gem_dumb_map_gtt(struct drm_file *file, struct drm_device *dev,
 
 	/* Make it mmapable */
 	if (!obj->map_list.map) {
-		ret = gem_create_mmap_offset(obj);
+		ret = drm_gem_create_mmap_offset(obj);
 		if (ret)
 			goto out;
 	}

@@ -614,18 +614,11 @@ int wm831x_set_bits(struct wm831x *wm831x, unsigned short reg,
 }
 EXPORT_SYMBOL_GPL(wm831x_set_bits);
 
-static struct resource wm831x_io_parent = {
-	.start = 0,
-	.end   = 0xffffffff,
-	.flags = IORESOURCE_IO,
-};
-
 static struct resource wm831x_dcdc1_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_DC1_CONTROL_1,
 		.end   = WM831X_DC1_DVS_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -644,10 +637,9 @@ static struct resource wm831x_dcdc1_resources[] = {
 
 static struct resource wm831x_dcdc2_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_DC2_CONTROL_1,
 		.end   = WM831X_DC2_DVS_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -665,10 +657,9 @@ static struct resource wm831x_dcdc2_resources[] = {
 
 static struct resource wm831x_dcdc3_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_DC3_CONTROL_1,
 		.end   = WM831X_DC3_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -680,10 +671,9 @@ static struct resource wm831x_dcdc3_resources[] = {
 
 static struct resource wm831x_dcdc4_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_DC4_CONTROL,
 		.end   = WM831X_DC4_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -695,10 +685,9 @@ static struct resource wm831x_dcdc4_resources[] = {
 
 static struct resource wm8320_dcdc4_buck_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_DC4_CONTROL,
 		.end   = WM832X_DC4_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -718,10 +707,9 @@ static struct resource wm831x_gpio_resources[] = {
 
 static struct resource wm831x_isink1_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_CURRENT_SINK_1,
 		.end   = WM831X_CURRENT_SINK_1,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.start = WM831X_IRQ_CS1,
@@ -732,10 +720,9 @@ static struct resource wm831x_isink1_resources[] = {
 
 static struct resource wm831x_isink2_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_CURRENT_SINK_2,
 		.end   = WM831X_CURRENT_SINK_2,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.start = WM831X_IRQ_CS2,
@@ -746,10 +733,9 @@ static struct resource wm831x_isink2_resources[] = {
 
 static struct resource wm831x_ldo1_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO1_CONTROL,
 		.end   = WM831X_LDO1_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -761,10 +747,9 @@ static struct resource wm831x_ldo1_resources[] = {
 
 static struct resource wm831x_ldo2_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO2_CONTROL,
 		.end   = WM831X_LDO2_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -776,10 +761,9 @@ static struct resource wm831x_ldo2_resources[] = {
 
 static struct resource wm831x_ldo3_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO3_CONTROL,
 		.end   = WM831X_LDO3_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -791,10 +775,9 @@ static struct resource wm831x_ldo3_resources[] = {
 
 static struct resource wm831x_ldo4_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO4_CONTROL,
 		.end   = WM831X_LDO4_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -806,10 +789,9 @@ static struct resource wm831x_ldo4_resources[] = {
 
 static struct resource wm831x_ldo5_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO5_CONTROL,
 		.end   = WM831X_LDO5_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -821,10 +803,9 @@ static struct resource wm831x_ldo5_resources[] = {
 
 static struct resource wm831x_ldo6_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO6_CONTROL,
 		.end   = WM831X_LDO6_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -836,10 +817,9 @@ static struct resource wm831x_ldo6_resources[] = {
 
 static struct resource wm831x_ldo7_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO7_CONTROL,
 		.end   = WM831X_LDO7_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -851,10 +831,9 @@ static struct resource wm831x_ldo7_resources[] = {
 
 static struct resource wm831x_ldo8_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO8_CONTROL,
 		.end   = WM831X_LDO8_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -866,10 +845,9 @@ static struct resource wm831x_ldo8_resources[] = {
 
 static struct resource wm831x_ldo9_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO9_CONTROL,
 		.end   = WM831X_LDO9_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -881,10 +859,9 @@ static struct resource wm831x_ldo9_resources[] = {
 
 static struct resource wm831x_ldo10_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO10_CONTROL,
 		.end   = WM831X_LDO10_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 	{
 		.name  = "UV",
@@ -896,10 +873,9 @@ static struct resource wm831x_ldo10_resources[] = {
 
 static struct resource wm831x_ldo11_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_LDO11_ON_CONTROL,
 		.end   = WM831X_LDO11_SLEEP_CONTROL,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 };
 
@@ -998,19 +974,17 @@ static struct resource wm831x_rtc_resources[] = {
 
 static struct resource wm831x_status1_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_STATUS_LED_1,
 		.end   = WM831X_STATUS_LED_1,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 };
 
 static struct resource wm831x_status2_resources[] = {
 	{
-		.parent = &wm831x_io_parent,
 		.start = WM831X_STATUS_LED_2,
 		.end   = WM831X_STATUS_LED_2,
-		.flags = IORESOURCE_IO,
+		.flags = IORESOURCE_REG,
 	},
 };
 
@@ -1813,27 +1787,27 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8310_devs, ARRAY_SIZE(wm8310_devs),
-				      NULL, 0);
+				      NULL, 0, NULL);
 		break;
 
 	case WM8311:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8311_devs, ARRAY_SIZE(wm8311_devs),
-				      NULL, 0);
+				      NULL, 0, NULL);
 		if (!pdata || !pdata->disable_touch)
 			mfd_add_devices(wm831x->dev, wm831x_num,
 					touch_devs, ARRAY_SIZE(touch_devs),
-					NULL, 0);
+					NULL, 0, NULL);
 		break;
 
 	case WM8312:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8312_devs, ARRAY_SIZE(wm8312_devs),
-				      NULL, 0);
+				      NULL, 0, NULL);
 		if (!pdata || !pdata->disable_touch)
 			mfd_add_devices(wm831x->dev, wm831x_num,
 					touch_devs, ARRAY_SIZE(touch_devs),
-					NULL, 0);
+					NULL, 0, NULL);
 		break;
 
 	case WM8320:
@@ -1842,7 +1816,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8326:
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      wm8320_devs, ARRAY_SIZE(wm8320_devs),
-				      NULL, 0);
+				      NULL, 0, NULL);
 		break;
 
 	default:
@@ -1867,7 +1841,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (ret & WM831X_XTAL_ENA) {
 		ret = mfd_add_devices(wm831x->dev, wm831x_num,
 				      rtc_devs, ARRAY_SIZE(rtc_devs),
-				      NULL, 0);
+				      NULL, 0, NULL);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "Failed to add RTC: %d\n", ret);
 			goto err_irq;
@@ -1880,7 +1854,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		/* Treat errors as non-critical */
 		ret = mfd_add_devices(wm831x->dev, wm831x_num, backlight_devs,
 				      ARRAY_SIZE(backlight_devs), NULL,
-				      0);
+				      0, NULL);
 		if (ret < 0)
 			dev_err(wm831x->dev, "Failed to add backlight: %d\n",
 				ret);

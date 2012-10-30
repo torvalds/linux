@@ -6,8 +6,8 @@
 #ifndef __REGISTERS_H
 #define __REGISTERS_H
 
-#include "sysdep/ptrace.h"
-#include "sysdep/archsetjmp.h"
+#include <sysdep/ptrace.h>
+#include <sysdep/archsetjmp.h>
 
 extern int save_fp_registers(int pid, unsigned long *fp_regs);
 extern int restore_fp_registers(int pid, unsigned long *fp_regs);

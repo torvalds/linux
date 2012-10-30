@@ -721,6 +721,17 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 
 	switch (psmouse->packet[0] >> FSP_PKT_TYPE_SHIFT) {
 	case FSP_PKT_TYPE_ABS:
+
+		if ((packet[0] == 0x48 || packet[0] == 0x49) &&
+		    packet[1] == 0 && packet[2] == 0) {
+			/*
+			 * Ignore coordinate noise when finger leaving the
+			 * surface, otherwise cursor may jump to upper-left
+			 * corner.
+			 */
+			packet[3] &= 0xf0;
+		}
+
 		abs_x = GET_ABS_X(packet);
 		abs_y = GET_ABS_Y(packet);
 

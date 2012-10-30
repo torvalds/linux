@@ -31,6 +31,7 @@ extern struct platform_device jz4740_pcm_device;
 extern struct platform_device jz4740_codec_device;
 extern struct platform_device jz4740_adc_device;
 extern struct platform_device jz4740_wdt_device;
+extern struct platform_device jz4740_pwm_device;
 
 void jz4740_serial_device_register(void);
 

@@ -586,7 +586,7 @@
 #define PKT_TYPE_NONE           0x00    // turn off receiver
 #define PKT_TYPE_ALL_MULTICAST  0x80
 #define PKT_TYPE_PROMISCUOUS    0x40
-#define PKT_TYPE_DIRECTED       0x20    // obselete, directed address is always accepted
+#define PKT_TYPE_DIRECTED       0x20    // obsolete, directed address is always accepted
 #define PKT_TYPE_BROADCAST      0x10
 #define PKT_TYPE_MULTICAST      0x08
 #define PKT_TYPE_ERROR_WPA      0x04

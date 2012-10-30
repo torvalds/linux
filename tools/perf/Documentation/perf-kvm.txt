@@ -12,7 +12,7 @@ SYNOPSIS
 	[--guestkallsyms=<path> --guestmodules=<path> | --guestvmlinux=<path>]]
 	{top|record|report|diff|buildid-list}
 'perf kvm' [--host] [--guest] [--guestkallsyms=<path> --guestmodules=<path>
-	| --guestvmlinux=<path>] {top|record|report|diff|buildid-list}
+	| --guestvmlinux=<path>] {top|record|report|diff|buildid-list|stat}
 
 DESCRIPTION
 -----------
@@ -37,6 +37,18 @@ There are a couple of variants of perf kvm:
   'perf kvm buildid-list' to  display the buildids found in a perf data file,
   so that other tools can be used to fetch packages with matching symbol tables
   for use by perf report.
+
+  'perf kvm stat <command>' to run a command and gather performance counter
+  statistics.
+  Especially, perf 'kvm stat record/report' generates a statistical analysis
+  of KVM events. Currently, vmexit, mmio and ioport events are supported.
+  'perf kvm stat record <command>' records kvm events and the events between
+  start and end <command>.
+  And this command produces a file which contains tracing results of kvm
+  events.
+
+  'perf kvm stat report' reports statistical data which includes events
+  handled time, samples, and so on.
 
 OPTIONS
 -------
@@ -68,7 +80,21 @@ OPTIONS
 --guestvmlinux=<path>::
 	Guest os kernel vmlinux.
 
+STAT REPORT OPTIONS
+-------------------
+--vcpu=<value>::
+       analyze events which occures on this vcpu. (default: all vcpus)
+
+--events=<value>::
+       events to be analyzed. Possible values: vmexit, mmio, ioport.
+       (default: vmexit)
+-k::
+--key=<value>::
+       Sorting key. Possible values: sample (default, sort by samples
+       number), time (sort by average time).
+
 SEE ALSO
 --------
 linkperf:perf-top[1], linkperf:perf-record[1], linkperf:perf-report[1],
-linkperf:perf-diff[1], linkperf:perf-buildid-list[1]
+linkperf:perf-diff[1], linkperf:perf-buildid-list[1],
+linkperf:perf-stat[1]

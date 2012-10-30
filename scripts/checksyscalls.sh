@@ -200,7 +200,7 @@ EOF
 syscall_list() {
     grep '^[0-9]' "$1" | sort -n | (
 	while read nr abi name entry ; do
-	    echo <<EOF
+	    cat <<EOF
 #if !defined(__NR_${name}) && !defined(__IGNORE_${name})
 #warning syscall ${name} not implemented
 #endif

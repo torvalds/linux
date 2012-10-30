@@ -128,12 +128,10 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 	int err;
 	u32 eax, edx;
 
-	data = kzalloc(sizeof(struct via_cputemp_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		dev_err(&pdev->dev, "Out of memory\n");
-		goto exit;
-	}
+	data = devm_kzalloc(&pdev->dev, sizeof(struct via_cputemp_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	data->id = pdev->id;
 	data->name = "via_cputemp";
@@ -151,8 +149,7 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 		data->msr_temp = 0x1423;
 		break;
 	default:
-		err = -ENODEV;
-		goto exit_free;
+		return -ENODEV;
 	}
 
 	/* test if we can access the TEMPERATURE MSR */
@@ -160,14 +157,14 @@ static int __devinit via_cputemp_probe(struct platform_device *pdev)
 	if (err) {
 		dev_err(&pdev->dev,
 			"Unable to access TEMPERATURE MSR, giving up\n");
-		goto exit_free;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, data);
 
 	err = sysfs_create_group(&pdev->dev.kobj, &via_cputemp_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	if (data->msr_vid)
 		data->vrm = vid_which_vrm();
@@ -192,10 +189,6 @@ exit_remove:
 	if (data->vrm)
 		device_remove_file(&pdev->dev, &dev_attr_cpu0_vid);
 	sysfs_remove_group(&pdev->dev.kobj, &via_cputemp_group);
-exit_free:
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-exit:
 	return err;
 }
 
@@ -207,8 +200,6 @@ static int __devexit via_cputemp_remove(struct platform_device *pdev)
 	if (data->vrm)
 		device_remove_file(&pdev->dev, &dev_attr_cpu0_vid);
 	sysfs_remove_group(&pdev->dev.kobj, &via_cputemp_group);
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 	return 0;
 }
 
@@ -328,6 +319,7 @@ static int __init via_cputemp_init(void)
 	if (err)
 		goto exit;
 
+	get_online_cpus();
 	for_each_online_cpu(i) {
 		struct cpuinfo_x86 *c = &cpu_data(i);
 
@@ -347,12 +339,14 @@ static int __init via_cputemp_init(void)
 
 #ifndef CONFIG_HOTPLUG_CPU
 	if (list_empty(&pdev_list)) {
+		put_online_cpus();
 		err = -ENODEV;
 		goto exit_driver_unreg;
 	}
 #endif
 
 	register_hotcpu_notifier(&via_cputemp_cpu_notifier);
+	put_online_cpus();
 	return 0;
 
 #ifndef CONFIG_HOTPLUG_CPU
@@ -367,6 +361,7 @@ static void __exit via_cputemp_exit(void)
 {
 	struct pdev_entry *p, *n;
 
+	get_online_cpus();
 	unregister_hotcpu_notifier(&via_cputemp_cpu_notifier);
 	mutex_lock(&pdev_list_mutex);
 	list_for_each_entry_safe(p, n, &pdev_list, list) {
@@ -375,6 +370,7 @@ static void __exit via_cputemp_exit(void)
 		kfree(p);
 	}
 	mutex_unlock(&pdev_list_mutex);
+	put_online_cpus();
 	platform_driver_unregister(&via_cputemp_driver);
 }
 

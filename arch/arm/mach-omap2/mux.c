@@ -486,7 +486,7 @@ void omap_hwmod_mux(struct omap_hwmod_mux_info *hmux, u8 state)
 		default:
 			/* Nothing to be done */
 			break;
-		};
+		}
 
 		if (val >= 0) {
 			omap_mux_write(pad->partition, val,

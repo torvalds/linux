@@ -46,11 +46,28 @@
 				wp-gpios = <&gpio0 28 0>;
 			};
 
+			ssp2: ssp@80014000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
+
+				flash: m25p80@0 {
+					#address-cells = <1>;
+					#size-cells = <1>;
+					compatible = "sst,sst25vf016b";
+					spi-max-frequency = <40000000>;
+					reg = <0>;
+				};
+			};
+
 			pinctrl@80018000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_a>;
 
-				hog_pins_a: hog-gpios@0 {
+				hog_pins_a: hog@0 {
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x20d3 /* MX28_PAD_SSP1_CMD__GPIO_2_13 */
@@ -128,6 +145,10 @@
 				status = "okay";
 			};
 
+			lradc@80050000 {
+				status = "okay";
+			};
+
 			i2c0: i2c@80058000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&i2c0_pins_a>;
@@ -139,6 +160,12 @@
 					VDDA-supply = <&reg_3p3v>;
 					VDDIO-supply = <&reg_3p3v>;
 
+				};
+
+				at24@51 {
+					compatible = "at24,24c32";
+					pagesize = <32>;
+					reg = <0x51>;
 				};
 			};
 

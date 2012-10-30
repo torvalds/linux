@@ -13,8 +13,8 @@
 #include <linux/fb.h>
 #include <linux/gpio.h>
 
+#include <video/samsung_fimd.h>
 #include <plat/gpio-cfg.h>
-#include <plat/regs-fb-v4.h>
 
 #include <mach/map.h>
 

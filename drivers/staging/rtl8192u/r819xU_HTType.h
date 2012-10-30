@@ -16,7 +16,7 @@
 #define HT_OPMODE_MIXED			3
 
 //
-// MIMO Power Save Setings
+// MIMO Power Save Settings
 //
 #define MIMO_PS_STATIC				0
 #define MIMO_PS_DYNAMIC			1

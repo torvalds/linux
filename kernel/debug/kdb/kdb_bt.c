@@ -129,6 +129,8 @@ kdb_bt(int argc, const char **argv)
 		}
 		/* Now the inactive tasks */
 		kdb_do_each_thread(g, p) {
+			if (KDB_FLAG(CMD_INTERRUPT))
+				return 0;
 			if (task_curr(p))
 				continue;
 			if (kdb_bt1(p, mask, argcount, btaprompt))

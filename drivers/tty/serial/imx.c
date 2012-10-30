@@ -51,7 +51,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <mach/imx-uart.h>
+#include <linux/platform_data/serial-imx.h>
 
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
@@ -132,6 +132,7 @@
 #define  UCR4_OREN  	 (1<<1)  /* Receiver overrun interrupt enable */
 #define  UCR4_DREN  	 (1<<0)  /* Recv data ready interrupt enable */
 #define  UFCR_RXTL_SHF   0       /* Receiver trigger level shift */
+#define  UFCR_DCEDTE	 (1<<6)  /* DCE/DTE mode select */
 #define  UFCR_RFDIV      (7<<7)  /* Reference freq divider mask */
 #define  UFCR_RFDIV_REG(x)	(((x) < 7 ? 6 - (x) : 6) << 7)
 #define  UFCR_TXTL_SHF   10      /* Transmitter trigger level shift */
@@ -206,7 +207,7 @@ struct imx_port {
 	unsigned short		trcv_delay; /* transceiver delay */
 	struct clk		*clk_ipg;
 	struct clk		*clk_per;
-	struct imx_uart_data	*devdata;
+	const struct imx_uart_data *devdata;
 };
 
 struct imx_port_ucrs {
@@ -667,22 +668,11 @@ static void imx_break_ctl(struct uart_port *port, int break_state)
 static int imx_setup_ufcr(struct imx_port *sport, unsigned int mode)
 {
 	unsigned int val;
-	unsigned int ufcr_rfdiv;
 
-	/* set receiver / transmitter trigger level.
-	 * RFDIV is set such way to satisfy requested uartclk value
-	 */
-	val = TXTL << 10 | RXTL;
-	ufcr_rfdiv = (clk_get_rate(sport->clk_per) + sport->port.uartclk / 2)
-			/ sport->port.uartclk;
-
-	if(!ufcr_rfdiv)
-		ufcr_rfdiv = 1;
-
-	val |= UFCR_RFDIV_REG(ufcr_rfdiv);
-
+	/* set receiver / transmitter trigger level */
+	val = readl(sport->port.membase + UFCR) & (UFCR_RFDIV | UFCR_DCEDTE);
+	val |= TXTL << UFCR_TXTL_SHF | RXTL;
 	writel(val, sport->port.membase + UFCR);
-
 	return 0;
 }
 
@@ -754,6 +744,7 @@ static int imx_startup(struct uart_port *port)
 		}
 	}
 
+	spin_lock_irqsave(&sport->port.lock, flags);
 	/*
 	 * Finally, clear and enable interrupts
 	 */
@@ -807,7 +798,6 @@ static int imx_startup(struct uart_port *port)
 	/*
 	 * Enable modem status interrupts
 	 */
-	spin_lock_irqsave(&sport->port.lock,flags);
 	imx_enable_ms(&sport->port);
 	spin_unlock_irqrestore(&sport->port.lock,flags);
 
@@ -837,10 +827,13 @@ static void imx_shutdown(struct uart_port *port)
 {
 	struct imx_port *sport = (struct imx_port *)port;
 	unsigned long temp;
+	unsigned long flags;
 
+	spin_lock_irqsave(&sport->port.lock, flags);
 	temp = readl(sport->port.membase + UCR2);
 	temp &= ~(UCR2_TXEN);
 	writel(temp, sport->port.membase + UCR2);
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 
 	if (USE_IRDA(sport)) {
 		struct imxuart_platform_data *pdata;
@@ -869,12 +862,14 @@ static void imx_shutdown(struct uart_port *port)
 	 * Disable all interrupts, port and break condition.
 	 */
 
+	spin_lock_irqsave(&sport->port.lock, flags);
 	temp = readl(sport->port.membase + UCR1);
 	temp &= ~(UCR1_TXMPTYEN | UCR1_RRDYEN | UCR1_RTSDEN | UCR1_UARTEN);
 	if (USE_IRDA(sport))
 		temp &= ~(UCR1_IREN);
 
 	writel(temp, sport->port.membase + UCR1);
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 static void
@@ -1217,6 +1212,9 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	struct imx_port *sport = imx_ports[co->index];
 	struct imx_port_ucrs old_ucr;
 	unsigned int ucr1;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sport->port.lock, flags);
 
 	/*
 	 *	First, save UCR1/2/3 and then disable interrupts
@@ -1242,6 +1240,8 @@ imx_console_write(struct console *co, const char *s, unsigned int count)
 	while (!(readl(sport->port.membase + USR2) & USR2_TXDC));
 
 	imx_port_ucrs_restore(&sport->port, &old_ucr);
+
+	spin_unlock_irqrestore(&sport->port.lock, flags);
 }
 
 /*
@@ -1373,8 +1373,7 @@ static int serial_imx_suspend(struct platform_device *dev, pm_message_t state)
 	val |= UCR3_AWAKEN;
 	writel(val, sport->port.membase + UCR3);
 
-	if (sport)
-		uart_suspend_port(&imx_reg, &sport->port);
+	uart_suspend_port(&imx_reg, &sport->port);
 
 	return 0;
 }
@@ -1389,8 +1388,7 @@ static int serial_imx_resume(struct platform_device *dev)
 	val &= ~UCR3_AWAKEN;
 	writel(val, sport->port.membase + UCR3);
 
-	if (sport)
-		uart_resume_port(&imx_reg, &sport->port);
+	uart_resume_port(&imx_reg, &sport->port);
 
 	return 0;
 }
@@ -1505,18 +1503,21 @@ static int serial_imx_probe(struct platform_device *pdev)
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
+		dev_err(&pdev->dev, "failed to get default pinctrl: %d\n", ret);
 		goto unmap;
 	}
 
 	sport->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(sport->clk_ipg)) {
 		ret = PTR_ERR(sport->clk_ipg);
+		dev_err(&pdev->dev, "failed to get ipg clk: %d\n", ret);
 		goto unmap;
 	}
 
 	sport->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(sport->clk_per)) {
 		ret = PTR_ERR(sport->clk_per);
+		dev_err(&pdev->dev, "failed to get per clk: %d\n", ret);
 		goto unmap;
 	}
 
@@ -1537,7 +1538,7 @@ static int serial_imx_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(&imx_reg, &sport->port);
 	if (ret)
 		goto deinit;
-	platform_set_drvdata(pdev, &sport->port);
+	platform_set_drvdata(pdev, sport);
 
 	return 0;
 deinit:

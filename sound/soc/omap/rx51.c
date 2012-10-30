@@ -31,7 +31,7 @@
 #include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <plat/mcbsp.h>
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 #include "../codecs/tpa6130a2.h"
 
 #include <asm/mach-types.h>

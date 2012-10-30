@@ -119,7 +119,9 @@ static void wbsoft_configure_filter(struct ieee80211_hw *dev,
 	*total_flags = new_flags;
 }
 
-static void wbsoft_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void wbsoft_tx(struct ieee80211_hw *dev,
+		      struct ieee80211_tx_control *control,
+		      struct sk_buff *skb)
 {
 	struct wbsoft_priv *priv = dev->priv;
 

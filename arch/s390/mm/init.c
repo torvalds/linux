@@ -42,7 +42,7 @@ pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 unsigned long empty_zero_page, zero_page_mask;
 EXPORT_SYMBOL(empty_zero_page);
 
-static unsigned long setup_zero_pages(void)
+static unsigned long __init setup_zero_pages(void)
 {
 	struct cpuid cpu_id;
 	unsigned int order;
@@ -212,7 +212,7 @@ void free_initmem(void)
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
-void free_initrd_mem(unsigned long start, unsigned long end)
+void __init free_initrd_mem(unsigned long start, unsigned long end)
 {
 	free_init_pages("initrd memory", start, end);
 }

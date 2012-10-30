@@ -34,9 +34,12 @@ MSR_KVM_WALL_CLOCK_NEW:   0x4b564d00
 		time information and check that they are both equal and even.
 		An odd version indicates an in-progress update.
 
-		sec: number of seconds for wallclock.
+		sec: number of seconds for wallclock at time of boot.
 
-		nsec: number of nanoseconds for wallclock.
+		nsec: number of nanoseconds for wallclock at time of boot.
+
+	In order to get the current wallclock time, the system_time from
+	MSR_KVM_SYSTEM_TIME_NEW needs to be added.
 
 	Note that although MSRs are per-CPU entities, the effect of this
 	particular MSR is global.
@@ -82,20 +85,25 @@ MSR_KVM_SYSTEM_TIME_NEW:  0x4b564d01
 		time at the time this structure was last updated. Unit is
 		nanoseconds.
 
-		tsc_to_system_mul: a function of the tsc frequency. One has
-		to multiply any tsc-related quantity by this value to get
-		a value in nanoseconds, besides dividing by 2^tsc_shift
+		tsc_to_system_mul: multiplier to be used when converting
+		tsc-related quantity to nanoseconds
 
-		tsc_shift: cycle to nanosecond divider, as a power of two, to
-		allow for shift rights. One has to shift right any tsc-related
-		quantity by this value to get a value in nanoseconds, besides
-		multiplying by tsc_to_system_mul.
+		tsc_shift: shift to be used when converting tsc-related
+		quantity to nanoseconds. This shift will ensure that
+		multiplication with tsc_to_system_mul does not overflow.
+		A positive value denotes a left shift, a negative value
+		a right shift.
 
-		With this information, guests can derive per-CPU time by
-		doing:
+		The conversion from tsc to nanoseconds involves an additional
+		right shift by 32 bits. With this information, guests can
+		derive per-CPU time by doing:
 
 			time = (current_tsc - tsc_timestamp)
-			time = (time * tsc_to_system_mul) >> tsc_shift
+			if (tsc_shift >= 0)
+				time <<= tsc_shift;
+			else
+				time >>= -tsc_shift;
+			time = (time * tsc_to_system_mul) >> 32
 			time = time + system_time
 
 		flags: bits in this field indicate extended capabilities

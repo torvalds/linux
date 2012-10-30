@@ -13,9 +13,6 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-/* See comments in "zero.c" */
-#include "epautoconf.c"
-
 #ifdef CONFIG_USB_G_DBGP_SERIAL
 #include "u_serial.c"
 #endif
@@ -292,7 +289,8 @@ fail_1:
 	return -ENODEV;
 }
 
-static int __init dbgp_bind(struct usb_gadget *gadget)
+static int __init dbgp_bind(struct usb_gadget *gadget,
+		struct usb_gadget_driver *driver)
 {
 	int err, stp;
 
@@ -402,9 +400,10 @@ fail:
 	return err;
 }
 
-static struct usb_gadget_driver dbgp_driver = {
+static __refdata struct usb_gadget_driver dbgp_driver = {
 	.function = "dbgp",
 	.max_speed = USB_SPEED_HIGH,
+	.bind = dbgp_bind,
 	.unbind = dbgp_unbind,
 	.setup = dbgp_setup,
 	.disconnect = dbgp_disconnect,
@@ -416,7 +415,7 @@ static struct usb_gadget_driver dbgp_driver = {
 
 static int __init dbgp_init(void)
 {
-	return usb_gadget_probe_driver(&dbgp_driver, dbgp_bind);
+	return usb_gadget_probe_driver(&dbgp_driver);
 }
 
 static void __exit dbgp_exit(void)

@@ -17,14 +17,17 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/irq.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 
 /* Generic stuff */
 #include <asm/sched_clock.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/mach/irq.h>
+
+#include "timer.h"
 
 /*
  * APP side special timer registers

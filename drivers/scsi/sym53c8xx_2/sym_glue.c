@@ -2117,7 +2117,7 @@ static struct pci_device_id sym2_id_table[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, sym2_id_table);
 
-static struct pci_error_handlers sym2_err_handler = {
+static const struct pci_error_handlers sym2_err_handler = {
 	.error_detected	= sym2_io_error_detected,
 	.mmio_enabled	= sym2_io_slot_dump,
 	.slot_reset	= sym2_io_slot_reset,

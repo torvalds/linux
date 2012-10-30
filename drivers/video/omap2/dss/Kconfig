@@ -84,7 +84,7 @@ config OMAP2_DSS_SDI
 
 config OMAP2_DSS_DSI
 	bool "DSI support"
-	depends on ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP3 || ARCH_OMAP4 || ARCH_OMAP5
         default n
 	help
 	  MIPI DSI (Display Serial Interface) support.

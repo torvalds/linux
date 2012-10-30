@@ -174,6 +174,8 @@ extern void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			     u8 data, int *ret);
 extern void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			     u32 data, int *ret);
+extern int brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
+				   void *data, bool write);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number

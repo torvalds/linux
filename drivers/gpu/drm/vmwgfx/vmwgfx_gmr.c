@@ -26,8 +26,8 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include "drmP.h"
-#include "ttm/ttm_bo_driver.h"
+#include <drm/drmP.h>
+#include <drm/ttm/ttm_bo_driver.h>
 
 #define VMW_PPN_SIZE sizeof(unsigned long)
 

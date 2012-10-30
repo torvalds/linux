@@ -186,7 +186,7 @@
 
 
 //
-// Cipher Suite Selectors defiened in 802.11i
+// Cipher Suite Selectors defined in 802.11i
 //
 #define WLAN_11i_CSS_USE_GROUP              0
 #define WLAN_11i_CSS_WEP40                  1

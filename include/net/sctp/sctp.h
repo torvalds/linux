@@ -114,13 +114,12 @@
 /*
  * sctp/protocol.c
  */
-extern struct sock *sctp_get_ctl_sock(void);
-extern int sctp_copy_local_addr_list(struct sctp_bind_addr *,
+extern int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
 				     sctp_scope_t, gfp_t gfp,
 				     int flags);
 extern struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 extern int sctp_register_pf(struct sctp_pf *, sa_family_t);
-extern void sctp_addr_wq_mgmt(struct sctp_sockaddr_entry *, int);
+extern void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
 
 /*
  * sctp/socket.c
@@ -140,12 +139,12 @@ extern int sctp_asconf_mgmt(struct sctp_sock *, struct sctp_sockaddr_entry *);
 /*
  * sctp/primitive.c
  */
-int sctp_primitive_ASSOCIATE(struct sctp_association *, void *arg);
-int sctp_primitive_SHUTDOWN(struct sctp_association *, void *arg);
-int sctp_primitive_ABORT(struct sctp_association *, void *arg);
-int sctp_primitive_SEND(struct sctp_association *, void *arg);
-int sctp_primitive_REQUESTHEARTBEAT(struct sctp_association *, void *arg);
-int sctp_primitive_ASCONF(struct sctp_association *, void *arg);
+int sctp_primitive_ASSOCIATE(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_SHUTDOWN(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_ABORT(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_SEND(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_REQUESTHEARTBEAT(struct net *, struct sctp_association *, void *arg);
+int sctp_primitive_ASCONF(struct net *, struct sctp_association *, void *arg);
 
 /*
  * sctp/input.c
@@ -156,7 +155,7 @@ void sctp_hash_established(struct sctp_association *);
 void sctp_unhash_established(struct sctp_association *);
 void sctp_hash_endpoint(struct sctp_endpoint *);
 void sctp_unhash_endpoint(struct sctp_endpoint *);
-struct sock *sctp_err_lookup(int family, struct sk_buff *,
+struct sock *sctp_err_lookup(struct net *net, int family, struct sk_buff *,
 			     struct sctphdr *, struct sctp_association **,
 			     struct sctp_transport **);
 void sctp_err_finish(struct sock *, struct sctp_association *);
@@ -173,14 +172,14 @@ void sctp_backlog_migrate(struct sctp_association *assoc,
 /*
  * sctp/proc.c
  */
-int sctp_snmp_proc_init(void);
-void sctp_snmp_proc_exit(void);
-int sctp_eps_proc_init(void);
-void sctp_eps_proc_exit(void);
-int sctp_assocs_proc_init(void);
-void sctp_assocs_proc_exit(void);
-int sctp_remaddr_proc_init(void);
-void sctp_remaddr_proc_exit(void);
+int sctp_snmp_proc_init(struct net *net);
+void sctp_snmp_proc_exit(struct net *net);
+int sctp_eps_proc_init(struct net *net);
+void sctp_eps_proc_exit(struct net *net);
+int sctp_assocs_proc_init(struct net *net);
+void sctp_assocs_proc_exit(struct net *net);
+int sctp_remaddr_proc_init(struct net *net);
+void sctp_remaddr_proc_exit(struct net *net);
 
 
 /*
@@ -222,11 +221,10 @@ extern struct kmem_cache *sctp_bucket_cachep __read_mostly;
 #define sctp_bh_unlock_sock(sk)  bh_unlock_sock(sk)
 
 /* SCTP SNMP MIB stats handlers */
-DECLARE_SNMP_STAT(struct sctp_mib, sctp_statistics);
-#define SCTP_INC_STATS(field)      SNMP_INC_STATS(sctp_statistics, field)
-#define SCTP_INC_STATS_BH(field)   SNMP_INC_STATS_BH(sctp_statistics, field)
-#define SCTP_INC_STATS_USER(field) SNMP_INC_STATS_USER(sctp_statistics, field)
-#define SCTP_DEC_STATS(field)      SNMP_DEC_STATS(sctp_statistics, field)
+#define SCTP_INC_STATS(net, field)      SNMP_INC_STATS((net)->sctp.sctp_statistics, field)
+#define SCTP_INC_STATS_BH(net, field)   SNMP_INC_STATS_BH((net)->sctp.sctp_statistics, field)
+#define SCTP_INC_STATS_USER(net, field) SNMP_INC_STATS_USER((net)->sctp.sctp_statistics, field)
+#define SCTP_DEC_STATS(net, field)      SNMP_DEC_STATS((net)->sctp.sctp_statistics, field)
 
 #endif /* !TEST_FRAME */
 
@@ -361,25 +359,29 @@ atomic_t sctp_dbg_objcnt_## name = ATOMIC_INIT(0)
 #define SCTP_DBG_OBJCNT_ENTRY(name) \
 {.label= #name, .counter= &sctp_dbg_objcnt_## name}
 
-void sctp_dbg_objcnt_init(void);
-void sctp_dbg_objcnt_exit(void);
+void sctp_dbg_objcnt_init(struct net *);
+void sctp_dbg_objcnt_exit(struct net *);
 
 #else
 
 #define SCTP_DBG_OBJCNT_INC(name)
 #define SCTP_DBG_OBJCNT_DEC(name)
 
-static inline void sctp_dbg_objcnt_init(void) { return; }
-static inline void sctp_dbg_objcnt_exit(void) { return; }
+static inline void sctp_dbg_objcnt_init(struct net *net) { return; }
+static inline void sctp_dbg_objcnt_exit(struct net *net) { return; }
 
 #endif /* CONFIG_SCTP_DBG_OBJCOUNT */
 
 #if defined CONFIG_SYSCTL
 void sctp_sysctl_register(void);
 void sctp_sysctl_unregister(void);
+int sctp_sysctl_net_register(struct net *net);
+void sctp_sysctl_net_unregister(struct net *net);
 #else
 static inline void sctp_sysctl_register(void) { return; }
 static inline void sctp_sysctl_unregister(void) { return; }
+static inline int sctp_sysctl_net_register(struct net *net) { return 0; }
+static inline void sctp_sysctl_net_unregister(struct net *net) { return; }
 #endif
 
 /* Size of Supported Address Parameter for 'x' address types. */
@@ -586,7 +588,6 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 
 extern struct proto sctp_prot;
 extern struct proto sctpv6_prot;
-extern struct proc_dir_entry *proc_net_sctp;
 void sctp_put_port(struct sock *sk);
 
 extern struct idr sctp_assocs_id;
@@ -632,21 +633,21 @@ static inline int sctp_sanity_check(void)
 
 /* Warning: The following hash functions assume a power of two 'size'. */
 /* This is the hash function for the SCTP port hash table. */
-static inline int sctp_phashfn(__u16 lport)
+static inline int sctp_phashfn(struct net *net, __u16 lport)
 {
-	return lport & (sctp_port_hashsize - 1);
+	return (net_hash_mix(net) + lport) & (sctp_port_hashsize - 1);
 }
 
 /* This is the hash function for the endpoint hash table. */
-static inline int sctp_ep_hashfn(__u16 lport)
+static inline int sctp_ep_hashfn(struct net *net, __u16 lport)
 {
-	return lport & (sctp_ep_hashsize - 1);
+	return (net_hash_mix(net) + lport) & (sctp_ep_hashsize - 1);
 }
 
 /* This is the hash function for the association hash table. */
-static inline int sctp_assoc_hashfn(__u16 lport, __u16 rport)
+static inline int sctp_assoc_hashfn(struct net *net, __u16 lport, __u16 rport)
 {
-	int h = (lport << 16) + rport;
+	int h = (lport << 16) + rport + net_hash_mix(net);
 	h ^= h>>8;
 	return h & (sctp_assoc_hashsize - 1);
 }

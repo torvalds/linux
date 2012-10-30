@@ -547,6 +547,26 @@ static int mlx4_ib_ipoib_csum_ok(__be16 status, __be16 checksum)
 		checksum == cpu_to_be16(0xffff);
 }
 
+static int use_tunnel_data(struct mlx4_ib_qp *qp, struct mlx4_ib_cq *cq, struct ib_wc *wc,
+			   unsigned tail, struct mlx4_cqe *cqe)
+{
+	struct mlx4_ib_proxy_sqp_hdr *hdr;
+
+	ib_dma_sync_single_for_cpu(qp->ibqp.device,
+				   qp->sqp_proxy_rcv[tail].map,
+				   sizeof (struct mlx4_ib_proxy_sqp_hdr),
+				   DMA_FROM_DEVICE);
+	hdr = (struct mlx4_ib_proxy_sqp_hdr *) (qp->sqp_proxy_rcv[tail].addr);
+	wc->pkey_index	= be16_to_cpu(hdr->tun.pkey_index);
+	wc->slid	= be16_to_cpu(hdr->tun.slid_mac_47_32);
+	wc->sl		= (u8) (be16_to_cpu(hdr->tun.sl_vid) >> 12);
+	wc->src_qp	= be32_to_cpu(hdr->tun.flags_src_qp) & 0xFFFFFF;
+	wc->wc_flags   |= (hdr->tun.g_ml_path & 0x80) ? (IB_WC_GRH) : 0;
+	wc->dlid_path_bits = 0;
+
+	return 0;
+}
+
 static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 			    struct mlx4_ib_qp **cur_qp,
 			    struct ib_wc *wc)
@@ -559,6 +579,7 @@ static int mlx4_ib_poll_one(struct mlx4_ib_cq *cq,
 	int is_error;
 	u32 g_mlpath_rqpn;
 	u16 wqe_ctr;
+	unsigned tail = 0;
 
 repoll:
 	cqe = next_cqe_sw(cq);
@@ -634,7 +655,8 @@ repoll:
 		mlx4_ib_free_srq_wqe(srq, wqe_ctr);
 	} else {
 		wq	  = &(*cur_qp)->rq;
-		wc->wr_id = wq->wrid[wq->tail & (wq->wqe_cnt - 1)];
+		tail	  = wq->tail & (wq->wqe_cnt - 1);
+		wc->wr_id = wq->wrid[tail];
 		++wq->tail;
 	}
 
@@ -715,6 +737,13 @@ repoll:
 			wc->wc_flags	= IB_WC_WITH_IMM;
 			wc->ex.imm_data = cqe->immed_rss_invalid;
 			break;
+		}
+
+		if (mlx4_is_mfunc(to_mdev(cq->ibcq.device)->dev)) {
+			if ((*cur_qp)->mlx4_ib_qp_type &
+			    (MLX4_IB_QPT_PROXY_SMI_OWNER |
+			     MLX4_IB_QPT_PROXY_SMI | MLX4_IB_QPT_PROXY_GSI))
+				return use_tunnel_data(*cur_qp, cq, wc, tail, cqe);
 		}
 
 		wc->slid	   = be16_to_cpu(cqe->rlid);

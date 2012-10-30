@@ -31,17 +31,19 @@
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
+#include <linux/platform_data/gpio-omap.h>
+#include <linux/leds.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/dma.h>
 #include <plat/tc.h>
-#include <plat/irda.h>
-#include <plat/keypad.h>
-#include <plat/flash.h>
+#include <mach/irda.h>
+#include <linux/platform_data/keypad-omap.h>
+#include <mach/flash.h>
 
 #include <mach/hardware.h>
 #include <mach/usb.h>
@@ -306,12 +308,39 @@ static struct platform_device h2_irda_device = {
 	.resource	= h2_irda_resources,
 };
 
+static struct gpio_led h2_gpio_led_pins[] = {
+	{
+		.name		= "h2:red",
+		.default_trigger = "heartbeat",
+		.gpio		= 3,
+	},
+	{
+		.name		= "h2:green",
+		.default_trigger = "cpu0",
+		.gpio		= OMAP_MPUIO(4),
+	},
+};
+
+static struct gpio_led_platform_data h2_gpio_led_data = {
+	.leds		= h2_gpio_led_pins,
+	.num_leds	= ARRAY_SIZE(h2_gpio_led_pins),
+};
+
+static struct platform_device h2_gpio_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &h2_gpio_led_data,
+	},
+};
+
 static struct platform_device *h2_devices[] __initdata = {
 	&h2_nor_device,
 	&h2_nand_device,
 	&h2_smc91x_device,
 	&h2_irda_device,
 	&h2_kp_device,
+	&h2_gpio_leds,
 };
 
 static void __init h2_init_smc91x(void)
@@ -405,6 +434,10 @@ static void __init h2_init(void)
 	omap_cfg_reg(E20_1610_KBR3);
 	omap_cfg_reg(E19_1610_KBR4);
 	omap_cfg_reg(N19_1610_KBR5);
+
+	/* GPIO based LEDs */
+	omap_cfg_reg(P18_1610_GPIO3);
+	omap_cfg_reg(MPUIO4);
 
 	h2_smc91x_resources[1].start = gpio_to_irq(0);
 	h2_smc91x_resources[1].end = gpio_to_irq(0);

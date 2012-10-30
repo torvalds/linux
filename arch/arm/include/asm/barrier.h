@@ -44,10 +44,9 @@
 #define rmb()		dsb()
 #define wmb()		mb()
 #else
-#include <asm/memory.h>
-#define mb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
-#define rmb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
-#define wmb()	do { if (arch_is_coherent()) dmb(); else barrier(); } while (0)
+#define mb()		barrier()
+#define rmb()		barrier()
+#define wmb()		barrier()
 #endif
 
 #ifndef CONFIG_SMP

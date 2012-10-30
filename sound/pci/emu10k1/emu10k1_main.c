@@ -1241,7 +1241,7 @@ static int snd_emu10k1_emu1010_init(struct snd_emu10k1 *emu)
  *  Create the EMU10K1 instance
  */
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int alloc_pm_buffer(struct snd_emu10k1 *emu);
 static void free_pm_buffer(struct snd_emu10k1 *emu);
 #endif
@@ -1275,7 +1275,7 @@ static int snd_emu10k1_free(struct snd_emu10k1 *emu)
 		snd_dma_free_pages(&emu->ptb_pages);
 	vfree(emu->page_ptr_table);
 	vfree(emu->page_addr_table);
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	free_pm_buffer(emu);
 #endif
 	if (emu->port)
@@ -1416,6 +1416,15 @@ static struct snd_emu_chip_details emu_chip_details[] = {
 	 .ca0108_chip = 1,
 	 .spk71 = 1,
 	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 new revision */
+	/* Tested by Maxim Kachur <mcdebugger@duganet.ru> 17th Oct 2012. */
+	/* This is MAEM8986, 0202 is MAEM8980 */
+	{.vendor = 0x1102, .device = 0x0008, .subsystem = 0x40071102,
+	 .driver = "Audigy2", .name = "E-mu 1010 PCIe [MAEM8986]",
+	 .id = "EMU1010",
+	 .emu10k2_chip = 1,
+	 .ca0108_chip = 1,
+	 .spk71 = 1,
+	 .emu_model = EMU_MODEL_EMU1010B}, /* EMU 1010 PCIe */
 	/* Tested by James@superbug.co.uk 8th July 2005. */
 	/* This is MAEM8810, 0202 is MAEM8820 */
 	{.vendor = 0x1102, .device = 0x0004, .subsystem = 0x40011102,
@@ -1971,7 +1980,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	err = snd_emu10k1_init(emu, enable_ir, 0);
 	if (err < 0)
 		goto error;
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	err = alloc_pm_buffer(emu);
 	if (err < 0)
 		goto error;
@@ -2000,7 +2009,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	return err;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static unsigned char saved_regs[] = {
 	CPF, PTRX, CVCF, VTFT, Z1, Z2, PSST, DSL, CCCA, CCR, CLP,
 	FXRT, MAPA, MAPB, ENVVOL, ATKHLDV, DCYSUSV, LFOVAL1, ENVVAL,

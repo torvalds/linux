@@ -7,8 +7,8 @@
  */
 
 #include <linux/module.h>
-#include "drm_usb.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_usb.h>
+#include <drm/drm_crtc_helper.h>
 #include "udl_drv.h"
 
 static struct drm_driver driver;
@@ -66,6 +66,9 @@ static const struct file_operations udl_driver_fops = {
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
 	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.llseek = noop_llseek,
 };
 

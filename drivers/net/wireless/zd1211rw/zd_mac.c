@@ -937,7 +937,9 @@ static int fill_ctrlset(struct zd_mac *mac,
  * control block of the skbuff will be initialized. If necessary the incoming
  * mac80211 queues will be stopped.
  */
-static void zd_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+static void zd_op_tx(struct ieee80211_hw *hw,
+		     struct ieee80211_tx_control *control,
+		     struct sk_buff *skb)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
@@ -1176,7 +1178,7 @@ static void zd_beacon_done(struct zd_mac *mac)
 		skb = ieee80211_get_buffered_bc(mac->hw, mac->vif);
 		if (!skb)
 			break;
-		zd_op_tx(mac->hw, skb);
+		zd_op_tx(mac->hw, NULL, skb);
 	}
 
 	/*
@@ -1399,7 +1401,8 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		    IEEE80211_HW_SIGNAL_UNSPEC |
-		    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING;
+		    IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+		    IEEE80211_HW_MFP_CAPABLE;
 
 	hw->wiphy->interface_modes =
 		BIT(NL80211_IFTYPE_MESH_POINT) |

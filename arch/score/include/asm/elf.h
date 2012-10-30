@@ -54,7 +54,7 @@ typedef elf_fpreg_t	elf_fpregset_t;
 
 #define SET_PERSONALITY(ex)					\
 do {								\
-	set_personality(PER_LINUX);				\
+	set_personality(PER_LINUX | (current->personality & (~PER_MASK))); \
 } while (0)
 
 struct task_struct;

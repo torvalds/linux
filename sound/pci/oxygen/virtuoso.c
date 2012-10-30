@@ -93,7 +93,7 @@ static struct pci_driver xonar_driver = {
 	.id_table = xonar_ids,
 	.probe = xonar_probe,
 	.remove = __devexit_p(oxygen_pci_remove),
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &oxygen_pci_pm,
 	},

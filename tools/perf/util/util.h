@@ -69,13 +69,8 @@
 #include <sys/poll.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <inttypes.h>
-#include "../../../include/linux/magic.h"
+#include <linux/magic.h>
 #include "types.h"
 #include <sys/ttydefaults.h>
 
@@ -265,5 +260,7 @@ bool is_power_of_2(unsigned long n)
 size_t hex_width(u64 v);
 
 char *rtrim(char *s);
+
+void dump_stack(void);
 
 #endif

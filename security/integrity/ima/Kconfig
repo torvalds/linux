@@ -11,6 +11,7 @@ config IMA
 	select CRYPTO_SHA1
 	select TCG_TPM if HAS_IOMEM && !UML
 	select TCG_TIS if TCG_TPM && X86
+	select TCG_IBMVTPM if TCG_TPM && PPC64
 	help
 	  The Trusted Computing Group(TCG) runtime Integrity
 	  Measurement Architecture(IMA) maintains a list of hash
@@ -55,3 +56,18 @@ config IMA_LSM_RULES
 	default y
 	help
 	  Disabling this option will disregard LSM based policy rules.
+
+config IMA_APPRAISE
+	bool "Appraise integrity measurements"
+	depends on IMA
+	default n
+	help
+	  This option enables local measurement integrity appraisal.
+	  It requires the system to be labeled with a security extended
+	  attribute containing the file hash measurement.  To protect
+	  the security extended attributes from offline attack, enable
+	  and configure EVM.
+
+	  For more information on integrity appraisal refer to:
+	  <http://linux-ima.sourceforge.net>
+	  If unsure, say N.

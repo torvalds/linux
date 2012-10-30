@@ -7,6 +7,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/user_namespace.h>
 #include "hpfs_fn.h"
 
 void hpfs_init_inode(struct inode *i)
@@ -60,14 +61,14 @@ void hpfs_read_inode(struct inode *i)
 	if (hpfs_sb(i->i_sb)->sb_eas) {
 		if ((ea = hpfs_get_ea(i->i_sb, fnode, "UID", &ea_size))) {
 			if (ea_size == 2) {
-				i->i_uid = le16_to_cpu(*(__le16*)ea);
+				i_uid_write(i, le16_to_cpu(*(__le16*)ea));
 				hpfs_inode->i_ea_uid = 1;
 			}
 			kfree(ea);
 		}
 		if ((ea = hpfs_get_ea(i->i_sb, fnode, "GID", &ea_size))) {
 			if (ea_size == 2) {
-				i->i_gid = le16_to_cpu(*(__le16*)ea);
+				i_gid_write(i, le16_to_cpu(*(__le16*)ea));
 				hpfs_inode->i_ea_gid = 1;
 			}
 			kfree(ea);
@@ -149,13 +150,13 @@ static void hpfs_write_inode_ea(struct inode *i, struct fnode *fnode)
 		hpfs_error(i->i_sb, "fnode %08x has some unknown HPFS386 stuctures", i->i_ino);
 	} else*/ if (hpfs_sb(i->i_sb)->sb_eas >= 2) {
 		__le32 ea;
-		if ((i->i_uid != hpfs_sb(i->i_sb)->sb_uid) || hpfs_inode->i_ea_uid) {
-			ea = cpu_to_le32(i->i_uid);
+		if (!uid_eq(i->i_uid, hpfs_sb(i->i_sb)->sb_uid) || hpfs_inode->i_ea_uid) {
+			ea = cpu_to_le32(i_uid_read(i));
 			hpfs_set_ea(i, fnode, "UID", (char*)&ea, 2);
 			hpfs_inode->i_ea_uid = 1;
 		}
-		if ((i->i_gid != hpfs_sb(i->i_sb)->sb_gid) || hpfs_inode->i_ea_gid) {
-			ea = cpu_to_le32(i->i_gid);
+		if (!gid_eq(i->i_gid, hpfs_sb(i->i_sb)->sb_gid) || hpfs_inode->i_ea_gid) {
+			ea = cpu_to_le32(i_gid_read(i));
 			hpfs_set_ea(i, fnode, "GID", (char *)&ea, 2);
 			hpfs_inode->i_ea_gid = 1;
 		}
@@ -261,9 +262,11 @@ int hpfs_setattr(struct dentry *dentry, struct iattr *attr)
 	hpfs_lock(inode->i_sb);
 	if (inode->i_ino == hpfs_sb(inode->i_sb)->sb_root)
 		goto out_unlock;
-	if ((attr->ia_valid & ATTR_UID) && attr->ia_uid >= 0x10000)
+	if ((attr->ia_valid & ATTR_UID) &&
+	    from_kuid(&init_user_ns, attr->ia_uid) >= 0x10000)
 		goto out_unlock;
-	if ((attr->ia_valid & ATTR_GID) && attr->ia_gid >= 0x10000)
+	if ((attr->ia_valid & ATTR_GID) &&
+	    from_kgid(&init_user_ns, attr->ia_gid) >= 0x10000)
 		goto out_unlock;
 	if ((attr->ia_valid & ATTR_SIZE) && attr->ia_size > inode->i_size)
 		goto out_unlock;

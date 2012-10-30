@@ -17,24 +17,9 @@
 #ifndef _MACH_TEGRA_BOARD_PAZ00_H
 #define _MACH_TEGRA_BOARD_PAZ00_H
 
-#include <mach/gpio-tegra.h>
+#include "gpio-names.h"
 
-/* SDCARD */
-#define TEGRA_GPIO_SD1_CD		TEGRA_GPIO_PV5
-#define TEGRA_GPIO_SD1_WP		TEGRA_GPIO_PH1
-#define TEGRA_GPIO_SD1_POWER		TEGRA_GPIO_PV1
-
-/* ULPI */
-#define TEGRA_ULPI_RST			TEGRA_GPIO_PV0
-
-/* WIFI */
 #define TEGRA_WIFI_PWRN			TEGRA_GPIO_PK5
 #define TEGRA_WIFI_RST			TEGRA_GPIO_PD1
-#define TEGRA_WIFI_LED			TEGRA_GPIO_PD0
-
-/* WakeUp */
-#define TEGRA_GPIO_POWERKEY	TEGRA_GPIO_PJ7
-
-void paz00_pinmux_init(void);
 
 #endif

@@ -522,7 +522,7 @@ static acpi_handle ec_handle;
 
 #define TPACPI_HANDLE(object, parent, paths...)			\
 	static acpi_handle  object##_handle;			\
-	static const acpi_handle *object##_parent __initdata =	\
+	static const acpi_handle * const object##_parent __initconst =	\
 						&parent##_handle; \
 	static char *object##_paths[] __initdata = { paths }
 
@@ -545,7 +545,7 @@ TPACPI_HANDLE(hkey, ec, "\\_SB.HKEY",	/* 600e/x, 770e, 770x */
  */
 
 static int acpi_evalf(acpi_handle handle,
-		      void *res, char *method, char *fmt, ...)
+		      int *res, char *method, char *fmt, ...)
 {
 	char *fmt0 = fmt;
 	struct acpi_object_list params;
@@ -606,7 +606,7 @@ static int acpi_evalf(acpi_handle handle,
 		success = (status == AE_OK &&
 			   out_obj.type == ACPI_TYPE_INTEGER);
 		if (success && res)
-			*(int *)res = out_obj.integer.value;
+			*res = out_obj.integer.value;
 		break;
 	case 'v':		/* void */
 		success = status == AE_OK;
@@ -7386,17 +7386,18 @@ static int fan_get_status(u8 *status)
 	 * Add TPACPI_FAN_RD_ACPI_FANS ? */
 
 	switch (fan_status_access_mode) {
-	case TPACPI_FAN_RD_ACPI_GFAN:
+	case TPACPI_FAN_RD_ACPI_GFAN: {
 		/* 570, 600e/x, 770e, 770x */
+		int res;
 
-		if (unlikely(!acpi_evalf(gfan_handle, &s, NULL, "d")))
+		if (unlikely(!acpi_evalf(gfan_handle, &res, NULL, "d")))
 			return -EIO;
 
 		if (likely(status))
-			*status = s & 0x07;
+			*status = res & 0x07;
 
 		break;
-
+	}
 	case TPACPI_FAN_RD_TPEC:
 		/* all except 570, 600e/x, 770e, 770x */
 		if (unlikely(!acpi_ec_read(fan_status_offset, &s)))
@@ -7684,25 +7685,15 @@ static int fan_set_speed(int speed)
 
 static void fan_watchdog_reset(void)
 {
-	static int fan_watchdog_active;
-
 	if (fan_control_access_mode == TPACPI_FAN_WR_NONE)
 		return;
 
-	if (fan_watchdog_active)
-		cancel_delayed_work(&fan_watchdog_task);
-
 	if (fan_watchdog_maxinterval > 0 &&
-	    tpacpi_lifecycle != TPACPI_LIFE_EXITING) {
-		fan_watchdog_active = 1;
-		if (!queue_delayed_work(tpacpi_wq, &fan_watchdog_task,
-				msecs_to_jiffies(fan_watchdog_maxinterval
-						 * 1000))) {
-			pr_err("failed to queue the fan watchdog, "
-			       "watchdog will not trigger\n");
-		}
-	} else
-		fan_watchdog_active = 0;
+	    tpacpi_lifecycle != TPACPI_LIFE_EXITING)
+		mod_delayed_work(tpacpi_wq, &fan_watchdog_task,
+			msecs_to_jiffies(fan_watchdog_maxinterval * 1000));
+	else
+		cancel_delayed_work(&fan_watchdog_task);
 }
 
 static void fan_watchdog_fire(struct work_struct *ignored)

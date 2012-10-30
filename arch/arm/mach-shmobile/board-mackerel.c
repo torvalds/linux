@@ -64,6 +64,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include "sh-gpio.h"
+
 /*
  * Address	Interface		BusWidth	note
  * ------------------------------------------------------------------
@@ -583,8 +585,8 @@ out:
 #define USBHS0_POLL_INTERVAL (HZ * 5)
 
 struct usbhs_private {
-	unsigned int usbphyaddr;
-	unsigned int usbcrcaddr;
+	void __iomem *usbphyaddr;
+	void __iomem *usbcrcaddr;
 	struct renesas_usbhs_platform_info info;
 	struct delayed_work work;
 	struct platform_device *pdev;
@@ -642,7 +644,7 @@ static void usbhs0_hardware_exit(struct platform_device *pdev)
 }
 
 static struct usbhs_private usbhs0_private = {
-	.usbcrcaddr	= 0xe605810c,		/* USBCR2 */
+	.usbcrcaddr	= IOMEM(0xe605810c),		/* USBCR2 */
 	.info = {
 		.platform_callback = {
 			.hardware_init	= usbhs0_hardware_init,
@@ -695,6 +697,7 @@ static struct platform_device usbhs0_device = {
  *  - J30 "open"
  *  - modify usbhs1_get_id() USBHS_HOST -> USBHS_GADGET
  *  - add .get_vbus = usbhs_get_vbus in usbhs1_private
+ *  - check usbhs0_device(pio)/usbhs1_device(irq) order in mackerel_devices.
  */
 #define IRQ8 evt2irq(0x0300)
 #define USB_PHY_MODE		(1 << 4)
@@ -775,8 +778,8 @@ static u32 usbhs1_pipe_cfg[] = {
 };
 
 static struct usbhs_private usbhs1_private = {
-	.usbphyaddr	= 0xe60581e2,		/* USBPHY1INTAP */
-	.usbcrcaddr	= 0xe6058130,		/* USBCR4 */
+	.usbphyaddr	= IOMEM(0xe60581e2),	/* USBPHY1INTAP */
+	.usbcrcaddr	= IOMEM(0xe6058130),	/* USBCR4 */
 	.info = {
 		.platform_callback = {
 			.hardware_init	= usbhs1_hardware_init,
@@ -1325,8 +1328,8 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&lcdc_device,
-	&usbhs1_device,
 	&usbhs0_device,
+	&usbhs1_device,
 	&leds_device,
 	&fsi_device,
 	&fsi_ak4643_device,
@@ -1401,14 +1404,30 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
-#define GPIO_PORT9CR	0xE6051009
-#define GPIO_PORT10CR	0xE605100A
-#define GPIO_PORT167CR	0xE60520A7
-#define GPIO_PORT168CR	0xE60520A8
-#define SRCR4		0xe61580bc
-#define USCCR1		0xE6058144
+#define GPIO_PORT9CR	IOMEM(0xE6051009)
+#define GPIO_PORT10CR	IOMEM(0xE605100A)
+#define GPIO_PORT167CR	IOMEM(0xE60520A7)
+#define GPIO_PORT168CR	IOMEM(0xE60520A8)
+#define SRCR4		IOMEM(0xe61580bc)
+#define USCCR1		IOMEM(0xE6058144)
 static void __init mackerel_init(void)
 {
+	struct pm_domain_device domain_devices[] = {
+		{ "A4LC", &lcdc_device, },
+		{ "A4LC", &hdmi_lcdc_device, },
+		{ "A4LC", &meram_device, },
+		{ "A4MP", &fsi_device, },
+		{ "A3SP", &usbhs0_device, },
+		{ "A3SP", &usbhs1_device, },
+		{ "A3SP", &nand_flash_device, },
+		{ "A3SP", &sh_mmcif_device, },
+		{ "A3SP", &sdhi0_device, },
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+		{ "A3SP", &sdhi1_device, },
+#endif
+		{ "A3SP", &sdhi2_device, },
+		{ "A4R", &ceu_device, },
+	};
 	u32 srcr4;
 	struct clk *clk;
 
@@ -1623,20 +1642,8 @@ static void __init mackerel_init(void)
 
 	platform_add_devices(mackerel_devices, ARRAY_SIZE(mackerel_devices));
 
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &hdmi_lcdc_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4lc, &meram_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4mp, &fsi_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs0_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &usbhs1_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &nand_flash_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sh_mmcif_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi0_device);
-#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi1_device);
-#endif
-	rmobile_add_device_to_domain(&sh7372_pd_a3sp, &sdhi2_device);
-	rmobile_add_device_to_domain(&sh7372_pd_a4r, &ceu_device);
+	rmobile_add_devices_to_domains(domain_devices,
+				       ARRAY_SIZE(domain_devices));
 
 	hdmi_init_pm_clock();
 	sh7372_pm_init();
@@ -1650,6 +1657,6 @@ MACHINE_START(MACKEREL, "mackerel")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
-	.init_late	= shmobile_init_late,
+	.init_late	= sh7372_pm_init_late,
 	.timer		= &shmobile_timer,
 MACHINE_END

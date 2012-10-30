@@ -78,6 +78,12 @@ If the preset is not supported, it returns an &EINVAL; </para>
 	</listitem>
       </varlistentry>
       <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Digital video presets are not supported for this input or output.</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
 	<term><errorcode>EBUSY</errorcode></term>
 	<listitem>
 	  <para>The device is busy and therefore can not change the preset.</para>
@@ -103,8 +109,5 @@ If the preset is not supported, it returns an &EINVAL; </para>
 	</tbody>
       </tgroup>
     </table>
-  </refsect1>
-  <refsect1>
-    &return-value;
   </refsect1>
 </refentry>

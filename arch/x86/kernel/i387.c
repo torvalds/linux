@@ -19,24 +19,17 @@
 #include <asm/fpu-internal.h>
 #include <asm/user.h>
 
-#ifdef CONFIG_X86_64
-# include <asm/sigcontext32.h>
-# include <asm/user32.h>
-#else
-# define save_i387_xstate_ia32		save_i387_xstate
-# define restore_i387_xstate_ia32	restore_i387_xstate
-# define _fpstate_ia32		_fpstate
-# define _xstate_ia32		_xstate
-# define sig_xstate_ia32_size   sig_xstate_size
-# define fx_sw_reserved_ia32	fx_sw_reserved
-# define user_i387_ia32_struct	user_i387_struct
-# define user32_fxsr_struct	user_fxsr_struct
-#endif
-
 /*
  * Were we in an interrupt that interrupted kernel mode?
  *
- * We can do a kernel_fpu_begin/end() pair *ONLY* if that
+ * For now, with eagerfpu we will return interrupted kernel FPU
+ * state as not-idle. TBD: Ideally we can change the return value
+ * to something like __thread_has_fpu(current). But we need to
+ * be careful of doing __thread_clear_has_fpu() before saving
+ * the FPU etc for supporting nested uses etc. For now, take
+ * the simple route!
+ *
+ * On others, we can do a kernel_fpu_begin/end() pair *ONLY* if that
  * pair does nothing at all: the thread must not have fpu (so
  * that we don't try to save the FPU state), and TS must
  * be set (so that the clts/stts pair does nothing that is
@@ -44,6 +37,9 @@
  */
 static inline bool interrupted_kernel_fpu_idle(void)
 {
+	if (use_eager_fpu())
+		return 0;
+
 	return !__thread_has_fpu(current) &&
 		(read_cr0() & X86_CR0_TS);
 }
@@ -77,29 +73,29 @@ bool irq_fpu_usable(void)
 }
 EXPORT_SYMBOL(irq_fpu_usable);
 
-void kernel_fpu_begin(void)
+void __kernel_fpu_begin(void)
 {
 	struct task_struct *me = current;
 
-	WARN_ON_ONCE(!irq_fpu_usable());
-	preempt_disable();
 	if (__thread_has_fpu(me)) {
 		__save_init_fpu(me);
 		__thread_clear_has_fpu(me);
-		/* We do 'stts()' in kernel_fpu_end() */
-	} else {
+		/* We do 'stts()' in __kernel_fpu_end() */
+	} else if (!use_eager_fpu()) {
 		this_cpu_write(fpu_owner_task, NULL);
 		clts();
 	}
 }
-EXPORT_SYMBOL(kernel_fpu_begin);
+EXPORT_SYMBOL(__kernel_fpu_begin);
 
-void kernel_fpu_end(void)
+void __kernel_fpu_end(void)
 {
-	stts();
-	preempt_enable();
+	if (use_eager_fpu())
+		math_state_restore();
+	else
+		stts();
 }
-EXPORT_SYMBOL(kernel_fpu_end);
+EXPORT_SYMBOL(__kernel_fpu_end);
 
 void unlazy_fpu(struct task_struct *tsk)
 {
@@ -113,23 +109,15 @@ void unlazy_fpu(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(unlazy_fpu);
 
-#ifdef CONFIG_MATH_EMULATION
-# define HAVE_HWFP		(boot_cpu_data.hard_math)
-#else
-# define HAVE_HWFP		1
-#endif
-
-static unsigned int		mxcsr_feature_mask __read_mostly = 0xffffffffu;
+unsigned int mxcsr_feature_mask __read_mostly = 0xffffffffu;
 unsigned int xstate_size;
 EXPORT_SYMBOL_GPL(xstate_size);
-unsigned int sig_xstate_ia32_size = sizeof(struct _fpstate_ia32);
 static struct i387_fxsave_struct fx_scratch __cpuinitdata;
 
 static void __cpuinit mxcsr_feature_mask_init(void)
 {
 	unsigned long mask = 0;
 
-	clts();
 	if (cpu_has_fxsr) {
 		memset(&fx_scratch, 0, sizeof(struct i387_fxsave_struct));
 		asm volatile("fxsave %0" : : "m" (fx_scratch));
@@ -138,7 +126,6 @@ static void __cpuinit mxcsr_feature_mask_init(void)
 			mask = 0x0000ffbf;
 	}
 	mxcsr_feature_mask &= mask;
-	stts();
 }
 
 static void __cpuinit init_thread_xstate(void)
@@ -192,9 +179,8 @@ void __cpuinit fpu_init(void)
 		init_thread_xstate();
 
 	mxcsr_feature_mask_init();
-	/* clean state in init */
-	current_thread_info()->status = 0;
-	clear_used_math();
+	xsave_init();
+	eager_fpu_init();
 }
 
 void fpu_finit(struct fpu *fpu)
@@ -205,12 +191,7 @@ void fpu_finit(struct fpu *fpu)
 	}
 
 	if (cpu_has_fxsr) {
-		struct i387_fxsave_struct *fx = &fpu->state->fxsave;
-
-		memset(fx, 0, xstate_size);
-		fx->cwd = 0x37f;
-		if (cpu_has_xmm)
-			fx->mxcsr = MXCSR_DEFAULT;
+		fx_finit(&fpu->state->fxsave);
 	} else {
 		struct i387_fsave_struct *fp = &fpu->state->fsave;
 		memset(fp, 0, xstate_size);
@@ -454,7 +435,7 @@ static inline u32 twd_fxsr_to_i387(struct i387_fxsave_struct *fxsave)
  * FXSR floating point environment conversions.
  */
 
-static void
+void
 convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 {
 	struct i387_fxsave_struct *fxsave = &tsk->thread.fpu.state->fxsave;
@@ -491,8 +472,8 @@ convert_from_fxsr(struct user_i387_ia32_struct *env, struct task_struct *tsk)
 		memcpy(&to[i], &from[i], sizeof(to[0]));
 }
 
-static void convert_to_fxsr(struct task_struct *tsk,
-			    const struct user_i387_ia32_struct *env)
+void convert_to_fxsr(struct task_struct *tsk,
+		     const struct user_i387_ia32_struct *env)
 
 {
 	struct i387_fxsave_struct *fxsave = &tsk->thread.fpu.state->fxsave;
@@ -586,223 +567,6 @@ int fpregs_set(struct task_struct *target, const struct user_regset *regset,
 	if (cpu_has_xsave)
 		target->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FP;
 	return ret;
-}
-
-/*
- * Signal frame handlers.
- */
-
-static inline int save_i387_fsave(struct _fpstate_ia32 __user *buf)
-{
-	struct task_struct *tsk = current;
-	struct i387_fsave_struct *fp = &tsk->thread.fpu.state->fsave;
-
-	fp->status = fp->swd;
-	if (__copy_to_user(buf, fp, sizeof(struct i387_fsave_struct)))
-		return -1;
-	return 1;
-}
-
-static int save_i387_fxsave(struct _fpstate_ia32 __user *buf)
-{
-	struct task_struct *tsk = current;
-	struct i387_fxsave_struct *fx = &tsk->thread.fpu.state->fxsave;
-	struct user_i387_ia32_struct env;
-	int err = 0;
-
-	convert_from_fxsr(&env, tsk);
-	if (__copy_to_user(buf, &env, sizeof(env)))
-		return -1;
-
-	err |= __put_user(fx->swd, &buf->status);
-	err |= __put_user(X86_FXSR_MAGIC, &buf->magic);
-	if (err)
-		return -1;
-
-	if (__copy_to_user(&buf->_fxsr_env[0], fx, xstate_size))
-		return -1;
-	return 1;
-}
-
-static int save_i387_xsave(void __user *buf)
-{
-	struct task_struct *tsk = current;
-	struct _fpstate_ia32 __user *fx = buf;
-	int err = 0;
-
-
-	sanitize_i387_state(tsk);
-
-	/*
-	 * For legacy compatible, we always set FP/SSE bits in the bit
-	 * vector while saving the state to the user context.
-	 * This will enable us capturing any changes(during sigreturn) to
-	 * the FP/SSE bits by the legacy applications which don't touch
-	 * xstate_bv in the xsave header.
-	 *
-	 * xsave aware applications can change the xstate_bv in the xsave
-	 * header as well as change any contents in the memory layout.
-	 * xrestore as part of sigreturn will capture all the changes.
-	 */
-	tsk->thread.fpu.state->xsave.xsave_hdr.xstate_bv |= XSTATE_FPSSE;
-
-	if (save_i387_fxsave(fx) < 0)
-		return -1;
-
-	err = __copy_to_user(&fx->sw_reserved, &fx_sw_reserved_ia32,
-			     sizeof(struct _fpx_sw_bytes));
-	err |= __put_user(FP_XSTATE_MAGIC2,
-			  (__u32 __user *) (buf + sig_xstate_ia32_size
-					    - FP_XSTATE_MAGIC2_SIZE));
-	if (err)
-		return -1;
-
-	return 1;
-}
-
-int save_i387_xstate_ia32(void __user *buf)
-{
-	struct _fpstate_ia32 __user *fp = (struct _fpstate_ia32 __user *) buf;
-	struct task_struct *tsk = current;
-
-	if (!used_math())
-		return 0;
-
-	if (!access_ok(VERIFY_WRITE, buf, sig_xstate_ia32_size))
-		return -EACCES;
-	/*
-	 * This will cause a "finit" to be triggered by the next
-	 * attempted FPU operation by the 'current' process.
-	 */
-	clear_used_math();
-
-	if (!HAVE_HWFP) {
-		return fpregs_soft_get(current, NULL,
-				       0, sizeof(struct user_i387_ia32_struct),
-				       NULL, fp) ? -1 : 1;
-	}
-
-	unlazy_fpu(tsk);
-
-	if (cpu_has_xsave)
-		return save_i387_xsave(fp);
-	if (cpu_has_fxsr)
-		return save_i387_fxsave(fp);
-	else
-		return save_i387_fsave(fp);
-}
-
-static inline int restore_i387_fsave(struct _fpstate_ia32 __user *buf)
-{
-	struct task_struct *tsk = current;
-
-	return __copy_from_user(&tsk->thread.fpu.state->fsave, buf,
-				sizeof(struct i387_fsave_struct));
-}
-
-static int restore_i387_fxsave(struct _fpstate_ia32 __user *buf,
-			       unsigned int size)
-{
-	struct task_struct *tsk = current;
-	struct user_i387_ia32_struct env;
-	int err;
-
-	err = __copy_from_user(&tsk->thread.fpu.state->fxsave, &buf->_fxsr_env[0],
-			       size);
-	/* mxcsr reserved bits must be masked to zero for security reasons */
-	tsk->thread.fpu.state->fxsave.mxcsr &= mxcsr_feature_mask;
-	if (err || __copy_from_user(&env, buf, sizeof(env)))
-		return 1;
-	convert_to_fxsr(tsk, &env);
-
-	return 0;
-}
-
-static int restore_i387_xsave(void __user *buf)
-{
-	struct _fpx_sw_bytes fx_sw_user;
-	struct _fpstate_ia32 __user *fx_user =
-			((struct _fpstate_ia32 __user *) buf);
-	struct i387_fxsave_struct __user *fx =
-		(struct i387_fxsave_struct __user *) &fx_user->_fxsr_env[0];
-	struct xsave_hdr_struct *xsave_hdr =
-				&current->thread.fpu.state->xsave.xsave_hdr;
-	u64 mask;
-	int err;
-
-	if (check_for_xstate(fx, buf, &fx_sw_user))
-		goto fx_only;
-
-	mask = fx_sw_user.xstate_bv;
-
-	err = restore_i387_fxsave(buf, fx_sw_user.xstate_size);
-
-	xsave_hdr->xstate_bv &= pcntxt_mask;
-	/*
-	 * These bits must be zero.
-	 */
-	xsave_hdr->reserved1[0] = xsave_hdr->reserved1[1] = 0;
-
-	/*
-	 * Init the state that is not present in the memory layout
-	 * and enabled by the OS.
-	 */
-	mask = ~(pcntxt_mask & ~mask);
-	xsave_hdr->xstate_bv &= mask;
-
-	return err;
-fx_only:
-	/*
-	 * Couldn't find the extended state information in the memory
-	 * layout. Restore the FP/SSE and init the other extended state
-	 * enabled by the OS.
-	 */
-	xsave_hdr->xstate_bv = XSTATE_FPSSE;
-	return restore_i387_fxsave(buf, sizeof(struct i387_fxsave_struct));
-}
-
-int restore_i387_xstate_ia32(void __user *buf)
-{
-	int err;
-	struct task_struct *tsk = current;
-	struct _fpstate_ia32 __user *fp = (struct _fpstate_ia32 __user *) buf;
-
-	if (HAVE_HWFP)
-		clear_fpu(tsk);
-
-	if (!buf) {
-		if (used_math()) {
-			clear_fpu(tsk);
-			clear_used_math();
-		}
-
-		return 0;
-	} else
-		if (!access_ok(VERIFY_READ, buf, sig_xstate_ia32_size))
-			return -EACCES;
-
-	if (!used_math()) {
-		err = init_fpu(tsk);
-		if (err)
-			return err;
-	}
-
-	if (HAVE_HWFP) {
-		if (cpu_has_xsave)
-			err = restore_i387_xsave(buf);
-		else if (cpu_has_fxsr)
-			err = restore_i387_fxsave(fp, sizeof(struct
-							   i387_fxsave_struct));
-		else
-			err = restore_i387_fsave(fp);
-	} else {
-		err = fpregs_soft_set(current, NULL,
-				      0, sizeof(struct user_i387_ia32_struct),
-				      NULL, fp) != 0;
-	}
-	set_used_math();
-
-	return err;
 }
 
 /*

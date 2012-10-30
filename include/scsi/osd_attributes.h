@@ -1,7 +1,7 @@
 #ifndef __OSD_ATTRIBUTES_H__
 #define __OSD_ATTRIBUTES_H__
 
-#include "osd_protocol.h"
+#include <scsi/osd_protocol.h>
 
 /*
  * Contains types and constants that define attribute pages and attribute

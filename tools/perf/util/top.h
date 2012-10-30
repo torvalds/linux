@@ -5,6 +5,7 @@
 #include "types.h"
 #include <stddef.h>
 #include <stdbool.h>
+#include <termios.h>
 
 struct perf_evlist;
 struct perf_evsel;

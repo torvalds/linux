@@ -557,4 +557,6 @@ enum {
 #define SH73A0_PINT0_IRQ(irq) ((irq) + 700)
 #define SH73A0_PINT1_IRQ(irq) ((irq) + 732)
 
+extern struct smp_operations sh73a0_smp_ops;
+
 #endif /* __ASM_SH73A0_H__ */

@@ -13,6 +13,7 @@
 
 #define DMA_ERROR_CODE	(~0)
 extern struct dma_map_ops arm_dma_ops;
+extern struct dma_map_ops arm_coherent_dma_ops;
 
 static inline struct dma_map_ops *get_dma_ops(struct device *dev)
 {
@@ -201,6 +202,13 @@ static inline void dma_free_writecombine(struct device *dev, size_t size,
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
 	return dma_free_attrs(dev, size, cpu_addr, dma_handle, &attrs);
 }
+
+/*
+ * This can be called during early boot to increase the size of the atomic
+ * coherent DMA pool above the default value of 256KiB. It must be called
+ * before postcore_initcall.
+ */
+extern void __init init_dma_coherent_pool_size(unsigned long size);
 
 /*
  * This can be called during boot to increase the size of the consistent

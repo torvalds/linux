@@ -134,7 +134,8 @@ struct iwl_cfg;
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
 				     const struct iwl_cfg *cfg,
-				     const struct iwl_fw *fw);
+				     const struct iwl_fw *fw,
+				     struct dentry *dbgfs_dir);
 	void (*stop)(struct iwl_op_mode *op_mode);
 	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,
 		  struct iwl_device_cmd *cmd);

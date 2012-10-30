@@ -26,9 +26,15 @@ queue_var_show(unsigned long var, char *page)
 static ssize_t
 queue_var_store(unsigned long *var, const char *page, size_t count)
 {
-	char *p = (char *) page;
+	int err;
+	unsigned long v;
 
-	*var = simple_strtoul(p, &p, 10);
+	err = strict_strtoul(page, 10, &v);
+	if (err || v > UINT_MAX)
+		return -EINVAL;
+
+	*var = v;
+
 	return count;
 }
 
@@ -48,6 +54,9 @@ queue_requests_store(struct request_queue *q, const char *page, size_t count)
 		return -EINVAL;
 
 	ret = queue_var_store(&nr, page, count);
+	if (ret < 0)
+		return ret;
+
 	if (nr < BLKDEV_MIN_RQ)
 		nr = BLKDEV_MIN_RQ;
 
@@ -101,6 +110,9 @@ queue_ra_store(struct request_queue *q, const char *page, size_t count)
 {
 	unsigned long ra_kb;
 	ssize_t ret = queue_var_store(&ra_kb, page, count);
+
+	if (ret < 0)
+		return ret;
 
 	q->backing_dev_info.ra_pages = ra_kb >> (PAGE_CACHE_SHIFT - 10);
 
@@ -168,6 +180,13 @@ static ssize_t queue_discard_zeroes_data_show(struct request_queue *q, char *pag
 	return queue_var_show(queue_discard_zeroes_data(q), page);
 }
 
+static ssize_t queue_write_same_max_show(struct request_queue *q, char *page)
+{
+	return sprintf(page, "%llu\n",
+		(unsigned long long)q->limits.max_write_same_sectors << 9);
+}
+
+
 static ssize_t
 queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 {
@@ -175,6 +194,9 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 		max_hw_sectors_kb = queue_max_hw_sectors(q) >> 1,
 			page_kb = 1 << (PAGE_CACHE_SHIFT - 10);
 	ssize_t ret = queue_var_store(&max_sectors_kb, page, count);
+
+	if (ret < 0)
+		return ret;
 
 	if (max_sectors_kb > max_hw_sectors_kb || max_sectors_kb < page_kb)
 		return -EINVAL;
@@ -236,6 +258,9 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 	unsigned long nm;
 	ssize_t ret = queue_var_store(&nm, page, count);
 
+	if (ret < 0)
+		return ret;
+
 	spin_lock_irq(q->queue_lock);
 	queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
 	queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
@@ -264,6 +289,9 @@ queue_rq_affinity_store(struct request_queue *q, const char *page, size_t count)
 	unsigned long val;
 
 	ret = queue_var_store(&val, page, count);
+	if (ret < 0)
+		return ret;
+
 	spin_lock_irq(q->queue_lock);
 	if (val == 2) {
 		queue_flag_set(QUEUE_FLAG_SAME_COMP, q);
@@ -364,6 +392,11 @@ static struct queue_sysfs_entry queue_discard_zeroes_data_entry = {
 	.show = queue_discard_zeroes_data_show,
 };
 
+static struct queue_sysfs_entry queue_write_same_max_entry = {
+	.attr = {.name = "write_same_max_bytes", .mode = S_IRUGO },
+	.show = queue_write_same_max_show,
+};
+
 static struct queue_sysfs_entry queue_nonrot_entry = {
 	.attr = {.name = "rotational", .mode = S_IRUGO | S_IWUSR },
 	.show = queue_show_nonrot,
@@ -411,6 +444,7 @@ static struct attribute *default_attrs[] = {
 	&queue_discard_granularity_entry.attr,
 	&queue_discard_max_entry.attr,
 	&queue_discard_zeroes_data_entry.attr,
+	&queue_write_same_max_entry.attr,
 	&queue_nonrot_entry.attr,
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
@@ -526,6 +560,12 @@ int blk_register_queue(struct gendisk *disk)
 
 	if (WARN_ON(!q))
 		return -ENXIO;
+
+	/*
+	 * Initialization must be complete by now.  Finish the initial
+	 * bypass from queue allocation.
+	 */
+	blk_queue_bypass_end(q);
 
 	ret = blk_trace_init_sysfs(dev);
 	if (ret)

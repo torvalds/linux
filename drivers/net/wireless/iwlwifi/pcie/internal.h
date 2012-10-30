@@ -184,6 +184,7 @@ struct iwl_queue {
 
 struct iwl_pcie_tx_queue_entry {
 	struct iwl_device_cmd *cmd;
+	struct iwl_device_cmd *copy_cmd;
 	struct sk_buff *skb;
 	struct iwl_cmd_meta meta;
 };
@@ -310,7 +311,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans);
 ******************************************************/
 void iwl_bg_rx_replenish(struct work_struct *data);
 void iwl_irq_tasklet(struct iwl_trans *trans);
-void iwlagn_rx_replenish(struct iwl_trans *trans);
+void iwl_rx_replenish(struct iwl_trans *trans);
 void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 				   struct iwl_rx_queue *q);
 
@@ -350,7 +351,7 @@ int iwl_queue_space(const struct iwl_queue *q);
 /*****************************************************
 * Error handling
 ******************************************************/
-int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display);
+int iwl_dump_fh(struct iwl_trans *trans, char **buf);
 void iwl_dump_csr(struct iwl_trans *trans);
 
 /*****************************************************

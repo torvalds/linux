@@ -2274,7 +2274,8 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	int err, i;
 	u8 start_reg, reg;
 
-	data = kzalloc(sizeof(struct f71882fg_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct f71882fg_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -2288,13 +2289,11 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 	start_reg = f71882fg_read8(data, F71882FG_REG_START);
 	if (start_reg & 0x04) {
 		dev_warn(&pdev->dev, "Hardware monitor is powered down\n");
-		err = -ENODEV;
-		goto exit_free;
+		return -ENODEV;
 	}
 	if (!(start_reg & 0x03)) {
 		dev_warn(&pdev->dev, "Hardware monitoring not activated\n");
-		err = -ENODEV;
-		goto exit_free;
+		return -ENODEV;
 	}
 
 	/* Register sysfs interface files */
@@ -2422,8 +2421,6 @@ static int __devinit f71882fg_probe(struct platform_device *pdev)
 exit_unregister_sysfs:
 	f71882fg_remove(pdev); /* Will unregister the sysfs files for us */
 	return err; /* f71882fg_remove() also frees our data */
-exit_free:
-	kfree(data);
 	return err;
 }
 
@@ -2525,17 +2522,13 @@ static int f71882fg_remove(struct platform_device *pdev)
 				ARRAY_SIZE(fxxxx_auto_pwm_attr[0]) * nr_fans);
 		}
 	}
-
-	platform_set_drvdata(pdev, NULL);
-	kfree(data);
-
 	return 0;
 }
 
-static int __init f71882fg_find(int sioaddr, unsigned short *address,
-	struct f71882fg_sio_data *sio_data)
+static int __init f71882fg_find(int sioaddr, struct f71882fg_sio_data *sio_data)
 {
 	u16 devid;
+	unsigned short address;
 	int err = superio_enter(sioaddr);
 	if (err)
 		return err;
@@ -2603,25 +2596,25 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 		goto exit;
 	}
 
-	*address = superio_inw(sioaddr, SIO_REG_ADDR);
-	if (*address == 0) {
+	address = superio_inw(sioaddr, SIO_REG_ADDR);
+	if (address == 0) {
 		pr_warn("Base address not set\n");
 		err = -ENODEV;
 		goto exit;
 	}
-	*address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
+	address &= ~(REGION_LENGTH - 1);	/* Ignore 3 LSB */
 
-	err = 0;
+	err = address;
 	pr_info("Found %s chip at %#x, revision %d\n",
-		f71882fg_names[sio_data->type],	(unsigned int)*address,
+		f71882fg_names[sio_data->type],	(unsigned int)address,
 		(int)superio_inb(sioaddr, SIO_REG_DEVREV));
 exit:
 	superio_exit(sioaddr);
 	return err;
 }
 
-static int __init f71882fg_device_add(unsigned short address,
-	const struct f71882fg_sio_data *sio_data)
+static int __init f71882fg_device_add(int address,
+				      const struct f71882fg_sio_data *sio_data)
 {
 	struct resource res = {
 		.start	= address,
@@ -2668,19 +2661,21 @@ exit_device_put:
 
 static int __init f71882fg_init(void)
 {
-	int err = -ENODEV;
-	unsigned short address;
+	int err;
+	int address;
 	struct f71882fg_sio_data sio_data;
 
 	memset(&sio_data, 0, sizeof(sio_data));
 
-	if (f71882fg_find(0x2e, &address, &sio_data) &&
-	    f71882fg_find(0x4e, &address, &sio_data))
-		goto exit;
+	address = f71882fg_find(0x2e, &sio_data);
+	if (address < 0)
+		address = f71882fg_find(0x4e, &sio_data);
+	if (address < 0)
+		return address;
 
 	err = platform_driver_register(&f71882fg_driver);
 	if (err)
-		goto exit;
+		return err;
 
 	err = f71882fg_device_add(address, &sio_data);
 	if (err)
@@ -2690,7 +2685,6 @@ static int __init f71882fg_init(void)
 
 exit_driver:
 	platform_driver_unregister(&f71882fg_driver);
-exit:
 	return err;
 }
 

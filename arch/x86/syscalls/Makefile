@@ -1,7 +1,9 @@
 out := $(obj)/../include/generated/asm
+uapi := $(obj)/../include/generated/uapi/asm
 
 # Create output directory if not already present
-_dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)')
+_dummy := $(shell [ -d '$(out)' ] || mkdir -p '$(out)') \
+	  $(shell [ -d '$(uapi)' ] || mkdir -p '$(uapi)')
 
 syscall32 := $(srctree)/$(src)/syscall_32.tbl
 syscall64 := $(srctree)/$(src)/syscall_64.tbl
@@ -18,7 +20,7 @@ quiet_cmd_systbl = SYSTBL  $@
       cmd_systbl = $(CONFIG_SHELL) '$(systbl)' $< $@
 
 syshdr_abi_unistd_32 := i386
-$(out)/unistd_32.h: $(syscall32) $(syshdr)
+$(uapi)/unistd_32.h: $(syscall32) $(syshdr)
 	$(call if_changed,syshdr)
 
 syshdr_abi_unistd_32_ia32 := i386
@@ -28,11 +30,11 @@ $(out)/unistd_32_ia32.h: $(syscall32) $(syshdr)
 
 syshdr_abi_unistd_x32 := common,x32
 syshdr_offset_unistd_x32 := __X32_SYSCALL_BIT
-$(out)/unistd_x32.h: $(syscall64) $(syshdr)
+$(uapi)/unistd_x32.h: $(syscall64) $(syshdr)
 	$(call if_changed,syshdr)
 
 syshdr_abi_unistd_64 := common,64
-$(out)/unistd_64.h: $(syscall64) $(syshdr)
+$(uapi)/unistd_64.h: $(syscall64) $(syshdr)
 	$(call if_changed,syshdr)
 
 syshdr_abi_unistd_64_x32 := x32
@@ -45,11 +47,12 @@ $(out)/syscalls_32.h: $(syscall32) $(systbl)
 $(out)/syscalls_64.h: $(syscall64) $(systbl)
 	$(call if_changed,systbl)
 
-syshdr-y			+= unistd_32.h unistd_64.h unistd_x32.h
+uapisyshdr-y			+= unistd_32.h unistd_64.h unistd_x32.h
 syshdr-y			+= syscalls_32.h
 syshdr-$(CONFIG_X86_64)		+= unistd_32_ia32.h unistd_64_x32.h
 syshdr-$(CONFIG_X86_64)		+= syscalls_64.h
 
-targets	+= $(syshdr-y)
+targets	+= $(uapisyshdr-y) $(syshdr-y)
 
-all: $(addprefix $(out)/,$(targets))
+all: $(addprefix $(uapi)/,$(uapisyshdr-y))
+all: $(addprefix $(out)/,$(syshdr-y))

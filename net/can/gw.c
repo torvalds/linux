@@ -58,7 +58,7 @@
 #include <net/sock.h>
 
 #define CAN_GW_VERSION "20101209"
-static __initdata const char banner[] =
+static __initconst const char banner[] =
 	KERN_INFO "can: netlink gateway (rev " CAN_GW_VERSION ")\n";
 
 MODULE_DESCRIPTION("PF_CAN netlink gateway");
@@ -549,7 +549,7 @@ static int cgw_dump_jobs(struct sk_buff *skb, struct netlink_callback *cb)
 		if (idx < s_idx)
 			goto cont;
 
-		if (cgw_put_job(skb, gwj, RTM_NEWROUTE, NETLINK_CB(cb->skb).pid,
+		if (cgw_put_job(skb, gwj, RTM_NEWROUTE, NETLINK_CB(cb->skb).portid,
 		    cb->nlh->nlmsg_seq, NLM_F_MULTI) < 0)
 			break;
 cont:

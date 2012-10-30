@@ -1065,7 +1065,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 	mtspr	SPRN_DABRX,r6
 
 	/* Restore SPRG3 */
-	ld	r3,HSTATE_SPRG3(r13)
+	ld	r3,PACA_SPRG3(r13)
 	mtspr	SPRN_SPRG3,r3
 
 	/*

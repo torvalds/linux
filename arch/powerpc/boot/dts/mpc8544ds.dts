@@ -20,8 +20,10 @@
 		reg = <0 0 0 0>;	// Filled by U-Boot
 	};
 
-	lbc: localbus@e0005000 {
+	board_lbc: lbc: localbus@e0005000 {
 		reg = <0 0xe0005000 0 0x1000>;
+
+		ranges = <0x0 0x0 0x0 0xff800000 0x800000>;
 	};
 
 	board_soc: soc: soc8544@e0000000 {

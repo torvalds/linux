@@ -24,7 +24,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>
-#include <plat/orion_nand.h>
+#include <linux/platform_data/mtd-orion_nand.h>
 #include "common.h"
 #include "mpp.h"
 

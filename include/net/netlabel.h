@@ -110,7 +110,7 @@ struct cipso_v4_doi;
 /* NetLabel audit information */
 struct netlbl_audit {
 	u32 secid;
-	uid_t loginuid;
+	kuid_t loginuid;
 	u32 sessionid;
 };
 

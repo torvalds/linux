@@ -59,7 +59,7 @@ static int omap2_clk_apll_enable(struct clk *clk, u32 status_mask)
 	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
 
 	omap2_cm_wait_idlest(cm_idlest_pll, status_mask,
-			     OMAP24XX_CM_IDLEST_VAL, clk->name);
+			     OMAP24XX_CM_IDLEST_VAL, __clk_get_name(clk));
 
 	/*
 	 * REVISIT: Should we return an error code if omap2_wait_clock_ready()

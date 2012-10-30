@@ -244,12 +244,6 @@ static int __devinit fsl_ifc_ctrl_probe(struct platform_device *dev)
 	/* get the nand machine irq */
 	fsl_ifc_ctrl_dev->nand_irq =
 			irq_of_parse_and_map(dev->dev.of_node, 1);
-	if (fsl_ifc_ctrl_dev->nand_irq == NO_IRQ) {
-		dev_err(&dev->dev, "failed to get irq resource "
-						"for NAND Machine\n");
-		ret = -ENODEV;
-		goto err;
-	}
 
 	fsl_ifc_ctrl_dev->dev = &dev->dev;
 
@@ -267,12 +261,14 @@ static int __devinit fsl_ifc_ctrl_probe(struct platform_device *dev)
 		goto err_irq;
 	}
 
-	ret = request_irq(fsl_ifc_ctrl_dev->nand_irq, fsl_ifc_nand_irq, 0,
-			  "fsl-ifc-nand", fsl_ifc_ctrl_dev);
-	if (ret != 0) {
-		dev_err(&dev->dev, "failed to install irq (%d)\n",
-			fsl_ifc_ctrl_dev->nand_irq);
-		goto err_nandirq;
+	if (fsl_ifc_ctrl_dev->nand_irq) {
+		ret = request_irq(fsl_ifc_ctrl_dev->nand_irq, fsl_ifc_nand_irq,
+				0, "fsl-ifc-nand", fsl_ifc_ctrl_dev);
+		if (ret != 0) {
+			dev_err(&dev->dev, "failed to install irq (%d)\n",
+				fsl_ifc_ctrl_dev->nand_irq);
+			goto err_nandirq;
+		}
 	}
 
 	return 0;

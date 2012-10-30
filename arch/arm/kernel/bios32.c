@@ -13,6 +13,7 @@
 #include <linux/io.h>
 
 #include <asm/mach-types.h>
+#include <asm/mach/map.h>
 #include <asm/mach/pci.h>
 
 static int debug_pci;
@@ -270,15 +271,6 @@ static void __devinit pci_fixup_it8152(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ITE, PCI_DEVICE_ID_ITE_8152, pci_fixup_it8152);
 
-
-
-void __devinit pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	if (debug_pci)
-		printk("PCI: Assigning IRQ %02d to %s\n", irq, pci_name(dev));
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
 /*
  * If the bus contains any of these devices, then we must not turn on
  * parity checking of any kind.  Currently this is CyberPro 20x0 only.
@@ -423,6 +415,38 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
+static int __init pcibios_init_resources(int busnr, struct pci_sys_data *sys)
+{
+	int ret;
+	struct pci_host_bridge_window *window;
+
+	if (list_empty(&sys->resources)) {
+		pci_add_resource_offset(&sys->resources,
+			 &iomem_resource, sys->mem_offset);
+	}
+
+	list_for_each_entry(window, &sys->resources, list) {
+		if (resource_type(window->res) == IORESOURCE_IO)
+			return 0;
+	}
+
+	sys->io_res.start = (busnr * SZ_64K) ?  : pcibios_min_io;
+	sys->io_res.end = (busnr + 1) * SZ_64K - 1;
+	sys->io_res.flags = IORESOURCE_IO;
+	sys->io_res.name = sys->io_res_name;
+	sprintf(sys->io_res_name, "PCI%d I/O", busnr);
+
+	ret = request_resource(&ioport_resource, &sys->io_res);
+	if (ret) {
+		pr_err("PCI: unable to allocate I/O port region (%d)\n", ret);
+		return ret;
+	}
+	pci_add_resource_offset(&sys->resources, &sys->io_res,
+				sys->io_offset);
+
+	return 0;
+}
+
 static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 {
 	struct pci_sys_data *sys = NULL;
@@ -445,11 +469,10 @@ static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 		ret = hw->setup(nr, sys);
 
 		if (ret > 0) {
-			if (list_empty(&sys->resources)) {
-				pci_add_resource_offset(&sys->resources,
-					 &ioport_resource, sys->io_offset);
-				pci_add_resource_offset(&sys->resources,
-					 &iomem_resource, sys->mem_offset);
+			ret = pcibios_init_resources(nr, sys);
+			if (ret)  {
+				kfree(sys);
+				break;
 			}
 
 			if (hw->scan)
@@ -626,4 +649,16 @@ int pci_mmap_page_range(struct pci_dev *dev, struct vm_area_struct *vma,
 		return -EAGAIN;
 
 	return 0;
+}
+
+void __init pci_map_io_early(unsigned long pfn)
+{
+	struct map_desc pci_io_desc = {
+		.virtual	= PCI_IO_VIRT_BASE,
+		.type		= MT_DEVICE,
+		.length		= SZ_64K,
+	};
+
+	pci_io_desc.pfn = pfn;
+	iotable_init(&pci_io_desc, 1);
 }

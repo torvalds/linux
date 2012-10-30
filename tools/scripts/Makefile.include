@@ -1,6 +1,8 @@
 ifeq ("$(origin O)", "command line")
-	OUTPUT := $(O)/
-	COMMAND_O := O=$(O)
+	dummy := $(if $(shell test -d $(O) || echo $(O)),$(error O=$(O) does not exist),)
+	ABSOLUTE_O := $(shell cd $(O) ; pwd)
+	OUTPUT := $(ABSOLUTE_O)/
+	COMMAND_O := O=$(ABSOLUTE_O)
 endif
 
 ifneq ($(OUTPUT),)

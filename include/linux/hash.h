@@ -67,4 +67,14 @@ static inline unsigned long hash_ptr(const void *ptr, unsigned int bits)
 {
 	return hash_long((unsigned long)ptr, bits);
 }
+
+static inline u32 hash32_ptr(const void *ptr)
+{
+	unsigned long val = (unsigned long)ptr;
+
+#if BITS_PER_LONG == 64
+	val ^= (val >> 32);
+#endif
+	return (u32)val;
+}
 #endif /* _LINUX_HASH_H */

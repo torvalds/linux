@@ -104,6 +104,13 @@ config P1022_DS
 	help
 	  This option enables support for the Freescale P1022DS reference board.
 
+config P1022_RDK
+	bool "Freescale / iVeia P1022 RDK"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale / iVeia P1022RDK
+	  reference board.
+
 config P1023_RDS
 	bool "Freescale P1023 RDS"
 	select DEFAULT_UIMAGE
@@ -253,6 +260,20 @@ config P5020_DS
 	select PPC_EPAPR_HV_PIC
 	help
 	  This option enables support for the P5020 DS board
+
+config P5040_DS
+	bool "Freescale P5040 DS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the P5040 DS board
 
 config PPC_QEMU_E500
 	bool "QEMU generic e500 platform"

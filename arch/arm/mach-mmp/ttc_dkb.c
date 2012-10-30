@@ -177,12 +177,22 @@ static struct mv_usb_platform_data ttc_usb_pdata = {
 #endif
 #endif
 
+#ifdef CONFIG_MTD_NAND_PXA3xx
+static struct pxa3xx_nand_platform_data dkb_nand_info = {
+	.enable_arbiter = 1,
+	.num_cs = 1,
+};
+#endif
+
 static void __init ttc_dkb_init(void)
 {
 	mfp_config(ARRAY_AND_SIZE(ttc_dkb_pin_config));
 
 	/* on-chip devices */
 	pxa910_add_uart(1);
+#ifdef CONFIG_MTD_NAND_PXA3xx
+	pxa910_add_nand(&dkb_nand_info);
+#endif
 
 	/* off-chip devices */
 	pxa910_add_twsi(0, NULL, ARRAY_AND_SIZE(ttc_dkb_i2c_info));

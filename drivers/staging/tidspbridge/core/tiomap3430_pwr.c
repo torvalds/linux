@@ -19,7 +19,7 @@
 /*  ----------------------------------- Host OS */
 #include <dspbridge/host_os.h>
 
-#include <plat/dsp.h>
+#include <linux/platform_data/dsp-omap.h>
 
 /*  ----------------------------------- DSP/BIOS Bridge */
 #include <dspbridge/dbdefs.h>
@@ -356,7 +356,7 @@ int pre_scale_dsp(struct bridge_dev_context *dev_context, void *pargs)
 		dev_dbg(bridge, "OPP: %s IVA in sleep. No message to DSP\n");
 		return 0;
 	} else if ((dev_context->brd_state == BRD_RUNNING)) {
-		/* Send a prenotificatio to DSP */
+		/* Send a prenotification to DSP */
 		dev_dbg(bridge, "OPP: %s sent notification to DSP\n", __func__);
 		sm_interrupt_dsp(dev_context, MBX_PM_SETPOINT_PRENOTIFY);
 		return 0;

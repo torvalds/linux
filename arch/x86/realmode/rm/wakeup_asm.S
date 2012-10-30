@@ -75,7 +75,7 @@ ENTRY(wakeup_start)
 	lidtl	wakeup_idt
 
 	/* Clear the EFLAGS */
-	pushl	$0
+	pushl $0
 	popfl
 
 	/* Check header signature... */
@@ -93,8 +93,8 @@ ENTRY(wakeup_start)
 
 	/* Restore MISC_ENABLE before entering protected mode, in case
 	   BIOS decided to clear XD_DISABLE during S3. */
-	movl	pmode_behavior, %eax
-	btl	$WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE, %eax
+	movl	pmode_behavior, %edi
+	btl	$WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE, %edi
 	jnc	1f
 
 	movl	pmode_misc_en, %eax
@@ -110,15 +110,15 @@ ENTRY(wakeup_start)
 	movl	pmode_cr3, %eax
 	movl	%eax, %cr3
 
-	movl	pmode_cr4, %ecx
-	jecxz	1f
-	movl	%ecx, %cr4
+	btl	$WAKEUP_BEHAVIOR_RESTORE_CR4, %edi
+	jnc	1f
+	movl	pmode_cr4, %eax
+	movl	%eax, %cr4
 1:
+	btl	$WAKEUP_BEHAVIOR_RESTORE_EFER, %edi
+	jnc	1f
 	movl	pmode_efer, %eax
 	movl	pmode_efer + 4, %edx
-	movl	%eax, %ecx
-	orl	%edx, %ecx
-	jz	1f
 	movl	$MSR_EFER, %ecx
 	wrmsr
 1:

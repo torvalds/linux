@@ -101,7 +101,7 @@ static void gmux_pio_write32(struct apple_gmux_data *gmux_data, int port,
 
 	for (i = 0; i < 4; i++) {
 		tmpval = (val >> (i * 8)) & 0xff;
-		outb(tmpval, port + i);
+		outb(tmpval, gmux_data->iostart + port + i);
 	}
 }
 
@@ -142,8 +142,9 @@ static u8 gmux_index_read8(struct apple_gmux_data *gmux_data, int port)
 	u8 val;
 
 	mutex_lock(&gmux_data->index_lock);
-	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
 	gmux_index_wait_ready(gmux_data);
+	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
+	gmux_index_wait_complete(gmux_data);
 	val = inb(gmux_data->iostart + GMUX_PORT_VALUE);
 	mutex_unlock(&gmux_data->index_lock);
 
@@ -166,8 +167,9 @@ static u32 gmux_index_read32(struct apple_gmux_data *gmux_data, int port)
 	u32 val;
 
 	mutex_lock(&gmux_data->index_lock);
-	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
 	gmux_index_wait_ready(gmux_data);
+	outb((port & 0xff), gmux_data->iostart + GMUX_PORT_READ);
+	gmux_index_wait_complete(gmux_data);
 	val = inl(gmux_data->iostart + GMUX_PORT_VALUE);
 	mutex_unlock(&gmux_data->index_lock);
 
@@ -461,18 +463,22 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	ver_release = gmux_read8(gmux_data, GMUX_PORT_VERSION_RELEASE);
 	if (ver_major == 0xff && ver_minor == 0xff && ver_release == 0xff) {
 		if (gmux_is_indexed(gmux_data)) {
+			u32 version;
 			mutex_init(&gmux_data->index_lock);
 			gmux_data->indexed = true;
+			version = gmux_read32(gmux_data,
+				GMUX_PORT_VERSION_MAJOR);
+			ver_major = (version >> 24) & 0xff;
+			ver_minor = (version >> 16) & 0xff;
+			ver_release = (version >> 8) & 0xff;
 		} else {
 			pr_info("gmux device not present\n");
 			ret = -ENODEV;
 			goto err_release;
 		}
-		pr_info("Found indexed gmux\n");
-	} else {
-		pr_info("Found gmux version %d.%d.%d\n", ver_major, ver_minor,
-			ver_release);
 	}
+	pr_info("Found gmux version %d.%d.%d [%s]\n", ver_major, ver_minor,
+		ver_release, (gmux_data->indexed ? "indexed" : "classic"));
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_PLATFORM;
@@ -505,9 +511,7 @@ static int __devinit gmux_probe(struct pnp_dev *pnp,
 	 * Disable the other backlight choices.
 	 */
 	acpi_video_dmi_promote_vendor();
-#if defined (CONFIG_ACPI_VIDEO) || defined (CONFIG_ACPI_VIDEO_MODULE)
 	acpi_video_unregister();
-#endif
 	apple_bl_unregister();
 
 	gmux_data->power_state = VGA_SWITCHEROO_ON;
@@ -593,9 +597,7 @@ static void __devexit gmux_remove(struct pnp_dev *pnp)
 	kfree(gmux_data);
 
 	acpi_video_dmi_demote_vendor();
-#if defined (CONFIG_ACPI_VIDEO) || defined (CONFIG_ACPI_VIDEO_MODULE)
 	acpi_video_register();
-#endif
 	apple_bl_register();
 }
 

@@ -42,8 +42,8 @@ static const struct inode_operations hugetlbfs_dir_inode_operations;
 static const struct inode_operations hugetlbfs_inode_operations;
 
 struct hugetlbfs_config {
-	uid_t   uid;
-	gid_t   gid;
+	kuid_t   uid;
+	kgid_t   gid;
 	umode_t mode;
 	long	nr_blocks;
 	long	nr_inodes;
@@ -110,7 +110,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 * way when do_mmap_pgoff unwinds (may be important on powerpc
 	 * and ia64).
 	 */
-	vma->vm_flags |= VM_HUGETLB | VM_RESERVED;
+	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &hugetlb_vm_ops;
 
 	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
@@ -397,17 +397,16 @@ static void hugetlbfs_evict_inode(struct inode *inode)
 }
 
 static inline void
-hugetlb_vmtruncate_list(struct prio_tree_root *root, pgoff_t pgoff)
+hugetlb_vmtruncate_list(struct rb_root *root, pgoff_t pgoff)
 {
 	struct vm_area_struct *vma;
-	struct prio_tree_iter iter;
 
-	vma_prio_tree_foreach(vma, &iter, root, pgoff, ULONG_MAX) {
+	vma_interval_tree_foreach(vma, root, pgoff, ULONG_MAX) {
 		unsigned long v_offset;
 
 		/*
 		 * Can the expression below overflow on 32-bit arches?
-		 * No, because the prio_tree returns us only those vmas
+		 * No, because the interval tree returns us only those vmas
 		 * which overlap the truncated area starting at pgoff,
 		 * and no vma on a 32-bit arch can span beyond the 4GB.
 		 */
@@ -432,7 +431,7 @@ static int hugetlb_vmtruncate(struct inode *inode, loff_t offset)
 
 	i_size_write(inode, offset);
 	mutex_lock(&mapping->i_mmap_mutex);
-	if (!prio_tree_empty(&mapping->i_mmap))
+	if (!RB_EMPTY_ROOT(&mapping->i_mmap))
 		hugetlb_vmtruncate_list(&mapping->i_mmap, pgoff);
 	mutex_unlock(&mapping->i_mmap_mutex);
 	truncate_hugepages(inode, offset);
@@ -785,13 +784,17 @@ hugetlbfs_parse_options(char *options, struct hugetlbfs_config *pconfig)
 		case Opt_uid:
 			if (match_int(&args[0], &option))
  				goto bad_val;
-			pconfig->uid = option;
+			pconfig->uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(pconfig->uid))
+				goto bad_val;
 			break;
 
 		case Opt_gid:
 			if (match_int(&args[0], &option))
  				goto bad_val;
-			pconfig->gid = option;
+			pconfig->gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(pconfig->gid))
+				goto bad_val;
 			break;
 
 		case Opt_mode:
@@ -924,7 +927,9 @@ static struct vfsmount *hugetlbfs_vfsmount;
 
 static int can_do_hugetlb_shm(void)
 {
-	return capable(CAP_IPC_LOCK) || in_group_p(sysctl_hugetlb_shm_group);
+	kgid_t shm_group;
+	shm_group = make_kgid(&init_user_ns, sysctl_hugetlb_shm_group);
+	return capable(CAP_IPC_LOCK) || in_group_p(shm_group);
 }
 
 struct file *hugetlb_file_setup(const char *name, unsigned long addr,
@@ -1042,6 +1047,11 @@ static int __init init_hugetlbfs_fs(void)
 
 static void __exit exit_hugetlbfs_fs(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(hugetlbfs_inode_cachep);
 	kern_unmount(hugetlbfs_vfsmount);
 	unregister_filesystem(&hugetlbfs_fs_type);

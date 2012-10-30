@@ -4847,7 +4847,7 @@ static void qlge_io_resume(struct pci_dev *pdev)
 	netif_device_attach(ndev);
 }
 
-static struct pci_error_handlers qlge_err_handler = {
+static const struct pci_error_handlers qlge_err_handler = {
 	.error_detected = qlge_io_error_detected,
 	.slot_reset = qlge_io_slot_reset,
 	.resume = qlge_io_resume,

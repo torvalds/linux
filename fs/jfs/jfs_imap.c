@@ -3078,15 +3078,15 @@ static int copy_from_dinode(struct dinode * dip, struct inode *ip)
 	}
 	set_nlink(ip, le32_to_cpu(dip->di_nlink));
 
-	jfs_ip->saved_uid = le32_to_cpu(dip->di_uid);
-	if (sbi->uid == -1)
+	jfs_ip->saved_uid = make_kuid(&init_user_ns, le32_to_cpu(dip->di_uid));
+	if (!uid_valid(sbi->uid))
 		ip->i_uid = jfs_ip->saved_uid;
 	else {
 		ip->i_uid = sbi->uid;
 	}
 
-	jfs_ip->saved_gid = le32_to_cpu(dip->di_gid);
-	if (sbi->gid == -1)
+	jfs_ip->saved_gid = make_kgid(&init_user_ns, le32_to_cpu(dip->di_gid));
+	if (!gid_valid(sbi->gid))
 		ip->i_gid = jfs_ip->saved_gid;
 	else {
 		ip->i_gid = sbi->gid;
@@ -3150,14 +3150,16 @@ static void copy_to_dinode(struct dinode * dip, struct inode *ip)
 	dip->di_size = cpu_to_le64(ip->i_size);
 	dip->di_nblocks = cpu_to_le64(PBLK2LBLK(ip->i_sb, ip->i_blocks));
 	dip->di_nlink = cpu_to_le32(ip->i_nlink);
-	if (sbi->uid == -1)
-		dip->di_uid = cpu_to_le32(ip->i_uid);
+	if (!uid_valid(sbi->uid))
+		dip->di_uid = cpu_to_le32(i_uid_read(ip));
 	else
-		dip->di_uid = cpu_to_le32(jfs_ip->saved_uid);
-	if (sbi->gid == -1)
-		dip->di_gid = cpu_to_le32(ip->i_gid);
+		dip->di_uid =cpu_to_le32(from_kuid(&init_user_ns,
+						   jfs_ip->saved_uid));
+	if (!gid_valid(sbi->gid))
+		dip->di_gid = cpu_to_le32(i_gid_read(ip));
 	else
-		dip->di_gid = cpu_to_le32(jfs_ip->saved_gid);
+		dip->di_gid = cpu_to_le32(from_kgid(&init_user_ns,
+						    jfs_ip->saved_gid));
 	jfs_get_inode_flags(jfs_ip);
 	/*
 	 * mode2 is only needed for storing the higher order bits.

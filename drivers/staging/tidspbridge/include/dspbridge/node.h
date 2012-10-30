@@ -220,7 +220,7 @@ extern int node_create_mgr(struct node_mgr **node_man,
  *  Parameters:
  *      noderes:              Node resource info handle returned from
  *                                 node_allocate().
- *      pr_ctxt:                Poninter to process context data.
+ *      pr_ctxt:                Pointer to process context data.
  *  Returns:
  *      0:            Success.
  *      -EFAULT:        Invalid hnode.

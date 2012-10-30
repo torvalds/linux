@@ -21,7 +21,6 @@
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/rtas.h>
-#include <asm/abs_addr.h>
 
 #define MODULE_VERS "1.0"
 #define MODULE_NAME "rtas_flash"
@@ -582,7 +581,7 @@ static void rtas_flash_firmware(int reboot_type)
 	flist = (struct flash_block_list *)&rtas_data_buf[0];
 	flist->num_blocks = 0;
 	flist->next = rtas_firmware_flash_list;
-	rtas_block_list = virt_to_abs(flist);
+	rtas_block_list = __pa(flist);
 	if (rtas_block_list >= 4UL*1024*1024*1024) {
 		printk(KERN_ALERT "FLASH: kernel bug...flash list header addr above 4GB\n");
 		spin_unlock(&rtas_data_buf_lock);
@@ -596,13 +595,13 @@ static void rtas_flash_firmware(int reboot_type)
 	for (f = flist; f; f = next) {
 		/* Translate data addrs to absolute */
 		for (i = 0; i < f->num_blocks; i++) {
-			f->blocks[i].data = (char *)virt_to_abs(f->blocks[i].data);
+			f->blocks[i].data = (char *)__pa(f->blocks[i].data);
 			image_size += f->blocks[i].length;
 		}
 		next = f->next;
 		/* Don't translate NULL pointer for last entry */
 		if (f->next)
-			f->next = (struct flash_block_list *)virt_to_abs(f->next);
+			f->next = (struct flash_block_list *)__pa(f->next);
 		else
 			f->next = NULL;
 		/* make num_blocks into the version/length field */

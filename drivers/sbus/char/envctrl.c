@@ -353,7 +353,7 @@ static int envctrl_i2c_data_translate(unsigned char data, int translate_type,
 
 	default:
 		break;
-	};
+	}
 
 	return len;
 }
@@ -644,7 +644,7 @@ envctrl_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 	default:
 		break;
 
-	};
+	}
 
 	return ret;
 }
@@ -687,7 +687,7 @@ envctrl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	default:
 		return -EINVAL;
-	};
+	}
 
 	return 0;
 }
@@ -947,7 +947,7 @@ static void envctrl_init_i2c_child(struct device_node *dp,
 
 		default:
 			break;
-		};
+		}
 	}
 }
 

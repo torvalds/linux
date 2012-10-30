@@ -146,7 +146,7 @@ static irqreturn_t wm97xx_chrg_irq(int irq, void *data)
 #ifdef CONFIG_PM
 static int wm97xx_bat_suspend(struct device *dev)
 {
-	flush_work_sync(&bat_work);
+	flush_work(&bat_work);
 	return 0;
 }
 
@@ -212,8 +212,10 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MIN */
 
 	prop = kzalloc(props * sizeof(*prop), GFP_KERNEL);
-	if (!prop)
+	if (!prop) {
+		ret = -ENOMEM;
 		goto err3;
+	}
 
 	prop[i++] = POWER_SUPPLY_PROP_PRESENT;
 	if (pdata->charge_gpio >= 0)

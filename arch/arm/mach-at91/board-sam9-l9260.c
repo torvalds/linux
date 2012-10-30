@@ -73,7 +73,7 @@ static struct at91_udc_data __initdata ek_udc_data = {
  * SPI devices.
  */
 static struct spi_board_info ek_spi_devices[] = {
-#if !defined(CONFIG_MMC_AT91)
+#if !IS_ENABLED(CONFIG_MMC_ATMELMCI)
 	{	/* DataFlash chip */
 		.modalias	= "mtd_dataflash",
 		.chip_select	= 1,
@@ -158,19 +158,34 @@ static void __init ek_add_device_nand(void)
 /*
  * MCI (SD/MMC)
  */
-static struct at91_mmc_data __initdata ek_mmc_data = {
-	.slot_b		= 1,
-	.wire4		= 1,
-	.det_pin	= AT91_PIN_PC8,
-	.wp_pin		= AT91_PIN_PC4,
-	.vcc_pin	= -EINVAL,
+static struct mci_platform_data __initdata ek_mci0_data = {
+	.slot[1] = {
+		.bus_width	= 4,
+		.detect_pin	= AT91_PIN_PC8,
+		.wp_pin		= AT91_PIN_PC4,
+	},
+};
+
+/*
+ * LEDs
+ */
+static struct gpio_led ek_leds[] = {
+	{	/* D1 */
+		.name			= "led1",
+		.gpio			= AT91_PIN_PA9,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{	/* D2 */
+		.name			= "led2",
+		.gpio			= AT91_PIN_PA6,
+		.active_low		= 1,
+		.default_trigger	= "timer",
+	}
 };
 
 static void __init ek_board_init(void)
 {
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PA9, AT91_PIN_PA6);
-
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
@@ -194,9 +209,11 @@ static void __init ek_board_init(void)
 	/* Ethernet */
 	at91_add_device_eth(&ek_macb_data);
 	/* MMC */
-	at91_add_device_mmc(0, &ek_mmc_data);
+	at91_add_device_mci(0, &ek_mci0_data);
 	/* I2C */
 	at91_add_device_i2c(NULL, 0);
+	/* LEDs */
+	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
 }
 
 MACHINE_START(SAM9_L9260, "Olimex SAM9-L9260")

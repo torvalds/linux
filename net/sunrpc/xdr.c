@@ -730,19 +730,24 @@ static unsigned int xdr_align_pages(struct xdr_stream *xdr, unsigned int len)
 
 	if (xdr->nwords == 0)
 		return 0;
+	/* Realign pages to current pointer position */
+	iov  = buf->head;
+	if (iov->iov_len > cur) {
+		xdr_shrink_bufhead(buf, iov->iov_len - cur);
+		xdr->nwords = XDR_QUADLEN(buf->len - cur);
+	}
+
 	if (nwords > xdr->nwords) {
 		nwords = xdr->nwords;
 		len = nwords << 2;
 	}
-	/* Realign pages to current pointer position */
-	iov  = buf->head;
-	if (iov->iov_len > cur)
-		xdr_shrink_bufhead(buf, iov->iov_len - cur);
-
-	/* Truncate page data and move it into the tail */
-	if (buf->page_len > len)
+	if (buf->page_len <= len)
+		len = buf->page_len;
+	else if (nwords < xdr->nwords) {
+		/* Truncate page data and move it into the tail */
 		xdr_shrink_pagelen(buf, buf->page_len - len);
-	xdr->nwords = XDR_QUADLEN(buf->len - cur);
+		xdr->nwords = XDR_QUADLEN(buf->len - cur);
+	}
 	return len;
 }
 

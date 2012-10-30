@@ -55,58 +55,6 @@ struct k_sigaction32 {
 	struct compat_sigaction sa;
 };
 
-typedef struct compat_siginfo {
-        int si_signo;
-        int si_errno;
-        int si_code;
-
-        union {
-                int _pad[((128/sizeof(int)) - 3)];
-
-                /* kill() */
-                struct {
-                        unsigned int _pid;      /* sender's pid */
-                        unsigned int _uid;      /* sender's uid */
-                } _kill;
-
-                /* POSIX.1b timers */
-                struct {
-                        compat_timer_t _tid;            /* timer id */
-                        int _overrun;           /* overrun count */
-                        char _pad[sizeof(unsigned int) - sizeof(int)];
-                        compat_sigval_t _sigval;        /* same as below */
-                        int _sys_private;       /* not to be passed to user */
-                } _timer;
-
-                /* POSIX.1b signals */
-                struct {
-                        unsigned int _pid;      /* sender's pid */
-                        unsigned int _uid;      /* sender's uid */
-                        compat_sigval_t _sigval;
-                } _rt;
-
-                /* SIGCHLD */
-                struct {
-                        unsigned int _pid;      /* which child */
-                        unsigned int _uid;      /* sender's uid */
-                        int _status;            /* exit code */
-                        compat_clock_t _utime;
-                        compat_clock_t _stime;
-                } _sigchld;
-
-                /* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-                struct {
-                        unsigned int _addr;     /* faulting insn/memory ref. */
-                } _sigfault;
-
-                /* SIGPOLL */
-                struct {
-                        int _band;      /* POLL_IN, POLL_OUT, POLL_MSG */
-                        int _fd;
-                } _sigpoll;
-        } _sifields;
-} compat_siginfo_t;
-
 int copy_siginfo_to_user32 (compat_siginfo_t __user *to, siginfo_t *from);
 int copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from);
 

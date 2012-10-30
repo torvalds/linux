@@ -31,11 +31,11 @@
 
 #define pr_fmt(fmt) "[TTM] " fmt
 
-#include "ttm/ttm_module.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_page_alloc.h"
+#include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_page_alloc.h>
 #ifdef TTM_HAS_AGP
-#include "ttm/ttm_placement.h"
+#include <drm/ttm/ttm_placement.h>
 #include <linux/agp_backend.h>
 #include <linux/module.h>
 #include <linux/slab.h>

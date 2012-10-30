@@ -803,7 +803,7 @@ int __devinit da9052_device_init(struct da9052 *da9052, u8 chip_id)
 		dev_err(da9052->dev, "DA9052 ADC IRQ failed ret=%d\n", ret);
 
 	ret = mfd_add_devices(da9052->dev, -1, da9052_subdev_info,
-			      ARRAY_SIZE(da9052_subdev_info), NULL, 0);
+			      ARRAY_SIZE(da9052_subdev_info), NULL, 0, NULL);
 	if (ret)
 		goto err;
 

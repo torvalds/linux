@@ -101,7 +101,7 @@ VOID GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *pstHostMibs, struct bcm_t
 	       sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
 }
 
-VOID CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter, CServiceFlowParamSI *psfLocalSet, UINT uiSearchRuleIndex)
+VOID CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter, struct bcm_connect_mgr_params *psfLocalSet, UINT uiSearchRuleIndex)
 {
 	S_MIBS_EXTSERVICEFLOW_PARAMETERS *t = &Adapter->PackInfo[uiSearchRuleIndex].stMibsExtServiceFlowTable;
 

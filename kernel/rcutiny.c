@@ -56,25 +56,28 @@ static void __call_rcu(struct rcu_head *head,
 static long long rcu_dynticks_nesting = DYNTICK_TASK_EXIT_IDLE;
 
 /* Common code for rcu_idle_enter() and rcu_irq_exit(), see kernel/rcutree.c. */
-static void rcu_idle_enter_common(long long oldval)
+static void rcu_idle_enter_common(long long newval)
 {
-	if (rcu_dynticks_nesting) {
+	if (newval) {
 		RCU_TRACE(trace_rcu_dyntick("--=",
-					    oldval, rcu_dynticks_nesting));
+					    rcu_dynticks_nesting, newval));
+		rcu_dynticks_nesting = newval;
 		return;
 	}
-	RCU_TRACE(trace_rcu_dyntick("Start", oldval, rcu_dynticks_nesting));
+	RCU_TRACE(trace_rcu_dyntick("Start", rcu_dynticks_nesting, newval));
 	if (!is_idle_task(current)) {
 		struct task_struct *idle = idle_task(smp_processor_id());
 
 		RCU_TRACE(trace_rcu_dyntick("Error on entry: not idle task",
-					    oldval, rcu_dynticks_nesting));
+					    rcu_dynticks_nesting, newval));
 		ftrace_dump(DUMP_ALL);
 		WARN_ONCE(1, "Current pid: %d comm: %s / Idle pid: %d comm: %s",
 			  current->pid, current->comm,
 			  idle->pid, idle->comm); /* must be idle task! */
 	}
 	rcu_sched_qs(0); /* implies rcu_bh_qsctr_inc(0) */
+	barrier();
+	rcu_dynticks_nesting = newval;
 }
 
 /*
@@ -84,17 +87,16 @@ static void rcu_idle_enter_common(long long oldval)
 void rcu_idle_enter(void)
 {
 	unsigned long flags;
-	long long oldval;
+	long long newval;
 
 	local_irq_save(flags);
-	oldval = rcu_dynticks_nesting;
 	WARN_ON_ONCE((rcu_dynticks_nesting & DYNTICK_TASK_NEST_MASK) == 0);
 	if ((rcu_dynticks_nesting & DYNTICK_TASK_NEST_MASK) ==
 	    DYNTICK_TASK_NEST_VALUE)
-		rcu_dynticks_nesting = 0;
+		newval = 0;
 	else
-		rcu_dynticks_nesting  -= DYNTICK_TASK_NEST_VALUE;
-	rcu_idle_enter_common(oldval);
+		newval = rcu_dynticks_nesting - DYNTICK_TASK_NEST_VALUE;
+	rcu_idle_enter_common(newval);
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(rcu_idle_enter);
@@ -105,15 +107,15 @@ EXPORT_SYMBOL_GPL(rcu_idle_enter);
 void rcu_irq_exit(void)
 {
 	unsigned long flags;
-	long long oldval;
+	long long newval;
 
 	local_irq_save(flags);
-	oldval = rcu_dynticks_nesting;
-	rcu_dynticks_nesting--;
-	WARN_ON_ONCE(rcu_dynticks_nesting < 0);
-	rcu_idle_enter_common(oldval);
+	newval = rcu_dynticks_nesting - 1;
+	WARN_ON_ONCE(newval < 0);
+	rcu_idle_enter_common(newval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_irq_exit);
 
 /* Common code for rcu_idle_exit() and rcu_irq_enter(), see kernel/rcutree.c. */
 static void rcu_idle_exit_common(long long oldval)
@@ -171,6 +173,7 @@ void rcu_irq_enter(void)
 	rcu_idle_exit_common(oldval);
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL_GPL(rcu_irq_enter);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 

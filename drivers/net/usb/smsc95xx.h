@@ -63,6 +63,7 @@
 #define INT_STS_TDFO_			(0x00001000)
 #define INT_STS_RXDF_			(0x00000800)
 #define INT_STS_GPIOS_			(0x000007FF)
+#define INT_STS_CLEAR_ALL_		(0xFFFFFFFF)
 
 #define RX_CFG				(0x0C)
 #define RX_FIFO_FLUSH_			(0x00000001)
@@ -83,12 +84,16 @@
 #define HW_CFG_BCE_			(0x00000002)
 #define HW_CFG_SRST_			(0x00000001)
 
+#define RX_FIFO_INF			(0x18)
+
 #define PM_CTRL				(0x20)
+#define PM_CTL_RES_CLR_WKP_STS		(0x00000200)
 #define PM_CTL_DEV_RDY_			(0x00000080)
 #define PM_CTL_SUS_MODE_		(0x00000060)
 #define PM_CTL_SUS_MODE_0		(0x00000000)
 #define PM_CTL_SUS_MODE_1		(0x00000020)
-#define PM_CTL_SUS_MODE_2		(0x00000060)
+#define PM_CTL_SUS_MODE_2		(0x00000040)
+#define PM_CTL_SUS_MODE_3		(0x00000060)
 #define PM_CTL_PHY_RST_			(0x00000010)
 #define PM_CTL_WOL_EN_			(0x00000008)
 #define PM_CTL_ED_EN_			(0x00000004)
@@ -200,6 +205,11 @@
 #define WUFF				(0x128)
 
 #define WUCSR				(0x12C)
+#define WUCSR_GUE_			(0x00000200)
+#define WUCSR_WUFR_			(0x00000040)
+#define WUCSR_MPR_			(0x00000020)
+#define WUCSR_WAKE_EN_			(0x00000004)
+#define WUCSR_MPEN_			(0x00000002)
 
 #define COE_CR				(0x130)
 #define Tx_COE_EN_			(0x00010000)

@@ -57,11 +57,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------------------------------------------------------------------------+
 */
 #include "hwdrv_apci3200.h"
-/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
-#include "addi_amcc_S5920.h"
-/* #define PRINT_INFO */
 
-/* End JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+/* #define PRINT_INFO */
 
 /* BEGIN JK 06.07.04: Management of sevrals boards */
 /*
@@ -90,7 +87,12 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 struct str_BoardInfos s_BoardInfos[100];	/*  100 will be the max number of boards to be used */
 /* END JK 06.07.04: Management of sevrals boards */
 
-/* Begin JK 21.10.2004: APCI-3200 / APCI-3300 Reading of EEPROM values */
+#define AMCC_OP_REG_MCSR	0x3c
+#define EEPROM_BUSY		0x80000000
+#define NVCMD_LOAD_LOW		(0x4 << 5)	/* nvRam load low command */
+#define NVCMD_LOAD_HIGH		(0x5 << 5)	/* nvRam load high command */
+#define NVCMD_BEGIN_READ	(0x7 << 5)	/* nvRam begin read command */
+#define NVCMD_BEGIN_WRITE	(0x6 << 5)	/* EEPROM begin write command */
 
 /*+----------------------------------------------------------------------------+*/
 /*| Function   Name   : int i_AddiHeaderRW_ReadEeprom                          |*/
@@ -2558,7 +2560,6 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 {
 
 	int err = 0;
-	int tmp;		/*  divisor1,divisor2; */
 	unsigned int ui_ConvertTime = 0;
 	unsigned int ui_ConvertTimeBase = 0;
 	unsigned int ui_DelayTime = 0;
@@ -2569,41 +2570,32 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 	int i_Cpt = 0;
 	double d_ConversionTimeForAllChannels = 0.0;
 	double d_SCANTimeNewUnit = 0.0;
-	/*  step 1: make sure trigger sources are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_NOW | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_TIMER | TRIG_FOLLOW;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_TIMER;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
-	/* if(i_InterruptFlag==0) */
-	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0) {
-		err++;
-		/*           printk("\nThe interrupt should be enabled\n"); */
-	}
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_TIMER | TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (s_BoardInfos[dev->minor].i_InterruptFlag == 0)
+		err |= -EINVAL;
+
 	if (err) {
 		i_APCI3200_Reset(dev);
 		return 1;
 	}
 
-	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT) {
-		err++;
-	}
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(&cmd->start_src);
+	err |= cfc_check_trigger_is_unique(&cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(&cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
 	if (cmd->start_src == TRIG_EXT) {
 		i_TriggerEdge = cmd->start_arg & 0xFFFF;
 		i_Triggermode = cmd->start_arg >> 16;
@@ -2616,21 +2608,6 @@ int i_APCI3200_CommandTestAnalogInput(struct comedi_device *dev, struct comedi_s
 			printk("\nThe trigger mode selection is in error\n");
 		}
 	}
-
-	if (cmd->scan_begin_src != TRIG_TIMER &&
-		cmd->scan_begin_src != TRIG_FOLLOW)
-		err++;
-
-	if (cmd->convert_src != TRIG_TIMER)
-		err++;
-
-	if (cmd->scan_end_src != TRIG_COUNT) {
-		cmd->scan_end_src = TRIG_COUNT;
-		err++;
-	}
-
-	if (cmd->stop_src != TRIG_NONE && cmd->stop_src != TRIG_COUNT)
-		err++;
 
 	if (err) {
 		i_APCI3200_Reset(dev);
@@ -3495,7 +3472,7 @@ void v_APCI3200_Interrupt(int irq, void *d)
 int i_APCI3200_InterruptHandleEos(struct comedi_device *dev)
 {
 	unsigned int ui_StatusRegister = 0;
-	struct comedi_subdevice *s = dev->subdevices + 0;
+	struct comedi_subdevice *s = &dev->subdevices[0];
 
 	/* BEGIN JK 18.10.2004: APCI-3200 Driver update 0.7.57 -> 0.7.68 */
 	/* comedi_async *async = s->async; */

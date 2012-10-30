@@ -27,6 +27,10 @@
 		spi0 = &spi_0;
 		spi1 = &spi_1;
 		spi2 = &spi_2;
+		gsc0 = &gsc_0;
+		gsc1 = &gsc_1;
+		gsc2 = &gsc_2;
+		gsc3 = &gsc_3;
 	};
 
 	gic:interrupt-controller@10481000 {
@@ -178,6 +182,38 @@
 		interrupts = <0 68 0>;
 		tx-dma-channel = <&pdma0 7>; /* preliminary */
 		rx-dma-channel = <&pdma0 6>; /* preliminary */
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	dwmmc0@12200000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		reg = <0x12200000 0x1000>;
+		interrupts = <0 75 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	dwmmc1@12210000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		reg = <0x12210000 0x1000>;
+		interrupts = <0 76 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	dwmmc2@12220000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		reg = <0x12220000 0x1000>;
+		interrupts = <0 77 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	dwmmc3@12230000 {
+		compatible = "samsung,exynos5250-dw-mshc";
+		reg = <0x12230000 0x1000>;
+		interrupts = <0 78 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
@@ -459,5 +495,29 @@
 			reg = <0x03860000 0x20>;
 			#gpio-cells = <4>;
 		};
+	};
+
+	gsc_0:  gsc@0x13e00000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e00000 0x1000>;
+		interrupts = <0 85 0>;
+	};
+
+	gsc_1:  gsc@0x13e10000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e10000 0x1000>;
+		interrupts = <0 86 0>;
+	};
+
+	gsc_2:  gsc@0x13e20000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e20000 0x1000>;
+		interrupts = <0 87 0>;
+	};
+
+	gsc_3:  gsc@0x13e30000 {
+		compatible = "samsung,exynos5-gsc";
+		reg = <0x13e30000 0x1000>;
+		interrupts = <0 88 0>;
 	};
 };

@@ -157,11 +157,6 @@ enum wl1271_commands {
 
 #define MAX_CMD_PARAMS 572
 
-enum {
-	CMD_TEMPL_KLV_IDX_NULL_DATA = 0,
-	CMD_TEMPL_KLV_IDX_MAX = 4
-};
-
 enum cmd_templ {
 	CMD_TEMPL_NULL_DATA = 0,
 	CMD_TEMPL_BEACON,

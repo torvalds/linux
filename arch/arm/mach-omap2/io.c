@@ -33,6 +33,7 @@
 #include <plat/multi.h>
 #include <plat/dma.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "voltage.h"
 #include "powerdomain.h"
@@ -523,6 +524,8 @@ void __init am33xx_init_early(void)
 	am33xx_voltagedomains_init();
 	am33xx_powerdomains_init();
 	am33xx_clockdomains_init();
+	am33xx_hwmod_init();
+	omap_hwmod_init_postsetup();
 	am33xx_clk_init();
 }
 #endif

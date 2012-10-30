@@ -104,6 +104,10 @@ enum {
 
 	MAX_SEND_CQE		  = 16,
 	IPOIB_CM_COPYBREAK	  = 256,
+
+	IPOIB_NON_CHILD		  = 0,
+	IPOIB_LEGACY_CHILD	  = 1,
+	IPOIB_RTNL_CHILD	  = 2,
 };
 
 #define	IPOIB_OP_RECV   (1ul << 31)
@@ -262,7 +266,10 @@ struct ipoib_ethtool_st {
 	u16     max_coalesced_frames;
 };
 
+struct ipoib_neigh_table;
+
 struct ipoib_neigh_hash {
+	struct ipoib_neigh_table       *ntbl;
 	struct ipoib_neigh __rcu      **buckets;
 	struct rcu_head			rcu;
 	u32				mask;
@@ -271,9 +278,9 @@ struct ipoib_neigh_hash {
 
 struct ipoib_neigh_table {
 	struct ipoib_neigh_hash __rcu  *htbl;
-	rwlock_t			rwlock;
 	atomic_t			entries;
 	struct completion		flushed;
+	struct completion		deleted;
 };
 
 /*
@@ -350,6 +357,7 @@ struct ipoib_dev_priv {
 	struct net_device *parent;
 	struct list_head child_intfs;
 	struct list_head list;
+	int    child_type;
 
 #ifdef CONFIG_INFINIBAND_IPOIB_CM
 	struct ipoib_cm_dev_priv cm;
@@ -509,6 +517,17 @@ void ipoib_event(struct ib_event_handler *handler,
 int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey);
 int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey);
 
+int __ipoib_vlan_add(struct ipoib_dev_priv *ppriv, struct ipoib_dev_priv *priv,
+		     u16 pkey, int child_type);
+
+int  __init ipoib_netlink_init(void);
+void __exit ipoib_netlink_fini(void);
+
+void ipoib_set_umcast(struct net_device *ndev, int umcast_val);
+int  ipoib_set_mode(struct net_device *dev, const char *buf);
+
+void ipoib_setup(struct net_device *dev);
+
 void ipoib_pkey_poll(struct work_struct *work);
 int ipoib_pkey_dev_delay_open(struct net_device *dev);
 void ipoib_drain_cq(struct net_device *dev);
@@ -516,13 +535,13 @@ void ipoib_drain_cq(struct net_device *dev);
 void ipoib_set_ethtool_ops(struct net_device *dev);
 int ipoib_set_dev_features(struct ipoib_dev_priv *priv, struct ib_device *hca);
 
-#ifdef CONFIG_INFINIBAND_IPOIB_CM
-
 #define IPOIB_FLAGS_RC		0x80
 #define IPOIB_FLAGS_UC		0x40
 
 /* We don't support UC connections at the moment */
 #define IPOIB_CM_SUPPORTED(ha)   (ha[0] & (IPOIB_FLAGS_RC))
+
+#ifdef CONFIG_INFINIBAND_IPOIB_CM
 
 extern int ipoib_max_conn_qp;
 

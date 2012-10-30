@@ -47,7 +47,7 @@ void __init at91_init_irq_default(void)
 void __init at91_init_interrupts(unsigned int *priority)
 {
 	/* Initialize the AIC interrupt controller */
-	at91_aic_init(priority);
+	at91_aic_init(priority, at91_extern_irq);
 
 	/* Enable GPIO interrupts */
 	at91_gpio_irq_setup();
@@ -73,7 +73,7 @@ void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
 {
 	struct map_desc *desc = &sram_desc[bank];
 
-	desc->virtual = AT91_IO_VIRT_BASE - length;
+	desc->virtual = (unsigned long)AT91_IO_VIRT_BASE - length;
 	if (bank > 0)
 		desc->virtual -= sram_desc[bank - 1].length;
 
@@ -87,8 +87,8 @@ void __init at91_init_sram(int bank, unsigned long base, unsigned int length)
 	iotable_init(desc, 1);
 }
 
-static struct map_desc at91_io_desc __initdata = {
-	.virtual	= AT91_VA_BASE_SYS,
+static struct map_desc at91_io_desc __initdata __maybe_unused = {
+	.virtual	= (unsigned long)AT91_VA_BASE_SYS,
 	.pfn		= __phys_to_pfn(AT91_BASE_SYS),
 	.length		= SZ_16K,
 	.type		= MT_DEVICE,
@@ -151,7 +151,7 @@ static void __init soc_detect(u32 dbgu_base)
 	}
 
 	/* at91sam9g10 */
-	if ((cidr & ~AT91_CIDR_EXT) == ARCH_ID_AT91SAM9G10) {
+	if ((socid & ~AT91_CIDR_EXT) == ARCH_ID_AT91SAM9G10) {
 		at91_soc_initdata.type = AT91_SOC_SAM9G10;
 		at91_boot_soc = at91sam9261_soc;
 	}

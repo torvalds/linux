@@ -208,10 +208,13 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 		break;
 	case PINMUX_TYPE_GPIO:
+	case PINMUX_TYPE_INPUT:
+	case PINMUX_TYPE_OUTPUT:
 		break;
 	default:
 		pr_err("Unsupported mux type (%d), bailing...\n", pinmux_type);
-		return -ENOTSUPP;
+		ret = -ENOTSUPP;
+		goto err;
 	}
 
 	ret = 0;

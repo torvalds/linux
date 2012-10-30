@@ -21,6 +21,8 @@
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
+#ifndef __STMMAC_TIMER_H__
+#define __STMMAC_TIMER_H__
 
 struct stmmac_timer {
 	void (*timer_start) (unsigned int new_freq);
@@ -40,3 +42,5 @@ void stmmac_schedule(struct net_device *dev);
 extern int tmu2_register_user(void *fnt, void *data);
 extern void tmu2_unregister_user(void);
 #endif
+
+#endif /* __STMMAC_TIMER_H__ */

@@ -1096,7 +1096,7 @@ static int netlbl_unlabel_staticlist_gen(u32 cmd,
 	char *secctx;
 	u32 secctx_len;
 
-	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).pid,
+	data = genlmsg_put(cb_arg->skb, NETLINK_CB(cb_arg->nl_cb->skb).portid,
 			   cb_arg->seq, &netlbl_unlabel_gnl_family,
 			   NLM_F_MULTI, cmd);
 	if (data == NULL)
@@ -1541,7 +1541,7 @@ int __init netlbl_unlabel_defconf(void)
 	 * it is called is at bootup before the audit subsystem is reporting
 	 * messages so don't worry to much about these values. */
 	security_task_getsecid(current, &audit_info.secid);
-	audit_info.loginuid = 0;
+	audit_info.loginuid = GLOBAL_ROOT_UID;
 	audit_info.sessionid = 0;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);

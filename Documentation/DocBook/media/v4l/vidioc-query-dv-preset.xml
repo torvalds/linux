@@ -65,5 +65,14 @@ returned.</para>
 
   <refsect1>
     &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>ENODATA</errorcode></term>
+	<listitem>
+	  <para>Digital video presets are not supported for this input or output.</para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
   </refsect1>
 </refentry>

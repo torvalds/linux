@@ -1009,15 +1009,15 @@ isdn_tty_change_speed(modem_info *info)
 		quot;
 	int i;
 
-	if (!port->tty || !port->tty->termios)
+	if (!port->tty)
 		return;
-	cflag = port->tty->termios->c_cflag;
+	cflag = port->tty->termios.c_cflag;
 
 	quot = i = cflag & CBAUD;
 	if (i & CBAUDEX) {
 		i &= ~CBAUDEX;
 		if (i < 1 || i > 2)
-			port->tty->termios->c_cflag &= ~CBAUDEX;
+			port->tty->termios.c_cflag &= ~CBAUDEX;
 		else
 			i += 15;
 	}
@@ -1097,7 +1097,7 @@ isdn_tty_shutdown(modem_info *info)
 #endif
 	isdn_unlock_drivers();
 	info->msr &= ~UART_MSR_RI;
-	if (!info->port.tty || (info->port.tty->termios->c_cflag & HUPCL)) {
+	if (!info->port.tty || (info->port.tty->termios.c_cflag & HUPCL)) {
 		info->mcr &= ~(UART_MCR_DTR | UART_MCR_RTS);
 		if (info->emu.mdmreg[REG_DTRHUP] & BIT_DTRHUP) {
 			isdn_tty_modem_reset_regs(info, 0);
@@ -1469,13 +1469,13 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	if (!old_termios)
 		isdn_tty_change_speed(info);
 	else {
-		if (tty->termios->c_cflag == old_termios->c_cflag &&
-		    tty->termios->c_ispeed == old_termios->c_ispeed &&
-		    tty->termios->c_ospeed == old_termios->c_ospeed)
+		if (tty->termios.c_cflag == old_termios->c_cflag &&
+		    tty->termios.c_ispeed == old_termios->c_ispeed &&
+		    tty->termios.c_ospeed == old_termios->c_ospeed)
 			return;
 		isdn_tty_change_speed(info);
 		if ((old_termios->c_cflag & CRTSCTS) &&
-		    !(tty->termios->c_cflag & CRTSCTS))
+		    !(tty->termios.c_cflag & CRTSCTS))
 			tty->hw_stopped = 0;
 	}
 }
@@ -1486,6 +1486,18 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * ------------------------------------------------------------
  */
 
+static int isdn_tty_install(struct tty_driver *driver, struct tty_struct *tty)
+{
+	modem_info *info = &dev->mdm.info[tty->index];
+
+	if (isdn_tty_paranoia_check(info, tty->name, __func__))
+		return -ENODEV;
+
+	tty->driver_data = info;
+
+	return tty_port_install(&info->port, driver, tty);
+}
+
 /*
  * This routine is called whenever a serial port is opened.  It
  * enables interrupts for a serial port, linking in its async structure into
@@ -1495,22 +1507,16 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 static int
 isdn_tty_open(struct tty_struct *tty, struct file *filp)
 {
-	struct tty_port *port;
-	modem_info *info;
+	modem_info *info = tty->driver_data;
+	struct tty_port *port = &info->port;
 	int retval;
 
-	info = &dev->mdm.info[tty->index];
-	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_open"))
-		return -ENODEV;
-	port = &info->port;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_open %s, count = %d\n", tty->name,
 	       port->count);
 #endif
 	port->count++;
-	tty->driver_data = info;
 	port->tty = tty;
-	tty->port = port;
 	/*
 	 * Start up serial port
 	 */
@@ -1738,6 +1744,7 @@ modem_write_profile(atemu *m)
 }
 
 static const struct tty_operations modem_ops = {
+	.install = isdn_tty_install,
 	.open = isdn_tty_open,
 	.close = isdn_tty_close,
 	.write = isdn_tty_write,
@@ -1782,7 +1789,7 @@ isdn_tty_modem_init(void)
 	m->tty_modem->subtype = SERIAL_TYPE_NORMAL;
 	m->tty_modem->init_termios = tty_std_termios;
 	m->tty_modem->init_termios.c_cflag = B9600 | CS8 | CREAD | HUPCL | CLOCAL;
-	m->tty_modem->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;
+	m->tty_modem->flags = TTY_DRIVER_REAL_RAW;
 	m->tty_modem->driver_name = "isdn_tty";
 	tty_set_operations(m->tty_modem, &modem_ops);
 	retval = tty_register_driver(m->tty_modem);

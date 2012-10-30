@@ -27,8 +27,8 @@ struct kvec;
 
 #define JFFS2_F_I_SIZE(f) (OFNI_EDONI_2SFFJ(f)->i_size)
 #define JFFS2_F_I_MODE(f) (OFNI_EDONI_2SFFJ(f)->i_mode)
-#define JFFS2_F_I_UID(f) (OFNI_EDONI_2SFFJ(f)->i_uid)
-#define JFFS2_F_I_GID(f) (OFNI_EDONI_2SFFJ(f)->i_gid)
+#define JFFS2_F_I_UID(f) (i_uid_read(OFNI_EDONI_2SFFJ(f)))
+#define JFFS2_F_I_GID(f) (i_gid_read(OFNI_EDONI_2SFFJ(f)))
 #define JFFS2_F_I_RDEV(f) (OFNI_EDONI_2SFFJ(f)->i_rdev)
 
 #define ITIME(sec) ((struct timespec){sec, 0})

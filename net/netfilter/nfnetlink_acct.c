@@ -79,11 +79,11 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 
 	if (tb[NFACCT_BYTES]) {
 		atomic64_set(&nfacct->bytes,
-			     be64_to_cpu(nla_get_u64(tb[NFACCT_BYTES])));
+			     be64_to_cpu(nla_get_be64(tb[NFACCT_BYTES])));
 	}
 	if (tb[NFACCT_PKTS]) {
 		atomic64_set(&nfacct->pkts,
-			     be64_to_cpu(nla_get_u64(tb[NFACCT_PKTS])));
+			     be64_to_cpu(nla_get_be64(tb[NFACCT_PKTS])));
 	}
 	atomic_set(&nfacct->refcnt, 1);
 	list_add_tail_rcu(&nfacct->head, &nfnl_acct_list);
@@ -91,16 +91,16 @@ nfnl_acct_new(struct sock *nfnl, struct sk_buff *skb,
 }
 
 static int
-nfnl_acct_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
+nfnl_acct_fill_info(struct sk_buff *skb, u32 portid, u32 seq, u32 type,
 		   int event, struct nf_acct *acct)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
-	unsigned int flags = pid ? NLM_F_MULTI : 0;
+	unsigned int flags = portid ? NLM_F_MULTI : 0;
 	u64 pkts, bytes;
 
 	event |= NFNL_SUBSYS_ACCT << 8;
-	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*nfmsg), flags);
 	if (nlh == NULL)
 		goto nlmsg_failure;
 
@@ -150,7 +150,7 @@ nfnl_acct_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		if (last && cur != last)
 			continue;
 
-		if (nfnl_acct_fill_info(skb, NETLINK_CB(cb->skb).pid,
+		if (nfnl_acct_fill_info(skb, NETLINK_CB(cb->skb).portid,
 				       cb->nlh->nlmsg_seq,
 				       NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
 				       NFNL_MSG_ACCT_NEW, cur) < 0) {
@@ -195,7 +195,7 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 			break;
 		}
 
-		ret = nfnl_acct_fill_info(skb2, NETLINK_CB(skb).pid,
+		ret = nfnl_acct_fill_info(skb2, NETLINK_CB(skb).portid,
 					 nlh->nlmsg_seq,
 					 NFNL_MSG_TYPE(nlh->nlmsg_type),
 					 NFNL_MSG_ACCT_NEW, cur);
@@ -203,7 +203,7 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 			kfree_skb(skb2);
 			break;
 		}
-		ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).pid,
+		ret = netlink_unicast(nfnl, skb2, NETLINK_CB(skb).portid,
 					MSG_DONTWAIT);
 		if (ret > 0)
 			ret = 0;

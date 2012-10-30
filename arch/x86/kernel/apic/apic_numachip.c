@@ -30,7 +30,7 @@
 
 static int numachip_system __read_mostly;
 
-static struct apic apic_numachip __read_mostly;
+static const struct apic apic_numachip __read_mostly;
 
 static unsigned int get_apic_id(unsigned long x)
 {
@@ -199,7 +199,7 @@ static int numachip_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	return 0;
 }
 
-static struct apic apic_numachip __refconst = {
+static const struct apic apic_numachip __refconst = {
 
 	.name				= "NumaConnect system",
 	.probe				= numachip_probe,

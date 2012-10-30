@@ -33,7 +33,7 @@
 
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #define DEBUG_SCATTER 0
 

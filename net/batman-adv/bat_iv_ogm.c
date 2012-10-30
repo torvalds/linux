@@ -166,13 +166,15 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 	int16_t buff_pos;
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct sk_buff *skb;
+	uint8_t *packet_pos;
 
 	if (hard_iface->if_status != BATADV_IF_ACTIVE)
 		return;
 
 	packet_num = 0;
 	buff_pos = 0;
-	batadv_ogm_packet = (struct batadv_ogm_packet *)forw_packet->skb->data;
+	packet_pos = forw_packet->skb->data;
+	batadv_ogm_packet = (struct batadv_ogm_packet *)packet_pos;
 
 	/* adjust all flags and log packets */
 	while (batadv_iv_ogm_aggr_packet(buff_pos, forw_packet->packet_len,
@@ -181,15 +183,17 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 		/* we might have aggregated direct link packets with an
 		 * ordinary base packet
 		 */
-		if ((forw_packet->direct_link_flags & (1 << packet_num)) &&
-		    (forw_packet->if_incoming == hard_iface))
+		if (forw_packet->direct_link_flags & BIT(packet_num) &&
+		    forw_packet->if_incoming == hard_iface)
 			batadv_ogm_packet->flags |= BATADV_DIRECTLINK;
 		else
 			batadv_ogm_packet->flags &= ~BATADV_DIRECTLINK;
 
-		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
-							    "Sending own" :
-							    "Forwarding"));
+		if (packet_num > 0 || !forw_packet->own)
+			fwd_str = "Forwarding";
+		else
+			fwd_str = "Sending own";
+
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 			   "%s %spacket (originator %pM, seqno %u, TQ %d, TTL %d, IDF %s, ttvn %d) on interface %s [%pM]\n",
 			   fwd_str, (packet_num > 0 ? "aggregated " : ""),
@@ -204,8 +208,8 @@ static void batadv_iv_ogm_send_to_if(struct batadv_forw_packet *forw_packet,
 		buff_pos += BATADV_OGM_HLEN;
 		buff_pos += batadv_tt_len(batadv_ogm_packet->tt_num_changes);
 		packet_num++;
-		batadv_ogm_packet = (struct batadv_ogm_packet *)
-					(forw_packet->skb->data + buff_pos);
+		packet_pos = forw_packet->skb->data + buff_pos;
+		batadv_ogm_packet = (struct batadv_ogm_packet *)packet_pos;
 	}
 
 	/* create clone because function is called more than once */
@@ -227,9 +231,10 @@ static void batadv_iv_ogm_emit(struct batadv_forw_packet *forw_packet)
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	unsigned char directlink;
+	uint8_t *packet_pos;
 
-	batadv_ogm_packet = (struct batadv_ogm_packet *)
-						(forw_packet->skb->data);
+	packet_pos = forw_packet->skb->data;
+	batadv_ogm_packet = (struct batadv_ogm_packet *)packet_pos;
 	directlink = (batadv_ogm_packet->flags & BATADV_DIRECTLINK ? 1 : 0);
 
 	if (!forw_packet->if_incoming) {
@@ -454,6 +459,7 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 				    int packet_len, bool direct_link)
 {
 	unsigned char *skb_buff;
+	unsigned long new_direct_link_flag;
 
 	skb_buff = skb_put(forw_packet_aggr->skb, packet_len);
 	memcpy(skb_buff, packet_buff, packet_len);
@@ -461,9 +467,10 @@ static void batadv_iv_ogm_aggregate(struct batadv_forw_packet *forw_packet_aggr,
 	forw_packet_aggr->num_packets++;
 
 	/* save packet direct link flag status */
-	if (direct_link)
-		forw_packet_aggr->direct_link_flags |=
-			(1 << forw_packet_aggr->num_packets);
+	if (direct_link) {
+		new_direct_link_flag = BIT(forw_packet_aggr->num_packets);
+		forw_packet_aggr->direct_link_flags |= new_direct_link_flag;
+	}
 }
 
 static void batadv_iv_ogm_queue_add(struct batadv_priv *bat_priv,
@@ -586,6 +593,8 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	struct batadv_ogm_packet *batadv_ogm_packet;
 	struct batadv_hard_iface *primary_if;
 	int vis_server, tt_num_changes = 0;
+	uint32_t seqno;
+	uint8_t bandwidth;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -599,12 +608,12 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	batadv_ogm_packet = (struct batadv_ogm_packet *)hard_iface->packet_buff;
 
 	/* change sequence number to network order */
-	batadv_ogm_packet->seqno =
-			htonl((uint32_t)atomic_read(&hard_iface->seqno));
+	seqno = (uint32_t)atomic_read(&hard_iface->seqno);
+	batadv_ogm_packet->seqno = htonl(seqno);
 	atomic_inc(&hard_iface->seqno);
 
-	batadv_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
-	batadv_ogm_packet->tt_crc = htons(bat_priv->tt_crc);
+	batadv_ogm_packet->ttvn = atomic_read(&bat_priv->tt.vn);
+	batadv_ogm_packet->tt_crc = htons(bat_priv->tt.local_crc);
 	if (tt_num_changes >= 0)
 		batadv_ogm_packet->tt_num_changes = tt_num_changes;
 
@@ -613,12 +622,13 @@ static void batadv_iv_ogm_schedule(struct batadv_hard_iface *hard_iface)
 	else
 		batadv_ogm_packet->flags &= ~BATADV_VIS_SERVER;
 
-	if ((hard_iface == primary_if) &&
-	    (atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_SERVER))
-		batadv_ogm_packet->gw_flags =
-				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
-	else
+	if (hard_iface == primary_if &&
+	    atomic_read(&bat_priv->gw_mode) == BATADV_GW_MODE_SERVER) {
+		bandwidth = (uint8_t)atomic_read(&bat_priv->gw_bandwidth);
+		batadv_ogm_packet->gw_flags = bandwidth;
+	} else {
 		batadv_ogm_packet->gw_flags = BATADV_NO_FLAGS;
+	}
 
 	batadv_slide_own_bcast_window(hard_iface);
 	batadv_iv_ogm_queue_add(bat_priv, hard_iface->packet_buff,
@@ -642,8 +652,10 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	struct batadv_neigh_node *router = NULL;
 	struct batadv_orig_node *orig_node_tmp;
 	struct hlist_node *node;
-	uint8_t bcast_own_sum_orig, bcast_own_sum_neigh;
+	int if_num;
+	uint8_t sum_orig, sum_neigh;
 	uint8_t *neigh_addr;
+	uint8_t tq_avg;
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
 		   "update_originator(): Searching and updating originator entry of received packet\n");
@@ -667,8 +679,8 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 		spin_lock_bh(&tmp_neigh_node->lq_update_lock);
 		batadv_ring_buffer_set(tmp_neigh_node->tq_recv,
 				       &tmp_neigh_node->tq_index, 0);
-		tmp_neigh_node->tq_avg =
-			batadv_ring_buffer_avg(tmp_neigh_node->tq_recv);
+		tq_avg = batadv_ring_buffer_avg(tmp_neigh_node->tq_recv);
+		tmp_neigh_node->tq_avg = tq_avg;
 		spin_unlock_bh(&tmp_neigh_node->lq_update_lock);
 	}
 
@@ -727,17 +739,17 @@ batadv_iv_ogm_orig_update(struct batadv_priv *bat_priv,
 	if (router && (neigh_node->tq_avg == router->tq_avg)) {
 		orig_node_tmp = router->orig_node;
 		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
-		bcast_own_sum_orig =
-			orig_node_tmp->bcast_own_sum[if_incoming->if_num];
+		if_num = router->if_incoming->if_num;
+		sum_orig = orig_node_tmp->bcast_own_sum[if_num];
 		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
 
 		orig_node_tmp = neigh_node->orig_node;
 		spin_lock_bh(&orig_node_tmp->ogm_cnt_lock);
-		bcast_own_sum_neigh =
-			orig_node_tmp->bcast_own_sum[if_incoming->if_num];
+		if_num = neigh_node->if_incoming->if_num;
+		sum_neigh = orig_node_tmp->bcast_own_sum[if_num];
 		spin_unlock_bh(&orig_node_tmp->ogm_cnt_lock);
 
-		if (bcast_own_sum_orig >= bcast_own_sum_neigh)
+		if (sum_orig >= sum_neigh)
 			goto update_tt;
 	}
 
@@ -835,8 +847,10 @@ static int batadv_iv_ogm_calc_tq(struct batadv_orig_node *orig_node,
 	spin_unlock_bh(&orig_node->ogm_cnt_lock);
 
 	/* pay attention to not get a value bigger than 100 % */
-	total_count = (orig_eq_count > neigh_rq_count ?
-		       neigh_rq_count : orig_eq_count);
+	if (orig_eq_count > neigh_rq_count)
+		total_count = neigh_rq_count;
+	else
+		total_count = orig_eq_count;
 
 	/* if we have too few packets (too less data) we set tq_own to zero
 	 * if we receive too few packets it is not considered bidirectional
@@ -910,6 +924,7 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	int set_mark, ret = -1;
 	uint32_t seqno = ntohl(batadv_ogm_packet->seqno);
 	uint8_t *neigh_addr;
+	uint8_t packet_count;
 
 	orig_node = batadv_get_orig_node(bat_priv, batadv_ogm_packet->orig);
 	if (!orig_node)
@@ -944,9 +959,9 @@ batadv_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 						     tmp_neigh_node->real_bits,
 						     seq_diff, set_mark);
 
-		tmp_neigh_node->real_packet_count =
-			bitmap_weight(tmp_neigh_node->real_bits,
-				      BATADV_TQ_LOCAL_WINDOW_SIZE);
+		packet_count = bitmap_weight(tmp_neigh_node->real_bits,
+					     BATADV_TQ_LOCAL_WINDOW_SIZE);
+		tmp_neigh_node->real_packet_count = packet_count;
 	}
 	rcu_read_unlock();
 
@@ -1163,9 +1178,12 @@ static void batadv_iv_ogm_process(const struct ethhdr *ethhdr,
 	/* if sender is a direct neighbor the sender mac equals
 	 * originator mac
 	 */
-	orig_neigh_node = (is_single_hop_neigh ?
-			   orig_node :
-			   batadv_get_orig_node(bat_priv, ethhdr->h_source));
+	if (is_single_hop_neigh)
+		orig_neigh_node = orig_node;
+	else
+		orig_neigh_node = batadv_get_orig_node(bat_priv,
+						       ethhdr->h_source);
+
 	if (!orig_neigh_node)
 		goto out;
 
@@ -1251,6 +1269,7 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 	int buff_pos = 0, packet_len;
 	unsigned char *tt_buff, *packet_buff;
 	bool ret;
+	uint8_t *packet_pos;
 
 	ret = batadv_check_management_packet(skb, if_incoming, BATADV_OGM_HLEN);
 	if (!ret)
@@ -1281,8 +1300,8 @@ static int batadv_iv_ogm_receive(struct sk_buff *skb,
 		buff_pos += BATADV_OGM_HLEN;
 		buff_pos += batadv_tt_len(batadv_ogm_packet->tt_num_changes);
 
-		batadv_ogm_packet = (struct batadv_ogm_packet *)
-						(packet_buff + buff_pos);
+		packet_pos = packet_buff + buff_pos;
+		batadv_ogm_packet = (struct batadv_ogm_packet *)packet_pos;
 	} while (batadv_iv_ogm_aggr_packet(buff_pos, packet_len,
 					   batadv_ogm_packet->tt_num_changes));
 

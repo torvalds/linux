@@ -481,7 +481,7 @@ static int ll_recv(struct hci_uart *hu, void *data, int count)
 			hu->hdev->stat.err_rx++;
 			ptr++; count--;
 			continue;
-		};
+		}
 
 		ptr++; count--;
 

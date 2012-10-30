@@ -223,6 +223,7 @@ srmcons_init(void)
 		driver->subtype = SYSTEM_TYPE_SYSCONS;
 		driver->init_termios = tty_std_termios;
 		tty_set_operations(driver, &srmcons_ops);
+		tty_port_link_device(&srmcons_singleton.port, driver, 0);
 		err = tty_register_driver(driver);
 		if (err) {
 			put_tty_driver(driver);

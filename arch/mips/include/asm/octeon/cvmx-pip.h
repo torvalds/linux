@@ -33,9 +33,9 @@
 #ifndef __CVMX_PIP_H__
 #define __CVMX_PIP_H__
 
-#include "cvmx-wqe.h"
-#include "cvmx-fpa.h"
-#include "cvmx-pip-defs.h"
+#include <asm/octeon/cvmx-wqe.h>
+#include <asm/octeon/cvmx-fpa.h>
+#include <asm/octeon/cvmx-pip-defs.h>
 
 #define CVMX_PIP_NUM_INPUT_PORTS                40
 #define CVMX_PIP_NUM_WATCHERS                   4

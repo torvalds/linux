@@ -29,9 +29,21 @@
 #include "protocol.h"
 #include "debug.h"
 
+#define SD_INIT1_FIRMWARE "ene-ub6250/sd_init1.bin"
+#define SD_INIT2_FIRMWARE "ene-ub6250/sd_init2.bin"
+#define SD_RW_FIRMWARE "ene-ub6250/sd_rdwr.bin"
+#define MS_INIT_FIRMWARE "ene-ub6250/ms_init.bin"
+#define MSP_RW_FIRMWARE "ene-ub6250/msp_rdwr.bin"
+#define MS_RW_FIRMWARE "ene-ub6250/ms_rdwr.bin"
+
 MODULE_DESCRIPTION("Driver for ENE UB6250 reader");
 MODULE_LICENSE("GPL");
-
+MODULE_FIRMWARE(SD_INIT1_FIRMWARE);
+MODULE_FIRMWARE(SD_INIT2_FIRMWARE);
+MODULE_FIRMWARE(SD_RW_FIRMWARE);
+MODULE_FIRMWARE(MS_INIT_FIRMWARE);
+MODULE_FIRMWARE(MSP_RW_FIRMWARE);
+MODULE_FIRMWARE(MS_RW_FIRMWARE);
 
 /*
  * The table of devices
@@ -40,7 +52,7 @@ MODULE_LICENSE("GPL");
 		    vendorName, productName, useProtocol, useTransport, \
 		    initFunction, flags) \
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
-	.driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
+	.driver_info = (flags)}
 
 static struct usb_device_id ene_ub6250_usb_ids[] = {
 #	include "unusual_ene_ub6250.h"
@@ -1883,28 +1895,28 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	/* For SD */
 	case SD_INIT1_PATTERN:
 		US_DEBUGP("SD_INIT1_PATTERN\n");
-		fw_name = "ene-ub6250/sd_init1.bin";
+		fw_name = SD_INIT1_FIRMWARE;
 		break;
 	case SD_INIT2_PATTERN:
 		US_DEBUGP("SD_INIT2_PATTERN\n");
-		fw_name = "ene-ub6250/sd_init2.bin";
+		fw_name = SD_INIT2_FIRMWARE;
 		break;
 	case SD_RW_PATTERN:
-		US_DEBUGP("SD_RDWR_PATTERN\n");
-		fw_name = "ene-ub6250/sd_rdwr.bin";
+		US_DEBUGP("SD_RW_PATTERN\n");
+		fw_name = SD_RW_FIRMWARE;
 		break;
 	/* For MS */
 	case MS_INIT_PATTERN:
 		US_DEBUGP("MS_INIT_PATTERN\n");
-		fw_name = "ene-ub6250/ms_init.bin";
+		fw_name = MS_INIT_FIRMWARE;
 		break;
 	case MSP_RW_PATTERN:
 		US_DEBUGP("MSP_RW_PATTERN\n");
-		fw_name = "ene-ub6250/msp_rdwr.bin";
+		fw_name = MSP_RW_FIRMWARE;
 		break;
 	case MS_RW_PATTERN:
 		US_DEBUGP("MS_RW_PATTERN\n");
-		fw_name = "ene-ub6250/ms_rdwr.bin";
+		fw_name = MS_RW_FIRMWARE;
 		break;
 	default:
 		US_DEBUGP("----------- Unknown PATTERN ----------\n");

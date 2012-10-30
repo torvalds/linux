@@ -22,7 +22,7 @@
 #include <linux/dmi.h>
 #include <drm/drmP.h>
 #include <drm/drm.h>
-#include "gma_drm.h"
+#include <drm/gma_drm.h>
 #include "psb_drv.h"
 #include "psb_reg.h"
 #include "psb_intel_reg.h"
@@ -476,6 +476,7 @@ static const struct psb_offset oaktrail_regmap[2] = {
 		.pos = DSPAPOS,
 		.surf = DSPASURF,
 		.addr = MRST_DSPABASE,
+		.base = MRST_DSPABASE,
 		.status = PIPEASTAT,
 		.linoff = DSPALINOFF,
 		.tileoff = DSPATILEOFF,
@@ -499,6 +500,7 @@ static const struct psb_offset oaktrail_regmap[2] = {
 		.pos = DSPBPOS,
 		.surf = DSPBSURF,
 		.addr = DSPBBASE,
+		.base = DSPBBASE,
 		.status = PIPEBSTAT,
 		.linoff = DSPBLINOFF,
 		.tileoff = DSPBTILEOFF,

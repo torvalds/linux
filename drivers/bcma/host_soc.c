@@ -143,7 +143,7 @@ static void bcma_host_soc_awrite32(struct bcma_device *core, u16 offset,
 	writel(value, core->io_wrap + offset);
 }
 
-const struct bcma_host_ops bcma_host_soc_ops = {
+static const struct bcma_host_ops bcma_host_soc_ops = {
 	.read8		= bcma_host_soc_read8,
 	.read16		= bcma_host_soc_read16,
 	.read32		= bcma_host_soc_read32,

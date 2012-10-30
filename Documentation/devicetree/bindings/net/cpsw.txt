@@ -1,0 +1,109 @@
+TI SoC Ethernet Switch Controller Device Tree Bindings
+------------------------------------------------------
+
+Required properties:
+- compatible		: Should be "ti,cpsw"
+- reg			: physical base address and size of the cpsw
+			  registers map
+- interrupts		: property with a value describing the interrupt
+			  number
+- interrupt-parent	: The parent interrupt controller
+- cpdma_channels 	: Specifies number of channels in CPDMA
+- host_port_no		: Specifies host port shift
+- cpdma_reg_ofs		: Specifies CPDMA submodule register offset
+- cpdma_sram_ofs	: Specifies CPDMA SRAM offset
+- ale_reg_ofs		: Specifies ALE submodule register offset
+- ale_entries		: Specifies No of entries ALE can hold
+- host_port_reg_ofs	: Specifies host port register offset
+- hw_stats_reg_ofs	: Specifies hardware statistics register offset
+- bd_ram_ofs		: Specifies internal desciptor RAM offset
+- bd_ram_size		: Specifies internal descriptor RAM size
+- rx_descs		: Specifies number of Rx descriptors
+- mac_control		: Specifies Default MAC control register content
+			  for the specific platform
+- slaves		: Specifies number for slaves
+- slave_reg_ofs		: Specifies slave register offset
+- sliver_reg_ofs	: Specifies slave sliver register offset
+- phy_id		: Specifies slave phy id
+- mac-address		: Specifies slave MAC address
+
+Optional properties:
+- ti,hwmods		: Must be "cpgmac0"
+- no_bd_ram		: Must be 0 or 1
+
+Note: "ti,hwmods" field is used to fetch the base address and irq
+resources from TI, omap hwmod data base during device registration.
+Future plan is to migrate hwmod data base contents into device tree
+blob so that, all the required data will be used from device tree dts
+file.
+
+Examples:
+
+	mac: ethernet@4A100000 {
+		compatible = "ti,cpsw";
+		reg = <0x4A100000 0x1000>;
+		interrupts = <55 0x4>;
+		interrupt-parent = <&intc>;
+		cpdma_channels = <8>;
+		host_port_no = <0>;
+		cpdma_reg_ofs = <0x800>;
+		cpdma_sram_ofs = <0xa00>;
+		ale_reg_ofs = <0xd00>;
+		ale_entries = <1024>;
+		host_port_reg_ofs = <0x108>;
+		hw_stats_reg_ofs = <0x900>;
+		bd_ram_ofs = <0x2000>;
+		bd_ram_size = <0x2000>;
+		no_bd_ram = <0>;
+		rx_descs = <64>;
+		mac_control = <0x20>;
+		slaves = <2>;
+		cpsw_emac0: slave@0 {
+			slave_reg_ofs = <0x208>;
+			sliver_reg_ofs = <0xd80>;
+			phy_id = "davinci_mdio.16:00";
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+		cpsw_emac1: slave@1 {
+			slave_reg_ofs = <0x308>;
+			sliver_reg_ofs = <0xdc0>;
+			phy_id = "davinci_mdio.16:01";
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+	};
+
+(or)
+	mac: ethernet@4A100000 {
+		compatible = "ti,cpsw";
+		ti,hwmods = "cpgmac0";
+		cpdma_channels = <8>;
+		host_port_no = <0>;
+		cpdma_reg_ofs = <0x800>;
+		cpdma_sram_ofs = <0xa00>;
+		ale_reg_ofs = <0xd00>;
+		ale_entries = <1024>;
+		host_port_reg_ofs = <0x108>;
+		hw_stats_reg_ofs = <0x900>;
+		bd_ram_ofs = <0x2000>;
+		bd_ram_size = <0x2000>;
+		no_bd_ram = <0>;
+		rx_descs = <64>;
+		mac_control = <0x20>;
+		slaves = <2>;
+		cpsw_emac0: slave@0 {
+			slave_reg_ofs = <0x208>;
+			sliver_reg_ofs = <0xd80>;
+			phy_id = "davinci_mdio.16:00";
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+		cpsw_emac1: slave@1 {
+			slave_reg_ofs = <0x308>;
+			sliver_reg_ofs = <0xdc0>;
+			phy_id = "davinci_mdio.16:01";
+			/* Filled in by U-Boot */
+			mac-address = [ 00 00 00 00 00 00 ];
+		};
+	};

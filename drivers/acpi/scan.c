@@ -10,6 +10,7 @@
 #include <linux/signal.h>
 #include <linux/kthread.h>
 #include <linux/dmi.h>
+#include <linux/nls.h>
 
 #include <acpi/acpi_drivers.h>
 
@@ -232,8 +233,35 @@ end:
 }
 static DEVICE_ATTR(path, 0444, acpi_device_path_show, NULL);
 
+/* sysfs file that shows description text from the ACPI _STR method */
+static ssize_t description_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf) {
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+	int result;
+
+	if (acpi_dev->pnp.str_obj == NULL)
+		return 0;
+
+	/*
+	 * The _STR object contains a Unicode identifier for a device.
+	 * We need to convert to utf-8 so it can be displayed.
+	 */
+	result = utf16s_to_utf8s(
+		(wchar_t *)acpi_dev->pnp.str_obj->buffer.pointer,
+		acpi_dev->pnp.str_obj->buffer.length,
+		UTF16_LITTLE_ENDIAN, buf,
+		PAGE_SIZE);
+
+	buf[result++] = '\n';
+
+	return result;
+}
+static DEVICE_ATTR(description, 0444, description_show, NULL);
+
 static int acpi_device_setup_files(struct acpi_device *dev)
 {
+	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 	acpi_handle temp;
 	int result = 0;
@@ -257,6 +285,21 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
+	/*
+	 * If device has _STR, 'description' file is created
+	 */
+	status = acpi_get_handle(dev->handle, "_STR", &temp);
+	if (ACPI_SUCCESS(status)) {
+		status = acpi_evaluate_object(dev->handle, "_STR",
+					NULL, &buffer);
+		if (ACPI_FAILURE(status))
+			buffer.pointer = NULL;
+		dev->pnp.str_obj = buffer.pointer;
+		result = device_create_file(&dev->dev, &dev_attr_description);
+		if (result)
+			goto end;
+	}
+
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
          * hot-removal function from userland.
@@ -274,8 +317,15 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	acpi_handle temp;
 
 	/*
-	 * If device has _EJ0, 'eject' file is created that is used to trigger
-	 * hot-removal function from userland.
+	 * If device has _STR, remove 'description' file
+	 */
+	status = acpi_get_handle(dev->handle, "_STR", &temp);
+	if (ACPI_SUCCESS(status)) {
+		kfree(dev->pnp.str_obj);
+		device_remove_file(&dev->dev, &dev_attr_description);
+	}
+	/*
+	 * If device has _EJ0, remove 'eject' file.
 	 */
 	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
 	if (ACPI_SUCCESS(status))
@@ -481,6 +531,8 @@ static int acpi_device_register(struct acpi_device *device)
 	INIT_LIST_HEAD(&device->children);
 	INIT_LIST_HEAD(&device->node);
 	INIT_LIST_HEAD(&device->wakeup_list);
+	INIT_LIST_HEAD(&device->physical_node_list);
+	mutex_init(&device->physical_node_lock);
 
 	new_bus_id = kzalloc(sizeof(struct acpi_device_bus_id), GFP_KERNEL);
 	if (!new_bus_id) {

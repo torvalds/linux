@@ -54,7 +54,7 @@ struct pfkey_sock {
 
 	struct {
 		uint8_t		msg_version;
-		uint32_t	msg_pid;
+		uint32_t	msg_portid;
 		int		(*dump)(struct pfkey_sock *sk);
 		void		(*done)(struct pfkey_sock *sk);
 		union {
@@ -1447,7 +1447,7 @@ static int key_notify_sa(struct xfrm_state *x, const struct km_event *c)
 	hdr->sadb_msg_errno = 0;
 	hdr->sadb_msg_reserved = 0;
 	hdr->sadb_msg_seq = c->seq;
-	hdr->sadb_msg_pid = c->pid;
+	hdr->sadb_msg_pid = c->portid;
 
 	pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ALL, NULL, xs_net(x));
 
@@ -1486,7 +1486,7 @@ static int pfkey_add(struct sock *sk, struct sk_buff *skb, const struct sadb_msg
 	else
 		c.event = XFRM_MSG_UPDSA;
 	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
+	c.portid = hdr->sadb_msg_pid;
 	km_state_notify(x, &c);
 out:
 	xfrm_state_put(x);
@@ -1523,7 +1523,7 @@ static int pfkey_delete(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		goto out;
 
 	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
+	c.portid = hdr->sadb_msg_pid;
 	c.event = XFRM_MSG_DELSA;
 	km_state_notify(x, &c);
 out:
@@ -1701,7 +1701,7 @@ static int key_notify_sa_flush(const struct km_event *c)
 	hdr->sadb_msg_satype = pfkey_proto2satype(c->data.proto);
 	hdr->sadb_msg_type = SADB_FLUSH;
 	hdr->sadb_msg_seq = c->seq;
-	hdr->sadb_msg_pid = c->pid;
+	hdr->sadb_msg_pid = c->portid;
 	hdr->sadb_msg_version = PF_KEY_V2;
 	hdr->sadb_msg_errno = (uint8_t) 0;
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
@@ -1736,7 +1736,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, const struct sadb_m
 
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
+	c.portid = hdr->sadb_msg_pid;
 	c.event = XFRM_MSG_FLUSHSA;
 	c.net = net;
 	km_state_notify(NULL, &c);
@@ -1764,7 +1764,7 @@ static int dump_sa(struct xfrm_state *x, int count, void *ptr)
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_reserved = 0;
 	out_hdr->sadb_msg_seq = count + 1;
-	out_hdr->sadb_msg_pid = pfk->dump.msg_pid;
+	out_hdr->sadb_msg_pid = pfk->dump.msg_portid;
 
 	if (pfk->dump.skb)
 		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
@@ -1798,7 +1798,7 @@ static int pfkey_dump(struct sock *sk, struct sk_buff *skb, const struct sadb_ms
 		return -EINVAL;
 
 	pfk->dump.msg_version = hdr->sadb_msg_version;
-	pfk->dump.msg_pid = hdr->sadb_msg_pid;
+	pfk->dump.msg_portid = hdr->sadb_msg_pid;
 	pfk->dump.dump = pfkey_dump_sa;
 	pfk->dump.done = pfkey_dump_sa_done;
 	xfrm_state_walk_init(&pfk->dump.u.state, proto);
@@ -1922,6 +1922,9 @@ parse_ipsecrequests(struct xfrm_policy *xp, struct sadb_x_policy *pol)
 	int err;
 	int len = pol->sadb_x_policy_len*8 - sizeof(struct sadb_x_policy);
 	struct sadb_x_ipsecrequest *rq = (void*)(pol+1);
+
+	if (pol->sadb_x_policy_len * 8 < sizeof(struct sadb_x_policy))
+		return -EINVAL;
 
 	while (len >= sizeof(struct sadb_x_ipsecrequest)) {
 		if ((err = parse_ipsecrequest(xp, rq)) < 0)
@@ -2157,7 +2160,7 @@ static int key_notify_policy(struct xfrm_policy *xp, int dir, const struct km_ev
 		out_hdr->sadb_msg_type = event2poltype(c->event);
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_seq = c->seq;
-	out_hdr->sadb_msg_pid = c->pid;
+	out_hdr->sadb_msg_pid = c->portid;
 	pfkey_broadcast(out_skb, GFP_ATOMIC, BROADCAST_ALL, NULL, xp_net(xp));
 	return 0;
 
@@ -2272,7 +2275,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		c.event = XFRM_MSG_NEWPOLICY;
 
 	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
+	c.portid = hdr->sadb_msg_pid;
 
 	km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
 	xfrm_pol_put(xp);
@@ -2351,7 +2354,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, const struct sa
 		goto out;
 
 	c.seq = hdr->sadb_msg_seq;
-	c.pid = hdr->sadb_msg_pid;
+	c.portid = hdr->sadb_msg_pid;
 	c.data.byid = 0;
 	c.event = XFRM_MSG_DELPOLICY;
 	km_policy_notify(xp, pol->sadb_x_policy_dir-1, &c);
@@ -2597,7 +2600,7 @@ static int pfkey_spdget(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		if (err)
 			goto out;
 		c.seq = hdr->sadb_msg_seq;
-		c.pid = hdr->sadb_msg_pid;
+		c.portid = hdr->sadb_msg_pid;
 		c.data.byid = 1;
 		c.event = XFRM_MSG_DELPOLICY;
 		km_policy_notify(xp, dir, &c);
@@ -2634,7 +2637,7 @@ static int dump_sp(struct xfrm_policy *xp, int dir, int count, void *ptr)
 	out_hdr->sadb_msg_satype = SADB_SATYPE_UNSPEC;
 	out_hdr->sadb_msg_errno = 0;
 	out_hdr->sadb_msg_seq = count + 1;
-	out_hdr->sadb_msg_pid = pfk->dump.msg_pid;
+	out_hdr->sadb_msg_pid = pfk->dump.msg_portid;
 
 	if (pfk->dump.skb)
 		pfkey_broadcast(pfk->dump.skb, GFP_ATOMIC, BROADCAST_ONE,
@@ -2663,7 +2666,7 @@ static int pfkey_spddump(struct sock *sk, struct sk_buff *skb, const struct sadb
 		return -EBUSY;
 
 	pfk->dump.msg_version = hdr->sadb_msg_version;
-	pfk->dump.msg_pid = hdr->sadb_msg_pid;
+	pfk->dump.msg_portid = hdr->sadb_msg_pid;
 	pfk->dump.dump = pfkey_dump_sp;
 	pfk->dump.done = pfkey_dump_sp_done;
 	xfrm_policy_walk_init(&pfk->dump.u.policy, XFRM_POLICY_TYPE_MAIN);
@@ -2682,7 +2685,7 @@ static int key_notify_policy_flush(const struct km_event *c)
 	hdr = (struct sadb_msg *) skb_put(skb_out, sizeof(struct sadb_msg));
 	hdr->sadb_msg_type = SADB_X_SPDFLUSH;
 	hdr->sadb_msg_seq = c->seq;
-	hdr->sadb_msg_pid = c->pid;
+	hdr->sadb_msg_pid = c->portid;
 	hdr->sadb_msg_version = PF_KEY_V2;
 	hdr->sadb_msg_errno = (uint8_t) 0;
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
@@ -2711,7 +2714,7 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, const struct sad
 
 	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
-	c.pid = hdr->sadb_msg_pid;
+	c.portid = hdr->sadb_msg_pid;
 	c.seq = hdr->sadb_msg_seq;
 	c.net = net;
 	km_policy_notify(NULL, 0, &c);
@@ -3024,7 +3027,7 @@ static u32 get_acqseq(void)
 	return res;
 }
 
-static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *xp, int dir)
+static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct xfrm_policy *xp)
 {
 	struct sk_buff *skb;
 	struct sadb_msg *hdr;
@@ -3105,7 +3108,7 @@ static int pfkey_send_acquire(struct xfrm_state *x, struct xfrm_tmpl *t, struct 
 	pol->sadb_x_policy_len = sizeof(struct sadb_x_policy)/sizeof(uint64_t);
 	pol->sadb_x_policy_exttype = SADB_X_EXT_POLICY;
 	pol->sadb_x_policy_type = IPSEC_POLICY_IPSEC;
-	pol->sadb_x_policy_dir = dir+1;
+	pol->sadb_x_policy_dir = XFRM_POLICY_OUT + 1;
 	pol->sadb_x_policy_id = xp->index;
 
 	/* Set sadb_comb's. */
@@ -3661,7 +3664,7 @@ static int pfkey_seq_show(struct seq_file *f, void *v)
 			       atomic_read(&s->sk_refcnt),
 			       sk_rmem_alloc_get(s),
 			       sk_wmem_alloc_get(s),
-			       sock_i_uid(s),
+			       from_kuid_munged(seq_user_ns(f), sock_i_uid(s)),
 			       sock_i_ino(s)
 			       );
 	return 0;

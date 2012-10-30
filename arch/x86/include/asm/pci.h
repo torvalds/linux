@@ -141,7 +141,7 @@ void default_restore_msi_irqs(struct pci_dev *dev, int irq);
 #endif  /* __KERNEL__ */
 
 #ifdef CONFIG_X86_64
-#include "pci_64.h"
+#include <asm/pci_64.h>
 #endif
 
 /* implement the pci_ DMA API in terms of the generic device dma_ one */

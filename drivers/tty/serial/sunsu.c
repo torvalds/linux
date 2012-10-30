@@ -58,10 +58,16 @@
 enum su_type { SU_PORT_NONE, SU_PORT_MS, SU_PORT_KBD, SU_PORT_PORT };
 static char *su_typev[] = { "su(???)", "su(mouse)", "su(kbd)", "su(serial)" };
 
+struct serial_uart_config {
+	char	*name;
+	int	dfl_xmit_fifo_size;
+	int	flags;
+};
+
 /*
  * Here we define the default xmit fifo size used for each type of UART.
  */
-static const struct serial_uart_config uart_config[PORT_MAX_8250+1] = {
+static const struct serial_uart_config uart_config[] = {
 	{ "unknown",	1,	0 },
 	{ "8250",	1,	0 },
 	{ "16450",	1,	0 },

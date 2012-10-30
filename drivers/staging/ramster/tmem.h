@@ -3,23 +3,20 @@
  *
  * Transcendent memory
  *
- * Copyright (c) 2009-2011, Dan Magenheimer, Oracle Corp.
+ * Copyright (c) 2009-2012, Dan Magenheimer, Oracle Corp.
  */
 
 #ifndef _TMEM_H_
 #define _TMEM_H_
 
+#include <linux/types.h>
 #include <linux/highmem.h>
 #include <linux/hash.h>
 #include <linux/atomic.h>
 
 /*
- * These are pre-defined by the Xen<->Linux ABI
+ * These are defined by the Xen<->Linux ABI so should remain consistent
  */
-#define TMEM_PUT_PAGE			4
-#define TMEM_GET_PAGE			5
-#define TMEM_FLUSH_PAGE			6
-#define TMEM_FLUSH_OBJECT		7
 #define TMEM_POOL_PERSIST		1
 #define TMEM_POOL_SHARED		2
 #define TMEM_POOL_PRECOMPRESSED		4
@@ -31,7 +28,7 @@
  * sentinels have proven very useful for debugging but can be removed
  * or disabled before final merge.
  */
-#define SENTINELS
+#undef SENTINELS
 #ifdef SENTINELS
 #define DECL_SENTINEL uint32_t sentinel;
 #define SET_SENTINEL(_x, _y) (_x->sentinel = _y##_SENTINEL)
@@ -46,7 +43,7 @@
 #define ASSERT_INVERTED_SENTINEL(_x, _y) do { } while (0)
 #endif
 
-#define ASSERT_SPINLOCK(_l)	WARN_ON(!spin_is_locked(_l))
+#define ASSERT_SPINLOCK(_l)	lockdep_assert_held(_l)
 
 /*
  * A pool is the highest-level data structure managed by tmem and
@@ -87,31 +84,6 @@ struct tmem_pool {
 struct tmem_oid {
 	uint64_t oid[3];
 };
-
-struct tmem_xhandle {
-	uint8_t client_id;
-	uint8_t xh_data_cksum;
-	uint16_t xh_data_size;
-	uint16_t pool_id;
-	struct tmem_oid oid;
-	uint32_t index;
-	void *extra;
-};
-
-static inline struct tmem_xhandle tmem_xhandle_fill(uint16_t client_id,
-					struct tmem_pool *pool,
-					struct tmem_oid *oidp,
-					uint32_t index)
-{
-	struct tmem_xhandle xh;
-	xh.client_id = client_id;
-	xh.xh_data_cksum = (uint8_t)-1;
-	xh.xh_data_size = (uint16_t)-1;
-	xh.pool_id = pool->pool_id;
-	xh.oid = *oidp;
-	xh.index = index;
-	return xh;
-}
 
 static inline void tmem_oid_set_invalid(struct tmem_oid *oidp)
 {
@@ -154,6 +126,34 @@ static inline unsigned tmem_oid_hash(struct tmem_oid *oidp)
 				TMEM_HASH_BUCKET_BITS);
 }
 
+#ifdef CONFIG_RAMSTER
+struct tmem_xhandle {
+	uint8_t client_id;
+	uint8_t xh_data_cksum;
+	uint16_t xh_data_size;
+	uint16_t pool_id;
+	struct tmem_oid oid;
+	uint32_t index;
+	void *extra;
+};
+
+static inline struct tmem_xhandle tmem_xhandle_fill(uint16_t client_id,
+					struct tmem_pool *pool,
+					struct tmem_oid *oidp,
+					uint32_t index)
+{
+	struct tmem_xhandle xh;
+	xh.client_id = client_id;
+	xh.xh_data_cksum = (uint8_t)-1;
+	xh.xh_data_size = (uint16_t)-1;
+	xh.pool_id = pool->pool_id;
+	xh.oid = *oidp;
+	xh.index = index;
+	return xh;
+}
+#endif
+
+
 /*
  * A tmem_obj contains an identifier (oid), pointers to the parent
  * pool and the rb_tree to which it belongs, counters, and an ordered
@@ -171,11 +171,15 @@ struct tmem_obj {
 	unsigned int objnode_tree_height;
 	unsigned long objnode_count;
 	long pampd_count;
-	/* for current design of ramster, all pages belonging to
+#ifdef CONFIG_RAMSTER
+	/*
+	 * for current design of ramster, all pages belonging to
 	 * an object reside on the same remotenode and extra is
 	 * used to record the number of the remotenode so a
-	 * flush-object operation can specify it */
-	void *extra; /* for use by pampd implementation */
+	 * flush-object operation can specify it
+	 */
+	void *extra; /* for private use by pampd implementation */
+#endif
 	DECL_SENTINEL
 };
 
@@ -193,10 +197,17 @@ struct tmem_objnode {
 	unsigned int slots_in_use;
 };
 
+struct tmem_handle {
+	struct tmem_oid oid; /* 24 bytes */
+	uint32_t index;
+	uint16_t pool_id;
+	uint16_t client_id;
+};
+
+
 /* pampd abstract datatype methods provided by the PAM implementation */
 struct tmem_pamops {
-	void *(*create)(char *, size_t, bool, int,
-			struct tmem_pool *, struct tmem_oid *, uint32_t);
+	void (*create_finish)(void *, bool);
 	int (*get_data)(char *, size_t *, bool, void *, struct tmem_pool *,
 				struct tmem_oid *, uint32_t);
 	int (*get_data_and_free)(char *, size_t *, bool, void *,
@@ -204,14 +215,16 @@ struct tmem_pamops {
 				uint32_t);
 	void (*free)(void *, struct tmem_pool *,
 				struct tmem_oid *, uint32_t, bool);
-	void (*free_obj)(struct tmem_pool *, struct tmem_obj *);
-	bool (*is_remote)(void *);
+#ifdef CONFIG_RAMSTER
+	void (*new_obj)(struct tmem_obj *);
+	void (*free_obj)(struct tmem_pool *, struct tmem_obj *, bool);
 	void *(*repatriate_preload)(void *, struct tmem_pool *,
 					struct tmem_oid *, uint32_t, bool *);
 	int (*repatriate)(void *, void *, struct tmem_pool *,
 				struct tmem_oid *, uint32_t, bool, void *);
-	void (*new_obj)(struct tmem_obj *);
+	bool (*is_remote)(void *);
 	int (*replace_in_obj)(void *, struct tmem_obj *);
+#endif
 };
 extern void tmem_register_pamops(struct tmem_pamops *m);
 
@@ -226,9 +239,15 @@ extern void tmem_register_hostops(struct tmem_hostops *m);
 
 /* core tmem accessor functions */
 extern int tmem_put(struct tmem_pool *, struct tmem_oid *, uint32_t index,
-			char *, size_t, bool, int);
+			bool, void *);
 extern int tmem_get(struct tmem_pool *, struct tmem_oid *, uint32_t index,
 			char *, size_t *, bool, int);
+extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
+			uint32_t index);
+extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);
+extern int tmem_destroy_pool(struct tmem_pool *);
+extern void tmem_new_pool(struct tmem_pool *, uint32_t);
+#ifdef CONFIG_RAMSTER
 extern int tmem_replace(struct tmem_pool *, struct tmem_oid *, uint32_t index,
 			void *);
 extern void *tmem_localify_get_pampd(struct tmem_pool *, struct tmem_oid *,
@@ -236,9 +255,5 @@ extern void *tmem_localify_get_pampd(struct tmem_pool *, struct tmem_oid *,
 				   void **);
 extern void tmem_localify_finish(struct tmem_obj *, uint32_t index,
 				 void *, void *, bool);
-extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
-			uint32_t index);
-extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);
-extern int tmem_destroy_pool(struct tmem_pool *);
-extern void tmem_new_pool(struct tmem_pool *, uint32_t);
+#endif
 #endif /* _TMEM_H */

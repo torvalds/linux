@@ -67,7 +67,7 @@ struct max8998_regulator_data {
 /**
  * struct max8998_board - packages regulator init data
  * @regulators: array of defined regulators
- * @num_regulators: number of regultors used
+ * @num_regulators: number of regulators used
  * @irq_base: base IRQ number for max8998, required for IRQs
  * @ono: power onoff IRQ number for max8998
  * @buck_voltage_lock: Do NOT change the values of the following six

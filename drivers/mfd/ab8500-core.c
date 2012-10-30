@@ -472,6 +472,22 @@ static irqreturn_t ab8500_hierarchical_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+/**
+ * ab8500_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
+ *
+ * @ab8500: ab8500_irq controller to operate on.
+ * @irq: index of the interrupt requested in the chip IRQs
+ *
+ * Useful for drivers to request their own IRQs.
+ */
+static int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq)
+{
+	if (!ab8500)
+		return -EINVAL;
+
+	return irq_create_mapping(ab8500->domain, irq);
+}
+
 static irqreturn_t ab8500_irq(int irq, void *dev)
 {
 	struct ab8500 *ab8500 = dev;
@@ -501,8 +517,9 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 		do {
 			int bit = __ffs(value);
 			int line = i * 8 + bit;
+			int virq = ab8500_irq_get_virq(ab8500, line);
 
-			handle_nested_irq(ab8500->irq_base + line);
+			handle_nested_irq(virq);
 			value &= ~(1 << bit);
 
 		} while (value);
@@ -510,23 +527,6 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 	atomic_dec(&ab8500->transfer_ongoing);
 	return IRQ_HANDLED;
 }
-
-/**
- * ab8500_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
- *
- * @ab8500: ab8500_irq controller to operate on.
- * @irq: index of the interrupt requested in the chip IRQs
- *
- * Useful for drivers to request their own IRQs.
- */
-int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq)
-{
-	if (!ab8500)
-		return -EINVAL;
-
-	return irq_create_mapping(ab8500->domain, irq);
-}
-EXPORT_SYMBOL_GPL(ab8500_irq_get_virq);
 
 static int ab8500_irq_map(struct irq_domain *d, unsigned int virq,
 				irq_hw_number_t hwirq)
@@ -1076,6 +1076,7 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-codec",
+		.of_compatible = "stericsson,ab8500-codec",
 	},
 };
 
@@ -1418,25 +1419,25 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
 			ARRAY_SIZE(abx500_common_devs), NULL,
-			ab8500->irq_base);
+			ab8500->irq_base, ab8500->domain);
 	if (ret)
 		goto out_freeirq;
 
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
 				ARRAY_SIZE(ab9540_devs), NULL,
-				ab8500->irq_base);
+				ab8500->irq_base, ab8500->domain);
 	else
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
 				ARRAY_SIZE(ab8500_devs), NULL,
-				ab8500->irq_base);
+				ab8500->irq_base, ab8500->domain);
 	if (ret)
 		goto out_freeirq;
 
 	if (is_ab9540(ab8500) || is_ab8505(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
 				ARRAY_SIZE(ab9540_ab8505_devs), NULL,
-				ab8500->irq_base);
+				ab8500->irq_base, ab8500->domain);
 	if (ret)
 		goto out_freeirq;
 
@@ -1444,7 +1445,7 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 		/* Add battery management devices */
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_bm_devs,
 				      ARRAY_SIZE(ab8500_bm_devs), NULL,
-				      ab8500->irq_base);
+				      ab8500->irq_base, ab8500->domain);
 		if (ret)
 			dev_err(ab8500->dev, "error adding bm devices\n");
 	}

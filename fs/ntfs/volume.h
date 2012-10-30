@@ -25,6 +25,7 @@
 #define _LINUX_NTFS_VOLUME_H
 
 #include <linux/rwsem.h>
+#include <linux/uidgid.h>
 
 #include "types.h"
 #include "layout.h"
@@ -46,8 +47,8 @@ typedef struct {
 					   sized blocks on the device. */
 	/* Configuration provided by user at mount time. */
 	unsigned long flags;		/* Miscellaneous flags, see below. */
-	uid_t uid;			/* uid that files will be mounted as. */
-	gid_t gid;			/* gid that files will be mounted as. */
+	kuid_t uid;			/* uid that files will be mounted as. */
+	kgid_t gid;			/* gid that files will be mounted as. */
 	umode_t fmask;			/* The mask for file permissions. */
 	umode_t dmask;			/* The mask for directory
 					   permissions. */

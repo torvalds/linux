@@ -310,6 +310,12 @@ over a rather long period of time, but improvements are always welcome!
 	code under the influence of preempt_disable(), you instead
 	need to use synchronize_irq() or synchronize_sched().
 
+	This same limitation also applies to synchronize_rcu_bh()
+	and synchronize_srcu(), as well as to the asynchronous and
+	expedited forms of the three primitives, namely call_rcu(),
+	call_rcu_bh(), call_srcu(), synchronize_rcu_expedited(),
+	synchronize_rcu_bh_expedited(), and synchronize_srcu_expedited().
+
 12.	Any lock acquired by an RCU callback must be acquired elsewhere
 	with softirq disabled, e.g., via spin_lock_irqsave(),
 	spin_lock_bh(), etc.  Failing to disable irq on a given

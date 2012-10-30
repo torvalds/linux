@@ -1041,7 +1041,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return ret;
 
 	/* digital input subdevice */
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
 	s->n_chan = 0;
@@ -1050,7 +1050,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read = &dt9812_di_rinsn;
 
 	/* digital output subdevice */
-	s = dev->subdevices + 1;
+	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
@@ -1059,7 +1059,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = &dt9812_do_winsn;
 
 	/* analog input subdevice */
-	s = dev->subdevices + 2;
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 0;
@@ -1068,7 +1068,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_read = &dt9812_ai_rinsn;
 
 	/* analog output subdevice */
-	s = dev->subdevices + 3;
+	s = &dev->subdevices[3];
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;

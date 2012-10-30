@@ -85,8 +85,6 @@ struct iwl_eeprom_data {
 	int n_hw_addrs;
 	u8 hw_addr[ETH_ALEN];
 
-	u16 radio_config;
-
 	u8 calib_version;
 	__le16 calib_voltage;
 

@@ -28,14 +28,14 @@
 
 #include <media/soc_camera.h>
 
-#include <mach/camera.h>
+#include <linux/platform_data/camera-pxa.h>
 #include <asm/mach/map.h>
 #include <mach/pxa27x.h>
 #include <mach/audio.h>
-#include <mach/mmc.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <mach/pcm990_baseboard.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 
 #include "devices.h"
 #include "generic.h"

@@ -838,7 +838,8 @@ static int f75375_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter,
 				I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
-	data = kzalloc(sizeof(struct f75375_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct f75375_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -848,7 +849,7 @@ static int f75375_probe(struct i2c_client *client,
 
 	err = sysfs_create_group(&client->dev.kobj, &f75375_group);
 	if (err)
-		goto exit_free;
+		return err;
 
 	if (data->kind != f75373) {
 		err = sysfs_chmod_file(&client->dev.kobj,
@@ -875,8 +876,6 @@ static int f75375_probe(struct i2c_client *client,
 
 exit_remove:
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
-exit_free:
-	kfree(data);
 	return err;
 }
 
@@ -885,7 +884,6 @@ static int f75375_remove(struct i2c_client *client)
 	struct f75375_data *data = i2c_get_clientdata(client);
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &f75375_group);
-	kfree(data);
 	return 0;
 }
 

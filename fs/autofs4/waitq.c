@@ -175,8 +175,7 @@ static void autofs4_notify_daemon(struct autofs_sb_info *sbi,
 		return;
 	}
 
-	pipe = sbi->pipe;
-	get_file(pipe);
+	pipe = get_file(sbi->pipe);
 
 	mutex_unlock(&sbi->wq_mutex);
 

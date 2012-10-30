@@ -196,8 +196,7 @@ irqreturn_t lpfc_sli_intr_handler(int, void *);
 irqreturn_t lpfc_sli_sp_intr_handler(int, void *);
 irqreturn_t lpfc_sli_fp_intr_handler(int, void *);
 irqreturn_t lpfc_sli4_intr_handler(int, void *);
-irqreturn_t lpfc_sli4_sp_intr_handler(int, void *);
-irqreturn_t lpfc_sli4_fp_intr_handler(int, void *);
+irqreturn_t lpfc_sli4_hba_intr_handler(int, void *);
 
 void lpfc_read_rev(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_sli4_swap_str(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -391,6 +390,7 @@ extern spinlock_t pgcnt_lock;
 extern unsigned int pgcnt;
 extern unsigned int lpfc_prot_mask;
 extern unsigned char lpfc_prot_guard;
+extern unsigned int lpfc_fcp_look_ahead;
 
 /* Interface exported by fabric iocb scheduler */
 void lpfc_fabric_abort_nport(struct lpfc_nodelist *);
@@ -457,6 +457,8 @@ int lpfc_sli4_queue_create(struct lpfc_hba *);
 void lpfc_sli4_queue_destroy(struct lpfc_hba *);
 void lpfc_sli4_abts_err_handler(struct lpfc_hba *, struct lpfc_nodelist *,
 				struct sli4_wcqe_xri_aborted *);
+void lpfc_sli_abts_recover_port(struct lpfc_vport *,
+				struct lpfc_nodelist *);
 int lpfc_hba_init_link_fc_topology(struct lpfc_hba *, uint32_t, uint32_t);
 int lpfc_issue_reg_vfi(struct lpfc_vport *);
 int lpfc_issue_unreg_vfi(struct lpfc_vport *);
@@ -465,3 +467,4 @@ int lpfc_sli4_read_config(struct lpfc_hba *);
 void lpfc_sli4_node_prep(struct lpfc_hba *);
 int lpfc_sli4_xri_sgl_update(struct lpfc_hba *);
 void lpfc_free_sgl_list(struct lpfc_hba *, struct list_head *);
+uint32_t lpfc_sli_port_speed_get(struct lpfc_hba *);

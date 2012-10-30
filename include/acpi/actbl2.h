@@ -63,6 +63,8 @@
  */
 #define ACPI_SIG_ASF            "ASF!"	/* Alert Standard Format table */
 #define ACPI_SIG_BOOT           "BOOT"	/* Simple Boot Flag Table */
+#define ACPI_SIG_CSRT           "CSRT"	/* Core System Resource Table */
+#define ACPI_SIG_DBG2           "DBG2"	/* Debug Port table type 2 */
 #define ACPI_SIG_DBGP           "DBGP"	/* Debug Port table */
 #define ACPI_SIG_DMAR           "DMAR"	/* DMA Remapping table */
 #define ACPI_SIG_HPET           "HPET"	/* High Precision Event Timer table */
@@ -96,9 +98,15 @@
 #pragma pack(1)
 
 /*
- * Note about bitfields: The u8 type is used for bitfields in ACPI tables.
- * This is the only type that is even remotely portable. Anything else is not
- * portable, so do not use any other bitfield types.
+ * Note: C bitfields are not used for this reason:
+ *
+ * "Bitfields are great and easy to read, but unfortunately the C language
+ * does not specify the layout of bitfields in memory, which means they are
+ * essentially useless for dealing with packed data in on-disk formats or
+ * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
+ * this decision was a design error in C. Ritchie could have picked an order
+ * and stuck with it." Norman Ramsey.
+ * See http://stackoverflow.com/a/1053662/41661
  */
 
 /*******************************************************************************
@@ -229,6 +237,115 @@ struct acpi_table_boot {
 	u8 cmos_index;		/* Index in CMOS RAM for the boot register */
 	u8 reserved[3];
 };
+
+/*******************************************************************************
+ *
+ * CSRT - Core System Resource Table
+ *        Version 0
+ *
+ * Conforms to the "Core System Resource Table (CSRT)", November 14, 2011
+ *
+ ******************************************************************************/
+
+struct acpi_table_csrt {
+	struct acpi_table_header header;	/* Common ACPI table header */
+};
+
+/* Resource Group subtable */
+
+struct acpi_csrt_group {
+	u32 length;
+	u32 vendor_id;
+	u32 subvendor_id;
+	u16 device_id;
+	u16 subdevice_id;
+	u16 revision;
+	u16 reserved;
+	u32 info_length;
+
+	/* Shared data (length = info_length) immediately follows */
+};
+
+/* Resource Descriptor subtable */
+
+struct acpi_csrt_descriptor {
+	u32 length;
+	u16 type;
+	u16 subtype;
+	u32 uid;
+
+	/* Resource-specific information immediately follows */
+};
+
+/* Resource Types */
+
+#define ACPI_CSRT_TYPE_INTERRUPT    0x0001
+#define ACPI_CSRT_TYPE_TIMER        0x0002
+#define ACPI_CSRT_TYPE_DMA          0x0003
+
+/* Resource Subtypes */
+
+#define ACPI_CSRT_XRUPT_LINE        0x0000
+#define ACPI_CSRT_XRUPT_CONTROLLER  0x0001
+#define ACPI_CSRT_TIMER             0x0000
+#define ACPI_CSRT_DMA_CHANNEL       0x0000
+#define ACPI_CSRT_DMA_CONTROLLER    0x0001
+
+/*******************************************************************************
+ *
+ * DBG2 - Debug Port Table 2
+ *        Version 0 (Both main table and subtables)
+ *
+ * Conforms to "Microsoft Debug Port Table 2 (DBG2)", May 22 2012.
+ *
+ ******************************************************************************/
+
+struct acpi_table_dbg2 {
+	struct acpi_table_header header;	/* Common ACPI table header */
+	u32 info_offset;
+	u32 info_count;
+};
+
+/* Debug Device Information Subtable */
+
+struct acpi_dbg2_device {
+	u8 revision;
+	u16 length;
+	u8 register_count;	/* Number of base_address registers */
+	u16 namepath_length;
+	u16 namepath_offset;
+	u16 oem_data_length;
+	u16 oem_data_offset;
+	u16 port_type;
+	u16 port_subtype;
+	u16 reserved;
+	u16 base_address_offset;
+	u16 address_size_offset;
+	/*
+	 * Data that follows:
+	 *    base_address (required) - Each in 12-byte Generic Address Structure format.
+	 *    address_size (required) - Array of u32 sizes corresponding to each base_address register.
+	 *    Namepath    (required) - Null terminated string. Single dot if not supported.
+	 *    oem_data    (optional) - Length is oem_data_length.
+	 */
+};
+
+/* Types for port_type field above */
+
+#define ACPI_DBG2_SERIAL_PORT       0x8000
+#define ACPI_DBG2_1394_PORT         0x8001
+#define ACPI_DBG2_USB_PORT          0x8002
+#define ACPI_DBG2_NET_PORT          0x8003
+
+/* Subtypes for port_subtype field above */
+
+#define ACPI_DBG2_16550_COMPATIBLE  0x0000
+#define ACPI_DBG2_16550_SUBSET      0x0001
+
+#define ACPI_DBG2_1394_STANDARD     0x0000
+
+#define ACPI_DBG2_USB_XHCI          0x0000
+#define ACPI_DBG2_USB_EHCI          0x0001
 
 /*******************************************************************************
  *

@@ -83,8 +83,9 @@ u32 bnx2x_send_unload_req(struct bnx2x *bp, int unload_mode);
  * bnx2x_send_unload_done - send UNLOAD_DONE command to the MCP.
  *
  * @bp:		driver handle
+ * @keep_link:		true iff link should be kept up
  */
-void bnx2x_send_unload_done(struct bnx2x *bp);
+void bnx2x_send_unload_done(struct bnx2x *bp, bool keep_link);
 
 /**
  * bnx2x_config_rss_pf - configure RSS parameters in a PF.
@@ -151,6 +152,14 @@ u8 bnx2x_initial_phy_init(struct bnx2x *bp, int load_mode);
  * @bp:		driver handle
  */
 void bnx2x_link_set(struct bnx2x *bp);
+
+/**
+ * bnx2x_force_link_reset - Forces link reset, and put the PHY
+ * in reset as well.
+ *
+ * @bp:		driver handle
+ */
+void bnx2x_force_link_reset(struct bnx2x *bp);
 
 /**
  * bnx2x_link_test - query link status.
@@ -312,12 +321,13 @@ void bnx2x_set_num_queues(struct bnx2x *bp);
  *
  * @bp:			driver handle
  * @unload_mode:	COMMON, PORT, FUNCTION
+ * @keep_link:		true iff link should be kept up.
  *
  * - Cleanup MAC configuration.
  * - Closes clients.
  * - etc.
  */
-void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode);
+void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode, bool keep_link);
 
 /**
  * bnx2x_acquire_hw_lock - acquire HW lock.
@@ -446,7 +456,7 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl);
 bool bnx2x_test_firmware_version(struct bnx2x *bp, bool is_err);
 
 /* dev_close main block */
-int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode);
+int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode, bool keep_link);
 
 /* dev_open main block */
 int bnx2x_nic_load(struct bnx2x *bp, int load_mode);
@@ -710,17 +720,15 @@ static inline u16 bnx2x_tx_avail(struct bnx2x *bp,
 	prod = txdata->tx_bd_prod;
 	cons = txdata->tx_bd_cons;
 
-	/* NUM_TX_RINGS = number of "next-page" entries
-	   It will be used as a threshold */
-	used = SUB_S16(prod, cons) + (s16)NUM_TX_RINGS;
+	used = SUB_S16(prod, cons);
 
 #ifdef BNX2X_STOP_ON_ERROR
 	WARN_ON(used < 0);
-	WARN_ON(used > bp->tx_ring_size);
-	WARN_ON((bp->tx_ring_size - used) > MAX_TX_AVAIL);
+	WARN_ON(used > txdata->tx_ring_size);
+	WARN_ON((txdata->tx_ring_size - used) > MAX_TX_AVAIL);
 #endif
 
-	return (s16)(bp->tx_ring_size) - used;
+	return (s16)(txdata->tx_ring_size) - used;
 }
 
 static inline int bnx2x_tx_queue_has_work(struct bnx2x_fp_txdata *txdata)
@@ -792,7 +800,7 @@ static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 	bp->num_napi_queues = bp->num_queues;
 
 	/* Add NAPI objects */
-	for_each_napi_rx_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
 }
@@ -801,7 +809,7 @@ static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_napi_rx_queue(bp, i)
+	for_each_rx_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 }
 
@@ -1088,6 +1096,7 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 	txdata->txq_index = txq_index;
 	txdata->tx_cons_sb = tx_cons_sb;
 	txdata->parent_fp = fp;
+	txdata->tx_ring_size = IS_FCOE_FP(fp) ? MAX_TX_AVAIL : bp->tx_ring_size;
 
 	DP(NETIF_MSG_IFUP, "created tx data cid %d, txq %d\n",
 	   txdata->cid, txdata->txq_index);

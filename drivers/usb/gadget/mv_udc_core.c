@@ -51,9 +51,8 @@
 #define EPSTATUS_TIMEOUT	10000
 #define PRIME_TIMEOUT		10000
 #define READSAFE_TIMEOUT	1000
-#define DTD_TIMEOUT		1000
 
-#define LOOPS_USEC_SHIFT	4
+#define LOOPS_USEC_SHIFT	1
 #define LOOPS_USEC		(1 << LOOPS_USEC_SHIFT)
 #define LOOPS(timeout)		((timeout) >> LOOPS_USEC_SHIFT)
 
@@ -64,7 +63,6 @@ static const char driver_desc[] = DRIVER_DESC;
 
 /* controller device global variable */
 static struct mv_udc	*the_controller;
-int mv_usb_otgsc;
 
 static void nuke(struct mv_ep *ep, int status);
 static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver);
@@ -357,17 +355,24 @@ done:
 	return retval;
 }
 
-
 static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 		dma_addr_t *dma, int *is_last)
 {
-	u32 temp;
 	struct mv_dtd *dtd;
 	struct mv_udc *udc;
+	struct mv_dqh *dqh;
+	u32 temp, mult = 0;
 
 	/* how big will this transfer be? */
-	*length = min(req->req.length - req->req.actual,
-			(unsigned)EP_MAX_LENGTH_TRANSFER);
+	if (usb_endpoint_xfer_isoc(req->ep->ep.desc)) {
+		dqh = req->ep->dqh;
+		mult = (dqh->max_packet_length >> EP_QUEUE_HEAD_MULT_POS)
+				& 0x3;
+		*length = min(req->req.length - req->req.actual,
+				(unsigned)(mult * req->ep->ep.maxpacket));
+	} else
+		*length = min(req->req.length - req->req.actual,
+				(unsigned)EP_MAX_LENGTH_TRANSFER);
 
 	udc = req->ep->udc;
 
@@ -375,7 +380,7 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	 * Be careful that no _GFP_HIGHMEM is set,
 	 * or we can not use dma_to_virt
 	 */
-	dtd = dma_pool_alloc(udc->dtd_pool, GFP_KERNEL, dma);
+	dtd = dma_pool_alloc(udc->dtd_pool, GFP_ATOMIC, dma);
 	if (dtd == NULL)
 		return dtd;
 
@@ -408,6 +413,8 @@ static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 	/* Enable interrupt for the last dtd of a request */
 	if (*is_last && !req->req.no_interrupt)
 		temp |= DTD_IOC;
+
+	temp |= mult << 10;
 
 	dtd->size_ioc_sts = temp;
 
@@ -708,6 +715,7 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	struct mv_req *req = container_of(_req, struct mv_req, req);
 	struct mv_udc *udc = ep->udc;
 	unsigned long flags;
+	int retval;
 
 	/* catch various bogus parameters */
 	if (!_req || !req->req.complete || !req->req.buf
@@ -718,10 +726,6 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	if (unlikely(!_ep || !ep->ep.desc)) {
 		dev_err(&udc->dev->dev, "%s, bad ep", __func__);
 		return -EINVAL;
-	}
-	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
-		if (req->req.length > ep->ep.maxpacket)
-			return -EMSGSIZE;
 	}
 
 	udc = ep->udc;
@@ -755,15 +759,17 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	/* build dtds and push them to device queue */
 	if (!req_to_dtd(req)) {
-		int retval;
 		retval = queue_dtd(ep, req);
 		if (retval) {
 			spin_unlock_irqrestore(&udc->lock, flags);
-			return retval;
+			dev_err(&udc->dev->dev, "Failed to queue dtd\n");
+			goto err_unmap_dma;
 		}
 	} else {
 		spin_unlock_irqrestore(&udc->lock, flags);
-		return -ENOMEM;
+		dev_err(&udc->dev->dev, "Failed to dma_pool_alloc\n");
+		retval = -ENOMEM;
+		goto err_unmap_dma;
 	}
 
 	/* Update ep0 state */
@@ -775,6 +781,22 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	return 0;
+
+err_unmap_dma:
+	if (req->mapped) {
+		dma_unmap_single(ep->udc->gadget.dev.parent,
+				req->req.dma, req->req.length,
+				((ep_dir(ep) == EP_DIR_IN) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		req->req.dma = DMA_ADDR_INVALID;
+		req->mapped = 0;
+	} else
+		dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
+				req->req.dma, req->req.length,
+				((ep_dir(ep) == EP_DIR_IN) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+
+	return retval;
 }
 
 static void mv_prime_ep(struct mv_ep *ep, struct mv_req *req)
@@ -1065,7 +1087,7 @@ static int udc_reset(struct mv_udc *udc)
 	tmp |= USBMODE_CTRL_MODE_DEVICE;
 
 	/* turn setup lockout off, require setup tripwire in usbcmd */
-	tmp |= USBMODE_SETUP_LOCK_OFF | USBMODE_STREAM_DISABLE;
+	tmp |= USBMODE_SETUP_LOCK_OFF;
 
 	writel(tmp, &udc->op_regs->usbmode);
 
@@ -1199,12 +1221,16 @@ static int mv_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 			udc_start(udc);
 		}
 	} else if (udc->driver && udc->softconnect) {
+		if (!udc->active)
+			goto out;
+
 		/* stop all the transfer in queue*/
 		stop_activity(udc, udc->driver);
 		udc_stop(udc);
 		mv_udc_disable(udc);
 	}
 
+out:
 	spin_unlock_irqrestore(&udc->lock, flags);
 	return retval;
 }
@@ -1243,7 +1269,7 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int mv_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int mv_udc_stop(struct usb_gadget_driver *driver);
 /* device controller usb_gadget_ops structure */
 static const struct usb_gadget_ops mv_ops = {
@@ -1348,7 +1374,7 @@ static void stop_activity(struct mv_udc *udc, struct usb_gadget_driver *driver)
 }
 
 static int mv_udc_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct mv_udc *udc = the_controller;
 	int retval = 0;
@@ -1373,7 +1399,7 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	retval = bind(&udc->gadget);
+	retval = bind(&udc->gadget, driver);
 	if (retval) {
 		dev_err(&udc->dev->dev, "bind to driver %s --> %d\n",
 				driver->driver.name, retval);
@@ -1499,15 +1525,17 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 	}
 
 	/* prime the data phase */
-	if (!req_to_dtd(req))
+	if (!req_to_dtd(req)) {
 		retval = queue_dtd(ep, req);
-	else{	/* no mem */
+		if (retval) {
+			dev_err(&udc->dev->dev,
+				"Failed to queue dtd when prime status\n");
+			goto out;
+		}
+	} else{	/* no mem */
 		retval = -ENOMEM;
-		goto out;
-	}
-
-	if (retval) {
-		dev_err(&udc->dev->dev, "response error on GET_STATUS request\n");
+		dev_err(&udc->dev->dev,
+			"Failed to dma_pool_alloc when prime status\n");
 		goto out;
 	}
 
@@ -1515,6 +1543,15 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	return 0;
 out:
+	if (req->mapped) {
+		dma_unmap_single(ep->udc->gadget.dev.parent,
+				req->req.dma, req->req.length,
+				((ep_dir(ep) == EP_DIR_IN) ?
+				DMA_TO_DEVICE : DMA_FROM_DEVICE));
+		req->req.dma = DMA_ADDR_INVALID;
+		req->mapped = 0;
+	}
+
 	return retval;
 }
 
@@ -2468,9 +2505,11 @@ static void mv_udc_shutdown(struct platform_device *dev)
 	u32 mode;
 
 	/* reset controller mode to IDLE */
+	mv_udc_enable(udc);
 	mode = readl(&udc->op_regs->usbmode);
 	mode &= ~3;
 	writel(mode, &udc->op_regs->usbmode);
+	mv_udc_disable(udc);
 }
 
 static struct platform_driver udc_driver = {

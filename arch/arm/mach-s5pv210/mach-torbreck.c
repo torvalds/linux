@@ -26,7 +26,7 @@
 #include <plat/regs-serial.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/s5p-time.h>
 
 #include "common.h"

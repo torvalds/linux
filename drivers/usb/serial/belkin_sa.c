@@ -37,8 +37,6 @@
 #include <linux/usb/serial.h>
 #include "belkin_sa.h"
 
-static bool debug;
-
 /*
  * Version Information
  */
@@ -47,8 +45,8 @@ static bool debug;
 #define DRIVER_DESC "USB Belkin Serial converter driver"
 
 /* function prototypes for a Belkin USB Serial Adapter F5U103 */
-static int  belkin_sa_startup(struct usb_serial *serial);
-static void belkin_sa_release(struct usb_serial *serial);
+static int belkin_sa_port_probe(struct usb_serial_port *port);
+static int belkin_sa_port_remove(struct usb_serial_port *port);
 static int  belkin_sa_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void belkin_sa_close(struct usb_serial_port *port);
@@ -90,8 +88,8 @@ static struct usb_serial_driver belkin_device = {
 	.break_ctl =		belkin_sa_break_ctl,
 	.tiocmget =		belkin_sa_tiocmget,
 	.tiocmset =		belkin_sa_tiocmset,
-	.attach =		belkin_sa_startup,
-	.release =		belkin_sa_release,
+	.port_probe =		belkin_sa_port_probe,
+	.port_remove =		belkin_sa_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -120,17 +118,15 @@ struct belkin_sa_private {
 					    (c), BELKIN_SA_SET_REQUEST_TYPE, \
 					    (v), 0, NULL, 0, WDR_TIMEOUT)
 
-/* do some startup allocations not currently performed by usb_serial_probe() */
-static int belkin_sa_startup(struct usb_serial *serial)
+static int belkin_sa_port_probe(struct usb_serial_port *port)
 {
-	struct usb_device *dev = serial->dev;
+	struct usb_device *dev = port->serial->dev;
 	struct belkin_sa_private *priv;
 
-	/* allocate the private data structure */
 	priv = kmalloc(sizeof(struct belkin_sa_private), GFP_KERNEL);
 	if (!priv)
-		return -1; /* error */
-	/* set initial values for control structures */
+		return -ENOMEM;
+
 	spin_lock_init(&priv->lock);
 	priv->control_state = 0;
 	priv->last_lsr = 0;
@@ -142,18 +138,19 @@ static int belkin_sa_startup(struct usb_serial *serial)
 					le16_to_cpu(dev->descriptor.bcdDevice),
 					priv->bad_flow_control);
 
-	init_waitqueue_head(&serial->port[0]->write_wait);
-	usb_set_serial_port_data(serial->port[0], priv);
+	usb_set_serial_port_data(port, priv);
 
 	return 0;
 }
 
-static void belkin_sa_release(struct usb_serial *serial)
+static int belkin_sa_port_remove(struct usb_serial_port *port)
 {
-	int i;
+	struct belkin_sa_private *priv;
 
-	for (i = 0; i < serial->num_ports; ++i)
-		kfree(usb_get_serial_port_data(serial->port[i]));
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 static int belkin_sa_open(struct tty_struct *tty,
@@ -206,8 +203,7 @@ static void belkin_sa_read_int_callback(struct urb *urb)
 		goto exit;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-					urb->actual_length, data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
 	/* Handle known interrupt data */
 	/* ignore data[0] and data[1] */
@@ -307,7 +303,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	unsigned long control_state;
 	int bad_flow_control;
 	speed_t baud;
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 
 	iflag = termios->c_iflag;
 	cflag = termios->c_cflag;
@@ -515,6 +511,3 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Debug enabled or not");

@@ -553,7 +553,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 				     struct snd_usb_audio *chip)
 {
 	struct snd_card *card;
-	struct list_head *p;
+	struct list_head *p, *n;
 
 	if (chip == (void *)-1L)
 		return;
@@ -570,7 +570,7 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 			snd_usb_stream_disconnect(p);
 		}
 		/* release the endpoint resources */
-		list_for_each(p, &chip->ep_list) {
+		list_for_each_safe(p, n, &chip->ep_list) {
 			snd_usb_endpoint_free(p);
 		}
 		/* release the midi resources */
@@ -646,6 +646,8 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 			list_for_each(p, &chip->pcm_list) {
 				as = list_entry(p, struct snd_usb_stream, list);
 				snd_pcm_suspend_all(as->pcm);
+				as->substream[0].need_setup_ep =
+					as->substream[1].need_setup_ep = true;
 			}
  		}
 	} else {

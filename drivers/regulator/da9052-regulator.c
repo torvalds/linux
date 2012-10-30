@@ -133,8 +133,8 @@ static int da9052_dcdc_set_current_limit(struct regulator_dev *rdev, int min_uA,
 	    max_uA < da9052_current_limits[row][DA9052_MIN_UA])
 		return -EINVAL;
 
-	for (i = 0; i < DA9052_CURRENT_RANGE; i++) {
-		if (min_uA <= da9052_current_limits[row][i]) {
+	for (i = DA9052_CURRENT_RANGE - 1; i >= 0; i--) {
+		if (da9052_current_limits[row][i] <= max_uA) {
 			reg_val = i;
 			break;
 		}

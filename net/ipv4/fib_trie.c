@@ -1286,7 +1286,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 
 			fib_release_info(fi_drop);
 			if (state & FA_S_ACCESSED)
-				rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
+				rt_cache_flush(cfg->fc_nlinfo.nl_net);
 			rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen,
 				tb->tb_id, &cfg->fc_nlinfo, NLM_F_REPLACE);
 
@@ -1333,7 +1333,7 @@ int fib_table_insert(struct fib_table *tb, struct fib_config *cfg)
 	list_add_tail_rcu(&new_fa->fa_list,
 			  (fa ? &fa->fa_list : fa_head));
 
-	rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
+	rt_cache_flush(cfg->fc_nlinfo.nl_net);
 	rtmsg_fib(RTM_NEWROUTE, htonl(key), new_fa, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 succeeded:
@@ -1550,7 +1550,8 @@ int fib_table_lookup(struct fib_table *tb, const struct flowi4 *flp,
 		 * state.directly.
 		 */
 		if (pref_mismatch) {
-			int mp = KEYLENGTH - fls(pref_mismatch);
+			/* fls(x) = __fls(x) + 1 */
+			int mp = KEYLENGTH - __fls(pref_mismatch) - 1;
 
 			if (tkey_extract_bits(cn->key, mp, cn->pos - mp) != 0)
 				goto backtrace;
@@ -1655,7 +1656,12 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	if (!l)
 		return -ESRCH;
 
-	fa_head = get_fa_head(l, plen);
+	li = find_leaf_info(l, plen);
+
+	if (!li)
+		return -ESRCH;
+
+	fa_head = &li->falh;
 	fa = fib_find_alias(fa_head, tos, 0);
 
 	if (!fa)
@@ -1691,9 +1697,6 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 	rtmsg_fib(RTM_DELROUTE, htonl(key), fa, plen, tb->tb_id,
 		  &cfg->fc_nlinfo, 0);
 
-	l = fib_find_node(t, key);
-	li = find_leaf_info(l, plen);
-
 	list_del_rcu(&fa->fa_list);
 
 	if (!plen)
@@ -1708,7 +1711,7 @@ int fib_table_delete(struct fib_table *tb, struct fib_config *cfg)
 		trie_leaf_remove(t, l);
 
 	if (fa->fa_state & FA_S_ACCESSED)
-		rt_cache_flush(cfg->fc_nlinfo.nl_net, -1);
+		rt_cache_flush(cfg->fc_nlinfo.nl_net);
 
 	fib_release_info(fa->fa_info);
 	alias_free_mem_rcu(fa);
@@ -1870,7 +1873,7 @@ static int fn_trie_dump_fa(t_key key, int plen, struct list_head *fah,
 			continue;
 		}
 
-		if (fib_dump_info(skb, NETLINK_CB(cb->skb).pid,
+		if (fib_dump_info(skb, NETLINK_CB(cb->skb).portid,
 				  cb->nlh->nlmsg_seq,
 				  RTM_NEWROUTE,
 				  tb->tb_id,

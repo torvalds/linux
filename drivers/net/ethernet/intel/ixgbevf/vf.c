@@ -79,6 +79,9 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	hw->mac.ops.stop_adapter(hw);
 
+	/* reset the api version */
+	hw->api_version = ixgbe_mbox_api_10;
+
 	IXGBE_WRITE_REG(hw, IXGBE_VFCTRL, IXGBE_CTRL_RST);
 	IXGBE_WRITE_FLUSH(hw);
 
@@ -97,7 +100,7 @@ static s32 ixgbevf_reset_hw_vf(struct ixgbe_hw *hw)
 	msgbuf[0] = IXGBE_VF_RESET;
 	mbx->ops.write_posted(hw, msgbuf, 1);
 
-	msleep(10);
+	mdelay(10);
 
 	/* set our "perm_addr" based on info provided by PF */
 	/* also set up the mc_filter_type which is piggy backed
@@ -346,16 +349,32 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 			       bool vlan_on)
 {
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
+	s32 err;
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
 	msgbuf[1] = vlan;
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+	err = mbx->ops.write_posted(hw, msgbuf, 2);
+	if (err)
+		goto mbx_err;
 
-	return 0;
+	err = mbx->ops.read_posted(hw, msgbuf, 2);
+	if (err)
+		goto mbx_err;
+
+	/* remove extra bits from the message */
+	msgbuf[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+	msgbuf[0] &= ~(0xFF << IXGBE_VT_MSGINFO_SHIFT);
+
+	if (msgbuf[0] != (IXGBE_VF_SET_VLAN | IXGBE_VT_MSGTYPE_ACK))
+		err = IXGBE_ERR_INVALID_ARGUMENT;
+
+mbx_err:
+	return err;
 }
 
 /**
@@ -389,20 +408,23 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 				     bool *link_up,
 				     bool autoneg_wait_to_complete)
 {
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	struct ixgbe_mac_info *mac = &hw->mac;
+	s32 ret_val = 0;
 	u32 links_reg;
+	u32 in_msg = 0;
 
-	if (!(hw->mbx.ops.check_for_rst(hw))) {
-		*link_up = false;
-		*speed = 0;
-		return -1;
-	}
+	/* If we were hit with a reset drop the link */
+	if (!mbx->ops.check_for_rst(hw) || !mbx->timeout)
+		mac->get_link_status = true;
 
+	if (!mac->get_link_status)
+		goto out;
+
+	/* if link status is down no point in checking to see if pf is up */
 	links_reg = IXGBE_READ_REG(hw, IXGBE_VFLINKS);
-
-	if (links_reg & IXGBE_LINKS_UP)
-		*link_up = true;
-	else
-		*link_up = false;
+	if (!(links_reg & IXGBE_LINKS_UP))
+		goto out;
 
 	switch (links_reg & IXGBE_LINKS_SPEED_82599) {
 	case IXGBE_LINKS_SPEED_10G_82599:
@@ -416,7 +438,79 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 		break;
 	}
 
-	return 0;
+	/* if the read failed it could just be a mailbox collision, best wait
+	 * until we are called again and don't report an error */
+	if (mbx->ops.read(hw, &in_msg, 1))
+		goto out;
+
+	if (!(in_msg & IXGBE_VT_MSGTYPE_CTS)) {
+		/* msg is not CTS and is NACK we must have lost CTS status */
+		if (in_msg & IXGBE_VT_MSGTYPE_NACK)
+			ret_val = -1;
+		goto out;
+	}
+
+	/* the pf is talking, if we timed out in the past we reinit */
+	if (!mbx->timeout) {
+		ret_val = -1;
+		goto out;
+	}
+
+	/* if we passed all the tests above then the link is up and we no
+	 * longer need to check for link */
+	mac->get_link_status = false;
+
+out:
+	*link_up = !mac->get_link_status;
+	return ret_val;
+}
+
+/**
+ *  ixgbevf_rlpml_set_vf - Set the maximum receive packet length
+ *  @hw: pointer to the HW structure
+ *  @max_size: value to assign to max frame size
+ **/
+void ixgbevf_rlpml_set_vf(struct ixgbe_hw *hw, u16 max_size)
+{
+	u32 msgbuf[2];
+
+	msgbuf[0] = IXGBE_VF_SET_LPE;
+	msgbuf[1] = max_size;
+	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+}
+
+/**
+ *  ixgbevf_negotiate_api_version - Negotiate supported API version
+ *  @hw: pointer to the HW structure
+ *  @api: integer containing requested API version
+ **/
+int ixgbevf_negotiate_api_version(struct ixgbe_hw *hw, int api)
+{
+	int err;
+	u32 msg[3];
+
+	/* Negotiate the mailbox API version */
+	msg[0] = IXGBE_VF_API_NEGOTIATE;
+	msg[1] = api;
+	msg[2] = 0;
+	err = hw->mbx.ops.write_posted(hw, msg, 3);
+
+	if (!err)
+		err = hw->mbx.ops.read_posted(hw, msg, 3);
+
+	if (!err) {
+		msg[0] &= ~IXGBE_VT_MSGTYPE_CTS;
+
+		/* Store value and return 0 on success */
+		if (msg[0] == (IXGBE_VF_API_NEGOTIATE | IXGBE_VT_MSGTYPE_ACK)) {
+			hw->api_version = api;
+			return 0;
+		}
+
+		err = IXGBE_ERR_INVALID_ARGUMENT;
+	}
+
+	return err;
 }
 
 static const struct ixgbe_mac_operations ixgbevf_mac_ops = {

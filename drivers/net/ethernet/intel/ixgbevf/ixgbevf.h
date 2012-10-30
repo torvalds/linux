@@ -101,7 +101,9 @@ struct ixgbevf_ring {
 
 /* Supported Rx Buffer Sizes */
 #define IXGBEVF_RXBUFFER_256   256    /* Used for packet split */
-#define IXGBEVF_RXBUFFER_2048  2048
+#define IXGBEVF_RXBUFFER_3K    3072
+#define IXGBEVF_RXBUFFER_7K    7168
+#define IXGBEVF_RXBUFFER_15K   15360
 #define IXGBEVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
 
 #define IXGBEVF_RX_HDR_SIZE IXGBEVF_RXBUFFER_256
@@ -173,7 +175,7 @@ struct ixgbevf_q_vector {
 #define IXGBEVF_TX_CTXTDESC(R, i)	    \
 	(&(((struct ixgbe_adv_tx_context_desc *)((R)->desc))[i]))
 
-#define IXGBE_MAX_JUMBO_FRAME_SIZE        16128
+#define IXGBE_MAX_JUMBO_FRAME_SIZE	9728 /* Maximum Supported Size 9.5KB */
 
 #define OTHER_VECTOR 1
 #define NON_Q_VECTORS (OTHER_VECTOR)
@@ -258,6 +260,11 @@ enum ixbgevf_state_t {
 	__IXGBEVF_RESETTING,
 	__IXGBEVF_DOWN
 };
+
+struct ixgbevf_cb {
+	struct sk_buff *prev;
+};
+#define IXGBE_CB(skb) ((struct ixgbevf_cb *)(skb)->cb)
 
 enum ixgbevf_boards {
 	board_82599_vf,

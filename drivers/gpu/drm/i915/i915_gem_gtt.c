@@ -22,9 +22,8 @@
  *
  */
 
-#include "drmP.h"
-#include "drm.h"
-#include "i915_drm.h"
+#include <drm/drmP.h>
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
@@ -167,8 +166,7 @@ void i915_gem_cleanup_aliasing_ppgtt(struct drm_device *dev)
 }
 
 static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
-					 struct scatterlist *sg_list,
-					 unsigned sg_len,
+					 const struct sg_table *pages,
 					 unsigned first_entry,
 					 uint32_t pte_flags)
 {
@@ -180,12 +178,12 @@ static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
 	struct scatterlist *sg;
 
 	/* init sg walking */
-	sg = sg_list;
+	sg = pages->sgl;
 	i = 0;
 	segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
 	m = 0;
 
-	while (i < sg_len) {
+	while (i < pages->nents) {
 		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
 
 		for (j = first_pte; j < I915_PPGTT_PT_ENTRIES; j++) {
@@ -194,13 +192,11 @@ static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
 			pt_vaddr[j] = pte | pte_flags;
 
 			/* grab the next page */
-			m++;
-			if (m == segment_len) {
-				sg = sg_next(sg);
-				i++;
-				if (i == sg_len)
+			if (++m == segment_len) {
+				if (++i == pages->nents)
 					break;
 
+				sg = sg_next(sg);
 				segment_len = sg_dma_len(sg) >> PAGE_SHIFT;
 				m = 0;
 			}
@@ -213,44 +209,10 @@ static void i915_ppgtt_insert_sg_entries(struct i915_hw_ppgtt *ppgtt,
 	}
 }
 
-static void i915_ppgtt_insert_pages(struct i915_hw_ppgtt *ppgtt,
-				    unsigned first_entry, unsigned num_entries,
-				    struct page **pages, uint32_t pte_flags)
-{
-	uint32_t *pt_vaddr, pte;
-	unsigned act_pd = first_entry / I915_PPGTT_PT_ENTRIES;
-	unsigned first_pte = first_entry % I915_PPGTT_PT_ENTRIES;
-	unsigned last_pte, i;
-	dma_addr_t page_addr;
-
-	while (num_entries) {
-		last_pte = first_pte + num_entries;
-		last_pte = min_t(unsigned, last_pte, I915_PPGTT_PT_ENTRIES);
-
-		pt_vaddr = kmap_atomic(ppgtt->pt_pages[act_pd]);
-
-		for (i = first_pte; i < last_pte; i++) {
-			page_addr = page_to_phys(*pages);
-			pte = GEN6_PTE_ADDR_ENCODE(page_addr);
-			pt_vaddr[i] = pte | pte_flags;
-
-			pages++;
-		}
-
-		kunmap_atomic(pt_vaddr);
-
-		num_entries -= last_pte - first_pte;
-		first_pte = 0;
-		act_pd++;
-	}
-}
-
 void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 			    struct drm_i915_gem_object *obj,
 			    enum i915_cache_level cache_level)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t pte_flags = GEN6_PTE_VALID;
 
 	switch (cache_level) {
@@ -261,7 +223,7 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 		pte_flags |= GEN6_PTE_CACHE_LLC;
 		break;
 	case I915_CACHE_NONE:
-		if (IS_HASWELL(dev))
+		if (IS_HASWELL(obj->base.dev))
 			pte_flags |= HSW_PTE_UNCACHED;
 		else
 			pte_flags |= GEN6_PTE_UNCACHED;
@@ -270,26 +232,10 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 		BUG();
 	}
 
-	if (obj->sg_table) {
-		i915_ppgtt_insert_sg_entries(ppgtt,
-					     obj->sg_table->sgl,
-					     obj->sg_table->nents,
-					     obj->gtt_space->start >> PAGE_SHIFT,
-					     pte_flags);
-	} else if (dev_priv->mm.gtt->needs_dmar) {
-		BUG_ON(!obj->sg_list);
-
-		i915_ppgtt_insert_sg_entries(ppgtt,
-					     obj->sg_list,
-					     obj->num_sg,
-					     obj->gtt_space->start >> PAGE_SHIFT,
-					     pte_flags);
-	} else
-		i915_ppgtt_insert_pages(ppgtt,
-					obj->gtt_space->start >> PAGE_SHIFT,
-					obj->base.size >> PAGE_SHIFT,
-					obj->pages,
-					pte_flags);
+	i915_ppgtt_insert_sg_entries(ppgtt,
+				     obj->pages,
+				     obj->gtt_space->start >> PAGE_SHIFT,
+				     pte_flags);
 }
 
 void i915_ppgtt_unbind_object(struct i915_hw_ppgtt *ppgtt,
@@ -351,7 +297,7 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 	intel_gtt_clear_range(dev_priv->mm.gtt_start / PAGE_SIZE,
 			      (dev_priv->mm.gtt_end - dev_priv->mm.gtt_start) / PAGE_SIZE);
 
-	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
 		i915_gem_clflush_object(obj);
 		i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
@@ -361,44 +307,26 @@ void i915_gem_restore_gtt_mappings(struct drm_device *dev)
 
 int i915_gem_gtt_prepare_object(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/* don't map imported dma buf objects */
-	if (dev_priv->mm.gtt->needs_dmar && !obj->sg_table)
-		return intel_gtt_map_memory(obj->pages,
-					    obj->base.size >> PAGE_SHIFT,
-					    &obj->sg_list,
-					    &obj->num_sg);
-	else
+	if (obj->has_dma_mapping)
 		return 0;
+
+	if (!dma_map_sg(&obj->base.dev->pdev->dev,
+			obj->pages->sgl, obj->pages->nents,
+			PCI_DMA_BIDIRECTIONAL))
+		return -ENOSPC;
+
+	return 0;
 }
 
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 			      enum i915_cache_level cache_level)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned int agp_type = cache_level_to_agp_type(dev, cache_level);
 
-	if (obj->sg_table) {
-		intel_gtt_insert_sg_entries(obj->sg_table->sgl,
-					    obj->sg_table->nents,
-					    obj->gtt_space->start >> PAGE_SHIFT,
-					    agp_type);
-	} else if (dev_priv->mm.gtt->needs_dmar) {
-		BUG_ON(!obj->sg_list);
-
-		intel_gtt_insert_sg_entries(obj->sg_list,
-					    obj->num_sg,
-					    obj->gtt_space->start >> PAGE_SHIFT,
-					    agp_type);
-	} else
-		intel_gtt_insert_pages(obj->gtt_space->start >> PAGE_SHIFT,
-				       obj->base.size >> PAGE_SHIFT,
-				       obj->pages,
-				       agp_type);
-
+	intel_gtt_insert_sg_entries(obj->pages,
+				    obj->gtt_space->start >> PAGE_SHIFT,
+				    agp_type);
 	obj->has_global_gtt_mapping = 1;
 }
 
@@ -418,12 +346,29 @@ void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj)
 
 	interruptible = do_idling(dev_priv);
 
-	if (obj->sg_list) {
-		intel_gtt_unmap_memory(obj->sg_list, obj->num_sg);
-		obj->sg_list = NULL;
-	}
+	if (!obj->has_dma_mapping)
+		dma_unmap_sg(&dev->pdev->dev,
+			     obj->pages->sgl, obj->pages->nents,
+			     PCI_DMA_BIDIRECTIONAL);
 
 	undo_idling(dev_priv, interruptible);
+}
+
+static void i915_gtt_color_adjust(struct drm_mm_node *node,
+				  unsigned long color,
+				  unsigned long *start,
+				  unsigned long *end)
+{
+	if (node->color != color)
+		*start += 4096;
+
+	if (!list_empty(&node->node_list)) {
+		node = list_entry(node->node_list.next,
+				  struct drm_mm_node,
+				  node_list);
+		if (node->allocated && node->color != color)
+			*end -= 4096;
+	}
 }
 
 void i915_gem_init_global_gtt(struct drm_device *dev,
@@ -435,6 +380,8 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 
 	/* Substract the guard page ... */
 	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
+	if (!HAS_LLC(dev))
+		dev_priv->mm.gtt_space.color_adjust = i915_gtt_color_adjust;
 
 	dev_priv->mm.gtt_start = start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;

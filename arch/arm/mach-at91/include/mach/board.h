@@ -187,7 +187,6 @@ struct at91_can_data {
 extern void __init at91_add_device_can(struct at91_can_data *data);
 
  /* LEDs */
-extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
 extern void __init at91_pwm_leds(struct gpio_led *leds, int nr);
 

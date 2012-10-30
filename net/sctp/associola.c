@@ -82,6 +82,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 					  sctp_scope_t scope,
 					  gfp_t gfp)
 {
+	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
 	int i;
 	sctp_paramhdr_t *p;
@@ -124,7 +125,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * socket values.
 	 */
 	asoc->max_retrans = sp->assocparams.sasoc_asocmaxrxt;
-	asoc->pf_retrans  = sctp_pf_retrans;
+	asoc->pf_retrans  = net->sctp.pf_retrans;
 
 	asoc->rto_initial = msecs_to_jiffies(sp->rtoinfo.srto_initial);
 	asoc->rto_max = msecs_to_jiffies(sp->rtoinfo.srto_max);
@@ -175,7 +176,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_HEARTBEAT] = 0;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_SACK] = asoc->sackdelay;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_AUTOCLOSE] =
-		min_t(unsigned long, sp->autoclose, sctp_max_autoclose) * HZ;
+		min_t(unsigned long, sp->autoclose, net->sctp.max_autoclose) * HZ;
 
 	/* Initializes the timers */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i)
@@ -281,7 +282,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	 * and will revert old behavior.
 	 */
 	asoc->peer.asconf_capable = 0;
-	if (sctp_addip_noauth)
+	if (net->sctp.addip_noauth)
 		asoc->peer.asconf_capable = 1;
 	asoc->asconf_addr_del_pending = NULL;
 	asoc->src_out_of_asoc_ok = 0;
@@ -641,6 +642,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 					   const gfp_t gfp,
 					   const int peer_state)
 {
+	struct net *net = sock_net(asoc->base.sk);
 	struct sctp_transport *peer;
 	struct sctp_sock *sp;
 	unsigned short port;
@@ -674,7 +676,7 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		return peer;
 	}
 
-	peer = sctp_transport_new(addr, gfp);
+	peer = sctp_transport_new(net, addr, gfp);
 	if (!peer)
 		return NULL;
 
@@ -1089,13 +1091,15 @@ out:
 
 /* Is this the association we are looking for? */
 struct sctp_transport *sctp_assoc_is_match(struct sctp_association *asoc,
+					   struct net *net,
 					   const union sctp_addr *laddr,
 					   const union sctp_addr *paddr)
 {
 	struct sctp_transport *transport;
 
 	if ((htons(asoc->base.bind_addr.port) == laddr->v4.sin_port) &&
-	    (htons(asoc->peer.port) == paddr->v4.sin_port)) {
+	    (htons(asoc->peer.port) == paddr->v4.sin_port) &&
+	    net_eq(sock_net(asoc->base.sk), net)) {
 		transport = sctp_assoc_lookup_paddr(asoc, paddr);
 		if (!transport)
 			goto out;
@@ -1116,6 +1120,7 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 	struct sctp_association *asoc =
 		container_of(work, struct sctp_association,
 			     base.inqueue.immediate);
+	struct net *net = sock_net(asoc->base.sk);
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
 	struct sctp_inq *inqueue;
@@ -1148,13 +1153,13 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		if (sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
 		else
-			SCTP_INC_STATS(SCTP_MIB_INCTRLCHUNKS);
+			SCTP_INC_STATS(net, SCTP_MIB_INCTRLCHUNKS);
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;
 
 		/* Run through the state machine. */
-		error = sctp_do_sm(SCTP_EVENT_T_CHUNK, subtype,
+		error = sctp_do_sm(net, SCTP_EVENT_T_CHUNK, subtype,
 				   state, ep, asoc, chunk, GFP_ATOMIC);
 
 		/* Check to see if the association is freed in response to
@@ -1414,6 +1419,7 @@ void sctp_assoc_sync_pmtu(struct sock *sk, struct sctp_association *asoc)
 /* Should we send a SACK to update our peer? */
 static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 {
+	struct net *net = sock_net(asoc->base.sk);
 	switch (asoc->state) {
 	case SCTP_STATE_ESTABLISHED:
 	case SCTP_STATE_SHUTDOWN_PENDING:
@@ -1421,7 +1427,7 @@ static inline int sctp_peer_needs_update(struct sctp_association *asoc)
 	case SCTP_STATE_SHUTDOWN_SENT:
 		if ((asoc->rwnd > asoc->a_rwnd) &&
 		    ((asoc->rwnd - asoc->a_rwnd) >= max_t(__u32,
-			   (asoc->base.sk->sk_rcvbuf >> sctp_rwnd_upd_shift),
+			   (asoc->base.sk->sk_rcvbuf >> net->sctp.rwnd_upd_shift),
 			   asoc->pathmtu)))
 			return 1;
 		break;
@@ -1542,7 +1548,8 @@ int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
 	if (asoc->peer.ipv6_address)
 		flags |= SCTP_ADDR6_PEERSUPP;
 
-	return sctp_bind_addr_copy(&asoc->base.bind_addr,
+	return sctp_bind_addr_copy(sock_net(asoc->base.sk),
+				   &asoc->base.bind_addr,
 				   &asoc->ep->base.bind_addr,
 				   scope, gfp, flags);
 }

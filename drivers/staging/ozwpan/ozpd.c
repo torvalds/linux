@@ -24,12 +24,6 @@
 /*------------------------------------------------------------------------------
  */
 #define OZ_MAX_TX_POOL_SIZE	6
-/* Maximum number of uncompleted isoc frames that can be pending in network.
- */
-#define OZ_MAX_SUBMITTED_ISOC	16
-/* Maximum number of uncompleted isoc frames that can be pending in Tx Queue.
- */
-#define OZ_MAX_TX_QUEUE_ISOC	32
 /*------------------------------------------------------------------------------
  */
 static struct oz_tx_frame *oz_tx_frame_alloc(struct oz_pd *pd);
@@ -752,8 +746,7 @@ int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
  */
 static void oz_isoc_stream_free(struct oz_isoc_stream *st)
 {
-	if (st->skb)
-		kfree_skb(st->skb);
+	kfree_skb(st->skb);
 	kfree(st);
 }
 /*------------------------------------------------------------------------------
@@ -854,7 +847,7 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, u8 *data, int len)
 		if (!(pd->mode & OZ_F_ISOC_ANYTIME)) {
 			struct oz_tx_frame *isoc_unit = NULL;
 			int nb = pd->nb_queued_isoc_frames;
-			if (nb >= OZ_MAX_TX_QUEUE_ISOC) {
+			if (nb >= pd->isoc_latency) {
 				oz_trace2(OZ_TRACE_TX_FRAMES,
 						"Dropping ISOC Unit nb= %d\n",
 									nb);

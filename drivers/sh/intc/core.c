@@ -355,7 +355,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 			if (unlikely(res)) {
 				if (res == -EEXIST) {
 					res = irq_domain_associate(d->domain,
-								   irq, irq);
+								   irq2, irq2);
 					if (unlikely(res)) {
 						pr_err("domain association "
 						       "failure\n");

@@ -13,22 +13,22 @@
 
 struct dsa_platform_data;
 
-void __init orion_uart0_init(unsigned int membase,
+void __init orion_uart0_init(void __iomem *membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
 			     struct clk *clk);
 
-void __init orion_uart1_init(unsigned int membase,
+void __init orion_uart1_init(void __iomem *membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
 			     struct clk *clk);
 
-void __init orion_uart2_init(unsigned int membase,
+void __init orion_uart2_init(void __iomem *membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
 			     struct clk *clk);
 
-void __init orion_uart3_init(unsigned int membase,
+void __init orion_uart3_init(void __iomem *membase,
 			     resource_size_t mapbase,
 			     unsigned int irq,
 			     struct clk *clk);

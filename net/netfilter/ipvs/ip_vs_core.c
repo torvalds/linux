@@ -1303,7 +1303,8 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_proto_data *pd;
-	unsigned int offset, ihl, verdict;
+	unsigned int offset, offset2, ihl, verdict;
+	bool ipip;
 
 	*related = 1;
 
@@ -1345,6 +1346,21 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	net = skb_net(skb);
 
+	/* Special case for errors for IPIP packets */
+	ipip = false;
+	if (cih->protocol == IPPROTO_IPIP) {
+		if (unlikely(cih->frag_off & htons(IP_OFFSET)))
+			return NF_ACCEPT;
+		/* Error for our IPIP must arrive at LOCAL_IN */
+		if (!(skb_rtable(skb)->rt_flags & RTCF_LOCAL))
+			return NF_ACCEPT;
+		offset += cih->ihl * 4;
+		cih = skb_header_pointer(skb, offset, sizeof(_ciph), &_ciph);
+		if (cih == NULL)
+			return NF_ACCEPT; /* The packet looks wrong, ignore */
+		ipip = true;
+	}
+
 	pd = ip_vs_proto_data_get(net, cih->protocol);
 	if (!pd)
 		return NF_ACCEPT;
@@ -1358,11 +1374,14 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	IP_VS_DBG_PKT(11, AF_INET, pp, skb, offset,
 		      "Checking incoming ICMP for");
 
+	offset2 = offset;
 	offset += cih->ihl * 4;
 
 	ip_vs_fill_iphdr(AF_INET, cih, &ciph);
-	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_in_get(AF_INET, skb, &ciph, offset, 1);
+	/* The embedded headers contain source and dest in reverse order.
+	 * For IPIP this is error for request, not for reply.
+	 */
+	cp = pp->conn_in_get(AF_INET, skb, &ciph, offset, ipip ? 0 : 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -1373,6 +1392,57 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 		/* Failed checksum! */
 		IP_VS_DBG(1, "Incoming ICMP: failed checksum from %pI4!\n",
 			  &iph->saddr);
+		goto out;
+	}
+
+	if (ipip) {
+		__be32 info = ic->un.gateway;
+
+		/* Update the MTU */
+		if (ic->type == ICMP_DEST_UNREACH &&
+		    ic->code == ICMP_FRAG_NEEDED) {
+			struct ip_vs_dest *dest = cp->dest;
+			u32 mtu = ntohs(ic->un.frag.mtu);
+
+			/* Strip outer IP and ICMP, go to IPIP header */
+			__skb_pull(skb, ihl + sizeof(_icmph));
+			offset2 -= ihl + sizeof(_icmph);
+			skb_reset_network_header(skb);
+			IP_VS_DBG(12, "ICMP for IPIP %pI4->%pI4: mtu=%u\n",
+				&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr, mtu);
+			rcu_read_lock();
+			ipv4_update_pmtu(skb, dev_net(skb->dev),
+					 mtu, 0, 0, 0, 0);
+			rcu_read_unlock();
+			/* Client uses PMTUD? */
+			if (!(cih->frag_off & htons(IP_DF)))
+				goto ignore_ipip;
+			/* Prefer the resulting PMTU */
+			if (dest) {
+				spin_lock(&dest->dst_lock);
+				if (dest->dst_cache)
+					mtu = dst_mtu(dest->dst_cache);
+				spin_unlock(&dest->dst_lock);
+			}
+			if (mtu > 68 + sizeof(struct iphdr))
+				mtu -= sizeof(struct iphdr);
+			info = htonl(mtu);
+		}
+		/* Strip outer IP, ICMP and IPIP, go to IP header of
+		 * original request.
+		 */
+		__skb_pull(skb, offset2);
+		skb_reset_network_header(skb);
+		IP_VS_DBG(12, "Sending ICMP for %pI4->%pI4: t=%u, c=%u, i=%u\n",
+			&ip_hdr(skb)->saddr, &ip_hdr(skb)->daddr,
+			ic->type, ic->code, ntohl(info));
+		icmp_send(skb, ic->type, ic->code, info);
+		/* ICMP can be shorter but anyways, account it */
+		ip_vs_out_stats(cp, skb);
+
+ignore_ipip:
+		consume_skb(skb);
+		verdict = NF_STOLEN;
 		goto out;
 	}
 

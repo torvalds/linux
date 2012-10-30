@@ -320,6 +320,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 			tlb_write_random();
 		else
 			tlb_write_indexed();
+		tlbw_use_hazard();
 		write_c0_pagemask(PM_DEFAULT_MASK);
 	} else
 #endif
@@ -401,7 +402,7 @@ void __cpuinit tlb_init(void)
 	    current_cpu_type() == CPU_R14000)
 		write_c0_framemask(0);
 
-	if (kernel_uses_smartmips_rixi) {
+	if (cpu_has_rixi) {
 		/*
 		 * Enable the no read, no exec bits, and enable large virtual
 		 * address.

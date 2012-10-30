@@ -1436,11 +1436,11 @@ static long vphn_get_associativity(unsigned long cpu,
 
 /*
  * Update the node maps and sysfs entries for each cpu whose home node
- * has changed.
+ * has changed. Returns 1 when the topology has changed, and 0 otherwise.
  */
 int arch_update_cpu_topology(void)
 {
-	int cpu, nid, old_nid;
+	int cpu, nid, old_nid, changed = 0;
 	unsigned int associativity[VPHN_ASSOC_BUFSIZE] = {0};
 	struct device *dev;
 
@@ -1466,9 +1466,10 @@ int arch_update_cpu_topology(void)
 		dev = get_cpu_device(cpu);
 		if (dev)
 			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+		changed = 1;
 	}
 
-	return 1;
+	return changed;
 }
 
 static void topology_work_fn(struct work_struct *work)

@@ -217,9 +217,6 @@ int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
 	}
 }
 
-__must_check unsigned long clear_user(void __user *mem, unsigned long len);
-__must_check unsigned long __clear_user(void __user *mem, unsigned long len);
-
 static __must_check __always_inline int
 __copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
 {

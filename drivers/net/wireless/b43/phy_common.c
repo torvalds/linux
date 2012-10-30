@@ -240,6 +240,21 @@ void b43_radio_maskset(struct b43_wldev *dev, u16 offset, u16 mask, u16 set)
 			  (b43_radio_read16(dev, offset) & mask) | set);
 }
 
+bool b43_radio_wait_value(struct b43_wldev *dev, u16 offset, u16 mask,
+			  u16 value, int delay, int timeout)
+{
+	u16 val;
+	int i;
+
+	for (i = 0; i < timeout; i += delay) {
+		val = b43_radio_read(dev, offset);
+		if ((val & mask) == value)
+			return true;
+		udelay(delay);
+	}
+	return false;
+}
+
 u16 b43_phy_read(struct b43_wldev *dev, u16 reg)
 {
 	assert_mac_suspended(dev);
@@ -428,7 +443,7 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
 	average = (a + b + c + d + 2) / 4;
 	if (is_ofdm) {
 		/* Adjust for CCK-boost */
-		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO)
+		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTF1)
 		    & B43_HF_CCKBOOST)
 			average = (average >= 13) ? (average - 13) : 0;
 	}

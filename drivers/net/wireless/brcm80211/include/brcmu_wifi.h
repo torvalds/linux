@@ -67,11 +67,6 @@
 #define WL_CHANSPEC_BAND_2G		0x2000
 #define INVCHANSPEC			255
 
-/* used to calculate the chan_freq = chan_factor * 500Mhz + 5 * chan_number */
-#define WF_CHAN_FACTOR_2_4_G		4814	/* 2.4 GHz band, 2407 MHz */
-#define WF_CHAN_FACTOR_5_G		10000	/* 5   GHz band, 5000 MHz */
-#define WF_CHAN_FACTOR_4_G		8000	/* 4.9 GHz band for Japan */
-
 #define CHSPEC_CHANNEL(chspec)	((u8)((chspec) & WL_CHANSPEC_CHAN_MASK))
 #define CHSPEC_BAND(chspec)	((chspec) & WL_CHANSPEC_BAND_MASK)
 

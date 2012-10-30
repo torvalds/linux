@@ -161,7 +161,7 @@ static void jsm_tty_send_xchar(struct uart_port *port, char ch)
 	struct ktermios *termios;
 
 	spin_lock_irqsave(&port->lock, lock_flags);
-	termios = port->state->port.tty->termios;
+	termios = &port->state->port.tty->termios;
 	if (ch == termios->c_cc[VSTART])
 		channel->ch_bd->bd_ops->send_start_character(channel);
 
@@ -250,7 +250,7 @@ static int jsm_tty_open(struct uart_port *port)
 	channel->ch_cached_lsr = 0;
 	channel->ch_stops_sent = 0;
 
-	termios = port->state->port.tty->termios;
+	termios = &port->state->port.tty->termios;
 	channel->ch_c_cflag	= termios->c_cflag;
 	channel->ch_c_iflag	= termios->c_iflag;
 	channel->ch_c_oflag	= termios->c_oflag;
@@ -283,7 +283,7 @@ static void jsm_tty_close(struct uart_port *port)
 	jsm_printk(CLOSE, INFO, &channel->ch_bd->pci_dev, "start\n");
 
 	bd = channel->ch_bd;
-	ts = port->state->port.tty->termios;
+	ts = &port->state->port.tty->termios;
 
 	channel->ch_flags &= ~(CH_STOPI);
 
@@ -567,7 +567,7 @@ void jsm_input(struct jsm_channel *ch)
 	 *input data and return immediately.
 	 */
 	if (!tp ||
-		!(tp->termios->c_cflag & CREAD) ) {
+		!(tp->termios.c_cflag & CREAD) ) {
 
 		jsm_printk(READ, INFO, &ch->ch_bd->pci_dev,
 			"input. dropping %d bytes on port %d...\n", data_len, ch->ch_portnum);

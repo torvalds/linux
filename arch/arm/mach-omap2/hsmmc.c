@@ -15,9 +15,10 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <mach/hardware.h>
+#include <linux/platform_data/gpio-omap.h>
+
 #include <plat/mmc.h>
 #include <plat/omap-pm.h>
-#include <plat/mux.h>
 #include <plat/omap_device.h>
 
 #include "mux.h"
@@ -522,7 +523,7 @@ static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 	dev_set_name(&pdev->dev, "%s.%d", pdev->name, pdev->id);
 
 	od = omap_device_alloc(pdev, ohs, 1, NULL, 0);
-	if (!od) {
+	if (IS_ERR(od)) {
 		pr_err("Could not allocate od for %s\n", name);
 		goto put_pdev;
 	}

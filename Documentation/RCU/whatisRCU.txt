@@ -873,7 +873,7 @@ d.	Do you need to treat NMI handlers, hardirq handlers,
 	and code segments with preemption disabled (whether
 	via preempt_disable(), local_irq_save(), local_bh_disable(),
 	or some other mechanism) as if they were explicit RCU readers?
-	If so, you need RCU-sched.
+	If so, RCU-sched is the only choice that will work for you.
 
 e.	Do you need RCU grace periods to complete even in the face
 	of softirq monopolization of one or more of the CPUs?  For
@@ -884,7 +884,12 @@ f.	Is your workload too update-intensive for normal use of
 	RCU, but inappropriate for other synchronization mechanisms?
 	If so, consider SLAB_DESTROY_BY_RCU.  But please be careful!
 
-g.	Otherwise, use RCU.
+g.	Do you need read-side critical sections that are respected
+	even though they are in the middle of the idle loop, during
+	user-mode execution, or on an offlined CPU?  If so, SRCU is the
+	only choice that will work for you.
+
+h.	Otherwise, use RCU.
 
 Of course, this all assumes that you have determined that RCU is in fact
 the right tool for your job.

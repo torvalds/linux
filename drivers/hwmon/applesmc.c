@@ -43,6 +43,7 @@
 #include <linux/leds.h>
 #include <linux/hwmon.h>
 #include <linux/workqueue.h>
+#include <linux/err.h>
 
 /* data port used by Apple SMC */
 #define APPLESMC_DATA_PORT	0x300
@@ -53,10 +54,10 @@
 
 #define APPLESMC_MAX_DATA_LENGTH 32
 
-/* wait up to 32 ms for a status change. */
+/* wait up to 128 ms for a status change. */
 #define APPLESMC_MIN_WAIT	0x0010
 #define APPLESMC_RETRY_WAIT	0x0100
-#define APPLESMC_MAX_WAIT	0x8000
+#define APPLESMC_MAX_WAIT	0x20000
 
 #define APPLESMC_READ_CMD	0x10
 #define APPLESMC_WRITE_CMD	0x11

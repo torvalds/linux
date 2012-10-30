@@ -37,7 +37,6 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
-static bool debug;
 /*
  * Version information
  */
@@ -126,9 +125,6 @@ static inline int calc_divisor(int bps)
 
 static int ark3116_attach(struct usb_serial *serial)
 {
-	struct usb_serial_port *port = serial->port[0];
-	struct ark3116_private *priv;
-
 	/* make sure we have our end-points */
 	if ((serial->num_bulk_in == 0) ||
 	    (serial->num_bulk_out == 0) ||
@@ -143,8 +139,15 @@ static int ark3116_attach(struct usb_serial *serial)
 		return -EINVAL;
 	}
 
-	priv = kzalloc(sizeof(struct ark3116_private),
-		       GFP_KERNEL);
+	return 0;
+}
+
+static int ark3116_port_probe(struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct ark3116_private *priv;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -199,23 +202,20 @@ static int ark3116_attach(struct usb_serial *serial)
 	return 0;
 }
 
-static void ark3116_release(struct usb_serial *serial)
+static int ark3116_port_remove(struct usb_serial_port *port)
 {
-	struct usb_serial_port *port = serial->port[0];
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
 
 	/* device is closed, so URBs and DMA should be down */
-
-	usb_set_serial_port_data(port, NULL);
-
 	mutex_destroy(&priv->hw_lock);
-
 	kfree(priv);
+
+	return 0;
 }
 
 static void ark3116_init_termios(struct tty_struct *tty)
 {
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	*termios = tty_std_termios;
 	termios->c_cflag = B9600 | CS8
 				      | CREAD | HUPCL | CLOCAL;
@@ -229,7 +229,7 @@ static void ark3116_set_termios(struct tty_struct *tty,
 {
 	struct usb_serial *serial = port->serial;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
-	struct ktermios *termios = tty->termios;
+	struct ktermios *termios = &tty->termios;
 	unsigned int cflag = termios->c_cflag;
 	int bps = tty_get_baud_rate(tty);
 	int quot;
@@ -650,8 +650,7 @@ static void ark3116_read_int_callback(struct urb *urb)
 		/*
 		 * Not sure what this data meant...
 		 */
-		usb_serial_debug_data(debug, &port->dev,
-				      __func__,
+		usb_serial_debug_data(&port->dev, __func__,
 				      urb->actual_length,
 				      urb->transfer_buffer);
 		break;
@@ -725,7 +724,8 @@ static struct usb_serial_driver ark3116_device = {
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		ark3116_attach,
-	.release =		ark3116_release,
+	.port_probe =		ark3116_port_probe,
+	.port_remove =		ark3116_port_remove,
 	.set_termios =		ark3116_set_termios,
 	.init_termios =		ark3116_init_termios,
 	.ioctl =		ark3116_ioctl,
@@ -749,9 +749,6 @@ MODULE_LICENSE("GPL");
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-
-module_param(debug, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Enable debug");
 
 /*
  * The following describes what I learned from studying the old

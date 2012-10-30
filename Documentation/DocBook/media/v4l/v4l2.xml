@@ -145,9 +145,12 @@ applications. -->
 	<authorinitials>hv</authorinitials>
 	<revremark>Added VIDIOC_ENUM_FREQ_BANDS.
 	</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.5</revnumber>
 	<date>2012-05-07</date>
-	<authorinitials>sa, sn</authorinitials>
+	<authorinitials>sa, sn, hv</authorinitials>
 	<revremark>Added V4L2_CTRL_TYPE_INTEGER_MENU and V4L2 subdev
 	    selections API. Improved the description of V4L2_CID_COLORFX
 	    control, added V4L2_CID_COLORFX_CBCR control.
@@ -158,11 +161,8 @@ applications. -->
 	    V4L2_CID_3A_LOCK, V4L2_CID_AUTO_FOCUS_START,
 	    V4L2_CID_AUTO_FOCUS_STOP, V4L2_CID_AUTO_FOCUS_STATUS
 	    and V4L2_CID_AUTO_FOCUS_RANGE.
-	</revremark>
-	<date>2012-05-01</date>
-	<authorinitials>hv</authorinitials>
-	<revremark>Added VIDIOC_ENUM_DV_TIMINGS, VIDIOC_QUERY_DV_TIMINGS and
-	VIDIOC_DV_TIMINGS_CAP.
+	    Added VIDIOC_ENUM_DV_TIMINGS, VIDIOC_QUERY_DV_TIMINGS and
+	    VIDIOC_DV_TIMINGS_CAP.
 	</revremark>
       </revision>
 
@@ -472,7 +472,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.5</subtitle>
+ <subtitle>Revision 3.6</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -581,6 +581,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-subdev-enum-frame-size;
     &sub-subdev-enum-mbus-code;
     &sub-subdev-g-crop;
+    &sub-subdev-g-edid;
     &sub-subdev-g-fmt;
     &sub-subdev-g-frame-interval;
     &sub-subdev-g-selection;

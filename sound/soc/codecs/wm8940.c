@@ -785,23 +785,7 @@ static struct i2c_driver wm8940_i2c_driver = {
 	.id_table = wm8940_i2c_id,
 };
 
-static int __init wm8940_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&wm8940_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register wm8940 I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(wm8940_modinit);
-
-static void __exit wm8940_exit(void)
-{
-	i2c_del_driver(&wm8940_i2c_driver);
-}
-module_exit(wm8940_exit);
+module_i2c_driver(wm8940_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8940 driver");
 MODULE_AUTHOR("Jonathan Cameron");

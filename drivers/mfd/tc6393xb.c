@@ -700,8 +700,8 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	tc6393xb_cells[TC6393XB_CELL_FB].pdata_size = sizeof(*tcpd->fb_data);
 
 	ret = mfd_add_devices(&dev->dev, dev->id,
-			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
-			iomem, tcpd->irq_base);
+			      tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
+			      iomem, tcpd->irq_base, NULL);
 
 	if (!ret)
 		return 0;

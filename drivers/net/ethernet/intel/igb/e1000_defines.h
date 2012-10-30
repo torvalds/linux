@@ -322,6 +322,9 @@
 #define E1000_FCRTC_RTH_COAL_SHIFT      4
 #define E1000_PCIEMISC_LX_DECISION      0x00000080 /* Lx power decision */
 
+/* Timestamp in Rx buffer */
+#define E1000_RXPBS_CFG_TS_EN           0x80000000
+
 /* SerDes Control */
 #define E1000_SCTL_DISABLE_SERDES_LOOPBACK 0x0400
 
@@ -360,6 +363,7 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* rx timer intr (ring 0) */
 #define E1000_ICR_VMMB          0x00000100 /* VM MB event */
+#define E1000_ICR_TS            0x00080000 /* Time Sync Interrupt */
 #define E1000_ICR_DRSTA         0x40000000 /* Device Reset Asserted */
 /* If this bit asserted, the driver should claim the interrupt */
 #define E1000_ICR_INT_ASSERTED  0x80000000
@@ -399,6 +403,7 @@
 #define E1000_IMS_TXDW      E1000_ICR_TXDW      /* Transmit desc written back */
 #define E1000_IMS_LSC       E1000_ICR_LSC       /* Link Status Change */
 #define E1000_IMS_VMMB      E1000_ICR_VMMB      /* Mail box activity */
+#define E1000_IMS_TS        E1000_ICR_TS        /* Time Sync Interrupt */
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* rx timer intr */
@@ -509,6 +514,9 @@
 #define E1000_TSYNCRXCFG_PTP_V2_MANAGEMENT_MESSAGE           0x0D00
 
 #define E1000_TIMINCA_16NS_SHIFT 24
+
+#define E1000_TSICR_TXTS 0x00000002
+#define E1000_TSIM_TXTS 0x00000002
 
 #define E1000_MDICNFG_EXT_MDIO    0x80000000      /* MDI ext/int destination */
 #define E1000_MDICNFG_COM_MDIO    0x40000000      /* MDI shared w/ lan 0 */
@@ -849,8 +857,9 @@
 #define E1000_IPCNFG_EEE_100M_AN     0x00000004  /* EEE Enable 100M AN */
 #define E1000_EEER_TX_LPI_EN         0x00010000  /* EEE Tx LPI Enable */
 #define E1000_EEER_RX_LPI_EN         0x00020000  /* EEE Rx LPI Enable */
-#define E1000_EEER_FRC_AN            0x10000000 /* Enable EEE in loopback */
+#define E1000_EEER_FRC_AN            0x10000000  /* Enable EEE in loopback */
 #define E1000_EEER_LPI_FC            0x00040000  /* EEE Enable on FC */
+#define E1000_EEE_SU_LPI_CLK_STP     0X00800000  /* EEE LPI Clock Stop */
 
 /* SerDes Control */
 #define E1000_GEN_CTL_READY             0x80000000

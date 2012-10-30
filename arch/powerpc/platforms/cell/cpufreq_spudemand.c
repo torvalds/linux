@@ -76,7 +76,7 @@ static void spu_gov_work(struct work_struct *work)
 static void spu_gov_init_work(struct spu_gov_info_struct *info)
 {
 	int delay = usecs_to_jiffies(info->poll_int);
-	INIT_DELAYED_WORK_DEFERRABLE(&info->work, spu_gov_work);
+	INIT_DEFERRABLE_WORK(&info->work, spu_gov_work);
 	schedule_delayed_work_on(info->policy->cpu, &info->work, delay);
 }
 

@@ -555,6 +555,7 @@ ssize_t msg_set(enum msg_index_t index, char *text, size_t length)
 			&& index <= MSG_FORMATTED_END)
 				&& !fmt_validate(speakup_default_msgs[index],
 				newstr)) {
+				kfree(newstr);
 				return -EINVAL;
 			}
 			spk_lock(flags);

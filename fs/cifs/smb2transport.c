@@ -30,12 +30,156 @@
 #include <linux/uaccess.h>
 #include <asm/processor.h>
 #include <linux/mempool.h>
+#include <linux/highmem.h>
 #include "smb2pdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
 #include "cifs_debug.h"
 #include "smb2status.h"
+#include "smb2glob.h"
+
+static int
+smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
+{
+	int i, rc;
+	unsigned char smb2_signature[SMB2_HMACSHA256_SIZE];
+	unsigned char *sigptr = smb2_signature;
+	struct kvec *iov = rqst->rq_iov;
+	int n_vec = rqst->rq_nvec;
+	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)iov[0].iov_base;
+
+	memset(smb2_signature, 0x0, SMB2_HMACSHA256_SIZE);
+	memset(smb2_pdu->Signature, 0x0, SMB2_SIGNATURE_SIZE);
+
+	rc = crypto_shash_setkey(server->secmech.hmacsha256,
+		server->session_key.response, SMB2_NTLMV2_SESSKEY_SIZE);
+	if (rc) {
+		cERROR(1, "%s: Could not update with response\n", __func__);
+		return rc;
+	}
+
+	rc = crypto_shash_init(&server->secmech.sdeschmacsha256->shash);
+	if (rc) {
+		cERROR(1, "%s: Could not init md5\n", __func__);
+		return rc;
+	}
+
+	for (i = 0; i < n_vec; i++) {
+		if (iov[i].iov_len == 0)
+			continue;
+		if (iov[i].iov_base == NULL) {
+			cERROR(1, "null iovec entry");
+			return -EIO;
+		}
+		/*
+		 * The first entry includes a length field (which does not get
+		 * signed that occupies the first 4 bytes before the header).
+		 */
+		if (i == 0) {
+			if (iov[0].iov_len <= 8) /* cmd field at offset 9 */
+				break; /* nothing to sign or corrupt header */
+			rc =
+			crypto_shash_update(
+				&server->secmech.sdeschmacsha256->shash,
+				iov[i].iov_base + 4, iov[i].iov_len - 4);
+		} else {
+			rc =
+			crypto_shash_update(
+				&server->secmech.sdeschmacsha256->shash,
+				iov[i].iov_base, iov[i].iov_len);
+		}
+		if (rc) {
+			cERROR(1, "%s: Could not update with payload\n",
+							__func__);
+			return rc;
+		}
+	}
+
+	/* now hash over the rq_pages array */
+	for (i = 0; i < rqst->rq_npages; i++) {
+		struct kvec p_iov;
+
+		cifs_rqst_page_to_kvec(rqst, i, &p_iov);
+		crypto_shash_update(&server->secmech.sdeschmacsha256->shash,
+					p_iov.iov_base, p_iov.iov_len);
+		kunmap(rqst->rq_pages[i]);
+	}
+
+	rc = crypto_shash_final(&server->secmech.sdeschmacsha256->shash,
+				sigptr);
+	if (rc)
+		cERROR(1, "%s: Could not generate sha256 hash\n", __func__);
+
+	memcpy(smb2_pdu->Signature, sigptr, SMB2_SIGNATURE_SIZE);
+
+	return rc;
+}
+
+/* must be called with server->srv_mutex held */
+static int
+smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
+{
+	int rc = 0;
+	struct smb2_hdr *smb2_pdu = rqst->rq_iov[0].iov_base;
+
+	if (!(smb2_pdu->Flags & SMB2_FLAGS_SIGNED) ||
+	    server->tcpStatus == CifsNeedNegotiate)
+		return rc;
+
+	if (!server->session_estab) {
+		strncpy(smb2_pdu->Signature, "BSRSPYL", 8);
+		return rc;
+	}
+
+	rc = smb2_calc_signature(rqst, server);
+
+	return rc;
+}
+
+int
+smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
+{
+	unsigned int rc;
+	char server_response_sig[16];
+	struct smb2_hdr *smb2_pdu = (struct smb2_hdr *)rqst->rq_iov[0].iov_base;
+
+	if ((smb2_pdu->Command == SMB2_NEGOTIATE) ||
+	    (smb2_pdu->Command == SMB2_OPLOCK_BREAK) ||
+	    (!server->session_estab))
+		return 0;
+
+	/*
+	 * BB what if signatures are supposed to be on for session but
+	 * server does not send one? BB
+	 */
+
+	/* Do not need to verify session setups with signature "BSRSPYL " */
+	if (memcmp(smb2_pdu->Signature, "BSRSPYL ", 8) == 0)
+		cFYI(1, "dummy signature received for smb command 0x%x",
+			smb2_pdu->Command);
+
+	/*
+	 * Save off the origiginal signature so we can modify the smb and check
+	 * our calculated signature against what the server sent.
+	 */
+	memcpy(server_response_sig, smb2_pdu->Signature, SMB2_SIGNATURE_SIZE);
+
+	memset(smb2_pdu->Signature, 0, SMB2_SIGNATURE_SIZE);
+
+	mutex_lock(&server->srv_mutex);
+	rc = smb2_calc_signature(rqst, server);
+	mutex_unlock(&server->srv_mutex);
+
+	if (rc)
+		return rc;
+
+	if (memcmp(server_response_sig, smb2_pdu->Signature,
+		   SMB2_SIGNATURE_SIZE))
+		return -EACCES;
+	else
+		return 0;
+}
 
 /*
  * Set message id for the request. Should be called after wait_for_free_request
@@ -115,58 +259,66 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		   bool log_error)
 {
 	unsigned int len = get_rfc1002_length(mid->resp_buf);
+	struct kvec iov;
+	struct smb_rqst rqst = { .rq_iov = &iov,
+				 .rq_nvec = 1 };
+
+	iov.iov_base = (char *)mid->resp_buf;
+	iov.iov_len = get_rfc1002_length(mid->resp_buf) + 4;
 
 	dump_smb(mid->resp_buf, min_t(u32, 80, len));
 	/* convert the length into a more usable form */
-	/* BB - uncomment with SMB2 signing implementation */
-	/* if ((len > 24) &&
+	if ((len > 24) &&
 	    (server->sec_mode & (SECMODE_SIGN_REQUIRED|SECMODE_SIGN_ENABLED))) {
-		if (smb2_verify_signature(mid->resp_buf, server))
-			cERROR(1, "Unexpected SMB signature");
-	} */
+		int rc;
+
+		rc = smb2_verify_signature(&rqst, server);
+		if (rc)
+			cERROR(1, "SMB signature verification returned error = "
+			       "%d", rc);
+	}
 
 	return map_smb2_to_linux_error(mid->resp_buf, log_error);
 }
 
-int
-smb2_setup_request(struct cifs_ses *ses, struct kvec *iov,
-		   unsigned int nvec, struct mid_q_entry **ret_mid)
+struct mid_q_entry *
+smb2_setup_request(struct cifs_ses *ses, struct smb_rqst *rqst)
 {
 	int rc;
-	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
+	struct smb2_hdr *hdr = (struct smb2_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	smb2_seq_num_into_buf(ses->server, hdr);
 
 	rc = smb2_get_mid_entry(ses, hdr, &mid);
 	if (rc)
-		return rc;
-	/* rc = smb2_sign_smb2(iov, nvec, ses->server);
-	if (rc)
-		delete_mid(mid); */
-	*ret_mid = mid;
-	return rc;
+		return ERR_PTR(rc);
+	rc = smb2_sign_rqst(rqst, ses->server);
+	if (rc) {
+		cifs_delete_mid(mid);
+		return ERR_PTR(rc);
+	}
+	return mid;
 }
 
-int
-smb2_setup_async_request(struct TCP_Server_Info *server, struct kvec *iov,
-			 unsigned int nvec, struct mid_q_entry **ret_mid)
+struct mid_q_entry *
+smb2_setup_async_request(struct TCP_Server_Info *server, struct smb_rqst *rqst)
 {
-	int rc = 0;
-	struct smb2_hdr *hdr = (struct smb2_hdr *)iov[0].iov_base;
+	int rc;
+	struct smb2_hdr *hdr = (struct smb2_hdr *)rqst->rq_iov[0].iov_base;
 	struct mid_q_entry *mid;
 
 	smb2_seq_num_into_buf(server, hdr);
 
 	mid = smb2_mid_entry_alloc(hdr, server);
 	if (mid == NULL)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	/* rc = smb2_sign_smb2(iov, nvec, server);
+	rc = smb2_sign_rqst(rqst, server);
 	if (rc) {
 		DeleteMidQEntry(mid);
-		return rc;
-	}*/
-	*ret_mid = mid;
-	return rc;
+		return ERR_PTR(rc);
+	}
+
+	return mid;
 }

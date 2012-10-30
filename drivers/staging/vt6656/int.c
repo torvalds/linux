@@ -149,7 +149,7 @@ void INTnsProcessData(PSDevice pDevice)
 					pMgmt->sNodeDBTable[0].bRxPSPoll =
 						FALSE;
 				} else if (pMgmt->byDTIMCount == 0) {
-					/* check if mutltcast tx bufferring */
+					/* check if multicast tx buffering */
 					pMgmt->byDTIMCount =
 						pMgmt->byDTIMPeriod-1;
 					pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;

@@ -166,6 +166,8 @@ enum fc_parse_status fc_rrq_rsp_parse(struct fchs_s *buf, int len);
 
 u16        fc_rspnid_build(struct fchs_s *fchs, void *pld, u32 s_id,
 				u16 ox_id, u8 *name);
+u16	fc_rsnn_nn_build(struct fchs_s *fchs, void *pld, u32 s_id,
+				wwn_t node_name, u8 *name);
 
 u16        fc_rftid_build(struct fchs_s *fchs, void *pld, u32 s_id,
 			       u16 ox_id, enum bfa_lport_role role);

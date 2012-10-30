@@ -26,8 +26,8 @@
 #ifndef TTM_PAGE_ALLOC
 #define TTM_PAGE_ALLOC
 
-#include "ttm_bo_driver.h"
-#include "ttm_memory.h"
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_memory.h>
 
 /**
  * Initialize pool allocator.

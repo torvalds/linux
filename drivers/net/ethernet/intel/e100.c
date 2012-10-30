@@ -3157,7 +3157,7 @@ static void e100_io_resume(struct pci_dev *pdev)
 	}
 }
 
-static struct pci_error_handlers e100_err_handler = {
+static const struct pci_error_handlers e100_err_handler = {
 	.error_detected = e100_io_error_detected,
 	.slot_reset = e100_io_slot_reset,
 	.resume = e100_io_resume,

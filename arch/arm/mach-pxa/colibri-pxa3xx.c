@@ -24,9 +24,9 @@
 #include <mach/pxa3xx-regs.h>
 #include <mach/mfp-pxa300.h>
 #include <mach/colibri.h>
-#include <mach/mmc.h>
-#include <mach/pxafb.h>
-#include <plat/pxa3xx_nand.h>
+#include <linux/platform_data/mmc-pxamci.h>
+#include <linux/platform_data/video-pxafb.h>
+#include <linux/platform_data/mtd-nand-pxa3xx.h>
 
 #include "generic.h"
 #include "devices.h"

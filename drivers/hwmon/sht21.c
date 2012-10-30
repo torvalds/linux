@@ -29,6 +29,7 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/jiffies.h>
 
 /* I2C command bytes */
 #define SHT21_TRIG_T_MEASUREMENT_HM  0xe3
@@ -199,11 +200,10 @@ static int __devinit sht21_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	sht21 = kzalloc(sizeof(*sht21), GFP_KERNEL);
-	if (!sht21) {
-		dev_dbg(&client->dev, "kzalloc failed\n");
+	sht21 = devm_kzalloc(&client->dev, sizeof(*sht21), GFP_KERNEL);
+	if (!sht21)
 		return -ENOMEM;
-	}
+
 	i2c_set_clientdata(client, sht21);
 
 	mutex_init(&sht21->lock);
@@ -211,7 +211,7 @@ static int __devinit sht21_probe(struct i2c_client *client,
 	err = sysfs_create_group(&client->dev.kobj, &sht21_attr_group);
 	if (err) {
 		dev_dbg(&client->dev, "could not create sysfs files\n");
-		goto fail_free;
+		return err;
 	}
 	sht21->hwmon_dev = hwmon_device_register(&client->dev);
 	if (IS_ERR(sht21->hwmon_dev)) {
@@ -226,9 +226,6 @@ static int __devinit sht21_probe(struct i2c_client *client,
 
 fail_remove_sysfs:
 	sysfs_remove_group(&client->dev.kobj, &sht21_attr_group);
-fail_free:
-	kfree(sht21);
-
 	return err;
 }
 
@@ -242,7 +239,6 @@ static int __devexit sht21_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(sht21->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &sht21_attr_group);
-	kfree(sht21);
 
 	return 0;
 }

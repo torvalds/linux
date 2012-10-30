@@ -193,7 +193,7 @@ static inline void rng_create_sh_desc(struct caam_rng_ctx *ctx)
 	struct device *jrdev = ctx->jrdev;
 	u32 *desc = ctx->sh_desc;
 
-	init_sh_desc(desc, HDR_SHARE_WAIT);
+	init_sh_desc(desc, HDR_SHARE_SERIAL);
 
 	/* Propagate errors from shared to job descriptor */
 	append_cmd(desc, SET_OK_NO_PROP_ERRORS | CMD_LOAD);
@@ -284,8 +284,11 @@ static int __init caam_rng_init(void)
 	struct caam_drv_private *priv;
 
 	dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec-v4.0");
-	if (!dev_node)
-		return -ENODEV;
+	if (!dev_node) {
+		dev_node = of_find_compatible_node(NULL, NULL, "fsl,sec4.0");
+		if (!dev_node)
+			return -ENODEV;
+	}
 
 	pdev = of_find_device_by_node(dev_node);
 	if (!pdev)

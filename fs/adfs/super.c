@@ -15,6 +15,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/statfs.h>
+#include <linux/user_namespace.h>
 #include "adfs.h"
 #include "dir_f.h"
 #include "dir_fplus.h"
@@ -130,10 +131,10 @@ static int adfs_show_options(struct seq_file *seq, struct dentry *root)
 {
 	struct adfs_sb_info *asb = ADFS_SB(root->d_sb);
 
-	if (asb->s_uid != 0)
-		seq_printf(seq, ",uid=%u", asb->s_uid);
-	if (asb->s_gid != 0)
-		seq_printf(seq, ",gid=%u", asb->s_gid);
+	if (!uid_eq(asb->s_uid, GLOBAL_ROOT_UID))
+		seq_printf(seq, ",uid=%u", from_kuid_munged(&init_user_ns, asb->s_uid));
+	if (!gid_eq(asb->s_gid, GLOBAL_ROOT_GID))
+		seq_printf(seq, ",gid=%u", from_kgid_munged(&init_user_ns, asb->s_gid));
 	if (asb->s_owner_mask != ADFS_DEFAULT_OWNER_MASK)
 		seq_printf(seq, ",ownmask=%o", asb->s_owner_mask);
 	if (asb->s_other_mask != ADFS_DEFAULT_OTHER_MASK)
@@ -175,12 +176,16 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_uid:
 			if (match_int(args, &option))
 				return -EINVAL;
-			asb->s_uid = option;
+			asb->s_uid = make_kuid(current_user_ns(), option);
+			if (!uid_valid(asb->s_uid))
+				return -EINVAL;
 			break;
 		case Opt_gid:
 			if (match_int(args, &option))
 				return -EINVAL;
-			asb->s_gid = option;
+			asb->s_gid = make_kgid(current_user_ns(), option);
+			if (!gid_valid(asb->s_gid))
+				return -EINVAL;
 			break;
 		case Opt_ownmask:
 			if (match_octal(args, &option))
@@ -275,6 +280,11 @@ static int init_inodecache(void)
 
 static void destroy_inodecache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(adfs_inode_cachep);
 }
 
@@ -369,8 +379,8 @@ static int adfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_fs_info = asb;
 
 	/* set default options */
-	asb->s_uid = 0;
-	asb->s_gid = 0;
+	asb->s_uid = GLOBAL_ROOT_UID;
+	asb->s_gid = GLOBAL_ROOT_GID;
 	asb->s_owner_mask = ADFS_DEFAULT_OWNER_MASK;
 	asb->s_other_mask = ADFS_DEFAULT_OTHER_MASK;
 	asb->s_ftsuffix = 0;
