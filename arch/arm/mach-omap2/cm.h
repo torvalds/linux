@@ -37,8 +37,18 @@
 
 /**
  * struct cm_ll_data - fn ptrs to per-SoC CM function implementations
+ * @split_idlest_reg: ptr to the SoC CM-specific split_idlest_reg impl
+ * @wait_module_ready: ptr to the SoC CM-specific wait_module_ready impl
  */
-struct cm_ll_data {};
+struct cm_ll_data {
+	int (*split_idlest_reg)(void __iomem *idlest_reg, s16 *prcm_inst,
+				u8 *idlest_reg_id);
+	int (*wait_module_ready)(s16 prcm_mod, u8 idlest_id, u8 idlest_shift);
+};
+
+extern int cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
+			       u8 *idlest_reg_id);
+extern int cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift);
 
 extern int cm_register(struct cm_ll_data *cld);
 extern int cm_unregister(struct cm_ll_data *cld);

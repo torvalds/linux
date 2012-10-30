@@ -198,6 +198,43 @@ void omap2xxx_cm_apll96_disable(void)
 	_omap2xxx_apll_disable(OMAP24XX_EN_96M_PLL_SHIFT);
 }
 
+/**
+ * omap2xxx_cm_split_idlest_reg - split CM_IDLEST reg addr into its components
+ * @idlest_reg: CM_IDLEST* virtual address
+ * @prcm_inst: pointer to an s16 to return the PRCM instance offset
+ * @idlest_reg_id: pointer to a u8 to return the CM_IDLESTx register ID
+ *
+ * XXX This function is only needed until absolute register addresses are
+ * removed from the OMAP struct clk records.
+ */
+int omap2xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
+				 u8 *idlest_reg_id)
+{
+	unsigned long offs;
+	u8 idlest_offs;
+	int i;
+
+	if (idlest_reg < cm_base || idlest_reg > (cm_base + 0x0fff))
+		return -EINVAL;
+
+	idlest_offs = (unsigned long)idlest_reg & 0xff;
+	for (i = 0; i < ARRAY_SIZE(omap2xxx_cm_idlest_offs); i++) {
+		if (idlest_offs == omap2xxx_cm_idlest_offs[i]) {
+			*idlest_reg_id = i + 1;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(omap2xxx_cm_idlest_offs))
+		return -EINVAL;
+
+	offs = idlest_reg - cm_base;
+	offs &= 0xff00;
+	*prcm_inst = offs;
+
+	return 0;
+}
+
 /*
  *
  */
@@ -314,3 +351,31 @@ struct clkdm_ops omap2_clkdm_operations = {
 	.clkdm_clk_enable	= omap2xxx_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap2xxx_clkdm_clk_disable,
 };
+
+/*
+ *
+ */
+
+static struct cm_ll_data omap2xxx_cm_ll_data = {
+	.split_idlest_reg	= &omap2xxx_cm_split_idlest_reg,
+	.wait_module_ready	= &omap2xxx_cm_wait_module_ready,
+};
+
+int __init omap2xxx_cm_init(void)
+{
+	if (!cpu_is_omap24xx())
+		return 0;
+
+	return cm_register(&omap2xxx_cm_ll_data);
+}
+
+static void __exit omap2xxx_cm_exit(void)
+{
+	if (!cpu_is_omap24xx())
+		return;
+
+	/* Should never happen */
+	WARN(cm_unregister(&omap2xxx_cm_ll_data),
+	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap2xxx_cm_exit);

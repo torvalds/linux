@@ -110,6 +110,44 @@ int omap3xxx_cm_wait_module_ready(s16 prcm_mod, u8 idlest_id, u8 idlest_shift)
 	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
 
+/**
+ * omap3xxx_cm_split_idlest_reg - split CM_IDLEST reg addr into its components
+ * @idlest_reg: CM_IDLEST* virtual address
+ * @prcm_inst: pointer to an s16 to return the PRCM instance offset
+ * @idlest_reg_id: pointer to a u8 to return the CM_IDLESTx register ID
+ *
+ * XXX This function is only needed until absolute register addresses are
+ * removed from the OMAP struct clk records.
+ */
+int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg, s16 *prcm_inst,
+				 u8 *idlest_reg_id)
+{
+	unsigned long offs;
+	u8 idlest_offs;
+	int i;
+
+	if (idlest_reg < (cm_base + OMAP3430_IVA2_MOD) ||
+	    idlest_reg > (cm_base + 0x1ffff))
+		return -EINVAL;
+
+	idlest_offs = (unsigned long)idlest_reg & 0xff;
+	for (i = 0; i < ARRAY_SIZE(omap3xxx_cm_idlest_offs); i++) {
+		if (idlest_offs == omap3xxx_cm_idlest_offs[i]) {
+			*idlest_reg_id = i + 1;
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(omap3xxx_cm_idlest_offs))
+		return -EINVAL;
+
+	offs = idlest_reg - cm_base;
+	offs &= 0xff00;
+	*prcm_inst = offs;
+
+	return 0;
+}
+
 /* Clockdomain low-level operations */
 
 static int omap3xxx_clkdm_add_sleepdep(struct clockdomain *clkdm1,
@@ -597,3 +635,31 @@ void omap3_cm_restore_context(void)
 	omap2_cm_write_mod_reg(cm_context.cm_clkout_ctrl, OMAP3430_CCR_MOD,
 			       OMAP3_CM_CLKOUT_CTRL_OFFSET);
 }
+
+/*
+ *
+ */
+
+static struct cm_ll_data omap3xxx_cm_ll_data = {
+	.split_idlest_reg	= &omap3xxx_cm_split_idlest_reg,
+	.wait_module_ready	= &omap3xxx_cm_wait_module_ready,
+};
+
+int __init omap3xxx_cm_init(void)
+{
+	if (!cpu_is_omap34xx())
+		return 0;
+
+	return cm_register(&omap3xxx_cm_ll_data);
+}
+
+static void __exit omap3xxx_cm_exit(void)
+{
+	if (!cpu_is_omap34xx())
+		return;
+
+	/* Should never happen */
+	WARN(cm_unregister(&omap3xxx_cm_ll_data),
+	     "%s: cm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap3xxx_cm_exit);

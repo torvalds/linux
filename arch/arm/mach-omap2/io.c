@@ -45,6 +45,8 @@
 #include "sdrc.h"
 #include "control.h"
 #include "serial.h"
+#include "cm2xxx.h"
+#include "cm3xxx.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -388,6 +390,7 @@ void __init omap2420_init_early(void)
 			       OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE),
 			       NULL, NULL);
 	omap2xxx_check_revision();
+	omap2xxx_cm_init();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap242x_powerdomains_init();
@@ -417,6 +420,7 @@ void __init omap2430_init_early(void)
 			       OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE),
 			       NULL, NULL);
 	omap2xxx_check_revision();
+	omap2xxx_cm_init();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap243x_powerdomains_init();
@@ -451,6 +455,7 @@ void __init omap3_init_early(void)
 			       NULL, NULL);
 	omap3xxx_check_revision();
 	omap3xxx_check_features();
+	omap3xxx_cm_init();
 	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
