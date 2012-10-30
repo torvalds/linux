@@ -176,8 +176,8 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define PARM_DMA_CACHE_DEF      0
 
 /* RX defines */
-#define FBR_CHUNKS 32
-#define MAX_DESC_PER_RING_RX         1024
+#define FBR_CHUNKS		32
+#define MAX_DESC_PER_RING_RX	1024
 
 /* number of RFDs - default and min */
 #define RFD_LOW_WATER_MARK	40
@@ -1847,6 +1847,7 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	u32 entry;
 	u32 psr_num_des;
 	unsigned long flags;
+	u8 id;
 
 	/* Halt RXDMA to perform the reconfigure.  */
 	et131x_rx_dma_disable(adapter);
@@ -1874,56 +1875,52 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 	/* These local variables track the PSR in the adapter structure */
 	rx_local->local_psr_full = 0;
 
-	/* Now's the best time to initialize FBR1 contents */
-	fbr_entry = (struct fbr_desc *) rx_local->fbr[0]->ring_virtaddr;
-	for (entry = 0; entry < rx_local->fbr[0]->num_entries; entry++) {
-		fbr_entry->addr_hi = rx_local->fbr[0]->bus_high[entry];
-		fbr_entry->addr_lo = rx_local->fbr[0]->bus_low[entry];
-		fbr_entry->word2 = entry;
-		fbr_entry++;
+	for (id = 0; id < NUM_FBRS; id++) {
+		u32 *num_des;
+		u32 *full_offset;
+		u32 *min_des;
+		u32 *base_hi;
+		u32 *base_lo;
+
+		if (id == 0) {
+			num_des = &rx_dma->fbr1_num_des;
+			full_offset = &rx_dma->fbr1_full_offset;
+			min_des = &rx_dma->fbr1_min_des;
+			base_hi = &rx_dma->fbr1_base_hi;
+			base_lo = &rx_dma->fbr1_base_lo;
+		} else {
+			num_des = &rx_dma->fbr0_num_des;
+			full_offset = &rx_dma->fbr0_full_offset;
+			min_des = &rx_dma->fbr0_min_des;
+			base_hi = &rx_dma->fbr0_base_hi;
+			base_lo = &rx_dma->fbr0_base_lo;
+		}
+
+		/* Now's the best time to initialize FBR contents */
+		fbr_entry = (struct fbr_desc *) rx_local->fbr[id]->ring_virtaddr;
+		for (entry = 0; entry < rx_local->fbr[id]->num_entries; entry++) {
+			fbr_entry->addr_hi = rx_local->fbr[id]->bus_high[entry];
+			fbr_entry->addr_lo = rx_local->fbr[id]->bus_low[entry];
+			fbr_entry->word2 = entry;
+			fbr_entry++;
+		}
+
+		/* Set the address and parameters of Free buffer ring 1 and 0
+		 * into the 1310's registers
+		 */
+		writel(upper_32_bits(rx_local->fbr[id]->ring_physaddr), base_hi);
+		writel(lower_32_bits(rx_local->fbr[id]->ring_physaddr), base_lo);
+		writel(rx_local->fbr[id]->num_entries - 1, num_des);
+		writel(ET_DMA10_WRAP, full_offset);
+
+		/* This variable tracks the free buffer ring 1 full position,
+		 * so it has to match the above.
+		 */
+		rx_local->fbr[id]->local_full = ET_DMA10_WRAP;
+		writel(((rx_local->fbr[id]->num_entries *
+					LO_MARK_PERCENT_FOR_RX) / 100) - 1,
+		       min_des);
 	}
-
-	/* Set the address and parameters of Free buffer ring 1 (and 0 if
-	 * required) into the 1310's registers
-	 */
-	writel(upper_32_bits(rx_local->fbr[0]->ring_physaddr),
-	       &rx_dma->fbr1_base_hi);
-	writel(lower_32_bits(rx_local->fbr[0]->ring_physaddr),
-	       &rx_dma->fbr1_base_lo);
-	writel(rx_local->fbr[0]->num_entries - 1, &rx_dma->fbr1_num_des);
-	writel(ET_DMA10_WRAP, &rx_dma->fbr1_full_offset);
-
-	/* This variable tracks the free buffer ring 1 full position, so it
-	 * has to match the above.
-	 */
-	rx_local->fbr[0]->local_full = ET_DMA10_WRAP;
-	writel(
-	   ((rx_local->fbr[0]->num_entries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
-	   &rx_dma->fbr1_min_des);
-
-	/* Now's the best time to initialize FBR0 contents */
-	fbr_entry = (struct fbr_desc *) rx_local->fbr[1]->ring_virtaddr;
-	for (entry = 0; entry < rx_local->fbr[1]->num_entries; entry++) {
-		fbr_entry->addr_hi = rx_local->fbr[1]->bus_high[entry];
-		fbr_entry->addr_lo = rx_local->fbr[1]->bus_low[entry];
-		fbr_entry->word2 = entry;
-		fbr_entry++;
-	}
-
-	writel(upper_32_bits(rx_local->fbr[1]->ring_physaddr),
-	       &rx_dma->fbr0_base_hi);
-	writel(lower_32_bits(rx_local->fbr[1]->ring_physaddr),
-	       &rx_dma->fbr0_base_lo);
-	writel(rx_local->fbr[1]->num_entries - 1, &rx_dma->fbr0_num_des);
-	writel(ET_DMA10_WRAP, &rx_dma->fbr0_full_offset);
-
-	/* This variable tracks the free buffer ring 0 full position, so it
-	 * has to match the above.
-	 */
-	rx_local->fbr[1]->local_full = ET_DMA10_WRAP;
-	writel(
-	   ((rx_local->fbr[1]->num_entries * LO_MARK_PERCENT_FOR_RX) / 100) - 1,
-	   &rx_dma->fbr0_min_des);
 
 	/* Program the number of packets we will receive before generating an
 	 * interrupt.
@@ -2258,7 +2255,8 @@ static inline u32 bump_free_buff_ring(u32 *free_buff_ring, u32 limit)
  * @mask: correct mask
  */
 static void et131x_align_allocated_memory(struct et131x_adapter *adapter,
-					  dma_addr_t *phys_addr, dma_addr_t *offset,
+					  dma_addr_t *phys_addr,
+					  dma_addr_t *offset,
 					  u64 mask)
 {
 	u64 new_addr = *phys_addr & ~mask;
@@ -2286,6 +2284,7 @@ static void et131x_align_allocated_memory(struct et131x_adapter *adapter,
  */
 static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 {
+	u8 id;
 	u32 i, j;
 	u32 bufsize;
 	u32 pktstat_ringsize, fbr_chunksize;
@@ -2337,158 +2336,95 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 				adapter->rx_ring.fbr[1]->num_entries +
 				adapter->rx_ring.fbr[0]->num_entries;
 
-	/* Allocate an area of memory for Free Buffer Ring 1 */
-	bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[0]->num_entries) +
-									0xfff;
-	rx_ring->fbr[0]->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
+	for (id = 0; id < NUM_FBRS; id++) {
+		/* Allocate an area of memory for Free Buffer Ring */
+		bufsize = (sizeof(struct fbr_desc) *
+				rx_ring->fbr[id]->num_entries) + 0xfff;
+		rx_ring->fbr[id]->ring_virtaddr =
+				dma_alloc_coherent(&adapter->pdev->dev,
 					bufsize,
-					&rx_ring->fbr[0]->ring_physaddr,
+					&rx_ring->fbr[id]->ring_physaddr,
 					GFP_KERNEL);
-	if (!rx_ring->fbr[0]->ring_virtaddr) {
-		dev_err(&adapter->pdev->dev,
-			  "Cannot alloc memory for Free Buffer Ring 1\n");
-		return -ENOMEM;
-	}
-
-	/* Align Free Buffer Ring 1 on a 4K boundary */
-	et131x_align_allocated_memory(adapter,
-				      &rx_ring->fbr[0]->ring_physaddr,
-				      &rx_ring->fbr[0]->offset, 0x0FFF);
-
-	rx_ring->fbr[0]->ring_virtaddr =
-			(void *)((u8 *) rx_ring->fbr[0]->ring_virtaddr +
-			rx_ring->fbr[0]->offset);
-
-	/* Allocate an area of memory for Free Buffer Ring 0 */
-	bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[1]->num_entries) +
-									0xfff;
-	rx_ring->fbr[1]->ring_virtaddr = dma_alloc_coherent(&adapter->pdev->dev,
-						bufsize,
-						&rx_ring->fbr[1]->ring_physaddr,
-						GFP_KERNEL);
-	if (!rx_ring->fbr[1]->ring_virtaddr) {
-		dev_err(&adapter->pdev->dev,
-			  "Cannot alloc memory for Free Buffer Ring 0\n");
-		return -ENOMEM;
-	}
-
-	/* Align Free Buffer Ring 0 on a 4K boundary */
-	et131x_align_allocated_memory(adapter,
-				      &rx_ring->fbr[1]->ring_physaddr,
-				      &rx_ring->fbr[1]->offset, 0x0FFF);
-
-	rx_ring->fbr[1]->ring_virtaddr =
-			(void *)((u8 *) rx_ring->fbr[1]->ring_virtaddr +
-			rx_ring->fbr[1]->offset);
-
-	for (i = 0; i < (rx_ring->fbr[0]->num_entries / FBR_CHUNKS); i++) {
-		dma_addr_t fbr1_tmp_physaddr;
-		dma_addr_t fbr1_offset;
-		u32 fbr1_align;
-
-		/* This code allocates an area of memory big enough for N
-		 * free buffers + (buffer_size - 1) so that the buffers can
-		 * be aligned on 4k boundaries.  If each buffer were aligned
-		 * to a buffer_size boundary, the effect would be to double
-		 * the size of FBR0.  By allocating N buffers at once, we
-		 * reduce this overhead.
-		 */
-		if (rx_ring->fbr[0]->buffsize > 4096)
-			fbr1_align = 4096;
-		else
-			fbr1_align = rx_ring->fbr[0]->buffsize;
-
-		fbr_chunksize =
-		    (FBR_CHUNKS * rx_ring->fbr[0]->buffsize) + fbr1_align - 1;
-		rx_ring->fbr[0]->mem_virtaddrs[i] =
-		    dma_alloc_coherent(&adapter->pdev->dev, fbr_chunksize,
-				       &rx_ring->fbr[0]->mem_physaddrs[i],
-				       GFP_KERNEL);
-
-		if (!rx_ring->fbr[0]->mem_virtaddrs[i]) {
+		if (!rx_ring->fbr[id]->ring_virtaddr) {
 			dev_err(&adapter->pdev->dev,
-				"Could not alloc memory\n");
+			   "Cannot alloc memory for Free Buffer Ring %d\n", id);
 			return -ENOMEM;
 		}
 
-		/* See NOTE in "Save Physical Address" comment above */
-		fbr1_tmp_physaddr = rx_ring->fbr[0]->mem_physaddrs[i];
-
+		/* Align Free Buffer Ring on a 4K boundary */
 		et131x_align_allocated_memory(adapter,
-					      &fbr1_tmp_physaddr,
-					      &fbr1_offset, (fbr1_align - 1));
+					     &rx_ring->fbr[id]->ring_physaddr,
+					     &rx_ring->fbr[id]->offset, 0x0FFF);
 
-		for (j = 0; j < FBR_CHUNKS; j++) {
-			u32 index = (i * FBR_CHUNKS) + j;
-
-			/* Save the Virtual address of this index for quick
-			 * access later
-			 */
-			rx_ring->fbr[0]->virt[index] =
-			    (u8 *) rx_ring->fbr[0]->mem_virtaddrs[i] +
-			    (j * rx_ring->fbr[0]->buffsize) + fbr1_offset;
-
-			/* now store the physical address in the descriptor
-			 * so the device can access it
-			 */
-			rx_ring->fbr[0]->bus_high[index] =
-					upper_32_bits(fbr1_tmp_physaddr);
-			rx_ring->fbr[0]->bus_low[index] =
-					lower_32_bits(fbr1_tmp_physaddr);
-
-			fbr1_tmp_physaddr += rx_ring->fbr[0]->buffsize;
-
-			rx_ring->fbr[0]->buffer1[index] =
-					rx_ring->fbr[0]->virt[index];
-			rx_ring->fbr[0]->buffer2[index] =
-					rx_ring->fbr[0]->virt[index] - 4;
-		}
+		rx_ring->fbr[id]->ring_virtaddr =
+			(void *)((u8 *) rx_ring->fbr[id]->ring_virtaddr +
+			rx_ring->fbr[id]->offset);
 	}
 
-	/* Same for FBR0 (if in use) */
-	for (i = 0; i < (rx_ring->fbr[1]->num_entries / FBR_CHUNKS); i++) {
-		dma_addr_t fbr0_tmp_physaddr;
-		dma_addr_t fbr0_offset;
+	for (id = 0; id < NUM_FBRS; id++) {
+		for (i = 0; i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
+			dma_addr_t fbr_tmp_physaddr;
+			dma_addr_t fbr_offset;
+			u32 fbr_align;
 
-		fbr_chunksize =
-		    ((FBR_CHUNKS + 1) * rx_ring->fbr[1]->buffsize) - 1;
-		rx_ring->fbr[1]->mem_virtaddrs[i] =
-		    dma_alloc_coherent(&adapter->pdev->dev, fbr_chunksize,
-				       &rx_ring->fbr[1]->mem_physaddrs[i],
-				       GFP_KERNEL);
+			/* This code allocates an area of memory big enough for
+			 * N free buffers + (buffer_size - 1) so that the
+			 * buffers can be aligned on 4k boundaries.  If each
+			 * buffer were aligned to a buffer_size boundary, the
+			 * effect would be to double the size of FBR0. By
+			 * allocating N buffers at once, we reduce this overhead
+			 */
+			if (id == 0 && rx_ring->fbr[id]->buffsize > 4096)
+					fbr_align = 4096;
+			else
+					fbr_align = rx_ring->fbr[id]->buffsize;
 
-		if (!rx_ring->fbr[1]->mem_virtaddrs[i]) {
-			dev_err(&adapter->pdev->dev,
-				"Could not alloc memory\n");
-			return -ENOMEM;
-		}
+			fbr_chunksize = (FBR_CHUNKS *
+				rx_ring->fbr[id]->buffsize) + fbr_align - 1;
+			rx_ring->fbr[id]->mem_virtaddrs[i] = dma_alloc_coherent(
+					&adapter->pdev->dev, fbr_chunksize,
+					&rx_ring->fbr[id]->mem_physaddrs[i],
+					GFP_KERNEL);
 
-		/* See NOTE in "Save Physical Address" comment above */
-		fbr0_tmp_physaddr = rx_ring->fbr[1]->mem_physaddrs[i];
+			if (!rx_ring->fbr[id]->mem_virtaddrs[i]) {
+				dev_err(&adapter->pdev->dev,
+					"Could not alloc memory\n");
+				return -ENOMEM;
+			}
 
-		et131x_align_allocated_memory(adapter,
-					      &fbr0_tmp_physaddr,
-					      &fbr0_offset,
-					      rx_ring->fbr[1]->buffsize - 1);
+			/* See NOTE in "Save Physical Address" comment above */
+			fbr_tmp_physaddr = rx_ring->fbr[id]->mem_physaddrs[i];
 
-		for (j = 0; j < FBR_CHUNKS; j++) {
-			u32 index = (i * FBR_CHUNKS) + j;
+			et131x_align_allocated_memory(adapter,
+						      &fbr_tmp_physaddr,
+						      &fbr_offset,
+						      (fbr_align - 1));
 
-			rx_ring->fbr[1]->virt[index] =
-			    (u8 *) rx_ring->fbr[1]->mem_virtaddrs[i] +
-			    (j * rx_ring->fbr[1]->buffsize) + fbr0_offset;
+			for (j = 0; j < FBR_CHUNKS; j++) {
+				u32 index = (i * FBR_CHUNKS) + j;
 
-			rx_ring->fbr[1]->bus_high[index] =
-					upper_32_bits(fbr0_tmp_physaddr);
-			rx_ring->fbr[1]->bus_low[index] =
-					lower_32_bits(fbr0_tmp_physaddr);
+				/* Save the Virtual address of this index for
+				 * quick access later
+				 */
+				rx_ring->fbr[id]->virt[index] =
+				  (u8 *) rx_ring->fbr[id]->mem_virtaddrs[i] +
+				  (j * rx_ring->fbr[id]->buffsize) + fbr_offset;
 
-			fbr0_tmp_physaddr += rx_ring->fbr[1]->buffsize;
+				/* now store the physical address in the
+				 * descriptor so the device can access it
+				 */
+				rx_ring->fbr[id]->bus_high[index] =
+						upper_32_bits(fbr_tmp_physaddr);
+				rx_ring->fbr[id]->bus_low[index] =
+						lower_32_bits(fbr_tmp_physaddr);
 
-			rx_ring->fbr[1]->buffer1[index] =
-					rx_ring->fbr[1]->virt[index];
-			rx_ring->fbr[1]->buffer2[index] =
-					rx_ring->fbr[1]->virt[index] - 4;
+				fbr_tmp_physaddr += rx_ring->fbr[id]->buffsize;
+
+				rx_ring->fbr[id]->buffer1[index] =
+					rx_ring->fbr[id]->virt[index];
+				rx_ring->fbr[id]->buffer2[index] =
+					rx_ring->fbr[id]->virt[index] - 4;
+			}
 		}
 	}
 
@@ -2557,6 +2493,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
  */
 static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 {
+	u8 id;
 	u32 index;
 	u32 bufsize;
 	u32 pktstat_ringsize;
@@ -2578,80 +2515,48 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		kmem_cache_free(adapter->rx_ring.recv_lookaside, rfd);
 	}
 
-	/* Free Free Buffer Ring 1 */
-	if (rx_ring->fbr[0]->ring_virtaddr) {
-		/* First the packet memory */
-		for (index = 0; index <
-		     (rx_ring->fbr[0]->num_entries / FBR_CHUNKS); index++) {
-			if (rx_ring->fbr[0]->mem_virtaddrs[index]) {
-				u32 fbr1_align;
+	/* Free Free Buffer Rings */
+	for (id = 0; id < NUM_FBRS; id++) {
+		if (rx_ring->fbr[id]->ring_virtaddr) {
+			/* First the packet memory */
+			for (index = 0; index <
+				(rx_ring->fbr[id]->num_entries / FBR_CHUNKS);
+			     index++) {
+				if (rx_ring->fbr[id]->mem_virtaddrs[index]) {
+					u32 fbr_align;
 
-				if (rx_ring->fbr[0]->buffsize > 4096)
-					fbr1_align = 4096;
-				else
-					fbr1_align = rx_ring->fbr[0]->buffsize;
+					if (rx_ring->fbr[id]->buffsize > 4096)
+						fbr_align = 4096;
+					else
+						fbr_align = rx_ring->fbr[id]->buffsize;
 
-				bufsize =
-				    (rx_ring->fbr[0]->buffsize * FBR_CHUNKS) +
-				    fbr1_align - 1;
+					bufsize =
+					    (rx_ring->fbr[id]->buffsize * FBR_CHUNKS) +
+					    fbr_align - 1;
 
-				dma_free_coherent(&adapter->pdev->dev,
-					bufsize,
-					rx_ring->fbr[0]->mem_virtaddrs[index],
-					rx_ring->fbr[0]->mem_physaddrs[index]);
+					dma_free_coherent(&adapter->pdev->dev,
+						bufsize,
+						rx_ring->fbr[id]->mem_virtaddrs[index],
+						rx_ring->fbr[id]->mem_physaddrs[index]);
 
-				rx_ring->fbr[0]->mem_virtaddrs[index] = NULL;
+					rx_ring->fbr[id]->mem_virtaddrs[index] = NULL;
+				}
 			}
+
+			/* Now the FIFO itself */
+			rx_ring->fbr[id]->ring_virtaddr = (void *)((u8 *)
+			    rx_ring->fbr[id]->ring_virtaddr - rx_ring->fbr[id]->offset);
+
+			bufsize =
+			    (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries) +
+										0xfff;
+
+			dma_free_coherent(&adapter->pdev->dev, bufsize,
+					    rx_ring->fbr[id]->ring_virtaddr,
+					    rx_ring->fbr[id]->ring_physaddr);
+
+			rx_ring->fbr[id]->ring_virtaddr = NULL;
 		}
-
-		/* Now the FIFO itself */
-		rx_ring->fbr[0]->ring_virtaddr = (void *)((u8 *)
-		    rx_ring->fbr[0]->ring_virtaddr - rx_ring->fbr[0]->offset);
-
-		bufsize =
-		    (sizeof(struct fbr_desc) * rx_ring->fbr[0]->num_entries) +
-									0xfff;
-
-		dma_free_coherent(&adapter->pdev->dev, bufsize,
-				    rx_ring->fbr[0]->ring_virtaddr,
-				    rx_ring->fbr[0]->ring_physaddr);
-
-		rx_ring->fbr[0]->ring_virtaddr = NULL;
-	}
-
-	/* Now the same for Free Buffer Ring 0 */
-	if (rx_ring->fbr[1]->ring_virtaddr) {
-		/* First the packet memory */
-		for (index = 0; index <
-		     (rx_ring->fbr[1]->num_entries / FBR_CHUNKS); index++) {
-			if (rx_ring->fbr[1]->mem_virtaddrs[index]) {
-				bufsize =
-				    (rx_ring->fbr[1]->buffsize *
-				     (FBR_CHUNKS + 1)) - 1;
-
-				dma_free_coherent(&adapter->pdev->dev,
-					bufsize,
-					rx_ring->fbr[1]->mem_virtaddrs[index],
-					rx_ring->fbr[1]->mem_physaddrs[index]);
-
-				rx_ring->fbr[1]->mem_virtaddrs[index] = NULL;
-			}
-		}
-
-		/* Now the FIFO itself */
-		rx_ring->fbr[1]->ring_virtaddr = (void *)((u8 *)
-		    rx_ring->fbr[1]->ring_virtaddr - rx_ring->fbr[1]->offset);
-
-		bufsize =
-		    (sizeof(struct fbr_desc) * rx_ring->fbr[1]->num_entries) +
-									0xfff;
-
-		dma_free_coherent(&adapter->pdev->dev,
-				  bufsize,
-				  rx_ring->fbr[1]->ring_virtaddr,
-				  rx_ring->fbr[1]->ring_physaddr);
-
-		rx_ring->fbr[1]->ring_virtaddr = NULL;
 	}
 
 	/* Free Packet Status Ring */
@@ -2780,43 +2685,36 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	if (
 	    (ring_index == 0 && buff_index < rx_local->fbr[1]->num_entries) ||
 	    (ring_index == 1 && buff_index < rx_local->fbr[0]->num_entries)) {
+		u32 *offset;
+		u8 id;
+		struct fbr_desc *next;
+
 		spin_lock_irqsave(&adapter->fbr_lock, flags);
 
 		if (ring_index == 1) {
-			struct fbr_desc *next = (struct fbr_desc *)
-					(rx_local->fbr[0]->ring_virtaddr) +
-					INDEX10(rx_local->fbr[0]->local_full);
-
-			/* Handle the Free Buffer Ring advancement here. Write
-			 * the PA / Buffer Index for the returned buffer into
-			 * the oldest (next to be freed)FBR entry
-			 */
-			next->addr_hi = rx_local->fbr[0]->bus_high[buff_index];
-			next->addr_lo = rx_local->fbr[0]->bus_low[buff_index];
-			next->word2 = buff_index;
-
-			writel(bump_free_buff_ring(
-					&rx_local->fbr[0]->local_full,
-					rx_local->fbr[0]->num_entries - 1),
-					&rx_dma->fbr1_full_offset);
+			id = 0;
+			offset = &rx_dma->fbr1_full_offset;
 		} else {
-			struct fbr_desc *next = (struct fbr_desc *)
-				rx_local->fbr[1]->ring_virtaddr +
-				    INDEX10(rx_local->fbr[1]->local_full);
-
-			/* Handle the Free Buffer Ring advancement here. Write
-			 * the PA / Buffer Index for the returned buffer into
-			 * the oldest (next to be freed) FBR entry
-			 */
-			next->addr_hi = rx_local->fbr[1]->bus_high[buff_index];
-			next->addr_lo = rx_local->fbr[1]->bus_low[buff_index];
-			next->word2 = buff_index;
-
-			writel(bump_free_buff_ring(
-					&rx_local->fbr[1]->local_full,
-					rx_local->fbr[1]->num_entries - 1),
-			       &rx_dma->fbr0_full_offset);
+			id = 1;
+			offset = &rx_dma->fbr0_full_offset;
 		}
+
+		next = (struct fbr_desc *) (rx_local->fbr[id]->ring_virtaddr) +
+				INDEX10(rx_local->fbr[id]->local_full);
+
+		/* Handle the Free Buffer Ring advancement here. Write
+		 * the PA / Buffer Index for the returned buffer into
+		 * the oldest (next to be freed)FBR entry
+		 */
+		next->addr_hi = rx_local->fbr[id]->bus_high[buff_index];
+		next->addr_lo = rx_local->fbr[id]->bus_low[buff_index];
+		next->word2 = buff_index;
+
+		writel(bump_free_buff_ring(
+				&rx_local->fbr[id]->local_full,
+				rx_local->fbr[id]->num_entries - 1),
+				offset);
+
 		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
 		dev_err(&adapter->pdev->dev,
