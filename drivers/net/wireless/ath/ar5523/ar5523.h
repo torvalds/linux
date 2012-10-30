@@ -122,7 +122,7 @@ struct ar5523 {
 
 	struct work_struct	rx_refill_work;
 
-	int			rxbufsz;
+	unsigned int		rxbufsz;
 	u8			serial[16];
 
 	struct ieee80211_channel channels[14];
