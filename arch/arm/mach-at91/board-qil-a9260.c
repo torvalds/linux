@@ -41,9 +41,9 @@
 
 #include <mach/hardware.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/at91_shdwc.h>
 
 #include "at91_aic.h"
+#include "at91_shdwc.h"
 #include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"

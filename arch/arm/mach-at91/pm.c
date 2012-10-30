@@ -37,7 +37,7 @@
  */
 
 #include <mach/at91_rstc.h>
-#include <mach/at91_shdwc.h>
+#include "at91_shdwc.h"
 
 static void __init show_reset_status(void)
 {
