@@ -166,33 +166,32 @@ s32 CsrHipResultToStatus(CsrResult csrResult)
 static const char*
 trace_putest_cmdid(unifi_putest_command_t putest_cmd)
 {
-    switch (putest_cmd)
-    {
-        case UNIFI_PUTEST_START:
-            return "START";
-        case UNIFI_PUTEST_STOP:
-            return "STOP";
-        case UNIFI_PUTEST_SET_SDIO_CLOCK:
-            return "SET CLOCK";
-        case UNIFI_PUTEST_CMD52_READ:
-            return "CMD52R";
-        case UNIFI_PUTEST_CMD52_BLOCK_READ:
-            return "CMD52BR";
-        case UNIFI_PUTEST_CMD52_WRITE:
-            return "CMD52W";
-        case UNIFI_PUTEST_DL_FW:
-            return "D/L FW";
-        case UNIFI_PUTEST_DL_FW_BUFF:
-            return "D/L FW BUFFER";
-        case UNIFI_PUTEST_COREDUMP_PREPARE:
-            return "PREPARE COREDUMP";
-        case UNIFI_PUTEST_GP_READ16:
-            return "GP16R";
-        case UNIFI_PUTEST_GP_WRITE16:
-            return "GP16W";
-        default:
-            return "ERROR: unrecognised command";
-    }
+	switch (putest_cmd) {
+	case UNIFI_PUTEST_START:
+		return "START";
+	case UNIFI_PUTEST_STOP:
+		return "STOP";
+	case UNIFI_PUTEST_SET_SDIO_CLOCK:
+		return "SET CLOCK";
+	case UNIFI_PUTEST_CMD52_READ:
+		return "CMD52R";
+	case UNIFI_PUTEST_CMD52_BLOCK_READ:
+		return "CMD52BR";
+	case UNIFI_PUTEST_CMD52_WRITE:
+		return "CMD52W";
+	case UNIFI_PUTEST_DL_FW:
+		return "D/L FW";
+	case UNIFI_PUTEST_DL_FW_BUFF:
+		return "D/L FW BUFFER";
+	case UNIFI_PUTEST_COREDUMP_PREPARE:
+		return "PREPARE COREDUMP";
+	case UNIFI_PUTEST_GP_READ16:
+		return "GP16R";
+	case UNIFI_PUTEST_GP_WRITE16:
+		return "GP16W";
+	default:
+		return "ERROR: unrecognised command";
+	}
  }
 
 #ifdef CSR_WIFI_HIP_DEBUG_OFFLINE
