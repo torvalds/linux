@@ -140,7 +140,6 @@
 struct adis16400_chip_info {
 	const struct iio_chan_spec *channels;
 	const int num_channels;
-	const int product_id;
 	const long flags;
 	unsigned int gyro_scale_micro;
 	unsigned int accel_scale_micro;
