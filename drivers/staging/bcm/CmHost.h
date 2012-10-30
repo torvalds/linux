@@ -121,10 +121,10 @@ typedef struct stLocalSFChangeIndicationAlt {
 	u16	u16Padd; /* < 16 bit */
 } stLocalSFChangeIndicationAlt;
 
-ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength);
+unsigned long StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength);
 int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
 int FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
-ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter);
+unsigned long SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter);
 BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer);
 
 #pragma pack(pop)
