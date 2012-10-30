@@ -125,7 +125,6 @@ void __init paging_init(void)
 	max_zone_pfns[ZONE_DMA] = PFN_DOWN(MAX_DMA_ADDRESS);
 	max_zone_pfns[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(max_zone_pfns);
-	fault_init();
 }
 
 void __init mem_init(void)

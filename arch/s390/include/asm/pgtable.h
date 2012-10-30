@@ -35,7 +35,6 @@
 extern pgd_t swapper_pg_dir[] __attribute__ ((aligned (4096)));
 extern void paging_init(void);
 extern void vmem_map_init(void);
-extern void fault_init(void);
 
 /*
  * The S390 doesn't have any external MMU info: the kernel page
