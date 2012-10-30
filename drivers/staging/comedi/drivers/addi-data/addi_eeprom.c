@@ -188,62 +188,50 @@ static void addi_eeprom_nvram_wait(unsigned long iobase)
 	} while (val & 0x80);
 }
 
+static unsigned short addi_eeprom_readw_nvram(unsigned long iobase,
+					      unsigned short addr)
+{
+	unsigned short val = 0;
+	unsigned char tmp;
+	unsigned char i;
+
+	for (i = 0; i < 2; i++) {
+		/* Load the low 8 bit address */
+		outb(NVCMD_LOAD_LOW, iobase + 0x3F);
+		addi_eeprom_nvram_wait(iobase);
+		outb((addr + i) & 0xff, iobase + 0x3E);
+		addi_eeprom_nvram_wait(iobase);
+
+		/* Load the high 8 bit address */
+		outb(NVCMD_LOAD_HIGH, iobase + 0x3F);
+		addi_eeprom_nvram_wait(iobase);
+		outb(((addr + i) >> 8) & 0xff, iobase + 0x3E);
+		addi_eeprom_nvram_wait(iobase);
+
+		/* Read the eeprom data byte */
+		outb(NVCMD_BEGIN_READ, iobase + 0x3F);
+		addi_eeprom_nvram_wait(iobase);
+		tmp = inb(iobase + 0x3E);
+		addi_eeprom_nvram_wait(iobase);
+
+		if (i == 0)
+			val |= tmp;
+		else
+			val |= (tmp << 8);
+	}
+
+	return val;
+}
+
 static unsigned short w_EepromReadWord(unsigned long iobase,
 				       char *type,
 				       unsigned short w_EepromStartAddress)
 {
-	unsigned char b_Counter = 0;
-	unsigned char b_ReadByte = 0;
-	unsigned char b_ReadLowByte = 0;
-	unsigned char b_ReadHighByte = 0;
-	unsigned char b_SelectedAddressLow = 0;
-	unsigned char b_SelectedAddressHigh = 0;
 	unsigned short w_ReadWord = 0;
 
 	/* Test the PCI chip type */
-	if (!strcmp(type, "S5920") || !strcmp(type, "S5933")) {
-		for (b_Counter = 0; b_Counter < 2; b_Counter++)
-		{
-			b_SelectedAddressLow = (w_EepromStartAddress + b_Counter) % 256;	/* Read the low 8 bit part */
-			b_SelectedAddressHigh = (w_EepromStartAddress + b_Counter) / 256;	/* Read the high 8 bit part */
-
-			/* Select the load low address mode */
-			outb(NVCMD_LOAD_LOW, iobase + 0x3F);
-			addi_eeprom_nvram_wait(iobase);
-
-			/* Load the low address */
-			outb(b_SelectedAddressLow, iobase + 0x3E);
-			addi_eeprom_nvram_wait(iobase);
-
-			/* Select the load high address mode */
-			outb(NVCMD_LOAD_HIGH, iobase + 0x3F);
-			addi_eeprom_nvram_wait(iobase);
-
-			/* Load the high address */
-			outb(b_SelectedAddressHigh, iobase + 0x3E);
-			addi_eeprom_nvram_wait(iobase);
-
-			/* Select the READ mode */
-			outb(NVCMD_BEGIN_READ, iobase + 0x3F);
-			addi_eeprom_nvram_wait(iobase);
-
-			/* Read data into the EEPROM */
-			b_ReadByte = inb(iobase + 0x3E);
-			addi_eeprom_nvram_wait(iobase);
-
-			/* Select the upper address part */
-			if (b_Counter == 0)
-			{
-				b_ReadLowByte = b_ReadByte;
-			}	/*  if(b_Counter==0) */
-			else
-			{
-				b_ReadHighByte = b_ReadByte;
-			}	/*  if(b_Counter==0) */
-		}		/*  for (b_Counter=0; b_Counter<2; b_Counter++) */
-
-		w_ReadWord = (b_ReadLowByte | (((unsigned short) b_ReadHighByte) * 256));
-	}
+	if (!strcmp(type, "S5920") || !strcmp(type, "S5933"))
+		w_ReadWord = addi_eeprom_readw_nvram(iobase, w_EepromStartAddress);
 
 	if (!strcmp(type, "93C76"))
 		w_ReadWord = addi_eeprom_readw_93c76(iobase, w_EepromStartAddress);
