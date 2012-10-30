@@ -1943,13 +1943,14 @@ static int dio200_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 /*
- * The attach_pci hook (if non-NULL) is called at PCI probe time in preference
- * to the "manual" attach hook.  dev->board_ptr is NULL on entry.  There should
- * be a board entry matching the supplied PCI device.
+ * The auto_attach hook is called at PCI probe time via
+ * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
+ * There should be a board entry matching the supplied PCI device.
  */
-static int __devinit dio200_attach_pci(struct comedi_device *dev,
-				       struct pci_dev *pci_dev)
+static int __devinit dio200_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	const struct dio200_board *thisboard;
 	struct dio200_private *devpriv;
 	resource_size_t base, len;
@@ -2074,7 +2075,7 @@ static struct comedi_driver amplc_dio200_driver = {
 	.driver_name = DIO200_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = dio200_attach,
-	.attach_pci = dio200_attach_pci,
+	.auto_attach = dio200_auto_attach,
 	.detach = dio200_detach,
 	.board_name = &dio200_boards[0].name,
 	.offset = sizeof(struct dio200_board),

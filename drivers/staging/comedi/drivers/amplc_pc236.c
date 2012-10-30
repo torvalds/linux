@@ -537,13 +537,14 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 /*
- * The attach_pci hook (if non-NULL) is called at PCI probe time in preference
- * to the "manual" attach hook.  dev->board_ptr is NULL on entry.  There should
- * be a board entry matching the supplied PCI device.
+ * The auto_attach hook is called at PCI probe time via
+ * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
+ * There should be a board entry matching the supplied PCI device.
  */
-static int __devinit pc236_attach_pci(struct comedi_device *dev,
-				      struct pci_dev *pci_dev)
+static int __devinit pc236_auto_attach(struct comedi_device *dev,
+				       unsigned long context_unused)
 {
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	struct pc236_private *devpriv;
 
 	if (!DO_PCI)
@@ -607,7 +608,7 @@ static struct comedi_driver amplc_pc236_driver = {
 	.driver_name = PC236_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = pc236_attach,
-	.attach_pci = pc236_attach_pci,
+	.auto_attach = pc236_auto_attach,
 	.detach = pc236_detach,
 	.board_name = &pc236_boards[0].name,
 	.offset = sizeof(struct pc236_board),

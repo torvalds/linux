@@ -168,9 +168,10 @@ static const void *adl_pci7x3x_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int adl_pci7x3x_attach_pci(struct comedi_device *dev,
-				  struct pci_dev *pcidev)
+static int __devinit adl_pci7x3x_auto_attach(struct comedi_device *dev,
+					     unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct adl_pci7x3x_boardinfo *board;
 	struct comedi_subdevice *s;
 	int subdev;
@@ -291,7 +292,7 @@ static void adl_pci7x3x_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci7x3x_driver = {
 	.driver_name	= "adl_pci7x3x",
 	.module		= THIS_MODULE,
-	.attach_pci	= adl_pci7x3x_attach_pci,
+	.auto_attach	= adl_pci7x3x_auto_attach,
 	.detach		= adl_pci7x3x_detach,
 };
 

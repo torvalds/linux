@@ -2691,8 +2691,10 @@ static void s626_initialize(struct comedi_device *dev)
 	/* writel(IRQ_GPIO3 | IRQ_RPS1, devpriv->base_addr + P_IER); */
 }
 
-static int s626_attach_pci(struct comedi_device *dev, struct pci_dev *pcidev)
+static int __devinit s626_auto_attach(struct comedi_device *dev,
+				      unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct s626_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -2858,7 +2860,7 @@ static void s626_detach(struct comedi_device *dev)
 static struct comedi_driver s626_driver = {
 	.driver_name	= "s626",
 	.module		= THIS_MODULE,
-	.attach_pci	= s626_attach_pci,
+	.auto_attach	= s626_auto_attach,
 	.detach		= s626_detach,
 };
 

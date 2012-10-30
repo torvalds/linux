@@ -87,9 +87,10 @@ static int cnt_rinsn(struct comedi_device *dev,
 	return 1;
 }
 
-static int cnt_attach_pci(struct comedi_device *dev,
-			  struct pci_dev *pcidev)
+static int __devinit cnt_auto_attach(struct comedi_device *dev,
+				     unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -141,7 +142,7 @@ static void cnt_detach(struct comedi_device *dev)
 static struct comedi_driver ke_counter_driver = {
 	.driver_name	= "ke_counter",
 	.module		= THIS_MODULE,
-	.attach_pci	= cnt_attach_pci,
+	.auto_attach	= cnt_auto_attach,
 	.detach		= cnt_detach,
 };
 

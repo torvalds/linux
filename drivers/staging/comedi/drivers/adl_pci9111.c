@@ -879,9 +879,10 @@ static int pci9111_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int pci9111_attach_pci(struct comedi_device *dev,
-			      struct pci_dev *pcidev)
+static int __devinit pci9111_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci9111_private_data *dev_private;
 	struct comedi_subdevice *s;
 	int ret;
@@ -975,7 +976,7 @@ static void pci9111_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci9111_driver = {
 	.driver_name	= "adl_pci9111",
 	.module		= THIS_MODULE,
-	.attach_pci	= pci9111_attach_pci,
+	.auto_attach	= pci9111_auto_attach,
 	.detach		= pci9111_detach,
 };
 

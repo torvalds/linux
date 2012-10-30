@@ -494,9 +494,10 @@ static int icp_multi_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int icp_multi_attach_pci(struct comedi_device *dev,
-				struct pci_dev *pcidev)
+static int __devinit icp_multi_auto_attach(struct comedi_device *dev,
+					   unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
 	resource_size_t iobase;
@@ -612,7 +613,7 @@ static void icp_multi_detach(struct comedi_device *dev)
 static struct comedi_driver icp_multi_driver = {
 	.driver_name	= "icp_multi",
 	.module		= THIS_MODULE,
-	.attach_pci	= icp_multi_attach_pci,
+	.auto_attach	= icp_multi_auto_attach,
 	.detach		= icp_multi_detach,
 };
 

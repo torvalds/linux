@@ -1568,9 +1568,10 @@ static const void *me4000_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int me4000_attach_pci(struct comedi_device *dev,
-			     struct pci_dev *pcidev)
+static int __devinit me4000_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct me4000_board *thisboard;
 	struct me4000_info *info;
 	struct comedi_subdevice *s;
@@ -1728,7 +1729,7 @@ static void me4000_detach(struct comedi_device *dev)
 static struct comedi_driver me4000_driver = {
 	.driver_name	= "me4000",
 	.module		= THIS_MODULE,
-	.attach_pci	= me4000_attach_pci,
+	.auto_attach	= me4000_auto_attach,
 	.detach		= me4000_detach,
 };
 

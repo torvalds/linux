@@ -232,9 +232,10 @@ static int pci1723_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int pci1723_attach_pci(struct comedi_device *dev,
-			      struct pci_dev *pcidev)
+static int __devinit pci1723_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct pci1723_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -316,7 +317,7 @@ static void pci1723_detach(struct comedi_device *dev)
 static struct comedi_driver adv_pci1723_driver = {
 	.driver_name	= "adv_pci1723",
 	.module		= THIS_MODULE,
-	.attach_pci	= pci1723_attach_pci,
+	.auto_attach	= pci1723_auto_attach,
 	.detach		= pci1723_detach,
 };
 

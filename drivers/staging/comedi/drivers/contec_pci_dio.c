@@ -68,9 +68,10 @@ static int contec_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int contec_attach_pci(struct comedi_device *dev,
-			     struct pci_dev *pcidev)
+static int __devinit contec_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -119,7 +120,7 @@ static void contec_detach(struct comedi_device *dev)
 static struct comedi_driver contec_pci_dio_driver = {
 	.driver_name	= "contec_pci_dio",
 	.module		= THIS_MODULE,
-	.attach_pci	= contec_attach_pci,
+	.auto_attach	= contec_auto_attach,
 	.detach		= contec_detach,
 };
 

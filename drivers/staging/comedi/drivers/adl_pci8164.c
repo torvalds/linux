@@ -212,9 +212,10 @@ static int adl_pci8164_insn_write_buf1(struct comedi_device *dev,
 	return 2;
 }
 
-static int adl_pci8164_attach_pci(struct comedi_device *dev,
-				  struct pci_dev *pcidev)
+static int __devinit adl_pci8164_auto_attach(struct comedi_device *dev,
+					     unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -287,7 +288,7 @@ static void adl_pci8164_detach(struct comedi_device *dev)
 static struct comedi_driver adl_pci8164_driver = {
 	.driver_name	= "adl_pci8164",
 	.module		= THIS_MODULE,
-	.attach_pci	= adl_pci8164_attach_pci,
+	.auto_attach	= adl_pci8164_auto_attach,
 	.detach		= adl_pci8164_detach,
 };
 

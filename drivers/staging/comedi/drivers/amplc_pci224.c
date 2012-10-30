@@ -1286,7 +1286,7 @@ static void pci224_report_attach(struct comedi_device *dev, unsigned int irq)
 }
 
 /*
- * Common part of attach and attach_pci.
+ * Common part of attach and auto_attach.
  */
 static int pci224_attach_common(struct comedi_device *dev,
 				struct pci_dev *pci_dev, int *options)
@@ -1460,11 +1460,12 @@ static int pci224_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 static int __devinit
-pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
+pci224_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 {
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	struct pci224_private *devpriv;
 
-	dev_info(dev->class_dev, DRIVER_NAME ": attach_pci %s\n",
+	dev_info(dev->class_dev, DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -1519,7 +1520,7 @@ static struct comedi_driver amplc_pci224_driver = {
 	.module		= THIS_MODULE,
 	.attach		= pci224_attach,
 	.detach		= pci224_detach,
-	.attach_pci	= pci224_attach_pci,
+	.auto_attach	= pci224_auto_attach,
 	.board_name	= &pci224_boards[0].name,
 	.offset		= sizeof(struct pci224_board),
 	.num_names	= ARRAY_SIZE(pci224_boards),

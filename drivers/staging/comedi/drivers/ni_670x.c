@@ -201,9 +201,10 @@ ni_670x_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
-					struct pci_dev *pcidev)
+static int __devinit ni_670x_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct ni_670x_board *thisboard;
 	struct ni_670x_private *devpriv;
 	struct comedi_subdevice *s;
@@ -298,7 +299,7 @@ static void ni_670x_detach(struct comedi_device *dev)
 static struct comedi_driver ni_670x_driver = {
 	.driver_name	= "ni_670x",
 	.module		= THIS_MODULE,
-	.attach_pci	= ni_670x_attach_pci,
+	.auto_attach	= ni_670x_auto_attach,
 	.detach		= ni_670x_detach,
 };
 

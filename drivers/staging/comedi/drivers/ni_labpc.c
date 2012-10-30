@@ -696,9 +696,10 @@ labpc_pci_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit labpc_attach_pci(struct comedi_device *dev,
-				      struct pci_dev *pcidev)
+static int __devinit labpc_auto_attach(struct comedi_device *dev,
+				       unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct labpc_private *devpriv;
 	unsigned long iobase;
 	unsigned int irq;
@@ -2117,7 +2118,7 @@ static struct comedi_driver labpc_driver = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = labpc_attach,
-	.attach_pci = labpc_attach_pci,
+	.auto_attach = labpc_auto_attach,
 	.detach = labpc_common_detach,
 	.num_names = ARRAY_SIZE(labpc_boards),
 	.board_name = &labpc_boards[0].name,

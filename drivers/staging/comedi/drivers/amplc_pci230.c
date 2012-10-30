@@ -2672,7 +2672,7 @@ static int pci230_alloc_private(struct comedi_device *dev)
 	return 0;
 }
 
-/* Common part of attach and attach_pci. */
+/* Common part of attach and auto_attach. */
 static int pci230_attach_common(struct comedi_device *dev,
 				struct pci_dev *pci_dev)
 {

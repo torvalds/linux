@@ -205,9 +205,10 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
 	return i;
 }
 
-static int cb_pcimdas_attach_pci(struct comedi_device *dev,
-				 struct pci_dev *pcidev)
+static int __devinit cb_pcimdas_auto_attach(struct comedi_device *dev,
+					    unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct cb_pcimdas_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase_8255;
@@ -288,7 +289,7 @@ static void cb_pcimdas_detach(struct comedi_device *dev)
 static struct comedi_driver cb_pcimdas_driver = {
 	.driver_name	= "cb_pcimdas",
 	.module		= THIS_MODULE,
-	.attach_pci	= cb_pcimdas_attach_pci,
+	.auto_attach	= cb_pcimdas_auto_attach,
 	.detach		= cb_pcimdas_detach,
 };
 

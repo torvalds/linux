@@ -688,9 +688,10 @@ static const void *daqboard2000_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int daqboard2000_attach_pci(struct comedi_device *dev,
-				   struct pci_dev *pcidev)
+static int __devinit daqboard2000_auto_attach(struct comedi_device *dev,
+					      unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct daq200_boardtype *board;
 	struct daqboard2000_private *devpriv;
 	struct comedi_subdevice *s;
@@ -788,7 +789,7 @@ static void daqboard2000_detach(struct comedi_device *dev)
 static struct comedi_driver daqboard2000_driver = {
 	.driver_name	= "daqboard2000",
 	.module		= THIS_MODULE,
-	.attach_pci	= daqboard2000_attach_pci,
+	.auto_attach	= daqboard2000_auto_attach,
 	.detach		= daqboard2000_detach,
 };
 

@@ -290,17 +290,21 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 	}
 }
+
 /*
- * The attach_pci hook (if non-NULL) is called at PCI probe time in preference
- * to the "manual" attach hook.  dev->board_ptr is NULL on entry.  There should
- * be a board entry matching the supplied PCI device.
+ * The auto_attach hook is called at PCI probe time via
+ * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
+ * There should be a board entry matching the supplied PCI device.
  */
-static int __devinit pc263_attach_pci(struct comedi_device *dev,
-				      struct pci_dev *pci_dev)
+static int __devinit pc263_auto_attach(struct comedi_device *dev,
+				       unsigned long context_unused)
 {
+	struct pci_dev *pci_dev;
+
 	if (!DO_PCI)
 		return -EINVAL;
 
+	pci_dev = comedi_to_pci_dev(dev);
 	dev_info(dev->class_dev, PC263_DRIVER_NAME ": attach pci %s\n",
 		 pci_name(pci_dev));
 	dev->board_ptr = pc263_find_pci_board(pci_dev);
@@ -347,7 +351,7 @@ static struct comedi_driver amplc_pc263_driver = {
 	.driver_name = PC263_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = pc263_attach,
-	.attach_pci = pc263_attach_pci,
+	.auto_attach = pc263_auto_attach,
 	.detach = pc263_detach,
 	.board_name = &pc263_boards[0].name,
 	.offset = sizeof(struct pc263_board),

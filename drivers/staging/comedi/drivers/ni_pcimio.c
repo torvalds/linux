@@ -1620,9 +1620,10 @@ pcimio_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit pcimio_attach_pci(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
+static int __devinit pcimio_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct ni_private *devpriv;
 	int ret;
 
@@ -1780,7 +1781,7 @@ static int pcimio_dio_change(struct comedi_device *dev,
 static struct comedi_driver ni_pcimio_driver = {
 	.driver_name	= "ni_pcimio",
 	.module		= THIS_MODULE,
-	.attach_pci	= pcimio_attach_pci,
+	.auto_attach	= pcimio_auto_attach,
 	.detach		= pcimio_detach,
 };
 

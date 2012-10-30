@@ -775,14 +775,16 @@ das08_find_pci_board(struct pci_dev *pdev)
 
 /* only called in the PCI probe path, via comedi_pci_auto_config() */
 static int __devinit __maybe_unused
-das08_attach_pci(struct comedi_device *dev, struct pci_dev *pdev)
+das08_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 {
+	struct pci_dev *pdev;
 	struct das08_private_struct *devpriv;
 	unsigned long iobase;
 
 	if (!DO_PCI)
 		return -EINVAL;
 
+	pdev = comedi_to_pci_dev(dev);
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -867,7 +869,7 @@ static struct comedi_driver das08_driver = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = das08_attach,
-	.attach_pci = das08_attach_pci,
+	.auto_attach = das08_auto_attach,
 	.detach = das08_detach,
 	.board_name = &das08_boards[0].name,
 	.num_names = sizeof(das08_boards) / sizeof(struct das08_board_struct),

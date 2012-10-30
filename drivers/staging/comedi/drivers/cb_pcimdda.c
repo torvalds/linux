@@ -151,9 +151,10 @@ static int cb_pcimdda_ao_rinsn(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int cb_pcimdda_attach_pci(struct comedi_device *dev,
-				 struct pci_dev *pcidev)
+static int __devinit cb_pcimdda_auto_attach(struct comedi_device *dev,
+					    unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct cb_pcimdda_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -211,7 +212,7 @@ static void cb_pcimdda_detach(struct comedi_device *dev)
 static struct comedi_driver cb_pcimdda_driver = {
 	.driver_name	= "cb_pcimdda",
 	.module		= THIS_MODULE,
-	.attach_pci	= cb_pcimdda_attach_pci,
+	.auto_attach	= cb_pcimdda_auto_attach,
 	.detach		= cb_pcimdda_detach,
 };
 

@@ -213,9 +213,10 @@ static const void *pci_8255_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int pci_8255_attach_pci(struct comedi_device *dev,
-			       struct pci_dev *pcidev)
+static int __devinit pci_8255_auto_attach(struct comedi_device *dev,
+					  unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct pci_8255_boardinfo *board;
 	struct pci_8255_private *devpriv;
 	struct comedi_subdevice *s;
@@ -303,7 +304,7 @@ static void pci_8255_detach(struct comedi_device *dev)
 static struct comedi_driver pci_8255_driver = {
 	.driver_name	= "8255_pci",
 	.module		= THIS_MODULE,
-	.attach_pci	= pci_8255_attach_pci,
+	.auto_attach	= pci_8255_auto_attach,
 	.detach		= pci_8255_detach,
 };
 

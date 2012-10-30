@@ -749,9 +749,10 @@ static const void *dt3000_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int dt3000_attach_pci(struct comedi_device *dev,
-			     struct pci_dev *pcidev)
+static int __devinit dt3000_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct dt3k_boardtype *this_board;
 	struct dt3k_private *devpriv;
 	struct comedi_subdevice *s;
@@ -866,7 +867,7 @@ static void dt3000_detach(struct comedi_device *dev)
 static struct comedi_driver dt3000_driver = {
 	.driver_name	= "dt3000",
 	.module		= THIS_MODULE,
-	.attach_pci	= dt3000_attach_pci,
+	.auto_attach	= dt3000_auto_attach,
 	.detach		= dt3000_detach,
 };
 

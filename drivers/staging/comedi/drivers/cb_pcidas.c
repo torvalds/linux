@@ -1466,9 +1466,10 @@ static const void *cb_pcidas_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int cb_pcidas_attach_pci(struct comedi_device *dev,
-				struct pci_dev *pcidev)
+static int __devinit cb_pcidas_auto_attach(struct comedi_device *dev,
+					   unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct cb_pcidas_board *thisboard;
 	struct cb_pcidas_private *devpriv;
 	struct comedi_subdevice *s;
@@ -1651,7 +1652,7 @@ static void cb_pcidas_detach(struct comedi_device *dev)
 static struct comedi_driver cb_pcidas_driver = {
 	.driver_name	= "cb_pcidas",
 	.module		= THIS_MODULE,
-	.attach_pci	= cb_pcidas_attach_pci,
+	.auto_attach	= cb_pcidas_auto_attach,
 	.detach		= cb_pcidas_detach,
 };
 
