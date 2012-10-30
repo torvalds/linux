@@ -130,10 +130,12 @@
 #define SRC_PORT			BIT(0x7)
 #define DST_PORT			BIT(0x8)
 #define SRC_INDEX			BIT(0x9)
-#define DST_INDEX			BIT(0xA)
-#define IS_BURST_ONLY4			BIT(0xB)
-#define CLEAR_CSR_ON_READ		BIT(0xC)
-#define IS_WORD_16			BIT(0xD)
+#define DST_INDEX			BIT(0xa)
+#define IS_BURST_ONLY4			BIT(0xb)
+#define CLEAR_CSR_ON_READ		BIT(0xc)
+#define IS_WORD_16			BIT(0xd)
+#define ENABLE_16XX_MODE		BIT(0xe)
+#define HS_CHANNELS_RESERVED		BIT(0xf)
 
 /* Defines for DMA Capabilities */
 #define DMA_HAS_TRANSPARENT_CAPS	(0x1 << 18)
@@ -269,6 +271,15 @@ struct omap_system_dma_plat_info {
 	void (*dma_write)(u32 val, int reg, int lch);
 	u32 (*dma_read)(int reg, int lch);
 };
+
+#ifdef CONFIG_ARCH_OMAP2PLUS
+#define dma_omap2plus()	1
+#else
+#define dma_omap2plus()	0
+#endif
+#define dma_omap1()	(!dma_omap2plus())
+#define dma_omap15xx()	((dma_omap1() && (d->dev_caps & ENABLE_1510_MODE)))
+#define dma_omap16xx()	((dma_omap1() && (d->dev_caps & ENABLE_16XX_MODE)))
 
 extern void __init omap_init_consistent_dma_size(void);
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);

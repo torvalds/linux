@@ -38,9 +38,6 @@
 
 #include <plat-omap/dma-omap.h>
 
-#include "../mach-omap1/soc.h"
-#include "../mach-omap2/soc.h"
-
 /*
  * MAX_LOGICAL_DMA_CH_COUNT: the maximum number of logical DMA
  * channels that an instance of the SDMA IP block can support.  Used
@@ -182,7 +179,7 @@ void omap_set_dma_priority(int lch, int dst_port, int priority)
 	unsigned long reg;
 	u32 l;
 
-	if (cpu_class_is_omap1()) {
+	if (dma_omap1()) {
 		switch (dst_port) {
 		case OMAP_DMA_PORT_OCP_T1:	/* FFFECC00 */
 			reg = OMAP_TC_OCPT1_PRIOR;
@@ -234,7 +231,7 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 	l |= data_type;
 	p->dma_write(l, CSDP, lch);
 
-	if (cpu_class_is_omap1()) {
+	if (dma_omap1()) {
 		u16 ccr;
 
 		ccr = p->dma_read(CCR, lch);
@@ -250,7 +247,7 @@ void omap_set_dma_transfer_params(int lch, int data_type, int elem_count,
 		p->dma_write(ccr, CCR2, lch);
 	}
 
-	if (cpu_class_is_omap2() && dma_trigger) {
+	if (dma_omap2plus() && dma_trigger) {
 		u32 val;
 
 		val = p->dma_read(CCR, lch);
@@ -290,7 +287,7 @@ void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode, u32 color)
 {
 	BUG_ON(omap_dma_in_1510_mode());
 
-	if (cpu_class_is_omap1()) {
+	if (dma_omap1()) {
 		u16 w;
 
 		w = p->dma_read(CCR2, lch);
@@ -320,7 +317,7 @@ void omap_set_dma_color_mode(int lch, enum omap_dma_color_mode mode, u32 color)
 		p->dma_write(w, LCH_CTRL, lch);
 	}
 
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		u32 val;
 
 		val = p->dma_read(CCR, lch);
@@ -348,7 +345,7 @@ EXPORT_SYMBOL(omap_set_dma_color_mode);
 
 void omap_set_dma_write_mode(int lch, enum omap_dma_write_mode mode)
 {
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		u32 csdp;
 
 		csdp = p->dma_read(CSDP, lch);
@@ -361,7 +358,7 @@ EXPORT_SYMBOL(omap_set_dma_write_mode);
 
 void omap_set_dma_channel_mode(int lch, enum omap_dma_channel_mode mode)
 {
-	if (cpu_class_is_omap1() && !cpu_is_omap15xx()) {
+	if (dma_omap1() && !dma_omap15xx()) {
 		u32 l;
 
 		l = p->dma_read(LCH_CTRL, lch);
@@ -379,7 +376,7 @@ void omap_set_dma_src_params(int lch, int src_port, int src_amode,
 {
 	u32 l;
 
-	if (cpu_class_is_omap1()) {
+	if (dma_omap1()) {
 		u16 w;
 
 		w = p->dma_read(CSDP, lch);
@@ -421,7 +418,7 @@ EXPORT_SYMBOL(omap_set_dma_params);
 
 void omap_set_dma_src_index(int lch, int eidx, int fidx)
 {
-	if (cpu_class_is_omap2())
+	if (dma_omap2plus())
 		return;
 
 	p->dma_write(eidx, CSEI, lch);
@@ -453,13 +450,13 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		if (cpu_class_is_omap2())
+		if (dma_omap2plus())
 			burst = 0x1;
 		else
 			burst = 0x2;
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		if (cpu_class_is_omap2()) {
+		if (dma_omap2plus()) {
 			burst = 0x2;
 			break;
 		}
@@ -469,7 +466,7 @@ void omap_set_dma_src_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 		 * fall through
 		 */
 	case OMAP_DMA_DATA_BURST_16:
-		if (cpu_class_is_omap2()) {
+		if (dma_omap2plus()) {
 			burst = 0x3;
 			break;
 		}
@@ -493,7 +490,7 @@ void omap_set_dma_dest_params(int lch, int dest_port, int dest_amode,
 {
 	u32 l;
 
-	if (cpu_class_is_omap1()) {
+	if (dma_omap1()) {
 		l = p->dma_read(CSDP, lch);
 		l &= ~(0x1f << 9);
 		l |= dest_port << 9;
@@ -514,7 +511,7 @@ EXPORT_SYMBOL(omap_set_dma_dest_params);
 
 void omap_set_dma_dest_index(int lch, int eidx, int fidx)
 {
-	if (cpu_class_is_omap2())
+	if (dma_omap2plus())
 		return;
 
 	p->dma_write(eidx, CDEI, lch);
@@ -546,19 +543,19 @@ void omap_set_dma_dest_burst_mode(int lch, enum omap_dma_burst_mode burst_mode)
 	case OMAP_DMA_DATA_BURST_DIS:
 		break;
 	case OMAP_DMA_DATA_BURST_4:
-		if (cpu_class_is_omap2())
+		if (dma_omap2plus())
 			burst = 0x1;
 		else
 			burst = 0x2;
 		break;
 	case OMAP_DMA_DATA_BURST_8:
-		if (cpu_class_is_omap2())
+		if (dma_omap2plus())
 			burst = 0x2;
 		else
 			burst = 0x3;
 		break;
 	case OMAP_DMA_DATA_BURST_16:
-		if (cpu_class_is_omap2()) {
+		if (dma_omap2plus()) {
 			burst = 0x3;
 			break;
 		}
@@ -579,7 +576,7 @@ EXPORT_SYMBOL(omap_set_dma_dest_burst_mode);
 static inline void omap_enable_channel_irq(int lch)
 {
 	/* Clear CSR */
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		p->dma_read(CSR, lch);
 	else
 		p->dma_write(OMAP2_DMA_CSR_CLEAR_MASK, CSR, lch);
@@ -593,7 +590,7 @@ static inline void omap_disable_channel_irq(int lch)
 	/* disable channel interrupts */
 	p->dma_write(0, CICR, lch);
 	/* Clear CSR */
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		p->dma_read(CSR, lch);
 	else
 		p->dma_write(OMAP2_DMA_CSR_CLEAR_MASK, CSR, lch);
@@ -617,7 +614,7 @@ static inline void enable_lnk(int lch)
 
 	l = p->dma_read(CLNK_CTRL, lch);
 
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		l &= ~(1 << 14);
 
 	/* Set the ENABLE_LNK bits */
@@ -625,7 +622,7 @@ static inline void enable_lnk(int lch)
 		l = dma_chan[lch].next_lch | (1 << 15);
 
 #ifndef CONFIG_ARCH_OMAP1
-	if (cpu_class_is_omap2())
+	if (dma_omap2plus())
 		if (dma_chan[lch].next_linked_ch != -1)
 			l = dma_chan[lch].next_linked_ch | (1 << 15);
 #endif
@@ -642,12 +639,12 @@ static inline void disable_lnk(int lch)
 	/* Disable interrupts */
 	omap_disable_channel_irq(lch);
 
-	if (cpu_class_is_omap1()) {
+	if (dma_omap1()) {
 		/* Set the STOP_LNK bit */
 		l |= 1 << 14;
 	}
 
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		/* Clear the ENABLE_LNK bit */
 		l &= ~(1 << 15);
 	}
@@ -661,7 +658,7 @@ static inline void omap2_enable_irq_lch(int lch)
 	u32 val;
 	unsigned long flags;
 
-	if (!cpu_class_is_omap2())
+	if (dma_omap1())
 		return;
 
 	spin_lock_irqsave(&dma_chan_lock, flags);
@@ -679,7 +676,7 @@ static inline void omap2_disable_irq_lch(int lch)
 	u32 val;
 	unsigned long flags;
 
-	if (!cpu_class_is_omap2())
+	if (dma_omap1())
 		return;
 
 	spin_lock_irqsave(&dma_chan_lock, flags);
@@ -718,7 +715,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	if (p->clear_lch_regs)
 		p->clear_lch_regs(free_ch);
 
-	if (cpu_class_is_omap2())
+	if (dma_omap2plus())
 		omap_clear_dma(free_ch);
 
 	spin_unlock_irqrestore(&dma_chan_lock, flags);
@@ -729,7 +726,7 @@ int omap_request_dma(int dev_id, const char *dev_name,
 	chan->flags = 0;
 
 #ifndef CONFIG_ARCH_OMAP1
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		chan->chain_id = -1;
 		chan->next_linked_ch = -1;
 	}
@@ -737,13 +734,13 @@ int omap_request_dma(int dev_id, const char *dev_name,
 
 	chan->enabled_irqs = OMAP_DMA_DROP_IRQ | OMAP_DMA_BLOCK_IRQ;
 
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		chan->enabled_irqs |= OMAP1_DMA_TOUT_IRQ;
-	else if (cpu_class_is_omap2())
+	else if (dma_omap2plus())
 		chan->enabled_irqs |= OMAP2_DMA_MISALIGNED_ERR_IRQ |
 			OMAP2_DMA_TRANS_ERR_IRQ;
 
-	if (cpu_is_omap16xx()) {
+	if (dma_omap16xx()) {
 		/* If the sync device is set, configure it dynamically. */
 		if (dev_id != 0) {
 			set_gdma_dev(free_ch + 1, dev_id);
@@ -754,11 +751,11 @@ int omap_request_dma(int dev_id, const char *dev_name,
 		 * id.
 		 */
 		p->dma_write(dev_id | (1 << 10), CCR, free_ch);
-	} else if (cpu_is_omap7xx() || cpu_is_omap15xx()) {
+	} else if (dma_omap1()) {
 		p->dma_write(dev_id, CCR, free_ch);
 	}
 
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		omap_enable_channel_irq(free_ch);
 		omap2_enable_irq_lch(free_ch);
 	}
@@ -780,7 +777,7 @@ void omap_free_dma(int lch)
 	}
 
 	/* Disable interrupt for logical channel */
-	if (cpu_class_is_omap2())
+	if (dma_omap2plus())
 		omap2_disable_irq_lch(lch);
 
 	/* Disable all DMA interrupts for the channel. */
@@ -790,7 +787,7 @@ void omap_free_dma(int lch)
 	p->dma_write(0, CCR, lch);
 
 	/* Clear registers */
-	if (cpu_class_is_omap2())
+	if (dma_omap2plus())
 		omap_clear_dma(lch);
 
 	spin_lock_irqsave(&dma_chan_lock, flags);
@@ -816,7 +813,7 @@ omap_dma_set_global_params(int arb_rate, int max_fifo_depth, int tparams)
 {
 	u32 reg;
 
-	if (!cpu_class_is_omap2()) {
+	if (dma_omap1()) {
 		printk(KERN_ERR "FIXME: no %s on 15xx/16xx\n", __func__);
 		return;
 	}
@@ -855,7 +852,7 @@ omap_dma_set_prio_lch(int lch, unsigned char read_prio,
 	}
 	l = p->dma_read(CCR, lch);
 	l &= ~((1 << 6) | (1 << 26));
-	if (cpu_class_is_omap2() && !cpu_is_omap242x())
+	if (d->dev_caps & IS_RW_PRIORITY)
 		l |= ((read_prio & 0x1) << 6) | ((write_prio & 0x1) << 26);
 	else
 		l |= ((read_prio & 0x1) << 6);
@@ -888,7 +885,7 @@ void omap_start_dma(int lch)
 	 * The CPC/CDAC register needs to be initialized to zero
 	 * before starting dma transfer.
 	 */
-	if (cpu_is_omap15xx())
+	if (dma_omap15xx())
 		p->dma_write(0, CPC, lch);
 	else
 		p->dma_write(0, CDAC, lch);
@@ -1051,7 +1048,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 {
 	dma_addr_t offset = 0;
 
-	if (cpu_is_omap15xx())
+	if (dma_omap15xx())
 		offset = p->dma_read(CPC, lch);
 	else
 		offset = p->dma_read(CSAC, lch);
@@ -1059,7 +1056,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 	if (IS_DMA_ERRATA(DMA_ERRATA_3_3) && offset == 0)
 		offset = p->dma_read(CSAC, lch);
 
-	if (!cpu_is_omap15xx()) {
+	if (!dma_omap15xx()) {
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
 		 * not been started (no data has been transferred so far).
@@ -1071,7 +1068,7 @@ dma_addr_t omap_get_dma_src_pos(int lch)
 			offset = p->dma_read(CSSA, lch);
 	}
 
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		offset |= (p->dma_read(CSSA, lch) & 0xFFFF0000);
 
 	return offset;
@@ -1090,7 +1087,7 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 {
 	dma_addr_t offset = 0;
 
-	if (cpu_is_omap15xx())
+	if (dma_omap15xx())
 		offset = p->dma_read(CPC, lch);
 	else
 		offset = p->dma_read(CDAC, lch);
@@ -1099,7 +1096,7 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 	 * omap 3.2/3.3 erratum: sometimes 0 is returned if CSAC/CDAC is
 	 * read before the DMA controller finished disabling the channel.
 	 */
-	if (!cpu_is_omap15xx() && offset == 0) {
+	if (!dma_omap15xx() && offset == 0) {
 		offset = p->dma_read(CDAC, lch);
 		/*
 		 * CDAC == 0 indicates that the DMA transfer on the channel has
@@ -1110,7 +1107,7 @@ dma_addr_t omap_get_dma_dst_pos(int lch)
 			offset = p->dma_read(CDSA, lch);
 	}
 
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		offset |= (p->dma_read(CDSA, lch) & 0xFFFF0000);
 
 	return offset;
@@ -1127,7 +1124,7 @@ int omap_dma_running(void)
 {
 	int lch;
 
-	if (cpu_class_is_omap1())
+	if (dma_omap1())
 		if (omap_lcd_dma_running())
 			return 1;
 
@@ -2030,7 +2027,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 	dma_chan		= d->chan;
 	enable_1510_mode	= d->dev_caps & ENABLE_1510_MODE;
 
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		dma_linked_lch = kzalloc(sizeof(struct dma_link_info) *
 						dma_lch_count, GFP_KERNEL);
 		if (!dma_linked_lch) {
@@ -2042,7 +2039,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 	spin_lock_init(&dma_chan_lock);
 	for (ch = 0; ch < dma_chan_count; ch++) {
 		omap_clear_dma(ch);
-		if (cpu_class_is_omap2())
+		if (dma_omap2plus())
 			omap2_disable_irq_lch(ch);
 
 		dma_chan[ch].dev_id = -1;
@@ -2051,7 +2048,7 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 		if (ch >= 6 && enable_1510_mode)
 			continue;
 
-		if (cpu_class_is_omap1()) {
+		if (dma_omap1()) {
 			/*
 			 * request_irq() doesn't like dev_id (ie. ch) being
 			 * zero, so we have to kludge around this.
@@ -2076,11 +2073,11 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (cpu_class_is_omap2() && !cpu_is_omap242x())
+	if (d->dev_caps & IS_RW_PRIORITY)
 		omap_dma_set_global_params(DMA_DEFAULT_ARB_RATE,
 				DMA_DEFAULT_FIFO_DEPTH, 0);
 
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		strcpy(irq_name, "0");
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
 		if (dma_irq < 0) {
@@ -2095,9 +2092,8 @@ static int __devinit omap_system_dma_probe(struct platform_device *pdev)
 		}
 	}
 
-	/* reserve dma channels 0 and 1 in high security devices */
-	if (cpu_is_omap34xx() &&
-		(omap_type() != OMAP2_DEVICE_TYPE_GP)) {
+	/* reserve dma channels 0 and 1 in high security devices on 34xx */
+	if (d->dev_caps & HS_CHANNELS_RESERVED) {
 		pr_info("Reserving DMA channels 0 and 1 for HS ROM code\n");
 		dma_chan[0].dev_id = 0;
 		dma_chan[1].dev_id = 1;
@@ -2124,7 +2120,7 @@ static int __devexit omap_system_dma_remove(struct platform_device *pdev)
 {
 	int dma_irq;
 
-	if (cpu_class_is_omap2()) {
+	if (dma_omap2plus()) {
 		char irq_name[4];
 		strcpy(irq_name, "0");
 		dma_irq = platform_get_irq_byname(pdev, irq_name);
