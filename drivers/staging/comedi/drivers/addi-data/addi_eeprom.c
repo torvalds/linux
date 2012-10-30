@@ -45,6 +45,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
+#define NVRAM_USER_DATA_START	0x100
+
 #define NVCMD_BEGIN_READ 	(0x7 << 5)	/*  nvRam begin read command */
 #define NVCMD_LOAD_LOW   	(0x4 << 5)	/*  nvRam load low command */
 #define NVCMD_LOAD_HIGH  	(0x5 << 5)	/*  nvRam load high command */
@@ -229,6 +231,9 @@ static unsigned short addi_eeprom_readw(unsigned long iobase,
 {
 	unsigned short val = 0;
 
+	/* Add the offset to the start of the user data */
+	addr += NVRAM_USER_DATA_START;
+
 	if (!strcmp(type, "S5920") || !strcmp(type, "S5933"))
 		val = addi_eeprom_readw_nvram(iobase, addr);
 
@@ -246,17 +251,15 @@ static int i_EepromReadDigitalInputHeader(unsigned long iobase,
 	unsigned short w_Temp;
 
 	/*  read nbr of channels */
-	s_Header->w_Nchannel = addi_eeprom_readw(iobase, type,
-						 0x100 + w_Address + 6);
+	s_Header->w_Nchannel = addi_eeprom_readw(iobase, type, w_Address + 6);
 
 	/*  interruptible or not */
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + 8);
+	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 8);
 	s_Header->b_Interruptible = (unsigned char) (w_Temp >> 7) & 0x01;
 
 	/* How many interruptible logic */
 	s_Header->w_NinterruptLogic = addi_eeprom_readw(iobase, type,
-						        0x100 + w_Address + 10);
+						        w_Address + 10);
 
 	return 0;
 }
@@ -268,7 +271,7 @@ static int i_EepromReadDigitalOutputHeader(unsigned long iobase,
 {
 	/* Read Nbr channels */
 	s_Header->w_Nchannel = addi_eeprom_readw(iobase, type,
-						 0x100 + w_Address + 6);
+						 w_Address + 6);
 	return 0;
 }
 
@@ -283,14 +286,14 @@ static int i_EepromReadTimerHeader(unsigned long iobase,
 
 	/* Read No of Timer */
 	s_Header->w_Ntimer = addi_eeprom_readw(iobase, type,
-					       0x100 + w_Address + 6);
+					       w_Address + 6);
 	/* Read header size */
 	for (i = 0; i < s_Header->w_Ntimer; i++) {
 		s_Header->s_TimerDetails[i].w_HeaderSize =
 			addi_eeprom_readw(iobase, type,
-					  0x100 + w_Address + 8 + w_Size + 0);
+					  w_Address + 8 + w_Size + 0);
 		w_Temp = addi_eeprom_readw(iobase, type,
-					   0x100 + w_Address + 8 + w_Size + 2);
+					   w_Address + 8 + w_Size + 2);
 
 		/* Read Resolution */
 		s_Header->s_TimerDetails[i].b_Resolution =
@@ -301,7 +304,7 @@ static int i_EepromReadTimerHeader(unsigned long iobase,
 			(unsigned char) (w_Temp >> 4) & 0x3F;
 
 		w_Temp = addi_eeprom_readw(iobase, type,
-					   0x100 + w_Address + 8 + w_Size + 4);
+					   w_Address + 8 + w_Size + 4);
 
 		/* Read MinTiming */
 		s_Header->s_TimerDetails[i].w_MinTiming = (w_Temp >> 6) & 0x3FF;
@@ -323,12 +326,10 @@ static int i_EepromReadAnlogOutputHeader(unsigned long iobase,
 	unsigned short w_Temp;
 
 	/*  No of channels for 1st hard component */
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + 10);
+	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 10);
 	s_Header->w_Nchannel = (w_Temp >> 4) & 0x03FF;
 	/*  Resolution for 1st hard component */
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + 16);
+	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 16);
 	s_Header->b_Resolution = (unsigned char) (w_Temp >> 8) & 0xFF;
 	return 0;
 }
@@ -340,19 +341,18 @@ static int i_EepromReadAnlogInputHeader(unsigned long iobase,
 					struct str_AnalogInputHeader *s_Header)
 {
 	unsigned short w_Temp, w_Offset;
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + 10);
+	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 10);
 	s_Header->w_Nchannel = (w_Temp >> 4) & 0x03FF;
 	s_Header->w_MinConvertTiming = addi_eeprom_readw(iobase, type,
-							 0x100 + w_Address + 16);
+							 w_Address + 16);
 	s_Header->w_MinDelayTiming = addi_eeprom_readw(iobase, type,
-						       0x100 + w_Address + 30);
+						       w_Address + 30);
 	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + 20);
+				   w_Address + 20);
 	s_Header->b_HasDma = (w_Temp >> 13) & 0x01;	/*  whether dma present or not */
 
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + 72);	/* reading Y */
+	/* reading Y */
+	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 72);
 	w_Temp = w_Temp & 0x00FF;
 	if (w_Temp)		/* Y>0 */
 	{
@@ -365,8 +365,7 @@ static int i_EepromReadAnlogInputHeader(unsigned long iobase,
 	}
 
 	/* read Resolution */
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + w_Address + w_Offset);
+	w_Temp = addi_eeprom_readw(iobase, type, w_Address + w_Offset);
 	s_Header->b_Resolution = w_Temp & 0x001F;	/*  last 5 bits */
 
 	return 0;
@@ -388,25 +387,21 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 	struct str_AnalogInputHeader s_AnalogInputHeader;
 
 	/* Read size */
-	s_MainHeader.w_HeaderSize = addi_eeprom_readw(iobase, type,
-						      0x100 + 8);
+	s_MainHeader.w_HeaderSize = addi_eeprom_readw(iobase, type, 8);
 
 	/* Read nbr of functionality */
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   0x100 + 10);
+	w_Temp = addi_eeprom_readw(iobase, type, 10);
 	s_MainHeader.b_Nfunctions = (unsigned char) w_Temp & 0x00FF;
 
 	/* Read functionality details */
 	for (i = 0; i < s_MainHeader.b_Nfunctions; i++) {
 		/* Read Type */
-		w_Temp = addi_eeprom_readw(iobase, type,
-					   0x100 + 12 + w_Count);
+		w_Temp = addi_eeprom_readw(iobase, type, 12 + w_Count);
 		s_MainHeader.s_Functions[i].b_Type = (unsigned char) w_Temp & 0x3F;
 		w_Count = w_Count + 2;
 		/* Read Address */
 		s_MainHeader.s_Functions[i].w_Address =
-			addi_eeprom_readw(iobase, type,
-					  0x100 + 12 + w_Count);
+			addi_eeprom_readw(iobase, type, 12 + w_Count);
 		w_Count = w_Count + 2;
 	}
 
