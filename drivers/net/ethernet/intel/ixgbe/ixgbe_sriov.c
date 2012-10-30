@@ -742,7 +742,8 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 		e_warn(drv,
 		       "VF %d has requested a MACVLAN filter but there is no space for it\n",
 		       vf);
-	return err;
+
+	return err < 0;
 }
 
 static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,
