@@ -1097,7 +1097,7 @@ static int mv_xor_channel_remove(struct mv_xor_device *device)
 }
 
 static struct mv_xor_device *
-mv_xor_channel_add(struct mv_xor_shared_private *msp,
+mv_xor_channel_add(struct mv_xor_private *msp,
 		   struct platform_device *pdev,
 		   int hw_id, dma_cap_mask_t cap_mask,
 		   size_t pool_size, int irq)
@@ -1220,7 +1220,7 @@ mv_xor_channel_add(struct mv_xor_shared_private *msp,
 }
 
 static void
-mv_xor_conf_mbus_windows(struct mv_xor_shared_private *msp,
+mv_xor_conf_mbus_windows(struct mv_xor_private *msp,
 			 const struct mbus_dram_target_info *dram)
 {
 	void __iomem *base = msp->xor_base;
@@ -1250,15 +1250,15 @@ mv_xor_conf_mbus_windows(struct mv_xor_shared_private *msp,
 	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
 }
 
-static int mv_xor_shared_probe(struct platform_device *pdev)
+static int mv_xor_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram;
-	struct mv_xor_shared_private *msp;
+	struct mv_xor_private *msp;
 	struct mv_xor_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	int i, ret;
 
-	dev_notice(&pdev->dev, "Marvell shared XOR driver\n");
+	dev_notice(&pdev->dev, "Marvell XOR driver\n");
 
 	msp = devm_kzalloc(&pdev->dev, sizeof(*msp), GFP_KERNEL);
 	if (!msp)
@@ -1338,9 +1338,9 @@ err_channel_add:
 	return ret;
 }
 
-static int mv_xor_shared_remove(struct platform_device *pdev)
+static int mv_xor_remove(struct platform_device *pdev)
 {
-	struct mv_xor_shared_private *msp = platform_get_drvdata(pdev);
+	struct mv_xor_private *msp = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
@@ -1356,9 +1356,9 @@ static int mv_xor_shared_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver mv_xor_shared_driver = {
-	.probe		= mv_xor_shared_probe,
-	.remove		= mv_xor_shared_remove,
+static struct platform_driver mv_xor_driver = {
+	.probe		= mv_xor_probe,
+	.remove		= mv_xor_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= MV_XOR_NAME,
@@ -1368,7 +1368,7 @@ static struct platform_driver mv_xor_shared_driver = {
 
 static int __init mv_xor_init(void)
 {
-	return platform_driver_register(&mv_xor_shared_driver);
+	return platform_driver_register(&mv_xor_driver);
 }
 module_init(mv_xor_init);
 
@@ -1376,7 +1376,7 @@ module_init(mv_xor_init);
 #if 0
 static void __exit mv_xor_exit(void)
 {
-	platform_driver_unregister(&mv_xor_shared_driver);
+	platform_driver_unregister(&mv_xor_driver);
 	return;
 }
 
