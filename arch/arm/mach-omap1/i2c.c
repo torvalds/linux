@@ -23,7 +23,7 @@
 #include <mach/mux.h>
 #include "soc.h"
 
-#include "../plat-omap/i2c.h"
+#include <plat/i2c.h>
 
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800

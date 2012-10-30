@@ -30,7 +30,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/i2c-omap.h>
 
-#include "../plat-omap/i2c.h"
+#include <plat/i2c.h>
 
 #if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
 void omap7xx_map_io(void);

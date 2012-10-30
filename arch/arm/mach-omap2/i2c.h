@@ -19,7 +19,7 @@
  *
  */
 
-#include "../plat-omap/i2c.h"
+#include <plat/i2c.h>
 
 #ifndef __MACH_OMAP2_I2C_H
 #define __MACH_OMAP2_I2C_H
