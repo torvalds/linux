@@ -9,6 +9,7 @@ driver as they did not build properly at the time.
 
 TODO:
 	- Use of kmem_cache seems a bit unusual
+	- some rx packets have CRC/code/frame errors
 
 Please send patches to:
 	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
