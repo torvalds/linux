@@ -554,7 +554,8 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 */
 	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
 	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(device->handle, root->bus);
+		result = acpi_pci_irq_add_prt(device->handle, root->segment,
+					      root->secondary.start);
 
 	/*
 	 * Scan and bind all _ADR-Based Devices
@@ -682,7 +683,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 
 	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
 	if (ACPI_SUCCESS(status))
-		acpi_pci_irq_del_prt(root->bus);
+		acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 
 	pci_remove_root_bus(root->bus);
 
