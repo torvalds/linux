@@ -208,6 +208,7 @@ struct branch_stack {
 	struct branch_entry	entries[0];
 };
 
+extern const char *input_name;
 extern bool perf_host, perf_guest;
 extern const char perf_version_string[];
 

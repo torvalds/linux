@@ -34,7 +34,6 @@
 
 struct perf_annotate {
 	struct perf_tool tool;
-	char const *input_name;
 	bool	   force, use_tui, use_stdio;
 	bool	   full_paths;
 	bool	   print_line;
@@ -175,7 +174,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	session = perf_session__new(ann->input_name, O_RDONLY,
+	session = perf_session__new(input_name, O_RDONLY,
 				    ann->force, false, &ann->tool);
 	if (session == NULL)
 		return -ENOMEM;
@@ -260,7 +259,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		},
 	};
 	const struct option options[] = {
-	OPT_STRING('i', "input", &annotate.input_name, "file",
+	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),

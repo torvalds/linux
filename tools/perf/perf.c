@@ -24,6 +24,7 @@ const char perf_more_info_string[] =
 
 int use_browser = -1;
 static int use_pager = -1;
+const char *input_name;
 
 struct cmd_struct {
 	const char *cmd;
