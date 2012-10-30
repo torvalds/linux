@@ -822,7 +822,7 @@ static int efx_ethtool_get_class_rule(struct efx_nic *efx,
 	if (rc)
 		return rc;
 
-	if (spec.dmaq_id == 0xfff)
+	if (spec.dmaq_id == EFX_FILTER_RX_DMAQ_ID_DROP)
 		rule->ring_cookie = RX_CLS_FLOW_DISC;
 	else
 		rule->ring_cookie = spec.dmaq_id;
@@ -967,7 +967,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 	efx_filter_init_rx(&spec, EFX_FILTER_PRI_MANUAL,
 			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
 			   (rule->ring_cookie == RX_CLS_FLOW_DISC) ?
-			   0xfff : rule->ring_cookie);
+			   EFX_FILTER_RX_DMAQ_ID_DROP : rule->ring_cookie);
 
 	switch (rule->flow_type) {
 	case TCP_V4_FLOW:

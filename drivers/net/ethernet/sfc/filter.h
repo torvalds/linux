@@ -76,7 +76,8 @@ enum efx_filter_flags {
  * @type: Type of match to be performed, from &enum efx_filter_type
  * @priority: Priority of the filter, from &enum efx_filter_priority
  * @flags: Miscellaneous flags, from &enum efx_filter_flags
- * @dmaq_id: Source/target queue index
+ * @dmaq_id: Source/target queue index, or %EFX_FILTER_RX_DMAQ_ID_DROP for
+ *	an RX drop filter
  * @data: Match data (type-dependent)
  *
  * Use the efx_filter_set_*() functions to initialise the @type and
@@ -92,6 +93,10 @@ struct efx_filter_spec {
 	u8	flags;
 	u16	dmaq_id;
 	u32	data[3];
+};
+
+enum {
+	EFX_FILTER_RX_DMAQ_ID_DROP = 0xfff
 };
 
 static inline void efx_filter_init_rx(struct efx_filter_spec *spec,
