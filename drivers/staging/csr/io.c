@@ -1000,37 +1000,37 @@ uf_remove_os_device(int bus_id)
 static void
 uf_sdio_inserted(CsrSdioFunction *sdio_ctx)
 {
-    unifi_priv_t *priv;
+	unifi_priv_t *priv;
 
-    unifi_trace(NULL, UDBG5, "uf_sdio_inserted(0x%p), slot_id=%d, dev=%p\n",
-            sdio_ctx, active_slot, os_devices[active_slot]);
+	unifi_trace(NULL, UDBG5, "uf_sdio_inserted(0x%p), slot_id=%d, dev=%p\n",
+		      sdio_ctx, active_slot, os_devices[active_slot]);
 
-    priv = register_unifi_sdio(sdio_ctx, active_slot, os_devices[active_slot]);
-    if (priv == NULL) {
-        CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_FAILURE);
-        return;
-    }
+	priv = register_unifi_sdio(sdio_ctx, active_slot, os_devices[active_slot]);
+	if (priv == NULL) {
+		CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_FAILURE);
+		return;
+	}
 
-    sdio_ctx->driverData = priv;
+	sdio_ctx->driverData = priv;
 
-    CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_SUCCESS);
+	CsrSdioInsertedAcknowledge(sdio_ctx, CSR_RESULT_SUCCESS);
 } /* uf_sdio_inserted() */
 
 
 static void
 uf_sdio_removed(CsrSdioFunction *sdio_ctx)
 {
-    unregister_unifi_sdio(active_slot);
-    CsrSdioRemovedAcknowledge(sdio_ctx);
+	unregister_unifi_sdio(active_slot);
+	CsrSdioRemovedAcknowledge(sdio_ctx);
 } /* uf_sdio_removed() */
 
 
 static void
 uf_sdio_dsr_handler(CsrSdioFunction *sdio_ctx)
 {
-    unifi_priv_t *priv = sdio_ctx->driverData;
+	unifi_priv_t *priv = sdio_ctx->driverData;
 
-    unifi_sdio_interrupt_handler(priv->card);
+	unifi_sdio_interrupt_handler(priv->card);
 } /* uf_sdio_dsr_handler() */
 
 /*
@@ -1052,7 +1052,7 @@ uf_sdio_dsr_handler(CsrSdioFunction *sdio_ctx)
 static CsrSdioInterruptDsrCallback
 uf_sdio_int_handler(CsrSdioFunction *sdio_ctx)
 {
-    return uf_sdio_dsr_handler;
+	return uf_sdio_dsr_handler;
 } /* uf_sdio_int_handler() */
 
 
@@ -1060,18 +1060,18 @@ uf_sdio_int_handler(CsrSdioFunction *sdio_ctx)
 
 static CsrSdioFunctionId unifi_ids[] =
 {
-    {
-        .manfId = SDIO_MANF_ID_CSR,
-        .cardId = SDIO_CARD_ID_UNIFI_3,
-        .sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_3,
-        .sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
-    },
-    {
-        .manfId = SDIO_MANF_ID_CSR,
-        .cardId = SDIO_CARD_ID_UNIFI_4,
-        .sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_4,
-        .sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
-    }
+	{
+		.manfId = SDIO_MANF_ID_CSR,
+		.cardId = SDIO_CARD_ID_UNIFI_3,
+		.sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_3,
+		.sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
+	},
+	{
+		.manfId = SDIO_MANF_ID_CSR,
+		.cardId = SDIO_CARD_ID_UNIFI_4,
+		.sdioFunction = SDIO_WLAN_FUNC_ID_UNIFI_4,
+		.sdioInterface = CSR_SDIO_ANY_SDIO_INTERFACE,
+	}
 };
 
 
@@ -1080,14 +1080,14 @@ static CsrSdioFunctionId unifi_ids[] =
  */
 static CsrSdioFunctionDriver unifi_sdioFunction_drv =
 {
-    .inserted = uf_sdio_inserted,
-    .removed = uf_sdio_removed,
-    .intr = uf_sdio_int_handler,
-    .suspend = uf_lx_suspend,
-    .resume = uf_lx_resume,
+	.inserted = uf_sdio_inserted,
+	.removed = uf_sdio_removed,
+	.intr = uf_sdio_int_handler,
+	.suspend = uf_lx_suspend,
+	.resume = uf_lx_resume,
 
-    .ids = unifi_ids,
-    .idsCount = sizeof(unifi_ids) / sizeof(unifi_ids[0])
+	.ids = unifi_ids,
+	.idsCount = sizeof(unifi_ids) / sizeof(unifi_ids[0])
 };
 
 
@@ -1110,15 +1110,15 @@ static CsrSdioFunctionDriver unifi_sdioFunction_drv =
 int __init
 uf_sdio_load(void)
 {
-    CsrResult csrResult;
+	CsrResult csrResult;
 
-    csrResult = CsrSdioFunctionDriverRegister(&unifi_sdioFunction_drv);
-    if (csrResult != CSR_RESULT_SUCCESS) {
-        unifi_error(NULL, "Failed to register UniFi SDIO driver: csrResult=%d\n", csrResult);
-        return -EIO;
-    }
+	csrResult = CsrSdioFunctionDriverRegister(&unifi_sdioFunction_drv);
+	if (csrResult != CSR_RESULT_SUCCESS) {
+		unifi_error(NULL, "Failed to register UniFi SDIO driver: csrResult=%d\n", csrResult);
+		return -EIO;
+	}
 
-    return 0;
+	return 0;
 } /* uf_sdio_load() */
 
 
@@ -1126,6 +1126,6 @@ uf_sdio_load(void)
 void __exit
 uf_sdio_unload(void)
 {
-    CsrSdioFunctionDriverUnregister(&unifi_sdioFunction_drv);
+	CsrSdioFunctionDriverUnregister(&unifi_sdioFunction_drv);
 } /* uf_sdio_unload() */
 
