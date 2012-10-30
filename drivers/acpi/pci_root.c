@@ -454,6 +454,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	acpi_handle handle;
 	struct acpi_device *child;
 	u32 flags, base_flags;
+	bool is_osc_granted = false;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
@@ -524,6 +525,60 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
 	acpi_pci_osc_support(root, flags);
 
+	/* Indicate support for various _OSC capabilities. */
+	if (pci_ext_cfg_avail())
+		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
+	if (pcie_aspm_support_enabled()) {
+		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
+		OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
+	}
+	if (pci_msi_enabled())
+		flags |= OSC_MSI_SUPPORT;
+	if (flags != base_flags) {
+		status = acpi_pci_osc_support(root, flags);
+		if (ACPI_FAILURE(status)) {
+			dev_info(&device->dev, "ACPI _OSC support "
+				"notification failed, disabling PCIe ASPM\n");
+			pcie_no_aspm();
+			flags = base_flags;
+		}
+	}
+	if (!pcie_ports_disabled
+	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
+		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
+			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
+			| OSC_PCI_EXPRESS_PME_CONTROL;
+
+		if (pci_aer_available()) {
+			if (aer_acpi_firmware_first())
+				dev_dbg(&device->dev,
+					"PCIe errors handled by BIOS.\n");
+			else
+				flags |= OSC_PCI_EXPRESS_AER_CONTROL;
+		}
+
+		dev_info(&device->dev,
+			"Requesting ACPI _OSC control (0x%02x)\n", flags);
+
+		status = acpi_pci_osc_control_set(device->handle, &flags,
+				       OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
+		if (ACPI_SUCCESS(status)) {
+			is_osc_granted = true;
+			dev_info(&device->dev,
+				"ACPI _OSC control (0x%02x) granted\n", flags);
+		} else {
+			is_osc_granted = false;
+			dev_info(&device->dev,
+				"ACPI _OSC request failed (%s), "
+				"returned control mask: 0x%02x\n",
+				acpi_format_exception(status), flags);
+		}
+	} else {
+		dev_info(&device->dev,
+			"Unable to request _OSC control "
+			"(_OSC support mask: 0x%02x)\n", flags);
+	}
+
 	/*
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
 	 */
@@ -563,66 +618,14 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	list_for_each_entry(child, &device->children, node)
 		acpi_pci_bridge_scan(child);
 
-	/* Indicate support for various _OSC capabilities. */
-	if (pci_ext_cfg_avail())
-		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
-	if (pcie_aspm_support_enabled())
-		flags |= OSC_ACTIVE_STATE_PWR_SUPPORT |
-			OSC_CLOCK_PWR_CAPABILITY_SUPPORT;
-	if (pci_msi_enabled())
-		flags |= OSC_MSI_SUPPORT;
-	if (flags != base_flags) {
-		status = acpi_pci_osc_support(root, flags);
-		if (ACPI_FAILURE(status)) {
-			dev_info(root->bus->bridge, "ACPI _OSC support "
-				"notification failed, disabling PCIe ASPM\n");
-			pcie_no_aspm();
-			flags = base_flags;
-		}
-	}
-
-	if (!pcie_ports_disabled
-	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
-		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
-			| OSC_PCI_EXPRESS_NATIVE_HP_CONTROL
-			| OSC_PCI_EXPRESS_PME_CONTROL;
-
-		if (pci_aer_available()) {
-			if (aer_acpi_firmware_first())
-				dev_dbg(root->bus->bridge,
-					"PCIe errors handled by BIOS.\n");
-			else
-				flags |= OSC_PCI_EXPRESS_AER_CONTROL;
-		}
-
-		dev_info(root->bus->bridge,
-			"Requesting ACPI _OSC control (0x%02x)\n", flags);
-
-		status = acpi_pci_osc_control_set(device->handle, &flags,
-					OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
-		if (ACPI_SUCCESS(status)) {
-			dev_info(root->bus->bridge,
-				"ACPI _OSC control (0x%02x) granted\n", flags);
-			if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
-				/*
-				 * We have ASPM control, but the FADT indicates
-				 * that it's unsupported. Clear it.
-				 */
-				pcie_clear_aspm(root->bus);
-			}
-		} else {
-			dev_info(root->bus->bridge,
-				"ACPI _OSC request failed (%s), "
-				"returned control mask: 0x%02x\n",
-				acpi_format_exception(status), flags);
-			pr_info("ACPI _OSC control for PCIe not granted, "
-				"disabling ASPM\n");
-			pcie_no_aspm();
-		}
+	/* ASPM setting */
+	if (is_osc_granted) {
+		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM)
+			pcie_clear_aspm(root->bus);
 	} else {
-		dev_info(root->bus->bridge,
-			 "Unable to request _OSC control "
-			 "(_OSC support mask: 0x%02x)\n", flags);
+		pr_info("ACPI _OSC control for PCIe not granted, "
+			"disabling ASPM\n");
+		pcie_no_aspm();
 	}
 
 	pci_acpi_add_bus_pm_notifier(device, root->bus);
