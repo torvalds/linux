@@ -66,17 +66,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define EEPROM_WATCHDOG					5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
-struct str_Functionality {
-	unsigned char b_Type;
-	unsigned short w_Address;
-};
-
-struct str_MainHeader {
-	unsigned short w_HeaderSize;
-	unsigned char b_Nfunctions;
-	struct str_Functionality s_Functions[7];
-};
-
 struct str_DigitalInputHeader {
 	unsigned short w_Nchannel;
 	unsigned char b_Interruptible;
@@ -377,50 +366,41 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 {
 	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
-	unsigned short w_Temp, i, w_Count = 0;
 	unsigned int ui_Temp;
-	struct str_MainHeader s_MainHeader;
 	struct str_DigitalInputHeader s_DigitalInputHeader;
 	struct str_DigitalOutputHeader s_DigitalOutputHeader;
 	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
 	struct str_AnalogOutputHeader s_AnalogOutputHeader;
 	struct str_AnalogInputHeader s_AnalogInputHeader;
+	unsigned short size;
+	unsigned char nfuncs;
+	int i;
 
-	/* Read size */
-	s_MainHeader.w_HeaderSize = addi_eeprom_readw(iobase, type, 8);
-
-	/* Read nbr of functionality */
-	w_Temp = addi_eeprom_readw(iobase, type, 10);
-	s_MainHeader.b_Nfunctions = (unsigned char) w_Temp & 0x00FF;
+	size = addi_eeprom_readw(iobase, type, 8);
+	nfuncs = addi_eeprom_readw(iobase, type, 10) & 0xff;
 
 	/* Read functionality details */
-	for (i = 0; i < s_MainHeader.b_Nfunctions; i++) {
-		/* Read Type */
-		w_Temp = addi_eeprom_readw(iobase, type, 12 + w_Count);
-		s_MainHeader.s_Functions[i].b_Type = (unsigned char) w_Temp & 0x3F;
-		w_Count = w_Count + 2;
-		/* Read Address */
-		s_MainHeader.s_Functions[i].w_Address =
-			addi_eeprom_readw(iobase, type, 12 + w_Count);
-		w_Count = w_Count + 2;
-	}
+	for (i = 0; i < nfuncs; i++) {
+		unsigned short offset = i * 4;
+		unsigned short addr;
+		unsigned char func;
 
-	/* Display main header info */
-	for (i = 0; i < s_MainHeader.b_Nfunctions; i++) {
+		func = addi_eeprom_readw(iobase, type, 12 + offset) & 0x3f;
+		addr = addi_eeprom_readw(iobase, type, 14 + offset);
 
-		switch (s_MainHeader.s_Functions[i].b_Type) {
+		switch (func) {
 		case EEPROM_DIGITALINPUT:
-			i_EepromReadDigitalInputHeader(iobase, type,
-				s_MainHeader.s_Functions[i].w_Address,
-				&s_DigitalInputHeader);
+			i_EepromReadDigitalInputHeader(iobase, type, addr,
+						       &s_DigitalInputHeader);
+
 			devpriv->s_EeParameters.i_NbrDiChannel =
 				s_DigitalInputHeader.w_Nchannel;
 			break;
 
 		case EEPROM_DIGITALOUTPUT:
-			i_EepromReadDigitalOutputHeader(iobase, type,
-				s_MainHeader.s_Functions[i].w_Address,
-				&s_DigitalOutputHeader);
+			i_EepromReadDigitalOutputHeader(iobase, type, addr,
+							&s_DigitalOutputHeader);
+
 			devpriv->s_EeParameters.i_NbrDoChannel =
 				s_DigitalOutputHeader.w_Nchannel;
 			ui_Temp = 0xffffffff;
@@ -430,9 +410,9 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 
 		case EEPROM_ANALOGINPUT:
-			i_EepromReadAnlogInputHeader(iobase, type,
-				s_MainHeader.s_Functions[i].w_Address,
-				&s_AnalogInputHeader);
+			i_EepromReadAnlogInputHeader(iobase, type, addr,
+						     &s_AnalogInputHeader);
+
 			if (!(strcmp(this_board->pc_DriverName, "apci3200")))
 				devpriv->s_EeParameters.i_NbrAiChannel =
 					s_AnalogInputHeader.w_Nchannel * 4;
@@ -454,9 +434,9 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 
 		case EEPROM_ANALOGOUTPUT:
-			i_EepromReadAnlogOutputHeader(iobase, type,
-				s_MainHeader.s_Functions[i].w_Address,
-				&s_AnalogOutputHeader);
+			i_EepromReadAnlogOutputHeader(iobase, type, addr,
+						      &s_AnalogOutputHeader);
+
 			devpriv->s_EeParameters.i_NbrAoChannel =
 				s_AnalogOutputHeader.w_Nchannel;
 			ui_Temp = 0xffff;
@@ -466,15 +446,7 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 
 		case EEPROM_TIMER:
-			/* Timer subdevice present */
-			devpriv->s_EeParameters.i_Timer = 1;
-			break;
-
 		case EEPROM_WATCHDOG:
-			/* Timer subdevice present */
-			devpriv->s_EeParameters.i_Timer = 1;
-			break;
-
 		case EEPROM_TIMER_WATCHDOG_COUNTER:
 			/* Timer subdevice present */
 			devpriv->s_EeParameters.i_Timer = 1;
