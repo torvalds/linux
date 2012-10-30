@@ -46,12 +46,43 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
-#include "hwdrv_apci3501.h"
+/* Card Specific information */
+#define APCI3501_ADDRESS_RANGE		255
+
+#define APCI3501_DIGITAL_IP		0x50
+#define APCI3501_DIGITAL_OP		0x40
+#define APCI3501_ANALOG_OUTPUT		0x00
+
+/* Analog Output related Defines */
+#define APCI3501_AO_VOLT_MODE		0
+#define APCI3501_AO_PROG		4
+#define APCI3501_AO_TRIG_SCS		8
+#define UNIPOLAR			0
+#define BIPOLAR				1
+#define MODE0				0
+#define MODE1				1
+
+/* Watchdog Related Defines */
+
+#define APCI3501_WATCHDOG		0x20
+#define APCI3501_TCW_SYNC_ENABLEDISABLE	0
+#define APCI3501_TCW_RELOAD_VALUE	4
+#define APCI3501_TCW_TIMEBASE		8
+#define APCI3501_TCW_PROG		12
+#define APCI3501_TCW_TRIG_STATUS	16
+#define APCI3501_TCW_IRQ		20
+#define APCI3501_TCW_WARN_TIMEVAL	24
+#define APCI3501_TCW_WARN_TIMEBASE	28
+#define ADDIDATA_TIMER			0
+#define ADDIDATA_WATCHDOG		2
+
+/* ANALOG OUTPUT RANGE */
+static struct comedi_lrange range_apci3501_ao = {
+	2, {
+		BIP_RANGE(10),
+		UNI_RANGE(10)
+	}
+};
 
 /*
 +----------------------------------------------------------------------------+
