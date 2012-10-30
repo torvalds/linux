@@ -179,14 +179,13 @@ static unsigned short addi_eeprom_readw_93c76(unsigned long iobase,
 	return val;
 }
 
-static void v_EepromWaitBusy(unsigned long iobase)
+static void addi_eeprom_nvram_wait(unsigned long iobase)
 {
-	unsigned char b_EepromBusy = 0;
+	unsigned char val;
 
 	do {
-		b_EepromBusy = inb(iobase + 0x3F);
-		b_EepromBusy = b_EepromBusy & 0x80;
-	} while (b_EepromBusy == 0x80);
+		val = inb(iobase + 0x3F);
+	} while (val & 0x80);
 }
 
 static unsigned short w_EepromReadWord(unsigned long iobase,
@@ -210,39 +209,27 @@ static unsigned short w_EepromReadWord(unsigned long iobase,
 
 			/* Select the load low address mode */
 			outb(NVCMD_LOAD_LOW, iobase + 0x3F);
-
-			/* Wait on busy */
-			v_EepromWaitBusy(iobase);
+			addi_eeprom_nvram_wait(iobase);
 
 			/* Load the low address */
 			outb(b_SelectedAddressLow, iobase + 0x3E);
-
-			/* Wait on busy */
-			v_EepromWaitBusy(iobase);
+			addi_eeprom_nvram_wait(iobase);
 
 			/* Select the load high address mode */
 			outb(NVCMD_LOAD_HIGH, iobase + 0x3F);
-
-			/* Wait on busy */
-			v_EepromWaitBusy(iobase);
+			addi_eeprom_nvram_wait(iobase);
 
 			/* Load the high address */
 			outb(b_SelectedAddressHigh, iobase + 0x3E);
-
-			/* Wait on busy */
-			v_EepromWaitBusy(iobase);
+			addi_eeprom_nvram_wait(iobase);
 
 			/* Select the READ mode */
 			outb(NVCMD_BEGIN_READ, iobase + 0x3F);
-
-			/* Wait on busy */
-			v_EepromWaitBusy(iobase);
+			addi_eeprom_nvram_wait(iobase);
 
 			/* Read data into the EEPROM */
 			b_ReadByte = inb(iobase + 0x3E);
-
-			/* Wait on busy */
-			v_EepromWaitBusy(iobase);
+			addi_eeprom_nvram_wait(iobase);
 
 			/* Select the upper address part */
 			if (b_Counter == 0)
