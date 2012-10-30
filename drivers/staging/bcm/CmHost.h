@@ -122,8 +122,8 @@ typedef struct stLocalSFChangeIndicationAlt {
 } stLocalSFChangeIndicationAlt;
 
 ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength);
-INT AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
-INT FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
+int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
+int FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
 ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter);
 BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer);
 
