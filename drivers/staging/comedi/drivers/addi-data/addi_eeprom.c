@@ -31,9 +31,9 @@
 
 #define NVRAM_USER_DATA_START	0x100
 
-#define NVCMD_BEGIN_READ 	(0x7 << 5)	/*  nvRam begin read command */
-#define NVCMD_LOAD_LOW   	(0x4 << 5)	/*  nvRam load low command */
-#define NVCMD_LOAD_HIGH  	(0x5 << 5)	/*  nvRam load high command */
+#define NVCMD_BEGIN_READ	(0x7 << 5)	/* nvRam begin read command */
+#define NVCMD_LOAD_LOW		(0x4 << 5)	/* nvRam load low command */
+#define NVCMD_LOAD_HIGH		(0x5 << 5)	/* nvRam load high command */
 
 #define EE93C76_CLK_BIT		(1 << 0)
 #define EE93C76_CS_BIT		(1 << 1)
@@ -42,12 +42,12 @@
 #define EE93C76_READ_CMD	(0x0180 << 4)
 #define EE93C76_CMD_LEN		13
 
-#define EEPROM_DIGITALINPUT 			0
-#define EEPROM_DIGITALOUTPUT			1
-#define EEPROM_ANALOGINPUT				2
-#define EEPROM_ANALOGOUTPUT				3
-#define EEPROM_TIMER					4
-#define EEPROM_WATCHDOG					5
+#define EEPROM_DIGITALINPUT		0
+#define EEPROM_DIGITALOUTPUT		1
+#define EEPROM_ANALOGINPUT		2
+#define EEPROM_ANALOGOUTPUT		3
+#define EEPROM_TIMER			4
+#define EEPROM_WATCHDOG			5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
 static void addi_eeprom_clk_93c76(unsigned long iobase, unsigned int val)
