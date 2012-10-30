@@ -400,11 +400,12 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_backlight_exit(dev);
 	drm_vblank_cleanup(dev);
 
+	drm_kms_helper_poll_fini(dev);
+	drm_mode_config_cleanup(dev);
+
 	if (disp->dtor)
 		disp->dtor(dev);
 
-	drm_kms_helper_poll_fini(dev);
-	drm_mode_config_cleanup(dev);
 	nouveau_drm(dev)->display = NULL;
 	kfree(disp);
 }
