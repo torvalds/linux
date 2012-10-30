@@ -80,11 +80,6 @@ struct str_TimerMainHeader {
 	struct str_TimerDetails s_TimerDetails[4];	/*   supports 4 timers */
 };
 
-struct str_AnalogOutputHeader {
-	unsigned short w_Nchannel;
-	unsigned char b_Resolution;
-};
-
 struct str_AnalogInputHeader {
 	unsigned short w_Nchannel;
 	unsigned short w_MinConvertTiming;
@@ -300,20 +295,22 @@ static int i_EepromReadTimerHeader(unsigned long iobase,
 }
 #endif
 
-static int i_EepromReadAnlogOutputHeader(unsigned long iobase,
-					 char *type,
-					 unsigned short w_Address,
-					 struct str_AnalogOutputHeader *s_Header)
+static void addi_eeprom_read_ao_info(struct comedi_device *dev,
+				     unsigned long iobase,
+				     char *type,
+				     unsigned short addr)
 {
-	unsigned short w_Temp;
+	struct addi_private *devpriv = dev->private;
+	unsigned short tmp;
 
-	/*  No of channels for 1st hard component */
-	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 10);
-	s_Header->w_Nchannel = (w_Temp >> 4) & 0x03FF;
-	/*  Resolution for 1st hard component */
-	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 16);
-	s_Header->b_Resolution = (unsigned char) (w_Temp >> 8) & 0xFF;
-	return 0;
+	/* No of channels for 1st hard component */
+	tmp = addi_eeprom_readw(iobase, type, addr + 10);
+	devpriv->s_EeParameters.i_NbrAoChannel = (tmp >> 4) & 0x3ff;
+
+	/* Resolution for 1st hard component */
+	tmp = addi_eeprom_readw(iobase, type, addr + 16);
+	tmp = (tmp >> 8) & 0xff;
+	devpriv->s_EeParameters.i_AoMaxdata = 0xfff >> (16 - tmp);
 }
 
 /* Reads only for ONE  hardware component */
@@ -361,7 +358,6 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
 	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
-	struct str_AnalogOutputHeader s_AnalogOutputHeader;
 	struct str_AnalogInputHeader s_AnalogInputHeader;
 	unsigned short size;
 	unsigned char nfuncs;
@@ -413,15 +409,7 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 
 		case EEPROM_ANALOGOUTPUT:
-			i_EepromReadAnlogOutputHeader(iobase, type, addr,
-						      &s_AnalogOutputHeader);
-
-			devpriv->s_EeParameters.i_NbrAoChannel =
-				s_AnalogOutputHeader.w_Nchannel;
-			ui_Temp = 0xffff;
-			devpriv->s_EeParameters.i_AoMaxdata =
-				ui_Temp >> (16 -
-				s_AnalogOutputHeader.b_Resolution);
+			addi_eeprom_read_ao_info(dev, iobase, type, addr);
 			break;
 
 		case EEPROM_TIMER:
