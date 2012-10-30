@@ -560,39 +560,6 @@ static void mx2_videobuf_queue(struct vb2_buffer *vb)
 	spin_unlock_irqrestore(&pcdev->lock, flags);
 }
 
-static void mx2_videobuf_release(struct vb2_buffer *vb)
-{
-#ifdef DEBUG
-	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
-	struct mx2_camera_dev *pcdev = ici->priv;
-	struct mx2_buffer *buf = container_of(vb, struct mx2_buffer, vb);
-
-	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%p %lu\n", __func__,
-		vb, vb2_plane_vaddr(vb, 0), vb2_get_plane_payload(vb, 0));
-
-	switch (buf->state) {
-	case MX2_STATE_ACTIVE:
-		dev_info(icd->parent, "%s (active)\n", __func__);
-		break;
-	case MX2_STATE_QUEUED:
-		dev_info(icd->parent, "%s (queued)\n", __func__);
-		break;
-	default:
-		dev_info(icd->parent, "%s (unknown) %d\n", __func__,
-				buf->state);
-		break;
-	}
-#endif
-
-	/*
-	 * FIXME: implement forced termination of active buffers for mx27 and
-	 * mx27 eMMA, so that the user won't get stuck in an uninterruptible
-	 * state. This requires a specific handling for each of the these DMA
-	 * types.
-	 */
-}
-
 static void mx27_camera_emma_buf_init(struct soc_camera_device *icd,
 		int bytesperline)
 {
@@ -827,7 +794,6 @@ static struct vb2_ops mx2_videobuf_ops = {
 	.queue_setup	 = mx2_videobuf_setup,
 	.buf_prepare	 = mx2_videobuf_prepare,
 	.buf_queue	 = mx2_videobuf_queue,
-	.buf_cleanup	 = mx2_videobuf_release,
 	.start_streaming = mx2_start_streaming,
 	.stop_streaming	 = mx2_stop_streaming,
 };
