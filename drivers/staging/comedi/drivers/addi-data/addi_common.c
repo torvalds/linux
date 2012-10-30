@@ -217,8 +217,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			printk("\nEnable the interrupt for the controller");
 		}
 		printk("\nRead Eeprom");
-		i_EepromReadMainHeader(io_addr[0], this_board->pc_EepromChip,
-			dev);
+		addi_eeprom_read_info(dev, io_addr[0]);
 	} else {
 		printk("\nPCI Eeprom unused");
 	}

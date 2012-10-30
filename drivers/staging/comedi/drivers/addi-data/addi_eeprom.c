@@ -328,10 +328,11 @@ static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_AiMaxdata = 0xffff >> (16 - tmp);
 }
 
-static int i_EepromReadMainHeader(unsigned long iobase,
-				  char *type,
-				  struct comedi_device *dev)
+static void addi_eeprom_read_info(struct comedi_device *dev,
+				  unsigned long iobase)
 {
+	const struct addi_board *this_board = comedi_board(dev);
+	char *type = this_board->pc_EepromChip;
 	unsigned short size;
 	unsigned char nfuncs;
 	int i;
@@ -372,6 +373,4 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 		}
 	}
-
-	return 0;
 }
