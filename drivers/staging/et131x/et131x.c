@@ -2561,9 +2561,8 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 	/* Free Packet Status Ring */
 	if (rx_ring->ps_ring_virtaddr) {
-		pktstat_ringsize =
-		    sizeof(struct pkt_stat_desc) *
-		    adapter->rx_ring.psr_num_entries;
+		pktstat_ringsize = sizeof(struct pkt_stat_desc) *
+					adapter->rx_ring.psr_num_entries;
 
 		dma_free_coherent(&adapter->pdev->dev, pktstat_ringsize,
 				    rx_ring->ps_ring_virtaddr,
@@ -2748,7 +2747,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	struct rx_ring *rx_local = &adapter->rx_ring;
 	struct rx_status_block *status;
 	struct pkt_stat_desc *psr;
-	struct rfd *rfd;
+	struct rfd *rfd = NULL;
 	u32 i;
 	u8 *buf;
 	unsigned long flags;
@@ -2758,6 +2757,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	u32 len;
 	u32 word0;
 	u32 word1;
+	struct sk_buff *skb = NULL;
 
 	/* RX Status block is written by the DMA engine prior to every
 	 * interrupt. It contains the next to be used entry in the Packet
@@ -2768,16 +2768,14 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	/* Check the PSR and wrap bits do not match */
 	if ((word1 & 0x1FFF) == (rx_local->local_psr_full & 0x1FFF))
-		/* Looks like this ring is not updated yet */
-		return NULL;
+		return NULL; /* Looks like this ring is not updated yet */
 
 	/* The packet status ring indicates that data is available. */
 	psr = (struct pkt_stat_desc *) (rx_local->ps_ring_virtaddr) +
 			(rx_local->local_psr_full & 0xFFF);
 
-	/* Grab any information that is required once the PSR is
-	 * advanced, since we can no longer rely on the memory being
-	 * accurate
+	/* Grab any information that is required once the PSR is advanced,
+	 * since we can no longer rely on the memory being accurate
 	 */
 	len = psr->word1 & 0xFFFF;
 	ring_index = (psr->word1 >> 26) & 0x03;
@@ -2794,8 +2792,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		rx_local->local_psr_full ^= 0x1000;
 	}
 
-	writel(rx_local->local_psr_full,
-	       &adapter->regs->rxdma.psr_full_offset);
+	writel(rx_local->local_psr_full, &adapter->regs->rxdma.psr_full_offset);
 
 	if (ring_index > 1 ||
 			(ring_index == 0 &&
@@ -2804,21 +2801,18 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 			buff_index > rx_local->fbr[0]->num_entries - 1)) {
 		/* Illegal buffer or ring index cannot be used by S/W*/
 		dev_err(&adapter->pdev->dev,
-			  "NICRxPkts PSR Entry %d indicates "
-			  "length of %d and/or bad bi(%d)\n",
-			  rx_local->local_psr_full & 0xFFF,
-			  len, buff_index);
+			"NICRxPkts PSR Entry %d indicates length of %d and/or bad bi(%d)\n",
+			rx_local->local_psr_full & 0xFFF, len, buff_index);
 		return NULL;
 	}
 
 	/* Get and fill the RFD. */
 	spin_lock_irqsave(&adapter->rcv_lock, flags);
 
-	rfd = NULL;
 	element = rx_local->recv_list.next;
 	rfd = (struct rfd *) list_entry(element, struct rfd, list_node);
 
-	if (rfd == NULL) {
+	if (!rfd) {
 		spin_unlock_irqrestore(&adapter->rcv_lock, flags);
 		return NULL;
 	}
@@ -2831,119 +2825,101 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	rfd->bufferindex = buff_index;
 	rfd->ringindex = ring_index;
 
-	/* In V1 silicon, there is a bug which screws up filtering of
-	 * runt packets.  Therefore runt packet filtering is disabled
-	 * in the MAC and the packets are dropped here.  They are
-	 * also counted here.
+	/* In V1 silicon, there is a bug which screws up filtering of runt
+	 * packets. Therefore runt packet filtering is disabled in the MAC and
+	 * the packets are dropped here. They are also counted here.
 	 */
 	if (len < (NIC_MIN_PACKET_SIZE + 4)) {
 		adapter->stats.rx_other_errs++;
 		len = 0;
 	}
 
-	if (len) {
-		/* Determine if this is a multicast packet coming in */
-		if ((word0 & ALCATEL_MULTICAST_PKT) &&
-		    !(word0 & ALCATEL_BROADCAST_PKT)) {
-			/* Promiscuous mode and Multicast mode are
-			 * not mutually exclusive as was first
-			 * thought.  I guess Promiscuous is just
-			 * considered a super-set of the other
-			 * filters. Generally filter is 0x2b when in
-			 * promiscuous mode.
-			 */
-			if ((adapter->packet_filter &
-					ET131X_PACKET_TYPE_MULTICAST)
-			    && !(adapter->packet_filter &
-					ET131X_PACKET_TYPE_PROMISCUOUS)
-			    && !(adapter->packet_filter &
+	if (len == 0) {
+		rfd->len = 0;
+		goto out;
+	}
+
+	/* Determine if this is a multicast packet coming in */
+	if ((word0 & ALCATEL_MULTICAST_PKT) &&
+	    !(word0 & ALCATEL_BROADCAST_PKT)) {
+		/* Promiscuous mode and Multicast mode are not mutually
+		 * exclusive as was first thought. I guess Promiscuous is just
+		 * considered a super-set of the other filters. Generally filter
+		 * is 0x2b when in promiscuous mode.
+		 */
+		if ((adapter->packet_filter & ET131X_PACKET_TYPE_MULTICAST)
+		   && !(adapter->packet_filter & ET131X_PACKET_TYPE_PROMISCUOUS)
+		   && !(adapter->packet_filter &
 					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-				/*
-				 * Note - ring_index for fbr[] array is reversed
-				 * 1 for FBR0 etc
-				 */
-				buf = rx_local->fbr[(ring_index == 0 ? 1 : 0)]->
-						virt[buff_index];
+			/*
+			 * Note - ring_index for fbr[] array is reversed
+			 * 1 for FBR0 etc
+			 */
+			buf = rx_local->fbr[(ring_index == 0 ? 1 : 0)]->
+					virt[buff_index];
 
-				/* Loop through our list to see if the
-				 * destination address of this packet
-				 * matches one in our list.
-				 */
-				for (i = 0; i < adapter->multicast_addr_count;
-				     i++) {
-					if (buf[0] ==
-						adapter->multicast_list[i][0]
-					    && buf[1] ==
-						adapter->multicast_list[i][1]
-					    && buf[2] ==
-						adapter->multicast_list[i][2]
-					    && buf[3] ==
-						adapter->multicast_list[i][3]
-					    && buf[4] ==
-						adapter->multicast_list[i][4]
-					    && buf[5] ==
-						adapter->multicast_list[i][5]) {
-						break;
-					}
+			/* Loop through our list to see if the destination
+			 * address of this packet matches one in our list.
+			 */
+			for (i = 0; i < adapter->multicast_addr_count; i++) {
+				if (buf[0] == adapter->multicast_list[i][0]
+				 && buf[1] == adapter->multicast_list[i][1]
+				 && buf[2] == adapter->multicast_list[i][2]
+				 && buf[3] == adapter->multicast_list[i][3]
+				 && buf[4] == adapter->multicast_list[i][4]
+				 && buf[5] == adapter->multicast_list[i][5]) {
+					break;
 				}
-
-				/* If our index is equal to the number
-				 * of Multicast address we have, then
-				 * this means we did not find this
-				 * packet's matching address in our
-				 * list.  Set the len to zero,
-				 * so we free our RFD when we return
-				 * from this function.
-				 */
-				if (i == adapter->multicast_addr_count)
-					len = 0;
 			}
 
-			if (len > 0)
-				adapter->stats.multicast_pkts_rcvd++;
-		} else if (word0 & ALCATEL_BROADCAST_PKT)
-			adapter->stats.broadcast_pkts_rcvd++;
-		else
-			/* Not sure what this counter measures in
-			 * promiscuous mode. Perhaps we should check
-			 * the MAC address to see if it is directed
-			 * to us in promiscuous mode.
+			/* If our index is equal to the number of Multicast
+			 * address we have, then this means we did not find this
+			 * packet's matching address in our list. Set the len to
+			 * zero, so we free our RFD when we return from this
+			 * function.
 			 */
-			adapter->stats.unicast_pkts_rcvd++;
-	}
-
-	if (len > 0) {
-		struct sk_buff *skb = NULL;
-
-		/*rfd->len = len - 4; */
-		rfd->len = len;
-
-		skb = dev_alloc_skb(rfd->len + 2);
-		if (!skb) {
-			dev_err(&adapter->pdev->dev,
-				  "Couldn't alloc an SKB for Rx\n");
-			return NULL;
+			if (i == adapter->multicast_addr_count)
+				len = 0;
 		}
 
-		adapter->net_stats.rx_bytes += rfd->len;
-
-		/*
-		 * Note - ring_index for fbr[] array is reversed,
-		 * 1 for FBR0 etc
-		 */
-		memcpy(skb_put(skb, rfd->len),
-		    rx_local->fbr[(ring_index == 0 ? 1 : 0)]->virt[buff_index],
-		    rfd->len);
-
-		skb->dev = adapter->netdev;
-		skb->protocol = eth_type_trans(skb, adapter->netdev);
-		skb->ip_summed = CHECKSUM_NONE;
-
-		netif_rx_ni(skb);
+		if (len > 0)
+			adapter->stats.multicast_pkts_rcvd++;
+	} else if (word0 & ALCATEL_BROADCAST_PKT) {
+		adapter->stats.broadcast_pkts_rcvd++;
 	} else {
-		rfd->len = 0;
+		/* Not sure what this counter measures in promiscuous mode.
+		 * Perhaps we should check the MAC address to see if it is
+		 * directed to us in promiscuous mode.
+		 */
+		adapter->stats.unicast_pkts_rcvd++;
 	}
 
+	if (len == 0) {
+		rfd->len = 0;
+		goto out;
+	}
+
+	rfd->len = len;
+
+	skb = dev_alloc_skb(rfd->len + 2);
+	if (!skb) {
+		dev_err(&adapter->pdev->dev, "Couldn't alloc an SKB for Rx\n");
+		return NULL;
+	}
+
+	adapter->net_stats.rx_bytes += rfd->len;
+
+	/* Note - ring_index for fbr[] array is reversed, 1 for FBR0 etc */
+	memcpy(skb_put(skb, rfd->len),
+	       rx_local->fbr[(ring_index == 0 ? 1 : 0)]->virt[buff_index],
+	       rfd->len);
+
+	skb->dev = adapter->netdev;
+	skb->protocol = eth_type_trans(skb, adapter->netdev);
+	skb->ip_summed = CHECKSUM_NONE;
+	netif_rx_ni(skb);
+
+out:
 	nic_return_rfd(adapter, rfd);
 	return rfd;
 }
@@ -3740,7 +3716,7 @@ static struct ethtool_ops et131x_ethtool_ops = {
 	.get_drvinfo	= et131x_get_drvinfo,
 	.get_regs_len	= et131x_get_regs_len,
 	.get_regs	= et131x_get_regs,
-	.get_link = ethtool_op_get_link,
+	.get_link	= ethtool_op_get_link,
 };
 /**
  * et131x_hwaddr_init - set up the MAC Address on the ET1310
@@ -3907,8 +3883,7 @@ static void et131x_error_timer_handler(unsigned long data)
 	}
 
 	/* This is a periodic timer, so reschedule */
-	mod_timer(&adapter->error_timer, jiffies +
-					  TX_ERROR_PERIOD * HZ / 1000);
+	mod_timer(&adapter->error_timer, jiffies + TX_ERROR_PERIOD * HZ / 1000);
 }
 
 /**
