@@ -580,6 +580,7 @@
 							66  0x1b0b0	/* MX6Q_PAD_RGMII_RD2__ENET_RGMII_RD2 */
 							70  0x1b0b0	/* MX6Q_PAD_RGMII_RD3__ENET_RGMII_RD3 */
 							48  0x1b0b0	/* MX6Q_PAD_RGMII_RX_CTL__RGMII_RX_CTL */
+							1033 0x4001b0a8	/* MX6Q_PAD_GPIO_16__ENET_ANATOP_ETHERNET_REF_OUT*/
 						>;
 					};
 
@@ -833,8 +834,8 @@
 				compatible = "fsl,imx6q-fec";
 				reg = <0x02188000 0x4000>;
 				interrupts = <0 118 0x04 0 119 0x04>;
-				clocks = <&clks 117>, <&clks 117>;
-				clock-names = "ipg", "ahb";
+				clocks = <&clks 117>, <&clks 117>, <&clks 177>;
+				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
 
