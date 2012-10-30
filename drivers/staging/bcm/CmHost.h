@@ -18,71 +18,65 @@
 #define _CM_HOST_H
 
 #pragma once
-#pragma pack (push,4)
+#pragma pack(push, 4)
 
-#define  DSX_MESSAGE_EXCHANGE_BUFFER        0xBF60AC84 /* This contains the pointer */
-#define  DSX_MESSAGE_EXCHANGE_BUFFER_SIZE   72000 /* 24 K Bytes */
+#define DSX_MESSAGE_EXCHANGE_BUFFER        0xBF60AC84 /* This contains the pointer */
+#define DSX_MESSAGE_EXCHANGE_BUFFER_SIZE   72000      /* 24 K Bytes */
 
 /* brief structure stLocalSFAddRequest */
-typedef struct stLocalSFAddRequestAlt{
-	B_UINT8                         u8Type;
-	B_UINT8      u8Direction;
-
-	B_UINT16                        u16TID;
+typedef struct stLocalSFAddRequestAlt {
+	B_UINT8		u8Type;
+	B_UINT8		u8Direction;
+	B_UINT16	u16TID;
 	/* brief 16bitCID */
-    B_UINT16                        u16CID;
+	B_UINT16	u16CID;
 	/* brief 16bitVCID */
-    B_UINT16                        u16VCID;
-
-
+	B_UINT16	u16VCID;
 	struct bcm_connect_mgr_params sfParameterSet;
-
 	/* USE_MEMORY_MANAGER(); */
-}stLocalSFAddRequestAlt;
+} stLocalSFAddRequestAlt;
 
 /* brief structure stLocalSFAddIndication */
-typedef struct stLocalSFAddIndicationAlt{
-    B_UINT8                         u8Type;
-	B_UINT8      u8Direction;
-	B_UINT16                         u16TID;
-/* brief 16bitCID */
-    B_UINT16                        u16CID;
+typedef struct stLocalSFAddIndicationAlt {
+	B_UINT8		u8Type;
+	B_UINT8		u8Direction;
+	B_UINT16	u16TID;
+	/* brief 16bitCID */
+	B_UINT16	u16CID;
 	/* brief 16bitVCID */
-    B_UINT16                        u16VCID;
+	B_UINT16	u16VCID;
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-
-	B_UINT8 						u8CC;    /* < Confirmation Code */
-	B_UINT8 						u8Padd;  /* < 8-bit Padding */
-	B_UINT16						u16Padd; /* < 16 bit Padding */
+	B_UINT8		u8CC;    /* < Confirmation Code */
+	B_UINT8		u8Padd;  /* < 8-bit Padding */
+	B_UINT16	u16Padd; /* < 16 bit Padding */
 /* USE_MEMORY_MANAGER(); */
-}stLocalSFAddIndicationAlt;
+} stLocalSFAddIndicationAlt;
 
 /* brief structure stLocalSFAddConfirmation */
-typedef struct stLocalSFAddConfirmationAlt{
-	B_UINT8                     u8Type;
-	B_UINT8      				u8Direction;
-	B_UINT16					u16TID;
+typedef struct stLocalSFAddConfirmationAlt {
+	B_UINT8		u8Type;
+	B_UINT8		u8Direction;
+	B_UINT16	u16TID;
 	/* brief 16bitCID */
-    B_UINT16                        u16CID;
+	B_UINT16	u16CID;
 	/* brief 16bitVCID */
-    B_UINT16                        u16VCID;
+	B_UINT16	u16VCID;
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-}stLocalSFAddConfirmationAlt;
-
+} stLocalSFAddConfirmationAlt;
 
 /* brief structure stLocalSFChangeRequest */
-typedef struct stLocalSFChangeRequestAlt{
-    B_UINT8                         u8Type;
-	B_UINT8      u8Direction;
-	B_UINT16					u16TID;
+typedef struct stLocalSFChangeRequestAlt {
+	B_UINT8		u8Type;
+	B_UINT8		u8Direction;
+	B_UINT16	u16TID;
 	/* brief 16bitCID */
-    B_UINT16                        u16CID;
+	B_UINT16	u16CID;
 	/* brief 16bitVCID */
-    B_UINT16                        u16VCID;
+	B_UINT16	u16VCID;
 	/*
 	 * Pointer location at which following connection manager param Structure can be read
 	 * from the target. We only get the address location and we need to read out the
@@ -91,57 +85,48 @@ typedef struct stLocalSFChangeRequestAlt{
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-
-	B_UINT8 						u8CC;	 /* < Confirmation Code */
-	B_UINT8 						u8Padd;  /* < 8-bit Padding */
-	B_UINT16						u16Padd; /* < 16 bit */
-
-}stLocalSFChangeRequestAlt;
+	B_UINT8		u8CC;	 /* < Confirmation Code */
+	B_UINT8		u8Padd;  /* < 8-bit Padding */
+	B_UINT16	u16Padd; /* < 16 bit */
+} stLocalSFChangeRequestAlt;
 
 /* brief structure stLocalSFChangeConfirmation */
-typedef struct stLocalSFChangeConfirmationAlt{
-	B_UINT8                         u8Type;
-	B_UINT8      					u8Direction;
-	B_UINT16						u16TID;
+typedef struct stLocalSFChangeConfirmationAlt {
+	B_UINT8		u8Type;
+	B_UINT8		u8Direction;
+	B_UINT16	u16TID;
 	/* brief 16bitCID */
-    B_UINT16                        u16CID;
+	B_UINT16	u16CID;
 	/* brief 16bitVCID */
-    B_UINT16                        u16VCID;
+	B_UINT16	u16VCID;
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-
-}stLocalSFChangeConfirmationAlt;
+} stLocalSFChangeConfirmationAlt;
 
 /* brief structure stLocalSFChangeIndication */
-typedef struct stLocalSFChangeIndicationAlt{
-	B_UINT8                         u8Type;
-		B_UINT8      u8Direction;
-	B_UINT16						u16TID;
+typedef struct stLocalSFChangeIndicationAlt {
+	B_UINT8		u8Type;
+	B_UINT8		u8Direction;
+	B_UINT16	u16TID;
 	/* brief 16bitCID */
-    B_UINT16                        u16CID;
+	B_UINT16	u16CID;
 	/* brief 16bitVCID */
-    B_UINT16                        u16VCID;
+	B_UINT16	u16VCID;
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
+	B_UINT8		u8CC;    /* < Confirmation Code */
+	B_UINT8		u8Padd;  /* < 8-bit Padding */
+	B_UINT16	u16Padd; /* < 16 bit */
+} stLocalSFChangeIndicationAlt;
 
-	B_UINT8 						u8CC;    /* < Confirmation Code */
-	B_UINT8 						u8Padd;  /* < 8-bit Padding */
-	B_UINT16						u16Padd; /* < 16 bit */
-
-}stLocalSFChangeIndicationAlt;
-
-ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer,UINT *puBufferLength);
-
+ULONG StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer, UINT *puBufferLength);
 INT AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
-
 INT FreeAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
 ULONG SetUpTargetDsxBuffers(struct bcm_mini_adapter *Adapter);
-
 BOOLEAN CmControlResponseMessage(struct bcm_mini_adapter *Adapter, PVOID pvBuffer);
 
-
-#pragma pack (pop)
+#pragma pack(pop)
 
 #endif
