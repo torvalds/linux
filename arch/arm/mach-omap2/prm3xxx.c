@@ -123,6 +123,21 @@ u32 omap3_prm_vcvp_rmw(u32 mask, u32 bits, u8 offset)
 }
 
 /**
+ * omap3xxx_prm_dpll3_reset - use DPLL3 reset to reboot the OMAP SoC
+ *
+ * Set the DPLL3 reset bit, which should reboot the SoC.  This is the
+ * recommended way to restart the SoC, considering Errata i520.  No
+ * return value.
+ */
+void omap3xxx_prm_dpll3_reset(void)
+{
+	omap2_prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, OMAP3430_GR_MOD,
+				   OMAP2_RM_RSTCTRL);
+	/* OCP barrier */
+	omap2_prm_read_mod_reg(OMAP3430_GR_MOD, OMAP2_RM_RSTCTRL);
+}
+
+/**
  * omap3xxx_prm_read_pending_irqs - read pending PRM MPU IRQs into @events
  * @events: ptr to a u32, preallocated by caller
  *
