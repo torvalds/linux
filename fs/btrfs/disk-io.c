@@ -2508,6 +2508,13 @@ retry_root_backup:
 	}
 	fs_info->num_tolerated_disk_barrier_failures =
 		btrfs_calc_num_tolerated_disk_barrier_failures(fs_info);
+	if (fs_info->fs_devices->missing_devices >
+	     fs_info->num_tolerated_disk_barrier_failures &&
+	    !(sb->s_flags & MS_RDONLY)) {
+		printk(KERN_WARNING
+		       "Btrfs: too many missing devices, writeable mount is not allowed\n");
+		goto fail_block_groups;
+	}
 
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
