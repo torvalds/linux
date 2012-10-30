@@ -3221,6 +3221,84 @@ out_err:
 	return ret;
 }
 
+static int rbd_dev_probe_finish(struct rbd_device *rbd_dev)
+{
+	int ret;
+
+	/* no need to lock here, as rbd_dev is not registered yet */
+	ret = rbd_dev_snaps_update(rbd_dev);
+	if (ret)
+		return ret;
+
+	ret = rbd_dev_set_mapping(rbd_dev);
+	if (ret)
+		goto err_out_snaps;
+
+	/* generate unique id: find highest unique id, add one */
+	rbd_dev_id_get(rbd_dev);
+
+	/* Fill in the device name, now that we have its id. */
+	BUILD_BUG_ON(DEV_NAME_LEN
+			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
+	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->dev_id);
+
+	/* Get our block major device number. */
+
+	ret = register_blkdev(0, rbd_dev->name);
+	if (ret < 0)
+		goto err_out_id;
+	rbd_dev->major = ret;
+
+	/* Set up the blkdev mapping. */
+
+	ret = rbd_init_disk(rbd_dev);
+	if (ret)
+		goto err_out_blkdev;
+
+	ret = rbd_bus_add_dev(rbd_dev);
+	if (ret)
+		goto err_out_disk;
+
+	/*
+	 * At this point cleanup in the event of an error is the job
+	 * of the sysfs code (initiated by rbd_bus_del_dev()).
+	 */
+	down_write(&rbd_dev->header_rwsem);
+	ret = rbd_dev_snaps_register(rbd_dev);
+	up_write(&rbd_dev->header_rwsem);
+	if (ret)
+		goto err_out_bus;
+
+	ret = rbd_init_watch_dev(rbd_dev);
+	if (ret)
+		goto err_out_bus;
+
+	/* Everything's ready.  Announce the disk to the world. */
+
+	add_disk(rbd_dev->disk);
+
+	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
+		(unsigned long long) rbd_dev->mapping.size);
+
+	return ret;
+err_out_bus:
+	/* this will also clean up rest of rbd_dev stuff */
+
+	rbd_bus_del_dev(rbd_dev);
+
+	return ret;
+err_out_disk:
+	rbd_free_disk(rbd_dev);
+err_out_blkdev:
+	unregister_blkdev(rbd_dev->major, rbd_dev->name);
+err_out_id:
+	rbd_dev_id_put(rbd_dev);
+err_out_snaps:
+	rbd_remove_all_snaps(rbd_dev);
+
+	return ret;
+}
+
 /*
  * Probe for the existence of the header object for the given rbd
  * device.  For format 2 images this includes determining the image
@@ -3240,8 +3318,15 @@ static int rbd_dev_probe(struct rbd_device *rbd_dev)
 		ret = rbd_dev_v1_probe(rbd_dev);
 	else
 		ret = rbd_dev_v2_probe(rbd_dev);
-	if (ret)
+	if (ret) {
 		dout("probe failed, returning %d\n", ret);
+
+		return ret;
+	}
+
+	ret = rbd_dev_probe_finish(rbd_dev);
+	if (ret)
+		rbd_header_free(&rbd_dev->header);
 
 	return ret;
 }
@@ -3294,81 +3379,7 @@ static ssize_t rbd_add(struct bus_type *bus,
 	if (rc < 0)
 		goto err_out_rbd_dev;
 
-	/* no need to lock here, as rbd_dev is not registered yet */
-	rc = rbd_dev_snaps_update(rbd_dev);
-	if (rc)
-		goto err_out_probe;
-
-	rc = rbd_dev_set_mapping(rbd_dev);
-	if (rc)
-		goto err_out_snaps;
-
-	/* generate unique id: find highest unique id, add one */
-	rbd_dev_id_get(rbd_dev);
-
-	/* Fill in the device name, now that we have its id. */
-	BUILD_BUG_ON(DEV_NAME_LEN
-			< sizeof (RBD_DRV_NAME) + MAX_INT_FORMAT_WIDTH);
-	sprintf(rbd_dev->name, "%s%d", RBD_DRV_NAME, rbd_dev->dev_id);
-
-	/* Get our block major device number. */
-
-	rc = register_blkdev(0, rbd_dev->name);
-	if (rc < 0)
-		goto err_out_id;
-	rbd_dev->major = rc;
-
-	/* Set up the blkdev mapping. */
-
-	rc = rbd_init_disk(rbd_dev);
-	if (rc)
-		goto err_out_blkdev;
-
-	rc = rbd_bus_add_dev(rbd_dev);
-	if (rc)
-		goto err_out_disk;
-
-	/*
-	 * At this point cleanup in the event of an error is the job
-	 * of the sysfs code (initiated by rbd_bus_del_dev()).
-	 */
-
-	down_write(&rbd_dev->header_rwsem);
-	rc = rbd_dev_snaps_register(rbd_dev);
-	up_write(&rbd_dev->header_rwsem);
-	if (rc)
-		goto err_out_bus;
-
-	rc = rbd_init_watch_dev(rbd_dev);
-	if (rc)
-		goto err_out_bus;
-
-	/* Everything's ready.  Announce the disk to the world. */
-
-	add_disk(rbd_dev->disk);
-
-	pr_info("%s: added with size 0x%llx\n", rbd_dev->disk->disk_name,
-		(unsigned long long) rbd_dev->mapping.size);
-
 	return count;
-
-err_out_bus:
-	/* this will also clean up rest of rbd_dev stuff */
-
-	rbd_bus_del_dev(rbd_dev);
-
-	return rc;
-
-err_out_disk:
-	rbd_free_disk(rbd_dev);
-err_out_blkdev:
-	unregister_blkdev(rbd_dev->major, rbd_dev->name);
-err_out_id:
-	rbd_dev_id_put(rbd_dev);
-err_out_snaps:
-	rbd_remove_all_snaps(rbd_dev);
-err_out_probe:
-	rbd_header_free(&rbd_dev->header);
 err_out_rbd_dev:
 	rbd_dev_destroy(rbd_dev);
 err_out_client:
