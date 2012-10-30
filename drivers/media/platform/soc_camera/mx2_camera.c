@@ -216,12 +216,6 @@ struct mx2_fmt_cfg {
 	struct mx2_prp_cfg		cfg;
 };
 
-enum mx2_buffer_state {
-	MX2_STATE_QUEUED,
-	MX2_STATE_ACTIVE,
-	MX2_STATE_DONE,
-};
-
 struct mx2_buf_internal {
 	struct list_head	queue;
 	int			bufnum;
@@ -232,7 +226,6 @@ struct mx2_buf_internal {
 struct mx2_buffer {
 	/* common v4l buffer stuff -- must be first */
 	struct vb2_buffer		vb;
-	enum mx2_buffer_state		state;
 	struct mx2_buf_internal		internal;
 };
 
@@ -554,7 +547,6 @@ static void mx2_videobuf_queue(struct vb2_buffer *vb)
 
 	spin_lock_irqsave(&pcdev->lock, flags);
 
-	buf->state = MX2_STATE_QUEUED;
 	list_add_tail(&buf->internal.queue, &pcdev->capture);
 
 	spin_unlock_irqrestore(&pcdev->lock, flags);
@@ -678,7 +670,6 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 			       internal.queue);
 	buf->internal.bufnum = 0;
 	vb = &buf->vb;
-	buf->state = MX2_STATE_ACTIVE;
 
 	phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 	mx27_update_emma_buf(pcdev, phys, buf->internal.bufnum);
@@ -688,7 +679,6 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 			       internal.queue);
 	buf->internal.bufnum = 1;
 	vb = &buf->vb;
-	buf->state = MX2_STATE_ACTIVE;
 
 	phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 	mx27_update_emma_buf(pcdev, phys, buf->internal.bufnum);
@@ -1382,7 +1372,6 @@ static void mx27_camera_frame_done_emma(struct mx2_camera_dev *pcdev,
 	list_move_tail(pcdev->capture.next, &pcdev->active_bufs);
 
 	vb = &buf->vb;
-	buf->state = MX2_STATE_ACTIVE;
 
 	phys = vb2_dma_contig_plane_dma_addr(vb, 0);
 	mx27_update_emma_buf(pcdev, phys, bufnum);
