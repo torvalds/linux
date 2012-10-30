@@ -19,24 +19,10 @@
 
 #ifdef __KERNEL__
 
-struct CsrEvent {
-	/* wait_queue for waking the kernel thread */
-	wait_queue_head_t wakeup_q;
-	unsigned int      wakeup_flag;
-};
-
-typedef struct CsrEvent CsrEventHandle;
 typedef struct semaphore CsrMutexHandle;
 
 #else /* __KERNEL __ */
 
-struct CsrEvent {
-	pthread_cond_t  event;
-	pthread_mutex_t mutex;
-	u32       eventBits;
-};
-
-typedef struct CsrEvent CsrEventHandle;
 typedef pthread_mutex_t CsrMutexHandle;
 
 #endif /* __KERNEL__ */
