@@ -248,6 +248,8 @@ config USB_NET_DM9601
 config USB_NET_SMSC75XX
 	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
 	depends on USB_USBNET
+	select BITREVERSE
+	select CRC16
 	select CRC32
 	help
 	  This option adds support for SMSC LAN95XX based USB 2.0

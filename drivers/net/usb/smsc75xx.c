@@ -26,6 +26,8 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
+#include <linux/bitrev.h>
+#include <linux/crc16.h>
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
 #include <linux/slab.h>
@@ -52,7 +54,8 @@
 #define USB_PRODUCT_ID_LAN7500		(0x7500)
 #define USB_PRODUCT_ID_LAN7505		(0x7505)
 #define RXW_PADDING			2
-#define SUPPORTED_WAKE			(WAKE_MAGIC)
+#define SUPPORTED_WAKE			(WAKE_UCAST | WAKE_BCAST | \
+					 WAKE_MCAST | WAKE_ARP | WAKE_MAGIC)
 
 #define check_warn(ret, fmt, args...) \
 	({ if (ret < 0) netdev_warn(dev->net, fmt, ##args); })
@@ -1143,6 +1146,36 @@ static void smsc75xx_unbind(struct usbnet *dev, struct usb_interface *intf)
 	}
 }
 
+static u16 smsc_crc(const u8 *buffer, size_t len)
+{
+	return bitrev16(crc16(0xFFFF, buffer, len));
+}
+
+static int smsc75xx_write_wuff(struct usbnet *dev, int filter, u32 wuf_cfg,
+			       u32 wuf_mask1)
+{
+	int cfg_base = WUF_CFGX + filter * 4;
+	int mask_base = WUF_MASKX + filter * 16;
+	int ret;
+
+	ret = smsc75xx_write_reg(dev, cfg_base, wuf_cfg);
+	check_warn_return(ret, "Error writing WUF_CFGX");
+
+	ret = smsc75xx_write_reg(dev, mask_base, wuf_mask1);
+	check_warn_return(ret, "Error writing WUF_MASKX");
+
+	ret = smsc75xx_write_reg(dev, mask_base + 4, 0);
+	check_warn_return(ret, "Error writing WUF_MASKX");
+
+	ret = smsc75xx_write_reg(dev, mask_base + 8, 0);
+	check_warn_return(ret, "Error writing WUF_MASKX");
+
+	ret = smsc75xx_write_reg(dev, mask_base + 12, 0);
+	check_warn_return(ret, "Error writing WUF_MASKX");
+
+	return 0;
+}
+
 static int smsc75xx_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
@@ -1187,42 +1220,107 @@ static int smsc75xx_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 	}
 
-	if (pdata->wolopts & WAKE_MAGIC) {
-		/* clear any pending magic packet status */
+	if (pdata->wolopts & (WAKE_MCAST | WAKE_ARP)) {
+		int i, filter = 0;
+
+		/* disable all filters */
+		for (i = 0; i < WUF_NUM; i++) {
+			ret = smsc75xx_write_reg(dev, WUF_CFGX + i * 4, 0);
+			check_warn_return(ret, "Error writing WUF_CFGX");
+		}
+
+		if (pdata->wolopts & WAKE_MCAST) {
+			const u8 mcast[] = {0x01, 0x00, 0x5E};
+			netdev_info(dev->net, "enabling multicast detection");
+
+			val = WUF_CFGX_EN | WUF_CFGX_ATYPE_MULTICAST
+				| smsc_crc(mcast, 3);
+			ret = smsc75xx_write_wuff(dev, filter++, val, 0x0007);
+			check_warn_return(ret, "Error writing wakeup filter");
+		}
+
+		if (pdata->wolopts & WAKE_ARP) {
+			const u8 arp[] = {0x08, 0x06};
+			netdev_info(dev->net, "enabling ARP detection");
+
+			val = WUF_CFGX_EN | WUF_CFGX_ATYPE_ALL | (0x0C << 16)
+				| smsc_crc(arp, 2);
+			ret = smsc75xx_write_wuff(dev, filter++, val, 0x0003);
+			check_warn_return(ret, "Error writing wakeup filter");
+		}
+
+		/* clear any pending pattern match packet status */
 		ret = smsc75xx_read_reg(dev, WUCSR, &val);
 		check_warn_return(ret, "Error reading WUCSR");
 
-		val |= WUCSR_MPR;
+		val |= WUCSR_WUFR;
+
+		ret = smsc75xx_write_reg(dev, WUCSR, val);
+		check_warn_return(ret, "Error writing WUCSR");
+
+		netdev_info(dev->net, "enabling packet match detection");
+		ret = smsc75xx_read_reg(dev, WUCSR, &val);
+		check_warn_return(ret, "Error reading WUCSR");
+
+		val |= WUCSR_WUEN;
+
+		ret = smsc75xx_write_reg(dev, WUCSR, val);
+		check_warn_return(ret, "Error writing WUCSR");
+	} else {
+		netdev_info(dev->net, "disabling packet match detection");
+		ret = smsc75xx_read_reg(dev, WUCSR, &val);
+		check_warn_return(ret, "Error reading WUCSR");
+
+		val &= ~WUCSR_WUEN;
 
 		ret = smsc75xx_write_reg(dev, WUCSR, val);
 		check_warn_return(ret, "Error writing WUCSR");
 	}
 
-	/* enable/disable magic packup wake */
+	/* disable magic, bcast & unicast wakeup sources */
 	ret = smsc75xx_read_reg(dev, WUCSR, &val);
 	check_warn_return(ret, "Error reading WUCSR");
 
-	if (pdata->wolopts & WAKE_MAGIC) {
-		netdev_info(dev->net, "enabling magic packet wakeup");
-		val |= WUCSR_MPEN;
-	} else {
-		netdev_info(dev->net, "disabling magic packet wakeup");
-		val &= ~WUCSR_MPEN;
-	}
+	val &= ~(WUCSR_MPEN | WUCSR_BCST_EN | WUCSR_PFDA_EN);
 
 	ret = smsc75xx_write_reg(dev, WUCSR, val);
 	check_warn_return(ret, "Error writing WUCSR");
 
-	/* enable wol wakeup source */
-	ret = smsc75xx_read_reg(dev, PMT_CTL, &val);
-	check_warn_return(ret, "Error reading PMT_CTL");
+	if (pdata->wolopts & WAKE_MAGIC) {
+		netdev_info(dev->net, "enabling magic packet wakeup");
+		ret = smsc75xx_read_reg(dev, WUCSR, &val);
+		check_warn_return(ret, "Error reading WUCSR");
 
-	val |= PMT_CTL_WOL_EN;
+		/* clear any pending magic packet status */
+		val |= WUCSR_MPR | WUCSR_MPEN;
 
-	ret = smsc75xx_write_reg(dev, PMT_CTL, val);
-	check_warn_return(ret, "Error writing PMT_CTL");
+		ret = smsc75xx_write_reg(dev, WUCSR, val);
+		check_warn_return(ret, "Error writing WUCSR");
+	}
 
-	/* enable receiver */
+	if (pdata->wolopts & WAKE_BCAST) {
+		netdev_info(dev->net, "enabling broadcast detection");
+		ret = smsc75xx_read_reg(dev, WUCSR, &val);
+		check_warn_return(ret, "Error reading WUCSR");
+
+		val |= WUCSR_BCAST_FR | WUCSR_BCST_EN;
+
+		ret = smsc75xx_write_reg(dev, WUCSR, val);
+		check_warn_return(ret, "Error writing WUCSR");
+	}
+
+	if (pdata->wolopts & WAKE_UCAST) {
+		netdev_info(dev->net, "enabling unicast detection");
+		ret = smsc75xx_read_reg(dev, WUCSR, &val);
+		check_warn_return(ret, "Error reading WUCSR");
+
+		val |= WUCSR_WUFR | WUCSR_PFDA_EN;
+
+		ret = smsc75xx_write_reg(dev, WUCSR, val);
+		check_warn_return(ret, "Error writing WUCSR");
+	}
+
+	/* enable receiver to enable frame reception */
 	ret = smsc75xx_read_reg(dev, MAC_RX, &val);
 	check_warn_return(ret, "Failed to read MAC_RX: %d", ret);
 
@@ -1237,21 +1335,11 @@ static int smsc75xx_suspend(struct usb_interface *intf, pm_message_t message)
 	ret = smsc75xx_read_reg(dev, PMT_CTL, &val);
 	check_warn_return(ret, "Error reading PMT_CTL");
 
-	val &= (~(PMT_CTL_SUS_MODE | PMT_CTL_WUPS | PMT_CTL_PHY_RST));
-	val |= PMT_CTL_SUS_MODE_0;
+	val &= (~(PMT_CTL_SUS_MODE | PMT_CTL_PHY_RST));
+	val |= PMT_CTL_SUS_MODE_0 | PMT_CTL_WOL_EN | PMT_CTL_WUPS;
 
 	ret = smsc75xx_write_reg(dev, PMT_CTL, val);
 	check_warn_return(ret, "Error writing PMT_CTL");
-
-	/* clear wol status */
-	val &= ~PMT_CTL_WUPS;
-	val |= PMT_CTL_WUPS_WOL;
-	ret = smsc75xx_write_reg(dev, PMT_CTL, val);
-	check_warn_return(ret, "Error writing PMT_CTL");
-
-	/* read back PMT_CTL */
-	ret = smsc75xx_read_reg(dev, PMT_CTL, &val);
-	check_warn_return(ret, "Error reading PMT_CTL");
 
 	smsc75xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
 
@@ -1265,16 +1353,17 @@ static int smsc75xx_resume(struct usb_interface *intf)
 	int ret;
 	u32 val;
 
-	if (pdata->wolopts & WAKE_MAGIC) {
+	if (pdata->wolopts) {
 		netdev_info(dev->net, "resuming from SUSPEND0");
 
 		smsc75xx_clear_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
 
-		/* Disable magic packup wake */
+		/* Disable wakeup sources */
 		ret = smsc75xx_read_reg(dev, WUCSR, &val);
 		check_warn_return(ret, "Error reading WUCSR");
 
-		val &= ~WUCSR_MPEN;
+		val &= ~(WUCSR_WUEN | WUCSR_MPEN | WUCSR_PFDA_EN
+			| WUCSR_BCST_EN);
 
 		ret = smsc75xx_write_reg(dev, WUCSR, val);
 		check_warn_return(ret, "Error writing WUCSR");
