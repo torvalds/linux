@@ -2681,8 +2681,7 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	/* We don't use any of the OOB data besides status. Otherwise, we
 	 * need to clean up OOB data
 	 */
-	if (
-	    (ring_index == 0 && buff_index < rx_local->fbr[1]->num_entries) ||
+	if ((ring_index == 0 && buff_index < rx_local->fbr[1]->num_entries) ||
 	    (ring_index == 1 && buff_index < rx_local->fbr[0]->num_entries)) {
 		u32 *offset;
 		u8 id;
@@ -2709,10 +2708,9 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 		next->addr_lo = rx_local->fbr[id]->bus_low[buff_index];
 		next->word2 = buff_index;
 
-		writel(bump_free_buff_ring(
-				&rx_local->fbr[id]->local_full,
-				rx_local->fbr[id]->num_entries - 1),
-				offset);
+		writel(bump_free_buff_ring(&rx_local->fbr[id]->local_full,
+					   rx_local->fbr[id]->num_entries - 1),
+					   offset);
 
 		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
@@ -2747,7 +2745,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	struct rx_ring *rx_local = &adapter->rx_ring;
 	struct rx_status_block *status;
 	struct pkt_stat_desc *psr;
-	struct rfd *rfd = NULL;
+	struct rfd *rfd;
 	u32 i;
 	u8 *buf;
 	unsigned long flags;
@@ -2757,7 +2755,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	u32 len;
 	u32 word0;
 	u32 word1;
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
 	/* RX Status block is written by the DMA engine prior to every
 	 * interrupt. It contains the next to be used entry in the Packet
