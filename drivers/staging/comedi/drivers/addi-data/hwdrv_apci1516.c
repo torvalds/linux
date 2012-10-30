@@ -46,12 +46,24 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
-#include "hwdrv_apci1516.h"
+/*********      Definitions for APCI-1516 card  *****/
+
+/* Card Specific information */
+#define APCI1516_ADDRESS_RANGE			8
+
+/* DIGITAL INPUT-OUTPUT DEFINE */
+
+#define APCI1516_DIGITAL_OP			4
+#define APCI1516_DIGITAL_OP_RW			4
+#define APCI1516_DIGITAL_IP			0
+
+/* TIMER COUNTER WATCHDOG DEFINES */
+
+#define ADDIDATA_WATCHDOG			2
+#define APCI1516_DIGITAL_OP_WATCHDOG		0
+#define APCI1516_WATCHDOG_ENABLEDISABLE		12
+#define APCI1516_WATCHDOG_RELOAD_VALUE		4
+#define APCI1516_WATCHDOG_STATUS		16
 
 /*
 +----------------------------------------------------------------------------+
