@@ -53,8 +53,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define EE93C76_CS_BIT		(1 << 1)
 #define EE93C76_DOUT_BIT	(1 << 2)
 #define EE93C76_DIN_BIT		(1 << 3)
-#define EE76_CMD_LEN    	13	/*  bits in instructions */
-#define EE_READ         	0x0180	/*  01 1000 0000 read instruction */
+#define EE93C76_READ_CMD	(0x0180 << 4)
+#define EE93C76_CMD_LEN		13
 
 #define EEPROM_DIGITALINPUT 			0
 #define EEPROM_DIGITALOUTPUT			1
@@ -121,9 +121,9 @@ static void addi_eeprom_clk_93c76(unsigned long iobase, unsigned int val)
 	udelay(100);
 }
 
-static void addi_eeprom_cmd_93c76(unsigned long iobase,
-				  unsigned int cmd,
-				  unsigned char len)
+static unsigned int addi_eeprom_cmd_93c76(unsigned long iobase,
+					  unsigned int cmd,
+					  unsigned char len)
 {
 	unsigned int val = EE93C76_CS_BIT;
 	int i;
@@ -145,50 +145,38 @@ static void addi_eeprom_cmd_93c76(unsigned long iobase,
 
 		addi_eeprom_clk_93c76(iobase, val);
 	}
+	return val;
 }
 
-static void v_EepromCs76Read(unsigned long iobase,
-			     unsigned short w_offset,
-			     unsigned short *pw_Value)
+static unsigned short addi_eeprom_readw_93c76(unsigned long iobase,
+					      unsigned short addr)
 {
-        char c_BitPos = 0;
-	unsigned int dw_RegisterValue = 0;
-	unsigned int dw_RegisterValueRead = 0;
+	unsigned short val = 0;
+	unsigned int cmd;
+	unsigned int tmp;
+        int i;
 
 	/* Send EEPROM read command and offset to EEPROM */
-	addi_eeprom_cmd_93c76(iobase, (EE_READ << 4) | (w_offset / 2),
-		EE76_CMD_LEN);
-
-	/* Get the last register value */
-	dw_RegisterValue = (((w_offset / 2) & 0x1) << 2) | EE93C76_CS_BIT;
-
-	/* Set the 16-bit value of 0 */
-	*pw_Value = 0;
+	cmd = EE93C76_READ_CMD | (addr / 2);
+	cmd = addi_eeprom_cmd_93c76(iobase, cmd, EE93C76_CMD_LEN);
 
 	/* Get the 16-bit value */
-	for (c_BitPos = 0; c_BitPos < 16; c_BitPos++) {
-		addi_eeprom_clk_93c76(iobase, dw_RegisterValue);
+	for (i = 0; i < 16; i++) {
+		addi_eeprom_clk_93c76(iobase, cmd);
 
-		/* Get the result bit */
-		dw_RegisterValueRead = inl(iobase);
+		tmp = inl(iobase);
 		udelay(100);
 
-		/* Get bit value and shift into result */
-		if (dw_RegisterValueRead & EE93C76_DIN_BIT) {
-			/* Read 1 */
-			*pw_Value = (*pw_Value << 1) | 0x1;
-		} else {
-			/* Read 0 */
-			*pw_Value = (*pw_Value << 1);
-		}
+		val <<= 1;
+		if (tmp & EE93C76_DIN_BIT)
+			val |= 0x1;
 	}
 
-	/* Clear all EEPROM bits */
-	dw_RegisterValue = 0x0;
-
 	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
-	outl(dw_RegisterValue, iobase);
+	outl(0, iobase);
 	udelay(100);
+
+	return val;
 }
 
 static void v_EepromWaitBusy(unsigned long iobase)
@@ -270,10 +258,8 @@ static unsigned short w_EepromReadWord(unsigned long iobase,
 		w_ReadWord = (b_ReadLowByte | (((unsigned short) b_ReadHighByte) * 256));
 	}
 
-	if (!strcmp(type, "93C76")) {
-		/* Read 16 bit from the EEPROM 93C76 */
-		v_EepromCs76Read(iobase, w_EepromStartAddress, &w_ReadWord);
-	}
+	if (!strcmp(type, "93C76"))
+		w_ReadWord = addi_eeprom_readw_93c76(iobase, w_EepromStartAddress);
 
 	return w_ReadWord;
 }
