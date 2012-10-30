@@ -27,11 +27,7 @@
 #ifndef __ASM_ARM_ARCH_OMAP_PRCM_H
 #define __ASM_ARM_ARCH_OMAP_PRCM_H
 
-#include <linux/kernel.h>
-#include <linux/io.h>
-
-void __init omap2_set_globals_prcm(void __iomem *prm, void __iomem *cm,
-				   void __iomem *cm2, void __iomem *prcm_mpu);
+/* XXX To be removed */
 
 #endif
 

@@ -16,7 +16,7 @@
 #ifndef __ARCH_ASM_MACH_OMAP2_CM2XXX_3XXX_H
 #define __ARCH_ASM_MACH_OMAP2_CM2XXX_3XXX_H
 
-#include "prcm-common.h"
+#include "cm.h"
 
 /*
  * Module specific CM register offsets from CM_BASE + domain offset

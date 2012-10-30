@@ -34,6 +34,7 @@
 #include "mmc.h"
 #include "hsmmc.h"
 #include "prminst44xx.h"
+#include "prcm_mpu44xx.h"
 #include "omap4-sar-layout.h"
 #include "omap-secure.h"
 

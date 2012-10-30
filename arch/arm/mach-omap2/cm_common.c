@@ -2,7 +2,7 @@
  * OMAP2+ common Clock Management (CM) IP block functions
  *
  * Copyright (C) 2012 Texas Instruments, Inc.
- * Paul Walmsley <paul@pwsan.com>
+ * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,6 +17,7 @@
 #include "cm2xxx.h"
 #include "cm3xxx.h"
 #include "cm44xx.h"
+#include "common.h"
 
 /*
  * cm_ll_data: function pointers to SoC-specific implementations of
@@ -24,6 +25,25 @@
  */
 static struct cm_ll_data null_cm_ll_data;
 static struct cm_ll_data *cm_ll_data = &null_cm_ll_data;
+
+/* cm_base: base virtual address of the CM IP block */
+void __iomem *cm_base;
+
+/* cm2_base: base virtual address of the CM2 IP block (OMAP44xx only) */
+void __iomem *cm2_base;
+
+/**
+ * omap2_set_globals_cm - set the CM/CM2 base addresses (for early use)
+ * @cm: CM base virtual address
+ * @cm2: CM2 base virtual address (if present on the booted SoC)
+ *
+ * XXX Will be replaced when the PRM/CM drivers are completed.
+ */
+void __init omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2)
+{
+	cm_base = cm;
+	cm2_base = cm2;
+}
 
 /**
  * cm_split_idlest_reg - split CM_IDLEST reg addr into its components

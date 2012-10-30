@@ -40,25 +40,6 @@
 #include "prm-regbits-44xx.h"
 #include "control.h"
 
-void __iomem *prm_base;
-void __iomem *cm_base;
-void __iomem *cm2_base;
-void __iomem *prcm_mpu_base;
-
-
-void __init omap2_set_globals_prcm(void __iomem *prm, void __iomem *cm,
-				   void __iomem *cm2, void __iomem *prcm_mpu)
-{
-	prm_base = prm;
-	cm_base = cm;
-	cm2_base = cm2;
-	prcm_mpu_base = prcm_mpu;
-
-	if (cpu_is_omap44xx() || soc_is_omap54xx()) {
-		omap_prm_base_init();
-		omap_cm_base_init();
-	}
-}
 
 /*
  * Stubbed functions so that common files continue to build when

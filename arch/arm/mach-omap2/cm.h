@@ -1,7 +1,7 @@
 /*
  * OMAP2+ Clock Management prototypes
  *
- * Copyright (C) 2007-2009 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009, 2012 Texas Instruments, Inc.
  * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
@@ -21,6 +21,12 @@
  * module to reach the functionnal state from an inactive state.
  */
 #define MAX_MODULE_READY_TIME		2000
+
+# ifndef __ASSEMBLER__
+extern void __iomem *cm_base;
+extern void __iomem *cm2_base;
+extern void omap2_set_globals_cm(void __iomem *cm, void __iomem *cm2);
+# endif
 
 /*
  * MAX_MODULE_DISABLE_TIME: max duration in microseconds to wait for

@@ -1,7 +1,7 @@
 /*
  * OMAP2/3/4 Power/Reset Management (PRM) bitfield definitions
  *
- * Copyright (C) 2007-2009 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009, 2012 Texas Instruments, Inc.
  * Copyright (C) 2010 Nokia Corporation
  *
  * Paul Walmsley
@@ -14,6 +14,11 @@
 #define __ARCH_ARM_MACH_OMAP2_PRM_H
 
 #include "prcm-common.h"
+
+# ifndef __ASSEMBLER__
+extern void __iomem *prm_base;
+extern void omap2_set_globals_prm(void __iomem *prm);
+# endif
 
 /*
  * 24XX: PM_PWSTST_CORE, PM_PWSTST_GFX, PM_PWSTST_MPU, PM_PWSTST_DSP
