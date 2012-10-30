@@ -1,4 +1,4 @@
-What:		/sys/bus/fcoe/ctlr_X
+What:		/sys/bus/fcoe/devices/ctlr_X
 Date:		March 2012
 KernelVersion:	TBD
 Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
@@ -26,7 +26,7 @@ Attributes:
 
 Notes: ctlr_X (global increment starting at 0)
 
-What:		/sys/bus/fcoe/fcf_X
+What:		/sys/bus/fcoe/devices/fcf_X
 Date:		March 2012
 KernelVersion:	TBD
 Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
