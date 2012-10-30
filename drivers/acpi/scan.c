@@ -220,6 +220,25 @@ acpi_device_hid_show(struct device *dev, struct device_attribute *attr, char *bu
 }
 static DEVICE_ATTR(hid, 0444, acpi_device_hid_show, NULL);
 
+static ssize_t acpi_device_uid_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+
+	return sprintf(buf, "%s\n", acpi_dev->pnp.unique_id);
+}
+static DEVICE_ATTR(uid, 0444, acpi_device_uid_show, NULL);
+
+static ssize_t acpi_device_adr_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+
+	return sprintf(buf, "0x%08x\n",
+		       (unsigned int)(acpi_dev->pnp.bus_address));
+}
+static DEVICE_ATTR(adr, 0444, acpi_device_adr_show, NULL);
+
 static ssize_t
 acpi_device_path_show(struct device *dev, struct device_attribute *attr, char *buf) {
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
@@ -304,6 +323,11 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 			goto end;
 	}
 
+	if (dev->flags.bus_address)
+		result = device_create_file(&dev->dev, &dev_attr_adr);
+	if (dev->pnp.unique_id)
+		result = device_create_file(&dev->dev, &dev_attr_uid);
+
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
          * hot-removal function from userland.
@@ -335,6 +359,10 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
 
+	if (dev->pnp.unique_id)
+		device_remove_file(&dev->dev, &dev_attr_uid);
+	if (dev->flags.bus_address)
+		device_remove_file(&dev->dev, &dev_attr_adr);
 	device_remove_file(&dev->dev, &dev_attr_modalias);
 	device_remove_file(&dev->dev, &dev_attr_hid);
 	if (dev->handle)
