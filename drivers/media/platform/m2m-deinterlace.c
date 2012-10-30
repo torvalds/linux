@@ -28,7 +28,7 @@ MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.0.1");
 
-static bool debug = true;
+static bool debug;
 module_param(debug, bool, 0644);
 
 /* Flags that indicate a format can be used for capture/output */
