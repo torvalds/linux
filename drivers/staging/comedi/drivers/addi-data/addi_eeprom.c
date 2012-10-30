@@ -48,6 +48,11 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define NVCMD_BEGIN_READ 	(0x7 << 5)	/*  nvRam begin read command */
 #define NVCMD_LOAD_LOW   	(0x4 << 5)	/*  nvRam load low command */
 #define NVCMD_LOAD_HIGH  	(0x5 << 5)	/*  nvRam load high command */
+
+#define EE93C76_CLK_BIT		(1 << 0)
+#define EE93C76_CS_BIT		(1 << 1)
+#define EE93C76_DOUT_BIT	(1 << 2)
+#define EE93C76_DIN_BIT		(1 << 3)
 #define EE76_CMD_LEN    	13	/*  bits in instructions */
 #define EE_READ         	0x0180	/*  01 1000 0000 read instruction */
 
@@ -110,12 +115,10 @@ struct str_AnalogInputHeader {
 static void v_EepromClock76(unsigned long iobase,
 			    unsigned int dw_RegisterValue)
 {
-	/* Set EEPROM clock Low */
-	outl(dw_RegisterValue & 0x6, iobase);
+	outl(dw_RegisterValue & ~EE93C76_CLK_BIT, iobase);
 	udelay(100);
 
-	/* Set EEPROM clock High */
-	outl(dw_RegisterValue | 0x1, iobase);
+	outl(dw_RegisterValue | EE93C76_CLK_BIT, iobase);
 	udelay(100);
 }
 
@@ -123,11 +126,8 @@ static void v_EepromSendCommand76(unsigned long iobase,
 				  unsigned int dw_EepromCommand,
 				  unsigned char b_DataLengthInBits)
 {
+	unsigned int dw_RegisterValue = EE93C76_CS_BIT;
 	char c_BitPos = 0;
-	unsigned int dw_RegisterValue = 0;
-
-	/* Enable EEPROM Chip Select */
-	dw_RegisterValue = 0x2;
 
 	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
 	outl(dw_RegisterValue, iobase);
@@ -135,13 +135,10 @@ static void v_EepromSendCommand76(unsigned long iobase,
 
 	/* Send EEPROM command - one bit at a time */
 	for (c_BitPos = (b_DataLengthInBits - 1); c_BitPos >= 0; c_BitPos--) {
-		if (dw_EepromCommand & (1 << c_BitPos)) {
-			/* Write 1 */
-			dw_RegisterValue = dw_RegisterValue | 0x4;
-		} else {
-			/* Write 0 */
-			dw_RegisterValue = dw_RegisterValue & 0x3;
-		}
+		if (dw_EepromCommand & (1 << c_BitPos))
+			dw_RegisterValue = dw_RegisterValue | EE93C76_DOUT_BIT;
+		else
+			dw_RegisterValue = dw_RegisterValue & ~EE93C76_DOUT_BIT;
 
 		/* Write the command */
 		outl(dw_RegisterValue, iobase);
@@ -165,7 +162,7 @@ static void v_EepromCs76Read(unsigned long iobase,
 		EE76_CMD_LEN);
 
 	/* Get the last register value */
-	dw_RegisterValue = (((w_offset / 2) & 0x1) << 2) | 0x2;
+	dw_RegisterValue = (((w_offset / 2) & 0x1) << 2) | EE93C76_CS_BIT;
 
 	/* Set the 16-bit value of 0 */
 	*pw_Value = 0;
@@ -180,7 +177,7 @@ static void v_EepromCs76Read(unsigned long iobase,
 		udelay(100);
 
 		/* Get bit value and shift into result */
-		if (dw_RegisterValueRead & 0x8) {
+		if (dw_RegisterValueRead & EE93C76_DIN_BIT) {
 			/* Read 1 */
 			*pw_Value = (*pw_Value << 1) | 0x1;
 		} else {
