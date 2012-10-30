@@ -121,29 +121,29 @@ static void addi_eeprom_clk_93c76(unsigned long iobase, unsigned int val)
 	udelay(100);
 }
 
-static void v_EepromSendCommand76(unsigned long iobase,
-				  unsigned int dw_EepromCommand,
-				  unsigned char b_DataLengthInBits)
+static void addi_eeprom_cmd_93c76(unsigned long iobase,
+				  unsigned int cmd,
+				  unsigned char len)
 {
-	unsigned int dw_RegisterValue = EE93C76_CS_BIT;
-	char c_BitPos = 0;
+	unsigned int val = EE93C76_CS_BIT;
+	int i;
 
 	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
-	outl(dw_RegisterValue, iobase);
+	outl(val, iobase);
 	udelay(100);
 
 	/* Send EEPROM command - one bit at a time */
-	for (c_BitPos = (b_DataLengthInBits - 1); c_BitPos >= 0; c_BitPos--) {
-		if (dw_EepromCommand & (1 << c_BitPos))
-			dw_RegisterValue = dw_RegisterValue | EE93C76_DOUT_BIT;
+	for (i = (len - 1); i >= 0; i--) {
+		if (cmd & (1 << i))
+			val |= EE93C76_DOUT_BIT;
 		else
-			dw_RegisterValue = dw_RegisterValue & ~EE93C76_DOUT_BIT;
+			val &= ~EE93C76_DOUT_BIT;
 
 		/* Write the command */
-		outl(dw_RegisterValue, iobase);
+		outl(val, iobase);
 		udelay(100);
 
-		addi_eeprom_clk_93c76(iobase, dw_RegisterValue);
+		addi_eeprom_clk_93c76(iobase, val);
 	}
 }
 
@@ -156,7 +156,7 @@ static void v_EepromCs76Read(unsigned long iobase,
 	unsigned int dw_RegisterValueRead = 0;
 
 	/* Send EEPROM read command and offset to EEPROM */
-	v_EepromSendCommand76(iobase, (EE_READ << 4) | (w_offset / 2),
+	addi_eeprom_cmd_93c76(iobase, (EE_READ << 4) | (w_offset / 2),
 		EE76_CMD_LEN);
 
 	/* Get the last register value */
