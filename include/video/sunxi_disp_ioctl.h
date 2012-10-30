@@ -22,6 +22,14 @@
 
 #define __bool signed char
 
+/* for tracking the ioctls API/ABI */
+#define SUNXI_DISP_VERSION_MAJOR 1
+#define SUNXI_DISP_VERSION_MINOR 0
+
+#define SUNXI_DISP_VERSION ((SUNXI_DISP_VERSION_MAJOR << 16) | SUNXI_DISP_VERSION_MINOR)
+#define SUNXI_DISP_VERSION_MAJOR_GET(x) (((x) >> 16) & 0x7FFF)
+#define SUNXI_DISP_VERSION_MINOR_GET(x) ((x) & 0xFFFF)
+
 typedef struct {
 	__u8 alpha;
 	__u8 red;
@@ -622,7 +630,7 @@ typedef struct {
 
 typedef enum tag_DISP_CMD {
 	/* ----disp global---- */
-	DISP_CMD_RESERVE0 = 0x00,
+	DISP_CMD_VERSION = 0x00,
 	DISP_CMD_RESERVE1 = 0x01,
 	/* fail when the value is 0x02 in linux,why??? */
 	DISP_CMD_SET_BKCOLOR = 0x3f,
