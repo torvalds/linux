@@ -45,45 +45,6 @@ void __iomem *cm_base;
 void __iomem *cm2_base;
 void __iomem *prcm_mpu_base;
 
-#define MAX_MODULE_ENABLE_WAIT		100000
-
-/**
- * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness
- * @reg: physical address of module IDLEST register
- * @mask: value to mask against to determine if the module is active
- * @idlest: idle state indicator (0 or 1) for the clock
- * @name: name of the clock (for printk)
- *
- * Returns 1 if the module indicated readiness in time, or 0 if it
- * failed to enable in roughly MAX_MODULE_ENABLE_WAIT microseconds.
- *
- * XXX This function is deprecated.  It should be removed once the
- * hwmod conversion is complete.
- */
-int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
-				const char *name)
-{
-	int i = 0;
-	int ena = 0;
-
-	if (idlest)
-		ena = 0;
-	else
-		ena = mask;
-
-	/* Wait for lock */
-	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
-			  MAX_MODULE_ENABLE_WAIT, i);
-
-	if (i < MAX_MODULE_ENABLE_WAIT)
-		pr_debug("cm: Module associated with clock %s ready after %d loops\n",
-			 name, i);
-	else
-		pr_err("cm: Module associated with clock %s didn't enable in %d tries\n",
-		       name, MAX_MODULE_ENABLE_WAIT);
-
-	return (i < MAX_MODULE_ENABLE_WAIT) ? 1 : 0;
-};
 
 void __init omap2_set_globals_prcm(void __iomem *prm, void __iomem *cm,
 				   void __iomem *cm2, void __iomem *prcm_mpu)

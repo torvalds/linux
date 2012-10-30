@@ -30,8 +30,6 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
-			 const char *name);
 void __init omap2_set_globals_prcm(void __iomem *prm, void __iomem *cm,
 				   void __iomem *cm2, void __iomem *prcm_mpu);
 
