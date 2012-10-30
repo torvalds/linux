@@ -124,6 +124,7 @@ static struct clk dpll_ck = {
 	.name		= "dpll_ck",
 	.ops		= &clkops_omap2xxx_dpll_ops,
 	.parent		= &sys_ck,		/* Can be func_32k also */
+	.init		= &omap2xxx_clkt_dpllcore_init,
 	.dpll_data	= &dpll_dd,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &omap2_dpllcore_recalc,
@@ -1953,7 +1954,7 @@ int __init omap2420_clk_init(void)
 	omap_clk_disable_autoidle_all();
 
 	/* Check the MPU rate set by bootloader */
-	clkrate = omap2xxx_clk_get_core_rate(&dpll_ck);
+	clkrate = omap2xxx_clk_get_core_rate();
 	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
 		if (!(prcm->flags & cpu_mask))
 			continue;
@@ -1979,7 +1980,6 @@ int __init omap2420_clk_init(void)
 	/* Avoid sleeping sleeping during omap2_clk_prepare_for_reboot() */
 	vclk = clk_get(NULL, "virt_prcm_set");
 	sclk = clk_get(NULL, "sys_ck");
-	dclk = clk_get(NULL, "dpll_ck");
 
 	return 0;
 }

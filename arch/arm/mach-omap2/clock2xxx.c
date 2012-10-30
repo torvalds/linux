@@ -28,7 +28,7 @@
 #include "cm.h"
 #include "cm-regbits-24xx.h"
 
-struct clk *vclk, *sclk, *dclk;
+struct clk *vclk, *sclk;
 
 /*
  * Omap24xx specific clock functions
