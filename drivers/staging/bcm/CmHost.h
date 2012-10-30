@@ -25,8 +25,8 @@
 
 /* brief structure stLocalSFAddRequest */
 typedef struct stLocalSFAddRequestAlt {
-	B_UINT8		u8Type;
-	B_UINT8		u8Direction;
+	u8	u8Type;
+	u8	u8Direction;
 	u16	u16TID;
 	/* brief 16bitCID */
 	u16	u16CID;
@@ -38,8 +38,8 @@ typedef struct stLocalSFAddRequestAlt {
 
 /* brief structure stLocalSFAddIndication */
 typedef struct stLocalSFAddIndicationAlt {
-	B_UINT8		u8Type;
-	B_UINT8		u8Direction;
+	u8	u8Type;
+	u8	u8Direction;
 	u16	u16TID;
 	/* brief 16bitCID */
 	u16	u16CID;
@@ -48,16 +48,16 @@ typedef struct stLocalSFAddIndicationAlt {
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-	B_UINT8		u8CC;    /* < Confirmation Code */
-	B_UINT8		u8Padd;  /* < 8-bit Padding */
+	u8	u8CC;    /* < Confirmation Code */
+	u8	u8Padd;  /* < 8-bit Padding */
 	u16	u16Padd; /* < 16 bit Padding */
 /* USE_MEMORY_MANAGER(); */
 } stLocalSFAddIndicationAlt;
 
 /* brief structure stLocalSFAddConfirmation */
 typedef struct stLocalSFAddConfirmationAlt {
-	B_UINT8		u8Type;
-	B_UINT8		u8Direction;
+	u8	u8Type;
+	u8	u8Direction;
 	u16	u16TID;
 	/* brief 16bitCID */
 	u16	u16CID;
@@ -70,8 +70,8 @@ typedef struct stLocalSFAddConfirmationAlt {
 
 /* brief structure stLocalSFChangeRequest */
 typedef struct stLocalSFChangeRequestAlt {
-	B_UINT8		u8Type;
-	B_UINT8		u8Direction;
+	u8	u8Type;
+	u8	u8Direction;
 	u16	u16TID;
 	/* brief 16bitCID */
 	u16	u16CID;
@@ -85,15 +85,15 @@ typedef struct stLocalSFChangeRequestAlt {
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-	B_UINT8		u8CC;	 /* < Confirmation Code */
-	B_UINT8		u8Padd;  /* < 8-bit Padding */
+	u8	u8CC;	 /* < Confirmation Code */
+	u8	u8Padd;  /* < 8-bit Padding */
 	u16	u16Padd; /* < 16 bit */
 } stLocalSFChangeRequestAlt;
 
 /* brief structure stLocalSFChangeConfirmation */
 typedef struct stLocalSFChangeConfirmationAlt {
-	B_UINT8		u8Type;
-	B_UINT8		u8Direction;
+	u8	u8Type;
+	u8	u8Direction;
 	u16	u16TID;
 	/* brief 16bitCID */
 	u16	u16CID;
@@ -106,8 +106,8 @@ typedef struct stLocalSFChangeConfirmationAlt {
 
 /* brief structure stLocalSFChangeIndication */
 typedef struct stLocalSFChangeIndicationAlt {
-	B_UINT8		u8Type;
-	B_UINT8		u8Direction;
+	u8	u8Type;
+	u8	u8Direction;
 	u16	u16TID;
 	/* brief 16bitCID */
 	u16	u16CID;
@@ -116,8 +116,8 @@ typedef struct stLocalSFChangeIndicationAlt {
 	struct bcm_connect_mgr_params sfAuthorizedSet;
 	struct bcm_connect_mgr_params sfAdmittedSet;
 	struct bcm_connect_mgr_params sfActiveSet;
-	B_UINT8		u8CC;    /* < Confirmation Code */
-	B_UINT8		u8Padd;  /* < 8-bit Padding */
+	u8	u8CC;    /* < Confirmation Code */
+	u8	u8Padd;  /* < 8-bit Padding */
 	u16	u16Padd; /* < 16 bit */
 } stLocalSFChangeIndicationAlt;
 
