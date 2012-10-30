@@ -80,14 +80,6 @@ struct str_TimerMainHeader {
 	struct str_TimerDetails s_TimerDetails[4];	/*   supports 4 timers */
 };
 
-struct str_AnalogInputHeader {
-	unsigned short w_Nchannel;
-	unsigned short w_MinConvertTiming;
-	unsigned short w_MinDelayTiming;
-	unsigned char b_HasDma;
-	unsigned char b_Resolution;
-};
-
 static void addi_eeprom_clk_93c76(unsigned long iobase, unsigned int val)
 {
 	outl(val & ~EE93C76_CLK_BIT, iobase);
@@ -313,52 +305,50 @@ static void addi_eeprom_read_ao_info(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_AoMaxdata = 0xfff >> (16 - tmp);
 }
 
-/* Reads only for ONE  hardware component */
-static int i_EepromReadAnlogInputHeader(unsigned long iobase,
-					char *type,
-					unsigned short w_Address,
-					struct str_AnalogInputHeader *s_Header)
+static void addi_eeprom_read_ai_info(struct comedi_device *dev,
+				     unsigned long iobase,
+				     char *type,
+				     unsigned short addr)
 {
-	unsigned short w_Temp, w_Offset;
-	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 10);
-	s_Header->w_Nchannel = (w_Temp >> 4) & 0x03FF;
-	s_Header->w_MinConvertTiming = addi_eeprom_readw(iobase, type,
-							 w_Address + 16);
-	s_Header->w_MinDelayTiming = addi_eeprom_readw(iobase, type,
-						       w_Address + 30);
-	w_Temp = addi_eeprom_readw(iobase, type,
-				   w_Address + 20);
-	s_Header->b_HasDma = (w_Temp >> 13) & 0x01;	/*  whether dma present or not */
+	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
+	unsigned short offset;
+	unsigned short tmp;
 
-	/* reading Y */
-	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 72);
-	w_Temp = w_Temp & 0x00FF;
-	if (w_Temp)		/* Y>0 */
-	{
-		w_Offset = 74 + (2 * w_Temp) + (10 * (1 + (w_Temp / 16)));	/*  offset of first analog input single header */
-		w_Offset = w_Offset + 2;	/*  resolution */
-	} else			/* Y=0 */
-	{
-		w_Offset = 74;
-		w_Offset = w_Offset + 2;	/*  resolution */
+	/* No of channels for 1st hard component */
+	tmp = addi_eeprom_readw(iobase, type, addr + 10);
+	devpriv->s_EeParameters.i_NbrAiChannel = (tmp >> 4) & 0x3ff;
+	if (!strcmp(this_board->pc_DriverName, "apci3200"))
+		devpriv->s_EeParameters.i_NbrAiChannel *= 4;
+
+	tmp = addi_eeprom_readw(iobase, type, addr + 16);
+	devpriv->s_EeParameters.ui_MinAcquisitiontimeNs = tmp * 1000;
+
+	tmp = addi_eeprom_readw(iobase, type, addr + 30);
+	devpriv->s_EeParameters.ui_MinDelaytimeNs = tmp * 1000;
+
+	tmp = addi_eeprom_readw(iobase, type, addr + 20);
+	devpriv->s_EeParameters.i_Dma = (tmp >> 13) & 0x01;
+
+	tmp = addi_eeprom_readw(iobase, type, addr + 72) & 0xff;
+	if (tmp) {		/* > 0 */
+		/* offset of first analog input single header */
+		offset = 74 + (2 * tmp) + (10 * (1 + (tmp / 16)));
+	} else {		/* = 0 */
+		offset = 74;
 	}
 
-	/* read Resolution */
-	w_Temp = addi_eeprom_readw(iobase, type, w_Address + w_Offset);
-	s_Header->b_Resolution = w_Temp & 0x001F;	/*  last 5 bits */
-
-	return 0;
+	/* Resolution */
+	tmp = addi_eeprom_readw(iobase, type, addr + offset + 2) & 0x1f;
+	devpriv->s_EeParameters.i_AiMaxdata = 0xffff >> (16 - tmp);
 }
 
 static int i_EepromReadMainHeader(unsigned long iobase,
 				  char *type,
 				  struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp;
 	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
-	struct str_AnalogInputHeader s_AnalogInputHeader;
 	unsigned short size;
 	unsigned char nfuncs;
 	int i;
@@ -385,27 +375,7 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 
 		case EEPROM_ANALOGINPUT:
-			i_EepromReadAnlogInputHeader(iobase, type, addr,
-						     &s_AnalogInputHeader);
-
-			if (!(strcmp(this_board->pc_DriverName, "apci3200")))
-				devpriv->s_EeParameters.i_NbrAiChannel =
-					s_AnalogInputHeader.w_Nchannel * 4;
-			else
-				devpriv->s_EeParameters.i_NbrAiChannel =
-					s_AnalogInputHeader.w_Nchannel;
-			devpriv->s_EeParameters.i_Dma =
-				s_AnalogInputHeader.b_HasDma;
-			devpriv->s_EeParameters.ui_MinAcquisitiontimeNs =
-				(unsigned int) s_AnalogInputHeader.w_MinConvertTiming *
-				1000;
-			devpriv->s_EeParameters.ui_MinDelaytimeNs =
-				(unsigned int) s_AnalogInputHeader.w_MinDelayTiming *
-				1000;
-			ui_Temp = 0xffff;
-			devpriv->s_EeParameters.i_AiMaxdata =
-				ui_Temp >> (16 -
-				s_AnalogInputHeader.b_Resolution);
+			addi_eeprom_read_ai_info(dev, iobase, type, addr);
 			break;
 
 		case EEPROM_ANALOGOUTPUT:
