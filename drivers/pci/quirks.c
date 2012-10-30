@@ -1790,6 +1790,34 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_TOSHIBA_2,
 			 PCI_DEVICE_ID_TOSHIBA_TC86C001_IDE,
 			 quirk_tc86c001_ide);
 
+/*
+ * PLX PCI 9050 PCI Target bridge controller has an errata that prevents the
+ * local configuration registers accessible via BAR0 (memory) or BAR1 (i/o)
+ * being read correctly if bit 7 of the base address is set.
+ * The BAR0 or BAR1 region may be disabled (size 0) or enabled (size 128).
+ * Re-allocate the regions to a 256-byte boundary if necessary.
+ */
+static void __devinit quirk_plx_pci9050(struct pci_dev *dev)
+{
+	unsigned int bar;
+
+	/* Fixed in revision 2 (PCI 9052). */
+	if (dev->revision >= 2)
+		return;
+	for (bar = 0; bar <= 1; bar++)
+		if (pci_resource_len(dev, bar) == 0x80 &&
+		    (pci_resource_start(dev, bar) & 0x80)) {
+			struct resource *r = &dev->resource[bar];
+			dev_info(&dev->dev,
+				 "Re-allocating PLX PCI 9050 BAR %u to length 256 to avoid bit 7 bug\n",
+				 bar);
+			r->start = 0;
+			r->end = 0xff;
+		}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_PLX, PCI_DEVICE_ID_PLX_9050,
+			 quirk_plx_pci9050);
+
 static void __devinit quirk_netmos(struct pci_dev *dev)
 {
 	unsigned int num_parallel = (dev->subsystem_device & 0xf0) >> 4;
