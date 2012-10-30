@@ -92,7 +92,7 @@ static unsigned short addi_eeprom_readw_93c76(unsigned long iobase,
 	unsigned short val = 0;
 	unsigned int cmd;
 	unsigned int tmp;
-        int i;
+	int i;
 
 	/* Send EEPROM read command and offset to EEPROM */
 	cmd = EE93C76_READ_CMD | (addr / 2);
@@ -143,7 +143,8 @@ static unsigned short addi_eeprom_readw_nvram(unsigned long iobase,
 		/* Load the high 8 bit address */
 		outb(NVCMD_LOAD_HIGH, iobase + AMCC_OP_REG_MCSR_NVCMD);
 		addi_eeprom_nvram_wait(iobase);
-		outb(((addr + i) >> 8) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
+		outb(((addr + i) >> 8) & 0xff,
+			iobase + AMCC_OP_REG_MCSR_NVDATA);
 		addi_eeprom_nvram_wait(iobase);
 
 		/* Read the eeprom data byte */
