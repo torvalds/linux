@@ -63,7 +63,7 @@ static const struct iio_dummy_accel_calibscale dummy_scales[] = {
  * This array of structures tells the IIO core about what the device
  * actually provides for a given channel.
  */
-static struct iio_chan_spec iio_dummy_channels[] = {
+static const struct iio_chan_spec iio_dummy_channels[] = {
 	/* indexed ADC channel in_voltage0_raw etc */
 	{
 		.type = IIO_VOLTAGE,
@@ -445,26 +445,20 @@ static int __devinit iio_dummy_probe(int index)
 	if (ret < 0)
 		goto error_free_device;
 
-	/* Configure buffered capture support. */
-	ret = iio_simple_dummy_configure_buffer(indio_dev);
+	/*
+	 * Configure buffered capture support and register the channels with the
+	 * buffer, but avoid the output channel being registered by reducing the
+	 * number of channels by 1.
+	 */
+	ret = iio_simple_dummy_configure_buffer(indio_dev, iio_dummy_channels, 5);
 	if (ret < 0)
 		goto error_unregister_events;
 
-	/*
-	 * Register the channels with the buffer, but avoid the output
-	 * channel being registered by reducing the number of channels by 1.
-	 */
-	ret = iio_buffer_register(indio_dev, iio_dummy_channels, 5);
+	ret = iio_device_register(indio_dev);
 	if (ret < 0)
 		goto error_unconfigure_buffer;
 
-	ret = iio_device_register(indio_dev);
-	if (ret < 0)
-		goto error_unregister_buffer;
-
 	return 0;
-error_unregister_buffer:
-	iio_buffer_unregister(indio_dev);
 error_unconfigure_buffer:
 	iio_simple_dummy_unconfigure_buffer(indio_dev);
 error_unregister_events:
@@ -499,7 +493,6 @@ static int iio_dummy_remove(int index)
 	/* Device specific code to power down etc */
 
 	/* Buffered capture related cleanup */
-	iio_buffer_unregister(indio_dev);
 	iio_simple_dummy_unconfigure_buffer(indio_dev);
 
 	ret = iio_simple_dummy_events_unregister(indio_dev);
@@ -530,6 +523,7 @@ static __init int iio_dummy_init(void)
 		instances = 1;
 		return -EINVAL;
 	}
+
 	/* Fake a bus */
 	iio_dummy_devs = kcalloc(instances, sizeof(*iio_dummy_devs),
 				 GFP_KERNEL);
@@ -558,6 +552,6 @@ static __exit void iio_dummy_exit(void)
 }
 module_exit(iio_dummy_exit);
 
-MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
+MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("IIO dummy driver");
 MODULE_LICENSE("GPL v2");

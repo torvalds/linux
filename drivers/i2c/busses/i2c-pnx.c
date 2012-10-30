@@ -48,8 +48,9 @@ enum {
 	mcntrl_afie = 0x00000002,
 	mcntrl_naie = 0x00000004,
 	mcntrl_drmie = 0x00000008,
-	mcntrl_daie = 0x00000020,
-	mcntrl_rffie = 0x00000040,
+	mcntrl_drsie = 0x00000010,
+	mcntrl_rffie = 0x00000020,
+	mcntrl_daie = 0x00000040,
 	mcntrl_tffie = 0x00000080,
 	mcntrl_reset = 0x00000100,
 	mcntrl_cdbmode = 0x00000400,
@@ -290,31 +291,37 @@ static int i2c_pnx_master_rcv(struct i2c_pnx_algo_data *alg_data)
 	 * or we didn't 'ask' for it yet.
 	 */
 	if (ioread32(I2C_REG_STS(alg_data)) & mstatus_rfe) {
-		dev_dbg(&alg_data->adapter.dev,
-			"%s(): Write dummy data to fill Rx-fifo...\n",
-			__func__);
+		/* 'Asking' is done asynchronously, e.g. dummy TX of several
+		 * bytes is done before the first actual RX arrives in FIFO.
+		 * Therefore, ordered bytes (via TX) are counted separately.
+		 */
+		if (alg_data->mif.order) {
+			dev_dbg(&alg_data->adapter.dev,
+				"%s(): Write dummy data to fill Rx-fifo...\n",
+				__func__);
 
-		if (alg_data->mif.len == 1) {
-			/* Last byte, do not acknowledge next rcv. */
-			val |= stop_bit;
+			if (alg_data->mif.order == 1) {
+				/* Last byte, do not acknowledge next rcv. */
+				val |= stop_bit;
+
+				/*
+				 * Enable interrupt RFDAIE (data in Rx fifo),
+				 * and disable DRMIE (need data for Tx)
+				 */
+				ctl = ioread32(I2C_REG_CTL(alg_data));
+				ctl |= mcntrl_rffie | mcntrl_daie;
+				ctl &= ~mcntrl_drmie;
+				iowrite32(ctl, I2C_REG_CTL(alg_data));
+			}
 
 			/*
-			 * Enable interrupt RFDAIE (data in Rx fifo),
-			 * and disable DRMIE (need data for Tx)
+			 * Now we'll 'ask' for data:
+			 * For each byte we want to receive, we must
+			 * write a (dummy) byte to the Tx-FIFO.
 			 */
-			ctl = ioread32(I2C_REG_CTL(alg_data));
-			ctl |= mcntrl_rffie | mcntrl_daie;
-			ctl &= ~mcntrl_drmie;
-			iowrite32(ctl, I2C_REG_CTL(alg_data));
+			iowrite32(val, I2C_REG_TX(alg_data));
+			alg_data->mif.order--;
 		}
-
-		/*
-		 * Now we'll 'ask' for data:
-		 * For each byte we want to receive, we must
-		 * write a (dummy) byte to the Tx-FIFO.
-		 */
-		iowrite32(val, I2C_REG_TX(alg_data));
-
 		return 0;
 	}
 
@@ -514,6 +521,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 
 		alg_data->mif.buf = pmsg->buf;
 		alg_data->mif.len = pmsg->len;
+		alg_data->mif.order = pmsg->len;
 		alg_data->mif.mode = (pmsg->flags & I2C_M_RD) ?
 			I2C_SMBUS_READ : I2C_SMBUS_WRITE;
 		alg_data->mif.ret = 0;
@@ -566,6 +574,7 @@ i2c_pnx_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 	/* Cleanup to be sure... */
 	alg_data->mif.buf = NULL;
 	alg_data->mif.len = 0;
+	alg_data->mif.order = 0;
 
 	dev_dbg(&alg_data->adapter.dev, "%s(): exiting, stat = %x\n",
 		__func__, ioread32(I2C_REG_STS(alg_data)));

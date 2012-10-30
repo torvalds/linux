@@ -29,6 +29,7 @@
 
 #include <linux/tracepoint.h>
 #include <linux/device.h>
+#include "iwl-trans.h"
 
 
 #if !defined(CONFIG_IWLWIFI_DEVICE_TRACING) || defined(__CHECKER__)
@@ -237,27 +238,34 @@ TRACE_EVENT(iwlwifi_dbg,
 #define TRACE_SYSTEM iwlwifi
 
 TRACE_EVENT(iwlwifi_dev_hcmd,
-	TP_PROTO(const struct device *dev, u32 flags,
-		 const void *hcmd0, size_t len0,
-		 const void *hcmd1, size_t len1,
-		 const void *hcmd2, size_t len2),
-	TP_ARGS(dev, flags, hcmd0, len0, hcmd1, len1, hcmd2, len2),
+	TP_PROTO(const struct device *dev,
+		 struct iwl_host_cmd *cmd, u16 total_size,
+		 const void *hdr, size_t hdr_len),
+	TP_ARGS(dev, cmd, total_size, hdr, hdr_len),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__dynamic_array(u8, hcmd0, len0)
-		__dynamic_array(u8, hcmd1, len1)
-		__dynamic_array(u8, hcmd2, len2)
+		__dynamic_array(u8, hcmd, total_size)
 		__field(u32, flags)
 	),
 	TP_fast_assign(
+		int i, offset = hdr_len;
+
 		DEV_ASSIGN;
-		memcpy(__get_dynamic_array(hcmd0), hcmd0, len0);
-		memcpy(__get_dynamic_array(hcmd1), hcmd1, len1);
-		memcpy(__get_dynamic_array(hcmd2), hcmd2, len2);
-		__entry->flags = flags;
+		__entry->flags = cmd->flags;
+		memcpy(__get_dynamic_array(hcmd), hdr, hdr_len);
+
+		for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
+			if (!cmd->len[i])
+				continue;
+			if (!(cmd->dataflags[i] & IWL_HCMD_DFL_NOCOPY))
+				continue;
+			memcpy((u8 *)__get_dynamic_array(hcmd) + offset,
+			       cmd->data[i], cmd->len[i]);
+			offset += cmd->len[i];
+		}
 	),
 	TP_printk("[%s] hcmd %#.2x (%ssync)",
-		  __get_str(dev), ((u8 *)__get_dynamic_array(hcmd0))[0],
+		  __get_str(dev), ((u8 *)__get_dynamic_array(hcmd))[0],
 		  __entry->flags & CMD_ASYNC ? "a" : "")
 );
 

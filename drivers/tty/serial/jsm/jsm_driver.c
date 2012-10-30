@@ -54,7 +54,7 @@ static pci_ers_result_t jsm_io_error_detected(struct pci_dev *pdev,
 static pci_ers_result_t jsm_io_slot_reset(struct pci_dev *pdev);
 static void jsm_io_resume(struct pci_dev *pdev);
 
-static struct pci_error_handlers jsm_err_handler = {
+static const struct pci_error_handlers jsm_err_handler = {
 	.error_detected = jsm_io_error_detected,
 	.slot_reset = jsm_io_slot_reset,
 	.resume = jsm_io_resume,

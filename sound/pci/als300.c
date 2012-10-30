@@ -394,6 +394,8 @@ static int snd_als300_playback_open(struct snd_pcm_substream *substream)
 	struct snd_als300_substream_data *data = kzalloc(sizeof(*data),
 								GFP_KERNEL);
 
+	if (!data)
+		return -ENOMEM;
 	snd_als300_dbgcallenter();
 	chip->playback_substream = substream;
 	runtime->hw = snd_als300_playback_hw;
@@ -425,6 +427,8 @@ static int snd_als300_capture_open(struct snd_pcm_substream *substream)
 	struct snd_als300_substream_data *data = kzalloc(sizeof(*data),
 								GFP_KERNEL);
 
+	if (!data)
+		return -ENOMEM;
 	snd_als300_dbgcallenter();
 	chip->capture_substream = substream;
 	runtime->hw = snd_als300_capture_hw;
@@ -765,7 +769,7 @@ static int __devinit snd_als300_create(struct snd_card *card,
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_als300_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);

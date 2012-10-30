@@ -91,8 +91,8 @@ static int hpfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	inc_nlink(dir);
 	insert_inode_hash(result);
 
-	if (result->i_uid != current_fsuid() ||
-	    result->i_gid != current_fsgid() ||
+	if (!uid_eq(result->i_uid, current_fsuid()) ||
+	    !gid_eq(result->i_gid, current_fsgid()) ||
 	    result->i_mode != (mode | S_IFDIR)) {
 		result->i_uid = current_fsuid();
 		result->i_gid = current_fsgid();
@@ -179,8 +179,8 @@ static int hpfs_create(struct inode *dir, struct dentry *dentry, umode_t mode, b
 
 	insert_inode_hash(result);
 
-	if (result->i_uid != current_fsuid() ||
-	    result->i_gid != current_fsgid() ||
+	if (!uid_eq(result->i_uid, current_fsuid()) ||
+	    !gid_eq(result->i_gid, current_fsgid()) ||
 	    result->i_mode != (mode | S_IFREG)) {
 		result->i_uid = current_fsuid();
 		result->i_gid = current_fsgid();

@@ -475,7 +475,7 @@ static irqreturn_t au1550_spi_dma_irq_callback(struct au1550_spi *hw)
 		/*
 		 * due to an spi error we consider transfer as done,
 		 * so mask all events until before next transfer start
-		 * and stop the possibly running dma immediatelly
+		 * and stop the possibly running dma immediately
 		 */
 		au1550_spi_mask_ack_all(hw);
 		au1xxx_dbdma_stop(hw->dma_rx_ch);

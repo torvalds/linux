@@ -39,6 +39,12 @@ pstore_ftrace_decode_cpu(struct pstore_ftrace_record *rec)
 #endif
 }
 
+#ifdef CONFIG_PSTORE_FTRACE
+extern void pstore_register_ftrace(void);
+#else
+static inline void pstore_register_ftrace(void) {}
+#endif
+
 extern struct pstore_info *psinfo;
 
 extern void	pstore_set_kmsg_bytes(int);

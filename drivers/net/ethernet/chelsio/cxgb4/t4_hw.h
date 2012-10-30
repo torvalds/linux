@@ -58,6 +58,7 @@ enum {
 
 enum {
 	SF_PAGE_SIZE = 256,           /* serial flash page size */
+	SF_SEC_SIZE = 64 * 1024,      /* serial flash sector size */
 };
 
 enum { RSP_TYPE_FLBUF, RSP_TYPE_CPL, RSP_TYPE_INTR }; /* response entry types */
@@ -137,4 +138,83 @@ struct rsp_ctrl {
 #define QINTR_CNT_EN       0x1
 #define QINTR_TIMER_IDX(x) ((x) << 1)
 #define QINTR_TIMER_IDX_GET(x) (((x) >> 1) & 0x7)
+
+/*
+ * Flash layout.
+ */
+#define FLASH_START(start)	((start) * SF_SEC_SIZE)
+#define FLASH_MAX_SIZE(nsecs)	((nsecs) * SF_SEC_SIZE)
+
+enum {
+	/*
+	 * Various Expansion-ROM boot images, etc.
+	 */
+	FLASH_EXP_ROM_START_SEC = 0,
+	FLASH_EXP_ROM_NSECS = 6,
+	FLASH_EXP_ROM_START = FLASH_START(FLASH_EXP_ROM_START_SEC),
+	FLASH_EXP_ROM_MAX_SIZE = FLASH_MAX_SIZE(FLASH_EXP_ROM_NSECS),
+
+	/*
+	 * iSCSI Boot Firmware Table (iBFT) and other driver-related
+	 * parameters ...
+	 */
+	FLASH_IBFT_START_SEC = 6,
+	FLASH_IBFT_NSECS = 1,
+	FLASH_IBFT_START = FLASH_START(FLASH_IBFT_START_SEC),
+	FLASH_IBFT_MAX_SIZE = FLASH_MAX_SIZE(FLASH_IBFT_NSECS),
+
+	/*
+	 * Boot configuration data.
+	 */
+	FLASH_BOOTCFG_START_SEC = 7,
+	FLASH_BOOTCFG_NSECS = 1,
+	FLASH_BOOTCFG_START = FLASH_START(FLASH_BOOTCFG_START_SEC),
+	FLASH_BOOTCFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_BOOTCFG_NSECS),
+
+	/*
+	 * Location of firmware image in FLASH.
+	 */
+	FLASH_FW_START_SEC = 8,
+	FLASH_FW_NSECS = 8,
+	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
+	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
+
+	/*
+	 * iSCSI persistent/crash information.
+	 */
+	FLASH_ISCSI_CRASH_START_SEC = 29,
+	FLASH_ISCSI_CRASH_NSECS = 1,
+	FLASH_ISCSI_CRASH_START = FLASH_START(FLASH_ISCSI_CRASH_START_SEC),
+	FLASH_ISCSI_CRASH_MAX_SIZE = FLASH_MAX_SIZE(FLASH_ISCSI_CRASH_NSECS),
+
+	/*
+	 * FCoE persistent/crash information.
+	 */
+	FLASH_FCOE_CRASH_START_SEC = 30,
+	FLASH_FCOE_CRASH_NSECS = 1,
+	FLASH_FCOE_CRASH_START = FLASH_START(FLASH_FCOE_CRASH_START_SEC),
+	FLASH_FCOE_CRASH_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FCOE_CRASH_NSECS),
+
+	/*
+	 * Location of Firmware Configuration File in FLASH.  Since the FPGA
+	 * "FLASH" is smaller we need to store the Configuration File in a
+	 * different location -- which will overlap the end of the firmware
+	 * image if firmware ever gets that large ...
+	 */
+	FLASH_CFG_START_SEC = 31,
+	FLASH_CFG_NSECS = 1,
+	FLASH_CFG_START = FLASH_START(FLASH_CFG_START_SEC),
+	FLASH_CFG_MAX_SIZE = FLASH_MAX_SIZE(FLASH_CFG_NSECS),
+
+	FLASH_FPGA_CFG_START_SEC = 15,
+	FLASH_FPGA_CFG_START = FLASH_START(FLASH_FPGA_CFG_START_SEC),
+
+	/*
+	 * Sectors 32-63 are reserved for FLASH failover.
+	 */
+};
+
+#undef FLASH_START
+#undef FLASH_MAX_SIZE
+
 #endif /* __T4_HW_H */

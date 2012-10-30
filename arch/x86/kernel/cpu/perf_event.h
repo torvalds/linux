@@ -586,6 +586,8 @@ extern struct event_constraint intel_westmere_pebs_event_constraints[];
 
 extern struct event_constraint intel_snb_pebs_event_constraints[];
 
+extern struct event_constraint intel_ivb_pebs_event_constraints[];
+
 struct event_constraint *intel_pebs_constraints(struct perf_event *event);
 
 void intel_pmu_pebs_enable(struct perf_event *event);
@@ -623,6 +625,8 @@ int intel_pmu_setup_lbr_filter(struct perf_event *event);
 int p4_pmu_init(void);
 
 int p6_pmu_init(void);
+
+int knc_pmu_init(void);
 
 #else /* CONFIG_CPU_SUP_INTEL */
 

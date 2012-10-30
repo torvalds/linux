@@ -14,7 +14,7 @@
 #ifndef _GXIO_USB_H_
 #define _GXIO_USB_H_
 
-#include "common.h"
+#include <gxio/common.h>
 
 #include <hv/drv_usb_host_intf.h>
 #include <hv/iorpc.h>

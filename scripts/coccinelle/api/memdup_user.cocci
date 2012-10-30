@@ -51,10 +51,10 @@ statement S1,S2;
 p << r.p;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING opportunity for memdep_user")
+coccilib.org.print_todo(p[0], "WARNING opportunity for memdup_user")
 
 @script:python depends on report@
 p << r.p;
 @@
 
-coccilib.report.print_report(p[0], "WARNING opportunity for memdep_user")
+coccilib.report.print_report(p[0], "WARNING opportunity for memdup_user")

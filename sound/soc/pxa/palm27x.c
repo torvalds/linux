@@ -25,7 +25,7 @@
 
 #include <asm/mach-types.h>
 #include <mach/audio.h>
-#include <mach/palmasoc.h>
+#include <linux/platform_data/asoc-palm27x.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-ac97.h"

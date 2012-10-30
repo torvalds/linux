@@ -293,8 +293,8 @@ int ubifs_bg_thread(void *info)
 	int err;
 	struct ubifs_info *c = info;
 
-	dbg_msg("background thread \"%s\" started, PID %d",
-		c->bgt_name, current->pid);
+	ubifs_msg("background thread \"%s\" started, PID %d",
+		  c->bgt_name, current->pid);
 	set_freezable();
 
 	while (1) {
@@ -328,7 +328,7 @@ int ubifs_bg_thread(void *info)
 		cond_resched();
 	}
 
-	dbg_msg("background thread \"%s\" stops", c->bgt_name);
+	ubifs_msg("background thread \"%s\" stops", c->bgt_name);
 	return 0;
 }
 
@@ -514,7 +514,7 @@ struct idx_node {
 	struct list_head list;
 	int iip;
 	union ubifs_key upper_key;
-	struct ubifs_idx_node idx __attribute__((aligned(8)));
+	struct ubifs_idx_node idx __aligned(8);
 };
 
 /**

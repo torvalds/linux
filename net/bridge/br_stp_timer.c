@@ -170,5 +170,5 @@ void br_stp_port_timer_init(struct net_bridge_port *p)
 unsigned long br_timer_value(const struct timer_list *timer)
 {
 	return timer_pending(timer)
-		? jiffies_to_clock_t(timer->expires - jiffies) : 0;
+		? jiffies_delta_to_clock_t(timer->expires - jiffies) : 0;
 }

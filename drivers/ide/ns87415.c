@@ -293,7 +293,7 @@ static const struct ide_dma_ops ns87415_dma_ops = {
 	.dma_sff_read_status	= superio_dma_sff_read_status,
 };
 
-static const struct ide_port_info ns87415_chipset __devinitdata = {
+static const struct ide_port_info ns87415_chipset __devinitconst = {
 	.name		= DRV_NAME,
 	.init_hwif	= init_hwif_ns87415,
 	.tp_ops 	= &ns87415_tp_ops,

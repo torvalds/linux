@@ -141,6 +141,17 @@ enum {
 	IOCMD_FCPIM_LUNMASK_QUERY,
 	IOCMD_FCPIM_LUNMASK_ADD,
 	IOCMD_FCPIM_LUNMASK_DELETE,
+	IOCMD_DIAG_DPORT_ENABLE,
+	IOCMD_DIAG_DPORT_DISABLE,
+	IOCMD_DIAG_DPORT_GET_STATE,
+	IOCMD_QOS_SET_BW,
+	IOCMD_FCPIM_THROTTLE_QUERY,
+	IOCMD_FCPIM_THROTTLE_SET,
+	IOCMD_TFRU_READ,
+	IOCMD_TFRU_WRITE,
+	IOCMD_FRUVPD_READ,
+	IOCMD_FRUVPD_UPDATE,
+	IOCMD_FRUVPD_GET_MAX_SIZE,
 };
 
 struct bfa_bsg_gen_s {
@@ -319,6 +330,8 @@ struct bfa_bsg_rport_attr_s {
 	u16		vf_id;
 	wwn_t		pwwn;
 	wwn_t		rpwwn;
+	u32		pid;
+	u32		rsvd;
 	struct bfa_rport_attr_s attr;
 };
 
@@ -461,7 +474,8 @@ struct bfa_bsg_pcifn_s {
 	bfa_status_t		status;
 	u16			bfad_num;
 	u16			pcifn_id;
-	u32			bandwidth;
+	u16			bw_min;
+	u16			bw_max;
 	u8			port;
 	enum bfi_pcifn_class	pcifn_class;
 	u8			rsvd[1];
@@ -611,6 +625,13 @@ struct bfa_bsg_diag_lb_stat_s {
 	u16		rsvd;
 };
 
+struct bfa_bsg_diag_dport_get_state_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	enum bfa_dport_state state;
+};
+
 struct bfa_bsg_phy_attr_s {
 	bfa_status_t	status;
 	u16	bfad_num;
@@ -692,6 +713,13 @@ struct bfa_bsg_qos_vc_attr_s {
 	struct bfa_qos_vc_attr_s attr;
 };
 
+struct bfa_bsg_qos_bw_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_qos_bw_s qos_bw;
+};
+
 struct bfa_bsg_vf_stats_s {
 	bfa_status_t	status;
 	u16		bfad_num;
@@ -718,6 +746,41 @@ struct bfa_bsg_fcpim_lunmask_s {
 	wwn_t		pwwn;
 	wwn_t		rpwwn;
 	struct scsi_lun	lun;
+};
+
+struct bfa_bsg_fcpim_throttle_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		vf_id;
+	struct bfa_defs_fcpim_throttle_s throttle;
+};
+
+#define BFA_TFRU_DATA_SIZE		64
+#define BFA_MAX_FRUVPD_TRANSFER_SIZE	0x1000
+
+struct bfa_bsg_tfru_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		offset;
+	u32		len;
+	u8		data[BFA_TFRU_DATA_SIZE];
+};
+
+struct bfa_bsg_fruvpd_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		offset;
+	u32		len;
+	u8		data[BFA_MAX_FRUVPD_TRANSFER_SIZE];
+};
+
+struct bfa_bsg_fruvpd_max_size_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u32		max_size;
 };
 
 struct bfa_bsg_fcpt_s {

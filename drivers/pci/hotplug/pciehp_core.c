@@ -300,24 +300,24 @@ static int pciehp_suspend (struct pcie_device *dev)
 
 static int pciehp_resume (struct pcie_device *dev)
 {
+	struct controller *ctrl;
+	struct slot *slot;
+	u8 status;
+
 	dev_info(&dev->device, "%s ENTRY\n", __func__);
-	if (pciehp_force) {
-		struct controller *ctrl = get_service_data(dev);
-		struct slot *slot;
-		u8 status;
+	ctrl = get_service_data(dev);
 
-		/* reinitialize the chipset's event detection logic */
-		pcie_enable_notification(ctrl);
+	/* reinitialize the chipset's event detection logic */
+	pcie_enable_notification(ctrl);
 
-		slot = ctrl->slot;
+	slot = ctrl->slot;
 
-		/* Check if slot is occupied */
-		pciehp_get_adapter_status(slot, &status);
-		if (status)
-			pciehp_enable_slot(slot);
-		else
-			pciehp_disable_slot(slot);
-	}
+	/* Check if slot is occupied */
+	pciehp_get_adapter_status(slot, &status);
+	if (status)
+		pciehp_enable_slot(slot);
+	else
+		pciehp_disable_slot(slot);
 	return 0;
 }
 #endif /* PM */

@@ -36,7 +36,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 	unsigned long time = get_seconds(), old_time;
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 
 	/*
 	 * If we are going to write out the super block,
@@ -51,7 +51,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 		mark_buffer_dirty(sbi->s_bh2);
 	}
 
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 
 	return 0;
 }
@@ -202,8 +202,8 @@ struct inode *sysv_iget(struct super_block *sb, unsigned int ino)
 	}
 	/* SystemV FS: kludge permissions if ino==SYSV_ROOT_INO ?? */
 	inode->i_mode = fs16_to_cpu(sbi, raw_inode->i_mode);
-	inode->i_uid = (uid_t)fs16_to_cpu(sbi, raw_inode->i_uid);
-	inode->i_gid = (gid_t)fs16_to_cpu(sbi, raw_inode->i_gid);
+	i_uid_write(inode, (uid_t)fs16_to_cpu(sbi, raw_inode->i_uid));
+	i_gid_write(inode, (gid_t)fs16_to_cpu(sbi, raw_inode->i_gid));
 	set_nlink(inode, fs16_to_cpu(sbi, raw_inode->i_nlink));
 	inode->i_size = fs32_to_cpu(sbi, raw_inode->i_size);
 	inode->i_atime.tv_sec = fs32_to_cpu(sbi, raw_inode->i_atime);
@@ -256,8 +256,8 @@ static int __sysv_write_inode(struct inode *inode, int wait)
 	}
 
 	raw_inode->i_mode = cpu_to_fs16(sbi, inode->i_mode);
-	raw_inode->i_uid = cpu_to_fs16(sbi, fs_high2lowuid(inode->i_uid));
-	raw_inode->i_gid = cpu_to_fs16(sbi, fs_high2lowgid(inode->i_gid));
+	raw_inode->i_uid = cpu_to_fs16(sbi, fs_high2lowuid(i_uid_read(inode)));
+	raw_inode->i_gid = cpu_to_fs16(sbi, fs_high2lowgid(i_gid_read(inode)));
 	raw_inode->i_nlink = cpu_to_fs16(sbi, inode->i_nlink);
 	raw_inode->i_size = cpu_to_fs32(sbi, inode->i_size);
 	raw_inode->i_atime = cpu_to_fs32(sbi, inode->i_atime.tv_sec);
@@ -360,5 +360,10 @@ int __init sysv_init_icache(void)
 
 void sysv_destroy_icache(void)
 {
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(sysv_inode_cachep);
 }

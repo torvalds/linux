@@ -1183,7 +1183,7 @@ static const struct vm_operations_struct kvm_rma_vm_ops = {
 
 static int kvm_rma_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	vma->vm_flags |= VM_RESERVED;
+	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = &kvm_rma_vm_ops;
 	return 0;
 }

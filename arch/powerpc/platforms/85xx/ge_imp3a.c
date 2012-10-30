@@ -22,7 +22,6 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/of_platform.h>
-#include <linux/memblock.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -84,9 +83,23 @@ void __init ge_imp3a_pic_init(void)
 	of_node_put(cascade_node);
 }
 
+static void ge_imp3a_pci_assign_primary(void)
+{
 #ifdef CONFIG_PCI
-static int primary_phb_addr;
-#endif	/* CONFIG_PCI */
+	struct device_node *np;
+	struct resource rsrc;
+
+	for_each_node_by_type(np, "pci") {
+		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
+		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
+		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
+			of_address_to_resource(np, 0, &rsrc);
+			if ((rsrc.start & 0xfffff) == 0x9000)
+				fsl_pci_primary = np;
+		}
+	}
+#endif
+}
 
 /*
  * Setup the architecture
@@ -94,43 +107,15 @@ static int primary_phb_addr;
 static void __init ge_imp3a_setup_arch(void)
 {
 	struct device_node *regs;
-#ifdef CONFIG_PCI
-	struct device_node *np;
-	struct pci_controller *hose;
-#endif
-	dma_addr_t max = 0xffffffff;
 
 	if (ppc_md.progress)
 		ppc_md.progress("ge_imp3a_setup_arch()", 0);
 
-#ifdef CONFIG_PCI
-	for_each_node_by_type(np, "pci") {
-		if (of_device_is_compatible(np, "fsl,mpc8540-pci") ||
-		    of_device_is_compatible(np, "fsl,mpc8548-pcie") ||
-		    of_device_is_compatible(np, "fsl,p2020-pcie")) {
-			struct resource rsrc;
-			of_address_to_resource(np, 0, &rsrc);
-			if ((rsrc.start & 0xfffff) == primary_phb_addr)
-				fsl_add_bridge(np, 1);
-			else
-				fsl_add_bridge(np, 0);
-
-			hose = pci_find_hose_for_OF_device(np);
-			max = min(max, hose->dma_window_base_cur +
-					hose->dma_window_size);
-		}
-	}
-#endif
-
 	mpc85xx_smp_init();
 
-#ifdef CONFIG_SWIOTLB
-	if ((memblock_end_of_DRAM() - 1) > max) {
-		ppc_swiotlb_enable = 1;
-		set_pci_dma_ops(&swiotlb_dma_ops);
-		ppc_md.pci_dma_dev_setup = pci_dma_dev_setup_swiotlb;
-	}
-#endif
+	ge_imp3a_pci_assign_primary();
+
+	swiotlb_detect_4g();
 
 	/* Remap basic board registers */
 	regs = of_find_compatible_node(NULL, NULL, "ge,imp3a-fpga-regs");
@@ -215,17 +200,10 @@ static int __init ge_imp3a_probe(void)
 {
 	unsigned long root = of_get_flat_dt_root();
 
-	if (of_flat_dt_is_compatible(root, "ge,IMP3A")) {
-#ifdef CONFIG_PCI
-		primary_phb_addr = 0x9000;
-#endif
-		return 1;
-	}
-
-	return 0;
+	return of_flat_dt_is_compatible(root, "ge,IMP3A");
 }
 
-machine_device_initcall(ge_imp3a, mpc85xx_common_publish_devices);
+machine_arch_initcall(ge_imp3a, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(ge_imp3a, swiotlb_setup_bus_notifier);
 

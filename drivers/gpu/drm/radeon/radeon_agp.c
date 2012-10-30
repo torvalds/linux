@@ -24,10 +24,9 @@
  *    Dave Airlie
  *    Jerome Glisse <glisse@freedesktop.org>
  */
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
 #include "radeon.h"
-#include "radeon_drm.h"
+#include <drm/radeon_drm.h>
 
 #if __OS_HAS_AGP
 

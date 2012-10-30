@@ -197,12 +197,6 @@ struct cpu_usage {
 
 DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 
-#if defined(CONFIG_VIRT_CPU_ACCOUNTING)
-#define account_process_vtime(tsk)		account_process_tick(tsk, 0)
-#else
-#define account_process_vtime(tsk)		do { } while (0)
-#endif
-
 extern void secondary_cpu_time_init(void);
 
 DECLARE_PER_CPU(u64, decrementers_next_tb);

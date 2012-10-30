@@ -4,6 +4,7 @@
 
 menuconfig IPACK_BUS
 	tristate "IndustryPack bus support"
+	depends on HAS_IOMEM
 	---help---
 	  If you say Y here you get support for the IndustryPack Framework
 	  for drivers for many types of boards that support this industrial

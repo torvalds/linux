@@ -121,8 +121,7 @@ remaining fields or returns an error code. The driver may also set
 field. It indicates a non-critical (recoverable) streaming error. In such case
 the application may continue as normal, but should be aware that data in the
 dequeued buffer might be corrupted. When using the multi-planar API, the
-planes array does not have to be passed; the <structfield>m.planes</structfield>
-member must be set to NULL in that case.</para>
+planes array must be passed in as well.</para>
 
     <para>By default <constant>VIDIOC_DQBUF</constant> blocks when no
 buffer is in the outgoing queue. When the
@@ -155,6 +154,8 @@ or no buffers have been allocated yet, or the
 <structfield>userptr</structfield> or
 <structfield>length</structfield> are invalid.</para>
 	</listitem>
+      </varlistentry>
+      <varlistentry>
 	<term><errorcode>EIO</errorcode></term>
 	<listitem>
 	  <para><constant>VIDIOC_DQBUF</constant> failed due to an

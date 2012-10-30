@@ -5,7 +5,7 @@
  *		3d 2.5gauss magnetometers via SPI
  *
  * Copyright (c) 2009 Manuel Stahl <manuel.stahl@iis.fraunhofer.de>
- * Copyright (c) 2007 Jonathan Cameron <jic23@cam.ac.uk>
+ * Copyright (c) 2007 Jonathan Cameron <jic23@kernel.org>
  *
  * Loosely based upon lis3l02dq.h
  *
@@ -139,6 +139,8 @@ struct adis16400_chip_info {
 	const long flags;
 	unsigned int gyro_scale_micro;
 	unsigned int accel_scale_micro;
+	int temp_scale_nano;
+	int temp_offset;
 	unsigned long default_scan_mask;
 };
 

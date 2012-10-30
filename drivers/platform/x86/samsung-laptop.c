@@ -26,9 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
-#ifdef CONFIG_ACPI_VIDEO
 #include <acpi/video.h>
-#endif
 
 /*
  * This driver is needed because a number of Samsung laptops do not hook
@@ -1558,9 +1556,7 @@ static int __init samsung_init(void)
 		samsung->handle_backlight = false;
 	} else if (samsung->quirks->broken_acpi_video) {
 		pr_info("Disabling ACPI video driver\n");
-#ifdef CONFIG_ACPI_VIDEO
 		acpi_video_unregister();
-#endif
 	}
 #endif
 

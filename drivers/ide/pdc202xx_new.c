@@ -465,7 +465,7 @@ static const struct ide_port_ops pdcnew_port_ops = {
 		.udma_mask	= udma, \
 	}
 
-static const struct ide_port_info pdcnew_chipsets[] __devinitdata = {
+static const struct ide_port_info pdcnew_chipsets[] __devinitconst = {
 	/* 0: PDC202{68,70} */		DECLARE_PDCNEW_DEV(ATA_UDMA5),
 	/* 1: PDC202{69,71,75,76,77} */	DECLARE_PDCNEW_DEV(ATA_UDMA6),
 };

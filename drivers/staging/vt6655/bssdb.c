@@ -784,8 +784,8 @@ BSSDBbIsSTAInNodeDB(void *pMgmtObject, unsigned char *abyDstAddr,
 /*+
  *
  * Routine Description:
- *    Find an empty node and allocated; if no empty found,
- *    instand used of most inactive one.
+ *    Find an empty node and allocat it; if there is no empty node,
+ *    then use the most inactive one.
  *
  * Return Value:
  *    None

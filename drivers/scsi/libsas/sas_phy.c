@@ -94,6 +94,25 @@ static void sas_phye_spinup_hold(struct work_struct *work)
 	i->dft->lldd_control_phy(phy, PHY_FUNC_RELEASE_SPINUP_HOLD, NULL);
 }
 
+static void sas_phye_resume_timeout(struct work_struct *work)
+{
+	struct asd_sas_event *ev = to_asd_sas_event(work);
+	struct asd_sas_phy *phy = ev->phy;
+
+	clear_bit(PHYE_RESUME_TIMEOUT, &phy->phy_events_pending);
+
+	/* phew, lldd got the phy back in the nick of time */
+	if (!phy->suspended) {
+		dev_info(&phy->phy->dev, "resume timeout cancelled\n");
+		return;
+	}
+
+	phy->error = 0;
+	phy->suspended = 0;
+	sas_deform_port(phy, 1);
+}
+
+
 /* ---------- Phy class registration ---------- */
 
 int sas_register_phys(struct sas_ha_struct *sas_ha)
@@ -105,6 +124,8 @@ int sas_register_phys(struct sas_ha_struct *sas_ha)
 		[PHYE_OOB_DONE] = sas_phye_oob_done,
 		[PHYE_OOB_ERROR] = sas_phye_oob_error,
 		[PHYE_SPINUP_HOLD] = sas_phye_spinup_hold,
+		[PHYE_RESUME_TIMEOUT] = sas_phye_resume_timeout,
+
 	};
 
 	static const work_func_t sas_port_event_fns[PORT_NUM_EVENTS] = {

@@ -25,7 +25,7 @@
 
 #include <asm/sizes.h>
 #include <asm/unaligned.h>
-#include <plat/mvsdio.h>
+#include <linux/platform_data/mmc-mvsdio.h>
 
 #include "mvsdio.h"
 

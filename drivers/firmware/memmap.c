@@ -237,7 +237,7 @@ static ssize_t memmap_attr_show(struct kobject *kobj,
  * firmware_map_add() or firmware_map_add_early() afterwards, the entries
  * are not added to sysfs.
  */
-static int __init memmap_init(void)
+static int __init firmware_memmap_init(void)
 {
 	struct firmware_map_entry *entry;
 
@@ -246,5 +246,5 @@ static int __init memmap_init(void)
 
 	return 0;
 }
-late_initcall(memmap_init);
+late_initcall(firmware_memmap_init);
 

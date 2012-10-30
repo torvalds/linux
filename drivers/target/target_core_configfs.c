@@ -457,14 +457,6 @@ static int target_fabric_tf_ops_check(
 		pr_err("Missing tfo->queue_tm_rsp()\n");
 		return -EINVAL;
 	}
-	if (!tfo->set_fabric_sense_len) {
-		pr_err("Missing tfo->set_fabric_sense_len()\n");
-		return -EINVAL;
-	}
-	if (!tfo->get_fabric_sense_len) {
-		pr_err("Missing tfo->get_fabric_sense_len()\n");
-		return -EINVAL;
-	}
 	/*
 	 * We at least require tfo->fabric_make_wwn(), tfo->fabric_drop_wwn()
 	 * tfo->fabric_make_tpg() and tfo->fabric_drop_tpg() in
@@ -1208,7 +1200,7 @@ static ssize_t target_core_dev_pr_show_attr_res_pr_holder_tg_port(
 		" Target Node Endpoint: %s\n", tfo->get_fabric_name(),
 		tfo->tpg_get_wwn(se_tpg));
 	len += sprintf(page+len, "SPC-3 Reservation: Relative Port"
-		" Identifer Tag: %hu %s Portal Group Tag: %hu"
+		" Identifier Tag: %hu %s Portal Group Tag: %hu"
 		" %s Logical Unit: %u\n", lun->lun_sep->sep_rtpi,
 		tfo->get_fabric_name(), tfo->tpg_get_tag(se_tpg),
 		tfo->get_fabric_name(), lun->unpacked_lun);
@@ -3132,6 +3124,7 @@ static int __init target_core_init_configfs(void)
 				GFP_KERNEL);
 	if (!target_cg->default_groups) {
 		pr_err("Unable to allocate target_cg->default_groups\n");
+		ret = -ENOMEM;
 		goto out_global;
 	}
 
@@ -3147,6 +3140,7 @@ static int __init target_core_init_configfs(void)
 				GFP_KERNEL);
 	if (!hba_cg->default_groups) {
 		pr_err("Unable to allocate hba_cg->default_groups\n");
+		ret = -ENOMEM;
 		goto out_global;
 	}
 	config_group_init_type_name(&alua_group,
@@ -3162,6 +3156,7 @@ static int __init target_core_init_configfs(void)
 			GFP_KERNEL);
 	if (!alua_cg->default_groups) {
 		pr_err("Unable to allocate alua_cg->default_groups\n");
+		ret = -ENOMEM;
 		goto out_global;
 	}
 
@@ -3173,14 +3168,17 @@ static int __init target_core_init_configfs(void)
 	 * Add core/alua/lu_gps/default_lu_gp
 	 */
 	lu_gp = core_alua_allocate_lu_gp("default_lu_gp", 1);
-	if (IS_ERR(lu_gp))
+	if (IS_ERR(lu_gp)) {
+		ret = -ENOMEM;
 		goto out_global;
+	}
 
 	lu_gp_cg = &alua_lu_gps_group;
 	lu_gp_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
 			GFP_KERNEL);
 	if (!lu_gp_cg->default_groups) {
 		pr_err("Unable to allocate lu_gp_cg->default_groups\n");
+		ret = -ENOMEM;
 		goto out_global;
 	}
 

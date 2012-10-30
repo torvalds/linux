@@ -2658,7 +2658,7 @@ static int __devinit snd_card_asihpi_mixer_new(struct snd_card_asihpi *asihpi)
 					hpi_ctl.dst_node_type,
 					hpi_ctl.dst_node_index);
 			continue;
-		};
+		}
 		if (err < 0)
 			return err;
 	}
@@ -2968,7 +2968,7 @@ static struct pci_driver driver = {
 	.id_table = asihpi_pci_tbl,
 	.probe = snd_asihpi_probe,
 	.remove = __devexit_p(snd_asihpi_remove),
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 /*	.suspend = snd_asihpi_suspend,
 	.resume = snd_asihpi_resume, */
 #endif

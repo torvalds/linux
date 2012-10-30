@@ -356,6 +356,7 @@ struct pn533 {
 
 	struct workqueue_struct	*wq;
 	struct work_struct cmd_work;
+	struct work_struct cmd_complete_work;
 	struct work_struct poll_work;
 	struct work_struct mi_work;
 	struct work_struct tg_work;
@@ -383,6 +384,19 @@ struct pn533 {
 	u8 tgt_mode;
 
 	u32 device_type;
+
+	struct list_head cmd_queue;
+	u8 cmd_pending;
+};
+
+struct pn533_cmd {
+	struct list_head queue;
+	struct pn533_frame *out_frame;
+	struct pn533_frame *in_frame;
+	int in_frame_len;
+	pn533_cmd_complete_t cmd_complete;
+	void *arg;
+	gfp_t flags;
 };
 
 struct pn533_frame {
@@ -487,7 +501,7 @@ static bool pn533_rx_frame_is_cmd_response(struct pn533_frame *frame, u8 cmd)
 
 static void pn533_wq_cmd_complete(struct work_struct *work)
 {
-	struct pn533 *dev = container_of(work, struct pn533, cmd_work);
+	struct pn533 *dev = container_of(work, struct pn533, cmd_complete_work);
 	struct pn533_frame *in_frame;
 	int rc;
 
@@ -502,7 +516,7 @@ static void pn533_wq_cmd_complete(struct work_struct *work)
 					PN533_FRAME_CMD_PARAMS_LEN(in_frame));
 
 	if (rc != -EINPROGRESS)
-		mutex_unlock(&dev->cmd_lock);
+		queue_work(dev->wq, &dev->cmd_work);
 }
 
 static void pn533_recv_response(struct urb *urb)
@@ -550,7 +564,7 @@ static void pn533_recv_response(struct urb *urb)
 	dev->wq_in_frame = in_frame;
 
 sched_wq:
-	queue_work(dev->wq, &dev->cmd_work);
+	queue_work(dev->wq, &dev->cmd_complete_work);
 }
 
 static int pn533_submit_urb_for_response(struct pn533 *dev, gfp_t flags)
@@ -606,7 +620,7 @@ static void pn533_recv_ack(struct urb *urb)
 
 sched_wq:
 	dev->wq_in_frame = NULL;
-	queue_work(dev->wq, &dev->cmd_work);
+	queue_work(dev->wq, &dev->cmd_complete_work);
 }
 
 static int pn533_submit_urb_for_ack(struct pn533 *dev, gfp_t flags)
@@ -669,6 +683,31 @@ error:
 	return rc;
 }
 
+static void pn533_wq_cmd(struct work_struct *work)
+{
+	struct pn533 *dev = container_of(work, struct pn533, cmd_work);
+	struct pn533_cmd *cmd;
+
+	mutex_lock(&dev->cmd_lock);
+
+	if (list_empty(&dev->cmd_queue)) {
+		dev->cmd_pending = 0;
+		mutex_unlock(&dev->cmd_lock);
+		return;
+	}
+
+	cmd = list_first_entry(&dev->cmd_queue, struct pn533_cmd, queue);
+
+	mutex_unlock(&dev->cmd_lock);
+
+	__pn533_send_cmd_frame_async(dev, cmd->out_frame, cmd->in_frame,
+				     cmd->in_frame_len, cmd->cmd_complete,
+				     cmd->arg, cmd->flags);
+
+	list_del(&cmd->queue);
+	kfree(cmd);
+}
+
 static int pn533_send_cmd_frame_async(struct pn533 *dev,
 					struct pn533_frame *out_frame,
 					struct pn533_frame *in_frame,
@@ -676,21 +715,44 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 					pn533_cmd_complete_t cmd_complete,
 					void *arg, gfp_t flags)
 {
-	int rc;
+	struct pn533_cmd *cmd;
+	int rc = 0;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	if (!mutex_trylock(&dev->cmd_lock))
-		return -EBUSY;
+	mutex_lock(&dev->cmd_lock);
 
-	rc = __pn533_send_cmd_frame_async(dev, out_frame, in_frame,
-					in_frame_len, cmd_complete, arg, flags);
-	if (rc)
-		goto error;
+	if (!dev->cmd_pending) {
+		rc = __pn533_send_cmd_frame_async(dev, out_frame, in_frame,
+						  in_frame_len, cmd_complete,
+						  arg, flags);
+		if (!rc)
+			dev->cmd_pending = 1;
 
-	return 0;
-error:
+		goto unlock;
+	}
+
+	nfc_dev_dbg(&dev->interface->dev, "%s Queueing command", __func__);
+
+	cmd = kzalloc(sizeof(struct pn533_cmd), flags);
+	if (!cmd) {
+		rc = -ENOMEM;
+		goto unlock;
+	}
+
+	INIT_LIST_HEAD(&cmd->queue);
+	cmd->out_frame = out_frame;
+	cmd->in_frame = in_frame;
+	cmd->in_frame_len = in_frame_len;
+	cmd->cmd_complete = cmd_complete;
+	cmd->arg = arg;
+	cmd->flags = flags;
+
+	list_add_tail(&cmd->queue, &dev->cmd_queue);
+
+unlock:
 	mutex_unlock(&dev->cmd_lock);
+
 	return rc;
 }
 
@@ -1304,8 +1366,6 @@ static void pn533_listen_mode_timer(unsigned long data)
 	pn533_send_ack(dev, GFP_ATOMIC);
 
 	dev->cancel_listen = 1;
-
-	mutex_unlock(&dev->cmd_lock);
 
 	pn533_poll_next_mod(dev);
 
@@ -2131,7 +2191,7 @@ error_cmd:
 
 	kfree(arg);
 
-	mutex_unlock(&dev->cmd_lock);
+	queue_work(dev->wq, &dev->cmd_work);
 }
 
 static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
@@ -2330,13 +2390,12 @@ static int pn533_probe(struct usb_interface *interface,
 			NULL, 0,
 			pn533_send_complete, dev);
 
-	INIT_WORK(&dev->cmd_work, pn533_wq_cmd_complete);
+	INIT_WORK(&dev->cmd_work, pn533_wq_cmd);
+	INIT_WORK(&dev->cmd_complete_work, pn533_wq_cmd_complete);
 	INIT_WORK(&dev->mi_work, pn533_wq_mi_recv);
 	INIT_WORK(&dev->tg_work, pn533_wq_tg_get_data);
 	INIT_WORK(&dev->poll_work, pn533_wq_poll);
-	dev->wq = alloc_workqueue("pn533",
-				  WQ_NON_REENTRANT | WQ_UNBOUND | WQ_MEM_RECLAIM,
-				  1);
+	dev->wq = alloc_ordered_workqueue("pn533", 0);
 	if (dev->wq == NULL)
 		goto error;
 
@@ -2345,6 +2404,8 @@ static int pn533_probe(struct usb_interface *interface,
 	dev->listen_timer.function = pn533_listen_mode_timer;
 
 	skb_queue_head_init(&dev->resp_q);
+
+	INIT_LIST_HEAD(&dev->cmd_queue);
 
 	usb_set_intfdata(interface, dev);
 
@@ -2417,6 +2478,7 @@ error:
 static void pn533_disconnect(struct usb_interface *interface)
 {
 	struct pn533 *dev;
+	struct pn533_cmd *cmd, *n;
 
 	dev = usb_get_intfdata(interface);
 	usb_set_intfdata(interface, NULL);
@@ -2432,6 +2494,11 @@ static void pn533_disconnect(struct usb_interface *interface)
 	skb_queue_purge(&dev->resp_q);
 
 	del_timer(&dev->listen_timer);
+
+	list_for_each_entry_safe(cmd, n, &dev->cmd_queue, queue) {
+		list_del(&cmd->queue);
+		kfree(cmd);
+	}
 
 	kfree(dev->in_frame);
 	usb_free_urb(dev->in_urb);

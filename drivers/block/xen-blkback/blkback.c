@@ -42,6 +42,7 @@
 
 #include <xen/events.h>
 #include <xen/page.h>
+#include <xen/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 #include "common.h"
@@ -337,7 +338,7 @@ static void xen_blkbk_unmap(struct pending_req *req)
 		invcount++;
 	}
 
-	ret = gnttab_unmap_refs(unmap, pages, invcount, false);
+	ret = gnttab_unmap_refs(unmap, NULL, pages, invcount);
 	BUG_ON(ret);
 }
 

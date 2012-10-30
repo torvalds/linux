@@ -46,19 +46,30 @@
  * @bearer: ptr to associated "generic" bearer structure
  * @dev: ptr to associated Ethernet network device
  * @tipc_packet_type: used in binding TIPC to Ethernet driver
+ * @setup: work item used when enabling bearer
  * @cleanup: work item used when disabling bearer
  */
 struct eth_bearer {
 	struct tipc_bearer *bearer;
 	struct net_device *dev;
 	struct packet_type tipc_packet_type;
+	struct work_struct setup;
 	struct work_struct cleanup;
 };
 
 static struct tipc_media eth_media_info;
 static struct eth_bearer eth_bearers[MAX_ETH_BEARERS];
 static int eth_started;
-static struct notifier_block notifier;
+
+static int recv_notification(struct notifier_block *nb, unsigned long evt,
+			      void *dv);
+/*
+ * Network device notifier info
+ */
+static struct notifier_block notifier = {
+	.notifier_call	= recv_notification,
+	.priority	= 0
+};
 
 /**
  * eth_media_addr_set - initialize Ethernet media address structure
@@ -134,6 +145,17 @@ static int recv_msg(struct sk_buff *buf, struct net_device *dev,
 }
 
 /**
+ * setup_bearer - setup association between Ethernet bearer and interface
+ */
+static void setup_bearer(struct work_struct *work)
+{
+	struct eth_bearer *eb_ptr =
+		container_of(work, struct eth_bearer, setup);
+
+	dev_add_pack(&eb_ptr->tipc_packet_type);
+}
+
+/**
  * enable_bearer - attach TIPC bearer to an Ethernet interface
  */
 static int enable_bearer(struct tipc_bearer *tb_ptr)
@@ -173,7 +195,8 @@ static int enable_bearer(struct tipc_bearer *tb_ptr)
 	eb_ptr->tipc_packet_type.func = recv_msg;
 	eb_ptr->tipc_packet_type.af_packet_priv = eb_ptr;
 	INIT_LIST_HEAD(&(eb_ptr->tipc_packet_type.list));
-	dev_add_pack(&eb_ptr->tipc_packet_type);
+	INIT_WORK(&eb_ptr->setup, setup_bearer);
+	schedule_work(&eb_ptr->setup);
 
 	/* Associate TIPC bearer with Ethernet bearer */
 	eb_ptr->bearer = tb_ptr;
@@ -357,8 +380,6 @@ int tipc_eth_media_start(void)
 	if (res)
 		return res;
 
-	notifier.notifier_call = &recv_notification;
-	notifier.priority = 0;
 	res = register_netdevice_notifier(&notifier);
 	if (!res)
 		eth_started = 1;

@@ -33,9 +33,8 @@ config REGULATOR_DUMMY
 	help
 	  If this option is enabled then when a regulator lookup fails
 	  and the board has not specified that it has provided full
-	  constraints then the regulator core will provide an always
-	  enabled dummy regulator will be provided, allowing consumer
-	  drivers to continue.
+	  constraints the regulator core will provide an always
+	  enabled dummy regulator, allowing consumer drivers to continue.
 
 	  A warning will be generated when this substitution is done.
 
@@ -50,11 +49,11 @@ config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
 	help
 	  This driver provides a virtual consumer for the voltage and
-          current regulator API which provides sysfs controls for
-          configuring the supplies requested.  This is mainly useful
-          for test purposes.
+	  current regulator API which provides sysfs controls for
+	  configuring the supplies requested.  This is mainly useful
+	  for test purposes.
 
-          If unsure, say no.
+	  If unsure, say no.
 
 config REGULATOR_USERSPACE_CONSUMER
 	tristate "Userspace regulator consumer support"
@@ -63,7 +62,7 @@ config REGULATOR_USERSPACE_CONSUMER
 	  from user space. Userspace consumer driver provides ability to
 	  control power supplies for such devices.
 
-          If unsure, say no.
+	  If unsure, say no.
 
 config REGULATOR_GPIO
 	tristate "GPIO regulator support"
@@ -110,9 +109,20 @@ config REGULATOR_DA9052
 	  This driver supports the voltage regulators of DA9052-BC and
 	  DA9053-AA/Bx PMIC.
 
+config REGULATOR_FAN53555
+	tristate "Fairchild FAN53555 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports Fairchild FAN53555 Digitally Programmable
+	  TinyBuck Regulator. The FAN53555 is a step-down switching voltage
+	  regulator that delivers a digitally programmable output from an
+	  input voltage supply of 2.5V to 5.5V. The output voltage is
+	  programmed through an I2C interface.
+
 config REGULATOR_ANATOP
 	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
-	depends on MFD_ANATOP
+	depends on MFD_SYSCON
 	help
 	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
 	  regulators. It is recommended that this option be
@@ -171,6 +181,14 @@ config REGULATOR_MAX8660
 	help
 	  This driver controls a Maxim 8660/8661 voltage output
 	  regulator via I2C bus.
+
+config REGULATOR_MAX8907
+	tristate "Maxim 8907 voltage regulator"
+	depends on MFD_MAX8907
+	help
+	  This driver controls a Maxim 8907 voltage output regulator
+	  via I2C bus. The provided regulator is suitable for Tegra
+	  chip to control Step-Down DC-DC and LDOs.
 
 config REGULATOR_MAX8925
 	tristate "Maxim MAX8925 Power Management IC"
@@ -247,7 +265,7 @@ config REGULATOR_LP8788
 
 config REGULATOR_PCF50633
 	tristate "NXP PCF50633 regulator driver"
-        depends on MFD_PCF50633
+	depends on MFD_PCF50633
 	help
 	 Say Y here to support the voltage regulators and convertors
 	 on PCF50633
@@ -416,7 +434,7 @@ config REGULATOR_WM8350
 	depends on MFD_WM8350
 	help
 	  This driver provides support for the voltage and current regulators
-          of the WM8350 AudioPlus PMIC.
+	  of the WM8350 AudioPlus PMIC.
 
 config REGULATOR_WM8400
 	tristate "Wolfson Microelectronics WM8400 AudioPlus PMIC"

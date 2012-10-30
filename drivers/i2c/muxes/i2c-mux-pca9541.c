@@ -354,7 +354,7 @@ static int pca9541_probe(struct i2c_client *client,
 	if (pdata)
 		force = pdata->modes[0].adap_id;
 	data->mux_adap = i2c_add_mux_adapter(adap, &client->dev, client,
-					     force, 0,
+					     force, 0, 0,
 					     pca9541_select_chan,
 					     pca9541_release_chan);
 

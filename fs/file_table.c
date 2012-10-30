@@ -36,7 +36,7 @@ struct files_stat_struct files_stat = {
 	.max_files = NR_FILE
 };
 
-DEFINE_LGLOCK(files_lglock);
+DEFINE_STATIC_LGLOCK(files_lglock);
 
 /* SLAB cache for file structures */
 static struct kmem_cache *filp_cachep __read_mostly;
@@ -243,10 +243,10 @@ static void __fput(struct file *file)
 		if (file->f_op && file->f_op->fasync)
 			file->f_op->fasync(-1, file, 0);
 	}
+	ima_file_free(file);
 	if (file->f_op && file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);
-	ima_file_free(file);
 	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL &&
 		     !(file->f_mode & FMODE_PATH))) {
 		cdev_put(inode->i_cdev);
@@ -338,112 +338,6 @@ void __fput_sync(struct file *file)
 }
 
 EXPORT_SYMBOL(fput);
-
-struct file *fget(unsigned int fd)
-{
-	struct file *file;
-	struct files_struct *files = current->files;
-
-	rcu_read_lock();
-	file = fcheck_files(files, fd);
-	if (file) {
-		/* File object ref couldn't be taken */
-		if (file->f_mode & FMODE_PATH ||
-		    !atomic_long_inc_not_zero(&file->f_count))
-			file = NULL;
-	}
-	rcu_read_unlock();
-
-	return file;
-}
-
-EXPORT_SYMBOL(fget);
-
-struct file *fget_raw(unsigned int fd)
-{
-	struct file *file;
-	struct files_struct *files = current->files;
-
-	rcu_read_lock();
-	file = fcheck_files(files, fd);
-	if (file) {
-		/* File object ref couldn't be taken */
-		if (!atomic_long_inc_not_zero(&file->f_count))
-			file = NULL;
-	}
-	rcu_read_unlock();
-
-	return file;
-}
-
-EXPORT_SYMBOL(fget_raw);
-
-/*
- * Lightweight file lookup - no refcnt increment if fd table isn't shared.
- *
- * You can use this instead of fget if you satisfy all of the following
- * conditions:
- * 1) You must call fput_light before exiting the syscall and returning control
- *    to userspace (i.e. you cannot remember the returned struct file * after
- *    returning to userspace).
- * 2) You must not call filp_close on the returned struct file * in between
- *    calls to fget_light and fput_light.
- * 3) You must not clone the current task in between the calls to fget_light
- *    and fput_light.
- *
- * The fput_needed flag returned by fget_light should be passed to the
- * corresponding fput_light.
- */
-struct file *fget_light(unsigned int fd, int *fput_needed)
-{
-	struct file *file;
-	struct files_struct *files = current->files;
-
-	*fput_needed = 0;
-	if (atomic_read(&files->count) == 1) {
-		file = fcheck_files(files, fd);
-		if (file && (file->f_mode & FMODE_PATH))
-			file = NULL;
-	} else {
-		rcu_read_lock();
-		file = fcheck_files(files, fd);
-		if (file) {
-			if (!(file->f_mode & FMODE_PATH) &&
-			    atomic_long_inc_not_zero(&file->f_count))
-				*fput_needed = 1;
-			else
-				/* Didn't get the reference, someone's freed */
-				file = NULL;
-		}
-		rcu_read_unlock();
-	}
-
-	return file;
-}
-
-struct file *fget_raw_light(unsigned int fd, int *fput_needed)
-{
-	struct file *file;
-	struct files_struct *files = current->files;
-
-	*fput_needed = 0;
-	if (atomic_read(&files->count) == 1) {
-		file = fcheck_files(files, fd);
-	} else {
-		rcu_read_lock();
-		file = fcheck_files(files, fd);
-		if (file) {
-			if (atomic_long_inc_not_zero(&file->f_count))
-				*fput_needed = 1;
-			else
-				/* Didn't get the reference, someone's freed */
-				file = NULL;
-		}
-		rcu_read_unlock();
-	}
-
-	return file;
-}
 
 void put_filp(struct file *file)
 {

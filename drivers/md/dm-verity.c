@@ -438,7 +438,7 @@ static void verity_prefetch_io(struct dm_verity *v, struct dm_verity_io *io)
 		verity_hash_at_level(v, io->block, i, &hash_block_start, NULL);
 		verity_hash_at_level(v, io->block + io->n_blocks - 1, i, &hash_block_end, NULL);
 		if (!i) {
-			unsigned cluster = *(volatile unsigned *)&dm_verity_prefetch_cluster;
+			unsigned cluster = ACCESS_ONCE(dm_verity_prefetch_cluster);
 
 			cluster >>= v->data_dev_block_bits;
 			if (unlikely(!cluster))
@@ -718,8 +718,8 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	v->hash_dev_block_bits = ffs(num) - 1;
 
 	if (sscanf(argv[5], "%llu%c", &num_ll, &dummy) != 1 ||
-	    num_ll << (v->data_dev_block_bits - SECTOR_SHIFT) !=
-	    (sector_t)num_ll << (v->data_dev_block_bits - SECTOR_SHIFT)) {
+	    (sector_t)(num_ll << (v->data_dev_block_bits - SECTOR_SHIFT))
+	    >> (v->data_dev_block_bits - SECTOR_SHIFT) != num_ll) {
 		ti->error = "Invalid data blocks";
 		r = -EINVAL;
 		goto bad;
@@ -733,8 +733,8 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	if (sscanf(argv[6], "%llu%c", &num_ll, &dummy) != 1 ||
-	    num_ll << (v->hash_dev_block_bits - SECTOR_SHIFT) !=
-	    (sector_t)num_ll << (v->hash_dev_block_bits - SECTOR_SHIFT)) {
+	    (sector_t)(num_ll << (v->hash_dev_block_bits - SECTOR_SHIFT))
+	    >> (v->hash_dev_block_bits - SECTOR_SHIFT) != num_ll) {
 		ti->error = "Invalid hash start";
 		r = -EINVAL;
 		goto bad;

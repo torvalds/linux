@@ -40,6 +40,7 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o \
 	  dvo_ivch.o \
 	  dvo_tfp410.o \
 	  dvo_sil164.o \
+	  dvo_ns2501.o \
 	  i915_gem_dmabuf.o
 
 i915-$(CONFIG_COMPAT)   += i915_ioc32.o

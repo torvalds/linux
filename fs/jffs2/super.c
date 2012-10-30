@@ -100,6 +100,10 @@ static int jffs2_sync_fs(struct super_block *sb, int wait)
 {
 	struct jffs2_sb_info *c = JFFS2_SB_INFO(sb);
 
+#ifdef CONFIG_JFFS2_FS_WRITEBUFFER
+	cancel_delayed_work_sync(&c->wbuf_dwork);
+#endif
+
 	mutex_lock(&c->alloc_sem);
 	jffs2_flush_wbuf_pad(c);
 	mutex_unlock(&c->alloc_sem);
@@ -418,6 +422,12 @@ static void __exit exit_jffs2_fs(void)
 	unregister_filesystem(&jffs2_fs_type);
 	jffs2_destroy_slab_caches();
 	jffs2_compressors_exit();
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(jffs2_inode_cachep);
 }
 

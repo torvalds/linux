@@ -43,13 +43,13 @@
 
 #include <plat/regs-serial.h>
 #include <mach/regs-gpio.h>
-#include <mach/leds-gpio.h>
+#include <linux/platform_data/leds-s3c24xx.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
-#include <plat/iic.h>
-#include <plat/audio-simtec.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/asoc-s3c24xx_simtec.h>
 
 #include "simtec.h"
 #include "common.h"

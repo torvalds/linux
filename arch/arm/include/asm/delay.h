@@ -15,6 +15,11 @@
 
 #ifndef __ASSEMBLY__
 
+struct delay_timer {
+	unsigned long (*read_current_timer)(void);
+	unsigned long freq;
+};
+
 extern struct arm_delay_ops {
 	void (*delay)(unsigned long);
 	void (*const_udelay)(unsigned long);
@@ -55,6 +60,10 @@ extern void __bad_udelay(void);
 extern void __loop_delay(unsigned long loops);
 extern void __loop_udelay(unsigned long usecs);
 extern void __loop_const_udelay(unsigned long);
+
+/* Delay-loop timer registration. */
+#define ARCH_HAS_READ_CURRENT_TIMER
+extern void register_current_timer_delay(const struct delay_timer *timer);
 
 #endif /* __ASSEMBLY__ */
 

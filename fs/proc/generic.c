@@ -427,7 +427,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 		if (!memcmp(dentry->d_name.name, de->name, de->namelen)) {
 			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
-			error = -EINVAL;
+			error = -ENOMEM;
 			inode = proc_get_inode(dir->i_sb, de);
 			goto out_unlock;
 		}
@@ -605,7 +605,8 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	unsigned int len;
 
 	/* make sure name is valid */
-	if (!name || !strlen(name)) goto out;
+	if (!name || !strlen(name))
+		goto out;
 
 	if (xlate_proc_name(name, parent, &fn) != 0)
 		goto out;
@@ -616,20 +617,18 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 
 	len = strlen(fn);
 
-	ent = kmalloc(sizeof(struct proc_dir_entry) + len + 1, GFP_KERNEL);
-	if (!ent) goto out;
+	ent = kzalloc(sizeof(struct proc_dir_entry) + len + 1, GFP_KERNEL);
+	if (!ent)
+		goto out;
 
-	memset(ent, 0, sizeof(struct proc_dir_entry));
 	memcpy(ent->name, fn, len + 1);
 	ent->namelen = len;
 	ent->mode = mode;
 	ent->nlink = nlink;
 	atomic_set(&ent->count, 1);
-	ent->pde_users = 0;
 	spin_lock_init(&ent->pde_unload_lock);
-	ent->pde_unload_completion = NULL;
 	INIT_LIST_HEAD(&ent->pde_openers);
- out:
+out:
 	return ent;
 }
 

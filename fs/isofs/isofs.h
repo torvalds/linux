@@ -52,8 +52,8 @@ struct isofs_sb_info {
 
 	umode_t s_fmode;
 	umode_t s_dmode;
-	gid_t s_gid;
-	uid_t s_uid;
+	kgid_t s_gid;
+	kuid_t s_uid;
 	struct nls_table *s_nls_iocharset; /* Native language support table */
 };
 

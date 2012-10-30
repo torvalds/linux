@@ -355,7 +355,7 @@ static int test_bit(int nr, const volatile unsigned long *addr);
  */
 static inline unsigned long __ffs(unsigned long word)
 {
-	asm("bsf %1,%0"
+	asm("rep; bsf %1,%0"
 		: "=r" (word)
 		: "rm" (word));
 	return word;
@@ -369,7 +369,7 @@ static inline unsigned long __ffs(unsigned long word)
  */
 static inline unsigned long ffz(unsigned long word)
 {
-	asm("bsf %1,%0"
+	asm("rep; bsf %1,%0"
 		: "=r" (word)
 		: "r" (~word));
 	return word;
@@ -417,10 +417,9 @@ static inline int ffs(int x)
 	 * We cannot do this on 32 bits because at the very least some
 	 * 486 CPUs did not behave this way.
 	 */
-	long tmp = -1;
 	asm("bsfl %1,%0"
 	    : "=r" (r)
-	    : "rm" (x), "0" (tmp));
+	    : "rm" (x), "0" (-1));
 #elif defined(CONFIG_X86_CMOV)
 	asm("bsfl %1,%0\n\t"
 	    "cmovzl %2,%0"
@@ -459,10 +458,9 @@ static inline int fls(int x)
 	 * We cannot do this on 32 bits because at the very least some
 	 * 486 CPUs did not behave this way.
 	 */
-	long tmp = -1;
 	asm("bsrl %1,%0"
 	    : "=r" (r)
-	    : "rm" (x), "0" (tmp));
+	    : "rm" (x), "0" (-1));
 #elif defined(CONFIG_X86_CMOV)
 	asm("bsrl %1,%0\n\t"
 	    "cmovzl %2,%0"
@@ -490,13 +488,13 @@ static inline int fls(int x)
 #ifdef CONFIG_X86_64
 static __always_inline int fls64(__u64 x)
 {
-	long bitpos = -1;
+	int bitpos = -1;
 	/*
 	 * AMD64 says BSRQ won't clobber the dest reg if x==0; Intel64 says the
 	 * dest reg is undefined if x==0, but their CPU architect says its
 	 * value is written to set it to the same as before.
 	 */
-	asm("bsrq %1,%0"
+	asm("bsrq %1,%q0"
 	    : "+r" (bitpos)
 	    : "rm" (x));
 	return bitpos + 1;

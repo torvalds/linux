@@ -407,40 +407,6 @@ _GLOBAL(scom970_write)
 
 
 /*
- * Create a kernel thread
- *   kernel_thread(fn, arg, flags)
- */
-_GLOBAL(kernel_thread)
-	std	r29,-24(r1)
-	std	r30,-16(r1)
-	stdu	r1,-STACK_FRAME_OVERHEAD(r1)
-	mr	r29,r3
-	mr	r30,r4
-	ori	r3,r5,CLONE_VM	/* flags */
-	oris	r3,r3,(CLONE_UNTRACED>>16)
-	li	r4,0		/* new sp (unused) */
-	li	r0,__NR_clone
-	sc
-	bns+	1f		/* did system call indicate error? */
-	neg	r3,r3		/* if so, make return code negative */
-1:	cmpdi	0,r3,0		/* parent or child? */
-	bne	2f		/* return if parent */
-	li	r0,0
-	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
-	ld	r2,8(r29)
-	ld	r29,0(r29)
-	mtlr	r29              /* fn addr in lr */
-	mr	r3,r30	        /* load arg and call fn */
-	blrl
-	li	r0,__NR_exit	/* exit after child exits */
-        li	r3,0
-	sc
-2:	addi	r1,r1,STACK_FRAME_OVERHEAD
-	ld	r29,-24(r1)
-	ld	r30,-16(r1)
-	blr
-
-/*
  * disable_kernel_fp()
  * Disable the FPU.
  */

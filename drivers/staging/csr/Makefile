@@ -25,7 +25,6 @@ csr_wifi-y :=	bh.o				\
 		unifi_event.o			\
 		unifi_pdu_processing.o		\
 		unifi_sme.o			\
-		csr_formatted_io.o		\
 		csr_wifi_hip_card_sdio.o	\
 		csr_wifi_hip_card_sdio_intr.o	\
 		csr_wifi_hip_card_sdio_mem.o	\

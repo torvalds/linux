@@ -296,7 +296,7 @@ int si470x_set_freq(struct si470x_device *radio, unsigned int freq)
  * si470x_set_seek - set seek
  */
 static int si470x_set_seek(struct si470x_device *radio,
-			   struct v4l2_hw_freq_seek *seek)
+			   const struct v4l2_hw_freq_seek *seek)
 {
 	int band, retval;
 	unsigned int freq;
@@ -701,12 +701,15 @@ static int si470x_vidioc_s_frequency(struct file *file, void *priv,
  * si470x_vidioc_s_hw_freq_seek - set hardware frequency seek
  */
 static int si470x_vidioc_s_hw_freq_seek(struct file *file, void *priv,
-		struct v4l2_hw_freq_seek *seek)
+		const struct v4l2_hw_freq_seek *seek)
 {
 	struct si470x_device *radio = video_drvdata(file);
 
 	if (seek->tuner != 0)
 		return -EINVAL;
+
+	if (file->f_flags & O_NONBLOCK)
+		return -EWOULDBLOCK;
 
 	return si470x_set_seek(radio, seek);
 }

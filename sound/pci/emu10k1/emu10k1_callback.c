@@ -228,7 +228,7 @@ lookup_voices(struct snd_emux *emu, struct snd_emu10k1 *hw,
 	int  i;
 
 	for (i = 0; i < V_END; i++) {
-		best[i].time = (unsigned int)-1; /* XXX MAX_?INT really */;
+		best[i].time = (unsigned int)-1; /* XXX MAX_?INT really */
 		best[i].voice = -1;
 	}
 

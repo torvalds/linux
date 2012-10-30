@@ -17,10 +17,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/cpu.h>
-#include <plat/irqs.h>
 #include <plat/prcm.h>
 
+#include "soc.h"
 #include "iomap.h"
 #include "common.h"
 #include "vp.h"
@@ -40,7 +39,7 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.nr_regs		= 2,
 	.irqs			= omap4_prcm_irqs,
 	.nr_irqs		= ARRAY_SIZE(omap4_prcm_irqs),
-	.irq			= OMAP44XX_IRQ_PRCM,
+	.irq			= 11 + OMAP44XX_IRQ_GIC_START,
 	.read_pending_irqs	= &omap44xx_prm_read_pending_irqs,
 	.ocp_barrier		= &omap44xx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap44xx_prm_save_and_clear_irqen,

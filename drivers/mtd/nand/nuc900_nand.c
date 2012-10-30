@@ -112,22 +112,6 @@ static void nuc900_nand_write_buf(struct mtd_info *mtd,
 		write_data_reg(nand, buf[i]);
 }
 
-static int nuc900_verify_buf(struct mtd_info *mtd,
-			     const unsigned char *buf, int len)
-{
-	int i;
-	struct nuc900_nand *nand;
-
-	nand = container_of(mtd, struct nuc900_nand, mtd);
-
-	for (i = 0; i < len; i++) {
-		if (buf[i] != (unsigned char)read_data_reg(nand))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
 static int nuc900_check_rb(struct nuc900_nand *nand)
 {
 	unsigned int val;
@@ -292,7 +276,6 @@ static int __devinit nuc900_nand_probe(struct platform_device *pdev)
 	chip->read_byte		= nuc900_nand_read_byte;
 	chip->write_buf		= nuc900_nand_write_buf;
 	chip->read_buf		= nuc900_nand_read_buf;
-	chip->verify_buf	= nuc900_verify_buf;
 	chip->chip_delay	= 50;
 	chip->options		= 0;
 	chip->ecc.mode		= NAND_ECC_SOFT;

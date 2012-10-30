@@ -462,7 +462,7 @@ static void __init sh7367_earlytimer_init(void)
 	shmobile_earlytimer_init();
 }
 
-#define SYMSTPCR2 0xe6158048
+#define SYMSTPCR2 IOMEM(0xe6158048)
 #define SYMSTPCR2_CMT1 (1 << 29)
 
 void __init sh7367_add_early_devices(void)

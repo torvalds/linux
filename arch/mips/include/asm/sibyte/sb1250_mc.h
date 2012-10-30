@@ -33,7 +33,7 @@
 #ifndef _SB1250_MC_H
 #define _SB1250_MC_H
 
-#include "sb1250_defs.h"
+#include <asm/sibyte/sb1250_defs.h>
 
 /*
  * Memory Channel Config Register (table 6-14)

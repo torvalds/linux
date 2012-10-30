@@ -58,7 +58,7 @@ static inline void platform_set_sysmmu(
 #endif
 
 #else /* !CONFIG_EXYNOS_DEV_SYSMMU */
-#define platform_set_sysmmu(dev, sysmmu) do { } while (0)
+#define platform_set_sysmmu(sysmmu, dev) do { } while (0)
 #endif
 
 #define SYSMMU_CLOCK_DEVNAME(ipname, id) (SYSMMU_DEVNAME_BASE "." #id)

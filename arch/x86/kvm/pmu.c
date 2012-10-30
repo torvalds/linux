@@ -1,5 +1,5 @@
 /*
- * Kernel-based Virtual Machine -- Performane Monitoring Unit support
+ * Kernel-based Virtual Machine -- Performance Monitoring Unit support
  *
  * Copyright 2011 Red Hat, Inc. and/or its affiliates.
  *

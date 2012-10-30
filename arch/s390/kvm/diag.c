@@ -14,6 +14,8 @@
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
 #include "kvm-s390.h"
+#include "trace.h"
+#include "trace-s390.h"
 
 static int diag_release_pages(struct kvm_vcpu *vcpu)
 {
@@ -98,6 +100,7 @@ static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 	vcpu->run->exit_reason = KVM_EXIT_S390_RESET;
 	VCPU_EVENT(vcpu, 3, "requesting userspace resets %llx",
 	  vcpu->run->s390_reset_flags);
+	trace_kvm_s390_request_resets(vcpu->run->s390_reset_flags);
 	return -EREMOTE;
 }
 
@@ -105,6 +108,7 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 {
 	int code = (vcpu->arch.sie_block->ipb & 0xfff0000) >> 16;
 
+	trace_kvm_s390_handle_diag(vcpu, code);
 	switch (code) {
 	case 0x10:
 		return diag_release_pages(vcpu);

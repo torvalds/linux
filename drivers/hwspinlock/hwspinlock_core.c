@@ -552,7 +552,7 @@ EXPORT_SYMBOL_GPL(hwspin_lock_request_specific);
  */
 int hwspin_lock_free(struct hwspinlock *hwlock)
 {
-	struct device *dev = hwlock->bank->dev;
+	struct device *dev;
 	struct hwspinlock *tmp;
 	int ret;
 
@@ -561,6 +561,7 @@ int hwspin_lock_free(struct hwspinlock *hwlock)
 		return -EINVAL;
 	}
 
+	dev = hwlock->bank->dev;
 	mutex_lock(&hwspinlock_tree_lock);
 
 	/* make sure the hwspinlock is used */

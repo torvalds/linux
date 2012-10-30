@@ -43,7 +43,7 @@ static u32 hash_v4(const struct sk_buff *skb)
 	const struct iphdr *iph = ip_hdr(skb);
 
 	/* packets in either direction go into same queue */
-	if (iph->saddr < iph->daddr)
+	if ((__force u32)iph->saddr < (__force u32)iph->daddr)
 		return jhash_3words((__force u32)iph->saddr,
 			(__force u32)iph->daddr, iph->protocol, jhash_initval);
 
@@ -57,7 +57,8 @@ static u32 hash_v6(const struct sk_buff *skb)
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
 	u32 a, b, c;
 
-	if (ip6h->saddr.s6_addr32[3] < ip6h->daddr.s6_addr32[3]) {
+	if ((__force u32)ip6h->saddr.s6_addr32[3] <
+	    (__force u32)ip6h->daddr.s6_addr32[3]) {
 		a = (__force u32) ip6h->saddr.s6_addr32[3];
 		b = (__force u32) ip6h->daddr.s6_addr32[3];
 	} else {
@@ -65,7 +66,8 @@ static u32 hash_v6(const struct sk_buff *skb)
 		a = (__force u32) ip6h->daddr.s6_addr32[3];
 	}
 
-	if (ip6h->saddr.s6_addr32[1] < ip6h->daddr.s6_addr32[1])
+	if ((__force u32)ip6h->saddr.s6_addr32[1] <
+	    (__force u32)ip6h->daddr.s6_addr32[1])
 		c = (__force u32) ip6h->saddr.s6_addr32[1];
 	else
 		c = (__force u32) ip6h->daddr.s6_addr32[1];

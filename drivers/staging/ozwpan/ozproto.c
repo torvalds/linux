@@ -220,6 +220,19 @@ static struct oz_pd *oz_connect_req(struct oz_pd *cur_pd, struct oz_elt *elt,
 		pd->ms_per_isoc = body->ms_per_isoc;
 		if (!pd->ms_per_isoc)
 			pd->ms_per_isoc = 4;
+
+		switch (body->ms_isoc_latency & OZ_LATENCY_MASK) {
+		case OZ_ONE_MS_LATENCY:
+			pd->isoc_latency = (body->ms_isoc_latency &
+					~OZ_LATENCY_MASK) / pd->ms_per_isoc;
+			break;
+		case OZ_TEN_MS_LATENCY:
+			pd->isoc_latency = ((body->ms_isoc_latency &
+				~OZ_LATENCY_MASK) * 10) / pd->ms_per_isoc;
+			break;
+		default:
+			pd->isoc_latency = OZ_MAX_TX_QUEUE_ISOC;
+		}
 	}
 	if (body->max_len_div16)
 		pd->max_tx_size = ((u16)body->max_len_div16)<<4;

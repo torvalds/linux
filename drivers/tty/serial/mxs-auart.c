@@ -262,7 +262,7 @@ static void mxs_auart_set_mctrl(struct uart_port *u, unsigned mctrl)
 
 	ctrl &= ~AUART_CTRL2_RTSEN;
 	if (mctrl & TIOCM_RTS) {
-		if (u->state->port.flags & ASYNC_CTS_FLOW)
+		if (tty_port_cts_enabled(&u->state->port))
 			ctrl |= AUART_CTRL2_RTSEN;
 	}
 
@@ -457,10 +457,10 @@ static void mxs_auart_shutdown(struct uart_port *u)
 
 	writel(AUART_CTRL2_UARTEN, u->membase + AUART_CTRL2_CLR);
 
-	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
-
 	writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN | AUART_INTR_CTSMIEN,
 			u->membase + AUART_INTR_CLR);
+
+	writel(AUART_CTRL0_CLKGATE, u->membase + AUART_CTRL0_SET);
 
 	clk_disable_unprepare(s->clk);
 }
@@ -781,6 +781,7 @@ out_free_irq:
 	auart_port[pdev->id] = NULL;
 	free_irq(s->irq, s);
 out_free_clk:
+	put_device(s->dev);
 	clk_put(s->clk);
 out_free:
 	kfree(s);
@@ -796,6 +797,7 @@ static int __devexit mxs_auart_remove(struct platform_device *pdev)
 
 	auart_port[pdev->id] = NULL;
 
+	put_device(s->dev);
 	clk_put(s->clk);
 	free_irq(s->irq, s);
 	kfree(s);

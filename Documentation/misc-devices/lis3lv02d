@@ -4,7 +4,8 @@ Kernel driver lis3lv02d
 Supported chips:
 
   * STMicroelectronics LIS3LV02DL, LIS3LV02DQ (12 bits precision)
-  * STMicroelectronics LIS302DL, LIS3L02DQ, LIS331DL (8 bits)
+  * STMicroelectronics LIS302DL, LIS3L02DQ, LIS331DL (8 bits) and
+    LIS331DLH (16 bits)
 
 Authors:
         Yan Burman <burman.yan@gmail.com>

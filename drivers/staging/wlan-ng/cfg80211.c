@@ -1,7 +1,7 @@
 /* cfg80211 Interface for prism2_usb module */
 
 
-/* Prism2 channell/frequency/bitrate declarations */
+/* Prism2 channel/frequency/bitrate declarations */
 static const struct ieee80211_channel prism2_channels[] = {
 	{ .center_freq = 2412 },
 	{ .center_freq = 2417 },
@@ -327,11 +327,11 @@ int prism2_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return result;
 }
 
-int prism2_scan(struct wiphy *wiphy, struct net_device *dev,
-		struct cfg80211_scan_request *request)
+int prism2_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
+	struct net_device *dev;
 	struct prism2_wiphy_private *priv = wiphy_priv(wiphy);
-	wlandevice_t *wlandev = dev->ml_priv;
+	wlandevice_t *wlandev;
 	struct p80211msg_dot11req_scan msg1;
 	struct p80211msg_dot11req_scan_results msg2;
 	struct cfg80211_bss *bss;
@@ -344,6 +344,9 @@ int prism2_scan(struct wiphy *wiphy, struct net_device *dev,
 
 	if (!request)
 		return -EINVAL;
+
+	dev = request->wdev->netdev;
+	wlandev = dev->ml_priv;
 
 	if (priv->scan_request && priv->scan_request != request)
 		return -EBUSY;
@@ -499,7 +502,7 @@ int prism2_connect(struct wiphy *wiphy, struct net_device *dev,
 			goto exit;
 	}
 
-	/* Set the authorisation */
+	/* Set the authorization */
 	if ((sme->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM) ||
 		((sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) && !is_wep))
 			msg_join.authtype.data = P80211ENUM_authalg_opensystem;

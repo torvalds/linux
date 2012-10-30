@@ -81,4 +81,7 @@ to_psc_dma_stream(struct snd_pcm_substream *substream, struct psc_dma *psc_dma)
 	return &psc_dma->playback;
 }
 
+int mpc5200_audio_dma_create(struct platform_device *op);
+int mpc5200_audio_dma_destroy(struct platform_device *op);
+
 #endif /* __SOUND_SOC_FSL_MPC5200_DMA_H__ */

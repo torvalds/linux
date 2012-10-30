@@ -57,9 +57,8 @@ int sbusfb_mmap_helper(struct sbus_mmap_map *map,
 
 	off = vma->vm_pgoff << PAGE_SHIFT;
 
-	/* To stop the swapper from even considering these pages */
-	vma->vm_flags |= (VM_IO | VM_RESERVED);
-	
+	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
+
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 	/* Each page, see which map applies */

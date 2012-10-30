@@ -307,7 +307,6 @@ config HID_LOGITECH
 config HID_LOGITECH_DJ
 	tristate "Logitech Unifying receivers full support"
 	depends on HID_LOGITECH
-	default m
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
@@ -527,12 +526,29 @@ config HID_PICOLCD_LEDS
 	---help---
 	  Provide access to PicoLCD's GPO pins via leds class.
 
+config HID_PICOLCD_CIR
+	bool "CIR via RC class" if EXPERT
+	default !EXPERT
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=RC_CORE || RC_CORE=y
+	---help---
+	  Provide access to PicoLCD's CIR interface via remote control (LIRC).
+
 config HID_PRIMAX
 	tristate "Primax non-fully HID-compliant devices"
 	depends on USB_HID
 	---help---
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
+
+config HID_PS3REMOTE
+	tristate "Sony PS3 BD Remote Control"
+	depends on BT_HIDP
+	---help---
+	Support for the Sony PS3 Blue-ray Disk Remote Control and Logitech
+	Harmony Adapter for PS3, which connect over Bluetooth.
+
+	Support for the 6-axis controllers is provided by HID_SONY.
 
 config HID_ROCCAT
 	tristate "Roccat device support"
@@ -561,7 +577,9 @@ config HID_SONY
 	tristate "Sony PS3 controller"
 	depends on USB_HID
 	---help---
-	Support for Sony PS3 controller.
+	Support for Sony PS3 6-axis controllers.
+
+	Support for the Sony PS3 BD Remote is provided by HID_PS3REMOTE.
 
 config HID_SPEEDLINK
 	tristate "Speedlink VAD Cezanne mouse support"
@@ -689,6 +707,20 @@ config HID_ZYDACRON
 	depends on USB_HID
 	---help---
 	Support for Zydacron remote control.
+
+config HID_SENSOR_HUB
+	tristate "HID Sensors framework support"
+	depends on USB_HID
+	select MFD_CORE
+	default n
+	-- help---
+	  Support for HID Sensor framework. This creates a MFD instance
+	  for a sensor hub and identifies all the sensors connected to it.
+	  Each sensor is registered as a MFD cell, so that sensor specific
+	  processing can be done in a separate driver. Each sensor
+	  drivers can use the service provided by this driver to register
+	  for events and handle data streams. Each sensor driver can format
+	  data and present to user mode using input or IIO interface.
 
 endmenu
 

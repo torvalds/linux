@@ -151,7 +151,7 @@ static const struct i2c_algo_bit_data parport_algo_data = {
 
 /* ----- I2c and parallel port call-back functions and structures --------- */
 
-void i2c_parport_irq(void *data)
+static void i2c_parport_irq(void *data)
 {
 	struct i2c_par *adapter = data;
 	struct i2c_client *ara = adapter->ara;

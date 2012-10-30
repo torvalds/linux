@@ -303,6 +303,7 @@ struct ar9170 {
 	unsigned long queue_stop_timeout[__AR9170_NUM_TXQ];
 	unsigned long max_queue_stop_timeout[__AR9170_NUM_TXQ];
 	bool needs_full_reset;
+	bool force_usb_reset;
 	atomic_t pending_restarts;
 
 	/* interface mode settings */
@@ -425,6 +426,7 @@ struct ar9170 {
 	bool rx_has_plcp;
 	struct sk_buff *rx_failover;
 	int rx_failover_missing;
+	u32 ampdu_ref;
 
 	/* FIFO for collecting outstanding BlockAckRequest */
 	struct list_head bar_list[__AR9170_NUM_TXQ];
@@ -577,7 +579,9 @@ void carl9170_rx(struct ar9170 *ar, void *buf, unsigned int len);
 void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len);
 
 /* TX */
-void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+void carl9170_op_tx(struct ieee80211_hw *hw,
+		    struct ieee80211_tx_control *control,
+		    struct sk_buff *skb);
 void carl9170_tx_janitor(struct work_struct *work);
 void carl9170_tx_process_status(struct ar9170 *ar,
 				const struct carl9170_rsp *cmd);

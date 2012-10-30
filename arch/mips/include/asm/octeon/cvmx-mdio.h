@@ -35,7 +35,7 @@
 #ifndef __CVMX_MIO_H__
 #define __CVMX_MIO_H__
 
-#include "cvmx-smix-defs.h"
+#include <asm/octeon/cvmx-smix-defs.h>
 
 /**
  * PHY register 0 from the 802.3 spec

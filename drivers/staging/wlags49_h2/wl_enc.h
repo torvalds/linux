@@ -106,7 +106,7 @@ ENCSTRCT, *PENCSTRCT;
 
 
 /*******************************************************************************
- * function prrottypes
+ * function prototypes
  ******************************************************************************/
 int wl_wep_code( char *szCrypt, char *szDest, void *Data, int nLen );
 

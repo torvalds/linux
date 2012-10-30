@@ -70,7 +70,7 @@ static int wm8400_register_codec(struct wm8400 *wm8400)
 		.pdata_size = sizeof(*wm8400),
 	};
 
-	return mfd_add_devices(wm8400->dev, -1, &cell, 1, NULL, 0);
+	return mfd_add_devices(wm8400->dev, -1, &cell, 1, NULL, 0, NULL);
 }
 
 /*

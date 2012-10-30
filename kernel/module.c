@@ -58,6 +58,8 @@
 #include <linux/jump_label.h>
 #include <linux/pfn.h>
 #include <linux/bsearch.h>
+#include <linux/fips.h>
+#include "module-internal.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
@@ -102,6 +104,43 @@ static LIST_HEAD(modules);
 struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
 #endif /* CONFIG_KGDB_KDB */
 
+#ifdef CONFIG_MODULE_SIG
+#ifdef CONFIG_MODULE_SIG_FORCE
+static bool sig_enforce = true;
+#else
+static bool sig_enforce = false;
+
+static int param_set_bool_enable_only(const char *val,
+				      const struct kernel_param *kp)
+{
+	int err;
+	bool test;
+	struct kernel_param dummy_kp = *kp;
+
+	dummy_kp.arg = &test;
+
+	err = param_set_bool(val, &dummy_kp);
+	if (err)
+		return err;
+
+	/* Don't let them unset it once it's set! */
+	if (!test && sig_enforce)
+		return -EROFS;
+
+	if (test)
+		sig_enforce = true;
+	return 0;
+}
+
+static const struct kernel_param_ops param_ops_bool_enable_only = {
+	.set = param_set_bool_enable_only,
+	.get = param_get_bool,
+};
+#define param_check_bool_enable_only param_check_bool
+
+module_param(sig_enforce, bool_enable_only, 0644);
+#endif /* !CONFIG_MODULE_SIG_FORCE */
+#endif /* CONFIG_MODULE_SIG */
 
 /* Block module loading/unloading? */
 int modules_disabled = 0;
@@ -136,6 +175,7 @@ struct load_info {
 	unsigned long symoffs, stroffs;
 	struct _ddebug *debug;
 	unsigned int num_debug;
+	bool sig_ok;
 	struct {
 		unsigned int sym, str, mod, vers, info, pcpu;
 	} index;
@@ -1949,26 +1989,6 @@ static int simplify_symbols(struct module *mod, const struct load_info *info)
 	return ret;
 }
 
-int __weak apply_relocate(Elf_Shdr *sechdrs,
-			  const char *strtab,
-			  unsigned int symindex,
-			  unsigned int relsec,
-			  struct module *me)
-{
-	pr_err("module %s: REL relocation unsupported\n", me->name);
-	return -ENOEXEC;
-}
-
-int __weak apply_relocate_add(Elf_Shdr *sechdrs,
-			      const char *strtab,
-			      unsigned int symindex,
-			      unsigned int relsec,
-			      struct module *me)
-{
-	pr_err("module %s: RELA relocation unsupported\n", me->name);
-	return -ENOEXEC;
-}
-
 static int apply_relocations(struct module *mod, const struct load_info *info)
 {
 	unsigned int i;
@@ -2399,7 +2419,44 @@ static inline void kmemleak_load_module(const struct module *mod,
 }
 #endif
 
-/* Sets info->hdr and info->len. */
+#ifdef CONFIG_MODULE_SIG
+static int module_sig_check(struct load_info *info,
+			    const void *mod, unsigned long *_len)
+{
+	int err = -ENOKEY;
+	unsigned long markerlen = sizeof(MODULE_SIG_STRING) - 1;
+	unsigned long len = *_len;
+
+	if (len > markerlen &&
+	    memcmp(mod + len - markerlen, MODULE_SIG_STRING, markerlen) == 0) {
+		/* We truncate the module to discard the signature */
+		*_len -= markerlen;
+		err = mod_verify_sig(mod, _len);
+	}
+
+	if (!err) {
+		info->sig_ok = true;
+		return 0;
+	}
+
+	/* Not having a signature is only an error if we're strict. */
+	if (err < 0 && fips_enabled)
+		panic("Module verification failed with error %d in FIPS mode\n",
+		      err);
+	if (err == -ENOKEY && !sig_enforce)
+		err = 0;
+
+	return err;
+}
+#else /* !CONFIG_MODULE_SIG */
+static int module_sig_check(struct load_info *info,
+			    void *mod, unsigned long *len)
+{
+	return 0;
+}
+#endif /* !CONFIG_MODULE_SIG */
+
+/* Sets info->hdr, info->len and info->sig_ok. */
 static int copy_and_check(struct load_info *info,
 			  const void __user *umod, unsigned long len,
 			  const char __user *uargs)
@@ -2418,6 +2475,10 @@ static int copy_and_check(struct load_info *info,
 		err = -EFAULT;
 		goto free_hdr;
 	}
+
+	err = module_sig_check(info, hdr, &len);
+	if (err)
+		goto free_hdr;
 
 	/* Sanity checks against insmoding binaries or wrong arch,
 	   weird elf version */
@@ -2730,6 +2791,10 @@ static int check_module_license_and_versions(struct module *mod)
 	if (strcmp(mod->name, "driverloader") == 0)
 		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
 
+	/* lve claims to be GPL but upstream won't provide source */
+	if (strcmp(mod->name, "lve") == 0)
+		add_taint_module(mod, TAINT_PROPRIETARY_MODULE);
+
 #ifdef CONFIG_MODVERSIONS
 	if ((mod->num_syms && !mod->crcs)
 	    || (mod->num_gpl_syms && !mod->gpl_crcs)
@@ -2861,6 +2926,20 @@ static int post_relocation(struct module *mod, const struct load_info *info)
 	return module_finalize(info->hdr, info->sechdrs, mod);
 }
 
+/* Is this module of this name done loading?  No locks held. */
+static bool finished_loading(const char *name)
+{
+	struct module *mod;
+	bool ret;
+
+	mutex_lock(&module_mutex);
+	mod = find_module(name);
+	ret = !mod || mod->state != MODULE_STATE_COMING;
+	mutex_unlock(&module_mutex);
+
+	return ret;
+}
+
 /* Allocate and load the module: note that size of section 0 is always
    zero, and we rely on this for optional sections. */
 static struct module *load_module(void __user *umod,
@@ -2868,7 +2947,7 @@ static struct module *load_module(void __user *umod,
 				  const char __user *uargs)
 {
 	struct load_info info = { NULL, };
-	struct module *mod;
+	struct module *mod, *old;
 	long err;
 
 	pr_debug("load_module: umod=%p, len=%lu, uargs=%p\n",
@@ -2885,6 +2964,12 @@ static struct module *load_module(void __user *umod,
 		err = PTR_ERR(mod);
 		goto free_copy;
 	}
+
+#ifdef CONFIG_MODULE_SIG
+	mod->sig_ok = info.sig_ok;
+	if (!mod->sig_ok)
+		add_taint_module(mod, TAINT_FORCED_MODULE);
+#endif
 
 	/* Now module is in final location, initialize linked lists, etc. */
 	err = module_unload_init(mod);
@@ -2934,8 +3019,18 @@ static struct module *load_module(void __user *umod,
 	 * function to insert in a way safe to concurrent readers.
 	 * The mutex protects against concurrent writers.
 	 */
+again:
 	mutex_lock(&module_mutex);
-	if (find_module(mod->name)) {
+	if ((old = find_module(mod->name)) != NULL) {
+		if (old->state == MODULE_STATE_COMING) {
+			/* Wait in case it fails to load. */
+			mutex_unlock(&module_mutex);
+			err = wait_event_interruptible(module_wq,
+					       finished_loading(mod->name));
+			if (err)
+				goto free_arch_cleanup;
+			goto again;
+		}
 		err = -EEXIST;
 		goto unlock;
 	}
@@ -2975,7 +3070,7 @@ static struct module *load_module(void __user *umod,
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
 	module_bug_cleanup(mod);
-
+	wake_up_all(&module_wq);
  ddebug:
 	dynamic_debug_remove(info.debug);
  unlock:
@@ -3050,7 +3145,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 		blocking_notifier_call_chain(&module_notify_list,
 					     MODULE_STATE_GOING, mod);
 		free_module(mod);
-		wake_up(&module_wq);
+		wake_up_all(&module_wq);
 		return ret;
 	}
 	if (ret > 0) {
@@ -3062,9 +3157,8 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 		dump_stack();
 	}
 
-	/* Now it's a first class citizen!  Wake up anyone waiting for it. */
+	/* Now it's a first class citizen! */
 	mod->state = MODULE_STATE_LIVE;
-	wake_up(&module_wq);
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_LIVE, mod);
 
@@ -3087,6 +3181,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	mod->init_ro_size = 0;
 	mod->init_text_size = 0;
 	mutex_unlock(&module_mutex);
+	wake_up_all(&module_wq);
 
 	return 0;
 }

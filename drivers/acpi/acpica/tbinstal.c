@@ -350,6 +350,7 @@ struct acpi_table_header *acpi_tb_table_override(struct acpi_table_header
 acpi_status acpi_tb_resize_root_table_list(void)
 {
 	struct acpi_table_desc *tables;
+	u32 table_count;
 
 	ACPI_FUNCTION_TRACE(tb_resize_root_table_list);
 
@@ -363,8 +364,13 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	/* Increase the Table Array size */
 
-	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) acpi_gbl_root_table_list.
-				       max_table_count +
+	if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
+		table_count = acpi_gbl_root_table_list.max_table_count;
+	} else {
+		table_count = acpi_gbl_root_table_list.current_table_count;
+	}
+
+	tables = ACPI_ALLOCATE_ZEROED(((acpi_size) table_count +
 				       ACPI_ROOT_TABLE_SIZE_INCREMENT) *
 				      sizeof(struct acpi_table_desc));
 	if (!tables) {
@@ -377,8 +383,8 @@ acpi_status acpi_tb_resize_root_table_list(void)
 
 	if (acpi_gbl_root_table_list.tables) {
 		ACPI_MEMCPY(tables, acpi_gbl_root_table_list.tables,
-			    (acpi_size) acpi_gbl_root_table_list.
-			    max_table_count * sizeof(struct acpi_table_desc));
+			    (acpi_size) table_count *
+			    sizeof(struct acpi_table_desc));
 
 		if (acpi_gbl_root_table_list.flags & ACPI_ROOT_ORIGIN_ALLOCATED) {
 			ACPI_FREE(acpi_gbl_root_table_list.tables);
@@ -386,9 +392,9 @@ acpi_status acpi_tb_resize_root_table_list(void)
 	}
 
 	acpi_gbl_root_table_list.tables = tables;
-	acpi_gbl_root_table_list.max_table_count +=
-	    ACPI_ROOT_TABLE_SIZE_INCREMENT;
-	acpi_gbl_root_table_list.flags |= (u8)ACPI_ROOT_ORIGIN_ALLOCATED;
+	acpi_gbl_root_table_list.max_table_count =
+	    table_count + ACPI_ROOT_TABLE_SIZE_INCREMENT;
+	acpi_gbl_root_table_list.flags |= ACPI_ROOT_ORIGIN_ALLOCATED;
 
 	return_ACPI_STATUS(AE_OK);
 }

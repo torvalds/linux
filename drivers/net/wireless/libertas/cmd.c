@@ -1159,6 +1159,22 @@ void lbs_set_mac_control(struct lbs_private *priv)
 	lbs_deb_leave(LBS_DEB_CMD);
 }
 
+int lbs_set_mac_control_sync(struct lbs_private *priv)
+{
+	struct cmd_ds_mac_control cmd;
+	int ret = 0;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(priv->mac_control);
+	cmd.reserved = 0;
+	ret = lbs_cmd_with_response(priv, CMD_MAC_CONTROL, &cmd);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
+}
+
 /**
  *  lbs_allocate_cmd_buffer - allocates the command buffer and links
  *  it to command free queue

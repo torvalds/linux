@@ -457,20 +457,14 @@ int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 		.reason_code = reason,
 		.ie = ie,
 		.ie_len = ie_len,
+		.local_state_change = local_state_change,
 	};
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (local_state_change) {
-		if (wdev->current_bss &&
-		    ether_addr_equal(wdev->current_bss->pub.bssid, bssid)) {
-			cfg80211_unhold_bss(wdev->current_bss);
-			cfg80211_put_bss(&wdev->current_bss->pub);
-			wdev->current_bss = NULL;
-		}
-
+	if (local_state_change && (!wdev->current_bss ||
+	    !ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
 		return 0;
-	}
 
 	return rdev->ops->deauth(&rdev->wiphy, dev, &req);
 }
@@ -612,10 +606,21 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
 }
 EXPORT_SYMBOL(cfg80211_del_sta);
 
+void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
+			  enum nl80211_connect_failed_reason reason,
+			  gfp_t gfp)
+{
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
+	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	nl80211_send_conn_failed_event(rdev, dev, mac_addr, reason, gfp);
+}
+EXPORT_SYMBOL(cfg80211_conn_failed);
+
 struct cfg80211_mgmt_registration {
 	struct list_head list;
 
-	u32 nlpid;
+	u32 nlportid;
 
 	int match_len;
 
@@ -624,7 +629,7 @@ struct cfg80211_mgmt_registration {
 	u8 match[];
 };
 
-int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
+int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 				u16 frame_type, const u8 *match_data,
 				int match_len)
 {
@@ -672,7 +677,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 
 	memcpy(nreg->match, match_data, match_len);
 	nreg->match_len = match_len;
-	nreg->nlpid = snd_pid;
+	nreg->nlportid = snd_portid;
 	nreg->frame_type = cpu_to_le16(frame_type);
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 
@@ -685,7 +690,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_pid,
 	return err;
 }
 
-void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
+void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
@@ -694,7 +699,7 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 	spin_lock_bh(&wdev->mgmt_registrations_lock);
 
 	list_for_each_entry_safe(reg, tmp, &wdev->mgmt_registrations, list) {
-		if (reg->nlpid != nlpid)
+		if (reg->nlportid != nlportid)
 			continue;
 
 		if (rdev->ops->mgmt_frame_register) {
@@ -710,8 +715,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlpid)
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
-	if (nlpid == wdev->ap_unexpected_nlpid)
-		wdev->ap_unexpected_nlpid = 0;
+	if (nlportid == wdev->ap_unexpected_nlportid)
+		wdev->ap_unexpected_nlportid = 0;
 }
 
 void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
@@ -736,7 +741,6 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  const u8 *buf, size_t len, bool no_cck,
 			  bool dont_wait_for_ack, u64 *cookie)
 {
-	struct net_device *dev = wdev->netdev;
 	const struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
@@ -796,7 +800,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_P2P_GO:
 		case NL80211_IFTYPE_AP_VLAN:
-			if (!ether_addr_equal(mgmt->bssid, dev->dev_addr))
+			if (!ether_addr_equal(mgmt->bssid, wdev_address(wdev)))
 				err = -EINVAL;
 			break;
 		case NL80211_IFTYPE_MESH_POINT:
@@ -809,6 +813,11 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			 * cfg80211 doesn't track the stations
 			 */
 			break;
+		case NL80211_IFTYPE_P2P_DEVICE:
+			/*
+			 * fall through, P2P device only supports
+			 * public action frames
+			 */
 		default:
 			err = -EOPNOTSUPP;
 			break;
@@ -819,7 +828,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
-	if (!ether_addr_equal(mgmt->sa, dev->dev_addr))
+	if (!ether_addr_equal(mgmt->sa, wdev_address(wdev)))
 		return -EINVAL;
 
 	/* Transmit the Action frame as requested by user space */
@@ -868,7 +877,7 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 		/* found match! */
 
 		/* Indicate the received Action frame to user space */
-		if (nl80211_send_mgmt(rdev, wdev, reg->nlpid,
+		if (nl80211_send_mgmt(rdev, wdev, reg->nlportid,
 				      freq, sig_mbm,
 				      buf, len, gfp))
 			continue;

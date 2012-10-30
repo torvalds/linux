@@ -19,9 +19,11 @@
 
 #define FSL_UTMI_PHY_DLY	10	/*As per P1010RM, delay for UTMI
 				PHY CLK to become stable - 10ms*/
+#define FSL_USB_PHY_CLK_TIMEOUT	10000	/* uSec */
 #define FSL_USB_VER_OLD		0
 #define FSL_USB_VER_1_6		1
 #define FSL_USB_VER_2_2		2
+#define FSL_USB_VER_2_4		3
 
 #include <linux/types.h>
 

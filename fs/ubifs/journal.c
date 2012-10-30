@@ -469,8 +469,8 @@ static void pack_inode(struct ubifs_info *c, struct ubifs_ino_node *ino,
 	ino->ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
 	ino->mtime_sec  = cpu_to_le64(inode->i_mtime.tv_sec);
 	ino->mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
-	ino->uid   = cpu_to_le32(inode->i_uid);
-	ino->gid   = cpu_to_le32(inode->i_gid);
+	ino->uid   = cpu_to_le32(i_uid_read(inode));
+	ino->gid   = cpu_to_le32(i_gid_read(inode));
 	ino->mode  = cpu_to_le32(inode->i_mode);
 	ino->flags = cpu_to_le32(ui->flags);
 	ino->size  = cpu_to_le64(ui->ui_size);

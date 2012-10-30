@@ -185,7 +185,7 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 	return err;
 }
 
-static int
+int
 brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			void *data, bool write)
 {
@@ -249,7 +249,9 @@ u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x\n", addr);
+	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
+	sdio_release_host(sdiodev->func[1]);
 	brcmf_dbg(INFO, "data:0x%02x\n", data);
 
 	if (ret)
@@ -264,7 +266,9 @@ u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x\n", addr);
+	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
+	sdio_release_host(sdiodev->func[1]);
 	brcmf_dbg(INFO, "data:0x%08x\n", data);
 
 	if (ret)
@@ -279,7 +283,9 @@ void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x, data:0x%02x\n", addr, data);
+	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
+	sdio_release_host(sdiodev->func[1]);
 
 	if (ret)
 		*ret = retval;
@@ -291,7 +297,9 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x, data:0x%08x\n", addr, data);
+	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
+	sdio_release_host(sdiodev->func[1]);
 
 	if (ret)
 		*ret = retval;
@@ -356,14 +364,19 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pkt->len);
 
+	sdio_claim_host(sdiodev->func[1]);
+
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
 	if (err)
-		return err;
+		goto done;
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_READ,
 					 fn, addr, pkt);
+
+done:
+	sdio_release_host(sdiodev->func[1]);
 
 	return err;
 }
@@ -378,14 +391,19 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pktq->qlen);
 
+	sdio_claim_host(sdiodev->func[1]);
+
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
 	if (err)
-		return err;
+		goto done;
 
 	incr_fix = (flags & SDIO_REQ_FIXED) ? SDIOH_DATA_FIX : SDIOH_DATA_INC;
 	err = brcmf_sdioh_request_chain(sdiodev, incr_fix, SDIOH_READ, fn, addr,
 					pktq);
+
+done:
+	sdio_release_host(sdiodev->func[1]);
 
 	return err;
 }
@@ -428,10 +446,12 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (flags & SDIO_REQ_ASYNC)
 		return -ENOTSUPP;
 
+	sdio_claim_host(sdiodev->func[1]);
+
 	if (bar0 != sdiodev->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
 		if (err)
-			return err;
+			goto done;
 
 		sdiodev->sbwad = bar0;
 	}
@@ -443,8 +463,13 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (width == 4)
 		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
-	return brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
-					  addr, pkt);
+	err = brcmf_sdioh_request_buffer(sdiodev, incr_fix, SDIOH_WRITE, fn,
+					 addr, pkt);
+
+done:
+	sdio_release_host(sdiodev->func[1]);
+
+	return err;
 }
 
 int brcmf_sdcard_rwdata(struct brcmf_sdio_dev *sdiodev, uint rw, u32 addr,
@@ -485,8 +510,10 @@ int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* issue abort cmd52 command through F0 */
+	sdio_claim_host(sdiodev->func[1]);
 	brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
 				 SDIO_CCCR_ABORT, &t_func);
+	sdio_release_host(sdiodev->func[1]);
 
 	brcmf_dbg(TRACE, "Exit\n");
 	return 0;

@@ -433,8 +433,8 @@ static int sriov_init(struct pci_dev *dev, int pos)
 	struct resource *res;
 	struct pci_dev *pdev;
 
-	if (dev->pcie_type != PCI_EXP_TYPE_RC_END &&
-	    dev->pcie_type != PCI_EXP_TYPE_ENDPOINT)
+	if (pci_pcie_type(dev) != PCI_EXP_TYPE_RC_END &&
+	    pci_pcie_type(dev) != PCI_EXP_TYPE_ENDPOINT)
 		return -ENODEV;
 
 	pci_read_config_word(dev, pos + PCI_SRIOV_CTRL, &ctrl);
@@ -503,7 +503,7 @@ found:
 	iov->self = dev;
 	pci_read_config_dword(dev, pos + PCI_SRIOV_CAP, &iov->cap);
 	pci_read_config_byte(dev, pos + PCI_SRIOV_FUNC_LINK, &iov->link);
-	if (dev->pcie_type == PCI_EXP_TYPE_RC_END)
+	if (pci_pcie_type(dev) == PCI_EXP_TYPE_RC_END)
 		iov->link = PCI_DEVFN(PCI_SLOT(dev->devfn), iov->link);
 
 	if (pdev)

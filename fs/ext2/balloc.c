@@ -479,7 +479,7 @@ void ext2_discard_reservation(struct inode *inode)
 /**
  * ext2_free_blocks() -- Free given blocks and update quota and i_blocks
  * @inode:		inode
- * @block:		start physcial block to free
+ * @block:		start physical block to free
  * @count:		number of blocks to free
  */
 void ext2_free_blocks (struct inode * inode, unsigned long block,

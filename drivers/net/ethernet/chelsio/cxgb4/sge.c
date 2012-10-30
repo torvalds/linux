@@ -68,9 +68,6 @@
  */
 #define RX_PKT_SKB_LEN   512
 
-/* Ethernet header padding prepended to RX_PKTs */
-#define RX_PKT_PAD 2
-
 /*
  * Max number of Tx descriptors we clean up at a time.  Should be modest as
  * freeing skbs isn't cheap and it happens while holding locks.  We just need
@@ -137,13 +134,6 @@
  */
 #define MAX_CTRL_WR_LEN SGE_MAX_WR_LEN
 
-enum {
-	/* packet alignment in FL buffers */
-	FL_ALIGN = L1_CACHE_BYTES < 32 ? 32 : L1_CACHE_BYTES,
-	/* egress status entry size */
-	STAT_LEN = L1_CACHE_BYTES > 64 ? 128 : 64
-};
-
 struct tx_sw_desc {                /* SW state per Tx descriptor */
 	struct sk_buff *skb;
 	struct ulptx_sgl *sgl;
@@ -155,16 +145,57 @@ struct rx_sw_desc {                /* SW state per Rx descriptor */
 };
 
 /*
- * The low bits of rx_sw_desc.dma_addr have special meaning.
+ * Rx buffer sizes for "useskbs" Free List buffers (one ingress packet pe skb
+ * buffer).  We currently only support two sizes for 1500- and 9000-byte MTUs.
+ * We could easily support more but there doesn't seem to be much need for
+ * that ...
+ */
+#define FL_MTU_SMALL 1500
+#define FL_MTU_LARGE 9000
+
+static inline unsigned int fl_mtu_bufsize(struct adapter *adapter,
+					  unsigned int mtu)
+{
+	struct sge *s = &adapter->sge;
+
+	return ALIGN(s->pktshift + ETH_HLEN + VLAN_HLEN + mtu, s->fl_align);
+}
+
+#define FL_MTU_SMALL_BUFSIZE(adapter) fl_mtu_bufsize(adapter, FL_MTU_SMALL)
+#define FL_MTU_LARGE_BUFSIZE(adapter) fl_mtu_bufsize(adapter, FL_MTU_LARGE)
+
+/*
+ * Bits 0..3 of rx_sw_desc.dma_addr have special meaning.  The hardware uses
+ * these to specify the buffer size as an index into the SGE Free List Buffer
+ * Size register array.  We also use bit 4, when the buffer has been unmapped
+ * for DMA, but this is of course never sent to the hardware and is only used
+ * to prevent double unmappings.  All of the above requires that the Free List
+ * Buffers which we allocate have the bottom 5 bits free (0) -- i.e. are
+ * 32-byte or or a power of 2 greater in alignment.  Since the SGE's minimal
+ * Free List Buffer alignment is 32 bytes, this works out for us ...
  */
 enum {
-	RX_LARGE_BUF    = 1 << 0, /* buffer is larger than PAGE_SIZE */
-	RX_UNMAPPED_BUF = 1 << 1, /* buffer is not mapped */
+	RX_BUF_FLAGS     = 0x1f,   /* bottom five bits are special */
+	RX_BUF_SIZE      = 0x0f,   /* bottom three bits are for buf sizes */
+	RX_UNMAPPED_BUF  = 0x10,   /* buffer is not mapped */
+
+	/*
+	 * XXX We shouldn't depend on being able to use these indices.
+	 * XXX Especially when some other Master PF has initialized the
+	 * XXX adapter or we use the Firmware Configuration File.  We
+	 * XXX should really search through the Host Buffer Size register
+	 * XXX array for the appropriately sized buffer indices.
+	 */
+	RX_SMALL_PG_BUF  = 0x0,   /* small (PAGE_SIZE) page buffer */
+	RX_LARGE_PG_BUF  = 0x1,   /* buffer large (FL_PG_ORDER) page buffer */
+
+	RX_SMALL_MTU_BUF = 0x2,   /* small MTU buffer */
+	RX_LARGE_MTU_BUF = 0x3,   /* large MTU buffer */
 };
 
 static inline dma_addr_t get_buf_addr(const struct rx_sw_desc *d)
 {
-	return d->dma_addr & ~(dma_addr_t)(RX_LARGE_BUF | RX_UNMAPPED_BUF);
+	return d->dma_addr & ~(dma_addr_t)RX_BUF_FLAGS;
 }
 
 static inline bool is_buf_mapped(const struct rx_sw_desc *d)
@@ -392,14 +423,35 @@ static inline void reclaim_completed_tx(struct adapter *adap, struct sge_txq *q,
 	}
 }
 
-static inline int get_buf_size(const struct rx_sw_desc *d)
+static inline int get_buf_size(struct adapter *adapter,
+			       const struct rx_sw_desc *d)
 {
-#if FL_PG_ORDER > 0
-	return (d->dma_addr & RX_LARGE_BUF) ? (PAGE_SIZE << FL_PG_ORDER) :
-					      PAGE_SIZE;
-#else
-	return PAGE_SIZE;
-#endif
+	struct sge *s = &adapter->sge;
+	unsigned int rx_buf_size_idx = d->dma_addr & RX_BUF_SIZE;
+	int buf_size;
+
+	switch (rx_buf_size_idx) {
+	case RX_SMALL_PG_BUF:
+		buf_size = PAGE_SIZE;
+		break;
+
+	case RX_LARGE_PG_BUF:
+		buf_size = PAGE_SIZE << s->fl_pg_order;
+		break;
+
+	case RX_SMALL_MTU_BUF:
+		buf_size = FL_MTU_SMALL_BUFSIZE(adapter);
+		break;
+
+	case RX_LARGE_MTU_BUF:
+		buf_size = FL_MTU_LARGE_BUFSIZE(adapter);
+		break;
+
+	default:
+		BUG_ON(1);
+	}
+
+	return buf_size;
 }
 
 /**
@@ -418,7 +470,8 @@ static void free_rx_bufs(struct adapter *adap, struct sge_fl *q, int n)
 
 		if (is_buf_mapped(d))
 			dma_unmap_page(adap->pdev_dev, get_buf_addr(d),
-				       get_buf_size(d), PCI_DMA_FROMDEVICE);
+				       get_buf_size(adap, d),
+				       PCI_DMA_FROMDEVICE);
 		put_page(d->page);
 		d->page = NULL;
 		if (++q->cidx == q->size)
@@ -444,7 +497,7 @@ static void unmap_rx_buf(struct adapter *adap, struct sge_fl *q)
 
 	if (is_buf_mapped(d))
 		dma_unmap_page(adap->pdev_dev, get_buf_addr(d),
-			       get_buf_size(d), PCI_DMA_FROMDEVICE);
+			       get_buf_size(adap, d), PCI_DMA_FROMDEVICE);
 	d->page = NULL;
 	if (++q->cidx == q->size)
 		q->cidx = 0;
@@ -485,6 +538,7 @@ static inline void set_rx_sw_desc(struct rx_sw_desc *sd, struct page *pg,
 static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 			      gfp_t gfp)
 {
+	struct sge *s = &adap->sge;
 	struct page *pg;
 	dma_addr_t mapping;
 	unsigned int cred = q->avail;
@@ -493,25 +547,27 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 
 	gfp |= __GFP_NOWARN | __GFP_COLD;
 
-#if FL_PG_ORDER > 0
+	if (s->fl_pg_order == 0)
+		goto alloc_small_pages;
+
 	/*
 	 * Prefer large buffers
 	 */
 	while (n) {
-		pg = alloc_pages(gfp | __GFP_COMP, FL_PG_ORDER);
+		pg = alloc_pages(gfp | __GFP_COMP, s->fl_pg_order);
 		if (unlikely(!pg)) {
 			q->large_alloc_failed++;
 			break;       /* fall back to single pages */
 		}
 
 		mapping = dma_map_page(adap->pdev_dev, pg, 0,
-				       PAGE_SIZE << FL_PG_ORDER,
+				       PAGE_SIZE << s->fl_pg_order,
 				       PCI_DMA_FROMDEVICE);
 		if (unlikely(dma_mapping_error(adap->pdev_dev, mapping))) {
-			__free_pages(pg, FL_PG_ORDER);
+			__free_pages(pg, s->fl_pg_order);
 			goto out;   /* do not try small pages for this error */
 		}
-		mapping |= RX_LARGE_BUF;
+		mapping |= RX_LARGE_PG_BUF;
 		*d++ = cpu_to_be64(mapping);
 
 		set_rx_sw_desc(sd, pg, mapping);
@@ -525,8 +581,8 @@ static unsigned int refill_fl(struct adapter *adap, struct sge_fl *q, int n,
 		}
 		n--;
 	}
-#endif
 
+alloc_small_pages:
 	while (n--) {
 		pg = __skb_alloc_page(gfp, NULL);
 		if (unlikely(!pg)) {
@@ -769,8 +825,8 @@ static inline void ring_tx_db(struct adapter *adap, struct sge_txq *q, int n)
 	wmb();            /* write descriptors before telling HW */
 	spin_lock(&q->db_lock);
 	if (!q->db_disabled) {
-		t4_write_reg(adap, MYPF_REG(A_SGE_PF_KDOORBELL),
-			     V_QID(q->cntxt_id) | V_PIDX(n));
+		t4_write_reg(adap, MYPF_REG(SGE_PF_KDOORBELL),
+			     QID(q->cntxt_id) | PIDX(n));
 	}
 	q->db_pidx = q->pidx;
 	spin_unlock(&q->db_lock);
@@ -1519,6 +1575,8 @@ static noinline int handle_trace_pkt(struct adapter *adap,
 static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		   const struct cpl_rx_pkt *pkt)
 {
+	struct adapter *adapter = rxq->rspq.adap;
+	struct sge *s = &adapter->sge;
 	int ret;
 	struct sk_buff *skb;
 
@@ -1529,8 +1587,8 @@ static void do_gro(struct sge_eth_rxq *rxq, const struct pkt_gl *gl,
 		return;
 	}
 
-	copy_frags(skb, gl, RX_PKT_PAD);
-	skb->len = gl->tot_len - RX_PKT_PAD;
+	copy_frags(skb, gl, s->pktshift);
+	skb->len = gl->tot_len - s->pktshift;
 	skb->data_len = skb->len;
 	skb->truesize += skb->data_len;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -1566,6 +1624,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 	struct sk_buff *skb;
 	const struct cpl_rx_pkt *pkt;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
+	struct sge *s = &q->adap->sge;
 
 	if (unlikely(*(u8 *)rsp == CPL_TRACE_PKT))
 		return handle_trace_pkt(q->adap, si);
@@ -1585,7 +1644,7 @@ int t4_ethrx_handler(struct sge_rspq *q, const __be64 *rsp,
 		return 0;
 	}
 
-	__skb_pull(skb, RX_PKT_PAD);      /* remove ethernet header padding */
+	__skb_pull(skb, s->pktshift);      /* remove ethernet header padding */
 	skb->protocol = eth_type_trans(skb, q->netdev);
 	skb_record_rx_queue(skb, q->idx);
 	if (skb->dev->features & NETIF_F_RXHASH)
@@ -1696,6 +1755,8 @@ static int process_responses(struct sge_rspq *q, int budget)
 	int budget_left = budget;
 	const struct rsp_ctrl *rc;
 	struct sge_eth_rxq *rxq = container_of(q, struct sge_eth_rxq, rspq);
+	struct adapter *adapter = q->adap;
+	struct sge *s = &adapter->sge;
 
 	while (likely(budget_left)) {
 		rc = (void *)q->cur_desc + (q->iqe_len - sizeof(*rc));
@@ -1722,7 +1783,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 			/* gather packet fragments */
 			for (frags = 0, fp = si.frags; ; frags++, fp++) {
 				rsd = &rxq->fl.sdesc[rxq->fl.cidx];
-				bufsz = get_buf_size(rsd);
+				bufsz = get_buf_size(adapter, rsd);
 				fp->page = rsd->page;
 				fp->offset = q->offset;
 				fp->size = min(bufsz, len);
@@ -1747,7 +1808,7 @@ static int process_responses(struct sge_rspq *q, int budget)
 			si.nfrags = frags + 1;
 			ret = q->handler(q, q->cur_desc, &si);
 			if (likely(ret == 0))
-				q->offset += ALIGN(fp->size, FL_ALIGN);
+				q->offset += ALIGN(fp->size, s->fl_align);
 			else
 				restore_rx_bufs(&si, &rxq->fl, frags);
 		} else if (likely(rsp_type == RSP_TYPE_CPL)) {
@@ -1983,6 +2044,7 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 {
 	int ret, flsz = 0;
 	struct fw_iq_cmd c;
+	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
 
 	/* Size needs to be multiple of 16, including status entry. */
@@ -2015,11 +2077,11 @@ int t4_sge_alloc_rxq(struct adapter *adap, struct sge_rspq *iq, bool fwevtq,
 		fl->size = roundup(fl->size, 8);
 		fl->desc = alloc_ring(adap->pdev_dev, fl->size, sizeof(__be64),
 				      sizeof(struct rx_sw_desc), &fl->addr,
-				      &fl->sdesc, STAT_LEN, NUMA_NO_NODE);
+				      &fl->sdesc, s->stat_len, NUMA_NO_NODE);
 		if (!fl->desc)
 			goto fl_nomem;
 
-		flsz = fl->size / 8 + STAT_LEN / sizeof(struct tx_desc);
+		flsz = fl->size / 8 + s->stat_len / sizeof(struct tx_desc);
 		c.iqns_to_fl0congen = htonl(FW_IQ_CMD_FL0PACKEN |
 					    FW_IQ_CMD_FL0FETCHRO(1) |
 					    FW_IQ_CMD_FL0DATARO(1) |
@@ -2096,14 +2158,15 @@ int t4_sge_alloc_eth_txq(struct adapter *adap, struct sge_eth_txq *txq,
 {
 	int ret, nentries;
 	struct fw_eq_eth_cmd c;
+	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
 
 	/* Add status entries */
-	nentries = txq->q.size + STAT_LEN / sizeof(struct tx_desc);
+	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN,
+			&txq->q.phys_addr, &txq->q.sdesc, s->stat_len,
 			netdev_queue_numa_node_read(netdevq));
 	if (!txq->q.desc)
 		return -ENOMEM;
@@ -2149,10 +2212,11 @@ int t4_sge_alloc_ctrl_txq(struct adapter *adap, struct sge_ctrl_txq *txq,
 {
 	int ret, nentries;
 	struct fw_eq_ctrl_cmd c;
+	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
 
 	/* Add status entries */
-	nentries = txq->q.size + STAT_LEN / sizeof(struct tx_desc);
+	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, nentries,
 				 sizeof(struct tx_desc), 0, &txq->q.phys_addr,
@@ -2200,14 +2264,15 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 {
 	int ret, nentries;
 	struct fw_eq_ofld_cmd c;
+	struct sge *s = &adap->sge;
 	struct port_info *pi = netdev_priv(dev);
 
 	/* Add status entries */
-	nentries = txq->q.size + STAT_LEN / sizeof(struct tx_desc);
+	nentries = txq->q.size + s->stat_len / sizeof(struct tx_desc);
 
 	txq->q.desc = alloc_ring(adap->pdev_dev, txq->q.size,
 			sizeof(struct tx_desc), sizeof(struct tx_sw_desc),
-			&txq->q.phys_addr, &txq->q.sdesc, STAT_LEN,
+			&txq->q.phys_addr, &txq->q.sdesc, s->stat_len,
 			NUMA_NO_NODE);
 	if (!txq->q.desc)
 		return -ENOMEM;
@@ -2251,8 +2316,10 @@ int t4_sge_alloc_ofld_txq(struct adapter *adap, struct sge_ofld_txq *txq,
 
 static void free_txq(struct adapter *adap, struct sge_txq *q)
 {
+	struct sge *s = &adap->sge;
+
 	dma_free_coherent(adap->pdev_dev,
-			  q->size * sizeof(struct tx_desc) + STAT_LEN,
+			  q->size * sizeof(struct tx_desc) + s->stat_len,
 			  q->desc, q->phys_addr);
 	q->cntxt_id = 0;
 	q->sdesc = NULL;
@@ -2262,6 +2329,7 @@ static void free_txq(struct adapter *adap, struct sge_txq *q)
 static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 			 struct sge_fl *fl)
 {
+	struct sge *s = &adap->sge;
 	unsigned int fl_id = fl ? fl->cntxt_id : 0xffff;
 
 	adap->sge.ingr_map[rq->cntxt_id - adap->sge.ingr_start] = NULL;
@@ -2276,7 +2344,7 @@ static void free_rspq_fl(struct adapter *adap, struct sge_rspq *rq,
 
 	if (fl) {
 		free_rx_bufs(adap, fl, fl->avail);
-		dma_free_coherent(adap->pdev_dev, fl->size * 8 + STAT_LEN,
+		dma_free_coherent(adap->pdev_dev, fl->size * 8 + s->stat_len,
 				  fl->desc, fl->addr);
 		kfree(fl->sdesc);
 		fl->sdesc = NULL;
@@ -2408,18 +2476,112 @@ void t4_sge_stop(struct adapter *adap)
  *	Performs SGE initialization needed every time after a chip reset.
  *	We do not initialize any of the queues here, instead the driver
  *	top-level must request them individually.
+ *
+ *	Called in two different modes:
+ *
+ *	 1. Perform actual hardware initialization and record hard-coded
+ *	    parameters which were used.  This gets used when we're the
+ *	    Master PF and the Firmware Configuration File support didn't
+ *	    work for some reason.
+ *
+ *	 2. We're not the Master PF or initialization was performed with
+ *	    a Firmware Configuration File.  In this case we need to grab
+ *	    any of the SGE operating parameters that we need to have in
+ *	    order to do our job and make sure we can live with them ...
  */
-void t4_sge_init(struct adapter *adap)
-{
-	unsigned int i, v;
-	struct sge *s = &adap->sge;
-	unsigned int fl_align_log = ilog2(FL_ALIGN);
 
-	t4_set_reg_field(adap, SGE_CONTROL, PKTSHIFT_MASK |
-			 INGPADBOUNDARY_MASK | EGRSTATUSPAGESIZE,
-			 INGPADBOUNDARY(fl_align_log - 5) | PKTSHIFT(2) |
-			 RXPKTCPLMODE |
-			 (STAT_LEN == 128 ? EGRSTATUSPAGESIZE : 0));
+static int t4_sge_init_soft(struct adapter *adap)
+{
+	struct sge *s = &adap->sge;
+	u32 fl_small_pg, fl_large_pg, fl_small_mtu, fl_large_mtu;
+	u32 timer_value_0_and_1, timer_value_2_and_3, timer_value_4_and_5;
+	u32 ingress_rx_threshold;
+
+	/*
+	 * Verify that CPL messages are going to the Ingress Queue for
+	 * process_responses() and that only packet data is going to the
+	 * Free Lists.
+	 */
+	if ((t4_read_reg(adap, SGE_CONTROL) & RXPKTCPLMODE_MASK) !=
+	    RXPKTCPLMODE(X_RXPKTCPLMODE_SPLIT)) {
+		dev_err(adap->pdev_dev, "bad SGE CPL MODE\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Validate the Host Buffer Register Array indices that we want to
+	 * use ...
+	 *
+	 * XXX Note that we should really read through the Host Buffer Size
+	 * XXX register array and find the indices of the Buffer Sizes which
+	 * XXX meet our needs!
+	 */
+	#define READ_FL_BUF(x) \
+		t4_read_reg(adap, SGE_FL_BUFFER_SIZE0+(x)*sizeof(u32))
+
+	fl_small_pg = READ_FL_BUF(RX_SMALL_PG_BUF);
+	fl_large_pg = READ_FL_BUF(RX_LARGE_PG_BUF);
+	fl_small_mtu = READ_FL_BUF(RX_SMALL_MTU_BUF);
+	fl_large_mtu = READ_FL_BUF(RX_LARGE_MTU_BUF);
+
+	#undef READ_FL_BUF
+
+	if (fl_small_pg != PAGE_SIZE ||
+	    (fl_large_pg != 0 && (fl_large_pg <= fl_small_pg ||
+				  (fl_large_pg & (fl_large_pg-1)) != 0))) {
+		dev_err(adap->pdev_dev, "bad SGE FL page buffer sizes [%d, %d]\n",
+			fl_small_pg, fl_large_pg);
+		return -EINVAL;
+	}
+	if (fl_large_pg)
+		s->fl_pg_order = ilog2(fl_large_pg) - PAGE_SHIFT;
+
+	if (fl_small_mtu < FL_MTU_SMALL_BUFSIZE(adap) ||
+	    fl_large_mtu < FL_MTU_LARGE_BUFSIZE(adap)) {
+		dev_err(adap->pdev_dev, "bad SGE FL MTU sizes [%d, %d]\n",
+			fl_small_mtu, fl_large_mtu);
+		return -EINVAL;
+	}
+
+	/*
+	 * Retrieve our RX interrupt holdoff timer values and counter
+	 * threshold values from the SGE parameters.
+	 */
+	timer_value_0_and_1 = t4_read_reg(adap, SGE_TIMER_VALUE_0_AND_1);
+	timer_value_2_and_3 = t4_read_reg(adap, SGE_TIMER_VALUE_2_AND_3);
+	timer_value_4_and_5 = t4_read_reg(adap, SGE_TIMER_VALUE_4_AND_5);
+	s->timer_val[0] = core_ticks_to_us(adap,
+		TIMERVALUE0_GET(timer_value_0_and_1));
+	s->timer_val[1] = core_ticks_to_us(adap,
+		TIMERVALUE1_GET(timer_value_0_and_1));
+	s->timer_val[2] = core_ticks_to_us(adap,
+		TIMERVALUE2_GET(timer_value_2_and_3));
+	s->timer_val[3] = core_ticks_to_us(adap,
+		TIMERVALUE3_GET(timer_value_2_and_3));
+	s->timer_val[4] = core_ticks_to_us(adap,
+		TIMERVALUE4_GET(timer_value_4_and_5));
+	s->timer_val[5] = core_ticks_to_us(adap,
+		TIMERVALUE5_GET(timer_value_4_and_5));
+
+	ingress_rx_threshold = t4_read_reg(adap, SGE_INGRESS_RX_THRESHOLD);
+	s->counter_val[0] = THRESHOLD_0_GET(ingress_rx_threshold);
+	s->counter_val[1] = THRESHOLD_1_GET(ingress_rx_threshold);
+	s->counter_val[2] = THRESHOLD_2_GET(ingress_rx_threshold);
+	s->counter_val[3] = THRESHOLD_3_GET(ingress_rx_threshold);
+
+	return 0;
+}
+
+static int t4_sge_init_hard(struct adapter *adap)
+{
+	struct sge *s = &adap->sge;
+
+	/*
+	 * Set up our basic SGE mode to deliver CPL messages to our Ingress
+	 * Queue and Packet Date to the Free List.
+	 */
+	t4_set_reg_field(adap, SGE_CONTROL, RXPKTCPLMODE_MASK,
+			 RXPKTCPLMODE_MASK);
 
 	/*
 	 * Set up to drop DOORBELL writes when the DOORBELL FIFO overflows
@@ -2433,13 +2595,24 @@ void t4_sge_init(struct adapter *adap)
 	t4_set_reg_field(adap, A_SGE_DOORBELL_CONTROL, F_ENABLE_DROP,
 			F_ENABLE_DROP);
 
-	for (i = v = 0; i < 32; i += 4)
-		v |= (PAGE_SHIFT - 10) << i;
-	t4_write_reg(adap, SGE_HOST_PAGE_SIZE, v);
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0, PAGE_SIZE);
-#if FL_PG_ORDER > 0
-	t4_write_reg(adap, SGE_FL_BUFFER_SIZE1, PAGE_SIZE << FL_PG_ORDER);
-#endif
+	/*
+	 * SGE_FL_BUFFER_SIZE0 (RX_SMALL_PG_BUF) is set up by
+	 * t4_fixup_host_params().
+	 */
+	s->fl_pg_order = FL_PG_ORDER;
+	if (s->fl_pg_order)
+		t4_write_reg(adap,
+			     SGE_FL_BUFFER_SIZE0+RX_LARGE_PG_BUF*sizeof(u32),
+			     PAGE_SIZE << FL_PG_ORDER);
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0+RX_SMALL_MTU_BUF*sizeof(u32),
+		     FL_MTU_SMALL_BUFSIZE(adap));
+	t4_write_reg(adap, SGE_FL_BUFFER_SIZE0+RX_LARGE_MTU_BUF*sizeof(u32),
+		     FL_MTU_LARGE_BUFSIZE(adap));
+
+	/*
+	 * Note that the SGE Ingress Packet Count Interrupt Threshold and
+	 * Timer Holdoff values must be supplied by our caller.
+	 */
 	t4_write_reg(adap, SGE_INGRESS_RX_THRESHOLD,
 		     THRESHOLD_0(s->counter_val[0]) |
 		     THRESHOLD_1(s->counter_val[1]) |
@@ -2449,14 +2622,54 @@ void t4_sge_init(struct adapter *adap)
 		     TIMERVALUE0(us_to_core_ticks(adap, s->timer_val[0])) |
 		     TIMERVALUE1(us_to_core_ticks(adap, s->timer_val[1])));
 	t4_write_reg(adap, SGE_TIMER_VALUE_2_AND_3,
-		     TIMERVALUE0(us_to_core_ticks(adap, s->timer_val[2])) |
-		     TIMERVALUE1(us_to_core_ticks(adap, s->timer_val[3])));
+		     TIMERVALUE2(us_to_core_ticks(adap, s->timer_val[2])) |
+		     TIMERVALUE3(us_to_core_ticks(adap, s->timer_val[3])));
 	t4_write_reg(adap, SGE_TIMER_VALUE_4_AND_5,
-		     TIMERVALUE0(us_to_core_ticks(adap, s->timer_val[4])) |
-		     TIMERVALUE1(us_to_core_ticks(adap, s->timer_val[5])));
+		     TIMERVALUE4(us_to_core_ticks(adap, s->timer_val[4])) |
+		     TIMERVALUE5(us_to_core_ticks(adap, s->timer_val[5])));
+
+	return 0;
+}
+
+int t4_sge_init(struct adapter *adap)
+{
+	struct sge *s = &adap->sge;
+	u32 sge_control;
+	int ret;
+
+	/*
+	 * Ingress Padding Boundary and Egress Status Page Size are set up by
+	 * t4_fixup_host_params().
+	 */
+	sge_control = t4_read_reg(adap, SGE_CONTROL);
+	s->pktshift = PKTSHIFT_GET(sge_control);
+	s->stat_len = (sge_control & EGRSTATUSPAGESIZE_MASK) ? 128 : 64;
+	s->fl_align = 1 << (INGPADBOUNDARY_GET(sge_control) +
+			    X_INGPADBOUNDARY_SHIFT);
+
+	if (adap->flags & USING_SOFT_PARAMS)
+		ret = t4_sge_init_soft(adap);
+	else
+		ret = t4_sge_init_hard(adap);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * A FL with <= fl_starve_thres buffers is starving and a periodic
+	 * timer will attempt to refill it.  This needs to be larger than the
+	 * SGE's Egress Congestion Threshold.  If it isn't, then we can get
+	 * stuck waiting for new packets while the SGE is waiting for us to
+	 * give it more Free List entries.  (Note that the SGE's Egress
+	 * Congestion Threshold is in units of 2 Free List pointers.)
+	 */
+	s->fl_starve_thres
+		= EGRTHRESHOLD_GET(t4_read_reg(adap, SGE_CONM_CTRL))*2 + 1;
+
 	setup_timer(&s->rx_timer, sge_rx_timer_cb, (unsigned long)adap);
 	setup_timer(&s->tx_timer, sge_tx_timer_cb, (unsigned long)adap);
 	s->starve_thres = core_ticks_per_usec(adap) * 1000000;  /* 1 s */
 	s->idma_state[0] = s->idma_state[1] = 0;
 	spin_lock_init(&s->intrq_lock);
+
+	return 0;
 }

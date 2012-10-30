@@ -470,7 +470,8 @@ static int __devinit device_800_init(struct pm80x_chip *chip,
 
 	ret =
 	    mfd_add_devices(chip->dev, 0, &onkey_devs[0],
-			    ARRAY_SIZE(onkey_devs), &onkey_resources[0], 0);
+			    ARRAY_SIZE(onkey_devs), &onkey_resources[0], 0,
+			    NULL);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 		goto out_dev;
@@ -481,7 +482,7 @@ static int __devinit device_800_init(struct pm80x_chip *chip,
 		rtc_devs[0].platform_data = pdata->rtc;
 		rtc_devs[0].pdata_size = sizeof(struct pm80x_rtc_pdata);
 		ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
-				      ARRAY_SIZE(rtc_devs), NULL, 0);
+				      ARRAY_SIZE(rtc_devs), NULL, 0, NULL);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to add rtc subdev\n");
 			goto out_dev;

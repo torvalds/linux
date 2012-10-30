@@ -20,7 +20,7 @@
 		CALL(sys_creat)
 		CALL(sys_link)
 /* 10 */	CALL(sys_unlink)
-		CALL(sys_execve_wrapper)
+		CALL(sys_execve)
 		CALL(sys_chdir)
 		CALL(OBSOLETE(sys_time))	/* used by libc4 */
 		CALL(sys_mknod)
@@ -387,6 +387,7 @@
 /* 375 */	CALL(sys_setns)
 		CALL(sys_process_vm_readv)
 		CALL(sys_process_vm_writev)
+		CALL(sys_ni_syscall)	/* reserved for sys_kcmp */
 #ifndef syscalls_counted
 .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
 #define syscalls_counted

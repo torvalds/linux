@@ -46,6 +46,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <mach/hardware.h>
 #include <mach/map.h>
 
@@ -57,18 +58,17 @@
 #include <mach/regs-gpio-memport.h>
 
 #include <plat/regs-serial.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
-#include <plat/s3c64xx-spi.h>
+#include <linux/platform_data/spi-s3c64xx.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/adc.h>
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/pm.h>
 
 #include "common.h"
@@ -287,6 +287,16 @@ static struct platform_device littlemill_device = {
 	.id		= -1,
 };
 
+static struct platform_device bells_wm5102_device = {
+	.name		= "bells",
+	.id		= 0,
+};
+
+static struct platform_device bells_wm5110_device = {
+	.name		= "bells",
+	.id		= 1,
+};
+
 static struct regulator_consumer_supply wallvdd_consumers[] = {
 	REGULATOR_SUPPLY("SPKVDD", "1-001a"),
 	REGULATOR_SUPPLY("SPKVDD1", "1-001a"),
@@ -359,6 +369,8 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&tobermory_device,
 	&littlemill_device,
 	&lowland_device,
+	&bells_wm5102_device,
+	&bells_wm5110_device,
 	&wallvdd_device,
 };
 

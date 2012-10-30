@@ -316,8 +316,7 @@ static void p9_read_work(struct work_struct *work)
 						m->rsize - m->rpos);
 	p9_debug(P9_DEBUG_TRANS, "mux %p got %d bytes\n", m, err);
 	if (err == -EAGAIN) {
-		clear_bit(Rworksched, &m->wsched);
-		return;
+		goto end_clear;
 	}
 
 	if (err <= 0)
@@ -379,19 +378,20 @@ static void p9_read_work(struct work_struct *work)
 		m->req = NULL;
 	}
 
+end_clear:
+	clear_bit(Rworksched, &m->wsched);
+
 	if (!list_empty(&m->req_list)) {
 		if (test_and_clear_bit(Rpending, &m->wsched))
 			n = POLLIN;
 		else
 			n = p9_fd_poll(m->client, NULL);
 
-		if (n & POLLIN) {
+		if ((n & POLLIN) && !test_and_set_bit(Rworksched, &m->wsched)) {
 			p9_debug(P9_DEBUG_TRANS, "sched read work %p\n", m);
 			schedule_work(&m->rq);
-		} else
-			clear_bit(Rworksched, &m->wsched);
-	} else
-		clear_bit(Rworksched, &m->wsched);
+		}
+	}
 
 	return;
 error:
@@ -453,12 +453,13 @@ static void p9_write_work(struct work_struct *work)
 	}
 
 	if (!m->wsize) {
+		spin_lock(&m->client->lock);
 		if (list_empty(&m->unsent_req_list)) {
 			clear_bit(Wworksched, &m->wsched);
+			spin_unlock(&m->client->lock);
 			return;
 		}
 
-		spin_lock(&m->client->lock);
 		req = list_entry(m->unsent_req_list.next, struct p9_req_t,
 			       req_list);
 		req->status = REQ_STATUS_SENT;
@@ -476,10 +477,9 @@ static void p9_write_work(struct work_struct *work)
 	clear_bit(Wpending, &m->wsched);
 	err = p9_fd_write(m->client, m->wbuf + m->wpos, m->wsize - m->wpos);
 	p9_debug(P9_DEBUG_TRANS, "mux %p sent %d bytes\n", m, err);
-	if (err == -EAGAIN) {
-		clear_bit(Wworksched, &m->wsched);
-		return;
-	}
+	if (err == -EAGAIN)
+		goto end_clear;
+
 
 	if (err < 0)
 		goto error;
@@ -492,19 +492,21 @@ static void p9_write_work(struct work_struct *work)
 	if (m->wpos == m->wsize)
 		m->wpos = m->wsize = 0;
 
-	if (m->wsize == 0 && !list_empty(&m->unsent_req_list)) {
+end_clear:
+	clear_bit(Wworksched, &m->wsched);
+
+	if (m->wsize || !list_empty(&m->unsent_req_list)) {
 		if (test_and_clear_bit(Wpending, &m->wsched))
 			n = POLLOUT;
 		else
 			n = p9_fd_poll(m->client, NULL);
 
-		if (n & POLLOUT) {
+		if ((n & POLLOUT) &&
+		   !test_and_set_bit(Wworksched, &m->wsched)) {
 			p9_debug(P9_DEBUG_TRANS, "sched write work %p\n", m);
 			schedule_work(&m->wq);
-		} else
-			clear_bit(Wworksched, &m->wsched);
-	} else
-		clear_bit(Wworksched, &m->wsched);
+		}
+	}
 
 	return;
 
@@ -793,29 +795,27 @@ static int p9_fd_open(struct p9_client *client, int rfd, int wfd)
 static int p9_socket_open(struct p9_client *client, struct socket *csocket)
 {
 	struct p9_trans_fd *p;
-	int ret, fd;
+	struct file *file;
+	int ret;
 
 	p = kmalloc(sizeof(struct p9_trans_fd), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
 	csocket->sk->sk_allocation = GFP_NOIO;
-	fd = sock_map_fd(csocket, 0);
-	if (fd < 0) {
+	file = sock_alloc_file(csocket, 0, NULL);
+	if (IS_ERR(file)) {
 		pr_err("%s (%d): failed to map fd\n",
 		       __func__, task_pid_nr(current));
 		sock_release(csocket);
 		kfree(p);
-		return fd;
+		return PTR_ERR(file);
 	}
 
-	get_file(csocket->file);
-	get_file(csocket->file);
-	p->wr = p->rd = csocket->file;
+	get_file(file);
+	p->wr = p->rd = file;
 	client->trans = p;
 	client->status = Connected;
-
-	sys_close(fd);	/* still racy */
 
 	p->rd->f_flags |= O_NONBLOCK;
 
@@ -1083,7 +1083,7 @@ int p9_trans_fd_init(void)
 
 void p9_trans_fd_exit(void)
 {
-	flush_work_sync(&p9_poll_work);
+	flush_work(&p9_poll_work);
 	v9fs_unregister_trans(&p9_tcp_trans);
 	v9fs_unregister_trans(&p9_unix_trans);
 	v9fs_unregister_trans(&p9_fd_trans);

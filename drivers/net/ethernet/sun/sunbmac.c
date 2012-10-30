@@ -212,7 +212,6 @@ static void bigmac_clean_rings(struct bigmac *bp)
 static void bigmac_init_rings(struct bigmac *bp, int from_irq)
 {
 	struct bmac_init_block *bb = bp->bmac_block;
-	struct net_device *dev = bp->dev;
 	int i;
 	gfp_t gfp_flags = GFP_KERNEL;
 

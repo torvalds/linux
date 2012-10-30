@@ -356,7 +356,7 @@ static void at91_mci_handle_transmitted(struct at91mci_host *host)
 }
 
 /*
- * Update bytes tranfered count during a write operation
+ * Update bytes transfered count during a write operation
  */
 static void at91_mci_update_bytes_xfered(struct at91mci_host *host)
 {

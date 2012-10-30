@@ -263,6 +263,7 @@ static int __init bfin_jc_init(void)
 	bfin_jc_driver->subtype      = SERIAL_TYPE_NORMAL;
 	bfin_jc_driver->init_termios = tty_std_termios;
 	tty_set_operations(bfin_jc_driver, &bfin_jc_ops);
+	tty_port_link_device(&port, bfin_jc_driver, 0);
 
 	ret = tty_register_driver(bfin_jc_driver);
 	if (ret)

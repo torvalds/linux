@@ -19,7 +19,6 @@ extern unsigned long pci_mem_start;
 
 void pcibios_config_init(void);
 struct pci_bus * pcibios_scan_root(int bus);
-int pcibios_assign_resources(void);
 
 void pcibios_set_master(struct pci_dev *dev);
 void pcibios_penalize_isa_irq(int irq);

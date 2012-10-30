@@ -24,6 +24,14 @@
 #include <linux/mfd/tps65910.h>
 #include <linux/of_device.h>
 
+static struct resource rtc_resources[] = {
+	{
+		.start  = TPS65910_IRQ_RTC_ALARM,
+		.end    = TPS65910_IRQ_RTC_ALARM,
+		.flags  = IORESOURCE_IRQ,
+	}
+};
+
 static struct mfd_cell tps65910s[] = {
 	{
 		.name = "tps65910-gpio",
@@ -33,6 +41,8 @@ static struct mfd_cell tps65910s[] = {
 	},
 	{
 		.name = "tps65910-rtc",
+		.num_resources = ARRAY_SIZE(rtc_resources),
+		.resources = &rtc_resources[0],
 	},
 	{
 		.name = "tps65910-power",
@@ -198,6 +208,8 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 
 	board_info->irq = client->irq;
 	board_info->irq_base = -1;
+	board_info->pm_off = of_property_read_bool(np,
+			"ti,system-power-controller");
 
 	return board_info;
 }
@@ -209,6 +221,21 @@ struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	return NULL;
 }
 #endif
+
+static struct i2c_client *tps65910_i2c_client;
+static void tps65910_power_off(void)
+{
+	struct tps65910 *tps65910;
+
+	tps65910 = dev_get_drvdata(&tps65910_i2c_client->dev);
+
+	if (tps65910_reg_set_bits(tps65910, TPS65910_DEVCTRL,
+			DEVCTRL_PWR_OFF_MASK) < 0)
+		return;
+
+	tps65910_reg_clear_bits(tps65910, TPS65910_DEVCTRL,
+			DEVCTRL_DEV_ON_MASK);
+}
 
 static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 					const struct i2c_device_id *id)
@@ -254,7 +281,7 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 
 	ret = mfd_add_devices(tps65910->dev, -1,
 			      tps65910s, ARRAY_SIZE(tps65910s),
-			      NULL, 0);
+			      NULL, 0, NULL);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
 		return ret;
@@ -266,6 +293,11 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910_irq_init(tps65910, init_data->irq, init_data);
 	tps65910_ck32k_init(tps65910, pmic_plat_data);
 	tps65910_sleepinit(tps65910, pmic_plat_data);
+
+	if (pmic_plat_data->pm_off && !pm_power_off) {
+		tps65910_i2c_client = i2c;
+		pm_power_off = tps65910_power_off;
+	}
 
 	return ret;
 }

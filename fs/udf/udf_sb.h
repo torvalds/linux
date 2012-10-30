@@ -128,8 +128,8 @@ struct udf_sb_info {
 
 	/* Default permissions */
 	umode_t			s_umask;
-	gid_t			s_gid;
-	uid_t			s_uid;
+	kgid_t			s_gid;
+	kuid_t			s_uid;
 	umode_t			s_fmode;
 	umode_t			s_dmode;
 	/* Lock protecting consistency of above permission settings */

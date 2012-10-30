@@ -22,8 +22,7 @@
 	with 10 bits per colour compressed to 8 bits each, using DPCM
 	compression. DPCM, differential pulse-code modulation, is lossy.
 	Each colour component consumes 8 bits of memory. In other respects
-	this format is similar to <xref
-	linkend="pixfmt-srggb10">.</xref></para>
+	this format is similar to <xref linkend="pixfmt-srggb10" />.</para>
 
       </refsect1>
     </refentry>

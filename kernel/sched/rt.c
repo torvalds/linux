@@ -691,6 +691,7 @@ balanced:
 		 * runtime - in which case borrowing doesn't make sense.
 		 */
 		rt_rq->rt_runtime = RUNTIME_INF;
+		rt_rq->rt_throttled = 0;
 		raw_spin_unlock(&rt_rq->rt_runtime_lock);
 		raw_spin_unlock(&rt_b->rt_runtime_lock);
 	}
@@ -1630,11 +1631,6 @@ static int push_rt_task(struct rq *rq)
 	next_task = pick_next_pushable_task(rq);
 	if (!next_task)
 		return 0;
-
-#ifdef __ARCH_WANT_INTERRUPTS_ON_CTXSW
-       if (unlikely(task_running(rq, next_task)))
-               return 0;
-#endif
 
 retry:
 	if (unlikely(next_task == rq->curr)) {

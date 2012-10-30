@@ -50,6 +50,20 @@
 #define SNDRV_DEFAULT_DMA_SIZE	{ [0 ... (SNDRV_CARDS-1)] = SNDRV_AUTO_DMA_SIZE }
 #define SNDRV_DEFAULT_PTR	SNDRV_DEFAULT_STR
 
+#ifdef SNDRV_LEGACY_FIND_FREE_IOPORT
+static long snd_legacy_find_free_ioport(long *port_table, long size)
+{
+	while (*port_table != -1) {
+		if (request_region(*port_table, size, "ALSA test")) {
+			release_region(*port_table, size);
+			return *port_table;
+		}
+		port_table++;
+	}
+	return -1;
+}
+#endif
+
 #ifdef SNDRV_LEGACY_FIND_FREE_IRQ
 #include <linux/interrupt.h>
 

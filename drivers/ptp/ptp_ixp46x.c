@@ -298,7 +298,7 @@ static int __init ptp_ixp_init(void)
 
 	ixp_clock.caps = ptp_ixp_caps;
 
-	ixp_clock.ptp_clock = ptp_clock_register(&ixp_clock.caps);
+	ixp_clock.ptp_clock = ptp_clock_register(&ixp_clock.caps, NULL);
 
 	if (IS_ERR(ixp_clock.ptp_clock))
 		return PTR_ERR(ixp_clock.ptp_clock);

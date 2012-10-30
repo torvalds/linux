@@ -80,8 +80,13 @@ static ssize_t uri_show(struct exofs_dev *edp, char *buf)
 
 static ssize_t uri_store(struct exofs_dev *edp, const char *buf, size_t len)
 {
+	uint8_t *new_uri;
+
 	edp->urilen = strlen(buf) + 1;
-	edp->uri = krealloc(edp->uri, edp->urilen, GFP_KERNEL);
+	new_uri = krealloc(edp->uri, edp->urilen, GFP_KERNEL);
+	if (new_uri == NULL)
+		return -ENOMEM;
+	edp->uri = new_uri;
 	strncpy(edp->uri, buf, edp->urilen);
 	return edp->urilen;
 }

@@ -7,7 +7,8 @@
  * There's no pack memory to release - but stay close to the Git
  * version so wrap this away:
  */
-static inline void release_pack_memory(size_t size __used, int flag __used)
+static inline void release_pack_memory(size_t size __maybe_unused,
+				       int flag __maybe_unused)
 {
 }
 

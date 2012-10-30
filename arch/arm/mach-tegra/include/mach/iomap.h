@@ -303,6 +303,9 @@
 #define IO_APB_VIRT	IOMEM(0xFE300000)
 #define IO_APB_SIZE	SZ_1M
 
+#define TEGRA_PCIE_BASE		0x80000000
+#define TEGRA_PCIE_IO_BASE	(TEGRA_PCIE_BASE + SZ_4M)
+
 #define IO_TO_VIRT_BETWEEN(p, st, sz)	((p) >= (st) && (p) < ((st) + (sz)))
 #define IO_TO_VIRT_XLATE(p, pst, vst)	(((p) - (pst) + (vst)))
 

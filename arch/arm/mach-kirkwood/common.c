@@ -26,15 +26,15 @@
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
 #include <mach/bridge-regs.h>
-#include <plat/audio.h>
+#include <linux/platform_data/asoc-kirkwood.h>
 #include <plat/cache-feroceon-l2.h>
-#include <plat/mvsdio.h>
-#include <plat/orion_nand.h>
-#include <plat/ehci-orion.h>
+#include <linux/platform_data/mmc-mvsdio.h>
+#include <linux/platform_data/mtd-orion_nand.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/common.h>
 #include <plat/time.h>
 #include <plat/addr-map.h>
-#include <plat/mv_xor.h>
+#include <linux/platform_data/dma-mv_xor.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -42,17 +42,7 @@
  ****************************************************************************/
 static struct map_desc kirkwood_io_desc[] __initdata = {
 	{
-		.virtual	= KIRKWOOD_PCIE_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE_IO_PHYS_BASE),
-		.length		= KIRKWOOD_PCIE_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= KIRKWOOD_PCIE1_IO_VIRT_BASE,
-		.pfn		= __phys_to_pfn(KIRKWOOD_PCIE1_IO_PHYS_BASE),
-		.length		= KIRKWOOD_PCIE1_IO_SIZE,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= KIRKWOOD_REGS_VIRT_BASE,
+		.virtual	= (unsigned long) KIRKWOOD_REGS_VIRT_BASE,
 		.pfn		= __phys_to_pfn(KIRKWOOD_REGS_PHYS_BASE),
 		.length		= KIRKWOOD_REGS_SIZE,
 		.type		= MT_DEVICE,
@@ -215,8 +205,7 @@ static struct clk *tclk;
 
 static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
 {
-	return clk_register_gate(NULL, name, "tclk", 0,
-				 (void __iomem *)CLOCK_GATING_CTRL,
+	return clk_register_gate(NULL, name, "tclk", 0, CLOCK_GATING_CTRL,
 				 bit_idx, 0, &gating_lock);
 }
 
@@ -225,8 +214,7 @@ static struct clk __init *kirkwood_register_gate_fn(const char *name,
 						    void (*fn_en)(void),
 						    void (*fn_dis)(void))
 {
-	return clk_register_gate_fn(NULL, name, "tclk", 0,
-				    (void __iomem *)CLOCK_GATING_CTRL,
+	return clk_register_gate_fn(NULL, name, "tclk", 0, CLOCK_GATING_CTRL,
 				    bit_idx, 0, &gating_lock, fn_en, fn_dis);
 }
 
@@ -645,12 +633,14 @@ char * __init kirkwood_id(void)
 
 void __init kirkwood_l2_init(void)
 {
+#ifdef CONFIG_CACHE_FEROCEON_L2
 #ifdef CONFIG_CACHE_FEROCEON_L2_WRITETHROUGH
 	writel(readl(L2_CONFIG_REG) | L2_WRITETHROUGH, L2_CONFIG_REG);
 	feroceon_l2_init(1);
 #else
 	writel(readl(L2_CONFIG_REG) & ~L2_WRITETHROUGH, L2_CONFIG_REG);
 	feroceon_l2_init(0);
+#endif
 #endif
 }
 
@@ -669,9 +659,7 @@ void __init kirkwood_init(void)
 
 	kirkwood_setup_cpu_mbus();
 
-#ifdef CONFIG_CACHE_FEROCEON_L2
 	kirkwood_l2_init();
-#endif
 
 	/* Setup root of clk tree */
 	kirkwood_clk_init();

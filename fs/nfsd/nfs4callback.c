@@ -1028,7 +1028,6 @@ void nfsd4_cb_recall(struct nfs4_delegation *dp)
 	cb->cb_msg.rpc_cred = callback_cred;
 
 	cb->cb_ops = &nfsd4_cb_recall_ops;
-	dp->dl_retries = 1;
 
 	INIT_LIST_HEAD(&cb->cb_per_client);
 	cb->cb_done = true;

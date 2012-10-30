@@ -92,7 +92,7 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -164,7 +164,7 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->state == WL1271_STATE_OFF) {
+	if (unlikely(wl->state != WLCORE_STATE_ON)) {
 		ret = -EINVAL;
 		goto out;
 	}

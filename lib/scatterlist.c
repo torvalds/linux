@@ -39,6 +39,25 @@ struct scatterlist *sg_next(struct scatterlist *sg)
 EXPORT_SYMBOL(sg_next);
 
 /**
+ * sg_nents - return total count of entries in scatterlist
+ * @sg:		The scatterlist
+ *
+ * Description:
+ * Allows to know how many entries are in sg, taking into acount
+ * chaining as well
+ *
+ **/
+int sg_nents(struct scatterlist *sg)
+{
+	int nents;
+	for (nents = 0; sg; sg = sg_next(sg))
+		nents++;
+	return nents;
+}
+EXPORT_SYMBOL(sg_nents);
+
+
+/**
  * sg_last - return the last scatterlist entry in a list
  * @sgl:	First entry in the scatterlist
  * @nents:	Number of entries in the scatterlist
@@ -404,14 +423,13 @@ EXPORT_SYMBOL(sg_miter_start);
  * @miter: sg mapping iter to proceed
  *
  * Description:
- *   Proceeds @miter@ to the next mapping.  @miter@ should have been
- *   started using sg_miter_start().  On successful return,
- *   @miter@->page, @miter@->addr and @miter@->length point to the
- *   current mapping.
+ *   Proceeds @miter to the next mapping.  @miter should have been started
+ *   using sg_miter_start().  On successful return, @miter->page,
+ *   @miter->addr and @miter->length point to the current mapping.
  *
  * Context:
- *   IRQ disabled if SG_MITER_ATOMIC.  IRQ must stay disabled till
- *   @miter@ is stopped.  May sleep if !SG_MITER_ATOMIC.
+ *   Preemption disabled if SG_MITER_ATOMIC.  Preemption must stay disabled
+ *   till @miter is stopped.  May sleep if !SG_MITER_ATOMIC.
  *
  * Returns:
  *   true if @miter contains the next mapping.  false if end of sg
@@ -465,7 +483,8 @@ EXPORT_SYMBOL(sg_miter_next);
  *   resources (kmap) need to be released during iteration.
  *
  * Context:
- *   IRQ disabled if the SG_MITER_ATOMIC is set.  Don't care otherwise.
+ *   Preemption disabled if the SG_MITER_ATOMIC is set.  Don't care
+ *   otherwise.
  */
 void sg_miter_stop(struct sg_mapping_iter *miter)
 {
@@ -479,7 +498,7 @@ void sg_miter_stop(struct sg_mapping_iter *miter)
 			flush_kernel_dcache_page(miter->page);
 
 		if (miter->__flags & SG_MITER_ATOMIC) {
-			WARN_ON(!irqs_disabled());
+			WARN_ON_ONCE(preemptible());
 			kunmap_atomic(miter->addr);
 		} else
 			kunmap(miter->page);

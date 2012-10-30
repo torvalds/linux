@@ -188,7 +188,7 @@ static int __devinit tps6105x_probe(struct i2c_client *client,
 	}
 
 	ret = mfd_add_devices(&client->dev, 0, tps6105x_cells,
-		ARRAY_SIZE(tps6105x_cells), NULL, 0);
+			      ARRAY_SIZE(tps6105x_cells), NULL, 0, NULL);
 	if (ret)
 		goto fail;
 

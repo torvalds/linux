@@ -17,7 +17,7 @@ qla4_8xxx_sysfs_read_fw_dump(struct file *filep, struct kobject *kobj,
 	struct scsi_qla_host *ha = to_qla_host(dev_to_shost(container_of(kobj,
 					       struct device, kobj)));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -EINVAL;
 
 	if (!test_bit(AF_82XX_DUMP_READING, &ha->flags))
@@ -38,7 +38,7 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 	long reading;
 	int ret = 0;
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -EINVAL;
 
 	if (off != 0)
@@ -75,21 +75,21 @@ qla4_8xxx_sysfs_write_fw_dump(struct file *filep, struct kobject *kobj,
 		break;
 	case 2:
 		/* Reset HBA */
-		qla4_8xxx_idc_lock(ha);
-		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		if (dev_state == QLA82XX_DEV_READY) {
+		ha->isp_ops->idc_lock(ha);
+		dev_state = qla4_8xxx_rd_direct(ha, QLA8XXX_CRB_DEV_STATE);
+		if (dev_state == QLA8XXX_DEV_READY) {
 			ql4_printk(KERN_INFO, ha,
 				   "%s: Setting Need reset, reset_owner is 0x%x.\n",
 				   __func__, ha->func_num);
-			qla4_8xxx_wr_32(ha, QLA82XX_CRB_DEV_STATE,
-					QLA82XX_DEV_NEED_RESET);
-			set_bit(AF_82XX_RST_OWNER, &ha->flags);
+			qla4_8xxx_wr_direct(ha, QLA8XXX_CRB_DEV_STATE,
+					    QLA8XXX_DEV_NEED_RESET);
+			set_bit(AF_8XXX_RST_OWNER, &ha->flags);
 		} else
 			ql4_printk(KERN_INFO, ha,
 				   "%s: Reset not performed as device state is 0x%x\n",
 				   __func__, dev_state);
 
-		qla4_8xxx_idc_unlock(ha);
+		ha->isp_ops->idc_unlock(ha);
 		break;
 	default:
 		/* do nothing */
@@ -150,7 +150,7 @@ qla4xxx_fw_version_show(struct device *dev,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		return snprintf(buf, PAGE_SIZE, "%d.%02d.%02d (%x)\n",
 				ha->firmware_version[0],
 				ha->firmware_version[1],
@@ -214,7 +214,7 @@ qla4xxx_phy_port_cnt_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -ENOSYS;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04X\n", ha->phy_port_cnt);
@@ -226,7 +226,7 @@ qla4xxx_phy_port_num_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -ENOSYS;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04X\n", ha->phy_port_num);
@@ -238,7 +238,7 @@ qla4xxx_iscsi_func_cnt_show(struct device *dev, struct device_attribute *attr,
 {
 	struct scsi_qla_host *ha = to_qla_host(class_to_shost(dev));
 
-	if (!is_qla8022(ha))
+	if (is_qla40XX(ha))
 		return -ENOSYS;
 
 	return snprintf(buf, PAGE_SIZE, "0x%04X\n", ha->iscsi_pci_func_cnt);

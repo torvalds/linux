@@ -12,7 +12,7 @@
 	};
 
 	chosen {
-		bootargs = "console=ttyS0,115200n8 earlyprintk mtdparts=orion_nand:0xc0000@0x0(uboot),0x20000@0xa0000(env),0x300000@0x100000(zImage),0x300000@0x540000(initrd),0x1f400000@0x980000(boot)";
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
 		linux,initrd-start = <0x4500040>;
 		linux,initrd-end   = <0x4800000>;
 	};
@@ -30,7 +30,37 @@
 			clock-frequency = <200000000>;
 			status = "ok";
 		};
+
+		nand@3000000 {
+			status = "okay";
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0000000 0xc0000>;
+			};
+
+			partition@a0000 {
+				label = "env";
+				reg = <0xa0000 0x20000>;
+			};
+
+			partition@100000 {
+				label = "zImage";
+				reg = <0x100000 0x300000>;
+			};
+
+			partition@540000 {
+				label = "initrd";
+				reg = <0x540000 0x300000>;
+			};
+
+			partition@980000 {
+				label = "boot";
+				reg = <0x980000 0x1f400000>;
+			};
+		};
 	};
+
 	gpio-leds {
 		compatible = "gpio-leds";
 
@@ -67,6 +97,24 @@
 		otb {
 			label = "otb:blue";
 			gpios = <&gpio1 16 0>;
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "OTB Button";
+			linux,code = <133>;
+			gpios = <&gpio1 3 1>;
+			debounce-interval = <100>;
+		};
+		button@2 {
+			label = "Reset";
+			linux,code = <0x198>;
+			gpios = <&gpio0 12 1>;
+			debounce-interval = <100>;
 		};
 	};
 };

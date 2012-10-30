@@ -270,6 +270,8 @@ static struct {
 	struct prcmu_fw_version version;
 } fw_info;
 
+static struct irq_domain *db8500_irq_domain;
+
 /*
  * This vector maps irq numbers to the bits in the bit field used in
  * communication with the PRCMU firmware.
@@ -418,6 +420,9 @@ static struct {
 
 static atomic_t ac_wake_req_state = ATOMIC_INIT(0);
 
+/* Functions definition */
+static void compute_armss_rate(void);
+
 /* Spinlocks */
 static DEFINE_SPINLOCK(prcmu_lock);
 static DEFINE_SPINLOCK(clkout_lock);
@@ -516,6 +521,7 @@ static struct dsiescclk dsiescclk[3] = {
 		.div_shift = PRCM_DSITVCLK_DIV_DSI2_ESC_CLK_DIV_SHIFT,
 	}
 };
+
 
 /*
 * Used by MCDE to setup all necessary PRCMU registers
@@ -1013,6 +1019,7 @@ int db8500_prcmu_set_arm_opp(u8 opp)
 		(mb1_transfer.ack.arm_opp != opp))
 		r = -EIO;
 
+	compute_armss_rate();
 	mutex_unlock(&mb1_transfer.lock);
 
 	return r;
@@ -1612,6 +1619,7 @@ static unsigned long pll_rate(void __iomem *reg, unsigned long src_rate,
 	if ((branch == PLL_FIX) || ((branch == PLL_DIV) &&
 		(val & PRCM_PLL_FREQ_DIV2EN) &&
 		((reg == PRCM_PLLSOC0_FREQ) ||
+		 (reg == PRCM_PLLARM_FREQ) ||
 		 (reg == PRCM_PLLDDR_FREQ))))
 		div *= 2;
 
@@ -1661,6 +1669,39 @@ static unsigned long clock_rate(u8 clock)
 	else
 		return 0;
 }
+static unsigned long latest_armss_rate;
+static unsigned long armss_rate(void)
+{
+	return latest_armss_rate;
+}
+
+static void compute_armss_rate(void)
+{
+	u32 r;
+	unsigned long rate;
+
+	r = readl(PRCM_ARM_CHGCLKREQ);
+
+	if (r & PRCM_ARM_CHGCLKREQ_PRCM_ARM_CHGCLKREQ) {
+		/* External ARMCLKFIX clock */
+
+		rate = pll_rate(PRCM_PLLDDR_FREQ, ROOT_CLOCK_RATE, PLL_FIX);
+
+		/* Check PRCM_ARM_CHGCLKREQ divider */
+		if (!(r & PRCM_ARM_CHGCLKREQ_PRCM_ARM_DIVSEL))
+			rate /= 2;
+
+		/* Check PRCM_ARMCLKFIX_MGT divider */
+		r = readl(PRCM_ARMCLKFIX_MGT);
+		r &= PRCM_CLK_MGT_CLKPLLDIV_MASK;
+		rate /= r;
+
+	} else {/* ARM PLL */
+		rate = pll_rate(PRCM_PLLARM_FREQ, ROOT_CLOCK_RATE, PLL_DIV);
+	}
+
+	latest_armss_rate = rate;
+}
 
 static unsigned long dsiclk_rate(u8 n)
 {
@@ -1707,6 +1748,8 @@ unsigned long prcmu_clock_rate(u8 clock)
 		return pll_rate(PRCM_PLLSOC0_FREQ, ROOT_CLOCK_RATE, PLL_RAW);
 	else if (clock == PRCMU_PLLSOC1)
 		return pll_rate(PRCM_PLLSOC1_FREQ, ROOT_CLOCK_RATE, PLL_RAW);
+	else if (clock == PRCMU_ARMSS)
+		return armss_rate();
 	else if (clock == PRCMU_PLLDDR)
 		return pll_rate(PRCM_PLLDDR_FREQ, ROOT_CLOCK_RATE, PLL_RAW);
 	else if (clock == PRCMU_PLLDSI)
@@ -2583,7 +2626,7 @@ static void prcmu_irq_mask(struct irq_data *d)
 
 	spin_lock_irqsave(&mb0_transfer.dbb_irqs_lock, flags);
 
-	mb0_transfer.req.dbb_irqs &= ~prcmu_irq_bit[d->irq - IRQ_PRCMU_BASE];
+	mb0_transfer.req.dbb_irqs &= ~prcmu_irq_bit[d->hwirq];
 
 	spin_unlock_irqrestore(&mb0_transfer.dbb_irqs_lock, flags);
 
@@ -2597,7 +2640,7 @@ static void prcmu_irq_unmask(struct irq_data *d)
 
 	spin_lock_irqsave(&mb0_transfer.dbb_irqs_lock, flags);
 
-	mb0_transfer.req.dbb_irqs |= prcmu_irq_bit[d->irq - IRQ_PRCMU_BASE];
+	mb0_transfer.req.dbb_irqs |= prcmu_irq_bit[d->hwirq];
 
 	spin_unlock_irqrestore(&mb0_transfer.dbb_irqs_lock, flags);
 
@@ -2637,9 +2680,37 @@ static char *fw_project_name(u8 project)
 	}
 }
 
+static int db8500_irq_map(struct irq_domain *d, unsigned int virq,
+				irq_hw_number_t hwirq)
+{
+	irq_set_chip_and_handler(virq, &prcmu_irq_chip,
+				handle_simple_irq);
+	set_irq_flags(virq, IRQF_VALID);
+
+	return 0;
+}
+
+static struct irq_domain_ops db8500_irq_ops = {
+        .map    = db8500_irq_map,
+        .xlate  = irq_domain_xlate_twocell,
+};
+
+static int db8500_irq_init(struct device_node *np)
+{
+	db8500_irq_domain = irq_domain_add_legacy(
+		np, NUM_PRCMU_WAKEUPS, IRQ_PRCMU_BASE,
+		0, &db8500_irq_ops, NULL);
+
+	if (!db8500_irq_domain) {
+		pr_err("Failed to create irqdomain\n");
+		return -ENOSYS;
+	}
+
+	return 0;
+}
+
 void __init db8500_prcmu_early_init(void)
 {
-	unsigned int i;
 	if (cpu_is_u8500v2()) {
 		void *tcpm_base = ioremap_nocache(U8500_PRCMU_TCPM_BASE, SZ_4K);
 
@@ -2684,15 +2755,7 @@ void __init db8500_prcmu_early_init(void)
 
 	INIT_WORK(&mb0_transfer.mask_work, prcmu_mask_work);
 
-	/* Initalize irqs. */
-	for (i = 0; i < NUM_PRCMU_WAKEUPS; i++) {
-		unsigned int irq;
-
-		irq = IRQ_PRCMU_BASE + i;
-		irq_set_chip_and_handler(irq, &prcmu_irq_chip,
-					 handle_simple_irq);
-		set_irq_flags(irq, IRQF_VALID);
-	}
+	compute_armss_rate();
 }
 
 static void __init init_prcm_registers(void)
@@ -2999,6 +3062,8 @@ static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 		goto no_irq_return;
 	}
 
+	db8500_irq_init(np);
+
 	for (i = 0; i < ARRAY_SIZE(db8500_prcmu_devs); i++) {
 		if (!strcmp(db8500_prcmu_devs[i].name, "ab8500-core")) {
 			db8500_prcmu_devs[i].platform_data = ab8500_platdata;
@@ -3010,7 +3075,7 @@ static int __devinit db8500_prcmu_probe(struct platform_device *pdev)
 		prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
 	err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
-			ARRAY_SIZE(db8500_prcmu_devs), NULL, 0);
+			      ARRAY_SIZE(db8500_prcmu_devs), NULL, 0, NULL);
 	if (err) {
 		pr_err("prcmu: Failed to add subdevices\n");
 		return err;

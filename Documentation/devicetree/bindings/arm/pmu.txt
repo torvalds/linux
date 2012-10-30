@@ -7,8 +7,12 @@ representation in the device tree should be done as under:-
 Required properties:
 
 - compatible : should be one of
+	"arm,cortex-a15-pmu"
 	"arm,cortex-a9-pmu"
 	"arm,cortex-a8-pmu"
+	"arm,cortex-a7-pmu"
+	"arm,cortex-a5-pmu"
+	"arm,arm11mpcore-pmu"
 	"arm,arm1176-pmu"
 	"arm,arm1136-pmu"
 - interrupts : 1 combined interrupt or 1 per core.

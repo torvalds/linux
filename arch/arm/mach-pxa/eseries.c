@@ -32,9 +32,9 @@
 #include <mach/eseries-gpio.h>
 #include <mach/eseries-irq.h>
 #include <mach/audio.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/udc.h>
-#include <mach/irda.h>
+#include <linux/platform_data/irda-pxaficp.h>
 
 #include "devices.h"
 #include "generic.h"

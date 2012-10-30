@@ -21,6 +21,8 @@
 #include <asm/sched_clock.h>
 #include <asm/mach/time.h>
 
+#include "common.h"
+
 #define SIRFSOC_TIMER_COUNTER_LO	0x0000
 #define SIRFSOC_TIMER_COUNTER_HI	0x0004
 #define SIRFSOC_TIMER_MATCH_0		0x0008
@@ -188,9 +190,13 @@ static void __init sirfsoc_clockevent_init(void)
 static void __init sirfsoc_timer_init(void)
 {
 	unsigned long rate;
+	struct clk *clk;
+
+	/* initialize clocking early, we want to set the OS timer */
+	sirfsoc_of_clk_init();
 
 	/* timer's input clock is io clock */
-	struct clk *clk = clk_get_sys("io", NULL);
+	clk = clk_get_sys("io", NULL);
 
 	BUG_ON(IS_ERR(clk));
 

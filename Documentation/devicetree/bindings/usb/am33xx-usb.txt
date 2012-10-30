@@ -1,0 +1,14 @@
+AM33XX MUSB GLUE
+ - compatible : Should be "ti,musb-am33xx"
+ - ti,hwmods : must be "usb_otg_hs"
+ - multipoint : Should be "1" indicating the musb controller supports
+   multipoint. This is a MUSB configuration-specific setting.
+ - num_eps : Specifies the number of endpoints. This is also a
+   MUSB configuration-specific setting. Should be set to "16"
+ - ram_bits : Specifies the ram address size. Should be set to "12"
+ - port0_mode : Should be "3" to represent OTG. "1" signifies HOST and "2"
+   represents PERIPHERAL.
+ - port1_mode : Should be "1" to represent HOST. "3" signifies OTG and "2"
+   represents PERIPHERAL.
+ - power : Should be "250". This signifies the controller can supply upto
+   500mA when operating in host mode.

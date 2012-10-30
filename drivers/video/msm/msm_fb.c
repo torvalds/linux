@@ -25,7 +25,7 @@
 #include <linux/msm_mdp.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <mach/msm_fb.h>
+#include <linux/platform_data/video-msm_fb.h>
 #include <mach/board.h>
 #include <linux/workqueue.h>
 #include <linux/clk.h>

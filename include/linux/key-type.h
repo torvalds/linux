@@ -26,6 +26,27 @@ struct key_construction {
 	struct key	*authkey;/* authorisation for key being constructed */
 };
 
+/*
+ * Pre-parsed payload, used by key add, update and instantiate.
+ *
+ * This struct will be cleared and data and datalen will be set with the data
+ * and length parameters from the caller and quotalen will be set from
+ * def_datalen from the key type.  Then if the preparse() op is provided by the
+ * key type, that will be called.  Then the struct will be passed to the
+ * instantiate() or the update() op.
+ *
+ * If the preparse() op is given, the free_preparse() op will be called to
+ * clear the contents.
+ */
+struct key_preparsed_payload {
+	char		*description;	/* Proposed key description (or NULL) */
+	void		*type_data[2];	/* Private key-type data */
+	void		*payload;	/* Proposed payload */
+	const void	*data;		/* Raw data */
+	size_t		datalen;	/* Raw datalen */
+	size_t		quotalen;	/* Quota length for proposed payload */
+};
+
 typedef int (*request_key_actor_t)(struct key_construction *key,
 				   const char *op, void *aux);
 
@@ -45,18 +66,28 @@ struct key_type {
 	/* vet a description */
 	int (*vet_description)(const char *description);
 
+	/* Preparse the data blob from userspace that is to be the payload,
+	 * generating a proposed description and payload that will be handed to
+	 * the instantiate() and update() ops.
+	 */
+	int (*preparse)(struct key_preparsed_payload *prep);
+
+	/* Free a preparse data structure.
+	 */
+	void (*free_preparse)(struct key_preparsed_payload *prep);
+
 	/* instantiate a key of this type
 	 * - this method should call key_payload_reserve() to determine if the
 	 *   user's quota will hold the payload
 	 */
-	int (*instantiate)(struct key *key, const void *data, size_t datalen);
+	int (*instantiate)(struct key *key, struct key_preparsed_payload *prep);
 
 	/* update a key of this type (optional)
 	 * - this method should call key_payload_reserve() to recalculate the
 	 *   quota consumption
 	 * - the key must be locked against read when modifying
 	 */
-	int (*update)(struct key *key, const void *data, size_t datalen);
+	int (*update)(struct key *key, struct key_preparsed_payload *prep);
 
 	/* match a key against a description */
 	int (*match)(const struct key *key, const void *desc);

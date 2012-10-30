@@ -35,16 +35,6 @@ struct inode;
 # include <asm/uprobes.h>
 #endif
 
-/* flags that denote/change uprobes behaviour */
-
-/* Have a copy of original instruction */
-#define UPROBE_COPY_INSN	0x1
-
-/* Dont run handlers when first register/ last unregister in progress*/
-#define UPROBE_RUN_HANDLER	0x2
-/* Can skip singlestep */
-#define UPROBE_SKIP_SSTEP	0x4
-
 struct uprobe_consumer {
 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
 	/*
@@ -59,7 +49,6 @@ struct uprobe_consumer {
 #ifdef CONFIG_UPROBES
 enum uprobe_task_state {
 	UTASK_RUNNING,
-	UTASK_BP_HIT,
 	UTASK_SSTEP,
 	UTASK_SSTEP_ACK,
 	UTASK_SSTEP_TRAPPED,
@@ -99,25 +88,27 @@ struct xol_area {
 
 struct uprobes_state {
 	struct xol_area		*xol_area;
-	atomic_t		count;
 };
+
 extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
-extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm,  unsigned long vaddr, bool verify);
+extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
 extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_mmap(struct vm_area_struct *vma);
 extern void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end);
+extern void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm);
 extern void uprobe_free_utask(struct task_struct *t);
 extern void uprobe_copy_process(struct task_struct *t);
 extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
+extern void __weak arch_uprobe_enable_step(struct arch_uprobe *arch);
+extern void __weak arch_uprobe_disable_step(struct arch_uprobe *arch);
 extern int uprobe_post_sstep_notifier(struct pt_regs *regs);
 extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
 extern void uprobe_notify_resume(struct pt_regs *regs);
 extern bool uprobe_deny_signal(void);
 extern bool __weak arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
 extern void uprobe_clear_state(struct mm_struct *mm);
-extern void uprobe_reset_state(struct mm_struct *mm);
 #else /* !CONFIG_UPROBES */
 struct uprobes_state {
 };
@@ -138,6 +129,10 @@ static inline void
 uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 }
+static inline void
+uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
+{
+}
 static inline void uprobe_notify_resume(struct pt_regs *regs)
 {
 }
@@ -156,9 +151,6 @@ static inline void uprobe_copy_process(struct task_struct *t)
 {
 }
 static inline void uprobe_clear_state(struct mm_struct *mm)
-{
-}
-static inline void uprobe_reset_state(struct mm_struct *mm)
 {
 }
 #endif /* !CONFIG_UPROBES */

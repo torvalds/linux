@@ -11,6 +11,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -19,8 +21,6 @@
 #include <linux/serial.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
-
-static int debug;
 
 struct usbcons_info {
 	int			magic;
@@ -68,8 +68,6 @@ static int usb_console_setup(struct console *co, char *options)
 	struct tty_struct *tty = NULL;
 	struct ktermios dummy;
 
-	dbg("%s", __func__);
-
 	if (options) {
 		baud = simple_strtoul(options, NULL, 10);
 		s = options;
@@ -113,8 +111,7 @@ static int usb_console_setup(struct console *co, char *options)
 	serial = usb_serial_get_by_index(co->index);
 	if (serial == NULL) {
 		/* no device is connected yet, sorry :( */
-		printk(KERN_ERR "No USB device connected to ttyUSB%i\n",
-		       co->index);
+		pr_err("No USB device connected to ttyUSB%i\n", co->index);
 		return -ENODEV;
 	}
 
@@ -165,8 +162,8 @@ static int usb_console_setup(struct console *co, char *options)
 		}
 
 		if (serial->type->set_termios) {
-			tty->termios->c_cflag = cflag;
-			tty_termios_encode_baud_rate(tty->termios, baud, baud);
+			tty->termios.c_cflag = cflag;
+			tty_termios_encode_baud_rate(&tty->termios, baud, baud);
 			memset(&dummy, 0, sizeof(struct ktermios));
 			serial->type->set_termios(tty, port, &dummy);
 
@@ -213,10 +210,10 @@ static void usb_console_write(struct console *co,
 	if (count == 0)
 		return;
 
-	dbg("%s - port %d, %d byte(s)", __func__, port->number, count);
+	pr_debug("%s - port %d, %d byte(s)\n", __func__, port->number, count);
 
 	if (!port->port.console) {
-		dbg("%s - port not opened", __func__);
+		pr_debug("%s - port not opened\n", __func__);
 		return;
 	}
 
@@ -237,7 +234,7 @@ static void usb_console_write(struct console *co,
 			retval = serial->type->write(NULL, port, buf, i);
 		else
 			retval = usb_serial_generic_write(NULL, port, buf, i);
-		dbg("%s - return value : %d", __func__, retval);
+		pr_debug("%s - return value : %d\n", __func__, retval);
 		if (lf) {
 			/* append CR after LF */
 			unsigned char cr = 13;
@@ -247,7 +244,7 @@ static void usb_console_write(struct console *co,
 			else
 				retval = usb_serial_generic_write(NULL,
 								port, &cr, 1);
-			dbg("%s - return value : %d", __func__, retval);
+			pr_debug("%s - return value : %d\n", __func__, retval);
 		}
 		buf += i;
 		count -= i;
@@ -284,10 +281,8 @@ void usb_serial_console_disconnect(struct usb_serial *serial)
 	}
 }
 
-void usb_serial_console_init(int serial_debug, int minor)
+void usb_serial_console_init(int minor)
 {
-	debug = serial_debug;
-
 	if (minor == 0) {
 		/*
 		 * Call register_console() if this is the first device plugged
@@ -302,7 +297,7 @@ void usb_serial_console_init(int serial_debug, int minor)
 		 * register_console). console_write() is called immediately
 		 * from register_console iff CON_PRINTBUFFER is set in flags.
 		 */
-		dbg("registering the USB serial console.");
+		pr_debug("registering the USB serial console.\n");
 		register_console(&usbcons);
 	}
 }

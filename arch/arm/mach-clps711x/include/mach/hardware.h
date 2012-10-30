@@ -116,7 +116,6 @@
 
 #endif /* CONFIG_ARCH_EDB7211 */
 
-
 /*
  * Relevant bits in port D, which controls power to the various parts of
  * the LCD on the EDB7211.
@@ -124,52 +123,5 @@
 #define EDB_PD1_LCD_DC_DC_EN	(1<<1)
 #define EDB_PD2_LCDEN		(1<<2)
 #define EDB_PD3_LCDBL		(1<<3)
-
-
-#if defined (CONFIG_ARCH_CEIVA)
-
-/*
- * The two flash banks are wired to chip selects 0 and 1. This is the mapping
- * for them.
- *
- * nCS0 and nCS1 are at 0x70000000 and 0x60000000, respectively, when running
- * in jumpered boot mode.
- */
-#define CEIVA_PHYS_FLASH1	CS0_PHYS_BASE	/* physical */
-#define CEIVA_PHYS_FLASH2	CS1_PHYS_BASE	/* physical */
-
-#define CEIVA_VIRT_FLASH1	(0xfa000000)	/* virtual */
-#define CEIVA_VIRT_FLASH2	(0xfb000000)	/* virtual */
-
-#define CEIVA_FLASH_SIZE        0x100000
-#define CEIVA_FLASH_WIDTH       2
-
-/*
- * SED1355 LCD controller
- */
-#define CEIVA_PHYS_SED1355	CS2_PHYS_BASE
-#define CEIVA_VIRT_SED1355	(0xfc000000)
-
-/*
- * Relevant bits in port D, which controls power to the various parts of
- * the LCD on the Ceiva Photo Max, and reset to the LCD controller.
- */
-
-// Reset line to SED1355 (must be high to operate)
-#define CEIVA_PD1_LCDRST	(1<<1)
-// LCD panel enable (set to one, to enable LCD)
-#define CEIVA_PD4_LCDEN		(1<<4)
-// Backlight (set to one, to turn on backlight
-#define CEIVA_PD5_LCDBL		(1<<5)
-
-/*
- * Relevant bits in port B, which report the status of the buttons.
- */
-
-// White button
-#define CEIVA_PB4_WHT_BTN	(1<<4)
-// Black button
-#define CEIVA_PB0_BLK_BTN	(1<<0)
-#endif // #if defined (CONFIG_ARCH_CEIVA)
 
 #endif

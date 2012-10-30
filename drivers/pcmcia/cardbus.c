@@ -105,8 +105,17 @@ int __ref cb_alloc(struct pcmcia_socket *s)
  */
 void cb_free(struct pcmcia_socket *s)
 {
-	struct pci_dev *bridge = s->cb_dev;
+	struct pci_dev *bridge, *dev, *tmp;
+	struct pci_bus *bus;
 
-	if (bridge)
-		pci_stop_and_remove_behind_bridge(bridge);
+	bridge = s->cb_dev;
+	if (!bridge)
+		return;
+
+	bus = bridge->subordinate;
+	if (!bus)
+		return;
+
+	list_for_each_entry_safe(dev, tmp, &bus->devices, bus_list)
+		pci_stop_and_remove_bus_device(dev);
 }

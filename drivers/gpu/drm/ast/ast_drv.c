@@ -28,9 +28,8 @@
 #include <linux/module.h>
 #include <linux/console.h>
 
-#include "drmP.h"
-#include "drm.h"
-#include "drm_crtc_helper.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 
 #include "ast_drv.h"
 
@@ -193,6 +192,9 @@ static const struct file_operations ast_fops = {
 	.mmap = ast_mmap,
 	.poll = drm_poll,
 	.fasync = drm_fasync,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = drm_compat_ioctl,
+#endif
 	.read = drm_read,
 };
 

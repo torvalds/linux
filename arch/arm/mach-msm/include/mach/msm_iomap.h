@@ -41,12 +41,11 @@
 #include "msm_iomap-7x30.h"
 #elif defined(CONFIG_ARCH_QSD8X50)
 #include "msm_iomap-8x50.h"
-#elif defined(CONFIG_ARCH_MSM8X60)
-#include "msm_iomap-8x60.h"
 #else
 #include "msm_iomap-7x00.h"
 #endif
 
+#include "msm_iomap-8x60.h"
 #include "msm_iomap-8960.h"
 
 #define MSM_DEBUG_UART_SIZE	SZ_4K

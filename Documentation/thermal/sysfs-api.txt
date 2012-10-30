@@ -84,7 +84,8 @@ temperature) and throttle appropriate devices.
 
 1.3 interface for binding a thermal zone device with a thermal cooling device
 1.3.1 int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
-		int trip, struct thermal_cooling_device *cdev);
+	int trip, struct thermal_cooling_device *cdev,
+	unsigned long upper, unsigned long lower);
 
     This interface function bind a thermal cooling device to the certain trip
     point of a thermal zone device.
@@ -93,6 +94,12 @@ temperature) and throttle appropriate devices.
     cdev: thermal cooling device
     trip: indicates which trip point the cooling devices is associated with
 	  in this thermal zone.
+    upper:the Maximum cooling state for this trip point.
+          THERMAL_NO_LIMIT means no upper limit,
+	  and the cooling device can be in max_state.
+    lower:the Minimum cooling state can be used for this trip point.
+          THERMAL_NO_LIMIT means no lower limit,
+	  and the cooling device can be in cooling state 0.
 
 1.3.2 int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 		int trip, struct thermal_cooling_device *cdev);

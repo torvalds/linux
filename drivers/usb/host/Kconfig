@@ -18,8 +18,8 @@ config USB_C67X00_HCD
 	  module will be called c67x00.
 
 config USB_XHCI_HCD
-	tristate "xHCI HCD (USB 3.0) support (EXPERIMENTAL)"
-	depends on USB && USB_ARCH_HAS_XHCI && EXPERIMENTAL
+	tristate "xHCI HCD (USB 3.0) support"
+	depends on USB && USB_ARCH_HAS_XHCI
 	---help---
 	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
 	  "SuperSpeed" host controller hardware.
@@ -262,7 +262,7 @@ config USB_ISP116X_HCD
 
 config USB_ISP1760_HCD
 	tristate "ISP 1760 HCD support"
-	depends on USB && EXPERIMENTAL
+	depends on USB
 	---help---
 	  The ISP1760 chip is a USB 2.0 host controller.
 
@@ -292,7 +292,7 @@ config USB_OHCI_HCD
 	depends on USB && USB_ARCH_HAS_OHCI
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
 	select USB_OTG_UTILS if ARCH_OMAP
-	select USB_ISP1301 if ARCH_LPC32XX || ARCH_PNX4008
+	depends on USB_ISP1301 || !ARCH_LPC32XX
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -376,7 +376,7 @@ config USB_OHCI_HCD_PCI
 
 config USB_OHCI_HCD_SSB
 	bool "OHCI support for Broadcom SSB OHCI core (DEPRECATED)"
-	depends on USB_OHCI_HCD && (SSB = y || SSB = USB_OHCI_HCD) && EXPERIMENTAL
+	depends on USB_OHCI_HCD && (SSB = y || SSB = USB_OHCI_HCD)
 	select USB_HCD_SSB
 	select USB_OHCI_HCD_PLATFORM
 	default n
@@ -414,21 +414,21 @@ config USB_CNS3XXX_OHCI
 
 config USB_OHCI_HCD_PLATFORM
 	bool "Generic OHCI driver for a platform device"
-	depends on USB_OHCI_HCD && EXPERIMENTAL
+	depends on USB_OHCI_HCD
 	default n
 	---help---
 	  Adds an OHCI host driver for a generic platform device, which
-	  provieds a memory space and an irq.
+	  provides a memory space and an irq.
 
 	  If unsure, say N.
 
 config USB_EHCI_HCD_PLATFORM
 	bool "Generic EHCI driver for a platform device"
-	depends on USB_EHCI_HCD && EXPERIMENTAL
+	depends on USB_EHCI_HCD
 	default n
 	---help---
 	  Adds an EHCI host driver for a generic platform device, which
-	  provieds a memory space and an irq.
+	  provides a memory space and an irq.
 
 	  If unsure, say N.
 
@@ -450,7 +450,7 @@ config USB_OHCI_LITTLE_ENDIAN
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on USB && (PCI || SPARC_LEON)
+	depends on USB && (PCI || SPARC_LEON || ARCH_VT8500)
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -468,7 +468,15 @@ config USB_UHCI_HCD
 config USB_UHCI_SUPPORT_NON_PCI_HC
 	bool
 	depends on USB_UHCI_HCD
-	default y if SPARC_LEON
+	default y if (SPARC_LEON || ARCH_VT8500)
+
+config USB_UHCI_PLATFORM
+	bool "Generic UHCI Platform Driver support"
+	depends on USB_UHCI_SUPPORT_NON_PCI_HC
+	default y if ARCH_VT8500
+	---help---
+	  Enable support for generic UHCI platform devices that require no
+	  additional configuration.
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool
@@ -583,8 +591,7 @@ config USB_RENESAS_USBHS_HCD
 	  module will be called renesas-usbhs.
 
 config USB_WHCI_HCD
-	tristate "Wireless USB Host Controller Interface (WHCI) driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Wireless USB Host Controller Interface (WHCI) driver"
 	depends on PCI && USB && UWB
 	select USB_WUSB
 	select UWB_WHCI
@@ -596,8 +603,7 @@ config USB_WHCI_HCD
 	  will be called "whci-hcd".
 
 config USB_HWA_HCD
-	tristate "Host Wire Adapter (HWA) driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Host Wire Adapter (HWA) driver"
 	depends on USB && UWB
 	select USB_WUSB
 	select UWB_HWA
@@ -648,7 +654,7 @@ config USB_OCTEON2_COMMON
 
 config USB_HCD_BCMA
 	tristate "BCMA usb host driver"
-	depends on BCMA && EXPERIMENTAL
+	depends on BCMA
 	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
 	help
@@ -660,7 +666,7 @@ config USB_HCD_BCMA
 
 config USB_HCD_SSB
 	tristate "SSB usb host driver"
-	depends on SSB && EXPERIMENTAL
+	depends on SSB
 	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
 	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
 	help

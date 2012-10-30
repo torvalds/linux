@@ -30,7 +30,7 @@
 #include <linux/export.h>
 #include <linux/timex.h>
 #include <linux/capability.h>
-#include <linux/clocksource.h>
+#include <linux/timekeeper_internal.h>
 #include <linux/errno.h>
 #include <linux/syscalls.h>
 #include <linux/security.h>

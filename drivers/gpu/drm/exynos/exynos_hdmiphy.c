@@ -11,7 +11,7 @@
  *
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 
 #include <linux/kernel.h>
 #include <linux/i2c.h>
@@ -42,13 +42,23 @@ static int hdmiphy_remove(struct i2c_client *client)
 
 static const struct i2c_device_id hdmiphy_id[] = {
 	{ "s5p_hdmiphy", 0 },
+	{ "exynos5-hdmiphy", 0 },
 	{ },
+};
+
+static struct of_device_id hdmiphy_match_types[] = {
+	{
+		.compatible = "samsung,exynos5-hdmiphy",
+	}, {
+		/* end node */
+	}
 };
 
 struct i2c_driver hdmiphy_driver = {
 	.driver = {
-		.name	= "s5p-hdmiphy",
+		.name	= "exynos-hdmiphy",
 		.owner	= THIS_MODULE,
+		.of_match_table = hdmiphy_match_types,
 	},
 	.id_table = hdmiphy_id,
 	.probe		= hdmiphy_probe,

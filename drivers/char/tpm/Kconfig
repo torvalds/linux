@@ -33,6 +33,17 @@ config TCG_TIS
 	  from within Linux.  To compile this driver as a module, choose
 	  M here; the module will be called tpm_tis.
 
+config TCG_TIS_I2C_INFINEON
+	tristate "TPM Interface Specification 1.2 Interface (I2C - Infineon)"
+	depends on I2C
+	---help---
+	  If you have a TPM security chip that is compliant with the
+	  TCG TIS 1.2 TPM specification and Infineon's I2C Protocol Stack
+	  Specification 0.20 say Yes and it will be accessible from within
+	  Linux.
+	  To compile this driver as a module, choose M here; the module
+	  will be called tpm_tis_i2c_infineon.
+
 config TCG_NSC
 	tristate "National Semiconductor TPM Interface"
 	depends on X86
@@ -61,5 +72,13 @@ config TCG_INFINEON
 	  will be called tpm_infineon.
 	  Further information on this driver and the supported hardware
 	  can be found at http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
+
+config TCG_IBMVTPM
+	tristate "IBM VTPM Interface"
+	depends on PPC64
+	---help---
+	  If you have IBM virtual TPM (VTPM) support say Yes and it
+	  will be accessible from within Linux.  To compile this driver
+	  as a module, choose M here; the module will be called tpm_ibmvtpm.
 
 endif # TCG_TPM

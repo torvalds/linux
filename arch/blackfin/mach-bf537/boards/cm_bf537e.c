@@ -25,6 +25,7 @@
 #include <asm/bfin5xx_spi.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
+#include <asm/bfin_sport.h>
 
 /*
  * Name the Board for the /proc/cpuinfo
@@ -142,6 +143,71 @@ static struct platform_device bfin_spi0_device = {
 	},
 };
 #endif  /* spi master and devices */
+
+#if defined(CONFIG_SPI_BFIN_SPORT) || defined(CONFIG_SPI_BFIN_SPORT_MODULE)
+
+/* SPORT SPI controller data */
+static struct bfin5xx_spi_master bfin_sport_spi0_info = {
+	.num_chipselect = MAX_BLACKFIN_GPIOS,
+	.enable_dma = 0,  /* master don't support DMA */
+	.pin_req = {P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_DRPRI,
+		P_SPORT0_RSCLK, P_SPORT0_TFS, P_SPORT0_RFS, 0},
+};
+
+static struct resource bfin_sport_spi0_resource[] = {
+	[0] = {
+		.start = SPORT0_TCR1,
+		.end   = SPORT0_TCR1 + 0xFF,
+		.flags = IORESOURCE_MEM,
+		},
+	[1] = {
+		.start = IRQ_SPORT0_ERROR,
+		.end   = IRQ_SPORT0_ERROR,
+		.flags = IORESOURCE_IRQ,
+		},
+};
+
+static struct platform_device bfin_sport_spi0_device = {
+	.name = "bfin-sport-spi",
+	.id = 1, /* Bus number */
+	.num_resources = ARRAY_SIZE(bfin_sport_spi0_resource),
+	.resource = bfin_sport_spi0_resource,
+	.dev = {
+		.platform_data = &bfin_sport_spi0_info, /* Passed to driver */
+	},
+};
+
+static struct bfin5xx_spi_master bfin_sport_spi1_info = {
+	.num_chipselect = MAX_BLACKFIN_GPIOS,
+	.enable_dma = 0,  /* master don't support DMA */
+	.pin_req = {P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_DRPRI,
+		P_SPORT1_RSCLK, P_SPORT1_TFS, P_SPORT1_RFS, 0},
+};
+
+static struct resource bfin_sport_spi1_resource[] = {
+	[0] = {
+		.start = SPORT1_TCR1,
+		.end   = SPORT1_TCR1 + 0xFF,
+		.flags = IORESOURCE_MEM,
+		},
+	[1] = {
+		.start = IRQ_SPORT1_ERROR,
+		.end   = IRQ_SPORT1_ERROR,
+		.flags = IORESOURCE_IRQ,
+		},
+};
+
+static struct platform_device bfin_sport_spi1_device = {
+	.name = "bfin-sport-spi",
+	.id = 2, /* Bus number */
+	.num_resources = ARRAY_SIZE(bfin_sport_spi1_resource),
+	.resource = bfin_sport_spi1_resource,
+	.dev = {
+		.platform_data = &bfin_sport_spi1_info, /* Passed to driver */
+	},
+};
+
+#endif  /* sport spi master and devices */
 
 #if defined(CONFIG_RTC_DRV_BFIN) || defined(CONFIG_RTC_DRV_BFIN_MODULE)
 static struct platform_device rtc_device = {
@@ -512,6 +578,13 @@ static struct platform_device i2c_bfin_twi_device = {
 };
 #endif
 
+#if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE) \
+|| defined(CONFIG_BFIN_SPORT) || defined(CONFIG_BFIN_SPORT_MODULE)
+unsigned short bfin_sport0_peripherals[] = {
+	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
+	P_SPORT0_DRPRI, P_SPORT0_RSCLK, P_SPORT0_DRSEC, P_SPORT0_DTSEC, 0
+};
+#endif
 #if defined(CONFIG_SERIAL_BFIN_SPORT) || defined(CONFIG_SERIAL_BFIN_SPORT_MODULE)
 #ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
 static struct resource bfin_sport0_uart_resources[] = {
@@ -530,11 +603,6 @@ static struct resource bfin_sport0_uart_resources[] = {
 		.end = IRQ_SPORT0_ERROR,
 		.flags = IORESOURCE_IRQ,
 	},
-};
-
-static unsigned short bfin_sport0_peripherals[] = {
-	P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS,
-	P_SPORT0_DRPRI, P_SPORT0_RSCLK, 0
 };
 
 static struct platform_device bfin_sport0_uart_device = {
@@ -581,6 +649,49 @@ static struct platform_device bfin_sport1_uart_device = {
 	},
 };
 #endif
+#endif
+#if defined(CONFIG_BFIN_SPORT) || defined(CONFIG_BFIN_SPORT_MODULE)
+static struct resource bfin_sport0_resources[] = {
+	{
+		.start = SPORT0_TCR1,
+		.end = SPORT0_MRCS3+4,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_SPORT0_RX,
+		.end = IRQ_SPORT0_RX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT0_TX,
+		.end = IRQ_SPORT0_TX+1,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_SPORT0_ERROR,
+		.end = IRQ_SPORT0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = CH_SPORT0_TX,
+		.end = CH_SPORT0_TX,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = CH_SPORT0_RX,
+		.end = CH_SPORT0_RX,
+		.flags = IORESOURCE_DMA,
+	},
+};
+static struct platform_device bfin_sport0_device = {
+	.name = "bfin_sport_raw",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(bfin_sport0_resources),
+	.resource = bfin_sport0_resources,
+	.dev = {
+		.platform_data = &bfin_sport0_peripherals, /* Passed to driver */
+	},
+};
 #endif
 
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
@@ -684,6 +795,10 @@ static struct platform_device *cm_bf537e_devices[] __initdata = {
 
 	&bfin_dpmc,
 
+#if defined(CONFIG_BFIN_SPORT) || defined(CONFIG_BFIN_SPORT_MODULE)
+	&bfin_sport0_device,
+#endif
+
 #if defined(CONFIG_FB_HITACHI_TX09) || defined(CONFIG_FB_HITACHI_TX09_MODULE)
 	&hitachi_fb_device,
 #endif
@@ -742,6 +857,11 @@ static struct platform_device *cm_bf537e_devices[] __initdata = {
 
 #if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
 	&bfin_spi0_device,
+#endif
+
+#if defined(CONFIG_SPI_BFIN_SPORT) || defined(CONFIG_SPI_BFIN_SPORT_MODULE)
+	&bfin_sport_spi0_device,
+	&bfin_sport_spi1_device,
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)

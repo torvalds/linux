@@ -25,7 +25,7 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 
-#include <plat/lcd_mipid.h>
+#include <linux/platform_data/lcd-mipid.h>
 
 #include "omapfb.h"
 

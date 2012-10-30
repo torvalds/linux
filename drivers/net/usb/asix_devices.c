@@ -221,7 +221,8 @@ static int ax88172_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Get the MAC address */
 	ret = asix_read_cmd(dev, AX88172_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
 	if (ret < 0) {
-		dbg("read AX_CMD_READ_NODE_ID failed: %d", ret);
+		netdev_dbg(dev->net, "read AX_CMD_READ_NODE_ID failed: %d\n",
+			   ret);
 		goto out;
 	}
 	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
@@ -303,7 +304,7 @@ static int ax88772_reset(struct usbnet *dev)
 
 	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
 	if (ret < 0) {
-		dbg("Select PHY #1 failed: %d", ret);
+		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);
 		goto out;
 	}
 
@@ -331,13 +332,13 @@ static int ax88772_reset(struct usbnet *dev)
 
 	msleep(150);
 	rx_ctl = asix_read_rx_ctl(dev);
-	dbg("RX_CTL is 0x%04x after software reset", rx_ctl);
+	netdev_dbg(dev->net, "RX_CTL is 0x%04x after software reset\n", rx_ctl);
 	ret = asix_write_rx_ctl(dev, 0x0000);
 	if (ret < 0)
 		goto out;
 
 	rx_ctl = asix_read_rx_ctl(dev);
-	dbg("RX_CTL is 0x%04x setting to 0x0000", rx_ctl);
+	netdev_dbg(dev->net, "RX_CTL is 0x%04x setting to 0x0000\n", rx_ctl);
 
 	ret = asix_sw_reset(dev, AX_SWRESET_PRL);
 	if (ret < 0)
@@ -364,7 +365,7 @@ static int ax88772_reset(struct usbnet *dev)
 				AX88772_IPG0_DEFAULT | AX88772_IPG1_DEFAULT,
 				AX88772_IPG2_DEFAULT, 0, NULL);
 	if (ret < 0) {
-		dbg("Write IPG,IPG1,IPG2 failed: %d", ret);
+		netdev_dbg(dev->net, "Write IPG,IPG1,IPG2 failed: %d\n", ret);
 		goto out;
 	}
 
@@ -381,10 +382,13 @@ static int ax88772_reset(struct usbnet *dev)
 		goto out;
 
 	rx_ctl = asix_read_rx_ctl(dev);
-	dbg("RX_CTL is 0x%04x after all initializations", rx_ctl);
+	netdev_dbg(dev->net, "RX_CTL is 0x%04x after all initializations\n",
+		   rx_ctl);
 
 	rx_ctl = asix_read_medium_status(dev);
-	dbg("Medium Status is 0x%04x after all initializations", rx_ctl);
+	netdev_dbg(dev->net,
+		   "Medium Status is 0x%04x after all initializations\n",
+		   rx_ctl);
 
 	return 0;
 
@@ -416,7 +420,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Get the MAC address */
 	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
 	if (ret < 0) {
-		dbg("Failed to read MAC address: %d", ret);
+		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
 	}
 	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
@@ -439,7 +443,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Reset the PHY to normal operation mode */
 	ret = asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, embd_phy, 0, 0, NULL);
 	if (ret < 0) {
-		dbg("Select PHY #1 failed: %d", ret);
+		netdev_dbg(dev->net, "Select PHY #1 failed: %d\n", ret);
 		return ret;
 	}
 
@@ -459,7 +463,7 @@ static int ax88772_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Read PHYID register *AFTER* the PHY was reset properly */
 	phyid = asix_get_phyid(dev);
-	dbg("PHYID=0x%08x", phyid);
+	netdev_dbg(dev->net, "PHYID=0x%08x\n", phyid);
 
 	/* Asix framing packs multiple eth frames into a 2K usb bulk transfer */
 	if (dev->driver_info->flags & FLAG_FRAMING_AX) {
@@ -575,13 +579,13 @@ static int ax88178_reset(struct usbnet *dev)
 	u32 phyid;
 
 	asix_read_cmd(dev, AX_CMD_READ_GPIOS, 0, 0, 1, &status);
-	dbg("GPIO Status: 0x%04x", status);
+	netdev_dbg(dev->net, "GPIO Status: 0x%04x\n", status);
 
 	asix_write_cmd(dev, AX_CMD_WRITE_ENABLE, 0, 0, 0, NULL);
 	asix_read_cmd(dev, AX_CMD_READ_EEPROM, 0x0017, 0, 2, &eeprom);
 	asix_write_cmd(dev, AX_CMD_WRITE_DISABLE, 0, 0, 0, NULL);
 
-	dbg("EEPROM index 0x17 is 0x%04x", eeprom);
+	netdev_dbg(dev->net, "EEPROM index 0x17 is 0x%04x\n", eeprom);
 
 	if (eeprom == cpu_to_le16(0xffff)) {
 		data->phymode = PHY_MODE_MARVELL;
@@ -592,7 +596,7 @@ static int ax88178_reset(struct usbnet *dev)
 		data->ledmode = le16_to_cpu(eeprom) >> 8;
 		gpio0 = (le16_to_cpu(eeprom) & 0x80) ? 0 : 1;
 	}
-	dbg("GPIO0: %d, PhyMode: %d", gpio0, data->phymode);
+	netdev_dbg(dev->net, "GPIO0: %d, PhyMode: %d\n", gpio0, data->phymode);
 
 	/* Power up external GigaPHY through AX88178 GPIO pin */
 	asix_write_gpio(dev, AX_GPIO_RSE | AX_GPIO_GPO_1 | AX_GPIO_GPO1EN, 40);
@@ -601,14 +605,14 @@ static int ax88178_reset(struct usbnet *dev)
 		asix_write_gpio(dev, 0x001c, 300);
 		asix_write_gpio(dev, 0x003c, 30);
 	} else {
-		dbg("gpio phymode == 1 path");
+		netdev_dbg(dev->net, "gpio phymode == 1 path\n");
 		asix_write_gpio(dev, AX_GPIO_GPO1EN, 30);
 		asix_write_gpio(dev, AX_GPIO_GPO1EN | AX_GPIO_GPO_1, 30);
 	}
 
 	/* Read PHYID register *AFTER* powering up PHY */
 	phyid = asix_get_phyid(dev);
-	dbg("PHYID=0x%08x", phyid);
+	netdev_dbg(dev->net, "PHYID=0x%08x\n", phyid);
 
 	/* Set AX88178 to enable MII/GMII/RGMII interface for external PHY */
 	asix_write_cmd(dev, AX_CMD_SW_PHY_SELECT, 0, 0, 0, NULL);
@@ -770,7 +774,7 @@ static int ax88178_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Get the MAC address */
 	ret = asix_read_cmd(dev, AX_CMD_READ_NODE_ID, 0, 0, ETH_ALEN, buf);
 	if (ret < 0) {
-		dbg("Failed to read MAC address: %d", ret);
+		netdev_dbg(dev->net, "Failed to read MAC address: %d\n", ret);
 		return ret;
 	}
 	memcpy(dev->net->dev_addr, buf, ETH_ALEN);
@@ -930,6 +934,10 @@ static const struct usb_device_id	products [] = {
 	USB_DEVICE (0x04f1, 0x3008),
 	.driver_info = (unsigned long) &ax8817x_info,
 }, {
+	// Lenovo U2L100P 10/100
+	USB_DEVICE (0x17ef, 0x7203),
+	.driver_info = (unsigned long) &ax88772_info,
+}, {
 	// ASIX AX88772B 10/100
 	USB_DEVICE (0x0b95, 0x772b),
 	.driver_info = (unsigned long) &ax88772_info,
@@ -961,6 +969,10 @@ static const struct usb_device_id	products [] = {
 	// DLink DUB-E100 H/W Ver B1 Alternate
 	USB_DEVICE (0x2001, 0x3c05),
 	.driver_info = (unsigned long) &ax88772_info,
+}, {
+       // DLink DUB-E100 H/W Ver C1
+       USB_DEVICE (0x2001, 0x1a02),
+       .driver_info = (unsigned long) &ax88772_info,
 }, {
 	// Linksys USB1000
 	USB_DEVICE (0x1737, 0x0039),

@@ -2489,7 +2489,7 @@ static void atl1e_io_resume(struct pci_dev *pdev)
 	netif_device_attach(netdev);
 }
 
-static struct pci_error_handlers atl1e_err_handler = {
+static const struct pci_error_handlers atl1e_err_handler = {
 	.error_detected = atl1e_io_error_detected,
 	.slot_reset = atl1e_io_slot_reset,
 	.resume = atl1e_io_resume,

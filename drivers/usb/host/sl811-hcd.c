@@ -156,7 +156,7 @@ static void setup_packet(
 	writeb(SL_SETUP /* | ep->epnum */, data_reg);
 	writeb(usb_pipedevice(urb->pipe), data_reg);
 
-	/* always OUT/data0 */ ;
+	/* always OUT/data0 */
 	sl811_write(sl811, bank + SL11H_HOSTCTLREG,
 			control | SL11H_HCTLMASK_OUT);
 	ep->length = 0;

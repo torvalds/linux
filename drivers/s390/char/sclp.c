@@ -334,7 +334,7 @@ sclp_dispatch_evbufs(struct sccb_header *sccb)
 			reg->receiver_fn(evbuf);
 			spin_lock_irqsave(&sclp_lock, flags);
 		} else if (reg == NULL)
-			rc = -ENOSYS;
+			rc = -EOPNOTSUPP;
 	}
 	spin_unlock_irqrestore(&sclp_lock, flags);
 	return rc;

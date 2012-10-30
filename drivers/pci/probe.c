@@ -606,10 +606,10 @@ static void pci_set_bus_speed(struct pci_bus *bus)
 		u32 linkcap;
 		u16 linksta;
 
-		pci_read_config_dword(bridge, pos + PCI_EXP_LNKCAP, &linkcap);
+		pcie_capability_read_dword(bridge, PCI_EXP_LNKCAP, &linkcap);
 		bus->max_bus_speed = pcie_link_speed[linkcap & 0xf];
 
-		pci_read_config_word(bridge, pos + PCI_EXP_LNKSTA, &linksta);
+		pcie_capability_read_word(bridge, PCI_EXP_LNKSTA, &linksta);
 		pcie_update_link_speed(bus, linksta);
 	}
 }
@@ -729,8 +729,10 @@ int __devinit pci_scan_bridge(struct pci_bus *bus, struct pci_dev *dev, int max,
 
 	/* Check if setup is sensible at all */
 	if (!pass &&
-	    (primary != bus->number || secondary <= bus->number)) {
-		dev_dbg(&dev->dev, "bus configuration invalid, reconfiguring\n");
+	    (primary != bus->number || secondary <= bus->number ||
+	     secondary > subordinate)) {
+		dev_info(&dev->dev, "bridge configuration invalid ([bus %02x-%02x]), reconfiguring\n",
+			 secondary, subordinate);
 		broken = 1;
 	}
 
@@ -932,24 +934,16 @@ void set_pcie_port_type(struct pci_dev *pdev)
 	pdev->is_pcie = 1;
 	pdev->pcie_cap = pos;
 	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
-	pdev->pcie_type = (reg16 & PCI_EXP_FLAGS_TYPE) >> 4;
+	pdev->pcie_flags_reg = reg16;
 	pci_read_config_word(pdev, pos + PCI_EXP_DEVCAP, &reg16);
 	pdev->pcie_mpss = reg16 & PCI_EXP_DEVCAP_PAYLOAD;
 }
 
 void set_pcie_hotplug_bridge(struct pci_dev *pdev)
 {
-	int pos;
-	u16 reg16;
 	u32 reg32;
 
-	pos = pci_pcie_cap(pdev);
-	if (!pos)
-		return;
-	pci_read_config_word(pdev, pos + PCI_EXP_FLAGS, &reg16);
-	if (!(reg16 & PCI_EXP_FLAGS_SLOT))
-		return;
-	pci_read_config_dword(pdev, pos + PCI_EXP_SLTCAP, &reg32);
+	pcie_capability_read_dword(pdev, PCI_EXP_SLTCAP, &reg32);
 	if (reg32 & PCI_EXP_SLTCAP_HPC)
 		pdev->is_hotplug_bridge = 1;
 }
@@ -1163,8 +1157,7 @@ int pci_cfg_space_size(struct pci_dev *dev)
 	if (class == PCI_CLASS_BRIDGE_HOST)
 		return pci_cfg_space_size_ext(dev);
 
-	pos = pci_pcie_cap(dev);
-	if (!pos) {
+	if (!pci_is_pcie(dev)) {
 		pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 		if (!pos)
 			goto fail;
@@ -1386,9 +1379,9 @@ static int only_one_child(struct pci_bus *bus)
 
 	if (!parent || !pci_is_pcie(parent))
 		return 0;
-	if (parent->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+	if (pci_pcie_type(parent) == PCI_EXP_TYPE_ROOT_PORT)
 		return 1;
-	if (parent->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
+	if (pci_pcie_type(parent) == PCI_EXP_TYPE_DOWNSTREAM &&
 	    !pci_has_flag(PCI_SCAN_ALL_PCIE_DEVS))
 		return 1;
 	return 0;
@@ -1465,7 +1458,7 @@ static int pcie_find_smpss(struct pci_dev *dev, void *data)
 	 */
 	if (dev->is_hotplug_bridge && (!list_is_singular(&dev->bus->devices) ||
 	     (dev->bus->self &&
-	      dev->bus->self->pcie_type != PCI_EXP_TYPE_ROOT_PORT)))
+	      pci_pcie_type(dev->bus->self) != PCI_EXP_TYPE_ROOT_PORT)))
 		*smpss = 0;
 
 	if (*smpss > dev->pcie_mpss)
@@ -1481,7 +1474,8 @@ static void pcie_write_mps(struct pci_dev *dev, int mps)
 	if (pcie_bus_config == PCIE_BUS_PERFORMANCE) {
 		mps = 128 << dev->pcie_mpss;
 
-		if (dev->pcie_type != PCI_EXP_TYPE_ROOT_PORT && dev->bus->self)
+		if (pci_pcie_type(dev) != PCI_EXP_TYPE_ROOT_PORT &&
+		    dev->bus->self)
 			/* For "Performance", the assumption is made that
 			 * downstream communication will never be larger than
 			 * the MRRS.  So, the MPS only needs to be configured
@@ -1756,11 +1750,6 @@ int pci_bus_insert_busn_res(struct pci_bus *b, int bus, int bus_max)
 			   "busn_res: can not insert %pR under %s%pR (conflicts with %s %pR)\n",
 			    res, pci_is_root_bus(b) ? "domain " : "",
 			    parent_res, conflict->name, conflict);
-	else
-		dev_printk(KERN_DEBUG, &b->dev,
-			   "busn_res: %pR is inserted under %s%pR\n",
-			   res, pci_is_root_bus(b) ? "domain " : "",
-			   parent_res);
 
 	return conflict == NULL;
 }

@@ -501,7 +501,9 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			}
 			dqblk = (struct ocfs2_local_disk_dqblk *)(qbh->b_data +
 				ol_dqblk_block_off(sb, chunk, bit));
-			dquot = dqget(sb, le64_to_cpu(dqblk->dqb_id), type);
+			dquot = dqget(sb,
+				      make_kqid(&init_user_ns, type,
+						le64_to_cpu(dqblk->dqb_id)));
 			if (!dquot) {
 				status = -EIO;
 				mlog(ML_ERROR, "Failed to get quota structure "
@@ -881,7 +883,8 @@ static void olq_set_dquot(struct buffer_head *bh, void *private)
 	dqblk = (struct ocfs2_local_disk_dqblk *)(bh->b_data
 		+ ol_dqblk_block_offset(sb, od->dq_local_off));
 
-	dqblk->dqb_id = cpu_to_le64(od->dq_dquot.dq_id);
+	dqblk->dqb_id = cpu_to_le64(from_kqid(&init_user_ns,
+					      od->dq_dquot.dq_id));
 	spin_lock(&dq_data_lock);
 	dqblk->dqb_spacemod = cpu_to_le64(od->dq_dquot.dq_dqb.dqb_curspace -
 					  od->dq_origspace);
@@ -891,7 +894,7 @@ static void olq_set_dquot(struct buffer_head *bh, void *private)
 	trace_olq_set_dquot(
 		(unsigned long long)le64_to_cpu(dqblk->dqb_spacemod),
 		(unsigned long long)le64_to_cpu(dqblk->dqb_inodemod),
-		od->dq_dquot.dq_id);
+		from_kqid(&init_user_ns, od->dq_dquot.dq_id));
 }
 
 /* Write dquot to local quota file */
@@ -900,7 +903,7 @@ int ocfs2_local_write_dquot(struct dquot *dquot)
 	struct super_block *sb = dquot->dq_sb;
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
 	struct buffer_head *bh;
-	struct inode *lqinode = sb_dqopt(sb)->files[dquot->dq_type];
+	struct inode *lqinode = sb_dqopt(sb)->files[dquot->dq_id.type];
 	int status;
 
 	status = ocfs2_read_quota_phys_block(lqinode, od->dq_local_phys_blk,
@@ -1221,7 +1224,7 @@ static void olq_alloc_dquot(struct buffer_head *bh, void *private)
 int ocfs2_create_local_dquot(struct dquot *dquot)
 {
 	struct super_block *sb = dquot->dq_sb;
-	int type = dquot->dq_type;
+	int type = dquot->dq_id.type;
 	struct inode *lqinode = sb_dqopt(sb)->files[type];
 	struct ocfs2_quota_chunk *chunk;
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
@@ -1275,7 +1278,7 @@ out:
 int ocfs2_local_release_dquot(handle_t *handle, struct dquot *dquot)
 {
 	int status;
-	int type = dquot->dq_type;
+	int type = dquot->dq_id.type;
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
 	struct super_block *sb = dquot->dq_sb;
 	struct ocfs2_local_disk_chunk *dchunk;

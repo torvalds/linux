@@ -28,6 +28,7 @@
 #include <asm/ioctls.h>
 
 #include <net/bluetooth/bluetooth.h>
+#include <linux/proc_fs.h>
 
 #define VERSION "2.16"
 
@@ -531,6 +532,144 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 	return err;
 }
 EXPORT_SYMBOL(bt_sock_wait_state);
+
+#ifdef CONFIG_PROC_FS
+struct bt_seq_state {
+	struct bt_sock_list *l;
+};
+
+static void *bt_seq_start(struct seq_file *seq, loff_t *pos)
+	__acquires(seq->private->l->lock)
+{
+	struct bt_seq_state *s = seq->private;
+	struct bt_sock_list *l = s->l;
+
+	read_lock(&l->lock);
+	return seq_hlist_start_head(&l->head, *pos);
+}
+
+static void *bt_seq_next(struct seq_file *seq, void *v, loff_t *pos)
+{
+	struct bt_seq_state *s = seq->private;
+	struct bt_sock_list *l = s->l;
+
+	return seq_hlist_next(v, &l->head, pos);
+}
+
+static void bt_seq_stop(struct seq_file *seq, void *v)
+	__releases(seq->private->l->lock)
+{
+	struct bt_seq_state *s = seq->private;
+	struct bt_sock_list *l = s->l;
+
+	read_unlock(&l->lock);
+}
+
+static int bt_seq_show(struct seq_file *seq, void *v)
+{
+	struct bt_seq_state *s = seq->private;
+	struct bt_sock_list *l = s->l;
+	bdaddr_t src_baswapped, dst_baswapped;
+
+	if (v == SEQ_START_TOKEN) {
+		seq_puts(seq ,"sk               RefCnt Rmem   Wmem   User   Inode  Src Dst Parent");
+
+		if (l->custom_seq_show) {
+			seq_putc(seq, ' ');
+			l->custom_seq_show(seq, v);
+		}
+
+		seq_putc(seq, '\n');
+	} else {
+		struct sock *sk = sk_entry(v);
+		struct bt_sock *bt = bt_sk(sk);
+		baswap(&src_baswapped, &bt->src);
+		baswap(&dst_baswapped, &bt->dst);
+
+		seq_printf(seq, "%pK %-6d %-6u %-6u %-6u %-6lu %pM %pM %-6lu",
+			   sk,
+			   atomic_read(&sk->sk_refcnt),
+			   sk_rmem_alloc_get(sk),
+			   sk_wmem_alloc_get(sk),
+			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
+			   sock_i_ino(sk),
+			   &src_baswapped,
+			   &dst_baswapped,
+			   bt->parent? sock_i_ino(bt->parent): 0LU);
+
+		if (l->custom_seq_show) {
+			seq_putc(seq, ' ');
+			l->custom_seq_show(seq, v);
+		}
+
+		seq_putc(seq, '\n');
+	}
+	return 0;
+}
+
+static struct seq_operations bt_seq_ops = {
+	.start = bt_seq_start,
+	.next  = bt_seq_next,
+	.stop  = bt_seq_stop,
+	.show  = bt_seq_show,
+};
+
+static int bt_seq_open(struct inode *inode, struct file *file)
+{
+	struct bt_sock_list *sk_list;
+	struct bt_seq_state *s;
+
+	sk_list = PDE(inode)->data;
+	s = __seq_open_private(file, &bt_seq_ops,
+			       sizeof(struct bt_seq_state));
+	if (!s)
+		return -ENOMEM;
+
+	s->l = sk_list;
+	return 0;
+}
+
+int bt_procfs_init(struct module* module, struct net *net, const char *name,
+		   struct bt_sock_list* sk_list,
+		   int (* seq_show)(struct seq_file *, void *))
+{
+	struct proc_dir_entry * pde;
+
+	sk_list->custom_seq_show = seq_show;
+
+	sk_list->fops.owner     = module;
+	sk_list->fops.open      = bt_seq_open;
+	sk_list->fops.read      = seq_read;
+	sk_list->fops.llseek    = seq_lseek;
+	sk_list->fops.release   = seq_release_private;
+
+	pde = proc_net_fops_create(net, name, 0, &sk_list->fops);
+	if (!pde)
+		return -ENOMEM;
+
+	pde->data = sk_list;
+
+	return 0;
+}
+
+void bt_procfs_cleanup(struct net *net, const char *name)
+{
+	proc_net_remove(net, name);
+}
+#else
+int bt_procfs_init(struct module* module, struct net *net, const char *name,
+		   struct bt_sock_list* sk_list,
+		   int (* seq_show)(struct seq_file *, void *))
+{
+	return 0;
+}
+
+void bt_procfs_cleanup(struct net *net, const char *name)
+{
+}
+#endif
+EXPORT_SYMBOL(bt_procfs_init);
+EXPORT_SYMBOL(bt_procfs_cleanup);
 
 static struct net_proto_family bt_sock_family_ops = {
 	.owner	= THIS_MODULE,

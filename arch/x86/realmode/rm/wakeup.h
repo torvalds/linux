@@ -36,5 +36,7 @@ extern struct wakeup_header wakeup_header;
 
 /* Wakeup behavior bits */
 #define WAKEUP_BEHAVIOR_RESTORE_MISC_ENABLE     0
+#define WAKEUP_BEHAVIOR_RESTORE_CR4		1
+#define WAKEUP_BEHAVIOR_RESTORE_EFER		2
 
 #endif /* ARCH_X86_KERNEL_ACPI_RM_WAKEUP_H */

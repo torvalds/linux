@@ -20,6 +20,8 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
+#include <linux/etherdevice.h>
+
 #include "dot11d.h"
 
 u8 rsn_authen_cipher_suite[16][4] = {
@@ -269,7 +271,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		else
 			ieee->seq_ctrl[0]++;
 
-		/* check wether the managed packet queued greater than 5 */
+		/* check whether the managed packet queued greater than 5 */
 		if(!ieee->check_nic_enough_desc(ieee->dev,tcb_desc->queue_index)||\
 				(skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0)||\
 				(ieee->queue_stop) ) {
@@ -1448,7 +1450,7 @@ inline void ieee80211_softmac_new_net(struct ieee80211_device *ieee, struct ieee
 			( apset && apmatch &&
 				((ssidset && ssidbroad && ssidmatch) || (ssidbroad && !ssidset) || (!ssidbroad && ssidset)) ) ||
 			/* if the ap is not set, check that the user set the bssid
-			 * and the network does bradcast and that those two bssid matches
+			 * and the network does broadcast and that those two bssid matches
 			 */
 			(!apset && ssidset && ssidbroad && ssidmatch)
 			){
@@ -2286,13 +2288,7 @@ void ieee80211_stop_queue(struct ieee80211_device *ieee)
 inline void ieee80211_randomize_cell(struct ieee80211_device *ieee)
 {
 
-	get_random_bytes(ieee->current_network.bssid, ETH_ALEN);
-
-	/* an IBSS cell address must have the two less significant
-	 * bits of the first byte = 2
-	 */
-	ieee->current_network.bssid[0] &= ~0x01;
-	ieee->current_network.bssid[0] |= 0x02;
+	random_ether_addr(ieee->current_network.bssid);
 }
 
 /* called in user context only */
@@ -2520,7 +2516,7 @@ void ieee80211_associate_retry_wq(struct work_struct *work)
 
 	/* until we do not set the state to IEEE80211_NOLINK
 	* there are no possibility to have someone else trying
-	* to start an association procdure (we get here with
+	* to start an association procedure (we get here with
 	* ieee->state = IEEE80211_ASSOCIATING).
 	* When we set the state to IEEE80211_NOLINK it is possible
 	* that the RX path run an attempt to associate, but
@@ -2969,9 +2965,7 @@ static int ieee80211_wpa_set_encryption(struct ieee80211_device *ieee,
 			       param->u.crypt.key_len);
 		return -EINVAL;
 	}
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (param->u.crypt.idx >= WEP_KEYS)
 			return -EINVAL;
 		crypt = &ieee->crypt[param->u.crypt.idx];

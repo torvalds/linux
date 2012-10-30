@@ -43,7 +43,7 @@ void exynos_dp_init_interrupt(struct exynos_dp_device *dp);
 void exynos_dp_reset(struct exynos_dp_device *dp);
 void exynos_dp_swreset(struct exynos_dp_device *dp);
 void exynos_dp_config_interrupt(struct exynos_dp_device *dp);
-u32 exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp);
+enum pll_status exynos_dp_get_pll_lock_status(struct exynos_dp_device *dp);
 void exynos_dp_set_pll_power_down(struct exynos_dp_device *dp, bool enable);
 void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
 				enum analog_power_block block,
@@ -105,7 +105,7 @@ u32 exynos_dp_get_lane1_link_training(struct exynos_dp_device *dp);
 u32 exynos_dp_get_lane2_link_training(struct exynos_dp_device *dp);
 u32 exynos_dp_get_lane3_link_training(struct exynos_dp_device *dp);
 void exynos_dp_reset_macro(struct exynos_dp_device *dp);
-int exynos_dp_init_video(struct exynos_dp_device *dp);
+void exynos_dp_init_video(struct exynos_dp_device *dp);
 
 void exynos_dp_set_video_color_format(struct exynos_dp_device *dp,
 				u32 color_depth,
@@ -144,7 +144,7 @@ void exynos_dp_disable_scrambling(struct exynos_dp_device *dp);
 #define DPCD_ADDR_TRAINING_PATTERN_SET		0x0102
 #define DPCD_ADDR_TRAINING_LANE0_SET		0x0103
 #define DPCD_ADDR_LANE0_1_STATUS		0x0202
-#define DPCD_ADDR_LANE_ALIGN__STATUS_UPDATED	0x0204
+#define DPCD_ADDR_LANE_ALIGN_STATUS_UPDATED	0x0204
 #define DPCD_ADDR_ADJUST_REQUEST_LANE0_1	0x0206
 #define DPCD_ADDR_ADJUST_REQUEST_LANE2_3	0x0207
 #define DPCD_ADDR_TEST_REQUEST			0x0218

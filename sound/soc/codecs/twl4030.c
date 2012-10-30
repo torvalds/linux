@@ -26,8 +26,11 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 #include <linux/i2c/twl.h>
 #include <linux/slab.h>
+#include <linux/gpio.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -152,8 +155,7 @@ struct twl4030_priv {
 	u8 predrivel_enabled, predriver_enabled;
 	u8 carkitl_enabled, carkitr_enabled;
 
-	/* Delay needed after enabling the digimic interface */
-	unsigned int digimic_delay;
+	struct twl4030_codec_data *pdata;
 };
 
 /*
@@ -295,12 +297,72 @@ static inline void twl4030_reset_registers(struct snd_soc_codec *codec)
 
 }
 
-static void twl4030_init_chip(struct snd_soc_codec *codec)
+static void twl4030_setup_pdata_of(struct twl4030_codec_data *pdata,
+				   struct device_node *node)
+{
+	int value;
+
+	of_property_read_u32(node, "ti,digimic_delay",
+			     &pdata->digimic_delay);
+	of_property_read_u32(node, "ti,ramp_delay_value",
+			     &pdata->ramp_delay_value);
+	of_property_read_u32(node, "ti,offset_cncl_path",
+			     &pdata->offset_cncl_path);
+	if (!of_property_read_u32(node, "ti,hs_extmute", &value))
+		pdata->hs_extmute = value;
+
+	pdata->hs_extmute_gpio = of_get_named_gpio(node,
+						   "ti,hs_extmute_gpio", 0);
+	if (gpio_is_valid(pdata->hs_extmute_gpio))
+		pdata->hs_extmute = 1;
+}
+
+static struct twl4030_codec_data *twl4030_get_pdata(struct snd_soc_codec *codec)
 {
 	struct twl4030_codec_data *pdata = dev_get_platdata(codec->dev);
+	struct device_node *twl4030_codec_node = NULL;
+
+	twl4030_codec_node = of_find_node_by_name(codec->dev->parent->of_node,
+						  "codec");
+
+	if (!pdata && twl4030_codec_node) {
+		pdata = devm_kzalloc(codec->dev,
+				     sizeof(struct twl4030_codec_data),
+				     GFP_KERNEL);
+		if (!pdata) {
+			dev_err(codec->dev, "Can not allocate memory\n");
+			return NULL;
+		}
+		twl4030_setup_pdata_of(pdata, twl4030_codec_node);
+	}
+
+	return pdata;
+}
+
+static void twl4030_init_chip(struct snd_soc_codec *codec)
+{
+	struct twl4030_codec_data *pdata;
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	u8 reg, byte;
 	int i = 0;
+
+	pdata = twl4030_get_pdata(codec);
+
+	if (pdata && pdata->hs_extmute &&
+	    gpio_is_valid(pdata->hs_extmute_gpio)) {
+		int ret;
+
+		if (!pdata->hs_extmute_gpio)
+			dev_warn(codec->dev,
+				 "Extmute GPIO is 0 is this correct?\n");
+
+		ret = gpio_request_one(pdata->hs_extmute_gpio,
+				       GPIOF_OUT_INIT_LOW, "hs_extmute");
+		if (ret) {
+			dev_err(codec->dev, "Failed to get hs_extmute GPIO\n");
+			pdata->hs_extmute_gpio = -1;
+		}
+	}
 
 	/* Check defaults, if instructed before anything else */
 	if (pdata && pdata->check_defaults)
@@ -331,7 +393,7 @@ static void twl4030_init_chip(struct snd_soc_codec *codec)
 	if (!pdata)
 		return;
 
-	twl4030->digimic_delay = pdata->digimic_delay;
+	twl4030->pdata = pdata;
 
 	reg = twl4030_read_reg_cache(codec, TWL4030_REG_HS_POPN_SET);
 	reg &= ~TWL4030_RAMP_DELAY;
@@ -732,9 +794,9 @@ static int aif_event(struct snd_soc_dapm_widget *w,
 
 static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 {
-	struct twl4030_codec_data *pdata = codec->dev->platform_data;
 	unsigned char hs_gain, hs_pop;
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
+	struct twl4030_codec_data *pdata = twl4030->pdata;
 	/* Base values for ramp delay calculation: 2^19 - 2^26 */
 	unsigned int ramp_base[] = {524288, 1048576, 2097152, 4194304,
 				    8388608, 16777216, 33554432, 67108864};
@@ -748,8 +810,8 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 	/* Enable external mute control, this dramatically reduces
 	 * the pop-noise */
 	if (pdata && pdata->hs_extmute) {
-		if (pdata->set_hs_extmute) {
-			pdata->set_hs_extmute(1);
+		if (gpio_is_valid(pdata->hs_extmute_gpio)) {
+			gpio_set_value(pdata->hs_extmute_gpio, 1);
 		} else {
 			hs_pop |= TWL4030_EXTMUTE;
 			twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
@@ -786,8 +848,8 @@ static void headset_ramp(struct snd_soc_codec *codec, int ramp)
 
 	/* Disable external mute */
 	if (pdata && pdata->hs_extmute) {
-		if (pdata->set_hs_extmute) {
-			pdata->set_hs_extmute(0);
+		if (gpio_is_valid(pdata->hs_extmute_gpio)) {
+			gpio_set_value(pdata->hs_extmute_gpio, 0);
 		} else {
 			hs_pop &= ~TWL4030_EXTMUTE;
 			twl4030_write(codec, TWL4030_REG_HS_POPN_SET, hs_pop);
@@ -847,9 +909,10 @@ static int digimic_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(w->codec);
+	struct twl4030_codec_data *pdata = twl4030->pdata;
 
-	if (twl4030->digimic_delay)
-		twl4030_wait_ms(twl4030->digimic_delay);
+	if (pdata && pdata->digimic_delay)
+		twl4030_wait_ms(pdata->digimic_delay);
 	return 0;
 }
 
@@ -999,7 +1062,7 @@ static int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned short val;
-	unsigned short mask, bitmask;
+	unsigned short mask;
 
 	if (twl4030->configured) {
 		dev_err(codec->dev,
@@ -1007,18 +1070,16 @@ static int snd_soc_put_twl4030_opmode_enum_double(struct snd_kcontrol *kcontrol,
 		return -EBUSY;
 	}
 
-	for (bitmask = 1; bitmask < e->max; bitmask <<= 1)
-		;
 	if (ucontrol->value.enumerated.item[0] > e->max - 1)
 		return -EINVAL;
 
 	val = ucontrol->value.enumerated.item[0] << e->shift_l;
-	mask = (bitmask - 1) << e->shift_l;
+	mask = e->mask << e->shift_l;
 	if (e->shift_l != e->shift_r) {
 		if (ucontrol->value.enumerated.item[1] > e->max - 1)
 			return -EINVAL;
 		val |= ucontrol->value.enumerated.item[1] << e->shift_r;
-		mask |= (bitmask - 1) << e->shift_r;
+		mask |= e->mask << e->shift_r;
 	}
 
 	return snd_soc_update_bits(codec, e->reg, mask, val);
@@ -1239,16 +1300,11 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("Virtual Voice OUT"),
 
 	/* DACs */
-	SND_SOC_DAPM_DAC("DAC Right1", "Right Front HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Left1", "Left Front HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Right2", "Right Rear HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Left2", "Left Rear HiFi Playback",
-			SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_DAC("DAC Voice", "Voice Playback",
-			SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Right1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Left1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Right2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Left2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC("DAC Voice", NULL, SND_SOC_NOPM, 0, 0),
 
 	/* Analog bypasses */
 	SND_SOC_DAPM_SWITCH("Right1 Analog Loopback", SND_SOC_NOPM, 0, 0,
@@ -1377,14 +1433,10 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 
 	/* Introducing four virtual ADC, since TWL4030 have four channel for
 	   capture */
-	SND_SOC_DAPM_ADC("ADC Virtual Left1", "Left Front Capture",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC Virtual Right1", "Right Front Capture",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC Virtual Left2", "Left Rear Capture",
-		SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_ADC("ADC Virtual Right2", "Right Rear Capture",
-		SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Left1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Right1", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Left2", NULL, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_ADC("ADC Virtual Right2", NULL, SND_SOC_NOPM, 0, 0),
 
 	/* Analog/Digital mic path selection.
 	   TX1 Left/Right: either analog Left/Right or Digimic0
@@ -1428,6 +1480,23 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route intercon[] = {
+	/* Stream -> DAC mapping */
+	{"DAC Right1", NULL, "HiFi Playback"},
+	{"DAC Left1", NULL, "HiFi Playback"},
+	{"DAC Right2", NULL, "HiFi Playback"},
+	{"DAC Left2", NULL, "HiFi Playback"},
+	{"DAC Voice", NULL, "Voice Playback"},
+
+	/* ADC -> Stream mapping */
+	{"HiFi Capture", NULL, "ADC Virtual Left1"},
+	{"HiFi Capture", NULL, "ADC Virtual Right1"},
+	{"HiFi Capture", NULL, "ADC Virtual Left2"},
+	{"HiFi Capture", NULL, "ADC Virtual Right2"},
+	{"Voice Capture", NULL, "ADC Virtual Left1"},
+	{"Voice Capture", NULL, "ADC Virtual Right1"},
+	{"Voice Capture", NULL, "ADC Virtual Left2"},
+	{"Voice Capture", NULL, "ADC Virtual Right2"},
+
 	{"Digital L1 Playback Mixer", NULL, "DAC Left1"},
 	{"Digital R1 Playback Mixer", NULL, "DAC Right1"},
 	{"Digital L2 Playback Mixer", NULL, "DAC Left2"},
@@ -2172,7 +2241,7 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 		.formats = TWL4030_FORMATS,
 		.sig_bits = 24,},
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "HiFi Capture",
 		.channels_min = 2,
 		.channels_max = 4,
 		.rates = TWL4030_RATES,
@@ -2189,7 +2258,7 @@ static struct snd_soc_dai_driver twl4030_dai[] = {
 		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,},
 	.capture = {
-		.stream_name = "Capture",
+		.stream_name = "Voice Capture",
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000,
@@ -2214,7 +2283,8 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 {
 	struct twl4030_priv *twl4030;
 
-	twl4030 = kzalloc(sizeof(struct twl4030_priv), GFP_KERNEL);
+	twl4030 = devm_kzalloc(codec->dev, sizeof(struct twl4030_priv),
+			       GFP_KERNEL);
 	if (twl4030 == NULL) {
 		dev_err(codec->dev, "Can not allocate memory\n");
 		return -ENOMEM;
@@ -2231,11 +2301,15 @@ static int twl4030_soc_probe(struct snd_soc_codec *codec)
 static int twl4030_soc_remove(struct snd_soc_codec *codec)
 {
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
+	struct twl4030_codec_data *pdata = twl4030->pdata;
 
 	/* Reset registers to their chip default before leaving */
 	twl4030_reset_registers(codec);
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	kfree(twl4030);
+
+	if (pdata && pdata->hs_extmute && gpio_is_valid(pdata->hs_extmute_gpio))
+		gpio_free(pdata->hs_extmute_gpio);
+
 	return 0;
 }
 
@@ -2262,13 +2336,6 @@ static struct snd_soc_codec_driver soc_codec_dev_twl4030 = {
 
 static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 {
-	struct twl4030_codec_data *pdata = pdev->dev.platform_data;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "platform_data is missing\n");
-		return -EINVAL;
-	}
-
 	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_twl4030,
 			twl4030_dai, ARRAY_SIZE(twl4030_dai));
 }

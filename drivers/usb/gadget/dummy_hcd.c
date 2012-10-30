@@ -909,6 +909,7 @@ static int dummy_udc_start(struct usb_gadget *g,
 	dum->devstatus = 0;
 
 	dum->driver = driver;
+	dum->gadget.dev.driver = &driver->driver;
 	dev_dbg(udc_dev(dum), "binding gadget driver '%s'\n",
 			driver->driver.name);
 	return 0;
@@ -923,6 +924,7 @@ static int dummy_udc_stop(struct usb_gadget *g,
 	dev_dbg(udc_dev(dum), "unregister gadget driver '%s'\n",
 			driver->driver.name);
 
+	dum->gadget.dev.driver = NULL;
 	dum->driver = NULL;
 
 	return 0;
@@ -1916,6 +1918,27 @@ done:
 	return retval;
 }
 
+/* usb 3.0 root hub device descriptor */
+struct {
+	struct usb_bos_descriptor bos;
+	struct usb_ss_cap_descriptor ss_cap;
+} __packed usb3_bos_desc = {
+
+	.bos = {
+		.bLength		= USB_DT_BOS_SIZE,
+		.bDescriptorType	= USB_DT_BOS,
+		.wTotalLength		= cpu_to_le16(sizeof(usb3_bos_desc)),
+		.bNumDeviceCaps		= 1,
+	},
+	.ss_cap = {
+		.bLength		= USB_DT_USB_SS_CAP_SIZE,
+		.bDescriptorType	= USB_DT_DEVICE_CAPABILITY,
+		.bDevCapabilityType	= USB_SS_CAP_TYPE,
+		.wSpeedSupported	= cpu_to_le16(USB_5GBPS_OPERATION),
+		.bFunctionalitySupport	= ilog2(USB_5GBPS_OPERATION),
+	},
+};
+
 static inline void
 ss_hub_descriptor(struct usb_hub_descriptor *desc)
 {
@@ -2006,6 +2029,18 @@ static int dummy_hub_control(
 		else
 			hub_descriptor((struct usb_hub_descriptor *) buf);
 		break;
+
+	case DeviceRequest | USB_REQ_GET_DESCRIPTOR:
+		if (hcd->speed != HCD_USB3)
+			goto error;
+
+		if ((wValue >> 8) != USB_DT_BOS)
+			goto error;
+
+		memcpy(buf, &usb3_bos_desc, sizeof(usb3_bos_desc));
+		retval = sizeof(usb3_bos_desc);
+		break;
+
 	case GetHubStatus:
 		*(__le32 *) buf = cpu_to_le32(0);
 		break;
@@ -2503,10 +2538,8 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 	hs_hcd->has_tt = 1;
 
 	retval = usb_add_hcd(hs_hcd, 0, 0);
-	if (retval != 0) {
-		usb_put_hcd(hs_hcd);
-		return retval;
-	}
+	if (retval)
+		goto put_usb2_hcd;
 
 	if (mod_data.is_super_speed) {
 		ss_hcd = usb_create_shared_hcd(&dummy_hcd, &pdev->dev,
@@ -2525,6 +2558,8 @@ static int dummy_hcd_probe(struct platform_device *pdev)
 put_usb3_hcd:
 	usb_put_hcd(ss_hcd);
 dealloc_usb2_hcd:
+	usb_remove_hcd(hs_hcd);
+put_usb2_hcd:
 	usb_put_hcd(hs_hcd);
 	the_controller.hs_hcd = the_controller.ss_hcd = NULL;
 	return retval;

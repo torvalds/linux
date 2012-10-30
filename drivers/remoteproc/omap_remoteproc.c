@@ -29,7 +29,7 @@
 #include <linux/remoteproc.h>
 
 #include <plat/mailbox.h>
-#include <plat/remoteproc.h>
+#include <linux/platform_data/remoteproc-omap.h>
 
 #include "omap_remoteproc.h"
 #include "remoteproc_internal.h"
@@ -115,6 +115,9 @@ static int omap_rproc_start(struct rproc *rproc)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_rproc_pdata *pdata = pdev->dev.platform_data;
 	int ret;
+
+	if (pdata->set_bootaddr)
+		pdata->set_bootaddr(rproc->bootaddr);
 
 	oproc->nb.notifier_call = omap_rproc_mbox_callback;
 

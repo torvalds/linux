@@ -120,13 +120,8 @@ static int wm8400_dcdc_set_mode(struct regulator_dev *dev, unsigned int mode)
 
 	case REGULATOR_MODE_IDLE:
 		/* Datasheet: standby */
-		ret = wm8400_set_bits(wm8400, WM8400_DCDC1_CONTROL_1 + offset,
-				      WM8400_DC1_ACTIVE, 0);
-		if (ret != 0)
-			return ret;
 		return wm8400_set_bits(wm8400, WM8400_DCDC1_CONTROL_1 + offset,
-				       WM8400_DC1_SLEEP, 0);
-
+				       WM8400_DC1_ACTIVE | WM8400_DC1_SLEEP, 0);
 	default:
 		return -EINVAL;
 	}

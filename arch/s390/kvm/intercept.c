@@ -19,6 +19,8 @@
 
 #include "kvm-s390.h"
 #include "gaccess.h"
+#include "trace.h"
+#include "trace-s390.h"
 
 static int handle_lctlg(struct kvm_vcpu *vcpu)
 {
@@ -45,6 +47,7 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 
 	VCPU_EVENT(vcpu, 5, "lctlg r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
 		   disp2);
+	trace_kvm_s390_handle_lctl(vcpu, 1, reg1, reg3, useraddr);
 
 	do {
 		rc = get_guest_u64(vcpu, useraddr,
@@ -82,6 +85,7 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 
 	VCPU_EVENT(vcpu, 5, "lctl r1:%x, r3:%x,b2:%x,d2:%x", reg1, reg3, base2,
 		   disp2);
+	trace_kvm_s390_handle_lctl(vcpu, 0, reg1, reg3, useraddr);
 
 	reg = reg1;
 	do {
@@ -135,6 +139,8 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 	vcpu->stat.exit_stop_request++;
 	spin_lock_bh(&vcpu->arch.local_int.lock);
 
+	trace_kvm_s390_stop_request(vcpu->arch.local_int.action_bits);
+
 	if (vcpu->arch.local_int.action_bits & ACTION_RELOADVCPU_ON_STOP) {
 		vcpu->arch.local_int.action_bits &= ~ACTION_RELOADVCPU_ON_STOP;
 		rc = SIE_INTERCEPT_RERUNVCPU;
@@ -171,6 +177,7 @@ static int handle_validity(struct kvm_vcpu *vcpu)
 	int rc;
 
 	vcpu->stat.exit_validity++;
+	trace_kvm_s390_intercept_validity(vcpu, viwhy);
 	if (viwhy == 0x37) {
 		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix,
 				    vcpu->arch.gmap);
@@ -213,6 +220,9 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 	intercept_handler_t handler;
 
 	vcpu->stat.exit_instruction++;
+	trace_kvm_s390_intercept_instruction(vcpu,
+					     vcpu->arch.sie_block->ipa,
+					     vcpu->arch.sie_block->ipb);
 	handler = instruction_handlers[vcpu->arch.sie_block->ipa >> 8];
 	if (handler)
 		return handler(vcpu);
@@ -222,6 +232,7 @@ static int handle_instruction(struct kvm_vcpu *vcpu)
 static int handle_prog(struct kvm_vcpu *vcpu)
 {
 	vcpu->stat.exit_program_interruption++;
+	trace_kvm_s390_intercept_prog(vcpu, vcpu->arch.sie_block->iprcc);
 	return kvm_s390_inject_program_int(vcpu, vcpu->arch.sie_block->iprcc);
 }
 

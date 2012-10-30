@@ -32,8 +32,8 @@
  * Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
 
-#include "drmP.h"
-#include "drm_hashtab.h"
+#include <drm/drmP.h>
+#include <drm/drm_hashtab.h>
 #include <linux/hash.h>
 #include <linux/slab.h>
 #include <linux/export.h>

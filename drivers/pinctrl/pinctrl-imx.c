@@ -432,7 +432,7 @@ static int __devinit imx_pinctrl_parse_groups(struct device_node *np,
 {
 	unsigned int pin_func_id;
 	int ret, size;
-	const const __be32 *list;
+	const __be32 *list;
 	int i, j;
 	u32 config;
 

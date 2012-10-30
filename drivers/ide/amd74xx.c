@@ -223,7 +223,7 @@ static const struct ide_port_ops amd_port_ops = {
 		.udma_mask	= udma,					\
 	}
 
-static const struct ide_port_info amd74xx_chipsets[] __devinitdata = {
+static const struct ide_port_info amd74xx_chipsets[] __devinitconst = {
 	/* 0: AMD7401 */	DECLARE_AMD_DEV(0x00, ATA_UDMA2),
 	/* 1: AMD7409 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA4),
 	/* 2: AMD7411/7441 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA5),

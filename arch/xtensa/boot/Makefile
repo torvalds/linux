@@ -25,7 +25,7 @@ bootdir-$(CONFIG_XTENSA_PLATFORM_ISS)	 += boot-elf
 bootdir-$(CONFIG_XTENSA_PLATFORM_XT2000) += boot-redboot boot-elf
 
 
-zImage zImage.initrd Image Image.initrd: $(bootdir-y)
+zImage Image: $(bootdir-y)
 
 $(bootdir-y): $(addprefix $(obj)/,$(subdir-y)) \
 	      $(addprefix $(obj)/,$(host-progs))

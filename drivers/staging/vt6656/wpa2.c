@@ -174,16 +174,16 @@ WPA2vParseRSN (
                         pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_USE_GROUP;
                         bUseGK = TRUE;
                     } else if ( !memcmp(pbyOUI, abyOUIWEP40, 4)) {
-                        // Invialid CSS, continue to parsing
+                        // Invalid CSS, continue parsing
                     } else if ( !memcmp(pbyOUI, abyOUITKIP, 4)) {
                         if (pBSSNode->byCSSGK != WLAN_11i_CSS_CCMP)
                             pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_TKIP;
                         else
-                            ; // Invialid CSS, continue to parsing
+                            ; // Invalid CSS, continue parsing
                     } else if ( !memcmp(pbyOUI, abyOUICCMP, 4)) {
                         pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_CCMP;
                     } else if ( !memcmp(pbyOUI, abyOUIWEP104, 4)) {
-                        // Invialid CSS, continue to parsing
+                        // Invalid CSS, continue parsing
                     } else {
                         // any vendor checks here
                         pBSSNode->abyCSSPK[j++] = WLAN_11i_CSS_UNKNOWN;

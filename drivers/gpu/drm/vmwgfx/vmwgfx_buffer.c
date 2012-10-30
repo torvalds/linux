@@ -26,9 +26,9 @@
  **************************************************************************/
 
 #include "vmwgfx_drv.h"
-#include "ttm/ttm_bo_driver.h"
-#include "ttm/ttm_placement.h"
-#include "ttm/ttm_page_alloc.h"
+#include <drm/ttm/ttm_bo_driver.h>
+#include <drm/ttm/ttm_placement.h>
+#include <drm/ttm/ttm_page_alloc.h>
 
 static uint32_t vram_placement_flags = TTM_PL_FLAG_VRAM |
 	TTM_PL_FLAG_CACHED;

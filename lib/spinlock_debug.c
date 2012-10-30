@@ -107,23 +107,27 @@ static void __spin_lock_debug(raw_spinlock_t *lock)
 {
 	u64 i;
 	u64 loops = loops_per_jiffy * HZ;
-	int print_once = 1;
 
-	for (;;) {
-		for (i = 0; i < loops; i++) {
-			if (arch_spin_trylock(&lock->raw_lock))
-				return;
-			__delay(1);
-		}
-		/* lockup suspected: */
-		if (print_once) {
-			print_once = 0;
-			spin_dump(lock, "lockup suspected");
-#ifdef CONFIG_SMP
-			trigger_all_cpu_backtrace();
-#endif
-		}
+	for (i = 0; i < loops; i++) {
+		if (arch_spin_trylock(&lock->raw_lock))
+			return;
+		__delay(1);
 	}
+	/* lockup suspected: */
+	spin_dump(lock, "lockup suspected");
+#ifdef CONFIG_SMP
+	trigger_all_cpu_backtrace();
+#endif
+
+	/*
+	 * The trylock above was causing a livelock.  Give the lower level arch
+	 * specific lock code a chance to acquire the lock. We have already
+	 * printed a warning/backtrace at this point. The non-debug arch
+	 * specific code might actually succeed in acquiring the lock.  If it is
+	 * not successful, the end-result is the same - there is no forward
+	 * progress.
+	 */
+	arch_spin_lock(&lock->raw_lock);
 }
 
 void do_raw_spin_lock(raw_spinlock_t *lock)

@@ -30,29 +30,9 @@ struct fdtable {
 	struct fdtable *next;
 };
 
-static inline void __set_close_on_exec(int fd, struct fdtable *fdt)
-{
-	__set_bit(fd, fdt->close_on_exec);
-}
-
-static inline void __clear_close_on_exec(int fd, struct fdtable *fdt)
-{
-	__clear_bit(fd, fdt->close_on_exec);
-}
-
 static inline bool close_on_exec(int fd, const struct fdtable *fdt)
 {
 	return test_bit(fd, fdt->close_on_exec);
-}
-
-static inline void __set_open_fd(int fd, struct fdtable *fdt)
-{
-	__set_bit(fd, fdt->open_fds);
-}
-
-static inline void __clear_open_fd(int fd, struct fdtable *fdt)
-{
-	__clear_bit(fd, fdt->open_fds);
 }
 
 static inline bool fd_is_open(int fd, const struct fdtable *fdt)
@@ -93,14 +73,7 @@ struct file_operations;
 struct vfsmount;
 struct dentry;
 
-extern int expand_files(struct files_struct *, int nr);
-extern void free_fdtable_rcu(struct rcu_head *rcu);
 extern void __init files_defer_init(void);
-
-static inline void free_fdtable(struct fdtable *fdt)
-{
-	call_rcu(&fdt->rcu, free_fdtable_rcu);
-}
 
 static inline struct file * fcheck_files(struct files_struct *files, unsigned int fd)
 {
@@ -122,8 +95,20 @@ struct task_struct;
 struct files_struct *get_files_struct(struct task_struct *);
 void put_files_struct(struct files_struct *fs);
 void reset_files_struct(struct files_struct *);
+void daemonize_descriptors(void);
 int unshare_files(struct files_struct **);
 struct files_struct *dup_fd(struct files_struct *, int *);
+void do_close_on_exec(struct files_struct *);
+int iterate_fd(struct files_struct *, unsigned,
+		int (*)(const void *, struct file *, unsigned),
+		const void *);
+
+extern int __alloc_fd(struct files_struct *files,
+		      unsigned start, unsigned end, unsigned flags);
+extern void __fd_install(struct files_struct *files,
+		      unsigned int fd, struct file *file);
+extern int __close_fd(struct files_struct *files,
+		      unsigned int fd);
 
 extern struct kmem_cache *files_cachep;
 

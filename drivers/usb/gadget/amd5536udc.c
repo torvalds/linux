@@ -1401,7 +1401,7 @@ static int udc_wakeup(struct usb_gadget *gadget)
 }
 
 static int amd5536_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
 static int amd5536_stop(struct usb_gadget_driver *driver);
 /* gadget operations */
 static const struct usb_gadget_ops udc_ops = {
@@ -1914,7 +1914,7 @@ static int setup_ep0(struct udc *dev)
 
 /* Called by gadget driver to register itself */
 static int amd5536_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+		int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
 {
 	struct udc		*dev = udc;
 	int			retval;
@@ -1932,7 +1932,7 @@ static int amd5536_start(struct usb_gadget_driver *driver,
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
 
-	retval = bind(&dev->gadget);
+	retval = bind(&dev->gadget, driver);
 
 	/* Some gadget drivers use both ep0 directions.
 	 * NOTE: to gadget driver, ep0 is just one endpoint...

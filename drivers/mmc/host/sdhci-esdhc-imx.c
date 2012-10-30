@@ -25,7 +25,7 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/consumer.h>
-#include <mach/esdhc.h>
+#include <linux/platform_data/mmc-esdhc-imx.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
@@ -315,7 +315,7 @@ static void esdhc_writeb_le(struct sdhci_host *host, u8 val, int reg)
 		new_val = val & (SDHCI_CTRL_LED | \
 				SDHCI_CTRL_4BITBUS | \
 				SDHCI_CTRL_D3CD);
-		/* ensure the endianess */
+		/* ensure the endianness */
 		new_val |= ESDHC_HOST_CONTROL_LE;
 		/* bits 8&9 are reserved on mx25 */
 		if (!is_imx25_esdhc(imx_data)) {

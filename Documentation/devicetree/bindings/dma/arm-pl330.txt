@@ -9,6 +9,9 @@ Required properties:
     region.
   - interrupts: interrupt number to the cpu.
 
+Optional properties:
+- dma-coherent      : Present if dma operations are coherent
+
 Example:
 
 	pdma0: pdma@12680000 {

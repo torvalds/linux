@@ -246,7 +246,7 @@ nla_put_failure:
 }
 EXPORT_SYMBOL(ieee802154_nl_start_confirm);
 
-static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 pid,
+static int ieee802154_nl_fill_iface(struct sk_buff *msg, u32 portid,
 	u32 seq, int flags, struct net_device *dev)
 {
 	void *hdr;
@@ -534,7 +534,7 @@ static int ieee802154_list_iface(struct sk_buff *skb,
 	if (!msg)
 		goto out_dev;
 
-	rc = ieee802154_nl_fill_iface(msg, info->snd_pid, info->snd_seq,
+	rc = ieee802154_nl_fill_iface(msg, info->snd_portid, info->snd_seq,
 			0, dev);
 	if (rc < 0)
 		goto out_free;
@@ -565,7 +565,7 @@ static int ieee802154_dump_iface(struct sk_buff *skb,
 		if (idx < s_idx || (dev->type != ARPHRD_IEEE802154))
 			goto cont;
 
-		if (ieee802154_nl_fill_iface(skb, NETLINK_CB(cb->skb).pid,
+		if (ieee802154_nl_fill_iface(skb, NETLINK_CB(cb->skb).portid,
 			cb->nlh->nlmsg_seq, NLM_F_MULTI, dev) < 0)
 			break;
 cont:

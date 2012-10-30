@@ -213,14 +213,14 @@ asmlinkage int sys_execve(const char __user *name,
 			  const char __user *const __user *envp)
 {
 	int error;
-	char *filename;
+	struct filename *filename;
 	struct pt_regs *regs = (struct pt_regs *)((&name) + 6);
 
 	filename = getname(name);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		return error;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 	return error;
 }

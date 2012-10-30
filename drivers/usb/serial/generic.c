@@ -24,8 +24,6 @@
 #include <linux/kfifo.h>
 #include <linux/serial.h>
 
-static int debug;
-
 #ifdef CONFIG_USB_SERIAL_GENERIC
 
 static __u16 vendor  = 0x05f9;
@@ -60,11 +58,10 @@ static struct usb_serial_driver * const serial_drivers[] = {
 
 #endif
 
-int usb_serial_generic_register(int _debug)
+int usb_serial_generic_register(void)
 {
 	int retval = 0;
 
-	debug = _debug;
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	generic_device_ids[0].idVendor = vendor;
 	generic_device_ids[0].idProduct = product;
@@ -171,8 +168,7 @@ retry:
 						urb->transfer_buffer,
 						port->bulk_out_size);
 	urb->transfer_buffer_length = count;
-	usb_serial_debug_data(debug, &port->dev, __func__, count,
-						urb->transfer_buffer);
+	usb_serial_debug_data(&port->dev, __func__, count, urb->transfer_buffer);
 	spin_lock_irqsave(&port->lock, flags);
 	port->tx_bytes += count;
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -365,8 +361,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 		return;
 	}
 
-	usb_serial_debug_data(debug, &port->dev, __func__,
-						urb->actual_length, data);
+	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 	port->serial->type->process_read_urb(urb);
 
 	/* Throttle the device if requested by tty */

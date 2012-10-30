@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
+#include <linux/pinctrl/consumer.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;
@@ -170,11 +171,10 @@ static struct gpio_leds_priv * __devinit gpio_leds_create_of(struct platform_dev
 {
 	struct device_node *np = pdev->dev.of_node, *child;
 	struct gpio_leds_priv *priv;
-	int count = 0, ret;
+	int count, ret;
 
 	/* count LEDs in this device, so we know how much to allocate */
-	for_each_child_of_node(np, child)
-		count++;
+	count = of_get_child_count(np);
 	if (!count)
 		return NULL;
 
@@ -228,7 +228,6 @@ static struct gpio_leds_priv * __devinit gpio_leds_create_of(struct platform_dev
 {
 	return NULL;
 }
-#define of_gpio_leds_match NULL
 #endif /* CONFIG_OF_GPIO */
 
 
@@ -236,7 +235,13 @@ static int __devinit gpio_led_probe(struct platform_device *pdev)
 {
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_leds_priv *priv;
+	struct pinctrl *pinctrl;
 	int i, ret = 0;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl))
+		dev_warn(&pdev->dev,
+			"pins are not configured from the driver\n");
 
 	if (pdata && pdata->num_leds) {
 		priv = devm_kzalloc(&pdev->dev,
@@ -270,13 +275,13 @@ static int __devinit gpio_led_probe(struct platform_device *pdev)
 
 static int __devexit gpio_led_remove(struct platform_device *pdev)
 {
-	struct gpio_leds_priv *priv = dev_get_drvdata(&pdev->dev);
+	struct gpio_leds_priv *priv = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < priv->num_leds; i++)
 		delete_gpio_led(&priv->leds[i]);
 
-	dev_set_drvdata(&pdev->dev, NULL);
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -287,7 +292,7 @@ static struct platform_driver gpio_led_driver = {
 	.driver		= {
 		.name	= "leds-gpio",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_gpio_leds_match,
+		.of_match_table = of_match_ptr(of_gpio_leds_match),
 	},
 };
 

@@ -813,28 +813,28 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 			unsigned long value = 0;
 			switch (index) {
 			case TOMOYO_TASK_UID:
-				value = current_uid();
+				value = from_kuid(&init_user_ns, current_uid());
 				break;
 			case TOMOYO_TASK_EUID:
-				value = current_euid();
+				value = from_kuid(&init_user_ns, current_euid());
 				break;
 			case TOMOYO_TASK_SUID:
-				value = current_suid();
+				value = from_kuid(&init_user_ns, current_suid());
 				break;
 			case TOMOYO_TASK_FSUID:
-				value = current_fsuid();
+				value = from_kuid(&init_user_ns, current_fsuid());
 				break;
 			case TOMOYO_TASK_GID:
-				value = current_gid();
+				value = from_kgid(&init_user_ns, current_gid());
 				break;
 			case TOMOYO_TASK_EGID:
-				value = current_egid();
+				value = from_kgid(&init_user_ns, current_egid());
 				break;
 			case TOMOYO_TASK_SGID:
-				value = current_sgid();
+				value = from_kgid(&init_user_ns, current_sgid());
 				break;
 			case TOMOYO_TASK_FSGID:
-				value = current_fsgid();
+				value = from_kgid(&init_user_ns, current_fsgid());
 				break;
 			case TOMOYO_TASK_PID:
 				value = tomoyo_sys_getpid();
@@ -970,13 +970,13 @@ bool tomoyo_condition(struct tomoyo_request_info *r,
 					case TOMOYO_PATH2_UID:
 					case TOMOYO_PATH1_PARENT_UID:
 					case TOMOYO_PATH2_PARENT_UID:
-						value = stat->uid;
+						value = from_kuid(&init_user_ns, stat->uid);
 						break;
 					case TOMOYO_PATH1_GID:
 					case TOMOYO_PATH2_GID:
 					case TOMOYO_PATH1_PARENT_GID:
 					case TOMOYO_PATH2_PARENT_GID:
-						value = stat->gid;
+						value = from_kgid(&init_user_ns, stat->gid);
 						break;
 					case TOMOYO_PATH1_INO:
 					case TOMOYO_PATH2_INO:

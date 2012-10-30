@@ -69,6 +69,16 @@ struct sample_event {
 	u64 array[];
 };
 
+struct regs_dump {
+	u64 *regs;
+};
+
+struct stack_dump {
+	u16 offset;
+	u64 size;
+	char *data;
+};
+
 struct perf_sample {
 	u64 ip;
 	u32 pid, tid;
@@ -82,6 +92,8 @@ struct perf_sample {
 	void *raw_data;
 	struct ip_callchain *callchain;
 	struct branch_stack *branch_stack;
+	struct regs_dump  user_regs;
+	struct stack_dump user_stack;
 };
 
 #define BUILD_ID_SIZE 20
@@ -89,7 +101,7 @@ struct perf_sample {
 struct build_id_event {
 	struct perf_event_header header;
 	pid_t			 pid;
-	u8			 build_id[ALIGN(BUILD_ID_SIZE, sizeof(u64))];
+	u8			 build_id[PERF_ALIGN(BUILD_ID_SIZE, sizeof(u64))];
 	char			 filename[];
 };
 

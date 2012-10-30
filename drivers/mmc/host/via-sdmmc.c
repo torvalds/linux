@@ -1337,21 +1337,7 @@ static struct pci_driver via_sd_driver = {
 	.resume = via_sd_resume,
 };
 
-static int __init via_sd_drv_init(void)
-{
-	pr_info(DRV_NAME ": VIA SD/MMC Card Reader driver "
-		"(C) 2008 VIA Technologies, Inc.\n");
-
-	return pci_register_driver(&via_sd_driver);
-}
-
-static void __exit via_sd_drv_exit(void)
-{
-	pci_unregister_driver(&via_sd_driver);
-}
-
-module_init(via_sd_drv_init);
-module_exit(via_sd_drv_exit);
+module_pci_driver(via_sd_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("VIA Technologies Inc.");

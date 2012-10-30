@@ -732,6 +732,16 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 		new_cap_mask = ((__be32 *) inbox->buf)[1];
 	}
 
+	/* slave may not set the IS_SM capability for the port */
+	if (slave != mlx4_master_func_num(dev) &&
+	    (be32_to_cpu(new_cap_mask) & MLX4_PORT_CAP_IS_SM))
+		return -EINVAL;
+
+	/* No DEV_MGMT in multifunc mode */
+	if (mlx4_is_mfunc(dev) &&
+	    (be32_to_cpu(new_cap_mask) & MLX4_PORT_CAP_DEV_MGMT_SUP))
+		return -EINVAL;
+
 	agg_cap_mask = 0;
 	slave_cap_mask =
 		priv->mfunc.master.slave_state[slave].ib_cap_mask[port];

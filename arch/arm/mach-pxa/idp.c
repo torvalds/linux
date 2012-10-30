@@ -33,9 +33,9 @@
 
 #include <mach/pxa25x.h>
 #include <mach/idp.h>
-#include <mach/pxafb.h>
+#include <linux/platform_data/video-pxafb.h>
 #include <mach/bitfield.h>
-#include <mach/mmc.h>
+#include <linux/platform_data/mmc-pxamci.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -191,6 +191,87 @@ static void __init idp_map_io(void)
 	iotable_init(idp_io_desc, ARRAY_SIZE(idp_io_desc));
 }
 
+/* LEDs */
+#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
+struct idp_led {
+	struct led_classdev     cdev;
+	u8                      mask;
+};
+
+/*
+ * The triggers lines up below will only be used if the
+ * LED triggers are compiled in.
+ */
+static const struct {
+	const char *name;
+	const char *trigger;
+} idp_leds[] = {
+	{ "idp:green", "heartbeat", },
+	{ "idp:red", "cpu0", },
+};
+
+static void idp_led_set(struct led_classdev *cdev,
+		enum led_brightness b)
+{
+	struct idp_led *led = container_of(cdev,
+			struct idp_led, cdev);
+	u32 reg = IDP_CPLD_LED_CONTROL;
+
+	if (b != LED_OFF)
+		reg &= ~led->mask;
+	else
+		reg |= led->mask;
+
+	IDP_CPLD_LED_CONTROL = reg;
+}
+
+static enum led_brightness idp_led_get(struct led_classdev *cdev)
+{
+	struct idp_led *led = container_of(cdev,
+			struct idp_led, cdev);
+
+	return (IDP_CPLD_LED_CONTROL & led->mask) ? LED_OFF : LED_FULL;
+}
+
+static int __init idp_leds_init(void)
+{
+	int i;
+
+	if (!machine_is_pxa_idp())
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(idp_leds); i++) {
+		struct idp_led *led;
+
+		led = kzalloc(sizeof(*led), GFP_KERNEL);
+		if (!led)
+			break;
+
+		led->cdev.name = idp_leds[i].name;
+		led->cdev.brightness_set = idp_led_set;
+		led->cdev.brightness_get = idp_led_get;
+		led->cdev.default_trigger = idp_leds[i].trigger;
+
+		if (i == 0)
+			led->mask = IDP_HB_LED;
+		else
+			led->mask = IDP_BUSY_LED;
+
+		if (led_classdev_register(NULL, &led->cdev) < 0) {
+			kfree(led);
+			break;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * Since we may have triggers on any subsystem, defer registration
+ * until after subsystem_init.
+ */
+fs_initcall(idp_leds_init);
+#endif
 
 MACHINE_START(PXA_IDP, "Vibren PXA255 IDP")
 	/* Maintainer: Vibren Technologies */

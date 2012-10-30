@@ -464,6 +464,32 @@ s32 igb_copper_link_setup_82580(struct e1000_hw *hw)
 	phy_data |= I82580_CFG_ENABLE_DOWNSHIFT;
 
 	ret_val = phy->ops.write_reg(hw, I82580_CFG_REG, phy_data);
+	if (ret_val)
+		goto out;
+
+	/* Set MDI/MDIX mode */
+	ret_val = phy->ops.read_reg(hw, I82580_PHY_CTRL_2, &phy_data);
+	if (ret_val)
+		goto out;
+	phy_data &= ~I82580_PHY_CTRL2_MDIX_CFG_MASK;
+	/*
+	 * Options:
+	 *   0 - Auto (default)
+	 *   1 - MDI mode
+	 *   2 - MDI-X mode
+	 */
+	switch (hw->phy.mdix) {
+	case 1:
+		break;
+	case 2:
+		phy_data |= I82580_PHY_CTRL2_MANUAL_MDIX;
+		break;
+	case 0:
+	default:
+		phy_data |= I82580_PHY_CTRL2_AUTO_MDI_MDIX;
+		break;
+	}
+	ret_val = hw->phy.ops.write_reg(hw, I82580_PHY_CTRL_2, phy_data);
 
 out:
 	return ret_val;
@@ -2246,8 +2272,7 @@ s32 igb_phy_force_speed_duplex_82580(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	phy_data &= ~I82580_PHY_CTRL2_AUTO_MDIX;
-	phy_data &= ~I82580_PHY_CTRL2_FORCE_MDI_MDIX;
+	phy_data &= ~I82580_PHY_CTRL2_MDIX_CFG_MASK;
 
 	ret_val = phy->ops.write_reg(hw, I82580_PHY_CTRL_2, phy_data);
 	if (ret_val)

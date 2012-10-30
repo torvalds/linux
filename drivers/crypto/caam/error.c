@@ -77,10 +77,8 @@ static void report_ccb_status(u32 status, char *outstr)
 		"Not instantiated",
 		"Test instantiate",
 		"Prediction resistance",
-		"",
 		"Prediction resistance and test request",
 		"Uninstantiate",
-		"",
 		"Secure key generation",
 	};
 	u8 cha_id = (status & JRSTA_CCBERR_CHAID_MASK) >>

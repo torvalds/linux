@@ -33,7 +33,7 @@
 #include <asm/mach-types.h>
 
 #include <mach/fb.h>
-#include <mach/leds-gpio.h>
+#include <linux/platform_data/leds-s3c24xx.h>
 #include <mach/regs-gpio.h>
 #include <mach/regs-lcd.h>
 
@@ -41,15 +41,15 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 
-#include <plat/iic.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/regs-serial.h>
 
 #include <plat/clock.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
-#include <plat/mci.h>
+#include <linux/platform_data/mmc-s3cmci.h>
 #include <plat/s3c2410.h>
-#include <plat/udc.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 #include "common.h"
 

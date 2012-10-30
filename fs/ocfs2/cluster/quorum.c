@@ -327,5 +327,5 @@ void o2quo_exit(void)
 {
 	struct o2quo_state *qs = &o2quo_state;
 
-	flush_work_sync(&qs->qs_work);
+	flush_work(&qs->qs_work);
 }

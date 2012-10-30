@@ -32,8 +32,8 @@
 #include <asm/mach/irq.h>
 
 #include <plat/regs-serial.h>
-#include <plat/nand.h>
-#include <plat/iic.h>
+#include <linux/platform_data/mtd-nand-s3c2410.h>
+#include <linux/platform_data/i2c-s3c2410.h>
 
 #include <mach/regs-power.h>
 #include <mach/regs-gpio.h>
@@ -54,7 +54,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/udc.h>
+#include <linux/platform_data/usb-s3c2410_udc.h>
 
 static struct map_desc jive_iodesc[] __initdata = {
 };
@@ -512,8 +512,8 @@ static void jive_power_off(void)
 {
 	printk(KERN_INFO "powering system down...\n");
 
-	s3c2410_gpio_setpin(S3C2410_GPC(5), 1);
-	s3c_gpio_cfgpin(S3C2410_GPC(5), S3C2410_GPIO_OUTPUT);
+	gpio_request_one(S3C2410_GPC(5), GPIOF_OUT_INIT_HIGH, NULL);
+	gpio_free(S3C2410_GPC(5));
 }
 
 static void __init jive_machine_init(void)
@@ -623,11 +623,11 @@ static void __init jive_machine_init(void)
 	gpio_request(S3C2410_GPB(7), "jive spi");
 	gpio_direction_output(S3C2410_GPB(7), 1);
 
-	s3c2410_gpio_setpin(S3C2410_GPB(6), 0);
-	s3c_gpio_cfgpin(S3C2410_GPB(6), S3C2410_GPIO_OUTPUT);
+	gpio_request_one(S3C2410_GPB(6), GPIOF_OUT_INIT_LOW, NULL);
+	gpio_free(S3C2410_GPB(6));
 
-	s3c2410_gpio_setpin(S3C2410_GPG(8), 1);
-	s3c_gpio_cfgpin(S3C2410_GPG(8), S3C2410_GPIO_OUTPUT);
+	gpio_request_one(S3C2410_GPG(8), GPIOF_OUT_INIT_HIGH, NULL);
+	gpio_free(S3C2410_GPG(8));
 
 	/* initialise the WM8750 spi */
 

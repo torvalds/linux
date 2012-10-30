@@ -99,13 +99,13 @@ typedef enum {
  * The SEEQ8005 doesn't like us writing to its registers
  * too quickly.
  */
-static inline void ether3_outb(int v, const void __iomem *r)
+static inline void ether3_outb(int v, void __iomem *r)
 {
 	writeb(v, r);
 	udelay(1);
 }
 
-static inline void ether3_outw(int v, const void __iomem *r)
+static inline void ether3_outw(int v, void __iomem *r)
 {
 	writew(v, r);
 	udelay(1);

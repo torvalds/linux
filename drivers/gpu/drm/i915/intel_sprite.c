@@ -29,11 +29,11 @@
  * registers; newer ones are much simpler and we can use the new DRM plane
  * support.
  */
-#include "drmP.h"
-#include "drm_crtc.h"
-#include "drm_fourcc.h"
+#include <drm/drmP.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_fourcc.h>
 #include "intel_drv.h"
-#include "i915_drm.h"
+#include <drm/i915_drm.h>
 #include "i915_drv.h"
 
 static void

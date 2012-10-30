@@ -46,8 +46,10 @@ int wa_create(struct wahc *wa, struct usb_interface *iface)
 	wa->dto_epd = &iface->cur_altsetting->endpoint[2].desc;
 	wa->xfer_result_size = usb_endpoint_maxp(wa->dti_epd);
 	wa->xfer_result = kmalloc(wa->xfer_result_size, GFP_KERNEL);
-	if (wa->xfer_result == NULL)
+	if (wa->xfer_result == NULL) {
+		result = -ENOMEM;
 		goto error_xfer_result_alloc;
+	}
 	result = wa_nep_create(wa, iface);
 	if (result < 0) {
 		dev_err(dev, "WA-CDS: can't initialize notif endpoint: %d\n",

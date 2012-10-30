@@ -205,6 +205,8 @@ static int wm831x_gp_ldo_get_status(struct regulator_dev *rdev)
 
 	/* Is it reporting under voltage? */
 	ret = wm831x_reg_read(wm831x, WM831X_LDO_UV_STATUS);
+	if (ret < 0)
+		return ret;
 	if (ret & mask)
 		return REGULATOR_STATUS_ERROR;
 
@@ -237,6 +239,8 @@ static struct regulator_ops wm831x_gp_ldo_ops = {
 	.set_mode = wm831x_gp_ldo_set_mode,
 	.get_status = wm831x_gp_ldo_get_status,
 	.get_optimum_mode = wm831x_gp_ldo_get_optimum_mode,
+	.get_bypass = regulator_get_bypass_regmap,
+	.set_bypass = regulator_set_bypass_regmap,
 
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
@@ -269,9 +273,9 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 
 	ldo->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -293,6 +297,8 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	ldo->desc.vsel_mask = WM831X_LDO1_ON_VSEL_MASK;
 	ldo->desc.enable_reg = WM831X_LDO_ENABLE;
 	ldo->desc.enable_mask = 1 << id;
+	ldo->desc.bypass_reg = ldo->base;
+	ldo->desc.bypass_mask = WM831X_LDO1_SWI;
 
 	config.dev = pdev->dev.parent;
 	if (pdata)
@@ -469,6 +475,8 @@ static int wm831x_aldo_get_status(struct regulator_dev *rdev)
 
 	/* Is it reporting under voltage? */
 	ret = wm831x_reg_read(wm831x, WM831X_LDO_UV_STATUS);
+	if (ret < 0)
+		return ret;
 	if (ret & mask)
 		return REGULATOR_STATUS_ERROR;
 
@@ -488,6 +496,8 @@ static struct regulator_ops wm831x_aldo_ops = {
 	.get_mode = wm831x_aldo_get_mode,
 	.set_mode = wm831x_aldo_set_mode,
 	.get_status = wm831x_aldo_get_status,
+	.set_bypass = regulator_set_bypass_regmap,
+	.get_bypass = regulator_get_bypass_regmap,
 
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
@@ -520,9 +530,9 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 
 	ldo->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}
@@ -544,6 +554,8 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 	ldo->desc.vsel_mask = WM831X_LDO7_ON_VSEL_MASK;
 	ldo->desc.enable_reg = WM831X_LDO_ENABLE;
 	ldo->desc.enable_mask = 1 << id;
+	ldo->desc.bypass_reg = ldo->base;
+	ldo->desc.bypass_mask = WM831X_LDO7_SWI;
 
 	config.dev = pdev->dev.parent;
 	if (pdata)
@@ -675,9 +687,9 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 
 	ldo->wm831x = wm831x;
 
-	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
+	res = platform_get_resource(pdev, IORESOURCE_REG, 0);
 	if (res == NULL) {
-		dev_err(&pdev->dev, "No I/O resource\n");
+		dev_err(&pdev->dev, "No REG resource\n");
 		ret = -EINVAL;
 		goto err;
 	}

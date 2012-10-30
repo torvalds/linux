@@ -100,7 +100,7 @@ static const struct reg_default wm8904_reg_defaults[] = {
 	{ 14,  0x0000 },     /* R14  - Power Management 2 */
 	{ 15,  0x0000 },     /* R15  - Power Management 3 */
 	{ 18,  0x0000 },     /* R18  - Power Management 6 */
-	{ 19,  0x945E },     /* R20  - Clock Rates 0 */
+	{ 20,  0x945E },     /* R20  - Clock Rates 0 */
 	{ 21,  0x0C05 },     /* R21  - Clock Rates 1 */
 	{ 22,  0x0006 },     /* R22  - Clock Rates 2 */
 	{ 24,  0x0050 },     /* R24  - Audio Interface 0 */
@@ -1185,8 +1185,6 @@ static int wm8904_add_widgets(struct snd_soc_codec *codec)
 		snd_soc_dapm_new_controls(dapm, wm8904_dapm_widgets,
 					  ARRAY_SIZE(wm8904_dapm_widgets));
 
-		snd_soc_dapm_add_routes(dapm, core_intercon,
-					ARRAY_SIZE(core_intercon));
 		snd_soc_dapm_add_routes(dapm, adc_intercon,
 					ARRAY_SIZE(adc_intercon));
 		snd_soc_dapm_add_routes(dapm, dac_intercon,

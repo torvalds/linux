@@ -49,6 +49,10 @@ static const u8 ichx_regs[3][3] = {
 	{0x0c, 0x38, 0x48},	/* LVL[1-3] offsets */
 };
 
+static const u8 ichx_reglen[3] = {
+	0x30, 0x10, 0x10,
+};
+
 #define ICHX_WRITE(val, reg, base_res)	outl(val, (reg) + (base_res)->start)
 #define ICHX_READ(reg, base_res)	inl((reg) + (base_res)->start)
 
@@ -75,6 +79,7 @@ static struct {
 	struct resource *pm_base;	/* Power Mangagment IO base */
 	struct ichx_desc *desc;	/* Pointer to chipset-specific description */
 	u32 orig_gpio_ctrl;	/* Orig CTRL value, used to restore on exit */
+	u8 use_gpio;		/* Which GPIO groups are usable */
 } ichx_priv;
 
 static int modparam_gpiobase = -1;	/* dynamic */
@@ -123,8 +128,16 @@ static int ichx_read_bit(int reg, unsigned nr)
 	return data & (1 << bit) ? 1 : 0;
 }
 
+static int ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
+{
+	return (ichx_priv.use_gpio & (1 << (nr / 32))) ? 0 : -ENXIO;
+}
+
 static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
+	if (!ichx_gpio_check_available(gpio, nr))
+		return -ENXIO;
+
 	/*
 	 * Try setting pin as an input and verify it worked since many pins
 	 * are output-only.
@@ -138,6 +151,9 @@ static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 					int val)
 {
+	if (!ichx_gpio_check_available(gpio, nr))
+		return -ENXIO;
+
 	/* Set GPIO output value. */
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 
@@ -153,6 +169,9 @@ static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 
 static int ichx_gpio_get(struct gpio_chip *chip, unsigned nr)
 {
+	if (!ichx_gpio_check_available(chip, nr))
+		return -ENXIO;
+
 	return ichx_read_bit(GPIO_LVL, nr);
 }
 
@@ -160,6 +179,9 @@ static int ich6_gpio_get(struct gpio_chip *chip, unsigned nr)
 {
 	unsigned long flags;
 	u32 data;
+
+	if (!ichx_gpio_check_available(chip, nr))
+		return -ENXIO;
 
 	/*
 	 * GPI 0 - 15 need to be read from the power management registers on
@@ -291,6 +313,46 @@ static struct ichx_desc intel5_desc = {
 	.ngpio = 76,
 };
 
+static int __devinit ichx_gpio_request_regions(struct resource *res_base,
+						const char *name, u8 use_gpio)
+{
+	int i;
+
+	if (!res_base || !res_base->start || !res_base->end)
+		return -ENODEV;
+
+	for (i = 0; i < ARRAY_SIZE(ichx_regs[0]); i++) {
+		if (!(use_gpio & (1 << i)))
+			continue;
+		if (!request_region(res_base->start + ichx_regs[0][i],
+				    ichx_reglen[i], name))
+			goto request_err;
+	}
+	return 0;
+
+request_err:
+	/* Clean up: release already requested regions, if any */
+	for (i--; i >= 0; i--) {
+		if (!(use_gpio & (1 << i)))
+			continue;
+		release_region(res_base->start + ichx_regs[0][i],
+			       ichx_reglen[i]);
+	}
+	return -EBUSY;
+}
+
+static void ichx_gpio_release_regions(struct resource *res_base, u8 use_gpio)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(ichx_regs[0]); i++) {
+		if (!(use_gpio & (1 << i)))
+			continue;
+		release_region(res_base->start + ichx_regs[0][i],
+			       ichx_reglen[i]);
+	}
+}
+
 static int __devinit ichx_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res_base, *res_pm;
@@ -329,12 +391,11 @@ static int __devinit ichx_gpio_probe(struct platform_device *pdev)
 	}
 
 	res_base = platform_get_resource(pdev, IORESOURCE_IO, ICH_RES_GPIO);
-	if (!res_base || !res_base->start || !res_base->end)
-		return -ENODEV;
-
-	if (!request_region(res_base->start, resource_size(res_base),
-				pdev->name))
-		return -EBUSY;
+	ichx_priv.use_gpio = ich_info->use_gpio;
+	err = ichx_gpio_request_regions(res_base, pdev->name,
+					ichx_priv.use_gpio);
+	if (err)
+		return err;
 
 	ichx_priv.gpio_base = res_base;
 
@@ -374,8 +435,7 @@ init:
 	return 0;
 
 add_err:
-	release_region(ichx_priv.gpio_base->start,
-			resource_size(ichx_priv.gpio_base));
+	ichx_gpio_release_regions(ichx_priv.gpio_base, ichx_priv.use_gpio);
 	if (ichx_priv.pm_base)
 		release_region(ichx_priv.pm_base->start,
 				resource_size(ichx_priv.pm_base));
@@ -393,8 +453,7 @@ static int __devexit ichx_gpio_remove(struct platform_device *pdev)
 		return err;
 	}
 
-	release_region(ichx_priv.gpio_base->start,
-				resource_size(ichx_priv.gpio_base));
+	ichx_gpio_release_regions(ichx_priv.gpio_base, ichx_priv.use_gpio);
 	if (ichx_priv.pm_base)
 		release_region(ichx_priv.pm_base->start,
 				resource_size(ichx_priv.pm_base));

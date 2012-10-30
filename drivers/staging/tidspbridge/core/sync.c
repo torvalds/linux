@@ -49,7 +49,7 @@ void sync_set_event(struct sync_object *event)
  * @timeout	timeout on waiting for the evetns.
  * @pu_index	index of the event set.
  *
- * This functios will wait until any of the array element is set or until
+ * These functions will wait until any of the array element is set or until
  * timeout. In case of success the function will return 0 and
  * @pu_index will store the index of the array element set or in case
  * of timeout the function will return -ETIME or in case of

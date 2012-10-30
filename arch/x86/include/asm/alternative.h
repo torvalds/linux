@@ -29,10 +29,10 @@
 
 #ifdef CONFIG_SMP
 #define LOCK_PREFIX_HERE \
-		".section .smp_locks,\"a\"\n"	\
-		".balign 4\n"			\
-		".long 671f - .\n" /* offset */	\
-		".previous\n"			\
+		".pushsection .smp_locks,\"a\"\n"	\
+		".balign 4\n"				\
+		".long 671f - .\n" /* offset */		\
+		".popsection\n"				\
 		"671:"
 
 #define LOCK_PREFIX LOCK_PREFIX_HERE "\n\tlock; "
@@ -60,7 +60,7 @@ extern void alternatives_smp_module_add(struct module *mod, char *name,
 					void *locks, void *locks_end,
 					void *text, void *text_end);
 extern void alternatives_smp_module_del(struct module *mod);
-extern void alternatives_smp_switch(int smp);
+extern void alternatives_enable_smp(void);
 extern int alternatives_text_reserved(void *start, void *end);
 extern bool skip_smp_alternatives;
 #else
@@ -68,7 +68,7 @@ static inline void alternatives_smp_module_add(struct module *mod, char *name,
 					       void *locks, void *locks_end,
 					       void *text, void *text_end) {}
 static inline void alternatives_smp_module_del(struct module *mod) {}
-static inline void alternatives_smp_switch(int smp) {}
+static inline void alternatives_enable_smp(void) {}
 static inline int alternatives_text_reserved(void *start, void *end)
 {
 	return 0;
@@ -99,30 +99,30 @@ static inline int alternatives_text_reserved(void *start, void *end)
 /* alternative assembly primitive: */
 #define ALTERNATIVE(oldinstr, newinstr, feature)			\
 	OLDINSTR(oldinstr)						\
-	".section .altinstructions,\"a\"\n"				\
+	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(feature, 1)					\
-	".previous\n"							\
-	".section .discard,\"aw\",@progbits\n"				\
+	".popsection\n"							\
+	".pushsection .discard,\"aw\",@progbits\n"			\
 	DISCARD_ENTRY(1)						\
-	".previous\n"							\
-	".section .altinstr_replacement, \"ax\"\n"			\
+	".popsection\n"							\
+	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr, feature, 1)			\
-	".previous"
+	".popsection"
 
 #define ALTERNATIVE_2(oldinstr, newinstr1, feature1, newinstr2, feature2)\
 	OLDINSTR(oldinstr)						\
-	".section .altinstructions,\"a\"\n"				\
+	".pushsection .altinstructions,\"a\"\n"				\
 	ALTINSTR_ENTRY(feature1, 1)					\
 	ALTINSTR_ENTRY(feature2, 2)					\
-	".previous\n"							\
-	".section .discard,\"aw\",@progbits\n"				\
+	".popsection\n"							\
+	".pushsection .discard,\"aw\",@progbits\n"			\
 	DISCARD_ENTRY(1)						\
 	DISCARD_ENTRY(2)						\
-	".previous\n"							\
-	".section .altinstr_replacement, \"ax\"\n"			\
+	".popsection\n"							\
+	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
 	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
-	".previous"
+	".popsection"
 
 /*
  * This must be included *after* the definition of ALTERNATIVE due to

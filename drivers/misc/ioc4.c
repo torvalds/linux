@@ -487,7 +487,7 @@ static void __exit
 ioc4_exit(void)
 {
 	/* Ensure ioc4_load_modules() has completed before exiting */
-	flush_work_sync(&ioc4_load_modules_work);
+	flush_work(&ioc4_load_modules_work);
 	pci_unregister_driver(&ioc4_driver);
 }
 

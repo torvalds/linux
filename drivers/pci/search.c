@@ -41,7 +41,7 @@ pci_find_upstream_pcie_bridge(struct pci_dev *pdev)
 			continue;
 		}
 		/* PCI device should connect to a PCIe bridge */
-		if (pdev->pcie_type != PCI_EXP_TYPE_PCI_BRIDGE) {
+		if (pci_pcie_type(pdev) != PCI_EXP_TYPE_PCI_BRIDGE) {
 			/* Busted hardware? */
 			WARN_ON_ONCE(1);
 			return NULL;
@@ -130,16 +130,14 @@ pci_find_next_bus(const struct pci_bus *from)
  * decrement the reference count by calling pci_dev_put().
  * If no device is found, %NULL is returned.
  */
-struct pci_dev * pci_get_slot(struct pci_bus *bus, unsigned int devfn)
+struct pci_dev *pci_get_slot(struct pci_bus *bus, unsigned int devfn)
 {
-	struct list_head *tmp;
 	struct pci_dev *dev;
 
 	WARN_ON(in_interrupt());
 	down_read(&pci_bus_sem);
 
-	list_for_each(tmp, &bus->devices) {
-		dev = pci_dev_b(tmp);
+	list_for_each_entry(dev, &bus->devices, bus_list) {
 		if (dev->devfn == devfn)
 			goto out;
 	}
@@ -245,30 +243,14 @@ struct pci_dev *pci_get_subsys(unsigned int vendor, unsigned int device,
 			       unsigned int ss_vendor, unsigned int ss_device,
 			       struct pci_dev *from)
 {
-	struct pci_dev *pdev;
-	struct pci_device_id *id;
+	struct pci_device_id id = {
+		.vendor = vendor,
+		.device = device,
+		.subvendor = ss_vendor,
+		.subdevice = ss_device,
+	};
 
-	/*
-	 * pci_find_subsys() can be called on the ide_setup() path,
-	 * super-early in boot.  But the down_read() will enable local
-	 * interrupts, which can cause some machines to crash.  So here we
-	 * detect and flag that situation and bail out early.
-	 */
-	if (unlikely(no_pci_devices()))
-		return NULL;
-
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
-	if (!id)
-		return NULL;
-	id->vendor = vendor;
-	id->device = device;
-	id->subvendor = ss_vendor;
-	id->subdevice = ss_device;
-
-	pdev = pci_get_dev_by_id(id, from);
-	kfree(id);
-
-	return pdev;
+	return pci_get_dev_by_id(&id, from);
 }
 
 /**
@@ -307,19 +289,16 @@ pci_get_device(unsigned int vendor, unsigned int device, struct pci_dev *from)
  */
 struct pci_dev *pci_get_class(unsigned int class, struct pci_dev *from)
 {
-	struct pci_dev *dev;
-	struct pci_device_id *id;
+	struct pci_device_id id = {
+		.vendor = PCI_ANY_ID,
+		.device = PCI_ANY_ID,
+		.subvendor = PCI_ANY_ID,
+		.subdevice = PCI_ANY_ID,
+		.class_mask = PCI_ANY_ID,
+		.class = class,
+	};
 
-	id = kzalloc(sizeof(*id), GFP_KERNEL);
-	if (!id)
-		return NULL;
-	id->vendor = id->device = id->subvendor = id->subdevice = PCI_ANY_ID;
-	id->class_mask = PCI_ANY_ID;
-	id->class = class;
-
-	dev = pci_get_dev_by_id(id, from);
-	kfree(id);
-	return dev;
+	return pci_get_dev_by_id(&id, from);
 }
 
 /**

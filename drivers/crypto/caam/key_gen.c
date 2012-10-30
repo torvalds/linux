@@ -54,6 +54,10 @@ u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 	int ret = 0;
 
 	desc = kmalloc(CAAM_CMD_SZ * 6 + CAAM_PTR_SZ * 2, GFP_KERNEL | GFP_DMA);
+	if (!desc) {
+		dev_err(jrdev, "unable to allocate key input memory\n");
+		return -ENOMEM;
+	}
 
 	init_job_desc(desc, 0);
 
@@ -120,3 +124,4 @@ u32 gen_split_key(struct device *jrdev, u8 *key_out, int split_key_len,
 
 	return ret;
 }
+EXPORT_SYMBOL(gen_split_key);

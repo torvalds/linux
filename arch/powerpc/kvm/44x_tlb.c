@@ -319,7 +319,6 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gpa_t gpaddr,
 	if (is_error_page(new_page)) {
 		printk(KERN_ERR "Couldn't get guest page for gfn %llx!\n",
 			(unsigned long long)gfn);
-		kvm_release_page_clean(new_page);
 		return;
 	}
 	hpaddr = page_to_phys(new_page);

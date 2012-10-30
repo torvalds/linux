@@ -74,6 +74,9 @@ void bcm63xx_machine_reboot(void)
 	case BCM6338_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6338;
 		break;
+	case BCM6345_CPU_ID:
+		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6345;
+		break;
 	case BCM6348_CPU_ID:
 		perf_regs[0] = PERF_EXTIRQ_CFG_REG_6348;
 		break;
@@ -83,6 +86,9 @@ void bcm63xx_machine_reboot(void)
 	}
 
 	for (i = 0; i < 2; i++) {
+		if (!perf_regs[i])
+			break;
+
 		reg = bcm_perf_readl(perf_regs[i]);
 		if (BCMCPU_IS_6348()) {
 			reg &= ~EXTIRQ_CFG_MASK_ALL_6348;

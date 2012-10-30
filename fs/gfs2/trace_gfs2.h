@@ -509,10 +509,9 @@ TRACE_EVENT(gfs2_block_alloc,
 /* Keep track of multi-block reservations as they are allocated/freed */
 TRACE_EVENT(gfs2_rs,
 
-	TP_PROTO(const struct gfs2_inode *ip, const struct gfs2_blkreserv *rs,
-		 u8 func),
+	TP_PROTO(const struct gfs2_blkreserv *rs, u8 func),
 
-	TP_ARGS(ip, rs, func),
+	TP_ARGS(rs, func),
 
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
@@ -526,18 +525,17 @@ TRACE_EVENT(gfs2_rs,
 	),
 
 	TP_fast_assign(
-		__entry->dev		= rs->rs_rgd ? rs->rs_rgd->rd_sbd->sd_vfs->s_dev : 0;
-		__entry->rd_addr	= rs->rs_rgd ? rs->rs_rgd->rd_addr : 0;
-		__entry->rd_free_clone	= rs->rs_rgd ? rs->rs_rgd->rd_free_clone : 0;
-		__entry->rd_reserved	= rs->rs_rgd ? rs->rs_rgd->rd_reserved : 0;
-		__entry->inum		= ip ? ip->i_no_addr : 0;
-		__entry->start		= gfs2_rs_startblk(rs);
+		__entry->dev		= rs->rs_rbm.rgd->rd_sbd->sd_vfs->s_dev;
+		__entry->rd_addr	= rs->rs_rbm.rgd->rd_addr;
+		__entry->rd_free_clone	= rs->rs_rbm.rgd->rd_free_clone;
+		__entry->rd_reserved	= rs->rs_rbm.rgd->rd_reserved;
+		__entry->inum		= rs->rs_inum;
+		__entry->start		= gfs2_rbm_to_block(&rs->rs_rbm);
 		__entry->free		= rs->rs_free;
 		__entry->func		= func;
 	),
 
-	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%lu rr:%lu %s "
-		  "f:%lu",
+	TP_printk("%u,%u bmap %llu resrv %llu rg:%llu rf:%lu rr:%lu %s f:%lu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->start,

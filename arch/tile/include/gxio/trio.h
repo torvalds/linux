@@ -140,8 +140,8 @@
 
 #include <linux/types.h>
 
-#include "common.h"
-#include "dma_queue.h"
+#include <gxio/common.h>
+#include <gxio/dma_queue.h>
 
 #include <arch/trio_constants.h>
 #include <arch/trio.h>

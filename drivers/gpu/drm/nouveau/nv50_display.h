@@ -27,13 +27,9 @@
 #ifndef __NV50_DISPLAY_H__
 #define __NV50_DISPLAY_H__
 
-#include "drmP.h"
-#include "drm.h"
-#include "nouveau_drv.h"
-#include "nouveau_dma.h"
-#include "nouveau_reg.h"
+#include "nouveau_display.h"
 #include "nouveau_crtc.h"
-#include "nouveau_software.h"
+#include "nouveau_reg.h"
 #include "nv50_evo.h"
 
 struct nv50_display_crtc {
@@ -47,13 +43,16 @@ struct nv50_display_crtc {
 
 struct nv50_display {
 	struct nouveau_channel *master;
-	struct nouveau_gpuobj *ntfy;
+
+	struct nouveau_gpuobj *ramin;
+	u32 dmao;
+	u32 hash;
 
 	struct nv50_display_crtc crtc[2];
 
 	struct tasklet_struct tasklet;
 	struct {
-		struct dcb_entry *dcb;
+		struct dcb_output *dcb;
 		u16 script;
 		u32 pclk;
 	} irq;
@@ -62,8 +61,7 @@ struct nv50_display {
 static inline struct nv50_display *
 nv50_display(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	return dev_priv->engine.display.priv;
+	return nouveau_display(dev)->priv;
 }
 
 int nv50_display_early_init(struct drm_device *dev);
@@ -72,6 +70,7 @@ int nv50_display_create(struct drm_device *dev);
 int nv50_display_init(struct drm_device *dev);
 void nv50_display_fini(struct drm_device *dev);
 void nv50_display_destroy(struct drm_device *dev);
+void nv50_display_intr(struct drm_device *);
 int nv50_crtc_blank(struct nouveau_crtc *, bool blank);
 int nv50_crtc_set_clock(struct drm_device *, int head, int pclk);
 
@@ -90,5 +89,18 @@ void nv50_evo_dmaobj_init(struct nouveau_gpuobj *, u32 memtype, u64 base,
 			  u64 size);
 int  nv50_evo_dmaobj_new(struct nouveau_channel *, u32 handle, u32 memtype,
 			 u64 base, u64 size, struct nouveau_gpuobj **);
+
+int  nvd0_display_create(struct drm_device *);
+void nvd0_display_destroy(struct drm_device *);
+int  nvd0_display_init(struct drm_device *);
+void nvd0_display_fini(struct drm_device *);
+void nvd0_display_intr(struct drm_device *);
+
+void nvd0_display_flip_stop(struct drm_crtc *);
+int  nvd0_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
+			    struct nouveau_channel *, u32 swap_interval);
+
+struct nouveau_bo *nv50_display_crtc_sema(struct drm_device *, int head);
+struct nouveau_bo *nvd0_display_crtc_sema(struct drm_device *, int head);
 
 #endif /* __NV50_DISPLAY_H__ */

@@ -82,6 +82,9 @@ static struct regulator_ops arizona_micsupp_ops = {
 
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
+
+	.get_bypass = regulator_get_bypass_regmap,
+	.set_bypass = regulator_set_bypass_regmap,
 };
 
 static const struct regulator_desc arizona_micsupp = {
@@ -95,6 +98,8 @@ static const struct regulator_desc arizona_micsupp = {
 	.vsel_mask = ARIZONA_LDO2_VSEL_MASK,
 	.enable_reg = ARIZONA_MIC_CHARGE_PUMP_1,
 	.enable_mask = ARIZONA_CPMIC_ENA,
+	.bypass_reg = ARIZONA_MIC_CHARGE_PUMP_1,
+	.bypass_mask = ARIZONA_CPMIC_BYPASS,
 
 	.owner = THIS_MODULE,
 };

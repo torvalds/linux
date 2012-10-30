@@ -6,6 +6,7 @@
 
 #ifdef CONFIG_OF_ADDRESS
 extern u64 of_translate_address(struct device_node *np, const __be32 *addr);
+extern bool of_can_translate_address(struct device_node *dev);
 extern int of_address_to_resource(struct device_node *dev, int index,
 				  struct resource *r);
 extern struct device_node *of_find_matching_node_by_address(
@@ -18,7 +19,7 @@ extern void __iomem *of_iomap(struct device_node *device, int index);
  * the address space flags too. The PCI version uses a BAR number
  * instead of an absolute index
  */
-extern const u32 *of_get_address(struct device_node *dev, int index,
+extern const __be32 *of_get_address(struct device_node *dev, int index,
 			   u64 *size, unsigned int *flags);
 
 #ifndef pci_address_to_pio
@@ -43,7 +44,7 @@ static inline void __iomem *of_iomap(struct device_node *device, int index)
 {
 	return NULL;
 }
-static inline const u32 *of_get_address(struct device_node *dev, int index,
+static inline const __be32 *of_get_address(struct device_node *dev, int index,
 					u64 *size, unsigned int *flags)
 {
 	return NULL;

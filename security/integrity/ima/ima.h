@@ -40,6 +40,7 @@ enum tpm_pcrs { TPM_PCR0 = 0, TPM_PCR8 = 8 };
 extern int ima_initialized;
 extern int ima_used_chip;
 extern char *ima_hash;
+extern int ima_appraise;
 
 /* IMA inode template definition */
 struct ima_template_data {
@@ -107,10 +108,13 @@ static inline unsigned long ima_hash_key(u8 *digest)
 }
 
 /* LIM API function definitions */
+int ima_get_action(struct inode *inode, int mask, int function);
 int ima_must_measure(struct inode *inode, int mask, int function);
 int ima_collect_measurement(struct integrity_iint_cache *iint,
 			    struct file *file);
 void ima_store_measurement(struct integrity_iint_cache *iint, struct file *file,
+			   const unsigned char *filename);
+void ima_audit_measurement(struct integrity_iint_cache *iint,
 			   const unsigned char *filename);
 int ima_store_template(struct ima_template_entry *entry, int violation,
 		       struct inode *inode);
@@ -123,13 +127,44 @@ struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 /* IMA policy related functions */
-enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
+enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK, POST_SETATTR };
 
-int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
+int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask,
+		     int flags);
 void ima_init_policy(void);
 void ima_update_policy(void);
 ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
+
+/* Appraise integrity measurements */
+#define IMA_APPRAISE_ENFORCE	0x01
+#define IMA_APPRAISE_FIX	0x02
+
+#ifdef CONFIG_IMA_APPRAISE
+int ima_appraise_measurement(struct integrity_iint_cache *iint,
+			     struct file *file, const unsigned char *filename);
+int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
+void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
+
+#else
+static inline int ima_appraise_measurement(struct integrity_iint_cache *iint,
+					   struct file *file,
+					   const unsigned char *filename)
+{
+	return INTEGRITY_UNKNOWN;
+}
+
+static inline int ima_must_appraise(struct inode *inode, int mask,
+				    enum ima_hooks func)
+{
+	return 0;
+}
+
+static inline void ima_update_xattr(struct integrity_iint_cache *iint,
+				    struct file *file)
+{
+}
+#endif
 
 /* LSM based policy rules require audit */
 #ifdef CONFIG_IMA_LSM_RULES

@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 /*
  * Debugging stuff
@@ -132,7 +133,12 @@ start:
 		.word	start			@ absolute load/run zImage address
 		.word	_edata			@ zImage end address
  THUMB(		.thumb			)
-1:		mov	r7, r1			@ save architecture ID
+1:
+		mrs	r9, cpsr
+#ifdef CONFIG_ARM_VIRT_EXT
+		bl	__hyp_stub_install	@ get into SVC mode, reversibly
+#endif
+		mov	r7, r1			@ save architecture ID
 		mov	r8, r2			@ save atags pointer
 
 #ifndef __ARM_ARCH_2__
@@ -148,9 +154,9 @@ start:
  ARM(		swi	0x123456	)	@ angel_SWI_ARM
  THUMB(		svc	0xab		)	@ angel_SWI_THUMB
 not_angel:
-		mrs	r2, cpsr		@ turn off interrupts to
-		orr	r2, r2, #0xc0		@ prevent angel from running
-		msr	cpsr_c, r2
+		safe_svcmode_maskall r0
+		msr	spsr_cxsf, r9		@ Save the CPU boot mode in
+						@ SPSR
 #else
 		teqp	pc, #0x0c000003		@ turn off interrupts
 #endif
@@ -350,6 +356,20 @@ dtb_check_done:
 		adr	r5, restart
 		bic	r5, r5, #31
 
+/* Relocate the hyp vector base if necessary */
+#ifdef CONFIG_ARM_VIRT_EXT
+		mrs	r0, spsr
+		and	r0, r0, #MODE_MASK
+		cmp	r0, #HYP_MODE
+		bne	1f
+
+		bl	__hyp_get_vectors
+		sub	r0, r0, r5
+		add	r0, r0, r10
+		bl	__hyp_set_vectors
+1:
+#endif
+
 		sub	r9, r6, r5		@ size to copy
 		add	r9, r9, #31		@ rounded up to a multiple
 		bic	r9, r9, #31		@ ... of 32 bytes
@@ -458,11 +478,29 @@ not_relocated:	mov	r0, #0
 		bl	decompress_kernel
 		bl	cache_clean_flush
 		bl	cache_off
-		mov	r0, #0			@ must be zero
 		mov	r1, r7			@ restore architecture number
 		mov	r2, r8			@ restore atags pointer
- ARM(		mov	pc, r4	)		@ call kernel
- THUMB(		bx	r4	)		@ entry point is always ARM
+
+#ifdef CONFIG_ARM_VIRT_EXT
+		mrs	r0, spsr		@ Get saved CPU boot mode
+		and	r0, r0, #MODE_MASK
+		cmp	r0, #HYP_MODE		@ if not booted in HYP mode...
+		bne	__enter_kernel		@ boot kernel directly
+
+		adr	r12, .L__hyp_reentry_vectors_offset
+		ldr	r0, [r12]
+		add	r0, r0, r12
+
+		bl	__hyp_set_vectors
+		__HVC(0)			@ otherwise bounce to hyp mode
+
+		b	.			@ should never be reached
+
+		.align	2
+.L__hyp_reentry_vectors_offset:	.long	__hyp_reentry_vectors - .
+#else
+		b	__enter_kernel
+#endif
 
 		.align	2
 		.type	LC0, #object
@@ -653,16 +691,21 @@ __armv7_mmu_cache_on:
 		mcrne	p15, 0, r0, c8, c7, 0	@ flush I,D TLBs
 #endif
 		mrc	p15, 0, r0, c1, c0, 0	@ read control reg
+		bic	r0, r0, #1 << 28	@ clear SCTLR.TRE
 		orr	r0, r0, #0x5000		@ I-cache enable, RR cache replacement
 		orr	r0, r0, #0x003c		@ write buffer
 #ifdef CONFIG_MMU
 #ifdef CONFIG_CPU_ENDIAN_BE8
 		orr	r0, r0, #1 << 25	@ big-endian page tables
 #endif
+		mrcne   p15, 0, r6, c2, c0, 2   @ read ttb control reg
 		orrne	r0, r0, #1		@ MMU enabled
 		movne	r1, #0xfffffffd		@ domain 0 = client
+		bic     r6, r6, #1 << 31        @ 32-bit translation system
+		bic     r6, r6, #3 << 0         @ use only ttbr0
 		mcrne	p15, 0, r3, c2, c0, 0	@ load page table pointer
 		mcrne	p15, 0, r1, c3, c0, 0	@ load domain access control
+		mcrne   p15, 0, r6, c2, c0, 2   @ load ttb control
 #endif
 		mcr	p15, 0, r0, c7, c5, 4	@ ISB
 		mcr	p15, 0, r0, c1, c0, 0	@ load control register
@@ -1191,6 +1234,25 @@ memdump:	mov	r12, r0
 #endif
 
 		.ltorg
+
+#ifdef CONFIG_ARM_VIRT_EXT
+.align 5
+__hyp_reentry_vectors:
+		W(b)	.			@ reset
+		W(b)	.			@ undef
+		W(b)	.			@ svc
+		W(b)	.			@ pabort
+		W(b)	.			@ dabort
+		W(b)	__enter_kernel		@ hyp
+		W(b)	.			@ irq
+		W(b)	.			@ fiq
+#endif /* CONFIG_ARM_VIRT_EXT */
+
+__enter_kernel:
+		mov	r0, #0			@ must be 0
+ ARM(		mov	pc, r4	)		@ call kernel
+ THUMB(		bx	r4	)		@ entry point is always ARM
+
 reloc_code_end:
 
 		.align

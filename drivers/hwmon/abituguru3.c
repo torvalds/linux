@@ -976,7 +976,8 @@ static int __devinit abituguru3_probe(struct platform_device *pdev)
 	u8 buf[2];
 	u16 id;
 
-	data = kzalloc(sizeof(struct abituguru3_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct abituguru3_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -1068,7 +1069,6 @@ abituguru3_probe_error:
 	for (i = 0; i < ARRAY_SIZE(abituguru3_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru3_sysfs_attr[i].dev_attr);
-	kfree(data);
 	return res;
 }
 
@@ -1084,8 +1084,6 @@ static int __devexit abituguru3_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(abituguru3_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru3_sysfs_attr[i].dev_attr);
-	kfree(data);
-
 	return 0;
 }
 

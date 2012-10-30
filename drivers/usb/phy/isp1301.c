@@ -15,12 +15,6 @@
 
 #define DRV_NAME		"isp1301"
 
-#define ISP1301_I2C_ADDR	0x2C
-
-static const unsigned short normal_i2c[] = {
-	ISP1301_I2C_ADDR, ISP1301_I2C_ADDR + 1, I2C_CLIENT_END
-};
-
 static const struct i2c_device_id isp1301_id[] = {
 	{ "isp1301", 0 },
 	{ }

@@ -31,11 +31,11 @@ config CPU_EXYNOS4210
 	bool "SAMSUNG EXYNOS4210"
 	default y
 	depends on ARCH_EXYNOS4
-	select SAMSUNG_DMADEV
 	select ARM_CPU_SUSPEND if PM
+	select PM_GENERIC_DOMAINS
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
-	select PM_GENERIC_DOMAINS
+	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS4210 CPU support
 
@@ -43,9 +43,9 @@ config SOC_EXYNOS4212
 	bool "SAMSUNG EXYNOS4212"
 	default y
 	depends on ARCH_EXYNOS4
-	select SAMSUNG_DMADEV
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
+	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS4212 SoC support
 
@@ -61,9 +61,9 @@ config SOC_EXYNOS5250
 	bool "SAMSUNG EXYNOS5250"
 	default y
 	depends on ARCH_EXYNOS5
-	select SAMSUNG_DMADEV
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
+	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS5250 SoC support
 
@@ -189,70 +189,71 @@ config MACH_SMDKC210
 config MACH_SMDKV310
 	bool "SMDKV310"
 	select CPU_EXYNOS4210
-	select S5P_DEV_FIMD0
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
-	select S3C_DEV_I2C1
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_G2D
-	select S5P_DEV_I2C_HDMIPHY
-	select S5P_DEV_JPEG
-	select S5P_DEV_MFC
-	select S5P_DEV_TV
-	select S5P_DEV_USB_EHCI
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC1
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_USB_HSOTG
-	select SAMSUNG_DEV_BACKLIGHT
-	select EXYNOS_DEV_DRM
-	select EXYNOS_DEV_SYSMMU
 	select EXYNOS4_DEV_AHCI
-	select SAMSUNG_DEV_KEYPAD
-	select EXYNOS_DEV_DMA
-	select SAMSUNG_DEV_PWM
 	select EXYNOS4_DEV_USB_OHCI
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
 	select EXYNOS4_SETUP_KEYPAD
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS_DEV_DMA
+	select EXYNOS_DEV_DRM
+	select EXYNOS_DEV_SYSMMU
+	select S3C24XX_PWM
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_RTC
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_WDT
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_FIMC3
+	select S5P_DEV_FIMD0
+	select S5P_DEV_G2D
+	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_JPEG
+	select S5P_DEV_MFC
+	select S5P_DEV_TV
+	select S5P_DEV_USB_EHCI
+	select SAMSUNG_DEV_BACKLIGHT
+	select SAMSUNG_DEV_KEYPAD
+	select SAMSUNG_DEV_PWM
 	help
 	  Machine support for Samsung SMDKV310
 
 config MACH_ARMLEX4210
 	bool "ARMLEX4210"
 	select CPU_EXYNOS4210
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
+	select EXYNOS4_DEV_AHCI
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS_DEV_DMA
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
-	select EXYNOS4_DEV_AHCI
-	select EXYNOS_DEV_DMA
-	select EXYNOS4_SETUP_SDHCI
+	select S3C_DEV_RTC
+	select S3C_DEV_WDT
 	help
 	  Machine support for Samsung ARMLEX4210 based on EXYNOS4210
 
 config MACH_UNIVERSAL_C210
 	bool "Mobile UNIVERSAL_C210 Board"
-	select CPU_EXYNOS4210
-	select S5P_HRT
 	select CLKSRC_MMIO
+	select CPU_EXYNOS4210
+	select EXYNOS4_SETUP_FIMC
+	select EXYNOS4_SETUP_FIMD0
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
+	select EXYNOS4_SETUP_I2C5
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS_DEV_DMA
+	select EXYNOS_DEV_DRM
+	select EXYNOS_DEV_SYSMMU
 	select HAVE_SCHED_CLOCK
-	select S5P_GPIO_INT
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_G2D
-	select S5P_DEV_CSIS0
-	select S5P_DEV_JPEG
-	select S5P_DEV_FIMD0
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
@@ -260,21 +261,21 @@ config MACH_UNIVERSAL_C210
 	select S3C_DEV_I2C3
 	select S3C_DEV_I2C5
 	select S3C_DEV_USB_HSOTG
+	select S5P_DEV_CSIS0
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_FIMC3
+	select S5P_DEV_FIMD0
+	select S5P_DEV_G2D
 	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_JPEG
 	select S5P_DEV_MFC
 	select S5P_DEV_ONENAND
 	select S5P_DEV_TV
-	select EXYNOS_DEV_SYSMMU
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_I2C3
-	select EXYNOS4_SETUP_I2C5
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_FIMC
+	select S5P_GPIO_INT
+	select S5P_HRT
 	select S5P_SETUP_MIPIPHY
-	select EXYNOS4_SETUP_USB_PHY
 	help
 	  Machine support for Samsung Mobile Universal S5PC210 Reference
 	  Board.
@@ -282,30 +283,6 @@ config MACH_UNIVERSAL_C210
 config MACH_NURI
 	bool "Mobile NURI Board"
 	select CPU_EXYNOS4210
-	select S5P_GPIO_INT
-	select S3C_DEV_WDT
-	select S3C_DEV_RTC
-	select S5P_DEV_FIMD0
-	select S3C_DEV_HSMMC
-	select S3C_DEV_HSMMC2
-	select S3C_DEV_HSMMC3
-	select S3C_DEV_I2C1
-	select S3C_DEV_I2C3
-	select S3C_DEV_I2C5
-	select S3C_DEV_I2C6
-	select S3C_DEV_USB_HSOTG
-	select S5P_DEV_CSIS0
-	select S5P_DEV_JPEG
-	select S5P_DEV_FIMC0
-	select S5P_DEV_FIMC1
-	select S5P_DEV_FIMC2
-	select S5P_DEV_FIMC3
-	select S5P_DEV_G2D
-	select S5P_DEV_MFC
-	select S5P_DEV_USB_EHCI
-	select S5P_SETUP_MIPIPHY
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS4_SETUP_FIMC
 	select EXYNOS4_SETUP_FIMD0
 	select EXYNOS4_SETUP_I2C1
@@ -314,20 +291,51 @@ config MACH_NURI
 	select EXYNOS4_SETUP_I2C6
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS_DEV_DMA
+	select EXYNOS_DEV_DRM
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_HSMMC3
+	select S3C_DEV_I2C1
+	select S3C_DEV_I2C3
+	select S3C_DEV_I2C5
+	select S3C_DEV_I2C6
+	select S3C_DEV_RTC
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_WDT
+	select S5P_DEV_CSIS0
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_FIMC3
+	select S5P_DEV_FIMD0
+	select S5P_DEV_G2D
+	select S5P_DEV_JPEG
+	select S5P_DEV_MFC
+	select S5P_DEV_USB_EHCI
+	select S5P_GPIO_INT
 	select S5P_SETUP_MIPIPHY
-	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_PWM
 	help
 	  Machine support for Samsung Mobile NURI Board.
 
 config MACH_ORIGEN
 	bool "ORIGEN"
 	select CPU_EXYNOS4210
-	select S3C_DEV_RTC
-	select S3C_DEV_WDT
+	select EXYNOS4_DEV_USB_OHCI
+	select EXYNOS4_SETUP_FIMD0
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS_DEV_DMA
+	select EXYNOS_DEV_DRM
+	select EXYNOS_DEV_SYSMMU
+	select S3C24XX_PWM
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
+	select S3C_DEV_RTC
 	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_WDT
 	select S5P_DEV_FIMC0
 	select S5P_DEV_FIMC1
 	select S5P_DEV_FIMC2
@@ -341,13 +349,6 @@ config MACH_ORIGEN
 	select S5P_DEV_USB_EHCI
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_PWM
-	select EXYNOS_DEV_DRM
-	select EXYNOS_DEV_SYSMMU
-	select EXYNOS_DEV_DMA
-	select EXYNOS4_DEV_USB_OHCI
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
 	help
 	  Machine support for ORIGEN based on Samsung EXYNOS4210
 
@@ -355,7 +356,17 @@ comment "EXYNOS4212 Boards"
 
 config MACH_SMDK4212
 	bool "SMDK4212"
-	select SOC_EXYNOS4212
+	select EXYNOS4_SETUP_FIMD0
+	select EXYNOS4_SETUP_I2C1
+	select EXYNOS4_SETUP_I2C3
+	select EXYNOS4_SETUP_I2C7
+	select EXYNOS4_SETUP_KEYPAD
+	select EXYNOS4_SETUP_SDHCI
+	select EXYNOS4_SETUP_USB_PHY
+	select EXYNOS_DEV_DMA
+	select EXYNOS_DEV_DRM
+	select EXYNOS_DEV_SYSMMU
+	select S3C24XX_PWM
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
 	select S3C_DEV_I2C1
@@ -373,16 +384,7 @@ config MACH_SMDK4212
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_KEYPAD
 	select SAMSUNG_DEV_PWM
-	select EXYNOS_DEV_SYSMMU
-	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
-	select EXYNOS4_SETUP_FIMD0
-	select EXYNOS4_SETUP_I2C1
-	select EXYNOS4_SETUP_I2C3
-	select EXYNOS4_SETUP_I2C7
-	select EXYNOS4_SETUP_KEYPAD
-	select EXYNOS4_SETUP_SDHCI
-	select EXYNOS4_SETUP_USB_PHY
+	select SOC_EXYNOS4212
 	help
 	  Machine support for Samsung SMDK4212
 
@@ -390,8 +392,8 @@ comment "EXYNOS4412 Boards"
 
 config MACH_SMDK4412
 	bool "SMDK4412"
-	select SOC_EXYNOS4412
 	select MACH_SMDK4212
+	select SOC_EXYNOS4412
 	help
 	  Machine support for Samsung SMDK4412
 endif
@@ -401,10 +403,12 @@ comment "Flattened Device Tree based board for EXYNOS SoCs"
 config MACH_EXYNOS4_DT
 	bool "Samsung Exynos4 Machine using device tree"
 	depends on ARCH_EXYNOS4
-	select CPU_EXYNOS4210
-	select USE_OF
 	select ARM_AMBA
+	select CPU_EXYNOS4210
 	select HAVE_SAMSUNG_KEYPAD if INPUT_KEYBOARD
+	select PINCTRL
+	select PINCTRL_EXYNOS4
+	select USE_OF
 	help
 	  Machine support for Samsung Exynos4 machine with device tree enabled.
 	  Select this if a fdt blob is available for the Exynos4 SoC based board.
@@ -414,12 +418,12 @@ config MACH_EXYNOS4_DT
 config MACH_EXYNOS5_DT
 	bool "SAMSUNG EXYNOS5 Machine using device tree"
 	depends on ARCH_EXYNOS5
+	select ARM_AMBA
 	select SOC_EXYNOS5250
 	select USE_OF
-	select ARM_AMBA
 	help
-	  Machine support for Samsung Exynos4 machine with device tree enabled.
-	  Select this if a fdt blob is available for the EXYNOS4 SoC based board.
+	  Machine support for Samsung EXYNOS5 machine with device tree enabled.
+	  Select this if a fdt blob is available for the EXYNOS5 SoC based board.
 
 if ARCH_EXYNOS4
 

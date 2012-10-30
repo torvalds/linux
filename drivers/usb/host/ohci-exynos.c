@@ -14,7 +14,7 @@
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
-#include <mach/ohci.h>
+#include <linux/platform_data/usb-exynos.h>
 #include <plat/usb-phy.h>
 
 struct exynos_ohci_hcd {

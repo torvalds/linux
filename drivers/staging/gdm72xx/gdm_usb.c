@@ -26,11 +26,11 @@
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-#define TX_BUF_SIZE	2048
+#define TX_BUF_SIZE		2048
 #if defined(CONFIG_WIMAX_GDM72XX_WIMAX2)
-#define RX_BUF_SIZE	(128*1024)	/* For packet aggregation */
+#define RX_BUF_SIZE		(128*1024)	/* For packet aggregation */
 #else
-#define RX_BUF_SIZE	2048
+#define RX_BUF_SIZE		2048
 #endif
 
 #define GDM7205_PADDING		256
@@ -39,7 +39,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define B2H(x)		__be16_to_cpu(x)
 #define DB2H(x)		__be32_to_cpu(x)
 
-#define DOWNLOAD_CONF_VALUE		0x21
+#define DOWNLOAD_CONF_VALUE	0x21
 
 #ifdef CONFIG_WIMAX_GDM72XX_K_MODE
 
@@ -48,7 +48,7 @@ static LIST_HEAD(k_list);
 static DEFINE_SPINLOCK(k_lock);
 static int k_mode_stop;
 
-#define K_WAIT_TIME	(2 * HZ / 100)
+#define K_WAIT_TIME		(2 * HZ / 100)
 
 #endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 
@@ -73,29 +73,23 @@ static void hexdump(char *title, u8 *data, int len)
 
 static struct usb_tx *alloc_tx_struct(struct tx_cxt *tx)
 {
-	struct usb_tx *t = NULL;
+	struct usb_tx *t = kzalloc(sizeof(*t), GFP_ATOMIC);
 
-	t = kmalloc(sizeof(*t), GFP_ATOMIC);
-	if (t == NULL)
-		goto out;
-
-	memset(t, 0, sizeof(*t));
+	if (!t)
+		return NULL;
 
 	t->urb = usb_alloc_urb(0, GFP_ATOMIC);
 	t->buf = kmalloc(TX_BUF_SIZE, GFP_ATOMIC);
-	if (t->urb == NULL || t->buf == NULL)
-		goto out;
+	if (!t->urb || !t->buf) {
+		usb_free_urb(t->urb);
+		kfree(t->buf);
+		kfree(t);
+		return NULL;
+	}
 
 	t->tx_cxt = tx;
 
 	return t;
-out:
-	if (t) {
-		usb_free_urb(t->urb);
-		kfree(t->buf);
-		kfree(t);
-	}
-	return NULL;
 }
 
 static void free_tx_struct(struct usb_tx *t)
@@ -109,28 +103,22 @@ static void free_tx_struct(struct usb_tx *t)
 
 static struct usb_rx *alloc_rx_struct(struct rx_cxt *rx)
 {
-	struct usb_rx *r = NULL;
+	struct usb_rx *r = kzalloc(sizeof(*r), GFP_ATOMIC);
 
-	r = kmalloc(sizeof(*r), GFP_ATOMIC);
-	if (r == NULL)
-		goto out;
-
-	memset(r, 0, sizeof(*r));
+	if (!r)
+		return NULL;
 
 	r->urb = usb_alloc_urb(0, GFP_ATOMIC);
 	r->buf = kmalloc(RX_BUF_SIZE, GFP_ATOMIC);
-	if (r->urb == NULL || r->buf == NULL)
-		goto out;
-
-	r->rx_cxt = rx;
-	return r;
-out:
-	if (r) {
+	if (!r->urb || !r->buf) {
 		usb_free_urb(r->urb);
 		kfree(r->buf);
 		kfree(r);
+		return NULL;
 	}
-	return NULL;
+
+	r->rx_cxt = rx;
+	return r;
 }
 
 static void free_rx_struct(struct usb_rx *r)
@@ -180,8 +168,7 @@ static struct usb_rx *get_rx_struct(struct rx_cxt *rx)
 	}
 
 	r = list_entry(rx->free_list.next, struct usb_rx, list);
-	list_del(&r->list);
-	list_add_tail(&r->list, &rx->used_list);
+	list_move_tail(&r->list, &rx->used_list);
 
 	return r;
 }
@@ -189,8 +176,7 @@ static struct usb_rx *get_rx_struct(struct rx_cxt *rx)
 /* Before this function is called, spin lock should be locked. */
 static void put_rx_struct(struct rx_cxt *rx, struct usb_rx *r)
 {
-	list_del(&r->list);
-	list_add(&r->list, &rx->free_list);
+	list_move(&r->list, &rx->free_list);
 }
 
 static int init_usb(struct usbwm_dev *udev)

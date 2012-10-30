@@ -178,7 +178,7 @@ Undo_phys:
 	return error;
 }
 
-int sas_unregister_ha(struct sas_ha_struct *sas_ha)
+static void sas_disable_events(struct sas_ha_struct *sas_ha)
 {
 	/* Set the state to unregistered to avoid further unchained
 	 * events to be queued, and flush any in-progress drainers
@@ -189,7 +189,11 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 	spin_unlock_irq(&sas_ha->lock);
 	__sas_drain_work(sas_ha);
 	mutex_unlock(&sas_ha->drain_mutex);
+}
 
+int sas_unregister_ha(struct sas_ha_struct *sas_ha)
+{
+	sas_disable_events(sas_ha);
 	sas_unregister_ports(sas_ha);
 
 	/* flush unregistration work */
@@ -380,6 +384,90 @@ int sas_set_phy_speed(struct sas_phy *phy,
 
 	return ret;
 }
+
+void sas_prep_resume_ha(struct sas_ha_struct *ha)
+{
+	int i;
+
+	set_bit(SAS_HA_REGISTERED, &ha->state);
+
+	/* clear out any stale link events/data from the suspension path */
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_phy *phy = ha->sas_phy[i];
+
+		memset(phy->attached_sas_addr, 0, SAS_ADDR_SIZE);
+		phy->port_events_pending = 0;
+		phy->phy_events_pending = 0;
+		phy->frame_rcvd_size = 0;
+	}
+}
+EXPORT_SYMBOL(sas_prep_resume_ha);
+
+static int phys_suspended(struct sas_ha_struct *ha)
+{
+	int i, rc = 0;
+
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_phy *phy = ha->sas_phy[i];
+
+		if (phy->suspended)
+			rc++;
+	}
+
+	return rc;
+}
+
+void sas_resume_ha(struct sas_ha_struct *ha)
+{
+	const unsigned long tmo = msecs_to_jiffies(25000);
+	int i;
+
+	/* deform ports on phys that did not resume
+	 * at this point we may be racing the phy coming back (as posted
+	 * by the lldd).  So we post the event and once we are in the
+	 * libsas context check that the phy remains suspended before
+	 * tearing it down.
+	 */
+	i = phys_suspended(ha);
+	if (i)
+		dev_info(ha->dev, "waiting up to 25 seconds for %d phy%s to resume\n",
+			 i, i > 1 ? "s" : "");
+	wait_event_timeout(ha->eh_wait_q, phys_suspended(ha) == 0, tmo);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_phy *phy = ha->sas_phy[i];
+
+		if (phy->suspended) {
+			dev_warn(&phy->phy->dev, "resume timeout\n");
+			sas_notify_phy_event(phy, PHYE_RESUME_TIMEOUT);
+		}
+	}
+
+	/* all phys are back up or timed out, turn on i/o so we can
+	 * flush out disks that did not return
+	 */
+	scsi_unblock_requests(ha->core.shost);
+	sas_drain_work(ha);
+}
+EXPORT_SYMBOL(sas_resume_ha);
+
+void sas_suspend_ha(struct sas_ha_struct *ha)
+{
+	int i;
+
+	sas_disable_events(ha);
+	scsi_block_requests(ha->core.shost);
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+
+		sas_discover_event(port, DISCE_SUSPEND);
+	}
+
+	/* flush suspend events while unregistered */
+	mutex_lock(&ha->drain_mutex);
+	__sas_drain_work(ha);
+	mutex_unlock(&ha->drain_mutex);
+}
+EXPORT_SYMBOL(sas_suspend_ha);
 
 static void sas_phy_release(struct sas_phy *phy)
 {

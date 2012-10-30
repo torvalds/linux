@@ -25,6 +25,8 @@ Optional properties:
   accesses to the UART (e.g. TI davinci).
 - used-by-rtas : set to indicate that the port is in use by the OpenFirmware
   RTAS and should not be registered.
+- no-loopback-test: set to indicate that the port does not implements loopback
+  test mode
 
 Example:
 

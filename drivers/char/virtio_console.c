@@ -24,6 +24,8 @@
 #include <linux/err.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
+#include <linux/splice.h>
+#include <linux/pagemap.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/poll.h>
@@ -474,26 +476,53 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 	return 0;
 }
 
+struct buffer_token {
+	union {
+		void *buf;
+		struct scatterlist *sg;
+	} u;
+	/* If sgpages == 0 then buf is used, else sg is used */
+	unsigned int sgpages;
+};
+
+static void reclaim_sg_pages(struct scatterlist *sg, unsigned int nrpages)
+{
+	int i;
+	struct page *page;
+
+	for (i = 0; i < nrpages; i++) {
+		page = sg_page(&sg[i]);
+		if (!page)
+			break;
+		put_page(page);
+	}
+	kfree(sg);
+}
+
 /* Callers must take the port->outvq_lock */
 static void reclaim_consumed_buffers(struct port *port)
 {
-	void *buf;
+	struct buffer_token *tok;
 	unsigned int len;
 
 	if (!port->portdev) {
 		/* Device has been unplugged.  vqs are already gone. */
 		return;
 	}
-	while ((buf = virtqueue_get_buf(port->out_vq, &len))) {
-		kfree(buf);
+	while ((tok = virtqueue_get_buf(port->out_vq, &len))) {
+		if (tok->sgpages)
+			reclaim_sg_pages(tok->u.sg, tok->sgpages);
+		else
+			kfree(tok->u.buf);
+		kfree(tok);
 		port->outvq_full = false;
 	}
 }
 
-static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
-			bool nonblock)
+static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
+			      int nents, size_t in_count,
+			      struct buffer_token *tok, bool nonblock)
 {
-	struct scatterlist sg[1];
 	struct virtqueue *out_vq;
 	ssize_t ret;
 	unsigned long flags;
@@ -505,8 +534,7 @@ static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
 
 	reclaim_consumed_buffers(port);
 
-	sg_init_one(sg, in_buf, in_count);
-	ret = virtqueue_add_buf(out_vq, sg, 1, 0, in_buf, GFP_ATOMIC);
+	ret = virtqueue_add_buf(out_vq, sg, nents, 0, tok, GFP_ATOMIC);
 
 	/* Tell Host to go! */
 	virtqueue_kick(out_vq);
@@ -542,6 +570,37 @@ done:
 	 * of it
 	 */
 	return in_count;
+}
+
+static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count,
+			bool nonblock)
+{
+	struct scatterlist sg[1];
+	struct buffer_token *tok;
+
+	tok = kmalloc(sizeof(*tok), GFP_ATOMIC);
+	if (!tok)
+		return -ENOMEM;
+	tok->sgpages = 0;
+	tok->u.buf = in_buf;
+
+	sg_init_one(sg, in_buf, in_count);
+
+	return __send_to_port(port, sg, 1, in_count, tok, nonblock);
+}
+
+static ssize_t send_pages(struct port *port, struct scatterlist *sg, int nents,
+			  size_t in_count, bool nonblock)
+{
+	struct buffer_token *tok;
+
+	tok = kmalloc(sizeof(*tok), GFP_ATOMIC);
+	if (!tok)
+		return -ENOMEM;
+	tok->sgpages = nents;
+	tok->u.sg = sg;
+
+	return __send_to_port(port, sg, nents, in_count, tok, nonblock);
 }
 
 /*
@@ -665,6 +724,26 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 	return fill_readbuf(port, ubuf, count, true);
 }
 
+static int wait_port_writable(struct port *port, bool nonblock)
+{
+	int ret;
+
+	if (will_write_block(port)) {
+		if (nonblock)
+			return -EAGAIN;
+
+		ret = wait_event_freezable(port->waitqueue,
+					   !will_write_block(port));
+		if (ret < 0)
+			return ret;
+	}
+	/* Port got hot-unplugged. */
+	if (!port->guest_connected)
+		return -ENODEV;
+
+	return 0;
+}
+
 static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 			       size_t count, loff_t *offp)
 {
@@ -681,18 +760,9 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 
 	nonblock = filp->f_flags & O_NONBLOCK;
 
-	if (will_write_block(port)) {
-		if (nonblock)
-			return -EAGAIN;
-
-		ret = wait_event_freezable(port->waitqueue,
-					   !will_write_block(port));
-		if (ret < 0)
-			return ret;
-	}
-	/* Port got hot-unplugged. */
-	if (!port->guest_connected)
-		return -ENODEV;
+	ret = wait_port_writable(port, nonblock);
+	if (ret < 0)
+		return ret;
 
 	count = min((size_t)(32 * 1024), count);
 
@@ -722,6 +792,93 @@ static ssize_t port_fops_write(struct file *filp, const char __user *ubuf,
 free_buf:
 	kfree(buf);
 out:
+	return ret;
+}
+
+struct sg_list {
+	unsigned int n;
+	unsigned int size;
+	size_t len;
+	struct scatterlist *sg;
+};
+
+static int pipe_to_sg(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
+			struct splice_desc *sd)
+{
+	struct sg_list *sgl = sd->u.data;
+	unsigned int offset, len;
+
+	if (sgl->n == sgl->size)
+		return 0;
+
+	/* Try lock this page */
+	if (buf->ops->steal(pipe, buf) == 0) {
+		/* Get reference and unlock page for moving */
+		get_page(buf->page);
+		unlock_page(buf->page);
+
+		len = min(buf->len, sd->len);
+		sg_set_page(&(sgl->sg[sgl->n]), buf->page, len, buf->offset);
+	} else {
+		/* Failback to copying a page */
+		struct page *page = alloc_page(GFP_KERNEL);
+		char *src = buf->ops->map(pipe, buf, 1);
+		char *dst;
+
+		if (!page)
+			return -ENOMEM;
+		dst = kmap(page);
+
+		offset = sd->pos & ~PAGE_MASK;
+
+		len = sd->len;
+		if (len + offset > PAGE_SIZE)
+			len = PAGE_SIZE - offset;
+
+		memcpy(dst + offset, src + buf->offset, len);
+
+		kunmap(page);
+		buf->ops->unmap(pipe, buf, src);
+
+		sg_set_page(&(sgl->sg[sgl->n]), page, len, offset);
+	}
+	sgl->n++;
+	sgl->len += len;
+
+	return len;
+}
+
+/* Faster zero-copy write by splicing */
+static ssize_t port_fops_splice_write(struct pipe_inode_info *pipe,
+				      struct file *filp, loff_t *ppos,
+				      size_t len, unsigned int flags)
+{
+	struct port *port = filp->private_data;
+	struct sg_list sgl;
+	ssize_t ret;
+	struct splice_desc sd = {
+		.total_len = len,
+		.flags = flags,
+		.pos = *ppos,
+		.u.data = &sgl,
+	};
+
+	ret = wait_port_writable(port, filp->f_flags & O_NONBLOCK);
+	if (ret < 0)
+		return ret;
+
+	sgl.n = 0;
+	sgl.len = 0;
+	sgl.size = pipe->nrbufs;
+	sgl.sg = kmalloc(sizeof(struct scatterlist) * sgl.size, GFP_KERNEL);
+	if (unlikely(!sgl.sg))
+		return -ENOMEM;
+
+	sg_init_table(sgl.sg, sgl.size);
+	ret = __splice_from_pipe(pipe, &sd, pipe_to_sg);
+	if (likely(ret > 0))
+		ret = send_pages(port, sgl.sg, sgl.n, sgl.len, true);
+
 	return ret;
 }
 
@@ -856,6 +1013,7 @@ static const struct file_operations port_fops = {
 	.open  = port_fops_open,
 	.read  = port_fops_read,
 	.write = port_fops_write,
+	.splice_write = port_fops_splice_write,
 	.poll  = port_fops_poll,
 	.release = port_fops_release,
 	.fasync = port_fops_fasync,
@@ -1941,7 +2099,17 @@ static int __init init(void)
 	INIT_LIST_HEAD(&pdrvdata.consoles);
 	INIT_LIST_HEAD(&pdrvdata.portdevs);
 
-	return register_virtio_driver(&virtio_console);
+	err = register_virtio_driver(&virtio_console);
+	if (err < 0) {
+		pr_err("Error %d registering virtio driver\n", err);
+		goto free;
+	}
+	return 0;
+free:
+	if (pdrvdata.debugfs_dir)
+		debugfs_remove_recursive(pdrvdata.debugfs_dir);
+	class_destroy(pdrvdata.class);
+	return err;
 }
 
 static void __exit fini(void)

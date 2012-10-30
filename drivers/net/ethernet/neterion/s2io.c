@@ -484,7 +484,7 @@ static DEFINE_PCI_DEVICE_TABLE(s2io_tbl) = {
 
 MODULE_DEVICE_TABLE(pci, s2io_tbl);
 
-static struct pci_error_handlers s2io_err_handler = {
+static const struct pci_error_handlers s2io_err_handler = {
 	.error_detected = s2io_io_error_detected,
 	.slot_reset = s2io_io_slot_reset,
 	.resume = s2io_io_resume,

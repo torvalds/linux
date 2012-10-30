@@ -241,7 +241,7 @@ static int __devinit wl1273_core_probe(struct i2c_client *client,
 		__func__, children);
 
 	r = mfd_add_devices(&client->dev, -1, core->cells,
-			    children, NULL, 0);
+			    children, NULL, 0, NULL);
 	if (r)
 		goto err;
 

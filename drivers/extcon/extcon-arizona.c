@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
@@ -30,11 +31,14 @@
 #include <linux/mfd/arizona/pdata.h>
 #include <linux/mfd/arizona/registers.h>
 
+#define ARIZONA_NUM_BUTTONS 6
+
 struct arizona_extcon_info {
 	struct device *dev;
 	struct arizona *arizona;
 	struct mutex lock;
 	struct regulator *micvdd;
+	struct input_dev *input;
 
 	int micd_mode;
 	const struct arizona_micd_config *micd_modes;
@@ -52,6 +56,18 @@ struct arizona_extcon_info {
 static const struct arizona_micd_config micd_default_modes[] = {
 	{ ARIZONA_ACCDET_SRC, 1 << ARIZONA_MICD_BIAS_SRC_SHIFT, 0 },
 	{ 0,                  2 << ARIZONA_MICD_BIAS_SRC_SHIFT, 1 },
+};
+
+static struct {
+	u16 status;
+	int report;
+} arizona_lvl_to_key[ARIZONA_NUM_BUTTONS] = {
+	{  0x1, BTN_0 },
+	{  0x2, BTN_1 },
+	{  0x4, BTN_2 },
+	{  0x8, BTN_3 },
+	{ 0x10, BTN_4 },
+	{ 0x20, BTN_5 },
 };
 
 #define ARIZONA_CABLE_MECHANICAL 0
@@ -133,6 +149,7 @@ static void arizona_stop_mic(struct arizona_extcon_info *info)
 
 	if (change) {
 		regulator_disable(info->micvdd);
+		pm_runtime_mark_last_busy(info->dev);
 		pm_runtime_put_autosuspend(info->dev);
 	}
 }
@@ -141,8 +158,8 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 {
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
-	unsigned int val;
-	int ret;
+	unsigned int val, lvl;
+	int ret, i;
 
 	mutex_lock(&info->lock);
 
@@ -219,12 +236,21 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 
 	/*
 	 * If we're still detecting and we detect a short then we've
-	 * got a headphone.  Otherwise it's a button press, the
-	 * button reporting is stubbed out for now.
+	 * got a headphone.  Otherwise it's a button press.
 	 */
 	if (val & 0x3fc) {
 		if (info->mic) {
 			dev_dbg(arizona->dev, "Mic button detected\n");
+
+			lvl = val & ARIZONA_MICD_LVL_MASK;
+			lvl >>= ARIZONA_MICD_LVL_SHIFT;
+
+			for (i = 0; i < ARIZONA_NUM_BUTTONS; i++)
+				if (lvl & arizona_lvl_to_key[i].status)
+					input_report_key(info->input,
+							 arizona_lvl_to_key[i].report,
+							 1);
+			input_sync(info->input);
 
 		} else if (info->detecting) {
 			dev_dbg(arizona->dev, "Headphone detected\n");
@@ -244,6 +270,10 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 		}
 	} else {
 		dev_dbg(arizona->dev, "Mic button released\n");
+		for (i = 0; i < ARIZONA_NUM_BUTTONS; i++)
+			input_report_key(info->input,
+					 arizona_lvl_to_key[i].report, 0);
+		input_sync(info->input);
 	}
 
 handled:
@@ -258,7 +288,7 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 	struct arizona_extcon_info *info = data;
 	struct arizona *arizona = info->arizona;
 	unsigned int val;
-	int ret;
+	int ret, i;
 
 	pm_runtime_get_sync(info->dev);
 
@@ -288,6 +318,11 @@ static irqreturn_t arizona_jackdet(int irq, void *data)
 
 		arizona_stop_mic(info);
 
+		for (i = 0; i < ARIZONA_NUM_BUTTONS; i++)
+			input_report_key(info->input,
+					 arizona_lvl_to_key[i].report, 0);
+		input_sync(info->input);
+
 		ret = extcon_update_state(&info->edev, 0xffffffff, 0);
 		if (ret != 0)
 			dev_err(arizona->dev, "Removal report failed: %d\n",
@@ -307,13 +342,13 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_pdata *pdata;
 	struct arizona_extcon_info *info;
-	int ret, mode;
+	int ret, mode, i;
 
 	pdata = dev_get_platdata(arizona->dev);
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+		dev_err(&pdev->dev, "Failed to allocate memory\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -350,7 +385,7 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 
 	ret = extcon_dev_register(&info->edev, arizona->dev);
 	if (ret < 0) {
-		dev_err(arizona->dev, "extcon_dev_regster() failed: %d\n",
+		dev_err(arizona->dev, "extcon_dev_register() failed: %d\n",
 			ret);
 		goto err;
 	}
@@ -382,6 +417,20 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 
 	arizona_extcon_set_mode(info, 0);
 
+	info->input = input_allocate_device();
+	if (!info->input) {
+		dev_err(arizona->dev, "Can't allocate input dev\n");
+		ret = -ENOMEM;
+		goto err_register;
+	}
+
+	for (i = 0; i < ARIZONA_NUM_BUTTONS; i++)
+		input_set_capability(info->input, EV_KEY,
+				     arizona_lvl_to_key[i].report);
+	info->input->name = "Headset";
+	info->input->phys = "arizona/extcon";
+	info->input->dev.parent = &pdev->dev;
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
@@ -391,7 +440,7 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		dev_err(&pdev->dev, "Failed to get JACKDET rise IRQ: %d\n",
 			ret);
-		goto err_register;
+		goto err_input;
 	}
 
 	ret = arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_RISE, 1);
@@ -434,10 +483,23 @@ static int __devinit arizona_extcon_probe(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, ARIZONA_JD1_ENA);
 
+	ret = regulator_allow_bypass(info->micvdd, true);
+	if (ret != 0)
+		dev_warn(arizona->dev, "Failed to set MICVDD to bypass: %d\n",
+			 ret);
+
 	pm_runtime_put(&pdev->dev);
+
+	ret = input_register_device(info->input);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't register input device: %d\n", ret);
+		goto err_micdet;
+	}
 
 	return 0;
 
+err_micdet:
+	arizona_free_irq(arizona, ARIZONA_IRQ_MICDET, info);
 err_fall_wake:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_FALL, 0);
 err_fall:
@@ -446,6 +508,8 @@ err_rise_wake:
 	arizona_set_irq_wake(arizona, ARIZONA_IRQ_JD_RISE, 0);
 err_rise:
 	arizona_free_irq(arizona, ARIZONA_IRQ_JD_RISE, info);
+err_input:
+	input_free_device(info->input);
 err_register:
 	pm_runtime_disable(&pdev->dev);
 	extcon_dev_unregister(&info->edev);
@@ -468,6 +532,7 @@ static int __devexit arizona_extcon_remove(struct platform_device *pdev)
 	regmap_update_bits(arizona->regmap, ARIZONA_JACK_DETECT_ANALOGUE,
 			   ARIZONA_JD1_ENA, 0);
 	arizona_clk32k_disable(arizona);
+	input_unregister_device(info->input);
 	extcon_dev_unregister(&info->edev);
 
 	return 0;

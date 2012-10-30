@@ -85,22 +85,16 @@ static inline void em_gio_write(struct em_gio_priv *p, int offs,
 		iowrite32(value, p->base1 + (offs - GIO_IDT0));
 }
 
-static inline struct em_gio_priv *irq_to_priv(struct irq_data *d)
-{
-	struct irq_chip *chip = irq_data_get_irq_chip(d);
-	return container_of(chip, struct em_gio_priv, irq_chip);
-}
-
 static void em_gio_irq_disable(struct irq_data *d)
 {
-	struct em_gio_priv *p = irq_to_priv(d);
+	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
 
 	em_gio_write(p, GIO_IDS, BIT(irqd_to_hwirq(d)));
 }
 
 static void em_gio_irq_enable(struct irq_data *d)
 {
-	struct em_gio_priv *p = irq_to_priv(d);
+	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
 
 	em_gio_write(p, GIO_IEN, BIT(irqd_to_hwirq(d)));
 }
@@ -118,7 +112,7 @@ static unsigned char em_gio_sense_table[IRQ_TYPE_SENSE_MASK + 1] = {
 static int em_gio_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	unsigned char value = em_gio_sense_table[type & IRQ_TYPE_SENSE_MASK];
-	struct em_gio_priv *p = irq_to_priv(d);
+	struct em_gio_priv *p = irq_data_get_irq_chip_data(d);
 	unsigned int reg, offset, shift;
 	unsigned long flags;
 	unsigned long tmp;

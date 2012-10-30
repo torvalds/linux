@@ -152,7 +152,7 @@ err: define bus type;
 
 
 /*******************************************************************************
- *  bus architechture specific defines, includes, etc.
+ *  bus architecture specific defines, includes, etc.
  ******************************************************************************/
 /*
  * There doesn't seem to be a difference for PCMCIA and PCI anymore, at least

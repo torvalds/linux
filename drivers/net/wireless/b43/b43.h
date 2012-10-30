@@ -241,16 +241,18 @@ enum {
 #define B43_SHM_SH_PHYVER		0x0050	/* PHY version */
 #define B43_SHM_SH_PHYTYPE		0x0052	/* PHY type */
 #define B43_SHM_SH_ANTSWAP		0x005C	/* Antenna swap threshold */
-#define B43_SHM_SH_HOSTFLO		0x005E	/* Hostflags for ucode options (low) */
-#define B43_SHM_SH_HOSTFMI		0x0060	/* Hostflags for ucode options (middle) */
-#define B43_SHM_SH_HOSTFHI		0x0062	/* Hostflags for ucode options (high) */
+#define B43_SHM_SH_HOSTF1		0x005E	/* Hostflags 1 for ucode options */
+#define B43_SHM_SH_HOSTF2		0x0060	/* Hostflags 2 for ucode options */
+#define B43_SHM_SH_HOSTF3		0x0062	/* Hostflags 3 for ucode options */
 #define B43_SHM_SH_RFATT		0x0064	/* Current radio attenuation value */
 #define B43_SHM_SH_RADAR		0x0066	/* Radar register */
 #define B43_SHM_SH_PHYTXNOI		0x006E	/* PHY noise directly after TX (lower 8bit only) */
 #define B43_SHM_SH_RFRXSP1		0x0072	/* RF RX SP Register 1 */
+#define B43_SHM_SH_HOSTF4		0x0078	/* Hostflags 4 for ucode options */
 #define B43_SHM_SH_CHAN			0x00A0	/* Current channel (low 8bit only) */
 #define  B43_SHM_SH_CHAN_5GHZ		0x0100	/* Bit set, if 5 Ghz channel */
 #define  B43_SHM_SH_CHAN_40MHZ		0x0200	/* Bit set, if 40 Mhz channel width */
+#define B43_SHM_SH_HOSTF5		0x00D4	/* Hostflags 5 for ucode options */
 #define B43_SHM_SH_BCMCFIFOID		0x0108	/* Last posted cookie to the bcast/mcast FIFO */
 /* TSSI information */
 #define B43_SHM_SH_TSSI_CCK		0x0058	/* TSSI for last 4 CCK frames (32bit) */
@@ -415,6 +417,8 @@ enum {
 #define B43_PHYTYPE_HT			0x07
 #define B43_PHYTYPE_LCN			0x08
 #define B43_PHYTYPE_LCNXN		0x09
+#define B43_PHYTYPE_LCN40		0x0a
+#define B43_PHYTYPE_AC			0x0b
 
 /* PHYRegisters */
 #define B43_PHY_ILT_A_CTRL		0x0072

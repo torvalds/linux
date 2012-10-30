@@ -547,7 +547,7 @@ static int __kprobes kprobe_trap_handler(struct pt_regs *regs, int trapnr)
 		 */
 		entry = search_exception_tables(regs->psw.addr & PSW_ADDR_INSN);
 		if (entry) {
-			regs->psw.addr = entry->fixup | PSW_ADDR_AMODE;
+			regs->psw.addr = extable_fixup(entry) | PSW_ADDR_AMODE;
 			return 1;
 		}
 

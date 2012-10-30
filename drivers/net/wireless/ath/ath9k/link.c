@@ -254,8 +254,9 @@ void ath_paprd_calibrate(struct work_struct *work)
 	int chain_ok = 0;
 	int chain;
 	int len = 1800;
+	int ret;
 
-	if (!caldata)
+	if (!caldata || !caldata->paprd_packet_sent || caldata->paprd_done)
 		return;
 
 	ath9k_ps_wakeup(sc);
@@ -282,13 +283,6 @@ void ath_paprd_calibrate(struct work_struct *work)
 			continue;
 
 		chain_ok = 0;
-
-		ath_dbg(common, CALIBRATE,
-			"Sending PAPRD frame for thermal measurement on chain %d\n",
-			chain);
-		if (!ath_paprd_send_frame(sc, skb, chain))
-			goto fail_paprd;
-
 		ar9003_paprd_setup_gain_table(ah, chain);
 
 		ath_dbg(common, CALIBRATE,
@@ -302,7 +296,13 @@ void ath_paprd_calibrate(struct work_struct *work)
 			break;
 		}
 
-		if (ar9003_paprd_create_curve(ah, caldata, chain)) {
+		ret = ar9003_paprd_create_curve(ah, caldata, chain);
+		if (ret == -EINPROGRESS) {
+			ath_dbg(common, CALIBRATE,
+				"PAPRD curve on chain %d needs to be re-trained\n",
+				chain);
+			break;
+		} else if (ret) {
 			ath_dbg(common, CALIBRATE,
 				"PAPRD create curve failed on chain %d\n",
 				chain);
@@ -423,7 +423,7 @@ set_timer:
 		cal_interval = min(cal_interval, (u32)short_cal_interval);
 
 	mod_timer(&common->ani.timer, jiffies + msecs_to_jiffies(cal_interval));
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_PAPRD) && ah->caldata) {
+	if (ah->eep_ops->get_eeprom(ah, EEP_PAPRD) && ah->caldata) {
 		if (!ah->caldata->paprd_done)
 			ieee80211_queue_work(sc->hw, &sc->paprd_work);
 		else if (!ah->paprd_table_write_done)

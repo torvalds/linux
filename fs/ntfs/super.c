@@ -102,8 +102,8 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 	char *p, *v, *ov;
 	static char *utf8 = "utf8";
 	int errors = 0, sloppy = 0;
-	uid_t uid = (uid_t)-1;
-	gid_t gid = (gid_t)-1;
+	kuid_t uid = INVALID_UID;
+	kgid_t gid = INVALID_GID;
 	umode_t fmask = (umode_t)-1, dmask = (umode_t)-1;
 	int mft_zone_multiplier = -1, on_errors = -1;
 	int show_sys_files = -1, case_sensitive = -1, disable_sparse = -1;
@@ -126,6 +126,30 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 			goto needs_arg;					\
 		variable = simple_strtoul(ov = v, &v, 0);		\
 		if (*v)							\
+			goto needs_val;					\
+	}
+#define NTFS_GETOPT_UID(option, variable)				\
+	if (!strcmp(p, option)) {					\
+		uid_t uid_value;					\
+		if (!v || !*v)						\
+			goto needs_arg;					\
+		uid_value = simple_strtoul(ov = v, &v, 0);		\
+		if (*v)							\
+			goto needs_val;					\
+		variable = make_kuid(current_user_ns(), uid_value);	\
+		if (!uid_valid(variable))				\
+			goto needs_val;					\
+	}
+#define NTFS_GETOPT_GID(option, variable)				\
+	if (!strcmp(p, option)) {					\
+		gid_t gid_value;					\
+		if (!v || !*v)						\
+			goto needs_arg;					\
+		gid_value = simple_strtoul(ov = v, &v, 0);		\
+		if (*v)							\
+			goto needs_val;					\
+		variable = make_kgid(current_user_ns(), gid_value);	\
+		if (!gid_valid(variable))				\
 			goto needs_val;					\
 	}
 #define NTFS_GETOPT_OCTAL(option, variable)				\
@@ -165,8 +189,8 @@ static bool parse_options(ntfs_volume *vol, char *opt)
 	while ((p = strsep(&opt, ","))) {
 		if ((v = strchr(p, '=')))
 			*v++ = 0;
-		NTFS_GETOPT("uid", uid)
-		else NTFS_GETOPT("gid", gid)
+		NTFS_GETOPT_UID("uid", uid)
+		else NTFS_GETOPT_GID("gid", gid)
 		else NTFS_GETOPT_OCTAL("umask", fmask = dmask)
 		else NTFS_GETOPT_OCTAL("fmask", fmask)
 		else NTFS_GETOPT_OCTAL("dmask", dmask)
@@ -283,9 +307,9 @@ no_mount_options:
 		vol->on_errors = on_errors;
 	if (!vol->on_errors || vol->on_errors == ON_ERRORS_RECOVER)
 		vol->on_errors |= ON_ERRORS_CONTINUE;
-	if (uid != (uid_t)-1)
+	if (uid_valid(uid))
 		vol->uid = uid;
-	if (gid != (gid_t)-1)
+	if (gid_valid(gid))
 		vol->gid = gid;
 	if (fmask != (umode_t)-1)
 		vol->fmask = fmask;
@@ -1023,7 +1047,8 @@ static bool load_and_init_mft_mirror(ntfs_volume *vol)
 	 * ntfs_read_inode() will have set up the default ones.
 	 */
 	/* Set uid and gid to root. */
-	tmp_ino->i_uid = tmp_ino->i_gid = 0;
+	tmp_ino->i_uid = GLOBAL_ROOT_UID;
+	tmp_ino->i_gid = GLOBAL_ROOT_GID;
 	/* Regular file.  No access for anyone. */
 	tmp_ino->i_mode = S_IFREG;
 	/* No VFS initiated operations allowed for $MFTMirr. */
@@ -3168,6 +3193,12 @@ static void __exit exit_ntfs_fs(void)
 	ntfs_debug("Unregistering NTFS driver.");
 
 	unregister_filesystem(&ntfs_fs_type);
+
+	/*
+	 * Make sure all delayed rcu free inodes are flushed before we
+	 * destroy cache.
+	 */
+	rcu_barrier();
 	kmem_cache_destroy(ntfs_big_inode_cache);
 	kmem_cache_destroy(ntfs_inode_cache);
 	kmem_cache_destroy(ntfs_name_cache);

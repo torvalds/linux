@@ -120,10 +120,10 @@ static int __devinit c_can_pci_probe(struct pci_dev *pdev,
 
 	/* Configure CAN type */
 	switch (c_can_pci_data->type) {
-	case C_CAN_DEVTYPE:
+	case BOSCH_C_CAN:
 		priv->regs = reg_map_c_can;
 		break;
-	case D_CAN_DEVTYPE:
+	case BOSCH_D_CAN:
 		priv->regs = reg_map_d_can;
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		break;
@@ -192,7 +192,7 @@ static void __devexit c_can_pci_remove(struct pci_dev *pdev)
 }
 
 static struct c_can_pci_data c_can_sta2x11= {
-	.type = C_CAN_DEVTYPE,
+	.type = BOSCH_C_CAN,
 	.reg_align = C_CAN_REG_ALIGN_32,
 	.freq = 52000000, /* 52 Mhz */
 };

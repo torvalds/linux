@@ -10,6 +10,7 @@
  * ---------------------------------------------------------------------------
  */
 
+#include <linux/version.h>
 #include "unifi_priv.h"
 
 #ifdef UNIFI_SNIFF_ARPHRD
@@ -22,8 +23,6 @@
 #ifndef ETH_P_80211_RAW
 #define ETH_P_80211_RAW ETH_P_ALL
 #endif
-
-
 
 /*
  * ---------------------------------------------------------------------------
@@ -192,11 +191,7 @@ netrx_radiotap(unifi_priv_t *priv,
 
 
     skb->dev = dev;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,22)
     skb->mac_header = skb->data;
-#else
-    skb->mac.raw = skb->data;
-#endif
     skb->pkt_type = PACKET_OTHERHOST;
     skb->protocol = __constant_htons(ETH_P_80211_RAW);
     memset(skb->cb, 0, sizeof(skb->cb));

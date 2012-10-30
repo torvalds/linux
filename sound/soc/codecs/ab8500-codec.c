@@ -34,6 +34,7 @@
 #include <linux/mfd/abx500/ab8500-sysctrl.h>
 #include <linux/mfd/abx500/ab8500-codec.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -390,10 +391,10 @@ static const struct snd_soc_dapm_widget ab8500_dapm_widgets[] = {
 	SND_SOC_DAPM_CLOCK_SUPPLY("audioclk"),
 
 	/* Regulators */
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0),
-	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AUD", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC1", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-AMIC2", 0, 0),
+	SND_SOC_DAPM_REGULATOR_SUPPLY("V-DMIC", 0, 0),
 
 	/* Power */
 	SND_SOC_DAPM_SUPPLY("Audio Power",
@@ -2394,9 +2395,65 @@ struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	}
 };
 
+static void ab8500_codec_of_probe(struct device *dev, struct device_node *np,
+				struct ab8500_codec_platform_data *codec)
+{
+	u32 value;
+
+	if (of_get_property(np, "stericsson,amic1-type-single-ended", NULL))
+		codec->amics.mic1_type = AMIC_TYPE_SINGLE_ENDED;
+	else
+		codec->amics.mic1_type = AMIC_TYPE_DIFFERENTIAL;
+
+	if (of_get_property(np, "stericsson,amic2-type-single-ended", NULL))
+		codec->amics.mic2_type = AMIC_TYPE_SINGLE_ENDED;
+	else
+		codec->amics.mic2_type = AMIC_TYPE_DIFFERENTIAL;
+
+	/* Has a non-standard Vamic been requested? */
+	if (of_get_property(np, "stericsson,amic1a-bias-vamic2", NULL))
+		codec->amics.mic1a_micbias = AMIC_MICBIAS_VAMIC2;
+	else
+		codec->amics.mic1a_micbias = AMIC_MICBIAS_VAMIC1;
+
+	if (of_get_property(np, "stericsson,amic1b-bias-vamic2", NULL))
+		codec->amics.mic1b_micbias = AMIC_MICBIAS_VAMIC2;
+	else
+		codec->amics.mic1b_micbias = AMIC_MICBIAS_VAMIC1;
+
+	if (of_get_property(np, "stericsson,amic2-bias-vamic1", NULL))
+		codec->amics.mic2_micbias = AMIC_MICBIAS_VAMIC1;
+	else
+		codec->amics.mic2_micbias = AMIC_MICBIAS_VAMIC2;
+
+	if (!of_property_read_u32(np, "stericsson,earpeice-cmv", &value)) {
+		switch (value) {
+		case 950 :
+			codec->ear_cmv = EAR_CMV_0_95V;
+			break;
+		case 1100 :
+			codec->ear_cmv = EAR_CMV_1_10V;
+			break;
+		case 1270 :
+			codec->ear_cmv = EAR_CMV_1_27V;
+			break;
+		case 1580 :
+			codec->ear_cmv = EAR_CMV_1_58V;
+			break;
+		default :
+			codec->ear_cmv = EAR_CMV_UNKNOWN;
+			dev_err(dev, "Unsuitable earpiece voltage found in DT\n");
+		}
+	} else {
+		dev_warn(dev, "No earpiece voltage found in DT - using default\n");
+		codec->ear_cmv = EAR_CMV_0_95V;
+	}
+}
+
 static int ab8500_codec_probe(struct snd_soc_codec *codec)
 {
 	struct device *dev = codec->dev;
+	struct device_node *np = dev->of_node;
 	struct ab8500_codec_drvdata *drvdata = dev_get_drvdata(dev);
 	struct ab8500_platform_data *pdata;
 	struct filter_control *fc;
@@ -2405,10 +2462,31 @@ static int ab8500_codec_probe(struct snd_soc_codec *codec)
 	dev_dbg(dev, "%s: Enter.\n", __func__);
 
 	/* Setup AB8500 according to board-settings */
-	pdata = (struct ab8500_platform_data *)dev_get_platdata(dev->parent);
+	pdata = dev_get_platdata(dev->parent);
 
-	/* Inform SoC Core that we have our own I/O arrangements. */
-	codec->control_data = (void *)true;
+	if (np) {
+		if (!pdata)
+			pdata = devm_kzalloc(dev,
+					sizeof(struct ab8500_platform_data),
+					GFP_KERNEL);
+
+		if (pdata && !pdata->codec)
+			pdata->codec
+				= devm_kzalloc(dev,
+					sizeof(struct ab8500_codec_platform_data),
+					GFP_KERNEL);
+
+		if (!(pdata && pdata->codec))
+			return -ENOMEM;
+
+		ab8500_codec_of_probe(dev, np, pdata->codec);
+
+	} else {
+		if (!(pdata && pdata->codec)) {
+			dev_err(dev, "No codec platform data or DT found\n");
+			return -EINVAL;
+		}
+	}
 
 	status = ab8500_audio_setup_mics(codec, &pdata->codec->amics);
 	if (status < 0) {

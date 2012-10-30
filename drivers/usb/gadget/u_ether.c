@@ -14,6 +14,7 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/device.h>
 #include <linux/ctype.h>
@@ -83,16 +84,9 @@ struct eth_dev {
 
 #define DEFAULT_QLEN	2	/* double buffering by default */
 
-
-#ifdef CONFIG_USB_GADGET_DUALSPEED
-
 static unsigned qmult = 5;
 module_param(qmult, uint, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");
-
-#else	/* full speed (low speed doesn't do bulk) */
-#define qmult		1
-#endif
 
 /* for dual-speed hardware, use deeper queues at high/super speed */
 static inline int qlen(struct usb_gadget *gadget)
@@ -840,7 +834,7 @@ void gether_cleanup(void)
 		return;
 
 	unregister_netdev(the_dev->net);
-	flush_work_sync(&the_dev->work);
+	flush_work(&the_dev->work);
 	free_netdev(the_dev->net);
 
 	the_dev = NULL;

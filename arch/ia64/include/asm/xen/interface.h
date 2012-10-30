@@ -67,6 +67,11 @@
 #define set_xen_guest_handle(hnd, val)	do { (hnd).p = val; } while (0)
 
 #ifndef __ASSEMBLY__
+/* Explicitly size integers that represent pfns in the public interface
+ * with Xen so that we could have one ABI that works for 32 and 64 bit
+ * guests. */
+typedef unsigned long xen_pfn_t;
+typedef unsigned long xen_ulong_t;
 /* Guest handles for primitive C types. */
 __DEFINE_GUEST_HANDLE(uchar, unsigned char);
 __DEFINE_GUEST_HANDLE(uint, unsigned int);
@@ -79,7 +84,6 @@ DEFINE_GUEST_HANDLE(void);
 DEFINE_GUEST_HANDLE(uint64_t);
 DEFINE_GUEST_HANDLE(uint32_t);
 
-typedef unsigned long xen_pfn_t;
 DEFINE_GUEST_HANDLE(xen_pfn_t);
 #define PRI_xen_pfn	"lx"
 #endif
@@ -264,6 +268,8 @@ struct xen_callback {
 typedef struct xen_callback xen_callback_t;
 
 #endif /* !__ASSEMBLY__ */
+
+#include <asm/pvclock-abi.h>
 
 /* Size of the shared_info area (this is not related to page size).  */
 #define XSI_SHIFT			14

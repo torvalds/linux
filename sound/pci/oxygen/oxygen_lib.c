@@ -573,8 +573,8 @@ static void oxygen_card_free(struct snd_card *card)
 	oxygen_shutdown(chip);
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
-	flush_work_sync(&chip->spdif_input_bits_work);
-	flush_work_sync(&chip->gpio_work);
+	flush_work(&chip->spdif_input_bits_work);
+	flush_work(&chip->gpio_work);
 	chip->model.cleanup(chip);
 	kfree(chip->model_data);
 	mutex_destroy(&chip->mutex);
@@ -726,7 +726,7 @@ void oxygen_pci_remove(struct pci_dev *pci)
 }
 EXPORT_SYMBOL(oxygen_pci_remove);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int oxygen_pci_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -751,8 +751,8 @@ static int oxygen_pci_suspend(struct device *dev)
 	spin_unlock_irq(&chip->reg_lock);
 
 	synchronize_irq(chip->irq);
-	flush_work_sync(&chip->spdif_input_bits_work);
-	flush_work_sync(&chip->gpio_work);
+	flush_work(&chip->spdif_input_bits_work);
+	flush_work(&chip->gpio_work);
 	chip->interrupt_mask = saved_interrupt_mask;
 
 	pci_disable_device(pci);
@@ -824,7 +824,7 @@ static int oxygen_pci_resume(struct device *dev)
 
 SIMPLE_DEV_PM_OPS(oxygen_pci_pm, oxygen_pci_suspend, oxygen_pci_resume);
 EXPORT_SYMBOL(oxygen_pci_pm);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 void oxygen_pci_shutdown(struct pci_dev *pci)
 {

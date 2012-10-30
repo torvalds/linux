@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2011 QLogic Corporation
+ * Copyright (c)  2003-2012 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -1131,7 +1131,7 @@ qla2x00_mgmt_svr_login(scsi_qla_host_t *vha)
 		return ret;
 
 	rval = ha->isp_ops->fabric_login(vha, vha->mgmt_svr_loop_id, 0xff, 0xff,
-	    0xfa, mb, BIT_1|BIT_0);
+	    0xfa, mb, BIT_1);
 	if (rval != QLA_SUCCESS || mb[0] != MBS_COMMAND_COMPLETE) {
 		if (rval == QLA_MEMORY_ALLOC_FAILED)
 			ql_dbg(ql_dbg_disc, vha, 0x2085,

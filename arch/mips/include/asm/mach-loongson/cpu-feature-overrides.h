@@ -32,6 +32,7 @@
 #define cpu_has_dc_aliases	(PAGE_SIZE < 0x4000)
 #define cpu_has_divec		0
 #define cpu_has_dsp		0
+#define cpu_has_dsp2		0
 #define cpu_has_ejtag		0
 #define cpu_has_fpu		1
 #define cpu_has_ic_fills_f_dc	0

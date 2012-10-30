@@ -122,8 +122,6 @@ source "drivers/staging/android/Kconfig"
 
 source "drivers/staging/telephony/Kconfig"
 
-source "drivers/staging/ramster/Kconfig"
-
 source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/ccg/Kconfig"
@@ -135,5 +133,15 @@ source "drivers/staging/gdm72xx/Kconfig"
 source "drivers/staging/csr/Kconfig"
 
 source "drivers/staging/omap-thermal/Kconfig"
+
+source "drivers/staging/ramster/Kconfig"
+
+source "drivers/staging/silicom/Kconfig"
+
+source "drivers/staging/ced1401/Kconfig"
+
+source "drivers/staging/imx-drm/Kconfig"
+
+source "drivers/staging/dgrp/Kconfig"
 
 endif # STAGING

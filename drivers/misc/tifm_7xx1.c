@@ -434,21 +434,9 @@ static struct pci_driver tifm_7xx1_driver = {
 	.resume = tifm_7xx1_resume,
 };
 
-static int __init tifm_7xx1_init(void)
-{
-	return pci_register_driver(&tifm_7xx1_driver);
-}
-
-static void __exit tifm_7xx1_exit(void)
-{
-	pci_unregister_driver(&tifm_7xx1_driver);
-}
-
+module_pci_driver(tifm_7xx1_driver);
 MODULE_AUTHOR("Alex Dubov");
 MODULE_DESCRIPTION("TI FlashMedia host driver");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, tifm_7xx1_pci_tbl);
 MODULE_VERSION(DRIVER_VERSION);
-
-module_init(tifm_7xx1_init);
-module_exit(tifm_7xx1_exit);

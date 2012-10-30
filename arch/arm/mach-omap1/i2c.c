@@ -20,7 +20,7 @@
  */
 
 #include <plat/i2c.h>
-#include <plat/mux.h>
+#include <mach/mux.h>
 #include <plat/cpu.h>
 
 void __init omap1_i2c_mux_pins(int bus_id)

@@ -74,22 +74,22 @@ static struct map_desc ebsa110_io_desc[] __initdata = {
 	 * sparse external-decode ISAIO space
 	 */
 	{	/* IRQ_STAT/IRQ_MCLR */
-		.virtual	= IRQ_STAT,
+		.virtual	= (unsigned long)IRQ_STAT,
 		.pfn		= __phys_to_pfn(TRICK4_PHYS),
 		.length		= TRICK4_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* IRQ_MASK/IRQ_MSET */
-		.virtual	= IRQ_MASK,
+		.virtual	= (unsigned long)IRQ_MASK,
 		.pfn		= __phys_to_pfn(TRICK3_PHYS),
 		.length		= TRICK3_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* SOFT_BASE */
-		.virtual	= SOFT_BASE,
+		.virtual	= (unsigned long)SOFT_BASE,
 		.pfn		= __phys_to_pfn(TRICK1_PHYS),
 		.length		= TRICK1_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* PIT_BASE */
-		.virtual	= PIT_BASE,
+		.virtual	= (unsigned long)PIT_BASE,
 		.pfn		= __phys_to_pfn(TRICK0_PHYS),
 		.length		= TRICK0_SIZE,
 		.type		= MT_DEVICE

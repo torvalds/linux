@@ -653,7 +653,7 @@ static const struct sdhci_pci_fixes sdhci_via = {
 	.probe		= via_probe,
 };
 
-static const struct pci_device_id pci_ids[] __devinitdata = {
+static const struct pci_device_id pci_ids[] __devinitconst = {
 	{
 		.vendor		= PCI_VENDOR_ID_RICOH,
 		.device		= PCI_DEVICE_ID_RICOH_R5C822,
@@ -1476,24 +1476,7 @@ static struct pci_driver sdhci_driver = {
 	},
 };
 
-/*****************************************************************************\
- *                                                                           *
- * Driver init/exit                                                          *
- *                                                                           *
-\*****************************************************************************/
-
-static int __init sdhci_drv_init(void)
-{
-	return pci_register_driver(&sdhci_driver);
-}
-
-static void __exit sdhci_drv_exit(void)
-{
-	pci_unregister_driver(&sdhci_driver);
-}
-
-module_init(sdhci_drv_init);
-module_exit(sdhci_drv_exit);
+module_pci_driver(sdhci_driver);
 
 MODULE_AUTHOR("Pierre Ossman <pierre@ossman.eu>");
 MODULE_DESCRIPTION("Secure Digital Host Controller Interface PCI driver");

@@ -472,14 +472,9 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 	}
 
 	if (adapter->rx_queue.queue_addr != NULL) {
-		if (!dma_mapping_error(dev, adapter->rx_queue.queue_dma)) {
-			dma_unmap_single(dev,
-					adapter->rx_queue.queue_dma,
-					adapter->rx_queue.queue_len,
-					DMA_BIDIRECTIONAL);
-			adapter->rx_queue.queue_dma = DMA_ERROR_CODE;
-		}
-		kfree(adapter->rx_queue.queue_addr);
+		dma_free_coherent(dev, adapter->rx_queue.queue_len,
+				  adapter->rx_queue.queue_addr,
+				  adapter->rx_queue.queue_dma);
 		adapter->rx_queue.queue_addr = NULL;
 	}
 
@@ -556,10 +551,13 @@ static int ibmveth_open(struct net_device *netdev)
 		goto err_out;
 	}
 
+	dev = &adapter->vdev->dev;
+
 	adapter->rx_queue.queue_len = sizeof(struct ibmveth_rx_q_entry) *
 						rxq_entries;
-	adapter->rx_queue.queue_addr = kmalloc(adapter->rx_queue.queue_len,
-						GFP_KERNEL);
+	adapter->rx_queue.queue_addr =
+	    dma_alloc_coherent(dev, adapter->rx_queue.queue_len,
+			       &adapter->rx_queue.queue_dma, GFP_KERNEL);
 
 	if (!adapter->rx_queue.queue_addr) {
 		netdev_err(netdev, "unable to allocate rx queue pages\n");
@@ -567,19 +565,13 @@ static int ibmveth_open(struct net_device *netdev)
 		goto err_out;
 	}
 
-	dev = &adapter->vdev->dev;
-
 	adapter->buffer_list_dma = dma_map_single(dev,
 			adapter->buffer_list_addr, 4096, DMA_BIDIRECTIONAL);
 	adapter->filter_list_dma = dma_map_single(dev,
 			adapter->filter_list_addr, 4096, DMA_BIDIRECTIONAL);
-	adapter->rx_queue.queue_dma = dma_map_single(dev,
-			adapter->rx_queue.queue_addr,
-			adapter->rx_queue.queue_len, DMA_BIDIRECTIONAL);
 
 	if ((dma_mapping_error(dev, adapter->buffer_list_dma)) ||
-	    (dma_mapping_error(dev, adapter->filter_list_dma)) ||
-	    (dma_mapping_error(dev, adapter->rx_queue.queue_dma))) {
+	    (dma_mapping_error(dev, adapter->filter_list_dma))) {
 		netdev_err(netdev, "unable to map filter or buffer list "
 			   "pages\n");
 		rc = -ENOMEM;

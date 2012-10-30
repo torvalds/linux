@@ -41,6 +41,9 @@
 /* Adjust the return address of a call insn */
 #define UPROBE_FIX_CALL	0x2
 
+/* Instruction will modify TF, don't change it */
+#define UPROBE_FIX_SETF	0x4
+
 #define UPROBE_FIX_RIP_AX	0x8000
 #define UPROBE_FIX_RIP_CX	0x4000
 
@@ -239,6 +242,10 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
 	insn_get_opcode(insn);	/* should be a nop */
 
 	switch (OPCODE1(insn)) {
+	case 0x9d:
+		/* popf */
+		auprobe->fixups |= UPROBE_FIX_SETF;
+		break;
 	case 0xc3:		/* ret/lret */
 	case 0xcb:
 	case 0xc2:
@@ -644,32 +651,63 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 /*
  * Skip these instructions as per the currently known x86 ISA.
- * 0x66* { 0x90 | 0x0f 0x1f | 0x0f 0x19 | 0x87 0xc0 }
+ * rep=0x66*; nop=0x90
  */
-bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	int i;
 
 	for (i = 0; i < MAX_UINSN_BYTES; i++) {
-		if ((auprobe->insn[i] == 0x66))
+		if (auprobe->insn[i] == 0x66)
 			continue;
 
 		if (auprobe->insn[i] == 0x90)
 			return true;
 
-		if (i == (MAX_UINSN_BYTES - 1))
-			break;
-
-		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x1f))
-			return true;
-
-		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x19))
-			return true;
-
-		if ((auprobe->insn[i] == 0x87) && (auprobe->insn[i+1] == 0xc0))
-			return true;
-
 		break;
 	}
 	return false;
+}
+
+bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	bool ret = __skip_sstep(auprobe, regs);
+	if (ret && (regs->flags & X86_EFLAGS_TF))
+		send_sig(SIGTRAP, current, 0);
+	return ret;
+}
+
+void arch_uprobe_enable_step(struct arch_uprobe *auprobe)
+{
+	struct task_struct *task = current;
+	struct arch_uprobe_task	*autask	= &task->utask->autask;
+	struct pt_regs *regs = task_pt_regs(task);
+
+	autask->saved_tf = !!(regs->flags & X86_EFLAGS_TF);
+
+	regs->flags |= X86_EFLAGS_TF;
+	if (test_tsk_thread_flag(task, TIF_BLOCKSTEP))
+		set_task_blockstep(task, false);
+}
+
+void arch_uprobe_disable_step(struct arch_uprobe *auprobe)
+{
+	struct task_struct *task = current;
+	struct arch_uprobe_task	*autask	= &task->utask->autask;
+	bool trapped = (task->utask->state == UTASK_SSTEP_TRAPPED);
+	struct pt_regs *regs = task_pt_regs(task);
+	/*
+	 * The state of TIF_BLOCKSTEP was not saved so we can get an extra
+	 * SIGTRAP if we do not clear TF. We need to examine the opcode to
+	 * make it right.
+	 */
+	if (unlikely(trapped)) {
+		if (!autask->saved_tf)
+			regs->flags &= ~X86_EFLAGS_TF;
+	} else {
+		if (autask->saved_tf)
+			send_sig(SIGTRAP, task, 0);
+		else if (!(auprobe->fixups & UPROBE_FIX_SETF))
+			regs->flags &= ~X86_EFLAGS_TF;
+	}
 }

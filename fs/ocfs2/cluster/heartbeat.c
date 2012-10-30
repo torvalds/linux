@@ -1746,8 +1746,8 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	long fd;
 	int sectsize;
 	char *p = (char *)page;
-	struct file *filp = NULL;
-	struct inode *inode = NULL;
+	struct fd f;
+	struct inode *inode;
 	ssize_t ret = -EINVAL;
 	int live_threshold;
 
@@ -1766,26 +1766,26 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	if (fd < 0 || fd >= INT_MAX)
 		goto out;
 
-	filp = fget(fd);
-	if (filp == NULL)
+	f = fdget(fd);
+	if (f.file == NULL)
 		goto out;
 
 	if (reg->hr_blocks == 0 || reg->hr_start_block == 0 ||
 	    reg->hr_block_bytes == 0)
-		goto out;
+		goto out2;
 
-	inode = igrab(filp->f_mapping->host);
+	inode = igrab(f.file->f_mapping->host);
 	if (inode == NULL)
-		goto out;
+		goto out2;
 
 	if (!S_ISBLK(inode->i_mode))
-		goto out;
+		goto out3;
 
-	reg->hr_bdev = I_BDEV(filp->f_mapping->host);
+	reg->hr_bdev = I_BDEV(f.file->f_mapping->host);
 	ret = blkdev_get(reg->hr_bdev, FMODE_WRITE | FMODE_READ, NULL);
 	if (ret) {
 		reg->hr_bdev = NULL;
-		goto out;
+		goto out3;
 	}
 	inode = NULL;
 
@@ -1797,7 +1797,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 		     "blocksize %u incorrect for device, expected %d",
 		     reg->hr_block_bytes, sectsize);
 		ret = -EINVAL;
-		goto out;
+		goto out3;
 	}
 
 	o2hb_init_region_params(reg);
@@ -1811,13 +1811,13 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	ret = o2hb_map_slot_data(reg);
 	if (ret) {
 		mlog_errno(ret);
-		goto out;
+		goto out3;
 	}
 
 	ret = o2hb_populate_slot_data(reg);
 	if (ret) {
 		mlog_errno(ret);
-		goto out;
+		goto out3;
 	}
 
 	INIT_DELAYED_WORK(&reg->hr_write_timeout_work, o2hb_write_timeout);
@@ -1847,7 +1847,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 	if (IS_ERR(hb_task)) {
 		ret = PTR_ERR(hb_task);
 		mlog_errno(ret);
-		goto out;
+		goto out3;
 	}
 
 	spin_lock(&o2hb_live_lock);
@@ -1863,7 +1863,7 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 
 	if (reg->hr_aborted_start) {
 		ret = -EIO;
-		goto out;
+		goto out3;
 	}
 
 	/* Ok, we were woken.  Make sure it wasn't by drop_item() */
@@ -1882,11 +1882,11 @@ static ssize_t o2hb_region_dev_write(struct o2hb_region *reg,
 		printk(KERN_NOTICE "o2hb: Heartbeat started on region %s (%s)\n",
 		       config_item_name(&reg->hr_item), reg->hr_dev_name);
 
+out3:
+	iput(inode);
+out2:
+	fdput(f);
 out:
-	if (filp)
-		fput(filp);
-	if (inode)
-		iput(inode);
 	if (ret < 0) {
 		if (reg->hr_bdev) {
 			blkdev_put(reg->hr_bdev, FMODE_READ|FMODE_WRITE);

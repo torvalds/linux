@@ -295,7 +295,7 @@ static void ll_adapter_reset(const struct pvscsi_adapter *adapter)
 
 static void ll_bus_reset(const struct pvscsi_adapter *adapter)
 {
-	dev_dbg(pvscsi_dev(adapter), "Reseting bus on %p\n", adapter);
+	dev_dbg(pvscsi_dev(adapter), "Resetting bus on %p\n", adapter);
 
 	pvscsi_write_cmd_desc(adapter, PVSCSI_CMD_RESET_BUS, NULL, 0);
 }
@@ -304,7 +304,7 @@ static void ll_device_reset(const struct pvscsi_adapter *adapter, u32 target)
 {
 	struct PVSCSICmdDescResetDevice cmd = { 0 };
 
-	dev_dbg(pvscsi_dev(adapter), "Reseting device: target=%u\n", target);
+	dev_dbg(pvscsi_dev(adapter), "Resetting device: target=%u\n", target);
 
 	cmd.target = target;
 

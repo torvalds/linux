@@ -2242,6 +2242,21 @@ static int ibmvfc_match_key(struct ibmvfc_event *evt, void *key)
 }
 
 /**
+ * ibmvfc_match_evt - Match function for specified event
+ * @evt:	ibmvfc event struct
+ * @match:	event to match
+ *
+ * Returns:
+ *	1 if event matches key / 0 if event does not match key
+ **/
+static int ibmvfc_match_evt(struct ibmvfc_event *evt, void *match)
+{
+	if (evt == match)
+		return 1;
+	return 0;
+}
+
+/**
  * ibmvfc_abort_task_set - Abort outstanding commands to the device
  * @sdev:	scsi device to abort commands
  *
@@ -2322,7 +2337,20 @@ static int ibmvfc_abort_task_set(struct scsi_device *sdev)
 		if (rc) {
 			sdev_printk(KERN_INFO, sdev, "Cancel failed, resetting host\n");
 			ibmvfc_reset_host(vhost);
-			rsp_rc = 0;
+			rsp_rc = -EIO;
+			rc = ibmvfc_wait_for_ops(vhost, sdev->hostdata, ibmvfc_match_key);
+
+			if (rc == SUCCESS)
+				rsp_rc = 0;
+
+			rc = ibmvfc_wait_for_ops(vhost, evt, ibmvfc_match_evt);
+			if (rc != SUCCESS) {
+				spin_lock_irqsave(vhost->host->host_lock, flags);
+				ibmvfc_hard_reset_host(vhost);
+				spin_unlock_irqrestore(vhost->host->host_lock, flags);
+				rsp_rc = 0;
+			}
+
 			goto out;
 		}
 	}
@@ -2597,8 +2625,10 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 	case IBMVFC_AE_SCN_FABRIC:
 	case IBMVFC_AE_SCN_DOMAIN:
 		vhost->events_to_log |= IBMVFC_AE_RSCN;
-		vhost->delay_init = 1;
-		__ibmvfc_reset_host(vhost);
+		if (vhost->state < IBMVFC_HALTED) {
+			vhost->delay_init = 1;
+			__ibmvfc_reset_host(vhost);
+		}
 		break;
 	case IBMVFC_AE_SCN_NPORT:
 	case IBMVFC_AE_SCN_GROUP:

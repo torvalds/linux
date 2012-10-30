@@ -6,6 +6,10 @@ Supported chips:
     Datasheet: http://www.national.com/pf/LM/LM70.html
   * Texas Instruments TMP121/TMP123
     Information: http://focus.ti.com/docs/prod/folders/print/tmp121.html
+  * National Semiconductor LM71
+    Datasheet: http://www.ti.com/product/LM71
+  * National Semiconductor LM74
+    Datasheet: http://www.ti.com/product/LM74
 
 Author:
         Kaiwan N Billimoria <kaiwan@designergraphix.com>
@@ -31,9 +35,11 @@ As a real (in-tree) example of this "SPI protocol driver" interfacing
 with a "SPI master controller driver", see drivers/spi/spi_lm70llp.c
 and its associated documentation.
 
-The TMP121/TMP123 are very similar; main differences are 4 wire SPI inter-
-face (read only) and 13-bit temperature data (0.0625 degrees celsius reso-
-lution).
+The LM74 and TMP121/TMP123 are very similar; main difference is 13-bit
+temperature data (0.0625 degrees celsius resolution).
+
+The LM71 is also very similar; main difference is 14-bit temperature
+data (0.03125 degrees celsius resolution).
 
 Thanks to
 ---------

@@ -29,6 +29,13 @@ config APM_POWER
 	  Say Y here to enable support APM status emulation using
 	  battery class devices.
 
+config GENERIC_ADC_BATTERY
+	tristate "Generic battery support using IIO"
+	depends on IIO
+	help
+	  Say Y here to enable support for the generic battery driver
+	  which uses IIO framework to read adc.
+
 config MAX8925_POWER
 	tristate "MAX8925 battery charger support"
 	depends on MFD_MAX8925
@@ -61,6 +68,12 @@ config TEST_POWER
 	tristate "Test power driver"
 	help
 	  This driver is used for testing. It's safe to say M here.
+
+config BATTERY_88PM860X
+	tristate "Marvell 88PM860x battery driver"
+	depends on MFD_88PM860X
+	help
+	  Say Y here to enable battery monitor for Marvell 88PM860x chip.
 
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
@@ -167,7 +180,6 @@ config BATTERY_DA9030
 config BATTERY_DA9052
 	tristate "Dialog DA9052 Battery"
 	depends on PMIC_DA9052
-	depends on BROKEN
 	help
 	  Say Y here to enable support for batteries charger integrated into
 	  DA9052 PMIC.
@@ -202,6 +214,12 @@ config BATTERY_S3C_ADC
 	depends on S3C_ADC
 	help
 	  Say Y here to enable support for iPAQ h1930/h1940/rx1950 battery
+
+config CHARGER_88PM860X
+	tristate "Marvell 88PM860x Charger driver"
+	depends on MFD_88PM860X && BATTERY_88PM860X
+	help
+	  Say Y here to enable charger for Marvell 88PM860x chip.
 
 config CHARGER_PCF50633
 	tristate "NXP PCF50633 MBC"
@@ -254,6 +272,13 @@ config CHARGER_LP8727
 	depends on I2C
 	help
 	  Say Y here to enable support for LP8727 Charger Driver.
+
+config CHARGER_LP8788
+	tristate "TI LP8788 charger driver"
+	depends on MFD_LP8788
+	depends on LP8788_ADC
+	help
+	  Say Y to enable support for the LP8788 linear charger.
 
 config CHARGER_GPIO
 	tristate "GPIO charger"

@@ -9,6 +9,6 @@
 #define PTRACE_FAULTINFO 52
 #define PTRACE_SWITCH_MM 55
 
-#include "sysdep/skas_ptrace.h"
+#include <sysdep/skas_ptrace.h>
 
 #endif

@@ -96,7 +96,7 @@ static char *initmac;
 /* if wifi_test = 1, driver will disable the turbo mode and pass it to
  * firmware private.
  */
-static int wifi_test = 0;
+static int wifi_test;
 
 module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
 module_param(wifi_test, int, 0644);

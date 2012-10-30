@@ -22,12 +22,14 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <sound/pcm.h>
-#include <sound/soc.h>
-#include <sound/tlv.h>
 #include <linux/gpio.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <sound/pcm.h>
+#include <sound/soc.h>
+#include <sound/tlv.h>
 #include <sound/cs4271.h>
 
 #define CS4271_PCM_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
@@ -458,12 +460,26 @@ static int cs4271_soc_resume(struct snd_soc_codec *codec)
 #define cs4271_soc_resume	NULL
 #endif /* CONFIG_PM */
 
+#ifdef CONFIG_OF
+static const struct of_device_id cs4271_dt_ids[] = {
+	{ .compatible = "cirrus,cs4271", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, cs4271_dt_ids);
+#endif
+
 static int cs4271_probe(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
 	struct cs4271_platform_data *cs4271plat = codec->dev->platform_data;
 	int ret;
 	int gpio_nreset = -EINVAL;
+
+#ifdef CONFIG_OF
+	if (of_match_device(cs4271_dt_ids, codec->dev))
+		gpio_nreset = of_get_named_gpio(codec->dev->of_node,
+						"reset-gpio", 0);
+#endif
 
 	if (cs4271plat && gpio_is_valid(cs4271plat->gpio_nreset))
 		gpio_nreset = cs4271plat->gpio_nreset;
@@ -569,6 +585,7 @@ static struct spi_driver cs4271_spi_driver = {
 	.driver = {
 		.name	= "cs4271",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.probe		= cs4271_spi_probe,
 	.remove		= __devexit_p(cs4271_spi_remove),
@@ -608,6 +625,7 @@ static struct i2c_driver cs4271_i2c_driver = {
 	.driver = {
 		.name	= "cs4271",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(cs4271_dt_ids),
 	},
 	.id_table	= cs4271_i2c_id,
 	.probe		= cs4271_i2c_probe,

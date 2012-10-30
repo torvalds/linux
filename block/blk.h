@@ -171,14 +171,13 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
  *
  *	a) it's attached to a gendisk, and
  *	b) the queue had IO stats enabled when this request was started, and
- *	c) it's a file system request or a discard request
+ *	c) it's a file system request
  */
 static inline int blk_do_io_stat(struct request *rq)
 {
 	return rq->rq_disk &&
 	       (rq->cmd_flags & REQ_IO_STAT) &&
-	       (rq->cmd_type == REQ_TYPE_FS ||
-	        (rq->cmd_flags & REQ_DISCARD));
+		(rq->cmd_type == REQ_TYPE_FS);
 }
 
 /*

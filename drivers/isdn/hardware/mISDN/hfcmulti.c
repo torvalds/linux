@@ -5059,6 +5059,7 @@ hfcmulti_init(struct hm_map *m, struct pci_dev *pdev,
 				printk(KERN_INFO
 				       "HFC-E1 #%d has overlapping B-channels on fragment #%d\n",
 				       E1_cnt + 1, pt);
+				kfree(hc);
 				return -EINVAL;
 			}
 			maskcheck |= hc->bmask[pt];
@@ -5086,6 +5087,7 @@ hfcmulti_init(struct hm_map *m, struct pci_dev *pdev,
 	if ((poll >> 1) > sizeof(hc->silence_data)) {
 		printk(KERN_ERR "HFCMULTI error: silence_data too small, "
 		       "please fix\n");
+		kfree(hc);
 		return -EINVAL;
 	}
 	for (i = 0; i < (poll >> 1); i++)

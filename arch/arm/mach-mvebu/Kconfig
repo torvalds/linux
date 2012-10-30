@@ -1,15 +1,39 @@
+config ARCH_MVEBU
+	bool "Marvell SOCs with Device Tree support" if ARCH_MULTI_V7
+	select CLKSRC_MMIO
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+	select PINCTRL
+	select PLAT_ORION
+	select SPARSE_IRQ
+
 if ARCH_MVEBU
 
 menu "Marvell SOC with device tree"
 
 config MACH_ARMADA_370_XP
-	bool "Marvell Armada 370 and Aramada XP boards"
+	bool
 	select ARMADA_370_XP_TIMER
 	select CPU_V7
-	help
 
-	  Say 'Y' here if you want your kernel to support boards based on
-	  Marvell Armada 370 or Armada XP with device tree.
+config MACH_ARMADA_370
+	bool "Marvell Armada 370 boards"
+	select MACH_ARMADA_370_XP
+	select PINCTRL_ARMADA_370
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada 370 SoC with device tree.
+
+config MACH_ARMADA_XP
+	bool "Marvell Armada XP boards"
+	select MACH_ARMADA_370_XP
+	select PINCTRL_ARMADA_XP
+	help
+	  Say 'Y' here if you want your kernel to support boards based
+	  on the Marvell Armada XP SoC with device tree.
 
 endmenu
 

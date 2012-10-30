@@ -720,53 +720,31 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	int err = 0;
 	unsigned int tmp;
 
-	/* Step 1: make sure trigger sources are trivially valid. */
+	/* Step 1 : check if triggers are trivially valid */
 
-	tmp = cmd->start_src;
-	cmd->start_src &= TRIG_INT | TRIG_EXT;
-	if (!cmd->start_src || tmp != cmd->start_src)
-		err++;
-
-	tmp = cmd->scan_begin_src;
-	cmd->scan_begin_src &= TRIG_EXT | TRIG_TIMER;
-	if (!cmd->scan_begin_src || tmp != cmd->scan_begin_src)
-		err++;
-
-	tmp = cmd->convert_src;
-	cmd->convert_src &= TRIG_NOW;
-	if (!cmd->convert_src || tmp != cmd->convert_src)
-		err++;
-
-	tmp = cmd->scan_end_src;
-	cmd->scan_end_src &= TRIG_COUNT;
-	if (!cmd->scan_end_src || tmp != cmd->scan_end_src)
-		err++;
-
-	tmp = cmd->stop_src;
-	cmd->stop_src &= TRIG_COUNT | TRIG_EXT | TRIG_NONE;
-	if (!cmd->stop_src || tmp != cmd->stop_src)
-		err++;
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_INT | TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src,
+					TRIG_EXT | TRIG_TIMER);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src,
+					TRIG_COUNT | TRIG_EXT | TRIG_NONE);
 
 	if (err)
 		return 1;
 
-	/* Step 2: make sure trigger sources are unique and mutually
-	 * compatible. */
+	/* Step 2a : make sure trigger sources are unique */
 
-	/* these tests are true if more than one _src bit is set */
-	if ((cmd->start_src & (cmd->start_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_begin_src & (cmd->scan_begin_src - 1)) != 0)
-		err++;
-	if ((cmd->convert_src & (cmd->convert_src - 1)) != 0)
-		err++;
-	if ((cmd->scan_end_src & (cmd->scan_end_src - 1)) != 0)
-		err++;
-	if ((cmd->stop_src & (cmd->stop_src - 1)) != 0)
-		err++;
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->scan_begin_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
 
-	/* There's only one external trigger signal (which makes these
-	 * tests easier).  Only one thing can use it. */
+	/* Step 2b : and mutually compatible */
+
+	/*
+	 * There's only one external trigger signal (which makes these
+	 * tests easier).  Only one thing can use it.
+	 */
 	tmp = 0;
 	if (cmd->start_src & TRIG_EXT)
 		tmp++;
@@ -775,7 +753,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (cmd->stop_src & TRIG_EXT)
 		tmp++;
 	if (tmp > 1)
-		err++;
+		err |= -EINVAL;
 
 	if (err)
 		return 2;
@@ -1375,7 +1353,7 @@ static int pci224_attach_common(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* Analog output subdevice. */
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
@@ -1503,6 +1481,13 @@ pci224_attach_pci(struct comedi_device *dev, struct pci_dev *pci_dev)
 			DRIVER_NAME ": BUG! cannot determine board type!\n");
 		return -EINVAL;
 	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pci224_detach().
+	 * TODO: Remove the pci_dev_get() and matching pci_dev_put() once
+	 * support for manual attachment of PCI devices via pci224_attach()
+	 * has been removed.
+	 */
+	pci_dev_get(pci_dev);
 	return pci224_attach_common(dev, pci_dev, NULL);
 }
 
@@ -1516,7 +1501,7 @@ static void pci224_detach(struct comedi_device *dev)
 	if (dev->subdevices) {
 		struct comedi_subdevice *s;
 
-		s = dev->subdevices + 0;
+		s = &dev->subdevices[0];
 		/* AO subdevice */
 		kfree(s->range_table_list);
 	}

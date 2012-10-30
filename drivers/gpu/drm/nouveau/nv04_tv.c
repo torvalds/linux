@@ -24,15 +24,18 @@
  *
  */
 
-#include "drmP.h"
-#include "nouveau_drv.h"
+#include <drm/drmP.h>
+#include "nouveau_drm.h"
+#include "nouveau_reg.h"
 #include "nouveau_encoder.h"
 #include "nouveau_connector.h"
 #include "nouveau_crtc.h"
 #include "nouveau_hw.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_crtc_helper.h>
 
-#include "i2c/ch7006.h"
+#include <drm/i2c/ch7006.h>
+
+#include <subdev/i2c.h>
 
 static struct i2c_board_info nv04_tv_encoder_info[] = {
 	{
@@ -49,8 +52,11 @@ static struct i2c_board_info nv04_tv_encoder_info[] = {
 
 int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 {
-	return nouveau_i2c_identify(dev, "TV encoder", nv04_tv_encoder_info,
-				    NULL, i2c_index);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+
+	return i2c->identify(i2c, i2c_index, "TV encoder",
+			     nv04_tv_encoder_info, NULL);
 }
 
 
@@ -64,12 +70,12 @@ int nv04_tv_identify(struct drm_device *dev, int i2c_index)
 static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_mode_state *state = &dev_priv->mode_reg;
+	struct nv04_mode_state *state = &nv04_display(dev)->mode_reg;
 	uint8_t crtc1A;
 
-	NV_INFO(dev, "Setting dpms mode %d on TV encoder (output %d)\n",
+	NV_INFO(drm, "Setting dpms mode %d on TV encoder (output %d)\n",
 		mode, nv_encoder->dcb->index);
 
 	state->pllsel &= ~(PLLSEL_TV_CRTC1_MASK | PLLSEL_TV_CRTC2_MASK);
@@ -94,8 +100,7 @@ static void nv04_tv_dpms(struct drm_encoder *encoder, int mode)
 
 static void nv04_tv_bind(struct drm_device *dev, int head, bool bind)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nv04_crtc_reg *state = &dev_priv->mode_reg.crtc_reg[head];
+	struct nv04_crtc_reg *state = &nv04_display(dev)->mode_reg.crtc_reg[head];
 
 	state->tv_setup = 0;
 
@@ -133,9 +138,8 @@ static void nv04_tv_mode_set(struct drm_encoder *encoder,
 			     struct drm_display_mode *adjusted_mode)
 {
 	struct drm_device *dev = encoder->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	struct nv04_crtc_reg *regp = &dev_priv->mode_reg.crtc_reg[nv_crtc->index];
+	struct nv04_crtc_reg *regp = &nv04_display(dev)->mode_reg.crtc_reg[nv_crtc->index];
 
 	regp->tv_htotal = adjusted_mode->htotal;
 	regp->tv_vtotal = adjusted_mode->vtotal;
@@ -157,12 +161,13 @@ static void nv04_tv_commit(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
+	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct drm_encoder_helper_funcs *helper = encoder->helper_private;
 
 	helper->dpms(encoder, DRM_MODE_DPMS_ON);
 
-	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
+	NV_INFO(drm, "Output %s is running on CRTC %d using output %c\n",
 		      drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base), nv_crtc->index,
 		      '@' + ffs(nv_encoder->dcb->or));
 }
@@ -181,15 +186,16 @@ static const struct drm_encoder_funcs nv04_tv_funcs = {
 };
 
 int
-nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
+nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct nouveau_encoder *nv_encoder;
 	struct drm_encoder *encoder;
 	struct drm_device *dev = connector->dev;
 	struct drm_encoder_helper_funcs *hfuncs;
 	struct drm_encoder_slave_funcs *sfuncs;
-	struct nouveau_i2c_chan *i2c =
-		nouveau_i2c_find(dev, entry->i2c_index);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nouveau_i2c *i2c = nouveau_i2c(drm->device);
+	struct nouveau_i2c_port *port = i2c->find(i2c, entry->i2c_index);
 	int type, ret;
 
 	/* Ensure that we can talk to this encoder */
@@ -221,7 +227,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_entry *entry)
 
 	/* Run the slave-specific initialization */
 	ret = drm_i2c_encoder_init(dev, to_encoder_slave(encoder),
-				   &i2c->adapter, &nv04_tv_encoder_info[type]);
+				   &port->adapter, &nv04_tv_encoder_info[type]);
 	if (ret < 0)
 		goto fail_cleanup;
 

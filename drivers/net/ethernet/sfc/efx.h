@@ -102,6 +102,7 @@ static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
 
 /* Channels */
 extern int efx_channel_dummy_op_int(struct efx_channel *channel);
+extern void efx_channel_dummy_op_void(struct efx_channel *channel);
 extern void efx_process_channel_now(struct efx_channel *channel);
 extern int
 efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);

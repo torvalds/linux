@@ -704,8 +704,8 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	spin_lock_init(&info->slock);
 	mutex_init(&info->write_mtx);
 	rp_table[line] = info;
-	tty_register_device(rocket_driver, line, pci_dev ? &pci_dev->dev :
-			NULL);
+	tty_port_register_device(&info->port, rocket_driver, line,
+			pci_dev ? &pci_dev->dev : NULL);
 }
 
 /*
@@ -720,7 +720,7 @@ static void configure_r_port(struct tty_struct *tty, struct r_port *info,
 	unsigned rocketMode;
 	int bits, baud, divisor;
 	CHANNEL_t *cp;
-	struct ktermios *t = tty->termios;
+	struct ktermios *t = &tty->termios;
 
 	cp = &info->channel;
 	cflag = t->c_cflag;
@@ -978,7 +978,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 			tty->alt_speed = 460800;
 
 		configure_r_port(tty, info, NULL);
-		if (tty->termios->c_cflag & CBAUD) {
+		if (tty->termios.c_cflag & CBAUD) {
 			sSetDTR(cp);
 			sSetRTS(cp);
 		}
@@ -1089,35 +1089,35 @@ static void rp_set_termios(struct tty_struct *tty,
 	if (rocket_paranoia_check(info, "rp_set_termios"))
 		return;
 
-	cflag = tty->termios->c_cflag;
+	cflag = tty->termios.c_cflag;
 
 	/*
 	 * This driver doesn't support CS5 or CS6
 	 */
 	if (((cflag & CSIZE) == CS5) || ((cflag & CSIZE) == CS6))
-		tty->termios->c_cflag =
+		tty->termios.c_cflag =
 		    ((cflag & ~CSIZE) | (old_termios->c_cflag & CSIZE));
 	/* Or CMSPAR */
-	tty->termios->c_cflag &= ~CMSPAR;
+	tty->termios.c_cflag &= ~CMSPAR;
 
 	configure_r_port(tty, info, old_termios);
 
 	cp = &info->channel;
 
 	/* Handle transition to B0 status */
-	if ((old_termios->c_cflag & CBAUD) && !(tty->termios->c_cflag & CBAUD)) {
+	if ((old_termios->c_cflag & CBAUD) && !(tty->termios.c_cflag & CBAUD)) {
 		sClrDTR(cp);
 		sClrRTS(cp);
 	}
 
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) && (tty->termios->c_cflag & CBAUD)) {
-		if (!tty->hw_stopped || !(tty->termios->c_cflag & CRTSCTS))
+	if (!(old_termios->c_cflag & CBAUD) && (tty->termios.c_cflag & CBAUD)) {
+		if (!tty->hw_stopped || !(tty->termios.c_cflag & CRTSCTS))
 			sSetRTS(cp);
 		sSetDTR(cp);
 	}
 
-	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios->c_cflag & CRTSCTS)) {
+	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS)) {
 		tty->hw_stopped = 0;
 		rp_start(tty);
 	}

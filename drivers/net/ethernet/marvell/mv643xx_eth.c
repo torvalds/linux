@@ -412,7 +412,6 @@ struct mv643xx_eth_private {
 	u8 work_rx_refill;
 
 	int skb_size;
-	struct sk_buff_head rx_recycle;
 
 	/*
 	 * RX state.
@@ -673,9 +672,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 		struct rx_desc *rx_desc;
 		int size;
 
-		skb = __skb_dequeue(&mp->rx_recycle);
-		if (skb == NULL)
-			skb = netdev_alloc_skb(mp->dev, mp->skb_size);
+		skb = netdev_alloc_skb(mp->dev, mp->skb_size);
 
 		if (skb == NULL) {
 			mp->oom = 1;
@@ -989,14 +986,7 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 				       desc->byte_cnt, DMA_TO_DEVICE);
 		}
 
-		if (skb != NULL) {
-			if (skb_queue_len(&mp->rx_recycle) <
-					mp->rx_ring_size &&
-			    skb_recycle_check(skb, mp->skb_size))
-				__skb_queue_head(&mp->rx_recycle, skb);
-			else
-				dev_kfree_skb(skb);
-		}
+		dev_kfree_skb(skb);
 	}
 
 	__netif_tx_unlock(nq);
@@ -2349,8 +2339,6 @@ static int mv643xx_eth_open(struct net_device *dev)
 
 	napi_enable(&mp->napi);
 
-	skb_queue_head_init(&mp->rx_recycle);
-
 	mp->int_mask = INT_EXT;
 
 	for (i = 0; i < mp->rxq_count; i++) {
@@ -2444,8 +2432,6 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	mv643xx_eth_get_stats(dev);
 	mib_counters_update(mp);
 	del_timer_sync(&mp->mib_counters_timer);
-
-	skb_queue_purge(&mp->rx_recycle);
 
 	for (i = 0; i < mp->rxq_count; i++)
 		rxq_deinit(mp->rxq + i);

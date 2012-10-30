@@ -17,9 +17,6 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
 asmlinkage unsigned long sys_mmap2(unsigned long addr, size_t len,
 		unsigned long prot, unsigned long flags,
 		unsigned long fd, unsigned long pgoff);
-asmlinkage int sys_execve(unsigned long a0, unsigned long a1,
-		unsigned long a2, unsigned long a3, unsigned long a4,
-		unsigned long a5, struct pt_regs *regs);
 asmlinkage int sys_clone(unsigned long clone_flags, unsigned long usp,
 		int __user *parent_tidp, void __user *child_threadptr,
 		int __user *child_tidp, int p6, struct pt_regs *regs);

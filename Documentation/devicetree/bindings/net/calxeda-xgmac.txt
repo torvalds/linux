@@ -6,6 +6,9 @@ Required properties:
 - interrupts : Should contain 3 xgmac interrupts. The 1st is main interrupt.
   The 2nd is pwr mgt interrupt. The 3rd is low power state interrupt.
 
+Optional properties:
+- dma-coherent      : Present if dma operations are coherent
+
 Example:
 
 ethernet@fff50000 {

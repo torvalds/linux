@@ -360,7 +360,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	devpriv->dac1_coding = it->options[8];
 	devpriv->muxgain_bits = -1;
 
-	s = dev->subdevices + 0;
+	s = &dev->subdevices[0];
 	/* ai subdevice */
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
@@ -379,7 +379,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		break;
 	}
 
-	s++;
+	s = &dev->subdevices[1];
 	if (board->has_ao) {
 		/* ao subdevice (only on rti815) */
 		s->type = COMEDI_SUBD_AO;
@@ -409,7 +409,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	s++;
+	s = &dev->subdevices[2];
 	/* di */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
@@ -418,7 +418,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 
-	s++;
+	s = &dev->subdevices[3];
 	/* do */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
@@ -429,7 +429,7 @@ static int rti800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 /* don't yet know how to deal with counter/timers */
 #if 0
-	s++;
+	s = &dev->subdevices[4];
 	/* do */
 	s->type = COMEDI_SUBD_TIMER;
 #endif

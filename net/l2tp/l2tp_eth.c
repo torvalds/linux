@@ -67,6 +67,7 @@ static inline struct l2tp_eth_net *l2tp_eth_pernet(struct net *net)
 	return net_generic(net, l2tp_eth_net_id);
 }
 
+static struct lock_class_key l2tp_eth_tx_busylock;
 static int l2tp_eth_dev_init(struct net_device *dev)
 {
 	struct l2tp_eth *priv = netdev_priv(dev);
@@ -74,7 +75,7 @@ static int l2tp_eth_dev_init(struct net_device *dev)
 	priv->dev = dev;
 	eth_hw_addr_random(dev);
 	memset(&dev->broadcast[0], 0xff, 6);
-
+	dev->qdisc_tx_busylock = &l2tp_eth_tx_busylock;
 	return 0;
 }
 
@@ -153,7 +154,7 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 		print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, skb->data, length);
 	}
 
-	if (!pskb_may_pull(skb, sizeof(ETH_HLEN)))
+	if (!pskb_may_pull(skb, ETH_HLEN))
 		goto error;
 
 	secpath_reset(skb);

@@ -326,7 +326,7 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 			goto next;
 		}
 
-		ret = ath9k_htc_tx_start(priv, skb, tx_slot, true);
+		ret = ath9k_htc_tx_start(priv, NULL, skb, tx_slot, true);
 		if (ret != 0) {
 			ath9k_htc_tx_clear_slot(priv, tx_slot);
 			dev_kfree_skb_any(skb);

@@ -1,7 +1,7 @@
 /*
  * OMAP4 powerdomain control
  *
- * Copyright (C) 2009-2010 Texas Instruments, Inc.
+ * Copyright (C) 2009-2010, 2012 Texas Instruments, Inc.
  * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Derived from mach-omap2/powerdomain.c written by Paul Walmsley
@@ -151,6 +151,34 @@ static int omap4_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
 	return v;
 }
 
+/**
+ * omap4_pwrdm_read_prev_logic_pwrst - read the previous logic powerstate
+ * @pwrdm: struct powerdomain * to read the state for
+ *
+ * Reads the previous logic powerstate for a powerdomain. This
+ * function must determine the previous logic powerstate by first
+ * checking the previous powerstate for the domain. If that was OFF,
+ * then logic has been lost. If previous state was RETENTION, the
+ * function reads the setting for the next retention logic state to
+ * see the actual value.  In every other case, the logic is
+ * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
+ * depending whether the logic was retained or not.
+ */
+static int omap4_pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
+{
+	int state;
+
+	state = omap4_pwrdm_read_prev_pwrst(pwrdm);
+
+	if (state == PWRDM_POWER_OFF)
+		return PWRDM_POWER_OFF;
+
+	if (state != PWRDM_POWER_RET)
+		return PWRDM_POWER_RET;
+
+	return omap4_pwrdm_read_logic_retst(pwrdm);
+}
+
 static int omap4_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
 {
 	u32 m, v;
@@ -179,6 +207,35 @@ static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
 	return v;
 }
 
+/**
+ * omap4_pwrdm_read_prev_mem_pwrst - reads the previous memory powerstate
+ * @pwrdm: struct powerdomain * to read mem powerstate for
+ * @bank: memory bank index
+ *
+ * Reads the previous memory powerstate for a powerdomain. This
+ * function must determine the previous memory powerstate by first
+ * checking the previous powerstate for the domain. If that was OFF,
+ * then logic has been lost. If previous state was RETENTION, the
+ * function reads the setting for the next memory retention state to
+ * see the actual value.  In every other case, the logic is
+ * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
+ * depending whether logic was retained or not.
+ */
+static int omap4_pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
+{
+	int state;
+
+	state = omap4_pwrdm_read_prev_pwrst(pwrdm);
+
+	if (state == PWRDM_POWER_OFF)
+		return PWRDM_POWER_OFF;
+
+	if (state != PWRDM_POWER_RET)
+		return PWRDM_POWER_RET;
+
+	return omap4_pwrdm_read_mem_retst(pwrdm, bank);
+}
+
 static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 {
 	u32 c = 0;
@@ -198,8 +255,8 @@ static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
 		udelay(1);
 
 	if (c > PWRDM_TRANSITION_BAILOUT) {
-		printk(KERN_ERR "powerdomain: waited too long for "
-		       "powerdomain %s to complete transition\n", pwrdm->name);
+		pr_err("powerdomain: %s: waited too long to complete transition\n",
+		       pwrdm->name);
 		return -EAGAIN;
 	}
 
@@ -217,9 +274,11 @@ struct pwrdm_ops omap4_pwrdm_operations = {
 	.pwrdm_clear_all_prev_pwrst	= omap4_pwrdm_clear_all_prev_pwrst,
 	.pwrdm_set_logic_retst	= omap4_pwrdm_set_logic_retst,
 	.pwrdm_read_logic_pwrst	= omap4_pwrdm_read_logic_pwrst,
+	.pwrdm_read_prev_logic_pwrst	= omap4_pwrdm_read_prev_logic_pwrst,
 	.pwrdm_read_logic_retst	= omap4_pwrdm_read_logic_retst,
 	.pwrdm_read_mem_pwrst	= omap4_pwrdm_read_mem_pwrst,
 	.pwrdm_read_mem_retst	= omap4_pwrdm_read_mem_retst,
+	.pwrdm_read_prev_mem_pwrst	= omap4_pwrdm_read_prev_mem_pwrst,
 	.pwrdm_set_mem_onst	= omap4_pwrdm_set_mem_onst,
 	.pwrdm_set_mem_retst	= omap4_pwrdm_set_mem_retst,
 	.pwrdm_wait_transition	= omap4_pwrdm_wait_transition,

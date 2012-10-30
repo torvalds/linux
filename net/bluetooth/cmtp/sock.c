@@ -42,6 +42,10 @@
 
 #include "cmtp.h"
 
+static struct bt_sock_list cmtp_sk_list = {
+	.lock = __RW_LOCK_UNLOCKED(cmtp_sk_list.lock)
+};
+
 static int cmtp_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
@@ -50,6 +54,8 @@ static int cmtp_sock_release(struct socket *sock)
 
 	if (!sk)
 		return 0;
+
+	bt_sock_unlink(&cmtp_sk_list, sk);
 
 	sock_orphan(sk);
 	sock_put(sk);
@@ -72,7 +78,7 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 	switch (cmd) {
 	case CMTPCONNADD:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 
 		if (copy_from_user(&ca, argp, sizeof(ca)))
 			return -EFAULT;
@@ -97,7 +103,7 @@ static int cmtp_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long 
 
 	case CMTPCONNDEL:
 		if (!capable(CAP_NET_ADMIN))
-			return -EACCES;
+			return -EPERM;
 
 		if (copy_from_user(&cd, argp, sizeof(cd)))
 			return -EFAULT;
@@ -214,6 +220,8 @@ static int cmtp_sock_create(struct net *net, struct socket *sock, int protocol,
 	sk->sk_protocol = protocol;
 	sk->sk_state    = BT_OPEN;
 
+	bt_sock_link(&cmtp_sk_list, sk);
+
 	return 0;
 }
 
@@ -232,19 +240,30 @@ int cmtp_init_sockets(void)
 		return err;
 
 	err = bt_sock_register(BTPROTO_CMTP, &cmtp_sock_family_ops);
-	if (err < 0)
+	if (err < 0) {
+		BT_ERR("Can't register CMTP socket");
 		goto error;
+	}
+
+	err = bt_procfs_init(THIS_MODULE, &init_net, "cmtp", &cmtp_sk_list, NULL);
+	if (err < 0) {
+		BT_ERR("Failed to create CMTP proc file");
+		bt_sock_unregister(BTPROTO_HIDP);
+		goto error;
+	}
+
+	BT_INFO("CMTP socket layer initialized");
 
 	return 0;
 
 error:
-	BT_ERR("Can't register CMTP socket");
 	proto_unregister(&cmtp_proto);
 	return err;
 }
 
 void cmtp_cleanup_sockets(void)
 {
+	bt_procfs_cleanup(&init_net, "cmtp");
 	if (bt_sock_unregister(BTPROTO_CMTP) < 0)
 		BT_ERR("Can't unregister CMTP socket");
 

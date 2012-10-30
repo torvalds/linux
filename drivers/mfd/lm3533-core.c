@@ -393,7 +393,8 @@ static int __devinit lm3533_device_als_init(struct lm3533 *lm3533)
 	lm3533_als_devs[0].platform_data = pdata->als;
 	lm3533_als_devs[0].pdata_size = sizeof(*pdata->als);
 
-	ret = mfd_add_devices(lm3533->dev, 0, lm3533_als_devs, 1, NULL, 0);
+	ret = mfd_add_devices(lm3533->dev, 0, lm3533_als_devs, 1, NULL,
+			      0, NULL);
 	if (ret) {
 		dev_err(lm3533->dev, "failed to add ALS device\n");
 		return ret;
@@ -422,7 +423,7 @@ static int __devinit lm3533_device_bl_init(struct lm3533 *lm3533)
 	}
 
 	ret = mfd_add_devices(lm3533->dev, 0, lm3533_bl_devs,
-					pdata->num_backlights, NULL, 0);
+			      pdata->num_backlights, NULL, 0, NULL);
 	if (ret) {
 		dev_err(lm3533->dev, "failed to add backlight devices\n");
 		return ret;
@@ -451,7 +452,7 @@ static int __devinit lm3533_device_led_init(struct lm3533 *lm3533)
 	}
 
 	ret = mfd_add_devices(lm3533->dev, 0, lm3533_led_devs,
-						pdata->num_leds, NULL, 0);
+			      pdata->num_leds, NULL, 0, NULL);
 	if (ret) {
 		dev_err(lm3533->dev, "failed to add LED devices\n");
 		return ret;

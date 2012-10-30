@@ -1,0 +1,13 @@
+- Use configfs for config stuff.  This will require changes to the
+  user space code.
+
+- dgrp_send() and dgrp_receive() could use some refactoring
+
+- Don't automatically create CHAN_MAX (64) channel array entries for
+  every device as many devices are going to have much less than 64
+  channels.
+
+- The locking needs to be checked.  It seems haphazardly done in most
+  places.
+
+- Check Kconfig dependencies

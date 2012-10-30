@@ -19,6 +19,7 @@
 #include <linux/random.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
+#include <linux/etherdevice.h>
 #include "dot11d.h"
 
 short rtllib_is_54g(struct rtllib_network *net)
@@ -266,7 +267,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 		else
 			ieee->seq_ctrl[0]++;
 
-		/* check wether the managed packet queued greater than 5 */
+		/* check whether the managed packet queued greater than 5 */
 		if (!ieee->check_nic_enough_desc(ieee->dev, tcb_desc->queue_index) ||
 		    (skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) != 0) ||
 		    (ieee->queue_stop)) {
@@ -1687,7 +1688,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 		 * if the network does broadcast and the user did set essid
 		 * check if essid match
 		 * if the ap is not set, check that the user set the bssid
-		 * and the network does bradcast and that those two bssid match
+		 * and the network does broadcast and that those two bssid match
 		 */
 		if ((apset && apmatch &&
 		   ((ssidset && ssidbroad && ssidmatch) ||
@@ -1843,7 +1844,7 @@ static short probe_rq_parse(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	bssid_match =
 	  (memcmp(header->addr3, ieee->current_network.bssid, ETH_ALEN) != 0) &&
-	  (memcmp(header->addr3, "\xff\xff\xff\xff\xff\xff", ETH_ALEN) != 0);
+	  (!is_broadcast_ether_addr(header->addr3));
 	if (bssid_match)
 		return -1;
 
@@ -2442,7 +2443,7 @@ inline int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 	return 0;
 }
 
-/* following are for a simplier TX queue management.
+/* following are for a simpler TX queue management.
  * Instead of using netif_[stop/wake]_queue the driver
  * will use these two functions (plus a reset one), that
  * will internally use the kernel netif_* and takes
@@ -2619,13 +2620,7 @@ void rtllib_wake_all_queues(struct rtllib_device *ieee)
 inline void rtllib_randomize_cell(struct rtllib_device *ieee)
 {
 
-	get_random_bytes(ieee->current_network.bssid, ETH_ALEN);
-
-	/* an IBSS cell address must have the two less significant
-	 * bits of the first byte = 2
-	 */
-	ieee->current_network.bssid[0] &= ~0x01;
-	ieee->current_network.bssid[0] |= 0x02;
+	random_ether_addr(ieee->current_network.bssid);
 }
 
 /* called in user context only */
@@ -3361,9 +3356,7 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 			       param->u.crypt.key_len);
 		return -EINVAL;
 	}
-	if (param->sta_addr[0] == 0xff && param->sta_addr[1] == 0xff &&
-	    param->sta_addr[2] == 0xff && param->sta_addr[3] == 0xff &&
-	    param->sta_addr[4] == 0xff && param->sta_addr[5] == 0xff) {
+	if (is_broadcast_ether_addr(param->sta_addr)) {
 		if (param->u.crypt.idx >= NUM_WEP_KEYS)
 			return -EINVAL;
 		crypt = &ieee->crypt_info.crypt[param->u.crypt.idx];
@@ -3411,8 +3404,7 @@ static int rtllib_wpa_set_encryption(struct rtllib_device *ieee,
 
 		lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
 
-		new_crypt = (struct lib80211_crypt_data *)
-			kmalloc(sizeof(*new_crypt), GFP_KERNEL);
+		new_crypt = kmalloc(sizeof(*new_crypt), GFP_KERNEL);
 		if (new_crypt == NULL) {
 			ret = -ENOMEM;
 			goto done;

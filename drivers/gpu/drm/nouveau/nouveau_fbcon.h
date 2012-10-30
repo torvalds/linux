@@ -27,9 +27,10 @@
 #ifndef __NOUVEAU_FBCON_H__
 #define __NOUVEAU_FBCON_H__
 
-#include "drm_fb_helper.h"
+#include <drm/drm_fb_helper.h>
 
-#include "nouveau_fb.h"
+#include "nouveau_display.h"
+
 struct nouveau_fbdev {
 	struct drm_fb_helper helper;
 	struct nouveau_framebuffer nouveau_fb;

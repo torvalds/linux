@@ -99,8 +99,25 @@ struct gfs2_rgrpd {
 #define GFS2_RDF_MASK		0xf0000000 /* mask for internal flags */
 	spinlock_t rd_rsspin;           /* protects reservation related vars */
 	struct rb_root rd_rstree;       /* multi-block reservation tree */
-	u32 rd_rs_cnt;                  /* count of current reservations */
 };
+
+struct gfs2_rbm {
+	struct gfs2_rgrpd *rgd;
+	struct gfs2_bitmap *bi;	/* Bitmap must belong to the rgd */
+	u32 offset;		/* The offset is bitmap relative */
+};
+
+static inline u64 gfs2_rbm_to_block(const struct gfs2_rbm *rbm)
+{
+	return rbm->rgd->rd_data0 + (rbm->bi->bi_start * GFS2_NBBY) + rbm->offset;
+}
+
+static inline bool gfs2_rbm_eq(const struct gfs2_rbm *rbm1,
+			       const struct gfs2_rbm *rbm2)
+{
+	return (rbm1->rgd == rbm2->rgd) && (rbm1->bi == rbm2->bi) && 
+	       (rbm1->offset == rbm2->offset);
+}
 
 enum gfs2_state_bits {
 	BH_Pinned = BH_PrivateStart,
@@ -250,18 +267,11 @@ struct gfs2_blkreserv {
 	/* components used during write (step 1): */
 	atomic_t rs_sizehint;         /* hint of the write size */
 
-	/* components used during inplace_reserve (step 2): */
-	u32 rs_requested; /* Filled in by caller of gfs2_inplace_reserve() */
-
-	/* components used during get_local_rgrp (step 3): */
-	struct gfs2_rgrpd *rs_rgd;    /* pointer to the gfs2_rgrpd */
 	struct gfs2_holder rs_rgd_gh; /* Filled in by get_local_rgrp */
 	struct rb_node rs_node;       /* link to other block reservations */
-
-	/* components used during block searches and assignments (step 4): */
-	struct gfs2_bitmap *rs_bi;    /* bitmap for the current allocation */
-	u32 rs_biblk;                 /* start block relative to the bi */
+	struct gfs2_rbm rs_rbm;       /* Start of reservation */
 	u32 rs_free;                  /* how many blocks are still free */
+	u64 rs_inum;                  /* Inode number for reservation */
 
 	/* ancillary quota stuff */
 	struct gfs2_quota_data *rs_qa_qd[2 * MAXQUOTAS];

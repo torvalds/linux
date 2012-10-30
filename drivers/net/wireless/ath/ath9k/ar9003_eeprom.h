@@ -267,7 +267,8 @@ struct cal_ctl_data_5g {
 
 struct ar9300_BaseExtension_1 {
 	u8 ant_div_control;
-	u8 future[11];
+	u8 future[3];
+	u8 tempslopextension[8];
 	int8_t quick_drop_low;
 	int8_t quick_drop_high;
 } __packed;

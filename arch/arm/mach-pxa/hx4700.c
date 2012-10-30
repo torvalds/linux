@@ -45,7 +45,7 @@
 
 #include <mach/pxa27x.h>
 #include <mach/hx4700.h>
-#include <mach/irda.h>
+#include <linux/platform_data/irda-pxaficp.h>
 
 #include <sound/ak4641.h>
 #include <video/platform_lcd.h>

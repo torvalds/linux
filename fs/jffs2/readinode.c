@@ -394,8 +394,11 @@ static int jffs2_add_tn_to_tree(struct jffs2_sb_info *c,
 }
 
 /* Trivial function to remove the last node in the tree. Which by definition
-   has no right-hand -- so can be removed just by making its only child (if
-   any) take its place under its parent. */
+   has no right-hand child — so can be removed just by making its left-hand
+   child (if any) take its place under its parent. Since this is only done
+   when we're consuming the whole tree, there's no need to use rb_erase()
+   and let it worry about adjusting colours and balancing the tree. That
+   would just be a waste of time. */
 static void eat_last(struct rb_root *root, struct rb_node *node)
 {
 	struct rb_node *parent = rb_parent(node);
@@ -412,12 +415,12 @@ static void eat_last(struct rb_root *root, struct rb_node *node)
 		link = &parent->rb_right;
 
 	*link = node->rb_left;
-	/* Colour doesn't matter now. Only the parent pointer. */
 	if (node->rb_left)
-		node->rb_left->rb_parent_color = node->rb_parent_color;
+		node->rb_left->__rb_parent_color = node->__rb_parent_color;
 }
 
-/* We put this in reverse order, so we can just use eat_last */
+/* We put the version tree in reverse order, so we can use the same eat_last()
+   function that we use to consume the tmpnode tree (tn_root). */
 static void ver_insert(struct rb_root *ver_root, struct jffs2_tmp_dnode_info *tn)
 {
 	struct rb_node **link = &ver_root->rb_node;

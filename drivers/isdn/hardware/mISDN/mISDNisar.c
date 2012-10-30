@@ -1588,8 +1588,9 @@ isar_bctrl(struct mISDNchannel *ch, u32 cmd, void *arg)
 	switch (cmd) {
 	case CLOSE_CHANNEL:
 		test_and_clear_bit(FLG_OPEN, &bch->Flags);
+		cancel_work_sync(&bch->workq);
 		spin_lock_irqsave(ich->is->hwlock, flags);
-		mISDN_freebchannel(bch);
+		mISDN_clear_bchannel(bch);
 		modeisar(ich, ISDN_P_NONE);
 		spin_unlock_irqrestore(ich->is->hwlock, flags);
 		ch->protocol = ISDN_P_NONE;

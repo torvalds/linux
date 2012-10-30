@@ -195,7 +195,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	s = dev->subdevices;
+	s = &dev->subdevices[0];
 	s->private = NULL;
 	s->maxdata = (0x1 << BITS) - 1;
 	s->range_table = &pcmda12_ranges;
