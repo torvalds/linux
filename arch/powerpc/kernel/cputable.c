@@ -68,6 +68,8 @@ extern void __restore_cpu_pa6t(void);
 extern void __restore_cpu_ppc970(void);
 extern void __setup_cpu_power7(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_power7(void);
+extern void __setup_cpu_power8(unsigned long offset, struct cpu_spec* spec);
+extern void __restore_cpu_power8(void);
 extern void __restore_cpu_a2(void);
 #endif /* CONFIG_PPC64 */
 #if defined(CONFIG_E500)

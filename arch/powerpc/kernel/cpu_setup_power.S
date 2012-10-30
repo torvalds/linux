@@ -44,6 +44,30 @@ _GLOBAL(__restore_cpu_power7)
 	mtlr	r11
 	blr
 
+_GLOBAL(__setup_cpu_power8)
+	mflr	r11
+	bl	__init_hvmode_206
+	mtlr	r11
+	beqlr
+	li	r0,0
+	mtspr	SPRN_LPID,r0
+	bl	__init_LPCR
+	bl	__init_TLB
+	mtlr	r11
+	blr
+
+_GLOBAL(__restore_cpu_power8)
+	mflr	r11
+	mfmsr	r3
+	rldicl.	r0,r3,4,63
+	beqlr
+	li	r0,0
+	mtspr	SPRN_LPID,r0
+	bl	__init_LPCR
+	bl	__init_TLB
+	mtlr	r11
+	blr
+
 __init_hvmode_206:
 	/* Disable CPU_FTR_HVMODE and exit if MSR:HV is not set */
 	mfmsr	r3
