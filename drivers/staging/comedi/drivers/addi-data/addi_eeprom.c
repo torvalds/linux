@@ -107,12 +107,6 @@ struct str_AnalogInputHeader {
 	unsigned char b_Resolution;
 };
 
-int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
-	char *pc_PCIChipInformation, struct comedi_device *dev);
-
-unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
-	unsigned short w_EepromStartAddress);
-
 static void v_EepromClock76(unsigned int dw_Address,
 			    unsigned int dw_RegisterValue)
 {
@@ -213,8 +207,9 @@ static void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 	} while (b_EepromBusy == 0x80);
 }
 
-unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
-	unsigned short w_EepromStartAddress)
+static unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress,
+				       char *pc_PCIChipInformation,
+				       unsigned short w_EepromStartAddress)
 {
 	unsigned char b_Counter = 0;
 	unsigned char b_ReadByte = 0;
@@ -437,8 +432,9 @@ static int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	return 0;
 }
 
-int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
-	char *pc_PCIChipInformation, struct comedi_device *dev)
+static int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
+				  char *pc_PCIChipInformation,
+				  struct comedi_device *dev)
 {
 	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
