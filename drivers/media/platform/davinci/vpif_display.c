@@ -1380,7 +1380,7 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 	int ret;
 
 	ret = v4l2_subdev_call(ch->sd, video, enum_dv_timings, timings);
-	if (ret == -ENOIOCTLCMD && ret == -ENODEV)
+	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
 		return -EINVAL;
 	return ret;
 }
