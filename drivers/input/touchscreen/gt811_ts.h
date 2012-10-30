@@ -19,7 +19,9 @@
 #ifndef 	_LINUX_GT811_H
 #define		_LINUX_GT811_H
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
+#endif
 #include <linux/hrtimer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -123,7 +125,9 @@ struct goodix_ts_data {
        unsigned int version;
 /////////////////////////////// UPDATE STEP 6 END /////////////////////////////////////////////////////////////////
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 	struct early_suspend early_suspend;
+#endif
 	int (*power)(struct goodix_ts_data * ts, int on);
 };
 
