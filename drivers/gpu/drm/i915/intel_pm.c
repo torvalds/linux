@@ -3842,7 +3842,7 @@ void intel_init_power_wells(struct drm_device *dev)
 
 		if ((well & HSW_PWR_WELL_STATE) == 0) {
 			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
-			if (wait_for(I915_READ(power_wells[i] & HSW_PWR_WELL_STATE), 20))
+			if (wait_for((I915_READ(power_wells[i]) & HSW_PWR_WELL_STATE), 20))
 				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
 		}
 	}
