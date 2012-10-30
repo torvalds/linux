@@ -636,7 +636,7 @@ static struct mv_xor_channel_data orion_xor0_channels_data[2] = {
 	},
 };
 
-static struct mv_xor_shared_platform_data orion_xor0_pdata = {
+static struct mv_xor_platform_data orion_xor0_pdata = {
 	.channels = orion_xor0_channels_data,
 };
 
@@ -711,7 +711,7 @@ static struct mv_xor_channel_data orion_xor1_channels_data[2] = {
 	},
 };
 
-static struct mv_xor_shared_platform_data orion_xor1_pdata = {
+static struct mv_xor_platform_data orion_xor1_pdata = {
 	.channels = orion_xor1_channels_data,
 };
 
