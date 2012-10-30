@@ -111,6 +111,11 @@
 		i2c@d0011100 {
 			status = "okay";
 			clock-frequency = <400000>;
+
+			s35390a: s35390a@30 {
+				compatible = "s35390a";
+				reg = <0x30>;
+			};
 		};
 	};
 };
