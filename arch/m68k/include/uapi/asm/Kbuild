@@ -6,6 +6,7 @@ generic-y += msgbuf.h
 generic-y += sembuf.h
 generic-y += shmbuf.h
 generic-y += socket.h
+generic-y += sockios.h
 
 header-y += a.out.h
 header-y += byteorder.h
@@ -19,7 +20,6 @@ header-y += ptrace.h
 header-y += setup.h
 header-y += sigcontext.h
 header-y += signal.h
-header-y += sockios.h
 header-y += stat.h
 header-y += swab.h
 header-y += termbits.h
