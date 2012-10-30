@@ -46,12 +46,22 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
-#include "hwdrv_apci2200.h"
+/*********      Definitions for APCI-2200 card  *****/
+
+/* Card Specific information */
+#define APCI2200_ADDRESS_RANGE		64
+
+/* DIGITAL INPUT-OUTPUT DEFINE */
+
+#define APCI2200_DIGITAL_OP		4
+#define APCI2200_DIGITAL_IP		0
+
+/* TIMER COUNTER WATCHDOG DEFINES */
+
+#define APCI2200_WATCHDOG		0x08
+#define APCI2200_WATCHDOG_ENABLEDISABLE	12
+#define APCI2200_WATCHDOG_RELOAD_VALUE	4
+#define APCI2200_WATCHDOG_STATUS	16
 
 /*
 +----------------------------------------------------------------------------+
