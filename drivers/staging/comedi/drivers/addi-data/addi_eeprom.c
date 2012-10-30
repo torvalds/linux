@@ -132,12 +132,20 @@ int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 
 unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	unsigned short w_EepromStartAddress);
-void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress);
 void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue);
-void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress);
 void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
 	unsigned char b_DataLengthInBits);
 void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value);
+
+static void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
+{
+	unsigned char b_EepromBusy = 0;
+
+	do {
+		b_EepromBusy = inb(w_PCIBoardEepromAddress + 0x3F);
+		b_EepromBusy = b_EepromBusy & 0x80;
+	} while (b_EepromBusy == 0x80);
+}
 
 unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	unsigned short w_EepromStartAddress)
@@ -219,23 +227,6 @@ unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc
 	}
 
 	return w_ReadWord;
-}
-
-void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
-{
-	unsigned char b_EepromBusy = 0;
-
-	do
-	{
-		/* IMPORTANT */
-		/* An error has been written in the AMCC 5933 book at the page B-13 */
-		/* Ex: if you read a byte and look for the busy statusEEPROM=0x80 and   */
-		/*      the operator register is AMCC_OP_REG_MCSR+3 */
-		/*      unsigned short read  EEPROM=0x8000 andAMCC_OP_REG_MCSR+2                  */
-		/*      unsigned int read  EEPROM=0x80000000 and AMCC_OP_REG_MCSR */
-		b_EepromBusy = inb(w_PCIBoardEepromAddress + 0x3F);
-		b_EepromBusy = b_EepromBusy & 0x80;
-	} while (b_EepromBusy == 0x80);
 }
 
 void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue)
