@@ -11,7 +11,6 @@
 #include <linux/mbus.h>
 
 #define MV_XOR_SHARED_NAME	"mv_xor_shared"
-#define MV_XOR_NAME		"mv_xor"
 
 struct mv_xor_platform_data {
 	struct platform_device		*shared;

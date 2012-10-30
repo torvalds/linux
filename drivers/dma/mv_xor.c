@@ -1219,35 +1219,6 @@ mv_xor_channel_add(struct mv_xor_shared_private *msp,
 	return ERR_PTR(ret);
 }
 
-static int __devexit mv_xor_remove(struct platform_device *pdev)
-{
-	struct mv_xor_device *device = platform_get_drvdata(pdev);
-	return mv_xor_channel_remove(device);
-}
-
-static int __devinit mv_xor_probe(struct platform_device *pdev)
-{
-	struct mv_xor_platform_data *plat_data = pdev->dev.platform_data;
-	struct mv_xor_shared_private *msp =
-		platform_get_drvdata(plat_data->shared);
-	struct mv_xor_device *mv_xor_device;
-	int irq;
-
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0)
-		return irq;
-
-	mv_xor_device = mv_xor_channel_add(msp, pdev, plat_data->hw_id,
-					   plat_data->cap_mask,
-					   plat_data->pool_size, irq);
-	if (IS_ERR(mv_xor_device))
-		return PTR_ERR(mv_xor_device);
-
-	platform_set_drvdata(pdev, mv_xor_device);
-
-	return 0;
-}
-
 static void
 mv_xor_conf_mbus_windows(struct mv_xor_shared_private *msp,
 			 const struct mbus_dram_target_info *dram)
@@ -1278,15 +1249,6 @@ mv_xor_conf_mbus_windows(struct mv_xor_shared_private *msp,
 	writel(win_enable, base + WINDOW_BAR_ENABLE(0));
 	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
 }
-
-static struct platform_driver mv_xor_driver = {
-	.probe		= mv_xor_probe,
-	.remove		= __devexit_p(mv_xor_remove),
-	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= MV_XOR_NAME,
-	},
-};
 
 static int mv_xor_shared_probe(struct platform_device *pdev)
 {
@@ -1406,15 +1368,7 @@ static struct platform_driver mv_xor_shared_driver = {
 
 static int __init mv_xor_init(void)
 {
-	int rc;
-
-	rc = platform_driver_register(&mv_xor_shared_driver);
-	if (!rc) {
-		rc = platform_driver_register(&mv_xor_driver);
-		if (rc)
-			platform_driver_unregister(&mv_xor_shared_driver);
-	}
-	return rc;
+	return platform_driver_register(&mv_xor_shared_driver);
 }
 module_init(mv_xor_init);
 
@@ -1422,7 +1376,6 @@ module_init(mv_xor_init);
 #if 0
 static void __exit mv_xor_exit(void)
 {
-	platform_driver_unregister(&mv_xor_driver);
 	platform_driver_unregister(&mv_xor_shared_driver);
 	return;
 }
