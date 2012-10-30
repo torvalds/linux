@@ -1,0 +1,20 @@
+[config]
+command = record
+args    = -e '{cycles,instructions}' kill >/tmp/krava 2>&1
+
+[event-1:base-record]
+fd=1
+group_fd=-1
+sample_type=327
+
+[event-2:base-record]
+fd=2
+group_fd=1
+type=0
+config=1
+sample_type=327
+mmap=0
+comm=0
+# TODO this is disabled for --group option, enabled otherwise
+#      check why..
+enable_on_exec=1
