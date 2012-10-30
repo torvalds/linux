@@ -2018,10 +2018,10 @@ int uf_create_device_nodes(unifi_priv_t *priv, int bus_id)
 
 void uf_destroy_device_nodes(unifi_priv_t *priv)
 {
-    device_destroy(unifi_class, priv->unifiudi_cdev.dev);
-    device_destroy(unifi_class, priv->unifi_cdev.dev);
-    cdev_del(&priv->unifiudi_cdev);
-    cdev_del(&priv->unifi_cdev);
+	device_destroy(unifi_class, priv->unifiudi_cdev.dev);
+	device_destroy(unifi_class, priv->unifi_cdev.dev);
+	cdev_del(&priv->unifiudi_cdev);
+	cdev_del(&priv->unifi_cdev);
 }
 
 
