@@ -1,7 +1,7 @@
 /*
  * OMAP2430 clock data
  *
- * Copyright (C) 2005-2009 Texas Instruments, Inc.
+ * Copyright (C) 2005-2009, 2012 Texas Instruments, Inc.
  * Copyright (C) 2004-2011 Nokia Corporation
  *
  * Contacts:
@@ -2024,9 +2024,7 @@ static struct omap_clk omap2430_clks[] = {
 
 int __init omap2430_clk_init(void)
 {
-	const struct prcm_config *prcm;
 	struct omap_clk *c;
-	u32 clkrate;
 
 	prcm_clksrc_ctrl = OMAP2430_PRCM_CLKSRC_CTRL;
 	cm_idlest_pll = OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST);
@@ -2049,20 +2047,13 @@ int __init omap2430_clk_init(void)
 		omap2_init_clk_clkdm(c->lk.clk);
 	}
 
+	omap2xxx_clkt_vps_late_init();
+
 	/* Disable autoidle on all clocks; let the PM code enable it later */
 	omap_clk_disable_autoidle_all();
 
-	/* Check the MPU rate set by bootloader */
-	clkrate = omap2xxx_clk_get_core_rate();
-	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
-		if (!(prcm->flags & cpu_mask))
-			continue;
-		if (prcm->xtal_speed != sys_ck.rate)
-			continue;
-		if (prcm->dpll_speed <= clkrate)
-			break;
-	}
-	curr_prcm_set = prcm;
+	/* XXX Can this be done from the virt_prcm_set clk init function? */
+	omap2xxx_clkt_vps_check_bootloader_rates();
 
 	recalculate_root_clocks();
 

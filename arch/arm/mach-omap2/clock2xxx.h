@@ -20,6 +20,8 @@ u32 omap2xxx_get_apll_clkin(void);
 u32 omap2xxx_get_sysclkdiv(void);
 void omap2xxx_clk_prepare_for_reboot(void);
 void omap2xxx_clkt_dpllcore_init(struct clk *clk);
+void omap2xxx_clkt_vps_check_bootloader_rates(void);
+void omap2xxx_clkt_vps_late_init(void);
 
 #ifdef CONFIG_SOC_OMAP2420
 int omap2420_clk_init(void);
