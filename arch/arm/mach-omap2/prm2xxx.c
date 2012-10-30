@@ -20,7 +20,6 @@
 
 #include "common.h"
 #include <plat/cpu.h>
-#include <plat/prcm.h>
 
 #include "vp.h"
 #include "powerdomain.h"

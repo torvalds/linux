@@ -28,7 +28,6 @@
 #include <plat-omap/dma-omap.h>
 
 #include "../plat-omap/sram.h"
-#include <plat/prcm.h>
 
 #include "omap_hwmod.h"
 #include "soc.h"

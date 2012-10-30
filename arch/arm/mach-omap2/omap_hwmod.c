@@ -141,7 +141,6 @@
 
 #include "clock.h"
 #include "omap_hwmod.h"
-#include <plat/prcm.h>
 
 #include "soc.h"
 #include "common.h"

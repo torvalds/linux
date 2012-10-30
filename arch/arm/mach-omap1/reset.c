@@ -4,8 +4,6 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <plat/prcm.h>
-
 #include <mach/hardware.h>
 
 #include "iomap.h"
