@@ -2027,7 +2027,6 @@ int __init omap2430_clk_init(void)
 	struct omap_clk *c;
 
 	prcm_clksrc_ctrl = OMAP2430_PRCM_CLKSRC_CTRL;
-	cm_idlest_pll = OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST);
 	cpu_mask = RATE_IN_243X;
 	rate_table = omap2430_rate_table;
 

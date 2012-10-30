@@ -35,6 +35,9 @@
 #define OMAP2XXX_APLL_AUTOIDLE_DISABLE			0x0
 #define OMAP2XXX_APLL_AUTOIDLE_LOW_POWER_STOP		0x3
 
+/* CM_IDLEST_PLL bit value offset for APLLs (OMAP2xxx only) */
+#define EN_APLL_LOCKED					3
+
 static const u8 omap2xxx_cm_idlest_offs[] = {
 	CM_IDLEST1, CM_IDLEST2, OMAP2430_CM_IDLEST3, OMAP24XX_CM_IDLEST4
 };
@@ -99,7 +102,7 @@ void omap2xxx_cm_set_dpll_auto_low_power_stop(void)
 }
 
 /*
- * APLL autoidle control
+ * APLL control
  */
 
 static void _omap2xxx_set_apll_autoidle(u8 m, u32 mask)
@@ -134,6 +137,65 @@ void omap2xxx_cm_set_apll96_auto_low_power_stop(void)
 {
 	_omap2xxx_set_apll_autoidle(OMAP2XXX_APLL_AUTOIDLE_DISABLE,
 				    OMAP24XX_AUTO_96M_MASK);
+}
+
+/* Enable an APLL if off */
+static int _omap2xxx_apll_enable(u8 enable_bit, u8 status_bit)
+{
+	u32 v, m;
+
+	m = EN_APLL_LOCKED << enable_bit;
+
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+	if (v & m)
+		return 0;   /* apll already enabled */
+
+	v |= m;
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_CLKEN);
+
+	omap2xxx_cm_wait_module_ready(PLL_MOD, 1, status_bit);
+
+	/*
+	 * REVISIT: Should we return an error code if
+	 * omap2xxx_cm_wait_module_ready() fails?
+	 */
+	return 0;
+}
+
+/* Stop APLL */
+static void _omap2xxx_apll_disable(u8 enable_bit)
+{
+	u32 v;
+
+	v = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
+	v &= ~(EN_APLL_LOCKED << enable_bit);
+	omap2_cm_write_mod_reg(v, PLL_MOD, CM_CLKEN);
+}
+
+/* Enable an APLL if off */
+int omap2xxx_cm_apll54_enable(void)
+{
+	return _omap2xxx_apll_enable(OMAP24XX_EN_54M_PLL_SHIFT,
+				     OMAP24XX_ST_54M_APLL_SHIFT);
+}
+
+/* Enable an APLL if off */
+int omap2xxx_cm_apll96_enable(void)
+{
+	return _omap2xxx_apll_enable(OMAP24XX_EN_96M_PLL_SHIFT,
+				     OMAP24XX_ST_96M_APLL_SHIFT);
+}
+
+/* Stop APLL */
+void omap2xxx_cm_apll54_disable(void)
+{
+	_omap2xxx_apll_disable(OMAP24XX_EN_54M_PLL_SHIFT);
+}
+
+/* Stop APLL */
+void omap2xxx_cm_apll96_disable(void)
+{
+	_omap2xxx_apll_disable(OMAP24XX_EN_96M_PLL_SHIFT);
 }
 
 /*
@@ -252,4 +314,3 @@ struct clkdm_ops omap2_clkdm_operations = {
 	.clkdm_clk_enable	= omap2xxx_clkdm_clk_enable,
 	.clkdm_clk_disable	= omap2xxx_clkdm_clk_disable,
 };
-

@@ -35,7 +35,7 @@ int omap2430_clk_init(void);
 #define omap2430_clk_init()	do { } while(0)
 #endif
 
-extern void __iomem *prcm_clksrc_ctrl, *cm_idlest_pll;
+extern void __iomem *prcm_clksrc_ctrl;
 
 extern const struct clkops clkops_omap2430_i2chs_wait;
 extern const struct clkops clkops_oscck;
