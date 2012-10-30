@@ -52,13 +52,11 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+#define APCI1710_TTL_INIT		0
+#define APCI1710_TTL_INITDIRECTION	1
 
-#include "APCI1710_Ttl.h"
+#define APCI1710_TTL_READCHANNEL	0
+#define APCI1710_TTL_READPORT		1
 
 /*
 +----------------------------------------------------------------------------+
