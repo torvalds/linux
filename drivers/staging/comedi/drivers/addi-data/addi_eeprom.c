@@ -184,7 +184,7 @@ static void addi_eeprom_nvram_wait(unsigned long iobase)
 	unsigned char val;
 
 	do {
-		val = inb(iobase + 0x3F);
+		val = inb(iobase + AMCC_OP_REG_MCSR_NVCMD);
 	} while (val & 0x80);
 }
 
@@ -197,21 +197,21 @@ static unsigned short addi_eeprom_readw_nvram(unsigned long iobase,
 
 	for (i = 0; i < 2; i++) {
 		/* Load the low 8 bit address */
-		outb(NVCMD_LOAD_LOW, iobase + 0x3F);
+		outb(NVCMD_LOAD_LOW, iobase + AMCC_OP_REG_MCSR_NVCMD);
 		addi_eeprom_nvram_wait(iobase);
-		outb((addr + i) & 0xff, iobase + 0x3E);
+		outb((addr + i) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
 		addi_eeprom_nvram_wait(iobase);
 
 		/* Load the high 8 bit address */
-		outb(NVCMD_LOAD_HIGH, iobase + 0x3F);
+		outb(NVCMD_LOAD_HIGH, iobase + AMCC_OP_REG_MCSR_NVCMD);
 		addi_eeprom_nvram_wait(iobase);
-		outb(((addr + i) >> 8) & 0xff, iobase + 0x3E);
+		outb(((addr + i) >> 8) & 0xff, iobase + AMCC_OP_REG_MCSR_NVDATA);
 		addi_eeprom_nvram_wait(iobase);
 
 		/* Read the eeprom data byte */
-		outb(NVCMD_BEGIN_READ, iobase + 0x3F);
+		outb(NVCMD_BEGIN_READ, iobase + AMCC_OP_REG_MCSR_NVCMD);
 		addi_eeprom_nvram_wait(iobase);
-		tmp = inb(iobase + 0x3E);
+		tmp = inb(iobase + AMCC_OP_REG_MCSR_NVDATA);
 		addi_eeprom_nvram_wait(iobase);
 
 		if (i == 0)
