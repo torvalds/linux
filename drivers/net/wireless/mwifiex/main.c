@@ -472,6 +472,14 @@ mwifiex_open(struct net_device *dev)
 static int
 mwifiex_close(struct net_device *dev)
 {
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (priv->scan_request) {
+		dev_dbg(priv->adapter->dev, "aborting scan on ndo_stop\n");
+		cfg80211_scan_done(priv->scan_request, 1);
+		priv->scan_request = NULL;
+	}
+
 	return 0;
 }
 

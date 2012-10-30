@@ -276,6 +276,11 @@ static void ar9003_hw_iqcalibrate(struct ath_hw *ah, u8 numChains)
 				offset_array[i],
 				REG_READ(ah, offset_array[i]));
 
+			if (AR_SREV_9565(ah) &&
+			    (iCoff == 63 || qCoff == 63 ||
+			     iCoff == -63 || qCoff == -63))
+				return;
+
 			REG_RMW_FIELD(ah, offset_array[i],
 				      AR_PHY_RX_IQCAL_CORR_IQCORR_Q_I_COFF,
 				      iCoff);

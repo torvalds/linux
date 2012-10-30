@@ -2520,19 +2520,36 @@ static int rt2800_get_txpower_bw_comp(struct rt2x00_dev *rt2x00dev,
 	return comp_value;
 }
 
+static int rt2800_get_txpower_reg_delta(struct rt2x00_dev *rt2x00dev,
+					int power_level, int max_power)
+{
+	int delta;
+
+	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags))
+		return 0;
+
+	/*
+	 * XXX: We don't know the maximum transmit power of our hardware since
+	 * the EEPROM doesn't expose it. We only know that we are calibrated
+	 * to 100% tx power.
+	 *
+	 * Hence, we assume the regulatory limit that cfg80211 calulated for
+	 * the current channel is our maximum and if we are requested to lower
+	 * the value we just reduce our tx power accordingly.
+	 */
+	delta = power_level - max_power;
+	return min(delta, 0);
+}
+
 static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 				   enum ieee80211_band band, int power_level,
 				   u8 txpower, int delta)
 {
-	u32 reg;
 	u16 eeprom;
 	u8 criterion;
 	u8 eirp_txpower;
 	u8 eirp_txpower_criterion;
 	u8 reg_limit;
-
-	if (!((band == IEEE80211_BAND_5GHZ) && is_rate_b))
-		return txpower;
 
 	if (test_bit(CAPABILITY_POWER_LIMIT, &rt2x00dev->cap_flags)) {
 		/*
@@ -2542,11 +2559,13 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 		 * .11b data rate need add additional 4dbm
 		 * when calculating eirp txpower.
 		 */
-		rt2800_register_read(rt2x00dev, TX_PWR_CFG_0, &reg);
-		criterion = rt2x00_get_field32(reg, TX_PWR_CFG_0_6MBS);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_TXPOWER_BYRATE + 1,
+				   &eeprom);
+		criterion = rt2x00_get_field16(eeprom,
+					       EEPROM_TXPOWER_BYRATE_RATE0);
 
-		rt2x00_eeprom_read(rt2x00dev,
-				   EEPROM_EIRP_MAX_TX_POWER, &eeprom);
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_EIRP_MAX_TX_POWER,
+				   &eeprom);
 
 		if (band == IEEE80211_BAND_2GHZ)
 			eirp_txpower_criterion = rt2x00_get_field16(eeprom,
@@ -2563,36 +2582,71 @@ static u8 rt2800_compensate_txpower(struct rt2x00_dev *rt2x00dev, int is_rate_b,
 	} else
 		reg_limit = 0;
 
-	return txpower + delta - reg_limit;
+	txpower = max(0, txpower + delta - reg_limit);
+	return min_t(u8, txpower, 0xc);
 }
 
+/*
+ * We configure transmit power using MAC TX_PWR_CFG_{0,...,N} registers and
+ * BBP R1 register. TX_PWR_CFG_X allow to configure per rate TX power values,
+ * 4 bits for each rate (tune from 0 to 15 dBm). BBP_R1 controls transmit power
+ * for all rates, but allow to set only 4 discrete values: -12, -6, 0 and 6 dBm.
+ * Reference per rate transmit power values are located in the EEPROM at
+ * EEPROM_TXPOWER_BYRATE offset. We adjust them and BBP R1 settings according to
+ * current conditions (i.e. band, bandwidth, temperature, user settings).
+ */
 static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
-				  enum ieee80211_band band,
+				  struct ieee80211_channel *chan,
 				  int power_level)
 {
-	u8 txpower;
+	u8 txpower, r1;
 	u16 eeprom;
-	int i, is_rate_b;
-	u32 reg;
-	u8 r1;
-	u32 offset;
-	int delta;
+	u32 reg, offset;
+	int i, is_rate_b, delta, power_ctrl;
+	enum ieee80211_band band = chan->band;
 
 	/*
-	 * Calculate HT40 compensation delta
+	 * Calculate HT40 compensation. For 40MHz we need to add or subtract
+	 * value read from EEPROM (different for 2GHz and for 5GHz).
 	 */
 	delta = rt2800_get_txpower_bw_comp(rt2x00dev, band);
 
 	/*
-	 * calculate temperature compensation delta
+	 * Calculate temperature compensation. Depends on measurement of current
+	 * TSSI (Transmitter Signal Strength Indication) we know TX power (due
+	 * to temperature or maybe other factors) is smaller or bigger than
+	 * expected. We adjust it, based on TSSI reference and boundaries values
+	 * provided in EEPROM.
 	 */
 	delta += rt2800_get_gain_calibration_delta(rt2x00dev);
 
 	/*
-	 * set to normal bbp tx power control mode: +/- 0dBm
+	 * Decrease power according to user settings, on devices with unknown
+	 * maximum tx power. For other devices we take user power_level into
+	 * consideration on rt2800_compensate_txpower().
+	 */
+	delta += rt2800_get_txpower_reg_delta(rt2x00dev, power_level,
+					      chan->max_power);
+
+	/*
+	 * BBP_R1 controls TX power for all rates, it allow to set the following
+	 * gains -12, -6, 0, +6 dBm by setting values 2, 1, 0, 3 respectively.
+	 *
+	 * TODO: we do not use +6 dBm option to do not increase power beyond
+	 * regulatory limit, however this could be utilized for devices with
+	 * CAPABILITY_POWER_LIMIT.
 	 */
 	rt2800_bbp_read(rt2x00dev, 1, &r1);
-	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, 0);
+	if (delta <= -12) {
+		power_ctrl = 2;
+		delta += 12;
+	} else if (delta <= -6) {
+		power_ctrl = 1;
+		delta += 6;
+	} else {
+		power_ctrl = 0;
+	}
+	rt2x00_set_field8(&r1, BBP1_TX_POWER_CTRL, power_ctrl);
 	rt2800_bbp_write(rt2x00dev, 1, r1);
 	offset = TX_PWR_CFG_0;
 
@@ -2710,7 +2764,7 @@ static void rt2800_config_txpower(struct rt2x00_dev *rt2x00dev,
 
 void rt2800_gain_calibration(struct rt2x00_dev *rt2x00dev)
 {
-	rt2800_config_txpower(rt2x00dev, rt2x00dev->curr_band,
+	rt2800_config_txpower(rt2x00dev, rt2x00dev->hw->conf.channel,
 			      rt2x00dev->tx_power);
 }
 EXPORT_SYMBOL_GPL(rt2800_gain_calibration);
@@ -2845,11 +2899,11 @@ void rt2800_config(struct rt2x00_dev *rt2x00dev,
 	if (flags & IEEE80211_CONF_CHANGE_CHANNEL) {
 		rt2800_config_channel(rt2x00dev, libconf->conf,
 				      &libconf->rf, &libconf->channel);
-		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel,
 				      libconf->conf->power_level);
 	}
 	if (flags & IEEE80211_CONF_CHANGE_POWER)
-		rt2800_config_txpower(rt2x00dev, libconf->conf->channel->band,
+		rt2800_config_txpower(rt2x00dev, libconf->conf->channel,
 				      libconf->conf->power_level);
 	if (flags & IEEE80211_CONF_CHANGE_RETRY_LIMITS)
 		rt2800_config_retry_limit(rt2x00dev, libconf);

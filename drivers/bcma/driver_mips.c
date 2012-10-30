@@ -181,35 +181,50 @@ EXPORT_SYMBOL(bcma_cpu_clock);
 static void bcma_core_mips_flash_detect(struct bcma_drv_mips *mcore)
 {
 	struct bcma_bus *bus = mcore->core->bus;
+	struct bcma_drv_cc *cc = &bus->drv_cc;
 
-	switch (bus->drv_cc.capabilities & BCMA_CC_CAP_FLASHT) {
+	switch (cc->capabilities & BCMA_CC_CAP_FLASHT) {
 	case BCMA_CC_FLASHT_STSER:
 	case BCMA_CC_FLASHT_ATSER:
 		bcma_debug(bus, "Found serial flash\n");
-		bcma_sflash_init(&bus->drv_cc);
+		bcma_sflash_init(cc);
 		break;
 	case BCMA_CC_FLASHT_PARA:
 		bcma_debug(bus, "Found parallel flash\n");
-		bus->drv_cc.pflash.window = 0x1c000000;
-		bus->drv_cc.pflash.window_size = 0x02000000;
+		cc->pflash.present = true;
+		cc->pflash.window = BCMA_SOC_FLASH2;
+		cc->pflash.window_size = BCMA_SOC_FLASH2_SZ;
 
-		if ((bcma_read32(bus->drv_cc.core, BCMA_CC_FLASH_CFG) &
+		if ((bcma_read32(cc->core, BCMA_CC_FLASH_CFG) &
 		     BCMA_CC_FLASH_CFG_DS) == 0)
-			bus->drv_cc.pflash.buswidth = 1;
+			cc->pflash.buswidth = 1;
 		else
-			bus->drv_cc.pflash.buswidth = 2;
+			cc->pflash.buswidth = 2;
 		break;
 	default:
 		bcma_err(bus, "Flash type not supported\n");
 	}
 
-	if (bus->drv_cc.core->id.rev == 38 ||
+	if (cc->core->id.rev == 38 ||
 	    bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
-		if (bus->drv_cc.capabilities & BCMA_CC_CAP_NFLASH) {
+		if (cc->capabilities & BCMA_CC_CAP_NFLASH) {
 			bcma_debug(bus, "Found NAND flash\n");
-			bcma_nflash_init(&bus->drv_cc);
+			bcma_nflash_init(cc);
 		}
 	}
+}
+
+void bcma_core_mips_early_init(struct bcma_drv_mips *mcore)
+{
+	struct bcma_bus *bus = mcore->core->bus;
+
+	if (mcore->early_setup_done)
+		return;
+
+	bcma_chipco_serial_init(&bus->drv_cc);
+	bcma_core_mips_flash_detect(mcore);
+
+	mcore->early_setup_done = true;
 }
 
 void bcma_core_mips_init(struct bcma_drv_mips *mcore)
@@ -218,10 +233,14 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	struct bcma_device *core;
 	bus = mcore->core->bus;
 
+	if (mcore->setup_done)
+		return;
+
 	bcma_info(bus, "Initializing MIPS core...\n");
 
-	if (!mcore->setup_done)
-		mcore->assigned_irqs = 1;
+	bcma_core_mips_early_init(mcore);
+
+	mcore->assigned_irqs = 1;
 
 	/* Assign IRQs to all cores on the bus */
 	list_for_each_entry(core, &bus->cores, list) {
@@ -256,10 +275,5 @@ void bcma_core_mips_init(struct bcma_drv_mips *mcore)
 	bcma_info(bus, "IRQ reconfiguration done\n");
 	bcma_core_mips_dump_irq(bus);
 
-	if (mcore->setup_done)
-		return;
-
-	bcma_chipco_serial_init(&bus->drv_cc);
-	bcma_core_mips_flash_detect(mcore);
 	mcore->setup_done = true;
 }

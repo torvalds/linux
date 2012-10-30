@@ -219,10 +219,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		/* Awake -> Sleep Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			       ar9462_pciephy_pll_on_clkreq_disable_L1_2p0);
+			       ar9462_pciephy_clkreq_disable_L1_2p0);
 		/* Sleep -> Awake Setting */
 		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-			       ar9462_pciephy_pll_on_clkreq_disable_L1_2p0);
+			       ar9462_pciephy_clkreq_disable_L1_2p0);
 
 		/* Fast clock modal settings */
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
@@ -328,9 +328,9 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 			       ar9565_1p0_Modes_lowest_ob_db_tx_gain_table);
 
 		INIT_INI_ARRAY(&ah->iniPcieSerdes,
-			       ar9565_1p0_pciephy_pll_on_clkreq_disable_L1);
+			       ar9565_1p0_pciephy_clkreq_disable_L1);
 		INIT_INI_ARRAY(&ah->iniPcieSerdesLowPower,
-			       ar9565_1p0_pciephy_pll_on_clkreq_disable_L1);
+			       ar9565_1p0_pciephy_clkreq_disable_L1);
 
 		INIT_INI_ARRAY(&ah->iniModesFastClock,
 				ar9565_1p0_modes_fast_clock);

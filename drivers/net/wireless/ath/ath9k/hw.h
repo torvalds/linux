@@ -401,6 +401,7 @@ enum ath9k_int {
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
+	u32 chanmode;
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
@@ -834,6 +835,7 @@ struct ath_hw {
 	int coarse_low[5];
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
+	u32 ani_skip_count;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;

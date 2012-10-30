@@ -327,11 +327,11 @@ u32 iwl_read_targ_mem(struct iwl_trans *trans, u32 addr)
 EXPORT_SYMBOL_GPL(iwl_read_targ_mem);
 
 int _iwl_write_targ_mem_dwords(struct iwl_trans *trans, u32 addr,
-			       void *buf, int dwords)
+			       const void *buf, int dwords)
 {
 	unsigned long flags;
 	int offs, result = 0;
-	u32 *vals = buf;
+	const u32 *vals = buf;
 
 	spin_lock_irqsave(&trans->reg_lock, flags);
 	if (likely(iwl_grab_nic_access(trans))) {

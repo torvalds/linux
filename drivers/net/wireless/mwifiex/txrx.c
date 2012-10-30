@@ -48,13 +48,19 @@ int mwifiex_handle_rx_packet(struct mwifiex_adapter *adapter,
 	if (!priv)
 		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
+	if (!priv) {
+		dev_err(adapter->dev, "data: priv not found. Drop RX packet\n");
+		dev_kfree_skb_any(skb);
+		return -1;
+	}
+
 	rx_info->bss_num = priv->bss_num;
 	rx_info->bss_type = priv->bss_type;
 
 	if (priv->bss_role == MWIFIEX_BSS_ROLE_UAP)
-		return mwifiex_process_uap_rx_packet(adapter, skb);
+		return mwifiex_process_uap_rx_packet(priv, skb);
 
-	return mwifiex_process_sta_rx_packet(adapter, skb);
+	return mwifiex_process_sta_rx_packet(priv, skb);
 }
 EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 

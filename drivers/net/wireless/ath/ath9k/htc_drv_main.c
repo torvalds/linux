@@ -1036,26 +1036,6 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->nvifs >= ATH9K_HTC_MAX_VIF) {
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
-	if (priv->num_ibss_vif ||
-	    (priv->nvifs && vif->type == NL80211_IFTYPE_ADHOC)) {
-		ath_err(common, "IBSS coexistence with other modes is not allowed\n");
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
-	if (((vif->type == NL80211_IFTYPE_AP) ||
-	     (vif->type == NL80211_IFTYPE_ADHOC)) &&
-	    ((priv->num_ap_vif + priv->num_ibss_vif) >= ATH9K_HTC_MAX_BCN_VIF)) {
-		ath_err(common, "Max. number of beaconing interfaces reached\n");
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
 	ath9k_htc_ps_wakeup(priv);
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);

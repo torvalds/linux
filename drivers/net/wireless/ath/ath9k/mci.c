@@ -43,6 +43,7 @@ static bool ath_mci_add_profile(struct ath_common *common,
 				struct ath_mci_profile_info *info)
 {
 	struct ath_mci_profile_info *entry;
+	u8 voice_priority[] = { 110, 110, 110, 112, 110, 110, 114, 116, 118 };
 
 	if ((mci->num_sco == ATH_MCI_MAX_SCO_PROFILE) &&
 	    (info->type == MCI_GPM_COEX_PROFILE_VOICE))
@@ -59,6 +60,12 @@ static bool ath_mci_add_profile(struct ath_common *common,
 	memcpy(entry, info, 10);
 	INC_PROF(mci, info);
 	list_add_tail(&entry->list, &mci->info);
+	if (info->type == MCI_GPM_COEX_PROFILE_VOICE) {
+		if (info->voice_type < sizeof(voice_priority))
+			mci->voice_priority = voice_priority[info->voice_type];
+		else
+			mci->voice_priority = 110;
+	}
 
 	return true;
 }
@@ -150,7 +157,7 @@ static void ath_mci_update_scheme(struct ath_softc *sc)
 			 * For single PAN/FTP profile, allocate 35% for BT
 			 * to improve WLAN throughput.
 			 */
-			btcoex->duty_cycle = 35;
+			btcoex->duty_cycle = AR_SREV_9565(sc->sc_ah) ? 40 : 35;
 			btcoex->btcoex_period = 53;
 			ath_dbg(common, MCI,
 				"Single PAN/FTP bt period %d ms dutycycle %d\n",
@@ -250,6 +257,57 @@ static void ath9k_mci_work(struct work_struct *work)
 	ath_mci_update_scheme(sc);
 }
 
+static void ath_mci_update_stomp_txprio(u8 cur_txprio, u8 *stomp_prio)
+{
+	if (cur_txprio < stomp_prio[ATH_BTCOEX_STOMP_NONE])
+		stomp_prio[ATH_BTCOEX_STOMP_NONE] = cur_txprio;
+
+	if (cur_txprio > stomp_prio[ATH_BTCOEX_STOMP_ALL])
+		stomp_prio[ATH_BTCOEX_STOMP_ALL] = cur_txprio;
+
+	if ((cur_txprio > ATH_MCI_HI_PRIO) &&
+	    (cur_txprio < stomp_prio[ATH_BTCOEX_STOMP_LOW]))
+		stomp_prio[ATH_BTCOEX_STOMP_LOW] = cur_txprio;
+}
+
+static void ath_mci_set_concur_txprio(struct ath_softc *sc)
+{
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_mci_profile *mci = &btcoex->mci;
+	u8 stomp_txprio[] = { 0, 0, 0, 0 }; /* all, low, none, low_ftp */
+
+	if (mci->num_mgmt) {
+		stomp_txprio[ATH_BTCOEX_STOMP_ALL] = ATH_MCI_INQUIRY_PRIO;
+		if (!mci->num_pan && !mci->num_other_acl)
+			stomp_txprio[ATH_BTCOEX_STOMP_NONE] =
+				ATH_MCI_INQUIRY_PRIO;
+	} else {
+		u8 prof_prio[] = { 50, 90, 94, 52 };/* RFCOMM, A2DP, HID, PAN */
+
+		stomp_txprio[ATH_BTCOEX_STOMP_LOW] =
+		stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0xff;
+
+		if (mci->num_sco)
+			ath_mci_update_stomp_txprio(mci->voice_priority,
+						    stomp_txprio);
+		if (mci->num_other_acl)
+			ath_mci_update_stomp_txprio(prof_prio[0], stomp_txprio);
+		if (mci->num_a2dp)
+			ath_mci_update_stomp_txprio(prof_prio[1], stomp_txprio);
+		if (mci->num_hid)
+			ath_mci_update_stomp_txprio(prof_prio[2], stomp_txprio);
+		if (mci->num_pan)
+			ath_mci_update_stomp_txprio(prof_prio[3], stomp_txprio);
+
+		if (stomp_txprio[ATH_BTCOEX_STOMP_NONE] == 0xff)
+			stomp_txprio[ATH_BTCOEX_STOMP_NONE] = 0;
+
+		if (stomp_txprio[ATH_BTCOEX_STOMP_LOW] == 0xff)
+			stomp_txprio[ATH_BTCOEX_STOMP_LOW] = 0;
+	}
+	ath9k_hw_btcoex_set_concur_txprio(sc->sc_ah, stomp_txprio);
+}
+
 static u8 ath_mci_process_profile(struct ath_softc *sc,
 				  struct ath_mci_profile_info *info)
 {
@@ -281,6 +339,7 @@ static u8 ath_mci_process_profile(struct ath_softc *sc,
 	} else
 		ath_mci_del_profile(common, mci, entry);
 
+	ath_mci_set_concur_txprio(sc);
 	return 1;
 }
 
@@ -314,6 +373,7 @@ static u8 ath_mci_process_status(struct ath_softc *sc,
 			mci->num_mgmt++;
 	} while (++i < ATH_MCI_MAX_PROFILE);
 
+	ath_mci_set_concur_txprio(sc);
 	if (old_num_mgmt != mci->num_mgmt)
 		return 1;
 
@@ -599,4 +659,113 @@ void ath_mci_enable(struct ath_softc *sc)
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
 		sc->sc_ah->imask |= ATH9K_INT_MCI;
+}
+
+void ath9k_mci_update_wlan_channels(struct ath_softc *sc, bool allow_all)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
+	struct ath9k_channel *chan = ah->curchan;
+	u32 channelmap[] = {0x00000000, 0xffff0000, 0xffffffff, 0x7fffffff};
+	int i;
+	s16 chan_start, chan_end;
+	u16 wlan_chan;
+
+	if (!chan || !IS_CHAN_2GHZ(chan))
+		return;
+
+	if (allow_all)
+		goto send_wlan_chan;
+
+	wlan_chan = chan->channel - 2402;
+
+	chan_start = wlan_chan - 10;
+	chan_end = wlan_chan + 10;
+
+	if (chan->chanmode == CHANNEL_G_HT40PLUS)
+		chan_end += 20;
+	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
+		chan_start -= 20;
+
+	/* adjust side band */
+	chan_start -= 7;
+	chan_end += 7;
+
+	if (chan_start <= 0)
+		chan_start = 0;
+	if (chan_end >= ATH_MCI_NUM_BT_CHANNELS)
+		chan_end = ATH_MCI_NUM_BT_CHANNELS - 1;
+
+	ath_dbg(ath9k_hw_common(ah), MCI,
+		"WLAN current channel %d mask BT channel %d - %d\n",
+		wlan_chan, chan_start, chan_end);
+
+	for (i = chan_start; i < chan_end; i++)
+		MCI_GPM_CLR_CHANNEL_BIT(&channelmap, i);
+
+send_wlan_chan:
+	/* update and send wlan channels info to BT */
+	for (i = 0; i < 4; i++)
+		mci->wlan_channels[i] = channelmap[i];
+	ar9003_mci_send_wlan_channels(ah);
+	ar9003_mci_state(ah, MCI_STATE_SEND_VERSION_QUERY);
+}
+
+void ath9k_mci_set_txpower(struct ath_softc *sc, bool setchannel,
+			   bool concur_tx)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath9k_hw_mci *mci_hw = &sc->sc_ah->btcoex_hw.mci;
+	bool old_concur_tx = mci_hw->concur_tx;
+
+	if (!(mci_hw->config & ATH_MCI_CONFIG_CONCUR_TX)) {
+		mci_hw->concur_tx = false;
+		return;
+	}
+
+	if (!IS_CHAN_2GHZ(ah->curchan))
+		return;
+
+	if (setchannel) {
+		struct ath9k_hw_cal_data *caldata = &sc->caldata;
+		if ((caldata->chanmode == CHANNEL_G_HT40PLUS) &&
+		    (ah->curchan->channel > caldata->channel) &&
+		    (ah->curchan->channel <= caldata->channel + 20))
+			return;
+		if ((caldata->chanmode == CHANNEL_G_HT40MINUS) &&
+		    (ah->curchan->channel < caldata->channel) &&
+		    (ah->curchan->channel >= caldata->channel - 20))
+			return;
+		mci_hw->concur_tx = false;
+	} else
+		mci_hw->concur_tx = concur_tx;
+
+	if (old_concur_tx != mci_hw->concur_tx)
+		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
+}
+
+void ath9k_mci_update_rssi(struct ath_softc *sc)
+{
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath9k_hw_mci *mci_hw = &sc->sc_ah->btcoex_hw.mci;
+
+	if (!(mci_hw->config & ATH_MCI_CONFIG_CONCUR_TX))
+		return;
+
+	if (ah->stats.avgbrssi >= 40) {
+		if (btcoex->rssi_count < 0)
+			btcoex->rssi_count = 0;
+		if (++btcoex->rssi_count >= ATH_MCI_CONCUR_TX_SWITCH) {
+			btcoex->rssi_count = 0;
+			ath9k_mci_set_txpower(sc, false, true);
+		}
+	} else {
+		if (btcoex->rssi_count > 0)
+			btcoex->rssi_count = 0;
+		if (--btcoex->rssi_count <= -ATH_MCI_CONCUR_TX_SWITCH) {
+			btcoex->rssi_count = 0;
+			ath9k_mci_set_txpower(sc, false, false);
+		}
+	}
 }

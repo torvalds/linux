@@ -300,7 +300,7 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
 	u32 scd_sram_addr = trans_pcie->scd_base_addr +
-		SCD_TX_STTS_MEM_LOWER_BOUND + (16 * txq->q.id);
+				SCD_TX_STTS_QUEUE_OFFSET(txq->q.id);
 	u8 buf[16];
 	int i;
 
@@ -1385,11 +1385,13 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	dma_sync_single_for_device(trans->dev, txcmd_phys, firstlen,
 				   DMA_BIDIRECTIONAL);
 
-	trace_iwlwifi_dev_tx(trans->dev,
+	trace_iwlwifi_dev_tx(trans->dev, skb,
 			     &txq->tfds[txq->q.write_ptr],
 			     sizeof(struct iwl_tfd),
 			     &dev_cmd->hdr, firstlen,
 			     skb->data + hdr_len, secondlen);
+	trace_iwlwifi_dev_tx_data(trans->dev, skb,
+				  skb->data + hdr_len, secondlen);
 
 	/* start timer if queue currently empty */
 	if (txq->need_update && q->read_ptr == q->write_ptr &&
@@ -1514,14 +1516,13 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
 	/* n_bd is usually 256 => n_bd - 1 = 0xff */
 	int tfd_num = ssn & (txq->q.n_bd - 1);
-	int freed = 0;
 
 	spin_lock(&txq->lock);
 
 	if (txq->q.read_ptr != tfd_num) {
 		IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 				   txq_id, txq->q.read_ptr, tfd_num, ssn);
-		freed = iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
+		iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
 			iwl_wake_queue(trans, txq);
 	}

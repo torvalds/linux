@@ -131,7 +131,8 @@ void ath9k_ps_restore(struct ath_softc *sc)
 		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 				     PS_WAIT_FOR_CAB |
 				     PS_WAIT_FOR_PSPOLL_DATA |
-				     PS_WAIT_FOR_TX_ACK))) {
+				     PS_WAIT_FOR_TX_ACK |
+				     PS_WAIT_FOR_ANI))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
 		if (ath9k_hw_btcoex_is_enabled(sc->sc_ah))
 			ath9k_btcoex_stop_gen_timer(sc);
@@ -291,6 +292,10 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 			"Unable to reset channel, reset status %d\n", r);
 		goto out;
 	}
+
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah) &&
+	    (sc->hw->conf.flags & IEEE80211_CONF_OFFCHANNEL))
+		ath9k_mci_set_txpower(sc, true, false);
 
 	if (!ath_complete_reset(sc, true))
 		r = -EIO;
@@ -1449,6 +1454,9 @@ static void ath9k_set_assoc_state(struct ath_softc *sc,
 	sc->ps_flags |= PS_BEACON_SYNC | PS_WAIT_FOR_BEACON;
 	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
+	if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+		ath9k_mci_update_wlan_channels(sc, false);
+
 	ath_dbg(common, CONFIG,
 		"Primary Station interface: %pM, BSSID: %pM\n",
 		vif->addr, common->curbssid);
@@ -1505,6 +1513,8 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			memset(common->curbssid, 0, ETH_ALEN);
 			common->curaid = 0;
 			ath9k_hw_write_associd(sc->sc_ah);
+			if (ath9k_hw_mci_is_enabled(sc->sc_ah))
+				ath9k_mci_update_wlan_channels(sc, true);
 		}
 	}
 

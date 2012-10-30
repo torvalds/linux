@@ -127,15 +127,15 @@ do {								\
 #define WL_AUTH_SHARED_KEY		1	/* d11 shared authentication */
 #define IE_MAX_LEN			512
 
-/* dongle status */
-enum wl_status {
-	WL_STATUS_READY,
-	WL_STATUS_SCANNING,
-	WL_STATUS_SCAN_ABORTING,
-	WL_STATUS_CONNECTING,
-	WL_STATUS_CONNECTED,
-	WL_STATUS_AP_CREATING,
-	WL_STATUS_AP_CREATED
+/**
+ * enum brcmf_scan_status - dongle scan status
+ *
+ * @BRCMF_SCAN_STATUS_BUSY: scanning in progress on dongle.
+ * @BRCMF_SCAN_STATUS_ABORT: scan being aborted on dongle.
+ */
+enum brcmf_scan_status {
+	BRCMF_SCAN_STATUS_BUSY,
+	BRCMF_SCAN_STATUS_ABORT,
 };
 
 /* wi-fi mode */
@@ -143,19 +143,6 @@ enum wl_mode {
 	WL_MODE_BSS,
 	WL_MODE_IBSS,
 	WL_MODE_AP
-};
-
-/* dongle profile list */
-enum wl_prof_list {
-	WL_PROF_MODE,
-	WL_PROF_SSID,
-	WL_PROF_SEC,
-	WL_PROF_IBSS,
-	WL_PROF_BAND,
-	WL_PROF_BSSID,
-	WL_PROF_ACT,
-	WL_PROF_BEACONINT,
-	WL_PROF_DTIMPERIOD
 };
 
 /* dongle iscan state */
@@ -214,25 +201,73 @@ struct brcmf_cfg80211_security {
 	u32 wpa_auth;
 };
 
-/* ibss information for currently joined ibss network */
-struct brcmf_cfg80211_ibss {
-	u8 beacon_interval;	/* in millisecond */
-	u8 atim;		/* in millisecond */
-	s8 join_only;
-	u8 band;
-	u8 channel;
-};
-
-/* dongle profile */
+/**
+ * struct brcmf_cfg80211_profile - profile information.
+ *
+ * @ssid: ssid of associated/associating ap.
+ * @bssid: bssid of joined/joining ibss.
+ * @sec: security information.
+ */
 struct brcmf_cfg80211_profile {
-	u32 mode;
 	struct brcmf_ssid ssid;
 	u8 bssid[ETH_ALEN];
-	u16 beacon_interval;
-	u8 dtim_period;
 	struct brcmf_cfg80211_security sec;
-	struct brcmf_cfg80211_ibss ibss;
-	s32 band;
+};
+
+/**
+ * enum brcmf_vif_status - bit indices for vif status.
+ *
+ * @BRCMF_VIF_STATUS_READY: ready for operation.
+ * @BRCMF_VIF_STATUS_CONNECTING: connect/join in progress.
+ * @BRCMF_VIF_STATUS_CONNECTED: connected/joined succesfully.
+ * @BRCMF_VIF_STATUS_AP_CREATING: interface configured for AP operation.
+ * @BRCMF_VIF_STATUS_AP_CREATED: AP operation started.
+ */
+enum brcmf_vif_status {
+	BRCMF_VIF_STATUS_READY,
+	BRCMF_VIF_STATUS_CONNECTING,
+	BRCMF_VIF_STATUS_CONNECTED,
+	BRCMF_VIF_STATUS_AP_CREATING,
+	BRCMF_VIF_STATUS_AP_CREATED
+};
+
+/**
+ * struct vif_saved_ie - holds saved IEs for a virtual interface.
+ *
+ * @probe_res_ie: IE info for probe response.
+ * @beacon_ie: IE info for beacon frame.
+ * @probe_res_ie_len: IE info length for probe response.
+ * @beacon_ie_len: IE info length for beacon frame.
+ */
+struct vif_saved_ie {
+	u8  probe_res_ie[IE_MAX_LEN];
+	u8  beacon_ie[IE_MAX_LEN];
+	u32 probe_res_ie_len;
+	u32 beacon_ie_len;
+};
+
+/**
+ * struct brcmf_cfg80211_vif - virtual interface specific information.
+ *
+ * @ifp: lower layer interface pointer
+ * @wdev: wireless device.
+ * @profile: profile information.
+ * @mode: operating mode.
+ * @roam_off: roaming state.
+ * @sme_state: SME state using enum brcmf_vif_status bits.
+ * @pm_block: power-management blocked.
+ * @list: linked list.
+ */
+struct brcmf_cfg80211_vif {
+	struct brcmf_if *ifp;
+	struct wireless_dev wdev;
+	struct brcmf_cfg80211_profile profile;
+	s32 mode;
+	s32 roam_off;
+	unsigned long sme_state;
+	bool pm_block;
+	struct vif_saved_ie saved_ie;
+	struct list_head list;
 };
 
 /* dongle iscan event loop */
@@ -383,7 +418,7 @@ struct brcmf_pno_scanresults_le {
 /**
  * struct brcmf_cfg80211_info - dongle private data of cfg80211 interface
  *
- * @wdev: representing wl cfg80211 device.
+ * @wiphy: wiphy object for cfg80211 interface.
  * @conf: dongle configuration.
  * @scan_request: cfg80211 scan request object.
  * @el: main event loop.
@@ -395,12 +430,11 @@ struct brcmf_pno_scanresults_le {
  * @scan_req_int: internal scan request object.
  * @bss_info: bss information for cfg80211 layer.
  * @ie: information element object for internal purpose.
- * @profile: holding dongle profile.
  * @iscan: iscan controller information.
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
  * @event_work: event handler work struct.
- * @status: current dongle status.
+ * @scan_status: scan activity on the dongle.
  * @pub: common driver information.
  * @channel: current channel.
  * @iscan_on: iscan on/off switch.
@@ -422,10 +456,11 @@ struct brcmf_pno_scanresults_le {
  * @escan_timeout_work: scan timeout worker.
  * @escan_ioctl_buf: dongle command buffer for escan commands.
  * @ap_info: host ap information.
- * @ci: used to link this structure to netdev private data.
+ * @vif_list: linked list of vif instances.
+ * @vif_cnt: number of vif instances.
  */
 struct brcmf_cfg80211_info {
-	struct wireless_dev *wdev;
+	struct wiphy *wiphy;
 	struct brcmf_cfg80211_conf *conf;
 	struct cfg80211_scan_request *scan_request;
 	struct brcmf_cfg80211_event_loop el;
@@ -437,12 +472,11 @@ struct brcmf_cfg80211_info {
 	struct brcmf_cfg80211_scan_req *scan_req_int;
 	struct wl_cfg80211_bss_info *bss_info;
 	struct brcmf_cfg80211_ie ie;
-	struct brcmf_cfg80211_profile *profile;
 	struct brcmf_cfg80211_iscan_ctrl *iscan;
 	struct brcmf_cfg80211_connect_info conn_info;
 	struct brcmf_cfg80211_pmk_list *pmk_list;
 	struct work_struct event_work;
-	unsigned long status;
+	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;
 	bool iscan_on;
@@ -464,11 +498,13 @@ struct brcmf_cfg80211_info {
 	struct work_struct escan_timeout_work;
 	u8 *escan_ioctl_buf;
 	struct ap_info *ap_info;
+	struct list_head vif_list;
+	u8 vif_cnt;
 };
 
-static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *w)
+static inline struct wiphy *cfg_to_wiphy(struct brcmf_cfg80211_info *cfg)
 {
-	return w->wdev->wiphy;
+	return cfg->wiphy;
 }
 
 static inline struct brcmf_cfg80211_info *wiphy_to_cfg(struct wiphy *w)
@@ -481,14 +517,23 @@ static inline struct brcmf_cfg80211_info *wdev_to_cfg(struct wireless_dev *wd)
 	return (struct brcmf_cfg80211_info *)(wdev_priv(wd));
 }
 
-static inline struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
+static inline
+struct net_device *cfg_to_ndev(struct brcmf_cfg80211_info *cfg)
 {
-	return cfg->wdev->netdev;
+	struct brcmf_cfg80211_vif *vif;
+	vif = list_first_entry(&cfg->vif_list, struct brcmf_cfg80211_vif, list);
+	return vif->wdev.netdev;
 }
 
 static inline struct brcmf_cfg80211_info *ndev_to_cfg(struct net_device *ndev)
 {
 	return wdev_to_cfg(ndev->ieee80211_ptr);
+}
+
+static inline struct brcmf_cfg80211_profile *ndev_to_prof(struct net_device *nd)
+{
+	struct brcmf_if *ifp = netdev_priv(nd);
+	return &ifp->vif->profile;
 }
 
 #define iscan_to_cfg(i) ((struct brcmf_cfg80211_info *)(i->data))
@@ -500,9 +545,7 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_info *cfg)
 	return &cfg->conn_info;
 }
 
-struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct net_device *ndev,
-						  struct device *busdev,
-						  struct brcmf_pub *drvr);
+struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr);
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
 
 /* event handler from dongle */
