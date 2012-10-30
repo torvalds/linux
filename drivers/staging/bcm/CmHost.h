@@ -54,20 +54,6 @@ typedef struct stLocalSFAddIndicationAlt {
 /* USE_MEMORY_MANAGER(); */
 } stLocalSFAddIndicationAlt;
 
-/* brief structure stLocalSFAddConfirmation */
-typedef struct stLocalSFAddConfirmationAlt {
-	u8	u8Type;
-	u8	u8Direction;
-	u16	u16TID;
-	/* brief 16bitCID */
-	u16	u16CID;
-	/* brief 16bitVCID */
-	u16	u16VCID;
-	struct bcm_connect_mgr_params sfAuthorizedSet;
-	struct bcm_connect_mgr_params sfAdmittedSet;
-	struct bcm_connect_mgr_params sfActiveSet;
-} stLocalSFAddConfirmationAlt;
-
 struct bcm_change_indication {
 	u8	u8Type;
 	u8	u8Direction;
