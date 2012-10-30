@@ -11,5 +11,4 @@
 
 extern struct key *modsign_keyring;
 
-extern int mod_verify_sig(const void *mod, unsigned long modlen,
-			  const void *sig, unsigned long siglen);
+extern int mod_verify_sig(const void *mod, unsigned long *_modlen);

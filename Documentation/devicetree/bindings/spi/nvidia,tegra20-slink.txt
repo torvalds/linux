@@ -1,0 +1,26 @@
+NVIDIA Tegra20/Tegra30 SLINK controller.
+
+Required properties:
+- compatible : should be "nvidia,tegra20-slink", "nvidia,tegra30-slink".
+- reg: Should contain SLINK registers location and length.
+- interrupts: Should contain SLINK interrupts.
+- nvidia,dma-request-selector : The Tegra DMA controller's phandle and
+  request selector for this SLINK controller.
+
+Recommended properties:
+- spi-max-frequency: Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Example:
+
+slink@7000d600 {
+	compatible = "nvidia,tegra20-slink";
+	reg = <0x7000d600 0x200>;
+	interrupts = <0 82 0x04>;
+	nvidia,dma-request-selector = <&apbdma 16>;
+	spi-max-frequency = <25000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "disabled";
+};
+

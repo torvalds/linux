@@ -502,6 +502,7 @@
 #define	PACKET3_MPEG_INDEX				0x3A
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
+#define	PACKET3_PFP_SYNC_ME				0x42
 #define	PACKET3_SURFACE_SYNC				0x43
 #              define PACKET3_CB0_DEST_BASE_ENA    (1 << 6)
 #              define PACKET3_CB1_DEST_BASE_ENA    (1 << 7)

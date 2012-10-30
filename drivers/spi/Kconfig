@@ -385,6 +385,12 @@ config SPI_MXS
 	help
 	  SPI driver for Freescale MXS devices.
 
+config SPI_TEGRA20_SLINK
+	tristate "Nvidia Tegra20/Tegra30 SLINK Controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	help
+	  SPI driver for Nvidia Tegra20/Tegra30 SLINK Controller interface.
+
 config SPI_TI_SSP
 	tristate "TI Sequencer Serial Port - SPI Support"
 	depends on MFD_TI_SSP

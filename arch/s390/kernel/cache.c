@@ -59,8 +59,8 @@ enum {
 
 enum {
 	CACHE_TI_UNIFIED = 0,
-	CACHE_TI_INSTRUCTION = 0,
-	CACHE_TI_DATA,
+	CACHE_TI_DATA = 0,
+	CACHE_TI_INSTRUCTION,
 };
 
 struct cache_info {
@@ -121,7 +121,10 @@ static int __init cache_add(int level, int private, int type)
 	cache = kzalloc(sizeof(*cache), GFP_KERNEL);
 	if (!cache)
 		return -ENOMEM;
-	ti = type == CACHE_TYPE_DATA ? CACHE_TI_DATA : CACHE_TI_UNIFIED;
+	if (type == CACHE_TYPE_INSTRUCTION)
+		ti = CACHE_TI_INSTRUCTION;
+	else
+		ti = CACHE_TI_UNIFIED;
 	cache->size = ecag(EXTRACT_SIZE, level, ti);
 	cache->line_size = ecag(EXTRACT_LINE_SIZE, level, ti);
 	cache->associativity = ecag(EXTRACT_ASSOCIATIVITY, level, ti);

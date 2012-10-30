@@ -1862,7 +1862,7 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 	cpuidle_drv = cpuidle_driver_ref();
 	if (!cpuidle_drv) {
 		ret = -ENODEV;
-		goto out;
+		goto err_drv;
 	}
 	if (cpuidle_drv->state_count <= state) {
 		ret = -EINVAL;
@@ -1884,6 +1884,9 @@ int pm_genpd_attach_cpuidle(struct generic_pm_domain *genpd, int state)
 
  err:
 	cpuidle_driver_unref();
+
+ err_drv:
+	kfree(cpu_data);
 	goto out;
 }
 

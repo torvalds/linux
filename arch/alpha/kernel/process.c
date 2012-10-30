@@ -49,7 +49,7 @@ EXPORT_SYMBOL(pm_power_off);
 void
 cpu_idle(void)
 {
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	current_thread_info()->status |= TS_POLLING;
 
 	while (1) {
 		/* FIXME -- EV6 and LCA45 know how to power down
