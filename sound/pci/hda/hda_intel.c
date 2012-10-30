@@ -2278,9 +2278,12 @@ static unsigned int azx_get_position(struct azx *chip,
 		if (delay < 0)
 			delay += azx_dev->bufsize;
 		if (delay >= azx_dev->period_bytes) {
-			snd_printdd("delay %d > period_bytes %d\n",
-				delay, azx_dev->period_bytes);
-			delay = 0; /* something is wrong */
+			snd_printk(KERN_WARNING SFX
+				   "Unstable LPIB (%d >= %d); "
+				   "disabling LPIB delay counting\n",
+				   delay, azx_dev->period_bytes);
+			delay = 0;
+			chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
 		}
 		azx_dev->substream->runtime->delay =
 			bytes_to_frames(azx_dev->substream->runtime, delay);

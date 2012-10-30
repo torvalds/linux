@@ -713,29 +713,33 @@ MODULE_FIRMWARE("keyspan_pda/keyspan_pda.fw");
 MODULE_FIRMWARE("keyspan_pda/xircom_pgs.fw");
 #endif
 
-static int keyspan_pda_startup(struct usb_serial *serial)
+static int keyspan_pda_port_probe(struct usb_serial_port *port)
 {
 
 	struct keyspan_pda_private *priv;
 
-	/* allocate the private data structures for all ports. Well, for all
-	   one ports. */
-
 	priv = kmalloc(sizeof(struct keyspan_pda_private), GFP_KERNEL);
 	if (!priv)
-		return 1; /* error */
-	usb_set_serial_port_data(serial->port[0], priv);
-	init_waitqueue_head(&serial->port[0]->write_wait);
+		return -ENOMEM;
+
 	INIT_WORK(&priv->wakeup_work, keyspan_pda_wakeup_write);
 	INIT_WORK(&priv->unthrottle_work, keyspan_pda_request_unthrottle);
-	priv->serial = serial;
-	priv->port = serial->port[0];
+	priv->serial = port->serial;
+	priv->port = port;
+
+	usb_set_serial_port_data(port, priv);
+
 	return 0;
 }
 
-static void keyspan_pda_release(struct usb_serial *serial)
+static int keyspan_pda_port_remove(struct usb_serial_port *port)
 {
-	kfree(usb_get_serial_port_data(serial->port[0]));
+	struct keyspan_pda_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 #ifdef KEYSPAN
@@ -786,8 +790,8 @@ static struct usb_serial_driver keyspan_pda_device = {
 	.break_ctl =		keyspan_pda_break_ctl,
 	.tiocmget =		keyspan_pda_tiocmget,
 	.tiocmset =		keyspan_pda_tiocmset,
-	.attach =		keyspan_pda_startup,
-	.release =		keyspan_pda_release,
+	.port_probe =		keyspan_pda_port_probe,
+	.port_remove =		keyspan_pda_port_remove,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {

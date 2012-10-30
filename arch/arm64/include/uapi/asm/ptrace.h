@@ -79,12 +79,13 @@ struct user_fpsimd_state {
 
 struct user_hwdebug_state {
 	__u32		dbg_info;
+	__u32		pad;
 	struct {
 		__u64	addr;
 		__u32	ctrl;
+		__u32	pad;
 	}		dbg_regs[16];
 };
-
 
 #endif /* __ASSEMBLY__ */
 

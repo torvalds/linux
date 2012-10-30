@@ -2369,8 +2369,9 @@ static void
 intel_dp_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 
-	if (intel_dpd_is_edp(dev))
+	if (is_edp(intel_dp))
 		intel_panel_destroy_backlight(dev);
 
 	drm_sysfs_connector_remove(connector);

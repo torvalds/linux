@@ -421,6 +421,8 @@ static int ircomm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 		hashbin_insert(ircomm_tty, (irda_queue_t *) self, line, NULL);
 	}
 
+	tty->driver_data = self;
+
 	return tty_port_install(&self->port, driver, tty);
 }
 

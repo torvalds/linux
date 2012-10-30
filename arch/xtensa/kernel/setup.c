@@ -100,7 +100,7 @@ typedef struct tagtable {
 } tagtable_t;
 
 #define __tagtable(tag, fn) static tagtable_t __tagtable_##fn 		\
-	__attribute__((unused, __section__(".taglist"))) = { tag, fn }
+	__attribute__((used, section(".taglist"))) = { tag, fn }
 
 /* parse current tag */
 
@@ -120,7 +120,7 @@ static int __init parse_tag_mem(const bp_tag_t *tag)
 	}
 	sysmem.bank[sysmem.nr_banks].type  = mi->type;
 	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(mi->start);
-	sysmem.bank[sysmem.nr_banks].end   = mi->end & PAGE_SIZE;
+	sysmem.bank[sysmem.nr_banks].end   = mi->end & PAGE_MASK;
 	sysmem.nr_banks++;
 
 	return 0;
