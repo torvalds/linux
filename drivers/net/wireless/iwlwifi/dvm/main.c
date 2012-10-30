@@ -1507,10 +1507,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	iwl_tt_exit(priv);
 
-	/*This will stop the queues, move the device to low power state */
-	priv->ucode_loaded = false;
-	iwl_trans_stop_device(priv->trans);
-
 	kfree(priv->eeprom_blob);
 	iwl_free_eeprom_data(priv->eeprom_data);
 
