@@ -77,15 +77,11 @@ struct str_DigitalInputHeader {
 };
 
 struct str_DigitalOutputHeader {
-
 	unsigned short w_Nchannel;
 };
 
-
 /* used for timer as well as watchdog */
-
 struct str_TimerDetails {
-
 	unsigned short w_HeaderSize;
 	unsigned char b_Resolution;
 	unsigned char b_Mode;		/*  in case of Watchdog it is functionality */
@@ -94,12 +90,9 @@ struct str_TimerDetails {
 };
 
 struct str_TimerMainHeader {
-
-
 	unsigned short w_Ntimer;
 	struct str_TimerDetails s_TimerDetails[4];	/*   supports 4 timers */
 };
-
 
 struct str_AnalogOutputHeader {
 	unsigned short w_Nchannel;
@@ -113,11 +106,6 @@ struct str_AnalogInputHeader {
 	unsigned char b_HasDma;
 	unsigned char b_Resolution;
 };
-
-
-		/*****************************************/
-		/*            Read Header Functions              */
-		/*****************************************/
 
 int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, struct comedi_device *dev);
@@ -142,9 +130,6 @@ int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	struct str_AnalogInputHeader *s_Header);
 
-		/******************************************/
-		/*      Eeprom Specific Functions                         */
-		/******************************************/
 unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	unsigned short w_EepromStartAddress);
 void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress);
@@ -154,653 +139,211 @@ void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromComman
 	unsigned char b_DataLengthInBits);
 void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value);
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : unsigned short w_EepromReadWord                                  |
-|				(unsigned short	w_PCIBoardEepromAddress,             		 |
-|				 char *	pc_PCIChipInformation,               		 |
-|				 unsigned short   w_EepromStartAddress)                		 |
-+----------------------------------------------------------------------------+
-| Task              : Read from eepromn a word                               |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|		      unsigned short w_EepromStartAddress    : Selected eeprom address |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : Read word value from eeprom                            |
-+----------------------------------------------------------------------------+
-*/
-
 unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	unsigned short w_EepromStartAddress)
 {
-
 	unsigned char b_Counter = 0;
-
 	unsigned char b_ReadByte = 0;
-
 	unsigned char b_ReadLowByte = 0;
-
 	unsigned char b_ReadHighByte = 0;
-
 	unsigned char b_SelectedAddressLow = 0;
-
 	unsigned char b_SelectedAddressHigh = 0;
-
 	unsigned short w_ReadWord = 0;
 
-	/**************************/
-
 	/* Test the PCI chip type */
-
-	/**************************/
-
 	if ((!strcmp(pc_PCIChipInformation, "S5920")) ||
 		(!strcmp(pc_PCIChipInformation, "S5933")))
 	{
-
 		for (b_Counter = 0; b_Counter < 2; b_Counter++)
 		{
-
 			b_SelectedAddressLow = (w_EepromStartAddress + b_Counter) % 256;	/* Read the low 8 bit part */
-
 			b_SelectedAddressHigh = (w_EepromStartAddress + b_Counter) / 256;	/* Read the high 8 bit part */
 
-	      /************************************/
-
 			/* Select the load low address mode */
-
-	      /************************************/
-
 			outb(NVCMD_LOAD_LOW, w_PCIBoardEepromAddress + 0x3F);
 
-	      /****************/
-
 			/* Wait on busy */
-
-	      /****************/
-
 			v_EepromWaitBusy(w_PCIBoardEepromAddress);
 
-	      /************************/
-
 			/* Load the low address */
-
-	      /************************/
-
 			outb(b_SelectedAddressLow,
 				w_PCIBoardEepromAddress + 0x3E);
 
-	      /****************/
-
 			/* Wait on busy */
-
-	      /****************/
-
 			v_EepromWaitBusy(w_PCIBoardEepromAddress);
-
-	      /*************************************/
 
 			/* Select the load high address mode */
-
-	      /*************************************/
-
 			outb(NVCMD_LOAD_HIGH, w_PCIBoardEepromAddress + 0x3F);
 
-	      /****************/
-
 			/* Wait on busy */
-
-	      /****************/
-
 			v_EepromWaitBusy(w_PCIBoardEepromAddress);
 
-	      /*************************/
-
 			/* Load the high address */
-
-	      /*************************/
-
 			outb(b_SelectedAddressHigh,
 				w_PCIBoardEepromAddress + 0x3E);
 
-	      /****************/
-
 			/* Wait on busy */
-
-	      /****************/
-
 			v_EepromWaitBusy(w_PCIBoardEepromAddress);
-
-	      /************************/
 
 			/* Select the READ mode */
-
-	      /************************/
-
 			outb(NVCMD_BEGIN_READ, w_PCIBoardEepromAddress + 0x3F);
 
-	      /****************/
-
 			/* Wait on busy */
-
-	      /****************/
-
 			v_EepromWaitBusy(w_PCIBoardEepromAddress);
-
-	      /*****************************/
 
 			/* Read data into the EEPROM */
-
-	      /*****************************/
-
 			b_ReadByte = inb(w_PCIBoardEepromAddress + 0x3E);
 
-	      /****************/
-
 			/* Wait on busy */
-
-	      /****************/
-
 			v_EepromWaitBusy(w_PCIBoardEepromAddress);
 
-	      /*********************************/
-
 			/* Select the upper address part */
-
-	      /*********************************/
-
 			if (b_Counter == 0)
 			{
-
 				b_ReadLowByte = b_ReadByte;
-
 			}	/*  if(b_Counter==0) */
-
 			else
 			{
-
 				b_ReadHighByte = b_ReadByte;
-
 			}	/*  if(b_Counter==0) */
-
 		}		/*  for (b_Counter=0; b_Counter<2; b_Counter++) */
 
 		w_ReadWord = (b_ReadLowByte | (((unsigned short) b_ReadHighByte) * 256));
-
 	}			/*  end of if ((!strcmp(pc_PCIChipInformation, "S5920")) || (!strcmp(pc_PCIChipInformation, "S5933"))) */
 
 	if (!strcmp(pc_PCIChipInformation, "93C76"))
 	{
-
-	   /*************************************/
-
 		/* Read 16 bit from the EEPROM 93C76 */
-
-	   /*************************************/
-
 		v_EepromCs76Read(w_PCIBoardEepromAddress, w_EepromStartAddress,
 			&w_ReadWord);
-
 	}
 
 	return w_ReadWord;
-
 }
-
-/*
-
-+----------------------------------------------------------------------------+
-
-| Function   Name   : void v_EepromWaitBusy                                  |
-
-|			(unsigned short	w_PCIBoardEepromAddress)                    	 |
-
-+----------------------------------------------------------------------------+
-
-| Task              : Wait the busy flag from PCI controller                 |
-
-+----------------------------------------------------------------------------+
-
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom base address |
-
-+----------------------------------------------------------------------------+
-
-| Output Parameters : -                                                      |
-
-+----------------------------------------------------------------------------+
-
-| Return Value      : -                                                      |
-
-+----------------------------------------------------------------------------+
-
-*/
 
 void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 {
-
 	unsigned char b_EepromBusy = 0;
 
 	do
 	{
-
-	   /*************/
-
 		/* IMPORTANT */
-
-	   /*************/
-
-	   /************************************************************************/
-
 		/* An error has been written in the AMCC 5933 book at the page B-13 */
-
 		/* Ex: if you read a byte and look for the busy statusEEPROM=0x80 and   */
-
 		/*      the operator register is AMCC_OP_REG_MCSR+3 */
-
 		/*      unsigned short read  EEPROM=0x8000 andAMCC_OP_REG_MCSR+2                  */
-
 		/*      unsigned int read  EEPROM=0x80000000 and AMCC_OP_REG_MCSR */
-
-	   /************************************************************************/
-
 		b_EepromBusy = inb(w_PCIBoardEepromAddress + 0x3F);
 		b_EepromBusy = b_EepromBusy & 0x80;
-
 	} while (b_EepromBusy == 0x80);
-
 }
-
-/*
-
-+---------------------------------------------------------------------------------+
-
-| Function   Name   : void v_EepromClock76(unsigned int dw_Address,                      |
-
-|					   unsigned int dw_RegisterValue)                 			  |
-
-+---------------------------------------------------------------------------------+
-
-| Task              : This function sends the clocking sequence to the EEPROM.    |
-
-+---------------------------------------------------------------------------------+
-
-| Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
-
-|		      unsigned int dw_RegisterValue : PCI eeprom register value to write.|
-
-+---------------------------------------------------------------------------------+
-
-| Output Parameters : -                                                           |
-
-+---------------------------------------------------------------------------------+
-
-| Return Value      : -                                                           |
-
-+---------------------------------------------------------------------------------+
-
-*/
 
 void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue)
 {
-
-   /************************/
-
 	/* Set EEPROM clock Low */
-
-   /************************/
-
 	outl(dw_RegisterValue & 0x6, dw_Address);
 
-   /***************/
-
 	/* Wait 0.1 ms */
-
-   /***************/
-
 	udelay(100);
-
-   /*************************/
 
 	/* Set EEPROM clock High */
-
-   /*************************/
-
 	outl(dw_RegisterValue | 0x1, dw_Address);
 
-   /***************/
-
 	/* Wait 0.1 ms */
-
-   /***************/
-
 	udelay(100);
-
 }
-
-/*
-
-+---------------------------------------------------------------------------------+
-
-| Function   Name   : void v_EepromSendCommand76(unsigned int dw_Address,                |
-
-|					   unsigned int   dw_EepromCommand,                		  |
-
-|					   unsigned char    b_DataLengthInBits)                        |
-
-+---------------------------------------------------------------------------------+
-
-| Task              : This function sends a Command to the EEPROM 93C76.          |
-
-+---------------------------------------------------------------------------------+
-
-| Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
-
-|		      unsigned int dw_EepromCommand : PCI eeprom command to write.       |
-
-|		      unsigned char  b_DataLengthInBits : PCI eeprom command data length.  |
-
-+---------------------------------------------------------------------------------+
-
-| Output Parameters : -                                                           |
-
-+---------------------------------------------------------------------------------+
-
-| Return Value      : -                                                           |
-
-+---------------------------------------------------------------------------------+
-
-*/
 
 void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
 	unsigned char b_DataLengthInBits)
 {
-
 	char c_BitPos = 0;
-
 	unsigned int dw_RegisterValue = 0;
 
-   /*****************************/
-
 	/* Enable EEPROM Chip Select */
-
-   /*****************************/
-
 	dw_RegisterValue = 0x2;
 
-   /********************************************************************/
-
 	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
-
-   /********************************************************************/
-
 	outl(dw_RegisterValue, dw_Address);
 
-   /***************/
-
 	/* Wait 0.1 ms */
-
-   /***************/
-
 	udelay(100);
 
-   /*******************************************/
-
 	/* Send EEPROM command - one bit at a time */
-
-   /*******************************************/
-
 	for (c_BitPos = (b_DataLengthInBits - 1); c_BitPos >= 0; c_BitPos--)
 	{
-
-      /**********************************/
-
 		/* Check if current bit is 0 or 1 */
-
-      /**********************************/
-
 		if (dw_EepromCommand & (1 << c_BitPos))
 		{
-
-	 /***********/
-
 			/* Write 1 */
-
-	 /***********/
-
 			dw_RegisterValue = dw_RegisterValue | 0x4;
-
 		}
-
 		else
 		{
-
-	 /***********/
-
 			/* Write 0 */
-
-	 /***********/
-
 			dw_RegisterValue = dw_RegisterValue & 0x3;
-
 		}
 
-      /*********************/
-
 		/* Write the command */
-
-      /*********************/
-
 		outl(dw_RegisterValue, dw_Address);
 
-      /***************/
-
 		/* Wait 0.1 ms */
-
-      /***************/
-
 		udelay(100);
 
-      /****************************/
-
 		/* Trigger the EEPROM clock */
-
-      /****************************/
-
 		v_EepromClock76(dw_Address, dw_RegisterValue);
-
 	}
-
 }
-
-/*
-
-+---------------------------------------------------------------------------------+
-
-| Function   Name   : void v_EepromCs76Read(unsigned int dw_Address,                     |
-
-|					   unsigned short    w_offset,                      			  |
-
-|					   unsigned short *   pw_Value)                      			  |
-
-+---------------------------------------------------------------------------------+
-
-| Task              : This function read a value from the EEPROM 93C76.           |
-
-+---------------------------------------------------------------------------------+
-
-| Input Parameters  : unsigned int dw_Address : PCI eeprom base address                  |
-
-|		      unsigned short    w_offset : Offset of the address to read             |
-
-|		      unsigned short *   pw_Value : PCI eeprom 16 bit read value.            |
-
-+---------------------------------------------------------------------------------+
-
-| Output Parameters : -                                                           |
-
-+---------------------------------------------------------------------------------+
-
-| Return Value      : -                                                           |
-
-+---------------------------------------------------------------------------------+
-
-*/
 
 void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value)
 {
-
         char c_BitPos = 0;
-
 	unsigned int dw_RegisterValue = 0;
-
 	unsigned int dw_RegisterValueRead = 0;
 
-   /*************************************************/
-
 	/* Send EEPROM read command and offset to EEPROM */
-
-   /*************************************************/
-
 	v_EepromSendCommand76(dw_Address, (EE_READ << 4) | (w_offset / 2),
 		EE76_CMD_LEN);
 
-   /*******************************/
-
 	/* Get the last register value */
-
-   /*******************************/
-
 	dw_RegisterValue = (((w_offset / 2) & 0x1) << 2) | 0x2;
 
-   /*****************************/
-
 	/* Set the 16-bit value of 0 */
-
-   /*****************************/
-
 	*pw_Value = 0;
 
-   /************************/
-
 	/* Get the 16-bit value */
-
-   /************************/
-
 	for (c_BitPos = 0; c_BitPos < 16; c_BitPos++)
 	{
-
-      /****************************/
-
 		/* Trigger the EEPROM clock */
-
-      /****************************/
-
 		v_EepromClock76(dw_Address, dw_RegisterValue);
 
-      /**********************/
-
 		/* Get the result bit */
-
-      /**********************/
-
 		dw_RegisterValueRead = inl(dw_Address);
 
-      /***************/
-
 		/* Wait 0.1 ms */
-
-      /***************/
-
 		udelay(100);
 
-      /***************************************/
-
 		/* Get bit value and shift into result */
-
-      /***************************************/
-
 		if (dw_RegisterValueRead & 0x8)
 		{
-
-	 /**********/
-
 			/* Read 1 */
-
-	 /**********/
-
 			*pw_Value = (*pw_Value << 1) | 0x1;
-
 		}
-
 		else
 		{
-
-	 /**********/
-
 			/* Read 0 */
-
-	 /**********/
-
 			*pw_Value = (*pw_Value << 1);
-
 		}
-
 	}
 
-   /*************************/
-
 	/* Clear all EEPROM bits */
-
-   /*************************/
-
 	dw_RegisterValue = 0x0;
 
-   /********************************************************************/
-
 	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
-
-   /********************************************************************/
-
 	outl(dw_RegisterValue, dw_Address);
 
-   /***************/
-
 	/* Wait 0.1 ms */
-
-   /***************/
-
 	udelay(100);
-
 }
-
-	/******************************************/
-	/*      EEPROM HEADER READ FUNCTIONS      */
-	/******************************************/
-
-/*
-+----------------------------------------------------------------------------+
-| Function Name  : int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,  |
-|				char *	pc_PCIChipInformation,struct comedi_device *dev)    |
-+----------------------------------------------------------------------------+
-| Task              : Read from eeprom Main Header                           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|			  struct comedi_device *dev		   : comedi device structure |
-|											 pointer				 |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : 0							                             |
-+----------------------------------------------------------------------------+
-*/
 
 int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, struct comedi_device *dev)
@@ -924,27 +467,6 @@ int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
 	return 0;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name  : int i_EepromReadDigitalInputHeader(unsigned short 					 |
-|			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
-|			unsigned short w_Address,struct str_DigitalInputHeader *s_Header)		 |
-|																	 |
-+----------------------------------------------------------------------------+
-| Task              : Read Digital Input Header                              |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|			 struct str_DigitalInputHeader *s_Header: Digita Input Header   |
-|												   Pointer			 |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : 0							                             |
-+----------------------------------------------------------------------------+
-*/
 int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	struct str_DigitalInputHeader *s_Header)
@@ -969,27 +491,6 @@ int i_EepromReadDigitalInputHeader(unsigned short w_PCIBoardEepromAddress,
 	return 0;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name  : int i_EepromReadDigitalOutputHeader(unsigned short 				 |
-|			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
-|			unsigned short w_Address,struct str_DigitalOutputHeader *s_Header)	     |
-|																	 |
-+----------------------------------------------------------------------------+
-| Task              : Read Digital Output Header                             |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|			 struct str_DigitalOutputHeader *s_Header: Digital Output Header|
-|											   Pointer				 |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : 0							                             |
-+----------------------------------------------------------------------------+
-*/
 int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	struct str_DigitalOutputHeader *s_Header)
@@ -1001,26 +502,6 @@ int i_EepromReadDigitalOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	return 0;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name  : int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress, |
-|			char *pc_PCIChipInformation,WORD w_Address,				 |
-|			struct str_TimerMainHeader *s_Header)							 |
-+----------------------------------------------------------------------------+
-| Task              : Read Timer or Watchdog Header                          |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|			 struct str_TimerMainHeader *s_Header: Timer Header			 |
-|											   Pointer				 |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : 0							                             |
-+----------------------------------------------------------------------------+
-*/
 int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	struct str_TimerMainHeader *s_Header)
@@ -1066,27 +547,6 @@ int i_EepromReadTimerHeader(unsigned short w_PCIBoardEepromAddress,
 	return 0;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function Name  : int i_EepromReadAnlogOutputHeader(unsigned short 					 |
-|			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,	 |
-|			unsigned short w_Address,str_AnalogOutputHeader *s_Header)         |
-+----------------------------------------------------------------------------+
-| Task              : Read Nalog Output  Header                              |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|			 str_AnalogOutputHeader *s_Header:Anlog Output Header    |
-|											   Pointer				 |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : 0							                             |
-+----------------------------------------------------------------------------+
-*/
-
 int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	char *pc_PCIChipInformation, unsigned short w_Address,
 	struct str_AnalogOutputHeader *s_Header)
@@ -1102,27 +562,6 @@ int i_EepromReadAnlogOutputHeader(unsigned short w_PCIBoardEepromAddress,
 	s_Header->b_Resolution = (unsigned char) (w_Temp >> 8) & 0xFF;
 	return 0;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function Name  : int i_EepromReadAnlogInputHeader(unsigned short 					 |
-|			w_PCIBoardEepromAddress,char *pc_PCIChipInformation,     |
-|			unsigned short w_Address,struct str_AnalogInputHeader *s_Header)          |
-+----------------------------------------------------------------------------+
-| Task              : Read Nalog Output  Header                              |
-+----------------------------------------------------------------------------+
-| Input Parameters  : unsigned short w_PCIBoardEepromAddress : PCI eeprom address      |
-|																	 |
-|		      char *pc_PCIChipInformation  : PCI Chip Type.          |
-|																	 |
-|			 struct str_AnalogInputHeader *s_Header:Anlog Input Header      |
-|											   Pointer				 |
-+----------------------------------------------------------------------------+
-| Output Parameters : -                                                      |
-+----------------------------------------------------------------------------+
-| Return Value      : 0							                             |
-+----------------------------------------------------------------------------+
-*/
 
 /* Reads only for ONE  hardware component */
 int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
