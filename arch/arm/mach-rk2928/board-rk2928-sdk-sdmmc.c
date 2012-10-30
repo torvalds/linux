@@ -376,10 +376,10 @@ int rk29sdk_wifi_power(int on)
 {
         pr_info("%s: %d\n", __func__, on);
          if (on){
-                /*if(usbwifi_power_status == 1) {
+                if(usbwifi_power_status == 1) {
                     rkusb_wifi_power(0);
                     mdelay(50);
-                }*/
+                }
                 rkusb_wifi_power(1);
                 usbwifi_power_status = 1;
                  pr_info("wifi turn on power\n");  	
