@@ -280,6 +280,17 @@ fec_enet_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			| BD_ENET_TX_LAST | BD_ENET_TX_TC);
 	bdp->cbd_sc = status;
 
+#ifdef CONFIG_FEC_PTP
+	bdp->cbd_bdu = 0;
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
+			fep->hwts_tx_en)) {
+			bdp->cbd_esc = (BD_ENET_TX_TS | BD_ENET_TX_INT);
+			skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+	} else {
+
+		bdp->cbd_esc = BD_ENET_TX_INT;
+	}
+#endif
 	/* Trigger transmission start */
 	writel(0, fep->hwp + FEC_X_DES_ACTIVE);
 
@@ -437,10 +448,17 @@ fec_restart(struct net_device *ndev, int duplex)
 		writel(1 << 8, fep->hwp + FEC_X_WMRK);
 	}
 
+#ifdef CONFIG_FEC_PTP
+	ecntl |= (1 << 4);
+#endif
+
 	/* And last, enable the transmit and receive processing */
 	writel(ecntl, fep->hwp + FEC_ECNTRL);
 	writel(0, fep->hwp + FEC_R_DES_ACTIVE);
 
+#ifdef CONFIG_FEC_PTP
+	fec_ptp_start_cyclecounter(ndev);
+#endif
 	/* Enable interrupts we wish to service */
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 }
@@ -526,6 +544,19 @@ fec_enet_tx(struct net_device *ndev)
 			ndev->stats.tx_packets++;
 		}
 
+#ifdef CONFIG_FEC_PTP
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
+			struct skb_shared_hwtstamps shhwtstamps;
+			unsigned long flags;
+
+			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+			spin_lock_irqsave(&fep->tmreg_lock, flags);
+			shhwtstamps.hwtstamp = ns_to_ktime(
+				timecounter_cyc2time(&fep->tc, bdp->ts));
+			spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+			skb_tstamp_tx(skb, &shhwtstamps);
+		}
+#endif
 		if (status & BD_ENET_TX_READY)
 			printk("HEY! Enet xmit interrupt and TX_READY.\n");
 
@@ -652,6 +683,21 @@ fec_enet_rx(struct net_device *ndev)
 			skb_put(skb, pkt_len - 4);	/* Make room */
 			skb_copy_to_linear_data(skb, data, pkt_len - 4);
 			skb->protocol = eth_type_trans(skb, ndev);
+#ifdef CONFIG_FEC_PTP
+			/* Get receive timestamp from the skb */
+			if (fep->hwts_rx_en) {
+				struct skb_shared_hwtstamps *shhwtstamps =
+							    skb_hwtstamps(skb);
+				unsigned long flags;
+
+				memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+
+				spin_lock_irqsave(&fep->tmreg_lock, flags);
+				shhwtstamps->hwtstamp = ns_to_ktime(
+				    timecounter_cyc2time(&fep->tc, bdp->ts));
+				spin_unlock_irqrestore(&fep->tmreg_lock, flags);
+			}
+#endif
 			if (!skb_defer_rx_timestamp(skb))
 				netif_rx(skb);
 		}
@@ -665,6 +711,12 @@ rx_processing_done:
 		/* Mark the buffer empty */
 		status |= BD_ENET_RX_EMPTY;
 		bdp->cbd_sc = status;
+
+#ifdef CONFIG_FEC_PTP
+		bdp->cbd_esc = BD_ENET_RX_INT;
+		bdp->cbd_prot = 0;
+		bdp->cbd_bdu = 0;
+#endif
 
 		/* Update BD pointer to next entry */
 		if (status & BD_ENET_RX_WRAP)
@@ -1105,6 +1157,10 @@ static int fec_enet_ioctl(struct net_device *ndev, struct ifreq *rq, int cmd)
 	if (!phydev)
 		return -ENODEV;
 
+#ifdef CONFIG_FEC_PTP
+	if (cmd == SIOCSHWTSTAMP)
+		return fec_ptp_ioctl(ndev, rq, cmd);
+#endif
 	return phy_mii_ioctl(phydev, rq, cmd);
 }
 
@@ -1151,6 +1207,9 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 		bdp->cbd_bufaddr = dma_map_single(&fep->pdev->dev, skb->data,
 				FEC_ENET_RX_FRSIZE, DMA_FROM_DEVICE);
 		bdp->cbd_sc = BD_ENET_RX_EMPTY;
+#ifdef CONFIG_FEC_PTP
+		bdp->cbd_esc = BD_ENET_RX_INT;
+#endif
 		bdp++;
 	}
 
@@ -1164,6 +1223,10 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 
 		bdp->cbd_sc = 0;
 		bdp->cbd_bufaddr = 0;
+
+#ifdef CONFIG_FEC_PTP
+		bdp->cbd_esc = BD_ENET_RX_INT;
+#endif
 		bdp++;
 	}
 
@@ -1565,9 +1628,19 @@ fec_probe(struct platform_device *pdev)
 		goto failed_clk;
 	}
 
+#ifdef CONFIG_FEC_PTP
+	fep->clk_ptp = devm_clk_get(&pdev->dev, "ptp");
+	if (IS_ERR(fep->clk_ptp)) {
+		ret = PTR_ERR(fep->clk_ptp);
+		goto failed_clk;
+	}
+#endif
+
 	clk_prepare_enable(fep->clk_ahb);
 	clk_prepare_enable(fep->clk_ipg);
-
+#ifdef CONFIG_FEC_PTP
+	clk_prepare_enable(fep->clk_ptp);
+#endif
 	reg_phy = devm_regulator_get(&pdev->dev, "phy");
 	if (!IS_ERR(reg_phy)) {
 		ret = regulator_enable(reg_phy);
@@ -1595,6 +1668,10 @@ fec_probe(struct platform_device *pdev)
 	if (ret)
 		goto failed_register;
 
+#ifdef CONFIG_FEC_PTP
+	fec_ptp_init(ndev, pdev);
+#endif
+
 	return 0;
 
 failed_register:
@@ -1604,6 +1681,9 @@ failed_init:
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
+#ifdef CONFIG_FEC_PTP
+	clk_disable_unprepare(fep->clk_ptp);
+#endif
 failed_pin:
 failed_clk:
 	for (i = 0; i < FEC_IRQ_NUM; i++) {
@@ -1636,6 +1716,12 @@ fec_drv_remove(struct platform_device *pdev)
 		if (irq > 0)
 			free_irq(irq, ndev);
 	}
+#ifdef CONFIG_FEC_PTP
+	del_timer_sync(&fep->time_keep);
+	clk_disable_unprepare(fep->clk_ptp);
+	if (fep->ptp_clock)
+		ptp_clock_unregister(fep->ptp_clock);
+#endif
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
 	iounmap(fep->hwp);

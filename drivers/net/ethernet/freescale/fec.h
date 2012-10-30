@@ -13,6 +13,12 @@
 #define	FEC_H
 /****************************************************************************/
 
+#ifdef CONFIG_FEC_PTP
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+#endif
+
 #if defined(CONFIG_M523x) || defined(CONFIG_M527x) || defined(CONFIG_M528x) || \
     defined(CONFIG_M520x) || defined(CONFIG_M532x) || \
     defined(CONFIG_ARCH_MXC) || defined(CONFIG_SOC_IMX28)
@@ -88,6 +94,13 @@ struct bufdesc {
 	unsigned short cbd_datlen;	/* Data length */
 	unsigned short cbd_sc;	/* Control and status info */
 	unsigned long cbd_bufaddr;	/* Buffer address */
+#ifdef CONFIG_FEC_PTP
+	unsigned long cbd_esc;
+	unsigned long cbd_prot;
+	unsigned long cbd_bdu;
+	unsigned long ts;
+	unsigned short res0[4];
+#endif
 };
 #else
 struct bufdesc {
@@ -190,6 +203,9 @@ struct fec_enet_private {
 
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
+#ifdef CONFIG_FEC_PTP
+	struct clk *clk_ptp;
+#endif
 
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
 	unsigned char *tx_bounce[TX_RING_SIZE];
@@ -227,7 +243,29 @@ struct fec_enet_private {
 	int	full_duplex;
 	struct	completion mdio_done;
 	int	irq[FEC_IRQ_NUM];
+
+#ifdef CONFIG_FEC_PTP
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	unsigned long last_overflow_check;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
+	int rx_hwtstamp_filter;
+	u32 base_incval;
+	u32 cycle_speed;
+	int hwts_rx_en;
+	int hwts_tx_en;
+	struct timer_list time_keep;
+#endif
+
 };
+
+#ifdef CONFIG_FEC_PTP
+void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev);
+void fec_ptp_start_cyclecounter(struct net_device *ndev);
+int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd);
+#endif
 
 /****************************************************************************/
 #endif /* FEC_H */
