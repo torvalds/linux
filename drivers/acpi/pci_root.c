@@ -672,7 +672,7 @@ static int acpi_pci_root_remove(struct acpi_device *device, int type)
 	pci_stop_root_bus(root->bus);
 
 	mutex_lock(&acpi_pci_root_lock);
-	list_for_each_entry(driver, &acpi_pci_drivers, node)
+	list_for_each_entry_reverse(driver, &acpi_pci_drivers, node)
 		if (driver->remove)
 			driver->remove(root);
 	mutex_unlock(&acpi_pci_root_lock);
