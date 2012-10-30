@@ -101,6 +101,28 @@
 				clocks = <&gateclk 3>;
 				status = "disabled";
 		};
+
+		i2c0: i2c@d0011000 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0xd0011000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <31>;
+			timeout-ms = <1000>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		i2c1: i2c@d0011100 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0xd0011100 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <32>;
+			timeout-ms = <1000>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
 	};
 };
 
