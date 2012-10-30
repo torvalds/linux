@@ -46,14 +46,44 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+/*********      Definitions for APCI-2032 card  *****/
 
-#include "hwdrv_apci2032.h"
+/* Card Specific information */
+#define APCI2032_ADDRESS_RANGE				63
+
+/* DIGITAL INPUT-OUTPUT DEFINE */
+
+#define APCI2032_DIGITAL_OP				0
+#define APCI2032_DIGITAL_OP_RW				0
+#define APCI2032_DIGITAL_OP_INTERRUPT			4
+#define APCI2032_DIGITAL_OP_IRQ				12
+
+/* Digital Output Interrupt Status */
+#define APCI2032_DIGITAL_OP_INTERRUPT_STATUS		8
+
+/* Digital Output Interrupt Enable Disable. */
+#define APCI2032_DIGITAL_OP_VCC_INTERRUPT_ENABLE	0x1
+#define APCI2032_DIGITAL_OP_VCC_INTERRUPT_DISABLE	0xfffffffe
+#define APCI2032_DIGITAL_OP_CC_INTERRUPT_ENABLE		0x2
+#define APCI2032_DIGITAL_OP_CC_INTERRUPT_DISABLE	0xfffffffd
+
+/* ADDIDATA Enable Disable */
+
+#define ADDIDATA_ENABLE					1
+#define ADDIDATA_DISABLE				0
+
+/* TIMER COUNTER WATCHDOG DEFINES */
+
+#define ADDIDATA_WATCHDOG				2
+#define APCI2032_DIGITAL_OP_WATCHDOG			16
+#define APCI2032_TCW_RELOAD_VALUE			4
+#define APCI2032_TCW_TIMEBASE				8
+#define APCI2032_TCW_PROG				12
+#define APCI2032_TCW_TRIG_STATUS			16
+#define APCI2032_TCW_IRQ				20
+
 static unsigned int ui_InterruptData, ui_Type;
+
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI2032_ConfigDigitalOutput                     |
