@@ -71,7 +71,6 @@ struct mv_xor_private {
  */
 struct mv_xor_device {
 	struct platform_device		*pdev;
-	int				id;
 	dma_addr_t			dma_desc_pool;
 	void				*dma_desc_pool_virt;
 	size_t                          pool_size;

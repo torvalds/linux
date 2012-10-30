@@ -1125,8 +1125,6 @@ mv_xor_channel_add(struct mv_xor_private *msp,
 	if (!adev->dma_desc_pool_virt)
 		return ERR_PTR(-ENOMEM);
 
-	adev->id = hw_id;
-
 	/* discover transaction capabilites from the platform data */
 	dma_dev->cap_mask = cap_mask;
 	adev->pdev = pdev;
