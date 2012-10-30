@@ -182,10 +182,11 @@ static unsigned short addi_eeprom_readw(unsigned long iobase,
 
 static void addi_eeprom_read_di_info(struct comedi_device *dev,
 				     unsigned long iobase,
-				     char *type,
 				     unsigned short addr)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
 
 	/* Number of channels */
@@ -202,10 +203,11 @@ static void addi_eeprom_read_di_info(struct comedi_device *dev,
 
 static void addi_eeprom_read_do_info(struct comedi_device *dev,
 				     unsigned long iobase,
-				     char *type,
 				     unsigned short addr)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
 
 	/* Number of channels */
@@ -217,11 +219,12 @@ static void addi_eeprom_read_do_info(struct comedi_device *dev,
 
 static void addi_eeprom_read_timer_info(struct comedi_device *dev,
 					unsigned long iobase,
-					char *type,
 					unsigned short addr)
 {
 	struct addi_private *devpriv = dev->private;
 #if 0
+	const struct addi_board *this_board = comedi_board(dev);
+	char *type = this_board->pc_EepromChip;
 	unsigned short offset = 0;
 	unsigned short ntimers;
 	unsigned short tmp;
@@ -259,10 +262,11 @@ static void addi_eeprom_read_timer_info(struct comedi_device *dev,
 
 static void addi_eeprom_read_ao_info(struct comedi_device *dev,
 				     unsigned long iobase,
-				     char *type,
 				     unsigned short addr)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+	char *type = this_board->pc_EepromChip;
 	unsigned short tmp;
 
 	/* No of channels for 1st hard component */
@@ -277,11 +281,11 @@ static void addi_eeprom_read_ao_info(struct comedi_device *dev,
 
 static void addi_eeprom_read_ai_info(struct comedi_device *dev,
 				     unsigned long iobase,
-				     char *type,
 				     unsigned short addr)
 {
 	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+	char *type = this_board->pc_EepromChip;
 	unsigned short offset;
 	unsigned short tmp;
 
@@ -336,25 +340,25 @@ static void addi_eeprom_read_info(struct comedi_device *dev,
 
 		switch (func) {
 		case EEPROM_DIGITALINPUT:
-			addi_eeprom_read_di_info(dev, iobase, type, addr);
+			addi_eeprom_read_di_info(dev, iobase, addr);
 			break;
 
 		case EEPROM_DIGITALOUTPUT:
-			addi_eeprom_read_do_info(dev, iobase, type, addr);
+			addi_eeprom_read_do_info(dev, iobase, addr);
 			break;
 
 		case EEPROM_ANALOGINPUT:
-			addi_eeprom_read_ai_info(dev, iobase, type, addr);
+			addi_eeprom_read_ai_info(dev, iobase, addr);
 			break;
 
 		case EEPROM_ANALOGOUTPUT:
-			addi_eeprom_read_ao_info(dev, iobase, type, addr);
+			addi_eeprom_read_ao_info(dev, iobase, addr);
 			break;
 
 		case EEPROM_TIMER:
 		case EEPROM_WATCHDOG:
 		case EEPROM_TIMER_WATCHDOG_COUNTER:
-			addi_eeprom_read_timer_info(dev, iobase, type, addr);
+			addi_eeprom_read_timer_info(dev, iobase, addr);
 			break;
 		}
 	}
