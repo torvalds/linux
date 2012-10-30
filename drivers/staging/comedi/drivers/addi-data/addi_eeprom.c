@@ -132,10 +132,96 @@ int i_EepromReadAnlogInputHeader(unsigned short w_PCIBoardEepromAddress,
 
 unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc_PCIChipInformation,
 	unsigned short w_EepromStartAddress);
-void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue);
-void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
-	unsigned char b_DataLengthInBits);
-void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value);
+
+static void v_EepromClock76(unsigned int dw_Address,
+			    unsigned int dw_RegisterValue)
+{
+	/* Set EEPROM clock Low */
+	outl(dw_RegisterValue & 0x6, dw_Address);
+	udelay(100);
+
+	/* Set EEPROM clock High */
+	outl(dw_RegisterValue | 0x1, dw_Address);
+	udelay(100);
+}
+
+static void v_EepromSendCommand76(unsigned int dw_Address,
+				  unsigned int dw_EepromCommand,
+				  unsigned char b_DataLengthInBits)
+{
+	char c_BitPos = 0;
+	unsigned int dw_RegisterValue = 0;
+
+	/* Enable EEPROM Chip Select */
+	dw_RegisterValue = 0x2;
+
+	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
+	outl(dw_RegisterValue, dw_Address);
+	udelay(100);
+
+	/* Send EEPROM command - one bit at a time */
+	for (c_BitPos = (b_DataLengthInBits - 1); c_BitPos >= 0; c_BitPos--) {
+		if (dw_EepromCommand & (1 << c_BitPos)) {
+			/* Write 1 */
+			dw_RegisterValue = dw_RegisterValue | 0x4;
+		} else {
+			/* Write 0 */
+			dw_RegisterValue = dw_RegisterValue & 0x3;
+		}
+
+		/* Write the command */
+		outl(dw_RegisterValue, dw_Address);
+		udelay(100);
+
+		/* Trigger the EEPROM clock */
+		v_EepromClock76(dw_Address, dw_RegisterValue);
+	}
+}
+
+static void v_EepromCs76Read(unsigned int dw_Address,
+			     unsigned short w_offset,
+			     unsigned short *pw_Value)
+{
+        char c_BitPos = 0;
+	unsigned int dw_RegisterValue = 0;
+	unsigned int dw_RegisterValueRead = 0;
+
+	/* Send EEPROM read command and offset to EEPROM */
+	v_EepromSendCommand76(dw_Address, (EE_READ << 4) | (w_offset / 2),
+		EE76_CMD_LEN);
+
+	/* Get the last register value */
+	dw_RegisterValue = (((w_offset / 2) & 0x1) << 2) | 0x2;
+
+	/* Set the 16-bit value of 0 */
+	*pw_Value = 0;
+
+	/* Get the 16-bit value */
+	for (c_BitPos = 0; c_BitPos < 16; c_BitPos++) {
+		/* Trigger the EEPROM clock */
+		v_EepromClock76(dw_Address, dw_RegisterValue);
+
+		/* Get the result bit */
+		dw_RegisterValueRead = inl(dw_Address);
+		udelay(100);
+
+		/* Get bit value and shift into result */
+		if (dw_RegisterValueRead & 0x8) {
+			/* Read 1 */
+			*pw_Value = (*pw_Value << 1) | 0x1;
+		} else {
+			/* Read 0 */
+			*pw_Value = (*pw_Value << 1);
+		}
+	}
+
+	/* Clear all EEPROM bits */
+	dw_RegisterValue = 0x0;
+
+	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
+	outl(dw_RegisterValue, dw_Address);
+	udelay(100);
+}
 
 static void v_EepromWaitBusy(unsigned short w_PCIBoardEepromAddress)
 {
@@ -227,113 +313,6 @@ unsigned short w_EepromReadWord(unsigned short w_PCIBoardEepromAddress, char *pc
 	}
 
 	return w_ReadWord;
-}
-
-void v_EepromClock76(unsigned int dw_Address, unsigned int dw_RegisterValue)
-{
-	/* Set EEPROM clock Low */
-	outl(dw_RegisterValue & 0x6, dw_Address);
-
-	/* Wait 0.1 ms */
-	udelay(100);
-
-	/* Set EEPROM clock High */
-	outl(dw_RegisterValue | 0x1, dw_Address);
-
-	/* Wait 0.1 ms */
-	udelay(100);
-}
-
-void v_EepromSendCommand76(unsigned int dw_Address, unsigned int dw_EepromCommand,
-	unsigned char b_DataLengthInBits)
-{
-	char c_BitPos = 0;
-	unsigned int dw_RegisterValue = 0;
-
-	/* Enable EEPROM Chip Select */
-	dw_RegisterValue = 0x2;
-
-	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
-	outl(dw_RegisterValue, dw_Address);
-
-	/* Wait 0.1 ms */
-	udelay(100);
-
-	/* Send EEPROM command - one bit at a time */
-	for (c_BitPos = (b_DataLengthInBits - 1); c_BitPos >= 0; c_BitPos--)
-	{
-		/* Check if current bit is 0 or 1 */
-		if (dw_EepromCommand & (1 << c_BitPos))
-		{
-			/* Write 1 */
-			dw_RegisterValue = dw_RegisterValue | 0x4;
-		}
-		else
-		{
-			/* Write 0 */
-			dw_RegisterValue = dw_RegisterValue & 0x3;
-		}
-
-		/* Write the command */
-		outl(dw_RegisterValue, dw_Address);
-
-		/* Wait 0.1 ms */
-		udelay(100);
-
-		/* Trigger the EEPROM clock */
-		v_EepromClock76(dw_Address, dw_RegisterValue);
-	}
-}
-
-void v_EepromCs76Read(unsigned int dw_Address, unsigned short w_offset, unsigned short *pw_Value)
-{
-        char c_BitPos = 0;
-	unsigned int dw_RegisterValue = 0;
-	unsigned int dw_RegisterValueRead = 0;
-
-	/* Send EEPROM read command and offset to EEPROM */
-	v_EepromSendCommand76(dw_Address, (EE_READ << 4) | (w_offset / 2),
-		EE76_CMD_LEN);
-
-	/* Get the last register value */
-	dw_RegisterValue = (((w_offset / 2) & 0x1) << 2) | 0x2;
-
-	/* Set the 16-bit value of 0 */
-	*pw_Value = 0;
-
-	/* Get the 16-bit value */
-	for (c_BitPos = 0; c_BitPos < 16; c_BitPos++)
-	{
-		/* Trigger the EEPROM clock */
-		v_EepromClock76(dw_Address, dw_RegisterValue);
-
-		/* Get the result bit */
-		dw_RegisterValueRead = inl(dw_Address);
-
-		/* Wait 0.1 ms */
-		udelay(100);
-
-		/* Get bit value and shift into result */
-		if (dw_RegisterValueRead & 0x8)
-		{
-			/* Read 1 */
-			*pw_Value = (*pw_Value << 1) | 0x1;
-		}
-		else
-		{
-			/* Read 0 */
-			*pw_Value = (*pw_Value << 1);
-		}
-	}
-
-	/* Clear all EEPROM bits */
-	dw_RegisterValue = 0x0;
-
-	/* Toggle EEPROM's Chip select to get it out of Shift Register Mode */
-	outl(dw_RegisterValue, dw_Address);
-
-	/* Wait 0.1 ms */
-	udelay(100);
 }
 
 int i_EepromReadMainHeader(unsigned short w_PCIBoardEepromAddress,
