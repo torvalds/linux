@@ -380,7 +380,7 @@ int dev_pm_qos_update_request(struct dev_pm_qos_request *req, s32 new_value)
 		return -EINVAL;
 
 	mutex_lock(&dev_pm_qos_mtx);
-	__dev_pm_qos_update_request(req, new_value);
+	ret = __dev_pm_qos_update_request(req, new_value);
 	mutex_unlock(&dev_pm_qos_mtx);
 
 	return ret;
