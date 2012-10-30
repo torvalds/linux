@@ -1444,9 +1444,10 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxfast_attach_usb(struct comedi_device *dev,
-				 struct usb_interface *uinterf)
+static int usbduxfast_auto_attach(struct comedi_device *dev,
+				  unsigned long context_unused)
 {
+	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
 	int ret;
 	struct usbduxfastsub_s *udfs;
 
@@ -1455,11 +1456,11 @@ static int usbduxfast_attach_usb(struct comedi_device *dev,
 	udfs = usb_get_intfdata(uinterf);
 	if (!udfs || !udfs->probed) {
 		dev_err(dev->class_dev,
-			"usbduxfast: error: attach_usb failed, not connected\n");
+			"usbduxfast: error: auto_attach failed, not connected\n");
 		ret = -ENODEV;
 	} else if (udfs->attached) {
 		dev_err(dev->class_dev,
-		       "usbduxfast: error: attach_usb failed, already attached\n");
+		       "usbduxfast: error: auto_attach failed, already attached\n");
 		ret = -ENODEV;
 	} else
 		ret = usbduxfast_attach_common(dev, udfs);
@@ -1485,7 +1486,7 @@ static void usbduxfast_detach(struct comedi_device *dev)
 static struct comedi_driver usbduxfast_driver = {
 	.driver_name	= "usbduxfast",
 	.module		= THIS_MODULE,
-	.attach_usb	= usbduxfast_attach_usb,
+	.auto_attach	= usbduxfast_auto_attach,
 	.detach		= usbduxfast_detach,
 };
 
