@@ -26,6 +26,7 @@ generic-y += shmparam.h
 generic-y += siginfo.h
 generic-y += spinlock.h
 generic-y += statfs.h
+generic-y += termios.h
 generic-y += topology.h
 generic-y += types.h
 generic-y += word-at-a-time.h
