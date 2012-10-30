@@ -381,6 +381,7 @@ static void acpi_device_release(struct device *dev)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 
 	acpi_free_ids(acpi_dev);
+	kfree(acpi_dev->pnp.unique_id);
 	kfree(acpi_dev);
 }
 
@@ -1211,6 +1212,9 @@ static void acpi_device_set_id(struct acpi_device *device)
 			device->pnp.bus_address = info->address;
 			device->flags.bus_address = 1;
 		}
+		if (info->valid & ACPI_VALID_UID)
+			device->pnp.unique_id = kstrdup(info->unique_id.string,
+							GFP_KERNEL);
 
 		kfree(info);
 
