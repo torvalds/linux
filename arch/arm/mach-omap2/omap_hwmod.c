@@ -2384,6 +2384,9 @@ static int __init _setup_reset(struct omap_hwmod *oh)
 	if (oh->_state != _HWMOD_STATE_INITIALIZED)
 		return -EINVAL;
 
+	if (oh->flags & HWMOD_EXT_OPT_MAIN_CLK)
+		return -EPERM;
+
 	if (oh->rst_lines_cnt == 0) {
 		r = _enable(oh);
 		if (r) {

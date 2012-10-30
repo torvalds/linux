@@ -443,6 +443,11 @@ struct omap_hwmod_omap4_prcm {
  *     in order to complete the reset. Optional clocks will be disabled
  *     again after the reset.
  * HWMOD_16BIT_REG: Module has 16bit registers
+ * HWMOD_EXT_OPT_MAIN_CLK: The only main functional clock source for
+ *     this IP block comes from an off-chip source and is not always
+ *     enabled.  This prevents the hwmod code from being able to
+ *     enable and reset the IP block early.  XXX Eventually it should
+ *     be possible to query the clock framework for this information.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -453,6 +458,7 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_NO_IDLEST				(1 << 6)
 #define HWMOD_CONTROL_OPT_CLKS_IN_RESET		(1 << 7)
 #define HWMOD_16BIT_REG				(1 << 8)
+#define HWMOD_EXT_OPT_MAIN_CLK			(1 << 9)
 
 /*
  * omap_hwmod._int_flags definitions
