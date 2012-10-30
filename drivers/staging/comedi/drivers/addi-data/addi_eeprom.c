@@ -112,13 +112,12 @@ struct str_AnalogInputHeader {
 	unsigned char b_Resolution;
 };
 
-static void v_EepromClock76(unsigned long iobase,
-			    unsigned int dw_RegisterValue)
+static void addi_eeprom_clk_93c76(unsigned long iobase, unsigned int val)
 {
-	outl(dw_RegisterValue & ~EE93C76_CLK_BIT, iobase);
+	outl(val & ~EE93C76_CLK_BIT, iobase);
 	udelay(100);
 
-	outl(dw_RegisterValue | EE93C76_CLK_BIT, iobase);
+	outl(val | EE93C76_CLK_BIT, iobase);
 	udelay(100);
 }
 
@@ -144,8 +143,7 @@ static void v_EepromSendCommand76(unsigned long iobase,
 		outl(dw_RegisterValue, iobase);
 		udelay(100);
 
-		/* Trigger the EEPROM clock */
-		v_EepromClock76(iobase, dw_RegisterValue);
+		addi_eeprom_clk_93c76(iobase, dw_RegisterValue);
 	}
 }
 
@@ -169,8 +167,7 @@ static void v_EepromCs76Read(unsigned long iobase,
 
 	/* Get the 16-bit value */
 	for (c_BitPos = 0; c_BitPos < 16; c_BitPos++) {
-		/* Trigger the EEPROM clock */
-		v_EepromClock76(iobase, dw_RegisterValue);
+		addi_eeprom_clk_93c76(iobase, dw_RegisterValue);
 
 		/* Get the result bit */
 		dw_RegisterValueRead = inl(iobase);
