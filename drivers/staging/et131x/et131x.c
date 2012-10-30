@@ -1749,21 +1749,7 @@ static void et1310_phy_power_down(struct et131x_adapter *adapter, bool down)
  */
 static void et131x_xcvr_init(struct et131x_adapter *adapter)
 {
-	u16 imr;
-	u16 isr;
 	u16 lcr2;
-
-	et131x_mii_read(adapter, PHY_INTERRUPT_STATUS, &isr);
-	et131x_mii_read(adapter, PHY_INTERRUPT_MASK, &imr);
-
-	/* Set the link status interrupt only.  Bad behavior when link status
-	 * and auto neg are set, we run into a nested interrupt problem
-	 */
-	imr |= (ET_PHY_INT_MASK_AUTONEGSTAT |
-		ET_PHY_INT_MASK_LINKSTAT |
-		ET_PHY_INT_MASK_ENABLE);
-
-	et131x_mii_write(adapter, PHY_INTERRUPT_MASK, imr);
 
 	/* Set the LED behavior such that LED 1 indicates speed (off =
 	 * 10Mbits, blink = 100Mbits, on = 1000Mbits) and LED 2 indicates
@@ -1789,7 +1775,7 @@ static void et131x_xcvr_init(struct et131x_adapter *adapter)
 }
 
 /**
- * et131x_configure_global_regs	-	configure JAGCore global regs
+ * et131x_configure_global_regs	- configure JAGCore global regs
  * @adapter: pointer to our adapter structure
  *
  * Used to configure the global registers on the JAGCore
