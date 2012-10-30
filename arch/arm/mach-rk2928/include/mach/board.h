@@ -45,6 +45,7 @@ struct rk30_adc_battery_platform_data {
 
 	int (*is_usb_charging)(void);
 	int spport_usb_charging ;
+	int (*control_usb_charging)(int);
 
 	int dc_det_pin;
 	int batt_low_pin;
@@ -77,6 +78,12 @@ struct rk30_adc_battery_platform_data {
 	int time_down_discharge; //the time of capactiy drop 1% --discharge
 	int time_up_charge; //the time of capacity up 1% ---charging 
 
+	int  use_board_table;
+	int  table_size;
+	int  *discharge_table;
+	int  *charge_table;
+	int  *property_tabel;
+	int *board_batt_table;
 
 };
 //#endif
