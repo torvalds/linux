@@ -26,8 +26,11 @@
 #include <linux/kernel.h>
 #include "../perf.h"
 #include "util.h"
+#include "exec_cmd.h"
 
 #define ENV "PERF_TEST_ATTR"
+
+extern int verbose;
 
 bool test_attr__enabled;
 
@@ -137,4 +140,36 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 		die("test attr FAILED");
 
 	errno = errno_saved;
+}
+
+static int run_dir(const char *d, const char *perf)
+{
+	char cmd[3*PATH_MAX];
+
+	snprintf(cmd, 3*PATH_MAX, "python %s/attr.py -d %s/attr/ -p %s %s",
+		 d, d, perf, verbose ? "-v" : "");
+
+	return system(cmd);
+}
+
+int test_attr__run(void)
+{
+	struct stat st;
+	char path_perf[PATH_MAX];
+	char path_dir[PATH_MAX];
+
+	/* First try developement tree tests. */
+	if (!lstat("./tests", &st))
+		return run_dir("./tests", "./perf");
+
+	/* Then installed path. */
+	snprintf(path_dir,  PATH_MAX, "%s/tests", perf_exec_path());
+	snprintf(path_perf, PATH_MAX, "%s/perf", BINDIR);
+
+	if (!lstat(path_dir, &st) &&
+	    !lstat(path_perf, &st))
+		return run_dir(path_dir, path_perf);
+
+	fprintf(stderr, " (ommitted)");
+	return 0;
 }

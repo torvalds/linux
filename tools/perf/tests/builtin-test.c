@@ -1455,6 +1455,10 @@ static struct test {
 		.func = test__syscall_open_tp_fields,
 	},
 	{
+		.desc = "struct perf_event_attr setup",
+		.func = test_attr__run,
+	},
+	{
 		.func = NULL,
 	},
 };
