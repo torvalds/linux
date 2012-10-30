@@ -1,6 +1,8 @@
 /*
  * OMAP2+ MPU WD_TIMER-specific code
  *
+ * Copyright (C) 2012 Texas Instruments, Inc.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -29,9 +31,6 @@
  */
 #define OMAP_WDT_WPS		0x34
 #define OMAP_WDT_SPR		0x48
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 int omap2_wd_timer_disable(struct omap_hwmod *oh)
 {

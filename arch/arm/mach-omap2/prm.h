@@ -20,6 +20,23 @@ extern void __iomem *prm_base;
 extern void omap2_set_globals_prm(void __iomem *prm);
 # endif
 
+
+/*
+ * MAX_MODULE_SOFTRESET_WAIT: Maximum microseconds to wait for OMAP
+ * module to softreset
+ */
+#define MAX_MODULE_SOFTRESET_WAIT		10000
+
+/*
+ * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
+ * submodule to exit hardreset
+ */
+#define MAX_MODULE_HARDRESET_WAIT		10000
+
+/*
+ * Register bitfields
+ */
+
 /*
  * 24XX: PM_PWSTST_CORE, PM_PWSTST_GFX, PM_PWSTST_MPU, PM_PWSTST_DSP
  *

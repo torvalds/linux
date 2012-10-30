@@ -406,11 +406,6 @@
 #define OMAP3430_EN_CORE_MASK				(1 << 0)
 
 
-/*
- * MAX_MODULE_HARDRESET_WAIT: Maximum microseconds to wait for an OMAP
- * submodule to exit hardreset
- */
-#define MAX_MODULE_HARDRESET_WAIT		10000
 
 /*
  * Maximum time(us) it takes to output the signal WUCLKOUT of the last
@@ -419,7 +414,6 @@
  * microseconds on OMAP4, so this timeout may be too high.
  */
 #define MAX_IOPAD_LATCH_TIME			100
-
 # ifndef __ASSEMBLER__
 
 /**

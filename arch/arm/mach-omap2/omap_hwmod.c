@@ -151,15 +151,13 @@
 #include "cm3xxx.h"
 #include "cminst44xx.h"
 #include "cm33xx.h"
+#include "prm.h"
 #include "prm3xxx.h"
 #include "prm44xx.h"
 #include "prm33xx.h"
 #include "prminst44xx.h"
 #include "mux.h"
 #include "pm.h"
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 /* Name of the OMAP hwmod for the MPU */
 #define MPU_INITIATOR_NAME		"mpu"
