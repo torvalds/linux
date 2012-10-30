@@ -2627,9 +2627,9 @@ static struct platform_driver dummy_hcd_driver = {
 };
 
 /*-------------------------------------------------------------------------*/
-
-static struct platform_device *the_udc_pdev;
-static struct platform_device *the_hcd_pdev;
+#define MAX_NUM_UDC	1
+static struct platform_device *the_udc_pdev[MAX_NUM_UDC];
+static struct platform_device *the_hcd_pdev[MAX_NUM_UDC];
 
 static int __init init(void)
 {
@@ -2641,11 +2641,11 @@ static int __init init(void)
 	if (!mod_data.is_high_speed && mod_data.is_super_speed)
 		return -EINVAL;
 
-	the_hcd_pdev = platform_device_alloc(driver_name, -1);
-	if (!the_hcd_pdev)
+	the_hcd_pdev[0] = platform_device_alloc(driver_name, 0);
+	if (!the_hcd_pdev[0])
 		return retval;
-	the_udc_pdev = platform_device_alloc(gadget_name, -1);
-	if (!the_udc_pdev)
+	the_udc_pdev[0] = platform_device_alloc(gadget_name, 0);
+	if (!the_udc_pdev[0])
 		goto err_alloc_udc;
 
 	retval = platform_driver_register(&dummy_hcd_driver);
@@ -2655,7 +2655,7 @@ static int __init init(void)
 	if (retval < 0)
 		goto err_register_udc_driver;
 
-	retval = platform_device_add(the_hcd_pdev);
+	retval = platform_device_add(the_hcd_pdev[0]);
 	if (retval < 0)
 		goto err_add_hcd;
 	if (!the_controller.hs_hcd ||
@@ -2667,10 +2667,10 @@ static int __init init(void)
 		retval = -EINVAL;
 		goto err_add_udc;
 	}
-	retval = platform_device_add(the_udc_pdev);
+	retval = platform_device_add(the_udc_pdev[0]);
 	if (retval < 0)
 		goto err_add_udc;
-	if (!platform_get_drvdata(the_udc_pdev)) {
+	if (!platform_get_drvdata(the_udc_pdev[0])) {
 		/*
 		 * The udc was added successfully but its probe function failed
 		 * for some reason.
@@ -2681,25 +2681,25 @@ static int __init init(void)
 	return retval;
 
 err_probe_udc:
-	platform_device_del(the_udc_pdev);
+	platform_device_del(the_udc_pdev[0]);
 err_add_udc:
-	platform_device_del(the_hcd_pdev);
+	platform_device_del(the_hcd_pdev[0]);
 err_add_hcd:
 	platform_driver_unregister(&dummy_udc_driver);
 err_register_udc_driver:
 	platform_driver_unregister(&dummy_hcd_driver);
 err_register_hcd_driver:
-	platform_device_put(the_udc_pdev);
+	platform_device_put(the_udc_pdev[0]);
 err_alloc_udc:
-	platform_device_put(the_hcd_pdev);
+	platform_device_put(the_hcd_pdev[0]);
 	return retval;
 }
 module_init(init);
 
 static void __exit cleanup(void)
 {
-	platform_device_unregister(the_udc_pdev);
-	platform_device_unregister(the_hcd_pdev);
+	platform_device_unregister(the_udc_pdev[0]);
+	platform_device_unregister(the_hcd_pdev[0]);
 	platform_driver_unregister(&dummy_udc_driver);
 	platform_driver_unregister(&dummy_hcd_driver);
 }
