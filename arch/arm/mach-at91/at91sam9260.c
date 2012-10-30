@@ -21,9 +21,9 @@
 #include <mach/at91_dbgu.h>
 #include <mach/at91sam9260.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_rstc.h>
 
 #include "at91_aic.h"
+#include "at91_rstc.h"
 #include "soc.h"
 #include "generic.h"
 #include "clock.h"
