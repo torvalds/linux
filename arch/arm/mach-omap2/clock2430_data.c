@@ -2067,10 +2067,6 @@ int __init omap2430_clk_init(void)
 	 */
 	clk_enable_init_clocks();
 
-	/* Avoid sleeping sleeping during omap2_clk_prepare_for_reboot() */
-	vclk = clk_get(NULL, "virt_prcm_set");
-	sclk = clk_get(NULL, "sys_ck");
-
 	return 0;
 }
 
