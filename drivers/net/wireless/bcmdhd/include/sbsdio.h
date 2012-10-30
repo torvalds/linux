@@ -120,6 +120,7 @@
 #define SBSDIO_DEVCTL_RST_CORECTL	0x00		/*   Determined by CoreControl bit */
 #define SBSDIO_DEVCTL_RST_BPRESET	0x10		/*   Force backplane reset */
 #define SBSDIO_DEVCTL_RST_NOBPRESET	0x20		/*   Force no backplane reset */
+#define SBSDIO_DEVCTL_EN_F2_BLK_WATERMARK 0x10  /* Enable function 2 tx for each block */
 
 
 /* SBSDIO_FUNC1_CHIPCLKCSR */

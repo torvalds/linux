@@ -62,12 +62,13 @@ extern int sdio_reset_comm(struct mmc_card *card);
 
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
 
-uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
-#if defined(SDIO_F2_BLKSIZE)
-uint sd_f2_blocksize = SDIO_F2_BLKSIZE;
-#else
-uint sd_f2_blocksize = 512;		/* Default blocksize */
+#define DEFAULT_SDIO_F2_BLKSIZE		512
+#ifndef CUSTOM_SDIO_F2_BLKSIZE
+#define CUSTOM_SDIO_F2_BLKSIZE		DEFAULT_SDIO_F2_BLKSIZE
 #endif
+
+uint sd_sdmode = SDIOH_MODE_SD4;	/* Use SD4 mode by default */
+uint sd_f2_blocksize = CUSTOM_SDIO_F2_BLKSIZE;
 uint sd_divisor = 2;			/* Default 48MHz/2 = 24MHz */
 
 uint sd_power = 1;		/* Default to SD Slot powered ON */
@@ -81,6 +82,7 @@ DHD_PM_RESUME_WAIT_INIT(sdioh_request_packet_wait);
 DHD_PM_RESUME_WAIT_INIT(sdioh_request_buffer_wait);
 
 #define DMA_ALIGN_MASK	0x03
+#define MMC_SDIO_ABORT_RETRY_LIMIT 5
 
 int sdioh_sdmmc_card_regread(sdioh_info_t *sd, int func, uint32 regaddr, int regsize, uint32 *data);
 
@@ -778,7 +780,9 @@ extern SDIOH_API_RC
 sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *byte)
 {
 	int err_ret;
-
+#if defined(MMC_SDIO_ABORT)
+	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+#endif
 	sd_info(("%s: rw=%d, func=%d, addr=0x%05x\n", __FUNCTION__, rw, func, regaddr));
 
 	DHD_PM_RESUME_WAIT(sdioh_request_byte_wait);
@@ -812,16 +816,20 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 #if defined(MMC_SDIO_ABORT)
 			/* to allow abort command through F1 */
 			else if (regaddr == SDIOD_CCCR_IOABORT) {
-				if (gInstance->func[func]) {
-					sdio_claim_host(gInstance->func[func]);
-					/*
-					* this sdio_f0_writeb() can be replaced with another api
-					* depending upon MMC driver change.
-					* As of this time, this is temporaray one
-					*/
-					sdio_writeb(gInstance->func[func],
-						*byte, regaddr, &err_ret);
-					sdio_release_host(gInstance->func[func]);
+				while (sdio_abort_retry--) {
+					if (gInstance->func[func]) {
+						sdio_claim_host(gInstance->func[func]);
+						/*
+						* this sdio_f0_writeb() can be replaced with
+						* another api depending upon MMC driver change.
+						* As of this time, this is temporaray one
+						*/
+						sdio_writeb(gInstance->func[func],
+							*byte, regaddr, &err_ret);
+						sdio_release_host(gInstance->func[func]);
+					}
+					if (!err_ret)
+						break;
 				}
 			}
 #endif /* MMC_SDIO_ABORT */
@@ -870,6 +878,9 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
                                    uint32 *word, uint nbytes)
 {
 	int err_ret = SDIOH_API_RC_FAIL;
+#if defined(MMC_SDIO_ABORT)
+	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
+#endif
 
 	if (func == 0) {
 		sd_err(("%s: Only CMD52 allowed to F0.\n", __FUNCTION__));
@@ -906,8 +917,29 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 	sdio_release_host(gInstance->func[func]);
 
 	if (err_ret) {
-		sd_err(("bcmsdh_sdmmc: Failed to %s word, Err: 0x%08x",
+#if defined(MMC_SDIO_ABORT)
+		/* Any error on CMD53 transaction should abort that function using function 0. */
+		while (sdio_abort_retry--) {
+			if (gInstance->func[0]) {
+				sdio_claim_host(gInstance->func[0]);
+				/*
+				* this sdio_f0_writeb() can be replaced with another api
+				* depending upon MMC driver change.
+				* As of this time, this is temporaray one
+				*/
+				sdio_writeb(gInstance->func[0],
+					func, SDIOD_CCCR_IOABORT, &err_ret);
+				sdio_release_host(gInstance->func[0]);
+			}
+			if (!err_ret)
+				break;
+		}
+		if (err_ret)
+#endif /* MMC_SDIO_ABORT */
+		{
+		sd_err(("bcmsdh_sdmmc: Failed to %s word, Err: 0x%08x\n",
 		                        rw ? "Write" : "Read", err_ret));
+		}
 	}
 
 	return ((err_ret == 0) ? SDIOH_API_RC_SUCCESS : SDIOH_API_RC_FAIL);
