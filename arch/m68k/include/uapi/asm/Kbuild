@@ -2,13 +2,13 @@
 include include/uapi/asm-generic/Kbuild.asm
 
 generic-y += auxvec.h
+generic-y += msgbuf.h
 
 header-y += a.out.h
 header-y += byteorder.h
 header-y += cachectl.h
 header-y += fcntl.h
 header-y += ioctls.h
-header-y += msgbuf.h
 header-y += param.h
 header-y += poll.h
 header-y += posix_types.h
