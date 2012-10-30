@@ -17,8 +17,8 @@
  * MA 02111-1307 USA
  */
 
-#ifndef __DRV_DISPLAY_H__
-#define __DRV_DISPLAY_H__
+#ifndef __SUNXI_DISP_IOCTL_H__
+#define __SUNXI_DISP_IOCTL_H__
 
 #define __bool signed char
 
@@ -851,4 +851,4 @@ typedef enum tag_DISP_CMD {
 #define FBIO_DISPLAY_TWO_SAME_SCREEN_TB 0x4722
 #define FBIO_DISPLAY_TWO_DIFF_SCREEN_SAME_CONTENTS 0x4723
 
-#endif
+#endif /* __SUNXI_DISP_IOCTL_H__ */

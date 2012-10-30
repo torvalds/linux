@@ -46,7 +46,7 @@
 #include <linux/cdev.h>
 #include <linux/types.h>
 
-#include "../drv_display.h"
+#include <video/sunxi_disp_ioctl.h>
 #include <linux/drv_hdmi.h>
 
 #define __inf(msg, ...) pr_debug("[DISP] " msg, ##__VA_ARGS__)
