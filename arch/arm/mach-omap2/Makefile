@@ -50,6 +50,11 @@ AFLAGS_sram242x.o			:=-Wa,-march=armv6
 AFLAGS_sram243x.o			:=-Wa,-march=armv6
 AFLAGS_sram34xx.o			:=-Wa,-march=armv7-a
 
+# Restart code (OMAP4/5 currently in omap4-common.c)
+obj-$(CONFIG_SOC_OMAP2420)		+= omap2-restart.o
+obj-$(CONFIG_SOC_OMAP2430)		+= omap2-restart.o
+obj-$(CONFIG_ARCH_OMAP3)		+= omap3-restart.o
+
 # Pin multiplexing
 obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
 obj-$(CONFIG_SOC_OMAP2430)		+= mux2430.o

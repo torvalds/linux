@@ -113,6 +113,30 @@ void omap4430_init_late(void);
 int omap2_common_pm_late_init(void);
 void omap_prcm_restart(char, const char *);
 
+#if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
+void omap2xxx_restart(char mode, const char *cmd);
+#else
+static inline void omap2xxx_restart(char mode, const char *cmd)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+void omap3xxx_restart(char mode, const char *cmd);
+#else
+static inline void omap3xxx_restart(char mode, const char *cmd)
+{
+}
+#endif
+
+#if defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_SOC_OMAP5)
+void omap44xx_restart(char mode, const char *cmd);
+#else
+static inline void omap44xx_restart(char mode, const char *cmd)
+{
+}
+#endif
+
 /* This gets called from mach-omap2/io.c, do not call this */
 void __init omap2_set_globals_tap(u32 class, void __iomem *tap);
 
