@@ -66,20 +66,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define EEPROM_WATCHDOG					5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
-/* used for timer as well as watchdog */
-struct str_TimerDetails {
-	unsigned short w_HeaderSize;
-	unsigned char b_Resolution;
-	unsigned char b_Mode;		/*  in case of Watchdog it is functionality */
-	unsigned short w_MinTiming;
-	unsigned char b_TimeBase;
-};
-
-struct str_TimerMainHeader {
-	unsigned short w_Ntimer;
-	struct str_TimerDetails s_TimerDetails[4];	/*   supports 4 timers */
-};
-
 static void addi_eeprom_clk_93c76(unsigned long iobase, unsigned int val)
 {
 	outl(val & ~EE93C76_CLK_BIT, iobase);
@@ -244,48 +230,47 @@ static void addi_eeprom_read_do_info(struct comedi_device *dev,
 	devpriv->s_EeParameters.i_DoMaxdata = 0xffffffff >> (32 - tmp);
 }
 
-#if 0
-static int i_EepromReadTimerHeader(unsigned long iobase,
-				   char *type,
-				   unsigned short w_Address,
-				   struct str_TimerMainHeader *s_Header)
+static void addi_eeprom_read_timer_info(struct comedi_device *dev,
+					unsigned long iobase,
+					char *type,
+					unsigned short addr)
 {
+	struct addi_private *devpriv = dev->private;
+#if 0
+	unsigned short offset = 0;
+	unsigned short ntimers;
+	unsigned short tmp;
+	int i;
 
-	unsigned short i, w_Size = 0, w_Temp;
+	/* Number of Timers */
+	ntimers = addi_eeprom_readw(iobase, type, addr + 6);
 
-	/* Read No of Timer */
-	s_Header->w_Ntimer = addi_eeprom_readw(iobase, type,
-					       w_Address + 6);
 	/* Read header size */
-	for (i = 0; i < s_Header->w_Ntimer; i++) {
-		s_Header->s_TimerDetails[i].w_HeaderSize =
-			addi_eeprom_readw(iobase, type,
-					  w_Address + 8 + w_Size + 0);
-		w_Temp = addi_eeprom_readw(iobase, type,
-					   w_Address + 8 + w_Size + 2);
+	for (i = 0; i < ntimers; i++) {
+		unsigned short size;
+		unsigned short res;
+		unsigned short mode;
+		unsigned short min_timing;
+		unsigned short timebase;
 
-		/* Read Resolution */
-		s_Header->s_TimerDetails[i].b_Resolution =
-			(unsigned char) (w_Temp >> 10) & 0x3F;
+		size = addi_eeprom_readw(iobase, type, addr + 8 + offset + 0);
 
-		/* Read Mode */
-		s_Header->s_TimerDetails[i].b_Mode =
-			(unsigned char) (w_Temp >> 4) & 0x3F;
+		/* Resolution / Mode */
+		tmp = addi_eeprom_readw(iobase, type, addr + 8 + offset + 2);
+		res = (tmp >> 10) & 0x3f;
+		mode = (tmp >> 4) & 0x3f;
 
-		w_Temp = addi_eeprom_readw(iobase, type,
-					   w_Address + 8 + w_Size + 4);
+		/* MinTiming / Timebase */
+		tmp = addi_eeprom_readw(iobase, type, addr + 8 + offset + 4);
+		min_timing = (tmp  >> 6) & 0x3ff;
+		Timebase = tmp & 0x3f;
 
-		/* Read MinTiming */
-		s_Header->s_TimerDetails[i].w_MinTiming = (w_Temp >> 6) & 0x3FF;
-
-		/* Read Timebase */
-		s_Header->s_TimerDetails[i].b_TimeBase = (unsigned char) (w_Temp) & 0x3F;
-		w_Size += s_Header->s_TimerDetails[i].w_HeaderSize;
+		offset += size;
 	}
-
-	return 0;
-}
 #endif
+	/* Timer subdevice present */
+	devpriv->s_EeParameters.i_Timer = 1;
+}
 
 static void addi_eeprom_read_ao_info(struct comedi_device *dev,
 				     unsigned long iobase,
@@ -347,8 +332,6 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 				  char *type,
 				  struct comedi_device *dev)
 {
-	struct addi_private *devpriv = dev->private;
-	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
 	unsigned short size;
 	unsigned char nfuncs;
 	int i;
@@ -385,8 +368,7 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 		case EEPROM_TIMER:
 		case EEPROM_WATCHDOG:
 		case EEPROM_TIMER_WATCHDOG_COUNTER:
-			/* Timer subdevice present */
-			devpriv->s_EeParameters.i_Timer = 1;
+			addi_eeprom_read_timer_info(dev, iobase, type, addr);
 			break;
 		}
 	}
