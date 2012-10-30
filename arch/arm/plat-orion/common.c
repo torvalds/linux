@@ -606,26 +606,6 @@ void __init orion_wdt_init(void)
  ****************************************************************************/
 static u64 orion_xor_dmamask = DMA_BIT_MASK(32);
 
-void __init orion_xor_init_channels(
-	struct mv_xor_platform_data *orion_xor0_data,
-	struct platform_device *orion_xor0_channel,
-	struct mv_xor_platform_data *orion_xor1_data,
-	struct platform_device *orion_xor1_channel)
-{
-	/*
-	 * two engines can't do memset simultaneously, this limitation
-	 * satisfied by removing memset support from one of the engines.
-	 */
-	dma_cap_set(DMA_MEMCPY, orion_xor0_data->cap_mask);
-	dma_cap_set(DMA_XOR, orion_xor0_data->cap_mask);
-	platform_device_register(orion_xor0_channel);
-
-	dma_cap_set(DMA_MEMCPY, orion_xor1_data->cap_mask);
-	dma_cap_set(DMA_MEMSET, orion_xor1_data->cap_mask);
-	dma_cap_set(DMA_XOR, orion_xor1_data->cap_mask);
-	platform_device_register(orion_xor1_channel);
-}
-
 /*****************************************************************************
  * XOR0
  ****************************************************************************/
