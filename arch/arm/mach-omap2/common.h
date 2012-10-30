@@ -43,54 +43,6 @@
 
 #define OMAP_INTC_START		NR_IRQS
 
-#ifdef CONFIG_SOC_OMAP2420
-extern void omap242x_map_common_io(void);
-#else
-static inline void omap242x_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_SOC_OMAP2430
-extern void omap243x_map_common_io(void);
-#else
-static inline void omap243x_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP3
-extern void omap34xx_map_common_io(void);
-#else
-static inline void omap34xx_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_SOC_TI81XX
-extern void omapti81xx_map_common_io(void);
-#else
-static inline void omapti81xx_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_SOC_AM33XX
-extern void omapam33xx_map_common_io(void);
-#else
-static inline void omapam33xx_map_common_io(void)
-{
-}
-#endif
-
-#ifdef CONFIG_ARCH_OMAP4
-extern void omap44xx_map_common_io(void);
-#else
-static inline void omap44xx_map_common_io(void)
-{
-}
-#endif
-
 #if defined(CONFIG_PM) && defined(CONFIG_ARCH_OMAP2)
 int omap2_pm_init(void);
 #else
@@ -124,14 +76,6 @@ int omap_mux_late_init(void);
 static inline int omap_mux_late_init(void)
 {
 	return 0;
-}
-#endif
-
-#ifdef CONFIG_SOC_OMAP5
-extern void omap5_map_common_io(void);
-#else
-static inline void omap5_map_common_io(void)
-{
 }
 #endif
 
@@ -169,50 +113,18 @@ void omap4430_init_late(void);
 int omap2_common_pm_late_init(void);
 void omap_prcm_restart(char, const char *);
 
-/*
- * IO bases for various OMAP processors
- * Except the tap base, rest all the io bases
- * listed are physical addresses.
- */
-struct omap_globals {
-	u32		class;		/* OMAP class to detect */
-	void __iomem	*tap;		/* Control module ID code */
-	void __iomem	*sdrc;           /* SDRAM Controller */
-	void __iomem	*sms;            /* SDRAM Memory Scheduler */
-	void __iomem	*ctrl;           /* System Control Module */
-	void __iomem	*ctrl_pad;	/* PAD Control Module */
-	void __iomem	*prm;            /* Power and Reset Management */
-	void __iomem	*cm;             /* Clock Management */
-	void __iomem	*cm2;
-	void __iomem	*prcm_mpu;
-};
+/* This gets called from mach-omap2/io.c, do not call this */
+void __init omap2_set_globals_tap(u32 class, void __iomem *tap);
 
-void omap2_set_globals_242x(void);
-void omap2_set_globals_243x(void);
-void omap2_set_globals_3xxx(void);
-void omap2_set_globals_443x(void);
-void omap2_set_globals_5xxx(void);
-void omap2_set_globals_ti81xx(void);
-void omap2_set_globals_am33xx(void);
+void __init omap242x_map_io(void);
+void __init omap243x_map_io(void);
+void __init omap3_map_io(void);
+void __init am33xx_map_io(void);
+void __init omap4_map_io(void);
+void __init omap5_map_io(void);
+void __init ti81xx_map_io(void);
 
-/* These get called from omap2_set_globals_xxxx(), do not call these */
-void omap2_set_globals_tap(struct omap_globals *);
-#if defined(CONFIG_SOC_HAS_OMAP2_SDRC)
-void omap2_set_globals_sdrc(struct omap_globals *);
-#else
-static inline void omap2_set_globals_sdrc(struct omap_globals *omap2_globals)
-{ }
-#endif
-void omap2_set_globals_control(struct omap_globals *);
-void omap2_set_globals_prcm(struct omap_globals *);
-
-void omap242x_map_io(void);
-void omap243x_map_io(void);
-void omap3_map_io(void);
-void am33xx_map_io(void);
-void omap4_map_io(void);
-void omap5_map_io(void);
-void ti81xx_map_io(void);
+/* omap_barriers_init() is OMAP4 only */
 void omap_barriers_init(void);
 
 /**

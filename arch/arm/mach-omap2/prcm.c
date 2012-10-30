@@ -137,16 +137,13 @@ int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
 	return (i < MAX_MODULE_ENABLE_WAIT) ? 1 : 0;
 };
 
-void __init omap2_set_globals_prcm(struct omap_globals *omap2_globals)
+void __init omap2_set_globals_prcm(void __iomem *prm, void __iomem *cm,
+				   void __iomem *cm2, void __iomem *prcm_mpu)
 {
-	if (omap2_globals->prm)
-		prm_base = omap2_globals->prm;
-	if (omap2_globals->cm)
-		cm_base = omap2_globals->cm;
-	if (omap2_globals->cm2)
-		cm2_base = omap2_globals->cm2;
-	if (omap2_globals->prcm_mpu)
-		prcm_mpu_base = omap2_globals->prcm_mpu;
+	prm_base = prm;
+	cm_base = cm;
+	cm2_base = cm2;
+	prcm_mpu_base = prcm_mpu;
 
 	if (cpu_is_omap44xx() || soc_is_omap54xx()) {
 		omap_prm_base_init();

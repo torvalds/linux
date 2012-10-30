@@ -29,6 +29,7 @@
 
 #include "omap-wakeupgen.h"
 #include "soc.h"
+#include "iomap.h"
 #include "common.h"
 #include "mmc.h"
 #include "hsmmc.h"
