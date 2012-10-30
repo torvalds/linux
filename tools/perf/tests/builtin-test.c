@@ -318,7 +318,7 @@ static int test__open_syscall_event(void)
 			 nr_open_calls, evsel->counts->cpu[0].val);
 		goto out_close_fd;
 	}
-	
+
 	err = 0;
 out_close_fd:
 	perf_evsel__close_fd(evsel, 1, threads->nr);
@@ -1344,8 +1344,8 @@ static int test__syscall_open_tp_fields(void)
 	perf_evlist__enable(evlist);
 
 	/*
- 	 * Generate the event:
- 	 */
+	 * Generate the event:
+	 */
 	open(filename, flags);
 
 	while (1) {
@@ -1495,7 +1495,7 @@ static int __cmd_test(int argc, const char *argv[])
 			width = len;
 		++i;
 	}
-		
+
 	i = 0;
 	while (tests[i].func) {
 		int curr = i++, err;
