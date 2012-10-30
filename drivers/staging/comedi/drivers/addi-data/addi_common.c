@@ -60,7 +60,7 @@ static int i_ADDIDATA_InsnReadEeprom(struct comedi_device *dev,
 	unsigned short w_Address = CR_CHAN(insn->chanspec);
 	unsigned short w_Data;
 
-	w_Data = w_EepromReadWord(devpriv->i_IobaseAmcc,
+	w_Data = addi_eeprom_readw(devpriv->i_IobaseAmcc,
 		this_board->pc_EepromChip, 0x100 + (2 * w_Address));
 	data[0] = w_Data;
 
