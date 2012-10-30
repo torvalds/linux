@@ -1,6 +1,7 @@
 /*
  * copyright (c) 2007-2012 Allwinner Technology Co., Ltd.
  * copyright (c) 2007-2012 Danling <danliang@allwinnertech.com>
+ * copyright (c) 2012 Luc Verhaegen <libv@skynet.be>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
@@ -389,7 +390,7 @@ disp_mem_release(int sel)
 
 }
 
-int disp_mmap(struct file *file, struct vm_area_struct *vma)
+int disp_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	// - PAGE_OFFSET;
 	unsigned long physics = g_disp_mm[g_disp_mm_sel].mem_start;
@@ -403,23 +404,58 @@ int disp_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-int disp_open(struct inode *inode, struct file *file)
+/*
+ *
+ */
+struct dev_disp_data {
+	/* Version of the user of /dev/disp */
+#define SUNXI_DISP_VERSION_PENDING -1
+#define SUNXI_DISP_VERSION_SKIPPED -2
+	int version;
+};
+
+int disp_open(struct inode *inode, struct file *filp)
 {
+	struct dev_disp_data *data =
+		kmalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
+	static bool warned;
+
+	if (!data)
+		return -ENOMEM;
+
+	data->version = SUNXI_DISP_VERSION_PENDING;
+
+	filp->private_data = data;
+
+	if (!warned) {
+		pr_warn("Warning: this sunxi disp driver will see significant "
+			"redesign.\n");
+		pr_warn("Applications using /dev/disp directly will break.\n");
+		pr_warn("For more information visit: "
+			"http://linux-sunxi.org/Sunxi_disp_driver\n");
+		warned = true;
+	}
+
 	return 0;
 }
 
-int disp_release(struct inode *inode, struct file *file)
+int disp_release(struct inode *inode, struct file *filp)
 {
+	struct dev_disp_data *data = filp->private_data;
+
+	kfree(data);
+	filp->private_data = NULL;
+
 	return 0;
 }
 
-ssize_t disp_read(struct file *file, char __user *buf, size_t count,
+ssize_t disp_read(struct file *filp, char __user *buf, size_t count,
 		  loff_t *ppos)
 {
 	return 0;
 }
 
-ssize_t disp_write(struct file *file, const char __user *buf, size_t count,
+ssize_t disp_write(struct file *filp, const char __user *buf, size_t count,
 		   loff_t *ppos)
 {
 	return 0;
@@ -468,6 +504,9 @@ static int __devinit disp_probe(struct platform_device *pdev)
 	__inf("SDRAM base 0x%08x\n", info->base_sdram);
 	__inf("PIO base 0x%08x\n", info->base_pioc);
 	__inf("PWM base 0x%08x\n", info->base_pwm);
+
+	pr_info("sunxi disp driver loaded (/dev/disp api %d.%d)\n",
+		SUNXI_DISP_VERSION_MAJOR, SUNXI_DISP_VERSION_MINOR);
 
 	return 0;
 }
@@ -607,8 +646,9 @@ disp_shutdown(struct platform_device *pdev)
 	}
 }
 
-long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct dev_disp_data *filp_data = filp->private_data;
 	unsigned long karg[4];
 	unsigned long ubuffer[4] = { 0 };
 	__s32 ret = 0;
@@ -623,6 +663,39 @@ long disp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	ubuffer[1] = (*(unsigned long *)(karg + 1));
 	ubuffer[2] = (*(unsigned long *)(karg + 2));
 	ubuffer[3] = (*(unsigned long *)(karg + 3));
+
+	/* Verify version handshake first. */
+	if (filp_data->version == SUNXI_DISP_VERSION_PENDING) {
+		if (cmd == DISP_CMD_VERSION) {
+			int version = *((int *) karg);
+
+			if (version < 0) {
+				pr_err("disp: process %d (%s) provided an "
+				       "invalid version.\n",
+				       current->pid, current->comm);
+				filp_data->version = SUNXI_DISP_VERSION_SKIPPED;
+				return -EINVAL;
+			}
+
+			if (version != SUNXI_DISP_VERSION)
+				pr_warn("disp: process %d (%s) has a different "
+				       "version: %d.%d (vs. %d.%d)\n",
+					current->pid, current->comm,
+					SUNXI_DISP_VERSION_MAJOR_GET(version),
+					SUNXI_DISP_VERSION_MINOR_GET(version),
+					SUNXI_DISP_VERSION_MAJOR,
+					SUNXI_DISP_VERSION_MINOR);
+
+			/* Add compatibility checks here */
+
+			filp_data->version = version;
+			return SUNXI_DISP_VERSION;
+		} else {
+			pr_err("disp: process %d (%s) has skipped the version "
+			       "handshake.\n", current->pid, current->comm);
+			filp_data->version = SUNXI_DISP_VERSION_SKIPPED;
+		}
+	}
 
 	if (cmd < DISP_CMD_FB_REQUEST) {
 		if ((ubuffer[0] != 0) && (ubuffer[0] != 1)) {
