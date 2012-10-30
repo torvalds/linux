@@ -1107,6 +1107,9 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 	if (data[IFLA_VXLAN_TOS])
 		vxlan->tos  = nla_get_u8(data[IFLA_VXLAN_TOS]);
 
+	if (data[IFLA_VXLAN_TTL])
+		vxlan->ttl = nla_get_u8(data[IFLA_VXLAN_TTL]);
+
 	if (!data[IFLA_VXLAN_LEARNING] || nla_get_u8(data[IFLA_VXLAN_LEARNING]))
 		vxlan->learn = true;
 
