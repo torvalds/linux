@@ -3587,7 +3587,12 @@ static void et131x_get_regs(struct net_device *netdev,
 	et131x_mii_read(adapter, 0x08, (u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, MII_CTRL1000, (u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, MII_STAT1000, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, 0x0b, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, 0x0c, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, MII_MMD_CTRL, (u16 *)&regs_buff[num++]);
+	et131x_mii_read(adapter, MII_MMD_DATA, (u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, MII_ESTATUS, (u16 *)&regs_buff[num++]);
+
 	et131x_mii_read(adapter, PHY_INDEX_REG, (u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, PHY_DATA_REG, (u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, PHY_MPHY_CONTROL_REG,
@@ -3596,6 +3601,7 @@ static void et131x_get_regs(struct net_device *netdev,
 			(u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, PHY_LOOPBACK_CONTROL+1,
 			(u16 *)&regs_buff[num++]);
+
 	et131x_mii_read(adapter, PHY_REGISTER_MGMT_CONTROL,
 			(u16 *)&regs_buff[num++]);
 	et131x_mii_read(adapter, PHY_CONFIG, (u16 *)&regs_buff[num++]);
