@@ -66,10 +66,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define EEPROM_WATCHDOG					5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
-struct str_DigitalOutputHeader {
-	unsigned short w_Nchannel;
-};
-
 /* used for timer as well as watchdog */
 struct str_TimerDetails {
 	unsigned short w_HeaderSize;
@@ -246,15 +242,19 @@ static void addi_eeprom_read_di_info(struct comedi_device *dev,
 	tmp = addi_eeprom_readw(iobase, type, addr + 10);
 }
 
-static int i_EepromReadDigitalOutputHeader(unsigned long iobase,
-					   char *type,
-					   unsigned short w_Address,
-					   struct str_DigitalOutputHeader *s_Header)
+static void addi_eeprom_read_do_info(struct comedi_device *dev,
+				     unsigned long iobase,
+				     char *type,
+				     unsigned short addr)
 {
-	/* Read Nbr channels */
-	s_Header->w_Nchannel = addi_eeprom_readw(iobase, type,
-						 w_Address + 6);
-	return 0;
+	struct addi_private *devpriv = dev->private;
+	unsigned short tmp;
+
+	/* Number of channels */
+	tmp = addi_eeprom_readw(iobase, type, addr + 6);
+	devpriv->s_EeParameters.i_NbrDoChannel = tmp;
+
+	devpriv->s_EeParameters.i_DoMaxdata = 0xffffffff >> (32 - tmp);
 }
 
 #if 0
@@ -360,7 +360,6 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
-	struct str_DigitalOutputHeader s_DigitalOutputHeader;
 	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
 	struct str_AnalogOutputHeader s_AnalogOutputHeader;
 	struct str_AnalogInputHeader s_AnalogInputHeader;
@@ -386,15 +385,7 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 			break;
 
 		case EEPROM_DIGITALOUTPUT:
-			i_EepromReadDigitalOutputHeader(iobase, type, addr,
-							&s_DigitalOutputHeader);
-
-			devpriv->s_EeParameters.i_NbrDoChannel =
-				s_DigitalOutputHeader.w_Nchannel;
-			ui_Temp = 0xffffffff;
-			devpriv->s_EeParameters.i_DoMaxdata =
-				ui_Temp >> (32 -
-					devpriv->s_EeParameters.i_NbrDoChannel);
+			addi_eeprom_read_do_info(dev, iobase, type, addr);
 			break;
 
 		case EEPROM_ANALOGINPUT:
