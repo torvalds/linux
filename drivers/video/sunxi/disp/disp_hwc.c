@@ -20,7 +20,6 @@
  */
 
 #include "disp_display.h"
-#include "disp_hwc.h"
 
 __s32 BSP_disp_hwc_enable(__u32 sel, __bool enable)
 {

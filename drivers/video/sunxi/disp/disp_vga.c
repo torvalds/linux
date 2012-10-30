@@ -19,7 +19,6 @@
  * MA 02111-1307 USA
  */
 
-#include "disp_vga.h"
 #include "disp_de.h"
 #include "disp_display.h"
 #include "disp_event.h"

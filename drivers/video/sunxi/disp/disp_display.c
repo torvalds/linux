@@ -25,7 +25,6 @@
 #include "disp_tv.h"
 #include "disp_event.h"
 #include "disp_sprite.h"
-#include "disp_combined.h"
 #include "disp_scaler.h"
 #include "disp_video.h"
 #include "disp_clk.h"
