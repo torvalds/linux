@@ -1300,7 +1300,7 @@ static int mv_xor_shared_probe(struct platform_device *pdev)
 
 	if (pdata && pdata->channels) {
 		for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
-			struct mv_xor_platform_data *cd;
+			struct mv_xor_channel_data *cd;
 			int irq;
 
 			cd = &pdata->channels[i];
