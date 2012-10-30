@@ -361,6 +361,28 @@ void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 }
 EXPORT_SYMBOL(omapdss_dpi_set_data_lines);
 
+static int __init dpi_verify_dsi_pll(struct platform_device *dsidev)
+{
+	int r;
+
+	/* do initial setup with the PLL to see if it is operational */
+
+	r = dsi_runtime_get(dsidev);
+	if (r)
+		return r;
+
+	r = dsi_pll_init(dsidev, 0, 1);
+	if (r) {
+		dsi_runtime_put(dsidev);
+		return r;
+	}
+
+	dsi_pll_uninit(dsidev, true);
+	dsi_runtime_put(dsidev);
+
+	return 0;
+}
+
 static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
@@ -383,6 +405,11 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 		enum omap_dss_clk_source dispc_fclk_src =
 			dssdev->clocks.dispc.dispc_fclk_src;
 		dpi.dsidev = dpi_get_dsidev(dispc_fclk_src);
+
+		if (dpi_verify_dsi_pll(dpi.dsidev)) {
+			dpi.dsidev = NULL;
+			DSSWARN("DSI PLL not operational\n");
+		}
 	}
 
 	return 0;
