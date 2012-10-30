@@ -1108,7 +1108,6 @@ static int musb_gadget_enable(struct usb_ep *ep,
 		musb_writew(regs, MUSB_TXCSR, csr);
 
 	} else {
-		u16 int_rxe = musb_readw(mbase, MUSB_INTRRXE);
 
 		if (hw_ep->is_shared_fifo)
 			musb_ep->is_in = 0;
@@ -1120,8 +1119,8 @@ static int musb_gadget_enable(struct usb_ep *ep,
 			goto fail;
 		}
 
-		int_rxe |= (1 << epnum);
-		musb_writew(mbase, MUSB_INTRRXE, int_rxe);
+		musb->intrrxe |= (1 << epnum);
+		musb_writew(mbase, MUSB_INTRRXE, musb->intrrxe);
 
 		/* REVISIT if can_bulk_combine() use by updating "tmp"
 		 * likewise high bandwidth periodic rx
@@ -1214,9 +1213,8 @@ static int musb_gadget_disable(struct usb_ep *ep)
 		musb_writew(musb->mregs, MUSB_INTRTXE, int_txe);
 		musb_writew(epio, MUSB_TXMAXP, 0);
 	} else {
-		u16 int_rxe = musb_readw(musb->mregs, MUSB_INTRRXE);
-		int_rxe &= ~(1 << epnum);
-		musb_writew(musb->mregs, MUSB_INTRRXE, int_rxe);
+		musb->intrrxe &= ~(1 << epnum);
+		musb_writew(musb->mregs, MUSB_INTRRXE, musb->intrrxe);
 		musb_writew(epio, MUSB_RXMAXP, 0);
 	}
 
