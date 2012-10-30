@@ -104,8 +104,7 @@ typedef struct stLocalSFChangeConfirmationAlt {
 	struct bcm_connect_mgr_params sfActiveSet;
 } stLocalSFChangeConfirmationAlt;
 
-/* brief structure stLocalSFChangeIndication */
-typedef struct stLocalSFChangeIndicationAlt {
+struct bcm_change_indication {
 	u8	u8Type;
 	u8	u8Direction;
 	u16	u16TID;
@@ -119,7 +118,7 @@ typedef struct stLocalSFChangeIndicationAlt {
 	u8	u8CC;    /* < Confirmation Code */
 	u8	u8Padd;  /* < 8-bit Padding */
 	u16	u16Padd; /* < 16 bit */
-} stLocalSFChangeIndicationAlt;
+};
 
 unsigned long StoreCmControlResponseMessage(struct bcm_mini_adapter *Adapter, void *pvBuffer, unsigned int *puBufferLength);
 int AllocAdapterDsxBuffer(struct bcm_mini_adapter *Adapter);
