@@ -47,13 +47,29 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+#ifndef COMEDI_SUBD_TTLIO
+#define COMEDI_SUBD_TTLIO		11 /* Digital Input Output But TTL */
+#endif
 
-#include "hwdrv_apci16xx.h"
+#ifndef ADDIDATA_ENABLE
+#define ADDIDATA_ENABLE			1
+#define ADDIDATA_DISABLE		0
+#endif
+
+#define APCI16XX_TTL_INIT		0
+#define APCI16XX_TTL_INITDIRECTION	1
+#define APCI16XX_TTL_OUTPUTMEMORY	2
+
+#define APCI16XX_TTL_READCHANNEL	0
+#define APCI16XX_TTL_READPORT		1
+
+#define APCI16XX_TTL_WRITECHANNEL_ON	0
+#define APCI16XX_TTL_WRITECHANNEL_OFF	1
+#define APCI16XX_TTL_WRITEPORT_ON	2
+#define APCI16XX_TTL_WRITEPORT_OFF	3
+
+#define APCI16XX_TTL_READ_ALL_INPUTS	0
+#define APCI16XX_TTL_READ_ALL_OUTPUTS	1
 
 /*
 +----------------------------------------------------------------------------+
