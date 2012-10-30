@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "annotate.h"
 #include <pthread.h>
+#include <linux/bitops.h>
 
 const char 	*disassembler_style;
 const char	*objdump_path;

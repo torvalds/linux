@@ -165,6 +165,7 @@ int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  void(*timer)(void *arg), void *arg,
 				  int refresh);
+int script_browse(const char *script_opt);
 #else
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
@@ -186,6 +187,12 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self
 {
 	return 0;
 }
+
+static inline int script_browse(const char *script_opt)
+{
+	return 0;
+}
+
 #define K_LEFT -1
 #define K_RIGHT -2
 #endif

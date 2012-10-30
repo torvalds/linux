@@ -10,6 +10,7 @@
 #include "thread.h"
 #include "strlist.h"
 #include "vdso.h"
+#include "build-id.h"
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
