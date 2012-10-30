@@ -1125,6 +1125,7 @@ static struct adis16400_chip_info adis16400_chips[] = {
 	[ADIS16334] = {
 		.channels = adis16334_channels,
 		.num_channels = ARRAY_SIZE(adis16334_channels),
+		.flags = ADIS16400_HAS_PROD_ID,
 		.gyro_scale_micro = IIO_DEGREE_TO_RAD(50000), /* 0.05 deg/s */
 		.accel_scale_micro = IIO_G_TO_M_S_2(1000), /* 1 mg */
 		.temp_scale_nano = 67850000, /* 0.06785 C */
