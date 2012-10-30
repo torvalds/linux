@@ -20,7 +20,6 @@
  */
 
 #include "hdmi_hal.h"
-#include "hdmi_interface.h"
 #include "hdmi_core.h"
 
 void __iomem *HDMI_BASE;

@@ -155,8 +155,6 @@ hdmi_module_init(void)
 		return -1;
 	}
 
-	ret |= hdmi_i2c_add_driver();
-
 	ret = platform_device_register(&hdmi_device);
 
 	if (ret == 0)
@@ -171,8 +169,6 @@ static void __exit hdmi_module_exit(void)
 
 	platform_driver_unregister(&hdmi_driver);
 	platform_device_unregister(&hdmi_device);
-
-	hdmi_i2c_del_driver();
 
 	class_destroy(hdmi_class);
 

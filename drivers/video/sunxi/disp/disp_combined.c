@@ -20,7 +20,6 @@
  */
 
 #include "disp_display.h"
-#include "disp_combined.h"
 #include "disp_event.h"
 
 __s32 BSP_disp_set_bk_color(__u32 sel, __disp_color_t *color)
