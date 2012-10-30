@@ -66,12 +66,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define EEPROM_WATCHDOG					5
 #define EEPROM_TIMER_WATCHDOG_COUNTER	10
 
-struct str_DigitalInputHeader {
-	unsigned short w_Nchannel;
-	unsigned char b_Interruptible;
-	unsigned short w_NinterruptLogic;
-};
-
 struct str_DigitalOutputHeader {
 	unsigned short w_Nchannel;
 };
@@ -232,25 +226,24 @@ static unsigned short addi_eeprom_readw(unsigned long iobase,
 	return val;
 }
 
-static int i_EepromReadDigitalInputHeader(unsigned long iobase,
-					  char *type,
-					  unsigned short w_Address,
-					  struct str_DigitalInputHeader *s_Header)
+static void addi_eeprom_read_di_info(struct comedi_device *dev,
+				     unsigned long iobase,
+				     char *type,
+				     unsigned short addr)
 {
-	unsigned short w_Temp;
+	struct addi_private *devpriv = dev->private;
+	unsigned short tmp;
 
-	/*  read nbr of channels */
-	s_Header->w_Nchannel = addi_eeprom_readw(iobase, type, w_Address + 6);
+	/* Number of channels */
+	tmp = addi_eeprom_readw(iobase, type, addr + 6);
+	devpriv->s_EeParameters.i_NbrDiChannel = tmp;
 
-	/*  interruptible or not */
-	w_Temp = addi_eeprom_readw(iobase, type, w_Address + 8);
-	s_Header->b_Interruptible = (unsigned char) (w_Temp >> 7) & 0x01;
+	/* Interruptible or not */
+	tmp = addi_eeprom_readw(iobase, type, addr + 8);
+	tmp = (tmp >> 7) & 0x01;
 
 	/* How many interruptible logic */
-	s_Header->w_NinterruptLogic = addi_eeprom_readw(iobase, type,
-						        w_Address + 10);
-
-	return 0;
+	tmp = addi_eeprom_readw(iobase, type, addr + 10);
 }
 
 static int i_EepromReadDigitalOutputHeader(unsigned long iobase,
@@ -367,7 +360,6 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp;
-	struct str_DigitalInputHeader s_DigitalInputHeader;
 	struct str_DigitalOutputHeader s_DigitalOutputHeader;
 	/* struct str_TimerMainHeader     s_TimerMainHeader,s_WatchdogMainHeader; */
 	struct str_AnalogOutputHeader s_AnalogOutputHeader;
@@ -390,11 +382,7 @@ static int i_EepromReadMainHeader(unsigned long iobase,
 
 		switch (func) {
 		case EEPROM_DIGITALINPUT:
-			i_EepromReadDigitalInputHeader(iobase, type, addr,
-						       &s_DigitalInputHeader);
-
-			devpriv->s_EeParameters.i_NbrDiChannel =
-				s_DigitalInputHeader.w_Nchannel;
+			addi_eeprom_read_di_info(dev, iobase, type, addr);
 			break;
 
 		case EEPROM_DIGITALOUTPUT:
