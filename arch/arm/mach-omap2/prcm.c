@@ -47,18 +47,6 @@ void __iomem *prcm_mpu_base;
 
 #define MAX_MODULE_ENABLE_WAIT		100000
 
-u32 omap_prcm_get_reset_sources(void)
-{
-	/* XXX This presumably needs modification for 34XX */
-	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		return omap2_prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
-	if (cpu_is_omap44xx())
-		return omap2_prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
-
-	return 0;
-}
-EXPORT_SYMBOL(omap_prcm_get_reset_sources);
-
 /* Resets clock rates and reboots the system. Only called from system.h */
 void omap_prcm_restart(char mode, const char *cmd)
 {
