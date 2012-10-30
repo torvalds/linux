@@ -501,6 +501,20 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	strcpy(acpi_device_class(device), ACPI_PCI_ROOT_CLASS);
 	device->driver_data = root;
 
+	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
+	       acpi_device_name(device), acpi_device_bid(device),
+	       root->segment, &root->secondary);
+
+	/*
+	 * PCI Routing Table
+	 * -----------------
+	 * Evaluate and parse _PRT, if exists.
+	 */
+	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
+	if (ACPI_SUCCESS(status))
+		result = acpi_pci_irq_add_prt(device->handle, root->segment,
+					      root->secondary.start);
+
 	root->mcfg_addr = acpi_pci_root_get_mcfg_addr(device->handle);
 
 	/*
@@ -517,10 +531,6 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	mutex_lock(&acpi_pci_root_lock);
 	list_add_tail(&root->node, &acpi_pci_roots);
 	mutex_unlock(&acpi_pci_root_lock);
-
-	printk(KERN_INFO PREFIX "%s [%s] (domain %04x %pR)\n",
-	       acpi_device_name(device), acpi_device_bid(device),
-	       root->segment, &root->secondary);
 
 	/*
 	 * Scan the Root Bridge
@@ -546,16 +556,6 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	result = acpi_pci_bind_root(device);
 	if (result)
 		goto out_del_root;
-
-	/*
-	 * PCI Routing Table
-	 * -----------------
-	 * Evaluate and parse _PRT, if exists.
-	 */
-	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
-	if (ACPI_SUCCESS(status))
-		result = acpi_pci_irq_add_prt(device->handle, root->segment,
-					      root->secondary.start);
 
 	/*
 	 * Scan and bind all _ADR-Based Devices
@@ -635,6 +635,8 @@ out_del_root:
 	mutex_lock(&acpi_pci_root_lock);
 	list_del(&root->node);
 	mutex_unlock(&acpi_pci_root_lock);
+
+	acpi_pci_irq_del_prt(root->segment, root->secondary.start);
 end:
 	kfree(root);
 	return result;
