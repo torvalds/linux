@@ -97,6 +97,16 @@ config SATA_AHCI_PLATFORM
 
 	  If unsure, say N.
 
+config SATA_PHY
+	bool "SATA PHY Framework"
+	default n
+	help
+	  This option enables the SATA PHY utility framework APIs.
+	  The framework acts as an interface between the SATA device
+	  and the PHY device. The SATA PHY device registers itself
+	  with the framework through the APIs provided and the SATA
+	  device finds and requests for an appropriate PHY device.
+
 config AHCI_IMX
 	tristate "Freescale i.MX AHCI SATA support"
 	depends on SATA_AHCI_PLATFORM && MFD_SYSCON
