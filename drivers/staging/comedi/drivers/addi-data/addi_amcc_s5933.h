@@ -212,7 +212,7 @@ static const int i_ADDIDATADeviceID[] = { 0x15B8, 0x10E8 };
 
 /****************************************************************************/
 
-void v_pci_card_list_init(unsigned short pci_vendor, char display);
+void v_pci_card_list_init(unsigned short pci_vendor);
 void v_pci_card_list_cleanup(unsigned short pci_vendor);
 struct pcilst_struct *ptr_find_free_pci_card_by_device(unsigned short vendor_id,
 						       unsigned short
@@ -230,7 +230,6 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 
 int pci_card_alloc(struct pcilst_struct *amcc, int master);
 int i_pci_card_free(struct pcilst_struct *amcc);
-void v_pci_card_list_display(void);
 int i_pci_card_data(struct pcilst_struct *amcc,
 		    unsigned char *pci_bus, unsigned char *pci_slot,
 		    unsigned char *pci_func, resource_size_t * io_addr,
@@ -239,7 +238,7 @@ int i_pci_card_data(struct pcilst_struct *amcc,
 /****************************************************************************/
 
 /* build list of amcc cards in this system */
-void v_pci_card_list_init(unsigned short pci_vendor, char display)
+void v_pci_card_list_init(unsigned short pci_vendor)
 {
 	struct pci_dev *pcidev = NULL;
 	struct pcilst_struct *amcc, *last;
@@ -279,9 +278,6 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 			}
 		}
 	}
-
-	if (display)
-		v_pci_card_list_display();
 }
 
 /****************************************************************************/
@@ -382,28 +378,6 @@ int i_pci_card_free(struct pcilst_struct *amcc)
 	amcc->used = 0;
 	comedi_pci_disable(amcc->pcidev);
 	return 0;
-}
-
-/****************************************************************************/
-/* display list of found cards */
-void v_pci_card_list_display(void)
-{
-	struct pcilst_struct *amcc, *next;
-
-	printk(KERN_DEBUG "List of pci cards\n");
-	printk(KERN_DEBUG "bus:slot:func vendor device io_amcc io_daq irq used\n");
-
-	for (amcc = amcc_devices; amcc; amcc = next) {
-		next = amcc->next;
-		printk
-		    ("%2d   %2d   %2d  0x%4x 0x%4x   0x%8llx 0x%8llx  %2u  %2d\n",
-		     amcc->pci_bus, amcc->pci_slot, amcc->pci_func,
-		     amcc->vendor, amcc->device,
-		     (unsigned long long)amcc->io_addr[0],
-		     (unsigned long long)amcc->io_addr[2], amcc->irq,
-		     amcc->used);
-
-	}
 }
 
 /****************************************************************************/
