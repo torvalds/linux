@@ -5,8 +5,6 @@
 #ifndef __DRIVER_CPUIDLE_H
 #define __DRIVER_CPUIDLE_H
 
-#include <linux/device.h>
-
 /* For internal use only */
 extern struct cpuidle_governor *cpuidle_curr_governor;
 extern struct list_head cpuidle_governors;
@@ -25,6 +23,9 @@ extern void cpuidle_uninstall_idle_handler(void);
 extern int cpuidle_switch_governor(struct cpuidle_governor *gov);
 
 /* sysfs */
+
+struct device;
+
 extern int cpuidle_add_interface(struct device *dev);
 extern void cpuidle_remove_interface(struct device *dev);
 extern int cpuidle_add_state_sysfs(struct cpuidle_device *device);

@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/capability.h>
+#include <linux/device.h>
 
 #include "cpuidle.h"
 
