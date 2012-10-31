@@ -430,6 +430,7 @@ LIB_OBJS += $(OUTPUT)arch/common.o
 
 LIB_OBJS += $(OUTPUT)tests/parse-events.o
 LIB_OBJS += $(OUTPUT)tests/dso-data.o
+LIB_OBJS += $(OUTPUT)tests/attr.o
 
 BUILTIN_OBJS += $(OUTPUT)builtin-annotate.o
 BUILTIN_OBJS += $(OUTPUT)builtin-bench.o

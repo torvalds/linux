@@ -484,6 +484,8 @@ int main(int argc, const char **argv)
 	}
 	cmd = argv[0];
 
+	test_attr__init();
+
 	/*
 	 * We use PATH to find perf commands, but we prepend some higher
 	 * precedence paths: the "--exec-path" option, the PERF_EXEC_PATH
