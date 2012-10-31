@@ -1689,10 +1689,6 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, pipe);
 	assert_fdi_rx_enabled(dev_priv, pipe);
 
-	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
-		DRM_ERROR("Attempting to enable transcoder on Haswell with pipe > 0\n");
-		return;
-	}
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
 	pipeconf_val = I915_READ(PIPECONF(pipe));
