@@ -29,6 +29,7 @@
 						0x01c1 /* MX28_PAD_GPMI_RESETN__SSP3_CMD */
 						0x0111 /* MX28_PAD_GPMI_CE1N__SSP3_D3 */
 						0x01a2 /* MX28_PAD_GPMI_ALE__SSP3_D4 */
+						0x01b2 /* MX28_PAD_GPMI_CLE__SSP3_D5 */
 					>;
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
@@ -60,6 +61,11 @@
 					spi-max-frequency = <100000>;
 				};
 
+				dac0: dh2228@2 {
+					compatible = "rohm,dh2228fv";
+					reg = <2>;
+					spi-max-frequency = <100000>;
+				};
 			};
 		};
 
