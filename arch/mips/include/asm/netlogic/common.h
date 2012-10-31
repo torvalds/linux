@@ -48,6 +48,7 @@
 #include <linux/cpumask.h>
 #include <linux/spinlock.h>
 #include <asm/irq.h>
+#include <asm/mach-netlogic/multi-node.h>
 
 struct irq_desc;
 void nlm_smp_function_ipi_handler(unsigned int irq, struct irq_desc *desc);
@@ -86,12 +87,12 @@ struct nlm_soc_info {
 	spinlock_t piclock;
 };
 
-#define NLM_CORES_PER_NODE	8
-#define NLM_THREADS_PER_CORE	4
-#define NLM_CPUS_PER_NODE	(NLM_CORES_PER_NODE * NLM_THREADS_PER_CORE)
 #define	nlm_get_node(i)		(&nlm_nodes[i])
-#define NLM_NR_NODES		1
+#ifdef CONFIG_CPU_XLR
 #define	nlm_current_node()	(&nlm_nodes[0])
+#else
+#define nlm_current_node()	(&nlm_nodes[nlm_nodeid()])
+#endif
 
 struct irq_data;
 uint64_t nlm_pci_irqmask(int node);
