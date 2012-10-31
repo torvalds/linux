@@ -31,7 +31,6 @@
 #include <linux/kmod.h>
 #include <linux/uaccess.h>
 #include "../../comedidev.h"
-#include "addi_amcc_s5933.h"
 
 #define ERROR	-1
 #define SUCCESS	1

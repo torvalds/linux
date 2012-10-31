@@ -44,6 +44,37 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
+/*
+ * ADDON RELATED ADDITIONS
+ */
+/* Constant */
+#define APCI3120_ENABLE_TRANSFER_ADD_ON_LOW		0x00
+#define APCI3120_ENABLE_TRANSFER_ADD_ON_HIGH		0x1200
+#define APCI3120_A2P_FIFO_MANAGEMENT			0x04000400L
+#define APCI3120_AMWEN_ENABLE				0x02
+#define APCI3120_A2P_FIFO_WRITE_ENABLE			0x01
+#define APCI3120_FIFO_ADVANCE_ON_BYTE_2			0x20000000L
+#define APCI3120_ENABLE_WRITE_TC_INT			0x00004000L
+#define APCI3120_CLEAR_WRITE_TC_INT			0x00040000L
+#define APCI3120_DISABLE_AMWEN_AND_A2P_FIFO_WRITE	0x0
+#define APCI3120_DISABLE_BUS_MASTER_ADD_ON		0x0
+#define APCI3120_DISABLE_BUS_MASTER_PCI			0x0
+
+/* ADD_ON ::: this needed since apci supports 16 bit interface to add on */
+#define APCI3120_ADD_ON_AGCSTS_LOW	0x3C
+#define APCI3120_ADD_ON_AGCSTS_HIGH	(APCI3120_ADD_ON_AGCSTS_LOW + 2)
+#define APCI3120_ADD_ON_MWAR_LOW	0x24
+#define APCI3120_ADD_ON_MWAR_HIGH	(APCI3120_ADD_ON_MWAR_LOW + 2)
+#define APCI3120_ADD_ON_MWTC_LOW	0x058
+#define APCI3120_ADD_ON_MWTC_HIGH	(APCI3120_ADD_ON_MWTC_LOW + 2)
+
+/* AMCC */
+#define APCI3120_AMCC_OP_MCSR		0x3C
+#define APCI3120_AMCC_OP_REG_INTCSR	0x38
+
+/* for transfer count enable bit */
+#define AGCSTS_TC_ENABLE	0x10000000
+
 /* used for test on mixture of BIP/UNI ranges */
 #define APCI3120_BIPOLAR_RANGES		4
 
