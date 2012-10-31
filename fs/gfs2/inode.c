@@ -385,13 +385,13 @@ static void munge_mode_uid_gid(const struct gfs2_inode *dip,
 		inode->i_gid = current_fsgid();
 }
 
-static int alloc_dinode(struct gfs2_inode *ip)
+static int alloc_dinode(struct gfs2_inode *ip, u32 flags)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	int error;
 	int dblocks = 1;
 
-	error = gfs2_inplace_reserve(ip, RES_DINODE);
+	error = gfs2_inplace_reserve(ip, RES_DINODE, flags);
 	if (error)
 		goto out;
 
@@ -560,7 +560,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 		if (error)
 			goto fail_quota_locks;
 
-		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres);
+		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres, 0);
 		if (error)
 			goto fail_quota_locks;
 
@@ -650,6 +650,7 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	struct gfs2_glock *io_gl;
 	int error;
 	struct buffer_head *bh = NULL;
+	u32 aflags = 0;
 
 	if (!name->len || name->len > GFS2_FNAMESIZE)
 		return -ENAMETOOLONG;
@@ -685,7 +686,11 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 	munge_mode_uid_gid(dip, inode);
 	ip->i_goal = dip->i_goal;
 
-	error = alloc_dinode(ip);
+	if ((GFS2_I(sdp->sd_root_dir->d_inode) == dip) ||
+	    (dip->i_diskflags & GFS2_DIF_TOPDIR))
+		aflags |= GFS2_AF_ORLOV;
+
+	error = alloc_dinode(ip, aflags);
 	if (error)
 		goto fail_free_inode;
 
@@ -897,7 +902,7 @@ static int gfs2_link(struct dentry *old_dentry, struct inode *dir,
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres);
+		error = gfs2_inplace_reserve(dip, sdp->sd_max_dirres, 0);
 		if (error)
 			goto out_gunlock_q;
 
@@ -1378,7 +1383,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		if (error)
 			goto out_gunlock;
 
-		error = gfs2_inplace_reserve(ndip, sdp->sd_max_dirres);
+		error = gfs2_inplace_reserve(ndip, sdp->sd_max_dirres, 0);
 		if (error)
 			goto out_gunlock_q;
 

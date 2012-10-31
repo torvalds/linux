@@ -816,7 +816,7 @@ static int do_sync(unsigned int num_qd, struct gfs2_quota_data **qda)
 	blocks = num_qd * data_blocks + RES_DINODE + num_qd + 3;
 
 	reserved = 1 + (nalloc * (data_blocks + ind_blocks));
-	error = gfs2_inplace_reserve(ip, reserved);
+	error = gfs2_inplace_reserve(ip, reserved, 0);
 	if (error)
 		goto out_alloc;
 
@@ -1605,7 +1605,7 @@ static int gfs2_set_dqblk(struct super_block *sb, struct kqid qid,
 		gfs2_write_calc_reserv(ip, sizeof(struct gfs2_quota),
 				       &data_blocks, &ind_blocks);
 		blocks = 1 + data_blocks + ind_blocks;
-		error = gfs2_inplace_reserve(ip, blocks);
+		error = gfs2_inplace_reserve(ip, blocks, 0);
 		if (error)
 			goto out_i;
 		blocks += gfs2_rg_blocks(ip, blocks);

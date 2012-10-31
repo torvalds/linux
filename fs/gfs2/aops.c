@@ -643,7 +643,7 @@ static int gfs2_write_begin(struct file *file, struct address_space *mapping,
 			goto out_unlock;
 
 		requested = data_blocks + ind_blocks;
-		error = gfs2_inplace_reserve(ip, requested);
+		error = gfs2_inplace_reserve(ip, requested, 0);
 		if (error)
 			goto out_qunlock;
 	}
