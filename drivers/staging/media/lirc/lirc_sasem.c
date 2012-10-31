@@ -891,7 +891,7 @@ exit:
 }
 
 /**
- * Callback function for USB core API: disonnect
+ * Callback function for USB core API: disconnect
  */
 static void sasem_disconnect(struct usb_interface *interface)
 {
