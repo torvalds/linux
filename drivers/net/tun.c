@@ -195,6 +195,15 @@ static u16 tun_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return txq;
 }
 
+static inline bool tun_not_capable(struct tun_struct *tun)
+{
+	const struct cred *cred = current_cred();
+
+	return ((uid_valid(tun->owner) && !uid_eq(cred->euid, tun->owner)) ||
+		  (gid_valid(tun->group) && !in_egroup_p(tun->group))) &&
+		!capable(CAP_NET_ADMIN);
+}
+
 static void tun_set_real_num_queues(struct tun_struct *tun)
 {
 	netif_set_real_num_tx_queues(tun->dev, tun->numqueues);
@@ -1310,8 +1319,6 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 	dev = __dev_get_by_name(net, ifr->ifr_name);
 	if (dev) {
-		const struct cred *cred = current_cred();
-
 		if (ifr->ifr_flags & IFF_TUN_EXCL)
 			return -EBUSY;
 		if ((ifr->ifr_flags & IFF_TUN) && dev->netdev_ops == &tun_netdev_ops)
@@ -1321,9 +1328,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		else
 			return -EINVAL;
 
-		if (((uid_valid(tun->owner) && !uid_eq(cred->euid, tun->owner)) ||
-		     (gid_valid(tun->group) && !in_egroup_p(tun->group))) &&
-		    !capable(CAP_NET_ADMIN))
+		if (tun_not_capable(tun))
 			return -EPERM;
 		err = security_tun_dev_attach(tfile->socket.sk);
 		if (err < 0)
@@ -1530,6 +1535,40 @@ static void tun_set_sndbuf(struct tun_struct *tun)
 	}
 }
 
+static int tun_set_queue(struct file *file, struct ifreq *ifr)
+{
+	struct tun_file *tfile = file->private_data;
+	struct tun_struct *tun;
+	struct net_device *dev;
+	int ret = 0;
+
+	rtnl_lock();
+
+	if (ifr->ifr_flags & IFF_ATTACH_QUEUE) {
+		dev = __dev_get_by_name(tfile->net, ifr->ifr_name);
+		if (!dev) {
+			ret = -EINVAL;
+			goto unlock;
+		}
+
+		tun = netdev_priv(dev);
+		if (dev->netdev_ops != &tap_netdev_ops &&
+			dev->netdev_ops != &tun_netdev_ops)
+			ret = -EINVAL;
+		else if (tun_not_capable(tun))
+			ret = -EPERM;
+		else
+			ret = tun_attach(tun, file);
+	} else if (ifr->ifr_flags & IFF_DETACH_QUEUE)
+		__tun_detach(tfile, false);
+	else
+		ret = -EINVAL;
+
+unlock:
+	rtnl_unlock();
+	return ret;
+}
+
 static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg, int ifreq_len)
 {
@@ -1543,7 +1582,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	int vnet_hdr_sz;
 	int ret;
 
-	if (cmd == TUNSETIFF || _IOC_TYPE(cmd) == 0x89) {
+	if (cmd == TUNSETIFF || cmd == TUNSETQUEUE || _IOC_TYPE(cmd) == 0x89) {
 		if (copy_from_user(&ifr, argp, ifreq_len))
 			return -EFAULT;
 	} else {
@@ -1554,9 +1593,10 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 		 * This is needed because we never checked for invalid flags on
 		 * TUNSETIFF. */
 		return put_user(IFF_TUN | IFF_TAP | IFF_NO_PI | IFF_ONE_QUEUE |
-				IFF_VNET_HDR,
+				IFF_VNET_HDR | IFF_MULTI_QUEUE,
 				(unsigned int __user*)argp);
-	}
+	} else if (cmd == TUNSETQUEUE)
+		return tun_set_queue(file, &ifr);
 
 	ret = 0;
 	rtnl_lock();
