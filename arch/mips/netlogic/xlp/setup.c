@@ -68,10 +68,23 @@ static void nlm_linux_exit(void)
 
 void __init plat_mem_setup(void)
 {
+	void *fdtp;
+
 	panic_timeout	= 5;
 	_machine_restart = (void (*)(char *))nlm_linux_exit;
 	_machine_halt	= nlm_linux_exit;
 	pm_power_off	= nlm_linux_exit;
+
+	/*
+	 * If no FDT pointer is passed in, use the built-in FDT.
+	 * device_tree_init() does not handle CKSEG0 pointers in
+	 * 64-bit, so convert pointer.
+	 */
+	fdtp = (void *)(long)fw_arg0;
+	if (!fdtp)
+		fdtp = __dtb_start;
+	fdtp = phys_to_virt(__pa(fdtp));
+	early_init_devtree(fdtp);
 }
 
 const char *get_system_type(void)
@@ -96,23 +109,11 @@ void xlp_mmu_init(void)
 
 void __init prom_init(void)
 {
-	void *fdtp;
-
 	xlp_mmu_init();
 	nlm_hal_init();
 
-	/*
-	 * If no FDT pointer is passed in, use the built-in FDT.
-	 * device_tree_init() does not handle CKSEG0 pointers in
-	 * 64-bit, so convert pointer.
-	 */
-	fdtp = (void *)(long)fw_arg0;
-	if (!fdtp)
-		fdtp = __dtb_start;
-	fdtp = phys_to_virt(__pa(fdtp));
-	early_init_devtree(fdtp);
-
 	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
+
 #ifdef CONFIG_SMP
 	nlm_wakeup_secondary_cpus(0xffffffff);
 
