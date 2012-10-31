@@ -42,6 +42,12 @@
 static DEFINE_MUTEX(mem_ctls_mutex);
 static LIST_HEAD(mc_devices);
 
+/*
+ * Used to lock EDAC MC to just one module, avoiding two drivers e. g.
+ *	apei/ghes and i7core_edac to be used at the same time.
+ */
+static void const *edac_mc_owner;
+
 unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
 			         unsigned len)
 {
@@ -659,9 +665,9 @@ fail1:
 	return 1;
 }
 
-static void del_mc_from_global_list(struct mem_ctl_info *mci)
+static int del_mc_from_global_list(struct mem_ctl_info *mci)
 {
-	atomic_dec(&edac_handlers);
+	int handlers = atomic_dec_return(&edac_handlers);
 	list_del_rcu(&mci->link);
 
 	/* these are for safe removal of devices from global list while
@@ -669,6 +675,8 @@ static void del_mc_from_global_list(struct mem_ctl_info *mci)
 	 */
 	synchronize_rcu();
 	INIT_LIST_HEAD(&mci->link);
+
+	return handlers;
 }
 
 /**
@@ -712,6 +720,7 @@ EXPORT_SYMBOL(edac_mc_find);
 /* FIXME - should a warning be printed if no error detection? correction? */
 int edac_mc_add_mc(struct mem_ctl_info *mci)
 {
+	int ret = -EINVAL;
 	edac_dbg(0, "\n");
 
 #ifdef CONFIG_EDAC_DEBUG
@@ -742,6 +751,11 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 #endif
 	mutex_lock(&mem_ctls_mutex);
 
+	if (edac_mc_owner && edac_mc_owner != mci->mod_name) {
+		ret = -EPERM;
+		goto fail0;
+	}
+
 	if (add_mc_to_global_list(mci))
 		goto fail0;
 
@@ -768,6 +782,8 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 	edac_mc_printk(mci, KERN_INFO, "Giving out device to '%s' '%s':"
 		" DEV %s\n", mci->mod_name, mci->ctl_name, edac_dev_name(mci));
 
+	edac_mc_owner = mci->mod_name;
+
 	mutex_unlock(&mem_ctls_mutex);
 	return 0;
 
@@ -776,7 +792,7 @@ fail1:
 
 fail0:
 	mutex_unlock(&mem_ctls_mutex);
-	return 1;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(edac_mc_add_mc);
 
@@ -802,7 +818,8 @@ struct mem_ctl_info *edac_mc_del_mc(struct device *dev)
 		return NULL;
 	}
 
-	del_mc_from_global_list(mci);
+	if (!del_mc_from_global_list(mci))
+		edac_mc_owner = NULL;
 	mutex_unlock(&mem_ctls_mutex);
 
 	/* flush workq processes */
