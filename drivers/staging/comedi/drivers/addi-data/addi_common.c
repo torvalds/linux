@@ -92,7 +92,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int ret, pages, i, n_subdevices;
 	unsigned int dw_Dummy;
 	resource_size_t io_addr[5];
-	unsigned int irq;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
 	struct pcilst_struct *card = NULL;
 	int i_Dma = 0;
@@ -121,7 +120,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv->allocated = 1;
 
-	if ((i_pci_card_data(card, &io_addr[0], &irq)) < 0) {
+	if ((i_pci_card_data(card, &io_addr[0])) < 0) {
 		i_pci_card_free(card);
 		return -EIO;
 	}
@@ -176,14 +175,12 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* ## */
 
-	if (irq > 0) {
-		if (request_irq(irq, v_ADDI_Interrupt, IRQF_SHARED,
-				this_board->pc_DriverName, dev) < 0) {
-			irq = 0;	/* Can't use IRQ */
-		}
+	if (card->irq > 0) {
+		ret = request_irq(card->irq, v_ADDI_Interrupt, IRQF_SHARED,
+				  this_board->pc_DriverName, dev);
+		if (ret == 0)
+			dev->irq = card->irq;
 	}
-
-	dev->irq = irq;
 
 	/*  Read eepeom and fill addi_board Structure */
 
