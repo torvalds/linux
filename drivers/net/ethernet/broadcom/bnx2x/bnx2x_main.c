@@ -11902,7 +11902,15 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	/* disable FCOE L2 queue for E1x */
 	if (CHIP_IS_E1x(bp))
 		bp->flags |= NO_FCOE_FLAG;
-
+	/* disable FCOE for 57840 device, until FW supports it */
+	switch (ent->driver_data) {
+	case BCM57840_O:
+	case BCM57840_4_10:
+	case BCM57840_2_20:
+	case BCM57840_MFO:
+	case BCM57840_MF:
+		bp->flags |= NO_FCOE_FLAG;
+	}
 #endif
 
 
