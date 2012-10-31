@@ -11528,6 +11528,11 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			phy->media_type = ETH_PHY_BASE_T;
 			break;
 		case PORT_HW_CFG_NET_SERDES_IF_XFI:
+			phy->supported &= (SUPPORTED_1000baseT_Full |
+					   SUPPORTED_10000baseT_Full |
+					   SUPPORTED_FIBRE |
+					   SUPPORTED_Pause |
+					   SUPPORTED_Asym_Pause);
 			phy->media_type = ETH_PHY_XFP_FIBER;
 			break;
 		case PORT_HW_CFG_NET_SERDES_IF_SFI:
