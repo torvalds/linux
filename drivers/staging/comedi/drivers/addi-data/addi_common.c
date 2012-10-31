@@ -101,7 +101,6 @@ static int addi_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
 	unsigned int dw_Dummy;
-	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -121,34 +120,23 @@ static int addi_attach_pci(struct comedi_device *dev,
 		pci_set_master(pcidev);
 	devpriv->allocated = 1;
 
-	iobase_a = pci_resource_start(pcidev, 0);
-	iobase_main = pci_resource_start(pcidev, 1);
-	iobase_addon = pci_resource_start(pcidev, 2);
-	iobase_reserved = pci_resource_start(pcidev, 3);
+	if (!this_board->pc_EepromChip ||
+	    !strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
+		if (this_board->i_IorangeBase1)
+			dev->iobase = pci_resource_start(pcidev, 1);
+		else
+			dev->iobase = pci_resource_start(pcidev, 0);
 
-	if ((this_board->pc_EepromChip == NULL)
-		|| (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
-	   /************************************/
-		/* Test if more that 1 address used */
-	   /************************************/
-
-		if (this_board->i_IorangeBase1 != 0) {
-			dev->iobase = (unsigned long)iobase_main;	/*  DAQ base address... */
-		} else {
-			dev->iobase = (unsigned long)iobase_a;	/*  DAQ base address... */
-		}
-
-		devpriv->iobase = (int) dev->iobase;
-		devpriv->i_IobaseAmcc = (int) iobase_a;	/* AMCC base address... */
-		devpriv->i_IobaseAddon = (int) iobase_addon;	/* ADD ON base address.... */
-		devpriv->i_IobaseReserved = (int) iobase_reserved;
+		devpriv->iobase = dev->iobase;
+		devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+		devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	} else {
 		dev->iobase = pci_resource_start(pcidev, 2);
 		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
 					     this_board->i_IorangeBase3);
 	}
+	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	/* Initialize parameters that can be overridden in EEPROM */
 	devpriv->s_EeParameters.i_NbrAiChannel = this_board->i_NbrAiChannel;
