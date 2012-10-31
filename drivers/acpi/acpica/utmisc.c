@@ -642,25 +642,43 @@ u8 acpi_ut_valid_acpi_name(u32 name)
  *
  ******************************************************************************/
 
-acpi_name acpi_ut_repair_name(char *name)
+void acpi_ut_repair_name(char *name)
 {
-       u32 i;
-	char new_name[ACPI_NAME_SIZE];
+	u32 i;
+	u8 found_bad_char = FALSE;
+
+	ACPI_FUNCTION_NAME(ut_repair_name);
+
+	/* Check each character in the name */
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		new_name[i] = name[i];
+		if (acpi_ut_valid_acpi_char(name[i], i)) {
+			continue;
+		}
 
 		/*
 		 * Replace a bad character with something printable, yet technically
 		 * still invalid. This prevents any collisions with existing "good"
 		 * names in the namespace.
 		 */
-		if (!acpi_ut_valid_acpi_char(name[i], i)) {
-			new_name[i] = '*';
-		}
+		name[i] = '*';
+		found_bad_char = TRUE;
 	}
 
-	return (*(u32 *) new_name);
+	if (found_bad_char) {
+
+		/* Report warning only if in strict mode or debug mode */
+
+		if (!acpi_gbl_enable_interpreter_slack) {
+			ACPI_WARNING((AE_INFO,
+				      "Found bad character(s) in name, repaired: [%4.4s]\n",
+				      name));
+		} else {
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "Found bad character(s) in name, repaired: [%4.4s]\n",
+					  name));
+		}
+	}
 }
 
 /*******************************************************************************
