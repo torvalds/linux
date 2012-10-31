@@ -202,11 +202,6 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		break;
 	case PCI_VENDOR_ID_INTEL:
 		ehci->need_io_watchdog = 0;
-		if (pdev->device == 0x0806 || pdev->device == 0x0811
-				|| pdev->device == 0x0829) {
-			ehci_info(ehci, "disable lpm for langwell/penwell\n");
-			ehci->has_lpm = 0;
-		}
 		break;
 	case PCI_VENDOR_ID_NVIDIA:
 		switch (pdev->device) {
@@ -216,8 +211,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		 * devices with PPCD enabled.
 		 */
 		case 0x0d9d:
-			ehci_info(ehci, "disable lpm/ppcd for nvidia mcp89");
-			ehci->has_lpm = 0;
+			ehci_info(ehci, "disable ppcd for nvidia mcp89\n");
 			ehci->has_ppcd = 0;
 			ehci->command &= ~CMD_PPCEE;
 			break;
@@ -424,11 +418,6 @@ static const struct hc_driver ehci_pci_hc_driver = {
 	.bus_resume =		ehci_bus_resume,
 	.relinquish_port =	ehci_relinquish_port,
 	.port_handed_over =	ehci_port_handed_over,
-
-	/*
-	 * call back when device connected and addressed
-	 */
-	.update_device =	ehci_update_device,
 
 	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };

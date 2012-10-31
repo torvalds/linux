@@ -39,7 +39,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
-#include <linux/uaccess.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -107,11 +106,6 @@ MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
 static bool ignore_oc = 0;
 module_param (ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
-
-/* for link power management(LPM) feature */
-static unsigned int hird;
-module_param(hird, int, S_IRUGO);
-MODULE_PARM_DESC(hird, "host initiated resume duration, +1 for each 75us");
 
 #define	INTR_MASK (STS_IAA | STS_FATAL | STS_PCD | STS_ERR | STS_INT)
 
@@ -318,7 +312,6 @@ static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 #include "ehci-timer.c"
 #include "ehci-hub.c"
-#include "ehci-lpm.c"
 #include "ehci-mem.c"
 #include "ehci-q.c"
 #include "ehci-sched.c"
@@ -579,17 +572,6 @@ static int ehci_init(struct usb_hcd *hcd)
 		/* periodic schedule size can be smaller than default */
 		temp &= ~(3 << 2);
 		temp |= (EHCI_TUNE_FLS << 2);
-	}
-	if (HCC_LPM(hcc_params)) {
-		/* support link power management EHCI 1.1 addendum */
-		ehci_dbg(ehci, "support lpm\n");
-		ehci->has_lpm = 1;
-		if (hird > 0xf) {
-			ehci_dbg(ehci, "hird %d invalid, use default 0",
-			hird);
-			hird = 0;
-		}
-		temp |= hird << 24;
 	}
 	ehci->command = temp;
 

@@ -777,11 +777,6 @@ static int ehci_hub_control (
 						status_reg);
 			break;
 		case USB_PORT_FEAT_C_CONNECTION:
-			if (ehci->has_lpm) {
-				/* clear PORTSC bits on disconnect */
-				temp &= ~PORT_LPM;
-				temp &= ~PORT_DEV_ADDR;
-			}
 			ehci_writel(ehci, temp | PORT_CSC, status_reg);
 			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
