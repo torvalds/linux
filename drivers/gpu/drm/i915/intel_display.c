@@ -1770,14 +1770,9 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 		DRM_ERROR("failed to disable transcoder %d\n", pipe);
 }
 
-static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv,
-				       enum transcoder cpu_transcoder)
+static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 {
 	u32 val;
-
-	/* FDI relies on the transcoder */
-	assert_fdi_tx_disabled(dev_priv, cpu_transcoder);
-	assert_fdi_rx_disabled(dev_priv, TRANSCODER_A);
 
 	val = I915_READ(_TRANSACONF);
 	val &= ~TRANS_ENABLE;
@@ -3638,7 +3633,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	if (is_pch_port) {
 		ironlake_fdi_disable(crtc);
-		lpt_disable_pch_transcoder(dev_priv, cpu_transcoder);
+		lpt_disable_pch_transcoder(dev_priv);
 		ironlake_fdi_pll_disable(intel_crtc);
 	}
 
