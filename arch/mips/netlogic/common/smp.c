@@ -160,9 +160,9 @@ void __init nlm_smp_setup(void)
 	int num_cpus, i;
 
 	boot_cpu = hard_smp_processor_id();
-	cpus_clear(phys_cpu_present_map);
+	cpumask_clear(&phys_cpu_present_map);
 
-	cpu_set(boot_cpu, phys_cpu_present_map);
+	cpumask_set_cpu(boot_cpu, &phys_cpu_present_map);
 	__cpu_number_map[boot_cpu] = 0;
 	__cpu_logical_map[0] = boot_cpu;
 	set_cpu_possible(0, true);
@@ -174,7 +174,7 @@ void __init nlm_smp_setup(void)
 		 * it is only set for ASPs (see smpboot.S)
 		 */
 		if (nlm_cpu_ready[i]) {
-			cpu_set(i, phys_cpu_present_map);
+			cpumask_set_cpu(i, &phys_cpu_present_map);
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
 			set_cpu_possible(num_cpus, true);
@@ -183,19 +183,22 @@ void __init nlm_smp_setup(void)
 	}
 
 	pr_info("Phys CPU present map: %lx, possible map %lx\n",
-		(unsigned long)phys_cpu_present_map.bits[0],
+		(unsigned long)cpumask_bits(&phys_cpu_present_map)[0],
 		(unsigned long)cpumask_bits(cpu_possible_mask)[0]);
 
 	pr_info("Detected %i Slave CPU(s)\n", num_cpus);
 	nlm_set_nmi_handler(nlm_boot_secondary_cpus);
 }
 
-static int nlm_parse_cpumask(u32 cpu_mask)
+static int nlm_parse_cpumask(cpumask_t *wakeup_mask)
 {
 	uint32_t core0_thr_mask, core_thr_mask;
-	int threadmode, i;
+	int threadmode, i, j;
 
-	core0_thr_mask = cpu_mask & 0xf;
+	core0_thr_mask = 0;
+	for (i = 0; i < 4; i++)
+		if (cpumask_test_cpu(i, wakeup_mask))
+			core0_thr_mask |= (1 << i);
 	switch (core0_thr_mask) {
 	case 1:
 		nlm_threads_per_core = 1;
@@ -214,25 +217,23 @@ static int nlm_parse_cpumask(u32 cpu_mask)
 	}
 
 	/* Verify other cores CPU masks */
-	nlm_coremask = 1;
-	nlm_cpumask = core0_thr_mask;
-	for (i = 1; i < 8; i++) {
-		core_thr_mask = (cpu_mask >> (i * 4)) & 0xf;
-		if (core_thr_mask) {
-			if (core_thr_mask != core0_thr_mask)
+	for (i = 0; i < NR_CPUS; i += 4) {
+		core_thr_mask = 0;
+		for (j = 0; j < 4; j++)
+			if (cpumask_test_cpu(i + j, wakeup_mask))
+				core_thr_mask |= (1 << j);
+		if (core_thr_mask != 0 && core_thr_mask != core0_thr_mask)
 				goto unsupp;
-			nlm_coremask |= 1 << i;
-			nlm_cpumask |= core0_thr_mask << (4 * i);
-		}
 	}
 	return threadmode;
 
 unsupp:
-	panic("Unsupported CPU mask %x\n", cpu_mask);
+	panic("Unsupported CPU mask %lx\n",
+		(unsigned long)cpumask_bits(wakeup_mask)[0]);
 	return 0;
 }
 
-int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
+int __cpuinit nlm_wakeup_secondary_cpus(void)
 {
 	unsigned long reset_vec;
 	char *reset_data;
@@ -244,7 +245,7 @@ int __cpuinit nlm_wakeup_secondary_cpus(u32 wakeup_mask)
 			(nlm_reset_entry_end - nlm_reset_entry));
 
 	/* verify the mask and setup core config variables */
-	threadmode = nlm_parse_cpumask(wakeup_mask);
+	threadmode = nlm_parse_cpumask(&nlm_cpumask);
 
 	/* Setup CPU init parameters */
 	reset_data = (char *)CKSEG1ADDR(RESET_DATA_PHYS);

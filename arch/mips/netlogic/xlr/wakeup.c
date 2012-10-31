@@ -59,7 +59,7 @@ int __cpuinit xlr_wakeup_secondary_cpus(void)
 	boot_cpu = hard_smp_processor_id();
 	nlm_set_nmi_handler(nlm_rmiboot_preboot);
 	for (i = 0; i < NR_CPUS; i++) {
-		if (i == boot_cpu || (nlm_cpumask & (1u << i)) == 0)
+		if (i == boot_cpu || !cpumask_test_cpu(i, &nlm_cpumask))
 			continue;
 		nlm_pic_send_ipi(nlm_pic_base, i, 1, 1); /* send NMI */
 	}

@@ -55,7 +55,8 @@
 unsigned long nlm_common_ebase = 0x0;
 
 /* default to uniprocessor */
-uint32_t nlm_coremask = 1, nlm_cpumask  = 1;
+uint32_t nlm_coremask = 1;
+cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 int  nlm_threads_per_core = 1;
 extern u32 __dtb_start[];
 
@@ -115,7 +116,8 @@ void __init prom_init(void)
 	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
 
 #ifdef CONFIG_SMP
-	nlm_wakeup_secondary_cpus(0xffffffff);
+	cpumask_setall(&nlm_cpumask);
+	nlm_wakeup_secondary_cpus();
 
 	/* update TLB size after waking up threads */
 	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
