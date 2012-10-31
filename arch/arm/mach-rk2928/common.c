@@ -131,6 +131,8 @@ void __init rk2928_map_io(void)
         #ifdef CONFIG_RK_USB_UART
         writel_relaxed(0x007f0051, RK2928_GRF_BASE + GRF_UOC0_CON5);
         writel_relaxed(0x34003000, RK2928_GRF_BASE + GRF_UOC1_CON4);
+        #else
+        writel_relaxed(0x34000000, RK2928_GRF_BASE + GRF_UOC1_CON4);
         #endif
         writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
         writel_relaxed(0x07, DEBUG_UART_BASE + 0x88);
