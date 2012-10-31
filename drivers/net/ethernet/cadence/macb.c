@@ -33,9 +33,6 @@
 #define RX_RING_SIZE		512 /* must be power of 2 */
 #define RX_RING_BYTES		(sizeof(struct macb_dma_desc) * RX_RING_SIZE)
 
-/* Make the IP header word-aligned (the ethernet header is 14 bytes) */
-#define RX_OFFSET		2
-
 #define TX_RING_SIZE		128 /* must be power of 2 */
 #define TX_RING_BYTES		(sizeof(struct macb_dma_desc) * TX_RING_SIZE)
 
@@ -498,7 +495,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 {
 	unsigned int len;
 	unsigned int frag;
-	unsigned int offset = 0;
+	unsigned int offset;
 	struct sk_buff *skb;
 	struct macb_dma_desc *desc;
 
@@ -509,7 +506,16 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 		macb_rx_ring_wrap(first_frag),
 		macb_rx_ring_wrap(last_frag), len);
 
-	skb = netdev_alloc_skb(bp->dev, len + RX_OFFSET);
+	/*
+	 * The ethernet header starts NET_IP_ALIGN bytes into the
+	 * first buffer. Since the header is 14 bytes, this makes the
+	 * payload word-aligned.
+	 *
+	 * Instead of calling skb_reserve(NET_IP_ALIGN), we just copy
+	 * the two padding bytes into the skb so that we avoid hitting
+	 * the slowpath in memcpy(), and pull them off afterwards.
+	 */
+	skb = netdev_alloc_skb(bp->dev, len + NET_IP_ALIGN);
 	if (!skb) {
 		bp->stats.rx_dropped++;
 		for (frag = first_frag; ; frag++) {
@@ -525,7 +531,8 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 		return 1;
 	}
 
-	skb_reserve(skb, RX_OFFSET);
+	offset = 0;
+	len += NET_IP_ALIGN;
 	skb_checksum_none_assert(skb);
 	skb_put(skb, len);
 
@@ -549,10 +556,11 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 	/* Make descriptor updates visible to hardware */
 	wmb();
 
+	__skb_pull(skb, NET_IP_ALIGN);
 	skb->protocol = eth_type_trans(skb, bp->dev);
 
 	bp->stats.rx_packets++;
-	bp->stats.rx_bytes += len;
+	bp->stats.rx_bytes += skb->len;
 	netdev_vdbg(bp->dev, "received skb of length %u, csum: %08x\n",
 		   skb->len, skb->csum);
 	netif_receive_skb(skb);
@@ -1012,6 +1020,7 @@ static void macb_init_hw(struct macb *bp)
 	__macb_set_hwaddr(bp);
 
 	config = macb_mdc_clk_div(bp);
+	config |= MACB_BF(RBOF, NET_IP_ALIGN);	/* Make eth data aligned */
 	config |= MACB_BIT(PAE);		/* PAuse Enable */
 	config |= MACB_BIT(DRFCS);		/* Discard Rx FCS */
 	config |= MACB_BIT(BIG);		/* Receive oversized frames */
