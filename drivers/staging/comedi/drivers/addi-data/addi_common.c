@@ -402,8 +402,10 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			free_irq(dev->irq, dev);
 		if ((this_board->pc_EepromChip == NULL) ||
 		    (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
-			if (devpriv->allocated)
-				i_pci_card_free(devpriv->amcc);
+			if (devpriv->allocated) {
+				comedi_pci_disable(devpriv->amcc->pcidev);
+				devpriv->amcc->used = 0;
+			}
 			if (devpriv->ul_DmaBufferVirtual[0]) {
 				free_pages((unsigned long)devpriv->
 					ul_DmaBufferVirtual[0],
@@ -416,8 +418,10 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			}
 		} else {
 			iounmap(devpriv->dw_AiBase);
-			if (devpriv->allocated)
-				i_pci_card_free(devpriv->amcc);
+			if (devpriv->allocated) {
+				comedi_pci_disable(devpriv->amcc->pcidev);
+				devpriv->amcc->used = 0;
+			}
 		}
 		if (pci_list_builded) {
 			v_pci_card_list_cleanup(this_board->i_VendorId);

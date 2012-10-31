@@ -225,8 +225,6 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 						    unsigned short pci_bus,
 						    unsigned short pci_slot);
 
-int i_pci_card_free(struct pcilst_struct *amcc);
-
 /****************************************************************************/
 
 /* build list of amcc cards in this system */
@@ -324,20 +322,6 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 
 	/* no card found */
 	return 1;
-}
-
-/****************************************************************************/
-/* mark card as free */
-int i_pci_card_free(struct pcilst_struct *amcc)
-{
-	if (!amcc)
-		return -1;
-
-	if (!amcc->used)
-		return 1;
-	amcc->used = 0;
-	comedi_pci_disable(amcc->pcidev);
-	return 0;
 }
 
 /****************************************************************************/
