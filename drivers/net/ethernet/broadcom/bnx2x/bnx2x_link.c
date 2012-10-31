@@ -3558,13 +3558,11 @@ static void bnx2x_warpcore_set_lpi_passthrough(struct bnx2x_phy *phy,
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 					struct link_params *params,
 					struct link_vars *vars) {
-	u16 val16 = 0, lane, i, cl72_ctrl;
+	u16 lane, i, cl72_ctrl, an_adv = 0;
+	u16 ucode_ver;
 	struct bnx2x *bp = params->bp;
 	static struct bnx2x_reg_set reg_set[] = {
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2, 0x7},
-		{MDIO_AN_DEVAD, MDIO_WC_REG_PAR_DET_10G_CTRL, 0},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_XGXSBLK1_LANECTRL0, 0xff},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_XGXSBLK1_LANECTRL1, 0x5555},
 		{MDIO_PMA_DEVAD, MDIO_WC_REG_IEEE0BLK_AUTONEGNP, 0x0},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_RX66_CONTROL, 0x7415},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_MISC2, 0x6190},
@@ -3589,7 +3587,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	     (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_1G)) ||
 	    (vars->line_speed == SPEED_1000)) {
 		u32 addr = MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2;
-		val16 |= (1<<5);
+		an_adv |= (1<<5);
 
 		/* Enable CL37 1G Parallel Detect */
 		bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD, addr, 0x1);
@@ -3599,11 +3597,14 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	     (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_10G)) ||
 	    (vars->line_speed ==  SPEED_10000)) {
 		/* Check adding advertisement for 10G KR */
-		val16 |= (1<<7);
+		an_adv |= (1<<7);
 		/* Enable 10G Parallel Detect */
+		CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+				  MDIO_AER_BLOCK_AER_REG, 0);
+
 		bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
 				 MDIO_WC_REG_PAR_DET_10G_CTRL, 1);
-
+		bnx2x_set_aer_mmd(params, phy);
 		DP(NETIF_MSG_LINK, "Advertize 10G\n");
 	}
 
@@ -3623,7 +3624,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 
 	/* Advertised speeds */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
-			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1, val16);
+			 MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1, an_adv);
 
 	/* Advertised and set FEC (Forward Error Correction) */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
@@ -3647,9 +3648,10 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	/* Set KR Autoneg Work-Around flag for Warpcore version older than D108
 	 */
 	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
-			MDIO_WC_REG_UC_INFO_B1_VERSION, &val16);
-	if (val16 < 0xd108) {
-		DP(NETIF_MSG_LINK, "Enable AN KR work-around\n");
+			MDIO_WC_REG_UC_INFO_B1_VERSION, &ucode_ver);
+	if (ucode_ver < 0xd108) {
+		DP(NETIF_MSG_LINK, "Enable AN KR work-around. WC ver:0x%x\n",
+			       ucode_ver);
 		vars->rx_tx_asic_rst = MAX_KR_LINK_RETRY;
 	}
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
@@ -3670,21 +3672,16 @@ static void bnx2x_warpcore_set_10G_KR(struct bnx2x_phy *phy,
 				      struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
-	u16 i;
+	u16 val16, i, lane;
 	static struct bnx2x_reg_set reg_set[] = {
 		/* Disable Autoneg */
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2, 0x7},
-		{MDIO_AN_DEVAD, MDIO_WC_REG_PAR_DET_10G_CTRL, 0},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL,
 			0x3f00},
 		{MDIO_AN_DEVAD, MDIO_WC_REG_AN_IEEE1BLK_AN_ADVERTISEMENT1, 0},
 		{MDIO_AN_DEVAD, MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x0},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_DIGITAL3_UP1, 0x1},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_DIGITAL5_MISC7, 0xa},
-		/* Disable CL36 PCS Tx */
-		{MDIO_WC_DEVAD, MDIO_WC_REG_XGXSBLK1_LANECTRL0, 0x0},
-		/* Double Wide Single Data Rate @ pll rate */
-		{MDIO_WC_DEVAD, MDIO_WC_REG_XGXSBLK1_LANECTRL1, 0xFFFF},
 		/* Leave cl72 training enable, needed for KR */
 		{MDIO_PMA_DEVAD,
 		MDIO_WC_REG_PMD_IEEE9BLK_TENGBASE_KR_PMD_CONTROL_REGISTER_150,
@@ -3695,11 +3692,24 @@ static void bnx2x_warpcore_set_10G_KR(struct bnx2x_phy *phy,
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
 
-	/* Leave CL72 enabled */
-	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
-				 MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL,
-				 0x3800);
+	lane = bnx2x_get_warpcore_lane(phy, params);
+	/* Global registers */
+	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+			  MDIO_AER_BLOCK_AER_REG, 0);
+	/* Disable CL36 PCS Tx */
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_XGXSBLK1_LANECTRL0, &val16);
+	val16 &= ~(0x0011 << lane);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_XGXSBLK1_LANECTRL0, val16);
 
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_XGXSBLK1_LANECTRL1, &val16);
+	val16 |= (0x0303 << (lane << 1));
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_XGXSBLK1_LANECTRL1, val16);
+	/* Restore AER */
+	bnx2x_set_aer_mmd(params, phy);
 	/* Set speed via PMA/PMD register */
 	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD,
 			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x2040);
@@ -4322,7 +4332,7 @@ static void bnx2x_warpcore_link_reset(struct bnx2x_phy *phy,
 				      struct link_params *params)
 {
 	struct bnx2x *bp = params->bp;
-	u16 val16;
+	u16 val16, lane;
 	bnx2x_sfp_e3_set_transmitter(params, phy, 0);
 	bnx2x_set_mdio_clk(bp, params->chip_id, params->port);
 	bnx2x_set_aer_mmd(params, phy);
@@ -4358,6 +4368,30 @@ static void bnx2x_warpcore_link_reset(struct bnx2x_phy *phy,
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_XGXSBLK1_LANECTRL2,
 			 val16 & 0xff00);
+
+	lane = bnx2x_get_warpcore_lane(phy, params);
+	/* Disable CL36 PCS Tx */
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_XGXSBLK1_LANECTRL0, &val16);
+	val16 |= (0x11 << lane);
+	if (phy->flags & FLAGS_WC_DUAL_MODE)
+		val16 |= (0x22 << lane);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_XGXSBLK1_LANECTRL0, val16);
+
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_XGXSBLK1_LANECTRL1, &val16);
+	val16 &= ~(0x0303 << (lane << 1));
+	val16 |= (0x0101 << (lane << 1));
+	if (phy->flags & FLAGS_WC_DUAL_MODE) {
+		val16 &= ~(0x0c0c << (lane << 1));
+		val16 |= (0x0404 << (lane << 1));
+	}
+
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_XGXSBLK1_LANECTRL1, val16);
+	/* Restore AER */
+	bnx2x_set_aer_mmd(params, phy);
 
 }
 
