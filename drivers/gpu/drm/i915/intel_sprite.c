@@ -48,8 +48,8 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe;
 	u32 sprctl, sprscale = 0;
-	int pixel_size;
 	unsigned long sprsurf_offset, linear_offset;
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	sprctl = I915_READ(SPRCTL(pipe));
 
@@ -62,32 +62,25 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
 		sprctl |= SPRITE_FORMAT_RGBX888 | SPRITE_RGB_ORDER_RGBX;
-		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
 		sprctl |= SPRITE_FORMAT_RGBX888;
-		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YUYV;
-		pixel_size = 2;
 		break;
 	case DRM_FORMAT_YVYU:
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YVYU;
-		pixel_size = 2;
 		break;
 	case DRM_FORMAT_UYVY:
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_UYVY;
-		pixel_size = 2;
 		break;
 	case DRM_FORMAT_VYUY:
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_VYUY;
-		pixel_size = 2;
 		break;
 	default:
 		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
 		sprctl |= SPRITE_FORMAT_RGBX888;
-		pixel_size = 4;
 		break;
 	}
 
@@ -237,9 +230,10 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	int pipe = intel_plane->pipe, pixel_size;
+	int pipe = intel_plane->pipe;
 	unsigned long dvssurf_offset, linear_offset;
 	u32 dvscntr, dvsscale;
+	int pixel_size = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	dvscntr = I915_READ(DVSCNTR(pipe));
 
@@ -252,32 +246,25 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
 		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
-		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
 		dvscntr |= DVS_FORMAT_RGBX888;
-		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YUYV;
-		pixel_size = 2;
 		break;
 	case DRM_FORMAT_YVYU:
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YVYU;
-		pixel_size = 2;
 		break;
 	case DRM_FORMAT_UYVY:
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_UYVY;
-		pixel_size = 2;
 		break;
 	case DRM_FORMAT_VYUY:
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_VYUY;
-		pixel_size = 2;
 		break;
 	default:
 		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
 		dvscntr |= DVS_FORMAT_RGBX888;
-		pixel_size = 4;
 		break;
 	}
 
