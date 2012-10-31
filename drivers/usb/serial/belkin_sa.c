@@ -37,10 +37,6 @@
 #include <linux/usb/serial.h>
 #include "belkin_sa.h"
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.3"
 #define DRIVER_AUTHOR "William Greathouse <wgreathouse@smva.com>"
 #define DRIVER_DESC "USB Belkin Serial converter driver"
 
@@ -509,5 +505,4 @@ module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

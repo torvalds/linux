@@ -37,11 +37,6 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
-/*
- * Version information
- */
-
-#define DRIVER_VERSION "v0.7"
 #define DRIVER_AUTHOR "Bart Hartgers <bart.hartgers+ark3116@gmail.com>"
 #define DRIVER_DESC "USB ARK3116 serial/IrDA driver"
 #define DRIVER_DEV_DESC "ARK3116 RS232/IrDA"

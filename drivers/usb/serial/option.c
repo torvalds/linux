@@ -28,7 +28,6 @@
   device features.
 */
 
-#define DRIVER_VERSION "v0.7.2"
 #define DRIVER_AUTHOR "Matthias Urlichs <smurf@smurf.noris.de>"
 #define DRIVER_DESC "USB Driver for GSM modems"
 
@@ -1509,5 +1508,4 @@ static int option_send_setup(struct usb_serial_port *port)
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

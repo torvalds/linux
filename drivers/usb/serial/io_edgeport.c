@@ -51,10 +51,6 @@
 #include "io_ionsp.h"		/* info for the iosp messages */
 #include "io_16654.h"		/* 16654 UART defines */
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v2.7"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com> and David Iacovelli"
 #define DRIVER_DESC "Edgeport USB Serial Driver"
 

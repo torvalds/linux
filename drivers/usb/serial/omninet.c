@@ -23,10 +23,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.1"
 #define DRIVER_AUTHOR "Alessandro Zummo"
 #define DRIVER_DESC "USB ZyXEL omni.net LCD PLUS Driver"
 

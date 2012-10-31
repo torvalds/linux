@@ -24,10 +24,6 @@
 #include <linux/uaccess.h>
 #include <linux/usb/serial.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.09"
 #define DRIVER_DESC "Silicon Labs CP210x RS232 serial adaptor driver"
 
 /*
@@ -871,5 +867,4 @@ static void cp210x_release(struct usb_serial *serial)
 module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

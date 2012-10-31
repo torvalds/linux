@@ -32,10 +32,6 @@
 #include "iuu_phoenix.h"
 #include <linux/random.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.12"
 #define DRIVER_DESC "Infinity USB Unlimited Phoenix driver"
 
 static const struct usb_device_id id_table[] = {
@@ -1231,8 +1227,6 @@ MODULE_AUTHOR("Alain Degreffe eczema@ecze.com");
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
-
-MODULE_VERSION(DRIVER_VERSION);
 
 module_param(xmas, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(xmas, "Xmas colors enabled or not");

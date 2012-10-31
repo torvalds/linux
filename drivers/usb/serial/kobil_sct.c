@@ -38,8 +38,6 @@
 #include <linux/ioctl.h>
 #include "kobil_sct.h"
 
-/* Version Information */
-#define DRIVER_VERSION "21/05/2004"
 #define DRIVER_AUTHOR "KOBIL Systems GmbH - http://www.kobil.com"
 #define DRIVER_DESC "KOBIL USB Smart Card Terminal Driver (experimental)"
 
