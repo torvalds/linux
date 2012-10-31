@@ -362,7 +362,12 @@
 		__v; \
 	})
 
-struct dma_desc {
+/**
+ * struct macb_dma_desc - Hardware DMA descriptor
+ * @addr: DMA address of data buffer
+ * @ctrl: Control and status bits
+ */
+struct macb_dma_desc {
 	u32	addr;
 	u32	ctrl;
 };
@@ -427,7 +432,12 @@ struct dma_desc {
 #define MACB_TX_USED_OFFSET			31
 #define MACB_TX_USED_SIZE			1
 
-struct ring_info {
+/**
+ * struct macb_tx_skb - data about an skb which is being transmitted
+ * @skb: skb currently being transmitted
+ * @mapping: DMA address of the skb's data buffer
+ */
+struct macb_tx_skb {
 	struct sk_buff		*skb;
 	dma_addr_t		mapping;
 };
@@ -512,12 +522,12 @@ struct macb {
 	void __iomem		*regs;
 
 	unsigned int		rx_tail;
-	struct dma_desc		*rx_ring;
+	struct macb_dma_desc	*rx_ring;
 	void			*rx_buffers;
 
 	unsigned int		tx_head, tx_tail;
-	struct dma_desc		*tx_ring;
-	struct ring_info	*tx_skb;
+	struct macb_dma_desc	*tx_ring;
+	struct macb_tx_skb	*tx_skb;
 
 	spinlock_t		lock;
 	struct platform_device	*pdev;
@@ -534,8 +544,6 @@ struct macb {
 	dma_addr_t		rx_ring_dma;
 	dma_addr_t		tx_ring_dma;
 	dma_addr_t		rx_buffers_dma;
-
-	unsigned int		rx_pending, tx_pending;
 
 	struct mii_bus		*mii_bus;
 	struct phy_device	*phy_dev;
