@@ -760,6 +760,19 @@ out:
 	return 20;
 }
 
+static int spc_modesense_informational_exceptions(struct se_device *dev, u8 pc, unsigned char *p)
+{
+	p[0] = 0x1c;
+	p[1] = 0x0a;
+
+	/* No changeable values for now */
+	if (pc == 1)
+		goto out;
+
+out:
+	return 12;
+}
+
 static struct {
 	uint8_t		page;
 	uint8_t		subpage;
@@ -768,6 +781,7 @@ static struct {
 	{ .page = 0x01, .subpage = 0x00, .emulate = spc_modesense_rwrecovery },
 	{ .page = 0x08, .subpage = 0x00, .emulate = spc_modesense_caching },
 	{ .page = 0x0a, .subpage = 0x00, .emulate = spc_modesense_control },
+	{ .page = 0x1c, .subpage = 0x00, .emulate = spc_modesense_informational_exceptions },
 };
 
 static void spc_modesense_write_protect(unsigned char *buf, int type)
