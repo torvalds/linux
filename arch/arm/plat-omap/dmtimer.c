@@ -43,8 +43,6 @@
 
 #include <plat/dmtimer.h>
 
-#include <mach/hardware.h>
-
 static u32 omap_reserved_systimers;
 static LIST_HEAD(omap_timer_list);
 static DEFINE_SPINLOCK(dm_timer_lock);
@@ -270,7 +268,7 @@ int omap_dm_timer_get_irq(struct omap_dm_timer *timer)
 EXPORT_SYMBOL_GPL(omap_dm_timer_get_irq);
 
 #if defined(CONFIG_ARCH_OMAP1)
-
+#include <mach/hardware.h>
 /**
  * omap_dm_timer_modify_idlect_mask - Check if any running timers use ARMXOR
  * @inputmask: current value of idlect mask

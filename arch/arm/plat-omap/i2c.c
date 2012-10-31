@@ -33,8 +33,6 @@
 
 #include <plat/i2c.h>
 
-#include <mach/irqs.h>
-
 #define OMAP_I2C_MAX_CONTROLLERS 4
 static struct omap_i2c_bus_platform_data i2c_pdata[OMAP_I2C_MAX_CONTROLLERS];
 
