@@ -150,21 +150,21 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 
 	memset(&flush_cmd, 0, sizeof(flush_cmd));
 	if (flush_control & BIT(IWL_RXON_CTX_BSS))
-		flush_cmd.fifo_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+		flush_cmd.queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
 				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
 				 IWL_SCD_MGMT_MSK;
 	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
 	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
-		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
+		flush_cmd.queue_control |= IWL_PAN_SCD_VO_MSK |
 				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
 				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
 				IWL_PAN_SCD_MULTICAST_MSK;
 
 	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE)
-		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
+		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
 
-	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
-		       flush_cmd.fifo_control);
+	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
+		       flush_cmd.queue_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
 	return iwl_dvm_send_cmd(priv, &cmd);

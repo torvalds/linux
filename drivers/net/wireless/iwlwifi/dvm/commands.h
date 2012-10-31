@@ -1004,14 +1004,14 @@ struct iwl_rem_sta_cmd {
  * the flush operation ends when both the scheduler DMA done and TXFIFO empty
  * are set.
  *
- * @fifo_control: bit mask for which queues to flush
+ * @queue_control: bit mask for which queues to flush
  * @flush_control: flush controls
  *	0: Dump single MSDU
  *	1: Dump multiple MSDU according to PS, INVALID STA, TTL, TID disable.
  *	2: Dump all FIFO
  */
 struct iwl_txfifo_flush_cmd {
-	__le32 fifo_control;
+	__le32 queue_control;
 	__le16 flush_control;
 	__le16 reserved;
 } __packed;
