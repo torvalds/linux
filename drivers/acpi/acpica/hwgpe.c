@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: hwgpe - Low level GPE enable/disable/clear functions

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exstoren - AML Interpreter object store support,

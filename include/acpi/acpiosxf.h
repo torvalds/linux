@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acpiosxf.h - All interfaces to the OS Services Layer (OSL).  These

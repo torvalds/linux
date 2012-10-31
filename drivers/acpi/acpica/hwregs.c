@@ -1,4 +1,3 @@
-
 /*******************************************************************************
  *
  * Module Name: hwregs - Read/write access functions for the various ACPI

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exresop - AML Interpreter operand/object resolution

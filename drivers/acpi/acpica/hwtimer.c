@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: hwtimer.c - ACPI Power Management Timer Interface

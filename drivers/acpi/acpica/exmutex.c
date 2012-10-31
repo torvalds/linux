@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exmutex - ASL Mutex Acquire/Release functions

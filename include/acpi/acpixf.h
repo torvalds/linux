@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acpixf.h - External interfaces to the ACPI subsystem

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acobject.h - Definition of union acpi_operand_object  (Internal object only)

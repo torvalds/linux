@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default op_region (address space) handlers

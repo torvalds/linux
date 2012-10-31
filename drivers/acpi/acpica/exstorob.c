@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
