@@ -267,7 +267,7 @@ config HID_GYRATION
 
 config HID_ICADE
 	tristate "ION iCade arcade controller"
-	depends on (BT_HIDP)
+	depends on BT_HIDP
 	---help---
 	Support for the ION iCade arcade controller to work as a joystick.
 
