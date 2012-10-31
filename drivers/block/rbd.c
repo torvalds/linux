@@ -3068,6 +3068,14 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 	void *p;
 
 	/*
+	 * When probing a parent image, the image id is already
+	 * known (and the image name likely is not).  There's no
+	 * need to fetch the image id again in this case.
+	 */
+	if (rbd_dev->spec->image_id)
+		return 0;
+
+	/*
 	 * First, see if the format 2 image id file exists, and if
 	 * so, get the image's persistent id from it.
 	 */
