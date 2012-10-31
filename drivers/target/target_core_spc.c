@@ -639,18 +639,28 @@ out:
 	return ret;
 }
 
-static int spc_modesense_rwrecovery(unsigned char *p)
+static int spc_modesense_rwrecovery(struct se_device *dev, u8 pc, u8 *p)
 {
 	p[0] = 0x01;
 	p[1] = 0x0a;
 
+	/* No changeable values for now */
+	if (pc == 1)
+		goto out;
+
+out:
 	return 12;
 }
 
-static int spc_modesense_control(struct se_device *dev, unsigned char *p)
+static int spc_modesense_control(struct se_device *dev, u8 pc, u8 *p)
 {
 	p[0] = 0x0a;
 	p[1] = 0x0a;
+
+	/* No changeable values for now */
+	if (pc == 1)
+		goto out;
+
 	p[2] = 2;
 	/*
 	 * From spc4r23, 7.4.7 Control mode page
@@ -729,19 +739,36 @@ static int spc_modesense_control(struct se_device *dev, unsigned char *p)
 	p[9] = 0xff;
 	p[11] = 30;
 
+out:
 	return 12;
 }
 
-static int spc_modesense_caching(struct se_device *dev, unsigned char *p)
+static int spc_modesense_caching(struct se_device *dev, u8 pc, u8 *p)
 {
 	p[0] = 0x08;
 	p[1] = 0x12;
+
+	/* No changeable values for now */
+	if (pc == 1)
+		goto out;
+
 	if (dev->dev_attrib.emulate_write_cache > 0)
 		p[2] = 0x04; /* Write Cache Enable */
 	p[12] = 0x20; /* Disabled Read Ahead */
 
+out:
 	return 20;
 }
+
+static struct {
+	uint8_t		page;
+	uint8_t		subpage;
+	int		(*emulate)(struct se_device *, u8, unsigned char *);
+} modesense_handlers[] = {
+	{ .page = 0x01, .subpage = 0x00, .emulate = spc_modesense_rwrecovery },
+	{ .page = 0x08, .subpage = 0x00, .emulate = spc_modesense_caching },
+	{ .page = 0x0a, .subpage = 0x00, .emulate = spc_modesense_control },
+};
 
 static void spc_modesense_write_protect(unsigned char *buf, int type)
 {
@@ -769,77 +796,167 @@ static void spc_modesense_dpofua(unsigned char *buf, int type)
 	}
 }
 
+static int spc_modesense_blockdesc(unsigned char *buf, u64 blocks, u32 block_size)
+{
+	*buf++ = 8;
+	put_unaligned_be32(min(blocks, 0xffffffffull), buf);
+	buf += 4;
+	put_unaligned_be32(block_size, buf);
+	return 9;
+}
+
+static int spc_modesense_long_blockdesc(unsigned char *buf, u64 blocks, u32 block_size)
+{
+	if (blocks <= 0xffffffff)
+		return spc_modesense_blockdesc(buf + 3, blocks, block_size) + 3;
+
+	*buf++ = 1;		/* LONGLBA */
+	buf += 2;
+	*buf++ = 16;
+	put_unaligned_be64(blocks, buf);
+	buf += 12;
+	put_unaligned_be32(block_size, buf);
+
+	return 17;
+}
+
 static int spc_emulate_modesense(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
-	unsigned char *rbuf;
+	unsigned char *buf, *map_buf;
 	int type = dev->transport->get_device_type(dev);
 	int ten = (cmd->t_task_cdb[0] == MODE_SENSE_10);
-	u32 offset = ten ? 8 : 4;
+	bool dbd = !!(cdb[1] & 0x08);
+	bool llba = ten ? !!(cdb[1] & 0x10) : false;
+	u8 pc = cdb[2] >> 6;
+	u8 page = cdb[2] & 0x3f;
+	u8 subpage = cdb[3];
 	int length = 0;
-	unsigned char buf[SE_MODE_PAGE_BUF];
+	int ret;
+	int i;
 
-	memset(buf, 0, SE_MODE_PAGE_BUF);
+	map_buf = transport_kmap_data_sg(cmd);
 
-	switch (cdb[2] & 0x3f) {
-	case 0x01:
-		length = spc_modesense_rwrecovery(&buf[offset]);
-		break;
-	case 0x08:
-		length = spc_modesense_caching(dev, &buf[offset]);
-		break;
-	case 0x0a:
-		length = spc_modesense_control(dev, &buf[offset]);
-		break;
-	case 0x3f:
-		length = spc_modesense_rwrecovery(&buf[offset]);
-		length += spc_modesense_caching(dev, &buf[offset+length]);
-		length += spc_modesense_control(dev, &buf[offset+length]);
-		break;
-	default:
-		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
-		       cdb[2] & 0x3f, cdb[3]);
-		cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
-		return -EINVAL;
-	}
-	offset += length;
-
-	if (ten) {
-		offset -= 2;
-		buf[0] = (offset >> 8) & 0xff;
-		buf[1] = offset & 0xff;
-		offset += 2;
-
-		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
-		    (cmd->se_deve &&
-		    (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
-			spc_modesense_write_protect(&buf[3], type);
-
-		if ((dev->dev_attrib.emulate_write_cache > 0) &&
-		    (dev->dev_attrib.emulate_fua_write > 0))
-			spc_modesense_dpofua(&buf[3], type);
+	/*
+	 * If SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is not set, then we
+	 * know we actually allocated a full page.  Otherwise, if the
+	 * data buffer is too small, allocate a temporary buffer so we
+	 * don't have to worry about overruns in all our INQUIRY
+	 * emulation handling.
+	 */
+	if (cmd->data_length < SE_MODE_PAGE_BUF &&
+	    (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)) {
+		buf = kzalloc(SE_MODE_PAGE_BUF, GFP_KERNEL);
+		if (!buf) {
+			transport_kunmap_data_sg(cmd);
+			cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			return -ENOMEM;
+		}
 	} else {
-		offset -= 1;
-		buf[0] = offset & 0xff;
-		offset += 1;
-
-		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
-		    (cmd->se_deve &&
-		    (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
-			spc_modesense_write_protect(&buf[2], type);
-
-		if ((dev->dev_attrib.emulate_write_cache > 0) &&
-		    (dev->dev_attrib.emulate_fua_write > 0))
-			spc_modesense_dpofua(&buf[2], type);
+		buf = map_buf;
 	}
 
-	rbuf = transport_kmap_data_sg(cmd);
-	if (rbuf) {
-		memcpy(rbuf, buf, min(offset, cmd->data_length));
-		transport_kunmap_data_sg(cmd);
+	length = ten ? 2 : 1;
+
+	/* DEVICE-SPECIFIC PARAMETER */
+	if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
+	    (cmd->se_deve &&
+	     (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)))
+		spc_modesense_write_protect(&buf[length], type);
+
+	if ((dev->dev_attrib.emulate_write_cache > 0) &&
+	    (dev->dev_attrib.emulate_fua_write > 0))
+		spc_modesense_dpofua(&buf[length], type);
+
+	++length;
+
+	/* BLOCK DESCRIPTOR */
+
+	/*
+	 * For now we only include a block descriptor for disk (SBC)
+	 * devices; other command sets use a slightly different format.
+	 */
+	if (!dbd && type == TYPE_DISK) {
+		u64 blocks = dev->transport->get_blocks(dev);
+		u32 block_size = dev->dev_attrib.block_size;
+
+		if (ten) {
+			if (llba) {
+				length += spc_modesense_long_blockdesc(&buf[length],
+								       blocks, block_size);
+			} else {
+				length += 3;
+				length += spc_modesense_blockdesc(&buf[length],
+								  blocks, block_size);
+			}
+		} else {
+			length += spc_modesense_blockdesc(&buf[length], blocks,
+							  block_size);
+		}
+	} else {
+		if (ten)
+			length += 4;
+		else
+			length += 1;
 	}
 
+	if (page == 0x3f) {
+		if (subpage != 0x00 && subpage != 0xff) {
+			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+			length = -EINVAL;
+			goto out;
+		}
+
+		for (i = 0; i < ARRAY_SIZE(modesense_handlers); ++i) {
+			/*
+			 * Tricky way to say all subpage 00h for
+			 * subpage==0, all subpages for subpage==0xff
+			 * (and we just checked above that those are
+			 * the only two possibilities).
+			 */
+			if ((modesense_handlers[i].subpage & ~subpage) == 0) {
+				ret = modesense_handlers[i].emulate(dev, pc, &buf[length]);
+				if (!ten && length + ret >= 255)
+					break;
+				length += ret;
+			}
+		}
+
+		goto set_length;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(modesense_handlers); ++i)
+		if (modesense_handlers[i].page == page &&
+		    modesense_handlers[i].subpage == subpage) {
+			length += modesense_handlers[i].emulate(dev, pc, &buf[length]);
+			goto set_length;
+		}
+
+	/*
+	 * We don't intend to implement:
+	 *  - obsolete page 03h "format parameters" (checked by Solaris)
+	 */
+	if (page != 0x03)
+		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
+		       page, subpage);
+
+	cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
+	return -EINVAL;
+
+set_length:
+	if (ten)
+		put_unaligned_be16(length - 2, buf);
+	else
+		buf[0] = length - 1;
+
+out:
+	if (buf != map_buf) {
+		memcpy(map_buf, buf, cmd->data_length);
+		kfree(buf);
+	}
+
+	transport_kunmap_data_sg(cmd);
 	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
