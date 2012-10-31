@@ -469,6 +469,22 @@ static struct ceph_pg_pool_info *__lookup_pg_pool(struct rb_root *root, int id)
 	return NULL;
 }
 
+const char *ceph_pg_pool_name_by_id(struct ceph_osdmap *map, u64 id)
+{
+	struct ceph_pg_pool_info *pi;
+
+	if (id == CEPH_NOPOOL)
+		return NULL;
+
+	if (WARN_ON_ONCE(id > (u64) INT_MAX))
+		return NULL;
+
+	pi = __lookup_pg_pool(&map->pg_pools, (int) id);
+
+	return pi ? pi->name : NULL;
+}
+EXPORT_SYMBOL(ceph_pg_pool_name_by_id);
+
 int ceph_pg_poolid_by_name(struct ceph_osdmap *map, const char *name)
 {
 	struct rb_node *rbp;
