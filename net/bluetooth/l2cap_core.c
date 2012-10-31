@@ -3478,12 +3478,21 @@ void __l2cap_connect_rsp_defer(struct l2cap_chan *chan)
 	struct l2cap_conn_rsp rsp;
 	struct l2cap_conn *conn = chan->conn;
 	u8 buf[128];
+	u8 rsp_code;
 
 	rsp.scid   = cpu_to_le16(chan->dcid);
 	rsp.dcid   = cpu_to_le16(chan->scid);
 	rsp.result = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
 	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
-	l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+
+	if (chan->hs_hcon)
+		rsp_code = L2CAP_CREATE_CHAN_RSP;
+	else
+		rsp_code = L2CAP_CONN_RSP;
+
+	BT_DBG("chan %p rsp_code %u", chan, rsp_code);
+
+	l2cap_send_cmd(conn, chan->ident, rsp_code, sizeof(rsp), &rsp);
 
 	if (test_and_set_bit(CONF_REQ_SENT, &chan->conf_state))
 		return;
