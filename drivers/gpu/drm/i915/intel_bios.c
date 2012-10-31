@@ -762,7 +762,8 @@ void intel_setup_bios(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	 /* Set the Panel Power On/Off timings if uninitialized. */
-	if ((I915_READ(PP_ON_DELAYS) == 0) && (I915_READ(PP_OFF_DELAYS) == 0)) {
+	if (!HAS_PCH_SPLIT(dev) &&
+	    I915_READ(PP_ON_DELAYS) == 0 && I915_READ(PP_OFF_DELAYS) == 0) {
 		/* Set T2 to 40ms and T5 to 200ms */
 		I915_WRITE(PP_ON_DELAYS, 0x019007d0);
 
