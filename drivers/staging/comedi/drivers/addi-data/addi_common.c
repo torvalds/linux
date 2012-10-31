@@ -112,11 +112,17 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
 					     this_board->i_DeviceId,
 					     it->options[0],
-					     it->options[1], i_Dma);
+					     it->options[1]);
 
 	if (card == NULL)
 		return -EIO;
 
+	ret = comedi_pci_enable(card->pcidev, "addi_amcc_s5933");
+	if (ret)
+		return ret;
+	if (i_Dma)
+		pci_set_master(card->pcidev);
+	card->used = 1;
 	devpriv->allocated = 1;
 
 	iobase_a = pci_resource_start(card->pcidev, 0);

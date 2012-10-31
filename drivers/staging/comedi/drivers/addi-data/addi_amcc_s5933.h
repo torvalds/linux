@@ -224,10 +224,8 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 						    unsigned short device_id,
 						    unsigned short pci_bus,
-						    unsigned short pci_slot,
-						    int i_Master);
+						    unsigned short pci_slot);
 
-int pci_card_alloc(struct pcilst_struct *amcc, int master);
 int i_pci_card_free(struct pcilst_struct *amcc);
 
 /****************************************************************************/
@@ -332,24 +330,6 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 }
 
 /****************************************************************************/
-/* mark card as used */
-int pci_card_alloc(struct pcilst_struct *amcc, int master)
-{
-	if (!amcc)
-		return -1;
-
-	if (amcc->used)
-		return 1;
-	if (comedi_pci_enable(amcc->pcidev, "addi_amcc_s5933"))
-		return -1;
-	if (master)
-		pci_set_master(amcc->pcidev);
-	amcc->used = 1;
-
-	return 0;
-}
-
-/****************************************************************************/
 /* mark card as free */
 int i_pci_card_free(struct pcilst_struct *amcc)
 {
@@ -368,8 +348,7 @@ int i_pci_card_free(struct pcilst_struct *amcc)
 struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 						    unsigned short device_id,
 						    unsigned short pci_bus,
-						    unsigned short pci_slot,
-						    int i_Master)
+						    unsigned short pci_slot)
 {
 	struct pcilst_struct *card;
 
@@ -393,12 +372,6 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 				  pci_bus, pci_slot);
 			return NULL;
 		}
-	}
-
-	if (pci_card_alloc(card, i_Master) != 0) {
-		printk(" - Can't allocate card!\n");
-		return NULL;
-
 	}
 
 	return card;
