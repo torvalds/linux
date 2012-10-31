@@ -69,6 +69,22 @@ extern const char *acpi_gbl_siz_decode[];
 extern const char *acpi_gbl_trs_decode[];
 extern const char *acpi_gbl_ttp_decode[];
 extern const char *acpi_gbl_typ_decode[];
+extern const char *acpi_gbl_ppc_decode[];
+extern const char *acpi_gbl_ior_decode[];
+extern const char *acpi_gbl_dts_decode[];
+extern const char *acpi_gbl_ct_decode[];
+extern const char *acpi_gbl_sbt_decode[];
+extern const char *acpi_gbl_am_decode[];
+extern const char *acpi_gbl_sm_decode[];
+extern const char *acpi_gbl_wm_decode[];
+extern const char *acpi_gbl_cph_decode[];
+extern const char *acpi_gbl_cpo_decode[];
+extern const char *acpi_gbl_dp_decode[];
+extern const char *acpi_gbl_ed_decode[];
+extern const char *acpi_gbl_bpb_decode[];
+extern const char *acpi_gbl_sb_decode[];
+extern const char *acpi_gbl_fc_decode[];
+extern const char *acpi_gbl_pt_decode[];
 #endif
 
 /* Types for Resource descriptor entries */
@@ -79,14 +95,14 @@ extern const char *acpi_gbl_typ_decode[];
 #define ACPI_SMALL_VARIABLE_LENGTH      3
 
 typedef
-acpi_status(*acpi_walk_aml_callback) (u8 * aml,
+acpi_status(*acpi_walk_aml_callback) (u8 *aml,
 				      u32 length,
 				      u32 offset,
 				      u8 resource_index, void **context);
 
 typedef
 acpi_status(*acpi_pkg_callback) (u8 object_type,
-				 union acpi_operand_object * source_object,
+				 union acpi_operand_object *source_object,
 				 union acpi_generic_state * state,
 				 void *context);
 
@@ -202,7 +218,9 @@ extern const u8 _acpi_ctype[];
 #define ACPI_IS_PRINT(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP | _ACPI_DI | _ACPI_SP | _ACPI_PU))
 #define ACPI_IS_ALPHA(c)  (_acpi_ctype[(unsigned char)(c)] & (_ACPI_LO | _ACPI_UP))
 
-#endif				/* ACPI_USE_SYSTEM_CLIBRARY */
+#endif				/* !ACPI_USE_SYSTEM_CLIBRARY */
+
+#define ACPI_IS_ASCII(c)  ((c) < 0x80)
 
 /*
  * utcopy - Object construction and conversion interfaces
@@ -210,11 +228,11 @@ extern const u8 _acpi_ctype[];
 acpi_status
 acpi_ut_build_simple_object(union acpi_operand_object *obj,
 			    union acpi_object *user_obj,
-			    u8 * data_space, u32 * buffer_space_used);
+			    u8 *data_space, u32 *buffer_space_used);
 
 acpi_status
 acpi_ut_build_package_object(union acpi_operand_object *obj,
-			     u8 * buffer, u32 * space_used);
+			     u8 *buffer, u32 *space_used);
 
 acpi_status
 acpi_ut_copy_iobject_to_eobject(union acpi_operand_object *obj,
@@ -287,9 +305,9 @@ acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
 		 const char *module_name, u32 component_id, u8 *ptr);
 
-void acpi_ut_dump_buffer(u8 * buffer, u32 count, u32 display, u32 component_id);
+void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
 
-void acpi_ut_dump_buffer2(u8 * buffer, u32 count, u32 display);
+void acpi_ut_dump_buffer2(u8 *buffer, u32 count, u32 display);
 
 void acpi_ut_report_error(char *module_name, u32 line_number);
 
@@ -337,15 +355,15 @@ acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
  */
 acpi_status
 acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id **return_id);
+		    struct acpica_device_id ** return_id);
 
 acpi_status
 acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id **return_id);
+		    struct acpica_device_id ** return_id);
 
 acpi_status
 acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id_list **return_cid_list);
+		    struct acpica_device_id_list ** return_cid_list);
 
 /*
  * utlock - reader/writer locks
@@ -479,6 +497,10 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 
 void acpi_ut_strupr(char *src_string);
 
+void acpi_ut_strlwr(char *src_string);
+
+int acpi_ut_stricmp(char *string1, char *string2);
+
 void acpi_ut_print_string(char *string, u8 max_length);
 
 u8 acpi_ut_valid_acpi_name(u32 name);
@@ -487,7 +509,7 @@ void acpi_ut_repair_name(char *name);
 
 u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 * ret_integer);
+acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
 
 /* Values for Base above (16=Hex, 10=Decimal) */
 
@@ -508,12 +530,12 @@ acpi_ut_display_init_pathname(u8 type,
  * utresrc
  */
 acpi_status
-acpi_ut_walk_aml_resources(u8 * aml,
+acpi_ut_walk_aml_resources(u8 *aml,
 			   acpi_size aml_length,
 			   acpi_walk_aml_callback user_function,
 			   void **context);
 
-acpi_status acpi_ut_validate_resource(void *aml, u8 * return_index);
+acpi_status acpi_ut_validate_resource(void *aml, u8 *return_index);
 
 u32 acpi_ut_get_descriptor_length(void *aml);
 
@@ -524,8 +546,7 @@ u8 acpi_ut_get_resource_header_length(void *aml);
 u8 acpi_ut_get_resource_type(void *aml);
 
 acpi_status
-acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc,
-			     u8 ** end_tag);
+acpi_ut_get_resource_end_tag(union acpi_operand_object *obj_desc, u8 **end_tag);
 
 /*
  * utmutex - mutex support

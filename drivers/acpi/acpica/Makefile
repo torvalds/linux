@@ -161,3 +161,6 @@ acpi-y +=		\
 	utxfinit.o	\
 	utxferror.o	\
 	utxfmutex.o
+
+acpi-$(ACPI_FUTURE_USAGE) += uttrack.o utcache.o utclib.o
+
