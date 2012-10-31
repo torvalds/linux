@@ -18,9 +18,6 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#define ERROR	-1
-#define SUCCESS	1
-
 #define LOBYTE(W)	(unsigned char)((W) & 0xFF)
 #define HIBYTE(W)	(unsigned char)(((W) >> 8) & 0xFF)
 #define MAKEWORD(H, L)	(unsigned short)((L) | ((H) << 8))
