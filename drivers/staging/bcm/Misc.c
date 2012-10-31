@@ -346,7 +346,7 @@ int CopyBufferToControlPacket(struct bcm_mini_adapter *Adapter, void *ioBuffer)
 			pktlen = pLeader->PLength;
 			Status = StoreCmControlResponseMessage(Adapter, pucAddIndication, &pktlen);
 			if (Status != 1) {
-				ClearTargetDSXBuffer(Adapter, ((stLocalSFAddIndicationAlt *)pucAddIndication)->u16TID, FALSE);
+				ClearTargetDSXBuffer(Adapter, ((struct bcm_add_indication_alt *)pucAddIndication)->u16TID, FALSE);
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, TX_CONTROL, DBG_LVL_ALL, " Error Restoring The DSX Control Packet. Dsx Buffers on Target may not be Setup Properly ");
 				return STATUS_FAILURE;
 			}

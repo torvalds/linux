@@ -1060,10 +1060,10 @@ cntrlEnd:
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength < sizeof(stLocalSFAddIndicationAlt)) {
+		if (IoBuffer.OutputLength < sizeof(struct bcm_add_indication_alt)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"Mismatch req: %lx needed is =0x%zx!!!",
-					IoBuffer.OutputLength, sizeof(stLocalSFAddIndicationAlt));
+					IoBuffer.OutputLength, sizeof(struct bcm_add_indication_alt));
 			return -EINVAL;
 		}
 
