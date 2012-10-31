@@ -72,6 +72,7 @@
 	dsb
 .endm
 #else
+void tegra_resume(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
 void tegra20_hotplug_init(void);
