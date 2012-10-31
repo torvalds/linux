@@ -15,22 +15,8 @@
  * any later version.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/timex.h>
-#include <linux/timer.h>
-#include <linux/pci.h>
-#include <linux/io.h>
-#include <linux/kmod.h>
-#include <linux/uaccess.h>
-#include "../../comedidev.h"
 
 #define ERROR	-1
 #define SUCCESS	1
