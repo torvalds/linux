@@ -373,6 +373,11 @@
 					vddadc-supply	= <&ab8500_ldo_tvout_reg>;
 				};
 
+				ab8500_chargalg {
+					compatible	= "stericsson,ab8500-chargalg";
+					battery		= <&ab8500_battery>;
+				};
+
 				ab8500_usb {
 					compatible = "stericsson,ab8500-usb";
 					interrupts = < 90 0x4

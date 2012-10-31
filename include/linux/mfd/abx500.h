@@ -274,12 +274,6 @@ struct abx500_bm_data {
 
 extern struct abx500_bm_data ab8500_bm_data;
 
-struct abx500_bmdevs_plat_data {
-	char	**supplied_to;
-	size_t	num_supplicants;
-	bool	autopower_cfg;
-};
-
 enum {
 	NTC_EXTERNAL = 0,
 	NTC_INTERNAL,
