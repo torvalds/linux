@@ -3696,20 +3696,9 @@ static void hci_phy_link_complete_evt(struct hci_dev *hdev,
 	hci_conn_hold_device(hcon);
 	hci_conn_add_sysfs(hcon);
 
+	amp_physical_cfm(bredr_hcon, hcon);
+
 	hci_dev_unlock(hdev);
-
-	if (hcon->out) {
-		struct hci_dev *bredr_hdev = hci_dev_hold(bredr_hcon->hdev);
-
-		if (!bredr_hdev)
-			return;
-
-		/* Placeholder - create chan req
-		l2cap_chan_create_cfm(bredr_hcon, hcon->remote_id);
-		*/
-
-		hci_dev_put(bredr_hdev);
-	}
 }
 
 static void hci_loglink_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)

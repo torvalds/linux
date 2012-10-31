@@ -373,6 +373,30 @@ void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 	hci_send_cmd(hdev, HCI_OP_ACCEPT_PHY_LINK, sizeof(cp), &cp);
 }
 
+void amp_physical_cfm(struct hci_conn *bredr_hcon, struct hci_conn *hs_hcon)
+{
+	struct hci_dev *bredr_hdev = hci_dev_hold(bredr_hcon->hdev);
+	struct amp_mgr *mgr = hs_hcon->amp_mgr;
+	struct l2cap_chan *bredr_chan;
+
+	BT_DBG("bredr_hcon %p hs_hcon %p mgr %p", bredr_hcon, hs_hcon, mgr);
+
+	if (!bredr_hdev || !mgr || !mgr->bredr_chan)
+		return;
+
+	bredr_chan = mgr->bredr_chan;
+
+	set_bit(FLAG_EFS_ENABLE, &bredr_chan->flags);
+	bredr_chan->ctrl_id = hs_hcon->remote_id;
+	bredr_chan->hs_hcon = hs_hcon;
+	bredr_chan->conn->mtu = hs_hcon->hdev->block_mtu;
+	bredr_chan->fcs = L2CAP_FCS_NONE;
+
+	l2cap_physical_cfm(bredr_chan, 0);
+
+	hci_dev_put(bredr_hdev);
+}
+
 void amp_create_logical_link(struct l2cap_chan *chan)
 {
 	struct hci_cp_create_accept_logical_link cp;
