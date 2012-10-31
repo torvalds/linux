@@ -1835,6 +1835,11 @@ static void hci_cs_accept_phylink(struct hci_dev *hdev, u8 status)
 	amp_write_remote_assoc(hdev, cp->phy_handle);
 }
 
+static void hci_cs_create_logical_link(struct hci_dev *hdev, u8 status)
+{
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+}
+
 static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	__u8 status = *((__u8 *) skb->data);
@@ -2667,6 +2672,10 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_ACCEPT_PHY_LINK:
 		hci_cs_accept_phylink(hdev, ev->status);
+		break;
+
+	case HCI_OP_CREATE_LOGICAL_LINK:
+		hci_cs_create_logical_link(hdev, ev->status);
 		break;
 
 	default:

@@ -372,3 +372,52 @@ void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 
 	hci_send_cmd(hdev, HCI_OP_ACCEPT_PHY_LINK, sizeof(cp), &cp);
 }
+
+void amp_create_logical_link(struct l2cap_chan *chan)
+{
+	struct hci_cp_create_accept_logical_link cp;
+	struct hci_conn *hcon;
+	struct hci_dev *hdev;
+
+	BT_DBG("chan %p", chan);
+
+	if (!chan->hs_hcon)
+		return;
+
+	hdev = hci_dev_hold(chan->hs_hcon->hdev);
+	if (!hdev)
+		return;
+
+	BT_DBG("chan %p ctrl_id %d dst %pMR", chan, chan->ctrl_id,
+	       chan->conn->dst);
+
+	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, chan->conn->dst);
+	if (!hcon)
+		goto done;
+
+	cp.phy_handle = hcon->handle;
+
+	cp.tx_flow_spec.id = chan->local_id;
+	cp.tx_flow_spec.stype = chan->local_stype;
+	cp.tx_flow_spec.msdu = cpu_to_le16(chan->local_msdu);
+	cp.tx_flow_spec.sdu_itime = cpu_to_le32(chan->local_sdu_itime);
+	cp.tx_flow_spec.acc_lat = cpu_to_le32(chan->local_acc_lat);
+	cp.tx_flow_spec.flush_to = cpu_to_le32(chan->local_flush_to);
+
+	cp.rx_flow_spec.id = chan->remote_id;
+	cp.rx_flow_spec.stype = chan->remote_stype;
+	cp.rx_flow_spec.msdu = cpu_to_le16(chan->remote_msdu);
+	cp.rx_flow_spec.sdu_itime = cpu_to_le32(chan->remote_sdu_itime);
+	cp.rx_flow_spec.acc_lat = cpu_to_le32(chan->remote_acc_lat);
+	cp.rx_flow_spec.flush_to = cpu_to_le32(chan->remote_flush_to);
+
+	if (hcon->out)
+		hci_send_cmd(hdev, HCI_OP_CREATE_LOGICAL_LINK, sizeof(cp),
+			     &cp);
+	else
+		hci_send_cmd(hdev, HCI_OP_ACCEPT_LOGICAL_LINK, sizeof(cp),
+			     &cp);
+
+done:
+	hci_dev_put(hdev);
+}

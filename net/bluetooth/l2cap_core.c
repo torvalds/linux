@@ -38,6 +38,7 @@
 #include <net/bluetooth/l2cap.h>
 #include <net/bluetooth/smp.h>
 #include <net/bluetooth/a2mp.h>
+#include <net/bluetooth/amp.h>
 
 bool disable_ertm;
 
@@ -1011,6 +1012,12 @@ static bool __amp_capable(struct l2cap_chan *chan)
 		return true;
 	else
 		return false;
+}
+
+static bool l2cap_check_efs(struct l2cap_chan *chan)
+{
+	/* Check EFS parameters */
+	return true;
 }
 
 void l2cap_send_conn_req(struct l2cap_chan *chan)
@@ -3957,13 +3964,15 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn,
 				goto done;
 			}
 
-			/* check compatibility */
-
-			if (!chan->ctrl_id)
+			if (!chan->ctrl_id) {
 				l2cap_send_efs_conf_rsp(chan, buf, cmd->ident,
 							0);
-			else
-				chan->ident = cmd->ident;
+			} else {
+				if (l2cap_check_efs(chan)) {
+					amp_create_logical_link(chan);
+					chan->ident = cmd->ident;
+				}
+			}
 		}
 		goto done;
 
