@@ -1729,6 +1729,11 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, cpu_transcoder);
 	assert_fdi_rx_enabled(dev_priv, TRANSCODER_A);
 
+	/* Workaround: set timing override bit. */
+	val = I915_READ(_TRANSA_CHICKEN2);
+	val |= TRANS_AUTOTRAIN_GEN_STALL_DIS;
+	I915_WRITE(_TRANSA_CHICKEN2, val);
+
 	val = TRANS_ENABLE;
 	pipeconf_val = I915_READ(PIPECONF(cpu_transcoder));
 
@@ -1780,6 +1785,11 @@ static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	/* wait for PCH transcoder off, transcoder state */
 	if (wait_for((I915_READ(_TRANSACONF) & TRANS_STATE_ENABLE) == 0, 50))
 		DRM_ERROR("Failed to disable PCH transcoder\n");
+
+	/* Workaround: clear timing override bit. */
+	val = I915_READ(_TRANSA_CHICKEN2);
+	val &= ~TRANS_AUTOTRAIN_GEN_STALL_DIS;
+	I915_WRITE(_TRANSA_CHICKEN2, val);
 }
 
 /**
