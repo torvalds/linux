@@ -186,7 +186,7 @@ EXPORT(nlm_boot_siblings)
 	* jump to the secondary wait function.
 	*/
 	mfc0	v0, CP0_EBASE, 1
-	andi	v0, 0x7f		/* v0 <- node/core */
+	andi	v0, 0x3ff		/* v0 <- node/core */
 
 	/* Init MMU in the first thread after changing THREAD_MODE
 	 * register (Ax Errata?)
@@ -263,6 +263,8 @@ NESTED(nlm_boot_secondary_cpus, 16, sp)
 	PTR_L	gp, 0(t1)
 
 	/* a0 has the processor id */
+	mfc0	a0, CP0_EBASE, 1
+	andi	a0, 0x3ff		/* a0 <- node/core */
 	PTR_LA	t0, nlm_early_init_secondary
 	jalr	t0
 	nop

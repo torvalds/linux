@@ -98,7 +98,7 @@ void nlm_early_init_secondary(int cpu)
 	change_c0_config(CONF_CM_CMASK, 0x3);
 	write_c0_ebase((uint32_t)nlm_common_ebase);
 #ifdef CONFIG_CPU_XLP
-	if (hard_smp_processor_id() % 4 == 0)
+	if (cpu % 4 == 0)
 		xlp_mmu_init();
 #endif
 }
