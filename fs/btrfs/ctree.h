@@ -413,7 +413,7 @@ struct btrfs_root_backup {
 	__le64 bytes_used;
 	__le64 num_devices;
 	/* future */
-	__le64 unsed_64[4];
+	__le64 unused_64[4];
 
 	u8 tree_root_level;
 	u8 chunk_root_level;
