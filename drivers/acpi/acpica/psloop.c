@@ -843,8 +843,6 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 		*op = NULL;
 	}
 
-	ACPI_PREEMPTION_POINT();
-
 	return_ACPI_STATUS(AE_OK);
 }
 
