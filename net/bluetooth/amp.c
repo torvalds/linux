@@ -421,3 +421,10 @@ void amp_create_logical_link(struct l2cap_chan *chan)
 done:
 	hci_dev_put(hdev);
 }
+
+void amp_destroy_logical_link(struct hci_chan *hchan, u8 reason)
+{
+	BT_DBG("hchan %p", hchan);
+
+	hci_chan_del(hchan);
+}

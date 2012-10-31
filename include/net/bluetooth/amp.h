@@ -47,5 +47,6 @@ void amp_accept_phylink(struct hci_dev *hdev, struct amp_mgr *mgr,
 void amp_write_remote_assoc(struct hci_dev *hdev, u8 handle);
 void amp_write_rem_assoc_continue(struct hci_dev *hdev, u8 handle);
 void amp_create_logical_link(struct l2cap_chan *chan);
+void amp_destroy_logical_link(struct hci_chan *hchan, u8 reason);
 
 #endif /* __AMP_H */
