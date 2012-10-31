@@ -265,7 +265,7 @@ static void exynos_dp_set_lane_lane_pre_emphasis(struct exynos_dp_device *dp,
 static int exynos_dp_link_start(struct exynos_dp_device *dp)
 {
 	u8 buf[4];
-	int lane, lane_count, retval;
+	int lane, lane_count, pll_tries, retval;
 
 	lane_count = dp->link_train.lane_count;
 
@@ -297,6 +297,18 @@ static int exynos_dp_link_start(struct exynos_dp_device *dp)
 	for (lane = 0; lane < lane_count; lane++)
 		exynos_dp_set_lane_lane_pre_emphasis(dp,
 			PRE_EMPHASIS_LEVEL_0, lane);
+
+	/* Wait for PLL lock */
+	pll_tries = 0;
+	while (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
+		if (pll_tries == DP_TIMEOUT_LOOP_COUNT) {
+			dev_err(dp->dev, "Wait for PLL lock timed out\n");
+			return -ETIMEDOUT;
+		}
+
+		pll_tries++;
+		usleep_range(90, 120);
+	}
 
 	/* Set training pattern 1 */
 	exynos_dp_set_training_pattern(dp, TRAINING_PTN1);
