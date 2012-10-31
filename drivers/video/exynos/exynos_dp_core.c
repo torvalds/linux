@@ -1033,7 +1033,7 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 	}
 
 	dp->irq = platform_get_irq(pdev, 0);
-	if (!dp->irq) {
+	if (dp->irq == -ENXIO) {
 		dev_err(&pdev->dev, "failed to get irq\n");
 		return -ENODEV;
 	}
