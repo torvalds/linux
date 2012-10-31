@@ -4,6 +4,7 @@
 #include <linux/bitops.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/irqdomain.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -11,7 +12,6 @@
 
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
-#include <plat/fpga-irq.h>
 
 #define IRQ_STATUS		0x00
 #define IRQ_RAW_STATUS		0x04
@@ -42,7 +42,7 @@ struct fpga_irq_data {
 };
 
 /* we cannot allocate memory when the controllers are initially registered */
-static struct fpga_irq_data fpga_irq_devices[CONFIG_PLAT_VERSATILE_FPGA_IRQ_NR];
+static struct fpga_irq_data fpga_irq_devices[CONFIG_VERSATILE_FPGA_IRQ_NR];
 static int fpga_irq_id;
 
 static void fpga_irq_mask(struct irq_data *d)

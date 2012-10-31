@@ -31,6 +31,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -55,8 +56,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/pci.h>
 #include <asm/mach/time.h>
-
-#include <plat/fpga-irq.h>
 
 #include "common.h"
 

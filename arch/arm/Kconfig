@@ -284,8 +284,8 @@ config ARCH_INTEGRATOR
 	select MULTI_IRQ_HANDLER
 	select NEED_MACH_MEMORY_H
 	select PLAT_VERSATILE
-	select PLAT_VERSATILE_FPGA_IRQ
 	select SPARSE_IRQ
+	select VERSATILE_FPGA_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -318,7 +318,7 @@ config ARCH_VERSATILE
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	select PLAT_VERSATILE_CLOCK
-	select PLAT_VERSATILE_FPGA_IRQ
+	select VERSATILE_FPGA_IRQ
 	help
 	  This enables support for ARM Ltd Versatile board.
 

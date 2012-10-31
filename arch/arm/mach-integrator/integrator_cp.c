@@ -20,6 +20,7 @@
 #include <linux/amba/clcd.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -46,7 +47,6 @@
 #include <asm/hardware/timer-sp.h>
 
 #include <plat/clcd.h>
-#include <plat/fpga-irq.h>
 #include <plat/sched_clock.h>
 
 #include "common.h"
