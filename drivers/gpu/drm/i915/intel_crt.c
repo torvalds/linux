@@ -245,7 +245,9 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 		adpa |= ADPA_VSYNC_ACTIVE_HIGH;
 
 	/* For CPT allow 3 pipe config, for others just use A or B */
-	if (HAS_PCH_CPT(dev))
+	if (HAS_PCH_LPT(dev))
+		; /* Those bits don't exist here */
+	else if (HAS_PCH_CPT(dev))
 		adpa |= PORT_TRANS_SEL_CPT(intel_crtc->pipe);
 	else if (intel_crtc->pipe == 0)
 		adpa |= ADPA_PIPE_A_SELECT;
