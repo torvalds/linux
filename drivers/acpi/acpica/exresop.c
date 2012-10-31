@@ -337,7 +337,8 @@ acpi_ex_resolve_operands(u16 opcode,
 			if ((opcode == AML_STORE_OP) &&
 			    ((*stack_ptr)->common.type ==
 			     ACPI_TYPE_LOCAL_REFERENCE)
-			    && ((*stack_ptr)->reference.class == ACPI_REFCLASS_INDEX)) {
+			    && ((*stack_ptr)->reference.class ==
+				ACPI_REFCLASS_INDEX)) {
 				goto next_operand;
 			}
 			break;

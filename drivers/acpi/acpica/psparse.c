@@ -459,8 +459,9 @@ acpi_status acpi_ps_parse_aml(struct acpi_walk_state *walk_state)
 
 			/* Executing a control method - additional cleanup */
 
-			acpi_ds_terminate_control_method(
-				walk_state->method_desc, walk_state);
+			acpi_ds_terminate_control_method(walk_state->
+							 method_desc,
+							 walk_state);
 		}
 
 		acpi_ds_delete_walk_state(walk_state);

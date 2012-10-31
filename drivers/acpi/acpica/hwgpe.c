@@ -339,7 +339,8 @@ acpi_hw_clear_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 
 acpi_status
 acpi_hw_enable_runtime_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-				 struct acpi_gpe_block_info *gpe_block, void *context)
+				 struct acpi_gpe_block_info * gpe_block,
+				 void *context)
 {
 	u32 i;
 	acpi_status status;

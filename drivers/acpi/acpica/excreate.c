@@ -243,8 +243,7 @@ acpi_status acpi_ex_create_mutex(struct acpi_walk_state *walk_state)
 
 	/* Init object and attach to NS node */
 
-	obj_desc->mutex.sync_level =
-	    (u8) walk_state->operands[1]->integer.value;
+	obj_desc->mutex.sync_level = (u8)walk_state->operands[1]->integer.value;
 	obj_desc->mutex.node =
 	    (struct acpi_namespace_node *)walk_state->operands[0];
 

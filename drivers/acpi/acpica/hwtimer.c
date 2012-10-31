@@ -101,8 +101,7 @@ acpi_status acpi_get_timer(u32 * ticks)
 		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
-	status =
-	    acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
+	status = acpi_hw_read(ticks, &acpi_gbl_FADT.xpm_timer_block);
 
 	return_ACPI_STATUS(status);
 }

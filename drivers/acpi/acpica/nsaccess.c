@@ -179,8 +179,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 				/* Build an object around the static string */
 
-				obj_desc->string.length =
-				    (u32) ACPI_STRLEN(val);
+				obj_desc->string.length = (u32)ACPI_STRLEN(val);
 				obj_desc->string.pointer = val;
 				obj_desc->common.flags |= AOPOBJ_STATIC_POINTER;
 				break;

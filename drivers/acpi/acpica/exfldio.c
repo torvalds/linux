@@ -54,8 +54,7 @@ ACPI_MODULE_NAME("exfldio")
 /* Local prototypes */
 static acpi_status
 acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
-		       u32 field_datum_byte_offset,
-		       u64 *value, u32 read_write);
+		       u32 field_datum_byte_offset, u64 *value, u32 read_write);
 
 static u8
 acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value);

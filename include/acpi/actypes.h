@@ -922,7 +922,8 @@ struct acpi_system_info {
 /*
  * Types specific to the OS service interfaces
  */
-typedef u32(ACPI_SYSTEM_XFACE * acpi_osd_handler) (void *context);
+typedef u32
+ (ACPI_SYSTEM_XFACE * acpi_osd_handler) (void *context);
 
 typedef void
  (ACPI_SYSTEM_XFACE * acpi_osd_exec_callback) (void *context);
@@ -938,7 +939,8 @@ void (*acpi_gbl_event_handler) (u32 event_type,
 #define ACPI_EVENT_TYPE_GPE         0
 #define ACPI_EVENT_TYPE_FIXED       1
 
-typedef u32(*acpi_event_handler) (void *context);
+typedef
+u32(*acpi_event_handler) (void *context);
 
 typedef
 u32 (*acpi_gpe_handler) (acpi_handle gpe_device, u32 gpe_number, void *context);

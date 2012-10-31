@@ -486,8 +486,10 @@ struct acpi_gpe_device_info {
 	struct acpi_namespace_node *gpe_device;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-		struct acpi_gpe_block_info *gpe_block, void *context);
+typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
+					 gpe_xrupt_info,
+					 struct acpi_gpe_block_info *gpe_block,
+					 void *context);
 
 /* Information about each particular fixed event */
 
