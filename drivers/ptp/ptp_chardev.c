@@ -33,9 +33,13 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 {
 	struct ptp_clock_caps caps;
 	struct ptp_clock_request req;
+	struct ptp_sys_offset sysoff;
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_clock_info *ops = ptp->info;
+	struct ptp_clock_time *pct;
+	struct timespec ts;
 	int enable, err = 0;
+	unsigned int i;
 
 	switch (cmd) {
 
@@ -86,6 +90,34 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		req.type = PTP_CLK_REQ_PPS;
 		enable = arg ? 1 : 0;
 		err = ops->enable(ops, &req, enable);
+		break;
+
+	case PTP_SYS_OFFSET:
+		if (copy_from_user(&sysoff, (void __user *)arg,
+				   sizeof(sysoff))) {
+			err = -EFAULT;
+			break;
+		}
+		if (sysoff.n_samples > PTP_MAX_SAMPLES) {
+			err = -EINVAL;
+			break;
+		}
+		pct = &sysoff.ts[0];
+		for (i = 0; i < sysoff.n_samples; i++) {
+			getnstimeofday(&ts);
+			pct->sec = ts.tv_sec;
+			pct->nsec = ts.tv_nsec;
+			pct++;
+			ptp->info->gettime(ptp->info, &ts);
+			pct->sec = ts.tv_sec;
+			pct->nsec = ts.tv_nsec;
+			pct++;
+		}
+		getnstimeofday(&ts);
+		pct->sec = ts.tv_sec;
+		pct->nsec = ts.tv_nsec;
+		if (copy_to_user((void __user *)arg, &sysoff, sizeof(sysoff)))
+			err = -EFAULT;
 		break;
 
 	default:
