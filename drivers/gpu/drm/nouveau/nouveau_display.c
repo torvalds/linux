@@ -360,23 +360,26 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
-	if (nv_device(drm->device)->card_type < NV_50)
-		ret = nv04_display_create(dev);
-	else
-	if (nv_device(drm->device)->card_type < NV_D0)
-		ret = nv50_display_create(dev);
-	else
-		ret = nvd0_display_create(dev);
-	if (ret)
-		goto disp_create_err;
-
-	if (dev->mode_config.num_crtc) {
-		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+	if (nouveau_modeset == 1) {
+		if (nv_device(drm->device)->card_type < NV_50)
+			ret = nv04_display_create(dev);
+		else
+		if (nv_device(drm->device)->card_type < NV_D0)
+			ret = nv50_display_create(dev);
+		else
+			ret = nvd0_display_create(dev);
 		if (ret)
-			goto vblank_err;
+			goto disp_create_err;
+
+		if (dev->mode_config.num_crtc) {
+			ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
+			if (ret)
+				goto vblank_err;
+		}
+
+		nouveau_backlight_init(dev);
 	}
 
-	nouveau_backlight_init(dev);
 	return 0;
 
 vblank_err:
@@ -395,7 +398,8 @@ nouveau_display_destroy(struct drm_device *dev)
 	nouveau_backlight_exit(dev);
 	drm_vblank_cleanup(dev);
 
-	disp->dtor(dev);
+	if (disp->dtor)
+		disp->dtor(dev);
 
 	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
