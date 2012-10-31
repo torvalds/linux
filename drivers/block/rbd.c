@@ -1982,7 +1982,10 @@ static ssize_t rbd_name_show(struct device *dev,
 {
 	struct rbd_device *rbd_dev = dev_to_rbd_dev(dev);
 
-	return sprintf(buf, "%s\n", rbd_dev->spec->image_name);
+	if (rbd_dev->spec->image_name)
+		return sprintf(buf, "%s\n", rbd_dev->spec->image_name);
+
+	return sprintf(buf, "(unknown)\n");
 }
 
 static ssize_t rbd_image_id_show(struct device *dev,
