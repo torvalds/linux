@@ -24,7 +24,6 @@
 #include <linux/clockchips.h>
 #include <linux/io.h>
 
-#include <asm/mach/time.h>
 #include <mach/zynq_soc.h>
 #include "common.h"
 
@@ -269,7 +268,7 @@ static struct clock_event_device xttcpss_clockevent = {
  * Initializes the timer hardware and register the clock source and clock event
  * timers with Linux kernal timer framework
  **/
-static void __init xttcpss_timer_init(void)
+void __init xttcpss_timer_init(void)
 {
 	xttcpss_timer_hardware_init();
 	clocksource_register_hz(&clocksource_xttcpss, TIMER_RATE);
@@ -289,10 +288,3 @@ static void __init xttcpss_timer_init(void)
 	xttcpss_clockevent.cpumask = cpumask_of(0);
 	clockevents_register_device(&xttcpss_clockevent);
 }
-
-/*
- * Instantiate and initialize the system timer structure
- */
-struct sys_timer xttcpss_sys_timer = {
-	.init		= xttcpss_timer_init,
-};

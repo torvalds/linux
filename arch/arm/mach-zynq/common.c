@@ -25,6 +25,7 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
 #include <asm/hardware/gic.h>
@@ -91,6 +92,18 @@ static struct map_desc io_desc[] __initdata = {
 	},
 #endif
 
+};
+
+static void __init xilinx_zynq_timer_init(void)
+{
+	xttcpss_timer_init();
+}
+
+/*
+ * Instantiate and initialize the system timer structure
+ */
+static struct sys_timer xttcpss_sys_timer = {
+	.init		= xilinx_zynq_timer_init,
 };
 
 /**
