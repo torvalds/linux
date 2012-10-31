@@ -9,6 +9,15 @@ config CPU_IDLE
 
 	  If you're using an ACPI-enabled platform, you should say Y here.
 
+config CPU_IDLE_MULTIPLE_DRIVERS
+        bool "Support multiple cpuidle drivers"
+        depends on CPU_IDLE
+        default n
+        help
+         Allows the cpuidle framework to use different drivers for each CPU.
+         This is useful if you have a system with different CPU latencies and
+         states. If unsure say N.
+
 config CPU_IDLE_GOV_LADDER
 	bool
 	depends on CPU_IDLE
