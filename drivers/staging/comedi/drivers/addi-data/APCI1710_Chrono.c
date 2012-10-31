@@ -52,12 +52,22 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
-#include "APCI1710_Chrono.h"
+#define APCI1710_30MHZ			30
+#define APCI1710_33MHZ			33
+#define APCI1710_40MHZ			40
+
+#define APCI1710_SINGLE			0
+#define APCI1710_CONTINUOUS		1
+
+#define APCI1710_CHRONO_PROGRESS_STATUS	0
+#define APCI1710_CHRONO_READVALUE	1
+#define APCI1710_CHRONO_CONVERTVALUE	2
+#define APCI1710_CHRONO_READINTERRUPT	3
+
+#define APCI1710_CHRONO_SET_CHANNELON	0
+#define APCI1710_CHRONO_SET_CHANNELOFF	1
+#define APCI1710_CHRONO_READ_CHANNEL	2
+#define APCI1710_CHRONO_READ_PORT	3
 
 /*
 +----------------------------------------------------------------------------+
