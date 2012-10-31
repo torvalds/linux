@@ -1065,6 +1065,46 @@ static void edac_ue_error(struct mem_ctl_info *mci,
 	edac_inc_ue_error(mci, enable_per_layer_report, pos, error_count);
 }
 
+/**
+ * edac_raw_mc_handle_error - reports a memory event to userspace without doing
+ *			      anything to discover the error location
+ *
+ * @type:		severity of the error (CE/UE/Fatal)
+ * @mci:		a struct mem_ctl_info pointer
+ * @e:			error description
+ *
+ * This raw function is used internally by edac_mc_handle_error(). It should
+ * only be called directly when the hardware error come directly from BIOS,
+ * like in the case of APEI GHES driver.
+ */
+void edac_raw_mc_handle_error(const enum hw_event_mc_err_type type,
+			      struct mem_ctl_info *mci,
+			      struct edac_raw_error_desc *e)
+{
+	char detail[80];
+	int pos[EDAC_MAX_LAYERS] = { e->top_layer, e->mid_layer, e->low_layer };
+
+	/* Memory type dependent details about the error */
+	if (type == HW_EVENT_ERR_CORRECTED) {
+		snprintf(detail, sizeof(detail),
+			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
+			e->page_frame_number, e->offset_in_page,
+			e->grain, e->syndrome);
+		edac_ce_error(mci, e->error_count, pos, e->msg, e->location, e->label,
+			      detail, e->other_detail, e->enable_per_layer_report,
+			      e->page_frame_number, e->offset_in_page, e->grain);
+	} else {
+		snprintf(detail, sizeof(detail),
+			"page:0x%lx offset:0x%lx grain:%ld",
+			e->page_frame_number, e->offset_in_page, e->grain);
+
+		edac_ue_error(mci, e->error_count, pos, e->msg, e->location, e->label,
+			      detail, e->other_detail, e->enable_per_layer_report);
+	}
+
+
+}
+EXPORT_SYMBOL_GPL(edac_raw_mc_handle_error);
 
 /**
  * edac_mc_handle_error - reports a memory event to userspace
@@ -1096,7 +1136,6 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			  const char *msg,
 			  const char *other_detail)
 {
-	char detail[80];
 	char *p;
 	int row = -1, chan = -1;
 	int pos[EDAC_MAX_LAYERS] = { top_layer, mid_layer, low_layer };
@@ -1246,27 +1285,8 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	trace_mc_event(type, e->msg, e->label, e->error_count,
 		       mci->mc_idx, e->top_layer, e->mid_layer, e->low_layer,
 		       PAGES_TO_MiB(e->page_frame_number) | e->offset_in_page,
-		       grain_bits, e->syndrome, other_detail);
+		       grain_bits, e->syndrome, e->other_detail);
 
-	/* Memory type dependent details about the error */
-	if (type == HW_EVENT_ERR_CORRECTED) {
-		snprintf(detail, sizeof(detail),
-			"page:0x%lx offset:0x%lx grain:%ld syndrome:0x%lx",
-			e->page_frame_number, e->offset_in_page,
-			e->grain, e->syndrome);
-		edac_ce_error(mci, e->error_count, pos, e->msg, e->location,
-			      e->label, detail, other_detail,
-			      e->enable_per_layer_report,
-			      e->page_frame_number, e->offset_in_page,
-			      e->grain);
-	} else {
-		snprintf(detail, sizeof(detail),
-			"page:0x%lx offset:0x%lx grain:%ld",
-			page_frame_number, offset_in_page, e->grain);
-
-		edac_ue_error(mci, e->error_count, pos, e->msg, e->location,
-			      e->label, detail, other_detail,
-			      e->enable_per_layer_report);
-	}
+	edac_raw_mc_handle_error(type, mci, e);
 }
 EXPORT_SYMBOL_GPL(edac_mc_handle_error);
