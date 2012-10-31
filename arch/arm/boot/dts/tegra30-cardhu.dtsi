@@ -275,6 +275,16 @@
 		};
 	};
 
+	spi@7000da00 {
+		status = "okay";
+		spi-max-frequency = <25000000>;
+		spi-flash@1 {
+			compatible = "winbond,w25q32";
+			reg = <1>;
+			spi-max-frequency = <20000000>;
+		};
+	};
+
 	ahub {
 		i2s@70080400 {
 			status = "okay";
