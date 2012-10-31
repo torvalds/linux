@@ -557,10 +557,11 @@ acpi_ns_externalize_name(u32 internal_name_length,
 				(*converted_name)[j++] = '.';
 			}
 
-			(*converted_name)[j++] = internal_name[names_index++];
-			(*converted_name)[j++] = internal_name[names_index++];
-			(*converted_name)[j++] = internal_name[names_index++];
-			(*converted_name)[j++] = internal_name[names_index++];
+			ACPI_MOVE_NAME(*converted_name, internal_name);
+			acpi_ut_repair_name(*converted_name);
+
+			j += ACPI_NAME_SIZE;
+			names_index += ACPI_NAME_SIZE;
 		}
 	}
 

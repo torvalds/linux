@@ -135,16 +135,38 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 
 		/* The opcode is unrecognized. Just skip unknown opcodes */
 
-		ACPI_ERROR((AE_INFO,
-			    "Found unknown opcode 0x%X at AML address %p offset 0x%X, ignoring",
-			    walk_state->opcode, walk_state->parser_state.aml,
-			    walk_state->aml_offset));
+		if (walk_state->pass_number == 2) {
+			ACPI_ERROR((AE_INFO,
+				    "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
+				    walk_state->opcode,
+				    walk_state->aml_offset +
+				    sizeof(struct acpi_table_header)));
 
-		ACPI_DUMP_BUFFER(walk_state->parser_state.aml, 128);
+			ACPI_DUMP_BUFFER(walk_state->parser_state.aml, 128);
 
-		/* Assume one-byte bad opcode */
+#ifdef ACPI_ASL_COMPILER
+
+			acpi_os_printf
+			    ("/*\nError: Unknown opcode 0x%.2X at table offset 0x%.4X, context:\n",
+			     walk_state->opcode,
+			     walk_state->aml_offset +
+			     sizeof(struct acpi_table_header));
+
+			/* TBD: Pass current offset to dump_buffer */
+
+			acpi_ut_dump_buffer2(((u8 *)walk_state->parser_state.
+					      aml - 16), 48, DB_BYTE_DISPLAY);
+			acpi_os_printf(" */\n");
+#endif
+		}
+
+		/* Increment past one or two-byte opcode */
 
 		walk_state->parser_state.aml++;
+		if (walk_state->opcode > 0xFF) {
+			walk_state->parser_state.aml++;
+		}
+
 		return_ACPI_STATUS(AE_CTRL_PARSE_CONTINUE);
 
 	default:
@@ -519,11 +541,18 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 					if ((op_info->class ==
 					     AML_CLASS_EXECUTE) && (!arg)) {
 						ACPI_WARNING((AE_INFO,
-							      "Detected an unsupported executable opcode "
-							      "at module-level: [0x%.4X] at table offset 0x%.4X",
-							      op->common.aml_opcode,
-							      (u32)((aml_op_start - walk_state->parser_state.aml_start)
-								+ sizeof(struct acpi_table_header))));
+							      "Unsupported module-level executable opcode "
+							      "0x%.2X at table offset 0x%.4X",
+							      op->common.
+							      aml_opcode,
+							      (u32)
+							      (ACPI_PTR_DIFF
+							       (aml_op_start,
+								walk_state->
+								parser_state.
+								aml_start) +
+							       sizeof(struct
+								      acpi_table_header))));
 					}
 				}
 				break;

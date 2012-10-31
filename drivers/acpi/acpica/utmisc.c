@@ -720,8 +720,11 @@ void acpi_ut_repair_name(char *name)
 {
 	u32 i;
 	u8 found_bad_char = FALSE;
+	u32 original_name;
 
 	ACPI_FUNCTION_NAME(ut_repair_name);
+
+	ACPI_MOVE_NAME(&original_name, name);
 
 	/* Check each character in the name */
 
