@@ -274,7 +274,7 @@ static bool dpd_set_domain(struct dfs_pattern_detector *dpd,
 
 static struct dfs_pattern_detector default_dpd = {
 	.exit		= dpd_exit,
-	.set_domain	= dpd_set_domain,
+	.set_dfs_domain	= dpd_set_domain,
 	.add_pulse	= dpd_add_pulse,
 	.region		= NL80211_DFS_UNSET,
 };
@@ -291,7 +291,7 @@ dfs_pattern_detector_init(enum nl80211_dfs_regions region)
 	*dpd = default_dpd;
 	INIT_LIST_HEAD(&dpd->channel_detectors);
 
-	if (dpd->set_domain(dpd, region))
+	if (dpd->set_dfs_domain(dpd, region))
 		return dpd;
 
 	pr_err("Could not set DFS domain to %d. ", region);
