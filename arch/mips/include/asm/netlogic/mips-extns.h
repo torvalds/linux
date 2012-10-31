@@ -73,4 +73,9 @@ static inline int hard_smp_processor_id(void)
 	return __read_32bit_c0_register($15, 1) & 0x3ff;
 }
 
+static inline int nlm_nodeid(void)
+{
+	return (__read_32bit_c0_register($15, 1) >> 5) & 0x3;
+}
+
 #endif /*_ASM_NLM_MIPS_EXTS_H */

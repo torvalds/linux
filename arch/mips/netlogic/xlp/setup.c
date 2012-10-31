@@ -52,17 +52,17 @@
 #include <asm/netlogic/xlp-hal/xlp.h>
 #include <asm/netlogic/xlp-hal/sys.h>
 
-unsigned long nlm_common_ebase = 0x0;
-
-/* default to uniprocessor */
-uint32_t nlm_coremask = 1;
+uint64_t nlm_io_base;
+struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
-int  nlm_threads_per_core = 1;
+unsigned int nlm_threads_per_core;
 extern u32 __dtb_start[];
 
 static void nlm_linux_exit(void)
 {
-	nlm_write_sys_reg(nlm_sys_base, SYS_CHIP_RESET, 1);
+	uint64_t sysbase = nlm_get_node(0)->sysbase;
+
+	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for ( ; ; )
 		cpu_wait();
 }
@@ -110,10 +110,9 @@ void xlp_mmu_init(void)
 
 void __init prom_init(void)
 {
+	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);
 	xlp_mmu_init();
-	nlm_hal_init();
-
-	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	nlm_node_init(0);
 
 #ifdef CONFIG_SMP
 	cpumask_setall(&nlm_cpumask);

@@ -79,32 +79,38 @@ static int xlp_wakeup_core(uint64_t sysbase, int core)
 
 static void xlp_enable_secondary_cores(const cpumask_t *wakeup_mask)
 {
-	uint64_t syspcibase, sysbase;
+	struct nlm_soc_info *nodep;
+	uint64_t syspcibase;
 	uint32_t syscoremask;
-	int core, n;
+	int core, n, cpu;
 
-	for (n = 0; n < 4; n++) {
+	for (n = 0; n < NLM_NR_NODES; n++) {
 		syspcibase = nlm_get_sys_pcibase(n);
 		if (nlm_read_reg(syspcibase, 0) == 0xffffffff)
 			break;
 
 		/* read cores in reset from SYS and account for boot cpu */
-		sysbase = nlm_get_sys_regbase(n);
-		syscoremask = nlm_read_sys_reg(sysbase, SYS_CPU_RESET);
+		nlm_node_init(n);
+		nodep = nlm_get_node(n);
+		syscoremask = nlm_read_sys_reg(nodep->sysbase, SYS_CPU_RESET);
 		if (n == 0)
 			syscoremask |= 1;
 
-		for (core = 0; core < 8; core++) {
+		for (core = 0; core < NLM_CORES_PER_NODE; core++) {
 			/* see if the core exists */
 			if ((syscoremask & (1 << core)) == 0)
 				continue;
 
 			/* see if at least the first thread is enabled */
-			if (!cpumask_test_cpu((n * 8 + core) * 4, wakeup_mask))
+			cpu = (n * NLM_CORES_PER_NODE + core)
+						* NLM_THREADS_PER_CORE;
+			if (!cpumask_test_cpu(cpu, wakeup_mask))
 				continue;
 
 			/* wake up the core */
-			if (!xlp_wakeup_core(sysbase, core))
+			if (xlp_wakeup_core(nodep->sysbase, core))
+				nodep->coremask |= 1u << core;
+			else
 				pr_err("Failed to enable core %d\n", core);
 		}
 	}

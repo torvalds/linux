@@ -381,7 +381,6 @@ nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
 	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, hwt);
 }
 
-extern uint64_t nlm_pic_base;
 int nlm_irq_to_irt(int irq);
 int nlm_irt_to_irq(int irt);
 

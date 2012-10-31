@@ -51,14 +51,11 @@
 #include <asm/netlogic/xlr/gpio.h>
 
 uint64_t nlm_io_base = DEFAULT_NETLOGIC_IO_BASE;
-uint64_t nlm_pic_base;
 struct psb_info nlm_prom_info;
 
-unsigned long nlm_common_ebase = 0x0;
-
 /* default to uniprocessor */
-uint32_t nlm_coremask = 1;
-int  nlm_threads_per_core = 1;
+unsigned int  nlm_threads_per_core = 1;
+struct nlm_soc_info nlm_nodes[NLM_NR_NODES];
 cpumask_t nlm_cpumask = CPU_MASK_CPU0;
 
 static void __init nlm_early_serial_setup(void)
@@ -177,6 +174,16 @@ static void prom_add_memory(void)
 	}
 }
 
+static void nlm_init_node(void)
+{
+	struct nlm_soc_info *nodep;
+
+	nodep = nlm_current_node();
+	nodep->picbase = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	nodep->ebase = read_c0_ebase() & (~((1 << 12) - 1));
+	spin_lock_init(&nodep->piclock);
+}
+
 void __init prom_init(void)
 {
 	int i, *argv, *envp;		/* passed as 32 bit ptrs */
@@ -188,11 +195,10 @@ void __init prom_init(void)
 	prom_infop = (struct psb_info *)(long)(int)fw_arg3;
 
 	nlm_prom_info = *prom_infop;
-	nlm_pic_base = nlm_mmio_base(NETLOGIC_IO_PIC_OFFSET);
+	nlm_init_node();
 
 	nlm_early_serial_setup();
 	build_arcs_cmdline(argv);
-	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
 	prom_add_memory();
 
 #ifdef CONFIG_SMP

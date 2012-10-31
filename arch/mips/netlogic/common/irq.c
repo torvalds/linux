@@ -70,33 +70,34 @@
  */
 
 /* Globals */
-static uint64_t nlm_irq_mask;
-static DEFINE_SPINLOCK(nlm_pic_lock);
-
 static void xlp_pic_enable(struct irq_data *d)
 {
 	unsigned long flags;
+	struct nlm_soc_info *nodep;
 	int irt;
 
+	nodep = nlm_current_node();
 	irt = nlm_irq_to_irt(d->irq);
 	if (irt == -1)
 		return;
-	spin_lock_irqsave(&nlm_pic_lock, flags);
-	nlm_pic_enable_irt(nlm_pic_base, irt);
-	spin_unlock_irqrestore(&nlm_pic_lock, flags);
+	spin_lock_irqsave(&nodep->piclock, flags);
+	nlm_pic_enable_irt(nodep->picbase, irt);
+	spin_unlock_irqrestore(&nodep->piclock, flags);
 }
 
 static void xlp_pic_disable(struct irq_data *d)
 {
+	struct nlm_soc_info *nodep;
 	unsigned long flags;
 	int irt;
 
+	nodep = nlm_current_node();
 	irt = nlm_irq_to_irt(d->irq);
 	if (irt == -1)
 		return;
-	spin_lock_irqsave(&nlm_pic_lock, flags);
-	nlm_pic_disable_irt(nlm_pic_base, irt);
-	spin_unlock_irqrestore(&nlm_pic_lock, flags);
+	spin_lock_irqsave(&nodep->piclock, flags);
+	nlm_pic_disable_irt(nodep->picbase, irt);
+	spin_unlock_irqrestore(&nodep->piclock, flags);
 }
 
 static void xlp_pic_mask_ack(struct irq_data *d)
@@ -109,8 +110,10 @@ static void xlp_pic_mask_ack(struct irq_data *d)
 static void xlp_pic_unmask(struct irq_data *d)
 {
 	void *hd = irq_data_get_irq_handler_data(d);
+	struct nlm_soc_info *nodep;
 	int irt;
 
+	nodep = nlm_current_node();
 	irt = nlm_irq_to_irt(d->irq);
 	if (irt == -1)
 		return;
@@ -120,7 +123,7 @@ static void xlp_pic_unmask(struct irq_data *d)
 		extra_ack(d);
 	}
 	/* Ack is a single write, no need to lock */
-	nlm_pic_ack(nlm_pic_base, irt);
+	nlm_pic_ack(nodep->picbase, irt);
 }
 
 static struct irq_chip xlp_pic = {
@@ -177,7 +180,11 @@ struct irq_chip nlm_cpu_intr = {
 void __init init_nlm_common_irqs(void)
 {
 	int i, irq, irt;
+	uint64_t irqmask;
+	struct nlm_soc_info *nodep;
 
+	nodep = nlm_current_node();
+	irqmask = (1ULL << IRQ_TIMER);
 	for (i = 0; i < PIC_IRT_FIRST_IRQ; i++)
 		irq_set_chip_and_handler(i, &nlm_cpu_intr, handle_percpu_irq);
 
@@ -189,7 +196,7 @@ void __init init_nlm_common_irqs(void)
 			 nlm_smp_function_ipi_handler);
 	irq_set_chip_and_handler(IRQ_IPI_SMP_RESCHEDULE, &nlm_cpu_intr,
 			 nlm_smp_resched_ipi_handler);
-	nlm_irq_mask |=
+	irqmask |=
 	    ((1ULL << IRQ_IPI_SMP_FUNCTION) | (1ULL << IRQ_IPI_SMP_RESCHEDULE));
 #endif
 
@@ -197,11 +204,11 @@ void __init init_nlm_common_irqs(void)
 		irt = nlm_irq_to_irt(irq);
 		if (irt == -1)
 			continue;
-		nlm_irq_mask |= (1ULL << irq);
-		nlm_pic_init_irt(nlm_pic_base, irt, irq, 0);
+		irqmask |= (1ULL << irq);
+		nlm_pic_init_irt(nodep->picbase, irt, irq, 0);
 	}
 
-	nlm_irq_mask |= (1ULL << IRQ_TIMER);
+	nodep->irqmask = irqmask;
 }
 
 void __init arch_init_irq(void)
@@ -209,29 +216,39 @@ void __init arch_init_irq(void)
 	/* Initialize the irq descriptors */
 	init_nlm_common_irqs();
 
-	write_c0_eimr(nlm_irq_mask);
+	write_c0_eimr(nlm_current_node()->irqmask);
 }
 
 void __cpuinit nlm_smp_irq_init(void)
 {
 	/* set interrupt mask for non-zero cpus */
-	write_c0_eimr(nlm_irq_mask);
+	write_c0_eimr(nlm_current_node()->irqmask);
 }
 
 asmlinkage void plat_irq_dispatch(void)
 {
 	uint64_t eirr;
-	int i;
+	int i, node;
 
+	node = nlm_nodeid();
 	eirr = read_c0_eirr() & read_c0_eimr();
 	if (eirr & (1 << IRQ_TIMER)) {
 		do_IRQ(IRQ_TIMER);
 		return;
 	}
-
+#ifdef CONFIG_SMP
+	if (eirr & IRQ_IPI_SMP_FUNCTION) {
+		do_IRQ(IRQ_IPI_SMP_FUNCTION);
+		return;
+	}
+	if (eirr & IRQ_IPI_SMP_RESCHEDULE) {
+		do_IRQ(IRQ_IPI_SMP_RESCHEDULE);
+		return;
+	}
+#endif
 	i = __ilog2_u64(eirr);
 	if (i == -1)
 		return;
 
-	do_IRQ(i);
+	do_IRQ(nlm_irq_to_xirq(node, i));
 }
