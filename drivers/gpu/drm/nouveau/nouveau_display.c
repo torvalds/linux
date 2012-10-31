@@ -290,6 +290,7 @@ nouveau_display_create(struct drm_device *dev)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
 	struct nouveau_display *disp;
+	u32 pclass = dev->pdev->class >> 8;
 	int ret, gen;
 
 	disp = drm->display = kzalloc(sizeof(*disp), GFP_KERNEL);
@@ -360,7 +361,8 @@ nouveau_display_create(struct drm_device *dev)
 	drm_kms_helper_poll_init(dev);
 	drm_kms_helper_poll_disable(dev);
 
-	if (nouveau_modeset == 1) {
+	if (nouveau_modeset == 1 ||
+	    (nouveau_modeset < 0 && pclass == PCI_CLASS_DISPLAY_VGA)) {
 		if (nv_device(drm->device)->card_type < NV_50)
 			ret = nv04_display_create(dev);
 		else
