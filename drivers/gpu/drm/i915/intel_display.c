@@ -1744,22 +1744,9 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val = I915_READ(reg);
 	pipeconf_val = I915_READ(PIPECONF(pipe));
 
-	if (HAS_PCH_IBX(dev_priv->dev)) {
-		/*
-		 * make the BPC in transcoder be consistent with
-		 * that in pipeconf reg.
-		 */
-		val &= ~PIPE_BPC_MASK;
-		val |= pipeconf_val & PIPE_BPC_MASK;
-	}
-
 	val &= ~TRANS_INTERLACE_MASK;
 	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
-		if (HAS_PCH_IBX(dev_priv->dev) &&
-		    intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO))
-			val |= TRANS_LEGACY_INTERLACED_ILK;
-		else
-			val |= TRANS_INTERLACED;
+		val |= TRANS_INTERLACED;
 	else
 		val |= TRANS_PROGRESSIVE;
 
