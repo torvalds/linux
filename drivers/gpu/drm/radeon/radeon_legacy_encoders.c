@@ -1422,6 +1422,96 @@ static bool radeon_legacy_tv_detect(struct drm_encoder *encoder,
 	return found;
 }
 
+static bool radeon_legacy_ext_dac_detect(struct drm_encoder *encoder,
+					 struct drm_connector *connector)
+{
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	uint32_t gpio_monid, fp2_gen_cntl, disp_output_cntl, crtc2_gen_cntl;
+	uint32_t disp_lin_trans_grph_a, disp_lin_trans_grph_b, disp_lin_trans_grph_c;
+	uint32_t disp_lin_trans_grph_d, disp_lin_trans_grph_e, disp_lin_trans_grph_f;
+	uint32_t tmp, crtc2_h_total_disp, crtc2_v_total_disp;
+	uint32_t crtc2_h_sync_strt_wid, crtc2_v_sync_strt_wid;
+	bool found = false;
+	int i;
+
+	/* save the regs we need */
+	gpio_monid = RREG32(RADEON_GPIO_MONID);
+	fp2_gen_cntl = RREG32(RADEON_FP2_GEN_CNTL);
+	disp_output_cntl = RREG32(RADEON_DISP_OUTPUT_CNTL);
+	crtc2_gen_cntl = RREG32(RADEON_CRTC2_GEN_CNTL);
+	disp_lin_trans_grph_a = RREG32(RADEON_DISP_LIN_TRANS_GRPH_A);
+	disp_lin_trans_grph_b = RREG32(RADEON_DISP_LIN_TRANS_GRPH_B);
+	disp_lin_trans_grph_c = RREG32(RADEON_DISP_LIN_TRANS_GRPH_C);
+	disp_lin_trans_grph_d = RREG32(RADEON_DISP_LIN_TRANS_GRPH_D);
+	disp_lin_trans_grph_e = RREG32(RADEON_DISP_LIN_TRANS_GRPH_E);
+	disp_lin_trans_grph_f = RREG32(RADEON_DISP_LIN_TRANS_GRPH_F);
+	crtc2_h_total_disp = RREG32(RADEON_CRTC2_H_TOTAL_DISP);
+	crtc2_v_total_disp = RREG32(RADEON_CRTC2_V_TOTAL_DISP);
+	crtc2_h_sync_strt_wid = RREG32(RADEON_CRTC2_H_SYNC_STRT_WID);
+	crtc2_v_sync_strt_wid = RREG32(RADEON_CRTC2_V_SYNC_STRT_WID);
+
+	tmp = RREG32(RADEON_GPIO_MONID);
+	tmp &= ~RADEON_GPIO_A_0;
+	WREG32(RADEON_GPIO_MONID, tmp);
+
+	WREG32(RADEON_FP2_GEN_CNTL, (RADEON_FP2_ON |
+				     RADEON_FP2_PANEL_FORMAT |
+				     R200_FP2_SOURCE_SEL_TRANS_UNIT |
+				     RADEON_FP2_DVO_EN |
+				     R200_FP2_DVO_RATE_SEL_SDR));
+
+	WREG32(RADEON_DISP_OUTPUT_CNTL, (RADEON_DISP_DAC_SOURCE_RMX |
+					 RADEON_DISP_TRANS_MATRIX_GRAPHICS));
+
+	WREG32(RADEON_CRTC2_GEN_CNTL, (RADEON_CRTC2_EN |
+				       RADEON_CRTC2_DISP_REQ_EN_B));
+
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_A, 0x00000000);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_B, 0x000003f0);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_C, 0x00000000);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_D, 0x000003f0);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_E, 0x00000000);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_F, 0x000003f0);
+
+	WREG32(RADEON_CRTC2_H_TOTAL_DISP, 0x01000008);
+	WREG32(RADEON_CRTC2_H_SYNC_STRT_WID, 0x00000800);
+	WREG32(RADEON_CRTC2_V_TOTAL_DISP, 0x00080001);
+	WREG32(RADEON_CRTC2_V_SYNC_STRT_WID, 0x00000080);
+
+	for (i = 0; i < 200; i++) {
+		tmp = RREG32(RADEON_GPIO_MONID);
+		if (tmp & RADEON_GPIO_Y_0)
+			found = true;
+
+		if (found)
+			break;
+
+		if (!drm_can_sleep())
+			mdelay(1);
+		else
+			msleep(1);
+	}
+
+	/* restore the regs we used */
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_A, disp_lin_trans_grph_a);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_B, disp_lin_trans_grph_b);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_C, disp_lin_trans_grph_c);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_D, disp_lin_trans_grph_d);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_E, disp_lin_trans_grph_e);
+	WREG32(RADEON_DISP_LIN_TRANS_GRPH_F, disp_lin_trans_grph_f);
+	WREG32(RADEON_CRTC2_H_TOTAL_DISP, crtc2_h_total_disp);
+	WREG32(RADEON_CRTC2_V_TOTAL_DISP, crtc2_v_total_disp);
+	WREG32(RADEON_CRTC2_H_SYNC_STRT_WID, crtc2_h_sync_strt_wid);
+	WREG32(RADEON_CRTC2_V_SYNC_STRT_WID, crtc2_v_sync_strt_wid);
+	WREG32(RADEON_CRTC2_GEN_CNTL, crtc2_gen_cntl);
+	WREG32(RADEON_DISP_OUTPUT_CNTL, disp_output_cntl);
+	WREG32(RADEON_FP2_GEN_CNTL, fp2_gen_cntl);
+	WREG32(RADEON_GPIO_MONID, gpio_monid);
+
+	return found;
+}
+
 static enum drm_connector_status radeon_legacy_tv_dac_detect(struct drm_encoder *encoder,
 							     struct drm_connector *connector)
 {
@@ -1464,6 +1554,13 @@ static enum drm_connector_status radeon_legacy_tv_dac_detect(struct drm_encoder 
 	if (radeon_encoder->active_device && !(radeon_encoder->active_device & ATOM_DEVICE_CRT_SUPPORT)) {
 		DRM_INFO("not detecting due to %08x\n", radeon_encoder->active_device);
 		return connector_status_disconnected;
+	}
+
+	/* R200 uses an external DAC for secondary DAC */
+	if (rdev->family == CHIP_R200) {
+		if (radeon_legacy_ext_dac_detect(encoder, connector))
+			found = connector_status_connected;
+		return found;
 	}
 
 	/* save the regs we need */
