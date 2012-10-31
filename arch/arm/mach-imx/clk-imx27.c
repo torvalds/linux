@@ -51,8 +51,10 @@
 
 static const char *vpu_sel_clks[] = { "spll", "mpll_main2", };
 static const char *cpu_sel_clks[] = { "mpll_main2", "mpll", };
+static const char *mpll_sel_clks[] = { "fpm", "mpll_osc_sel", };
+static const char *mpll_osc_sel_clks[] = { "ckih", "ckih_div1p5", };
 static const char *clko_sel_clks[] = {
-	"ckil", "prem", "ckih", "ckih",
+	"ckil", "fpm", "ckih", "ckih",
 	"ckih", "mpll", "spll", "cpu_div",
 	"ahb", "ipg", "per1_div", "per2_div",
 	"per3_div", "per4_div", "ssi1_div", "ssi2_div",
@@ -79,7 +81,8 @@ enum mx27_clks {
 	vpu_ahb_gate, fec_ahb_gate, emma_ahb_gate, emi_ahb_gate, dma_ahb_gate,
 	csi_ahb_gate, brom_ahb_gate, ata_ahb_gate, wdog_ipg_gate, usb_ipg_gate,
 	uart6_ipg_gate, uart5_ipg_gate, uart4_ipg_gate, uart3_ipg_gate,
-	uart2_ipg_gate, uart1_ipg_gate, clk_max
+	uart2_ipg_gate, uart1_ipg_gate, ckih_div1p5, fpm, mpll_osc_sel,
+	mpll_sel, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -91,7 +94,15 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
-	clk[mpll] = imx_clk_pllv1("mpll", "ckih", CCM_MPCTL0);
+	clk[fpm] = imx_clk_fixed_factor("fpm", "ckil", 1024, 1);
+	clk[ckih_div1p5] = imx_clk_fixed_factor("ckih_div1p5", "ckih", 2, 3);
+
+	clk[mpll_osc_sel] = imx_clk_mux("mpll_osc_sel", CCM_CSCR, 4, 1,
+			mpll_osc_sel_clks,
+			ARRAY_SIZE(mpll_osc_sel_clks));
+	clk[mpll_sel] = imx_clk_mux("mpll_sel", CCM_CSCR, 16, 1, mpll_sel_clks,
+			ARRAY_SIZE(mpll_sel_clks));
+	clk[mpll] = imx_clk_pllv1("mpll", "mpll_sel", CCM_MPCTL0);
 	clk[spll] = imx_clk_pllv1("spll", "ckih", CCM_SPCTL0);
 	clk[mpll_main2] = imx_clk_fixed_factor("mpll_main2", "mpll", 2, 3);
 
