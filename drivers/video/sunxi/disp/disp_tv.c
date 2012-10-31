@@ -1,6 +1,5 @@
 /*
- * copyright (c) 2007-2012 Allwinner Technology Co., Ltd.
- * copyright (c) 2007-2012 Danling <danliang@allwinnertech.com>
+ * Copyright (C) 2007-2012 Allwinner Technology Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
