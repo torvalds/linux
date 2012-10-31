@@ -1340,13 +1340,8 @@ static int option_probe(struct usb_serial *serial,
 				&serial->interface->cur_altsetting->desc;
 	struct usb_device_descriptor *dev_desc = &serial->dev->descriptor;
 
-	/*
-	 * D-Link DWM 652 still exposes CD-Rom emulation interface in modem
-	 * mode.
-	 */
-	if (dev_desc->idVendor == DLINK_VENDOR_ID &&
-		dev_desc->idProduct == DLINK_PRODUCT_DWM_652 &&
-		iface_desc->bInterfaceClass == 0x08)
+	/* Never bind to the CD-Rom emulation interface	*/
+	if (iface_desc->bInterfaceClass == 0x08)
 		return -ENODEV;
 
 	/* Bandrich modem and AT command interface is 0xff */
