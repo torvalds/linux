@@ -314,7 +314,7 @@ static void macb_tx(struct macb *bp)
 	status = macb_readl(bp, TSR);
 	macb_writel(bp, TSR, status);
 
-	netdev_dbg(bp->dev, "macb_tx status = %02lx\n", (unsigned long)status);
+	netdev_vdbg(bp->dev, "macb_tx status = %02lx\n", (unsigned long)status);
 
 	if (status & (MACB_BIT(UND) | MACB_BIT(TSR_RLE))) {
 		int i;
@@ -381,7 +381,7 @@ static void macb_tx(struct macb *bp)
 		if (!(bufstat & MACB_BIT(TX_USED)))
 			break;
 
-		netdev_dbg(bp->dev, "skb %u (data %p) TX complete\n",
+		netdev_vdbg(bp->dev, "skb %u (data %p) TX complete\n",
 			   tail, skb->data);
 		dma_unmap_single(&bp->pdev->dev, rp->mapping, skb->len,
 				 DMA_TO_DEVICE);
@@ -407,7 +407,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 
 	len = MACB_BFEXT(RX_FRMLEN, bp->rx_ring[last_frag].ctrl);
 
-	netdev_dbg(bp->dev, "macb_rx_frame frags %u - %u (len %u)\n",
+	netdev_vdbg(bp->dev, "macb_rx_frame frags %u - %u (len %u)\n",
 		   first_frag, last_frag, len);
 
 	skb = netdev_alloc_skb(bp->dev, len + RX_OFFSET);
@@ -454,7 +454,7 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 
 	bp->stats.rx_packets++;
 	bp->stats.rx_bytes += len;
-	netdev_dbg(bp->dev, "received skb of length %u, csum: %08x\n",
+	netdev_vdbg(bp->dev, "received skb of length %u, csum: %08x\n",
 		   skb->len, skb->csum);
 	netif_receive_skb(skb);
 
@@ -536,7 +536,7 @@ static int macb_poll(struct napi_struct *napi, int budget)
 
 	work_done = 0;
 
-	netdev_dbg(bp->dev, "poll: status = %08lx, budget = %d\n",
+	netdev_vdbg(bp->dev, "poll: status = %08lx, budget = %d\n",
 		   (unsigned long)status, budget);
 
 	work_done = macb_rx(bp, budget);
@@ -575,6 +575,8 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			break;
 		}
 
+		netdev_vdbg(bp->dev, "isr = 0x%08lx\n", (unsigned long)status);
+
 		if (status & MACB_RX_INT_FLAGS) {
 			/*
 			 * There's no point taking any more interrupts
@@ -586,7 +588,7 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			macb_writel(bp, IDR, MACB_RX_INT_FLAGS);
 
 			if (napi_schedule_prep(&bp->napi)) {
-				netdev_dbg(bp->dev, "scheduling RX softirq\n");
+				netdev_vdbg(bp->dev, "scheduling RX softirq\n");
 				__napi_schedule(&bp->napi);
 			}
 		}
@@ -648,8 +650,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 ctrl;
 	unsigned long flags;
 
-#ifdef DEBUG
-	netdev_dbg(bp->dev,
+#if defined(DEBUG) && defined(VERBOSE_DEBUG)
+	netdev_vdbg(bp->dev,
 		   "start_xmit: len %u head %p data %p tail %p end %p\n",
 		   skb->len, skb->head, skb->data,
 		   skb_tail_pointer(skb), skb_end_pointer(skb));
@@ -671,12 +673,12 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	entry = bp->tx_head;
-	netdev_dbg(bp->dev, "Allocated ring entry %u\n", entry);
+	netdev_vdbg(bp->dev, "Allocated ring entry %u\n", entry);
 	mapping = dma_map_single(&bp->pdev->dev, skb->data,
 				 len, DMA_TO_DEVICE);
 	bp->tx_skb[entry].skb = skb;
 	bp->tx_skb[entry].mapping = mapping;
-	netdev_dbg(bp->dev, "Mapped skb data %p to DMA addr %08lx\n",
+	netdev_vdbg(bp->dev, "Mapped skb data %p to DMA addr %08lx\n",
 		   skb->data, (unsigned long)mapping);
 
 	ctrl = MACB_BF(TX_FRMLEN, len);
