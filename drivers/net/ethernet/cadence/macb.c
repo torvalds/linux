@@ -373,7 +373,9 @@ static void macb_tx(struct macb *bp)
 
 		BUG_ON(skb == NULL);
 
+		/* Make hw descriptor updates visible to CPU */
 		rmb();
+
 		bufstat = bp->tx_ring[tail].ctrl;
 
 		if (!(bufstat & MACB_BIT(TX_USED)))
@@ -416,7 +418,10 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 			if (frag == last_frag)
 				break;
 		}
+
+		/* Make descriptor updates visible to hardware */
 		wmb();
+
 		return 1;
 	}
 
@@ -437,11 +442,13 @@ static int macb_rx_frame(struct macb *bp, unsigned int first_frag,
 					       frag_len);
 		offset += RX_BUFFER_SIZE;
 		bp->rx_ring[frag].addr &= ~MACB_BIT(RX_USED);
-		wmb();
 
 		if (frag == last_frag)
 			break;
 	}
+
+	/* Make descriptor updates visible to hardware */
+	wmb();
 
 	skb->protocol = eth_type_trans(skb, bp->dev);
 
@@ -462,6 +469,8 @@ static void discard_partial_frame(struct macb *bp, unsigned int begin,
 
 	for (frag = begin; frag != end; frag = NEXT_RX(frag))
 		bp->rx_ring[frag].addr &= ~MACB_BIT(RX_USED);
+
+	/* Make descriptor updates visible to hardware */
 	wmb();
 
 	/*
@@ -480,7 +489,9 @@ static int macb_rx(struct macb *bp, int budget)
 	for (; budget > 0; tail = NEXT_RX(tail)) {
 		u32 addr, ctrl;
 
+		/* Make hw descriptor updates visible to CPU */
 		rmb();
+
 		addr = bp->rx_ring[tail].addr;
 		ctrl = bp->rx_ring[tail].ctrl;
 
@@ -675,6 +686,8 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	bp->tx_ring[entry].addr = mapping;
 	bp->tx_ring[entry].ctrl = ctrl;
+
+	/* Make newly initialized descriptor visible to hardware */
 	wmb();
 
 	entry = NEXT_TX(entry);
@@ -783,9 +796,6 @@ static void macb_init_rings(struct macb *bp)
 
 static void macb_reset_hw(struct macb *bp)
 {
-	/* Make sure we have the write buffer for ourselves */
-	wmb();
-
 	/*
 	 * Disable RX and TX (XXX: Should we halt the transmission
 	 * more gracefully?)
