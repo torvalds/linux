@@ -23,19 +23,6 @@
 #define DSX_MESSAGE_EXCHANGE_BUFFER        0xBF60AC84 /* This contains the pointer */
 #define DSX_MESSAGE_EXCHANGE_BUFFER_SIZE   72000      /* 24 K Bytes */
 
-/* brief structure stLocalSFAddRequest */
-typedef struct stLocalSFAddRequestAlt {
-	u8	u8Type;
-	u8	u8Direction;
-	u16	u16TID;
-	/* brief 16bitCID */
-	u16	u16CID;
-	/* brief 16bitVCID */
-	u16	u16VCID;
-	struct bcm_connect_mgr_params sfParameterSet;
-	/* USE_MEMORY_MANAGER(); */
-} stLocalSFAddRequestAlt;
-
 struct bcm_add_indication_alt {
 	u8	u8Type;
 	u8	u8Direction;
