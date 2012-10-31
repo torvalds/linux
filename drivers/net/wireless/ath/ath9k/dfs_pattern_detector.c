@@ -42,10 +42,15 @@ struct radar_types {
 #define MIN_PPB_THRESH	50
 #define PPB_THRESH(PPB) ((PPB * MIN_PPB_THRESH + 50) / 100)
 #define PRF2PRI(PRF) ((1000000 + PRF / 2) / PRF)
+/* percentage of pulse width tolerance */
+#define WIDTH_TOLERANCE 5
+#define WIDTH_LOWER(X) ((X*(100-WIDTH_TOLERANCE)+50)/100)
+#define WIDTH_UPPER(X) ((X*(100+WIDTH_TOLERANCE)+50)/100)
 
 #define ETSI_PATTERN(ID, WMIN, WMAX, PMIN, PMAX, PRF, PPB)	\
 {								\
-	ID, WMIN, WMAX, (PRF2PRI(PMAX) - PRI_TOLERANCE),	\
+	ID, WIDTH_LOWER(WMIN), WIDTH_UPPER(WMAX),		\
+	(PRF2PRI(PMAX) - PRI_TOLERANCE),			\
 	(PRF2PRI(PMIN) * PRF + PRI_TOLERANCE), PRF, PPB * PRF,	\
 	PPB_THRESH(PPB), PRI_TOLERANCE,				\
 }
