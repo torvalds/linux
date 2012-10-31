@@ -162,7 +162,6 @@ static void csn3xxx_usb_power_off(struct platform_device *pdev)
 }
 
 static struct usb_ehci_pdata cns3xxx_usb_ehci_pdata = {
-	.port_power_off	= 1,
 	.power_on	= csn3xxx_usb_power_on,
 	.power_off	= csn3xxx_usb_power_off,
 };

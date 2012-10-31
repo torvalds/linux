@@ -53,7 +53,6 @@ static int ehci_msm_reset(struct usb_hcd *hcd)
 	/* Disable streaming mode and select host mode */
 	writel(0x13, USB_USBMODE);
 
-	ehci_port_power(ehci, 1);
 	return 0;
 }
 

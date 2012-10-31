@@ -34,22 +34,6 @@
 
 #define GRUSBHC_HCIVERSION 0x0100 /* Known value of cap. reg. HCIVERSION */
 
-/* called during probe() after chip reset completes */
-static int ehci_grlib_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
-	int		retval;
-
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 1);
-
-	return retval;
-}
-
-
 static const struct hc_driver ehci_grlib_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "GRLIB GRUSBHC EHCI",
@@ -64,7 +48,7 @@ static const struct hc_driver ehci_grlib_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset			= ehci_grlib_setup,
+	.reset			= ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,

@@ -109,7 +109,6 @@ static struct resource ls1x_ehci_resources[] = {
 };
 
 static struct usb_ehci_pdata ls1x_ehci_pdata = {
-	.port_power_off	= 1,
 };
 
 struct platform_device ls1x_ehci_device = {

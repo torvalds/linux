@@ -41,8 +41,6 @@ struct usb_ehci_pdata {
 	unsigned	has_synopsys_hc_bug:1;
 	unsigned	big_endian_desc:1;
 	unsigned	big_endian_mmio:1;
-	unsigned	port_power_on:1;
-	unsigned	port_power_off:1;
 	unsigned	no_io_watchdog:1;
 
 	/* Turn on all power and clocks */

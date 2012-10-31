@@ -31,22 +31,6 @@
 #include "bits.h"
 #include "host.h"
 
-static int ci_ehci_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int ret;
-
-	hcd->has_tt = 1;
-
-	ret = ehci_setup(hcd);
-	if (ret)
-		return ret;
-
-	ehci_port_power(ehci, 0);
-
-	return ret;
-}
-
 static const struct hc_driver ci_ehci_hc_driver = {
 	.description	= "ehci_hcd",
 	.product_desc	= "ChipIdea HDRC EHCI",
@@ -61,7 +45,7 @@ static const struct hc_driver ci_ehci_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset		= ci_ehci_setup,
+	.reset		= ehci_setup,
 	.start		= ehci_run,
 	.stop		= ehci_stop,
 	.shutdown	= ehci_shutdown,

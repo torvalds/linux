@@ -101,20 +101,6 @@ static void orion_usb_phy_v1_setup(struct usb_hcd *hcd)
 	wrl(USB_MODE, 0x13);
 }
 
-static int ehci_orion_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int retval;
-
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 0);
-
-	return retval;
-}
-
 static const struct hc_driver ehci_orion_hc_driver = {
 	.description = hcd_name,
 	.product_desc = "Marvell Orion EHCI",
@@ -129,7 +115,7 @@ static const struct hc_driver ehci_orion_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.reset = ehci_orion_setup,
+	.reset = ehci_setup,
 	.start = ehci_run,
 	.stop = ehci_stop,
 	.shutdown = ehci_shutdown,

@@ -56,6 +56,19 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	if (!ehci->owned_ports)
 		return;
 
+	/* Make sure the ports are powered */
+	port = HCS_N_PORTS(ehci->hcs_params);
+	while (port--) {
+		if (test_bit(port, &ehci->owned_ports)) {
+			reg = &ehci->regs->port_status[port];
+			status = ehci_readl(ehci, reg) & ~PORT_RWC_BITS;
+			if (!(status & PORT_POWER)) {
+				status |= PORT_POWER;
+				ehci_writel(ehci, status, reg);
+			}
+		}
+	}
+
 	/* Give the connections some time to appear */
 	msleep(20);
 

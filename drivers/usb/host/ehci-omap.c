@@ -146,9 +146,6 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 1);
 	}
 
-	/* root ports should always stay powered */
-	ehci_port_power(ehci, 1);
-
 	return rc;
 }
 

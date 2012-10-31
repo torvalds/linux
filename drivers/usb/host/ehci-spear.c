@@ -37,18 +37,11 @@ static void spear_stop_ehci(struct spear_ehci *ehci)
 static int ehci_spear_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int retval = 0;
 
 	/* registers start at offset 0x0 */
 	ehci->caps = hcd->regs;
 
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 0);
-
-	return retval;
+	return ehci_setup(hcd);
 }
 
 static const struct hc_driver ehci_spear_hc_driver = {

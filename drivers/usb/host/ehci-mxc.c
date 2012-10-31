@@ -40,16 +40,10 @@ struct ehci_mxc_priv {
 static int ehci_mxc_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-	int retval;
 
 	hcd->has_tt = 1;
 
-	retval = ehci_setup(hcd);
-	if (retval)
-		return retval;
-
-	ehci_port_power(ehci, 0);
-	return 0;
+	return ehci_setup(hcd);
 }
 
 static const struct hc_driver ehci_mxc_hc_driver = {
