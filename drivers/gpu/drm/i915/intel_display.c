@@ -8352,6 +8352,14 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
+	/* FIXME <= Gen4 stride limits are bit unclear */
+	if (mode_cmd->pitches[0] > 32768)
+		return -EINVAL;
+
+	if (obj->tiling_mode != I915_TILING_NONE &&
+	    mode_cmd->pitches[0] != obj->stride)
+		return -EINVAL;
+
 	/* Reject formats not supported by any plane early. */
 	switch (mode_cmd->pixel_format) {
 	case DRM_FORMAT_C8:
