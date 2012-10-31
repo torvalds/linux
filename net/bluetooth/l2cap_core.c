@@ -4375,7 +4375,7 @@ static void l2cap_logical_finish_create(struct l2cap_chan *chan,
 {
 	struct l2cap_conf_rsp rsp;
 
-	chan->hs_hcon = hchan->conn;
+	chan->hs_hchan = hchan;
 	chan->hs_hcon->l2cap_data = chan->conn;
 
 	l2cap_send_efs_conf_rsp(chan, &rsp, chan->ident, 0);
