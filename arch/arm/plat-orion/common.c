@@ -625,16 +625,12 @@ static struct resource orion_xor0_shared_resources[] = {
 	},
 };
 
-static struct platform_device orion_xor0_shared;
-
 static struct mv_xor_platform_data orion_xor0_channels_pdata[2] = {
 	{
-		.shared		= &orion_xor0_shared,
 		.hw_id		= 0,
 		.pool_size	= PAGE_SIZE,
 	},
 	{
-		.shared		= &orion_xor0_shared,
 		.hw_id		= 1,
 		.pool_size	= PAGE_SIZE,
 	},
@@ -704,16 +700,12 @@ static struct resource orion_xor1_shared_resources[] = {
 	},
 };
 
-static struct platform_device orion_xor1_shared;
-
 static struct mv_xor_platform_data orion_xor1_channels_pdata[2] = {
 	{
-		.shared		= &orion_xor1_shared,
 		.hw_id		= 0,
 		.pool_size	= PAGE_SIZE,
 	},
 	{
-		.shared		= &orion_xor1_shared,
 		.hw_id		= 1,
 		.pool_size	= PAGE_SIZE,
 	},
