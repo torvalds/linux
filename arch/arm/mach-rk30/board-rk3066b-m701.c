@@ -1129,7 +1129,7 @@ static struct platform_device rk30_device_adc_battery = {
                 .platform_data = &rk30_adc_battery_platdata,
         },
 };
-ss
+
 #elif defined(CONFIG_BATTERY_RK30_ADC_FAC)
 
 #define BOARD_BAT_DEFINE_VALUE          (1800)	/* bat_zx: the same with BAT_DEFINE_VALUE in RK3066B */
