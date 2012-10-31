@@ -32,3 +32,13 @@
 &ps_clk {
 	clock-frequency = <33333330>;
 };
+
+&ttc0_0 {
+	status = "ok";
+	compatible = "xlnx,ttc-counter-clocksource";
+};
+
+&ttc0_1 {
+	status = "ok";
+	compatible = "xlnx,ttc-counter-clockevent";
+};
