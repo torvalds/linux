@@ -404,7 +404,7 @@ nlm_pic_ack(uint64_t base, int irt_num)
 static inline void
 nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
 {
-	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, 0);
+	nlm_pic_write_irt_direct(base, irt, 0, 0, 0, irq, hwt);
 }
 
 extern uint64_t nlm_pic_base;
