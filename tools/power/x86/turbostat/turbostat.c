@@ -20,6 +20,7 @@
  */
 
 #define _GNU_SOURCE
+#include <asm/msr.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -34,19 +35,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <sched.h>
-
-#define MSR_NEHALEM_PLATFORM_INFO	0xCE
-#define MSR_NEHALEM_TURBO_RATIO_LIMIT	0x1AD
-#define MSR_IVT_TURBO_RATIO_LIMIT	0x1AE
-#define MSR_APERF	0xE8
-#define MSR_MPERF	0xE7
-#define MSR_PKG_C2_RESIDENCY	0x60D	/* SNB only */
-#define MSR_PKG_C3_RESIDENCY	0x3F8
-#define MSR_PKG_C6_RESIDENCY	0x3F9
-#define MSR_PKG_C7_RESIDENCY	0x3FA	/* SNB only */
-#define MSR_CORE_C3_RESIDENCY	0x3FC
-#define MSR_CORE_C6_RESIDENCY	0x3FD
-#define MSR_CORE_C7_RESIDENCY	0x3FE	/* SNB only */
 
 char *proc_stat = "/proc/stat";
 unsigned int interval_sec = 5;	/* set with -i interval_sec */
@@ -674,9 +662,9 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	t->tsc = rdtsc();	/* we are running on local CPU of interest */
 
 	if (has_aperf) {
-		if (get_msr(cpu, MSR_APERF, &t->aperf))
+		if (get_msr(cpu, MSR_IA32_APERF, &t->aperf))
 			return -3;
-		if (get_msr(cpu, MSR_MPERF, &t->mperf))
+		if (get_msr(cpu, MSR_IA32_MPERF, &t->mperf))
 			return -4;
 	}
 
@@ -742,10 +730,10 @@ void print_verbose_header(void)
 	if (!do_nehalem_platform_info)
 		return;
 
-	get_msr(0, MSR_NEHALEM_PLATFORM_INFO, &msr);
+	get_msr(0, MSR_NHM_PLATFORM_INFO, &msr);
 
 	if (verbose > 1)
-		fprintf(stderr, "MSR_NEHALEM_PLATFORM_INFO: 0x%llx\n", msr);
+		fprintf(stderr, "MSR_NHM_PLATFORM_INFO: 0x%llx\n", msr);
 
 	ratio = (msr >> 40) & 0xFF;
 	fprintf(stderr, "%d * %.0f = %.0f MHz max efficiency\n",
@@ -808,10 +796,10 @@ print_nhm_turbo_ratio_limits:
 	if (!do_nehalem_turbo_ratio_limit)
 		return;
 
-	get_msr(0, MSR_NEHALEM_TURBO_RATIO_LIMIT, &msr);
+	get_msr(0, MSR_NHM_TURBO_RATIO_LIMIT, &msr);
 
 	if (verbose > 1)
-		fprintf(stderr, "MSR_NEHALEM_TURBO_RATIO_LIMIT: 0x%llx\n", msr);
+		fprintf(stderr, "MSR_NHM_TURBO_RATIO_LIMIT: 0x%llx\n", msr);
 
 	ratio = (msr >> 56) & 0xFF;
 	if (ratio)

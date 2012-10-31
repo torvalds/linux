@@ -1,5 +1,6 @@
 turbostat : turbostat.c
 CFLAGS +=	-Wall
+CFLAGS +=	-I../../../../arch/x86/include/
 
 clean :
 	rm -f turbostat
