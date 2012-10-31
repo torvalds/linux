@@ -137,7 +137,16 @@
 #define LINK_20GTFD		LINK_STATUS_SPEED_AND_DUPLEX_20GTFD
 #define LINK_20GXFD		LINK_STATUS_SPEED_AND_DUPLEX_20GXFD
 
-
+#define LINK_UPDATE_MASK \
+			(LINK_STATUS_SPEED_AND_DUPLEX_MASK | \
+			 LINK_STATUS_LINK_UP | \
+			 LINK_STATUS_PHYSICAL_LINK_FLAG | \
+			 LINK_STATUS_AUTO_NEGOTIATE_COMPLETE | \
+			 LINK_STATUS_RX_FLOW_CONTROL_FLAG_MASK | \
+			 LINK_STATUS_TX_FLOW_CONTROL_FLAG_MASK | \
+			 LINK_STATUS_PARALLEL_DETECTION_FLAG_MASK | \
+			 LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE | \
+			 LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE)
 
 #define SFP_EEPROM_CON_TYPE_ADDR		0x2
 	#define SFP_EEPROM_CON_TYPE_VAL_LC	0x7
@@ -6349,15 +6358,7 @@ static int bnx2x_update_link_down(struct link_params *params,
 	vars->mac_type = MAC_TYPE_NONE;
 
 	/* Update shared memory */
-	vars->link_status &= ~(LINK_STATUS_SPEED_AND_DUPLEX_MASK |
-			       LINK_STATUS_LINK_UP |
-			       LINK_STATUS_PHYSICAL_LINK_FLAG |
-			       LINK_STATUS_AUTO_NEGOTIATE_COMPLETE |
-			       LINK_STATUS_RX_FLOW_CONTROL_FLAG_MASK |
-			       LINK_STATUS_TX_FLOW_CONTROL_FLAG_MASK |
-			       LINK_STATUS_PARALLEL_DETECTION_FLAG_MASK |
-			       LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE |
-			       LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE);
+	vars->link_status &= ~LINK_UPDATE_MASK;
 	vars->line_speed = 0;
 	bnx2x_update_mng(params, vars->link_status);
 
@@ -6505,6 +6506,7 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 	u16 ext_phy_line_speed = 0, prev_line_speed = vars->line_speed;
 	u8 active_external_phy = INT_PHY;
 	vars->phy_flags &= ~PHY_HALF_OPEN_CONN_FLAG;
+	vars->link_status &= ~LINK_UPDATE_MASK;
 	for (phy_index = INT_PHY; phy_index < params->num_phys;
 	      phy_index++) {
 		phy_vars[phy_index].flow_ctrl = 0;
