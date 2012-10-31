@@ -107,7 +107,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		v_pci_card_list_init(this_board->i_VendorId, 1);	/* 1 for displaying the list.. */
 		pci_list_builded = 1;
 	}
-	/* printk("comedi%d: "ADDIDATA_DRIVER_NAME": board=%s",dev->minor,this_board->pc_DriverName); */
 
 	if ((this_board->i_Dma) && (it->options[2] == 0)) {
 		i_Dma = 1;
@@ -466,32 +465,3 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 		}
 	}
 }
-
-static struct comedi_driver addi_driver = {
-	.driver_name	= ADDIDATA_DRIVER_NAME,
-	.module		= THIS_MODULE,
-	.attach		= i_ADDI_Attach,
-	.detach		= i_ADDI_Detach,
-	.num_names	= ARRAY_SIZE(boardtypes),
-	.board_name	= &boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
-};
-
-static int __devinit addi_pci_probe(struct pci_dev *dev,
-				    const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, &addi_driver);
-}
-
-static void __devexit addi_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver addi_pci_driver = {
-	.name		= ADDIDATA_DRIVER_NAME,
-	.id_table	= addi_apci_tbl,
-	.probe		= &addi_pci_probe,
-	.remove		= __devexit_p(&addi_pci_remove),
-};
-module_comedi_pci_driver(addi_driver, addi_pci_driver);

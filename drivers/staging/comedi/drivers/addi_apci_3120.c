@@ -6,12 +6,11 @@
 
 #define CONFIG_APCI_3120 1
 
-#define ADDIDATA_DRIVER_NAME	"addi_apci_3120"
-
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci3120.c"
+#include "addi-data/addi_common.c"
 
-static const struct addi_board boardtypes[] = {
+static const struct addi_board apci3120_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci3120",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
@@ -55,13 +54,40 @@ static const struct addi_board boardtypes[] = {
 	},
 };
 
-static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+static struct comedi_driver apci3120_driver = {
+	.driver_name	= "addi_apci_3120",
+	.module		= THIS_MODULE,
+	.attach		= i_ADDI_Attach,
+	.detach		= i_ADDI_Detach,
+	.num_names	= ARRAY_SIZE(apci3120_boardtypes),
+	.board_name	= &apci3120_boardtypes[0].pc_DriverName,
+	.offset		= sizeof(struct addi_board),
+};
+
+static int __devinit apci3120_pci_probe(struct pci_dev *dev,
+					const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &apci3120_driver);
+}
+
+static void __devexit apci3120_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x818d) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
+MODULE_DEVICE_TABLE(pci, apci3120_pci_table);
 
-#include "addi-data/addi_common.c"
+static struct pci_driver apci3120_pci_driver = {
+	.name		= "addi_apci_3120",
+	.id_table	= apci3120_pci_table,
+	.probe		= apci3120_pci_probe,
+	.remove		= __devexit_p(apci3120_pci_remove),
+};
+module_comedi_pci_driver(apci3120_driver, apci3120_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

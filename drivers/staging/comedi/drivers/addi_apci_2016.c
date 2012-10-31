@@ -4,12 +4,11 @@
 #include "addi-data/addi_common.h"
 #include "addi-data/addi_amcc_s5933.h"
 
-#define ADDIDATA_DRIVER_NAME	"addi_apci_2016"
-
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci2016.c"
+#include "addi-data/addi_common.c"
 
-static const struct addi_board boardtypes[] = {
+static const struct addi_board apci2016_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci2016",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
@@ -31,13 +30,40 @@ static const struct addi_board boardtypes[] = {
 	},
 };
 
-static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+static struct comedi_driver apci2016_driver = {
+	.driver_name	= "addi_apci_2016",
+	.module		= THIS_MODULE,
+	.attach		= i_ADDI_Attach,
+	.detach		= i_ADDI_Detach,
+	.num_names	= ARRAY_SIZE(apci2016_boardtypes),
+	.board_name	= &apci2016_boardtypes[0].pc_DriverName,
+	.offset		= sizeof(struct addi_board),
+};
+
+static int __devinit apci2016_pci_probe(struct pci_dev *dev,
+					const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &apci2016_driver);
+}
+
+static void __devexit apci2016_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(apci2016_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1002) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
+MODULE_DEVICE_TABLE(pci, apci2016_pci_table);
 
-#include "addi-data/addi_common.c"
+static struct pci_driver apci2016_pci_driver = {
+	.name		= "addi_apci_2016",
+	.id_table	= apci2016_pci_table,
+	.probe		= apci2016_pci_probe,
+	.remove		= __devexit_p(apci2016_pci_remove),
+};
+module_comedi_pci_driver(apci2016_driver, apci2016_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

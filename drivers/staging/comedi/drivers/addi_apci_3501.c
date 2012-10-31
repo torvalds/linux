@@ -4,12 +4,11 @@
 #include "addi-data/addi_common.h"
 #include "addi-data/addi_amcc_s5933.h"
 
-#define ADDIDATA_DRIVER_NAME	"addi_apci_3501"
-
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci3501.c"
+#include "addi-data/addi_common.c"
 
-static const struct addi_board boardtypes[] = {
+static const struct addi_board apci3501_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci3501",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
@@ -38,13 +37,40 @@ static const struct addi_board boardtypes[] = {
 	},
 };
 
-static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+static DEFINE_PCI_DEVICE_TABLE(apci3501_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3001) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
+MODULE_DEVICE_TABLE(pci, apci3501_pci_table);
 
-#include "addi-data/addi_common.c"
+static struct comedi_driver apci3501_driver = {
+	.driver_name	= "addi_apci_3501",
+	.module		= THIS_MODULE,
+	.attach		= i_ADDI_Attach,
+	.detach		= i_ADDI_Detach,
+	.num_names	= ARRAY_SIZE(apci3501_boardtypes),
+	.board_name	= &apci3501_boardtypes[0].pc_DriverName,
+	.offset		= sizeof(struct addi_board),
+};
+
+static int __devinit apci3501_pci_probe(struct pci_dev *dev,
+					const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &apci3501_driver);
+}
+
+static void __devexit apci3501_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver apci3501_pci_driver = {
+	.name		= "addi_apci_3501",
+	.id_table	= apci3501_pci_table,
+	.probe		= apci3501_pci_probe,
+	.remove		= __devexit_p(apci3501_pci_remove),
+};
+module_comedi_pci_driver(apci3501_driver, apci3501_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

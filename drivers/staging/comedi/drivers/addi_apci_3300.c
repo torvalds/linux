@@ -16,12 +16,11 @@ static void fpu_end(void)
 	kernel_fpu_end();
 }
 
-#define ADDIDATA_DRIVER_NAME	"addi_apci_3300"
-
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci3200.c"
+#include "addi-data/addi_common.c"
 
-static const struct addi_board boardtypes[] = {
+static const struct addi_board apci3300_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci3300",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
@@ -56,10 +55,37 @@ static const struct addi_board boardtypes[] = {
 	},
 };
 
-static DEFINE_PCI_DEVICE_TABLE(addi_apci_tbl) = {
+static struct comedi_driver apci3300_driver = {
+	.driver_name	= "addi_apci_3300",
+	.module		= THIS_MODULE,
+	.attach		= i_ADDI_Attach,
+	.detach		= i_ADDI_Detach,
+	.num_names	= ARRAY_SIZE(apci3300_boardtypes),
+	.board_name	= &apci3300_boardtypes[0].pc_DriverName,
+	.offset		= sizeof(struct addi_board),
+};
+
+static int __devinit apci3300_pci_probe(struct pci_dev *dev,
+					const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &apci3300_driver);
+}
+
+static void __devexit apci3300_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static DEFINE_PCI_DEVICE_TABLE(apci3300_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x3007) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, addi_apci_tbl);
+MODULE_DEVICE_TABLE(pci, apci3300_pci_table);
 
-#include "addi-data/addi_common.c"
+static struct pci_driver apci3300_pci_driver = {
+	.name		= "addi_apci_3300",
+	.id_table	= apci3300_pci_table,
+	.probe		= apci3300_pci_probe,
+	.remove		= __devexit_p(apci3300_pci_remove),
+};
+module_comedi_pci_driver(apci3300_driver, apci3300_pci_driver);
