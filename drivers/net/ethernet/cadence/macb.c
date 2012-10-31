@@ -44,6 +44,16 @@
 
 #define MACB_RX_INT_FLAGS	(MACB_BIT(RCOMP) | MACB_BIT(RXUBR)	\
 				 | MACB_BIT(ISR_ROVR))
+#define MACB_TX_ERR_FLAGS	(MACB_BIT(ISR_TUND)			\
+					| MACB_BIT(ISR_RLE)		\
+					| MACB_BIT(TXERR))
+#define MACB_TX_INT_FLAGS	(MACB_TX_ERR_FLAGS | MACB_BIT(TCOMP))
+
+/*
+ * Graceful stop timeouts in us. We should allow up to
+ * 1 frame time (10 Mbits/s, full-duplex, ignoring collisions)
+ */
+#define MACB_HALT_TIMEOUT	1230
 
 /* Ring buffer accessors */
 static unsigned int macb_tx_ring_wrap(unsigned int index)
@@ -339,7 +349,103 @@ static void macb_update_stats(struct macb *bp)
 		*p += __raw_readl(reg);
 }
 
-static void macb_tx(struct macb *bp)
+static int macb_halt_tx(struct macb *bp)
+{
+	unsigned long	halt_time, timeout;
+	u32		status;
+
+	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(THALT));
+
+	timeout = jiffies + usecs_to_jiffies(MACB_HALT_TIMEOUT);
+	do {
+		halt_time = jiffies;
+		status = macb_readl(bp, TSR);
+		if (!(status & MACB_BIT(TGO)))
+			return 0;
+
+		usleep_range(10, 250);
+	} while (time_before(halt_time, timeout));
+
+	return -ETIMEDOUT;
+}
+
+static void macb_tx_error_task(struct work_struct *work)
+{
+	struct macb	*bp = container_of(work, struct macb, tx_error_task);
+	struct macb_tx_skb	*tx_skb;
+	struct sk_buff		*skb;
+	unsigned int		tail;
+
+	netdev_vdbg(bp->dev, "macb_tx_error_task: t = %u, h = %u\n",
+		    bp->tx_tail, bp->tx_head);
+
+	/* Make sure nobody is trying to queue up new packets */
+	netif_stop_queue(bp->dev);
+
+	/*
+	 * Stop transmission now
+	 * (in case we have just queued new packets)
+	 */
+	if (macb_halt_tx(bp))
+		/* Just complain for now, reinitializing TX path can be good */
+		netdev_err(bp->dev, "BUG: halt tx timed out\n");
+
+	/* No need for the lock here as nobody will interrupt us anymore */
+
+	/*
+	 * Treat frames in TX queue including the ones that caused the error.
+	 * Free transmit buffers in upper layer.
+	 */
+	for (tail = bp->tx_tail; tail != bp->tx_head; tail++) {
+		struct macb_dma_desc	*desc;
+		u32			ctrl;
+
+		desc = macb_tx_desc(bp, tail);
+		ctrl = desc->ctrl;
+		tx_skb = macb_tx_skb(bp, tail);
+		skb = tx_skb->skb;
+
+		if (ctrl & MACB_BIT(TX_USED)) {
+			netdev_vdbg(bp->dev, "txerr skb %u (data %p) TX complete\n",
+				    macb_tx_ring_wrap(tail), skb->data);
+			bp->stats.tx_packets++;
+			bp->stats.tx_bytes += skb->len;
+		} else {
+			/*
+			 * "Buffers exhausted mid-frame" errors may only happen
+			 * if the driver is buggy, so complain loudly about those.
+			 * Statistics are updated by hardware.
+			 */
+			if (ctrl & MACB_BIT(TX_BUF_EXHAUSTED))
+				netdev_err(bp->dev,
+					   "BUG: TX buffers exhausted mid-frame\n");
+
+			desc->ctrl = ctrl | MACB_BIT(TX_USED);
+		}
+
+		dma_unmap_single(&bp->pdev->dev, tx_skb->mapping, skb->len,
+				 DMA_TO_DEVICE);
+		tx_skb->skb = NULL;
+		dev_kfree_skb(skb);
+	}
+
+	/* Make descriptor updates visible to hardware */
+	wmb();
+
+	/* Reinitialize the TX desc queue */
+	macb_writel(bp, TBQP, bp->tx_ring_dma);
+	/* Make TX ring reflect state of hardware */
+	bp->tx_head = bp->tx_tail = 0;
+
+	/* Now we are ready to start transmission again */
+	netif_wake_queue(bp->dev);
+
+	/* Housework before enabling TX IRQ */
+	macb_writel(bp, TSR, macb_readl(bp, TSR));
+	macb_writel(bp, IER, MACB_TX_INT_FLAGS);
+}
+
+static void macb_tx_interrupt(struct macb *bp)
 {
 	unsigned int tail;
 	unsigned int head;
@@ -348,57 +454,8 @@ static void macb_tx(struct macb *bp)
 	status = macb_readl(bp, TSR);
 	macb_writel(bp, TSR, status);
 
-	netdev_vdbg(bp->dev, "macb_tx status = 0x%03lx\n", (unsigned long)status);
-
-	if (status & (MACB_BIT(UND) | MACB_BIT(TSR_RLE))) {
-		int i;
-		netdev_err(bp->dev, "TX %s, resetting buffers\n",
-			   status & MACB_BIT(UND) ?
-			   "underrun" : "retry limit exceeded");
-
-		/* Transfer ongoing, disable transmitter, to avoid confusion */
-		if (status & MACB_BIT(TGO))
-			macb_writel(bp, NCR, macb_readl(bp, NCR) & ~MACB_BIT(TE));
-
-		head = bp->tx_head;
-
-		/*Mark all the buffer as used to avoid sending a lost buffer*/
-		for (i = 0; i < TX_RING_SIZE; i++)
-			bp->tx_ring[i].ctrl = MACB_BIT(TX_USED);
-
-		/* Add wrap bit */
-		bp->tx_ring[TX_RING_SIZE - 1].ctrl |= MACB_BIT(TX_WRAP);
-
-		/* free transmit buffer in upper layer*/
-		for (tail = bp->tx_tail; tail != head; tail++) {
-			struct macb_tx_skb	*tx_skb;
-			struct sk_buff		*skb;
-
-			rmb();
-
-			tx_skb = macb_tx_skb(bp, tail);
-			skb = tx_skb->skb;
-
-			dma_unmap_single(&bp->pdev->dev, tx_skb->mapping,
-						skb->len, DMA_TO_DEVICE);
-			tx_skb->skb = NULL;
-			dev_kfree_skb_irq(skb);
-		}
-
-		bp->tx_head = bp->tx_tail = 0;
-
-		/* Enable the transmitter again */
-		if (status & MACB_BIT(TGO))
-			macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TE));
-	}
-
-	if (!(status & MACB_BIT(COMP)))
-		/*
-		 * This may happen when a buffer becomes complete
-		 * between reading the ISR and scanning the
-		 * descriptors.  Nothing to worry about.
-		 */
-		return;
+	netdev_vdbg(bp->dev, "macb_tx_interrupt status = 0x%03lx\n",
+		(unsigned long)status);
 
 	head = bp->tx_head;
 	for (tail = bp->tx_tail; tail != head; tail++) {
@@ -638,9 +695,14 @@ static irqreturn_t macb_interrupt(int irq, void *dev_id)
 			}
 		}
 
-		if (status & (MACB_BIT(TCOMP) | MACB_BIT(ISR_TUND) |
-			    MACB_BIT(ISR_RLE)))
-			macb_tx(bp);
+		if (unlikely(status & (MACB_TX_ERR_FLAGS))) {
+			macb_writel(bp, IDR, MACB_TX_INT_FLAGS);
+			schedule_work(&bp->tx_error_task);
+			break;
+		}
+
+		if (status & MACB_BIT(TCOMP))
+			macb_tx_interrupt(bp);
 
 		/*
 		 * Link change detection isn't possible with RMII, so we'll
@@ -970,13 +1032,8 @@ static void macb_init_hw(struct macb *bp)
 	macb_writel(bp, NCR, MACB_BIT(RE) | MACB_BIT(TE) | MACB_BIT(MPE));
 
 	/* Enable interrupts */
-	macb_writel(bp, IER, (MACB_BIT(RCOMP)
-			      | MACB_BIT(RXUBR)
-			      | MACB_BIT(ISR_TUND)
-			      | MACB_BIT(ISR_RLE)
-			      | MACB_BIT(TXERR)
-			      | MACB_BIT(TCOMP)
-			      | MACB_BIT(ISR_ROVR)
+	macb_writel(bp, IER, (MACB_RX_INT_FLAGS
+			      | MACB_TX_INT_FLAGS
 			      | MACB_BIT(HRESP)));
 
 }
@@ -1428,6 +1485,7 @@ static int __init macb_probe(struct platform_device *pdev)
 	bp->dev = dev;
 
 	spin_lock_init(&bp->lock);
+	INIT_WORK(&bp->tx_error_task, macb_tx_error_task);
 
 	bp->pclk = clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(bp->pclk)) {

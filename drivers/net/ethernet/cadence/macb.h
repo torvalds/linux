@@ -538,6 +538,7 @@ struct macb {
 	struct clk		*hclk;
 	struct net_device	*dev;
 	struct napi_struct	napi;
+	struct work_struct	tx_error_task;
 	struct net_device_stats	stats;
 	union {
 		struct macb_stats	macb;
