@@ -10,6 +10,9 @@
 #ifndef _MACB_H
 #define _MACB_H
 
+#define MACB_GREGS_NBR 16
+#define MACB_GREGS_VERSION 1
+
 /* MACB register offsets */
 #define MACB_NCR				0x0000
 #define MACB_NCFGR				0x0004
