@@ -118,7 +118,6 @@ static int addi_attach_pci(struct comedi_device *dev,
 		return ret;
 	if (this_board->i_Dma)
 		pci_set_master(pcidev);
-	devpriv->allocated = 1;
 
 	if (!this_board->pc_EepromChip ||
 	    !strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
@@ -385,8 +384,6 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			free_irq(dev->irq, dev);
 		if ((this_board->pc_EepromChip == NULL) ||
 		    (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
-			if (devpriv->allocated)
-				comedi_pci_disable(pcidev);
 			if (devpriv->ul_DmaBufferVirtual[0]) {
 				free_pages((unsigned long)devpriv->
 					ul_DmaBufferVirtual[0],
@@ -399,8 +396,10 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			}
 		} else {
 			iounmap(devpriv->dw_AiBase);
-			if (devpriv->allocated)
-				comedi_pci_disable(pcidev);
 		}
+	}
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
 	}
 }
