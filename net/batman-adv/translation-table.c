@@ -434,22 +434,10 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 	struct hlist_node *node;
 	struct hlist_head *head;
 	uint32_t i;
-	int ret = 0;
 
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				 net_dev->name);
+	primary_if = batadv_seq_print_text_primary_if_get(seq);
+	if (!primary_if)
 		goto out;
-	}
-
-	if (primary_if->if_status != BATADV_IF_ACTIVE) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - primary interface not active\n",
-				 net_dev->name);
-		goto out;
-	}
 
 	seq_printf(seq,
 		   "Locally retrieved addresses (from %s) announced via TT (TTVN: %u):\n",
@@ -479,7 +467,7 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
-	return ret;
+	return 0;
 }
 
 static void
@@ -501,24 +489,39 @@ batadv_tt_local_set_pending(struct batadv_priv *bat_priv,
 		   tt_local_entry->common.addr, message);
 }
 
-void batadv_tt_local_remove(struct batadv_priv *bat_priv, const uint8_t *addr,
-			    const char *message, bool roaming)
+/**
+ * batadv_tt_local_remove - logically remove an entry from the local table
+ * @bat_priv: the bat priv with all the soft interface information
+ * @addr: the MAC address of the client to remove
+ * @message: message to append to the log on deletion
+ * @roaming: true if the deletion is due to a roaming event
+ *
+ * Returns the flags assigned to the local entry before being deleted
+ */
+uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
+				const uint8_t *addr, const char *message,
+				bool roaming)
 {
 	struct batadv_tt_local_entry *tt_local_entry = NULL;
-	uint16_t flags;
+	uint16_t flags, curr_flags = BATADV_NO_FLAGS;
 
 	tt_local_entry = batadv_tt_local_hash_find(bat_priv, addr);
 	if (!tt_local_entry)
 		goto out;
+
+	curr_flags = tt_local_entry->common.flags;
 
 	flags = BATADV_TT_CLIENT_DEL;
 	if (roaming)
 		flags |= BATADV_TT_CLIENT_ROAM;
 
 	batadv_tt_local_set_pending(bat_priv, tt_local_entry, flags, message);
+
 out:
 	if (tt_local_entry)
 		batadv_tt_local_entry_free_ref(tt_local_entry);
+
+	return curr_flags;
 }
 
 static void batadv_tt_local_purge_list(struct batadv_priv *bat_priv,
@@ -725,6 +728,7 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 	int ret = 0;
 	int hash_added;
 	struct batadv_tt_common_entry *common;
+	uint16_t local_flags;
 
 	tt_global_entry = batadv_tt_global_hash_find(bat_priv, tt_addr);
 
@@ -738,6 +742,12 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 
 		common->flags = flags;
 		tt_global_entry->roam_at = 0;
+		/* node must store current time in case of roaming. This is
+		 * needed to purge this entry out on timeout (if nobody claims
+		 * it)
+		 */
+		if (flags & BATADV_TT_CLIENT_ROAM)
+			tt_global_entry->roam_at = jiffies;
 		atomic_set(&common->refcount, 2);
 		common->added_at = jiffies;
 
@@ -788,13 +798,16 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Creating new global tt entry: %pM (via %pM)\n",
 		   tt_global_entry->common.addr, orig_node->orig);
+	ret = 1;
 
 out_remove:
+
 	/* remove address from local hash if present */
-	batadv_tt_local_remove(bat_priv, tt_global_entry->common.addr,
-			       "global tt received",
-			       flags & BATADV_TT_CLIENT_ROAM);
-	ret = 1;
+	local_flags = batadv_tt_local_remove(bat_priv, tt_addr,
+					     "global tt received",
+					     flags & BATADV_TT_CLIENT_ROAM);
+	tt_global_entry->common.flags |= local_flags & BATADV_TT_CLIENT_WIFI;
+
 out:
 	if (tt_global_entry)
 		batadv_tt_global_entry_free_ref(tt_global_entry);
@@ -842,22 +855,10 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	struct hlist_node *node;
 	struct hlist_head *head;
 	uint32_t i;
-	int ret = 0;
 
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
-				 net_dev->name);
+	primary_if = batadv_seq_print_text_primary_if_get(seq);
+	if (!primary_if)
 		goto out;
-	}
-
-	if (primary_if->if_status != BATADV_IF_ACTIVE) {
-		ret = seq_printf(seq,
-				 "BATMAN mesh %s disabled - primary interface not active\n",
-				 net_dev->name);
-		goto out;
-	}
 
 	seq_printf(seq,
 		   "Globally announced TT entries received via the mesh %s\n",
@@ -881,7 +882,7 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 out:
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
-	return ret;
+	return 0;
 }
 
 /* deletes the orig list of a tt_global_entry */
@@ -2438,7 +2439,7 @@ bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
 	if (!tt_global_entry)
 		goto out;
 
-	ret = tt_global_entry->common.flags & BATADV_TT_CLIENT_ROAM;
+	ret = !!(tt_global_entry->common.flags & BATADV_TT_CLIENT_ROAM);
 	batadv_tt_global_entry_free_ref(tt_global_entry);
 out:
 	return ret;

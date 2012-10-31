@@ -24,9 +24,9 @@ int batadv_tt_len(int changes_num);
 int batadv_tt_init(struct batadv_priv *bat_priv);
 void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 			 int ifindex);
-void batadv_tt_local_remove(struct batadv_priv *bat_priv,
-			    const uint8_t *addr, const char *message,
-			    bool roaming);
+uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
+				const uint8_t *addr, const char *message,
+				bool roaming);
 int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset);
 void batadv_tt_global_add_orig(struct batadv_priv *bat_priv,
 			       struct batadv_orig_node *orig_node,

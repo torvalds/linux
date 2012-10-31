@@ -99,15 +99,17 @@ int batadv_debug_log(struct batadv_priv *bat_priv, const char *fmt, ...)
 
 static int batadv_log_open(struct inode *inode, struct file *file)
 {
+	if (!try_module_get(THIS_MODULE))
+		return -EBUSY;
+
 	nonseekable_open(inode, file);
 	file->private_data = inode->i_private;
-	batadv_inc_module_count();
 	return 0;
 }
 
 static int batadv_log_release(struct inode *inode, struct file *file)
 {
-	batadv_dec_module_count();
+	module_put(THIS_MODULE);
 	return 0;
 }
 
