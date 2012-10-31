@@ -139,8 +139,8 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			ACPI_ERROR((AE_INFO,
 				    "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
 				    walk_state->opcode,
-				    walk_state->aml_offset +
-				    sizeof(struct acpi_table_header)));
+				    (u32)(walk_state->aml_offset +
+					  sizeof(struct acpi_table_header))));
 
 			ACPI_DUMP_BUFFER(walk_state->parser_state.aml - 16, 48);
 
@@ -152,8 +152,8 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 			acpi_os_printf
 			    ("/*\nError: Unknown opcode 0x%.2X at table offset 0x%.4X, context:\n",
 			     walk_state->opcode,
-			     walk_state->aml_offset +
-			     sizeof(struct acpi_table_header));
+			     (u32)(walk_state->aml_offset +
+				   sizeof(struct acpi_table_header)));
 
 			/* Dump the context surrounding the invalid opcode */
 
