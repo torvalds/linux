@@ -784,7 +784,10 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.disable = intel_disable_crt;
 	crt->base.enable = intel_enable_crt;
-	crt->base.get_hw_state = intel_crt_get_hw_state;
+	if (IS_HASWELL(dev))
+		crt->base.get_hw_state = intel_ddi_get_hw_state;
+	else
+		crt->base.get_hw_state = intel_crt_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	drm_encoder_helper_add(&crt->base.base, &crt_encoder_funcs);
