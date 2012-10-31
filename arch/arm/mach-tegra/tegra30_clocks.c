@@ -31,6 +31,8 @@
 
 #include <asm/clkdev.h>
 
+#include <mach/powergate.h>
+
 #include "clock.h"
 #include "fuse.h"
 #include "iomap.h"
@@ -308,6 +310,31 @@
 
 #define CPU_CLOCK(cpu)	(0x1 << (8 + cpu))
 #define CPU_RESET(cpu)	(0x1111ul << (cpu))
+
+#define CLK_RESET_CCLK_BURST	0x20
+#define CLK_RESET_CCLK_DIVIDER  0x24
+#define CLK_RESET_PLLX_BASE	0xe0
+#define CLK_RESET_PLLX_MISC	0xe4
+
+#define CLK_RESET_SOURCE_CSITE	0x1d4
+
+#define CLK_RESET_CCLK_BURST_POLICY_SHIFT	28
+#define CLK_RESET_CCLK_RUN_POLICY_SHIFT		4
+#define CLK_RESET_CCLK_IDLE_POLICY_SHIFT	0
+#define CLK_RESET_CCLK_IDLE_POLICY		1
+#define CLK_RESET_CCLK_RUN_POLICY		2
+#define CLK_RESET_CCLK_BURST_POLICY_PLLX	8
+
+#ifdef CONFIG_PM_SLEEP
+static struct cpu_clk_suspend_context {
+	u32 pllx_misc;
+	u32 pllx_base;
+
+	u32 cpu_burst;
+	u32 clk_csite_src;
+	u32 cclk_divider;
+} tegra30_cpu_clk_sctx;
+#endif
 
 /**
 * Structure defining the fields for USB UTMI clocks Parameters.
@@ -2386,12 +2413,93 @@ static void tegra30_disable_cpu_clock(u32 cpu)
 	       reg_clk_base + TEGRA_CLK_RST_CONTROLLER_CLK_CPU_CMPLX);
 }
 
+#ifdef CONFIG_PM_SLEEP
+static bool tegra30_cpu_rail_off_ready(void)
+{
+	unsigned int cpu_rst_status;
+	int cpu_pwr_status;
+
+	cpu_rst_status = readl(reg_clk_base +
+			       TEGRA30_CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
+	cpu_pwr_status = tegra_powergate_is_powered(TEGRA_POWERGATE_CPU1) ||
+			 tegra_powergate_is_powered(TEGRA_POWERGATE_CPU2) ||
+			 tegra_powergate_is_powered(TEGRA_POWERGATE_CPU3);
+
+	if (((cpu_rst_status & 0xE) != 0xE) || cpu_pwr_status)
+		return false;
+
+	return true;
+}
+
+static void tegra30_cpu_clock_suspend(void)
+{
+	/* switch coresite to clk_m, save off original source */
+	tegra30_cpu_clk_sctx.clk_csite_src =
+				readl(reg_clk_base + CLK_RESET_SOURCE_CSITE);
+	writel(3<<30, reg_clk_base + CLK_RESET_SOURCE_CSITE);
+
+	tegra30_cpu_clk_sctx.cpu_burst =
+				readl(reg_clk_base + CLK_RESET_CCLK_BURST);
+	tegra30_cpu_clk_sctx.pllx_base =
+				readl(reg_clk_base + CLK_RESET_PLLX_BASE);
+	tegra30_cpu_clk_sctx.pllx_misc =
+				readl(reg_clk_base + CLK_RESET_PLLX_MISC);
+	tegra30_cpu_clk_sctx.cclk_divider =
+				readl(reg_clk_base + CLK_RESET_CCLK_DIVIDER);
+}
+
+static void tegra30_cpu_clock_resume(void)
+{
+	unsigned int reg, policy;
+
+	/* Is CPU complex already running on PLLX? */
+	reg = readl(reg_clk_base + CLK_RESET_CCLK_BURST);
+	policy = (reg >> CLK_RESET_CCLK_BURST_POLICY_SHIFT) & 0xF;
+
+	if (policy == CLK_RESET_CCLK_IDLE_POLICY)
+		reg = (reg >> CLK_RESET_CCLK_IDLE_POLICY_SHIFT) & 0xF;
+	else if (policy == CLK_RESET_CCLK_RUN_POLICY)
+		reg = (reg >> CLK_RESET_CCLK_RUN_POLICY_SHIFT) & 0xF;
+	else
+		BUG();
+
+	if (reg != CLK_RESET_CCLK_BURST_POLICY_PLLX) {
+		/* restore PLLX settings if CPU is on different PLL */
+		writel(tegra30_cpu_clk_sctx.pllx_misc,
+					reg_clk_base + CLK_RESET_PLLX_MISC);
+		writel(tegra30_cpu_clk_sctx.pllx_base,
+					reg_clk_base + CLK_RESET_PLLX_BASE);
+
+		/* wait for PLL stabilization if PLLX was enabled */
+		if (tegra30_cpu_clk_sctx.pllx_base & (1 << 30))
+			udelay(300);
+	}
+
+	/*
+	 * Restore original burst policy setting for calls resulting from CPU
+	 * LP2 in idle or system suspend.
+	 */
+	writel(tegra30_cpu_clk_sctx.cclk_divider,
+					reg_clk_base + CLK_RESET_CCLK_DIVIDER);
+	writel(tegra30_cpu_clk_sctx.cpu_burst,
+					reg_clk_base + CLK_RESET_CCLK_BURST);
+
+	writel(tegra30_cpu_clk_sctx.clk_csite_src,
+					reg_clk_base + CLK_RESET_SOURCE_CSITE);
+}
+#endif
+
 static struct tegra_cpu_car_ops tegra30_cpu_car_ops = {
 	.wait_for_reset	= tegra30_wait_cpu_in_reset,
 	.put_in_reset	= tegra30_put_cpu_in_reset,
 	.out_of_reset	= tegra30_cpu_out_of_reset,
 	.enable_clock	= tegra30_enable_cpu_clock,
 	.disable_clock	= tegra30_disable_cpu_clock,
+#ifdef CONFIG_PM_SLEEP
+	.rail_off_ready	= tegra30_cpu_rail_off_ready,
+	.suspend	= tegra30_cpu_clock_suspend,
+	.resume		= tegra30_cpu_clock_resume,
+#endif
 };
 
 void __init tegra30_cpu_car_ops_init(void)
