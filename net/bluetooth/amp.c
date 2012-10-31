@@ -422,6 +422,20 @@ done:
 	hci_dev_put(hdev);
 }
 
+void amp_disconnect_logical_link(struct hci_chan *hchan)
+{
+	struct hci_conn *hcon = hchan->conn;
+	struct hci_cp_disconn_logical_link cp;
+
+	if (hcon->state != BT_CONNECTED) {
+		BT_DBG("hchan %p not connected", hchan);
+		return;
+	}
+
+	cp.log_handle = cpu_to_le16(hchan->handle);
+	hci_send_cmd(hcon->hdev, HCI_OP_DISCONN_LOGICAL_LINK, sizeof(cp), &cp);
+}
+
 void amp_destroy_logical_link(struct hci_chan *hchan, u8 reason)
 {
 	BT_DBG("hchan %p", hchan);

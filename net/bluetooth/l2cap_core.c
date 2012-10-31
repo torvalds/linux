@@ -578,6 +578,13 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 			mgr->bredr_chan = NULL;
 	}
 
+	if (chan->hs_hchan) {
+		struct hci_chan *hs_hchan = chan->hs_hchan;
+
+		BT_DBG("chan %p disconnect hs_hchan %p", chan, hs_hchan);
+		amp_disconnect_logical_link(hs_hchan);
+	}
+
 	chan->ops->teardown(chan, err);
 
 	if (test_bit(CONF_NOT_COMPLETE, &chan->conf_state))
