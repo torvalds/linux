@@ -87,6 +87,7 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct addi_board *this_board = comedi_board(dev);
+	struct pci_dev *pcidev;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
@@ -116,19 +117,20 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (card == NULL)
 		return -EIO;
+	pcidev = card->pcidev;
 
-	ret = comedi_pci_enable(card->pcidev, "addi_amcc_s5933");
+	ret = comedi_pci_enable(pcidev, "addi_amcc_s5933");
 	if (ret)
 		return ret;
 	if (i_Dma)
-		pci_set_master(card->pcidev);
+		pci_set_master(pcidev);
 	card->used = 1;
 	devpriv->allocated = 1;
 
-	iobase_a = pci_resource_start(card->pcidev, 0);
-	iobase_main = pci_resource_start(card->pcidev, 1);
-	iobase_addon = pci_resource_start(card->pcidev, 2);
-	iobase_reserved = pci_resource_start(card->pcidev, 3);
+	iobase_a = pci_resource_start(pcidev, 0);
+	iobase_main = pci_resource_start(pcidev, 1);
+	iobase_addon = pci_resource_start(pcidev, 2);
+	iobase_reserved = pci_resource_start(pcidev, 3);
 
 	if ((this_board->pc_EepromChip == NULL)
 		|| (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
@@ -150,11 +152,11 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->i_IobaseReserved = (int) iobase_reserved;
 	} else {
 		dev->board_name = this_board->pc_DriverName;
-		dev->iobase = pci_resource_start(card->pcidev, 2);
+		dev->iobase = pci_resource_start(pcidev, 2);
 		devpriv->amcc = card;
-		devpriv->iobase = pci_resource_start(card->pcidev, 2);
-		devpriv->i_IobaseReserved = pci_resource_start(card->pcidev, 3);
-		devpriv->dw_AiBase = ioremap(pci_resource_start(card->pcidev, 3),
+		devpriv->iobase = pci_resource_start(pcidev, 2);
+		devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
+		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
 					     this_board->i_IorangeBase3);
 	}
 
@@ -196,7 +198,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
 			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
 		}
-		addi_eeprom_read_info(dev, pci_resource_start(card->pcidev, 0));
+		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 	}
 
 	if (it->options[2] > 0) {
@@ -242,7 +244,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		i_ADDI_AttachPCI1710(dev);
 
 		/*  save base address */
-		devpriv->s_BoardInfos.ui_Address = pci_resource_start(card->pcidev, 2);
+		devpriv->s_BoardInfos.ui_Address = pci_resource_start(pcidev, 2);
 #endif
 	} else {
 		n_subdevices = 7;
