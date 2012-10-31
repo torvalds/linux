@@ -295,6 +295,7 @@ dfs_pattern_detector_init(enum nl80211_dfs_regions region)
 		return dpd;
 
 	pr_err("Could not set DFS domain to %d. ", region);
+	kfree(dpd);
 	return NULL;
 }
 EXPORT_SYMBOL(dfs_pattern_detector_init);
