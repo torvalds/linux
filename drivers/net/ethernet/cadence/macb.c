@@ -152,13 +152,17 @@ static void macb_handle_link_change(struct net_device *dev)
 
 			reg = macb_readl(bp, NCFGR);
 			reg &= ~(MACB_BIT(SPD) | MACB_BIT(FD));
+			if (macb_is_gem(bp))
+				reg &= ~GEM_BIT(GBE);
 
 			if (phydev->duplex)
 				reg |= MACB_BIT(FD);
 			if (phydev->speed == SPEED_100)
 				reg |= MACB_BIT(SPD);
+			if (phydev->speed == SPEED_1000)
+				reg |= GEM_BIT(GBE);
 
-			macb_writel(bp, NCFGR, reg);
+			macb_or_gem_writel(bp, NCFGR, reg);
 
 			bp->speed = phydev->speed;
 			bp->duplex = phydev->duplex;
@@ -216,7 +220,10 @@ static int macb_mii_probe(struct net_device *dev)
 	}
 
 	/* mask with MAC supported features */
-	phydev->supported &= PHY_BASIC_FEATURES;
+	if (macb_is_gem(bp))
+		phydev->supported &= PHY_GBIT_FEATURES;
+	else
+		phydev->supported &= PHY_BASIC_FEATURES;
 
 	phydev->advertising = phydev->supported;
 
@@ -1388,7 +1395,9 @@ static int __init macb_probe(struct platform_device *pdev)
 		bp->phy_interface = err;
 	}
 
-	if (bp->phy_interface == PHY_INTERFACE_MODE_RMII)
+	if (bp->phy_interface == PHY_INTERFACE_MODE_RGMII)
+		macb_or_gem_writel(bp, USRIO, GEM_BIT(RGMII));
+	else if (bp->phy_interface == PHY_INTERFACE_MODE_RMII)
 #if defined(CONFIG_ARCH_AT91)
 		macb_or_gem_writel(bp, USRIO, (MACB_BIT(RMII) |
 					       MACB_BIT(CLKEN)));

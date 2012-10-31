@@ -149,6 +149,8 @@
 #define MACB_IRXFCS_SIZE			1
 
 /* GEM specific NCFGR bitfields. */
+#define GEM_GBE_OFFSET				10
+#define GEM_GBE_SIZE				1
 #define GEM_CLK_OFFSET				18
 #define GEM_CLK_SIZE				3
 #define GEM_DBW_OFFSET				21
@@ -252,6 +254,8 @@
 /* Bitfields in USRIO (AT91) */
 #define MACB_RMII_OFFSET			0
 #define MACB_RMII_SIZE				1
+#define GEM_RGMII_OFFSET			0	/* GEM gigabit mode */
+#define GEM_RGMII_SIZE				1
 #define MACB_CLKEN_OFFSET			1
 #define MACB_CLKEN_SIZE				1
 
