@@ -49,13 +49,11 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+#define APCI1710_SINGLE			0
+#define APCI1710_CONTINUOUS		1
 
-#include "APCI1710_Inp_cpt.h"
+#define APCI1710_PULSEENCODER_READ	0
+#define APCI1710_PULSEENCODER_WRITE	1
 
 /*
 +----------------------------------------------------------------------------+
