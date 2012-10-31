@@ -350,6 +350,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_pclk("p3_pclk5", "per3clk", U8500_CLKRST3_BASE,
 				BIT(5), 0);
+	clk_register_clkdev(clk, "apb_pclk", "ske");
+	clk_register_clkdev(clk, "apb_pclk", "nmk-ske-keypad");
 
 	clk = clk_reg_prcc_pclk("p3_pclk6", "per3clk", U8500_CLKRST3_BASE,
 				BIT(6), 0);
@@ -507,6 +509,8 @@ void u8500_clk_init(void)
 
 	clk = clk_reg_prcc_kclk("p3_ske_kclk", "rtc32k",
 			U8500_CLKRST3_BASE, BIT(5), CLK_SET_RATE_GATE);
+	clk_register_clkdev(clk, NULL, "ske");
+	clk_register_clkdev(clk, NULL, "nmk-ske-keypad");
 
 	clk = clk_reg_prcc_kclk("p3_uart2_kclk", "uartclk",
 			U8500_CLKRST3_BASE, BIT(6), CLK_SET_RATE_GATE);
