@@ -4,8 +4,6 @@
 #include "addi-data/addi_common.h"
 #include "addi-data/addi_amcc_s5933.h"
 
-#define CONFIG_APCI_16XX 1
-
 #define ADDIDATA_DRIVER_NAME	"addi_apci_16xx"
 
 #include "addi-data/addi_eeprom.c"
