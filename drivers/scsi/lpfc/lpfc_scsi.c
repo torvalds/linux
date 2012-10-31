@@ -4914,6 +4914,9 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 		list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 			if (!NLP_CHK_NODE_ACT(ndlp))
 				continue;
+			if (vport->phba->cfg_fcp2_no_tgt_reset &&
+			    (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE))
+				continue;
 			if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 			    ndlp->nlp_sid == i &&
 			    ndlp->rport) {
