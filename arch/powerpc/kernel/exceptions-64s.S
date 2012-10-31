@@ -276,7 +276,7 @@ vsx_unavailable_pSeries_1:
 	KVM_HANDLER_PR_SKIP(PACA_EXGEN, EXC_STD, 0x1300)
 
 	. = 0x1500
-	.global denorm_Hypervisor
+	.global denorm_exception_hv
 denorm_exception_hv:
 	HMT_MEDIUM
 	mtspr	SPRN_SPRG_HSCRATCH0,r13
