@@ -123,7 +123,7 @@ config IGB_DCA
 config IGB_PTP
 	bool "PTP Hardware Clock (PHC)"
 	default n
-	depends on IGB && EXPERIMENTAL
+	depends on IGB
 	select PPS
 	select PTP_1588_CLOCK
 	---help---
@@ -225,7 +225,7 @@ config IXGBE_DCB
 config IXGBE_PTP
 	bool "PTP Clock Support"
 	default n
-	depends on IXGBE && EXPERIMENTAL
+	depends on IXGBE
 	select PPS
 	select PTP_1588_CLOCK
 	---help---

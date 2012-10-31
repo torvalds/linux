@@ -9,7 +9,6 @@ comment "Enable Device Drivers -> PPS to see the PTP clock options."
 
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
-	depends on EXPERIMENTAL
 	depends on PPS
 	help
 	  The IEEE 1588 standard defines a method to precisely
