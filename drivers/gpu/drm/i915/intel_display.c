@@ -1774,9 +1774,6 @@ static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_disabled(dev_priv, pipe);
 	assert_fdi_rx_disabled(dev_priv, pipe);
 
-	/* Ports must be off as well */
-	assert_pch_ports_disabled(dev_priv, pipe);
-
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
 	val &= ~TRANS_ENABLE;
