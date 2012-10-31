@@ -370,7 +370,7 @@ static void i2c_dw_xfer_init(struct dw_i2c_dev *dev)
  * messages into the tx buffer.  Even if the size of i2c_msg data is
  * longer than the size of the tx buffer, it handles everything.
  */
-void
+static void
 i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 {
 	struct i2c_msg *msgs = dev->msgs;

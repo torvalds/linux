@@ -35,13 +35,13 @@ static void __init m5272_uarts_init(void)
 	u32 v;
 
 	/* Enable the output lines for the serial ports */
-	v = readl(MCF_MBAR + MCFSIM_PBCNT);
+	v = readl(MCFSIM_PBCNT);
 	v = (v & ~0x000000ff) | 0x00000055;
-	writel(v, MCF_MBAR + MCFSIM_PBCNT);
+	writel(v, MCFSIM_PBCNT);
 
-	v = readl(MCF_MBAR + MCFSIM_PDCNT);
+	v = readl(MCFSIM_PDCNT);
 	v = (v & ~0x000003fc) | 0x000002a8;
-	writel(v, MCF_MBAR + MCFSIM_PDCNT);
+	writel(v, MCFSIM_PDCNT);
 }
 
 /***************************************************************************/
@@ -50,9 +50,9 @@ static void m5272_cpu_reset(void)
 {
 	local_irq_disable();
 	/* Set watchdog to reset, and enabled */
-	__raw_writew(0, MCF_MBAR + MCFSIM_WIRR);
-	__raw_writew(1, MCF_MBAR + MCFSIM_WRRR);
-	__raw_writew(0, MCF_MBAR + MCFSIM_WCR);
+	__raw_writew(0, MCFSIM_WIRR);
+	__raw_writew(1, MCFSIM_WRRR);
+	__raw_writew(0, MCFSIM_WCR);
 	for (;;)
 		/* wait for watchdog to timeout */;
 }
@@ -62,11 +62,8 @@ static void m5272_cpu_reset(void)
 void __init config_BSP(char *commandp, int size)
 {
 #if defined (CONFIG_MOD5272)
-	volatile unsigned char	*pivrp;
-
 	/* Set base of device vectors to be 64 */
-	pivrp = (volatile unsigned char *) (MCF_MBAR + MCFSIM_PIVR);
-	*pivrp = 0x40;
+	writeb(0x40, MCFSIM_PIVR);
 #endif
 
 #if defined(CONFIG_NETtel) || defined(CONFIG_SCALES)

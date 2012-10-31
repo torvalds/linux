@@ -248,6 +248,7 @@ void __iomem * __arm_ioremap_pfn_caller(unsigned long pfn,
  	if (!area)
  		return NULL;
  	addr = (unsigned long)area->addr;
+	area->phys_addr = __pfn_to_phys(pfn);
 
 #if !defined(CONFIG_SMP) && !defined(CONFIG_ARM_LPAE)
 	if (DOMAIN_IO == 0 &&

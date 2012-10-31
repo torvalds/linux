@@ -538,7 +538,7 @@ static int mixart_dsp_load(struct mixart_mgr* mgr, int index, const struct firmw
 
 		if ((err = snd_card_register(chip->card)) < 0)
 			return err;
-	};
+	}
 
 	snd_printdd("miXart firmware downloaded and successfully set up\n");
 

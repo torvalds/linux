@@ -760,6 +760,9 @@ static int __devinit ux500_msp_drv_probe(struct platform_device *pdev)
 	drvdata = devm_kzalloc(&pdev->dev,
 				sizeof(struct ux500_msp_i2s_drvdata),
 				GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
 	drvdata->fmt = 0;
 	drvdata->slots = 1;
 	drvdata->tx_mask = 0x01;

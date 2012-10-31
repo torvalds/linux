@@ -1,0 +1,36 @@
+Cirrus Logic CS4271 DT bindings
+
+This driver supports both the I2C and the SPI bus.
+
+Required properties:
+
+ - compatible: "cirrus,cs4271"
+
+For required properties on SPI, please consult
+Documentation/devicetree/bindings/spi/spi-bus.txt
+
+Required properties on I2C:
+
+ - reg: the i2c address
+
+
+Optional properties:
+
+ - reset-gpio: 	a GPIO spec to define which pin is connected to the chip's
+		!RESET pin
+
+Examples:
+
+	codec_i2c: cs4271@10 {
+		compatible = "cirrus,cs4271";
+		reg = <0x10>;
+		reset-gpio = <&gpio 23 0>;
+	};
+
+	codec_spi: cs4271@0 {
+		compatible = "cirrus,cs4271";
+		reg = <0x0>;
+		reset-gpio = <&gpio 23 0>;
+		spi-max-frequency = <6000000>;
+	};
+

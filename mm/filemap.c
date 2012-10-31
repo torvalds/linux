@@ -1607,13 +1607,13 @@ int filemap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	 * Do we have something in the page cache already?
 	 */
 	page = find_get_page(mapping, offset);
-	if (likely(page)) {
+	if (likely(page) && !(vmf->flags & FAULT_FLAG_TRIED)) {
 		/*
 		 * We found the page, so try async readahead before
 		 * waiting for the lock.
 		 */
 		do_async_mmap_readahead(vma, ra, file, page, offset);
-	} else {
+	} else if (!page) {
 		/* No page in the page cache at all */
 		do_sync_mmap_readahead(vma, ra, file, offset);
 		count_vm_event(PGMAJFAULT);
@@ -1737,6 +1737,7 @@ EXPORT_SYMBOL(filemap_page_mkwrite);
 const struct vm_operations_struct generic_file_vm_ops = {
 	.fault		= filemap_fault,
 	.page_mkwrite	= filemap_page_mkwrite,
+	.remap_pages	= generic_file_remap_pages,
 };
 
 /* This is used for a general mmap of a disk file */
@@ -1749,7 +1750,6 @@ int generic_file_mmap(struct file * file, struct vm_area_struct * vma)
 		return -ENOEXEC;
 	file_accessed(file);
 	vma->vm_ops = &generic_file_vm_ops;
-	vma->vm_flags |= VM_CAN_NONLINEAR;
 	return 0;
 }
 

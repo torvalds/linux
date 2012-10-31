@@ -22,15 +22,6 @@ menuconfig MTD_NAND
 
 if MTD_NAND
 
-config MTD_NAND_VERIFY_WRITE
-	bool "Verify NAND page writes"
-	help
-	  This adds an extra check when data is written to the flash. The
-	  NAND flash device internally checks only bits transitioning
-	  from 1 to 0. There is a rare possibility that even though the
-	  device thinks the write was successful, a bit could have been
-	  flipped accidentally due to device wear or something else.
-
 config MTD_NAND_BCH
 	tristate
 	select BCH
@@ -267,22 +258,6 @@ config MTD_NAND_S3C2410_CLKSTOP
 	  when the is NAND chip selected or released, but will save
 	  approximately 5mA of power when there is nothing happening.
 
-config MTD_NAND_BCM_UMI
-	tristate "NAND Flash support for BCM Reference Boards"
-	depends on ARCH_BCMRING
-	help
-	  This enables the NAND flash controller on the BCM UMI block.
-
-	  No board specific support is done by this driver, each board
-	  must advertise a platform_device for the driver to attach.
-
-config MTD_NAND_BCM_UMI_HWCS
-	bool "BCM UMI NAND Hardware CS"
-	depends on MTD_NAND_BCM_UMI
-	help
-	  Enable the use of the BCM UMI block's internal CS using NAND.
-	  This should only be used if you know the external NAND CS can toggle.
-
 config MTD_NAND_DISKONCHIP
 	tristate "DiskOnChip 2000, Millennium and Millennium Plus (NAND reimplementation) (EXPERIMENTAL)"
 	depends on EXPERIMENTAL
@@ -356,7 +331,7 @@ config MTD_NAND_DISKONCHIP_BBTWRITE
 
 config MTD_NAND_DOCG4
 	tristate "Support for DiskOnChip G4 (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	depends on EXPERIMENTAL && HAS_IOMEM
 	select BCH
 	select BITREVERSE
 	help
@@ -414,6 +389,28 @@ config MTD_NAND_PXA3xx
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors
 
+config MTD_NAND_SLC_LPC32XX
+	tristate "NXP LPC32xx SLC Controller"
+	depends on ARCH_LPC32XX
+	help
+	  Enables support for NXP's LPC32XX SLC (i.e. for Single Level Cell
+	  chips) NAND controller. This is the default for the PHYTEC 3250
+	  reference board which contains a NAND256R3A2CZA6 chip.
+
+	  Please check the actual NAND chip connected and its support
+	  by the SLC NAND controller.
+
+config MTD_NAND_MLC_LPC32XX
+	tristate "NXP LPC32xx MLC Controller"
+	depends on ARCH_LPC32XX
+	help
+	  Uses the LPC32XX MLC (i.e. for Multi Level Cell chips) NAND
+	  controller. This is the default for the WORK92105 controller
+	  board.
+
+	  Please check the actual NAND chip connected and its support
+	  by the MLC NAND controller.
+
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
 	depends on MACH_ARMCORE
@@ -439,10 +436,10 @@ config MTD_NAND_NANDSIM
 	  MTD nand layer.
 
 config MTD_NAND_GPMI_NAND
-        bool "GPMI NAND Flash Controller driver"
+        tristate "GPMI NAND Flash Controller driver"
         depends on MTD_NAND && MXS_DMA
         help
-	 Enables NAND Flash support for IMX23 or IMX28.
+	 Enables NAND Flash support for IMX23, IMX28 or IMX6.
 	 The GPMI controller is very powerful, with the help of BCH
 	 module, it can do the hardware ECC. The GPMI supports several
 	 NAND flashs at the same time. The GPMI may conflicts with other
@@ -510,7 +507,7 @@ config MTD_NAND_MPC5121_NFC
 
 config MTD_NAND_MXC
 	tristate "MXC NAND support"
-	depends on IMX_HAVE_PLATFORM_MXC_NAND
+	depends on ARCH_MXC
 	help
 	  This enables the driver for the NAND flash controller on the
 	  MXC processors.
@@ -566,5 +563,13 @@ config MTD_NAND_FSMC
 	help
 	  Enables support for NAND Flash chips on the ST Microelectronics
 	  Flexible Static Memory Controller (FSMC)
+
+config MTD_NAND_XWAY
+	tristate "Support for NAND on Lantiq XWAY SoC"
+	depends on LANTIQ && SOC_TYPE_XWAY
+	select MTD_NAND_PLATFORM
+	help
+	  Enables support for NAND Flash chips on Lantiq XWAY SoCs. NAND is attached
+	  to the External Bus Unit (EBU).
 
 endif # MTD_NAND

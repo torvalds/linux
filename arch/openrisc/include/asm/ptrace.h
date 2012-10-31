@@ -15,25 +15,12 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
 #ifndef __ASM_OPENRISC_PTRACE_H
 #define __ASM_OPENRISC_PTRACE_H
 
-#ifndef __ASSEMBLY__
-/*
- * This is the layout of the regset returned by the GETREGSET ptrace call
- */
-struct user_regs_struct {
-	/* GPR R0-R31... */
-	unsigned long gpr[32];
-	unsigned long pc;
-	unsigned long sr;
-};
-#endif
-
-#ifdef __KERNEL__
 
 #include <asm/spr_defs.h>
+#include <uapi/asm/ptrace.h>
 
 /*
  * Make kernel PTrace/register structures opaque to userspace... userspace can
@@ -133,7 +120,5 @@ static inline long regs_return_value(struct pt_regs *regs)
 #define PT_PC	      128
 #define PT_ORIG_GPR11 132
 #define PT_SYSCALLNO  136
-
-#endif /* __KERNEL__ */
 
 #endif /* __ASM_OPENRISC_PTRACE_H */

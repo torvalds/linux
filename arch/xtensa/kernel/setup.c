@@ -60,8 +60,6 @@ struct rtc_ops *rtc_ops;
 #ifdef CONFIG_BLK_DEV_INITRD
 extern void *initrd_start;
 extern void *initrd_end;
-extern void *__initrd_start;
-extern void *__initrd_end;
 int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
@@ -78,10 +76,6 @@ static char default_command_line[COMMAND_LINE_SIZE] __initdata = CONFIG_CMDLINE;
 #endif
 
 sysmem_info_t __initdata sysmem;
-
-#ifdef CONFIG_BLK_DEV_INITRD
-int initrd_is_mapped;
-#endif
 
 #ifdef CONFIG_MMU
 extern void init_mmu(void);
@@ -106,7 +100,7 @@ typedef struct tagtable {
 } tagtable_t;
 
 #define __tagtable(tag, fn) static tagtable_t __tagtable_##fn 		\
-	__attribute__((unused, __section__(".taglist"))) = { tag, fn }
+	__attribute__((used, section(".taglist"))) = { tag, fn }
 
 /* parse current tag */
 
@@ -126,7 +120,7 @@ static int __init parse_tag_mem(const bp_tag_t *tag)
 	}
 	sysmem.bank[sysmem.nr_banks].type  = mi->type;
 	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(mi->start);
-	sysmem.bank[sysmem.nr_banks].end   = mi->end & PAGE_SIZE;
+	sysmem.bank[sysmem.nr_banks].end   = mi->end & PAGE_MASK;
 	sysmem.nr_banks++;
 
 	return 0;
@@ -197,12 +191,6 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 
 void __init init_arch(bp_tag_t *bp_start)
 {
-
-#ifdef CONFIG_BLK_DEV_INITRD
-	initrd_start = &__initrd_start;
-	initrd_end = &__initrd_end;
-#endif
-
 	sysmem.nr_banks = 0;
 
 #ifdef CONFIG_CMDLINE_BOOL

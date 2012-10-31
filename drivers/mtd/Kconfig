@@ -148,6 +148,13 @@ config MTD_BCM63XX_PARTS
 	  This provides partions parsing for BCM63xx devices with CFE
 	  bootloaders.
 
+config MTD_BCM47XX_PARTS
+	tristate "BCM47XX partitioning support"
+	depends on BCM47XX
+	help
+	  This provides partitions parser for devices based on BCM47xx
+	  boards.
+
 comment "User Modules And Translation Layers"
 
 config MTD_CHAR

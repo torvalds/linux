@@ -600,29 +600,10 @@ static int spc_emulate_inquiry(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
-	unsigned char *buf, *map_buf;
+	unsigned char *rbuf;
 	unsigned char *cdb = cmd->t_task_cdb;
+	unsigned char buf[SE_INQUIRY_BUF];
 	int p, ret;
-
-	map_buf = transport_kmap_data_sg(cmd);
-	/*
-	 * If SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is not set, then we
-	 * know we actually allocated a full page.  Otherwise, if the
-	 * data buffer is too small, allocate a temporary buffer so we
-	 * don't have to worry about overruns in all our INQUIRY
-	 * emulation handling.
-	 */
-	if (cmd->data_length < SE_INQUIRY_BUF &&
-	    (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)) {
-		buf = kzalloc(SE_INQUIRY_BUF, GFP_KERNEL);
-		if (!buf) {
-			transport_kunmap_data_sg(cmd);
-			cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			return -ENOMEM;
-		}
-	} else {
-		buf = map_buf;
-	}
 
 	if (dev == tpg->tpg_virt_lun0.lun_se_dev)
 		buf[0] = 0x3f; /* Not connected */
@@ -655,11 +636,11 @@ static int spc_emulate_inquiry(struct se_cmd *cmd)
 	ret = -EINVAL;
 
 out:
-	if (buf != map_buf) {
-		memcpy(map_buf, buf, cmd->data_length);
-		kfree(buf);
+	rbuf = transport_kmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+		transport_kunmap_data_sg(cmd);
 	}
-	transport_kunmap_data_sg(cmd);
 
 	if (!ret)
 		target_complete_cmd(cmd, GOOD);
@@ -803,7 +784,7 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 	unsigned char *rbuf;
 	int type = dev->transport->get_device_type(dev);
 	int ten = (cmd->t_task_cdb[0] == MODE_SENSE_10);
-	int offset = ten ? 8 : 4;
+	u32 offset = ten ? 8 : 4;
 	int length = 0;
 	unsigned char buf[SE_MODE_PAGE_BUF];
 
@@ -836,6 +817,7 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		offset -= 2;
 		buf[0] = (offset >> 8) & 0xff;
 		buf[1] = offset & 0xff;
+		offset += 2;
 
 		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
 		    (cmd->se_deve &&
@@ -845,13 +827,10 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
 		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
 			spc_modesense_dpofua(&buf[3], type);
-
-		if ((offset + 2) > cmd->data_length)
-			offset = cmd->data_length;
-
 	} else {
 		offset -= 1;
 		buf[0] = offset & 0xff;
+		offset += 1;
 
 		if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
 		    (cmd->se_deve &&
@@ -861,14 +840,13 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		if ((dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0) &&
 		    (dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0))
 			spc_modesense_dpofua(&buf[2], type);
-
-		if ((offset + 1) > cmd->data_length)
-			offset = cmd->data_length;
 	}
 
 	rbuf = transport_kmap_data_sg(cmd);
-	memcpy(rbuf, buf, offset);
-	transport_kunmap_data_sg(cmd);
+	if (rbuf) {
+		memcpy(rbuf, buf, min(offset, cmd->data_length));
+		transport_kunmap_data_sg(cmd);
+	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;

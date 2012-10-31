@@ -69,6 +69,7 @@
 	(((val) << (low_bit)) & MXR_MASK(high_bit, low_bit))
 
 /* bits for MXR_STATUS */
+#define MXR_STATUS_SOFT_RESET		(1 << 8)
 #define MXR_STATUS_16_BURST		(1 << 7)
 #define MXR_STATUS_BURST_MASK		(1 << 7)
 #define MXR_STATUS_BIG_ENDIAN		(1 << 3)
@@ -77,6 +78,8 @@
 #define MXR_STATUS_REG_RUN		(1 << 0)
 
 /* bits for MXR_CFG */
+#define MXR_CFG_LAYER_UPDATE		(1 << 31)
+#define MXR_CFG_LAYER_UPDATE_COUNT_MASK (3 << 29)
 #define MXR_CFG_RGB601_0_255		(0 << 9)
 #define MXR_CFG_RGB601_16_235		(1 << 9)
 #define MXR_CFG_RGB709_0_255		(2 << 9)

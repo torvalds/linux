@@ -3919,7 +3919,7 @@ static void snd_trident_clear_voices(struct snd_trident * trident, unsigned shor
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int snd_trident_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
@@ -3983,4 +3983,4 @@ static int snd_trident_resume(struct device *dev)
 }
 
 SIMPLE_DEV_PM_OPS(snd_trident_pm, snd_trident_suspend, snd_trident_resume);
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */

@@ -58,28 +58,40 @@
 
 /*
  * For the normal pfn, the highest 12 bits should be zero,
- * so we can mask these bits to indicate the error.
+ * so we can mask bit 62 ~ bit 52  to indicate the error pfn,
+ * mask bit 63 to indicate the noslot pfn.
  */
-#define KVM_PFN_ERR_MASK	(0xfffULL << 52)
+#define KVM_PFN_ERR_MASK	(0x7ffULL << 52)
+#define KVM_PFN_ERR_NOSLOT_MASK	(0xfffULL << 52)
+#define KVM_PFN_NOSLOT		(0x1ULL << 63)
 
 #define KVM_PFN_ERR_FAULT	(KVM_PFN_ERR_MASK)
 #define KVM_PFN_ERR_HWPOISON	(KVM_PFN_ERR_MASK + 1)
-#define KVM_PFN_ERR_BAD		(KVM_PFN_ERR_MASK + 2)
-#define KVM_PFN_ERR_RO_FAULT	(KVM_PFN_ERR_MASK + 3)
+#define KVM_PFN_ERR_RO_FAULT	(KVM_PFN_ERR_MASK + 2)
 
+/*
+ * error pfns indicate that the gfn is in slot but faild to
+ * translate it to pfn on host.
+ */
 static inline bool is_error_pfn(pfn_t pfn)
 {
 	return !!(pfn & KVM_PFN_ERR_MASK);
 }
 
-static inline bool is_noslot_pfn(pfn_t pfn)
+/*
+ * error_noslot pfns indicate that the gfn can not be
+ * translated to pfn - it is not in slot or failed to
+ * translate it to pfn.
+ */
+static inline bool is_error_noslot_pfn(pfn_t pfn)
 {
-	return pfn == KVM_PFN_ERR_BAD;
+	return !!(pfn & KVM_PFN_ERR_NOSLOT_MASK);
 }
 
-static inline bool is_invalid_pfn(pfn_t pfn)
+/* noslot pfn indicates that the gfn is not in slot. */
+static inline bool is_noslot_pfn(pfn_t pfn)
 {
-	return !is_noslot_pfn(pfn) && is_error_pfn(pfn);
+	return pfn == KVM_PFN_NOSLOT;
 }
 
 #define KVM_HVA_ERR_BAD		(PAGE_OFFSET)

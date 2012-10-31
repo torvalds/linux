@@ -384,6 +384,8 @@ int parse_options_step(struct parse_opt_ctx_t *ctx,
 			return usage_with_options_internal(usagestr, options, 1);
 		if (internal_help && !strcmp(arg + 2, "help"))
 			return parse_options_usage(usagestr, options);
+		if (!strcmp(arg + 2, "list-opts"))
+			return PARSE_OPT_LIST;
 		switch (parse_long_opt(ctx, arg + 2, options)) {
 		case -1:
 			return parse_options_usage(usagestr, options);
@@ -422,6 +424,12 @@ int parse_options(int argc, const char **argv, const struct option *options,
 		exit(129);
 	case PARSE_OPT_DONE:
 		break;
+	case PARSE_OPT_LIST:
+		while (options->type != OPTION_END) {
+			printf("--%s ", options->long_name);
+			options++;
+		}
+		exit(130);
 	default: /* PARSE_OPT_UNKNOWN */
 		if (ctx.argv[0][1] == '-') {
 			error("unknown option `%s'", ctx.argv[0] + 2);

@@ -2129,8 +2129,11 @@ void be_detect_error(struct be_adapter *adapter)
 		ue_hi = (ue_hi & ~ue_hi_mask);
 	}
 
-	if (ue_lo || ue_hi ||
-		sliport_status & SLIPORT_STATUS_ERR_MASK) {
+	/* On certain platforms BE hardware can indicate spurious UEs.
+	 * Allow the h/w to stop working completely in case of a real UE.
+	 * Hence not setting the hw_error for UE detection.
+	 */
+	if (sliport_status & SLIPORT_STATUS_ERR_MASK) {
 		adapter->hw_error = true;
 		dev_err(&adapter->pdev->dev,
 			"Error detected in the card\n");

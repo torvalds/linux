@@ -1,0 +1,33 @@
+/*
+ * O2MNT Device Tree Source
+ *
+ * Copyright (C) 2012 DENX Software Engineering
+ * Anatolij Gustschin <agust@denx.de>
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation;  either version 2 of the  License, or (at your
+ * option) any later version.
+ */
+
+/include/ "o2d.dtsi"
+
+/ {
+	model = "ifm,o2mnt";
+	compatible = "ifm,o2d";
+
+	localbus {
+		flash@0,0 {
+			partition@60000 {
+				label = "kernel";
+				reg = <0x00060000 0x00260000>;
+				read-only;
+			};
+			/* add o2mnt specific partitions */
+			partition@2c0000 {
+				label = "o2mnt user defined";
+				reg = <0x002c0000 0x00d40000>;
+			};
+		};
+	};
+};

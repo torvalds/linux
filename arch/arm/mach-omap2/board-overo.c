@@ -504,6 +504,7 @@ static void __init overo_init(void)
 	overo_display_init();
 	overo_init_led();
 	overo_init_keys();
+	omap_twl4030_audio_init("overo");
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

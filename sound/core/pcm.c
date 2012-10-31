@@ -1105,6 +1105,10 @@ static int snd_pcm_dev_disconnect(struct snd_device *device)
 			break;
 		}
 		snd_unregister_device(devtype, pcm->card, pcm->device);
+		if (pcm->streams[cidx].chmap_kctl) {
+			snd_ctl_remove(pcm->card, pcm->streams[cidx].chmap_kctl);
+			pcm->streams[cidx].chmap_kctl = NULL;
+		}
 	}
  unlock:
 	mutex_unlock(&register_mutex);

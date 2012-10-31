@@ -479,7 +479,8 @@ static bool compliance_mode_recovery_timer_quirk_check(void)
 
 	if (strstr(dmi_product_name, "Z420") ||
 			strstr(dmi_product_name, "Z620") ||
-			strstr(dmi_product_name, "Z820"))
+			strstr(dmi_product_name, "Z820") ||
+			strstr(dmi_product_name, "Z1"))
 		return true;
 
 	return false;
@@ -1626,7 +1627,6 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	struct xhci_hcd *xhci;
 	struct xhci_container_ctx *in_ctx, *out_ctx;
 	unsigned int ep_index;
-	struct xhci_ep_ctx *ep_ctx;
 	struct xhci_slot_ctx *slot_ctx;
 	struct xhci_input_control_ctx *ctrl_ctx;
 	u32 added_ctxs;
@@ -1662,7 +1662,6 @@ int xhci_add_endpoint(struct usb_hcd *hcd, struct usb_device *udev,
 	out_ctx = virt_dev->out_ctx;
 	ctrl_ctx = xhci_get_input_control_ctx(xhci, in_ctx);
 	ep_index = xhci_get_endpoint_index(&ep->desc);
-	ep_ctx = xhci_get_ep_ctx(xhci, out_ctx, ep_index);
 
 	/* If this endpoint is already in use, and the upper layers are trying
 	 * to add it again without dropping it, reject the addition.
@@ -1816,6 +1815,8 @@ static int xhci_evaluate_context_result(struct xhci_hcd *xhci,
 	case COMP_EBADSLT:
 		dev_warn(&udev->dev, "WARN: slot not enabled for"
 				"evaluate context command.\n");
+		ret = -EINVAL;
+		break;
 	case COMP_CTX_STATE:
 		dev_warn(&udev->dev, "WARN: invalid context state for "
 				"evaluate context command.\n");
@@ -4020,7 +4021,7 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 static unsigned long long xhci_service_interval_to_ns(
 		struct usb_endpoint_descriptor *desc)
 {
-	return (1 << (desc->bInterval - 1)) * 125 * 1000;
+	return (1ULL << (desc->bInterval - 1)) * 125 * 1000;
 }
 
 static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
@@ -4141,7 +4142,7 @@ static u16 xhci_calculate_intel_u2_timeout(struct usb_device *udev,
 			(xhci_service_interval_to_ns(desc) > timeout_ns))
 		timeout_ns = xhci_service_interval_to_ns(desc);
 
-	u2_del_ns = udev->bos->ss_cap->bU2DevExitLat * 1000;
+	u2_del_ns = le16_to_cpu(udev->bos->ss_cap->bU2DevExitLat) * 1000ULL;
 	if (u2_del_ns > timeout_ns)
 		timeout_ns = u2_del_ns;
 

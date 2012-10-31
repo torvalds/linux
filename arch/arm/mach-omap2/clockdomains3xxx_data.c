@@ -387,14 +387,11 @@ static struct clockdomain per_am35x_clkdm = {
 	.clktrctrl_mask = OMAP3430_CLKTRCTRL_PER_MASK,
 };
 
-/*
- * Disable hw supervised mode for emu_clkdm, because emu_pwrdm is
- * switched of even if sdti is in use
- */
 static struct clockdomain emu_clkdm = {
 	.name		= "emu_clkdm",
 	.pwrdm		= { .name = "emu_pwrdm" },
-	.flags		= /* CLKDM_CAN_ENABLE_AUTO |  */CLKDM_CAN_SWSUP,
+	.flags		= (CLKDM_CAN_ENABLE_AUTO | CLKDM_CAN_SWSUP |
+			   CLKDM_MISSING_IDLE_REPORTING),
 	.clktrctrl_mask = OMAP3430_CLKTRCTRL_EMU_MASK,
 };
 

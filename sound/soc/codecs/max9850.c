@@ -369,17 +369,7 @@ static struct i2c_driver max9850_i2c_driver = {
 	.id_table = max9850_i2c_id,
 };
 
-static int __init max9850_init(void)
-{
-	return i2c_add_driver(&max9850_i2c_driver);
-}
-module_init(max9850_init);
-
-static void __exit max9850_exit(void)
-{
-	i2c_del_driver(&max9850_i2c_driver);
-}
-module_exit(max9850_exit);
+module_i2c_driver(max9850_i2c_driver);
 
 MODULE_AUTHOR("Christian Glindkamp <christian.glindkamp@taskit.de>");
 MODULE_DESCRIPTION("ASoC MAX9850 codec driver");

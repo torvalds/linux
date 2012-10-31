@@ -3,15 +3,15 @@
  * Licensed under the GPL
  */
 
-#include "linux/irqreturn.h"
-#include "linux/kd.h"
-#include "linux/sched.h"
-#include "linux/slab.h"
+#include <linux/irqreturn.h>
+#include <linux/kd.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
 #include "chan.h"
-#include "irq_kern.h"
-#include "irq_user.h"
-#include "kern_util.h"
-#include "os.h"
+#include <irq_kern.h>
+#include <irq_user.h>
+#include <kern_util.h>
+#include <os.h>
 
 #define LINE_BUFSIZE 4096
 

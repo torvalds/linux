@@ -1265,8 +1265,8 @@ static __init int gpio_register_proc(void)
 {
 	struct proc_dir_entry *proc_gpio;
 
-	proc_gpio = proc_create("gpio", S_IRUGO, NULL, &gpio_proc_ops);
-	return proc_gpio != NULL;
+	proc_gpio = proc_create("gpio", 0, NULL, &gpio_proc_ops);
+	return proc_gpio == NULL;
 }
 __initcall(gpio_register_proc);
 #endif

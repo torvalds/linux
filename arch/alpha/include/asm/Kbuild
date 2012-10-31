@@ -1,5 +1,7 @@
 include include/asm-generic/Kbuild.asm
 
+generic-y += clkdev.h
+
 header-y += compiler.h
 header-y += console.h
 header-y += fpu.h
@@ -8,3 +10,4 @@ header-y += pal.h
 header-y += reg.h
 header-y += regdef.h
 header-y += sysinfo.h
+generic-y += exec.h

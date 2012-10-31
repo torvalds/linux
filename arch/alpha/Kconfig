@@ -20,6 +20,10 @@ config ALPHA
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
+	select HAVE_MOD_ARCH_SPECIFIC
+	select MODULES_USE_ELF_RELA
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,

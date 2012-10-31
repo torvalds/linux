@@ -109,7 +109,7 @@ static inline void fsnotify_move(struct inode *old_dir, struct inode *new_dir,
 
 	if (source)
 		fsnotify(source, FS_MOVE_SELF, moved->d_inode, FSNOTIFY_EVENT_INODE, NULL, 0);
-	audit_inode_child(moved, new_dir);
+	audit_inode_child(new_dir, moved, AUDIT_TYPE_CHILD_CREATE);
 }
 
 /*
@@ -155,7 +155,7 @@ static inline void fsnotify_inoderemove(struct inode *inode)
  */
 static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 {
-	audit_inode_child(dentry, inode);
+	audit_inode_child(inode, dentry, AUDIT_TYPE_CHILD_CREATE);
 
 	fsnotify(inode, FS_CREATE, dentry->d_inode, FSNOTIFY_EVENT_INODE, dentry->d_name.name, 0);
 }
@@ -168,7 +168,7 @@ static inline void fsnotify_create(struct inode *inode, struct dentry *dentry)
 static inline void fsnotify_link(struct inode *dir, struct inode *inode, struct dentry *new_dentry)
 {
 	fsnotify_link_count(inode);
-	audit_inode_child(new_dentry, dir);
+	audit_inode_child(dir, new_dentry, AUDIT_TYPE_CHILD_CREATE);
 
 	fsnotify(dir, FS_CREATE, inode, FSNOTIFY_EVENT_INODE, new_dentry->d_name.name, 0);
 }
@@ -181,7 +181,7 @@ static inline void fsnotify_mkdir(struct inode *inode, struct dentry *dentry)
 	__u32 mask = (FS_CREATE | FS_ISDIR);
 	struct inode *d_inode = dentry->d_inode;
 
-	audit_inode_child(dentry, inode);
+	audit_inode_child(inode, dentry, AUDIT_TYPE_CHILD_CREATE);
 
 	fsnotify(inode, mask, d_inode, FSNOTIFY_EVENT_INODE, dentry->d_name.name, 0);
 }

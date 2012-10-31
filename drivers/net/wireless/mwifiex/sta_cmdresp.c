@@ -545,7 +545,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 	if (!memcmp(resp->params.deauth.mac_addr,
 		    &priv->curr_bss_params.bss_descriptor.mac_address,
 		    sizeof(resp->params.deauth.mac_addr)))
-		mwifiex_reset_connect_state(priv);
+		mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
 
 	return 0;
 }
@@ -558,7 +558,7 @@ static int mwifiex_ret_802_11_deauthenticate(struct mwifiex_private *priv,
 static int mwifiex_ret_802_11_ad_hoc_stop(struct mwifiex_private *priv,
 					  struct host_cmd_ds_command *resp)
 {
-	mwifiex_reset_connect_state(priv);
+	mwifiex_reset_connect_state(priv, WLAN_REASON_DEAUTH_LEAVING);
 	return 0;
 }
 

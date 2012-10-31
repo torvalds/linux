@@ -13,9 +13,6 @@ struct se_subsystem_api {
 
 	u8 transport_type;
 
-	unsigned int fua_write_emulated : 1;
-	unsigned int write_cache_emulated : 1;
-
 	int (*attach_hba)(struct se_hba *, u32);
 	void (*detach_hba)(struct se_hba *);
 	int (*pmode_enable_hba)(struct se_hba *, unsigned long);

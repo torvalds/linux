@@ -1,0 +1,28 @@
+config DVB_B2C2_FLEXCOP
+	tristate
+	depends on DVB_CORE && I2C
+	depends on DVB_B2C2_FLEXCOP_PCI || DVB_B2C2_FLEXCOP_USB
+	default y
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MT352 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_MT312 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_NXT200X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_STV0297 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_BCM3510 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_LGDT330X if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_S5H1420 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TUNER_ITD1000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_ISL6421 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CX24123 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TUNER_CX24113 if MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Support for the digital TV receiver chip made by B2C2 Inc. included in
+	  Technisats PCI cards and USB boxes.
+
+	  Say Y if you own such a device and want to use it.
+
+# Selected via the PCI or USB flexcop drivers
+config DVB_B2C2_FLEXCOP_DEBUG
+	bool

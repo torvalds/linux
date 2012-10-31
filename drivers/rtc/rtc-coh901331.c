@@ -276,8 +276,7 @@ static void coh901331_shutdown(struct platform_device *pdev)
 
 	clk_enable(rtap->clk);
 	writel(0, rtap->virtbase + COH901331_IRQ_MASK);
-	clk_disable(rtap->clk);
-	clk_unprepare(rtap->clk);
+	clk_disable_unprepare(rtap->clk);
 }
 
 static struct platform_driver coh901331_driver = {

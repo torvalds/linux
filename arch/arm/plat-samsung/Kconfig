@@ -7,9 +7,9 @@
 config PLAT_SAMSUNG
 	bool
 	depends on PLAT_S3C24XX || ARCH_S3C64XX || PLAT_S5P
-	select NO_IOPORT
-	select GENERIC_IRQ_CHIP
 	default y
+	select GENERIC_IRQ_CHIP
+	select NO_IOPORT
 	help
 	  Base platform code for all Samsung SoC based systems
 
@@ -17,16 +17,16 @@ config PLAT_S5P
 	bool
 	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
 	default y
-	select ARM_VIC if !ARCH_EXYNOS
+	select ARCH_REQUIRE_GPIOLIB
 	select ARM_GIC if ARCH_EXYNOS
+	select ARM_VIC if !ARCH_EXYNOS
 	select GIC_NON_BANKED if ARCH_EXYNOS4
 	select NO_IOPORT
-	select ARCH_REQUIRE_GPIOLIB
+	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
-	select SAMSUNG_GPIOLIB_4BIT
-	select PLAT_SAMSUNG
 	select SAMSUNG_CLKSRC
+	select SAMSUNG_GPIOLIB_4BIT
 	select SAMSUNG_IRQ_VIC_TIMER
 	help
 	  Base platform code for Samsung's S5P series SoC.
@@ -423,10 +423,10 @@ config S3C_DMA
 
 config SAMSUNG_DMADEV
 	bool
+	select ARM_AMBA
 	select DMADEVICES
 	select PL330_DMA if (ARCH_EXYNOS5 || ARCH_EXYNOS4 || CPU_S5PV210 || CPU_S5PC100 || \
 					CPU_S5P6450 || CPU_S5P6440)
-	select ARM_AMBA
 	help
 	  Use DMA device engine for PL330 DMAC.
 

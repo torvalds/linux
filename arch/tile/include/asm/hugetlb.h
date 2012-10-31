@@ -106,6 +106,10 @@ static inline void arch_release_hugepage(struct page *page)
 {
 }
 
+static inline void arch_clear_hugepage_flags(struct page *page)
+{
+}
+
 #ifdef CONFIG_HUGETLB_SUPER_PAGES
 static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
 				       struct page *page, int writable)

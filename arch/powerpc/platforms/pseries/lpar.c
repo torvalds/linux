@@ -31,7 +31,6 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
-#include <asm/abs_addr.h>
 #include <asm/mmu_context.h>
 #include <asm/iommu.h>
 #include <asm/tlbflush.h>
@@ -108,9 +107,9 @@ void vpa_init(int cpu)
 }
 
 static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
- 			      unsigned long va, unsigned long pa,
- 			      unsigned long rflags, unsigned long vflags,
-			      int psize, int ssize)
+				     unsigned long vpn, unsigned long pa,
+				     unsigned long rflags, unsigned long vflags,
+				     int psize, int ssize)
 {
 	unsigned long lpar_rc;
 	unsigned long flags;
@@ -118,11 +117,11 @@ static long pSeries_lpar_hpte_insert(unsigned long hpte_group,
 	unsigned long hpte_v, hpte_r;
 
 	if (!(vflags & HPTE_V_BOLTED))
-		pr_devel("hpte_insert(group=%lx, va=%016lx, pa=%016lx, "
-			 "rflags=%lx, vflags=%lx, psize=%d)\n",
-			 hpte_group, va, pa, rflags, vflags, psize);
+		pr_devel("hpte_insert(group=%lx, vpn=%016lx, "
+			 "pa=%016lx, rflags=%lx, vflags=%lx, psize=%d)\n",
+			 hpte_group, vpn,  pa, rflags, vflags, psize);
 
-	hpte_v = hpte_encode_v(va, psize, ssize) | vflags | HPTE_V_VALID;
+	hpte_v = hpte_encode_v(vpn, psize, ssize) | vflags | HPTE_V_VALID;
 	hpte_r = hpte_encode_r(pa, psize) | rflags;
 
 	if (!(vflags & HPTE_V_BOLTED))
@@ -227,22 +226,6 @@ static void pSeries_lpar_hptab_clear(void)
 }
 
 /*
- * This computes the AVPN and B fields of the first dword of a HPTE,
- * for use when we want to match an existing PTE.  The bottom 7 bits
- * of the returned value are zero.
- */
-static inline unsigned long hpte_encode_avpn(unsigned long va, int psize,
-					     int ssize)
-{
-	unsigned long v;
-
-	v = (va >> 23) & ~(mmu_psize_defs[psize].avpnm);
-	v <<= HPTE_V_AVPN_SHIFT;
-	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
-	return v;
-}
-
-/*
  * NOTE: for updatepp ops we are fortunate that the linux "newpp" bits and
  * the low 3 bits of flags happen to line up.  So no transform is needed.
  * We can probably optimize here and assume the high bits of newpp are
@@ -250,14 +233,14 @@ static inline unsigned long hpte_encode_avpn(unsigned long va, int psize,
  */
 static long pSeries_lpar_hpte_updatepp(unsigned long slot,
 				       unsigned long newpp,
-				       unsigned long va,
+				       unsigned long vpn,
 				       int psize, int ssize, int local)
 {
 	unsigned long lpar_rc;
 	unsigned long flags = (newpp & 7) | H_AVPN;
 	unsigned long want_v;
 
-	want_v = hpte_encode_avpn(va, psize, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	pr_devel("    update: avpnv=%016lx, hash=%016lx, f=%lx, psize: %d ...",
 		 want_v, slot, flags, psize);
@@ -295,15 +278,15 @@ static unsigned long pSeries_lpar_hpte_getword0(unsigned long slot)
 	return dword0;
 }
 
-static long pSeries_lpar_hpte_find(unsigned long va, int psize, int ssize)
+static long pSeries_lpar_hpte_find(unsigned long vpn, int psize, int ssize)
 {
 	unsigned long hash;
 	unsigned long i;
 	long slot;
 	unsigned long want_v, hpte_v;
 
-	hash = hpt_hash(va, mmu_psize_defs[psize].shift, ssize);
-	want_v = hpte_encode_avpn(va, psize, ssize);
+	hash = hpt_hash(vpn, mmu_psize_defs[psize].shift, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
 
 	/* Bolted entries are always in the primary group */
 	slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
@@ -323,12 +306,13 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 					     unsigned long ea,
 					     int psize, int ssize)
 {
-	unsigned long lpar_rc, slot, vsid, va, flags;
+	unsigned long vpn;
+	unsigned long lpar_rc, slot, vsid, flags;
 
 	vsid = get_kernel_vsid(ea, ssize);
-	va = hpt_va(ea, vsid, ssize);
+	vpn = hpt_vpn(ea, vsid, ssize);
 
-	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
 
 	flags = newpp & 7;
@@ -337,17 +321,17 @@ static void pSeries_lpar_hpte_updateboltedpp(unsigned long newpp,
 	BUG_ON(lpar_rc != H_SUCCESS);
 }
 
-static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
+static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long vpn,
 					 int psize, int ssize, int local)
 {
 	unsigned long want_v;
 	unsigned long lpar_rc;
 	unsigned long dummy1, dummy2;
 
-	pr_devel("    inval : slot=%lx, va=%016lx, psize: %d, local: %d\n",
-		 slot, va, psize, local);
+	pr_devel("    inval : slot=%lx, vpn=%016lx, psize: %d, local: %d\n",
+		 slot, vpn, psize, local);
 
-	want_v = hpte_encode_avpn(va, psize, ssize);
+	want_v = hpte_encode_avpn(vpn, psize, ssize);
 	lpar_rc = plpar_pte_remove(H_AVPN, slot, want_v, &dummy1, &dummy2);
 	if (lpar_rc == H_NOT_FOUND)
 		return;
@@ -358,15 +342,16 @@ static void pSeries_lpar_hpte_invalidate(unsigned long slot, unsigned long va,
 static void pSeries_lpar_hpte_removebolted(unsigned long ea,
 					   int psize, int ssize)
 {
-	unsigned long slot, vsid, va;
+	unsigned long vpn;
+	unsigned long slot, vsid;
 
 	vsid = get_kernel_vsid(ea, ssize);
-	va = hpt_va(ea, vsid, ssize);
+	vpn = hpt_vpn(ea, vsid, ssize);
 
-	slot = pSeries_lpar_hpte_find(va, psize, ssize);
+	slot = pSeries_lpar_hpte_find(vpn, psize, ssize);
 	BUG_ON(slot == -1);
 
-	pSeries_lpar_hpte_invalidate(slot, va, psize, ssize, 0);
+	pSeries_lpar_hpte_invalidate(slot, vpn, psize, ssize, 0);
 }
 
 /* Flag bits for H_BULK_REMOVE */
@@ -382,12 +367,12 @@ static void pSeries_lpar_hpte_removebolted(unsigned long ea,
  */
 static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 {
+	unsigned long vpn;
 	unsigned long i, pix, rc;
 	unsigned long flags = 0;
 	struct ppc64_tlb_batch *batch = &__get_cpu_var(ppc64_tlb_batch);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long param[9];
-	unsigned long va;
 	unsigned long hash, index, shift, hidx, slot;
 	real_pte_t pte;
 	int psize, ssize;
@@ -399,21 +384,21 @@ static void pSeries_lpar_flush_hash_range(unsigned long number, int local)
 	ssize = batch->ssize;
 	pix = 0;
 	for (i = 0; i < number; i++) {
-		va = batch->vaddr[i];
+		vpn = batch->vpn[i];
 		pte = batch->pte[i];
-		pte_iterate_hashed_subpages(pte, psize, va, index, shift) {
-			hash = hpt_hash(va, shift, ssize);
+		pte_iterate_hashed_subpages(pte, psize, vpn, index, shift) {
+			hash = hpt_hash(vpn, shift, ssize);
 			hidx = __rpte_to_hidx(pte, index);
 			if (hidx & _PTEIDX_SECONDARY)
 				hash = ~hash;
 			slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 			slot += hidx & _PTEIDX_GROUP_IX;
 			if (!firmware_has_feature(FW_FEATURE_BULK_REMOVE)) {
-				pSeries_lpar_hpte_invalidate(slot, va, psize,
+				pSeries_lpar_hpte_invalidate(slot, vpn, psize,
 							     ssize, local);
 			} else {
 				param[pix] = HBR_REQUEST | HBR_AVPN | slot;
-				param[pix+1] = hpte_encode_avpn(va, psize,
+				param[pix+1] = hpte_encode_avpn(vpn, psize,
 								ssize);
 				pix += 2;
 				if (pix == 8) {

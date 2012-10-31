@@ -211,6 +211,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("t1_clk", "atmel_tcb.1", &tc4_clk),
 	CLKDEV_CON_DEV_ID("t2_clk", "atmel_tcb.1", &tc5_clk),
 	CLKDEV_CON_DEV_ID("pclk", "ssc.0", &ssc_clk),
+	CLKDEV_CON_DEV_ID(NULL, "i2c-at91sam9260.0", &twi_clk),
+	CLKDEV_CON_DEV_ID(NULL, "i2c-at91sam9g20.0", &twi_clk),
 	/* more usart lookup table for DT entries */
 	CLKDEV_CON_DEV_ID("usart", "fffff200.serial", &mck),
 	CLKDEV_CON_DEV_ID("usart", "fffb0000.serial", &usart0_clk),
@@ -219,6 +221,7 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("usart", "fffd0000.serial", &usart3_clk),
 	CLKDEV_CON_DEV_ID("usart", "fffd4000.serial", &usart4_clk),
 	CLKDEV_CON_DEV_ID("usart", "fffd8000.serial", &usart5_clk),
+	CLKDEV_CON_DEV_ID(NULL, "fffac000.i2c", &twi_clk),
 	/* more tc lookup table for DT entries */
 	CLKDEV_CON_DEV_ID("t0_clk", "fffa0000.timer", &tc0_clk),
 	CLKDEV_CON_DEV_ID("t1_clk", "fffa0000.timer", &tc1_clk),

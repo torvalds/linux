@@ -2103,7 +2103,7 @@ static int aureon_reset(struct snd_ice1712 *ice)
 /*
  * suspend/resume
  */
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int aureon_resume(struct snd_ice1712 *ice)
 {
 	struct aureon_spec *spec = ice->spec;
@@ -2160,7 +2160,7 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		wm_set_vol(ice, i, spec->vol[i], spec->master[i % 2]);
 	}
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	ice->pm_resume = aureon_resume;
 	ice->pm_suspend_enabled = 1;
 #endif

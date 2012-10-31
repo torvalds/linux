@@ -68,9 +68,20 @@ config PINCTRL_IMX6Q
 	help
 	  Say Y here to enable the imx6q pinctrl driver
 
+config PINCTRL_LANTIQ
+	bool
+	depends on LANTIQ
+	select PINMUX
+	select PINCONF
+
 config PINCTRL_PXA3xx
 	bool
 	select PINMUX
+
+config PINCTRL_FALCON
+	bool
+	depends on SOC_FALCON
+	depends on PINCTRL_LANTIQ
 
 config PINCTRL_MMP2
 	bool "MMP2 pin controller driver"
@@ -175,7 +186,34 @@ config PINCTRL_EXYNOS4
 	bool "Pinctrl driver data for Exynos4 SoC"
 	select PINCTRL_SAMSUNG
 
+config PINCTRL_MVEBU
+	bool
+	depends on ARCH_MVEBU
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_DOVE
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_KIRKWOOD
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_ARMADA_370
+	bool
+	select PINCTRL_MVEBU
+
+config PINCTRL_ARMADA_XP
+	bool
+	select PINCTRL_MVEBU
+
 source "drivers/pinctrl/spear/Kconfig"
+
+config PINCTRL_XWAY
+	bool
+	depends on SOC_TYPE_XWAY
+	depends on PINCTRL_LANTIQ
 
 endmenu
 

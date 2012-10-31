@@ -1576,7 +1576,7 @@ ENTRY(sys32_execve_wrapper)
 	llgtr	%r2,%r2			# char *
 	llgtr	%r3,%r3			# compat_uptr_t *
 	llgtr	%r4,%r4			# compat_uptr_t *
-	jg	sys32_execve		# branch to system call
+	jg	compat_sys_execve	# branch to system call
 
 ENTRY(sys_fanotify_init_wrapper)
 	llgfr	%r2,%r2			# unsigned int

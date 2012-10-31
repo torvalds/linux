@@ -212,24 +212,4 @@ static int acpi_fan_resume(struct device *dev)
 }
 #endif
 
-static int __init acpi_fan_init(void)
-{
-	int result = 0;
-
-	result = acpi_bus_register_driver(&acpi_fan_driver);
-	if (result < 0)
-		return -ENODEV;
-
-	return 0;
-}
-
-static void __exit acpi_fan_exit(void)
-{
-
-	acpi_bus_unregister_driver(&acpi_fan_driver);
-
-	return;
-}
-
-module_init(acpi_fan_init);
-module_exit(acpi_fan_exit);
+module_acpi_driver(acpi_fan_driver);

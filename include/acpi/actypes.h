@@ -519,13 +519,6 @@ typedef u64 acpi_integer;
 #define ACPI_SLEEP_TYPE_INVALID         0xFF
 
 /*
- * Sleep/Wake flags
- */
-#define ACPI_NO_OPTIONAL_METHODS        0x00	/* Do not execute any optional methods */
-#define ACPI_EXECUTE_GTS                0x01	/* For enter sleep interface */
-#define ACPI_EXECUTE_BFS                0x02	/* For leave sleep prep interface */
-
-/*
  * Standard notify values
  */
 #define ACPI_NOTIFY_BUS_CHECK           (u8) 0x00

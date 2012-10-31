@@ -145,10 +145,10 @@ static void set_last_pointer(struct super_block *s, struct dnode *d, dnode_secno
 		}
 	}
 	if (ptr) {
-		d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) + 4);
+		le32_add_cpu(&d->first_free, 4);
 		if (le32_to_cpu(d->first_free) > 2048) {
 			hpfs_error(s, "set_last_pointer: too long dnode %08x", le32_to_cpu(d->self));
-			d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) - 4);
+			le32_add_cpu(&d->first_free, -4);
 			return;
 		}
 		de->length = cpu_to_le16(36);
@@ -184,7 +184,7 @@ struct hpfs_dirent *hpfs_add_de(struct super_block *s, struct dnode *d,
 	de->not_8x3 = hpfs_is_name_long(name, namelen);
 	de->namelen = namelen;
 	memcpy(de->name, name, namelen);
-	d->first_free = cpu_to_le32(le32_to_cpu(d->first_free) + d_size);
+	le32_add_cpu(&d->first_free, d_size);
 	return de;
 }
 
@@ -314,7 +314,7 @@ static int hpfs_add_to_dnode(struct inode *i, dnode_secno dno,
 	set_last_pointer(i->i_sb, ad, de->down ? de_down_pointer(de) : 0);
 	de = de_next_de(de);
 	memmove((char *)nd + 20, de, le32_to_cpu(nd->first_free) + (char *)nd - (char *)de);
-	nd->first_free = cpu_to_le32(le32_to_cpu(nd->first_free) - ((char *)de - (char *)nd - 20));
+	le32_add_cpu(&nd->first_free, -((char *)de - (char *)nd - 20));
 	memcpy(d, nd, le32_to_cpu(nd->first_free));
 	for_all_poss(i, hpfs_pos_del, (loff_t)dno << 4, pos);
 	fix_up_ptrs(i->i_sb, ad);
@@ -474,8 +474,8 @@ static secno move_to_top(struct inode *i, dnode_secno from, dnode_secno to)
 			hpfs_brelse4(&qbh);
 			return 0;
 		}
-		dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) - 4);
-		de->length = cpu_to_le16(le16_to_cpu(de->length) - 4);
+		le32_add_cpu(&dnode->first_free, -4);
+		le16_add_cpu(&de->length, -4);
 		de->down = 0;
 		hpfs_mark_4buffers_dirty(&qbh);
 		dno = up;
@@ -570,8 +570,8 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		for_all_poss(i, hpfs_pos_subst, ((loff_t)dno << 4) | 1, ((loff_t)up << 4) | p);
 		if (!down) {
 			de->down = 0;
-			de->length = cpu_to_le16(le16_to_cpu(de->length) - 4);
-			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) - 4);
+			le16_add_cpu(&de->length, -4);
+			le32_add_cpu(&dnode->first_free, -4);
 			memmove(de_next_de(de), (char *)de_next_de(de) + 4,
 				(char *)dnode + le32_to_cpu(dnode->first_free) - (char *)de_next_de(de));
 		} else {
@@ -647,14 +647,14 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 					printk("HPFS: warning: unbalanced dnode tree, see hpfs.txt 4 more info\n");
 					printk("HPFS: warning: goin'on\n");
 				}
-				del->length = cpu_to_le16(le16_to_cpu(del->length) + 4);
+				le16_add_cpu(&del->length, 4);
 				del->down = 1;
-				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) + 4);
+				le32_add_cpu(&d1->first_free, 4);
 			}
 			if (dlp && !down) {
-				del->length = cpu_to_le16(le16_to_cpu(del->length) - 4);
+				le16_add_cpu(&del->length, -4);
 				del->down = 0;
-				d1->first_free = cpu_to_le32(le32_to_cpu(d1->first_free) - 4);
+				le32_add_cpu(&d1->first_free, -4);
 			} else if (down)
 				*(__le32 *) ((void *) del + le16_to_cpu(del->length) - 4) = cpu_to_le32(down);
 		} else goto endm;
@@ -668,9 +668,9 @@ static void delete_empty_dnode(struct inode *i, dnode_secno dno)
 		memcpy(de_cp, de_prev, le16_to_cpu(de_prev->length));
 		hpfs_delete_de(i->i_sb, dnode, de_prev);
 		if (!de_prev->down) {
-			de_prev->length = cpu_to_le16(le16_to_cpu(de_prev->length) + 4);
+			le16_add_cpu(&de_prev->length, 4);
 			de_prev->down = 1;
-			dnode->first_free = cpu_to_le32(le32_to_cpu(dnode->first_free) + 4);
+			le32_add_cpu(&dnode->first_free, 4);
 		}
 		*(__le32 *) ((void *) de_prev + le16_to_cpu(de_prev->length) - 4) = cpu_to_le32(ndown);
 		hpfs_mark_4buffers_dirty(&qbh);

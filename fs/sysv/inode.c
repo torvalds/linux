@@ -36,7 +36,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 	struct sysv_sb_info *sbi = SYSV_SB(sb);
 	unsigned long time = get_seconds(), old_time;
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 
 	/*
 	 * If we are going to write out the super block,
@@ -51,7 +51,7 @@ static int sysv_sync_fs(struct super_block *sb, int wait)
 		mark_buffer_dirty(sbi->s_bh2);
 	}
 
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 
 	return 0;
 }

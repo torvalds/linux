@@ -1001,7 +1001,7 @@ static int parse_options (char *options, struct super_block *sb,
 			uid = make_kuid(current_user_ns(), option);
 			if (!uid_valid(uid)) {
 				ext3_msg(sb, KERN_ERR, "Invalid uid value %d", option);
-				return -1;
+				return 0;
 
 			}
 			sbi->s_resuid = uid;
@@ -1012,7 +1012,7 @@ static int parse_options (char *options, struct super_block *sb,
 			gid = make_kgid(current_user_ns(), option);
 			if (!gid_valid(gid)) {
 				ext3_msg(sb, KERN_ERR, "Invalid gid value %d", option);
-				return -1;
+				return 0;
 			}
 			sbi->s_resgid = gid;
 			break;
@@ -2578,11 +2578,9 @@ out:
 static int ext3_unfreeze(struct super_block *sb)
 {
 	if (!(sb->s_flags & MS_RDONLY)) {
-		lock_super(sb);
 		/* Reser the needs_recovery flag before the fs is unlocked. */
 		EXT3_SET_INCOMPAT_FEATURE(sb, EXT3_FEATURE_INCOMPAT_RECOVER);
 		ext3_commit_super(sb, EXT3_SB(sb)->s_es, 1);
-		unlock_super(sb);
 		journal_unlock_updates(EXT3_SB(sb)->s_journal);
 	}
 	return 0;
@@ -2602,7 +2600,6 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 #endif
 
 	/* Store the original options */
-	lock_super(sb);
 	old_sb_flags = sb->s_flags;
 	old_opts.s_mount_opt = sbi->s_mount_opt;
 	old_opts.s_resuid = sbi->s_resuid;
@@ -2708,8 +2705,6 @@ static int ext3_remount (struct super_block * sb, int * flags, char * data)
 		    old_opts.s_qf_names[i] != sbi->s_qf_names[i])
 			kfree(old_opts.s_qf_names[i]);
 #endif
-	unlock_super(sb);
-
 	if (enable_quota)
 		dquot_resume(sb, -1);
 	return 0;
@@ -2728,7 +2723,6 @@ restore_opts:
 		sbi->s_qf_names[i] = old_opts.s_qf_names[i];
 	}
 #endif
-	unlock_super(sb);
 	return err;
 }
 

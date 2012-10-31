@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
@@ -40,28 +41,38 @@ static const char *wm8737_supply_names[WM8737_NUM_SUPPLIES] = {
 
 /* codec private data */
 struct wm8737_priv {
-	enum snd_soc_control_type control_type;
+	struct regmap *regmap;
 	struct regulator_bulk_data supplies[WM8737_NUM_SUPPLIES];
 	unsigned int mclk;
 };
 
-static const u16 wm8737_reg[WM8737_REGISTER_COUNT] = {
-	0x00C3,     /* R0  - Left PGA volume */
-	0x00C3,     /* R1  - Right PGA volume */
-	0x0007,     /* R2  - AUDIO path L */
-	0x0007,     /* R3  - AUDIO path R */
-	0x0000,     /* R4  - 3D Enhance */
-	0x0000,     /* R5  - ADC Control */
-	0x0000,     /* R6  - Power Management */
-	0x000A,     /* R7  - Audio Format */
-	0x0000,     /* R8  - Clocking */
-	0x000F,     /* R9  - MIC Preamp Control */
-	0x0003,     /* R10 - Misc Bias Control */
-	0x0000,     /* R11 - Noise Gate */
-	0x007C,     /* R12 - ALC1 */
-	0x0000,     /* R13 - ALC2 */
-	0x0032,     /* R14 - ALC3 */
+static const struct reg_default wm8737_reg_defaults[] = {
+	{  0, 0x00C3 },     /* R0  - Left PGA volume */
+	{  1, 0x00C3 },     /* R1  - Right PGA volume */
+	{  2, 0x0007 },     /* R2  - AUDIO path L */
+	{  3, 0x0007 },     /* R3  - AUDIO path R */
+	{  4, 0x0000 },     /* R4  - 3D Enhance */
+	{  5, 0x0000 },     /* R5  - ADC Control */
+	{  6, 0x0000 },     /* R6  - Power Management */
+	{  7, 0x000A },     /* R7  - Audio Format */
+	{  8, 0x0000 },     /* R8  - Clocking */
+	{  9, 0x000F },     /* R9  - MIC Preamp Control */
+	{ 10, 0x0003 },     /* R10 - Misc Bias Control */
+	{ 11, 0x0000 },     /* R11 - Noise Gate */
+	{ 12, 0x007C },     /* R12 - ALC1 */
+	{ 13, 0x0000 },     /* R13 - ALC2 */
+	{ 14, 0x0032 },     /* R14 - ALC3 */
 };
+
+static bool wm8737_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case WM8737_RESET:
+		return true;
+	default:
+		return false;
+	}
+}
 
 static int wm8737_reset(struct snd_soc_codec *codec)
 {
@@ -479,7 +490,7 @@ static int wm8737_set_bias_level(struct snd_soc_codec *codec,
 				return ret;
 			}
 
-			snd_soc_cache_sync(codec);
+			regcache_sync(wm8737->regmap);
 
 			/* Fast VMID ramp at 2*2.5k */
 			snd_soc_update_bits(codec, WM8737_MISC_BIAS_CONTROL,
@@ -557,21 +568,11 @@ static int wm8737_resume(struct snd_soc_codec *codec)
 static int wm8737_probe(struct snd_soc_codec *codec)
 {
 	struct wm8737_priv *wm8737 = snd_soc_codec_get_drvdata(codec);
-	int ret, i;
+	int ret;
 
-	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8737->control_type);
+	ret = snd_soc_codec_set_cache_io(codec, 7, 9, SND_SOC_REGMAP);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
-		return ret;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(wm8737->supplies); i++)
-		wm8737->supplies[i].supply = wm8737_supply_names[i];
-
-	ret = regulator_bulk_get(codec->dev, ARRAY_SIZE(wm8737->supplies),
-				 wm8737->supplies);
-	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request supplies: %d\n", ret);
 		return ret;
 	}
 
@@ -607,17 +608,12 @@ static int wm8737_probe(struct snd_soc_codec *codec)
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8737->supplies), wm8737->supplies);
 err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8737->supplies), wm8737->supplies);
-
 	return ret;
 }
 
 static int wm8737_remove(struct snd_soc_codec *codec)
 {
-	struct wm8737_priv *wm8737 = snd_soc_codec_get_drvdata(codec);
-
 	wm8737_set_bias_level(codec, SND_SOC_BIAS_OFF);
-	regulator_bulk_free(ARRAY_SIZE(wm8737->supplies), wm8737->supplies);
 	return 0;
 }
 
@@ -627,10 +623,6 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8737 = {
 	.suspend	= wm8737_suspend,
 	.resume		= wm8737_resume,
 	.set_bias_level = wm8737_set_bias_level,
-
-	.reg_cache_size = WM8737_REGISTER_COUNT - 1, /* Skip reset */
-	.reg_word_size	= sizeof(u16),
-	.reg_cache_default = wm8737_reg,
 };
 
 static const struct of_device_id wm8737_of_match[] = {
@@ -640,24 +632,49 @@ static const struct of_device_id wm8737_of_match[] = {
 
 MODULE_DEVICE_TABLE(of, wm8737_of_match);
 
+static const struct regmap_config wm8737_regmap = {
+	.reg_bits = 7,
+	.val_bits = 9,
+	.max_register = WM8737_MAX_REGISTER,
+
+	.reg_defaults = wm8737_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(wm8737_reg_defaults),
+	.cache_type = REGCACHE_RBTREE,
+
+	.volatile_reg = wm8737_volatile,
+};
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8737_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8737_priv *wm8737;
-	int ret;
+	int ret, i;
 
-	wm8737 = kzalloc(sizeof(struct wm8737_priv), GFP_KERNEL);
+	wm8737 = devm_kzalloc(&i2c->dev, sizeof(struct wm8737_priv),
+			      GFP_KERNEL);
 	if (wm8737 == NULL)
 		return -ENOMEM;
 
+	for (i = 0; i < ARRAY_SIZE(wm8737->supplies); i++)
+		wm8737->supplies[i].supply = wm8737_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8737->supplies),
+				      wm8737->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	wm8737->regmap = devm_regmap_init_i2c(i2c, &wm8737_regmap);
+	if (IS_ERR(wm8737->regmap))
+		return PTR_ERR(wm8737->regmap);
+
 	i2c_set_clientdata(i2c, wm8737);
-	wm8737->control_type = SND_SOC_I2C;
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 				      &soc_codec_dev_wm8737, &wm8737_dai, 1);
-	if (ret < 0)
-		kfree(wm8737);
+
 	return ret;
 
 }
@@ -665,7 +682,7 @@ static __devinit int wm8737_i2c_probe(struct i2c_client *i2c,
 static __devexit int wm8737_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
@@ -691,26 +708,39 @@ static struct i2c_driver wm8737_i2c_driver = {
 static int __devinit wm8737_spi_probe(struct spi_device *spi)
 {
 	struct wm8737_priv *wm8737;
-	int ret;
+	int ret, i;
 
-	wm8737 = kzalloc(sizeof(struct wm8737_priv), GFP_KERNEL);
+	wm8737 = devm_kzalloc(&spi->dev, sizeof(struct wm8737_priv),
+			      GFP_KERNEL);
 	if (wm8737 == NULL)
 		return -ENOMEM;
 
-	wm8737->control_type = SND_SOC_SPI;
+	for (i = 0; i < ARRAY_SIZE(wm8737->supplies); i++)
+		wm8737->supplies[i].supply = wm8737_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&spi->dev, ARRAY_SIZE(wm8737->supplies),
+				      wm8737->supplies);
+	if (ret != 0) {
+		dev_err(&spi->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	wm8737->regmap = devm_regmap_init_spi(spi, &wm8737_regmap);
+	if (IS_ERR(wm8737->regmap))
+		return PTR_ERR(wm8737->regmap);
+
 	spi_set_drvdata(spi, wm8737);
 
 	ret = snd_soc_register_codec(&spi->dev,
 				     &soc_codec_dev_wm8737, &wm8737_dai, 1);
-	if (ret < 0)
-		kfree(wm8737);
+
 	return ret;
 }
 
 static int __devexit wm8737_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
+
 	return 0;
 }
 

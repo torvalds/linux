@@ -22,7 +22,6 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
-#include <linux/delay.h>
 #include <linux/jiffies.h>
 
 enum chips { max16065, max16066, max16067, max16068, max16070, max16071 };

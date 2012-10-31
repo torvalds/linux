@@ -899,6 +899,23 @@ bool clkdm_in_hwsup(struct clockdomain *clkdm)
 	return ret;
 }
 
+/**
+ * clkdm_missing_idle_reporting - can @clkdm enter autoidle even if in use?
+ * @clkdm: struct clockdomain *
+ *
+ * Returns true if clockdomain @clkdm has the
+ * CLKDM_MISSING_IDLE_REPORTING flag set, or false if not or @clkdm is
+ * null.  More information is available in the documentation for the
+ * CLKDM_MISSING_IDLE_REPORTING macro.
+ */
+bool clkdm_missing_idle_reporting(struct clockdomain *clkdm)
+{
+	if (!clkdm)
+		return false;
+
+	return (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING) ? true : false;
+}
+
 /* Clockdomain-to-clock/hwmod framework interface code */
 
 static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
@@ -908,15 +925,18 @@ static int _clkdm_clk_hwmod_enable(struct clockdomain *clkdm)
 	if (!clkdm || !arch_clkdm || !arch_clkdm->clkdm_clk_enable)
 		return -EINVAL;
 
+	spin_lock_irqsave(&clkdm->lock, flags);
+
 	/*
 	 * For arch's with no autodeps, clkcm_clk_enable
 	 * should be called for every clock instance or hwmod that is
 	 * enabled, so the clkdm can be force woken up.
 	 */
-	if ((atomic_inc_return(&clkdm->usecount) > 1) && autodeps)
+	if ((atomic_inc_return(&clkdm->usecount) > 1) && autodeps) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
 		return 0;
+	}
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	arch_clkdm->clkdm_clk_enable(clkdm);
 	pwrdm_state_switch(clkdm->pwrdm.ptr);
 	spin_unlock_irqrestore(&clkdm->lock, flags);
@@ -933,15 +953,19 @@ static int _clkdm_clk_hwmod_disable(struct clockdomain *clkdm)
 	if (!clkdm || !arch_clkdm || !arch_clkdm->clkdm_clk_disable)
 		return -EINVAL;
 
+	spin_lock_irqsave(&clkdm->lock, flags);
+
 	if (atomic_read(&clkdm->usecount) == 0) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
 		WARN_ON(1); /* underflow */
 		return -ERANGE;
 	}
 
-	if (atomic_dec_return(&clkdm->usecount) > 0)
+	if (atomic_dec_return(&clkdm->usecount) > 0) {
+		spin_unlock_irqrestore(&clkdm->lock, flags);
 		return 0;
+	}
 
-	spin_lock_irqsave(&clkdm->lock, flags);
 	arch_clkdm->clkdm_clk_disable(clkdm);
 	pwrdm_state_switch(clkdm->pwrdm.ptr);
 	spin_unlock_irqrestore(&clkdm->lock, flags);

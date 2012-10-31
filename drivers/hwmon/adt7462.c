@@ -26,7 +26,6 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/log2.h>
 #include <linux/slab.h>
 

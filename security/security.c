@@ -276,8 +276,8 @@ int security_sb_statfs(struct dentry *dentry)
 	return security_ops->sb_statfs(dentry);
 }
 
-int security_sb_mount(char *dev_name, struct path *path,
-                       char *type, unsigned long flags, void *data)
+int security_sb_mount(const char *dev_name, struct path *path,
+                       const char *type, unsigned long flags, void *data)
 {
 	return security_ops->sb_mount(dev_name, path, type, flags, data);
 }

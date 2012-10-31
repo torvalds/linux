@@ -40,6 +40,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -1457,6 +1458,8 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 {
 	struct aic3x_pdata *pdata = i2c->dev.platform_data;
 	struct aic3x_priv *aic3x;
+	struct aic3x_setup_data *ai3x_setup;
+	struct device_node *np = i2c->dev.of_node;
 	int ret;
 
 	aic3x = devm_kzalloc(&i2c->dev, sizeof(struct aic3x_priv), GFP_KERNEL);
@@ -1471,6 +1474,25 @@ static int aic3x_i2c_probe(struct i2c_client *i2c,
 	if (pdata) {
 		aic3x->gpio_reset = pdata->gpio_reset;
 		aic3x->setup = pdata->setup;
+	} else if (np) {
+		ai3x_setup = devm_kzalloc(&i2c->dev, sizeof(*ai3x_setup),
+								GFP_KERNEL);
+		if (ai3x_setup == NULL) {
+			dev_err(&i2c->dev, "failed to create private data\n");
+			return -ENOMEM;
+		}
+
+		ret = of_get_named_gpio(np, "gpio-reset", 0);
+		if (ret >= 0)
+			aic3x->gpio_reset = ret;
+		else
+			aic3x->gpio_reset = -1;
+
+		if (of_property_read_u32_array(np, "ai3x-gpio-func",
+					ai3x_setup->gpio_func, 2) >= 0) {
+			aic3x->setup = ai3x_setup;
+		}
+
 	} else {
 		aic3x->gpio_reset = -1;
 	}
@@ -1488,34 +1510,27 @@ static int aic3x_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+#if defined(CONFIG_OF)
+static const struct of_device_id tlv320aic3x_of_match[] = {
+	{ .compatible = "ti,tlv320aic3x", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, tlv320aic3x_of_match);
+#endif
+
 /* machine i2c codec control layer */
 static struct i2c_driver aic3x_i2c_driver = {
 	.driver = {
 		.name = "tlv320aic3x-codec",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(tlv320aic3x_of_match),
 	},
 	.probe	= aic3x_i2c_probe,
 	.remove = aic3x_i2c_remove,
 	.id_table = aic3x_i2c_id,
 };
 
-static int __init aic3x_modinit(void)
-{
-	int ret = 0;
-	ret = i2c_add_driver(&aic3x_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "Failed to register TLV320AIC3x I2C driver: %d\n",
-		       ret);
-	}
-	return ret;
-}
-module_init(aic3x_modinit);
-
-static void __exit aic3x_exit(void)
-{
-	i2c_del_driver(&aic3x_i2c_driver);
-}
-module_exit(aic3x_exit);
+module_i2c_driver(aic3x_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC TLV320AIC3X codec driver");
 MODULE_AUTHOR("Vladimir Barinov");

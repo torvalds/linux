@@ -54,7 +54,8 @@ typedef unsigned long elf_fpregset_t;
 
 #define ELF_PLATFORM  (NULL)
 
-#define SET_PERSONALITY(ex) set_personality(PER_LINUX)
+#define SET_PERSONALITY(ex) \
+	set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 
 #define R_H8_NONE       0
 #define R_H8_DIR32      1

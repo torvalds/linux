@@ -3935,6 +3935,12 @@ MODULE_PARM_DESC(lpfc_fcp_look_ahead, "Look ahead for completions");
 # 	- Only meaningful if BG is turned on (lpfc_enable_bg=1).
 #	- Allows you to ultimately specify which profiles to use
 #	- Default will result in registering capabilities for all profiles.
+#	- SHOST_DIF_TYPE1_PROTECTION	1
+#		HBA supports T10 DIF Type 1: HBA to Target Type 1 Protection
+#	- SHOST_DIX_TYPE0_PROTECTION	8
+#		HBA supports DIX Type 0: Host to HBA protection only
+#	- SHOST_DIX_TYPE1_PROTECTION	16
+#		HBA supports DIX Type 1: Host to HBA  Type 1 protection
 #
 */
 unsigned int lpfc_prot_mask = SHOST_DIF_TYPE1_PROTECTION |
@@ -3947,7 +3953,7 @@ MODULE_PARM_DESC(lpfc_prot_mask, "host protection mask");
 /*
 # lpfc_prot_guard: i
 #	- Bit mask of protection guard types to register with the SCSI mid-layer
-# 	- Guard types are currently either 1) IP checksum 2) T10-DIF CRC
+#	- Guard types are currently either 1) T10-DIF CRC 2) IP checksum
 #	- Allows you to ultimately specify which profiles to use
 #	- Default will result in registering capabilities for all guard types
 #

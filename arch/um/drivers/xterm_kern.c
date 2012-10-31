@@ -7,8 +7,8 @@
 #include <linux/completion.h>
 #include <linux/irqreturn.h>
 #include <asm/irq.h>
-#include "irq_kern.h"
-#include "os.h"
+#include <irq_kern.h>
+#include <os.h>
 
 struct xterm_wait {
 	struct completion ready;

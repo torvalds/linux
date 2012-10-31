@@ -57,7 +57,7 @@
  * global sequence counter value. It also increases the global sequence
  * counter.
  */
-static unsigned long long next_sqnum(struct ubi_device *ubi)
+unsigned long long ubi_next_sqnum(struct ubi_device *ubi)
 {
 	unsigned long long sqnum;
 
@@ -340,7 +340,9 @@ int ubi_eba_unmap_leb(struct ubi_device *ubi, struct ubi_volume *vol,
 
 	dbg_eba("erase LEB %d:%d, PEB %d", vol_id, lnum, pnum);
 
+	down_read(&ubi->fm_sem);
 	vol->eba_tbl[lnum] = UBI_LEB_UNMAPPED;
+	up_read(&ubi->fm_sem);
 	err = ubi_wl_put_peb(ubi, vol_id, lnum, pnum, 0);
 
 out_unlock:
@@ -521,7 +523,7 @@ retry:
 		goto out_put;
 	}
 
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	err = ubi_io_write_vid_hdr(ubi, new_pnum, vid_hdr);
 	if (err)
 		goto write_error;
@@ -548,7 +550,9 @@ retry:
 	mutex_unlock(&ubi->buf_mutex);
 	ubi_free_vid_hdr(ubi, vid_hdr);
 
+	down_read(&ubi->fm_sem);
 	vol->eba_tbl[lnum] = new_pnum;
+	up_read(&ubi->fm_sem);
 	ubi_wl_put_peb(ubi, vol_id, lnum, pnum, 1);
 
 	ubi_msg("data was successfully recovered");
@@ -632,7 +636,7 @@ int ubi_eba_write_leb(struct ubi_device *ubi, struct ubi_volume *vol, int lnum,
 	}
 
 	vid_hdr->vol_type = UBI_VID_DYNAMIC;
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	vid_hdr->vol_id = cpu_to_be32(vol_id);
 	vid_hdr->lnum = cpu_to_be32(lnum);
 	vid_hdr->compat = ubi_get_compat(ubi, vol_id);
@@ -665,7 +669,9 @@ retry:
 		}
 	}
 
+	down_read(&ubi->fm_sem);
 	vol->eba_tbl[lnum] = pnum;
+	up_read(&ubi->fm_sem);
 
 	leb_write_unlock(ubi, vol_id, lnum);
 	ubi_free_vid_hdr(ubi, vid_hdr);
@@ -692,7 +698,7 @@ write_error:
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	ubi_msg("try another PEB");
 	goto retry;
 }
@@ -745,7 +751,7 @@ int ubi_eba_write_leb_st(struct ubi_device *ubi, struct ubi_volume *vol,
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	vid_hdr->vol_id = cpu_to_be32(vol_id);
 	vid_hdr->lnum = cpu_to_be32(lnum);
 	vid_hdr->compat = ubi_get_compat(ubi, vol_id);
@@ -783,7 +789,9 @@ retry:
 	}
 
 	ubi_assert(vol->eba_tbl[lnum] < 0);
+	down_read(&ubi->fm_sem);
 	vol->eba_tbl[lnum] = pnum;
+	up_read(&ubi->fm_sem);
 
 	leb_write_unlock(ubi, vol_id, lnum);
 	ubi_free_vid_hdr(ubi, vid_hdr);
@@ -810,7 +818,7 @@ write_error:
 		return err;
 	}
 
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	ubi_msg("try another PEB");
 	goto retry;
 }
@@ -862,7 +870,7 @@ int ubi_eba_atomic_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	if (err)
 		goto out_mutex;
 
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	vid_hdr->vol_id = cpu_to_be32(vol_id);
 	vid_hdr->lnum = cpu_to_be32(lnum);
 	vid_hdr->compat = ubi_get_compat(ubi, vol_id);
@@ -904,7 +912,9 @@ retry:
 			goto out_leb_unlock;
 	}
 
+	down_read(&ubi->fm_sem);
 	vol->eba_tbl[lnum] = pnum;
+	up_read(&ubi->fm_sem);
 
 out_leb_unlock:
 	leb_write_unlock(ubi, vol_id, lnum);
@@ -930,7 +940,7 @@ write_error:
 		goto out_leb_unlock;
 	}
 
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 	ubi_msg("try another PEB");
 	goto retry;
 }
@@ -1089,7 +1099,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		vid_hdr->data_size = cpu_to_be32(data_size);
 		vid_hdr->data_crc = cpu_to_be32(crc);
 	}
-	vid_hdr->sqnum = cpu_to_be64(next_sqnum(ubi));
+	vid_hdr->sqnum = cpu_to_be64(ubi_next_sqnum(ubi));
 
 	err = ubi_io_write_vid_hdr(ubi, to, vid_hdr);
 	if (err) {
@@ -1151,7 +1161,9 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	ubi_assert(vol->eba_tbl[lnum] == from);
+	down_read(&ubi->fm_sem);
 	vol->eba_tbl[lnum] = to;
+	up_read(&ubi->fm_sem);
 
 out_unlock_buf:
 	mutex_unlock(&ubi->buf_mutex);
@@ -1199,6 +1211,102 @@ static void print_rsvd_warning(struct ubi_device *ubi,
 	if (ubi->corr_peb_count)
 		ubi_warn("%d PEBs are corrupted and not used",
 			 ubi->corr_peb_count);
+}
+
+/**
+ * self_check_eba - run a self check on the EBA table constructed by fastmap.
+ * @ubi: UBI device description object
+ * @ai_fastmap: UBI attach info object created by fastmap
+ * @ai_scan: UBI attach info object created by scanning
+ *
+ * Returns < 0 in case of an internal error, 0 otherwise.
+ * If a bad EBA table entry was found it will be printed out and
+ * ubi_assert() triggers.
+ */
+int self_check_eba(struct ubi_device *ubi, struct ubi_attach_info *ai_fastmap,
+		   struct ubi_attach_info *ai_scan)
+{
+	int i, j, num_volumes, ret = 0;
+	int **scan_eba, **fm_eba;
+	struct ubi_ainf_volume *av;
+	struct ubi_volume *vol;
+	struct ubi_ainf_peb *aeb;
+	struct rb_node *rb;
+
+	num_volumes = ubi->vtbl_slots + UBI_INT_VOL_COUNT;
+
+	scan_eba = kmalloc(sizeof(*scan_eba) * num_volumes, GFP_KERNEL);
+	if (!scan_eba)
+		return -ENOMEM;
+
+	fm_eba = kmalloc(sizeof(*fm_eba) * num_volumes, GFP_KERNEL);
+	if (!fm_eba) {
+		kfree(scan_eba);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_volumes; i++) {
+		vol = ubi->volumes[i];
+		if (!vol)
+			continue;
+
+		scan_eba[i] = kmalloc(vol->reserved_pebs * sizeof(**scan_eba),
+				      GFP_KERNEL);
+		if (!scan_eba[i]) {
+			ret = -ENOMEM;
+			goto out_free;
+		}
+
+		fm_eba[i] = kmalloc(vol->reserved_pebs * sizeof(**fm_eba),
+				    GFP_KERNEL);
+		if (!fm_eba[i]) {
+			ret = -ENOMEM;
+			goto out_free;
+		}
+
+		for (j = 0; j < vol->reserved_pebs; j++)
+			scan_eba[i][j] = fm_eba[i][j] = UBI_LEB_UNMAPPED;
+
+		av = ubi_find_av(ai_scan, idx2vol_id(ubi, i));
+		if (!av)
+			continue;
+
+		ubi_rb_for_each_entry(rb, aeb, &av->root, u.rb)
+			scan_eba[i][aeb->lnum] = aeb->pnum;
+
+		av = ubi_find_av(ai_fastmap, idx2vol_id(ubi, i));
+		if (!av)
+			continue;
+
+		ubi_rb_for_each_entry(rb, aeb, &av->root, u.rb)
+			fm_eba[i][aeb->lnum] = aeb->pnum;
+
+		for (j = 0; j < vol->reserved_pebs; j++) {
+			if (scan_eba[i][j] != fm_eba[i][j]) {
+				if (scan_eba[i][j] == UBI_LEB_UNMAPPED ||
+					fm_eba[i][j] == UBI_LEB_UNMAPPED)
+					continue;
+
+				ubi_err("LEB:%i:%i is PEB:%i instead of %i!",
+					vol->vol_id, i, fm_eba[i][j],
+					scan_eba[i][j]);
+				ubi_assert(0);
+			}
+		}
+	}
+
+out_free:
+	for (i = 0; i < num_volumes; i++) {
+		if (!ubi->volumes[i])
+			continue;
+
+		kfree(scan_eba[i]);
+		kfree(fm_eba[i]);
+	}
+
+	kfree(scan_eba);
+	kfree(fm_eba);
+	return ret;
 }
 
 /**

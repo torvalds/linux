@@ -29,6 +29,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <video/samsung_fimd.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -52,7 +53,6 @@
 #include <linux/platform_data/usb-s3c2410_udc.h>
 #include <linux/platform_data/s3c-hsudc.h>
 
-#include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
 
 #include <plat/common-smdk.h>

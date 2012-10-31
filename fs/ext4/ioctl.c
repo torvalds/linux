@@ -366,24 +366,9 @@ group_add_out:
 			return -EOPNOTSUPP;
 		}
 
-		if (EXT4_HAS_INCOMPAT_FEATURE(sb,
-			       EXT4_FEATURE_INCOMPAT_META_BG)) {
-			ext4_msg(sb, KERN_ERR,
-				 "Online resizing not (yet) supported with meta_bg");
-			return -EOPNOTSUPP;
-		}
-
 		if (copy_from_user(&n_blocks_count, (__u64 __user *)arg,
 				   sizeof(__u64))) {
 			return -EFAULT;
-		}
-
-		if (n_blocks_count > MAX_32_NUM &&
-		    !EXT4_HAS_INCOMPAT_FEATURE(sb,
-					       EXT4_FEATURE_INCOMPAT_64BIT)) {
-			ext4_msg(sb, KERN_ERR,
-				 "File system only supports 32-bit block numbers");
-			return -EOPNOTSUPP;
 		}
 
 		err = ext4_resize_begin(sb);
@@ -419,13 +404,6 @@ resizefs_out:
 
 		if (!blk_queue_discard(q))
 			return -EOPNOTSUPP;
-
-		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-			       EXT4_FEATURE_RO_COMPAT_BIGALLOC)) {
-			ext4_msg(sb, KERN_ERR,
-				 "FITRIM not supported with bigalloc");
-			return -EOPNOTSUPP;
-		}
 
 		if (copy_from_user(&range, (struct fstrim_range __user *)arg,
 		    sizeof(range)))

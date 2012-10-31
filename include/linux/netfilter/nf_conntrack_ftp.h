@@ -1,20 +1,8 @@
 #ifndef _NF_CONNTRACK_FTP_H
 #define _NF_CONNTRACK_FTP_H
-/* FTP tracking. */
 
-/* This enum is exposed to userspace */
-enum nf_ct_ftp_type {
-	/* PORT command from client */
-	NF_CT_FTP_PORT,
-	/* PASV response from server */
-	NF_CT_FTP_PASV,
-	/* EPRT command from client */
-	NF_CT_FTP_EPRT,
-	/* EPSV response from server */
-	NF_CT_FTP_EPSV,
-};
+#include <uapi/linux/netfilter/nf_conntrack_ftp.h>
 
-#ifdef __KERNEL__
 
 #define FTP_PORT	21
 
@@ -42,6 +30,4 @@ extern unsigned int (*nf_nat_ftp_hook)(struct sk_buff *skb,
 				       unsigned int matchoff,
 				       unsigned int matchlen,
 				       struct nf_conntrack_expect *exp);
-#endif /* __KERNEL__ */
-
 #endif /* _NF_CONNTRACK_FTP_H */

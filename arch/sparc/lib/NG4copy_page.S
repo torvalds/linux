@@ -30,25 +30,25 @@ NG4copy_user_page:	/* %o0=dest, %o1=src, %o2=vaddr */
 	ldx		[%o1 + 0x10], %o4
 	ldx		[%o1 + 0x18], %o5
 	ldx		[%o1 + 0x20], %g1
-	stxa		%o2, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%o2, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
 	ldx		[%o1 + 0x28], %g2
-	stxa		%o3, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%o3, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
 	ldx		[%o1 + 0x30], %g3
-	stxa		%o4, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%o4, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
 	ldx		[%o1 + 0x38], %o2
 	add		%o1, 0x40, %o1
-	stxa		%o5, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%o5, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
-	stxa		%g1, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%g1, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
-	stxa		%g2, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%g2, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
-	stxa		%g3, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%g3, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
-	stxa		%o2, [%o0] ASI_BLK_INIT_QUAD_LDD_P
+	stxa		%o2, [%o0] ASI_ST_BLKINIT_MRU_P
 	add		%o0, 0x08, %o0
 	bne,pt		%icc, 1b
 	 prefetch	[%o1 + 0x200], #n_reads_strong

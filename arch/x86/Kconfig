@@ -10,6 +10,7 @@ config X86_32
 	def_bool y
 	depends on !64BIT
 	select CLKSRC_I8253
+	select HAVE_UID16
 
 config X86_64
 	def_bool y
@@ -46,6 +47,7 @@ config X86
 	select HAVE_FUNCTION_GRAPH_FP_TEST
 	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_SYSCALL_TRACEPOINTS
+	select SYSCTL_EXCEPTION_TRACE
 	select HAVE_KVM
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
@@ -65,6 +67,7 @@ config X86
 	select HAVE_PERF_EVENTS_NMI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_DEBUG_KMEMLEAK
 	select ANON_INODES
 	select HAVE_ALIGNED_STRUCT_PAGE if SLUB && !M386
 	select HAVE_CMPXCHG_LOCAL if !M386
@@ -85,6 +88,7 @@ config X86
 	select IRQ_FORCED_THREADING
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_BPF_JIT if X86_64
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
@@ -104,6 +108,10 @@ config X86
 	select GENERIC_STRNLEN_USER
 	select HAVE_RCU_USER_QS if X86_64
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
+	select MODULES_USE_ELF_REL if X86_32
+	select MODULES_USE_ELF_RELA if X86_64
 
 config INSTRUCTION_DECODER
 	def_bool y
@@ -2168,6 +2176,7 @@ config IA32_EMULATION
 	bool "IA32 Emulation"
 	depends on X86_64
 	select COMPAT_BINFMT_ELF
+	select HAVE_UID16
 	---help---
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're

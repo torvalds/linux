@@ -3,27 +3,27 @@
  * Licensed under the GPL
  */
 
-#include "linux/posix_types.h"
-#include "linux/tty.h"
-#include "linux/tty_flip.h"
-#include "linux/types.h"
-#include "linux/major.h"
-#include "linux/kdev_t.h"
-#include "linux/console.h"
-#include "linux/string.h"
-#include "linux/sched.h"
-#include "linux/list.h"
-#include "linux/init.h"
-#include "linux/interrupt.h"
-#include "linux/slab.h"
-#include "linux/hardirq.h"
-#include "asm/current.h"
-#include "asm/irq.h"
+#include <linux/posix_types.h>
+#include <linux/tty.h>
+#include <linux/tty_flip.h>
+#include <linux/types.h>
+#include <linux/major.h>
+#include <linux/kdev_t.h>
+#include <linux/console.h>
+#include <linux/string.h>
+#include <linux/sched.h>
+#include <linux/list.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/slab.h>
+#include <linux/hardirq.h>
+#include <asm/current.h>
+#include <asm/irq.h>
 #include "stdio_console.h"
 #include "chan.h"
-#include "irq_user.h"
+#include <irq_user.h>
 #include "mconsole_kern.h"
-#include "init.h"
+#include <init.h>
 
 #define MAX_TTYS (16)
 

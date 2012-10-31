@@ -48,11 +48,6 @@
 #include <video/omap-panel-tfp410.h>
 
 #include <linux/platform_data/spi-omap2-mcspi.h>
-#include <linux/input/matrix_keypad.h>
-#include <linux/spi/spi.h>
-#include <linux/interrupt.h>
-#include <linux/smsc911x.h>
-#include <linux/i2c/at24.h>
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "mux.h"

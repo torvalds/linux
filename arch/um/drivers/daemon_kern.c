@@ -6,9 +6,9 @@
  * Licensed under the GPL.
  */
 
-#include "linux/init.h"
+#include <linux/init.h>
 #include <linux/netdevice.h>
-#include "net_kern.h"
+#include <net_kern.h>
 #include "daemon.h"
 
 struct daemon_init {

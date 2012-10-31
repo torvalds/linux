@@ -2780,6 +2780,105 @@ YAMAHA_DEVICE(0x7010, "UB99"),
 
 	}
 },
+{
+	/* Tascam US122 MKII - playback-only support */
+	.match_flags = USB_DEVICE_ID_MATCH_DEVICE,
+	.idVendor = 0x0644,
+	.idProduct = 0x8021,
+	.bInterfaceClass = USB_CLASS_AUDIO,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "TASCAM",
+		.product_name = "US122 MKII",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = (const struct snd_usb_audio_quirk[]) {
+			{
+				.ifnum = 0,
+				.type = QUIRK_IGNORE_INTERFACE
+			},
+			{
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S24_3LE,
+					.channels = 2,
+					.iface = 1,
+					.altsetting = 1,
+					.altset_idx = 1,
+					.attributes = UAC_EP_CS_ATTR_SAMPLE_RATE,
+					.endpoint = 0x02,
+					.ep_attr = USB_ENDPOINT_XFER_ISOC,
+					.rates = SNDRV_PCM_RATE_44100 |
+						 SNDRV_PCM_RATE_48000 |
+						 SNDRV_PCM_RATE_88200 |
+						 SNDRV_PCM_RATE_96000,
+					.rate_min = 44100,
+					.rate_max = 96000,
+					.nr_rates = 4,
+					.rate_table = (unsigned int[]) {
+						44100, 48000, 88200, 96000
+					}
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
+
+/* Microsoft XboxLive Headset/Xbox Communicator */
+{
+	USB_DEVICE(0x045e, 0x0283),
+	.bInterfaceClass = USB_CLASS_PER_INTERFACE,
+	.driver_info = (unsigned long) &(const struct snd_usb_audio_quirk) {
+		.vendor_name = "Microsoft",
+		.product_name = "XboxLive Headset/Xbox Communicator",
+		.ifnum = QUIRK_ANY_INTERFACE,
+		.type = QUIRK_COMPOSITE,
+		.data = &(const struct snd_usb_audio_quirk[]) {
+			{
+				/* playback */
+				.ifnum = 0,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S16_LE,
+					.channels = 1,
+					.iface = 0,
+					.altsetting = 0,
+					.altset_idx = 0,
+					.attributes = 0,
+					.endpoint = 0x04,
+					.ep_attr = 0x05,
+					.rates = SNDRV_PCM_RATE_CONTINUOUS,
+					.rate_min = 22050,
+					.rate_max = 22050
+				}
+			},
+			{
+				/* capture */
+				.ifnum = 1,
+				.type = QUIRK_AUDIO_FIXED_ENDPOINT,
+				.data = &(const struct audioformat) {
+					.formats = SNDRV_PCM_FMTBIT_S16_LE,
+					.channels = 1,
+					.iface = 1,
+					.altsetting = 0,
+					.altset_idx = 0,
+					.attributes = 0,
+					.endpoint = 0x85,
+					.ep_attr = 0x05,
+					.rates = SNDRV_PCM_RATE_CONTINUOUS,
+					.rate_min = 16000,
+					.rate_max = 16000
+				}
+			},
+			{
+				.ifnum = -1
+			}
+		}
+	}
+},
 
 {
 	/*

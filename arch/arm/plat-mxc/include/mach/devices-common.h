@@ -83,6 +83,14 @@ struct platform_device *__init imx_add_imx21_hcd(
 		const struct imx_imx21_hcd_data *data,
 		const struct mx21_usbh_platform_data *pdata);
 
+struct imx_imx27_coda_data {
+	resource_size_t iobase;
+	resource_size_t iosize;
+	resource_size_t irq;
+};
+struct platform_device *__init imx_add_imx27_coda(
+		const struct imx_imx27_coda_data *data);
+
 struct imx_imx2_wdt_data {
 	int id;
 	resource_size_t iobase;

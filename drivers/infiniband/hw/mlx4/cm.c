@@ -225,7 +225,7 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 		ret = idr_get_new_above(&sriov->pv_id_table, ent,
 					next_id, &id);
 		if (!ret) {
-			next_id = ((unsigned) id + 1) & MAX_ID_MASK;
+			next_id = ((unsigned) id + 1) & MAX_IDR_MASK;
 			ent->pv_cm_id = (u32)id;
 			sl_id_map_add(ibdev, ent);
 		}

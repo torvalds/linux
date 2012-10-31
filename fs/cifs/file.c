@@ -3003,6 +3003,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 static struct vm_operations_struct cifs_file_vm_ops = {
 	.fault = filemap_fault,
 	.page_mkwrite = cifs_page_mkwrite,
+	.remap_pages = generic_file_remap_pages,
 };
 
 int cifs_file_strict_mmap(struct file *file, struct vm_area_struct *vma)

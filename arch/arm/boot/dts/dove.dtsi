@@ -1,0 +1,158 @@
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "marvell,dove";
+	model = "Marvell Armada 88AP510 SoC";
+
+	soc@f1000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+
+		ranges = <0xc8000000 0xc8000000 0x0100000   /* CESA SRAM   1M */
+		          0xe0000000 0xe0000000 0x8000000   /* PCIe0 Mem 128M */
+		          0xe8000000 0xe8000000 0x8000000   /* PCIe1 Mem 128M */
+		          0xf0000000 0xf0000000 0x0100000   /* ScratchPad  1M */
+		          0x00000000 0xf1000000 0x1000000   /* SB/NB regs 16M */
+		          0xf2000000 0xf2000000 0x0100000   /* PCIe0 I/O   1M */
+		          0xf2100000 0xf2100000 0x0100000   /* PCIe0 I/O   1M */
+		          0xf8000000 0xf8000000 0x8000000>; /* BootROM   128M */
+
+		l2: l2-cache {
+			compatible = "marvell,tauros2-cache";
+			marvell,tauros2-cache-features = <0>;
+		};
+
+		intc: interrupt-controller {
+			compatible = "marvell,orion-intc";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			reg = <0x20204 0x04>, <0x20214 0x04>;
+		};
+
+		uart0: serial@12000 {
+			compatible = "ns16550a";
+			reg = <0x12000 0x100>;
+			reg-shift = <2>;
+			interrupts = <7>;
+			clock-frequency = <166666667>;
+			status = "disabled";
+		};
+
+		uart1: serial@12100 {
+			compatible = "ns16550a";
+			reg = <0x12100 0x100>;
+			reg-shift = <2>;
+			interrupts = <8>;
+			clock-frequency = <166666667>;
+			status = "disabled";
+		};
+
+		uart2: serial@12200 {
+			compatible = "ns16550a";
+			reg = <0x12000 0x100>;
+			reg-shift = <2>;
+			interrupts = <9>;
+			clock-frequency = <166666667>;
+			status = "disabled";
+		};
+
+		uart3: serial@12300 {
+			compatible = "ns16550a";
+			reg = <0x12100 0x100>;
+			reg-shift = <2>;
+			interrupts = <10>;
+			clock-frequency = <166666667>;
+			status = "disabled";
+		};
+
+		gpio0: gpio@d0400 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0xd0400 0x20>;
+			ngpio = <32>;
+			interrupts = <12>, <13>, <14>, <60>;
+		};
+
+		gpio1: gpio@d0420 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0xd0420 0x20>;
+			ngpio = <32>;
+			interrupts = <61>;
+		};
+
+		gpio2: gpio@e8400 {
+			compatible = "marvell,orion-gpio";
+			#gpio-cells = <2>;
+			gpio-controller;
+			reg = <0xe8400 0x0c>;
+			ngpio = <8>;
+		};
+
+		spi0: spi@10600 {
+			compatible = "marvell,orion-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <0>;
+			interrupts = <6>;
+			reg = <0x10600 0x28>;
+			status = "disabled";
+		};
+
+		spi1: spi@14600 {
+			compatible = "marvell,orion-spi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			cell-index = <1>;
+			interrupts = <5>;
+			reg = <0x14600 0x28>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@11000 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11000 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <11>;
+			clock-frequency = <400000>;
+			timeout-ms = <1000>;
+			status = "disabled";
+		};
+
+		sdio0: sdio@92000 {
+			compatible = "marvell,dove-sdhci";
+			reg = <0x92000 0x100>;
+			interrupts = <35>, <37>;
+			status = "disabled";
+		};
+
+		sdio1: sdio@90000 {
+			compatible = "marvell,dove-sdhci";
+			reg = <0x90000 0x100>;
+			interrupts = <36>, <38>;
+			status = "disabled";
+		};
+
+		sata0: sata@a0000 {
+			compatible = "marvell,orion-sata";
+			reg = <0xa0000 0x2400>;
+			interrupts = <62>;
+			nr-ports = <1>;
+			status = "disabled";
+		};
+
+		crypto: crypto@30000 {
+			compatible = "marvell,orion-crypto";
+			reg = <0x30000 0x10000>,
+			      <0xc8000000 0x800>;
+			reg-names = "regs", "sram";
+			interrupts = <31>;
+			status = "okay";
+		};
+	};
+};

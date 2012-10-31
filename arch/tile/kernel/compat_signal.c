@@ -55,63 +55,6 @@ struct compat_ucontext {
 	sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
-#define COMPAT_SI_PAD_SIZE	((SI_MAX_SIZE - 3 * sizeof(int)) / sizeof(int))
-
-struct compat_siginfo {
-	int si_signo;
-	int si_errno;
-	int si_code;
-
-	union {
-		int _pad[COMPAT_SI_PAD_SIZE];
-
-		/* kill() */
-		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
-		} _kill;
-
-		/* POSIX.1b timers */
-		struct {
-			compat_timer_t _tid;	/* timer id */
-			int _overrun;		/* overrun count */
-			compat_sigval_t _sigval;	/* same as below */
-			int _sys_private;	/* not to be passed to user */
-			int _overrun_incr;	/* amount to add to overrun */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			unsigned int _pid;	/* sender's pid */
-			unsigned int _uid;	/* sender's uid */
-			compat_sigval_t _sigval;
-		} _rt;
-
-		/* SIGCHLD */
-		struct {
-			unsigned int _pid;	/* which child */
-			unsigned int _uid;	/* sender's uid */
-			int _status;		/* exit code */
-			compat_clock_t _utime;
-			compat_clock_t _stime;
-		} _sigchld;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-		struct {
-			unsigned int _addr;	/* faulting insn/memory ref. */
-#ifdef __ARCH_SI_TRAPNO
-			int _trapno;	/* TRAP # which caused the signal */
-#endif
-		} _sigfault;
-
-		/* SIGPOLL */
-		struct {
-			int _band;	/* POLL_IN, POLL_OUT, POLL_MSG */
-			int _fd;
-		} _sigpoll;
-	} _sifields;
-};
-
 struct compat_rt_sigframe {
 	unsigned char save_area[C_ABI_SAVE_AREA_SIZE]; /* caller save area */
 	struct compat_siginfo info;
@@ -411,15 +354,6 @@ int compat_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->regs[1] = ptr_to_compat_reg(&frame->info);
 	regs->regs[2] = ptr_to_compat_reg(&frame->uc);
 	regs->flags |= PT_FLAGS_CALLER_SAVES;
-
-	/*
-	 * Notify any tracer that was single-stepping it.
-	 * The tracer may want to single-step inside the
-	 * handler too.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP))
-		ptrace_notify(SIGTRAP);
-
 	return 0;
 
 give_sigsegv:

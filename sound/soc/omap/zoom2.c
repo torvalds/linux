@@ -191,9 +191,6 @@ static int __init zoom2_soc_init(void)
 	BUG_ON(gpio_request(ZOOM2_HEADSET_MUX_GPIO, "hs_mux") < 0);
 	gpio_direction_output(ZOOM2_HEADSET_MUX_GPIO, 0);
 
-	BUG_ON(gpio_request(ZOOM2_HEADSET_EXTMUTE_GPIO, "ext_mute") < 0);
-	gpio_direction_output(ZOOM2_HEADSET_EXTMUTE_GPIO, 0);
-
 	return 0;
 
 err1:
@@ -207,7 +204,6 @@ module_init(zoom2_soc_init);
 static void __exit zoom2_soc_exit(void)
 {
 	gpio_free(ZOOM2_HEADSET_MUX_GPIO);
-	gpio_free(ZOOM2_HEADSET_EXTMUTE_GPIO);
 
 	platform_device_unregister(zoom2_snd_device);
 }

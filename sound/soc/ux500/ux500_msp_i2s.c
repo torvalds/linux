@@ -18,6 +18,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <linux/of.h>
 
 #include <mach/hardware.h>
@@ -689,20 +690,19 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 
 	*msp_p = devm_kzalloc(&pdev->dev, sizeof(struct ux500_msp), GFP_KERNEL);
 	msp = *msp_p;
+	if (!msp)
+		return -ENOMEM;
 
 	if (np) {
 		if (!platform_data) {
 			platform_data = devm_kzalloc(&pdev->dev,
 				sizeof(struct msp_i2s_platform_data), GFP_KERNEL);
 			if (!platform_data)
-				ret = -ENOMEM;
+				return -ENOMEM;
 		}
 	} else
 		if (!platform_data)
-			ret = -EINVAL;
-
-	if (ret)
-		goto err_res;
+			return -EINVAL;
 
 	dev_dbg(&pdev->dev, "%s: Enter (name: %s, id: %d).\n", __func__,
 		pdev->name, platform_data->id);

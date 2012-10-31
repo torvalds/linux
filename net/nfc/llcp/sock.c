@@ -497,15 +497,11 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	pr_debug("sock %p sk %p flags 0x%x\n", sock, sk, flags);
 
 	if (!addr || len < sizeof(struct sockaddr_nfc) ||
-	    addr->sa_family != AF_NFC) {
-		pr_err("Invalid socket\n");
+	    addr->sa_family != AF_NFC)
 		return -EINVAL;
-	}
 
-	if (addr->service_name_len == 0 && addr->dsap == 0) {
-		pr_err("Missing service name or dsap\n");
+	if (addr->service_name_len == 0 && addr->dsap == 0)
 		return -EINVAL;
-	}
 
 	pr_debug("addr dev_idx=%u target_idx=%u protocol=%u\n", addr->dev_idx,
 		 addr->target_idx, addr->nfc_protocol);

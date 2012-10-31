@@ -2806,12 +2806,33 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	udelay(100);
 }
 
+static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long flags;
+	bool pending;
+
+	if (atomic_read(&dev_priv->mm.wedged))
+		return false;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	pending = to_intel_crtc(crtc)->unpin_work != NULL;
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return pending;
+}
+
 static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (crtc->fb == NULL)
 		return;
+
+	wait_event(dev_priv->pending_flip_queue,
+		   !intel_crtc_has_pending_flip(crtc));
 
 	mutex_lock(&dev->struct_mutex);
 	intel_finish_fb(crtc->fb);
@@ -3232,6 +3253,16 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	if (HAS_PCH_CPT(dev))
 		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
+
+	/*
+	 * There seems to be a race in PCH platform hw (at least on some
+	 * outputs) where an enabled pipe still completes any pageflip right
+	 * away (as if the pipe is off) instead of waiting for vblank. As soon
+	 * as the first vblank happend, everything works as expected. Hence just
+	 * wait for one vblank before returning to avoid strange things
+	 * happening.
+	 */
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
@@ -4370,7 +4401,7 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	/* default to 8bpc */
 	pipeconf &= ~(PIPECONF_BPP_MASK | PIPECONF_DITHER_EN);
 	if (is_dp) {
-		if (mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
+		if (adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC) {
 			pipeconf |= PIPECONF_BPP_6 |
 				    PIPECONF_DITHER_EN |
 				    PIPECONF_DITHER_TYPE_SP;
@@ -4802,7 +4833,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		target_clock = adjusted_mode->clock;
 
 	/* determine panel color depth */
-	dither = intel_choose_pipe_bpp_dither(crtc, fb, &pipe_bpp, mode);
+	dither = intel_choose_pipe_bpp_dither(crtc, fb, &pipe_bpp,
+					      adjusted_mode);
 	if (is_lvds && dev_priv->lvds_dither)
 		dither = true;
 
@@ -6159,14 +6191,12 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	struct intel_unpin_work *work;
 	struct drm_i915_gem_object *obj;
 	struct drm_pending_vblank_event *e;
-	struct timeval tnow, tvbl;
+	struct timeval tvbl;
 	unsigned long flags;
 
 	/* Ignore early vblank irqs */
 	if (intel_crtc == NULL)
 		return;
-
-	do_gettimeofday(&tnow);
 
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
@@ -6180,25 +6210,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 	if (work->event) {
 		e = work->event;
 		e->event.sequence = drm_vblank_count_and_time(dev, intel_crtc->pipe, &tvbl);
-
-		/* Called before vblank count and timestamps have
-		 * been updated for the vblank interval of flip
-		 * completion? Need to increment vblank count and
-		 * add one videorefresh duration to returned timestamp
-		 * to account for this. We assume this happened if we
-		 * get called over 0.9 frame durations after the last
-		 * timestamped vblank.
-		 *
-		 * This calculation can not be used with vrefresh rates
-		 * below 5Hz (10Hz to be on the safe side) without
-		 * promoting to 64 integers.
-		 */
-		if (10 * (timeval_to_ns(&tnow) - timeval_to_ns(&tvbl)) >
-		    9 * crtc->framedur_ns) {
-			e->event.sequence++;
-			tvbl = ns_to_timeval(timeval_to_ns(&tvbl) +
-					     crtc->framedur_ns);
-		}
 
 		e->event.tv_sec = tvbl.tv_sec;
 		e->event.tv_usec = tvbl.tv_usec;
@@ -6216,9 +6227,8 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	atomic_clear_mask(1 << intel_crtc->plane,
 			  &obj->pending_flip.counter);
-	if (atomic_read(&obj->pending_flip) == 0)
-		wake_up(&dev_priv->pending_flip_queue);
 
+	wake_up(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 
 	trace_i915_flip_complete(intel_crtc->plane, work->pending_flip_obj);
@@ -7882,6 +7892,34 @@ struct intel_quirk {
 	void (*hook)(struct drm_device *dev);
 };
 
+/* For systems that don't have a meaningful PCI subdevice/subvendor ID */
+struct intel_dmi_quirk {
+	void (*hook)(struct drm_device *dev);
+	const struct dmi_system_id (*dmi_id_list)[];
+};
+
+static int intel_dmi_reverse_brightness(const struct dmi_system_id *id)
+{
+	DRM_INFO("Backlight polarity reversed on %s\n", id->ident);
+	return 1;
+}
+
+static const struct intel_dmi_quirk intel_dmi_quirks[] = {
+	{
+		.dmi_id_list = &(const struct dmi_system_id[]) {
+			{
+				.callback = intel_dmi_reverse_brightness,
+				.ident = "NCR Corporation",
+				.matches = {DMI_MATCH(DMI_SYS_VENDOR, "NCR Corporation"),
+					    DMI_MATCH(DMI_PRODUCT_NAME, ""),
+				},
+			},
+			{ }  /* terminating entry */
+		},
+		.hook = quirk_invert_brightness,
+	},
+};
+
 static struct intel_quirk intel_quirks[] = {
 	/* HP Mini needs pipe A force quirk (LP: #322104) */
 	{ 0x27ae, 0x103c, 0x361a, quirk_pipea_force },
@@ -7892,8 +7930,7 @@ static struct intel_quirk intel_quirks[] = {
 	/* ThinkPad T60 needs pipe A force quirk (bug #16494) */
 	{ 0x2782, 0x17aa, 0x201a, quirk_pipea_force },
 
-	/* 855 & before need to leave pipe A & dpll A up */
-	{ 0x3582, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
+	/* 830/845 need to leave pipe A & dpll A up */
 	{ 0x2562, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 	{ 0x3577, PCI_ANY_ID, PCI_ANY_ID, quirk_pipea_force },
 
@@ -7921,6 +7958,10 @@ static void intel_init_quirks(struct drm_device *dev)
 		    (d->subsystem_device == q->subsystem_device ||
 		     q->subsystem_device == PCI_ANY_ID))
 			q->hook(dev);
+	}
+	for (i = 0; i < ARRAY_SIZE(intel_dmi_quirks); i++) {
+		if (dmi_check_system(*intel_dmi_quirks[i].dmi_id_list) != 0)
+			intel_dmi_quirks[i].hook(dev);
 	}
 }
 
@@ -8049,28 +8090,41 @@ static void intel_enable_pipe_a(struct drm_device *dev)
 
 }
 
+static bool
+intel_check_plane_mapping(struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->base.dev->dev_private;
+	u32 reg, val;
+
+	if (dev_priv->num_pipe == 1)
+		return true;
+
+	reg = DSPCNTR(!crtc->plane);
+	val = I915_READ(reg);
+
+	if ((val & DISPLAY_PLANE_ENABLE) &&
+	    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
+		return false;
+
+	return true;
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg, val;
+	u32 reg;
 
 	/* Clear any frame start delays used for debugging left by the BIOS */
 	reg = PIPECONF(crtc->pipe);
 	I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
 
 	/* We need to sanitize the plane -> pipe mapping first because this will
-	 * disable the crtc (and hence change the state) if it is wrong. */
-	if (!HAS_PCH_SPLIT(dev)) {
+	 * disable the crtc (and hence change the state) if it is wrong. Note
+	 * that gen4+ has a fixed plane -> pipe mapping.  */
+	if (INTEL_INFO(dev)->gen < 4 && !intel_check_plane_mapping(crtc)) {
 		struct intel_connector *connector;
 		bool plane;
-
-		reg = DSPCNTR(crtc->plane);
-		val = I915_READ(reg);
-
-		if ((val & DISPLAY_PLANE_ENABLE) == 0 &&
-		    (!!(val & DISPPLANE_SEL_PIPE_MASK) == crtc->pipe))
-			goto ok;
 
 		DRM_DEBUG_KMS("[CRTC:%d] wrong plane connection detected!\n",
 			      crtc->base.base.id);
@@ -8095,7 +8149,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc)
 		WARN_ON(crtc->active);
 		crtc->base.enabled = false;
 	}
-ok:
 
 	if (dev_priv->quirks & QUIRK_PIPEA_FORCE &&
 	    crtc->pipe == PIPE_A && !crtc->active) {

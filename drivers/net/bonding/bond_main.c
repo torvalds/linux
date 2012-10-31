@@ -1519,7 +1519,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	/* no need to lock since we're protected by rtnl_lock */
 	if (slave_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		pr_debug("%s: NETIF_F_VLAN_CHALLENGED\n", slave_dev->name);
-		if (bond_vlan_used(bond)) {
+		if (vlan_uses_dev(bond_dev)) {
 			pr_err("%s: Error: cannot enslave VLAN challenged slave %s on VLAN enabled bond %s\n",
 			       bond_dev->name, slave_dev->name, bond_dev->name);
 			return -EPERM;
@@ -4826,6 +4826,7 @@ static int bond_check_params(struct bond_params *params)
 
 static struct lock_class_key bonding_netdev_xmit_lock_key;
 static struct lock_class_key bonding_netdev_addr_lock_key;
+static struct lock_class_key bonding_tx_busylock_key;
 
 static void bond_set_lockdep_class_one(struct net_device *dev,
 				       struct netdev_queue *txq,
@@ -4840,6 +4841,7 @@ static void bond_set_lockdep_class(struct net_device *dev)
 	lockdep_set_class(&dev->addr_list_lock,
 			  &bonding_netdev_addr_lock_key);
 	netdev_for_each_tx_queue(dev, bond_set_lockdep_class_one, NULL);
+	dev->qdisc_tx_busylock = &bonding_tx_busylock_key;
 }
 
 /*

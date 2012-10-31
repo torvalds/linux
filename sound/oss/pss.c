@@ -359,7 +359,7 @@ static int pss_download_boot(pss_confdata * devc, unsigned char *block, int size
 		{
 			/*_____ Send the next byte */
 			outw (*block++, REG (PSS_DATA));
-		};
+		}
 		count++;
 	}
 

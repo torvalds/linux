@@ -466,7 +466,7 @@ static int iscsit_handle_recovery_datain(
 int iscsit_handle_recovery_datain_or_r2t(
 	struct iscsi_conn *conn,
 	unsigned char *buf,
-	u32 init_task_tag,
+	itt_t init_task_tag,
 	u32 targ_xfer_tag,
 	u32 begrun,
 	u32 runlength)
@@ -498,7 +498,7 @@ int iscsit_handle_recovery_datain_or_r2t(
 /* #warning FIXME: Status SNACK needs to be dependent on OPCODE!!! */
 int iscsit_handle_status_snack(
 	struct iscsi_conn *conn,
-	u32 init_task_tag,
+	itt_t init_task_tag,
 	u32 targ_xfer_tag,
 	u32 begrun,
 	u32 runlength)

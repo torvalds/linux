@@ -366,6 +366,17 @@ static int vfio_intx_enable(struct vfio_pci_device *vdev)
 		return -ENOMEM;
 
 	vdev->num_ctx = 1;
+
+	/*
+	 * If the virtual interrupt is masked, restore it.  Devices
+	 * supporting DisINTx can be masked at the hardware level
+	 * here, non-PCI-2.3 devices will have to wait until the
+	 * interrupt is enabled.
+	 */
+	vdev->ctx[0].masked = vdev->virq_disabled;
+	if (vdev->pci_2_3)
+		pci_intx(vdev->pdev, !vdev->ctx[0].masked);
+
 	vdev->irq_type = VFIO_PCI_INTX_IRQ_INDEX;
 
 	return 0;
@@ -400,25 +411,26 @@ static int vfio_intx_set_signal(struct vfio_pci_device *vdev, int fd)
 		return PTR_ERR(trigger);
 	}
 
+	vdev->ctx[0].trigger = trigger;
+
 	if (!vdev->pci_2_3)
 		irqflags = 0;
 
 	ret = request_irq(pdev->irq, vfio_intx_handler,
 			  irqflags, vdev->ctx[0].name, vdev);
 	if (ret) {
+		vdev->ctx[0].trigger = NULL;
 		kfree(vdev->ctx[0].name);
 		eventfd_ctx_put(trigger);
 		return ret;
 	}
-
-	vdev->ctx[0].trigger = trigger;
 
 	/*
 	 * INTx disable will stick across the new irq setup,
 	 * disable_irq won't.
 	 */
 	spin_lock_irqsave(&vdev->irqlock, flags);
-	if (!vdev->pci_2_3 && (vdev->ctx[0].masked || vdev->virq_disabled))
+	if (!vdev->pci_2_3 && vdev->ctx[0].masked)
 		disable_irq_nosync(pdev->irq);
 	spin_unlock_irqrestore(&vdev->irqlock, flags);
 

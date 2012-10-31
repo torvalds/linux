@@ -143,7 +143,7 @@ void ima_delete_rules(void);
 #ifdef CONFIG_IMA_APPRAISE
 int ima_appraise_measurement(struct integrity_iint_cache *iint,
 			     struct file *file, const unsigned char *filename);
-int ima_must_appraise(struct inode *inode, enum ima_hooks func, int mask);
+int ima_must_appraise(struct inode *inode, int mask, enum ima_hooks func);
 void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file);
 
 #else
@@ -154,8 +154,8 @@ static inline int ima_appraise_measurement(struct integrity_iint_cache *iint,
 	return INTEGRITY_UNKNOWN;
 }
 
-static inline int ima_must_appraise(struct inode *inode,
-				    enum ima_hooks func, int mask)
+static inline int ima_must_appraise(struct inode *inode, int mask,
+				    enum ima_hooks func)
 {
 	return 0;
 }

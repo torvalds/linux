@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/timekeeper_internal.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>
@@ -21,61 +22,6 @@
 #include <linux/tick.h>
 #include <linux/stop_machine.h>
 
-/* Structure holding internal timekeeping values. */
-struct timekeeper {
-	/* Current clocksource used for timekeeping. */
-	struct clocksource	*clock;
-	/* NTP adjusted clock multiplier */
-	u32			mult;
-	/* The shift value of the current clocksource. */
-	u32			shift;
-	/* Number of clock cycles in one NTP interval. */
-	cycle_t			cycle_interval;
-	/* Number of clock shifted nano seconds in one NTP interval. */
-	u64			xtime_interval;
-	/* shifted nano seconds left over when rounding cycle_interval */
-	s64			xtime_remainder;
-	/* Raw nano seconds accumulated per NTP interval. */
-	u32			raw_interval;
-
-	/* Current CLOCK_REALTIME time in seconds */
-	u64			xtime_sec;
-	/* Clock shifted nano seconds */
-	u64			xtime_nsec;
-
-	/* Difference between accumulated time and NTP time in ntp
-	 * shifted nano seconds. */
-	s64			ntp_error;
-	/* Shift conversion between clock shifted nano seconds and
-	 * ntp shifted nano seconds. */
-	u32			ntp_error_shift;
-
-	/*
-	 * wall_to_monotonic is what we need to add to xtime (or xtime corrected
-	 * for sub jiffie times) to get to monotonic time.  Monotonic is pegged
-	 * at zero at system boot time, so wall_to_monotonic will be negative,
-	 * however, we will ALWAYS keep the tv_nsec part positive so we can use
-	 * the usual normalization.
-	 *
-	 * wall_to_monotonic is moved after resume from suspend for the
-	 * monotonic time not to jump. We need to add total_sleep_time to
-	 * wall_to_monotonic to get the real boot based time offset.
-	 *
-	 * - wall_to_monotonic is no longer the boot time, getboottime must be
-	 * used instead.
-	 */
-	struct timespec		wall_to_monotonic;
-	/* Offset clock monotonic -> clock realtime */
-	ktime_t			offs_real;
-	/* time spent in suspend */
-	struct timespec		total_sleep_time;
-	/* Offset clock monotonic -> clock boottime */
-	ktime_t			offs_boot;
-	/* The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock. */
-	struct timespec		raw_time;
-	/* Seqlock for all timekeeper values */
-	seqlock_t		lock;
-};
 
 static struct timekeeper timekeeper;
 
@@ -94,15 +40,6 @@ static inline void tk_normalize_xtime(struct timekeeper *tk)
 		tk->xtime_nsec -= (u64)NSEC_PER_SEC << tk->shift;
 		tk->xtime_sec++;
 	}
-}
-
-static struct timespec tk_xtime(struct timekeeper *tk)
-{
-	struct timespec ts;
-
-	ts.tv_sec = tk->xtime_sec;
-	ts.tv_nsec = (long)(tk->xtime_nsec >> tk->shift);
-	return ts;
 }
 
 static void tk_set_xtime(struct timekeeper *tk, const struct timespec *ts)
@@ -246,14 +183,11 @@ static inline s64 timekeeping_get_ns_raw(struct timekeeper *tk)
 /* must hold write on timekeeper.lock */
 static void timekeeping_update(struct timekeeper *tk, bool clearntp)
 {
-	struct timespec xt;
-
 	if (clearntp) {
 		tk->ntp_error = 0;
 		ntp_clear();
 	}
-	xt = tk_xtime(tk);
-	update_vsyscall(&xt, &tk->wall_to_monotonic, tk->clock, tk->mult);
+	update_vsyscall(tk);
 }
 
 /**
@@ -1113,7 +1047,7 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 	accumulate_nsecs_to_secs(tk);
 
 	/* Accumulate raw time */
-	raw_nsecs = tk->raw_interval << shift;
+	raw_nsecs = (u64)tk->raw_interval << shift;
 	raw_nsecs += tk->raw_time.tv_nsec;
 	if (raw_nsecs >= NSEC_PER_SEC) {
 		u64 raw_secs = raw_nsecs;
@@ -1130,6 +1064,33 @@ static cycle_t logarithmic_accumulation(struct timekeeper *tk, cycle_t offset,
 	return offset;
 }
 
+#ifdef CONFIG_GENERIC_TIME_VSYSCALL_OLD
+static inline void old_vsyscall_fixup(struct timekeeper *tk)
+{
+	s64 remainder;
+
+	/*
+	* Store only full nanoseconds into xtime_nsec after rounding
+	* it up and add the remainder to the error difference.
+	* XXX - This is necessary to avoid small 1ns inconsistnecies caused
+	* by truncating the remainder in vsyscalls. However, it causes
+	* additional work to be done in timekeeping_adjust(). Once
+	* the vsyscall implementations are converted to use xtime_nsec
+	* (shifted nanoseconds), and CONFIG_GENERIC_TIME_VSYSCALL_OLD
+	* users are removed, this can be killed.
+	*/
+	remainder = tk->xtime_nsec & ((1ULL << tk->shift) - 1);
+	tk->xtime_nsec -= remainder;
+	tk->xtime_nsec += 1ULL << tk->shift;
+	tk->ntp_error += remainder << tk->ntp_error_shift;
+
+}
+#else
+#define old_vsyscall_fixup(tk)
+#endif
+
+
+
 /**
  * update_wall_time - Uses the current clocksource to increment the wall time
  *
@@ -1141,7 +1102,6 @@ static void update_wall_time(void)
 	cycle_t offset;
 	int shift = 0, maxshift;
 	unsigned long flags;
-	s64 remainder;
 
 	write_seqlock_irqsave(&tk->lock, flags);
 
@@ -1183,20 +1143,11 @@ static void update_wall_time(void)
 	/* correct the clock when NTP error is too big */
 	timekeeping_adjust(tk, offset);
 
-
 	/*
-	* Store only full nanoseconds into xtime_nsec after rounding
-	* it up and add the remainder to the error difference.
-	* XXX - This is necessary to avoid small 1ns inconsistnecies caused
-	* by truncating the remainder in vsyscalls. However, it causes
-	* additional work to be done in timekeeping_adjust(). Once
-	* the vsyscall implementations are converted to use xtime_nsec
-	* (shifted nanoseconds), this can be killed.
-	*/
-	remainder = tk->xtime_nsec & ((1ULL << tk->shift) - 1);
-	tk->xtime_nsec -= remainder;
-	tk->xtime_nsec += 1ULL << tk->shift;
-	tk->ntp_error += remainder << tk->ntp_error_shift;
+	 * XXX This can be killed once everyone converts
+	 * to the new update_vsyscall.
+	 */
+	old_vsyscall_fixup(tk);
 
 	/*
 	 * Finally, make sure that after the rounding

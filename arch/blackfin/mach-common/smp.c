@@ -146,7 +146,7 @@ static irqreturn_t ipi_handler_int1(int irq, void *dev_instance)
 	platform_clear_ipi(cpu, IRQ_SUPPLE_1);
 
 	bfin_ipi_data = &__get_cpu_var(bfin_ipi);
-
+	smp_mb();
 	while ((pending = xchg(&bfin_ipi_data->bits, 0)) != 0) {
 		msg = 0;
 		do {
@@ -195,7 +195,7 @@ void send_ipi(const struct cpumask *cpumask, enum ipi_message_type msg)
 	unsigned long flags;
 
 	local_irq_save(flags);
-
+	smp_mb();
 	for_each_cpu(cpu, cpumask) {
 		bfin_ipi_data = &per_cpu(bfin_ipi, cpu);
 		smp_mb();

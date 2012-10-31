@@ -50,8 +50,9 @@ static void dump_tlb(int first, int last)
 {
 	unsigned long s_entryhi, entryhi, asid;
 	unsigned long long entrylo0, entrylo1;
-	unsigned int s_index, pagemask, c0, c1, i;
+	unsigned int s_index, s_pagemask, pagemask, c0, c1, i;
 
+	s_pagemask = read_c0_pagemask();
 	s_entryhi = read_c0_entryhi();
 	s_index = read_c0_index();
 	asid = s_entryhi & 0xff;
@@ -103,6 +104,7 @@ static void dump_tlb(int first, int last)
 
 	write_c0_entryhi(s_entryhi);
 	write_c0_index(s_index);
+	write_c0_pagemask(s_pagemask);
 }
 
 void dump_tlb_all(void)

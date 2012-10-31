@@ -19,7 +19,7 @@
 #include "thread_map.h"
 #include "target.h"
 #include "../../../include/linux/hw_breakpoint.h"
-#include "../../include/linux/perf_event.h"
+#include "../../../include/uapi/linux/perf_event.h"
 #include "perf_regs.h"
 
 #define FD(e, x, y) (*(int *)xyarray__entry(e->fd, x, y))

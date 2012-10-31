@@ -524,7 +524,7 @@ static inline void kvmppc_e500_shadow_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	if (likely(!pfnmap)) {
 		unsigned long tsize_pages = 1 << (tsize + 10 - PAGE_SHIFT);
 		pfn = gfn_to_pfn_memslot(slot, gfn);
-		if (is_error_pfn(pfn)) {
+		if (is_error_noslot_pfn(pfn)) {
 			printk(KERN_ERR "Couldn't get real page for gfn %lx!\n",
 					(long)gfn);
 			return;

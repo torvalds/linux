@@ -4200,12 +4200,6 @@ static void buffer_pipe_buf_release(struct pipe_inode_info *pipe,
 	buf->private = 0;
 }
 
-static int buffer_pipe_buf_steal(struct pipe_inode_info *pipe,
-				 struct pipe_buffer *buf)
-{
-	return 1;
-}
-
 static void buffer_pipe_buf_get(struct pipe_inode_info *pipe,
 				struct pipe_buffer *buf)
 {
@@ -4221,7 +4215,7 @@ static const struct pipe_buf_operations buffer_pipe_buf_ops = {
 	.unmap			= generic_pipe_buf_unmap,
 	.confirm		= generic_pipe_buf_confirm,
 	.release		= buffer_pipe_buf_release,
-	.steal			= buffer_pipe_buf_steal,
+	.steal			= generic_pipe_buf_steal,
 	.get			= buffer_pipe_buf_get,
 };
 

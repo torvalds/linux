@@ -19,6 +19,11 @@ struct module;
 struct clk;
 struct clockdomain;
 
+/* Temporary, needed during the common clock framework conversion */
+#define __clk_get_name(clk)	(clk->name)
+#define __clk_get_parent(clk)	(clk->parent)
+#define __clk_get_rate(clk)	(clk->rate)
+
 /**
  * struct clkops - some clock function pointers
  * @enable: fn ptr that enables the current clock in hardware

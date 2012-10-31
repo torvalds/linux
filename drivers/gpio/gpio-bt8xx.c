@@ -50,7 +50,7 @@
 #include <linux/slab.h>
 
 /* Steal the hardware definitions from the bttv driver. */
-#include "../media/video/bt8xx/bt848.h"
+#include "../media/pci/bt8xx/bt848.h"
 
 
 #define BT8XXGPIO_NR_GPIOS		24 /* We have 24 GPIO pins */

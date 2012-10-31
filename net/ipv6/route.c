@@ -219,7 +219,7 @@ static struct dst_ops ip6_dst_blackhole_ops = {
 };
 
 static const u32 ip6_template_metrics[RTAX_MAX] = {
-	[RTAX_HOPLIMIT - 1] = 255,
+	[RTAX_HOPLIMIT - 1] = 0,
 };
 
 static const struct rt6_info ip6_null_entry_template = {
@@ -1232,7 +1232,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	rt->rt6i_dst.addr = fl6->daddr;
 	rt->rt6i_dst.plen = 128;
 	rt->rt6i_idev     = idev;
-	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 255);
+	dst_metric_set(&rt->dst, RTAX_HOPLIMIT, 0);
 
 	spin_lock_bh(&icmp6_dst_lock);
 	rt->dst.next = icmp6_dst_gc_list;
@@ -1593,17 +1593,18 @@ static int __ip6_del_rt(struct rt6_info *rt, struct nl_info *info)
 	struct fib6_table *table;
 	struct net *net = dev_net(rt->dst.dev);
 
-	if (rt == net->ipv6.ip6_null_entry)
-		return -ENOENT;
+	if (rt == net->ipv6.ip6_null_entry) {
+		err = -ENOENT;
+		goto out;
+	}
 
 	table = rt->rt6i_table;
 	write_lock_bh(&table->tb6_lock);
-
 	err = fib6_del(rt, info);
-	dst_release(&rt->dst);
-
 	write_unlock_bh(&table->tb6_lock);
 
+out:
+	dst_release(&rt->dst);
 	return err;
 }
 

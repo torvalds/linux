@@ -8,6 +8,78 @@
 #define PINCTRL_NMK_DB8500	1
 #define PINCTRL_NMK_DB8540	2
 
+#define PRCM_GPIOCR_ALTCX(pin_num,\
+	altc1_used, altc1_ri, altc1_cb,\
+	altc2_used, altc2_ri, altc2_cb,\
+	altc3_used, altc3_ri, altc3_cb,\
+	altc4_used, altc4_ri, altc4_cb)\
+{\
+	.pin = pin_num,\
+	.altcx[PRCM_IDX_GPIOCR_ALTC1] = {\
+		.used = altc1_used,\
+		.reg_index = altc1_ri,\
+		.control_bit = altc1_cb\
+	},\
+	.altcx[PRCM_IDX_GPIOCR_ALTC2] = {\
+		.used = altc2_used,\
+		.reg_index = altc2_ri,\
+		.control_bit = altc2_cb\
+	},\
+	.altcx[PRCM_IDX_GPIOCR_ALTC3] = {\
+		.used = altc3_used,\
+		.reg_index = altc3_ri,\
+		.control_bit = altc3_cb\
+	},\
+	.altcx[PRCM_IDX_GPIOCR_ALTC4] = {\
+		.used = altc4_used,\
+		.reg_index = altc4_ri,\
+		.control_bit = altc4_cb\
+	},\
+}
+
+/**
+ * enum prcm_gpiocr_reg_index
+ * Used to reference an PRCM GPIOCR register address.
+ */
+enum prcm_gpiocr_reg_index {
+	PRCM_IDX_GPIOCR1,
+	PRCM_IDX_GPIOCR2,
+	PRCM_IDX_GPIOCR3
+};
+/**
+ * enum prcm_gpiocr_altcx_index
+ * Used to reference an Other alternate-C function.
+ */
+enum prcm_gpiocr_altcx_index {
+	PRCM_IDX_GPIOCR_ALTC1,
+	PRCM_IDX_GPIOCR_ALTC2,
+	PRCM_IDX_GPIOCR_ALTC3,
+	PRCM_IDX_GPIOCR_ALTC4,
+	PRCM_IDX_GPIOCR_ALTC_MAX,
+};
+
+/**
+ * struct prcm_gpio_altcx - Other alternate-C function
+ * @used: other alternate-C function availability
+ * @reg_index: PRCM GPIOCR register index used to control the function
+ * @control_bit: PRCM GPIOCR bit used to control the function
+ */
+struct prcm_gpiocr_altcx {
+	bool used:1;
+	u8 reg_index:2;
+	u8 control_bit:5;
+} __packed;
+
+/**
+ * struct prcm_gpio_altcx_pin_desc - Other alternate-C pin
+ * @pin: The pin number
+ * @altcx: array of other alternate-C[1-4] functions
+ */
+struct prcm_gpiocr_altcx_pin_desc {
+	unsigned short pin;
+	struct prcm_gpiocr_altcx altcx[PRCM_IDX_GPIOCR_ALTC_MAX];
+};
+
 /**
  * struct nmk_function - Nomadik pinctrl mux function
  * @name: The name of the function, exported to pinctrl core.
@@ -50,6 +122,9 @@ struct nmk_pingroup {
  * @nfunction:	The number of entries in @functions.
  * @groups:	An array describing all pin groups the pin SoC supports.
  * @ngroups:	The number of entries in @groups.
+ * @altcx_pins:	The pins that support Other alternate-C function on this SoC
+ * @npins_altcx: The number of Other alternate-C pins
+ * @prcm_gpiocr_registers: The array of PRCM GPIOCR registers on this SoC
  */
 struct nmk_pinctrl_soc_data {
 	struct pinctrl_gpio_range *gpio_ranges;
@@ -60,6 +135,9 @@ struct nmk_pinctrl_soc_data {
 	unsigned nfunctions;
 	const struct nmk_pingroup *groups;
 	unsigned ngroups;
+	const struct prcm_gpiocr_altcx_pin_desc *altcx_pins;
+	unsigned npins_altcx;
+	const u16 *prcm_gpiocr_registers;
 };
 
 #ifdef CONFIG_PINCTRL_STN8815

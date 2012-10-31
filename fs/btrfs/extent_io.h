@@ -27,6 +27,7 @@
  * type for this bio
  */
 #define EXTENT_BIO_COMPRESSED 1
+#define EXTENT_BIO_TREE_LOG 2
 #define EXTENT_BIO_FLAG_SHIFT 16
 
 /* these are bit numbers for test/set bit */
@@ -232,11 +233,15 @@ int set_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 int clear_extent_dirty(struct extent_io_tree *tree, u64 start, u64 end,
 		       gfp_t mask);
 int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       int bits, int clear_bits, gfp_t mask);
+		       int bits, int clear_bits,
+		       struct extent_state **cached_state, gfp_t mask);
 int set_extent_delalloc(struct extent_io_tree *tree, u64 start, u64 end,
 			struct extent_state **cached_state, gfp_t mask);
+int set_extent_defrag(struct extent_io_tree *tree, u64 start, u64 end,
+		      struct extent_state **cached_state, gfp_t mask);
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
-			  u64 *start_ret, u64 *end_ret, int bits);
+			  u64 *start_ret, u64 *end_ret, int bits,
+			  struct extent_state **cached_state);
 struct extent_state *find_first_extent_bit_state(struct extent_io_tree *tree,
 						 u64 start, int bits);
 int extent_invalidatepage(struct extent_io_tree *tree,
@@ -277,8 +282,18 @@ void free_extent_buffer_stale(struct extent_buffer *eb);
 int read_extent_buffer_pages(struct extent_io_tree *tree,
 			     struct extent_buffer *eb, u64 start, int wait,
 			     get_extent_t *get_extent, int mirror_num);
-unsigned long num_extent_pages(u64 start, u64 len);
-struct page *extent_buffer_page(struct extent_buffer *eb, unsigned long i);
+
+static inline unsigned long num_extent_pages(u64 start, u64 len)
+{
+	return ((start + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT) -
+		(start >> PAGE_CACHE_SHIFT);
+}
+
+static inline struct page *extent_buffer_page(struct extent_buffer *eb,
+					      unsigned long i)
+{
+	return eb->pages[i];
+}
 
 static inline void extent_buffer_get(struct extent_buffer *eb)
 {

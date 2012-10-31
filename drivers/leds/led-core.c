@@ -103,13 +103,23 @@ void led_blink_set_oneshot(struct led_classdev *led_cdev,
 }
 EXPORT_SYMBOL(led_blink_set_oneshot);
 
-void led_set_brightness(struct led_classdev *led_cdev,
-			enum led_brightness brightness)
+void led_stop_software_blink(struct led_classdev *led_cdev)
 {
-	/* stop and clear soft-blink timer */
 	del_timer_sync(&led_cdev->blink_timer);
 	led_cdev->blink_delay_on = 0;
 	led_cdev->blink_delay_off = 0;
+}
+EXPORT_SYMBOL_GPL(led_stop_software_blink);
+
+void led_set_brightness(struct led_classdev *led_cdev,
+			enum led_brightness brightness)
+{
+	/* delay brightness setting if need to stop soft-blink timer */
+	if (led_cdev->blink_delay_on || led_cdev->blink_delay_off) {
+		led_cdev->delayed_set_value = brightness;
+		schedule_work(&led_cdev->set_brightness_work);
+		return;
+	}
 
 	__led_set_brightness(led_cdev, brightness);
 }

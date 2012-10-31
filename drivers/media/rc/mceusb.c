@@ -627,7 +627,7 @@ static void mceusb_dev_printdata(struct mceusb_dev *ir, char *buf,
 			break;
 		case MCE_RSP_EQIRCFS:
 			period = DIV_ROUND_CLOSEST(
-					(1 << data1 * 2) * (data2 + 1), 10);
+					(1U << data1 * 2) * (data2 + 1), 10);
 			if (!period)
 				break;
 			carrier = (1000 * 1000) / period;
@@ -791,10 +791,6 @@ static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 	int i, ret = 0;
 	int cmdcount = 0;
 	unsigned char *cmdbuf; /* MCE command buffer */
-	long signal_duration = 0; /* Singnal length in us */
-	struct timeval start_time, end_time;
-
-	do_gettimeofday(&start_time);
 
 	cmdbuf = kzalloc(sizeof(unsigned) * MCE_CMDBUF_SIZE, GFP_KERNEL);
 	if (!cmdbuf)
@@ -807,7 +803,6 @@ static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	/* Generate mce packet data */
 	for (i = 0; (i < count) && (cmdcount < MCE_CMDBUF_SIZE); i++) {
-		signal_duration += txbuf[i];
 		txbuf[i] = txbuf[i] / MCE_TIME_UNIT;
 
 		do { /* loop to support long pulses/spaces > 127*50us=6.35ms */
@@ -849,19 +844,6 @@ static int mceusb_tx_ir(struct rc_dev *dev, unsigned *txbuf, unsigned count)
 
 	/* Transmit the command to the mce device */
 	mce_async_out(ir, cmdbuf, cmdcount);
-
-	/*
-	 * The lircd gap calculation expects the write function to
-	 * wait the time it takes for the ircommand to be sent before
-	 * it returns.
-	 */
-	do_gettimeofday(&end_time);
-	signal_duration -= (end_time.tv_usec - start_time.tv_usec) +
-			   (end_time.tv_sec - start_time.tv_sec) * 1000000;
-
-	/* delay with the closest number of ticks */
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(usecs_to_jiffies(signal_duration));
 
 out:
 	kfree(cmdbuf);
@@ -974,6 +956,7 @@ static void mceusb_handle_command(struct mceusb_dev *ir, int index)
 static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 {
 	DEFINE_IR_RAW_EVENT(rawir);
+	bool event = false;
 	int i = 0;
 
 	/* skip meaningless 0xb1 0x60 header bytes on orig receiver */
@@ -1004,7 +987,8 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 				rawir.pulse ? "pulse" : "space",
 				rawir.duration);
 
-			ir_raw_event_store_with_filter(ir->rc, &rawir);
+			if (ir_raw_event_store_with_filter(ir->rc, &rawir))
+				event = true;
 			break;
 		case CMD_DATA:
 			ir->rem--;
@@ -1032,8 +1016,10 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 		if (ir->parser_state != CMD_HEADER && !ir->rem)
 			ir->parser_state = CMD_HEADER;
 	}
-	mce_dbg(ir->dev, "processed IR data, calling ir_raw_event_handle\n");
-	ir_raw_event_handle(ir->rc);
+	if (event) {
+		mce_dbg(ir->dev, "processed IR data, calling ir_raw_event_handle\n");
+		ir_raw_event_handle(ir->rc);
+	}
 }
 
 static void mceusb_dev_recv(struct urb *urb)

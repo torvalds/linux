@@ -160,7 +160,7 @@ static int omap_gem_dmabuf_mmap(struct dma_buf *buffer,
 		goto out_unlock;
 	}
 
-	vma->vm_flags |= VM_RESERVED | VM_IO | VM_PFNMAP | VM_DONTEXPAND;
+	vma->vm_flags |= VM_IO | VM_PFNMAP | VM_DONTEXPAND | VM_DONTDUMP;
 	vma->vm_ops = obj->dev->driver->gem_vm_ops;
 	vma->vm_private_data = obj;
 	vma->vm_page_prot =  pgprot_writecombine(vm_get_page_prot(vma->vm_flags));

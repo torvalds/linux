@@ -821,12 +821,15 @@ static const char *section_white_list[] =
 	".debug*",
 	".zdebug*",		/* Compressed debug sections. */
 	".GCC-command-line",	/* mn10300 */
+	".GCC.command.line",	/* record-gcc-switches, non mn10300 */
 	".mdebug*",        /* alpha, score, mips etc. */
 	".pdr",            /* alpha, score, mips etc. */
 	".stab*",
 	".note*",
 	".got*",
 	".toc*",
+	".xt.prop",				 /* xtensa */
+	".xt.lit",         /* xtensa */
 	NULL
 };
 

@@ -79,7 +79,7 @@ static struct eeprom_fixup eeprom_fixups[] __devinitdata = {
   {NULL}};
 
 
-static const char *block_name[] __devinitdata = {
+static const char *const block_name[] __devinitconst = {
 	"21140 non-MII",
 	"21140 MII PHY",
 	"21142 Serial PHY",

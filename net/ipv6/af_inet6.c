@@ -822,13 +822,6 @@ out:
 	return segs;
 }
 
-struct ipv6_gro_cb {
-	struct napi_gro_cb napi;
-	int proto;
-};
-
-#define IPV6_GRO_CB(skb) ((struct ipv6_gro_cb *)(skb)->cb)
-
 static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 					 struct sk_buff *skb)
 {
@@ -874,28 +867,31 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 		iph = ipv6_hdr(skb);
 	}
 
-	IPV6_GRO_CB(skb)->proto = proto;
+	NAPI_GRO_CB(skb)->proto = proto;
 
 	flush--;
 	nlen = skb_network_header_len(skb);
 
 	for (p = *head; p; p = p->next) {
-		struct ipv6hdr *iph2;
+		const struct ipv6hdr *iph2;
+		__be32 first_word; /* <Version:4><Traffic_Class:8><Flow_Label:20> */
 
 		if (!NAPI_GRO_CB(p)->same_flow)
 			continue;
 
 		iph2 = ipv6_hdr(p);
+		first_word = *(__be32 *)iph ^ *(__be32 *)iph2 ;
 
-		/* All fields must match except length. */
+		/* All fields must match except length and Traffic Class. */
 		if (nlen != skb_network_header_len(p) ||
-		    memcmp(iph, iph2, offsetof(struct ipv6hdr, payload_len)) ||
+		    (first_word & htonl(0xF00FFFFF)) ||
 		    memcmp(&iph->nexthdr, &iph2->nexthdr,
 			   nlen - offsetof(struct ipv6hdr, nexthdr))) {
 			NAPI_GRO_CB(p)->same_flow = 0;
 			continue;
 		}
-
+		/* flush if Traffic Class fields are different */
+		NAPI_GRO_CB(p)->flush |= !!(first_word & htonl(0x0FF00000));
 		NAPI_GRO_CB(p)->flush |= flush;
 	}
 
@@ -927,7 +923,7 @@ static int ipv6_gro_complete(struct sk_buff *skb)
 				 sizeof(*iph));
 
 	rcu_read_lock();
-	ops = rcu_dereference(inet6_protos[IPV6_GRO_CB(skb)->proto]);
+	ops = rcu_dereference(inet6_protos[NAPI_GRO_CB(skb)->proto]);
 	if (WARN_ON(!ops || !ops->gro_complete))
 		goto out_unlock;
 

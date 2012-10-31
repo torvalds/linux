@@ -265,7 +265,8 @@ static void audit_update_watch(struct audit_parent *parent,
 	/* Run all of the watches on this parent looking for the one that
 	 * matches the given dname */
 	list_for_each_entry_safe(owatch, nextw, &parent->watches, wlist) {
-		if (audit_compare_dname_path(dname, owatch->path, NULL))
+		if (audit_compare_dname_path(dname, owatch->path,
+					     AUDIT_NAME_FULL))
 			continue;
 
 		/* If the update involves invalidating rules, do the inode-based

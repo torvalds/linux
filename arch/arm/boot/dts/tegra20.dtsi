@@ -170,7 +170,7 @@
 		reg = <0x7000e400 0x400>;
 	};
 
-	memory-controller@0x7000f000 {
+	memory-controller@7000f000 {
 		compatible = "nvidia,tegra20-mc";
 		reg = <0x7000f000 0x024
 		       0x7000f03c 0x3c4>;
@@ -183,7 +183,7 @@
 		       0x58000000 0x02000000>;	/* GART aperture */
 	};
 
-	memory-controller@0x7000f400 {
+	memory-controller@7000f400 {
 		compatible = "nvidia,tegra20-emc";
 		reg = <0x7000f400 0x200>;
 		#address-cells = <1>;

@@ -1,0 +1,14 @@
+* Marvell sdhci-dove controller
+
+This file documents differences between the core properties in mmc.txt
+and the properties used by the sdhci-pxav2 and sdhci-pxav3 drivers.
+
+- compatible: Should be "marvell,dove-sdhci".
+
+Example:
+
+sdio0: sdio@92000 {
+	compatible = "marvell,dove-sdhci";
+	reg = <0x92000 0x100>;
+	interrupts = <35>;
+};

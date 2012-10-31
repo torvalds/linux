@@ -97,7 +97,8 @@ static void kgdboc_restore_input(void)
 
 static int kgdboc_register_kbd(char **cptr)
 {
-	if (strncmp(*cptr, "kbd", 3) == 0) {
+	if (strncmp(*cptr, "kbd", 3) == 0 ||
+		strncmp(*cptr, "kdb", 3) == 0) {
 		if (kdb_poll_idx < KDB_POLL_FUNC_MAX) {
 			kdb_poll_funcs[kdb_poll_idx] = kdb_get_kbd_char;
 			kdb_poll_idx++;

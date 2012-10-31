@@ -45,6 +45,7 @@ struct bfa_modules_s {
 	struct bfa_diag_s	diag_mod;	/*  diagnostics module	*/
 	struct bfa_phy_s	phy;		/*  phy module		*/
 	struct bfa_dconf_mod_s	dconf_mod;	/*  DCONF common module	*/
+	struct bfa_fru_s	fru;		/*  fru module		*/
 };
 
 /*

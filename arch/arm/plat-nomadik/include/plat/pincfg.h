@@ -25,6 +25,8 @@
  *	bit 19..20 - SLPM direction
  *	bit 21..22 - SLPM Value (if output)
  *	bit 23..25 - PDIS value (if input)
+ *	bit	26 - Gpio mode
+ *	bit	27 - Sleep mode
  *
  * to facilitate the definition, the following macros are provided
  *

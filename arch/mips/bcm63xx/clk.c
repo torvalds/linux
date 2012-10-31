@@ -160,7 +160,9 @@ static struct clk clk_pcm = {
  */
 static void usbh_set(struct clk *clk, int enable)
 {
-	if (BCMCPU_IS_6348())
+	if (BCMCPU_IS_6328())
+		bcm_hwclock_set(CKCTL_6328_USBH_EN, enable);
+	else if (BCMCPU_IS_6348())
 		bcm_hwclock_set(CKCTL_6348_USBH_EN, enable);
 	else if (BCMCPU_IS_6368())
 		bcm_hwclock_set(CKCTL_6368_USBH_EN, enable);
@@ -168,6 +170,21 @@ static void usbh_set(struct clk *clk, int enable)
 
 static struct clk clk_usbh = {
 	.set	= usbh_set,
+};
+
+/*
+ * USB device clock
+ */
+static void usbd_set(struct clk *clk, int enable)
+{
+	if (BCMCPU_IS_6328())
+		bcm_hwclock_set(CKCTL_6328_USBD_EN, enable);
+	else if (BCMCPU_IS_6368())
+		bcm_hwclock_set(CKCTL_6368_USBD_EN, enable);
+}
+
+static struct clk clk_usbd = {
+	.set	= usbd_set,
 };
 
 /*
@@ -284,6 +301,8 @@ struct clk *clk_get(struct device *dev, const char *id)
 		return &clk_ephy;
 	if (!strcmp(id, "usbh"))
 		return &clk_usbh;
+	if (!strcmp(id, "usbd"))
+		return &clk_usbd;
 	if (!strcmp(id, "spi"))
 		return &clk_spi;
 	if (!strcmp(id, "xtm"))

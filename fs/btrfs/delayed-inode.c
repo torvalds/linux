@@ -29,7 +29,7 @@ static struct kmem_cache *delayed_node_cache;
 
 int __init btrfs_delayed_inode_init(void)
 {
-	delayed_node_cache = kmem_cache_create("delayed_node",
+	delayed_node_cache = kmem_cache_create("btrfs_delayed_node",
 					sizeof(struct btrfs_delayed_node),
 					0,
 					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
@@ -650,7 +650,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 * we're accounted for.
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
-	    src_rsv != &root->fs_info->delalloc_block_rsv)) {
+			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
 		ret = btrfs_block_rsv_add_noflush(root, dst_rsv, num_bytes);
 		/*
 		 * Since we're under a transaction reserve_metadata_bytes could
@@ -668,7 +668,7 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      num_bytes, 1);
 		}
 		return ret;
-	} else if (src_rsv == &root->fs_info->delalloc_block_rsv) {
+	} else if (src_rsv->type == BTRFS_BLOCK_RSV_DELALLOC) {
 		spin_lock(&BTRFS_I(inode)->lock);
 		if (test_and_clear_bit(BTRFS_INODE_DELALLOC_META_RESERVED,
 				       &BTRFS_I(inode)->runtime_flags)) {

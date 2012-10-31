@@ -118,26 +118,6 @@ static struct resource sc26xx_rsrc[] = {
 	}
 };
 
-static unsigned int sc26xx_data[2] = {
-	/* DTR   |   RTS    |   DSR    |   CTS     |   DCD     |   RI    */
-	(8 << 0) | (4 << 4) | (6 << 8) | (0 << 12) | (6 << 16) | (0 << 20),
-	(3 << 0) | (2 << 4) | (1 << 8) | (2 << 12) | (3 << 16) | (4 << 20)
-};
-
-static struct platform_device sc26xx_pdev = {
-	.name           = "SC26xx",
-	.num_resources  = ARRAY_SIZE(sc26xx_rsrc),
-	.resource       = sc26xx_rsrc,
-	.dev			= {
-		.platform_data	= sc26xx_data,
-	}
-};
-
-#warning "Please try migrate to use new driver SCCNXP and report the status" \
-	 "in the linux-serial mailing list."
-
-/* The code bellow is a replacement of SC26XX to SCCNXP */
-#if 0
 #include <linux/platform_data/sccnxp.h>
 
 static struct sccnxp_pdata sccnxp_data = {
@@ -155,15 +135,14 @@ static struct sccnxp_pdata sccnxp_data = {
 			  MCTRL_SIG(RNG_IP, LINE_IP3),
 };
 
-static struct platform_device sc2681_pdev = {
+static struct platform_device sc26xx_pdev = {
 	.name		= "sc2681",
-	.resource	= sc2xxx_rsrc,
-	.num_resources	= ARRAY_SIZE(sc2xxx_rsrc),
+	.resource	= sc26xx_rsrc,
+	.num_resources	= ARRAY_SIZE(sc26xx_rsrc),
 	.dev	= {
 		.platform_data	= &sccnxp_data,
 	},
 };
-#endif
 
 static u32 a20r_ack_hwint(void)
 {

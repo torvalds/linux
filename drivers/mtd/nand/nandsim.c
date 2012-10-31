@@ -447,8 +447,6 @@ static unsigned int rptwear_cnt = 0;
 /* MTD structure for NAND controller */
 static struct mtd_info *nsmtd;
 
-static u_char ns_verify_buf[NS_LARGEST_PAGE_SIZE];
-
 /*
  * Allocate array of page pointers, create slab allocation for an array
  * and initialize the array by NULL pointers.
@@ -2189,19 +2187,6 @@ static void ns_nand_read_buf(struct mtd_info *mtd, u_char *buf, int len)
 	return;
 }
 
-static int ns_nand_verify_buf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	ns_nand_read_buf(mtd, (u_char *)&ns_verify_buf[0], len);
-
-	if (!memcmp(buf, &ns_verify_buf[0], len)) {
-		NS_DBG("verify_buf: the buffer is OK\n");
-		return 0;
-	} else {
-		NS_DBG("verify_buf: the buffer is wrong\n");
-		return -EFAULT;
-	}
-}
-
 /*
  * Module initialization function
  */
@@ -2236,7 +2221,6 @@ static int __init ns_init_module(void)
 	chip->dev_ready  = ns_device_ready;
 	chip->write_buf  = ns_nand_write_buf;
 	chip->read_buf   = ns_nand_read_buf;
-	chip->verify_buf = ns_nand_verify_buf;
 	chip->read_word  = ns_nand_read_word;
 	chip->ecc.mode   = NAND_ECC_SOFT;
 	/* The NAND_SKIP_BBTSCAN option is necessary for 'overridesize' */
@@ -2333,6 +2317,7 @@ static int __init ns_init_module(void)
 		uint64_t new_size = (uint64_t)nsmtd->erasesize << overridesize;
 		if (new_size >> overridesize != nsmtd->erasesize) {
 			NS_ERR("overridesize is too big\n");
+			retval = -EINVAL;
 			goto err_exit;
 		}
 		/* N.B. This relies on nand_scan not doing anything with the size before we change it */

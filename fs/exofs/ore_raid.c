@@ -203,7 +203,7 @@ static unsigned _sp2d_min_pg(struct __stripe_pages_2d *sp2d)
 
 static unsigned _sp2d_max_pg(struct __stripe_pages_2d *sp2d)
 {
-	unsigned p;
+	int p;
 
 	for (p = sp2d->pages_in_unit - 1; p >= 0; --p) {
 		struct __1_page_stripe *_1ps = &sp2d->_1p_stripes[p];

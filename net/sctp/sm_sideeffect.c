@@ -752,11 +752,11 @@ static void sctp_cmd_transport_on(sctp_cmd_seq_t *cmds,
 /* Helper function to process the process SACK command.  */
 static int sctp_cmd_process_sack(sctp_cmd_seq_t *cmds,
 				 struct sctp_association *asoc,
-				 struct sctp_sackhdr *sackh)
+				 struct sctp_chunk *chunk)
 {
 	int err = 0;
 
-	if (sctp_outq_sack(&asoc->outqueue, sackh)) {
+	if (sctp_outq_sack(&asoc->outqueue, chunk)) {
 		struct net *net = sock_net(asoc->base.sk);
 
 		/* There are no more TSNs awaiting SACK.  */
@@ -1642,8 +1642,9 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 					asoc->outqueue.outstanding_bytes;
 			sackh.num_gap_ack_blocks = 0;
 			sackh.num_dup_tsns = 0;
+			chunk->subh.sack_hdr = &sackh;
 			sctp_add_cmd_sf(commands, SCTP_CMD_PROCESS_SACK,
-					SCTP_SACKH(&sackh));
+					SCTP_CHUNK(chunk));
 			break;
 
 		case SCTP_CMD_DISCARD_PACKET:

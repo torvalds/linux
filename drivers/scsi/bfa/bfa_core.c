@@ -165,6 +165,16 @@ bfa_com_phy_attach(struct bfa_s *bfa, bfa_boolean_t mincfg)
 	bfa_phy_memclaim(phy, phy_dma->kva_curp, phy_dma->dma_curp, mincfg);
 }
 
+static void
+bfa_com_fru_attach(struct bfa_s *bfa, bfa_boolean_t mincfg)
+{
+	struct bfa_fru_s	*fru = BFA_FRU(bfa);
+	struct bfa_mem_dma_s	*fru_dma = BFA_MEM_FRU_DMA(bfa);
+
+	bfa_fru_attach(fru, &bfa->ioc, bfa, bfa->trcmod, mincfg);
+	bfa_fru_memclaim(fru, fru_dma->kva_curp, fru_dma->dma_curp, mincfg);
+}
+
 /*
  * BFA IOC FC related definitions
  */
@@ -274,6 +284,15 @@ bfa_iocfc_sm_initing(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_IOC_ENABLED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_dconf_read);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_stopping);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_failed);
 		break;
@@ -298,6 +317,15 @@ bfa_iocfc_sm_dconf_read(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_DCONF_DONE:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_cfg_wait);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_stopping);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_failed);
 		break;
@@ -322,6 +350,15 @@ bfa_iocfc_sm_init_cfg_wait(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_CFG_DONE:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_cfg_done);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_stopping);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_init_failed);
 		break;
@@ -433,6 +470,12 @@ bfa_iocfc_sm_stopping(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 		bfa_cb_queue(iocfc->bfa, &iocfc->bfa->iocfc.stop_hcb_qe,
 			     bfa_iocfc_stop_cb, iocfc->bfa);
 		break;
+
+	case IOCFC_E_IOC_ENABLED:
+	case IOCFC_E_DCONF_DONE:
+	case IOCFC_E_CFG_DONE:
+		break;
+
 	default:
 		bfa_sm_fault(iocfc->bfa, event);
 		break;
@@ -454,6 +497,15 @@ bfa_iocfc_sm_enabling(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	case IOCFC_E_IOC_ENABLED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_cfg_wait);
 		break;
+
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_dconf_write);
+		break;
+
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_failed);
 
@@ -493,6 +545,13 @@ bfa_iocfc_sm_cfg_wait(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 			     bfa_iocfc_enable_cb, iocfc->bfa);
 		iocfc->bfa->iocfc.cb_reqd = BFA_FALSE;
 		break;
+	case IOCFC_E_DISABLE:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabling);
+		break;
+
+	case IOCFC_E_STOP:
+		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_dconf_write);
+		break;
 	case IOCFC_E_IOC_FAILED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_failed);
 		if (iocfc->bfa->iocfc.cb_reqd == BFA_FALSE)
@@ -523,6 +582,10 @@ bfa_iocfc_sm_disabling(struct bfa_iocfc_s *iocfc, enum iocfc_event event)
 	switch (event) {
 	case IOCFC_E_IOC_DISABLED:
 		bfa_fsm_set_state(iocfc, bfa_iocfc_sm_disabled);
+		break;
+	case IOCFC_E_IOC_ENABLED:
+	case IOCFC_E_DCONF_DONE:
+	case IOCFC_E_CFG_DONE:
 		break;
 	default:
 		bfa_sm_fault(iocfc->bfa, event);
@@ -785,19 +848,20 @@ void
 bfa_isr_enable(struct bfa_s *bfa)
 {
 	u32 umsk;
-	int pci_func = bfa_ioc_pcifn(&bfa->ioc);
+	int port_id = bfa_ioc_portid(&bfa->ioc);
 
-	bfa_trc(bfa, pci_func);
+	bfa_trc(bfa, bfa_ioc_pcifn(&bfa->ioc));
+	bfa_trc(bfa, port_id);
 
 	bfa_msix_ctrl_install(bfa);
 
 	if (bfa_asic_id_ct2(bfa->ioc.pcidev.device_id)) {
 		umsk = __HFN_INT_ERR_MASK_CT2;
-		umsk |= pci_func == 0 ?
+		umsk |= port_id == 0 ?
 			__HFN_INT_FN0_MASK_CT2 : __HFN_INT_FN1_MASK_CT2;
 	} else {
 		umsk = __HFN_INT_ERR_MASK;
-		umsk |= pci_func == 0 ? __HFN_INT_FN0_MASK : __HFN_INT_FN1_MASK;
+		umsk |= port_id == 0 ? __HFN_INT_FN0_MASK : __HFN_INT_FN1_MASK;
 	}
 
 	writel(umsk, bfa->iocfc.bfa_regs.intr_status);
@@ -930,7 +994,8 @@ bfa_iocfc_send_cfg(void *bfa_arg)
 		cfg_info->single_msix_vec = 1;
 	cfg_info->endian_sig = BFI_IOC_ENDIAN_SIG;
 	cfg_info->num_cqs = cfg->fwcfg.num_cqs;
-	cfg_info->num_ioim_reqs = cpu_to_be16(cfg->fwcfg.num_ioim_reqs);
+	cfg_info->num_ioim_reqs = cpu_to_be16(bfa_fcpim_get_throttle_cfg(bfa,
+					       cfg->fwcfg.num_ioim_reqs));
 	cfg_info->num_fwtio_reqs = cpu_to_be16(cfg->fwcfg.num_fwtio_reqs);
 
 	bfa_dma_be_addr_set(cfg_info->cfgrsp_addr, iocfc->cfgrsp_dma.pa);
@@ -1192,10 +1257,14 @@ bfa_iocfc_qreg(struct bfa_s *bfa, struct bfi_iocfc_qreg_s *qreg)
 static void
 bfa_iocfc_res_recfg(struct bfa_s *bfa, struct bfa_iocfc_fwcfg_s *fwcfg)
 {
+	struct bfa_iocfc_s	*iocfc   = &bfa->iocfc;
+	struct bfi_iocfc_cfg_s	*cfg_info = iocfc->cfginfo;
+
 	bfa_fcxp_res_recfg(bfa, fwcfg->num_fcxp_reqs);
 	bfa_uf_res_recfg(bfa, fwcfg->num_uf_bufs);
 	bfa_rport_res_recfg(bfa, fwcfg->num_rports);
-	bfa_fcp_res_recfg(bfa, fwcfg->num_ioim_reqs);
+	bfa_fcp_res_recfg(bfa, cpu_to_be16(cfg_info->num_ioim_reqs),
+			  fwcfg->num_ioim_reqs);
 	bfa_tskim_res_recfg(bfa, fwcfg->num_tskim_reqs);
 }
 
@@ -1693,6 +1762,7 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	struct bfa_mem_dma_s *flash_dma = BFA_MEM_FLASH_DMA(bfa);
 	struct bfa_mem_dma_s *diag_dma = BFA_MEM_DIAG_DMA(bfa);
 	struct bfa_mem_dma_s *phy_dma = BFA_MEM_PHY_DMA(bfa);
+	struct bfa_mem_dma_s *fru_dma = BFA_MEM_FRU_DMA(bfa);
 
 	WARN_ON((cfg == NULL) || (meminfo == NULL));
 
@@ -1717,6 +1787,8 @@ bfa_cfg_get_meminfo(struct bfa_iocfc_cfg_s *cfg, struct bfa_meminfo_s *meminfo,
 	bfa_mem_dma_setup(meminfo, diag_dma, bfa_diag_meminfo());
 	bfa_mem_dma_setup(meminfo, phy_dma,
 			  bfa_phy_meminfo(cfg->drvcfg.min_cfg));
+	bfa_mem_dma_setup(meminfo, fru_dma,
+			  bfa_fru_meminfo(cfg->drvcfg.min_cfg));
 }
 
 /*
@@ -1789,6 +1861,7 @@ bfa_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_com_flash_attach(bfa, cfg->drvcfg.min_cfg);
 	bfa_com_diag_attach(bfa);
 	bfa_com_phy_attach(bfa, cfg->drvcfg.min_cfg);
+	bfa_com_fru_attach(bfa, cfg->drvcfg.min_cfg);
 }
 
 /*

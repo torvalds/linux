@@ -181,7 +181,7 @@ static const struct ide_port_ops atp86x_port_ops = {
 	.cable_detect		= atp86x_cable_detect,
 };
 
-static const struct ide_port_info aec62xx_chipsets[] __devinitdata = {
+static const struct ide_port_info aec62xx_chipsets[] __devinitconst = {
 	{	/* 0: AEC6210 */
 		.name		= DRV_NAME,
 		.init_chipset	= init_chipset_aec62xx,

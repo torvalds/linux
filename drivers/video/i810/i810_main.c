@@ -97,7 +97,7 @@ static int i810fb_blank      (int blank_mode, struct fb_info *info);
 static void i810fb_release_resource       (struct fb_info *info, struct i810fb_par *par);
 
 /* PCI */
-static const char *i810_pci_list[] __devinitdata = {
+static const char * const i810_pci_list[] __devinitconst = {
 	"Intel(R) 810 Framebuffer Device"                                 ,
 	"Intel(R) 810-DC100 Framebuffer Device"                           ,
 	"Intel(R) 810E Framebuffer Device"                                ,

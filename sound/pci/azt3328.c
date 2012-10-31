@@ -365,7 +365,7 @@ struct snd_azf3328 {
 	 * CONFIG_PM register storage below, but that's slightly difficult. */
 	u16 shadow_reg_ctrl_6AH;
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	/* register value containers for power management
 	 * Note: not always full I/O range preserved (similar to Win driver!) */
 	u32 saved_regs_ctrl[AZF_ALIGN(AZF_IO_SIZE_CTRL_PM) / 4];
@@ -2729,7 +2729,7 @@ snd_azf3328_remove(struct pci_dev *pci)
 	snd_azf3328_dbgcallleave();
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static inline void
 snd_azf3328_suspend_regs(unsigned long io_addr, unsigned count, u32 *saved_regs)
 {
@@ -2866,7 +2866,7 @@ static SIMPLE_DEV_PM_OPS(snd_azf3328_pm, snd_azf3328_suspend, snd_azf3328_resume
 #define SND_AZF3328_PM_OPS	&snd_azf3328_pm
 #else
 #define SND_AZF3328_PM_OPS	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static struct pci_driver azf3328_driver = {
 	.name = KBUILD_MODNAME,

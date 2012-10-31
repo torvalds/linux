@@ -370,6 +370,22 @@ _GLOBAL(ret_from_fork)
 	li	r3,0
 	b	syscall_exit
 
+_GLOBAL(ret_from_kernel_thread)
+	bl	.schedule_tail
+	REST_NVGPRS(r1)
+	REST_GPR(2,r1)
+	mtlr	r14
+	mr	r3,r15
+	blrl
+	li	r3,0
+	b	.do_exit	# no return
+
+_GLOBAL(__ret_from_kernel_execve)
+	addi	r1,r3,-STACK_FRAME_OVERHEAD
+	li	r10,1
+	std	r10,SOFTE(r1)
+	b	syscall_exit
+
 	.section	".toc","aw"
 DSCR_DEFAULT:
 	.tc dscr_default[TC],dscr_default
@@ -593,6 +609,41 @@ _GLOBAL(ret_from_except_lite)
 	b	.ret_from_except
 
 resume_kernel:
+	/* check current_thread_info, _TIF_EMULATE_STACK_STORE */
+	CURRENT_THREAD_INFO(r9, r1)
+	ld	r8,TI_FLAGS(r9)
+	andis.	r8,r8,_TIF_EMULATE_STACK_STORE@h
+	beq+	1f
+
+	addi	r8,r1,INT_FRAME_SIZE	/* Get the kprobed function entry */
+
+	lwz	r3,GPR1(r1)
+	subi	r3,r3,INT_FRAME_SIZE	/* dst: Allocate a trampoline exception frame */
+	mr	r4,r1			/* src:  current exception frame */
+	mr	r1,r3			/* Reroute the trampoline frame to r1 */
+
+	/* Copy from the original to the trampoline. */
+	li	r5,INT_FRAME_SIZE/8	/* size: INT_FRAME_SIZE */
+	li	r6,0			/* start offset: 0 */
+	mtctr	r5
+2:	ldx	r0,r6,r4
+	stdx	r0,r6,r3
+	addi	r6,r6,8
+	bdnz	2b
+
+	/* Do real store operation to complete stwu */
+	lwz	r5,GPR1(r1)
+	std	r8,0(r5)
+
+	/* Clear _TIF_EMULATE_STACK_STORE flag */
+	lis	r11,_TIF_EMULATE_STACK_STORE@h
+	addi	r5,r9,TI_FLAGS
+	ldarx	r4,0,r5
+	andc	r4,r4,r11
+	stdcx.	r4,0,r5
+	bne-	0b
+1:
+
 #ifdef CONFIG_PREEMPT
 	/* Check if we need to preempt */
 	andi.	r0,r4,_TIF_NEED_RESCHED

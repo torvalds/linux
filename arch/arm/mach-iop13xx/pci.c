@@ -504,7 +504,7 @@ iop13xx_pci_abort(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 
 /* Scan an IOP13XX PCI bus.  nr selects which ATU we use.
  */
-struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
+struct pci_bus * __devinit iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
 {
 	int which_atu;
 	struct pci_bus *bus = NULL;

@@ -101,55 +101,6 @@ struct iss_net_private {
 
 };
 
-/* ======================= ISS SIMCALL INTERFACE =========================== */
-
-/* Note: __simc must _not_ be declared inline! */
-
-static int errno;
-
-static int __simc (int a, int b, int c, int d, int e, int f) __attribute__((__noinline__));
-static int __simc (int a, int b, int c, int d, int e, int f)
-{
-	int ret;
-	__asm__ __volatile__ ("simcall\n"
-	    		      "mov %0, a2\n"
-			      "mov %1, a3\n" : "=a" (ret), "=a" (errno)
-			      : : "a2", "a3");
-	return ret;
-}
-
-static int inline simc_open(char *file, int flags, int mode)
-{
-	return __simc(SYS_open, (int) file, flags, mode, 0, 0);
-}
-
-static int inline simc_close(int fd)
-{
-	return __simc(SYS_close, fd, 0, 0, 0, 0);
-}
-
-static int inline simc_ioctl(int fd, int request, void *arg)
-{
-	return __simc(SYS_ioctl, fd, request, (int) arg, 0, 0);
-}
-
-static int inline simc_read(int fd, void *buf, size_t count)
-{
-	return __simc(SYS_read, fd, (int) buf, count, 0, 0);
-}
-
-static int inline simc_write(int fd, void *buf, size_t count)
-{
-	return __simc(SYS_write, fd, (int) buf, count, 0, 0);
-}
-
-static int inline simc_poll(int fd)
-{
-	struct timeval tv = { .tv_sec = 0, .tv_usec = 0 };
-
-	return __simc(SYS_select_one, fd, XTISS_SELECT_ONE_READ, (int)&tv,0,0);
-}
-
 /* ================================ HELPERS ================================ */
 
 

@@ -24,6 +24,7 @@
 		gpio3 = &pioD;
 		gpio4 = &pioE;
 		tcb0 = &tcb0;
+		i2c0 = &i2c0;
 	};
 	cpus {
 		cpu@0 {
@@ -183,6 +184,15 @@
 				compatible = "atmel,at91rm9200-udc";
 				reg = <0xfff78000 0x4000>;
 				interrupts = <24 4 2>;
+				status = "disabled";
+			};
+
+			i2c0: i2c@fff88000 {
+				compatible = "atmel,at91sam9263-i2c";
+				reg = <0xfff88000 0x100>;
+				interrupts = <13 4 6>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				status = "disabled";
 			};
 		};

@@ -472,6 +472,22 @@ static irqreturn_t ab8500_hierarchical_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+/**
+ * ab8500_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
+ *
+ * @ab8500: ab8500_irq controller to operate on.
+ * @irq: index of the interrupt requested in the chip IRQs
+ *
+ * Useful for drivers to request their own IRQs.
+ */
+static int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq)
+{
+	if (!ab8500)
+		return -EINVAL;
+
+	return irq_create_mapping(ab8500->domain, irq);
+}
+
 static irqreturn_t ab8500_irq(int irq, void *dev)
 {
 	struct ab8500 *ab8500 = dev;
@@ -501,8 +517,9 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 		do {
 			int bit = __ffs(value);
 			int line = i * 8 + bit;
+			int virq = ab8500_irq_get_virq(ab8500, line);
 
-			handle_nested_irq(ab8500->irq_base + line);
+			handle_nested_irq(virq);
 			value &= ~(1 << bit);
 
 		} while (value);
@@ -510,23 +527,6 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 	atomic_dec(&ab8500->transfer_ongoing);
 	return IRQ_HANDLED;
 }
-
-/**
- * ab8500_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
- *
- * @ab8500: ab8500_irq controller to operate on.
- * @irq: index of the interrupt requested in the chip IRQs
- *
- * Useful for drivers to request their own IRQs.
- */
-int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq)
-{
-	if (!ab8500)
-		return -EINVAL;
-
-	return irq_create_mapping(ab8500->domain, irq);
-}
-EXPORT_SYMBOL_GPL(ab8500_irq_get_virq);
 
 static int ab8500_irq_map(struct irq_domain *d, unsigned int virq,
 				irq_hw_number_t hwirq)
@@ -1076,6 +1076,7 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-codec",
+		.of_compatible = "stericsson,ab8500-codec",
 	},
 };
 

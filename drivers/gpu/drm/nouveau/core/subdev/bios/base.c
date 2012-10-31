@@ -72,7 +72,7 @@ nouveau_bios_shadow_of(struct nouveau_bios *bios)
 	}
 
 	data = of_get_property(dn, "NVDA,BMP", &size);
-	if (data) {
+	if (data && size) {
 		bios->size = size;
 		bios->data = kmalloc(bios->size, GFP_KERNEL);
 		if (bios->data)
@@ -104,6 +104,9 @@ nouveau_bios_shadow_pramin(struct nouveau_bios *bios)
 		goto out;
 
 	bios->size = nv_rd08(bios, 0x700002) * 512;
+	if (!bios->size)
+		goto out;
+
 	bios->data = kmalloc(bios->size, GFP_KERNEL);
 	if (bios->data) {
 		for (i = 0; i < bios->size; i++)
@@ -155,6 +158,9 @@ nouveau_bios_shadow_prom(struct nouveau_bios *bios)
 
 	/* read entire bios image to system memory */
 	bios->size = nv_rd08(bios, 0x300002) * 512;
+	if (!bios->size)
+		goto out;
+
 	bios->data = kmalloc(bios->size, GFP_KERNEL);
 	if (bios->data) {
 		for (i = 0; i < bios->size; i++)
@@ -185,23 +191,30 @@ static void
 nouveau_bios_shadow_acpi(struct nouveau_bios *bios)
 {
 	struct pci_dev *pdev = nv_device(bios)->pdev;
-	int cnt = 65536 / 4096;
-	int ret;
+	int ret, cnt, i;
 
-	if (!nouveau_acpi_rom_supported(pdev))
+	if (!nouveau_acpi_rom_supported(pdev)) {
+		bios->data = NULL;
 		return;
+	}
 
-	bios->data = kmalloc(65536, GFP_KERNEL);
 	bios->size = 0;
-	if (!bios->data)
+	bios->data = kmalloc(4096, GFP_KERNEL);
+	if (bios->data) {
+		if (nouveau_acpi_get_bios_chunk(bios->data, 0, 4096) == 4096)
+			bios->size = bios->data[2] * 512;
+		kfree(bios->data);
+	}
+
+	if (!bios->size)
 		return;
 
-	while (cnt--) {
-		ret = nouveau_acpi_get_bios_chunk(bios->data, bios->size, 4096);
-		if (ret != 4096)
-			return;
-
-		bios->size += 4096;
+	bios->data = kmalloc(bios->size, GFP_KERNEL);
+	for (i = 0; bios->data && i < bios->size; i += cnt) {
+		cnt = min((bios->size - i), (u32)4096);
+		ret = nouveau_acpi_get_bios_chunk(bios->data, i, cnt);
+		if (ret != cnt)
+			break;
 	}
 }
 
@@ -230,12 +243,14 @@ nouveau_bios_shadow_pci(struct nouveau_bios *bios)
 static int
 nouveau_bios_score(struct nouveau_bios *bios, const bool writeable)
 {
-	if (!bios->data || bios->data[0] != 0x55 || bios->data[1] != 0xAA) {
+	if (bios->size < 3 || !bios->data || bios->data[0] != 0x55 ||
+			bios->data[1] != 0xAA) {
 		nv_info(bios, "... signature not found\n");
 		return 0;
 	}
 
-	if (nvbios_checksum(bios->data, bios->data[2] * 512)) {
+	if (nvbios_checksum(bios->data,
+			min_t(u32, bios->data[2] * 512, bios->size))) {
 		nv_info(bios, "... checksum invalid\n");
 		/* if a ro image is somewhat bad, it's probably all rubbish */
 		return writeable ? 2 : 1;

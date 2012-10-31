@@ -32,31 +32,8 @@
 
 static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
-static int aout_core_dump(struct coredump_params *cprm);
 
-static struct linux_binfmt aout_format = {
-	.module		= THIS_MODULE,
-	.load_binary	= load_aout_binary,
-	.load_shlib	= load_aout_library,
-	.core_dump	= aout_core_dump,
-	.min_coredump	= PAGE_SIZE
-};
-
-#define BAD_ADDR(x)	((unsigned long)(x) >= TASK_SIZE)
-
-static int set_brk(unsigned long start, unsigned long end)
-{
-	start = PAGE_ALIGN(start);
-	end = PAGE_ALIGN(end);
-	if (end > start) {
-		unsigned long addr;
-		addr = vm_brk(start, end - start);
-		if (BAD_ADDR(addr))
-			return addr;
-	}
-	return 0;
-}
-
+#ifdef CONFIG_COREDUMP
 /*
  * Routine writes a core dump image in the current directory.
  * Currently only a stub-function.
@@ -66,7 +43,6 @@ static int set_brk(unsigned long start, unsigned long end)
  * field, which also makes sure the core-dumps won't be recursive if the
  * dumping of the process results in another error..
  */
-
 static int aout_core_dump(struct coredump_params *cprm)
 {
 	struct file *file = cprm->file;
@@ -89,7 +65,7 @@ static int aout_core_dump(struct coredump_params *cprm)
 	current->flags |= PF_DUMPCORE;
        	strncpy(dump.u_comm, current->comm, sizeof(dump.u_comm));
 	dump.u_ar0 = offsetof(struct user, regs);
-	dump.signal = cprm->signr;
+	dump.signal = cprm->siginfo->si_signo;
 	aout_dump_thread(cprm->regs, &dump);
 
 /* If the size of the dump file exceeds the rlimit, then see what would happen
@@ -134,6 +110,32 @@ static int aout_core_dump(struct coredump_params *cprm)
 end_coredump:
 	set_fs(fs);
 	return has_dumped;
+}
+#else
+#define aout_core_dump NULL
+#endif
+
+static struct linux_binfmt aout_format = {
+	.module		= THIS_MODULE,
+	.load_binary	= load_aout_binary,
+	.load_shlib	= load_aout_library,
+	.core_dump	= aout_core_dump,
+	.min_coredump	= PAGE_SIZE
+};
+
+#define BAD_ADDR(x)	((unsigned long)(x) >= TASK_SIZE)
+
+static int set_brk(unsigned long start, unsigned long end)
+{
+	start = PAGE_ALIGN(start);
+	end = PAGE_ALIGN(end);
+	if (end > start) {
+		unsigned long addr;
+		addr = vm_brk(start, end - start);
+		if (BAD_ADDR(addr))
+			return addr;
+	}
+	return 0;
 }
 
 /*

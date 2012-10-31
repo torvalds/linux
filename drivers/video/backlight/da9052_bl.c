@@ -72,7 +72,7 @@ static int da9052_adjust_wled_brightness(struct da9052_bl *wleds)
 	if (ret < 0)
 		return ret;
 
-	msleep(10);
+	usleep_range(10000, 11000);
 
 	if (wleds->brightness) {
 		ret = da9052_reg_write(wleds->da9052, wled_bank[wleds->led_reg],
@@ -129,7 +129,6 @@ static int da9052_backlight_probe(struct platform_device *pdev)
 				       &da9052_backlight_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "Failed to register backlight\n");
-		devm_kfree(&pdev->dev, wleds);
 		return PTR_ERR(bl);
 	}
 
@@ -149,7 +148,6 @@ static int da9052_backlight_remove(struct platform_device *pdev)
 	wleds->state = DA9052_WLEDS_OFF;
 	da9052_adjust_wled_brightness(wleds);
 	backlight_device_unregister(bl);
-	devm_kfree(&pdev->dev, wleds);
 
 	return 0;
 }

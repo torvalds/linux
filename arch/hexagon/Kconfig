@@ -30,6 +30,7 @@ config HEXAGON
 	select KTIME_SCALAR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST
+	select MODULES_USE_ELF_RELA
 	---help---
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.

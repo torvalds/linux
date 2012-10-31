@@ -305,7 +305,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v)
 {
 #if DRM_DEBUG_CODE
 	if (ring->count_dw <= 0) {
-		DRM_ERROR("radeon: writting more dword to ring than expected !\n");
+		DRM_ERROR("radeon: writing more dwords to the ring than expected!\n");
 	}
 #endif
 	ring->ring[ring->wptr++] = v;
