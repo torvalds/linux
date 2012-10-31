@@ -59,5 +59,12 @@
 			interrupts = <0 27 4>;
 			clock = <50000000>;
 		};
+
+		uart1: uart@e0001000 {
+			compatible = "xlnx,xuartps";
+			reg = <0xE0001000 0x1000>;
+			interrupts = <0 50 4>;
+			clock = <50000000>;
+		};
 	};
 };
