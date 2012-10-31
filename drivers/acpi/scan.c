@@ -29,6 +29,15 @@ extern struct acpi_device *acpi_root;
 
 static const char *dummy_hid = "device";
 
+/*
+ * The following ACPI IDs are known to be suitable for representing as
+ * platform devices.
+ */
+static const struct acpi_device_id acpi_platform_device_ids[] = {
+
+	{ }
+};
+
 static LIST_HEAD(acpi_device_list);
 static LIST_HEAD(acpi_bus_id_list);
 DEFINE_MUTEX(acpi_device_lock);
@@ -1513,8 +1522,13 @@ static acpi_status acpi_bus_check_add(acpi_handle handle, u32 lvl,
 	 */
 	device = NULL;
 	acpi_bus_get_device(handle, &device);
-	if (ops->acpi_op_add && !device)
+	if (ops->acpi_op_add && !device) {
 		acpi_add_single_object(&device, handle, type, sta, ops);
+		/* Is the device a known good platform device? */
+		if (device
+		    && !acpi_match_device_ids(device, acpi_platform_device_ids))
+			acpi_create_platform_device(device);
+	}
 
 	if (!device)
 		return AE_CTRL_DEPTH;
