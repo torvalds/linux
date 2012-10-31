@@ -8393,6 +8393,10 @@ int intel_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 	}
 
+	/* FIXME need to adjust LINOFF/TILEOFF accordingly. */
+	if (mode_cmd->offsets[0] != 0)
+		return -EINVAL;
+
 	ret = drm_framebuffer_init(dev, &intel_fb->base, &intel_fb_funcs);
 	if (ret) {
 		DRM_ERROR("framebuffer init failed %d\n", ret);
