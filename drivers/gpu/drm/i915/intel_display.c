@@ -1721,8 +1721,81 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		DRM_ERROR("failed to enable transcoder %d\n", pipe);
 }
 
+static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
+				      enum pipe pipe)
+{
+	int reg;
+	u32 val, pipeconf_val;
+	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+
+	/* PCH only available on ILK+ */
+	BUG_ON(dev_priv->info->gen < 5);
+
+	/* Make sure PCH DPLL is enabled */
+	assert_pch_pll_enabled(dev_priv,
+			       to_intel_crtc(crtc)->pch_pll,
+			       to_intel_crtc(crtc));
+
+	/* FDI must be feeding us bits for PCH ports */
+	assert_fdi_tx_enabled(dev_priv, pipe);
+	assert_fdi_rx_enabled(dev_priv, pipe);
+
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+		DRM_ERROR("Attempting to enable transcoder on Haswell with pipe > 0\n");
+		return;
+	}
+	reg = TRANSCONF(pipe);
+	val = I915_READ(reg);
+	pipeconf_val = I915_READ(PIPECONF(pipe));
+
+	if (HAS_PCH_IBX(dev_priv->dev)) {
+		/*
+		 * make the BPC in transcoder be consistent with
+		 * that in pipeconf reg.
+		 */
+		val &= ~PIPE_BPC_MASK;
+		val |= pipeconf_val & PIPE_BPC_MASK;
+	}
+
+	val &= ~TRANS_INTERLACE_MASK;
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
+		if (HAS_PCH_IBX(dev_priv->dev) &&
+		    intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO))
+			val |= TRANS_LEGACY_INTERLACED_ILK;
+		else
+			val |= TRANS_INTERLACED;
+	else
+		val |= TRANS_PROGRESSIVE;
+
+	I915_WRITE(reg, val | TRANS_ENABLE);
+	if (wait_for(I915_READ(reg) & TRANS_STATE_ENABLE, 100))
+		DRM_ERROR("failed to enable transcoder %d\n", pipe);
+}
+
 static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 					    enum pipe pipe)
+{
+	int reg;
+	u32 val;
+
+	/* FDI relies on the transcoder */
+	assert_fdi_tx_disabled(dev_priv, pipe);
+	assert_fdi_rx_disabled(dev_priv, pipe);
+
+	/* Ports must be off as well */
+	assert_pch_ports_disabled(dev_priv, pipe);
+
+	reg = TRANSCONF(pipe);
+	val = I915_READ(reg);
+	val &= ~TRANS_ENABLE;
+	I915_WRITE(reg, val);
+	/* wait for PCH transcoder off, transcoder state */
+	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
+		DRM_ERROR("failed to disable transcoder %d\n", pipe);
+}
+
+static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv,
+				       enum pipe pipe)
 {
 	int reg;
 	u32 val;
@@ -3194,7 +3267,7 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(_TRANS_VSYNC_A,  I915_READ(VSYNC(cpu_transcoder)));
 	I915_WRITE(_TRANS_VSYNCSHIFT_A, I915_READ(VSYNCSHIFT(cpu_transcoder)));
 
-	ironlake_enable_pch_transcoder(dev_priv, intel_crtc->pipe);
+	lpt_enable_pch_transcoder(dev_priv, intel_crtc->pipe);
 }
 
 static void intel_put_pch_pll(struct intel_crtc *intel_crtc)
@@ -3589,7 +3662,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	if (is_pch_port) {
 		ironlake_fdi_disable(crtc);
-		ironlake_disable_pch_transcoder(dev_priv, pipe);
+		lpt_disable_pch_transcoder(dev_priv, pipe);
 		intel_disable_pch_pll(intel_crtc);
 		ironlake_fdi_pll_disable(intel_crtc);
 	}
