@@ -633,6 +633,7 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int triggering, int polarity)
 				      ACPI_EDGE_SENSITIVE) ? IOSAPIC_EDGE :
 				     IOSAPIC_LEVEL);
 }
+EXPORT_SYMBOL_GPL(acpi_register_gsi);
 
 void acpi_unregister_gsi(u32 gsi)
 {
@@ -644,6 +645,7 @@ void acpi_unregister_gsi(u32 gsi)
 
 	iosapic_unregister_intr(gsi);
 }
+EXPORT_SYMBOL_GPL(acpi_unregister_gsi);
 
 static int __init acpi_parse_fadt(struct acpi_table_header *table)
 {
