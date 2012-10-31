@@ -1809,14 +1809,23 @@ static void hci_cs_create_phylink(struct hci_dev *hdev, u8 status)
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
 
-	if (status)
-		return;
-
 	cp = hci_sent_cmd_data(hdev, HCI_OP_CREATE_PHY_LINK);
 	if (!cp)
 		return;
 
-	amp_write_remote_assoc(hdev, cp->phy_handle);
+	hci_dev_lock(hdev);
+
+	if (status) {
+		struct hci_conn *hcon;
+
+		hcon = hci_conn_hash_lookup_handle(hdev, cp->phy_handle);
+		if (hcon)
+			hci_conn_del(hcon);
+	} else {
+		amp_write_remote_assoc(hdev, cp->phy_handle);
+	}
+
+	hci_dev_unlock(hdev);
 }
 
 static void hci_cs_accept_phylink(struct hci_dev *hdev, u8 status)
