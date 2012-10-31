@@ -61,7 +61,9 @@
 ACPI_MODULE_NAME("uttrack")
 
 /* Local prototypes */
-static struct acpi_debug_mem_block *acpi_ut_find_allocation(void *allocation);
+static struct acpi_debug_mem_block *acpi_ut_find_allocation(struct
+							    acpi_debug_mem_block
+							    *allocation);
 
 static acpi_status
 acpi_ut_track_allocation(struct acpi_debug_mem_block *address,
@@ -263,31 +265,61 @@ acpi_ut_free_and_track(void *allocation,
  *
  * PARAMETERS:  allocation              - Address of allocated memory
  *
- * RETURN:      A list element if found; NULL otherwise.
+ * RETURN:      Three cases:
+ *              1) List is empty, NULL is returned.
+ *              2) Element was found. Returns Allocation parameter.
+ *              3) Element was not found. Returns position where it should be
+ *                  inserted into the list.
  *
  * DESCRIPTION: Searches for an element in the global allocation tracking list.
+ *              If the element is not found, returns the location within the
+ *              list where the element should be inserted.
+ *
+ *              Note: The list is ordered by larger-to-smaller addresses.
+ *
+ *              This global list is used to detect memory leaks in ACPICA as
+ *              well as other issues such as an attempt to release the same
+ *              internal object more than once. Although expensive as far
+ *              as cpu time, this list is much more helpful for finding these
+ *              types of issues than using memory leak detectors outside of
+ *              the ACPICA code.
  *
  ******************************************************************************/
 
-static struct acpi_debug_mem_block *acpi_ut_find_allocation(void *allocation)
+static struct acpi_debug_mem_block *acpi_ut_find_allocation(struct
+							    acpi_debug_mem_block
+							    *allocation)
 {
 	struct acpi_debug_mem_block *element;
 
-	ACPI_FUNCTION_ENTRY();
-
 	element = acpi_gbl_global_list->list_head;
+	if (!element) {
+		return (NULL);
+	}
 
-	/* Search for the address. */
+	/*
+	 * Search for the address.
+	 *
+	 * Note: List is ordered by larger-to-smaller addresses, on the
+	 * assumption that a new allocation usually has a larger address
+	 * than previous allocations.
+	 */
+	while (element > allocation) {
 
-	while (element) {
-		if (element == allocation) {
+		/* Check for end-of-list */
+
+		if (!element->next) {
 			return (element);
 		}
 
 		element = element->next;
 	}
 
-	return (NULL);
+	if (element == allocation) {
+		return (element);
+	}
+
+	return (element->previous);
 }
 
 /*******************************************************************************
@@ -301,7 +333,7 @@ static struct acpi_debug_mem_block *acpi_ut_find_allocation(void *allocation)
  *              module              - Source file name of caller
  *              line                - Line number of caller
  *
- * RETURN:      None.
+ * RETURN:      Status
  *
  * DESCRIPTION: Inserts an element into the global allocation tracking list.
  *
@@ -330,22 +362,18 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	}
 
 	/*
-	 * Search list for this address to make sure it is not already on the list.
-	 * This will catch several kinds of problems.
+	 * Search the global list for this address to make sure it is not
+	 * already present. This will catch several kinds of problems.
 	 */
 	element = acpi_ut_find_allocation(allocation);
-	if (element) {
+	if (element == allocation) {
 		ACPI_ERROR((AE_INFO,
-			    "UtTrackAllocation: Allocation already present in list! (%p)",
+			    "UtTrackAllocation: Allocation (%p) already present in global list!",
 			    allocation));
-
-		ACPI_ERROR((AE_INFO, "Element %p Address %p",
-			    element, allocation));
-
 		goto unlock_and_exit;
 	}
 
-	/* Fill in the instance data. */
+	/* Fill in the instance data */
 
 	allocation->size = (u32)size;
 	allocation->alloc_type = alloc_type;
@@ -355,17 +383,31 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
 	ACPI_STRNCPY(allocation->module, module, ACPI_MAX_MODULE_NAME);
 	allocation->module[ACPI_MAX_MODULE_NAME - 1] = 0;
 
-	/* Insert at list head */
+	if (!element) {
 
-	if (mem_list->list_head) {
-		((struct acpi_debug_mem_block *)(mem_list->list_head))->
-		    previous = allocation;
+		/* Insert at list head */
+
+		if (mem_list->list_head) {
+			((struct acpi_debug_mem_block *)(mem_list->list_head))->
+			    previous = allocation;
+		}
+
+		allocation->next = mem_list->list_head;
+		allocation->previous = NULL;
+
+		mem_list->list_head = allocation;
+	} else {
+		/* Insert after element */
+
+		allocation->next = element->next;
+		allocation->previous = element;
+
+		if (element->next) {
+			(element->next)->previous = allocation;
+		}
+
+		element->next = allocation;
 	}
-
-	allocation->next = mem_list->list_head;
-	allocation->previous = NULL;
-
-	mem_list->list_head = allocation;
 
       unlock_and_exit:
 	status = acpi_ut_release_mutex(ACPI_MTX_MEMORY);
@@ -381,7 +423,7 @@ acpi_ut_track_allocation(struct acpi_debug_mem_block *allocation,
  *              module              - Source file name of caller
  *              line                - Line number of caller
  *
- * RETURN:
+ * RETURN:      Status
  *
  * DESCRIPTION: Deletes an element from the global allocation tracking list.
  *
@@ -443,7 +485,7 @@ acpi_ut_remove_allocation(struct acpi_debug_mem_block *allocation,
  *
  * FUNCTION:    acpi_ut_dump_allocation_info
  *
- * PARAMETERS:
+ * PARAMETERS:  None
  *
  * RETURN:      None
  *
