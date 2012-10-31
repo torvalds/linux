@@ -555,7 +555,7 @@ static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |
 		SOF_TIMESTAMPING_RX_HARDWARE |
-		SOF_TIMESTAMPING_SYS_HARDWARE;
+		SOF_TIMESTAMPING_RAW_HARDWARE;
 	info->phc_index = -1;
 	info->tx_types =
 		(1 << HWTSTAMP_TX_OFF) |
@@ -652,6 +652,20 @@ static int bfin_mac_set_mac_address(struct net_device *dev, void *p)
 
 #ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 #define bfin_mac_hwtstamp_is_none(cfg) ((cfg) == HWTSTAMP_FILTER_NONE)
+
+static u32 bfin_select_phc_clock(u32 input_clk, unsigned int *shift_result)
+{
+	u32 ipn = 1000000000UL / input_clk;
+	u32 ppn = 1;
+	unsigned int shift = 0;
+
+	while (ppn <= ipn) {
+		ppn <<= 1;
+		shift++;
+	}
+	*shift_result = shift;
+	return 1000000000UL / ppn;
+}
 
 static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 		struct ifreq *ifr, int cmd)
@@ -802,33 +816,12 @@ static int bfin_mac_hwtstamp_ioctl(struct net_device *netdev,
 		bfin_read_EMAC_PTP_TXSNAPLO();
 		bfin_read_EMAC_PTP_TXSNAPHI();
 
-		/*
-		 * Set registers so that rollover occurs soon to test this.
-		 */
-		bfin_write_EMAC_PTP_TIMELO(0x00000000);
-		bfin_write_EMAC_PTP_TIMEHI(0xFF800000);
-
 		SSYNC();
-
-		lp->compare.last_update = 0;
-		timecounter_init(&lp->clock,
-				&lp->cycles,
-				ktime_to_ns(ktime_get_real()));
-		timecompare_update(&lp->compare, 0);
 	}
 
 	lp->stamp_cfg = config;
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 		-EFAULT : 0;
-}
-
-static void bfin_dump_hwtamp(char *s, ktime_t *hw, ktime_t *ts, struct timecompare *cmp)
-{
-	ktime_t sys = ktime_get_real();
-
-	pr_debug("%s %s hardware:%d,%d transform system:%d,%d system:%d,%d, cmp:%lld, %lld\n",
-			__func__, s, hw->tv.sec, hw->tv.nsec, ts->tv.sec, ts->tv.nsec, sys.tv.sec,
-			sys.tv.nsec, cmp->offset, cmp->skew);
 }
 
 static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
@@ -861,15 +854,9 @@ static void bfin_tx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 			regval = bfin_read_EMAC_PTP_TXSNAPLO();
 			regval |= (u64)bfin_read_EMAC_PTP_TXSNAPHI() << 32;
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
-			ns = timecounter_cyc2time(&lp->clock,
-					regval);
-			timecompare_update(&lp->compare, ns);
+			ns = regval << lp->shift;
 			shhwtstamps.hwtstamp = ns_to_ktime(ns);
-			shhwtstamps.syststamp =
-				timecompare_transform(&lp->compare, ns);
 			skb_tstamp_tx(skb, &shhwtstamps);
-
-			bfin_dump_hwtamp("TX", &shhwtstamps.hwtstamp, &shhwtstamps.syststamp, &lp->compare);
 		}
 	}
 }
@@ -892,51 +879,25 @@ static void bfin_rx_hwtstamp(struct net_device *netdev, struct sk_buff *skb)
 
 	regval = bfin_read_EMAC_PTP_RXSNAPLO();
 	regval |= (u64)bfin_read_EMAC_PTP_RXSNAPHI() << 32;
-	ns = timecounter_cyc2time(&lp->clock, regval);
-	timecompare_update(&lp->compare, ns);
+	ns = regval << lp->shift;
 	memset(shhwtstamps, 0, sizeof(*shhwtstamps));
 	shhwtstamps->hwtstamp = ns_to_ktime(ns);
-	shhwtstamps->syststamp = timecompare_transform(&lp->compare, ns);
-
-	bfin_dump_hwtamp("RX", &shhwtstamps->hwtstamp, &shhwtstamps->syststamp, &lp->compare);
 }
-
-/*
- * bfin_read_clock - read raw cycle counter (to be used by time counter)
- */
-static cycle_t bfin_read_clock(const struct cyclecounter *tc)
-{
-	u64 stamp;
-
-	stamp =  bfin_read_EMAC_PTP_TIMELO();
-	stamp |= (u64)bfin_read_EMAC_PTP_TIMEHI() << 32ULL;
-
-	return stamp;
-}
-
-#define PTP_CLK 25000000
 
 static void bfin_mac_hwtstamp_init(struct net_device *netdev)
 {
 	struct bfin_mac_local *lp = netdev_priv(netdev);
-	u64 append;
+	u64 addend;
+	u32 input_clk, phc_clk;
 
 	/* Initialize hardware timer */
-	append = PTP_CLK * (1ULL << 32);
-	do_div(append, get_sclk());
-	bfin_write_EMAC_PTP_ADDEND((u32)append);
+	input_clk = get_sclk();
+	phc_clk = bfin_select_phc_clock(input_clk, &lp->shift);
+	addend = phc_clk * (1ULL << 32);
+	do_div(addend, input_clk);
+	bfin_write_EMAC_PTP_ADDEND((u32)addend);
 
-	memset(&lp->cycles, 0, sizeof(lp->cycles));
-	lp->cycles.read = bfin_read_clock;
-	lp->cycles.mask = CLOCKSOURCE_MASK(64);
-	lp->cycles.mult = 1000000000 / PTP_CLK;
-	lp->cycles.shift = 0;
-
-	/* Synchronize our NIC clock against system wall clock */
-	memset(&lp->compare, 0, sizeof(lp->compare));
-	lp->compare.source = &lp->clock;
-	lp->compare.target = ktime_get_real;
-	lp->compare.num_samples = 10;
+	lp->addend = addend;
 
 	/* Initialize hwstamp config */
 	lp->stamp_cfg.rx_filter = HWTSTAMP_FILTER_NONE;

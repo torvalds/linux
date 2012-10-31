@@ -11,8 +11,6 @@
 #define _BFIN_MAC_H_
 
 #include <linux/net_tstamp.h>
-#include <linux/clocksource.h>
-#include <linux/timecompare.h>
 #include <linux/timer.h>
 #include <linux/etherdevice.h>
 #include <linux/bfin_mac.h>
@@ -94,9 +92,8 @@ struct bfin_mac_local {
 	struct mii_bus *mii_bus;
 
 #if defined(CONFIG_BFIN_MAC_USE_HWSTAMP)
-	struct cyclecounter cycles;
-	struct timecounter clock;
-	struct timecompare compare;
+	u32 addend;
+	unsigned int shift;
 	struct hwtstamp_config stamp_cfg;
 #endif
 };
