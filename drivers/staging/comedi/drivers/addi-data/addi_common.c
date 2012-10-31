@@ -177,11 +177,11 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* ## */
 
-	if (card->irq > 0) {
-		ret = request_irq(card->irq, v_ADDI_Interrupt, IRQF_SHARED,
+	if (pcidev->irq > 0) {
+		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
 				  this_board->pc_DriverName, dev);
 		if (ret == 0)
-			dev->irq = card->irq;
+			dev->irq = pcidev->irq;
 	}
 
 	/*  Read eepeom and fill addi_board Structure */

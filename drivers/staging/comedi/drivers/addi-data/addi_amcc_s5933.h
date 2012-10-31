@@ -201,7 +201,6 @@ struct pcilst_struct {
 	unsigned char pci_bus;
 	unsigned char pci_slot;
 	unsigned char pci_func;
-	unsigned int irq;
 };
 
 /* ptr to root list of all amcc devices */
@@ -259,8 +258,6 @@ void v_pci_card_list_init(unsigned short pci_vendor)
 				amcc->pci_bus = pcidev->bus->number;
 				amcc->pci_slot = PCI_SLOT(pcidev->devfn);
 				amcc->pci_func = PCI_FUNC(pcidev->devfn);
-				amcc->irq = pcidev->irq;
-
 			}
 		}
 	}
