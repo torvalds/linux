@@ -548,6 +548,7 @@ static int bfin_mac_ethtool_setwol(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 	struct ethtool_ts_info *info)
 {
@@ -566,6 +567,7 @@ static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
 		(1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT);
 	return 0;
 }
+#endif
 
 static const struct ethtool_ops bfin_mac_ethtool_ops = {
 	.get_settings = bfin_mac_ethtool_getsettings,
@@ -574,7 +576,9 @@ static const struct ethtool_ops bfin_mac_ethtool_ops = {
 	.get_drvinfo = bfin_mac_ethtool_getdrvinfo,
 	.get_wol = bfin_mac_ethtool_getwol,
 	.set_wol = bfin_mac_ethtool_setwol,
+#ifdef CONFIG_BFIN_MAC_USE_HWSTAMP
 	.get_ts_info = bfin_mac_ethtool_get_ts_info,
+#endif
 };
 
 /**************************************************************************/
