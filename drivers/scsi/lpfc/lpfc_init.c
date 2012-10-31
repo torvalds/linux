@@ -3854,7 +3854,7 @@ static void
 lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 {
 	char port_name;
-	char message[80];
+	char message[128];
 	uint8_t status;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
 
