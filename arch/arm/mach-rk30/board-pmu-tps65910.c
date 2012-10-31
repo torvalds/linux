@@ -540,12 +540,16 @@ static struct regulator_init_data tps65910_ldo8 = {
 
 void __sramfunc board_pmu_tps65910_suspend(void)
 {	
+	#ifdef CONFIG_CLK_SWITCH_TO_32K
 	 sram_gpio_set_value(pmic_sleep, GPIO_HIGH);  
+	#endif
 }
 void __sramfunc board_pmu_tps65910_resume(void)
 {
+	#ifdef CONFIG_CLK_SWITCH_TO_32K
  	sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
 	sram_udelay(2000);
+	#endif
 }
 static struct tps65910_board tps65910_data = {
 	.irq 	= (unsigned)TPS65910_HOST_IRQ,		
