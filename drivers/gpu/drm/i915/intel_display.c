@@ -1670,8 +1670,8 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 	pll->on = false;
 }
 
-static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
-				    enum pipe pipe)
+static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
+					   enum pipe pipe)
 {
 	int reg;
 	u32 val, pipeconf_val;
@@ -1721,8 +1721,8 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 		DRM_ERROR("failed to enable transcoder %d\n", pipe);
 }
 
-static void intel_disable_transcoder(struct drm_i915_private *dev_priv,
-				     enum pipe pipe)
+static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
+					    enum pipe pipe)
 {
 	int reg;
 	u32 val;
@@ -3161,7 +3161,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		I915_WRITE(reg, temp);
 	}
 
-	intel_enable_transcoder(dev_priv, pipe);
+	ironlake_enable_pch_transcoder(dev_priv, pipe);
 }
 
 static void lpt_pch_enable(struct drm_crtc *crtc)
@@ -3194,7 +3194,7 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(_TRANS_VSYNC_A,  I915_READ(VSYNC(cpu_transcoder)));
 	I915_WRITE(_TRANS_VSYNCSHIFT_A, I915_READ(VSYNCSHIFT(cpu_transcoder)));
 
-	intel_enable_transcoder(dev_priv, intel_crtc->pipe);
+	ironlake_enable_pch_transcoder(dev_priv, intel_crtc->pipe);
 }
 
 static void intel_put_pch_pll(struct intel_crtc *intel_crtc)
@@ -3503,7 +3503,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	ironlake_fdi_disable(crtc);
 
-	intel_disable_transcoder(dev_priv, pipe);
+	ironlake_disable_pch_transcoder(dev_priv, pipe);
 
 	if (HAS_PCH_CPT(dev)) {
 		/* disable TRANS_DP_CTL */
@@ -3589,7 +3589,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	if (is_pch_port) {
 		ironlake_fdi_disable(crtc);
-		intel_disable_transcoder(dev_priv, pipe);
+		ironlake_disable_pch_transcoder(dev_priv, pipe);
 		intel_disable_pch_pll(intel_crtc);
 		ironlake_fdi_pll_disable(intel_crtc);
 	}
