@@ -201,7 +201,6 @@ struct pcilst_struct {
 	unsigned char pci_bus;
 	unsigned char pci_slot;
 	unsigned char pci_func;
-	resource_size_t io_addr[5];
 	unsigned int irq;
 };
 
@@ -230,8 +229,6 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 
 int pci_card_alloc(struct pcilst_struct *amcc, int master);
 int i_pci_card_free(struct pcilst_struct *amcc);
-int i_pci_card_data(struct pcilst_struct *amcc,
-		    resource_size_t *io_addr);
 
 /****************************************************************************/
 
@@ -240,7 +237,6 @@ void v_pci_card_list_init(unsigned short pci_vendor)
 {
 	struct pci_dev *pcidev = NULL;
 	struct pcilst_struct *amcc, *last;
-	int i;
 	int i_Count = 0;
 	amcc_devices = NULL;
 	last = NULL;
@@ -265,12 +261,6 @@ void v_pci_card_list_init(unsigned short pci_vendor)
 				amcc->pci_bus = pcidev->bus->number;
 				amcc->pci_slot = PCI_SLOT(pcidev->devfn);
 				amcc->pci_func = PCI_FUNC(pcidev->devfn);
-				/* Note: resources may be invalid if PCI device
-				 * not enabled, but they are corrected in
-				 * pci_card_alloc. */
-				for (i = 0; i < 5; i++)
-					amcc->io_addr[i] =
-					    pci_resource_start(pcidev, i);
 				amcc->irq = pcidev->irq;
 
 			}
@@ -345,8 +335,6 @@ int i_find_free_pci_card_by_position(unsigned short vendor_id,
 /* mark card as used */
 int pci_card_alloc(struct pcilst_struct *amcc, int master)
 {
-	int i;
-
 	if (!amcc)
 		return -1;
 
@@ -354,9 +342,6 @@ int pci_card_alloc(struct pcilst_struct *amcc, int master)
 		return 1;
 	if (comedi_pci_enable(amcc->pcidev, "addi_amcc_s5933"))
 		return -1;
-	/* Resources will be accurate now. */
-	for (i = 0; i < 5; i++)
-		amcc->io_addr[i] = pci_resource_start(amcc->pcidev, i);
 	if (master)
 		pci_set_master(amcc->pcidev);
 	amcc->used = 1;
@@ -375,20 +360,6 @@ int i_pci_card_free(struct pcilst_struct *amcc)
 		return 1;
 	amcc->used = 0;
 	comedi_pci_disable(amcc->pcidev);
-	return 0;
-}
-
-/****************************************************************************/
-/* return all card information for driver */
-int i_pci_card_data(struct pcilst_struct *amcc,
-		    resource_size_t *io_addr)
-{
-	int i;
-
-	if (!amcc)
-		return -1;
-	for (i = 0; i < 5; i++)
-		io_addr[i] = amcc->io_addr[i];
 	return 0;
 }
 
