@@ -457,6 +457,15 @@ acpi_rs_get_list_length(u8 * aml_buffer,
 			 * Get the number of vendor data bytes
 			 */
 			extra_struct_bytes = resource_length;
+
+			/*
+			 * There is already one byte included in the minimum
+			 * descriptor size. If there are extra struct bytes,
+			 * subtract one from the count.
+			 */
+			if (extra_struct_bytes) {
+				extra_struct_bytes--;
+			}
 			break;
 
 		case ACPI_RESOURCE_NAME_END_TAG:
