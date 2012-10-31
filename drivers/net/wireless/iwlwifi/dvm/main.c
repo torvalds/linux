@@ -511,7 +511,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 		return;
 
 	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
-	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	iwlagn_dev_txfifo_flush(priv);
 }
 
 /*
