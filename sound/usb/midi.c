@@ -147,6 +147,7 @@ struct snd_usb_midi_out_endpoint {
 		struct snd_usb_midi_out_endpoint* ep;
 		struct snd_rawmidi_substream *substream;
 		int active;
+		bool autopm_reference;
 		uint8_t cable;		/* cable number << 4 */
 		uint8_t state;
 #define STATE_UNKNOWN	0
@@ -1059,7 +1060,8 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 		return -ENXIO;
 	}
 	err = usb_autopm_get_interface(umidi->iface);
-	if (err < 0)
+	port->autopm_reference = err >= 0;
+	if (err < 0 && err != -EACCES)
 		return -EIO;
 	substream->runtime->private_data = port;
 	port->state = STATE_UNKNOWN;
@@ -1070,9 +1072,11 @@ static int snd_usbmidi_output_open(struct snd_rawmidi_substream *substream)
 static int snd_usbmidi_output_close(struct snd_rawmidi_substream *substream)
 {
 	struct snd_usb_midi* umidi = substream->rmidi->private_data;
+	struct usbmidi_out_port *port = substream->runtime->private_data;
 
 	substream_open(substream, 0);
-	usb_autopm_put_interface(umidi->iface);
+	if (port->autopm_reference)
+		usb_autopm_put_interface(umidi->iface);
 	return 0;
 }
 
