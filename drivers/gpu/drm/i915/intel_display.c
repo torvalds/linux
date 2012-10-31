@@ -2201,13 +2201,39 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	return ret;
 }
 
+static void intel_crtc_update_sarea_pos(struct drm_crtc *crtc, int x, int y)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_master_private *master_priv;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	if (!dev->primary->master)
+		return;
+
+	master_priv = dev->primary->master->driver_priv;
+	if (!master_priv->sarea_priv)
+		return;
+
+	switch (intel_crtc->pipe) {
+	case 0:
+		master_priv->sarea_priv->pipeA_x = x;
+		master_priv->sarea_priv->pipeA_y = y;
+		break;
+	case 1:
+		master_priv->sarea_priv->pipeB_x = x;
+		master_priv->sarea_priv->pipeB_y = y;
+		break;
+	default:
+		break;
+	}
+}
+
 static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *fb)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_framebuffer *old_fb;
 	int ret;
@@ -2259,20 +2285,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
 
-	if (!dev->primary->master)
-		return 0;
-
-	master_priv = dev->primary->master->driver_priv;
-	if (!master_priv->sarea_priv)
-		return 0;
-
-	if (intel_crtc->pipe) {
-		master_priv->sarea_priv->pipeB_x = x;
-		master_priv->sarea_priv->pipeB_y = y;
-	} else {
-		master_priv->sarea_priv->pipeA_x = x;
-		master_priv->sarea_priv->pipeA_y = y;
-	}
+	intel_crtc_update_sarea_pos(crtc, x, y);
 
 	return 0;
 }
