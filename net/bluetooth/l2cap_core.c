@@ -6252,9 +6252,9 @@ void l2cap_connect_cfm(struct hci_conn *hcon, u8 status)
 		conn = l2cap_conn_add(hcon, status);
 		if (conn)
 			l2cap_conn_ready(conn);
-	} else
+	} else {
 		l2cap_conn_del(hcon, bt_to_errno(status));
-
+	}
 }
 
 int l2cap_disconn_ind(struct hci_conn *hcon)
