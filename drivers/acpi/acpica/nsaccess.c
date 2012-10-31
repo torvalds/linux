@@ -110,11 +110,11 @@ acpi_status acpi_ns_root_initialize(void)
 		status = acpi_ns_lookup(NULL, init_val->name, init_val->type,
 					ACPI_IMODE_LOAD_PASS2,
 					ACPI_NS_NO_UPSEARCH, NULL, &new_node);
-
-		if (ACPI_FAILURE(status) || (!new_node)) {	/* Must be on same line for code converter */
+		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Could not create predefined name %s",
 					init_val->name));
+			continue;
 		}
 
 		/*
