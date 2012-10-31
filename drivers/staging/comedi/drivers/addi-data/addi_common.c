@@ -367,7 +367,6 @@ static int addi_attach_pci(struct comedi_device *dev,
 	}
 
 	i_ADDI_Reset(dev);
-	devpriv->b_ValidDriver = 1;
 	return 0;
 }
 
@@ -378,7 +377,7 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
-		if (devpriv->b_ValidDriver)
+		if (dev->iobase)
 			i_ADDI_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
