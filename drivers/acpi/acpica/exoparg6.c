@@ -198,7 +198,7 @@ acpi_ex_do_match(u32 match_op,
 		return (FALSE);
 	}
 
-	return logical_result;
+	return (logical_result);
 }
 
 /*******************************************************************************

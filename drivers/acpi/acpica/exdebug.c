@@ -190,7 +190,7 @@ acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
 
 			acpi_os_printf("Table Index 0x%X\n",
 				       source_desc->reference.value);
-			return;
+			return_VOID;
 
 		default:
 			break;

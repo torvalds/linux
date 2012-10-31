@@ -708,13 +708,13 @@ void acpi_ds_delete_walk_state(struct acpi_walk_state *walk_state)
 	ACPI_FUNCTION_TRACE_PTR(ds_delete_walk_state, walk_state);
 
 	if (!walk_state) {
-		return;
+		return_VOID;
 	}
 
 	if (walk_state->descriptor_type != ACPI_DESC_TYPE_WALK) {
 		ACPI_ERROR((AE_INFO, "%p is not a valid walk state",
 			    walk_state));
-		return;
+		return_VOID;
 	}
 
 	/* There should not be any open scopes */

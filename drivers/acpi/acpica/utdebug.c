@@ -300,6 +300,7 @@ acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
 		  const char *module_name, u32 component_id, void *pointer)
 {
+
 	acpi_gbl_nesting_level++;
 	acpi_ut_track_stack_ptr();
 

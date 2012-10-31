@@ -305,7 +305,7 @@ acpi_status acpi_ex_release_mutex_object(union acpi_operand_object *obj_desc)
 	ACPI_FUNCTION_TRACE(ex_release_mutex_object);
 
 	if (obj_desc->mutex.acquisition_depth == 0) {
-		return (AE_NOT_ACQUIRED);
+		return_ACPI_STATUS(AE_NOT_ACQUIRED);
 	}
 
 	/* Match multiple Acquires with multiple Releases */

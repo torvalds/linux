@@ -193,6 +193,8 @@ static void acpi_ut_delete_mutex(acpi_mutex_handle mutex_id)
 
 	acpi_gbl_mutex_info[mutex_id].mutex = NULL;
 	acpi_gbl_mutex_info[mutex_id].thread_id = ACPI_MUTEX_NOT_ACQUIRED;
+
+	return_VOID;
 }
 
 /*******************************************************************************

@@ -569,7 +569,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
 	node = acpi_ns_validate_handle(gpe_device);
@@ -652,7 +652,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
 	node = acpi_ns_validate_handle(gpe_device);

@@ -238,7 +238,7 @@ acpi_install_initialization_handler(acpi_init_handler handler, u32 function)
 	}
 
 	acpi_gbl_init_handler = handler;
-	return AE_OK;
+	return (AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_install_initialization_handler)
@@ -263,6 +263,7 @@ acpi_status acpi_purge_cached_objects(void)
 	(void)acpi_os_purge_cache(acpi_gbl_operand_cache);
 	(void)acpi_os_purge_cache(acpi_gbl_ps_node_cache);
 	(void)acpi_os_purge_cache(acpi_gbl_ps_node_ext_cache);
+
 	return_ACPI_STATUS(AE_OK);
 }
 

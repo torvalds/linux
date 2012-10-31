@@ -517,14 +517,14 @@ void acpi_ut_dump_allocations(u32 component, const char *module)
 	ACPI_FUNCTION_TRACE(ut_dump_allocations);
 
 	if (acpi_gbl_disable_mem_tracking) {
-		return;
+		return_VOID;
 	}
 
 	/*
 	 * Walk the allocation list.
 	 */
 	if (ACPI_FAILURE(acpi_ut_acquire_mutex(ACPI_MTX_MEMORY))) {
-		return;
+		return_VOID;
 	}
 
 	element = acpi_gbl_global_list->list_head;

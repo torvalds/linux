@@ -67,7 +67,6 @@ static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp);
 
 static acpi_status acpi_tb_validate_rsdp(struct acpi_table_rsdp *rsdp)
 {
-	ACPI_FUNCTION_ENTRY();
 
 	/*
 	 * The signature and checksum must both be correct

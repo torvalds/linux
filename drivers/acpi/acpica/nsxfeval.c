@@ -550,7 +550,7 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
-		return (status);
+		return_ACPI_STATUS(status);
 	}
 
 	node = acpi_ns_validate_handle(obj_handle);
