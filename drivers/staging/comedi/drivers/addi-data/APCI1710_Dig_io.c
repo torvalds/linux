@@ -52,12 +52,16 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
-#include "APCI1710_Dig_io.h"
+/* Digital Output ON or OFF */
+#define APCI1710_ON			1
+#define APCI1710_OFF			0
+
+/* Digital I/O */
+#define APCI1710_INPUT			0
+#define APCI1710_OUTPUT			1
+
+#define APCI1710_DIGIO_MEMORYONOFF	0x10
+#define APCI1710_DIGIO_INIT		0x11
 
 /*
 +----------------------------------------------------------------------------+
