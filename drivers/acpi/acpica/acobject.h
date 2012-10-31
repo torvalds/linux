@@ -179,7 +179,7 @@ struct acpi_object_method {
 	union acpi_operand_object *mutex;
 	u8 *aml_start;
 	union {
-		ACPI_INTERNAL_METHOD implementation;
+		acpi_internal_method implementation;
 		union acpi_operand_object *handler;
 	} dispatch;
 

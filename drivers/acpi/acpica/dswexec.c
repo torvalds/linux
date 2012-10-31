@@ -57,7 +57,7 @@ ACPI_MODULE_NAME("dswexec")
 /*
  * Dispatch table for opcode classes
  */
-static ACPI_EXECUTE_OP acpi_gbl_op_type_dispatch[] = {
+static acpi_execute_op acpi_gbl_op_type_dispatch[] = {
 	acpi_ex_opcode_0A_0T_1R,
 	acpi_ex_opcode_1A_0T_0R,
 	acpi_ex_opcode_1A_0T_1R,

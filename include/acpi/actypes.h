@@ -796,11 +796,11 @@ typedef u8 acpi_adr_space_type;
 
 /* Sleep function dispatch */
 
-typedef acpi_status(*ACPI_SLEEP_FUNCTION) (u8 sleep_state);
+typedef acpi_status(*acpi_sleep_function) (u8 sleep_state);
 
 struct acpi_sleep_functions {
-	ACPI_SLEEP_FUNCTION legacy_function;
-	ACPI_SLEEP_FUNCTION extended_function;
+	acpi_sleep_function legacy_function;
+	acpi_sleep_function extended_function;
 };
 
 /*
@@ -931,7 +931,7 @@ typedef void
  * Various handlers and callback procedures
  */
 typedef
-void (*ACPI_GBL_EVENT_HANDLER) (u32 event_type,
+void (*acpi_gbl_event_handler) (u32 event_type,
 			       acpi_handle device,
 			       u32 event_number, void *context);
 
