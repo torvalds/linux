@@ -3170,8 +3170,9 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
+	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 
-	assert_transcoder_disabled(dev_priv, pipe);
+	assert_transcoder_disabled(dev_priv, TRANSCODER_A);
 
 	/* Write the TU size bits before fdi link training, so that error
 	 * detection works. */
@@ -3184,16 +3185,16 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	lpt_program_iclkip(crtc);
 
 	/* Set transcoder timing. */
-	I915_WRITE(TRANS_HTOTAL(pipe), I915_READ(HTOTAL(pipe)));
-	I915_WRITE(TRANS_HBLANK(pipe), I915_READ(HBLANK(pipe)));
-	I915_WRITE(TRANS_HSYNC(pipe),  I915_READ(HSYNC(pipe)));
+	I915_WRITE(_TRANS_HTOTAL_A, I915_READ(HTOTAL(cpu_transcoder)));
+	I915_WRITE(_TRANS_HBLANK_A, I915_READ(HBLANK(cpu_transcoder)));
+	I915_WRITE(_TRANS_HSYNC_A,  I915_READ(HSYNC(cpu_transcoder)));
 
-	I915_WRITE(TRANS_VTOTAL(pipe), I915_READ(VTOTAL(pipe)));
-	I915_WRITE(TRANS_VBLANK(pipe), I915_READ(VBLANK(pipe)));
-	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
-	I915_WRITE(TRANS_VSYNCSHIFT(pipe),  I915_READ(VSYNCSHIFT(pipe)));
+	I915_WRITE(_TRANS_VTOTAL_A, I915_READ(VTOTAL(cpu_transcoder)));
+	I915_WRITE(_TRANS_VBLANK_A, I915_READ(VBLANK(cpu_transcoder)));
+	I915_WRITE(_TRANS_VSYNC_A,  I915_READ(VSYNC(cpu_transcoder)));
+	I915_WRITE(_TRANS_VSYNCSHIFT_A, I915_READ(VSYNCSHIFT(cpu_transcoder)));
 
-	intel_enable_transcoder(dev_priv, pipe);
+	intel_enable_transcoder(dev_priv, intel_crtc->pipe);
 }
 
 static void intel_put_pch_pll(struct intel_crtc *intel_crtc)
