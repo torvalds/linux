@@ -382,7 +382,6 @@ nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
 }
 
 int nlm_irq_to_irt(int irq);
-int nlm_irt_to_irq(int irt);
 
 #endif /* __ASSEMBLY__ */
 #endif /* _NLM_HAL_PIC_H */

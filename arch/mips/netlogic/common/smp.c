@@ -114,8 +114,11 @@ void nlm_early_init_secondary(int cpu)
  */
 static void __cpuinit nlm_init_secondary(void)
 {
-	current_cpu_data.core = hard_smp_processor_id() / NLM_THREADS_PER_CORE;
-	nlm_smp_irq_init();
+	int hwtid;
+
+	hwtid = hard_smp_processor_id();
+	current_cpu_data.core = hwtid / NLM_THREADS_PER_CORE;
+	nlm_smp_irq_init(hwtid);
 }
 
 void nlm_prepare_cpus(unsigned int max_cpus)
