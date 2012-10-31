@@ -1207,20 +1207,25 @@ s32 igb_phy_force_speed_duplex_m88(struct e1000_hw *hw)
 	u16 phy_data;
 	bool link;
 
-	/*
-	 * Clear Auto-Crossover to force MDI manually.  M88E1000 requires MDI
-	 * forced whenever speed and duplex are forced.
-	 */
-	ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL, &phy_data);
-	if (ret_val)
-		goto out;
+	/* I210 and I211 devices support Auto-Crossover in forced operation. */
+	if (phy->type != e1000_phy_i210) {
+		/*
+		 * Clear Auto-Crossover to force MDI manually.  M88E1000
+		 * requires MDI forced whenever speed and duplex are forced.
+		 */
+		ret_val = phy->ops.read_reg(hw, M88E1000_PHY_SPEC_CTRL,
+					    &phy_data);
+		if (ret_val)
+			goto out;
 
-	phy_data &= ~M88E1000_PSCR_AUTO_X_MODE;
-	ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
-	if (ret_val)
-		goto out;
+		phy_data &= ~M88E1000_PSCR_AUTO_X_MODE;
+		ret_val = phy->ops.write_reg(hw, M88E1000_PHY_SPEC_CTRL,
+					     phy_data);
+		if (ret_val)
+			goto out;
 
-	hw_dbg("M88E1000 PSCR: %X\n", phy_data);
+		hw_dbg("M88E1000 PSCR: %X\n", phy_data);
+	}
 
 	ret_val = phy->ops.read_reg(hw, PHY_CONTROL, &phy_data);
 	if (ret_val)

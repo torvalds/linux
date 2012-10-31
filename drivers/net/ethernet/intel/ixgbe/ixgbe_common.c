@@ -90,6 +90,7 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	s32 ret_val = 0;
 	u32 reg = 0, reg_bp = 0;
 	u16 reg_cu = 0;
+	bool got_lock = false;
 
 	/*
 	 * Validate the requested mode.  Strict IEEE mode does not allow
@@ -210,8 +211,29 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 	 *
 	 */
 	if (hw->phy.media_type == ixgbe_media_type_backplane) {
-		reg_bp |= IXGBE_AUTOC_AN_RESTART;
+		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+		 * LESM is on, likewise reset_pipeline requries the lock as
+		 * it also writes AUTOC.
+		 */
+		if ((hw->mac.type == ixgbe_mac_82599EB) &&
+		    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val)
+				goto out;
+
+			got_lock = true;
+		}
+
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, reg_bp);
+
+		if (hw->mac.type == ixgbe_mac_82599EB)
+			ixgbe_reset_pipeline_82599(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
+
 	} else if ((hw->phy.media_type == ixgbe_media_type_copper) &&
 		    (ixgbe_device_supports_autoneg_fc(hw) == 0)) {
 		hw->phy.ops.write_reg(hw, MDIO_AN_ADVERTISE,
@@ -2616,6 +2638,7 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	bool link_up = false;
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	s32 ret_val = 0;
 
 	/*
 	 * Link must be up to auto-blink the LEDs;
@@ -2624,10 +2647,28 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	hw->mac.ops.check_link(hw, &speed, &link_up, false);
 
 	if (!link_up) {
+		/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+		 * LESM is on.
+		 */
+		bool got_lock = false;
+
+		if ((hw->mac.type == ixgbe_mac_82599EB) &&
+		    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val)
+				goto out;
+
+			got_lock = true;
+		}
 		autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 		autoc_reg |= IXGBE_AUTOC_FLU;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
 		IXGBE_WRITE_FLUSH(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
 		usleep_range(10000, 20000);
 	}
 
@@ -2636,7 +2677,8 @@ s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
 	IXGBE_WRITE_FLUSH(hw);
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**
@@ -2648,10 +2690,31 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 {
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	s32 ret_val = 0;
+	bool got_lock = false;
+
+	/* Need the SW/FW semaphore around AUTOC writes if 82599 and
+	 * LESM is on.
+	 */
+	if ((hw->mac.type == ixgbe_mac_82599EB) &&
+	    ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+		ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+						IXGBE_GSSR_MAC_CSR_SM);
+		if (ret_val)
+			goto out;
+
+		got_lock = true;
+	}
 
 	autoc_reg &= ~IXGBE_AUTOC_FLU;
 	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
 	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
+
+	if (hw->mac.type == ixgbe_mac_82599EB)
+		ixgbe_reset_pipeline_82599(hw);
+
+	if (got_lock)
+		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 
 	led_reg &= ~IXGBE_LED_MODE_MASK(index);
 	led_reg &= ~IXGBE_LED_BLINK(index);
@@ -2659,7 +2722,8 @@ s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 	IXGBE_WRITE_REG(hw, IXGBE_LEDCTL, led_reg);
 	IXGBE_WRITE_FLUSH(hw);
 
-	return 0;
+out:
+	return ret_val;
 }
 
 /**

@@ -678,7 +678,7 @@ static int ixgbe_set_vf_mac_addr(struct ixgbe_adapter *adapter,
 		return -1;
 	}
 
-	return ixgbe_set_vf_mac(adapter, vf, new_mac);
+	return ixgbe_set_vf_mac(adapter, vf, new_mac) < 0;
 }
 
 static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
@@ -745,7 +745,8 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 		e_warn(drv,
 		       "VF %d has requested a MACVLAN filter but there is no space for it\n",
 		       vf);
-	return err;
+
+	return err < 0;
 }
 
 static int ixgbe_negotiate_vf_api(struct ixgbe_adapter *adapter,

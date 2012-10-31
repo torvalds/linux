@@ -1391,6 +1391,10 @@ s32 igb_validate_mdi_setting(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 
+	/* All MDI settings are supported on 82580 and newer. */
+	if (hw->mac.type >= e1000_82580)
+		goto out;
+
 	if (!hw->mac.autoneg && (hw->phy.mdix == 0 || hw->phy.mdix == 3)) {
 		hw_dbg("Invalid MDI setting detected\n");
 		hw->phy.mdix = 1;

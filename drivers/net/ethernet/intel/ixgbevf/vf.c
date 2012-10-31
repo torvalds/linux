@@ -331,6 +331,9 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == cnt)
 			break;
+		if (is_link_local(ha->addr))
+			continue;
+
 		vector_list[i++] = ixgbevf_mta_vector(hw, ha->addr);
 	}
 

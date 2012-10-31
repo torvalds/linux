@@ -636,6 +636,7 @@
 /* NVM Word Offsets */
 #define NVM_COMPAT                 0x0003
 #define NVM_ID_LED_SETTINGS        0x0004 /* SERDES output amplitude */
+#define NVM_VERSION                0x0005
 #define NVM_INIT_CONTROL2_REG      0x000F
 #define NVM_INIT_CONTROL3_PORT_B   0x0014
 #define NVM_INIT_CONTROL3_PORT_A   0x0024
@@ -653,6 +654,19 @@
 #define NVM_LED_1_CFG              0x001C
 #define NVM_LED_0_2_CFG            0x001F
 
+/* NVM version defines */
+#define NVM_ETRACK_WORD            0x0042
+#define NVM_COMB_VER_OFF           0x0083
+#define NVM_COMB_VER_PTR           0x003d
+#define NVM_MAJOR_MASK             0xF000
+#define NVM_MINOR_MASK             0x0FF0
+#define NVM_BUILD_MASK             0x000F
+#define NVM_COMB_VER_MASK          0x00FF
+#define NVM_MAJOR_SHIFT                12
+#define NVM_MINOR_SHIFT                 4
+#define NVM_COMB_VER_SHFT               8
+#define NVM_VER_INVALID            0xFFFF
+#define NVM_ETRACK_SHIFT               16
 
 #define E1000_NVM_CFG_DONE_PORT_0  0x040000 /* MNG config cycle done */
 #define E1000_NVM_CFG_DONE_PORT_1  0x080000 /* ...for second port */

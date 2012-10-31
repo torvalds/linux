@@ -1785,58 +1785,34 @@ static const struct net_device_ops igb_netdev_ops = {
 void igb_set_fw_version(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
-	u16 eeprom_verh, eeprom_verl, comb_verh, comb_verl, comb_offset;
-	u16 major, build, patch, fw_version;
-	u32 etrack_id;
+	struct e1000_fw_version fw;
 
-	hw->nvm.ops.read(hw, 5, 1, &fw_version);
-	if (adapter->hw.mac.type != e1000_i211) {
-		hw->nvm.ops.read(hw, NVM_ETRACK_WORD, 1, &eeprom_verh);
-		hw->nvm.ops.read(hw, (NVM_ETRACK_WORD + 1), 1, &eeprom_verl);
-		etrack_id = (eeprom_verh << IGB_ETRACK_SHIFT) | eeprom_verl;
+	igb_get_fw_version(hw, &fw);
 
-		/* combo image version needs to be found */
-		hw->nvm.ops.read(hw, NVM_COMB_VER_PTR, 1, &comb_offset);
-		if ((comb_offset != 0x0) &&
-		    (comb_offset != IGB_NVM_VER_INVALID)) {
-			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset
-					 + 1), 1, &comb_verh);
-			hw->nvm.ops.read(hw, (NVM_COMB_VER_OFF + comb_offset),
-					 1, &comb_verl);
+	switch (hw->mac.type) {
+	case e1000_i211:
+		snprintf(adapter->fw_version, sizeof(adapter->fw_version),
+			 "%2d.%2d-%d",
+			 fw.invm_major, fw.invm_minor, fw.invm_img_type);
+		break;
 
-			/* Only display Option Rom if it exists and is valid */
-			if ((comb_verh && comb_verl) &&
-			    ((comb_verh != IGB_NVM_VER_INVALID) &&
-			     (comb_verl != IGB_NVM_VER_INVALID))) {
-				major = comb_verl >> IGB_COMB_VER_SHFT;
-				build = (comb_verl << IGB_COMB_VER_SHFT) |
-					(comb_verh >> IGB_COMB_VER_SHFT);
-				patch = comb_verh & IGB_COMB_VER_MASK;
-				snprintf(adapter->fw_version,
-					 sizeof(adapter->fw_version),
-					 "%d.%d%d, 0x%08x, %d.%d.%d",
-					 (fw_version & IGB_MAJOR_MASK) >>
-					 IGB_MAJOR_SHIFT,
-					 (fw_version & IGB_MINOR_MASK) >>
-					 IGB_MINOR_SHIFT,
-					 (fw_version & IGB_BUILD_MASK),
-					 etrack_id, major, build, patch);
-				goto out;
-			}
+	default:
+		/* if option is rom valid, display its version too */
+		if (fw.or_valid) {
+			snprintf(adapter->fw_version,
+				 sizeof(adapter->fw_version),
+				 "%d.%d, 0x%08x, %d.%d.%d",
+				 fw.eep_major, fw.eep_minor, fw.etrack_id,
+				 fw.or_major, fw.or_build, fw.or_patch);
+		/* no option rom */
+		} else {
+			snprintf(adapter->fw_version,
+				 sizeof(adapter->fw_version),
+				 "%d.%d, 0x%08x",
+				 fw.eep_major, fw.eep_minor, fw.etrack_id);
 		}
-		snprintf(adapter->fw_version, sizeof(adapter->fw_version),
-			 "%d.%d%d, 0x%08x",
-			 (fw_version & IGB_MAJOR_MASK) >> IGB_MAJOR_SHIFT,
-			 (fw_version & IGB_MINOR_MASK) >> IGB_MINOR_SHIFT,
-			 (fw_version & IGB_BUILD_MASK), etrack_id);
-	} else {
-		snprintf(adapter->fw_version, sizeof(adapter->fw_version),
-			 "%d.%d%d",
-			 (fw_version & IGB_MAJOR_MASK) >> IGB_MAJOR_SHIFT,
-			 (fw_version & IGB_MINOR_MASK) >> IGB_MINOR_SHIFT,
-			 (fw_version & IGB_BUILD_MASK));
+		break;
 	}
-out:
 	return;
 }
 
