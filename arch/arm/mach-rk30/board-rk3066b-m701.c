@@ -1110,7 +1110,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if defined(CONFIG_BATTERY_RK30_ADC)
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN0_PB2,
         .batt_low_pin    = RK30_PIN0_PB1, 
@@ -1120,6 +1120,50 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .charge_ok_level = GPIO_HIGH,
 		.charge_set_level = GPIO_HIGH,
 		.save_capacity   = 1,
+};
+
+static struct platform_device rk30_device_adc_battery = {
+        .name   = "rk30-battery",
+        .id     = -1,
+        .dev = {
+                .platform_data = &rk30_adc_battery_platdata,
+        },
+};
+ss
+#elif defined(CONFIG_BATTERY_RK30_ADC_FAC)
+
+#define BOARD_BAT_DEFINE_VALUE          (1800)	/* bat_zx: the same with BAT_DEFINE_VALUE in RK3066B */
+#define BOARD_BATT_NUM                  (11) 	/* bat_zx: the same with BATT_NUM */
+#define BOARD_BATT_PULLUP_RES           (200)	/* bat_zx: the same with batt_table[4] */
+#define BOARD_BATT_PULLDOWN_RES         (100)	/* bat_zx: the same with batt_table[5] */
+#define BOARD_BATT_DISCHG_OFFSET        (6)
+#define BOARD_BATT_CHG_OFFSET           (BOARD_BATT_DISCHG_OFFSET + BOARD_BATT_NUM)
+
+static const int batt_table[2*BOARD_BATT_NUM+6] =
+{
+	0x4B434F52, 0x7461625F, 0x79726574, 0, 200, 100,
+	3400, 3469, 3566, 3642, 3660, 3680, 3728, 3815, 3878, 3957, 4082,  //discharge
+	3703, 3848, 3931, 3956, 3993, 4074, 4145, 4154, 4159, 4160, 4166   //charge
+};
+
+static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+        .dc_det_pin      = RK30_PIN0_PB2,
+        .batt_low_pin    = RK30_PIN0_PB1,
+        .charge_set_pin  = RK30_PIN2_PA7,
+        .charge_ok_pin   = RK30_PIN0_PA6,
+        .dc_det_level    = GPIO_LOW,
+        .charge_ok_level = GPIO_HIGH,
+		.charge_set_level = GPIO_HIGH,
+
+		.save_capacity   = 1,
+		.use_board_table = 1,
+		.table_size = BOARD_BATT_NUM,
+		.board_batt_table = batt_table,
+		.discharge_table = &batt_table[BOARD_BATT_DISCHG_OFFSET],
+		.charge_table = &batt_table[BOARD_BATT_CHG_OFFSET],
+		.reference_voltage = BOARD_BAT_DEFINE_VALUE,
+		.pull_up_res = BOARD_BATT_PULLUP_RES,
+		.pull_down_res = BOARD_BATT_PULLDOWN_RES,
 };
 
 static struct platform_device rk30_device_adc_battery = {
@@ -1296,7 +1340,7 @@ static struct platform_device *devices[] __initdata = {
 #if defined(CONFIG_SEW868)
 	&rk30_device_sew868,
 #endif
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if defined(CONFIG_BATTERY_RK30_ADC) || defined(CONFIG_BATTERY_RK30_ADC_FAC)
  	&rk30_device_adc_battery,
 #endif
 #ifdef CONFIG_RFKILL_RK
