@@ -3086,10 +3086,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	 * enable sequence. */
 	intel_enable_pch_pll(intel_crtc);
 
-	if (HAS_PCH_LPT(dev)) {
-		DRM_DEBUG_KMS("LPT detected: programming iCLKIP\n");
-		lpt_program_iclkip(crtc);
-	} else if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_CPT(dev)) {
 		u32 sel;
 
 		temp = I915_READ(PCH_DPLL_SEL);
@@ -3126,8 +3123,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
 	I915_WRITE(TRANS_VSYNCSHIFT(pipe),  I915_READ(VSYNCSHIFT(pipe)));
 
-	if (!IS_HASWELL(dev))
-		intel_fdi_normal_train(crtc);
+	intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
