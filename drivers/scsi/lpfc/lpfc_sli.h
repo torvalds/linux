@@ -69,7 +69,9 @@ struct lpfc_iocbq {
 #define LPFC_USE_FCPWQIDX	0x80    /* Submit to specified FCPWQ index */
 #define DSS_SECURITY_OP		0x100	/* security IO */
 #define LPFC_IO_ON_TXCMPLQ	0x200	/* The IO is still on the TXCMPLQ */
-#define LPFC_IO_DIF		0x400	/* T10 DIF IO */
+#define LPFC_IO_DIF_PASS	0x400	/* T10 DIF IO pass-thru prot */
+#define LPFC_IO_DIF_STRIP	0x800	/* T10 DIF IO strip prot */
+#define LPFC_IO_DIF_INSERT	0x1000	/* T10 DIF IO insert prot */
 
 #define LPFC_FIP_ELS_ID_MASK	0xc000	/* ELS_ID range 0-3, non-shifted mask */
 #define LPFC_FIP_ELS_ID_SHIFT	14
