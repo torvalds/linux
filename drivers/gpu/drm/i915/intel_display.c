@@ -1732,7 +1732,8 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	val = TRANS_ENABLE;
 	pipeconf_val = I915_READ(PIPECONF(cpu_transcoder));
 
-	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
+	if ((pipeconf_val & PIPECONF_INTERLACE_MASK_HSW) ==
+	    PIPECONF_INTERLACED_ILK)
 		val |= TRANS_INTERLACED;
 	else
 		val |= TRANS_PROGRESSIVE;
