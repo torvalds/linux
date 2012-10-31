@@ -7277,6 +7277,7 @@ EXPORT_SYMBOL_GPL(md_allow_write);
 
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
+#define UPDATE_FREQUENCY (5*60*HZ)
 void md_do_sync(struct md_thread *thread)
 {
 	struct mddev *mddev = thread->mddev;
@@ -7285,6 +7286,7 @@ void md_do_sync(struct md_thread *thread)
 		 window;
 	sector_t max_sectors,j, io_sectors;
 	unsigned long mark[SYNC_MARKS];
+	unsigned long update_time;
 	sector_t mark_cnt[SYNC_MARKS];
 	int last_mark,m;
 	struct list_head *tmp;
@@ -7444,6 +7446,7 @@ void md_do_sync(struct md_thread *thread)
 	mddev->curr_resync_completed = j;
 	sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 	md_new_event(mddev);
+	update_time = jiffies;
 
 	blk_start_plug(&plug);
 	while (j < max_sectors) {
@@ -7455,6 +7458,7 @@ void md_do_sync(struct md_thread *thread)
 		    ((mddev->curr_resync > mddev->curr_resync_completed &&
 		      (mddev->curr_resync - mddev->curr_resync_completed)
 		      > (max_sectors >> 4)) ||
+		     time_after_eq(jiffies, update_time + UPDATE_FREQUENCY) ||
 		     (j - mddev->curr_resync_completed)*2
 		     >= mddev->resync_max - mddev->curr_resync_completed
 			    )) {
@@ -7465,6 +7469,7 @@ void md_do_sync(struct md_thread *thread)
 			if (test_bit(MD_RECOVERY_SYNC, &mddev->recovery) &&
 			    j > mddev->recovery_cp)
 				mddev->recovery_cp = j;
+			update_time = jiffies;
 			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
