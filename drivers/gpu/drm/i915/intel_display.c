@@ -1579,14 +1579,14 @@ out_unlock:
 }
 
 /**
- * intel_enable_pch_pll - enable PCH PLL
+ * ironlake_enable_pch_pll - enable PCH PLL
  * @dev_priv: i915 private structure
  * @pipe: pipe PLL to enable
  *
  * The PCH PLL needs to be enabled before the PCH transcoder, since it
  * drives the transcoder clock.
  */
-static void intel_enable_pch_pll(struct intel_crtc *intel_crtc)
+static void ironlake_enable_pch_pll(struct intel_crtc *intel_crtc)
 {
 	struct drm_i915_private *dev_priv = intel_crtc->base.dev->dev_private;
 	struct intel_pch_pll *pll;
@@ -3084,7 +3084,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	 * Note that enable_pch_pll tries to do the right thing, but get_pch_pll
 	 * unconditionally resets the pll - we need that to have the right LVDS
 	 * enable sequence. */
-	intel_enable_pch_pll(intel_crtc);
+	ironlake_enable_pch_pll(intel_crtc);
 
 	if (HAS_PCH_CPT(dev)) {
 		u32 sel;
@@ -3188,7 +3188,7 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	 * Note that enable_pch_pll tries to do the right thing, but get_pch_pll
 	 * unconditionally resets the pll - we need that to have the right LVDS
 	 * enable sequence. */
-	intel_enable_pch_pll(intel_crtc);
+	ironlake_enable_pch_pll(intel_crtc);
 
 	lpt_program_iclkip(crtc);
 
