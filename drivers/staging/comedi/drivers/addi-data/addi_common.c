@@ -95,7 +95,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int irq;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
 	struct pcilst_struct *card = NULL;
-	unsigned char pci_bus, pci_slot, pci_func;
 	int i_Dma = 0;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -122,8 +121,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	devpriv->allocated = 1;
 
-	if ((i_pci_card_data(card, &pci_bus, &pci_slot, &pci_func, &io_addr[0],
-				&irq)) < 0) {
+	if ((i_pci_card_data(card, &io_addr[0], &irq)) < 0) {
 		i_pci_card_free(card);
 		return -EIO;
 	}

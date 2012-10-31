@@ -231,8 +231,7 @@ struct pcilst_struct *ptr_select_and_alloc_pci_card(unsigned short vendor_id,
 int pci_card_alloc(struct pcilst_struct *amcc, int master);
 int i_pci_card_free(struct pcilst_struct *amcc);
 int i_pci_card_data(struct pcilst_struct *amcc,
-		    unsigned char *pci_bus, unsigned char *pci_slot,
-		    unsigned char *pci_func, resource_size_t * io_addr,
+		    resource_size_t *io_addr,
 		    unsigned int *irq);
 
 /****************************************************************************/
@@ -383,17 +382,13 @@ int i_pci_card_free(struct pcilst_struct *amcc)
 /****************************************************************************/
 /* return all card information for driver */
 int i_pci_card_data(struct pcilst_struct *amcc,
-		    unsigned char *pci_bus, unsigned char *pci_slot,
-		    unsigned char *pci_func, resource_size_t * io_addr,
+		    resource_size_t *io_addr,
 		    unsigned int *irq)
 {
 	int i;
 
 	if (!amcc)
 		return -1;
-	*pci_bus = amcc->pci_bus;
-	*pci_slot = amcc->pci_slot;
-	*pci_func = amcc->pci_func;
 	for (i = 0; i < 5; i++)
 		io_addr[i] = amcc->io_addr[i];
 	*irq = amcc->irq;
