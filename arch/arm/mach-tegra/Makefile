@@ -8,6 +8,7 @@ obj-y					+= pmc.o
 obj-y					+= flowctrl.o
 obj-y					+= powergate.o
 obj-y					+= apbio.o
+obj-y					+= pm.o
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
 obj-$(CONFIG_CPU_IDLE)			+= sleep.o
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)         += tegra20_clocks.o

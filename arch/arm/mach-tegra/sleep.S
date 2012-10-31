@@ -25,9 +25,38 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
+#include <asm/cp15.h>
 
 #include "iomap.h"
 
 #include "flowctrl.h"
 #include "sleep.h"
 
+#ifdef CONFIG_PM_SLEEP
+/*
+ * tegra_disable_clean_inv_dcache
+ *
+ * disable, clean & invalidate the D-cache
+ *
+ * Corrupted registers: r1-r3, r6, r8, r9-r11
+ */
+ENTRY(tegra_disable_clean_inv_dcache)
+	stmfd	sp!, {r0, r4-r5, r7, r9-r11, lr}
+	dmb					@ ensure ordering
+
+	/* Disable the D-cache */
+	mrc	p15, 0, r2, c1, c0, 0
+	bic	r2, r2, #CR_C
+	mcr	p15, 0, r2, c1, c0, 0
+	isb
+
+	/* Flush the D-cache */
+	bl	v7_flush_dcache_louis
+
+	/* Trun off coherency */
+	exit_smp r4, r5
+
+	ldmfd	sp!, {r0, r4-r5, r7, r9-r11, pc}
+ENDPROC(tegra_disable_clean_inv_dcache)
+
+#endif

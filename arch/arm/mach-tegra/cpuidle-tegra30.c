@@ -22,20 +22,106 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/cpuidle.h>
+#include <linux/cpu_pm.h>
+#include <linux/clockchips.h>
 
 #include <asm/cpuidle.h>
+#include <asm/proc-fns.h>
+#include <asm/suspend.h>
+#include <asm/smp_plat.h>
+
+#include "pm.h"
+#include "sleep.h"
+
+#ifdef CONFIG_PM_SLEEP
+static int tegra30_idle_lp2(struct cpuidle_device *dev,
+			    struct cpuidle_driver *drv,
+			    int index);
+#endif
 
 static struct cpuidle_driver tegra_idle_driver = {
 	.name = "tegra_idle",
 	.owner = THIS_MODULE,
 	.en_core_tk_irqen = 1,
+#ifdef CONFIG_PM_SLEEP
+	.state_count = 2,
+#else
 	.state_count = 1,
+#endif
 	.states = {
 		[0] = ARM_CPUIDLE_WFI_STATE_PWR(600),
+#ifdef CONFIG_PM_SLEEP
+		[1] = {
+			.enter			= tegra30_idle_lp2,
+			.exit_latency		= 2000,
+			.target_residency	= 2200,
+			.power_usage		= 0,
+			.flags			= CPUIDLE_FLAG_TIME_VALID,
+			.name			= "powered-down",
+			.desc			= "CPU power gated",
+		},
+#endif
 	},
 };
 
 static DEFINE_PER_CPU(struct cpuidle_device, tegra_idle_device);
+
+#ifdef CONFIG_PM_SLEEP
+#ifdef CONFIG_SMP
+static bool tegra30_cpu_core_power_down(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv,
+					int index)
+{
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &dev->cpu);
+
+	smp_wmb();
+
+	save_cpu_arch_register();
+
+	cpu_suspend(0, tegra30_sleep_cpu_secondary_finish);
+
+	restore_cpu_arch_register();
+
+	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &dev->cpu);
+
+	return true;
+}
+#else
+static inline bool tegra30_cpu_core_power_down(struct cpuidle_device *dev,
+					       struct cpuidle_driver *drv,
+					       int index)
+{
+	return true;
+}
+#endif
+
+static int __cpuinit tegra30_idle_lp2(struct cpuidle_device *dev,
+				      struct cpuidle_driver *drv,
+				      int index)
+{
+	u32 cpu = is_smp() ? cpu_logical_map(dev->cpu) : dev->cpu;
+	bool entered_lp2 = false;
+
+	local_fiq_disable();
+
+	tegra_set_cpu_in_lp2(cpu);
+	cpu_pm_enter();
+
+	if (cpu == 0)
+		cpu_do_idle();
+	else
+		entered_lp2 = tegra30_cpu_core_power_down(dev, drv, index);
+
+	cpu_pm_exit();
+	tegra_clear_cpu_in_lp2(cpu);
+
+	local_fiq_enable();
+
+	smp_rmb();
+
+	return (entered_lp2) ? index : 0;
+}
+#endif
 
 int __init tegra30_cpuidle_init(void)
 {
