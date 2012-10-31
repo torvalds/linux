@@ -48,11 +48,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define COMEDI_SUBD_TTLIO	11	/* Digital Input Output But TTL */
 #endif
 
-#ifndef ADDIDATA_ENABLE
-#define ADDIDATA_ENABLE				1
-#define ADDIDATA_DISABLE			0
-#endif
-
 #define APCI3XXX_SINGLE				0
 #define APCI3XXX_DIFF				1
 #define APCI3XXX_CONFIGURATION			0

@@ -67,11 +67,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI2032_DIGITAL_OP_CC_INTERRUPT_ENABLE		0x2
 #define APCI2032_DIGITAL_OP_CC_INTERRUPT_DISABLE	0xfffffffd
 
-/* ADDIDATA Enable Disable */
-
-#define ADDIDATA_ENABLE					1
-#define ADDIDATA_DISABLE				0
-
 /* TIMER COUNTER WATCHDOG DEFINES */
 
 #define ADDIDATA_WATCHDOG				2

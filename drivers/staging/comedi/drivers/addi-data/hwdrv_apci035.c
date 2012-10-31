@@ -96,10 +96,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define ADDIDATA_UNIPOLAR		1
 #define ADDIDATA_BIPOLAR		2
 
-/* ADDIDATA Enable Disable */
-#define ADDIDATA_ENABLE			1
-#define ADDIDATA_DISABLE		0
-
 /* ANALOG INPUT RANGE */
 static struct comedi_lrange range_apci035_ai = {
 	8, {

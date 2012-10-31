@@ -67,10 +67,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI1032_DIGITAL_IP_INTERRUPT_ENABLE	0x4
 #define APCI1032_DIGITAL_IP_INTERRUPT_DISABLE	0xfffffffb
 
-/* ADDIDATA Enable Disable */
-#define ADDIDATA_ENABLE				1
-#define ADDIDATA_DISABLE			0
-
 static unsigned int ui_InterruptStatus;
 
 /*

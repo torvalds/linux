@@ -55,11 +55,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI2016_DIGITAL_OP		0x04
 #define APCI2016_DIGITAL_OP_RW		4
 
-/* ADDIDATA Enable Disable */
-
-#define ADDIDATA_ENABLE			1
-#define ADDIDATA_DISABLE		0
-
 /* TIMER COUNTER WATCHDOG DEFINES */
 
 #define ADDIDATA_WATCHDOG		2
