@@ -728,7 +728,7 @@ fsia_ick_out:
 static int fsi_hdmi_set_rate(struct device *dev, int rate, int enable)
 {
 	struct clk *fsib_clk;
-	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
+	struct clk *fdiv_clk = clk_get(NULL, "fsidivb");
 	long fsib_rate = 0;
 	long fdiv_rate = 0;
 	int ackmd_bpfmd;

@@ -481,7 +481,7 @@ static struct clk_mapping fsidiva_clk_mapping = {
 	.len	= 8,
 };
 
-struct clk sh7372_fsidiva_clk = {
+static struct clk fsidiva_clk = {
 	.ops		= &fsidiv_clk_ops,
 	.parent		= &div6_reparent_clks[DIV6_FSIA], /* late install */
 	.mapping	= &fsidiva_clk_mapping,
@@ -492,15 +492,15 @@ static struct clk_mapping fsidivb_clk_mapping = {
 	.len	= 8,
 };
 
-struct clk sh7372_fsidivb_clk = {
+static struct clk fsidivb_clk = {
 	.ops		= &fsidiv_clk_ops,
 	.parent		= &div6_reparent_clks[DIV6_FSIB],  /* late install */
 	.mapping	= &fsidivb_clk_mapping,
 };
 
 static struct clk *late_main_clks[] = {
-	&sh7372_fsidiva_clk,
-	&sh7372_fsidivb_clk,
+	&fsidiva_clk,
+	&fsidivb_clk,
 };
 
 enum { MSTP001, MSTP000,
@@ -583,6 +583,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc1_clk", &pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk", &pllc1_div2_clk),
 	CLKDEV_CON_ID("pllc2_clk", &sh7372_pllc2_clk),
+	CLKDEV_CON_ID("fsidiva", &fsidiva_clk),
+	CLKDEV_CON_ID("fsidivb", &fsidivb_clk),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk", &div4_clks[DIV4_I]),
