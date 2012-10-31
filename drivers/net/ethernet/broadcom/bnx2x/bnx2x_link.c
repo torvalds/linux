@@ -3545,12 +3545,11 @@ static void bnx2x_warpcore_set_lpi_passthrough(struct bnx2x_phy *phy,
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 					struct link_params *params,
 					struct link_vars *vars) {
-	u16 val16 = 0, lane, i;
+	u16 val16 = 0, lane, i, cl72_ctrl;
 	struct bnx2x *bp = params->bp;
 	static struct bnx2x_reg_set reg_set[] = {
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2, 0x7},
 		{MDIO_AN_DEVAD, MDIO_WC_REG_PAR_DET_10G_CTRL, 0},
-		{MDIO_WC_DEVAD, MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, 0},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_XGXSBLK1_LANECTRL0, 0xff},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_XGXSBLK1_LANECTRL1, 0x5555},
 		{MDIO_PMA_DEVAD, MDIO_WC_REG_IEEE0BLK_AUTONEGNP, 0x0},
@@ -3564,6 +3563,13 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
 		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
 				 reg_set[i].val);
+
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+		MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, &cl72_ctrl);
+	cl72_ctrl &= 0xf8ff;
+	cl72_ctrl |= 0x3800;
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+		MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, cl72_ctrl);
 
 	/* Check adding advertisement for 1G KX */
 	if (((vars->line_speed == SPEED_AUTO_NEG) &&
