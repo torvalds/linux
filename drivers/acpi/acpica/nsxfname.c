@@ -53,8 +53,8 @@
 ACPI_MODULE_NAME("nsxfname")
 
 /* Local prototypes */
-static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
-				    struct acpica_device_id *source,
+static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
+				    struct acpi_pnp_device_id *source,
 				    char *string_area);
 
 /******************************************************************************
@@ -219,20 +219,20 @@ ACPI_EXPORT_SYMBOL(acpi_get_name)
  *
  * FUNCTION:    acpi_ns_copy_device_id
  *
- * PARAMETERS:  dest                - Pointer to the destination DEVICE_ID
- *              source              - Pointer to the source DEVICE_ID
+ * PARAMETERS:  dest                - Pointer to the destination PNP_DEVICE_ID
+ *              source              - Pointer to the source PNP_DEVICE_ID
  *              string_area         - Pointer to where to copy the dest string
  *
  * RETURN:      Pointer to the next string area
  *
- * DESCRIPTION: Copy a single DEVICE_ID, including the string data.
+ * DESCRIPTION: Copy a single PNP_DEVICE_ID, including the string data.
  *
  ******************************************************************************/
-static char *acpi_ns_copy_device_id(struct acpica_device_id *dest,
-				    struct acpica_device_id *source,
+static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
+				    struct acpi_pnp_device_id *source,
 				    char *string_area)
 {
-	/* Create the destination DEVICE_ID */
+	/* Create the destination PNP_DEVICE_ID */
 
 	dest->string = string_area;
 	dest->length = source->length;
@@ -269,9 +269,9 @@ acpi_get_object_info(acpi_handle handle,
 {
 	struct acpi_namespace_node *node;
 	struct acpi_device_info *info;
-	struct acpica_device_id_list *cid_list = NULL;
-	struct acpica_device_id *hid = NULL;
-	struct acpica_device_id *uid = NULL;
+	struct acpi_pnp_device_id_list *cid_list = NULL;
+	struct acpi_pnp_device_id *hid = NULL;
+	struct acpi_pnp_device_id *uid = NULL;
 	char *next_id_string;
 	acpi_object_type type;
 	acpi_name name;
@@ -348,7 +348,7 @@ acpi_get_object_info(acpi_handle handle,
 
 			info_size +=
 			    (cid_list->list_size -
-			     sizeof(struct acpica_device_id_list));
+			     sizeof(struct acpi_pnp_device_id_list));
 			valid |= ACPI_VALID_CID;
 		}
 	}
@@ -418,11 +418,11 @@ acpi_get_object_info(acpi_handle handle,
 	next_id_string = ACPI_CAST_PTR(char, info->compatible_id_list.ids);
 	if (cid_list) {
 
-		/* Point past the CID DEVICE_ID array */
+		/* Point past the CID PNP_DEVICE_ID array */
 
 		next_id_string +=
 		    ((acpi_size) cid_list->count *
-		     sizeof(struct acpica_device_id));
+		     sizeof(struct acpi_pnp_device_id));
 	}
 
 	/*

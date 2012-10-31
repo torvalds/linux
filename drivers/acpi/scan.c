@@ -1185,7 +1185,7 @@ static void acpi_device_set_id(struct acpi_device *device)
 {
 	acpi_status status;
 	struct acpi_device_info *info;
-	struct acpica_device_id_list *cid_list;
+	struct acpi_pnp_device_id_list *cid_list;
 	int i;
 
 	switch (device->device_type) {

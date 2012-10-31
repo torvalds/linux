@@ -1020,15 +1020,15 @@ u32 (*acpi_interface_handler) (acpi_string interface_name, u32 supported);
 
 /* Structures used for device/processor HID, UID, CID */
 
-struct acpica_device_id {
+struct acpi_pnp_device_id {
 	u32 length;		/* Length of string + null */
 	char *string;
 };
 
-struct acpica_device_id_list {
+struct acpi_pnp_device_id_list {
 	u32 count;		/* Number of IDs in Ids array */
 	u32 list_size;		/* Size of list, including ID strings */
-	struct acpica_device_id ids[1];	/* ID array */
+	struct acpi_pnp_device_id ids[1];	/* ID array */
 };
 
 /*
@@ -1046,9 +1046,9 @@ struct acpi_device_info {
 	u8 lowest_dstates[5];	/* _sx_w values: 0xFF indicates not valid */
 	u32 current_status;	/* _STA value */
 	u64 address;	/* _ADR value */
-	struct acpica_device_id hardware_id;	/* _HID value */
-	struct acpica_device_id unique_id;	/* _UID value */
-	struct acpica_device_id_list compatible_id_list;	/* _CID list <must be last> */
+	struct acpi_pnp_device_id hardware_id;	/* _HID value */
+	struct acpi_pnp_device_id unique_id;	/* _UID value */
+	struct acpi_pnp_device_id_list compatible_id_list;	/* _CID list <must be last> */
 };
 
 /* Values for Flags field above (acpi_get_object_info) */

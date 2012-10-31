@@ -350,8 +350,8 @@ acpi_ev_pci_config_region_setup(acpi_handle handle,
 static u8 acpi_ev_is_pci_root_bridge(struct acpi_namespace_node *node)
 {
 	acpi_status status;
-	struct acpica_device_id *hid;
-	struct acpica_device_id_list *cid;
+	struct acpi_pnp_device_id *hid;
+	struct acpi_pnp_device_id_list *cid;
 	u32 i;
 	u8 match;
 

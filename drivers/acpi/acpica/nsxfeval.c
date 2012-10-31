@@ -542,8 +542,8 @@ acpi_ns_get_device_callback(acpi_handle obj_handle,
 	acpi_status status;
 	struct acpi_namespace_node *node;
 	u32 flags;
-	struct acpica_device_id *hid;
-	struct acpica_device_id_list *cid;
+	struct acpi_pnp_device_id *hid;
+	struct acpi_pnp_device_id_list *cid;
 	u32 i;
 	u8 found;
 	int no_match;

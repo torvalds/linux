@@ -67,10 +67,10 @@ ACPI_MODULE_NAME("utids")
  ******************************************************************************/
 acpi_status
 acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id **return_id)
+		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
-	struct acpica_device_id *hid;
+	struct acpi_pnp_device_id *hid;
 	u32 length;
 	acpi_status status;
 
@@ -94,16 +94,17 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 	/* Allocate a buffer for the HID */
 
 	hid =
-	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpica_device_id) +
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
 				 (acpi_size) length);
 	if (!hid) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
 	}
 
-	/* Area for the string starts after DEVICE_ID struct */
+	/* Area for the string starts after PNP_DEVICE_ID struct */
 
-	hid->string = ACPI_ADD_PTR(char, hid, sizeof(struct acpica_device_id));
+	hid->string =
+	    ACPI_ADD_PTR(char, hid, sizeof(struct acpi_pnp_device_id));
 
 	/* Convert EISAID to a string or simply copy existing string */
 
@@ -144,10 +145,10 @@ cleanup:
 
 acpi_status
 acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id **return_id)
+		    struct acpi_pnp_device_id **return_id)
 {
 	union acpi_operand_object *obj_desc;
-	struct acpica_device_id *uid;
+	struct acpi_pnp_device_id *uid;
 	u32 length;
 	acpi_status status;
 
@@ -171,16 +172,17 @@ acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 	/* Allocate a buffer for the UID */
 
 	uid =
-	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpica_device_id) +
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
 				 (acpi_size) length);
 	if (!uid) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
 	}
 
-	/* Area for the string starts after DEVICE_ID struct */
+	/* Area for the string starts after PNP_DEVICE_ID struct */
 
-	uid->string = ACPI_ADD_PTR(char, uid, sizeof(struct acpica_device_id));
+	uid->string =
+	    ACPI_ADD_PTR(char, uid, sizeof(struct acpi_pnp_device_id));
 
 	/* Convert an Integer to string, or just copy an existing string */
 
@@ -226,11 +228,11 @@ cleanup:
 
 acpi_status
 acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
-		    struct acpica_device_id_list **return_cid_list)
+		    struct acpi_pnp_device_id_list **return_cid_list)
 {
 	union acpi_operand_object **cid_objects;
 	union acpi_operand_object *obj_desc;
-	struct acpica_device_id_list *cid_list;
+	struct acpi_pnp_device_id_list *cid_list;
 	char *next_id_string;
 	u32 string_area_size;
 	u32 length;
@@ -288,11 +290,12 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 	/*
 	 * Now that we know the length of the CIDs, allocate return buffer:
 	 * 1) Size of the base structure +
-	 * 2) Size of the CID DEVICE_ID array +
+	 * 2) Size of the CID PNP_DEVICE_ID array +
 	 * 3) Size of the actual CID strings
 	 */
-	cid_list_size = sizeof(struct acpica_device_id_list) +
-	    ((count - 1) * sizeof(struct acpica_device_id)) + string_area_size;
+	cid_list_size = sizeof(struct acpi_pnp_device_id_list) +
+	    ((count - 1) * sizeof(struct acpi_pnp_device_id)) +
+	    string_area_size;
 
 	cid_list = ACPI_ALLOCATE_ZEROED(cid_list_size);
 	if (!cid_list) {
@@ -300,10 +303,10 @@ acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
 		goto cleanup;
 	}
 
-	/* Area for CID strings starts after the CID DEVICE_ID array */
+	/* Area for CID strings starts after the CID PNP_DEVICE_ID array */
 
 	next_id_string = ACPI_CAST_PTR(char, cid_list->ids) +
-	    ((acpi_size) count * sizeof(struct acpica_device_id));
+	    ((acpi_size) count * sizeof(struct acpi_pnp_device_id));
 
 	/* Copy/convert the CIDs to the return buffer */
 
