@@ -77,7 +77,7 @@ acpi_tb_find_table(char *signature,
 	/* Normalize the input strings */
 
 	ACPI_MEMSET(&header, 0, sizeof(struct acpi_table_header));
-	ACPI_STRNCPY(header.signature, signature, ACPI_NAME_SIZE);
+	ACPI_MOVE_NAME(header.signature, signature);
 	ACPI_STRNCPY(header.oem_id, oem_id, ACPI_OEM_ID_SIZE);
 	ACPI_STRNCPY(header.oem_table_id, oem_table_id, ACPI_OEM_TABLE_ID_SIZE);
 

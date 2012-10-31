@@ -202,8 +202,7 @@ acpi_get_name(acpi_handle handle, u32 name_type, struct acpi_buffer * buffer)
 
 	/* Just copy the ACPI name from the Node and zero terminate it */
 
-	ACPI_STRNCPY(buffer->pointer, acpi_ut_get_node_name(node),
-		     ACPI_NAME_SIZE);
+	ACPI_MOVE_NAME(buffer->pointer, acpi_ut_get_node_name(node));
 	((char *)buffer->pointer)[ACPI_NAME_SIZE] = 0;
 	status = AE_OK;
 
