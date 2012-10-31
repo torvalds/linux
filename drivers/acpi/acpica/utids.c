@@ -127,6 +127,73 @@ cleanup:
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ut_execute_SUB
+ *
+ * PARAMETERS:  device_node         - Node for the device
+ *              return_id           - Where the _SUB is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Executes the _SUB control method that returns the subsystem
+ *              ID of the device. The _SUB value is always a string containing
+ *              either a valid PNP or ACPI ID.
+ *
+ *              NOTE: Internal function, no parameter validation
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ut_execute_SUB(struct acpi_namespace_node *device_node,
+		    struct acpi_pnp_device_id **return_id)
+{
+	union acpi_operand_object *obj_desc;
+	struct acpi_pnp_device_id *sub;
+	u32 length;
+	acpi_status status;
+
+	ACPI_FUNCTION_TRACE(ut_execute_SUB);
+
+	status = acpi_ut_evaluate_object(device_node, METHOD_NAME__SUB,
+					 ACPI_BTYPE_STRING, &obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
+
+	/* Get the size of the String to be returned, includes null terminator */
+
+	length = obj_desc->string.length + 1;
+
+	/* Allocate a buffer for the SUB */
+
+	sub =
+	    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_pnp_device_id) +
+				 (acpi_size) length);
+	if (!sub) {
+		status = AE_NO_MEMORY;
+		goto cleanup;
+	}
+
+	/* Area for the string starts after PNP_DEVICE_ID struct */
+
+	sub->string =
+	    ACPI_ADD_PTR(char, sub, sizeof(struct acpi_pnp_device_id));
+
+	/* Simply copy existing string */
+
+	ACPI_STRCPY(sub->string, obj_desc->string.pointer);
+	sub->length = length;
+	*return_id = sub;
+
+      cleanup:
+
+	/* On exit, we must delete the return object */
+
+	acpi_ut_remove_reference(obj_desc);
+	return_ACPI_STATUS(status);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ut_execute_UID
  *
  * PARAMETERS:  device_node         - Node for the device

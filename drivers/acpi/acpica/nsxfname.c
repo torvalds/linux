@@ -231,6 +231,7 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
 				    struct acpi_pnp_device_id *source,
 				    char *string_area)
 {
+
 	/* Create the destination PNP_DEVICE_ID */
 
 	dest->string = string_area;
@@ -255,8 +256,8 @@ static char *acpi_ns_copy_device_id(struct acpi_pnp_device_id *dest,
  *              namespace node and possibly by running several standard
  *              control methods (Such as in the case of a device.)
  *
- * For Device and Processor objects, run the Device _HID, _UID, _CID, _STA,
- * _ADR, _sx_w, and _sx_d methods.
+ * For Device and Processor objects, run the Device _HID, _UID, _CID, _SUB,
+ * _STA, _ADR, _sx_w, and _sx_d methods.
  *
  * Note: Allocates the return buffer, must be freed by the caller.
  *
@@ -271,6 +272,7 @@ acpi_get_object_info(acpi_handle handle,
 	struct acpi_pnp_device_id_list *cid_list = NULL;
 	struct acpi_pnp_device_id *hid = NULL;
 	struct acpi_pnp_device_id *uid = NULL;
+	struct acpi_pnp_device_id *sub = NULL;
 	char *next_id_string;
 	acpi_object_type type;
 	acpi_name name;
@@ -315,7 +317,7 @@ acpi_get_object_info(acpi_handle handle,
 	if ((type == ACPI_TYPE_DEVICE) || (type == ACPI_TYPE_PROCESSOR)) {
 		/*
 		 * Get extra info for ACPI Device/Processor objects only:
-		 * Run the Device _HID, _UID, and _CID methods.
+		 * Run the Device _HID, _UID, _SUB, and _CID methods.
 		 *
 		 * Note: none of these methods are required, so they may or may
 		 * not be present for this device. The Info->Valid bitfield is used
@@ -336,6 +338,14 @@ acpi_get_object_info(acpi_handle handle,
 		if (ACPI_SUCCESS(status)) {
 			info_size += uid->length;
 			valid |= ACPI_VALID_UID;
+		}
+
+		/* Execute the Device._SUB method */
+
+		status = acpi_ut_execute_SUB(node, &sub);
+		if (ACPI_SUCCESS(status)) {
+			info_size += sub->length;
+			valid |= ACPI_VALID_SUB;
 		}
 
 		/* Execute the Device._CID method */
@@ -425,8 +435,9 @@ acpi_get_object_info(acpi_handle handle,
 	}
 
 	/*
-	 * Copy the HID, UID, and CIDs to the return buffer. The variable-length
-	 * strings are copied to the reserved area at the end of the buffer.
+	 * Copy the HID, UID, SUB, and CIDs to the return buffer.
+	 * The variable-length strings are copied to the reserved area
+	 * at the end of the buffer.
 	 *
 	 * For HID and CID, check if the ID is a PCI Root Bridge.
 	 */
@@ -442,6 +453,11 @@ acpi_get_object_info(acpi_handle handle,
 	if (uid) {
 		next_id_string = acpi_ns_copy_device_id(&info->unique_id,
 							uid, next_id_string);
+	}
+
+	if (sub) {
+		next_id_string = acpi_ns_copy_device_id(&info->subsystem_id,
+							sub, next_id_string);
 	}
 
 	if (cid_list) {
@@ -479,6 +495,9 @@ acpi_get_object_info(acpi_handle handle,
 	}
 	if (uid) {
 		ACPI_FREE(uid);
+	}
+	if (sub) {
+		ACPI_FREE(sub);
 	}
 	if (cid_list) {
 		ACPI_FREE(cid_list);
