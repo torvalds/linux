@@ -36,11 +36,9 @@
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
 
-#ifdef CONFIG_IXGBE_PTP
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#endif /* CONFIG_IXGBE_PTP */
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
@@ -572,7 +570,6 @@ struct ixgbe_adapter {
 	u32 interrupt_event;
 	u32 led_reg;
 
-#ifdef CONFIG_IXGBE_PTP
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	unsigned long last_overflow_check;
@@ -581,7 +578,6 @@ struct ixgbe_adapter {
 	struct timecounter tc;
 	int rx_hwtstamp_filter;
 	u32 base_incval;
-#endif /* CONFIG_IXGBE_PTP */
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
@@ -742,7 +738,6 @@ static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
 	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
 }
 
-#ifdef CONFIG_IXGBE_PTP
 extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
@@ -756,6 +751,5 @@ extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 extern void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_reset(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
-#endif /* CONFIG_IXGBE_PTP */
 
 #endif /* _IXGBE_H_ */

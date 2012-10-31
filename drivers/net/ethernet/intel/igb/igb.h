@@ -34,11 +34,9 @@
 #include "e1000_mac.h"
 #include "e1000_82575.h"
 
-#ifdef CONFIG_IGB_PTP
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#endif /* CONFIG_IGB_PTP */
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 
@@ -376,7 +374,6 @@ struct igb_adapter {
 	u32 wvbr;
 	u32 *shadow_vfta;
 
-#ifdef CONFIG_IGB_PTP
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
 	struct delayed_work ptp_overflow_work;
@@ -385,7 +382,6 @@ struct igb_adapter {
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
-#endif /* CONFIG_IGB_PTP */
 
 	char fw_version[32];
 };
@@ -439,7 +435,6 @@ extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_power_up_link(struct igb_adapter *);
 extern void igb_set_fw_version(struct igb_adapter *);
-#ifdef CONFIG_IGB_PTP
 extern void igb_ptp_init(struct igb_adapter *adapter);
 extern void igb_ptp_stop(struct igb_adapter *adapter);
 extern void igb_ptp_reset(struct igb_adapter *adapter);
@@ -461,7 +456,6 @@ static inline void igb_ptp_rx_hwtstamp(struct igb_q_vector *q_vector,
 
 extern int igb_ptp_hwtstamp_ioctl(struct net_device *netdev,
 				  struct ifreq *ifr, int cmd);
-#endif /* CONFIG_IGB_PTP */
 
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {

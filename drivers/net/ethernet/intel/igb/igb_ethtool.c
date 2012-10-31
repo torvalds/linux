@@ -2310,7 +2310,6 @@ static int igb_get_ts_info(struct net_device *dev,
 	struct igb_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
-#ifdef CONFIG_IGB_PTP
 	case e1000_82576:
 	case e1000_82580:
 	case e1000_i350:
@@ -2346,7 +2345,6 @@ static int igb_get_ts_info(struct net_device *dev,
 				(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 
 		return 0;
-#endif /* CONFIG_IGB_PTP */
 	default:
 		return -EOPNOTSUPP;
 	}

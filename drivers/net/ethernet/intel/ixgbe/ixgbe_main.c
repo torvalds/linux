@@ -841,10 +841,8 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
-#ifdef CONFIG_IXGBE_PTP
 		if (unlikely(tx_buffer->tx_flags & IXGBE_TX_FLAGS_TSTAMP))
 			ixgbe_ptp_tx_hwtstamp(q_vector, tx_buffer->skb);
-#endif
 
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
@@ -1432,9 +1430,7 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
 
-#ifdef CONFIG_IXGBE_PTP
 	ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
-#endif
 
 	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
 	    ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
@@ -2386,10 +2382,8 @@ static inline void ixgbe_irq_enable(struct ixgbe_adapter *adapter, bool queues,
 		break;
 	}
 
-#ifdef CONFIG_IXGBE_PTP
 	if (adapter->hw.mac.type == ixgbe_mac_X540)
 		mask |= IXGBE_EIMS_TIMESYNC;
-#endif
 
 	if ((adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) &&
 	    !(adapter->flags2 & IXGBE_FLAG2_FDIR_REQUIRES_REINIT))
@@ -2455,10 +2449,8 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 
 	ixgbe_check_fan_failure(adapter, eicr);
 
-#ifdef CONFIG_IXGBE_PTP
 	if (unlikely(eicr & IXGBE_EICR_TIMESYNC))
 		ixgbe_ptp_check_pps_event(adapter, eicr);
-#endif
 
 	/* re-enable the original interrupt state, no lsc, no queues */
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
@@ -2650,10 +2642,8 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	}
 
 	ixgbe_check_fan_failure(adapter, eicr);
-#ifdef CONFIG_IXGBE_PTP
 	if (unlikely(eicr & IXGBE_EICR_TIMESYNC))
 		ixgbe_ptp_check_pps_event(adapter, eicr);
-#endif
 
 	/* would disable interrupts here but EIAM disabled it */
 	napi_schedule(&q_vector->napi);
@@ -4251,10 +4241,8 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	if (hw->mac.san_mac_rar_index)
 		hw->mac.ops.set_vmdq_san_mac(hw, VMDQ_P(0));
 
-#ifdef CONFIG_IXGBE_PTP
 	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
 		ixgbe_ptp_reset(adapter);
-#endif
 }
 
 /**
@@ -4961,9 +4949,7 @@ static int ixgbe_open(struct net_device *netdev)
 	if (err)
 		goto err_set_queues;
 
-#ifdef CONFIG_IXGBE_PTP
 	ixgbe_ptp_init(adapter);
-#endif /* CONFIG_IXGBE_PTP*/
 
 	ixgbe_up_complete(adapter);
 
@@ -4996,9 +4982,7 @@ static int ixgbe_close(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-#ifdef CONFIG_IXGBE_PTP
 	ixgbe_ptp_stop(adapter);
-#endif
 
 	ixgbe_down(adapter);
 	ixgbe_free_irq(adapter);
@@ -5561,10 +5545,8 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 		break;
 	}
 
-#ifdef CONFIG_IXGBE_PTP
 	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
 		ixgbe_ptp_start_cyclecounter(adapter);
-#endif
 
 	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
 	       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
@@ -5609,10 +5591,8 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 	if (ixgbe_is_sfp(hw) && hw->mac.type == ixgbe_mac_82598EB)
 		adapter->flags2 |= IXGBE_FLAG2_SEARCH_FOR_SFP;
 
-#ifdef CONFIG_IXGBE_PTP
 	if (adapter->flags2 & IXGBE_FLAG2_PTP_ENABLED)
 		ixgbe_ptp_start_cyclecounter(adapter);
-#endif
 
 	e_info(drv, "NIC Link is Down\n");
 	netif_carrier_off(netdev);
@@ -5917,9 +5897,7 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_watchdog_subtask(adapter);
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
-#ifdef CONFIG_IXGBE_PTP
 	ixgbe_ptp_overflow_check(adapter);
-#endif
 
 	ixgbe_service_event_complete(adapter);
 }
@@ -6072,10 +6050,8 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 	if (tx_flags & IXGBE_TX_FLAGS_HW_VLAN)
 		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_DCMD_VLE);
 
-#ifdef CONFIG_IXGBE_PTP
 	if (tx_flags & IXGBE_TX_FLAGS_TSTAMP)
 		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_MAC_TSTAMP);
-#endif
 
 	/* set segmentation enable bits for TSO/FSO */
 #ifdef IXGBE_FCOE
@@ -6477,12 +6453,10 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 
 	skb_tx_timestamp(skb);
 
-#ifdef CONFIG_IXGBE_PTP
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
 		tx_flags |= IXGBE_TX_FLAGS_TSTAMP;
 	}
-#endif
 
 #ifdef CONFIG_PCI_IOV
 	/*
@@ -6632,10 +6606,8 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
 	switch (cmd) {
-#ifdef CONFIG_IXGBE_PTP
 	case SIOCSHWTSTAMP:
 		return ixgbe_ptp_hwtstamp_ioctl(adapter, req, cmd);
-#endif
 	default:
 		return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
 	}

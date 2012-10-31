@@ -1708,10 +1708,8 @@ void igb_reset(struct igb_adapter *adapter)
 	/* Enable h/w to recognize an 802.1Q VLAN Ethernet packet */
 	wr32(E1000_VET, ETHERNET_IEEE_VLAN_TYPE);
 
-#ifdef CONFIG_IGB_PTP
 	/* Re-enable PTP, where applicable. */
 	igb_ptp_reset(adapter);
-#endif /* CONFIG_IGB_PTP */
 
 	igb_get_phy_info(hw);
 }
@@ -2119,10 +2117,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 #endif
 
-#ifdef CONFIG_IGB_PTP
 	/* do hw tstamp init after resetting */
 	igb_ptp_init(adapter);
-#endif /* CONFIG_IGB_PTP */
 
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
@@ -2197,9 +2193,7 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
-#ifdef CONFIG_IGB_PTP
 	igb_ptp_stop(adapter);
-#endif /* CONFIG_IGB_PTP */
 
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
@@ -3095,10 +3089,8 @@ void igb_configure_rx_ring(struct igb_adapter *adapter,
 	srrctl = IGB_RX_HDR_LEN << E1000_SRRCTL_BSIZEHDRSIZE_SHIFT;
 	srrctl |= IGB_RX_BUFSZ >> E1000_SRRCTL_BSIZEPKT_SHIFT;
 	srrctl |= E1000_SRRCTL_DESCTYPE_ADV_ONEBUF;
-#ifdef CONFIG_IGB_PTP
 	if (hw->mac.type >= e1000_82580)
 		srrctl |= E1000_SRRCTL_TIMESTAMP;
-#endif /* CONFIG_IGB_PTP */
 	/* Only set Drop Enable if we are supporting multiple queues */
 	if (adapter->vfs_allocated_count || adapter->num_rx_queues > 1)
 		srrctl |= E1000_SRRCTL_DROP_EN;
@@ -4134,11 +4126,9 @@ static __le32 igb_tx_cmd_type(u32 tx_flags)
 	if (tx_flags & IGB_TX_FLAGS_VLAN)
 		cmd_type |= cpu_to_le32(E1000_ADVTXD_DCMD_VLE);
 
-#ifdef CONFIG_IGB_PTP
 	/* set timestamp bit if present */
 	if (unlikely(tx_flags & IGB_TX_FLAGS_TSTAMP))
 		cmd_type |= cpu_to_le32(E1000_ADVTXD_MAC_TSTAMP);
-#endif /* CONFIG_IGB_PTP */
 
 	/* set segmentation bits for TSO */
 	if (tx_flags & IGB_TX_FLAGS_TSO)
@@ -4347,9 +4337,7 @@ static inline int igb_maybe_stop_tx(struct igb_ring *tx_ring, const u16 size)
 netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 				struct igb_ring *tx_ring)
 {
-#ifdef CONFIG_IGB_PTP
 	struct igb_adapter *adapter = netdev_priv(tx_ring->netdev);
-#endif /* CONFIG_IGB_PTP */
 	struct igb_tx_buffer *first;
 	int tso;
 	u32 tx_flags = 0;
@@ -4372,7 +4360,6 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 	first->bytecount = skb->len;
 	first->gso_segs = 1;
 
-#ifdef CONFIG_IGB_PTP
 	if (unlikely((skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) &&
 		     !(adapter->ptp_tx_skb))) {
 		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
@@ -4382,7 +4369,6 @@ netdev_tx_t igb_xmit_frame_ring(struct sk_buff *skb,
 		if (adapter->hw.mac.type == e1000_82576)
 			schedule_work(&adapter->ptp_tx_work);
 	}
-#endif /* CONFIG_IGB_PTP */
 
 	if (vlan_tx_tag_present(skb)) {
 		tx_flags |= IGB_TX_FLAGS_VLAN;
@@ -4776,7 +4762,6 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-#ifdef CONFIG_IGB_PTP
 	if (icr & E1000_ICR_TS) {
 		u32 tsicr = rd32(E1000_TSICR);
 
@@ -4787,7 +4772,6 @@ static irqreturn_t igb_msix_other(int irq, void *data)
 			schedule_work(&adapter->ptp_tx_work);
 		}
 	}
-#endif /* CONFIG_IGB_PTP */
 
 	wr32(E1000_EIMS, adapter->eims_other);
 
@@ -5539,7 +5523,6 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-#ifdef CONFIG_IGB_PTP
 	if (icr & E1000_ICR_TS) {
 		u32 tsicr = rd32(E1000_TSICR);
 
@@ -5550,7 +5533,6 @@ static irqreturn_t igb_intr_msi(int irq, void *data)
 			schedule_work(&adapter->ptp_tx_work);
 		}
 	}
-#endif /* CONFIG_IGB_PTP */
 
 	napi_schedule(&q_vector->napi);
 
@@ -5593,7 +5575,6 @@ static irqreturn_t igb_intr(int irq, void *data)
 			mod_timer(&adapter->watchdog_timer, jiffies + 1);
 	}
 
-#ifdef CONFIG_IGB_PTP
 	if (icr & E1000_ICR_TS) {
 		u32 tsicr = rd32(E1000_TSICR);
 
@@ -5604,7 +5585,6 @@ static irqreturn_t igb_intr(int irq, void *data)
 			schedule_work(&adapter->ptp_tx_work);
 		}
 	}
-#endif /* CONFIG_IGB_PTP */
 
 	napi_schedule(&q_vector->napi);
 
@@ -5889,14 +5869,12 @@ static bool igb_add_rx_frag(struct igb_ring *rx_ring,
 	if ((size <= IGB_RX_HDR_LEN) && !skb_is_nonlinear(skb)) {
 		unsigned char *va = page_address(page) + rx_buffer->page_offset;
 
-#ifdef CONFIG_IGB_PTP
 		if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
 			igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
 			va += IGB_TS_HDR_LEN;
 			size -= IGB_TS_HDR_LEN;
 		}
 
-#endif
 		memcpy(__skb_put(skb, size), va, ALIGN(size, sizeof(long)));
 
 		/* we can reuse buffer as-is, just make sure it is local */
@@ -6221,7 +6199,6 @@ static void igb_pull_tail(struct igb_ring *rx_ring,
 	 */
 	va = skb_frag_address(frag);
 
-#ifdef CONFIG_IGB_PTP
 	if (igb_test_staterr(rx_desc, E1000_RXDADV_STAT_TSIP)) {
 		/* retrieve timestamp from buffer */
 		igb_ptp_rx_pktstamp(rx_ring->q_vector, va, skb);
@@ -6236,7 +6213,6 @@ static void igb_pull_tail(struct igb_ring *rx_ring,
 		va += IGB_TS_HDR_LEN;
 	}
 
-#endif
 	/*
 	 * we need the header to contain the greater of either ETH_HLEN or
 	 * 60 bytes if the skb->len is less than 60 for skb_pad.
@@ -6317,9 +6293,7 @@ static void igb_process_skb_fields(struct igb_ring *rx_ring,
 
 	igb_rx_checksum(rx_ring, rx_desc, skb);
 
-#ifdef CONFIG_IGB_PTP
 	igb_ptp_rx_hwtstamp(rx_ring->q_vector, rx_desc, skb);
-#endif /* CONFIG_IGB_PTP */
 
 	if ((dev->features & NETIF_F_HW_VLAN_RX) &&
 	    igb_test_staterr(rx_desc, E1000_RXD_STAT_VP)) {
@@ -6553,10 +6527,8 @@ static int igb_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	case SIOCGMIIREG:
 	case SIOCSMIIREG:
 		return igb_mii_ioctl(netdev, ifr, cmd);
-#ifdef CONFIG_IGB_PTP
 	case SIOCSHWTSTAMP:
 		return igb_ptp_hwtstamp_ioctl(netdev, ifr, cmd);
-#endif /* CONFIG_IGB_PTP */
 	default:
 		return -EOPNOTSUPP;
 	}

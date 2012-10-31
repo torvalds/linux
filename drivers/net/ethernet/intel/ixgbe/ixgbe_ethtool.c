@@ -2667,7 +2667,6 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
 	switch (adapter->hw.mac.type) {
-#ifdef CONFIG_IXGBE_PTP
 	case ixgbe_mac_X540:
 	case ixgbe_mac_82599EB:
 		info->so_timestamping =
@@ -2690,7 +2689,6 @@ static int ixgbe_get_ts_info(struct net_device *dev,
 			(1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
 			(1 << HWTSTAMP_FILTER_PTP_V2_EVENT);
 		break;
-#endif /* CONFIG_IXGBE_PTP */
 	default:
 		return ethtool_op_get_ts_info(dev, info);
 		break;

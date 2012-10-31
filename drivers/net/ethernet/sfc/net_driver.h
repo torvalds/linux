@@ -868,9 +868,7 @@ struct efx_nic {
 	struct work_struct peer_work;
 #endif
 
-#ifdef CONFIG_SFC_PTP
 	struct efx_ptp_data *ptp_data;
-#endif
 
 	/* The following fields may be written more often */
 

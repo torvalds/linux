@@ -252,7 +252,6 @@ extern int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
 				     bool spoofchk);
 
 struct ethtool_ts_info;
-#ifdef CONFIG_SFC_PTP
 extern void efx_ptp_probe(struct efx_nic *efx);
 extern int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd);
 extern int efx_ptp_get_ts_info(struct net_device *net_dev,
@@ -260,31 +259,6 @@ extern int efx_ptp_get_ts_info(struct net_device *net_dev,
 extern bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 extern int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 extern void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev);
-#else
-static inline void efx_ptp_probe(struct efx_nic *efx) {}
-static inline int efx_ptp_ioctl(struct efx_nic *efx, struct ifreq *ifr, int cmd)
-{
-	return -EOPNOTSUPP;
-}
-static inline int efx_ptp_get_ts_info(struct net_device *net_dev,
-				      struct ethtool_ts_info *ts_info)
-{
-	ts_info->so_timestamping = (SOF_TIMESTAMPING_SOFTWARE |
-				    SOF_TIMESTAMPING_RX_SOFTWARE);
-	ts_info->phc_index = -1;
-
-	return 0;
-}
-static inline bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
-{
-	return false;
-}
-static inline int efx_ptp_tx(struct efx_nic *efx, struct sk_buff *skb)
-{
-	return NETDEV_TX_OK;
-}
-static inline void efx_ptp_event(struct efx_nic *efx, efx_qword_t *ev) {}
-#endif
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
