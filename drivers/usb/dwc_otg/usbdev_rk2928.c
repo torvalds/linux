@@ -8,7 +8,9 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/cru.h>
+#ifdef CONFIG_RK_CONFIG
 #include <mach/config.h>
+#endif
 
 #include "usbdev_rk.h"
 #include "dwc_otg_regs.h"
