@@ -47,13 +47,16 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+#define APCI1710_30MHZ			30
+#define APCI1710_33MHZ			33
+#define APCI1710_40MHZ			40
 
-#include "APCI1710_Pwm.h"
+#define APCI1710_PWM_INIT		0
+#define APCI1710_PWM_GETINITDATA	1
+
+#define APCI1710_PWM_DISABLE		0
+#define APCI1710_PWM_ENABLE		1
+#define APCI1710_PWM_NEWTIMING		2
 
 /*
 +----------------------------------------------------------------------------+
