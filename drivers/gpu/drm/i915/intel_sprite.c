@@ -79,9 +79,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_VYUY;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
-		sprctl |= SPRITE_FORMAT_RGBX888;
-		break;
+		BUG();
 	}
 
 	if (obj->tiling_mode != I915_TILING_NONE)
@@ -263,9 +261,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_VYUY;
 		break;
 	default:
-		DRM_DEBUG_DRIVER("bad pixel format, assuming RGBX888\n");
-		dvscntr |= DVS_FORMAT_RGBX888;
-		break;
+		BUG();
 	}
 
 	if (obj->tiling_mode != I915_TILING_NONE)
