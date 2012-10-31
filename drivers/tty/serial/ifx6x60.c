@@ -569,11 +569,18 @@ static int ifx_port_activate(struct tty_port *port, struct tty_struct *tty)
 	/* clear any old data; can't do this in 'close' */
 	kfifo_reset(&ifx_dev->tx_fifo);
 
+	/* clear any flag which may be set in port shutdown procedure */
+	clear_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags);
+	clear_bit(IFX_SPI_STATE_IO_READY, &ifx_dev->flags);
+
 	/* put port data into this tty */
 	tty->driver_data = ifx_dev;
 
 	/* allows flip string push from int context */
 	tty->low_latency = 1;
+
+	/* set flag to allows data transfer */
+	set_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
 
 	return 0;
 }
@@ -590,6 +597,7 @@ static void ifx_port_shutdown(struct tty_port *port)
 	struct ifx_spi_device *ifx_dev =
 		container_of(port, struct ifx_spi_device, tty_port);
 
+	clear_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags);
 	mrdy_set_low(ifx_dev);
 	clear_bit(IFX_SPI_STATE_TIMER_PENDING, &ifx_dev->flags);
 	tasklet_kill(&ifx_dev->io_work_tasklet);
@@ -745,7 +753,8 @@ static void ifx_spi_io(unsigned long data)
 	int retval;
 	struct ifx_spi_device *ifx_dev = (struct ifx_spi_device *) data;
 
-	if (!test_and_set_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags)) {
+	if (!test_and_set_bit(IFX_SPI_STATE_IO_IN_PROGRESS, &ifx_dev->flags) &&
+		test_bit(IFX_SPI_STATE_IO_AVAILABLE, &ifx_dev->flags)) {
 		if (ifx_dev->gpio.unack_srdy_int_nb > 0)
 			ifx_dev->gpio.unack_srdy_int_nb--;
 

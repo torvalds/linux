@@ -41,6 +41,7 @@
 #define IFX_SPI_STATE_IO_IN_PROGRESS	1
 #define IFX_SPI_STATE_IO_READY		2
 #define IFX_SPI_STATE_TIMER_PENDING	3
+#define IFX_SPI_STATE_IO_AVAILABLE	4
 
 /* flow control bitfields */
 #define IFX_SPI_DCD			0
