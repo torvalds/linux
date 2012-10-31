@@ -4261,7 +4261,7 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
 
 		rcu_read_lock();
 		name = rcu_dereference(dev->name);
-		pr_debug("btrfs_map_bio: rw %d, secor=%llu, dev=%lu "
+		pr_debug("btrfs_map_bio: rw %d, sector=%llu, dev=%lu "
 			 "(%s id %llu), size=%u\n", rw,
 			 (u64)bio->bi_sector, (u_long)dev->bdev->bd_dev,
 			 name->str, dev->devid, bio->bi_size);
