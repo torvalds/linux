@@ -168,11 +168,11 @@ acpi_ns_parse_table(u32 table_index, struct acpi_namespace_node *start_node)
 	/*
 	 * AML Parse, pass 1
 	 *
-	 * In this pass, we load most of the namespace.  Control methods
-	 * are not parsed until later.  A parse tree is not created.  Instead,
-	 * each Parser Op subtree is deleted when it is finished.  This saves
+	 * In this pass, we load most of the namespace. Control methods
+	 * are not parsed until later. A parse tree is not created. Instead,
+	 * each Parser Op subtree is deleted when it is finished. This saves
 	 * a great deal of memory, and allows a small cache of parse objects
-	 * to service the entire parse.  The second pass of the parse then
+	 * to service the entire parse. The second pass of the parse then
 	 * performs another complete parse of the AML.
 	 */
 	ACPI_DEBUG_PRINT((ACPI_DB_PARSE, "**** Start pass 1\n"));

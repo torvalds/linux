@@ -692,7 +692,7 @@ void acpi_ns_dump_entry(acpi_handle handle, u32 debug_level)
  *
  * PARAMETERS:  search_base         - Root of subtree to be dumped, or
  *                                    NS_ALL to dump the entire namespace
- *              max_depth           - Maximum depth of dump.  Use INT_MAX
+ *              max_depth           - Maximum depth of dump. Use INT_MAX
  *                                    for an effectively unlimited depth.
  *
  * RETURN:      None

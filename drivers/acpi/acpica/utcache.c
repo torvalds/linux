@@ -183,7 +183,7 @@ acpi_status acpi_os_delete_cache(struct acpi_memory_list * cache)
  *
  * RETURN:      None
  *
- * DESCRIPTION: Release an object to the specified cache.  If cache is full,
+ * DESCRIPTION: Release an object to the specified cache. If cache is full,
  *              the object is deleted.
  *
  ******************************************************************************/
@@ -240,9 +240,9 @@ acpi_os_release_object(struct acpi_memory_list * cache, void *object)
  *
  * PARAMETERS:  cache           - Handle to cache object
  *
- * RETURN:      the acquired object.  NULL on error
+ * RETURN:      the acquired object. NULL on error
  *
- * DESCRIPTION: Get an object from the specified cache.  If cache is empty,
+ * DESCRIPTION: Get an object from the specified cache. If cache is empty,
  *              the object is allocated.
  *
  ******************************************************************************/

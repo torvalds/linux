@@ -77,8 +77,8 @@ acpi_ex_generate_access(u32 field_bit_offset,
  *              any_acc keyword.
  *
  * NOTE: Need to have the region_length in order to check for boundary
- *       conditions (end-of-region).  However, the region_length is a deferred
- *       operation.  Therefore, to complete this implementation, the generation
+ *       conditions (end-of-region). However, the region_length is a deferred
+ *       operation. Therefore, to complete this implementation, the generation
  *       of this access width must be deferred until the region length has
  *       been evaluated.
  *
@@ -307,7 +307,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize the areas of the field object that are common
- *              to the various types of fields.  Note: This is very "sensitive"
+ *              to the various types of fields. Note: This is very "sensitive"
  *              code because we are solving the general case for field
  *              alignment.
  *
@@ -335,13 +335,13 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	obj_desc->common_field.bit_length = field_bit_length;
 
 	/*
-	 * Decode the access type so we can compute offsets.  The access type gives
+	 * Decode the access type so we can compute offsets. The access type gives
 	 * two pieces of information - the width of each field access and the
 	 * necessary byte_alignment (address granularity) of the access.
 	 *
 	 * For any_acc, the access_bit_width is the largest width that is both
 	 * necessary and possible in an attempt to access the whole field in one
-	 * I/O operation.  However, for any_acc, the byte_alignment is always one
+	 * I/O operation. However, for any_acc, the byte_alignment is always one
 	 * byte.
 	 *
 	 * For all Buffer Fields, the byte_alignment is always one byte.
@@ -362,7 +362,7 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 
 	/*
 	 * base_byte_offset is the address of the start of the field within the
-	 * region.  It is the byte address of the first *datum* (field-width data
+	 * region. It is the byte address of the first *datum* (field-width data
 	 * unit) of the field. (i.e., the first datum that contains at least the
 	 * first *bit* of the field.)
 	 *

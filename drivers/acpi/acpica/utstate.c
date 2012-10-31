@@ -147,7 +147,7 @@ union acpi_generic_state *acpi_ut_pop_generic_state(union acpi_generic_state
  *
  * RETURN:      The new state object. NULL on failure.
  *
- * DESCRIPTION: Create a generic state object.  Attempt to obtain one from
+ * DESCRIPTION: Create a generic state object. Attempt to obtain one from
  *              the global state cache;  If none available, create a new one.
  *
  ******************************************************************************/

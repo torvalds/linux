@@ -86,7 +86,7 @@ acpi_ex_check_object_type(acpi_object_type type_needed,
 	if (type_needed == ACPI_TYPE_LOCAL_REFERENCE) {
 		/*
 		 * Allow the AML "Constant" opcodes (Zero, One, etc.) to be reference
-		 * objects and thus allow them to be targets.  (As per the ACPI
+		 * objects and thus allow them to be targets. (As per the ACPI
 		 * specification, a store to a constant is a noop.)
 		 */
 		if ((this_type == ACPI_TYPE_INTEGER) &&
@@ -638,7 +638,7 @@ acpi_ex_resolve_operands(u16 opcode,
 				if (acpi_gbl_enable_interpreter_slack) {
 					/*
 					 * Enable original behavior of Store(), allowing any and all
-					 * objects as the source operand.  The ACPI spec does not
+					 * objects as the source operand. The ACPI spec does not
 					 * allow this, however.
 					 */
 					break;

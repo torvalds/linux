@@ -77,7 +77,7 @@ acpi_ut_get_element_length(u8 object_type,
  *
  * NOTE:        We always allocate the worst-case object descriptor because
  *              these objects are cached, and we want them to be
- *              one-size-satisifies-any-request.  This in itself may not be
+ *              one-size-satisifies-any-request. This in itself may not be
  *              the most memory efficient, but the efficiency of the object
  *              cache should more than make up for this!
  *
@@ -370,9 +370,9 @@ u8 acpi_ut_valid_internal_object(void *object)
  *              line_number         - Caller's line number (for error output)
  *              component_id        - Caller's component ID (for error output)
  *
- * RETURN:      Pointer to newly allocated object descriptor.  Null on error
+ * RETURN:      Pointer to newly allocated object descriptor. Null on error
  *
- * DESCRIPTION: Allocate a new object descriptor.  Gracefully handle
+ * DESCRIPTION: Allocate a new object descriptor. Gracefully handle
  *              error conditions.
  *
  ******************************************************************************/
@@ -554,7 +554,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 
 	/*
 	 * Account for the space required by the object rounded up to the next
-	 * multiple of the machine word size.  This keeps each object aligned
+	 * multiple of the machine word size. This keeps each object aligned
 	 * on a machine word boundary. (preventing alignment faults on some
 	 * machines.)
 	 */

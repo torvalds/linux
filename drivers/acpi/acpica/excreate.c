@@ -78,7 +78,7 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 	    (target_node->type == ACPI_TYPE_LOCAL_METHOD_ALIAS)) {
 		/*
 		 * Dereference an existing alias so that we don't create a chain
-		 * of aliases.  With this code, we guarantee that an alias is
+		 * of aliases. With this code, we guarantee that an alias is
 		 * always exactly one level of indirection away from the
 		 * actual aliased name.
 		 */
@@ -90,7 +90,7 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 	/*
 	 * For objects that can never change (i.e., the NS node will
 	 * permanently point to the same object), we can simply attach
-	 * the object to the new NS node.  For other objects (such as
+	 * the object to the new NS node. For other objects (such as
 	 * Integers, buffers, etc.), we have to point the Alias node
 	 * to the original Node.
 	 */
@@ -139,7 +139,7 @@ acpi_status acpi_ex_create_alias(struct acpi_walk_state *walk_state)
 
 		/*
 		 * The new alias assumes the type of the target, and it points
-		 * to the same object.  The reference count of the object has an
+		 * to the same object. The reference count of the object has an
 		 * additional reference to prevent deletion out from under either the
 		 * target node or the alias Node
 		 */

@@ -197,7 +197,7 @@ struct acpi_object_method {
 
 /******************************************************************************
  *
- * Objects that can be notified.  All share a common notify_info area.
+ * Objects that can be notified. All share a common notify_info area.
  *
  *****************************************************************************/
 
@@ -234,7 +234,7 @@ ACPI_OBJECT_COMMON_HEADER ACPI_COMMON_NOTIFY_INFO};
 
 /******************************************************************************
  *
- * Fields.  All share a common header/info field.
+ * Fields. All share a common header/info field.
  *
  *****************************************************************************/
 

@@ -147,7 +147,7 @@ ACPI_EXPORT_SYMBOL(acpi_subsystem_status)
  * RETURN:      status          - the status of the call
  *
  * DESCRIPTION: This function is called to get information about the current
- *              state of the ACPI subsystem.  It will return system information
+ *              state of the ACPI subsystem. It will return system information
  *              in the out_buffer.
  *
  *              If the function fails an appropriate status will be returned

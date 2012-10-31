@@ -60,7 +60,7 @@ ACPI_MODULE_NAME("exstoren")
  *
  * RETURN:      Status, resolved object in source_desc_ptr.
  *
- * DESCRIPTION: Resolve an object.  If the object is a reference, dereference
+ * DESCRIPTION: Resolve an object. If the object is a reference, dereference
  *              it and return the actual object in the source_desc_ptr.
  *
  ******************************************************************************/
@@ -92,7 +92,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
 
 		/*
 		 * Stores into a Field/Region or into a Integer/Buffer/String
-		 * are all essentially the same.  This case handles the
+		 * are all essentially the same. This case handles the
 		 * "interchangeable" types Integer, String, and Buffer.
 		 */
 		if (source_desc->common.type == ACPI_TYPE_LOCAL_REFERENCE) {
@@ -166,7 +166,7 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
  *
  * RETURN:      Status
  *
- * DESCRIPTION: "Store" an object to another object.  This may include
+ * DESCRIPTION: "Store" an object to another object. This may include
  *              converting the source type to the target type (implicit
  *              conversion), and a copy of the value of the source to
  *              the target.
@@ -177,14 +177,14 @@ acpi_ex_resolve_object(union acpi_operand_object **source_desc_ptr,
  *              with the input value.
  *
  *              When storing into an object the data is converted to the
- *              target object type then stored in the object.  This means
+ *              target object type then stored in the object. This means
  *              that the target object type (for an initialized target) will
  *              not be changed by a store operation.
  *
  *              This module allows destination types of Number, String,
  *              Buffer, and Package.
  *
- *              Assumes parameters are already validated.  NOTE: source_desc
+ *              Assumes parameters are already validated. NOTE: source_desc
  *              resolution (from a reference object) must be performed by
  *              the caller if necessary.
  *

@@ -374,7 +374,7 @@ acpi_ex_store_object_to_index(union acpi_operand_object *source_desc,
  *              with the input value.
  *
  *              When storing into an object the data is converted to the
- *              target object type then stored in the object.  This means
+ *              target object type then stored in the object. This means
  *              that the target object type (for an initialized target) will
  *              not be changed by a store operation.
  *
@@ -491,7 +491,7 @@ acpi_ex_store_object_to_node(union acpi_operand_object *source_desc,
 				  acpi_ut_get_object_type_name(source_desc),
 				  source_desc, node));
 
-		/* No conversions for all other types.  Just attach the source object */
+		/* No conversions for all other types. Just attach the source object */
 
 		status = acpi_ns_attach_object(node, source_desc,
 					       source_desc->common.type);

@@ -348,7 +348,7 @@ acpi_ds_obj_stack_push(void *object, struct acpi_walk_state * walk_state)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Pop this walk's object stack.  Objects on the stack are NOT
+ * DESCRIPTION: Pop this walk's object stack. Objects on the stack are NOT
  *              deleted by this routine.
  *
  ******************************************************************************/
@@ -492,7 +492,7 @@ acpi_ds_push_walk_state(struct acpi_walk_state *walk_state,
  * RETURN:      A walk_state object popped from the thread's stack
  *
  * DESCRIPTION: Remove and return the walkstate object that is at the head of
- *              the walk stack for the given walk list.  NULL indicates that
+ *              the walk stack for the given walk list. NULL indicates that
  *              the list is empty.
  *
  ******************************************************************************/
@@ -532,7 +532,7 @@ struct acpi_walk_state *acpi_ds_pop_walk_state(struct acpi_thread_state *thread)
  *
  * RETURN:      Pointer to the new walk state.
  *
- * DESCRIPTION: Allocate and initialize a new walk state.  The current walk
+ * DESCRIPTION: Allocate and initialize a new walk state. The current walk
  *              state is set to this new state.
  *
  ******************************************************************************/
@@ -657,7 +657,7 @@ acpi_ds_init_aml_walk(struct acpi_walk_state *walk_state,
 		/*
 		 * Setup the current scope.
 		 * Find a Named Op that has a namespace node associated with it.
-		 * search upwards from this Op.  Current scope is the first
+		 * search upwards from this Op. Current scope is the first
 		 * Op with a namespace node.
 		 */
 		extra_op = parser_state->start_op;

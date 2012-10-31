@@ -154,7 +154,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 #endif
 
 	/*
-	 * Validate the request.  The entire request from the byte offset for a
+	 * Validate the request. The entire request from the byte offset for a
 	 * length of one field datum (access width) must fit within the region.
 	 * (Region length is specified in bytes)
 	 */
@@ -182,7 +182,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 		    obj_desc->common_field.access_byte_width) {
 			/*
 			 * This is the case where the access_type (acc_word, etc.) is wider
-			 * than the region itself.  For example, a region of length one
+			 * than the region itself. For example, a region of length one
 			 * byte, and a field with Dword access specified.
 			 */
 			ACPI_ERROR((AE_INFO,
@@ -320,7 +320,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
  *
  * DESCRIPTION: Check if a value is out of range of the field being written.
  *              Used to check if the values written to Index and Bank registers
- *              are out of range.  Normally, the value is simply truncated
+ *              are out of range. Normally, the value is simply truncated
  *              to fit the field, but this case is most likely a serious
  *              coding error in the ASL.
  *
@@ -369,7 +369,7 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Read or Write a single datum of a field.  The field_type is
+ * DESCRIPTION: Read or Write a single datum of a field. The field_type is
  *              demultiplexed here to handle the different types of fields
  *              (buffer_field, region_field, index_field, bank_field)
  *
@@ -859,7 +859,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	    ACPI_ROUND_BITS_UP_TO_BYTES(obj_desc->common_field.bit_length);
 	/*
 	 * We must have a buffer that is at least as long as the field
-	 * we are writing to.  This is because individual fields are
+	 * we are writing to. This is because individual fields are
 	 * indivisible and partial writes are not supported -- as per
 	 * the ACPI specification.
 	 */
@@ -874,7 +874,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 
 		/*
 		 * Copy the original data to the new buffer, starting
-		 * at Byte zero.  All unused (upper) bytes of the
+		 * at Byte zero. All unused (upper) bytes of the
 		 * buffer will be 0.
 		 */
 		ACPI_MEMCPY((char *)new_buffer, (char *)buffer, buffer_length);

@@ -778,7 +778,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
  * PARAMETERS:  title               - Descriptive text
  *              value               - Value to be displayed
  *
- * DESCRIPTION: Object dump output formatting functions.  These functions
+ * DESCRIPTION: Object dump output formatting functions. These functions
  *              reduce the number of format strings required and keeps them
  *              all in one place for easy modification.
  *
