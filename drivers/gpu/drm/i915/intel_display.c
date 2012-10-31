@@ -2000,24 +2000,38 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	dspcntr = I915_READ(reg);
 	/* Mask out pixel format bits in case we change it */
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
-	switch (fb->bits_per_pixel) {
-	case 8:
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
-	case 16:
-		if (fb->depth == 15)
-			dspcntr |= DISPPLANE_15_16BPP;
-		else
-			dspcntr |= DISPPLANE_16BPP;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
+		dspcntr |= DISPPLANE_BGRX555;
 		break;
-	case 24:
-	case 32:
-		dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
+	case DRM_FORMAT_RGB565:
+		dspcntr |= DISPPLANE_BGRX565;
+		break;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		dspcntr |= DISPPLANE_BGRX888;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		dspcntr |= DISPPLANE_RGBX888;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		dspcntr |= DISPPLANE_BGRX101010;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		dspcntr |= DISPPLANE_RGBX101010;
 		break;
 	default:
-		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
+		DRM_ERROR("Unknown pixel format 0x%08x\n", fb->pixel_format);
 		return -EINVAL;
 	}
+
 	if (INTEL_INFO(dev)->gen >= 4) {
 		if (obj->tiling_mode != I915_TILING_NONE)
 			dspcntr |= DISPPLANE_TILED;
@@ -2084,27 +2098,31 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	dspcntr = I915_READ(reg);
 	/* Mask out pixel format bits in case we change it */
 	dspcntr &= ~DISPPLANE_PIXFORMAT_MASK;
-	switch (fb->bits_per_pixel) {
-	case 8:
+	switch (fb->pixel_format) {
+	case DRM_FORMAT_C8:
 		dspcntr |= DISPPLANE_8BPP;
 		break;
-	case 16:
-		if (fb->depth != 16)
-			return -EINVAL;
-
-		dspcntr |= DISPPLANE_16BPP;
+	case DRM_FORMAT_RGB565:
+		dspcntr |= DISPPLANE_BGRX565;
 		break;
-	case 24:
-	case 32:
-		if (fb->depth == 24)
-			dspcntr |= DISPPLANE_32BPP_NO_ALPHA;
-		else if (fb->depth == 30)
-			dspcntr |= DISPPLANE_32BPP_30BIT_NO_ALPHA;
-		else
-			return -EINVAL;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+		dspcntr |= DISPPLANE_BGRX888;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+		dspcntr |= DISPPLANE_RGBX888;
+		break;
+	case DRM_FORMAT_XRGB2101010:
+	case DRM_FORMAT_ARGB2101010:
+		dspcntr |= DISPPLANE_BGRX101010;
+		break;
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		dspcntr |= DISPPLANE_RGBX101010;
 		break;
 	default:
-		DRM_ERROR("Unknown color depth %d\n", fb->bits_per_pixel);
+		DRM_ERROR("Unknown pixel format 0x%08x\n", fb->pixel_format);
 		return -EINVAL;
 	}
 
@@ -8334,24 +8352,36 @@ int intel_framebuffer_init(struct drm_device *dev,
 	if (mode_cmd->pitches[0] & 63)
 		return -EINVAL;
 
+	/* Reject formats not supported by any plane early. */
 	switch (mode_cmd->pixel_format) {
-	case DRM_FORMAT_RGB332:
+	case DRM_FORMAT_C8:
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_XRGB8888:
-	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ARGB8888:
+		break;
+	case DRM_FORMAT_XRGB1555:
+	case DRM_FORMAT_ARGB1555:
+		if (INTEL_INFO(dev)->gen > 3)
+			return -EINVAL;
+		break;
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_ARGB2101010:
-		/* RGB formats are common across chipsets */
+	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_ABGR2101010:
+		if (INTEL_INFO(dev)->gen < 4)
+			return -EINVAL;
 		break;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_VYUY:
+		if (INTEL_INFO(dev)->gen < 6)
+			return -EINVAL;
 		break;
 	default:
-		DRM_DEBUG_KMS("unsupported pixel format %u\n",
-				mode_cmd->pixel_format);
+		DRM_DEBUG_KMS("unsupported pixel format 0x%08x\n", mode_cmd->pixel_format);
 		return -EINVAL;
 	}
 
