@@ -163,7 +163,7 @@ static int usbhsf_pkt_handler(struct usbhs_pipe *pipe, int type)
 		func = pkt->handler->dma_done;
 		break;
 	default:
-		dev_err(dev, "unknown pkt hander\n");
+		dev_err(dev, "unknown pkt handler\n");
 		goto __usbhs_pkt_handler_end;
 	}
 
