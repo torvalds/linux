@@ -26,6 +26,7 @@
 #define _LINUX_ACPI_H
 
 #include <linux/ioport.h>	/* for struct resource */
+#include <linux/device.h>
 
 #ifdef	CONFIG_ACPI
 
@@ -364,6 +365,17 @@ extern int acpi_nvs_register(__u64 start, __u64 size);
 extern int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 				    void *data);
 
+const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
+					       const struct device *dev);
+
+static inline bool acpi_driver_match_device(struct device *dev,
+					    const struct device_driver *drv)
+{
+	return !!acpi_match_device(drv->acpi_match_table, dev);
+}
+
+#define ACPI_PTR(_ptr)	(_ptr)
+
 #else	/* !CONFIG_ACPI */
 
 #define acpi_disabled 1
@@ -417,6 +429,22 @@ static inline int acpi_nvs_for_each_region(int (*func)(__u64, __u64, void *),
 {
 	return 0;
 }
+
+struct acpi_device_id;
+
+static inline const struct acpi_device_id *acpi_match_device(
+	const struct acpi_device_id *ids, const struct device *dev)
+{
+	return NULL;
+}
+
+static inline bool acpi_driver_match_device(struct device *dev,
+					    const struct device_driver *drv)
+{
+	return false;
+}
+
+#define ACPI_PTR(_ptr)	(NULL)
 
 #endif	/* !CONFIG_ACPI */
 
