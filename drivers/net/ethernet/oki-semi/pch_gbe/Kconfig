@@ -26,7 +26,6 @@ if PCH_GBE
 config PCH_PTP
 	bool "PCH PTP clock support"
 	default n
-	select PPS
 	select PTP_1588_CLOCK
 	select PTP_1588_CLOCK_PCH
 	---help---

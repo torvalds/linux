@@ -4,12 +4,9 @@
 
 menu "PTP clock support"
 
-comment "Enable Device Drivers -> PPS to see the PTP clock options."
-	depends on PPS=n
-
 config PTP_1588_CLOCK
 	tristate "PTP clock support"
-	depends on PPS
+	select PPS
 	help
 	  The IEEE 1588 standard defines a method to precisely
 	  synchronize distributed clocks over Ethernet networks. The
