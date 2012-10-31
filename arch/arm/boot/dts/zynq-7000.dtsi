@@ -10,29 +10,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+/include/ "skeleton.dtsi"
 
-/dts-v1/;
 / {
-	model = "Xilinx Zynq EP107";
-	compatible = "xlnx,zynq-ep107";
-	#address-cells = <1>;
-	#size-cells = <1>;
-	interrupt-parent = <&intc>;
-
-	memory {
-		device_type = "memory";
-		reg = <0x0 0x10000000>;
-	};
-
-	chosen {
-		bootargs = "console=ttyPS0,9600 root=/dev/ram rw initrd=0x800000,8M earlyprintk";
-		linux,stdout-path = &uart0;
-	};
+	compatible = "xlnx,zynq-7000";
 
 	amba {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
+		interrupt-parent = <&intc>;
 		ranges;
 
 		intc: interrupt-controller@f8f01000 {
