@@ -416,19 +416,23 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_IBX;
 				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
+				WARN_ON(!IS_GEN5(dev));
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
 				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
 				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
+				WARN_ON(!(IS_GEN6(dev) || IS_IVYBRIDGE(dev)));
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
 				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
+				WARN_ON(!IS_HASWELL(dev));
 			}
 			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
 		}
