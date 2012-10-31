@@ -459,7 +459,7 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	struct resource *res;
 	struct resource	resources[2];
 	char res_name[10];
-	int ret, musbid;
+	int ret;
 
 	/* get memory resource */
 	sprintf(res_name, "musb%d", id);
@@ -484,22 +484,14 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	resources[1] = *res;
 	resources[1].name = "mc";
 
-	/* get the musb id */
-	musbid = musb_get_id(dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
-		goto err0;
-	}
 	/* allocate the child platform device */
-	musb = platform_device_alloc("musb-hdrc", musbid);
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(dev, "failed to allocate musb device\n");
 		ret = -ENOMEM;
-		goto err1;
+		goto err0;
 	}
 
-	musb->id			= musbid;
 	musb->dev.parent		= dev;
 	musb->dev.dma_mask		= &musb_dmamask;
 	musb->dev.coherent_dma_mask	= musb_dmamask;
@@ -556,16 +548,8 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 
 err2:
 	platform_device_put(musb);
-err1:
-	musb_put_id(dev, musbid);
 err0:
 	return ret;
-}
-
-static void dsps_delete_musb_pdev(struct dsps_glue *glue, u8 id)
-{
-	musb_put_id(glue->dev, glue->musb[id]->id);
-	platform_device_unregister(glue->musb[id]);
 }
 
 static int __devinit dsps_probe(struct platform_device *pdev)
@@ -627,7 +611,7 @@ static int __devinit dsps_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "failed to create child pdev\n");
 			/* release resources of previously created instances */
 			for (i--; i >= 0 ; i--)
-				dsps_delete_musb_pdev(glue, i);
+				platform_device_unregister(glue->musb[i]);
 			goto err3;
 		}
 	}
@@ -652,7 +636,7 @@ static int __devexit dsps_remove(struct platform_device *pdev)
 
 	/* delete the child platform device */
 	for (i = 0; i < wrp->instances ; i++)
-		dsps_delete_musb_pdev(glue, i);
+		platform_device_unregister(glue->musb[i]);
 
 	/* disable usbss clocks */
 	pm_runtime_put(&pdev->dev);
