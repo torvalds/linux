@@ -58,6 +58,7 @@
 #elif defined(CONFIG_CPU_XLR)
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
+#include <asm/netlogic/xlr/fmn.h>
 #else
 #error "Unknown CPU"
 #endif
@@ -68,8 +69,8 @@
 #else
 #define SMP_IRQ_MASK	0
 #endif
-#define PERCPU_IRQ_MASK	(SMP_IRQ_MASK | (1ull << IRQ_TIMER))
-
+#define PERCPU_IRQ_MASK	(SMP_IRQ_MASK | (1ull << IRQ_TIMER) | \
+				(1ull << IRQ_FMN))
 
 struct nlm_pic_irq {
 	void	(*extra_ack)(struct irq_data *);
@@ -241,6 +242,9 @@ void __init arch_init_irq(void)
 	nlm_init_percpu_irqs();
 	nlm_init_node_irqs(0);
 	write_c0_eimr(nlm_current_node()->irqmask);
+#if defined(CONFIG_CPU_XLR)
+	nlm_setup_fmn_irq();
+#endif
 }
 
 void nlm_smp_irq_init(int hwcpuid)

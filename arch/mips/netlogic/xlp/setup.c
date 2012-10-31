@@ -108,6 +108,10 @@ void xlp_mmu_init(void)
 		(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
 }
 
+void nlm_percpu_init(int hwcpuid)
+{
+}
+
 void __init prom_init(void)
 {
 	nlm_io_base = CKSEG1ADDR(XLP_DEFAULT_IO_BASE);

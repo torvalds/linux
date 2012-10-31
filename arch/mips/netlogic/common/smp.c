@@ -118,6 +118,7 @@ static void __cpuinit nlm_init_secondary(void)
 
 	hwtid = hard_smp_processor_id();
 	current_cpu_data.core = hwtid / NLM_THREADS_PER_CORE;
+	nlm_percpu_init(hwtid);
 	nlm_smp_irq_init(hwtid);
 }
 
@@ -129,9 +130,6 @@ void nlm_prepare_cpus(unsigned int max_cpus)
 
 void nlm_smp_finish(void)
 {
-#ifdef notyet
-	nlm_common_msgring_cpu_init();
-#endif
 	local_irq_enable();
 }
 

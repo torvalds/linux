@@ -57,6 +57,7 @@ void nlm_smp_irq_init(int hwcpuid);
 void nlm_boot_secondary_cpus(void);
 int nlm_wakeup_secondary_cpus(void);
 void nlm_rmiboot_preboot(void);
+void nlm_percpu_init(int hwcpuid);
 
 static inline void
 nlm_set_nmi_handler(void *handler)

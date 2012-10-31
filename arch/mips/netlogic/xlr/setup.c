@@ -49,6 +49,7 @@
 #include <asm/netlogic/xlr/iomap.h>
 #include <asm/netlogic/xlr/pic.h>
 #include <asm/netlogic/xlr/gpio.h>
+#include <asm/netlogic/xlr/fmn.h>
 
 uint64_t nlm_io_base = DEFAULT_NETLOGIC_IO_BASE;
 struct psb_info nlm_prom_info;
@@ -109,6 +110,12 @@ unsigned int nlm_get_cpu_frequency(void)
 void __init prom_free_prom_memory(void)
 {
 	/* Nothing yet */
+}
+
+void nlm_percpu_init(int hwcpuid)
+{
+	if (hwcpuid % 4 == 0)
+		xlr_percpu_fmn_init();
 }
 
 static void __init build_arcs_cmdline(int *argv)
@@ -208,4 +215,6 @@ void __init prom_init(void)
 	nlm_wakeup_secondary_cpus();
 	register_smp_ops(&nlm_smp_ops);
 #endif
+	xlr_board_info_setup();
+	xlr_percpu_fmn_init();
 }
