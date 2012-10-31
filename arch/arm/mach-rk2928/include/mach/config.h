@@ -41,12 +41,12 @@ enum {
 enum{
         DEF_KEY_ADC = 1,
         DEF_PLAY_KEY = 0x000101a4,
-        DEF_VOLDN_KEY = 0x000102b4,
+        DEF_VOLDN_KEY = 0x000102b6,
         DEF_VOLUP_KEY = 1  | (1<<31),
-        DEF_MENU_KEY = 135 | (1<<31),
-        DEF_ESC_KEY = 334  | (1<<31),
-        DEF_HOME_KEY = 550 | (1<<31),
-        DEF_CAM_KEY = 700  | (1<<31),
+        DEF_MENU_KEY = 100 | (1<<31),
+        DEF_ESC_KEY = 255  | (1<<31),
+        DEF_HOME_KEY = 425 | (1<<31),
+        DEF_CAM_KEY = 576  | (1<<31),
 };
 /* backlight */
 enum{
@@ -54,6 +54,11 @@ enum{
         DEF_BL_REF = 1,
         DEF_BL_MIN = 60,
         DEF_BL_EN = 0x000002c1,
+};
+/* usb */
+enum {
+        DEF_OTG_DRV = -1,
+        DEF_HOST_DRV = 0x000002b4,
 };
 /* lcd */
 enum {
@@ -164,6 +169,11 @@ enum{
         DEF_BL_REF = 1,
         DEF_BL_MIN = 60,
         DEF_BL_EN = 0x000003c4,
+};
+/* usb */
+enum {
+        DEF_OTG_DRV = -1,
+        DEF_HOST_DRV = 0x000001b2,
 };
 /* lcd */
 enum {
@@ -277,6 +287,12 @@ enum{
         DEF_BL_MIN = 80,
         DEF_BL_EN = -1,
 };
+
+/* usb */
+enum {
+        DEF_OTG_DRV = -1,
+        DEF_HOST_DRV = -1,
+};
 /* lcd */
 enum {
         DEF_LCD_CABC = -1,
@@ -388,6 +404,11 @@ enum{
         DEF_BL_MIN = 80,
         DEF_BL_EN = 0x000003c5,
 };
+/* usb */
+enum {
+        DEF_OTG_DRV = -1,
+        DEF_HOST_DRV = -1,
+};
 /* lcd */
 enum {
         DEF_LCD_CABC = -1,
@@ -498,6 +519,11 @@ enum{
         DEF_BL_REF = 0,
         DEF_BL_MIN = 80,
         DEF_BL_EN = 0x000001b0,
+};
+/* usb */
+enum {
+        DEF_OTG_DRV = -1,
+        DEF_HOST_DRV = -1,
 };
 /* lcd */
 enum {
@@ -612,6 +638,11 @@ enum{
         DEF_BL_MIN = 0,
         DEF_BL_EN = -1,
 };
+/* usb */
+enum {
+        DEF_OTG_DRV = -1,
+        DEF_HOST_DRV = -1,
+};
 /* lcd */
 enum {
         DEF_LCD_CABC = -1,
@@ -703,7 +734,14 @@ enum {
 enum {
         DEF_PWR_ON = -1,
 };
-
 #endif
+
+int inline otg_drv_init(int on);
+void inline otg_drv_on(void);
+void inline otg_drv_off(void);
+
+int inline host_drv_init(int on);
+void inline host_drv_on(void);
+void inline host_drv_off(void);
 
 #endif

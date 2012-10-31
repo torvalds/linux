@@ -74,7 +74,39 @@ static inline int check_bl_param(void)
         }
         return 0;
 }
-
+/* usb */
+static int otg_drv = DEF_OTG_DRV;
+module_param(otg_drv, int, 0644);
+static int host_drv = DEF_HOST_DRV;
+module_param(host_drv, int, 0644);
+static inline int check_usb_param(void)
+{
+        return 0;
+}
+int inline otg_drv_init(int on)
+{
+        return port_output_init(otg_drv, on, "otg_drv");
+}
+void inline otg_drv_on(void)
+{
+        port_output_on(otg_drv);
+}
+void inline otg_drv_off(void)
+{
+        port_output_off(otg_drv);
+}
+int inline host_drv_init(int on)
+{
+        return port_output_init(host_drv, on, "host_drv");
+}
+void inline host_drv_on(void)
+{
+        port_output_on(host_drv);
+}
+void inline host_drv_off(void)
+{
+        port_output_off(host_drv);
+}
 /* lcd */
 static int lcd_cabc = DEF_LCD_CABC;
 module_param(lcd_cabc, int, 0644);
