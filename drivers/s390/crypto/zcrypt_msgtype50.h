@@ -33,6 +33,8 @@
 #define MSGTYPE50_CRB2_MAX_MSG_SIZE	0x390 /*sizeof(struct type50_crb2_msg)*/
 #define MSGTYPE50_CRB3_MAX_MSG_SIZE	0x710 /*sizeof(struct type50_crb3_msg)*/
 
+#define MSGTYPE_ADJUSTMENT		0x08  /*type04 extension (not needed in type50)*/
+
 int zcrypt_msgtype50_init(void);
 void zcrypt_msgtype50_exit(void);
 
