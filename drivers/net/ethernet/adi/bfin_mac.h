@@ -11,6 +11,7 @@
 #define _BFIN_MAC_H_
 
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/timer.h>
 #include <linux/etherdevice.h>
 #include <linux/bfin_mac.h>
@@ -94,7 +95,12 @@ struct bfin_mac_local {
 #if defined(CONFIG_BFIN_MAC_USE_HWSTAMP)
 	u32 addend;
 	unsigned int shift;
+	s32 max_ppb;
 	struct hwtstamp_config stamp_cfg;
+	struct ptp_clock_info caps;
+	struct ptp_clock *clock;
+	int phc_index;
+	spinlock_t phc_lock; /* protects time lo/hi registers */
 #endif
 };
 
