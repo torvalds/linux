@@ -133,7 +133,7 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 
 	case AML_CLASS_UNKNOWN:
 
-		/* The opcode is unrecognized. Just skip unknown opcodes */
+		/* The opcode is unrecognized. Complain and skip unknown opcodes */
 
 		if (walk_state->pass_number == 2) {
 			ACPI_ERROR((AE_INFO,
@@ -142,28 +142,34 @@ static acpi_status acpi_ps_get_aml_opcode(struct acpi_walk_state *walk_state)
 				    walk_state->aml_offset +
 				    sizeof(struct acpi_table_header)));
 
-			ACPI_DUMP_BUFFER(walk_state->parser_state.aml, 128);
+			ACPI_DUMP_BUFFER(walk_state->parser_state.aml - 16, 48);
 
 #ifdef ACPI_ASL_COMPILER
-
+			/*
+			 * This is executed for the disassembler only. Output goes
+			 * to the disassembled ASL output file.
+			 */
 			acpi_os_printf
 			    ("/*\nError: Unknown opcode 0x%.2X at table offset 0x%.4X, context:\n",
 			     walk_state->opcode,
 			     walk_state->aml_offset +
 			     sizeof(struct acpi_table_header));
 
-			/* TBD: Pass current offset to dump_buffer */
+			/* Dump the context surrounding the invalid opcode */
 
-			acpi_ut_dump_buffer2(((u8 *)walk_state->parser_state.
-					      aml - 16), 48, DB_BYTE_DISPLAY);
+			acpi_ut_dump_buffer(((u8 *)walk_state->parser_state.
+					     aml - 16), 48, DB_BYTE_DISPLAY,
+					    walk_state->aml_offset +
+					    sizeof(struct acpi_table_header) -
+					    16);
 			acpi_os_printf(" */\n");
 #endif
 		}
 
-		/* Increment past one or two-byte opcode */
+		/* Increment past one-byte or two-byte opcode */
 
 		walk_state->parser_state.aml++;
-		if (walk_state->opcode > 0xFF) {
+		if (walk_state->opcode > 0xFF) {	/* Can only happen if first byte is 0x5B */
 			walk_state->parser_state.aml++;
 		}
 

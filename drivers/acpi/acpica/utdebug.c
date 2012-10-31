@@ -513,7 +513,7 @@ acpi_ut_ptr_exit(u32 line_number,
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
  *              display             - BYTE, WORD, DWORD, or QWORD display
- *              component_ID        - Caller's component ID
+ *              offset              - Beginning buffer offset (display only)
  *
  * RETURN:      None
  *
@@ -521,7 +521,7 @@ acpi_ut_ptr_exit(u32 line_number,
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer2(u8 *buffer, u32 count, u32 display)
+void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 base_offset)
 {
 	u32 i = 0;
 	u32 j;
@@ -543,7 +543,7 @@ void acpi_ut_dump_buffer2(u8 *buffer, u32 count, u32 display)
 
 		/* Print current offset */
 
-		acpi_os_printf("%6.4X: ", i);
+		acpi_os_printf("%6.4X: ", (base_offset + i));
 
 		/* Print 16 hex chars */
 
@@ -625,7 +625,7 @@ void acpi_ut_dump_buffer2(u8 *buffer, u32 count, u32 display)
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ut_dump_buffer
+ * FUNCTION:    acpi_ut_debug_dump_buffer
  *
  * PARAMETERS:  buffer              - Buffer to dump
  *              count               - Amount to dump, in bytes
@@ -638,7 +638,8 @@ void acpi_ut_dump_buffer2(u8 *buffer, u32 count, u32 display)
  *
  ******************************************************************************/
 
-void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
+void
+acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
 {
 
 	/* Only dump the buffer if tracing is enabled */
@@ -648,5 +649,5 @@ void acpi_ut_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id)
 		return;
 	}
 
-	acpi_ut_dump_buffer2(buffer, count, display);
+	acpi_ut_dump_buffer(buffer, count, display, 0);
 }
