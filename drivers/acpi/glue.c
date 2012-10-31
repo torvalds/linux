@@ -134,7 +134,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	char physical_node_name[sizeof(PHYSICAL_NODE_STRING) + 2];
 	int retval = -EINVAL;
 
-	if (dev->archdata.acpi_handle) {
+	if (dev->acpi_handle) {
 		dev_warn(dev, "Drivers changed 'acpi_handle'\n");
 		return -EINVAL;
 	}
@@ -169,7 +169,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	acpi_dev->physical_node_count++;
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
-	dev->archdata.acpi_handle = handle;
+	dev->acpi_handle = handle;
 
 	if (!physical_node->node_id)
 		strcpy(physical_node_name, PHYSICAL_NODE_STRING);
@@ -198,11 +198,10 @@ static int acpi_unbind_one(struct device *dev)
 	acpi_status status;
 	struct list_head *node, *next;
 
-	if (!dev->archdata.acpi_handle)
+	if (!dev->acpi_handle)
 		return 0;
 
-	status = acpi_bus_get_device(dev->archdata.acpi_handle,
-		&acpi_dev);
+	status = acpi_bus_get_device(dev->acpi_handle, &acpi_dev);
 	if (ACPI_FAILURE(status))
 		goto err;
 
@@ -228,7 +227,7 @@ static int acpi_unbind_one(struct device *dev)
 
 		sysfs_remove_link(&acpi_dev->dev.kobj, physical_node_name);
 		sysfs_remove_link(&dev->kobj, "firmware_node");
-		dev->archdata.acpi_handle = NULL;
+		dev->acpi_handle = NULL;
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 		kfree(entry);
@@ -269,8 +268,7 @@ static int acpi_platform_notify(struct device *dev)
 	if (!ret) {
 		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 
-		acpi_get_name(dev->archdata.acpi_handle,
-			      ACPI_FULL_PATHNAME, &buffer);
+		acpi_get_name(dev->acpi_handle, ACPI_FULL_PATHNAME, &buffer);
 		DBG("Device %s -> %s\n", dev_name(dev), (char *)buffer.pointer);
 		kfree(buffer.pointer);
 	} else

@@ -2,9 +2,6 @@
 #define _ASM_X86_DEVICE_H
 
 struct dev_archdata {
-#ifdef CONFIG_ACPI
-	void	*acpi_handle;
-#endif
 #ifdef CONFIG_X86_DEV_DMA_OPS
 	struct dma_map_ops *dma_ops;
 #endif
