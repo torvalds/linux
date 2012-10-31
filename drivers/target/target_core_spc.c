@@ -975,6 +975,57 @@ out:
 	return 0;
 }
 
+static int spc_emulate_modeselect(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	char *cdb = cmd->t_task_cdb;
+	bool ten = cdb[0] == MODE_SELECT_10;
+	int off = ten ? 8 : 4;
+	bool pf = !!(cdb[1] & 0x10);
+	u8 page, subpage;
+	unsigned char *buf;
+	unsigned char tbuf[SE_MODE_PAGE_BUF];
+	int length;
+	int ret = 0;
+	int i;
+
+	buf = transport_kmap_data_sg(cmd);
+
+	if (!pf) {
+		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		ret = -EINVAL;
+		goto out;
+	}
+
+	page = buf[off] & 0x3f;
+	subpage = buf[off] & 0x40 ? buf[off + 1] : 0;
+
+	for (i = 0; i < ARRAY_SIZE(modesense_handlers); ++i)
+		if (modesense_handlers[i].page == page &&
+		    modesense_handlers[i].subpage == subpage) {
+			memset(tbuf, 0, SE_MODE_PAGE_BUF);
+			length = modesense_handlers[i].emulate(dev, 0, tbuf);
+			goto check_contents;
+		}
+
+	cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
+	ret = -EINVAL;
+	goto out;
+
+check_contents:
+	if (memcmp(buf + off, tbuf, length)) {
+		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
+		ret = -EINVAL;
+	}
+
+out:
+	transport_kunmap_data_sg(cmd);
+
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
+	return ret;
+}
+
 static int spc_emulate_request_sense(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -1113,9 +1164,11 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 	switch (cdb[0]) {
 	case MODE_SELECT:
 		*size = cdb[4];
+		cmd->execute_cmd = spc_emulate_modeselect;
 		break;
 	case MODE_SELECT_10:
 		*size = (cdb[7] << 8) + cdb[8];
+		cmd->execute_cmd = spc_emulate_modeselect;
 		break;
 	case MODE_SENSE:
 		*size = cdb[4];
