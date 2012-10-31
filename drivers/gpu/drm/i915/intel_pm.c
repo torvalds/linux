@@ -3324,6 +3324,18 @@ void intel_enable_gt_powersave(struct drm_device *dev)
 	}
 }
 
+static void ibx_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+}
+
 static void ironlake_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3386,6 +3398,28 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 	/* WaDisableRenderCachePipelinedFlush */
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
+
+	ibx_init_clock_gating(dev);
+}
+
+static void cpt_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe;
+
+	/*
+	 * On Ibex Peak and Cougar Point, we need to disable clock
+	 * gating for the panel power sequencer or it will fail to
+	 * start up when no ports are active.
+	 */
+	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
+	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
+		   DPLS_EDP_PPS_FIX_DIS);
+	/* WADP0ClockGatingDisable */
+	for_each_pipe(pipe) {
+		I915_WRITE(TRANS_CHICKEN1(pipe),
+			   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
+	}
 }
 
 static void gen6_init_clock_gating(struct drm_device *dev)
@@ -3468,6 +3502,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * platforms I checked have a 0 for this. (Maybe BIOS overrides?) */
 	I915_WRITE(GEN6_GT_MODE, _MASKED_BIT_DISABLE(0xffff));
 	I915_WRITE(GEN6_GT_MODE, _MASKED_BIT_ENABLE(GEN6_GT_MODE_HI));
+
+	cpt_init_clock_gating(dev);
 }
 
 static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
@@ -3612,6 +3648,8 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	snpcr &= ~GEN6_MBC_SNPCR_MASK;
 	snpcr |= GEN6_MBC_SNPCR_MED;
 	I915_WRITE(GEN6_MBCUNIT_SNPCR, snpcr);
+
+	cpt_init_clock_gating(dev);
 }
 
 static void valleyview_init_clock_gating(struct drm_device *dev)
@@ -3779,46 +3817,11 @@ static void i830_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(DSPCLK_GATE_D, OVRUNIT_CLOCK_GATE_DISABLE);
 }
 
-static void ibx_init_clock_gating(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
-}
-
-static void cpt_init_clock_gating(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe;
-
-	/*
-	 * On Ibex Peak and Cougar Point, we need to disable clock
-	 * gating for the panel power sequencer or it will fail to
-	 * start up when no ports are active.
-	 */
-	I915_WRITE(SOUTH_DSPCLK_GATE_D, PCH_DPLSUNIT_CLOCK_GATE_DISABLE);
-	I915_WRITE(SOUTH_CHICKEN2, I915_READ(SOUTH_CHICKEN2) |
-		   DPLS_EDP_PPS_FIX_DIS);
-	/* WADP0ClockGatingDisable */
-	for_each_pipe(pipe) {
-		I915_WRITE(TRANS_CHICKEN1(pipe),
-			   TRANS_CHICKEN1_DP0UNIT_GC_DISABLE);
-	}
-}
-
 void intel_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->display.init_clock_gating(dev);
-
-	if (dev_priv->display.init_pch_clock_gating)
-		dev_priv->display.init_pch_clock_gating(dev);
 }
 
 /* Starting with Haswell, we have different power wells for
@@ -3882,11 +3885,6 @@ void intel_init_pm(struct drm_device *dev)
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
-		if (HAS_PCH_IBX(dev))
-			dev_priv->display.init_pch_clock_gating = ibx_init_clock_gating;
-		else if (HAS_PCH_CPT(dev))
-			dev_priv->display.init_pch_clock_gating = cpt_init_clock_gating;
-
 		if (IS_GEN5(dev)) {
 			if (I915_READ(MLTR_ILK) & ILK_SRLT_MASK)
 				dev_priv->display.update_wm = ironlake_update_wm;
