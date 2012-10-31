@@ -1729,16 +1729,15 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, cpu_transcoder);
 	assert_fdi_rx_enabled(dev_priv, TRANSCODER_A);
 
-	val = I915_READ(_TRANSACONF);
+	val = TRANS_ENABLE;
 	pipeconf_val = I915_READ(PIPECONF(cpu_transcoder));
 
-	val &= ~TRANS_INTERLACE_MASK;
 	if ((pipeconf_val & PIPECONF_INTERLACE_MASK) == PIPECONF_INTERLACED_ILK)
 		val |= TRANS_INTERLACED;
 	else
 		val |= TRANS_PROGRESSIVE;
 
-	I915_WRITE(_TRANSACONF, val | TRANS_ENABLE);
+	I915_WRITE(TRANSCONF(TRANSCODER_A), val);
 	if (wait_for(I915_READ(_TRANSACONF) & TRANS_STATE_ENABLE, 100))
 		DRM_ERROR("Failed to enable PCH transcoder\n");
 }
