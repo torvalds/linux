@@ -36,11 +36,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
   | Description : ADDI COMMON Main Module                                 |
   +-----------------------------------------------------------------------+
-  | CONFIG OPTIONS                                                        |
-  |	option[0] - PCI bus number - if bus number and slot number are 0, |
-  |			         then driver search for first unused card |
-  |	option[1] - PCI slot number                                       |
-  +----------+-----------+------------------------------------------------+
 */
 
 #ifndef COMEDI_SUBD_TTLIO
@@ -81,42 +76,49 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static const void *addi_find_boardinfo(struct comedi_device *dev,
+				       struct pci_dev *pcidev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
-	struct pci_dev *pcidev;
+	const void *p = dev->driver->board_name;
+	const struct addi_board *this_board;
+	int i;
+
+	for (i = 0; i < dev->driver->num_names; i++) {
+		this_board = p;
+		if (this_board->i_VendorId == pcidev->vendor &&
+		    this_board->i_DeviceId == pcidev->device)
+			return this_board;
+		p += dev->driver->offset;
+	}
+	return NULL;
+}
+
+static int addi_attach_pci(struct comedi_device *dev,
+			   struct pci_dev *pcidev)
+{
+	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
 	unsigned int dw_Dummy;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
-	struct pcilst_struct *card = NULL;
+
+	this_board = addi_find_boardinfo(dev, pcidev);
+	if (!this_board)
+		return -ENODEV;
+	dev->board_ptr = this_board;
+	dev->board_name = this_board->pc_DriverName;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (!pci_list_builded) {
-		v_pci_card_list_init(this_board->i_VendorId);
-		pci_list_builded = 1;
-	}
-
-	card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
-					     this_board->i_DeviceId,
-					     it->options[0],
-					     it->options[1]);
-
-	if (card == NULL)
-		return -EIO;
-	pcidev = card->pcidev;
-
-	ret = comedi_pci_enable(pcidev, "addi_amcc_s5933");
+	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
 	if (this_board->i_Dma)
 		pci_set_master(pcidev);
-	card->used = 1;
 	devpriv->allocated = 1;
 
 	iobase_a = pci_resource_start(pcidev, 0);
@@ -136,16 +138,12 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->iobase = (unsigned long)iobase_a;	/*  DAQ base address... */
 		}
 
-		dev->board_name = this_board->pc_DriverName;
-		devpriv->amcc = card;
 		devpriv->iobase = (int) dev->iobase;
 		devpriv->i_IobaseAmcc = (int) iobase_a;	/* AMCC base address... */
 		devpriv->i_IobaseAddon = (int) iobase_addon;	/* ADD ON base address.... */
 		devpriv->i_IobaseReserved = (int) iobase_reserved;
 	} else {
-		dev->board_name = this_board->pc_DriverName;
 		dev->iobase = pci_resource_start(pcidev, 2);
-		devpriv->amcc = card;
 		devpriv->iobase = pci_resource_start(pcidev, 2);
 		devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
@@ -171,7 +169,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
-				  this_board->pc_DriverName, dev);
+				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
 	}
@@ -181,7 +179,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (this_board->i_PCIEeprom) {
 		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
 			/*  Set 3 wait stait */
-			if (!(strcmp(this_board->pc_DriverName, "apci035"))) {
+			if (!(strcmp(dev->board_name, "apci035"))) {
 				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
 			} else {
 				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
@@ -193,11 +191,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 	}
 
-	if (it->options[2] > 0) {
-		devpriv->us_UseDma = ADDI_DISABLE;
-	} else {
-		devpriv->us_UseDma = ADDI_ENABLE;
-	}
+	devpriv->us_UseDma = ADDI_ENABLE;
 
 	if (devpriv->s_EeParameters.i_Dma) {
 		if (devpriv->us_UseDma == ADDI_ENABLE) {
@@ -231,7 +225,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	}
 
-	if (!strcmp(this_board->pc_DriverName, "apci1710")) {
+	if (!strcmp(dev->board_name, "apci1710")) {
 #ifdef CONFIG_APCI_1710
 		i_ADDI_AttachPCI1710(dev);
 
@@ -393,6 +387,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
 	const struct addi_board *this_board = comedi_board(dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -402,10 +397,8 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			free_irq(dev->irq, dev);
 		if ((this_board->pc_EepromChip == NULL) ||
 		    (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
-			if (devpriv->allocated) {
-				comedi_pci_disable(devpriv->amcc->pcidev);
-				devpriv->amcc->used = 0;
-			}
+			if (devpriv->allocated)
+				comedi_pci_disable(pcidev);
 			if (devpriv->ul_DmaBufferVirtual[0]) {
 				free_pages((unsigned long)devpriv->
 					ul_DmaBufferVirtual[0],
@@ -418,14 +411,8 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 			}
 		} else {
 			iounmap(devpriv->dw_AiBase);
-			if (devpriv->allocated) {
-				comedi_pci_disable(devpriv->amcc->pcidev);
-				devpriv->amcc->used = 0;
-			}
-		}
-		if (pci_list_builded) {
-			v_pci_card_list_cleanup(this_board->i_VendorId);
-			pci_list_builded = 0;
+			if (devpriv->allocated)
+				comedi_pci_disable(pcidev);
 		}
 	}
 }
