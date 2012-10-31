@@ -1722,15 +1722,9 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 {
 	int reg;
 	u32 val, pipeconf_val;
-	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
-
-	/* Make sure PCH DPLL is enabled */
-	assert_pch_pll_enabled(dev_priv,
-			       to_intel_crtc(crtc)->pch_pll,
-			       to_intel_crtc(crtc));
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
