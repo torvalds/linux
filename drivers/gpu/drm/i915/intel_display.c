@@ -5739,6 +5739,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_encoder_helper_funcs *encoder_funcs;
+	struct intel_encoder *encoder;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
 	int ret;
@@ -5749,7 +5751,19 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 					      x, y, fb);
 	drm_vblank_post_modeset(dev, pipe);
 
-	return ret;
+	if (ret != 0)
+		return ret;
+
+	for_each_encoder_on_crtc(dev, crtc, encoder) {
+		DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
+			encoder->base.base.id,
+			drm_get_encoder_name(&encoder->base),
+			mode->base.id, mode->name);
+		encoder_funcs = encoder->base.helper_private;
+		encoder_funcs->mode_set(&encoder->base, mode, adjusted_mode);
+	}
+
+	return 0;
 }
 
 static bool intel_eld_uptodate(struct drm_connector *connector,
@@ -7651,8 +7665,6 @@ bool intel_set_mode(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode, saved_mode, saved_hwmode;
-	struct drm_encoder_helper_funcs *encoder_funcs;
-	struct drm_encoder *encoder;
 	struct intel_crtc *intel_crtc;
 	unsigned disable_pipes, prepare_pipes, modeset_pipes;
 	bool ret = true;
@@ -7709,18 +7721,6 @@ bool intel_set_mode(struct drm_crtc *crtc,
 					   x, y, fb);
 		if (!ret)
 		    goto done;
-
-		list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-
-			if (encoder->crtc != &intel_crtc->base)
-				continue;
-
-			DRM_DEBUG_KMS("[ENCODER:%d:%s] set [MODE:%d:%s]\n",
-				encoder->base.id, drm_get_encoder_name(encoder),
-				mode->base.id, mode->name);
-			encoder_funcs = encoder->helper_private;
-			encoder_funcs->mode_set(encoder, mode, adjusted_mode);
-		}
 	}
 
 	/* Now enable the clocks, plane, pipe, and connectors that we set up. */
