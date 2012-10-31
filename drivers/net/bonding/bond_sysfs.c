@@ -1060,7 +1060,7 @@ static ssize_t bonding_store_primary(struct device *d,
 		goto out;
 	}
 
-	sscanf(buf, "%16s", ifname); /* IFNAMSIZ */
+	sscanf(buf, "%15s", ifname); /* IFNAMSIZ */
 
 	/* check to see if we are clearing primary */
 	if (!strlen(ifname) || buf[0] == '\n') {
