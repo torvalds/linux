@@ -65,6 +65,9 @@
 #define SMSTPCR3	IOMEM(0xe615013c)
 #define SMSTPCR4	IOMEM(0xe6150140)
 
+#define FSIDIVA		IOMEM(0xFE1F8000)
+#define FSIDIVB		IOMEM(0xFE1F8008)
+
 /* Fixed 32 KHz root clock from EXTALR pin */
 static struct clk extalr_clk = {
 	.rate	= 32768,
@@ -443,6 +446,14 @@ static struct clk *late_main_clks[] = {
 	&hdmi2_clk,
 };
 
+/* FSI DIV */
+enum { FSIDIV_A, FSIDIV_B, FSIDIV_REPARENT_NR };
+
+static struct clk fsidivs[] = {
+	[FSIDIV_A] = SH_CLK_FSIDIV(FSIDIVA, &div6_reparent_clks[DIV6_FSIA]),
+	[FSIDIV_B] = SH_CLK_FSIDIV(FSIDIVB, &div6_reparent_clks[DIV6_FSIB]),
+};
+
 /* MSTP */
 enum {
 	DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_HP,
@@ -612,6 +623,8 @@ static struct clk_lookup lookups[] = {
 
 	CLKDEV_ICK_ID("icka", "sh_fsi2",	&div6_reparent_clks[DIV6_FSIA]),
 	CLKDEV_ICK_ID("ickb", "sh_fsi2",	&div6_reparent_clks[DIV6_FSIB]),
+	CLKDEV_ICK_ID("diva", "sh_fsi2",	&fsidivs[FSIDIV_A]),
+	CLKDEV_ICK_ID("divb", "sh_fsi2",	&fsidivs[FSIDIV_B]),
 };
 
 void __init r8a7740_clock_init(u8 md_ck)
@@ -656,6 +669,9 @@ void __init r8a7740_clock_init(u8 md_ck)
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
 		ret = clk_register(late_main_clks[k]);
+
+	if (!ret)
+		ret = sh_clk_fsidiv_register(fsidivs, FSIDIV_REPARENT_NR);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
