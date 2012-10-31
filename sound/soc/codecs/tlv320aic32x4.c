@@ -675,6 +675,16 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 			     ARRAY_SIZE(aic32x4_snd_controls));
 	aic32x4_add_widgets(codec);
 
+	/*
+	 * Workaround: for an unknown reason, the ADC needs to be powered up
+	 * and down for the first capture to work properly. It seems related to
+	 * a HW BUG or some kind of behavior not documented in the datasheet.
+	 */
+	tmp_reg = snd_soc_read(codec, AIC32X4_ADCSETUP);
+	snd_soc_write(codec, AIC32X4_ADCSETUP, tmp_reg |
+				AIC32X4_LADC_EN | AIC32X4_RADC_EN);
+	snd_soc_write(codec, AIC32X4_ADCSETUP, tmp_reg);
+
 	return 0;
 }
 
