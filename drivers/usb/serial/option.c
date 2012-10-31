@@ -1358,9 +1358,9 @@ static int option_probe(struct usb_serial *serial,
 	 * Don't bind network interface on Samsung GT-B3730, it is handled by
 	 * a separate module.
 	 */
-	if (dev_desc->idVendor == SAMSUNG_VENDOR_ID &&
-		dev_desc->idProduct == SAMSUNG_PRODUCT_GT_B3730 &&
-		iface_desc->bInterfaceClass != USB_CLASS_CDC_DATA)
+	if (dev_desc->idVendor == cpu_to_le16(SAMSUNG_VENDOR_ID) &&
+	    dev_desc->idProduct == cpu_to_le16(SAMSUNG_PRODUCT_GT_B3730) &&
+	    iface_desc->bInterfaceClass != USB_CLASS_CDC_DATA)
 		return -ENODEV;
 
 	/* Store device id so we can use it during attach. */
