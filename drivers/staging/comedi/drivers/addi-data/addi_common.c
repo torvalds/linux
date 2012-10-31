@@ -40,9 +40,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   |	option[0] - PCI bus number - if bus number and slot number are 0, |
   |			         then driver search for first unused card |
   |	option[1] - PCI slot number                                       |
-  |							                  |
-  |	option[2] = 0  - DMA ENABLE                                       |
-  |               = 1  - DMA DISABLE                                      |
   +----------+-----------+------------------------------------------------+
 */
 
@@ -94,7 +91,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int dw_Dummy;
 	resource_size_t iobase_a, iobase_main, iobase_addon, iobase_reserved;
 	struct pcilst_struct *card = NULL;
-	int i_Dma = 0;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -104,10 +100,6 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!pci_list_builded) {
 		v_pci_card_list_init(this_board->i_VendorId);
 		pci_list_builded = 1;
-	}
-
-	if ((this_board->i_Dma) && (it->options[2] == 0)) {
-		i_Dma = 1;
 	}
 
 	card = ptr_select_and_alloc_pci_card(this_board->i_VendorId,
@@ -122,7 +114,7 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	ret = comedi_pci_enable(pcidev, "addi_amcc_s5933");
 	if (ret)
 		return ret;
-	if (i_Dma)
+	if (this_board->i_Dma)
 		pci_set_master(pcidev);
 	card->used = 1;
 	devpriv->allocated = 1;
