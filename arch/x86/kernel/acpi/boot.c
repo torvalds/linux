@@ -574,6 +574,12 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 
 	return irq;
 }
+EXPORT_SYMBOL_GPL(acpi_register_gsi);
+
+void acpi_unregister_gsi(u32 gsi)
+{
+}
+EXPORT_SYMBOL_GPL(acpi_unregister_gsi);
 
 void __init acpi_set_irq_model_pic(void)
 {
