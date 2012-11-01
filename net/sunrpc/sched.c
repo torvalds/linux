@@ -379,6 +379,7 @@ void rpc_sleep_on_priority(struct rpc_wait_queue *q, struct rpc_task *task,
 	__rpc_sleep_on_priority(q, task, action, priority - RPC_PRIORITY_LOW);
 	spin_unlock_bh(&q->lock);
 }
+EXPORT_SYMBOL_GPL(rpc_sleep_on_priority);
 
 /**
  * __rpc_do_wake_up_task - wake up a single rpc_task

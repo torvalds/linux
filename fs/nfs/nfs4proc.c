@@ -536,8 +536,6 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
 
-	rpc_task_set_priority(task, RPC_PRIORITY_NORMAL);
-
 	args->sa_slot = slot;
 
 	dprintk("<-- %s slotid=%d seqid=%d\n", __func__,
@@ -556,8 +554,10 @@ out_success:
 out_sleep:
 	/* Privileged tasks are queued with top priority */
 	if (args->sa_privileged)
-		rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
+		rpc_sleep_on_priority(&tbl->slot_tbl_waitq, task,
+				NULL, RPC_PRIORITY_PRIVILEGED);
+	else
+		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 	spin_unlock(&tbl->slot_tbl_lock);
 	return -EAGAIN;
 }
