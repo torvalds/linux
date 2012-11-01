@@ -145,3 +145,7 @@ static struct pci_driver apci1710_pci_driver = {
 	.remove		= __devexit_p(apci1710_pci_remove),
 };
 module_comedi_pci_driver(apci1710_driver, apci1710_pci_driver);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");
