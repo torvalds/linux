@@ -140,152 +140,7 @@ struct skel_private {
 	unsigned int ao_readback[2];
 };
 
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attach/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static void skel_detach(struct comedi_device *dev);
-static struct comedi_driver skel_driver = {
-	.driver_name = "dummy",
-	.module = THIS_MODULE,
-	.attach = skel_attach,
-	.detach = skel_detach,
-/* It is not necessary to implement the following members if you are
- * writing a driver for a ISA PnP or PCI card */
-	/* Most drivers will support multiple types of boards by
-	 * having an array of board structures.  These were defined
-	 * in skel_boards[] above.  Note that the element 'name'
-	 * was first in the structure -- Comedi uses this fact to
-	 * extract the name of the board without knowing any details
-	 * about the structure except for its length.
-	 * When a device is attached (by comedi_config), the name
-	 * of the device is given to Comedi, and Comedi tries to
-	 * match it by going through the list of board names.  If
-	 * there is a match, the address of the pointer is put
-	 * into dev->board_ptr and driver->attach() is called.
-	 *
-	 * Note that these are not necessary if you can determine
-	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
-	 * devices are such boards.
-	 */
-	.board_name = &skel_boards[0].name,
-	.offset = sizeof(struct skel_board),
-	.num_names = ARRAY_SIZE(skel_boards),
-};
-
-static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data);
-static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data);
-static int skel_ao_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-			 struct comedi_insn *insn, unsigned int *data);
-static int skel_dio_insn_bits(struct comedi_device *dev,
-			      struct comedi_subdevice *s,
-			      struct comedi_insn *insn, unsigned int *data);
-static int skel_dio_insn_config(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-static int skel_ai_cmdtest(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_cmd *cmd);
 static int skel_ns_to_timer(unsigned int *ns, int round);
-
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
-{
-	const struct skel_board *thisboard;
-	struct skel_private *devpriv;
-	struct comedi_subdevice *s;
-	int ret;
-
-/*
- * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, dev->board_ptr
- * should already be initialized.
- */
-	/* dev->board_ptr = skel_probe(dev, it); */
-
-	thisboard = comedi_board(dev);
-/*
- * Initialize dev->board_name.
- */
-	dev->board_name = thisboard->name;
-
-	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	ret = comedi_alloc_subdevices(dev, 3);
-	if (ret)
-		return ret;
-
-	s = &dev->subdevices[0];
-	/* dev->read_subdev=s; */
-	/* analog input subdevice */
-	s->type = COMEDI_SUBD_AI;
-	/* we support single-ended (ground) and differential */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
-	s->n_chan = thisboard->ai_chans;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = &range_bipolar10;
-	s->len_chanlist = 16;	/* This is the maximum chanlist length that
-				   the board can handle */
-	s->insn_read = skel_ai_rinsn;
-/*
-*       s->subdev_flags |= SDF_CMD_READ;
-*       s->do_cmd = skel_ai_cmd;
-*/
-	s->do_cmdtest = skel_ai_cmdtest;
-
-	s = &dev->subdevices[1];
-	/* analog output subdevice */
-	s->type = COMEDI_SUBD_AO;
-	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = 1;
-	s->maxdata = 0xffff;
-	s->range_table = &range_bipolar5;
-	s->insn_write = skel_ao_winsn;
-	s->insn_read = skel_ao_rinsn;
-
-	s = &dev->subdevices[2];
-	/* digital i/o subdevice */
-	if (thisboard->have_dio) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 16;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = skel_dio_insn_bits;
-		s->insn_config = skel_dio_insn_config;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	dev_info(dev->class_dev, "skel: attached\n");
-
-	return 0;
-}
-
-/*
- * _detach is called to deconfigure a device.  It should deallocate
- * resources.
- * This function is also called when _attach() fails, so it should be
- * careful not to release resources that were not necessarily
- * allocated by _attach().  dev->private and dev->subdevices are
- * deallocated automatically by the core.
- */
-static void skel_detach(struct comedi_device *dev)
-{
-}
 
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
@@ -580,6 +435,135 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 
 	return insn->n;
 }
+
+/*
+ * Attach is called by the Comedi core to configure the driver
+ * for a particular board.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that
+ * address.
+ */
+static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct skel_board *thisboard;
+	struct skel_private *devpriv;
+	struct comedi_subdevice *s;
+	int ret;
+
+/*
+ * If you can probe the device to determine what device in a series
+ * it is, this is the place to do it.  Otherwise, dev->board_ptr
+ * should already be initialized.
+ */
+	/* dev->board_ptr = skel_probe(dev, it); */
+
+	thisboard = comedi_board(dev);
+/*
+ * Initialize dev->board_name.
+ */
+	dev->board_name = thisboard->name;
+
+	/* Allocate the private data */
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	ret = comedi_alloc_subdevices(dev, 3);
+	if (ret)
+		return ret;
+
+	s = &dev->subdevices[0];
+	/* dev->read_subdev=s; */
+	/* analog input subdevice */
+	s->type = COMEDI_SUBD_AI;
+	/* we support single-ended (ground) and differential */
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
+	s->n_chan = thisboard->ai_chans;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = &range_bipolar10;
+	s->len_chanlist = 16;	/* This is the maximum chanlist length that
+				   the board can handle */
+	s->insn_read = skel_ai_rinsn;
+/*
+*       s->subdev_flags |= SDF_CMD_READ;
+*       s->do_cmd = skel_ai_cmd;
+*/
+	s->do_cmdtest = skel_ai_cmdtest;
+
+	s = &dev->subdevices[1];
+	/* analog output subdevice */
+	s->type = COMEDI_SUBD_AO;
+	s->subdev_flags = SDF_WRITABLE;
+	s->n_chan = 1;
+	s->maxdata = 0xffff;
+	s->range_table = &range_bipolar5;
+	s->insn_write = skel_ao_winsn;
+	s->insn_read = skel_ao_rinsn;
+
+	s = &dev->subdevices[2];
+	/* digital i/o subdevice */
+	if (thisboard->have_dio) {
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->n_chan = 16;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = skel_dio_insn_bits;
+		s->insn_config = skel_dio_insn_config;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+
+	dev_info(dev->class_dev, "skel: attached\n");
+
+	return 0;
+}
+
+/*
+ * _detach is called to deconfigure a device.  It should deallocate
+ * resources.
+ * This function is also called when _attach() fails, so it should be
+ * careful not to release resources that were not necessarily
+ * allocated by _attach().  dev->private and dev->subdevices are
+ * deallocated automatically by the core.
+ */
+static void skel_detach(struct comedi_device *dev)
+{
+}
+
+/*
+ * The struct comedi_driver structure tells the Comedi core module
+ * which functions to call to configure/deconfigure (attach/detach)
+ * the board, and also about the kernel module that contains
+ * the device code.
+ */
+static struct comedi_driver skel_driver = {
+	.driver_name = "dummy",
+	.module = THIS_MODULE,
+	.attach = skel_attach,
+	.detach = skel_detach,
+/* It is not necessary to implement the following members if you are
+ * writing a driver for a ISA PnP or PCI card */
+	/* Most drivers will support multiple types of boards by
+	 * having an array of board structures.  These were defined
+	 * in skel_boards[] above.  Note that the element 'name'
+	 * was first in the structure -- Comedi uses this fact to
+	 * extract the name of the board without knowing any details
+	 * about the structure except for its length.
+	 * When a device is attached (by comedi_config), the name
+	 * of the device is given to Comedi, and Comedi tries to
+	 * match it by going through the list of board names.  If
+	 * there is a match, the address of the pointer is put
+	 * into dev->board_ptr and driver->attach() is called.
+	 *
+	 * Note that these are not necessary if you can determine
+	 * the type of board in software.  ISA PnP, PCI, and PCMCIA
+	 * devices are such boards.
+	 */
+	.board_name = &skel_boards[0].name,
+	.offset = sizeof(struct skel_board),
+	.num_names = ARRAY_SIZE(skel_boards),
+};
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 static int __devinit skel_pci_probe(struct pci_dev *dev,
