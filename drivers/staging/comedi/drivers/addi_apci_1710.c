@@ -28,9 +28,6 @@ static const struct addi_board apci1710_boardtypes[] = {
 		.pc_DriverName		= "apci1710",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= APCI1710_BOARD_DEVICE_ID,
-		.i_IorangeBase0		= 128,
-		.i_IorangeBase1		= 8,
-		.i_IorangeBase2		= 256,
 		.interrupt		= v_APCI1710_Interrupt,
 	},
 };
