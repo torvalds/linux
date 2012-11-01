@@ -186,8 +186,7 @@ static unsigned int fifo_size(uint32_t fifo_size_bits)
 }
 
 struct hpdi_board {
-
-	char *name;
+	const char *name;	/*  board name */
 	int device_id;		/*  pci device id */
 	int subdevice_id;	/*  pci subdevice id */
 };
