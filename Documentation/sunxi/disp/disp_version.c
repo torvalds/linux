@@ -25,7 +25,7 @@ main(int argc, char *argv[])
 	int ret, tmp, width, height;
 
 	if (fd == -1) {
-		fprintf(stderr, "Error: Failed to open /dev/mali: %s\n",
+		fprintf(stderr, "Error: Failed to open /dev/disp: %s\n",
 			strerror(errno));
 		return errno;
 	}
