@@ -653,7 +653,6 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	u64 end;
 	u64 orig_end;
 	struct btrfs_ordered_extent *ordered;
-	int found;
 
 	if (start + len < start) {
 		orig_end = INT_LIMIT(loff_t);
@@ -689,7 +688,6 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 	filemap_fdatawait_range(inode->i_mapping, start, orig_end);
 
 	end = orig_end;
-	found = 0;
 	while (1) {
 		ordered = btrfs_lookup_first_ordered_extent(inode, end);
 		if (!ordered)
@@ -702,7 +700,6 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 			btrfs_put_ordered_extent(ordered);
 			break;
 		}
-		found++;
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		end = ordered->file_offset;
 		btrfs_put_ordered_extent(ordered);
