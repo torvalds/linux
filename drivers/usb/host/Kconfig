@@ -430,7 +430,7 @@ config USB_OHCI_HCD_PLATFORM
 	  If unsure, say N.
 
 config USB_EHCI_HCD_PLATFORM
-	bool "Generic EHCI driver for a platform device"
+	tristate "Generic EHCI driver for a platform device"
 	depends on USB_EHCI_HCD
 	default n
 	---help---

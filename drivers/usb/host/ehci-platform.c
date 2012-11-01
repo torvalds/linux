@@ -18,8 +18,18 @@
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/usb/ehci_pdriver.h>
+
+#include "ehci.h"
+
+#define DRIVER_DESC "EHCI generic platform driver"
+
+static const char hcd_name[] = "ehci-platform";
 
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
@@ -43,36 +53,11 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	return 0;
 }
 
-static const struct hc_driver ehci_platform_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "Generic Platform EHCI Controller",
-	.hcd_priv_size		= sizeof(struct ehci_hcd),
+static struct hc_driver __read_mostly ehci_platform_hc_driver;
 
-	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
-
-	.reset			= ehci_platform_reset,
-	.start			= ehci_run,
-	.stop			= ehci_stop,
-	.shutdown		= ehci_shutdown,
-
-	.urb_enqueue		= ehci_urb_enqueue,
-	.urb_dequeue		= ehci_urb_dequeue,
-	.endpoint_disable	= ehci_endpoint_disable,
-	.endpoint_reset		= ehci_endpoint_reset,
-
-	.get_frame_number	= ehci_get_frame,
-
-	.hub_status_data	= ehci_hub_status_data,
-	.hub_control		= ehci_hub_control,
-#if defined(CONFIG_PM)
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
-#endif
-	.relinquish_port	= ehci_relinquish_port,
-	.port_handed_over	= ehci_port_handed_over,
-
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
+static const struct ehci_driver_overrides platform_overrides = {
+	.product_desc =	"Generic Platform EHCI controller",
+	.reset =	ehci_platform_reset,
 };
 
 static int __devinit ehci_platform_probe(struct platform_device *dev)
@@ -218,3 +203,26 @@ static struct platform_driver ehci_platform_driver = {
 		.pm	= &ehci_platform_pm_ops,
 	}
 };
+
+static int __init ehci_platform_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
+	return platform_driver_register(&ehci_platform_driver);
+}
+module_init(ehci_platform_init);
+
+static void __exit ehci_platform_cleanup(void)
+{
+	platform_driver_unregister(&ehci_platform_driver);
+}
+module_exit(ehci_platform_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Hauke Mehrtens");
+MODULE_AUTHOR("Alan Stern");
+MODULE_LICENSE("GPL");
