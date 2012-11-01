@@ -4237,7 +4237,9 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 				    u16 cmd_len, void *data)
 {
 	struct l2cap_create_chan_req *req = data;
+	struct l2cap_create_chan_rsp rsp;
 	struct l2cap_chan *chan;
+	struct hci_dev *hdev;
 	u16 psm, scid;
 
 	if (cmd_len != sizeof(*req))
@@ -4251,36 +4253,57 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 
 	BT_DBG("psm 0x%2.2x, scid 0x%4.4x, amp_id %d", psm, scid, req->amp_id);
 
-	if (req->amp_id) {
-		struct hci_dev *hdev;
+	/* For controller id 0 make BR/EDR connection */
+	if (req->amp_id == HCI_BREDR_ID) {
+		l2cap_connect(conn, cmd, data, L2CAP_CREATE_CHAN_RSP,
+			      req->amp_id);
+		return 0;
+	}
 
-		/* Validate AMP controller id */
-		hdev = hci_dev_get(req->amp_id);
-		if (!hdev || hdev->dev_type != HCI_AMP ||
-		    !test_bit(HCI_UP, &hdev->flags)) {
-			struct l2cap_create_chan_rsp rsp;
+	/* Validate AMP controller id */
+	hdev = hci_dev_get(req->amp_id);
+	if (!hdev)
+		goto error;
 
-			rsp.dcid = 0;
-			rsp.scid = cpu_to_le16(scid);
-			rsp.result = __constant_cpu_to_le16(L2CAP_CR_BAD_AMP);
-			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
-
-			l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
-				       sizeof(rsp), &rsp);
-
-			if (hdev)
-				hci_dev_put(hdev);
-
-			return 0;
-		}
-
+	if (hdev->dev_type != HCI_AMP || !test_bit(HCI_UP, &hdev->flags)) {
 		hci_dev_put(hdev);
+		goto error;
 	}
 
 	chan = l2cap_connect(conn, cmd, data, L2CAP_CREATE_CHAN_RSP,
 			     req->amp_id);
+	if (chan) {
+		struct amp_mgr *mgr = conn->hcon->amp_mgr;
+		struct hci_conn *hs_hcon;
+
+		hs_hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, conn->dst);
+		if (!hs_hcon) {
+			hci_dev_put(hdev);
+			return -EFAULT;
+		}
+
+		BT_DBG("mgr %p bredr_chan %p hs_hcon %p", mgr, chan, hs_hcon);
+
+		chan->local_amp_id = req->amp_id;
+		mgr->bredr_chan = chan;
+		chan->hs_hcon = hs_hcon;
+		conn->mtu = hdev->block_mtu;
+	}
+
+	hci_dev_put(hdev);
 
 	return 0;
+
+error:
+	rsp.dcid = 0;
+	rsp.scid = cpu_to_le16(scid);
+	rsp.result = __constant_cpu_to_le16(L2CAP_CR_BAD_AMP);
+	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+
+	l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
+		       sizeof(rsp), &rsp);
+
+	return -EFAULT;
 }
 
 static void l2cap_send_move_chan_req(struct l2cap_chan *chan, u8 dest_amp_id)
