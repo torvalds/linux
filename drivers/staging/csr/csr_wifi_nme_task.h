@@ -22,9 +22,6 @@
 
 #define CSR_WIFI_NME_LOG_ID 0x1203FFFF
 extern CsrSchedQid CSR_WIFI_NME_IFACEQUEUE;
-void CsrWifiNmeInit(void **gash);
-void CsrWifiNmeDeinit(void **gash);
-void CsrWifiNmeHandler(void **gash);
 
 #endif /* CSR_WIFI_NME_TASK_H__ */
 
