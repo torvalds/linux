@@ -1455,6 +1455,8 @@ int sme_ap_config(unifi_priv_t *priv,
                                  *ap_mac_config);
 
     r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
+	if (r)
+		return r;
 
     unifi_trace(priv, UDBG4,
                 "sme_ap_config <-- (r=%d status=%d)\n",
