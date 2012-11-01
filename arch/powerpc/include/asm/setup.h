@@ -13,10 +13,6 @@ extern unsigned long long memory_limit;
 extern unsigned long klimit;
 extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
-extern void via_cuda_init(void);
-extern void read_rtc_time(void);
-extern void pmac_find_display(void);
-
 struct device_node;
 extern void note_scsi_host(struct device_node *, void *);
 
