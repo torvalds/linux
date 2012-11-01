@@ -13,6 +13,13 @@
 #ifndef _EXYNOS_DP_CORE_H
 #define _EXYNOS_DP_CORE_H
 
+enum dp_irq_type {
+	DP_IRQ_TYPE_HP_CABLE_IN,
+	DP_IRQ_TYPE_HP_CABLE_OUT,
+	DP_IRQ_TYPE_HP_CHANGE,
+	DP_IRQ_TYPE_UNKNOWN,
+};
+
 struct link_train {
 	int eq_loop;
 	int cr_loop[4];
@@ -53,6 +60,8 @@ void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
 				bool enable);
 void exynos_dp_init_analog_func(struct exynos_dp_device *dp);
 void exynos_dp_init_hpd(struct exynos_dp_device *dp);
+enum dp_irq_type exynos_dp_get_irq_type(struct exynos_dp_device *dp);
+void exynos_dp_clear_hotplug_interrupts(struct exynos_dp_device *dp);
 void exynos_dp_reset_aux(struct exynos_dp_device *dp);
 void exynos_dp_init_aux(struct exynos_dp_device *dp);
 int exynos_dp_get_plug_in_status(struct exynos_dp_device *dp);
