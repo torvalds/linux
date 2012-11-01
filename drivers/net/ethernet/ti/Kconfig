@@ -62,7 +62,7 @@ config TI_CPSW
 
 config TI_CPTS
 	boolean "TI Common Platform Time Sync (CPTS) Support"
-	depends on TI_CPSW && PTP_1588_CLOCK && !(TI_CPSW=y && PTP_1588_CLOCK=m)
+	select PTP_1588_CLOCK
 	---help---
 	  This driver supports the Common Platform Time Sync unit of
 	  the CPSW Ethernet Switch. The unit can time stamp PTP UDP/IPv4
