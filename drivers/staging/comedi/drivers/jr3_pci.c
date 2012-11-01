@@ -59,8 +59,6 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
 struct jr3_pci_dev_private {
-
-	struct pci_dev *pci_dev;
 	int pci_enabled;
 	struct jr3_t __iomem *iobase;
 	int n_channels;
@@ -68,7 +66,6 @@ struct jr3_pci_dev_private {
 };
 
 struct poll_delay_t {
-
 	int min;
 	int max;
 };
@@ -98,15 +95,15 @@ struct jr3_pci_subdev_private {
 };
 
 /* Hotplug firmware loading stuff */
-static int comedi_load_firmware(struct comedi_device *dev, char *name,
+static int comedi_load_firmware(struct comedi_device *dev, const char *name,
 				int (*cb)(struct comedi_device *dev,
 					const u8 *data, size_t size))
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int result = 0;
 	const struct firmware *fw;
 	char *firmware_path;
 	static const char *prefix = "comedi/";
-	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	firmware_path = kmalloc(strlen(prefix) + strlen(name) + 1, GFP_KERNEL);
 	if (!firmware_path) {
@@ -115,8 +112,7 @@ static int comedi_load_firmware(struct comedi_device *dev, char *name,
 		firmware_path[0] = '\0';
 		strcat(firmware_path, prefix);
 		strcat(firmware_path, name);
-		result = request_firmware(&fw, firmware_path,
-					  &devpriv->pci_dev->dev);
+		result = request_firmware(&fw, firmware_path, &pcidev->dev);
 		if (result == 0) {
 			if (!cb)
 				result = -EINVAL;
@@ -785,7 +781,6 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 		break;
 	}
-	devpriv->pci_dev = pcidev;
 	dev->board_name = "jr3_pci";
 
 	result = comedi_pci_enable(pcidev, "jr3_pci");
@@ -899,6 +894,7 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 static void jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -911,7 +907,7 @@ static void jr3_pci_detach(struct comedi_device *dev)
 		if (devpriv->iobase)
 			iounmap(devpriv->iobase);
 		if (devpriv->pci_enabled)
-			comedi_pci_disable(devpriv->pci_dev);
+			comedi_pci_disable(pcidev);
 	}
 }
 
