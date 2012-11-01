@@ -92,6 +92,7 @@ Configuration Options:
  */
 struct skel_board {
 	const char *name;
+	unsigned int devid;
 	int ai_chans;
 	int ai_bits;
 	int have_dio;
@@ -100,12 +101,14 @@ struct skel_board {
 static const struct skel_board skel_boards[] = {
 	{
 	 .name = "skel-100",
+	 .devid = 0x100,
 	 .ai_chans = 16,
 	 .ai_bits = 12,
 	 .have_dio = 1,
 	 },
 	{
 	 .name = "skel-200",
+	 .devid = 0x200,
 	 .ai_chans = 8,
 	 .ai_bits = 16,
 	 .have_dio = 0,
@@ -119,9 +122,6 @@ static const struct skel_board skel_boards[] = {
 struct skel_private {
 
 	int data;
-
-	/* would be useful for a PCI device */
-	struct pci_dev *pci_dev;
 
 	/* Used for AO readback */
 	unsigned int ao_readback[2];
@@ -421,37 +421,30 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.  If you specified a board_name array
- * in the driver structure, dev->board_ptr contains that
- * address.
- */
-static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static const struct skel_board *skel_find_pci_board(struct pci_dev *pcidev)
 {
-	const struct skel_board *thisboard;
-	struct skel_private *devpriv;
+	unsigned int i;
+
+/*
+ * This example code assumes all the entries in skel_boards[] are PCI boards
+ * and all use the same PCI vendor ID.  If skel_boards[] contains a mixture
+ * of PCI and non-PCI boards, this loop should skip over the non-PCI boards.
+ */
+	for (i = 0; i < ARRAY_SIZE(skel_boards); i++)
+		if (/* skel_boards[i].bustype == pci_bustype && */
+		    pcidev->device == skel_boards[i].devid)
+			return &skel_boards[i];
+	return NULL;
+}
+
+/*
+ * Handle common part of skel_attach() and skel_auto_attach().
+ */
+static int skel_common_attach(struct comedi_device *dev)
+{
+	const struct skel_board *thisboard = comedi_board(dev);
 	struct comedi_subdevice *s;
 	int ret;
-
-/*
- * If you can probe the device to determine what device in a series
- * it is, this is the place to do it.  Otherwise, dev->board_ptr
- * should already be initialized.
- */
-	/* dev->board_ptr = skel_probe(dev, it); */
-
-	thisboard = comedi_board(dev);
-/*
- * Initialize dev->board_name.
- */
-	dev->board_name = thisboard->name;
-
-	/* Allocate the private data */
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
@@ -505,6 +498,146 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 }
 
 /*
+ * _attach is called by the Comedi core to configure the driver
+ * for a particular board in response to the COMEDI_DEVCONFIG ioctl for
+ * a matching board or driver name.  If you specified a board_name array
+ * in the driver structure, dev->board_ptr contains that address.
+ *
+ * Drivers that handle only PCI or USB devices do not usually support
+ * manual attachment of those devices via the COMEDI_DEVCONFIG ioctl, so
+ * those drivers do not have an _attach function; they just have an
+ * _auto_attach function instead.  (See skel_auto_attach() for an example
+ * of such a function.)
+ */
+static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	const struct skel_board *thisboard;
+	struct skel_private *devpriv;
+
+/*
+ * If you can probe the device to determine what device in a series
+ * it is, this is the place to do it.  Otherwise, dev->board_ptr
+ * should already be initialized.
+ */
+	/* dev->board_ptr = skel_probe(dev, it); */
+
+	thisboard = comedi_board(dev);
+
+/*
+ * Initialize dev->board_name.
+ */
+	dev->board_name = thisboard->name;
+
+	/* Allocate the private data */
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+/*
+ * Supported boards are usually either auto-attached via the
+ * Comedi driver's _auto_attach routine, or manually attached via the
+ * Comedi driver's _attach routine.  In most cases, attempts to
+ * manual attach boards that are usually auto-attached should be
+ * rejected by this function.
+ */
+/*
+ *	if (thisboard->bustype == pci_bustype) {
+ *		dev_err(dev->class_dev,
+ *			"Manual attachment of PCI board '%s' not supported\n",
+ *			thisboard->name);
+ *	}
+ */
+
+/*
+ * For ISA boards, get the i/o base address from it->options[],
+ * request the i/o region and set dev->iobase * from it->options[].
+ * If using interrupts, get the IRQ number from it->options[].
+ */
+
+	/*
+	 * Call a common function to handle the remaining things to do for
+	 * attaching ISA or PCI boards.  (Extra parameters could be added
+	 * to pass additional information such as IRQ number.)
+	 */
+	return skel_common_attach(dev);
+}
+
+/*
+ * _auto_attach is called via comedi_pci_auto_config() (or
+ * comedi_usb_auto_config(), etc.) to handle devices that can be attached
+ * to the Comedi core automatically without the COMEDI_DEVCONFIG ioctl.
+ *
+ * For PCI devices, comedi_pci_auto_config() is usually called directly from
+ * the struct pci_driver probe() function, so this _auto_attach() function
+ * can be tagged __devinit.
+ *
+ * The context parameter is usually unused, but if the driver called
+ * comedi_auto_config() directly instead of the comedi_pci_auto_config()
+ * wrapper function, this will be a copy of the context passed to
+ * comedi_auto_config().
+ */
+static int __devinit skel_auto_attach(struct comedi_device *dev,
+				      unsigned long context)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct skel_board *thisboard;
+	struct skel_private *devpriv;
+	int ret;
+
+	/* Hack to allow unused code to be optimized out. */
+	if (!IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS))
+		return -EINVAL;
+
+	/* Find a matching board in skel_boards[]. */
+	thisboard = skel_find_pci_board(pcidev);
+	if (!thisboard) {
+		dev_err(dev->class_dev, "BUG! cannot determine board type!\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Point the struct comedi_device to the matching board info
+	 * and set the board name.
+	 */
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
+
+	/* Allocate the private data */
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	/* Enable the PCI device. */
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret)
+		return ret;
+
+	/*
+	 * Record the fact that the PCI device is enabled so that it can
+	 * be disabled during _detach().
+	 *
+	 * For this example driver, we assume PCI BAR 0 is the main I/O
+	 * region for the board registers and use dev->iobase to hold the
+	 * I/O base address and to indicate that the PCI device has been
+	 * enabled.
+	 *
+	 * (For boards with memory-mapped registers, dev->iobase is not
+	 * usually needed for register access, so can just be set to 1
+	 * to indicate that the PCI device has been enabled.)
+	 */
+	dev->iobase = pci_resource_start(pcidev, 0);
+
+	/*
+	 * Call a common function to handle the remaining things to do for
+	 * attaching ISA or PCI boards.  (Extra parameters could be added
+	 * to pass additional information such as IRQ number.)
+	 */
+	return skel_common_attach(dev);
+}
+
+/*
  * _detach is called to deconfigure a device.  It should deallocate
  * resources.
  * This function is also called when _attach() fails, so it should be
@@ -514,6 +647,40 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 static void skel_detach(struct comedi_device *dev)
 {
+	const struct skel_board *thisboard = comedi_board(dev);
+	struct skel_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+
+	if (!thisboard || !devpriv)
+		return;
+
+/*
+ * Do common stuff such as freeing IRQ, unmapping remapped memory
+ * regions, etc., being careful to check that the stuff is valid given
+ * that _detach() is called even when _attach() or _auto_attach() return
+ * an error.
+ */
+
+	if (IS_ENABLED(CONFIG_COMEDI_PCI_DRIVERS) /* &&
+	    thisboard->bustype == pci_bustype */) {
+		/*
+		 * PCI board
+		 *
+		 * If PCI device enabled by _auto_attach() (or _attach()),
+		 * disable it here.
+		 */
+		if (pcidev && dev->iobase)
+			comedi_pci_disable(pcidev);
+	} else {
+		/*
+		 * ISA board
+		 *
+		 * If I/O regions successfully requested by _attach(),
+		 * release them here.
+		 */
+		if (dev->iobase)
+			release_region(dev->iobase, SKEL_SIZE);
+	}
 }
 
 /*
@@ -526,6 +693,7 @@ static struct comedi_driver skel_driver = {
 	.driver_name = "dummy",
 	.module = THIS_MODULE,
 	.attach = skel_attach,
+	.auto_attach = skel_auto_attach,
 	.detach = skel_detach,
 /* It is not necessary to implement the following members if you are
  * writing a driver for a ISA PnP or PCI card */
