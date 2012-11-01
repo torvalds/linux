@@ -1873,6 +1873,12 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
+void
+disp_device_release(struct device *dev)
+{
+	/* FILL ME! */
+}
+
 static const struct file_operations disp_fops = {
 	.owner = THIS_MODULE,
 	.open = disp_open,
@@ -1900,7 +1906,9 @@ static struct platform_device disp_device = {
 	.id = -1,
 	.num_resources = ARRAY_SIZE(disp_resource),
 	.resource = disp_resource,
-	.dev = {}
+	.dev = {
+		.release = disp_device_release,
+	}
 };
 
 static int __init disp_module_init(void)
