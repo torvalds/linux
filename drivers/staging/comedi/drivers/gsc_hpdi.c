@@ -26,24 +26,24 @@
 ************************************************************************/
 
 /*
-
-Driver: gsc_hpdi
-Description: General Standards Corporation High
-    Speed Parallel Digital Interface rs485 boards
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Status: only receive mode works, transmit not supported
-Updated: 2003-02-20
-Devices: [General Standards Corporation] PCI-HPDI32 (gsc_hpdi),
-  PMC-HPDI32
-
-Configuration options:
-   [0] - PCI bus of device (optional)
-   [1] - PCI slot of device (optional)
-
-There are some additional hpdi models available from GSC for which
-support could be added to this driver.
-
-*/
+ * Driver: gsc_hpdi
+ * Description: General Standards Corporation High
+ *    Speed Parallel Digital Interface rs485 boards
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Status: only receive mode works, transmit not supported
+ * Updated: Thu, 01 Nov 2012 16:17:38 +0000
+ * Devices: [General Standards Corporation] PCI-HPDI32 (gsc_hpdi),
+ *   PMC-HPDI32
+ *
+ * Configuration options:
+ *    None.
+ *
+ * Manual configuration of supported devices is not supported; they are
+ * configured automatically.
+ *
+ * There are some additional hpdi models available from GSC for which
+ * support could be added to this driver.
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
