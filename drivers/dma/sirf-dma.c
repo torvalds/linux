@@ -32,7 +32,9 @@
 #define SIRFSOC_DMA_CH_VALID                    0x140
 #define SIRFSOC_DMA_CH_INT                      0x144
 #define SIRFSOC_DMA_INT_EN                      0x148
+#define SIRFSOC_DMA_INT_EN_CLR			0x14C
 #define SIRFSOC_DMA_CH_LOOP_CTRL                0x150
+#define SIRFSOC_DMA_CH_LOOP_CTRL_CLR            0x15C
 
 #define SIRFSOC_DMA_MODE_CTRL_BIT               4
 #define SIRFSOC_DMA_DIR_CTRL_BIT                5
@@ -76,6 +78,7 @@ struct sirfsoc_dma {
 	struct sirfsoc_dma_chan		channels[SIRFSOC_DMA_CHANNELS];
 	void __iomem			*base;
 	int				irq;
+	bool				is_marco;
 };
 
 #define DRV_NAME	"sirfsoc_dma"
@@ -288,13 +291,19 @@ static int sirfsoc_dma_terminate_all(struct sirfsoc_dma_chan *schan)
 	int cid = schan->chan.chan_id;
 	unsigned long flags;
 
-	writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_INT_EN) &
-		~(1 << cid), sdma->base + SIRFSOC_DMA_INT_EN);
-	writel_relaxed(1 << cid, sdma->base + SIRFSOC_DMA_CH_VALID);
-
-	writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL)
-		& ~((1 << cid) | 1 << (cid + 16)),
+	if (!sdma->is_marco) {
+		writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_INT_EN) &
+			~(1 << cid), sdma->base + SIRFSOC_DMA_INT_EN);
+		writel_relaxed(readl_relaxed(sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL)
+			& ~((1 << cid) | 1 << (cid + 16)),
 			sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL);
+	} else {
+		writel_relaxed(1 << cid, sdma->base + SIRFSOC_DMA_INT_EN_CLR);
+		writel_relaxed((1 << cid) | 1 << (cid + 16),
+			sdma->base + SIRFSOC_DMA_CH_LOOP_CTRL_CLR);
+	}
+
+	writel_relaxed(1 << cid, sdma->base + SIRFSOC_DMA_CH_VALID);
 
 	spin_lock_irqsave(&schan->lock, flags);
 	list_splice_tail_init(&schan->active, &schan->free);
@@ -568,6 +577,9 @@ static int sirfsoc_dma_probe(struct platform_device *op)
 		return -ENOMEM;
 	}
 
+	if (of_device_is_compatible(dn, "sirf,marco-dmac"))
+		sdma->is_marco = true;
+
 	if (of_property_read_u32(dn, "cell-index", &id)) {
 		dev_err(dev, "Fail to get DMAC index\n");
 		return -ENODEV;
@@ -668,6 +680,7 @@ static int __devexit sirfsoc_dma_remove(struct platform_device *op)
 
 static struct of_device_id sirfsoc_dma_match[] = {
 	{ .compatible = "sirf,prima2-dmac", },
+	{ .compatible = "sirf,marco-dmac", },
 	{},
 };
 
