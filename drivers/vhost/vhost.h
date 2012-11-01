@@ -13,9 +13,15 @@
 #include <linux/virtio_ring.h>
 #include <linux/atomic.h>
 
-/* This is for zerocopy, used buffer len is set to 1 when lower device DMA
- * done */
-#define VHOST_DMA_DONE_LEN	1
+/*
+ * For transmit, used buffer len is unused; we override it to track buffer
+ * status internally; used for zerocopy tx only.
+ */
+/* Lower device DMA done */
+#define VHOST_DMA_DONE_LEN	2
+/* Lower device DMA in progress */
+#define VHOST_DMA_IN_PROGRESS	1
+/* Buffer unused */
 #define VHOST_DMA_CLEAR_LEN	0
 
 struct vhost_device;

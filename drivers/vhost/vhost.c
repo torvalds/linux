@@ -1606,7 +1606,7 @@ void vhost_zerocopy_callback(struct ubuf_info *ubuf, bool status)
 	struct vhost_virtqueue *vq = ubufs->vq;
 
 	vhost_poll_queue(&vq->poll);
-	/* set len = 1 to mark this desc buffers done DMA */
+	/* set len to mark this desc buffers done DMA */
 	vq->heads[ubuf->desc].len = VHOST_DMA_DONE_LEN;
 	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
 }
