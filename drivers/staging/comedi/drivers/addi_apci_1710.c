@@ -19,10 +19,6 @@ static void fpu_end(void)
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_APCI1710.c"
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 static const struct addi_board apci1710_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci1710",
