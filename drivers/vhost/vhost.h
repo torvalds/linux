@@ -17,12 +17,16 @@
  * For transmit, used buffer len is unused; we override it to track buffer
  * status internally; used for zerocopy tx only.
  */
+/* Lower device DMA failed */
+#define VHOST_DMA_FAILED_LEN	3
 /* Lower device DMA done */
 #define VHOST_DMA_DONE_LEN	2
 /* Lower device DMA in progress */
 #define VHOST_DMA_IN_PROGRESS	1
 /* Buffer unused */
 #define VHOST_DMA_CLEAR_LEN	0
+
+#define VHOST_DMA_IS_DONE(len) ((len) >= VHOST_DMA_DONE_LEN)
 
 struct vhost_device;
 

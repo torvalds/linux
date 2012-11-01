@@ -425,7 +425,7 @@ int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq)
 	int j = 0;
 
 	for (i = vq->done_idx; i != vq->upend_idx; i = (i + 1) % UIO_MAXIOV) {
-		if ((vq->heads[i].len == VHOST_DMA_DONE_LEN)) {
+		if (VHOST_DMA_IS_DONE(vq->heads[i].len)) {
 			vq->heads[i].len = VHOST_DMA_CLEAR_LEN;
 			vhost_add_used_and_signal(vq->dev, vq,
 						  vq->heads[i].id, 0);
@@ -1600,13 +1600,14 @@ void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *ubufs)
 	kfree(ubufs);
 }
 
-void vhost_zerocopy_callback(struct ubuf_info *ubuf, bool status)
+void vhost_zerocopy_callback(struct ubuf_info *ubuf, int status)
 {
 	struct vhost_ubuf_ref *ubufs = ubuf->ctx;
 	struct vhost_virtqueue *vq = ubufs->vq;
 
 	vhost_poll_queue(&vq->poll);
 	/* set len to mark this desc buffers done DMA */
-	vq->heads[ubuf->desc].len = VHOST_DMA_DONE_LEN;
+	vq->heads[ubuf->desc].len = status ?
+		VHOST_DMA_FAILED_LEN : VHOST_DMA_DONE_LEN;
 	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
 }
