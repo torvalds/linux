@@ -253,7 +253,7 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	spin_unlock_irq(&dev->power.lock);
 
 	kfree(c->notifiers);
-	kfree(c);
+	kfree(qos);
 
  out:
 	mutex_unlock(&dev_pm_qos_mtx);
