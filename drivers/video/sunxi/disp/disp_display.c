@@ -30,6 +30,7 @@
 #include "disp_hdmi.h"
 
 __disp_dev_t gdisp;
+static bool disp_initialised;
 
 __s32 BSP_disp_init(__disp_bsp_init_para *para)
 {
@@ -102,11 +103,16 @@ __s32 BSP_disp_init(__disp_bsp_init_para *para)
 	Disp_iep_init(0);
 #endif
 
+	disp_initialised = true;
+
 	return DIS_SUCCESS;
 }
 
 __s32 BSP_disp_exit(__u32 mode)
 {
+	if (!disp_initialised)
+		return DIS_SUCCESS;
+
 	if (mode == DISP_EXIT_MODE_CLEAN_ALL) {
 		BSP_disp_close();
 
@@ -156,6 +162,9 @@ __s32 BSP_disp_open(void)
 __s32 BSP_disp_close(void)
 {
 	__u32 sel = 0;
+
+	if (!disp_initialised)
+		return DIS_SUCCESS;
 
 	for (sel = 0; sel < 2; sel++) {
 		Image_close(sel);
