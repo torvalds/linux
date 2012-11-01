@@ -341,7 +341,7 @@ config REGULATOR_TPS51632
 	select REGMAP_I2C
 	help
 	  This driver supports TPS51632 voltage regulator chip.
-	  The TPS52632 is 3-2-1 Phase D-Cap+ Step Down Driverless Controller
+	  The TPS51632 is 3-2-1 Phase D-Cap+ Step Down Driverless Controller
 	  with Serial VID control and DVFS.
 	  The voltage output can be configure through I2C interface or PWM
 	  interface.
