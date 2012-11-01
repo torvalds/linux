@@ -145,7 +145,6 @@ struct rbd_spec {
 	char		*pool_name;
 
 	char		*image_id;
-	size_t		image_id_len;
 	char		*image_name;
 
 	u64		snap_id;
@@ -2492,7 +2491,6 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	void *end;
 	char *image_id;
 	u64 overlap;
-	size_t len = 0;
 	int ret;
 
 	parent_spec = rbd_spec_alloc();
@@ -2526,13 +2524,12 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	if (parent_spec->pool_id == CEPH_NOPOOL)
 		goto out;	/* No parent?  No problem. */
 
-	image_id = ceph_extract_encoded_string(&p, end, &len, GFP_KERNEL);
+	image_id = ceph_extract_encoded_string(&p, end, NULL, GFP_KERNEL);
 	if (IS_ERR(image_id)) {
 		ret = PTR_ERR(image_id);
 		goto out_err;
 	}
 	parent_spec->image_id = image_id;
-	parent_spec->image_id_len = len;
 	ceph_decode_64_safe(&p, end, parent_spec->snap_id, out_err);
 	ceph_decode_64_safe(&p, end, overlap, out_err);
 
@@ -3368,8 +3365,7 @@ static int rbd_dev_image_id(struct rbd_device *rbd_dev)
 	p = response;
 	rbd_dev->spec->image_id = ceph_extract_encoded_string(&p,
 						p + RBD_IMAGE_ID_LEN_MAX,
-						&rbd_dev->spec->image_id_len,
-						GFP_NOIO);
+						NULL, GFP_NOIO);
 	if (IS_ERR(rbd_dev->spec->image_id)) {
 		ret = PTR_ERR(rbd_dev->spec->image_id);
 		rbd_dev->spec->image_id = NULL;
@@ -3393,7 +3389,6 @@ static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 	rbd_dev->spec->image_id = kstrdup("", GFP_KERNEL);
 	if (!rbd_dev->spec->image_id)
 		return -ENOMEM;
-	rbd_dev->spec->image_id_len = 0;
 
 	/* Record the header object name for this rbd image. */
 
@@ -3443,7 +3438,7 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	 * Image id was filled in by the caller.  Record the header
 	 * object name for this rbd image.
 	 */
-	size = sizeof (RBD_HEADER_PREFIX) + rbd_dev->spec->image_id_len;
+	size = sizeof (RBD_HEADER_PREFIX) + strlen(rbd_dev->spec->image_id);
 	rbd_dev->header_name = kmalloc(size, GFP_KERNEL);
 	if (!rbd_dev->header_name)
 		return -ENOMEM;
