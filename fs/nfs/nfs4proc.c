@@ -379,12 +379,6 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
 
 #if defined(CONFIG_NFS_V4_1)
 
-bool nfs4_set_task_privileged(struct rpc_task *task, void *dummy)
-{
-	rpc_task_set_priority(task, RPC_PRIORITY_PRIVILEGED);
-	return true;
-}
-
 static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
@@ -412,8 +406,7 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	if (tbl->highest_used_slotid != NFS4_NO_SLOT)
 		send_new_highest_used_slotid = false;
 	if (!nfs4_session_draining(session)) {
-		if (rpc_wake_up_first(&tbl->slot_tbl_waitq,
-				nfs4_set_task_privileged, NULL) != NULL)
+		if (rpc_wake_up_next(&tbl->slot_tbl_waitq) != NULL)
 			send_new_highest_used_slotid = false;
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
@@ -524,12 +517,6 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
 		/* The state manager will wait until the slot table is empty */
 		dprintk("%s session is draining\n", __func__);
-		goto out_sleep;
-	}
-
-	if (!rpc_queue_empty(&tbl->slot_tbl_waitq) &&
-	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
-		dprintk("%s enforce FIFO order\n", __func__);
 		goto out_sleep;
 	}
 

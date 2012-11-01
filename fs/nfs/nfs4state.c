@@ -263,9 +263,7 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
 		for (i = 0; i <= tbl->max_slotid; i++) {
-			if (rpc_wake_up_first(&tbl->slot_tbl_waitq,
-						nfs4_set_task_privileged,
-						NULL) == NULL)
+			if (rpc_wake_up_next(&tbl->slot_tbl_waitq) == NULL)
 				break;
 		}
 		spin_unlock(&tbl->slot_tbl_lock);
