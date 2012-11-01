@@ -140,7 +140,22 @@ struct skel_private {
 	unsigned int ao_readback[2];
 };
 
-static int skel_ns_to_timer(unsigned int *ns, int round);
+/* This function doesn't require a particular form, this is just
+ * what happens to be used in some of the drivers.  It should
+ * convert ns nanoseconds to a counter value suitable for programming
+ * the device.  Also, it should adjust ns so that it cooresponds to
+ * the actual time that the device will use. */
+static int skel_ns_to_timer(unsigned int *ns, int round)
+{
+	/* trivial timer */
+	/* if your timing is done through two cascaded timers, the
+	 * i8253_cascade_ns_to_timer() function in 8253.h can be
+	 * very helpful.  There are also i8254_load() and i8254_mm_load()
+	 * which can be used to load values into the ubiquitous 8254 counters
+	 */
+
+	return *ns;
+}
 
 /*
  * "instructions" read/write data in "one-shot" or "software-triggered"
@@ -324,23 +339,6 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 		return 4;
 
 	return 0;
-}
-
-/* This function doesn't require a particular form, this is just
- * what happens to be used in some of the drivers.  It should
- * convert ns nanoseconds to a counter value suitable for programming
- * the device.  Also, it should adjust ns so that it cooresponds to
- * the actual time that the device will use. */
-static int skel_ns_to_timer(unsigned int *ns, int round)
-{
-	/* trivial timer */
-	/* if your timing is done through two cascaded timers, the
-	 * i8253_cascade_ns_to_timer() function in 8253.h can be
-	 * very helpful.  There are also i8254_load() and i8254_mm_load()
-	 * which can be used to load values into the ubiquitous 8254 counters
-	 */
-
-	return *ns;
 }
 
 static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
