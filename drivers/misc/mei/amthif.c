@@ -255,14 +255,15 @@ out:
 }
 
 /**
- * mei_amthif_write - write amthif data to amthif client
+ * mei_amthif_send_cmd - send amthif command to the ME
  *
  * @dev: the device structure
  * @cb: mei call back struct
  *
  * returns 0 on success, <0 on failure.
+ *
  */
-int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
+static int mei_amthif_send_cmd(struct mei_device *dev, struct mei_cl_cb *cb)
 {
 	struct mei_msg_hdr mei_hdr;
 	int ret;
@@ -329,6 +330,38 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 }
 
 /**
+ * mei_amthif_write - write amthif data to amthif client
+ *
+ * @dev: the device structure
+ * @cb: mei call back struct
+ *
+ * returns 0 on success, <0 on failure.
+ *
+ */
+int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
+{
+	int ret;
+
+	if (!dev || !cb)
+		return -ENODEV;
+
+	ret = mei_io_cb_alloc_resp_buf(cb, dev->iamthif_mtu);
+	if (ret)
+		return ret;
+
+	cb->major_file_operations = MEI_IOCTL;
+
+	if (!list_empty(&dev->amthi_cmd_list.list) ||
+	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {
+		dev_dbg(&dev->pdev->dev,
+			"amthif state = %d\n", dev->iamthif_state);
+		dev_dbg(&dev->pdev->dev, "AMTHIF: add cb to the wait list\n");
+		list_add_tail(&cb->list, &dev->amthi_cmd_list.list);
+		return 0;
+	}
+	return mei_amthif_send_cmd(dev, cb);
+}
+/**
  * mei_amthif_run_next_cmd
  *
  * @dev: the device structure
@@ -360,7 +393,7 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 		cl_tmp = (struct mei_cl *)pos->file_private;
 
 		if (cl_tmp && cl_tmp == &dev->iamthif_cl) {
-			status = mei_amthif_write(dev, pos);
+			status = mei_amthif_send_cmd(dev, pos);
 			if (status) {
 				dev_dbg(&dev->pdev->dev,
 					"amthi write failed status = %d\n",

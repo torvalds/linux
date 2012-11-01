@@ -620,27 +620,12 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		cl->sm_state |= MEI_WD_STATE_INDEPENDENCE_MSG_SENT;
 
 	if (cl == &dev->iamthif_cl) {
-		rets = mei_io_cb_alloc_resp_buf(write_cb, dev->iamthif_mtu);
-		if (rets)
+		rets = mei_amthif_write(dev, write_cb);
+
+		if (rets) {
+			dev_err(&dev->pdev->dev,
+				"amthi write failed with status = %d\n", rets);
 			goto err;
-
-		write_cb->major_file_operations = MEI_IOCTL;
-
-		if (!list_empty(&dev->amthi_cmd_list.list) ||
-				dev->iamthif_state != MEI_IAMTHIF_IDLE) {
-			dev_dbg(&dev->pdev->dev, "amthi_state = %d\n",
-					(int) dev->iamthif_state);
-			dev_dbg(&dev->pdev->dev, "add amthi cb to amthi cmd waiting list\n");
-			list_add_tail(&write_cb->list, &dev->amthi_cmd_list.list);
-		} else {
-			dev_dbg(&dev->pdev->dev, "call amthi write\n");
-			rets = mei_amthif_write(dev, write_cb);
-
-			if (rets) {
-				dev_err(&dev->pdev->dev, "amthi write failed with status = %d\n",
-				    rets);
-				goto err;
-			}
 		}
 		mutex_unlock(&dev->device_lock);
 		return length;
