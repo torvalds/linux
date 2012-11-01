@@ -154,7 +154,6 @@ static void set_transforms(struct jr3_channel __iomem *channel,
 
 	num &= 0x000f;		/*  Make sure that 0 <= num <= 15 */
 	for (i = 0; i < 8; i++) {
-
 		set_u16(&channel->transforms[num].link[i].link_type,
 			transf.link[i].link_type);
 		udelay(1);
@@ -266,71 +265,53 @@ static int jr3_pci_ai_insn_read(struct comedi_device *dev,
 				} else {
 					int F = 0;
 					switch (axis) {
-					case 0:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].fx);
-						}
+					case 0:
+						F = get_s16(&p->channel->
+							    filter[filter].fx);
 						break;
-					case 1:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].fy);
-						}
+					case 1:
+						F = get_s16(&p->channel->
+							    filter[filter].fy);
 						break;
-					case 2:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].fz);
-						}
+					case 2:
+						F = get_s16(&p->channel->
+							    filter[filter].fz);
 						break;
-					case 3:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].mx);
-						}
+					case 3:
+						F = get_s16(&p->channel->
+							    filter[filter].mx);
 						break;
-					case 4:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].my);
-						}
+					case 4:
+						F = get_s16(&p->channel->
+							    filter[filter].my);
 						break;
-					case 5:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].mz);
-						}
+					case 5:
+						F = get_s16(&p->channel->
+							    filter[filter].mz);
 						break;
-					case 6:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].v1);
-						}
+					case 6:
+						F = get_s16(&p->channel->
+							    filter[filter].v1);
 						break;
-					case 7:{
-							F = get_s16
-							    (&p->channel->filter
-							     [filter].v2);
-						}
+					case 7:
+						F = get_s16(&p->channel->
+							    filter[filter].v2);
 						break;
 					}
 					data[i] = F + 0x4000;
 				}
 			} else if (channel == 56) {
-				if (p->state != state_jr3_done) {
+				if (p->state != state_jr3_done)
 					data[i] = 0;
-				} else {
+				else
 					data[i] =
-					    get_u16(&p->channel->model_no);
-				}
+					get_u16(&p->channel->model_no);
 			} else if (channel == 57) {
-				if (p->state != state_jr3_done) {
+				if (p->state != state_jr3_done)
 					data[i] = 0;
-				} else {
+				else
 					data[i] =
-					    get_u16(&p->channel->serial_no);
-				}
+					get_u16(&p->channel->serial_no);
 			}
 		}
 	}
@@ -361,8 +342,8 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	int result = 0;
 	if (pos && val) {
 		/*  Skip over non hex */
-		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++) {
-		}
+		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++)
+			;
 		/*  Collect value */
 		*val = 0;
 		for (; *pos < size; (*pos)++) {
@@ -371,8 +352,9 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 			if (value >= 0) {
 				result = 1;
 				*val = (*val << 4) + value;
-			} else
+			} else {
 				break;
+			}
 		}
 	}
 	return result;
@@ -422,37 +404,38 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
 			pos = 0;
 			while (more) {
 				unsigned int count, addr;
-				more = more
-				    && read_idm_word(data, size, &pos, &count);
+				more = more &&
+				       read_idm_word(data, size, &pos, &count);
 				if (more && count == 0xffff)
 					break;
-				more = more
-				    && read_idm_word(data, size, &pos, &addr);
+				more = more &&
+				       read_idm_word(data, size, &pos, &addr);
 				dev_dbg(dev->class_dev,
 					"Loading#%d %4.4x bytes at %4.4x\n",
 					i, count, addr);
 				while (more && count > 0) {
 					if (addr & 0x4000) {
-						/*  16 bit data, never seen in real life!! */
+						/*  16 bit data, never seen
+						 *  in real life!! */
 						unsigned int data1;
 
-						more = more
-						    && read_idm_word(data,
+						more = more &&
+						       read_idm_word(data,
 								     size, &pos,
 								     &data1);
 						count--;
-						/* printk("jr3_data, not tested\n"); */
-						/* jr3[addr + 0x20000 * pnum] = data1; */
+						/* jr3[addr + 0x20000 * pnum] =
+						   data1; */
 					} else {
 						/*   Download 24 bit program */
 						unsigned int data1, data2;
 
-						more = more
-						    && read_idm_word(data,
+						more = more &&
+						       read_idm_word(data,
 								     size, &pos,
 								     &data1);
-						more = more
-						    && read_idm_word(data, size,
+						more = more &&
+						       read_idm_word(data, size,
 								     &pos,
 								     &data2);
 						count -= 2;
@@ -467,7 +450,6 @@ static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
 								[i].program_high
 								[addr], data2);
 							udelay(1);
-
 						}
 					}
 					addr++;
@@ -497,142 +479,141 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 
 		}
 		switch (p->state) {
-		case state_jr3_poll:{
+		case state_jr3_poll: {
 				u16 model_no = get_u16(&channel->model_no);
 				u16 serial_no = get_u16(&channel->serial_no);
 				if ((errors & (watch_dog | watch_dog2)) ||
 				    model_no == 0 || serial_no == 0) {
-/*
- * Still no sensor, keep on polling. Since it takes up to 10 seconds
- * for offsets to stabilize, polling each second should suffice.
- */
+					/*
+					 * Still no sensor, keep on polling.
+					 * Since it takes up to 10 seconds
+					 * for offsets to stabilize, polling
+					 * each second should suffice.
+					 */
 					result = poll_delay_min_max(1000, 2000);
 				} else {
 					p->retries = 0;
 					p->state =
-					    state_jr3_init_wait_for_offset;
+						state_jr3_init_wait_for_offset;
 					result = poll_delay_min_max(1000, 2000);
 				}
 			}
 			break;
-		case state_jr3_init_wait_for_offset:{
-				p->retries++;
-				if (p->retries < 10) {
-					/*  Wait for offeset to stabilize (< 10 s according to manual) */
-					result = poll_delay_min_max(1000, 2000);
-				} else {
-					struct transform_t transf;
+		case state_jr3_init_wait_for_offset:
+			p->retries++;
+			if (p->retries < 10) {
+				/*  Wait for offeset to stabilize
+				 *  (< 10 s according to manual) */
+				result = poll_delay_min_max(1000, 2000);
+			} else {
+				struct transform_t transf;
 
-					p->model_no =
-					    get_u16(&channel->model_no);
-					p->serial_no =
-					    get_u16(&channel->serial_no);
+				p->model_no = get_u16(&channel->model_no);
+				p->serial_no = get_u16(&channel->serial_no);
 
-					/*  Transformation all zeros */
-					for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
-						transf.link[i].link_type =
-							(enum link_types)0;
-						transf.link[i].link_amount = 0;
-					}
-
-					set_transforms(channel, transf, 0);
-					use_transform(channel, 0);
-					p->state =
-					    state_jr3_init_transform_complete;
-					result = poll_delay_min_max(20, 100);	/*  Allow 20 ms for completion */
+				/*  Transformation all zeros */
+				for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
+					transf.link[i].link_type =
+						(enum link_types)0;
+					transf.link[i].link_amount = 0;
 				}
-			} break;
-		case state_jr3_init_transform_complete:{
-				if (!is_complete(channel)) {
-					result = poll_delay_min_max(20, 100);
-				} else {
-					/*  Set full scale */
-					struct six_axis_t min_full_scale;
-					struct six_axis_t max_full_scale;
 
-					min_full_scale =
-					    get_min_full_scales(channel);
-					max_full_scale =
-					    get_max_full_scales(channel);
-					set_full_scales(channel,
-							max_full_scale);
-
-					p->state =
-					    state_jr3_init_set_full_scale_complete;
-					result = poll_delay_min_max(20, 100);	/*  Allow 20 ms for completion */
-				}
+				set_transforms(channel, transf, 0);
+				use_transform(channel, 0);
+				p->state = state_jr3_init_transform_complete;
+				/*  Allow 20 ms for completion */
+				result = poll_delay_min_max(20, 100);
 			}
 			break;
-		case state_jr3_init_set_full_scale_complete:{
-				if (!is_complete(channel)) {
-					result = poll_delay_min_max(20, 100);
-				} else {
-					struct force_array __iomem *full_scale;
+		case state_jr3_init_transform_complete:
+			if (!is_complete(channel)) {
+				result = poll_delay_min_max(20, 100);
+			} else {
+				/*  Set full scale */
+				struct six_axis_t min_full_scale;
+				struct six_axis_t max_full_scale;
 
-					/*  Use ranges in kN or we will overflow arount 2000N! */
-					full_scale = &channel->full_scale;
-					p->range[0].range.min =
-					    -get_s16(&full_scale->fx) * 1000;
-					p->range[0].range.max =
-					    get_s16(&full_scale->fx) * 1000;
-					p->range[1].range.min =
-					    -get_s16(&full_scale->fy) * 1000;
-					p->range[1].range.max =
-					    get_s16(&full_scale->fy) * 1000;
-					p->range[2].range.min =
-					    -get_s16(&full_scale->fz) * 1000;
-					p->range[2].range.max =
-					    get_s16(&full_scale->fz) * 1000;
-					p->range[3].range.min =
-					    -get_s16(&full_scale->mx) * 100;
-					p->range[3].range.max =
-					    get_s16(&full_scale->mx) * 100;
-					p->range[4].range.min =
-					    -get_s16(&full_scale->my) * 100;
-					p->range[4].range.max =
-					    get_s16(&full_scale->my) * 100;
-					p->range[5].range.min =
-					    -get_s16(&full_scale->mz) * 100;
-					p->range[5].range.max =
-					    get_s16(&full_scale->mz) * 100;
-					p->range[6].range.min = -get_s16(&full_scale->v1) * 100;	/*  ?? */
-					p->range[6].range.max = get_s16(&full_scale->v1) * 100;	/*  ?? */
-					p->range[7].range.min = -get_s16(&full_scale->v2) * 100;	/*  ?? */
-					p->range[7].range.max = get_s16(&full_scale->v2) * 100;	/*  ?? */
-					p->range[8].range.min = 0;
-					p->range[8].range.max = 65535;
+				min_full_scale = get_min_full_scales(channel);
+				max_full_scale = get_max_full_scales(channel);
+				set_full_scales(channel, max_full_scale);
 
-					use_offset(channel, 0);
-					p->state =
-					    state_jr3_init_use_offset_complete;
-					result = poll_delay_min_max(40, 100);	/*  Allow 40 ms for completion */
-				}
+				p->state =
+					state_jr3_init_set_full_scale_complete;
+				/*  Allow 20 ms for completion */
+				result = poll_delay_min_max(20, 100);
 			}
 			break;
-		case state_jr3_init_use_offset_complete:{
-				if (!is_complete(channel)) {
-					result = poll_delay_min_max(20, 100);
-				} else {
-					set_s16(&channel->offsets.fx, 0);
-					set_s16(&channel->offsets.fy, 0);
-					set_s16(&channel->offsets.fz, 0);
-					set_s16(&channel->offsets.mx, 0);
-					set_s16(&channel->offsets.my, 0);
-					set_s16(&channel->offsets.mz, 0);
+		case state_jr3_init_set_full_scale_complete:
+			if (!is_complete(channel)) {
+				result = poll_delay_min_max(20, 100);
+			} else {
+				struct force_array __iomem *full_scale;
 
-					set_offset(channel);
+				/*  Use ranges in kN or we will
+				 *  overflow around 2000N! */
+				full_scale = &channel->full_scale;
+				p->range[0].range.min =
+					-get_s16(&full_scale->fx) * 1000;
+				p->range[0].range.max =
+					get_s16(&full_scale->fx) * 1000;
+				p->range[1].range.min =
+					-get_s16(&full_scale->fy) * 1000;
+				p->range[1].range.max =
+					get_s16(&full_scale->fy) * 1000;
+				p->range[2].range.min =
+					-get_s16(&full_scale->fz) * 1000;
+				p->range[2].range.max =
+					get_s16(&full_scale->fz) * 1000;
+				p->range[3].range.min =
+					-get_s16(&full_scale->mx) * 100;
+				p->range[3].range.max =
+					get_s16(&full_scale->mx) * 100;
+				p->range[4].range.min =
+					-get_s16(&full_scale->my) * 100;
+				p->range[4].range.max =
+					get_s16(&full_scale->my) * 100;
+				p->range[5].range.min =
+					-get_s16(&full_scale->mz) * 100;
+				p->range[5].range.max =
+					get_s16(&full_scale->mz) * 100;	/* ?? */
+				p->range[6].range.min =
+					-get_s16(&full_scale->v1) * 100;/* ?? */
+				p->range[6].range.max =
+					get_s16(&full_scale->v1) * 100;	/* ?? */
+				p->range[7].range.min =
+					-get_s16(&full_scale->v2) * 100;/* ?? */
+				p->range[7].range.max =
+					get_s16(&full_scale->v2) * 100;	/* ?? */
+				p->range[8].range.min = 0;
+				p->range[8].range.max = 65535;
 
-					p->state = state_jr3_done;
-				}
+				use_offset(channel, 0);
+				p->state = state_jr3_init_use_offset_complete;
+				/*  Allow 40 ms for completion */
+				result = poll_delay_min_max(40, 100);
 			}
 			break;
-		case state_jr3_done:{
-				poll_delay_min_max(10000, 20000);
+		case state_jr3_init_use_offset_complete:
+			if (!is_complete(channel)) {
+				result = poll_delay_min_max(20, 100);
+			} else {
+				set_s16(&channel->offsets.fx, 0);
+				set_s16(&channel->offsets.fy, 0);
+				set_s16(&channel->offsets.fz, 0);
+				set_s16(&channel->offsets.mx, 0);
+				set_s16(&channel->offsets.my, 0);
+				set_s16(&channel->offsets.mz, 0);
+
+				set_offset(channel);
+
+				p->state = state_jr3_done;
 			}
 			break;
-		default:{
-				poll_delay_min_max(1000, 2000);
-			}
+		case state_jr3_done:
+			poll_delay_min_max(10000, 20000);
+			break;
+		default:
+			poll_delay_min_max(1000, 2000);
 			break;
 		}
 	}
@@ -654,22 +635,21 @@ static void jr3_pci_poll_dev(unsigned long data)
 	/*  Poll all channels that are ready to be polled */
 	for (i = 0; i < devpriv->n_channels; i++) {
 		struct jr3_pci_subdev_private *subdevpriv =
-		    dev->subdevices[i].private;
+			dev->subdevices[i].private;
 		if (now > subdevpriv->next_time_min) {
 			struct poll_delay_t sub_delay;
 
 			sub_delay = jr3_pci_poll_subdevice(&dev->subdevices[i]);
 			subdevpriv->next_time_min =
-			    jiffies + msecs_to_jiffies(sub_delay.min);
+				jiffies + msecs_to_jiffies(sub_delay.min);
 			subdevpriv->next_time_max =
-			    jiffies + msecs_to_jiffies(sub_delay.max);
-			if (sub_delay.max && sub_delay.max < delay) {
-/*
-* Wake up as late as possible -> poll as many channels as possible
-* at once
-*/
+				jiffies + msecs_to_jiffies(sub_delay.max);
+			if (sub_delay.max && sub_delay.max < delay)
+				/*
+				 * Wake up as late as possible ->
+				 * poll as many channels as possible at once.
+				 */
 				delay = sub_delay.max;
-			}
 		}
 	}
 	spin_unlock_irqrestore(&dev->spinlock, flags);
@@ -727,7 +707,8 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 
 	dev->iobase = 1;	/* the "detach" needs this */
 	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
-			offsetof(struct jr3_t, channel[devpriv->n_channels]));
+				  offsetof(struct jr3_t,
+					   channel[devpriv->n_channels]));
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
@@ -742,7 +723,8 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 		dev->subdevices[i].n_chan = 8 * 7 + 2;
 		dev->subdevices[i].insn_read = jr3_pci_ai_insn_read;
 		dev->subdevices[i].private =
-		    kzalloc(sizeof(struct jr3_pci_subdev_private), GFP_KERNEL);
+			kzalloc(sizeof(struct jr3_pci_subdev_private),
+				GFP_KERNEL);
 		if (dev->subdevices[i].private) {
 			struct jr3_pci_subdev_private *p;
 			int j;
@@ -772,15 +754,15 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 			p->range[8].range.max = 65536;
 
 			p->range_table_list[56] =
-			    (struct comedi_lrange *)&p->range[8];
+				(struct comedi_lrange *)&p->range[8];
 			p->range_table_list[57] =
-			    (struct comedi_lrange *)&p->range[8];
+				(struct comedi_lrange *)&p->range[8];
 			p->maxdata_list[56] = 0xffff;
 			p->maxdata_list[57] = 0xffff;
 			/*  Channel specific range and maxdata */
 			dev->subdevices[i].range_table = NULL;
 			dev->subdevices[i].range_table_list =
-			    p->range_table_list;
+				p->range_table_list;
 			dev->subdevices[i].maxdata = 0;
 			dev->subdevices[i].maxdata_list = p->maxdata_list;
 		}
@@ -794,18 +776,19 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 
 	if (result < 0)
 		return result;
-/*
- * TODO: use firmware to load preferred offset tables. Suggested
- * format:
- *     model serial Fx Fy Fz Mx My Mz\n
- *
- *     comedi_load_firmware(dev, "jr3_offsets_table", jr3_download_firmware);
- */
+	/*
+	 * TODO: use firmware to load preferred offset tables. Suggested
+	 * format:
+	 *     model serial Fx Fy Fz Mx My Mz\n
+	 *
+	 *     comedi_load_firmware(dev, "jr3_offsets_table",
+	 *                          jr3_download_firmware);
+	 */
 
-/*
- * It takes a few milliseconds for software to settle as much as we
- * can read firmware version
- */
+	/*
+	 * It takes a few milliseconds for software to settle as much as we
+	 * can read firmware version
+	 */
 	msleep_interruptible(25);
 	for (i = 0; i < 0x18; i++) {
 		dev_dbg(dev->class_dev, "%c\n",
