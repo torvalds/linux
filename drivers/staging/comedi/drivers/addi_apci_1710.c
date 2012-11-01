@@ -54,19 +54,17 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
+static const void *apci1710_find_boardinfo(struct comedi_device *dev,
+					   struct pci_dev *pcidev)
 {
-	const void *p = dev->driver->board_name;
 	const struct addi_board *this_board;
 	int i;
 
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
+	for (i = 0; i < ARRAY_SIZE(apci1710_boardtypes); i++) {
+		this_board = &apci1710_boardtypes[i];
 		if (this_board->i_VendorId == pcidev->vendor &&
 		    this_board->i_DeviceId == pcidev->device)
 			return this_board;
-		p += dev->driver->offset;
 	}
 	return NULL;
 }
@@ -80,7 +78,7 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 	int ret, pages, i, n_subdevices;
 	unsigned int dw_Dummy;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
+	this_board = apci1710_find_boardinfo(dev, pcidev);
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -236,9 +234,6 @@ static struct comedi_driver apci1710_driver = {
 	.module		= THIS_MODULE,
 	.attach_pci	= apci1710_attach_pci,
 	.detach		= apci1710_detach,
-	.num_names	= ARRAY_SIZE(apci1710_boardtypes),
-	.board_name	= &apci1710_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int __devinit apci1710_pci_probe(struct pci_dev *dev,
