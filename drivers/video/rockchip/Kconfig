@@ -36,6 +36,19 @@ config NO_DUAL_DISP
 	  No dual display needed
 endchoice
 
+config FB_ROTATE
+	bool"FB rotate support"
+	depends on FB_ROCKCHIP
+	default n
+	help
+	  select y if you need rotate your screen
+
+config ROTATE_ORIENTATION
+	int "rotate orientation"
+	depends on FB_ROTATE
+	default 0
+	help
+	  select 0, 90, 180,270 according to your Mold
 config THREE_FB_BUFFER
         bool "Three fb buffer support"
         depends on FB_ROCKCHIP

@@ -121,7 +121,30 @@ static int rk_fb_close(struct fb_info *info,int user)
 static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,int offset)
 {
 	struct rk29_ipp_req ipp_req;
- 
+
+ 	uint32_t  rotation = 0;
+#if defined(CONFIG_FB_ROTATE)
+	int orientation = orientation = 270 - CONFIG_ROTATE_ORIENTATION;
+	switch(orientation)
+	{
+		case 0:
+			rotation = IPP_ROT_0;
+			break;
+		case 90:
+			rotation = IPP_ROT_90;
+			break;
+		case 180:
+			rotation = IPP_ROT_180;
+			break;
+		case 270:
+			rotation = IPP_ROT_270;
+			break;
+		default:
+			rotation = IPP_ROT_270;
+			break;
+			
+	}
+#endif
 	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 	ipp_req.src0.YrgbMst = src_info->fix.smem_start + offset;
 	ipp_req.src0.w = src_info->var.xres;
@@ -134,18 +157,35 @@ static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,in
 	ipp_req.src_vir_w = src_info->var.xres_virtual;
 	ipp_req.dst_vir_w = src_info->var.xres_virtual;
 	ipp_req.timeout = 100;
-	ipp_req.flag = IPP_ROT_0;
+	ipp_req.flag = rotation;
 	ipp_blit_sync(&ipp_req);
 	
 }
+
+
+#if 0
+
 static void hdmi_post_work(struct work_struct *work)
-{
-	
+{	
 	struct rk_fb_inf *inf = container_of(to_delayed_work(work), struct rk_fb_inf, delay_work);
-	struct rk_lcdc_device_driver * dev_drv = inf->lcdc_dev_drv[1];
-	dev_drv->pan_display(dev_drv,1);
-	
+	struct fb_info * info2 = inf->fb[2];    
+	struct fb_info * info = inf->fb[0];     
+	struct rk_lcdc_device_driver * dev_drv1  = (struct rk_lcdc_device_driver * )info2->par;
+	struct rk_lcdc_device_driver * dev_drv  = (struct rk_lcdc_device_driver * )info->par;
+	struct layer_par *par = dev_drv->layer_par[1];
+	struct layer_par *par2 = dev_drv1->layer_par[1];  	
+	struct fb_var_screeninfo *var = &info->var;   
+	u32 xvir = var->xres_virtual;	
+	dev_drv1->xoffset = var->xoffset;             // offset from virtual to visible 
+	dev_drv1->yoffset += var->yres; 
+	if(dev_drv1->yoffset >= 3*var->yres)
+		dev_drv1->yoffset = 0;++	
+		rk_bufferoffset_tran(dev_drv1->xoffset, dev_drv1->yoffset, xvir , par2);
+	fb_copy_by_ipp(info2,info,par->y_offset,par2->y_offset);
+	dev_drv1->pan_display(dev_drv1,1);
+	complete(&(dev_drv1->ipp_done));
 }
+#endif
 
 static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -211,7 +251,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 					par2->y_offset = par->y_offset;
 					//memcpy(info2->screen_base+par2->y_offset,info->screen_base+par->y_offset,
 					//	var->xres*var->yres*var->bits_per_pixel>>3);
-					#if !defined(CONFIG_THREE_FB_BUFFER)
+					#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 					fb_copy_by_ipp(info2,info,par->y_offset);
 					#endif
 					dev_drv1->pan_display(dev_drv1,layer_id);
@@ -853,7 +893,7 @@ static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 	}
 	else
 	{	
-#if !defined(CONFIG_THREE_FB_BUFFER)
+#if defined(CONFIG_FB_ROTATE) || !defined(CONFIG_THREE_FB_BUFFER)
 		res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
 		if (res == NULL)
 		{
