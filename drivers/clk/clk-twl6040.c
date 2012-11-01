@@ -92,8 +92,8 @@ static int __devinit twl6040_clk_probe(struct platform_device *pdev)
 
 	clkdata->mcpdm_fclk.init = &wm831x_clkout_init;
 	clkdata->clk = clk_register(&pdev->dev, &clkdata->mcpdm_fclk);
-	if (!clkdata->clk)
-		return -EINVAL;
+	if (IS_ERR(clkdata->clk))
+		return PTR_ERR(clkdata->clk);
 
 	dev_set_drvdata(&pdev->dev, clkdata);
 
