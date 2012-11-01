@@ -148,7 +148,7 @@ struct skel_private {
  */
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it);
 static void skel_detach(struct comedi_device *dev);
-static struct comedi_driver driver_skel = {
+static struct comedi_driver skel_driver = {
 	.driver_name = "dummy",
 	.module = THIS_MODULE,
 	.attach = skel_attach,
@@ -582,45 +582,45 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 }
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
-static int __devinit driver_skel_pci_probe(struct pci_dev *dev,
+static int __devinit skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_skel);
+	return comedi_pci_auto_config(dev, &skel_driver);
 }
 
-static void __devexit driver_skel_pci_remove(struct pci_dev *dev)
+static void __devexit skel_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static struct pci_driver driver_skel_pci_driver = {
+static struct pci_driver skel_pci_driver = {
 	.id_table = skel_pci_table,
-	.probe = &driver_skel_pci_probe,
-	.remove = __devexit_p(&driver_skel_pci_remove)
+	.probe = &skel_pci_probe,
+	.remove = __devexit_p(&skel_pci_remove)
 };
 
-static int __init driver_skel_init_module(void)
+static int __init skel_init_module(void)
 {
 	int retval;
 
-	retval = comedi_driver_register(&driver_skel);
+	retval = comedi_driver_register(&skel_driver);
 	if (retval < 0)
 		return retval;
 
-	driver_skel_pci_driver.name = (char *)driver_skel.driver_name;
-	return pci_register_driver(&driver_skel_pci_driver);
+	skel_pci_driver.name = (char *)skel_driver.driver_name;
+	return pci_register_driver(&skel_pci_driver);
 }
 
-static void __exit driver_skel_cleanup_module(void)
+static void __exit skel_cleanup_module(void)
 {
-	pci_unregister_driver(&driver_skel_pci_driver);
-	comedi_driver_unregister(&driver_skel);
+	pci_unregister_driver(&skel_pci_driver);
+	comedi_driver_unregister(&skel_driver);
 }
 
-module_init(driver_skel_init_module);
-module_exit(driver_skel_cleanup_module);
+module_init(skel_init_module);
+module_exit(skel_cleanup_module);
 #else
-module_comedi_driver(driver_skel);
+module_comedi_driver(skel_driver);
 #endif
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
