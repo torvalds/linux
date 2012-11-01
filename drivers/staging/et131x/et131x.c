@@ -299,11 +299,6 @@ struct fbr_lookup {
 /*
  * struct rx_ring is the sructure representing the adaptor's local
  * reference(s) to the rings
- *
- ******************************************************************************
- * IMPORTANT NOTE :- fbr_lookup *fbr[NUM_FBRS] uses index 0 to refer to FBR1
- *			and index 1 to refer to FRB0
- ******************************************************************************
  */
 struct rx_ring {
 	struct fbr_lookup *fbr[NUM_FBRS];
@@ -856,27 +851,27 @@ static void et131x_rx_dma_enable(struct et131x_adapter *adapter)
 	/* Setup the receive dma configuration register for normal operation */
 	u32 csr =  0x2000;	/* FBR1 enable */
 
-	if (adapter->rx_ring.fbr[0]->buffsize == 4096)
+	if (adapter->rx_ring.fbr[1]->buffsize == 4096)
 		csr |= 0x0800;
-	else if (adapter->rx_ring.fbr[0]->buffsize == 8192)
+	else if (adapter->rx_ring.fbr[1]->buffsize == 8192)
 		csr |= 0x1000;
-	else if (adapter->rx_ring.fbr[0]->buffsize == 16384)
+	else if (adapter->rx_ring.fbr[1]->buffsize == 16384)
 		csr |= 0x1800;
 
 	csr |= 0x0400;		/* FBR0 enable */
-	if (adapter->rx_ring.fbr[1]->buffsize == 256)
+	if (adapter->rx_ring.fbr[0]->buffsize == 256)
 		csr |= 0x0100;
-	else if (adapter->rx_ring.fbr[1]->buffsize == 512)
+	else if (adapter->rx_ring.fbr[0]->buffsize == 512)
 		csr |= 0x0200;
-	else if (adapter->rx_ring.fbr[1]->buffsize == 1024)
+	else if (adapter->rx_ring.fbr[0]->buffsize == 1024)
 		csr |= 0x0300;
 	writel(csr, &adapter->regs->rxdma.csr);
 
 	csr = readl(&adapter->regs->rxdma.csr);
-	if ((csr & 0x00020000) != 0) {
+	if (csr & 0x00020000) {
 		udelay(5);
 		csr = readl(&adapter->regs->rxdma.csr);
-		if ((csr & 0x00020000) != 0) {
+		if (csr & 0x00020000) {
 			dev_err(&adapter->pdev->dev,
 			    "RX Dma failed to exit halt state.  CSR 0x%08x\n",
 				csr);
@@ -1867,17 +1862,17 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		u32 *base_lo;
 
 		if (id == 0) {
-			num_des = &rx_dma->fbr1_num_des;
-			full_offset = &rx_dma->fbr1_full_offset;
-			min_des = &rx_dma->fbr1_min_des;
-			base_hi = &rx_dma->fbr1_base_hi;
-			base_lo = &rx_dma->fbr1_base_lo;
-		} else {
 			num_des = &rx_dma->fbr0_num_des;
 			full_offset = &rx_dma->fbr0_full_offset;
 			min_des = &rx_dma->fbr0_min_des;
 			base_hi = &rx_dma->fbr0_base_hi;
 			base_lo = &rx_dma->fbr0_base_lo;
+		} else {
+			num_des = &rx_dma->fbr1_num_des;
+			full_offset = &rx_dma->fbr1_full_offset;
+			min_des = &rx_dma->fbr1_min_des;
+			base_hi = &rx_dma->fbr1_base_hi;
+			base_lo = &rx_dma->fbr1_base_lo;
 		}
 
 		/* Now's the best time to initialize FBR contents */
@@ -2278,8 +2273,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	rx_ring = &adapter->rx_ring;
 
 	/* Alloc memory for the lookup table */
-	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
 	rx_ring->fbr[0] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
+	rx_ring->fbr[1] = kmalloc(sizeof(struct fbr_lookup), GFP_KERNEL);
 
 	/* The first thing we will do is configure the sizes of the buffer
 	 * rings. These will change based on jumbo packet support.  Larger
@@ -2300,25 +2295,25 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	 */
 
 	if (adapter->registry_jumbo_packet < 2048) {
-		rx_ring->fbr[1]->buffsize = 256;
+		rx_ring->fbr[0]->buffsize = 256;
+		rx_ring->fbr[0]->num_entries = 512;
+		rx_ring->fbr[1]->buffsize = 2048;
 		rx_ring->fbr[1]->num_entries = 512;
-		rx_ring->fbr[0]->buffsize = 2048;
-		rx_ring->fbr[0]->num_entries = 512;
 	} else if (adapter->registry_jumbo_packet < 4096) {
-		rx_ring->fbr[1]->buffsize = 512;
-		rx_ring->fbr[1]->num_entries = 1024;
-		rx_ring->fbr[0]->buffsize = 4096;
-		rx_ring->fbr[0]->num_entries = 512;
+		rx_ring->fbr[0]->buffsize = 512;
+		rx_ring->fbr[0]->num_entries = 1024;
+		rx_ring->fbr[1]->buffsize = 4096;
+		rx_ring->fbr[1]->num_entries = 512;
 	} else {
-		rx_ring->fbr[1]->buffsize = 1024;
-		rx_ring->fbr[1]->num_entries = 768;
-		rx_ring->fbr[0]->buffsize = 16384;
-		rx_ring->fbr[0]->num_entries = 128;
+		rx_ring->fbr[0]->buffsize = 1024;
+		rx_ring->fbr[0]->num_entries = 768;
+		rx_ring->fbr[1]->buffsize = 16384;
+		rx_ring->fbr[1]->num_entries = 128;
 	}
 
 	adapter->rx_ring.psr_num_entries =
-				adapter->rx_ring.fbr[1]->num_entries +
-				adapter->rx_ring.fbr[0]->num_entries;
+				adapter->rx_ring.fbr[0]->num_entries +
+				adapter->rx_ring.fbr[1]->num_entries;
 
 	for (id = 0; id < NUM_FBRS; id++) {
 		/* Allocate an area of memory for Free Buffer Ring */
@@ -2565,8 +2560,8 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 	}
 
 	/* Free the FBR Lookup Table */
-	kfree(rx_ring->fbr[1]);
 	kfree(rx_ring->fbr[0]);
+	kfree(rx_ring->fbr[1]);
 
 	/* Reset Counters */
 	rx_ring->num_ready_recv = 0;
@@ -2660,36 +2655,31 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 	/* We don't use any of the OOB data besides status. Otherwise, we
 	 * need to clean up OOB data
 	 */
-	if ((ring_index == 0 && buff_index < rx_local->fbr[1]->num_entries) ||
-	    (ring_index == 1 && buff_index < rx_local->fbr[0]->num_entries)) {
+	if (buff_index < rx_local->fbr[ring_index]->num_entries) {
 		u32 *offset;
-		u8 id;
 		struct fbr_desc *next;
 
 		spin_lock_irqsave(&adapter->fbr_lock, flags);
 
-		if (ring_index == 1) {
-			id = 0;
-			offset = &rx_dma->fbr1_full_offset;
-		} else {
-			id = 1;
+		if (ring_index == 0)
 			offset = &rx_dma->fbr0_full_offset;
-		}
+		else
+			offset = &rx_dma->fbr1_full_offset;
 
-		next = (struct fbr_desc *) (rx_local->fbr[id]->ring_virtaddr) +
-				INDEX10(rx_local->fbr[id]->local_full);
+		next = (struct fbr_desc *) (rx_local->fbr[ring_index]->ring_virtaddr) +
+				INDEX10(rx_local->fbr[ring_index]->local_full);
 
 		/* Handle the Free Buffer Ring advancement here. Write
 		 * the PA / Buffer Index for the returned buffer into
 		 * the oldest (next to be freed)FBR entry
 		 */
-		next->addr_hi = rx_local->fbr[id]->bus_high[buff_index];
-		next->addr_lo = rx_local->fbr[id]->bus_low[buff_index];
+		next->addr_hi = rx_local->fbr[ring_index]->bus_high[buff_index];
+		next->addr_lo = rx_local->fbr[ring_index]->bus_low[buff_index];
 		next->word2 = buff_index;
 
-		writel(bump_free_buff_ring(&rx_local->fbr[id]->local_full,
-					   rx_local->fbr[id]->num_entries - 1),
-					   offset);
+		writel(bump_free_buff_ring(&rx_local->fbr[ring_index]->local_full,
+				rx_local->fbr[ring_index]->num_entries - 1),
+				offset);
 
 		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
@@ -2772,10 +2762,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 	writel(rx_local->local_psr_full, &adapter->regs->rxdma.psr_full_offset);
 
 	if (ring_index > 1 ||
-			(ring_index == 0 &&
-			buff_index > rx_local->fbr[1]->num_entries - 1) ||
-			(ring_index == 1 &&
-			buff_index > rx_local->fbr[0]->num_entries - 1)) {
+		    buff_index > rx_local->fbr[ring_index]->num_entries - 1) {
 		/* Illegal buffer or ring index cannot be used by S/W*/
 		dev_err(&adapter->pdev->dev,
 			"NICRxPkts PSR Entry %d indicates length of %d and/or bad bi(%d)\n",
@@ -2828,12 +2815,7 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 		   && !(adapter->packet_filter & ET131X_PACKET_TYPE_PROMISCUOUS)
 		   && !(adapter->packet_filter &
 					ET131X_PACKET_TYPE_ALL_MULTICAST)) {
-			/*
-			 * Note - ring_index for fbr[] array is reversed
-			 * 1 for FBR0 etc
-			 */
-			buf = rx_local->fbr[(ring_index == 0 ? 1 : 0)]->
-					virt[buff_index];
+			buf = rx_local->fbr[ring_index]->virt[buff_index];
 
 			/* Loop through our list to see if the destination
 			 * address of this packet matches one in our list.
@@ -2886,9 +2868,8 @@ static struct rfd *nic_rx_pkts(struct et131x_adapter *adapter)
 
 	adapter->net_stats.rx_bytes += rfd->len;
 
-	/* Note - ring_index for fbr[] array is reversed, 1 for FBR0 etc */
 	memcpy(skb_put(skb, rfd->len),
-	       rx_local->fbr[(ring_index == 0 ? 1 : 0)]->virt[buff_index],
+	       rx_local->fbr[ring_index]->virt[buff_index],
 	       rfd->len);
 
 	skb->dev = adapter->netdev;
