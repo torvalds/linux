@@ -33,7 +33,6 @@ static const struct addi_board apci1710_boardtypes[] = {
 		.i_IorangeBase2		= 256,
 		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.interrupt		= v_APCI1710_Interrupt,
-		.reset			= i_APCI1710_Reset,
 	},
 };
 
@@ -44,14 +43,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
-}
-
-static int i_ADDI_Reset(struct comedi_device *dev)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->reset(dev);
-	return 0;
 }
 
 static const void *apci1710_find_boardinfo(struct comedi_device *dev,
@@ -192,7 +183,7 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 
 	devpriv->s_BoardInfos.ui_Address = pci_resource_start(pcidev, 2);
 
-	i_ADDI_Reset(dev);
+	i_APCI1710_Reset(dev);
 	return 0;
 }
 
@@ -204,7 +195,7 @@ static void apci1710_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			i_APCI1710_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if ((this_board->pc_EepromChip == NULL) ||
