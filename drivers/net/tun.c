@@ -728,6 +728,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 
 drop:
 	dev->stats.tx_dropped++;
+	skb_tx_error(skb);
 	kfree_skb(skb);
 	rcu_read_unlock();
 	return NETDEV_TX_OK;
