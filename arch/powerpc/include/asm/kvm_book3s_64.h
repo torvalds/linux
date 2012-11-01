@@ -60,7 +60,7 @@ static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 		     "	ori	%0,%0,%4\n"
 		     "  stdcx.	%0,0,%2\n"
 		     "	beq+	2f\n"
-		     "	li	%1,%3\n"
+		     "	mr	%1,%3\n"
 		     "2:	isync"
 		     : "=&r" (tmp), "=&r" (old)
 		     : "r" (hpte), "r" (bits), "i" (HPTE_V_HVLOCK)
