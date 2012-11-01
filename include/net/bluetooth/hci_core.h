@@ -685,7 +685,7 @@ static inline uint8_t __hci_num_ctrl(void)
 }
 
 struct hci_dev *hci_dev_get(int index);
-struct hci_dev *hci_get_route(bdaddr_t *src, bdaddr_t *dst);
+struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src);
 
 struct hci_dev *hci_alloc_dev(void);
 void hci_free_dev(struct hci_dev *hdev);
