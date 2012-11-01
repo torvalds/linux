@@ -192,10 +192,6 @@ struct six_axis_t {
 static void set_full_scales(struct jr3_channel __iomem *channel,
 			    struct six_axis_t full_scale)
 {
-	printk("%d %d %d %d %d %d\n",
-	       full_scale.fx,
-	       full_scale.fy,
-	       full_scale.fz, full_scale.mx, full_scale.my, full_scale.mz);
 	set_s16(&channel->full_scale.fx, full_scale.fx);
 	set_s16(&channel->full_scale.fy, full_scale.fy);
 	set_s16(&channel->full_scale.fz, full_scale.fz);
@@ -491,7 +487,6 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 		int errors = get_u16(&channel->errors);
 
 		if (errors != p->errors) {
-			printk("Errors: %x -> %x\n", p->errors, errors);
 			p->errors = errors;
 		}
 		if (errors & (watch_dog | watch_dog2 | sensor_change)) {
@@ -531,14 +526,6 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 					p->serial_no =
 					    get_u16(&channel->serial_no);
 
-					printk
-					    ("Setting transform for channel %d\n",
-					     p->channel_no);
-					printk("Sensor Model     = %i\n",
-					       p->model_no);
-					printk("Sensor Serial    = %i\n",
-					       p->serial_no);
-
 					/*  Transformation all zeros */
 					for (i = 0; i < ARRAY_SIZE(transf.link); i++) {
 						transf.link[i].link_type =
@@ -555,9 +542,6 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 			} break;
 		case state_jr3_init_transform_complete:{
 				if (!is_complete(channel)) {
-					printk
-					    ("state_jr3_init_transform_complete complete = %d\n",
-					     is_complete(channel));
 					result = poll_delay_min_max(20, 100);
 				} else {
 					/*  Set full scale */
@@ -566,26 +550,8 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 
 					min_full_scale =
 					    get_min_full_scales(channel);
-					printk("Obtained Min. Full Scales:\n");
-					printk(KERN_DEBUG "%i ", (min_full_scale).fx);
-					printk(KERN_CONT "%i ", (min_full_scale).fy);
-					printk(KERN_CONT "%i ", (min_full_scale).fz);
-					printk(KERN_CONT "%i ", (min_full_scale).mx);
-					printk(KERN_CONT "%i ", (min_full_scale).my);
-					printk(KERN_CONT "%i ", (min_full_scale).mz);
-					printk(KERN_CONT "\n");
-
 					max_full_scale =
 					    get_max_full_scales(channel);
-					printk("Obtained Max. Full Scales:\n");
-					printk(KERN_DEBUG "%i ", (max_full_scale).fx);
-					printk(KERN_CONT "%i ", (max_full_scale).fy);
-					printk(KERN_CONT "%i ", (max_full_scale).fz);
-					printk(KERN_CONT "%i ", (max_full_scale).mx);
-					printk(KERN_CONT "%i ", (max_full_scale).my);
-					printk(KERN_CONT "%i ", (max_full_scale).mz);
-					printk(KERN_CONT "\n");
-
 					set_full_scales(channel,
 							max_full_scale);
 
@@ -597,9 +563,6 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 			break;
 		case state_jr3_init_set_full_scale_complete:{
 				if (!is_complete(channel)) {
-					printk
-					    ("state_jr3_init_set_full_scale_complete complete = %d\n",
-					     is_complete(channel));
 					result = poll_delay_min_max(20, 100);
 				} else {
 					struct force_array __iomem *full_scale;
@@ -637,20 +600,6 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 					p->range[8].range.min = 0;
 					p->range[8].range.max = 65535;
 
-					{
-						int i;
-						for (i = 0; i < 9; i++) {
-							printk("%d %d - %d\n",
-							       i,
-							       p->
-							       range[i].range.
-							       min,
-							       p->
-							       range[i].range.
-							       max);
-						}
-					}
-
 					use_offset(channel, 0);
 					p->state =
 					    state_jr3_init_use_offset_complete;
@@ -660,20 +609,8 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 			break;
 		case state_jr3_init_use_offset_complete:{
 				if (!is_complete(channel)) {
-					printk
-					    ("state_jr3_init_use_offset_complete complete = %d\n",
-					     is_complete(channel));
 					result = poll_delay_min_max(20, 100);
 				} else {
-					printk
-					    ("Default offsets %d %d %d %d %d %d\n",
-					     get_s16(&channel->offsets.fx),
-					     get_s16(&channel->offsets.fy),
-					     get_s16(&channel->offsets.fz),
-					     get_s16(&channel->offsets.mx),
-					     get_s16(&channel->offsets.my),
-					     get_s16(&channel->offsets.mz));
-
 					set_s16(&channel->offsets.fx, 0);
 					set_s16(&channel->offsets.fy, 0);
 					set_s16(&channel->offsets.fz, 0);
