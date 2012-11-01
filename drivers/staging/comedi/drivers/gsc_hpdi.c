@@ -495,7 +495,7 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
+	if (comedi_pci_enable(pcidev, dev->board_name)) {
 		dev_warn(dev->class_dev,
 			 "failed enable PCI device and request regions\n");
 		return -EIO;
@@ -521,7 +521,7 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 
 	/*  get irq */
 	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
-			dev->driver->driver_name, dev)) {
+			dev->board_name, dev)) {
 		dev_warn(dev->class_dev,
 			 "unable to allocate irq %u\n", pcidev->irq);
 		return -EINVAL;
