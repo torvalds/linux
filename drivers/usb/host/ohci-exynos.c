@@ -23,16 +23,17 @@ struct exynos_ohci_hcd {
 	struct clk *clk;
 };
 
+static int ohci_exynos_reset(struct usb_hcd *hcd)
+{
+	return ohci_init(hcd_to_ohci(hcd));
+}
+
 static int ohci_exynos_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	int ret;
 
 	ohci_dbg(ohci, "ohci_exynos_start, ohci:%p", ohci);
-
-	ret = ohci_init(ohci);
-	if (ret < 0)
-		return ret;
 
 	ret = ohci_run(ohci);
 	if (ret < 0) {
@@ -53,6 +54,7 @@ static const struct hc_driver exynos_ohci_hc_driver = {
 	.irq			= ohci_irq,
 	.flags			= HCD_MEMORY|HCD_USB11,
 
+	.reset			= ohci_exynos_reset,
 	.start			= ohci_exynos_start,
 	.stop			= ohci_stop,
 	.shutdown		= ohci_shutdown,
