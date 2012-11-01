@@ -251,7 +251,7 @@ static void mio_cs_config(struct pcmcia_device *link);
 static void cs_release(struct pcmcia_device *link);
 static void cs_detach(struct pcmcia_device *);
 
-static struct pcmcia_device *cur_dev = NULL;
+static struct pcmcia_device *cur_dev;
 
 static int cs_attach(struct pcmcia_device *link)
 {
