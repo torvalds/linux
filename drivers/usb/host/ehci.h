@@ -781,4 +781,21 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 
 /*-------------------------------------------------------------------------*/
 
+/* Declarations of things exported for use by ehci platform drivers */
+
+struct ehci_driver_overrides {
+	const char	*product_desc;
+	size_t		extra_priv_size;
+	int		(*reset)(struct usb_hcd *hcd);
+};
+
+extern void	ehci_init_driver(struct hc_driver *drv,
+				const struct ehci_driver_overrides *over);
+extern int	ehci_setup(struct usb_hcd *hcd);
+
+#ifdef CONFIG_PM
+extern int	ehci_suspend(struct usb_hcd *hcd, bool do_wakeup);
+extern int	ehci_resume(struct usb_hcd *hcd, bool hibernated);
+#endif	/* CONFIG_PM */
+
 #endif /* __LINUX_EHCI_HCD_H */

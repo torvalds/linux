@@ -649,7 +649,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	return 0;
 }
 
-static int ehci_setup(struct usb_hcd *hcd)
+int ehci_setup(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
@@ -680,6 +680,7 @@ static int ehci_setup(struct usb_hcd *hcd)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ehci_setup);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1085,7 +1086,7 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 
 /* These routines handle the generic parts of controller suspend/resume */
 
-static int __maybe_unused ehci_suspend(struct usb_hcd *hcd, bool do_wakeup)
+int ehci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 
@@ -1108,9 +1109,10 @@ static int __maybe_unused ehci_suspend(struct usb_hcd *hcd, bool do_wakeup)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ehci_suspend);
 
 /* Returns 0 if power was preserved, 1 if power was lost */
-static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
+int ehci_resume(struct usb_hcd *hcd, bool hibernated)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 
@@ -1168,8 +1170,73 @@ static int __maybe_unused ehci_resume(struct usb_hcd *hcd, bool hibernated)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(ehci_resume);
 
 #endif
+
+/*-------------------------------------------------------------------------*/
+
+/*
+ * Generic structure: This gets copied for platform drivers so that
+ * individual entries can be overridden as needed.
+ */
+
+static const struct hc_driver ehci_hc_driver = {
+	.description =		hcd_name,
+	.product_desc =		"EHCI Host Controller",
+	.hcd_priv_size =	sizeof(struct ehci_hcd),
+
+	/*
+	 * generic hardware linkage
+	 */
+	.irq =			ehci_irq,
+	.flags =		HCD_MEMORY | HCD_USB2,
+
+	/*
+	 * basic lifecycle operations
+	 */
+	.reset =		ehci_setup,
+	.start =		ehci_run,
+	.stop =			ehci_stop,
+	.shutdown =		ehci_shutdown,
+
+	/*
+	 * managing i/o requests and associated device resources
+	 */
+	.urb_enqueue =		ehci_urb_enqueue,
+	.urb_dequeue =		ehci_urb_dequeue,
+	.endpoint_disable =	ehci_endpoint_disable,
+	.endpoint_reset =	ehci_endpoint_reset,
+	.clear_tt_buffer_complete =	ehci_clear_tt_buffer_complete,
+
+	/*
+	 * scheduling support
+	 */
+	.get_frame_number =	ehci_get_frame,
+
+	/*
+	 * root hub support
+	 */
+	.hub_status_data =	ehci_hub_status_data,
+	.hub_control =		ehci_hub_control,
+	.bus_suspend =		ehci_bus_suspend,
+	.bus_resume =		ehci_bus_resume,
+	.relinquish_port =	ehci_relinquish_port,
+	.port_handed_over =	ehci_port_handed_over,
+};
+
+void ehci_init_driver(struct hc_driver *drv,
+		const struct ehci_driver_overrides *over)
+{
+	/* Copy the generic table to drv and then apply the overrides */
+	*drv = ehci_hc_driver;
+
+	drv->product_desc = over->product_desc;
+	drv->hcd_priv_size += over->extra_priv_size;
+	if (over->reset)
+		drv->reset = over->reset;
+}
+EXPORT_SYMBOL_GPL(ehci_init_driver);
 
 /*-------------------------------------------------------------------------*/
 
