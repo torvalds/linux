@@ -212,158 +212,149 @@ static int addi_attach_pci(struct comedi_device *dev,
 		}
 	}
 
-	if (!strcmp(dev->board_name, "apci1710")) {
-#ifdef CONFIG_APCI_1710
-		i_ADDI_AttachPCI1710(dev);
+	n_subdevices = 7;
+	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	if (ret)
+		return ret;
 
-		/*  save base address */
-		devpriv->s_BoardInfos.ui_Address = pci_resource_start(pcidev, 2);
-#endif
+	/*  Allocate and Initialise AI Subdevice Structures */
+	s = &dev->subdevices[0];
+	if ((devpriv->s_EeParameters.i_NbrAiChannel)
+		|| (this_board->i_NbrAiChannelDiff)) {
+		dev->read_subdev = s;
+		s->type = COMEDI_SUBD_AI;
+		s->subdev_flags =
+			SDF_READABLE | SDF_COMMON | SDF_GROUND
+			| SDF_DIFF;
+		if (devpriv->s_EeParameters.i_NbrAiChannel) {
+			s->n_chan =
+				devpriv->s_EeParameters.i_NbrAiChannel;
+			devpriv->b_SingelDiff = 0;
+		} else {
+			s->n_chan = this_board->i_NbrAiChannelDiff;
+			devpriv->b_SingelDiff = 1;
+		}
+		s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
+		s->len_chanlist = this_board->i_AiChannelList;
+		s->range_table = this_board->pr_AiRangelist;
+
+		/* Set the initialisation flag */
+		devpriv->b_AiInitialisation = 1;
+
+		s->insn_config = this_board->ai_config;
+		s->insn_read = this_board->ai_read;
+		s->insn_write = this_board->ai_write;
+		s->insn_bits = this_board->ai_bits;
+		s->do_cmdtest = this_board->ai_cmdtest;
+		s->do_cmd = this_board->ai_cmd;
+		s->cancel = this_board->ai_cancel;
+
 	} else {
-		n_subdevices = 7;
-		ret = comedi_alloc_subdevices(dev, n_subdevices);
-		if (ret)
-			return ret;
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
-		/*  Allocate and Initialise AI Subdevice Structures */
-		s = &dev->subdevices[0];
-		if ((devpriv->s_EeParameters.i_NbrAiChannel)
-			|| (this_board->i_NbrAiChannelDiff)) {
-			dev->read_subdev = s;
-			s->type = COMEDI_SUBD_AI;
-			s->subdev_flags =
-				SDF_READABLE | SDF_COMMON | SDF_GROUND
-				| SDF_DIFF;
-			if (devpriv->s_EeParameters.i_NbrAiChannel) {
-				s->n_chan =
-					devpriv->s_EeParameters.i_NbrAiChannel;
-				devpriv->b_SingelDiff = 0;
-			} else {
-				s->n_chan = this_board->i_NbrAiChannelDiff;
-				devpriv->b_SingelDiff = 1;
-			}
-			s->maxdata = devpriv->s_EeParameters.i_AiMaxdata;
-			s->len_chanlist = this_board->i_AiChannelList;
-			s->range_table = this_board->pr_AiRangelist;
+	/*  Allocate and Initialise AO Subdevice Structures */
+	s = &dev->subdevices[1];
+	if (devpriv->s_EeParameters.i_NbrAoChannel) {
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
+		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
+		s->len_chanlist =
+			devpriv->s_EeParameters.i_NbrAoChannel;
+		s->range_table = this_board->pr_AoRangelist;
+		s->insn_config = this_board->ao_config;
+		s->insn_write = this_board->ao_write;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+	/*  Allocate and Initialise DI Subdevice Structures */
+	s = &dev->subdevices[2];
+	if (devpriv->s_EeParameters.i_NbrDiChannel) {
+		s->type = COMEDI_SUBD_DI;
+		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
+		s->maxdata = 1;
+		s->len_chanlist =
+			devpriv->s_EeParameters.i_NbrDiChannel;
+		s->range_table = &range_digital;
+		s->io_bits = 0;	/* all bits input */
+		s->insn_config = this_board->di_config;
+		s->insn_read = this_board->di_read;
+		s->insn_write = this_board->di_write;
+		s->insn_bits = this_board->di_bits;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+	/*  Allocate and Initialise DO Subdevice Structures */
+	s = &dev->subdevices[3];
+	if (devpriv->s_EeParameters.i_NbrDoChannel) {
+		s->type = COMEDI_SUBD_DO;
+		s->subdev_flags =
+			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
+		s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
+		s->len_chanlist =
+			devpriv->s_EeParameters.i_NbrDoChannel;
+		s->range_table = &range_digital;
+		s->io_bits = 0xf;	/* all bits output */
 
-			/* Set the initialisation flag */
-			devpriv->b_AiInitialisation = 1;
+		/* insn_config - for digital output memory */
+		s->insn_config = this_board->do_config;
+		s->insn_write = this_board->do_write;
+		s->insn_bits = this_board->do_bits;
+		s->insn_read = this_board->do_read;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
-			s->insn_config = this_board->ai_config;
-			s->insn_read = this_board->ai_read;
-			s->insn_write = this_board->ai_write;
-			s->insn_bits = this_board->ai_bits;
-			s->do_cmdtest = this_board->ai_cmdtest;
-			s->do_cmd = this_board->ai_cmd;
-			s->cancel = this_board->ai_cancel;
+	/*  Allocate and Initialise Timer Subdevice Structures */
+	s = &dev->subdevices[4];
+	if (devpriv->s_EeParameters.i_Timer) {
+		s->type = COMEDI_SUBD_TIMER;
+		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan = 1;
+		s->maxdata = 0;
+		s->len_chanlist = 1;
+		s->range_table = &range_digital;
 
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
+		s->insn_write = this_board->timer_write;
+		s->insn_read = this_board->timer_read;
+		s->insn_config = this_board->timer_config;
+		s->insn_bits = this_board->timer_bits;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
-		/*  Allocate and Initialise AO Subdevice Structures */
-		s = &dev->subdevices[1];
-		if (devpriv->s_EeParameters.i_NbrAoChannel) {
-			s->type = COMEDI_SUBD_AO;
-			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
-			s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
-			s->len_chanlist =
-				devpriv->s_EeParameters.i_NbrAoChannel;
-			s->range_table = this_board->pr_AoRangelist;
-			s->insn_config = this_board->ao_config;
-			s->insn_write = this_board->ao_write;
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
-		/*  Allocate and Initialise DI Subdevice Structures */
-		s = &dev->subdevices[2];
-		if (devpriv->s_EeParameters.i_NbrDiChannel) {
-			s->type = COMEDI_SUBD_DI;
-			s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
-			s->maxdata = 1;
-			s->len_chanlist =
-				devpriv->s_EeParameters.i_NbrDiChannel;
-			s->range_table = &range_digital;
-			s->io_bits = 0;	/* all bits input */
-			s->insn_config = this_board->di_config;
-			s->insn_read = this_board->di_read;
-			s->insn_write = this_board->di_write;
-			s->insn_bits = this_board->di_bits;
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
-		/*  Allocate and Initialise DO Subdevice Structures */
-		s = &dev->subdevices[3];
-		if (devpriv->s_EeParameters.i_NbrDoChannel) {
-			s->type = COMEDI_SUBD_DO;
-			s->subdev_flags =
-				SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = devpriv->s_EeParameters.i_NbrDoChannel;
-			s->maxdata = devpriv->s_EeParameters.i_DoMaxdata;
-			s->len_chanlist =
-				devpriv->s_EeParameters.i_NbrDoChannel;
-			s->range_table = &range_digital;
-			s->io_bits = 0xf;	/* all bits output */
+	/*  Allocate and Initialise TTL */
+	s = &dev->subdevices[5];
+	if (this_board->i_NbrTTLChannel) {
+		s->type = COMEDI_SUBD_TTLIO;
+		s->subdev_flags =
+			SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
+		s->n_chan = this_board->i_NbrTTLChannel;
+		s->maxdata = 1;
+		s->io_bits = 0;	/* all bits input */
+		s->len_chanlist = this_board->i_NbrTTLChannel;
+		s->range_table = &range_digital;
+		s->insn_config = this_board->ttl_config;
+		s->insn_bits = this_board->ttl_bits;
+		s->insn_read = this_board->ttl_read;
+		s->insn_write = this_board->ttl_write;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
 
-			/* insn_config - for digital output memory */
-			s->insn_config = this_board->do_config;
-			s->insn_write = this_board->do_write;
-			s->insn_bits = this_board->do_bits;
-			s->insn_read = this_board->do_read;
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
-
-		/*  Allocate and Initialise Timer Subdevice Structures */
-		s = &dev->subdevices[4];
-		if (devpriv->s_EeParameters.i_Timer) {
-			s->type = COMEDI_SUBD_TIMER;
-			s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = 1;
-			s->maxdata = 0;
-			s->len_chanlist = 1;
-			s->range_table = &range_digital;
-
-			s->insn_write = this_board->timer_write;
-			s->insn_read = this_board->timer_read;
-			s->insn_config = this_board->timer_config;
-			s->insn_bits = this_board->timer_bits;
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
-
-		/*  Allocate and Initialise TTL */
-		s = &dev->subdevices[5];
-		if (this_board->i_NbrTTLChannel) {
-			s->type = COMEDI_SUBD_TTLIO;
-			s->subdev_flags =
-				SDF_WRITEABLE | SDF_READABLE | SDF_GROUND | SDF_COMMON;
-			s->n_chan = this_board->i_NbrTTLChannel;
-			s->maxdata = 1;
-			s->io_bits = 0;	/* all bits input */
-			s->len_chanlist = this_board->i_NbrTTLChannel;
-			s->range_table = &range_digital;
-			s->insn_config = this_board->ttl_config;
-			s->insn_bits = this_board->ttl_bits;
-			s->insn_read = this_board->ttl_read;
-			s->insn_write = this_board->ttl_write;
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
-
-		/* EEPROM */
-		s = &dev->subdevices[6];
-		if (this_board->i_PCIEeprom) {
-			s->type = COMEDI_SUBD_MEMORY;
-			s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-			s->n_chan = 256;
-			s->maxdata = 0xffff;
-			s->insn_read = i_ADDIDATA_InsnReadEeprom;
-		} else {
-			s->type = COMEDI_SUBD_UNUSED;
-		}
+	/* EEPROM */
+	s = &dev->subdevices[6];
+	if (this_board->i_PCIEeprom) {
+		s->type = COMEDI_SUBD_MEMORY;
+		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
+		s->n_chan = 256;
+		s->maxdata = 0xffff;
+		s->insn_read = i_ADDIDATA_InsnReadEeprom;
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	i_ADDI_Reset(dev);
