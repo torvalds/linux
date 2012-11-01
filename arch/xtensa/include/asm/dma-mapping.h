@@ -16,6 +16,8 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 
+#define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
+
 /*
  * DMA-consistent mapping functions.
  */
