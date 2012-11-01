@@ -3,7 +3,7 @@
  * versioning handshake ioctl. No license or copyright claims made.
  *
  * Use
- *   gcc -Wall -I../../../include -o disp_version version.c
+ *   gcc -Wall -I../../../include -o disp_version disp_version.c
  * to compile this.
  *
  * Author: Luc Verhaegen <libv@skynet.be>
