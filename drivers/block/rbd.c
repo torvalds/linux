@@ -3151,11 +3151,9 @@ static inline char *dup_token(const char **buf, size_t *lenp)
 	size_t len;
 
 	len = next_token(buf);
-	dup = kmalloc(len + 1, GFP_KERNEL);
+	dup = kmemdup(*buf, len + 1, GFP_KERNEL);
 	if (!dup)
 		return NULL;
-
-	memcpy(dup, *buf, len);
 	*(dup + len) = '\0';
 	*buf += len;
 
@@ -3264,10 +3262,9 @@ static int rbd_add_parse_args(const char *buf,
 		ret = -ENAMETOOLONG;
 		goto out_err;
 	}
-	spec->snap_name = kmalloc(len + 1, GFP_KERNEL);
+	spec->snap_name = kmemdup(buf, len + 1, GFP_KERNEL);
 	if (!spec->snap_name)
 		goto out_mem;
-	memcpy(spec->snap_name, buf, len);
 	*(spec->snap_name + len) = '\0';
 
 	/* Initialize all rbd options to the defaults */
