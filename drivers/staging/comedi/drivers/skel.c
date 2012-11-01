@@ -125,11 +125,6 @@ static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
-/*
- * Useful for shorthand access to the particular board structure
- */
-#define thisboard ((const struct skel_board *)dev->board_ptr)
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.
@@ -205,6 +200,7 @@ static int skel_ns_to_timer(unsigned int *ns, int round);
  */
 static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct skel_board *thisboard;
 	struct skel_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -218,9 +214,9 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 	/* dev->board_ptr = skel_probe(dev, it); */
 
+	thisboard = comedi_board(dev);
 /*
- * Initialize dev->board_name.  Note that we can use the "thisboard"
- * macro now, since we just initialized it in the last line.
+ * Initialize dev->board_name.
  */
 	dev->board_name = thisboard->name;
 
@@ -300,6 +296,7 @@ static void skel_detach(struct comedi_device *dev)
 static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	const struct skel_board *thisboard = comedi_board(dev);
 	int n, i;
 	unsigned int d;
 	unsigned int status;
