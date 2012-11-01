@@ -1673,9 +1673,9 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 					   enum pipe pipe)
 {
-	int reg;
-	u32 val, pipeconf_val;
+	struct drm_device *dev = dev_priv->dev;
 	struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+	uint32_t reg, val, pipeconf_val;
 
 	/* PCH only available on ILK+ */
 	BUG_ON(dev_priv->info->gen < 5);
@@ -1688,6 +1688,15 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
 	assert_fdi_rx_enabled(dev_priv, pipe);
+
+	if (HAS_PCH_CPT(dev)) {
+		/* Workaround: Set the timing override bit before enabling the
+		 * pch transcoder. */
+		reg = TRANS_CHICKEN2(pipe);
+		val = I915_READ(reg);
+		val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
+		I915_WRITE(reg, val);
+	}
 
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
@@ -1731,7 +1740,7 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 
 	/* Workaround: set timing override bit. */
 	val = I915_READ(_TRANSA_CHICKEN2);
-	val |= TRANS_AUTOTRAIN_GEN_STALL_DIS;
+	val |= TRANS_CHICKEN2_TIMING_OVERRIDE;
 	I915_WRITE(_TRANSA_CHICKEN2, val);
 
 	val = TRANS_ENABLE;
@@ -1751,8 +1760,8 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 					    enum pipe pipe)
 {
-	int reg;
-	u32 val;
+	struct drm_device *dev = dev_priv->dev;
+	uint32_t reg, val;
 
 	/* FDI relies on the transcoder */
 	assert_fdi_tx_disabled(dev_priv, pipe);
@@ -1768,6 +1777,14 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	/* wait for PCH transcoder off, transcoder state */
 	if (wait_for((I915_READ(reg) & TRANS_STATE_ENABLE) == 0, 50))
 		DRM_ERROR("failed to disable transcoder %d\n", pipe);
+
+	if (!HAS_PCH_IBX(dev)) {
+		/* Workaround: Clear the timing override chicken bit again. */
+		reg = TRANS_CHICKEN2(pipe);
+		val = I915_READ(reg);
+		val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
+		I915_WRITE(reg, val);
+	}
 }
 
 static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
@@ -1783,7 +1800,7 @@ static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 
 	/* Workaround: clear timing override bit. */
 	val = I915_READ(_TRANSA_CHICKEN2);
-	val &= ~TRANS_AUTOTRAIN_GEN_STALL_DIS;
+	val &= ~TRANS_CHICKEN2_TIMING_OVERRIDE;
 	I915_WRITE(_TRANSA_CHICKEN2, val);
 }
 
@@ -3327,16 +3344,12 @@ prepare: /* separate function? */
 void intel_cpt_verify_modeset(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int dslreg = PIPEDSL(pipe), tc2reg = TRANS_CHICKEN2(pipe);
+	int dslreg = PIPEDSL(pipe);
 	u32 temp;
 
 	temp = I915_READ(dslreg);
 	udelay(500);
 	if (wait_for(I915_READ(dslreg) != temp, 5)) {
-		/* Without this, mode sets may fail silently on FDI */
-		I915_WRITE(tc2reg, TRANS_AUTOTRAIN_GEN_STALL_DIS);
-		udelay(250);
-		I915_WRITE(tc2reg, 0);
 		if (wait_for(I915_READ(dslreg) != temp, 5))
 			DRM_ERROR("mode set failed: pipe %d stuck\n", pipe);
 	}
