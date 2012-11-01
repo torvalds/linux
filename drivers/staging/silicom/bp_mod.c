@@ -9,7 +9,6 @@
 /*                                                                            */
 /*                                                                            */
 /******************************************************************************/
-#include <linux/version.h>
 
 #include <linux/kernel.h>	/* We're doing kernel work */
 #include <linux/module.h>	/* Specifically, a module */
