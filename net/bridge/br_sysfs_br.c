@@ -309,7 +309,7 @@ static ssize_t store_group_addr(struct device *d,
 		   &new_addr[3], &new_addr[4], &new_addr[5]) != 6)
 		return -EINVAL;
 
-	if (!is_link_local(new_addr))
+	if (!is_link_local_ether_addr(new_addr))
 		return -EINVAL;
 
 	if (new_addr[5] == 1 ||		/* 802.3x Pause address */

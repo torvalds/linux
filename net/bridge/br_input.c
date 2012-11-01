@@ -147,7 +147,7 @@ rx_handler_result_t br_handle_frame(struct sk_buff **pskb)
 
 	p = br_port_get_rcu(skb->dev);
 
-	if (unlikely(is_link_local(dest))) {
+	if (unlikely(is_link_local_ether_addr(dest))) {
 		/*
 		 * See IEEE 802.1D Table 7-10 Reserved addresses
 		 *

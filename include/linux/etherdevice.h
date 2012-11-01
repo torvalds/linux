@@ -55,15 +55,15 @@ extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 static const u8 br_reserved_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
 /**
- * is_link_local -  Determine if given Eth addr is a link local mcast address.
+ * is_link_local_ether_addr - Determine if given Ethernet address is link-local
  * @addr: Pointer to a six-byte array containing the Ethernet address
  *
  * Return true if address is link local reserved addr (01:80:c2:00:00:0X) per
  * IEEE 802.1Q 8.6.3 Frame filtering.
  */
-static inline int is_link_local(const unsigned char *dest)
+static inline bool is_link_local_ether_addr(const u8 *addr)
 {
-	__be16 *a = (__be16 *)dest;
+	__be16 *a = (__be16 *)addr;
 	static const __be16 *b = (const __be16 *)br_reserved_address;
 	static const __be16 m = cpu_to_be16(0xfff0);
 
