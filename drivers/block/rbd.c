@@ -2644,8 +2644,11 @@ static int rbd_dev_probe_update_spec(struct rbd_device *rbd_dev)
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
 	name = ceph_pg_pool_name_by_id(osdc->osdmap, rbd_dev->spec->pool_id);
-	if (!name)
-		return -EIO;	/* pool id too large (>= 2^31) */
+	if (!name) {
+		rbd_warn(rbd_dev, "there is no pool with id %llu",
+			rbd_dev->spec->pool_id);	/* Really a BUG() */
+		return -EIO;
+	}
 
 	rbd_dev->spec->pool_name = kstrdup(name, GFP_KERNEL);
 	if (!rbd_dev->spec->pool_name)
@@ -2663,6 +2666,8 @@ static int rbd_dev_probe_update_spec(struct rbd_device *rbd_dev)
 
 	name = rbd_snap_name(rbd_dev, rbd_dev->spec->snap_id);
 	if (!name) {
+		rbd_warn(rbd_dev, "no snapshot with id %llu",
+			rbd_dev->spec->snap_id);	/* Really a BUG() */
 		ret = -EIO;
 		goto out_err;
 	}
