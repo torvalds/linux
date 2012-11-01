@@ -39,6 +39,17 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_edid.h>
 
+/**
+ * drm_helper_move_panel_connectors_to_head() - move panels to the front in the
+ * 						connector list
+ * @dev: drm device to operate on
+ *
+ * Some userspace presumes that the first connected connector is the main
+ * display, where it's supposed to display e.g. the login screen. For
+ * laptops, this should be the main panel. Use this function to sort all
+ * (eDP/LVDS) panels to the front of the connector list, instead of
+ * painstakingly trying to initialize them in the right order.
+ */
 void drm_helper_move_panel_connectors_to_head(struct drm_device *dev)
 {
 	struct drm_connector *connector, *tmp;
@@ -82,22 +93,21 @@ static void drm_mode_validate_flag(struct drm_connector *connector,
 
 /**
  * drm_helper_probe_single_connector_modes - get complete set of display modes
- * @dev: DRM device
+ * @connector: connector to probe
  * @maxX: max width for modes
  * @maxY: max height for modes
  *
  * LOCKING:
  * Caller must hold mode config lock.
  *
- * Based on @dev's mode_config layout, scan all the connectors and try to detect
- * modes on them.  Modes will first be added to the connector's probed_modes
- * list, then culled (based on validity and the @maxX, @maxY parameters) and
- * put into the normal modes list.
+ * Based on the helper callbacks implemented by @connector try to detect all
+ * valid modes.  Modes will first be added to the connector's probed_modes list,
+ * then culled (based on validity and the @maxX, @maxY parameters) and put into
+ * the normal modes list.
  *
- * Intended to be used either at bootup time or when major configuration
- * changes have occurred.
- *
- * FIXME: take into account monitor limits
+ * Intended to be use as a generic implementation of the ->probe() @connector
+ * callback for drivers that use the crtc helpers for output mode filtering and
+ * detection.
  *
  * RETURNS:
  * Number of modes found on @connector.
@@ -348,17 +358,24 @@ drm_crtc_prepare_encoders(struct drm_device *dev)
 }
 
 /**
- * drm_crtc_set_mode - set a mode
+ * drm_crtc_helper_set_mode - internal helper to set a mode
  * @crtc: CRTC to program
  * @mode: mode to use
  * @x: horizontal offset into the surface
  * @y: vertical offset into the surface
+ * @old_fb: old framebuffer, for cleanup
  *
  * LOCKING:
  * Caller must hold mode config lock.
  *
  * Try to set @mode on @crtc.  Give @crtc and its associated connectors a chance
- * to fixup or reject the mode prior to trying to set it.
+ * to fixup or reject the mode prior to trying to set it. This is an internal
+ * helper that drivers could e.g. use to update properties that require the
+ * entire output pipe to be disabled and re-enabled in a new configuration. For
+ * example for changing whether audio is enabled on a hdmi link or for changing
+ * panel fitter or dither attributes. It is also called by the
+ * drm_crtc_helper_set_config() helper function to drive the mode setting
+ * sequence.
  *
  * RETURNS:
  * True if the mode was set successfully, or false otherwise.
@@ -514,20 +531,19 @@ drm_crtc_helper_disable(struct drm_crtc *crtc)
 
 /**
  * drm_crtc_helper_set_config - set a new config from userspace
- * @crtc: CRTC to setup
- * @crtc_info: user provided configuration
- * @new_mode: new mode to set
- * @connector_set: set of connectors for the new config
- * @fb: new framebuffer
+ * @set: mode set configuration
  *
  * LOCKING:
  * Caller must hold mode config lock.
  *
- * Setup a new configuration, provided by the user in @crtc_info, and enable
- * it.
+ * Setup a new configuration, provided by the upper layers (either an ioctl call
+ * from userspace or internally e.g. from the fbdev suppport code) in @set, and
+ * enable it. This is the main helper functions for drivers that implement
+ * kernel mode setting with the crtc helper functions and the assorted
+ * ->prepare(), ->modeset() and ->commit() helper callbacks.
  *
  * RETURNS:
- * Zero. (FIXME)
+ * Returns 0 on success, -ERRNO on failure.
  */
 int drm_crtc_helper_set_config(struct drm_mode_set *set)
 {
@@ -823,12 +839,14 @@ static int drm_helper_choose_crtc_dpms(struct drm_crtc *crtc)
 }
 
 /**
- * drm_helper_connector_dpms
- * @connector affected connector
- * @mode DPMS mode
+ * drm_helper_connector_dpms() - connector dpms helper implementation
+ * @connector: affected connector
+ * @mode: DPMS mode
  *
- * Calls the low-level connector DPMS function, then
- * calls appropriate encoder and crtc DPMS functions as well
+ * This is the main helper function provided by the crtc helper framework for
+ * implementing the DPMS connector attribute. It computes the new desired DPMS
+ * state for all encoders and crtcs in the output mesh and calls the ->dpms()
+ * callback provided by the driver appropriately.
  */
 void drm_helper_connector_dpms(struct drm_connector *connector, int mode)
 {
