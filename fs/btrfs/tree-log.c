@@ -3394,7 +3394,10 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 
 
 	/* today the code can only do partial logging of directories */
-	if (inode_only == LOG_INODE_EXISTS || S_ISDIR(inode->i_mode))
+	if (S_ISDIR(inode->i_mode) ||
+	    (!test_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
+		       &BTRFS_I(inode)->runtime_flags) &&
+	     inode_only == LOG_INODE_EXISTS))
 		max_key.type = BTRFS_XATTR_ITEM_KEY;
 	else
 		max_key.type = (u8)-1;
