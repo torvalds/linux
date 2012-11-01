@@ -21,24 +21,26 @@
 
 */
 /*
-Driver: jr3_pci
-Description: JR3/PCI force sensor board
-Author: Anders Blomdell <anders.blomdell@control.lth.se>
-Status: works
-Devices: [JR3] PCI force sensor board (jr3_pci)
-
-  The DSP on the board requires initialization code, which can
-  be loaded by placing it in /lib/firmware/comedi.
-  The initialization code should be somewhere on the media you got
-  with your card. One version is available from http://www.comedi.org
-  in the comedi_nonfree_firmware tarball.
-
-  Configuration options:
-  [0] - PCI bus number - if bus number and slot number are 0,
-                         then driver search for first unused card
-  [1] - PCI slot number
-
-*/
+ * Driver: jr3_pci
+ * Description: JR3/PCI force sensor board
+ * Author: Anders Blomdell <anders.blomdell@control.lth.se>
+ * Updated: Thu, 01 Nov 2012 17:34:55 +0000
+ * Status: works
+ * Devices: [JR3] PCI force sensor board (jr3_pci)
+ *
+ * Configuration options:
+ *   None
+ *
+ * Manual configuration of comedi devices is not supported by this
+ * driver; supported PCI devices are configured as comedi devices
+ * automatically.
+ *
+ * The DSP on the board requires initialization code, which can be
+ * loaded by placing it in /lib/firmware/comedi.  The initialization
+ * code should be somewhere on the media you got with your card.  One
+ * version is available from http://www.comedi.org in the
+ * comedi_nonfree_firmware tarball.  The file is called "jr3pci.idm".
+ */
 
 #include "../comedidev.h"
 
