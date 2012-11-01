@@ -213,9 +213,6 @@ static inline struct hpdi_board *board(const struct comedi_device *dev)
 }
 
 struct hpdi_private {
-	/*  base addresses (physical) */
-	resource_size_t plx9080_phys_iobase;
-	resource_size_t hpdi_phys_iobase;
 	/*  base addresses (ioremapped) */
 	void __iomem *plx9080_iobase;
 	void __iomem *hpdi_iobase;
@@ -506,23 +503,18 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 			 "failed enable PCI device and request regions\n");
 		return -EIO;
 	}
+	dev->iobase = 1;	/* the "detach" needs this */
 	pci_set_master(pcidev);
 
 	/* Initialize dev->board_name */
 	dev->board_name = board(dev)->name;
 
-	devpriv->plx9080_phys_iobase =
-	    pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	devpriv->hpdi_phys_iobase =
-	    pci_resource_start(pcidev, HPDI_BADDRINDEX);
-
-	/*  remap, won't work with 2.0 kernels but who cares */
-	devpriv->plx9080_iobase = ioremap(devpriv->plx9080_phys_iobase,
-					    pci_resource_len(pcidev,
-					    PLX9080_BADDRINDEX));
+	devpriv->plx9080_iobase =
+		ioremap(pci_resource_start(pcidev, PLX9080_BADDRINDEX),
+			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
 	devpriv->hpdi_iobase =
-	    ioremap(devpriv->hpdi_phys_iobase,
-		    pci_resource_len(pcidev, HPDI_BADDRINDEX));
+		ioremap(pci_resource_start(pcidev, HPDI_BADDRINDEX),
+			pci_resource_len(pcidev, HPDI_BADDRINDEX));
 	if (!devpriv->plx9080_iobase || !devpriv->hpdi_iobase) {
 		dev_warn(dev->class_dev, "failed to remap io memory\n");
 		return -ENOMEM;
@@ -606,7 +598,7 @@ static void hpdi_detach(struct comedi_device *dev)
 					    NUM_DMA_DESCRIPTORS,
 					    devpriv->dma_desc,
 					    devpriv->dma_desc_phys_addr);
-		if (devpriv->hpdi_phys_iobase)
+		if (dev->iobase)
 			comedi_pci_disable(pcidev);
 	}
 }
