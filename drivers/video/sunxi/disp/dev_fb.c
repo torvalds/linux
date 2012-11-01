@@ -32,9 +32,6 @@
 
 fb_info_t g_fbi;
 
-#define FBHANDTOID(handle)  ((handle) - 100)
-#define FBIDTOHAND(ID)  ((ID) + 100)
-
 /*
  *          0:ARGB  1:BRGA  2:ABGR  3:RGBA
  *     seq:  ARGB    BRGA    ARGB    BRGA
@@ -1674,7 +1671,7 @@ __s32 Fb_Exit(void)
 		if (g_fbi.fbinfo[fb_id] == NULL)
 			continue;
 
-		Display_Fb_Release(FBIDTOHAND(fb_id));
+		Display_Fb_Release(fb_id);
 
 		unregister_framebuffer(g_fbi.fbinfo[fb_id]);
 		framebuffer_release(g_fbi.fbinfo[fb_id]);
