@@ -1865,6 +1865,20 @@ static __be32 nfsd4_map_bcts_dir(u32 *dir)
 	return nfserr_inval;
 }
 
+__be32 nfsd4_backchannel_ctl(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_backchannel_ctl *bc)
+{
+	struct nfsd4_session *session = cstate->session;
+
+	spin_lock(&client_lock);
+	session->se_cb_prog = bc->bc_cb_program;
+	session->se_cb_sec = bc->bc_cb_sec;
+	spin_unlock(&client_lock);
+
+	nfsd4_probe_callback(session->se_client);
+
+	return nfs_ok;
+}
+
 __be32 nfsd4_bind_conn_to_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
 		     struct nfsd4_bind_conn_to_session *bcts)

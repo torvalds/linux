@@ -1666,6 +1666,12 @@ static struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_EXCHANGE_ID",
 		.op_rsize_bop = (nfsd4op_rsize)nfsd4_exchange_id_rsize,
 	},
+	[OP_BACKCHANNEL_CTL] = {
+		.op_func = (nfsd4op_func)nfsd4_backchannel_ctl,
+		.op_flags = ALLOWED_WITHOUT_FH | OP_MODIFIES_SOMETHING,
+		.op_name = "OP_BACKCHANNEL_CTL",
+		.op_rsize_bop = (nfsd4op_rsize)nfsd4_only_status_rsize,
+	},
 	[OP_BIND_CONN_TO_SESSION] = {
 		.op_func = (nfsd4op_func)nfsd4_bind_conn_to_session,
 		.op_flags = ALLOWED_WITHOUT_FH | ALLOWED_AS_FIRST_OP

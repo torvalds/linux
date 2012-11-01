@@ -166,6 +166,11 @@ struct nfsd4_create_session {
 	struct nfsd4_cb_sec		cb_sec;
 };
 
+struct nfsd4_backchannel_ctl {
+	u32	bc_cb_program;
+	struct nfsd4_cb_sec		bc_cb_sec;
+};
+
 struct nfsd4_bind_conn_to_session {
 	struct nfs4_sessionid		sessionid;
 	u32				dir;

@@ -39,11 +39,6 @@ interoperability problems with future clients.  Known issues:
 	  from a linux client are possible, but we aren't really
 	  conformant with the spec (for example, we don't use kerberos
 	  on the backchannel correctly).
-	- Incomplete backchannel support: incomplete backchannel gss
-	  support and no support for BACKCHANNEL_CTL mean that
-	  callbacks (hence delegations and layouts) may not be
-	  available and clients confused by the incomplete
-	  implementation may fail.
 	- We do not support SSV, which provides security for shared
 	  client-server state (thus preventing unauthorized tampering
 	  with locks and opens, for example).  It is mandatory for
@@ -89,7 +84,7 @@ Operations
    |                      | MNI        | or OPT)      |                |
    +----------------------+------------+--------------+----------------+
    | ACCESS               | REQ        |              | Section 18.1   |
-NS | BACKCHANNEL_CTL      | REQ        |              | Section 18.33  |
+I  | BACKCHANNEL_CTL      | REQ        |              | Section 18.33  |
 I  | BIND_CONN_TO_SESSION | REQ        |              | Section 18.34  |
    | CLOSE                | REQ        |              | Section 18.2   |
    | COMMIT               | REQ        |              | Section 18.3   |
