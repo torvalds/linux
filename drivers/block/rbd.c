@@ -2456,7 +2456,7 @@ static int _rbd_dev_v2_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 
 	incompat = le64_to_cpu(features_buf.incompat);
 	if (incompat & ~RBD_FEATURES_ALL)
-		return -ENOTSUPP;
+		return -ENXIO;
 
 	*snap_features = le64_to_cpu(features_buf.features);
 
