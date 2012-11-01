@@ -312,6 +312,7 @@ start_transaction(struct btrfs_root *root, u64 num_items, int type,
 		WARN_ON(type != TRANS_JOIN && type != TRANS_JOIN_NOLOCK);
 		h = current->journal_info;
 		h->use_count++;
+		WARN_ON(h->use_count > 2);
 		h->orig_rsv = h->block_rsv;
 		h->block_rsv = NULL;
 		goto got_it;
