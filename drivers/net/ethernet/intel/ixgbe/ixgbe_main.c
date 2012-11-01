@@ -6954,7 +6954,10 @@ static int ixgbe_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return -EOPNOTSUPP;
 
-	if (ndm->ndm_state & NUD_PERMANENT) {
+	/* Hardware does not support aging addresses so if a
+	 * ndm_state is given only allow permanent addresses
+	 */
+	if (ndm->ndm_state && !(ndm->ndm_state & NUD_PERMANENT)) {
 		pr_info("%s: FDB only supports static addresses\n",
 			ixgbe_driver_name);
 		return -EINVAL;
