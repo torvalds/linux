@@ -30,6 +30,15 @@
 #include <drm/drm_dp_helper.h>
 #include <drm/drmP.h>
 
+/**
+ * DOC: dp helpers
+ *
+ * These functions contain some common logic and helpers at various abstraction
+ * levels to deal with Display Port sink devices and related things like DP aux
+ * channel transfers, EDID reading over DP aux channels, decoding certain DPCD
+ * blocks, ...
+ */
+
 /* Run a single AUX_CH I2C transaction, writing/reading data as necessary */
 static int
 i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
@@ -193,6 +202,18 @@ i2c_dp_aux_prepare_bus(struct i2c_adapter *adapter)
 	return 0;
 }
 
+/**
+ * i2c_dp_aux_add_bus() - register an i2c adapter using the aux ch helper
+ * @adapter: i2c adapter to register
+ *
+ * This registers an i2c adapater that uses dp aux channel as it's underlaying
+ * transport. The driver needs to fill out the &i2c_algo_dp_aux_data structure
+ * and store it in the algo_data member of the @adapter argument. This will be
+ * used by the i2c over dp aux algorithm to drive the hardware.
+ *
+ * RETURNS:
+ * 0 on success, -ERRNO on failure.
+ */
 int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 {
