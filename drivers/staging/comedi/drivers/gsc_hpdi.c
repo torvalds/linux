@@ -213,8 +213,6 @@ static inline struct hpdi_board *board(const struct comedi_device *dev)
 }
 
 struct hpdi_private {
-
-	struct pci_dev *hw_dev;	/*  pointer to board's pci_dev struct */
 	/*  base addresses (physical) */
 	resource_size_t plx9080_phys_iobase;
 	resource_size_t hpdi_phys_iobase;
@@ -502,7 +500,6 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-	devpriv->hw_dev = pcidev;
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_warn(dev->class_dev,
@@ -550,18 +547,17 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 	/*  allocate pci dma buffers */
 	for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 		devpriv->dio_buffer[i] =
-		    pci_alloc_consistent(devpriv->hw_dev, DMA_BUFFER_SIZE,
+		    pci_alloc_consistent(pcidev, DMA_BUFFER_SIZE,
 					 &devpriv->dio_buffer_phys_addr[i]);
 		DEBUG_PRINT("dio_buffer at virt 0x%p, phys 0x%lx\n",
 			    devpriv->dio_buffer[i],
 			    (unsigned long)devpriv->dio_buffer_phys_addr[i]);
 	}
 	/*  allocate dma descriptors */
-	devpriv->dma_desc = pci_alloc_consistent(devpriv->hw_dev,
-						   sizeof(struct plx_dma_desc) *
-						   NUM_DMA_DESCRIPTORS,
-						   &devpriv->
-						   dma_desc_phys_addr);
+	devpriv->dma_desc = pci_alloc_consistent(pcidev,
+						 sizeof(struct plx_dma_desc) *
+						 NUM_DMA_DESCRIPTORS,
+						 &devpriv->dma_desc_phys_addr);
 	if (devpriv->dma_desc_phys_addr & 0xf) {
 		dev_warn(dev->class_dev,
 			 " dma descriptors not quad-word aligned (bug)\n");
@@ -581,12 +577,13 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 
 static void hpdi_detach(struct comedi_device *dev)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct hpdi_private *devpriv = dev->private;
 	unsigned int i;
 
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (devpriv && devpriv->hw_dev) {
+	if (devpriv) {
 		if (devpriv->plx9080_iobase) {
 			disable_plx_interrupts(dev);
 			iounmap(devpriv->plx9080_iobase);
@@ -596,20 +593,21 @@ static void hpdi_detach(struct comedi_device *dev)
 		/*  free pci dma buffers */
 		for (i = 0; i < NUM_DMA_BUFFERS; i++) {
 			if (devpriv->dio_buffer[i])
-				pci_free_consistent(devpriv->hw_dev,
-					DMA_BUFFER_SIZE,
-					devpriv->dio_buffer[i],
-					devpriv->dio_buffer_phys_addr[i]);
+				pci_free_consistent(pcidev,
+						    DMA_BUFFER_SIZE,
+						    devpriv->dio_buffer[i],
+						    devpriv->
+						    dio_buffer_phys_addr[i]);
 		}
 		/*  free dma descriptors */
 		if (devpriv->dma_desc)
-			pci_free_consistent(devpriv->hw_dev,
-				sizeof(struct plx_dma_desc) *
-				NUM_DMA_DESCRIPTORS,
-				devpriv->dma_desc,
-				devpriv-> dma_desc_phys_addr);
+			pci_free_consistent(pcidev,
+					    sizeof(struct plx_dma_desc) *
+					    NUM_DMA_DESCRIPTORS,
+					    devpriv->dma_desc,
+					    devpriv->dma_desc_phys_addr);
 		if (devpriv->hpdi_phys_iobase)
-			comedi_pci_disable(devpriv->hw_dev);
+			comedi_pci_disable(pcidev);
 	}
 }
 
