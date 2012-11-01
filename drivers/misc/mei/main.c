@@ -567,7 +567,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 		if (write_cb) {
 			timeout = write_cb->read_time +
-					msecs_to_jiffies(IAMTHIF_READ_TIMER);
+				mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
 
 			if (time_after(jiffies, timeout) ||
 			    cl->reading_state == MEI_READ_COMPLETE) {

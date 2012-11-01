@@ -270,6 +270,11 @@ struct mei_device {
 	bool iamthif_canceled;
 };
 
+static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
+{
+	return msecs_to_jiffies(sec * MSEC_PER_SEC);
+}
+
 
 /*
  * mei init function prototypes

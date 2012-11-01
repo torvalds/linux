@@ -184,7 +184,8 @@ int mei_hw_init(struct mei_device *dev)
 	if (!dev->recvd_msg) {
 		mutex_unlock(&dev->device_lock);
 		err = wait_event_interruptible_timeout(dev->wait_recvd_msg,
-			dev->recvd_msg, MEI_INTEROP_TIMEOUT);
+			dev->recvd_msg,
+			mei_secs_to_jiffies(MEI_INTEROP_TIMEOUT));
 		mutex_lock(&dev->device_lock);
 	}
 
@@ -381,7 +382,7 @@ void mei_host_start_message(struct mei_device *dev)
 		mei_reset(dev, 1);
 	}
 	dev->init_clients_state = MEI_START_MESSAGE;
-	dev->init_clients_timer = INIT_CLIENTS_TIMEOUT;
+	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
 	return ;
 }
 
@@ -414,7 +415,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 		mei_reset(dev, 1);
 	}
 	dev->init_clients_state = MEI_ENUM_CLIENTS_MESSAGE;
-	dev->init_clients_timer = INIT_CLIENTS_TIMEOUT;
+	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
 	return;
 }
 
@@ -502,7 +503,7 @@ int mei_host_client_properties(struct mei_device *dev)
 			return -EIO;
 		}
 
-		dev->init_clients_timer = INIT_CLIENTS_TIMEOUT;
+		dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
 		dev->me_client_index = b;
 		return 1;
 	}
@@ -621,7 +622,7 @@ void mei_host_init_iamthif(struct mei_device *dev)
 		dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 		dev->iamthif_cl.host_client_id = 0;
 	} else {
-		dev->iamthif_cl.timer_count = CONNECT_TIMEOUT;
+		dev->iamthif_cl.timer_count = MEI_CONNECT_TIMEOUT;
 	}
 }
 
@@ -658,9 +659,8 @@ struct mei_cl *mei_cl_allocate(struct mei_device *dev)
  */
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 {
-	int rets, err;
-	long timeout = 15;	/* 15 seconds */
 	struct mei_cl_cb *cb;
+	int rets, err;
 
 	if (!dev || !cl)
 		return -ENODEV;
@@ -690,8 +690,8 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	mutex_unlock(&dev->device_lock);
 
 	err = wait_event_timeout(dev->wait_recvd_msg,
-		 (MEI_FILE_DISCONNECTED == cl->state),
-		 timeout * HZ);
+			MEI_FILE_DISCONNECTED == cl->state,
+			mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT));
 
 	mutex_lock(&dev->device_lock);
 	if (MEI_FILE_DISCONNECTED == cl->state) {

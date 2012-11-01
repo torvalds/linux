@@ -173,7 +173,7 @@ int mei_ioctl_connect_client(struct file *file,
 	struct mei_cl *cl;
 	struct mei_cl *cl_pos = NULL;
 	struct mei_cl *cl_next = NULL;
-	long timeout = CONNECT_TIMEOUT;
+	long timeout = mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT);
 	int i;
 	int err;
 	int rets;
@@ -291,8 +291,7 @@ int mei_ioctl_connect_client(struct file *file,
 	mutex_unlock(&dev->device_lock);
 	err = wait_event_timeout(dev->wait_recvd_msg,
 			(MEI_FILE_CONNECTED == cl->state ||
-			 MEI_FILE_DISCONNECTED == cl->state),
-			timeout * HZ);
+			 MEI_FILE_DISCONNECTED == cl->state), timeout);
 
 	mutex_lock(&dev->device_lock);
 	if (MEI_FILE_CONNECTED == cl->state) {
@@ -415,7 +414,8 @@ int amthi_read(struct mei_device *dev, struct file *file,
 	dev->iamthif_timer = 0;
 
 	if (cb) {
-		timeout = cb->read_time + msecs_to_jiffies(IAMTHIF_READ_TIMER);
+		timeout = cb->read_time +
+			mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
 		dev_dbg(&dev->pdev->dev, "amthi timeout = %lud\n",
 				timeout);
 

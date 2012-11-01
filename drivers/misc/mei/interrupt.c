@@ -269,7 +269,7 @@ static int _mei_irq_thread_iamthif_read(struct mei_device *dev, s32 *slots)
 	dev->iamthif_flow_control_pending = false;
 	dev->iamthif_msg_buf_index = 0;
 	dev->iamthif_msg_buf_size = 0;
-	dev->iamthif_stall_timer = IAMTHIF_STALL_TIMER;
+	dev->iamthif_stall_timer = MEI_IAMTHIF_STALL_TIMER;
 	dev->mei_host_buffer_is_empty = mei_hbuf_is_empty(dev);
 	return 0;
 }
@@ -1379,7 +1379,7 @@ void mei_timer(struct work_struct *work)
 	if (dev->iamthif_timer) {
 
 		timeout = dev->iamthif_timer +
-				msecs_to_jiffies(IAMTHIF_READ_TIMER);
+			mei_secs_to_jiffies(MEI_IAMTHIF_READ_TIMER);
 
 		dev_dbg(&dev->pdev->dev, "dev->iamthif_timer = %ld\n",
 				dev->iamthif_timer);

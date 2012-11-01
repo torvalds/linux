@@ -85,7 +85,7 @@ int mei_wd_host_init(struct mei_device *dev)
 		dev->wd_cl.host_client_id = 0;
 		return -EIO;
 	}
-	dev->wd_cl.timer_count = CONNECT_TIMEOUT;
+	dev->wd_cl.timer_count = MEI_CONNECT_TIMEOUT;
 
 	return 0;
 }

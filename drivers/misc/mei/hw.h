@@ -20,16 +20,16 @@
 #include <linux/uuid.h>
 
 /*
- * Timeouts
+ * Timeouts in Seconds
  */
-#define MEI_INTEROP_TIMEOUT    (HZ * 7)
-#define MEI_CONNECT_TIMEOUT		3	/* at least 2 seconds */
+#define MEI_INTEROP_TIMEOUT         7  /* Timeout on ready message */
+#define MEI_CONNECT_TIMEOUT         3  /* HPS: at least 2 seconds */
 
-#define CONNECT_TIMEOUT        15	/* HPS definition */
-#define INIT_CLIENTS_TIMEOUT   15	/* HPS definition */
+#define MEI_CL_CONNECT_TIMEOUT     15  /* HPS: Client Connect Timeout */
+#define MEI_CLIENTS_INIT_TIMEOUT   15  /* HPS: Clients Enumeration Timeout */
 
-#define IAMTHIF_STALL_TIMER		12	/* seconds */
-#define IAMTHIF_READ_TIMER		10000	/* ms */
+#define MEI_IAMTHIF_STALL_TIMER    12  /* HPS */
+#define MEI_IAMTHIF_READ_TIMER     10  /* HPS */
 
 /*
  * Internal Clients Number
