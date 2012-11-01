@@ -1594,7 +1594,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+pPSvisc:sC:m:M:")) != -1) {
+	while ((opt = getopt(argc, argv, "+pPSvi:sc:sC:m:M:")) != -1) {
 		switch (opt) {
 		case 'p':
 			show_core_only++;
