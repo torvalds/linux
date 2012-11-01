@@ -25,8 +25,29 @@ struct da9055_pdata {
 	int gpio_base;
 
 	struct regulator_init_data *regulators[DA9055_MAX_REGULATORS];
-	bool reset_enable;		/* Enable RTC in RESET Mode */
-	enum gpio_select *gpio_rsel;	/* Select regulator set thru GPIO 1/2 */
-	enum gpio_select *gpio_ren;	/* Enable regulator thru GPIO 1/2 */
+	/* Enable RTC in RESET Mode */
+	bool reset_enable;
+	/*
+	 * GPI muxed pin to control
+	 * regulator state A/B, 0 if not available.
+	 */
+	int *gpio_ren;
+	/*
+	 * GPI muxed pin to control
+	 * regulator set, 0 if not available.
+	 */
+	int *gpio_rsel;
+	/*
+	 * Regulator mode control bits value (GPI offset) that
+	 * that controls the regulator state, 0 if not available.
+	 */
+	enum gpio_select *reg_ren;
+	/*
+	 * Regulator mode control bits value (GPI offset) that
+	 * controls the regulator set A/B, 0 if  not available.
+	 */
+	enum gpio_select *reg_rsel;
+	/* GPIOs to enable regulator, 0 if not available */
+	int *ena_gpio;
 };
 #endif /* __DA9055_PDATA_H */

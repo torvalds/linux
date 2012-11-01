@@ -109,6 +109,16 @@ config REGULATOR_DA9052
 	  This driver supports the voltage regulators of DA9052-BC and
 	  DA9053-AA/Bx PMIC.
 
+config REGULATOR_DA9055
+	tristate "Dialog Semiconductor DA9055 regulators"
+	depends on MFD_DA9055
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  Dialog Semiconductor DA9055 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9055-regulator.
+
 config REGULATOR_FAN53555
 	tristate "Fairchild FAN53555 Regulator"
 	depends on I2C
