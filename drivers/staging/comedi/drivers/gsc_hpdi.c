@@ -472,51 +472,37 @@ static int setup_dma_descriptors(struct comedi_device *dev,
 	return transfer_size;
 }
 
-static int hpdi_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static const struct hpdi_board *hpdi_find_board(struct pci_dev *pcidev)
 {
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hpdi_boards); i++)
+		if (pcidev->device == hpdi_boards[i].device_id &&
+		    pcidev->subsystem_device == hpdi_boards[i].subdevice_id)
+			return &hpdi_boards[i];
+	return NULL;
+}
+
+static int __devinit hpdi_auto_attach(struct comedi_device *dev,
+				      unsigned long context_unused)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct hpdi_private *devpriv;
-	struct pci_dev *pcidev;
 	int i;
 	int retval;
 
-	dev_dbg(dev->class_dev, "gsc_hpdi\n");
+	dev->board_ptr = hpdi_find_board(pcidev);
+	if (!dev->board_ptr) {
+		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
+			pci_name(pcidev));
+		return -EINVAL;
+	}
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-
-	pcidev = NULL;
-	for (i = 0; i < ARRAY_SIZE(hpdi_boards) &&
-		    dev->board_ptr == NULL; i++) {
-		do {
-			pcidev = pci_get_subsys(PCI_VENDOR_ID_PLX,
-						hpdi_boards[i].device_id,
-						PCI_VENDOR_ID_PLX,
-						hpdi_boards[i].subdevice_id,
-						pcidev);
-			/*  was a particular bus/slot requested? */
-			if (it->options[0] || it->options[1]) {
-				/*  are we on the wrong bus/slot? */
-				if (pcidev->bus->number != it->options[0] ||
-				    PCI_SLOT(pcidev->devfn) != it->options[1])
-					continue;
-			}
-			if (pcidev) {
-				devpriv->hw_dev = pcidev;
-				dev->board_ptr = hpdi_boards + i;
-				break;
-			}
-		} while (pcidev != NULL);
-	}
-	if (dev->board_ptr == NULL) {
-		dev_warn(dev->class_dev, "no hpdi card found\n");
-		return -EIO;
-	}
-
-	dev_warn(dev->class_dev,
-		 "found %s on bus %i, slot %i\n", board(dev)->name,
-		 pcidev->bus->number, PCI_SLOT(pcidev->devfn));
+	devpriv->hw_dev = pcidev;
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_warn(dev->class_dev,
@@ -624,7 +610,6 @@ static void hpdi_detach(struct comedi_device *dev)
 				devpriv-> dma_desc_phys_addr);
 		if (devpriv->hpdi_phys_iobase)
 			comedi_pci_disable(devpriv->hw_dev);
-		pci_dev_put(devpriv->hw_dev);
 	}
 }
 
@@ -974,7 +959,7 @@ static int hpdi_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 static struct comedi_driver gsc_hpdi_driver = {
 	.driver_name	= "gsc_hpdi",
 	.module		= THIS_MODULE,
-	.attach		= hpdi_attach,
+	.auto_attach	= hpdi_auto_attach,
 	.detach		= hpdi_detach,
 };
 
