@@ -3143,7 +3143,6 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
 			  struct btrfs_path *dst_path, struct log_args *args)
 {
 	struct btrfs_root *log = root->log_root;
-	struct btrfs_file_extent_item *fi;
 	struct btrfs_key key;
 	u64 start = em->mod_start;
 	u64 search_start = start;
@@ -3199,10 +3198,7 @@ again:
 				}
 			} while (key.offset > start);
 
-			fi = btrfs_item_ptr(path->nodes[0], path->slots[0],
-					    struct btrfs_file_extent_item);
-			num_bytes = btrfs_file_extent_num_bytes(path->nodes[0],
-								fi);
+			num_bytes = btrfs_file_extent_length(path);
 			if (key.offset + num_bytes <= start) {
 				btrfs_release_path(path);
 				return -ENOENT;
@@ -3211,8 +3207,7 @@ again:
 		args->src = path->nodes[0];
 next_slot:
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		fi = btrfs_item_ptr(args->src, path->slots[0],
-				    struct btrfs_file_extent_item);
+		num_bytes = btrfs_file_extent_length(path);
 		if (args->nr &&
 		    args->start_slot + args->nr == path->slots[0]) {
 			args->nr++;
@@ -3230,7 +3225,6 @@ next_slot:
 		}
 		nritems = btrfs_header_nritems(path->nodes[0]);
 		path->slots[0]++;
-		num_bytes = btrfs_file_extent_num_bytes(args->src, fi);
 		if (len < num_bytes) {
 			/* I _think_ this is ok, envision we write to a
 			 * preallocated space that is adjacent to a previously
