@@ -23,6 +23,7 @@
 #define NV_DEVICE_DISABLE_COPY0                           0x0000008000000000ULL
 #define NV_DEVICE_DISABLE_COPY1                           0x0000010000000000ULL
 #define NV_DEVICE_DISABLE_UNK1C1                          0x0000020000000000ULL
+#define NV_DEVICE_DISABLE_VENC                            0x0000040000000000ULL
 
 struct nv_device_class {
 	u64 device;	/* device identifier, ~0 for client default */
