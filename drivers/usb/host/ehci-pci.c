@@ -18,9 +18,18 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef CONFIG_PCI
-#error "This file is PCI bus glue.  CONFIG_PCI must be defined."
-#endif
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ehci.h"
+#include "pci-quirks.h"
+
+#define DRIVER_DESC "EHCI PCI platform driver"
+
+static const char hcd_name[] = "ehci-pci";
 
 /* defined here to avoid adding to pci_ids.h for single instance use */
 #define PCI_DEVICE_ID_INTEL_CE4100_USB	0x2e70
@@ -315,11 +324,6 @@ done:
  * Also they depend on separate root hub suspend/resume.
  */
 
-static int ehci_pci_suspend(struct usb_hcd *hcd, bool do_wakeup)
-{
-	return ehci_suspend(hcd, do_wakeup);
-}
-
 static bool usb_is_intel_switchable_ehci(struct pci_dev *pdev)
 {
 	return pdev->class == PCI_CLASS_SERIAL_USB_EHCI &&
@@ -370,55 +374,18 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 		(void) ehci_pci_reinit(ehci, pdev);
 	return 0;
 }
-#endif
 
-static const struct hc_driver ehci_pci_hc_driver = {
-	.description =		hcd_name,
-	.product_desc =		"EHCI Host Controller",
-	.hcd_priv_size =	sizeof(struct ehci_hcd),
+#else
 
-	/*
-	 * generic hardware linkage
-	 */
-	.irq =			ehci_irq,
-	.flags =		HCD_MEMORY | HCD_USB2,
+#define ehci_suspend		NULL
+#define ehci_pci_resume		NULL
+#endif	/* CONFIG_PM */
 
-	/*
-	 * basic lifecycle operations
-	 */
+static struct hc_driver __read_mostly ehci_pci_hc_driver;
+
+static const struct ehci_driver_overrides overrides = {
+	.product_desc =		"EHCI PCI host controller",
 	.reset =		ehci_pci_setup,
-	.start =		ehci_run,
-#ifdef	CONFIG_PM
-	.pci_suspend =		ehci_pci_suspend,
-	.pci_resume =		ehci_pci_resume,
-#endif
-	.stop =			ehci_stop,
-	.shutdown =		ehci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue =		ehci_urb_enqueue,
-	.urb_dequeue =		ehci_urb_dequeue,
-	.endpoint_disable =	ehci_endpoint_disable,
-	.endpoint_reset =	ehci_endpoint_reset,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number =	ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data =	ehci_hub_status_data,
-	.hub_control =		ehci_hub_control,
-	.bus_suspend =		ehci_bus_suspend,
-	.bus_resume =		ehci_bus_resume,
-	.relinquish_port =	ehci_relinquish_port,
-	.port_handed_over =	ehci_port_handed_over,
-
-	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -451,3 +418,31 @@ static struct pci_driver ehci_pci_driver = {
 	},
 #endif
 };
+
+static int __init ehci_pci_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ehci_init_driver(&ehci_pci_hc_driver, &overrides);
+
+	/* Entries for the PCI suspend/resume callbacks are special */
+	ehci_pci_hc_driver.pci_suspend = ehci_suspend;
+	ehci_pci_hc_driver.pci_resume = ehci_pci_resume;
+
+	return pci_register_driver(&ehci_pci_driver);
+}
+module_init(ehci_pci_init);
+
+static void __exit ehci_pci_cleanup(void)
+{
+	pci_unregister_driver(&ehci_pci_driver);
+}
+module_exit(ehci_pci_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("David Brownell");
+MODULE_AUTHOR("Alan Stern");
+MODULE_LICENSE("GPL");

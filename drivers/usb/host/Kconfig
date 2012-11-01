@@ -95,6 +95,11 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If unsure, say Y.
 
+config USB_EHCI_PCI
+	tristate
+	depends on USB_EHCI_HCD && PCI
+	default y
+
 config USB_EHCI_HCD_PMC_MSP
 	tristate "EHCI support for on-chip PMC MSP71xx USB controller"
 	depends on USB_EHCI_HCD && MSP_HAS_USB

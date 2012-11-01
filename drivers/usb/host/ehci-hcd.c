@@ -1252,11 +1252,6 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR (DRIVER_AUTHOR);
 MODULE_LICENSE ("GPL");
 
-#ifdef CONFIG_PCI
-#include "ehci-pci.c"
-#define	PCI_DRIVER		ehci_pci_driver
-#endif
-
 #ifdef CONFIG_USB_EHCI_FSL
 #include "ehci-fsl.c"
 #define	PLATFORM_DRIVER		ehci_fsl_driver
@@ -1367,9 +1362,11 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ehci_platform_driver
 #endif
 
-#if !defined(PCI_DRIVER) && !defined(PLATFORM_DRIVER) && \
-    !defined(PS3_SYSTEM_BUS_DRIVER) && !defined(OF_PLATFORM_DRIVER) && \
-    !defined(XILINX_OF_PLATFORM_DRIVER)
+#if !IS_ENABLED(CONFIG_USB_EHCI_PCI) && \
+	!defined(PLATFORM_DRIVER) && \
+	!defined(PS3_SYSTEM_BUS_DRIVER) && \
+	!defined(OF_PLATFORM_DRIVER) && \
+	!defined(XILINX_OF_PLATFORM_DRIVER)
 #error "missing bus glue for ehci-hcd"
 #endif
 
@@ -1406,12 +1403,6 @@ static int __init ehci_hcd_init(void)
 		goto clean0;
 #endif
 
-#ifdef PCI_DRIVER
-	retval = pci_register_driver(&PCI_DRIVER);
-	if (retval < 0)
-		goto clean1;
-#endif
-
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	retval = ps3_ehci_driver_register(&PS3_SYSTEM_BUS_DRIVER);
 	if (retval < 0)
@@ -1443,10 +1434,6 @@ clean3:
 	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
 clean2:
 #endif
-#ifdef PCI_DRIVER
-	pci_unregister_driver(&PCI_DRIVER);
-clean1:
-#endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
 clean0:
@@ -1471,9 +1458,6 @@ static void __exit ehci_hcd_cleanup(void)
 #endif
 #ifdef PLATFORM_DRIVER
 	platform_driver_unregister(&PLATFORM_DRIVER);
-#endif
-#ifdef PCI_DRIVER
-	pci_unregister_driver(&PCI_DRIVER);
 #endif
 #ifdef PS3_SYSTEM_BUS_DRIVER
 	ps3_ehci_driver_unregister(&PS3_SYSTEM_BUS_DRIVER);
