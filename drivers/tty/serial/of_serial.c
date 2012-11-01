@@ -66,10 +66,10 @@ static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
 
 		/* Get clk rate through clk driver if present */
 		info->clk = clk_get(&ofdev->dev, NULL);
-		if (info->clk == NULL) {
+		if (IS_ERR(info->clk)) {
 			dev_warn(&ofdev->dev,
 				"clk or clock-frequency not defined\n");
-			return -ENODEV;
+			return PTR_ERR(info->clk);
 		}
 
 		clk_prepare_enable(info->clk);
