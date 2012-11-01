@@ -298,23 +298,18 @@ static ssize_t store_group_addr(struct device *d,
 				const char *buf, size_t len)
 {
 	struct net_bridge *br = to_bridge(d);
-	unsigned int new_addr[6];
+	u8 new_addr[6];
 	int i;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (sscanf(buf, "%x:%x:%x:%x:%x:%x",
+	if (sscanf(buf, "%hhx:%hhx:%hhx:%hhx:%hhx:%hhx",
 		   &new_addr[0], &new_addr[1], &new_addr[2],
 		   &new_addr[3], &new_addr[4], &new_addr[5]) != 6)
 		return -EINVAL;
 
-	/* Must be 01:80:c2:00:00:0X */
-	for (i = 0; i < 5; i++)
-		if (new_addr[i] != br_reserved_address[i])
-			return -EINVAL;
-
-	if (new_addr[5] & ~0xf)
+	if (!is_link_local(new_addr))
 		return -EINVAL;
 
 	if (new_addr[5] == 1 ||		/* 802.3x Pause address */
