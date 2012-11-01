@@ -223,7 +223,9 @@ __s32 BSP_disp_set_output_csc(__u32 sel, __disp_output_type_t type)
 		__s32 value = 0;
 
 		out_color_range = DISP_COLOR_RANGE_16_255;
+#ifdef YUV_COLORSPACE /* Fix me */
 		out_csc = DE_YUV_HDMI;
+#endif
 
 		ret =
 		    script_parser_fetch("disp_init", "screen0_out_color_range",
