@@ -528,6 +528,23 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 	if (local == NULL)
 		return -ENODEV;
 
+	/* Remote is ready but has not acknowledged our frames */
+	if((sock->remote_ready &&
+	    skb_queue_len(&sock->tx_pending_queue) >= sock->rw &&
+	    skb_queue_len(&sock->tx_queue) >= 2 * sock->rw)) {
+		pr_err("Pending queue is full %d frames\n",
+		       skb_queue_len(&sock->tx_pending_queue));
+		return -ENOBUFS;
+	}
+
+	/* Remote is not ready and we've been queueing enough frames */
+	if ((!sock->remote_ready &&
+	     skb_queue_len(&sock->tx_queue) >= 2 * sock->rw)) {
+		pr_err("Tx queue is full %d frames\n",
+		       skb_queue_len(&sock->tx_queue));
+		return -ENOBUFS;
+	}
+
 	msg_data = kzalloc(len, GFP_KERNEL);
 	if (msg_data == NULL)
 		return -ENOMEM;
