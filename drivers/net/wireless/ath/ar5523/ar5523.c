@@ -1789,18 +1789,7 @@ static struct usb_driver ar5523_driver = {
 	.disconnect	= ar5523_disconnect,
 };
 
-static int __init ar5523_init(void)
-{
-	return usb_register(&ar5523_driver);
-}
-
-static void __exit ar5523_exit(void)
-{
-	usb_deregister(&ar5523_driver);
-}
+module_usb_driver(ar5523_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_FIRMWARE(AR5523_FIRMWARE_FILE);
-
-module_init(ar5523_init);
-module_exit(ar5523_exit);
