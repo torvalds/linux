@@ -171,7 +171,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
 				temp |
 				DDI_BUF_CTL_ENABLE |
-				DDI_PORT_WIDTH_X2 |
+				((intel_crtc->fdi_lanes - 1) << 1) |
 				hsw_ddi_buf_ctl_values[i]);
 
 		udelay(600);
@@ -193,7 +193,7 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 					FDI_RX_ENABLE |
 					FDI_LINK_TRAIN_PATTERN_1_CPT |
 					FDI_RX_ENHANCE_FRAME_ENABLE |
-					FDI_PORT_WIDTH_2X_LPT |
+					((intel_crtc->fdi_lanes - 1) << 19) |
 					FDI_RX_PLL_ENABLE);
 		POSTING_READ(reg);
 		udelay(100);
@@ -952,6 +952,7 @@ void intel_ddi_enable_pipe_func(struct drm_crtc *crtc)
 
 	} else if (type == INTEL_OUTPUT_ANALOG) {
 		temp |= TRANS_DDI_MODE_SELECT_FDI;
+		temp |= (intel_crtc->fdi_lanes - 1) << 1;
 
 	} else if (type == INTEL_OUTPUT_DISPLAYPORT ||
 		   type == INTEL_OUTPUT_EDP) {
