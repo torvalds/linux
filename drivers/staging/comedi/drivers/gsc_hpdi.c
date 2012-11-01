@@ -207,11 +207,6 @@ static const struct hpdi_board hpdi_boards[] = {
 #endif
 };
 
-static inline struct hpdi_board *board(const struct comedi_device *dev)
-{
-	return (struct hpdi_board *)dev->board_ptr;
-}
-
 struct hpdi_private {
 	/*  base addresses (ioremapped) */
 	void __iomem *plx9080_iobase;
@@ -482,16 +477,19 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct hpdi_board *thisboard;
 	struct hpdi_private *devpriv;
 	int i;
 	int retval;
 
-	dev->board_ptr = hpdi_find_board(pcidev);
-	if (!dev->board_ptr) {
+	thisboard = hpdi_find_board(pcidev);
+	if (!thisboard) {
 		dev_err(dev->class_dev, "gsc_hpdi: pci %s not supported\n",
 			pci_name(pcidev));
 		return -EINVAL;
 	}
+	dev->board_ptr = thisboard;
+	dev->board_name = thisboard->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -505,9 +503,6 @@ static int __devinit hpdi_auto_attach(struct comedi_device *dev,
 	}
 	dev->iobase = 1;	/* the "detach" needs this */
 	pci_set_master(pcidev);
-
-	/* Initialize dev->board_name */
-	dev->board_name = board(dev)->name;
 
 	devpriv->plx9080_iobase =
 		ioremap(pci_resource_start(pcidev, PLX9080_BADDRINDEX),
