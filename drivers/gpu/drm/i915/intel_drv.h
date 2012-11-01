@@ -211,6 +211,8 @@ struct intel_crtc {
 	struct intel_unpin_work *unpin_work;
 	int fdi_lanes;
 
+	atomic_t unpin_work_count;
+
 	/* Display surface base address adjustement for pageflips. Note that on
 	 * gen4+ this only adjusts up to a tile, offsets within a tile are
 	 * handled in the hw itself (with the TILEOFF register). */
@@ -395,7 +397,7 @@ intel_get_crtc_for_plane(struct drm_device *dev, int plane)
 
 struct intel_unpin_work {
 	struct work_struct work;
-	struct drm_device *dev;
+	struct drm_crtc *crtc;
 	struct drm_i915_gem_object *old_fb_obj;
 	struct drm_i915_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
