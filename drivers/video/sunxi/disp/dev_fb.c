@@ -1671,8 +1671,10 @@ __s32 Fb_Exit(void)
 	__u8 fb_id = 0;
 
 	for (fb_id = 0; fb_id < SUNXI_MAX_FB; fb_id++) {
-		if (g_fbi.fbinfo[fb_id] != NULL)
-			Display_Fb_Release(FBIDTOHAND(fb_id));
+		if (g_fbi.fbinfo[fb_id] == NULL)
+			continue;
+
+		Display_Fb_Release(FBIDTOHAND(fb_id));
 
 		unregister_framebuffer(g_fbi.fbinfo[fb_id]);
 		framebuffer_release(g_fbi.fbinfo[fb_id]);
