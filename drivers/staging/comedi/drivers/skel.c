@@ -205,8 +205,6 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	pr_info("comedi%d: skel: ", dev->minor);
-
 /*
  * If you can probe the device to determine what device in a series
  * it is, this is the place to do it.  Otherwise, dev->board_ptr
@@ -272,7 +270,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	pr_info("attached\n");
+	dev_info(dev->class_dev, "skel: attached\n");
 
 	return 0;
 }
@@ -322,9 +320,7 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 				break;
 		}
 		if (i == TIMEOUT) {
-			/* printk() should be used instead of printk()
-			 * whenever the code can be called from real-time. */
-			pr_info("timeout\n");
+			dev_warn(dev->class_dev, "ai timeout\n");
 			return -ETIMEDOUT;
 		}
 
@@ -499,7 +495,6 @@ static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	pr_info("skel_ao_winsn\n");
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
