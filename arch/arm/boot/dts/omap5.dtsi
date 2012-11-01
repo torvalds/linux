@@ -77,6 +77,12 @@
 		ranges;
 		ti,hwmods = "l3_main_1", "l3_main_2", "l3_main_3";
 
+		counter32k: counter@4ae04000 {
+			compatible = "ti,omap-counter32k";
+			reg = <0x4ae04000 0x40>;
+			ti,hwmods = "counter_32k";
+		};
+
 		omap5_pmx_core: pinmux@4a002840 {
 			compatible = "ti,omap4-padconf", "pinctrl-single";
 			reg = <0x4a002840 0x01b6>;
