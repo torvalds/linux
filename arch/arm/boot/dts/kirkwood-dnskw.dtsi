@@ -43,6 +43,7 @@
 
 		nand@3000000 {
 			status = "okay";
+			chip-delay = <35>;
 
 			partition@0 {
 				label = "u-boot";
