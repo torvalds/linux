@@ -329,11 +329,14 @@ __s32 BSP_disp_sprite_exit(__u32 sel)
 	}
 
 	pGuard = gsprite[sel].header;
-	pGuard->prev->next = NULL;
-	while (pGuard != NULL) {
-		pNext = pGuard->next;
-		list_free_node(pGuard);
-		pGuard = pNext;
+	if (pGuard) {
+		pGuard->prev->next = NULL;
+
+		while (pGuard != NULL) {
+			pNext = pGuard->next;
+			list_free_node(pGuard);
+			pGuard = pNext;
+		}
 	}
 
 	return DIS_SUCCESS;
