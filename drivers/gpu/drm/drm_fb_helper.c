@@ -45,6 +45,15 @@ MODULE_LICENSE("GPL and additional rights");
 
 static LIST_HEAD(kernel_fb_helper_list);
 
+/**
+ * DOC: fbdev helpers
+ *
+ * The fb helper functions are useful to provide an fbdev on top of a drm kernel
+ * mode setting driver. They can be used mostly independantely from the crtc
+ * helper functions used by many drivers to implement the kernel mode setting
+ * interfaces.
+ */
+
 /* simple single crtc case helper function */
 int drm_fb_helper_single_add_all_connectors(struct drm_fb_helper *fb_helper)
 {
@@ -1302,12 +1311,14 @@ out:
 
 /**
  * drm_helper_initial_config - setup a sane initial connector configuration
- * @dev: DRM device
+ * @fb_helper: fb_helper device struct
+ * @bpp_sel: bpp value to use for the framebuffer configuration
  *
  * LOCKING:
- * Called at init time, must take mode config lock.
+ * Called at init time by the driver to set up the @fb_helper initial
+ * configuration, must take the mode config lock.
  *
- * Scan the CRTCs and connectors and try to put together an initial setup.
+ * Scans the CRTCs and connectors and tries to put together an initial setup.
  * At the moment, this is a cloned configuration across all heads with
  * a new framebuffer object as the backing store.
  *
@@ -1341,7 +1352,7 @@ EXPORT_SYMBOL(drm_fb_helper_initial_config);
 
 /**
  * drm_fb_helper_hotplug_event - respond to a hotplug notification by
- *                               probing all the outputs attached to the fb.
+ *                               probing all the outputs attached to the fb
  * @fb_helper: the drm_fb_helper
  *
  * LOCKING:
