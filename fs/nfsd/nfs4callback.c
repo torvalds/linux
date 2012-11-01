@@ -630,6 +630,31 @@ static int max_cb_time(void)
 	return max(nfsd4_lease/10, (time_t)1) * HZ;
 }
 
+static struct rpc_cred *callback_cred;
+
+int set_callback_cred(void)
+{
+	if (callback_cred)
+		return 0;
+	callback_cred = rpc_lookup_machine_cred("nfs");
+	if (!callback_cred)
+		return -ENOMEM;
+	return 0;
+}
+
+struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
+{
+	if (clp->cl_minorversion == 0) {
+		return get_rpccred(callback_cred);
+	} else {
+		struct rpc_auth *auth = client->cl_auth;
+		struct auth_cred acred = {};
+
+		acred.uid = ses->se_cb_sec.uid;
+		acred.gid = ses->se_cb_sec.gid;
+		return auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+	}
+}
 
 static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
@@ -648,6 +673,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 	};
 	struct rpc_clnt *client;
+	struct rpc_cred *cred;
 
 	if (clp->cl_minorversion == 0) {
 		if (!clp->cl_cred.cr_principal &&
@@ -675,7 +701,13 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 			PTR_ERR(client));
 		return PTR_ERR(client);
 	}
+	cred = get_backchannel_cred(clp, client, ses);
+	if (IS_ERR(cred)) {
+		rpc_shutdown_client(client);
+		return PTR_ERR(cred);
+	}
 	clp->cl_cb_client = client;
+	clp->cl_cb_cred = cred;
 	return 0;
 
 }
@@ -714,18 +746,6 @@ static const struct rpc_call_ops nfsd4_cb_probe_ops = {
 	.rpc_call_done = nfsd4_cb_probe_done,
 };
 
-static struct rpc_cred *callback_cred;
-
-int set_callback_cred(void)
-{
-	if (callback_cred)
-		return 0;
-	callback_cred = rpc_lookup_machine_cred("nfs");
-	if (!callback_cred)
-		return -ENOMEM;
-	return 0;
-}
-
 static struct workqueue_struct *callback_wq;
 
 static void run_nfsd4_cb(struct nfsd4_callback *cb)
@@ -743,7 +763,6 @@ static void do_probe_callback(struct nfs4_client *clp)
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL];
 	cb->cb_msg.rpc_argp = NULL;
 	cb->cb_msg.rpc_resp = NULL;
-	cb->cb_msg.rpc_cred = callback_cred;
 
 	cb->cb_ops = &nfsd4_cb_probe_ops;
 
@@ -962,6 +981,8 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	if (clp->cl_cb_client) {
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
+		put_rpccred(clp->cl_cb_cred);
+		clp->cl_cb_cred = NULL;
 	}
 	if (clp->cl_cb_conn.cb_xprt) {
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
@@ -1010,6 +1031,7 @@ void nfsd4_do_callback_rpc(struct work_struct *w)
 		nfsd4_release_cb(cb);
 		return;
 	}
+	cb->cb_msg.rpc_cred = clp->cl_cb_cred;
 	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
 			cb->cb_ops, cb);
 }
@@ -1025,7 +1047,6 @@ void nfsd4_cb_recall(struct nfs4_delegation *dp)
 	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL];
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
-	cb->cb_msg.rpc_cred = callback_cred;
 
 	cb->cb_ops = &nfsd4_cb_recall_ops;
 

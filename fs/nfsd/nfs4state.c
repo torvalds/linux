@@ -957,6 +957,7 @@ void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, struct nfs4
 	new->se_cb_seq_nr = 1;
 	new->se_flags = cses->flags;
 	new->se_cb_prog = cses->callback_prog;
+	new->se_cb_sec = cses->cb_sec;
 	kref_init(&new->se_ref);
 	idx = hash_sessionid(&new->se_sessionid);
 	spin_lock(&client_lock);
