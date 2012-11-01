@@ -63,6 +63,7 @@ To add: #define SO_REUSEPORT 0x0200	/* Allow local address and port reuse.  */
 /* Socket filtering */
 #define SO_ATTACH_FILTER        26
 #define SO_DETACH_FILTER        27
+#define SO_GET_FILTER		SO_ATTACH_FILTER
 
 #define SO_PEERNAME             28
 #define SO_TIMESTAMP		29

@@ -1077,6 +1077,12 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	case SO_BINDTODEVICE:
 		v.val = sk->sk_bound_dev_if;
 		break;
+	case SO_GET_FILTER:
+		len = sk_get_filter(sk, (struct sock_filter __user *)optval, len);
+		if (len < 0)
+			return len;
+
+		goto lenout;
 	default:
 		return -ENOPROTOOPT;
 	}
