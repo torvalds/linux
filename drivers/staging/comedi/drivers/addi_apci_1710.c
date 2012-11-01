@@ -65,7 +65,7 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, pages, i, n_subdevices;
+	int ret;
 
 	this_board = apci1710_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -81,8 +81,6 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-	if (this_board->i_Dma)
-		pci_set_master(pcidev);
 
 	if (this_board->i_IorangeBase1)
 		dev->iobase = pci_resource_start(pcidev, 1);
@@ -118,40 +116,6 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	devpriv->us_UseDma = ADDI_ENABLE;
-
-	if (devpriv->s_EeParameters.i_Dma) {
-		if (devpriv->us_UseDma == ADDI_ENABLE) {
-			/*  alloc DMA buffers */
-			devpriv->b_DmaDoubleBuffer = 0;
-			for (i = 0; i < 2; i++) {
-				for (pages = 4; pages >= 0; pages--) {
-					devpriv->ul_DmaBufferVirtual[i] =
-						(void *) __get_free_pages(GFP_KERNEL, pages);
-
-					if (devpriv->ul_DmaBufferVirtual[i])
-						break;
-				}
-				if (devpriv->ul_DmaBufferVirtual[i]) {
-					devpriv->ui_DmaBufferPages[i] = pages;
-					devpriv->ui_DmaBufferSize[i] =
-						PAGE_SIZE * pages;
-					devpriv->ui_DmaBufferSamples[i] =
-						devpriv->
-						ui_DmaBufferSize[i] >> 1;
-					devpriv->ul_DmaBufferHw[i] =
-						virt_to_bus((void *)devpriv->
-						ul_DmaBufferVirtual[i]);
-				}
-			}
-			if (!devpriv->ul_DmaBufferVirtual[0])
-				devpriv->us_UseDma = ADDI_DISABLE;
-
-			if (devpriv->ul_DmaBufferVirtual[1])
-				devpriv->b_DmaDoubleBuffer = 1;
-		}
-	}
-
 	i_ADDI_AttachPCI1710(dev);
 
 	devpriv->s_BoardInfos.ui_Address = pci_resource_start(pcidev, 2);
@@ -162,31 +126,12 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 
 static void apci1710_detach(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->iobase)
-			i_APCI1710_Reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-		if ((this_board->pc_EepromChip == NULL) ||
-		    (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
-			if (devpriv->ul_DmaBufferVirtual[0]) {
-				free_pages((unsigned long)devpriv->
-					ul_DmaBufferVirtual[0],
-					devpriv->ui_DmaBufferPages[0]);
-			}
-			if (devpriv->ul_DmaBufferVirtual[1]) {
-				free_pages((unsigned long)devpriv->
-					ul_DmaBufferVirtual[1],
-					devpriv->ui_DmaBufferPages[1]);
-			}
-		} else {
-			iounmap(devpriv->dw_AiBase);
-		}
-	}
+	if (dev->iobase)
+		i_APCI1710_Reset(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
