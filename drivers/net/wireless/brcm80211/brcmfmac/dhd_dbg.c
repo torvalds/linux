@@ -19,7 +19,6 @@
 #include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/module.h>
-#include <linux/netdevice.h>
 
 #include <defs.h>
 #include <brcmu_wifi.h>
