@@ -45,6 +45,8 @@ support could be added to this driver.
 
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/interrupt.h>
 #include "../comedidev.h"
 #include <linux/delay.h>
@@ -64,9 +66,9 @@ static int dio_config_block_size(struct comedi_device *dev, unsigned int *data);
 /* #define HPDI_DEBUG      enable debugging code */
 
 #ifdef HPDI_DEBUG
-#define DEBUG_PRINT(format, args...)  printk(format , ## args)
+#define DEBUG_PRINT(format, args...)  pr_debug(format , ## args)
 #else
-#define DEBUG_PRINT(format, args...)
+#define DEBUG_PRINT(format, args...)  no_printk(pr_fmt(format), ## args)
 #endif
 
 #define TIMER_BASE 50		/*  20MHz master clock */
