@@ -249,7 +249,6 @@ struct mei_device {
 
 	struct mei_cl wd_cl;
 	enum mei_wd_states wd_state;
-	bool wd_interface_reg;
 	bool wd_pending;
 	u16 wd_timeout;
 	unsigned char wd_data[MEI_WD_START_MSG_SIZE];

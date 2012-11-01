@@ -360,23 +360,20 @@ void mei_watchdog_register(struct mei_device *dev)
 	if (watchdog_register_device(&amt_wd_dev)) {
 		dev_err(&dev->pdev->dev,
 			"wd: unable to register watchdog device.\n");
-		dev->wd_interface_reg = false;
 		return;
 	}
 
 	dev_dbg(&dev->pdev->dev,
 		"wd: successfully register watchdog interface.\n");
-	dev->wd_interface_reg = true;
 	watchdog_set_drvdata(&amt_wd_dev, dev);
 }
 
 void mei_watchdog_unregister(struct mei_device *dev)
 {
-	if (!dev->wd_interface_reg)
+	if (test_bit(WDOG_UNREGISTERED, &amt_wd_dev.status))
 		return;
 
 	watchdog_set_drvdata(&amt_wd_dev, NULL);
 	watchdog_unregister_device(&amt_wd_dev);
-	dev->wd_interface_reg = false;
 }
 
