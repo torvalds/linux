@@ -1272,30 +1272,30 @@ int sme_mgt_connection_stats_get(unifi_priv_t *priv, CsrWifiSmeConnectionStats *
 
 int sme_mgt_packet_filter_set(unifi_priv_t *priv)
 {
-    CsrWifiIp4Address ipAddress = {{0xFF, 0xFF, 0xFF, 0xFF }};
-    if (priv->smepriv == NULL) {
-        unifi_error(priv, "sme_mgt_packet_filter_set: invalid smepriv\n");
-        return -EIO;
-    }
-    if (priv->packet_filters.arp_filter) {
-        ipAddress.a[0] = (priv->sta_ip_address      ) & 0xFF;
-        ipAddress.a[1] = (priv->sta_ip_address >>  8) & 0xFF;
-        ipAddress.a[2] = (priv->sta_ip_address >> 16) & 0xFF;
-        ipAddress.a[3] = (priv->sta_ip_address >> 24) & 0xFF;
-    }
+	CsrWifiIp4Address ipAddress = {{0xFF, 0xFF, 0xFF, 0xFF }};
+	if (priv->smepriv == NULL) {
+		unifi_error(priv, "sme_mgt_packet_filter_set: invalid smepriv\n");
+		return -EIO;
+	}
+	if (priv->packet_filters.arp_filter) {
+		ipAddress.a[0] = (priv->sta_ip_address      ) & 0xFF;
+		ipAddress.a[1] = (priv->sta_ip_address >>  8) & 0xFF;
+		ipAddress.a[2] = (priv->sta_ip_address >> 16) & 0xFF;
+		ipAddress.a[3] = (priv->sta_ip_address >> 24) & 0xFF;
+	}
 
-    unifi_trace(priv, UDBG5,
-                "sme_mgt_packet_filter_set: IP address %d.%d.%d.%d\n",
-                ipAddress.a[0], ipAddress.a[1],
-                ipAddress.a[2], ipAddress.a[3]);
+	unifi_trace(priv, UDBG5,
+		"sme_mgt_packet_filter_set: IP address %d.%d.%d.%d\n",
+		ipAddress.a[0], ipAddress.a[1],
+		ipAddress.a[2], ipAddress.a[3]);
 
-    /* Doesn't block for a confirm */
-    CsrWifiSmePacketFilterSetReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
-                                     priv->packet_filters.tclas_ies_length,
-                                     priv->filter_tclas_ies,
-                                     priv->packet_filters.filter_mode,
-                                     ipAddress);
-    return 0;
+	/* Doesn't block for a confirm */
+	CsrWifiSmePacketFilterSetReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
+				     priv->packet_filters.tclas_ies_length,
+				     priv->filter_tclas_ies,
+				     priv->packet_filters.filter_mode,
+				     ipAddress);
+	return 0;
 }
 
 int sme_mgt_tspec(unifi_priv_t *priv, CsrWifiSmeListAction action,
