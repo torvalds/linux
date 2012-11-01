@@ -59,7 +59,6 @@ Devices: [JR3] PCI force sensor board (jr3_pci)
 #define PCI_DEVICE_ID_JR3_4_CHANNEL 0x3114
 
 struct jr3_pci_dev_private {
-	int pci_enabled;
 	struct jr3_t __iomem *iobase;
 	int n_channels;
 	struct timer_list timer;
@@ -787,7 +786,7 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 	if (result < 0)
 		return -EIO;
 
-	devpriv->pci_enabled = 1;
+	dev->iobase = 1;	/* the "detach" needs this */
 	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
 			offsetof(struct jr3_t, channel[devpriv->n_channels]));
 	if (!devpriv->iobase)
@@ -906,7 +905,7 @@ static void jr3_pci_detach(struct comedi_device *dev)
 		}
 		if (devpriv->iobase)
 			iounmap(devpriv->iobase);
-		if (devpriv->pci_enabled)
+		if (dev->iobase)
 			comedi_pci_disable(pcidev);
 	}
 }
