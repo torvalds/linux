@@ -32,14 +32,16 @@ main(int argc, char *argv[])
 
 	tmp = SUNXI_DISP_VERSION;
 	ret = ioctl(fd, DISP_CMD_VERSION, &tmp);
-	if (ret < 0) {
+	if (ret == -1) {
+		printf("Warning: kernel sunxi disp driver does not support "
+		       "versioning.\n");
+	} else if (ret < 0) {
 		fprintf(stderr, "Error: ioctl(VERSION) failed: %s\n",
 			strerror(-ret));
 		return ret;
-	}
-
-	printf("disp kernel module version is %d.%d\n",
-	       ret >> 16, ret & 0xFFFF);
+	} else
+		printf("sunxi disp kernel module version is %d.%d\n",
+		       ret >> 16, ret & 0xFFFF);
 
 	tmp = 0;
 	ret = ioctl(fd, DISP_CMD_SCN_GET_WIDTH, &tmp);
