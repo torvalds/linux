@@ -842,7 +842,12 @@ int rpc_call_sync(struct rpc_clnt *clnt, const struct rpc_message *msg, int flag
 	};
 	int status;
 
-	BUG_ON(flags & RPC_TASK_ASYNC);
+	WARN_ON_ONCE(flags & RPC_TASK_ASYNC);
+	if (flags & RPC_TASK_ASYNC) {
+		rpc_release_calldata(task_setup_data.callback_ops,
+			task_setup_data.callback_data);
+		return -EINVAL;
+	}
 
 	task = rpc_run_task(&task_setup_data);
 	if (IS_ERR(task))
