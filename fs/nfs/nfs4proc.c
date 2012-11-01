@@ -523,18 +523,14 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	if (test_bit(NFS4_SESSION_DRAINING, &session->session_state) &&
 	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
 		/* The state manager will wait until the slot table is empty */
-		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-		spin_unlock(&tbl->slot_tbl_lock);
 		dprintk("%s session is draining\n", __func__);
-		return -EAGAIN;
+		goto out_sleep;
 	}
 
 	if (!rpc_queue_empty(&tbl->slot_tbl_waitq) &&
 	    !rpc_task_has_priority(task, RPC_PRIORITY_PRIVILEGED)) {
-		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-		spin_unlock(&tbl->slot_tbl_lock);
 		dprintk("%s enforce FIFO order\n", __func__);
-		return -EAGAIN;
+		goto out_sleep;
 	}
 
 	slot = nfs4_alloc_slot(tbl);
@@ -542,10 +538,8 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 		/* If out of memory, try again in 1/4 second */
 		if (slot == ERR_PTR(-ENOMEM))
 			task->tk_timeout = HZ >> 2;
-		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
-		spin_unlock(&tbl->slot_tbl_lock);
 		dprintk("<-- %s: no free slots\n", __func__);
-		return -EAGAIN;
+		goto out_sleep;
 	}
 	spin_unlock(&tbl->slot_tbl_lock);
 
@@ -566,6 +560,10 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 out_success:
 	rpc_call_start(task);
 	return 0;
+out_sleep:
+	rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
+	spin_unlock(&tbl->slot_tbl_lock);
+	return -EAGAIN;
 }
 EXPORT_SYMBOL_GPL(nfs41_setup_sequence);
 
