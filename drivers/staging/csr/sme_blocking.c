@@ -1301,29 +1301,29 @@ int sme_mgt_packet_filter_set(unifi_priv_t *priv)
 int sme_mgt_tspec(unifi_priv_t *priv, CsrWifiSmeListAction action,
         u32 tid, CsrWifiSmeDataBlock *tspec, CsrWifiSmeDataBlock *tclas)
 {
-    int r;
+	int r;
 
-    if (priv->smepriv == NULL) {
-        unifi_error(priv, "sme_mgt_tspec: invalid smepriv\n");
-        return -EIO;
-    }
+	if (priv->smepriv == NULL) {
+		unifi_error(priv, "sme_mgt_tspec: invalid smepriv\n");
+		return -EIO;
+	}
 
-    r = sme_init_request(priv);
-    if (r) {
-        return -EIO;
-    }
+	r = sme_init_request(priv);
+	if (r) {
+		return -EIO;
+	}
 
-    CsrWifiSmeTspecReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
-                           action, tid, TRUE, 0,
-                           tspec->length, tspec->data,
-                           tclas->length, tclas->data);
-    r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
-    if (r) {
-        return r;
-    }
+	CsrWifiSmeTspecReqSend(0, CSR_WIFI_INTERFACE_IN_USE,
+			      action, tid, TRUE, 0,
+			      tspec->length, tspec->data,
+			      tclas->length, tclas->data);
+	r = sme_wait_for_reply(priv, UNIFI_SME_MGT_SHORT_TIMEOUT);
+	if (r) {
+		return r;
+	}
 
-    unifi_trace(priv, UDBG4, "sme_mgt_tspec: <-- (status=%d)\n", priv->sme_reply.reply_status);
-    return convert_sme_error(priv->sme_reply.reply_status);
+	unifi_trace(priv, UDBG4, "sme_mgt_tspec: <-- (status=%d)\n", priv->sme_reply.reply_status);
+	return convert_sme_error(priv->sme_reply.reply_status);
 }
 
 
