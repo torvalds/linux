@@ -21,6 +21,8 @@
 #ifndef __DEV_FB_H__
 #define __DEV_FB_H__
 
+#define SUNXI_MAX_FB 2
+
 typedef struct {
 	struct device *dev;
 
@@ -65,5 +67,14 @@ extern fb_info_t g_fbi;
 extern int (*disp_get_ump_secure_id) (struct fb_info *info, fb_info_t *g_fbi,
 				      unsigned long arg, int buf);
 #endif
+
+__s32 Display_Fb_Request(__u32 fb_id, __disp_fb_create_para_t *fb_para);
+__s32 Display_Fb_Release(__u32 fb_id);
+__s32 Display_Fb_get_para(__u32 fb_id, __disp_fb_create_para_t *fb_para);
+
+__s32 Display_get_disp_init_para(__disp_init_t *init_para);
+
+__s32 Fb_Init(__u32 from);
+__s32 Fb_Exit(void);
 
 #endif /* __DEV_FB_H__ */
