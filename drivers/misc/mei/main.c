@@ -103,18 +103,16 @@ static DEFINE_MUTEX(mei_mutex);
  * returns true if callback removed from the list, false otherwise
  */
 static bool mei_clear_list(struct mei_device *dev,
-		struct file *file, struct list_head *mei_cb_list)
+		const struct file *file, struct list_head *mei_cb_list)
 {
 	struct mei_cl_cb *cb_pos = NULL;
 	struct mei_cl_cb *cb_next = NULL;
-	struct file *file_temp;
 	bool removed = false;
 
 	/* list all list member */
 	list_for_each_entry_safe(cb_pos, cb_next, mei_cb_list, list) {
-		file_temp = (struct file *)cb_pos->file_object;
 		/* check if list member associated with a file */
-		if (file_temp == file) {
+		if (file == cb_pos->file_object) {
 			/* remove member from the list */
 			list_del(&cb_pos->list);
 			/* check if cb equal to current iamthif cb */
