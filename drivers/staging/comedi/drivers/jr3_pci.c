@@ -748,7 +748,7 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	int result;
-	struct pci_dev *card = comedi_to_pci_dev(dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	int i;
 	struct jr3_pci_dev_private *devpriv;
 
@@ -765,7 +765,7 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	init_timer(&devpriv->timer);
-	switch (card->device) {
+	switch (pcidev->device) {
 	case PCI_DEVICE_ID_JR3_1_CHANNEL:
 	case PCI_DEVICE_ID_JR3_1_CHANNEL_NEW:
 		devpriv->n_channels = 1;
@@ -781,19 +781,19 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 		break;
 	default:
 		dev_err(dev->class_dev, "jr3_pci: pci %s not supported\n",
-			pci_name(card));
+			pci_name(pcidev));
 		return -EINVAL;
 		break;
 	}
-	devpriv->pci_dev = card;
+	devpriv->pci_dev = pcidev;
 	dev->board_name = "jr3_pci";
 
-	result = comedi_pci_enable(card, "jr3_pci");
+	result = comedi_pci_enable(pcidev, "jr3_pci");
 	if (result < 0)
 		return -EIO;
 
 	devpriv->pci_enabled = 1;
-	devpriv->iobase = ioremap(pci_resource_start(card, 0),
+	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
 			offsetof(struct jr3_t, channel[devpriv->n_channels]));
 	if (!devpriv->iobase)
 		return -ENOMEM;
