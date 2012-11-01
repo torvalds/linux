@@ -3244,8 +3244,10 @@ static int rbd_add_parse_args(const char *buf,
 	/* The first four tokens are required */
 
 	len = next_token(&buf);
-	if (!len)
-		return -EINVAL;	/* Missing monitor address(es) */
+	if (!len) {
+		rbd_warn(NULL, "no monitor address(es) provided");
+		return -EINVAL;
+	}
 	mon_addrs = buf;
 	mon_addrs_size = len + 1;
 	buf += len;
@@ -3254,8 +3256,10 @@ static int rbd_add_parse_args(const char *buf,
 	options = dup_token(&buf, NULL);
 	if (!options)
 		return -ENOMEM;
-	if (!*options)
-		goto out_err;	/* Missing options */
+	if (!*options) {
+		rbd_warn(NULL, "no options provided");
+		goto out_err;
+	}
 
 	spec = rbd_spec_alloc();
 	if (!spec)
@@ -3264,14 +3268,18 @@ static int rbd_add_parse_args(const char *buf,
 	spec->pool_name = dup_token(&buf, NULL);
 	if (!spec->pool_name)
 		goto out_mem;
-	if (!*spec->pool_name)
-		goto out_err;	/* Missing pool name */
+	if (!*spec->pool_name) {
+		rbd_warn(NULL, "no pool name provided");
+		goto out_err;
+	}
 
 	spec->image_name = dup_token(&buf, NULL);
 	if (!spec->image_name)
 		goto out_mem;
-	if (!*spec->image_name)
-		goto out_err;	/* Missing image name */
+	if (!*spec->image_name) {
+		rbd_warn(NULL, "no image name provided");
+		goto out_err;
+	}
 
 	/*
 	 * Snapshot name is optional; default is to use "-"
