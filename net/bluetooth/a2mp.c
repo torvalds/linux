@@ -423,7 +423,7 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 
 	BT_DBG("Created hcon %p: loc:%d -> rem:%d", hcon, hdev->id, rsp->id);
 
-	mgr->bredr_chan->ctrl_id = rsp->id;
+	mgr->bredr_chan->remote_amp_id = rsp->id;
 
 	amp_create_phylink(hdev, mgr, hcon);
 
@@ -939,7 +939,7 @@ void a2mp_send_create_phy_link_req(struct hci_dev *hdev, u8 status)
 		goto clean;
 
 	req->local_id = hdev->id;
-	req->remote_id = bredr_chan->ctrl_id;
+	req->remote_id = bredr_chan->remote_amp_id;
 	memcpy(req->amp_assoc, loc_assoc->data, loc_assoc->len);
 
 	a2mp_send(mgr, A2MP_CREATEPHYSLINK_REQ, __next_ident(mgr), len, req);

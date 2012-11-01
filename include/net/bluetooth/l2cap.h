@@ -481,6 +481,7 @@ struct l2cap_chan {
 	unsigned long	conn_state;
 	unsigned long	flags;
 
+	__u8		remote_amp_id;
 	__u8		local_amp_id;
 	__u8		move_id;
 	__u8		move_state;
@@ -517,8 +518,6 @@ struct l2cap_chan {
 	__u32		remote_sdu_itime;
 	__u32		remote_acc_lat;
 	__u32		remote_flush_to;
-
-	__u8		ctrl_id;
 
 	struct delayed_work	chan_timer;
 	struct delayed_work	retrans_timer;

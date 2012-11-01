@@ -387,7 +387,7 @@ void amp_physical_cfm(struct hci_conn *bredr_hcon, struct hci_conn *hs_hcon)
 	bredr_chan = mgr->bredr_chan;
 
 	set_bit(FLAG_EFS_ENABLE, &bredr_chan->flags);
-	bredr_chan->ctrl_id = hs_hcon->remote_id;
+	bredr_chan->remote_amp_id = hs_hcon->remote_id;
 	bredr_chan->hs_hcon = hs_hcon;
 	bredr_chan->conn->mtu = hs_hcon->hdev->block_mtu;
 	bredr_chan->fcs = L2CAP_FCS_NONE;
@@ -412,8 +412,7 @@ void amp_create_logical_link(struct l2cap_chan *chan)
 	if (!hdev)
 		return;
 
-	BT_DBG("chan %p ctrl_id %d dst %pMR", chan, chan->ctrl_id,
-	       chan->conn->dst);
+	BT_DBG("chan %p dst %pMR", chan, chan->conn->dst);
 
 	hcon = hci_conn_hash_lookup_ba(hdev, AMP_LINK, chan->conn->dst);
 	if (!hcon)
