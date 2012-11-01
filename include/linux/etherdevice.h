@@ -52,7 +52,8 @@ extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
 #define alloc_etherdev_mq(sizeof_priv, count) alloc_etherdev_mqs(sizeof_priv, count, count)
 
 /* Reserved Ethernet Addresses per IEEE 802.1Q */
-static const u8 br_reserved_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
+static const u8 eth_reserved_addr_base[ETH_ALEN] __aligned(2) =
+{ 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
 /**
  * is_link_local_ether_addr - Determine if given Ethernet address is link-local
@@ -64,7 +65,7 @@ static const u8 br_reserved_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 
 static inline bool is_link_local_ether_addr(const u8 *addr)
 {
 	__be16 *a = (__be16 *)addr;
-	static const __be16 *b = (const __be16 *)br_reserved_address;
+	static const __be16 *b = (const __be16 *)eth_reserved_addr_base;
 	static const __be16 m = cpu_to_be16(0xfff0);
 
 	return ((a[0] ^ b[0]) | (a[1] ^ b[1]) | ((a[2] ^ b[2]) & m)) == 0;
