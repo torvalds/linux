@@ -3435,7 +3435,8 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 			ret = btrfs_truncate_inode_items(trans, log,
 							 inode, 0, 0);
 		} else {
-			fast_search = true;
+			if (inode_only == LOG_INODE_ALL)
+				fast_search = true;
 			max_key.type = BTRFS_XATTR_ITEM_KEY;
 			ret = drop_objectid_items(trans, log, path, ino,
 						  BTRFS_XATTR_ITEM_KEY);
