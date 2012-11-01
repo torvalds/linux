@@ -175,7 +175,7 @@ struct ni_private {
 
 	struct pcmcia_device *link;
 
- NI_PRIVATE_COMMON};
+NI_PRIVATE_COMMON};
 
 /* How we access registers */
 
