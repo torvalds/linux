@@ -4788,9 +4788,6 @@ static __init int tracer_init_debugfs(void)
 
 	d_tracer = tracing_init_dentry();
 
-	trace_create_file("tracing_enabled", 0644, d_tracer,
-			  &global_trace, &rb_simple_fops);
-
 	trace_create_file("trace_options", 0644, d_tracer,
 			NULL, &tracing_iter_fops);
 
