@@ -945,7 +945,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan)
 	return new;
 }
 
-static struct nfsd4_session *init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, struct nfs4_client *clp, struct nfsd4_create_session *cses)
+void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, struct nfs4_client *clp, struct nfsd4_create_session *cses)
 {
 	int idx;
 
@@ -978,7 +978,6 @@ static struct nfsd4_session *init_session(struct svc_rqst *rqstp, struct nfsd4_s
 		rpc_copy_addr((struct sockaddr *)&clp->cl_cb_conn.cb_addr, sa);
 		clp->cl_cb_conn.cb_addrlen = svc_addr_len(sa);
 	}
-	return new;
 }
 
 /* caller must hold client_lock */
