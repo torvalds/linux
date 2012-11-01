@@ -35,12 +35,20 @@ static struct resource hdmi_resource[1] = {
 	       },
 };
 
+static void
+hdmi_device_release(struct device *dev)
+{
+	/* FILL ME! */
+}
+
 static struct platform_device hdmi_device = {
 	.name = "hdmi",
 	.id = -1,
 	.num_resources = ARRAY_SIZE(hdmi_resource),
 	.resource = hdmi_resource,
-	.dev = {}
+	.dev = {
+		.release = hdmi_device_release,
+	}
 };
 
 static int __devinit hdmi_probe(struct platform_device *pdev)
