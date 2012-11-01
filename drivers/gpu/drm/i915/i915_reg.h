@@ -3043,6 +3043,7 @@
 #define _DSPASURF		0x7019C /* 965+ only */
 #define _DSPATILEOFF		0x701A4 /* 965+ only */
 #define _DSPAOFFSET		0x701A4 /* HSW */
+#define _DSPASURFLIVE		0x701AC
 
 #define DSPCNTR(plane) _PIPE(plane, _DSPACNTR, _DSPBCNTR)
 #define DSPADDR(plane) _PIPE(plane, _DSPAADDR, _DSPBADDR)
@@ -3053,6 +3054,7 @@
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
 #define DSPLINOFF(plane) DSPADDR(plane)
 #define DSPOFFSET(plane) _PIPE(plane, _DSPAOFFSET, _DSPBOFFSET)
+#define DSPSURFLIVE(plane) _PIPE(plane, _DSPASURFLIVE, _DSPBSURFLIVE)
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)
@@ -3099,6 +3101,7 @@
 #define _DSPBSURF		0x7119C
 #define _DSPBTILEOFF		0x711A4
 #define _DSPBOFFSET		0x711A4
+#define _DSPBSURFLIVE		0x711AC
 
 /* Sprite A control */
 #define _DVSACNTR		0x72180
@@ -3164,6 +3167,7 @@
 #define DVSTILEOFF(pipe) _PIPE(pipe, _DVSATILEOFF, _DVSBTILEOFF)
 #define DVSKEYVAL(pipe) _PIPE(pipe, _DVSAKEYVAL, _DVSBKEYVAL)
 #define DVSKEYMSK(pipe) _PIPE(pipe, _DVSAKEYMSK, _DVSBKEYMSK)
+#define DVSSURFLIVE(pipe) _PIPE(pipe, _DVSASURFLIVE, _DVSBSURFLIVE)
 
 #define _SPRA_CTL		0x70280
 #define   SPRITE_ENABLE			(1<<31)
@@ -3199,6 +3203,7 @@
 #define _SPRA_KEYMAX		0x702a0
 #define _SPRA_TILEOFF		0x702a4
 #define _SPRA_OFFSET		0x702a4
+#define _SPRA_SURFLIVE		0x702ac
 #define _SPRA_SCALE		0x70304
 #define   SPRITE_SCALE_ENABLE	(1<<31)
 #define   SPRITE_FILTER_MASK	(3<<29)
@@ -3220,6 +3225,7 @@
 #define _SPRB_KEYMAX		0x712a0
 #define _SPRB_TILEOFF		0x712a4
 #define _SPRB_OFFSET		0x712a4
+#define _SPRB_SURFLIVE		0x712ac
 #define _SPRB_SCALE		0x71304
 #define _SPRB_GAMC		0x71400
 
@@ -3236,6 +3242,7 @@
 #define SPROFFSET(pipe) _PIPE(pipe, _SPRA_OFFSET, _SPRB_OFFSET)
 #define SPRSCALE(pipe) _PIPE(pipe, _SPRA_SCALE, _SPRB_SCALE)
 #define SPRGAMC(pipe) _PIPE(pipe, _SPRA_GAMC, _SPRB_GAMC)
+#define SPRSURFLIVE(pipe) _PIPE(pipe, _SPRA_SURFLIVE, _SPRB_SURFLIVE)
 
 /* VBIOS regs */
 #define VGACNTRL		0x71400
