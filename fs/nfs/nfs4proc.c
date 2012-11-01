@@ -664,14 +664,13 @@ static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 	return ret;
 }
 
+static
 int _nfs4_call_sync_session(struct rpc_clnt *clnt,
 			    struct nfs_server *server,
 			    struct rpc_message *msg,
 			    struct nfs4_sequence_args *args,
-			    struct nfs4_sequence_res *res,
-			    int cache_reply)
+			    struct nfs4_sequence_res *res)
 {
-	nfs41_init_sequence(args, res, cache_reply);
 	return nfs4_call_sync_sequence(clnt, server, msg, args, res, 0);
 }
 
@@ -689,18 +688,17 @@ static int nfs4_sequence_done(struct rpc_task *task,
 }
 #endif /* CONFIG_NFS_V4_1 */
 
+static
 int _nfs4_call_sync(struct rpc_clnt *clnt,
 		    struct nfs_server *server,
 		    struct rpc_message *msg,
 		    struct nfs4_sequence_args *args,
-		    struct nfs4_sequence_res *res,
-		    int cache_reply)
+		    struct nfs4_sequence_res *res)
 {
-	nfs41_init_sequence(args, res, cache_reply);
 	return rpc_call_sync(clnt, msg, 0);
 }
 
-static inline
+static
 int nfs4_call_sync(struct rpc_clnt *clnt,
 		   struct nfs_server *server,
 		   struct rpc_message *msg,
@@ -708,8 +706,9 @@ int nfs4_call_sync(struct rpc_clnt *clnt,
 		   struct nfs4_sequence_res *res,
 		   int cache_reply)
 {
+	nfs41_init_sequence(args, res, cache_reply);
 	return server->nfs_client->cl_mvops->call_sync(clnt, server, msg,
-						args, res, cache_reply);
+						args, res);
 }
 
 static void update_changeattr(struct inode *dir, struct nfs4_change_info *cinfo)
