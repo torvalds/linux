@@ -112,19 +112,6 @@ static const struct skel_board skel_boards[] = {
 	 },
 };
 
-/* This is used by modprobe to translate PCI IDs to drivers.  Should
- * only be used for PCI and ISA-PnP devices */
-/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
- * upstream. */
-#define PCI_VENDOR_ID_SKEL 0xdafe
-static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, skel_pci_table);
-
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
    feel free to suggest moving the variable to the struct comedi_device struct.
@@ -564,6 +551,19 @@ static struct comedi_driver skel_driver = {
 };
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
+
+/* This is used by modprobe to translate PCI IDs to drivers.  Should
+ * only be used for PCI and ISA-PnP devices */
+/* Please add your PCI vendor ID to comedidev.h, and it will be forwarded
+ * upstream. */
+#define PCI_VENDOR_ID_SKEL 0xdafe
+static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0100) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_SKEL, 0x0200) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, skel_pci_table);
+
 static int __devinit skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
