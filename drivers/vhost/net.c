@@ -126,6 +126,42 @@ static void tx_poll_start(struct vhost_net *net, struct socket *sock)
 	net->tx_poll_state = VHOST_NET_POLL_STARTED;
 }
 
+/* In case of DMA done not in order in lower device driver for some reason.
+ * upend_idx is used to track end of used idx, done_idx is used to track head
+ * of used idx. Once lower device DMA done contiguously, we will signal KVM
+ * guest used idx.
+ */
+int vhost_zerocopy_signal_used(struct vhost_virtqueue *vq)
+{
+	int i;
+	int j = 0;
+
+	for (i = vq->done_idx; i != vq->upend_idx; i = (i + 1) % UIO_MAXIOV) {
+		if (VHOST_DMA_IS_DONE(vq->heads[i].len)) {
+			vq->heads[i].len = VHOST_DMA_CLEAR_LEN;
+			vhost_add_used_and_signal(vq->dev, vq,
+						  vq->heads[i].id, 0);
+			++j;
+		} else
+			break;
+	}
+	if (j)
+		vq->done_idx = i;
+	return j;
+}
+
+static void vhost_zerocopy_callback(struct ubuf_info *ubuf, int status)
+{
+	struct vhost_ubuf_ref *ubufs = ubuf->ctx;
+	struct vhost_virtqueue *vq = ubufs->vq;
+
+	vhost_poll_queue(&vq->poll);
+	/* set len to mark this desc buffers done DMA */
+	vq->heads[ubuf->desc].len = status ?
+		VHOST_DMA_FAILED_LEN : VHOST_DMA_DONE_LEN;
+	vhost_ubuf_put(ubufs);
+}
+
 /* Expects to be always run from workqueue - which acts as
  * read-size critical section for our kind of RCU. */
 static void handle_tx(struct vhost_net *net)
@@ -594,9 +630,18 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	struct vhost_net *n = f->private_data;
 	struct socket *tx_sock;
 	struct socket *rx_sock;
+	int i;
 
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
+	vhost_dev_stop(&n->dev);
+	for (i = 0; i < n->dev.nvqs; ++i) {
+		/* Wait for all lower device DMAs done. */
+		if (n->dev.vqs[i].ubufs)
+			vhost_ubuf_put_and_wait(n->dev.vqs[i].ubufs);
+
+		vhost_zerocopy_signal_used(n, &n->dev.vqs[i]);
+	}
 	vhost_dev_cleanup(&n->dev, false);
 	if (tx_sock)
 		fput(tx_sock->file);
