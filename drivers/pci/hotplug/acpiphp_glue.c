@@ -131,7 +131,12 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	if (!acpi_pci_check_ejectable(pbus, handle) && !is_dock_device(handle))
 		return AE_OK;
 
-	acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
+	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
+	if (ACPI_FAILURE(status)) {
+		warn("can't evaluate _ADR (%#x)\n", status);
+		return AE_OK;
+	}
+
 	device = (adr >> 16) & 0xffff;
 	function = adr & 0xffff;
 

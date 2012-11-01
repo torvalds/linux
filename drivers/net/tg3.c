@@ -740,8 +740,13 @@ static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
 		if (sblk->status & SD_STATUS_LINK_CHG)
 			work_exists = 1;
 	}
-	/* check for RX/TX work to do */
-	if (sblk->idx[0].tx_consumer != tnapi->tx_cons ||
+
+	/* check for TX work to do */
+	if (sblk->idx[0].tx_consumer != tnapi->tx_cons)
+		work_exists = 1;
+
+	/* check for RX work to do */
+	if (tnapi->rx_rcb_prod_idx &&
 	    *(tnapi->rx_rcb_prod_idx) != tnapi->rx_rcb_ptr)
 		work_exists = 1;
 
@@ -5216,6 +5221,9 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 			return work_done;
 	}
 
+	if (!tnapi->rx_rcb_prod_idx)
+		return work_done;
+
 	/* run RX thread, within the bounds set by NAPI.
 	 * All RX "locking" is done by ensuring outside
 	 * code synchronizes with tg3->napi.poll()
@@ -6626,6 +6634,12 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		 */
 		switch (i) {
 		default:
+			if (tg3_flag(tp, ENABLE_RSS)) {
+				tnapi->rx_rcb_prod_idx = NULL;
+				break;
+			}
+			/* Fall through */
+		case 1:
 			tnapi->rx_rcb_prod_idx = &sblk->idx[0].rx_producer;
 			break;
 		case 2:
@@ -13633,9 +13647,13 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	if (tg3_flag(tp, HW_TSO_1) ||
 	    tg3_flag(tp, HW_TSO_2) ||
 	    tg3_flag(tp, HW_TSO_3) ||
-	    (tp->fw_needed && !tg3_flag(tp, ENABLE_ASF)))
+	    tp->fw_needed) {
+		/* For firmware TSO, assume ASF is disabled.
+		 * We'll disable TSO later if we discover ASF
+		 * is enabled in tg3_get_eeprom_hw_cfg().
+		 */
 		tg3_flag_set(tp, TSO_CAPABLE);
-	else {
+	} else {
 		tg3_flag_clear(tp, TSO_CAPABLE);
 		tg3_flag_clear(tp, TSO_BUG);
 		tp->fw_needed = NULL;
@@ -13671,8 +13689,9 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 */
 	tg3_flag_set(tp, 4G_DMA_BNDRY_BUG);
 
-	if (tg3_flag(tp, 5755_PLUS))
-		tg3_flag_set(tp, SHORT_DMA_BUG);
+	if (tg3_flag(tp, 5755_PLUS) ||
+		GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+			tg3_flag_set(tp, SHORT_DMA_BUG);
 	else
 		tg3_flag_set(tp, 40BIT_DMA_LIMIT_BUG);
 
@@ -13872,6 +13891,12 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 	 * are not used to switch power.
 	 */
 	tg3_get_eeprom_hw_cfg(tp);
+
+	if (tp->fw_needed && tg3_flag(tp, ENABLE_ASF)) {
+		tg3_flag_clear(tp, TSO_CAPABLE);
+		tg3_flag_clear(tp, TSO_BUG);
+		tp->fw_needed = NULL;
+	}
 
 	if (tg3_flag(tp, ENABLE_APE)) {
 		/* Allow reads and writes to the

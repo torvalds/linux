@@ -39,6 +39,9 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCI_VENDOR_ID_ROHM			0x10db
 #define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 
+/* Macros for ML7831 */
+#define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
+
 #define PCH_GBE_TX_WEIGHT         64
 #define PCH_GBE_RX_WEIGHT         64
 #define PCH_GBE_RX_BUFFER_WRITE   16
@@ -717,13 +720,6 @@ static void pch_gbe_configure_rx(struct pch_gbe_adapter *adapter)
 	iowrite32(rdba, &hw->reg->RX_DSC_BASE);
 	iowrite32(rdlen, &hw->reg->RX_DSC_SIZE);
 	iowrite32((rdba + rdlen), &hw->reg->RX_DSC_SW_P);
-
-	/* Enables Receive DMA */
-	rxdma = ioread32(&hw->reg->DMA_CTRL);
-	rxdma |= PCH_GBE_RX_DMA_EN;
-	iowrite32(rxdma, &hw->reg->DMA_CTRL);
-	/* Enables Receive */
-	iowrite32(PCH_GBE_MRE_MAC_RX_EN, &hw->reg->MAC_RX_EN);
 }
 
 /**
@@ -1095,6 +1091,19 @@ void pch_gbe_update_stats(struct pch_gbe_adapter *adapter)
 	netdev->stats.tx_carrier_errors = stats->tx_carrier_errors;
 
 	spin_unlock_irqrestore(&adapter->stats_lock, flags);
+}
+
+static void pch_gbe_start_receive(struct pch_gbe_hw *hw)
+{
+	u32 rxdma;
+
+	/* Enables Receive DMA */
+	rxdma = ioread32(&hw->reg->DMA_CTRL);
+	rxdma |= PCH_GBE_RX_DMA_EN;
+	iowrite32(rxdma, &hw->reg->DMA_CTRL);
+	/* Enables Receive */
+	iowrite32(PCH_GBE_MRE_MAC_RX_EN, &hw->reg->MAC_RX_EN);
+	return;
 }
 
 /**
@@ -1701,6 +1710,12 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	struct pch_gbe_rx_ring *rx_ring = adapter->rx_ring;
 	int err;
 
+	/* Ensure we have a valid MAC */
+	if (!is_valid_ether_addr(adapter->hw.mac.addr)) {
+		pr_err("Error: Invalid MAC address\n");
+		return -EINVAL;
+	}
+
 	/* hardware has been reset, we need to reload some things */
 	pch_gbe_set_multi(netdev);
 
@@ -1717,6 +1732,7 @@ int pch_gbe_up(struct pch_gbe_adapter *adapter)
 	pch_gbe_alloc_tx_buffers(adapter, tx_ring);
 	pch_gbe_alloc_rx_buffers(adapter, rx_ring, rx_ring->count);
 	adapter->tx_queue_len = netdev->tx_queue_len;
+	pch_gbe_start_receive(&adapter->hw);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
@@ -2118,7 +2134,7 @@ static int pch_gbe_napi_poll(struct napi_struct *napi, int budget)
 		/* If no Tx and not enough Rx work done,
 		 * exit the polling mode
 		 */
-		if ((work_done < budget) || !netif_running(netdev))
+		if (work_done < budget)
 			poll_end_flag = true;
 	}
 
@@ -2392,9 +2408,14 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		dev_err(&pdev->dev, "Invalid MAC Address\n");
-		ret = -EIO;
-		goto err_free_adapter;
+		/*
+		 * If the MAC is invalid (or just missing), display a warning
+		 * but do not abort setting up the device. pch_gbe_up will
+		 * prevent the interface from being brought up until a valid MAC
+		 * is set.
+		 */
+		dev_err(&pdev->dev, "Invalid MAC address, "
+		                    "interface disabled.\n");
 	}
 	setup_timer(&adapter->watchdog_timer, pch_gbe_watchdog,
 		    (unsigned long)adapter);
@@ -2447,6 +2468,13 @@ static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
 	 },
 	{.vendor = PCI_VENDOR_ID_ROHM,
 	 .device = PCI_DEVICE_ID_ROHM_ML7223_GBE,
+	 .subvendor = PCI_ANY_ID,
+	 .subdevice = PCI_ANY_ID,
+	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
+	 .class_mask = (0xFFFF00)
+	 },
+	{.vendor = PCI_VENDOR_ID_ROHM,
+	 .device = PCI_DEVICE_ID_ROHM_ML7831_GBE,
 	 .subvendor = PCI_ANY_ID,
 	 .subdevice = PCI_ANY_ID,
 	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),

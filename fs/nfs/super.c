@@ -1815,6 +1815,7 @@ static int nfs_validate_mount_data(void *options,
 
 		memcpy(sap, &data->addr, sizeof(data->addr));
 		args->nfs_server.addrlen = sizeof(data->addr);
+		args->nfs_server.port = ntohs(data->addr.sin_port);
 		if (!nfs_verify_server_address(sap))
 			goto out_no_address;
 
@@ -2528,6 +2529,7 @@ static int nfs4_validate_mount_data(void *options,
 			return -EFAULT;
 		if (!nfs_verify_server_address(sap))
 			goto out_no_address;
+		args->nfs_server.port = ntohs(((struct sockaddr_in *)sap)->sin_port);
 
 		if (data->auth_flavourlen) {
 			if (data->auth_flavourlen > 1)
@@ -3095,5 +3097,7 @@ static struct dentry *nfs4_referral_mount(struct file_system_type *fs_type,
 			IS_ERR(res) ? " [error]" : "");
 	return res;
 }
+
+MODULE_ALIAS("nfs4");
 
 #endif /* CONFIG_NFS_V4 */
