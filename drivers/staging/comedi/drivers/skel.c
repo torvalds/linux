@@ -598,27 +598,7 @@ static struct pci_driver skel_pci_driver = {
 	.probe = &skel_pci_probe,
 	.remove = __devexit_p(&skel_pci_remove)
 };
-
-static int __init skel_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&skel_driver);
-	if (retval < 0)
-		return retval;
-
-	skel_pci_driver.name = (char *)skel_driver.driver_name;
-	return pci_register_driver(&skel_pci_driver);
-}
-
-static void __exit skel_cleanup_module(void)
-{
-	pci_unregister_driver(&skel_pci_driver);
-	comedi_driver_unregister(&skel_driver);
-}
-
-module_init(skel_init_module);
-module_exit(skel_cleanup_module);
+module_comedi_pci_driver(skel_driver, skel_pci_driver);
 #else
 module_comedi_driver(skel_driver);
 #endif
