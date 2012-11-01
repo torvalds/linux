@@ -340,12 +340,14 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	irq = link->irq;
 
-	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
-	       dev->minor, dev->driver->driver_name, dev->iobase, irq);
+	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
 
 #if 0
 	{
 		int i;
+
+		printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
+		       dev->minor, dev->driver->driver_name, dev->iobase, irq);
 
 		printk(" board fingerprint:");
 		for (i = 0; i < 32; i += 2) {
@@ -357,18 +359,17 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		for (i = 0; i < 10; i++)
 			printk(" 0x%04x", win_in(i));
 		printk("\n");
+
+		printk("boardtype.name: %s\n", boardtype.name);
 	}
 #endif
 
-	dev->board_ptr = ni_boards + ni_getboardtype(dev, link);
-
-	printk(" %s", boardtype.name);
 	dev->board_name = boardtype.name;
 
 	ret = request_irq(irq, ni_E_interrupt, NI_E_IRQ_FLAGS,
 			  "ni_mio_cs", dev);
 	if (ret < 0) {
-		printk(" irq not available\n");
+		dev_err(dev->class_dev, "irq not available\n");
 		return -EINVAL;
 	}
 	dev->irq = irq;
@@ -401,7 +402,8 @@ static int ni_getboardtype(struct comedi_device *dev,
 			return i;
 	}
 
-	printk("unknown board 0x%04x -- pretend it is a ", link->card_id);
+	dev_err(dev->class_dev,
+		"unknown board 0x%04x -- pretend it is a ", link->card_id);
 
 	return 0;
 }
