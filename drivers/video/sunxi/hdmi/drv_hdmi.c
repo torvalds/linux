@@ -243,6 +243,10 @@ Hdmi_run_thread(void *parg)
 {
 	while (1) {
 		Hdmi_hal_main_task();
+
+		if (kthread_should_stop())
+			break;
+
 		hdmi_delay_ms(2000);
 	}
 
