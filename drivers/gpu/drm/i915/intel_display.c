@@ -3632,9 +3632,8 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 			encoder->post_disable(encoder);
 
 	if (is_pch_port) {
-		ironlake_fdi_disable(crtc);
 		lpt_disable_pch_transcoder(dev_priv);
-		ironlake_fdi_pll_disable(intel_crtc);
+		intel_ddi_fdi_disable(crtc);
 	}
 
 	intel_crtc->active = false;

@@ -662,6 +662,8 @@ extern bool intel_ddi_pll_mode_set(struct drm_crtc *crtc, int clock);
 extern void intel_ddi_put_crtc_pll(struct drm_crtc *crtc);
 extern void intel_ddi_set_pipe_settings(struct drm_crtc *crtc);
 extern void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder);
-bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
+extern bool
+intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
+extern void intel_ddi_fdi_disable(struct drm_crtc *crtc);
 
 #endif /* __INTEL_DRV_H__ */

@@ -1365,6 +1365,32 @@ void intel_ddi_prepare_link_retrain(struct drm_encoder *encoder)
 	udelay(600);
 }
 
+void intel_ddi_fdi_disable(struct drm_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = crtc->dev->dev_private;
+	struct intel_encoder *intel_encoder = intel_ddi_get_crtc_encoder(crtc);
+	uint32_t val;
+
+	intel_ddi_post_disable(intel_encoder);
+
+	val = I915_READ(_FDI_RXA_CTL);
+	val &= ~FDI_RX_ENABLE;
+	I915_WRITE(_FDI_RXA_CTL, val);
+
+	val = I915_READ(_FDI_RXA_MISC);
+	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
+	I915_WRITE(_FDI_RXA_MISC, val);
+
+	val = I915_READ(_FDI_RXA_CTL);
+	val &= ~FDI_PCDCLK;
+	I915_WRITE(_FDI_RXA_CTL, val);
+
+	val = I915_READ(_FDI_RXA_CTL);
+	val &= ~FDI_RX_PLL_ENABLE;
+	I915_WRITE(_FDI_RXA_CTL, val);
+}
+
 static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
