@@ -3936,16 +3936,21 @@
 #define  FDI_PORT_WIDTH_2X_LPT			(1<<19)
 #define  FDI_PORT_WIDTH_1X_LPT			(0<<19)
 
-#define _FDI_RXA_MISC            0xf0010
-#define _FDI_RXB_MISC            0xf1010
+#define _FDI_RXA_MISC			0xf0010
+#define _FDI_RXB_MISC			0xf1010
+#define  FDI_RX_PWRDN_LANE1_MASK	(3<<26)
+#define  FDI_RX_PWRDN_LANE1_VAL(x)	((x)<<26)
+#define  FDI_RX_PWRDN_LANE0_MASK	(3<<24)
+#define  FDI_RX_PWRDN_LANE0_VAL(x)	((x)<<24)
+#define  FDI_RX_TP1_TO_TP2_48		(2<<20)
+#define  FDI_RX_TP1_TO_TP2_64		(3<<20)
+#define  FDI_RX_FDI_DELAY_90		(0x90<<0)
+#define FDI_RX_MISC(pipe) _PIPE(pipe, _FDI_RXA_MISC, _FDI_RXB_MISC)
+
 #define _FDI_RXA_TUSIZE1         0xf0030
 #define _FDI_RXA_TUSIZE2         0xf0038
 #define _FDI_RXB_TUSIZE1         0xf1030
 #define _FDI_RXB_TUSIZE2         0xf1038
-#define  FDI_RX_TP1_TO_TP2_48	(2<<20)
-#define  FDI_RX_TP1_TO_TP2_64	(3<<20)
-#define  FDI_RX_FDI_DELAY_90	(0x90<<0)
-#define FDI_RX_MISC(pipe) _PIPE(pipe, _FDI_RXA_MISC, _FDI_RXB_MISC)
 #define FDI_RX_TUSIZE1(pipe) _PIPE(pipe, _FDI_RXA_TUSIZE1, _FDI_RXB_TUSIZE1)
 #define FDI_RX_TUSIZE2(pipe) _PIPE(pipe, _FDI_RXA_TUSIZE2, _FDI_RXB_TUSIZE2)
 

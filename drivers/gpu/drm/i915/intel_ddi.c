@@ -153,11 +153,34 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	u32 reg, temp, i;
+	u32 temp, i, rx_ctl_val;
 
-	/* Start the training iterating through available voltages and emphasis */
-	for (i=0; i < ARRAY_SIZE(hsw_ddi_buf_ctl_values); i++) {
+	/* Set the FDI_RX_MISC pwrdn lanes and the 2 workarounds listed at the
+	 * mode set "sequence for CRT port" document:
+	 * - TP1 to TP2 time with the default value
+	 * - FDI delay to 90h
+	 */
+	I915_WRITE(_FDI_RXA_MISC, FDI_RX_PWRDN_LANE1_VAL(2) |
+				  FDI_RX_PWRDN_LANE0_VAL(2) |
+				  FDI_RX_TP1_TO_TP2_48 | FDI_RX_FDI_DELAY_90);
+
+	/* Enable the PCH Receiver FDI PLL */
+	rx_ctl_val = FDI_RX_PLL_ENABLE | FDI_RX_ENHANCE_FRAME_ENABLE |
+		     ((intel_crtc->fdi_lanes - 1) << 19);
+	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
+	POSTING_READ(_FDI_RXA_CTL);
+	udelay(220);
+
+	/* Switch from Rawclk to PCDclk */
+	rx_ctl_val |= FDI_PCDCLK;
+	I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
+
+	/* Configure Port Clock Select */
+	I915_WRITE(PORT_CLK_SEL(PORT_E), intel_crtc->ddi_pll_sel);
+
+	/* Start the training iterating through available voltages and emphasis,
+	 * testing each value twice. */
+	for (i = 0; i < ARRAY_SIZE(hsw_ddi_buf_ctl_values) * 2; i++) {
 		/* Configure DP_TP_CTL with auto-training */
 		I915_WRITE(DP_TP_CTL(PORT_E),
 					DP_TP_CTL_FDI_AUTOTRAIN |
@@ -166,65 +189,63 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 					DP_TP_CTL_ENABLE);
 
 		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage */
-		temp = I915_READ(DDI_BUF_CTL(PORT_E));
-		temp = (temp & ~DDI_BUF_EMP_MASK);
 		I915_WRITE(DDI_BUF_CTL(PORT_E),
-				temp |
-				DDI_BUF_CTL_ENABLE |
-				((intel_crtc->fdi_lanes - 1) << 1) |
-				hsw_ddi_buf_ctl_values[i]);
+			   DDI_BUF_CTL_ENABLE |
+			   ((intel_crtc->fdi_lanes - 1) << 1) |
+			   hsw_ddi_buf_ctl_values[i / 2]);
+		POSTING_READ(DDI_BUF_CTL(PORT_E));
 
 		udelay(600);
 
-		/* We need to program FDI_RX_MISC with the default TP1 to TP2
-		 * values before enabling the receiver, and configure the delay
-		 * for the FDI timing generator to 90h. Luckily, all the other
-		 * bits are supposed to be zeroed, so we can write those values
-		 * directly.
-		 */
-		I915_WRITE(FDI_RX_MISC(pipe), FDI_RX_TP1_TO_TP2_48 |
-				FDI_RX_FDI_DELAY_90);
+		/* Program PCH FDI Receiver TU */
+		I915_WRITE(_FDI_RXA_TUSIZE1, TU_SIZE(64));
 
-		/* Enable CPU FDI Receiver with auto-training */
-		reg = FDI_RX_CTL(pipe);
-		I915_WRITE(reg,
-				I915_READ(reg) |
-					FDI_LINK_TRAIN_AUTO |
-					FDI_RX_ENABLE |
-					FDI_LINK_TRAIN_PATTERN_1_CPT |
-					FDI_RX_ENHANCE_FRAME_ENABLE |
-					((intel_crtc->fdi_lanes - 1) << 19) |
-					FDI_RX_PLL_ENABLE);
-		POSTING_READ(reg);
-		udelay(100);
+		/* Enable PCH FDI Receiver with auto-training */
+		rx_ctl_val |= FDI_RX_ENABLE | FDI_LINK_TRAIN_AUTO;
+		I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
+		POSTING_READ(_FDI_RXA_CTL);
+
+		/* Wait for FDI receiver lane calibration */
+		udelay(30);
+
+		/* Unset FDI_RX_MISC pwrdn lanes */
+		temp = I915_READ(_FDI_RXA_MISC);
+		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+		I915_WRITE(_FDI_RXA_MISC, temp);
+		POSTING_READ(_FDI_RXA_MISC);
+
+		/* Wait for FDI auto training time */
+		udelay(5);
 
 		temp = I915_READ(DP_TP_STATUS(PORT_E));
 		if (temp & DP_TP_STATUS_AUTOTRAIN_DONE) {
-			DRM_DEBUG_DRIVER("BUF_CTL training done on %d step\n", i);
+			DRM_DEBUG_KMS("FDI link training done on step %d\n", i);
 
 			/* Enable normal pixel sending for FDI */
 			I915_WRITE(DP_TP_CTL(PORT_E),
-						DP_TP_CTL_FDI_AUTOTRAIN |
-						DP_TP_CTL_LINK_TRAIN_NORMAL |
-						DP_TP_CTL_ENHANCED_FRAME_ENABLE |
-						DP_TP_CTL_ENABLE);
+				   DP_TP_CTL_FDI_AUTOTRAIN |
+				   DP_TP_CTL_LINK_TRAIN_NORMAL |
+				   DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+				   DP_TP_CTL_ENABLE);
 
-			break;
-		} else {
-			DRM_ERROR("Error training BUF_CTL %d\n", i);
-
-			/* Disable DP_TP_CTL and FDI_RX_CTL) and retry */
-			I915_WRITE(DP_TP_CTL(PORT_E),
-					I915_READ(DP_TP_CTL(PORT_E)) &
-						~DP_TP_CTL_ENABLE);
-			I915_WRITE(FDI_RX_CTL(pipe),
-					I915_READ(FDI_RX_CTL(pipe)) &
-						~FDI_RX_PLL_ENABLE);
-			continue;
+			return;
 		}
+
+		/* Disable DP_TP_CTL and FDI_RX_CTL and retry */
+		I915_WRITE(DP_TP_CTL(PORT_E),
+			   I915_READ(DP_TP_CTL(PORT_E)) & ~DP_TP_CTL_ENABLE);
+
+		rx_ctl_val &= ~FDI_RX_ENABLE;
+		I915_WRITE(_FDI_RXA_CTL, rx_ctl_val);
+
+		/* Reset FDI_RX_MISC pwrdn lanes */
+		temp = I915_READ(_FDI_RXA_MISC);
+		temp &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+		temp |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
+		I915_WRITE(_FDI_RXA_MISC, temp);
 	}
 
-	DRM_DEBUG_KMS("FDI train done.\n");
+	DRM_ERROR("FDI link training failed!\n");
 }
 
 /* WRPLL clock dividers */

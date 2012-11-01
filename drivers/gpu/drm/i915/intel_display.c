@@ -3224,18 +3224,9 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->cpu_transcoder;
 
 	assert_transcoder_disabled(dev_priv, TRANSCODER_A);
-
-	/* Write the TU size bits before fdi link training, so that error
-	 * detection works. */
-	I915_WRITE(FDI_RX_TUSIZE1(pipe),
-		   I915_READ(PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
-
-	/* For PCH output, training FDI link */
-	dev_priv->display.fdi_link_train(crtc);
 
 	lpt_program_iclkip(crtc);
 
@@ -3463,7 +3454,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	is_pch_port = haswell_crtc_driving_pch(crtc);
 
 	if (is_pch_port)
-		ironlake_fdi_pll_enable(intel_crtc);
+		dev_priv->display.fdi_link_train(crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_enable)
