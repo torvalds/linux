@@ -284,8 +284,6 @@ struct rx_status_block {
  */
 struct fbr_lookup {
 	void		*virt[MAX_DESC_PER_RING_RX];
-	void		*buffer1[MAX_DESC_PER_RING_RX];
-	void		*buffer2[MAX_DESC_PER_RING_RX];
 	u32		 bus_high[MAX_DESC_PER_RING_RX];
 	u32		 bus_low[MAX_DESC_PER_RING_RX];
 	void		*ring_virtaddr;
@@ -2405,11 +2403,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 						lower_32_bits(fbr_tmp_physaddr);
 
 				fbr_tmp_physaddr += rx_ring->fbr[id]->buffsize;
-
-				rx_ring->fbr[id]->buffer1[index] =
-					rx_ring->fbr[id]->virt[index];
-				rx_ring->fbr[id]->buffer2[index] =
-					rx_ring->fbr[id]->virt[index] - 4;
 			}
 		}
 	}
