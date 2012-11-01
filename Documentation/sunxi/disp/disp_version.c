@@ -43,9 +43,9 @@ main(int argc, char *argv[])
 
 	tmp = 0;
 	ret = ioctl(fd, DISP_CMD_SCN_GET_WIDTH, &tmp);
-	if (ret) {
+	if (ret < 0) {
 		fprintf(stderr, "Error: ioctl(SCN_GET_WIDTH) failed: %s\n",
-			strerror(ret));
+			strerror(-ret));
 		return ret;
 	}
 
@@ -53,9 +53,9 @@ main(int argc, char *argv[])
 
 	tmp = 0;
 	ret = ioctl(fd, DISP_CMD_SCN_GET_HEIGHT, &tmp);
-	if (ret) {
+	if (ret < 0) {
 		fprintf(stderr, "Error: ioctl(SCN_GET_HEIGHT) failed: %s\n",
-			strerror(ret));
+			strerror(-ret));
 		return ret;
 	}
 
