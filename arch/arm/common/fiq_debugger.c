@@ -86,6 +86,7 @@ struct fiq_debugger_state {
 	char work_cmd[DEBUG_MAX];
 
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
+	spinlock_t console_lock;
 	struct console console;
 	struct tty_struct *tty;
 	int tty_open_count;
@@ -708,8 +709,9 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		state->no_sleep = true;
 		debug_printf(state, "disabling sleep\n");
 	} else if (!strcmp(cmd, "console")) {
-		state->console_enable = true;
 		debug_printf(state, "console mode\n");
+		debug_uart_flush(state);
+		state->console_enable = true;
 	} else if (!strcmp(cmd, "cpu")) {
 		debug_printf(state, "cpu %d\n", state->current_cpu);
 	} else if (!strncmp(cmd, "cpu ", 4)) {
@@ -896,7 +898,8 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 		}
 		last_c = c;
 	}
-	debug_uart_flush(state);
+	if (!state->console_enable)
+		debug_uart_flush(state);
 	if (state->pdata->fiq_ack)
 		state->pdata->fiq_ack(state->pdev, state->fiq);
 
@@ -980,6 +983,7 @@ static void debug_console_write(struct console *co,
 				const char *s, unsigned int count)
 {
 	struct fiq_debugger_state *state;
+	unsigned long flags;
 
 	state = container_of(co, struct fiq_debugger_state, console);
 
@@ -987,12 +991,14 @@ static void debug_console_write(struct console *co,
 		return;
 
 	debug_uart_enable(state);
+	spin_lock_irqsave(&state->console_lock, flags);
 	while (count--) {
 		if (*s == '\n')
 			debug_putc(state, '\r');
 		debug_putc(state, *s++);
 	}
 	debug_uart_flush(state);
+	spin_unlock_irqrestore(&state->console_lock, flags);
 	debug_uart_disable(state);
 }
 
@@ -1033,8 +1039,10 @@ int  fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 		return count;
 
 	debug_uart_enable(state);
+	spin_lock_irq(&state->console_lock);
 	for (i = 0; i < count; i++)
 		debug_putc(state, *buf++);
+	spin_unlock_irq(&state->console_lock);
 	debug_uart_disable(state);
 
 	return count;
@@ -1042,7 +1050,7 @@ int  fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 int  fiq_tty_write_room(struct tty_struct *tty)
 {
-	return 1024;
+	return 16;
 }
 
 #ifdef CONFIG_CONSOLE_POLL
