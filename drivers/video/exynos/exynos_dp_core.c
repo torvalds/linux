@@ -91,9 +91,11 @@ static int exynos_dp_read_edid(struct exynos_dp_device *dp)
 	 */
 
 	/* Read Extension Flag, Number of 128-byte EDID extension blocks */
-	exynos_dp_read_byte_from_i2c(dp, I2C_EDID_DEVICE_ADDR,
+	retval = exynos_dp_read_byte_from_i2c(dp, I2C_EDID_DEVICE_ADDR,
 				EDID_EXTENSION_FLAG,
 				&extend_block);
+	if (retval)
+		return retval;
 
 	if (extend_block > 0) {
 		dev_dbg(dp->dev, "EDID data includes a single extension!\n");
@@ -182,14 +184,15 @@ static int exynos_dp_handle_edid(struct exynos_dp_device *dp)
 	int retval;
 
 	/* Read DPCD DPCD_ADDR_DPCD_REV~RECEIVE_PORT1_CAP_1 */
-	exynos_dp_read_bytes_from_dpcd(dp,
-		DPCD_ADDR_DPCD_REV,
-		12, buf);
+	retval = exynos_dp_read_bytes_from_dpcd(dp, DPCD_ADDR_DPCD_REV,
+				12, buf);
+	if (retval)
+		return retval;
 
 	/* Read EDID */
 	for (i = 0; i < 3; i++) {
 		retval = exynos_dp_read_edid(dp);
-		if (retval == 0)
+		if (!retval)
 			break;
 	}
 
