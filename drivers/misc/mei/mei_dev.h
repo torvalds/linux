@@ -286,7 +286,6 @@ int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl);
 void mei_remove_client_from_file_list(struct mei_device *dev, u8 host_client_id);
-void mei_host_init_iamthif(struct mei_device *dev);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
@@ -362,17 +361,37 @@ int mei_ioctl_connect_client(struct file *file,
 
 int mei_start_read(struct mei_device *dev, struct mei_cl *cl);
 
-int amthi_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
 
-int amthi_read(struct mei_device *dev, struct file *file,
+/*
+ * AMTHIF - AMT Host Interface Functions
+ */
+void mei_amthif_reset_params(struct mei_device *dev);
+
+void mei_amthif_host_init(struct mei_device *dev);
+
+int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
+
+int mei_amthif_read(struct mei_device *dev, struct file *file,
 	      char __user *ubuf, size_t length, loff_t *offset);
 
-struct mei_cl_cb *find_amthi_read_list_entry(struct mei_device *dev,
+struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file);
 
-void mei_run_next_iamthif_cmd(struct mei_device *dev);
+void mei_amthif_run_next_cmd(struct mei_device *dev);
 
 
+int mei_amthif_read_message(struct mei_cl_cb *complete_list,
+		struct mei_device *dev, struct mei_msg_hdr *mei_hdr);
+
+int mei_amthif_irq_process_completed(struct mei_device *dev, s32 *slots,
+			struct mei_cl_cb *cb_pos,
+			struct mei_cl *cl,
+			struct mei_cl_cb *cmpl_list);
+
+void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb);
+int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
+		struct mei_device *dev, struct mei_msg_hdr *mei_hdr);
+int mei_amthif_irq_read(struct mei_device *dev, s32 *slots);
 
 /*
  * Register Access Function

@@ -349,7 +349,7 @@ static int mei_release(struct inode *inode, struct file *file)
 			dev->iamthif_canceled = true;
 			if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE) {
 				dev_dbg(&dev->pdev->dev, "run next amthi iamthif cb\n");
-				mei_run_next_iamthif_cmd(dev);
+				mei_amthif_run_next_cmd(dev);
 			}
 		}
 
@@ -410,7 +410,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	}
 
 	if (cl == &dev->iamthif_cl) {
-		rets = amthi_read(dev, file, ubuf, length, offset);
+		rets = mei_amthif_read(dev, file, ubuf, length, offset);
 		goto out;
 	}
 
@@ -563,7 +563,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto err;
 	}
 	if (cl == &dev->iamthif_cl) {
-		write_cb = find_amthi_read_list_entry(dev, file);
+		write_cb = mei_amthif_find_read_list_entry(dev, file);
 
 		if (write_cb) {
 			timeout = write_cb->read_time +
@@ -636,7 +636,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 			list_add_tail(&write_cb->list, &dev->amthi_cmd_list.list);
 		} else {
 			dev_dbg(&dev->pdev->dev, "call amthi write\n");
-			rets = amthi_write(dev, write_cb);
+			rets = mei_amthif_write(dev, write_cb);
 
 			if (rets) {
 				dev_err(&dev->pdev->dev, "amthi write failed with status = %d\n",
@@ -823,7 +823,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 			dev->iamthif_file_object == file) {
 			mask |= (POLLIN | POLLRDNORM);
 			dev_dbg(&dev->pdev->dev, "run next amthi cb\n");
-			mei_run_next_iamthif_cmd(dev);
+			mei_amthif_run_next_cmd(dev);
 		}
 		goto out;
 	}

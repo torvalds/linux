@@ -43,10 +43,6 @@ const char *mei_dev_state_str(int state)
 }
 
 
-const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
-						0xa8, 0x46, 0xe0, 0xff, 0x65,
-						0x81, 0x4c);
-
 /**
  * mei_io_list_flush - removes list entry belonging to cl.
  *
@@ -90,23 +86,6 @@ int mei_cl_flush_queues(struct mei_cl *cl)
 }
 
 
-
-/**
- * mei_reset_iamthif_params - initializes mei device iamthif
- *
- * @dev: the device structure
- */
-static void mei_reset_iamthif_params(struct mei_device *dev)
-{
-	/* reset iamthif parameters. */
-	dev->iamthif_current_cb = NULL;
-	dev->iamthif_msg_buf_size = 0;
-	dev->iamthif_msg_buf_index = 0;
-	dev->iamthif_canceled = false;
-	dev->iamthif_ioctl = false;
-	dev->iamthif_state = MEI_IAMTHIF_IDLE;
-	dev->iamthif_timer = 0;
-}
 
 /**
  * init_mei_device - allocates and initializes the mei device structure
@@ -313,7 +292,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		mei_remove_client_from_file_list(dev,
 				dev->iamthif_cl.host_client_id);
 
-		mei_reset_iamthif_params(dev);
+		mei_amthif_reset_params(dev);
 		dev->extra_write_index = 0;
 	}
 
@@ -574,56 +553,6 @@ int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
 	}
 
 	return -ENOENT;
-}
-
-/**
- * host_init_iamthif - mei initialization iamthif client.
- *
- * @dev: the device structure
- *
- */
-void mei_host_init_iamthif(struct mei_device *dev)
-{
-	int i;
-	unsigned char *msg_buf;
-
-	mei_cl_init(&dev->iamthif_cl, dev);
-	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
-
-	/* find ME amthi client */
-	i = mei_me_cl_update_filext(dev, &dev->iamthif_cl,
-			    &mei_amthi_guid, MEI_IAMTHIF_HOST_CLIENT_ID);
-	if (i < 0) {
-		dev_dbg(&dev->pdev->dev, "failed to find iamthif client.\n");
-		return;
-	}
-
-	/* Assign iamthif_mtu to the value received from ME  */
-
-	dev->iamthif_mtu = dev->me_clients[i].props.max_msg_length;
-	dev_dbg(&dev->pdev->dev, "IAMTHIF_MTU = %d\n",
-			dev->me_clients[i].props.max_msg_length);
-
-	kfree(dev->iamthif_msg_buf);
-	dev->iamthif_msg_buf = NULL;
-
-	/* allocate storage for ME message buffer */
-	msg_buf = kcalloc(dev->iamthif_mtu,
-			sizeof(unsigned char), GFP_KERNEL);
-	if (!msg_buf) {
-		dev_dbg(&dev->pdev->dev, "memory allocation for ME message buffer failed.\n");
-		return;
-	}
-
-	dev->iamthif_msg_buf = msg_buf;
-
-	if (mei_connect(dev, &dev->iamthif_cl)) {
-		dev_dbg(&dev->pdev->dev, "Failed to connect to AMTHI client\n");
-		dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
-		dev->iamthif_cl.host_client_id = 0;
-	} else {
-		dev->iamthif_cl.timer_count = MEI_CONNECT_TIMEOUT;
-	}
 }
 
 /**
