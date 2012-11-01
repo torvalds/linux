@@ -31,7 +31,6 @@ static const struct addi_board apci1710_boardtypes[] = {
 		.i_IorangeBase0		= 128,
 		.i_IorangeBase1		= 8,
 		.i_IorangeBase2		= 256,
-		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
 		.interrupt		= v_APCI1710_Interrupt,
 	},
 };
@@ -67,7 +66,6 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, pages, i, n_subdevices;
-	unsigned int dw_Dummy;
 
 	this_board = apci1710_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -86,22 +84,14 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 	if (this_board->i_Dma)
 		pci_set_master(pcidev);
 
-	if (!this_board->pc_EepromChip ||
-	    !strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
-		if (this_board->i_IorangeBase1)
-			dev->iobase = pci_resource_start(pcidev, 1);
-		else
-			dev->iobase = pci_resource_start(pcidev, 0);
+	if (this_board->i_IorangeBase1)
+		dev->iobase = pci_resource_start(pcidev, 1);
+	else
+		dev->iobase = pci_resource_start(pcidev, 0);
 
-		devpriv->iobase = dev->iobase;
-		devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
-		devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
-	} else {
-		dev->iobase = pci_resource_start(pcidev, 2);
-		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
-					     this_board->i_IorangeBase3);
-	}
+	devpriv->iobase = dev->iobase;
+	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
+	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	/* Initialize parameters that can be overridden in EEPROM */
@@ -126,23 +116,6 @@ static int apci1710_attach_pci(struct comedi_device *dev,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;
-	}
-
-	/*  Read eepeom and fill addi_board Structure */
-
-	if (this_board->i_PCIEeprom) {
-		if (!(strcmp(this_board->pc_EepromChip, "S5920"))) {
-			/*  Set 3 wait stait */
-			if (!(strcmp(dev->board_name, "apci035"))) {
-				outl(0x80808082, devpriv->i_IobaseAmcc + 0x60);
-			} else {
-				outl(0x83838383, devpriv->i_IobaseAmcc + 0x60);
-			}
-			/*  Enable the interrupt for the controller */
-			dw_Dummy = inl(devpriv->i_IobaseAmcc + 0x38);
-			outl(dw_Dummy | 0x2000, devpriv->i_IobaseAmcc + 0x38);
-		}
-		addi_eeprom_read_info(dev, pci_resource_start(pcidev, 0));
 	}
 
 	devpriv->us_UseDma = ADDI_ENABLE;
