@@ -662,7 +662,7 @@ static int rk_fb_io_disable(void)
 	{
 		gpio_set_value(LCD_STB_PIN, !LCD_STB_VALUE);
 	}
-	msleep(50);
+	msleep(100);
 	if(LCD_CS_PIN !=INVALID_GPIO)
 	{
 		gpio_set_value(LCD_CS_PIN, !LCD_CS_VALUE);
