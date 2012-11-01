@@ -1370,7 +1370,7 @@ static void moxa_new_dcdstate(struct moxa_port *p, u8 dcd)
         	p->DCDState = dcd;
         	spin_unlock_irqrestore(&p->port.lock, flags);
 		tty = tty_port_tty_get(&p->port);
-		if (tty && C_CLOCAL(tty) && !dcd)
+		if (tty && !C_CLOCAL(tty) && !dcd)
 			tty_hangup(tty);
 		tty_kref_put(tty);
 	}
