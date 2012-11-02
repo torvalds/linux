@@ -1728,7 +1728,7 @@ M:	Mauro Carvalho Chehab <mchehab@redhat.com>
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
-S:	Maintained
+S:	Odd fixes
 F:	Documentation/video4linux/bttv/
 F:	drivers/media/pci/bt8xx/bttv*
 
