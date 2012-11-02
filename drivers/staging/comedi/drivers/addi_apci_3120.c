@@ -25,7 +25,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.b_AvailableConvertUnit	= 1,
 		.interrupt		= v_APCI3120_Interrupt,
 		.ao_write		= i_APCI3120_InsnWriteAnalogOutput,
 	}, {
@@ -39,7 +38,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.b_AvailableConvertUnit	= 1,
 		.interrupt		= v_APCI3120_Interrupt,
 	},
 };
