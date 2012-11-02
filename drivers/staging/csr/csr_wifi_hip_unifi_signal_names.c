@@ -11,21 +11,21 @@
 #include "csr_wifi_hip_unifi.h"
 
 struct sig_name {
-	s16             id;
+	s16 id;
 	const char *name;
 };
 
 static const struct sig_name Unifi_bulkcmd_names[] = {
-	{  0, "SignalCmd" },
-	{  1, "CopyToHost" },
-	{  2, "CopyToHostAck" },
-	{  3, "CopyFromHost" },
-	{  4, "CopyFromHostAck" },
-	{  5, "ClearSlot" },
-	{  6, "CopyOverlay" },
-	{  7, "CopyOverlayAck" },
-	{  8, "CopyFromHostAndClearSlot" },
-	{  15, "Padding" }
+	{ 0, "SignalCmd" },
+	{ 1, "CopyToHost" },
+	{ 2, "CopyToHostAck" },
+	{ 3, "CopyFromHost" },
+	{ 4, "CopyFromHostAck" },
+	{ 5, "ClearSlot" },
+	{ 6, "CopyOverlay" },
+	{ 7, "CopyOverlayAck" },
+	{ 8, "CopyFromHostAndClearSlot" },
+	{ 15, "Padding" }
 };
 
 const char* lookup_bulkcmd_name(u16 id)
