@@ -111,6 +111,26 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
 #define ftrace_ops_list_func ((ftrace_func_t)ftrace_ops_no_ops)
 #endif
 
+/*
+ * Traverse the ftrace_global_list, invoking all entries.  The reason that we
+ * can use rcu_dereference_raw() is that elements removed from this list
+ * are simply leaked, so there is no need to interact with a grace-period
+ * mechanism.  The rcu_dereference_raw() calls are needed to handle
+ * concurrent insertions into the ftrace_global_list.
+ *
+ * Silly Alpha and silly pointer-speculation compiler optimizations!
+ */
+#define do_for_each_ftrace_op(op, list)			\
+	op = rcu_dereference_raw(list);			\
+	do
+
+/*
+ * Optimized for just a single item in the list (as that is the normal case).
+ */
+#define while_for_each_ftrace_op(op)				\
+	while (likely(op = rcu_dereference_raw((op)->next)) &&	\
+	       unlikely((op) != &ftrace_list_end))
+
 /**
  * ftrace_nr_registered_ops - return number of ops registered
  *
@@ -132,15 +152,6 @@ int ftrace_nr_registered_ops(void)
 	return cnt;
 }
 
-/*
- * Traverse the ftrace_global_list, invoking all entries.  The reason that we
- * can use rcu_dereference_raw() is that elements removed from this list
- * are simply leaked, so there is no need to interact with a grace-period
- * mechanism.  The rcu_dereference_raw() calls are needed to handle
- * concurrent insertions into the ftrace_global_list.
- *
- * Silly Alpha and silly pointer-speculation compiler optimizations!
- */
 static void
 ftrace_global_list_func(unsigned long ip, unsigned long parent_ip,
 			struct ftrace_ops *op, struct pt_regs *regs)
@@ -149,11 +160,9 @@ ftrace_global_list_func(unsigned long ip, unsigned long parent_ip,
 		return;
 
 	trace_recursion_set(TRACE_GLOBAL_BIT);
-	op = rcu_dereference_raw(ftrace_global_list); /*see above*/
-	while (op != &ftrace_list_end) {
+	do_for_each_ftrace_op(op, ftrace_global_list) {
 		op->func(ip, parent_ip, op, regs);
-		op = rcu_dereference_raw(op->next); /*see above*/
-	};
+	} while_for_each_ftrace_op(op);
 	trace_recursion_clear(TRACE_GLOBAL_BIT);
 }
 
@@ -4104,14 +4113,11 @@ ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
 	 */
 	preempt_disable_notrace();
 	trace_recursion_set(TRACE_CONTROL_BIT);
-	op = rcu_dereference_raw(ftrace_control_list);
-	while (op != &ftrace_list_end) {
+	do_for_each_ftrace_op(op, ftrace_control_list) {
 		if (!ftrace_function_local_disabled(op) &&
 		    ftrace_ops_test(op, ip))
 			op->func(ip, parent_ip, op, regs);
-
-		op = rcu_dereference_raw(op->next);
-	};
+	} while_for_each_ftrace_op(op);
 	trace_recursion_clear(TRACE_CONTROL_BIT);
 	preempt_enable_notrace();
 }
@@ -4139,12 +4145,10 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 	 * they must be freed after a synchronize_sched().
 	 */
 	preempt_disable_notrace();
-	op = rcu_dereference_raw(ftrace_ops_list);
-	while (op != &ftrace_list_end) {
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
 		if (ftrace_ops_test(op, ip))
 			op->func(ip, parent_ip, op, regs);
-		op = rcu_dereference_raw(op->next);
-	};
+	} while_for_each_ftrace_op(op);
 	preempt_enable_notrace();
 	trace_recursion_clear(TRACE_INTERNAL_BIT);
 }
