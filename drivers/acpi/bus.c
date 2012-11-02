@@ -257,7 +257,15 @@ static int __acpi_bus_get_power(struct acpi_device *device, int *state)
 }
 
 
-static int __acpi_bus_set_power(struct acpi_device *device, int state)
+/**
+ * acpi_device_set_power - Set power state of an ACPI device.
+ * @device: Device to set the power state of.
+ * @state: New power state to set.
+ *
+ * Callers must ensure that the device is power manageable before using this
+ * function.
+ */
+int acpi_device_set_power(struct acpi_device *device, int state)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
@@ -341,6 +349,7 @@ static int __acpi_bus_set_power(struct acpi_device *device, int state)
 
 	return result;
 }
+EXPORT_SYMBOL(acpi_device_set_power);
 
 
 int acpi_bus_set_power(acpi_handle handle, int state)
@@ -359,7 +368,7 @@ int acpi_bus_set_power(acpi_handle handle, int state)
 		return -ENODEV;
 	}
 
-	return __acpi_bus_set_power(device, state);
+	return acpi_device_set_power(device, state);
 }
 EXPORT_SYMBOL(acpi_bus_set_power);
 
@@ -402,7 +411,7 @@ int acpi_bus_update_power(acpi_handle handle, int *state_p)
 	if (result)
 		return result;
 
-	result = __acpi_bus_set_power(device, state);
+	result = acpi_device_set_power(device, state);
 	if (!result && state_p)
 		*state_p = state;
 
