@@ -242,14 +242,9 @@ static int __devinit pata_platform_probe(struct platform_device *pdev)
 				     pio_mask);
 }
 
-static int __devexit pata_platform_remove(struct platform_device *pdev)
-{
-	return __pata_platform_remove(&pdev->dev);
-}
-
 static struct platform_driver pata_platform_driver = {
 	.probe		= pata_platform_probe,
-	.remove		= __devexit_p(pata_platform_remove),
+	.remove		= ata_platform_remove_one,
 	.driver = {
 		.name		= DRV_NAME,
 		.owner		= THIS_MODULE,
