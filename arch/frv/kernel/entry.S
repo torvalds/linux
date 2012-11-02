@@ -1086,7 +1086,7 @@ __entry_preempt_need_resched:
 	beq		icc0,#1,__entry_return_direct
 
 	setlos		#PREEMPT_ACTIVE,gr5
-	sti		gr5,@(gr15,#TI_FLAGS)
+	sti		gr5,@(gr15,#TI_PRE_COUNT)
 
 	andi		gr23,#~PSR_PIL,gr23
 	movgs		gr23,psr
