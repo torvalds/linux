@@ -88,7 +88,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, pages, i, n_subdevices;
+	int ret, pages, i;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -151,8 +151,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	if (devpriv->ul_DmaBufferVirtual[1])
 		devpriv->b_DmaDoubleBuffer = 1;
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 5);
 	if (ret)
 		return ret;
 
@@ -238,14 +237,6 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	s->insn_write = i_APCI3120_InsnWriteTimer;
 	s->insn_read = i_APCI3120_InsnReadTimer;
 	s->insn_config = i_APCI3120_InsnConfigTimer;
-
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
 
 	i_APCI3120_Reset(dev);
 	return 0;
