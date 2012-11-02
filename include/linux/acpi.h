@@ -430,4 +430,38 @@ acpi_status acpi_os_prepare_sleep(u8 sleep_state,
 #define acpi_os_set_prepare_sleep(func, pm1a_ctrl, pm1b_ctrl) do { } while (0)
 #endif
 
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM_RUNTIME)
+int acpi_dev_runtime_suspend(struct device *dev);
+int acpi_dev_runtime_resume(struct device *dev);
+int acpi_subsys_runtime_suspend(struct device *dev);
+int acpi_subsys_runtime_resume(struct device *dev);
+#else
+static inline int acpi_dev_runtime_suspend(struct device *dev) { return 0; }
+static inline int acpi_dev_runtime_resume(struct device *dev) { return 0; }
+static inline int acpi_subsys_runtime_suspend(struct device *dev) { return 0; }
+static inline int acpi_subsys_runtime_resume(struct device *dev) { return 0; }
+#endif
+
+#ifdef CONFIG_ACPI_SLEEP
+int acpi_dev_suspend_late(struct device *dev);
+int acpi_dev_resume_early(struct device *dev);
+int acpi_subsys_prepare(struct device *dev);
+int acpi_subsys_suspend_late(struct device *dev);
+int acpi_subsys_resume_early(struct device *dev);
+#else
+static inline int acpi_dev_suspend_late(struct device *dev) { return 0; }
+static inline int acpi_dev_resume_early(struct device *dev) { return 0; }
+static inline int acpi_subsys_prepare(struct device *dev) { return 0; }
+static inline int acpi_subsys_suspend_late(struct device *dev) { return 0; }
+static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
+#endif
+
+#if defined(CONFIG_ACPI) && defined(CONFIG_PM)
+int acpi_dev_pm_attach(struct device *dev);
+int acpi_dev_pm_detach(struct device *dev);
+#else
+static inline int acpi_dev_pm_attach(struct device *dev) { return -ENODEV; }
+static inline void acpi_dev_pm_detach(struct device *dev) {}
+#endif
+
 #endif	/*_LINUX_ACPI_H*/
