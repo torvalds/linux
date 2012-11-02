@@ -240,6 +240,7 @@ struct vivi_dev {
 	u8			   line[MAX_WIDTH * 8];
 	unsigned int		   pixelsize;
 	u8			   alpha_component;
+	u32			   textfg, textbg;
 };
 
 /* ------------------------------------------------------------------
@@ -520,33 +521,54 @@ static void precalculate_line(struct vivi_dev *dev)
 	}
 }
 
+/* need this to do rgb24 rendering */
+typedef struct { u16 __; u8 _; } __attribute__((packed)) x24;
+
 static void gen_text(struct vivi_dev *dev, char *basep,
 					int y, int x, char *text)
 {
 	int line;
+	unsigned int width = dev->width;
 
 	/* Checks if it is possible to show string */
-	if (y + 16 >= dev->height || x + strlen(text) * 8 >= dev->width)
+	if (y + 16 >= dev->height || x + strlen(text) * 8 >= width)
 		return;
 
 	/* Print stream time */
-	for (line = y; line < y + 16; line++) {
-		int j = 0;
-		char *pos = basep + line * dev->width * dev->pixelsize + x * dev->pixelsize;
-		char *s;
+#define PRINTSTR(PIXTYPE) do {	\
+	PIXTYPE fg;	\
+	PIXTYPE bg;	\
+	memcpy(&fg, &dev->textfg, sizeof(PIXTYPE));	\
+	memcpy(&bg, &dev->textbg, sizeof(PIXTYPE));	\
+	\
+	for (line = 0; line < 16; line++) {	\
+		PIXTYPE *pos = (PIXTYPE *)( basep + ((y + line) * width + x) * sizeof(PIXTYPE) );	\
+		u8 *s;	\
+	\
+		for (s = text; *s; s++) {	\
+			u8 chr = font8x16[*s * 16 + line];	\
+	\
+			pos[0] = (chr & (0x01 << 7) ? fg : bg);	\
+			pos[1] = (chr & (0x01 << 6) ? fg : bg);	\
+			pos[2] = (chr & (0x01 << 5) ? fg : bg);	\
+			pos[3] = (chr & (0x01 << 4) ? fg : bg);	\
+			pos[4] = (chr & (0x01 << 3) ? fg : bg);	\
+			pos[5] = (chr & (0x01 << 2) ? fg : bg);	\
+			pos[6] = (chr & (0x01 << 1) ? fg : bg);	\
+			pos[7] = (chr & (0x01 << 0) ? fg : bg);	\
+	\
+			pos += 8;	\
+		}	\
+	}	\
+} while (0)
 
-		for (s = text; *s; s++) {
-			u8 chr = font8x16[*s * 16 + line - y];
-			int i;
-
-			for (i = 0; i < 7; i++, j++) {
-				/* Draw white font on black background */
-				if (chr & (1 << (7 - i)))
-					gen_twopix(dev, pos + j * dev->pixelsize, WHITE, (x+y) & 1);
-				else
-					gen_twopix(dev, pos + j * dev->pixelsize, TEXT_BLACK, (x+y) & 1);
-			}
-		}
+	switch (dev->pixelsize) {
+	case 2:
+		PRINTSTR(u16); break;
+	case 4:
+		PRINTSTR(u32); break;
+	case 3:
+		PRINTSTR(x24); break;
 	}
 }
 
@@ -569,6 +591,9 @@ static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 		       wmax * dev->pixelsize);
 
 	/* Updates stream time */
+
+	gen_twopix(dev, (u8 *)&dev->textbg, TEXT_BLACK, /*odd=*/ 0);
+	gen_twopix(dev, (u8 *)&dev->textfg, WHITE, /*odd=*/ 0);
 
 	dev->ms += jiffies_to_msecs(jiffies - dev->jiffies);
 	dev->jiffies = jiffies;
