@@ -40,11 +40,11 @@ typedef struct _USB_TCB {
 	bool bUsed;
 } USB_TCB, *PUSB_TCB;
 
-typedef struct _USB_RCB {
+struct bcm_usb_rcb {
 	struct urb *urb;
 	void *psIntfAdapter;
 	bool bUsed;
-} USB_RCB, *PUSB_RCB;
+};
 
 /*
  * This is the interface specific Sub-Adapter
@@ -64,7 +64,7 @@ struct bcm_interface_adapter {
 	ULONG		ulInterruptData[2];
 	struct urb *psInterruptUrb;
 	USB_TCB		asUsbTcb[MAXIMUM_USB_TCB];
-	USB_RCB		asUsbRcb[MAXIMUM_USB_RCB];
+	struct bcm_usb_rcb	asUsbRcb[MAXIMUM_USB_RCB];
 	atomic_t	uNumTcbUsed;
 	atomic_t	uCurrTcb;
 	atomic_t	uNumRcbUsed;

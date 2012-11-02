@@ -12,10 +12,10 @@ static int SearchVcid(struct bcm_mini_adapter *Adapter,unsigned short usVcid)
 }
 
 
-static PUSB_RCB
+static struct bcm_usb_rcb *
 GetBulkInRcb(struct bcm_interface_adapter *psIntfAdapter)
 {
-	PUSB_RCB pRcb = NULL;
+	struct bcm_usb_rcb *pRcb = NULL;
 	UINT index = 0;
 
 	if((atomic_read(&psIntfAdapter->uNumRcbUsed) < MAXIMUM_USB_RCB) &&
@@ -43,7 +43,7 @@ static void read_bulk_callback(struct urb *urb)
 	UINT uiIndex=0;
 	int process_done = 1;
 	//int idleflag = 0 ;
-	PUSB_RCB pRcb = (PUSB_RCB)urb->context;
+	struct bcm_usb_rcb *pRcb = (struct bcm_usb_rcb *)urb->context;
 	struct bcm_interface_adapter *psIntfAdapter = pRcb->psIntfAdapter;
 	struct bcm_mini_adapter *Adapter = psIntfAdapter->psAdapter;
 	struct bcm_leader *pLeader = urb->transfer_buffer;
@@ -196,7 +196,7 @@ static void read_bulk_callback(struct urb *urb)
 	atomic_dec(&psIntfAdapter->uNumRcbUsed);
 }
 
-static int ReceiveRcb(struct bcm_interface_adapter *psIntfAdapter, PUSB_RCB pRcb)
+static int ReceiveRcb(struct bcm_interface_adapter *psIntfAdapter, struct bcm_usb_rcb *pRcb)
 {
 	struct urb *urb = pRcb->urb;
 	int retval = 0;
@@ -243,7 +243,7 @@ Return:				TRUE  - If Rx was successful.
 BOOLEAN InterfaceRx (struct bcm_interface_adapter *psIntfAdapter)
 {
 	USHORT RxDescCount = NUM_RX_DESC - atomic_read(&psIntfAdapter->uNumRcbUsed);
-	PUSB_RCB pRcb = NULL;
+	struct bcm_usb_rcb *pRcb = NULL;
 
 //	RxDescCount = psIntfAdapter->psAdapter->CurrNumRecvDescs -
 //				psIntfAdapter->psAdapter->PrevNumRecvDescs;
