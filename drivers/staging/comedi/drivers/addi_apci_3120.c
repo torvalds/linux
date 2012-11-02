@@ -40,8 +40,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.ai_cmd			= i_APCI3120_CommandAnalogInput,
 		.ai_cancel		= i_APCI3120_StopCyclicAcquisition,
 		.ao_write		= i_APCI3120_InsnWriteAnalogOutput,
-		.di_read		= i_APCI3120_InsnReadDigitalInput,
-		.di_bits		= i_APCI3120_InsnBitsDigitalInput,
 	}, {
 		.pc_DriverName		= "apci3001",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
@@ -67,8 +65,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.ai_cmdtest		= i_APCI3120_CommandTestAnalogInput,
 		.ai_cmd			= i_APCI3120_CommandAnalogInput,
 		.ai_cancel		= i_APCI3120_StopCyclicAcquisition,
-		.di_read		= i_APCI3120_InsnReadDigitalInput,
-		.di_bits		= i_APCI3120_InsnBitsDigitalInput,
 	},
 };
 
@@ -233,10 +229,8 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	s->len_chanlist = this_board->i_NbrDiChannel;
 	s->range_table = &range_digital;
 	s->io_bits = 0;	/* all bits input */
-	s->insn_config = this_board->di_config;
-	s->insn_read = this_board->di_read;
-	s->insn_write = this_board->di_write;
-	s->insn_bits = this_board->di_bits;
+	s->insn_read = i_APCI3120_InsnReadDigitalInput;
+	s->insn_bits = i_APCI3120_InsnBitsDigitalInput;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
