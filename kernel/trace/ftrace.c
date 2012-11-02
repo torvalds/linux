@@ -158,25 +158,15 @@ ftrace_global_list_func(unsigned long ip, unsigned long parent_ip,
 {
 	int bit;
 
-	if (in_interrupt()) {
-		if (in_nmi())
-			bit = TRACE_GLOBAL_NMI_BIT;
-
-		else if (in_irq())
-			bit = TRACE_GLOBAL_IRQ_BIT;
-		else
-			bit = TRACE_GLOBAL_SIRQ_BIT;
-	} else
-		bit = TRACE_GLOBAL_BIT;
-
-	if (unlikely(trace_recursion_test(bit)))
+	bit = trace_test_and_set_recursion(TRACE_GLOBAL_START, TRACE_GLOBAL_MAX);
+	if (bit < 0)
 		return;
 
-	trace_recursion_set(bit);
 	do_for_each_ftrace_op(op, ftrace_global_list) {
 		op->func(ip, parent_ip, op, regs);
 	} while_for_each_ftrace_op(op);
-	trace_recursion_clear(bit);
+
+	trace_clear_recursion(bit);
 }
 
 static void ftrace_pid_func(unsigned long ip, unsigned long parent_ip,
@@ -4145,26 +4135,14 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *ignored, struct pt_regs *regs)
 {
 	struct ftrace_ops *op;
-	unsigned int bit;
+	int bit;
 
 	if (function_trace_stop)
 		return;
 
-	if (in_interrupt()) {
-		if (in_nmi())
-			bit = TRACE_INTERNAL_NMI_BIT;
-
-		else if (in_irq())
-			bit = TRACE_INTERNAL_IRQ_BIT;
-		else
-			bit = TRACE_INTERNAL_SIRQ_BIT;
-	} else
-		bit = TRACE_INTERNAL_BIT;
-
-	if (unlikely(trace_recursion_test(bit)))
-			return;
-
-	trace_recursion_set(bit);
+	bit = trace_test_and_set_recursion(TRACE_LIST_START, TRACE_LIST_MAX);
+	if (bit < 0)
+		return;
 
 	/*
 	 * Some of the ops may be dynamically allocated,
@@ -4176,7 +4154,7 @@ __ftrace_ops_list_func(unsigned long ip, unsigned long parent_ip,
 			op->func(ip, parent_ip, op, regs);
 	} while_for_each_ftrace_op(op);
 	preempt_enable_notrace();
-	trace_recursion_clear(bit);
+	trace_clear_recursion(bit);
 }
 
 /*
