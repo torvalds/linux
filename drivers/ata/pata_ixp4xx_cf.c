@@ -187,22 +187,13 @@ static __devinit int ixp4xx_pata_probe(struct platform_device *pdev)
 	return ata_host_activate(host, irq, ata_sff_interrupt, 0, &ixp4xx_sht);
 }
 
-static __devexit int ixp4xx_pata_remove(struct platform_device *dev)
-{
-	struct ata_host *host = platform_get_drvdata(dev);
-
-	ata_host_detach(host);
-
-	return 0;
-}
-
 static struct platform_driver ixp4xx_pata_platform_driver = {
 	.driver	 = {
 		.name   = DRV_NAME,
 		.owner  = THIS_MODULE,
 	},
 	.probe		= ixp4xx_pata_probe,
-	.remove		= __devexit_p(ixp4xx_pata_remove),
+	.remove		= ata_platform_remove_one,
 };
 
 module_platform_driver(ixp4xx_pata_platform_driver);
