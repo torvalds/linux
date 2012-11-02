@@ -45,19 +45,17 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
+static const void *apci3120_find_boardinfo(struct comedi_device *dev,
+					   struct pci_dev *pcidev)
 {
-	const void *p = dev->driver->board_name;
 	const struct addi_board *this_board;
 	int i;
 
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
+	for (i = 0; i < ARRAY_SIZE(apci3120_boardtypes); i++) {
+		this_board = &apci3120_boardtypes[i];
 		if (this_board->i_VendorId == pcidev->vendor &&
 		    this_board->i_DeviceId == pcidev->device)
 			return this_board;
-		p += dev->driver->offset;
 	}
 	return NULL;
 }
@@ -70,7 +68,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret, pages, i;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
+	this_board = apci3120_find_boardinfo(dev, pcidev);
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -249,9 +247,6 @@ static struct comedi_driver apci3120_driver = {
 	.module		= THIS_MODULE,
 	.attach_pci	= apci3120_attach_pci,
 	.detach		= apci3120_detach,
-	.num_names	= ARRAY_SIZE(apci3120_boardtypes),
-	.board_name	= &apci3120_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int __devinit apci3120_pci_probe(struct pci_dev *dev,
