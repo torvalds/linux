@@ -1026,6 +1026,7 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	struct page *page = NULL;
 	unsigned long haddr = addr & HPAGE_PMD_MASK;
 	int target_nid;
+	int current_nid = -1;
 
 	spin_lock(&mm->page_table_lock);
 	if (unlikely(!pmd_same(pmd, *pmdp)))
@@ -1034,6 +1035,10 @@ int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	page = pmd_page(pmd);
 	get_page(page);
 	spin_unlock(&mm->page_table_lock);
+	current_nid = page_to_nid(page);
+	count_vm_numa_event(NUMA_HINT_FAULTS);
+	if (current_nid == numa_node_id())
+		count_vm_numa_event(NUMA_HINT_FAULTS_LOCAL);
 
 	target_nid = mpol_misplaced(page, vma, haddr);
 	if (target_nid == -1)

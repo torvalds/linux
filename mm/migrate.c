@@ -1514,7 +1514,8 @@ int migrate_misplaced_page(struct page *page, int node)
 		if (nr_remaining) {
 			putback_lru_pages(&migratepages);
 			isolated = 0;
-		}
+		} else
+			count_vm_numa_event(NUMA_PAGE_MIGRATE);
 	}
 	BUG_ON(!list_empty(&migratepages));
 out:
