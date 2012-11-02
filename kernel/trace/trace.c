@@ -155,6 +155,18 @@ static int __init set_ftrace_dump_on_oops(char *str)
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
+
+static char trace_boot_options_buf[MAX_TRACER_SIZE] __initdata;
+static char *trace_boot_options __initdata;
+
+static int __init set_trace_boot_options(char *str)
+{
+	strncpy(trace_boot_options_buf, str, MAX_TRACER_SIZE);
+	trace_boot_options = trace_boot_options_buf;
+	return 0;
+}
+__setup("trace_options=", set_trace_boot_options);
+
 unsigned long long ns2usecs(cycle_t nsec)
 {
 	nsec += 500;
@@ -2838,24 +2850,14 @@ static void set_tracer_flags(unsigned int mask, int enabled)
 		trace_printk_start_stop_comm(enabled);
 }
 
-static ssize_t
-tracing_trace_options_write(struct file *filp, const char __user *ubuf,
-			size_t cnt, loff_t *ppos)
+static int trace_set_options(char *option)
 {
-	char buf[64];
 	char *cmp;
 	int neg = 0;
-	int ret;
+	int ret = 0;
 	int i;
 
-	if (cnt >= sizeof(buf))
-		return -EINVAL;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-
-	buf[cnt] = 0;
-	cmp = strstrip(buf);
+	cmp = strstrip(option);
 
 	if (strncmp(cmp, "no", 2) == 0) {
 		neg = 1;
@@ -2874,9 +2876,24 @@ tracing_trace_options_write(struct file *filp, const char __user *ubuf,
 		mutex_lock(&trace_types_lock);
 		ret = set_tracer_option(current_trace, cmp, neg);
 		mutex_unlock(&trace_types_lock);
-		if (ret)
-			return ret;
 	}
+
+	return ret;
+}
+
+static ssize_t
+tracing_trace_options_write(struct file *filp, const char __user *ubuf,
+			size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+
+	if (cnt >= sizeof(buf))
+		return -EINVAL;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	trace_set_options(buf);
 
 	*ppos += cnt;
 
@@ -5132,6 +5149,13 @@ __init static int tracer_alloc_buffers(void)
 				       &trace_panic_notifier);
 
 	register_die_notifier(&trace_die_notifier);
+
+	while (trace_boot_options) {
+		char *option;
+
+		option = strsep(&trace_boot_options, ",");
+		trace_set_options(option);
+	}
 
 	return 0;
 

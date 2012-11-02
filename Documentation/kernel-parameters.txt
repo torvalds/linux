@@ -2859,6 +2859,22 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			to facilitate early boot debugging.
 			See also Documentation/trace/events.txt
 
+	trace_options=[option-list]
+			[FTRACE] Enable or disable tracer options at boot.
+			The option-list is a comma delimited list of options
+			that can be enabled or disabled just as if you were
+			to echo the option name into
+
+			    /sys/kernel/debug/tracing/trace_options
+
+			For example, to enable stacktrace option (to dump the
+			stack trace of each event), add to the command line:
+
+			      trace_options=stacktrace
+
+			See also Documentation/trace/ftrace.txt "trace options"
+			section.
+
 	transparent_hugepage=
 			[KNL]
 			Format: [always|madvise|never]
