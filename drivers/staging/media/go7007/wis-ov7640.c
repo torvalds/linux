@@ -59,12 +59,12 @@ static int wis_ov7640_probe(struct i2c_client *client,
 
 	client->flags = I2C_CLIENT_SCCB;
 
-	printk(KERN_DEBUG
+	dev_dbg(&client->dev,
 		"wis-ov7640: initializing OV7640 at address %d on %s\n",
 		client->addr, adapter->name);
 
 	if (write_regs(client, initial_registers) < 0) {
-		printk(KERN_ERR "wis-ov7640: error initializing OV7640\n");
+		dev_err(&client->dev, "wis-ov7640: error initializing OV7640\n");
 		return -ENODEV;
 	}
 
