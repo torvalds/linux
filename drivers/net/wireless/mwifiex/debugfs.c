@@ -178,6 +178,7 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 		(struct mwifiex_private *) file->private_data;
 	struct net_device *netdev = priv->netdev;
 	struct netdev_hw_addr *ha;
+	struct netdev_queue *txq;
 	unsigned long page = get_zeroed_page(GFP_KERNEL);
 	char *p = (char *) page, fmt[64];
 	struct mwifiex_bss_info info;
@@ -229,8 +230,13 @@ mwifiex_info_read(struct file *file, char __user *ubuf,
 	p += sprintf(p, "num_rx_pkts_err = %lu\n", priv->stats.rx_errors);
 	p += sprintf(p, "carrier %s\n", ((netif_carrier_ok(priv->netdev))
 					 ? "on" : "off"));
-	p += sprintf(p, "tx queue %s\n", ((netif_queue_stopped(priv->netdev))
-					  ? "stopped" : "started"));
+	p += sprintf(p, "tx queue");
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		txq = netdev_get_tx_queue(netdev, i);
+		p += sprintf(p, " %d:%s", i, netif_tx_queue_stopped(txq) ?
+			     "stopped" : "started");
+	}
+	p += sprintf(p, "\n");
 
 	ret = simple_read_from_buffer(ubuf, count, ppos, (char *) page,
 				      (unsigned long) p - page);

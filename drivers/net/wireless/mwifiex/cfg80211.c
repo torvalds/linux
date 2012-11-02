@@ -2080,8 +2080,8 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		return ERR_PTR(-EINVAL);
 	}
 
-	dev = alloc_netdev_mq(sizeof(struct mwifiex_private *), name,
-			      ether_setup, 1);
+	dev = alloc_netdev_mqs(sizeof(struct mwifiex_private *), name,
+			       ether_setup, IEEE80211_NUM_ACS, 1);
 	if (!dev) {
 		wiphy_err(wiphy, "no memory available for netdevice\n");
 		priv->bss_mode = NL80211_IFTYPE_UNSPECIFIED;
@@ -2143,8 +2143,7 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	mwifiex_dev_debugfs_remove(priv);
 #endif
 
-	if (!netif_queue_stopped(priv->netdev))
-		netif_stop_queue(priv->netdev);
+	mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
 
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);

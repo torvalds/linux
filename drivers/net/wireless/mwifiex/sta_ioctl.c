@@ -276,8 +276,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		dev_dbg(adapter->dev, "info: SSID found in scan list ... "
 				      "associating...\n");
 
-		if (!netif_queue_stopped(priv->netdev))
-			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))
 			netif_carrier_off(priv->netdev);
 
@@ -318,8 +317,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
-		if (!netif_queue_stopped(priv->netdev))
-			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))
 			netif_carrier_off(priv->netdev);
 
