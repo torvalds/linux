@@ -689,7 +689,8 @@ int ovs_flow_extract(struct sk_buff *skb, u16 in_port, struct sw_flow_key *key,
 			}
 		}
 
-	} else if (key->eth.type == htons(ETH_P_ARP) && arphdr_ok(skb)) {
+	} else if ((key->eth.type == htons(ETH_P_ARP) ||
+		   key->eth.type == htons(ETH_P_RARP)) && arphdr_ok(skb)) {
 		struct arp_eth_header *arp;
 
 		arp = (struct arp_eth_header *)skb_network_header(skb);
@@ -1086,7 +1087,8 @@ int ovs_flow_from_nlattrs(struct sw_flow_key *swkey, int *key_lenp,
 			if (err)
 				return err;
 		}
-	} else if (swkey->eth.type == htons(ETH_P_ARP)) {
+	} else if (swkey->eth.type == htons(ETH_P_ARP) ||
+		   swkey->eth.type == htons(ETH_P_RARP)) {
 		const struct ovs_key_arp *arp_key;
 
 		if (!(attrs & (1 << OVS_KEY_ATTR_ARP)))
@@ -1222,7 +1224,8 @@ int ovs_flow_to_nlattrs(const struct sw_flow_key *swkey, struct sk_buff *skb)
 		ipv6_key->ipv6_tclass = swkey->ip.tos;
 		ipv6_key->ipv6_hlimit = swkey->ip.ttl;
 		ipv6_key->ipv6_frag = swkey->ip.frag;
-	} else if (swkey->eth.type == htons(ETH_P_ARP)) {
+	} else if (swkey->eth.type == htons(ETH_P_ARP) ||
+		   swkey->eth.type == htons(ETH_P_RARP)) {
 		struct ovs_key_arp *arp_key;
 
 		nla = nla_reserve(skb, OVS_KEY_ATTR_ARP, sizeof(*arp_key));
