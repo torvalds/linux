@@ -512,7 +512,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 			 * not mapped but we have room for it
 			 */
 			new_map = true;
-			persistent_gnt = kzalloc(
+			persistent_gnt = kmalloc(
 				sizeof(struct persistent_gnt),
 				GFP_KERNEL);
 			if (!persistent_gnt)
@@ -523,6 +523,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 				return -ENOMEM;
 			}
 			persistent_gnt->gnt = req->u.rw.seg[i].gref;
+			persistent_gnt->handle = BLKBACK_INVALID_HANDLE;
 
 			pages_to_gnt[segs_to_map] =
 				persistent_gnt->page;
@@ -584,7 +585,8 @@ static int xen_blkbk_map(struct blkif_request *req,
 	 */
 	bitmap_zero(pending_req->unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 	for (i = 0, j = 0; i < nseg; i++) {
-		if (!persistent_gnts[i] || !persistent_gnts[i]->handle) {
+		if (!persistent_gnts[i] ||
+		    persistent_gnts[i]->handle == BLKBACK_INVALID_HANDLE) {
 			/* This is a newly mapped grant */
 			BUG_ON(j >= segs_to_map);
 			if (unlikely(map[j].status != 0)) {
@@ -601,7 +603,8 @@ static int xen_blkbk_map(struct blkif_request *req,
 			}
 		}
 		if (persistent_gnts[i]) {
-			if (!persistent_gnts[i]->handle) {
+			if (persistent_gnts[i]->handle ==
+			    BLKBACK_INVALID_HANDLE) {
 				/*
 				 * If this is a new persistent grant
 				 * save the handler

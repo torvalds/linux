@@ -852,6 +852,7 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 		rq_for_each_segment(bvec, s->request, iter) {
 			BUG_ON((bvec->bv_offset + bvec->bv_len) > PAGE_SIZE);
 			i = offset >> PAGE_SHIFT;
+			BUG_ON(i >= s->req.u.rw.nr_segments);
 			shared_data = kmap_atomic(
 				pfn_to_page(s->grants_used[i]->pfn));
 			bvec_data = bvec_kmap_irq(bvec, &flags);
@@ -1069,7 +1070,7 @@ again:
 		goto abort_transaction;
 	}
 	err = xenbus_printf(xbt, dev->nodename,
-			    "feature-persistent-grants", "%u", 1);
+			    "feature-persistent", "%u", 1);
 	if (err)
 		dev_warn(&dev->dev,
 			 "writing persistent grants feature to xenbus");

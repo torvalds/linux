@@ -760,7 +760,7 @@ static int connect_ring(struct backend_info *be)
 		return -1;
 	}
 	err = xenbus_gather(XBT_NIL, dev->otherend,
-			    "feature-persistent-grants", "%u",
+			    "feature-persistent", "%u",
 			    &pers_grants, NULL);
 	if (err)
 		pers_grants = 0;
