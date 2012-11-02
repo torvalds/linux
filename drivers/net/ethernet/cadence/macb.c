@@ -1031,6 +1031,8 @@ static void macb_init_hw(struct macb *bp)
 		config |= MACB_BIT(NBC);	/* No BroadCast */
 	config |= macb_dbw(bp);
 	macb_writel(bp, NCFGR, config);
+	bp->speed = SPEED_10;
+	bp->duplex = DUPLEX_HALF;
 
 	macb_configure_dma(bp);
 
