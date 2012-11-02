@@ -62,6 +62,20 @@ Configuration options:
 	256|=ignore nFull - A/D FIFO Full status
 
 */
+
+/*
+ * FIXME
+ *
+ * All the supported boards have the same PCI vendor and device IDs, so
+ * auto-attachment of PCI devices will always find the first board type.
+ *
+ * Perhaps the boards have different subdevice IDs that we could use to
+ * distinguish them?
+ *
+ * Need some device attributes so the board type can be corrected after
+ * attachment if necessary, and possibly to set other options supported by
+ * manual attachment.
+ */
 #include "../comedidev.h"
 
 #include <linux/delay.h>
@@ -230,6 +244,61 @@ struct boardtype {
 					 */
 	int half_fifo_size;		/* size of FIFO/2 */
 
+};
+
+static const struct boardtype boardtypes[] = {
+	{
+		.name		= "pci9118dg",
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hg",
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118hg,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hr",
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 10000,
+		.ai_pacer_min	= 40,
+		.half_fifo_size	= 512,
+	},
 };
 
 struct pci9118_private {
@@ -1853,6 +1922,20 @@ static int pci9118_reset(struct comedi_device *dev)
 	return 0;
 }
 
+/*
+ * FIXME - this is pretty ineffective because all the supported board types
+ * have the same device ID!
+ */
+static const struct boardtype *pci9118_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(boardtypes); i++)
+		if (pcidev->device == boardtypes[i].device_id)
+			return &boardtypes[i];
+	return NULL;
+}
+
 static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
@@ -2102,6 +2185,34 @@ static int pci9118_attach(struct comedi_device *dev,
 				     softsshdelay, hw_err_mask);
 }
 
+static int __devinit pci9118_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9118_private *devpriv;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	dev->board_ptr = pci9118_find_boardinfo(pcidev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev,
+			"adl_pci9118: cannot determine board type for pci %s\n",
+			pci_name(pcidev));
+		return -EINVAL;
+	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pci9118_detach().
+	 * (The 'put' also matches the implicit 'get' by pci9118_find_pci().)
+	 */
+	pci_dev_get(pcidev);
+	/* Don't disable irq, use bus master, no external mux,
+	 * no sample-hold delay, no error mask. */
+	return pci9118_common_attach(dev, 0, 1, 0, 0, 0);
+}
+
 static void pci9118_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -2127,65 +2238,11 @@ static void pci9118_detach(struct comedi_device *dev)
 	}
 }
 
-static const struct boardtype boardtypes[] = {
-	{
-		.name		= "pci9118dg",
-		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.mux_aichan	= 256,
-		.n_aichanlist	= PCI9118_CHANLEN,
-		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118dg_hr,
-		.rangelist_ao	= &range_bipolar10,
-		.ai_ns_min	= 3000,
-		.ai_pacer_min	= 12,
-		.half_fifo_size	= 512,
-	}, {
-		.name		= "pci9118hg",
-		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.mux_aichan	= 256,
-		.n_aichanlist	= PCI9118_CHANLEN,
-		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118hg,
-		.rangelist_ao	= &range_bipolar10,
-		.ai_ns_min	= 3000,
-		.ai_pacer_min	= 12,
-		.half_fifo_size	= 512,
-	}, {
-		.name		= "pci9118hr",
-		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.mux_aichan	= 256,
-		.n_aichanlist	= PCI9118_CHANLEN,
-		.n_aochan	= 2,
-		.ai_maxdata	= 0xffff,
-		.ao_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118dg_hr,
-		.rangelist_ao	= &range_bipolar10,
-		.ai_ns_min	= 10000,
-		.ai_pacer_min	= 40,
-		.half_fifo_size	= 512,
-	},
-};
-
 static struct comedi_driver adl_pci9118_driver = {
 	.driver_name	= "adl_pci9118",
 	.module		= THIS_MODULE,
 	.attach		= pci9118_attach,
+	.auto_attach	= pci9118_auto_attach,
 	.detach		= pci9118_detach,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.board_name	= &boardtypes[0].name,
