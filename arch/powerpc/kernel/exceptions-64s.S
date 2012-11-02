@@ -311,12 +311,14 @@ denorm_exception_hv:
 #ifdef CONFIG_CBE_RAS
 	STD_EXCEPTION_HV(0x1800, 0x1802, cbe_thermal)
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_HV, 0x1802)
+#else
+	. = 0x1800
 #endif /* CONFIG_CBE_RAS */
 
-	. = 0x3000
 
 /*** Out of line interrupts support ***/
 
+	.align	7
 	/* moved from 0x200 */
 machine_check_pSeries:
 	.globl machine_check_fwnmi
