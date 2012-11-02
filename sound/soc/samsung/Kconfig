@@ -208,6 +208,7 @@ config SND_SOC_BELLS
 	select SND_SOC_WM5110
 	select SND_SOC_WM9081
 	select SND_SOC_WM0010
+	select SND_SOC_WM1250_EV1
 
 config SND_SOC_LOWLAND
 	tristate "Audio support for Wolfson Lowland"
