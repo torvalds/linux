@@ -34,11 +34,11 @@ typedef struct _INTR_ENDP_OUT {
 	unsigned int	int_out_pipe;
 } INTR_ENDP_OUT, *PINTR_ENDP_OUT;
 
-typedef struct _USB_TCB {
+struct bcm_usb_tcb {
 	struct urb *urb;
 	void *psIntfAdapter;
 	bool bUsed;
-} USB_TCB, *PUSB_TCB;
+};
 
 struct bcm_usb_rcb {
 	struct urb *urb;
@@ -63,7 +63,7 @@ struct bcm_interface_adapter {
 	INTR_ENDP_OUT	sIntrOut;
 	ULONG		ulInterruptData[2];
 	struct urb *psInterruptUrb;
-	USB_TCB		asUsbTcb[MAXIMUM_USB_TCB];
+	struct bcm_usb_tcb	asUsbTcb[MAXIMUM_USB_TCB];
 	struct bcm_usb_rcb	asUsbRcb[MAXIMUM_USB_RCB];
 	atomic_t	uNumTcbUsed;
 	atomic_t	uCurrTcb;
