@@ -2364,13 +2364,19 @@ static int rtnl_bridge_notify(struct net_device *dev, u16 flags)
 		goto errout;
 	}
 
-	if (!flags && master && master->netdev_ops->ndo_bridge_getlink)
+	if ((!flags || (flags & BRIDGE_FLAGS_MASTER)) &&
+	    master && master->netdev_ops->ndo_bridge_getlink) {
 		err = master->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
-	else if (dev->netdev_ops->ndo_bridge_getlink)
-		err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
+		if (err < 0)
+			goto errout;
+	}
 
-	if (err < 0)
-		goto errout;
+	if ((flags & BRIDGE_FLAGS_SELF) &&
+	    dev->netdev_ops->ndo_bridge_getlink) {
+		err = dev->netdev_ops->ndo_bridge_getlink(skb, 0, 0, dev);
+		if (err < 0)
+			goto errout;
+	}
 
 	rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 	return 0;
@@ -2389,7 +2395,8 @@ static int rtnl_bridge_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev;
 	struct nlattr *br_spec, *attr = NULL;
 	int rem, err = -EOPNOTSUPP;
-	u16 flags = 0;
+	u16 oflags, flags = 0;
+	bool have_flags = false;
 
 	if (nlmsg_len(nlh) < sizeof(*ifm))
 		return -EINVAL;
@@ -2408,11 +2415,14 @@ static int rtnl_bridge_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (br_spec) {
 		nla_for_each_nested(attr, br_spec, rem) {
 			if (nla_type(attr) == IFLA_BRIDGE_FLAGS) {
+				have_flags = true;
 				flags = nla_get_u16(attr);
 				break;
 			}
 		}
 	}
+
+	oflags = flags;
 
 	if (!flags || (flags & BRIDGE_FLAGS_MASTER)) {
 		if (!dev->master ||
@@ -2438,11 +2448,11 @@ static int rtnl_bridge_setlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			flags &= ~BRIDGE_FLAGS_SELF;
 	}
 
-	if (attr && nla_type(attr) == IFLA_BRIDGE_FLAGS)
+	if (have_flags)
 		memcpy(nla_data(attr), &flags, sizeof(flags));
 	/* Generate event to notify upper layer of bridge change */
 	if (!err)
-		err = rtnl_bridge_notify(dev, flags);
+		err = rtnl_bridge_notify(dev, oflags);
 out:
 	return err;
 }
