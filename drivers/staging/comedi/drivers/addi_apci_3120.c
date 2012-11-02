@@ -51,6 +51,42 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.timer_config		= i_APCI3120_InsnConfigTimer,
 		.timer_write		= i_APCI3120_InsnWriteTimer,
 		.timer_read		= i_APCI3120_InsnReadTimer,
+	}, {
+		.pc_DriverName		= "apci3001",
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
+		.i_DeviceId		= 0x828D,
+		.i_IorangeBase0		= AMCC_OP_REG_SIZE,
+		.i_IorangeBase1		= APCI3120_ADDRESS_RANGE,
+		.i_IorangeBase2		= 8,
+		.i_PCIEeprom		= ADDIDATA_NO_EEPROM,
+		.i_NbrAiChannel		= 16,
+		.i_NbrAiChannelDiff	= 8,
+		.i_AiChannelList	= 16,
+		.i_AiMaxdata		= 0xfff,
+		.pr_AiRangelist		= &range_apci3120_ai,
+		.i_NbrDiChannel		= 4,
+		.i_NbrDoChannel		= 4,
+		.i_DoMaxdata		= 0x0f,
+		.i_Dma			= 1,
+		.i_Timer		= 1,
+		.b_AvailableConvertUnit	= 1,
+		.ui_MinAcquisitiontimeNs = 10000,
+		.ui_MinDelaytimeNs	= 100000,
+		.interrupt		= v_APCI3120_Interrupt,
+		.reset			= i_APCI3120_Reset,
+		.ai_config		= i_APCI3120_InsnConfigAnalogInput,
+		.ai_read		= i_APCI3120_InsnReadAnalogInput,
+		.ai_cmdtest		= i_APCI3120_CommandTestAnalogInput,
+		.ai_cmd			= i_APCI3120_CommandAnalogInput,
+		.ai_cancel		= i_APCI3120_StopCyclicAcquisition,
+		.di_read		= i_APCI3120_InsnReadDigitalInput,
+		.di_bits		= i_APCI3120_InsnBitsDigitalInput,
+		.do_config		= i_APCI3120_InsnConfigDigitalOutput,
+		.do_write		= i_APCI3120_InsnWriteDigitalOutput,
+		.do_bits		= i_APCI3120_InsnBitsDigitalOutput,
+		.timer_config		= i_APCI3120_InsnConfigTimer,
+		.timer_write		= i_APCI3120_InsnWriteTimer,
+		.timer_read		= i_APCI3120_InsnReadTimer,
 	},
 };
 
@@ -77,6 +113,7 @@ static void __devexit apci3120_pci_remove(struct pci_dev *dev)
 
 static DEFINE_PCI_DEVICE_TABLE(apci3120_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x818d) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA_OLD, 0x828d) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci3120_pci_table);
