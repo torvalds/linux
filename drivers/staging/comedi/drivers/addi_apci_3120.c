@@ -45,9 +45,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.do_config		= i_APCI3120_InsnConfigDigitalOutput,
 		.do_write		= i_APCI3120_InsnWriteDigitalOutput,
 		.do_bits		= i_APCI3120_InsnBitsDigitalOutput,
-		.timer_config		= i_APCI3120_InsnConfigTimer,
-		.timer_write		= i_APCI3120_InsnWriteTimer,
-		.timer_read		= i_APCI3120_InsnReadTimer,
 	}, {
 		.pc_DriverName		= "apci3001",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
@@ -78,9 +75,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.do_config		= i_APCI3120_InsnConfigDigitalOutput,
 		.do_write		= i_APCI3120_InsnWriteDigitalOutput,
 		.do_bits		= i_APCI3120_InsnBitsDigitalOutput,
-		.timer_config		= i_APCI3120_InsnConfigTimer,
-		.timer_write		= i_APCI3120_InsnWriteTimer,
-		.timer_read		= i_APCI3120_InsnReadTimer,
 	},
 };
 
@@ -276,10 +270,9 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	s->len_chanlist = 1;
 	s->range_table = &range_digital;
 
-	s->insn_write = this_board->timer_write;
-	s->insn_read = this_board->timer_read;
-	s->insn_config = this_board->timer_config;
-	s->insn_bits = this_board->timer_bits;
+	s->insn_write = i_APCI3120_InsnWriteTimer;
+	s->insn_read = i_APCI3120_InsnReadTimer;
+	s->insn_config = i_APCI3120_InsnConfigTimer;
 
 	/*  Allocate and Initialise TTL */
 	s = &dev->subdevices[5];
