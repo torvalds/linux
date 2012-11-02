@@ -237,7 +237,7 @@ struct vivi_dev {
 	unsigned int		   field_count;
 
 	u8			   bars[9][3];
-	u8			   line[MAX_WIDTH * 8];
+	u8			   line[MAX_WIDTH * 8] __attribute__((__aligned__(4)));
 	unsigned int		   pixelsize;
 	u8			   alpha_component;
 	u32			   textfg, textbg;
