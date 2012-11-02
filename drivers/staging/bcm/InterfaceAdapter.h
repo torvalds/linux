@@ -36,13 +36,13 @@ typedef struct _INTR_ENDP_OUT {
 
 typedef struct _USB_TCB {
 	struct urb *urb;
-	PVOID psIntfAdapter;
+	void *psIntfAdapter;
 	BOOLEAN bUsed;
 } USB_TCB, *PUSB_TCB;
 
 typedef struct _USB_RCB {
 	struct urb *urb;
-	PVOID psIntfAdapter;
+	void *psIntfAdapter;
 	BOOLEAN bUsed;
 } USB_RCB, *PUSB_RCB;
 
