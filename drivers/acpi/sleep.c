@@ -724,15 +724,13 @@ int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 
 	handle = DEVICE_ACPI_HANDLE(dev);
 	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
-		dev_dbg(dev, "ACPI handle has no context in %s!\n", __func__);
+		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
 		return -ENODEV;
 	}
 
-	error = enable ?
-		acpi_enable_wakeup_device_power(adev, acpi_target_sleep_state) :
-		acpi_disable_wakeup_device_power(adev);
+	error = __acpi_device_sleep_wake(adev, acpi_target_sleep_state, enable);
 	if (!error)
-		dev_info(dev, "wake-up capability %s by ACPI\n",
+		dev_info(dev, "System wakeup %s by ACPI\n",
 				enable ? "enabled" : "disabled");
 
 	return error;

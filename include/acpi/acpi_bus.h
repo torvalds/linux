@@ -455,8 +455,13 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 #endif
 
 #ifdef CONFIG_PM_RUNTIME
+int __acpi_device_run_wake(struct acpi_device *, bool);
 int acpi_pm_device_run_wake(struct device *, bool);
 #else
+static inline int __acpi_device_run_wake(struct acpi_device *adev, bool en)
+{
+	return -ENODEV;
+}
 static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
 {
 	return -ENODEV;
@@ -464,8 +469,14 @@ static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
+int __acpi_device_sleep_wake(struct acpi_device *, u32, bool);
 int acpi_pm_device_sleep_wake(struct device *, bool);
 #else
+static inline int __acpi_device_sleep_wake(struct acpi_device *adev,
+					   u32 target_state, bool enable)
+{
+	return -ENODEV;
+}
 static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
 {
 	return -ENODEV;
