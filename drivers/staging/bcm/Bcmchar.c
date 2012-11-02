@@ -895,7 +895,7 @@ cntrlEnd:
 		mdelay(10);
 
 		/* Wait for MailBox Interrupt */
-		if (StartInterruptUrb((PS_INTERFACE_ADAPTER)Adapter->pvInterfaceAdapter))
+		if (StartInterruptUrb((struct bcm_interface_adapter *)Adapter->pvInterfaceAdapter))
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Unable to send interrupt...\n");
 
 		timeout = 5*HZ;

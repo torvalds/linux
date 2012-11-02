@@ -21,6 +21,6 @@ int InterfaceInitialize(void);
 
 int InterfaceExit(void);
 
-int usbbcm_worker_thread(PS_INTERFACE_ADAPTER psIntfAdapter);
+int usbbcm_worker_thread(struct bcm_interface_adapter *psIntfAdapter);
 
 #endif

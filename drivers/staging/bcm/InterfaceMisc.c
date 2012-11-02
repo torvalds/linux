@@ -1,6 +1,6 @@
 #include "headers.h"
 
-int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
+int InterfaceRDM(struct bcm_interface_adapter *psIntfAdapter,
 		unsigned int addr,
 		void *buff,
 		int len)
@@ -48,7 +48,7 @@ int InterfaceRDM(PS_INTERFACE_ADAPTER psIntfAdapter,
 	return bytes;
 }
 
-int InterfaceWRM(PS_INTERFACE_ADAPTER psIntfAdapter,
+int InterfaceWRM(struct bcm_interface_adapter *psIntfAdapter,
 		unsigned int addr,
 		void *buff,
 		int len)
@@ -104,7 +104,7 @@ int BcmRDM(void *arg,
 	void *buff,
 	int len)
 {
-	return InterfaceRDM((PS_INTERFACE_ADAPTER)arg, addr, buff, len);
+	return InterfaceRDM((struct bcm_interface_adapter*)arg, addr, buff, len);
 }
 
 int BcmWRM(void *arg,
@@ -112,12 +112,12 @@ int BcmWRM(void *arg,
 	void *buff,
 	int len)
 {
-	return InterfaceWRM((PS_INTERFACE_ADAPTER)arg, addr, buff, len);
+	return InterfaceWRM((struct bcm_interface_adapter *)arg, addr, buff, len);
 }
 
 int Bcm_clear_halt_of_endpoints(struct bcm_mini_adapter *Adapter)
 {
-	PS_INTERFACE_ADAPTER psIntfAdapter = (PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter);
+	struct bcm_interface_adapter *psIntfAdapter = (struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter);
 	int status = STATUS_SUCCESS;
 
 	/*
@@ -154,7 +154,7 @@ int Bcm_clear_halt_of_endpoints(struct bcm_mini_adapter *Adapter)
 	return status;
 }
 
-void Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
+void Bcm_kill_all_URBs(struct bcm_interface_adapter *psIntfAdapter)
 {
 	struct urb *tempUrb = NULL;
 	unsigned int i;
@@ -206,9 +206,9 @@ void Bcm_kill_all_URBs(PS_INTERFACE_ADAPTER psIntfAdapter)
 
 void putUsbSuspend(struct work_struct *work)
 {
-	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
+	struct bcm_interface_adapter *psIntfAdapter = NULL;
 	struct usb_interface *intf = NULL;
-	psIntfAdapter = container_of(work, S_INTERFACE_ADAPTER, usbSuspendWork);
+	psIntfAdapter = container_of(work, struct bcm_interface_adapter, usbSuspendWork);
 	intf = psIntfAdapter->interface;
 
 	if (psIntfAdapter->bSuspended == FALSE)

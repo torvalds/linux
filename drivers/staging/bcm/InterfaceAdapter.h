@@ -50,7 +50,7 @@ typedef struct _USB_RCB {
  * This is the interface specific Sub-Adapter
  * Structure.
  */
-typedef struct _S_INTERFACE_ADAPTER {
+struct bcm_interface_adapter {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	/* Bulk endpoint in info */
@@ -75,6 +75,6 @@ typedef struct _S_INTERFACE_ADAPTER {
 	bool		bSuspended;
 	bool		bPreparingForBusSuspend;
 	struct work_struct usbSuspendWork;
-} S_INTERFACE_ADAPTER, *PS_INTERFACE_ADAPTER;
+};
 
 #endif

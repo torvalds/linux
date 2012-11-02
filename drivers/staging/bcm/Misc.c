@@ -611,7 +611,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 			up(&Adapter->rdmwrmsync);
 			/* Killing all URBS. */
 			if (Adapter->bDoSuspend == TRUE)
-				Bcm_kill_all_URBs((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
+				Bcm_kill_all_URBs((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 		} else {
 			Adapter->bPreparingForLowPowerMode = FALSE;
 		}
@@ -627,7 +627,7 @@ void SendIdleModeResponse(struct bcm_mini_adapter *Adapter)
 	if ((status != STATUS_SUCCESS)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "fail to send the Idle mode Request\n");
 		Adapter->bPreparingForLowPowerMode = FALSE;
-		StartInterruptUrb((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
+		StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 	}
 	do_gettimeofday(&tv);
 	BCM_DEBUG_PRINT(Adapter, DBG_TYPE_RX, RX_DPC, DBG_LVL_ALL, "IdleMode Msg submitter to Q :%ld ms", tv.tv_sec * 1000 + tv.tv_usec / 1000);
@@ -778,11 +778,11 @@ int reset_card_proc(struct bcm_mini_adapter *ps_adapter)
 {
 	int retval = STATUS_SUCCESS;
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
-	PS_INTERFACE_ADAPTER psIntfAdapter = NULL;
+	struct bcm_interface_adapter *psIntfAdapter = NULL;
 	unsigned int value = 0, uiResetValue = 0;
 	int bytes;
 
-	psIntfAdapter = ((PS_INTERFACE_ADAPTER)(ps_adapter->pvInterfaceAdapter));
+	psIntfAdapter = ((struct bcm_interface_adapter *)(ps_adapter->pvInterfaceAdapter));
 	ps_adapter->bDDRInitDone = FALSE;
 
 	if (ps_adapter->chip_id >= T3LPB) {
@@ -1372,7 +1372,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 			up(&Adapter->rdmwrmsync);
 			/* Killing all URBS. */
 			if (Adapter->bDoSuspend == TRUE)
-				Bcm_kill_all_URBs((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
+				Bcm_kill_all_URBs((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 		} else {
 			Adapter->bPreparingForLowPowerMode = FALSE;
 		}
@@ -1388,7 +1388,7 @@ static void SendShutModeResponse(struct bcm_mini_adapter *Adapter)
 	if ((Status != STATUS_SUCCESS)) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, MP_SHUTDOWN, DBG_LVL_ALL, "fail to send the Idle mode Request\n");
 		Adapter->bPreparingForLowPowerMode = FALSE;
-		StartInterruptUrb((PS_INTERFACE_ADAPTER)(Adapter->pvInterfaceAdapter));
+		StartInterruptUrb((struct bcm_interface_adapter *)(Adapter->pvInterfaceAdapter));
 	}
 }
 
