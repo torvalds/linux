@@ -19,6 +19,8 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 #include <linux/kernel.h>
+#include <linux/hrtimer.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/usb.h>
