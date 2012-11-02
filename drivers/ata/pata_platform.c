@@ -178,23 +178,6 @@ int __devinit __pata_platform_probe(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(__pata_platform_probe);
 
-/**
- *	__pata_platform_remove		-	unplug a platform interface
- *	@dev: device
- *
- *	A platform bus ATA device has been unplugged. Perform the needed
- *	cleanup. Also called on module unload for any active devices.
- */
-int __pata_platform_remove(struct device *dev)
-{
-	struct ata_host *host = dev_get_drvdata(dev);
-
-	ata_host_detach(host);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(__pata_platform_remove);
-
 static int __devinit pata_platform_probe(struct platform_device *pdev)
 {
 	struct resource *io_res;

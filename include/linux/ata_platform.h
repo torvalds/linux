@@ -22,8 +22,6 @@ extern int __devinit __pata_platform_probe(struct device *dev,
 					   unsigned int ioport_shift,
 					   int __pio_mask);
 
-extern int __devexit __pata_platform_remove(struct device *dev);
-
 /*
  * Marvell SATA private data
  */
