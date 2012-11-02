@@ -257,6 +257,7 @@ static int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev,
 					    struct comedi_insn *insn,
 					    unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned int i;
 
@@ -272,7 +273,7 @@ static int i_APCI3120_InsnConfigAnalogInput(struct comedi_device *dev,
 		for (i = 0; i < data[3]; i++) {
 
 			if (CR_CHAN(data[4 + i]) >=
-				devpriv->s_EeParameters.i_NbrAiChannel) {
+				this_board->i_NbrAiChannel) {
 				printk("bad channel list\n");
 				return -2;
 			}
@@ -743,7 +744,6 @@ static int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev,
 					     struct comedi_cmd *cmd)
 {
 	const struct addi_board *this_board = comedi_board(dev);
-	struct addi_private *devpriv = dev->private;
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -778,9 +778,9 @@ static int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev,
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {	/*  Test Delay timing */
 		if (cmd->scan_begin_arg <
-				devpriv->s_EeParameters.ui_MinDelaytimeNs) {
+				this_board->ui_MinDelaytimeNs) {
 			cmd->scan_begin_arg =
-				devpriv->s_EeParameters.ui_MinDelaytimeNs;
+				this_board->ui_MinDelaytimeNs;
 			err++;
 		}
 	}
@@ -789,18 +789,16 @@ static int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev,
 		if (cmd->scan_begin_src == TRIG_TIMER) {
 			if ((cmd->convert_arg)
 				&& (cmd->convert_arg <
-					devpriv->s_EeParameters.
-						ui_MinAcquisitiontimeNs)) {
-				cmd->convert_arg = devpriv->s_EeParameters.
-					ui_MinAcquisitiontimeNs;
+					this_board->ui_MinAcquisitiontimeNs)) {
+				cmd->convert_arg =
+					this_board->ui_MinAcquisitiontimeNs;
 				err++;
 			}
 		} else {
 			if (cmd->convert_arg <
-				devpriv->s_EeParameters.ui_MinAcquisitiontimeNs
-				) {
-				cmd->convert_arg = devpriv->s_EeParameters.
-					ui_MinAcquisitiontimeNs;
+				this_board->ui_MinAcquisitiontimeNs) {
+				cmd->convert_arg =
+					this_board->ui_MinAcquisitiontimeNs;
 				err++;
 
 			}
@@ -2290,9 +2288,10 @@ static int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device *dev,
 					    struct comedi_insn *insn,
 					    unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 
-	if ((data[0] > devpriv->s_EeParameters.i_DoMaxdata) || (data[0] < 0)) {
+	if ((data[0] > this_board->i_DoMaxdata) || (data[0] < 0)) {
 
 		comedi_error(dev, "Data is not valid !!! \n");
 		return -EINVAL;
@@ -2330,6 +2329,7 @@ static int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 					     struct comedi_insn *insn,
 					     unsigned int *data)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_Temp1;
 	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
@@ -2339,7 +2339,7 @@ static int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 			"Not a valid Data !!! ,Data should be 1 or 0\n");
 		return -EINVAL;
 	}
-	if (ui_NoOfChannel > devpriv->s_EeParameters.i_NbrDoChannel - 1) {
+	if (ui_NoOfChannel > this_board->i_NbrDoChannel - 1) {
 		comedi_error(dev,
 			"This board doesn't have specified channel !!! \n");
 		return -EINVAL;
