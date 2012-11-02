@@ -451,16 +451,16 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 
-	dev_priv->counter++;
-	if (dev_priv->counter > 0x7FFFFFFFUL)
-		dev_priv->counter = 0;
+	dev_priv->dri1.counter++;
+	if (dev_priv->dri1.counter > 0x7FFFFFFFUL)
+		dev_priv->dri1.counter = 0;
 	if (master_priv->sarea_priv)
-		master_priv->sarea_priv->last_enqueue = dev_priv->counter;
+		master_priv->sarea_priv->last_enqueue = dev_priv->dri1.counter;
 
 	if (BEGIN_LP_RING(4) == 0) {
 		OUT_RING(MI_STORE_DWORD_INDEX);
 		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-		OUT_RING(dev_priv->counter);
+		OUT_RING(dev_priv->dri1.counter);
 		OUT_RING(0);
 		ADVANCE_LP_RING();
 	}
@@ -602,12 +602,12 @@ static int i915_dispatch_flip(struct drm_device * dev)
 
 	ADVANCE_LP_RING();
 
-	master_priv->sarea_priv->last_enqueue = dev_priv->counter++;
+	master_priv->sarea_priv->last_enqueue = dev_priv->dri1.counter++;
 
 	if (BEGIN_LP_RING(4) == 0) {
 		OUT_RING(MI_STORE_DWORD_INDEX);
 		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-		OUT_RING(dev_priv->counter);
+		OUT_RING(dev_priv->dri1.counter);
 		OUT_RING(0);
 		ADVANCE_LP_RING();
 	}
@@ -775,21 +775,21 @@ static int i915_emit_irq(struct drm_device * dev)
 
 	DRM_DEBUG_DRIVER("\n");
 
-	dev_priv->counter++;
-	if (dev_priv->counter > 0x7FFFFFFFUL)
-		dev_priv->counter = 1;
+	dev_priv->dri1.counter++;
+	if (dev_priv->dri1.counter > 0x7FFFFFFFUL)
+		dev_priv->dri1.counter = 1;
 	if (master_priv->sarea_priv)
-		master_priv->sarea_priv->last_enqueue = dev_priv->counter;
+		master_priv->sarea_priv->last_enqueue = dev_priv->dri1.counter;
 
 	if (BEGIN_LP_RING(4) == 0) {
 		OUT_RING(MI_STORE_DWORD_INDEX);
 		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-		OUT_RING(dev_priv->counter);
+		OUT_RING(dev_priv->dri1.counter);
 		OUT_RING(MI_USER_INTERRUPT);
 		ADVANCE_LP_RING();
 	}
 
-	return dev_priv->counter;
+	return dev_priv->dri1.counter;
 }
 
 static int i915_wait_irq(struct drm_device * dev, int irq_nr)
@@ -820,7 +820,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 
 	if (ret == -EBUSY) {
 		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",
-			  READ_BREADCRUMB(dev_priv), (int)dev_priv->counter);
+			  READ_BREADCRUMB(dev_priv), (int)dev_priv->dri1.counter);
 	}
 
 	return ret;

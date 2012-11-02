@@ -586,6 +586,19 @@ struct intel_ilk_power_mgmt {
 	struct drm_i915_gem_object *renderctx;
 };
 
+struct i915_dri1_state {
+	unsigned allow_batchbuffer : 1;
+	u32 __iomem *gfx_hws_cpu_addr;
+
+	unsigned int cpp;
+	int back_offset;
+	int front_offset;
+	int current_page;
+	int page_flipping;
+
+	uint32_t counter;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -620,7 +633,6 @@ typedef struct drm_i915_private {
 	uint32_t next_seqno;
 
 	drm_dma_handle_t *status_page_dmah;
-	uint32_t counter;
 	struct resource mch_res;
 
 	atomic_t irq_received;
@@ -827,19 +839,6 @@ typedef struct drm_i915_private {
 		u32 object_count;
 	} mm;
 
-	/* Old dri1 support infrastructure, beware the dragons ya fools entering
-	 * here! */
-	struct {
-		unsigned allow_batchbuffer : 1;
-		u32 __iomem *gfx_hws_cpu_addr;
-
-		unsigned int cpp;
-		int back_offset;
-		int front_offset;
-		int current_page;
-		int page_flipping;
-	} dri1;
-
 	/* Kernel Modesetting */
 
 	struct sdvo_device_mapping sdvo_mappings[2];
@@ -893,6 +892,10 @@ typedef struct drm_i915_private {
 	uint32_t hw_context_size;
 
 	struct i915_suspend_saved_registers regfile;
+
+	/* Old dri1 support infrastructure, beware the dragons ya fools entering
+	 * here! */
+	struct i915_dri1_state dri1;
 } drm_i915_private_t;
 
 /* Iterate over initialised rings */
