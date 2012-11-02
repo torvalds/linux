@@ -1312,8 +1312,8 @@ static inline void ixgbevf_rx_desc_queue_enable(struct ixgbevf_adapter *adapter,
 		       "not set within the polling period\n", rxr);
 	}
 
-	ixgbevf_release_rx_desc(&adapter->hw, &adapter->rx_ring[rxr],
-				(adapter->rx_ring[rxr].count - 1));
+	ixgbevf_release_rx_desc(hw, &adapter->rx_ring[rxr],
+				adapter->rx_ring[rxr].count - 1);
 }
 
 static void ixgbevf_save_reset_stats(struct ixgbevf_adapter *adapter)
