@@ -281,7 +281,6 @@ struct omap_system_dma_plat_info {
 #define dma_omap15xx()	((dma_omap1() && (d->dev_caps & ENABLE_1510_MODE)))
 #define dma_omap16xx()	((dma_omap1() && (d->dev_caps & ENABLE_16XX_MODE)))
 
-extern void __init omap_init_consistent_dma_size(void);
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);
 extern int omap_request_dma(int dev_id, const char *dev_name,
 			void (*callback)(int lch, u16 ch_status, void *data),
