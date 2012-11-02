@@ -897,42 +897,35 @@ static struct pci_driver xen_pcibk_pci_driver = {
 static inline int str_to_slot(const char *buf, int *domain, int *bus,
 			      int *slot, int *func)
 {
-	int err;
-	char wc = '*';
+	int parsed = 0;
 
-	err = sscanf(buf, " %x:%x:%x.%x", domain, bus, slot, func);
-	switch (err) {
+	switch (sscanf(buf, " %x:%x:%x.%x %n", domain, bus, slot, func,
+		       &parsed)) {
 	case 3:
 		*func = -1;
-		err = sscanf(buf, " %x:%x:%x.%c", domain, bus, slot, &wc);
+		sscanf(buf, " %x:%x:%x.* %n", domain, bus, slot, &parsed);
 		break;
 	case 2:
 		*slot = *func = -1;
-		err = sscanf(buf, " %x:%x:*.%c", domain, bus, &wc);
-		if (err >= 2)
-			++err;
+		sscanf(buf, " %x:%x:*.* %n", domain, bus, &parsed);
 		break;
 	}
-	if (err == 4 && wc == '*')
+	if (parsed && !buf[parsed])
 		return 0;
-	else if (err < 0)
-		return -EINVAL;
 
 	/* try again without domain */
 	*domain = 0;
-	wc = '*';
-	err = sscanf(buf, " %x:%x.%x", bus, slot, func);
-	switch (err) {
+	switch (sscanf(buf, " %x:%x.%x %n", bus, slot, func, &parsed)) {
 	case 2:
 		*func = -1;
-		err = sscanf(buf, " %x:%x.%c", bus, slot, &wc);
+		sscanf(buf, " %x:%x.* %n", bus, slot, &parsed);
 		break;
 	case 1:
 		*slot = *func = -1;
-		err = sscanf(buf, " %x:*.%c", bus, &wc) + 1;
+		sscanf(buf, " %x:*.* %n", bus, &parsed);
 		break;
 	}
-	if (err == 3 && wc == '*')
+	if (parsed && !buf[parsed])
 		return 0;
 
 	return -EINVAL;
@@ -941,13 +934,20 @@ static inline int str_to_slot(const char *buf, int *domain, int *bus,
 static inline int str_to_quirk(const char *buf, int *domain, int *bus, int
 			       *slot, int *func, int *reg, int *size, int *mask)
 {
-	int err;
+	int parsed = 0;
 
-	err =
-	    sscanf(buf, " %04x:%02x:%02x.%d-%08x:%1x:%08x", domain, bus, slot,
-		   func, reg, size, mask);
-	if (err == 7)
+	sscanf(buf, " %4x:%2x:%2x.%d-%8x:%1x:%8x %n", domain, bus, slot, func,
+	       reg, size, mask, &parsed);
+	if (parsed && !buf[parsed])
 		return 0;
+
+	/* try again without domain */
+	*domain = 0;
+	sscanf(buf, " %2x:%2x.%d-%8x:%1x:%8x %n", bus, slot, func, reg, size,
+	       mask, &parsed);
+	if (parsed && !buf[parsed])
+		return 0;
+
 	return -EINVAL;
 }
 
@@ -1339,8 +1339,6 @@ static int __init pcistub_init(void)
 
 	if (pci_devs_to_hide && *pci_devs_to_hide) {
 		do {
-			char wc = '*';
-
 			parsed = 0;
 
 			err = sscanf(pci_devs_to_hide + pos,
@@ -1349,51 +1347,48 @@ static int __init pcistub_init(void)
 			switch (err) {
 			case 3:
 				func = -1;
-				err = sscanf(pci_devs_to_hide + pos,
-					     " (%x:%x:%x.%c) %n",
-					     &domain, &bus, &slot, &wc,
-					     &parsed);
+				sscanf(pci_devs_to_hide + pos,
+				       " (%x:%x:%x.*) %n",
+				       &domain, &bus, &slot, &parsed);
 				break;
 			case 2:
 				slot = func = -1;
-				err = sscanf(pci_devs_to_hide + pos,
-					     " (%x:%x:*.%c) %n",
-					     &domain, &bus, &wc, &parsed) + 1;
+				sscanf(pci_devs_to_hide + pos,
+				       " (%x:%x:*.*) %n",
+				       &domain, &bus, &parsed);
 				break;
 			}
 
-			if (err != 4 || wc != '*') {
+			if (!parsed) {
 				domain = 0;
-				wc = '*';
 				err = sscanf(pci_devs_to_hide + pos,
 					     " (%x:%x.%x) %n",
 					     &bus, &slot, &func, &parsed);
 				switch (err) {
 				case 2:
 					func = -1;
-					err = sscanf(pci_devs_to_hide + pos,
-						     " (%x:%x.%c) %n",
-						     &bus, &slot, &wc,
-						     &parsed);
+					sscanf(pci_devs_to_hide + pos,
+					       " (%x:%x.*) %n",
+					       &bus, &slot, &parsed);
 					break;
 				case 1:
 					slot = func = -1;
-					err = sscanf(pci_devs_to_hide + pos,
-						     " (%x:*.%c) %n",
-						     &bus, &wc, &parsed) + 1;
+					sscanf(pci_devs_to_hide + pos,
+					       " (%x:*.*) %n",
+					       &bus, &parsed);
 					break;
 				}
-				if (err != 3 || wc != '*')
-					goto parse_error;
 			}
+
+			if (parsed <= 0)
+				goto parse_error;
 
 			err = pcistub_device_id_add(domain, bus, slot, func);
 			if (err)
 				goto out;
 
-			/* if parsed<=0, we've reached the end of the string */
 			pos += parsed;
-		} while (parsed > 0 && pci_devs_to_hide[pos]);
+		} while (pci_devs_to_hide[pos]);
 	}
 
 	/* If we're the first PCI Device Driver to register, we're the
