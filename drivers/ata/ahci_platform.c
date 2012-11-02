@@ -229,16 +229,6 @@ free_clk:
 	return rc;
 }
 
-static int __devexit ahci_remove(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	struct ata_host *host = dev_get_drvdata(dev);
-
-	ata_host_detach(host);
-
-	return 0;
-}
-
 static void ahci_host_stop(struct ata_host *host)
 {
 	struct device *dev = host->dev;
@@ -343,7 +333,7 @@ MODULE_DEVICE_TABLE(of, ahci_of_match);
 
 static struct platform_driver ahci_driver = {
 	.probe = ahci_probe,
-	.remove = __devexit_p(ahci_remove),
+	.remove = ata_platform_remove_one,
 	.driver = {
 		.name = "ahci",
 		.owner = THIS_MODULE,
