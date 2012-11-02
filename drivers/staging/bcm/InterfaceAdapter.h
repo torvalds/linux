@@ -8,15 +8,14 @@ typedef struct _BULK_ENDP_IN {
 	unsigned int	bulk_in_pipe;
 } BULK_ENDP_IN, *PBULK_ENDP_IN;
 
-
-typedef struct _BULK_ENDP_OUT {
+struct bcm_bulk_endpoint_out {
 	unsigned char	bulk_out_buffer;
 	size_t	bulk_out_size;
 	unsigned char	bulk_out_endpointAddr;
 	unsigned int	bulk_out_pipe;
 	/* this is used when int out endpoint is used as bulk out end point */
 	unsigned char	int_out_interval;
-} BULK_ENDP_OUT, *PBULK_ENDP_OUT;
+};
 
 struct bcm_intr_endpoint_in {
 	char	*int_in_buffer;
@@ -56,7 +55,7 @@ struct bcm_interface_adapter {
 	/* Bulk endpoint in info */
 	BULK_ENDP_IN	sBulkIn;
 	/* Bulk endpoint out info */
-	BULK_ENDP_OUT	sBulkOut;
+	struct bcm_bulk_endpoint_out	sBulkOut;
 	/* Interrupt endpoint in info */
 	struct bcm_intr_endpoint_in	sIntrIn;
 	/* Interrupt endpoint out info */
