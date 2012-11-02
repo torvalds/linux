@@ -1,8 +1,7 @@
 #ifndef _INTERFACE_ADAPTER_H
 #define _INTERFACE_ADAPTER_H
 
-typedef struct _BULK_ENDP_IN
-{
+typedef struct _BULK_ENDP_IN {
 	PCHAR	bulk_in_buffer;
 	size_t	bulk_in_size;
 	UCHAR	bulk_in_endpointAddr;
@@ -10,8 +9,7 @@ typedef struct _BULK_ENDP_IN
 } BULK_ENDP_IN, *PBULK_ENDP_IN;
 
 
-typedef struct _BULK_ENDP_OUT
-{
+typedef struct _BULK_ENDP_OUT {
 	UCHAR	bulk_out_buffer;
 	size_t	bulk_out_size;
 	UCHAR	bulk_out_endpointAddr;
@@ -20,8 +18,7 @@ typedef struct _BULK_ENDP_OUT
 	UCHAR	int_out_interval;
 } BULK_ENDP_OUT, *PBULK_ENDP_OUT;
 
-typedef struct _INTR_ENDP_IN
-{
+typedef struct _INTR_ENDP_IN {
 	PCHAR	int_in_buffer;
 	size_t	int_in_size;
 	UCHAR	int_in_endpointAddr;
@@ -29,8 +26,7 @@ typedef struct _INTR_ENDP_IN
 	UINT	int_in_pipe;
 } INTR_ENDP_IN, *PINTR_ENDP_IN;
 
-typedef struct _INTR_ENDP_OUT
-{
+typedef struct _INTR_ENDP_OUT {
 	PCHAR	int_out_buffer;
 	size_t	int_out_size;
 	UCHAR	int_out_endpointAddr;
@@ -38,15 +34,13 @@ typedef struct _INTR_ENDP_OUT
 	UINT	int_out_pipe;
 } INTR_ENDP_OUT, *PINTR_ENDP_OUT;
 
-typedef struct _USB_TCB
-{
+typedef struct _USB_TCB {
 	struct urb *urb;
 	PVOID psIntfAdapter;
 	BOOLEAN bUsed;
 } USB_TCB, *PUSB_TCB;
 
-typedef struct _USB_RCB
-{
+typedef struct _USB_RCB {
 	struct urb *urb;
 	PVOID psIntfAdapter;
 	BOOLEAN bUsed;
@@ -56,8 +50,7 @@ typedef struct _USB_RCB
  * This is the interface specific Sub-Adapter
  * Structure.
  */
-typedef struct _S_INTERFACE_ADAPTER
-{
+typedef struct _S_INTERFACE_ADAPTER {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	/* Bulk endpoint in info */
