@@ -140,4 +140,6 @@ source "drivers/staging/imx-drm/Kconfig"
 
 source "drivers/staging/dgrp/Kconfig"
 
+source "drivers/staging/fwserial/Kconfig"
+
 endif # STAGING
