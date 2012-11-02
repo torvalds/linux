@@ -6,10 +6,6 @@
 
 #include "addi-data/hwdrv_apci3120.c"
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 static const struct addi_board apci3120_boardtypes[] = {
 	{
 		.pc_DriverName		= "apci3120",
