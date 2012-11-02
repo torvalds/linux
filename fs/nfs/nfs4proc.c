@@ -1749,7 +1749,7 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 
 	/* even though OPEN succeeded, access is denied. Close the file */
 	nfs4_close_state(state, fmode);
-	return -NFS4ERR_ACCESS;
+	return -EACCES;
 }
 
 /*
