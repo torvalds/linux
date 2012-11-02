@@ -94,7 +94,6 @@ int  nvd0_display_create(struct drm_device *);
 void nvd0_display_destroy(struct drm_device *);
 int  nvd0_display_init(struct drm_device *);
 void nvd0_display_fini(struct drm_device *);
-void nvd0_display_intr(struct drm_device *);
 
 void nvd0_display_flip_stop(struct drm_crtc *);
 int  nvd0_display_flip_next(struct drm_crtc *, struct drm_framebuffer *,
