@@ -226,8 +226,6 @@ struct thread_struct {
 	unsigned long cp0_badvaddr;	/* Last user fault */
 	unsigned long cp0_baduaddr;	/* Last kernel fault accessing USEG */
 	unsigned long error_code;
-	unsigned long irix_trampoline;  /* Wheee... */
-	unsigned long irix_oldctx;
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
     struct octeon_cop2_state cp2 __attribute__ ((__aligned__(128)));
     struct octeon_cvmseg_state cvmseg __attribute__ ((__aligned__(128)));
@@ -297,8 +295,6 @@ struct thread_struct {
 	.cp0_badvaddr		= 0,				\
 	.cp0_baduaddr		= 0,				\
 	.error_code		= 0,				\
-	.irix_trampoline	= 0,				\
-	.irix_oldctx		= 0,				\
 	/*							\
 	 * Cavium Octeon specifics (null if not Octeon)		\
 	 */							\
