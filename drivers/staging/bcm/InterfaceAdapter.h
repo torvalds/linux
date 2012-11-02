@@ -2,7 +2,7 @@
 #define _INTERFACE_ADAPTER_H
 
 typedef struct _BULK_ENDP_IN {
-	PCHAR	bulk_in_buffer;
+	char	*bulk_in_buffer;
 	size_t	bulk_in_size;
 	UCHAR	bulk_in_endpointAddr;
 	UINT	bulk_in_pipe;
@@ -19,7 +19,7 @@ typedef struct _BULK_ENDP_OUT {
 } BULK_ENDP_OUT, *PBULK_ENDP_OUT;
 
 typedef struct _INTR_ENDP_IN {
-	PCHAR	int_in_buffer;
+	char	*int_in_buffer;
 	size_t	int_in_size;
 	UCHAR	int_in_endpointAddr;
 	UCHAR	int_in_interval;
@@ -27,7 +27,7 @@ typedef struct _INTR_ENDP_IN {
 } INTR_ENDP_IN, *PINTR_ENDP_IN;
 
 typedef struct _INTR_ENDP_OUT {
-	PCHAR	int_out_buffer;
+	char	*int_out_buffer;
 	size_t	int_out_size;
 	UCHAR	int_out_endpointAddr;
 	UCHAR	int_out_interval;
