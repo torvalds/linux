@@ -65,3 +65,4 @@ obj-$(CONFIG_CED1401)		+= ced1401/
 obj-$(CONFIG_DRM_IMX)		+= imx-drm/
 obj-$(CONFIG_DGRP)		+= dgrp/
 obj-$(CONFIG_SB105X)		+= sb105x/
+obj-$(CONFIG_FIREWIRE_SERIAL)	+= fwserial/
