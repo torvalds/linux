@@ -105,3 +105,46 @@ int set_memory_x(unsigned long addr, int numpages)
 {
 	return 0;
 }
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
+void kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	unsigned long address;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	pte_t *pte;
+	int i;
+
+	for (i = 0; i < numpages; i++) {
+		address = page_to_phys(page + i);
+		pgd = pgd_offset_k(address);
+		pud = pud_offset(pgd, address);
+		pmd = pmd_offset(pud, address);
+		pte = pte_offset_kernel(pmd, address);
+		if (!enable) {
+			__ptep_ipte(address, pte);
+			pte_val(*pte) = _PAGE_TYPE_EMPTY;
+			continue;
+		}
+		*pte = mk_pte_phys(address, __pgprot(_PAGE_TYPE_RW));
+	}
+}
+
+#ifdef CONFIG_HIBERNATION
+bool kernel_page_present(struct page *page)
+{
+	unsigned long addr;
+	int cc;
+
+	addr = page_to_phys(page);
+	asm volatile(
+		"	lra	%1,0(%1)\n"
+		"	ipm	%0\n"
+		"	srl	%0,28"
+		: "=d" (cc), "+a" (addr) : : "cc");
+	return cc == 0;
+}
+#endif /* CONFIG_HIBERNATION */
+
+#endif /* CONFIG_DEBUG_PAGEALLOC */
