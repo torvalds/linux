@@ -36,39 +36,39 @@
 ************************************************************************/
 
 /*
-
-Driver: cb_pcidas64
-Description: MeasurementComputing PCI-DAS64xx, 60XX, and 4020 series with the PLX 9080 PCI controller
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Status: works
-Updated: 2002-10-09
-Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
-  PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
-  PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
-  PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
-  PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6013, PCI-DAS6014,
-  PCI-DAS6023, PCI-DAS6025, PCI-DAS6030,
-  PCI-DAS6031, PCI-DAS6032, PCI-DAS6033, PCI-DAS6034,
-  PCI-DAS6035, PCI-DAS6036, PCI-DAS6040, PCI-DAS6052,
-  PCI-DAS6070, PCI-DAS6071, PCI-DAS4020/12
-
-Configuration options:
-   [0] - PCI bus of device (optional)
-   [1] - PCI slot of device (optional)
-
-These boards may be autocalibrated with the comedi_calibrate utility.
-
-To select the bnc trigger input on the 4020 (instead of the dio input),
-specify a nonzero channel in the chanspec.  If you wish to use an external
-master clock on the 4020, you may do so by setting the scan_begin_src
-to TRIG_OTHER, and using an INSN_CONFIG_TIMER_1 configuration insn
-to configure the divisor to use for the external clock.
-
-Some devices are not identified because the PCI device IDs are not yet
-known. If you have such a board, please file a bug report at
-https://bugs.comedi.org.
-
-*/
+ * Driver: cb_pcidas64
+ * Description: MeasurementComputing PCI-DAS64xx, 60XX, and 4020 series
+ *   with the PLX 9080 PCI controller
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Status: works
+ * Updated: Fri, 02 Nov 2012 18:58:55 +0000
+ * Devices: [Measurement Computing] PCI-DAS6402/16 (cb_pcidas64),
+ *   PCI-DAS6402/12, PCI-DAS64/M1/16, PCI-DAS64/M2/16,
+ *   PCI-DAS64/M3/16, PCI-DAS6402/16/JR, PCI-DAS64/M1/16/JR,
+ *   PCI-DAS64/M2/16/JR, PCI-DAS64/M3/16/JR, PCI-DAS64/M1/14,
+ *   PCI-DAS64/M2/14, PCI-DAS64/M3/14, PCI-DAS6013, PCI-DAS6014,
+ *   PCI-DAS6023, PCI-DAS6025, PCI-DAS6030,
+ *   PCI-DAS6031, PCI-DAS6032, PCI-DAS6033, PCI-DAS6034,
+ *   PCI-DAS6035, PCI-DAS6036, PCI-DAS6040, PCI-DAS6052,
+ *   PCI-DAS6070, PCI-DAS6071, PCI-DAS4020/12
+ *
+ * Configuration options:
+ *   None.
+ *
+ * Manual attachment of PCI cards with the comedi_config utility is not
+ * supported by this driver; they are attached automatically.
+ *
+ * These boards may be autocalibrated with the comedi_calibrate utility.
+ *
+ * To select the bnc trigger input on the 4020 (instead of the dio input),
+ * specify a nonzero channel in the chanspec.  If you wish to use an external
+ * master clock on the 4020, you may do so by setting the scan_begin_src
+ * to TRIG_OTHER, and using an INSN_CONFIG_TIMER_1 configuration insn
+ * to configure the divisor to use for the external clock.
+ *
+ * Some devices are not identified because the PCI device IDs are not yet
+ * known. If you have such a board, please let the maintainers know.
+ */
 
 /*
 
