@@ -60,7 +60,7 @@ struct bcm_interface_adapter {
 	struct bcm_intr_endpoint_in	sIntrIn;
 	/* Interrupt endpoint out info */
 	struct bcm_intr_endpoint_out	sIntrOut;
-	ULONG		ulInterruptData[2];
+	unsigned long		ulInterruptData[2];
 	struct urb *psInterruptUrb;
 	struct bcm_usb_tcb	asUsbTcb[MAXIMUM_USB_TCB];
 	struct bcm_usb_rcb	asUsbRcb[MAXIMUM_USB_RCB];
