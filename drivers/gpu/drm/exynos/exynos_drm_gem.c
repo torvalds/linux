@@ -281,14 +281,6 @@ dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
 
 	exynos_gem_obj = to_exynos_gem_obj(obj);
 
-	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
-		DRM_DEBUG_KMS("not support NONCONTIG type.\n");
-		drm_gem_object_unreference_unlocked(obj);
-
-		/* TODO */
-		return ERR_PTR(-EINVAL);
-	}
-
 	return &exynos_gem_obj->buffer->dma_addr;
 }
 
@@ -306,14 +298,6 @@ void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 	}
 
 	exynos_gem_obj = to_exynos_gem_obj(obj);
-
-	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
-		DRM_DEBUG_KMS("not support NONCONTIG type.\n");
-		drm_gem_object_unreference_unlocked(obj);
-
-		/* TODO */
-		return;
-	}
 
 	drm_gem_object_unreference_unlocked(obj);
 
