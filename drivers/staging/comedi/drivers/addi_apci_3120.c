@@ -29,7 +29,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.i_Dma			= 1,
 		.i_Timer		= 1,
 		.b_AvailableConvertUnit	= 1,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -65,7 +64,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
-		.i_Dma			= 1,
 		.i_Timer		= 1,
 		.b_AvailableConvertUnit	= 1,
 		.ui_MinAcquisitiontimeNs = 10000,
@@ -144,8 +142,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
 		return ret;
-	if (this_board->i_Dma)
-		pci_set_master(pcidev);
+	pci_set_master(pcidev);
 
 	if (this_board->i_IorangeBase1)
 		dev->iobase = pci_resource_start(pcidev, 1);
@@ -166,37 +163,31 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 
 	devpriv->us_UseDma = ADDI_ENABLE;
 
-	if (this_board->i_Dma) {
-		if (devpriv->us_UseDma == ADDI_ENABLE) {
-			/*  alloc DMA buffers */
-			devpriv->b_DmaDoubleBuffer = 0;
-			for (i = 0; i < 2; i++) {
-				for (pages = 4; pages >= 0; pages--) {
-					devpriv->ul_DmaBufferVirtual[i] =
-						(void *) __get_free_pages(GFP_KERNEL, pages);
+	/* Allocate DMA buffers */
+	devpriv->b_DmaDoubleBuffer = 0;
+	for (i = 0; i < 2; i++) {
+		for (pages = 4; pages >= 0; pages--) {
+			devpriv->ul_DmaBufferVirtual[i] =
+				(void *) __get_free_pages(GFP_KERNEL, pages);
 
-					if (devpriv->ul_DmaBufferVirtual[i])
-						break;
-				}
-				if (devpriv->ul_DmaBufferVirtual[i]) {
-					devpriv->ui_DmaBufferPages[i] = pages;
-					devpriv->ui_DmaBufferSize[i] =
-						PAGE_SIZE * pages;
-					devpriv->ui_DmaBufferSamples[i] =
-						devpriv->
-						ui_DmaBufferSize[i] >> 1;
-					devpriv->ul_DmaBufferHw[i] =
-						virt_to_bus((void *)devpriv->
-						ul_DmaBufferVirtual[i]);
-				}
-			}
-			if (!devpriv->ul_DmaBufferVirtual[0])
-				devpriv->us_UseDma = ADDI_DISABLE;
-
-			if (devpriv->ul_DmaBufferVirtual[1])
-				devpriv->b_DmaDoubleBuffer = 1;
+			if (devpriv->ul_DmaBufferVirtual[i])
+				break;
+		}
+		if (devpriv->ul_DmaBufferVirtual[i]) {
+			devpriv->ui_DmaBufferPages[i] = pages;
+			devpriv->ui_DmaBufferSize[i] = PAGE_SIZE * pages;
+			devpriv->ui_DmaBufferSamples[i] =
+				devpriv->ui_DmaBufferSize[i] >> 1;
+			devpriv->ul_DmaBufferHw[i] =
+				virt_to_bus((void *)devpriv->
+				ul_DmaBufferVirtual[i]);
 		}
 	}
+	if (!devpriv->ul_DmaBufferVirtual[0])
+		devpriv->us_UseDma = ADDI_DISABLE;
+
+	if (devpriv->ul_DmaBufferVirtual[1])
+		devpriv->b_DmaDoubleBuffer = 1;
 
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
