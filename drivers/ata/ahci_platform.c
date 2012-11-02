@@ -25,6 +25,8 @@
 #include <linux/ahci_platform.h>
 #include "ahci.h"
 
+static void ahci_host_stop(struct ata_host *host);
+
 enum ahci_type {
 	AHCI,		/* standard platform ahci */
 	IMX53_AHCI,	/* ahci on i.mx53 */
@@ -47,6 +49,15 @@ static struct platform_device_id ahci_devtype[] = {
 };
 MODULE_DEVICE_TABLE(platform, ahci_devtype);
 
+struct ata_port_operations ahci_platform_ops = {
+	.inherits	= &ahci_ops,
+	.host_stop	= ahci_host_stop,
+};
+
+struct ata_port_operations ahci_platform_retry_srst_ops = {
+	.inherits	= &ahci_pmp_retry_srst_ops,
+	.host_stop	= ahci_host_stop,
+};
 
 static const struct ata_port_info ahci_port_info[] = {
 	/* by features */
@@ -54,20 +65,20 @@ static const struct ata_port_info ahci_port_info[] = {
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_ops,
+		.port_ops	= &ahci_platform_ops,
 	},
 	[IMX53_AHCI] = {
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_pmp_retry_srst_ops,
+		.port_ops	= &ahci_platform_retry_srst_ops,
 	},
 	[STRICT_AHCI] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_DELAY_ENGINE),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_ops,
+		.port_ops	= &ahci_platform_ops,
 	},
 };
 
@@ -221,11 +232,18 @@ free_clk:
 static int __devexit ahci_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct ahci_platform_data *pdata = dev_get_platdata(dev);
 	struct ata_host *host = dev_get_drvdata(dev);
-	struct ahci_host_priv *hpriv = host->private_data;
 
 	ata_host_detach(host);
+
+	return 0;
+}
+
+static void ahci_host_stop(struct ata_host *host)
+{
+	struct device *dev = host->dev;
+	struct ahci_platform_data *pdata = dev_get_platdata(dev);
+	struct ahci_host_priv *hpriv = host->private_data;
 
 	if (pdata && pdata->exit)
 		pdata->exit(dev);
@@ -234,8 +252,6 @@ static int __devexit ahci_remove(struct platform_device *pdev)
 		clk_disable_unprepare(hpriv->clk);
 		clk_put(hpriv->clk);
 	}
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
