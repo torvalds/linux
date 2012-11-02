@@ -432,7 +432,8 @@ _STATIC(__after_prom_start)
 	cmplwi	cr0,r7,1
 	bne	3f
 
-	li	r5,__end_interrupts - _stext	/* just copy interrupts */
+	/* just copy interrupts */
+	LOAD_REG_IMMEDIATE(r5, __end_interrupts - _stext)
 	b	5f
 3:
 #endif
