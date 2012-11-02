@@ -887,6 +887,12 @@ typedef struct drm_i915_private {
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
 
+	/*
+	 * The console may be contended at resume, but we don't
+	 * want it to block on it.
+	 */
+	struct work_struct console_resume_work;
+
 	struct backlight_device *backlight;
 
 	struct drm_property *broadcast_rgb_property;
@@ -1273,6 +1279,7 @@ extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
 extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
 extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 
+extern void intel_console_resume(struct work_struct *work);
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
