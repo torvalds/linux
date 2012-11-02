@@ -18,13 +18,13 @@ typedef struct _BULK_ENDP_OUT {
 	unsigned char	int_out_interval;
 } BULK_ENDP_OUT, *PBULK_ENDP_OUT;
 
-typedef struct _INTR_ENDP_IN {
+struct bcm_intr_endpoint_in {
 	char	*int_in_buffer;
 	size_t	int_in_size;
 	unsigned char	int_in_endpointAddr;
 	unsigned char	int_in_interval;
 	unsigned int	int_in_pipe;
-} INTR_ENDP_IN, *PINTR_ENDP_IN;
+};
 
 struct bcm_intr_endpoint_out {
 	char	*int_out_buffer;
@@ -58,7 +58,7 @@ struct bcm_interface_adapter {
 	/* Bulk endpoint out info */
 	BULK_ENDP_OUT	sBulkOut;
 	/* Interrupt endpoint in info */
-	INTR_ENDP_IN	sIntrIn;
+	struct bcm_intr_endpoint_in	sIntrIn;
 	/* Interrupt endpoint out info */
 	struct bcm_intr_endpoint_out	sIntrOut;
 	ULONG		ulInterruptData[2];
