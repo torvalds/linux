@@ -819,26 +819,8 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 
 	/*
 	 * now build and submit the bios for the other mirrors, check
-	 * checksums
-	 */
-	for (mirror_index = 0;
-	     mirror_index < BTRFS_MAX_MIRRORS &&
-	     sblocks_for_recheck[mirror_index].page_count > 0;
-	     mirror_index++) {
-		if (mirror_index == failed_mirror_index)
-			continue;
-
-		/* build and submit the bios, check checksums */
-		ret = scrub_recheck_block(fs_info,
-					  sblocks_for_recheck + mirror_index,
-					  is_metadata, have_csum, csum,
-					  generation, sctx->csum_size);
-		if (ret)
-			goto did_not_correct_error;
-	}
-
-	/*
-	 * first try to pick the mirror which is completely without I/O
+	 * checksums.
+	 * First try to pick the mirror which is completely without I/O
 	 * errors and also does not have a checksum error.
 	 * If one is found, and if a checksum is present, the full block
 	 * that is known to contain an error is rewritten. Afterwards
@@ -854,10 +836,17 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	     mirror_index < BTRFS_MAX_MIRRORS &&
 	     sblocks_for_recheck[mirror_index].page_count > 0;
 	     mirror_index++) {
-		struct scrub_block *sblock_other = sblocks_for_recheck +
-						   mirror_index;
+		struct scrub_block *sblock_other;
 
-		if (!sblock_other->header_error &&
+		if (mirror_index == failed_mirror_index)
+			continue;
+		sblock_other = sblocks_for_recheck + mirror_index;
+
+		/* build and submit the bios, check checksums */
+		ret = scrub_recheck_block(fs_info, sblock_other, is_metadata,
+					  have_csum, csum, generation,
+					  sctx->csum_size);
+		if (!ret && !sblock_other->header_error &&
 		    !sblock_other->checksum_error &&
 		    sblock_other->no_io_error_seen) {
 			int force_write = is_metadata || have_csum;
