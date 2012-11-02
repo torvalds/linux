@@ -310,6 +310,7 @@ static struct platform_driver gef_wdt_driver = {
 		.of_match_table = gef_wdt_ids,
 	},
 	.probe		= gef_wdt_probe,
+	.remove		= gef_wdt_remove,
 };
 
 static int __init gef_wdt_init(void)
