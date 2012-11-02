@@ -8239,7 +8239,8 @@ static int __init s2io_starter(void)
 
 /**
  * s2io_closer - Cleanup routine for the driver
- * Description: This function is the cleanup routine for the driver. It unregist * ers the driver.
+ * Description: This function is the cleanup routine for the driver. It
+ * unregisters the driver.
  */
 
 static __exit void s2io_closer(void)
