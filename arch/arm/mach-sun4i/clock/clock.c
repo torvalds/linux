@@ -180,7 +180,7 @@ int clk_init(void)
 
 	/* initiate PLL6 */
 	tmpSclk = &ccu_sys_clk[AW_SYS_CLK_PLL6];
-	tmpSclk->clk->rate  = 960000000;
+	tmpSclk->clk->rate  = 1200000000;
 	tmpSclk->set_clk(tmpSclk->clk);
 	tmpSclk->clk->onoff = AW_CCU_CLK_ON;
 	tmpSclk->set_clk(tmpSclk->clk);
