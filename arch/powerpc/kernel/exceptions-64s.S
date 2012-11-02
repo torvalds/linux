@@ -25,6 +25,43 @@
  * 0x7000 - 0x7fff : FWNMI data area
  * 0x8000 -        : Early init and support code
  */
+	/* Syscall routine is used twice, in reloc-off and reloc-on paths */
+#define SYSCALL_PSERIES_1 					\
+BEGIN_FTR_SECTION						\
+	cmpdi	r0,0x1ebe ; 					\
+	beq-	1f ;						\
+END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
+	mr	r9,r13 ;					\
+	GET_PACA(r13) ;						\
+	mfspr	r11,SPRN_SRR0 ;					\
+0:
+
+#define SYSCALL_PSERIES_2_RFID 					\
+	mfspr	r12,SPRN_SRR1 ;					\
+	ld	r10,PACAKBASE(r13) ; 				\
+	LOAD_HANDLER(r10, system_call_entry) ; 			\
+	mtspr	SPRN_SRR0,r10 ; 				\
+	ld	r10,PACAKMSR(r13) ;				\
+	mtspr	SPRN_SRR1,r10 ; 				\
+	rfid ; 							\
+	b	. ;	/* prevent speculative execution */
+
+#define SYSCALL_PSERIES_3					\
+	/* Fast LE/BE switch system call */			\
+1:	mfspr	r12,SPRN_SRR1 ;					\
+	xori	r12,r12,MSR_LE ;				\
+	mtspr	SPRN_SRR1,r12 ;					\
+	rfid ;		/* return to userspace */		\
+	b	. ;						\
+2:	mfspr	r12,SPRN_SRR1 ;					\
+	andi.	r12,r12,MSR_PR ;				\
+	bne	0b ;						\
+	mtspr	SPRN_SRR0,r3 ;					\
+	mtspr	SPRN_SRR1,r4 ;					\
+	mtspr	SPRN_SDR1,r5 ;					\
+	rfid ;							\
+	b	. ;	/* prevent speculative execution */
+
 
 /*
  * This is the start of the interrupt handlers for pSeries
@@ -207,30 +244,10 @@ system_call_pSeries:
 	KVMTEST(0xc00)
 	GET_SCRATCH0(r13)
 #endif
-BEGIN_FTR_SECTION
-	cmpdi	r0,0x1ebe
-	beq-	1f
-END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
-	mr	r9,r13
-	GET_PACA(r13)
-	mfspr	r11,SPRN_SRR0
-	mfspr	r12,SPRN_SRR1
-	ld	r10,PACAKBASE(r13)
-	LOAD_HANDLER(r10, system_call_entry)
-	mtspr	SPRN_SRR0,r10
-	ld	r10,PACAKMSR(r13)
-	mtspr	SPRN_SRR1,r10
-	rfid
-	b	.	/* prevent speculative execution */
-
+	SYSCALL_PSERIES_1
+	SYSCALL_PSERIES_2_RFID
+	SYSCALL_PSERIES_3
 	KVM_HANDLER(PACA_EXGEN, EXC_STD, 0xc00)
-
-/* Fast LE/BE switch system call */
-1:	mfspr	r12,SPRN_SRR1
-	xori	r12,r12,MSR_LE
-	mtspr	SPRN_SRR1,r12
-	rfid		/* return to userspace */
-	b	.
 
 	STD_EXCEPTION_PSERIES(0xd00, 0xd00, single_step)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xd00)
