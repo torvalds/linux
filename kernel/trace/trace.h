@@ -298,15 +298,18 @@ struct tracer {
 #define trace_recursion_buffer() ((current)->trace_recursion & 0x3ff)
 
 /* for function tracing recursion */
-#define TRACE_INTERNAL_BIT		(1<<11)
-#define TRACE_INTERNAL_NMI_BIT		(1<<12)
-#define TRACE_INTERNAL_IRQ_BIT		(1<<13)
-#define TRACE_INTERNAL_SIRQ_BIT		(1<<14)
-#define TRACE_GLOBAL_BIT		(1<<15)
-#define TRACE_GLOBAL_NMI_BIT		(1<<16)
-#define TRACE_GLOBAL_IRQ_BIT		(1<<17)
-#define TRACE_GLOBAL_SIRQ_BIT		(1<<18)
-#define TRACE_CONTROL_BIT		(1<<19)
+enum {
+	TRACE_INTERNAL_BIT = 11,
+	TRACE_INTERNAL_NMI_BIT,
+	TRACE_INTERNAL_IRQ_BIT,
+	TRACE_INTERNAL_SIRQ_BIT,
+
+	TRACE_GLOBAL_BIT,
+	TRACE_GLOBAL_NMI_BIT,
+	TRACE_GLOBAL_IRQ_BIT,
+	TRACE_GLOBAL_SIRQ_BIT,
+
+	TRACE_CONTROL_BIT,
 
 /*
  * Abuse of the trace_recursion.
@@ -315,11 +318,12 @@ struct tracer {
  * was called in irq context but we have irq tracing off. Since this
  * can only be modified by current, we can reuse trace_recursion.
  */
-#define TRACE_IRQ_BIT			(1<<20)
+	TRACE_IRQ_BIT,
+};
 
-#define trace_recursion_set(bit)	do { (current)->trace_recursion |= (bit); } while (0)
-#define trace_recursion_clear(bit)	do { (current)->trace_recursion &= ~(bit); } while (0)
-#define trace_recursion_test(bit)	((current)->trace_recursion & (bit))
+#define trace_recursion_set(bit)	do { (current)->trace_recursion |= (1<<(bit)); } while (0)
+#define trace_recursion_clear(bit)	do { (current)->trace_recursion &= ~(1<<(bit)); } while (0)
+#define trace_recursion_test(bit)	((current)->trace_recursion & (1<<(bit)))
 
 #define TRACE_PIPE_ALL_CPU	-1
 
