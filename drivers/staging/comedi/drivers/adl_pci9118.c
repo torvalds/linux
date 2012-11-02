@@ -356,10 +356,8 @@ static int check_channel_list(struct comedi_device *dev,
 		return 0;
 	}
 	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
-		printk
-		    ("comedi%d: range/channel list is too long for "
-						"actual configuration (%d>%d)!",
-		     dev->minor, n_chan, s->len_chanlist - frontadd - backadd);
+		comedi_error(dev,
+			    "range/channel list is too long for actual configuration!\n");
 		return 0;
 	}
 
@@ -890,11 +888,10 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 	if (devpriv->ai16bits == 0) {
 		if ((sampl & 0x000f) != devpriv->chanlist[s->async->cur_chan]) {
 							/* data dropout! */
-			printk
-			    ("comedi: A/D  SAMPL - data dropout: "
-				"received channel %d, expected %d!\n",
-				sampl & 0x000f,
-				devpriv->chanlist[s->async->cur_chan]);
+			dev_info(dev->class_dev,
+				 "A/D  SAMPL - data dropout: received channel %d, expected %d!\n",
+				 sampl & 0x000f,
+				 devpriv->chanlist[s->async->cur_chan]);
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			pci9118_ai_cancel(dev, s);
 			comedi_event(dev, s);
@@ -1316,21 +1313,18 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		if (dmalen0 < (devpriv->ai_n_realscanlen << 1)) {
 			/* uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
-			printk
-			    ("comedi%d: WAR: DMA0 buf too short, can't "
-					"support TRIG_WAKE_EOS (%d<%d)\n",
-			     dev->minor, dmalen0,
-			     devpriv->ai_n_realscanlen << 1);
+			dev_info(dev->class_dev,
+				 "WAR: DMA0 buf too short, can't support TRIG_WAKE_EOS (%d<%d)\n",
+				  dmalen0, devpriv->ai_n_realscanlen << 1);
 		} else {
 			/* short first DMA buffer to one scan */
 			dmalen0 = devpriv->ai_n_realscanlen << 1;
 			if (devpriv->useeoshandle)
 				dmalen0 += 2;
 			if (dmalen0 < 4) {
-				printk
-					("comedi%d: ERR: DMA0 buf len bug? "
-								"(%d<4)\n",
-					dev->minor, dmalen0);
+				dev_info(dev->class_dev,
+					 "ERR: DMA0 buf len bug? (%d<4)\n",
+					 dmalen0);
 				dmalen0 = 4;
 			}
 		}
@@ -1339,21 +1333,18 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		if (dmalen1 < (devpriv->ai_n_realscanlen << 1)) {
 			/* uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
-			printk
-			    ("comedi%d: WAR: DMA1 buf too short, "
-					"can't support TRIG_WAKE_EOS (%d<%d)\n",
-			     dev->minor, dmalen1,
-			     devpriv->ai_n_realscanlen << 1);
+			dev_info(dev->class_dev,
+				 "WAR: DMA1 buf too short, can't support TRIG_WAKE_EOS (%d<%d)\n",
+				 dmalen1, devpriv->ai_n_realscanlen << 1);
 		} else {
 			/* short second DMA buffer to one scan */
 			dmalen1 = devpriv->ai_n_realscanlen << 1;
 			if (devpriv->useeoshandle)
 				dmalen1 -= 2;
 			if (dmalen1 < 4) {
-				printk
-					("comedi%d: ERR: DMA1 buf len bug? "
-								"(%d<4)\n",
-					dev->minor, dmalen1);
+				dev_info(dev->class_dev,
+					 "ERR: DMA1 buf len bug? (%d<4)\n",
+					 dmalen1);
 				dmalen1 = 4;
 			}
 		}
@@ -1888,18 +1879,34 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 		 */
 		if (comedi_pci_enable(pcidev, "adl_pci9118"))
 			continue;
-		printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx",
-			pcidev->bus->number,
-			PCI_SLOT(pcidev->devfn),
-			PCI_FUNC(pcidev->devfn),
-			(unsigned long)pci_resource_start(pcidev, 2),
-			(unsigned long)pci_resource_start(pcidev, 0));
 		return pcidev;
 	}
-	printk(KERN_ERR
-		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, bus, slot);
+	dev_err(dev->class_dev,
+		"no supported board found! (req. bus/slot : %d/%d)\n",
+		bus, slot);
 	return NULL;
+}
+
+static void pci9118_report_attach(struct comedi_device *dev, unsigned int irq)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9118_private *devpriv = dev->private;
+	char irqbuf[30];
+	char muxbuf[30];
+
+	if (irq)
+		snprintf(irqbuf, sizeof(irqbuf), "irq %u%s", irq,
+			 (dev->irq ? "" : " UNAVAILABLE"));
+	else
+		snprintf(irqbuf, sizeof(irqbuf), "irq DISABLED");
+	if (devpriv->usemux)
+		snprintf(muxbuf, sizeof(muxbuf), "ext mux %u chans",
+			 devpriv->usemux);
+	else
+		snprintf(muxbuf, sizeof(muxbuf), "no ext mux");
+	dev_info(dev->class_dev, "%s (pci %s, %s, %sbus master, %s) attached\n",
+		 dev->board_name, pci_name(pcidev), irqbuf,
+		 (devpriv->master ? "" : "no "), muxbuf);
 }
 
 static int pci9118_attach(struct comedi_device *dev,
@@ -1913,8 +1920,6 @@ static int pci9118_attach(struct comedi_device *dev,
 	unsigned short master;
 	unsigned int irq;
 	u16 u16w;
-
-	printk("comedi%d: adl_pci9118: board=%s", dev->minor, this_board->name);
 
 	if (it->options[3] & 1)
 		master = 0;	/* user don't want use bus master */
@@ -1946,18 +1951,13 @@ static int pci9118_attach(struct comedi_device *dev,
 		irq = 0;	/* user don't want use IRQ */
 	if (irq > 0) {
 		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
-				"ADLink PCI-9118", dev)) {
-			printk(", unable to allocate IRQ %d, DISABLING IT",
-			       irq);
-			irq = 0;	/* Can't use IRQ */
-		} else {
-			printk(", irq=%u", irq);
-		}
-	} else {
-		printk(", IRQ disabled");
+				"ADLink PCI-9118", dev))
+			dev_warn(dev->class_dev,
+				 "unable to allocate IRQ %u, DISABLING IT\n",
+				 irq);
+		else
+			dev->irq = irq;
 	}
-
-	dev->irq = irq;
 
 	if (master) {		/* alloc DMA buffers */
 		devpriv->dma_doublebuf = 0;
@@ -1980,7 +1980,8 @@ static int pci9118_attach(struct comedi_device *dev,
 			}
 		}
 		if (!devpriv->dmabuf_virt[0]) {
-			printk(", Can't allocate DMA buffer, DMA disabled!");
+			dev_warn(dev->class_dev,
+				 "Can't allocate DMA buffer, DMA disabled!\n");
 			master = 0;
 		}
 
@@ -1990,11 +1991,6 @@ static int pci9118_attach(struct comedi_device *dev,
 	}
 
 	devpriv->master = master;
-	if (devpriv->master)
-		printk(", bus master");
-	else
-		printk(", no bus master");
-
 	devpriv->usemux = 0;
 	if (it->options[2] > 0) {
 		devpriv->usemux = it->options[2];
@@ -2005,7 +2001,6 @@ static int pci9118_attach(struct comedi_device *dev,
 				devpriv->usemux = 128;
 					/* max 128 channels with softare S&H! */
 			}
-		printk(", ext. mux %d channels", devpriv->usemux);
 	}
 
 	devpriv->softsshdelay = it->options[4];
@@ -2018,8 +2013,6 @@ static int pci9118_attach(struct comedi_device *dev,
 		devpriv->softsshsample = 0x00;
 		devpriv->softsshhold = 0x80;
 	}
-
-	printk(".\n");
 
 	pci_read_config_word(pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(pcidev, PCI_COMMAND, u16w | 64);
@@ -2095,6 +2088,7 @@ static int pci9118_attach(struct comedi_device *dev,
 		devpriv->ai16bits = 0;
 		break;
 	}
+	pci9118_report_attach(dev, irq);
 	return 0;
 }
 
