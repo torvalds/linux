@@ -1067,11 +1067,15 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 #endif
 	nvt->rdev = rdev;
 
+	ret = rc_register_device(rdev);
+	if (ret)
+		goto exit_free_dev_rdev;
+
 	ret = -EBUSY;
 	/* now claim resources */
 	if (!request_region(nvt->cir_addr,
 			    CIR_IOREG_LENGTH, NVT_DRIVER_NAME))
-		goto exit_free_dev_rdev;
+		goto exit_unregister_device;
 
 	if (request_irq(nvt->cir_irq, nvt_cir_isr, IRQF_SHARED,
 			NVT_DRIVER_NAME, (void *)nvt))
@@ -1085,10 +1089,6 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 			NVT_DRIVER_NAME, (void *)nvt))
 		goto exit_release_cir_wake_addr;
 
-	ret = rc_register_device(rdev);
-	if (ret)
-		goto exit_free_wake_irq;
-
 	device_init_wakeup(&pdev->dev, true);
 
 	nvt_pr(KERN_NOTICE, "driver has been successfully loaded\n");
@@ -1099,14 +1099,14 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 
 	return 0;
 
-exit_free_wake_irq:
-	free_irq(nvt->cir_wake_irq, nvt);
 exit_release_cir_wake_addr:
 	release_region(nvt->cir_wake_addr, CIR_IOREG_LENGTH);
 exit_free_irq:
 	free_irq(nvt->cir_irq, nvt);
 exit_release_cir_addr:
 	release_region(nvt->cir_addr, CIR_IOREG_LENGTH);
+exit_unregister_device:
+	rc_unregister_device(rdev);
 exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(nvt);

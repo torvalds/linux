@@ -1075,10 +1075,14 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	device_set_wakeup_capable(&pnp_dev->dev, true);
 	device_set_wakeup_enable(&pnp_dev->dev, true);
 
+	error = rc_register_device(rdev);
+	if (error < 0)
+		goto exit_free_dev_rdev;
+
 	/* claim the resources */
 	error = -EBUSY;
 	if (!request_region(dev->hw_io, ENE_IO_SIZE, ENE_DRIVER_NAME)) {
-		goto exit_free_dev_rdev;
+		goto exit_unregister_device;
 	}
 
 	dev->irq = pnp_irq(pnp_dev, 0);
@@ -1087,17 +1091,13 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 		goto exit_release_hw_io;
 	}
 
-	error = rc_register_device(rdev);
-	if (error < 0)
-		goto exit_free_irq;
-
 	pr_notice("driver has been successfully loaded\n");
 	return 0;
 
-exit_free_irq:
-	free_irq(dev->irq, dev);
 exit_release_hw_io:
 	release_region(dev->hw_io, ENE_IO_SIZE);
+exit_unregister_device:
+	rc_unregister_device(rdev);
 exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(dev);

@@ -1093,11 +1093,15 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 	data->dev->rx_resolution = US_TO_NS(2);
 	data->dev->allowed_protos = RC_BIT_ALL;
 
+	err = rc_register_device(data->dev);
+	if (err)
+		goto exit_free_rc;
+
 	if (!request_region(data->wbase, WAKEUP_IOMEM_LEN, DRVNAME)) {
 		dev_err(dev, "Region 0x%lx-0x%lx already in use!\n",
 			data->wbase, data->wbase + WAKEUP_IOMEM_LEN - 1);
 		err = -EBUSY;
-		goto exit_free_rc;
+		goto exit_unregister_device;
 	}
 
 	if (!request_region(data->ebase, EHFUNC_IOMEM_LEN, DRVNAME)) {
@@ -1122,24 +1126,20 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_release_sbase;
 	}
 
-	err = rc_register_device(data->dev);
-	if (err)
-		goto exit_free_irq;
-
 	device_init_wakeup(&device->dev, 1);
 
 	wbcir_init_hw(data);
 
 	return 0;
 
-exit_free_irq:
-	free_irq(data->irq, device);
 exit_release_sbase:
 	release_region(data->sbase, SP_IOMEM_LEN);
 exit_release_ebase:
 	release_region(data->ebase, EHFUNC_IOMEM_LEN);
 exit_release_wbase:
 	release_region(data->wbase, WAKEUP_IOMEM_LEN);
+exit_unregister_device:
+	rc_unregister_device(data->dev);
 exit_free_rc:
 	rc_free_device(data->dev);
 exit_unregister_led:

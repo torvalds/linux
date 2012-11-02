@@ -1591,28 +1591,28 @@ static int ite_probe(struct pnp_dev *pdev, const struct pnp_device_id
 	rdev->driver_name = ITE_DRIVER_NAME;
 	rdev->map_name = RC_MAP_RC6_MCE;
 
+	ret = rc_register_device(rdev);
+	if (ret)
+		goto exit_free_dev_rdev;
+
 	ret = -EBUSY;
 	/* now claim resources */
 	if (!request_region(itdev->cir_addr,
 				dev_desc->io_region_size, ITE_DRIVER_NAME))
-		goto exit_free_dev_rdev;
+		goto exit_unregister_device;
 
 	if (request_irq(itdev->cir_irq, ite_cir_isr, IRQF_SHARED,
 			ITE_DRIVER_NAME, (void *)itdev))
 		goto exit_release_cir_addr;
 
-	ret = rc_register_device(rdev);
-	if (ret)
-		goto exit_free_irq;
-
 	ite_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 
 	return 0;
 
-exit_free_irq:
-	free_irq(itdev->cir_irq, itdev);
 exit_release_cir_addr:
 	release_region(itdev->cir_addr, itdev->params.io_region_size);
+exit_unregister_device:
+	rc_unregister_device(rdev);
 exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(itdev);
