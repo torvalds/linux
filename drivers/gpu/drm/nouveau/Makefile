@@ -29,6 +29,7 @@ nouveau-y += core/subdev/bios/base.o
 nouveau-y += core/subdev/bios/bit.o
 nouveau-y += core/subdev/bios/conn.o
 nouveau-y += core/subdev/bios/dcb.o
+nouveau-y += core/subdev/bios/disp.o
 nouveau-y += core/subdev/bios/dp.o
 nouveau-y += core/subdev/bios/extdev.o
 nouveau-y += core/subdev/bios/gpio.o
