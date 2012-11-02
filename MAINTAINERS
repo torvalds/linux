@@ -2151,6 +2151,15 @@ S:	Maintained
 F:	Documentation/video4linux/cx18.txt
 F:	drivers/media/pci/cx18/
 
+CX88 VIDEO4LINUX DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	Documentation/video4linux/cx88/
+F:	drivers/media/pci/cx88/
+
 CXD2820R MEDIA DRIVER
 M:	Antti Palosaari <crope@iki.fi>
 L:	linux-media@vger.kernel.org
