@@ -62,6 +62,31 @@ END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)				\
 	rfid ;							\
 	b	. ;	/* prevent speculative execution */
 
+#if defined(CONFIG_RELOCATABLE)
+	/*
+	 * We can't branch directly; in the direct case we use LR
+	 * and system_call_entry restores LR.  (We thus need to move
+	 * LR to r10 in the RFID case too.)
+	 */
+#define SYSCALL_PSERIES_2_DIRECT				\
+	mflr	r10 ;						\
+	ld	r12,PACAKBASE(r13) ; 				\
+	LOAD_HANDLER(r12, system_call_entry_direct) ;		\
+	mtlr	r12 ;						\
+	mfspr	r12,SPRN_SRR1 ;					\
+	/* Re-use of r13... No spare regs to do this */	\
+	li	r13,MSR_RI ;					\
+	mtmsrd 	r13,1 ;						\
+	GET_PACA(r13) ;	/* get r13 back */			\
+	blr ;
+#else
+	/* We can branch directly */
+#define SYSCALL_PSERIES_2_DIRECT				\
+	mfspr	r12,SPRN_SRR1 ;					\
+	li	r10,MSR_RI ;					\
+	mtmsrd 	r10,1 ;			/* Set RI (EE=0) */	\
+	b	system_call_entry_direct ;
+#endif
 
 /*
  * This is the start of the interrupt handlers for pSeries
