@@ -88,7 +88,7 @@ struct btrfs_device {
 	u8 uuid[BTRFS_UUID_SIZE];
 
 	/* per-device scrub information */
-	struct scrub_dev *scrub_device;
+	struct scrub_ctx *scrub_device;
 
 	struct btrfs_work work;
 	struct rcu_head rcu;
