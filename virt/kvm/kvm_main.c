@@ -1929,10 +1929,6 @@ out_free1:
 			goto out;
 		}
 		r = kvm_arch_vcpu_ioctl_set_regs(vcpu, kvm_regs);
-		if (r)
-			goto out_free2;
-		r = 0;
-out_free2:
 		kfree(kvm_regs);
 		break;
 	}
@@ -1958,9 +1954,6 @@ out_free2:
 			goto out;
 		}
 		r = kvm_arch_vcpu_ioctl_set_sregs(vcpu, kvm_sregs);
-		if (r)
-			goto out;
-		r = 0;
 		break;
 	}
 	case KVM_GET_MP_STATE: {
@@ -1982,9 +1975,6 @@ out_free2:
 		if (copy_from_user(&mp_state, argp, sizeof mp_state))
 			goto out;
 		r = kvm_arch_vcpu_ioctl_set_mpstate(vcpu, &mp_state);
-		if (r)
-			goto out;
-		r = 0;
 		break;
 	}
 	case KVM_TRANSLATE: {
@@ -2009,9 +1999,6 @@ out_free2:
 		if (copy_from_user(&dbg, argp, sizeof dbg))
 			goto out;
 		r = kvm_arch_vcpu_ioctl_set_guest_debug(vcpu, &dbg);
-		if (r)
-			goto out;
-		r = 0;
 		break;
 	}
 	case KVM_SET_SIGNAL_MASK: {
@@ -2059,9 +2046,6 @@ out_free2:
 			goto out;
 		}
 		r = kvm_arch_vcpu_ioctl_set_fpu(vcpu, fpu);
-		if (r)
-			goto out;
-		r = 0;
 		break;
 	}
 	default:
@@ -2131,8 +2115,6 @@ static long kvm_vm_ioctl(struct file *filp,
 	switch (ioctl) {
 	case KVM_CREATE_VCPU:
 		r = kvm_vm_ioctl_create_vcpu(kvm, arg);
-		if (r < 0)
-			goto out;
 		break;
 	case KVM_SET_USER_MEMORY_REGION: {
 		struct kvm_userspace_memory_region kvm_userspace_mem;
@@ -2143,8 +2125,6 @@ static long kvm_vm_ioctl(struct file *filp,
 			goto out;
 
 		r = kvm_vm_ioctl_set_memory_region(kvm, &kvm_userspace_mem, 1);
-		if (r)
-			goto out;
 		break;
 	}
 	case KVM_GET_DIRTY_LOG: {
@@ -2154,8 +2134,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&log, argp, sizeof log))
 			goto out;
 		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
-		if (r)
-			goto out;
 		break;
 	}
 #ifdef KVM_COALESCED_MMIO_PAGE_OFFSET
@@ -2165,9 +2143,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&zone, argp, sizeof zone))
 			goto out;
 		r = kvm_vm_ioctl_register_coalesced_mmio(kvm, &zone);
-		if (r)
-			goto out;
-		r = 0;
 		break;
 	}
 	case KVM_UNREGISTER_COALESCED_MMIO: {
@@ -2176,9 +2151,6 @@ static long kvm_vm_ioctl(struct file *filp,
 		if (copy_from_user(&zone, argp, sizeof zone))
 			goto out;
 		r = kvm_vm_ioctl_unregister_coalesced_mmio(kvm, &zone);
-		if (r)
-			goto out;
-		r = 0;
 		break;
 	}
 #endif
@@ -2287,8 +2259,6 @@ static long kvm_vm_compat_ioctl(struct file *filp,
 		log.dirty_bitmap = compat_ptr(compat_log.dirty_bitmap);
 
 		r = kvm_vm_ioctl_get_dirty_log(kvm, &log);
-		if (r)
-			goto out;
 		break;
 	}
 	default:
