@@ -336,18 +336,7 @@ static struct platform_driver ahci_driver = {
 	},
 	.id_table	= ahci_devtype,
 };
-
-static int __init ahci_init(void)
-{
-	return platform_driver_register(&ahci_driver);
-}
-module_init(ahci_init);
-
-static void __exit ahci_exit(void)
-{
-	platform_driver_unregister(&ahci_driver);
-}
-module_exit(ahci_exit);
+module_platform_driver(ahci_driver);
 
 MODULE_DESCRIPTION("AHCI SATA platform driver");
 MODULE_AUTHOR("Anton Vorontsov <avorontsov@ru.mvista.com>");
