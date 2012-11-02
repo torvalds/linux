@@ -83,6 +83,8 @@ TODO:
 	make ao fifo size adjustable like ai fifo
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "../comedidev.h"
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -96,9 +98,9 @@ TODO:
 /* #define PCIDAS64_DEBUG         enable debugging code */
 
 #ifdef PCIDAS64_DEBUG
-#define DEBUG_PRINT(format, args...)  printk(format , ## args)
+#define DEBUG_PRINT(format, args...)  pr_debug(format, ## args)
 #else
-#define DEBUG_PRINT(format, args...)
+#define DEBUG_PRINT(format, args...)  no_printk(format, ## args)
 #endif
 
 #define TIMER_BASE 25		/*  40MHz master clock */
@@ -1580,8 +1582,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	if (devpriv->ai_dma_desc == NULL)
 		return -ENOMEM;
 
-	DEBUG_PRINT("ai dma descriptors start at bus addr 0x%x\n",
-		    devpriv->ai_dma_desc_bus_addr);
+	DEBUG_PRINT("ai dma descriptors start at bus addr 0x%llx\n",
+		    (unsigned long long)devpriv->ai_dma_desc_bus_addr);
 	if (ao_cmd_is_supported(board(dev))) {
 		devpriv->ao_dma_desc =
 		    pci_alloc_consistent(pcidev,
@@ -1591,8 +1593,8 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 		if (devpriv->ao_dma_desc == NULL)
 			return -ENOMEM;
 
-		DEBUG_PRINT("ao dma descriptors start at bus addr 0x%x\n",
-			    devpriv->ao_dma_desc_bus_addr);
+		DEBUG_PRINT("ao dma descriptors start at bus addr 0x%llx\n",
+			    (unsigned long long)devpriv->ao_dma_desc_bus_addr);
 	}
 	/*  initialize dma descriptors */
 	for (i = 0; i < ai_dma_ring_count(board(dev)); i++) {
@@ -1944,7 +1946,7 @@ static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		DEBUG_PRINT(" looped %i times waiting for data\n", i);
 		if (i == timeout) {
 			comedi_error(dev, " analog input read insn timed out");
-			printk(" status 0x%x\n", bits);
+			dev_info(dev->class_dev, "status 0x%x\n", bits);
 			return -ETIME;
 		}
 		if (board(dev)->layout == LAYOUT_4020)
@@ -3100,15 +3102,13 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	plx_status = readl(devpriv->plx9080_iobase + PLX_INTRCS_REG);
 	status = readw(devpriv->main_iobase + HW_STATUS_REG);
 
-	DEBUG_PRINT("cb_pcidas64: hw status 0x%x ", status);
-	DEBUG_PRINT("plx status 0x%x\n", plx_status);
+	DEBUG_PRINT("hw status 0x%x, plx status 0x%x\n", status, plx_status);
 
 	/* an interrupt before all the postconfig stuff gets done could
 	 * cause a NULL dereference if we continue through the
 	 * interrupt handler */
 	if (dev->attached == 0) {
-		DEBUG_PRINT("cb_pcidas64: premature interrupt, ignoring",
-			    status);
+		DEBUG_PRINT("premature interrupt, ignoring\n");
 		return IRQ_HANDLED;
 	}
 	handle_ai_interrupt(dev, status, plx_status);
@@ -3290,8 +3290,9 @@ static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
 	buffer_index = devpriv->ao_dma_index;
 	prev_buffer_index = prev_ao_dma_index(dev);
 
-	DEBUG_PRINT("attempting to load ao buffer %i (0x%x)\n", buffer_index,
-		    devpriv->ao_buffer_bus_addr[buffer_index]);
+	DEBUG_PRINT("attempting to load ao buffer %i (0x%llx)\n", buffer_index,
+		    (unsigned long long)devpriv->ao_buffer_bus_addr[
+								buffer_index]);
 
 	num_bytes = comedi_buf_read_n_available(dev->write_subdev->async);
 	if (num_bytes > DMA_BUFFER_SIZE)
