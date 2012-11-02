@@ -19,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/notifier.h>
 #include <linux/irqflags.h>
+#include <linux/irq_work.h>
 #include <linux/debugfs.h>
 #include <linux/pagemap.h>
 #include <linux/hardirq.h>
@@ -83,6 +84,14 @@ static int dummy_set_flag(u32 old_flags, u32 bit, int set)
  * occurred.
  */
 static DEFINE_PER_CPU(bool, trace_cmdline_save);
+
+/*
+ * When a reader is waiting for data, then this variable is
+ * set to true.
+ */
+static bool trace_wakeup_needed;
+
+static struct irq_work trace_work_wakeup;
 
 /*
  * Kill all tracing for good (never come back).
@@ -329,12 +338,18 @@ unsigned long trace_flags = TRACE_ITER_PRINT_PARENT | TRACE_ITER_PRINTK |
 static int trace_stop_count;
 static DEFINE_RAW_SPINLOCK(tracing_start_lock);
 
-static void wakeup_work_handler(struct work_struct *work)
+/**
+ * trace_wake_up - wake up tasks waiting for trace input
+ *
+ * Schedules a delayed work to wake up any task that is blocked on the
+ * trace_wait queue. These is used with trace_poll for tasks polling the
+ * trace.
+ */
+static void trace_wake_up(struct irq_work *work)
 {
-	wake_up(&trace_wait);
-}
+	wake_up_all(&trace_wait);
 
-static DECLARE_DELAYED_WORK(wakeup_work, wakeup_work_handler);
+}
 
 /**
  * tracing_on - enable tracing buffers
@@ -388,22 +403,6 @@ int tracing_is_on(void)
 	return !global_trace.buffer_disabled;
 }
 EXPORT_SYMBOL_GPL(tracing_is_on);
-
-/**
- * trace_wake_up - wake up tasks waiting for trace input
- *
- * Schedules a delayed work to wake up any task that is blocked on the
- * trace_wait queue. These is used with trace_poll for tasks polling the
- * trace.
- */
-void trace_wake_up(void)
-{
-	const unsigned long delay = msecs_to_jiffies(2);
-
-	if (trace_flags & TRACE_ITER_BLOCK)
-		return;
-	schedule_delayed_work(&wakeup_work, delay);
-}
 
 static int __init set_buf_size(char *str)
 {
@@ -752,6 +751,40 @@ update_max_tr_single(struct trace_array *tr, struct task_struct *tsk, int cpu)
 	arch_spin_unlock(&ftrace_max_lock);
 }
 #endif /* CONFIG_TRACER_MAX_TRACE */
+
+static void default_wait_pipe(struct trace_iterator *iter)
+{
+	DEFINE_WAIT(wait);
+
+	prepare_to_wait(&trace_wait, &wait, TASK_INTERRUPTIBLE);
+
+	/*
+	 * The events can happen in critical sections where
+	 * checking a work queue can cause deadlocks.
+	 * After adding a task to the queue, this flag is set
+	 * only to notify events to try to wake up the queue
+	 * using irq_work.
+	 *
+	 * We don't clear it even if the buffer is no longer
+	 * empty. The flag only causes the next event to run
+	 * irq_work to do the work queue wake up. The worse
+	 * that can happen if we race with !trace_empty() is that
+	 * an event will cause an irq_work to try to wake up
+	 * an empty queue.
+	 *
+	 * There's no reason to protect this flag either, as
+	 * the work queue and irq_work logic will do the necessary
+	 * synchronization for the wake ups. The only thing
+	 * that is necessary is that the wake up happens after
+	 * a task has been queued. It's OK for spurious wake ups.
+	 */
+	trace_wakeup_needed = true;
+
+	if (trace_empty(iter))
+		schedule();
+
+	finish_wait(&trace_wait, &wait);
+}
 
 /**
  * register_tracer - register a tracer with the ftrace system.
@@ -1156,30 +1189,32 @@ void
 __buffer_unlock_commit(struct ring_buffer *buffer, struct ring_buffer_event *event)
 {
 	__this_cpu_write(trace_cmdline_save, true);
+	if (trace_wakeup_needed) {
+		trace_wakeup_needed = false;
+		/* irq_work_queue() supplies it's own memory barriers */
+		irq_work_queue(&trace_work_wakeup);
+	}
 	ring_buffer_unlock_commit(buffer, event);
 }
 
 static inline void
 __trace_buffer_unlock_commit(struct ring_buffer *buffer,
 			     struct ring_buffer_event *event,
-			     unsigned long flags, int pc,
-			     int wake)
+			     unsigned long flags, int pc)
 {
 	__buffer_unlock_commit(buffer, event);
 
 	ftrace_trace_stack(buffer, flags, 6, pc);
 	ftrace_trace_userstack(buffer, flags, pc);
-
-	if (wake)
-		trace_wake_up();
 }
 
 void trace_buffer_unlock_commit(struct ring_buffer *buffer,
 				struct ring_buffer_event *event,
 				unsigned long flags, int pc)
 {
-	__trace_buffer_unlock_commit(buffer, event, flags, pc, 1);
+	__trace_buffer_unlock_commit(buffer, event, flags, pc);
 }
+EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit);
 
 struct ring_buffer_event *
 trace_current_buffer_lock_reserve(struct ring_buffer **current_rb,
@@ -1196,29 +1231,21 @@ void trace_current_buffer_unlock_commit(struct ring_buffer *buffer,
 					struct ring_buffer_event *event,
 					unsigned long flags, int pc)
 {
-	__trace_buffer_unlock_commit(buffer, event, flags, pc, 1);
+	__trace_buffer_unlock_commit(buffer, event, flags, pc);
 }
 EXPORT_SYMBOL_GPL(trace_current_buffer_unlock_commit);
 
-void trace_nowake_buffer_unlock_commit(struct ring_buffer *buffer,
-				       struct ring_buffer_event *event,
-				       unsigned long flags, int pc)
-{
-	__trace_buffer_unlock_commit(buffer, event, flags, pc, 0);
-}
-EXPORT_SYMBOL_GPL(trace_nowake_buffer_unlock_commit);
-
-void trace_nowake_buffer_unlock_commit_regs(struct ring_buffer *buffer,
-					    struct ring_buffer_event *event,
-					    unsigned long flags, int pc,
-					    struct pt_regs *regs)
+void trace_buffer_unlock_commit_regs(struct ring_buffer *buffer,
+				     struct ring_buffer_event *event,
+				     unsigned long flags, int pc,
+				     struct pt_regs *regs)
 {
 	__buffer_unlock_commit(buffer, event);
 
 	ftrace_trace_stack_regs(buffer, flags, 0, pc, regs);
 	ftrace_trace_userstack(buffer, flags, pc);
 }
-EXPORT_SYMBOL_GPL(trace_nowake_buffer_unlock_commit_regs);
+EXPORT_SYMBOL_GPL(trace_buffer_unlock_commit_regs);
 
 void trace_current_buffer_discard_commit(struct ring_buffer *buffer,
 					 struct ring_buffer_event *event)
@@ -3354,19 +3381,6 @@ tracing_poll_pipe(struct file *filp, poll_table *poll_table)
 	}
 }
 
-
-void default_wait_pipe(struct trace_iterator *iter)
-{
-	DEFINE_WAIT(wait);
-
-	prepare_to_wait(&trace_wait, &wait, TASK_INTERRUPTIBLE);
-
-	if (trace_empty(iter))
-		schedule();
-
-	finish_wait(&trace_wait, &wait);
-}
-
 /*
  * This is a make-shift waitqueue.
  * A tracer might use this callback on some rare cases:
@@ -5107,6 +5121,7 @@ __init static int tracer_alloc_buffers(void)
 #endif
 
 	trace_init_cmdlines();
+	init_irq_work(&trace_work_wakeup, trace_wake_up);
 
 	register_tracer(&nop_trace);
 	current_trace = &nop_trace;

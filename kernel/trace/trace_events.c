@@ -1760,7 +1760,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip,
 	entry->ip			= ip;
 	entry->parent_ip		= parent_ip;
 
-	trace_nowake_buffer_unlock_commit(buffer, event, flags, pc);
+	trace_buffer_unlock_commit(buffer, event, flags, pc);
 
  out:
 	atomic_dec(&per_cpu(ftrace_test_event_disable, cpu));

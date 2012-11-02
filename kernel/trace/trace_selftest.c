@@ -1094,6 +1094,7 @@ trace_selftest_startup_wakeup(struct tracer *trace, struct trace_array *tr)
 	tracing_stop();
 	/* check both trace buffers */
 	ret = trace_test_buffer(tr, NULL);
+	printk("ret = %d\n", ret);
 	if (!ret)
 		ret = trace_test_buffer(&max_tr, &count);
 

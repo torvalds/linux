@@ -102,7 +102,7 @@ tracing_sched_wakeup_trace(struct trace_array *tr,
 	entry->next_cpu			= task_cpu(wakee);
 
 	if (!filter_check_discard(call, entry, buffer, event))
-		trace_nowake_buffer_unlock_commit(buffer, event, flags, pc);
+		trace_buffer_unlock_commit(buffer, event, flags, pc);
 }
 
 static void

@@ -327,7 +327,6 @@ trace_buffer_iter(struct trace_iterator *iter, int cpu)
 
 int tracer_init(struct tracer *t, struct trace_array *tr);
 int tracing_is_enabled(void);
-void trace_wake_up(void);
 void tracing_reset(struct trace_array *tr, int cpu);
 void tracing_reset_online_cpus(struct trace_array *tr);
 void tracing_reset_current(int cpu);
@@ -349,9 +348,6 @@ trace_buffer_lock_reserve(struct ring_buffer *buffer,
 			  unsigned long len,
 			  unsigned long flags,
 			  int pc);
-void trace_buffer_unlock_commit(struct ring_buffer *buffer,
-				struct ring_buffer_event *event,
-				unsigned long flags, int pc);
 
 struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
 						struct trace_array_cpu *data);
@@ -370,7 +366,6 @@ void trace_init_global_iter(struct trace_iterator *iter);
 
 void tracing_iter_reset(struct trace_iterator *iter, int cpu);
 
-void default_wait_pipe(struct trace_iterator *iter);
 void poll_wait_pipe(struct trace_iterator *iter);
 
 void ftrace(struct trace_array *tr,
