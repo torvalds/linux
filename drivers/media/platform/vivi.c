@@ -512,12 +512,22 @@ static void gen_twopix(struct vivi_dev *dev, u8 *buf, int colorpos, bool odd)
 
 static void precalculate_line(struct vivi_dev *dev)
 {
-	int w;
+	unsigned pixsize  = dev->pixelsize;
+	unsigned pixsize2 = 2*pixsize;
+	int colorpos;
+	u8 *pos;
 
-	for (w = 0; w < dev->width * 2; w++) {
-		int colorpos = w / (dev->width / 8) % 8;
+	for (colorpos = 0; colorpos < 16; ++colorpos) {
+		u8 pix[8];
+		int wstart =  colorpos    * dev->width / 8;
+		int wend   = (colorpos+1) * dev->width / 8;
+		int w;
 
-		gen_twopix(dev, dev->line + w * dev->pixelsize, colorpos, w & 1);
+		gen_twopix(dev, &pix[0],        colorpos % 8, 0);
+		gen_twopix(dev, &pix[pixsize],  colorpos % 8, 1);
+
+		for (w = wstart/2*2, pos = dev->line + w*pixsize; w < wend; w += 2, pos += pixsize2)
+			memcpy(pos, pix, pixsize2);
 	}
 }
 
