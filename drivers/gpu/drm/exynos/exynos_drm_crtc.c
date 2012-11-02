@@ -236,16 +236,21 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 			goto out;
 		}
 
+		spin_lock_irq(&dev->event_lock);
 		list_add_tail(&event->base.link,
 				&dev_priv->pageflip_event_list);
+		spin_unlock_irq(&dev->event_lock);
 
 		crtc->fb = fb;
 		ret = exynos_drm_crtc_mode_set_base(crtc, crtc->x, crtc->y,
 						    NULL);
 		if (ret) {
 			crtc->fb = old_fb;
+
+			spin_lock_irq(&dev->event_lock);
 			drm_vblank_put(dev, exynos_crtc->pipe);
 			list_del(&event->base.link);
+			spin_unlock_irq(&dev->event_lock);
 
 			goto out;
 		}
