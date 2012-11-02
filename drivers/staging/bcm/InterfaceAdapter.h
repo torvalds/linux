@@ -5,7 +5,7 @@ typedef struct _BULK_ENDP_IN {
 	char	*bulk_in_buffer;
 	size_t	bulk_in_size;
 	unsigned char	bulk_in_endpointAddr;
-	UINT	bulk_in_pipe;
+	unsigned int	bulk_in_pipe;
 } BULK_ENDP_IN, *PBULK_ENDP_IN;
 
 
@@ -13,7 +13,7 @@ typedef struct _BULK_ENDP_OUT {
 	unsigned char	bulk_out_buffer;
 	size_t	bulk_out_size;
 	unsigned char	bulk_out_endpointAddr;
-	UINT	bulk_out_pipe;
+	unsigned int	bulk_out_pipe;
 	/* this is used when int out endpoint is used as bulk out end point */
 	unsigned char	int_out_interval;
 } BULK_ENDP_OUT, *PBULK_ENDP_OUT;
@@ -23,7 +23,7 @@ typedef struct _INTR_ENDP_IN {
 	size_t	int_in_size;
 	unsigned char	int_in_endpointAddr;
 	unsigned char	int_in_interval;
-	UINT	int_in_pipe;
+	unsigned int	int_in_pipe;
 } INTR_ENDP_IN, *PINTR_ENDP_IN;
 
 typedef struct _INTR_ENDP_OUT {
@@ -31,7 +31,7 @@ typedef struct _INTR_ENDP_OUT {
 	size_t	int_out_size;
 	unsigned char	int_out_endpointAddr;
 	unsigned char	int_out_interval;
-	UINT	int_out_pipe;
+	unsigned int	int_out_pipe;
 } INTR_ENDP_OUT, *PINTR_ENDP_OUT;
 
 typedef struct _USB_TCB {
