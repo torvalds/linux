@@ -35,7 +35,6 @@
 #include <linux/vmalloc.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
-#include <plat/iommu.h>
 #include <plat/omap-pm.h>
 
 #include "ispvideo.h"

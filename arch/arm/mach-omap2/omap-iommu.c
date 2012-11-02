@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <plat/iommu.h>
+#include <linux/platform_data/iommu-omap.h>
 
 #include "soc.h"
 #include "common.h"

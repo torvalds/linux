@@ -18,11 +18,10 @@
 #include <linux/scatterlist.h>
 #include <linux/iommu.h>
 #include <linux/omap-iommu.h>
+#include <linux/platform_data/iommu-omap.h>
 
 #include <asm/cacheflush.h>
 #include <asm/mach/map.h>
-
-#include <plat/iommu.h>
 
 #include "omap-iopgtable.h"
 #include "omap-iommu.h"

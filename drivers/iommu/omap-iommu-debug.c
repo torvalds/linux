@@ -19,8 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <linux/omap-iommu.h>
-
-#include <plat/iommu.h>
+#include <linux/platform_data/iommu-omap.h>
 
 #include "omap-iopgtable.h"
 #include "omap-iommu.h"

@@ -19,8 +19,8 @@
 #include <linux/omap-iommu.h>
 #include <linux/slab.h>
 #include <linux/stringify.h>
+#include <linux/platform_data/iommu-omap.h>
 
-#include <plat/iommu.h>
 #include "omap-iommu.h"
 
 /*
