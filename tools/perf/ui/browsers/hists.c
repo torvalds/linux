@@ -310,10 +310,11 @@ static void ui_browser__warn_lost_events(struct ui_browser *browser)
 }
 
 static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
-			     void(*timer)(void *arg), void *arg, int delay_secs)
+			     struct hist_browser_timer *hbt)
 {
 	int key;
 	char title[160];
+	int delay_secs = hbt ? hbt->refresh : 0;
 
 	browser->b.entries = &browser->hists->entries;
 	browser->b.nr_entries = browser->hists->nr_entries;
@@ -330,7 +331,7 @@ static int hist_browser__run(struct hist_browser *browser, const char *ev_name,
 
 		switch (key) {
 		case K_TIMER:
-			timer(arg);
+			hbt->timer(hbt->arg);
 			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);
 
 			if (browser->hists->stats.nr_lost_warned !=
@@ -1136,8 +1137,7 @@ static inline bool is_report_browser(void *timer)
 static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    const char *helpline, const char *ev_name,
 				    bool left_exits,
-				    void(*timer)(void *arg), void *arg,
-				    int delay_secs)
+				    struct hist_browser_timer *hbt)
 {
 	struct hists *hists = &evsel->hists;
 	struct hist_browser *browser = hist_browser__new(hists);
@@ -1148,6 +1148,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 	int key = -1;
 	char buf[64];
 	char script_opt[64];
+	int delay_secs = hbt ? hbt->refresh : 0;
 
 	if (browser == NULL)
 		return -1;
@@ -1170,7 +1171,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 
 		nr_options = 0;
 
-		key = hist_browser__run(browser, ev_name, timer, arg, delay_secs);
+		key = hist_browser__run(browser, ev_name, hbt);
 
 		if (browser->he_selection != NULL) {
 			thread = hist_browser__selected_thread(browser);
@@ -1220,7 +1221,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			}
 			continue;
 		case 'r':
-			if (is_report_browser(timer))
+			if (is_report_browser(hbt))
 				goto do_scripts;
 			continue;
 		case K_F1:
@@ -1388,8 +1389,7 @@ do_annotate:
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */
 			he->used = true;
-			err = hist_entry__tui_annotate(he, evsel->idx,
-						       timer, arg, delay_secs);
+			err = hist_entry__tui_annotate(he, evsel->idx, hbt);
 			he->used = false;
 			/*
 			 * offer option to annotate the other branch source or target
@@ -1512,11 +1512,12 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 
 static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 				int nr_events, const char *help,
-				void(*timer)(void *arg), void *arg, int delay_secs)
+				struct hist_browser_timer *hbt)
 {
 	struct perf_evlist *evlist = menu->b.priv;
 	struct perf_evsel *pos;
 	const char *ev_name, *title = "Available samples";
+	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
 
 	if (ui_browser__show(&menu->b, title,
@@ -1528,7 +1529,7 @@ static int perf_evsel_menu__run(struct perf_evsel_menu *menu,
 
 		switch (key) {
 		case K_TIMER:
-			timer(arg);
+			hbt->timer(hbt->arg);
 
 			if (!menu->lost_events_warned && menu->lost_events) {
 				ui_browser__warn_lost_events(&menu->b);
@@ -1546,12 +1547,11 @@ browse_hists:
 			 * Give the calling tool a chance to populate the non
 			 * default evsel resorted hists tree.
 			 */
-			if (timer)
-				timer(arg);
+			if (hbt)
+				hbt->timer(hbt->arg);
 			ev_name = perf_evsel__name(pos);
 			key = perf_evsel__hists_browse(pos, nr_events, help,
-						       ev_name, true, timer,
-						       arg, delay_secs);
+						       ev_name, true, hbt);
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
@@ -1599,8 +1599,7 @@ out:
 
 static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 					   const char *help,
-					   void(*timer)(void *arg), void *arg,
-					   int delay_secs)
+					   struct hist_browser_timer *hbt)
 {
 	struct perf_evsel *pos;
 	struct perf_evsel_menu menu = {
@@ -1624,23 +1623,19 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 			menu.b.width = line_len;
 	}
 
-	return perf_evsel_menu__run(&menu, evlist->nr_entries, help, timer,
-				    arg, delay_secs);
+	return perf_evsel_menu__run(&menu, evlist->nr_entries, help, hbt);
 }
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
-				  void(*timer)(void *arg), void *arg,
-				  int delay_secs)
+				  struct hist_browser_timer *hbt)
 {
 	if (evlist->nr_entries == 1) {
 		struct perf_evsel *first = list_entry(evlist->entries.next,
 						      struct perf_evsel, node);
 		const char *ev_name = perf_evsel__name(first);
 		return perf_evsel__hists_browse(first, evlist->nr_entries, help,
-						ev_name, false, timer, arg,
-						delay_secs);
+						ev_name, false, hbt);
 	}
 
-	return __perf_evlist__tui_browse_hists(evlist, help,
-					       timer, arg, delay_secs);
+	return __perf_evlist__tui_browse_hists(evlist, help, hbt);
 }

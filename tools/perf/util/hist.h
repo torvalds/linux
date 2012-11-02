@@ -157,22 +157,25 @@ int hist_entry__period_snprintf(struct perf_hpp *hpp, struct hist_entry *he,
 
 struct perf_evlist;
 
+struct hist_browser_timer {
+	void (*timer)(void *arg);
+	void *arg;
+	int refresh;
+};
+
 #ifdef NEWT_SUPPORT
 #include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
-			     void(*timer)(void *arg), void *arg, int delay_secs);
+			     struct hist_browser_timer *hbt);
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
-				  void(*timer)(void *arg), void *arg,
-				  int refresh);
+				  struct hist_browser_timer *hbt);
 int script_browse(const char *script_opt);
 #else
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  void(*timer)(void *arg) __maybe_unused,
-				  void *arg __maybe_unused,
-				  int refresh __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
@@ -180,10 +183,8 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 static inline int hist_entry__tui_annotate(struct hist_entry *self
 					   __maybe_unused,
 					   int evidx __maybe_unused,
-					   void(*timer)(void *arg)
-					   __maybe_unused,
-					   void *arg __maybe_unused,
-					   int delay_secs __maybe_unused)
+					   struct hist_browser_timer *hbt
+					   __maybe_unused)
 {
 	return 0;
 }
@@ -199,15 +200,12 @@ static inline int script_browse(const char *script_opt)
 
 #ifdef GTK2_SUPPORT
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  void(*timer)(void *arg), void *arg,
-				  int refresh);
+				  struct hist_browser_timer *hbt __maybe_unused);
 #else
 static inline
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  void(*timer)(void *arg) __maybe_unused,
-				  void *arg __maybe_unused,
-				  int refresh __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }

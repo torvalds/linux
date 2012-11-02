@@ -428,10 +428,10 @@ static int __cmd_report(struct perf_report *rep)
 	if (use_browser > 0) {
 		if (use_browser == 1) {
 			perf_evlist__tui_browse_hists(session->evlist, help,
-						      NULL, NULL, 0);
+						      NULL);
 		} else if (use_browser == 2) {
 			perf_evlist__gtk_browse_hists(session->evlist, help,
-						      NULL, NULL, 0);
+						      NULL);
 		}
 	} else
 		perf_evlist__tty_browse_hists(session->evlist, rep, help);
