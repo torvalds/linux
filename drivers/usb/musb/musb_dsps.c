@@ -449,22 +449,20 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	char res_name[10];
 	int ret;
 
-	/* get memory resource */
-	sprintf(res_name, "musb%d", id);
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
+	/* first resource is for usbss, so start index from 1 */
+	res = platform_get_resource(pdev, IORESOURCE_MEM, id + 1);
 	if (!res) {
-		dev_err(dev, "%s get mem resource failed\n", res_name);
+		dev_err(dev, "failed to get memory for instance %d\n", id);
 		ret = -ENODEV;
 		goto err0;
 	}
 	res->parent = NULL;
 	resources[0] = *res;
 
-	/* get irq resource */
-	sprintf(res_name, "musb%d-irq", id);
-	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, res_name);
+	/* first resource is for usbss, so start index from 1 */
+	res = platform_get_resource(pdev, IORESOURCE_IRQ, id + 1);
 	if (!res) {
-		dev_err(dev, "%s get irq resource failed\n", res_name);
+		dev_err(dev, "failed to get irq for instance %d\n", id);
 		ret = -ENODEV;
 		goto err0;
 	}
