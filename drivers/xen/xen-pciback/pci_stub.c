@@ -142,7 +142,8 @@ static struct pcistub_device *pcistub_device_find(int domain, int bus,
 		if (psdev->dev != NULL
 		    && domain == pci_domain_nr(psdev->dev->bus)
 		    && bus == psdev->dev->bus->number
-		    && PCI_DEVFN(slot, func) == psdev->dev->devfn) {
+		    && slot == PCI_SLOT(psdev->dev->devfn)
+		    && func == PCI_FUNC(psdev->dev->devfn)) {
 			pcistub_device_get(psdev);
 			goto out;
 		}
@@ -191,7 +192,8 @@ struct pci_dev *pcistub_get_pci_dev_by_slot(struct xen_pcibk_device *pdev,
 		if (psdev->dev != NULL
 		    && domain == pci_domain_nr(psdev->dev->bus)
 		    && bus == psdev->dev->bus->number
-		    && PCI_DEVFN(slot, func) == psdev->dev->devfn) {
+		    && slot == PCI_SLOT(psdev->dev->devfn)
+		    && func == PCI_FUNC(psdev->dev->devfn)) {
 			found_dev = pcistub_device_get_pci_dev(pdev, psdev);
 			break;
 		}
@@ -936,14 +938,14 @@ static inline int str_to_quirk(const char *buf, int *domain, int *bus, int
 {
 	int parsed = 0;
 
-	sscanf(buf, " %4x:%2x:%2x.%d-%8x:%1x:%8x %n", domain, bus, slot, func,
+	sscanf(buf, " %x:%x:%x.%x-%x:%x:%x %n", domain, bus, slot, func,
 	       reg, size, mask, &parsed);
 	if (parsed && !buf[parsed])
 		return 0;
 
 	/* try again without domain */
 	*domain = 0;
-	sscanf(buf, " %2x:%2x.%d-%8x:%1x:%8x %n", bus, slot, func, reg, size,
+	sscanf(buf, " %x:%x.%x-%x:%x:%x %n", bus, slot, func, reg, size,
 	       mask, &parsed);
 	if (parsed && !buf[parsed])
 		return 0;
@@ -955,7 +957,7 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 {
 	struct pcistub_device_id *pci_dev_id;
 	unsigned long flags;
-	int rc = 0;
+	int rc = 0, devfn = PCI_DEVFN(slot, func);
 
 	if (slot < 0) {
 		for (slot = 0; !rc && slot < 32; ++slot)
@@ -969,13 +971,24 @@ static int pcistub_device_id_add(int domain, int bus, int slot, int func)
 		return rc;
 	}
 
+	if ((
+#if !defined(MODULE) /* pci_domains_supported is not being exported */ \
+    || !defined(CONFIG_PCI_DOMAINS)
+	     !pci_domains_supported ? domain :
+#endif
+	     domain < 0 || domain > 0xffff)
+	    || bus < 0 || bus > 0xff
+	    || PCI_SLOT(devfn) != slot
+	    || PCI_FUNC(devfn) != func)
+		return -EINVAL;
+
 	pci_dev_id = kmalloc(sizeof(*pci_dev_id), GFP_KERNEL);
 	if (!pci_dev_id)
 		return -ENOMEM;
 
 	pci_dev_id->domain = domain;
 	pci_dev_id->bus = bus;
-	pci_dev_id->devfn = PCI_DEVFN(slot, func);
+	pci_dev_id->devfn = devfn;
 
 	pr_debug(DRV_NAME ": wants to seize %04x:%02x:%02x.%d\n",
 		 domain, bus, slot, func);
@@ -1016,13 +1029,17 @@ static int pcistub_device_id_remove(int domain, int bus, int slot, int func)
 	return err;
 }
 
-static int pcistub_reg_add(int domain, int bus, int slot, int func, int reg,
-			   int size, int mask)
+static int pcistub_reg_add(int domain, int bus, int slot, int func,
+			   unsigned int reg, unsigned int size,
+			   unsigned int mask)
 {
 	int err = 0;
 	struct pcistub_device *psdev;
 	struct pci_dev *dev;
 	struct config_field *field;
+
+	if (reg > 0xfff || (size < 4 && (mask >> (size * 8))))
+		return -EINVAL;
 
 	psdev = pcistub_device_find(domain, bus, slot, func);
 	if (!psdev) {
@@ -1254,13 +1271,11 @@ static ssize_t permissive_add(struct device_driver *drv, const char *buf,
 	int err;
 	struct pcistub_device *psdev;
 	struct xen_pcibk_dev_data *dev_data;
+
 	err = str_to_slot(buf, &domain, &bus, &slot, &func);
 	if (err)
 		goto out;
-	if (slot < 0 || func < 0) {
-		err = -EINVAL;
-		goto out;
-	}
+
 	psdev = pcistub_device_find(domain, bus, slot, func);
 	if (!psdev) {
 		err = -ENODEV;
