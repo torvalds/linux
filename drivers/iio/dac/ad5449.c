@@ -124,12 +124,13 @@ static int ad5449_read(struct iio_dev *indio_dev, unsigned int addr,
 
 	ret = spi_sync(st->spi, &msg);
 	if (ret < 0)
-		return ret;
+		goto out_unlock;
 
 	*val = be16_to_cpu(st->data[1]);
-	mutex_unlock(&indio_dev->mlock);
 
-	return 0;
+out_unlock:
+	mutex_unlock(&indio_dev->mlock);
+	return ret;
 }
 
 static int ad5449_read_raw(struct iio_dev *indio_dev,
