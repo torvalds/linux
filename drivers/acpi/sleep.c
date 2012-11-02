@@ -80,6 +80,12 @@ static int acpi_sleep_prepare(u32 acpi_state)
 
 #ifdef CONFIG_ACPI_SLEEP
 static u32 acpi_target_sleep_state = ACPI_STATE_S0;
+
+u32 acpi_target_system_state(void)
+{
+	return acpi_target_sleep_state;
+}
+
 static bool pwr_btn_event_pending;
 
 /*
@@ -679,63 +685,6 @@ int acpi_suspend(u32 acpi_state)
 		return hibernate();
 	return -EINVAL;
 }
-
-#ifdef CONFIG_PM
-/**
- * acpi_pm_device_sleep_state - Get preferred power state of ACPI device.
- * @dev: Device whose preferred target power state to return.
- * @d_min_p: Location to store the upper limit of the allowed states range.
- * @d_max_in: Deepest low-power state to take into consideration.
- * Return value: Preferred power state of the device on success, -ENODEV
- * (if there's no 'struct acpi_device' for @dev) or -EINVAL on failure
- *
- * The caller must ensure that @dev is valid before using this function.
- */
-int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
-{
-	acpi_handle handle = DEVICE_ACPI_HANDLE(dev);
-	struct acpi_device *adev;
-
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
-		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
-		return -ENODEV;
-	}
-
-	return acpi_device_power_state(dev, adev, acpi_target_sleep_state,
-				       d_max_in, d_min_p);
-}
-EXPORT_SYMBOL(acpi_pm_device_sleep_state);
-#endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_SLEEP
-/**
- * acpi_pm_device_sleep_wake - Enable or disable device to wake up the system.
- * @dev: Device to enable/desible to wake up the system from sleep states.
- * @enable: Whether to enable or disable @dev to wake up the system.
- */
-int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
-{
-	acpi_handle handle;
-	struct acpi_device *adev;
-	int error;
-
-	if (!device_can_wakeup(dev))
-		return -EINVAL;
-
-	handle = DEVICE_ACPI_HANDLE(dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &adev))) {
-		dev_dbg(dev, "ACPI handle without context in %s!\n", __func__);
-		return -ENODEV;
-	}
-
-	error = __acpi_device_sleep_wake(adev, acpi_target_sleep_state, enable);
-	if (!error)
-		dev_info(dev, "System wakeup %s by ACPI\n",
-				enable ? "enabled" : "disabled");
-
-	return error;
-}
-#endif  /* CONFIG_PM_SLEEP */
 
 static void acpi_power_off_prepare(void)
 {
