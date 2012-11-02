@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <pthread.h>
 #include "callchain.h"
+#include "header.h"
 
 extern struct callchain_param callchain_param;
 
@@ -169,13 +170,15 @@ int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 			     struct hist_browser_timer *hbt);
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt);
+				  struct hist_browser_timer *hbt,
+				  struct perf_session_env *env);
 int script_browse(const char *script_opt);
 #else
 static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused,
+				  struct perf_session_env *env __maybe_unused)
 {
 	return 0;
 }

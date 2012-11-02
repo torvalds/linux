@@ -11,6 +11,7 @@
 #include "../../util/pstack.h"
 #include "../../util/sort.h"
 #include "../../util/util.h"
+#include "../../arch/common.h"
 
 #include "../browser.h"
 #include "../helpline.h"
@@ -1137,7 +1138,8 @@ static inline bool is_report_browser(void *timer)
 static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 				    const char *helpline, const char *ev_name,
 				    bool left_exits,
-				    struct hist_browser_timer *hbt)
+				    struct hist_browser_timer *hbt,
+				    struct perf_session_env *env)
 {
 	struct hists *hists = &evsel->hists;
 	struct hist_browser *browser = hist_browser__new(hists);
@@ -1367,6 +1369,9 @@ retry_popup_menu:
 			struct hist_entry *he;
 			int err;
 do_annotate:
+			if (!objdump_path && perf_session_env__lookup_objdump(env))
+				continue;
+
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
 				continue;
@@ -1470,6 +1475,7 @@ struct perf_evsel_menu {
 	struct ui_browser b;
 	struct perf_evsel *selection;
 	bool lost_events, lost_events_warned;
+	struct perf_session_env *env;
 };
 
 static void perf_evsel_menu__write(struct ui_browser *browser,
@@ -1551,7 +1557,8 @@ browse_hists:
 				hbt->timer(hbt->arg);
 			ev_name = perf_evsel__name(pos);
 			key = perf_evsel__hists_browse(pos, nr_events, help,
-						       ev_name, true, hbt);
+						       ev_name, true, hbt,
+						       menu->env);
 			ui_browser__show_title(&menu->b, title);
 			switch (key) {
 			case K_TAB:
@@ -1599,7 +1606,8 @@ out:
 
 static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 					   const char *help,
-					   struct hist_browser_timer *hbt)
+					   struct hist_browser_timer *hbt,
+					   struct perf_session_env *env)
 {
 	struct perf_evsel *pos;
 	struct perf_evsel_menu menu = {
@@ -1611,6 +1619,7 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 			.nr_entries = evlist->nr_entries,
 			.priv	    = evlist,
 		},
+		.env = env,
 	};
 
 	ui_helpline__push("Press ESC to exit");
@@ -1627,15 +1636,16 @@ static int __perf_evlist__tui_browse_hists(struct perf_evlist *evlist,
 }
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt)
+				  struct hist_browser_timer *hbt,
+				  struct perf_session_env *env)
 {
 	if (evlist->nr_entries == 1) {
 		struct perf_evsel *first = list_entry(evlist->entries.next,
 						      struct perf_evsel, node);
 		const char *ev_name = perf_evsel__name(first);
 		return perf_evsel__hists_browse(first, evlist->nr_entries, help,
-						ev_name, false, hbt);
+						ev_name, false, hbt, env);
 	}
 
-	return __perf_evlist__tui_browse_hists(evlist, help, hbt);
+	return __perf_evlist__tui_browse_hists(evlist, help, hbt, env);
 }

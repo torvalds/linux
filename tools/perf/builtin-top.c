@@ -598,7 +598,8 @@ static void *display_thread_tui(void *arg)
 	list_for_each_entry(pos, &top->evlist->entries, node)
 		pos->hists.uid_filter_str = top->target.uid_str;
 
-	perf_evlist__tui_browse_hists(top->evlist, help, &hbt);
+	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+				      &top->session->header.env);
 
 	exit_browser(0);
 	exit(0);
