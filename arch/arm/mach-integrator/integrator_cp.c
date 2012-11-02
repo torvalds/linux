@@ -26,6 +26,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/sys_soc.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -336,10 +337,62 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
+/* Base address to the CP controller */
+static void __iomem *intcp_con_base;
+
 static void __init intcp_init_of(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			intcp_auxdata_lookup, NULL);
+	struct device_node *root;
+	struct device_node *cpcon;
+	struct device *parent;
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+	u32 intcp_sc_id;
+	int err;
+
+	/* Here we create an SoC device for the root node */
+	root = of_find_node_by_path("/");
+	if (!root)
+		return;
+	cpcon = of_find_node_by_path("/cpcon");
+	if (!cpcon)
+		return;
+
+	intcp_con_base = of_iomap(cpcon, 0);
+	if (!intcp_con_base)
+		return;
+
+	intcp_sc_id = readl(intcp_con_base);
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return;
+
+	err = of_property_read_string(root, "compatible",
+				      &soc_dev_attr->soc_id);
+	if (err)
+		return;
+	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
+	if (err)
+		return;
+	soc_dev_attr->family = "Integrator";
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
+					   'A' + (intcp_sc_id & 0x0f));
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR_OR_NULL(soc_dev)) {
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr);
+		return;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
+	if (!IS_ERR_OR_NULL(parent))
+		integrator_init_sysfs(parent, intcp_sc_id);
+
+	of_platform_populate(root, of_default_bus_match_table,
+			intcp_auxdata_lookup, parent);
 }
 
 static const char * intcp_dt_board_compat[] = {
