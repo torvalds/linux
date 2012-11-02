@@ -581,6 +581,9 @@ struct intel_ilk_power_mgmt {
 
 	int c_m;
 	int r_t;
+
+	struct drm_i915_gem_object *pwrctx;
+	struct drm_i915_gem_object *renderctx;
 };
 
 typedef struct drm_i915_private {
@@ -618,9 +621,6 @@ typedef struct drm_i915_private {
 
 	drm_dma_handle_t *status_page_dmah;
 	uint32_t counter;
-	struct drm_i915_gem_object *pwrctx;
-	struct drm_i915_gem_object *renderctx;
-
 	struct resource mch_res;
 
 	atomic_t irq_received;

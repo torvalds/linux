@@ -1400,15 +1400,15 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	if (dev_priv->pwrctx) {
+	if (dev_priv->ips.pwrctx) {
 		seq_printf(m, "power context ");
-		describe_obj(m, dev_priv->pwrctx);
+		describe_obj(m, dev_priv->ips.pwrctx);
 		seq_printf(m, "\n");
 	}
 
-	if (dev_priv->renderctx) {
+	if (dev_priv->ips.renderctx) {
 		seq_printf(m, "render context ");
-		describe_obj(m, dev_priv->renderctx);
+		describe_obj(m, dev_priv->ips.renderctx);
 		seq_printf(m, "\n");
 	}
 

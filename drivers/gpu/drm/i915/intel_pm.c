@@ -2593,16 +2593,16 @@ void ironlake_teardown_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->renderctx) {
-		i915_gem_object_unpin(dev_priv->renderctx);
-		drm_gem_object_unreference(&dev_priv->renderctx->base);
-		dev_priv->renderctx = NULL;
+	if (dev_priv->ips.renderctx) {
+		i915_gem_object_unpin(dev_priv->ips.renderctx);
+		drm_gem_object_unreference(&dev_priv->ips.renderctx->base);
+		dev_priv->ips.renderctx = NULL;
 	}
 
-	if (dev_priv->pwrctx) {
-		i915_gem_object_unpin(dev_priv->pwrctx);
-		drm_gem_object_unreference(&dev_priv->pwrctx->base);
-		dev_priv->pwrctx = NULL;
+	if (dev_priv->ips.pwrctx) {
+		i915_gem_object_unpin(dev_priv->ips.pwrctx);
+		drm_gem_object_unreference(&dev_priv->ips.pwrctx->base);
+		dev_priv->ips.pwrctx = NULL;
 	}
 }
 
@@ -2628,14 +2628,14 @@ static int ironlake_setup_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->renderctx == NULL)
-		dev_priv->renderctx = intel_alloc_context_page(dev);
-	if (!dev_priv->renderctx)
+	if (dev_priv->ips.renderctx == NULL)
+		dev_priv->ips.renderctx = intel_alloc_context_page(dev);
+	if (!dev_priv->ips.renderctx)
 		return -ENOMEM;
 
-	if (dev_priv->pwrctx == NULL)
-		dev_priv->pwrctx = intel_alloc_context_page(dev);
-	if (!dev_priv->pwrctx) {
+	if (dev_priv->ips.pwrctx == NULL)
+		dev_priv->ips.pwrctx = intel_alloc_context_page(dev);
+	if (!dev_priv->ips.pwrctx) {
 		ironlake_teardown_rc6(dev);
 		return -ENOMEM;
 	}
@@ -2673,7 +2673,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 
 	intel_ring_emit(ring, MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
 	intel_ring_emit(ring, MI_SET_CONTEXT);
-	intel_ring_emit(ring, dev_priv->renderctx->gtt_offset |
+	intel_ring_emit(ring, dev_priv->ips.renderctx->gtt_offset |
 			MI_MM_SPACE_GTT |
 			MI_SAVE_EXT_STATE_EN |
 			MI_RESTORE_EXT_STATE_EN |
@@ -2695,7 +2695,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 		return;
 	}
 
-	I915_WRITE(PWRCTXA, dev_priv->pwrctx->gtt_offset | PWRCTX_EN);
+	I915_WRITE(PWRCTXA, dev_priv->ips.pwrctx->gtt_offset | PWRCTX_EN);
 	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
 }
 
