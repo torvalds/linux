@@ -37,13 +37,13 @@ typedef struct _INTR_ENDP_OUT {
 typedef struct _USB_TCB {
 	struct urb *urb;
 	void *psIntfAdapter;
-	BOOLEAN bUsed;
+	bool bUsed;
 } USB_TCB, *PUSB_TCB;
 
 typedef struct _USB_RCB {
 	struct urb *urb;
 	void *psIntfAdapter;
-	BOOLEAN bUsed;
+	bool bUsed;
 } USB_RCB, *PUSB_RCB;
 
 /*
@@ -70,10 +70,10 @@ typedef struct _S_INTERFACE_ADAPTER {
 	atomic_t	uNumRcbUsed;
 	atomic_t	uCurrRcb;
 	struct bcm_mini_adapter *psAdapter;
-	BOOLEAN		bFlashBoot;
-	BOOLEAN		bHighSpeedDevice;
-	BOOLEAN		bSuspended;
-	BOOLEAN		bPreparingForBusSuspend;
+	bool		bFlashBoot;
+	bool		bHighSpeedDevice;
+	bool		bSuspended;
+	bool		bPreparingForBusSuspend;
 	struct work_struct usbSuspendWork;
 } S_INTERFACE_ADAPTER, *PS_INTERFACE_ADAPTER;
 
