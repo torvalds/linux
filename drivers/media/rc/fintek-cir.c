@@ -500,18 +500,18 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	/* input device for IR remote (and tx) */
 	rdev = rc_allocate_device();
 	if (!rdev)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	ret = -ENODEV;
 	/* validate pnp resources */
 	if (!pnp_port_valid(pdev, 0)) {
 		dev_err(&pdev->dev, "IR PNP Port not valid!\n");
-		goto failure;
+		goto exit_free_dev_rdev;
 	}
 
 	if (!pnp_irq_valid(pdev, 0)) {
 		dev_err(&pdev->dev, "IR PNP IRQ not valid!\n");
-		goto failure;
+		goto exit_free_dev_rdev;
 	}
 
 	fintek->cir_addr = pnp_port_start(pdev, 0);
@@ -528,7 +528,7 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	ret = fintek_hw_detect(fintek);
 	if (ret)
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	/* Initialize CIR & CIR Wake Logical Devices */
 	fintek_config_mode_enable(fintek);
@@ -561,15 +561,15 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 	/* now claim resources */
 	if (!request_region(fintek->cir_addr,
 			    fintek->cir_port_len, FINTEK_DRIVER_NAME))
-		goto failure;
+		goto exit_free_dev_rdev;
 
 	if (request_irq(fintek->cir_irq, fintek_cir_isr, IRQF_SHARED,
 			FINTEK_DRIVER_NAME, (void *)fintek))
-		goto failure2;
+		goto exit_free_cir_addr;
 
 	ret = rc_register_device(rdev);
 	if (ret)
-		goto failure3;
+		goto exit_free_irq;
 
 	device_init_wakeup(&pdev->dev, true);
 	fintek->rdev = rdev;
@@ -579,11 +579,11 @@ static int fintek_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id
 
 	return 0;
 
-failure3:
+exit_free_irq:
 	free_irq(fintek->cir_irq, fintek);
-failure2:
+exit_free_cir_addr:
 	release_region(fintek->cir_addr, fintek->cir_port_len);
-failure:
+exit_free_dev_rdev:
 	rc_free_device(rdev);
 	kfree(fintek);
 
