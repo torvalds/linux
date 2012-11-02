@@ -2315,28 +2315,19 @@ static int rtnl_bridge_getlink(struct sk_buff *skb, struct netlink_callback *cb)
 		const struct net_device_ops *ops = dev->netdev_ops;
 		struct net_device *master = dev->master;
 
-		if (idx < cb->args[0])
-			continue;
-
 		if (master && master->netdev_ops->ndo_bridge_getlink) {
-			const struct net_device_ops *bops = master->netdev_ops;
-			int err = bops->ndo_bridge_getlink(skb, portid,
-							   seq, dev);
-
-			if (err < 0)
+			if (idx >= cb->args[0] &&
+			    master->netdev_ops->ndo_bridge_getlink(
+				    skb, portid, seq, dev) < 0)
 				break;
-			else
-				idx++;
+			idx++;
 		}
 
 		if (ops->ndo_bridge_getlink) {
-			int err = ops->ndo_bridge_getlink(skb, portid,
-							  seq, dev);
-
-			if (err < 0)
+			if (idx >= cb->args[0] &&
+			    ops->ndo_bridge_getlink(skb, portid, seq, dev) < 0)
 				break;
-			else
-				idx++;
+			idx++;
 		}
 	}
 	rcu_read_unlock();
