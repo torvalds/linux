@@ -1873,12 +1873,6 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 			    PCI_SLOT(pcidev->devfn) != slot)
 				continue;
 		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adl_pci9118"))
-			continue;
 		return pcidev;
 	}
 	dev_err(dev->class_dev,
@@ -1909,55 +1903,32 @@ static void pci9118_report_attach(struct comedi_device *dev, unsigned int irq)
 		 (devpriv->master ? "" : "no "), muxbuf);
 }
 
-static int pci9118_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
+				 int master, int ext_mux, int softsshdelay,
+				 int hw_err_mask)
 {
 	const struct boardtype *this_board = comedi_board(dev);
-	struct pci9118_private *devpriv;
-	struct pci_dev *pcidev;
+	struct pci9118_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret, pages, i;
-	unsigned short master;
 	unsigned int irq;
 	u16 u16w;
 
-	if (it->options[3] & 1)
-		master = 0;	/* user don't want use bus master */
-	else
-		master = 1;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	pcidev = pci9118_find_pci(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
+	dev->board_name = this_board->name;
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret) {
+		dev_err(dev->class_dev,
+			"cannot enable PCI device %s\n", pci_name(pcidev));
+		return ret;
+	}
 	if (master)
 		pci_set_master(pcidev);
 
-	irq = pcidev->irq;
 	devpriv->iobase_a = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 2);
 
-	dev->board_name = this_board->name;
-
 	pci9118_reset(dev);
-
-	if (it->options[3] & 2)
-		irq = 0;	/* user don't want use IRQ */
-	if (irq > 0) {
-		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
-				"ADLink PCI-9118", dev))
-			dev_warn(dev->class_dev,
-				 "unable to allocate IRQ %u, DISABLING IT\n",
-				 irq);
-		else
-			dev->irq = irq;
-	}
 
 	if (master) {		/* alloc DMA buffers */
 		devpriv->dma_doublebuf = 0;
@@ -1984,32 +1955,29 @@ static int pci9118_attach(struct comedi_device *dev,
 				 "Can't allocate DMA buffer, DMA disabled!\n");
 			master = 0;
 		}
-
 		if (devpriv->dmabuf_virt[1])
 			devpriv->dma_doublebuf = 1;
-
 	}
-
 	devpriv->master = master;
-	devpriv->usemux = 0;
-	if (it->options[2] > 0) {
-		devpriv->usemux = it->options[2];
-		if (devpriv->usemux > 256)
-			devpriv->usemux = 256;	/* max 256 channels! */
-		if (it->options[4] > 0)
-			if (devpriv->usemux > 128) {
-				devpriv->usemux = 128;
-					/* max 128 channels with softare S&H! */
-			}
+
+	if (ext_mux > 0) {
+		if (ext_mux > 256)
+			ext_mux = 256;	/* max 256 channels! */
+		if (softsshdelay > 0)
+			if (ext_mux > 128)
+				ext_mux = 128;
+		devpriv->usemux = ext_mux;
+	} else {
+		devpriv->usemux = 0;
 	}
 
-	devpriv->softsshdelay = it->options[4];
-	if (devpriv->softsshdelay < 0) {
-					/* select sample&hold signal polarity */
-		devpriv->softsshdelay = -devpriv->softsshdelay;
+	if (softsshdelay < 0) {
+		/* select sample&hold signal polarity */
+		devpriv->softsshdelay = -softsshdelay;
 		devpriv->softsshsample = 0x80;
 		devpriv->softsshhold = 0x00;
 	} else {
+		devpriv->softsshdelay = softsshdelay;
 		devpriv->softsshsample = 0x00;
 		devpriv->softsshhold = 0x80;
 	}
@@ -2036,12 +2004,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	s->range_table = this_board->rangelist_ai;
 	s->cancel = pci9118_ai_cancel;
 	s->insn_read = pci9118_insn_read_ai;
-	if (dev->irq) {
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmdtest = pci9118_ai_cmdtest;
-		s->do_cmd = pci9118_ai_cmd;
-		s->munge = pci9118_ai_munge;
-	}
+	s->munge = pci9118_ai_munge;
 
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
@@ -2077,8 +2040,8 @@ static int pci9118_attach(struct comedi_device *dev,
 	devpriv->i8254_osc_base = 250;	/* 250ns=4MHz */
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
-	if (it->options[5])		/* disable some requested */
-		devpriv->ai_maskharderr &= ~it->options[5];
+	if (hw_err_mask)		/* disable some requested */
+		devpriv->ai_maskharderr &= ~hw_err_mask;
 
 	switch (this_board->ai_maxdata) {
 	case 0xffff:
@@ -2088,8 +2051,56 @@ static int pci9118_attach(struct comedi_device *dev,
 		devpriv->ai16bits = 0;
 		break;
 	}
+
+	if (disable_irq)
+		irq = 0;
+	else
+		irq = pcidev->irq;
+	if (irq > 0) {
+		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
+				dev->board_name, dev)) {
+			dev_warn(dev->class_dev,
+				 "unable to allocate IRQ %u, DISABLING IT\n",
+				 irq);
+		} else {
+			dev->irq = irq;
+			/* Enable AI commands */
+			s = &dev->subdevices[0];
+			s->subdev_flags |= SDF_CMD_READ;
+			s->do_cmdtest = pci9118_ai_cmdtest;
+			s->do_cmd = pci9118_ai_cmd;
+		}
+	}
+
 	pci9118_report_attach(dev, irq);
 	return 0;
+}
+
+static int pci9118_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct pci9118_private *devpriv;
+	struct pci_dev *pcidev;
+	int ext_mux, disable_irq, master, softsshdelay, hw_err_mask;
+
+	ext_mux = it->options[2];
+	master = ((it->options[3] & 1) == 0);
+	disable_irq = ((it->options[3] & 2) != 0);
+	softsshdelay = it->options[4];
+	hw_err_mask = it->options[5];
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	pcidev = pci9118_find_pci(dev, it);
+	if (!pcidev)
+		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	return pci9118_common_attach(dev, disable_irq, master, ext_mux,
+				     softsshdelay, hw_err_mask);
 }
 
 static void pci9118_detach(struct comedi_device *dev)
