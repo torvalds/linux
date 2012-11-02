@@ -1115,6 +1115,10 @@ extern int ata_pci_device_resume(struct pci_dev *pdev);
 #endif /* CONFIG_PM */
 #endif /* CONFIG_PCI */
 
+struct platform_device;
+
+extern int ata_platform_remove_one(struct platform_device *pdev);
+
 /*
  * ACPI - drivers/ata/libata-acpi.c
  */
