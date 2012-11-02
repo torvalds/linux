@@ -1472,6 +1472,14 @@ F:	include/linux/ax25.h
 F:	include/net/ax25.h
 F:	net/ax25/
 
+AZ6007 DVB DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/dvb-usb-v2/az6007.c
+
 B43 WIRELESS DRIVER
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
