@@ -1151,16 +1151,6 @@ struct pcidas64_private {
 	short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
-static void disable_plx_interrupts(struct comedi_device *dev);
-static int set_ai_fifo_size(struct comedi_device *dev,
-			    unsigned int num_samples);
-static unsigned int ai_fifo_size(struct comedi_device *dev);
-static int set_ai_fifo_segment_length(struct comedi_device *dev,
-				      unsigned int num_entries);
-static void disable_ai_interrupts(struct comedi_device *dev);
-static void load_ao_dma(struct comedi_device *dev,
-			const struct comedi_cmd *cmd);
-
 static unsigned int ai_range_bits_6xxx(const struct comedi_device *dev,
 				       unsigned int range_index)
 {
@@ -1248,6 +1238,57 @@ static void abort_dma(struct comedi_device *dev, unsigned int channel)
 
 	plx9080_abort_dma(devpriv->plx9080_iobase, channel);
 
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+}
+
+static void disable_plx_interrupts(struct comedi_device *dev)
+{
+	struct pcidas64_private *devpriv = dev->private;
+
+	devpriv->plx_intcsr_bits = 0;
+	writel(devpriv->plx_intcsr_bits,
+	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
+}
+
+static void disable_ai_interrupts(struct comedi_device *dev)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->intr_enable_bits &=
+		~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
+		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT &
+		~EN_ADC_OVERRUN_BIT & ~ADC_INTR_SRC_MASK;
+	writew(devpriv->intr_enable_bits,
+	       devpriv->main_iobase + INTR_ENABLE_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
+}
+
+static void enable_ai_interrupts(struct comedi_device *dev,
+				 const struct comedi_cmd *cmd)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	uint32_t bits;
+	unsigned long flags;
+
+	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
+	       EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
+	/*  Use pio transfer and interrupt on end of conversion
+	 *  if TRIG_WAKE_EOS flag is set. */
+	if (cmd->flags & TRIG_WAKE_EOS) {
+		/*  4020 doesn't support pio transfers except for fifo dregs */
+		if (thisboard->layout != LAYOUT_4020)
+			bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
+	}
+	spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->intr_enable_bits |= bits;
+	writew(devpriv->intr_enable_bits,
+	       devpriv->main_iobase + INTR_ENABLE_REG);
+	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
 	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
@@ -1343,15 +1384,6 @@ static void init_plx9080(struct comedi_device *dev)
 	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
 }
 
-static void disable_plx_interrupts(struct comedi_device *dev)
-{
-	struct pcidas64_private *devpriv = dev->private;
-
-	devpriv->plx_intcsr_bits = 0;
-	writel(devpriv->plx_intcsr_bits,
-	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
-}
-
 static void disable_ai_pacing(struct comedi_device *dev)
 {
 	struct pcidas64_private *devpriv = dev->private;
@@ -1368,6 +1400,72 @@ static void disable_ai_pacing(struct comedi_device *dev)
 	/* disable pacing, triggering, etc */
 	writew(ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
 	       devpriv->main_iobase + ADC_CONTROL0_REG);
+}
+
+static int set_ai_fifo_segment_length(struct comedi_device *dev,
+				      unsigned int num_entries)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	static const int increment_size = 0x100;
+	const struct hw_fifo_info *const fifo = thisboard->ai_fifo;
+	unsigned int num_increments;
+	uint16_t bits;
+
+	if (num_entries < increment_size)
+		num_entries = increment_size;
+	if (num_entries > fifo->max_segment_length)
+		num_entries = fifo->max_segment_length;
+
+	/*  1 == 256 entries, 2 == 512 entries, etc */
+	num_increments = (num_entries + increment_size / 2) / increment_size;
+
+	bits = (~(num_increments - 1)) & fifo->fifo_size_reg_mask;
+	devpriv->fifo_size_bits &= ~fifo->fifo_size_reg_mask;
+	devpriv->fifo_size_bits |= bits;
+	writew(devpriv->fifo_size_bits,
+	       devpriv->main_iobase + FIFO_SIZE_REG);
+
+	devpriv->ai_fifo_segment_length = num_increments * increment_size;
+
+	DEBUG_PRINT("set hardware fifo segment length to %i\n",
+		    devpriv->ai_fifo_segment_length);
+
+	return devpriv->ai_fifo_segment_length;
+}
+
+/* adjusts the size of hardware fifo (which determines block size for dma xfers) */
+static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	unsigned int num_fifo_entries;
+	int retval;
+	const struct hw_fifo_info *const fifo = thisboard->ai_fifo;
+
+	num_fifo_entries = num_samples / fifo->sample_packing_ratio;
+
+	retval = set_ai_fifo_segment_length(dev,
+					    num_fifo_entries /
+					    fifo->num_segments);
+	if (retval < 0)
+		return retval;
+
+	num_samples = retval * fifo->num_segments * fifo->sample_packing_ratio;
+
+	DEBUG_PRINT("set hardware fifo size to %i\n", num_samples);
+
+	return num_samples;
+}
+
+/* query length of fifo */
+static unsigned int ai_fifo_size(struct comedi_device *dev)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+
+	return devpriv->ai_fifo_segment_length *
+	       thisboard->ai_fifo->num_segments *
+	       thisboard->ai_fifo->sample_packing_ratio;
 }
 
 static void init_stc_registers(struct comedi_device *dev)
@@ -2177,48 +2275,6 @@ static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 	return num_samples;
 }
 
-static void disable_ai_interrupts(struct comedi_device *dev)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->intr_enable_bits &=
-		~EN_ADC_INTR_SRC_BIT & ~EN_ADC_DONE_INTR_BIT &
-		~EN_ADC_ACTIVE_INTR_BIT & ~EN_ADC_STOP_INTR_BIT &
-		~EN_ADC_OVERRUN_BIT & ~ADC_INTR_SRC_MASK;
-	writew(devpriv->intr_enable_bits,
-	       devpriv->main_iobase + INTR_ENABLE_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
-}
-
-static void enable_ai_interrupts(struct comedi_device *dev,
-				 const struct comedi_cmd *cmd)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	struct pcidas64_private *devpriv = dev->private;
-	uint32_t bits;
-	unsigned long flags;
-
-	bits = EN_ADC_OVERRUN_BIT | EN_ADC_DONE_INTR_BIT |
-	       EN_ADC_ACTIVE_INTR_BIT | EN_ADC_STOP_INTR_BIT;
-	/*  Use pio transfer and interrupt on end of conversion
-	 *  if TRIG_WAKE_EOS flag is set. */
-	if (cmd->flags & TRIG_WAKE_EOS) {
-		/*  4020 doesn't support pio transfers except for fifo dregs */
-		if (thisboard->layout != LAYOUT_4020)
-			bits |= ADC_INTR_EOSCAN_BITS | EN_ADC_INTR_SRC_BIT;
-	}
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->intr_enable_bits |= bits;
-	writew(devpriv->intr_enable_bits,
-	       devpriv->main_iobase + INTR_ENABLE_REG);
-	DEBUG_PRINT("intr enable bits 0x%x\n", devpriv->intr_enable_bits);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-}
-
 static uint32_t ai_convert_counter_6xxx(const struct comedi_device *dev,
 					const struct comedi_cmd *cmd)
 {
@@ -2930,6 +2986,77 @@ static void restart_ao_dma(struct comedi_device *dev)
 	dma_start_sync(dev, 0);
 }
 
+static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
+				       const struct comedi_cmd *cmd)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int num_bytes, buffer_index, prev_buffer_index;
+	unsigned int next_bits;
+
+	buffer_index = devpriv->ao_dma_index;
+	prev_buffer_index = prev_ao_dma_index(dev);
+
+	DEBUG_PRINT("attempting to load ao buffer %i (0x%llx)\n", buffer_index,
+		    (unsigned long long)devpriv->ao_buffer_bus_addr[
+								buffer_index]);
+
+	num_bytes = comedi_buf_read_n_available(dev->write_subdev->async);
+	if (num_bytes > DMA_BUFFER_SIZE)
+		num_bytes = DMA_BUFFER_SIZE;
+	if (cmd->stop_src == TRIG_COUNT && num_bytes > devpriv->ao_count)
+		num_bytes = devpriv->ao_count;
+	num_bytes -= num_bytes % bytes_in_sample;
+
+	if (num_bytes == 0)
+		return 0;
+
+	DEBUG_PRINT("loading %i bytes\n", num_bytes);
+
+	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
+					       devpriv->
+					       ao_buffer[buffer_index],
+					       num_bytes);
+	devpriv->ao_dma_desc[buffer_index].transfer_size =
+		cpu_to_le32(num_bytes);
+	/* set end of chain bit so we catch underruns */
+	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);
+	next_bits |= PLX_END_OF_CHAIN_BIT;
+	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
+	/* clear end of chain bit on previous buffer now that we have set it
+	 * for the last buffer */
+	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
+	next_bits &= ~PLX_END_OF_CHAIN_BIT;
+	devpriv->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
+
+	devpriv->ao_dma_index = (buffer_index + 1) % AO_DMA_RING_COUNT;
+	devpriv->ao_count -= num_bytes;
+
+	return num_bytes;
+}
+
+static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int num_bytes;
+	unsigned int next_transfer_addr;
+	void __iomem *pci_addr_reg =
+		devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
+	unsigned int buffer_index;
+
+	do {
+		buffer_index = devpriv->ao_dma_index;
+		/* don't overwrite data that hasn't been transferred yet */
+		next_transfer_addr = readl(pci_addr_reg);
+		if (next_transfer_addr >=
+		    devpriv->ao_buffer_bus_addr[buffer_index] &&
+		    next_transfer_addr <
+		    devpriv->ao_buffer_bus_addr[buffer_index] +
+		    DMA_BUFFER_SIZE)
+			return;
+		num_bytes = load_ao_dma_buffer(dev, cmd);
+	} while (num_bytes >= DMA_BUFFER_SIZE);
+}
+
 static void handle_ao_interrupt(struct comedi_device *dev,
 				unsigned short status, unsigned int plx_status)
 {
@@ -3164,77 +3291,6 @@ static void set_dac_interval_regs(struct comedi_device *dev,
 	       devpriv->main_iobase + DAC_SAMPLE_INTERVAL_LOWER_REG);
 	writew((divisor >> 16) & 0xff,
 	       devpriv->main_iobase + DAC_SAMPLE_INTERVAL_UPPER_REG);
-}
-
-static unsigned int load_ao_dma_buffer(struct comedi_device *dev,
-				       const struct comedi_cmd *cmd)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int num_bytes, buffer_index, prev_buffer_index;
-	unsigned int next_bits;
-
-	buffer_index = devpriv->ao_dma_index;
-	prev_buffer_index = prev_ao_dma_index(dev);
-
-	DEBUG_PRINT("attempting to load ao buffer %i (0x%llx)\n", buffer_index,
-		    (unsigned long long)devpriv->ao_buffer_bus_addr[
-								buffer_index]);
-
-	num_bytes = comedi_buf_read_n_available(dev->write_subdev->async);
-	if (num_bytes > DMA_BUFFER_SIZE)
-		num_bytes = DMA_BUFFER_SIZE;
-	if (cmd->stop_src == TRIG_COUNT && num_bytes > devpriv->ao_count)
-		num_bytes = devpriv->ao_count;
-	num_bytes -= num_bytes % bytes_in_sample;
-
-	if (num_bytes == 0)
-		return 0;
-
-	DEBUG_PRINT("loading %i bytes\n", num_bytes);
-
-	num_bytes = cfc_read_array_from_buffer(dev->write_subdev,
-					       devpriv->
-					       ao_buffer[buffer_index],
-					       num_bytes);
-	devpriv->ao_dma_desc[buffer_index].transfer_size =
-		cpu_to_le32(num_bytes);
-	/* set end of chain bit so we catch underruns */
-	next_bits = le32_to_cpu(devpriv->ao_dma_desc[buffer_index].next);
-	next_bits |= PLX_END_OF_CHAIN_BIT;
-	devpriv->ao_dma_desc[buffer_index].next = cpu_to_le32(next_bits);
-	/* clear end of chain bit on previous buffer now that we have set it
-	 * for the last buffer */
-	next_bits = le32_to_cpu(devpriv->ao_dma_desc[prev_buffer_index].next);
-	next_bits &= ~PLX_END_OF_CHAIN_BIT;
-	devpriv->ao_dma_desc[prev_buffer_index].next = cpu_to_le32(next_bits);
-
-	devpriv->ao_dma_index = (buffer_index + 1) % AO_DMA_RING_COUNT;
-	devpriv->ao_count -= num_bytes;
-
-	return num_bytes;
-}
-
-static void load_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int num_bytes;
-	unsigned int next_transfer_addr;
-	void __iomem *pci_addr_reg =
-		devpriv->plx9080_iobase + PLX_DMA0_PCI_ADDRESS_REG;
-	unsigned int buffer_index;
-
-	do {
-		buffer_index = devpriv->ao_dma_index;
-		/* don't overwrite data that hasn't been transferred yet */
-		next_transfer_addr = readl(pci_addr_reg);
-		if (next_transfer_addr >=
-		    devpriv->ao_buffer_bus_addr[buffer_index] &&
-		    next_transfer_addr <
-		    devpriv->ao_buffer_bus_addr[buffer_index] +
-		    DMA_BUFFER_SIZE)
-			return;
-		num_bytes = load_ao_dma_buffer(dev, cmd);
-	} while (num_bytes >= DMA_BUFFER_SIZE);
 }
 
 static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
@@ -3837,72 +3893,6 @@ static int eeprom_read_insn(struct comedi_device *dev,
 	data[0] = read_eeprom(dev, CR_CHAN(insn->chanspec));
 
 	return 1;
-}
-
-/* adjusts the size of hardware fifo (which determines block size for dma xfers) */
-static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	unsigned int num_fifo_entries;
-	int retval;
-	const struct hw_fifo_info *const fifo = thisboard->ai_fifo;
-
-	num_fifo_entries = num_samples / fifo->sample_packing_ratio;
-
-	retval = set_ai_fifo_segment_length(dev,
-					    num_fifo_entries /
-					    fifo->num_segments);
-	if (retval < 0)
-		return retval;
-
-	num_samples = retval * fifo->num_segments * fifo->sample_packing_ratio;
-
-	DEBUG_PRINT("set hardware fifo size to %i\n", num_samples);
-
-	return num_samples;
-}
-
-/* query length of fifo */
-static unsigned int ai_fifo_size(struct comedi_device *dev)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	struct pcidas64_private *devpriv = dev->private;
-
-	return devpriv->ai_fifo_segment_length *
-	       thisboard->ai_fifo->num_segments *
-	       thisboard->ai_fifo->sample_packing_ratio;
-}
-
-static int set_ai_fifo_segment_length(struct comedi_device *dev,
-				      unsigned int num_entries)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	struct pcidas64_private *devpriv = dev->private;
-	static const int increment_size = 0x100;
-	const struct hw_fifo_info *const fifo = thisboard->ai_fifo;
-	unsigned int num_increments;
-	uint16_t bits;
-
-	if (num_entries < increment_size)
-		num_entries = increment_size;
-	if (num_entries > fifo->max_segment_length)
-		num_entries = fifo->max_segment_length;
-
-	/*  1 == 256 entries, 2 == 512 entries, etc */
-	num_increments = (num_entries + increment_size / 2) / increment_size;
-
-	bits = (~(num_increments - 1)) & fifo->fifo_size_reg_mask;
-	devpriv->fifo_size_bits &= ~fifo->fifo_size_reg_mask;
-	devpriv->fifo_size_bits |= bits;
-	writew(devpriv->fifo_size_bits,
-	       devpriv->main_iobase + FIFO_SIZE_REG);
-
-	devpriv->ai_fifo_segment_length = num_increments * increment_size;
-
-	DEBUG_PRINT("set hardware fifo segment length to %i\n",
-		    devpriv->ai_fifo_segment_length);
-
-	return devpriv->ai_fifo_segment_length;
 }
 
 /* Allocate and initialize the subdevice structures.
