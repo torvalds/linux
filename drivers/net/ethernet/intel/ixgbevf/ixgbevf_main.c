@@ -341,15 +341,16 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	union ixgbe_adv_rx_desc *rx_desc;
 	struct ixgbevf_rx_buffer *bi;
-	struct sk_buff *skb;
 	unsigned int i = rx_ring->next_to_use;
 
 	bi = &rx_ring->rx_buffer_info[i];
 
 	while (cleaned_count--) {
 		rx_desc = IXGBEVF_RX_DESC(rx_ring, i);
-		skb = bi->skb;
-		if (!skb) {
+
+		if (!bi->skb) {
+			struct sk_buff *skb;
+
 			skb = netdev_alloc_skb_ip_align(rx_ring->netdev,
 							rx_ring->rx_buf_len);
 			if (!skb) {
@@ -357,8 +358,7 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 				goto no_buffers;
 			}
 			bi->skb = skb;
-		}
-		if (!bi->dma) {
+
 			bi->dma = dma_map_single(&pdev->dev, skb->data,
 						 rx_ring->rx_buf_len,
 						 DMA_FROM_DEVICE);
