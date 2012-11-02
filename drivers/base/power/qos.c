@@ -277,6 +277,9 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
  * -EINVAL in case of wrong parameters, -ENOMEM if there's not enough memory
  * to allocate for data structures, -ENODEV if the device has just been removed
  * from the system.
+ *
+ * Callers should ensure that the target device is not RPM_SUSPENDED before
+ * using this function for requests of type DEV_PM_QOS_FLAGS.
  */
 int dev_pm_qos_add_request(struct device *dev, struct dev_pm_qos_request *req,
 			   enum dev_pm_qos_req_type type, s32 value)
@@ -367,6 +370,9 @@ static int __dev_pm_qos_update_request(struct dev_pm_qos_request *req,
  * 0 if the aggregated constraint value has not changed,
  * -EINVAL in case of wrong parameters, -ENODEV if the device has been
  * removed from the system
+ *
+ * Callers should ensure that the target device is not RPM_SUSPENDED before
+ * using this function for requests of type DEV_PM_QOS_FLAGS.
  */
 int dev_pm_qos_update_request(struct dev_pm_qos_request *req, s32 new_value)
 {
@@ -398,6 +404,9 @@ EXPORT_SYMBOL_GPL(dev_pm_qos_update_request);
  * 0 if the aggregated constraint value has not changed,
  * -EINVAL in case of wrong parameters, -ENODEV if the device has been
  * removed from the system
+ *
+ * Callers should ensure that the target device is not RPM_SUSPENDED before
+ * using this function for requests of type DEV_PM_QOS_FLAGS.
  */
 int dev_pm_qos_remove_request(struct dev_pm_qos_request *req)
 {
