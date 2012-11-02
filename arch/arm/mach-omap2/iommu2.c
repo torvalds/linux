@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
+#include <linux/omap-iommu.h>
 #include <linux/slab.h>
 #include <linux/stringify.h>
 

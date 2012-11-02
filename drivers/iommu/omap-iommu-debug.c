@@ -18,9 +18,9 @@
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
+#include <linux/omap-iommu.h>
 
 #include <plat/iommu.h>
-#include <plat/iovmm.h>
 
 #include "omap-iopgtable.h"
 

@@ -26,6 +26,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <linux/omap-iommu.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 

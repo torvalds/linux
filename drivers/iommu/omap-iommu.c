@@ -19,6 +19,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/iommu.h>
+#include <linux/omap-iommu.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
