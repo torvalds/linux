@@ -26,7 +26,7 @@
 
 #include <plat/iommu.h>
 
-#include <plat/iopgtable.h>
+#include "omap-iopgtable.h"
 
 #define for_each_iotlb_cr(obj, n, __i, cr)				\
 	for (__i = 0;							\

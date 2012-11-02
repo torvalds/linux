@@ -24,7 +24,7 @@
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 
-#include <plat/iopgtable.h>
+#include "omap-iopgtable.h"
 
 static struct kmem_cache *iovm_area_cachep;
 

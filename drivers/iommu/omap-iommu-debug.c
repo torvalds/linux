@@ -22,7 +22,7 @@
 #include <plat/iommu.h>
 #include <plat/iovmm.h>
 
-#include <plat/iopgtable.h>
+#include "omap-iopgtable.h"
 
 #define MAXCOLUMN 100 /* for short messages */
 
