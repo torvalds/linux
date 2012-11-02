@@ -2147,7 +2147,7 @@ static int ab8500_codec_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	status = ab8500_codec_set_dai_clock_gate(codec, fmt);
 	if (status) {
 		dev_err(dai->codec->dev,
-			"%s: ERRROR: Failed to set clock gate (%d).\n",
+			"%s: ERROR: Failed to set clock gate (%d).\n",
 			__func__, status);
 		return status;
 	}
