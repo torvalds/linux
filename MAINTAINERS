@@ -7322,6 +7322,14 @@ S:	Maintained
 F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
 
+TM6000 VIDEO4LINUX DRIVER
+M:	Mauro Carvalho Chehab <mchehab@redhat.com>
+L:	linux-media@vger.kernel.org
+W:	http://linuxtv.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Odd fixes
+F:	drivers/media/usb/tm6000/
+
 TPM DEVICE DRIVER
 M:	Kent Yoder <key@linux.vnet.ibm.com>
 M:	Rajiv Andrade <mail@srajiv.net>
