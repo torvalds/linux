@@ -474,6 +474,8 @@ static int i915_drm_freeze(struct drm_device *dev)
 			return error;
 		}
 
+		cancel_delayed_work_sync(&dev_priv->rps.delayed_resume_work);
+
 		intel_modeset_disable(dev);
 
 		drm_irq_uninstall(dev);
