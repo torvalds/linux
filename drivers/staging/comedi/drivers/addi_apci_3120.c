@@ -15,9 +15,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.pc_DriverName		= "apci3120",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= 0x818D,
-		.i_IorangeBase0		= AMCC_OP_REG_SIZE,
-		.i_IorangeBase1		= APCI3120_ADDRESS_RANGE,
-		.i_IorangeBase2		= 8,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -38,9 +35,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.pc_DriverName		= "apci3001",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
 		.i_DeviceId		= 0x828D,
-		.i_IorangeBase0		= AMCC_OP_REG_SIZE,
-		.i_IorangeBase1		= APCI3120_ADDRESS_RANGE,
-		.i_IorangeBase2		= 8,
 		.i_NbrAiChannel		= 16,
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
@@ -106,11 +100,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 		return ret;
 	pci_set_master(pcidev);
 
-	if (this_board->i_IorangeBase1)
-		dev->iobase = pci_resource_start(pcidev, 1);
-	else
-		dev->iobase = pci_resource_start(pcidev, 0);
-
+	dev->iobase = pci_resource_start(pcidev, 1);
 	devpriv->iobase = dev->iobase;
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
