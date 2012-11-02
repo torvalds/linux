@@ -642,16 +642,10 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 
 		list_move_tail(&e->base.link, &e->base.file_priv->event_list);
 		wake_up_interruptible(&e->base.file_priv->event_wait);
+		drm_vblank_put(drm_dev, crtc);
 	}
 
 	if (is_checked) {
-		/*
-		 * call drm_vblank_put only in case that drm_vblank_get was
-		 * called.
-		 */
-		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
-			drm_vblank_put(drm_dev, crtc);
-
 		/*
 		 * don't off vblank if vblank_disable_allowed is 1,
 		 * because vblank would be off by timer handler.
