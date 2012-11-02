@@ -223,7 +223,6 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 
 static void apci3120_detach(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct addi_private *devpriv = dev->private;
 
@@ -232,20 +231,15 @@ static void apci3120_detach(struct comedi_device *dev)
 			i_APCI3120_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if ((this_board->pc_EepromChip == NULL) ||
-		    (strcmp(this_board->pc_EepromChip, ADDIDATA_9054) != 0)) {
-			if (devpriv->ul_DmaBufferVirtual[0]) {
-				free_pages((unsigned long)devpriv->
-					ul_DmaBufferVirtual[0],
-					devpriv->ui_DmaBufferPages[0]);
-			}
-			if (devpriv->ul_DmaBufferVirtual[1]) {
-				free_pages((unsigned long)devpriv->
-					ul_DmaBufferVirtual[1],
-					devpriv->ui_DmaBufferPages[1]);
-			}
-		} else {
-			iounmap(devpriv->dw_AiBase);
+		if (devpriv->ul_DmaBufferVirtual[0]) {
+			free_pages((unsigned long)devpriv->
+				ul_DmaBufferVirtual[0],
+				devpriv->ui_DmaBufferPages[0]);
+		}
+		if (devpriv->ul_DmaBufferVirtual[1]) {
+			free_pages((unsigned long)devpriv->
+				ul_DmaBufferVirtual[1],
+				devpriv->ui_DmaBufferPages[1]);
 		}
 	}
 	if (pcidev) {
