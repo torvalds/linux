@@ -1,12 +1,12 @@
 #ifndef _INTERFACE_ADAPTER_H
 #define _INTERFACE_ADAPTER_H
 
-typedef struct _BULK_ENDP_IN {
+struct bcm_bulk_endpoint_in {
 	char	*bulk_in_buffer;
 	size_t	bulk_in_size;
 	unsigned char	bulk_in_endpointAddr;
 	unsigned int	bulk_in_pipe;
-} BULK_ENDP_IN, *PBULK_ENDP_IN;
+};
 
 struct bcm_bulk_endpoint_out {
 	unsigned char	bulk_out_buffer;
@@ -53,7 +53,7 @@ struct bcm_interface_adapter {
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	/* Bulk endpoint in info */
-	BULK_ENDP_IN	sBulkIn;
+	struct bcm_bulk_endpoint_in	sBulkIn;
 	/* Bulk endpoint out info */
 	struct bcm_bulk_endpoint_out	sBulkOut;
 	/* Interrupt endpoint in info */
