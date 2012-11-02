@@ -777,10 +777,8 @@ static int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev,
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {	/*  Test Delay timing */
-		if (cmd->scan_begin_arg <
-				this_board->ui_MinDelaytimeNs) {
-			cmd->scan_begin_arg =
-				this_board->ui_MinDelaytimeNs;
+		if (cmd->scan_begin_arg < 100000) {
+			cmd->scan_begin_arg = 100000;
 			err++;
 		}
 	}
