@@ -1240,14 +1240,6 @@ EXPORT_SYMBOL_GPL(ehci_init_driver);
 
 /*-------------------------------------------------------------------------*/
 
-/*
- * The EHCI in ChipIdea HDRC cannot be a separate module or device,
- * because its registers (and irq) are shared between host/gadget/otg
- * functions  and in order to facilitate role switching we cannot
- * give the ehci driver exclusive access to those.
- */
-#ifndef CHIPIDEA_EHCI
-
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR (DRIVER_AUTHOR);
 MODULE_LICENSE ("GPL");
@@ -1359,6 +1351,7 @@ MODULE_LICENSE ("GPL");
 
 #if !IS_ENABLED(CONFIG_USB_EHCI_PCI) && \
 	!IS_ENABLED(CONFIG_USB_EHCI_HCD_PLATFORM) && \
+	!defined(CONFIG_USB_CHIPIDEA_HOST) && \
 	!defined(PLATFORM_DRIVER) && \
 	!defined(PS3_SYSTEM_BUS_DRIVER) && \
 	!defined(OF_PLATFORM_DRIVER) && \
@@ -1464,5 +1457,3 @@ static void __exit ehci_hcd_cleanup(void)
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 }
 module_exit(ehci_hcd_cleanup);
-
-#endif /* CHIPIDEA_EHCI */
