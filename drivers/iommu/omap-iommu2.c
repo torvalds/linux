@@ -13,6 +13,7 @@
 
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <linux/jiffies.h>
 #include <linux/module.h>
 #include <linux/omap-iommu.h>
@@ -20,6 +21,7 @@
 #include <linux/stringify.h>
 
 #include <plat/iommu.h>
+#include "omap-iommu.h"
 
 /*
  * omap2 architecture specific register bit definitions

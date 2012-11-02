@@ -25,6 +25,7 @@
 #include <plat/iommu.h>
 
 #include "omap-iopgtable.h"
+#include "omap-iommu.h"
 
 /*
  * IOVMF_FLAGS: attribute for iommu virtual memory area(iovma)
