@@ -1594,7 +1594,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_setup_gmbus(dev);
 	intel_opregion_setup(dev);
 
-	/* Make sure the bios did its job and set up vital registers */
 	intel_setup_bios(dev);
 
 	i915_gem_load(dev);

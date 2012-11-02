@@ -537,18 +537,10 @@ void intel_console_resume(struct work_struct *work)
 	console_unlock();
 }
 
-static int i915_drm_thaw(struct drm_device *dev)
+static int __i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
-
-	intel_gt_reset(dev);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		mutex_lock(&dev->struct_mutex);
-		i915_gem_restore_gtt_mappings(dev);
-		mutex_unlock(&dev->struct_mutex);
-	}
 
 	i915_restore_state(dev);
 	intel_opregion_setup(dev);
@@ -588,8 +580,26 @@ static int i915_drm_thaw(struct drm_device *dev)
 	return error;
 }
 
+static int i915_drm_thaw(struct drm_device *dev)
+{
+	int error = 0;
+
+	intel_gt_reset(dev);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	__i915_drm_thaw(dev);
+
+	return error;
+}
+
 int i915_resume(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
@@ -600,7 +610,20 @@ int i915_resume(struct drm_device *dev)
 
 	pci_set_master(dev->pdev);
 
-	ret = i915_drm_thaw(dev);
+	intel_gt_reset(dev);
+
+	/*
+	 * Platforms with opregion should have sane BIOS, older ones (gen3 and
+	 * earlier) need this since the BIOS might clear all our scratch PTEs.
+	 */
+	if (drm_core_check_feature(dev, DRIVER_MODESET) &&
+	    !dev_priv->opregion.header) {
+		mutex_lock(&dev->struct_mutex);
+		i915_gem_restore_gtt_mappings(dev);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	ret = __i915_drm_thaw(dev);
 	if (ret)
 		return ret;
 
