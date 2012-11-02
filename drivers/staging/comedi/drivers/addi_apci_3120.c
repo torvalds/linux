@@ -21,12 +21,10 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrAoChannel		= 8,
 		.i_AiMaxdata		= 0xffff,
 		.i_AoMaxdata		= 0x3fff,
-		.pr_AoRangelist		= &range_apci3120_ao,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
 		.interrupt		= v_APCI3120_Interrupt,
-		.ao_write		= i_APCI3120_InsnWriteAnalogOutput,
 	}, {
 		.pc_DriverName		= "apci3001",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA_OLD,
@@ -172,9 +170,8 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 		s->n_chan = this_board->i_NbrAoChannel;
 		s->maxdata = this_board->i_AoMaxdata;
 		s->len_chanlist = this_board->i_NbrAoChannel;
-		s->range_table = this_board->pr_AoRangelist;
-		s->insn_config = this_board->ao_config;
-		s->insn_write = this_board->ao_write;
+		s->range_table = &range_apci3120_ao;
+		s->insn_write = i_APCI3120_InsnWriteAnalogOutput;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
