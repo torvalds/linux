@@ -29,7 +29,7 @@
 
 /* define if need use pll6 to take the place of pll4,
    this definition is significative on C ver. only */
-#define USE_PLL6M_REPLACE_PLL4      (1)
+#define USE_PLL6M_REPLACE_PLL4      (0)
 
 
 /* define clock error type      */
