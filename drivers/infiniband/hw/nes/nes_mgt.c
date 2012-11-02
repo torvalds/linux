@@ -447,7 +447,7 @@ static int forward_fpdus(struct nes_vnic *nesvnic, struct nes_qp *nesqp)
 		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_NIC_SQ_WQE_FRAG0_LOW_IDX,
 				    lower_32_bits(u64tmp));
 		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_NIC_SQ_WQE_FRAG0_HIGH_IDX,
-				    upper_32_bits(u64tmp >> 32));
+				    upper_32_bits(u64tmp));
 
 		set_wqe_32bit_value(cqp_wqe->wqe_words, NES_NIC_SQ_WQE_FRAG1_LOW_IDX,
 				    lower_32_bits(fpdu_info->frags[0].physaddr));
