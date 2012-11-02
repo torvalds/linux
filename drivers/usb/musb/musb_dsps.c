@@ -365,11 +365,9 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 static int dsps_musb_init(struct musb *musb)
 {
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 	const struct dsps_musb_wrapper *wrp = glue->wrp;
-	struct omap_musb_board_data *data = plat->board_data;
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 rev, val;
 	int status;
@@ -394,10 +392,6 @@ static int dsps_musb_init(struct musb *musb)
 	/* Reset the musb */
 	dsps_writel(reg_base, wrp->control, (1 << wrp->reset));
 
-	/* Start the on-chip PHY and its PLL. */
-	if (data->set_phy_power)
-		data->set_phy_power(1);
-
 	musb->isr = dsps_interrupt;
 
 	/* reset the otgdisable bit, needed for host mode to work */
@@ -418,16 +412,10 @@ err0:
 static int dsps_musb_exit(struct musb *musb)
 {
 	struct device *dev = musb->controller;
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
-	struct omap_musb_board_data *data = plat->board_data;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dsps_glue *glue = dev_get_drvdata(dev->parent);
 
 	del_timer_sync(&glue->timer[pdev->id]);
-
-	/* Shutdown the on-chip PHY and its PLL. */
-	if (data->set_phy_power)
-		data->set_phy_power(0);
 
 	/* NOP driver needs change if supporting dual instance */
 	usb_put_phy(musb->xceiv);
@@ -649,25 +637,11 @@ static int __devexit dsps_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int dsps_suspend(struct device *dev)
 {
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
-	struct omap_musb_board_data *data = plat->board_data;
-
-	/* Shutdown the on-chip PHY and its PLL. */
-	if (data->set_phy_power)
-		data->set_phy_power(0);
-
 	return 0;
 }
 
 static int dsps_resume(struct device *dev)
 {
-	struct musb_hdrc_platform_data *plat = dev->platform_data;
-	struct omap_musb_board_data *data = plat->board_data;
-
-	/* Start the on-chip PHY and its PLL. */
-	if (data->set_phy_power)
-		data->set_phy_power(1);
-
 	return 0;
 }
 #endif
