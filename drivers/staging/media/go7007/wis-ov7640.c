@@ -29,8 +29,7 @@ struct wis_ov7640 {
 	int hue;
 };
 
-static u8 initial_registers[] =
-{
+static u8 initial_registers[] = {
 	0x12, 0x80,
 	0x12, 0x54,
 	0x14, 0x24,
