@@ -1151,7 +1151,6 @@ struct pcidas64_private {
 	short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
-static int setup_subdevices(struct comedi_device *dev);
 static int ao_inttrig(struct comedi_device *dev,
 		      struct comedi_subdevice *subdev, unsigned int trig_num);
 static irqreturn_t handle_interrupt(int irq, void *d);
@@ -1494,181 +1493,6 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		     "AO command and AI external channel queue cannot be used simultaneously.");
 	comedi_error(dev,
 		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
-}
-
-static const struct pcidas64_board
-*cb_pcidas64_find_pci_board(struct pci_dev *pcidev)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++)
-		if (pcidev->device == pcidas64_boards[i].device_id)
-			return &pcidas64_boards[i];
-	return NULL;
-}
-
-static int __devinit auto_attach(struct comedi_device *dev,
-				 unsigned long context_unused)
-{
-	const struct pcidas64_board *thisboard;
-	struct pcidas64_private *devpriv;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	uint32_t local_range, local_decode;
-	int retval;
-
-	dev->board_ptr = cb_pcidas64_find_pci_board(pcidev);
-	if (!dev->board_ptr) {
-		dev_err(dev->class_dev,
-			"cb_pcidas64: does not support pci %s\n",
-			pci_name(pcidev));
-		return -EINVAL;
-	}
-	thisboard = comedi_board(dev);
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
-
-	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
-		dev_warn(dev->class_dev,
-			 "failed to enable PCI device and request regions\n");
-		return -EIO;
-	}
-	pci_set_master(pcidev);
-
-	/* Initialize dev->board_name */
-	dev->board_name = thisboard->name;
-
-	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
-
-	devpriv->plx9080_phys_iobase =
-		pci_resource_start(pcidev, PLX9080_BADDRINDEX);
-	devpriv->main_phys_iobase = dev->iobase;
-	devpriv->dio_counter_phys_iobase =
-		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
-
-	/*  remap, won't work with 2.0 kernels but who cares */
-	devpriv->plx9080_iobase =
-		ioremap(devpriv->plx9080_phys_iobase,
-			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
-	devpriv->main_iobase =
-		ioremap(devpriv->main_phys_iobase,
-			pci_resource_len(pcidev, MAIN_BADDRINDEX));
-	devpriv->dio_counter_iobase =
-		ioremap(devpriv->dio_counter_phys_iobase,
-			pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
-
-	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
-	    || !devpriv->dio_counter_iobase) {
-		dev_warn(dev->class_dev, "failed to remap io memory\n");
-		return -ENOMEM;
-	}
-
-	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", devpriv->plx9080_iobase);
-	DEBUG_PRINT(" main remapped to 0x%p\n", devpriv->main_iobase);
-	DEBUG_PRINT(" diocounter remapped to 0x%p\n",
-		    devpriv->dio_counter_iobase);
-
-	/*  figure out what local addresses are */
-	local_range = readl(devpriv->plx9080_iobase + PLX_LAS0RNG_REG) &
-		      LRNG_MEM_MASK;
-	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS0MAP_REG) &
-		       local_range & LMAP_MEM_MASK;
-	devpriv->local0_iobase = ((uint32_t)devpriv->main_phys_iobase &
-				  ~local_range) | local_decode;
-	local_range = readl(devpriv->plx9080_iobase + PLX_LAS1RNG_REG) &
-		      LRNG_MEM_MASK;
-	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS1MAP_REG) &
-		       local_range & LMAP_MEM_MASK;
-	devpriv->local1_iobase = ((uint32_t)devpriv->dio_counter_phys_iobase &
-				  ~local_range) | local_decode;
-
-	DEBUG_PRINT(" local 0 io addr 0x%x\n", devpriv->local0_iobase);
-	DEBUG_PRINT(" local 1 io addr 0x%x\n", devpriv->local1_iobase);
-
-	retval = alloc_and_init_dma_members(dev);
-	if (retval < 0)
-		return retval;
-
-	devpriv->hw_revision =
-		hw_revision(dev, readw(devpriv->main_iobase + HW_STATUS_REG));
-	dev_dbg(dev->class_dev, "stc hardware revision %i\n",
-		devpriv->hw_revision);
-	init_plx9080(dev);
-	init_stc_registers(dev);
-	/*  get irq */
-	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
-			"cb_pcidas64", dev)) {
-		dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
-			pcidev->irq);
-		return -EINVAL;
-	}
-	dev->irq = pcidev->irq;
-	dev_dbg(dev->class_dev, "irq %u\n", dev->irq);
-
-	retval = setup_subdevices(dev);
-	if (retval < 0)
-		return retval;
-
-	return 0;
-}
-
-static void detach(struct comedi_device *dev)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int i;
-
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (devpriv) {
-		if (pcidev) {
-			if (devpriv->plx9080_iobase) {
-				disable_plx_interrupts(dev);
-				iounmap(devpriv->plx9080_iobase);
-			}
-			if (devpriv->main_iobase)
-				iounmap(devpriv->main_iobase);
-			if (devpriv->dio_counter_iobase)
-				iounmap(devpriv->dio_counter_iobase);
-			/*  free pci dma buffers */
-			for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
-				if (devpriv->ai_buffer[i])
-					pci_free_consistent(pcidev,
-						DMA_BUFFER_SIZE,
-						devpriv->ai_buffer[i],
-						devpriv->ai_buffer_bus_addr[i]);
-			}
-			for (i = 0; i < AO_DMA_RING_COUNT; i++) {
-				if (devpriv->ao_buffer[i])
-					pci_free_consistent(pcidev,
-						DMA_BUFFER_SIZE,
-						devpriv->ao_buffer[i],
-						devpriv->ao_buffer_bus_addr[i]);
-			}
-			/*  free dma descriptors */
-			if (devpriv->ai_dma_desc)
-				pci_free_consistent(pcidev,
-					sizeof(struct plx_dma_desc) *
-					ai_dma_ring_count(thisboard),
-					devpriv->ai_dma_desc,
-					devpriv->ai_dma_desc_bus_addr);
-			if (devpriv->ao_dma_desc)
-				pci_free_consistent(pcidev,
-					sizeof(struct plx_dma_desc) *
-					AO_DMA_RING_COUNT,
-					devpriv->ao_dma_desc,
-					devpriv->ao_dma_desc_bus_addr);
-		}
-	}
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[4]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
 }
 
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -4260,6 +4084,181 @@ static int setup_subdevices(struct comedi_device *dev)
 	s->type = COMEDI_SUBD_UNUSED;
 
 	return 0;
+}
+
+static const struct pcidas64_board
+*cb_pcidas64_find_pci_board(struct pci_dev *pcidev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++)
+		if (pcidev->device == pcidas64_boards[i].device_id)
+			return &pcidas64_boards[i];
+	return NULL;
+}
+
+static int __devinit auto_attach(struct comedi_device *dev,
+				 unsigned long context_unused)
+{
+	const struct pcidas64_board *thisboard;
+	struct pcidas64_private *devpriv;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	uint32_t local_range, local_decode;
+	int retval;
+
+	dev->board_ptr = cb_pcidas64_find_pci_board(pcidev);
+	if (!dev->board_ptr) {
+		dev_err(dev->class_dev,
+			"cb_pcidas64: does not support pci %s\n",
+			pci_name(pcidev));
+		return -EINVAL;
+	}
+	thisboard = comedi_board(dev);
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
+		dev_warn(dev->class_dev,
+			 "failed to enable PCI device and request regions\n");
+		return -EIO;
+	}
+	pci_set_master(pcidev);
+
+	/* Initialize dev->board_name */
+	dev->board_name = thisboard->name;
+
+	dev->iobase = pci_resource_start(pcidev, MAIN_BADDRINDEX);
+
+	devpriv->plx9080_phys_iobase =
+		pci_resource_start(pcidev, PLX9080_BADDRINDEX);
+	devpriv->main_phys_iobase = dev->iobase;
+	devpriv->dio_counter_phys_iobase =
+		pci_resource_start(pcidev, DIO_COUNTER_BADDRINDEX);
+
+	/*  remap, won't work with 2.0 kernels but who cares */
+	devpriv->plx9080_iobase =
+		ioremap(devpriv->plx9080_phys_iobase,
+			pci_resource_len(pcidev, PLX9080_BADDRINDEX));
+	devpriv->main_iobase =
+		ioremap(devpriv->main_phys_iobase,
+			pci_resource_len(pcidev, MAIN_BADDRINDEX));
+	devpriv->dio_counter_iobase =
+		ioremap(devpriv->dio_counter_phys_iobase,
+			pci_resource_len(pcidev, DIO_COUNTER_BADDRINDEX));
+
+	if (!devpriv->plx9080_iobase || !devpriv->main_iobase
+	    || !devpriv->dio_counter_iobase) {
+		dev_warn(dev->class_dev, "failed to remap io memory\n");
+		return -ENOMEM;
+	}
+
+	DEBUG_PRINT(" plx9080 remapped to 0x%p\n", devpriv->plx9080_iobase);
+	DEBUG_PRINT(" main remapped to 0x%p\n", devpriv->main_iobase);
+	DEBUG_PRINT(" diocounter remapped to 0x%p\n",
+		    devpriv->dio_counter_iobase);
+
+	/*  figure out what local addresses are */
+	local_range = readl(devpriv->plx9080_iobase + PLX_LAS0RNG_REG) &
+		      LRNG_MEM_MASK;
+	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS0MAP_REG) &
+		       local_range & LMAP_MEM_MASK;
+	devpriv->local0_iobase = ((uint32_t)devpriv->main_phys_iobase &
+				  ~local_range) | local_decode;
+	local_range = readl(devpriv->plx9080_iobase + PLX_LAS1RNG_REG) &
+		      LRNG_MEM_MASK;
+	local_decode = readl(devpriv->plx9080_iobase + PLX_LAS1MAP_REG) &
+		       local_range & LMAP_MEM_MASK;
+	devpriv->local1_iobase = ((uint32_t)devpriv->dio_counter_phys_iobase &
+				  ~local_range) | local_decode;
+
+	DEBUG_PRINT(" local 0 io addr 0x%x\n", devpriv->local0_iobase);
+	DEBUG_PRINT(" local 1 io addr 0x%x\n", devpriv->local1_iobase);
+
+	retval = alloc_and_init_dma_members(dev);
+	if (retval < 0)
+		return retval;
+
+	devpriv->hw_revision =
+		hw_revision(dev, readw(devpriv->main_iobase + HW_STATUS_REG));
+	dev_dbg(dev->class_dev, "stc hardware revision %i\n",
+		devpriv->hw_revision);
+	init_plx9080(dev);
+	init_stc_registers(dev);
+	/*  get irq */
+	if (request_irq(pcidev->irq, handle_interrupt, IRQF_SHARED,
+			"cb_pcidas64", dev)) {
+		dev_dbg(dev->class_dev, "unable to allocate irq %u\n",
+			pcidev->irq);
+		return -EINVAL;
+	}
+	dev->irq = pcidev->irq;
+	dev_dbg(dev->class_dev, "irq %u\n", dev->irq);
+
+	retval = setup_subdevices(dev);
+	if (retval < 0)
+		return retval;
+
+	return 0;
+}
+
+static void detach(struct comedi_device *dev)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int i;
+
+	if (dev->irq)
+		free_irq(dev->irq, dev);
+	if (devpriv) {
+		if (pcidev) {
+			if (devpriv->plx9080_iobase) {
+				disable_plx_interrupts(dev);
+				iounmap(devpriv->plx9080_iobase);
+			}
+			if (devpriv->main_iobase)
+				iounmap(devpriv->main_iobase);
+			if (devpriv->dio_counter_iobase)
+				iounmap(devpriv->dio_counter_iobase);
+			/*  free pci dma buffers */
+			for (i = 0; i < ai_dma_ring_count(thisboard); i++) {
+				if (devpriv->ai_buffer[i])
+					pci_free_consistent(pcidev,
+						DMA_BUFFER_SIZE,
+						devpriv->ai_buffer[i],
+						devpriv->ai_buffer_bus_addr[i]);
+			}
+			for (i = 0; i < AO_DMA_RING_COUNT; i++) {
+				if (devpriv->ao_buffer[i])
+					pci_free_consistent(pcidev,
+						DMA_BUFFER_SIZE,
+						devpriv->ao_buffer[i],
+						devpriv->ao_buffer_bus_addr[i]);
+			}
+			/*  free dma descriptors */
+			if (devpriv->ai_dma_desc)
+				pci_free_consistent(pcidev,
+					sizeof(struct plx_dma_desc) *
+					ai_dma_ring_count(thisboard),
+					devpriv->ai_dma_desc,
+					devpriv->ai_dma_desc_bus_addr);
+			if (devpriv->ao_dma_desc)
+				pci_free_consistent(pcidev,
+					sizeof(struct plx_dma_desc) *
+					AO_DMA_RING_COUNT,
+					devpriv->ao_dma_desc,
+					devpriv->ao_dma_desc_bus_addr);
+		}
+	}
+	if (dev->subdevices)
+		subdev_8255_cleanup(dev, &dev->subdevices[4]);
+	if (pcidev) {
+		if (dev->iobase)
+			comedi_pci_disable(pcidev);
+	}
 }
 
 static struct comedi_driver cb_pcidas64_driver = {
