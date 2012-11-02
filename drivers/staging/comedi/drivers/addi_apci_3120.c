@@ -34,11 +34,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.ui_MinDelaytimeNs	= 100000,
 		.interrupt		= v_APCI3120_Interrupt,
 		.reset			= i_APCI3120_Reset,
-		.ai_config		= i_APCI3120_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3120_InsnReadAnalogInput,
-		.ai_cmdtest		= i_APCI3120_CommandTestAnalogInput,
-		.ai_cmd			= i_APCI3120_CommandAnalogInput,
-		.ai_cancel		= i_APCI3120_StopCyclicAcquisition,
 		.ao_write		= i_APCI3120_InsnWriteAnalogOutput,
 	}, {
 		.pc_DriverName		= "apci3001",
@@ -60,11 +55,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.ui_MinDelaytimeNs	= 100000,
 		.interrupt		= v_APCI3120_Interrupt,
 		.reset			= i_APCI3120_Reset,
-		.ai_config		= i_APCI3120_InsnConfigAnalogInput,
-		.ai_read		= i_APCI3120_InsnReadAnalogInput,
-		.ai_cmdtest		= i_APCI3120_CommandTestAnalogInput,
-		.ai_cmd			= i_APCI3120_CommandAnalogInput,
-		.ai_cancel		= i_APCI3120_StopCyclicAcquisition,
 	},
 };
 
@@ -197,13 +187,11 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	/* Set the initialisation flag */
 	devpriv->b_AiInitialisation = 1;
 
-	s->insn_config = this_board->ai_config;
-	s->insn_read = this_board->ai_read;
-	s->insn_write = this_board->ai_write;
-	s->insn_bits = this_board->ai_bits;
-	s->do_cmdtest = this_board->ai_cmdtest;
-	s->do_cmd = this_board->ai_cmd;
-	s->cancel = this_board->ai_cancel;
+	s->insn_config = i_APCI3120_InsnConfigAnalogInput;
+	s->insn_read = i_APCI3120_InsnReadAnalogInput;
+	s->do_cmdtest = i_APCI3120_CommandTestAnalogInput;
+	s->do_cmd = i_APCI3120_CommandAnalogInput;
+	s->cancel = i_APCI3120_StopCyclicAcquisition;
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
