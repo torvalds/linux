@@ -57,6 +57,7 @@
 #include <linux/swapops.h>
 #include <linux/elf.h>
 #include <linux/gfp.h>
+#include <linux/migrate.h>
 
 #include <asm/io.h>
 #include <asm/pgalloc.h>
@@ -3451,8 +3452,9 @@ static int do_nonlinear_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		   unsigned long addr, pte_t pte, pte_t *ptep, pmd_t *pmd)
 {
-	struct page *page;
+	struct page *page = NULL;
 	spinlock_t *ptl;
+	int current_nid, target_nid;
 
 	/*
 	* The "pte" at this point cannot be used safely without
@@ -3465,8 +3467,11 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	*/
 	ptl = pte_lockptr(mm, pmd);
 	spin_lock(ptl);
-	if (unlikely(!pte_same(*ptep, pte)))
-		goto out_unlock;
+	if (unlikely(!pte_same(*ptep, pte))) {
+		pte_unmap_unlock(ptep, ptl);
+		goto out;
+	}
+
 	pte = pte_mknonnuma(pte);
 	set_pte_at(mm, addr, ptep, pte);
 	update_mmu_cache(vma, addr, ptep);
@@ -3477,8 +3482,25 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		return 0;
 	}
 
-out_unlock:
+	get_page(page);
+	current_nid = page_to_nid(page);
+	target_nid = mpol_misplaced(page, vma, addr);
 	pte_unmap_unlock(ptep, ptl);
+	if (target_nid == -1) {
+		/*
+		 * Account for the fault against the current node if it not
+		 * being replaced regardless of where the page is located.
+		 */
+		current_nid = numa_node_id();
+		put_page(page);
+		goto out;
+	}
+
+	/* Migrate to the requested node */
+	if (migrate_misplaced_page(page, target_nid))
+		current_nid = target_nid;
+
+out:
 	return 0;
 }
 
@@ -3655,7 +3677,7 @@ retry:
 		barrier();
 		if (pmd_trans_huge(orig_pmd)) {
 			if (pmd_numa(*pmd))
-				return do_huge_pmd_numa_page(mm, address,
+				return do_huge_pmd_numa_page(mm, vma, address,
 							     orig_pmd, pmd);
 
 			if ((flags & FAULT_FLAG_WRITE) && !pmd_write(orig_pmd)) {
