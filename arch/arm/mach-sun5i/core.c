@@ -83,10 +83,19 @@ static void pr_brom(void *base)
 
 	/* [    0.000000] BROM Ver: 1100 1100 1625 */
 	if (strncmp(brom->magic, "eGON.BRM", 8) == 0) {
+		char *endptr;
+		u32 chip_id = simple_strtoul(brom->platform, &endptr, 10);
+
 		pr_info("BROM Ver: %.4s %.4s %.8s\n",
 			brom->Boot_vsn,
 			brom->eGON_vsn,
 			brom->platform);
+
+		if (*endptr == '\0') {
+			pr_info("chip-id: %s (AW%u)\n",
+				chip_id == 1625 ? "A13" : "Unknown",
+				chip_id);
+		}
 	} else {
 		pr_err("SUNXI BROM not found");
 	}
