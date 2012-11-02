@@ -208,8 +208,7 @@ static const struct comedi_lrange range_pci9118hg = { 8, {
 
 struct boardtype {
 	const char *name;		/* board name */
-	int vendor_id;			/* PCI vendor a device ID of card */
-	int device_id;
+	int device_id;			/* PCI device ID of card */
 	int iorange_amcc;		/* iorange for own S5933 region */
 	int iorange_9118;		/* pass thru card region size */
 	int n_aichan;			/* num of A/D chans */
@@ -2131,7 +2130,6 @@ static void pci9118_detach(struct comedi_device *dev)
 static const struct boardtype boardtypes[] = {
 	{
 		.name		= "pci9118dg",
-		.vendor_id	= PCI_VENDOR_ID_AMCC,
 		.device_id	= 0x80d9,
 		.iorange_amcc	= AMCC_OP_REG_SIZE,
 		.iorange_9118	= IORANGE_9118,
@@ -2149,7 +2147,6 @@ static const struct boardtype boardtypes[] = {
 		.half_fifo_size	= 512,
 	}, {
 		.name		= "pci9118hg",
-		.vendor_id	= PCI_VENDOR_ID_AMCC,
 		.device_id	= 0x80d9,
 		.iorange_amcc	= AMCC_OP_REG_SIZE,
 		.iorange_9118	= IORANGE_9118,
@@ -2167,7 +2164,6 @@ static const struct boardtype boardtypes[] = {
 		.half_fifo_size	= 512,
 	}, {
 		.name		= "pci9118hr",
-		.vendor_id	= PCI_VENDOR_ID_AMCC,
 		.device_id	= 0x80d9,
 		.iorange_amcc	= AMCC_OP_REG_SIZE,
 		.iorange_9118	= IORANGE_9118,
