@@ -21,7 +21,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrAoChannel		= 8,
 		.i_AiMaxdata		= 0xffff,
 		.i_AoMaxdata		= 0x3fff,
-		.pr_AiRangelist		= &range_apci3120_ai,
 		.pr_AoRangelist		= &range_apci3120_ao,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
@@ -39,7 +38,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.i_NbrAiChannelDiff	= 8,
 		.i_AiChannelList	= 16,
 		.i_AiMaxdata		= 0xfff,
-		.pr_AiRangelist		= &range_apci3120_ai,
 		.i_NbrDiChannel		= 4,
 		.i_NbrDoChannel		= 4,
 		.i_DoMaxdata		= 0x0f,
@@ -161,7 +159,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	}
 	s->maxdata = this_board->i_AiMaxdata;
 	s->len_chanlist = this_board->i_AiChannelList;
-	s->range_table = this_board->pr_AiRangelist;
+	s->range_table = &range_apci3120_ai;
 
 	/* Set the initialisation flag */
 	devpriv->b_AiInitialisation = 1;
