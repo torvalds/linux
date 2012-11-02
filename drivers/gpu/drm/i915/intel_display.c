@@ -41,8 +41,6 @@
 #include <drm/drm_crtc_helper.h>
 #include <linux/dma_remapping.h>
 
-#define HAS_eDP (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
-
 bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
@@ -541,7 +539,7 @@ static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 				limit = &intel_limits_ironlake_single_lvds;
 		}
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
-			HAS_eDP)
+		   intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
 		limit = &intel_limits_ironlake_display_port;
 	else
 		limit = &intel_limits_ironlake_dac;
@@ -3398,7 +3396,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 
 	/* Enable panel fitting for LVDS */
 	if (dev_priv->pch_pf_size &&
-	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) || HAS_eDP)) {
+	    (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) ||
+	     intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
@@ -3473,7 +3472,8 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_ddi_enable_pipe_clock(intel_crtc);
 
 	/* Enable panel fitting for eDP */
-	if (dev_priv->pch_pf_size && HAS_eDP) {
+	if (dev_priv->pch_pf_size &&
+	    intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP)) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
