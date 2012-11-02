@@ -35,6 +35,14 @@ static struct nouveau_dsm_priv {
 	acpi_handle rom_handle;
 } nouveau_dsm_priv;
 
+bool nouveau_is_optimus(void) {
+	return nouveau_dsm_priv.optimus_detected;
+}
+
+bool nouveau_is_v1_dsm(void) {
+	return nouveau_dsm_priv.dsm_detected;
+}
+
 #define NOUVEAU_DSM_HAS_MUX 0x1
 #define NOUVEAU_DSM_HAS_OPT 0x2
 
@@ -183,9 +191,7 @@ static int nouveau_dsm_set_discrete_state(acpi_handle handle, enum vga_switchero
 
 static int nouveau_dsm_switchto(enum vga_switcheroo_client_id id)
 {
-	/* perhaps the _DSM functions are mutually exclusive, but prepare for
-	 * the future */
-	if (!nouveau_dsm_priv.dsm_detected && nouveau_dsm_priv.optimus_detected)
+	if (!nouveau_dsm_priv.dsm_detected)
 		return 0;
 	if (id == VGA_SWITCHEROO_IGD)
 		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_LED_STAMINA);
@@ -201,7 +207,7 @@ static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
 
 	/* Optimus laptops have the card already disabled in
 	 * nouveau_switcheroo_set_state */
-	if (!nouveau_dsm_priv.dsm_detected && nouveau_dsm_priv.optimus_detected)
+	if (!nouveau_dsm_priv.dsm_detected)
 		return 0;
 
 	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dhandle, state);
@@ -283,7 +289,15 @@ static bool nouveau_dsm_detect(void)
 			has_optimus = 1;
 	}
 
-	if (vga_count == 2 && has_dsm && guid_valid) {
+	/* find the optimus DSM or the old v1 DSM */
+	if (has_optimus == 1) {
+		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
+			&buffer);
+		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
+			acpi_method_name);
+		nouveau_dsm_priv.optimus_detected = true;
+		ret = true;
+	} else if (vga_count == 2 && has_dsm && guid_valid) {
 		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
 			&buffer);
 		printk(KERN_INFO "VGA switcheroo: detected DSM switching method %s handle\n",
@@ -292,14 +306,6 @@ static bool nouveau_dsm_detect(void)
 		ret = true;
 	}
 
-	if (has_optimus == 1) {
-		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME,
-			&buffer);
-		printk(KERN_INFO "VGA switcheroo: detected Optimus DSM method %s handle\n",
-			acpi_method_name);
-		nouveau_dsm_priv.optimus_detected = true;
-		ret = true;
-	}
 
 	return ret;
 }
