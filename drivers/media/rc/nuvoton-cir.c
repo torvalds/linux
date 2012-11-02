@@ -1065,6 +1065,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 	/* tx bits */
 	rdev->tx_resolution = XYZ;
 #endif
+	nvt->rdev = rdev;
 
 	ret = -EBUSY;
 	/* now claim resources */
@@ -1089,7 +1090,7 @@ static int nvt_probe(struct pnp_dev *pdev, const struct pnp_device_id *dev_id)
 		goto exit_free_wake_irq;
 
 	device_init_wakeup(&pdev->dev, true);
-	nvt->rdev = rdev;
+
 	nvt_pr(KERN_NOTICE, "driver has been successfully loaded\n");
 	if (debug) {
 		cir_dump_regs(nvt);
