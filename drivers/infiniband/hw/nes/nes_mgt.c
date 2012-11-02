@@ -210,6 +210,9 @@ static struct sk_buff *nes_get_next_skb(struct nes_device *nesdev, struct nes_qp
 	}
 
 	while (1) {
+		if (skb_queue_empty(&nesqp->pau_list))
+			goto out;
+
 		seq = nes_get_seq(skb, ack, wnd, fin_rcvd, rst_rcvd);
 		if (seq == nextseq) {
 			if (skb->len || processacks)
@@ -218,14 +221,13 @@ static struct sk_buff *nes_get_next_skb(struct nes_device *nesdev, struct nes_qp
 			goto out;
 		}
 
-		if (skb->next == (struct sk_buff *)&nesqp->pau_list)
-			goto out;
-
 		old_skb = skb;
 		skb = skb->next;
 		skb_unlink(old_skb, &nesqp->pau_list);
 		nes_mgt_free_skb(nesdev, old_skb, PCI_DMA_TODEVICE);
 		nes_rem_ref_cm_node(nesqp->cm_node);
+		if (skb == (struct sk_buff *)&nesqp->pau_list)
+			goto out;
 	}
 	return skb;
 
@@ -384,7 +386,8 @@ static int get_fpdu_info(struct nes_device *nesdev, struct nes_qp *nesqp,
 		if (frags[i].skb->len == 0) {
 			/* Pull skb off the list - it will be freed in the callback */
 			spin_lock_irqsave(&nesqp->pau_lock, flags);
-			skb_unlink(frags[i].skb, &nesqp->pau_list);
+			if (!skb_queue_empty(&nesqp->pau_list))
+				skb_unlink(frags[i].skb, &nesqp->pau_list);
 			spin_unlock_irqrestore(&nesqp->pau_lock, flags);
 		} else {
 			/* Last skb still has data so update the seq */
