@@ -10,8 +10,7 @@
 
 #include "csr_wifi_hip_unifi.h"
 
-struct sig_name
-{
+struct sig_name {
 	s16             id;
 	const char *name;
 };
@@ -32,13 +31,9 @@ static const struct sig_name Unifi_bulkcmd_names[] = {
 const char* lookup_bulkcmd_name(u16 id)
 {
 	if (id < 9)
-	{
 		return Unifi_bulkcmd_names[id].name;
-	}
 	if (id == 15)
-	{
 		return "Padding";
-	}
 
 	return "UNKNOWN";
 }
