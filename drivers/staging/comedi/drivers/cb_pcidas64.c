@@ -1151,27 +1151,13 @@ struct pcidas64_private {
 	short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
-static int ao_inttrig(struct comedi_device *dev,
-		      struct comedi_subdevice *subdev, unsigned int trig_num);
-static irqreturn_t handle_interrupt(int irq, void *d);
-static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
-static unsigned int get_divisor(unsigned int ns, unsigned int flags);
-static void i2c_write(struct comedi_device *dev, unsigned int address,
-		      const uint8_t *data, unsigned int length);
-static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
-			     uint8_t value);
-static int caldac_i2c_write(struct comedi_device *dev,
-			    unsigned int caldac_channel, unsigned int value);
-static void abort_dma(struct comedi_device *dev, unsigned int channel);
 static void disable_plx_interrupts(struct comedi_device *dev);
 static int set_ai_fifo_size(struct comedi_device *dev,
 			    unsigned int num_samples);
 static unsigned int ai_fifo_size(struct comedi_device *dev);
 static int set_ai_fifo_segment_length(struct comedi_device *dev,
 				      unsigned int num_entries);
-static void disable_ai_pacing(struct comedi_device *dev);
 static void disable_ai_interrupts(struct comedi_device *dev);
-static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 static void load_ao_dma(struct comedi_device *dev,
 			const struct comedi_cmd *cmd);
 
@@ -1250,6 +1236,19 @@ static void set_dac_range_bits(struct comedi_device *dev,
 static inline int ao_cmd_is_supported(const struct pcidas64_board *board)
 {
 	return board->ao_nchan && board->layout != LAYOUT_4020;
+}
+
+static void abort_dma(struct comedi_device *dev, unsigned int channel)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned long flags;
+
+	/*  spinlock for plx dma control/status reg */
+	spin_lock_irqsave(&dev->spinlock, flags);
+
+	plx9080_abort_dma(devpriv->plx9080_iobase, channel);
+
+	spin_unlock_irqrestore(&dev->spinlock, flags);
 }
 
 /* initialize plx9080 chip */
@@ -1351,6 +1350,24 @@ static void disable_plx_interrupts(struct comedi_device *dev)
 	devpriv->plx_intcsr_bits = 0;
 	writel(devpriv->plx_intcsr_bits,
 	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
+}
+
+static void disable_ai_pacing(struct comedi_device *dev)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned long flags;
+
+	disable_ai_interrupts(dev);
+
+	spin_lock_irqsave(&dev->spinlock, flags);
+	devpriv->adc_control1_bits &= ~ADC_SW_GATE_BIT;
+	writew(devpriv->adc_control1_bits,
+	       devpriv->main_iobase + ADC_CONTROL1_REG);
+	spin_unlock_irqrestore(&dev->spinlock, flags);
+
+	/* disable pacing, triggering, etc */
+	writew(ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
+	       devpriv->main_iobase + ADC_CONTROL0_REG);
 }
 
 static void init_stc_registers(struct comedi_device *dev)
@@ -1493,6 +1510,135 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		     "AO command and AI external channel queue cannot be used simultaneously.");
 	comedi_error(dev,
 		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
+}
+
+/* Their i2c requires a huge delay on setting clock or data high for some reason */
+static const int i2c_high_udelay = 1000;
+static const int i2c_low_udelay = 10;
+
+/* set i2c data line high or low */
+static void i2c_set_sda(struct comedi_device *dev, int state)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	static const int data_bit = CTL_EE_W;
+	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
+					 PLX_CONTROL_REG;
+
+	if (state) {
+		/*  set data line high */
+		devpriv->plx_control_bits &= ~data_bit;
+		writel(devpriv->plx_control_bits, plx_control_addr);
+		udelay(i2c_high_udelay);
+	} else {		/*  set data line low */
+
+		devpriv->plx_control_bits |= data_bit;
+		writel(devpriv->plx_control_bits, plx_control_addr);
+		udelay(i2c_low_udelay);
+	}
+}
+
+/* set i2c clock line high or low */
+static void i2c_set_scl(struct comedi_device *dev, int state)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	static const int clock_bit = CTL_USERO;
+	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
+					 PLX_CONTROL_REG;
+
+	if (state) {
+		/*  set clock line high */
+		devpriv->plx_control_bits &= ~clock_bit;
+		writel(devpriv->plx_control_bits, plx_control_addr);
+		udelay(i2c_high_udelay);
+	} else {		/*  set clock line low */
+
+		devpriv->plx_control_bits |= clock_bit;
+		writel(devpriv->plx_control_bits, plx_control_addr);
+		udelay(i2c_low_udelay);
+	}
+}
+
+static void i2c_write_byte(struct comedi_device *dev, uint8_t byte)
+{
+	uint8_t bit;
+	unsigned int num_bits = 8;
+
+	DEBUG_PRINT("writing to i2c byte 0x%x\n", byte);
+
+	for (bit = 1 << (num_bits - 1); bit; bit >>= 1) {
+		i2c_set_scl(dev, 0);
+		if ((byte & bit))
+			i2c_set_sda(dev, 1);
+		else
+			i2c_set_sda(dev, 0);
+		i2c_set_scl(dev, 1);
+	}
+}
+
+/* we can't really read the lines, so fake it */
+static int i2c_read_ack(struct comedi_device *dev)
+{
+	i2c_set_scl(dev, 0);
+	i2c_set_sda(dev, 1);
+	i2c_set_scl(dev, 1);
+
+	return 0;		/*  return fake acknowledge bit */
+}
+
+/* send start bit */
+static void i2c_start(struct comedi_device *dev)
+{
+	i2c_set_scl(dev, 1);
+	i2c_set_sda(dev, 1);
+	i2c_set_sda(dev, 0);
+}
+
+/* send stop bit */
+static void i2c_stop(struct comedi_device *dev)
+{
+	i2c_set_scl(dev, 0);
+	i2c_set_sda(dev, 0);
+	i2c_set_scl(dev, 1);
+	i2c_set_sda(dev, 1);
+}
+
+static void i2c_write(struct comedi_device *dev, unsigned int address,
+		      const uint8_t *data, unsigned int length)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	unsigned int i;
+	uint8_t bitstream;
+	static const int read_bit = 0x1;
+
+	/* XXX need mutex to prevent simultaneous attempts to access
+	 * eeprom and i2c bus */
+
+	/*  make sure we dont send anything to eeprom */
+	devpriv->plx_control_bits &= ~CTL_EE_CS;
+
+	i2c_stop(dev);
+	i2c_start(dev);
+
+	/*  send address and write bit */
+	bitstream = (address << 1) & ~read_bit;
+	i2c_write_byte(dev, bitstream);
+
+	/*  get acknowledge */
+	if (i2c_read_ack(dev) != 0) {
+		comedi_error(dev, "i2c write failed: no acknowledge");
+		i2c_stop(dev);
+		return;
+	}
+	/*  write data bytes */
+	for (i = 0; i < length; i++) {
+		i2c_write_byte(dev, data[i]);
+		if (i2c_read_ack(dev) != 0) {
+			comedi_error(dev, "i2c write failed: no acknowledge");
+			i2c_stop(dev);
+			return;
+		}
+	}
+	i2c_stop(dev);
 }
 
 static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -1750,6 +1896,80 @@ static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return -EINVAL;
 }
 
+/* Gets nearest achievable timing given master clock speed, does not
+ * take into account possible minimum/maximum divisor values.  Used
+ * by other timing checking functions. */
+static unsigned int get_divisor(unsigned int ns, unsigned int flags)
+{
+	unsigned int divisor;
+
+	switch (flags & TRIG_ROUND_MASK) {
+	case TRIG_ROUND_UP:
+		divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
+		break;
+	case TRIG_ROUND_DOWN:
+		divisor = ns / TIMER_BASE;
+		break;
+	case TRIG_ROUND_NEAREST:
+	default:
+		divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
+		break;
+	}
+	return divisor;
+}
+
+/* utility function that rounds desired timing to an achievable time, and
+ * sets cmd members appropriately.
+ * adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
+ */
+static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	unsigned int convert_divisor = 0, scan_divisor;
+	static const int min_convert_divisor = 3;
+	static const int max_convert_divisor =
+		max_counter_value + min_convert_divisor;
+	static const int min_scan_divisor_4020 = 2;
+	unsigned long long max_scan_divisor, min_scan_divisor;
+
+	if (cmd->convert_src == TRIG_TIMER) {
+		if (thisboard->layout == LAYOUT_4020) {
+			cmd->convert_arg = 0;
+		} else {
+			convert_divisor = get_divisor(cmd->convert_arg,
+						      cmd->flags);
+			if (convert_divisor > max_convert_divisor)
+				convert_divisor = max_convert_divisor;
+			if (convert_divisor < min_convert_divisor)
+				convert_divisor = min_convert_divisor;
+			cmd->convert_arg = convert_divisor * TIMER_BASE;
+		}
+	} else if (cmd->convert_src == TRIG_NOW) {
+		cmd->convert_arg = 0;
+	}
+
+	if (cmd->scan_begin_src == TRIG_TIMER) {
+		scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
+		if (cmd->convert_src == TRIG_TIMER) {
+			/*  XXX check for integer overflows */
+			min_scan_divisor = convert_divisor * cmd->chanlist_len;
+			max_scan_divisor =
+				(convert_divisor * cmd->chanlist_len - 1) +
+				max_counter_value;
+		} else {
+			min_scan_divisor = min_scan_divisor_4020;
+			max_scan_divisor = max_counter_value + min_scan_divisor;
+		}
+		if (scan_divisor > max_scan_divisor)
+			scan_divisor = max_scan_divisor;
+		if (scan_divisor < min_scan_divisor)
+			scan_divisor = min_scan_divisor;
+		cmd->scan_begin_arg = scan_divisor * TIMER_BASE;
+	}
+
+	return;
+}
+
 static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		      struct comedi_cmd *cmd)
 {
@@ -1955,24 +2175,6 @@ static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 		num_samples = DMA_BUFFER_SIZE / sizeof(uint16_t);
 
 	return num_samples;
-}
-
-static void disable_ai_pacing(struct comedi_device *dev)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned long flags;
-
-	disable_ai_interrupts(dev);
-
-	spin_lock_irqsave(&dev->spinlock, flags);
-	devpriv->adc_control1_bits &= ~ADC_SW_GATE_BIT;
-	writew(devpriv->adc_control1_bits,
-	       devpriv->main_iobase + ADC_CONTROL1_REG);
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-
-	/* disable pacing, triggering, etc */
-	writew(ADC_DMA_DISABLE_BIT | ADC_SOFT_GATE_BITS | ADC_GATE_LEVEL_BIT,
-	       devpriv->main_iobase + ADC_CONTROL0_REG);
 }
 
 static void disable_ai_interrupts(struct comedi_device *dev)
@@ -2817,19 +3019,6 @@ static irqreturn_t handle_interrupt(int irq, void *d)
 	return IRQ_HANDLED;
 }
 
-static void abort_dma(struct comedi_device *dev, unsigned int channel)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned long flags;
-
-	/*  spinlock for plx dma control/status reg */
-	spin_lock_irqsave(&dev->spinlock, flags);
-
-	plx9080_abort_dma(devpriv->plx9080_iobase, channel);
-
-	spin_unlock_irqrestore(&dev->spinlock, flags);
-}
-
 static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcidas64_private *devpriv = dev->private;
@@ -2950,6 +3139,11 @@ static void set_dac_select_reg(struct comedi_device *dev,
 	bits = (first_channel & 0x7) | (last_channel & 0x7) << 3;
 
 	writew(bits, devpriv->main_iobase + DAC_SELECT_REG);
+}
+
+static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags)
+{
+	return get_divisor(ns, flags) - 2;
 }
 
 static void set_dac_interval_regs(struct comedi_device *dev,
@@ -3092,6 +3286,30 @@ static inline int external_ai_queue_in_use(struct comedi_device *dev)
 	return 1;
 }
 
+static int ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
+		      unsigned int trig_num)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	struct comedi_cmd *cmd = &s->async->cmd;
+	int retval;
+
+	if (trig_num != 0)
+		return -EINVAL;
+
+	retval = prep_ao_dma(dev, cmd);
+	if (retval < 0)
+		return -EPIPE;
+
+	set_dac_control0_reg(dev, cmd);
+
+	if (cmd->start_src == TRIG_INT)
+		writew(0, devpriv->main_iobase + DAC_START_REG);
+
+	s->async->inttrig = NULL;
+
+	return 0;
+}
+
 static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct pcidas64_private *devpriv = dev->private;
@@ -3114,30 +3332,6 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	set_dac_control1_reg(dev, cmd);
 	s->async->inttrig = ao_inttrig;
-
-	return 0;
-}
-
-static int ao_inttrig(struct comedi_device *dev, struct comedi_subdevice *s,
-		      unsigned int trig_num)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	struct comedi_cmd *cmd = &s->async->cmd;
-	int retval;
-
-	if (trig_num != 0)
-		return -EINVAL;
-
-	retval = prep_ao_dma(dev, cmd);
-	if (retval < 0)
-		return -EPIPE;
-
-	set_dac_control0_reg(dev, cmd);
-
-	if (cmd->start_src == TRIG_INT)
-		writew(0, devpriv->main_iobase + DAC_START_REG);
-
-	s->async->inttrig = NULL;
 
 	return 0;
 }
@@ -3346,6 +3540,120 @@ static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
 	return insn->n;
 }
 
+/* pci-6025 8800 caldac:
+ * address 0 == dac channel 0 offset
+ * address 1 == dac channel 0 gain
+ * address 2 == dac channel 1 offset
+ * address 3 == dac channel 1 gain
+ * address 4 == fine adc offset
+ * address 5 == coarse adc offset
+ * address 6 == coarse adc gain
+ * address 7 == fine adc gain
+ */
+/* pci-6402/16 uses all 8 channels for dac:
+ * address 0 == dac channel 0 fine gain
+ * address 1 == dac channel 0 coarse gain
+ * address 2 == dac channel 0 coarse offset
+ * address 3 == dac channel 1 coarse offset
+ * address 4 == dac channel 1 fine gain
+ * address 5 == dac channel 1 coarse gain
+ * address 6 == dac channel 0 fine offset
+ * address 7 == dac channel 1 fine offset
+*/
+
+static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
+			     uint8_t value)
+{
+	struct pcidas64_private *devpriv = dev->private;
+	static const int num_caldac_channels = 8;
+	static const int bitstream_length = 11;
+	unsigned int bitstream = ((address & 0x7) << 8) | value;
+	unsigned int bit, register_bits;
+	static const int caldac_8800_udelay = 1;
+
+	if (address >= num_caldac_channels) {
+		comedi_error(dev, "illegal caldac channel");
+		return -1;
+	}
+	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
+		register_bits = 0;
+		if (bitstream & bit)
+			register_bits |= SERIAL_DATA_IN_BIT;
+		udelay(caldac_8800_udelay);
+		writew(register_bits, devpriv->main_iobase + CALIBRATION_REG);
+		register_bits |= SERIAL_CLOCK_BIT;
+		udelay(caldac_8800_udelay);
+		writew(register_bits, devpriv->main_iobase + CALIBRATION_REG);
+	}
+	udelay(caldac_8800_udelay);
+	writew(SELECT_8800_BIT, devpriv->main_iobase + CALIBRATION_REG);
+	udelay(caldac_8800_udelay);
+	writew(0, devpriv->main_iobase + CALIBRATION_REG);
+	udelay(caldac_8800_udelay);
+	return 0;
+}
+
+/* 4020 caldacs */
+static int caldac_i2c_write(struct comedi_device *dev,
+			    unsigned int caldac_channel, unsigned int value)
+{
+	uint8_t serial_bytes[3];
+	uint8_t i2c_addr;
+	enum pointer_bits {
+		/*  manual has gain and offset bits switched */
+		OFFSET_0_2 = 0x1,
+		GAIN_0_2 = 0x2,
+		OFFSET_1_3 = 0x4,
+		GAIN_1_3 = 0x8,
+	};
+	enum data_bits {
+		NOT_CLEAR_REGISTERS = 0x20,
+	};
+
+	switch (caldac_channel) {
+	case 0:		/*  chan 0 offset */
+		i2c_addr = CALDAC0_I2C_ADDR;
+		serial_bytes[0] = OFFSET_0_2;
+		break;
+	case 1:		/*  chan 1 offset */
+		i2c_addr = CALDAC0_I2C_ADDR;
+		serial_bytes[0] = OFFSET_1_3;
+		break;
+	case 2:		/*  chan 2 offset */
+		i2c_addr = CALDAC1_I2C_ADDR;
+		serial_bytes[0] = OFFSET_0_2;
+		break;
+	case 3:		/*  chan 3 offset */
+		i2c_addr = CALDAC1_I2C_ADDR;
+		serial_bytes[0] = OFFSET_1_3;
+		break;
+	case 4:		/*  chan 0 gain */
+		i2c_addr = CALDAC0_I2C_ADDR;
+		serial_bytes[0] = GAIN_0_2;
+		break;
+	case 5:		/*  chan 1 gain */
+		i2c_addr = CALDAC0_I2C_ADDR;
+		serial_bytes[0] = GAIN_1_3;
+		break;
+	case 6:		/*  chan 2 gain */
+		i2c_addr = CALDAC1_I2C_ADDR;
+		serial_bytes[0] = GAIN_0_2;
+		break;
+	case 7:		/*  chan 3 gain */
+		i2c_addr = CALDAC1_I2C_ADDR;
+		serial_bytes[0] = GAIN_1_3;
+		break;
+	default:
+		comedi_error(dev, "invalid caldac channel\n");
+		return -1;
+		break;
+	}
+	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
+	serial_bytes[2] = value & 0xff;
+	i2c_write(dev, i2c_addr, serial_bytes, 3);
+	return 0;
+}
+
 static void caldac_write(struct comedi_device *dev, unsigned int channel,
 			 unsigned int value)
 {
@@ -3531,85 +3839,6 @@ static int eeprom_read_insn(struct comedi_device *dev,
 	return 1;
 }
 
-/* utility function that rounds desired timing to an achievable time, and
- * sets cmd members appropriately.
- * adc paces conversions from master clock by dividing by (x + 3) where x is 24 bit number
- */
-static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	unsigned int convert_divisor = 0, scan_divisor;
-	static const int min_convert_divisor = 3;
-	static const int max_convert_divisor =
-		max_counter_value + min_convert_divisor;
-	static const int min_scan_divisor_4020 = 2;
-	unsigned long long max_scan_divisor, min_scan_divisor;
-
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (thisboard->layout == LAYOUT_4020) {
-			cmd->convert_arg = 0;
-		} else {
-			convert_divisor = get_divisor(cmd->convert_arg,
-						      cmd->flags);
-			if (convert_divisor > max_convert_divisor)
-				convert_divisor = max_convert_divisor;
-			if (convert_divisor < min_convert_divisor)
-				convert_divisor = min_convert_divisor;
-			cmd->convert_arg = convert_divisor * TIMER_BASE;
-		}
-	} else if (cmd->convert_src == TRIG_NOW) {
-		cmd->convert_arg = 0;
-	}
-
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		scan_divisor = get_divisor(cmd->scan_begin_arg, cmd->flags);
-		if (cmd->convert_src == TRIG_TIMER) {
-			/*  XXX check for integer overflows */
-			min_scan_divisor = convert_divisor * cmd->chanlist_len;
-			max_scan_divisor =
-				(convert_divisor * cmd->chanlist_len - 1) +
-				max_counter_value;
-		} else {
-			min_scan_divisor = min_scan_divisor_4020;
-			max_scan_divisor = max_counter_value + min_scan_divisor;
-		}
-		if (scan_divisor > max_scan_divisor)
-			scan_divisor = max_scan_divisor;
-		if (scan_divisor < min_scan_divisor)
-			scan_divisor = min_scan_divisor;
-		cmd->scan_begin_arg = scan_divisor * TIMER_BASE;
-	}
-
-	return;
-}
-
-/* Gets nearest achievable timing given master clock speed, does not
- * take into account possible minimum/maximum divisor values.  Used
- * by other timing checking functions. */
-static unsigned int get_divisor(unsigned int ns, unsigned int flags)
-{
-	unsigned int divisor;
-
-	switch (flags & TRIG_ROUND_MASK) {
-	case TRIG_ROUND_UP:
-		divisor = (ns + TIMER_BASE - 1) / TIMER_BASE;
-		break;
-	case TRIG_ROUND_DOWN:
-		divisor = ns / TIMER_BASE;
-		break;
-	case TRIG_ROUND_NEAREST:
-	default:
-		divisor = (ns + TIMER_BASE / 2) / TIMER_BASE;
-		break;
-	}
-	return divisor;
-}
-
-static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags)
-{
-	return get_divisor(ns, flags) - 2;
-}
-
 /* adjusts the size of hardware fifo (which determines block size for dma xfers) */
 static int set_ai_fifo_size(struct comedi_device *dev, unsigned int num_samples)
 {
@@ -3674,249 +3903,6 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 		    devpriv->ai_fifo_segment_length);
 
 	return devpriv->ai_fifo_segment_length;
-}
-
-/* pci-6025 8800 caldac:
- * address 0 == dac channel 0 offset
- * address 1 == dac channel 0 gain
- * address 2 == dac channel 1 offset
- * address 3 == dac channel 1 gain
- * address 4 == fine adc offset
- * address 5 == coarse adc offset
- * address 6 == coarse adc gain
- * address 7 == fine adc gain
- */
-/* pci-6402/16 uses all 8 channels for dac:
- * address 0 == dac channel 0 fine gain
- * address 1 == dac channel 0 coarse gain
- * address 2 == dac channel 0 coarse offset
- * address 3 == dac channel 1 coarse offset
- * address 4 == dac channel 1 fine gain
- * address 5 == dac channel 1 coarse gain
- * address 6 == dac channel 0 fine offset
- * address 7 == dac channel 1 fine offset
-*/
-
-static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
-			     uint8_t value)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	static const int num_caldac_channels = 8;
-	static const int bitstream_length = 11;
-	unsigned int bitstream = ((address & 0x7) << 8) | value;
-	unsigned int bit, register_bits;
-	static const int caldac_8800_udelay = 1;
-
-	if (address >= num_caldac_channels) {
-		comedi_error(dev, "illegal caldac channel");
-		return -1;
-	}
-	for (bit = 1 << (bitstream_length - 1); bit; bit >>= 1) {
-		register_bits = 0;
-		if (bitstream & bit)
-			register_bits |= SERIAL_DATA_IN_BIT;
-		udelay(caldac_8800_udelay);
-		writew(register_bits, devpriv->main_iobase + CALIBRATION_REG);
-		register_bits |= SERIAL_CLOCK_BIT;
-		udelay(caldac_8800_udelay);
-		writew(register_bits, devpriv->main_iobase + CALIBRATION_REG);
-	}
-	udelay(caldac_8800_udelay);
-	writew(SELECT_8800_BIT, devpriv->main_iobase + CALIBRATION_REG);
-	udelay(caldac_8800_udelay);
-	writew(0, devpriv->main_iobase + CALIBRATION_REG);
-	udelay(caldac_8800_udelay);
-	return 0;
-}
-
-/* 4020 caldacs */
-static int caldac_i2c_write(struct comedi_device *dev,
-			    unsigned int caldac_channel, unsigned int value)
-{
-	uint8_t serial_bytes[3];
-	uint8_t i2c_addr;
-	enum pointer_bits {
-		/*  manual has gain and offset bits switched */
-		OFFSET_0_2 = 0x1,
-		GAIN_0_2 = 0x2,
-		OFFSET_1_3 = 0x4,
-		GAIN_1_3 = 0x8,
-	};
-	enum data_bits {
-		NOT_CLEAR_REGISTERS = 0x20,
-	};
-
-	switch (caldac_channel) {
-	case 0:		/*  chan 0 offset */
-		i2c_addr = CALDAC0_I2C_ADDR;
-		serial_bytes[0] = OFFSET_0_2;
-		break;
-	case 1:		/*  chan 1 offset */
-		i2c_addr = CALDAC0_I2C_ADDR;
-		serial_bytes[0] = OFFSET_1_3;
-		break;
-	case 2:		/*  chan 2 offset */
-		i2c_addr = CALDAC1_I2C_ADDR;
-		serial_bytes[0] = OFFSET_0_2;
-		break;
-	case 3:		/*  chan 3 offset */
-		i2c_addr = CALDAC1_I2C_ADDR;
-		serial_bytes[0] = OFFSET_1_3;
-		break;
-	case 4:		/*  chan 0 gain */
-		i2c_addr = CALDAC0_I2C_ADDR;
-		serial_bytes[0] = GAIN_0_2;
-		break;
-	case 5:		/*  chan 1 gain */
-		i2c_addr = CALDAC0_I2C_ADDR;
-		serial_bytes[0] = GAIN_1_3;
-		break;
-	case 6:		/*  chan 2 gain */
-		i2c_addr = CALDAC1_I2C_ADDR;
-		serial_bytes[0] = GAIN_0_2;
-		break;
-	case 7:		/*  chan 3 gain */
-		i2c_addr = CALDAC1_I2C_ADDR;
-		serial_bytes[0] = GAIN_1_3;
-		break;
-	default:
-		comedi_error(dev, "invalid caldac channel\n");
-		return -1;
-		break;
-	}
-	serial_bytes[1] = NOT_CLEAR_REGISTERS | ((value >> 8) & 0xf);
-	serial_bytes[2] = value & 0xff;
-	i2c_write(dev, i2c_addr, serial_bytes, 3);
-	return 0;
-}
-
-/* Their i2c requires a huge delay on setting clock or data high for some reason */
-static const int i2c_high_udelay = 1000;
-static const int i2c_low_udelay = 10;
-
-/* set i2c data line high or low */
-static void i2c_set_sda(struct comedi_device *dev, int state)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	static const int data_bit = CTL_EE_W;
-	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
-					 PLX_CONTROL_REG;
-
-	if (state) {
-		/*  set data line high */
-		devpriv->plx_control_bits &= ~data_bit;
-		writel(devpriv->plx_control_bits, plx_control_addr);
-		udelay(i2c_high_udelay);
-	} else {		/*  set data line low */
-
-		devpriv->plx_control_bits |= data_bit;
-		writel(devpriv->plx_control_bits, plx_control_addr);
-		udelay(i2c_low_udelay);
-	}
-}
-
-/* set i2c clock line high or low */
-static void i2c_set_scl(struct comedi_device *dev, int state)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	static const int clock_bit = CTL_USERO;
-	void __iomem *plx_control_addr = devpriv->plx9080_iobase +
-					 PLX_CONTROL_REG;
-
-	if (state) {
-		/*  set clock line high */
-		devpriv->plx_control_bits &= ~clock_bit;
-		writel(devpriv->plx_control_bits, plx_control_addr);
-		udelay(i2c_high_udelay);
-	} else {		/*  set clock line low */
-
-		devpriv->plx_control_bits |= clock_bit;
-		writel(devpriv->plx_control_bits, plx_control_addr);
-		udelay(i2c_low_udelay);
-	}
-}
-
-static void i2c_write_byte(struct comedi_device *dev, uint8_t byte)
-{
-	uint8_t bit;
-	unsigned int num_bits = 8;
-
-	DEBUG_PRINT("writing to i2c byte 0x%x\n", byte);
-
-	for (bit = 1 << (num_bits - 1); bit; bit >>= 1) {
-		i2c_set_scl(dev, 0);
-		if ((byte & bit))
-			i2c_set_sda(dev, 1);
-		else
-			i2c_set_sda(dev, 0);
-		i2c_set_scl(dev, 1);
-	}
-}
-
-/* we can't really read the lines, so fake it */
-static int i2c_read_ack(struct comedi_device *dev)
-{
-	i2c_set_scl(dev, 0);
-	i2c_set_sda(dev, 1);
-	i2c_set_scl(dev, 1);
-
-	return 0;		/*  return fake acknowledge bit */
-}
-
-/* send start bit */
-static void i2c_start(struct comedi_device *dev)
-{
-	i2c_set_scl(dev, 1);
-	i2c_set_sda(dev, 1);
-	i2c_set_sda(dev, 0);
-}
-
-/* send stop bit */
-static void i2c_stop(struct comedi_device *dev)
-{
-	i2c_set_scl(dev, 0);
-	i2c_set_sda(dev, 0);
-	i2c_set_scl(dev, 1);
-	i2c_set_sda(dev, 1);
-}
-
-static void i2c_write(struct comedi_device *dev, unsigned int address,
-		      const uint8_t *data, unsigned int length)
-{
-	struct pcidas64_private *devpriv = dev->private;
-	unsigned int i;
-	uint8_t bitstream;
-	static const int read_bit = 0x1;
-
-	/* XXX need mutex to prevent simultaneous attempts to access
-	 * eeprom and i2c bus */
-
-	/*  make sure we dont send anything to eeprom */
-	devpriv->plx_control_bits &= ~CTL_EE_CS;
-
-	i2c_stop(dev);
-	i2c_start(dev);
-
-	/*  send address and write bit */
-	bitstream = (address << 1) & ~read_bit;
-	i2c_write_byte(dev, bitstream);
-
-	/*  get acknowledge */
-	if (i2c_read_ack(dev) != 0) {
-		comedi_error(dev, "i2c write failed: no acknowledge");
-		i2c_stop(dev);
-		return;
-	}
-	/*  write data bytes */
-	for (i = 0; i < length; i++) {
-		i2c_write_byte(dev, data[i]);
-		if (i2c_read_ack(dev) != 0) {
-			comedi_error(dev, "i2c write failed: no acknowledge");
-			i2c_stop(dev);
-			return;
-		}
-	}
-	i2c_stop(dev);
 }
 
 /* Allocate and initialize the subdevice structures.
