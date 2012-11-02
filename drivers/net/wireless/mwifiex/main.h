@@ -600,6 +600,7 @@ struct mwifiex_if_ops {
 	int (*event_complete) (struct mwifiex_adapter *, struct sk_buff *);
 	int (*data_complete) (struct mwifiex_adapter *, struct sk_buff *);
 	int (*dnld_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
+	void (*card_reset) (struct mwifiex_adapter *);
 };
 
 struct mwifiex_adapter {
