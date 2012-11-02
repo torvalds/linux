@@ -36,6 +36,10 @@
 #endif
 
 //#define USE_INT_CLK
+#define DIFFERENTIAL 1
+#define SINGLE_END 0
+#define TWO_SPK 2
+#define ONE_SPK 1
 
 static struct snd_soc_codec *rt3261_codec;
 
@@ -61,7 +65,7 @@ static struct snd_soc_codec *rt3261_codec;
 #define RT3261_REG_RW 1 /* for debug */
 #define RT3261_DET_EXT_MIC 0
 
-#define VERSION "RT3261_V1.2.0"
+#define VERSION "RT3261_V1.3.0"
 
 #if defined (CONFIG_SND_SOC_RT5623)
 extern void rt5623_on(void);
@@ -108,6 +112,51 @@ static int rt3261_reg_init(struct snd_soc_codec *codec)
 
 	return 0;
 }
+
+static int rt3261_customer_redefine(struct snd_soc_codec *codec, struct rt3261_priv *rt3261)
+{
+	if(rt3261->spk_num==TWO_SPK)
+	{
+		snd_soc_update_bits(codec, RT3261_SPO_L_MIXER,
+			RT3261_M_SV_R_SPM_L | RT3261_M_SV_L_SPM_L,
+			1 << RT3261_M_SV_R_SPM_L_SFT | 0 << RT3261_M_SV_L_SPM_L_SFT);
+		snd_soc_update_bits(codec, RT3261_SPO_R_MIXER,
+			RT3261_M_SV_R_SPM_R, 0 << RT3261_M_SV_R_SPM_R_SFT);
+	}
+	else
+	{
+		snd_soc_update_bits(codec, RT3261_SPO_L_MIXER,
+			RT3261_M_SV_R_SPM_L | RT3261_M_SV_L_SPM_L,
+			0 << RT3261_M_SV_R_SPM_L_SFT | 0 << RT3261_M_SV_L_SPM_L_SFT);
+		snd_soc_update_bits(codec, RT3261_SPO_R_MIXER,
+			RT3261_M_SV_R_SPM_R, 1 << RT3261_M_SV_R_SPM_R_SFT);
+	}
+
+	if(rt3261->modem_input_mode==DIFFERENTIAL)
+	{
+		snd_soc_update_bits(codec, RT3261_IN3_IN4,
+			RT3261_IN_DF2, 1 << RT3261_IN_SFT2);
+	}
+	else
+	{
+		snd_soc_update_bits(codec, RT3261_IN3_IN4,
+			RT3261_IN_DF2, 0 << RT3261_IN_SFT2);
+	}
+	
+	if(rt3261->lout_to_modem_mode==DIFFERENTIAL)
+	{
+		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+			RT3261_LOUT_DF_MASK, 1 << RT3261_LOUT_DF);
+	}
+	else
+	{
+		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+			RT3261_LOUT_DF_MASK, 0 << RT3261_LOUT_DF);
+	}
+
+	return 0;
+}
+
 
 static int rt3261_index_sync(struct snd_soc_codec *codec)
 {
@@ -894,6 +943,18 @@ static int rt3261_modem_input_switch_put(struct snd_kcontrol *kcontrol,
 
 	return 0;
 }
+#else
+static int rt3261_modem_input_switch_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int rt3261_modem_input_switch_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
 #endif
 
 static int rt3261_dacr_sel_get(struct snd_kcontrol *kcontrol,
@@ -1054,11 +1115,9 @@ static const char *rt3261_hp_mute_mode[] = {"off", "on",};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_hp_mute_enum, 0, 0, rt3261_hp_mute_mode);
 
-#if defined (CONFIG_SND_SOC_RT5623)
 static const char *rt3261_modem_input_switch_mode[] = {"off", "on",};
 
 static const SOC_ENUM_SINGLE_DECL(rt3261_modem_input_switch_enum, 0, 0, rt3261_modem_input_switch_mode);
-#endif
 
 #ifdef RT3261_REG_RW
 #define REGVAL_MAX 0xffff
@@ -1227,10 +1286,8 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_ENUM_EXT("HP mute Switch", rt3261_hp_mute_enum,
 		rt3261_hp_mute_get, rt3261_hp_mute_put),
 
-	#if defined (CONFIG_SND_SOC_RT5623)
 	SOC_ENUM_EXT("Modem Input Switch", rt3261_modem_input_switch_enum,
 		rt3261_modem_input_switch_get, rt3261_modem_input_switch_put),
-	#endif
 
 	SOC_ENUM("ADC IF1 Data Switch", rt3261_if1_adc_enum), 
 	SOC_ENUM("DAC IF1 Data Switch", rt3261_if1_dac_enum), 
@@ -3147,10 +3204,10 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 	//for rt5623 MCLK use
 	iis_clk = clk_get_sys("rk29_i2s.2", "i2s");
 	if (IS_ERR(iis_clk)) {
-		printk("failed to get i2s clk\n");
+		DBG("failed to get i2s clk\n");
 		ret = PTR_ERR(iis_clk);
 	}else{
-		printk("I2S2 got i2s clk ok!\n");
+		DBG("I2S2 got i2s clk ok!\n");
 		clk_enable(iis_clk);
 		clk_set_rate(iis_clk, 11289600);
 		rk30_mux_api_set(GPIO0D0_I2S22CHCLK_SMCCSN0_NAME, GPIO0D_I2S2_2CH_CLK);
@@ -3198,6 +3255,7 @@ static int rt3261_probe(struct snd_soc_codec *codec)
 			RT3261_PWR_HP_L | RT3261_PWR_HP_R,
 			0<<7 | 0<<6 );
 	rt3261_reg_init(codec);
+	rt3261_customer_redefine(codec, rt3261);
 
 	codec->dapm.bias_level = SND_SOC_BIAS_STANDBY;
 	rt3261->codec = codec;
@@ -3360,6 +3418,9 @@ static int __devinit rt3261_i2c_probe(struct i2c_client *i2c,
 
 	rt3261->codec_en_gpio = pdata->codec_en_gpio;
 	rt3261->io_init = pdata->io_init;
+	rt3261->spk_num = pdata->spk_num;
+	rt3261->modem_input_mode = pdata->modem_input_mode;
+	rt3261->lout_to_modem_mode = pdata->lout_to_modem_mode;
 
 	if(rt3261->io_init)
 		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);

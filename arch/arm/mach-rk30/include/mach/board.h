@@ -111,6 +111,9 @@ struct rt3261_platform_data{
 	unsigned int codec_en_gpio;
 	struct codec_io_info codec_en_gpio_info;
 	int (*io_init)(int, char *, int);
+	unsigned int spk_num;
+	unsigned int modem_input_mode;
+	unsigned int lout_to_modem_mode;
 };
 
 extern struct rk29_sdmmc_platform_data default_sdmmc0_data;

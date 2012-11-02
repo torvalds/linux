@@ -1156,6 +1156,11 @@ static struct platform_device rk29_device_backlight = {
 
 #if defined (CONFIG_SND_SOC_RT3224) || defined (CONFIG_SND_SOC_RT3261)
 
+#define DIFFERENTIAL 1
+#define SINGLE_END 0
+#define TWO_SPK 2
+#define ONE_SPK 1
+
 static int rt3261_io_init(int gpio, char *iomux_name, int iomux_mode)
 {
 	gpio_request(gpio,NULL);
@@ -1168,6 +1173,9 @@ static struct rt3261_platform_data rt3261_info = {
 	.codec_en_gpio 			= RK30_PIN4_PD7,
 	.codec_en_gpio_info		= {GPIO4D7_SMCDATA15_TRACEDATA15_NAME,GPIO4D_GPIO4D7},
 	.io_init			= rt3261_io_init,
+	.spk_num 			= TWO_SPK,
+	.modem_input_mode		= DIFFERENTIAL,
+	.lout_to_modem_mode		= DIFFERENTIAL,
 };
 
 #endif

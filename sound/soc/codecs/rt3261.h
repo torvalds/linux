@@ -2040,6 +2040,7 @@ enum {
 #define RT3261_EQ_PST_VOL_SFT			0
 
 /* General Control1 (0xfa) */
+#define RT3261_LOUT_DF_MASK			(0x1 << 14)
 #define RT3261_LOUT_DF				14
 #define RT3261_M_MAMIX_L			(0x1 << 13)
 #define RT3261_M_MAMIX_R			(0x1 << 12)
@@ -2150,6 +2151,9 @@ struct rt3261_priv {
 	int (*io_init)(int gpio, char *iomux_name, int iomux_mode);
 
 	unsigned int modem_is_open;
+	unsigned int spk_num;
+	unsigned int modem_input_mode;
+	unsigned int lout_to_modem_mode;
 };
 
 int rt3261_conn_mux_path(struct snd_soc_codec *codec,
