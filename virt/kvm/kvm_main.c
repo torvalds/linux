@@ -1954,6 +1954,7 @@ out_free2:
 		kvm_sregs = memdup_user(argp, sizeof(*kvm_sregs));
 		if (IS_ERR(kvm_sregs)) {
 			r = PTR_ERR(kvm_sregs);
+			kvm_sregs = NULL;
 			goto out;
 		}
 		r = kvm_arch_vcpu_ioctl_set_sregs(vcpu, kvm_sregs);
@@ -2054,6 +2055,7 @@ out_free2:
 		fpu = memdup_user(argp, sizeof(*fpu));
 		if (IS_ERR(fpu)) {
 			r = PTR_ERR(fpu);
+			fpu = NULL;
 			goto out;
 		}
 		r = kvm_arch_vcpu_ioctl_set_fpu(vcpu, fpu);

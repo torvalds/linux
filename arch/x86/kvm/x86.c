@@ -2689,14 +2689,11 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 	case KVM_SET_LAPIC: {
-		r = -EINVAL;
 		if (!vcpu->arch.apic)
 			goto out;
 		u.lapic = memdup_user(argp, sizeof(*u.lapic));
-		if (IS_ERR(u.lapic)) {
-			r = PTR_ERR(u.lapic);
-			goto out;
-		}
+		if (IS_ERR(u.lapic))
+			return PTR_ERR(u.lapic);
 
 		r = kvm_vcpu_ioctl_set_lapic(vcpu, u.lapic);
 		if (r)
@@ -2877,10 +2874,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 	case KVM_SET_XSAVE: {
 		u.xsave = memdup_user(argp, sizeof(*u.xsave));
-		if (IS_ERR(u.xsave)) {
-			r = PTR_ERR(u.xsave);
-			goto out;
-		}
+		if (IS_ERR(u.xsave))
+			return PTR_ERR(u.xsave);
 
 		r = kvm_vcpu_ioctl_x86_set_xsave(vcpu, u.xsave);
 		break;
@@ -2902,10 +2897,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 	case KVM_SET_XCRS: {
 		u.xcrs = memdup_user(argp, sizeof(*u.xcrs));
-		if (IS_ERR(u.xcrs)) {
-			r = PTR_ERR(u.xcrs);
-			goto out;
-		}
+		if (IS_ERR(u.xcrs))
+			return PTR_ERR(u.xcrs);
 
 		r = kvm_vcpu_ioctl_x86_set_xcrs(vcpu, u.xcrs);
 		break;
