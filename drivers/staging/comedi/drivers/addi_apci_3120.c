@@ -4,8 +4,6 @@
 
 #include "addi-data/addi_common.h"
 
-#define CONFIG_APCI_3120 1
-
 #include "addi-data/addi_eeprom.c"
 #include "addi-data/hwdrv_apci3120.c"
 #include "addi-data/addi_common.c"

@@ -2378,7 +2378,6 @@ static int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
 
 }
 
-#ifdef CONFIG_APCI_3120
 static int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 					    struct comedi_subdevice *s,
 					    struct comedi_insn *insn,
@@ -2437,4 +2436,3 @@ static int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
 
 	return insn->n;
 }
-#endif
