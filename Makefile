@@ -979,6 +979,7 @@ endif
 prepare2: prepare3 outputmakefile asm-generic
 
 prepare1: prepare2 include/linux/version.h include/generated/utsrelease.h \
+                   include/generated/kernelversion.h \
                    include/config/auto.conf
 	$(cmd_crmodverdir)
 
@@ -1012,11 +1013,18 @@ define filechk_version.h
 	echo '#define KERNEL_VERSION(a,b,c) (((a) << 16) + ((b) << 8) + (c))';)
 endef
 
+define filechk_kernelversion.h
+	(echo \#define KERNELVERSION \"$(KERNELVERSION)\";)
+endef
+
 include/linux/version.h: $(srctree)/Makefile FORCE
 	$(call filechk,version.h)
 
 include/generated/utsrelease.h: include/config/kernel.release FORCE
 	$(call filechk,utsrelease.h)
+
+include/generated/kernelversion.h: $(srctree)/Makefile FORCE
+	$(call filechk,kernelversion.h)
 
 PHONY += headerdep
 headerdep:
