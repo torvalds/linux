@@ -18,7 +18,6 @@
 #include <linux/reboot.h>
 #include <linux/acpi.h>
 #include <linux/module.h>
-#include <linux/pm_runtime.h>
 
 #include <asm/io.h>
 
@@ -707,44 +706,6 @@ int acpi_pm_device_sleep_state(struct device *dev, int *d_min_p, int d_max_in)
 }
 EXPORT_SYMBOL(acpi_pm_device_sleep_state);
 #endif /* CONFIG_PM */
-
-#ifdef CONFIG_PM_RUNTIME
-/**
- * acpi_pm_device_run_wake - Enable/disable remote wakeup for given device.
- * @phys_dev: Device to enable/disable the platform to wake up.
- * @enable: Whether to enable or disable the wakeup functionality.
- *
- * Find the ACPI device object corresponding to @phys_dev and try to
- * enable/disable the GPE associated with it, so that it can generate
- * wakeup signals for the device in response to external (remote) events.
- */
-int acpi_pm_device_run_wake(struct device *phys_dev, bool enable)
-{
-	struct acpi_device *dev;
-	acpi_handle handle;
-
-	if (!device_run_wake(phys_dev))
-		return -EINVAL;
-
-	handle = DEVICE_ACPI_HANDLE(phys_dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &dev))) {
-		dev_dbg(phys_dev, "ACPI handle has no context in %s!\n",
-			__func__);
-		return -ENODEV;
-	}
-
-	if (enable) {
-		acpi_enable_wakeup_device_power(dev, ACPI_STATE_S0);
-		acpi_enable_gpe(dev->wakeup.gpe_device, dev->wakeup.gpe_number);
-	} else {
-		acpi_disable_gpe(dev->wakeup.gpe_device, dev->wakeup.gpe_number);
-		acpi_disable_wakeup_device_power(dev);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(acpi_pm_device_run_wake);
-#endif /* CONFIG_PM_RUNTIME */
 
 #ifdef CONFIG_PM_SLEEP
 /**
