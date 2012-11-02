@@ -3831,7 +3831,7 @@ void i915_gem_l3_remap(struct drm_device *dev)
 	if (!IS_IVYBRIDGE(dev))
 		return;
 
-	if (!dev_priv->mm.l3_remap_info)
+	if (!dev_priv->l3_parity.remap_info)
 		return;
 
 	misccpctl = I915_READ(GEN7_MISCCPCTL);
@@ -3840,12 +3840,12 @@ void i915_gem_l3_remap(struct drm_device *dev)
 
 	for (i = 0; i < GEN7_L3LOG_SIZE; i += 4) {
 		u32 remap = I915_READ(GEN7_L3LOG_BASE + i);
-		if (remap && remap != dev_priv->mm.l3_remap_info[i/4])
+		if (remap && remap != dev_priv->l3_parity.remap_info[i/4])
 			DRM_DEBUG("0x%x was already programmed to %x\n",
 				  GEN7_L3LOG_BASE + i, remap);
-		if (remap && !dev_priv->mm.l3_remap_info[i/4])
+		if (remap && !dev_priv->l3_parity.remap_info[i/4])
 			DRM_DEBUG_DRIVER("Clearing remapped register\n");
-		I915_WRITE(GEN7_L3LOG_BASE + i, dev_priv->mm.l3_remap_info[i/4]);
+		I915_WRITE(GEN7_L3LOG_BASE + i, dev_priv->l3_parity.remap_info[i/4]);
 	}
 
 	/* Make sure all the writes land before disabling dop clock gating */

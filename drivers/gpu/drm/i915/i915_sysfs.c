@@ -162,7 +162,7 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	if (ret)
 		return ret;
 
-	if (!dev_priv->mm.l3_remap_info) {
+	if (!dev_priv->l3_parity.remap_info) {
 		temp = kzalloc(GEN7_L3LOG_SIZE, GFP_KERNEL);
 		if (!temp) {
 			mutex_unlock(&drm_dev->struct_mutex);
@@ -182,9 +182,9 @@ i915_l3_write(struct file *filp, struct kobject *kobj,
 	 * at this point it is left as a TODO.
 	*/
 	if (temp)
-		dev_priv->mm.l3_remap_info = temp;
+		dev_priv->l3_parity.remap_info = temp;
 
-	memcpy(dev_priv->mm.l3_remap_info + (offset/4),
+	memcpy(dev_priv->l3_parity.remap_info + (offset/4),
 	       buf + (offset/4),
 	       count);
 

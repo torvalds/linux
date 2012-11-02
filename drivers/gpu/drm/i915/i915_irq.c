@@ -409,7 +409,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 static void ivybridge_parity_work(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    parity_error_work);
+						    l3_parity.error_work);
 	u32 error_status, row, bank, subbank;
 	char *parity_event[5];
 	uint32_t misccpctl;
@@ -473,7 +473,7 @@ static void ivybridge_handle_parity_error(struct drm_device *dev)
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
-	queue_work(dev_priv->wq, &dev_priv->parity_error_work);
+	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
 }
 
 static void snb_gt_irq_handler(struct drm_device *dev,
@@ -2681,7 +2681,7 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
-	INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
+	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */

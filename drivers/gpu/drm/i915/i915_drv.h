@@ -599,6 +599,11 @@ struct i915_dri1_state {
 	uint32_t counter;
 };
 
+struct intel_l3_parity {
+	u32 *remap_info;
+	struct work_struct error_work;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -760,8 +765,6 @@ typedef struct drm_i915_private {
 		/** PPGTT used for aliasing the PPGTT with the GTT */
 		struct i915_hw_ppgtt *aliasing_ppgtt;
 
-		u32 *l3_remap_info;
-
 		struct shrinker inactive_shrinker;
 
 		/**
@@ -865,6 +868,8 @@ typedef struct drm_i915_private {
 
 	bool mchbar_need_disable;
 
+	struct intel_l3_parity l3_parity;
+
 	/* gen6+ rps state */
 	struct intel_gen6_power_mgmt rps;
 
@@ -887,7 +892,6 @@ typedef struct drm_i915_private {
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
 
-	struct work_struct parity_error_work;
 	bool hw_contexts_disabled;
 	uint32_t hw_context_size;
 
