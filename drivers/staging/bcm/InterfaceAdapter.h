@@ -26,13 +26,13 @@ typedef struct _INTR_ENDP_IN {
 	unsigned int	int_in_pipe;
 } INTR_ENDP_IN, *PINTR_ENDP_IN;
 
-typedef struct _INTR_ENDP_OUT {
+struct bcm_intr_endpoint_out {
 	char	*int_out_buffer;
 	size_t	int_out_size;
 	unsigned char	int_out_endpointAddr;
 	unsigned char	int_out_interval;
 	unsigned int	int_out_pipe;
-} INTR_ENDP_OUT, *PINTR_ENDP_OUT;
+};
 
 struct bcm_usb_tcb {
 	struct urb *urb;
@@ -60,7 +60,7 @@ struct bcm_interface_adapter {
 	/* Interrupt endpoint in info */
 	INTR_ENDP_IN	sIntrIn;
 	/* Interrupt endpoint out info */
-	INTR_ENDP_OUT	sIntrOut;
+	struct bcm_intr_endpoint_out	sIntrOut;
 	ULONG		ulInterruptData[2];
 	struct urb *psInterruptUrb;
 	struct bcm_usb_tcb	asUsbTcb[MAXIMUM_USB_TCB];
