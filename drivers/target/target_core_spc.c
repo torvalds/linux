@@ -870,8 +870,11 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 	} else {
 		buf = map_buf;
 	}
-
-	length = ten ? 2 : 1;
+	/*
+	 * Skip over MODE DATA LENGTH + MEDIUM TYPE fields to byte 3 for
+	 * MODE_SENSE_10 and byte 2 for MODE_SENSE (6).
+	 */
+	length = ten ? 3 : 2;
 
 	/* DEVICE-SPECIFIC PARAMETER */
 	if ((cmd->se_lun->lun_access & TRANSPORT_LUNFLAGS_READ_ONLY) ||
