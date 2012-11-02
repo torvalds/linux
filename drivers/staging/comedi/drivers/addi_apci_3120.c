@@ -33,7 +33,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.ui_MinAcquisitiontimeNs = 10000,
 		.ui_MinDelaytimeNs	= 100000,
 		.interrupt		= v_APCI3120_Interrupt,
-		.reset			= i_APCI3120_Reset,
 		.ao_write		= i_APCI3120_InsnWriteAnalogOutput,
 	}, {
 		.pc_DriverName		= "apci3001",
@@ -54,7 +53,6 @@ static const struct addi_board apci3120_boardtypes[] = {
 		.ui_MinAcquisitiontimeNs = 10000,
 		.ui_MinDelaytimeNs	= 100000,
 		.interrupt		= v_APCI3120_Interrupt,
-		.reset			= i_APCI3120_Reset,
 	},
 };
 
@@ -65,14 +63,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
-}
-
-static int i_ADDI_Reset(struct comedi_device *dev)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->reset(dev);
-	return 0;
 }
 
 static const void *addi_find_boardinfo(struct comedi_device *dev,
@@ -257,7 +247,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	i_ADDI_Reset(dev);
+	i_APCI3120_Reset(dev);
 	return 0;
 }
 
@@ -269,7 +259,7 @@ static void apci3120_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			i_APCI3120_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if ((this_board->pc_EepromChip == NULL) ||
