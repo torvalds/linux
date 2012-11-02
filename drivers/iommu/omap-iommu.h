@@ -72,11 +72,6 @@ struct cr_regs {
 	};
 };
 
-struct iotlb_lock {
-	short base;
-	short vict;
-};
-
 /* architecture specific functions */
 struct iommu_functions {
 	unsigned long	version;
@@ -117,13 +112,6 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 }
 #endif
 
-/* IOMMU errors */
-#define OMAP_IOMMU_ERR_TLB_MISS		(1 << 0)
-#define OMAP_IOMMU_ERR_TRANS_FAULT	(1 << 1)
-#define OMAP_IOMMU_ERR_EMU_MISS		(1 << 2)
-#define OMAP_IOMMU_ERR_TBLWALK_FAULT	(1 << 3)
-#define OMAP_IOMMU_ERR_MULTIHIT_FAULT	(1 << 4)
-
 /*
  * MMU Register offsets
  */
@@ -151,16 +139,6 @@ static inline struct omap_iommu *dev_to_omap_iommu(struct device *dev)
 /*
  * MMU Register bit definitions
  */
-#define MMU_LOCK_BASE_SHIFT	10
-#define MMU_LOCK_BASE_MASK	(0x1f << MMU_LOCK_BASE_SHIFT)
-#define MMU_LOCK_BASE(x)	\
-	((x & MMU_LOCK_BASE_MASK) >> MMU_LOCK_BASE_SHIFT)
-
-#define MMU_LOCK_VICT_SHIFT	4
-#define MMU_LOCK_VICT_MASK	(0x1f << MMU_LOCK_VICT_SHIFT)
-#define MMU_LOCK_VICT(x)	\
-	((x & MMU_LOCK_VICT_MASK) >> MMU_LOCK_VICT_SHIFT)
-
 #define MMU_CAM_VATAG_SHIFT	12
 #define MMU_CAM_VATAG_MASK \
 	((~0UL >> MMU_CAM_VATAG_SHIFT) << MMU_CAM_VATAG_SHIFT)
@@ -222,19 +200,14 @@ extern void omap_iotlb_cr_to_e(struct cr_regs *cr, struct iotlb_entry *e);
 extern int
 omap_iopgtable_store_entry(struct omap_iommu *obj, struct iotlb_entry *e);
 
-extern int omap_iommu_set_isr(const char *name,
-		 int (*isr)(struct omap_iommu *obj, u32 da, u32 iommu_errs,
-				    void *priv),
-			 void *isr_priv);
-
 extern void omap_iommu_save_ctx(struct device *dev);
 extern void omap_iommu_restore_ctx(struct device *dev);
 
-extern int omap_install_iommu_arch(const struct iommu_functions *ops);
-extern void omap_uninstall_iommu_arch(const struct iommu_functions *ops);
-
 extern int omap_foreach_iommu_device(void *data,
 				int (*fn)(struct device *, void *));
+
+extern int omap_install_iommu_arch(const struct iommu_functions *ops);
+extern void omap_uninstall_iommu_arch(const struct iommu_functions *ops);
 
 extern ssize_t
 omap_iommu_dump_ctx(struct omap_iommu *obj, char *buf, ssize_t len);
