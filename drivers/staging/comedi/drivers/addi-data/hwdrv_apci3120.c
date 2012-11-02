@@ -787,20 +787,15 @@ static int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev,
 
 	if (cmd->convert_src == TRIG_TIMER) {	/*  Test Acquisition timing */
 		if (cmd->scan_begin_src == TRIG_TIMER) {
-			if ((cmd->convert_arg)
-				&& (cmd->convert_arg <
-					this_board->ui_MinAcquisitiontimeNs)) {
-				cmd->convert_arg =
-					this_board->ui_MinAcquisitiontimeNs;
+			if (cmd->convert_arg &&
+			    (cmd->convert_arg < 10000)) {
+				cmd->convert_arg = 10000;
 				err++;
 			}
 		} else {
-			if (cmd->convert_arg <
-				this_board->ui_MinAcquisitiontimeNs) {
-				cmd->convert_arg =
-					this_board->ui_MinAcquisitiontimeNs;
+			if (cmd->convert_arg < 10000) {
+				cmd->convert_arg = 10000;
 				err++;
-
 			}
 		}
 	}
