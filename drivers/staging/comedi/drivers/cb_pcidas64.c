@@ -1151,64 +1151,16 @@ struct pcidas64_private {
 	short ao_bounce_buffer[DAC_FIFO_SIZE];
 };
 
-static int ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-static int ai_config_insn(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data);
-static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-static int ao_readback_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static int ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
-static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-		      struct comedi_cmd *cmd);
-static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
+static int setup_subdevices(struct comedi_device *dev);
 static int ao_inttrig(struct comedi_device *dev,
 		      struct comedi_subdevice *subdev, unsigned int trig_num);
-static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-		      struct comedi_cmd *cmd);
 static irqreturn_t handle_interrupt(int irq, void *d);
-static int ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static int ao_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-static int dio_callback(int dir, int port, int data, unsigned long arg);
-static int dio_callback_4020(int dir, int port, int data, unsigned long arg);
-static int di_rbits(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-static int do_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-		    struct comedi_insn *insn, unsigned int *data);
-static int dio_60xx_config_insn(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data);
-static int dio_60xx_wbits(struct comedi_device *dev, struct comedi_subdevice *s,
-			  struct comedi_insn *insn, unsigned int *data);
-static int calib_read_insn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data);
-static int calib_write_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static int ad8402_read_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
-static void ad8402_write(struct comedi_device *dev, unsigned int channel,
-			 unsigned int value);
-static int ad8402_write_insn(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data);
-static int eeprom_read_insn(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data);
 static void check_adc_timing(struct comedi_device *dev, struct comedi_cmd *cmd);
 static unsigned int get_divisor(unsigned int ns, unsigned int flags);
 static void i2c_write(struct comedi_device *dev, unsigned int address,
 		      const uint8_t *data, unsigned int length);
-static void caldac_write(struct comedi_device *dev, unsigned int channel,
-			 unsigned int value);
 static int caldac_8800_write(struct comedi_device *dev, unsigned int address,
 			     uint8_t value);
-/* static int dac_1590_write(struct comedi_device *dev, unsigned int dac_a,
- *                           unsigned int dac_b); */
 static int caldac_i2c_write(struct comedi_device *dev,
 			    unsigned int caldac_channel, unsigned int value);
 static void abort_dma(struct comedi_device *dev, unsigned int channel);
@@ -1220,8 +1172,6 @@ static int set_ai_fifo_segment_length(struct comedi_device *dev,
 				      unsigned int num_entries);
 static void disable_ai_pacing(struct comedi_device *dev);
 static void disable_ai_interrupts(struct comedi_device *dev);
-static void enable_ai_interrupts(struct comedi_device *dev,
-				 const struct comedi_cmd *cmd);
 static unsigned int get_ao_divisor(unsigned int ns, unsigned int flags);
 static void load_ao_dma(struct comedi_device *dev,
 			const struct comedi_cmd *cmd);
@@ -1393,173 +1343,6 @@ static void init_plx9080(struct comedi_device *dev)
 	    ICS_DMA0_E | ICS_DMA1_E;
 	writel(devpriv->plx_intcsr_bits,
 	       devpriv->plx9080_iobase + PLX_INTRCS_REG);
-}
-
-/* Allocate and initialize the subdevice structures.
- */
-static int setup_subdevices(struct comedi_device *dev)
-{
-	const struct pcidas64_board *thisboard = comedi_board(dev);
-	struct pcidas64_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	void __iomem *dio_8255_iobase;
-	int i;
-	int ret;
-
-	ret = comedi_alloc_subdevices(dev, 10);
-	if (ret)
-		return ret;
-
-	s = &dev->subdevices[0];
-	/* analog input subdevice */
-	dev->read_subdev = s;
-	s->type = COMEDI_SUBD_AI;
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DITHER | SDF_CMD_READ;
-	if (thisboard->layout == LAYOUT_60XX)
-		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
-	else if (thisboard->layout == LAYOUT_64XX)
-		s->subdev_flags |= SDF_DIFF;
-	/* XXX Number of inputs in differential mode is ignored */
-	s->n_chan = thisboard->ai_se_chans;
-	s->len_chanlist = 0x2000;
-	s->maxdata = (1 << thisboard->ai_bits) - 1;
-	s->range_table = thisboard->ai_range_table;
-	s->insn_read = ai_rinsn;
-	s->insn_config = ai_config_insn;
-	s->do_cmd = ai_cmd;
-	s->do_cmdtest = ai_cmdtest;
-	s->cancel = ai_cancel;
-	if (thisboard->layout == LAYOUT_4020) {
-		uint8_t data;
-		/*  set adc to read from inputs
-		 *  (not internal calibration sources) */
-		devpriv->i2c_cal_range_bits = adc_src_4020_bits(4);
-		/*  set channels to +-5 volt input ranges */
-		for (i = 0; i < s->n_chan; i++)
-			devpriv->i2c_cal_range_bits |= attenuate_bit(i);
-		data = devpriv->i2c_cal_range_bits;
-		i2c_write(dev, RANGE_CAL_I2C_ADDR, &data, sizeof(data));
-	}
-
-	/* analog output subdevice */
-	s = &dev->subdevices[1];
-	if (thisboard->ao_nchan) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE |
-				  SDF_GROUND | SDF_CMD_WRITE;
-		s->n_chan = thisboard->ao_nchan;
-		s->maxdata = (1 << thisboard->ao_bits) - 1;
-		s->range_table = thisboard->ao_range_table;
-		s->insn_read = ao_readback_insn;
-		s->insn_write = ao_winsn;
-		if (ao_cmd_is_supported(thisboard)) {
-			dev->write_subdev = s;
-			s->do_cmdtest = ao_cmdtest;
-			s->do_cmd = ao_cmd;
-			s->len_chanlist = thisboard->ao_nchan;
-			s->cancel = ao_cancel;
-		}
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
-
-	/*  digital input */
-	s = &dev->subdevices[2];
-	if (thisboard->layout == LAYOUT_64XX) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = di_rbits;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/*  digital output */
-	if (thisboard->layout == LAYOUT_64XX) {
-		s = &dev->subdevices[3];
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-		s->n_chan = 4;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = do_wbits;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/* 8255 */
-	s = &dev->subdevices[4];
-	if (thisboard->has_8255) {
-		if (thisboard->layout == LAYOUT_4020) {
-			dio_8255_iobase = devpriv->main_iobase + I8255_4020_REG;
-			subdev_8255_init(dev, s, dio_callback_4020,
-					 (unsigned long)dio_8255_iobase);
-		} else {
-			dio_8255_iobase =
-				devpriv->dio_counter_iobase + DIO_8255_OFFSET;
-			subdev_8255_init(dev, s, dio_callback,
-					 (unsigned long)dio_8255_iobase);
-		}
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/*  8 channel dio for 60xx */
-	s = &dev->subdevices[5];
-	if (thisboard->layout == LAYOUT_60XX) {
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
-		s->n_chan = 8;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_config = dio_60xx_config_insn;
-		s->insn_bits = dio_60xx_wbits;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/*  caldac */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_CALIB;
-	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-	s->n_chan = 8;
-	if (thisboard->layout == LAYOUT_4020)
-		s->maxdata = 0xfff;
-	else
-		s->maxdata = 0xff;
-	s->insn_read = calib_read_insn;
-	s->insn_write = calib_write_insn;
-	for (i = 0; i < s->n_chan; i++)
-		caldac_write(dev, i, s->maxdata / 2);
-
-	/*  2 channel ad8402 potentiometer */
-	s = &dev->subdevices[7];
-	if (thisboard->layout == LAYOUT_64XX) {
-		s->type = COMEDI_SUBD_CALIB;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
-		s->n_chan = 2;
-		s->insn_read = ad8402_read_insn;
-		s->insn_write = ad8402_write_insn;
-		s->maxdata = 0xff;
-		for (i = 0; i < s->n_chan; i++)
-			ad8402_write(dev, i, s->maxdata / 2);
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/* serial EEPROM, if present */
-	s = &dev->subdevices[8];
-	if (readl(devpriv->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK) {
-		s->type = COMEDI_SUBD_MEMORY;
-		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
-		s->n_chan = 128;
-		s->maxdata = 0xffff;
-		s->insn_read = eeprom_read_insn;
-	} else
-		s->type = COMEDI_SUBD_UNUSED;
-
-	/*  user counter subd XXX */
-	s = &dev->subdevices[9];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	return 0;
 }
 
 static void disable_plx_interrupts(struct comedi_device *dev)
@@ -4310,6 +4093,173 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 		}
 	}
 	i2c_stop(dev);
+}
+
+/* Allocate and initialize the subdevice structures.
+ */
+static int setup_subdevices(struct comedi_device *dev)
+{
+	const struct pcidas64_board *thisboard = comedi_board(dev);
+	struct pcidas64_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+	void __iomem *dio_8255_iobase;
+	int i;
+	int ret;
+
+	ret = comedi_alloc_subdevices(dev, 10);
+	if (ret)
+		return ret;
+
+	s = &dev->subdevices[0];
+	/* analog input subdevice */
+	dev->read_subdev = s;
+	s->type = COMEDI_SUBD_AI;
+	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DITHER | SDF_CMD_READ;
+	if (thisboard->layout == LAYOUT_60XX)
+		s->subdev_flags |= SDF_COMMON | SDF_DIFF;
+	else if (thisboard->layout == LAYOUT_64XX)
+		s->subdev_flags |= SDF_DIFF;
+	/* XXX Number of inputs in differential mode is ignored */
+	s->n_chan = thisboard->ai_se_chans;
+	s->len_chanlist = 0x2000;
+	s->maxdata = (1 << thisboard->ai_bits) - 1;
+	s->range_table = thisboard->ai_range_table;
+	s->insn_read = ai_rinsn;
+	s->insn_config = ai_config_insn;
+	s->do_cmd = ai_cmd;
+	s->do_cmdtest = ai_cmdtest;
+	s->cancel = ai_cancel;
+	if (thisboard->layout == LAYOUT_4020) {
+		uint8_t data;
+		/*  set adc to read from inputs
+		 *  (not internal calibration sources) */
+		devpriv->i2c_cal_range_bits = adc_src_4020_bits(4);
+		/*  set channels to +-5 volt input ranges */
+		for (i = 0; i < s->n_chan; i++)
+			devpriv->i2c_cal_range_bits |= attenuate_bit(i);
+		data = devpriv->i2c_cal_range_bits;
+		i2c_write(dev, RANGE_CAL_I2C_ADDR, &data, sizeof(data));
+	}
+
+	/* analog output subdevice */
+	s = &dev->subdevices[1];
+	if (thisboard->ao_nchan) {
+		s->type = COMEDI_SUBD_AO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE |
+				  SDF_GROUND | SDF_CMD_WRITE;
+		s->n_chan = thisboard->ao_nchan;
+		s->maxdata = (1 << thisboard->ao_bits) - 1;
+		s->range_table = thisboard->ao_range_table;
+		s->insn_read = ao_readback_insn;
+		s->insn_write = ao_winsn;
+		if (ao_cmd_is_supported(thisboard)) {
+			dev->write_subdev = s;
+			s->do_cmdtest = ao_cmdtest;
+			s->do_cmd = ao_cmd;
+			s->len_chanlist = thisboard->ao_nchan;
+			s->cancel = ao_cancel;
+		}
+	} else {
+		s->type = COMEDI_SUBD_UNUSED;
+	}
+
+	/*  digital input */
+	s = &dev->subdevices[2];
+	if (thisboard->layout == LAYOUT_64XX) {
+		s->type = COMEDI_SUBD_DI;
+		s->subdev_flags = SDF_READABLE;
+		s->n_chan = 4;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = di_rbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/*  digital output */
+	if (thisboard->layout == LAYOUT_64XX) {
+		s = &dev->subdevices[3];
+		s->type = COMEDI_SUBD_DO;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->n_chan = 4;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_bits = do_wbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/* 8255 */
+	s = &dev->subdevices[4];
+	if (thisboard->has_8255) {
+		if (thisboard->layout == LAYOUT_4020) {
+			dio_8255_iobase = devpriv->main_iobase + I8255_4020_REG;
+			subdev_8255_init(dev, s, dio_callback_4020,
+					 (unsigned long)dio_8255_iobase);
+		} else {
+			dio_8255_iobase =
+				devpriv->dio_counter_iobase + DIO_8255_OFFSET;
+			subdev_8255_init(dev, s, dio_callback,
+					 (unsigned long)dio_8255_iobase);
+		}
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/*  8 channel dio for 60xx */
+	s = &dev->subdevices[5];
+	if (thisboard->layout == LAYOUT_60XX) {
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_WRITABLE | SDF_READABLE;
+		s->n_chan = 8;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_config = dio_60xx_config_insn;
+		s->insn_bits = dio_60xx_wbits;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/*  caldac */
+	s = &dev->subdevices[6];
+	s->type = COMEDI_SUBD_CALIB;
+	s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+	s->n_chan = 8;
+	if (thisboard->layout == LAYOUT_4020)
+		s->maxdata = 0xfff;
+	else
+		s->maxdata = 0xff;
+	s->insn_read = calib_read_insn;
+	s->insn_write = calib_write_insn;
+	for (i = 0; i < s->n_chan; i++)
+		caldac_write(dev, i, s->maxdata / 2);
+
+	/*  2 channel ad8402 potentiometer */
+	s = &dev->subdevices[7];
+	if (thisboard->layout == LAYOUT_64XX) {
+		s->type = COMEDI_SUBD_CALIB;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_INTERNAL;
+		s->n_chan = 2;
+		s->insn_read = ad8402_read_insn;
+		s->insn_write = ad8402_write_insn;
+		s->maxdata = 0xff;
+		for (i = 0; i < s->n_chan; i++)
+			ad8402_write(dev, i, s->maxdata / 2);
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/* serial EEPROM, if present */
+	s = &dev->subdevices[8];
+	if (readl(devpriv->plx9080_iobase + PLX_CONTROL_REG) & CTL_EECHK) {
+		s->type = COMEDI_SUBD_MEMORY;
+		s->subdev_flags = SDF_READABLE | SDF_INTERNAL;
+		s->n_chan = 128;
+		s->maxdata = 0xffff;
+		s->insn_read = eeprom_read_insn;
+	} else
+		s->type = COMEDI_SUBD_UNUSED;
+
+	/*  user counter subd XXX */
+	s = &dev->subdevices[9];
+	s->type = COMEDI_SUBD_UNUSED;
+
+	return 0;
 }
 
 static struct comedi_driver cb_pcidas64_driver = {
