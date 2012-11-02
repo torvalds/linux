@@ -2432,41 +2432,76 @@ rb_reserve_next_event(struct ring_buffer *buffer,
 
 #ifdef CONFIG_TRACING
 
-#define TRACE_RECURSIVE_DEPTH 16
+/*
+ * The lock and unlock are done within a preempt disable section.
+ * The current_context per_cpu variable can only be modified
+ * by the current task between lock and unlock. But it can
+ * be modified more than once via an interrupt. To pass this
+ * information from the lock to the unlock without having to
+ * access the 'in_interrupt()' functions again (which do show
+ * a bit of overhead in something as critical as function tracing,
+ * we use a bitmask trick.
+ *
+ *  bit 0 =  NMI context
+ *  bit 1 =  IRQ context
+ *  bit 2 =  SoftIRQ context
+ *  bit 3 =  normal context.
+ *
+ * This works because this is the order of contexts that can
+ * preempt other contexts. A SoftIRQ never preempts an IRQ
+ * context.
+ *
+ * When the context is determined, the corresponding bit is
+ * checked and set (if it was set, then a recursion of that context
+ * happened).
+ *
+ * On unlock, we need to clear this bit. To do so, just subtract
+ * 1 from the current_context and AND it to itself.
+ *
+ * (binary)
+ *  101 - 1 = 100
+ *  101 & 100 = 100 (clearing bit zero)
+ *
+ *  1010 - 1 = 1001
+ *  1010 & 1001 = 1000 (clearing bit 1)
+ *
+ * The least significant bit can be cleared this way, and it
+ * just so happens that it is the same bit corresponding to
+ * the current context.
+ */
+static DEFINE_PER_CPU(unsigned int, current_context);
 
-/* Keep this code out of the fast path cache */
-static noinline void trace_recursive_fail(void)
+static __always_inline int trace_recursive_lock(void)
 {
-	/* Disable all tracing before we do anything else */
-	tracing_off_permanent();
+	unsigned int val = this_cpu_read(current_context);
+	int bit;
 
-	printk_once(KERN_WARNING "Tracing recursion: depth[%ld]:"
-		    "HC[%lu]:SC[%lu]:NMI[%lu]\n",
-		    trace_recursion_buffer(),
-		    hardirq_count() >> HARDIRQ_SHIFT,
-		    softirq_count() >> SOFTIRQ_SHIFT,
-		    in_nmi());
+	if (in_interrupt()) {
+		if (in_nmi())
+			bit = 0;
+		else if (in_irq())
+			bit = 1;
+		else
+			bit = 2;
+	} else
+		bit = 3;
 
-	WARN_ON_ONCE(1);
+	if (unlikely(val & (1 << bit)))
+		return 1;
+
+	val |= (1 << bit);
+	this_cpu_write(current_context, val);
+
+	return 0;
 }
 
-static inline int trace_recursive_lock(void)
+static __always_inline void trace_recursive_unlock(void)
 {
-	trace_recursion_inc();
+	unsigned int val = this_cpu_read(current_context);
 
-	if (likely(trace_recursion_buffer() < TRACE_RECURSIVE_DEPTH))
-		return 0;
-
-	trace_recursive_fail();
-
-	return -1;
-}
-
-static inline void trace_recursive_unlock(void)
-{
-	WARN_ON_ONCE(!trace_recursion_buffer());
-
-	trace_recursion_dec();
+	val--;
+	val &= this_cpu_read(current_context);
+	this_cpu_write(current_context, val);
 }
 
 #else

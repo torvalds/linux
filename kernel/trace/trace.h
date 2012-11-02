@@ -291,11 +291,6 @@ struct tracer {
 
 
 /* Only current can touch trace_recursion */
-#define trace_recursion_inc() do { (current)->trace_recursion++; } while (0)
-#define trace_recursion_dec() do { (current)->trace_recursion--; } while (0)
-
-/* Ring buffer has the 10 LSB bits to count */
-#define trace_recursion_buffer() ((current)->trace_recursion & 0x3ff)
 
 /*
  * For function tracing recursion:
@@ -323,7 +318,13 @@ struct tracer {
  * caller, and we can skip the current check.
  */
 enum {
-	TRACE_FTRACE_BIT = 11,
+	TRACE_BUFFER_BIT,
+	TRACE_BUFFER_NMI_BIT,
+	TRACE_BUFFER_IRQ_BIT,
+	TRACE_BUFFER_SIRQ_BIT,
+
+	/* Start of function recursion bits */
+	TRACE_FTRACE_BIT,
 	TRACE_FTRACE_NMI_BIT,
 	TRACE_FTRACE_IRQ_BIT,
 	TRACE_FTRACE_SIRQ_BIT,
