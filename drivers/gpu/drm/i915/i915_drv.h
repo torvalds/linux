@@ -564,6 +564,12 @@ struct intel_gen6_power_mgmt {
 	u8 max_delay;
 
 	struct delayed_work delayed_resume_work;
+
+	/*
+	 * Protects RPS/RC6 register access and PCU communication.
+	 * Must be taken after struct_mutex if nested.
+	 */
+	struct mutex hw_lock;
 };
 
 struct intel_ilk_power_mgmt {

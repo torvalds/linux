@@ -211,12 +211,9 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
+	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d", ret);
 }
@@ -228,12 +225,9 @@ static ssize_t gt_max_freq_mhz_show(struct device *kdev, struct device_attribute
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
+	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER;
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d", ret);
 }
@@ -254,16 +248,14 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	val /= GT_FREQUENCY_MULTIPLIER;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	mutex_lock(&dev_priv->rps.hw_lock);
 
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	hw_max = (rp_state_cap & 0xff);
 	hw_min = ((rp_state_cap & 0xff0000) >> 16);
 
 	if (val < hw_min || val > hw_max || val < dev_priv->rps.min_delay) {
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
@@ -272,7 +264,7 @@ static ssize_t gt_max_freq_mhz_store(struct device *kdev,
 
 	dev_priv->rps.max_delay = val;
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return count;
 }
@@ -284,12 +276,9 @@ static ssize_t gt_min_freq_mhz_show(struct device *kdev, struct device_attribute
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = i915_mutex_lock_interruptible(dev);
-	if (ret)
-		return ret;
-
+	mutex_lock(&dev_priv->rps.hw_lock);
 	ret = dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER;
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return snprintf(buf, PAGE_SIZE, "%d", ret);
 }
@@ -310,16 +299,14 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	val /= GT_FREQUENCY_MULTIPLIER;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
+	mutex_lock(&dev_priv->rps.hw_lock);
 
 	rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
 	hw_max = (rp_state_cap & 0xff);
 	hw_min = ((rp_state_cap & 0xff0000) >> 16);
 
 	if (val < hw_min || val > hw_max || val > dev_priv->rps.max_delay) {
-		mutex_unlock(&dev->struct_mutex);
+		mutex_unlock(&dev_priv->rps.hw_lock);
 		return -EINVAL;
 	}
 
@@ -328,7 +315,7 @@ static ssize_t gt_min_freq_mhz_store(struct device *kdev,
 
 	dev_priv->rps.min_delay = val;
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return count;
 
