@@ -273,7 +273,8 @@ static void s5pcsis_reset(struct csis_state *state)
 
 static void s5pcsis_system_enable(struct csis_state *state, int on)
 {
-	u32 val;
+	struct s5p_platform_mipi_csis *pdata = state->pdev->dev.platform_data;
+	u32 val, mask;
 
 	val = s5pcsis_read(state, S5PCSIS_CTRL);
 	if (on)
@@ -283,10 +284,11 @@ static void s5pcsis_system_enable(struct csis_state *state, int on)
 	s5pcsis_write(state, S5PCSIS_CTRL, val);
 
 	val = s5pcsis_read(state, S5PCSIS_DPHYCTRL);
-	if (on)
-		val |= S5PCSIS_DPHYCTRL_ENABLE;
-	else
-		val &= ~S5PCSIS_DPHYCTRL_ENABLE;
+	val &= ~S5PCSIS_DPHYCTRL_ENABLE;
+	if (on) {
+		mask = (1 << (pdata->lanes + 1)) - 1;
+		val |= (mask & S5PCSIS_DPHYCTRL_ENABLE);
+	}
 	s5pcsis_write(state, S5PCSIS_DPHYCTRL, val);
 }
 
