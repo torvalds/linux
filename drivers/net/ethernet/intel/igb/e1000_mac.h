@@ -33,6 +33,7 @@
 #include "e1000_phy.h"
 #include "e1000_nvm.h"
 #include "e1000_defines.h"
+#include "e1000_i210.h"
 
 /*
  * Functions that should not be called directly from drivers but can be used

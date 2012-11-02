@@ -319,6 +319,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		nvm->ops.acquire = igb_acquire_nvm_i210;
 		nvm->ops.release = igb_release_nvm_i210;
 		nvm->ops.read    = igb_read_nvm_srrd_i210;
+		nvm->ops.write   = igb_write_nvm_srwr_i210;
 		nvm->ops.valid_led_default = igb_valid_led_default_i210;
 		break;
 	case e1000_i211:
@@ -2233,19 +2234,16 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 
 	/* enable or disable per user setting */
 	if (!(hw->dev_spec._82575.eee_disable)) {
-		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN |
-			E1000_IPCNFG_EEE_100M_AN);
-		eeer |= (E1000_EEER_TX_LPI_EN |
-			E1000_EEER_RX_LPI_EN |
+		u32 eee_su = rd32(E1000_EEE_SU);
+
+		ipcnfg |= (E1000_IPCNFG_EEE_1G_AN | E1000_IPCNFG_EEE_100M_AN);
+		eeer |= (E1000_EEER_TX_LPI_EN | E1000_EEER_RX_LPI_EN |
 			E1000_EEER_LPI_FC);
 
-		/* keep the LPI clock running before EEE is enabled */
-		if (hw->mac.type == e1000_i210 || hw->mac.type == e1000_i211) {
-			u32 eee_su;
-			eee_su = rd32(E1000_EEE_SU);
-			eee_su &= ~E1000_EEE_SU_LPI_CLK_STP;
-			wr32(E1000_EEE_SU, eee_su);
-		}
+		/* This bit should not be set in normal operation. */
+		if (eee_su & E1000_EEE_SU_LPI_CLK_STP)
+			hw_dbg("LPI Clock Stop Bit should not be set!\n");
+
 
 	} else {
 		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |

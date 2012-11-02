@@ -423,6 +423,100 @@ s32 igb_read_invm_i211(struct e1000_hw *hw, u16 address, u16 *data)
 }
 
 /**
+ *  igb_read_invm_version - Reads iNVM version and image type
+ *  @hw: pointer to the HW structure
+ *  @invm_ver: version structure for the version read
+ *
+ *  Reads iNVM version and image type.
+ **/
+s32 igb_read_invm_version(struct e1000_hw *hw,
+			  struct e1000_fw_version *invm_ver) {
+	u32 *record = NULL;
+	u32 *next_record = NULL;
+	u32 i = 0;
+	u32 invm_dword = 0;
+	u32 invm_blocks = E1000_INVM_SIZE - (E1000_INVM_ULT_BYTES_SIZE /
+					     E1000_INVM_RECORD_SIZE_IN_BYTES);
+	u32 buffer[E1000_INVM_SIZE];
+	s32 status = -E1000_ERR_INVM_VALUE_NOT_FOUND;
+	u16 version = 0;
+
+	/* Read iNVM memory */
+	for (i = 0; i < E1000_INVM_SIZE; i++) {
+		invm_dword = rd32(E1000_INVM_DATA_REG(i));
+		buffer[i] = invm_dword;
+	}
+
+	/* Read version number */
+	for (i = 1; i < invm_blocks; i++) {
+		record = &buffer[invm_blocks - i];
+		next_record = &buffer[invm_blocks - i + 1];
+
+		/* Check if we have first version location used */
+		if ((i == 1) && ((*record & E1000_INVM_VER_FIELD_ONE) == 0)) {
+			version = 0;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have second version location used */
+		else if ((i == 1) &&
+			 ((*record & E1000_INVM_VER_FIELD_TWO) == 0)) {
+			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have odd version location
+		 * used and it is the last one used
+		 */
+		else if ((((*record & E1000_INVM_VER_FIELD_ONE) == 0) &&
+			 ((*record & 0x3) == 0)) || (((*record & 0x3) != 0) &&
+			 (i != 1))) {
+			version = (*next_record & E1000_INVM_VER_FIELD_TWO)
+				  >> 13;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have even version location
+		 * used and it is the last one used
+		 */
+		else if (((*record & E1000_INVM_VER_FIELD_TWO) == 0) &&
+			 ((*record & 0x3) == 0)) {
+			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			status = E1000_SUCCESS;
+			break;
+		}
+	}
+
+	if (status == E1000_SUCCESS) {
+		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
+					>> E1000_INVM_MAJOR_SHIFT;
+		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
+	}
+	/* Read Image Type */
+	for (i = 1; i < invm_blocks; i++) {
+		record = &buffer[invm_blocks - i];
+		next_record = &buffer[invm_blocks - i + 1];
+
+		/* Check if we have image type in first location used */
+		if ((i == 1) && ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) {
+			invm_ver->invm_img_type = 0;
+			status = E1000_SUCCESS;
+			break;
+		}
+		/* Check if we have image type in first location used */
+		else if ((((*record & 0x3) == 0) &&
+			 ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) ||
+			 ((((*record & 0x3) != 0) && (i != 1)))) {
+			invm_ver->invm_img_type =
+				(*next_record & E1000_INVM_IMGTYPE_FIELD) >> 23;
+			status = E1000_SUCCESS;
+			break;
+		}
+	}
+	return status;
+}
+
+/**
  *  igb_validate_nvm_checksum_i210 - Validate EEPROM checksum
  *  @hw: pointer to the HW structure
  *

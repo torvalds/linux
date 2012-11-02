@@ -727,6 +727,7 @@ void igb_get_fw_version(struct e1000_hw *hw, struct e1000_fw_version *fw_vers)
 
 	switch (hw->mac.type) {
 	case e1000_i211:
+		igb_read_invm_version(hw, fw_vers);
 		return;
 	case e1000_82575:
 	case e1000_82576:

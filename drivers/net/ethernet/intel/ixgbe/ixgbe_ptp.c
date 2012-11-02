@@ -387,6 +387,15 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
 
+	event.type = PTP_CLOCK_PPS;
+
+	/* this check is necessary in case the interrupt was enabled via some
+	 * alternative means (ex. debug_fs). Better to check here than
+	 * everywhere that calls this function.
+	 */
+	if (!adapter->ptp_clock)
+		return;
+
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:
 		ptp_clock_event(adapter->ptp_clock, &event);
