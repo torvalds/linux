@@ -574,21 +574,22 @@ static void gen_text(struct vivi_dev *dev, char *basep,
 
 static void vivi_fillbuff(struct vivi_dev *dev, struct vivi_buffer *buf)
 {
-	int wmax = dev->width;
+	int stride = dev->width * dev->pixelsize;
 	int hmax = dev->height;
 	void *vbuf = vb2_plane_vaddr(&buf->vb, 0);
 	unsigned ms;
 	char str[100];
 	int h, line = 1;
+	u8 *linestart;
 	s32 gain;
 
 	if (!vbuf)
 		return;
 
+	linestart = dev->line + (dev->mv_count % dev->width) * dev->pixelsize;
+
 	for (h = 0; h < hmax; h++)
-		memcpy(vbuf + h * wmax * dev->pixelsize,
-		       dev->line + (dev->mv_count % wmax) * dev->pixelsize,
-		       wmax * dev->pixelsize);
+		memcpy(vbuf + h * stride, linestart, stride);
 
 	/* Updates stream time */
 
