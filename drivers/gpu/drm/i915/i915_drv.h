@@ -549,6 +549,40 @@ struct i915_suspend_saved_registers {
 	u32 saveMCHBAR_RENDER_STANDBY;
 	u32 savePCH_PORT_HOTPLUG;
 };
+
+struct intel_gen6_power_mgmt {
+	struct work_struct work;
+	u32 pm_iir;
+	/* lock - irqsave spinlock that protectects the work_struct and
+	 * pm_iir. */
+	spinlock_t lock;
+
+	/* The below variables an all the rps hw state are protected by
+	 * dev->struct mutext. */
+	u8 cur_delay;
+	u8 min_delay;
+	u8 max_delay;
+};
+
+struct intel_ilk_power_mgmt {
+	u8 cur_delay;
+	u8 min_delay;
+	u8 max_delay;
+	u8 fmax;
+	u8 fstart;
+
+	u64 last_count1;
+	unsigned long last_time1;
+	unsigned long chipset_power;
+	u64 last_count2;
+	struct timespec last_time2;
+	unsigned long gfx_power;
+	u8 corr;
+
+	int c_m;
+	int r_t;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -833,40 +867,11 @@ typedef struct drm_i915_private {
 	bool mchbar_need_disable;
 
 	/* gen6+ rps state */
-	struct {
-		struct work_struct work;
-		u32 pm_iir;
-		/* lock - irqsave spinlock that protectects the work_struct and
-		 * pm_iir. */
-		spinlock_t lock;
-
-		/* The below variables an all the rps hw state are protected by
-		 * dev->struct mutext. */
-		u8 cur_delay;
-		u8 min_delay;
-		u8 max_delay;
-	} rps;
+	struct intel_gen6_power_mgmt rps;
 
 	/* ilk-only ips/rps state. Everything in here is protected by the global
 	 * mchdev_lock in intel_pm.c */
-	struct {
-		u8 cur_delay;
-		u8 min_delay;
-		u8 max_delay;
-		u8 fmax;
-		u8 fstart;
-
-		u64 last_count1;
-		unsigned long last_time1;
-		unsigned long chipset_power;
-		u64 last_count2;
-		struct timespec last_time2;
-		unsigned long gfx_power;
-		u8 corr;
-
-		int c_m;
-		int r_t;
-	} ips;
+	struct intel_ilk_power_mgmt ips;
 
 	enum no_fbc_reason no_fbc_reason;
 
