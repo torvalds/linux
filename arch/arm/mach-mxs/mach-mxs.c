@@ -100,6 +100,25 @@ static struct fb_videomode apx4devkit_video_modes[] = {
 	},
 };
 
+static struct fb_videomode apf28dev_video_modes[] = {
+	{
+		.name = "LW700",
+		.refresh = 60,
+		.xres = 800,
+		.yres = 480,
+		.pixclock = 30303, /* picosecond */
+		.left_margin = 96,
+		.right_margin = 96, /* at least 3 & 1 */
+		.upper_margin = 0x14,
+		.lower_margin = 0x15,
+		.hsync_len = 64,
+		.vsync_len = 4,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
+				FB_SYNC_DATA_ENABLE_HIGH_ACT |
+				FB_SYNC_DOTCLK_FAILING_ACT,
+	},
+};
+
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
 /*
@@ -374,6 +393,11 @@ static void __init cfa10049_init(void)
 static void __init apf28_init(void)
 {
 	enable_clk_enet_out();
+
+	mxsfb_pdata.mode_list = apf28dev_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
+	mxsfb_pdata.default_bpp = 16;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_16BIT;
 }
 
 static void __init mxs_machine_init(void)
