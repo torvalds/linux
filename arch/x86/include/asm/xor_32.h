@@ -543,26 +543,25 @@ static struct xor_block_template xor_block_pIII_sse = {
 /* Also try the generic routines.  */
 #include <asm-generic/xor.h>
 
-#undef XOR_TRY_TEMPLATES
-#define XOR_TRY_TEMPLATES				\
-do {							\
-	xor_speed(&xor_block_8regs);			\
-	xor_speed(&xor_block_8regs_p);			\
-	xor_speed(&xor_block_32regs);			\
-	xor_speed(&xor_block_32regs_p);			\
-	AVX_XOR_SPEED;					\
-	if (cpu_has_xmm)				\
-		xor_speed(&xor_block_pIII_sse);		\
-	if (cpu_has_mmx) {				\
-		xor_speed(&xor_block_pII_mmx);		\
-		xor_speed(&xor_block_p5_mmx);		\
-	}						\
-} while (0)
-
 /* We force the use of the SSE xor block because it can write around L2.
    We may also be able to load into the L1 only depending on how the cpu
    deals with a load to a line that is being prefetched.  */
-#define XOR_SELECT_TEMPLATE(FASTEST)			\
-	AVX_SELECT(cpu_has_xmm ? &xor_block_pIII_sse : FASTEST)
+#undef XOR_TRY_TEMPLATES
+#define XOR_TRY_TEMPLATES				\
+do {							\
+	AVX_XOR_SPEED;					\
+	if (cpu_has_xmm) {				\
+		xor_speed(&xor_block_pIII_sse);		\
+		xor_speed(&xor_block_sse_pf64);		\
+	} else if (cpu_has_mmx) {			\
+		xor_speed(&xor_block_pII_mmx);		\
+		xor_speed(&xor_block_p5_mmx);		\
+	} else {					\
+		xor_speed(&xor_block_8regs);		\
+		xor_speed(&xor_block_8regs_p);		\
+		xor_speed(&xor_block_32regs);		\
+		xor_speed(&xor_block_32regs_p);		\
+	}						\
+} while (0)
 
 #endif /* _ASM_X86_XOR_32_H */
