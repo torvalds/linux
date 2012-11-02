@@ -676,7 +676,7 @@ static const struct dsps_musb_wrapper ti81xx_driver_data __devinitconst = {
 	.rxep_bitmap		= (0xfffe << 16),
 	.musb_core_offset	= 0x400,
 	.poll_seconds		= 2,
-	.instances		= 2,
+	.instances		= 1,
 };
 
 static const struct platform_device_id musb_dsps_id_table[] __devinitconst = {
