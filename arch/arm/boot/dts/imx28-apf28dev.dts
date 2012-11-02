@@ -26,6 +26,27 @@
 				bus-width = <4>;
 				status = "okay";
 			};
+
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_apf28dev>;
+
+				hog_pins_apf28dev: hog@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1103 /* MX28_PAD_LCD_D16__GPIO_1_16 */
+						0x1113 /* MX28_PAD_LCD_D17__GPIO_1_17 */
+						0x1123 /* MX28_PAD_LCD_D18__GPIO_1_18 */
+						0x1133 /* MX28_PAD_LCD_D19__GPIO_1_19 */
+						0x1143 /* MX28_PAD_LCD_D20__GPIO_1_20 */
+						0x1153 /* MX28_PAD_LCD_D21__GPIO_1_21 */
+						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
 		};
 
 		apbx@80040000 {
