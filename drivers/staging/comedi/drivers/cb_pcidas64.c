@@ -1645,56 +1645,37 @@ static inline void warn_external_queue(struct comedi_device *dev)
 		     "Use internal AI channel queue (channels must be consecutive and use same range/aref)");
 }
 
-static struct pci_dev *cb_pcidas64_find_pci_dev(struct comedi_device *dev,
-						struct comedi_devconfig *it)
+static const struct pcidas64_board
+*cb_pcidas64_find_pci_board(struct pci_dev *pcidev)
 {
-	struct pci_dev *pcidev = NULL;
-	int bus = it->options[0];
-	int slot = it->options[1];
-	int i;
+	unsigned int i;
 
-	for_each_pci_dev(pcidev) {
-		if (bus || slot) {
-			if (bus != pcidev->bus->number ||
-			    slot != PCI_SLOT(pcidev->devfn))
-				continue;
-		}
-		if (pcidev->vendor != PCI_VENDOR_ID_CB)
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++) {
-			if (pcidas64_boards[i].device_id != pcidev->device)
-				continue;
-			dev->board_ptr = pcidas64_boards + i;
-			return pcidev;
-		}
-	}
-	dev_err(dev->class_dev,
-		"No supported board found! (req. bus %d, slot %d)\n",
-		bus, slot);
+	for (i = 0; i < ARRAY_SIZE(pcidas64_boards); i++)
+		if (pcidev->device == pcidas64_boards[i].device_id)
+			return &pcidas64_boards[i];
 	return NULL;
 }
 
-/*
- * Attach is called by the Comedi core to configure the driver
- * for a particular board.
- */
-static int attach(struct comedi_device *dev, struct comedi_devconfig *it)
+static int __devinit auto_attach(struct comedi_device *dev,
+				 unsigned long context_unused)
 {
 	struct pcidas64_private *devpriv;
-	struct pci_dev *pcidev;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	uint32_t local_range, local_decode;
 	int retval;
+
+	dev->board_ptr = cb_pcidas64_find_pci_board(pcidev);
+	if (!dev->board_ptr) {
+		dev_err(dev->class_dev,
+			"cb_pcidas64: does not support pci %s\n",
+			pci_name(pcidev));
+		return -EINVAL;
+	}
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-
-	pcidev = cb_pcidas64_find_pci_dev(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
 
 	if (comedi_pci_enable(pcidev, dev->driver->driver_name)) {
 		dev_warn(dev->class_dev,
@@ -1838,8 +1819,6 @@ static void detach(struct comedi_device *dev)
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
-
-		pci_dev_put(pcidev);
 	}
 }
 
@@ -4240,7 +4219,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 static struct comedi_driver cb_pcidas64_driver = {
 	.driver_name	= "cb_pcidas64",
 	.module		= THIS_MODULE,
-	.attach		= attach,
+	.auto_attach	= auto_attach,
 	.detach		= detach,
 };
 
