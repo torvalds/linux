@@ -37,6 +37,8 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/stat.h>
+#include <linux/sys_soc.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -462,13 +464,64 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
+/* Base address to the AP system controller */
+static void __iomem *ap_syscon_base;
+
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
+	struct device_node *root;
+	struct device_node *syscon;
+	struct device *parent;
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+	u32 ap_sc_id;
+	int err;
 	int i;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			ap_auxdata_lookup, NULL);
+	/* Here we create an SoC device for the root node */
+	root = of_find_node_by_path("/");
+	if (!root)
+		return;
+	syscon = of_find_node_by_path("/syscon");
+	if (!syscon)
+		return;
+
+	ap_syscon_base = of_iomap(syscon, 0);
+	if (!ap_syscon_base)
+		return;
+
+	ap_sc_id = readl(ap_syscon_base);
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return;
+
+	err = of_property_read_string(root, "compatible",
+				      &soc_dev_attr->soc_id);
+	if (err)
+		return;
+	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
+	if (err)
+		return;
+	soc_dev_attr->family = "Integrator";
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
+					   'A' + (ap_sc_id & 0x0f));
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR_OR_NULL(soc_dev)) {
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr);
+		return;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
+	if (!IS_ERR_OR_NULL(parent))
+		integrator_init_sysfs(parent, ap_sc_id);
+
+	of_platform_populate(root, of_default_bus_match_table,
+			ap_auxdata_lookup, parent);
 
 	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {

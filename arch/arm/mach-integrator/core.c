@@ -22,6 +22,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
+#include <linux/stat.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -168,4 +169,94 @@ void __init integrator_reserve(void)
 void integrator_restart(char mode, const char *cmd)
 {
 	cm_control(CM_CTRL_RESET, CM_CTRL_RESET);
+}
+
+static u32 integrator_id;
+
+static ssize_t intcp_get_manf(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	return sprintf(buf, "%02x\n", integrator_id >> 24);
+}
+
+static struct device_attribute intcp_manf_attr =
+	__ATTR(manufacturer,  S_IRUGO, intcp_get_manf,  NULL);
+
+static ssize_t intcp_get_arch(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	const char *arch;
+
+	switch ((integrator_id >> 16) & 0xff) {
+	case 0x00:
+		arch = "ASB little-endian";
+		break;
+	case 0x01:
+		arch = "AHB little-endian";
+		break;
+	case 0x03:
+		arch = "AHB-Lite system bus, bi-endian";
+		break;
+	case 0x04:
+		arch = "AHB";
+		break;
+	default:
+		arch = "Unknown";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", arch);
+}
+
+static struct device_attribute intcp_arch_attr =
+	__ATTR(architecture,  S_IRUGO, intcp_get_arch,  NULL);
+
+static ssize_t intcp_get_fpga(struct device *dev,
+			      struct device_attribute *attr,
+			      char *buf)
+{
+	const char *fpga;
+
+	switch ((integrator_id >> 12) & 0xf) {
+	case 0x01:
+		fpga = "XC4062";
+		break;
+	case 0x02:
+		fpga = "XC4085";
+		break;
+	case 0x04:
+		fpga = "EPM7256AE (Altera PLD)";
+		break;
+	default:
+		fpga = "Unknown";
+		break;
+	}
+
+	return sprintf(buf, "%s\n", fpga);
+}
+
+static struct device_attribute intcp_fpga_attr =
+	__ATTR(fpga,  S_IRUGO, intcp_get_fpga,  NULL);
+
+static ssize_t intcp_get_build(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	return sprintf(buf, "%02x\n", (integrator_id >> 4) & 0xFF);
+}
+
+static struct device_attribute intcp_build_attr =
+	__ATTR(build,  S_IRUGO, intcp_get_build,  NULL);
+
+
+
+void integrator_init_sysfs(struct device *parent, u32 id)
+{
+	integrator_id = id;
+	device_create_file(parent, &intcp_manf_attr);
+	device_create_file(parent, &intcp_arch_attr);
+	device_create_file(parent, &intcp_fpga_attr);
+	device_create_file(parent, &intcp_build_attr);
 }
