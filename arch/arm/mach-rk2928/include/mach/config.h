@@ -2,11 +2,36 @@
 #define __MACH_CONFIG_H
 #include <mach/board.h>
 
-#define RK2926_TB_DEFAULT_CONFIG
+//#define RK2926_TB_DEFAULT_CONFIG
 //#define RK2928_TB_DEFAULT_CONFIG
 //#define RK2926_SDK_DEFAULT_CONFIG
 //#define RK2928_SDK_DEFAULT_CONFIG
-//#define RK2928_PHONEPAD_DEFAULT_CONFIG
+#define RK2928_PHONEPAD_DEFAULT_CONFIG
+
+
+/* camera id */
+#define BACK_SENSOR_0           NONE
+#define BACK_SENSOR_0_ADDR      0x00
+#define BACK_SENSOR_1           NONE
+#define BACK_SENSOR_1_ADDR      0x00
+#define BACK_SENSOR_2           NONE
+#define BACK_SENSOR_2_ADDR      0x00
+
+#define FRONT_SENSOR_0          RK29_CAM_SENSOR_GC0308
+#define FRONT_SENSOR_0_ADDR     0x42
+#define FRONT_SENSOR_1          RK29_CAM_SENSOR_OV2659
+#define FRONT_SENSOR_1_ADDR     0x60
+#define FRONT_SENSOR_2          RK29_CAM_SENSOR_HI704
+#define FRONT_SENSOR_2_ADDR     0x60
+
+enum {
+        CAM_ID_BACK_SENSOR_0 = 0,
+        CAM_ID_BACK_SENSOR_1,
+        CAM_ID_BACK_SENSOR_2,
+        CAM_ID_FRONT_SENSOR_0,
+        CAM_ID_FRONT_SENSOR_1,
+        CAM_ID_FRONT_SENSOR_2,
+};
 
 enum { 
         GS_TYPE_NONE = 0,
@@ -34,6 +59,9 @@ enum {
         //here: add sdio wifi type
         WIFI_SDIO_MAX,
 };
+
+int pmic_dcdc_set(int index, int on);
+int pmic_ldo_set(int index, int on);
 
 /****************************  rk2926 top board ******************************/
 #if defined(RK2926_TB_DEFAULT_CONFIG)
@@ -92,13 +120,23 @@ enum {
 };
 /* psensor */
 enum {
-        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_TYPE = PS_TYPE_NONE,
         DEF_PS_I2C = -1,
         DEF_PS_ADDR = -1,
         DEF_PS_IRQ = -1,
         DEF_PS_PWR = -1,
 };
-
+/* camera */
+enum {
+        DEF_FRONT_CAM_ID = CAM_ID_FRONT_SENSOR_1,
+        DEF_FRONT_CAM_I2C = 0,
+        DEF_FRONT_CAM_PWR = 0x000003b3,
+};
+enum {
+        DEF_BACK_CAM_ID = -1,
+        DEF_BACK_CAM_I2C = -1,
+        DEF_BACK_CAM_PWR = -1,
+};
 /* pwm regulator */
 enum {
         DEF_REG_PWM = 1,
@@ -111,6 +149,16 @@ enum {
         DEF_PMIC_I2C = 1,
         DEF_PMIC_ADDR = 0x2d, 
 };
+/* tps656910_dcdc: vdd_cpu, vdd2, vdd3, vio 
+ * tps65910_ldo: vdig1, vdig2, vaux1, vaux2, vaux33, vmmc, vdac, vpll 
+ * act8931_dcdc: act_dcdc1, act_dcdc2, vdd_cpu
+ * act8931_ldo: act_ldo1, act_ldo2, act_ldo3, act_ldo4
+ */
+#define DEF_TPS65910_DCDC {1200000,1200000,1200000,1200000,0,0,3300000,3300000}
+#define DEF_TPS65910_LDO {1800000,1800000,0,0,0,0,0,0,0,0,0,0,1800000,1800000,2500000,2500000}
+#define DEF_ACT8931_DCDC {0,0,0,0,0,0}
+#define DEF_ACT8931_LDO {0,0,0,0,0,0,0,0}
+
 /* ion */
 enum {
         DEF_ION_SIZE = 80 * 1024 * 1024,
@@ -129,6 +177,7 @@ enum {
         DEF_WIFI_RST = -1,
         DEF_WIFI_PWR = -1,
         DEF_WIFI_TYPE = WIFI_NONE, 
+        DEF_WIFI_LDO = 5,
 };
 /* rtc */
 enum {
@@ -148,6 +197,7 @@ enum {
 
 /* global */
 enum {
+        DEF_IS_PHONEPAD = 0,
         DEF_PWR_ON = 0x000001a2,
 };
 /****************************  rk2928 top board ******************************/
@@ -207,13 +257,24 @@ enum {
 };
 /* psensor */
 enum {
-        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_TYPE = PS_TYPE_NONE,
         DEF_PS_I2C = -1,
         DEF_PS_ADDR = -1,
         DEF_PS_IRQ = -1,
         DEF_PS_PWR = -1,
 };
 
+/* camera */
+enum {
+        DEF_FRONT_CAM_ID = CAM_ID_FRONT_SENSOR_1,
+        DEF_FRONT_CAM_I2C = 0,
+        DEF_FRONT_CAM_PWR = 0x000003b3,
+};
+enum {
+        DEF_BACK_CAM_ID = -1,
+        DEF_BACK_CAM_I2C = -1,
+        DEF_BACK_CAM_PWR = -1,
+};
 
 /* pwm regulator */
 enum {
@@ -227,6 +288,15 @@ enum {
         DEF_PMIC_I2C = 1,
         DEF_PMIC_ADDR = 0x2d, 
 };
+/* tps656910_dcdc: vdd_cpu, vdd2, vdd3, vio 
+ * tps65910_ldo: vdig1, vdig2, vaux1, vaux2, vaux33, vmmc, vdac, vpll 
+ * act8931_dcdc: act_dcdc1, act_dcdc2, vdd_cpu
+ * act8931_ldo: act_ldo1, act_ldo2, act_ldo3, act_ldo4
+ */
+#define DEF_TPS65910_DCDC {1200000,1200000,1200000,1200000,0,0,3300000,3300000}
+#define DEF_TPS65910_LDO {1800000,1800000,0,0,0,0,0,0,0,0,0,0,1800000,1800000,2500000,2500000}
+#define DEF_ACT8931_DCDC {0,0,0,0,0,0}
+#define DEF_ACT8931_LDO {0,0,0,0,0,0,0,0}
 /* ion */
 enum {
         DEF_ION_SIZE = 80 * 1024 * 1024,
@@ -245,6 +315,7 @@ enum {
         DEF_WIFI_RST = -1,
         DEF_WIFI_PWR = -1,
         DEF_WIFI_TYPE = WIFI_NONE, 
+        DEF_WIFI_LDO = 5,
 };
 /* rtc */
 enum {
@@ -325,13 +396,24 @@ enum {
 };
 /* psensor */
 enum {
-        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_TYPE = PS_TYPE_NONE,
         DEF_PS_I2C = -1,
         DEF_PS_ADDR = -1,
         DEF_PS_IRQ = -1,
         DEF_PS_PWR = -1,
 };
 
+/* camera */
+enum {
+        DEF_FRONT_CAM_ID = CAM_ID_FRONT_SENSOR_0,
+        DEF_FRONT_CAM_I2C = 1,
+        DEF_FRONT_CAM_PWR = 0x000003b3,
+};
+enum {
+        DEF_BACK_CAM_ID = -1,
+        DEF_BACK_CAM_I2C = -1,
+        DEF_BACK_CAM_PWR = -1,
+};
 
 /* pwm regulator */
 enum {
@@ -345,6 +427,15 @@ enum {
         DEF_PMIC_I2C = 0,
         DEF_PMIC_ADDR = 0x5b, 
 };
+/* tps656910_dcdc: vdd_cpu, vdd2, vdd3, vio 
+ * tps65910_ldo: vdig1, vdig2, vaux1, vaux2, vaux33, vmmc, vdac, vpll 
+ * act8931_dcdc: act_dcdc1, act_dcdc2, vdd_cpu
+ * act8931_ldo: act_ldo1, act_ldo2, act_ldo3, act_ldo4
+ */
+#define DEF_TPS65910_DCDC {1200000,1200000,1200000,1200000,0,0,3300000,3300000}
+#define DEF_TPS65910_LDO {1500000,1500000,1200000,1200000,2800000,2800000,3300000,3300000,3300000,3300000,3300000,3300000,0,0,0,0}
+#define DEF_ACT8931_DCDC {3300000,3300000,1500000,1500000,1200000,1200000}
+#define DEF_ACT8931_LDO {2800000,2800000,1800000,1800000,3000000,3000000,3300000,3300000}
 /* ion */
 enum {
         DEF_ION_SIZE = 80 * 1024 * 1024,
@@ -363,6 +454,7 @@ enum {
         DEF_WIFI_RST = -1,
         DEF_WIFI_PWR = -1,
         DEF_WIFI_TYPE = WIFI_NONE, 
+        DEF_WIFI_LDO = 3,
 };
 /* rtc */
 enum {
@@ -382,6 +474,7 @@ enum {
 
 /* global */
 enum {
+        DEF_IS_PHONEPAD = 0,
         DEF_PWR_ON = 0x000001a2,
 };
 /****************************  rk2928 sdk ******************************/
@@ -441,13 +534,24 @@ enum {
 };
 /* psensor */
 enum {
-        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_TYPE = PS_TYPE_NONE,
         DEF_PS_I2C = -1,
         DEF_PS_ADDR = -1,
         DEF_PS_IRQ = -1,
         DEF_PS_PWR = -1,
 };
 
+/* camera */
+enum {
+        DEF_FRONT_CAM_ID = CAM_ID_FRONT_SENSOR_0,
+        DEF_FRONT_CAM_I2C = 1,
+        DEF_FRONT_CAM_PWR = 0x000003d7,
+};
+enum {
+        DEF_BACK_CAM_ID = -1,
+        DEF_BACK_CAM_I2C = -1,
+        DEF_BACK_CAM_PWR = -1,
+};
 
 /* pwm regulator */
 enum {
@@ -461,6 +565,15 @@ enum {
         DEF_PMIC_I2C = 0,
         DEF_PMIC_ADDR = 0x5b, 
 };
+/* tps656910_dcdc: vdd_cpu, vdd2, vdd3, vio 
+ * tps65910_ldo: vdig1, vdig2, vaux1, vaux2, vaux33, vmmc, vdac, vpll 
+ * act8931_dcdc: act_dcdc1, act_dcdc2, vdd_cpu
+ * act8931_ldo: act_ldo1, act_ldo2, act_ldo3, act_ldo4
+ */
+#define DEF_TPS65910_DCDC {1200000,1200000,1200000,1200000,0,0,3300000,3300000}
+#define DEF_TPS65910_LDO {1500000,1500000,1200000,1200000,2800000,2800000,3300000,3300000,3300000,3300000,3300000,3300000,0,0,0,0}
+#define DEF_ACT8931_DCDC {3300000,3300000,1500000,1500000,1200000,1200000}
+#define DEF_ACT8931_LDO {2800000,2800000,1800000,1800000,3000000,3000000,3300000,3300000}
 /* ion */
 enum {
         DEF_ION_SIZE = 80 * 1024 * 1024,
@@ -479,6 +592,7 @@ enum {
         DEF_WIFI_RST = -1,
         DEF_WIFI_PWR = -1,
         DEF_WIFI_TYPE = WIFI_NONE, 
+        DEF_WIFI_LDO = 3,
 };
 /* rtc */
 enum {
@@ -498,6 +612,7 @@ enum {
 
 /* global */
 enum {
+        DEF_IS_PHONEPAD = 0,
         DEF_PWR_ON = 0x000001a1,
 };
 /****************************  rk2928 phonepad ******************************/
@@ -516,7 +631,7 @@ enum{
 /* backlight */
 enum{
         DEF_BL_PWM = 0,
-        DEF_BL_REF = 0,
+        DEF_BL_REF = 1,
         DEF_BL_MIN = 80,
         DEF_BL_EN = 0x000001b0,
 };
@@ -564,6 +679,17 @@ enum {
         DEF_PS_PWR = -1,
 };
 
+/* camera */
+enum {
+        DEF_FRONT_CAM_ID = CAM_ID_FRONT_SENSOR_2,
+        DEF_FRONT_CAM_I2C = 1,
+        DEF_FRONT_CAM_PWR = 0x000003b3,
+};
+enum {
+        DEF_BACK_CAM_ID = -1,
+        DEF_BACK_CAM_I2C = -1,
+        DEF_BACK_CAM_PWR = -1,
+};
 
 /* pwm regulator */
 enum {
@@ -575,8 +701,17 @@ enum {
         DEF_PMIC_SLP = 0x000001a1,
         DEF_PMIC_IRQ = 0x000003c6,
         DEF_PMIC_I2C = 0,
-        DEF_PMIC_ADDR = 0x5b, 
+        DEF_PMIC_ADDR = 0x2d, 
 };
+/* tps656910_dcdc: vdd_cpu, vdd2, vdd3, vio 
+ * tps65910_ldo: vdig1, vdig2, vaux1, vaux2, vaux33, vmmc, vdac, vpll 
+ * act8931_dcdc: act_dcdc1, act_dcdc2, vdd_cpu
+ * act8931_ldo: act_ldo1, act_ldo2, act_ldo3, act_ldo4
+ */
+#define DEF_TPS65910_DCDC {1200000,1200000,1200000,1200000,0,0,3300000,3300000}
+#define DEF_TPS65910_LDO {1500000,1500000,1200000,1200000,2800000,2800000,3300000,3300000,3300000,3300000,3300000,3300000,0,0,0,0}
+#define DEF_ACT8931_DCDC {0,0,0,0,0,0}
+#define DEF_ACT8931_LDO {0,0,0,0,0,0,0,0}
 /* ion */
 enum {
         DEF_ION_SIZE = 80 * 1024 * 1024,
@@ -595,6 +730,7 @@ enum {
         DEF_WIFI_RST = -1,
         DEF_WIFI_PWR = -1,
         DEF_WIFI_TYPE = WIFI_NONE, 
+        DEF_WIFI_LDO = -1,
 };
 /* rtc */
 enum {
@@ -614,6 +750,7 @@ enum {
 
 /* global */
 enum {
+        DEF_IS_PHONEPAD = 1,
         DEF_PWR_ON = 0x000001a2,
 };
 
@@ -675,13 +812,24 @@ enum {
 };
 /* psensor */
 enum {
-        DEF_PS_TYPE = LS_TYPE_NONE,
+        DEF_PS_TYPE = PS_TYPE_NONE,
         DEF_PS_I2C = -1,
         DEF_PS_ADDR = -1,
         DEF_PS_IRQ = -1,
         DEF_PS_PWR = -1,
 };
 
+/* camera */
+enum {
+        DEF_FRONT_CAM_ID = -1,
+        DEF_FRONT_CAM_I2C = -1,
+        DEF_FRONT_CAM_PWR = -1,
+};
+enum {
+        DEF_BACK_CAM_ID = -1,
+        DEF_BACK_CAM_I2C = -1,
+        DEF_BACK_CAM_PWR = -1,
+};
 
 /* pwm regulator */
 enum {
@@ -695,6 +843,15 @@ enum {
         DEF_PMIC_I2C = -1,
         DEF_PMIC_ADDR = -1, 
 };
+/* tps656910_dcdc: vdd_cpu, vdd2, vdd3, vio 
+ * tps65910_ldo: vdig1, vdig2, vaux1, vaux2, vaux33, vmmc, vdac, vpll 
+ * act8931_dcdc: act_dcdc1, act_dcdc2, vdd_cpu
+ * act8931_ldo: act_ldo1, act_ldo2, act_ldo3, act_ldo4
+ */
+#define DEF_TPS65910_DCDC {0,0,0,0,0,0,0,0}
+#define DEF_TPS65910_LDO {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+#define DEF_ACT8931_DCDC {0,0,0,0,0,0}
+#define DEF_ACT8931_LDO {0,0,0,0,0,0,0,0}
 /* ion */
 enum {
         DEF_ION_SIZE = 80 * 1024 * 1024,
@@ -713,6 +870,7 @@ enum {
         DEF_WIFI_RST = -1,
         DEF_WIFI_PWR = -1,
         DEF_WIFI_TYPE = WIFI_NONE, 
+        DEF_WIFI_LDO = -1,
 };
 /* rtc */
 enum {
@@ -732,6 +890,7 @@ enum {
 
 /* global */
 enum {
+        DEF_IS_PHONEPAD = 0,
         DEF_PWR_ON = -1,
 };
 #endif

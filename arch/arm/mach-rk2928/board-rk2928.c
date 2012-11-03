@@ -60,7 +60,7 @@
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
 
-#include "board-rk2928-sdk-camera.c" 
+#include "board-rk2928-camera.c" 
 #include "board-rk2928-key.c"
 
 
@@ -119,7 +119,10 @@ static int rk29_backlight_pwm_suspend(void)
 
         rk30_mux_api_set(cfg->mux_name, cfg->io_mode);
 
-	gpio_direction_output(cfg->gpio, GPIO_HIGH);
+        if(bl_ref)
+	        gpio_direction_output(cfg->gpio, GPIO_LOW);
+        else
+	        gpio_direction_output(cfg->gpio, GPIO_HIGH);
 
         port_output_off(bl_en);
 
@@ -178,7 +181,7 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 	int ret = 0;
 
         if(lcd_cabc != -1){
-                ret = port_output_init(lcd_en, 0, "lcd_cabc");
+                ret = port_output_init(lcd_cabc, 0, "lcd_cabc");
                 if(ret < 0)
                         printk("%s: port output init faild\n", __func__);
         }
@@ -394,31 +397,9 @@ static int __init pwm_reg_board_init(void)
 ************************************************************/
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
 static void rkusb_wifi_power(int on) {
-	struct regulator *ldo = NULL;
-	
-#ifndef RK2926_TB_DEFAULT_CONFIG
-#if defined(CONFIG_MFD_TPS65910)	
-	if(pmic_is_tps65910()) {
-		ldo = regulator_get(NULL, "vmmc");  //vccio_wl
-	}
-#endif
-#if defined(CONFIG_REGULATOR_ACT8931)
-	if(pmic_is_act8931()) {
-		ldo = regulator_get(NULL, "act_ldo4");  //vccio_wl
-	}
-#endif	
-	
-	if(on) {
-		regulator_enable(ldo);
-		printk("%s: vccio_wl enable\n", __func__);
-	} else {
-		printk("%s: vccio_wl disable\n", __func__);
-		regulator_disable(ldo);
-	}
-	
-	regulator_put(ldo);
+
+        pmic_ldo_set(wifi_ldo, on);
 	udelay(100);
-#endif
 }
 #endif
 
@@ -525,6 +506,81 @@ static int __init sdmmc_board_init(void)
         return 0;
 }
 #endif
+
+#ifdef CONFIG_SDMMC1_RK29
+#define CONFIG_SDMMC1_USE_DMA
+static int rk29_sdmmc1_cfg_gpio(void)
+{
+#if defined(CONFIG_SDMMC_RK29_OLD)
+	rk30_mux_api_set(GPIO0B0_MMC1_CMD_NAME, GPIO0B_MMC1_CMD);
+	rk30_mux_api_set(GPIO0B1_MMC1_CLKOUT_NAME, GPIO0B_MMC1_CLKOUT);
+	rk30_mux_api_set(GPIO0B3_MMC1_D0_NAME, GPIO0B_MMC1_D0);
+	rk30_mux_api_set(GPIO0B4_MMC1_D1_NAME, GPIO0B_MMC1_D1);
+	rk30_mux_api_set(GPIO0B5_MMC1_D2_NAME, GPIO0B_MMC1_D2);
+	rk30_mux_api_set(GPIO0B6_MMC1_D3_NAME, GPIO0B_MMC1_D3);
+	//rk30_mux_api_set(GPIO0B2_MMC1_DETN_NAME, GPIO0B_MMC1_DETN);
+
+#else
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+	gpio_request(SDMMC1_WRITE_PROTECT_PIN, "sdio-wp");
+	gpio_direction_input(SDMMC1_WRITE_PROTECT_PIN);
+#endif
+
+#endif
+
+	return 0;
+}
+
+struct rk29_sdmmc_platform_data default_sdmmc1_data = {
+	.host_ocr_avail =
+	    (MMC_VDD_25_26 | MMC_VDD_26_27 | MMC_VDD_27_28 | MMC_VDD_28_29 |
+	     MMC_VDD_29_30 | MMC_VDD_30_31 | MMC_VDD_31_32 | MMC_VDD_32_33 |
+	     MMC_VDD_33_34),
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+	.host_caps = (MMC_CAP_4_BIT_DATA | MMC_CAP_SDIO_IRQ |
+		      MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+#else
+	.host_caps =
+	    (MMC_CAP_4_BIT_DATA | MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED),
+#endif
+
+	.io_init = rk29_sdmmc1_cfg_gpio,
+
+#if !defined(CONFIG_SDMMC_RK29_OLD)
+	.set_iomux = rk29_sdmmc_set_iomux,
+#endif
+
+	.dma_name = "sdio",
+#ifdef CONFIG_SDMMC1_USE_DMA
+	.use_dma = 1,
+#else
+	.use_dma = 0,
+#endif
+
+#if !defined(CONFIG_USE_SDMMC1_FOR_WIFI_DEVELOP_BOARD)
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	.status = rk29sdk_wifi_status,
+	.register_status_notify = rk29sdk_wifi_status_register,
+#endif
+#if 1
+	.detect_irq = INVALID_GPIO,//RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#endif
+
+#if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
+	.write_prt = SDMMC1_WRITE_PROTECT_PIN,
+#else
+	.write_prt = INVALID_GPIO,
+#endif
+
+#else
+	.detect_irq = INVALID_GPIO,
+	.enable_sd_wakeup = 0,
+#endif
+
+};
+#endif //endif--#ifdef CONFIG_SDMMC1_RK29
 
 #ifdef CONFIG_SND_SOC_RK2928
 static struct resource resources_acodec[] = {
@@ -657,120 +713,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk30_device_adc_battery,
 #endif
 };
-
 #if defined (CONFIG_MFD_TPS65910) && defined (CONFIG_REGULATOR_ACT8931)
-#define TPS65910_HOST_IRQ INVALID_GPIO
-
-static struct pmu_info  tps65910_dcdc_info[] = {
-	{
-		.name          = "vdd_cpu",   //arm
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-	},
-	{
-		.name          = "vdd2",    //ddr
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-	},
-	{
-		.name          = "vio",   //vcc_io
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	
-};
-static  struct pmu_info  tps65910_ldo_info[] = {
-#if defined(RK2928_TB_DEFAULT_CONFIG) || defined(RK2926_TB_DEFAULT_CONFIG)
-	{
-		.name          = "vpll",   //vcc25
-		.min_uv          = 2500000,
-		.max_uv         = 2500000,
-	},
-	{
-		.name          = "vdig1",    //vcc18_cif
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-	{
-		.name          = "vdac",   //vccio_wl
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-#else
-	{
-		.name          = "vdig1",    //vcc18_cif
-		.min_uv          = 1500000,
-		.max_uv         = 1500000,
-	},
-
-	{
-		.name          = "vdig2",   //vdd11
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-	},
-	{
-		.name          = "vaux1",   //vcc28_cif
-		.min_uv          = 2800000,
-		.max_uv         = 2800000,
-	},
-	{
-		.name          = "vaux2",   //vcca33
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "vaux33",   //vcc_tp
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "vmmc",   //
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-#endif
- };
-static struct pmu_info  act8931_dcdc_info[] = {
-	{
-		.name          = "act_dcdc1",   //vcc_io
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-	{
-		.name          = "act_dcdc2",    //ddr
-		.min_uv          = 1500000,
-		.max_uv         = 1500000,
-	},
-	{
-		.name          = "vdd_cpu",   //vdd_arm
-		.min_uv          = 1200000,
-		.max_uv         = 1200000,
-	},
-	
-};
-static  struct pmu_info  act8931_ldo_info[] = {
-	{
-		.name          = "act_ldo1",   //vcc28_cif
-		.min_uv          = 2800000,
-		.max_uv         = 2800000,
-	},
-	{
-		.name          = "act_ldo2",    //vcc18_cif
-		.min_uv          = 1800000,
-		.max_uv         = 1800000,
-	},
-	{
-		.name          = "act_ldo3",    //vcca30
-		.min_uv          = 3000000,
-		.max_uv         = 3000000,
-	},
-	{
-		.name          = "act_ldo4",    //vcc_wl
-		.min_uv          = 3300000,
-		.max_uv         = 3300000,
-	},
-};
-
 #include "board-rk2928-sdk-tps65910.c"
 #include "board-rk2928-sdk-act8931.c"
 static struct i2c_board_info __initdata pmic_info = {
@@ -778,7 +721,7 @@ static struct i2c_board_info __initdata pmic_info = {
 };
 static int __init pmic_board_init(void)
 {
-        int ret = 0;
+        int ret = 0, i;
         struct port_config port;
 
         ret = check_pmic_param();
@@ -793,10 +736,26 @@ static int __init pmic_board_init(void)
                 pmic_info.platform_data = &tps65910_data;
 
                 tps65910_data.irq = port.gpio;
+                for(i = 0; i < ARRAY_SIZE(tps65910_dcdc_info); i++){
+                        tps65910_dcdc_info[i].min_uv = tps65910_dcdc[2*i];
+                        tps65910_dcdc_info[i].max_uv = tps65910_dcdc[2*i + 1];
+                }
+                for(i = 0; i < ARRAY_SIZE(tps65910_ldo_info); i++){
+                        tps65910_ldo_info[i].min_uv = tps65910_ldo[2*i];
+                        tps65910_ldo_info[i].max_uv = tps65910_ldo[2*i + 1];
+                }
         }
         if(pmic_type == PMIC_TYPE_ACT8931){
                 strcpy(pmic_info.type, "act8931");
                 pmic_info.platform_data = &act8931_data;
+                for(i = 0; i < ARRAY_SIZE(act8931_dcdc_info); i++){
+                        act8931_dcdc_info[i].min_uv = act8931_dcdc[2*i];
+                        act8931_dcdc_info[i].max_uv = act8931_dcdc[2*i + 1];
+                }
+                for(i = 0; i < ARRAY_SIZE(act8931_ldo_info); i++){
+                        act8931_ldo_info[i].min_uv = act8931_ldo[2*i];
+                        act8931_ldo_info[i].max_uv = act8931_ldo[2*i + 1];
+                }
         }
         pmic_info.addr = pmic_addr;
 	i2c_register_board_info(pmic_i2c, &pmic_info, 1);
@@ -1130,6 +1089,9 @@ static int __init rk2928_config_init(void)
         ret = ls_board_init();
         if(ret < 0)
                 return ret;
+        ret = cam_board_init();
+        if(ret < 0)
+                return ret;
         ret = ps_board_init();
         if(ret < 0)
                 return ret;
@@ -1232,10 +1194,8 @@ static void __init rk2928_board_init(void)
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-#if defined(RK2928_PHONEPAD_DEFAULT_CONFIG)
-        phonepad_board_init();
-#endif
-
+        if(is_phonepad)
+                phonepad_board_init();
 }
 static void __init rk2928_reserve(void)
 {

@@ -1317,6 +1317,49 @@ static struct platform_device android_pmem_cam_device = {
 	},
 };
 #endif
+#ifdef CONFIG_RK_CONFIG
+int camera_set_platform_param(int id, int i2c, int gpio)
+{
+        int i;
+        char *dev_name[] = {
+                SENSOR_DEVICE_NAME_0, 
+                SENSOR_DEVICE_NAME_01, 
+                SENSOR_DEVICE_NAME_02, 
+                SENSOR_DEVICE_NAME_1, 
+                SENSOR_DEVICE_NAME_11, 
+                SENSOR_DEVICE_NAME_12
+        };
+        char *module_name[] = {
+                SENSOR_NAME_0,
+                SENSOR_NAME_01,
+                SENSOR_NAME_02,
+                SENSOR_NAME_1,
+                SENSOR_NAME_11,
+                SENSOR_NAME_12
+        };
+
+        if(id < 0 || id >= 6)
+                return -EINVAL;
+        for(i = 0; i < 6; i++){
+                if(i == id){
+                        printk("%s: id = %d, i2c = %d, gpio = %d\n", __func__, id, i2c, gpio);
+                }
+                if(rk_camera_platform_data.gpio_res[i].dev_name &&
+                   strcmp(rk_camera_platform_data.gpio_res[i].dev_name, dev_name[id]) == 0)
+                        rk_camera_platform_data.gpio_res[i].gpio_powerdown = gpio;
+                if(rk_camera_platform_data.register_dev[i].link_info.module_name &&
+                   strcmp(rk_camera_platform_data.register_dev[i].link_info.module_name, module_name[id]) == 0)
+                        rk_camera_platform_data.register_dev[i].link_info.i2c_adapter_id = i2c;
+        }
+
+        return 0;
+}
+#else
+int camera_set_platform_param(int id, int i2c, int gpio)
+{
+        return 0;
+}
+#endif
 
 #endif
 

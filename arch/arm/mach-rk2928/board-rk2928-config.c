@@ -37,6 +37,35 @@ static struct pwm_io_config pwm_cfg[] = {
         },
 };
 
+#define TPS65910_HOST_IRQ INVALID_GPIO
+static struct pmu_info tps65910_dcdc_info[] = {
+        {.name = "vdd_cpu"},
+        {.name = "vdd2"},
+        {.name = "vdd3"},
+        {.name = "vio"},
+};
+static struct pmu_info tps65910_ldo_info[] = {
+        {.name = "vdig1"},
+        {.name = "vdig2"},
+        {.name = "vaux1"},
+        {.name = "vaux2"},
+        {.name = "vaux33"},
+        {.name = "vmmc"},
+        {.name = "vdac"},
+        {.name = "vpll"},
+};
+static struct pmu_info act8931_dcdc_info[] = {
+        {.name = "act_dcdc1"},
+        {.name = "act_dcdc2"},
+        {.name = "vdd_cpu"},
+};
+static struct pmu_info act8931_ldo_info[] = {
+        {.name = "act_ldo1"},
+        {.name = "act_ldo2"},
+        {.name = "act_ldo3"},
+        {.name = "act_ldo4"},
+};
+
 /*************************************** parameter ******************************************/
 /* keyboard */
 uint key_adc = DEF_KEY_ADC;
@@ -223,6 +252,25 @@ static inline int check_ps_param(void)
         }
         return 0;
 }
+/* camera */
+static int front_cam_i2c = DEF_FRONT_CAM_I2C;
+module_param(front_cam_i2c, int, 0644);
+static int front_cam_id = DEF_FRONT_CAM_ID;
+module_param(front_cam_id, uint, 0644);
+static int front_cam_pwr = DEF_FRONT_CAM_PWR;
+module_param(front_cam_pwr, int, 0644);
+
+static int back_cam_i2c = DEF_BACK_CAM_I2C;
+module_param(back_cam_i2c, int, 0644);
+static int back_cam_id = DEF_BACK_CAM_ID;
+module_param(back_cam_id, uint, 0644);
+static int back_cam_pwr = DEF_BACK_CAM_PWR;
+module_param(back_cam_pwr, int, 0644);
+
+static inline int check_cam_param(void)
+{
+        return 0;
+}
 
 /* pwm regulator */
 static int __sramdata reg_pwm = DEF_REG_PWM;
@@ -249,6 +297,16 @@ module_param(pmic_i2c, int, 0644);
 static int pmic_addr = DEF_PMIC_ADDR;
 module_param(pmic_addr, int, 0644);
 
+static int tps65910_dcdc[] = DEF_TPS65910_DCDC;
+module_param_array(tps65910_dcdc, int, NULL, 0644);
+static int tps65910_ldo[] = DEF_TPS65910_LDO;
+module_param_array(tps65910_ldo, int, NULL, 0644);
+
+static int act8931_dcdc[] = DEF_ACT8931_DCDC;
+module_param_array(act8931_dcdc, int, NULL, 0644);
+static int act8931_ldo[] = DEF_ACT8931_LDO;
+module_param_array(act8931_ldo, int, NULL, 0644);
+
 static inline int check_pmic_param(void)
 {
         if(pmic_type <= PMIC_TYPE_WM8326 || pmic_type >= PMIC_TYPE_MAX){
@@ -268,6 +326,54 @@ static inline int check_pmic_param(void)
 
         return 0;
 }
+int pmic_dcdc_set(int index, int on)
+{
+        struct regulator *dcdc = NULL;
+
+        if(index < 0)
+                return -EINVAL;
+
+        if(pmic_is_tps65910()) {
+                dcdc = regulator_get(NULL, tps65910_dcdc_info[index].name); 
+        }
+        if(pmic_is_act8931()) {
+                dcdc = regulator_get(NULL, act8931_dcdc_info[index].name); 
+        }
+        if(IS_ERR_OR_NULL(dcdc))
+                return -EINVAL;
+        if(on)
+                regulator_enable(dcdc);
+        else
+                regulator_disable(dcdc);
+        regulator_put(dcdc);
+        return 0;
+
+}
+EXPORT_SYNBOL(pmic_dcdc_set);
+int pmic_ldo_set(int index, int on)
+{
+        struct regulator *ldo = NULL;
+
+        if(index < 0)
+                return -EINVAL;
+
+        if(pmic_is_tps65910()) {
+                ldo = regulator_get(NULL, tps65910_ldo_info[index].name); 
+        }
+        if(pmic_is_act8931()) {
+                ldo = regulator_get(NULL, act8931_ldo_info[index].name); 
+        }
+        if(IS_ERR_OR_NULL(ldo))
+                return -EINVAL;
+        if(on)
+                regulator_enable(ldo);
+        else
+                regulator_disable(ldo);
+        regulator_put(ldo);
+        return 0;
+
+}
+EXPORT_SYNBOL(pmic_ldo_set);
 /* ion */
 static uint ion_size = DEF_ION_SIZE; 
 module_param(ion_size, uint, 0644);
@@ -299,6 +405,8 @@ static int wifi_pwr = DEF_WIFI_PWR;
 module_param(wifi_pwr, int, 0644);
 static uint wifi_type = DEF_WIFI_TYPE;
 module_param(wifi_type, uint, 0644);
+static int wifi_ldo = DEF_WIFI_LDO;
+module_param(wifi_ldo, int, 0644);
 static inline int check_wifi_param(void)
 {
         if(wifi_type != WIFI_NONE){
@@ -400,6 +508,8 @@ module_param_array(dvfs_ddr, uint, &dvfs_ddr_num, 0400);
 
 
 /* global */
+static int is_phonepad = DEF_IS_PHONEPAD;
+module_param(is_phonepad, int, 0644);
 static int pwr_on = DEF_PWR_ON;
 module_param(pwr_on, int, 0644);
 
@@ -412,3 +522,4 @@ static inline void rk2928_power_off(void)
         port_output_off(pwr_on);
         port_deinit(pwr_on);
 }
+

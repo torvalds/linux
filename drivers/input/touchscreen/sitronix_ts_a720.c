@@ -1255,7 +1255,7 @@ static struct file_operations nc_fops = {
 };
 #endif // SITRONIX_FW_UPGRADE_FEATURE
 
-static int __devinit sitronix_ts_init(void)
+static int __init sitronix_ts_init(void)
 {
 #ifdef SITRONIX_FW_UPGRADE_FEATURE
 	int result;

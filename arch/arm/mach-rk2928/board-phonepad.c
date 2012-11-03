@@ -26,6 +26,9 @@ enum {
 enum {
         DEF_SPKCTL_IO = 0x000003d4,
 };
+enum {
+        DEF_RDA_I2C = 0,
+};
 /*************************************************************/
 
 /* Android Parameter */
@@ -66,6 +69,13 @@ int check_hd_param(void)
 static int spkctl_io = DEF_SPKCTL_IO;
 module_param(spkctl_io, int, 0644);
 int check_mdm_sound_param(void)
+{
+        return 0;
+}
+/* rda5990 */
+static int rda_i2c = DEF_RDA_I2C;
+module_param(rda_i2c, int, 0644);
+int check_rda_param(void)
 {
         return 0;
 }
@@ -204,6 +214,59 @@ static int __init mdm_sound_board_init(void)
 }
 
 #endif
+#ifdef CONFIG_RDA5990
+#define RDA_WIFI_CORE_ADDR (0x13)
+#define RDA_WIFI_RF_ADDR (0x14) //correct add is 0x14
+#define RDA_BT_CORE_ADDR (0x15)
+#define RDA_BT_RF_ADDR (0x16)
+
+#define RDA_WIFI_RF_I2C_DEVNAME "rda_wifi_rf_i2c"
+#define RDA_WIFI_CORE_I2C_DEVNAME "rda_wifi_core_i2c"
+#define RDA_BT_RF_I2C_DEVNAME "rda_bt_rf_i2c"
+#define RDA_BT_CORE_I2C_DEVNAME "rda_bt_core_i2c"
+static struct i2c_board_info __initdata rda_info[] = {
+        {
+		.type          = RDA_WIFI_CORE_I2C_DEVNAME,
+		.addr          = RDA_WIFI_CORE_ADDR,
+	        .flags         = 0,
+
+	},
+	{
+		.type          = RDA_WIFI_RF_I2C_DEVNAME,
+		.addr          = RDA_WIFI_RF_ADDR,
+	        .flags         = 0,
+
+	},
+	{
+		.type          = RDA_BT_CORE_I2C_DEVNAME,
+		.addr          = RDA_BT_CORE_ADDR,
+	        .flags         = 0,
+
+	},
+	{
+		.type          = RDA_BT_RF_I2C_DEVNAME,
+		.addr          = RDA_BT_RF_ADDR,
+	        .flags         = 0,
+
+	},
+};
+static int __init rda_board_init(void)
+{
+        int ret;
+
+        ret = check_rda_param();
+
+        if(ret < 0)
+                return ret;
+        i2c_register_board_info(rda_i2c, rda_info, ARRAY_SIZE(rda_info));
+        return 0;
+}
+#else
+static int __init rda_board_init(void)
+{
+        return 0;
+}
+#endif
 
 
 static struct platform_device *phonepad_devices[] __initdata = {
@@ -222,6 +285,7 @@ static void __init phonepad_board_init(void)
         sc_board_init();
         hd_board_init();
         mdm_sound_board_init();
+        rda_board_init();
         platform_add_devices(phonepad_devices, ARRAY_SIZE(phonepad_devices));
 }
 

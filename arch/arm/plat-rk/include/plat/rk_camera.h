@@ -284,5 +284,7 @@ typedef struct rk29_camera_sensor_cb {
     int (*sensor_cb)(void *arg); 
     int (*scale_crop_cb)(struct work_struct *work);
 }rk29_camera_sensor_cb_s;
+
+int camera_set_platform_param(int id, int i2c, int gpio);
 #endif /* __ASM_ARCH_CAMERA_H_ */
 

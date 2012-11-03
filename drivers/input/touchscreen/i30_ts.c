@@ -105,6 +105,7 @@ enum {
         DEF_ADDR = 0x38,
         DEF_X_MAX = 800,
         DEF_Y_MAX = 480,
+        DEF_TP_LDO = 4,
 };
 static int en = DEF_EN;
 module_param(en, int, 0644);
@@ -122,13 +123,15 @@ static int x_max = DEF_X_MAX;
 module_param(x_max, int, 0644);
 static int y_max = DEF_Y_MAX;
 module_param(y_max, int, 0644);
+static int tp_ldo = DEF_TP_LDO;
+module_param(tp_ldo, int, 0644);
 
 static int tp_hw_init(void)
 {
         int ret = 0;
-        struct regulator *ldo = regulator_get(NULL, "vaux33");
 
-	regulator_disable(ldo);
+        pmic_ldo_set(tp_ldo, 0);
+
         ret = gpio_request(get_port_config(irq).gpio, "tp_irq");
         if(ret < 0){
                 printk("%s: gpio_request(irq gpio) failed\n", __func__);
@@ -141,8 +144,7 @@ static int tp_hw_init(void)
                 return ret;
         }
         msleep(50);
-        regulator_enable(ldo);
-	regulator_put(ldo);
+        pmic_ldo_set(tp_ldo, 1);
         msleep(300);
 
          return 0;

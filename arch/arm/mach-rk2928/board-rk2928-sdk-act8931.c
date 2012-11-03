@@ -29,21 +29,26 @@ static int act8931_set_init(struct act8931 *act8931)
 	
 	for(i = 0; i < ARRAY_SIZE(act8931_dcdc_info); i++)
 	{
-	dcdc =regulator_get(NULL, act8931_dcdc_info[i].name);
-	regulator_set_voltage(dcdc, act8931_dcdc_info[i].min_uv, act8931_dcdc_info[i].max_uv);
-	regulator_enable(dcdc);
-	printk("%s  %s =%dmV end\n", __func__,act8931_dcdc_info[i].name, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
+
+                if(act8931_dcdc_info[i].min_uv == 0 && act8931_dcdc_info[i].max_uv == 0)
+                        continue;
+	        dcdc =regulator_get(NULL, act8931_dcdc_info[i].name);
+	        regulator_set_voltage(dcdc, act8931_dcdc_info[i].min_uv, act8931_dcdc_info[i].max_uv);
+	        regulator_enable(dcdc);
+	        printk("%s  %s =%dmV end\n", __func__,act8931_dcdc_info[i].name, regulator_get_voltage(dcdc));
+	        regulator_put(dcdc);
+	        udelay(100);
 	}
 	
 	for(i = 0; i < ARRAY_SIZE(act8931_ldo_info); i++)
 	{
-	ldo =regulator_get(NULL, act8931_ldo_info[i].name);
-	regulator_set_voltage(ldo, act8931_ldo_info[i].min_uv, act8931_ldo_info[i].max_uv);
-	regulator_enable(ldo);
-	//printk("%s  %s =%dmV end\n", __func__,act8931_ldo_info[i].name, regulator_get_voltage(ldo));
-	regulator_put(ldo);
+                if(act8931_ldo_info[i].min_uv == 0 && act8931_ldo_info[i].max_uv == 0)
+                        continue;
+	        ldo =regulator_get(NULL, act8931_ldo_info[i].name);
+	        regulator_set_voltage(ldo, act8931_ldo_info[i].min_uv, act8931_ldo_info[i].max_uv);
+	        regulator_enable(ldo);
+	        printk("%s  %s =%dmV end\n", __func__,act8931_ldo_info[i].name, regulator_get_voltage(ldo));
+	        regulator_put(ldo);
 	}
 
 	printk("%s,line=%d END\n", __func__,__LINE__);

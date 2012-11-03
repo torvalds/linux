@@ -264,21 +264,25 @@ int tps65910_post_init(struct tps65910 *tps65910)
 
 	for(i = 0; i < ARRAY_SIZE(tps65910_dcdc_info); i++)
 	{
-	dcdc =regulator_get(NULL, tps65910_dcdc_info[i].name);
-	regulator_set_voltage(dcdc, tps65910_dcdc_info[i].min_uv, tps65910_dcdc_info[i].max_uv);
-	regulator_enable(dcdc);
-	printk("%s  %s =%dmV end\n", __func__,tps65910_dcdc_info[i].name, regulator_get_voltage(dcdc));
-	regulator_put(dcdc);
-	udelay(100);
+                if(tps65910_dcdc_info[i].min_uv == 0 && tps65910_dcdc_info[i].max_uv == 0)
+                        continue;
+	        dcdc =regulator_get(NULL, tps65910_dcdc_info[i].name);
+	        regulator_set_voltage(dcdc, tps65910_dcdc_info[i].min_uv, tps65910_dcdc_info[i].max_uv);
+	        regulator_enable(dcdc);
+	        printk("%s  %s =%dmV end\n", __func__,tps65910_dcdc_info[i].name, regulator_get_voltage(dcdc));
+	        regulator_put(dcdc);
+	        udelay(100);
 	}
 	
 	for(i = 0; i < ARRAY_SIZE(tps65910_ldo_info); i++)
 	{
-	ldo =regulator_get(NULL, tps65910_ldo_info[i].name);
-	regulator_set_voltage(ldo, tps65910_ldo_info[i].min_uv, tps65910_ldo_info[i].max_uv);
-	regulator_enable(ldo);
-	//printk("%s  %s =%dmV end\n", __func__,tps65910_dcdc_info[i].name, regulator_get_voltage(ldo));
-	regulator_put(ldo);
+                if(tps65910_ldo_info[i].min_uv == 0 && tps65910_ldo_info[i].max_uv == 0)
+                        continue;
+	        ldo =regulator_get(NULL, tps65910_ldo_info[i].name);
+	        regulator_set_voltage(ldo, tps65910_ldo_info[i].min_uv, tps65910_ldo_info[i].max_uv);
+	        regulator_enable(ldo);
+	        printk("%s  %s =%dmV end\n", __func__,tps65910_ldo_info[i].name, regulator_get_voltage(ldo));
+	        regulator_put(ldo);
 	}
 
 	printk("%s,line=%d END\n", __func__,__LINE__);
