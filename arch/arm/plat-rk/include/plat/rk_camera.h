@@ -121,13 +121,30 @@
 #define mt9t111_FULL_RESOLUTION    0x300000           // 3 megapixel
 #define mt9p111_FULL_RESOLUTION    0x500000           // 5 megapixel
 #define gt2005_FULL_RESOLUTION     0x200000           // 2 megapixel
-#define gc0308_FULL_RESOLUTION     0x30000            // 0.3 megapixel
+#if defined(CONFIG_SOC_CAMERA_GC0308_INTERPOLATION_5M)
+	#define gc0308_FULL_RESOLUTION     0x500000            // 5 megapixel
+#elif defined(CONFIG_SOC_CAMERA_GC0308_INTERPOLATION_3M)
+	#define gc0308_FULL_RESOLUTION     0x300000            // 3 megapixel
+#elif defined(CONFIG_SOC_CAMERA_GC0308_INTERPOLATION_2M)
+	#define gc0308_FULL_RESOLUTION     0x200000            // 2 megapixel
+#else
+	#define gc0308_FULL_RESOLUTION     0x30000            // 0.3 megapixel#endif
+#endif
+
 #define gc0309_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define gc2015_FULL_RESOLUTION     0x200000           // 2 megapixel
 #define siv120b_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define siv121d_FULL_RESOLUTION     0x30000            // 0.3 megapixel
 #define sid130B_FULL_RESOLUTION     0x200000           // 2 megapixel    
-#define hi253_FULL_RESOLUTION       0x200000           // 2 megapixel
+
+#if defined(CONFIG_SOC_CAMERA_HI253_INTERPOLATION_5M) 
+	#define hi253_FULL_RESOLUTION       0x500000			// 5 megapixel
+#elif defined(CONFIG_SOC_CAMERA_HI253_INTERPOLATION_3M)
+	#define hi253_FULL_RESOLUTION       0x300000           // 3 megapixel
+#else
+	#define hi253_FULL_RESOLUTION       0x200000           // 2 megapixel
+#endif
+
 #define hi704_FULL_RESOLUTION       0x30000            // 0.3 megapixel
 #define nt99250_FULL_RESOLUTION     0x200000           // 2 megapixel
 #define sp0838_FULL_RESOLUTION      0x30000            // 0.3 megapixel

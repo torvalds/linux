@@ -48,8 +48,17 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_ID 0x92
 #define SENSOR_MIN_WIDTH    176
 #define SENSOR_MIN_HEIGHT   144
-#define SENSOR_MAX_WIDTH    1600
-#define SENSOR_MAX_HEIGHT   1200
+#if defined(CONFIG_SOC_CAMERA_HI253_INTERPOLATION_5M)
+	#define SENSOR_MAX_WIDTH    2592
+	#define SENSOR_MAX_HEIGHT   1944
+#elif defined(CONFIG_SOC_CAMERA_HI253_INTERPOLATION_3M)
+	#define SENSOR_MAX_WIDTH    2048
+	#define SENSOR_MAX_HEIGHT   1536
+#else
+	#define SENSOR_MAX_WIDTH    1600
+	#define SENSOR_MAX_HEIGHT   1200
+#endif
+
 #define SENSOR_INIT_WIDTH	1600			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT  1200
 #define SENSOR_INIT_WINSEQADR sensor_uxga
@@ -2532,6 +2541,14 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         set_w = 1600;
         set_h = 1200;
     }
+#if defined(CONFIG_SOC_CAMERA_GC0308_INTERPOLATION_3M) || defined(CONFIG_SOC_CAMERA_GC0308_INTERPOLATION_5M) 
+    else if (((set_w <= SENSOR_MAX_WIDTH) && (set_h <= SENSOR_MAX_HEIGHT)) )
+    {
+    winseqe_set_addr = sensor_uxga;
+    set_w = 1600;
+    set_h = 1200;
+    }
+#endif
     else
     {
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */

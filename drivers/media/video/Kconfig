@@ -1134,6 +1134,28 @@ config GC0308_USER_DEFINED_SERIES
 	bool "GC0308 user defined init series"
 	default n
 
+config SOC_CAMERA_GC0308_INTERPOLATION
+	bool "support sensor interpolation for higher resolution"
+	depends on SOC_CAMERA_GC0308
+
+config SOC_CAMERA_GC0308_INTERPOLATION_2M
+	bool "sensor interpolation 2 megapixel 1600x1200"
+	depends on SOC_CAMERA_GC0308_INTERPOLATION
+	help 
+		0x200000 2 megapixel 1600x1200
+		
+config SOC_CAMERA_GC0308_INTERPOLATION_3M
+	bool "sensor interpolation 3 megapixel 2048x1536"
+	depends on SOC_CAMERA_GC0308_INTERPOLATION
+	help 
+		0x300000 3 megapixel 2048x1536
+	
+config SOC_CAMERA_GC0308_INTERPOLATION_5M
+	bool "sensor interpolation 5 megapixel 2592x1944"
+	depends on SOC_CAMERA_GC0308_INTERPOLATION
+	help 
+		0x500000  5 megapixel 	 2592x1944
+
 config SOC_CAMERA_GC0309
 	tristate "GC0309 support for rockchip"
 	depends on SOC_CAMERA && I2C
@@ -1183,6 +1205,22 @@ config HI253_USER_DEFINED_SERIES
 	depends on SOC_CAMERA_HI253
 	bool "HI253 user defined init series"
 	default n
+
+config SOC_CAMERA_HI253_INTERPOLATION
+	bool "support sensor interpolation for higher resolution"
+	depends on SOC_CAMERA_HI253
+		
+config SOC_CAMERA_HI253_INTERPOLATION_3M
+	bool "sensor interpolation 3 megapixel 2048x1536"
+	depends on SOC_CAMERA_HI253_INTERPOLATION
+	help 
+		0x300000 3 megapixel 2048x1536
+	
+config SOC_CAMERA_HI253_INTERPOLATION_5M
+	bool "sensor interpolation 5 megapixel 2592x1944"
+	depends on SOC_CAMERA_HI253_INTERPOLATION
+	help 
+		0x500000  5 megapixel 	 2592x1944
 
 config SOC_CAMERA_HI704
 	tristate "HI704 support for rockchip"
