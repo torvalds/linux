@@ -6292,10 +6292,9 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 		static DEFINE_RATELIMIT_STATE(_rs,
 				DEFAULT_RATELIMIT_INTERVAL,
 				/*DEFAULT_RATELIMIT_BURST*/ 2);
-		if (__ratelimit(&_rs)) {
-			printk(KERN_DEBUG "btrfs: block rsv returned %d\n", ret);
-			WARN_ON(1);
-		}
+		if (__ratelimit(&_rs))
+			WARN(1, KERN_DEBUG "btrfs: block rsv returned %d\n",
+			     ret);
 		ret = reserve_metadata_bytes(root, block_rsv, blocksize,
 					     BTRFS_RESERVE_NO_FLUSH);
 		if (!ret) {

@@ -341,12 +341,10 @@ static int insert_state(struct extent_io_tree *tree,
 {
 	struct rb_node *node;
 
-	if (end < start) {
-		printk(KERN_ERR "btrfs end < start %llu %llu\n",
+	if (end < start)
+		WARN(1, KERN_ERR "btrfs end < start %llu %llu\n",
 		       (unsigned long long)end,
 		       (unsigned long long)start);
-		WARN_ON(1);
-	}
 	state->start = start;
 	state->end = end;
 
@@ -4721,10 +4719,9 @@ int map_private_extent_buffer(struct extent_buffer *eb, unsigned long start,
 	}
 
 	if (start + min_len > eb->len) {
-		printk(KERN_ERR "btrfs bad mapping eb start %llu len %lu, "
+		WARN(1, KERN_ERR "btrfs bad mapping eb start %llu len %lu, "
 		       "wanted %lu %lu\n", (unsigned long long)eb->start,
 		       eb->len, start, min_len);
-		WARN_ON(1);
 		return -EINVAL;
 	}
 

@@ -3323,9 +3323,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		cur = cur->next;
 
 		if (!device->writeable) {
-			printk(KERN_ERR
+			WARN(1, KERN_ERR
 			       "btrfs: read-only device in alloc_list\n");
-			WARN_ON(1);
 			continue;
 		}
 

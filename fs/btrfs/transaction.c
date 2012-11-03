@@ -145,16 +145,12 @@ loop:
 	 * the log must never go across transaction boundaries.
 	 */
 	smp_mb();
-	if (!list_empty(&fs_info->tree_mod_seq_list)) {
-		printk(KERN_ERR "btrfs: tree_mod_seq_list not empty when "
+	if (!list_empty(&fs_info->tree_mod_seq_list))
+		WARN(1, KERN_ERR "btrfs: tree_mod_seq_list not empty when "
 			"creating a fresh transaction\n");
-		WARN_ON(1);
-	}
-	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log)) {
-		printk(KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
+	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log))
+		WARN(1, KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
 			"creating a fresh transaction\n");
-		WARN_ON(1);
-	}
 	atomic_set(&fs_info->tree_mod_seq, 0);
 
 	spin_lock_init(&cur_trans->commit_lock);
