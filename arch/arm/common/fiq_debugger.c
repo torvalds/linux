@@ -1340,6 +1340,7 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 		handle_wakeup(state);
 
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
+	spin_lock_init(&state->console_lock);
 	state->console = fiq_debugger_console;
 	state->console.index = pdev->id;
 	if (!console_set_on_cmdline)
