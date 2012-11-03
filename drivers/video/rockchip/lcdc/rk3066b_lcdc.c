@@ -490,10 +490,6 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	struct layer_par *par )
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u32 ScaleYrgbX = 0x1000;
-	u32 ScaleYrgbY = 0x1000;
-	u32 ScaleCbrX = 0x1000;
-	u32 ScaleCbrY = 0x1000;
 	u8 fmt_cfg;
 	
 	xact = par->xact;			
@@ -503,8 +499,7 @@ static int win1_set_par(struct rk3066b_lcdc_device *lcdc_dev,rk_screen *screen,
 	xpos = par->xpos+screen->left_margin + screen->hsync_len;
 	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
 	
-	ScaleYrgbX = CalScale(xact, par->xsize);
-	ScaleYrgbY = CalScale(yact, par->ysize);
+	
 	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
 		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
@@ -700,7 +695,9 @@ static int rk3066b_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,b
 
 	return ovl;
 }
-static int rk3066b_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+
+static ssize_t rk3066b_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,char *buf,int layer_id)
+
 {
 	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
 	return 0;
@@ -788,7 +785,6 @@ static int rk3066b_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char
 static void rk3066b_lcdc_reg_dump(struct rk3066b_lcdc_device *lcdc_dev)
 {
 	int *cbase =  (int *)lcdc_dev->reg_vir_base;
-        int v;
 	int i,j;
 	
 	for(i=0; i<=(0xa0>>4);i++)
