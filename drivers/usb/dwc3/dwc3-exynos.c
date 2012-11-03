@@ -92,7 +92,6 @@ static u64 dwc3_exynos_dma_mask = DMA_BIT_MASK(32);
 
 static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 {
-	struct dwc3_exynos_data	*pdata = pdev->dev.platform_data;
 	struct platform_device	*dwc3;
 	struct dwc3_exynos	*exynos;
 	struct clk		*clk;
@@ -145,14 +144,6 @@ static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 
 	clk_enable(exynos->clk);
 
-	/* PHY initialization */
-	if (!pdata) {
-		dev_dbg(&pdev->dev, "missing platform data\n");
-	} else {
-		if (pdata->phy_init)
-			pdata->phy_init(pdev, pdata->phy_type);
-	}
-
 	ret = platform_device_add_resources(dwc3, pdev->resource,
 			pdev->num_resources);
 	if (ret) {
@@ -169,9 +160,6 @@ static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
 	return 0;
 
 err4:
-	if (pdata && pdata->phy_exit)
-		pdata->phy_exit(pdev, pdata->phy_type);
-
 	clk_disable(clk);
 	clk_put(clk);
 err3:
@@ -185,14 +173,10 @@ err0:
 static int __devexit dwc3_exynos_remove(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos = platform_get_drvdata(pdev);
-	struct dwc3_exynos_data *pdata = pdev->dev.platform_data;
 
 	platform_device_unregister(exynos->dwc3);
 	platform_device_unregister(exynos->usb2_phy);
 	platform_device_unregister(exynos->usb3_phy);
-
-	if (pdata && pdata->phy_exit)
-		pdata->phy_exit(pdev, pdata->phy_type);
 
 	clk_disable(exynos->clk);
 	clk_put(exynos->clk);
