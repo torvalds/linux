@@ -988,6 +988,9 @@ err_put_dev:
  *      firmware image for this or any other device.
  *
  *	Caller must hold the reference count of @device.
+ *
+ *	The function can be called safely inside device's suspend and
+ *	resume callback.
  **/
 int
 request_firmware(const struct firmware **firmware_p, const char *name,

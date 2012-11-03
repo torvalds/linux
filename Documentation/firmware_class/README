@@ -119,3 +119,10 @@
    on the setup, so I think that the choice on what firmware to make
    persistent should be left to userspace.
 
+ about firmware cache:
+ --------------------
+ After firmware cache mechanism is introduced during system sleep,
+ request_firmware can be called safely inside device's suspend and
+ resume callback, and callers need't cache the firmware by
+ themselves any more for dealing with firmware loss during system
+ resume.
