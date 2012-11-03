@@ -34,6 +34,7 @@
 #include <linux/linux_logo.h>
 
 void rk29_backlight_set(bool on);
+bool rk29_get_backlight_status(void);
 
 #ifdef	FB_WIMO_FLAG
 int (*video_data_to_wimo)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
@@ -628,6 +629,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	int ret;
 	int i;
 	int layer_id;
+	bool backlight_status =	rk29_get_backlight_status();
 
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	rk29_backlight_set(0);
@@ -761,7 +763,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
 	rk29_backlight_set(!enable);
 #elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)  //close backlight for device whic do not support dual display
-	if(enable)
+	if(backlight_status == true)
 		rk29_backlight_set(1);
 #endif
 	return 0;

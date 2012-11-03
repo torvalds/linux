@@ -220,6 +220,12 @@ static struct early_suspend bl_early_suspend = {
 	.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1,
 };
 
+bool rk29_get_backlight_status()
+{
+	return (rk29_bl->props.state & BL_CORE_DRIVER1)?true:false;
+}
+EXPORT_SYMBOL(rk29_get_backlight_status);
+
 void rk29_backlight_set(bool on)
 {
 	printk("%s: set %d\n", __func__, on);
