@@ -42,7 +42,6 @@ struct tps6507x_ts {
 	struct device		*dev;
 	char			phys[32];
 	struct delayed_work	work;
-	unsigned		polling;	/* polling is active */
 	struct ts_event		tc;
 	struct tps6507x_dev	*mfd;
 	u16			model;
@@ -168,7 +167,6 @@ static void tps6507x_ts_handler(struct work_struct *work)
 	struct input_dev *input_dev = tsc->input_dev;
 	int pendown;
 	int schd;
-	int poll = 0;
 	s32 ret;
 
 	ret =  tps6507x_adc_conversion(tsc, TPS6507X_TSCMODE_PRESSURE,
@@ -209,24 +207,14 @@ static void tps6507x_ts_handler(struct work_struct *work)
 		input_report_abs(input_dev, ABS_PRESSURE, tsc->tc.pressure);
 		input_sync(input_dev);
 		tsc->pendown = 1;
-		poll = 1;
 	}
 
 done:
 	/* always poll if not using interrupts */
-	poll = 1;
-
-	if (poll) {
-		schd = schedule_delayed_work(&tsc->work,
-					msecs_to_jiffies(tsc->poll_period));
-		if (schd)
-			tsc->polling = 1;
-		else {
-			tsc->polling = 0;
-			dev_err(tsc->dev, "re-schedule failed");
-		}
-	} else
-		tsc->polling = 0;
+	schd = schedule_delayed_work(&tsc->work,
+				msecs_to_jiffies(tsc->poll_period));
+	if (!schd)
+		dev_err(tsc->dev, "re-schedule failed");
 
 	ret = tps6507x_adc_standby(tsc);
 }
@@ -324,10 +312,7 @@ static int tps6507x_ts_probe(struct platform_device *pdev)
 	schd = schedule_delayed_work(&tsc->work,
 				     msecs_to_jiffies(tsc->poll_period));
 
-	if (schd)
-		tsc->polling = 1;
-	else {
-		tsc->polling = 0;
+	if (!schd) {
 		dev_err(tsc->dev, "schedule failed");
 		goto err2;
 	 }
