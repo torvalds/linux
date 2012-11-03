@@ -20,6 +20,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/io.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
