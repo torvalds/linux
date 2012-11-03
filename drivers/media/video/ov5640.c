@@ -998,31 +998,73 @@ static struct reginfo *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effec
 #if CONFIG_SENSOR_Exposure
 static  struct reginfo sensor_Exposure0[]=
 {
+	{0x3a0f, 0x10},
+	{0x3a10, 0x08},
+	{0x3a1b, 0x10},
+	{0x3a1e, 0x08},
+	{0x3a11, 0x20},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure1[]=
 {
+	{0x3a0f, 0x20},
+	{0x3a10, 0x18},
+	{0x3a11, 0x41},
+	{0x3a1b, 0x20},
+	{0x3a1e, 0x18},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure2[]=
 {
+	{0x3a0f, 0x30},
+	{0x3a10, 0x28},
+	{0x3a11, 0x61},
+	{0x3a1b, 0x30},
+	{0x3a1e, 0x28},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 
 static  struct reginfo sensor_Exposure3[]=
 {
+	{0x3a0f, 0x38},
+	{0x3a10, 0x30},
+	{0x3a11, 0x61},
+	{0x3a1b, 0x38},
+	{0x3a1e, 0x30},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure4[]=
 {
+	{0x3a0f, 0x40},
+	{0x3a10, 0x38},
+	{0x3a11, 0x71},
+	{0x3a1b, 0x40},
+	{0x3a1e, 0x38},
+	{0x3a1f, 0x10},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure5[]=
 {
+	{0x3a0f, 0x50},
+	{0x3a10, 0x48},
+	{0x3a11, 0x90},
+	{0x3a1b, 0x50},
+	{0x3a1e, 0x48},
+	{0x3a1f, 0x20},
 	{SEQUENCE_END, 0x00}
 };
 static  struct reginfo sensor_Exposure6[]=
 {
+	{0x3a0f, 0x60},
+	{0x3a10, 0x58},
+	{0x3a11, 0xa0},
+	{0x3a1b, 0x60},
+	{0x3a1e, 0x58},
+	{0x3a1f, 0x20},
 	{SEQUENCE_END, 0x00}
 };
 static struct reginfo *sensor_ExposureSeqe[] = {sensor_Exposure0, sensor_Exposure1, sensor_Exposure2, sensor_Exposure3,
@@ -1230,8 +1272,8 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .id		= V4L2_CID_EXPOSURE,
         .type		= V4L2_CTRL_TYPE_INTEGER,
         .name		= "Exposure Control",
-        .minimum	= 0,
-        .maximum	= 6,
+        .minimum	= -3,
+        .maximum	= 3,
         .step		= 1,
         .default_value = 0,
     },
@@ -1917,8 +1959,8 @@ static int sensor_af_const(struct i2c_client *client)
 
 static int sensor_af_init(struct i2c_client *client)
 {
-	int ret = 0;
-	char state,cnt;
+	int ret = 0, cnt;
+	char state;
 
 	ret = sensor_write_array(client, sensor_af_firmware);
     if (ret != 0) {
@@ -1930,17 +1972,16 @@ static int sensor_af_init(struct i2c_client *client)
     cnt = 0;
     do
     {
-    	if (cnt != 0) {
-			msleep(1);
-    	}
-    	cnt++;
-		ret = sensor_read(client, STA_FOCUS_Reg, &state);
+		msleep(1);
+    	if (cnt++ > 500)
+    		break;
+    	ret = sensor_read(client, STA_FOCUS_Reg, &state);
 		if (ret != 0){
 		   SENSOR_TR("%s[%d] read focus_status failed\n",SENSOR_NAME_STRING(),__LINE__);
 		   ret = -1;
 		   goto sensor_af_init_end;
 		}
-    }while((state == S_STARTUP) && (cnt<100));	
+    } while (state != S_IDLE);
 
     if (state != S_IDLE) {
     	SENSOR_TR("%s focus state(0x%x) is error!\n",SENSOR_NAME_STRING(),state);
@@ -2136,9 +2177,9 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         * and VIDIOC_DQBUF is sched. so unlock video_lock here.
         */
         if (wait == true) {
-            mutex_unlock(&icd->video_lock);                     
-            if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(2500)) == 0) {
-                SENSOR_TR("%s %s cmd(%d) is timeout!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);                        
+            mutex_unlock(&icd->video_lock);
+            if (wait_event_timeout(wk->done, (wk->result != WqRet_inval), msecs_to_jiffies(5000)) == 0) {  //hhb
+                SENSOR_TR("%s %s cmd(%d) is timeout!\n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
             }
             ret = wk->result;
             kfree((void*)wk);
@@ -2374,7 +2415,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 
 			if (sensor->sensor_io_request && sensor->sensor_io_request->sensor_ioctrl) {
 				sensor->sensor_io_request->sensor_ioctrl(icd->pdev,Cam_Flash, on);
-                if(on){
+                if(on == Flash_On){
                     //flash off after 2 secs
             		hrtimer_cancel(&(flash_off_timer.timer));
             		hrtimer_start(&(flash_off_timer.timer),ktime_set(0, 800*1000*1000),HRTIMER_MODE_REL);
@@ -2458,6 +2499,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     }
 
     ret = sensor_write_array(client, sensor_init_data);
+    udelay(1000);   //wait sensor power on,so that I2C write sensor registers would sucess hhb@rock-chips.con
+
     if (ret != 0) {
         SENSOR_TR("error: %s initial failed\n",SENSOR_NAME_STRING());
         goto sensor_INIT_ERR;
@@ -2814,9 +2857,15 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 			if (((winseqe_set_addr->reg == SEQUENCE_PROPERTY) && (winseqe_set_addr->val == SEQUENCE_NORMAL))
 				|| (winseqe_set_addr->reg != SEQUENCE_PROPERTY)) {
 				ret |= sensor_write_array(client,sensor_init_data);
+				udelay(1000);   //wait sensor power on,so that I2C write sensor registers would sucess hhb@rock-chips.con
 				SENSOR_DG("\n%s reinit ret:0x%x \n",SENSOR_NAME_STRING(), ret);
 			}
 		}
+
+        if ((winseqe_set_addr == sensor_qsxga) && (sensor->info_priv.winseqe_cur_addr == sensor_720p)) {
+            sensor_write_array(client, sensor_svga);
+        }
+        
         ret |= sensor_write_array(client, winseqe_set_addr);
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
@@ -3893,6 +3942,9 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	{
 		case RK29_CAM_SUBDEV_DEACTIVATE:
 		{
+			#if CONFIG_SENSOR_Flash  //hhb
+			sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
+			#endif
 			sensor_deactivate(client);
 			break;
 		}

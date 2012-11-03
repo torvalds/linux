@@ -2863,6 +2863,11 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 				SENSOR_DG("\n%s reinit ret:0x%x \n",SENSOR_NAME_STRING(), ret);
 			}
 		}
+
+        if ((winseqe_set_addr == sensor_qsxga) && (sensor->info_priv.winseqe_cur_addr == sensor_720p)) {
+            sensor_write_array(client, sensor_svga);
+        }
+        
         ret |= sensor_write_array(client, winseqe_set_addr);
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
