@@ -22,11 +22,16 @@
 	- calls request_firmware(&fw_entry, $FIRMWARE, device)
 	- kernel searchs the fimware image with name $FIRMWARE directly
 	in the below search path of root filesystem:
+		User customized search path by module parameter 'path'[1]
 		"/lib/firmware/updates/" UTS_RELEASE,
 		"/lib/firmware/updates",
 		"/lib/firmware/" UTS_RELEASE,
 		"/lib/firmware"
 	- If found, goto 7), else goto 2)
+
+	[1], the 'path' is a string parameter which length should be less
+	than 256, user should pass 'firmware_class.path=$CUSTOMIZED_PATH'
+	if firmware_class is built in kernel(the general situation)
 
  2), userspace:
  	- /sys/class/firmware/xxx/{loading,data} appear.
