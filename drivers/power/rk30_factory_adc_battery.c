@@ -532,6 +532,8 @@ static int  is_charge_ok(struct rk30_adc_battery_data *bat)
 	int charge_is_ok = 0;
 	struct rk30_adc_battery_platform_data *pdata = bat->pdata;
 
+	if(rk30_adc_battery_get_charge_level(bat) != 1)
+		return -1;
 	if((pdata->charge_ok_pin == INVALID_GPIO)&& ( pdata->charging_ok == NULL))
 		return -1;
 	
@@ -1140,7 +1142,7 @@ static int rk30_adc_battery_get_ac_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_ONLINE:
 		if (psy->type == POWER_SUPPLY_TYPE_MAINS)
 		{
-			//if (rk30_adc_battery_get_charge_level(gBatteryData))
+			rk30_adc_battery_get_charge_level(gBatteryData);
 			val->intval = gBatteryData ->ac_charging;
 		}
 		DBG("%s:%d\n",__FUNCTION__,val->intval);
@@ -1413,9 +1415,9 @@ static void rk30_adc_battery_timer_work(struct work_struct *work)
 		rk30_adc_battery_put_capacity(gBatteryData->bat_capacity);
 		power_supply_changed(&rk30_battery_supply);
 #if  defined (CONFIG_BATTERY_RK30_AC_CHARGE)
-		if (gBatteryData->pdata->dc_det_pin == INVALID_GPIO){
+	//	if (gBatteryData->pdata->dc_det_pin == INVALID_GPIO){
 			power_supply_changed(&rk30_ac_supply);
-		}
+	//	}
 
 #endif
 		 if(1 == gBatteryData->pdata->spport_usb_charging){
@@ -1658,6 +1660,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	data->status_lock = 0; 	
 	ret = rk30_adc_battery_io_init(pdata);
 	 if (ret) {
+	 	ret = -EINVAL;
 	 	goto err_io_init;
 	}
     
@@ -1665,11 +1668,13 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 
 	 //register adc for battery sample
 	 if(0 == pdata->adc_channel)
-	client = adc_register(0, rk30_adc_battery_callback, NULL);  //pdata->adc_channel = ani0
+		client = adc_register(0, rk30_adc_battery_callback, NULL);  //pdata->adc_channel = ani0
 	else
 		client = adc_register(pdata->adc_channel, rk30_adc_battery_callback, NULL);  
-	if(!client)
+	if(!client){
+		ret = -EINVAL;
 		goto err_adc_register_failed;
+	}
 	    
 	 //variable init
 	data->client  = client;
@@ -1677,25 +1682,27 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 
 	ret = power_supply_register(&pdev->dev, &rk30_battery_supply);
 	if (ret){
+		ret = -EINVAL;
 		printk(KERN_INFO "fail to battery power_supply_register\n");
 		goto err_battery_failed;
 	}
 #ifdef BATTERY_APK
 	ret = device_create_file(&pdev->dev,&dev_attr_batparam);
-	if(ret)
-	{
+	if(ret){
+		ret = -EINVAL;
 		printk(KERN_ERR "failed to create bat param file\n");
 		goto err_battery_failed;
 	}
 		
 #endif 
 	 if(1 == pdata->spport_usb_charging){
-	ret = power_supply_register(&pdev->dev, &rk30_usb_supply);
-	if (ret){
-		printk(KERN_INFO "fail to usb power_supply_register\n");
-		goto err_usb_failed;
+		ret = power_supply_register(&pdev->dev, &rk30_usb_supply);
+		if (ret){
+			ret = -EINVAL;
+			printk(KERN_INFO "fail to usb power_supply_register\n");
+			goto err_usb_failed;
+		}
 	}
-	 }
  	wake_lock_init(&batt_wake_lock, WAKE_LOCK_SUSPEND, "batt_lock");	
 
 	data->wq = create_singlethread_workqueue("adc_battd");
@@ -1713,6 +1720,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 #if  defined (CONFIG_BATTERY_RK30_AC_CHARGE)
 	ret = power_supply_register(&pdev->dev, &rk30_ac_supply);
 	if (ret) {
+		ret = -EINVAL;
 		printk(KERN_INFO "fail to ac power_supply_register\n");
 		goto err_ac_failed;
 	}
@@ -1724,6 +1732,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 		irq_flag = gpio_get_value (pdata->dc_det_pin) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
 	    	ret = request_irq(irq, rk30_adc_battery_dc_wakeup, irq_flag, "ac_charge_irq", NULL);
 	    	if (ret) {
+			ret = -EINVAL;
 	    		printk("failed to request dc det irq\n");
 	    		goto err_dcirq_failed;
 	    	}
@@ -1741,6 +1750,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	    	ret = request_irq(irq, rk30_adc_battery_low_wakeup, IRQF_TRIGGER_LOW, "batt_low_irq", NULL);
 
 	    	if (ret) {
+			ret = -EINVAL;
 	    		printk("failed to request batt_low_irq irq\n");
 	    		goto err_lowpowerirq_failed;
 	    	}
@@ -1753,6 +1763,7 @@ static int rk30_adc_battery_probe(struct platform_device *pdev)
 	ret = create_sysfs_interfaces(&pdev->dev);
 	if (ret < 0)
 	{
+		ret = -EINVAL;
 		dev_err(&pdev->dev,		  
 			"device rk30_adc_batterry sysfs register failed\n");
 		goto err_sysfs;
