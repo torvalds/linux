@@ -441,7 +441,7 @@ config INPUT_PCF8574
 
 config INPUT_PWM_BEEPER
 	tristate "PWM beeper support"
-	depends on HAVE_PWM
+	depends on HAVE_PWM || PWM
 	help
 	  Say Y here to get support for PWM based beeper devices.
 

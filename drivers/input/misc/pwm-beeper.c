@@ -75,7 +75,11 @@ static int __devinit pwm_beeper_probe(struct platform_device *pdev)
 	if (!beeper)
 		return -ENOMEM;
 
-	beeper->pwm = pwm_request(pwm_id, "pwm beeper");
+	beeper->pwm = pwm_get(&pdev->dev, NULL);
+	if (IS_ERR(beeper->pwm)) {
+		dev_dbg(&pdev->dev, "unable to request PWM, trying legacy API\n");
+		beeper->pwm = pwm_request(pwm_id, "pwm beeper");
+	}
 
 	if (IS_ERR(beeper->pwm)) {
 		error = PTR_ERR(beeper->pwm);
@@ -171,6 +175,13 @@ static SIMPLE_DEV_PM_OPS(pwm_beeper_pm_ops,
 #define PWM_BEEPER_PM_OPS NULL
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id pwm_beeper_match[] = {
+	{ .compatible = "pwm-beeper", },
+	{ },
+};
+#endif
+
 static struct platform_driver pwm_beeper_driver = {
 	.probe	= pwm_beeper_probe,
 	.remove = __devexit_p(pwm_beeper_remove),
@@ -178,6 +189,7 @@ static struct platform_driver pwm_beeper_driver = {
 		.name	= "pwm-beeper",
 		.owner	= THIS_MODULE,
 		.pm	= PWM_BEEPER_PM_OPS,
+		.of_match_table = of_match_ptr(pwm_beeper_match),
 	},
 };
 module_platform_driver(pwm_beeper_driver);

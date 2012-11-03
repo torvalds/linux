@@ -1,0 +1,7 @@
+* PWM beeper device tree bindings
+
+Registers a PWM device as beeper.
+
+Required properties:
+- compatible: should be "pwm-beeper"
+- pwms: phandle to the physical PWM device
