@@ -3058,6 +3058,14 @@ T:	git git://git.alsa-project.org/alsa-kernel.git
 S:	Maintained
 F:	sound/firewire/
 
+FIREWIRE MEDIA DRIVERS (firedtv)
+M:	Stefan Richter <stefanr@s5r6.in-berlin.de>
+L:	linux-media@vger.kernel.org
+L:	linux1394-devel@lists.sourceforge.net
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-media.git
+S:	Maintained
+F:	drivers/media/firewire/
+
 FIREWIRE SBP-2 TARGET
 M:	Chris Boot <bootc@bootc.net>
 L:	linux-scsi@vger.kernel.org
