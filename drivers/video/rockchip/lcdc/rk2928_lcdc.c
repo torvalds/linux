@@ -52,6 +52,14 @@ static int rk2928_lcdc_iomux(rk_screen *screen,int mode)
 	int i=0;
 	if((screen->type == SCREEN_RGB)&&(mode)) //iomux for RGB screen
 	{
+		for(i=0;i<8;i++)
+		{
+			gpio_free(RK2928_PIN2_PB0 + i); 
+		}
+		for(i=0;i<4;i++)
+		{
+			gpio_free(RK2928_PIN2_PC0 + i);
+		}
 
 		if(screen->lcdc_id == 0)
 		{
