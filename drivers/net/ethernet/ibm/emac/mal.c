@@ -738,13 +738,11 @@ static int __devexit mal_remove(struct platform_device *ofdev)
 	/* Synchronize with scheduled polling */
 	napi_disable(&mal->napi);
 
-	if (!list_empty(&mal->list)) {
+	if (!list_empty(&mal->list))
 		/* This is *very* bad */
-		printk(KERN_EMERG
+		WARN(1, KERN_EMERG
 		       "mal%d: commac list is not empty on remove!\n",
 		       mal->index);
-		WARN_ON(1);
-	}
 
 	dev_set_drvdata(&ofdev->dev, NULL);
 
