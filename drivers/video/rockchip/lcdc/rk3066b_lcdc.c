@@ -353,8 +353,6 @@ static int rk3066b_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id
 {
 	struct rk3066b_lcdc_device * lcdc_dev = container_of(lcdc_drv,struct rk3066b_lcdc_device ,driver);
 
-	printk(KERN_INFO "%s>>>>>%d\n",__func__, blank_mode);
-
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
@@ -371,6 +369,7 @@ static int rk3066b_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id
 				break;
 		}
 		LCDC_REG_CFG_DONE();
+		printk(KERN_INFO "%s>>>>>%d\n",__func__, blank_mode);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	
@@ -785,6 +784,22 @@ static int rk3066b_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char
         return  layer_id;
 }
 
+
+static void rk3066b_lcdc_reg_dump(struct rk3066b_lcdc_device *lcdc_dev)
+{
+	int *cbase =  (int *)lcdc_dev->reg_vir_base;
+        int v;
+	int i,j;
+	
+	for(i=0; i<=(0xa0>>4);i++)
+	{
+		for(j=0;j<4;j++)
+			printk("%08x  ",readl(cbase+i*4 +j));
+		printk("\n");
+	}
+	
+}
+
 int rk3066b_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk3066b_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk3066b_lcdc_device,driver);
@@ -805,7 +820,7 @@ int rk3066b_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 	}
 	
 		
-	mdelay(1);
+	mdelay(30);
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
 	clk_disable(lcdc_dev->aclk);
@@ -826,12 +841,18 @@ int rk3066b_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 		clk_enable(lcdc_dev->dclk);
 		clk_enable(lcdc_dev->aclk);
 	}
-	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0xc4);  //resume reg
+	mdelay(5);
+	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0x24);  //resume reg ,skip INT_STATUS reg
+	memcpy(((u8*)lcdc_dev->preg) + 0x28,((u8*)&lcdc_dev->regbak) + 0x28, 0x74);
 
 	spin_lock(&lcdc_dev->reg_lock);
 	if(lcdc_dev->atv_layer_cnt)
 	{
 		LcdMskReg(lcdc_dev, SYS_CFG,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
+		LcdMskReg(lcdc_dev, INT_STATUS, m_SCANNING_CLEAR | m_FRM_STARTCLEAR | m_HOR_STARTCLEAR |
+					m_SCANNING_MASK | m_HOR_STARTMASK | m_FRM_STARTMASK , 
+					v_SCANNING_CLEAR(1) | v_FRM_STARTCLEAR(1) | v_HOR_STARTCLEAR(1) | 
+					v_SCANNING_MASK(1) | v_FRM_STARTMASK(0) | v_HOR_STARTMASK(1));
 		LCDC_REG_CFG_DONE();
 	}
 	lcdc_dev->clk_on = 1;
@@ -1063,17 +1084,17 @@ static struct platform_driver rk3066b_lcdc_driver = {
 	},
 	.suspend	= rk3066b_lcdc_suspend,
 	.resume		= rk3066b_lcdc_resume,
-	.shutdown   = rk3066b_lcdc_shutdown,
+	.shutdown   	= rk3066b_lcdc_shutdown,
 };
 
 static int __init rk3066b_lcdc_init(void)
 {
-    return platform_driver_register(&rk3066b_lcdc_driver);
+	return platform_driver_register(&rk3066b_lcdc_driver);
 }
 
 static void __exit rk3066b_lcdc_exit(void)
 {
-    platform_driver_unregister(&rk3066b_lcdc_driver);
+	platform_driver_unregister(&rk3066b_lcdc_driver);
 }
 
 
