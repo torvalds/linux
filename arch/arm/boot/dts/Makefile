@@ -172,12 +172,9 @@ dtb-$(CONFIG_ARCH_SHMOBILE_LEGACY) += emev2-kzm9d.dtb \
 	r8a7791-koelsch-reference.dtb \
 	r8a7790-lager.dtb \
 	sh73a0-kzm9g.dtb \
-	sh73a0-kzm9g-reference.dtb \
-	r8a73a4-ape6evm.dtb \
-	r8a73a4-ape6evm-reference.dtb \
-	sh7372-mackerel.dtb
+	sh7372-mackerel.dtb \
 	sh73a0-kzm9g.dtb
-dtb-$(CONFIG_ARCH_SOCFPGA) += socfpga_cyclone5.dtb\
+dtb-$(CONFIG_ARCH_SOCFPGA) += socfpga_cyclone5.dtb \
 	socfpga_ice.dtb\
 	socfpga_vt.dtb
 dtb-$(CONFIG_ARCH_SPEAR13XX) += spear1310-evb.dtb \
