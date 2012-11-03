@@ -188,6 +188,7 @@ int tps65910_pre_init(struct tps65910 *tps65910){
         }
 	
 	val  |= 0xff;
+	val  &= ~(0x07);   //set vdd1 vdd2 vio in pfm mode when in sleep
 	err = tps65910_reg_write(tps65910, TPS65910_SLEEP_KEEP_RES_ON, val);
 	if (err) {
 		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
@@ -225,6 +226,22 @@ int tps65910_pre_init(struct tps65910 *tps65910){
 	}
 	#endif
 	#endif
+
+	/**********************set arm in pwm ****************/
+	  val = tps65910_reg_read(tps65910, TPS65910_DCDCCTRL);
+        if (val<0) {
+                printk(KERN_ERR "Unable to read TPS65910_DCDCCTRL reg\n");
+                return val;
+        }
+	
+	val &= ~(1<<4);
+	err = tps65910_reg_write(tps65910, TPS65910_DCDCCTRL, val);
+	if (err) {
+		printk(KERN_ERR "Unable to read TPS65910 Reg at offset 0x%x= \
+				\n", TPS65910_VDIG1);
+		return err;
+	}	
+	/************************************************/
 	
 	printk("%s,line=%d\n", __func__,__LINE__);
 	return 0;
