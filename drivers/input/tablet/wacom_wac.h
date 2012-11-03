@@ -26,6 +26,7 @@
 #define WACOM_PKGLEN_BBPEN	10
 #define WACOM_PKGLEN_WIRELESS	32
 #define WACOM_PKGLEN_MTOUCH	62
+#define WACOM_PKGLEN_MTTPC	40
 
 /* wacom data size per MT contact */
 #define WACOM_BYTES_PER_MT_PACKET	11
@@ -88,6 +89,7 @@ enum {
 	TABLETPCE,
 	TABLETPC2FG,
 	MTSCREEN,
+	MTTPC,
 	MAX_TYPE
 };
 

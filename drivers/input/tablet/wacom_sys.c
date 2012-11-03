@@ -397,6 +397,10 @@ static int wacom_parse_hid(struct usb_interface *intf,
 							features->pktlen = WACOM_PKGLEN_MTOUCH;
 							break;
 
+						case MTTPC:
+							features->pktlen = WACOM_PKGLEN_MTTPC;
+							break;
+
 						case BAMBOO_PT:
 							features->pktlen = WACOM_PKGLEN_BBTOUCH;
 							break;
@@ -453,6 +457,7 @@ static int wacom_parse_hid(struct usb_interface *intf,
 						switch (features->type) {
 						case TABLETPC2FG:
 						case MTSCREEN:
+						case MTTPC:
 							features->y_max =
 								get_unaligned_le16(&report[i + 3]);
 							features->y_phy =
