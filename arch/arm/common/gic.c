@@ -767,6 +767,9 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 #ifdef CONFIG_SMP
 	set_smp_cross_call(gic_raise_softirq);
 #endif
+
+	set_handle_irq(gic_handle_irq);
+
 	gic_chip.flags |= gic_arch_extn.flags;
 	gic_dist_init(gic);
 	gic_cpu_init(gic);
