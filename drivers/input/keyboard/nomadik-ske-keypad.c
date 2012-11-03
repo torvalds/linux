@@ -67,6 +67,7 @@ struct ske_keypad {
 	const struct ske_keypad_platform_data *board;
 	unsigned short keymap[SKE_KPD_NUM_ROWS * SKE_KPD_NUM_COLS];
 	struct clk *clk;
+	struct clk *pclk;
 	spinlock_t ske_keypad_lock;
 };
 
@@ -271,11 +272,18 @@ static int __init ske_keypad_probe(struct platform_device *pdev)
 		goto err_free_mem_region;
 	}
 
+	keypad->pclk = clk_get(&pdev->dev, "apb_pclk");
+	if (IS_ERR(keypad->pclk)) {
+		dev_err(&pdev->dev, "failed to get pclk\n");
+		error = PTR_ERR(keypad->pclk);
+		goto err_iounmap;
+	}
+
 	keypad->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(keypad->clk)) {
 		dev_err(&pdev->dev, "failed to get clk\n");
 		error = PTR_ERR(keypad->clk);
-		goto err_iounmap;
+		goto err_pclk;
 	}
 
 	input->id.bustype = BUS_HOST;
@@ -294,10 +302,16 @@ static int __init ske_keypad_probe(struct platform_device *pdev)
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
+	error = clk_prepare_enable(keypad->pclk);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to prepare/enable pclk\n");
+		goto err_clk;
+	}
+
 	error = clk_prepare_enable(keypad->clk);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to prepare/enable clk\n");
-		goto err_clk;
+		goto err_pclk_disable;
 	}
 
 
@@ -336,8 +350,12 @@ err_free_irq:
 	free_irq(keypad->irq, keypad);
 err_clk_disable:
 	clk_disable_unprepare(keypad->clk);
+err_pclk_disable:
+	clk_disable_unprepare(keypad->pclk);
 err_clk:
 	clk_put(keypad->clk);
+err_pclk:
+	clk_put(keypad->pclk);
 err_iounmap:
 	iounmap(keypad->reg_base);
 err_free_mem_region:
