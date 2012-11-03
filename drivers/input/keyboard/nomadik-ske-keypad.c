@@ -287,14 +287,19 @@ static int __init ske_keypad_probe(struct platform_device *pdev)
 					   keypad->keymap, input);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to build keymap\n");
-		goto err_iounmap;
+		goto err_clk;
 	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
-	clk_enable(keypad->clk);
+	error = clk_prepare_enable(keypad->clk);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to prepare/enable clk\n");
+		goto err_clk;
+	}
+
 
 	/* go through board initialization helpers */
 	if (keypad->board->init)
@@ -330,7 +335,8 @@ static int __init ske_keypad_probe(struct platform_device *pdev)
 err_free_irq:
 	free_irq(keypad->irq, keypad);
 err_clk_disable:
-	clk_disable(keypad->clk);
+	clk_disable_unprepare(keypad->clk);
+err_clk:
 	clk_put(keypad->clk);
 err_iounmap:
 	iounmap(keypad->reg_base);
@@ -351,7 +357,7 @@ static int __devexit ske_keypad_remove(struct platform_device *pdev)
 
 	input_unregister_device(keypad->input);
 
-	clk_disable(keypad->clk);
+	clk_disable_unprepare(keypad->clk);
 	clk_put(keypad->clk);
 
 	if (keypad->board->exit)
