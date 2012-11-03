@@ -322,7 +322,7 @@ static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
 
 static struct pci_driver ni_670x_pci_driver = {
-	.name		="ni_670x",
+	.name		= "ni_670x",
 	.id_table	= ni_670x_pci_table,
 	.probe		= ni_670x_pci_probe,
 	.remove		= __devexit_p(ni_670x_pci_remove),
