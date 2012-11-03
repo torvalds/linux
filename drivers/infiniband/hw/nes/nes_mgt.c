@@ -649,11 +649,9 @@ static void nes_chg_qh_handler(struct nes_device *nesdev, struct nes_cqp_request
 	nesqp = qh_chg->nesqp;
 
 	/* Should we handle the bad completion */
-	if (cqp_request->major_code) {
-		printk(KERN_ERR PFX "Invalid cqp_request major_code=0x%x\n",
+	if (cqp_request->major_code)
+		WARN(1, PFX "Invalid cqp_request major_code=0x%x\n",
 		       cqp_request->major_code);
-		WARN_ON(1);
-	}
 
 	switch (nesqp->pau_state) {
 	case PAU_DEL_QH:
