@@ -22,6 +22,7 @@
 #define BP_TAG_MEMORY		0x1003	/* memory addr and size (bp_meminfo) */
 #define BP_TAG_SERIAL_BAUSRATE	0x1004	/* baud rate of current console. */
 #define BP_TAG_SERIAL_PORT	0x1005	/* serial device of current console */
+#define BP_TAG_FDT		0x1006	/* flat device tree addr */
 
 #define BP_TAG_FIRST		0x7B0B  /* first tag with a version number */
 #define BP_TAG_LAST 		0x7E0B	/* last tag */

@@ -22,6 +22,11 @@
 #include <linux/bootmem.h>
 #include <linux/kernel.h>
 
+#ifdef CONFIG_OF
+#include <linux/of_fdt.h>
+#include <linux/of_platform.h>
+#endif
+
 #if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
 # include <linux/console.h>
 #endif
@@ -65,6 +70,11 @@ int initrd_is_mapped = 0;
 extern int initrd_below_start_ok;
 #endif
 
+#ifdef CONFIG_OF
+extern u32 __dtb_start[];
+void *dtb_start = __dtb_start;
+#endif
+
 unsigned char aux_device_present;
 extern unsigned long loops_per_jiffy;
 
@@ -84,6 +94,8 @@ extern void init_mmu(void);
 static inline void init_mmu(void) { }
 #endif
 
+extern int mem_reserve(unsigned long, unsigned long, int);
+extern void bootmem_init(void);
 extern void zones_init(void);
 
 /*
@@ -105,26 +117,31 @@ typedef struct tagtable {
 
 /* parse current tag */
 
+static int __init add_sysmem_bank(unsigned long type, unsigned long start,
+		unsigned long end)
+{
+	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
+		printk(KERN_WARNING
+				"Ignoring memory bank 0x%08lx size %ldKB\n",
+				start, end - start);
+		return -EINVAL;
+	}
+	sysmem.bank[sysmem.nr_banks].type  = type;
+	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(start);
+	sysmem.bank[sysmem.nr_banks].end   = end & PAGE_MASK;
+	sysmem.nr_banks++;
+
+	return 0;
+}
+
 static int __init parse_tag_mem(const bp_tag_t *tag)
 {
-	meminfo_t *mi = (meminfo_t*)(tag->data);
+	meminfo_t *mi = (meminfo_t *)(tag->data);
 
 	if (mi->type != MEMORY_TYPE_CONVENTIONAL)
 		return -1;
 
-	if (sysmem.nr_banks >= SYSMEM_BANKS_MAX) {
-		printk(KERN_WARNING
-		       "Ignoring memory bank 0x%08lx size %ldKB\n",
-		       (unsigned long)mi->start,
-		       (unsigned long)mi->end - (unsigned long)mi->start);
-		return -EINVAL;
-	}
-	sysmem.bank[sysmem.nr_banks].type  = mi->type;
-	sysmem.bank[sysmem.nr_banks].start = PAGE_ALIGN(mi->start);
-	sysmem.bank[sysmem.nr_banks].end   = mi->end & PAGE_MASK;
-	sysmem.nr_banks++;
-
-	return 0;
+	return add_sysmem_bank(mi->type, mi->start, mi->end);
 }
 
 __tagtable(BP_TAG_MEMORY, parse_tag_mem);
@@ -143,12 +160,31 @@ static int __init parse_tag_initrd(const bp_tag_t* tag)
 
 __tagtable(BP_TAG_INITRD, parse_tag_initrd);
 
+#ifdef CONFIG_OF
+
+static int __init parse_tag_fdt(const bp_tag_t *tag)
+{
+	dtb_start = (void *)(tag->data[0]);
+	return 0;
+}
+
+__tagtable(BP_TAG_FDT, parse_tag_fdt);
+
+void __init early_init_dt_setup_initrd_arch(unsigned long start,
+		unsigned long end)
+{
+	initrd_start = (void *)__va(start);
+	initrd_end = (void *)__va(end);
+	initrd_below_start_ok = 1;
+}
+
+#endif /* CONFIG_OF */
+
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 static int __init parse_tag_cmdline(const bp_tag_t* tag)
 {
-	strncpy(command_line, (char*)(tag->data), COMMAND_LINE_SIZE);
-	command_line[COMMAND_LINE_SIZE - 1] = '\0';
+	strlcpy(command_line, (char *)(tag->data), COMMAND_LINE_SIZE);
 	return 0;
 }
 
@@ -186,6 +222,58 @@ static int __init parse_bootparam(const bp_tag_t* tag)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+
+void __init early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+	size &= PAGE_MASK;
+	add_sysmem_bank(MEMORY_TYPE_CONVENTIONAL, base, base + size);
+}
+
+void * __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	return __alloc_bootmem(size, align, 0);
+}
+
+void __init early_init_devtree(void *params)
+{
+	/* Setup flat device-tree pointer */
+	initial_boot_params = params;
+
+	/* Retrieve various informations from the /chosen node of the
+	 * device-tree, including the platform type, initrd location and
+	 * size, TCE reserve, and more ...
+	 */
+	if (!command_line[0])
+		of_scan_flat_dt(early_init_dt_scan_chosen, command_line);
+
+	/* Scan memory nodes and rebuild MEMBLOCKs */
+	of_scan_flat_dt(early_init_dt_scan_root, NULL);
+	if (sysmem.nr_banks == 0)
+		of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+}
+
+static void __init copy_devtree(void)
+{
+	void *alloc = early_init_dt_alloc_memory_arch(
+			be32_to_cpu(initial_boot_params->totalsize), 0);
+	if (alloc) {
+		memcpy(alloc, initial_boot_params,
+				be32_to_cpu(initial_boot_params->totalsize));
+		initial_boot_params = alloc;
+	}
+}
+
+static int __init xtensa_device_probe(void)
+{
+	of_platform_populate(NULL, NULL, NULL, NULL);
+	return 0;
+}
+
+device_initcall(xtensa_device_probe);
+
+#endif /* CONFIG_OF */
+
 /*
  * Initialize architecture. (Early stage)
  */
@@ -194,14 +282,14 @@ void __init init_arch(bp_tag_t *bp_start)
 {
 	sysmem.nr_banks = 0;
 
-#ifdef CONFIG_CMDLINE_BOOL
-	strcpy(command_line, default_command_line);
-#endif
-
 	/* Parse boot parameters */
 
         if (bp_start)
-	  parse_bootparam(bp_start);
+		parse_bootparam(bp_start);
+
+#ifdef CONFIG_OF
+	early_init_devtree(dtb_start);
+#endif
 
 	if (sysmem.nr_banks == 0) {
 		sysmem.nr_banks = 1;
@@ -209,6 +297,11 @@ void __init init_arch(bp_tag_t *bp_start)
 		sysmem.bank[0].end = PLATFORM_DEFAULT_MEM_START
 				     + PLATFORM_DEFAULT_MEM_SIZE;
 	}
+
+#ifdef CONFIG_CMDLINE_BOOL
+	if (!command_line[0])
+		strlcpy(command_line, default_command_line, COMMAND_LINE_SIZE);
+#endif
 
 	/* Early hook for platforms */
 
@@ -355,11 +448,7 @@ void __init check_s32c1i(void)
 
 void __init setup_arch(char **cmdline_p)
 {
-	extern int mem_reserve(unsigned long, unsigned long, int);
-	extern void bootmem_init(void);
-
-	memcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
-	boot_command_line[COMMAND_LINE_SIZE-1] = '\0';
+	strlcpy(boot_command_line, command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	check_s32c1i();
@@ -395,8 +484,12 @@ void __init setup_arch(char **cmdline_p)
 
 	bootmem_init();
 
-	platform_setup(cmdline_p);
+#ifdef CONFIG_OF
+	copy_devtree();
+	unflatten_device_tree();
+#endif
 
+	platform_setup(cmdline_p);
 
 	paging_init();
 	zones_init();

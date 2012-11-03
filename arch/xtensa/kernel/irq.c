@@ -19,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/kernel_stat.h>
 #include <linux/irqdomain.h>
+#include <linux/of.h>
 
 #include <asm/uaccess.h>
 #include <asm/platform.h>
@@ -199,8 +200,17 @@ void __init init_IRQ(void)
 	cached_irq_mask = 0;
 	set_sr(~0, intclear);
 
+#ifdef CONFIG_OF
+	/* The interrupt controller device node is mandatory */
+	intc = of_find_compatible_node(NULL, NULL, "xtensa,pic");
+	BUG_ON(!intc);
+
+	root_domain = irq_domain_add_linear(intc, NR_IRQS,
+			&xtensa_irq_domain_ops, NULL);
+#else
 	root_domain = irq_domain_add_legacy(intc, NR_IRQS, 0, 0,
 			&xtensa_irq_domain_ops, NULL);
+#endif
 	irq_set_default_host(root_domain);
 
 	variant_init_irq();
