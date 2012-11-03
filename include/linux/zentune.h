@@ -22,6 +22,8 @@
 #define vm_dirty_ratio_custom 50;
 #define dirty_background_ratio_custom 20;
 
+/* CPUFREQ Related */
+#define DEF_SAMPLING_DOWN_FACTOR_CUSTOM 10
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_ZENTUNE_H */
