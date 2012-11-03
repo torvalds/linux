@@ -852,37 +852,22 @@ static __init int dma_debug_entries_cmdline(char *str)
 __setup("dma_debug=", dma_debug_cmdline);
 __setup("dma_debug_entries=", dma_debug_entries_cmdline);
 
-/* Calling dma_mapping_error() from dma-debug api will result in calling
-   debug_dma_mapping_error() - need internal mapping error routine to
-   avoid debug checks */
-#ifndef DMA_ERROR_CODE
-#define DMA_ERROR_CODE 0
-#endif
-static inline int has_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	const struct dma_map_ops *ops = get_dma_ops(dev);
-	if (ops->mapping_error)
-		return ops->mapping_error(dev, dma_addr);
-
-	return (dma_addr == DMA_ERROR_CODE);
-}
-
 static void check_unmap(struct dma_debug_entry *ref)
 {
 	struct dma_debug_entry *entry;
 	struct hash_bucket *bucket;
 	unsigned long flags;
 
-	if (unlikely(has_mapping_error(ref->dev, ref->dev_addr))) {
-		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
-			   "to free an invalid DMA memory address\n");
-		return;
-	}
-
 	bucket = get_hash_bucket(ref, &flags);
 	entry = bucket_find_exact(bucket, ref);
 
 	if (!entry) {
+		if (dma_mapping_error(ref->dev, ref->dev_addr)) {
+			err_printk(ref->dev, NULL,
+				   "DMA-API: device driver tries "
+				   "to free an invalid DMA memory address\n");
+			return;
+		}
 		err_printk(ref->dev, NULL, "DMA-API: device driver tries "
 			   "to free DMA memory it has not allocated "
 			   "[device address=0x%016llx] [size=%llu bytes]\n",
@@ -1055,7 +1040,7 @@ void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,
 	if (unlikely(global_disable))
 		return;
 
-	if (unlikely(has_mapping_error(dev, dma_addr)))
+	if (dma_mapping_error(dev, dma_addr))
 		return;
 
 	entry = dma_entry_alloc();
