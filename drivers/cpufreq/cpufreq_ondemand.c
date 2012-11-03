@@ -25,13 +25,20 @@
 #include <linux/tick.h>
 #include <linux/types.h>
 #include <linux/cpu.h>
+#include <linux/zentune.h>
 
 #include "cpufreq_governor.h"
 
 /* On-demand governor macros */
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(26)
 #define DEF_FREQUENCY_UP_THRESHOLD		(63)
+
+#if defined(CONFIG_ZEN_DEFAULT)
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
+#elif defined(CONFIG_ZEN_CUSTOM)
+#define DEF_SAMPLING_DOWN_FACTOR		(DEF_SAMPLING_DOWN_FACTOR_CUSTOM)
+#endif
+
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
 #define MICRO_FREQUENCY_UP_THRESHOLD		(95)
