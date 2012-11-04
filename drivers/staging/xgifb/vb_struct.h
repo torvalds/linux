@@ -187,7 +187,6 @@ struct vb_device_info {
 	struct SiS_VBVCLKData  *VBVCLKData;
 	struct SiS_StResInfo_S   *StResInfo;
 	struct SiS_ModeResInfo_S *ModeResInfo;
-	struct XGI_XG21CRT1Struct	  *UpdateCRT1;
 
 	int ram_type;
 	int ram_channel;

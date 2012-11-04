@@ -49,8 +49,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->SR21 = 0xa3;
 	pVBInfo->SR22 = 0xfb;
 
-	pVBInfo->UpdateCRT1 = XGI_UpdateCRT1Table;
-
 	/* 310 customization related */
 	if ((pVBInfo->VBType & VB_SIS301LV) || (pVBInfo->VBType & VB_SIS302LV))
 		pVBInfo->LCDCapList = XGI_LCDDLCapList;
@@ -729,13 +727,13 @@ static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 
 	if (index != -1) {
 		xgifb_reg_set(pVBInfo->P3d4, 0x02,
-				pVBInfo->UpdateCRT1[index].CR02);
+				XGI_UpdateCRT1Table[index].CR02);
 		xgifb_reg_set(pVBInfo->P3d4, 0x03,
-				pVBInfo->UpdateCRT1[index].CR03);
+				XGI_UpdateCRT1Table[index].CR03);
 		xgifb_reg_set(pVBInfo->P3d4, 0x15,
-				pVBInfo->UpdateCRT1[index].CR15);
+				XGI_UpdateCRT1Table[index].CR15);
 		xgifb_reg_set(pVBInfo->P3d4, 0x16,
-				pVBInfo->UpdateCRT1[index].CR16);
+				XGI_UpdateCRT1Table[index].CR16);
 	}
 }
 

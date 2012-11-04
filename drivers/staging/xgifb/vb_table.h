@@ -216,7 +216,7 @@ static const struct SiS_StandTable_S XGI330_StandTable = {
 	 0xff}
 };
 
-static struct XGI_XG21CRT1Struct XGI_UpdateCRT1Table[] = {
+static const struct XGI_XG21CRT1Struct XGI_UpdateCRT1Table[] = {
 	{0x01, 0x27, 0x91, 0x8f, 0xc0},	/* 00 */
 	{0x03, 0x4f, 0x83, 0x8f, 0xc0},	/* 01 */
 	{0x05, 0x27, 0x91, 0x8f, 0xc0},	/* 02 */
