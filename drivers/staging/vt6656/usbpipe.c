@@ -575,7 +575,8 @@ s_nsBulkInUsbIoCompleteRead(
 //            MP_SET_FLAG(pDevice, fMP_DISCONNECTED);
 //        }
     } else {
-        bIndicateReceive = TRUE;
+	if (bytesRead)
+		bIndicateReceive = TRUE;
         pDevice->ulBulkInContCRCError = 0;
         pDevice->ulBulkInBytesRead += bytesRead;
 
