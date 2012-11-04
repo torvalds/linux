@@ -278,61 +278,8 @@ unsigned long __arch_hweight64(__u64 w);
 #include <asm-generic/bitops/find.h>
 
 /* Little-endian versions */
+#include <asm-generic/bitops/le.h>
 
-static __inline__ int test_bit_le(unsigned long nr,
-				  __const__ void *addr)
-{
-	__const__ unsigned char	*tmp = (__const__ unsigned char *) addr;
-	return (tmp[nr >> 3] >> (nr & 7)) & 1;
-}
-
-static inline void set_bit_le(int nr, void *addr)
-{
-	set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline void clear_bit_le(int nr, void *addr)
-{
-	clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline void __set_bit_le(int nr, void *addr)
-{
-	__set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline void __clear_bit_le(int nr, void *addr)
-{
-	__clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int test_and_set_bit_le(int nr, void *addr)
-{
-	return test_and_set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int test_and_clear_bit_le(int nr, void *addr)
-{
-	return test_and_clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int __test_and_set_bit_le(int nr, void *addr)
-{
-	return __test_and_set_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-static inline int __test_and_clear_bit_le(int nr, void *addr)
-{
-	return __test_and_clear_bit(nr ^ BITOP_LE_SWIZZLE, addr);
-}
-
-#define find_first_zero_bit_le(addr, size) \
-	find_next_zero_bit_le((addr), (size), 0)
-unsigned long find_next_zero_bit_le(const void *addr,
-				    unsigned long size, unsigned long offset);
-
-unsigned long find_next_bit_le(const void *addr,
-				    unsigned long size, unsigned long offset);
 /* Bitmap functions for the ext2 filesystem */
 
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
