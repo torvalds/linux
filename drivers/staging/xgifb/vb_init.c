@@ -94,8 +94,8 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4,
 		      0x18,
 		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x01);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[0]);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[1]);
+	xgifb_reg_set(P3c4, 0x16, 0x03);
+	xgifb_reg_set(P3c4, 0x16, 0x83);
 	mdelay(1);
 	xgifb_reg_set(P3c4, 0x1B, 0x03);
 	udelay(500);
@@ -103,8 +103,8 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4,
 		      0x18,
 		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x00);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[2]);
-	xgifb_reg_set(P3c4, 0x16, pVBInfo->SR16[3]);
+	xgifb_reg_set(P3c4, 0x16, 0x03);
+	xgifb_reg_set(P3c4, 0x16, 0x83);
 	xgifb_reg_set(P3c4, 0x1B, 0x00);
 }
 
