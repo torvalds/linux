@@ -105,9 +105,9 @@ int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
  * other drivers such as 2d/3d acceleration drivers.
  * with this function call, gem object reference count would be increased.
  */
-void *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
+dma_addr_t *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
-					struct drm_file *file_priv);
+					struct drm_file *filp);
 
 /*
  * put dma address from gem handle and this function could be used for
@@ -116,7 +116,7 @@ void *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
  */
 void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
 					unsigned int gem_handle,
-					struct drm_file *file_priv);
+					struct drm_file *filp);
 
 /* get buffer offset to map to user space. */
 int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
