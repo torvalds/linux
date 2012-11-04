@@ -1378,17 +1378,17 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 		for (i = 0x47; i <= 0x4C; i++)
 			xgifb_reg_set(pVBInfo->P3d4,
 				      i,
-				      pVBInfo->AGPReg[i - 0x47]);
+				      XGI340_AGPReg[i - 0x47]);
 
 		for (i = 0x70; i <= 0x71; i++)
 			xgifb_reg_set(pVBInfo->P3d4,
 				      i,
-				      pVBInfo->AGPReg[6 + i - 0x70]);
+				      XGI340_AGPReg[6 + i - 0x70]);
 
 		for (i = 0x74; i <= 0x77; i++)
 			xgifb_reg_set(pVBInfo->P3d4,
 				      i,
-				      pVBInfo->AGPReg[8 + i - 0x74]);
+				      XGI340_AGPReg[8 + i - 0x74]);
 
 		pci_read_config_dword(pdev, 0x50, &Temp);
 		Temp >>= 20;

@@ -115,7 +115,7 @@ const unsigned char XGI340_CR6B[8][4] = {
 };
 
 /* CR47,CR48,CR49,CR4A,CR4B,CR4C,CR70,CR71,CR74,CR75,CR76,CR77 */
-static unsigned char XGI340_AGPReg[12] = {
+const unsigned char XGI340_AGPReg[12] = {
 	0x28, 0x23, 0x00, 0x20, 0x00, 0x20,
 	0x00, 0x05, 0xd0, 0x10, 0x10, 0x00
 };

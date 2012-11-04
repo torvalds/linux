@@ -264,5 +264,6 @@ extern const struct XGI_CRT1TableStruct XGI_CRT1Table[];
 extern const struct XGI_ECLKDataStruct XGI340_ECLKData[];
 extern const struct SiS_VCLKData XGI_VCLKData[];
 extern const unsigned char XGI340_CR6B[][4];
+extern const unsigned char XGI340_AGPReg[];
 
 #endif
