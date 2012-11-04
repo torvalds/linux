@@ -3033,11 +3033,6 @@ int nsDMA_tx_packet(PSDevice pDevice, unsigned int uDMAIdx, struct sk_buff *skb)
                 }
             }
 
-            if (pDevice->byCntMeasure == 2) {
-                bNeedDeAuth = TRUE;
-                pDevice->s802_11Counter.TKIPCounterMeasuresInvoked++;
-            }
-
             if (pDevice->bEnableHostWEP) {
                 if ((uNodeIndex != 0) &&
                     (pMgmt->sNodeDBTable[uNodeIndex].dwKeyIndex & PAIRWISE_KEY)) {

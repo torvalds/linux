@@ -733,7 +733,6 @@ typedef struct __device_info {
     BYTE                    byKeyIndex;
 
     BOOL                    bAES;
-    BYTE                    byCntMeasure;
 
     unsigned int                    uKeyLength;
     BYTE                    abyKey[WLAN_WEP232_KEYLEN];
