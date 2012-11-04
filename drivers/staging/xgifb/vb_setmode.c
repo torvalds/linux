@@ -24,7 +24,6 @@ static const unsigned short XGINew_VGA_DAC[] = {
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
 	pVBInfo->MCLKData = XGI340New_MCLKData;
-	pVBInfo->ECLKData = XGI340_ECLKData;
 	pVBInfo->VCLKData = XGI_VCLKData;
 	pVBInfo->VBVCLKData = XGI_VBVCLKData;
 	pVBInfo->ScreenOffset = XGI330_ScreenOffset;

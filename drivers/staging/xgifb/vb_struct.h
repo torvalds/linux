@@ -169,7 +169,6 @@ struct vb_device_info {
 	unsigned char  SR22;
 	unsigned char  SR25;
 	struct SiS_MCLKData  *MCLKData;
-	struct XGI_ECLKDataStruct  *ECLKData;
 
 	unsigned char   *ScreenOffset;
 	unsigned char   *pXGINew_DRAMTypeDefinition;

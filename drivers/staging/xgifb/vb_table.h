@@ -22,7 +22,7 @@ static struct SiS_MCLKData XGI27New_MCLKData[] = {
 	{0x5c, 0x23, 0x01, 166}
 };
 
-static struct XGI_ECLKDataStruct XGI340_ECLKData[] = {
+const struct XGI_ECLKDataStruct XGI340_ECLKData[] = {
 	{0x5c, 0x23, 0x01, 166},
 	{0x55, 0x84, 0x01, 123},
 	{0x7C, 0x08, 0x01, 200},

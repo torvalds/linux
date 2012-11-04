@@ -124,13 +124,13 @@ static void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension,
 
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x2E,
-		      pVBInfo->ECLKData[pVBInfo->ram_type].SR2E);
+		      XGI340_ECLKData[pVBInfo->ram_type].SR2E);
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x2F,
-		      pVBInfo->ECLKData[pVBInfo->ram_type].SR2F);
+		      XGI340_ECLKData[pVBInfo->ram_type].SR2F);
 	xgifb_reg_set(pVBInfo->P3c4,
 		      0x30,
-		      pVBInfo->ECLKData[pVBInfo->ram_type].SR30);
+		      XGI340_ECLKData[pVBInfo->ram_type].SR30);
 
 	/* When XG42 ECLK = MCLK = 207MHz, Set SR32 D[1:0] = 10b */
 	/* Modify SR32 value, when MCLK=207MHZ, ELCK=250MHz,
@@ -138,10 +138,10 @@ static void XGINew_SetMemoryClock(struct xgi_hw_device_info *HwDeviceExtension,
 	if (HwDeviceExtension->jChipType == XG42) {
 		if ((pVBInfo->MCLKData[pVBInfo->ram_type].SR28 == 0x1C) &&
 		    (pVBInfo->MCLKData[pVBInfo->ram_type].SR29 == 0x01) &&
-		    (((pVBInfo->ECLKData[pVBInfo->ram_type].SR2E == 0x1C) &&
-		      (pVBInfo->ECLKData[pVBInfo->ram_type].SR2F == 0x01)) ||
-		     ((pVBInfo->ECLKData[pVBInfo->ram_type].SR2E == 0x22) &&
-		      (pVBInfo->ECLKData[pVBInfo->ram_type].SR2F == 0x01))))
+		    (((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x1C) &&
+		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01)) ||
+		     ((XGI340_ECLKData[pVBInfo->ram_type].SR2E == 0x22) &&
+		      (XGI340_ECLKData[pVBInfo->ram_type].SR2F == 0x01))))
 			xgifb_reg_set(pVBInfo->P3c4,
 				      0x32,
 				      ((unsigned char) xgifb_reg_get(

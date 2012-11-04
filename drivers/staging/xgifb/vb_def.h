@@ -262,5 +262,6 @@
 extern const struct XGI_ExtStruct XGI330_EModeIDTable[];
 extern const struct XGI_Ext2Struct XGI330_RefIndex[];
 extern const struct XGI_CRT1TableStruct XGI_CRT1Table[];
+extern const struct XGI_ECLKDataStruct XGI340_ECLKData[];
 
 #endif
