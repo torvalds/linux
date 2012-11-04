@@ -1863,6 +1863,7 @@ static int __devexit spacc_remove(struct platform_device *pdev)
 static const struct platform_device_id spacc_id_table[] = {
 	{ "picochip,spacc-ipsec", },
 	{ "picochip,spacc-l2", },
+	{ }
 };
 
 static struct platform_driver spacc_driver = {
