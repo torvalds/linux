@@ -9,15 +9,12 @@ Description:	The integer value of this attribute ranges from 0-4.
 		and the mouse activates this profile immediately.
 Users:		http://roccat.sourceforge.net
 
-What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/koneplus/roccatkoneplus<minor>/firmware_version
-Date:		October 2010
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/koneplus/roccatkoneplus<minor>/info
+Date:		November 2012
 Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
-Description:	When read, this file returns the raw integer version number of the
-		firmware reported by the mouse. Using the integer value eases
-		further usage in other programs. To receive the real version
-		number the decimal point has to be shifted 2 positions to the
-		left. E.g. a returned value of 121 means 1.21
-		This file is readonly.
+Description:	When read, this file returns general data like firmware version.
+		When written, the device can be reset.
+		The data is 8 bytes long.
 Users:		http://roccat.sourceforge.net
 
 What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/<hid-bus>:<vendor-id>:<product-id>.<num>/koneplus/roccatkoneplus<minor>/macro

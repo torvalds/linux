@@ -183,6 +183,22 @@ static ssize_t koneplus_sysfs_write(struct file *fp, struct kobject *kobj,
 	return real_size;
 }
 
+static ssize_t koneplus_sysfs_read_info(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count)
+{
+	return koneplus_sysfs_read(fp, kobj, buf, off, count,
+			sizeof(struct koneplus_info), KONEPLUS_COMMAND_INFO);
+}
+
+static ssize_t koneplus_sysfs_write_info(struct file *fp,
+		struct kobject *kobj, struct bin_attribute *attr, char *buf,
+		loff_t off, size_t count)
+{
+	return koneplus_sysfs_write(fp, kobj, buf, off, count,
+			sizeof(struct koneplus_info), KONEPLUS_COMMAND_INFO);
+}
+
 static ssize_t koneplus_sysfs_write_talk(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
@@ -428,6 +444,12 @@ static struct device_attribute koneplus_attributes[] = {
 };
 
 static struct bin_attribute koneplus_bin_attributes[] = {
+	{
+		.attr = { .name = "info", .mode = 0660 },
+		.size = sizeof(struct koneplus_info),
+		.read = koneplus_sysfs_read_info,
+		.write = koneplus_sysfs_write_info
+	},
 	{
 		.attr = { .name = "sensor", .mode = 0660 },
 		.size = sizeof(struct koneplus_sensor),
