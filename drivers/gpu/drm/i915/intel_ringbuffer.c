@@ -1475,7 +1475,7 @@ static int blt_ring_flush(struct intel_ring_buffer *ring,
 	 */
 	if (invalidate & I915_GEM_DOMAIN_RENDER)
 		cmd |= MI_INVALIDATE_TLB | MI_FLUSH_DW_STORE_INDEX |
-			MI_FLUSH_DW_OP_STOREDW | MI_FLUSH_DW_OP_STOREDW;
+			MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
 	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
 	intel_ring_emit(ring, 0);
