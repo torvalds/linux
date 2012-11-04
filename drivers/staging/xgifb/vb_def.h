@@ -254,7 +254,6 @@
 #define XGI330_SR1F 0
 #define XGI330_SR23 0xf6
 #define XGI330_SR24 0x0d
-#define XGI330_SR25 0
 #define XGI330_SR31 0xc0
 #define XGI330_SR32 0x11
 #define XGI330_SR33 0

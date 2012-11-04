@@ -1401,7 +1401,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 	/* Set PCI */
 	xgifb_reg_set(pVBInfo->P3c4, 0x23, XGI330_SR23);
 	xgifb_reg_set(pVBInfo->P3c4, 0x24, XGI330_SR24);
-	xgifb_reg_set(pVBInfo->P3c4, 0x25, XGI330_SR25);
+	xgifb_reg_set(pVBInfo->P3c4, 0x25, 0);
 
 	if (HwDeviceExtension->jChipType < XG20) {
 		/* Set VB */
@@ -1482,11 +1482,8 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	XGINew_SetDRAMSize_340(xgifb_info, HwDeviceExtension, pVBInfo);
 
-	xgifb_reg_set(pVBInfo->P3c4,
-		      0x22,
-		      (unsigned char) ((pVBInfo->SR22) & 0xFE));
-
-	xgifb_reg_set(pVBInfo->P3c4, 0x21, pVBInfo->SR21);
+	xgifb_reg_set(pVBInfo->P3c4, 0x22, 0xfa);
+	xgifb_reg_set(pVBInfo->P3c4, 0x21, 0xa3);
 
 	XGINew_ChkSenseStatus(HwDeviceExtension, pVBInfo);
 	XGINew_SetModeScratch(HwDeviceExtension, pVBInfo);

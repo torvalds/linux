@@ -165,9 +165,6 @@ struct vb_device_info {
 
 	unsigned char  *AGPReg;
 	unsigned char  *SR16;
-	unsigned char  SR21;
-	unsigned char  SR22;
-	unsigned char  SR25;
 	struct SiS_MCLKData  *MCLKData;
 
 	unsigned char   *pXGINew_DRAMTypeDefinition;
