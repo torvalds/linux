@@ -234,8 +234,5 @@ define_load_up(fpu)
 #ifdef CONFIG_ALTIVEC
 define_load_up(altivec)
 #endif
-#ifdef CONFIG_VSX
-define_load_up(vsx)
-#endif
 
 #include "book3s_segment.S"

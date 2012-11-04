@@ -518,6 +518,7 @@
 #define	  SRR1_WS_DEEPER	0x00020000 /* Some resources not maintained */
 #define	  SRR1_WS_DEEP		0x00010000 /* All resources maintained */
 #define   SRR1_PROGFPE		0x00100000 /* Floating Point Enabled */
+#define   SRR1_PROGILL		0x00080000 /* Illegal instruction */
 #define   SRR1_PROGPRIV		0x00040000 /* Privileged instruction */
 #define   SRR1_PROGTRAP		0x00020000 /* Trap */
 #define   SRR1_PROGADDR		0x00010000 /* SRR0 contains subsequent addr */
