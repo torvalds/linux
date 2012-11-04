@@ -952,6 +952,10 @@ int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		arch_bp_generic_fields(data &
 					(DABR_DATA_WRITE | DABR_DATA_READ),
 							&attr.bp_type);
+
+		/* Enable breakpoint */
+		attr.disabled = false;
+
 		ret =  modify_user_hw_breakpoint(bp, &attr);
 		if (ret) {
 			ptrace_put_breakpoints(task);
