@@ -5220,8 +5220,8 @@ static void XGI_SetYFilter(unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
 	unsigned short tempbx, index;
-
-	unsigned char tempcl, tempch, tempal, *filterPtr;
+	unsigned char const *filterPtr;
+	unsigned char tempcl, tempch, tempal;
 
 	XGI_GetTVPtrIndex2(&tempbx, &tempcl, &tempch, pVBInfo); /* bx, cl, ch */
 
