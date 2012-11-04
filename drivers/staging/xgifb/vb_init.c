@@ -429,7 +429,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 	temp2 = 0;
 	for (i = 0; i < 4; i++) {
 		/* CR6B DQS fine tune delay */
-		temp = pVBInfo->CR6B[pVBInfo->ram_type][i];
+		temp = XGI340_CR6B[pVBInfo->ram_type][i];
 		for (j = 0; j < 4; j++) {
 			temp1 = ((temp >> (2 * j)) & 0x03) << 2;
 			temp2 |= temp1;
