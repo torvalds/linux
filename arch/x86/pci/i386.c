@@ -201,7 +201,7 @@ EXPORT_SYMBOL(pcibios_align_resource);
  *	    as well.
  */
 
-static void __init pcibios_allocate_bridge_resources(struct pci_dev *dev)
+static void pcibios_allocate_bridge_resources(struct pci_dev *dev)
 {
 	int idx;
 	struct resource *r;
@@ -223,7 +223,7 @@ static void __init pcibios_allocate_bridge_resources(struct pci_dev *dev)
 	}
 }
 
-static void __init pcibios_allocate_bus_resources(struct pci_bus *bus)
+static void pcibios_allocate_bus_resources(struct pci_bus *bus)
 {
 	struct pci_bus *child;
 
@@ -239,7 +239,7 @@ struct pci_check_idx_range {
 	int end;
 };
 
-static void __init pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
+static void pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
 {
 	int idx, disabled, i;
 	u16 command;
@@ -292,7 +292,7 @@ static void __init pcibios_allocate_dev_resources(struct pci_dev *dev, int pass)
 	}
 }
 
-static void __init pcibios_allocate_resources(struct pci_bus *bus, int pass)
+static void pcibios_allocate_resources(struct pci_bus *bus, int pass)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child;
@@ -306,7 +306,7 @@ static void __init pcibios_allocate_resources(struct pci_bus *bus, int pass)
 	}
 }
 
-static void __init pcibios_allocate_dev_rom_resource(struct pci_dev *dev)
+static void pcibios_allocate_dev_rom_resource(struct pci_dev *dev)
 {
 	struct resource *r;
 
@@ -324,7 +324,7 @@ static void __init pcibios_allocate_dev_rom_resource(struct pci_dev *dev)
 		r->start = 0;
 	}
 }
-static void __init pcibios_allocate_rom_resources(struct pci_bus *bus)
+static void pcibios_allocate_rom_resources(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child;
