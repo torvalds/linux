@@ -260,5 +260,6 @@
 #define XGI330_SR33 0
 
 extern const struct XGI_ExtStruct XGI330_EModeIDTable[];
+extern const struct XGI_Ext2Struct XGI330_RefIndex[];
 
 #endif

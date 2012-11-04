@@ -1969,7 +1969,7 @@ static const struct XGI330_LCDCapStruct XGI_LCDCapList[] = {
 	0x30, 0x10, 0x5A, 0x10, 0x10, 0x0A, 0xC0, 0x28, 0x10}
 };
 
-static struct XGI_Ext2Struct XGI330_RefIndex[] = {
+const struct XGI_Ext2Struct XGI330_RefIndex[] = {
 	{Mode32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,
 	0x00, 0x10, 0x59, 320, 200},/* 00 */
 	{Mode32Bpp + SupportAllCRT2 + SyncPN, RES320x200, VCLK25_175,

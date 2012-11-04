@@ -73,7 +73,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 
-	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
+	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
 	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
 
@@ -101,7 +101,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
-	index = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
+	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 
 	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[5];
 
@@ -111,7 +111,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
 	A = HT + 5;
 
-	HDE = (XGI_Pr->RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
+	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
 	E = HDE + 1;
 
 	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[3];
@@ -162,7 +162,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (sr_data & 0x01) << 10);
 	A = VT + 2;
 
-	VDE = XGI_Pr->RefIndex[RefreshRateTableIndex].YRes - 1;
+	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes - 1;
 	E = VDE + 1;
 
 	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[10];
@@ -202,24 +202,24 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*lower_margin = F;
 	*vsync_len = C;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x8000)
 		*sync &= ~FB_SYNC_VERT_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_VERT_HIGH_ACT;
 
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x4000)
 		*sync &= ~FB_SYNC_HOR_HIGH_ACT;
 	else
 		*sync |= FB_SYNC_HOR_HIGH_ACT;
 
 	*vmode = FB_VMODE_NONINTERLACED;
-	if (XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
+	if (XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag & 0x0080)
 		*vmode = FB_VMODE_INTERLACED;
 	else {
 		j = 0;
 		while (XGI330_EModeIDTable[j].Ext_ModeID != 0xff) {
 			if (XGI330_EModeIDTable[j].Ext_ModeID ==
-			    XGI_Pr->RefIndex[RefreshRateTableIndex].ModeID) {
+			    XGI330_RefIndex[RefreshRateTableIndex].ModeID) {
 				if (XGI330_EModeIDTable[j].Ext_ModeFlag &
 				    DoubleScanMode) {
 					*vmode = FB_VMODE_DOUBLE;
