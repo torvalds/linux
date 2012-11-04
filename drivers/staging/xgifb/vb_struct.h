@@ -180,8 +180,8 @@ struct vb_device_info {
 
 	struct XGI330_LCDCapStruct const *LCDCapList;
 
-	struct XGI_TimingHStruct  *TimingH;
-	struct XGI_TimingVStruct  *TimingV;
+	struct XGI_TimingHStruct TimingH;
+	struct XGI_TimingVStruct TimingV;
 
 	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;

@@ -54,8 +54,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->SR21 = 0xa3;
 	pVBInfo->SR22 = 0xfb;
 
-	pVBInfo->TimingH = XGI_TimingH;
-	pVBInfo->TimingV = XGI_TimingV;
 	pVBInfo->UpdateCRT1 = XGI_UpdateCRT1Table;
 
 	/* 310 customization related */
@@ -328,22 +326,22 @@ static void XGI_SetCRT1Timing_H(struct vb_device_info *pVBInfo,
 	data &= 0x7F;
 	xgifb_reg_set(pVBInfo->P3d4, 0x11, data);
 
-	data = pVBInfo->TimingH[0].data[0];
+	data = pVBInfo->TimingH.data[0];
 	xgifb_reg_set(pVBInfo->P3d4, 0, data);
 
 	for (i = 0x01; i <= 0x04; i++) {
-		data = pVBInfo->TimingH[0].data[i];
+		data = pVBInfo->TimingH.data[i];
 		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 1), data);
 	}
 
 	for (i = 0x05; i <= 0x06; i++) {
-		data = pVBInfo->TimingH[0].data[i];
+		data = pVBInfo->TimingH.data[i];
 		xgifb_reg_set(pVBInfo->P3c4, (unsigned short) (i + 6), data);
 	}
 
 	j = (unsigned char) xgifb_reg_get(pVBInfo->P3c4, 0x0e);
 	j &= 0x1F;
-	data = pVBInfo->TimingH[0].data[7];
+	data = pVBInfo->TimingH.data[7];
 	data &= 0xE0;
 	data |= j;
 	xgifb_reg_set(pVBInfo->P3c4, 0x0e, data);
@@ -385,28 +383,28 @@ static void XGI_SetCRT1Timing_V(unsigned short ModeIdIndex,
 	unsigned short i, j;
 
 	for (i = 0x00; i <= 0x01; i++) {
-		data = pVBInfo->TimingV[0].data[i];
+		data = pVBInfo->TimingV.data[i];
 		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 6), data);
 	}
 
 	for (i = 0x02; i <= 0x03; i++) {
-		data = pVBInfo->TimingV[0].data[i];
+		data = pVBInfo->TimingV.data[i];
 		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 0x0e), data);
 	}
 
 	for (i = 0x04; i <= 0x05; i++) {
-		data = pVBInfo->TimingV[0].data[i];
+		data = pVBInfo->TimingV.data[i];
 		xgifb_reg_set(pVBInfo->P3d4, (unsigned short) (i + 0x11), data);
 	}
 
 	j = (unsigned char) xgifb_reg_get(pVBInfo->P3c4, 0x0a);
 	j &= 0xC0;
-	data = pVBInfo->TimingV[0].data[6];
+	data = pVBInfo->TimingV.data[6];
 	data &= 0x3F;
 	data |= j;
 	xgifb_reg_set(pVBInfo->P3c4, 0x0a, data);
 
-	data = pVBInfo->TimingV[0].data[6];
+	data = pVBInfo->TimingV.data[6];
 	data &= 0x80;
 	data = data >> 2;
 
@@ -438,11 +436,11 @@ static void XGI_SetCRT1CRTC(unsigned short ModeNo, unsigned short ModeIdIndex,
 	xgifb_reg_set(pVBInfo->P3d4, 0x11, data); /* Unlock CRTC */
 
 	for (i = 0; i < 8; i++)
-		pVBInfo->TimingH[0].data[i]
+		pVBInfo->TimingH.data[i]
 				= pVBInfo->XGINEWUB_CRT1Table[index].CR[i];
 
 	for (i = 0; i < 7; i++)
-		pVBInfo->TimingV[0].data[i]
+		pVBInfo->TimingV.data[i]
 				= pVBInfo->XGINEWUB_CRT1Table[index].CR[i + 8];
 
 	XGI_SetCRT1Timing_H(pVBInfo, HwDeviceExtension);
@@ -1430,7 +1428,7 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 				       RefreshRateTableIndex, pVBInfo);
 
 		for (i = 0; i < 8; i++)
-			pVBInfo->TimingH[0].data[i] = LCDPtr[0].Reg[i];
+			pVBInfo->TimingH.data[i] = LCDPtr[0].Reg[i];
 	}
 
 	XGI_SetCRT1Timing_H(pVBInfo, HwDeviceExtension);
@@ -1440,7 +1438,7 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 					ModeIdIndex, RefreshRateTableIndex,
 					pVBInfo);
 		for (i = 0; i < 7; i++)
-			pVBInfo->TimingV[0].data[i] = LCDPtr1[0].Reg[i];
+			pVBInfo->TimingV.data[i] = LCDPtr1[0].Reg[i];
 	}
 
 	XGI_SetCRT1Timing_V(ModeIdIndex, ModeNo, pVBInfo);
