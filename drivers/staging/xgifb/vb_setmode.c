@@ -1310,30 +1310,13 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 		unsigned short RefreshRateTableIndex,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short i, tempdx, tempbx, tempal, modeflag;
+	unsigned short i, tempdx, tempbx, modeflag;
 
 	struct XGI330_LCDDataTablStruct *tempdi = NULL;
 
 	tempbx = BX;
 
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
-	tempal = pVBInfo->RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
-
-	tempal = tempal & 0x0f;
-
-	if (tempbx <= 1) { /* ExpLink */
-		tempal = pVBInfo->RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
-
-		if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
-			tempal = pVBInfo->RefIndex[RefreshRateTableIndex].
-							Ext_CRT2CRTC2;
-		}
-
-		if (tempbx & 0x01)
-			tempal = (tempal >> 4);
-
-		tempal = (tempal & 0x0f);
-	}
 
 	switch (tempbx) {
 	case 0:
