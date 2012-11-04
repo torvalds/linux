@@ -24,7 +24,6 @@ static const unsigned short XGINew_VGA_DAC[] = {
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
 	pVBInfo->MCLKData = XGI340New_MCLKData;
-	pVBInfo->ScreenOffset = XGI330_ScreenOffset;
 	pVBInfo->StResInfo = XGI330_StResInfo;
 	pVBInfo->ModeResInfo = XGI330_ModeResInfo;
 
@@ -806,7 +805,7 @@ static void XGI_SetCRT1Offset(unsigned short ModeNo,
 	/* GetOffset */
 	temp = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeInfo;
 	temp = temp >> 8;
-	temp = pVBInfo->ScreenOffset[temp];
+	temp = XGI330_ScreenOffset[temp];
 
 	temp2 = XGI330_RefIndex[RefreshRateTableIndex].Ext_InfoFlag;
 	temp2 &= InterlaceMode;
@@ -2977,7 +2976,7 @@ static unsigned short XGI_GetOffset(unsigned short ModeNo,
 
 	index = (modeinfo >> 8) & 0xFF;
 
-	temp = pVBInfo->ScreenOffset[index];
+	temp = XGI330_ScreenOffset[index];
 
 	if (infoflag & InterlaceMode)
 		temp = temp << 1;
