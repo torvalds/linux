@@ -56,7 +56,7 @@ struct XGI330_LCDDataTablStruct {
 	unsigned char  PANELID;
 	unsigned short MASK;
 	unsigned short CAP;
-	unsigned short DATAPTR;
+	void *DATAPTR;
 };
 
 struct XGI330_TVDataTablStruct {
