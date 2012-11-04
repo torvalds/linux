@@ -139,6 +139,24 @@ extern void led_blink_set_oneshot(struct led_classdev *led_cdev,
 extern void led_set_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness);
 
+/**
+ * led_trigger_rename_static - rename a trigger
+ * @name: the new trigger name
+ * @trig: the LED trigger to rename
+ *
+ * Change a LED trigger name by copying the string passed in
+ * name into current trigger name, which MUST be large
+ * enough for the new string.
+ *
+ * Note that name must NOT point to the same string used
+ * during LED registration, as that could lead to races.
+ *
+ * This is meant to be used on triggers with statically
+ * allocated name.
+ */
+extern void led_trigger_rename_static(const char *name,
+				      struct led_trigger *trig);
+
 /*
  * LED Triggers
  */
