@@ -52,11 +52,13 @@
 
 #include "common.h"
 
+/* Base address to the CP controller */
+static void __iomem *intcp_con_base;
+
 #define INTCP_PA_FLASH_BASE		0x24000000
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CTRL_BASE		__io_address(INTEGRATOR_CP_CTL_BASE)
 #define INTCP_FLASHPROG			0x04
 #define CINTEGRATOR_FLASHPROG_FLVPPEN	(1 << 0)
 #define CINTEGRATOR_FLASHPROG_FLWREN	(1 << 1)
@@ -127,11 +129,6 @@ static struct map_desc intcp_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(INTEGRATOR_CP_SIC_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_CP_CTL_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_CP_CTL_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
 	}
 };
 
@@ -147,9 +144,9 @@ static int intcp_flash_init(struct platform_device *dev)
 {
 	u32 val;
 
-	val = readl(INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	val = readl(intcp_con_base + INTCP_FLASHPROG);
 	val |= CINTEGRATOR_FLASHPROG_FLWREN;
-	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	writel(val, intcp_con_base + INTCP_FLASHPROG);
 
 	return 0;
 }
@@ -158,21 +155,21 @@ static void intcp_flash_exit(struct platform_device *dev)
 {
 	u32 val;
 
-	val = readl(INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	val = readl(intcp_con_base + INTCP_FLASHPROG);
 	val &= ~(CINTEGRATOR_FLASHPROG_FLVPPEN|CINTEGRATOR_FLASHPROG_FLWREN);
-	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	writel(val, intcp_con_base + INTCP_FLASHPROG);
 }
 
 static void intcp_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	u32 val;
 
-	val = readl(INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	val = readl(intcp_con_base + INTCP_FLASHPROG);
 	if (on)
 		val |= CINTEGRATOR_FLASHPROG_FLVPPEN;
 	else
 		val &= ~CINTEGRATOR_FLASHPROG_FLVPPEN;
-	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	writel(val, intcp_con_base + INTCP_FLASHPROG);
 }
 
 static struct physmap_flash_data intcp_flash_data = {
@@ -191,7 +188,7 @@ static struct physmap_flash_data intcp_flash_data = {
 static unsigned int mmc_status(struct device *dev)
 {
 	unsigned int status = readl(__io_address(0xca000000 + 4));
-	writel(8, __io_address(INTEGRATOR_CP_CTL_BASE + 8));
+	writel(8, intcp_con_base + 8);
 
 	return status & 8;
 }
@@ -337,9 +334,6 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
-/* Base address to the CP controller */
-static void __iomem *intcp_con_base;
-
 static void __init intcp_init_of(void)
 {
 	struct device_node *root;
@@ -416,6 +410,28 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ATAGS
+
+/*
+ * For the ATAG boot some static mappings are needed. This will
+ * go away with the ATAG support down the road.
+ */
+
+static struct map_desc intcp_io_desc_atag[] __initdata = {
+	{
+		.virtual	= IO_ADDRESS(INTEGRATOR_CP_CTL_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_CP_CTL_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	},
+};
+
+static void __init intcp_map_io_atag(void)
+{
+	iotable_init(intcp_io_desc_atag, ARRAY_SIZE(intcp_io_desc_atag));
+	intcp_con_base = __io_address(INTEGRATOR_CP_CTL_BASE);
+	intcp_map_io();
+}
+
 
 /*
  * This is where non-devicetree initialization code is collected and stashed
@@ -556,7 +572,7 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
-	.map_io		= intcp_map_io,
+	.map_io		= intcp_map_io_atag,
 	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
