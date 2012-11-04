@@ -62,7 +62,10 @@
 
 #include "common.h"
 
-/* 
+/* Base address to the AP system controller */
+static void __iomem *ap_syscon_base;
+
+/*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
  * is the (PA >> 12).
  *
@@ -70,7 +73,6 @@
  * just for now).
  */
 #define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
-#define VA_SC_BASE	__io_address(INTEGRATOR_SC_BASE)
 #define VA_EBI_BASE	__io_address(INTEGRATOR_EBI_BASE)
 #define VA_CMIC_BASE	__io_address(INTEGRATOR_HDR_IC)
 
@@ -96,11 +98,6 @@ static struct map_desc ap_io_desc[] __initdata = {
 	{
 		.virtual	= IO_ADDRESS(INTEGRATOR_HDR_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_HDR_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
@@ -203,8 +200,6 @@ device_initcall(irq_syscore_init);
 /*
  * Flash handling.
  */
-#define SC_CTRLC (VA_SC_BASE + INTEGRATOR_SC_CTRLC_OFFSET)
-#define SC_CTRLS (VA_SC_BASE + INTEGRATOR_SC_CTRLS_OFFSET)
 #define EBI_CSR1 (VA_EBI_BASE + INTEGRATOR_EBI_CSR1_OFFSET)
 #define EBI_LOCK (VA_EBI_BASE + INTEGRATOR_EBI_LOCK_OFFSET)
 
@@ -212,7 +207,8 @@ static int ap_flash_init(struct platform_device *dev)
 {
 	u32 tmp;
 
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP, SC_CTRLC);
+	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
+	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 
 	tmp = readl(EBI_CSR1) | INTEGRATOR_EBI_WRITE_ENABLE;
 	writel(tmp, EBI_CSR1);
@@ -229,7 +225,8 @@ static void ap_flash_exit(struct platform_device *dev)
 {
 	u32 tmp;
 
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP, SC_CTRLC);
+	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
+	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 
 	tmp = readl(EBI_CSR1) & ~INTEGRATOR_EBI_WRITE_ENABLE;
 	writel(tmp, EBI_CSR1);
@@ -243,9 +240,12 @@ static void ap_flash_exit(struct platform_device *dev)
 
 static void ap_flash_set_vpp(struct platform_device *pdev, int on)
 {
-	void __iomem *reg = on ? SC_CTRLS : SC_CTRLC;
-
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN, reg);
+	if (on)
+		writel(INTEGRATOR_SC_CTRL_nFLVPPEN,
+		       ap_syscon_base + INTEGRATOR_SC_CTRLS_OFFSET);
+	else
+		writel(INTEGRATOR_SC_CTRL_nFLVPPEN,
+		       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 }
 
 static struct physmap_flash_data ap_flash_data = {
@@ -464,9 +464,6 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	{ /* sentinel */ },
 };
 
-/* Base address to the AP system controller */
-static void __iomem *ap_syscon_base;
-
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
@@ -523,7 +520,7 @@ static void __init ap_init_of(void)
 	of_platform_populate(root, of_default_bus_match_table,
 			ap_auxdata_lookup, parent);
 
-	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
+	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
 		struct lm_device *lmdev;
 
@@ -565,6 +562,27 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ATAGS
+
+/*
+ * For the ATAG boot some static mappings are needed. This will
+ * go away with the ATAG support down the road.
+ */
+
+static struct map_desc ap_io_desc_atag[] __initdata = {
+	{
+		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	},
+};
+
+static void __init ap_map_io_atag(void)
+{
+	iotable_init(ap_io_desc_atag, ARRAY_SIZE(ap_io_desc_atag));
+	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
+	ap_map_io();
+}
 
 /*
  * This is where non-devicetree initialization code is collected and stashed
@@ -634,7 +652,7 @@ static void __init ap_init(void)
 
 	platform_device_register(&cfi_flash_device);
 
-	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
+	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
 		struct lm_device *lmdev;
 
@@ -661,7 +679,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
-	.map_io		= ap_map_io,
+	.map_io		= ap_map_io_atag,
 	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,
