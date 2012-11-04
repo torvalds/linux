@@ -5897,6 +5897,13 @@ S:	Maintained
 F:	Documentation/video4linux/README.pvrusb2
 F:	drivers/media/usb/pvrusb2/
 
+PWC WEBCAM DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/usb/pwc/*
+
 PWM SUBSYSTEM
 M:	Thierry Reding <thierry.reding@avionic-design.de>
 L:	linux-kernel@vger.kernel.org
