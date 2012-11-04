@@ -85,11 +85,6 @@ static struct map_desc intcp_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_EBI_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_EBI_BASE),
 		.length		= SZ_4K,
