@@ -1922,6 +1922,7 @@ static const struct platform_device_id nmk_pinctrl_id[] = {
 	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
 	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
 	{ "pinctrl-db8540", PINCTRL_NMK_DB8540 },
+	{ }
 };
 
 static struct platform_driver nmk_pinctrl_driver = {
