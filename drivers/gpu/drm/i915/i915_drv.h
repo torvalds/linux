@@ -746,7 +746,7 @@ typedef struct drm_i915_private {
 
 	struct {
 		/** Bridge to intel-gtt-ko */
-		const struct intel_gtt *gtt;
+		struct intel_gtt *gtt;
 		/** Memory allocator for GTT stolen memory */
 		struct drm_mm stolen;
 		/** Memory allocator for GTT */
@@ -1538,6 +1538,14 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 			      unsigned long start,
 			      unsigned long mappable_end,
 			      unsigned long end);
+int i915_gem_gtt_init(struct drm_device *dev);
+void i915_gem_gtt_fini(struct drm_device *dev);
+extern inline void i915_gem_chipset_flush(struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen < 6)
+		intel_gtt_chipset_flush();
+}
+
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,

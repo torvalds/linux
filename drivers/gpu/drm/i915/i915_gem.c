@@ -845,12 +845,12 @@ out:
 		 * domain anymore. */
 		if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 			i915_gem_clflush_object(obj);
-			intel_gtt_chipset_flush();
+			i915_gem_chipset_flush(dev);
 		}
 	}
 
 	if (needs_clflush_after)
-		intel_gtt_chipset_flush();
+		i915_gem_chipset_flush(dev);
 
 	return ret;
 }
@@ -3058,7 +3058,7 @@ i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj)
 		return;
 
 	i915_gem_clflush_object(obj);
-	intel_gtt_chipset_flush();
+	i915_gem_chipset_flush(obj->base.dev);
 	old_write_domain = obj->base.write_domain;
 	obj->base.write_domain = 0;
 
@@ -3959,7 +3959,7 @@ i915_gem_init_hw(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 
-	if (!intel_enable_gtt())
+	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
 
 	if (IS_HASWELL(dev) && (I915_READ(0x120010) == 1))
@@ -4294,7 +4294,7 @@ void i915_gem_detach_phys_object(struct drm_device *dev,
 			page_cache_release(page);
 		}
 	}
-	intel_gtt_chipset_flush();
+	i915_gem_chipset_flush(dev);
 
 	obj->phys_obj->cur_obj = NULL;
 	obj->phys_obj = NULL;
@@ -4381,7 +4381,7 @@ i915_gem_phys_pwrite(struct drm_device *dev,
 			return -EFAULT;
 	}
 
-	intel_gtt_chipset_flush();
+	i915_gem_chipset_flush(dev);
 	return 0;
 }
 

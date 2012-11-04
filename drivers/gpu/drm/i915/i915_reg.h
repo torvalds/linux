@@ -41,6 +41,12 @@
  */
 #define INTEL_GMCH_CTRL		0x52
 #define INTEL_GMCH_VGA_DISABLE  (1 << 1)
+#define SNB_GMCH_CTRL		0x50
+#define    SNB_GMCH_GGMS_SHIFT	8 /* GTT Graphics Memory Size */
+#define    SNB_GMCH_GGMS_MASK	0x3
+#define    SNB_GMCH_GMS_SHIFT   3 /* Graphics Mode Select */
+#define    SNB_GMCH_GMS_MASK    0x1f
+
 
 /* PCI config space */
 

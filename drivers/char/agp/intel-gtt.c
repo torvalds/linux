@@ -1686,7 +1686,7 @@ int intel_gmch_probe(struct pci_dev *bridge_pdev, struct pci_dev *gpu_pdev,
 }
 EXPORT_SYMBOL(intel_gmch_probe);
 
-const struct intel_gtt *intel_gtt_get(void)
+struct intel_gtt *intel_gtt_get(void)
 {
 	return &intel_private.base;
 }
