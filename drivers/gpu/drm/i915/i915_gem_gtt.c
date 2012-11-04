@@ -379,6 +379,13 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 	 */
 	if (i != 0)
 		WARN_ON(readl(&gtt_entries[i-1]) != pte_encode(dev, addr, level));
+
+	/* This next bit makes the above posting read even more important. We
+	 * want to flush the TLBs only after we're certain all the PTE updates
+	 * have finished.
+	 */
+	I915_WRITE(GFX_FLSH_CNTL_GEN6, GFX_FLSH_CNTL_EN);
+	POSTING_READ(GFX_FLSH_CNTL_GEN6);
 }
 
 void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
@@ -589,8 +596,8 @@ int i915_gem_gtt_init(struct drm_device *dev)
 		goto err_out;
 	}
 
-	dev_priv->mm.gtt->gtt = ioremap(gtt_bus_addr,
-					dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
+	dev_priv->mm.gtt->gtt = ioremap_wc(gtt_bus_addr,
+					   dev_priv->mm.gtt->gtt_total_entries * sizeof(gtt_pte_t));
 	if (!dev_priv->mm.gtt->gtt) {
 		DRM_ERROR("Failed to map the gtt page table\n");
 		teardown_scratch_page(dev);

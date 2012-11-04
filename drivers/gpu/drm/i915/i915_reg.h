@@ -694,6 +694,8 @@
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
 #define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
+#define GFX_FLSH_CNTL_GEN6	0x101008
+#define   GFX_FLSH_CNTL_EN	(1<<0)
 #define ECOSKPD		0x021d0
 #define   ECO_GATING_CX_ONLY	(1<<3)
 #define   ECO_FLIP_DONE		(1<<0)
