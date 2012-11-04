@@ -200,7 +200,7 @@ static struct XGI_ExtStruct XGI330_EModeIDTable[] = {
 	{0xff, 0x0000, 0x0000, 0x00, 0x00, 0x00}
 };
 
-static struct SiS_StandTable_S XGI330_StandTable = {
+static const struct SiS_StandTable_S XGI330_StandTable = {
 /* ExtVGATable */
 	0x00, 0x00, 0x00, 0x0000,
 	{0x01, 0x0f, 0x00, 0x0e},

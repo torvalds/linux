@@ -183,7 +183,6 @@ struct vb_device_info {
 	struct XGI_TimingHStruct TimingH;
 	struct XGI_TimingVStruct TimingV;
 
-	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;
 	struct XGI_Ext2Struct        *RefIndex;
 	struct XGI_CRT1TableStruct    *XGINEWUB_CRT1Table;
