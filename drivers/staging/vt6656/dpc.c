@@ -617,7 +617,7 @@ RXbBulkInProcessData (
                 //Discard beacon packet which channel is 0
                 if ( (WLAN_GET_FC_FSTYPE((pRxPacket->p80211Header->sA3.wFrameCtl)) == WLAN_FSTYPE_BEACON) ||
                      (WLAN_GET_FC_FSTYPE((pRxPacket->p80211Header->sA3.wFrameCtl)) == WLAN_FSTYPE_PROBERESP) ) {
-                    return TRUE;
+			return FALSE;
                 }
             }
             pRxPacket->byRxChannel = (*pbyRxSts) >> 2;
@@ -912,7 +912,7 @@ RXbBulkInProcessData (
                      pDevice->skb->protocol = htons(ETH_P_802_2);
                      memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
                      netif_rx(pDevice->skb);
-                     pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
+			return TRUE;
                  }
 
                 return FALSE;
@@ -1533,6 +1533,11 @@ RXvFreeRCB(
 
     ASSERT(!pRCB->Ref);     // should be 0
     ASSERT(pRCB->pDevice);  // shouldn't be NULL
+
+	if (bReAllocSkb == FALSE) {
+		kfree_skb(pRCB->skb);
+		bReAllocSkb = TRUE;
+	}
 
     if (bReAllocSkb == TRUE) {
         pRCB->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
