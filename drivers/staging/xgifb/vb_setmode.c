@@ -23,8 +23,6 @@ static const unsigned short XGINew_VGA_DAC[] = {
 
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
-	pVBInfo->XGINEWUB_CRT1Table = XGI_CRT1Table;
-
 	pVBInfo->MCLKData = XGI340New_MCLKData;
 	pVBInfo->ECLKData = XGI340_ECLKData;
 	pVBInfo->VCLKData = XGI_VCLKData;
@@ -434,11 +432,11 @@ static void XGI_SetCRT1CRTC(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	for (i = 0; i < 8; i++)
 		pVBInfo->TimingH.data[i]
-				= pVBInfo->XGINEWUB_CRT1Table[index].CR[i];
+				= XGI_CRT1Table[index].CR[i];
 
 	for (i = 0; i < 7; i++)
 		pVBInfo->TimingV.data[i]
-				= pVBInfo->XGINEWUB_CRT1Table[index].CR[i + 8];
+				= XGI_CRT1Table[index].CR[i + 8];
 
 	XGI_SetCRT1Timing_H(pVBInfo, HwDeviceExtension);
 
@@ -463,21 +461,21 @@ static void XGI_SetXG21CRTC(unsigned short ModeNo, unsigned short ModeIdIndex,
 
 	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 	/* Tempax: CR4 HRS */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[3];
+	Tempax = XGI_CRT1Table[index].CR[3];
 	Tempcx = Tempax; /* Tempcx: HRS */
 	/* SR2E[7:0]->HRS */
 	xgifb_reg_set(pVBInfo->P3c4, 0x2E, Tempax);
 
-	Tempdx = pVBInfo->XGINEWUB_CRT1Table[index].CR[5]; /* SRB */
+	Tempdx = XGI_CRT1Table[index].CR[5]; /* SRB */
 	Tempdx &= 0xC0; /* Tempdx[7:6]: SRB[7:6] */
 	Temp1 = Tempdx; /* Temp1[7:6]: HRS[9:8] */
 	Temp1 <<= 2; /* Temp1[9:8]: HRS[9:8] */
 	Temp1 |= Tempax; /* Temp1[9:0]: HRS[9:0] */
 
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[4]; /* CR5 HRE */
+	Tempax = XGI_CRT1Table[index].CR[4]; /* CR5 HRE */
 	Tempax &= 0x1F; /* Tempax[4:0]: HRE[4:0] */
 
-	Tempbx = pVBInfo->XGINEWUB_CRT1Table[index].CR[6]; /* SRC */
+	Tempbx = XGI_CRT1Table[index].CR[6]; /* SRC */
 	Tempbx &= 0x04; /* Tempbx[2]: HRE[5] */
 	Tempbx <<= 3; /* Tempbx[5]: HRE[5] */
 	Tempax |= Tempbx; /* Tempax[5:0]: HRE[5:0] */
@@ -499,12 +497,12 @@ static void XGI_SetXG21CRTC(unsigned short ModeNo, unsigned short ModeIdIndex,
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x30, 0xE3, 00);
 
 	/* CR10 VRS */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[10];
+	Tempax = XGI_CRT1Table[index].CR[10];
 	Tempbx = Tempax; /* Tempbx: VRS */
 	Tempax &= 0x01; /* Tempax[0]: VRS[0] */
 	xgifb_reg_or(pVBInfo->P3c4, 0x33, Tempax); /* SR33[0]->VRS[0] */
 	/* CR7[2][7] VRE */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[9];
+	Tempax = XGI_CRT1Table[index].CR[9];
 	Tempcx = Tempbx >> 1; /* Tempcx[6:0]: VRS[7:1] */
 	Tempdx = Tempax & 0x04; /* Tempdx[2]: CR7[2] */
 	Tempdx <<= 5; /* Tempdx[7]: VRS[8] */
@@ -518,17 +516,17 @@ static void XGI_SetXG21CRTC(unsigned short ModeNo, unsigned short ModeIdIndex,
 	Temp2 = Tempax << 2; /* Temp2[9]: VRS[9] */
 	Temp1 |= Temp2; /* Temp1[9:0]: VRS[9:0] */
 	/* Tempax: SRA */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[14];
+	Tempax = XGI_CRT1Table[index].CR[14];
 	Tempax &= 0x08; /* Tempax[3]: VRS[3] */
 	Temp2 = Tempax;
 	Temp2 <<= 7; /* Temp2[10]: VRS[10] */
 	Temp1 |= Temp2; /* Temp1[10:0]: VRS[10:0] */
 
 	/* Tempax: CR11 VRE */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[11];
+	Tempax = XGI_CRT1Table[index].CR[11];
 	Tempax &= 0x0F; /* Tempax[3:0]: VRE[3:0] */
 	/* Tempbx: SRA */
-	Tempbx = pVBInfo->XGINEWUB_CRT1Table[index].CR[14];
+	Tempbx = XGI_CRT1Table[index].CR[14];
 	Tempbx &= 0x20; /* Tempbx[5]: VRE[5] */
 	Tempbx >>= 1; /* Tempbx[4]: VRE[4] */
 	Tempax |= Tempbx; /* Tempax[4:0]: VRE[4:0] */
@@ -560,21 +558,21 @@ static void XGI_SetXG27CRTC(unsigned short ModeNo,
 
 	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 	/* Tempax: CR4 HRS */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[3];
+	Tempax = XGI_CRT1Table[index].CR[3];
 	Tempbx = Tempax; /* Tempbx: HRS[7:0] */
 	/* SR2E[7:0]->HRS */
 	xgifb_reg_set(pVBInfo->P3c4, 0x2E, Tempax);
 
 	/* SR0B */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[5];
+	Tempax = XGI_CRT1Table[index].CR[5];
 	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8]*/
 	Tempbx |= (Tempax << 2); /* Tempbx: HRS[9:0] */
 
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[4]; /* CR5 HRE */
+	Tempax = XGI_CRT1Table[index].CR[4]; /* CR5 HRE */
 	Tempax &= 0x1F; /* Tempax[4:0]: HRE[4:0] */
 	Tempcx = Tempax; /* Tempcx: HRE[4:0] */
 
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[6]; /* SRC */
+	Tempax = XGI_CRT1Table[index].CR[6]; /* SRC */
 	Tempax &= 0x04; /* Tempax[2]: HRE[5] */
 	Tempax <<= 3; /* Tempax[5]: HRE[5] */
 	Tempcx |= Tempax; /* Tempcx[5:0]: HRE[5:0] */
@@ -583,12 +581,12 @@ static void XGI_SetXG27CRTC(unsigned short ModeNo,
 	Tempbx |= Tempcx; /* Tempbx: HRS[9:6]HRE[5:0] */
 
 	/* Tempax: CR4 HRS */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[3];
+	Tempax = XGI_CRT1Table[index].CR[3];
 	Tempax &= 0x3F; /* Tempax: HRS[5:0] */
 	if (Tempcx <= Tempax) /* HRE[5:0] < HRS[5:0] */
 		Tempbx += 0x40; /* Tempbx= Tempbx + 0x40 : HRE[9:0]*/
 
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[5]; /* SR0B */
+	Tempax = XGI_CRT1Table[index].CR[5]; /* SR0B */
 	Tempax &= 0xC0; /* Tempax[7:6]: SR0B[7:6]: HRS[9:8]*/
 	Tempax >>= 6; /* Tempax[1:0]: HRS[9:8]*/
 	Tempax |= ((Tempbx << 2) & 0xFF); /* Tempax[7:2]: HRE[5:0] */
@@ -597,13 +595,13 @@ static void XGI_SetXG27CRTC(unsigned short ModeNo,
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x30, 0xE3, 00);
 
 	/* CR10 VRS */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[10];
+	Tempax = XGI_CRT1Table[index].CR[10];
 	/* SR34[7:0]->VRS[7:0] */
 	xgifb_reg_set(pVBInfo->P3c4, 0x34, Tempax);
 
 	Tempcx = Tempax; /* Tempcx <= VRS[7:0] */
 	/* CR7[7][2] VRS[9][8] */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[9];
+	Tempax = XGI_CRT1Table[index].CR[9];
 	Tempbx = Tempax; /* Tempbx <= CR07[7:0] */
 	Tempax = Tempax & 0x04; /* Tempax[2]: CR7[2]: VRS[8] */
 	Tempax >>= 2; /* Tempax[0]: VRS[8] */
@@ -612,15 +610,15 @@ static void XGI_SetXG27CRTC(unsigned short ModeNo,
 	Tempcx |= (Tempax << 8); /* Tempcx <= VRS[8:0] */
 	Tempcx |= ((Tempbx & 0x80) << 2); /* Tempcx <= VRS[9:0] */
 	/* Tempax: SR0A */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[14];
+	Tempax = XGI_CRT1Table[index].CR[14];
 	Tempax &= 0x08; /* SR0A[3] VRS[10] */
 	Tempcx |= (Tempax << 7); /* Tempcx <= VRS[10:0] */
 
 	/* Tempax: CR11 VRE */
-	Tempax = pVBInfo->XGINEWUB_CRT1Table[index].CR[11];
+	Tempax = XGI_CRT1Table[index].CR[11];
 	Tempax &= 0x0F; /* Tempax[3:0]: VRE[3:0] */
 	/* Tempbx: SR0A */
-	Tempbx = pVBInfo->XGINEWUB_CRT1Table[index].CR[14];
+	Tempbx = XGI_CRT1Table[index].CR[14];
 	Tempbx &= 0x20; /* Tempbx[5]: SR0A[5]: VRE[4] */
 	Tempbx >>= 1; /* Tempbx[4]: VRE[4] */
 	Tempax |= Tempbx; /* Tempax[4:0]: VRE[4:0] */
@@ -2727,16 +2725,16 @@ static void XGI_GetRAMDAC2DATA(unsigned short ModeNo,
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	CRT1Index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 	CRT1Index &= IndexMask;
-	temp1 = (unsigned short) pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[0];
-	temp2 = (unsigned short) pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[5];
+	temp1 = (unsigned short) XGI_CRT1Table[CRT1Index].CR[0];
+	temp2 = (unsigned short) XGI_CRT1Table[CRT1Index].CR[5];
 	tempax = (temp1 & 0xFF) | ((temp2 & 0x03) << 8);
-	tempbx = (unsigned short) pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[8];
+	tempbx = (unsigned short) XGI_CRT1Table[CRT1Index].CR[8];
 	tempcx = (unsigned short)
-			pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[14] << 8;
+			XGI_CRT1Table[CRT1Index].CR[14] << 8;
 	tempcx &= 0x0100;
 	tempcx = tempcx << 2;
 	tempbx |= tempcx;
-	temp1 = (unsigned short) pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[9];
+	temp1 = (unsigned short) XGI_CRT1Table[CRT1Index].CR[9];
 
 	if (temp1 & 0x01)
 		tempbx |= 0x0100;
@@ -3092,14 +3090,13 @@ static void XGI_SetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 		tempcx += tempbx;
 
 		if (pVBInfo->VBInfo & SetCRT2ToRAMDAC) {
-			tempbx = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[4];
-			tempbx |= ((pVBInfo->
-					XGINEWUB_CRT1Table[CRT1Index].CR[14] &
+			tempbx = XGI_CRT1Table[CRT1Index].CR[4];
+			tempbx |= ((XGI_CRT1Table[CRT1Index].CR[14] &
 						0xC0) << 2);
 			tempbx = (tempbx - 3) << 3; /* (VGAHRS-3)*8 */
-			tempcx = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[5];
+			tempcx = XGI_CRT1Table[CRT1Index].CR[5];
 			tempcx &= 0x1F;
-			temp = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[15];
+			temp = XGI_CRT1Table[CRT1Index].CR[15];
 			temp = (temp & 0x04) << (5 - 2); /* VGAHRE D[5] */
 			tempcx = ((tempcx | temp) - 3) << 3; /* (VGAHRE-3)*8 */
 		}
@@ -3128,14 +3125,13 @@ static void XGI_SetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 		tempcx += tempbx;
 
 		if (pVBInfo->VBInfo & SetCRT2ToRAMDAC) {
-			tempbx = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[3];
-			tempbx |= ((pVBInfo->
-					XGINEWUB_CRT1Table[CRT1Index].CR[5] &
+			tempbx = XGI_CRT1Table[CRT1Index].CR[3];
+			tempbx |= ((XGI_CRT1Table[CRT1Index].CR[5] &
 						0xC0) << 2);
 			tempbx = (tempbx - 3) << 3; /* (VGAHRS-3)*8 */
-			tempcx = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[4];
+			tempcx = XGI_CRT1Table[CRT1Index].CR[4];
 			tempcx &= 0x1F;
-			temp = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[6];
+			temp = XGI_CRT1Table[CRT1Index].CR[6];
 			temp = (temp & 0x04) << (5 - 2); /* VGAHRE D[5] */
 			tempcx = ((tempcx | temp) - 3) << 3; /* (VGAHRE-3)*8 */
 			tempbx += 16;
@@ -3177,8 +3173,8 @@ static void XGI_SetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 	tempcx = ((pVBInfo->VGAVT - pVBInfo->VGAVDE) >> 4) + tempbx + 1;
 
 	if (pVBInfo->VBInfo & SetCRT2ToRAMDAC) {
-		tempbx = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[10];
-		temp = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[9];
+		tempbx = XGI_CRT1Table[CRT1Index].CR[10];
+		temp = XGI_CRT1Table[CRT1Index].CR[9];
 
 		if (temp & 0x04)
 			tempbx |= 0x0100;
@@ -3186,12 +3182,12 @@ static void XGI_SetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 		if (temp & 0x080)
 			tempbx |= 0x0200;
 
-		temp = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[14];
+		temp = XGI_CRT1Table[CRT1Index].CR[14];
 
 		if (temp & 0x08)
 			tempbx |= 0x0400;
 
-		temp = pVBInfo->XGINEWUB_CRT1Table[CRT1Index].CR[11];
+		temp = XGI_CRT1Table[CRT1Index].CR[11];
 		tempcx = (tempcx & 0xFF00) | (temp & 0x00FF);
 	}
 

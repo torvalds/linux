@@ -103,9 +103,9 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			ModeIdIndex, XGI_Pr);
 	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[5];
+	sr_data = XGI_CRT1Table[index].CR[5];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[0];
+	cr_data = XGI_CRT1Table[index].CR[0];
 
 	/* Horizontal total */
 	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
@@ -114,22 +114,22 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	HDE = (XGI330_RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
 	E = HDE + 1;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[3];
+	cr_data = XGI_CRT1Table[index].CR[3];
 
 	/* Horizontal retrace (=sync) start */
 	HRS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0xC0) << 2);
 	F = HRS - E - 3;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[1];
+	cr_data = XGI_CRT1Table[index].CR[1];
 
 	/* Horizontal blank start */
 	HBS = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x30) << 4);
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[6];
+	sr_data = XGI_CRT1Table[index].CR[6];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[2];
+	cr_data = XGI_CRT1Table[index].CR[2];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[4];
+	cr_data2 = XGI_CRT1Table[index].CR[4];
 
 	/* Horizontal blank end */
 	HBE = (cr_data & 0x1f) | ((unsigned short) (cr_data2 & 0x80) >> 2)
@@ -150,11 +150,11 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	*right_margin = F * 8;
 	*hsync_len = C * 8;
 
-	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[14];
+	sr_data = XGI_CRT1Table[index].CR[14];
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[8];
+	cr_data = XGI_CRT1Table[index].CR[8];
 
-	cr_data2 = XGI_Pr->XGINEWUB_CRT1Table[index].CR[9];
+	cr_data2 = XGI_CRT1Table[index].CR[9];
 
 	/* Vertical total */
 	VT = (cr_data & 0xFF) | ((unsigned short) (cr_data2 & 0x01) << 8)
@@ -165,7 +165,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	VDE = XGI330_RefIndex[RefreshRateTableIndex].YRes - 1;
 	E = VDE + 1;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[10];
+	cr_data = XGI_CRT1Table[index].CR[10];
 
 	/* Vertical retrace (=sync) start */
 	VRS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x04) << 6)
@@ -173,23 +173,23 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 			| ((unsigned short) (sr_data & 0x08) << 7);
 	F = VRS + 1 - E;
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[12];
+	cr_data = XGI_CRT1Table[index].CR[12];
 
-	cr_data3 = (XGI_Pr->XGINEWUB_CRT1Table[index].CR[14] & 0x80) << 5;
+	cr_data3 = (XGI_CRT1Table[index].CR[14] & 0x80) << 5;
 
 	/* Vertical blank start */
 	VBS = (cr_data & 0xff) | ((unsigned short) (cr_data2 & 0x08) << 5)
 			| ((unsigned short) (cr_data3 & 0x20) << 4)
 			| ((unsigned short) (sr_data & 0x04) << 8);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[13];
+	cr_data = XGI_CRT1Table[index].CR[13];
 
 	/* Vertical blank end */
 	VBE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x10) << 4);
 	temp = VBE - ((E - 1) & 511);
 	B = (temp > 0) ? temp : (temp + 512);
 
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[11];
+	cr_data = XGI_CRT1Table[index].CR[11];
 
 	/* Vertical retrace (=sync) end */
 	VRE = (cr_data & 0x0f) | ((sr_data & 0x20) >> 1);
