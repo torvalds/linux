@@ -22,6 +22,7 @@
 #include <asm/kvm_book3s.h>
 #include <asm/reg.h>
 #include <asm/switch_to.h>
+#include <asm/time.h>
 
 #define OP_19_XOP_RFID		18
 #define OP_19_XOP_RFI		50
@@ -395,6 +396,12 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 		    (mfmsr() & MSR_HV))
 			vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
 		break;
+	case SPRN_PURR:
+		to_book3s(vcpu)->purr_offset = spr_val - get_tb();
+		break;
+	case SPRN_SPURR:
+		to_book3s(vcpu)->spurr_offset = spr_val - get_tb();
+		break;
 	case SPRN_GQR0:
 	case SPRN_GQR1:
 	case SPRN_GQR2:
@@ -412,6 +419,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 	case SPRN_CTRLF:
 	case SPRN_CTRLT:
 	case SPRN_L2CR:
+	case SPRN_DSCR:
 	case SPRN_MMCR0_GEKKO:
 	case SPRN_MMCR1_GEKKO:
 	case SPRN_PMC1_GEKKO:
@@ -483,8 +491,14 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 		*spr_val = to_book3s(vcpu)->hid[5];
 		break;
 	case SPRN_CFAR:
-	case SPRN_PURR:
+	case SPRN_DSCR:
 		*spr_val = 0;
+		break;
+	case SPRN_PURR:
+		*spr_val = get_tb() + to_book3s(vcpu)->purr_offset;
+		break;
+	case SPRN_SPURR:
+		*spr_val = get_tb() + to_book3s(vcpu)->purr_offset;
 		break;
 	case SPRN_GQR0:
 	case SPRN_GQR1:
