@@ -259,4 +259,6 @@
 #define XGI330_SR32 0x11
 #define XGI330_SR33 0
 
+extern const struct XGI_ExtStruct XGI330_EModeIDTable[];
+
 #endif

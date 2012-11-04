@@ -217,10 +217,10 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		*vmode = FB_VMODE_INTERLACED;
 	else {
 		j = 0;
-		while (XGI_Pr->EModeIDTable[j].Ext_ModeID != 0xff) {
-			if (XGI_Pr->EModeIDTable[j].Ext_ModeID ==
+		while (XGI330_EModeIDTable[j].Ext_ModeID != 0xff) {
+			if (XGI330_EModeIDTable[j].Ext_ModeID ==
 			    XGI_Pr->RefIndex[RefreshRateTableIndex].ModeID) {
-				if (XGI_Pr->EModeIDTable[j].Ext_ModeFlag &
+				if (XGI330_EModeIDTable[j].Ext_ModeFlag &
 				    DoubleScanMode) {
 					*vmode = FB_VMODE_DOUBLE;
 				}
