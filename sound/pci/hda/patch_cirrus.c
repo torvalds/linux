@@ -1732,8 +1732,7 @@ static int cs421x_mux_enum_put(struct snd_kcontrol *kcontrol,
 
 }
 
-static struct snd_kcontrol_new cs421x_capture_source = {
-
+static const struct snd_kcontrol_new cs421x_capture_source = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -1950,7 +1949,7 @@ static int cs421x_suspend(struct hda_codec *codec)
 }
 #endif
 
-static struct hda_codec_ops cs421x_patch_ops = {
+static const struct hda_codec_ops cs421x_patch_ops = {
 	.build_controls = cs421x_build_controls,
 	.build_pcms = cs_build_pcms,
 	.init = cs421x_init,
