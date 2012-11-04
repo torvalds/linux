@@ -24,8 +24,6 @@ static const unsigned short XGINew_VGA_DAC[] = {
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
 	pVBInfo->MCLKData = XGI340New_MCLKData;
-	pVBInfo->VCLKData = XGI_VCLKData;
-	pVBInfo->VBVCLKData = XGI_VBVCLKData;
 	pVBInfo->ScreenOffset = XGI330_ScreenOffset;
 	pVBInfo->StResInfo = XGI330_StResInfo;
 	pVBInfo->ModeResInfo = XGI330_ModeResInfo;
@@ -181,12 +179,12 @@ static unsigned char XGI_SetDefaultVCLK(struct vb_device_info *pVBInfo)
 {
 
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x31, ~0x30, 0x20);
-	xgifb_reg_set(pVBInfo->P3c4, 0x2B, pVBInfo->VCLKData[0].SR2B);
-	xgifb_reg_set(pVBInfo->P3c4, 0x2C, pVBInfo->VCLKData[0].SR2C);
+	xgifb_reg_set(pVBInfo->P3c4, 0x2B, XGI_VCLKData[0].SR2B);
+	xgifb_reg_set(pVBInfo->P3c4, 0x2C, XGI_VCLKData[0].SR2C);
 
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x31, ~0x30, 0x10);
-	xgifb_reg_set(pVBInfo->P3c4, 0x2B, pVBInfo->VCLKData[1].SR2B);
-	xgifb_reg_set(pVBInfo->P3c4, 0x2C, pVBInfo->VCLKData[1].SR2C);
+	xgifb_reg_set(pVBInfo->P3c4, 0x2B, XGI_VCLKData[1].SR2B);
+	xgifb_reg_set(pVBInfo->P3c4, 0x2C, XGI_VCLKData[1].SR2C);
 
 	xgifb_reg_and(pVBInfo->P3c4, 0x31, ~0x30);
 	return 0;
@@ -961,10 +959,8 @@ static void XGI_SetCRT1VCLK(unsigned short ModeNo,
 		index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 		data = xgifb_reg_get(pVBInfo->P3c4, 0x31) & 0xCF;
 		xgifb_reg_set(pVBInfo->P3c4, 0x31, data);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2B,
-				pVBInfo->VCLKData[index].SR2B);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2C,
-				pVBInfo->VCLKData[index].SR2C);
+		xgifb_reg_set(pVBInfo->P3c4, 0x2B, XGI_VCLKData[index].SR2B);
+		xgifb_reg_set(pVBInfo->P3c4, 0x2C, XGI_VCLKData[index].SR2C);
 		xgifb_reg_set(pVBInfo->P3c4, 0x2D, 0x01);
 	} else if ((pVBInfo->VBType & (VB_SIS301B | VB_SIS302B | VB_SIS301LV
 			| VB_SIS302LV | VB_XGI301C)) && (pVBInfo->VBInfo
@@ -974,19 +970,17 @@ static void XGI_SetCRT1VCLK(unsigned short ModeNo,
 				pVBInfo);
 		data = xgifb_reg_get(pVBInfo->P3c4, 0x31) & 0xCF;
 		xgifb_reg_set(pVBInfo->P3c4, 0x31, data);
-		data = pVBInfo->VBVCLKData[vclkindex].Part4_A;
+		data = XGI_VBVCLKData[vclkindex].Part4_A;
 		xgifb_reg_set(pVBInfo->P3c4, 0x2B, data);
-		data = pVBInfo->VBVCLKData[vclkindex].Part4_B;
+		data = XGI_VBVCLKData[vclkindex].Part4_B;
 		xgifb_reg_set(pVBInfo->P3c4, 0x2C, data);
 		xgifb_reg_set(pVBInfo->P3c4, 0x2D, 0x01);
 	} else {
 		index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 		data = xgifb_reg_get(pVBInfo->P3c4, 0x31) & 0xCF;
 		xgifb_reg_set(pVBInfo->P3c4, 0x31, data);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2B,
-				pVBInfo->VCLKData[index].SR2B);
-		xgifb_reg_set(pVBInfo->P3c4, 0x2C,
-				pVBInfo->VCLKData[index].SR2C);
+		xgifb_reg_set(pVBInfo->P3c4, 0x2B, XGI_VCLKData[index].SR2B);
+		xgifb_reg_set(pVBInfo->P3c4, 0x2C, XGI_VCLKData[index].SR2C);
 		xgifb_reg_set(pVBInfo->P3c4, 0x2D, 0x01);
 	}
 
@@ -1053,7 +1047,7 @@ static void XGI_SetVCLKState(struct xgi_hw_device_info *HwDeviceExtension,
 
 	index = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 	index &= IndexMask;
-	VCLK = pVBInfo->VCLKData[index].CLOCK;
+	VCLK = XGI_VCLKData[index].CLOCK;
 
 	data = xgifb_reg_get(pVBInfo->P3c4, 0x32);
 	data &= 0xf3;

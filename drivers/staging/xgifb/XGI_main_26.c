@@ -75,7 +75,7 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 
 	ClockIndex = XGI330_RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
-	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
+	Clock = XGI_VCLKData[ClockIndex].CLOCK * 1000;
 
 	return Clock;
 }
