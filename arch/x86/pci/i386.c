@@ -51,6 +51,7 @@ struct pcibios_fwaddrmap {
 
 static LIST_HEAD(pcibios_fwaddrmappings);
 static DEFINE_SPINLOCK(pcibios_fwaddrmap_lock);
+static bool pcibios_fw_addr_done;
 
 /* Must be called with 'pcibios_fwaddrmap_lock' lock held. */
 static struct pcibios_fwaddrmap *pcibios_fwaddrmap_lookup(struct pci_dev *dev)
@@ -71,6 +72,9 @@ pcibios_save_fw_addr(struct pci_dev *dev, int idx, resource_size_t fw_addr)
 {
 	unsigned long flags;
 	struct pcibios_fwaddrmap *map;
+
+	if (pcibios_fw_addr_done)
+		return;
 
 	spin_lock_irqsave(&pcibios_fwaddrmap_lock, flags);
 	map = pcibios_fwaddrmap_lookup(dev);
@@ -97,6 +101,9 @@ resource_size_t pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx)
 	struct pcibios_fwaddrmap *map;
 	resource_size_t fw_addr = 0;
 
+	if (pcibios_fw_addr_done)
+		return 0;
+
 	spin_lock_irqsave(&pcibios_fwaddrmap_lock, flags);
 	map = pcibios_fwaddrmap_lookup(dev);
 	if (map)
@@ -106,7 +113,7 @@ resource_size_t pcibios_retrieve_fw_addr(struct pci_dev *dev, int idx)
 	return fw_addr;
 }
 
-static void pcibios_fw_addr_list_del(void)
+static void __init pcibios_fw_addr_list_del(void)
 {
 	unsigned long flags;
 	struct pcibios_fwaddrmap *entry, *next;
@@ -118,6 +125,7 @@ static void pcibios_fw_addr_list_del(void)
 		kfree(entry);
 	}
 	spin_unlock_irqrestore(&pcibios_fwaddrmap_lock, flags);
+	pcibios_fw_addr_done = true;
 }
 
 static int
