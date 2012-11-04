@@ -6039,6 +6039,21 @@ S:	Maintained
 F:	drivers/video/aty/radeon*
 F:	include/linux/radeonfb.h
 
+RADIOSHARK RADIO DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-shark.c
+
+RADIOSHARK2 RADIO DRIVER
+M:	Hans de Goede <hdegoede@redhat.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-shark2.c
+F:	drivers/media/radio/radio-tea5777.c
+
 RAGE128 FRAMEBUFFER DISPLAY DRIVER
 M:	Paul Mackerras <paulus@samba.org>
 L:	linux-fbdev@vger.kernel.org
