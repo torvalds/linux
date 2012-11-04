@@ -1337,8 +1337,10 @@ static void *XGI_GetLcdPtr(unsigned short BX, unsigned short ModeNo,
 
 	switch (tempbx) {
 	case 0:
+		tempdi = xgifb_epllcd_crt1_h;
+		break;
 	case 1:
-		tempdi = xgifb_epllcd_crt1;
+		tempdi = xgifb_epllcd_crt1_v;
 		break;
 	case 2:
 		tempdi = XGI_EPLLCDDataPtr;
