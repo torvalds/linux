@@ -100,13 +100,7 @@ ifeq ($(MALI_PLATFORM_FILE),)
 MALI_PLATFORM_FILE = platform/default/mali_platform.c
 endif
 
-# Get subversion revision number, fall back to only ${MALI_RELEASE_NAME} if no svn info is available
-SVN_REV := $(shell (cd $(DRIVER_DIR); (svnversion | grep -qv exported && svnversion) || git svn info | grep '^Revision: '| sed -e 's/^Revision: //' ) 2>/dev/null )
-ifeq ($(SVN_REV),)
 SVN_REV := $(MALI_RELEASE_NAME)
-else
-SVN_REV := $(MALI_RELEASE_NAME)-r$(SVN_REV)
-endif
 
 # Set up our defines, which will be passed to gcc
 DEFINES += -DUSING_OS_MEMORY=$(USING_OS_MEMORY)
