@@ -3,6 +3,7 @@
 #include <linux/netdevice.h>
 #include <linux/filter.h>
 #include <linux/cache.h>
+#include <linux/if_vlan.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ptrace.h>
@@ -312,6 +313,12 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
 #define emit_addi(R1, IMM, R3) \
 	*prog++ = (ADD | IMMED | RS1(R1) | S13(IMM) | RD(R3))
 
+#define emit_and(R1, R2, R3) \
+	*prog++ = (AND | RS1(R1) | RS2(R2) | RD(R3))
+
+#define emit_andi(R1, IMM, R3) \
+	*prog++ = (AND | IMMED | RS1(R1) | S13(IMM) | RD(R3))
+
 #define emit_alloc_stack(SZ) \
 	*prog++ = (SUB | IMMED | RS1(SP) | S13(SZ) | RD(SP))
 
@@ -415,6 +422,8 @@ void bpf_jit_compile(struct sk_filter *fp)
 		case BPF_S_ANC_IFINDEX:
 		case BPF_S_ANC_MARK:
 		case BPF_S_ANC_RXHASH:
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
 		case BPF_S_ANC_CPU:
 		case BPF_S_ANC_QUEUE:
 		case BPF_S_LD_W_ABS:
@@ -599,6 +608,16 @@ void bpf_jit_compile(struct sk_filter *fp)
 				break;
 			case BPF_S_ANC_RXHASH:
 				emit_skb_load32(rxhash, r_A);
+				break;
+			case BPF_S_ANC_VLAN_TAG:
+			case BPF_S_ANC_VLAN_TAG_PRESENT:
+				emit_skb_load16(vlan_tci, r_A);
+				if (filter[i].code == BPF_S_ANC_VLAN_TAG) {
+					emit_andi(r_A, VLAN_VID_MASK, r_A);
+				} else {
+					emit_loadimm(VLAN_TAG_PRESENT, r_TMP);
+					emit_and(r_A, r_TMP, r_A);
+				}
 				break;
 
 			case BPF_S_LD_IMM:
