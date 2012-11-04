@@ -231,8 +231,7 @@ struct exynos_drm_g2d_private {
 	struct device		*dev;
 	struct list_head	inuse_cmdlist;
 	struct list_head	event_list;
-	struct list_head	gem_list;
-	unsigned int		gem_nr;
+	struct list_head	userptr_list;
 };
 
 struct drm_exynos_file_private {

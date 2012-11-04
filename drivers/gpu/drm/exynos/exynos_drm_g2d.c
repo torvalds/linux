@@ -97,11 +97,19 @@
 
 #define MAX_BUF_ADDR_NR			6
 
+/* maximum buffer pool size of userptr is 64MB as default */
+#define MAX_POOL		(64 * 1024 * 1024)
+
+enum {
+	BUF_TYPE_GEM = 1,
+	BUF_TYPE_USERPTR,
+};
+
 /* cmdlist data structure */
 struct g2d_cmdlist {
-	u32	head;
-	u32	data[G2D_CMDLIST_DATA_NUM];
-	u32	last;	/* last data offset */
+	u32		head;
+	unsigned long	data[G2D_CMDLIST_DATA_NUM];
+	u32		last;	/* last data offset */
 };
 
 struct drm_exynos_pending_g2d_event {
@@ -109,11 +117,26 @@ struct drm_exynos_pending_g2d_event {
 	struct drm_exynos_g2d_event	event;
 };
 
+struct g2d_cmdlist_userptr {
+	struct list_head	list;
+	dma_addr_t		dma_addr;
+	unsigned long		userptr;
+	unsigned long		size;
+	struct page		**pages;
+	unsigned int		npages;
+	struct sg_table		*sgt;
+	struct vm_area_struct	*vma;
+	atomic_t		refcount;
+	bool			in_pool;
+	bool			out_of_list;
+};
+
 struct g2d_cmdlist_node {
 	struct list_head	list;
 	struct g2d_cmdlist	*cmdlist;
 	unsigned int		map_nr;
-	unsigned int		handles[MAX_BUF_ADDR_NR];
+	unsigned long		handles[MAX_BUF_ADDR_NR];
+	unsigned int		obj_type[MAX_BUF_ADDR_NR];
 	dma_addr_t		dma_addr;
 
 	struct drm_exynos_pending_g2d_event	*event;
@@ -152,6 +175,9 @@ struct g2d_data {
 	struct list_head		runqueue;
 	struct mutex			runqueue_mutex;
 	struct kmem_cache		*runqueue_slab;
+
+	unsigned long			current_pool;
+	unsigned long			max_pool;
 };
 
 static int g2d_init_cmdlist(struct g2d_data *g2d)
@@ -256,6 +282,229 @@ add_to_list:
 		list_add_tail(&node->event->base.link, &g2d_priv->event_list);
 }
 
+static void g2d_userptr_put_dma_addr(struct drm_device *drm_dev,
+					unsigned long obj,
+					bool force)
+{
+	struct g2d_cmdlist_userptr *g2d_userptr =
+					(struct g2d_cmdlist_userptr *)obj;
+
+	if (!obj)
+		return;
+
+	if (force)
+		goto out;
+
+	atomic_dec(&g2d_userptr->refcount);
+
+	if (atomic_read(&g2d_userptr->refcount) > 0)
+		return;
+
+	if (g2d_userptr->in_pool)
+		return;
+
+out:
+	exynos_gem_unmap_sgt_from_dma(drm_dev, g2d_userptr->sgt,
+					DMA_BIDIRECTIONAL);
+
+	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+					g2d_userptr->npages,
+					g2d_userptr->vma);
+
+	if (!g2d_userptr->out_of_list)
+		list_del_init(&g2d_userptr->list);
+
+	sg_free_table(g2d_userptr->sgt);
+	kfree(g2d_userptr->sgt);
+	g2d_userptr->sgt = NULL;
+
+	kfree(g2d_userptr->pages);
+	kfree(g2d_userptr);
+	g2d_userptr->pages = NULL;
+	g2d_userptr = NULL;
+}
+
+dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
+					unsigned long userptr,
+					unsigned long size,
+					struct drm_file *filp,
+					unsigned long *obj)
+{
+	struct drm_exynos_file_private *file_priv = filp->driver_priv;
+	struct exynos_drm_g2d_private *g2d_priv = file_priv->g2d_priv;
+	struct g2d_cmdlist_userptr *g2d_userptr;
+	struct g2d_data *g2d;
+	struct page **pages;
+	struct sg_table	*sgt;
+	struct vm_area_struct *vma;
+	unsigned long start, end;
+	unsigned int npages, offset;
+	int ret;
+
+	if (!size) {
+		DRM_ERROR("invalid userptr size.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	g2d = dev_get_drvdata(g2d_priv->dev);
+
+	/* check if userptr already exists in userptr_list. */
+	list_for_each_entry(g2d_userptr, &g2d_priv->userptr_list, list) {
+		if (g2d_userptr->userptr == userptr) {
+			/*
+			 * also check size because there could be same address
+			 * and different size.
+			 */
+			if (g2d_userptr->size == size) {
+				atomic_inc(&g2d_userptr->refcount);
+				*obj = (unsigned long)g2d_userptr;
+
+				return &g2d_userptr->dma_addr;
+			}
+
+			/*
+			 * at this moment, maybe g2d dma is accessing this
+			 * g2d_userptr memory region so just remove this
+			 * g2d_userptr object from userptr_list not to be
+			 * referred again and also except it the userptr
+			 * pool to be released after the dma access completion.
+			 */
+			g2d_userptr->out_of_list = true;
+			g2d_userptr->in_pool = false;
+			list_del_init(&g2d_userptr->list);
+
+			break;
+		}
+	}
+
+	g2d_userptr = kzalloc(sizeof(*g2d_userptr), GFP_KERNEL);
+	if (!g2d_userptr) {
+		DRM_ERROR("failed to allocate g2d_userptr.\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	atomic_set(&g2d_userptr->refcount, 1);
+
+	start = userptr & PAGE_MASK;
+	offset = userptr & ~PAGE_MASK;
+	end = PAGE_ALIGN(userptr + size);
+	npages = (end - start) >> PAGE_SHIFT;
+	g2d_userptr->npages = npages;
+
+	pages = kzalloc(npages * sizeof(struct page *), GFP_KERNEL);
+	if (!pages) {
+		DRM_ERROR("failed to allocate pages.\n");
+		kfree(g2d_userptr);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	vma = find_vma(current->mm, userptr);
+	if (!vma) {
+		DRM_ERROR("failed to get vm region.\n");
+		ret = -EFAULT;
+		goto err_free_pages;
+	}
+
+	if (vma->vm_end < userptr + size) {
+		DRM_ERROR("vma is too small.\n");
+		ret = -EFAULT;
+		goto err_free_pages;
+	}
+
+	g2d_userptr->vma = exynos_gem_get_vma(vma);
+	if (!g2d_userptr->vma) {
+		DRM_ERROR("failed to copy vma.\n");
+		ret = -ENOMEM;
+		goto err_free_pages;
+	}
+
+	g2d_userptr->size = size;
+
+	ret = exynos_gem_get_pages_from_userptr(start & PAGE_MASK,
+						npages, pages, vma);
+	if (ret < 0) {
+		DRM_ERROR("failed to get user pages from userptr.\n");
+		goto err_put_vma;
+	}
+
+	g2d_userptr->pages = pages;
+
+	sgt = kzalloc(sizeof *sgt, GFP_KERNEL);
+	if (!sgt) {
+		DRM_ERROR("failed to allocate sg table.\n");
+		ret = -ENOMEM;
+		goto err_free_userptr;
+	}
+
+	ret = sg_alloc_table_from_pages(sgt, pages, npages, offset,
+					size, GFP_KERNEL);
+	if (ret < 0) {
+		DRM_ERROR("failed to get sgt from pages.\n");
+		goto err_free_sgt;
+	}
+
+	g2d_userptr->sgt = sgt;
+
+	ret = exynos_gem_map_sgt_with_dma(drm_dev, g2d_userptr->sgt,
+						DMA_BIDIRECTIONAL);
+	if (ret < 0) {
+		DRM_ERROR("failed to map sgt with dma region.\n");
+		goto err_free_sgt;
+	}
+
+	g2d_userptr->dma_addr = sgt->sgl[0].dma_address;
+	g2d_userptr->userptr = userptr;
+
+	list_add_tail(&g2d_userptr->list, &g2d_priv->userptr_list);
+
+	if (g2d->current_pool + (npages << PAGE_SHIFT) < g2d->max_pool) {
+		g2d->current_pool += npages << PAGE_SHIFT;
+		g2d_userptr->in_pool = true;
+	}
+
+	*obj = (unsigned long)g2d_userptr;
+
+	return &g2d_userptr->dma_addr;
+
+err_free_sgt:
+	sg_free_table(sgt);
+	kfree(sgt);
+	sgt = NULL;
+
+err_free_userptr:
+	exynos_gem_put_pages_to_userptr(g2d_userptr->pages,
+					g2d_userptr->npages,
+					g2d_userptr->vma);
+
+err_put_vma:
+	exynos_gem_put_vma(g2d_userptr->vma);
+
+err_free_pages:
+	kfree(pages);
+	kfree(g2d_userptr);
+	pages = NULL;
+	g2d_userptr = NULL;
+
+	return ERR_PTR(ret);
+}
+
+static void g2d_userptr_free_all(struct drm_device *drm_dev,
+					struct g2d_data *g2d,
+					struct drm_file *filp)
+{
+	struct drm_exynos_file_private *file_priv = filp->driver_priv;
+	struct exynos_drm_g2d_private *g2d_priv = file_priv->g2d_priv;
+	struct g2d_cmdlist_userptr *g2d_userptr, *n;
+
+	list_for_each_entry_safe(g2d_userptr, n, &g2d_priv->userptr_list, list)
+		if (g2d_userptr->in_pool)
+			g2d_userptr_put_dma_addr(drm_dev,
+						(unsigned long)g2d_userptr,
+						true);
+
+	g2d->current_pool = 0;
+}
+
 static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 				struct g2d_cmdlist_node *node,
 				struct drm_device *drm_dev,
@@ -272,10 +521,31 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 		offset = cmdlist->last - (i * 2 + 1);
 		handle = cmdlist->data[offset];
 
-		addr = exynos_drm_gem_get_dma_addr(drm_dev, handle, file);
-		if (IS_ERR(addr)) {
-			node->map_nr = i;
-			return -EFAULT;
+		if (node->obj_type[i] == BUF_TYPE_GEM) {
+			addr = exynos_drm_gem_get_dma_addr(drm_dev, handle,
+								file);
+			if (IS_ERR(addr)) {
+				node->map_nr = i;
+				return -EFAULT;
+			}
+		} else {
+			struct drm_exynos_g2d_userptr g2d_userptr;
+
+			if (copy_from_user(&g2d_userptr, (void __user *)handle,
+				sizeof(struct drm_exynos_g2d_userptr))) {
+				node->map_nr = i;
+				return -EFAULT;
+			}
+
+			addr = g2d_userptr_get_dma_addr(drm_dev,
+							g2d_userptr.userptr,
+							g2d_userptr.size,
+							file,
+							&handle);
+			if (IS_ERR(addr)) {
+				node->map_nr = i;
+				return -EFAULT;
+			}
 		}
 
 		cmdlist->data[offset] = *addr;
@@ -293,9 +563,14 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 	int i;
 
 	for (i = 0; i < node->map_nr; i++) {
-		unsigned int handle = node->handles[i];
+		unsigned long handle = node->handles[i];
 
-		exynos_drm_gem_put_dma_addr(subdrv->drm_dev, handle, filp);
+		if (node->obj_type[i] == BUF_TYPE_GEM)
+			exynos_drm_gem_put_dma_addr(subdrv->drm_dev, handle,
+							filp);
+		else
+			g2d_userptr_put_dma_addr(subdrv->drm_dev, handle,
+							false);
 
 		node->handles[i] = 0;
 	}
@@ -438,15 +713,28 @@ static irqreturn_t g2d_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int g2d_check_reg_offset(struct device *dev, struct g2d_cmdlist *cmdlist,
+static int g2d_check_reg_offset(struct device *dev,
+				struct g2d_cmdlist_node *node,
 				int nr, bool for_addr)
 {
+	struct g2d_cmdlist *cmdlist = node->cmdlist;
 	int reg_offset;
 	int index;
 	int i;
 
 	for (i = 0; i < nr; i++) {
 		index = cmdlist->last - 2 * (i + 1);
+
+		if (for_addr) {
+			/* check userptr buffer type. */
+			reg_offset = (cmdlist->data[index] &
+					~0x7fffffff) >> 31;
+			if (reg_offset) {
+				node->obj_type[i] = BUF_TYPE_USERPTR;
+				cmdlist->data[index] &= ~G2D_BUF_USERPTR;
+			}
+		}
+
 		reg_offset = cmdlist->data[index] & ~0xfffff000;
 
 		if (reg_offset < G2D_VALID_START || reg_offset > G2D_VALID_END)
@@ -463,6 +751,9 @@ static int g2d_check_reg_offset(struct device *dev, struct g2d_cmdlist *cmdlist,
 		case G2D_MSK_BASE_ADDR:
 			if (!for_addr)
 				goto err;
+
+			if (node->obj_type[i] != BUF_TYPE_USERPTR)
+				node->obj_type[i] = BUF_TYPE_GEM;
 			break;
 		default:
 			if (for_addr)
@@ -474,7 +765,7 @@ static int g2d_check_reg_offset(struct device *dev, struct g2d_cmdlist *cmdlist,
 	return 0;
 
 err:
-	dev_err(dev, "Bad register offset: 0x%x\n", cmdlist->data[index]);
+	dev_err(dev, "Bad register offset: 0x%lx\n", cmdlist->data[index]);
 	return -EINVAL;
 }
 
@@ -574,7 +865,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	}
 
 	/* Check size of cmdlist: last 2 is about G2D_BITBLT_START */
-	size = cmdlist->last + req->cmd_nr * 2 + req->cmd_gem_nr * 2 + 2;
+	size = cmdlist->last + req->cmd_nr * 2 + req->cmd_buf_nr * 2 + 2;
 	if (size > G2D_CMDLIST_DATA_NUM) {
 		dev_err(dev, "cmdlist size is too big\n");
 		ret = -EINVAL;
@@ -591,25 +882,25 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	}
 	cmdlist->last += req->cmd_nr * 2;
 
-	ret = g2d_check_reg_offset(dev, cmdlist, req->cmd_nr, false);
+	ret = g2d_check_reg_offset(dev, node, req->cmd_nr, false);
 	if (ret < 0)
 		goto err_free_event;
 
-	node->map_nr = req->cmd_gem_nr;
-	if (req->cmd_gem_nr) {
-		struct drm_exynos_g2d_cmd *cmd_gem;
+	node->map_nr = req->cmd_buf_nr;
+	if (req->cmd_buf_nr) {
+		struct drm_exynos_g2d_cmd *cmd_buf;
 
-		cmd_gem = (struct drm_exynos_g2d_cmd *)(uint32_t)req->cmd_gem;
+		cmd_buf = (struct drm_exynos_g2d_cmd *)(uint32_t)req->cmd_buf;
 
 		if (copy_from_user(cmdlist->data + cmdlist->last,
-					(void __user *)cmd_gem,
-					sizeof(*cmd_gem) * req->cmd_gem_nr)) {
+					(void __user *)cmd_buf,
+					sizeof(*cmd_buf) * req->cmd_buf_nr)) {
 			ret = -EFAULT;
 			goto err_free_event;
 		}
-		cmdlist->last += req->cmd_gem_nr * 2;
+		cmdlist->last += req->cmd_buf_nr * 2;
 
-		ret = g2d_check_reg_offset(dev, cmdlist, req->cmd_gem_nr, true);
+		ret = g2d_check_reg_offset(dev, node, req->cmd_buf_nr, true);
 		if (ret < 0)
 			goto err_free_event;
 
@@ -759,7 +1050,7 @@ static int g2d_open(struct drm_device *drm_dev, struct device *dev,
 
 	INIT_LIST_HEAD(&g2d_priv->inuse_cmdlist);
 	INIT_LIST_HEAD(&g2d_priv->event_list);
-	INIT_LIST_HEAD(&g2d_priv->gem_list);
+	INIT_LIST_HEAD(&g2d_priv->userptr_list);
 
 	return 0;
 }
@@ -792,6 +1083,9 @@ static void g2d_close(struct drm_device *drm_dev, struct device *dev,
 		list_move_tail(&node->list, &g2d->free_cmdlist);
 	}
 	mutex_unlock(&g2d->cmdlist_mutex);
+
+	/* release all g2d_userptr in pool. */
+	g2d_userptr_free_all(drm_dev, g2d, file);
 
 	kfree(file_priv->g2d_priv);
 }
@@ -862,6 +1156,8 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 		dev_err(dev, "irq request failed\n");
 		goto err_put_clk;
 	}
+
+	g2d->max_pool = MAX_POOL;
 
 	platform_set_drvdata(pdev, g2d);
 

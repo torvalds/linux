@@ -35,22 +35,29 @@
  * exynos drm gem buffer structure.
  *
  * @kvaddr: kernel virtual address to allocated memory region.
+ * *userptr: user space address.
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
  *	- this address could be physical address without IOMMU and
  *	device address with IOMMU.
+ * @write: whether pages will be written to by the caller.
  * @sgt: sg table to transfer page data.
  * @pages: contain all pages to allocated memory region.
  * @page_size: could be 4K, 64K or 1MB.
  * @size: size of allocated memory region.
+ * @pfnmap: indicate whether memory region from userptr is mmaped with
+ *	VM_PFNMAP or not.
  */
 struct exynos_drm_gem_buf {
 	void __iomem		*kvaddr;
+	unsigned long		userptr;
 	dma_addr_t		dma_addr;
 	struct dma_attrs	dma_attrs;
+	unsigned int		write;
 	struct sg_table		*sgt;
 	struct page		**pages;
 	unsigned long		page_size;
 	unsigned long		size;
+	bool			pfnmap;
 };
 
 /*
@@ -66,6 +73,7 @@ struct exynos_drm_gem_buf {
  *	or at framebuffer creation.
  * @size: size requested from user, in bytes and this size is aligned
  *	in page unit.
+ * @vma: a pointer to vm_area.
  * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
  * P.S. this object would be transfered to user as kms_bo.handle so
@@ -75,6 +83,7 @@ struct exynos_drm_gem_obj {
 	struct drm_gem_object		base;
 	struct exynos_drm_gem_buf	*buffer;
 	unsigned long			size;
+	struct vm_area_struct		*vma;
 	unsigned int			flags;
 };
 
@@ -129,6 +138,10 @@ int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 
+/* map user space allocated by malloc to pages. */
+int exynos_drm_gem_userptr_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
+
 /* get buffer information to memory region allocated by gem. */
 int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
 				      struct drm_file *file_priv);
@@ -163,5 +176,37 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 
 /* set vm_flags and we can change the vm attribute to other one at here. */
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+
+static inline int vma_is_io(struct vm_area_struct *vma)
+{
+	return !!(vma->vm_flags & (VM_IO | VM_PFNMAP));
+}
+
+/* get a copy of a virtual memory region. */
+struct vm_area_struct *exynos_gem_get_vma(struct vm_area_struct *vma);
+
+/* release a userspace virtual memory area. */
+void exynos_gem_put_vma(struct vm_area_struct *vma);
+
+/* get pages from user space. */
+int exynos_gem_get_pages_from_userptr(unsigned long start,
+						unsigned int npages,
+						struct page **pages,
+						struct vm_area_struct *vma);
+
+/* drop the reference to pages. */
+void exynos_gem_put_pages_to_userptr(struct page **pages,
+					unsigned int npages,
+					struct vm_area_struct *vma);
+
+/* map sgt with dma region. */
+int exynos_gem_map_sgt_with_dma(struct drm_device *drm_dev,
+				struct sg_table *sgt,
+				enum dma_data_direction dir);
+
+/* unmap sgt from dma region. */
+void exynos_gem_unmap_sgt_from_dma(struct drm_device *drm_dev,
+				struct sg_table *sgt,
+				enum dma_data_direction dir);
 
 #endif
