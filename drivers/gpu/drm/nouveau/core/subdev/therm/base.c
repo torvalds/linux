@@ -123,7 +123,7 @@ nouveau_therm_alarm(struct nouveau_alarm *alarm)
 	nouveau_therm_update(&priv->base, -1);
 }
 
-static int
+int
 nouveau_therm_mode(struct nouveau_therm *therm, int mode)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
@@ -212,27 +212,35 @@ nouveau_therm_attr_set(struct nouveau_therm *therm,
 		return nouveau_therm_mode(therm, value);
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST:
 		priv->bios_sensor.thrs_fan_boost.temp = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_FAN_BOOST_HYST:
 		priv->bios_sensor.thrs_fan_boost.hysteresis = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_DOWN_CLK:
 		priv->bios_sensor.thrs_down_clock.temp = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_DOWN_CLK_HYST:
 		priv->bios_sensor.thrs_down_clock.hysteresis = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_CRITICAL:
 		priv->bios_sensor.thrs_critical.temp = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_CRITICAL_HYST:
 		priv->bios_sensor.thrs_critical.hysteresis = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_SHUTDOWN:
 		priv->bios_sensor.thrs_shutdown.temp = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	case NOUVEAU_THERM_ATTR_THRS_SHUTDOWN_HYST:
 		priv->bios_sensor.thrs_shutdown.hysteresis = value;
+		priv->sensor.program_alarms(therm);
 		return 0;
 	}
 
@@ -253,6 +261,7 @@ _nouveau_therm_init(struct nouveau_object *object)
 	if (priv->fan->percent >= 0)
 		therm->fan_set(therm, priv->fan->percent);
 
+	priv->sensor.program_alarms(therm);
 	return 0;
 }
 

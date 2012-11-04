@@ -50,6 +50,24 @@ struct nouveau_fan {
 	struct dcb_gpio_func tach;
 };
 
+enum nouveau_therm_thrs_direction {
+	NOUVEAU_THERM_THRS_FALLING = 0,
+	NOUVEAU_THERM_THRS_RISING = 1
+};
+
+enum nouveau_therm_thrs_state {
+	NOUVEAU_THERM_THRS_LOWER = 0,
+	NOUVEAU_THERM_THRS_HIGHER = 1
+};
+
+enum nouveau_therm_thrs {
+	NOUVEAU_THERM_THRS_FANBOOST = 0,
+	NOUVEAU_THERM_THRS_DOWNCLOCK = 1,
+	NOUVEAU_THERM_THRS_CRITICAL = 2,
+	NOUVEAU_THERM_THRS_SHUTDOWN = 3,
+	NOUVEAU_THERM_THRS_NR
+};
+
 struct nouveau_therm_priv {
 	struct nouveau_therm base;
 
@@ -65,10 +83,25 @@ struct nouveau_therm_priv {
 	/* fan priv */
 	struct nouveau_fan *fan;
 
+	/* alarms priv */
+	struct {
+		spinlock_t alarm_program_lock;
+		struct nouveau_alarm therm_poll_alarm;
+		enum nouveau_therm_thrs_state alarm_state[NOUVEAU_THERM_THRS_NR];
+		void (*program_alarms)(struct nouveau_therm *);
+	} sensor;
+
+	/* what should be done if the card overheats */
+	struct {
+		void (*downclock)(struct nouveau_therm *, bool active);
+		void (*pause)(struct nouveau_therm *, bool active);
+	} emergency;
+
 	/* ic */
 	struct i2c_client *ic;
 };
 
+int nouveau_therm_mode(struct nouveau_therm *therm, int mode);
 int nouveau_therm_attr_get(struct nouveau_therm *therm,
 		       enum nouveau_therm_attr_type type);
 int nouveau_therm_attr_set(struct nouveau_therm *therm,
@@ -87,6 +120,17 @@ int nouveau_therm_fan_user_set(struct nouveau_therm *therm, int percent);
 int nouveau_therm_fan_sense(struct nouveau_therm *therm);
 
 int nouveau_therm_preinit(struct nouveau_therm *);
+
+void nouveau_therm_sensor_set_threshold_state(struct nouveau_therm *therm,
+					     enum nouveau_therm_thrs thrs,
+					     enum nouveau_therm_thrs_state st);
+enum nouveau_therm_thrs_state
+nouveau_therm_sensor_get_threshold_state(struct nouveau_therm *therm,
+					 enum nouveau_therm_thrs thrs);
+void nouveau_therm_sensor_event(struct nouveau_therm *therm,
+			        enum nouveau_therm_thrs thrs,
+			        enum nouveau_therm_thrs_direction dir);
+void nouveau_therm_program_alarms_polling(struct nouveau_therm *therm);
 
 int nv50_fan_pwm_ctrl(struct nouveau_therm *, int, bool);
 int nv50_fan_pwm_get(struct nouveau_therm *, int, u32 *, u32 *);

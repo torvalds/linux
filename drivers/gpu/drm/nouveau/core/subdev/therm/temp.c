@@ -65,11 +65,149 @@ nouveau_therm_temp_safety_checks(struct nouveau_therm *therm)
 		priv->bios_sensor.offset_den = 1;
 }
 
+/* must be called with alarm_program_lock taken ! */
+void nouveau_therm_sensor_set_threshold_state(struct nouveau_therm *therm,
+					     enum nouveau_therm_thrs thrs,
+					     enum nouveau_therm_thrs_state st)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	priv->sensor.alarm_state[thrs] = st;
+}
+
+/* must be called with alarm_program_lock taken ! */
+enum nouveau_therm_thrs_state
+nouveau_therm_sensor_get_threshold_state(struct nouveau_therm *therm,
+					 enum nouveau_therm_thrs thrs)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	return priv->sensor.alarm_state[thrs];
+}
+
+void nouveau_therm_sensor_event(struct nouveau_therm *therm,
+			        enum nouveau_therm_thrs thrs,
+			        enum nouveau_therm_thrs_direction dir)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	bool active;
+	const char *thresolds[] = {
+		"fanboost", "downclock", "critical", "shutdown"
+	};
+	uint8_t temperature = therm->temp_get(therm);
+
+	if (thrs < 0 || thrs > 3)
+		return;
+
+	if (dir == NOUVEAU_THERM_THRS_FALLING)
+		nv_info(therm, "temperature (%u C) went bellow the '%s' threshold\n",
+			temperature, thresolds[thrs]);
+	else
+		nv_info(therm, "temperature (%u C) hit the '%s' threshold\n",
+			temperature, thresolds[thrs]);
+
+	active = (dir == NOUVEAU_THERM_THRS_RISING);
+	switch (thrs) {
+	case NOUVEAU_THERM_THRS_FANBOOST:
+		nouveau_therm_fan_set(therm, true, 100);
+		nouveau_therm_mode(therm, FAN_CONTROL_AUTO);
+		break;
+	case NOUVEAU_THERM_THRS_DOWNCLOCK:
+		if (priv->emergency.downclock)
+			priv->emergency.downclock(therm, active);
+		break;
+	case NOUVEAU_THERM_THRS_CRITICAL:
+		if (priv->emergency.pause)
+			priv->emergency.pause(therm, active);
+		break;
+	case NOUVEAU_THERM_THRS_SHUTDOWN:
+		orderly_poweroff(true);
+		break;
+	case NOUVEAU_THERM_THRS_NR:
+		break;
+	}
+
+}
+
+/* must be called with alarm_program_lock taken ! */
+static void
+nouveau_therm_threshold_hyst_polling(struct nouveau_therm *therm,
+				   const struct nvbios_therm_threshold *thrs,
+				   enum nouveau_therm_thrs thrs_name)
+{
+	enum nouveau_therm_thrs_direction direction;
+	enum nouveau_therm_thrs_state prev_state, new_state;
+	int temp = therm->temp_get(therm);
+
+	prev_state = nouveau_therm_sensor_get_threshold_state(therm, thrs_name);
+
+	if (temp >= thrs->temp && prev_state == NOUVEAU_THERM_THRS_LOWER) {
+		direction = NOUVEAU_THERM_THRS_RISING;
+		new_state = NOUVEAU_THERM_THRS_HIGHER;
+	} else if (temp <= thrs->temp - thrs->hysteresis &&
+			prev_state == NOUVEAU_THERM_THRS_HIGHER) {
+		direction = NOUVEAU_THERM_THRS_FALLING;
+		new_state = NOUVEAU_THERM_THRS_LOWER;
+	} else
+		return; /* nothing to do */
+
+	nouveau_therm_sensor_set_threshold_state(therm, thrs_name, new_state);
+	nouveau_therm_sensor_event(therm, thrs_name, direction);
+}
+
+static void
+alarm_timer_callback(struct nouveau_alarm *alarm)
+{
+	struct nouveau_therm_priv *priv =
+	container_of(alarm, struct nouveau_therm_priv, sensor.therm_poll_alarm);
+	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+	struct nouveau_timer *ptimer = nouveau_timer(priv);
+	struct nouveau_therm *therm = &priv->base;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->sensor.alarm_program_lock, flags);
+
+	nouveau_therm_threshold_hyst_polling(therm, &sensor->thrs_fan_boost,
+					     NOUVEAU_THERM_THRS_FANBOOST);
+
+	nouveau_therm_threshold_hyst_polling(therm, &sensor->thrs_down_clock,
+					     NOUVEAU_THERM_THRS_DOWNCLOCK);
+
+	nouveau_therm_threshold_hyst_polling(therm, &sensor->thrs_critical,
+					     NOUVEAU_THERM_THRS_CRITICAL);
+
+	nouveau_therm_threshold_hyst_polling(therm, &sensor->thrs_shutdown,
+					     NOUVEAU_THERM_THRS_SHUTDOWN);
+
+	/* schedule the next poll in one second */
+	if (list_empty(&alarm->head))
+		ptimer->alarm(ptimer, 1000 * 1000 * 1000, alarm);
+
+	spin_unlock_irqrestore(&priv->sensor.alarm_program_lock, flags);
+}
+
+void
+nouveau_therm_program_alarms_polling(struct nouveau_therm *therm)
+{
+	struct nouveau_therm_priv *priv = (void *)therm;
+	struct nvbios_therm_sensor *sensor = &priv->bios_sensor;
+
+	nv_info(therm,
+		"programmed thresholds [ %d(%d), %d(%d), %d(%d), %d(%d) ]\n",
+		sensor->thrs_fan_boost.temp, sensor->thrs_fan_boost.hysteresis,
+		sensor->thrs_down_clock.temp,
+		sensor->thrs_down_clock.hysteresis,
+		sensor->thrs_critical.temp, sensor->thrs_critical.hysteresis,
+		sensor->thrs_shutdown.temp, sensor->thrs_shutdown.hysteresis);
+
+	alarm_timer_callback(&priv->sensor.therm_poll_alarm);
+}
+
 int
 nouveau_therm_sensor_ctor(struct nouveau_therm *therm)
 {
 	struct nouveau_therm_priv *priv = (void *)therm;
 	struct nouveau_bios *bios = nouveau_bios(therm);
+
+	nouveau_alarm_init(&priv->sensor.therm_poll_alarm, alarm_timer_callback);
 
 	nouveau_therm_temp_set_defaults(therm);
 	if (nvbios_therm_sensor_parse(bios, NVBIOS_THERM_DOMAIN_CORE,
