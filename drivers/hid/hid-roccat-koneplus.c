@@ -14,6 +14,7 @@
 /*
  * Roccat Kone[+] is an updated/improved version of the Kone with more memory
  * and functionality and without the non-standard behaviours the Kone had.
+ * KoneXTD has same capabilities but updated sensor.
  */
 
 #include <linux/device.h>
@@ -718,6 +719,7 @@ static int koneplus_raw_event(struct hid_device *hdev,
 
 static const struct hid_device_id koneplus_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT, USB_DEVICE_ID_ROCCAT_KONEPLUS) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_ROCCAT, USB_DEVICE_ID_ROCCAT_KONEXTD) },
 	{ }
 };
 
@@ -758,5 +760,5 @@ module_init(koneplus_init);
 module_exit(koneplus_exit);
 
 MODULE_AUTHOR("Stefan Achatz");
-MODULE_DESCRIPTION("USB Roccat Kone[+] driver");
+MODULE_DESCRIPTION("USB Roccat Kone[+]/XTD driver");
 MODULE_LICENSE("GPL v2");
