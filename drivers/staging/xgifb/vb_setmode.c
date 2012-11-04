@@ -25,7 +25,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
 	pVBInfo->MCLKData = XGI340New_MCLKData;
 	pVBInfo->StResInfo = XGI330_StResInfo;
-	pVBInfo->ModeResInfo = XGI330_ModeResInfo;
 
 	pVBInfo->LCDResInfo = 0;
 	pVBInfo->LCDTypeInfo = 0;
@@ -742,8 +741,8 @@ static void XGI_SetCRT1DE(struct xgi_hw_device_info *HwDeviceExtension,
 	resindex = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
 
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
-	tempax = pVBInfo->ModeResInfo[resindex].HTotal;
-	tempbx = pVBInfo->ModeResInfo[resindex].VTotal;
+	tempax = XGI330_ModeResInfo[resindex].HTotal;
+	tempbx = XGI330_ModeResInfo[resindex].VTotal;
 
 	if (modeflag & HalfDCLK)
 		tempax = tempax >> 1;
@@ -1101,7 +1100,7 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0x3F, data2);
 	resindex = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
-	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
+	xres = XGI330_ModeResInfo[resindex].HTotal; /* xres->ax */
 
 	data = 0x0000;
 	if (infoflag & InterlaceMode) {
@@ -1267,8 +1266,8 @@ static void XGI_GetLVDSResInfo(unsigned short ModeNo,
 	/* si+Ext_ResInfo */
 	resindex = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
 
-	xres = pVBInfo->ModeResInfo[resindex].HTotal;
-	yres = pVBInfo->ModeResInfo[resindex].VTotal;
+	xres = XGI330_ModeResInfo[resindex].HTotal;
+	yres = XGI330_ModeResInfo[resindex].VTotal;
 
 	if (modeflag & HalfDCLK)
 		xres = xres << 1;
@@ -2631,8 +2630,8 @@ static void XGI_GetCRT2ResInfo(unsigned short ModeNo,
 	unsigned short xres, yres, modeflag, resindex;
 
 	resindex = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
-	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
-	yres = pVBInfo->ModeResInfo[resindex].VTotal; /* yres->bx */
+	xres = XGI330_ModeResInfo[resindex].HTotal; /* xres->ax */
+	yres = XGI330_ModeResInfo[resindex].VTotal; /* yres->bx */
 	/* si+St_ModeFlag */
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
@@ -4502,8 +4501,8 @@ static unsigned char XGI_XG21CheckLVDSMode(struct xgifb_video_info *xgifb_info,
 	unsigned short xres, yres, colordepth, modeflag, resindex;
 
 	resindex = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
-	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
-	yres = pVBInfo->ModeResInfo[resindex].VTotal; /* yres->bx */
+	xres = XGI330_ModeResInfo[resindex].HTotal; /* xres->ax */
+	yres = XGI330_ModeResInfo[resindex].VTotal; /* yres->bx */
 	/* si+St_ModeFlag */
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
@@ -4564,8 +4563,8 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 		XGI_SetXG21FPBits(pVBInfo);
 
 	resindex = XGI330_EModeIDTable[ModeIdIndex].Ext_RESINFO;
-	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
-	yres = pVBInfo->ModeResInfo[resindex].VTotal; /* yres->bx */
+	xres = XGI330_ModeResInfo[resindex].HTotal; /* xres->ax */
+	yres = XGI330_ModeResInfo[resindex].VTotal; /* yres->bx */
 	/* si+St_ModeFlag */
 	modeflag = XGI330_EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 

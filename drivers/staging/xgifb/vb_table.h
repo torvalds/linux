@@ -2131,7 +2131,7 @@ static struct SiS_StResInfo_S XGI330_StResInfo[] = {
 	{640, 480}
 };
 
-static struct SiS_ModeResInfo_S XGI330_ModeResInfo[] = {
+static const struct SiS_ModeResInfo_S XGI330_ModeResInfo[] = {
 	{ 320,  200, 8,  8},
 	{ 320,  240, 8,  8},
 	{ 320,  400, 8,  8},
