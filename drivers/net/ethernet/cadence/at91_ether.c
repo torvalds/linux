@@ -31,6 +31,9 @@
 #include <linux/gfp.h>
 #include <linux/phy.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_net.h>
 
 #include "macb.h"
 
@@ -443,6 +446,50 @@ static const struct net_device_ops at91ether_netdev_ops = {
 #endif
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id at91ether_dt_ids[] = {
+	{ .compatible = "cdns,at91rm9200-emac" },
+	{ .compatible = "cdns,emac" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, at91ether_dt_ids);
+
+static int at91ether_get_phy_mode_dt(struct platform_device *pdev)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (np)
+		return of_get_phy_mode(np);
+
+	return -ENODEV;
+}
+
+static int at91ether_get_hwaddr_dt(struct macb *bp)
+{
+	struct device_node *np = bp->pdev->dev.of_node;
+
+	if (np) {
+		const char *mac = of_get_mac_address(np);
+		if (mac) {
+			memcpy(bp->dev->dev_addr, mac, ETH_ALEN);
+			return 0;
+		}
+	}
+
+	return -ENODEV;
+}
+#else
+static int at91ether_get_phy_mode_dt(struct platform_device *pdev)
+{
+	return -ENODEV;
+}
+static int at91ether_get_hwaddr_dt(struct macb *bp)
+{
+	return -ENODEV;
+}
+#endif
+
 /*
  * Detect MAC & PHY and perform ethernet interface initialization
  */
@@ -466,7 +513,8 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 	lp->pdev = pdev;
 	lp->dev = dev;
-	lp->board_data = *board_data;
+	if (board_data)
+		lp->board_data = *board_data;
 	spin_lock_init(&lp->lock);
 
 	dev->base_addr = regs->start;		/* physical base address */
@@ -496,18 +544,28 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
-	get_mac_address(dev);		/* Get ethernet address and store it in dev->dev_addr */
+	res = at91ether_get_hwaddr_dt(lp);
+	if (res < 0)
+		get_mac_address(dev);		/* Get ethernet address and store it in dev->dev_addr */
+
 	update_mac_address(dev);	/* Program ethernet address into MAC */
+
+	res = at91ether_get_phy_mode_dt(pdev);
+	if (res < 0) {
+		if (board_data && board_data->is_rmii)
+			lp->phy_interface = PHY_INTERFACE_MODE_RMII;
+		else
+			lp->phy_interface = PHY_INTERFACE_MODE_MII;
+	} else {
+		lp->phy_interface = res;
+	}
 
 	macb_writel(lp, NCR, 0);
 
-	if (board_data->is_rmii) {
+	if (lp->phy_interface == PHY_INTERFACE_MODE_RMII)
 		macb_writel(lp, NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG) | MACB_BIT(RM9200_RMII));
-		lp->phy_interface = PHY_INTERFACE_MODE_RMII;
-	} else {
+	else
 		macb_writel(lp, NCFGR, MACB_BF(CLK, MACB_CLK_DIV32) | MACB_BIT(BIG));
-		lp->phy_interface = PHY_INTERFACE_MODE_MII;
-	}
 
 	/* Register the network interface */
 	res = register_netdev(dev);
@@ -602,6 +660,7 @@ static struct platform_driver at91ether_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(at91ether_dt_ids),
 	},
 };
 
