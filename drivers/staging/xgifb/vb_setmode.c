@@ -4148,12 +4148,11 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 /* Output : di -> Tap4 Reg. Setting Pointer */
 /* Description : */
 /* --------------------------------------------------------------------- */
-static struct XGI301C_Tap4TimingStruct *XGI_GetTap4Ptr(unsigned short tempcx,
-		struct vb_device_info *pVBInfo)
+static struct XGI301C_Tap4TimingStruct const
+*XGI_GetTap4Ptr(unsigned short tempcx, struct vb_device_info *pVBInfo)
 {
 	unsigned short tempax, tempbx, i;
-
-	struct XGI301C_Tap4TimingStruct *Tap4TimingPtr;
+	struct XGI301C_Tap4TimingStruct const *Tap4TimingPtr;
 
 	if (tempcx == 0) {
 		tempax = pVBInfo->VGAHDE;
@@ -4194,8 +4193,7 @@ static struct XGI301C_Tap4TimingStruct *XGI_GetTap4Ptr(unsigned short tempcx,
 static void XGI_SetTap4Regs(struct vb_device_info *pVBInfo)
 {
 	unsigned short i, j;
-
-	struct XGI301C_Tap4TimingStruct *Tap4TimingPtr;
+	struct XGI301C_Tap4TimingStruct const *Tap4TimingPtr;
 
 	if (!(pVBInfo->VBType & VB_XGI301C))
 		return;

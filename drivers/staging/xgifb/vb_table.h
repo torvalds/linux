@@ -2421,7 +2421,7 @@ static unsigned char XGI_NTSC1024AdjTime[] = {
 	0x58, 0xe4, 0x73, 0xd0, 0x13
 };
 
-static struct XGI301C_Tap4TimingStruct xgifb_tap4_timing[] = {
+static const struct XGI301C_Tap4TimingStruct xgifb_tap4_timing[] = {
 	{0, {
 	0x00, 0x20, 0x00, 0x00, 0x7F, 0x20, 0x02, 0x7F, /* ; C0-C7 */
 	0x7D, 0x20, 0x04, 0x7F, 0x7D, 0x1F, 0x06, 0x7E, /* ; C8-CF */
@@ -2435,7 +2435,7 @@ static struct XGI301C_Tap4TimingStruct xgifb_tap4_timing[] = {
 	}
 };
 
-static struct XGI301C_Tap4TimingStruct PALTap4Timing[] = {
+static const struct XGI301C_Tap4TimingStruct PALTap4Timing[] = {
 	{600,	{
 		0x05, 0x19, 0x05, 0x7D, 0x03, 0x19, 0x06, 0x7E, /* ; C0-C7 */
 		0x02, 0x19, 0x08, 0x7D, 0x01, 0x18, 0x0A, 0x7D, /* ; C8-CF */
@@ -2471,7 +2471,7 @@ static struct XGI301C_Tap4TimingStruct PALTap4Timing[] = {
 	}
 };
 
-static struct XGI301C_Tap4TimingStruct xgifb_ntsc_525_tap4_timing[] = {
+static const struct XGI301C_Tap4TimingStruct xgifb_ntsc_525_tap4_timing[] = {
 	{480,	{
 		0x04, 0x1A, 0x04, 0x7E, 0x03, 0x1A, 0x06, 0x7D, /* ; C0-C7 */
 		0x01, 0x1A, 0x08, 0x7D, 0x00, 0x19, 0x0A, 0x7D, /* ; C8-CF */
@@ -2507,7 +2507,7 @@ static struct XGI301C_Tap4TimingStruct xgifb_ntsc_525_tap4_timing[] = {
 	}
 };
 
-static struct XGI301C_Tap4TimingStruct YPbPr750pTap4Timing[] = {
+static const struct XGI301C_Tap4TimingStruct YPbPr750pTap4Timing[] = {
 	{0xFFFF, {
 		 0x05, 0x19, 0x05, 0x7D, 0x03, 0x19, 0x06, 0x7E, /* ; C0-C7 */
 		 0x02, 0x19, 0x08, 0x7D, 0x01, 0x18, 0x0A, 0x7D, /* ; C8-CF */
