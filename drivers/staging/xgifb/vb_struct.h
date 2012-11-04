@@ -56,7 +56,7 @@ struct XGI330_LCDDataTablStruct {
 	unsigned char  PANELID;
 	unsigned short MASK;
 	unsigned short CAP;
-	void *DATAPTR;
+	void const *DATAPTR;
 };
 
 struct XGI330_TVDataTablStruct {
@@ -178,7 +178,7 @@ struct vb_device_info {
 	unsigned char   *pXGINew_DRAMTypeDefinition;
 	unsigned char   XGINew_CR97;
 
-	struct XGI330_LCDCapStruct  *LCDCapList;
+	struct XGI330_LCDCapStruct const *LCDCapList;
 
 	struct XGI_TimingHStruct  *TimingH;
 	struct XGI_TimingVStruct  *TimingV;

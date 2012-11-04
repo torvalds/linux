@@ -1305,7 +1305,7 @@ static void XGI_GetLVDSResInfo(unsigned short ModeNo,
 	pVBInfo->VDE = yres;
 }
 
-static void *XGI_GetLcdPtr(struct XGI330_LCDDataTablStruct const *table,
+static void const *XGI_GetLcdPtr(struct XGI330_LCDDataTablStruct const *table,
 		unsigned short ModeNo,
 		unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
@@ -1380,7 +1380,7 @@ static void XGI_GetLVDSData(unsigned short ModeNo, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
 		struct vb_device_info *pVBInfo)
 {
-	struct SiS_LVDSData *LCDPtr = NULL;
+	struct SiS_LVDSData const *LCDPtr = NULL;
 
 	if (pVBInfo->VBInfo & (SetCRT2ToLCD | XGI_SetCRT2ToLCDA)) {
 		LCDPtr = XGI_GetLcdPtr(XGI_EPLLCDDataPtr, ModeNo, ModeIdIndex,
@@ -1421,8 +1421,8 @@ static void XGI_ModCRT1Regs(unsigned short ModeNo, unsigned short ModeIdIndex,
 {
 	unsigned char index;
 	unsigned short i;
-	struct XGI_LVDSCRT1HDataStruct *LCDPtr = NULL;
-	struct XGI_LVDSCRT1VDataStruct *LCDPtr1 = NULL;
+	struct XGI_LVDSCRT1HDataStruct const *LCDPtr = NULL;
+	struct XGI_LVDSCRT1VDataStruct const *LCDPtr1 = NULL;
 
 	index = pVBInfo->RefIndex[RefreshRateTableIndex].Ext_CRT2CRTC;
 	index = index & IndexMask;
@@ -1526,8 +1526,8 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 {
 	unsigned short tempbx, tempax, tempcx, tempdx, push1, push2, modeflag;
 	unsigned long temp, temp1, temp2, temp3, push3;
-	struct XGI_LCDDesStruct *LCDPtr = NULL;
-	struct XGI330_LCDDataDesStruct2 *LCDPtr1 = NULL;
+	struct XGI_LCDDesStruct const *LCDPtr = NULL;
+	struct XGI330_LCDDataDesStruct2 const *LCDPtr1 = NULL;
 
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	if (pVBInfo->LCDInfo & EnableScalingLCD)
@@ -2770,7 +2770,7 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 {
 	unsigned short tempax = 0, tempbx = 0, modeflag, resinfo;
 
-	struct SiS_LCDData *LCDPtr = NULL;
+	struct SiS_LCDData const *LCDPtr = NULL;
 
 	/* si+Ext_ResInfo */
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
@@ -3975,7 +3975,7 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	unsigned short push1, push2, pushbx, tempax, tempbx, tempcx, temp,
 			tempah, tempbh, tempch, resinfo, modeflag, CRT1Index;
 
-	struct XGI_LCDDesStruct *LCDBDesPtr = NULL;
+	struct XGI_LCDDesStruct const *LCDBDesPtr = NULL;
 
 	/* si+Ext_ResInfo */
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
