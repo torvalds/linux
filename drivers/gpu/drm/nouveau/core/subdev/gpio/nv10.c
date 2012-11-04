@@ -141,8 +141,6 @@ nv10_gpio_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x001140, 0x00000000);
-	nv_wr32(priv, 0x001100, 0xffffffff);
 	nv_wr32(priv, 0x001144, 0x00000000);
 	nv_wr32(priv, 0x001104, 0xffffffff);
 	return 0;
@@ -152,7 +150,6 @@ static int
 nv10_gpio_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv10_gpio_priv *priv = (void *)object;
-	nv_wr32(priv, 0x001140, 0x00000000);
 	nv_wr32(priv, 0x001144, 0x00000000);
 	return nouveau_gpio_fini(&priv->base, suspend);
 }
