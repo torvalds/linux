@@ -199,7 +199,6 @@ static void iwl_rx_queue_restock(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
-	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
 
@@ -221,9 +220,9 @@ static void iwl_rx_queue_restock(struct iwl_trans *trans)
 		BUG_ON(rxb && rxb->page);
 
 		/* Get next free Rx buffer, remove from free list */
-		element = rxq->rx_free.next;
-		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
-		list_del(element);
+		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
+				       list);
+		list_del(&rxb->list);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
 		rxq->bd[rxq->write] = iwl_dma_addr2rbd_ptr(rxb->page_dma);
@@ -260,7 +259,6 @@ static void iwl_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
-	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	struct page *page;
 	unsigned long flags;
@@ -308,10 +306,9 @@ static void iwl_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 			__free_pages(page, trans_pcie->rx_page_order);
 			return;
 		}
-		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
-		list_del(element);
-
+		rxb = list_first_entry(&rxq->rx_used, struct iwl_rx_mem_buffer,
+				       list);
+		list_del(&rxb->list);
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
 		BUG_ON(rxb->page);
