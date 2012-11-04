@@ -2123,14 +2123,6 @@ static const unsigned char XGI330_ScreenOffset[] = {
 	0x57, 0x48
 };
 
-static struct SiS_StResInfo_S XGI330_StResInfo[] = {
-	{640, 400},
-	{640, 350},
-	{720, 400},
-	{720, 350},
-	{640, 480}
-};
-
 static const struct SiS_ModeResInfo_S XGI330_ModeResInfo[] = {
 	{ 320,  200, 8,  8},
 	{ 320,  240, 8,  8},

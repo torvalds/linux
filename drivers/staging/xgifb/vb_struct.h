@@ -178,8 +178,6 @@ struct vb_device_info {
 	struct XGI_TimingHStruct TimingH;
 	struct XGI_TimingVStruct TimingV;
 
-	struct SiS_StResInfo_S   *StResInfo;
-
 	int ram_type;
 	int ram_channel;
 	int ram_bus;
