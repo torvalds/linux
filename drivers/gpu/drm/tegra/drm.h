@@ -107,6 +107,30 @@ static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 	return readl(dc->regs + (reg << 2));
 }
 
+struct tegra_dc_window {
+	struct {
+		unsigned int x;
+		unsigned int y;
+		unsigned int w;
+		unsigned int h;
+	} src;
+	struct {
+		unsigned int x;
+		unsigned int y;
+		unsigned int w;
+		unsigned int h;
+	} dst;
+	unsigned int bits_per_pixel;
+	unsigned int format;
+	unsigned int stride[2];
+	unsigned long base[3];
+};
+
+/* from dc.c */
+extern unsigned int tegra_dc_format(uint32_t format);
+extern int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
+				 const struct tegra_dc_window *window);
+
 struct tegra_output_ops {
 	int (*enable)(struct tegra_output *output);
 	int (*disable)(struct tegra_output *output);
