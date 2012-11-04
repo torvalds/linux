@@ -52,8 +52,6 @@
 #define smp_mb__before_clear_bit()	smp_mb()
 #define smp_mb__after_clear_bit()	smp_mb()
 
-#define BITOP_MASK(nr)		(1UL << ((nr) % BITS_PER_LONG))
-#define BITOP_WORD(nr)		((nr) / BITS_PER_LONG)
 #define BITOP_LE_SWIZZLE	((BITS_PER_LONG-1) & ~0x7)
 
 /* Macro for generating the ***_bits() functions */
@@ -83,22 +81,22 @@ DEFINE_BITOP(change_bits, xor, "", "")
 
 static __inline__ void set_bit(int nr, volatile unsigned long *addr)
 {
-	set_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	set_bits(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 static __inline__ void clear_bit(int nr, volatile unsigned long *addr)
 {
-	clear_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	clear_bits(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 static __inline__ void clear_bit_unlock(int nr, volatile unsigned long *addr)
 {
-	clear_bits_unlock(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	clear_bits_unlock(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 static __inline__ void change_bit(int nr, volatile unsigned long *addr)
 {
-	change_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr));
+	change_bits(BIT_MASK(nr), addr + BIT_WORD(nr));
 }
 
 /* Like DEFINE_BITOP(), with changes to the arguments to 'op' and the output
@@ -136,26 +134,26 @@ DEFINE_TESTOP(test_and_change_bits, xor, PPC_ATOMIC_ENTRY_BARRIER,
 static __inline__ int test_and_set_bit(unsigned long nr,
 				       volatile unsigned long *addr)
 {
-	return test_and_set_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr)) != 0;
+	return test_and_set_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
 static __inline__ int test_and_set_bit_lock(unsigned long nr,
 				       volatile unsigned long *addr)
 {
-	return test_and_set_bits_lock(BITOP_MASK(nr),
-				addr + BITOP_WORD(nr)) != 0;
+	return test_and_set_bits_lock(BIT_MASK(nr),
+				addr + BIT_WORD(nr)) != 0;
 }
 
 static __inline__ int test_and_clear_bit(unsigned long nr,
 					 volatile unsigned long *addr)
 {
-	return test_and_clear_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr)) != 0;
+	return test_and_clear_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
 static __inline__ int test_and_change_bit(unsigned long nr,
 					  volatile unsigned long *addr)
 {
-	return test_and_change_bits(BITOP_MASK(nr), addr + BITOP_WORD(nr)) != 0;
+	return test_and_change_bits(BIT_MASK(nr), addr + BIT_WORD(nr)) != 0;
 }
 
 #include <asm-generic/bitops/non-atomic.h>
