@@ -40,9 +40,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 	pVBInfo->SR15 = XGI340_SR13;
 	pVBInfo->CR40 = XGI340_cr41;
 	pVBInfo->CR6B = XGI340_CR6B;
-	pVBInfo->CR6E = XGI340_CR6E;
-	pVBInfo->CR6F = XGI340_CR6F;
-	pVBInfo->CR89 = XGI340_CR89;
 	pVBInfo->AGPReg = XGI340_AGPReg;
 	pVBInfo->SR16 = XGI340_SR16;
 

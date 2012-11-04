@@ -159,9 +159,6 @@ struct vb_device_info {
 	unsigned long BaseAddr;
 
 	unsigned char (*CR6B)[4];
-	unsigned char (*CR6E)[4];
-	unsigned char (*CR6F)[32];
-	unsigned char (*CR89)[2];
 
 	unsigned char (*SR15)[8];
 	unsigned char (*CR40)[8];

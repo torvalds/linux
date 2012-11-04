@@ -444,7 +444,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 	temp2 = 0;
 	for (i = 0; i < 4; i++) {
 		/* CR6E DQM fine tune delay */
-		temp = pVBInfo->CR6E[pVBInfo->ram_type][i];
+		temp = 0;
 		for (j = 0; j < 4; j++) {
 			temp1 = ((temp >> (2 * j)) & 0x03) << 2;
 			temp2 |= temp1;
@@ -463,7 +463,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		temp2 = 0;
 		for (i = 0; i < 8; i++) {
 			/* CR6F DQ fine tune delay */
-			temp = pVBInfo->CR6F[pVBInfo->ram_type][8 * k + i];
+			temp = 0;
 			for (j = 0; j < 4; j++) {
 				temp1 = (temp >> (2 * j)) & 0x03;
 				temp2 |= temp1;
@@ -486,7 +486,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 
 	temp2 = 0x80;
 	/* CR89 terminator type select */
-	temp = pVBInfo->CR89[pVBInfo->ram_type][0];
+	temp = 0;
 	for (j = 0; j < 4; j++) {
 		temp1 = (temp >> (2 * j)) & 0x03;
 		temp2 |= temp1;
@@ -496,7 +496,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		temp2 += 0x10;
 	}
 
-	temp = pVBInfo->CR89[pVBInfo->ram_type][1];
+	temp = 0;
 	temp1 = temp & 0x03;
 	temp2 |= temp1;
 	xgifb_reg_set(P3d4, 0x89, temp2);
