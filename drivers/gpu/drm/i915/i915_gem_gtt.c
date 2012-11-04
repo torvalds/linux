@@ -512,6 +512,15 @@ static inline unsigned int gen6_get_stolen_size(u16 snb_gmch_ctl)
 	return snb_gmch_ctl << 25; /* 32 MB units */
 }
 
+static inline unsigned int gen7_get_stolen_size(u16 snb_gmch_ctl)
+{
+	static const int stolen_decoder[] = {
+		0, 0, 0, 0, 0, 32, 48, 64, 128, 256, 96, 160, 224, 352};
+	snb_gmch_ctl >>= IVB_GMCH_GMS_SHIFT;
+	snb_gmch_ctl &= IVB_GMCH_GMS_MASK;
+	return stolen_decoder[snb_gmch_ctl] << 20;
+}
+
 int i915_gem_gtt_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -557,7 +566,10 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 	dev_priv->mm.gtt->gtt_total_entries =
 		gen6_get_total_gtt_size(snb_gmch_ctl) / sizeof(gtt_pte_t);
-	dev_priv->mm.gtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
+	if (INTEL_INFO(dev)->gen < 7)
+		dev_priv->mm.gtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
+	else
+		dev_priv->mm.gtt->stolen_size = gen7_get_stolen_size(snb_gmch_ctl);
 
 	dev_priv->mm.gtt->gtt_mappable_entries = pci_resource_len(dev->pdev, 2) >> PAGE_SHIFT;
 	/* 64/512MB is the current min/max we actually know of, but this is just a

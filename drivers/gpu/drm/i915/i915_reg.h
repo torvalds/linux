@@ -46,6 +46,8 @@
 #define    SNB_GMCH_GGMS_MASK	0x3
 #define    SNB_GMCH_GMS_SHIFT   3 /* Graphics Mode Select */
 #define    SNB_GMCH_GMS_MASK    0x1f
+#define    IVB_GMCH_GMS_SHIFT   4
+#define    IVB_GMCH_GMS_MASK    0xf
 
 
 /* PCI config space */
