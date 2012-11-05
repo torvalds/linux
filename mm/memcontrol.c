@@ -2681,13 +2681,6 @@ static int mem_cgroup_move_account(struct page *page,
 	/* caller should have done css_get */
 	pc->mem_cgroup = to;
 	mem_cgroup_charge_statistics(to, anon, nr_pages);
-	/*
-	 * We charges against "to" which may not have any tasks. Then, "to"
-	 * can be under rmdir(). But in current implementation, caller of
-	 * this function is just force_empty() and move charge, so it's
-	 * guaranteed that "to" is never removed. So, we don't check rmdir
-	 * status here.
-	 */
 	move_unlock_mem_cgroup(from, &flags);
 	ret = 0;
 unlock:
@@ -2893,7 +2886,6 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
 		return;
 	if (!memcg)
 		return;
-	cgroup_exclude_rmdir(&memcg->css);
 
 	__mem_cgroup_commit_charge(memcg, page, 1, ctype, true);
 	/*
@@ -2907,12 +2899,6 @@ __mem_cgroup_commit_charge_swapin(struct page *page, struct mem_cgroup *memcg,
 		swp_entry_t ent = {.val = page_private(page)};
 		mem_cgroup_uncharge_swap(ent);
 	}
-	/*
-	 * At swapin, we may charge account against cgroup which has no tasks.
-	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-	 * In that case, we need to call pre_destroy() again. check it here.
-	 */
-	cgroup_release_and_wakeup_rmdir(&memcg->css);
 }
 
 void mem_cgroup_commit_charge_swapin(struct page *page,
@@ -3360,8 +3346,7 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 
 	if (!memcg)
 		return;
-	/* blocks rmdir() */
-	cgroup_exclude_rmdir(&memcg->css);
+
 	if (!migration_ok) {
 		used = oldpage;
 		unused = newpage;
@@ -3395,13 +3380,6 @@ void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 	 */
 	if (anon)
 		mem_cgroup_uncharge_page(used);
-	/*
-	 * At migration, we may charge account against cgroup which has no
-	 * tasks.
-	 * So, rmdir()->pre_destroy() can be called while we do this charge.
-	 * In that case, we need to call pre_destroy() again. check it here.
-	 */
-	cgroup_release_and_wakeup_rmdir(&memcg->css);
 }
 
 /*

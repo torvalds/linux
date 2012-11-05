@@ -145,10 +145,6 @@ enum {
 	/* Control Group requires release notifications to userspace */
 	CGRP_NOTIFY_ON_RELEASE,
 	/*
-	 * A thread in rmdir() is wating for this cgroup.
-	 */
-	CGRP_WAIT_ON_RMDIR,
-	/*
 	 * Clone cgroup values when creating a new child cgroup
 	 */
 	CGRP_CLONE_CHILDREN,
@@ -410,23 +406,6 @@ int cgroup_task_count(const struct cgroup *cgrp);
 
 /* Return true if cgrp is a descendant of the task's cgroup */
 int cgroup_is_descendant(const struct cgroup *cgrp, struct task_struct *task);
-
-/*
- * When the subsys has to access css and may add permanent refcnt to css,
- * it should take care of racy conditions with rmdir(). Following set of
- * functions, is for stop/restart rmdir if necessary.
- * Because these will call css_get/put, "css" should be alive css.
- *
- *  cgroup_exclude_rmdir();
- *  ...do some jobs which may access arbitrary empty cgroup
- *  cgroup_release_and_wakeup_rmdir();
- *
- *  When someone removes a cgroup while cgroup_exclude_rmdir() holds it,
- *  it sleeps and cgroup_release_and_wakeup_rmdir() will wake him up.
- */
-
-void cgroup_exclude_rmdir(struct cgroup_subsys_state *css);
-void cgroup_release_and_wakeup_rmdir(struct cgroup_subsys_state *css);
 
 /*
  * Control Group taskset, used to pass around set of tasks to cgroup_subsys
