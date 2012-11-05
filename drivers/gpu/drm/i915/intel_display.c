@@ -6600,24 +6600,19 @@ bool intel_get_load_detect_pipe(struct drm_connector *connector,
 		DRM_DEBUG_KMS("reusing fbdev for load-detection framebuffer\n");
 	if (IS_ERR(fb)) {
 		DRM_DEBUG_KMS("failed to allocate framebuffer for load-detection\n");
-		goto fail;
+		return false;
 	}
 
 	if (!intel_set_mode(crtc, mode, 0, 0, fb)) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
-		goto fail;
+		return false;
 	}
 
 	/* let the connector get through one full cycle before testing */
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
-
 	return true;
-fail:
-	connector->encoder = NULL;
-	encoder->crtc = NULL;
-	return false;
 }
 
 void intel_release_load_detect_pipe(struct drm_connector *connector,
