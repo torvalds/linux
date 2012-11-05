@@ -358,6 +358,13 @@ config COBRA5329
 	help
 	  Support for the senTec COBRA5329 board.
 
+config M5373EVB
+	bool "Freescale M5373EVB board support"
+	depends on M537x
+	select FREESCALE
+	help
+	  Support for the Freescale M5373EVB board.
+
 config M5407C3
 	bool "Motorola M5407C3 board support"
 	depends on M5407
