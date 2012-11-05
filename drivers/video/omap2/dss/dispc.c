@@ -1999,7 +1999,7 @@ static int check_horiz_timing_omap3(enum omap_plane plane,
 		const struct omap_video_timings *t, u16 pos_x,
 		u16 width, u16 height, u16 out_width, u16 out_height)
 {
-	int DS = DIV_ROUND_UP(height, out_height);
+	const int ds = DIV_ROUND_UP(height, out_height);
 	unsigned long nonactive;
 	static const u8 limits[3] = { 8, 10, 20 };
 	u64 val, blank;
@@ -2026,8 +2026,8 @@ static int check_horiz_timing_omap3(enum omap_plane plane,
 	 */
 	val = div_u64((u64)(nonactive - pos_x) * lclk, pclk);
 	DSSDBG("(nonactive - pos_x) * pcd = %llu max(0, DS - 2) * width = %d\n",
-		val, max(0, DS - 2) * width);
-	if (val < max(0, DS - 2) * width)
+		val, max(0, ds - 2) * width);
+	if (val < max(0, ds - 2) * width)
 		return -EINVAL;
 
 	/*
@@ -2037,8 +2037,8 @@ static int check_horiz_timing_omap3(enum omap_plane plane,
 	 */
 	val =  div_u64((u64)nonactive * lclk, pclk);
 	DSSDBG("nonactive * pcd  = %llu, max(0, DS - 1) * width = %d\n",
-		val, max(0, DS - 1) * width);
-	if (val < max(0, DS - 1) * width)
+		val, max(0, ds - 1) * width);
+	if (val < max(0, ds - 1) * width)
 		return -EINVAL;
 
 	return 0;
