@@ -1204,7 +1204,7 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
+	IWL_DEBUG_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(priv->eeprom_data->valid_tx_ant);
@@ -1214,9 +1214,9 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		priv->hw_params.rx_chains_num =
 			num_of_ant(priv->eeprom_data->valid_rx_ant);
 
-	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-		 priv->eeprom_data->valid_tx_ant,
-		 priv->eeprom_data->valid_rx_ant);
+	IWL_DEBUG_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+		       priv->eeprom_data->valid_tx_ant,
+		       priv->eeprom_data->valid_rx_ant);
 
 	return 0;
 }
