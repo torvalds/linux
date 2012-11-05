@@ -97,7 +97,6 @@ struct wm0010_priv {
 
 	enum wm0010_state state;
 	bool boot_failed;
-	int boot_done;
 	bool ready;
 	bool pll_running;
 	int max_spi_freq;
@@ -234,7 +233,7 @@ static void wm0010_boot_xfer_complete(void *data)
 			break;
 
 		case 0x55555555:
-			if (wm0010->boot_done == 0)
+			if (wm0010->state < WM0010_STAGE2)
 				break;
 			dev_err(codec->dev,
 				"%d: ROM bootloader running in stage 2\n", i);
@@ -321,7 +320,6 @@ static void wm0010_boot_xfer_complete(void *data)
 			break;
 	}
 
-	wm0010->boot_done++;
 	if (xfer->done)
 		complete(xfer->done);
 }
@@ -544,7 +542,6 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 
 	rec = (const struct dfw_binrec *)fw->data;
 	offset = 0;
-	wm0010->boot_done = 0;
 	wm0010->boot_failed = false;
 	BUG_ON(!list_empty(&xfer_list));
 	init_completion(&done);
