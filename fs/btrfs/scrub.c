@@ -152,7 +152,7 @@ static void scrub_pending_trans_workers_inc(struct scrub_ctx *sctx);
 static void scrub_pending_trans_workers_dec(struct scrub_ctx *sctx);
 static int scrub_handle_errored_block(struct scrub_block *sblock_to_check);
 static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
-				     struct btrfs_mapping_tree *map_tree,
+				     struct btrfs_fs_info *fs_info,
 				     u64 length, u64 logical,
 				     struct scrub_block *sblock);
 static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
@@ -523,7 +523,7 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *ctx)
 	}
 
 	if (PageUptodate(page)) {
-		struct btrfs_mapping_tree *map_tree;
+		struct btrfs_fs_info *fs_info;
 		if (PageDirty(page)) {
 			/*
 			 * we need to write the data to the defect sector. the
@@ -544,8 +544,8 @@ static int scrub_fixup_readpage(u64 inum, u64 offset, u64 root, void *ctx)
 			ret = -EIO;
 			goto out;
 		}
-		map_tree = &BTRFS_I(inode)->root->fs_info->mapping_tree;
-		ret = repair_io_failure(map_tree, offset, PAGE_SIZE,
+		fs_info = BTRFS_I(inode)->root->fs_info;
+		ret = repair_io_failure(fs_info, offset, PAGE_SIZE,
 					fixup->logical, page,
 					fixup->mirror_num);
 		unlock_page(page);
@@ -754,7 +754,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	}
 
 	/* setup the context, map the logical blocks and alloc the pages */
-	ret = scrub_setup_recheck_block(sctx, &fs_info->mapping_tree, length,
+	ret = scrub_setup_recheck_block(sctx, fs_info, length,
 					logical, sblocks_for_recheck);
 	if (ret) {
 		spin_lock(&sctx->stat_lock);
@@ -1012,7 +1012,7 @@ out:
 }
 
 static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
-				     struct btrfs_mapping_tree *map_tree,
+				     struct btrfs_fs_info *fs_info,
 				     u64 length, u64 logical,
 				     struct scrub_block *sblocks_for_recheck)
 {
@@ -1036,7 +1036,7 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 		 * with a length of PAGE_SIZE, each returned stripe
 		 * represents one mirror
 		 */
-		ret = btrfs_map_block(map_tree, WRITE, logical, &mapped_length,
+		ret = btrfs_map_block(fs_info, WRITE, logical, &mapped_length,
 				      &bbio, 0);
 		if (ret || !bbio || mapped_length < sublen) {
 			kfree(bbio);

@@ -323,7 +323,6 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	struct reada_extent *re = NULL;
 	struct reada_extent *re_exist = NULL;
 	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct btrfs_bio *bbio = NULL;
 	struct btrfs_device *dev;
 	struct btrfs_device *prev_dev;
@@ -358,7 +357,7 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 	 * map block
 	 */
 	length = blocksize;
-	ret = btrfs_map_block(map_tree, REQ_WRITE, logical, &length, &bbio, 0);
+	ret = btrfs_map_block(fs_info, REQ_WRITE, logical, &length, &bbio, 0);
 	if (ret || !bbio || length < blocksize)
 		goto error;
 

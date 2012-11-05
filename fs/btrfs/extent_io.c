@@ -1917,12 +1917,12 @@ static void repair_io_failure_callback(struct bio *bio, int err)
  * the standard behavior is to write all copies in a raid setup. here we only
  * want to write the one bad copy. so we do the mapping for ourselves and issue
  * submit_bio directly.
- * to avoid any synchonization issues, wait for the data after writing, which
+ * to avoid any synchronization issues, wait for the data after writing, which
  * actually prevents the read that triggered the error from finishing.
  * currently, there can be no more than two copies of every data bit. thus,
  * exactly one rewrite is required.
  */
-int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
+int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 			u64 length, u64 logical, struct page *page,
 			int mirror_num)
 {
@@ -1944,7 +1944,7 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 	bio->bi_size = 0;
 	map_length = length;
 
-	ret = btrfs_map_block(map_tree, WRITE, logical,
+	ret = btrfs_map_block(fs_info, WRITE, logical,
 			      &map_length, &bbio, mirror_num);
 	if (ret) {
 		bio_put(bio);
@@ -1982,14 +1982,13 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 			 int mirror_num)
 {
-	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
 	u64 start = eb->start;
 	unsigned long i, num_pages = num_extent_pages(eb->start, eb->len);
 	int ret = 0;
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = extent_buffer_page(eb, i);
-		ret = repair_io_failure(map_tree, start, PAGE_CACHE_SIZE,
+		ret = repair_io_failure(root->fs_info, start, PAGE_CACHE_SIZE,
 					start, p, mirror_num);
 		if (ret)
 			break;
@@ -2008,7 +2007,7 @@ static int clean_io_failure(u64 start, struct page *page)
 	u64 private;
 	u64 private_failure;
 	struct io_failure_record *failrec;
-	struct btrfs_mapping_tree *map_tree;
+	struct btrfs_fs_info *fs_info;
 	struct extent_state *state;
 	int num_copies;
 	int did_repair = 0;
@@ -2044,11 +2043,11 @@ static int clean_io_failure(u64 start, struct page *page)
 	spin_unlock(&BTRFS_I(inode)->io_tree.lock);
 
 	if (state && state->start == failrec->start) {
-		num_copies = btrfs_num_copies(BTRFS_I(inode)->root->fs_info,
-					      failrec->logical, failrec->len);
+		fs_info = BTRFS_I(inode)->root->fs_info;
+		num_copies = btrfs_num_copies(fs_info, failrec->logical,
+					      failrec->len);
 		if (num_copies > 1)  {
-			map_tree = &BTRFS_I(inode)->root->fs_info->mapping_tree;
-			ret = repair_io_failure(map_tree, start, failrec->len,
+			ret = repair_io_failure(fs_info, start, failrec->len,
 						failrec->logical, page,
 						failrec->failed_mirror);
 			did_repair = !ret;

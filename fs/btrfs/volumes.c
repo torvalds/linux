@@ -3826,13 +3826,14 @@ static int find_live_mirror(struct map_lookup *map, int first, int num,
 	return optimal;
 }
 
-static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
+static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			     u64 logical, u64 *length,
 			     struct btrfs_bio **bbio_ret,
 			     int mirror_num)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
+	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct extent_map_tree *em_tree = &map_tree->map_tree;
 	u64 offset;
 	u64 stripe_offset;
@@ -4061,11 +4062,11 @@ out:
 	return ret;
 }
 
-int btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
+int btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		      u64 logical, u64 *length,
 		      struct btrfs_bio **bbio_ret, int mirror_num)
 {
-	return __btrfs_map_block(map_tree, rw, logical, length, bbio_ret,
+	return __btrfs_map_block(fs_info, rw, logical, length, bbio_ret,
 				 mirror_num);
 }
 
@@ -4394,7 +4395,6 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		  int mirror_num, int async_submit)
 {
-	struct btrfs_mapping_tree *map_tree;
 	struct btrfs_device *dev;
 	struct bio *first_bio = bio;
 	u64 logical = (u64)bio->bi_sector << 9;
@@ -4406,10 +4406,9 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	struct btrfs_bio *bbio = NULL;
 
 	length = bio->bi_size;
-	map_tree = &root->fs_info->mapping_tree;
 	map_length = length;
 
-	ret = btrfs_map_block(map_tree, rw, logical, &map_length, &bbio,
+	ret = btrfs_map_block(root->fs_info, rw, logical, &map_length, &bbio,
 			      mirror_num);
 	if (ret) /* -ENOMEM */
 		return ret;
