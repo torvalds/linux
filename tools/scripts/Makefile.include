@@ -41,6 +41,14 @@ else
 NO_SUBDIR = :
 endif
 
+#
+# Define a callable command for descending to a new directory
+#
+# Call by doing: $(call descend,directory[,target])
+#
+descend = \
+	$(QUIET_SUBDIR0)$(1) $(QUIET_SUBDIR1) $(2)
+
 QUIET_SUBDIR0  = +$(MAKE) -C # space to separate -C and subdir
 QUIET_SUBDIR1  =
 
