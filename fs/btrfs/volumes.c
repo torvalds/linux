@@ -1522,6 +1522,65 @@ error_undo:
 	goto error_brelse;
 }
 
+int btrfs_find_device_by_path(struct btrfs_root *root, char *device_path,
+			      struct btrfs_device **device)
+{
+	int ret = 0;
+	struct btrfs_super_block *disk_super;
+	u64 devid;
+	u8 *dev_uuid;
+	struct block_device *bdev;
+	struct buffer_head *bh;
+
+	*device = NULL;
+	ret = btrfs_get_bdev_and_sb(device_path, FMODE_READ,
+				    root->fs_info->bdev_holder, 0, &bdev, &bh);
+	if (ret)
+		return ret;
+	disk_super = (struct btrfs_super_block *)bh->b_data;
+	devid = btrfs_stack_device_id(&disk_super->dev_item);
+	dev_uuid = disk_super->dev_item.uuid;
+	*device = btrfs_find_device(root, devid, dev_uuid,
+				    disk_super->fsid);
+	brelse(bh);
+	if (!*device)
+		ret = -ENOENT;
+	blkdev_put(bdev, FMODE_READ);
+	return ret;
+}
+
+int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
+					 char *device_path,
+					 struct btrfs_device **device)
+{
+	*device = NULL;
+	if (strcmp(device_path, "missing") == 0) {
+		struct list_head *devices;
+		struct btrfs_device *tmp;
+
+		devices = &root->fs_info->fs_devices->devices;
+		/*
+		 * It is safe to read the devices since the volume_mutex
+		 * is held by the caller.
+		 */
+		list_for_each_entry(tmp, devices, dev_list) {
+			if (tmp->in_fs_metadata && !tmp->bdev) {
+				*device = tmp;
+				break;
+			}
+		}
+
+		if (!*device) {
+			pr_err("btrfs: no missing device found\n");
+			return -ENOENT;
+		}
+
+		return 0;
+	} else {
+		return btrfs_find_device_by_path(root, device_path, device);
+	}
+}
+
 /*
  * does all the dirty work required for changing file system's UUID.
  */

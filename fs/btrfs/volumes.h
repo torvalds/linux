@@ -268,6 +268,11 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 			  struct btrfs_fs_devices **fs_devices_ret);
 int btrfs_close_devices(struct btrfs_fs_devices *fs_devices);
 void btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices);
+int btrfs_find_device_missing_or_by_path(struct btrfs_root *root,
+					 char *device_path,
+					 struct btrfs_device **device);
+int btrfs_find_device_by_path(struct btrfs_root *root, char *device_path,
+			      struct btrfs_device **device);
 int btrfs_add_device(struct btrfs_trans_handle *trans,
 		     struct btrfs_root *root,
 		     struct btrfs_device *device);
