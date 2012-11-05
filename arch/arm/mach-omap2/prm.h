@@ -52,5 +52,58 @@
 #define OMAP_POWERSTATE_SHIFT				0
 #define OMAP_POWERSTATE_MASK				(0x3 << 0)
 
+/*
+ * Standardized OMAP reset source bits
+ *
+ * To the extent these happen to match the hardware register bit
+ * shifts, it's purely coincidental.  Used by omap-wdt.c.
+ * OMAP_UNKNOWN_RST_SRC_ID_SHIFT is a special value, used whenever
+ * there are any bits remaining in the global PRM_RSTST register that
+ * haven't been identified, or when the PRM code for the current SoC
+ * doesn't know how to interpret the register.
+ */
+#define OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT			0
+#define OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT			1
+#define OMAP_SECU_VIOL_RST_SRC_ID_SHIFT				2
+#define OMAP_MPU_WD_RST_SRC_ID_SHIFT				3
+#define OMAP_SECU_WD_RST_SRC_ID_SHIFT				4
+#define OMAP_EXTWARM_RST_SRC_ID_SHIFT				5
+#define OMAP_VDD_MPU_VM_RST_SRC_ID_SHIFT			6
+#define OMAP_VDD_IVA_VM_RST_SRC_ID_SHIFT			7
+#define OMAP_VDD_CORE_VM_RST_SRC_ID_SHIFT			8
+#define OMAP_ICEPICK_RST_SRC_ID_SHIFT				9
+#define OMAP_ICECRUSHER_RST_SRC_ID_SHIFT			10
+#define OMAP_C2C_RST_SRC_ID_SHIFT				11
+#define OMAP_UNKNOWN_RST_SRC_ID_SHIFT				12
+
+#ifndef __ASSEMBLER__
+
+/**
+ * struct prm_reset_src_map - map register bitshifts to standard bitshifts
+ * @reg_shift: bitshift in the PRM reset source register
+ * @std_shift: bitshift equivalent in the standard reset source list
+ *
+ * The fields are signed because -1 is used as a terminator.
+ */
+struct prm_reset_src_map {
+	s8 reg_shift;
+	s8 std_shift;
+};
+
+/**
+ * struct prm_ll_data - fn ptrs to per-SoC PRM function implementations
+ * @read_reset_sources: ptr to the Soc PRM-specific get_reset_source impl
+ */
+struct prm_ll_data {
+	u32 (*read_reset_sources)(void);
+};
+
+extern int prm_register(struct prm_ll_data *pld);
+extern int prm_unregister(struct prm_ll_data *pld);
+
+extern u32 prm_read_reset_sources(void);
+
+#endif
+
 
 #endif

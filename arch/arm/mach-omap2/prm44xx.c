@@ -1,10 +1,11 @@
 /*
  * OMAP4 PRM module functions
  *
- * Copyright (C) 2011 Texas Instruments, Inc.
+ * Copyright (C) 2011-2012 Texas Instruments, Inc.
  * Copyright (C) 2010 Nokia Corporation
  * Benoît Cousson
  * Paul Walmsley
+ * Rajendra Nayak <rnayak@ti.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -27,6 +28,9 @@
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prminst44xx.h"
+#include "powerdomain.h"
+
+/* Static data */
 
 static const struct omap_prcm_irq omap4_prcm_irqs[] = {
 	OMAP_PRCM_IRQ("wkup",   0,      0),
@@ -44,6 +48,33 @@ static struct omap_prcm_irq_setup omap4_prcm_irq_setup = {
 	.ocp_barrier		= &omap44xx_prm_ocp_barrier,
 	.save_and_clear_irqen	= &omap44xx_prm_save_and_clear_irqen,
 	.restore_irqen		= &omap44xx_prm_restore_irqen,
+};
+
+/*
+ * omap44xx_prm_reset_src_map - map from bits in the PRM_RSTST
+ *   hardware register (which are specific to OMAP44xx SoCs) to reset
+ *   source ID bit shifts (which is an OMAP SoC-independent
+ *   enumeration)
+ */
+static struct prm_reset_src_map omap44xx_prm_reset_src_map[] = {
+	{ OMAP4430_RST_GLOBAL_WARM_SW_SHIFT,
+	  OMAP_GLOBAL_WARM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_RST_GLOBAL_COLD_SW_SHIFT,
+	  OMAP_GLOBAL_COLD_RST_SRC_ID_SHIFT },
+	{ OMAP4430_MPU_SECURITY_VIOL_RST_SHIFT,
+	  OMAP_SECU_VIOL_RST_SRC_ID_SHIFT },
+	{ OMAP4430_MPU_WDT_RST_SHIFT, OMAP_MPU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP4430_SECURE_WDT_RST_SHIFT, OMAP_SECU_WD_RST_SRC_ID_SHIFT },
+	{ OMAP4430_EXTERNAL_WARM_RST_SHIFT, OMAP_EXTWARM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_VDD_MPU_VOLT_MGR_RST_SHIFT,
+	  OMAP_VDD_MPU_VM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_VDD_IVA_VOLT_MGR_RST_SHIFT,
+	  OMAP_VDD_IVA_VM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_VDD_CORE_VOLT_MGR_RST_SHIFT,
+	  OMAP_VDD_CORE_VM_RST_SRC_ID_SHIFT },
+	{ OMAP4430_ICEPICK_RST_SHIFT, OMAP_ICEPICK_RST_SRC_ID_SHIFT },
+	{ OMAP4430_C2C_RST_SHIFT, OMAP_C2C_RST_SRC_ID_SHIFT },
+	{ -1, -1 },
 };
 
 /* PRM low-level functions */
@@ -291,12 +322,324 @@ static void __init omap44xx_prm_enable_io_wakeup(void)
 				    OMAP4_PRM_IO_PMCTRL_OFFSET);
 }
 
-static int __init omap4xxx_prcm_init(void)
+/**
+ * omap44xx_prm_read_reset_sources - return the last SoC reset source
+ *
+ * Return a u32 representing the last reset sources of the SoC.  The
+ * returned reset source bits are standardized across OMAP SoCs.
+ */
+static u32 omap44xx_prm_read_reset_sources(void)
 {
-	if (cpu_is_omap44xx()) {
-		omap44xx_prm_enable_io_wakeup();
-		return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
+	struct prm_reset_src_map *p;
+	u32 r = 0;
+	u32 v;
+
+	v = omap4_prm_read_inst_reg(OMAP4430_PRM_OCP_SOCKET_INST,
+				    OMAP4_RM_RSTST);
+
+	p = omap44xx_prm_reset_src_map;
+	while (p->reg_shift >= 0 && p->std_shift >= 0) {
+		if (v & (1 << p->reg_shift))
+			r |= 1 << p->std_shift;
+		p++;
 	}
+
+	return r;
+}
+
+/* Powerdomain low-level functions */
+
+static int omap4_pwrdm_set_next_pwrst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	omap4_prminst_rmw_inst_reg_bits(OMAP_POWERSTATE_MASK,
+					(pwrst << OMAP_POWERSTATE_SHIFT),
+					pwrdm->prcm_partition,
+					pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
 	return 0;
 }
-subsys_initcall(omap4xxx_prcm_init);
+
+static int omap4_pwrdm_read_next_pwrst(struct powerdomain *pwrdm)
+{
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+	v &= OMAP_POWERSTATE_MASK;
+	v >>= OMAP_POWERSTATE_SHIFT;
+
+	return v;
+}
+
+static int omap4_pwrdm_read_pwrst(struct powerdomain *pwrdm)
+{
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= OMAP_POWERSTATEST_MASK;
+	v >>= OMAP_POWERSTATEST_SHIFT;
+
+	return v;
+}
+
+static int omap4_pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
+{
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= OMAP4430_LASTPOWERSTATEENTERED_MASK;
+	v >>= OMAP4430_LASTPOWERSTATEENTERED_SHIFT;
+
+	return v;
+}
+
+static int omap4_pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
+{
+	omap4_prminst_rmw_inst_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
+					(1 << OMAP4430_LOWPOWERSTATECHANGE_SHIFT),
+					pwrdm->prcm_partition,
+					pwrdm->prcm_offs, OMAP4_PM_PWSTCTRL);
+	return 0;
+}
+
+static int omap4_pwrdm_clear_all_prev_pwrst(struct powerdomain *pwrdm)
+{
+	omap4_prminst_rmw_inst_reg_bits(OMAP4430_LASTPOWERSTATEENTERED_MASK,
+					OMAP4430_LASTPOWERSTATEENTERED_MASK,
+					pwrdm->prcm_partition,
+					pwrdm->prcm_offs, OMAP4_PM_PWSTST);
+	return 0;
+}
+
+static int omap4_pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
+{
+	u32 v;
+
+	v = pwrst << __ffs(OMAP4430_LOGICRETSTATE_MASK);
+	omap4_prminst_rmw_inst_reg_bits(OMAP4430_LOGICRETSTATE_MASK, v,
+					pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+
+	return 0;
+}
+
+static int omap4_pwrdm_set_mem_onst(struct powerdomain *pwrdm, u8 bank,
+				    u8 pwrst)
+{
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_onstate_mask(bank);
+
+	omap4_prminst_rmw_inst_reg_bits(m, (pwrst << __ffs(m)),
+					pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+
+	return 0;
+}
+
+static int omap4_pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank,
+				     u8 pwrst)
+{
+	u32 m;
+
+	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
+
+	omap4_prminst_rmw_inst_reg_bits(m, (pwrst << __ffs(m)),
+					pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+
+	return 0;
+}
+
+static int omap4_pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
+{
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= OMAP4430_LOGICSTATEST_MASK;
+	v >>= OMAP4430_LOGICSTATEST_SHIFT;
+
+	return v;
+}
+
+static int omap4_pwrdm_read_logic_retst(struct powerdomain *pwrdm)
+{
+	u32 v;
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+	v &= OMAP4430_LOGICRETSTATE_MASK;
+	v >>= OMAP4430_LOGICRETSTATE_SHIFT;
+
+	return v;
+}
+
+/**
+ * omap4_pwrdm_read_prev_logic_pwrst - read the previous logic powerstate
+ * @pwrdm: struct powerdomain * to read the state for
+ *
+ * Reads the previous logic powerstate for a powerdomain. This
+ * function must determine the previous logic powerstate by first
+ * checking the previous powerstate for the domain. If that was OFF,
+ * then logic has been lost. If previous state was RETENTION, the
+ * function reads the setting for the next retention logic state to
+ * see the actual value.  In every other case, the logic is
+ * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
+ * depending whether the logic was retained or not.
+ */
+static int omap4_pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
+{
+	int state;
+
+	state = omap4_pwrdm_read_prev_pwrst(pwrdm);
+
+	if (state == PWRDM_POWER_OFF)
+		return PWRDM_POWER_OFF;
+
+	if (state != PWRDM_POWER_RET)
+		return PWRDM_POWER_RET;
+
+	return omap4_pwrdm_read_logic_retst(pwrdm);
+}
+
+static int omap4_pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
+{
+	u32 m, v;
+
+	m = omap2_pwrdm_get_mem_bank_stst_mask(bank);
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTST);
+	v &= m;
+	v >>= __ffs(m);
+
+	return v;
+}
+
+static int omap4_pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank)
+{
+	u32 m, v;
+
+	m = omap2_pwrdm_get_mem_bank_retst_mask(bank);
+
+	v = omap4_prminst_read_inst_reg(pwrdm->prcm_partition, pwrdm->prcm_offs,
+					OMAP4_PM_PWSTCTRL);
+	v &= m;
+	v >>= __ffs(m);
+
+	return v;
+}
+
+/**
+ * omap4_pwrdm_read_prev_mem_pwrst - reads the previous memory powerstate
+ * @pwrdm: struct powerdomain * to read mem powerstate for
+ * @bank: memory bank index
+ *
+ * Reads the previous memory powerstate for a powerdomain. This
+ * function must determine the previous memory powerstate by first
+ * checking the previous powerstate for the domain. If that was OFF,
+ * then logic has been lost. If previous state was RETENTION, the
+ * function reads the setting for the next memory retention state to
+ * see the actual value.  In every other case, the logic is
+ * retained. Returns either PWRDM_POWER_OFF or PWRDM_POWER_RET
+ * depending whether logic was retained or not.
+ */
+static int omap4_pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank)
+{
+	int state;
+
+	state = omap4_pwrdm_read_prev_pwrst(pwrdm);
+
+	if (state == PWRDM_POWER_OFF)
+		return PWRDM_POWER_OFF;
+
+	if (state != PWRDM_POWER_RET)
+		return PWRDM_POWER_RET;
+
+	return omap4_pwrdm_read_mem_retst(pwrdm, bank);
+}
+
+static int omap4_pwrdm_wait_transition(struct powerdomain *pwrdm)
+{
+	u32 c = 0;
+
+	/*
+	 * REVISIT: pwrdm_wait_transition() may be better implemented
+	 * via a callback and a periodic timer check -- how long do we expect
+	 * powerdomain transitions to take?
+	 */
+
+	/* XXX Is this udelay() value meaningful? */
+	while ((omap4_prminst_read_inst_reg(pwrdm->prcm_partition,
+					    pwrdm->prcm_offs,
+					    OMAP4_PM_PWSTST) &
+		OMAP_INTRANSITION_MASK) &&
+	       (c++ < PWRDM_TRANSITION_BAILOUT))
+		udelay(1);
+
+	if (c > PWRDM_TRANSITION_BAILOUT) {
+		pr_err("powerdomain: %s: waited too long to complete transition\n",
+		       pwrdm->name);
+		return -EAGAIN;
+	}
+
+	pr_debug("powerdomain: completed transition in %d loops\n", c);
+
+	return 0;
+}
+
+struct pwrdm_ops omap4_pwrdm_operations = {
+	.pwrdm_set_next_pwrst	= omap4_pwrdm_set_next_pwrst,
+	.pwrdm_read_next_pwrst	= omap4_pwrdm_read_next_pwrst,
+	.pwrdm_read_pwrst	= omap4_pwrdm_read_pwrst,
+	.pwrdm_read_prev_pwrst	= omap4_pwrdm_read_prev_pwrst,
+	.pwrdm_set_lowpwrstchange	= omap4_pwrdm_set_lowpwrstchange,
+	.pwrdm_clear_all_prev_pwrst	= omap4_pwrdm_clear_all_prev_pwrst,
+	.pwrdm_set_logic_retst	= omap4_pwrdm_set_logic_retst,
+	.pwrdm_read_logic_pwrst	= omap4_pwrdm_read_logic_pwrst,
+	.pwrdm_read_prev_logic_pwrst	= omap4_pwrdm_read_prev_logic_pwrst,
+	.pwrdm_read_logic_retst	= omap4_pwrdm_read_logic_retst,
+	.pwrdm_read_mem_pwrst	= omap4_pwrdm_read_mem_pwrst,
+	.pwrdm_read_mem_retst	= omap4_pwrdm_read_mem_retst,
+	.pwrdm_read_prev_mem_pwrst	= omap4_pwrdm_read_prev_mem_pwrst,
+	.pwrdm_set_mem_onst	= omap4_pwrdm_set_mem_onst,
+	.pwrdm_set_mem_retst	= omap4_pwrdm_set_mem_retst,
+	.pwrdm_wait_transition	= omap4_pwrdm_wait_transition,
+};
+
+/*
+ * XXX document
+ */
+static struct prm_ll_data omap44xx_prm_ll_data = {
+	.read_reset_sources = &omap44xx_prm_read_reset_sources,
+};
+
+static int __init omap44xx_prm_init(void)
+{
+	int ret;
+
+	if (!cpu_is_omap44xx())
+		return 0;
+
+	ret = prm_register(&omap44xx_prm_ll_data);
+	if (ret)
+		return ret;
+
+	omap44xx_prm_enable_io_wakeup();
+
+	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
+}
+subsys_initcall(omap44xx_prm_init);
+
+static void __exit omap44xx_prm_exit(void)
+{
+	if (!cpu_is_omap44xx())
+		return;
+
+	/* Should never happen */
+	WARN(prm_unregister(&omap44xx_prm_ll_data),
+	     "%s: prm_ll_data function pointer mismatch\n", __func__);
+}
+__exitcall(omap44xx_prm_exit);
