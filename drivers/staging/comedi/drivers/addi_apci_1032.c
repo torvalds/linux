@@ -61,10 +61,10 @@ static unsigned int ui_InterruptStatus;
  * data[2] : Interrupt mask for the mode 1
  * data[3] : Interrupt mask for the mode 2
  */
-static int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn,
-					 unsigned int *data)
+static int apci1032_intr_insn_config(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
 	unsigned int ui_TmpValue;
@@ -175,7 +175,7 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	ret = comedi_alloc_subdevices(dev, 1);
+	ret = comedi_alloc_subdevices(dev, 2);
 	if (ret)
 		return ret;
 
@@ -187,8 +187,17 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s->maxdata	= 1;
 	s->len_chanlist	= 32;
 	s->range_table	= &range_digital;
-	s->insn_config	= i_APCI1032_ConfigDigitalInput;
 	s->insn_bits	= apci1032_di_insn_bits;
+
+	if (dev->irq) {
+		s = &dev->subdevices[1];
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= 1;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_config	= apci1032_intr_insn_config;
+	}
 
 	apci1032_reset(dev);
 	return 0;
