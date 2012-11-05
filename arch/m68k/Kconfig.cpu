@@ -224,9 +224,13 @@ config M5307
 	help
 	  Motorola ColdFire 5307 processor support.
 
+config M53xx
+	bool
+
 config M532x
 	bool "MCF532x"
 	depends on !MMU
+	select M53xx
 	select HAVE_CACHE_CB
 	help
 	  Freescale (Motorola) ColdFire 532x processor support.
