@@ -1349,6 +1349,8 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 	 */
 	val = 0;
 	left = local64_read(&event->hw.period_left) - delta;
+	if (delta == 0)
+		left++;
 	if (period) {
 		if (left <= 0) {
 			left += period;
