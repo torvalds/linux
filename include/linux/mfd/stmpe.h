@@ -62,6 +62,7 @@ struct stmpe_client_info;
  * @lock: lock protecting I/O operations
  * @irq_lock: IRQ bus lock
  * @dev: device, mostly for dev_dbg()
+ * @irq_domain: IRQ domain
  * @client: client - i2c or spi
  * @ci: client specific information
  * @partnum: part number
@@ -79,6 +80,7 @@ struct stmpe {
 	struct mutex lock;
 	struct mutex irq_lock;
 	struct device *dev;
+	struct irq_domain *domain;
 	void *client;
 	struct stmpe_client_info *ci;
 	enum stmpe_partnum partnum;
