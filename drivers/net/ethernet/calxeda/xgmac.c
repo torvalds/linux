@@ -966,7 +966,7 @@ static int xgmac_hw_init(struct net_device *dev)
 		ctrl |= XGMAC_CONTROL_IPC;
 	writel(ctrl, ioaddr + XGMAC_CONTROL);
 
-	writel(DMA_CONTROL_DFF | DMA_CONTROL_OSF, ioaddr + XGMAC_DMA_CONTROL);
+	writel(DMA_CONTROL_OSF, ioaddr + XGMAC_DMA_CONTROL);
 
 	/* Set the HW DMA mode and the COE */
 	writel(XGMAC_OMR_TSF | XGMAC_OMR_RFD | XGMAC_OMR_RFA |
@@ -1179,8 +1179,6 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
 	}
 
 	xgmac_rx_refill(priv);
-
-	writel(1, priv->base + XGMAC_DMA_RX_POLL);
 
 	return count;
 }
