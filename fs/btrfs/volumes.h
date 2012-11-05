@@ -301,6 +301,7 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
+int btrfs_scratch_superblock(struct btrfs_device *device);
 
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
 				      int index)

@@ -5106,3 +5106,21 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 		stats->nr_items = BTRFS_DEV_STAT_VALUES_MAX;
 	return 0;
 }
+
+int btrfs_scratch_superblock(struct btrfs_device *device)
+{
+	struct buffer_head *bh;
+	struct btrfs_super_block *disk_super;
+
+	bh = btrfs_read_dev_super(device->bdev);
+	if (!bh)
+		return -EINVAL;
+	disk_super = (struct btrfs_super_block *)bh->b_data;
+
+	memset(&disk_super->magic, 0, sizeof(disk_super->magic));
+	set_buffer_dirty(bh);
+	sync_dirty_buffer(bh);
+	brelse(bh);
+
+	return 0;
+}
