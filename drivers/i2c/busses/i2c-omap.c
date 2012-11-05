@@ -192,7 +192,6 @@ struct omap_i2c_dev {
 	void			(*set_mpu_wkup_lat)(struct device *dev,
 						    long latency);
 	u32			speed;		/* Speed of bus in kHz */
-	u32			dtrev;		/* extra revision from DT */
 	u32			flags;
 	u16			cmd_err;
 	u8			*buf;
@@ -1075,7 +1074,7 @@ omap_i2c_probe(struct platform_device *pdev)
 	int irq;
 	int r;
 	u32 rev;
-	u16 minor, major;
+	u16 minor, major, scheme;
 
 	/* NOTE: driver uses the static register mapping */
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1107,7 +1106,6 @@ omap_i2c_probe(struct platform_device *pdev)
 		u32 freq = 100000; /* default to 100000 Hz */
 
 		pdata = match->data;
-		dev->dtrev = pdata->rev;
 		dev->flags = pdata->flags;
 
 		of_property_read_u32(node, "clock-frequency", &freq);
@@ -1117,7 +1115,6 @@ omap_i2c_probe(struct platform_device *pdev)
 		dev->speed = pdata->clkrate;
 		dev->flags = pdata->flags;
 		dev->set_mpu_wkup_lat = pdata->set_mpu_wkup_lat;
-		dev->dtrev = pdata->rev;
 	}
 
 	dev->pins = devm_pinctrl_get_select_default(&pdev->dev);
@@ -1156,7 +1153,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	 */
 	rev = __raw_readw(dev->base + 0x04);
 
-	switch (OMAP_I2C_SCHEME(rev)) {
+	scheme = OMAP_I2C_SCHEME(rev);
+	switch (scheme) {
 	case OMAP_I2C_SCHEME_0:
 		dev->regs = (u8 *)reg_map_ip_v1;
 		dev->rev = omap_i2c_read_reg(dev, OMAP_I2C_REV_REG);
@@ -1241,8 +1239,8 @@ omap_i2c_probe(struct platform_device *pdev)
 		goto err_unuse_clocks;
 	}
 
-	dev_info(dev->dev, "bus %d rev%d.%d.%d at %d kHz\n", adap->nr,
-		 dev->dtrev, major, minor, dev->speed);
+	dev_info(dev->dev, "bus %d rev%d.%d at %d kHz\n", adap->nr,
+		 major, minor, dev->speed);
 
 	of_i2c_register_devices(adap);
 
