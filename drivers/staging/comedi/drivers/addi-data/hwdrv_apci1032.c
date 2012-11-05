@@ -138,49 +138,6 @@ static int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1032_Read1DigitalInput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the digital input                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              unsigned int ui_Channel : Channel number to read       |
-|                     unsigned int *data          : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI1032_Read1DigitalInput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
-{
-	unsigned int ui_TmpValue = 0;
-	unsigned int ui_Channel;
-	ui_Channel = CR_CHAN(insn->chanspec);
-
-	if (ui_Channel <= 31) {
-		ui_TmpValue = inl(dev->iobase + APCI1032_DI_REG);
-/*
-* since only 1 channel reqd to bring it to last bit it is rotated 8
-* +(chan - 1) times then ANDed with 1 for last bit.
-*/
-		*data = (ui_TmpValue >> ui_Channel) & 0x1;
-	}			/* if(ui_Channel >= 0 && ui_Channel <=31) */
-	else {
-		/* comedi_error(dev," \n chan spec wrong\n"); */
-		return -EINVAL;	/*  "sorry channel spec wrong " */
-	}			/* else if(ui_Channel >= 0 && ui_Channel <=31) */
-	return insn->n;
-}
-
-/*
-+----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI1032_ReadMoreDigitalInput                    |
 |			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
 |                     struct comedi_insn *insn,unsigned int *data)                      |

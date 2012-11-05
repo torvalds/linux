@@ -74,7 +74,6 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s->len_chanlist	= 32;
 	s->range_table	= &range_digital;
 	s->insn_config	= i_APCI1032_ConfigDigitalInput;
-	s->insn_read	= i_APCI1032_Read1DigitalInput;
 	s->insn_bits	= i_APCI1032_ReadMoreDigitalInput;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
