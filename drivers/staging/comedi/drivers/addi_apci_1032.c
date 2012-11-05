@@ -22,7 +22,6 @@ static const struct addi_board apci1032_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_93C76,
 		.i_NbrDiChannel		= 32,
 		.interrupt		= v_APCI1032_Interrupt,
-		.reset			= i_APCI1032_Reset,
 		.di_config		= i_APCI1032_ConfigDigitalInput,
 		.di_read		= i_APCI1032_Read1DigitalInput,
 		.di_bits		= i_APCI1032_ReadMoreDigitalInput,
@@ -53,14 +52,6 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
-}
-
-static int i_ADDI_Reset(struct comedi_device *dev)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->reset(dev);
-	return 0;
 }
 
 static const void *addi_find_boardinfo(struct comedi_device *dev,
@@ -308,7 +299,7 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	i_ADDI_Reset(dev);
+	i_APCI1032_Reset(dev);
 	return 0;
 }
 
@@ -319,7 +310,7 @@ static void apci1032_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			i_APCI1032_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
