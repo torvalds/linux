@@ -6,10 +6,24 @@
 
 #include "addi-data/hwdrv_apci1032.c"
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
+static irqreturn_t apci1032_interrupt(int irq, void *d)
 {
-	v_APCI1032_Interrupt(irq, d);
-	return IRQ_RETVAL(1);
+	struct comedi_device *dev = d;
+	struct addi_private *devpriv = dev->private;
+	unsigned int ctrl;
+
+	/* disable the interrupt */
+	ctrl = inl(dev->iobase + APCI1032_CTRL_REG);
+	outl(ctrl & ~APCI1032_CTRL_INT_ENA, dev->iobase + APCI1032_CTRL_REG);
+
+	ui_InterruptStatus = inl(dev->iobase + APCI1032_STATUS_REG);
+	ui_InterruptStatus = ui_InterruptStatus & 0X0000FFFF;
+	send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
+
+	/* enable the interrupt */
+	outl(ctrl, dev->iobase + APCI1032_CTRL_REG);
+
+	return IRQ_HANDLED;
 }
 
 static int apci1032_di_insn_bits(struct comedi_device *dev,
@@ -56,7 +70,7 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 2);
 
 	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
+		ret = request_irq(pcidev->irq, apci1032_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
 		if (ret == 0)
 			dev->irq = pcidev->irq;

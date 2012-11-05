@@ -135,38 +135,3 @@ static int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev,
 
 	return insn->n;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : static void v_APCI1032_Interrupt					     |
-|					  (int irq , void *d)      |
-+----------------------------------------------------------------------------+
-| Task              : Interrupt handler for the interruptible digital inputs |
-+----------------------------------------------------------------------------+
-| Input Parameters  : int irq                 : irq number                   |
-|                     void *d                 : void pointer                 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--						     |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                     |
-+----------------------------------------------------------------------------+
-*/
-static void v_APCI1032_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp;
-
-	/* disable the interrupt */
-	ui_Temp = inl(dev->iobase + APCI1032_CTRL_REG);
-	outl(ui_Temp & ~APCI1032_CTRL_INT_ENA,
-		dev->iobase + APCI1032_CTRL_REG);
-	ui_InterruptStatus = inl(dev->iobase + APCI1032_STATUS_REG);
-	ui_InterruptStatus = ui_InterruptStatus & 0X0000FFFF;
-	send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-	/* enable the interrupt */
-	outl(ui_Temp, dev->iobase + APCI1032_CTRL_REG);
-	return;
-}
