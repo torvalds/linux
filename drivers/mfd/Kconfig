@@ -1065,6 +1065,20 @@ config MFD_PALMAS
 	  If you say yes here you get support for the Palmas
 	  series of PMIC chips from Texas Instruments.
 
+config MFD_VIPERBOARD
+        tristate "Support for Nano River Technologies Viperboard"
+	select MFD_CORE
+	depends on USB
+	default n
+	help
+	  Say yes here if you want support for Nano River Technologies
+	  Viperboard.
+	  There are mfd cell drivers available for i2c master, adc and
+	  both gpios found on the board. The spi part does not yet
+	  have a driver.
+	  You need to select the mfd cell drivers separately.
+	  The drivers do not support all features the board exposes.
+
 endmenu
 endif
 
