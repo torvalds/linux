@@ -870,7 +870,7 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	/* If we haven't received a specific coalescing setting
 	 * (module param), we set the moderation parameters as follows:
 	 * - moder_cnt is set to the number of mtu sized packets to
-	 *   satisfy our coelsing target.
+	 *   satisfy our coalescing target.
 	 * - moder_time is set to a fixed value.
 	 */
 	priv->rx_frames = MLX4_EN_RX_COAL_TARGET;
