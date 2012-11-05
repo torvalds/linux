@@ -32,6 +32,7 @@
 #include <linux/spi/ads7846.h>
 #include <linux/i2c/twl.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/musb.h>
 #include <linux/usb/nop-usb-xceiv.h>
 #include <linux/smsc911x.h>
 
@@ -45,7 +46,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/usb.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include "common.h"
 #include <linux/platform_data/spi-omap2-mcspi.h>

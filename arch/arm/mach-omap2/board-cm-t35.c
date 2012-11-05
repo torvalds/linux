@@ -38,10 +38,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include "gpmc.h"
-#include <plat/usb.h>
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
@@ -49,10 +46,12 @@
 
 #include <mach/hardware.h>
 
+#include "common.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
 #include "hsmmc.h"
 #include "common-board-devices.h"
+#include "gpmc.h"
 #include "gpmc-nand.h"
 
 #define CM_T35_GPIO_PENDOWN		57

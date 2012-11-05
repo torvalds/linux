@@ -49,11 +49,11 @@
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>
 #include <video/omap-panel-tfp410.h>
-#include "gpmc.h"
-#include <plat/usb.h>
 
+#include "common.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
+#include "gpmc.h"
 #include "hsmmc.h"
 #include "board-flash.h"
 #include "common-board-devices.h"

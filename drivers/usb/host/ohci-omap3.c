@@ -30,7 +30,6 @@
  */
 
 #include <linux/platform_device.h>
-#include <plat/usb.h>
 #include <linux/pm_runtime.h>
 
 /*-------------------------------------------------------------------------*/

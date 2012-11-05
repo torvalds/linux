@@ -26,8 +26,11 @@
 #include <linux/spinlock.h>
 #include <linux/gpio.h>
 #include <plat/cpu.h>
-#include <plat/usb.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/usb-omap.h>
 #include <linux/pm_runtime.h>
+
+#include "omap-usb.h"
 
 #define USBHS_DRIVER_NAME	"usbhs_omap"
 #define OMAP_EHCI_DEVICE	"ehci-omap"

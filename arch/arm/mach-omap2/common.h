@@ -39,6 +39,8 @@
 #include "i2c.h"
 #include "serial.h"
 
+#include "usb.h"
+
 #define OMAP_INTC_START		NR_IRQS
 
 #ifdef CONFIG_SOC_OMAP2420

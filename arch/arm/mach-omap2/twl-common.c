@@ -26,8 +26,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 
-#include <plat/usb.h>
-
 #include "soc.h"
 #include "twl-common.h"
 #include "pm.h"

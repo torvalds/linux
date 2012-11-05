@@ -18,7 +18,6 @@
 
 #include "common.h"
 #include "gpmc-smc91x.h"
-#include <plat/usb.h>
 
 #include "board-zoom.h"
 
