@@ -32,8 +32,7 @@ struct wis_saa7113 {
 	int hue;
 };
 
-static u8 initial_registers[] =
-{
+static u8 initial_registers[] = {
 	0x01, 0x08,
 	0x02, 0xc0,
 	0x03, 0x33,
