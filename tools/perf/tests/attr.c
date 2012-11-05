@@ -110,7 +110,7 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 	WRITE_ASS(inherit_stat,   "d");
 	WRITE_ASS(enable_on_exec, "d");
 	WRITE_ASS(task,           "d");
-	WRITE_ASS(watermask,      "d");
+	WRITE_ASS(watermark,      "d");
 	WRITE_ASS(precise_ip,     "d");
 	WRITE_ASS(mmap_data,      "d");
 	WRITE_ASS(sample_id_all,  "d");
