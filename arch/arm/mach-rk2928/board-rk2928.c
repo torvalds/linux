@@ -731,7 +731,7 @@ static int __init pmic_board_init(void)
                 port = get_port_config(pmic_irq);
                 pmic_info.irq = port.gpio;
         }
-        if(pmic_type == PMIC_TYPE_TPS65910){
+        if(pmic_is_tps65910()){
                 strcpy(pmic_info.type, "tps65910");
                 pmic_info.platform_data = &tps65910_data;
 
@@ -745,7 +745,7 @@ static int __init pmic_board_init(void)
                         tps65910_ldo_info[i].max_uv = tps65910_ldo[2*i + 1];
                 }
         }
-        if(pmic_type == PMIC_TYPE_ACT8931){
+        if(pmic_is_act8931()){
                 strcpy(pmic_info.type, "act8931");
                 pmic_info.platform_data = &act8931_data;
                 for(i = 0; i < ARRAY_SIZE(act8931_dcdc_info); i++){
@@ -1044,7 +1044,7 @@ static int __init rtc_board_init(void)
         struct port_config port;
         int ret;
 
-        if(pmic_type == PMIC_TYPE_TPS65910)
+        if(pmic_is_tps65910())
                 return 0;
                 
         ret = check_rtc_param();
@@ -1119,7 +1119,7 @@ static void rk2928_pm_power_off(void)
 {
 	printk(KERN_ERR "rk2928_pm_power_off start...\n");
         #if defined(CONFIG_REGULATOR_ACT8931)
-        if(pmic_type == PMIC_TYPE_ACT8931)
+        if(pmic_is_act8931())
         {
               if(act8931_charge_det)
                    arm_pm_restart(0, NULL);

@@ -2,11 +2,11 @@
 #define __MACH_CONFIG_H
 #include <mach/board.h>
 
-//#define RK2926_TB_DEFAULT_CONFIG
+#define RK2926_TB_DEFAULT_CONFIG
 //#define RK2928_TB_DEFAULT_CONFIG
 //#define RK2926_SDK_DEFAULT_CONFIG
 //#define RK2928_SDK_DEFAULT_CONFIG
-#define RK2928_PHONEPAD_DEFAULT_CONFIG
+//#define RK2928_PHONEPAD_DEFAULT_CONFIG
 
 
 /* camera id */
@@ -96,7 +96,7 @@ enum {
 };
 
 #define DEF_LCD_PARAM {SCREEN_LVDS, OUT_D888_P666, \
-                        65000000, 30000000, \
+                        65000000, 300000000, \
                         10, 100, 1024, 210, \
                         10, 10, 768, 18, \
                         202, 102, \
@@ -233,7 +233,7 @@ enum {
 };
 
 #define DEF_LCD_PARAM {SCREEN_LVDS, OUT_D888_P666, \
-                        65000000, 30000000, \
+                        65000000, 300000000, \
                         10, 100, 1024, 210, \
                         10, 10, 768, 18, \
                         202, 102, \
@@ -372,7 +372,7 @@ enum {
 };
 
 #define DEF_LCD_PARAM {SCREEN_RGB, OUT_P666, \
-                        33000000, 15000000, \
+                        33000000, 150000000, \
                         30, 10, 800, 210, \
                         13, 10, 480, 22, \
                         154, 85, \
@@ -510,7 +510,7 @@ enum {
 };
 
 #define DEF_LCD_PARAM {SCREEN_RGB, OUT_P666, \
-                        33000000, 15000000, \
+                        33000000, 150000000, \
                         30, 10, 800, 210, \
                         13, 10, 480, 22, \
                         154, 85, \
@@ -648,7 +648,7 @@ enum {
 };
 
 #define DEF_LCD_PARAM {SCREEN_RGB, OUT_P666, \
-                        30000000, 15000000, \
+                        30000000, 150000000, \
                         48, 88, 800, 40, \
                         3, 32, 480, 13, \
                         154, 85, \
