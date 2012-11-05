@@ -75,6 +75,7 @@ static struct kmem_cache *bio_find_or_create_slab(unsigned int extra_size)
 	unsigned int sz = sizeof(struct bio) + extra_size;
 	struct kmem_cache *slab = NULL;
 	struct bio_slab *bslab, *new_bio_slabs;
+	unsigned int new_bio_slab_max;
 	unsigned int i, entry = -1;
 
 	mutex_lock(&bio_slab_lock);
@@ -97,12 +98,13 @@ static struct kmem_cache *bio_find_or_create_slab(unsigned int extra_size)
 		goto out_unlock;
 
 	if (bio_slab_nr == bio_slab_max && entry == -1) {
-		bio_slab_max <<= 1;
+		new_bio_slab_max = bio_slab_max << 1;
 		new_bio_slabs = krealloc(bio_slabs,
-					 bio_slab_max * sizeof(struct bio_slab),
+					 new_bio_slab_max * sizeof(struct bio_slab),
 					 GFP_KERNEL);
 		if (!new_bio_slabs)
 			goto out_unlock;
+		bio_slab_max = new_bio_slab_max;
 		bio_slabs = new_bio_slabs;
 	}
 	if (entry == -1)
