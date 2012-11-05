@@ -1752,6 +1752,10 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 
 		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
 
+		/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
+		if (IS_ERR(vdds_dsi))
+			vdds_dsi = regulator_get(&dsi->pdev->dev, "VCXIO");
+
 		if (IS_ERR(vdds_dsi)) {
 			DSSERR("can't get VDDS_DSI regulator\n");
 			return PTR_ERR(vdds_dsi);
@@ -4967,6 +4971,10 @@ static int __init dsi_init_display(struct omap_dss_device *dssdev)
 		struct regulator *vdds_dsi;
 
 		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
+
+		/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
+		if (IS_ERR(vdds_dsi))
+			vdds_dsi = regulator_get(&dsi->pdev->dev, "VCXIO");
 
 		if (IS_ERR(vdds_dsi)) {
 			DSSERR("can't get VDDS_DSI regulator\n");
