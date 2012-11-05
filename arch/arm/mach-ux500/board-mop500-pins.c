@@ -148,15 +148,10 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	 * The setting on GPIO31 conflicts with magnetometer use on hrefv60
 	 */
 	/* default state for UART2 */
-	DB8500_MUX("u2ctsrts_c_1", "u2", "uart2"),
-	DB8500_PIN("GPIO31_V3", in_pu, "uart2"), /* CTS */
-	DB8500_PIN("GPIO32_V2", out_hi, "uart2"), /* RTS */
 	DB8500_MUX("u2rxtx_c_1", "u2", "uart2"),
 	DB8500_PIN("GPIO29_W2", in_pu, "uart2"), /* RXD */
 	DB8500_PIN("GPIO30_W3", out_hi, "uart2"), /* TXD */
 	/* Sleep state for UART2 */
-	DB8500_PIN_SLEEP("GPIO31_V3", in_wkup_pdis, "uart2"),
-	DB8500_PIN_SLEEP("GPIO32_V2", out_hi_wkup_pdis, "uart2"),
 	DB8500_PIN_SLEEP("GPIO29_W2", in_wkup_pdis, "uart2"),
 	DB8500_PIN_SLEEP("GPIO30_W3", out_wkup_pdis, "uart2"),
 	/*
