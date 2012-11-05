@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/if.h>
+#include <linux/if_ether.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
@@ -248,27 +249,6 @@ static ssize_t ieee80211_if_fmt_tkip_mic_test(
 	return -EOPNOTSUPP;
 }
 
-static int hwaddr_aton(const char *txt, u8 *addr)
-{
-	int i;
-
-	for (i = 0; i < ETH_ALEN; i++) {
-		int a, b;
-
-		a = hex_to_bin(*txt++);
-		if (a < 0)
-			return -1;
-		b = hex_to_bin(*txt++);
-		if (b < 0)
-			return -1;
-		*addr++ = (a << 4) | b;
-		if (i < 5 && *txt++ != ':')
-			return -1;
-	}
-
-	return 0;
-}
-
 static ssize_t ieee80211_if_parse_tkip_mic_test(
 	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
 {
@@ -278,13 +258,7 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	struct ieee80211_hdr *hdr;
 	__le16 fc;
 
-	/*
-	 * Assume colon-delimited MAC address with possible white space
-	 * following.
-	 */
-	if (buflen < 3 * ETH_ALEN - 1)
-		return -EINVAL;
-	if (hwaddr_aton(buf, addr) < 0)
+	if (!mac_pton(buf, addr))
 		return -EINVAL;
 
 	if (!ieee80211_sdata_running(sdata))
