@@ -18,6 +18,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/input.h>
@@ -122,6 +123,11 @@ static int matrix_keypad_parse_of_keymap(const char *propname,
  * it will attempt load the keymap from property specified by @keymap_name
  * argument (or "linux,keymap" if @keymap_name is %NULL).
  *
+ * If @keymap is %NULL the function will automatically allocate managed
+ * block of memory to store the keymap. This memory will be associated with
+ * the parent device and automatically freed when device unbinds from the
+ * driver.
+ *
  * Callers are expected to set up input_dev->dev.parent before calling this
  * function.
  */
@@ -132,12 +138,27 @@ int matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 			       struct input_dev *input_dev)
 {
 	unsigned int row_shift = get_count_order(cols);
+	size_t max_keys = rows << row_shift;
 	int i;
 	int error;
 
+	if (WARN_ON(!input_dev->dev.parent))
+		return -EINVAL;
+
+	if (!keymap) {
+		keymap = devm_kzalloc(input_dev->dev.parent,
+				      max_keys * sizeof(*keymap),
+				      GFP_KERNEL);
+		if (!keymap) {
+			dev_err(input_dev->dev.parent,
+				"Unable to allocate memory for keymap");
+			return -ENOMEM;
+		}
+	}
+
 	input_dev->keycode = keymap;
 	input_dev->keycodesize = sizeof(*keymap);
-	input_dev->keycodemax = rows << row_shift;
+	input_dev->keycodemax = max_keys;
 
 	__set_bit(EV_KEY, input_dev->evbit);
 
