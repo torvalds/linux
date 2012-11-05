@@ -63,7 +63,7 @@ void flush_tlb_all (void)
 void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (mm == current->active_mm) {
-		int flags;
+		unsigned long flags;
 		local_save_flags(flags);
 		__get_new_mmu_context(mm);
 		__load_mmu_context(mm);
