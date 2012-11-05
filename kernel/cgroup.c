@@ -171,8 +171,8 @@ struct css_id {
 	 * The css to which this ID points. This pointer is set to valid value
 	 * after cgroup is populated. If cgroup is removed, this will be NULL.
 	 * This pointer is expected to be RCU-safe because destroy()
-	 * is called after synchronize_rcu(). But for safe use, css_is_removed()
-	 * css_tryget() should be used for avoiding race.
+	 * is called after synchronize_rcu(). But for safe use, css_tryget()
+	 * should be used for avoiding race.
 	 */
 	struct cgroup_subsys_state __rcu *css;
 	/*
@@ -854,30 +854,6 @@ static struct inode *cgroup_new_inode(umode_t mode, struct super_block *sb)
 	return inode;
 }
 
-/*
- * Call subsys's pre_destroy handler.
- * This is called before css refcnt check.
- */
-static int cgroup_call_pre_destroy(struct cgroup *cgrp)
-{
-	struct cgroup_subsys *ss;
-	int ret = 0;
-
-	for_each_subsys(cgrp->root, ss) {
-		if (!ss->pre_destroy)
-			continue;
-
-		ret = ss->pre_destroy(cgrp);
-		if (ret) {
-			/* ->pre_destroy() failure is being deprecated */
-			WARN_ON_ONCE(!ss->__DEPRECATED_clear_css_refs);
-			break;
-		}
-	}
-
-	return ret;
-}
-
 static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 {
 	/* is dentry a directory ? if so, kfree() associated cgroup */
@@ -1012,33 +988,6 @@ static void cgroup_d_remove_dir(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	spin_unlock(&parent->d_lock);
 	remove_dir(dentry);
-}
-
-/*
- * A queue for waiters to do rmdir() cgroup. A tasks will sleep when
- * cgroup->count == 0 && list_empty(&cgroup->children) && subsys has some
- * reference to css->refcnt. In general, this refcnt is expected to goes down
- * to zero, soon.
- *
- * CGRP_WAIT_ON_RMDIR flag is set under cgroup's inode->i_mutex;
- */
-static DECLARE_WAIT_QUEUE_HEAD(cgroup_rmdir_waitq);
-
-static void cgroup_wakeup_rmdir_waiter(struct cgroup *cgrp)
-{
-	if (unlikely(test_and_clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags)))
-		wake_up_all(&cgroup_rmdir_waitq);
-}
-
-void cgroup_exclude_rmdir(struct cgroup_subsys_state *css)
-{
-	css_get(css);
-}
-
-void cgroup_release_and_wakeup_rmdir(struct cgroup_subsys_state *css)
-{
-	cgroup_wakeup_rmdir_waiter(css->cgroup);
-	css_put(css);
 }
 
 /*
@@ -2026,12 +1975,6 @@ int cgroup_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 	}
 
 	synchronize_rcu();
-
-	/*
-	 * wake up rmdir() waiter. the rmdir should fail since the cgroup
-	 * is no longer empty.
-	 */
-	cgroup_wakeup_rmdir_waiter(cgrp);
 out:
 	if (retval) {
 		for_each_subsys(root, ss) {
@@ -2201,7 +2144,6 @@ static int cgroup_attach_proc(struct cgroup *cgrp, struct task_struct *leader)
 	 * step 5: success! and cleanup
 	 */
 	synchronize_rcu();
-	cgroup_wakeup_rmdir_waiter(cgrp);
 	retval = 0;
 out_put_css_set_refs:
 	if (retval) {
@@ -4023,14 +3965,12 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 	cgrp->subsys[ss->subsys_id] = css;
 
 	/*
-	 * If !clear_css_refs, css holds an extra ref to @cgrp->dentry
-	 * which is put on the last css_put().  dput() requires process
-	 * context, which css_put() may be called without.  @css->dput_work
-	 * will be used to invoke dput() asynchronously from css_put().
+	 * css holds an extra ref to @cgrp->dentry which is put on the last
+	 * css_put().  dput() requires process context, which css_put() may
+	 * be called without.  @css->dput_work will be used to invoke
+	 * dput() asynchronously from css_put().
 	 */
 	INIT_WORK(&css->dput_work, css_dput_fn);
-	if (ss->__DEPRECATED_clear_css_refs)
-		set_bit(CSS_CLEAR_CSS_REFS, &css->flags);
 }
 
 /*
@@ -4054,14 +3994,24 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (!cgrp)
 		return -ENOMEM;
 
+	/*
+	 * Only live parents can have children.  Note that the liveliness
+	 * check isn't strictly necessary because cgroup_mkdir() and
+	 * cgroup_rmdir() are fully synchronized by i_mutex; however, do it
+	 * anyway so that locking is contained inside cgroup proper and we
+	 * don't get nasty surprises if we ever grow another caller.
+	 */
+	if (!cgroup_lock_live_group(parent)) {
+		err = -ENODEV;
+		goto err_free;
+	}
+
 	/* Grab a reference on the superblock so the hierarchy doesn't
 	 * get deleted on unmount if there are child cgroups.  This
 	 * can be done outside cgroup_mutex, since the sb can't
 	 * disappear while someone has an open control file on the
 	 * fs */
 	atomic_inc(&sb->s_active);
-
-	mutex_lock(&cgroup_mutex);
 
 	init_cgroup_housekeeping(cgrp);
 
@@ -4110,10 +4060,9 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (err < 0)
 		goto err_remove;
 
-	/* If !clear_css_refs, each css holds a ref to the cgroup's dentry */
+	/* each css holds a ref to the cgroup's dentry */
 	for_each_subsys(root, ss)
-		if (!ss->__DEPRECATED_clear_css_refs)
-			dget(dentry);
+		dget(dentry);
 
 	/* The cgroup directory was pre-locked for us */
 	BUG_ON(!mutex_is_locked(&cgrp->dentry->d_inode->i_mutex));
@@ -4144,7 +4093,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	/* Release the reference count that we took on the superblock */
 	deactivate_super(sb);
-
+err_free:
 	kfree(cgrp);
 	return err;
 }
@@ -4198,71 +4147,6 @@ static int cgroup_has_css_refs(struct cgroup *cgrp)
 	return 0;
 }
 
-/*
- * Atomically mark all (or else none) of the cgroup's CSS objects as
- * CSS_REMOVED. Return true on success, or false if the cgroup has
- * busy subsystems. Call with cgroup_mutex held
- *
- * Depending on whether a subsys has __DEPRECATED_clear_css_refs set or
- * not, cgroup removal behaves differently.
- *
- * If clear is set, css refcnt for the subsystem should be zero before
- * cgroup removal can be committed.  This is implemented by
- * CGRP_WAIT_ON_RMDIR and retry logic around ->pre_destroy(), which may be
- * called multiple times until all css refcnts reach zero and is allowed to
- * veto removal on any invocation.  This behavior is deprecated and will be
- * removed as soon as the existing user (memcg) is updated.
- *
- * If clear is not set, each css holds an extra reference to the cgroup's
- * dentry and cgroup removal proceeds regardless of css refs.
- * ->pre_destroy() will be called at least once and is not allowed to fail.
- * On the last put of each css, whenever that may be, the extra dentry ref
- * is put so that dentry destruction happens only after all css's are
- * released.
- */
-static int cgroup_clear_css_refs(struct cgroup *cgrp)
-{
-	struct cgroup_subsys *ss;
-	unsigned long flags;
-	bool failed = false;
-
-	local_irq_save(flags);
-
-	/*
-	 * Block new css_tryget() by deactivating refcnt.  If all refcnts
-	 * for subsystems w/ clear_css_refs set were 1 at the moment of
-	 * deactivation, we succeeded.
-	 */
-	for_each_subsys(cgrp->root, ss) {
-		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
-
-		WARN_ON(atomic_read(&css->refcnt) < 0);
-		atomic_add(CSS_DEACT_BIAS, &css->refcnt);
-
-		if (ss->__DEPRECATED_clear_css_refs)
-			failed |= css_refcnt(css) != 1;
-	}
-
-	/*
-	 * If succeeded, set REMOVED and put all the base refs; otherwise,
-	 * restore refcnts to positive values.  Either way, all in-progress
-	 * css_tryget() will be released.
-	 */
-	for_each_subsys(cgrp->root, ss) {
-		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
-
-		if (!failed) {
-			set_bit(CSS_REMOVED, &css->flags);
-			css_put(css);
-		} else {
-			atomic_sub(CSS_DEACT_BIAS, &css->refcnt);
-		}
-	}
-
-	local_irq_restore(flags);
-	return !failed;
-}
-
 static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 {
 	struct cgroup *cgrp = dentry->d_fsdata;
@@ -4270,70 +4154,52 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	struct cgroup *parent;
 	DEFINE_WAIT(wait);
 	struct cgroup_event *event, *tmp;
-	int ret;
+	struct cgroup_subsys *ss;
 
 	/* the vfs holds both inode->i_mutex already */
-again:
-	mutex_lock(&cgroup_mutex);
-	if (atomic_read(&cgrp->count) != 0) {
-		mutex_unlock(&cgroup_mutex);
-		return -EBUSY;
-	}
-	if (!list_empty(&cgrp->children)) {
-		mutex_unlock(&cgroup_mutex);
-		return -EBUSY;
-	}
-	mutex_unlock(&cgroup_mutex);
-
-	/*
-	 * In general, subsystem has no css->refcnt after pre_destroy(). But
-	 * in racy cases, subsystem may have to get css->refcnt after
-	 * pre_destroy() and it makes rmdir return with -EBUSY. This sometimes
-	 * make rmdir return -EBUSY too often. To avoid that, we use waitqueue
-	 * for cgroup's rmdir. CGRP_WAIT_ON_RMDIR is for synchronizing rmdir
-	 * and subsystem's reference count handling. Please see css_get/put
-	 * and css_tryget() and cgroup_wakeup_rmdir_waiter() implementation.
-	 */
-	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-
-	/*
-	 * Call pre_destroy handlers of subsys. Notify subsystems
-	 * that rmdir() request comes.
-	 */
-	ret = cgroup_call_pre_destroy(cgrp);
-	if (ret) {
-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-		return ret;
-	}
-
 	mutex_lock(&cgroup_mutex);
 	parent = cgrp->parent;
 	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
 		mutex_unlock(&cgroup_mutex);
 		return -EBUSY;
 	}
-	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
-	if (!cgroup_clear_css_refs(cgrp)) {
-		mutex_unlock(&cgroup_mutex);
-		/*
-		 * Because someone may call cgroup_wakeup_rmdir_waiter() before
-		 * prepare_to_wait(), we need to check this flag.
-		 */
-		if (test_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags))
-			schedule();
-		finish_wait(&cgroup_rmdir_waitq, &wait);
-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-		if (signal_pending(current))
-			return -EINTR;
-		goto again;
+
+	/*
+	 * Block new css_tryget() by deactivating refcnt and mark @cgrp
+	 * removed.  This makes future css_tryget() and child creation
+	 * attempts fail thus maintaining the removal conditions verified
+	 * above.
+	 */
+	for_each_subsys(cgrp->root, ss) {
+		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+
+		WARN_ON(atomic_read(&css->refcnt) < 0);
+		atomic_add(CSS_DEACT_BIAS, &css->refcnt);
 	}
-	/* NO css_tryget() can success after here. */
-	finish_wait(&cgroup_rmdir_waitq, &wait);
-	clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
+	set_bit(CGRP_REMOVED, &cgrp->flags);
+
+	/*
+	 * Tell subsystems to initate destruction.  pre_destroy() should be
+	 * called with cgroup_mutex unlocked.  See 3fa59dfbc3 ("cgroup: fix
+	 * potential deadlock in pre_destroy") for details.
+	 */
+	mutex_unlock(&cgroup_mutex);
+	for_each_subsys(cgrp->root, ss)
+		if (ss->pre_destroy)
+			ss->pre_destroy(cgrp);
+	mutex_lock(&cgroup_mutex);
+
+	/*
+	 * Put all the base refs.  Each css holds an extra reference to the
+	 * cgroup's dentry and cgroup removal proceeds regardless of css
+	 * refs.  On the last put of each css, whenever that may be, the
+	 * extra dentry ref is put so that dentry destruction happens only
+	 * after all css's are released.
+	 */
+	for_each_subsys(cgrp->root, ss)
+		css_put(cgrp->subsys[ss->subsys_id]);
 
 	raw_spin_lock(&release_list_lock);
-	set_bit(CGRP_REMOVED, &cgrp->flags);
 	if (!list_empty(&cgrp->release_list))
 		list_del_init(&cgrp->release_list);
 	raw_spin_unlock(&release_list_lock);
@@ -5041,15 +4907,17 @@ static void check_for_release(struct cgroup *cgrp)
 /* Caller must verify that the css is not for root cgroup */
 bool __css_tryget(struct cgroup_subsys_state *css)
 {
-	do {
-		int v = css_refcnt(css);
+	while (true) {
+		int t, v;
 
-		if (atomic_cmpxchg(&css->refcnt, v, v + 1) == v)
+		v = css_refcnt(css);
+		t = atomic_cmpxchg(&css->refcnt, v, v + 1);
+		if (likely(t == v))
 			return true;
+		else if (t < 0)
+			return false;
 		cpu_relax();
-	} while (!test_bit(CSS_REMOVED, &css->flags));
-
-	return false;
+	}
 }
 EXPORT_SYMBOL_GPL(__css_tryget);
 
@@ -5068,11 +4936,9 @@ void __css_put(struct cgroup_subsys_state *css)
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
 			check_for_release(cgrp);
 		}
-		cgroup_wakeup_rmdir_waiter(cgrp);
 		break;
 	case 0:
-		if (!test_bit(CSS_CLEAR_CSS_REFS, &css->flags))
-			schedule_work(&css->dput_work);
+		schedule_work(&css->dput_work);
 		break;
 	}
 	rcu_read_unlock();
