@@ -33,6 +33,5 @@ void __vic_init(void __iomem *base, int irq_start, u32 vic_sources,
 		u32 resume_sources, struct device_node *node);
 void vic_init(void __iomem *base, unsigned int irq_start, u32 vic_sources, u32 resume_sources);
 int vic_of_init(struct device_node *node, struct device_node *parent);
-void vic_handle_irq(struct pt_regs *regs);
 
 #endif

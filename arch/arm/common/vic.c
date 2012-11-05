@@ -83,6 +83,8 @@ static struct vic_device vic_devices[CONFIG_ARM_VIC_NR];
 
 static int vic_id;
 
+static void vic_handle_irq(struct pt_regs *regs);
+
 /**
  * vic_init2 - common initialisation code
  * @base: Base of the VIC.
@@ -197,6 +199,40 @@ static int vic_irqdomain_map(struct irq_domain *d, unsigned int irq,
 	irq_set_chip_data(irq, v->base);
 	set_irq_flags(irq, IRQF_VALID | IRQF_PROBE);
 	return 0;
+}
+
+/*
+ * Handle each interrupt in a single VIC.  Returns non-zero if we've
+ * handled at least one interrupt.  This reads the status register
+ * before handling each interrupt, which is necessary given that
+ * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
+ */
+static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
+{
+	u32 stat, irq;
+	int handled = 0;
+
+	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
+		irq = ffs(stat) - 1;
+		handle_IRQ(irq_find_mapping(vic->domain, irq), regs);
+		handled = 1;
+	}
+
+	return handled;
+}
+
+/*
+ * Keep iterating over all registered VIC's until there are no pending
+ * interrupts.
+ */
+static asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+{
+	int i, handled;
+
+	do {
+		for (i = 0, handled = 0; i < vic_id; ++i)
+			handled |= handle_one_vic(&vic_devices[i], regs);
+	} while (handled);
 }
 
 static struct irq_domain_ops vic_irqdomain_ops = {
@@ -446,37 +482,3 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 	return 0;
 }
 #endif /* CONFIG OF */
-
-/*
- * Handle each interrupt in a single VIC.  Returns non-zero if we've
- * handled at least one interrupt.  This reads the status register
- * before handling each interrupt, which is necessary given that
- * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
- */
-static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
-{
-	u32 stat, irq;
-	int handled = 0;
-
-	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
-		irq = ffs(stat) - 1;
-		handle_IRQ(irq_find_mapping(vic->domain, irq), regs);
-		handled = 1;
-	}
-
-	return handled;
-}
-
-/*
- * Keep iterating over all registered VIC's until there are no pending
- * interrupts.
- */
-asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
-{
-	int i, handled;
-
-	do {
-		for (i = 0, handled = 0; i < vic_id; ++i)
-			handled |= handle_one_vic(&vic_devices[i], regs);
-	} while (handled);
-}

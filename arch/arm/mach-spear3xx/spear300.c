@@ -15,7 +15,6 @@
 
 #include <linux/amba/pl08x.h>
 #include <linux/of_platform.h>
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
@@ -213,7 +212,6 @@ static void __init spear300_map_io(void)
 DT_MACHINE_START(SPEAR300_DT, "ST SPEAr300 SoC with Flattened Device Tree")
 	.map_io		=	spear300_map_io,
 	.init_irq	=	spear3xx_dt_init_irq,
-	.handle_irq	=	vic_handle_irq,
 	.timer		=	&spear3xx_timer,
 	.init_machine	=	spear300_dt_init,
 	.restart	=	spear_restart,

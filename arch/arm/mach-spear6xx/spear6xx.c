@@ -438,7 +438,6 @@ static void __init spear6xx_dt_init_irq(void)
 DT_MACHINE_START(SPEAR600_DT, "ST SPEAr600 (Flattened Device Tree)")
 	.map_io		=	spear6xx_map_io,
 	.init_irq	=	spear6xx_dt_init_irq,
-	.handle_irq	=	vic_handle_irq,
 	.timer		=	&spear6xx_timer,
 	.init_machine	=	spear600_dt_init,
 	.restart	=	spear_restart,
