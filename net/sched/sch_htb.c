@@ -879,6 +879,7 @@ next:
 	} while (cl != start);
 
 	if (likely(skb != NULL)) {
+		bstats_update(&cl->bstats, skb);
 		cl->un.leaf.deficit[level] -= qdisc_pkt_len(skb);
 		if (cl->un.leaf.deficit[level] < 0) {
 			cl->un.leaf.deficit[level] += cl->quantum;
@@ -1355,7 +1356,6 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)*arg, *parent;
 	struct nlattr *opt = tca[TCA_OPTIONS];
-	struct qdisc_rate_table *rtab = NULL, *ctab = NULL;
 	struct nlattr *tb[__TCA_HTB_MAX];
 	struct tc_htb_opt *hopt;
 
@@ -1374,10 +1374,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	parent = parentid == TC_H_ROOT ? NULL : htb_find(parentid, sch);
 
 	hopt = nla_data(tb[TCA_HTB_PARMS]);
-
-	rtab = qdisc_get_rtab(&hopt->rate, tb[TCA_HTB_RTAB]);
-	ctab = qdisc_get_rtab(&hopt->ceil, tb[TCA_HTB_CTAB]);
-	if (!rtab || !ctab)
+	if (!hopt->rate.rate || !hopt->ceil.rate)
 		goto failure;
 
 	if (!cl) {		/* new class */
@@ -1487,7 +1484,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	 * is really leaf before changing cl->un.leaf !
 	 */
 	if (!cl->level) {
-		cl->quantum = rtab->rate.rate / q->rate2quantum;
+		cl->quantum = hopt->rate.rate / q->rate2quantum;
 		if (!hopt->quantum && cl->quantum < 1000) {
 			pr_warning(
 			       "HTB: quantum of class %X is small. Consider r2q change.\n",
@@ -1509,8 +1506,8 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	cl->buffer = hopt->buffer;
 	cl->cbuffer = hopt->cbuffer;
 
-	cl->rate.rate_bps = (u64)rtab->rate.rate << 3;
-	cl->ceil.rate_bps = (u64)ctab->rate.rate << 3;
+	cl->rate.rate_bps = (u64)hopt->rate.rate << 3;
+	cl->ceil.rate_bps = (u64)hopt->ceil.rate << 3;
 
 	htb_precompute_ratedata(&cl->rate);
 	htb_precompute_ratedata(&cl->ceil);
@@ -1526,10 +1523,6 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	return 0;
 
 failure:
-	if (rtab)
-		qdisc_put_rtab(rtab);
-	if (ctab)
-		qdisc_put_rtab(ctab);
 	return err;
 }
 
