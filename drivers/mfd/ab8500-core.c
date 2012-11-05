@@ -591,38 +591,6 @@ int ab8500_suspend(struct ab8500 *ab8500)
 		return 0;
 }
 
-/* AB8500 GPIO Resources */
-static struct resource __devinitdata ab8500_gpio_resources[] = {
-	{
-		.name	= "GPIO_INT6",
-		.start	= AB8500_INT_GPIO6R,
-		.end	= AB8500_INT_GPIO41F,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
-/* AB9540 GPIO Resources */
-static struct resource __devinitdata ab9540_gpio_resources[] = {
-	{
-		.name	= "GPIO_INT6",
-		.start	= AB8500_INT_GPIO6R,
-		.end	= AB8500_INT_GPIO41F,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "GPIO_INT14",
-		.start	= AB9540_INT_GPIO50R,
-		.end	= AB9540_INT_GPIO54R,
-		.flags	= IORESOURCE_IRQ,
-	},
-	{
-		.name	= "GPIO_INT15",
-		.start	= AB9540_INT_GPIO50F,
-		.end	= AB9540_INT_GPIO54F,
-		.flags	= IORESOURCE_IRQ,
-	}
-};
-
 static struct resource __devinitdata ab8500_gpadc_resources[] = {
 	{
 		.name	= "HW_CONV_END",
@@ -1065,8 +1033,6 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 	{
 		.name = "ab8500-gpio",
 		.of_compatible = "stericsson,ab8500-gpio",
-		.num_resources = ARRAY_SIZE(ab8500_gpio_resources),
-		.resources = ab8500_gpio_resources,
 	},
 	{
 		.name = "ab8500-usb",
@@ -1083,8 +1049,6 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 static struct mfd_cell __devinitdata ab9540_devs[] = {
 	{
 		.name = "ab8500-gpio",
-		.num_resources = ARRAY_SIZE(ab9540_gpio_resources),
-		.resources = ab9540_gpio_resources,
 	},
 	{
 		.name = "ab9540-usb",
