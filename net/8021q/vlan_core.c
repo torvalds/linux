@@ -366,6 +366,13 @@ EXPORT_SYMBOL(vlan_vids_del_by_dev);
 
 bool vlan_uses_dev(const struct net_device *dev)
 {
-	return rtnl_dereference(dev->vlan_info) ? true : false;
+	struct vlan_info *vlan_info;
+
+	ASSERT_RTNL();
+
+	vlan_info = rtnl_dereference(dev->vlan_info);
+	if (!vlan_info)
+		return false;
+	return vlan_info->grp.nr_vlan_devs ? true : false;
 }
 EXPORT_SYMBOL(vlan_uses_dev);

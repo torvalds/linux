@@ -338,6 +338,9 @@ int x86_setup_perfctr(struct perf_event *event)
 		/* BTS is currently only allowed for user-mode. */
 		if (!attr->exclude_kernel)
 			return -EOPNOTSUPP;
+
+		if (!attr->exclude_guest)
+			return -EOPNOTSUPP;
 	}
 
 	hwc->config |= config;
@@ -379,6 +382,9 @@ int x86_pmu_hw_config(struct perf_event *event)
 {
 	if (event->attr.precise_ip) {
 		int precise = 0;
+
+		if (!event->attr.exclude_guest)
+			return -EOPNOTSUPP;
 
 		/* Support for constant skid */
 		if (x86_pmu.pebs_active && !x86_pmu.pebs_broken) {

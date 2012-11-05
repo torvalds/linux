@@ -109,15 +109,6 @@
 #define OMAP5UART4		OMAP4UART4
 #define ZOOM_UART		95		/* Only on zoom2/3 */
 
-/* This is only used by 8250.c for omap1510 */
-#define is_omap_port(pt)	({int __ret = 0;			\
-			if ((pt)->port.mapbase == OMAP1_UART1_BASE ||	\
-			    (pt)->port.mapbase == OMAP1_UART2_BASE ||	\
-			    (pt)->port.mapbase == OMAP1_UART3_BASE)	\
-				__ret = 1;				\
-			__ret;						\
-			})
-
 #ifndef __ASSEMBLER__
 
 struct omap_board_data;
