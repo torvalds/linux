@@ -519,12 +519,12 @@ static const u8 stmpe1601_regs[] = {
 static struct stmpe_variant_block stmpe1601_blocks[] = {
 	{
 		.cell	= &stmpe_gpio_cell,
-		.irq	= STMPE24XX_IRQ_GPIOC,
+		.irq	= STMPE1601_IRQ_GPIOC,
 		.block	= STMPE_BLOCK_GPIO,
 	},
 	{
 		.cell	= &stmpe_keypad_cell,
-		.irq	= STMPE24XX_IRQ_KEYPAD,
+		.irq	= STMPE1601_IRQ_KEYPAD,
 		.block	= STMPE_BLOCK_KEYPAD,
 	},
 };
