@@ -12,6 +12,19 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
+static int apci1032_reset(struct comedi_device *dev)
+{
+	/* disable the interrupts */
+	outl(0x0, dev->iobase + APCI1032_CTRL_REG);
+	/* Reset the interrupt status register */
+	inl(dev->iobase + APCI1032_STATUS_REG);
+	/* Disable the and/or interrupt */
+	outl(0x0, dev->iobase + APCI1032_MODE1_REG);
+	outl(0x0, dev->iobase + APCI1032_MODE2_REG);
+
+	return 0;
+}
+
 static int apci1032_attach_pci(struct comedi_device *dev,
 			       struct pci_dev *pcidev)
 {
@@ -80,7 +93,7 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	i_APCI1032_Reset(dev);
+	apci1032_reset(dev);
 	return 0;
 }
 
@@ -91,7 +104,7 @@ static void apci1032_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_APCI1032_Reset(dev);
+			apci1032_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 	}

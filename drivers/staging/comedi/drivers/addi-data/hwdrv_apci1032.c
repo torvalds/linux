@@ -278,31 +278,3 @@ static void v_APCI1032_Interrupt(int irq, void *d)
 	outl(ui_Temp, dev->iobase + APCI1032_CTRL_REG);
 	return;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1032_Reset(struct comedi_device *dev)               |                                                       |
-+----------------------------------------------------------------------------+
-| Task              :resets all the registers                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI1032_Reset(struct comedi_device *dev)
-{
-	/* disable the interrupts */
-	outl(0x0, dev->iobase + APCI1032_CTRL_REG);
-	/* Reset the interrupt status register */
-	inl(dev->iobase + APCI1032_STATUS_REG);
-	/* Disable the and/or interrupt */
-	outl(0x0, dev->iobase + APCI1032_MODE1_REG);
-	outl(0x0, dev->iobase + APCI1032_MODE2_REG);
-
-	return 0;
-}
