@@ -1354,7 +1354,8 @@ static int btrfs_calc_avail_data_space(struct btrfs_root *root, u64 *free_bytes)
 		min_stripe_size = BTRFS_STRIPE_LEN;
 
 	list_for_each_entry(device, &fs_devices->devices, dev_list) {
-		if (!device->in_fs_metadata || !device->bdev)
+		if (!device->in_fs_metadata || !device->bdev ||
+		    device->is_tgtdev_for_dev_replace)
 			continue;
 
 		avail_space = device->total_bytes - device->bytes_used;

@@ -50,6 +50,7 @@ struct btrfs_device {
 	int in_fs_metadata;
 	int missing;
 	int can_discard;
+	int is_tgtdev_for_dev_replace;
 
 	spinlock_t io_lock;
 

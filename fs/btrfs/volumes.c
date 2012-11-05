@@ -518,8 +518,9 @@ again:
 	/* This is the initialized path, it is safe to release the devices. */
 	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
 		if (device->in_fs_metadata) {
-			if (!latest_transid ||
-			    device->generation > latest_transid) {
+			if (!device->is_tgtdev_for_dev_replace &&
+			    (!latest_transid ||
+			     device->generation > latest_transid)) {
 				latest_devid = device->devid;
 				latest_transid = device->generation;
 				latest_bdev = device->bdev;
@@ -814,7 +815,7 @@ int btrfs_account_dev_extents_size(struct btrfs_device *device, u64 start,
 
 	*length = 0;
 
-	if (start >= device->total_bytes)
+	if (start >= device->total_bytes || device->is_tgtdev_for_dev_replace)
 		return 0;
 
 	path = btrfs_alloc_path();
@@ -931,7 +932,7 @@ int find_free_dev_extent(struct btrfs_device *device, u64 num_bytes,
 	max_hole_size = 0;
 	hole_size = 0;
 
-	if (search_start >= search_end) {
+	if (search_start >= search_end || device->is_tgtdev_for_dev_replace) {
 		ret = -ENOSPC;
 		goto error;
 	}
@@ -1114,6 +1115,7 @@ int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 
 	WARN_ON(!device->in_fs_metadata);
+	WARN_ON(device->is_tgtdev_for_dev_replace);
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -1375,7 +1377,9 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		 * is held.
 		 */
 		list_for_each_entry(tmp, devices, dev_list) {
-			if (tmp->in_fs_metadata && !tmp->bdev) {
+			if (tmp->in_fs_metadata &&
+			    !tmp->is_tgtdev_for_dev_replace &&
+			    !tmp->bdev) {
 				device = tmp;
 				break;
 			}
@@ -1406,6 +1410,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		}
 	}
 
+	if (device->is_tgtdev_for_dev_replace) {
+		pr_err("btrfs: unable to remove the dev_replace target dev\n");
+		ret = -EINVAL;
+		goto error_brelse;
+	}
+
 	if (device->writeable && root->fs_info->fs_devices->rw_devices == 1) {
 		printk(KERN_ERR "btrfs: unable to remove the only writeable "
 		       "device\n");
@@ -1425,6 +1435,11 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	if (ret)
 		goto error_undo;
 
+	/*
+	 * TODO: the superblock still includes this device in its num_devices
+	 * counter although write_all_supers() is not locked out. This
+	 * could give a filesystem state which requires a degraded mount.
+	 */
 	ret = btrfs_rm_dev_item(root->fs_info->chunk_root, device);
 	if (ret)
 		goto error_undo;
@@ -1808,6 +1823,7 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	device->dev_root = root->fs_info->dev_root;
 	device->bdev = bdev;
 	device->in_fs_metadata = 1;
+	device->is_tgtdev_for_dev_replace = 0;
 	device->mode = FMODE_EXCL;
 	set_blocksize(device->bdev, 4096);
 
@@ -1971,7 +1987,8 @@ static int __btrfs_grow_device(struct btrfs_trans_handle *trans,
 
 	if (!device->writeable)
 		return -EACCES;
-	if (new_size <= device->total_bytes)
+	if (new_size <= device->total_bytes ||
+	    device->is_tgtdev_for_dev_replace)
 		return -EINVAL;
 
 	btrfs_set_super_total_bytes(super_copy, old_total + diff);
@@ -2600,7 +2617,8 @@ static int __btrfs_balance(struct btrfs_fs_info *fs_info)
 		size_to_free = div_factor(old_size, 1);
 		size_to_free = min(size_to_free, (u64)1 * 1024 * 1024);
 		if (!device->writeable ||
-		    device->total_bytes - device->bytes_used > size_to_free)
+		    device->total_bytes - device->bytes_used > size_to_free ||
+		    device->is_tgtdev_for_dev_replace)
 			continue;
 
 		ret = btrfs_shrink_device(device, old_size - size_to_free);
@@ -3132,6 +3150,9 @@ int btrfs_shrink_device(struct btrfs_device *device, u64 new_size)
 	u64 old_size = device->total_bytes;
 	u64 diff = device->total_bytes - new_size;
 
+	if (device->is_tgtdev_for_dev_replace)
+		return -EINVAL;
+
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
@@ -3401,7 +3422,8 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			continue;
 		}
 
-		if (!device->in_fs_metadata)
+		if (!device->in_fs_metadata ||
+		    device->is_tgtdev_for_dev_replace)
 			continue;
 
 		if (device->total_bytes > device->bytes_used)
@@ -4612,6 +4634,7 @@ static void fill_device_from_item(struct extent_buffer *leaf,
 	device->io_align = btrfs_device_io_align(leaf, dev_item);
 	device->io_width = btrfs_device_io_width(leaf, dev_item);
 	device->sector_size = btrfs_device_sector_size(leaf, dev_item);
+	device->is_tgtdev_for_dev_replace = 0;
 
 	ptr = (unsigned long)btrfs_device_uuid(dev_item);
 	read_extent_buffer(leaf, device->uuid, ptr, BTRFS_UUID_SIZE);
@@ -4722,7 +4745,7 @@ static int read_one_dev(struct btrfs_root *root,
 	fill_device_from_item(leaf, dev_item, device);
 	device->dev_root = root->fs_info->dev_root;
 	device->in_fs_metadata = 1;
-	if (device->writeable) {
+	if (device->writeable && !device->is_tgtdev_for_dev_replace) {
 		device->fs_devices->total_rw_bytes += device->total_bytes;
 		spin_lock(&root->fs_info->free_chunk_lock);
 		root->fs_info->free_chunk_space += device->total_bytes -

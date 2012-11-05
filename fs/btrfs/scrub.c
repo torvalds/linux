@@ -116,6 +116,9 @@ struct scrub_ctx {
 	u32			sectorsize;
 	u32			nodesize;
 	u32			leafsize;
+
+	int			is_dev_replace;
+
 	/*
 	 * statistics
 	 */
@@ -284,7 +287,7 @@ static noinline_for_stack void scrub_free_ctx(struct scrub_ctx *sctx)
 }
 
 static noinline_for_stack
-struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev)
+struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev, int is_dev_replace)
 {
 	struct scrub_ctx *sctx;
 	int		i;
@@ -296,6 +299,7 @@ struct scrub_ctx *scrub_setup_ctx(struct btrfs_device *dev)
 	sctx = kzalloc(sizeof(*sctx), GFP_NOFS);
 	if (!sctx)
 		goto nomem;
+	sctx->is_dev_replace = is_dev_replace;
 	sctx->pages_per_bio = pages_per_bio;
 	sctx->curr = -1;
 	sctx->dev_root = dev->dev_root;
@@ -2293,7 +2297,7 @@ static noinline_for_stack void scrub_workers_put(struct btrfs_fs_info *fs_info)
 
 int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		    u64 end, struct btrfs_scrub_progress *progress,
-		    int readonly)
+		    int readonly, int is_dev_replace)
 {
 	struct scrub_ctx *sctx;
 	int ret;
@@ -2356,14 +2360,14 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 
 	mutex_lock(&fs_info->fs_devices->device_list_mutex);
 	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
-	if (!dev || dev->missing) {
+	if (!dev || (dev->missing && !is_dev_replace)) {
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		scrub_workers_put(fs_info);
 		return -ENODEV;
 	}
 	mutex_lock(&fs_info->scrub_lock);
 
-	if (!dev->in_fs_metadata) {
+	if (!dev->in_fs_metadata || dev->is_tgtdev_for_dev_replace) {
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		scrub_workers_put(fs_info);
@@ -2376,7 +2380,7 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		scrub_workers_put(fs_info);
 		return -EINPROGRESS;
 	}
-	sctx = scrub_setup_ctx(dev);
+	sctx = scrub_setup_ctx(dev, is_dev_replace);
 	if (IS_ERR(sctx)) {
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);

@@ -1375,6 +1375,11 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		}
 	}
 
+	if (device->is_tgtdev_for_dev_replace) {
+		ret = -EINVAL;
+		goto out_free;
+	}
+
 	old_size = device->total_bytes;
 
 	if (mod < 0) {
@@ -3102,7 +3107,8 @@ static long btrfs_ioctl_scrub(struct btrfs_root *root, void __user *arg)
 		return PTR_ERR(sa);
 
 	ret = btrfs_scrub_dev(root->fs_info, sa->devid, sa->start, sa->end,
-			      &sa->progress, sa->flags & BTRFS_SCRUB_READONLY);
+			      &sa->progress, sa->flags & BTRFS_SCRUB_READONLY,
+			      0);
 
 	if (copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;
