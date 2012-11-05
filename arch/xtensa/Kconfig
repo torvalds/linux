@@ -151,6 +151,15 @@ config XTENSA_PLATFORM_S6105
 	select SERIAL_CONSOLE
 	select NO_IOPORT
 
+config XTENSA_PLATFORM_XTFPGA
+	bool "XTFPGA"
+	select SERIAL_CONSOLE
+	select ETHOC
+	select XTENSA_CALIBRATE_CCOUNT
+	help
+	  XTFPGA is the name of Tensilica board family (LX60, LX110, LX200, ML605).
+	  This hardware is capable of running a full Linux distribution.
+
 endchoice
 
 
