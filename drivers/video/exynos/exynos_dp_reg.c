@@ -88,7 +88,7 @@ void exynos_dp_init_analog_param(struct exynos_dp_device *dp)
 void exynos_dp_init_interrupt(struct exynos_dp_device *dp)
 {
 	/* Set interrupt pin assertion polarity as high */
-	writel(INT_POL, dp->reg_base + EXYNOS_DP_INT_CTL);
+	writel(INT_POL1 | INT_POL0, dp->reg_base + EXYNOS_DP_INT_CTL);
 
 	/* Clear pending regisers */
 	writel(0xff, dp->reg_base + EXYNOS_DP_COMMON_INT_STA_1);
