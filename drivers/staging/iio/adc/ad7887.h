@@ -30,8 +30,6 @@ enum ad7887_channels {
  */
 
 struct ad7887_platform_data {
-	/* External Vref voltage applied */
-	u16				vref_mv;
 	/*
 	 * AD7887:
 	 * In single channel mode en_dual = flase, AIN1/Vref pins assumes its
@@ -63,7 +61,6 @@ struct ad7887_state {
 	struct spi_device		*spi;
 	const struct ad7887_chip_info	*chip_info;
 	struct regulator		*reg;
-	u16				int_vref_mv;
 	struct spi_transfer		xfer[4];
 	struct spi_message		msg[3];
 	struct spi_message		*ring_msg;
