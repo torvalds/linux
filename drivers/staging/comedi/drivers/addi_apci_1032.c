@@ -6,53 +6,20 @@
 
 #include "addi-data/hwdrv_apci1032.c"
 
-static const struct addi_board apci1032_boardtypes[] = {
-	{
-		.pc_DriverName		= "apci1032",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1003,
-		.i_PCIEeprom		= ADDIDATA_EEPROM,
-		.pc_EepromChip		= ADDIDATA_93C76,
-		.i_NbrDiChannel		= 32,
-	},
-};
-
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	v_APCI1032_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
-{
-	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-		p += dev->driver->offset;
-	}
-	return NULL;
-}
-
 static int apci1032_attach_pci(struct comedi_device *dev,
 			       struct pci_dev *pcidev)
 {
-	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -139,9 +106,6 @@ static struct comedi_driver apci1032_driver = {
 	.module		= THIS_MODULE,
 	.attach_pci	= apci1032_attach_pci,
 	.detach		= apci1032_detach,
-	.num_names	= ARRAY_SIZE(apci1032_boardtypes),
-	.board_name	= &apci1032_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
 };
 
 static int __devinit apci1032_pci_probe(struct pci_dev *dev,
