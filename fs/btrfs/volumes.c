@@ -2952,6 +2952,7 @@ static int balance_kthread(void *data)
 		ret = btrfs_balance(fs_info->balance_ctl, NULL);
 	}
 
+	atomic_set(&fs_info->mutually_exclusive_operation_running, 0);
 	mutex_unlock(&fs_info->balance_mutex);
 	mutex_unlock(&fs_info->volume_mutex);
 
@@ -2974,6 +2975,7 @@ int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info)
 		return 0;
 	}
 
+	WARN_ON(atomic_xchg(&fs_info->mutually_exclusive_operation_running, 1));
 	tsk = kthread_run(balance_kthread, fs_info, "btrfs-balance");
 	if (IS_ERR(tsk))
 		return PTR_ERR(tsk);
