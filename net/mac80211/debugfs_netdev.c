@@ -423,7 +423,7 @@ static ssize_t ieee80211_if_parse_tsf(
 		}
 		ret = kstrtoull(buf, 10, &tsf);
 		if (ret < 0)
-			return -EINVAL;
+			return ret;
 		if (tsf_is_delta)
 			tsf = drv_get_tsf(local, sdata) + tsf_is_delta * tsf;
 		if (local->ops->set_tsf) {
