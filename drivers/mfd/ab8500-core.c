@@ -1233,7 +1233,7 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 	int i;
 	u8 value;
 
-	ab8500 = kzalloc(sizeof *ab8500, GFP_KERNEL);
+	ab8500 = devm_kzalloc(&pdev->dev, sizeof *ab8500, GFP_KERNEL);
 	if (!ab8500)
 		return -ENOMEM;
 
@@ -1243,10 +1243,8 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 	ab8500->dev = &pdev->dev;
 
 	resource = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!resource) {
-		ret = -ENODEV;
-		goto out_free_ab8500;
-	}
+	if (!resource)
+		return -ENODEV;
 
 	ab8500->irq = resource->start;
 
@@ -1269,7 +1267,7 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 		ret = get_register_interruptible(ab8500, AB8500_MISC,
 			AB8500_IC_NAME_REG, &value);
 		if (ret < 0)
-			goto out_free_ab8500;
+			return ret;
 
 		ab8500->version = value;
 	}
@@ -1277,7 +1275,7 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 	ret = get_register_interruptible(ab8500, AB8500_MISC,
 		AB8500_REV_REG, &value);
 	if (ret < 0)
-		goto out_free_ab8500;
+		return ret;
 
 	ab8500->chip_id = value;
 
@@ -1294,14 +1292,13 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 		ab8500->mask_size = AB8500_NUM_IRQ_REGS;
 		ab8500->irq_reg_offset = ab8500_irq_regoffset;
 	}
-	ab8500->mask = kzalloc(ab8500->mask_size, GFP_KERNEL);
+	ab8500->mask = devm_kzalloc(&pdev->dev, ab8500->mask_size, GFP_KERNEL);
 	if (!ab8500->mask)
 		return -ENOMEM;
-	ab8500->oldmask = kzalloc(ab8500->mask_size, GFP_KERNEL);
-	if (!ab8500->oldmask) {
-		ret = -ENOMEM;
-		goto out_freemask;
-	}
+	ab8500->oldmask = devm_kzalloc(&pdev->dev, ab8500->mask_size, GFP_KERNEL);
+	if (!ab8500->oldmask)
+		return -ENOMEM;
+
 	/*
 	 * ab8500 has switched off due to (SWITCH_OFF_STATUS):
 	 * 0x01 Swoff bit programming
@@ -1355,37 +1352,37 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 
 	ret = abx500_register_ops(ab8500->dev, &ab8500_ops);
 	if (ret)
-		goto out_freeoldmask;
+		return ret;
 
 	for (i = 0; i < ab8500->mask_size; i++)
 		ab8500->mask[i] = ab8500->oldmask[i] = 0xff;
 
 	ret = ab8500_irq_init(ab8500, np);
 	if (ret)
-		goto out_freeoldmask;
+		return ret;
 
 	/*  Activate this feature only in ab9540 */
 	/*  till tests are done on ab8500 1p2 or later*/
 	if (is_ab9540(ab8500)) {
-		ret = request_threaded_irq(ab8500->irq, NULL,
-					ab8500_hierarchical_irq,
-					IRQF_ONESHOT | IRQF_NO_SUSPEND,
-					"ab8500", ab8500);
+		ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
+						ab8500_hierarchical_irq,
+						IRQF_ONESHOT | IRQF_NO_SUSPEND,
+						"ab8500", ab8500);
 	}
 	else {
-		ret = request_threaded_irq(ab8500->irq, NULL,
-					ab8500_irq,
-					IRQF_ONESHOT | IRQF_NO_SUSPEND,
-					"ab8500", ab8500);
+		ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
+						ab8500_irq,
+						IRQF_ONESHOT | IRQF_NO_SUSPEND,
+						"ab8500", ab8500);
 		if (ret)
-			goto out_freeoldmask;
+			return ret;
 	}
 
 	ret = mfd_add_devices(ab8500->dev, 0, abx500_common_devs,
 			ARRAY_SIZE(abx500_common_devs), NULL,
 			ab8500->irq_base, ab8500->domain);
 	if (ret)
-		goto out_freeirq;
+		return ret;
 
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
@@ -1396,14 +1393,14 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 				ARRAY_SIZE(ab8500_devs), NULL,
 				ab8500->irq_base, ab8500->domain);
 	if (ret)
-		goto out_freeirq;
+		return ret;
 
 	if (is_ab9540(ab8500) || is_ab8505(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
 				ARRAY_SIZE(ab9540_ab8505_devs), NULL,
 				ab8500->irq_base, ab8500->domain);
 	if (ret)
-		goto out_freeirq;
+		return ret;
 
 	if (!no_bm) {
 		/* Add battery management devices */
@@ -1422,17 +1419,6 @@ static int __devinit ab8500_probe(struct platform_device *pdev)
 					&ab8500_attr_group);
 	if (ret)
 		dev_err(ab8500->dev, "error creating sysfs entries\n");
-
-	return ret;
-
-out_freeirq:
-	free_irq(ab8500->irq, ab8500);
-out_freeoldmask:
-	kfree(ab8500->oldmask);
-out_freemask:
-	kfree(ab8500->mask);
-out_free_ab8500:
-	kfree(ab8500);
 
 	return ret;
 }
