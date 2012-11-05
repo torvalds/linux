@@ -354,7 +354,7 @@ receive_dmsg(struct IsdnCardState *cs)
 		if ((rcnt > MAX_DFRAME_LEN + 3) || (rcnt < 4) ||
 		    (df->data[zp->z1])) {
 			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "empty_fifo hfcpci paket inv. len %d or crc %d", rcnt, df->data[zp->z1]);
+				debugl1(cs, "empty_fifo hfcpci packet inv. len %d or crc %d", rcnt, df->data[zp->z1]);
 #ifdef ERROR_STATISTIC
 			cs->err_rx++;
 #endif

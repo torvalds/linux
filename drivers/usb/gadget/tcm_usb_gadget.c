@@ -1384,7 +1384,7 @@ static struct se_node_acl *usbg_alloc_fabric_acl(struct se_portal_group *se_tpg)
 
 	nacl = kzalloc(sizeof(struct usbg_nacl), GFP_KERNEL);
 	if (!nacl) {
-		printk(KERN_ERR "Unable to alocate struct usbg_nacl\n");
+		printk(KERN_ERR "Unable to allocate struct usbg_nacl\n");
 		return NULL;
 	}
 

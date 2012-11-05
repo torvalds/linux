@@ -231,7 +231,7 @@ static struct se_node_acl *tcm_vhost_alloc_fabric_acl(
 
 	nacl = kzalloc(sizeof(struct tcm_vhost_nacl), GFP_KERNEL);
 	if (!nacl) {
-		pr_err("Unable to alocate struct tcm_vhost_nacl\n");
+		pr_err("Unable to allocate struct tcm_vhost_nacl\n");
 		return NULL;
 	}
 
