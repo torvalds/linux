@@ -1046,6 +1046,10 @@ config TOUCHSCREEN_FT5406
 
 	  If unsure, say N(but it's safe to say "Y").
 
+config TOUCHSCREEN_FT5X0X
+		tristate "ft5x0x touchscreen panel support "
+		depends on I2C2_RK29 || I2C2_RK30
+
 config ATMEL_MXT1386
         tristate "ATMEL_MXT1386 touchscreen panel support"
         depends on I2C

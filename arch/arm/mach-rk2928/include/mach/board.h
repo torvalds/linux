@@ -35,6 +35,12 @@ void __sramfunc board_pmu_resume(void);
 
 extern struct sys_timer rk2928_timer;
 
+struct ts_hw_data {
+	int reset_gpio;
+	int touch_en_gpio;
+};
+
+
 //#if defined  CONFIG_BATTERY_RK30_ADC_FAC 
 /* adc battery */
 struct rk30_adc_battery_platform_data {

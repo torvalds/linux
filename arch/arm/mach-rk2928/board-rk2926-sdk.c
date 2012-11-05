@@ -388,6 +388,54 @@ static struct platform_device device_ion = {
 };
 #endif
 
+/*ft5x0x touchpad*/
+#if defined (CONFIG_TOUCHSCREEN_FT5X0X)
+
+#define TOUCH_RESET_PIN RK2928_PIN0_PD3
+#define TOUCH_EN_PIN NULL
+#define TOUCH_INT_PIN RK2928_PIN1_PB0
+
+static struct ts_hw_data ts_hw_info = {
+	.reset_gpio = TOUCH_RESET_PIN,
+};
+#endif
+
+#if defined(CONFIG_TOUCHSCREEN_GT811_IIC)
+#define TOUCH_RESET_PIN	 INVALID_GPIO//RK2928_PIN0_PD3//RK2928_PIN1_PA3
+#define TOUCH_INT_PIN 	 RK2928_PIN1_PB0
+int goodix_init_platform_hw(void)
+{
+
+        //printk("ft5306_init_platform_hw\n");
+        if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
+                gpio_free(TOUCH_RESET_PIN);
+                printk("ft5306_init_platform_hw gpio_request error\n");
+                return -EIO;
+        }
+
+        if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
+                gpio_free(TOUCH_INT_PIN);
+                printk("ift5306_init_platform_hw gpio_request error\n");
+                return -EIO;
+        }
+        gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
+        mdelay(10);
+        gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+        msleep(300);
+        return 0;
+
+}
+
+struct goodix_platform_data goodix_info = {
+	.model = 8105,
+	//.irq_pin = RK2928_PIN1_PB0,
+	.rest_pin = TOUCH_RESET_PIN,
+	.init_platform_hw = goodix_init_platform_hw,
+};
+#endif
+
 
 #if defined(CONFIG_TOUCHSCREEN_SITRONIX_A720)
 
@@ -1045,6 +1093,16 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	.irq            = TOUCH_INT_PIN,
 	.platform_data = &sitronix_info,
 },
+#endif
+#if defined (CONFIG_TOUCHSCREEN_FT5X0X)
+        {
+            .type           = "ft5x0x_ts",
+            .addr           = 0x38,
+            .flags          = 0,
+            .irq            = TOUCH_INT_PIN,
+            //.platform_data  = &ft5x0x_info,
+	    .platform_data = &ts_hw_info,
+        },
 #endif
 };
 #endif

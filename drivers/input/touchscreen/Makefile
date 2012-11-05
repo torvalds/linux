@@ -95,4 +95,5 @@ obj-$(CONFIG_TOUCHSCREEN_PIXCIR)      += pixcir_i2c_ts.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK)      += rmi4/
 obj-$(CONFIG_TOUCHSCREEN_I30)	+= i30_ts.o
 obj-$(CONFIG_TOUCHSCREEN_BYD693X)	+= byd693x_ts.o
+obj-$(CONFIG_TOUCHSCREEN_FT5X0X)	+= ft5x0x.o
 
