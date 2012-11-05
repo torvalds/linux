@@ -1,0 +1,25 @@
+* STMPE Multi-Functional Device
+
+Required properties:
+ - compatible                   : "st,stmpe[811|1601|2401|2403]"
+ - reg                          : I2C address of the device
+
+Optional properties:
+ - interrupts                   : The interrupt outputs from the controller
+ - interrupt-controller         : Marks the device node as an interrupt controller
+ - interrupt-parent             : Specifies which IRQ controller we're connected to
+ - i2c-client-wake              : Marks the input device as wakable
+ - st,autosleep-timeout         : Valid entries (ms); 4, 16, 32, 64, 128, 256, 512 and 1024
+
+Example:
+
+	stmpe1601: stmpe1601@40 {
+		compatible = "st,stmpe1601";
+		reg = <0x40>;
+		interrupts = <26 0x4>;
+		interrupt-parent = <&gpio6>;
+		interrupt-controller;
+
+		i2c-client-wake;
+		st,autosleep-timeout = <1024>;
+	};
