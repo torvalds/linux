@@ -323,6 +323,7 @@ static int mxs_spi_txrx_dma(struct mxs_spi *spi, int cs,
 	if (!ret) {
 		dev_err(ssp->dev, "DMA transfer timeout\n");
 		ret = -ETIMEDOUT;
+		dmaengine_terminate_all(ssp->dmach);
 		goto err_vmalloc;
 	}
 
@@ -480,7 +481,7 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 		first = last = 0;
 	}
 
-	m->status = 0;
+	m->status = status;
 	spi_finalize_current_message(master);
 
 	return status;

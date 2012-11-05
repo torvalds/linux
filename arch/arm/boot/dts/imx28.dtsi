@@ -85,6 +85,7 @@
 				interrupts = <88>, <41>;
 				interrupt-names = "gpmi-dma", "bch";
 				clocks = <&clks 50>;
+				clock-names = "gpmi_io";
 				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
