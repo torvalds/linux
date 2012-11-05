@@ -32,6 +32,7 @@
 #include <mach/hardware.h>
 
 #include "iomap.h"
+#include "common.h"
 
 static void fpga_mask_irq(struct irq_data *d)
 {
