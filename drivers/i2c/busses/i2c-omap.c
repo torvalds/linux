@@ -1327,8 +1327,7 @@ static int omap_i2c_runtime_resume(struct device *dev)
 	if (!_dev->regs)
 		return 0;
 
-	if (_dev->flags & OMAP_I2C_FLAG_RESET_REGS_POSTIDLE)
-		__omap_i2c_init(_dev);
+	__omap_i2c_init(_dev);
 
 	return 0;
 }
