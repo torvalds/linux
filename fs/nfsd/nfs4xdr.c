@@ -425,7 +425,7 @@ nfsd4_decode_access(struct nfsd4_compoundargs *argp, struct nfsd4_access *access
 static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_cb_sec *cbs)
 {
 	DECODE_HEAD;
-	u32 dummy;
+	u32 dummy, uid, gid;
 	char *machine_name;
 	int i;
 	int nr_secflavs;
@@ -433,12 +433,15 @@ static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_
 	/* callback_sec_params4 */
 	READ_BUF(4);
 	READ32(nr_secflavs);
+	cbs->flavor = (u32)(-1);
 	for (i = 0; i < nr_secflavs; ++i) {
 		READ_BUF(4);
 		READ32(dummy);
 		switch (dummy) {
 		case RPC_AUTH_NULL:
 			/* Nothing to read */
+			if (cbs->flavor == (u32)(-1))
+				cbs->flavor = RPC_AUTH_NULL;
 			break;
 		case RPC_AUTH_UNIX:
 			READ_BUF(8);
@@ -452,13 +455,18 @@ static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_
 
 			/* uid, gid */
 			READ_BUF(8);
-			READ32(cbs->uid);
-			READ32(cbs->gid);
+			READ32(uid);
+			READ32(gid);
 
 			/* more gids */
 			READ_BUF(4);
 			READ32(dummy);
 			READ_BUF(dummy * 4);
+			if (cbs->flavor == (u32)(-1)) {
+				cbs->uid = uid;
+				cbs->gid = gid;
+				cbs->flavor = RPC_AUTH_UNIX;
+			}
 			break;
 		case RPC_AUTH_GSS:
 			dprintk("RPC_AUTH_GSS callback secflavor "

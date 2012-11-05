@@ -692,7 +692,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		args.bc_xprt = conn->cb_xprt;
 		args.prognumber = clp->cl_cb_session->se_cb_prog;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
-		args.authflavor = RPC_AUTH_UNIX;
+		args.authflavor = ses->se_cb_sec.flavor;
 	}
 	/* Create RPC client */
 	client = rpc_create(&args);
@@ -709,7 +709,6 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 	clp->cl_cb_client = client;
 	clp->cl_cb_cred = cred;
 	return 0;
-
 }
 
 static void warn_no_callback_path(struct nfs4_client *clp, int reason)
