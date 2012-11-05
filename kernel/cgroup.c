@@ -4054,7 +4054,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	mutex_unlock(&cgroup_mutex);
 	for_each_subsys(cgrp->root, ss)
 		if (ss->pre_destroy)
-			WARN_ON_ONCE(ss->pre_destroy(cgrp));
+			ss->pre_destroy(cgrp);
 	mutex_lock(&cgroup_mutex);
 
 	/*
