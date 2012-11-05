@@ -33,8 +33,6 @@
 #include "comedi_fc.h"
 #include "amcc_s5933.h"
 
-#include "addi-data/addi_common.h"
-
 /*
  * I/O Register Map
  */
@@ -47,72 +45,191 @@
 #define APCI1032_CTRL_INT_AND		(1 << 1)
 #define APCI1032_CTRL_INT_ENA		(1 << 2)
 
-/* Digital Input IRQ Function Selection */
-#define ADDIDATA_OR				0
-#define ADDIDATA_AND				1
+struct apci1032_private {
+	unsigned int mode1;	/* rising-edge/high level channels */
+	unsigned int mode2;	/* falling-edge/low level channels */
+	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
+};
 
-static unsigned int ui_InterruptStatus;
+static int apci1032_reset(struct comedi_device *dev)
+{
+	/* disable the interrupts */
+	outl(0x0, dev->iobase + APCI1032_CTRL_REG);
+	/* Reset the interrupt status register */
+	inl(dev->iobase + APCI1032_STATUS_REG);
+	/* Disable the and/or interrupt */
+	outl(0x0, dev->iobase + APCI1032_MODE1_REG);
+	outl(0x0, dev->iobase + APCI1032_MODE2_REG);
+
+	return 0;
+}
 
 /*
- * data[0] : 1 Enable  Digital Input Interrupt
- *           0 Disable Digital Input Interrupt
- * data[1] : 0 ADDIDATA Interrupt OR LOGIC
- *         : 1 ADDIDATA Interrupt AND LOGIC
- * data[2] : Interrupt mask for the mode 1
- * data[3] : Interrupt mask for the mode 2
+ * Change-Of-State (COS) interrupt configuration
+ *
+ * Channels 0 to 15 are interruptible. These channels can be configured
+ * to generate interrupts based on AND/OR logic for the desired channels.
+ *
+ *	OR logic
+ *		- reacts to rising or falling edges
+ *		- interrupt is generated when any enabled channel
+ *		  meet the desired interrupt condition
+ *
+ *	AND logic
+ *		- reacts to changes in level of the selected inputs
+ *		- interrupt is generated when all enabled channels
+ *		  meet the desired interrupt condition
+ *		- after an interrupt, a change in level must occur on
+ *		  the selected inputs to release the IRQ logic
+ *
+ * The COS interrupt must be configured before it can be enabled.
+ *
+ *	data[0] : INSN_CONFIG_DIGITAL_TRIG
+ *	data[1] : 0 = OR (edge) interrupts
+ *		  1 = AND (level) interrupts
+ *	data[2] : rising-edge/high level channels
+ *	data[3] : falling-edge/low level channels
  */
-static int apci1032_intr_insn_config(struct comedi_device *dev,
-				     struct comedi_subdevice *s,
-				     struct comedi_insn *insn,
-				     unsigned int *data)
+static int apci1032_cos_insn_config(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
-	unsigned int ui_TmpValue;
-	unsigned int ul_Command1 = 0;
-	unsigned int ul_Command2 = 0;
+	struct apci1032_private *devpriv = dev->private;
 
-  /*******************************/
-	/* Set the digital input logic */
-  /*******************************/
-	if (data[0] == ADDIDATA_ENABLE) {
-		ul_Command1 = ul_Command1 | data[2];
-		ul_Command2 = ul_Command2 | data[3];
-		outl(ul_Command1, dev->iobase + APCI1032_MODE1_REG);
-		outl(ul_Command2, dev->iobase + APCI1032_MODE2_REG);
-		if (data[1] == ADDIDATA_OR) {
-			outl(APCI1032_CTRL_INT_ENA |
-			     APCI1032_CTRL_INT_OR,
-			     dev->iobase + APCI1032_CTRL_REG);
-			ui_TmpValue =
-				inl(dev->iobase + APCI1032_CTRL_REG);
-		}		/* if (data[1] == ADDIDATA_OR) */
-		else
-			outl(APCI1032_CTRL_INT_ENA |
-			     APCI1032_CTRL_INT_AND,
-			     dev->iobase + APCI1032_CTRL_REG);
-				/* else if(data[1] == ADDIDATA_OR) */
-	}			/*  if( data[0] == ADDIDATA_ENABLE) */
-	else {
-		ul_Command1 = ul_Command1 & 0xFFFF0000;
-		ul_Command2 = ul_Command2 & 0xFFFF0000;
-		outl(ul_Command1, dev->iobase + APCI1032_MODE1_REG);
-		outl(ul_Command2, dev->iobase + APCI1032_MODE2_REG);
-		outl(0x0, dev->iobase + APCI1032_CTRL_REG);
-	}			/* else if  ( data[0] == ADDIDATA_ENABLE) */
+	switch (data[0]) {
+	case INSN_CONFIG_DIGITAL_TRIG:
+		devpriv->mode1 = data[2];
+		devpriv->mode2 = data[3];
+
+		if (devpriv->mode1 || devpriv->mode2) {
+			devpriv->ctrl = APCI1032_CTRL_INT_ENA;
+			if (data[1] == 1)
+				devpriv->ctrl = APCI1032_CTRL_INT_AND;
+			else
+				devpriv->ctrl = APCI1032_CTRL_INT_OR;
+		} else {
+			devpriv->ctrl = 0;
+			apci1032_reset(dev);
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return insn->n;
+}
+
+static int apci1032_cos_insn_bits(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
+{
+	data[1] = s->state;
+
+	return 0;
+}
+
+static int apci1032_cos_cmdtest(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_cmd *cmd)
+{
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_FOLLOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* step 3: */
+
+	if (cmd->start_arg != 0) {
+		cmd->start_arg = 0;
+		err++;
+	}
+	if (cmd->scan_begin_arg != 0) {
+		cmd->scan_begin_arg = 0;
+		err++;
+	}
+	if (cmd->convert_arg != 0) {
+		cmd->convert_arg = 0;
+		err++;
+	}
+	if (cmd->scan_end_arg != 1) {
+		cmd->scan_end_arg = 1;
+		err++;
+	}
+	if (cmd->stop_arg != 0) {
+		cmd->stop_arg = 0;
+		err++;
+	}
+
+	if (err)
+		return 3;
+
+	/* step 4: ignored */
+
+	if (err)
+		return 4;
+
+	return 0;
+}
+
+/*
+ * Change-Of-State (COS) 'do_cmd' operation
+ *
+ * Enable the COS interrupt as configured by apci1032_cos_insn_config().
+ */
+static int apci1032_cos_cmd(struct comedi_device *dev,
+			    struct comedi_subdevice *s)
+{
+	struct apci1032_private *devpriv = dev->private;
+
+	if (!devpriv->ctrl) {
+		dev_warn(dev->class_dev,
+			"Interrupts disabled due to mode configuration!\n");
+		return -EINVAL;
+	}
+
+	outl(devpriv->mode1, dev->iobase + APCI1032_MODE1_REG);
+	outl(devpriv->mode2, dev->iobase + APCI1032_MODE2_REG);
+	outl(devpriv->ctrl, dev->iobase + APCI1032_CTRL_REG);
+
+	return 0;
+}
+
+static int apci1032_cos_cancel(struct comedi_device *dev,
+			       struct comedi_subdevice *s)
+{
+	return apci1032_reset(dev);
 }
 
 static irqreturn_t apci1032_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int ctrl;
 
 	/* disable the interrupt */
 	ctrl = inl(dev->iobase + APCI1032_CTRL_REG);
 	outl(ctrl & ~APCI1032_CTRL_INT_ENA, dev->iobase + APCI1032_CTRL_REG);
 
-	ui_InterruptStatus = inl(dev->iobase + APCI1032_STATUS_REG);
-	ui_InterruptStatus = ui_InterruptStatus & 0X0000FFFF;
+	s->state = inl(dev->iobase + APCI1032_STATUS_REG) & 0xffff;
+	comedi_buf_put(s->async, s->state);
+	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
+	comedi_event(dev, s);
 
 	/* enable the interrupt */
 	outl(ctrl, dev->iobase + APCI1032_CTRL_REG);
@@ -130,26 +247,19 @@ static int apci1032_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int apci1032_reset(struct comedi_device *dev)
-{
-	/* disable the interrupts */
-	outl(0x0, dev->iobase + APCI1032_CTRL_REG);
-	/* Reset the interrupt status register */
-	inl(dev->iobase + APCI1032_STATUS_REG);
-	/* Disable the and/or interrupt */
-	outl(0x0, dev->iobase + APCI1032_MODE1_REG);
-	outl(0x0, dev->iobase + APCI1032_MODE2_REG);
-
-	return 0;
-}
-
 static int apci1032_attach_pci(struct comedi_device *dev,
 			       struct pci_dev *pcidev)
 {
+	struct apci1032_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev->board_name = dev->driver->driver_name;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -178,14 +288,22 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci1032_di_insn_bits;
 
+	/* Change-Of-State (COS) interrupt subdevice */
+	s = &dev->subdevices[1];
 	if (dev->irq) {
-		s = &dev->subdevices[1];
-		s->type		= COMEDI_SUBD_DI;
+		dev->read_subdev = s;
+		s->type		= COMEDI_SUBD_DI | SDF_CMD_READ;
 		s->subdev_flags	= SDF_READABLE;
 		s->n_chan	= 1;
 		s->maxdata	= 1;
 		s->range_table	= &range_digital;
-		s->insn_config	= apci1032_intr_insn_config;
+		s->insn_config	= apci1032_cos_insn_config;
+		s->insn_bits	= apci1032_cos_insn_bits;
+		s->do_cmdtest	= apci1032_cos_cmdtest;
+		s->do_cmd	= apci1032_cos_cmd;
+		s->cancel	= apci1032_cos_cancel;
+	} else {
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	apci1032_reset(dev);
