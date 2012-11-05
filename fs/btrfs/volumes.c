@@ -1537,6 +1537,53 @@ error_undo:
 	goto error_brelse;
 }
 
+void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
+				 struct btrfs_device *srcdev)
+{
+	WARN_ON(!mutex_is_locked(&fs_info->fs_devices->device_list_mutex));
+	list_del_rcu(&srcdev->dev_list);
+	list_del_rcu(&srcdev->dev_alloc_list);
+	fs_info->fs_devices->num_devices--;
+	if (srcdev->missing) {
+		fs_info->fs_devices->missing_devices--;
+		fs_info->fs_devices->rw_devices++;
+	}
+	if (srcdev->can_discard)
+		fs_info->fs_devices->num_can_discard--;
+	if (srcdev->bdev)
+		fs_info->fs_devices->open_devices--;
+
+	call_rcu(&srcdev->rcu, free_device);
+}
+
+void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
+				      struct btrfs_device *tgtdev)
+{
+	struct btrfs_device *next_device;
+
+	WARN_ON(!tgtdev);
+	mutex_lock(&fs_info->fs_devices->device_list_mutex);
+	if (tgtdev->bdev) {
+		btrfs_scratch_superblock(tgtdev);
+		fs_info->fs_devices->open_devices--;
+	}
+	fs_info->fs_devices->num_devices--;
+	if (tgtdev->can_discard)
+		fs_info->fs_devices->num_can_discard++;
+
+	next_device = list_entry(fs_info->fs_devices->devices.next,
+				 struct btrfs_device, dev_list);
+	if (tgtdev->bdev == fs_info->sb->s_bdev)
+		fs_info->sb->s_bdev = next_device->bdev;
+	if (tgtdev->bdev == fs_info->fs_devices->latest_bdev)
+		fs_info->fs_devices->latest_bdev = next_device->bdev;
+	list_del_rcu(&tgtdev->dev_list);
+
+	call_rcu(&tgtdev->rcu, free_device);
+
+	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+}
+
 int btrfs_find_device_by_path(struct btrfs_root *root, char *device_path,
 			      struct btrfs_device **device)
 {
@@ -1929,6 +1976,98 @@ error:
 		up_write(&sb->s_umount);
 	}
 	return ret;
+}
+
+int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
+				  struct btrfs_device **device_out)
+{
+	struct request_queue *q;
+	struct btrfs_device *device;
+	struct block_device *bdev;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct list_head *devices;
+	struct rcu_string *name;
+	int ret = 0;
+
+	*device_out = NULL;
+	if (fs_info->fs_devices->seeding)
+		return -EINVAL;
+
+	bdev = blkdev_get_by_path(device_path, FMODE_WRITE | FMODE_EXCL,
+				  fs_info->bdev_holder);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+
+	filemap_write_and_wait(bdev->bd_inode->i_mapping);
+
+	devices = &fs_info->fs_devices->devices;
+	list_for_each_entry(device, devices, dev_list) {
+		if (device->bdev == bdev) {
+			ret = -EEXIST;
+			goto error;
+		}
+	}
+
+	device = kzalloc(sizeof(*device), GFP_NOFS);
+	if (!device) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	name = rcu_string_strdup(device_path, GFP_NOFS);
+	if (!name) {
+		kfree(device);
+		ret = -ENOMEM;
+		goto error;
+	}
+	rcu_assign_pointer(device->name, name);
+
+	q = bdev_get_queue(bdev);
+	if (blk_queue_discard(q))
+		device->can_discard = 1;
+	mutex_lock(&root->fs_info->fs_devices->device_list_mutex);
+	device->writeable = 1;
+	device->work.func = pending_bios_fn;
+	generate_random_uuid(device->uuid);
+	device->devid = BTRFS_DEV_REPLACE_DEVID;
+	spin_lock_init(&device->io_lock);
+	device->generation = 0;
+	device->io_width = root->sectorsize;
+	device->io_align = root->sectorsize;
+	device->sector_size = root->sectorsize;
+	device->total_bytes = i_size_read(bdev->bd_inode);
+	device->disk_total_bytes = device->total_bytes;
+	device->dev_root = fs_info->dev_root;
+	device->bdev = bdev;
+	device->in_fs_metadata = 1;
+	device->is_tgtdev_for_dev_replace = 1;
+	device->mode = FMODE_EXCL;
+	set_blocksize(device->bdev, 4096);
+	device->fs_devices = fs_info->fs_devices;
+	list_add(&device->dev_list, &fs_info->fs_devices->devices);
+	fs_info->fs_devices->num_devices++;
+	fs_info->fs_devices->open_devices++;
+	if (device->can_discard)
+		fs_info->fs_devices->num_can_discard++;
+	mutex_unlock(&root->fs_info->fs_devices->device_list_mutex);
+
+	*device_out = device;
+	return ret;
+
+error:
+	blkdev_put(bdev, FMODE_EXCL);
+	return ret;
+}
+
+void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
+					      struct btrfs_device *tgtdev)
+{
+	WARN_ON(fs_info->fs_devices->rw_devices == 0);
+	tgtdev->io_width = fs_info->dev_root->sectorsize;
+	tgtdev->io_align = fs_info->dev_root->sectorsize;
+	tgtdev->sector_size = fs_info->dev_root->sectorsize;
+	tgtdev->dev_root = fs_info->dev_root;
+	tgtdev->in_fs_metadata = 1;
 }
 
 static noinline int btrfs_update_device(struct btrfs_trans_handle *trans,

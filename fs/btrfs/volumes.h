@@ -286,6 +286,8 @@ struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,
 				       u8 *uuid, u8 *fsid);
 int btrfs_shrink_device(struct btrfs_device *device, u64 new_size);
 int btrfs_init_new_device(struct btrfs_root *root, char *path);
+int btrfs_init_dev_replace_tgtdev(struct btrfs_root *root, char *device_path,
+				  struct btrfs_device **device_out);
 int btrfs_balance(struct btrfs_balance_control *bctl,
 		  struct btrfs_ioctl_balance_args *bargs);
 int btrfs_resume_balance_async(struct btrfs_fs_info *fs_info);
@@ -302,6 +304,12 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 int btrfs_init_dev_stats(struct btrfs_fs_info *fs_info);
 int btrfs_run_dev_stats(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
+void btrfs_rm_dev_replace_srcdev(struct btrfs_fs_info *fs_info,
+				 struct btrfs_device *srcdev);
+void btrfs_destroy_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
+				      struct btrfs_device *tgtdev);
+void btrfs_init_dev_replace_tgtdev_for_resume(struct btrfs_fs_info *fs_info,
+					      struct btrfs_device *tgtdev);
 int btrfs_scratch_superblock(struct btrfs_device *device);
 
 static inline void btrfs_dev_stat_inc(struct btrfs_device *dev,
