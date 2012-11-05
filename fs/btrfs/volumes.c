@@ -764,10 +764,13 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	transid = btrfs_super_generation(disk_super);
 	total_devices = btrfs_super_num_devices(disk_super);
-	if (disk_super->label[0])
+	if (disk_super->label[0]) {
+		if (disk_super->label[BTRFS_LABEL_SIZE - 1])
+			disk_super->label[BTRFS_LABEL_SIZE - 1] = '\0';
 		printk(KERN_INFO "device label %s ", disk_super->label);
-	else
+	} else {
 		printk(KERN_INFO "device fsid %pU ", disk_super->fsid);
+	}
 	printk(KERN_CONT "devid %llu transid %llu %s\n",
 	       (unsigned long long)devid, (unsigned long long)transid, path);
 	ret = device_list_add(path, disk_super, devid, fs_devices_ret);
