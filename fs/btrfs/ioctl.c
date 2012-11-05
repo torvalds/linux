@@ -1343,7 +1343,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		printk(KERN_INFO "btrfs: resizing devid %llu\n",
 		       (unsigned long long)devid);
 	}
-	device = btrfs_find_device(root, devid, NULL, NULL);
+	device = btrfs_find_device(root->fs_info, devid, NULL, NULL);
 	if (!device) {
 		printk(KERN_INFO "btrfs: resizer unable to find device %llu\n",
 		       (unsigned long long)devid);
@@ -2332,7 +2332,7 @@ static long btrfs_ioctl_dev_info(struct btrfs_root *root, void __user *arg)
 		s_uuid = di_args->uuid;
 
 	mutex_lock(&fs_devices->device_list_mutex);
-	dev = btrfs_find_device(root, di_args->devid, s_uuid, NULL);
+	dev = btrfs_find_device(root->fs_info, di_args->devid, s_uuid, NULL);
 	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (!dev) {
@@ -3089,7 +3089,7 @@ static long btrfs_ioctl_scrub(struct btrfs_root *root, void __user *arg)
 	if (IS_ERR(sa))
 		return PTR_ERR(sa);
 
-	ret = btrfs_scrub_dev(root, sa->devid, sa->start, sa->end,
+	ret = btrfs_scrub_dev(root->fs_info, sa->devid, sa->start, sa->end,
 			      &sa->progress, sa->flags & BTRFS_SCRUB_READONLY);
 
 	if (copy_to_user(arg, sa, sizeof(*sa)))
@@ -3104,7 +3104,7 @@ static long btrfs_ioctl_scrub_cancel(struct btrfs_root *root, void __user *arg)
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return btrfs_scrub_cancel(root);
+	return btrfs_scrub_cancel(root->fs_info);
 }
 
 static long btrfs_ioctl_scrub_progress(struct btrfs_root *root,

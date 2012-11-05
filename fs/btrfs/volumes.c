@@ -1398,7 +1398,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		disk_super = (struct btrfs_super_block *)bh->b_data;
 		devid = btrfs_stack_device_id(&disk_super->dev_item);
 		dev_uuid = disk_super->dev_item.uuid;
-		device = btrfs_find_device(root, devid, dev_uuid,
+		device = btrfs_find_device(root->fs_info, devid, dev_uuid,
 					   disk_super->fsid);
 		if (!device) {
 			ret = -ENOENT;
@@ -1435,7 +1435,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	spin_unlock(&root->fs_info->free_chunk_lock);
 
 	device->in_fs_metadata = 0;
-	btrfs_scrub_cancel_dev(root, device);
+	btrfs_scrub_cancel_dev(root->fs_info, device);
 
 	/*
 	 * the device list mutex makes sure that we don't change
@@ -1492,7 +1492,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	 * at this point, the device is zero sized.  We want to
 	 * remove it from the devices list and zero out the old super
 	 */
-	if (clear_super) {
+	if (clear_super && disk_super) {
 		/* make sure this device isn't detected as part of
 		 * the FS anymore
 		 */
@@ -1540,7 +1540,7 @@ int btrfs_find_device_by_path(struct btrfs_root *root, char *device_path,
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	dev_uuid = disk_super->dev_item.uuid;
-	*device = btrfs_find_device(root, devid, dev_uuid,
+	*device = btrfs_find_device(root->fs_info, devid, dev_uuid,
 				    disk_super->fsid);
 	brelse(bh);
 	if (!*device)
@@ -1699,7 +1699,8 @@ next_slot:
 		read_extent_buffer(leaf, fs_uuid,
 				   (unsigned long)btrfs_device_fsid(dev_item),
 				   BTRFS_UUID_SIZE);
-		device = btrfs_find_device(root, devid, dev_uuid, fs_uuid);
+		device = btrfs_find_device(root->fs_info, devid, dev_uuid,
+					   fs_uuid);
 		BUG_ON(!device); /* Logic error */
 
 		if (device->fs_devices->seeding) {
@@ -4463,13 +4464,13 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	return 0;
 }
 
-struct btrfs_device *btrfs_find_device(struct btrfs_root *root, u64 devid,
+struct btrfs_device *btrfs_find_device(struct btrfs_fs_info *fs_info, u64 devid,
 				       u8 *uuid, u8 *fsid)
 {
 	struct btrfs_device *device;
 	struct btrfs_fs_devices *cur_devices;
 
-	cur_devices = root->fs_info->fs_devices;
+	cur_devices = fs_info->fs_devices;
 	while (cur_devices) {
 		if (!fsid ||
 		    !memcmp(cur_devices->fsid, fsid, BTRFS_UUID_SIZE)) {
@@ -4567,8 +4568,8 @@ static int read_one_chunk(struct btrfs_root *root, struct btrfs_key *key,
 		read_extent_buffer(leaf, uuid, (unsigned long)
 				   btrfs_stripe_dev_uuid_nr(chunk, i),
 				   BTRFS_UUID_SIZE);
-		map->stripes[i].dev = btrfs_find_device(root, devid, uuid,
-							NULL);
+		map->stripes[i].dev = btrfs_find_device(root->fs_info, devid,
+							uuid, NULL);
 		if (!map->stripes[i].dev && !btrfs_test_opt(root, DEGRADED)) {
 			kfree(map);
 			free_extent_map(em);
@@ -4686,7 +4687,7 @@ static int read_one_dev(struct btrfs_root *root,
 			return ret;
 	}
 
-	device = btrfs_find_device(root, devid, dev_uuid, fs_uuid);
+	device = btrfs_find_device(root->fs_info, devid, dev_uuid, fs_uuid);
 	if (!device || !device->bdev) {
 		if (!btrfs_test_opt(root, DEGRADED))
 			return -EIO;
@@ -5078,7 +5079,7 @@ int btrfs_get_dev_stats(struct btrfs_root *root,
 	int i;
 
 	mutex_lock(&fs_devices->device_list_mutex);
-	dev = btrfs_find_device(root, stats->devid, NULL, NULL);
+	dev = btrfs_find_device(root->fs_info, stats->devid, NULL, NULL);
 	mutex_unlock(&fs_devices->device_list_mutex);
 
 	if (!dev) {

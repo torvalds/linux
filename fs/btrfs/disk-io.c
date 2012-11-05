@@ -3283,9 +3283,9 @@ int close_ctree(struct btrfs_root *root)
 	smp_mb();
 
 	/* pause restriper - we want to resume on mount */
-	btrfs_pause_balance(root->fs_info);
+	btrfs_pause_balance(fs_info);
 
-	btrfs_scrub_cancel(root);
+	btrfs_scrub_cancel(fs_info);
 
 	/* wait for any defraggers to finish */
 	wait_event(fs_info->transaction_wait,

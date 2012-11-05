@@ -116,7 +116,7 @@ static void btrfs_handle_error(struct btrfs_fs_info *fs_info)
 	if (fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
 		sb->s_flags |= MS_RDONLY;
 		printk(KERN_INFO "btrfs is forced readonly\n");
-		__btrfs_scrub_cancel(fs_info);
+		btrfs_scrub_cancel(fs_info);
 //		WARN_ON(1);
 	}
 }
