@@ -1051,7 +1051,7 @@ randomize:
 	rcu_read_unlock();
 
 	rv = conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE);
-	if (rv < SS_SUCCESS) {
+	if (rv < SS_SUCCESS || tconn->cstate != C_WF_REPORT_PARAMS) {
 		clear_bit(STATE_SENT, &tconn->flags);
 		return 0;
 	}
