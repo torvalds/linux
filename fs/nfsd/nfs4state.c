@@ -340,7 +340,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
-	INIT_WORK(&dp->dl_recall.cb_work, nfsd4_do_callback_rpc);
+	nfsd4_init_callback(&dp->dl_recall);
 	return dp;
 }
 
@@ -1313,7 +1313,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	INIT_LIST_HEAD(&clp->cl_lru);
 	INIT_LIST_HEAD(&clp->cl_callbacks);
 	spin_lock_init(&clp->cl_lock);
-	INIT_WORK(&clp->cl_cb_null.cb_work, nfsd4_do_callback_rpc);
+	nfsd4_init_callback(&clp->cl_cb_null);
 	clp->cl_time = get_seconds();
 	clear_bit(0, &clp->cl_cb_slot_busy);
 	rpc_init_wait_queue(&clp->cl_cb_waitq, "Backchannel slot table");
