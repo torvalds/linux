@@ -173,6 +173,18 @@ struct batadv_icmp_packet_rr {
 	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
 };
 
+/* All packet headers in front of an ethernet header have to be completely
+ * divisible by 2 but not by 4 to make the payload after the ethernet
+ * header again 4 bytes boundary aligned.
+ *
+ * A packing of 2 is necessary to avoid extra padding at the end of the struct
+ * caused by a structure member which is larger than two bytes. Otherwise
+ * the structure would not fulfill the previously mentioned rule to avoid the
+ * misalignment of the payload after the ethernet header. It may also lead to
+ * leakage of information when the padding it not initialized before sending.
+ */
+#pragma pack(2)
+
 struct batadv_unicast_packet {
 	struct batadv_header header;
 	uint8_t  ttvn; /* destination translation table version number */
@@ -216,7 +228,9 @@ struct batadv_bcast_packet {
 	/* "4 bytes boundary + 2 bytes" long to make the payload after the
 	 * following ethernet header again 4 bytes boundary aligned
 	 */
-} __packed;
+};
+
+#pragma pack()
 
 struct batadv_vis_packet {
 	struct batadv_header header;
