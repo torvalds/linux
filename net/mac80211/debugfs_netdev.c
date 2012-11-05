@@ -284,13 +284,16 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	case NL80211_IFTYPE_STATION:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		if (sdata->vif.bss_conf.bssid == NULL) {
+		mutex_lock(&sdata->u.mgd.mtx);
+		if (!sdata->u.mgd.associated) {
+			mutex_unlock(&sdata->u.mgd.mtx);
 			dev_kfree_skb(skb);
 			return -ENOTCONN;
 		}
-		memcpy(hdr->addr1, sdata->vif.bss_conf.bssid, ETH_ALEN);
+		memcpy(hdr->addr1, sdata->u.mgd.associated->bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr->addr3, addr, ETH_ALEN);
+		mutex_unlock(&sdata->u.mgd.mtx);
 		break;
 	default:
 		dev_kfree_skb(skb);
