@@ -14,13 +14,139 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include "ad7887.h"
+
+#define AD7887_REF_DIS		(1 << 5) /* on-chip reference disable */
+#define AD7887_DUAL		(1 << 4) /* dual-channel mode */
+#define AD7887_CH_AIN1		(1 << 3) /* convert on channel 1, DUAL=1 */
+#define AD7887_CH_AIN0		(0 << 3) /* convert on channel 0, DUAL=0,1 */
+#define AD7887_PM_MODE1		(0)	 /* CS based shutdown */
+#define AD7887_PM_MODE2		(1)	 /* full on */
+#define AD7887_PM_MODE3		(2)	 /* auto shutdown after conversion */
+#define AD7887_PM_MODE4		(3)	 /* standby mode */
+
+enum ad7887_channels {
+	AD7887_CH0,
+	AD7887_CH0_CH1,
+	AD7887_CH1,
+};
+
+#define RES_MASK(bits)	((1 << (bits)) - 1)
+
+/**
+ * struct ad7887_chip_info - chip specifc information
+ * @int_vref_mv:	the internal reference voltage
+ * @channel:		channel specification
+ */
+struct ad7887_chip_info {
+	u16				int_vref_mv;
+	struct iio_chan_spec		channel[3];
+};
+
+struct ad7887_state {
+	struct spi_device		*spi;
+	const struct ad7887_chip_info	*chip_info;
+	struct regulator		*reg;
+	struct spi_transfer		xfer[4];
+	struct spi_message		msg[3];
+	struct spi_message		*ring_msg;
+	unsigned char			tx_cmd_buf[8];
+
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 * Buffer needs to be large enough to hold two 16 bit samples and a
+	 * 64 bit aligned 64 bit timestamp.
+	 */
+	unsigned char data[ALIGN(4, sizeof(s64)) + sizeof(s64)]
+		____cacheline_aligned;
+};
+
+enum ad7887_supported_device_ids {
+	ID_AD7887
+};
+
+static int ad7887_ring_preenable(struct iio_dev *indio_dev)
+{
+	struct ad7887_state *st = iio_priv(indio_dev);
+	int ret;
+
+	ret = iio_sw_buffer_preenable(indio_dev);
+	if (ret < 0)
+		return ret;
+
+	/* We know this is a single long so can 'cheat' */
+	switch (*indio_dev->active_scan_mask) {
+	case (1 << 0):
+		st->ring_msg = &st->msg[AD7887_CH0];
+		break;
+	case (1 << 1):
+		st->ring_msg = &st->msg[AD7887_CH1];
+		/* Dummy read: push CH1 setting down to hardware */
+		spi_sync(st->spi, st->ring_msg);
+		break;
+	case ((1 << 1) | (1 << 0)):
+		st->ring_msg = &st->msg[AD7887_CH0_CH1];
+		break;
+	}
+
+	return 0;
+}
+
+static int ad7887_ring_postdisable(struct iio_dev *indio_dev)
+{
+	struct ad7887_state *st = iio_priv(indio_dev);
+
+	/* dummy read: restore default CH0 settin */
+	return spi_sync(st->spi, &st->msg[AD7887_CH0]);
+}
+
+/**
+ * ad7887_trigger_handler() bh of trigger launched polling to ring buffer
+ *
+ * Currently there is no option in this driver to disable the saving of
+ * timestamps within the ring.
+ **/
+static irqreturn_t ad7887_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad7887_state *st = iio_priv(indio_dev);
+	s64 time_ns;
+	int b_sent;
+
+	b_sent = spi_sync(st->spi, st->ring_msg);
+	if (b_sent)
+		goto done;
+
+	time_ns = iio_get_time_ns();
+
+	if (indio_dev->scan_timestamp)
+		memcpy(st->data + indio_dev->scan_bytes - sizeof(s64),
+		       &time_ns, sizeof(time_ns));
+
+	iio_push_to_buffer(indio_dev->buffer, st->data);
+done:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
+static const struct iio_buffer_setup_ops ad7887_ring_setup_ops = {
+	.preenable = &ad7887_ring_preenable,
+	.postenable = &iio_triggered_buffer_postenable,
+	.predisable = &iio_triggered_buffer_predisable,
+	.postdisable = &ad7887_ring_postdisable,
+};
 
 static int ad7887_scan_direct(struct ad7887_state *st, unsigned ch)
 {
@@ -192,7 +318,8 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 		indio_dev->num_channels = 2;
 	}
 
-	ret = ad7887_register_ring_funcs_and_init(indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+			&ad7887_trigger_handler, &ad7887_ring_setup_ops);
 	if (ret)
 		goto error_disable_reg;
 
@@ -202,7 +329,7 @@ static int __devinit ad7887_probe(struct spi_device *spi)
 
 	return 0;
 error_unregister_ring:
-	ad7887_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 error_disable_reg:
 	if (st->reg)
 		regulator_disable(st->reg);
@@ -221,7 +348,7 @@ static int __devexit ad7887_remove(struct spi_device *spi)
 	struct ad7887_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	ad7887_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 	if (st->reg) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
