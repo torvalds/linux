@@ -177,8 +177,8 @@ static int ad7887_read_raw(struct iio_dev *indio_dev,
 
 		if (ret < 0)
 			return ret;
-		*val = (ret >> st->chip_info->channel[0].scan_type.shift) &
-			RES_MASK(st->chip_info->channel[0].scan_type.realbits);
+		*val = ret >> chan->scan_type.shift;
+		*val &= RES_MASK(chan->scan_type.realbits);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		if (st->reg) {
@@ -190,7 +190,7 @@ static int ad7887_read_raw(struct iio_dev *indio_dev,
 			*val = st->chip_info->int_vref_mv;
 		}
 
-		*val2 = st->chip_info->channel[0].scan_type.realbits;
+		*val2 = chan->scan_type.realbits;
 
 		return IIO_VAL_FRACTIONAL_LOG2;
 	}
