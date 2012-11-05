@@ -22,7 +22,7 @@ subdir-y	:= lib
 # Subdirs for the boot loader(s)
 
 bootdir-$(CONFIG_XTENSA_PLATFORM_ISS)	 += boot-elf
-bootdir-$(CONFIG_XTENSA_PLATFORM_XT2000) += boot-redboot boot-elf
+bootdir-$(CONFIG_XTENSA_PLATFORM_XT2000) += boot-redboot boot-elf boot-uboot
 
 
 zImage Image: $(bootdir-y)
@@ -41,3 +41,4 @@ vmlinux.bin.gz: vmlinux.bin FORCE
 
 boot-elf: vmlinux.bin
 boot-redboot: vmlinux.bin.gz
+boot-uboot: vmlinux.bin.gz
