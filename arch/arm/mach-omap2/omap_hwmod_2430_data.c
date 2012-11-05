@@ -76,8 +76,7 @@ static struct omap_hwmod_class i2c_class = {
 
 static struct omap_i2c_dev_attr i2c_dev_attr = {
 	.fifo_depth	= 8, /* bytes */
-	.flags		= OMAP_I2C_FLAG_APPLY_ERRATA_I207 |
-			  OMAP_I2C_FLAG_BUS_SHIFT_2 |
+	.flags		= OMAP_I2C_FLAG_BUS_SHIFT_2 |
 			  OMAP_I2C_FLAG_FORCE_19200_INT_CLK,
 };
 

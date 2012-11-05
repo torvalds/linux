@@ -1028,8 +1028,7 @@ static const struct i2c_algorithm omap_i2c_algo = {
 #ifdef CONFIG_OF
 static struct omap_i2c_bus_platform_data omap3_pdata = {
 	.rev = OMAP_I2C_IP_VERSION_1,
-	.flags = OMAP_I2C_FLAG_APPLY_ERRATA_I207 |
-		 OMAP_I2C_FLAG_RESET_REGS_POSTIDLE |
+	.flags = OMAP_I2C_FLAG_RESET_REGS_POSTIDLE |
 		 OMAP_I2C_FLAG_BUS_SHIFT_2,
 };
 
