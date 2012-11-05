@@ -18,9 +18,6 @@ static const struct addi_board apci1032_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_93C76,
 		.i_NbrDiChannel		= 32,
 		.interrupt		= v_APCI1032_Interrupt,
-		.di_config		= i_APCI1032_ConfigDigitalInput,
-		.di_read		= i_APCI1032_Read1DigitalInput,
-		.di_bits		= i_APCI1032_ReadMoreDigitalInput,
 	},
 };
 
@@ -165,22 +162,15 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (devpriv->s_EeParameters.i_NbrDiChannel) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrDiChannel;
-		s->maxdata = 1;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrDiChannel;
-		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type		= COMEDI_SUBD_DI;
+	s->subdev_flags	= SDF_READABLE;
+	s->n_chan	= 32;
+	s->maxdata	= 1;
+	s->len_chanlist	= 32;
+	s->range_table	= &range_digital;
+	s->insn_config	= i_APCI1032_ConfigDigitalInput;
+	s->insn_read	= i_APCI1032_Read1DigitalInput;
+	s->insn_bits	= i_APCI1032_ReadMoreDigitalInput;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];
