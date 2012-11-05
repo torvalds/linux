@@ -55,7 +55,8 @@
  * word.
  */
 #define LOAD_HANDLER(reg, label)					\
-	addi	reg,reg,(label)-_stext;	/* virt addr of handler ... */
+	/* Handlers must be within 64K of kbase, which must be 64k aligned */ \
+	ori	reg,reg,(label)-_stext;	/* virt addr of handler ... */
 
 /* Exception register prefixes */
 #define EXC_HV	H

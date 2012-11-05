@@ -585,8 +585,8 @@ __end_interrupts:
  * Code from here down to __end_handlers is invoked from the
  * exception prologs above.  Because the prologs assemble the
  * addresses of these handlers using the LOAD_HANDLER macro,
- * which uses an addi instruction, these handlers must be in
- * the first 32k of the kernel image.
+ * which uses an ori instruction, these handlers must be in
+ * the first 64k of the kernel image.
  */
 
 /*** Common interrupt handlers ***/
