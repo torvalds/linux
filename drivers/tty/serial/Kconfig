@@ -1376,6 +1376,7 @@ config SERIAL_MXS_AUART_CONSOLE
 
 config SERIAL_XILINX_PS_UART
 	tristate "Xilinx PS UART support"
+	depends on OF
 	select SERIAL_CORE
 	help
 	  This driver supports the Xilinx PS UART port.
