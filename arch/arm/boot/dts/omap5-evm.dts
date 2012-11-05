@@ -8,6 +8,7 @@
 /dts-v1/;
 
 /include/ "omap5.dtsi"
+/include/ "samsung_k3pe0e000b.dtsi"
 
 / {
 	model = "TI OMAP5 EVM board";
@@ -139,4 +140,14 @@
 
 &mcbsp3 {
 	status = "disabled";
+};
+
+&emif1 {
+	cs1-used;
+	device-handle = <&samsung_K3PE0E000B>;
+};
+
+&emif2 {
+	cs1-used;
+	device-handle = <&samsung_K3PE0E000B>;
 };
