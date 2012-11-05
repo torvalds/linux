@@ -1052,9 +1052,8 @@ static struct pinctrl_gpio_range *u300_match_gpio_range(unsigned pin)
 	return NULL;
 }
 
-int u300_pin_config_get(struct pinctrl_dev *pctldev,
-			unsigned pin,
-			unsigned long *config)
+static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
+			       unsigned long *config)
 {
 	struct pinctrl_gpio_range *range = u300_match_gpio_range(pin);
 
@@ -1067,9 +1066,8 @@ int u300_pin_config_get(struct pinctrl_dev *pctldev,
 				    config);
 }
 
-int u300_pin_config_set(struct pinctrl_dev *pctldev,
-			unsigned pin,
-			unsigned long config)
+static int u300_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
+			       unsigned long config)
 {
 	struct pinctrl_gpio_range *range = u300_match_gpio_range(pin);
 	int ret;
