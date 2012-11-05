@@ -8,11 +8,6 @@
 #ifndef IIO_ADC_AD7887_H_
 #define IIO_ADC_AD7887_H_
 
-/*
- * TODO: struct ad7887_platform_data needs to go into include/linux/iio
- */
-
-
 /**
  * struct ad7887_platform_data - AD7887 ADC driver platform data
  * @en_dual: Whether to use dual channel mode. If set to true AIN1 becomes the

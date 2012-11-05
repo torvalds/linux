@@ -23,7 +23,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#include "ad7887.h"
+#include <linux/platform_data/ad7887.h>
 
 #define AD7887_REF_DIS		(1 << 5) /* on-chip reference disable */
 #define AD7887_DUAL		(1 << 4) /* dual-channel mode */
