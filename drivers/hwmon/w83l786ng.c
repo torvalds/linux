@@ -20,7 +20,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * w83l786ng	3	2	2	2	0x7b	0x5ca3	yes	no
  */
 
