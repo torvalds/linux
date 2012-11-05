@@ -67,4 +67,11 @@ config TI_AM335X_ADC
 	  Say yes here to build support for Texas Instruments ADC
 	  driver which is also a MFD client.
 
+config VIPERBOARD_ADC
+	tristate "Viperboard ADC support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the ADC part of the Nano River
+	  Technologies Viperboard.
+
 endmenu

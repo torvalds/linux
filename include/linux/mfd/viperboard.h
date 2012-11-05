@@ -46,6 +46,7 @@
 #define VPRBRD_USB_REQUEST_I2C      0xe9
 #define VPRBRD_USB_REQUEST_MAJOR    0xea
 #define VPRBRD_USB_REQUEST_MINOR    0xeb
+#define VPRBRD_USB_REQUEST_ADC      0xec
 #define VPRBRD_USB_REQUEST_GPIOA    0xed
 #define VPRBRD_USB_REQUEST_GPIOB    0xdd
 
