@@ -66,12 +66,9 @@ static int apci1032_intr_insn_config(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
 	unsigned int ui_TmpValue;
 	unsigned int ul_Command1 = 0;
 	unsigned int ul_Command2 = 0;
-
-	devpriv->tsk_Current = current;
 
   /*******************************/
 	/* Set the digital input logic */
@@ -108,7 +105,6 @@ static int apci1032_intr_insn_config(struct comedi_device *dev,
 static irqreturn_t apci1032_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	struct addi_private *devpriv = dev->private;
 	unsigned int ctrl;
 
 	/* disable the interrupt */
@@ -117,7 +113,6 @@ static irqreturn_t apci1032_interrupt(int irq, void *d)
 
 	ui_InterruptStatus = inl(dev->iobase + APCI1032_STATUS_REG);
 	ui_InterruptStatus = ui_InterruptStatus & 0X0000FFFF;
-	send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
 
 	/* enable the interrupt */
 	outl(ctrl, dev->iobase + APCI1032_CTRL_REG);
@@ -151,16 +146,10 @@ static int apci1032_reset(struct comedi_device *dev)
 static int apci1032_attach_pci(struct comedi_device *dev,
 			       struct pci_dev *pcidev)
 {
-	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
 	dev->board_name = dev->driver->driver_name;
-
-	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv)
-		return -ENOMEM;
-	dev->private = devpriv;
 
 	ret = comedi_pci_enable(pcidev, dev->board_name);
 	if (ret)
@@ -206,14 +195,11 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 static void apci1032_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->iobase)
-			apci1032_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
-	}
+	if (dev->iobase)
+		apci1032_reset(dev);
+	if (dev->irq)
+		free_irq(dev->irq, dev);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
