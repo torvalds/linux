@@ -1,4 +1,4 @@
-config FB_ROCKCHIP
+menuconfig FB_ROCKCHIP
         tristate "Frame buffer support for Rockchip "
         depends on FB
         select FB_CFB_FILLRECT
