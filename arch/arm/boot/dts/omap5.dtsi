@@ -474,5 +474,27 @@
 			ti,hwmods = "timer11";
 			ti,timer-pwm;
 		};
+
+		emif1: emif@0x4c000000 {
+			compatible	= "ti,emif-4d5";
+			ti,hwmods	= "emif1";
+			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
+			reg = <0x4c000000 0x400>;
+			interrupts = <0 110 0x4>;
+			hw-caps-read-idle-ctrl;
+			hw-caps-ll-interface;
+			hw-caps-temp-alert;
+		};
+
+		emif2: emif@0x4d000000 {
+			compatible	= "ti,emif-4d5";
+			ti,hwmods	= "emif2";
+			phy-type	= <2>; /* DDR PHY type: Intelli PHY */
+			reg = <0x4d000000 0x400>;
+			interrupts = <0 111 0x4>;
+			hw-caps-read-idle-ctrl;
+			hw-caps-ll-interface;
+			hw-caps-temp-alert;
+		};
 	};
 };
