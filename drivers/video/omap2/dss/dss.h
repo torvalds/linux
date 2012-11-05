@@ -160,7 +160,6 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-const char *dss_get_default_display_name(void);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
@@ -398,7 +397,10 @@ void dpi_uninit_platform_driver(void) __exit;
 int dispc_init_platform_driver(void) __init;
 void dispc_uninit_platform_driver(void) __exit;
 void dispc_dump_clocks(struct seq_file *s);
-void dispc_irq_handler(void);
+u32 dispc_read_irqstatus(void);
+void dispc_clear_irqstatus(u32 mask);
+u32 dispc_read_irqenable(void);
+void dispc_write_irqenable(u32 mask);
 
 int dispc_runtime_get(void);
 void dispc_runtime_put(void);
@@ -429,6 +431,7 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 		bool replication, const struct omap_video_timings *mgr_timings,
 		bool mem_to_mem);
 int dispc_ovl_enable(enum omap_plane plane, bool enable);
+bool dispc_ovl_enabled(enum omap_plane plane);
 void dispc_ovl_set_channel_out(enum omap_plane plane,
 		enum omap_channel channel);
 
@@ -437,9 +440,10 @@ u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
 u32 dispc_mgr_get_sync_lost_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);
 void dispc_mgr_go(enum omap_channel channel);
+void dispc_mgr_enable(enum omap_channel channel, bool enable);
 bool dispc_mgr_is_enabled(enum omap_channel channel);
-void dispc_mgr_enable(enum omap_channel channel);
-void dispc_mgr_disable(enum omap_channel channel);
+void dispc_mgr_enable_sync(enum omap_channel channel);
+void dispc_mgr_disable_sync(enum omap_channel channel);
 bool dispc_mgr_is_channel_enabled(enum omap_channel channel);
 void dispc_mgr_set_lcd_config(enum omap_channel channel,
 		const struct dss_lcd_mgr_config *config);
@@ -505,6 +509,8 @@ static inline unsigned long hdmi_get_pixel_clock(void)
 #endif
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev);
+int omapdss_hdmi_core_enable(struct omap_dss_device *dssdev);
+void omapdss_hdmi_core_disable(struct omap_dss_device *dssdev);
 void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings);
 int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,

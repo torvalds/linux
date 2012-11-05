@@ -97,6 +97,8 @@ static const char * const dss_generic_clk_source_names[] = {
 	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC]	= "DSI_PLL_HSDIV_DISPC",
 	[OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI]	= "DSI_PLL_HSDIV_DSI",
 	[OMAP_DSS_CLK_SRC_FCK]			= "DSS_FCK",
+	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC]	= "DSI_PLL2_HSDIV_DISPC",
+	[OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI]	= "DSI_PLL2_HSDIV_DSI",
 };
 
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
@@ -793,7 +795,6 @@ static const struct dss_features omap54xx_dss_feats __initconst = {
 
 static int __init dss_init_features(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const struct dss_features *src;
 	struct dss_features *dst;
 
@@ -803,7 +804,7 @@ static int __init dss_init_features(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	switch (pdata->version) {
+	switch (omapdss_get_version()) {
 	case OMAPDSS_VER_OMAP24xx:
 		src = &omap24xx_dss_feats;
 		break;

@@ -5100,7 +5100,7 @@ static struct omap_dss_device * __init dsi_find_dssdev(struct platform_device *p
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	struct dsi_data *dsi = dsi_get_dsidrv_data(pdev);
-	const char *def_disp_name = dss_get_default_display_name();
+	const char *def_disp_name = omapdss_get_default_display_name();
 	struct omap_dss_device *def_dssdev;
 	int i;
 

@@ -688,40 +688,6 @@ static void generic_dpi_panel_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&drv_data->lock);
 }
 
-static int generic_dpi_panel_suspend(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
-
-	mutex_lock(&drv_data->lock);
-
-	generic_dpi_panel_power_off(dssdev);
-
-	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
-
-	mutex_unlock(&drv_data->lock);
-
-	return 0;
-}
-
-static int generic_dpi_panel_resume(struct omap_dss_device *dssdev)
-{
-	struct panel_drv_data *drv_data = dev_get_drvdata(&dssdev->dev);
-	int r;
-
-	mutex_lock(&drv_data->lock);
-
-	r = generic_dpi_panel_power_on(dssdev);
-	if (r)
-		goto err;
-
-	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
-
-err:
-	mutex_unlock(&drv_data->lock);
-
-	return r;
-}
-
 static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
@@ -769,8 +735,6 @@ static struct omap_dss_driver dpi_driver = {
 
 	.enable		= generic_dpi_panel_enable,
 	.disable	= generic_dpi_panel_disable,
-	.suspend	= generic_dpi_panel_suspend,
-	.resume		= generic_dpi_panel_resume,
 
 	.set_timings	= generic_dpi_panel_set_timings,
 	.get_timings	= generic_dpi_panel_get_timings,

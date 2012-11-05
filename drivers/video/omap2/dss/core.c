@@ -53,10 +53,18 @@ static char *def_disp_name;
 module_param_named(def_disp, def_disp_name, charp, 0);
 MODULE_PARM_DESC(def_disp, "default display name");
 
-const char *dss_get_default_display_name(void)
+const char *omapdss_get_default_display_name(void)
 {
 	return core.default_display_name;
 }
+EXPORT_SYMBOL(omapdss_get_default_display_name);
+
+enum omapdss_version omapdss_get_version(void)
+{
+	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
+	return pdata->version;
+}
+EXPORT_SYMBOL(omapdss_get_version);
 
 /* REGULATORS */
 
@@ -232,7 +240,7 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	core.pdev = pdev;
 
-	dss_features_init(pdata->version);
+	dss_features_init(omapdss_get_version());
 
 	dss_apply_init();
 

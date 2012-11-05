@@ -772,7 +772,7 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 	if (!dss_data.irq_enabled && need_isr())
 		dss_register_vsync_isr();
 
-	dispc_mgr_enable(mgr->id);
+	dispc_mgr_enable_sync(mgr->id);
 
 	mgr_clear_shadow_dirty(mgr);
 
@@ -1027,7 +1027,7 @@ int dss_mgr_enable(struct omap_overlay_manager *mgr)
 	spin_unlock_irqrestore(&data_lock, flags);
 
 	if (!mgr_manual_update(mgr))
-		dispc_mgr_enable(mgr->id);
+		dispc_mgr_enable_sync(mgr->id);
 
 out:
 	mutex_unlock(&apply_lock);
@@ -1052,7 +1052,7 @@ void dss_mgr_disable(struct omap_overlay_manager *mgr)
 		goto out;
 
 	if (!mgr_manual_update(mgr))
-		dispc_mgr_disable(mgr->id);
+		dispc_mgr_disable_sync(mgr->id);
 
 	spin_lock_irqsave(&data_lock, flags);
 

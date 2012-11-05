@@ -1258,11 +1258,10 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 
 	switch (blank) {
 	case FB_BLANK_UNBLANK:
-		if (display->state != OMAP_DSS_DISPLAY_SUSPENDED)
+		if (display->state == OMAP_DSS_DISPLAY_ACTIVE)
 			goto exit;
 
-		if (display->driver->resume)
-			r = display->driver->resume(display);
+		r = display->driver->enable(display);
 
 		if ((display->caps & OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) &&
 				d->update_mode == OMAPFB_AUTO_UPDATE &&
@@ -1283,8 +1282,7 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 		if (d->auto_update_work_enabled)
 			omapfb_stop_auto_update(fbdev, display);
 
-		if (display->driver->suspend)
-			r = display->driver->suspend(display);
+		display->driver->disable(display);
 
 		break;
 
@@ -2258,7 +2256,7 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 {
 	struct fb_monspecs *specs;
 	u8 *edid;
-	int r, i, best_xres, best_idx, len;
+	int r, i, best_idx, len;
 
 	if (!display->driver->read_edid)
 		return -ENODEV;
@@ -2274,10 +2272,6 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 
 	fb_edid_to_monspecs(edid, specs);
 
-	if (edid[126] > 0)
-		fb_edid_add_monspecs(edid + 0x80, specs);
-
-	best_xres = 0;
 	best_idx = -1;
 
 	for (i = 0; i < specs->modedb_len; ++i) {
@@ -2293,16 +2287,20 @@ static int omapfb_find_best_mode(struct omap_dss_device *display,
 		if (m->xres == 2880 || m->xres == 1440)
 			continue;
 
+		if (m->vmode & FB_VMODE_INTERLACED ||
+				m->vmode & FB_VMODE_DOUBLE)
+			continue;
+
 		fb_videomode_to_omap_timings(m, display, &t);
 
 		r = display->driver->check_timings(display, &t);
-		if (r == 0 && best_xres < m->xres) {
-			best_xres = m->xres;
+		if (r == 0) {
 			best_idx = i;
+			break;
 		}
 	}
 
-	if (best_xres == 0) {
+	if (best_idx == -1) {
 		r = -ENOENT;
 		goto err2;
 	}
@@ -2371,15 +2369,52 @@ static int omapfb_init_display(struct omapfb2_device *fbdev,
 	return 0;
 }
 
+static int omapfb_init_connections(struct omapfb2_device *fbdev,
+		struct omap_dss_device *dssdev)
+{
+	int i, r;
+	struct omap_overlay_manager *mgr = NULL;
+
+	for (i = 0; i < fbdev->num_managers; i++) {
+		mgr = fbdev->managers[i];
+
+		if (dssdev->channel == mgr->id)
+			break;
+	}
+
+	if (i == fbdev->num_managers)
+		return -ENODEV;
+
+	if (mgr->output)
+		mgr->unset_output(mgr);
+
+	r = mgr->set_output(mgr, dssdev->output);
+	if (r)
+		return r;
+
+	for (i = 0; i < fbdev->num_overlays; i++) {
+		struct omap_overlay *ovl = fbdev->overlays[i];
+
+		if (ovl->manager)
+			ovl->unset_manager(ovl);
+
+		r = ovl->set_manager(ovl, mgr);
+		if (r)
+			dev_warn(fbdev->dev,
+					"failed to connect overlay %s to manager %s\n",
+					ovl->name, mgr->name);
+	}
+
+	return 0;
+}
+
 static int __init omapfb_probe(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = NULL;
 	int r = 0;
 	int i;
-	struct omap_overlay *ovl;
 	struct omap_dss_device *def_display;
 	struct omap_dss_device *dssdev;
-	struct omap_dss_device *ovl_device;
 
 	DBG("omapfb_probe\n");
 
@@ -2447,15 +2482,33 @@ static int __init omapfb_probe(struct platform_device *pdev)
 	for (i = 0; i < fbdev->num_managers; i++)
 		fbdev->managers[i] = omap_dss_get_overlay_manager(i);
 
-	/* gfx overlay should be the default one. find a display
-	 * connected to that, and use it as default display */
-	ovl = omap_dss_get_overlay(0);
-	ovl_device = ovl->get_device(ovl);
-	if (ovl_device) {
-		def_display = ovl_device;
-	} else {
-		dev_warn(&pdev->dev, "cannot find default display\n");
-		def_display = NULL;
+	def_display = NULL;
+
+	for (i = 0; i < fbdev->num_displays; ++i) {
+		struct omap_dss_device *dssdev;
+		const char *def_name;
+
+		def_name = omapdss_get_default_display_name();
+
+		dssdev = fbdev->displays[i].dssdev;
+
+		if (def_name == NULL ||
+			(dssdev->name && strcmp(def_name, dssdev->name) == 0)) {
+			def_display = dssdev;
+			break;
+		}
+	}
+
+	if (def_display == NULL) {
+		dev_err(fbdev->dev, "failed to find default display\n");
+		r = -EINVAL;
+		goto cleanup;
+	}
+
+	r = omapfb_init_connections(fbdev, def_display);
+	if (r) {
+		dev_err(fbdev->dev, "failed to init overlay connections\n");
+		goto cleanup;
 	}
 
 	if (def_mode && strlen(def_mode) > 0) {

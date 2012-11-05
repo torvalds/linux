@@ -158,7 +158,6 @@ enum omap_display_caps {
 enum omap_dss_display_state {
 	OMAP_DSS_DISPLAY_DISABLED = 0,
 	OMAP_DSS_DISPLAY_ACTIVE,
-	OMAP_DSS_DISPLAY_SUSPENDED,
 };
 
 enum omap_dss_audio_state {
@@ -682,8 +681,6 @@ struct omap_dss_driver {
 
 	int (*enable)(struct omap_dss_device *display);
 	void (*disable)(struct omap_dss_device *display);
-	int (*suspend)(struct omap_dss_device *display);
-	int (*resume)(struct omap_dss_device *display);
 	int (*run_test)(struct omap_dss_device *display, int test);
 
 	int (*update)(struct omap_dss_device *dssdev,
@@ -741,6 +738,8 @@ struct omap_dss_driver {
 
 };
 
+enum omapdss_version omapdss_get_version(void);
+
 int omap_dss_register_driver(struct omap_dss_driver *);
 void omap_dss_unregister_driver(struct omap_dss_driver *);
 
@@ -750,6 +749,7 @@ void omap_dss_put_device(struct omap_dss_device *dssdev);
 struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from);
 struct omap_dss_device *omap_dss_find_device(void *data,
 		int (*match)(struct omap_dss_device *dssdev, void *data));
+const char *omapdss_get_default_display_name(void);
 
 int omap_dss_start_device(struct omap_dss_device *dssdev);
 void omap_dss_stop_device(struct omap_dss_device *dssdev);
