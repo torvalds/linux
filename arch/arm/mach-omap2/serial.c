@@ -29,7 +29,6 @@
 
 #include <plat/omap-serial.h>
 #include <plat-omap/dma-omap.h>
-#include <plat/serial.h>
 
 #include "common.h"
 #include "omap_hwmod.h"
@@ -42,6 +41,7 @@
 #include "prm-regbits-34xx.h"
 #include "control.h"
 #include "mux.h"
+#include "serial.h"
 
 /*
  * NOTE: By default the serial auto_suspend timeout is disabled as it causes
