@@ -40,7 +40,7 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 {
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, n_subdevices;
+	int ret;
 
 	dev->board_name = dev->driver->driver_name;
 
@@ -62,21 +62,12 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 			dev->irq = pcidev->irq;
 	}
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
-	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_UNUSED;
-
 	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
+	s = &dev->subdevices[0];
 	s->type		= COMEDI_SUBD_DI;
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 32;
@@ -85,22 +76,6 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s->range_table	= &range_digital;
 	s->insn_config	= i_APCI1032_ConfigDigitalInput;
 	s->insn_bits	= apci1032_di_insn_bits;
-
-	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
 
 	apci1032_reset(dev);
 	return 0;
