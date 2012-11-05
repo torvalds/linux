@@ -104,7 +104,10 @@ void usb20otg_hw_init(void)
 #ifdef CONFIG_RK_CONFIG
     otg_drv_init(0);
 #else
-    rk30_mux_api_set(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);    
+    #if defined(CONFIG_MACH_RK2926_V86)
+    #else
+    rk30_mux_api_set(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);  
+    #endif  
 #endif
 }
 void usb20otg_phy_suspend(void* pdata, int suspend)

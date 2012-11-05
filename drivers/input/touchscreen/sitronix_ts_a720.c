@@ -825,7 +825,11 @@ static void sitronix_ts_work_func(struct work_struct *work)
 				input_report_abs(ts->input_dev,  ABS_MT_TRACKING_ID, i);
 				input_report_abs(ts->input_dev,  ABS_MT_TOUCH_MAJOR, 200);
 				input_report_abs(ts->input_dev,  ABS_MT_POSITION_X, MTDStructure[i].Pixel_X);
+				#if defined(CONFIG_MACH_RK2926_V86_VERSION_1_1)
+	                        input_report_abs(ts->input_dev,  ABS_MT_POSITION_Y, 480 - MTDStructure[i].Pixel_Y);
+				#else
 				input_report_abs(ts->input_dev,  ABS_MT_POSITION_Y, MTDStructure[i].Pixel_Y);
+                                #endif
 				input_report_abs(ts->input_dev,  ABS_MT_WIDTH_MAJOR, 100);
 				DbgMsg("lr[%d](%d, %d)+\n", i, MTDStructure[i].Pixel_X, MTDStructure[i].Pixel_Y);
 			}else if(MTDStructure[i].Current_Pressed_area == AREA_NONE){

@@ -26,7 +26,11 @@
 #define V_FP			22 //18
 
 /* Other */
-#define DCLK_POL		1
+#if defined(CONFIG_MACH_RK2926_V86)
+#define DCLK_POL		0
+#else
+#define DCLK_POL                1
+#endif
 #define SWAP_RB			0
 
 #define LCD_WIDTH       154    //need modify

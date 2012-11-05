@@ -71,6 +71,17 @@ extern  int act8931_charge_det ;
 extern  int act8931_charge_ok  ;
 #endif
 
+#if defined(CONFIG_MACH_RK2926_V86)
+//#define V86_VERSION_1_0
+#define V86_VERSION_1_1
+#endif
+
+#if defined(V86_VERSION_1_1)
+#if defined(CONFIG_MFD_TPS65910)
+extern int tps65910_charge_ok ;
+#endif
+#endif
+
 
 static struct spi_board_info board_spi_devices[] = {
 };
@@ -86,19 +97,29 @@ static struct spi_board_info board_spi_devices[] = {
 #define PWM_GPIO 	  RK2928_PIN0_PD2
 #define PWM_EFFECT_VALUE  0
 
-//#define LCD_DISP_ON_PIN
+#if defined(V86_VERSION_1_1)
+#define LCD_DISP_ON_PIN
+#endif
 
 #ifdef  LCD_DISP_ON_PIN
-
+#if defined(V86_VERSION_1_1)
+#define BL_EN_PIN         RK2928_PIN3_PC1
+#define BL_EN_VALUE       GPIO_HIGH
+#define BL_EN_MUX_NAME   GPIO3C1_OTG_DRVVBUS_NAME
+#define BL_EN_MUX_MODE   GPIO3C_GPIO3C1
+#else
 #define BL_EN_PIN         RK2928_PIN1_PB0
 #define BL_EN_VALUE       GPIO_HIGH
+#endif
 #endif
 static int rk29_backlight_io_init(void)
 {
 	int ret = 0;
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE);
 #ifdef  LCD_DISP_ON_PIN
-	// rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
+	#if defined(V86_VERSION_1_1)
+       rk30_mux_api_set(BL_EN_MUX_NAME, BL_EN_MUX_MODE);
+       #endif
 
 	ret = gpio_request(BL_EN_PIN, NULL);
 	if (ret != 0) {
@@ -119,6 +140,16 @@ static int rk29_backlight_io_deinit(void)
 	gpio_free(BL_EN_PIN);
 #endif
 	rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+
+	#if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
+	#if defined(CONFIG_MFD_TPS65910)	
+	if(g_pmic_type == PMIC_TYPE_TPS65910)
+	{
+		gpio_direction_output(PWM_GPIO, GPIO_HIGH);
+	}
+	#endif
+	#endif
+	
 	return ret;
 }
 
@@ -132,7 +163,11 @@ static int rk29_backlight_pwm_suspend(void)
 	}
 	#if defined(CONFIG_MFD_TPS65910)	
 	 if (pmic_is_tps65910() )
+	 #if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
+	   gpio_direction_output(PWM_GPIO, GPIO_HIGH);
+	 #else
 	   gpio_direction_output(PWM_GPIO, GPIO_LOW);
+	 #endif
 	#endif
 	#if defined(CONFIG_REGULATOR_ACT8931)
 	 if (pmic_is_act8931() )
@@ -176,6 +211,22 @@ static struct platform_device rk29_device_backlight = {
 	}
 };
 
+#if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1) //for v86 to modify flash lcd when startup
+static int __init set_pwm_gpio_high(void)
+{  
+        printk("%s, xhc", __func__);
+        rk30_mux_api_set(PWM_MUX_NAME, PWM_MUX_MODE_GPIO);
+	if (gpio_request(PWM_GPIO, NULL)) {
+		printk("func %s, line %d: request gpio fail\n", __FUNCTION__, __LINE__);
+		return -1;
+	}
+	gpio_direction_output(PWM_GPIO, GPIO_HIGH);
+        gpio_free(PWM_GPIO);
+        return 0;
+}
+core_initcall(set_pwm_gpio_high);
+#endif
+
 #endif
 
 #ifdef CONFIG_FB_ROCKCHIP
@@ -217,6 +268,11 @@ static int rk_fb_io_disable(void)
 		udelay(100);
 	}
 	#endif
+	
+	//#if defined(V86_VERSION_1_0)
+	msleep(30);
+	//#endif
+
         gpio_set_value(LCD_EN, !LCD_EN_VALUE);
 	return 0;
 }
@@ -232,6 +288,10 @@ static int rk_fb_io_enable(void)
 		msleep(300);	// wait for powering on LED circuit
 	}
 	#endif
+
+      //#if defined(V86_VERSION_1_0)
+      msleep(100);
+      //#endif
 
         gpio_set_value(LCD_EN, LCD_EN_VALUE);
 	return 0;
@@ -331,9 +391,13 @@ static struct platform_device device_ion = {
 
 #if defined(CONFIG_TOUCHSCREEN_SITRONIX_A720)
 
-#define TOUCH_RESET_PIN	 RK2928_PIN1_PA3
-#define TOUCH_INT_PIN 	 RK2928_PIN1_PB0
+#if defined(V86_VERSION_1_1)
+#define TOUCH_RESET_PIN         NULL
+#else
+#define TOUCH_RESET_PIN         RK2928_PIN1_PA3
 #endif
+#define TOUCH_INT_PIN 	 RK2928_PIN1_PB0
+
 int ft5306_init_platform_hw(void)
 {
 
@@ -363,7 +427,7 @@ struct ft5x0x_platform_data sitronix_info = {
         .model = 5007,
         .init_platform_hw= ft5306_init_platform_hw,
 };
-
+#endif
 
 /*MMA7660 gsensor*/
 #if defined (CONFIG_GS_MMA7660)
@@ -381,7 +445,15 @@ static struct sensor_platform_data mma7660_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
         .init_platform_hw = mma7660_init_platform_hw,
+        #if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
+           #if defined(V86_VERSION_1_0)
+           .orientation = {1, 0, 0, 0, 0, -1, 0, -1, 0},
+            #else if defined(V86_VERSION_1_1)
+            .orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
+            #endif
+        #else 
         .orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
+        #endif
 };
 #endif
 
@@ -415,7 +487,10 @@ struct regulator_init_data pwm_regulator_init_dcdc[1] =
 static struct pwm_platform_data pwm_regulator_info[1] = {
 	{
 		.pwm_id = 1,
+		#if defined(V86_VERSION_1_1)
+             #else
 		.pwm_gpio = RK2928_PIN0_PD3,
+		#endif
 		.pwm_iomux_name = GPIO0D3_PWM_1_NAME,
 		.pwm_iomux_pwm = GPIO0D_PWM_1, 
 		.pwm_iomux_gpio = GPIO0D_GPIO0D3,
@@ -575,6 +650,78 @@ static struct platform_device device_acodec = {
 #endif
 
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
+#if  defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
+#define   DC_DET_PIN  RK2928_PIN1_PA5
+int rk30_battery_adc_io_init(void){
+	int ret = 0;
+		
+	//dc charge detect pin
+    	ret = gpio_request(DC_DET_PIN, NULL);
+   	if (ret) {
+    		printk("failed to request dc_det gpio\n");
+    		return ret ;
+    	}
+
+    	gpio_pull_updown(DC_DET_PIN, 0);//important
+    	ret = gpio_direction_input(DC_DET_PIN);
+    	if (ret) {
+    		printk("failed to set gpio dc_det input\n");
+    		return ret ;
+    	}
+	
+	return 0;
+
+}
+#if defined(V86_VERSION_1_1)
+extern int tps65910_charge_ok;
+#if defined(CONFIG_MFD_TPS65910)
+int rk30_battery_adc_charging_ok( ){
+
+       if( gpio_get_value(DC_DET_PIN) == GPIO_LOW){
+       //printk(">>>>>>>>>> DC_DET_OK\n");
+           if( tps65910_charge_ok ){
+                //printk(">>>>>>>>>>return tps65910_charge_ok = %d \n",tps65910_charge_ok);
+                return 1 ;
+            }
+            //printk(">>>>>>>>>> tps65910_charge_ok = %d \n",tps65910_charge_ok);
+       }
+
+       return 0 ;
+}
+#endif
+#endif
+static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+        .dc_det_pin      = DC_DET_PIN,//INVALID_GPIO,
+        .batt_low_pin    = INVALID_GPIO,
+        .charge_set_pin  = INVALID_GPIO,
+        .charge_ok_pin   = INVALID_GPIO,//RK2928_PIN1_PA5,
+        .dc_det_level    = GPIO_LOW,
+        .charge_ok_level = GPIO_HIGH,
+
+        .io_init = rk30_battery_adc_io_init,
+        #if defined(V86_VERSION_1_1)
+         .charging_ok     = rk30_battery_adc_charging_ok ,
+        #endif
+
+        .reference_voltage=3200,
+        .pull_up_res = 200 ,
+        .pull_down_res = 200 ,
+
+        .charging_sleep   = 0 ,        
+        .save_capacity   = 1 ,
+        .adc_channel     =0 ,
+        
+};
+
+static struct platform_device rk30_device_adc_battery = {
+        .name   = "rk30-battery",
+        .id     = -1,
+        .dev = {
+                .platform_data = &rk30_adc_battery_platdata,
+        },
+};
+
+#else
 #define   DC_DET_PIN  RK2928_PIN1_PA5
 int rk30_battery_adc_io_init(void){
 	int ret = 0;
@@ -628,6 +775,7 @@ static struct platform_device rk30_device_adc_battery = {
         },
 };
 #endif
+#endif
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_FB_ROCKCHIP
@@ -652,7 +800,11 @@ static struct platform_device *devices[] __initdata = {
 //i2c
 #ifdef CONFIG_I2C0_RK30
 #ifdef CONFIG_MFD_TPS65910
+#if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
+#define TPS65910_HOST_IRQ        RK2928_PIN1_PB1
+#else
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB2
+#endif
 #define PMU_POWER_SLEEP RK2928_PIN1_PA1
 
 static struct pmu_info  tps65910_dcdc_info[] = {

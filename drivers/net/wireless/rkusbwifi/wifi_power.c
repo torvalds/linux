@@ -39,11 +39,16 @@ EXPORT_SYMBOL(init_channel_plan);
  */
 struct wifi_power power_gpio = 
 {
+	#if defined(CONFIG_MACH_RK2926_V86)
+        POWER_USE_GPIO, 0,
+        0, 0, RK2928_PIN0_PD3, GPIO_LOW
+        #else
 	POWER_NOT_USE_GPIO, 0, 0, 0, 0, 0 
 
 	// RBOX
 	//POWER_USE_GPIO, POWER_GPIO_IOMUX, 
 	//GPIO5D6_SDMMC1PWREN_NAME, GPIO5H_GPIO5D6, RK29_PIN5_PD6, GPIO_HIGH 
+        #endif
 };
 
 /*
