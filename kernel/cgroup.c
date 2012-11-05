@@ -170,8 +170,8 @@ struct css_id {
 	 * The css to which this ID points. This pointer is set to valid value
 	 * after cgroup is populated. If cgroup is removed, this will be NULL.
 	 * This pointer is expected to be RCU-safe because destroy()
-	 * is called after synchronize_rcu(). But for safe use, css_is_removed()
-	 * css_tryget() should be used for avoiding race.
+	 * is called after synchronize_rcu(). But for safe use, css_tryget()
+	 * should be used for avoiding race.
 	 */
 	struct cgroup_subsys_state __rcu *css;
 	/*
@@ -4112,8 +4112,6 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	}
 	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
 
-	local_irq_disable();
-
 	/* block new css_tryget() by deactivating refcnt */
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
@@ -4123,21 +4121,14 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	}
 
 	/*
-	 * Set REMOVED.  All in-progress css_tryget() will be released.
 	 * Put all the base refs.  Each css holds an extra reference to the
 	 * cgroup's dentry and cgroup removal proceeds regardless of css
 	 * refs.  On the last put of each css, whenever that may be, the
 	 * extra dentry ref is put so that dentry destruction happens only
 	 * after all css's are released.
 	 */
-	for_each_subsys(cgrp->root, ss) {
-		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
-
-		set_bit(CSS_REMOVED, &css->flags);
-		css_put(css);
-	}
-
-	local_irq_enable();
+	for_each_subsys(cgrp->root, ss)
+		css_put(cgrp->subsys[ss->subsys_id]);
 
 	finish_wait(&cgroup_rmdir_waitq, &wait);
 	clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
@@ -4861,15 +4852,17 @@ static void check_for_release(struct cgroup *cgrp)
 /* Caller must verify that the css is not for root cgroup */
 bool __css_tryget(struct cgroup_subsys_state *css)
 {
-	do {
-		int v = css_refcnt(css);
+	while (true) {
+		int t, v;
 
-		if (atomic_cmpxchg(&css->refcnt, v, v + 1) == v)
+		v = css_refcnt(css);
+		t = atomic_cmpxchg(&css->refcnt, v, v + 1);
+		if (likely(t == v))
 			return true;
+		else if (t < 0)
+			return false;
 		cpu_relax();
-	} while (!test_bit(CSS_REMOVED, &css->flags));
-
-	return false;
+	}
 }
 EXPORT_SYMBOL_GPL(__css_tryget);
 
