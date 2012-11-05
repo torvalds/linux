@@ -2138,8 +2138,7 @@ static void do_jobctl_trap(void)
 	}
 }
 
-static int ptrace_signal(int signr, siginfo_t *info,
-			 struct pt_regs *regs, void *cookie)
+static int ptrace_signal(int signr, siginfo_t *info)
 {
 	ptrace_signal_deliver();
 	/*
@@ -2265,8 +2264,7 @@ relock:
 			break; /* will return 0 */
 
 		if (unlikely(current->ptrace) && signr != SIGKILL) {
-			signr = ptrace_signal(signr, info,
-					      regs, cookie);
+			signr = ptrace_signal(signr, info);
 			if (!signr)
 				continue;
 		}
