@@ -26,12 +26,12 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/mfd/menelaus.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <plat/menelaus.h>
 #include <plat-omap/dma-omap.h>
 #include "debug-devices.h"
 
