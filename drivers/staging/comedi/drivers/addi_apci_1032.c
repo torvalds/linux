@@ -12,6 +12,16 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
+static int apci1032_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
+{
+	data[1] = inl(dev->iobase + APCI1032_DI_REG);
+
+	return insn->n;
+}
+
 static int apci1032_reset(struct comedi_device *dev)
 {
 	/* disable the interrupts */
@@ -74,7 +84,7 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s->len_chanlist	= 32;
 	s->range_table	= &range_digital;
 	s->insn_config	= i_APCI1032_ConfigDigitalInput;
-	s->insn_bits	= i_APCI1032_ReadMoreDigitalInput;
+	s->insn_bits	= apci1032_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];

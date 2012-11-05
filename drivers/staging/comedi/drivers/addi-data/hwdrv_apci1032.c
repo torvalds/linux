@@ -138,36 +138,6 @@ static int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev,
 
 /*
 +----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1032_ReadMoreDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     struct comedi_insn *insn,unsigned int *data)                      |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the Requested digital inputs      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
-|                      unsigned int *data             : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
-{
-	data[1] = inl(dev->iobase + APCI1032_DI_REG);
-
-	return insn->n;
-}
-
-/*
-+----------------------------------------------------------------------------+
 | Function   Name   : static void v_APCI1032_Interrupt					     |
 |					  (int irq , void *d)      |
 +----------------------------------------------------------------------------+
