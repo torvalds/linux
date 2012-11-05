@@ -49,34 +49,37 @@ static struct {
 	struct omap_dss_output output;
 } dpi;
 
-static struct platform_device *dpi_get_dsidev(enum omap_dss_clk_source clk)
+static struct platform_device *dpi_get_dsidev(enum omap_channel channel)
 {
-	int dsi_module;
-
-	dsi_module = clk == OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC ? 0 : 1;
-
-	return dsi_get_dsidev_from_id(dsi_module);
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD:
+		return dsi_get_dsidev_from_id(0);
+	case OMAP_DSS_CHANNEL_LCD2:
+		return dsi_get_dsidev_from_id(1);
+	default:
+		return NULL;
+	}
 }
 
-static bool dpi_use_dsi_pll(struct omap_dss_device *dssdev)
+static enum omap_dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
 {
-	if (dssdev->clocks.dispc.dispc_fclk_src ==
-			OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC ||
-			dssdev->clocks.dispc.dispc_fclk_src ==
-			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC ||
-			dssdev->clocks.dispc.channel.lcd_clk_src ==
-			OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC ||
-			dssdev->clocks.dispc.channel.lcd_clk_src ==
-			OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC)
-		return true;
-	else
-		return false;
+	switch (channel) {
+	case OMAP_DSS_CHANNEL_LCD:
+		return OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC;
+	case OMAP_DSS_CHANNEL_LCD2:
+		return OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC;
+	default:
+		/* this shouldn't happen */
+		WARN_ON(1);
+		return OMAP_DSS_CLK_SRC_FCK;
+	}
 }
 
 static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
+	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	struct dsi_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 	int r;
@@ -90,7 +93,8 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dss_select_dispc_clk_source(dssdev->clocks.dispc.dispc_fclk_src);
+	dss_select_lcd_clk_source(mgr->id,
+			dpi_get_alt_clk_src(mgr->id));
 
 	dpi.mgr_config.clock_info = dispc_cinfo;
 
@@ -135,7 +139,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	unsigned long pck;
 	int r = 0;
 
-	if (dpi_use_dsi_pll(dssdev))
+	if (dpi.dsidev)
 		r = dpi_set_dsi_clk(dssdev, t->pixel_clock * 1000, &fck,
 				&lck_div, &pck_div);
 	else
@@ -214,7 +218,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_src_sel;
 
-	if (dpi_use_dsi_pll(dssdev)) {
+	if (dpi.dsidev) {
 		r = dsi_runtime_get(dpi.dsidev);
 		if (r)
 			goto err_get_dsi;
@@ -242,10 +246,10 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 err_mgr_enable:
 err_set_mode:
-	if (dpi_use_dsi_pll(dssdev))
+	if (dpi.dsidev)
 		dsi_pll_uninit(dpi.dsidev, true);
 err_dsi_pll_init:
-	if (dpi_use_dsi_pll(dssdev))
+	if (dpi.dsidev)
 		dsi_runtime_put(dpi.dsidev);
 err_get_dsi:
 err_src_sel:
@@ -271,8 +275,8 @@ void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dss_mgr_disable(mgr);
 
-	if (dpi_use_dsi_pll(dssdev)) {
-		dss_select_dispc_clk_source(OMAP_DSS_CLK_SRC_FCK);
+	if (dpi.dsidev) {
+		dss_select_lcd_clk_source(mgr->id, OMAP_DSS_CLK_SRC_FCK);
 		dsi_pll_uninit(dpi.dsidev, true);
 		dsi_runtime_put(dpi.dsidev);
 	}
@@ -317,7 +321,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	if (timings->pixel_clock == 0)
 		return -EINVAL;
 
-	if (dpi_use_dsi_pll(dssdev)) {
+	if (dpi.dsidev) {
 		struct dsi_clock_info dsi_cinfo;
 		r = dsi_pll_calc_clock_div_pck(dpi.dsidev,
 				timings->pixel_clock * 1000,
@@ -359,8 +363,32 @@ void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 }
 EXPORT_SYMBOL(omapdss_dpi_set_data_lines);
 
+static int __init dpi_verify_dsi_pll(struct platform_device *dsidev)
+{
+	int r;
+
+	/* do initial setup with the PLL to see if it is operational */
+
+	r = dsi_runtime_get(dsidev);
+	if (r)
+		return r;
+
+	r = dsi_pll_init(dsidev, 0, 1);
+	if (r) {
+		dsi_runtime_put(dsidev);
+		return r;
+	}
+
+	dsi_pll_uninit(dsidev, true);
+	dsi_runtime_put(dsidev);
+
+	return 0;
+}
+
 static int __init dpi_init_display(struct omap_dss_device *dssdev)
 {
+	struct platform_device *dsidev;
+
 	DSSDBG("init_display\n");
 
 	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI) &&
@@ -377,11 +405,22 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 		dpi.vdds_dsi_reg = vdds_dsi;
 	}
 
-	if (dpi_use_dsi_pll(dssdev)) {
-		enum omap_dss_clk_source dispc_fclk_src =
-			dssdev->clocks.dispc.dispc_fclk_src;
-		dpi.dsidev = dpi_get_dsidev(dispc_fclk_src);
+	/*
+	 * XXX We shouldn't need dssdev->channel for this. The dsi pll clock
+	 * source for DPI is SoC integration detail, not something that should
+	 * be configured in the dssdev
+	 */
+	dsidev = dpi_get_dsidev(dssdev->channel);
+
+	if (dpi_verify_dsi_pll(dsidev)) {
+		dsidev = NULL;
+		DSSWARN("DSI PLL not operational\n");
 	}
+
+	if (dsidev)
+		DSSDBG("using DSI PLL for DPI clock\n");
+
+	dpi.dsidev = dsidev;
 
 	return 0;
 }

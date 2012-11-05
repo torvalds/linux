@@ -510,6 +510,9 @@ static int __init omap_dss_bus_register(void)
 
 /* INIT */
 static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_init_platform_driver,
+#endif
 #ifdef CONFIG_OMAP2_DSS_DPI
 	dpi_init_platform_driver,
 #endif
@@ -522,15 +525,15 @@ static int (*dss_output_drv_reg_funcs[])(void) __initdata = {
 #ifdef CONFIG_OMAP2_DSS_VENC
 	venc_init_platform_driver,
 #endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_init_platform_driver,
-#endif
 #ifdef CONFIG_OMAP4_DSS_HDMI
 	hdmi_init_platform_driver,
 #endif
 };
 
 static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
+#ifdef CONFIG_OMAP2_DSS_DSI
+	dsi_uninit_platform_driver,
+#endif
 #ifdef CONFIG_OMAP2_DSS_DPI
 	dpi_uninit_platform_driver,
 #endif
@@ -542,9 +545,6 @@ static void (*dss_output_drv_unreg_funcs[])(void) __exitdata = {
 #endif
 #ifdef CONFIG_OMAP2_DSS_VENC
 	venc_uninit_platform_driver,
-#endif
-#ifdef CONFIG_OMAP2_DSS_DSI
-	dsi_uninit_platform_driver,
 #endif
 #ifdef CONFIG_OMAP4_DSS_HDMI
 	hdmi_uninit_platform_driver,
