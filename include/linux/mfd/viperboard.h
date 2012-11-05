@@ -44,6 +44,8 @@
 #define VPRBRD_USB_TIMEOUT_MS       100
 #define VPRBRD_USB_REQUEST_MAJOR    0xea
 #define VPRBRD_USB_REQUEST_MINOR    0xeb
+#define VPRBRD_USB_REQUEST_GPIOA    0xed
+#define VPRBRD_USB_REQUEST_GPIOB    0xdd
 
 struct vprbrd_i2c_write_hdr {
 	u8 cmd;

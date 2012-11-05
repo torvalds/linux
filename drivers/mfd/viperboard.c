@@ -38,6 +38,9 @@ static const struct usb_device_id vprbrd_table[] = {
 MODULE_DEVICE_TABLE(usb, vprbrd_table);
 
 static struct mfd_cell vprbrd_devs[] = {
+	{
+		.name = "viperboard-gpio",
+	},
 };
 
 static int vprbrd_probe(struct usb_interface *interface,

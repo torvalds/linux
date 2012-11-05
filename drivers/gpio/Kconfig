@@ -649,4 +649,17 @@ config GPIO_MSIC
 	  Enable support for GPIO on intel MSIC controllers found in
 	  intel MID devices
 
+comment "USB GPIO expanders:"
+
+config GPIO_VIPERBOARD
+	tristate "Viperboard GPIO a & b support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the GPIO signals of Nano River
+	  Technologies Viperboard. There are two GPIO chips on the
+	  board: gpioa and gpiob.
+          See viperboard API specification and Nano
+          River Tech's viperboard.h for detailed meaning
+          of the module parameters.
+
 endif
