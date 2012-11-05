@@ -114,6 +114,10 @@ static inline int check_usb_param(void)
 }
 int inline otg_drv_init(int on)
 {
+        if(otg_drv == -1){
+                rk30_mux_api_set(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);    
+                return 0;
+        }
         return port_output_init(otg_drv, on, "otg_drv");
 }
 void inline otg_drv_on(void)
