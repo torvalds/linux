@@ -32,10 +32,7 @@ extern rga_service_info rga_service;
 #define V7_VATOPA_GET_NS(X)		((X>>9) & 1)
 #define V7_VATOPA_GET_SS(X)		((X>>1) & 1)
 
-
-int mmu_flag = 0;
-
-unsigned int armv7_va_to_pa(unsigned int v_addr)
+static unsigned int armv7_va_to_pa(unsigned int v_addr)
 {
 	unsigned int p_addr;
 	__asm__ volatile (	"mcr p15, 0, %1, c7, c8, 0\n" 
