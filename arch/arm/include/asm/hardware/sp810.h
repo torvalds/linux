@@ -50,11 +50,7 @@
 #define SCPCELLID2		0xFF8
 #define SCPCELLID3		0xFFC
 
-#define SCCTRL_TIMEREN0SEL_REFCLK	(0 << 15)
-#define SCCTRL_TIMEREN0SEL_TIMCLK	(1 << 15)
-
-#define SCCTRL_TIMEREN1SEL_REFCLK	(0 << 17)
-#define SCCTRL_TIMEREN1SEL_TIMCLK	(1 << 17)
+#define SCCTRL_TIMERENnSEL_SHIFT(n)	(15 + ((n) * 2))
 
 static inline void sysctl_soft_reset(void __iomem *base)
 {

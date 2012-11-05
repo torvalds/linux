@@ -1169,12 +1169,12 @@ int db8500_prcmu_get_ape_opp(void)
 }
 
 /**
- * prcmu_request_ape_opp_100_voltage - Request APE OPP 100% voltage
+ * db8500_prcmu_request_ape_opp_100_voltage - Request APE OPP 100% voltage
  * @enable: true to request the higher voltage, false to drop a request.
  *
  * Calls to this function to enable and disable requests must be balanced.
  */
-int prcmu_request_ape_opp_100_voltage(bool enable)
+int db8500_prcmu_request_ape_opp_100_voltage(bool enable)
 {
 	int r = 0;
 	u8 header;

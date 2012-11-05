@@ -53,9 +53,13 @@ struct clk_hw;
  * @disable:	Disable the clock atomically. Called with enable_lock held.
  * 		This function must not sleep.
  *
- * @recalc_rate	Recalculate the rate of this clock, by quering hardware.  The
+ * @is_enabled:	Queries the hardware to determine if the clock is enabled.
+ * 		This function must not sleep. Optional, if this op is not
+ * 		set then the enable count will be used.
+ *
+ * @recalc_rate	Recalculate the rate of this clock, by querying hardware. The
  * 		parent rate is an input parameter.  It is up to the caller to
- * 		insure that the prepare_mutex is held across this call.
+ * 		ensure that the prepare_mutex is held across this call.
  * 		Returns the calculated rate.  Optional, but recommended - if
  * 		this op is not set then clock rate will be initialized to 0.
  *
@@ -89,7 +93,7 @@ struct clk_hw;
  * implementations to split any work between atomic (enable) and sleepable
  * (prepare) contexts.  If enabling a clock requires code that might sleep,
  * this must be done in clk_prepare.  Clock enable code that will never be
- * called in a sleepable context may be implement in clk_enable.
+ * called in a sleepable context may be implemented in clk_enable.
  *
  * Typically, drivers will call clk_prepare when a clock may be needed later
  * (eg. when a device is opened), and clk_enable when the clock is actually
@@ -335,11 +339,11 @@ const char *__clk_get_name(struct clk *clk);
 struct clk_hw *__clk_get_hw(struct clk *clk);
 u8 __clk_get_num_parents(struct clk *clk);
 struct clk *__clk_get_parent(struct clk *clk);
-inline int __clk_get_enable_count(struct clk *clk);
-inline int __clk_get_prepare_count(struct clk *clk);
+inline unsigned int __clk_get_enable_count(struct clk *clk);
+inline unsigned int __clk_get_prepare_count(struct clk *clk);
 unsigned long __clk_get_rate(struct clk *clk);
 unsigned long __clk_get_flags(struct clk *clk);
-int __clk_is_enabled(struct clk *clk);
+bool __clk_is_enabled(struct clk *clk);
 struct clk *__clk_lookup(const char *name);
 
 /*

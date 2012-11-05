@@ -42,15 +42,25 @@ config COMMON_CLK_WM831X
 
 config COMMON_CLK_VERSATILE
 	bool "Clock driver for ARM Reference designs"
-	depends on ARCH_INTEGRATOR || ARCH_REALVIEW
+	depends on ARCH_INTEGRATOR || ARCH_REALVIEW || ARCH_VEXPRESS
 	---help---
-          Supports clocking on ARM Reference designs Integrator/AP,
-	  Integrator/CP, RealView PB1176, EB, PB11MP and PBX.
+          Supports clocking on ARM Reference designs:
+	  - Integrator/AP and Integrator/CP
+	  - RealView PB1176, EB, PB11MP and PBX
+	  - Versatile Express
 
 config COMMON_CLK_MAX77686
 	tristate "Clock driver for Maxim 77686 MFD"
 	depends on MFD_MAX77686
 	---help---
 	  This driver supports Maxim 77686 crystal oscillator clock. 
+
+config CLK_TWL6040
+	tristate "External McPDM functional clock from twl6040"
+	depends on TWL6040_CORE
+	---help---
+	  Enable the external functional clock support on OMAP4+ platforms for
+	  McPDM. McPDM module is using the external bit clock on the McPDM bus
+	  as functional clock.
 
 endmenu
