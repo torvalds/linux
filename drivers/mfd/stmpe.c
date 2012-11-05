@@ -885,18 +885,19 @@ static struct irq_domain_ops stmpe_irq_ops = {
         .xlate  = irq_domain_xlate_twocell,
 };
 
-static int __devinit stmpe_irq_init(struct stmpe *stmpe)
+static int __devinit stmpe_irq_init(struct stmpe *stmpe,
+				struct device_node *np)
 {
 	int base = stmpe->irq_base;
 	int num_irqs = stmpe->variant->num_irqs;
 
 	if (base) {
 		stmpe->domain = irq_domain_add_legacy(
-			NULL, num_irqs, base, 0, &stmpe_irq_ops, stmpe);
+			np, num_irqs, base, 0, &stmpe_irq_ops, stmpe);
 	}
 	else {
 		stmpe->domain = irq_domain_add_linear(
-			NULL, num_irqs, &stmpe_irq_ops, stmpe);
+			np, num_irqs, &stmpe_irq_ops, stmpe);
 	}
 
 	if (!stmpe->domain) {
@@ -1016,15 +1017,50 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
+void __devinit stmpe_of_probe(struct stmpe_platform_data *pdata,
+			struct device_node *np)
+{
+	struct device_node *child;
+
+	of_property_read_u32(np, "st,autosleep-timeout",
+			&pdata->autosleep_timeout);
+
+	pdata->autosleep = (pdata->autosleep_timeout) ? true : false;
+
+	for_each_child_of_node(np, child) {
+		if (!strcmp(child->name, "stmpe_gpio")) {
+			pdata->blocks |= STMPE_BLOCK_GPIO;
+		}
+		if (!strcmp(child->name, "stmpe_keypad")) {
+			pdata->blocks |= STMPE_BLOCK_KEYPAD;
+		}
+		if (!strcmp(child->name, "stmpe_touchscreen")) {
+			pdata->blocks |= STMPE_BLOCK_TOUCHSCREEN;
+		}
+		if (!strcmp(child->name, "stmpe_adc")) {
+			pdata->blocks |= STMPE_BLOCK_ADC;
+		}
+	}
+}
+
 /* Called from client specific probe routines */
 int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 {
 	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
+	struct device_node *np = ci->dev->of_node;
 	struct stmpe *stmpe;
 	int ret;
 
-	if (!pdata)
-		return -EINVAL;
+	if (!pdata) {
+		if (np) {
+			pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+			if (!pdata)
+				return -ENOMEM;
+
+			stmpe_of_probe(pdata, np);
+		} else
+			return -EINVAL;
+	}
 
 	stmpe = kzalloc(sizeof(struct stmpe), GFP_KERNEL);
 	if (!stmpe)
@@ -1080,7 +1116,7 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 		goto free_gpio;
 
 	if (stmpe->irq >= 0) {
-		ret = stmpe_irq_init(stmpe);
+		ret = stmpe_irq_init(stmpe, np);
 		if (ret)
 			goto free_gpio;
 
