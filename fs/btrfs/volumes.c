@@ -3785,8 +3785,9 @@ void btrfs_mapping_tree_free(struct btrfs_mapping_tree *tree)
 	}
 }
 
-int btrfs_num_copies(struct btrfs_mapping_tree *map_tree, u64 logical, u64 len)
+int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 {
+	struct btrfs_mapping_tree *map_tree = &fs_info->mapping_tree;
 	struct extent_map *em;
 	struct map_lookup *map;
 	struct extent_map_tree *em_tree = &map_tree->map_tree;

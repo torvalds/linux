@@ -2044,10 +2044,10 @@ static int clean_io_failure(u64 start, struct page *page)
 	spin_unlock(&BTRFS_I(inode)->io_tree.lock);
 
 	if (state && state->start == failrec->start) {
-		map_tree = &BTRFS_I(inode)->root->fs_info->mapping_tree;
-		num_copies = btrfs_num_copies(map_tree, failrec->logical,
-						failrec->len);
+		num_copies = btrfs_num_copies(BTRFS_I(inode)->root->fs_info,
+					      failrec->logical, failrec->len);
 		if (num_copies > 1)  {
+			map_tree = &BTRFS_I(inode)->root->fs_info->mapping_tree;
 			ret = repair_io_failure(map_tree, start, failrec->len,
 						failrec->logical, page,
 						failrec->failed_mirror);
@@ -2157,9 +2157,8 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 		 * clean_io_failure() clean all those errors at once.
 		 */
 	}
-	num_copies = btrfs_num_copies(
-			      &BTRFS_I(inode)->root->fs_info->mapping_tree,
-			      failrec->logical, failrec->len);
+	num_copies = btrfs_num_copies(BTRFS_I(inode)->root->fs_info,
+				      failrec->logical, failrec->len);
 	if (num_copies == 1) {
 		/*
 		 * we only have a single copy of the data, so don't bother with
