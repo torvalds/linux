@@ -703,7 +703,7 @@ static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
 
 	result = comedi_pci_enable(pcidev, "jr3_pci");
 	if (result < 0)
-		return -EIO;
+		return result;
 
 	dev->iobase = 1;	/* the "detach" needs this */
 	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
