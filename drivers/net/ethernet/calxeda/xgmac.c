@@ -191,6 +191,7 @@
 #define DMA_CONTROL_ST		0x00002000	/* Start/Stop Transmission */
 #define DMA_CONTROL_SR		0x00000002	/* Start/Stop Receive */
 #define DMA_CONTROL_DFF		0x01000000	/* Disable flush of rx frames */
+#define DMA_CONTROL_OSF		0x00000004	/* Operate on 2nd tx frame */
 
 /* DMA Normal interrupt */
 #define DMA_INTR_ENA_NIE	0x00010000	/* Normal Summary */
@@ -965,8 +966,7 @@ static int xgmac_hw_init(struct net_device *dev)
 		ctrl |= XGMAC_CONTROL_IPC;
 	writel(ctrl, ioaddr + XGMAC_CONTROL);
 
-	value = DMA_CONTROL_DFF;
-	writel(value, ioaddr + XGMAC_DMA_CONTROL);
+	writel(DMA_CONTROL_DFF | DMA_CONTROL_OSF, ioaddr + XGMAC_DMA_CONTROL);
 
 	/* Set the HW DMA mode and the COE */
 	writel(XGMAC_OMR_TSF | XGMAC_OMR_RFD | XGMAC_OMR_RFA |
