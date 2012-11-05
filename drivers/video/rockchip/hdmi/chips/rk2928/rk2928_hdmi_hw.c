@@ -378,6 +378,8 @@ void rk2928_hdmi_control_output(int enable)
 	char mutestatus = 0;
 	
 	if(enable) {
+		if(hdmi->pwr_mode == LOWER_PWR)
+			rk2928_hdmi_set_pwr_mode(NORMAL);
 		mutestatus = HDMIRdReg(AV_MUTE);
 		if(mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
 			HDMIWrReg(AV_MUTE, v_AUDIO_MUTE(0) | v_VIDEO_MUTE(0));
