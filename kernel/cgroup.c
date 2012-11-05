@@ -851,27 +851,6 @@ static struct inode *cgroup_new_inode(umode_t mode, struct super_block *sb)
 	return inode;
 }
 
-/*
- * Call subsys's pre_destroy handler.
- * This is called before css refcnt check.
- */
-static int cgroup_call_pre_destroy(struct cgroup *cgrp)
-{
-	struct cgroup_subsys *ss;
-	int ret = 0;
-
-	for_each_subsys(cgrp->root, ss) {
-		if (!ss->pre_destroy)
-			continue;
-
-		ret = ss->pre_destroy(cgrp);
-		if (WARN_ON_ONCE(ret))
-			break;
-	}
-
-	return ret;
-}
-
 static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 {
 	/* is dentry a directory ? if so, kfree() associated cgroup */
@@ -4078,19 +4057,6 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	DEFINE_WAIT(wait);
 	struct cgroup_event *event, *tmp;
 	struct cgroup_subsys *ss;
-	int ret;
-
-	/* the vfs holds both inode->i_mutex already */
-	mutex_lock(&cgroup_mutex);
-	if (atomic_read(&cgrp->count) != 0) {
-		mutex_unlock(&cgroup_mutex);
-		return -EBUSY;
-	}
-	if (!list_empty(&cgrp->children)) {
-		mutex_unlock(&cgroup_mutex);
-		return -EBUSY;
-	}
-	mutex_unlock(&cgroup_mutex);
 
 	/*
 	 * In general, subsystem has no css->refcnt after pre_destroy(). But
@@ -4103,16 +4069,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	 */
 	set_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
 
-	/*
-	 * Call pre_destroy handlers of subsys. Notify subsystems
-	 * that rmdir() request comes.
-	 */
-	ret = cgroup_call_pre_destroy(cgrp);
-	if (ret) {
-		clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
-		return ret;
-	}
-
+	/* the vfs holds both inode->i_mutex already */
 	mutex_lock(&cgroup_mutex);
 	parent = cgrp->parent;
 	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
@@ -4122,13 +4079,30 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	}
 	prepare_to_wait(&cgroup_rmdir_waitq, &wait, TASK_INTERRUPTIBLE);
 
-	/* block new css_tryget() by deactivating refcnt */
+	/*
+	 * Block new css_tryget() by deactivating refcnt and mark @cgrp
+	 * removed.  This makes future css_tryget() and child creation
+	 * attempts fail thus maintaining the removal conditions verified
+	 * above.
+	 */
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
 
 		WARN_ON(atomic_read(&css->refcnt) < 0);
 		atomic_add(CSS_DEACT_BIAS, &css->refcnt);
 	}
+	set_bit(CGRP_REMOVED, &cgrp->flags);
+
+	/*
+	 * Tell subsystems to initate destruction.  pre_destroy() should be
+	 * called with cgroup_mutex unlocked.  See 3fa59dfbc3 ("cgroup: fix
+	 * potential deadlock in pre_destroy") for details.
+	 */
+	mutex_unlock(&cgroup_mutex);
+	for_each_subsys(cgrp->root, ss)
+		if (ss->pre_destroy)
+			WARN_ON_ONCE(ss->pre_destroy(cgrp));
+	mutex_lock(&cgroup_mutex);
 
 	/*
 	 * Put all the base refs.  Each css holds an extra reference to the
@@ -4144,7 +4118,6 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	clear_bit(CGRP_WAIT_ON_RMDIR, &cgrp->flags);
 
 	raw_spin_lock(&release_list_lock);
-	set_bit(CGRP_REMOVED, &cgrp->flags);
 	if (!list_empty(&cgrp->release_list))
 		list_del_init(&cgrp->release_list);
 	raw_spin_unlock(&release_list_lock);
