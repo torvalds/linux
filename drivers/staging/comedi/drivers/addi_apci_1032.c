@@ -31,7 +31,6 @@
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
-#include "amcc_s5933.h"
 
 /*
  * I/O Register Map
