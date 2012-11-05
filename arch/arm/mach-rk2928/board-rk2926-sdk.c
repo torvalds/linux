@@ -1094,6 +1094,15 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	.platform_data = &sitronix_info,
 },
 #endif
+#if defined (CONFIG_TOUCHSCREEN_GT811_IIC)
+	{
+		.type          = "gt811_ts",
+		.addr          = 0x5d,
+		.flags         = 0,
+		.irq           = TOUCH_INT_PIN,
+		.platform_data = &goodix_info,
+	},
+#endif
 #if defined (CONFIG_TOUCHSCREEN_FT5X0X)
         {
             .type           = "ft5x0x_ts",
