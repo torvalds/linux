@@ -14,16 +14,12 @@ static const struct addi_board apci1032_boardtypes[] = {
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_93C76,
 		.i_NbrDiChannel		= 32,
-		.interrupt		= v_APCI1032_Interrupt,
 	},
 };
 
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
+	v_APCI1032_Interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
