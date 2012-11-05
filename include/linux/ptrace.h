@@ -333,6 +333,15 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
 #define ptrace_signal_deliver(regs, cookie) do { } while (0)
 #endif
 
+/*
+ * unlike current_pt_regs(), this one is equal to task_pt_regs(current)
+ * on *all* architectures; the only reason to have a per-arch definition
+ * is optimisation.
+ */
+#ifndef signal_pt_regs
+#define signal_pt_regs() task_pt_regs(current)
+#endif
+
 extern int task_current_syscall(struct task_struct *target, long *callno,
 				unsigned long args[6], unsigned int maxargs,
 				unsigned long *sp, unsigned long *pc);

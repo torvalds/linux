@@ -62,6 +62,7 @@ struct pt_regs {
 #define profile_pc(regs) instruction_pointer(regs)
 #define current_pt_regs() ((struct pt_regs *) \
 	(THREAD_SIZE + (unsigned long)current_thread_info()) - 1)
+#define signal_pt_regs() ((struct pt_regs *)current->thread.esp0)
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _H8300_PTRACE_H */
