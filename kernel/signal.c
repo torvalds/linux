@@ -2359,7 +2359,7 @@ relock:
 			 * first and our do_group_exit call below will use
 			 * that value and ignore the one we pass it.
 			 */
-			do_coredump(info, regs);
+			do_coredump(info);
 		}
 
 		/*

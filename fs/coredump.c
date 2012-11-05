@@ -458,7 +458,7 @@ static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
 	return err;
 }
 
-void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
+void do_coredump(siginfo_t *siginfo)
 {
 	struct core_state core_state;
 	struct core_name cn;
@@ -474,7 +474,7 @@ void do_coredump(siginfo_t *siginfo, struct pt_regs *regs)
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.siginfo = siginfo,
-		.regs = regs,
+		.regs = signal_pt_regs(),
 		.limit = rlimit(RLIMIT_CORE),
 		/*
 		 * We must use the same mm->flags while dumping core to avoid
