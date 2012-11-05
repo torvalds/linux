@@ -4435,7 +4435,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 
 	ret = btrfs_map_block(root->fs_info, rw, logical, &map_length, &bbio,
 			      mirror_num);
-	if (ret) /* -ENOMEM */
+	if (ret)
 		return ret;
 
 	total_devs = bbio->num_stripes;

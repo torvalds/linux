@@ -1585,6 +1585,18 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	ret = btrfs_map_block(state->root->fs_info, READ,
 			      bytenr, &length, &multi, mirror_num);
 
+	if (ret) {
+		block_ctx_out->start = 0;
+		block_ctx_out->dev_bytenr = 0;
+		block_ctx_out->len = 0;
+		block_ctx_out->dev = NULL;
+		block_ctx_out->datav = NULL;
+		block_ctx_out->pagev = NULL;
+		block_ctx_out->mem_to_free = NULL;
+
+		return ret;
+	}
+
 	device = multi->stripes[0].dev;
 	block_ctx_out->dev = btrfsic_dev_state_lookup(device->bdev);
 	block_ctx_out->dev_bytenr = multi->stripes[0].physical;
@@ -1594,8 +1606,7 @@ static int btrfsic_map_block(struct btrfsic_state *state, u64 bytenr, u32 len,
 	block_ctx_out->pagev = NULL;
 	block_ctx_out->mem_to_free = NULL;
 
-	if (0 == ret)
-		kfree(multi);
+	kfree(multi);
 	if (NULL == block_ctx_out->dev) {
 		ret = -ENXIO;
 		printk(KERN_INFO "btrfsic: error, cannot lookup dev (#1)!\n");

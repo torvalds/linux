@@ -852,11 +852,16 @@ static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 				 int mirror_num, unsigned long bio_flags,
 				 u64 bio_offset)
 {
+	int ret;
+
 	/*
 	 * when we're called for a write, we're already in the async
 	 * submission context.  Just jump into btrfs_map_bio
 	 */
-	return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num, 1);
+	ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio, mirror_num, 1);
+	if (ret)
+		bio_endio(bio, ret);
+	return ret;
 }
 
 static int check_async_write(struct inode *inode, unsigned long bio_flags)
@@ -878,7 +883,6 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	int ret;
 
 	if (!(rw & REQ_WRITE)) {
-
 		/*
 		 * called for a read, do the setup so that checksum validation
 		 * can happen in the async kernel threads
@@ -886,26 +890,32 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		ret = btrfs_bio_wq_end_io(BTRFS_I(inode)->root->fs_info,
 					  bio, 1);
 		if (ret)
-			return ret;
-		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
-				     mirror_num, 0);
+			goto out_w_error;
+		ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
+				    mirror_num, 0);
 	} else if (!async) {
 		ret = btree_csum_one_bio(bio);
 		if (ret)
-			return ret;
-		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
-				     mirror_num, 0);
+			goto out_w_error;
+		ret = btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
+				    mirror_num, 0);
+	} else {
+		/*
+		 * kthread helpers are used to submit writes so that
+		 * checksumming can happen in parallel across all CPUs
+		 */
+		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+					  inode, rw, bio, mirror_num, 0,
+					  bio_offset,
+					  __btree_submit_bio_start,
+					  __btree_submit_bio_done);
 	}
 
-	/*
-	 * kthread helpers are used to submit writes so that checksumming
-	 * can happen in parallel across all CPUs
-	 */
-	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
-				   inode, rw, bio, mirror_num, 0,
-				   bio_offset,
-				   __btree_submit_bio_start,
-				   __btree_submit_bio_done);
+	if (ret) {
+out_w_error:
+		bio_endio(bio, ret);
+	}
+	return ret;
 }
 
 #ifdef CONFIG_MIGRATION

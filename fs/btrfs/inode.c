@@ -1602,7 +1602,12 @@ static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 			  u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
-	return btrfs_map_bio(root, rw, bio, mirror_num, 1);
+	int ret;
+
+	ret = btrfs_map_bio(root, rw, bio, mirror_num, 1);
+	if (ret)
+		bio_endio(bio, ret);
+	return ret;
 }
 
 /*
@@ -1626,15 +1631,17 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	if (!(rw & REQ_WRITE)) {
 		ret = btrfs_bio_wq_end_io(root->fs_info, bio, metadata);
 		if (ret)
-			return ret;
+			goto out;
 
 		if (bio_flags & EXTENT_BIO_COMPRESSED) {
-			return btrfs_submit_compressed_read(inode, bio,
-						    mirror_num, bio_flags);
+			ret = btrfs_submit_compressed_read(inode, bio,
+							   mirror_num,
+							   bio_flags);
+			goto out;
 		} else if (!skip_sum) {
 			ret = btrfs_lookup_bio_sums(root, inode, bio, NULL);
 			if (ret)
-				return ret;
+				goto out;
 		}
 		goto mapit;
 	} else if (!skip_sum) {
@@ -1642,15 +1649,21 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID)
 			goto mapit;
 		/* we're doing a write, do the async checksumming */
-		return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num,
 				   bio_flags, bio_offset,
 				   __btrfs_submit_bio_start,
 				   __btrfs_submit_bio_done);
+		goto out;
 	}
 
 mapit:
-	return btrfs_map_bio(root, rw, bio, mirror_num, 0);
+	ret = btrfs_map_bio(root, rw, bio, mirror_num, 0);
+
+out:
+	if (ret < 0)
+		bio_endio(bio, ret);
+	return ret;
 }
 
 /*

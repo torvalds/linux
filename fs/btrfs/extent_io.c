@@ -2462,10 +2462,6 @@ btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 	return bio;
 }
 
-/*
- * Since writes are async, they will only return -ENOMEM.
- * Reads can return the full range of I/O error conditions.
- */
 static int __must_check submit_one_bio(int rw, struct bio *bio,
 				       int mirror_num, unsigned long bio_flags)
 {
