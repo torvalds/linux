@@ -846,9 +846,6 @@ static void xgmac_free_dma_desc_rings(struct xgmac_priv *priv)
 static void xgmac_tx_complete(struct xgmac_priv *priv)
 {
 	int i;
-	void __iomem *ioaddr = priv->base;
-
-	writel(DMA_STATUS_TU | DMA_STATUS_NIS, ioaddr + XGMAC_DMA_STATUS);
 
 	while (dma_ring_cnt(priv->tx_head, priv->tx_tail, DMA_TX_RING_SZ)) {
 		unsigned int entry = priv->tx_tail;
@@ -1138,9 +1135,6 @@ static int xgmac_rx(struct xgmac_priv *priv, int limit)
 		int ip_checksum;
 		struct sk_buff *skb;
 		int frame_len;
-
-		writel(DMA_STATUS_RI | DMA_STATUS_NIS,
-		       priv->base + XGMAC_DMA_STATUS);
 
 		entry = priv->rx_tail;
 		p = priv->dma_rx + entry;
