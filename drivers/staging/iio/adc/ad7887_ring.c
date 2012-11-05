@@ -73,16 +73,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7887_state *st = iio_priv(indio_dev);
 	s64 time_ns;
-	__u8 *buf;
 	int b_sent;
-
-	unsigned int bytes = bitmap_weight(indio_dev->active_scan_mask,
-					   indio_dev->masklength) *
-		st->chip_info->channel[0].scan_type.storagebits / 8;
-
-	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (buf == NULL)
-		goto done;
 
 	b_sent = spi_sync(st->spi, st->ring_msg);
 	if (b_sent)
@@ -90,14 +81,12 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 
 	time_ns = iio_get_time_ns();
 
-	memcpy(buf, st->data, bytes);
 	if (indio_dev->scan_timestamp)
-		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
+		memcpy(st->data + indio_dev->scan_bytes - sizeof(s64),
 		       &time_ns, sizeof(time_ns));
 
-	iio_push_to_buffer(indio_dev->buffer, buf);
+	iio_push_to_buffer(indio_dev->buffer, st->data);
 done:
-	kfree(buf);
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;
