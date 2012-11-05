@@ -1196,8 +1196,8 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 	if (!sta) {
 		ar5523_info(ar, "STA not found. Cannot set rates\n");
 		sta_rate_set = bss_conf->basic_rates;
-	}
-	sta_rate_set = sta->supp_rates[ar->hw->conf.channel->band];
+	} else
+		sta_rate_set = sta->supp_rates[ar->hw->conf.channel->band];
 
 	ar5523_dbg(ar, "sta rate_set = %08x\n", sta_rate_set);
 
