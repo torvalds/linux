@@ -90,8 +90,6 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 
 	dev->iobase = pci_resource_start(pcidev, 2);
 	devpriv->iobase = pci_resource_start(pcidev, 2);
-	devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
-				     this_board->i_IorangeBase3);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
 	/* Initialize parameters that can be overridden in EEPROM */
@@ -198,8 +196,6 @@ static void apci1032_detach(struct comedi_device *dev)
 			i_APCI1032_Reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
 	}
 	if (pcidev) {
 		if (dev->iobase)
