@@ -46,26 +46,21 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +----------+-----------+------------------------------------------------+
 */
 
-/*********      Definitions for APCI-1032 card  *****/
-
-#define APCI1032_ADDRESS_RANGE			20
-/* DIGITAL INPUT DEFINE */
-
-#define APCI1032_DIGITAL_IP			0
-#define APCI1032_DIGITAL_IP_INTERRUPT_MODE1	4
-#define APCI1032_DIGITAL_IP_INTERRUPT_MODE2	8
-#define APCI1032_DIGITAL_IP_IRQ			16
+/*
+ * I/O Register Map
+ */
+#define APCI1032_DI_REG			0x00
+#define APCI1032_MODE1_REG		0x04
+#define APCI1032_MODE2_REG		0x08
+#define APCI1032_STATUS_REG		0x0c
+#define APCI1032_CTRL_REG		0x10
+#define APCI1032_CTRL_INT_OR		(0 << 1)
+#define APCI1032_CTRL_INT_AND		(1 << 1)
+#define APCI1032_CTRL_INT_ENA		(1 << 2)
 
 /* Digital Input IRQ Function Selection */
 #define ADDIDATA_OR				0
 #define ADDIDATA_AND				1
-
-/* Digital Input Interrupt Status */
-#define APCI1032_DIGITAL_IP_INTERRUPT_STATUS	12
-
-/* Digital Input Interrupt Enable Disable. */
-#define APCI1032_DIGITAL_IP_INTERRUPT_ENABLE	0x4
-#define APCI1032_DIGITAL_IP_INTERRUPT_DISABLE	0xfffffffb
 
 static unsigned int ui_InterruptStatus;
 
@@ -115,27 +110,27 @@ static int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev,
 	if (data[0] == ADDIDATA_ENABLE) {
 		ul_Command1 = ul_Command1 | data[2];
 		ul_Command2 = ul_Command2 | data[3];
-		outl(ul_Command1,
-			dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE1);
-		outl(ul_Command2,
-			dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE2);
+		outl(ul_Command1, dev->iobase + APCI1032_MODE1_REG);
+		outl(ul_Command2, dev->iobase + APCI1032_MODE2_REG);
 		if (data[1] == ADDIDATA_OR) {
-			outl(0x4, dev->iobase + APCI1032_DIGITAL_IP_IRQ);
+			outl(APCI1032_CTRL_INT_ENA |
+			     APCI1032_CTRL_INT_OR,
+			     dev->iobase + APCI1032_CTRL_REG);
 			ui_TmpValue =
-				inl(dev->iobase + APCI1032_DIGITAL_IP_IRQ);
+				inl(dev->iobase + APCI1032_CTRL_REG);
 		}		/* if (data[1] == ADDIDATA_OR) */
 		else
-			outl(0x6, dev->iobase + APCI1032_DIGITAL_IP_IRQ);
+			outl(APCI1032_CTRL_INT_ENA |
+			     APCI1032_CTRL_INT_AND,
+			     dev->iobase + APCI1032_CTRL_REG);
 				/* else if(data[1] == ADDIDATA_OR) */
 	}			/*  if( data[0] == ADDIDATA_ENABLE) */
 	else {
 		ul_Command1 = ul_Command1 & 0xFFFF0000;
 		ul_Command2 = ul_Command2 & 0xFFFF0000;
-		outl(ul_Command1,
-			dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE1);
-		outl(ul_Command2,
-			dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE2);
-		outl(0x0, dev->iobase + APCI1032_DIGITAL_IP_IRQ);
+		outl(ul_Command1, dev->iobase + APCI1032_MODE1_REG);
+		outl(ul_Command2, dev->iobase + APCI1032_MODE2_REG);
+		outl(0x0, dev->iobase + APCI1032_CTRL_REG);
 	}			/* else if  ( data[0] == ADDIDATA_ENABLE) */
 
 	return insn->n;
@@ -170,7 +165,7 @@ static int i_APCI1032_Read1DigitalInput(struct comedi_device *dev,
 	ui_Channel = CR_CHAN(insn->chanspec);
 
 	if (ui_Channel <= 31) {
-		ui_TmpValue = (unsigned int) inl(dev->iobase + APCI1032_DIGITAL_IP);
+		ui_TmpValue = inl(dev->iobase + APCI1032_DI_REG);
 /*
 * since only 1 channel reqd to bring it to last bit it is rotated 8
 * +(chan - 1) times then ANDed with 1 for last bit.
@@ -215,7 +210,7 @@ static int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev,
 
 	ui_NoOfChannels = CR_CHAN(insn->chanspec);
 	if (data[1] == 0) {
-		*data = (unsigned int) inl(dev->iobase + APCI1032_DIGITAL_IP);
+		*data = inl(dev->iobase + APCI1032_DI_REG);
 		switch (ui_NoOfChannels) {
 		case 2:
 			ui_Mask = 3;
@@ -273,14 +268,14 @@ static void v_APCI1032_Interrupt(int irq, void *d)
 	unsigned int ui_Temp;
 
 	/* disable the interrupt */
-	ui_Temp = inl(dev->iobase + APCI1032_DIGITAL_IP_IRQ);
-	outl(ui_Temp & APCI1032_DIGITAL_IP_INTERRUPT_DISABLE,
-		dev->iobase + APCI1032_DIGITAL_IP_IRQ);
-	ui_InterruptStatus =
-		inl(dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_STATUS);
+	ui_Temp = inl(dev->iobase + APCI1032_CTRL_REG);
+	outl(ui_Temp & ~APCI1032_CTRL_INT_ENA,
+		dev->iobase + APCI1032_CTRL_REG);
+	ui_InterruptStatus = inl(dev->iobase + APCI1032_STATUS_REG);
 	ui_InterruptStatus = ui_InterruptStatus & 0X0000FFFF;
 	send_sig(SIGIO, devpriv->tsk_Current, 0);	/*  send signal to the sample */
-	outl(ui_Temp, dev->iobase + APCI1032_DIGITAL_IP_IRQ);	/* enable the interrupt */
+	/* enable the interrupt */
+	outl(ui_Temp, dev->iobase + APCI1032_CTRL_REG);
 	return;
 }
 
@@ -302,12 +297,12 @@ static void v_APCI1032_Interrupt(int irq, void *d)
 static int i_APCI1032_Reset(struct comedi_device *dev)
 {
 	/* disable the interrupts */
-	outl(0x0, dev->iobase + APCI1032_DIGITAL_IP_IRQ);
+	outl(0x0, dev->iobase + APCI1032_CTRL_REG);
 	/* Reset the interrupt status register */
-	inl(dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_STATUS);
+	inl(dev->iobase + APCI1032_STATUS_REG);
 	/* Disable the and/or interrupt */
-	outl(0x0, dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE1);
-	outl(0x0, dev->iobase + APCI1032_DIGITAL_IP_INTERRUPT_MODE2);
+	outl(0x0, dev->iobase + APCI1032_MODE1_REG);
+	outl(0x0, dev->iobase + APCI1032_MODE2_REG);
 
 	return 0;
 }
