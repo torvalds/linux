@@ -126,8 +126,6 @@ static int store_event(struct perf_event_attr *attr, pid_t pid, int cpu,
 	WRITE_ASS(sample_regs_user,   "llu");
 	WRITE_ASS(sample_stack_user,  PRIu32);
 
-	__WRITE_ASS(optional, "d", 0);
-
 	fclose(file);
 	return 0;
 }
