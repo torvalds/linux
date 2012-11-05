@@ -284,7 +284,6 @@ static int apci1032_attach_pci(struct comedi_device *dev,
 	s->subdev_flags	= SDF_READABLE;
 	s->n_chan	= 32;
 	s->maxdata	= 1;
-	s->len_chanlist	= 32;
 	s->range_table	= &range_digital;
 	s->insn_bits	= apci1032_di_insn_bits;
 
