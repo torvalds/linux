@@ -353,7 +353,7 @@ int pmic_dcdc_set(int index, int on)
         return 0;
 
 }
-EXPORT_SYNBOL(pmic_dcdc_set);
+EXPORT_SYMBOL(pmic_dcdc_set);
 int pmic_ldo_set(int index, int on)
 {
         struct regulator *ldo = NULL;
@@ -377,7 +377,7 @@ int pmic_ldo_set(int index, int on)
         return 0;
 
 }
-EXPORT_SYNBOL(pmic_ldo_set);
+EXPORT_SYMBOL(pmic_ldo_set);
 /* ion */
 static uint ion_size = DEF_ION_SIZE; 
 module_param(ion_size, uint, 0644);
@@ -447,15 +447,15 @@ static inline int check_rtc_param(void)
 static int chg_adc = DEF_CHG_ADC;
 module_param(chg_adc, int, 0644);
 
-static int dc_det = -1;
+static int dc_det = DEF_DC_DET;
 module_param(dc_det, int, 0644);
-static int bat_low = -1;
+static int bat_low = DEF_BAT_LOW;
 module_param(bat_low, int, 0644);
-static int chg_ok = -1;
+static int chg_ok = DEF_CHG_OK;
 module_param(chg_ok, int, 0644);
-static int chg_set = -1;
+static int chg_set = DEF_CHG_SET;
 module_param(chg_set, int, 0644);
-static int chg_sel = -1;
+static int chg_sel = DEF_CHG_SEL;
 module_param(chg_sel, int, 0644);
 static inline int check_chg_param(void)
 {

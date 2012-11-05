@@ -255,7 +255,9 @@ int tps65910_post_init(struct tps65910 *tps65910)
 	int i = 0;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
+#ifndef CONFIG_RK_CONFIG
 	g_pmic_type = PMIC_TYPE_TPS65910;
+#endif
 	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
 
 	#ifdef CONFIG_RK30_PWM_REGULATOR

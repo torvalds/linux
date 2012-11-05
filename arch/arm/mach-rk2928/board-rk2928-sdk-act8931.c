@@ -20,7 +20,9 @@ static int act8931_set_init(struct act8931 *act8931)
 	int i = 0;
 	printk("%s,line=%d\n", __func__,__LINE__);
 
+#ifndef CONFIG_RK_CONFIG
 	g_pmic_type = PMIC_TYPE_ACT8931;
+#endif
 	printk("%s:g_pmic_type=%d\n",__func__,g_pmic_type);
 
 	#ifdef CONFIG_RK30_PWM_REGULATOR

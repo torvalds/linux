@@ -684,6 +684,11 @@ static int __init chg_board_init(void)
         if(ret < 0)
                 return ret;
         rk30_adc_battery_platdata.adc_channel = chg_adc;
+        rk30_adc_battery_platdata.dc_det_pin = get_port_config(dc_det).gpio;
+        rk30_adc_battery_platdata.batt_low_pin = get_port_config(bat_low).gpio;
+        rk30_adc_battery_platdata.charge_ok_pin = get_port_config(chg_ok).gpio;
+        rk30_adc_battery_platdata.charge_set_pin = get_port_config(chg_set).gpio;
+
         return 0;
 }
 #else
@@ -1068,6 +1073,9 @@ static int __init rk2928_config_init(void)
 {
         int ret = 0;
 
+        ret = pmic_board_init();
+        if(ret < 0)
+                return ret;
         ret = key_board_init();
         if(ret < 0)
                 return ret;
@@ -1096,9 +1104,6 @@ static int __init rk2928_config_init(void)
         if(ret < 0)
                 return ret;
         ret = rtc_board_init();
-        if(ret < 0)
-                return ret;
-        ret = pmic_board_init();
         if(ret < 0)
                 return ret;
         ret = codec_board_init();
