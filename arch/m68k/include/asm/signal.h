@@ -86,11 +86,10 @@ static inline int sigfindinword(unsigned long word)
 
 #endif /* !CONFIG_CPU_HAS_NO_BITFIELDS */
 
-#ifdef __uClinux__
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-#else
+#ifndef __uClinux__
 struct pt_regs;
 extern void ptrace_signal_deliver(struct pt_regs *regs, void *cookie);
+#define ptrace_signal_deliver ptrace_signal_deliver
 #endif /* __uClinux__ */
 
 #endif /* _M68K_SIGNAL_H */

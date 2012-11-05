@@ -260,8 +260,6 @@ struct pt_regs;
 
 #endif /* !__i386__ */
 
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 

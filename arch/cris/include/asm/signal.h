@@ -152,12 +152,6 @@ typedef struct sigaltstack {
 
 #ifdef __KERNEL__
 #include <asm/sigcontext.h>
-
-/* here we could define asm-optimized sigaddset, sigdelset etc. operations. 
- * if we don't, generic ones are used from linux/signal.h
- */
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-
 #endif /* __KERNEL__ */
 
 #endif

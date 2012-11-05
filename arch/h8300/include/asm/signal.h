@@ -154,8 +154,6 @@ typedef struct sigaltstack {
 #include <asm/sigcontext.h>
 #undef __HAVE_ARCH_SIG_BITOPS
 
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
-
 #endif /* __KERNEL__ */
 
 #endif /* _H8300_SIGNAL_H */
