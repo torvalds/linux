@@ -204,43 +204,8 @@ static int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev,
 					   struct comedi_insn *insn,
 					   unsigned int *data)
 {
-	unsigned int ui_PortValue = data[0];
-	unsigned int ui_Mask = 0;
-	unsigned int ui_NoOfChannels;
+	data[1] = inl(dev->iobase + APCI1032_DI_REG);
 
-	ui_NoOfChannels = CR_CHAN(insn->chanspec);
-	if (data[1] == 0) {
-		*data = inl(dev->iobase + APCI1032_DI_REG);
-		switch (ui_NoOfChannels) {
-		case 2:
-			ui_Mask = 3;
-			*data = (*data >> (2 * ui_PortValue)) & ui_Mask;
-			break;
-		case 4:
-			ui_Mask = 15;
-			*data = (*data >> (4 * ui_PortValue)) & ui_Mask;
-			break;
-		case 8:
-			ui_Mask = 255;
-			*data = (*data >> (8 * ui_PortValue)) & ui_Mask;
-			break;
-		case 16:
-			ui_Mask = 65535;
-			*data = (*data >> (16 * ui_PortValue)) & ui_Mask;
-			break;
-		case 31:
-			break;
-		default:
-			/* comedi_error(dev," \nchan spec wrong\n"); */
-			return -EINVAL;	/*  "sorry channel spec wrong " */
-			break;
-		}		/* switch(ui_NoOfChannels) */
-	}			/* if(data[1]==0) */
-	else {
-		if (data[1] == 1)
-			*data = ui_InterruptStatus;
-				/* if(data[1]==1) */
-	}			/* else if(data[1]==0) */
 	return insn->n;
 }
 
