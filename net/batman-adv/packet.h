@@ -106,13 +106,16 @@ struct batadv_bla_claim_dst {
 	uint8_t magic[3];	/* FF:43:05 */
 	uint8_t type;		/* bla_claimframe */
 	__be16 group;		/* group id */
-} __packed;
+};
 
 struct batadv_header {
 	uint8_t  packet_type;
 	uint8_t  version;  /* batman version field */
 	uint8_t  ttl;
-} __packed;
+	/* the parent struct has to add a byte after the header to make
+	 * everything 4 bytes aligned again
+	 */
+};
 
 struct batadv_ogm_packet {
 	struct batadv_header header;
@@ -137,7 +140,7 @@ struct batadv_icmp_packet {
 	__be16   seqno;
 	uint8_t  uid;
 	uint8_t  reserved;
-} __packed;
+};
 
 #define BATADV_RR_LEN 16
 
@@ -153,13 +156,16 @@ struct batadv_icmp_packet_rr {
 	uint8_t  uid;
 	uint8_t  rr_cur;
 	uint8_t  rr[BATADV_RR_LEN][ETH_ALEN];
-} __packed;
+};
 
 struct batadv_unicast_packet {
 	struct batadv_header header;
 	uint8_t  ttvn; /* destination translation table version number */
 	uint8_t  dest[ETH_ALEN];
-} __packed;
+	/* "4 bytes boundary + 2 bytes" long to make the payload after the
+	 * following ethernet header again 4 bytes boundary aligned
+	 */
+};
 
 struct batadv_unicast_frag_packet {
 	struct batadv_header header;
@@ -176,6 +182,9 @@ struct batadv_bcast_packet {
 	uint8_t  reserved;
 	__be32   seqno;
 	uint8_t  orig[ETH_ALEN];
+	/* "4 bytes boundary + 2 bytes" long to make the payload after the
+	 * following ethernet header again 4 bytes boundary aligned
+	 */
 } __packed;
 
 struct batadv_vis_packet {
@@ -187,7 +196,7 @@ struct batadv_vis_packet {
 	uint8_t  vis_orig[ETH_ALEN];	/* originator reporting its neighbors */
 	uint8_t  target_orig[ETH_ALEN]; /* who should receive this packet */
 	uint8_t  sender_orig[ETH_ALEN]; /* who sent or forwarded this packet */
-} __packed;
+};
 
 struct batadv_tt_query_packet {
 	struct batadv_header header;
