@@ -3515,7 +3515,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	WL_TRACE("channel_type=%d, beacon_interval=%d, dtim_period=%d,\n",
 		 settings->channel_type, settings->beacon_interval,
 		 settings->dtim_period);
-	WL_TRACE("ssid=%s(%d), auth_type=%d, inactivity_timeout=%d\n",
+	WL_TRACE("ssid=%s(%zu), auth_type=%d, inactivity_timeout=%d\n",
 		 settings->ssid, settings->ssid_len, settings->auth_type,
 		 settings->inactivity_timeout);
 
