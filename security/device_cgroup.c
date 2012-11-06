@@ -42,7 +42,10 @@ struct dev_exception_item {
 struct dev_cgroup {
 	struct cgroup_subsys_state css;
 	struct list_head exceptions;
-	bool deny_all;
+	enum {
+		DEVCG_DEFAULT_ALLOW,
+		DEVCG_DEFAULT_DENY,
+	} behavior;
 };
 
 static inline struct dev_cgroup *css_to_devcgroup(struct cgroup_subsys_state *s)
@@ -182,13 +185,13 @@ static struct cgroup_subsys_state *devcgroup_create(struct cgroup *cgroup)
 	parent_cgroup = cgroup->parent;
 
 	if (parent_cgroup == NULL)
-		dev_cgroup->deny_all = false;
+		dev_cgroup->behavior = DEVCG_DEFAULT_ALLOW;
 	else {
 		parent_dev_cgroup = cgroup_to_devcgroup(parent_cgroup);
 		mutex_lock(&devcgroup_mutex);
 		ret = dev_exceptions_copy(&dev_cgroup->exceptions,
 					  &parent_dev_cgroup->exceptions);
-		dev_cgroup->deny_all = parent_dev_cgroup->deny_all;
+		dev_cgroup->behavior = parent_dev_cgroup->behavior;
 		mutex_unlock(&devcgroup_mutex);
 		if (ret) {
 			kfree(dev_cgroup);
@@ -260,7 +263,7 @@ static int devcgroup_seq_read(struct cgroup *cgroup, struct cftype *cft,
 	 * - List the exceptions in case the default policy is to deny
 	 * This way, the file remains as a "whitelist of devices"
 	 */
-	if (devcgroup->deny_all == false) {
+	if (devcgroup->behavior == DEVCG_DEFAULT_ALLOW) {
 		set_access(acc, ACC_MASK);
 		set_majmin(maj, ~0);
 		set_majmin(min, ~0);
@@ -314,12 +317,12 @@ static int may_access(struct dev_cgroup *dev_cgroup,
 	 * In two cases we'll consider this new exception valid:
 	 * - the dev cgroup has its default policy to allow + exception list:
 	 *   the new exception should *not* match any of the exceptions
-	 *   (!deny_all, !match)
+	 *   (behavior == DEVCG_DEFAULT_ALLOW, !match)
 	 * - the dev cgroup has its default policy to deny + exception list:
 	 *   the new exception *should* match the exceptions
-	 *   (deny_all, match)
+	 *   (behavior == DEVCG_DEFAULT_DENY, match)
 	 */
-	if (dev_cgroup->deny_all == match)
+	if ((dev_cgroup->behavior == DEVCG_DEFAULT_DENY) == match)
 		return 1;
 	return 0;
 }
@@ -341,6 +344,17 @@ static int parent_has_perm(struct dev_cgroup *childcg,
 	return may_access(parent, ex);
 }
 
+/**
+ * may_allow_all - checks if it's possible to change the behavior to
+ *		   allow based on parent's rules.
+ * @parent: device cgroup's parent
+ * returns: != 0 in case it's allowed, 0 otherwise
+ */
+static inline int may_allow_all(struct dev_cgroup *parent)
+{
+	return parent->behavior == DEVCG_DEFAULT_ALLOW;
+}
+
 /*
  * Modify the exception list using allow/deny rules.
  * CAP_SYS_ADMIN is needed for this.  It's at least separate from CAP_MKNOD
@@ -358,9 +372,11 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 				   int filetype, const char *buffer)
 {
 	const char *b;
-	char *endp;
-	int count;
+	char temp[12];		/* 11 + 1 characters needed for a u32 */
+	int count, rc;
 	struct dev_exception_item ex;
+	struct cgroup *p = devcgroup->css.cgroup;
+	struct dev_cgroup *parent = cgroup_to_devcgroup(p->parent);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -372,14 +388,18 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 	case 'a':
 		switch (filetype) {
 		case DEVCG_ALLOW:
-			if (!parent_has_perm(devcgroup, &ex))
+			if (!may_allow_all(parent))
 				return -EPERM;
 			dev_exception_clean(devcgroup);
-			devcgroup->deny_all = false;
+			rc = dev_exceptions_copy(&devcgroup->exceptions,
+						 &parent->exceptions);
+			if (rc)
+				return rc;
+			devcgroup->behavior = DEVCG_DEFAULT_ALLOW;
 			break;
 		case DEVCG_DENY:
 			dev_exception_clean(devcgroup);
-			devcgroup->deny_all = true;
+			devcgroup->behavior = DEVCG_DEFAULT_DENY;
 			break;
 		default:
 			return -EINVAL;
@@ -402,8 +422,16 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		ex.major = ~0;
 		b++;
 	} else if (isdigit(*b)) {
-		ex.major = simple_strtoul(b, &endp, 10);
-		b = endp;
+		memset(temp, 0, sizeof(temp));
+		for (count = 0; count < sizeof(temp) - 1; count++) {
+			temp[count] = *b;
+			b++;
+			if (!isdigit(*b))
+				break;
+		}
+		rc = kstrtou32(temp, 10, &ex.major);
+		if (rc)
+			return -EINVAL;
 	} else {
 		return -EINVAL;
 	}
@@ -416,8 +444,16 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		ex.minor = ~0;
 		b++;
 	} else if (isdigit(*b)) {
-		ex.minor = simple_strtoul(b, &endp, 10);
-		b = endp;
+		memset(temp, 0, sizeof(temp));
+		for (count = 0; count < sizeof(temp) - 1; count++) {
+			temp[count] = *b;
+			b++;
+			if (!isdigit(*b))
+				break;
+		}
+		rc = kstrtou32(temp, 10, &ex.minor);
+		if (rc)
+			return -EINVAL;
 	} else {
 		return -EINVAL;
 	}
@@ -452,7 +488,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		 * an matching exception instead. And be silent about it: we
 		 * don't want to break compatibility
 		 */
-		if (devcgroup->deny_all == false) {
+		if (devcgroup->behavior == DEVCG_DEFAULT_ALLOW) {
 			dev_exception_rm(devcgroup, &ex);
 			return 0;
 		}
@@ -463,7 +499,7 @@ static int devcgroup_update_access(struct dev_cgroup *devcgroup,
 		 * an matching exception instead. And be silent about it: we
 		 * don't want to break compatibility
 		 */
-		if (devcgroup->deny_all == true) {
+		if (devcgroup->behavior == DEVCG_DEFAULT_DENY) {
 			dev_exception_rm(devcgroup, &ex);
 			return 0;
 		}
@@ -533,10 +569,10 @@ struct cgroup_subsys devices_subsys = {
  *
  * returns 0 on success, -EPERM case the operation is not permitted
  */
-static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
-					short type, u32 major, u32 minor,
+static int __devcgroup_check_permission(short type, u32 major, u32 minor,
 				        short access)
 {
+	struct dev_cgroup *dev_cgroup;
 	struct dev_exception_item ex;
 	int rc;
 
@@ -547,6 +583,7 @@ static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
 	ex.access = access;
 
 	rcu_read_lock();
+	dev_cgroup = task_devcgroup(current);
 	rc = may_access(dev_cgroup, &ex);
 	rcu_read_unlock();
 
@@ -558,7 +595,6 @@ static int __devcgroup_check_permission(struct dev_cgroup *dev_cgroup,
 
 int __devcgroup_inode_permission(struct inode *inode, int mask)
 {
-	struct dev_cgroup *dev_cgroup = task_devcgroup(current);
 	short type, access = 0;
 
 	if (S_ISBLK(inode->i_mode))
@@ -570,13 +606,12 @@ int __devcgroup_inode_permission(struct inode *inode, int mask)
 	if (mask & MAY_READ)
 		access |= ACC_READ;
 
-	return __devcgroup_check_permission(dev_cgroup, type, imajor(inode),
-					    iminor(inode), access);
+	return __devcgroup_check_permission(type, imajor(inode), iminor(inode),
+			access);
 }
 
 int devcgroup_inode_mknod(int mode, dev_t dev)
 {
-	struct dev_cgroup *dev_cgroup = task_devcgroup(current);
 	short type;
 
 	if (!S_ISBLK(mode) && !S_ISCHR(mode))
@@ -587,7 +622,7 @@ int devcgroup_inode_mknod(int mode, dev_t dev)
 	else
 		type = DEV_CHAR;
 
-	return __devcgroup_check_permission(dev_cgroup, type, MAJOR(dev),
-					    MINOR(dev), ACC_MKNOD);
+	return __devcgroup_check_permission(type, MAJOR(dev), MINOR(dev),
+			ACC_MKNOD);
 
 }
