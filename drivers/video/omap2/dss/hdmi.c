@@ -1025,6 +1025,7 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	r = dss_add_device(dssdev);
 	if (r) {
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
+		hdmi_uninit_display(dssdev);
 		dss_put_device(dssdev);
 		return;
 	}
