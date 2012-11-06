@@ -708,7 +708,6 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 
 fail:
 	ndev->netdev_ops = NULL;
-	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -858,15 +857,21 @@ int brcmf_bus_start(struct device *dev)
 	/* Bus is ready, do any initialization */
 	ret = brcmf_c_preinit_dcmds(ifp);
 	if (ret < 0)
-		return ret;
+		goto fail;
 
 	drvr->config = brcmf_cfg80211_attach(drvr);
-	if (drvr->config == NULL)
-		return -ENOMEM;
+	if (drvr->config == NULL) {
+		ret = -ENOMEM;
+		goto fail;
+	}
 
 	ret = brcmf_net_attach(ifp);
+fail:
 	if (ret < 0) {
 		brcmf_dbg(ERROR, "brcmf_net_attach failed");
+		if (drvr->config)
+			brcmf_cfg80211_detach(drvr->config);
+		free_netdev(drvr->iflist[0]->ndev);
 		drvr->iflist[0] = NULL;
 		return ret;
 	}
