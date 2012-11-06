@@ -51,8 +51,7 @@ static const struct addi_board apci3200_boardtypes[] = {
 		.ai_cancel		= i_APCI3200_StopCyclicAcquisition,
 		.di_bits		= apci3200_di_insn_bits,
 		.do_config		= i_APCI3200_ConfigDigitalOutput,
-		.do_write		= i_APCI3200_WriteDigitalOutput,
-		.do_bits		= i_APCI3200_ReadDigitalOutput,
+		.do_bits		= apci3200_do_insn_bits,
 	}, {
 		.pc_DriverName		= "apci3300",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
@@ -82,8 +81,7 @@ static const struct addi_board apci3200_boardtypes[] = {
 		.ai_cancel		= i_APCI3200_StopCyclicAcquisition,
 		.di_bits		= apci3200_di_insn_bits,
 		.do_config		= i_APCI3200_ConfigDigitalOutput,
-		.do_write		= i_APCI3200_WriteDigitalOutput,
-		.do_bits		= i_APCI3200_ReadDigitalOutput,
+		.do_bits		= apci3200_do_insn_bits,
 	},
 };
 

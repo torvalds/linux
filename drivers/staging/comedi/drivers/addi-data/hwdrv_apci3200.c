@@ -648,156 +648,25 @@ static int i_APCI3200_ConfigDigitalOutput(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Writes To the digital Output Subdevice
- *
- * data[0] = Value to output
- * data[1] = 0  o/p single channel
- *	   = 1  o/p port
- * data[2] = port no
- * data[3] = 0  set the digital o/p on
- *	   = 1  set the digital o/p off
- */
-static int i_APCI3200_WriteDigitalOutput(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn,
-					 unsigned int *data)
+static int apci3200_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp = 0, ui_Temp1 = 0;
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	if (devpriv->b_OutputMemoryStatus) {
-		ui_Temp = inl(devpriv->i_IobaseAddon);
+	s->state = inl(devpriv->i_IobaseAddon) & 0xf;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask)
 
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	else {
-		ui_Temp = 0;
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	if (data[3] == 0) {
-		if (data[1] == 0) {
-			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outl(data[0], devpriv->i_IobaseAddon);
-		}		/* if(data[1]==0) */
-		else {
-			if (data[1] == 1) {
-				switch (ui_NoOfChannel) {
+		outl(s->state, devpriv->i_IobaseAddon);
+	}
 
-				case 2:
-					data[0] =
-						(data[0] << (2 *
-							data[2])) | ui_Temp;
-					break;
-				case 3:
-					data[0] = (data[0] | ui_Temp);
-					break;
-				}	/* switch(ui_NoOfChannels) */
+	data[1] = s->state;
 
-				outl(data[0], devpriv->i_IobaseAddon);
-			}	/*  if(data[1]==1) */
-			else {
-				printk("\nSpecified channel not supported\n");
-			}	/* else if(data[1]==1) */
-		}		/* elseif(data[1]==0) */
-	}			/* if(data[3]==0) */
-	else {
-		if (data[3] == 1) {
-			if (data[1] == 0) {
-				data[0] = ~data[0] & 0x1;
-				ui_Temp1 = 1;
-				ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-				ui_Temp = ui_Temp | ui_Temp1;
-				data[0] = (data[0] << ui_NoOfChannel) ^ 0xf;
-				data[0] = data[0] & ui_Temp;
-				outl(data[0], devpriv->i_IobaseAddon);
-			}	/* if(data[1]==0) */
-			else {
-				if (data[1] == 1) {
-					switch (ui_NoOfChannel) {
-
-					case 2:
-						data[0] = ~data[0] & 0x3;
-						ui_Temp1 = 3;
-						ui_Temp1 =
-							ui_Temp1 << 2 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (2 *
-									data
-									[2])) ^
-							0xf) & ui_Temp;
-
-						break;
-					case 3:
-						break;
-
-					default:
-						comedi_error(dev,
-							" chan spec wrong");
-						return -EINVAL;	/*  "sorry channel spec wrong " */
-					}	/* switch(ui_NoOfChannels) */
-
-					outl(data[0], devpriv->i_IobaseAddon);
-				}	/*  if(data[1]==1) */
-				else {
-					printk("\nSpecified channel not supported\n");
-				}	/* else if(data[1]==1) */
-			}	/* elseif(data[1]==0) */
-		}		/* if(data[3]==1); */
-		else {
-			printk("\nSpecified functionality does not exist\n");
-			return -EINVAL;
-		}		/* if else data[3]==1) */
-	}			/* if else data[3]==0) */
-	return insn->n;
-}
-
-/*
- * Read  value  of the selected channel or port
- *
- * data[0] = 0  read single channel
- *	   = 1  read port value
- * data[1] = port no
- */
-static int i_APCI3200_ReadDigitalOutput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
-
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->i_IobaseAddon);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/*  if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			if (data[1] < 0 || data[1] > 1) {
-				printk("\nThe port selection is in error\n");
-				return -EINVAL;
-			}	/* if(data[1] <0 ||data[1] >1) */
-			switch (ui_NoOfChannel) {
-			case 2:
-				*data = (*data >> (2 * data[1])) & 3;
-				break;
-
-			case 3:
-				break;
-
-			default:
-				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	/*  "sorry channel spec wrong " */
-				break;
-			}	/*  switch(ui_NoOfChannels) */
-		}		/*  if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/*  else if (ui_Temp==1) */
-	}			/*  else if  (ui_Temp==0) */
 	return insn->n;
 }
 
