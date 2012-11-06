@@ -660,6 +660,13 @@ static inline struct dma_async_tx_descriptor *dmaengine_prep_dma_cyclic(
 						period_len, dir, flags, NULL);
 }
 
+static inline struct dma_async_tx_descriptor *dmaengine_prep_interleaved_dma(
+		struct dma_chan *chan, struct dma_interleaved_template *xt,
+		unsigned long flags)
+{
+	return chan->device->device_prep_interleaved_dma(chan, xt, flags);
+}
+
 static inline int dmaengine_terminate_all(struct dma_chan *chan)
 {
 	return dmaengine_device_control(chan, DMA_TERMINATE_ALL, 0);
