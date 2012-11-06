@@ -1170,6 +1170,49 @@ xfs_reclaim_inodes_count(
 	return reclaimable;
 }
 
+STATIC int
+xfs_inode_free_eofblocks(
+	struct xfs_inode	*ip,
+	struct xfs_perag	*pag,
+	int			flags,
+	void			*args)
+{
+	int ret;
+
+	if (!xfs_can_free_eofblocks(ip, false)) {
+		/* inode could be preallocated or append-only */
+		trace_xfs_inode_free_eofblocks_invalid(ip);
+		xfs_inode_clear_eofblocks_tag(ip);
+		return 0;
+	}
+
+	/*
+	 * If the mapping is dirty the operation can block and wait for some
+	 * time. Unless we are waiting, skip it.
+	 */
+	if (!(flags & SYNC_WAIT) &&
+	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
+		return 0;
+
+	ret = xfs_free_eofblocks(ip->i_mount, ip, true);
+
+	/* don't revisit the inode if we're not waiting */
+	if (ret == EAGAIN && !(flags & SYNC_WAIT))
+		ret = 0;
+
+	return ret;
+}
+
+int
+xfs_icache_free_eofblocks(
+	struct xfs_mount	*mp,
+	int			flags)
+{
+	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
+	return xfs_inode_ag_iterator_tag(mp, xfs_inode_free_eofblocks, flags,
+					 NULL, XFS_ICI_EOFBLOCKS_TAG);
+}
+
 void
 xfs_inode_set_eofblocks_tag(
 	xfs_inode_t	*ip)
