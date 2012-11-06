@@ -961,4 +961,14 @@ static inline void drv_stop_ap(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_restart_complete(struct ieee80211_local *local)
+{
+	might_sleep();
+
+	trace_drv_restart_complete(local);
+	if (local->ops->restart_complete)
+		local->ops->restart_complete(&local->hw);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

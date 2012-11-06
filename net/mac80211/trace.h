@@ -1411,6 +1411,11 @@ DEFINE_EVENT(local_sdata_evt, drv_stop_ap,
 	TP_ARGS(local, sdata)
 );
 
+DEFINE_EVENT(local_only_evt, drv_restart_complete,
+	TP_PROTO(struct ieee80211_local *local),
+	TP_ARGS(local)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */

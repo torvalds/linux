@@ -1599,8 +1599,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended)
+	if (!local->suspended) {
+		drv_restart_complete(local);
 		return 0;
+	}
 
 #ifdef CONFIG_PM
 	/* first set suspended false, then resuming */
