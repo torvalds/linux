@@ -1483,6 +1483,8 @@ struct btrfs_fs_info {
 	struct rw_semaphore scrub_super_lock;
 	int scrub_workers_refcnt;
 	struct btrfs_workers scrub_workers;
+	struct btrfs_workers scrub_wr_completion_workers;
+	struct btrfs_workers scrub_nocow_workers;
 
 #ifdef CONFIG_BTRFS_FS_CHECK_INTEGRITY
 	u32 check_integrity_print_mask;

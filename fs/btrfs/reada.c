@@ -418,12 +418,17 @@ static struct reada_extent *reada_find_extent(struct btrfs_root *root,
 			 */
 			continue;
 		}
+		if (!dev->bdev) {
+			/* cannot read ahead on missing device */
+			continue;
+		}
 		prev_dev = dev;
 		ret = radix_tree_insert(&dev->reada_extents, index, re);
 		if (ret) {
 			while (--i >= 0) {
 				dev = bbio->stripes[i].dev;
 				BUG_ON(dev == NULL);
+				/* ignore whether the entry was inserted */
 				radix_tree_delete(&dev->reada_extents, index);
 			}
 			BUG_ON(fs_info == NULL);
@@ -914,7 +919,10 @@ struct reada_control *btrfs_reada_add(struct btrfs_root *root,
 	generation = btrfs_header_generation(node);
 	free_extent_buffer(node);
 
-	reada_add_block(rc, start, &max_key, level, generation);
+	if (reada_add_block(rc, start, &max_key, level, generation)) {
+		kfree(rc);
+		return ERR_PTR(-ENOMEM);
+	}
 
 	reada_start_machine(root->fs_info);
 
