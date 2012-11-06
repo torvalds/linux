@@ -231,20 +231,19 @@ static inline int irq_to_gpio(unsigned irq)
 	return -EINVAL;
 }
 
-#ifdef CONFIG_PINCTRL
-
 static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		       unsigned int pin_base, unsigned int npins)
 {
+	WARN_ON(1);
+	return -EINVAL;
 }
 
 static inline void
 gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 {
+	WARN_ON(1);
 }
-
-#endif /* CONFIG_PINCTRL */
 
 #endif /* ! CONFIG_GENERIC_GPIO */
 
