@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <sound/soc.h>
+#include <sound/pcm_params.h>
 #include <sound/sh_fsi.h>
 
 /* PortA/PortB register */
@@ -188,6 +189,14 @@ typedef int (*set_rate_func)(struct device *dev, int rate, int enable);
  */
 
 /*
+ *	FSI clock
+ *
+ * FSIxCLK [CPG] (ick) ------->	|
+ *				|-> FSI_DIV (div)-> FSI2
+ * FSIxCK [external] (xck) --->	|
+ */
+
+/*
  *		struct
  */
 
@@ -227,6 +236,20 @@ struct fsi_stream {
 	dma_addr_t		dma;
 };
 
+struct fsi_clk {
+	/* see [FSI clock] */
+	struct clk *own;
+	struct clk *xck;
+	struct clk *ick;
+	struct clk *div;
+	int (*set_rate)(struct device *dev,
+			struct fsi_priv *fsi,
+			unsigned long rate);
+
+	unsigned long rate;
+	unsigned int count;
+};
+
 struct fsi_priv {
 	void __iomem *base;
 	struct fsi_master *master;
@@ -234,6 +257,8 @@ struct fsi_priv {
 
 	struct fsi_stream playback;
 	struct fsi_stream capture;
+
+	struct fsi_clk clock;
 
 	u32 fmt;
 
@@ -716,14 +741,335 @@ static void fsi_spdif_clk_ctrl(struct fsi_priv *fsi, int enable)
 /*
  *		clock function
  */
+static int fsi_clk_init(struct device *dev,
+			struct fsi_priv *fsi,
+			int xck,
+			int ick,
+			int div,
+			int (*set_rate)(struct device *dev,
+					struct fsi_priv *fsi,
+					unsigned long rate))
+{
+	struct fsi_clk *clock = &fsi->clock;
+	int is_porta = fsi_is_port_a(fsi);
+
+	clock->xck	= NULL;
+	clock->ick	= NULL;
+	clock->div	= NULL;
+	clock->rate	= 0;
+	clock->count	= 0;
+	clock->set_rate	= set_rate;
+
+	clock->own = devm_clk_get(dev, NULL);
+	if (IS_ERR(clock->own))
+		return -EINVAL;
+
+	/* external clock */
+	if (xck) {
+		clock->xck = devm_clk_get(dev, is_porta ? "xcka" : "xckb");
+		if (IS_ERR(clock->xck)) {
+			dev_err(dev, "can't get xck clock\n");
+			return -EINVAL;
+		}
+		if (clock->xck == clock->own) {
+			dev_err(dev, "cpu doesn't support xck clock\n");
+			return -EINVAL;
+		}
+	}
+
+	/* FSIACLK/FSIBCLK */
+	if (ick) {
+		clock->ick = devm_clk_get(dev,  is_porta ? "icka" : "ickb");
+		if (IS_ERR(clock->ick)) {
+			dev_err(dev, "can't get ick clock\n");
+			return -EINVAL;
+		}
+		if (clock->ick == clock->own) {
+			dev_err(dev, "cpu doesn't support ick clock\n");
+			return -EINVAL;
+		}
+	}
+
+	/* FSI-DIV */
+	if (div) {
+		clock->div = devm_clk_get(dev,  is_porta ? "diva" : "divb");
+		if (IS_ERR(clock->div)) {
+			dev_err(dev, "can't get div clock\n");
+			return -EINVAL;
+		}
+		if (clock->div == clock->own) {
+			dev_err(dev, "cpu doens't support div clock\n");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+#define fsi_clk_invalid(fsi) fsi_clk_valid(fsi, 0)
+static void fsi_clk_valid(struct fsi_priv *fsi, unsigned long rate)
+{
+	fsi->clock.rate = rate;
+}
+
+static int fsi_clk_is_valid(struct fsi_priv *fsi)
+{
+	return	fsi->clock.set_rate &&
+		fsi->clock.rate;
+}
+
+static int fsi_clk_enable(struct device *dev,
+			  struct fsi_priv *fsi,
+			  unsigned long rate)
+{
+	struct fsi_clk *clock = &fsi->clock;
+	int ret = -EINVAL;
+
+	if (!fsi_clk_is_valid(fsi))
+		return ret;
+
+	if (0 == clock->count) {
+		ret = clock->set_rate(dev, fsi, rate);
+		if (ret < 0) {
+			fsi_clk_invalid(fsi);
+			return ret;
+		}
+
+		if (clock->xck)
+			clk_enable(clock->xck);
+		if (clock->ick)
+			clk_enable(clock->ick);
+		if (clock->div)
+			clk_enable(clock->div);
+
+		clock->count++;
+	}
+
+	return ret;
+}
+
+static int fsi_clk_disable(struct device *dev,
+			    struct fsi_priv *fsi)
+{
+	struct fsi_clk *clock = &fsi->clock;
+
+	if (!fsi_clk_is_valid(fsi))
+		return -EINVAL;
+
+	if (1 == clock->count--) {
+		if (clock->xck)
+			clk_disable(clock->xck);
+		if (clock->ick)
+			clk_disable(clock->ick);
+		if (clock->div)
+			clk_disable(clock->div);
+	}
+
+	return 0;
+}
+
+static int fsi_clk_set_ackbpf(struct device *dev,
+			      struct fsi_priv *fsi,
+			      int ackmd, int bpfmd)
+{
+	u32 data = 0;
+
+	/* check ackmd/bpfmd relationship */
+	if (bpfmd > ackmd) {
+		dev_err(dev, "unsupported rate (%d/%d)\n", ackmd, bpfmd);
+		return -EINVAL;
+	}
+
+	/*  ACKMD */
+	switch (ackmd) {
+	case 512:
+		data |= (0x0 << 12);
+		break;
+	case 256:
+		data |= (0x1 << 12);
+		break;
+	case 128:
+		data |= (0x2 << 12);
+		break;
+	case 64:
+		data |= (0x3 << 12);
+		break;
+	case 32:
+		data |= (0x4 << 12);
+		break;
+	default:
+		dev_err(dev, "unsupported ackmd (%d)\n", ackmd);
+		return -EINVAL;
+	}
+
+	/* BPFMD */
+	switch (bpfmd) {
+	case 32:
+		data |= (0x0 << 8);
+		break;
+	case 64:
+		data |= (0x1 << 8);
+		break;
+	case 128:
+		data |= (0x2 << 8);
+		break;
+	case 256:
+		data |= (0x3 << 8);
+		break;
+	case 512:
+		data |= (0x4 << 8);
+		break;
+	case 16:
+		data |= (0x7 << 8);
+		break;
+	default:
+		dev_err(dev, "unsupported bpfmd (%d)\n", bpfmd);
+		return -EINVAL;
+	}
+
+	dev_dbg(dev, "ACKMD/BPFMD = %d/%d\n", ackmd, bpfmd);
+
+	fsi_reg_mask_set(fsi, CKG1, (ACKMD_MASK | BPFMD_MASK) , data);
+	udelay(10);
+
+	return 0;
+}
+
+static int fsi_clk_set_rate_external(struct device *dev,
+				     struct fsi_priv *fsi,
+				     unsigned long rate)
+{
+	struct clk *xck = fsi->clock.xck;
+	struct clk *ick = fsi->clock.ick;
+	unsigned long xrate;
+	int ackmd, bpfmd;
+	int ret = 0;
+
+	/* check clock rate */
+	xrate = clk_get_rate(xck);
+	if (xrate % rate) {
+		dev_err(dev, "unsupported clock rate\n");
+		return -EINVAL;
+	}
+
+	clk_set_parent(ick, xck);
+	clk_set_rate(ick, xrate);
+
+	bpfmd = fsi->chan_num * 32;
+	ackmd = xrate / rate;
+
+	dev_dbg(dev, "external/rate = %ld/%ld\n", xrate, rate);
+
+	ret = fsi_clk_set_ackbpf(dev, fsi, ackmd, bpfmd);
+	if (ret < 0)
+		dev_err(dev, "%s failed", __func__);
+
+	return ret;
+}
+
+static int fsi_clk_set_rate_cpg(struct device *dev,
+				struct fsi_priv *fsi,
+				unsigned long rate)
+{
+	struct clk *ick = fsi->clock.ick;
+	struct clk *div = fsi->clock.div;
+	unsigned long target = 0; /* 12288000 or 11289600 */
+	unsigned long actual, cout;
+	unsigned long diff, min;
+	unsigned long best_cout, best_act;
+	int adj;
+	int ackmd, bpfmd;
+	int ret = -EINVAL;
+
+	if (!(12288000 % rate))
+		target = 12288000;
+	if (!(11289600 % rate))
+		target = 11289600;
+	if (!target) {
+		dev_err(dev, "unsupported rate\n");
+		return ret;
+	}
+
+	bpfmd = fsi->chan_num * 32;
+	ackmd = target / rate;
+	ret = fsi_clk_set_ackbpf(dev, fsi, ackmd, bpfmd);
+	if (ret < 0) {
+		dev_err(dev, "%s failed", __func__);
+		return ret;
+	}
+
+	/*
+	 * The clock flow is
+	 *
+	 * [CPG] = cout => [FSI_DIV] = audio => [FSI] => [codec]
+	 *
+	 * But, it needs to find best match of CPG and FSI_DIV
+	 * combination, since it is difficult to generate correct
+	 * frequency of audio clock from ick clock only.
+	 * Because ick is created from its parent clock.
+	 *
+	 * target	= rate x [512/256/128/64]fs
+	 * cout		= round(target x adjustment)
+	 * actual	= cout / adjustment (by FSI-DIV) ~= target
+	 * audio	= actual
+	 */
+	min = ~0;
+	best_cout = 0;
+	best_act = 0;
+	for (adj = 1; adj < 0xffff; adj++) {
+
+		cout = target * adj;
+		if (cout > 100000000) /* max clock = 100MHz */
+			break;
+
+		/* cout/actual audio clock */
+		cout	= clk_round_rate(ick, cout);
+		actual	= cout / adj;
+
+		/* find best frequency */
+		diff = abs(actual - target);
+		if (diff < min) {
+			min		= diff;
+			best_cout	= cout;
+			best_act	= actual;
+		}
+	}
+
+	ret = clk_set_rate(ick, best_cout);
+	if (ret < 0) {
+		dev_err(dev, "ick clock failed\n");
+		return -EIO;
+	}
+
+	ret = clk_set_rate(div, clk_round_rate(div, best_act));
+	if (ret < 0) {
+		dev_err(dev, "div clock failed\n");
+		return -EIO;
+	}
+
+	dev_dbg(dev, "ick/div = %ld/%ld\n",
+		clk_get_rate(ick), clk_get_rate(div));
+
+	return ret;
+}
+
 static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
 			      long rate, int enable)
 {
 	set_rate_func set_rate = fsi_get_info_set_rate(fsi);
 	int ret;
 
-	if (!set_rate)
-		return 0;
+	/*
+	 * CAUTION
+	 *
+	 * set_rate will be deleted
+	 */
+	if (!set_rate) {
+		if (enable)
+			return fsi_clk_enable(dev, fsi, rate);
+		else
+			return fsi_clk_disable(dev, fsi);
+	}
 
 	ret = set_rate(dev, rate, enable);
 	if (ret < 0) /* error */
@@ -1355,6 +1701,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
+	fsi_clk_invalid(fsi);
 	fsi->rate = 0;
 
 	return 0;
@@ -1365,6 +1712,7 @@ static void fsi_dai_shutdown(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
+	fsi_clk_invalid(fsi);
 	fsi->rate = 0;
 }
 
@@ -1446,9 +1794,25 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	if (fsi_is_clk_master(fsi) && !set_rate) {
-		dev_err(dai->dev, "platform doesn't have set_rate\n");
-		return -EINVAL;
+	if (fsi_is_clk_master(fsi)) {
+		/*
+		 * CAUTION
+		 *
+		 * set_rate will be deleted
+		 */
+		if (set_rate)
+			dev_warn(dai->dev, "set_rate will be removed soon\n");
+
+		switch (flags & SH_FSI_CLK_MASK) {
+		case SH_FSI_CLK_EXTERNAL:
+			fsi_clk_init(dai->dev, fsi, 1, 1, 0,
+				     fsi_clk_set_rate_external);
+			break;
+		case SH_FSI_CLK_CPG:
+			fsi_clk_init(dai->dev, fsi, 0, 1, 1,
+				     fsi_clk_set_rate_cpg);
+			break;
+		}
 	}
 
 	/* set format */
@@ -1472,8 +1836,10 @@ static int fsi_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 
-	if (fsi_is_clk_master(fsi))
+	if (fsi_is_clk_master(fsi)) {
 		fsi->rate = params_rate(params);
+		fsi_clk_valid(fsi, fsi->rate);
+	}
 
 	return 0;
 }
