@@ -367,7 +367,7 @@ void __init twd_local_timer_of_register(void)
 
 	np = of_find_matching_node(NULL, twd_of_match);
 	if (!np)
-		return -ENODEV;
+		return;
 
 	twd_ppi = irq_of_parse_and_map(np, 0);
 	if (!twd_ppi) {
