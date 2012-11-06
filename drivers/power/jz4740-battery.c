@@ -250,7 +250,7 @@ static int __devinit jz_battery_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	jz_battery = kzalloc(sizeof(*jz_battery), GFP_KERNEL);
+	jz_battery = devm_kzalloc(&pdev->dev, sizeof(*jz_battery), GFP_KERNEL);
 	if (!jz_battery) {
 		dev_err(&pdev->dev, "Failed to allocate driver structure\n");
 		return -ENOMEM;
@@ -260,24 +260,21 @@ static int __devinit jz_battery_probe(struct platform_device *pdev)
 
 	jz_battery->irq = platform_get_irq(pdev, 0);
 	if (jz_battery->irq < 0) {
-		ret = jz_battery->irq;
 		dev_err(&pdev->dev, "Failed to get platform irq: %d\n", ret);
-		goto err_free;
+		return jz_battery->irq;
 	}
 
 	jz_battery->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!jz_battery->mem) {
-		ret = -ENOENT;
 		dev_err(&pdev->dev, "Failed to get platform mmio resource\n");
-		goto err_free;
+		return -ENOENT;
 	}
 
 	jz_battery->mem = request_mem_region(jz_battery->mem->start,
 				resource_size(jz_battery->mem),	pdev->name);
 	if (!jz_battery->mem) {
-		ret = -EBUSY;
 		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
-		goto err_free;
+		return -EBUSY;
 	}
 
 	jz_battery->base = ioremap_nocache(jz_battery->mem->start,
@@ -371,8 +368,6 @@ err_iounmap:
 	iounmap(jz_battery->base);
 err_release_mem_region:
 	release_mem_region(jz_battery->mem->start, resource_size(jz_battery->mem));
-err_free:
-	kfree(jz_battery);
 	return ret;
 }
 
@@ -394,7 +389,6 @@ static int __devexit jz_battery_remove(struct platform_device *pdev)
 
 	iounmap(jz_battery->base);
 	release_mem_region(jz_battery->mem->start, resource_size(jz_battery->mem));
-	kfree(jz_battery);
 
 	return 0;
 }
