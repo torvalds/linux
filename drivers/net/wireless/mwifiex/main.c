@@ -282,6 +282,7 @@ exit_main_proc:
 		mwifiex_shutdown_drv(adapter);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mwifiex_main_process);
 
 /*
  * This function frees the adapter structure.

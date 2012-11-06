@@ -905,8 +905,8 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 /*
  * SDIO interrupt handler.
  *
- * This function reads the interrupt status from firmware and assigns
- * the main process in workqueue which will handle the interrupt.
+ * This function reads the interrupt status from firmware and handles
+ * the interrupt in current thread (ksdioirqd) right away.
  */
 static void
 mwifiex_sdio_interrupt(struct sdio_func *func)
@@ -929,7 +929,7 @@ mwifiex_sdio_interrupt(struct sdio_func *func)
 		adapter->ps_state = PS_STATE_AWAKE;
 
 	mwifiex_interrupt_status(adapter);
-	queue_work(adapter->workqueue, &adapter->main_work);
+	mwifiex_main_process(adapter);
 }
 
 /*
