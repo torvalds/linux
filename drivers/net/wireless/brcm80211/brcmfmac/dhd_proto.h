@@ -43,7 +43,4 @@ extern int brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx,
 /* Sets dongle media info (drv_version, mac address). */
 extern int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 
-extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx,
-				     uint cmd, void *buf, uint len);
-
 #endif				/* _BRCMF_PROTO_H_ */
