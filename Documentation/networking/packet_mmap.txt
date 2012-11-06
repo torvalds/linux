@@ -163,6 +163,19 @@ As capture, each frame contains two parts:
 
  A complete tutorial is available at: http://wiki.gnu-log.net/
 
+By default, the user should put data at :
+ frame base + TPACKET_HDRLEN - sizeof(struct sockaddr_ll)
+
+So, whatever you choose for the socket mode (SOCK_DGRAM or SOCK_RAW),
+the beginning of the user data will be at :
+ frame base + TPACKET_ALIGN(sizeof(struct tpacket_hdr))
+
+If you wish to put user data at a custom offset from the beginning of
+the frame (for payload alignment with SOCK_RAW mode for instance) you
+can set tp_net (with SOCK_DGRAM) or tp_mac (with SOCK_RAW). In order
+to make this work it must be enabled previously with setsockopt()
+and the PACKET_TX_HAS_OFF option.
+
 --------------------------------------------------------------------------------
 + PACKET_MMAP settings
 --------------------------------------------------------------------------------
