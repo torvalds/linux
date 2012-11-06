@@ -2519,6 +2519,7 @@ int t4_fw_bye(struct adapter *adap, unsigned int mbox)
 {
 	struct fw_bye_cmd c;
 
+	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, BYE, WRITE);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -2535,6 +2536,7 @@ int t4_early_init(struct adapter *adap, unsigned int mbox)
 {
 	struct fw_initialize_cmd c;
 
+	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, INITIALIZE, WRITE);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
@@ -2551,6 +2553,7 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
 {
 	struct fw_reset_cmd c;
 
+	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, RESET, WRITE);
 	c.val = htonl(reset);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
@@ -3278,6 +3281,7 @@ int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 {
 	struct fw_vi_enable_cmd c;
 
+	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_ENABLE_CMD) | FW_CMD_REQUEST |
 			     FW_CMD_EXEC | FW_VI_ENABLE_CMD_VIID(viid));
 	c.ien_to_len16 = htonl(FW_VI_ENABLE_CMD_LED | FW_LEN16(c));
