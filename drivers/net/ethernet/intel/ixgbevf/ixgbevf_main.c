@@ -1681,13 +1681,6 @@ void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter)
 	while (test_and_set_bit(__IXGBEVF_RESETTING, &adapter->state))
 		msleep(1);
 
-	/*
-	 * Check if PF is up before re-init.  If not then skip until
-	 * later when the PF is up and ready to service requests from
-	 * the VF via mailbox.  If the VF is up and running then the
-	 * watchdog task will continue to schedule reset tasks until
-	 * the PF is up and running.
-	 */
 	ixgbevf_down(adapter);
 	ixgbevf_up(adapter);
 
