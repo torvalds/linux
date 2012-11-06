@@ -82,6 +82,8 @@ static int dev_exceptions_copy(struct list_head *dest, struct list_head *orig)
 {
 	struct dev_exception_item *ex, *tmp, *new;
 
+	lockdep_assert_held(&devcgroup_mutex);
+
 	list_for_each_entry(ex, orig, list) {
 		new = kmemdup(ex, sizeof(*ex), GFP_KERNEL);
 		if (!new)
@@ -106,6 +108,8 @@ static int dev_exception_add(struct dev_cgroup *dev_cgroup,
 			     struct dev_exception_item *ex)
 {
 	struct dev_exception_item *excopy, *walk;
+
+	lockdep_assert_held(&devcgroup_mutex);
 
 	excopy = kmemdup(ex, sizeof(*ex), GFP_KERNEL);
 	if (!excopy)
@@ -137,6 +141,8 @@ static void dev_exception_rm(struct dev_cgroup *dev_cgroup,
 {
 	struct dev_exception_item *walk, *tmp;
 
+	lockdep_assert_held(&devcgroup_mutex);
+
 	list_for_each_entry_safe(walk, tmp, &dev_cgroup->exceptions, list) {
 		if (walk->type != ex->type)
 			continue;
@@ -162,6 +168,8 @@ static void dev_exception_rm(struct dev_cgroup *dev_cgroup,
 static void dev_exception_clean(struct dev_cgroup *dev_cgroup)
 {
 	struct dev_exception_item *ex, *tmp;
+
+	lockdep_assert_held(&devcgroup_mutex);
 
 	list_for_each_entry_safe(ex, tmp, &dev_cgroup->exceptions, list) {
 		list_del_rcu(&ex->list);
@@ -297,6 +305,10 @@ static int may_access(struct dev_cgroup *dev_cgroup,
 {
 	struct dev_exception_item *ex;
 	bool match = false;
+
+	rcu_lockdep_assert(rcu_read_lock_held() ||
+			   lockdep_is_held(&devcgroup_mutex),
+			   "device_cgroup::may_access() called without proper synchronization");
 
 	list_for_each_entry_rcu(ex, &dev_cgroup->exceptions, list) {
 		if ((refex->type & DEV_BLOCK) && !(ex->type & DEV_BLOCK))
