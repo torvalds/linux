@@ -433,6 +433,8 @@ static int stub_probe(struct usb_interface *interface,
 		dev_err(&interface->dev, "stub_add_files for %s\n", udev_busid);
 		usb_set_intfdata(interface, NULL);
 		usb_put_intf(interface);
+		usb_put_dev(udev);
+		kthread_stop_put(sdev->ud.eh);
 
 		busid_priv->interf_count = 0;
 		busid_priv->sdev = NULL;
