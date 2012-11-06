@@ -185,10 +185,7 @@ retry_this_bo:
 			ttm_eu_backoff_reservation_locked(list);
 			spin_unlock(&glob->lru_lock);
 			ttm_eu_list_ref_sub(list);
-			ret = ttm_bo_wait_cpu(bo, false);
-			if (ret)
-				return ret;
-			goto retry;
+			return -EBUSY;
 		}
 	}
 

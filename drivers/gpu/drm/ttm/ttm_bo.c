@@ -1053,16 +1053,6 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 }
 EXPORT_SYMBOL(ttm_bo_mem_space);
 
-int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait)
-{
-	if ((atomic_read(&bo->cpu_writers) > 0) && no_wait)
-		return -EBUSY;
-
-	return wait_event_interruptible(bo->event_queue,
-					atomic_read(&bo->cpu_writers) == 0);
-}
-EXPORT_SYMBOL(ttm_bo_wait_cpu);
-
 int ttm_bo_move_buffer(struct ttm_buffer_object *bo,
 			struct ttm_placement *placement,
 			bool interruptible, bool no_wait_reserve,
@@ -1788,8 +1778,7 @@ EXPORT_SYMBOL(ttm_bo_synccpu_write_grab);
 
 void ttm_bo_synccpu_write_release(struct ttm_buffer_object *bo)
 {
-	if (atomic_dec_and_test(&bo->cpu_writers))
-		wake_up_all(&bo->event_queue);
+	atomic_dec(&bo->cpu_writers);
 }
 EXPORT_SYMBOL(ttm_bo_synccpu_write_release);
 

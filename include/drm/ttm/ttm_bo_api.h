@@ -424,8 +424,9 @@ extern void ttm_bo_unlock_delayed_workqueue(struct ttm_bo_device *bdev,
  * @no_wait: Return immediately if buffer is busy.
  *
  * Synchronizes a buffer object for CPU RW access. This means
- * blocking command submission that affects the buffer and
- * waiting for buffer idle. This lock is recursive.
+ * command submission that affects the buffer will return -EBUSY
+ * until ttm_bo_synccpu_write_release is called.
+ *
  * Returns
  * -EBUSY if the buffer is busy and no_wait is true.
  * -ERESTARTSYS if interrupted by a signal.

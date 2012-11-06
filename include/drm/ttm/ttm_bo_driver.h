@@ -726,20 +726,6 @@ extern void ttm_bo_mem_put(struct ttm_buffer_object *bo,
 extern void ttm_bo_mem_put_locked(struct ttm_buffer_object *bo,
 				  struct ttm_mem_reg *mem);
 
-/**
- * ttm_bo_wait_for_cpu
- *
- * @bo: Pointer to a struct ttm_buffer_object.
- * @no_wait: Don't sleep while waiting.
- *
- * Wait until a buffer object is no longer sync'ed for CPU access.
- * Returns:
- * -EBUSY: Buffer object was sync'ed for CPU access. (only if no_wait == 1).
- * -ERESTARTSYS: An interruptible sleep was interrupted by a signal.
- */
-
-extern int ttm_bo_wait_cpu(struct ttm_buffer_object *bo, bool no_wait);
-
 extern void ttm_bo_global_release(struct drm_global_reference *ref);
 extern int ttm_bo_global_init(struct drm_global_reference *ref);
 
