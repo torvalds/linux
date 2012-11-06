@@ -1080,8 +1080,6 @@ static void usbhsh_endpoint_disable(struct usb_hcd *hcd,
 static int usbhsh_hub_status_data(struct usb_hcd *hcd, char *buf)
 {
 	struct usbhsh_hpriv *hpriv = usbhsh_hcd_to_hpriv(hcd);
-	struct usbhs_priv *priv = usbhsh_hpriv_to_priv(hpriv);
-	struct device *dev = usbhs_priv_to_dev(priv);
 	int roothub_id = 1; /* only 1 root hub */
 
 	/*
@@ -1092,8 +1090,6 @@ static int usbhsh_hub_status_data(struct usb_hcd *hcd, char *buf)
 		*buf = (1 << roothub_id);
 	else
 		*buf = 0;
-
-	dev_dbg(dev, "%s (%02x)\n", __func__, *buf);
 
 	return !!(*buf);
 }
