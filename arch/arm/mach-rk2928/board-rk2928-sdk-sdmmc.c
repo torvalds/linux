@@ -428,10 +428,10 @@ int rk29sdk_wifi_power(int on)
                 gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
                 mdelay(100);		
 		#else         	
-                /*if(usbwifi_power_status == 1) {
+                if(usbwifi_power_status == 1) {
                     rkusb_wifi_power(0);
                     mdelay(50);
-                }*/
+                }
                 rkusb_wifi_power(1);
 		#endif
                 usbwifi_power_status = 1;
