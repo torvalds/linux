@@ -846,6 +846,8 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
                 *val = CONFIG_SENSOR_VGA_FPS_FIXED_0;
             } else if ((w==720) && (h==480)) {
                 *val = CONFIG_SENSOR_480P_FPS_FIXED_0;
+            } else if ((w==800) && (h==600)) {
+                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_0;
             } else if ((w==1280) && (h==720)) {
                 *val = CONFIG_SENSOR_720P_FPS_FIXED_0;
             }
@@ -867,6 +869,8 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
                 *val = CONFIG_SENSOR_VGA_FPS_FIXED_1;
             } else if ((w==720) && (h==480)) {
                 *val = CONFIG_SENSOR_480P_FPS_FIXED_1;
+            } else if ((w==800) && (h==600)) {
+                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_1;
             } else if ((w==1280) && (h==720)) {
                 *val = CONFIG_SENSOR_720P_FPS_FIXED_1;
             }
@@ -890,6 +894,8 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
                 *val = CONFIG_SENSOR_VGA_FPS_FIXED_01;
             } else if ((w==720) && (h==480)) {
                 *val = CONFIG_SENSOR_480P_FPS_FIXED_01;
+            } else if ((w==800) && (h==600)) {
+                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_01;
             } else if ((w==1280) && (h==720)) {
                 *val = CONFIG_SENSOR_720P_FPS_FIXED_01;
             }
@@ -913,6 +919,8 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
                 *val = CONFIG_SENSOR_VGA_FPS_FIXED_02;
             } else if ((w==720) && (h==480)) {
                 *val = CONFIG_SENSOR_480P_FPS_FIXED_02;
+            } else if ((w==800) && (h==600)) {
+                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_02;
             } else if ((w==1280) && (h==720)) {
                 *val = CONFIG_SENSOR_720P_FPS_FIXED_02;
             }
@@ -937,6 +945,8 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
                 *val = CONFIG_SENSOR_VGA_FPS_FIXED_11;
             } else if ((w==720) && (h==480)) {
                 *val = CONFIG_SENSOR_480P_FPS_FIXED_11;
+            } else if ((w==800) && (h==600)) {
+                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_11;
             } else if ((w==1280) && (h==720)) {
                 *val = CONFIG_SENSOR_720P_FPS_FIXED_11;
             }
@@ -960,6 +970,8 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
                 *val = CONFIG_SENSOR_VGA_FPS_FIXED_12;
             } else if ((w==720) && (h==480)) {
                 *val = CONFIG_SENSOR_480P_FPS_FIXED_12;
+            } else if ((w==800) && (h==600)) {
+                *val = CONFIG_SENSOR_SVGA_FPS_FIXED_12;
             } else if ((w==1280) && (h==720)) {
                 *val = CONFIG_SENSOR_720P_FPS_FIXED_12;
             }
@@ -1145,7 +1157,10 @@ static int rk_sensor_io_init(void)
             } else if (j==6) {
                 plat_data->info[i].fival[j].width = 240;
                 plat_data->info[i].fival[j].height = 160;
-            }
+            } else if (j==7) {
+                plat_data->info[i].fival[j].width = 800;
+                plat_data->info[i].fival[j].height = 600;
+            } 
             if (plat_data->info[i].fival[j].width && plat_data->info[i].fival[j].height) {
                 rk29_sensor_fps_get(i,&plat_data->info[i].fival[j].discrete.denominator,
                     plat_data->info[i].fival[j].width,plat_data->info[i].fival[j].height);
