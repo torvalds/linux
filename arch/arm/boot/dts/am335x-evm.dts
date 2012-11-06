@@ -137,6 +137,27 @@
 				0x0101001c	/* ENTER */
 				0x0201006c>;	/* DOWN */
 	};
+
+	gpio_keys: volume_keys@0 {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		autorepeat;
+
+		switch@9 {
+			label = "volume-up";
+			linux,code = <115>;
+			gpios = <&gpio1 2 1>;
+			gpio-key,wakeup;
+		};
+
+		switch@10 {
+			label = "volume-down";
+			linux,code = <114>;
+			gpios = <&gpio1 3 1>;
+			gpio-key,wakeup;
+		};
+	};
 };
 
 /include/ "tps65910.dtsi"
