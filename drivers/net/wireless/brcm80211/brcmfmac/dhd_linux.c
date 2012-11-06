@@ -52,6 +52,7 @@ MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
 MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
+#define MAX_WAIT_FOR_8021X_TX		50	/* msecs */
 
 /* Error bits */
 int brcmf_msg_level = BRCMF_ERROR_VAL;
@@ -404,9 +405,11 @@ void brcmf_txcomplete(struct device *dev, struct sk_buff *txp, bool success)
 	eh = (struct ethhdr *)(txp->data);
 	type = ntohs(eh->h_proto);
 
-	if (type == ETH_P_PAE)
+	if (type == ETH_P_PAE) {
 		atomic_dec(&drvr->pend_8021x_cnt);
-
+		if (waitqueue_active(&drvr->pend_8021x_wait))
+			wake_up(&drvr->pend_8021x_wait);
+	}
 }
 
 static struct net_device_stats *brcmf_netdev_get_stats(struct net_device *ndev)
@@ -822,6 +825,8 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 
 	INIT_LIST_HEAD(&drvr->bus_if->dcmd_list);
 
+	init_waitqueue_head(&drvr->pend_8021x_wait);
+
 	return ret;
 
 fail:
@@ -924,26 +929,19 @@ static int brcmf_get_pend_8021x_cnt(struct brcmf_pub *drvr)
 	return atomic_read(&drvr->pend_8021x_cnt);
 }
 
-#define MAX_WAIT_FOR_8021X_TX	10
-
 int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	int timeout = 10 * HZ / 1000;
-	int ntimes = MAX_WAIT_FOR_8021X_TX;
-	int pend = brcmf_get_pend_8021x_cnt(drvr);
+	int err;
 
-	while (ntimes && pend) {
-		if (pend) {
-			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(timeout);
-			set_current_state(TASK_RUNNING);
-			ntimes--;
-		}
-		pend = brcmf_get_pend_8021x_cnt(drvr);
-	}
-	return pend;
+	err = wait_event_timeout(drvr->pend_8021x_wait,
+				 !brcmf_get_pend_8021x_cnt(drvr),
+				 msecs_to_jiffies(MAX_WAIT_FOR_8021X_TX));
+
+	WARN_ON(!err);
+
+	return !err;
 }
 
 static void brcmf_driver_init(struct work_struct *work)

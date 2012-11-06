@@ -621,6 +621,7 @@ struct brcmf_pub {
 	struct work_struct multicast_work;
 	u8 macvalue[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
+	wait_queue_head_t pend_8021x_wait;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif
