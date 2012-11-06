@@ -1599,21 +1599,46 @@ static void __init free_on_init_error(void)
 #endif
 }
 
+/* SB IOAPIC is always on this device in AMD systems */
+#define IOAPIC_SB_DEVID		((0x00 << 8) | PCI_DEVFN(0x14, 0))
+
 static bool __init check_ioapic_information(void)
 {
+	bool ret, has_sb_ioapic;
 	int idx;
 
-	for (idx = 0; idx < nr_ioapics; idx++) {
-		int id = mpc_ioapic_id(idx);
+	has_sb_ioapic = false;
+	ret           = false;
 
-		if (get_ioapic_devid(id) < 0) {
-			pr_err(FW_BUG "AMD-Vi: IO-APIC[%d] not in IVRS table\n", id);
-			pr_err("AMD-Vi: Disabling interrupt remapping due to BIOS Bug\n");
-			return false;
+	for (idx = 0; idx < nr_ioapics; idx++) {
+		int devid, id = mpc_ioapic_id(idx);
+
+		devid = get_ioapic_devid(id);
+		if (devid < 0) {
+			pr_err(FW_BUG "AMD-Vi: IOAPIC[%d] not in IVRS table\n", id);
+			ret = false;
+		} else if (devid == IOAPIC_SB_DEVID) {
+			has_sb_ioapic = true;
+			ret           = true;
 		}
 	}
 
-	return true;
+	if (!has_sb_ioapic) {
+		/*
+		 * We expect the SB IOAPIC to be listed in the IVRS
+		 * table. The system timer is connected to the SB IOAPIC
+		 * and if we don't have it in the list the system will
+		 * panic at boot time.  This situation usually happens
+		 * when the BIOS is buggy and provides us the wrong
+		 * device id for the IOAPIC in the system.
+		 */
+		pr_err(FW_BUG "AMD-Vi: No southbridge IOAPIC found in IVRS table\n");
+	}
+
+	if (!ret)
+		pr_err("AMD-Vi: Disabling interrupt remapping due to BIOS Bug(s)\n");
+
+	return ret;
 }
 
 static void __init free_dma_resources(void)
