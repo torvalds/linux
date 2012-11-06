@@ -220,7 +220,7 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 	struct ttm_bo_global *glob = bo->glob;
 	int ret;
 
-	while (unlikely(atomic_cmpxchg(&bo->reserved, 0, 1) != 0)) {
+	while (unlikely(atomic_read(&bo->reserved) != 0)) {
 		/**
 		 * Deadlock avoidance for multi-bo reserving.
 		 */
@@ -249,6 +249,7 @@ int ttm_bo_reserve_locked(struct ttm_buffer_object *bo,
 			return ret;
 	}
 
+	atomic_set(&bo->reserved, 1);
 	if (use_sequence) {
 		/**
 		 * Wake up waiters that may need to recheck for deadlock,
