@@ -145,6 +145,7 @@ static int fec_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	u64 diff;
 	unsigned long flags;
 	int neg_adj = 0;
+	u32 mult = FEC_CC_MULT;
 
 	struct fec_enet_private *fep =
 	    container_of(ptp, struct fec_enet_private, ptp_caps);
@@ -154,6 +155,10 @@ static int fec_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		neg_adj = 1;
 	}
 
+	diff = mult;
+	diff *= ppb;
+	diff = div_u64(diff, 1000000000ULL);
+
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
 	/*
 	 * dummy read to set cycle_last in tc to now.
@@ -161,15 +166,8 @@ static int fec_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 	 * timercounter_read.
 	 */
 	timecounter_read(&fep->tc);
-	fep->cc.mult = FEC_CC_MULT;
-	diff = fep->cc.mult;
-	diff *= ppb;
-	diff = div_u64(diff, 1000000000ULL);
 
-	if (neg_adj)
-		fep->cc.mult -= diff;
-	else
-		fep->cc.mult += diff;
+	fep->cc.mult = neg_adj ? mult - diff : mult + diff;
 
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 
