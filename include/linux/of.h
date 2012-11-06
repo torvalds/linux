@@ -57,7 +57,6 @@ struct device_node {
 	struct	device_node *sibling;
 	struct	device_node *next;	/* next device of same type */
 	struct	device_node *allnext;	/* next in list of all nodes */
-	struct	proc_dir_entry *pde;	/* this node's proc directory */
 	struct	kobject kobj;
 	unsigned long _flags;
 	void	*data;
@@ -657,15 +656,5 @@ static inline int of_get_available_child_count(const struct device_node *np)
 
 	return num;
 }
-
-#if defined(CONFIG_PROC_FS) && defined(CONFIG_PROC_DEVICETREE)
-extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);
-extern void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop);
-extern void proc_device_tree_remove_prop(struct proc_dir_entry *pde,
-					 struct property *prop);
-extern void proc_device_tree_update_prop(struct proc_dir_entry *pde,
-					 struct property *newprop,
-					 struct property *oldprop);
-#endif
 
 #endif /* _LINUX_OF_H */

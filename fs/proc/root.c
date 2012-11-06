@@ -183,9 +183,6 @@ void __init proc_root_init(void)
 	proc_mkdir("openprom", NULL);
 #endif
 	proc_tty_init();
-#ifdef CONFIG_PROC_DEVICETREE
-	proc_device_tree_init();
-#endif
 	proc_mkdir("bus", NULL);
 	proc_sys_init();
 }

@@ -7,14 +7,6 @@ config OF
 menu "Device Tree and Open Firmware support"
 	depends on OF
 
-config PROC_DEVICETREE
-	bool "Support for device tree in /proc"
-	depends on PROC_FS && !SPARC
-	help
-	  This option adds a device-tree directory under /proc which contains
-	  an image of the device tree that the kernel copies from Open
-	  Firmware or other boot firmware. If unsure, say Y here.
-
 config OF_SELFTEST
 	bool "Device Tree Runtime self tests"
 	depends on OF_IRQ
