@@ -191,9 +191,6 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	s->len_chanlist = this_board->i_NbrDoChannel;
 	s->range_table = &range_digital;
 	s->io_bits = 0xf;	/* all bits output */
-
-	/* insn_config - for digital output memory */
-	s->insn_config = i_APCI3120_InsnConfigDigitalOutput;
 	s->insn_bits = apci3120_do_insn_bits;
 
 	/*  Allocate and Initialise Timer Subdevice Structures */

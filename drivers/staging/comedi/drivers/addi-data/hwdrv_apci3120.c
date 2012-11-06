@@ -242,8 +242,6 @@ static const struct comedi_lrange range_apci3120_ao = {
 };
 
 
-static unsigned int ui_Temp;
-
 /* FUNCTION DEFINITIONS */
 
 /*
@@ -2197,35 +2195,6 @@ static int apci3120_di_insn_bits(struct comedi_device *dev,
 	/* the input channels are bits 11:8 of the status reg */
 	val = inw(devpriv->iobase + APCI3120_RD_STATUS);
 	data[1] = (val >> 8) & 0xf;
-
-	return insn->n;
-}
-
-/*
- * Configure the output memory ON or OFF
- */
-static int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device *dev,
-					      struct comedi_subdevice *s,
-					      struct comedi_insn *insn,
-					      unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}
-	if (data[0]) {
-		devpriv->b_OutputMemoryStatus = APCI3120_ENABLE;
-
-	} else {
-		devpriv->b_OutputMemoryStatus = APCI3120_DISABLE;
-		devpriv->b_DigitalOutputRegister = 0;
-	}
-	if (!devpriv->b_OutputMemoryStatus)
-		ui_Temp = 0;
-				/* if(!devpriv->b_OutputMemoryStatus ) */
 
 	return insn->n;
 }
