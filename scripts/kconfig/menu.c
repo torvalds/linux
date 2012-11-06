@@ -48,7 +48,7 @@ void menu_add_entry(struct symbol *sym)
 {
 	struct menu *menu;
 
-	menu = malloc(sizeof(*menu));
+	menu = xmalloc(sizeof(*menu));
 	memset(menu, 0, sizeof(*menu));
 	menu->sym = sym;
 	menu->parent = current_menu;
@@ -531,7 +531,7 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 			location = menu;
 	}
 	if (head && location) {
-		jump = malloc(sizeof(struct jump_key));
+		jump = xmalloc(sizeof(struct jump_key));
 
 		if (menu_is_visible(prop->menu)) {
 			/*
