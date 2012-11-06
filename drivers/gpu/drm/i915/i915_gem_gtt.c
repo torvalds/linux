@@ -439,7 +439,7 @@ static void gen6_ggtt_bind_object(struct drm_i915_gem_object *obj,
 		len = sg_dma_len(sg) >> PAGE_SHIFT;
 		for (m = 0; m < len; m++) {
 			addr = sg_dma_address(sg) + (m << PAGE_SHIFT);
-			gtt_entries[i] = pte_encode(dev, addr, level);
+			iowrite32(pte_encode(dev, addr, level), &gtt_entries[i]);
 			i++;
 		}
 	}
