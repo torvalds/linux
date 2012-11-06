@@ -77,42 +77,6 @@ static int apci1516_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1516_ConfigDigitalOutput (struct comedi_device *dev,
-|                    struct comedi_subdevice *s struct comedi_insn *insn,unsigned int *data)    |
-|				                                                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Digital Output Subdevice.               |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains         |
-|                                          configuration parameters as below |
-|                      struct comedi_subdevice *s,   :pointer to subdevice structure
-|                      struct comedi_insn *insn      :pointer to insn structure                                                           |
-|					  data[0]  :1:Memory on                          |
-|					            0:Memory off                         |
-|										                             |
-|																	 |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI1516_ConfigDigitalOutput(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	devpriv->b_OutputMemoryStatus = data[0];
-	return insn->n;
-}
-
 static int apci1516_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,

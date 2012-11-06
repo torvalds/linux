@@ -23,7 +23,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.i_Timer		= 1,
 		.reset			= i_APCI1516_Reset,
 		.di_bits		= apci1516_di_insn_bits,
-		.do_config		= i_APCI1516_ConfigDigitalOutput,
 		.do_bits		= apci1516_do_insn_bits,
 		.timer_config		= i_APCI1516_ConfigWatchdog,
 		.timer_write		= i_APCI1516_StartStopWriteWatchdog,
