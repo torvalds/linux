@@ -2127,7 +2127,7 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	/* fabric drivers should only return -EAGAIN or -ENOMEM as error */
 	WARN_ON(ret);
 
-	return 0;
+	return (!ret) ? 0 : TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 queue_full:
 	pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
