@@ -3621,8 +3621,6 @@ static void be_unmap_pci_bars(struct be_adapter *adapter)
 {
 	if (adapter->db)
 		pci_iounmap(adapter->pdev, adapter->db);
-	if (adapter->roce_db.base)
-		pci_iounmap(adapter->pdev, adapter->roce_db.base);
 }
 
 static int db_bar(struct be_adapter *adapter)
@@ -3635,19 +3633,7 @@ static int db_bar(struct be_adapter *adapter)
 
 static int be_roce_map_pci_bars(struct be_adapter *adapter)
 {
-	struct pci_dev *pdev = adapter->pdev;
-	u8 __iomem *addr;
-
-	if (lancer_chip(adapter) && adapter->if_type == SLI_INTF_TYPE_3) {
-		addr = pci_iomap(pdev, 2, 0);
-		if (addr == NULL)
-			return -ENOMEM;
-
-		adapter->roce_db.base = addr;
-		adapter->roce_db.io_addr = pci_resource_start(pdev, 2);
-		adapter->roce_db.size = 8192;
-		adapter->roce_db.total_size = pci_resource_len(pdev, 2);
-	} else if (skyhawk_chip(adapter)) {
+	if (skyhawk_chip(adapter)) {
 		adapter->roce_db.size = 4096;
 		adapter->roce_db.io_addr = pci_resource_start(adapter->pdev,
 							      db_bar(adapter));

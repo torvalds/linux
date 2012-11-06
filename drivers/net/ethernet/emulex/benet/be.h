@@ -411,7 +411,6 @@ struct be_adapter {
 	bool stats_cmd_sent;
 	u32 if_type;
 	struct {
-		u8 __iomem *base;	/* Door Bell */
 		u32 size;
 		u32 total_size;
 		u64 io_addr;
@@ -473,9 +472,8 @@ struct be_adapter {
 
 #define BEx_chip(adapter)	(BE3_chip(adapter) || BE2_chip(adapter))
 
-#define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
-				     skyhawk_chip(adapter)) && \
-				     (adapter->function_mode & RDMA_ENABLED))
+#define be_roce_supported(adapter)	(skyhawk_chip(adapter) && \
+					(adapter->function_mode & RDMA_ENABLED))
 
 extern const struct ethtool_ops be_ethtool_ops;
 
@@ -648,12 +646,6 @@ static inline bool be_is_wol_excluded(struct be_adapter *adapter)
 	default:
 		return false;
 	}
-}
-
-static inline bool be_type_2_3(struct be_adapter *adapter)
-{
-	return (adapter->if_type == SLI_INTF_TYPE_2 ||
-		adapter->if_type == SLI_INTF_TYPE_3) ? true : false;
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
