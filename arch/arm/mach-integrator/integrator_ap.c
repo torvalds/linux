@@ -31,6 +31,7 @@
 #include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/mtd/physmap.h>
 #include <linux/clk.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -55,8 +56,6 @@
 #include <asm/mach/map.h>
 #include <asm/mach/pci.h>
 #include <asm/mach/time.h>
-
-#include <plat/fpga-irq.h>
 
 #include "common.h"
 
@@ -499,7 +498,6 @@ static const char * ap_dt_board_compat[] = {
 DT_MACHINE_START(INTEGRATOR_AP_DT, "ARM Integrator/AP (Device Tree)")
 	.reserve	= integrator_reserve,
 	.map_io		= ap_map_io,
-	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
@@ -609,7 +607,6 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
 	.map_io		= ap_map_io,
-	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,
 	.handle_irq	= fpga_handle_irq,

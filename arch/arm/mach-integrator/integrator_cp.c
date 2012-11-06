@@ -20,6 +20,7 @@
 #include <linux/amba/clcd.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/irqchip/versatile-fpga.h>
 #include <linux/gfp.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_data/clk-integrator.h>
@@ -46,7 +47,6 @@
 #include <asm/hardware/timer-sp.h>
 
 #include <plat/clcd.h>
-#include <plat/fpga-irq.h>
 #include <plat/sched_clock.h>
 
 #include "common.h"
@@ -350,7 +350,6 @@ static const char * intcp_dt_board_compat[] = {
 DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
 	.reserve	= integrator_reserve,
 	.map_io		= intcp_map_io,
-	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
@@ -423,7 +422,7 @@ static void __init intcp_init_irq(void)
 	u32 pic_mask, cic_mask, sic_mask;
 
 	/* These masks are for the HW IRQ registers */
-	pic_mask = ~((~0u) << (11 - IRQ_PIC_START));
+	pic_mask = ~((~0u) << (11 - 0));
 	pic_mask |= (~((~0u) << (29 - 22))) << 22;
 	cic_mask = ~((~0u) << (1 + IRQ_CIC_END - IRQ_CIC_START));
 	sic_mask = ~((~0u) << (1 + IRQ_SIC_END - IRQ_SIC_START));
@@ -504,7 +503,6 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
 	.map_io		= intcp_map_io,
-	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
 	.handle_irq	= fpga_handle_irq,
