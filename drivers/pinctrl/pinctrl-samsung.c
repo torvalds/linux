@@ -947,6 +947,8 @@ static int __devinit samsung_pinctrl_probe(struct platform_device *pdev)
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
 	{ .compatible = "samsung,pinctrl-exynos4210",
 		.data = (void *)exynos4210_pin_ctrl },
+	{ .compatible = "samsung,pinctrl-exynos4x12",
+		.data = (void *)exynos4x12_pin_ctrl },
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_pinctrl_dt_match);

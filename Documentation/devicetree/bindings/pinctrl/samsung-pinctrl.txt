@@ -8,6 +8,7 @@ on-chip controllers onto these pads.
 Required Properties:
 - compatible: should be one of the following.
   - "samsung,pinctrl-exynos4210": for Exynos4210 compatible pin-controller.
+  - "samsung,pinctrl-exynos4x12": for Exynos4x12 compatible pin-controller.
   - "samsung,pinctrl-exynos5250": for Exynos5250 compatible pin-controller.
 
 - reg: Base address of the pin controller hardware module and length of
