@@ -415,6 +415,11 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	smp_cross_call(mask, IPI_CALL_FUNC);
 }
 
+void arch_send_wakeup_ipi_mask(const struct cpumask *mask)
+{
+	smp_cross_call(mask, IPI_WAKEUP);
+}
+
 void arch_send_call_function_single_ipi(int cpu)
 {
 	smp_cross_call(cpumask_of(cpu), IPI_CALL_FUNC_SINGLE);
