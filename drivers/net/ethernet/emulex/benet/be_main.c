@@ -621,16 +621,6 @@ static void wrb_fill_hdr(struct be_adapter *adapter, struct be_eth_hdr_wrb *hdr,
 			hdr, skb_shinfo(skb)->gso_size);
 		if (skb_is_gso_v6(skb) && !lancer_chip(adapter))
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, lso6, hdr, 1);
-		if (lancer_chip(adapter) && adapter->sli_family  ==
-							LANCER_A0_SLI_FAMILY) {
-			AMAP_SET_BITS(struct amap_eth_hdr_wrb, ipcs, hdr, 1);
-			if (is_tcp_pkt(skb))
-				AMAP_SET_BITS(struct amap_eth_hdr_wrb,
-								tcpcs, hdr, 1);
-			else if (is_udp_pkt(skb))
-				AMAP_SET_BITS(struct amap_eth_hdr_wrb,
-								udpcs, hdr, 1);
-		}
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		if (is_tcp_pkt(skb))
 			AMAP_SET_BITS(struct amap_eth_hdr_wrb, tcpcs, hdr, 1);
