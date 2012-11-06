@@ -26,7 +26,7 @@
 
 	am33xx_pinmux: pinmux@44e10800 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&matrix_keypad_s0>;
+		pinctrl-0 = <&matrix_keypad_s0 &volume_keys_s0>;
 
 		matrix_keypad_s0: matrix_keypad_s0 {
 			pinctrl-single,pins = <
@@ -35,6 +35,13 @@
 				0x64 0x27	/* gpmc_a9.gpio1_25, INPUT | MODE7 */
 				0x68 0x27	/* gpmc_a10.gpio1_26, INPUT | MODE7 */
 				0x6c 0x27	/* gpmc_a11.gpio1_27, INPUT | MODE7 */
+			>;
+		};
+
+		volume_keys_s0: volume_keys_s0 {
+			pinctrl-single,pins = <
+				0x150 0x27	/* spi0_sclk.gpio0_2, INPUT | MODE7 */
+				0x154 0x27	/* spi0_d0.gpio0_3, INPUT | MODE7 */
 			>;
 		};
 	};
