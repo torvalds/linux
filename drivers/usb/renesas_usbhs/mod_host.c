@@ -85,6 +85,7 @@ struct usbhsh_ep {
 	struct usbhsh_device	*udev;   /* attached udev */
 	struct usb_host_endpoint *ep;
 	struct list_head	ep_list; /* list to usbhsh_device */
+	unsigned int		counter; /* pipe attach counter */
 };
 
 #define USBHSH_DEVICE_MAX	10 /* see DEVADDn / DCPMAXP / PIPEMAXP */
@@ -271,8 +272,12 @@ static int usbhsh_pipe_attach(struct usbhsh_hpriv *hpriv,
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
 
-	if (unlikely(usbhsh_uep_to_pipe(uep))) {
-		dev_err(dev, "uep already has pipe\n");
+	/*
+	 * if uep has been attached to pipe,
+	 * reuse it
+	 */
+	if (usbhsh_uep_to_pipe(uep)) {
+		ret = 0;
 		goto usbhsh_pipe_attach_done;
 	}
 
@@ -320,6 +325,9 @@ static int usbhsh_pipe_attach(struct usbhsh_hpriv *hpriv,
 	}
 
 usbhsh_pipe_attach_done:
+	if (0 == ret)
+		uep->counter++;
+
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
 
@@ -341,7 +349,7 @@ static void usbhsh_pipe_detach(struct usbhsh_hpriv *hpriv,
 
 	if (unlikely(!pipe)) {
 		dev_err(dev, "uep doens't have pipe\n");
-	} else {
+	} else if (1 == uep->counter--) { /* last user */
 		struct usb_host_endpoint *ep = usbhsh_uep_to_ep(uep);
 		struct usbhsh_device *udev = usbhsh_uep_to_udev(uep);
 
@@ -386,6 +394,7 @@ static int usbhsh_endpoint_attach(struct usbhsh_hpriv *hpriv,
 	/*
 	 * init endpoint
 	 */
+	uep->counter = 0;
 	INIT_LIST_HEAD(&uep->ep_list);
 	list_add_tail(&uep->ep_list, &udev->ep_list_head);
 
@@ -954,7 +963,6 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	struct usb_host_endpoint *ep = urb->ep;
 	struct usbhsh_device *new_udev = NULL;
 	int is_dir_in = usb_pipein(urb->pipe);
-	int i;
 	int ret;
 
 	dev_dbg(dev, "%s (%s)\n", __func__, is_dir_in ? "in" : "out");
@@ -1000,13 +1008,7 @@ static int usbhsh_urb_enqueue(struct usb_hcd *hcd,
 	 * attach pipe to endpoint
 	 * see [image of mod_host]
 	 */
-	for (i = 0; i < 1024; i++) {
-		ret = usbhsh_pipe_attach(hpriv, urb);
-		if (ret < 0)
-			msleep(100);
-		else
-			break;
-	}
+	ret = usbhsh_pipe_attach(hpriv, urb);
 	if (ret < 0) {
 		dev_err(dev, "pipe attach failed\n");
 		goto usbhsh_urb_enqueue_error_free_endpoint;
