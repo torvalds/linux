@@ -414,8 +414,6 @@ static void wait_pending_extra_info_updates(void)
 	r = wait_for_completion_timeout(&extra_updated_completion, t);
 	if (r == 0)
 		DSSWARN("timeout in wait_pending_extra_info_updates\n");
-	else if (r < 0)
-		DSSERR("wait_pending_extra_info_updates failed: %d\n", r);
 }
 
 int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
