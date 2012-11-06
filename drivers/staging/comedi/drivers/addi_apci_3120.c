@@ -179,8 +179,7 @@ static int apci3120_attach_pci(struct comedi_device *dev,
 	s->len_chanlist = this_board->i_NbrDiChannel;
 	s->range_table = &range_digital;
 	s->io_bits = 0;	/* all bits input */
-	s->insn_read = i_APCI3120_InsnReadDigitalInput;
-	s->insn_bits = i_APCI3120_InsnBitsDigitalInput;
+	s->insn_bits = apci3120_di_insn_bits;
 
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[3];

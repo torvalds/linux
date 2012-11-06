@@ -2186,57 +2186,18 @@ static int i_APCI3120_InsnReadTimer(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Reads the value of the specified Digital input channel
- */
-static int i_APCI3120_InsnReadDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
+static int apci3120_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Chan, ui_TmpValue;
+	unsigned int val;
 
-	ui_Chan = CR_CHAN(insn->chanspec);	/*  channel specified */
+	/* the input channels are bits 11:8 of the status reg */
+	val = inw(devpriv->iobase + APCI3120_RD_STATUS);
+	data[1] = (val >> 8) & 0xf;
 
-	/* this_board->di_read(dev,ui_Chan,data); */
-	if (ui_Chan <= 3) {
-		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
-
-/*
- * since only 1 channel reqd to bring it to last bit it is rotated 8
- * +(chan - 1) times then ANDed with 1 for last bit.
- */
-		*data = (ui_TmpValue >> (ui_Chan + 8)) & 1;
-		/* return 0; */
-	} else {
-		/*       comedi_error(dev," chan spec wrong"); */
-		return -EINVAL;	/*  "sorry channel spec wrong " */
-	}
-	return insn->n;
-
-}
-
-/*
- * Reads the value of the Digital input Port i.e.4channels
- * value is returned in data[0]
- */
-static int i_APCI3120_InsnBitsDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_TmpValue;
-
-	ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI3120_RD_STATUS);
-	/*****	state of 4 channels  in the 11, 10, 9, 8   bits of status reg
-			rotated right 8 times to bring them to last four bits
-			ANDed with oxf for  value.
-	*****/
-
-	*data = (ui_TmpValue >> 8) & 0xf;
-	/* this_board->di_bits(dev,data); */
 	return insn->n;
 }
 
