@@ -2078,7 +2078,7 @@ static struct i2c_driver goodix_ts_driver = {
 功能�?	驱动加载函数
 return�?	执行结果码，0表示正常执行
 ********************************************************/
-static int __devinit goodix_ts_init(void)
+static int __init goodix_ts_init(void)
 {
 	int ret;
 	
