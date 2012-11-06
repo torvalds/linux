@@ -30,6 +30,8 @@ struct btrfs_ioctl_vol_args {
 	char name[BTRFS_PATH_NAME_MAX + 1];
 };
 
+#define BTRFS_DEVICE_PATH_NAME_MAX 1024
+
 #define BTRFS_SUBVOL_CREATE_ASYNC	(1ULL << 0)
 #define BTRFS_SUBVOL_RDONLY		(1ULL << 1)
 #define BTRFS_SUBVOL_QGROUP_INHERIT	(1ULL << 2)
@@ -127,10 +129,10 @@ struct btrfs_ioctl_scrub_args {
 #define BTRFS_IOCTL_DEV_REPLACE_CONT_READING_FROM_SRCDEV_MODE_AVOID	1
 struct btrfs_ioctl_dev_replace_start_params {
 	__u64 srcdevid;	/* in, if 0, use srcdev_name instead */
-	__u8 srcdev_name[BTRFS_PATH_NAME_MAX + 1];	/* in */
-	__u8 tgtdev_name[BTRFS_PATH_NAME_MAX + 1];	/* in */
 	__u64 cont_reading_from_srcdev_mode;	/* in, see #define
 						 * above */
+	__u8 srcdev_name[BTRFS_DEVICE_PATH_NAME_MAX + 1];	/* in */
+	__u8 tgtdev_name[BTRFS_DEVICE_PATH_NAME_MAX + 1];	/* in */
 };
 
 #define BTRFS_IOCTL_DEV_REPLACE_STATE_NEVER_STARTED	0
@@ -165,7 +167,6 @@ struct btrfs_ioctl_dev_replace_args {
 	__u64 spare[64];
 };
 
-#define BTRFS_DEVICE_PATH_NAME_MAX 1024
 struct btrfs_ioctl_dev_info_args {
 	__u64 devid;				/* in/out */
 	__u8 uuid[BTRFS_UUID_SIZE];		/* in/out */
