@@ -468,6 +468,12 @@ static inline struct brcmf_cfg80211_profile *ndev_to_prof(struct net_device *nd)
 	return &ifp->vif->profile;
 }
 
+static inline struct brcmf_cfg80211_vif *ndev_to_vif(struct net_device *ndev)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	return ifp->vif;
+}
+
 static inline struct
 brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_info *cfg)
 {

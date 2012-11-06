@@ -3344,12 +3344,11 @@ brcmf_vndr_ie(u8 *iebuf, s32 pktflag, u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
 }
 
 static
-s32 brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
-			    struct net_device *ndev, s32 pktflag,
-			    const u8 *vndr_ie_buf, u32 vndr_ie_len)
+s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
+			  const u8 *vndr_ie_buf, u32 vndr_ie_len)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
-	struct vif_saved_ie *saved_ie = &ifp->vif->saved_ie;
+	struct brcmf_if *ifp;
+	struct vif_saved_ie *saved_ie;
 	s32 err = 0;
 	u8  *iovar_ie_buf;
 	u8  *curr_ie_buf;
@@ -3366,8 +3365,12 @@ s32 brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
 	u8 *ptr;
 	int remained_buf_len;
 
-	WL_TRACE("bssidx %d, pktflag : 0x%02X\n",
-		 brcmf_ndev_bssidx(ndev), pktflag);
+	if (!vif)
+		return -ENODEV;
+	ifp = vif->ifp;
+	saved_ie = &vif->saved_ie;
+
+	WL_TRACE("bssidx %d, pktflag : 0x%02X\n", ifp->bssidx, pktflag);
 	iovar_ie_buf = kzalloc(WL_EXTRA_BUF_MAX, GFP_KERNEL);
 	if (!iovar_ie_buf)
 		return -ENOMEM;
@@ -3585,20 +3588,20 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		brcmf_configure_opensecurity(ndev, bssidx);
 	}
 	/* Set Beacon IEs to FW */
-	err = brcmf_set_management_ie(cfg, ndev,
-				      VNDR_IE_BEACON_FLAG,
-				      settings->beacon.tail,
-				      settings->beacon.tail_len);
+	err = brcmf_vif_set_mgmt_ie(ndev_to_vif(ndev),
+				    VNDR_IE_BEACON_FLAG,
+				    settings->beacon.tail,
+				    settings->beacon.tail_len);
 	if (err)
 		WL_ERR("Set Beacon IE Failed\n");
 	else
 		WL_TRACE("Applied Vndr IEs for Beacon\n");
 
 	/* Set Probe Response IEs to FW */
-	err = brcmf_set_management_ie(cfg, ndev,
-				      VNDR_IE_PRBRSP_FLAG,
-				      settings->beacon.proberesp_ies,
-				      settings->beacon.proberesp_ies_len);
+	err = brcmf_vif_set_mgmt_ie(ndev_to_vif(ndev),
+				    VNDR_IE_PRBRSP_FLAG,
+				    settings->beacon.proberesp_ies,
+				    settings->beacon.proberesp_ies_len);
 	if (err)
 		WL_ERR("Set Probe Resp IE Failed\n");
 	else
