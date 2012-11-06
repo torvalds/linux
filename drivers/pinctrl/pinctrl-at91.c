@@ -1364,9 +1364,10 @@ static int __devinit at91_gpio_probe(struct platform_device *pdev)
 	struct gpio_chip *chip;
 	struct pinctrl_gpio_range *range;
 	int ret = 0;
-	int irq;
+	int irq, i;
 	int alias_idx = of_alias_get_id(np, "gpio");
 	uint32_t ngpio;
+	char **names;
 
 	BUG_ON(alias_idx >= ARRAY_SIZE(gpio_chips));
 	if (gpio_chips[alias_idx]) {
@@ -1435,6 +1436,18 @@ static int __devinit at91_gpio_probe(struct platform_device *pdev)
 		else
 			chip->ngpio = ngpio;
 	}
+
+	names = devm_kzalloc(&pdev->dev, sizeof(char*) * chip->ngpio, GFP_KERNEL);
+
+	if (!names) {
+		ret = -ENOMEM;
+		goto clk_err;
+	}
+
+	for (i = 0; i < chip->ngpio; i++)
+		names[i] = kasprintf(GFP_KERNEL, "pio%c%d", alias_idx + 'A', i);
+
+	chip->names = (const char*const*)names;
 
 	range = &at91_chip->range;
 	range->name = chip->label;
