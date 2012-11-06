@@ -4044,6 +4044,9 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	int num_stripes;
 	int max_errors = 0;
 	struct btrfs_bio *bbio = NULL;
+	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
+	int dev_replace_is_ongoing = 0;
+	int num_alloc_stripes;
 
 	read_lock(&em_tree->lock);
 	em = lookup_extent_mapping(em_tree, logical, *length);
@@ -4088,6 +4091,11 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 
 	if (!bbio_ret)
 		goto out;
+
+	btrfs_dev_replace_lock(dev_replace);
+	dev_replace_is_ongoing = btrfs_dev_replace_is_ongoing(dev_replace);
+	if (!dev_replace_is_ongoing)
+		btrfs_dev_replace_unlock(dev_replace);
 
 	num_stripes = 1;
 	stripe_index = 0;
@@ -4155,7 +4163,10 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 	}
 	BUG_ON(stripe_index >= map->num_stripes);
 
-	bbio = kzalloc(btrfs_bio_size(num_stripes), GFP_NOFS);
+	num_alloc_stripes = num_stripes;
+	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)))
+		num_alloc_stripes <<= 1;
+	bbio = kzalloc(btrfs_bio_size(num_alloc_stripes), GFP_NOFS);
 	if (!bbio) {
 		ret = -ENOMEM;
 		goto out;
@@ -4250,11 +4261,48 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		}
 	}
 
+	if (dev_replace_is_ongoing && (rw & (REQ_WRITE | REQ_DISCARD)) &&
+	    dev_replace->tgtdev != NULL) {
+		int index_where_to_add;
+		u64 srcdev_devid = dev_replace->srcdev->devid;
+
+		/*
+		 * duplicate the write operations while the dev replace
+		 * procedure is running. Since the copying of the old disk
+		 * to the new disk takes place at run time while the
+		 * filesystem is mounted writable, the regular write
+		 * operations to the old disk have to be duplicated to go
+		 * to the new disk as well.
+		 * Note that device->missing is handled by the caller, and
+		 * that the write to the old disk is already set up in the
+		 * stripes array.
+		 */
+		index_where_to_add = num_stripes;
+		for (i = 0; i < num_stripes; i++) {
+			if (bbio->stripes[i].dev->devid == srcdev_devid) {
+				/* write to new disk, too */
+				struct btrfs_bio_stripe *new =
+					bbio->stripes + index_where_to_add;
+				struct btrfs_bio_stripe *old =
+					bbio->stripes + i;
+
+				new->physical = old->physical;
+				new->length = old->length;
+				new->dev = dev_replace->tgtdev;
+				index_where_to_add++;
+				max_errors++;
+			}
+		}
+		num_stripes = index_where_to_add;
+	}
+
 	*bbio_ret = bbio;
 	bbio->num_stripes = num_stripes;
 	bbio->max_errors = max_errors;
 	bbio->mirror_num = mirror_num;
 out:
+	if (dev_replace_is_ongoing)
+		btrfs_dev_replace_unlock(dev_replace);
 	free_extent_map(em);
 	return ret;
 }
