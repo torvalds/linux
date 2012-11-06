@@ -157,6 +157,8 @@ static void __init spear300_clk_init(void)
 			1);
 	clk_register_clkdev(clk, NULL, "a0000000.kbd");
 }
+#else
+static inline void spear300_clk_init(void) { }
 #endif
 
 /* array of all spear 310 clock lookups */
@@ -197,6 +199,8 @@ static void __init spear310_clk_init(void)
 			1);
 	clk_register_clkdev(clk, NULL, "b2200000.serial");
 }
+#else
+static inline void spear310_clk_init(void) { }
 #endif
 
 /* array of all spear 320 clock lookups */
@@ -336,6 +340,8 @@ static void __init spear320_clk_init(void)
 			&_lock);
 	clk_register_clkdev(clk, NULL, "60100000.serial");
 }
+#else
+static inline void spear320_clk_init(void) { }
 #endif
 
 void __init spear3xx_clk_init(void)
