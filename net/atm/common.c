@@ -156,6 +156,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	atomic_set(&sk->sk_rmem_alloc, 0);
 	vcc->push = NULL;
 	vcc->pop = NULL;
+	vcc->owner = NULL;
 	vcc->push_oam = NULL;
 	vcc->vpi = vcc->vci = 0; /* no VCI/VPI yet */
 	vcc->atm_options = vcc->aal_options = 0;
@@ -175,6 +176,7 @@ static void vcc_destroy_socket(struct sock *sk)
 			vcc->dev->ops->close(vcc);
 		if (vcc->push)
 			vcc->push(vcc, NULL); /* atmarpd has no push */
+		module_put(vcc->owner);
 
 		while ((skb = skb_dequeue(&sk->sk_receive_queue)) != NULL) {
 			atm_return(vcc, skb->truesize);
