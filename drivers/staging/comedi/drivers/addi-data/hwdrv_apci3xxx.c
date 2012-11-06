@@ -1276,119 +1276,16 @@ static int i_APCI3XXX_InsnWriteTTLIO(struct comedi_device *dev,
 	return i_ReturnValue;
 }
 
-/*
-+----------------------------------------------------------------------------+
-|                           DIGITAL INPUT SUBDEVICE                          |
-+----------------------------------------------------------------------------+
-*/
-
-/*
-+----------------------------------------------------------------------------+
-| Function name     :int i_APCI3XXX_InsnReadDigitalInput                     |
-|                                          (struct comedi_device *dev,              |
-|                                           struct comedi_subdevice *s,             |
-|                                           struct comedi_insn *insn,               |
-|                                           unsigned int *data)                  |
-+----------------------------------------------------------------------------+
-| Task              : Reads the value of the specified Digital input channel |
-+----------------------------------------------------------------------------+
-| Input Parameters  : b_Channel = CR_CHAN(insn->chanspec) (0 to 3)           |
-+----------------------------------------------------------------------------+
-| Output Parameters : data[0] : Channel value                                |
-+----------------------------------------------------------------------------+
-| Return Value      : 0   : No error                                         |
-|                    -3   : Channel selection error                          |
-|                    -101 : Data size error                                  |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI3XXX_InsnReadDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
+static int apci3xxx_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	int i_ReturnValue = insn->n;
-	unsigned char b_Channel = (unsigned char) CR_CHAN(insn->chanspec);
-	unsigned int dw_Temp = 0;
 
-	/***************************/
-	/* Test the channel number */
-	/***************************/
+	data[1] = inl(devpriv->iobase + 32) & 0xf;
 
-	if (b_Channel <= devpriv->s_EeParameters.i_NbrDiChannel) {
-	   /************************/
-		/* Test the buffer size */
-	   /************************/
-
-		if (insn->n >= 1) {
-			dw_Temp = inl(devpriv->iobase + 32);
-			*data = (dw_Temp >> b_Channel) & 1;
-		} else {
-	      /*******************/
-			/* Data size error */
-	      /*******************/
-
-			printk("Buffer size error\n");
-			i_ReturnValue = -101;
-		}
-	} else {
-	   /***************************/
-		/* Channel selection error */
-	   /***************************/
-
-		printk("Channel selection error\n");
-		i_ReturnValue = -3;
-	}
-
-	return i_ReturnValue;
-}
-
-/*
-+----------------------------------------------------------------------------+
-| Function name     :int i_APCI3XXX_InsnBitsDigitalInput                     |
-|                                          (struct comedi_device *dev,              |
-|                                           struct comedi_subdevice *s,             |
-|                                           struct comedi_insn *insn,               |
-|                                           unsigned int *data)                  |
-+----------------------------------------------------------------------------+
-| Task              : Reads the value of the Digital input Port i.e.4channels|
-+----------------------------------------------------------------------------+
-| Input Parameters  : -                                                      |
-+----------------------------------------------------------------------------+
-| Output Parameters : data[0] : Port value                                   |
-+----------------------------------------------------------------------------+
-| Return Value      :>0: No error                                            |
-|                    ....                                                    |
-|                    -101 : Data size error                                  |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3XXX_InsnBitsDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	int i_ReturnValue = insn->n;
-	unsigned int dw_Temp = 0;
-
-	/************************/
-	/* Test the buffer size */
-	/************************/
-
-	if (insn->n >= 1) {
-		dw_Temp = inl(devpriv->iobase + 32);
-		*data = dw_Temp & 0xf;
-	} else {
-	   /*******************/
-		/* Data size error */
-	   /*******************/
-
-		printk("Buffer size error\n");
-		i_ReturnValue = -101;
-	}
-
-	return i_ReturnValue;
+	return insn->n;
 }
 
 /*
