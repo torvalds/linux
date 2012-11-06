@@ -64,8 +64,8 @@
 #include "ifx6x60.h"
 
 #define IFX_SPI_MORE_MASK		0x10
-#define IFX_SPI_MORE_BIT		12	/* bit position in u16 */
-#define IFX_SPI_CTS_BIT			13	/* bit position in u16 */
+#define IFX_SPI_MORE_BIT		4	/* bit position in u8 */
+#define IFX_SPI_CTS_BIT			6	/* bit position in u8 */
 #define IFX_SPI_MODE			SPI_MODE_1
 #define IFX_SPI_TTY_ID			0
 #define IFX_SPI_TIMEOUT_SEC		2
