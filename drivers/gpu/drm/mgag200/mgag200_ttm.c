@@ -355,7 +355,7 @@ int mgag200_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&mdev->ttm.bdev, &mgabo->bo, size,
 			  ttm_bo_type_device, &mgabo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, NULL, acc_size,
 			  NULL, mgag200_bo_ttm_destroy);
 	if (ret)
 		return ret;

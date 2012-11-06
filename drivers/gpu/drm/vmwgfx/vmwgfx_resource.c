@@ -954,7 +954,7 @@ int vmw_surface_evict(struct vmw_private *dev_priv,
 	if (!srf->backup) {
 		ret = ttm_bo_create(&dev_priv->bdev, srf->backup_size,
 				    ttm_bo_type_device,
-				    &vmw_srf_placement, 0, 0, true,
+				    &vmw_srf_placement, 0, true,
 				    NULL, &srf->backup);
 		if (unlikely(ret != 0))
 			return ret;
@@ -1566,7 +1566,7 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
-			  0, 0, interruptible,
+			  0, interruptible,
 			  NULL, acc_size, NULL, bo_free);
 	return ret;
 }

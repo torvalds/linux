@@ -141,8 +141,6 @@ struct ttm_tt;
  * struct ttm_buffer_object
  *
  * @bdev: Pointer to the buffer object device structure.
- * @buffer_start: The virtual user-space start address of ttm_bo_type_user
- * buffers.
  * @type: The bo type.
  * @destroy: Destruction function. If NULL, kfree is used.
  * @num_pages: Actual number of pages.
@@ -200,7 +198,6 @@ struct ttm_buffer_object {
 
 	struct ttm_bo_global *glob;
 	struct ttm_bo_device *bdev;
-	unsigned long buffer_start;
 	enum ttm_bo_type type;
 	void (*destroy) (struct ttm_buffer_object *);
 	unsigned long num_pages;
@@ -472,8 +469,6 @@ size_t ttm_bo_dma_acc_size(struct ttm_bo_device *bdev,
  * @type: Requested type of buffer object.
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
- * @buffer_start: Virtual address of user space data backing a
- * user buffer object.
  * @interruptible: If needing to sleep to wait for GPU resources,
  * sleep interruptible.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
@@ -505,7 +500,6 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
 			enum ttm_bo_type type,
 			struct ttm_placement *placement,
 			uint32_t page_alignment,
-			unsigned long buffer_start,
 			bool interrubtible,
 			struct file *persistent_swap_storage,
 			size_t acc_size,
@@ -521,8 +515,6 @@ extern int ttm_bo_init(struct ttm_bo_device *bdev,
  * @type: Requested type of buffer object.
  * @flags: Initial placement flags.
  * @page_alignment: Data alignment in pages.
- * @buffer_start: Virtual address of user space data backing a
- * user buffer object.
  * @interruptible: If needing to sleep while waiting for GPU resources,
  * sleep interruptible.
  * @persistent_swap_storage: Usually the swap storage is deleted for buffers
@@ -545,7 +537,6 @@ extern int ttm_bo_create(struct ttm_bo_device *bdev,
 				enum ttm_bo_type type,
 				struct ttm_placement *placement,
 				uint32_t page_alignment,
-				unsigned long buffer_start,
 				bool interruptible,
 				struct file *persistent_swap_storage,
 				struct ttm_buffer_object **p_bo);

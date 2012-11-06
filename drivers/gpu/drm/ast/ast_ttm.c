@@ -356,7 +356,7 @@ int ast_bo_create(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&ast->ttm.bdev, &astbo->bo, size,
 			  ttm_bo_type_device, &astbo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, false, NULL, acc_size,
 			  NULL, ast_bo_ttm_destroy);
 	if (ret)
 		return ret;

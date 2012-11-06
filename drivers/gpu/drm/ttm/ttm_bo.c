@@ -1179,7 +1179,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		enum ttm_bo_type type,
 		struct ttm_placement *placement,
 		uint32_t page_alignment,
-		unsigned long buffer_start,
 		bool interruptible,
 		struct file *persistent_swap_storage,
 		size_t acc_size,
@@ -1200,7 +1199,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 		return -ENOMEM;
 	}
 
-	size += buffer_start & ~PAGE_MASK;
 	num_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	if (num_pages == 0) {
 		pr_err("Illegal buffer object size\n");
@@ -1233,7 +1231,6 @@ int ttm_bo_init(struct ttm_bo_device *bdev,
 	bo->mem.page_alignment = page_alignment;
 	bo->mem.bus.io_reserved_vm = false;
 	bo->mem.bus.io_reserved_count = 0;
-	bo->buffer_start = buffer_start & PAGE_MASK;
 	bo->priv_flags = 0;
 	bo->mem.placement = (TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED);
 	bo->seq_valid = false;
@@ -1306,7 +1303,6 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 			enum ttm_bo_type type,
 			struct ttm_placement *placement,
 			uint32_t page_alignment,
-			unsigned long buffer_start,
 			bool interruptible,
 			struct file *persistent_swap_storage,
 			struct ttm_buffer_object **p_bo)
@@ -1321,8 +1317,8 @@ int ttm_bo_create(struct ttm_bo_device *bdev,
 
 	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct ttm_buffer_object));
 	ret = ttm_bo_init(bdev, bo, size, type, placement, page_alignment,
-				buffer_start, interruptible,
-			  persistent_swap_storage, acc_size, NULL, NULL);
+			  interruptible, persistent_swap_storage, acc_size,
+			  NULL, NULL);
 	if (likely(ret == 0))
 		*p_bo = bo;
 

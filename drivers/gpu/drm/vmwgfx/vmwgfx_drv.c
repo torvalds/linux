@@ -292,7 +292,7 @@ static int vmw_dummy_query_bo_create(struct vmw_private *dev_priv)
 			     PAGE_SIZE,
 			     ttm_bo_type_device,
 			     &vmw_vram_sys_placement,
-			     0, 0, false, NULL,
+			     0, false, NULL,
 			     &dev_priv->dummy_query_bo);
 }
 
