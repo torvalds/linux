@@ -52,9 +52,10 @@ static const void *apci1710_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int apci1710_attach_pci(struct comedi_device *dev,
-			       struct pci_dev *pcidev)
+static int __devinit apci1710_auto_attach(struct comedi_device *dev,
+					  unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
@@ -117,7 +118,7 @@ static void apci1710_detach(struct comedi_device *dev)
 static struct comedi_driver apci1710_driver = {
 	.driver_name	= "addi_apci_1710",
 	.module		= THIS_MODULE,
-	.attach_pci	= apci1710_attach_pci,
+	.auto_attach	= apci1710_auto_attach,
 	.detach		= apci1710_detach,
 };
 
