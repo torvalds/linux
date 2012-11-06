@@ -35,6 +35,9 @@ void xfs_reclaim_inodes_nr(struct xfs_mount *mp, int nr_to_scan);
 
 void xfs_inode_set_reclaim_tag(struct xfs_inode *ip);
 
+void xfs_inode_set_eofblocks_tag(struct xfs_inode *ip);
+void xfs_inode_clear_eofblocks_tag(struct xfs_inode *ip);
+
 int xfs_sync_inode_grab(struct xfs_inode *ip);
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
 	int (*execute)(struct xfs_inode *ip, struct xfs_perag *pag, int flags),

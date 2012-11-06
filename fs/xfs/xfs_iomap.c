@@ -41,6 +41,7 @@
 #include "xfs_utils.h"
 #include "xfs_iomap.h"
 #include "xfs_trace.h"
+#include "xfs_icache.h"
 
 
 #define XFS_WRITEIO_ALIGN(mp,off)	(((off) >> mp->m_writeio_log) \
@@ -449,6 +450,13 @@ retry:
 
 	if (!(imap[0].br_startblock || XFS_IS_REALTIME_INODE(ip)))
 		return xfs_alert_fsblock_zero(ip, &imap[0]);
+
+	/*
+	 * Tag the inode as speculatively preallocated so we can reclaim this
+	 * space on demand, if necessary.
+	 */
+	if (prealloc)
+		xfs_inode_set_eofblocks_tag(ip);
 
 	*ret_imap = imap[0];
 	return 0;
