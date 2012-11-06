@@ -641,6 +641,7 @@ extern const struct clksel_rate gpt_32k_rates[];
 extern const struct clksel_rate gpt_sys_rates[];
 extern const struct clksel_rate gfx_l3_rates[];
 extern const struct clksel_rate dsp_ick_rates[];
+extern struct clk dummy_ck;
 
 #ifdef CONFIG_COMMON_CLK
 extern const struct clk_hw_omap_ops clkhwops_omap3_dpll;
@@ -673,6 +674,7 @@ extern const struct clkops clkops_omap4_dpllmx_ops;
 
 /* clksel_rate blocks shared between OMAP44xx and AM33xx */
 extern const struct clksel_rate div_1_0_rates[];
+extern const struct clksel_rate div3_1to4_rates[];
 extern const struct clksel_rate div_1_1_rates[];
 extern const struct clksel_rate div_1_2_rates[];
 extern const struct clksel_rate div_1_3_rates[];

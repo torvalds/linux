@@ -275,13 +275,6 @@ static struct clk abe_24m_fclk = {
 	.recalc		= &omap_fixed_divisor_recalc,
 };
 
-static const struct clksel_rate div3_1to4_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_4430 },
-	{ .div = 2, .val = 1, .flags = RATE_IN_4430 },
-	{ .div = 4, .val = 2, .flags = RATE_IN_4430 },
-	{ .div = 0 },
-};
-
 static const struct clksel abe_clk_div[] = {
 	{ .parent = &dpll_abe_m2x2_ck, .rates = div3_1to4_rates },
 	{ .parent = NULL },
@@ -676,7 +669,6 @@ static struct dpll_data dpll_mpu_dd = {
 	.max_divider	= 128,
 	.min_divider	= 1,
 };
-
 
 static struct clk dpll_mpu_ck = {
 	.name		= "dpll_mpu_ck",
