@@ -45,6 +45,7 @@
 #include "inode-map.h"
 #include "check-integrity.h"
 #include "rcu-string.h"
+#include "dev-replace.h"
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>
@@ -2438,7 +2439,11 @@ int open_ctree(struct super_block *sb,
 		goto fail_tree_roots;
 	}
 
-	btrfs_close_extra_devices(fs_devices);
+	/*
+	 * keep the device that is marked to be the target device for the
+	 * dev_replace procedure
+	 */
+	btrfs_close_extra_devices(fs_info, fs_devices, 0);
 
 	if (!fs_devices->latest_bdev) {
 		printk(KERN_CRIT "btrfs: failed to read devices on %s\n",
@@ -2509,6 +2514,14 @@ retry_root_backup:
 		       ret);
 		goto fail_block_groups;
 	}
+
+	ret = btrfs_init_dev_replace(fs_info);
+	if (ret) {
+		pr_err("btrfs: failed to init dev_replace: %d\n", ret);
+		goto fail_block_groups;
+	}
+
+	btrfs_close_extra_devices(fs_info, fs_devices, 1);
 
 	ret = btrfs_init_space_info(fs_info);
 	if (ret) {
@@ -2654,6 +2667,13 @@ retry_root_backup:
 	ret = btrfs_resume_balance_async(fs_info);
 	if (ret) {
 		printk(KERN_WARNING "btrfs: failed to resume balance\n");
+		close_ctree(tree_root);
+		return ret;
+	}
+
+	ret = btrfs_resume_dev_replace_async(fs_info);
+	if (ret) {
+		pr_warn("btrfs: failed to resume dev_replace\n");
 		close_ctree(tree_root);
 		return ret;
 	}
@@ -3299,6 +3319,8 @@ int close_ctree(struct btrfs_root *root)
 
 	/* pause restriper - we want to resume on mount */
 	btrfs_pause_balance(fs_info);
+
+	btrfs_dev_replace_suspend_for_unmount(fs_info);
 
 	btrfs_scrub_cancel(fs_info);
 

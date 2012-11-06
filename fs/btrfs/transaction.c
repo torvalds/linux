@@ -30,6 +30,7 @@
 #include "tree-log.h"
 #include "inode-map.h"
 #include "volumes.h"
+#include "dev-replace.h"
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
@@ -845,7 +846,9 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 		return ret;
 
 	ret = btrfs_run_dev_stats(trans, root->fs_info);
-	BUG_ON(ret);
+	WARN_ON(ret);
+	ret = btrfs_run_dev_replace(trans, root->fs_info);
+	WARN_ON(ret);
 
 	ret = btrfs_run_qgroups(trans, root->fs_info);
 	BUG_ON(ret);
@@ -867,6 +870,8 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	down_write(&fs_info->extent_commit_sem);
 	switch_commit_root(fs_info->extent_root);
 	up_write(&fs_info->extent_commit_sem);
+
+	btrfs_after_dev_replace_commit(fs_info);
 
 	return 0;
 }

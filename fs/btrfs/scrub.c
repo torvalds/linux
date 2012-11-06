@@ -2843,12 +2843,17 @@ int btrfs_scrub_dev(struct btrfs_fs_info *fs_info, u64 devid, u64 start,
 		return -EIO;
 	}
 
-	if (dev->scrub_device) {
+	btrfs_dev_replace_lock(&fs_info->dev_replace);
+	if (dev->scrub_device ||
+	    (!is_dev_replace &&
+	     btrfs_dev_replace_is_ongoing(&fs_info->dev_replace))) {
+		btrfs_dev_replace_unlock(&fs_info->dev_replace);
 		mutex_unlock(&fs_info->scrub_lock);
 		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
 		scrub_workers_put(fs_info);
 		return -EINPROGRESS;
 	}
+	btrfs_dev_replace_unlock(&fs_info->dev_replace);
 	sctx = scrub_setup_ctx(dev, is_dev_replace);
 	if (IS_ERR(sctx)) {
 		mutex_unlock(&fs_info->scrub_lock);
