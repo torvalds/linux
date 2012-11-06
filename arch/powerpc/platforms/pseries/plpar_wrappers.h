@@ -273,4 +273,10 @@ static inline long plpar_put_term_char(unsigned long termno, unsigned long len,
 			lbuf[1]);
 }
 
+/* Set various resource mode parameters */
+static inline long plpar_set_mode(unsigned long mflags, unsigned long resource,
+		unsigned long value1, unsigned long value2)
+{
+	return plpar_hcall_norets(H_SET_MODE, mflags, resource, value1, value2);
+}
 #endif /* _PSERIES_PLPAR_WRAPPERS_H */

@@ -267,7 +267,8 @@
 #define H_RANDOM		0x300
 #define H_COP			0x304
 #define H_GET_MPP_X		0x314
-#define MAX_HCALL_OPCODE	H_GET_MPP_X
+#define H_SET_MODE		0x31C
+#define MAX_HCALL_OPCODE	H_SET_MODE
 
 #ifndef __ASSEMBLY__
 
