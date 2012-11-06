@@ -1070,10 +1070,14 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
 		u32 *filter_mask = kzalloc(32, GFP_KERNEL);
-		u32 *command = kzalloc(2, GFP_KERNEL);
-		u32 *offset = kzalloc(2, GFP_KERNEL);
-		u32 *crc = kzalloc(4, GFP_KERNEL);
+		u32 command[2];
+		u32 offset[2];
+		u32 crc[4];
 		int i, filter = 0;
+
+		memset(command, 0, sizeof(command));
+		memset(offset, 0, sizeof(offset));
+		memset(crc, 0, sizeof(crc));
 
 		if (pdata->wolopts & WAKE_BCAST) {
 			const u8 bcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
@@ -1128,8 +1132,11 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 		for (i = 0; i < (pdata->wuff_filter_count * 4); i++) {
 			ret = smsc95xx_write_reg(dev, WUFF, filter_mask[i]);
+			if (ret < 0)
+				kfree(filter_mask);
 			check_warn_return(ret, "Error writing WUFF");
 		}
+		kfree(filter_mask);
 
 		for (i = 0; i < (pdata->wuff_filter_count / 4); i++) {
 			ret = smsc95xx_write_reg(dev, WUFF, command[i]);
