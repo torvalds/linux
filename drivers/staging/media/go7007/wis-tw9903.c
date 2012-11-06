@@ -31,8 +31,7 @@ struct wis_tw9903 {
 	int hue;
 };
 
-static u8 initial_registers[] =
-{
+static u8 initial_registers[] = {
 	0x02, 0x44, /* input 1, composite */
 	0x03, 0x92, /* correct digital format */
 	0x04, 0x00,
