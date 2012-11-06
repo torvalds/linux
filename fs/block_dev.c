@@ -1661,6 +1661,39 @@ static int blkdev_mmap(struct file *file, struct vm_area_struct *vma)
 	return ret;
 }
 
+static ssize_t blkdev_splice_read(struct file *file, loff_t *ppos,
+				  struct pipe_inode_info *pipe, size_t len,
+				  unsigned int flags)
+{
+	ssize_t ret;
+	struct block_device *bdev = I_BDEV(file->f_mapping->host);
+
+	percpu_down_read(&bdev->bd_block_size_semaphore);
+
+	ret = generic_file_splice_read(file, ppos, pipe, len, flags);
+
+	percpu_up_read(&bdev->bd_block_size_semaphore);
+
+	return ret;
+}
+
+static ssize_t blkdev_splice_write(struct pipe_inode_info *pipe,
+				   struct file *file, loff_t *ppos, size_t len,
+				   unsigned int flags)
+{
+	ssize_t ret;
+	struct block_device *bdev = I_BDEV(file->f_mapping->host);
+
+	percpu_down_read(&bdev->bd_block_size_semaphore);
+
+	ret = generic_file_splice_write(pipe, file, ppos, len, flags);
+
+	percpu_up_read(&bdev->bd_block_size_semaphore);
+
+	return ret;
+}
+
+
 /*
  * Try to release a page associated with block device when the system
  * is under memory pressure.
@@ -1699,8 +1732,8 @@ const struct file_operations def_blk_fops = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_blkdev_ioctl,
 #endif
-	.splice_read	= generic_file_splice_read,
-	.splice_write	= generic_file_splice_write,
+	.splice_read	= blkdev_splice_read,
+	.splice_write	= blkdev_splice_write,
 };
 
 int ioctl_by_bdev(struct block_device *bdev, unsigned cmd, unsigned long arg)

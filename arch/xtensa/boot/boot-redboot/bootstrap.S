@@ -51,17 +51,17 @@ _start:
 	/* 'reset' window registers */
 
 	movi	a4, 1
-	wsr	a4, PS
+	wsr	a4, ps
 	rsync
 
-	rsr	a5, WINDOWBASE
+	rsr	a5, windowbase
 	ssl	a5
 	sll	a4, a4
-	wsr	a4, WINDOWSTART
+	wsr	a4, windowstart
 	rsync
 
 	movi	a4, 0x00040000
-	wsr	a4, PS
+	wsr	a4, ps
 	rsync
 
 	/* copy the loader to its address

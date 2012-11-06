@@ -303,10 +303,10 @@ static bool ch7xxx_get_hw_state(struct intel_dvo_device *dvo)
 
 	ch7xxx_readb(dvo, CH7xxx_PM, &val);
 
-	if (val & CH7xxx_PM_FPD)
-		return false;
-	else
+	if (val & (CH7xxx_PM_DVIL | CH7xxx_PM_DVIP))
 		return true;
+	else
+		return false;
 }
 
 static void ch7xxx_dump_regs(struct intel_dvo_device *dvo)
