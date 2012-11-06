@@ -30,7 +30,7 @@
 
 static struct class *ilo_class;
 static unsigned int ilo_major;
-static unsigned int max_ccb = MIN_CCB;
+static unsigned int max_ccb = 16;
 static char ilo_hwdev[MAX_ILO_DEV];
 
 static inline int get_entry_id(int entry)
@@ -725,6 +725,9 @@ static void ilo_remove(struct pci_dev *pdev)
 	int i, minor;
 	struct ilo_hwinfo *ilo_hw = pci_get_drvdata(pdev);
 
+	if (!ilo_hw)
+		return;
+
 	clear_device(ilo_hw);
 
 	minor = MINOR(ilo_hw->cdev.dev);
@@ -751,8 +754,12 @@ static void ilo_remove(struct pci_dev *pdev)
 static int __devinit ilo_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
-	int devnum, minor, start, error;
+	int devnum, minor, start, error = 0;
 	struct ilo_hwinfo *ilo_hw;
+
+	/* Ignore subsystem_device = 0x1979 (set by BIOS)  */
+	if (pdev->subsystem_device == 0x1979)
+		goto out;
 
 	if (max_ccb > MAX_CCB)
 		max_ccb = MAX_CCB;
@@ -892,14 +899,14 @@ static void __exit ilo_exit(void)
 	class_destroy(ilo_class);
 }
 
-MODULE_VERSION("1.3");
+MODULE_VERSION("1.4");
 MODULE_ALIAS(ILO_NAME);
 MODULE_DESCRIPTION(ILO_NAME);
 MODULE_AUTHOR("David Altobelli <david.altobelli@hp.com>");
 MODULE_LICENSE("GPL v2");
 
 module_param(max_ccb, uint, 0444);
-MODULE_PARM_DESC(max_ccb, "Maximum number of HP iLO channels to attach (8)");
+MODULE_PARM_DESC(max_ccb, "Maximum number of HP iLO channels to attach (16)");
 
 module_init(ilo_init);
 module_exit(ilo_exit);
