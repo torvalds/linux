@@ -337,6 +337,7 @@ nvme_alloc_iod(unsigned nseg, unsigned nbytes, gfp_t gfp)
 		iod->offset = offsetof(struct nvme_iod, sg[nseg]);
 		iod->npages = -1;
 		iod->length = nbytes;
+		iod->nents = 0;
 	}
 
 	return iod;
@@ -377,7 +378,8 @@ static void bio_completion(struct nvme_dev *dev, void *ctx,
 	struct bio *bio = iod->private;
 	u16 status = le16_to_cpup(&cqe->status) >> 1;
 
-	dma_unmap_sg(&dev->pci_dev->dev, iod->sg, iod->nents,
+	if (iod->nents)
+		dma_unmap_sg(&dev->pci_dev->dev, iod->sg, iod->nents,
 			bio_data_dir(bio) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
 	nvme_free_iod(dev, iod);
 	if (status) {
