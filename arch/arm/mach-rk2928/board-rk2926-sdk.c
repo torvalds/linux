@@ -862,7 +862,11 @@ static struct pmu_info  tps65910_dcdc_info[] = {
 		.max_uv         = 1200000,
 	},
 	{
+             #if defined(V86_VERSION_1_1)
+             .name          = "vdd_core",    //ddr
+	      #else
 		.name          = "vdd2",    //ddr
+		#endif
 		.min_uv          = 1200000,
 		.max_uv         = 1200000,
 	},

@@ -301,6 +301,11 @@ static struct regulator_consumer_supply tps65910_smps2_supply[] = {
 	{
 		.supply = "vdd2",
 	},
+	#if defined(CONFIG_MACH_RK2926_V86)
+	{
+		.supply = "vdd_core",
+	},
+      #endif
 	
 };
 static struct regulator_consumer_supply tps65910_smps3_supply[] = {
