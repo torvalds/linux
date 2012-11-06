@@ -609,55 +609,15 @@ static int i_APCI3200_GetChannelCalibrationValue(struct comedi_device *dev,
 	return 0;
 }
 
-/*
- * Read  value  of the selected channel or port
- *
- * data[0] = 0: Read single channel
- *	   = 1 Read port value
- * data[1] = Port number
- *
- * data[0] : Read status value
- */
-static int i_APCI3200_ReadDigitalInput(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
+static int apci3200_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp = 0;
-	unsigned int ui_NoOfChannel = 0;
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->i_IobaseReserved);
+	data[1] = inl(devpriv->i_IobaseReserved) & 0xf;
 
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/* if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			if (data[1] < 0 || data[1] > 1) {
-				printk("\nThe port number is in error\n");
-				return -EINVAL;
-			}	/* if(data[1] < 0 || data[1] >1) */
-			switch (ui_NoOfChannel) {
-
-			case 2:
-				*data = (*data >> (2 * data[1])) & 0x3;
-				break;
-			case 3:
-				*data = (*data & 15);
-				break;
-			default:
-				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	/*  "sorry channel spec wrong " */
-
-			}	/* switch(ui_NoOfChannels) */
-		}		/* if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/* elseif  (ui_Temp==1) */
-	}
 	return insn->n;
 }
 
