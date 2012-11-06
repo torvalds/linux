@@ -22,7 +22,6 @@ static const struct addi_board apci2200_boardtypes[] = {
 		.i_Timer		= 1,
 		.reset			= i_APCI2200_Reset,
 		.di_bits		= apci2200_di_insn_bits,
-		.do_config		= i_APCI2200_ConfigDigitalOutput,
 		.do_bits		= apci2200_do_insn_bits,
 		.timer_config		= i_APCI2200_ConfigWatchdog,
 		.timer_write		= i_APCI2200_StartStopWriteWatchdog,
