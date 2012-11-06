@@ -44,7 +44,7 @@ MODULE_DEVICE_TABLE(pci, apci3501_pci_table);
 static struct comedi_driver apci3501_driver = {
 	.driver_name	= "addi_apci_3501",
 	.module		= THIS_MODULE,
-	.attach_pci	= addi_attach_pci,
+	.auto_attach	= addi_auto_attach,
 	.detach		= i_ADDI_Detach,
 	.num_names	= ARRAY_SIZE(apci3501_boardtypes),
 	.board_name	= &apci3501_boardtypes[0].pc_DriverName,
