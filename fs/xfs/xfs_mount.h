@@ -196,6 +196,8 @@ typedef struct xfs_mount {
 #endif
 	struct xfs_mru_cache	*m_filestream;  /* per-mount filestream data */
 	struct delayed_work	m_reclaim_work;	/* background inode reclaim */
+	struct delayed_work	m_eofblocks_work; /* background eof blocks
+						     trimming */
 	__int64_t		m_update_flags;	/* sb flags we need to update
 						   on the next remount,rw */
 	struct shrinker		m_inode_shrink;	/* inode reclaim shrinker */
@@ -207,6 +209,7 @@ typedef struct xfs_mount {
 	struct workqueue_struct	*m_cil_workqueue;
 	struct workqueue_struct	*m_reclaim_workqueue;
 	struct workqueue_struct	*m_log_workqueue;
+	struct workqueue_struct *m_eofblocks_workqueue;
 } xfs_mount_t;
 
 /*

@@ -1428,6 +1428,8 @@ xfs_unmountfs(
 	__uint64_t		resblks;
 	int			error;
 
+	cancel_delayed_work_sync(&mp->m_eofblocks_work);
+
 	xfs_qm_unmount_quotas(mp);
 	xfs_rtunmount_inodes(mp);
 	IRELE(mp->m_rootip);

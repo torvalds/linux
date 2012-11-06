@@ -874,8 +874,15 @@ xfs_init_mount_workqueues(
 	if (!mp->m_log_workqueue)
 		goto out_destroy_reclaim;
 
+	mp->m_eofblocks_workqueue = alloc_workqueue("xfs-eofblocks/%s",
+			WQ_NON_REENTRANT, 0, mp->m_fsname);
+	if (!mp->m_eofblocks_workqueue)
+		goto out_destroy_log;
+
 	return 0;
 
+out_destroy_log:
+	destroy_workqueue(mp->m_log_workqueue);
 out_destroy_reclaim:
 	destroy_workqueue(mp->m_reclaim_workqueue);
 out_destroy_cil:
@@ -892,6 +899,7 @@ STATIC void
 xfs_destroy_mount_workqueues(
 	struct xfs_mount	*mp)
 {
+	destroy_workqueue(mp->m_eofblocks_workqueue);
 	destroy_workqueue(mp->m_log_workqueue);
 	destroy_workqueue(mp->m_reclaim_workqueue);
 	destroy_workqueue(mp->m_cil_workqueue);
@@ -1393,6 +1401,7 @@ xfs_fs_fill_super(
 	mutex_init(&mp->m_growlock);
 	atomic_set(&mp->m_active_trans, 0);
 	INIT_DELAYED_WORK(&mp->m_reclaim_work, xfs_reclaim_worker);
+	INIT_DELAYED_WORK(&mp->m_eofblocks_work, xfs_eofblocks_worker);
 
 	mp->m_super = sb;
 	sb->s_fs_info = mp;
