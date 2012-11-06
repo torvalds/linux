@@ -2762,8 +2762,6 @@ static void be_setup_init(struct be_adapter *adapter)
 	adapter->if_handle = -1;
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
-	adapter->eq_next_idx = 0;
-
 	if (be_physfn(adapter))
 		adapter->cmd_privileges = MAX_PRIVILEGES;
 	else

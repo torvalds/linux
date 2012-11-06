@@ -375,9 +375,7 @@ struct be_adapter {
 	struct be_rx_obj rx_obj[MAX_RX_QS];
 	u32 big_page_size;	/* Compounded page size shared by rx wrbs */
 
-	u8 eq_next_idx;
 	struct be_drv_stats drv_stats;
-
 	u16 vlans_added;
 	u8 vlan_tag[VLAN_N_VID];
 	u8 vlan_prio_bmap;	/* Available Priority BitMap */
