@@ -100,6 +100,36 @@
 		regulator-name = "lis3_reg";
 		regulator-boot-on;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "evmsk:green:usr0";
+			gpios = <&gpio2 4 0>;
+			default-state = "off";
+		};
+
+		led@2 {
+			label = "evmsk:green:usr1";
+			gpios = <&gpio2 5 0>;
+			default-state = "off";
+		};
+
+		led@3 {
+			label = "evmsk:green:mmc0";
+			gpios = <&gpio2 6 0>;
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+
+		led@4 {
+			label = "evmsk:green:heartbeat";
+			gpios = <&gpio2 7 0>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
 };
 
 /include/ "tps65910.dtsi"
