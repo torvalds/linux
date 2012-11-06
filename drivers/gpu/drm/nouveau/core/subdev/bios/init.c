@@ -743,9 +743,10 @@ static void
 init_dp_condition(struct nvbios_init *init)
 {
 	struct nouveau_bios *bios = init->bios;
+	struct nvbios_dpout info;
 	u8  cond = nv_ro08(bios, init->offset + 1);
 	u8  unkn = nv_ro08(bios, init->offset + 2);
-	u8  ver, len;
+	u8  ver, hdr, cnt, len;
 	u16 data;
 
 	trace("DP_CONDITION\t0x%02x 0x%02x\n", cond, unkn);
@@ -759,10 +760,12 @@ init_dp_condition(struct nvbios_init *init)
 	case 1:
 	case 2:
 		if ( init->outp &&
-		    (data = dp_outp_match(bios, init->outp, &ver, &len))) {
-			if (ver <= 0x40 && !(nv_ro08(bios, data + 5) & cond))
-				init_exec_set(init, false);
-			if (ver == 0x40 && !(nv_ro08(bios, data + 4) & cond))
+		    (data = nvbios_dpout_match(bios, DCB_OUTPUT_DP,
+					       (init->outp->or << 0) |
+					       (init->outp->sorconf.link << 6),
+					       &ver, &hdr, &cnt, &len, &info)))
+		{
+			if (!(info.flags & cond))
 				init_exec_set(init, false);
 			break;
 		}
