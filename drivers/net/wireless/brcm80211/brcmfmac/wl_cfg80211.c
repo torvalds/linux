@@ -2345,7 +2345,8 @@ static s32 brcmf_inform_bss(struct brcmf_cfg80211_info *cfg)
 	int i;
 
 	bss_list = cfg->bss_list;
-	if (bss_list->version != BRCMF_BSS_INFO_VERSION) {
+	if (bss_list->count != 0 &&
+	    bss_list->version != BRCMF_BSS_INFO_VERSION) {
 		WL_ERR("Version %d != WL_BSS_INFO_VERSION\n",
 		       bss_list->version);
 		return -EOPNOTSUPP;
