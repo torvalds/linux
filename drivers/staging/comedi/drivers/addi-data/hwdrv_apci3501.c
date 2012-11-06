@@ -96,143 +96,25 @@ static int apci3501_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_WriteDigitalOutput                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : writes To the digital Output Subdevice                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     struct comedi_subdevice *s     : Subdevice Pointer            |
-|                     struct comedi_insn *insn       : Insn Structure Pointer       |
-|                     unsigned int *data          : Data Pointer contains        |
-|                                          configuration parameters as below |
-|                                                                            |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3501_WriteDigitalOutput(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn,
-					 unsigned int *data)
+static int apci3501_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp, ui_Temp1;
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	if (devpriv->b_OutputMemoryStatus) {
-		ui_Temp = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	else {
-		ui_Temp = 0;
-	}			/* if(devpriv->b_OutputMemoryStatus ) */
-	if (data[3] == 0) {
-		if (data[1] == 0) {
-			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outl(data[0], devpriv->iobase + APCI3501_DIGITAL_OP);
-		}		/* if(data[1]==0) */
-		else {
-			if (data[1] == 1) {
-				data[0] = (data[0] << (2 * data[2])) | ui_Temp;
-				outl(data[0],
-					devpriv->iobase + APCI3501_DIGITAL_OP);
-			}	/*  if(data[1]==1) */
-			else {
-				printk("\nSpecified channel not supported\n");
-			}	/* else if(data[1]==1) */
-		}		/* elseif(data[1]==0) */
-	}			/* if(data[3]==0) */
-	else {
-		if (data[3] == 1) {
-			if (data[1] == 0) {
-				data[0] = ~data[0] & 0x1;
-				ui_Temp1 = 1;
-				ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-				ui_Temp = ui_Temp | ui_Temp1;
-				data[0] =
-					(data[0] << ui_NoOfChannel) ^
-					0xffffffff;
-				data[0] = data[0] & ui_Temp;
-				outl(data[0],
-					devpriv->iobase + APCI3501_DIGITAL_OP);
-			}	/* if(data[1]==0) */
-			else {
-				if (data[1] == 1) {
-					data[0] = ~data[0] & 0x3;
-					ui_Temp1 = 3;
-					ui_Temp1 = ui_Temp1 << 2 * data[2];
-					ui_Temp = ui_Temp | ui_Temp1;
-					data[0] =
-						((data[0] << (2 *
-								data[2])) ^
-						0xffffffff) & ui_Temp;
-					outl(data[0],
-						devpriv->iobase +
-						APCI3501_DIGITAL_OP);
-				}	/*  if(data[1]==1) */
-				else {
-					printk("\nSpecified channel not supported\n");
-				}	/* else if(data[1]==1) */
-			}	/* elseif(data[1]==0) */
-		}		/* if(data[3]==1); */
-		else {
-			printk("\nSpecified functionality does not exist\n");
-			return -EINVAL;
-		}		/* if else data[3]==1) */
-	}			/* if else data[3]==0) */
-	return insn->n;
-}
+	s->state = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ReadDigitalOutput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel or port           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI3501_ReadDigitalOutput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
+		outl(s->state, devpriv->iobase + APCI3501_DIGITAL_OP);
+	}
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->iobase + APCI3501_DIGITAL_OP);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/*  if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			*data = *data & 0x3;
+	data[1] = s->state;
 
-		}		/*  if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/*  else if (ui_Temp==1) */
-	}			/*  else if  (ui_Temp==0) */
 	return insn->n;
 }
 
