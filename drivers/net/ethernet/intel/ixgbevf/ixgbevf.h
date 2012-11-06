@@ -74,6 +74,8 @@ struct ixgbevf_ring {
 	u64			total_bytes;
 	u64			total_packets;
 	struct u64_stats_sync	syncp;
+	u64 hw_csum_rx_error;
+	u64 hw_csum_rx_good;
 
 	u16 head;
 	u16 tail;
