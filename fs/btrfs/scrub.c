@@ -1193,8 +1193,8 @@ static int scrub_setup_recheck_block(struct scrub_ctx *sctx,
 		 * with a length of PAGE_SIZE, each returned stripe
 		 * represents one mirror
 		 */
-		ret = btrfs_map_block(fs_info, WRITE, logical, &mapped_length,
-				      &bbio, 0);
+		ret = btrfs_map_block(fs_info, REQ_GET_READ_MIRRORS, logical,
+				      &mapped_length, &bbio, 0);
 		if (ret || !bbio || mapped_length < sublen) {
 			kfree(bbio);
 			return -EIO;

@@ -174,6 +174,9 @@ static int btrfs_csum_sizes[] = { 4, 0 };
 /* four bytes for CRC32 */
 #define BTRFS_EMPTY_DIR_SIZE 0
 
+/* spefic to btrfs_map_block(), therefore not in include/linux/blk_types.h */
+#define REQ_GET_READ_MIRRORS	(1 << 30)
+
 #define BTRFS_FT_UNKNOWN	0
 #define BTRFS_FT_REG_FILE	1
 #define BTRFS_FT_DIR		2
