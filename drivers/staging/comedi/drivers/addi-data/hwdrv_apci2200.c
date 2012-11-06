@@ -63,99 +63,14 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI2200_WATCHDOG_RELOAD_VALUE	4
 #define APCI2200_WATCHDOG_STATUS	16
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2200_Read1DigitalInput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the digital input                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		       struct comedi_subdevice *s,   :pointer to subdevice structure
-|                       struct comedi_insn *insn      :pointer to insn structure     |
-|                     unsigned int *data          : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI2200_Read1DigitalInput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
+static int apci2200_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_TmpValue = 0;
-	unsigned int ui_Channel;
 
-	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel <= 7) {
-		ui_TmpValue = (unsigned int) inw(devpriv->iobase + APCI2200_DIGITAL_IP);
-		*data = (ui_TmpValue >> ui_Channel) & 0x1;
-	}			/* if(ui_Channel >= 0 && ui_Channel <=7) */
-	else {
-		printk("\nThe specified channel does not exist\n");
-		return -EINVAL;	/*  "sorry channel spec wrong " */
-	}			/* else if(ui_Channel >= 0 && ui_Channel <=7) */
-
-	return insn->n;
-}
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2200_ReadMoreDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     struct comedi_insn *insn,unsigned int *data)                      |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the Requested digital inputs      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                      struct comedi_subdevice *s,   :pointer to subdevice structure
-|                       struct comedi_insn *insn      :pointer to insn structure     |
-|                      unsigned int *data         : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI2200_ReadMoreDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_PortValue = data[0];
-	unsigned int ui_Mask = 0;
-	unsigned int ui_NoOfChannels;
-
-	ui_NoOfChannels = CR_CHAN(insn->chanspec);
-
-	*data = (unsigned int) inw(devpriv->iobase + APCI2200_DIGITAL_IP);
-	switch (ui_NoOfChannels) {
-	case 2:
-		ui_Mask = 3;
-		*data = (*data >> (2 * ui_PortValue)) & ui_Mask;
-		break;
-	case 4:
-		ui_Mask = 15;
-		*data = (*data >> (4 * ui_PortValue)) & ui_Mask;
-		break;
-	case 7:
-		break;
-
-	default:
-		printk("\nWrong parameters\n");
-		return -EINVAL;	/*  "sorry channel spec wrong " */
-		break;
-	}			/* switch(ui_NoOfChannels) */
+	data[1] = inw(devpriv->iobase + APCI2200_DIGITAL_IP);
 
 	return insn->n;
 }
