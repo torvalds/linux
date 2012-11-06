@@ -600,9 +600,11 @@ static int brcmf_netdev_stop(struct net_device *ndev)
 	struct brcmf_pub *drvr = ifp->drvr;
 
 	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_cfg80211_down(drvr->config);
+
 	if (drvr->bus_if->drvr_up == 0)
 		return 0;
+
+	brcmf_cfg80211_down(drvr->config);
 
 	/* Set state and stop OS transmissions */
 	drvr->bus_if->drvr_up = false;
@@ -905,6 +907,8 @@ void brcmf_detach(struct device *dev)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
+	if (drvr == NULL)
+		return;
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
