@@ -924,8 +924,9 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 		ath9k_vif_iter(iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath9k_vif_iter,
-						   iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_vif_iter, iter_data);
 }
 
 /* Called with sc->mutex held. */
@@ -975,8 +976,9 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    old_opmode == NL80211_IFTYPE_AP &&
 	    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
-		ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   ath9k_sta_vif_iter, sc);
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_sta_vif_iter, sc);
 	}
 }
 
@@ -1505,8 +1507,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				clear_bit(SC_OP_BEACONS, &sc->sc_flags);
 		}
 
-		ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   ath9k_bss_assoc_iter, sc);
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_bss_assoc_iter, sc);
 
 		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags) &&
 		    ah->opmode == NL80211_IFTYPE_STATION) {

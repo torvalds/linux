@@ -512,7 +512,7 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw)
 EXPORT_SYMBOL(ieee80211_wake_queues);
 
 void ieee80211_iterate_active_interfaces(
-	struct ieee80211_hw *hw,
+	struct ieee80211_hw *hw, u32 iter_flags,
 	void (*iterator)(void *data, u8 *mac,
 			 struct ieee80211_vif *vif),
 	void *data)
@@ -530,6 +530,9 @@ void ieee80211_iterate_active_interfaces(
 		default:
 			break;
 		}
+		if (!(iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL) &&
+		    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+			continue;
 		if (ieee80211_sdata_running(sdata))
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
@@ -537,7 +540,9 @@ void ieee80211_iterate_active_interfaces(
 
 	sdata = rcu_dereference_protected(local->monitor_sdata,
 					  lockdep_is_held(&local->iflist_mtx));
-	if (sdata)
+	if (sdata &&
+	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL ||
+	     sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 		iterator(data, sdata->vif.addr, &sdata->vif);
 
 	mutex_unlock(&local->iflist_mtx);
@@ -545,7 +550,7 @@ void ieee80211_iterate_active_interfaces(
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
 
 void ieee80211_iterate_active_interfaces_atomic(
-	struct ieee80211_hw *hw,
+	struct ieee80211_hw *hw, u32 iter_flags,
 	void (*iterator)(void *data, u8 *mac,
 			 struct ieee80211_vif *vif),
 	void *data)
@@ -563,13 +568,18 @@ void ieee80211_iterate_active_interfaces_atomic(
 		default:
 			break;
 		}
+		if (!(iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL) &&
+		    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+			continue;
 		if (ieee80211_sdata_running(sdata))
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
 
 	sdata = rcu_dereference(local->monitor_sdata);
-	if (sdata)
+	if (sdata &&
+	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL ||
+	     sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 		iterator(data, sdata->vif.addr, &sdata->vif);
 
 	rcu_read_unlock();

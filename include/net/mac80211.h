@@ -3413,6 +3413,21 @@ void ieee80211_sched_scan_results(struct ieee80211_hw *hw);
 void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
 
 /**
+ * enum ieee80211_interface_iteration_flags - interface iteration flags
+ * @IEEE80211_IFACE_ITER_NORMAL: Iterate over all interfaces that have
+ *	been added to the driver; However, note that during hardware
+ *	reconfiguration (after restart_hw) it will iterate over a new
+ *	interface and over all the existing interfaces even if they
+ *	haven't been re-added to the driver yet.
+ * @IEEE80211_IFACE_ITER_RESUME_ALL: During resume, iterate over all
+ *	interfaces, even if they haven't been re-added to the driver yet.
+ */
+enum ieee80211_interface_iteration_flags {
+	IEEE80211_IFACE_ITER_NORMAL	= 0,
+	IEEE80211_IFACE_ITER_RESUME_ALL	= BIT(0),
+};
+
+/**
  * ieee80211_iterate_active_interfaces - iterate active interfaces
  *
  * This function iterates over the interfaces associated with a given
@@ -3420,13 +3435,15 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
  * This function allows the iterator function to sleep, when the iterator
  * function is atomic @ieee80211_iterate_active_interfaces_atomic can
  * be used.
- * Does not iterate over a new interface during add_interface()
+ * Does not iterate over a new interface during add_interface().
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
  * @iterator: the iterator function to call
  * @data: first argument of the iterator function
  */
 void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
+					 u32 iter_flags,
 					 void (*iterator)(void *data, u8 *mac,
 						struct ieee80211_vif *vif),
 					 void *data);
@@ -3438,13 +3455,15 @@ void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
  * hardware that are currently active and calls the callback for them.
  * This function requires the iterator callback function to be atomic,
  * if that is not desired, use @ieee80211_iterate_active_interfaces instead.
- * Does not iterate over a new interface during add_interface()
+ * Does not iterate over a new interface during add_interface().
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
  * @iterator: the iterator function to call, cannot sleep
  * @data: first argument of the iterator function
  */
 void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
+						u32 iter_flags,
 						void (*iterator)(void *data,
 						    u8 *mac,
 						    struct ieee80211_vif *vif),

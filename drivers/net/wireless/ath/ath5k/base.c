@@ -511,8 +511,9 @@ ath5k_update_bssid_mask_and_opmode(struct ath5k_hw *ah,
 		ath5k_vif_iter(&iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(ah->hw, ath5k_vif_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		ah->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath5k_vif_iter, &iter_data);
 	memcpy(ah->bssidmask, iter_data.mask, ETH_ALEN);
 
 	ah->opmode = iter_data.opmode;
@@ -3045,8 +3046,9 @@ ath5k_any_vif_assoc(struct ath5k_hw *ah)
 	iter_data.need_set_hw_addr = false;
 	iter_data.found_active = true;
 
-	ieee80211_iterate_active_interfaces_atomic(ah->hw, ath5k_vif_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		ah->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath5k_vif_iter, &iter_data);
 	return iter_data.any_assoc;
 }
 

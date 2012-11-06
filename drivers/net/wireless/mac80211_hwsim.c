@@ -571,6 +571,7 @@ static bool mac80211_hwsim_addr_match(struct mac80211_hwsim_data *data,
 	md.ret = false;
 	md.addr = addr;
 	ieee80211_iterate_active_interfaces_atomic(data->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
 						   mac80211_hwsim_addr_iter,
 						   &md);
 
@@ -744,8 +745,8 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 		if (!hwsim_chans_compat(chan, data2->tmp_chan) &&
 		    !hwsim_chans_compat(chan, data2->channel)) {
 			ieee80211_iterate_active_interfaces_atomic(
-				data2->hw, mac80211_hwsim_tx_iter,
-				&tx_iter_data);
+				data2->hw, IEEE80211_IFACE_ITER_NORMAL,
+				mac80211_hwsim_tx_iter, &tx_iter_data);
 			if (!tx_iter_data.receive)
 				continue;
 		}
@@ -958,7 +959,8 @@ static void mac80211_hwsim_beacon(unsigned long arg)
 		return;
 
 	ieee80211_iterate_active_interfaces_atomic(
-		hw, mac80211_hwsim_beacon_tx, hw);
+		hw, IEEE80211_IFACE_ITER_NORMAL,
+		mac80211_hwsim_beacon_tx, hw);
 
 	data->beacon_timer.expires = jiffies + data->beacon_int;
 	add_timer(&data->beacon_timer);
@@ -1680,14 +1682,17 @@ static int hwsim_fops_ps_write(void *dat, u64 val)
 
 	if (val == PS_MANUAL_POLL) {
 		ieee80211_iterate_active_interfaces(data->hw,
+						    IEEE80211_IFACE_ITER_NORMAL,
 						    hwsim_send_ps_poll, data);
 		data->ps_poll_pending = true;
 	} else if (old_ps == PS_DISABLED && val != PS_DISABLED) {
 		ieee80211_iterate_active_interfaces(data->hw,
+						    IEEE80211_IFACE_ITER_NORMAL,
 						    hwsim_send_nullfunc_ps,
 						    data);
 	} else if (old_ps != PS_DISABLED && val == PS_DISABLED) {
 		ieee80211_iterate_active_interfaces(data->hw,
+						    IEEE80211_IFACE_ITER_NORMAL,
 						    hwsim_send_nullfunc_no_ps,
 						    data);
 	}
