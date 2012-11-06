@@ -219,6 +219,13 @@ typedef enum {
 #define NAND_OWN_BUFFERS	0x00020000
 /* Chip may not exist, so silence any errors in scan */
 #define NAND_SCAN_SILENT_NODEV	0x00040000
+/*
+ * Autodetect nand buswidth with readid/onfi.
+ * This suppose the driver will configure the hardware in 8 bits mode
+ * when calling nand_scan_ident, and update its configuration
+ * before calling nand_scan_tail.
+ */
+#define NAND_BUSWIDTH_AUTO      0x00080000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */

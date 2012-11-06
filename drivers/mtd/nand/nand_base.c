@@ -3250,11 +3250,15 @@ ident_done:
 			break;
 	}
 
-	/*
-	 * Check, if buswidth is correct. Hardware drivers should set
-	 * chip correct!
-	 */
-	if (busw != (chip->options & NAND_BUSWIDTH_16)) {
+	if (chip->options & NAND_BUSWIDTH_AUTO) {
+		WARN_ON(chip->options & NAND_BUSWIDTH_16);
+		chip->options |= busw;
+		nand_set_defaults(chip, busw);
+	} else if (busw != (chip->options & NAND_BUSWIDTH_16)) {
+		/*
+		 * Check, if buswidth is correct. Hardware drivers should set
+		 * chip correct!
+		 */
 		pr_info("NAND device: Manufacturer ID:"
 			" 0x%02x, Chip ID: 0x%02x (%s %s)\n", *maf_id,
 			*dev_id, nand_manuf_ids[maf_idx].name, mtd->name);
