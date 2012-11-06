@@ -251,7 +251,7 @@ target_emulate_set_target_port_groups(struct se_cmd *cmd)
 	}
 	spin_unlock(&l_tg_pt_gp_mem->tg_pt_gp_mem_lock);
 
-	if (l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA) {
+	if (!(l_tg_pt_gp->tg_pt_gp_alua_access_type & TPGS_EXPLICT_ALUA)) {
 		pr_debug("Unable to process SET_TARGET_PORT_GROUPS"
 				" while TPGS_EXPLICT_ALUA is disabled\n");
 		rc = TCM_UNSUPPORTED_SCSI_OPCODE;
