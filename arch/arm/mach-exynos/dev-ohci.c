@@ -12,10 +12,10 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
+#include <linux/platform_data/usb-exynos.h>
 
 #include <mach/irqs.h>
 #include <mach/map.h>
-#include <linux/platform_data/usb-exynos.h>
 
 #include <plat/devs.h>
 #include <plat/usb-phy.h>
