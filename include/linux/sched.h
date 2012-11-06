@@ -2305,6 +2305,17 @@ static inline int sas_ss_flags(unsigned long sp)
 		: on_sig_stack(sp) ? SS_ONSTACK : 0);
 }
 
+static inline unsigned long sigsp(unsigned long sp, struct ksignal *ksig)
+{
+	if (unlikely((ksig->ka.sa.sa_flags & SA_ONSTACK)) && ! sas_ss_flags(sp))
+#ifdef CONFIG_STACK_GROWSUP
+		return current->sas_ss_sp;
+#else
+		return current->sas_ss_sp + current->sas_ss_size;
+#endif
+	return sp;
+}
+
 /*
  * Routines for handling mm_structs
  */
