@@ -3681,7 +3681,7 @@ exit:
 }
 
 static s32
-brcmf_parse_vndr_ies(u8 *vndr_ie_buf, u32 vndr_ie_len,
+brcmf_parse_vndr_ies(const u8 *vndr_ie_buf, u32 vndr_ie_len,
 		     struct parsed_vndr_ies *vndr_ies)
 {
 	s32 err = 0;
@@ -3760,10 +3760,10 @@ brcmf_vndr_ie(u8 *iebuf, s32 pktflag, u8 *ie_ptr, u32 ie_len, s8 *add_del_cmd)
 	return ie_len + VNDR_IE_HDR_SIZE;
 }
 
-static s32
-brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
-			struct net_device *ndev, s32 pktflag,
-			u8 *vndr_ie_buf, u32 vndr_ie_len)
+static
+s32 brcmf_set_management_ie(struct brcmf_cfg80211_info *cfg,
+			    struct net_device *ndev, s32 pktflag,
+			    const u8 *vndr_ie_buf, u32 vndr_ie_len)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct vif_saved_ie *saved_ie = &ifp->vif->saved_ie;
@@ -4004,7 +4004,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	/* Set Beacon IEs to FW */
 	err = brcmf_set_management_ie(cfg, ndev,
 				      VNDR_IE_BEACON_FLAG,
-				      (u8 *)settings->beacon.tail,
+				      settings->beacon.tail,
 				      settings->beacon.tail_len);
 	if (err)
 		WL_ERR("Set Beacon IE Failed\n");
@@ -4014,7 +4014,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	/* Set Probe Response IEs to FW */
 	err = brcmf_set_management_ie(cfg, ndev,
 				      VNDR_IE_PRBRSP_FLAG,
-				      (u8 *)settings->beacon.proberesp_ies,
+				      settings->beacon.proberesp_ies,
 				      settings->beacon.proberesp_ies_len);
 	if (err)
 		WL_ERR("Set Probe Resp IE Failed\n");
