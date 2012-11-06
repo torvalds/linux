@@ -2230,106 +2230,29 @@ static int i_APCI3120_InsnConfigDigitalOutput(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Write diatal output port
- *
- * data[0] = Value to be written
- * data[1] = 1 Set digital o/p ON
- *	   = 2 Set digital o/p OFF with memory ON
- */
-static int i_APCI3120_InsnBitsDigitalOutput(struct comedi_device *dev,
-					    struct comedi_subdevice *s,
-					    struct comedi_insn *insn,
-					    unsigned int *data)
+static int apci3120_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+	unsigned int val;
 
-	if ((data[0] > this_board->i_DoMaxdata) || (data[0] < 0)) {
+	/* The do channels are bits 7:4 of the do register */
+	val = devpriv->b_DigitalOutputRegister >> 4;
+	if (mask) {
+		val &= ~mask;
+		val |= (bits & mask);
+		devpriv->b_DigitalOutputRegister = val << 4;
 
-		comedi_error(dev, "Data is not valid !!! \n");
-		return -EINVAL;
+		outb(val << 4, devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
 	}
 
-	switch (data[1]) {
-	case 1:
-		data[0] = (data[0] << 4) | devpriv->b_DigitalOutputRegister;
-		break;
-
-	case 2:
-		data[0] = data[0];
-		break;
-	default:
-		printk("\nThe parameter passed is in error \n");
-		return -EINVAL;
-	}			/*  switch(data[1]) */
-	outb(data[0], devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
-
-	devpriv->b_DigitalOutputRegister = data[0] & 0xF0;
+	data[1] = val;
 
 	return insn->n;
-
-}
-
-/*
- * Write digital output
- *
- * data[0] = Value to be written
- * data[1] = 1 Set digital o/p ON
- *	   = 2 Set digital o/p OFF with memory ON
- */
-static int i_APCI3120_InsnWriteDigitalOutput(struct comedi_device *dev,
-					     struct comedi_subdevice *s,
-					     struct comedi_insn *insn,
-					     unsigned int *data)
-{
-	const struct addi_board *this_board = comedi_board(dev);
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp1;
-	unsigned int ui_NoOfChannel = CR_CHAN(insn->chanspec);	/*  get the channel */
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}
-	if (ui_NoOfChannel > this_board->i_NbrDoChannel - 1) {
-		comedi_error(dev,
-			"This board doesn't have specified channel !!! \n");
-		return -EINVAL;
-	}
-
-	switch (data[1]) {
-	case 1:
-		data[0] = (data[0] << ui_NoOfChannel);
-/* ES05                   data[0]=(data[0]<<4)|ui_Temp; */
-		data[0] = (data[0] << 4) | devpriv->b_DigitalOutputRegister;
-		break;
-
-	case 2:
-		data[0] = ~data[0] & 0x1;
-		ui_Temp1 = 1;
-		ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-		ui_Temp1 = ui_Temp1 << 4;
-/* ES05                   ui_Temp=ui_Temp|ui_Temp1; */
-		devpriv->b_DigitalOutputRegister =
-			devpriv->b_DigitalOutputRegister | ui_Temp1;
-
-		data[0] = (data[0] << ui_NoOfChannel) ^ 0xf;
-		data[0] = data[0] << 4;
-/* ES05                   data[0]=data[0]& ui_Temp; */
-		data[0] = data[0] & devpriv->b_DigitalOutputRegister;
-		break;
-	default:
-		printk("\nThe parameter passed is in error \n");
-		return -EINVAL;
-	}			/*  switch(data[1]) */
-	outb(data[0], devpriv->iobase + APCI3120_DIGITAL_OUTPUT);
-
-/* ES05        ui_Temp=data[0] & 0xf0; */
-	devpriv->b_DigitalOutputRegister = data[0] & 0xf0;
-	return insn->n;
-
 }
 
 static int i_APCI3120_InsnWriteAnalogOutput(struct comedi_device *dev,
