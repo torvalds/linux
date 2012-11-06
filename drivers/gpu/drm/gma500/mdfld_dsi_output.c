@@ -506,7 +506,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 
 	dev_dbg(dev->dev, "init DSI output on pipe %d\n", pipe);
 
-	if (!dev || ((pipe != 0) && (pipe != 2))) {
+	if (pipe != 0 && pipe != 2) {
 		DRM_ERROR("Invalid parameter\n");
 		return;
 	}
