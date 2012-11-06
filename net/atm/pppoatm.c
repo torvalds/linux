@@ -272,10 +272,19 @@ static inline int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)
 static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 {
 	struct pppoatm_vcc *pvcc = chan_to_pvcc(chan);
+	struct atm_vcc *vcc;
+	int ret;
+
 	ATM_SKB(skb)->vcc = pvcc->atmvcc;
 	pr_debug("(skb=0x%p, vcc=0x%p)\n", skb, pvcc->atmvcc);
 	if (skb->data[0] == '\0' && (pvcc->flags & SC_COMP_PROT))
 		(void) skb_pull(skb, 1);
+
+	vcc = ATM_SKB(skb)->vcc;
+	bh_lock_sock(sk_atm(vcc));
+	if (sock_owned_by_user(sk_atm(vcc)))
+		goto nospace;
+
 	switch (pvcc->encaps) {		/* LLC encapsulation needed */
 	case e_llc:
 		if (skb_headroom(skb) < LLC_LEN) {
@@ -288,8 +297,10 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 			}
 			consume_skb(skb);
 			skb = n;
-			if (skb == NULL)
+			if (skb == NULL) {
+				bh_unlock_sock(sk_atm(vcc));
 				return DROP_PACKET;
+			}
 		} else if (!pppoatm_may_send(pvcc, skb->truesize))
 			goto nospace;
 		memcpy(skb_push(skb, LLC_LEN), pppllc, LLC_LEN);
@@ -299,6 +310,7 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 			goto nospace;
 		break;
 	case e_autodetect:
+		bh_unlock_sock(sk_atm(vcc));
 		pr_debug("Trying to send without setting encaps!\n");
 		kfree_skb(skb);
 		return 1;
@@ -308,9 +320,12 @@ static int pppoatm_send(struct ppp_channel *chan, struct sk_buff *skb)
 	ATM_SKB(skb)->atm_options = ATM_SKB(skb)->vcc->atm_options;
 	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n",
 		 skb, ATM_SKB(skb)->vcc, ATM_SKB(skb)->vcc->dev);
-	return ATM_SKB(skb)->vcc->send(ATM_SKB(skb)->vcc, skb)
+	ret = ATM_SKB(skb)->vcc->send(ATM_SKB(skb)->vcc, skb)
 	    ? DROP_PACKET : 1;
+	bh_unlock_sock(sk_atm(vcc));
+	return ret;
 nospace:
+	bh_unlock_sock(sk_atm(vcc));
 	/*
 	 * We don't have space to send this SKB now, but we might have
 	 * already applied SC_COMP_PROT compression, so may need to undo
