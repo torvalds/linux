@@ -4007,16 +4007,37 @@ int btrfs_num_copies(struct btrfs_fs_info *fs_info, u64 logical, u64 len)
 	return ret;
 }
 
-static int find_live_mirror(struct map_lookup *map, int first, int num,
-			    int optimal)
+static int find_live_mirror(struct btrfs_fs_info *fs_info,
+			    struct map_lookup *map, int first, int num,
+			    int optimal, int dev_replace_is_ongoing)
 {
 	int i;
-	if (map->stripes[optimal].dev->bdev)
-		return optimal;
-	for (i = first; i < first + num; i++) {
-		if (map->stripes[i].dev->bdev)
-			return i;
+	int tolerance;
+	struct btrfs_device *srcdev;
+
+	if (dev_replace_is_ongoing &&
+	    fs_info->dev_replace.cont_reading_from_srcdev_mode ==
+	     BTRFS_DEV_REPLACE_ITEM_CONT_READING_FROM_SRCDEV_MODE_AVOID)
+		srcdev = fs_info->dev_replace.srcdev;
+	else
+		srcdev = NULL;
+
+	/*
+	 * try to avoid the drive that is the source drive for a
+	 * dev-replace procedure, only choose it if no other non-missing
+	 * mirror is available
+	 */
+	for (tolerance = 0; tolerance < 2; tolerance++) {
+		if (map->stripes[optimal].dev->bdev &&
+		    (tolerance || map->stripes[optimal].dev != srcdev))
+			return optimal;
+		for (i = first; i < first + num; i++) {
+			if (map->stripes[i].dev->bdev &&
+			    (tolerance || map->stripes[i].dev != srcdev))
+				return i;
+		}
 	}
+
 	/* we couldn't find one that doesn't fail.  Just return something
 	 * and the io error handling code will clean up eventually
 	 */
@@ -4116,9 +4137,10 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 		else if (mirror_num)
 			stripe_index = mirror_num - 1;
 		else {
-			stripe_index = find_live_mirror(map, 0,
+			stripe_index = find_live_mirror(fs_info, map, 0,
 					    map->num_stripes,
-					    current->pid % map->num_stripes);
+					    current->pid % map->num_stripes,
+					    dev_replace_is_ongoing);
 			mirror_num = stripe_index + 1;
 		}
 
@@ -4147,9 +4169,11 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info, int rw,
 			stripe_index += mirror_num - 1;
 		else {
 			int old_stripe_index = stripe_index;
-			stripe_index = find_live_mirror(map, stripe_index,
+			stripe_index = find_live_mirror(fs_info, map,
+					      stripe_index,
 					      map->sub_stripes, stripe_index +
-					      current->pid % map->sub_stripes);
+					      current->pid % map->sub_stripes,
+					      dev_replace_is_ongoing);
 			mirror_num = stripe_index - old_stripe_index + 1;
 		}
 	} else {
