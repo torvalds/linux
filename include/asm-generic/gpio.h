@@ -49,6 +49,7 @@ struct module;
 struct device_node;
 
 #ifdef CONFIG_PINCTRL
+
 /**
  * struct gpio_pin_range - pin range controlled by a gpio chip
  * @head: list for maintaining set of pin ranges, used internally
@@ -61,6 +62,11 @@ struct gpio_pin_range {
 	struct pinctrl_dev *pctldev;
 	struct pinctrl_gpio_range range;
 };
+
+void gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
+			    unsigned int pin_base, unsigned int npins);
+void gpiochip_remove_pin_ranges(struct gpio_chip *chip);
+
 #endif
 
 /**
