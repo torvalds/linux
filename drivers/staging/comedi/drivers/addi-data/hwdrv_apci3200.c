@@ -621,33 +621,6 @@ static int apci3200_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * Configures The Digital Output Subdevice.
- *
- * data[0] = 1  Memory enable
- *	   = 0  Memory Disable
- */
-static int i_APCI3200_ConfigDigitalOutput(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}			/* if  ( (data[0]!=0) && (data[0]!=1) ) */
-	if (data[0]) {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			/*  if  (data[0]) */
-	else {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			/* else if  (data[0]) */
-	return insn->n;
-}
-
 static int apci3200_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,
