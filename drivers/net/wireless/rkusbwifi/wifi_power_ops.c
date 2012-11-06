@@ -77,13 +77,7 @@ int wifi_gpio_operate(struct wifi_power *gpio, int flag)
  */
 int wifi_turn_on_rtl8192c_card(void)
 {
-        #if defined(CONFIG_MACH_RK2926_V86)
-        wifi_gpio_operate(&power_gpio, GPIO_SWITCH_ON);
-        //rk29sdk_wifi_power(1);
-        #else
-        //wifi_gpio_operate(&power_gpio, GPIO_SWITCH_ON);
-        rk29sdk_wifi_power(1);
-        #endif
+	//wifi_gpio_operate(&power_gpio, GPIO_SWITCH_ON);
         rk29sdk_wifi_power(1);
 	if (power_gpio.use_gpio != POWER_NOT_USE_GPIO)
 		msleep(1000);
@@ -102,13 +96,8 @@ int wifi_turn_on_card(int module)
 
 int wifi_turn_off_card(void)
 {
-        #if defined(CONFIG_MACH_RK2926_V86)
-        wifi_gpio_operate(&power_gpio, GPIO_SWITCH_OFF);
-        //rk29sdk_wifi_power(0);
-        #else
- 	//wifi_gpio_operate(&power_gpio, GPIO_SWITCH_OFF);
+	//wifi_gpio_operate(&power_gpio, GPIO_SWITCH_OFF);
         rk29sdk_wifi_power(0);
-        #endif
 	msleep(5);
 
 	wifi_turn_off_callback();
