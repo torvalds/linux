@@ -214,7 +214,7 @@ error:
 	ppp_input_error(&pvcc->chan, 0);
 }
 
-static inline int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)
+static int pppoatm_may_send(struct pppoatm_vcc *pvcc, int size)
 {
 	/*
 	 * It's not clear that we need to bother with using atm_may_send()
