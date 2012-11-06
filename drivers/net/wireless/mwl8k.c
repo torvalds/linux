@@ -5085,6 +5085,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_ampdu_stream *stream;
 	u8 *addr = sta->addr;
+	struct mwl8k_sta *sta_info = MWL8K_STA(sta);
 
 	if (!(hw->flags & IEEE80211_HW_AMPDU_AGGREGATION))
 		return -ENOTSUPP;
@@ -5127,6 +5128,15 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		/* Release the lock before we do the time consuming stuff */
 		spin_unlock(&priv->stream_lock);
 		for (i = 0; i < MAX_AMPDU_ATTEMPTS; i++) {
+
+			/* Check if link is still valid */
+			if (!sta_info->is_ampdu_allowed) {
+				spin_lock(&priv->stream_lock);
+				mwl8k_remove_stream(hw, stream);
+				spin_unlock(&priv->stream_lock);
+				return -EBUSY;
+			}
+
 			rc = mwl8k_check_ba(hw, stream);
 
 			/* If HW restart is in progress mwl8k_post_cmd will
