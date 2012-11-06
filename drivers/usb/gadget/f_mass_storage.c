@@ -228,10 +228,6 @@
 
 static const char fsg_string_interface[] = "Mass Storage";
 
-#define FSG_NO_DEVICE_STRINGS    1
-#define FSG_NO_OTG               1
-#define FSG_NO_INTR_EP           1
-
 #include "storage_common.c"
 
 
