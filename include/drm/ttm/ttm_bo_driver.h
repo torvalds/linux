@@ -521,8 +521,6 @@ struct ttm_bo_global {
  * lru_lock: Spinlock that protects the buffer+device lru lists and
  * ddestroy lists.
  * @val_seq: Current validation sequence.
- * @nice_mode: Try nicely to wait for buffer idle when cleaning a manager.
- * If a GPU lockup has been detected, this is forced to 0.
  * @dev_mapping: A pointer to the struct address_space representing the
  * device address space.
  * @wq: Work queue structure for the delayed delete workqueue.
@@ -556,7 +554,6 @@ struct ttm_bo_device {
 	 * Protected by load / firstopen / lastclose /unload sync.
 	 */
 
-	bool nice_mode;
 	struct address_space *dev_mapping;
 
 	/*

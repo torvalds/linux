@@ -1573,7 +1573,6 @@ int ttm_bo_device_init(struct ttm_bo_device *bdev,
 		goto out_no_addr_mm;
 
 	INIT_DELAYED_WORK(&bdev->wq, ttm_bo_delayed_workqueue);
-	bdev->nice_mode = true;
 	INIT_LIST_HEAD(&bdev->ddestroy);
 	bdev->dev_mapping = NULL;
 	bdev->glob = glob;
