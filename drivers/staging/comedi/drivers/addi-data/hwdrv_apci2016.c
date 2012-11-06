@@ -106,236 +106,25 @@ static int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2016_WriteDigitalOutput                      |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Writes port value  To the selected port                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To Write      |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI2016_WriteDigitalOutput(struct comedi_device *dev,
-					 struct comedi_subdevice *s,
-					 struct comedi_insn *insn,
-					 unsigned int *data)
+static int apci2016_do_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_NoOfChannel;
-	unsigned int ui_Temp, ui_Temp1;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if (ui_NoOfChannel > 15) {
-		comedi_error(dev,
-			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
-		return -EINVAL;
-	}			/*  if  ((ui_NoOfChannel<0) || (ui_NoOfChannel>15)) */
-	if (devpriv->b_OutputMemoryStatus) {
-		ui_Temp = inw(devpriv->iobase + APCI2016_DIGITAL_OP);
-	}			/*  if  (devpriv->b_OutputMemoryStatus ) */
-	else {
-		ui_Temp = 0;
-	}			/*  else if  (devpriv->b_OutputMemoryStatus ) */
-	if ((data[1] != 0) && (data[1] != 1)) {
-		comedi_error(dev,
-			"Invalid Data[1] value !!!, Data[1] should be 0 or 1\n");
-		return -EINVAL;
-	}			/*  if  ((data[1]!=0) && (data[1]!=1)) */
+	s->state = inw(devpriv->iobase + APCI2016_DIGITAL_OP_RW);
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-	if (data[3] == 0) {
-		if (data[1] == 0) {
-			data[0] = (data[0] << ui_NoOfChannel) | ui_Temp;
-			outw(data[0], devpriv->iobase + APCI2016_DIGITAL_OP);
-		}		/*  if (data[1]==0) */
-		else {
-			if (data[1] == 1) {
-				switch (ui_NoOfChannel) {
-				case 2:
-					data[0] =
-						(data[0] << (2 *
-							data[2])) | ui_Temp;
-					break;
-				case 4:
-					data[0] =
-						(data[0] << (4 *
-							data[2])) | ui_Temp;
-					break;
-				case 8:
-					data[0] =
-						(data[0] << (8 *
-							data[2])) | ui_Temp;
-					break;
-				case 15:
-					data[0] = data[0] | ui_Temp;
-					break;
-				default:
-					comedi_error(dev, " chan spec wrong");
-					return -EINVAL;	/*  "sorry channel spec wrong " */
-				}	/* switch(ui_NoOfChannels) */
-				outw(data[0],
-					devpriv->iobase + APCI2016_DIGITAL_OP);
-			}	/*  if  (data[1]==1) */
-			else {
-				printk("\nSpecified channel not supported\n");
-			}	/*  else if  (data[1]==1) */
-		}		/*  else if (data[1]==0) */
-	}			/*  if (data[3]==0) */
-	else {
-		if (data[3] == 1) {
-			if (data[1] == 0) {
-				data[0] = ~data[0] & 0x1;
-				ui_Temp1 = 1;
-				ui_Temp1 = ui_Temp1 << ui_NoOfChannel;
-				ui_Temp = ui_Temp | ui_Temp1;
-				data[0] = (data[0] << ui_NoOfChannel) ^ 0xffff;
-				data[0] = data[0] & ui_Temp;
-				outw(data[0],
-					devpriv->iobase + APCI2016_DIGITAL_OP);
-			}	/*  if  (data[1]==0) */
-			else {
-				if (data[1] == 1) {
-					switch (ui_NoOfChannel) {
-					case 2:
-						data[0] = ~data[0] & 0x3;
-						ui_Temp1 = 3;
-						ui_Temp1 =
-							ui_Temp1 << 2 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (2 *
-									data
-									[2])) ^
-							0xffff) & ui_Temp;
-						break;
-					case 4:
-						data[0] = ~data[0] & 0xf;
-						ui_Temp1 = 15;
-						ui_Temp1 =
-							ui_Temp1 << 4 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (4 *
-									data
-									[2])) ^
-							0xffff) & ui_Temp;
-						break;
-					case 8:
-						data[0] = ~data[0] & 0xff;
-						ui_Temp1 = 255;
-						ui_Temp1 =
-							ui_Temp1 << 8 * data[2];
-						ui_Temp = ui_Temp | ui_Temp1;
-						data[0] =
-							((data[0] << (8 *
-									data
-									[2])) ^
-							0xffff) & ui_Temp;
-						break;
-					case 15:
-						break;
-					default:
-						comedi_error(dev,
-							" chan spec wrong");
-						return -EINVAL;	/*  "sorry channel spec wrong " */
-					}	/* switch(ui_NoOfChannels) */
-					outw(data[0],
-						devpriv->iobase +
-						APCI2016_DIGITAL_OP);
-				}	/*  if(data[1]==1) */
-				else {
-					printk("\nSpecified channel not supported\n");
-				}	/* else if(data[1]==1) */
-			}	/* elseif(data[1]==0) */
-		}		/* if(data[3]==1); */
-		else {
-			printk("\nSpecified functionality does not exist\n");
-			return -EINVAL;
-		}		/* if else data[3]==1) */
-	}			/* if else data[3]==0) */
-	return insn->n;
-}
+		outw(s->state, devpriv->iobase + APCI2016_DIGITAL_OP);
+	}
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2016_BitsDigitalOutput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel or port           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI2016_BitsDigitalOutput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
+	data[1] = s->state;
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	if (ui_NoOfChannel > 15) {
-		comedi_error(dev,
-			"Invalid Channel Numbers !!!, Channel Numbers must be between 0 and 15\n");
-		return -EINVAL;
-	}			/*  if  ((ui_NoOfChannel<0) || (ui_NoOfChannel>15)) */
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Invalid Data[0] value !!!, Data[0] should be 0 or 1\n");
-		return -EINVAL;
-	}			/*  if  ((data[0]!=0) && (data[0]!=1)) */
-	ui_Temp = data[0];
-	*data = inw(devpriv->iobase + APCI2016_DIGITAL_OP_RW);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/*  if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
-			switch (ui_NoOfChannel) {
-			case 2:
-				*data = (*data >> (2 * data[1])) & 3;
-				break;
-
-			case 4:
-				*data = (*data >> (4 * data[1])) & 15;
-				break;
-
-			case 8:
-				*data = (*data >> (8 * data[1])) & 255;
-				break;
-
-			case 15:
-				break;
-
-			default:
-				comedi_error(dev, " chan spec wrong");
-				return -EINVAL;	/*  "sorry channel spec wrong " */
-			}	/* switch(ui_NoOfChannel) */
-		}		/*  if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/*  else if  (ui_Temp==1) */
-	}			/*  if  (ui_Temp==0) */
 	return insn->n;
 }
 
