@@ -84,50 +84,15 @@ static struct comedi_lrange range_apci3501_ao = {
 	}
 };
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI3501_ReadDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Read  value  of the selected channel or port           |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To read       |
-|                     unsigned int *data              : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI3501_ReadDigitalInput(struct comedi_device *dev,
-				       struct comedi_subdevice *s,
-				       struct comedi_insn *insn,
-				       unsigned int *data)
+static int apci3501_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_Temp;
-	unsigned int ui_NoOfChannel;
 
-	ui_NoOfChannel = CR_CHAN(insn->chanspec);
-	ui_Temp = data[0];
-	*data = inl(devpriv->iobase + APCI3501_DIGITAL_IP);
-	if (ui_Temp == 0) {
-		*data = (*data >> ui_NoOfChannel) & 0x1;
-	}			/* if  (ui_Temp==0) */
-	else {
-		if (ui_Temp == 1) {
+	data[1] = inl(devpriv->iobase + APCI3501_DIGITAL_IP) & 0x3;
 
-			*data = *data & 0x3;
-		}		/* if  (ui_Temp==1) */
-		else {
-			printk("\nSpecified channel not supported \n");
-		}		/* elseif  (ui_Temp==1) */
-	}			/* elseif  (ui_Temp==0) */
 	return insn->n;
 }
 
