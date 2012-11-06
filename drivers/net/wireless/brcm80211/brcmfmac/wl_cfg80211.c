@@ -486,13 +486,6 @@ brcmf_cfg80211_change_iface(struct wiphy *wiphy, struct net_device *ndev,
 
 	if (ap) {
 		set_bit(BRCMF_VIF_STATUS_AP_CREATING, &ifp->vif->sme_state);
-		if (!cfg->ap_info)
-			cfg->ap_info = kzalloc(sizeof(*cfg->ap_info),
-					       GFP_KERNEL);
-		if (!cfg->ap_info) {
-			err = -ENOMEM;
-			goto done;
-		}
 		WL_INFO("IF Type = AP\n");
 	} else {
 		err = brcmf_fil_cmd_int_set(netdev_priv(ndev),
@@ -3990,11 +3983,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	wpa_ie = brcmf_find_wpaie((u8 *)settings->beacon.tail,
 				  settings->beacon.tail_len);
 
-	kfree(cfg->ap_info->rsn_ie);
-	cfg->ap_info->rsn_ie = NULL;
-	kfree(cfg->ap_info->wpa_ie);
-	cfg->ap_info->wpa_ie = NULL;
-
 	if ((wpa_ie != NULL || rsn_ie != NULL)) {
 		WL_TRACE("WPA(2) IE is found\n");
 		if (wpa_ie != NULL) {
@@ -4003,26 +3991,16 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 						    bssidx);
 			if (err < 0)
 				goto exit;
-			cfg->ap_info->wpa_ie = kmemdup(wpa_ie,
-							    wpa_ie->len +
-							    TLV_HDR_LEN,
-							    GFP_KERNEL);
 		} else {
 			/* RSN IE */
 			err = brcmf_configure_wpaie(ndev,
 				(struct brcmf_vs_tlv *)rsn_ie, true, bssidx);
 			if (err < 0)
 				goto exit;
-			cfg->ap_info->rsn_ie = kmemdup(rsn_ie,
-							    rsn_ie->len +
-							    TLV_HDR_LEN,
-							    GFP_KERNEL);
 		}
-		cfg->ap_info->security_mode = true;
 	} else {
 		WL_TRACE("No WPA(2) IEs found\n");
 		brcmf_configure_opensecurity(ndev, bssidx);
-		cfg->ap_info->security_mode = false;
 	}
 	/* Set Beacon IEs to FW */
 	err = brcmf_set_management_ie(cfg, ndev,
@@ -4766,12 +4744,6 @@ static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
 	cfg->iscan = NULL;
 	kfree(cfg->pmk_list);
 	cfg->pmk_list = NULL;
-	if (cfg->ap_info) {
-		kfree(cfg->ap_info->wpa_ie);
-		kfree(cfg->ap_info->rsn_ie);
-		kfree(cfg->ap_info);
-		cfg->ap_info = NULL;
-	}
 }
 
 static s32 brcmf_init_priv_mem(struct brcmf_cfg80211_info *cfg)
