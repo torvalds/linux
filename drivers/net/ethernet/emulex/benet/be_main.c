@@ -3619,8 +3619,6 @@ static void be_netdev_init(struct net_device *netdev)
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)
 {
-	if (adapter->csr)
-		pci_iounmap(adapter->pdev, adapter->csr);
 	if (adapter->db)
 		pci_iounmap(adapter->pdev, adapter->db);
 	if (adapter->roce_db.base)
@@ -3667,13 +3665,6 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
 	adapter->if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
 				SLI_INTF_IF_TYPE_SHIFT;
-
-	if (be_physfn(adapter) && !lancer_chip(adapter)) {
-		addr = pci_iomap(adapter->pdev, 2, 0);
-		if (addr == NULL)
-			return -ENOMEM;
-		adapter->csr = addr;
-	}
 
 	addr = pci_iomap(adapter->pdev, db_bar(adapter), 0);
 	if (addr == NULL)

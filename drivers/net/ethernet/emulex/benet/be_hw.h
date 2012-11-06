@@ -31,12 +31,12 @@
 
 #define MPU_EP_CONTROL 		0
 
-/********** MPU semphore ******************/
-#define MPU_EP_SEMAPHORE_OFFSET		0xac
-#define MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET	0x400
-#define EP_SEMAPHORE_POST_STAGE_MASK		0x0000FFFF
-#define EP_SEMAPHORE_POST_ERR_MASK		0x1
-#define EP_SEMAPHORE_POST_ERR_SHIFT		31
+/********** MPU semphore: used for SH & BE  *************/
+#define SLIPORT_SEMAPHORE_OFFSET_BE		0x7c
+#define SLIPORT_SEMAPHORE_OFFSET_SH		0x94
+#define POST_STAGE_MASK				0x0000FFFF
+#define POST_ERR_MASK				0x1
+#define POST_ERR_SHIFT				31
 
 /* MPU semphore POST stage values */
 #define POST_STAGE_AWAITING_HOST_RDY 	0x1 /* FW awaiting goahead from host */

@@ -468,14 +468,13 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 static int be_POST_stage_get(struct be_adapter *adapter, u16 *stage)
 {
 	u32 sem;
+	u32 reg = skyhawk_chip(adapter) ? SLIPORT_SEMAPHORE_OFFSET_SH :
+					  SLIPORT_SEMAPHORE_OFFSET_BE;
 
-	if (lancer_chip(adapter))
-		sem  = ioread32(adapter->db + MPU_EP_SEMAPHORE_IF_TYPE2_OFFSET);
-	else
-		sem  = ioread32(adapter->csr + MPU_EP_SEMAPHORE_OFFSET);
+	pci_read_config_dword(adapter->pdev, reg, &sem);
+	*stage = sem & POST_STAGE_MASK;
 
-	*stage = sem & EP_SEMAPHORE_POST_STAGE_MASK;
-	if ((sem >> EP_SEMAPHORE_POST_ERR_SHIFT) & EP_SEMAPHORE_POST_ERR_MASK)
+	if ((sem >> POST_ERR_SHIFT) & POST_ERR_MASK)
 		return -1;
 	else
 		return 0;
