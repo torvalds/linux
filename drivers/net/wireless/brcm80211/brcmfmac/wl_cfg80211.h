@@ -84,31 +84,12 @@ do {								\
 #define	WL_CONN(fmt, args...)
 #endif /* (defined DEBUG) */
 
-#define WL_NUM_SCAN_MAX		1
-#define WL_NUM_PMKIDS_MAX	MAXPMKID	/* will be used
-						 * for 2.6.33 kernel
-						 * or later
-						 */
-#define WL_SCAN_BUF_MAX			(1024 * 8)
+#define WL_NUM_SCAN_MAX			10
+#define WL_NUM_PMKIDS_MAX		MAXPMKID
 #define WL_TLV_INFO_MAX			1024
 #define WL_BSS_INFO_MAX			2048
-#define WL_ASSOC_INFO_MAX	512	/*
-				 * needs to grab assoc info from dongle to
-				 * report it to cfg80211 through "connect"
-				 * event
-				 */
-#define WL_DCMD_LEN_MAX	1024
-#define WL_EXTRA_BUF_MAX	2048
-#define WL_ISCAN_BUF_MAX	2048	/*
-				 * the buf length can be BRCMF_DCMD_MAXLEN
-				 * to reduce iteration
-				 */
-#define WL_ISCAN_TIMER_INTERVAL_MS	3000
-#define WL_SCAN_ERSULTS_LAST	(BRCMF_SCAN_RESULTS_NO_MEM+1)
-#define WL_AP_MAX	256	/* virtually unlimitted as long
-				 * as kernel memory allows
-				 */
-
+#define WL_ASSOC_INFO_MAX		512	/* assoc related fil max buf */
+#define WL_EXTRA_BUF_MAX		2048
 #define WL_ROAM_TRIGGER_LEVEL		-75
 #define WL_ROAM_DELTA			20
 #define WL_BEACON_TIMEOUT		3
@@ -143,12 +124,6 @@ enum wl_mode {
 	WL_MODE_BSS,
 	WL_MODE_IBSS,
 	WL_MODE_AP
-};
-
-/* dongle iscan state */
-enum wl_iscan_state {
-	WL_ISCAN_STATE_IDLE,
-	WL_ISCAN_STATE_SCANING
 };
 
 /* dongle configuration */
@@ -268,26 +243,6 @@ struct brcmf_cfg80211_vif {
 	bool pm_block;
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
-};
-
-/* dongle iscan event loop */
-struct brcmf_cfg80211_iscan_eloop {
-	s32 (*handler[WL_SCAN_ERSULTS_LAST])
-		(struct brcmf_cfg80211_info *cfg);
-};
-
-/* dongle iscan controller */
-struct brcmf_cfg80211_iscan_ctrl {
-	struct net_device *ndev;
-	struct timer_list timer;
-	u32 timer_ms;
-	u32 timer_on;
-	s32 state;
-	struct work_struct work;
-	struct brcmf_cfg80211_iscan_eloop el;
-	void *data;
-	s8 dcmd_buf[BRCMF_DCMD_SMLEN];
-	s8 scan_buf[WL_ISCAN_BUF_MAX];
 };
 
 /* association inform */
@@ -415,19 +370,15 @@ struct brcmf_pno_scanresults_le {
  * @evt_q_lock: for event queue synchronization.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
- * @scan_results: results of the last scan.
  * @scan_req_int: internal scan request object.
  * @bss_info: bss information for cfg80211 layer.
  * @ie: information element object for internal purpose.
- * @iscan: iscan controller information.
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
  * @event_work: event handler work struct.
  * @scan_status: scan activity on the dongle.
  * @pub: common driver information.
  * @channel: current channel.
- * @iscan_on: iscan on/off switch.
- * @iscan_kickstart: indicate iscan already started.
  * @active_scan: current scan mode.
  * @sched_escan: e-scan for scheduled scan support running.
  * @ibss_starter: indicates this sta is ibss starter.
@@ -439,7 +390,6 @@ struct brcmf_pno_scanresults_le {
  * @dcmd_buf: dcmd buffer.
  * @extra_buf: mainly to grab assoc information.
  * @debugfsdir: debugfs folder for this device.
- * @escan_on: escan on/off switch.
  * @escan_info: escan information.
  * @escan_timeout: Timer for catch scan timeout.
  * @escan_timeout_work: scan timeout worker.
@@ -456,19 +406,15 @@ struct brcmf_cfg80211_info {
 	spinlock_t	 evt_q_lock;
 	struct mutex usr_sync;
 	struct brcmf_scan_results *bss_list;
-	struct brcmf_scan_results *scan_results;
-	struct brcmf_cfg80211_scan_req *scan_req_int;
+	struct brcmf_cfg80211_scan_req scan_req_int;
 	struct wl_cfg80211_bss_info *bss_info;
 	struct brcmf_cfg80211_ie ie;
-	struct brcmf_cfg80211_iscan_ctrl *iscan;
 	struct brcmf_cfg80211_connect_info conn_info;
 	struct brcmf_cfg80211_pmk_list *pmk_list;
 	struct work_struct event_work;
 	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;
-	bool iscan_on;
-	bool iscan_kickstart;
 	bool active_scan;
 	bool sched_escan;
 	bool ibss_starter;
@@ -480,7 +426,6 @@ struct brcmf_cfg80211_info {
 	u8 *dcmd_buf;
 	u8 *extra_buf;
 	struct dentry *debugfsdir;
-	bool escan_on;
 	struct escan_info escan_info;
 	struct timer_list escan_timeout;
 	struct work_struct escan_timeout_work;
@@ -522,9 +467,6 @@ static inline struct brcmf_cfg80211_profile *ndev_to_prof(struct net_device *nd)
 	struct brcmf_if *ifp = netdev_priv(nd);
 	return &ifp->vif->profile;
 }
-
-#define iscan_to_cfg(i) ((struct brcmf_cfg80211_info *)(i->data))
-#define cfg_to_iscan(w) (w->iscan)
 
 static inline struct
 brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_info *cfg)

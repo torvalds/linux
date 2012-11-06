@@ -100,19 +100,6 @@
 #define BRCMF_SCAN_PARAMS_COUNT_MASK 0x0000ffff
 #define BRCMF_SCAN_PARAMS_NSSID_SHIFT 16
 
-#define BRCMF_SCAN_ACTION_START      1
-#define BRCMF_SCAN_ACTION_CONTINUE   2
-#define WL_SCAN_ACTION_ABORT      3
-
-#define BRCMF_ISCAN_REQ_VERSION 1
-
-/* brcmf_iscan_results status values */
-#define BRCMF_SCAN_RESULTS_SUCCESS	0
-#define BRCMF_SCAN_RESULTS_PARTIAL	1
-#define BRCMF_SCAN_RESULTS_PENDING	2
-#define BRCMF_SCAN_RESULTS_ABORTED	3
-#define BRCMF_SCAN_RESULTS_NO_MEM	4
-
 /* Indicates this key is using soft encrypt */
 #define WL_SOFT_KEY	(1 << 0)
 /* primary (ie tx) key */
@@ -452,25 +439,11 @@ struct brcmf_scan_params_le {
 	__le16 channel_list[1];	/* list of chanspecs */
 };
 
-/* incremental scan struct */
-struct brcmf_iscan_params_le {
-	__le32 version;
-	__le16 action;
-	__le16 scan_duration;
-	struct brcmf_scan_params_le params_le;
-};
-
 struct brcmf_scan_results {
 	u32 buflen;
 	u32 version;
 	u32 count;
 	struct brcmf_bss_info_le bss_info_le[];
-};
-
-struct brcmf_scan_results_le {
-	__le32 buflen;
-	__le32 version;
-	__le32 count;
 };
 
 struct brcmf_escan_params_le {
@@ -507,23 +480,6 @@ struct brcmf_join_params {
 	struct brcmf_ssid_le ssid_le;
 	struct brcmf_assoc_params_le params_le;
 };
-
-/* incremental scan results struct */
-struct brcmf_iscan_results {
-	union {
-		u32 status;
-		__le32 status_le;
-	};
-	union {
-		struct brcmf_scan_results results;
-		struct brcmf_scan_results_le results_le;
-	};
-};
-
-/* size of brcmf_iscan_results not including variable length array */
-#define BRCMF_ISCAN_RESULTS_FIXED_SIZE \
-	(sizeof(struct brcmf_scan_results) + \
-	 offsetof(struct brcmf_iscan_results, results))
 
 struct brcmf_wsec_key {
 	u32 index;		/* key index */

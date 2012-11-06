@@ -55,14 +55,6 @@ config BRCMFMAC_USB
 	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
 	  use the driver for an USB wireless card.
 
-config BRCMISCAN
-	bool "Broadcom I-Scan (OBSOLETE)"
-	depends on BRCMFMAC
-	---help---
-	  This option enables the I-Scan method. By default fullmac uses the
-	  new E-Scan method which uses less memory in firmware and gives no
-	  limitation on the number of scan results.
-
 config BRCMDBG
 	bool "Broadcom driver debug functions"
 	depends on BRCMSMAC || BRCMFMAC
