@@ -185,6 +185,9 @@ ENTRY(el2_setup)
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
+	/* Stage-2 translation */
+	msr	vttbr_el2, xzr
+
 	/* Hypervisor stub */
 	adr	x0, __hyp_stub_vectors
 	msr	vbar_el2, x0
