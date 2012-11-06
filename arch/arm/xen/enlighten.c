@@ -166,3 +166,8 @@ void free_xenballooned_pages(int nr_pages, struct page **pages)
 	*pages = NULL;
 }
 EXPORT_SYMBOL_GPL(free_xenballooned_pages);
+
+/* In the hypervisor.S file. */
+EXPORT_SYMBOL_GPL(HYPERVISOR_event_channel_op);
+EXPORT_SYMBOL_GPL(HYPERVISOR_grant_table_op);
+EXPORT_SYMBOL_GPL(privcmd_call);
