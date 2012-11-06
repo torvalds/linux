@@ -216,7 +216,7 @@ static int brcmf_netdev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	/* Reject if down */
 	if (!drvr->bus_if->drvr_up ||
-	    (drvr->bus_if->state == BRCMF_BUS_DOWN)) {
+	    (drvr->bus_if->state != BRCMF_BUS_DATA)) {
 		brcmf_dbg(ERROR, "xmit rejected drvup=%d state=%d\n",
 			  drvr->bus_if->drvr_up,
 			  drvr->bus_if->state);
