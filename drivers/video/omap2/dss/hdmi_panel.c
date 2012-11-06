@@ -404,9 +404,7 @@ int hdmi_panel_init(void)
 	spin_lock_init(&hdmi.audio_lock);
 #endif
 
-	omap_dss_register_driver(&hdmi_driver);
-
-	return 0;
+	return omap_dss_register_driver(&hdmi_driver);
 }
 
 void hdmi_panel_exit(void)
