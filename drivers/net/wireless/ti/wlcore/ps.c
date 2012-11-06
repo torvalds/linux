@@ -151,9 +151,6 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 			wl12xx_queue_recovery_work(wl);
 			ret = -ETIMEDOUT;
 			goto err;
-		} else if (ret < 0) {
-			wl1271_error("ELP wakeup completion error.");
-			goto err;
 		}
 	}
 
