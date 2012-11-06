@@ -3087,7 +3087,7 @@ static bool brcmf_valid_wpa_oui(u8 *oui, bool is_rsn_ie)
 
 static s32
 brcmf_configure_wpaie(struct net_device *ndev, struct brcmf_vs_tlv *wpa_ie,
-		     bool is_rsn_ie, s32 bssidx)
+		     bool is_rsn_ie)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	u32 auth = 0; /* d11 open authentication */
@@ -3510,7 +3510,6 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	struct brcmf_tlv *rsn_ie;
 	struct brcmf_vs_tlv *wpa_ie;
 	struct brcmf_join_params join_params;
-	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	s32 bssidx = 0;
 
 	WL_TRACE("channel_type=%d, beacon_interval=%d, dtim_period=%d,\n",
@@ -3572,14 +3571,13 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 		WL_TRACE("WPA(2) IE is found\n");
 		if (wpa_ie != NULL) {
 			/* WPA IE */
-			err = brcmf_configure_wpaie(ndev, wpa_ie, false,
-						    bssidx);
+			err = brcmf_configure_wpaie(ndev, wpa_ie, false);
 			if (err < 0)
 				goto exit;
 		} else {
 			/* RSN IE */
 			err = brcmf_configure_wpaie(ndev,
-				(struct brcmf_vs_tlv *)rsn_ie, true, bssidx);
+				(struct brcmf_vs_tlv *)rsn_ie, true);
 			if (err < 0)
 				goto exit;
 		}
