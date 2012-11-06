@@ -3685,7 +3685,7 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	if (addr == NULL)
 		goto pci_map_err;
 	adapter->db = addr;
-	if (adapter->sli_family == SKYHAWK_SLI_FAMILY) {
+	if (skyhawk_chip(adapter)) {
 		adapter->roce_db.size = 4096;
 		adapter->roce_db.io_addr =
 				pci_resource_start(adapter->pdev, db_reg);

@@ -47,7 +47,7 @@ static void _be_roce_dev_add(struct be_adapter *adapter)
 		dev_info.dpp_unmapped_len = 0;
 	}
 	dev_info.pdev = adapter->pdev;
-	if (adapter->sli_family == SKYHAWK_SLI_FAMILY)
+	if (skyhawk_chip(adapter))
 		dev_info.db = adapter->db;
 	else
 		dev_info.db = adapter->roce_db.base;

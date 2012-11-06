@@ -105,11 +105,6 @@
 #define SLI_INTF_TYPE_2		2
 #define SLI_INTF_TYPE_3		3
 
-/* SLI family */
-#define BE_SLI_FAMILY		0x0
-#define LANCER_A0_SLI_FAMILY	0xA
-#define SKYHAWK_SLI_FAMILY      0x2
-
 /********* ISR0 Register offset **********/
 #define CEV_ISR0_OFFSET 			0xC18
 #define CEV_ISR_SIZE				4
