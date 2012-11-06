@@ -137,17 +137,6 @@ struct brcmf_cfg80211_conf {
 	struct ieee80211_channel channel;
 };
 
-/* forward declaration */
-struct brcmf_cfg80211_info;
-
-/* cfg80211 main event loop */
-struct brcmf_cfg80211_event_loop {
-	s32(*handler[BRCMF_E_LAST]) (struct brcmf_cfg80211_info *cfg,
-				     struct net_device *ndev,
-				     const struct brcmf_event_msg *e,
-				     void *data);
-};
-
 /* basic structure of scan request */
 struct brcmf_cfg80211_scan_req {
 	struct brcmf_ssid_le ssid_le;
@@ -157,14 +146,6 @@ struct brcmf_cfg80211_scan_req {
 struct brcmf_cfg80211_ie {
 	u16 offset;
 	u8 buf[WL_TLV_INFO_MAX];
-};
-
-/* event queue for cfg80211 main event */
-struct brcmf_cfg80211_event_q {
-	struct list_head evt_q_list;
-	u32 etype;
-	struct brcmf_event_msg emsg;
-	s8 edata[1];
 };
 
 /* security information with currently associated ap */
@@ -243,6 +224,25 @@ struct brcmf_cfg80211_vif {
 	bool pm_block;
 	struct vif_saved_ie saved_ie;
 	struct list_head list;
+};
+
+/* forward declaration */
+struct brcmf_cfg80211_info;
+
+/* cfg80211 main event loop */
+struct brcmf_cfg80211_event_loop {
+	s32(*handler[BRCMF_E_LAST]) (struct brcmf_if *ifp,
+				     const struct brcmf_event_msg *e,
+				     void *data);
+};
+
+/* event queue for cfg80211 main event */
+struct brcmf_cfg80211_event_q {
+	struct list_head evt_q_list;
+	u32 etype;
+	struct brcmf_if *ifp;
+	struct brcmf_event_msg emsg;
+	s8 edata[1];
 };
 
 /* association inform */
@@ -484,8 +484,8 @@ struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr);
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
 
 /* event handler from dongle */
-void brcmf_cfg80211_event(struct net_device *ndev,
-			  const struct brcmf_event_msg *e, void *data);
+void brcmf_cfg80211_event(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
+			  void *data);
 s32 brcmf_cfg80211_up(struct brcmf_cfg80211_info *cfg);
 s32 brcmf_cfg80211_down(struct brcmf_cfg80211_info *cfg);
 

@@ -2453,10 +2453,11 @@ brcmf_compare_update_same_bss(struct brcmf_bss_info_le *bss,
 }
 
 static s32
-brcmf_cfg80211_escan_handler(struct brcmf_cfg80211_info *cfg,
-			     struct net_device *ndev,
+brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 			     const struct brcmf_event_msg *e, void *data)
 {
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	struct net_device *ndev = ifp->ndev;
 	s32 status;
 	s32 err = 0;
 	struct brcmf_escan_result_le *escan_result_le;
@@ -2772,10 +2773,11 @@ brcmf_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *ndev)
  * cfg80211_scan_request one out of the received PNO event.
  */
 static s32
-brcmf_notify_sched_scan_results(struct brcmf_cfg80211_info *cfg,
-				struct net_device *ndev,
+brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 				const struct brcmf_event_msg *e, void *data)
 {
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	struct net_device *ndev = ifp->ndev;
 	struct brcmf_pno_net_info_le *netinfo, *netinfo_start;
 	struct cfg80211_scan_request *request = NULL;
 	struct cfg80211_ssid *ssid = NULL;
@@ -4111,11 +4113,11 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 }
 
 static s32
-brcmf_notify_connect_status(struct brcmf_cfg80211_info *cfg,
-			    struct net_device *ndev,
+brcmf_notify_connect_status(struct brcmf_if *ifp,
 			    const struct brcmf_event_msg *e, void *data)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
+	struct net_device *ndev = ifp->ndev;
 	struct brcmf_cfg80211_profile *profile = &ifp->vif->profile;
 	s32 err = 0;
 
@@ -4163,28 +4165,26 @@ brcmf_notify_connect_status(struct brcmf_cfg80211_info *cfg,
 }
 
 static s32
-brcmf_notify_roaming_status(struct brcmf_cfg80211_info *cfg,
-			    struct net_device *ndev,
+brcmf_notify_roaming_status(struct brcmf_if *ifp,
 			    const struct brcmf_event_msg *e, void *data)
 {
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	s32 err = 0;
 	u32 event = be32_to_cpu(e->event_type);
 	u32 status = be32_to_cpu(e->status);
 
 	if (event == BRCMF_E_ROAM && status == BRCMF_E_STATUS_SUCCESS) {
 		if (test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
-			brcmf_bss_roaming_done(cfg, ndev, e);
+			brcmf_bss_roaming_done(cfg, ifp->ndev, e);
 		else
-			brcmf_bss_connect_done(cfg, ndev, e, true);
+			brcmf_bss_connect_done(cfg, ifp->ndev, e, true);
 	}
 
 	return err;
 }
 
 static s32
-brcmf_notify_mic_status(struct brcmf_cfg80211_info *cfg,
-			struct net_device *ndev,
+brcmf_notify_mic_status(struct brcmf_if *ifp,
 			const struct brcmf_event_msg *e, void *data)
 {
 	u16 flags = be16_to_cpu(e->flags);
@@ -4195,7 +4195,7 @@ brcmf_notify_mic_status(struct brcmf_cfg80211_info *cfg,
 	else
 		key_type = NL80211_KEYTYPE_PAIRWISE;
 
-	cfg80211_michael_mic_failure(ndev, (u8 *)&e->addr, key_type, -1,
+	cfg80211_michael_mic_failure(ifp->ndev, (u8 *)&e->addr, key_type, -1,
 				     NULL, GFP_KERNEL);
 
 	return 0;
@@ -4288,9 +4288,10 @@ static struct brcmf_cfg80211_event_q *brcmf_deq_event(
 */
 
 static s32
-brcmf_enq_event(struct brcmf_cfg80211_info *cfg, u32 event,
+brcmf_enq_event(struct brcmf_if *ifp, u32 event,
 		const struct brcmf_event_msg *msg, void *data)
 {
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	struct brcmf_cfg80211_event_q *e;
 	s32 err = 0;
 	ulong flags;
@@ -4308,6 +4309,7 @@ brcmf_enq_event(struct brcmf_cfg80211_info *cfg, u32 event,
 		return -ENOMEM;
 
 	e->etype = event;
+	e->ifp = ifp;
 	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
 	if (data)
 		memcpy(&e->edata, data, data_len);
@@ -4340,9 +4342,7 @@ static void brcmf_cfg80211_event_handler(struct work_struct *work)
 	do {
 		WL_INFO("event type (%d)\n", e->etype);
 		if (cfg->el.handler[e->etype])
-			cfg->el.handler[e->etype](cfg,
-						       cfg_to_ndev(cfg),
-						       &e->emsg, e->edata);
+			cfg->el.handler[e->etype](e->ifp, &e->emsg, e->edata);
 		else
 			WL_INFO("Unknown Event (%d): ignoring\n", e->etype);
 		brcmf_put_event(e);
@@ -4461,14 +4461,13 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	}
 }
 
-void
-brcmf_cfg80211_event(struct net_device *ndev,
-		  const struct brcmf_event_msg *e, void *data)
+void brcmf_cfg80211_event(struct brcmf_if *ifp,
+			  const struct brcmf_event_msg *e, void *data)
 {
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	u32 event_type = be32_to_cpu(e->event_type);
-	struct brcmf_cfg80211_info *cfg = ndev_to_cfg(ndev);
 
-	if (!brcmf_enq_event(cfg, event_type, e, data))
+	if (!brcmf_enq_event(ifp, event_type, e, data))
 		schedule_work(&cfg->event_work);
 }
 

@@ -304,8 +304,9 @@ static int brcmf_host_event(struct brcmf_pub *drvr, int *ifidx,
 	if (bcmerror != 0)
 		return bcmerror;
 
+	/* only forward if interface has netdev */
 	if (drvr->iflist[*ifidx]->ndev)
-		brcmf_cfg80211_event(drvr->iflist[*ifidx]->ndev,
+		brcmf_cfg80211_event(drvr->iflist[*ifidx],
 				     event, *data);
 
 	return bcmerror;
