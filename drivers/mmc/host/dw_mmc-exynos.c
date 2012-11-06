@@ -223,7 +223,7 @@ static const struct of_device_id dw_mci_exynos_match[] = {
 			.data = (void *)&exynos5250_drv_data, },
 	{},
 };
-MODULE_DEVICE_TABLE(of, dw_mci_pltfm_match);
+MODULE_DEVICE_TABLE(of, dw_mci_exynos_match);
 
 int dw_mci_exynos_probe(struct platform_device *pdev)
 {
