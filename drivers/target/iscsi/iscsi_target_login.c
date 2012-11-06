@@ -254,9 +254,9 @@ static int iscsi_login_zero_tsih_s1(
 		kfree(sess);
 		return -ENOMEM;
 	}
-	spin_lock(&sess_idr_lock);
+	spin_lock_bh(&sess_idr_lock);
 	ret = idr_get_new(&sess_idr, NULL, &sess->session_index);
-	spin_unlock(&sess_idr_lock);
+	spin_unlock_bh(&sess_idr_lock);
 
 	if (ret < 0) {
 		pr_err("idr_get_new() for sess_idr failed\n");
