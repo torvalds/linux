@@ -63,49 +63,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI2016_WATCHDOG_RELOAD_VALUE	4
 #define APCI2016_WATCHDOG_STATUS	16
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI2016_ConfigDigitalOutput                     |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Configures The Digital Output Subdevice.               |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev : Driver handle                     |
-|                     unsigned int *data         : Data Pointer contains             |
-|                                          configuration parameters as below |
-|                                                                            |
-|			  data[0]            : 1 Digital Memory On               |
-|				     			   0 Digital Memory Off              |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI2016_ConfigDigitalOutput(struct comedi_device *dev,
-					  struct comedi_subdevice *s,
-					  struct comedi_insn *insn,
-					  unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-
-	if ((data[0] != 0) && (data[0] != 1)) {
-		comedi_error(dev,
-			"Not a valid Data !!! ,Data should be 1 or 0\n");
-		return -EINVAL;
-	}			/*  if  ((data[0]!=0) && (data[0]!=1)) */
-	if (data[0]) {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_ENABLE;
-	}			/*  if  (data[0] */
-	else {
-		devpriv->b_OutputMemoryStatus = ADDIDATA_DISABLE;
-	}			/*  else if  (data[0] */
-	return insn->n;
-}
-
 static int apci2016_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn,

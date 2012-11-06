@@ -21,7 +21,6 @@ static const struct addi_board apci2016_boardtypes[] = {
 		.i_NbrDoChannel		= 16,
 		.i_Timer		= 1,
 		.reset			= i_APCI2016_Reset,
-		.do_config		= i_APCI2016_ConfigDigitalOutput,
 		.do_bits		= apci2016_do_insn_bits,
 		.timer_config		= i_APCI2016_ConfigWatchdog,
 		.timer_write		= i_APCI2016_StartStopWriteWatchdog,
