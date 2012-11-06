@@ -24,6 +24,21 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
+	am33xx_pinmux: pinmux@44e10800 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&matrix_keypad_s0>;
+
+		matrix_keypad_s0: matrix_keypad_s0 {
+			pinctrl-single,pins = <
+				0x54 0x7	/* gpmc_a5.gpio1_21, OUTPUT | MODE7 */
+				0x58 0x7	/* gpmc_a6.gpio1_22, OUTPUT | MODE7 */
+				0x64 0x27	/* gpmc_a9.gpio1_25, INPUT | MODE7 */
+				0x68 0x27	/* gpmc_a10.gpio1_26, INPUT | MODE7 */
+				0x6c 0x27	/* gpmc_a11.gpio1_27, INPUT | MODE7 */
+			>;
+		};
+	};
+
 	ocp {
 		uart1: serial@44e09000 {
 			status = "okay";
