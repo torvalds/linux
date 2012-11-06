@@ -1026,6 +1026,7 @@ static int iwl_load_given_ucode(struct iwl_trans *trans,
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 				   const struct fw_img *fw)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	bool hw_rfkill;
 
@@ -1034,6 +1035,8 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
 	}
+
+	clear_bit(STATUS_FW_ERROR, &trans_pcie->status);
 
 	iwl_enable_rfkill_int(trans);
 

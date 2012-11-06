@@ -915,6 +915,13 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		}
 	}
 
+	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
+		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
+			trans_pcie_get_cmd_string(trans_pcie, cmd->id));
+		ret = -EIO;
+		goto cancel;
+	}
+
 	if (test_bit(STATUS_RFKILL, &trans_pcie->status)) {
 		IWL_DEBUG_RF_KILL(trans, "RFKILL in SYNC CMD... no rsp\n");
 		ret = -ERFKILL;
@@ -953,6 +960,9 @@ cancel:
 int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status))
+		return -EIO;
 
 	if (test_bit(STATUS_RFKILL, &trans_pcie->status))
 		return -ERFKILL;
