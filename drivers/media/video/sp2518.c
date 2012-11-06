@@ -779,8 +779,8 @@ static struct reginfo sensor_vga[] =
 /* 352X288 CIF */
 static struct reginfo sensor_cif[] =
 {
-    {0xfd, 0x00},
-    {0xff,0xff}
+    {0x00, 0x00},
+    //{0xff,0xff}
 };
 
 /* 320*240 QVGA */
@@ -818,7 +818,7 @@ static  struct reginfo sensor_qvga[] =
 /* 176X144 QCIF*/
 static struct reginfo sensor_qcif[] =
 {
-    {0xfd, 0x00},{0xff,0xff}
+    {0x00, 0x00}//,{0xff,0xff}
 };
 
 static  struct reginfo sensor_ClrFmt_YUYV[]=

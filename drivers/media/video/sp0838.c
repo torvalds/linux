@@ -189,13 +189,13 @@ static struct reginfo sensor_init_data[] =
 	{0x6f , 0x7f},
 	{0x70 , 0x01},
 
-	{0x71 , 0x09}, //ïï¿½ï¿½ï¿½ï¿½ï¿½Öµ         
-	{0x72 , 0x01}, //ï¿½ï½ï¿½ï¿½ï¿½ï¿½Ö?      
+	{0x71 , 0x09}, //?ï¿½ï¿½ï¿½ï¿½ï¿½Öµ         
+	{0x72 , 0x01}, //ï¿½??ï¿½ï¿½ï¿½ï¿½??      
     {0x73 , 0x03}, //? //0x05  //modify by sp_yjp,20120613
-	{0x74 , 0x43}, //ï¿//0x47? //modify by sp_yjp,20120613
+	{0x74 , 0x43}, //??//0x47? //modify by sp_yjp,20120613
 
 
-    {0x75 , 0x7f}, //Ê¹ÿ¿½ÿ¿½Î»           
+    {0x75 , 0x7f}, //Ê¹??????Î»           
 	{0x76 , 0x01},  //Sharpness debug end
 	{0xcb , 0x07},  //HEQ&Saturation debug start 
 	{0xcc , 0x04},
@@ -427,13 +427,13 @@ static struct reginfo sensor_init_data[] =
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
-	    {0xfd, 0x00},{0xff,0xff}
+	    {0x00, 0x00}//,{0xff,0xff}
 };
 
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
-    {0xfd, 0x00},{0xff,0xff}
+    {0x00, 0x00}//,{0xff,0xff}
 };
 
 /* 640X480 VGA */
@@ -454,19 +454,19 @@ static struct reginfo sensor_vga[] =
 /* 352X288 CIF */
 static struct reginfo sensor_cif[] =
 {
-       {0xfd, 0x00},{0xff,0xff}
+       {0x00, 0x00}//,{0xff,0xff}
 };
 
 /* 320*240 QVGA */
 static  struct reginfo sensor_qvga[] =
 {
-        {0xfd, 0x00},{0xff,0xff}
+        {0x00, 0x00}//,{0xff,0xff}
 };
 
 /* 176X144 QCIF*/
 static struct reginfo sensor_qcif[] =
 {
-    {0xfd, 0x00},{0xff,0xff}
+    {0x00, 0x00}//,{0xff,0xff}
 };
 
 static  struct reginfo sensor_ClrFmt_YUYV[]=

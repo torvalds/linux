@@ -57,6 +57,7 @@
 #include "../../../drivers/misc/gps/rk_gps/rk_gps.h"
 #endif
 
+//#define RK2928L_TB_OLD
 
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
@@ -74,8 +75,13 @@ int __sramdata g_pmic_type =  0;
 #define TOUCH_RESET_PIN  RK2928_PIN3_PC3
 #define TOUCH_INT_PIN    RK2928_PIN3_PC7
 #elif defined (CONFIG_MACH_RK2926_TB)
+#if defined (RK2928L_TB_OLD)
+#define TOUCH_RESET_PIN  RK2928_PIN1_PA3
+#define TOUCH_INT_PIN    RK2928_PIN1_PB3
+#else
 #define TOUCH_RESET_PIN  RK2928_PIN2_PB0
 #define TOUCH_INT_PIN    RK2928_PIN1_PB0
+#endif
 #endif
 
 
@@ -134,8 +140,13 @@ static struct spi_board_info board_spi_devices[] = {
 #define BL_EN_PIN         RK2928_PIN3_PC4
 #define BL_EN_VALUE       GPIO_HIGH
 #elif defined(CONFIG_MACH_RK2926_TB)
+#if defined(RK2928L_TB_OLD)
+#define BL_EN_PIN         RK2928_PIN1_PB0
+#define BL_EN_VALUE       GPIO_HIGH
+#else
 #define BL_EN_PIN         RK2928_PIN2_PC1
 #define BL_EN_VALUE       GPIO_HIGH
+#endif
 #endif
 
 #endif
@@ -829,7 +840,11 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 #if defined(CONFIG_MACH_RK2928_TB)
 		.irq	        = RK2928_PIN3_PD1,
                 #elif defined(CONFIG_MACH_RK2926_TB)
+                #if defined(RK2928L_TB_OLD)
+		.irq	        = RK2928_PIN1_PB1,
+                #else
 		.irq	        = RK2928_PIN1_PB2,
+                #endif
                 #endif
 		.platform_data = &mma8452_info,
 	},
@@ -841,7 +856,11 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #if defined(CONFIG_MACH_RK2928_TB)
 #define TPS65910_HOST_IRQ        RK2928_PIN3_PC6
 #elif defined(CONFIG_MACH_RK2926_TB)
+#if defined(CONFIG_MACH_RK2926_TB)
+#define TPS65910_HOST_IRQ        RK2928_PIN1_PB2
+#else
 #define TPS65910_HOST_IRQ        RK2928_PIN1_PB1
+#endif
 #endif
 #define PMU_POWER_SLEEP RK2928_PIN1_PA1
 
