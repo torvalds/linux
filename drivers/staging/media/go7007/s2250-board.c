@@ -103,8 +103,7 @@ static u16 vid_regs_fp[] = {
 };
 
 /* PAL specific values */
-static u16 vid_regs_fp_pal[] =
-{
+static u16 vid_regs_fp_pal[] = {
 	0x120, 0x017,
 	0x121, 0xd22,
 	0x122, 0x122,
