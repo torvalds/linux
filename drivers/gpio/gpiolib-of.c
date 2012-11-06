@@ -254,19 +254,8 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 	} while (index++);
 }
 
-static void of_gpiochip_remove_pin_range(struct gpio_chip *chip)
-{
-	struct gpio_pin_range *pin_range, *tmp;
-
-	list_for_each_entry_safe(pin_range, tmp, &chip->pin_ranges, node) {
-		list_del(&pin_range->node);
-		pinctrl_remove_gpio_range(pin_range->pctldev,
-				&pin_range->range);
-	}
-}
 #else
 static void of_gpiochip_add_pin_range(struct gpio_chip *chip) {}
-static void of_gpiochip_remove_pin_range(struct gpio_chip *chip) {}
 #endif
 
 void of_gpiochip_add(struct gpio_chip *chip)
@@ -288,7 +277,7 @@ void of_gpiochip_add(struct gpio_chip *chip)
 
 void of_gpiochip_remove(struct gpio_chip *chip)
 {
-	of_gpiochip_remove_pin_range(chip);
+	gpiochip_remove_pin_ranges(chip);
 
 	if (chip->of_node)
 		of_node_put(chip->of_node);
