@@ -671,9 +671,6 @@ static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
 
 extern const struct bcmevent_name bcmevent_names[];
 
-extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
-			  char *buf, uint len);
-
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
 
 /* Return pointer to interface name */
