@@ -285,7 +285,35 @@ err:
 	return status;
 }
 
-static void populate_be2_stats(struct be_adapter *adapter)
+/* BE2 supports only v0 cmd */
+static void *hw_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (BE2_chip(adapter)) {
+		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	} else  {
+		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
+
+		return &cmd->hw_stats;
+	}
+}
+
+/* BE2 supports only v0 cmd */
+static void *be_erx_stats_from_cmd(struct be_adapter *adapter)
+{
+	if (BE2_chip(adapter)) {
+		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	} else {
+		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
+
+		return &hw_stats->erx;
+	}
+}
+
+static void populate_be_v0_stats(struct be_adapter *adapter)
 {
 	struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
 	struct be_pmem_stats *pmem_sts = &hw_stats->pmem;
@@ -334,7 +362,7 @@ static void populate_be2_stats(struct be_adapter *adapter)
 	adapter->drv_stats.eth_red_drops = pmem_sts->eth_red_drops;
 }
 
-static void populate_be3_stats(struct be_adapter *adapter)
+static void populate_be_v1_stats(struct be_adapter *adapter)
 {
 	struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
 	struct be_pmem_stats *pmem_sts = &hw_stats->pmem;
@@ -436,28 +464,25 @@ void be_parse_stats(struct be_adapter *adapter)
 	struct be_rx_obj *rxo;
 	int i;
 
-	if (adapter->generation == BE_GEN3) {
-		if (lancer_chip(adapter))
-			populate_lancer_stats(adapter);
-		 else
-			populate_be3_stats(adapter);
+	if (lancer_chip(adapter)) {
+		populate_lancer_stats(adapter);
 	} else {
-		populate_be2_stats(adapter);
-	}
+		if (BE2_chip(adapter))
+			populate_be_v0_stats(adapter);
+		else
+			/* for BE3 and Skyhawk */
+			populate_be_v1_stats(adapter);
 
-	if (lancer_chip(adapter))
-		goto done;
-
-	/* as erx_v1 is longer than v0, ok to use v1 defn for v0 access */
-	for_all_rx_queues(adapter, rxo, i) {
-		/* below erx HW counter can actually wrap around after
-		 * 65535. Driver accumulates a 32-bit value
-		 */
-		accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
-				(u16)erx->rx_drops_no_fragments[rxo->q.id]);
+		/* as erx_v1 is longer than v0, ok to use v1 for v0 access */
+		for_all_rx_queues(adapter, rxo, i) {
+			/* below erx HW counter can actually wrap around after
+			 * 65535. Driver accumulates a 32-bit value
+			 */
+			accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
+					     (u16)erx->rx_drops_no_fragments \
+					     [rxo->q.id]);
+		}
 	}
-done:
-	return;
 }
 
 static struct rtnl_link_stats64 *be_get_stats64(struct net_device *netdev,
@@ -1874,7 +1899,7 @@ static int be_num_txqs_want(struct be_adapter *adapter)
 	if ((!lancer_chip(adapter) && sriov_want(adapter)) ||
 	    be_is_mc(adapter) ||
 	    (!lancer_chip(adapter) && !be_physfn(adapter)) ||
-	    adapter->generation == BE_GEN2)
+	    BE2_chip(adapter))
 		return 1;
 	else
 		return adapter->max_tx_queues;
@@ -3046,7 +3071,7 @@ static bool is_comp_in_ufi(struct be_adapter *adapter,
 	int i = 0, img_type = 0;
 	struct flash_section_info_g2 *fsec_g2 = NULL;
 
-	if (adapter->generation != BE_GEN3)
+	if (BE2_chip(adapter))
 		fsec_g2 = (struct flash_section_info_g2 *)fsec;
 
 	for (i = 0; i < MAX_FLASH_COMP; i++) {
@@ -3120,7 +3145,8 @@ static int be_flash(struct be_adapter *adapter, const u8 *img,
 	return 0;
 }
 
-static int be_flash_data(struct be_adapter *adapter,
+/* For BE2 and BE3 */
+static int be_flash_BEx(struct be_adapter *adapter,
 			 const struct firmware *fw,
 			 struct be_dma_mem *flash_cmd,
 			 int num_of_images)
@@ -3175,7 +3201,7 @@ static int be_flash_data(struct be_adapter *adapter,
 			 FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_BACKUP_FCoE}
 	};
 
-	if (adapter->generation == BE_GEN3) {
+	if (BE3_chip(adapter)) {
 		pflashcomp = gen3_flash_types;
 		filehdr_size = sizeof(struct flash_file_hdr_g3);
 		num_comp = ARRAY_SIZE(gen3_flash_types);
@@ -3184,6 +3210,7 @@ static int be_flash_data(struct be_adapter *adapter,
 		filehdr_size = sizeof(struct flash_file_hdr_g2);
 		num_comp = ARRAY_SIZE(gen2_flash_types);
 	}
+
 	/* Get flash section info*/
 	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
 	if (!fsec) {
@@ -3431,20 +3458,21 @@ lancer_fw_exit:
 	return status;
 }
 
-static int be_get_ufi_gen(struct be_adapter *adapter,
-			struct flash_file_hdr_g2 *fhdr)
+#define UFI_TYPE2		2
+#define UFI_TYPE3		3
+#define UFI_TYPE4		4
+static int be_get_ufi_type(struct be_adapter *adapter,
+			   struct flash_file_hdr_g2 *fhdr)
 {
 	if (fhdr == NULL)
 		goto be_get_ufi_exit;
 
-	if (adapter->generation == BE_GEN3) {
-		if (skyhawk_chip(adapter) && fhdr->build[0] == '4')
-			return SH_HW;
-		else if (!skyhawk_chip(adapter) && fhdr->build[0] == '3')
-			return BE_GEN3;
-	} else if (adapter->generation == BE_GEN2 && fhdr->build[0] == '2') {
-			return BE_GEN2;
-	}
+	if (skyhawk_chip(adapter) && fhdr->build[0] == '4')
+		return UFI_TYPE4;
+	else if (BE3_chip(adapter) && fhdr->build[0] == '3')
+		return UFI_TYPE3;
+	else if (BE2_chip(adapter) && fhdr->build[0] == '2')
+		return UFI_TYPE2;
 
 be_get_ufi_exit:
 	dev_err(&adapter->pdev->dev,
@@ -3474,7 +3502,7 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 	p = fw->data;
 	fhdr = (struct flash_file_hdr_g2 *)p;
 
-	ufi_type = be_get_ufi_gen(adapter, fhdr);
+	ufi_type = be_get_ufi_type(adapter, fhdr);
 
 	fhdr3 = (struct flash_file_hdr_g3 *)fw->data;
 	num_imgs = le32_to_cpu(fhdr3->num_imgs);
@@ -3483,17 +3511,17 @@ static int be_fw_download(struct be_adapter *adapter, const struct firmware* fw)
 				(sizeof(struct flash_file_hdr_g3) +
 				 i * sizeof(struct image_hdr)));
 		if (le32_to_cpu(img_hdr_ptr->imageid) == 1) {
-			if (ufi_type == SH_HW)
+			if (ufi_type == UFI_TYPE4)
 				status = be_flash_skyhawk(adapter, fw,
 							&flash_cmd, num_imgs);
-			else if (ufi_type == BE_GEN3)
-				status = be_flash_data(adapter, fw,
-							&flash_cmd, num_imgs);
+			else if (ufi_type == UFI_TYPE3)
+				status = be_flash_BEx(adapter, fw, &flash_cmd,
+						      num_imgs);
 		}
 	}
 
-	if (ufi_type == BE_GEN2)
-		status = be_flash_data(adapter, fw, &flash_cmd, 0);
+	if (ufi_type == UFI_TYPE2)
+		status = be_flash_BEx(adapter, fw, &flash_cmd, 0);
 	else if (ufi_type == -1)
 		status = -1;
 
@@ -3644,7 +3672,7 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 		adapter->csr = addr;
 	}
 
-	if (adapter->generation == BE_GEN2) {
+	if (BE2_chip(adapter)) {
 		db_reg = 4;
 	} else {
 		if (be_physfn(adapter))
@@ -3751,14 +3779,14 @@ static int be_stats_init(struct be_adapter *adapter)
 {
 	struct be_dma_mem *cmd = &adapter->stats_cmd;
 
-	if (adapter->generation == BE_GEN2) {
+	if (lancer_chip(adapter))
+		cmd->size = sizeof(struct lancer_cmd_req_pport_stats);
+	else if (BE2_chip(adapter))
 		cmd->size = sizeof(struct be_cmd_req_get_stats_v0);
-	} else {
-		if (lancer_chip(adapter))
-			cmd->size = sizeof(struct lancer_cmd_req_pport_stats);
-		else
-			cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
-	}
+	else
+		/* BE3 and Skyhawk */
+		cmd->size = sizeof(struct be_cmd_req_get_stats_v1);
+
 	cmd->va = dma_alloc_coherent(&adapter->pdev->dev, cmd->size, &cmd->dma,
 				     GFP_KERNEL);
 	if (cmd->va == NULL)
@@ -3878,11 +3906,9 @@ static int be_dev_type_check(struct be_adapter *adapter)
 	switch (pdev->device) {
 	case BE_DEVICE_ID1:
 	case OC_DEVICE_ID1:
-		adapter->generation = BE_GEN2;
 		break;
 	case BE_DEVICE_ID2:
 	case OC_DEVICE_ID2:
-		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID3:
 	case OC_DEVICE_ID4:
@@ -3898,7 +3924,6 @@ static int be_dev_type_check(struct be_adapter *adapter)
 		}
 		adapter->sli_family = ((sli_intf & SLI_INTF_FAMILY_MASK) >>
 					 SLI_INTF_FAMILY_SHIFT);
-		adapter->generation = BE_GEN3;
 		break;
 	case OC_DEVICE_ID5:
 	case OC_DEVICE_ID6:
@@ -3909,10 +3934,7 @@ static int be_dev_type_check(struct be_adapter *adapter)
 		}
 		adapter->sli_family = ((sli_intf & SLI_INTF_FAMILY_MASK) >>
 					 SLI_INTF_FAMILY_SHIFT);
-		adapter->generation = BE_GEN3;
 		break;
-	default:
-		adapter->generation = 0;
 	}
 
 	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);

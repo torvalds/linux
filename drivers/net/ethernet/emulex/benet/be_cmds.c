@@ -1362,7 +1362,8 @@ int be_cmd_get_stats(struct be_adapter *adapter, struct be_dma_mem *nonemb_cmd)
 	be_wrb_cmd_hdr_prepare(hdr, CMD_SUBSYSTEM_ETH,
 		OPCODE_ETH_GET_STATISTICS, nonemb_cmd->size, wrb, nonemb_cmd);
 
-	if (adapter->generation == BE_GEN3)
+	/* version 1 of the cmd is not supported only by BE2 */
+	if (!BE2_chip(adapter))
 		hdr->version = 1;
 
 	be_mcc_notify(adapter);
@@ -1452,7 +1453,8 @@ int be_cmd_link_status_query(struct be_adapter *adapter, u16 *link_speed,
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_LINK_STATUS_QUERY, sizeof(*req), wrb, NULL);
 
-	if (adapter->generation == BE_GEN3 || lancer_chip(adapter))
+	/* version 1 of the cmd is not supported only by BE2 */
+	if (!BE2_chip(adapter))
 		req->hdr.version = 1;
 
 	req->hdr.domain = dom;

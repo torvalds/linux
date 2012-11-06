@@ -410,7 +410,6 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool stats_cmd_sent;
-	u8 generation;		/* BladeEngine ASIC generation */
 	u32 if_type;
 	struct {
 		u8 __iomem *base;	/* Door Bell */
@@ -458,19 +457,22 @@ struct be_adapter {
 	for (i = 0, vf_cfg = &adapter->vf_cfg[i]; i < adapter->num_vfs;	\
 		i++, vf_cfg++)
 
-/* BladeEngine Generation numbers */
-#define BE_GEN2 2
-#define BE_GEN3 3
-#define SH_HW	4
-
 #define ON				1
 #define OFF				0
-#define lancer_chip(adapter)	((adapter->pdev->device == OC_DEVICE_ID3) || \
-				 (adapter->pdev->device == OC_DEVICE_ID4))
+
+#define lancer_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID3 || \
+				 adapter->pdev->device == OC_DEVICE_ID4)
 
 #define skyhawk_chip(adapter)	(adapter->pdev->device == OC_DEVICE_ID5 || \
 				 adapter->pdev->device == OC_DEVICE_ID6)
 
+#define BE3_chip(adapter)	(adapter->pdev->device == BE_DEVICE_ID2 || \
+				 adapter->pdev->device == OC_DEVICE_ID2)
+
+#define BE2_chip(adapter)	(adapter->pdev->device == BE_DEVICE_ID1 || \
+				 adapter->pdev->device == OC_DEVICE_ID1)
+
+#define BEx_chip(adapter)	(BE3_chip(adapter) || BE2_chip(adapter))
 
 #define be_roce_supported(adapter) ((adapter->if_type == SLI_INTF_TYPE_3 || \
 				adapter->sli_family == SKYHAWK_SLI_FAMILY) && \

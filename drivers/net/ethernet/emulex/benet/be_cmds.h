@@ -1656,33 +1656,6 @@ struct be_cmd_resp_get_stats_v1 {
 	struct be_hw_stats_v1 hw_stats;
 };
 
-static inline void *hw_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_cmd_resp_get_stats_v1 *cmd = adapter->stats_cmd.va;
-
-		return &cmd->hw_stats;
-	} else {
-		struct be_cmd_resp_get_stats_v0 *cmd = adapter->stats_cmd.va;
-
-		return &cmd->hw_stats;
-	}
-}
-
-static inline void *be_erx_stats_from_cmd(struct be_adapter *adapter)
-{
-	if (adapter->generation == BE_GEN3) {
-		struct be_hw_stats_v1 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->erx;
-	} else {
-		struct be_hw_stats_v0 *hw_stats = hw_stats_from_cmd(adapter);
-
-		return &hw_stats->erx;
-	}
-}
-
-
 /************** get fat capabilites *******************/
 #define MAX_MODULES 27
 #define MAX_MODES 4
