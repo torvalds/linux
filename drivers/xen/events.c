@@ -1365,8 +1365,8 @@ void xen_evtchn_do_upcall(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
-	exit_idle();
 	irq_enter();
+	exit_idle();
 
 	__xen_evtchn_do_upcall();
 
