@@ -62,6 +62,7 @@ firmware_features_table[FIRMWARE_MAX_FEATURES] = {
 	{FW_FEATURE_SPLPAR,		"hcall-splpar"},
 	{FW_FEATURE_VPHN,		"hcall-vphn"},
 	{FW_FEATURE_SET_MODE,		"hcall-set-mode"},
+	{FW_FEATURE_BEST_ENERGY,	"hcall-best-energy-1*"},
 };
 
 /* Build up the firmware features bitmask using the contents of
