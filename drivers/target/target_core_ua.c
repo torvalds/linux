@@ -38,9 +38,8 @@
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
-int core_scsi3_ua_check(
-	struct se_cmd *cmd,
-	unsigned char *cdb)
+sense_reason_t
+target_scsi3_ua_check(struct se_cmd *cmd)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
@@ -71,16 +70,14 @@ int core_scsi3_ua_check(
 	 *    was received, then the device server shall process the command
 	 *    and either:
 	 */
-	switch (cdb[0]) {
+	switch (cmd->t_task_cdb[0]) {
 	case INQUIRY:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
 		return 0;
 	default:
-		return -EINVAL;
+		return TCM_CHECK_CONDITION_UNIT_ATTENTION;
 	}
-
-	return -EINVAL;
 }
 
 int core_scsi3_ua_allocate(

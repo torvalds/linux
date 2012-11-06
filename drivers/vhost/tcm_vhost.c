@@ -541,10 +541,6 @@ static void tcm_vhost_submission_work(struct work_struct *work)
 
 	if (tv_cmd->tvc_sgl_count) {
 		sg_ptr = tv_cmd->tvc_sgl;
-		/*
-		 * For BIDI commands, pass in the extra READ buffer
-		 * to transport_generic_map_mem_to_cmd() below..
-		 */
 /* FIXME: Fix BIDI operation in tcm_vhost_submission_work() */
 #if 0
 		if (se_cmd->se_cmd_flags & SCF_BIDI) {

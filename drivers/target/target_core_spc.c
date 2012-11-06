@@ -69,7 +69,8 @@ static void spc_fill_alua_data(struct se_port *port, unsigned char *buf)
 	spin_unlock(&tg_pt_gp_mem->tg_pt_gp_mem_lock);
 }
 
-static int spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
+static sense_reason_t
+spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
@@ -108,7 +109,8 @@ static int spc_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 }
 
 /* unit serial number */
-static int spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
 	u16 len = 0;
@@ -161,7 +163,8 @@ static void spc_parse_naa_6h_vendor_specific(struct se_device *dev,
  * Device identification VPD, for a complete list of
  * DESIGNATOR TYPEs see spc4r17 Table 459.
  */
-static int spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_lun *lun = cmd->se_lun;
@@ -406,7 +409,8 @@ check_scsi_name:
 }
 
 /* Extended INQUIRY Data VPD Page */
-static int spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 {
 	buf[3] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
@@ -419,7 +423,8 @@ static int spc_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 }
 
 /* Block Limits VPD page */
-static int spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
 	u32 max_sectors;
@@ -490,7 +495,8 @@ static int spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 }
 
 /* Block Device Characteristics VPD page */
-static int spc_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -502,7 +508,8 @@ static int spc_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
 }
 
 /* Thin Provisioning VPD */
-static int spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -552,11 +559,12 @@ static int spc_emulate_evpd_b2(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-static int spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf);
+static sense_reason_t
+spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf);
 
 static struct {
 	uint8_t		page;
-	int		(*emulate)(struct se_cmd *, unsigned char *);
+	sense_reason_t	(*emulate)(struct se_cmd *, unsigned char *);
 } evpd_handlers[] = {
 	{ .page = 0x00, .emulate = spc_emulate_evpd_00 },
 	{ .page = 0x80, .emulate = spc_emulate_evpd_80 },
@@ -568,7 +576,8 @@ static struct {
 };
 
 /* supported vital product data pages */
-static int spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
+static sense_reason_t
+spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 {
 	int p;
 
@@ -586,14 +595,16 @@ static int spc_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-static int spc_emulate_inquiry(struct se_cmd *cmd)
+static sense_reason_t
+spc_emulate_inquiry(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
 	unsigned char *rbuf;
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char buf[SE_INQUIRY_BUF];
-	int p, ret;
+	sense_reason_t ret;
+	int p;
 
 	memset(buf, 0, SE_INQUIRY_BUF);
 
@@ -606,8 +617,7 @@ static int spc_emulate_inquiry(struct se_cmd *cmd)
 		if (cdb[2]) {
 			pr_err("INQUIRY with EVPD==0 but PAGE CODE=%02x\n",
 			       cdb[2]);
-			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-			ret = -EINVAL;
+			ret = TCM_INVALID_CDB_FIELD;
 			goto out;
 		}
 
@@ -624,15 +634,15 @@ static int spc_emulate_inquiry(struct se_cmd *cmd)
 	}
 
 	pr_err("Unknown VPD Code: 0x%02x\n", cdb[2]);
-	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-	ret = -EINVAL;
+	ret = TCM_INVALID_CDB_FIELD;
 
 out:
 	rbuf = transport_kmap_data_sg(cmd);
-	if (rbuf) {
-		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
-		transport_kunmap_data_sg(cmd);
-	}
+	if (!rbuf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+	transport_kunmap_data_sg(cmd);
 
 	if (!ret)
 		target_complete_cmd(cmd, GOOD);
@@ -834,7 +844,7 @@ static int spc_modesense_long_blockdesc(unsigned char *buf, u64 blocks, u32 bloc
 	return 17;
 }
 
-static int spc_emulate_modesense(struct se_cmd *cmd)
+static sense_reason_t spc_emulate_modesense(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
@@ -851,7 +861,8 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 	int i;
 
 	map_buf = transport_kmap_data_sg(cmd);
-
+	if (!map_buf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	/*
 	 * If SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is not set, then we
 	 * know we actually allocated a full page.  Otherwise, if the
@@ -864,8 +875,7 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		buf = kzalloc(SE_MODE_PAGE_BUF, GFP_KERNEL);
 		if (!buf) {
 			transport_kunmap_data_sg(cmd);
-			cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			return -ENOMEM;
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 	} else {
 		buf = map_buf;
@@ -920,9 +930,10 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 
 	if (page == 0x3f) {
 		if (subpage != 0x00 && subpage != 0xff) {
-			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-			length = -EINVAL;
-			goto out;
+			pr_warn("MODE_SENSE: Invalid subpage code: 0x%02x\n", subpage);
+			kfree(buf);
+			transport_kunmap_data_sg(cmd);
+			return TCM_INVALID_CDB_FIELD;
 		}
 
 		for (i = 0; i < ARRAY_SIZE(modesense_handlers); ++i) {
@@ -958,8 +969,8 @@ static int spc_emulate_modesense(struct se_cmd *cmd)
 		pr_err("MODE SENSE: unimplemented page/subpage: 0x%02x/0x%02x\n",
 		       page, subpage);
 
-	cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
-	return -EINVAL;
+	transport_kunmap_data_sg(cmd);
+	return TCM_UNKNOWN_MODE_PAGE;
 
 set_length:
 	if (ten)
@@ -967,7 +978,6 @@ set_length:
 	else
 		buf[0] = length - 1;
 
-out:
 	if (buf != map_buf) {
 		memcpy(map_buf, buf, cmd->data_length);
 		kfree(buf);
@@ -978,7 +988,7 @@ out:
 	return 0;
 }
 
-static int spc_emulate_modeselect(struct se_cmd *cmd)
+static sense_reason_t spc_emulate_modeselect(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
@@ -993,10 +1003,11 @@ static int spc_emulate_modeselect(struct se_cmd *cmd)
 	int i;
 
 	buf = transport_kmap_data_sg(cmd);
+	if (!buf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	if (!pf) {
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		ret = -EINVAL;
+		ret = TCM_INVALID_CDB_FIELD;
 		goto out;
 	}
 
@@ -1011,15 +1022,12 @@ static int spc_emulate_modeselect(struct se_cmd *cmd)
 			goto check_contents;
 		}
 
-	cmd->scsi_sense_reason = TCM_UNKNOWN_MODE_PAGE;
-	ret = -EINVAL;
+	ret = TCM_UNKNOWN_MODE_PAGE;
 	goto out;
 
 check_contents:
-	if (memcmp(buf + off, tbuf, length)) {
-		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
-		ret = -EINVAL;
-	}
+	if (memcmp(buf + off, tbuf, length))
+		ret = TCM_INVALID_PARAMETER_LIST;
 
 out:
 	transport_kunmap_data_sg(cmd);
@@ -1029,7 +1037,7 @@ out:
 	return ret;
 }
 
-static int spc_emulate_request_sense(struct se_cmd *cmd)
+static sense_reason_t spc_emulate_request_sense(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char *rbuf;
@@ -1041,19 +1049,14 @@ static int spc_emulate_request_sense(struct se_cmd *cmd)
 	if (cdb[1] & 0x01) {
 		pr_err("REQUEST_SENSE description emulation not"
 			" supported\n");
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -ENOSYS;
+		return TCM_INVALID_CDB_FIELD;
 	}
 
 	rbuf = transport_kmap_data_sg(cmd);
-	if (cmd->scsi_sense_reason != 0) {
-		/*
-		 * Out of memory.  We will fail with CHECK CONDITION, so
-		 * we must not clear the unit attention condition.
-		 */
-		target_complete_cmd(cmd, CHECK_CONDITION);
-		return 0;
-	} else if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
+	if (!rbuf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+	if (!core_scsi3_ua_clear_for_request_sense(cmd, &ua_asc, &ua_ascq)) {
 		/*
 		 * CURRENT ERROR, UNIT ATTENTION
 		 */
@@ -1080,16 +1083,14 @@ static int spc_emulate_request_sense(struct se_cmd *cmd)
 		buf[7] = 0x0A;
 	}
 
-	if (rbuf) {
-		memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
-		transport_kunmap_data_sg(cmd);
-	}
+	memcpy(rbuf, buf, min_t(u32, sizeof(buf), cmd->data_length));
+	transport_kunmap_data_sg(cmd);
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
-int spc_emulate_report_luns(struct se_cmd *cmd)
+sense_reason_t spc_emulate_report_luns(struct se_cmd *cmd)
 {
 	struct se_dev_entry *deve;
 	struct se_session *sess = cmd->se_sess;
@@ -1099,13 +1100,12 @@ int spc_emulate_report_luns(struct se_cmd *cmd)
 	if (cmd->data_length < 16) {
 		pr_warn("REPORT LUNS allocation length %u too small\n",
 			cmd->data_length);
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -EINVAL;
+		return TCM_INVALID_CDB_FIELD;
 	}
 
 	buf = transport_kmap_data_sg(cmd);
 	if (!buf)
-		return -ENOMEM;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	/*
 	 * If no struct se_session pointer is present, this struct se_cmd is
@@ -1153,13 +1153,15 @@ done:
 }
 EXPORT_SYMBOL(spc_emulate_report_luns);
 
-static int spc_emulate_testunitready(struct se_cmd *cmd)
+static sense_reason_t
+spc_emulate_testunitready(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
-int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
+sense_reason_t
+spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 {
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *cdb = cmd->t_task_cdb;
@@ -1300,9 +1302,7 @@ int spc_parse_cdb(struct se_cmd *cmd, unsigned int *size)
 		pr_warn("TARGET_CORE[%s]: Unsupported SCSI Opcode"
 			" 0x%02x, sending CHECK_CONDITION.\n",
 			cmd->se_tfo->get_fabric_name(), cdb[0]);
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
-		return -EINVAL;
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
 	}
 
 	return 0;

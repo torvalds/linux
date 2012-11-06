@@ -309,7 +309,8 @@ static int fd_do_writev(struct se_cmd *cmd, struct scatterlist *sgl,
 	return 1;
 }
 
-static int fd_execute_sync_cache(struct se_cmd *cmd)
+static sense_reason_t
+fd_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = FD_DEV(dev);
@@ -345,17 +346,16 @@ static int fd_execute_sync_cache(struct se_cmd *cmd)
 	if (immed)
 		return 0;
 
-	if (ret) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	if (ret)
 		target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
-	} else {
+	else
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
-	}
 
 	return 0;
 }
 
-static int fd_execute_rw(struct se_cmd *cmd)
+static sense_reason_t
+fd_execute_rw(struct se_cmd *cmd)
 {
 	struct scatterlist *sgl = cmd->t_data_sg;
 	u32 sgl_nents = cmd->t_data_nents;
@@ -388,10 +388,9 @@ static int fd_execute_rw(struct se_cmd *cmd)
 		}
 	}
 
-	if (ret < 0) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return ret;
-	}
+	if (ret < 0)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
 	if (ret)
 		target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
@@ -515,7 +514,8 @@ static struct sbc_ops fd_sbc_ops = {
 	.execute_sync_cache	= fd_execute_sync_cache,
 };
 
-static int fd_parse_cdb(struct se_cmd *cmd)
+static sense_reason_t
+fd_parse_cdb(struct se_cmd *cmd)
 {
 	return sbc_parse_cdb(cmd, &fd_sbc_ops);
 }

@@ -275,7 +275,8 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 	return NULL;
 }
 
-static int rd_execute_rw(struct se_cmd *cmd)
+static sense_reason_t
+rd_execute_rw(struct se_cmd *cmd)
 {
 	struct scatterlist *sgl = cmd->t_data_sg;
 	u32 sgl_nents = cmd->t_data_nents;
@@ -298,7 +299,7 @@ static int rd_execute_rw(struct se_cmd *cmd)
 
 	table = rd_get_sg_table(dev, rd_page);
 	if (!table)
-		return -EINVAL;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	rd_sg = &table->sg_table[rd_page - table->page_start_offset];
 
@@ -348,7 +349,7 @@ static int rd_execute_rw(struct se_cmd *cmd)
 		table = rd_get_sg_table(dev, rd_page);
 		if (!table) {
 			sg_miter_stop(&m);
-			return -EINVAL;
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		}
 
 		/* since we increment, the first sg entry is correct */
@@ -431,7 +432,8 @@ static struct sbc_ops rd_sbc_ops = {
 	.execute_rw		= rd_execute_rw,
 };
 
-static int rd_parse_cdb(struct se_cmd *cmd)
+static sense_reason_t
+rd_parse_cdb(struct se_cmd *cmd)
 {
 	return sbc_parse_cdb(cmd, &rd_sbc_ops);
 }

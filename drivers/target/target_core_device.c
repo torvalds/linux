@@ -54,18 +54,16 @@ static struct se_hba *lun0_hba;
 /* not static, needed by tpg.c */
 struct se_device *g_lun0_dev;
 
-int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
+sense_reason_t
+transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 {
 	struct se_lun *se_lun = NULL;
 	struct se_session *se_sess = se_cmd->se_sess;
 	struct se_device *dev;
 	unsigned long flags;
 
-	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
-		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
-		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		return -ENODEV;
-	}
+	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG)
+		return TCM_NON_EXISTENT_LUN;
 
 	spin_lock_irqsave(&se_sess->se_node_acl->device_list_lock, flags);
 	se_cmd->se_deve = se_sess->se_node_acl->device_list[unpacked_lun];
@@ -77,14 +75,12 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 
 		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
 		    (deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)) {
-			se_cmd->scsi_sense_reason = TCM_WRITE_PROTECTED;
-			se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			pr_err("TARGET_CORE[%s]: Detected WRITE_PROTECTED LUN"
 				" Access for 0x%08x\n",
 				se_cmd->se_tfo->get_fabric_name(),
 				unpacked_lun);
 			spin_unlock_irqrestore(&se_sess->se_node_acl->device_list_lock, flags);
-			return -EACCES;
+			return TCM_WRITE_PROTECTED;
 		}
 
 		if (se_cmd->data_direction == DMA_TO_DEVICE)
@@ -109,23 +105,18 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		 * MappedLUN=0 exists for this Initiator Port.
 		 */
 		if (unpacked_lun != 0) {
-			se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
-			se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			pr_err("TARGET_CORE[%s]: Detected NON_EXISTENT_LUN"
 				" Access for 0x%08x\n",
 				se_cmd->se_tfo->get_fabric_name(),
 				unpacked_lun);
-			return -ENODEV;
+			return TCM_NON_EXISTENT_LUN;
 		}
 		/*
 		 * Force WRITE PROTECT for virtual LUN 0
 		 */
 		if ((se_cmd->data_direction != DMA_FROM_DEVICE) &&
-		    (se_cmd->data_direction != DMA_NONE)) {
-			se_cmd->scsi_sense_reason = TCM_WRITE_PROTECTED;
-			se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			return -EACCES;
-		}
+		    (se_cmd->data_direction != DMA_NONE))
+			return TCM_WRITE_PROTECTED;
 
 		se_lun = &se_sess->se_tpg->tpg_virt_lun0;
 		se_cmd->se_lun = &se_sess->se_tpg->tpg_virt_lun0;
@@ -162,11 +153,8 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	struct se_tmr_req *se_tmr = se_cmd->se_tmr_req;
 	unsigned long flags;
 
-	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG) {
-		se_cmd->scsi_sense_reason = TCM_NON_EXISTENT_LUN;
-		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
+	if (unpacked_lun >= TRANSPORT_MAX_LUNS_PER_TPG)
 		return -ENODEV;
-	}
 
 	spin_lock_irqsave(&se_sess->se_node_acl->device_list_lock, flags);
 	se_cmd->se_deve = se_sess->se_node_acl->device_list[unpacked_lun];
@@ -186,7 +174,6 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 			" Access for 0x%08x\n",
 			se_cmd->se_tfo->get_fabric_name(),
 			unpacked_lun);
-		se_cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		return -ENODEV;
 	}
 

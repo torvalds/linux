@@ -60,7 +60,7 @@ static inline struct pscsi_dev_virt *PSCSI_DEV(struct se_device *dev)
 
 static struct se_subsystem_api pscsi_template;
 
-static int pscsi_execute_cmd(struct se_cmd *cmd);
+static sense_reason_t pscsi_execute_cmd(struct se_cmd *cmd);
 static void pscsi_req_done(struct request *, int);
 
 /*	pscsi_attach_hba():
@@ -642,7 +642,11 @@ static void pscsi_transport_complete(struct se_cmd *cmd, struct scatterlist *sg,
 	if (((cdb[0] == MODE_SENSE) || (cdb[0] == MODE_SENSE_10)) &&
 	     (status_byte(result) << 1) == SAM_STAT_GOOD) {
 		if (cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = transport_kmap_data_sg(cmd);
+			unsigned char *buf;
+
+			buf = transport_kmap_data_sg(cmd);
+			if (!buf)
+				; /* XXX: TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE */
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -856,9 +860,9 @@ static inline struct bio *pscsi_get_bio(int sg_num)
 	return bio;
 }
 
-static int pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl,
-		u32 sgl_nents, enum dma_data_direction data_direction,
-		struct bio **hbio)
+static sense_reason_t
+pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
+		enum dma_data_direction data_direction, struct bio **hbio)
 {
 	struct pscsi_dev_virt *pdv = PSCSI_DEV(cmd->se_dev);
 	struct bio *bio = NULL, *tbio = NULL;
@@ -946,7 +950,7 @@ static int pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl,
 		}
 	}
 
-	return sgl_nents;
+	return 0;
 fail:
 	while (*hbio) {
 		bio = *hbio;
@@ -954,8 +958,7 @@ fail:
 		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
-	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	return -ENOMEM;
+	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 }
 
 /*
@@ -982,15 +985,13 @@ static inline void pscsi_clear_cdb_lun(unsigned char *cdb)
 	}
 }
 
-static int pscsi_parse_cdb(struct se_cmd *cmd)
+static sense_reason_t
+pscsi_parse_cdb(struct se_cmd *cmd)
 {
 	unsigned char *cdb = cmd->t_task_cdb;
 
-	if (cmd->se_cmd_flags & SCF_BIDI) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
-		return -EINVAL;
-	}
+	if (cmd->se_cmd_flags & SCF_BIDI)
+		return TCM_UNSUPPORTED_SCSI_OPCODE;
 
 	pscsi_clear_cdb_lun(cdb);
 
@@ -1020,7 +1021,8 @@ static int pscsi_parse_cdb(struct se_cmd *cmd)
 	}
 }
 
-static int pscsi_execute_cmd(struct se_cmd *cmd)
+static sense_reason_t
+pscsi_execute_cmd(struct se_cmd *cmd)
 {
 	struct scatterlist *sgl = cmd->t_data_sg;
 	u32 sgl_nents = cmd->t_data_nents;
@@ -1029,7 +1031,7 @@ static int pscsi_execute_cmd(struct se_cmd *cmd)
 	struct pscsi_plugin_task *pt;
 	struct request *req;
 	struct bio *hbio;
-	int ret;
+	sense_reason_t ret;
 
 	/*
 	 * Dynamically alloc cdb space, since it may be larger than
@@ -1037,8 +1039,7 @@ static int pscsi_execute_cmd(struct se_cmd *cmd)
 	 */
 	pt = kzalloc(sizeof(*pt) + scsi_command_size(cmd->t_task_cdb), GFP_KERNEL);
 	if (!pt) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return -ENOMEM;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 	cmd->priv = pt;
 
@@ -1052,24 +1053,21 @@ static int pscsi_execute_cmd(struct se_cmd *cmd)
 		if (!req || IS_ERR(req)) {
 			pr_err("PSCSI: blk_get_request() failed: %ld\n",
 					req ? IS_ERR(req) : -ENOMEM);
-			cmd->scsi_sense_reason =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto fail;
 		}
 	} else {
 		BUG_ON(!cmd->data_length);
 
 		ret = pscsi_map_sg(cmd, sgl, sgl_nents, data_direction, &hbio);
-		if (ret < 0) {
-			cmd->scsi_sense_reason =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		if (ret)
 			goto fail;
-		}
 
 		req = blk_make_request(pdv->pdv_sd->request_queue, hbio,
 				       GFP_KERNEL);
 		if (IS_ERR(req)) {
 			pr_err("pSCSI: blk_make_request() failed\n");
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto fail_free_bio;
 		}
 	}
@@ -1100,10 +1098,10 @@ fail_free_bio:
 		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
-	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 fail:
 	kfree(pt);
-	return -ENOMEM;
+	return ret;
 }
 
 /*	pscsi_get_device_type():
@@ -1152,7 +1150,6 @@ static void pscsi_req_done(struct request *req, int uptodate)
 		pr_debug("PSCSI Host Byte exception at cmd: %p CDB:"
 			" 0x%02x Result: 0x%08x\n", cmd, pt->pscsi_cdb[0],
 			pt->pscsi_result);
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
 		break;
 	}

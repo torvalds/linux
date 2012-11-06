@@ -261,13 +261,10 @@ static void iblock_end_io_flush(struct bio *bio, int err)
 		pr_err("IBLOCK: cache flush failed: %d\n", err);
 
 	if (cmd) {
-		if (err) {
-			cmd->scsi_sense_reason =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		if (err)
 			target_complete_cmd(cmd, SAM_STAT_CHECK_CONDITION);
-		} else {
+		else
 			target_complete_cmd(cmd, SAM_STAT_GOOD);
-		}
 	}
 
 	bio_put(bio);
@@ -277,7 +274,8 @@ static void iblock_end_io_flush(struct bio *bio, int err)
  * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
  * always flush the whole cache.
  */
-static int iblock_execute_sync_cache(struct se_cmd *cmd)
+static sense_reason_t
+iblock_execute_sync_cache(struct se_cmd *cmd)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	int immed = (cmd->t_task_cdb[1] & 0x2);
@@ -299,7 +297,8 @@ static int iblock_execute_sync_cache(struct se_cmd *cmd)
 	return 0;
 }
 
-static int iblock_execute_unmap(struct se_cmd *cmd)
+static sense_reason_t
+iblock_execute_unmap(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
@@ -307,17 +306,18 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 	sector_t lba;
 	int size;
 	u32 range;
-	int ret = 0;
-	int dl, bd_dl;
+	sense_reason_t ret = 0;
+	int dl, bd_dl, err;
 
 	if (cmd->data_length < 8) {
 		pr_warn("UNMAP parameter list length %u too small\n",
 			cmd->data_length);
-		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
-		return -EINVAL;
+		return TCM_INVALID_PARAMETER_LIST;
 	}
 
 	buf = transport_kmap_data_sg(cmd);
+	if (!buf)
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 
 	dl = get_unaligned_be16(&buf[0]);
 	bd_dl = get_unaligned_be16(&buf[2]);
@@ -330,8 +330,7 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 		size = bd_dl;
 
 	if (size / 16 > dev->dev_attrib.max_unmap_block_desc_count) {
-		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
-		ret = -EINVAL;
+		ret = TCM_INVALID_PARAMETER_LIST;
 		goto err;
 	}
 
@@ -347,22 +346,21 @@ static int iblock_execute_unmap(struct se_cmd *cmd)
 				 (unsigned long long)lba, range);
 
 		if (range > dev->dev_attrib.max_unmap_lba_count) {
-			cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
-			ret = -EINVAL;
+			ret = TCM_INVALID_PARAMETER_LIST;
 			goto err;
 		}
 
 		if (lba + range > dev->transport->get_blocks(dev) + 1) {
-			cmd->scsi_sense_reason = TCM_ADDRESS_OUT_OF_RANGE;
-			ret = -EINVAL;
+			ret = TCM_ADDRESS_OUT_OF_RANGE;
 			goto err;
 		}
 
-		ret = blkdev_issue_discard(ib_dev->ibd_bd, lba, range,
+		err = blkdev_issue_discard(ib_dev->ibd_bd, lba, range,
 					   GFP_KERNEL, 0);
-		if (ret < 0) {
+		if (err < 0) {
 			pr_err("blkdev_issue_discard() failed: %d\n",
-					ret);
+					err);
+			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 			goto err;
 		}
 
@@ -377,7 +375,8 @@ err:
 	return ret;
 }
 
-static int iblock_execute_write_same(struct se_cmd *cmd)
+static sense_reason_t
+iblock_execute_write_same(struct se_cmd *cmd)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
 	int ret;
@@ -387,7 +386,7 @@ static int iblock_execute_write_same(struct se_cmd *cmd)
 				   0);
 	if (ret < 0) {
 		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
-		return ret;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
 	target_complete_cmd(cmd, GOOD);
@@ -552,7 +551,8 @@ static void iblock_submit_bios(struct bio_list *list, int rw)
 	blk_finish_plug(&plug);
 }
 
-static int iblock_execute_rw(struct se_cmd *cmd)
+static sense_reason_t
+iblock_execute_rw(struct se_cmd *cmd)
 {
 	struct scatterlist *sgl = cmd->t_data_sg;
 	u32 sgl_nents = cmd->t_data_nents;
@@ -598,8 +598,7 @@ static int iblock_execute_rw(struct se_cmd *cmd)
 	else {
 		pr_err("Unsupported SCSI -> BLOCK LBA conversion:"
 				" %u\n", dev->dev_attrib.block_size);
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-		return -ENOSYS;
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
 	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
@@ -659,9 +658,8 @@ fail_put_bios:
 		bio_put(bio);
 fail_free_ibr:
 	kfree(ibr);
-	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 fail:
-	return -ENOMEM;
+	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 }
 
 static sector_t iblock_get_blocks(struct se_device *dev)
@@ -706,7 +704,8 @@ static struct sbc_ops iblock_sbc_ops = {
 	.execute_unmap		= iblock_execute_unmap,
 };
 
-static int iblock_parse_cdb(struct se_cmd *cmd)
+static sense_reason_t
+iblock_parse_cdb(struct se_cmd *cmd)
 {
 	return sbc_parse_cdb(cmd, &iblock_sbc_ops);
 }

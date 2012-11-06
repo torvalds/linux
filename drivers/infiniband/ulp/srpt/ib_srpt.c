@@ -1730,7 +1730,7 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	uint64_t unpacked_lun;
 	u64 data_len;
 	enum dma_data_direction dir;
-	int ret;
+	sense_reason_t ret;
 
 	BUG_ON(!send_ioctx);
 
@@ -1755,12 +1755,10 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 		break;
 	}
 
-	ret = srpt_get_desc_tbl(send_ioctx, srp_cmd, &dir, &data_len);
-	if (ret) {
+	if (srpt_get_desc_tbl(send_ioctx, srp_cmd, &dir, &data_len)) {
 		printk(KERN_ERR "0x%llx: parsing SRP descriptor table failed.\n",
 		       srp_cmd->tag);
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		ret = TCM_INVALID_CDB_FIELD;
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
 	}
@@ -1769,26 +1767,26 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	cmd->data_direction = dir;
 	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_cmd->lun,
 				       sizeof(srp_cmd->lun));
-	if (transport_lookup_cmd_lun(cmd, unpacked_lun) < 0) {
+	ret = transport_lookup_cmd_lun(cmd, unpacked_lun);
+	if (ret) {
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
 	}
 	ret = target_setup_cmd_from_cdb(cmd, srp_cmd->cdb);
-	if (ret < 0) {
+	if (ret) {
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
-		if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT) {
+		if (ret == TCM_RESERVATION_CONFLICT) {
 			srpt_queue_status(cmd);
 			return 0;
-		} else
-			goto send_sense;
+		}
+		goto send_sense;
 	}
 
 	transport_handle_cdb_direct(cmd);
 	return 0;
 
 send_sense:
-	transport_send_check_condition_and_sense(cmd, cmd->scsi_sense_reason,
-						 0);
+	transport_send_check_condition_and_sense(cmd, ret, 0);
 	return -1;
 }
 
@@ -1882,16 +1880,14 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 	send_ioctx->tag = srp_tsk->tag;
 	tcm_tmr = srp_tmr_to_tcm(srp_tsk->tsk_mgmt_func);
 	if (tcm_tmr < 0) {
-		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		send_ioctx->cmd.se_tmr_req->response =
 			TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
-		goto process_tmr;
+		goto fail;
 	}
 	res = core_tmr_alloc_req(cmd, NULL, tcm_tmr, GFP_KERNEL);
 	if (res < 0) {
-		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
-		goto process_tmr;
+		goto fail;
 	}
 
 	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_tsk->lun,
@@ -1899,22 +1895,19 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 	res = transport_lookup_tmr_lun(&send_ioctx->cmd, unpacked_lun);
 	if (res) {
 		pr_debug("rejecting TMR for LUN %lld\n", unpacked_lun);
-		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		send_ioctx->cmd.se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
-		goto process_tmr;
+		goto fail;
 	}
 
 	if (srp_tsk->tsk_mgmt_func == SRP_TSK_ABORT_TASK)
 		srpt_rx_mgmt_fn_tag(send_ioctx, srp_tsk->task_tag);
 
-process_tmr:
 	kref_get(&send_ioctx->kref);
-	if (!(send_ioctx->cmd.se_cmd_flags & SCF_SCSI_CDB_EXCEPTION))
-		transport_generic_handle_tmr(&send_ioctx->cmd);
-	else
-		transport_send_check_condition_and_sense(cmd,
-						cmd->scsi_sense_reason, 0);
-
+	transport_generic_handle_tmr(&send_ioctx->cmd);
+	return;
+fail:
+	kref_get(&send_ioctx->kref);
+	transport_send_check_condition_and_sense(cmd, 0, 0); // XXX:
 }
 
 /**

@@ -31,17 +31,17 @@ struct se_subsystem_api {
 				   struct scatterlist *,
 				   unsigned char *);
 
-	int (*parse_cdb)(struct se_cmd *cmd);
+	sense_reason_t (*parse_cdb)(struct se_cmd *cmd);
 	u32 (*get_device_type)(struct se_device *);
 	sector_t (*get_blocks)(struct se_device *);
 	unsigned char *(*get_sense_buffer)(struct se_cmd *);
 };
 
 struct sbc_ops {
-	int (*execute_rw)(struct se_cmd *cmd);
-	int (*execute_sync_cache)(struct se_cmd *cmd);
-	int (*execute_write_same)(struct se_cmd *cmd);
-	int (*execute_unmap)(struct se_cmd *cmd);
+	sense_reason_t (*execute_rw)(struct se_cmd *cmd);
+	sense_reason_t (*execute_sync_cache)(struct se_cmd *cmd);
+	sense_reason_t (*execute_write_same)(struct se_cmd *cmd);
+	sense_reason_t (*execute_unmap)(struct se_cmd *cmd);
 };
 
 int	transport_subsystem_register(struct se_subsystem_api *);
@@ -49,11 +49,11 @@ void	transport_subsystem_release(struct se_subsystem_api *);
 
 void	target_complete_cmd(struct se_cmd *, u8);
 
-int	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
-int	spc_emulate_report_luns(struct se_cmd *cmd);
+sense_reason_t	spc_parse_cdb(struct se_cmd *cmd, unsigned int *size);
+sense_reason_t	spc_emulate_report_luns(struct se_cmd *cmd);
 int	spc_get_write_same_sectors(struct se_cmd *cmd);
 
-int	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
+sense_reason_t	sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops);
 u32	sbc_get_device_rev(struct se_device *dev);
 u32	sbc_get_device_type(struct se_device *dev);
 

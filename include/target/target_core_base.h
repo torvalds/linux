@@ -144,8 +144,6 @@ enum se_cmd_flags_table {
 	SCF_EMULATED_TASK_SENSE		= 0x00000004,
 	SCF_SCSI_DATA_CDB		= 0x00000008,
 	SCF_SCSI_TMR_CDB		= 0x00000010,
-	SCF_SCSI_CDB_EXCEPTION		= 0x00000020,
-	SCF_SCSI_RESERVATION_CONFLICT	= 0x00000040,
 	SCF_FUA				= 0x00000080,
 	SCF_SE_LUN_CMD			= 0x00000100,
 	SCF_BIDI			= 0x00000400,
@@ -167,27 +165,32 @@ enum transport_lunflags_table {
 };
 
 /*
- * Used by transport_send_check_condition_and_sense() and se_cmd->scsi_sense_reason
+ * Used by transport_send_check_condition_and_sense()
  * to signal which ASC/ASCQ sense payload should be built.
  */
+typedef unsigned __bitwise__ sense_reason_t;
+
 enum tcm_sense_reason_table {
-	TCM_NON_EXISTENT_LUN			= 0x01,
-	TCM_UNSUPPORTED_SCSI_OPCODE		= 0x02,
-	TCM_INCORRECT_AMOUNT_OF_DATA		= 0x03,
-	TCM_UNEXPECTED_UNSOLICITED_DATA		= 0x04,
-	TCM_SERVICE_CRC_ERROR			= 0x05,
-	TCM_SNACK_REJECTED			= 0x06,
-	TCM_SECTOR_COUNT_TOO_MANY		= 0x07,
-	TCM_INVALID_CDB_FIELD			= 0x08,
-	TCM_INVALID_PARAMETER_LIST		= 0x09,
-	TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE	= 0x0a,
-	TCM_UNKNOWN_MODE_PAGE			= 0x0b,
-	TCM_WRITE_PROTECTED			= 0x0c,
-	TCM_CHECK_CONDITION_ABORT_CMD		= 0x0d,
-	TCM_CHECK_CONDITION_UNIT_ATTENTION	= 0x0e,
-	TCM_CHECK_CONDITION_NOT_READY		= 0x0f,
-	TCM_RESERVATION_CONFLICT		= 0x10,
-	TCM_ADDRESS_OUT_OF_RANGE		= 0x11,
+#define R(x)	(__force sense_reason_t )(x)
+	TCM_NON_EXISTENT_LUN			= R(0x01),
+	TCM_UNSUPPORTED_SCSI_OPCODE		= R(0x02),
+	TCM_INCORRECT_AMOUNT_OF_DATA		= R(0x03),
+	TCM_UNEXPECTED_UNSOLICITED_DATA		= R(0x04),
+	TCM_SERVICE_CRC_ERROR			= R(0x05),
+	TCM_SNACK_REJECTED			= R(0x06),
+	TCM_SECTOR_COUNT_TOO_MANY		= R(0x07),
+	TCM_INVALID_CDB_FIELD			= R(0x08),
+	TCM_INVALID_PARAMETER_LIST		= R(0x09),
+	TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE	= R(0x0a),
+	TCM_UNKNOWN_MODE_PAGE			= R(0x0b),
+	TCM_WRITE_PROTECTED			= R(0x0c),
+	TCM_CHECK_CONDITION_ABORT_CMD		= R(0x0d),
+	TCM_CHECK_CONDITION_UNIT_ATTENTION	= R(0x0e),
+	TCM_CHECK_CONDITION_NOT_READY		= R(0x0f),
+	TCM_RESERVATION_CONFLICT		= R(0x10),
+	TCM_ADDRESS_OUT_OF_RANGE		= R(0x11),
+	TCM_OUT_OF_RESOURCES			= R(0x12),
+#undef R
 };
 
 enum target_sc_flags_table {
@@ -407,7 +410,6 @@ struct se_cmd {
 	u8			scsi_status;
 	u8			scsi_asc;
 	u8			scsi_ascq;
-	u8			scsi_sense_reason;
 	u16			scsi_sense_length;
 	/* Delay for ALUA Active/NonOptimized state access in milliseconds */
 	int			alua_nonop_delay;
@@ -445,7 +447,7 @@ struct se_cmd {
 	struct completion	cmd_wait_comp;
 	struct kref		cmd_kref;
 	struct target_core_fabric_ops *se_tfo;
-	int (*execute_cmd)(struct se_cmd *);
+	sense_reason_t		(*execute_cmd)(struct se_cmd *);
 	void (*transport_complete_callback)(struct se_cmd *);
 
 	unsigned char		*t_task_cdb;

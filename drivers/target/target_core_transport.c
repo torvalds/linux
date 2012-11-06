@@ -557,7 +557,8 @@ static void target_complete_failure_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
 
-	transport_generic_request_failure(cmd);
+	transport_generic_request_failure(cmd,
+			TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE);
 }
 
 /*
@@ -625,7 +626,6 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		complete(&cmd->t_transport_stop_comp);
 		return;
 	} else if (cmd->transport_state & CMD_T_FAILED) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
 		INIT_WORK(&cmd->work, target_complete_ok_work);
@@ -976,7 +976,8 @@ transport_set_vpd_ident(struct t10_vpd *vpd, unsigned char *page_83)
 }
 EXPORT_SYMBOL(transport_set_vpd_ident);
 
-int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
+sense_reason_t
+target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -991,7 +992,7 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 		if (cmd->data_direction == DMA_TO_DEVICE) {
 			pr_err("Rejecting underflow/overflow"
 					" WRITE data\n");
-			goto out_invalid_cdb_field;
+			return TCM_INVALID_CDB_FIELD;
 		}
 		/*
 		 * Reject READ_* or WRITE_* with overflow/underflow for
@@ -1002,7 +1003,7 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 				" CDB on non 512-byte sector setup subsystem"
 				" plugin: %s\n", dev->transport->name);
 			/* Returns CHECK_CONDITION + INVALID_CDB_FIELD */
-			goto out_invalid_cdb_field;
+			return TCM_INVALID_CDB_FIELD;
 		}
 		/*
 		 * For the overflow case keep the existing fabric provided
@@ -1022,10 +1023,6 @@ int target_cmd_size_check(struct se_cmd *cmd, unsigned int size)
 
 	return 0;
 
-out_invalid_cdb_field:
-	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-	return -EINVAL;
 }
 
 /*
@@ -1065,7 +1062,8 @@ void transport_init_se_cmd(
 }
 EXPORT_SYMBOL(transport_init_se_cmd);
 
-static int transport_check_alloc_task_attr(struct se_cmd *cmd)
+static sense_reason_t
+transport_check_alloc_task_attr(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 
@@ -1079,7 +1077,7 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	if (cmd->sam_task_attr == MSG_ACA_TAG) {
 		pr_debug("SAM Task Attribute ACA"
 			" emulation is not supported\n");
-		return -EINVAL;
+		return TCM_INVALID_CDB_FIELD;
 	}
 	/*
 	 * Used to determine when ORDERED commands should go from
@@ -1093,17 +1091,12 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	return 0;
 }
 
-/*	target_setup_cmd_from_cdb():
- *
- *	Called from fabric RX Thread.
- */
-int target_setup_cmd_from_cdb(
-	struct se_cmd *cmd,
-	unsigned char *cdb)
+sense_reason_t
+target_setup_cmd_from_cdb(struct se_cmd *cmd, unsigned char *cdb)
 {
 	struct se_device *dev = cmd->se_dev;
 	unsigned long flags;
-	int ret;
+	sense_reason_t ret;
 
 	/*
 	 * Ensure that the received CDB is less than the max (252 + 8) bytes
@@ -1113,9 +1106,7 @@ int target_setup_cmd_from_cdb(
 		pr_err("Received SCSI CDB with command_size: %d that"
 			" exceeds SCSI_MAX_VARLEN_CDB_SIZE: %d\n",
 			scsi_command_size(cdb), SCSI_MAX_VARLEN_CDB_SIZE);
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -EINVAL;
+		return TCM_INVALID_CDB_FIELD;
 	}
 	/*
 	 * If the received CDB is larger than TCM_MAX_COMMAND_SIZE,
@@ -1130,10 +1121,7 @@ int target_setup_cmd_from_cdb(
 				" %u > sizeof(cmd->__t_task_cdb): %lu ops\n",
 				scsi_command_size(cdb),
 				(unsigned long)sizeof(cmd->__t_task_cdb));
-			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-			cmd->scsi_sense_reason =
-					TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			return -ENOMEM;
+			return TCM_OUT_OF_RESOURCES;
 		}
 	} else
 		cmd->t_task_cdb = &cmd->__t_task_cdb[0];
@@ -1145,50 +1133,30 @@ int target_setup_cmd_from_cdb(
 	/*
 	 * Check for an existing UNIT ATTENTION condition
 	 */
-	if (core_scsi3_ua_check(cmd, cdb) < 0) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_CHECK_CONDITION_UNIT_ATTENTION;
-		return -EINVAL;
-	}
+	ret = target_scsi3_ua_check(cmd);
+	if (ret)
+		return ret;
 
 	ret = target_alua_state_check(cmd);
-	if (ret) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		if (ret > 0)
-			cmd->scsi_sense_reason = TCM_CHECK_CONDITION_NOT_READY;
-		else
-			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -EINVAL;
-	}
-
-	/*
-	 * Check status for SPC-3 Persistent Reservations
-	 */
-	ret = target_check_reservation(cmd);
-	if (ret) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
-		cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
-		cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
+	if (ret)
 		return ret;
-	}
+
+	ret = target_check_reservation(cmd);
+	if (ret)
+		return ret;
 
 	ret = dev->transport->parse_cdb(cmd);
-	if (ret < 0)
+	if (ret)
+		return ret;
+
+	ret = transport_check_alloc_task_attr(cmd);
+	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	cmd->se_cmd_flags |= SCF_SUPPORTED_SAM_OPCODE;
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	/*
-	 * Check for SAM Task Attribute Emulation
-	 */
-	if (transport_check_alloc_task_attr(cmd) < 0) {
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -EINVAL;
-	}
 	spin_lock(&cmd->se_lun->lun_sep_lock);
 	if (cmd->se_lun->lun_sep)
 		cmd->se_lun->lun_sep->sep_stats.cmd_pdus++;
@@ -1204,7 +1172,7 @@ EXPORT_SYMBOL(target_setup_cmd_from_cdb);
 int transport_handle_cdb_direct(
 	struct se_cmd *cmd)
 {
-	int ret;
+	sense_reason_t ret;
 
 	if (!cmd->se_lun) {
 		dump_stack();
@@ -1234,12 +1202,40 @@ int transport_handle_cdb_direct(
 	 * and call transport_generic_request_failure() if necessary..
 	 */
 	ret = transport_generic_new_cmd(cmd);
-	if (ret < 0)
-		transport_generic_request_failure(cmd);
-
+	if (ret)
+		transport_generic_request_failure(cmd, ret);
 	return 0;
 }
 EXPORT_SYMBOL(transport_handle_cdb_direct);
+
+static sense_reason_t
+transport_generic_map_mem_to_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_count, struct scatterlist *sgl_bidi, u32 sgl_bidi_count)
+{
+	if (!sgl || !sgl_count)
+		return 0;
+
+	/*
+	 * Reject SCSI data overflow with map_mem_to_cmd() as incoming
+	 * scatterlists already have been set to follow what the fabric
+	 * passes for the original expected data transfer length.
+	 */
+	if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
+		pr_warn("Rejecting SCSI DATA overflow for fabric using"
+			" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
+		return TCM_INVALID_CDB_FIELD;
+	}
+
+	cmd->t_data_sg = sgl;
+	cmd->t_data_nents = sgl_count;
+
+	if (sgl_bidi && sgl_bidi_count) {
+		cmd->t_bidi_data_sg = sgl_bidi;
+		cmd->t_bidi_data_nents = sgl_bidi_count;
+	}
+	cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
+	return 0;
+}
 
 /*
  * target_submit_cmd_map_sgls - lookup unpacked lun and submit uninitialized
@@ -1273,7 +1269,8 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 		struct scatterlist *sgl_bidi, u32 sgl_bidi_count)
 {
 	struct se_portal_group *se_tpg;
-	int rc;
+	sense_reason_t rc;
+	int ret;
 
 	se_tpg = se_sess->se_tpg;
 	BUG_ON(!se_tpg);
@@ -1294,9 +1291,9 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	 * for fabrics using TARGET_SCF_ACK_KREF that expect a second
 	 * kref_put() to happen during fabric packet acknowledgement.
 	 */
-	rc = target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
-	if (rc)
-		return rc;
+	ret = target_get_sess_cmd(se_sess, se_cmd, (flags & TARGET_SCF_ACK_KREF));
+	if (ret)
+		return ret;
 	/*
 	 * Signal bidirectional data payloads to target-core
 	 */
@@ -1305,16 +1302,16 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 	/*
 	 * Locate se_lun pointer and attach it to struct se_cmd
 	 */
-	if (transport_lookup_cmd_lun(se_cmd, unpacked_lun) < 0) {
-		transport_send_check_condition_and_sense(se_cmd,
-				se_cmd->scsi_sense_reason, 0);
+	rc = transport_lookup_cmd_lun(se_cmd, unpacked_lun);
+	if (rc) {
+		transport_send_check_condition_and_sense(se_cmd, rc, 0);
 		target_put_sess_cmd(se_sess, se_cmd);
 		return 0;
 	}
 
 	rc = target_setup_cmd_from_cdb(se_cmd, cdb);
 	if (rc != 0) {
-		transport_generic_request_failure(se_cmd);
+		transport_generic_request_failure(se_cmd, rc);
 		return 0;
 	}
 	/*
@@ -1349,7 +1346,7 @@ int target_submit_cmd_map_sgls(struct se_cmd *se_cmd, struct se_session *se_sess
 		rc = transport_generic_map_mem_to_cmd(se_cmd, sgl, sgl_count,
 				sgl_bidi, sgl_bidi_count);
 		if (rc != 0) {
-			transport_generic_request_failure(se_cmd);
+			transport_generic_request_failure(se_cmd, rc);
 			return 0;
 		}
 	}
@@ -1495,16 +1492,17 @@ bool target_stop_cmd(struct se_cmd *cmd, unsigned long *flags)
 /*
  * Handle SAM-esque emulation for generic transport request failures.
  */
-void transport_generic_request_failure(struct se_cmd *cmd)
+void transport_generic_request_failure(struct se_cmd *cmd,
+		sense_reason_t sense_reason)
 {
 	int ret = 0;
 
 	pr_debug("-----[ Storage Engine Exception for cmd: %p ITT: 0x%08x"
 		" CDB: 0x%02x\n", cmd, cmd->se_tfo->get_task_tag(cmd),
 		cmd->t_task_cdb[0]);
-	pr_debug("-----[ i_state: %d t_state: %d scsi_sense_reason: %d\n",
+	pr_debug("-----[ i_state: %d t_state: %d sense_reason: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
-		cmd->t_state, cmd->scsi_sense_reason);
+		cmd->t_state, sense_reason);
 	pr_debug("-----[ CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
 		(cmd->transport_state & CMD_T_ACTIVE) != 0,
 		(cmd->transport_state & CMD_T_STOP) != 0,
@@ -1515,7 +1513,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	 */
 	transport_complete_task_attr(cmd);
 
-	switch (cmd->scsi_sense_reason) {
+	switch (sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
 	case TCM_UNSUPPORTED_SCSI_OPCODE:
 	case TCM_INVALID_CDB_FIELD:
@@ -1527,6 +1525,9 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	case TCM_CHECK_CONDITION_ABORT_CMD:
 	case TCM_CHECK_CONDITION_UNIT_ATTENTION:
 	case TCM_CHECK_CONDITION_NOT_READY:
+		break;
+	case TCM_OUT_OF_RESOURCES:
+		sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		break;
 	case TCM_RESERVATION_CONFLICT:
 		/*
@@ -1555,13 +1556,12 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 		goto check_stop;
 	default:
 		pr_err("Unknown transport error for CDB 0x%02x: %d\n",
-			cmd->t_task_cdb[0], cmd->scsi_sense_reason);
-		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
+			cmd->t_task_cdb[0], sense_reason);
+		sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		break;
 	}
 
-	ret = transport_send_check_condition_and_sense(cmd,
-			cmd->scsi_sense_reason, 0);
+	ret = transport_send_check_condition_and_sense(cmd, sense_reason, 0);
 	if (ret == -EAGAIN || ret == -ENOMEM)
 		goto queue_full;
 
@@ -1579,21 +1579,21 @@ EXPORT_SYMBOL(transport_generic_request_failure);
 
 static void __target_execute_cmd(struct se_cmd *cmd)
 {
-	int error = 0;
+	sense_reason_t ret;
 
 	spin_lock_irq(&cmd->t_state_lock);
 	cmd->transport_state |= (CMD_T_BUSY|CMD_T_SENT);
 	spin_unlock_irq(&cmd->t_state_lock);
 
-	if (cmd->execute_cmd)
-		error = cmd->execute_cmd(cmd);
+	if (cmd->execute_cmd) {
+		ret = cmd->execute_cmd(cmd);
+		if (ret) {
+			spin_lock_irq(&cmd->t_state_lock);
+			cmd->transport_state &= ~(CMD_T_BUSY|CMD_T_SENT);
+			spin_unlock_irq(&cmd->t_state_lock);
 
-	if (error) {
-		spin_lock_irq(&cmd->t_state_lock);
-		cmd->transport_state &= ~(CMD_T_BUSY|CMD_T_SENT);
-		spin_unlock_irq(&cmd->t_state_lock);
-
-		transport_generic_request_failure(cmd);
+			transport_generic_request_failure(cmd, ret);
+		}
 	}
 }
 
@@ -1987,53 +1987,6 @@ out_busy:
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
 
-/*
- * transport_generic_map_mem_to_cmd - Use fabric-alloced pages instead of
- * allocating in the core.
- * @cmd:  Associated se_cmd descriptor
- * @mem:  SGL style memory for TCM WRITE / READ
- * @sg_mem_num: Number of SGL elements
- * @mem_bidi_in: SGL style memory for TCM BIDI READ
- * @sg_mem_bidi_num: Number of BIDI READ SGL elements
- *
- * Return: nonzero return cmd was rejected for -ENOMEM or inproper usage
- * of parameters.
- */
-int transport_generic_map_mem_to_cmd(
-	struct se_cmd *cmd,
-	struct scatterlist *sgl,
-	u32 sgl_count,
-	struct scatterlist *sgl_bidi,
-	u32 sgl_bidi_count)
-{
-	if (!sgl || !sgl_count)
-		return 0;
-
-	/*
-	 * Reject SCSI data overflow with map_mem_to_cmd() as incoming
-	 * scatterlists already have been set to follow what the fabric
-	 * passes for the original expected data transfer length.
-	 */
-	if (cmd->se_cmd_flags & SCF_OVERFLOW_BIT) {
-		pr_warn("Rejecting SCSI DATA overflow for fabric using"
-			" SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC\n");
-		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -EINVAL;
-	}
-
-	cmd->t_data_sg = sgl;
-	cmd->t_data_nents = sgl_count;
-
-	if (sgl_bidi && sgl_bidi_count) {
-		cmd->t_bidi_data_sg = sgl_bidi;
-		cmd->t_bidi_data_nents = sgl_bidi_count;
-	}
-	cmd->se_cmd_flags |= SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC;
-	return 0;
-}
-EXPORT_SYMBOL(transport_generic_map_mem_to_cmd);
-
 void *transport_kmap_data_sg(struct se_cmd *cmd)
 {
 	struct scatterlist *sg = cmd->t_data_sg;
@@ -2054,10 +2007,8 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 
 	/* >1 page. use vmap */
 	pages = kmalloc(sizeof(*pages) * cmd->t_data_nents, GFP_KERNEL);
-	if (!pages) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	if (!pages)
 		return NULL;
-	}
 
 	/* convert sg[] to pages[] */
 	for_each_sg(cmd->t_data_sg, sg, cmd->t_data_nents, i) {
@@ -2066,10 +2017,8 @@ void *transport_kmap_data_sg(struct se_cmd *cmd)
 
 	cmd->t_data_vmap = vmap(pages, cmd->t_data_nents,  VM_MAP, PAGE_KERNEL);
 	kfree(pages);
-	if (!cmd->t_data_vmap) {
-		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	if (!cmd->t_data_vmap)
 		return NULL;
-	}
 
 	return cmd->t_data_vmap + cmd->t_data_sg[0].offset;
 }
@@ -2135,7 +2084,8 @@ out:
  * might not have the payload yet, so notify the fabric via a call to
  * ->write_pending instead. Otherwise place it on the execution queue.
  */
-int transport_generic_new_cmd(struct se_cmd *cmd)
+sense_reason_t
+transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	int ret = 0;
 
@@ -2148,7 +2098,7 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	    cmd->data_length) {
 		ret = transport_generic_get_mem(cmd);
 		if (ret < 0)
-			goto out_fail;
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
 	atomic_inc(&cmd->t_fe_count);
@@ -2174,14 +2124,11 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	if (ret == -EAGAIN || ret == -ENOMEM)
 		goto queue_full;
 
-	if (ret < 0)
-		return ret;
-	return 1;
+	/* fabric drivers should only return -EAGAIN or -ENOMEM as error */
+	WARN_ON(ret);
 
-out_fail:
-	cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
-	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	return -EINVAL;
+	return 0;
+
 queue_full:
 	pr_debug("Handling write_pending QUEUE__FULL: se_cmd: %p\n", cmd);
 	cmd->t_state = TRANSPORT_COMPLETE_QF_WP;
@@ -2625,10 +2572,9 @@ static int transport_get_sense_codes(
 	return 0;
 }
 
-int transport_send_check_condition_and_sense(
-	struct se_cmd *cmd,
-	u8 reason,
-	int from_transport)
+int
+transport_send_check_condition_and_sense(struct se_cmd *cmd,
+		sense_reason_t reason, int from_transport)
 {
 	unsigned char *buffer = cmd->sense_buffer;
 	unsigned long flags;
