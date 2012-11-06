@@ -2604,7 +2604,7 @@ core_scsi3_emulate_pro_release(struct se_cmd *cmd, int type, int scope,
 		 * No persistent reservation, return GOOD status.
 		 */
 		spin_unlock(&dev->dev_reservation_lock);
-		return 0;
+		goto out_put_pr_reg;
 	}
 	if ((pr_res_holder->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
 	    (pr_res_holder->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG))
