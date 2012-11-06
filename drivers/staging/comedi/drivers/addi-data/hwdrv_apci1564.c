@@ -180,113 +180,15 @@ static int i_APCI1564_ConfigDigitalInput(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1564_Read1DigitalInput                       |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                      struct comedi_insn *insn,unsigned int *data)                     |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the digital input                 |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|		              unsigned int ui_Channel : Channel number to read       |
-|                     unsigned int *data          : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI1564_Read1DigitalInput(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					struct comedi_insn *insn,
-					unsigned int *data)
+static int apci1564_di_insn_bits(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
 	struct addi_private *devpriv = dev->private;
-	unsigned int ui_TmpValue = 0;
-	unsigned int ui_Channel;
 
-	ui_Channel = CR_CHAN(insn->chanspec);
-	if (ui_Channel <= 31) {
-		ui_TmpValue =
-			(unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
-/*
-* since only 1 channel reqd to bring it to last bit it is rotated 8
-* +(chan - 1) times then ANDed with 1 for last bit.
-*/
-		*data = (ui_TmpValue >> ui_Channel) & 0x1;
-	}			/*  if  (ui_Channel >= 0 && ui_Channel <=31) */
-	else {
-		comedi_error(dev, "Not a valid channel number !!! \n");
-		return -EINVAL;	/*  "sorry channel spec wrong " */
-	}			/* else if  (ui_Channel >= 0 && ui_Channel <=31) */
-	return insn->n;
-}
+	data[1] = inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
 
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1564_ReadMoreDigitalInput                    |
-|			  (struct comedi_device *dev,struct comedi_subdevice *s,               |
-|                     struct comedi_insn *insn,unsigned int *data)                      |
-+----------------------------------------------------------------------------+
-| Task              : Return the status of the Requested digital inputs      |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev      : Driver handle                |
-|                     unsigned int ui_NoOfChannels    : No Of Channels To be Read    |
-|                      unsigned int *data             : Data Pointer to read status  |
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      : TRUE  : No error occur                                 |
-|		            : FALSE : Error occur. Return the error          |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-static int i_APCI1564_ReadMoreDigitalInput(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_insn *insn,
-					   unsigned int *data)
-{
-	struct addi_private *devpriv = dev->private;
-	unsigned int ui_PortValue = data[0];
-	unsigned int ui_Mask = 0;
-	unsigned int ui_NoOfChannels;
-
-	ui_NoOfChannels = CR_CHAN(insn->chanspec);
-	if (data[1] == 0) {
-		*data = (unsigned int) inl(devpriv->i_IobaseAmcc + APCI1564_DIGITAL_IP);
-		switch (ui_NoOfChannels) {
-		case 2:
-			ui_Mask = 3;
-			*data = (*data >> (2 * ui_PortValue)) & ui_Mask;
-			break;
-		case 4:
-			ui_Mask = 15;
-			*data = (*data >> (4 * ui_PortValue)) & ui_Mask;
-			break;
-		case 8:
-			ui_Mask = 255;
-			*data = (*data >> (8 * ui_PortValue)) & ui_Mask;
-			break;
-		case 16:
-			ui_Mask = 65535;
-			*data = (*data >> (16 * ui_PortValue)) & ui_Mask;
-			break;
-		case 31:
-			break;
-		default:
-			comedi_error(dev, "Not a valid Channel number !!!\n");
-			return -EINVAL;	/*  "sorry channel spec wrong " */
-			break;
-		}		/*  switch  (ui_NoOfChannels) */
-	}			/*  if  (data[1]==0) */
-	else {
-		if (data[1] == 1) {
-			*data = ui_InterruptStatus_1564;
-		}		/*  if  (data[1]==1) */
-	}			/*  else if  (data[1]==0) */
 	return insn->n;
 }
 
