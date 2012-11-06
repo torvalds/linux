@@ -1501,33 +1501,6 @@ static int __devinit musb_core_init(u16 musb_type, struct musb *musb)
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_SOC_OMAP2430) || defined(CONFIG_SOC_OMAP3430) || \
-	defined(CONFIG_ARCH_OMAP4) || defined(CONFIG_ARCH_U8500)
-
-static irqreturn_t generic_interrupt(int irq, void *__hci)
-{
-	unsigned long	flags;
-	irqreturn_t	retval = IRQ_NONE;
-	struct musb	*musb = __hci;
-
-	spin_lock_irqsave(&musb->lock, flags);
-
-	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
-	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
-	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
-
-	if (musb->int_usb || musb->int_tx || musb->int_rx)
-		retval = musb_interrupt(musb);
-
-	spin_unlock_irqrestore(&musb->lock, flags);
-
-	return retval;
-}
-
-#else
-#define generic_interrupt	NULL
-#endif
-
 /*
  * handle all the irqs defined by the HDRC core. for now we expect:  other
  * irq sources (phy, dma, etc) will be handled first, musb->int_* values
@@ -1896,7 +1869,8 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	musb->ops = plat->platform_ops;
 
 	/* The musb_platform_init() call:
-	 *   - adjusts musb->mregs and musb->isr if needed,
+	 *   - adjusts musb->mregs
+	 *   - sets the musb->isr
 	 *   - may initialize an integrated tranceiver
 	 *   - initializes musb->xceiv, usually by otg_get_phy()
 	 *   - stops powering VBUS
@@ -1906,7 +1880,6 @@ musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 	 * external/discrete ones in various flavors (twl4030 family,
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
 	 */
-	musb->isr = generic_interrupt;
 	status = musb_platform_init(musb);
 	if (status < 0)
 		goto fail1;

@@ -36,6 +36,26 @@ struct ux500_glue {
 };
 #define glue_to_musb(g)	platform_get_drvdata(g->musb)
 
+static irqreturn_t ux500_musb_interrupt(int irq, void *__hci)
+{
+	unsigned long   flags;
+	irqreturn_t     retval = IRQ_NONE;
+	struct musb     *musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx)
+		retval = musb_interrupt(musb);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return retval;
+}
+
 static int ux500_musb_init(struct musb *musb)
 {
 	musb->xceiv = usb_get_phy(USB_PHY_TYPE_USB2);
@@ -43,6 +63,8 @@ static int ux500_musb_init(struct musb *musb)
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}
+
+	musb->isr = ux500_musb_interrupt;
 
 	return 0;
 }
