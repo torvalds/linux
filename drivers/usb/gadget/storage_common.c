@@ -155,9 +155,12 @@ struct fsg_lun {
 	struct device	dev;
 };
 
-#define fsg_lun_is_open(curlun)	((curlun)->filp != NULL)
+static inline bool fsg_lun_is_open(struct fsg_lun *curlun)
+{
+	return curlun->filp != NULL;
+}
 
-static struct fsg_lun *fsg_lun_from_dev(struct device *dev)
+static inline struct fsg_lun *fsg_lun_from_dev(struct device *dev)
 {
 	return container_of(dev, struct fsg_lun, dev);
 }
