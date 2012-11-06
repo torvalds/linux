@@ -65,7 +65,6 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 	struct clk		*clk;
 	struct mfd_tscadc_board	*pdata = pdev->dev.platform_data;
 	struct mfd_cell		*cell;
-	int			irq;
 	int			err, ctrl;
 	int			clk_value, clock_rate;
 	int			tsc_wires, adc_channels = 0, total_channels;
@@ -92,12 +91,6 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq ID is specified.\n");
-		return -EINVAL;
-	}
-
 	/* Allocate memory for device */
 	tscadc = devm_kzalloc(&pdev->dev,
 			sizeof(struct ti_tscadc_dev), GFP_KERNEL);
@@ -106,22 +99,26 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	tscadc->dev = &pdev->dev;
-	tscadc->irq = irq;
+
+	err = platform_get_irq(pdev, 0);
+	if (err < 0) {
+		dev_err(&pdev->dev, "no irq ID is specified.\n");
+		goto ret;
+	} else
+		tscadc->irq = err;
 
 	res = devm_request_mem_region(&pdev->dev,
 			res->start, resource_size(res), pdev->name);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to reserve registers.\n");
-		err = -EBUSY;
-		goto err;
+		return -EBUSY;
 	}
 
 	tscadc->tscadc_base = devm_ioremap(&pdev->dev,
 			res->start, resource_size(res));
 	if (!tscadc->tscadc_base) {
 		dev_err(&pdev->dev, "failed to map registers.\n");
-		err = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	tscadc->regmap_tscadc = devm_regmap_init_mmio(&pdev->dev,
@@ -129,7 +126,7 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 	if (IS_ERR(tscadc->regmap_tscadc)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
 		err = PTR_ERR(tscadc->regmap_tscadc);
-		goto err;
+		goto ret;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -201,7 +198,7 @@ static	int __devinit ti_tscadc_probe(struct platform_device *pdev)
 err_disable_clk:
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-err:
+ret:
 	return err;
 }
 
