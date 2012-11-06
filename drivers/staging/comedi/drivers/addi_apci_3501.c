@@ -28,7 +28,6 @@ static const struct addi_board apci3501_boardtypes[] = {
 		.ao_config		= i_APCI3501_ConfigAnalogOutput,
 		.ao_write		= i_APCI3501_WriteAnalogOutput,
 		.di_bits		= i_APCI3501_ReadDigitalInput,
-		.do_config		= i_APCI3501_ConfigDigitalOutput,
 		.do_write		= i_APCI3501_WriteDigitalOutput,
 		.do_bits		= i_APCI3501_ReadDigitalOutput,
 		.timer_config		= i_APCI3501_ConfigTimerCounterWatchdog,
