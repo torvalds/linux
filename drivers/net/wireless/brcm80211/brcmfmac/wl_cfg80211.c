@@ -1822,6 +1822,12 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 	if (!check_vif_up(ifp->vif))
 		return -EIO;
 
+	if (key_idx >= DOT11_MAX_DEFAULT_KEYS) {
+		/* we ignore this key index in this case */
+		WL_ERR("invalid key index (%d)\n", key_idx);
+		return -EINVAL;
+	}
+
 	memset(&key, 0, sizeof(key));
 
 	key.index = (u32) key_idx;
@@ -1832,15 +1838,6 @@ brcmf_cfg80211_del_key(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* Set the new key/index */
 	err = send_key_to_dongle(ndev, &key);
-	if (err) {
-		if (err == -EINVAL) {
-			if (key.index >= DOT11_MAX_DEFAULT_KEYS)
-				/* we ignore this key index in this case */
-				WL_ERR("invalid key index (%d)\n", key_idx);
-		}
-		/* Ignore this error, may happen during DISASSOC */
-		err = -EAGAIN;
-	}
 
 	WL_TRACE("Exit\n");
 	return err;
