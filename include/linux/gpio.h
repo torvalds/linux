@@ -233,7 +233,7 @@ static inline int irq_to_gpio(unsigned irq)
 
 #ifdef CONFIG_PINCTRL
 
-static inline void
+static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		       unsigned int pin_base, unsigned int npins)
 {

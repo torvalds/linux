@@ -221,8 +221,8 @@ EXPORT_SYMBOL(of_mm_gpiochip_add);
 static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 {
 	struct device_node *np = chip->of_node;
-	struct gpio_pin_range *pin_range;
 	struct of_phandle_args pinspec;
+	struct pinctrl_dev *pctldev;
 	int index = 0, ret;
 
 	if (!np)
@@ -234,22 +234,17 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		if (ret)
 			break;
 
-		pin_range = devm_kzalloc(chip->dev, sizeof(*pin_range),
-				GFP_KERNEL);
-		if (!pin_range) {
-			pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
-					chip->label);
+		pctldev = of_pinctrl_get(pinspec.np);
+		if (!pctldev)
 			break;
-		}
 
-		pin_range->range.name = chip->label;
-		pin_range->range.base = chip->base;
-		pin_range->range.pin_base = pinspec.args[0];
-		pin_range->range.npins = pinspec.args[1];
-		pin_range->pctldev = of_pinctrl_add_gpio_range(pinspec.np,
-				&pin_range->range);
+		ret = gpiochip_add_pin_range(chip,
+					     pinctrl_dev_get_name(pctldev),
+					     pinspec.args[0],
+					     pinspec.args[1]);
 
-		list_add_tail(&pin_range->node, &chip->pin_ranges);
+		if (ret)
+			break;
 
 	} while (index++);
 }

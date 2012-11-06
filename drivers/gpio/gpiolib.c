@@ -1187,8 +1187,8 @@ EXPORT_SYMBOL_GPL(gpiochip_find);
 
 #ifdef CONFIG_PINCTRL
 
-void gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
-		unsigned int pin_base, unsigned int npins)
+int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
+			   unsigned int pin_base, unsigned int npins)
 {
 	struct gpio_pin_range *pin_range;
 
@@ -1196,7 +1196,7 @@ void gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 	if (!pin_range) {
 		pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
 				chip->label);
-		return;
+		return -ENOMEM;
 	}
 
 	pin_range->range.name = chip->label;
@@ -1207,6 +1207,8 @@ void gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 			&pin_range->range);
 
 	list_add_tail(&pin_range->node, &chip->pin_ranges);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(gpiochip_add_pin_range);
 
