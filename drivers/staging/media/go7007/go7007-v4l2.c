@@ -1811,8 +1811,8 @@ int go7007_v4l2_init(struct go7007 *go)
 	}
 	video_set_drvdata(go->video_dev, go);
 	++go->ref_count;
-	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
-	       go->video_dev->name, video_device_node_name(go->video_dev));
+	dev_info(go->dev, "registered device %s [v4l2]\n",
+		 video_device_node_name(go->video_dev));
 
 	return 0;
 }
