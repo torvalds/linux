@@ -80,7 +80,7 @@ struct ttm_object_file {
  */
 
 struct ttm_object_device {
-	rwlock_t object_lock;
+	spinlock_t object_lock;
 	struct drm_open_hash object_hash;
 	atomic_t object_count;
 	struct ttm_mem_global *mem_glob;
@@ -157,12 +157,12 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 	base->refcount_release = refcount_release;
 	base->ref_obj_release = ref_obj_release;
 	base->object_type = object_type;
-	write_lock(&tdev->object_lock);
+	spin_lock(&tdev->object_lock);
 	kref_init(&base->refcount);
 	ret = drm_ht_just_insert_please(&tdev->object_hash,
 					&base->hash,
 					(unsigned long)base, 31, 0, 0);
-	write_unlock(&tdev->object_lock);
+	spin_unlock(&tdev->object_lock);
 	if (unlikely(ret != 0))
 		goto out_err0;
 
@@ -186,30 +186,22 @@ static void ttm_release_base(struct kref *kref)
 	    container_of(kref, struct ttm_base_object, refcount);
 	struct ttm_object_device *tdev = base->tfile->tdev;
 
+	spin_lock(&tdev->object_lock);
 	(void)drm_ht_remove_item(&tdev->object_hash, &base->hash);
-	write_unlock(&tdev->object_lock);
+	spin_unlock(&tdev->object_lock);
 	if (base->refcount_release) {
 		ttm_object_file_unref(&base->tfile);
 		base->refcount_release(&base);
 	}
-	write_lock(&tdev->object_lock);
 }
 
 void ttm_base_object_unref(struct ttm_base_object **p_base)
 {
 	struct ttm_base_object *base = *p_base;
-	struct ttm_object_device *tdev = base->tfile->tdev;
 
 	*p_base = NULL;
 
-	/*
-	 * Need to take the lock here to avoid racing with
-	 * users trying to look up the object.
-	 */
-
-	write_lock(&tdev->object_lock);
 	kref_put(&base->refcount, ttm_release_base);
-	write_unlock(&tdev->object_lock);
 }
 EXPORT_SYMBOL(ttm_base_object_unref);
 
@@ -221,14 +213,14 @@ struct ttm_base_object *ttm_base_object_lookup(struct ttm_object_file *tfile,
 	struct drm_hash_item *hash;
 	int ret;
 
-	read_lock(&tdev->object_lock);
+	rcu_read_lock();
 	ret = drm_ht_find_item(&tdev->object_hash, key, &hash);
 
 	if (likely(ret == 0)) {
 		base = drm_hash_entry(hash, struct ttm_base_object, hash);
-		kref_get(&base->refcount);
+		ret = kref_get_unless_zero(&base->refcount) ? 0 : -EINVAL;
 	}
-	read_unlock(&tdev->object_lock);
+	rcu_read_unlock();
 
 	if (unlikely(ret != 0))
 		return NULL;
@@ -426,7 +418,7 @@ struct ttm_object_device *ttm_object_device_init(struct ttm_mem_global
 		return NULL;
 
 	tdev->mem_glob = mem_glob;
-	rwlock_init(&tdev->object_lock);
+	spin_lock_init(&tdev->object_lock);
 	atomic_set(&tdev->object_count, 0);
 	ret = drm_ht_create(&tdev->object_hash, hash_order);
 
@@ -444,9 +436,9 @@ void ttm_object_device_release(struct ttm_object_device **p_tdev)
 
 	*p_tdev = NULL;
 
-	write_lock(&tdev->object_lock);
+	spin_lock(&tdev->object_lock);
 	drm_ht_remove(&tdev->object_hash);
-	write_unlock(&tdev->object_lock);
+	spin_unlock(&tdev->object_lock);
 
 	kfree(tdev);
 }

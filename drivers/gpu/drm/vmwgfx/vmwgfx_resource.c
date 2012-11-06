@@ -351,7 +351,7 @@ static void vmw_user_context_free(struct vmw_resource *res)
 	    container_of(res, struct vmw_user_context, res);
 	struct vmw_private *dev_priv = res->dev_priv;
 
-	kfree(ctx);
+	ttm_base_object_kfree(ctx, base);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv),
 			    vmw_user_context_size);
 }
@@ -1143,7 +1143,7 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 	kfree(srf->offsets);
 	kfree(srf->sizes);
 	kfree(srf->snooper.image);
-	kfree(user_srf);
+	ttm_base_object_kfree(user_srf, base);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv), size);
 }
 
@@ -1571,7 +1571,7 @@ static void vmw_user_dmabuf_destroy(struct ttm_buffer_object *bo)
 {
 	struct vmw_user_dma_buffer *vmw_user_bo = vmw_user_dma_buffer(bo);
 
-	kfree(vmw_user_bo);
+	ttm_base_object_kfree(vmw_user_bo, base);
 }
 
 static void vmw_user_dmabuf_release(struct ttm_base_object **p_base)
@@ -1759,7 +1759,7 @@ static void vmw_user_stream_free(struct vmw_resource *res)
 	    container_of(res, struct vmw_user_stream, stream.res);
 	struct vmw_private *dev_priv = res->dev_priv;
 
-	kfree(stream);
+	ttm_base_object_kfree(stream, base);
 	ttm_mem_global_free(vmw_mem_glob(dev_priv),
 			    vmw_user_stream_size);
 }
