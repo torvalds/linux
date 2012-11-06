@@ -68,6 +68,26 @@ void ssc_free(struct ssc_device *ssc)
 }
 EXPORT_SYMBOL(ssc_free);
 
+static struct atmel_ssc_platform_data at91rm9200_config = {
+	.use_dma = 0,
+};
+
+static struct atmel_ssc_platform_data at91sam9g45_config = {
+	.use_dma = 1,
+};
+
+static const struct platform_device_id atmel_ssc_devtypes[] = {
+	{
+		.name = "at91rm9200_ssc",
+		.driver_data = (unsigned long) &at91rm9200_config,
+	}, {
+		.name = "at91sam9g45_ssc",
+		.driver_data = (unsigned long) &at91sam9g45_config,
+	}, {
+		/* sentinel */
+	}
+};
+
 static int ssc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
@@ -80,6 +100,8 @@ static int ssc_probe(struct platform_device *pdev)
 	}
 
 	ssc->pdev = pdev;
+	ssc->pdata = (struct atmel_ssc_platform_data *)
+			platform_get_device_id(pdev)->driver_data;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -139,6 +161,7 @@ static struct platform_driver ssc_driver = {
 		.name		= "ssc",
 		.owner		= THIS_MODULE,
 	},
+	.id_table	= atmel_ssc_devtypes,
 	.probe		= ssc_probe,
 	.remove		= __devexit_p(ssc_remove),
 };
