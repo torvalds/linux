@@ -94,6 +94,8 @@ static void __init exynos4_dt_machine_init(void)
 
 static char const *exynos4_dt_compat[] __initdata = {
 	"samsung,exynos4210",
+	"samsung,exynos4212",
+	"samsung,exynos4412",
 	NULL
 };
 
