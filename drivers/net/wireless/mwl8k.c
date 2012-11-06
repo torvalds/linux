@@ -2033,6 +2033,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 	if (priv->ap_fw && ieee80211_is_data(wh->frame_control) && !eapol_frame)
 		tx->timestamp = cpu_to_le32(ioread32(priv->regs +
 						MWL8K_HW_TIMER_REGISTER));
+	else
+		tx->timestamp = 0;
 
 	wmb();
 	tx->status = cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED | txstatus);
