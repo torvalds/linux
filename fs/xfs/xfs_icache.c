@@ -1175,14 +1175,19 @@ xfs_inode_match_id(
 	struct xfs_inode	*ip,
 	struct xfs_eofblocks	*eofb)
 {
-	if (eofb->eof_flags & XFS_EOF_FLAGS_UID)
-		return ip->i_d.di_uid == eofb->eof_uid;
-	else if (eofb->eof_flags & XFS_EOF_FLAGS_GID)
-		return ip->i_d.di_gid == eofb->eof_gid;
-	else if (eofb->eof_flags & XFS_EOF_FLAGS_PRID)
-		return xfs_get_projid(ip) == eofb->eof_prid;
+	if (eofb->eof_flags & XFS_EOF_FLAGS_UID &&
+	    ip->i_d.di_uid != eofb->eof_uid)
+		return 0;
 
-	return 0;
+	if (eofb->eof_flags & XFS_EOF_FLAGS_GID &&
+	    ip->i_d.di_gid != eofb->eof_gid)
+		return 0;
+
+	if (eofb->eof_flags & XFS_EOF_FLAGS_PRID &&
+	    xfs_get_projid(ip) != eofb->eof_prid)
+		return 0;
+
+	return 1;
 }
 
 STATIC int
@@ -1210,10 +1215,7 @@ xfs_inode_free_eofblocks(
 	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
 
-	if (eofb &&
-	    (eofb->eof_flags & (XFS_EOF_FLAGS_UID|XFS_EOF_FLAGS_GID|
-			       XFS_EOF_FLAGS_PRID)) &&
-	    !xfs_inode_match_id(ip, eofb))
+	if (eofb && !xfs_inode_match_id(ip, eofb))
 		return 0;
 
 	ret = xfs_free_eofblocks(ip->i_mount, ip, true);
