@@ -966,9 +966,7 @@ brcmf_cfg80211_escan(struct wiphy *wiphy, struct net_device *ndev,
 	set_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status);
 	if (escan_req) {
 		err = brcmf_do_escan(cfg, wiphy, ndev, request);
-		if (!err)
-			return err;
-		else
+		if (err)
 			goto scan_out;
 	} else {
 		WL_SCAN("ssid \"%s\", ssid_len (%d)\n",
