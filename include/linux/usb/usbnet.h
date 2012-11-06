@@ -167,6 +167,10 @@ extern int usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, void *data, u16 size);
 extern int usbnet_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
+extern int usbnet_read_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, void *data, u16 size);
+extern int usbnet_write_cmd_nopm(struct usbnet *dev, u8 cmd, u8 reqtype,
+		    u16 value, u16 index, const void *data, u16 size);
 extern int usbnet_write_cmd_async(struct usbnet *dev, u8 cmd, u8 reqtype,
 		    u16 value, u16 index, const void *data, u16 size);
 
