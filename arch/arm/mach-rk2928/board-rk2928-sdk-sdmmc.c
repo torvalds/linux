@@ -358,12 +358,26 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
         return 0;
 }
 
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+static int __init rk29sdk_wifi_bt_gpio_control_init(void)
+{
+    return 0;
+    if (gpio_request(RK30SDK_WIFI_GPIO_POWER_N, "wifi_power")) {
+           pr_info("%s: request wifi power gpio failed\n", __func__);
+           return -1;
+    }
+    gpio_direction_output(RK30SDK_WIFI_GPIO_POWER_N, !RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
+
+    pr_info("%s: init finished\n",__func__);
+    return 0;
+}
+#else
 static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
     rk29sdk_init_wifi_mem();
-    
+
     rk29_mux_api_set(GPIO0D6_MMC1_PWREN_NAME, GPIO0D_GPIO0D6);
-    
+
     if (gpio_request(RK30SDK_WIFI_GPIO_POWER_N, "wifi_power")) {
            pr_info("%s: request wifi power gpio failed\n", __func__);
            return -1;
@@ -375,12 +389,12 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
            gpio_free(RK30SDK_WIFI_GPIO_POWER_N);
            return -1;
     }
-#endif    
+#endif
 
     gpio_direction_output(RK30SDK_WIFI_GPIO_POWER_N, !RK30SDK_WIFI_GPIO_POWER_ENABLE_VALUE);
 #ifdef RK30SDK_WIFI_GPIO_RESET_N    
     gpio_direction_output(RK30SDK_WIFI_GPIO_RESET_N, !RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE);
-#endif    
+#endif
 
     #if 0//defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
     
@@ -397,11 +411,12 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
     gpio_direction_output(RK2928_PIN0_PB6,GPIO_LOW);//set mmc1-data3 to low.
     
     rk29_sdmmc_gpio_open(1, 0); //added by xbw at 2011-10-13
-    #endif    
+    #endif
     pr_info("%s: init finished\n",__func__);
 
     return 0;
 }
+#endif
 
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
 static int usbwifi_power_status = 1;

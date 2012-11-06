@@ -1195,6 +1195,9 @@ static void __init rk2928_board_init(void)
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+        rk29sdk_wifi_bt_gpio_control_init();
+#endif
 }
 
 static void __init rk2928_reserve(void)
