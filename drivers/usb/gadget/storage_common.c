@@ -78,34 +78,6 @@
 #define LWARN(lun, fmt, args...)  dev_warn(&(lun)->dev, fmt, ## args)
 #define LINFO(lun, fmt, args...)  dev_info(&(lun)->dev, fmt, ## args)
 
-/*
- * Keep those macros in sync with those in
- * include/linux/usb/composite.h or else GCC will complain.  If they
- * are identical (the same names of arguments, white spaces in the
- * same places) GCC will allow redefinition otherwise (even if some
- * white space is removed or added) warning will be issued.
- *
- * Those macros are needed here because File Storage Gadget does not
- * include the composite.h header.  For composite gadgets those macros
- * are redundant since composite.h is included any way.
- *
- * One could check whether those macros are already defined (which
- * would indicate composite.h had been included) or not (which would
- * indicate we were in FSG) but this is not done because a warning is
- * desired if definitions here differ from the ones in composite.h.
- *
- * We want the definitions to match and be the same in File Storage
- * Gadget as well as Mass Storage Function (and so composite gadgets
- * using MSF).  If someone changes them in composite.h it will produce
- * a warning in this file when building MSF.
- */
-#define DBG(d, fmt, args...)     dev_dbg(&(d)->gadget->dev , fmt , ## args)
-#define VDBG(d, fmt, args...)    dev_vdbg(&(d)->gadget->dev , fmt , ## args)
-#define ERROR(d, fmt, args...)   dev_err(&(d)->gadget->dev , fmt , ## args)
-#define WARNING(d, fmt, args...) dev_warn(&(d)->gadget->dev , fmt , ## args)
-#define INFO(d, fmt, args...)    dev_info(&(d)->gadget->dev , fmt , ## args)
-
-
 
 #ifdef DUMP_MSGS
 
