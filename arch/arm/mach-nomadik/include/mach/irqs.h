@@ -72,7 +72,7 @@
 #define NOMADIK_NR_GPIO			128 /* last 4 not wired to pins */
 #define NOMADIK_GPIO_TO_IRQ(gpio)	((gpio) + NOMADIK_GPIO_OFFSET)
 #define NOMADIK_IRQ_TO_GPIO(irq)	((irq) - NOMADIK_GPIO_OFFSET)
-#define NR_IRQS				NOMADIK_GPIO_TO_IRQ(NOMADIK_NR_GPIO)
+#define NOMADIK_NR_IRQS			NOMADIK_GPIO_TO_IRQ(NOMADIK_NR_GPIO)
 
 /* Following two are used by entry_macro.S, to access our dual-vic */
 #define VIC_REG_IRQSR0		0

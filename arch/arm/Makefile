@@ -201,7 +201,6 @@ plat-$(CONFIG_ARCH_OMAP)	+= omap
 plat-$(CONFIG_ARCH_S3C64XX)	+= samsung
 plat-$(CONFIG_ARCH_ZYNQ)	+= versatile
 plat-$(CONFIG_PLAT_IOP)		+= iop
-plat-$(CONFIG_PLAT_NOMADIK)	+= nomadik
 plat-$(CONFIG_PLAT_ORION)	+= orion
 plat-$(CONFIG_PLAT_PXA)		+= pxa
 plat-$(CONFIG_PLAT_S3C24XX)	+= s3c24xx samsung

@@ -1,6 +1,4 @@
 /*
- *  linux/arch/arm/plat-nomadik/timer.c
- *
  * Copyright (C) 2008 STMicroelectronics
  * Copyright (C) 2010 Alessandro Rubini
  * Copyright (C) 2010 Linus Walleij for ST-Ericsson
@@ -14,9 +12,11 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/clockchips.h>
+#include <linux/clocksource.h>
 #include <linux/clk.h>
 #include <linux/jiffies.h>
 #include <linux/err.h>
+#include <linux/platform_data/clocksource-nomadik-mtu.h>
 #include <asm/mach/time.h>
 #include <asm/sched_clock.h>
 
@@ -174,7 +174,7 @@ void nmdk_clksrc_reset(void)
 	       mtu_base + MTU_CR(0));
 }
 
-void __init nmdk_timer_init(void __iomem *base)
+void __init nmdk_timer_init(void __iomem *base, int irq)
 {
 	unsigned long rate;
 	struct clk *clk0;
@@ -201,7 +201,8 @@ void __init nmdk_timer_init(void __iomem *base)
 		clk_prescale = MTU_CRn_PRESCALE_1;
 	}
 
-	nmdk_cycle = (rate + HZ/2) / HZ;
+	/* Cycles for periodic mode */
+	nmdk_cycle = DIV_ROUND_CLOSEST(rate, HZ);
 
 
 	/* Timer 0 is the free running clocksource */
@@ -217,7 +218,7 @@ void __init nmdk_timer_init(void __iomem *base)
 #endif
 
 	/* Timer 1 is used for events, register irq and clockevents */
-	setup_irq(IRQ_MTU0, &nmdk_timer_irq);
+	setup_irq(irq, &nmdk_timer_irq);
 	nmdk_clkevt.cpumask = cpumask_of(0);
 	clockevents_config_and_register(&nmdk_clkevt, rate, 2, 0xffffffffU);
 }

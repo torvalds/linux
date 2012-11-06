@@ -44,12 +44,9 @@ static inline u32 prcmu_read(unsigned int reg) {
 static inline void prcmu_write(unsigned int reg, u32 value) {}
 static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
 #endif
-
+#include <linux/platform_data/pinctrl-nomadik.h>
 #include <asm/mach/irq.h>
-
-#include <plat/pincfg.h>
-#include <plat/gpio-nomadik.h>
-
+#include <mach/irqs.h>
 #include "pinctrl-nomadik.h"
 
 /*
@@ -59,8 +56,6 @@ static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
  *
  * Symbols in this file are called "nmk_gpio" for "nomadik gpio"
  */
-
-#define NMK_GPIO_PER_CHIP	32
 
 struct nmk_gpio_chip {
 	struct gpio_chip chip;
@@ -536,7 +531,7 @@ static int __nmk_config_pins(pin_cfg_t *cfgs, int num, bool sleep)
  * and its sleep mode based on the specified configuration.  The @cfg is
  * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
  * are constructed using, and can be further enhanced with, the macros in
- * plat/pincfg.h.
+ * <linux/platform_data/pinctrl-nomadik.h>
  *
  * If a pin's mode is set to GPIO, it is configured as an input to avoid
  * side-effects.  The gpio can be manipulated later using standard GPIO API
