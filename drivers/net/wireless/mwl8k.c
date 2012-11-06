@@ -2005,6 +2005,8 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw,
 				spin_unlock(&priv->stream_lock);
 			}
 			spin_unlock_bh(&priv->tx_lock);
+			pci_unmap_single(priv->pdev, dma, skb->len,
+					 PCI_DMA_TODEVICE);
 			dev_kfree_skb(skb);
 			return;
 		}
