@@ -3963,9 +3963,6 @@ int omap_dispc_wait_for_irq_timeout(u32 irqmask, unsigned long timeout)
 	if (timeout == 0)
 		return -ETIMEDOUT;
 
-	if (timeout == -ERESTARTSYS)
-		return -ERESTARTSYS;
-
 	return 0;
 }
 
