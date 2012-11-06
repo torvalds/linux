@@ -18,13 +18,52 @@
 */
 
 /include/ "exynos4.dtsi"
+/include/ "exynos4x12-pinctrl.dtsi"
 
 / {
+	aliases {
+		pinctrl0 = &pinctrl_0;
+		pinctrl1 = &pinctrl_1;
+		pinctrl2 = &pinctrl_2;
+		pinctrl3 = &pinctrl_3;
+	};
+
 	combiner:interrupt-controller@10440000 {
 		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
 			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
 			     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
 			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>,
 			     <0 16 0>, <0 17 0>, <0 18 0>, <0 19 0>;
+	};
+
+	pinctrl_0: pinctrl@11400000 {
+		compatible = "samsung,pinctrl-exynos4x12";
+		reg = <0x11400000 0x1000>;
+		interrupts = <0 47 0>;
+	};
+
+	pinctrl_1: pinctrl@11000000 {
+		compatible = "samsung,pinctrl-exynos4x12";
+		reg = <0x11000000 0x1000>;
+		interrupts = <0 46 0>;
+
+		wakup_eint: wakeup-interrupt-controller {
+			compatible = "samsung,exynos4210-wakeup-eint";
+			interrupt-parent = <&gic>;
+			interrupts = <0 32 0>;
+		};
+	};
+
+	pinctrl_2: pinctrl@03860000 {
+		compatible = "samsung,pinctrl-exynos4x12";
+		reg = <0x03860000 0x1000>;
+		interrupt-parent = <&combiner>;
+		interrupts = <10 0>;
+	};
+
+	pinctrl_3: pinctrl@106E0000 {
+		compatible = "samsung,pinctrl-exynos4x12";
+		reg = <0x106E0000 0x1000>;
+		interrupts = <0 72 0>;
 	};
 };
