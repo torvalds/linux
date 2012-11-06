@@ -84,6 +84,8 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 		return ret;
 	sdiodev->irq_wake = true;
 
+	sdio_claim_host(sdiodev->func[1]);
+
 	/* must configure SDIO_CCCR_IENx to enable irq */
 	data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
 	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
@@ -95,6 +97,8 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 		data |= SDIO_SEPINT_ACT_HI;
 	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
 
+	sdio_release_host(sdiodev->func[1]);
+
 	return 0;
 }
 
@@ -102,8 +106,10 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
+	sdio_claim_host(sdiodev->func[1]);
 	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
 	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
+	sdio_release_host(sdiodev->func[1]);
 
 	if (sdiodev->irq_wake) {
 		disable_irq_wake(sdiodev->irq);
@@ -249,9 +255,7 @@ u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x\n", addr);
-	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
-	sdio_release_host(sdiodev->func[1]);
 	brcmf_dbg(INFO, "data:0x%02x\n", data);
 
 	if (ret)
@@ -266,9 +270,7 @@ u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret)
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x\n", addr);
-	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, false);
-	sdio_release_host(sdiodev->func[1]);
 	brcmf_dbg(INFO, "data:0x%08x\n", data);
 
 	if (ret)
@@ -283,9 +285,7 @@ void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x, data:0x%02x\n", addr, data);
-	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
-	sdio_release_host(sdiodev->func[1]);
 
 	if (ret)
 		*ret = retval;
@@ -297,9 +297,7 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 	int retval;
 
 	brcmf_dbg(INFO, "addr:0x%08x, data:0x%08x\n", addr, data);
-	sdio_claim_host(sdiodev->func[1]);
 	retval = brcmf_sdio_regrw_helper(sdiodev, addr, &data, true);
-	sdio_release_host(sdiodev->func[1]);
 
 	if (ret)
 		*ret = retval;
@@ -364,8 +362,6 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pkt->len);
 
-	sdio_claim_host(sdiodev->func[1]);
-
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
 	if (err)
@@ -376,8 +372,6 @@ brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 					 fn, addr, pkt);
 
 done:
-	sdio_release_host(sdiodev->func[1]);
-
 	return err;
 }
 
@@ -391,8 +385,6 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, size = %d\n",
 		  fn, addr, pktq->qlen);
 
-	sdio_claim_host(sdiodev->func[1]);
-
 	width = (flags & SDIO_REQ_4BYTE) ? 4 : 2;
 	err = brcmf_sdcard_recv_prepare(sdiodev, fn, flags, width, &addr);
 	if (err)
@@ -403,8 +395,6 @@ int brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 					pktq);
 
 done:
-	sdio_release_host(sdiodev->func[1]);
-
 	return err;
 }
 
@@ -446,8 +436,6 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 	if (flags & SDIO_REQ_ASYNC)
 		return -ENOTSUPP;
 
-	sdio_claim_host(sdiodev->func[1]);
-
 	if (bar0 != sdiodev->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
 		if (err)
@@ -467,8 +455,6 @@ brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
 					 addr, pkt);
 
 done:
-	sdio_release_host(sdiodev->func[1]);
-
 	return err;
 }
 
@@ -510,10 +496,8 @@ int brcmf_sdcard_abort(struct brcmf_sdio_dev *sdiodev, uint fn)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* issue abort cmd52 command through F0 */
-	sdio_claim_host(sdiodev->func[1]);
 	brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, SDIO_FUNC_0,
 				 SDIO_CCCR_ABORT, &t_func);
-	sdio_release_host(sdiodev->func[1]);
 
 	brcmf_dbg(TRACE, "Exit\n");
 	return 0;

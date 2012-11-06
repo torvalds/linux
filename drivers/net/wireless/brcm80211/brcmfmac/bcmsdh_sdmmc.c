@@ -372,9 +372,7 @@ static int brcmf_sdioh_enablefuncs(struct brcmf_sdio_dev *sdiodev)
 	}
 
 	/* Enable Function 1 */
-	sdio_claim_host(sdiodev->func[1]);
 	err_ret = sdio_enable_func(sdiodev->func[1]);
-	sdio_release_host(sdiodev->func[1]);
 	if (err_ret)
 		brcmf_dbg(ERROR, "Failed to enable F1 Err: 0x%08x\n", err_ret);
 
@@ -393,16 +391,14 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->num_funcs = 2;
 
 	sdio_claim_host(sdiodev->func[1]);
+
 	err_ret = sdio_set_block_size(sdiodev->func[1], SDIO_FUNC1_BLOCKSIZE);
-	sdio_release_host(sdiodev->func[1]);
 	if (err_ret) {
 		brcmf_dbg(ERROR, "Failed to set F1 blocksize\n");
 		goto out;
 	}
 
-	sdio_claim_host(sdiodev->func[2]);
 	err_ret = sdio_set_block_size(sdiodev->func[2], SDIO_FUNC2_BLOCKSIZE);
-	sdio_release_host(sdiodev->func[2]);
 	if (err_ret) {
 		brcmf_dbg(ERROR, "Failed to set F2 blocksize\n");
 		goto out;
@@ -411,6 +407,7 @@ int brcmf_sdioh_attach(struct brcmf_sdio_dev *sdiodev)
 	brcmf_sdioh_enablefuncs(sdiodev);
 
 out:
+	sdio_release_host(sdiodev->func[1]);
 	brcmf_dbg(TRACE, "Done\n");
 	return err_ret;
 }
