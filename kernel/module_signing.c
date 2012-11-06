@@ -183,27 +183,33 @@ static struct key *request_asymmetric_key(const char *signer, size_t signer_len,
 /*
  * Verify the signature on a module.
  */
-int mod_verify_sig(const void *mod, unsigned long modlen,
-		   const void *sig, unsigned long siglen)
+int mod_verify_sig(const void *mod, unsigned long *_modlen)
 {
 	struct public_key_signature *pks;
 	struct module_signature ms;
 	struct key *key;
-	size_t sig_len;
+	const void *sig;
+	size_t modlen = *_modlen, sig_len;
 	int ret;
 
-	pr_devel("==>%s(,%lu,,%lu,)\n", __func__, modlen, siglen);
+	pr_devel("==>%s(,%zu)\n", __func__, modlen);
 
-	if (siglen <= sizeof(ms))
+	if (modlen <= sizeof(ms))
 		return -EBADMSG;
 
-	memcpy(&ms, sig + (siglen - sizeof(ms)), sizeof(ms));
-	siglen -= sizeof(ms);
+	memcpy(&ms, mod + (modlen - sizeof(ms)), sizeof(ms));
+	modlen -= sizeof(ms);
 
 	sig_len = be32_to_cpu(ms.sig_len);
-	if (sig_len >= siglen ||
-	    siglen - sig_len != (size_t)ms.signer_len + ms.key_id_len)
+	if (sig_len >= modlen)
 		return -EBADMSG;
+	modlen -= sig_len;
+	if ((size_t)ms.signer_len + ms.key_id_len >= modlen)
+		return -EBADMSG;
+	modlen -= (size_t)ms.signer_len + ms.key_id_len;
+
+	*_modlen = modlen;
+	sig = mod + modlen;
 
 	/* For the moment, only support RSA and X.509 identifiers */
 	if (ms.algo != PKEY_ALGO_RSA ||

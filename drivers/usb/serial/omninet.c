@@ -44,8 +44,8 @@ static int  omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 				const unsigned char *buf, int count);
 static int  omninet_write_room(struct tty_struct *tty);
 static void omninet_disconnect(struct usb_serial *serial);
-static void omninet_release(struct usb_serial *serial);
-static int omninet_attach(struct usb_serial *serial);
+static int omninet_port_probe(struct usb_serial_port *port);
+static int omninet_port_remove(struct usb_serial_port *port);
 
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, ZYXEL_OMNINET_ID) },
@@ -62,7 +62,8 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.description =		"ZyXEL - omni.net lcd plus usb",
 	.id_table =		id_table,
 	.num_ports =		1,
-	.attach =		omninet_attach,
+	.port_probe =		omninet_port_probe,
+	.port_remove =		omninet_port_remove,
 	.open =			omninet_open,
 	.close =		omninet_close,
 	.write =		omninet_write,
@@ -70,7 +71,6 @@ static struct usb_serial_driver zyxel_omninet_device = {
 	.read_bulk_callback =	omninet_read_bulk_callback,
 	.write_bulk_callback =	omninet_write_bulk_callback,
 	.disconnect =		omninet_disconnect,
-	.release =		omninet_release,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -112,18 +112,26 @@ struct omninet_data {
 	__u8	od_outseq;	/* Sequence number for bulk_out URBs */
 };
 
-static int omninet_attach(struct usb_serial *serial)
+static int omninet_port_probe(struct usb_serial_port *port)
 {
 	struct omninet_data *od;
-	struct usb_serial_port *port = serial->port[0];
 
 	od = kmalloc(sizeof(struct omninet_data), GFP_KERNEL);
-	if (!od) {
-		dev_err(&port->dev, "%s- kmalloc(%Zd) failed.\n",
-			__func__, sizeof(struct omninet_data));
+	if (!od)
 		return -ENOMEM;
-	}
+
 	usb_set_serial_port_data(port, od);
+
+	return 0;
+}
+
+static int omninet_port_remove(struct usb_serial_port *port)
+{
+	struct omninet_data *od;
+
+	od = usb_get_serial_port_data(port);
+	kfree(od);
+
 	return 0;
 }
 
@@ -277,14 +285,6 @@ static void omninet_disconnect(struct usb_serial *serial)
 	struct usb_serial_port *wport = serial->port[1];
 
 	usb_kill_urb(wport->write_urb);
-}
-
-
-static void omninet_release(struct usb_serial *serial)
-{
-	struct usb_serial_port *port = serial->port[0];
-
-	kfree(usb_get_serial_port_data(port));
 }
 
 module_usb_serial_driver(serial_drivers, id_table);

@@ -2421,25 +2421,17 @@ static inline void kmemleak_load_module(const struct module *mod,
 
 #ifdef CONFIG_MODULE_SIG
 static int module_sig_check(struct load_info *info,
-			    const void *mod, unsigned long *len)
+			    const void *mod, unsigned long *_len)
 {
 	int err = -ENOKEY;
-	const unsigned long markerlen = sizeof(MODULE_SIG_STRING) - 1;
-	const void *p = mod, *end = mod + *len;
+	unsigned long markerlen = sizeof(MODULE_SIG_STRING) - 1;
+	unsigned long len = *_len;
 
-	/* Poor man's memmem. */
-	while ((p = memchr(p, MODULE_SIG_STRING[0], end - p))) {
-		if (p + markerlen > end)
-			break;
-
-		if (memcmp(p, MODULE_SIG_STRING, markerlen) == 0) {
-			const void *sig = p + markerlen;
-			/* Truncate module up to signature. */
-			*len = p - mod;
-			err = mod_verify_sig(mod, *len, sig, end - sig);
-			break;
-		}
-		p++;
+	if (len > markerlen &&
+	    memcmp(mod + len - markerlen, MODULE_SIG_STRING, markerlen) == 0) {
+		/* We truncate the module to discard the signature */
+		*_len -= markerlen;
+		err = mod_verify_sig(mod, _len);
 	}
 
 	if (!err) {

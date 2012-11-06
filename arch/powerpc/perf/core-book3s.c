@@ -1463,7 +1463,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 		if (!event->hw.idx || is_limited_pmc(event->hw.idx))
 			continue;
 		val = read_pmc(event->hw.idx);
-		if (pmc_overflow(val)) {
+		if ((int)val < 0) {
 			/* event has overflowed */
 			found = 1;
 			record_and_restart(event, val, regs);

@@ -4,7 +4,7 @@
 
 menuconfig PMBUS
 	tristate "PMBus support"
-	depends on I2C && EXPERIMENTAL
+	depends on I2C
 	default n
 	help
 	  Say yes here if you want to enable PMBus support.
