@@ -115,10 +115,12 @@ static inline int check_usb_param(void)
 int inline otg_drv_init(int on)
 {
         if(otg_drv == -1){
+                return 0;
+        }else if (get_port_config(otg_drv).gpio == RK2928_PIN3_PC1){
                 rk30_mux_api_set(GPIO3C1_OTG_DRVVBUS_NAME, GPIO3C_OTG_DRVVBUS);    
                 return 0;
-        }
-        return port_output_init(otg_drv, on, "otg_drv");
+        }else
+                return port_output_init(otg_drv, on, "otg_drv");
 }
 void inline otg_drv_on(void)
 {
