@@ -544,6 +544,7 @@ void codec_set_spk(bool on)
 	if(!codec)
 		return;
 
+	mutex_lock(&codec->mutex);
 	if(on){
 		DBG("snd_soc_dapm_enable_pin\n");
 		snd_soc_dapm_enable_pin(&codec->dapm, "Headphone Jack");
@@ -554,6 +555,7 @@ void codec_set_spk(bool on)
 		snd_soc_dapm_disable_pin(&codec->dapm, "Ext Spk");
 	}
 	snd_soc_dapm_sync(&codec->dapm);
+	mutex_unlock(&codec->mutex);
 }
 
 
