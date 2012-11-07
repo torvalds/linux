@@ -470,10 +470,20 @@ int ft5306_init_platform_hw(void)
         return 0;
 
 }
-
+#if defined(V86_VERSION_1_1)
+int  sitronix_direction_otation( int *x,int *y )
+{
+       *x = *x ;
+       *y = 480 - *y ;
+	return 1 ;	
+}
+#endif
 struct ft5x0x_platform_data sitronix_info = {
         .model = 5007,
         .init_platform_hw= ft5306_init_platform_hw,
+         #if defined(V86_VERSION_1_1)
+         .direction_otation = sitronix_direction_otation ,
+         #endif
 };
 #endif
 

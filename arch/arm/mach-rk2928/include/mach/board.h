@@ -73,6 +73,7 @@ struct ft5x0x_platform_data{
     int     (*ft5x0x_platform_sleep)(void);
     int     (*ft5x0x_platform_wakeup)(void);
     void    (*exit_platform_hw)(void);
+    int     (*direction_otation)(int *x ,int *y );
 };
 #endif
 
