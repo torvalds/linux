@@ -1,0 +1,9 @@
+What:		/sys/bus/mdio_bus/devices/.../phy_id
+Date:		November 2012
+KernelVersion:	3.8
+Contact:	netdev@vger.kernel.org
+Description:
+		This attribute contains the 32-bit PHY Identifier as reported
+		by the device during bus enumeration, encoded in hexadecimal.
+		This ID is used to match the device with the appropriate
+		driver.
