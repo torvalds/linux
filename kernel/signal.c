@@ -2396,6 +2396,15 @@ void signal_delivered(int sig, siginfo_t *info, struct k_sigaction *ka,
 	tracehook_signal_handler(sig, info, ka, regs, stepping);
 }
 
+void signal_setup_done(int failed, struct ksignal *ksig, int stepping)
+{
+	if (failed)
+		force_sigsegv(ksig->sig, current);
+	else
+		signal_delivered(ksig->sig, &ksig->info, &ksig->ka,
+			signal_pt_regs(), stepping);
+}
+
 /*
  * It could be that complete_signal() picked us to notify about the
  * group-wide signal. Other threads should be notified now to take
