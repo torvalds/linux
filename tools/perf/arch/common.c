@@ -199,6 +199,13 @@ out_error:
 
 int perf_session_env__lookup_objdump(struct perf_session_env *env)
 {
+	/*
+	 * For live mode, env->arch will be NULL and we can use
+	 * the native objdump tool.
+	 */
+	if (env->arch == NULL)
+		return 0;
+
 	return perf_session_env__lookup_binutils_path(env, "objdump",
 						      &objdump_path);
 }
