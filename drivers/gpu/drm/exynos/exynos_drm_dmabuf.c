@@ -40,21 +40,15 @@ static struct sg_table *exynos_get_sgt(struct drm_device *drm_dev,
 	if (!sgt)
 		goto out;
 
-	ret = sg_alloc_table(sgt, buf->sgt->nents, GFP_KERNEL);
-	if (ret)
-		goto err_free_sgt;
-
 	ret = dma_get_sgtable(drm_dev->dev, sgt, buf->kvaddr,
 				buf->dma_addr, buf->size);
 	if (ret < 0) {
 		DRM_ERROR("failed to get sgtable.\n");
-		goto err_free_table;
+		goto err_free_sgt;
 	}
 
 	return sgt;
 
-err_free_table:
-	sg_free_table(sgt);
 err_free_sgt:
 	kfree(sgt);
 	sgt = NULL;
