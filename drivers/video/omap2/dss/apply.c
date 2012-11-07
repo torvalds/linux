@@ -70,7 +70,6 @@ struct ovl_priv_data {
 	bool shadow_extra_info_dirty;
 
 	bool enabled;
-	enum omap_channel channel;
 	u32 fifo_low, fifo_high;
 
 	/*
@@ -615,7 +614,6 @@ static void dss_ovl_write_regs_extra(struct omap_overlay *ovl)
 	 * disabled */
 
 	dispc_ovl_enable(ovl->id, op->enabled);
-	dispc_ovl_set_channel_out(ovl->id, op->channel);
 	dispc_ovl_set_fifo_threshold(ovl->id, op->fifo_low, op->fifo_high);
 
 	mp = get_mgr_priv(ovl->manager);
@@ -1276,39 +1274,34 @@ int dss_ovl_set_manager(struct omap_overlay *ovl,
 		goto err;
 	}
 
+	r = dispc_runtime_get();
+	if (r)
+		goto err;
+
 	spin_lock_irqsave(&data_lock, flags);
 
 	if (op->enabled) {
 		spin_unlock_irqrestore(&data_lock, flags);
 		DSSERR("overlay has to be disabled to change the manager\n");
 		r = -EINVAL;
-		goto err;
+		goto err1;
 	}
 
-	op->channel = mgr->id;
-	op->extra_info_dirty = true;
+	dispc_ovl_set_channel_out(ovl->id, mgr->id);
 
 	ovl->manager = mgr;
 	list_add_tail(&ovl->list, &mgr->overlays);
 
 	spin_unlock_irqrestore(&data_lock, flags);
 
-	/* XXX: When there is an overlay on a DSI manual update display, and
-	 * the overlay is first disabled, then moved to tv, and enabled, we
-	 * seem to get SYNC_LOST_DIGIT error.
-	 *
-	 * Waiting doesn't seem to help, but updating the manual update display
-	 * after disabling the overlay seems to fix this. This hints that the
-	 * overlay is perhaps somehow tied to the LCD output until the output
-	 * is updated.
-	 *
-	 * Userspace workaround for this is to update the LCD after disabling
-	 * the overlay, but before moving the overlay to TV.
-	 */
+	dispc_runtime_put();
 
 	mutex_unlock(&apply_lock);
 
 	return 0;
+
+err1:
+	dispc_runtime_put();
 err:
 	mutex_unlock(&apply_lock);
 	return r;
@@ -1342,9 +1335,24 @@ int dss_ovl_unset_manager(struct omap_overlay *ovl)
 	/* wait for pending extra_info updates to ensure the ovl is disabled */
 	wait_pending_extra_info_updates();
 
+	/*
+	 * For a manual update display, there is no guarantee that the overlay
+	 * is really disabled in HW, we may need an extra update from this
+	 * manager before the configurations can go in. Return an error if the
+	 * overlay needed an update from the manager.
+	 *
+	 * TODO: Instead of returning an error, try to do a dummy manager update
+	 * here to disable the overlay in hardware. Use the *GATED fields in
+	 * the DISPC_CONFIG registers to do a dummy update.
+	 */
 	spin_lock_irqsave(&data_lock, flags);
 
-	op->channel = -1;
+	if (ovl_manual_update(ovl) && op->extra_info_dirty) {
+		spin_unlock_irqrestore(&data_lock, flags);
+		DSSERR("need an update to change the manager\n");
+		r = -EINVAL;
+		goto err;
+	}
 
 	ovl->manager = NULL;
 	list_del(&ovl->list);
