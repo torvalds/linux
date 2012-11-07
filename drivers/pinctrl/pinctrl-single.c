@@ -244,15 +244,15 @@ static int pcs_get_group_pins(struct pinctrl_dev *pctldev,
 
 static void pcs_pin_dbg_show(struct pinctrl_dev *pctldev,
 					struct seq_file *s,
-					unsigned offset)
+					unsigned pin)
 {
 	struct pcs_device *pcs;
-	unsigned val;
+	unsigned val, mux_bytes;
 
 	pcs = pinctrl_dev_get_drvdata(pctldev);
 
-	val = pcs->read(pcs->base + offset);
-	val &= pcs->fmask;
+	mux_bytes = pcs->width / BITS_PER_BYTE;
+	val = pcs->read(pcs->base + pin * mux_bytes);
 
 	seq_printf(s, "%08x %s " , val, DRIVER_NAME);
 }
