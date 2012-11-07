@@ -24,7 +24,7 @@ static inline int is_anon_memory(const char *filename)
 
 static inline int is_no_dso_memory(const char *filename)
 {
-	return !strcmp(filename, "[stack]") ||
+	return !strncmp(filename, "[stack", 6) ||
 	       !strcmp(filename, "[heap]");
 }
 
