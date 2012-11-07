@@ -755,6 +755,14 @@ const char *omapdss_get_default_display_name(void);
 int omap_dss_start_device(struct omap_dss_device *dssdev);
 void omap_dss_stop_device(struct omap_dss_device *dssdev);
 
+int dss_feat_get_num_mgrs(void);
+int dss_feat_get_num_ovls(void);
+enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel);
+enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel);
+enum omap_color_mode dss_feat_get_supported_color_modes(enum omap_plane plane);
+
+
+
 int omap_dss_get_num_overlay_managers(void);
 struct omap_overlay_manager *omap_dss_get_overlay_manager(int num);
 
