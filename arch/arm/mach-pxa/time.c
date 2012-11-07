@@ -89,12 +89,50 @@ pxa_osmr0_set_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 	}
 }
 
+#ifdef CONFIG_PM
+static unsigned long osmr[4], oier, oscr;
+
+static void pxa_timer_suspend(struct clock_event_device *cedev)
+{
+	osmr[0] = readl_relaxed(OSMR0);
+	osmr[1] = readl_relaxed(OSMR1);
+	osmr[2] = readl_relaxed(OSMR2);
+	osmr[3] = readl_relaxed(OSMR3);
+	oier = readl_relaxed(OIER);
+	oscr = readl_relaxed(OSCR);
+}
+
+static void pxa_timer_resume(struct clock_event_device *cedev)
+{
+	/*
+	 * Ensure that we have at least MIN_OSCR_DELTA between match
+	 * register 0 and the OSCR, to guarantee that we will receive
+	 * the one-shot timer interrupt.  We adjust OSMR0 in preference
+	 * to OSCR to guarantee that OSCR is monotonically incrementing.
+	 */
+	if (osmr[0] - oscr < MIN_OSCR_DELTA)
+		osmr[0] += MIN_OSCR_DELTA;
+
+	writel_relaxed(osmr[0], OSMR0);
+	writel_relaxed(osmr[1], OSMR1);
+	writel_relaxed(osmr[2], OSMR2);
+	writel_relaxed(osmr[3], OSMR3);
+	writel_relaxed(oier, OIER);
+	writel_relaxed(oscr, OSCR);
+}
+#else
+#define pxa_timer_suspend NULL
+#define pxa_timer_resume NULL
+#endif
+
 static struct clock_event_device ckevt_pxa_osmr0 = {
 	.name		= "osmr0",
 	.features	= CLOCK_EVT_FEAT_ONESHOT,
 	.rating		= 200,
 	.set_next_event	= pxa_osmr0_set_next_event,
 	.set_mode	= pxa_osmr0_set_mode,
+	.suspend	= pxa_timer_suspend,
+	.resume		= pxa_timer_resume,
 };
 
 static struct irqaction pxa_ost0_irq = {
@@ -127,44 +165,6 @@ static void __init pxa_timer_init(void)
 	clockevents_register_device(&ckevt_pxa_osmr0);
 }
 
-#ifdef CONFIG_PM
-static unsigned long osmr[4], oier, oscr;
-
-static void pxa_timer_suspend(void)
-{
-	osmr[0] = readl_relaxed(OSMR0);
-	osmr[1] = readl_relaxed(OSMR1);
-	osmr[2] = readl_relaxed(OSMR2);
-	osmr[3] = readl_relaxed(OSMR3);
-	oier = readl_relaxed(OIER);
-	oscr = readl_relaxed(OSCR);
-}
-
-static void pxa_timer_resume(void)
-{
-	/*
-	 * Ensure that we have at least MIN_OSCR_DELTA between match
-	 * register 0 and the OSCR, to guarantee that we will receive
-	 * the one-shot timer interrupt.  We adjust OSMR0 in preference
-	 * to OSCR to guarantee that OSCR is monotonically incrementing.
-	 */
-	if (osmr[0] - oscr < MIN_OSCR_DELTA)
-		osmr[0] += MIN_OSCR_DELTA;
-
-	writel_relaxed(osmr[0], OSMR0);
-	writel_relaxed(osmr[1], OSMR1);
-	writel_relaxed(osmr[2], OSMR2);
-	writel_relaxed(osmr[3], OSMR3);
-	writel_relaxed(oier, OIER);
-	writel_relaxed(oscr, OSCR);
-}
-#else
-#define pxa_timer_suspend NULL
-#define pxa_timer_resume NULL
-#endif
-
 struct sys_timer pxa_timer = {
 	.init		= pxa_timer_init,
-	.suspend	= pxa_timer_suspend,
-	.resume		= pxa_timer_resume,
 };
