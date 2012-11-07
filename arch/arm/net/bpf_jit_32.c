@@ -16,6 +16,7 @@
 #include <linux/netdevice.h>
 #include <linux/string.h>
 #include <linux/slab.h>
+#include <linux/if_vlan.h>
 #include <asm/cacheflush.h>
 #include <asm/hwcap.h>
 
@@ -168,6 +169,8 @@ static inline bool is_load_to_a(u16 inst)
 	case BPF_S_ANC_MARK:
 	case BPF_S_ANC_PROTOCOL:
 	case BPF_S_ANC_RXHASH:
+	case BPF_S_ANC_VLAN_TAG:
+	case BPF_S_ANC_VLAN_TAG_PRESENT:
 	case BPF_S_ANC_QUEUE:
 		return true;
 	default:
@@ -814,6 +817,17 @@ b_epilogue:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
 			off = offsetof(struct sk_buff, rxhash);
 			emit(ARM_LDR_I(r_A, r_skb, off), ctx);
+			break;
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
+			ctx->seen |= SEEN_SKB;
+			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+			off = offsetof(struct sk_buff, vlan_tci);
+			emit(ARM_LDRH_I(r_A, r_skb, off), ctx);
+			if (inst->code == BPF_S_ANC_VLAN_TAG)
+				OP_IMM3(ARM_AND, r_A, r_A, VLAN_VID_MASK, ctx);
+			else
+				OP_IMM3(ARM_AND, r_A, r_A, VLAN_TAG_PRESENT, ctx);
 			break;
 		case BPF_S_ANC_QUEUE:
 			ctx->seen |= SEEN_SKB;
