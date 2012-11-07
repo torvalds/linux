@@ -1292,7 +1292,7 @@ static struct net_device_stats *gem_get_stats(struct macb *bp)
 	return nstat;
 }
 
-static struct net_device_stats *macb_get_stats(struct net_device *dev)
+struct net_device_stats *macb_get_stats(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
 	struct net_device_stats *nstat = &bp->stats;
@@ -1338,6 +1338,7 @@ static struct net_device_stats *macb_get_stats(struct net_device *dev)
 
 	return nstat;
 }
+EXPORT_SYMBOL_GPL(macb_get_stats);
 
 static int macb_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {

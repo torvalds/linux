@@ -572,6 +572,7 @@ extern const struct ethtool_ops macb_ethtool_ops;
 
 int macb_mii_init(struct macb *bp);
 int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
+struct net_device_stats *macb_get_stats(struct net_device *dev);
 void macb_set_rx_mode(struct net_device *dev);
 void macb_set_hwaddr(struct macb *bp);
 void macb_get_hwaddr(struct macb *bp);

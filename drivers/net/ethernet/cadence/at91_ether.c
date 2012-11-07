@@ -182,7 +182,6 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lp->skb = skb;
 		lp->skb_length = skb->len;
 		lp->skb_physaddr = dma_map_single(NULL, skb->data, skb->len, DMA_TO_DEVICE);
-		dev->stats.tx_bytes += skb->len;
 
 		/* Set address of the data in the Transmit Address register */
 		macb_writel(lp, TAR, lp->skb_physaddr);
@@ -197,41 +196,6 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	return NETDEV_TX_OK;
-}
-
-/*
- * Update the current statistics from the internal statistics registers.
- */
-static struct net_device_stats *at91ether_stats(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-	int ale, lenerr, seqe, lcol, ecol;
-
-	if (netif_running(dev)) {
-		dev->stats.rx_packets += macb_readl(lp, FRO);	/* Good frames received */
-		ale = macb_readl(lp, ALE);
-		dev->stats.rx_frame_errors += ale;				/* Alignment errors */
-		lenerr = macb_readl(lp, ELE) + macb_readl(lp, USF);
-		dev->stats.rx_length_errors += lenerr;				/* Excessive Length or Undersize Frame error */
-		seqe = macb_readl(lp, FCSE);
-		dev->stats.rx_crc_errors += seqe;				/* CRC error */
-		dev->stats.rx_fifo_errors += macb_readl(lp, RRE);/* Receive buffer not available */
-		dev->stats.rx_errors += (ale + lenerr + seqe
-			+ macb_readl(lp, RSE) + macb_readl(lp, RJA));
-
-		dev->stats.tx_packets += macb_readl(lp, FTO);	/* Frames successfully transmitted */
-		dev->stats.tx_fifo_errors += macb_readl(lp, TUND);	/* Transmit FIFO underruns */
-		dev->stats.tx_carrier_errors += macb_readl(lp, CSE);	/* Carrier Sense errors */
-		dev->stats.tx_heartbeat_errors += macb_readl(lp, STE);/* Heartbeat error */
-
-		lcol = macb_readl(lp, LCOL);
-		ecol = macb_readl(lp, EXCOL);
-		dev->stats.tx_window_errors += lcol;			/* Late collisions */
-		dev->stats.tx_aborted_errors += ecol;			/* 16 collisions */
-
-		dev->stats.collisions += (macb_readl(lp, SCF) + macb_readl(lp, MCF) + lcol + ecol);
-	}
-	return &dev->stats;
 }
 
 /*
@@ -254,15 +218,16 @@ static void at91ether_rx(struct net_device *dev)
 			memcpy(skb_put(skb, pktlen), p_recv, pktlen);
 
 			skb->protocol = eth_type_trans(skb, dev);
-			dev->stats.rx_bytes += pktlen;
+			lp->stats.rx_packets++;
+			lp->stats.rx_bytes += pktlen;
 			netif_rx(skb);
 		} else {
-			dev->stats.rx_dropped += 1;
+			lp->stats.rx_dropped++;
 			netdev_notice(dev, "Memory squeeze, dropping packet.\n");
 		}
 
 		if (lp->rx_ring[lp->rx_tail].ctrl & MACB_BIT(RX_MHASH_MATCH))
-			dev->stats.multicast++;
+			lp->stats.multicast++;
 
 		/* reset ownership bit */
 		lp->rx_ring[lp->rx_tail].addr &= ~MACB_BIT(RX_USED);
@@ -294,12 +259,14 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	if (intstatus & MACB_BIT(TCOMP)) {	/* Transmit complete */
 		/* The TCOM bit is set even if the transmission failed. */
 		if (intstatus & (MACB_BIT(ISR_TUND) | MACB_BIT(ISR_RLE)))
-			dev->stats.tx_errors += 1;
+			lp->stats.tx_errors++;
 
 		if (lp->skb) {
 			dev_kfree_skb_irq(lp->skb);
 			lp->skb = NULL;
 			dma_unmap_single(NULL, lp->skb_physaddr, lp->skb_length, DMA_TO_DEVICE);
+			lp->stats.tx_packets++;
+			lp->stats.tx_bytes += lp->skb_length;
 		}
 		netif_wake_queue(dev);
 	}
@@ -332,7 +299,7 @@ static const struct net_device_ops at91ether_netdev_ops = {
 	.ndo_open		= at91ether_open,
 	.ndo_stop		= at91ether_close,
 	.ndo_start_xmit		= at91ether_start_xmit,
-	.ndo_get_stats		= at91ether_stats,
+	.ndo_get_stats		= macb_get_stats,
 	.ndo_set_rx_mode	= macb_set_rx_mode,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_do_ioctl		= macb_ioctl,
