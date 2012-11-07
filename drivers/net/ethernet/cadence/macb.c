@@ -111,22 +111,34 @@ static void __macb_set_hwaddr(struct macb *bp)
 
 static void __init macb_get_hwaddr(struct macb *bp)
 {
+	struct macb_platform_data *pdata;
 	u32 bottom;
 	u16 top;
 	u8 addr[6];
 	int i;
+
+	pdata = bp->pdev->dev.platform_data;
 
 	/* Check all 4 address register for vaild address */
 	for (i = 0; i < 4; i++) {
 		bottom = macb_or_gem_readl(bp, SA1B + i * 8);
 		top = macb_or_gem_readl(bp, SA1T + i * 8);
 
-		addr[0] = bottom & 0xff;
-		addr[1] = (bottom >> 8) & 0xff;
-		addr[2] = (bottom >> 16) & 0xff;
-		addr[3] = (bottom >> 24) & 0xff;
-		addr[4] = top & 0xff;
-		addr[5] = (top >> 8) & 0xff;
+		if (pdata && pdata->rev_eth_addr) {
+			addr[5] = bottom & 0xff;
+			addr[4] = (bottom >> 8) & 0xff;
+			addr[3] = (bottom >> 16) & 0xff;
+			addr[2] = (bottom >> 24) & 0xff;
+			addr[1] = top & 0xff;
+			addr[0] = (top & 0xff00) >> 8;
+		} else {
+			addr[0] = bottom & 0xff;
+			addr[1] = (bottom >> 8) & 0xff;
+			addr[2] = (bottom >> 16) & 0xff;
+			addr[3] = (bottom >> 24) & 0xff;
+			addr[4] = top & 0xff;
+			addr[5] = (top >> 8) & 0xff;
+		}
 
 		if (is_valid_ether_addr(addr)) {
 			memcpy(bp->dev->dev_addr, addr, sizeof(addr));
