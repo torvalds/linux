@@ -2315,9 +2315,14 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 	if ((caps & OMAP_DSS_OVL_CAP_SCALE) == 0)
 		return -EINVAL;
 
-	*x_predecim = max_decim_limit;
-	*y_predecim = (rotation_type == OMAP_DSS_ROT_TILER &&
-			dss_has_feature(FEAT_BURST_2D)) ? 2 : max_decim_limit;
+	if (plane == OMAP_DSS_WB) {
+		*x_predecim = *y_predecim = 1;
+	} else {
+		*x_predecim = max_decim_limit;
+		*y_predecim = (rotation_type == OMAP_DSS_ROT_TILER &&
+				dss_has_feature(FEAT_BURST_2D)) ?
+				2 : max_decim_limit;
+	}
 
 	if (color_mode == OMAP_DSS_COLOR_CLUT1 ||
 	    color_mode == OMAP_DSS_COLOR_CLUT2 ||
