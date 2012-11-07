@@ -1787,6 +1787,11 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			goto nla_put_failure;
 	}
 
+	if (wdev->ssid_len) {
+		if (nla_put(msg, NL80211_ATTR_SSID, wdev->ssid_len, wdev->ssid))
+			goto nla_put_failure;
+	}
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
