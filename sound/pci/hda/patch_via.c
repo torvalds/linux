@@ -3625,6 +3625,7 @@ static void set_widgets_power_state_vt2002P(struct hda_codec *codec)
  */
 enum {
 	VIA_FIXUP_INTMIC_BOOST,
+	VIA_FIXUP_ASUS_G75,
 };
 
 static void via_fixup_intmic_boost(struct hda_codec *codec,
@@ -3639,9 +3640,19 @@ static const struct hda_fixup via_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = via_fixup_intmic_boost,
 	},
+	[VIA_FIXUP_ASUS_G75] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = (const struct hda_pintbl[]) {
+			/* set 0x24 and 0x33 as speakers */
+			{ 0x24, 0x991301f0 },
+			{ 0x33, 0x991301f1 }, /* subwoofer */
+			{ }
+		}
+	},
 };
 
 static const struct snd_pci_quirk vt2002p_fixups[] = {
+	SND_PCI_QUIRK(0x1043, 0x1487, "Asus G75", VIA_FIXUP_ASUS_G75),
 	SND_PCI_QUIRK(0x1043, 0x8532, "Asus X202E", VIA_FIXUP_INTMIC_BOOST),
 	{}
 };
