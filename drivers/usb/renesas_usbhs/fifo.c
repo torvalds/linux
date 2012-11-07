@@ -488,6 +488,8 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	usbhs_pipe_data_sequence(pipe, pkt->sequence);
 	pkt->sequence = -1; /* -1 sequence will be ignored */
 
+	usbhs_pipe_set_trans_count_if_bulk(pipe, pkt->length);
+
 	ret = usbhsf_fifo_select(pipe, fifo, 1);
 	if (ret < 0)
 		return 0;
@@ -594,6 +596,7 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 	usbhs_pipe_data_sequence(pipe, pkt->sequence);
 	pkt->sequence = -1; /* -1 sequence will be ignored */
 
+	usbhs_pipe_set_trans_count_if_bulk(pipe, pkt->length);
 	usbhs_pipe_enable(pipe);
 	usbhsf_rx_irq_ctrl(pipe, 1);
 
@@ -795,6 +798,7 @@ static void xfer_work(struct work_struct *work)
 	dev_dbg(dev, "  %s %d (%d/ %d)\n",
 		fifo->name, usbhs_pipe_number(pipe), pkt->length, pkt->zero);
 
+	usbhs_pipe_set_trans_count_if_bulk(pipe, pkt->trans);
 	usbhsf_dma_start(pipe, fifo);
 	dma_async_issue_pending(chan);
 }

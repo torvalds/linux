@@ -88,6 +88,7 @@ void usbhs_pipe_enable(struct usbhs_pipe *pipe);
 void usbhs_pipe_disable(struct usbhs_pipe *pipe);
 void usbhs_pipe_stall(struct usbhs_pipe *pipe);
 int usbhs_pipe_is_stall(struct usbhs_pipe *pipe);
+void usbhs_pipe_set_trans_count_if_bulk(struct usbhs_pipe *pipe, int len);
 void usbhs_pipe_select_fifo(struct usbhs_pipe *pipe, struct usbhs_fifo *fifo);
 void usbhs_pipe_config_update(struct usbhs_pipe *pipe, u16 devsel,
 			      u16 epnum, u16 maxp);
