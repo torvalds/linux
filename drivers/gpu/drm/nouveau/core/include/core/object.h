@@ -70,7 +70,8 @@ nv_pclass(struct nouveau_object *parent, u32 oclass)
 }
 
 struct nouveau_omthds {
-	u32 method;
+	u32 start;
+	u32 limit;
 	int (*call)(struct nouveau_object *, u32, void *, u32);
 };
 
@@ -114,7 +115,7 @@ nv_exec(void *obj, u32 mthd, void *data, u32 size)
 	struct nouveau_omthds *method = nv_oclass(obj)->omthds;
 
 	while (method && method->call) {
-		if (method->method == mthd)
+		if (mthd >= method->start && mthd <= method->limit)
 			return method->call(obj, mthd, data, size);
 		method++;
 	}

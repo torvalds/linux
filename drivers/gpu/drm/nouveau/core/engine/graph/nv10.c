@@ -570,11 +570,11 @@ nv17_graph_mthd_lma_enable(struct nouveau_object *object, u32 mthd,
 
 static struct nouveau_omthds
 nv17_celcius_omthds[] = {
-	{ 0x1638, nv17_graph_mthd_lma_window },
-	{ 0x163c, nv17_graph_mthd_lma_window },
-	{ 0x1640, nv17_graph_mthd_lma_window },
-	{ 0x1644, nv17_graph_mthd_lma_window },
-	{ 0x1658, nv17_graph_mthd_lma_enable },
+	{ 0x1638, 0x1638, nv17_graph_mthd_lma_window },
+	{ 0x163c, 0x163c, nv17_graph_mthd_lma_window },
+	{ 0x1640, 0x1640, nv17_graph_mthd_lma_window },
+	{ 0x1644, 0x1644, nv17_graph_mthd_lma_window },
+	{ 0x1658, 0x1658, nv17_graph_mthd_lma_enable },
 	{}
 };
 

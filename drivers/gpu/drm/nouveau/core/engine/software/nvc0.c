@@ -99,11 +99,11 @@ nvc0_software_mthd_flip(struct nouveau_object *object, u32 mthd,
 
 static struct nouveau_omthds
 nvc0_software_omthds[] = {
-	{ 0x0400, nvc0_software_mthd_vblsem_offset },
-	{ 0x0404, nvc0_software_mthd_vblsem_offset },
-	{ 0x0408, nvc0_software_mthd_vblsem_value },
-	{ 0x040c, nvc0_software_mthd_vblsem_release },
-	{ 0x0500, nvc0_software_mthd_flip },
+	{ 0x0400, 0x0400, nvc0_software_mthd_vblsem_offset },
+	{ 0x0404, 0x0404, nvc0_software_mthd_vblsem_offset },
+	{ 0x0408, 0x0408, nvc0_software_mthd_vblsem_value },
+	{ 0x040c, 0x040c, nvc0_software_mthd_vblsem_release },
+	{ 0x0500, 0x0500, nvc0_software_mthd_flip },
 	{}
 };
 
