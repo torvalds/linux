@@ -185,6 +185,15 @@ static const struct gsc_fmt gsc_formats[] = {
 		.corder		= GSC_CRCB,
 		.num_planes	= 3,
 		.num_comp	= 3,
+	}, {
+		.name		= "YUV 4:2:0 n.c. 2p, Y/CbCr tiled",
+		.pixelformat	= V4L2_PIX_FMT_NV12MT_16X16,
+		.depth		= { 8, 4 },
+		.color		= GSC_YUV420,
+		.yorder		= GSC_LSB_Y,
+		.corder		= GSC_CBCR,
+		.num_planes	= 2,
+		.num_comp	= 2,
 	}
 };
 
