@@ -5,13 +5,19 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * AM335x Starter Kit
+ * http://www.ti.com/tool/tmdssk3358
+ */
+
 /dts-v1/;
 
 /include/ "am33xx.dtsi"
 
 / {
-	model = "TI AM335x EVM";
-	compatible = "ti,am335x-evm", "ti,am33xx";
+	model = "TI AM335x EVM-SK";
+	compatible = "ti,am335x-evmsk", "ti,am33xx";
 
 	cpus {
 		cpu@0 {
@@ -36,11 +42,6 @@
 			tps: tps@2d {
 				reg = <0x2d>;
 			};
-		};
-
-		i2c2: i2c@4802a000 {
-			status = "okay";
-			clock-frequency = <100000>;
 
 			lis331dlh: lis331dlh@18 {
 				compatible = "st,lis331dlh", "st,lis3lv02d";
@@ -68,16 +69,6 @@
 				st,max-limit-x = <550>;
 				st,max-limit-y = <550>;
 				st,max-limit-z = <750>;
-			};
-
-			tsl2550: tsl2550@39 {
-				compatible = "taos,tsl2550";
-				reg = <0x39>;
-			};
-
-			tmp275: tmp275@48 {
-				compatible = "ti,tmp275";
-				reg = <0x48>;
 			};
 		};
 	};

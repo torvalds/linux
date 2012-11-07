@@ -184,3 +184,7 @@
 &dmic {
 	status = "disabled";
 };
+
+&twl_usb_comparator {
+	usb-supply = <&vusb>;
+};

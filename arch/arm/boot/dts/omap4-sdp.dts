@@ -406,3 +406,7 @@
 &mcbsp3 {
 	status = "disabled";
 };
+
+&twl_usb_comparator {
+	usb-supply = <&vusb>;
+};
