@@ -275,7 +275,7 @@ static struct attribute * cache_default_attrs[] = {
 #define to_object(k) container_of(k, struct cache_info, kobj)
 #define to_attr(a) container_of(a, struct cache_attr, attr)
 
-static ssize_t cache_show(struct kobject * kobj, struct attribute * attr, char * buf)
+static ssize_t ia64_cache_show(struct kobject * kobj, struct attribute * attr, char * buf)
 {
 	struct cache_attr *fattr = to_attr(attr);
 	struct cache_info *this_leaf = to_object(kobj);
@@ -286,7 +286,7 @@ static ssize_t cache_show(struct kobject * kobj, struct attribute * attr, char *
 }
 
 static const struct sysfs_ops cache_sysfs_ops = {
-	.show   = cache_show
+	.show   = ia64_cache_show
 };
 
 static struct kobj_type cache_ktype = {
