@@ -1360,7 +1360,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 			.type			= "rk610_ctl",
 			.addr			= 0x40,
 			.flags			= 0,
-			.platform_data		= &rk610_power_on_init,
+			.platform_data		= &rk610_ctl_pdata,
 		},
 #ifdef CONFIG_RK610_TVOUT
 		{
