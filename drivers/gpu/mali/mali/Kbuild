@@ -41,13 +41,13 @@ DRIVER_DIR=$(src)
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(PWD)/$(DRIVER_DIR)/linux/license/gpl/*),)
-ccflags-y += -I$(PWD)/$(DRIVER_DIR)/linux/license/proprietary
+ifeq ($(wildcard $(DRIVER_DIR)/linux/license/gpl/*),)
+ccflags-y += -I$(DRIVER_DIR)/linux/license/proprietary
 # Disable profiling for proprietary
 override USING_PROFILING := 0
 $(warning "USING_PROFILING not supported, disabling.")
 else
-ccflags-y += -I$(PWD)/$(DRIVER_DIR)/linux/license/gpl
+ccflags-y += -I$(DRIVER_DIR)/linux/license/gpl
 endif
 
 
@@ -69,7 +69,7 @@ endif
 MALI_RELEASE_NAME=$(shell cat $(DRIVER_DIR)/.version 2> /dev/null)
 
 # Check if a Mali Core sub module should be enabled, true or false returned
-submodule_enabled = $(shell gcc $(DEFINES) -E $(PWD)/$(DRIVER_DIR)/arch/config.h | grep type | grep -c $(2))
+submodule_enabled = $(shell gcc $(DEFINES) -E $(DRIVER_DIR)/arch/config.h | grep type | grep -c $(2))
 
 OSKFILES = \
 	$(OSKOS)/mali_osk_atomics.c \
@@ -245,7 +245,7 @@ obj-$(CONFIG_MALI400) := mali.o
 VERSION_STRINGS :=
 VERSION_STRINGS += CONFIG=$(CONFIG)
 VERSION_STRINGS += USING_OS_MEMORY=$(USING_OS_MEMORY)
-VERSION_STRINGS += API_VERSION=$(shell cd $(DRIVER_DIR); grep "\#define _MALI_API_VERSION" $(PWD)/$(DRIVER_DIR)/include/linux/mali/mali_utgard_uk_types.h | cut -d' ' -f 3 )
+VERSION_STRINGS += API_VERSION=$(shell cd $(DRIVER_DIR); grep "\#define _MALI_API_VERSION" include/linux/mali/mali_utgard_uk_types.h | cut -d' ' -f 3 )
 VERSION_STRINGS += REPO_URL=$(shell cd $(DRIVER_DIR); (svn info || git svn info || echo 'URL: $(MALI_RELEASE_NAME)') 2>/dev/null | grep '^URL: ' | cut -d: -f2- | cut -b2-)
 VERSION_STRINGS += REVISION=$(SVN_REV)
 VERSION_STRINGS += CHANGED_REVISION=$(shell cd $(DRIVER_DIR); (svn info || git svn info || echo 'Last Changed Rev: $(MALI_RELEASE_NAME)') 2>/dev/null | grep '^Last Changed Rev: ' | cut -d: -f2- | cut -b2-)

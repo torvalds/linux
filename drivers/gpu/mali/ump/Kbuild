@@ -28,10 +28,10 @@ ccflags-$(CONFIG_UMP_DEBUG) += -DDEBUG
 # The ARM proprietary product will only include the license/proprietary directory
 # The GPL product will only include the license/gpl directory
 
-ifeq ($(wildcard $(PWD)/$(src)/linux/license/gpl/*),)
-ccflags-y += -I$(PWD)/$(src)/linux/license/proprietary
+ifeq ($(wildcard $(src)/linux/license/gpl/*),)
+ccflags-y += -I$(src)/linux/license/proprietary
 else
-ccflags-y += -I$(PWD)/$(src)/linux/license/gpl
+ccflags-y += -I$(src)/linux/license/gpl
 endif
 
 ump-y = common/ump_kernel_common.o \
