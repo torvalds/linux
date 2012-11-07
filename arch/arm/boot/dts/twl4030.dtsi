@@ -75,4 +75,14 @@
 		usb3v1-supply = <&vusb3v1>;
 		usb_mode = <1>;
 	};
+
+	twl_pwm: pwm {
+		compatible = "ti,twl4030-pwm";
+		#pwm-cells = <2>;
+	};
+
+	twl_pwmled: pwmled {
+		compatible = "ti,twl4030-pwmled";
+		#pwm-cells = <2>;
+	};
 };
