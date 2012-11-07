@@ -85,6 +85,7 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
 	write_lock_irqsave(&card->ctl_files_rwlock, flags);
 	list_add_tail(&ctl->list, &card->ctl_files);
 	write_unlock_irqrestore(&card->ctl_files_rwlock, flags);
+	snd_card_unref(card);
 	return 0;
 
       __error:
@@ -92,6 +93,8 @@ static int snd_ctl_open(struct inode *inode, struct file *file)
       __error2:
 	snd_card_file_remove(card, file);
       __error1:
+	if (card)
+		snd_card_unref(card);
       	return err;
 }
 
