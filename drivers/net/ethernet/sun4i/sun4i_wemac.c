@@ -54,7 +54,6 @@
 #define DRV_VERSION	"1.01"
 #define DMA_CPU_TRRESHOLD 2000
 #define TOLOWER(x) ((x) | 0x20)
-#define PHY_POWER 0
 /*
  * Transmit timeout, default 5 seconds.
  */
@@ -134,10 +133,8 @@ typedef struct wemac_board_info {
 
 	struct mii_if_info mii;
 	u32		msg_enable;
-#if PHY_POWER
 	user_gpio_set_t *mos_gpio;
 	u32 mos_pin_handler;
-#endif
 } wemac_board_info_t;
 
 /* debug code */
@@ -1079,12 +1076,11 @@ wemac_init_wemac(struct net_device *dev)
 	unsigned int phy_reg;
 	unsigned int reg_val;
 
-#if PHY_POWER
 	if (db->mos_pin_handler) {
 		db->mos_gpio->data = 1;
 		gpio_set_one_pin_status(db->mos_pin_handler, db->mos_gpio, "emac_power", 1);
 	}
-#endif
+
 	/* PHY POWER UP */
 	phy_reg = wemac_phy_read(dev, 0, 0);
 	wemac_phy_write(dev, 0, 0, phy_reg & (~(1<<11)));
@@ -1624,12 +1620,10 @@ static void wemac_shutdown(struct net_device *dev)
 			reg_val);
 	wemac_phy_write(dev, 0, 0, reg_val | (1<<11));	/* PHY POWER DOWN */
 
-#if PHY_POWER
 	if (db->mos_pin_handler) {
 		db->mos_gpio->data = 0;
 		gpio_set_one_pin_status(db->mos_pin_handler, db->mos_gpio, "emac_power", 1);
 	}
-#endif
 
 	writel(0, db->emac_vbase + EMAC_INT_CTL_REG);					/* Disable all interrupt */
 	writel(readl(db->emac_vbase + EMAC_INT_STA_REG), db->emac_vbase + EMAC_INT_STA_REG);          /* clear interupt status */
@@ -1794,7 +1788,6 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-#if PHY_POWER
 	db->mos_gpio = kmalloc(sizeof(user_gpio_set_t), GFP_KERNEL);
 	db->mos_pin_handler = 0;
 	if (NULL == db->mos_gpio) {
@@ -1810,7 +1803,7 @@ static int __devinit wemac_probe(struct platform_device *pdev)
 						db->mos_gpio->port, db->mos_gpio->port_num);
 		}
 	}
-#endif
+
 	/* ccmu address remap */
 	iosize = res_size(db->ccmu_base_res);
 	db->ccmu_base_req = request_mem_region(db->ccmu_base_res->start, iosize,
