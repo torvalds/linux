@@ -67,6 +67,7 @@ struct omap4_cpu_pm_info {
 	void __iomem *scu_sar_addr;
 	void __iomem *wkup_sar_addr;
 	void __iomem *l2x0_sar_addr;
+	void (*secondary_startup)(void);
 };
 
 static DEFINE_PER_CPU(struct omap4_cpu_pm_info, omap4_pm_info);
@@ -299,6 +300,7 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 {
 	unsigned int cpu_state = 0;
+	struct omap4_cpu_pm_info *pm_info = &per_cpu(omap4_pm_info, cpu);
 
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		return -ENXIO;
@@ -308,7 +310,7 @@ int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 
 	clear_cpu_prev_pwrst(cpu);
 	set_cpu_next_pwrst(cpu, power_state);
-	set_cpu_wakeup_addr(cpu, virt_to_phys(omap_secondary_startup));
+	set_cpu_wakeup_addr(cpu, virt_to_phys(pm_info->secondary_startup));
 	scu_pwrst_prepare(cpu, power_state);
 
 	/*
@@ -359,6 +361,11 @@ int __init omap4_mpuss_init(void)
 	pm_info->scu_sar_addr = sar_base + SCU_OFFSET1;
 	pm_info->wkup_sar_addr = sar_base + CPU1_WAKEUP_NS_PA_ADDR_OFFSET;
 	pm_info->l2x0_sar_addr = sar_base + L2X0_SAVE_OFFSET1;
+	if (cpu_is_omap446x())
+		pm_info->secondary_startup = omap_secondary_startup_4460;
+	else
+		pm_info->secondary_startup = omap_secondary_startup;
+
 	pm_info->pwrdm = pwrdm_lookup("cpu1_pwrdm");
 	if (!pm_info->pwrdm) {
 		pr_err("Lookup failed for CPU1 pwrdm\n");
