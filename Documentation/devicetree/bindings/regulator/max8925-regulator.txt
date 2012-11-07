@@ -1,0 +1,29 @@
+Max8925 Voltage regulators
+
+max8925 regulator device register is still handled by mfd_add_devices, not by
+of_xxx, so, it is not necessary to add compatible name. Also, those reg
+offset and id info is stored in mfd_cell(see max8925-core.c), as a result
+there is not private properties in dts.
+
+node's name should match with the definition in max8925_regulator_matches
+(see max8925-regulator.c)
+
+
+Optional properties:
+- Any optional property defined in bindings/regulator/regulator.txt
+
+
+Example:
+
+
+	regulators {
+		SDV1 {
+			regulator-min-microvolt = <637500>;
+			regulator-max-microvolt = <1425000>;
+			regulator-boot-on;
+			regulator-always-on;
+		};
+
+		...
+		...
+	}
