@@ -21,6 +21,8 @@ Non-USB-specific:
 
 USB-specific:
 
+-EBUSY		The URB is already active.
+
 -ENODEV		specified USB-device or bus doesn't exist
 
 -ENOENT		specified interface or endpoint does not exist or

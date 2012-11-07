@@ -321,8 +321,13 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	struct usb_host_endpoint	*ep;
 	int				is_out;
 
-	if (!urb || urb->hcpriv || !urb->complete)
+	if (!urb || !urb->complete)
 		return -EINVAL;
+	if (urb->hcpriv) {
+		WARN_ONCE(1, "URB %p submitted while active\n", urb);
+		return -EBUSY;
+	}
+
 	dev = urb->dev;
 	if ((!dev) || (dev->state < USB_STATE_UNAUTHENTICATED))
 		return -ENODEV;
