@@ -91,6 +91,22 @@ static ssize_t show_fb_state(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%s\n",state?"enabled":"disabled");
 	
 }
+
+static ssize_t show_dual_mode(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	int mode=0;
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	mode = 1;
+#elif defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+	mode = 2;
+#else
+	mode = 0;
+#endif
+	return snprintf(buf, PAGE_SIZE, "%d\n",mode);
+	
+}
+
 static ssize_t set_fb_state(struct device *dev,struct device_attribute *attr,
 	const char *buf, size_t count)
 {
@@ -295,6 +311,7 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
 	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
+	__ATTR(dual_mode, S_IRUGO, show_dual_mode, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
 	__ATTR(overlay, S_IRUGO | S_IWUSR, show_overlay, set_overlay),
 	__ATTR(fps, S_IRUGO | S_IWUSR, show_fps, set_fps),
