@@ -46,109 +46,6 @@
 /* max number of receive buffers */
 #define MAX_RX_DESCR	9
 
-/* ......................... ADDRESS MANAGEMENT ........................ */
-
-/*
- * NOTE: Your bootloader must always set the MAC address correctly before
- * booting into Linux.
- *
- * - It must always set the MAC address after reset, even if it doesn't
- *   happen to access the Ethernet while it's booting.  Some versions of
- *   U-Boot on the AT91RM9200-DK do not do this.
- *
- * - Likewise it must store the addresses in the correct byte order.
- *   MicroMonitor (uMon) on the CSB337 does this incorrectly (and
- *   continues to do so, for bug-compatibility).
- */
-
-static short __init unpack_mac_address(struct net_device *dev, unsigned int hi, unsigned int lo)
-{
-	struct macb *lp = netdev_priv(dev);
-	char addr[6];
-
-	if (lp->board_data.rev_eth_addr) {
-		addr[5] = (lo & 0xff);			/* The CSB337 bootloader stores the MAC the wrong-way around */
-		addr[4] = (lo & 0xff00) >> 8;
-		addr[3] = (lo & 0xff0000) >> 16;
-		addr[2] = (lo & 0xff000000) >> 24;
-		addr[1] = (hi & 0xff);
-		addr[0] = (hi & 0xff00) >> 8;
-	}
-	else {
-		addr[0] = (lo & 0xff);
-		addr[1] = (lo & 0xff00) >> 8;
-		addr[2] = (lo & 0xff0000) >> 16;
-		addr[3] = (lo & 0xff000000) >> 24;
-		addr[4] = (hi & 0xff);
-		addr[5] = (hi & 0xff00) >> 8;
-	}
-
-	if (is_valid_ether_addr(addr)) {
-		memcpy(dev->dev_addr, &addr, 6);
-		return 1;
-	}
-	return 0;
-}
-
-/*
- * Set the ethernet MAC address in dev->dev_addr
- */
-static void __init get_mac_address(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-
-	/* Check Specific-Address 1 */
-	if (unpack_mac_address(dev, macb_readl(lp, SA1T), macb_readl(lp, SA1B)))
-		return;
-	/* Check Specific-Address 2 */
-	if (unpack_mac_address(dev, macb_readl(lp, SA2T), macb_readl(lp, SA2B)))
-		return;
-	/* Check Specific-Address 3 */
-	if (unpack_mac_address(dev, macb_readl(lp, SA3T), macb_readl(lp, SA3B)))
-		return;
-	/* Check Specific-Address 4 */
-	if (unpack_mac_address(dev, macb_readl(lp, SA4T), macb_readl(lp, SA4B)))
-		return;
-
-	printk(KERN_ERR "at91_ether: Your bootloader did not configure a MAC address.\n");
-}
-
-/*
- * Program the hardware MAC address from dev->dev_addr.
- */
-static void update_mac_address(struct net_device *dev)
-{
-	struct macb *lp = netdev_priv(dev);
-
-	macb_writel(lp, SA1B, (dev->dev_addr[3] << 24) | (dev->dev_addr[2] << 16)
-					| (dev->dev_addr[1] << 8) | (dev->dev_addr[0]));
-	macb_writel(lp, SA1T, (dev->dev_addr[5] << 8) | (dev->dev_addr[4]));
-
-	macb_writel(lp, SA2B, 0);
-	macb_writel(lp, SA2T, 0);
-}
-
-/*
- * Store the new hardware address in dev->dev_addr, and update the MAC.
- */
-static int set_mac_address(struct net_device *dev, void* addr)
-{
-	struct sockaddr *address = addr;
-
-	if (!is_valid_ether_addr(address->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
-	update_mac_address(dev);
-
-	printk("%s: Setting MAC address to %pM\n", dev->name,
-	       dev->dev_addr);
-
-	return 0;
-}
-
-/* ................................ MAC ................................ */
-
 /*
  * Initialize and start the Receiver and Transmit subsystems
  */
@@ -219,8 +116,7 @@ static int at91ether_open(struct net_device *dev)
 	ctl = macb_readl(lp, NCR);
 	macb_writel(lp, NCR, ctl | MACB_BIT(CLRSTAT));
 
-	/* Update the MAC address (incase user has changed it) */
-	update_mac_address(dev);
+	macb_set_hwaddr(lp);
 
 	ret = at91ether_start(dev);
 	if (ret)
@@ -438,7 +334,7 @@ static const struct net_device_ops at91ether_netdev_ops = {
 	.ndo_start_xmit		= at91ether_start_xmit,
 	.ndo_get_stats		= at91ether_stats,
 	.ndo_set_rx_mode	= macb_set_rx_mode,
-	.ndo_set_mac_address	= set_mac_address,
+	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_do_ioctl		= macb_ioctl,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
@@ -557,9 +453,7 @@ static int __init at91ether_probe(struct platform_device *pdev)
 
 	res = at91ether_get_hwaddr_dt(lp);
 	if (res < 0)
-		get_mac_address(dev);		/* Get ethernet address and store it in dev->dev_addr */
-
-	update_mac_address(dev);	/* Program ethernet address into MAC */
+		macb_get_hwaddr(lp);
 
 	res = at91ether_get_phy_mode_dt(pdev);
 	if (res < 0) {
