@@ -2381,7 +2381,7 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	unsigned offset0, offset1;
 	s32 row_inc;
 	s32 pix_inc;
-	u16 frame_height = height;
+	u16 frame_width, frame_height;
 	unsigned int field_offset = 0;
 	u16 in_height = height;
 	u16 in_width = width;
@@ -2449,20 +2449,28 @@ static int dispc_ovl_setup_common(enum omap_plane plane,
 	row_inc = 0;
 	pix_inc = 0;
 
+	if (plane == OMAP_DSS_WB) {
+		frame_width = out_width;
+		frame_height = out_height;
+	} else {
+		frame_width = in_width;
+		frame_height = height;
+	}
+
 	if (rotation_type == OMAP_DSS_ROT_TILER)
-		calc_tiler_rotation_offset(screen_width, in_width,
+		calc_tiler_rotation_offset(screen_width, frame_width,
 				color_mode, fieldmode, field_offset,
 				&offset0, &offset1, &row_inc, &pix_inc,
 				x_predecim, y_predecim);
 	else if (rotation_type == OMAP_DSS_ROT_DMA)
-		calc_dma_rotation_offset(rotation, mirror,
-				screen_width, in_width, frame_height,
+		calc_dma_rotation_offset(rotation, mirror, screen_width,
+				frame_width, frame_height,
 				color_mode, fieldmode, field_offset,
 				&offset0, &offset1, &row_inc, &pix_inc,
 				x_predecim, y_predecim);
 	else
 		calc_vrfb_rotation_offset(rotation, mirror,
-				screen_width, in_width, frame_height,
+				screen_width, frame_width, frame_height,
 				color_mode, fieldmode, field_offset,
 				&offset0, &offset1, &row_inc, &pix_inc,
 				x_predecim, y_predecim);
