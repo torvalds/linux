@@ -770,8 +770,6 @@ void dss_mgr_start_update(struct omap_overlay_manager *mgr)
 
 	dispc_mgr_enable_sync(mgr->id);
 
-	mgr_clear_shadow_dirty(mgr);
-
 	spin_unlock_irqrestore(&data_lock, flags);
 }
 
