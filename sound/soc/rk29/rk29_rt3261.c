@@ -24,6 +24,7 @@
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
 
+
 #if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
@@ -225,6 +226,19 @@ static int rk29_rt3261_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_enable_pin(dapm, "Headset Jack");
 	snd_soc_dapm_enable_pin(dapm, "Ext Spk");
 	snd_soc_dapm_enable_pin(dapm, "Headphone Jack");
+#ifdef CONFIG_HDMI
+	extern int hdmi_is_insert(void);
+	extern void codec_set_spk(bool on);         
+	if(hdmi_is_insert())                 
+		codec_set_spk(false);
+#endif
+
+#ifdef CONFIG_HDMI_RK30
+	extern int hdmi_get_hotplug(void);
+	if(hdmi_get_hotplug() == 2/*HDMI_HPD_ACTIVED*/)
+		codec_set_spk(false);
+#endif
+
 	snd_soc_dapm_sync(dapm);
 
 	return 0;
