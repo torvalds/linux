@@ -60,7 +60,7 @@ static int at91ether_start(struct net_device *dev)
 					MAX_RX_DESCR * sizeof(struct macb_dma_desc),
 					&lp->rx_ring_dma, GFP_KERNEL);
 	if (!lp->rx_ring) {
-		netdev_err(lp->dev, "unable to alloc rx ring DMA buffer\n");
+		netdev_err(dev, "unable to alloc rx ring DMA buffer\n");
 		return -ENOMEM;
 	}
 
@@ -68,7 +68,7 @@ static int at91ether_start(struct net_device *dev)
 					MAX_RX_DESCR * MAX_RBUFF_SZ,
 					&lp->rx_buffers_dma, GFP_KERNEL);
 	if (!lp->rx_buffers) {
-		netdev_err(lp->dev, "unable to alloc rx data DMA buffer\n");
+		netdev_err(dev, "unable to alloc rx data DMA buffer\n");
 
 		dma_free_coherent(&lp->pdev->dev,
 					MAX_RX_DESCR * sizeof(struct macb_dma_desc),
@@ -189,7 +189,7 @@ static int at91ether_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		macb_writel(lp, TCR, skb->len);
 
 	} else {
-		printk(KERN_ERR "at91_ether.c: at91ether_start_xmit() called, but device is busy!\n");
+		netdev_err(dev, "%s called, but device is busy!\n", __func__);
 		return NETDEV_TX_BUSY;	/* if we return anything but zero, dev.c:1055 calls kfree_skb(skb)
 				on this skb, he also reports -ENETDOWN and printk's, so either
 				we free and return(0) or don't free and return 1 */
@@ -279,7 +279,7 @@ static irqreturn_t at91ether_interrupt(int irq, void *dev_id)
 	}
 
 	if (intstatus & MACB_BIT(ISR_ROVR))
-		printk("%s: ROVR error\n", dev->name);
+		netdev_err(dev, "ROVR error\n");
 
 	return IRQ_HANDLED;
 }
@@ -449,14 +449,11 @@ static int __init at91ether_probe(struct platform_device *pdev)
 
 	phydev = lp->phy_dev;
 	netdev_info(dev, "attached PHY driver [%s] (mii_bus:phy_addr=%s, irq=%d)\n",
-		phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
+				phydev->drv->name, dev_name(&phydev->dev), phydev->irq);
 
 	/* Display ethernet banner */
-	printk(KERN_INFO "%s: AT91 ethernet at 0x%08x int=%d %s%s (%pM)\n",
-	       dev->name, (uint) dev->base_addr, dev->irq,
-	       macb_readl(lp, NCFGR) & MACB_BIT(SPD) ? "100-" : "10-",
-	       macb_readl(lp, NCFGR) & MACB_BIT(FD) ? "FullDuplex" : "HalfDuplex",
-	       dev->dev_addr);
+	netdev_info(dev, "AT91 ethernet at 0x%08lx int=%d (%pM)\n",
+				dev->base_addr, dev->irq, dev->dev_addr);
 
 	return 0;
 
