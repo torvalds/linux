@@ -1112,7 +1112,7 @@ static int s3c64xx_spi_parse_dt_gpio(struct s3c64xx_spi_driver_data *sdd)
 			dev_err(dev, "invalid gpio[%d]: %d\n", idx, gpio);
 			goto free_gpio;
 		}
-
+		sdd->gpios[idx] = gpio;
 		ret = gpio_request(gpio, "spi-bus");
 		if (ret) {
 			dev_err(dev, "gpio [%d] request failed: %d\n",
