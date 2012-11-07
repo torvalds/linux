@@ -11998,7 +11998,7 @@ void bnx2x_init_xgxs_loopback(struct link_params *params,
 	bnx2x_set_led(params, vars, LED_MODE_OPER, vars->line_speed);
 }
 
-static void bnx2x_set_rx_filter(struct link_params *params, u8 en)
+void bnx2x_set_rx_filter(struct link_params *params, u8 en)
 {
 	struct bnx2x *bp = params->bp;
 	u8 val = en * 0x1F;

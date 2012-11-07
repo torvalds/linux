@@ -2901,7 +2901,9 @@ static void bnx2x_get_channels(struct net_device *dev,
 static void bnx2x_change_num_queues(struct bnx2x *bp, int num_rss)
 {
 	bnx2x_disable_msi(bp);
-	BNX2X_NUM_QUEUES(bp) = num_rss + NON_ETH_CONTEXT_USE;
+	bp->num_ethernet_queues = num_rss;
+	bp->num_queues = bp->num_ethernet_queues + bp->num_cnic_queues;
+	BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
 	bnx2x_set_int_mode(bp);
 }
 

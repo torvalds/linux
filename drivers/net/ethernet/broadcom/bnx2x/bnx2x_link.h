@@ -432,7 +432,8 @@ int bnx2x_phy_probe(struct link_params *params);
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp, u32 shmem_base,
 			     u32 shmem2_base, u8 port);
 
-
+/* Open / close the gate between the NIG and the BRB */
+void bnx2x_set_rx_filter(struct link_params *params, u8 en);
 
 /* DCBX structs */
 

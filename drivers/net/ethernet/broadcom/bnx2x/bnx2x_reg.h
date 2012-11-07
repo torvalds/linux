@@ -2107,6 +2107,7 @@
 #define NIG_REG_LLH1_ERROR_MASK 				 0x10090
 /* [RW 8] event id for llh1 */
 #define NIG_REG_LLH1_EVENT_ID					 0x10088
+#define NIG_REG_LLH1_FUNC_EN					 0x16104
 #define NIG_REG_LLH1_FUNC_MEM					 0x161c0
 #define NIG_REG_LLH1_FUNC_MEM_ENABLE				 0x16160
 #define NIG_REG_LLH1_FUNC_MEM_SIZE				 16
@@ -2302,6 +2303,15 @@
  * set to 0x345678021. This is a new register (with 2_) added in E3 B0 to
  * accommodate the 9 input clients to ETS arbiter. */
 #define NIG_REG_P0_TX_ARB_PRIORITY_CLIENT2_MSB			 0x18684
+/* [RW 1] MCP-to-host path enable. Set this bit to enable the routing of MCP
+ * packets to BRB LB interface to forward the packet to the host. All
+ * packets from MCP are forwarded to the network when this bit is cleared -
+ * regardless of the configured destination in tx_mng_destination register.
+ * When MCP-to-host paths for both ports 0 and 1 are disabled - the arbiter
+ * for BRB LB interface is bypassed and PBF LB traffic is always selected to
+ * send to BRB LB.
+ */
+#define NIG_REG_P0_TX_MNG_HOST_ENABLE				 0x182f4
 #define NIG_REG_P1_HWPFC_ENABLE					 0x181d0
 #define NIG_REG_P1_MAC_IN_EN					 0x185c0
 /* [RW 1] Output enable for TX MAC interface */
@@ -2418,6 +2428,12 @@
 #define NIG_REG_P1_TX_ARB_PRIORITY_CLIENT2_MSB			 0x186e4
 /* [R 1] TX FIFO for transmitting data to MAC is empty. */
 #define NIG_REG_P1_TX_MACFIFO_EMPTY				 0x18594
+/* [RW 1] MCP-to-host path enable. Set this bit to enable the routing of MCP
+ * packets to BRB LB interface to forward the packet to the host. All
+ * packets from MCP are forwarded to the network when this bit is cleared -
+ * regardless of the configured destination in tx_mng_destination register.
+ */
+#define NIG_REG_P1_TX_MNG_HOST_ENABLE				 0x182f8
 /* [R 1] FIFO empty status of the MCP TX FIFO used for storing MCP packets
    forwarded to the host. */
 #define NIG_REG_P1_TX_MNG_HOST_FIFO_EMPTY			 0x182b8

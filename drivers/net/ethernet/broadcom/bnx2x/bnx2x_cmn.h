@@ -238,7 +238,6 @@ irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance);
  * @dev_instance:	private instance
  */
 irqreturn_t bnx2x_interrupt(int irq, void *dev_instance);
-#ifdef BCM_CNIC
 
 /**
  * bnx2x_cnic_notify - send command to cnic driver
@@ -262,8 +261,6 @@ void bnx2x_setup_cnic_irq_info(struct bnx2x *bp);
  */
 void bnx2x_setup_cnic_info(struct bnx2x *bp);
 
-#endif
-
 /**
  * bnx2x_int_enable - enable HW interrupts.
  *
@@ -283,7 +280,7 @@ void bnx2x_int_enable(struct bnx2x *bp);
 void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw);
 
 /**
- * bnx2x_nic_init - init driver internals.
+ * bnx2x_nic_init_cnic - init driver internals for cnic.
  *
  * @bp:		driver handle
  * @load_code:	COMMON, PORT or FUNCTION
@@ -293,8 +290,25 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw);
  *  - status blocks
  *  - etc.
  */
-void bnx2x_nic_init(struct bnx2x *bp, u32 load_code);
+void bnx2x_nic_init_cnic(struct bnx2x *bp);
 
+/**
+ * bnx2x_nic_init - init driver internals.
+ *
+ * @bp:		driver handle
+ *
+ * Initializes:
+ *  - rings
+ *  - status blocks
+ *  - etc.
+ */
+void bnx2x_nic_init(struct bnx2x *bp, u32 load_code);
+/**
+ * bnx2x_alloc_mem_cnic - allocate driver's memory for cnic.
+ *
+ * @bp:		driver handle
+ */
+int bnx2x_alloc_mem_cnic(struct bnx2x *bp);
 /**
  * bnx2x_alloc_mem - allocate driver's memory.
  *
@@ -302,6 +316,12 @@ void bnx2x_nic_init(struct bnx2x *bp, u32 load_code);
  */
 int bnx2x_alloc_mem(struct bnx2x *bp);
 
+/**
+ * bnx2x_free_mem_cnic - release driver's memory for cnic.
+ *
+ * @bp:		driver handle
+ */
+void bnx2x_free_mem_cnic(struct bnx2x *bp);
 /**
  * bnx2x_free_mem - release driver's memory.
  *
@@ -407,6 +427,7 @@ bool bnx2x_reset_is_done(struct bnx2x *bp, int engine);
 void bnx2x_set_reset_in_progress(struct bnx2x *bp);
 void bnx2x_set_reset_global(struct bnx2x *bp);
 void bnx2x_disable_close_the_gate(struct bnx2x *bp);
+int bnx2x_init_hw_func_cnic(struct bnx2x *bp);
 
 /**
  * bnx2x_sp_event - handle ramrods completion.
@@ -422,6 +443,14 @@ void bnx2x_sp_event(struct bnx2x_fastpath *fp, union eth_rx_cqe *rr_cqe);
  * @bp:		driver handle
  */
 void bnx2x_ilt_set_info(struct bnx2x *bp);
+
+/**
+ * bnx2x_ilt_set_cnic_info - prepare ILT configurations for SRC
+ * and TM.
+ *
+ * @bp:		driver handle
+ */
+void bnx2x_ilt_set_info_cnic(struct bnx2x *bp);
 
 /**
  * bnx2x_dcbx_init - initialize dcbx protocol.
@@ -491,12 +520,17 @@ int bnx2x_resume(struct pci_dev *pdev);
 /* Release IRQ vectors */
 void bnx2x_free_irq(struct bnx2x *bp);
 
+void bnx2x_free_fp_mem_cnic(struct bnx2x *bp);
 void bnx2x_free_fp_mem(struct bnx2x *bp);
+int bnx2x_alloc_fp_mem_cnic(struct bnx2x *bp);
 int bnx2x_alloc_fp_mem(struct bnx2x *bp);
 void bnx2x_init_rx_rings(struct bnx2x *bp);
+void bnx2x_init_rx_rings_cnic(struct bnx2x *bp);
+void bnx2x_free_skbs_cnic(struct bnx2x *bp);
 void bnx2x_free_skbs(struct bnx2x *bp);
 void bnx2x_netif_stop(struct bnx2x *bp, int disable_hw);
 void bnx2x_netif_start(struct bnx2x *bp);
+int bnx2x_load_cnic(struct bnx2x *bp);
 
 /**
  * bnx2x_enable_msix - set msix configuration.
@@ -547,7 +581,7 @@ void bnx2x_free_mem_bp(struct bnx2x *bp);
  */
 int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
 
-#if defined(NETDEV_FCOE_WWNN) && defined(BCM_CNIC)
+#ifdef NETDEV_FCOE_WWNN
 /**
  * bnx2x_fcoe_get_wwn - return the requested WWN value for this port
  *
@@ -793,23 +827,39 @@ static inline void bnx2x_free_rx_sge(struct bnx2x *bp,
 	sge->addr_lo = 0;
 }
 
+static inline void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
+{
+	int i;
+
+	/* Add NAPI objects */
+	for_each_rx_queue_cnic(bp, i)
+		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
+			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
+}
+
 static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	bp->num_napi_queues = bp->num_queues;
-
 	/* Add NAPI objects */
-	for_each_rx_queue(bp, i)
+	for_each_eth_queue(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
 			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
+}
+
+static inline void bnx2x_del_all_napi_cnic(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_rx_queue_cnic(bp, i)
+		netif_napi_del(&bnx2x_fp(bp, i, napi));
 }
 
 static inline void bnx2x_del_all_napi(struct bnx2x *bp)
 {
 	int i;
 
-	for_each_rx_queue(bp, i)
+	for_each_eth_queue(bp, i)
 		netif_napi_del(&bnx2x_fp(bp, i, napi));
 }
 
@@ -979,11 +1029,9 @@ static inline u8 bnx2x_stats_id(struct bnx2x_fastpath *fp)
 {
 	struct bnx2x *bp = fp->bp;
 	if (!CHIP_IS_E1x(bp)) {
-#ifdef BCM_CNIC
 		/* there are special statistics counters for FCoE 136..140 */
 		if (IS_FCOE_FP(fp))
 			return bp->cnic_base_cl_id + (bp->pf_num >> 1);
-#endif
 		return fp->cl_id;
 	}
 	return fp->cl_id + BP_PORT(bp) * FP_SB_MAX_E1x;
@@ -1102,7 +1150,6 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 	   txdata->cid, txdata->txq_index);
 }
 
-#ifdef BCM_CNIC
 static inline u8 bnx2x_cnic_eth_cl_id(struct bnx2x *bp, u8 cl_idx)
 {
 	return bp->cnic_base_cl_id + cl_idx +
@@ -1162,7 +1209,6 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	   fp->index, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
 	   fp->igu_sb_id);
 }
-#endif
 
 static inline int bnx2x_clean_tx_queue(struct bnx2x *bp,
 				       struct bnx2x_fp_txdata *txdata)
@@ -1280,7 +1326,7 @@ static inline bool bnx2x_mtu_allows_gro(int mtu)
 	 */
 	return mtu <= SGE_PAGE_SIZE && (U_ETH_SGL_SIZE * fpp) <= MAX_SKB_FRAGS;
 }
-#ifdef BCM_CNIC
+
 /**
  * bnx2x_get_iscsi_info - update iSCSI params according to licensing info.
  *
@@ -1288,7 +1334,6 @@ static inline bool bnx2x_mtu_allows_gro(int mtu)
  *
  */
 void bnx2x_get_iscsi_info(struct bnx2x *bp);
-#endif
 
 /**
  * bnx2x_link_sync_notify - send notification to other functions.
@@ -1340,13 +1385,11 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 
 static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
 {
-	if (is_valid_ether_addr(addr))
+	if (is_valid_ether_addr(addr) ||
+	    (is_zero_ether_addr(addr) &&
+	     (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp))))
 		return true;
-#ifdef BCM_CNIC
-	if (is_zero_ether_addr(addr) &&
-	    (IS_MF_STORAGE_SD(bp) || IS_MF_FCOE_AFEX(bp)))
-		return true;
-#endif
+
 	return false;
 }
 
