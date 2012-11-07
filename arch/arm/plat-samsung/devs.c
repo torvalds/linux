@@ -486,11 +486,7 @@ static struct resource s3c_i2c0_resource[] = {
 
 struct platform_device s3c_device_i2c0 = {
 	.name		= "s3c2410-i2c",
-#ifdef CONFIG_S3C_DEV_I2C1
 	.id		= 0,
-#else
-	.id		= -1,
-#endif
 	.num_resources	= ARRAY_SIZE(s3c_i2c0_resource),
 	.resource	= s3c_i2c0_resource,
 };
