@@ -346,13 +346,23 @@ typedef struct xfs_error_injection {
 struct xfs_eofblocks {
 	__u32		eof_version;
 	__u32		eof_flags;
-	__u64		pad[15];
+	uid_t		eof_uid;
+	gid_t		eof_gid;
+	prid_t		eof_prid;
+	__u32		pad32;
+	__u64		pad64[13];
 };
 
 /* eof_flags values */
 #define XFS_EOF_FLAGS_SYNC		(1 << 0) /* sync/wait mode scan */
+#define XFS_EOF_FLAGS_UID		(1 << 1) /* filter by uid */
+#define XFS_EOF_FLAGS_GID		(1 << 2) /* filter by gid */
+#define XFS_EOF_FLAGS_PRID		(1 << 3) /* filter by project id */
 #define XFS_EOF_FLAGS_VALID	\
-	(XFS_EOF_FLAGS_SYNC)
+	(XFS_EOF_FLAGS_SYNC |	\
+	 XFS_EOF_FLAGS_UID |	\
+	 XFS_EOF_FLAGS_GID |	\
+	 XFS_EOF_FLAGS_PRID)
 
 
 /*
