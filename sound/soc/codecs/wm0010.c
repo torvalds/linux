@@ -477,6 +477,82 @@ abort:
 	return ret;
 }
 
+static int wm0010_stage2_load(struct snd_soc_codec *codec)
+{
+	struct spi_device *spi = to_spi_device(codec->dev);
+	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
+	const struct firmware *fw;
+	struct spi_message m;
+	struct spi_transfer t;
+	u32 *img;
+	u8 *out;
+	int i;
+	int ret = 0;
+
+	ret = request_firmware(&fw, "wm0010_stage2.bin", codec->dev);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to request stage2 loader: %d\n",
+			ret);
+		return ret;
+	}
+
+	dev_dbg(codec->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
+
+	/* Copy to local buffer first as vmalloc causes problems for dma */
+	img = kzalloc(fw->size, GFP_KERNEL);
+	if (!img) {
+		dev_err(codec->dev, "Failed to allocate image buffer\n");
+		ret = -ENOMEM;
+		goto abort2;
+	}
+
+	out = kzalloc(fw->size, GFP_KERNEL);
+	if (!out) {
+		dev_err(codec->dev, "Failed to allocate output buffer\n");
+		ret = -ENOMEM;
+		goto abort1;
+	}
+
+	memcpy(img, &fw->data[0], fw->size);
+
+	spi_message_init(&m);
+	memset(&t, 0, sizeof(t));
+	t.rx_buf = out;
+	t.tx_buf = img;
+	t.len = fw->size;
+	t.bits_per_word = 8;
+	t.speed_hz = wm0010->sysclk / 10;
+	spi_message_add_tail(&t, &m);
+
+	dev_dbg(codec->dev, "Starting initial download at %dHz\n",
+		t.speed_hz);
+
+	ret = spi_sync(spi, &m);
+	if (ret != 0) {
+		dev_err(codec->dev, "Initial download failed: %d\n", ret);
+		goto abort;
+	}
+
+	/* Look for errors from the boot ROM */
+	for (i = 0; i < fw->size; i++) {
+		if (out[i] != 0x55) {
+			dev_err(codec->dev, "Boot ROM error: %x in %d\n",
+				out[i], i);
+			wm0010_mark_boot_failure(wm0010);
+			ret = -EBUSY;
+			goto abort;
+		}
+	}
+abort:
+	kfree(out);
+abort1:
+	kfree(img);
+abort2:
+	release_firmware(fw);
+
+	return ret;
+}
+
 static int wm0010_boot(struct snd_soc_codec *codec)
 {
 	struct spi_device *spi = to_spi_device(codec->dev);
@@ -487,10 +563,9 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	struct spi_message m;
 	struct spi_transfer t;
 	struct dfw_pllrec pll_rec;
-	u32 *img, *p;
+	u32 *p, len;
 	u64 *img_swap;
 	u8 *out;
-	u32 len;
 	int i;
 
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
@@ -546,55 +621,9 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	wm0010->state = WM0010_BOOTROM;
 	spin_unlock_irqrestore(&wm0010->irq_lock, flags);
 
-	dev_dbg(codec->dev, "Downloading %zu byte stage 2 loader\n", fw->size);
-
-	/* Copy to local buffer first as vmalloc causes problems for dma */
-	img = kzalloc(fw->size, GFP_KERNEL);
-	if (!img) {
-		dev_err(codec->dev, "Failed to allocate image buffer\n");
+	ret = wm0010_stage2_load(codec);
+	if (ret)
 		goto abort;
-	}
-
-	out = kzalloc(fw->size, GFP_KERNEL);
-	if (!out) {
-		dev_err(codec->dev, "Failed to allocate output buffer\n");
-		goto abort;
-	}
-
-	memcpy(img, &fw->data[0], fw->size);
-
-	spi_message_init(&m);
-	memset(&t, 0, sizeof(t));
-	t.rx_buf = out;
-	t.tx_buf = img;
-	t.len = fw->size;
-	t.bits_per_word = 8;
-	t.speed_hz = wm0010->sysclk / 10;
-	spi_message_add_tail(&t, &m);
-
-	dev_dbg(codec->dev, "Starting initial download at %dHz\n",
-		t.speed_hz);
-
-	ret = spi_sync(spi, &m);
-	if (ret != 0) {
-		dev_err(codec->dev, "Initial download failed: %d\n", ret);
-		goto abort;
-	}
-
-	/* Look for errors from the boot ROM */
-	for (i = 0; i < fw->size; i++) {
-		if (out[i] != 0x55) {
-			ret = -EBUSY;
-			dev_err(codec->dev, "Boot ROM error: %x in %d\n",
-				out[i], i);
-			wm0010_mark_boot_failure(wm0010);
-			goto abort;
-		}
-	}
-
-	release_firmware(fw);
-	kfree(img);
-	kfree(out);
 
 	if (!wait_for_completion_timeout(&wm0010->boot_completion,
 					 msecs_to_jiffies(10)))
