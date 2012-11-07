@@ -4845,9 +4845,17 @@ struct vif_list_event_data {
 	__le32 reserved2;
 };
 
-/*
- * union for all event ring message types
- */
+/* function update event data */
+struct function_update_event_data {
+	u8 echo;
+	u8 reserved;
+	__le16 reserved0;
+	__le32 reserved1;
+	__le32 reserved2;
+};
+
+
+/* union for all event ring message types */
 union event_data {
 	struct vf_pf_event_data vf_pf_event;
 	struct eth_event_data eth_event;
@@ -4855,6 +4863,7 @@ union event_data {
 	struct vf_flr_event_data vf_flr_event;
 	struct malicious_vf_event_data malicious_vf_event;
 	struct vif_list_event_data vif_list_event;
+	struct function_update_event_data function_update_event;
 };
 
 
@@ -4984,8 +4993,10 @@ struct function_update_data {
 	u8 allowed_priorities;
 	u8 network_cos_mode;
 	u8 lb_mode_en;
-	u8 reserved0;
-	__le32 reserved1;
+	u8 tx_switch_suspend_change_flg;
+	u8 tx_switch_suspend;
+	u8 echo;
+	__le16 reserved1;
 };
 
 
