@@ -171,6 +171,25 @@ struct nve0_channel_ind_class {
 #define NVD0_DISP_CLASS                                              0x00009070
 #define NVE0_DISP_CLASS                                              0x00009170
 
+#define NV50_DISP_SOR_MTHD                                           0x00010000
+#define NV50_DISP_SOR_MTHD_TYPE                                      0x0000f000
+#define NV50_DISP_SOR_MTHD_HEAD                                      0x00000018
+#define NV50_DISP_SOR_MTHD_LINK                                      0x00000004
+#define NV50_DISP_SOR_MTHD_OR                                        0x00000003
+
+#define NV94_DISP_SOR_DP_TRAIN                                       0x00016000
+#define NV94_DISP_SOR_DP_TRAIN_PATTERN                               0x00000003
+#define NV94_DISP_SOR_DP_TRAIN_PATTERN_DISABLED                      0x00000000
+#define NV94_DISP_SOR_DP_LNKCTL                                      0x00016040
+#define NV94_DISP_SOR_DP_LNKCTL_FRAME                                0x80000000
+#define NV94_DISP_SOR_DP_LNKCTL_FRAME_STD                            0x00000000
+#define NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH                            0x80000000
+#define NV94_DISP_SOR_DP_LNKCTL_WIDTH                                0x00001f00
+#define NV94_DISP_SOR_DP_LNKCTL_COUNT                                0x00000007
+#define NV94_DISP_SOR_DP_DRVCTL(l)                     ((l) * 0x40 + 0x00016100)
+#define NV94_DISP_SOR_DP_DRVCTL_VS                                   0x00000300
+#define NV94_DISP_SOR_DP_DRVCTL_PE                                   0x00000003
+
 struct nv50_display_class {
 };
 

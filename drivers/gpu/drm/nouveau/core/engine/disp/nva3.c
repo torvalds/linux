@@ -39,6 +39,17 @@ nva3_disp_sclass[] = {
 	{}
 };
 
+struct nouveau_omthds
+nva3_disp_base_omthds[] = {
+	{ SOR_MTHD(NV94_DISP_SOR_DP_TRAIN)    , nv50_sor_mthd },
+	{ SOR_MTHD(NV94_DISP_SOR_DP_LNKCTL)   , nv50_sor_mthd },
+	{ SOR_MTHD(NV94_DISP_SOR_DP_DRVCTL(0)), nv50_sor_mthd },
+	{ SOR_MTHD(NV94_DISP_SOR_DP_DRVCTL(1)), nv50_sor_mthd },
+	{ SOR_MTHD(NV94_DISP_SOR_DP_DRVCTL(2)), nv50_sor_mthd },
+	{ SOR_MTHD(NV94_DISP_SOR_DP_DRVCTL(3)), nv50_sor_mthd },
+	{},
+};
+
 static struct nouveau_oclass
 nva3_disp_base_oclass[] = {
 	{ NVA3_DISP_CLASS, &nv50_disp_base_ofuncs },

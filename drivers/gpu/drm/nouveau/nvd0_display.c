@@ -1350,107 +1350,37 @@ nvd0_hdmi_disconnect(struct drm_encoder *encoder)
 /******************************************************************************
  * SOR
  *****************************************************************************/
-static inline u32
-nvd0_sor_dp_lane_map(struct drm_device *dev, struct dcb_output *dcb, u8 lane)
-{
-	static const u8 nvd0[] = { 16, 8, 0, 24 };
-	return nvd0[lane];
-}
-
 static void
 nvd0_sor_dp_train_set(struct drm_device *dev, struct dcb_output *dcb, u8 pattern)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 loff = (or * 0x800) + (link * 0x80);
-	nv_mask(device, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
+	const u32 moff = (link << 2) | or;
+	nv_call(disp->core, NV94_DISP_SOR_DP_TRAIN + moff, pattern);
 }
 
 static void
 nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_output *dcb,
 		      u8 lane, u8 swing, u8 preem)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 loff = (or * 0x800) + (link * 0x80);
-	u32 shift = nvd0_sor_dp_lane_map(dev, dcb, lane);
-	u32 mask = 0x000000ff << shift;
-	u8 *table, *entry, *config = NULL;
-
-	switch (swing) {
-	case 0: preem += 0; break;
-	case 1: preem += 4; break;
-	case 2: preem += 7; break;
-	case 3: preem += 9; break;
-	}
-
-	table = nouveau_dp_bios_data(dev, dcb, &entry);
-	if (table) {
-		if (table[0] == 0x30) {
-			config  = entry + table[4];
-			config += table[5] * preem;
-		} else
-		if (table[0] == 0x40) {
-			config  = table + table[1];
-			config += table[2] * table[3];
-			config += table[6] * preem;
-		}
-	}
-
-	if (!config) {
-		NV_ERROR(drm, "PDISP: unsupported DP table for chipset\n");
-		return;
-	}
-
-	nv_mask(device, 0x61c118 + loff, mask, config[1] << shift);
-	nv_mask(device, 0x61c120 + loff, mask, config[2] << shift);
-	nv_mask(device, 0x61c130 + loff, 0x0000ff00, config[3] << 8);
-	nv_mask(device, 0x61c13c + loff, 0x00000000, 0x00000000);
+	const u32 moff = (link << 2) | or;
+	const u32 data = (swing << 8) | preem;
+	nv_call(disp->core, NV94_DISP_SOR_DP_DRVCTL(lane) + moff, data);
 }
 
 static void
 nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
 		     int link_nr, u32 link_bw, bool enhframe)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 loff = (or * 0x800) + (link * 0x80);
-	const u32 soff = (or * 0x800);
-	u32 dpctrl = nv_rd32(device, 0x61c10c + loff) & ~0x001f4000;
-	u32 clksor = nv_rd32(device, 0x612300 + soff) & ~0x007c0000;
-	u32 script = 0x0000, lane_mask = 0;
-	u8 *table, *entry;
-	int i;
-
-	link_bw /= 27000;
-
-	table = nouveau_dp_bios_data(dev, dcb, &entry);
-	if (table) {
-		if      (table[0] == 0x30) entry = ROMPTR(dev, entry[10]);
-		else if (table[0] == 0x40) entry = ROMPTR(dev, entry[9]);
-		else                       entry = NULL;
-
-		while (entry) {
-			if (entry[0] >= link_bw)
-				break;
-			entry += 3;
-		}
-
-		nouveau_bios_run_init_table(dev, script, dcb, crtc);
-	}
-
-	clksor |= link_bw << 18;
-	dpctrl |= ((1 << link_nr) - 1) << 16;
+	const u32 moff = (crtc << 3) | (link << 2) | or;
+	u32 data = ((link_bw / 27000) << 8) | link_nr;
 	if (enhframe)
-		dpctrl |= 0x00004000;
-
-	for (i = 0; i < link_nr; i++)
-		lane_mask |= 1 << (nvd0_sor_dp_lane_map(dev, dcb, i) >> 3);
-
-	nv_wr32(device, 0x612300 + soff, clksor);
-	nv_wr32(device, 0x61c10c + loff, dpctrl);
-	nv_mask(device, 0x61c130 + loff, 0x0000000f, lane_mask);
+		data |= NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH;
+	nv_call(disp->core, NV94_DISP_SOR_DP_LNKCTL + moff, data);
 }
 
 static void

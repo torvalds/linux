@@ -8,6 +8,8 @@
 #include <engine/dmaobj.h>
 #include <engine/disp.h>
 
+struct dcb_output;
+
 struct nv50_disp_priv {
 	struct nouveau_disp base;
 	struct nouveau_oclass *sclass;
@@ -19,8 +21,30 @@ struct nv50_disp_priv {
 	} dac;
 	struct {
 		int nr;
+		int (*dp_train)(struct nv50_disp_priv *, int sor, int link,
+				u16 type, u16 mask, u32 data,
+				struct dcb_output *);
+		int (*dp_lnkctl)(struct nv50_disp_priv *, int sor, int link,
+				 int head, u16 type, u16 mask, u32 data,
+				 struct dcb_output *);
+		int (*dp_drvctl)(struct nv50_disp_priv *, int sor, int link,
+				 int lane, u16 type, u16 mask, u32 data,
+				 struct dcb_output *);
 	} sor;
 };
+
+extern struct nouveau_omthds nva3_disp_base_omthds[];
+
+#define SOR_MTHD(n) (n), (n) + 0x3f
+
+int nv50_sor_mthd(struct nouveau_object *, u32, void *, u32);
+
+int nvd0_sor_dp_train(struct nv50_disp_priv *, int, int, u16, u16, u32,
+		      struct dcb_output *);
+int nvd0_sor_dp_lnkctl(struct nv50_disp_priv *, int, int, int, u16, u16, u32,
+		       struct dcb_output *);
+int nvd0_sor_dp_drvctl(struct nv50_disp_priv *, int, int, int, u16, u16, u32,
+		       struct dcb_output *);
 
 struct nv50_disp_base {
 	struct nouveau_parent base;
