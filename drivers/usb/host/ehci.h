@@ -784,7 +784,6 @@ static inline u32 hc32_to_cpup (const struct ehci_hcd *ehci, const __hc32 *x)
 /* Declarations of things exported for use by ehci platform drivers */
 
 struct ehci_driver_overrides {
-	const char	*product_desc;
 	size_t		extra_priv_size;
 	int		(*reset)(struct usb_hcd *hcd);
 };

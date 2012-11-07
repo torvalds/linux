@@ -25,16 +25,11 @@
 #include <linux/usb/hcd.h>
 #include <linux/usb/chipidea.h>
 
-#define CHIPIDEA_EHCI
 #include "../host/ehci.h"
 
 #include "ci.h"
 #include "bits.h"
 #include "host.h"
-
-static const struct ehci_driver_overrides ci_overrides = {
-	.product_desc =		"ChipIdea HDRC EHCI host controller",
-};
 
 static struct hc_driver __read_mostly ci_ehci_hc_driver;
 
@@ -103,7 +98,7 @@ int ci_hdrc_host_init(struct ci13xxx *ci)
 	rdrv->name	= "host";
 	ci->roles[CI_ROLE_HOST] = rdrv;
 
-	ehci_init_driver(&ci_ehci_hc_driver, &ci_overrides);
+	ehci_init_driver(&ci_ehci_hc_driver, NULL);
 
 	return 0;
 }

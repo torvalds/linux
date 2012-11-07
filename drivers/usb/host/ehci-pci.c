@@ -383,8 +383,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 
 static struct hc_driver __read_mostly ehci_pci_hc_driver;
 
-static const struct ehci_driver_overrides overrides = {
-	.product_desc =		"EHCI PCI host controller",
+static const struct ehci_driver_overrides pci_overrides __initdata = {
 	.reset =		ehci_pci_setup,
 };
 
@@ -426,7 +425,7 @@ static int __init ehci_pci_init(void)
 
 	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
 
-	ehci_init_driver(&ehci_pci_hc_driver, &overrides);
+	ehci_init_driver(&ehci_pci_hc_driver, &pci_overrides);
 
 	/* Entries for the PCI suspend/resume callbacks are special */
 	ehci_pci_hc_driver.pci_suspend = ehci_suspend;
