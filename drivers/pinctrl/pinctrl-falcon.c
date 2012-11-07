@@ -322,7 +322,7 @@ static void falcon_pinconf_group_dbg_show(struct pinctrl_dev *pctrldev,
 {
 }
 
-struct pinconf_ops falcon_pinconf_ops = {
+static struct pinconf_ops falcon_pinconf_ops = {
 	.pin_config_get			= falcon_pinconf_get,
 	.pin_config_set			= falcon_pinconf_set,
 	.pin_config_group_get		= falcon_pinconf_group_get,
