@@ -3317,7 +3317,7 @@ void dispc_dump_clocks(struct seq_file *s)
 }
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
-void dispc_dump_irqs(struct seq_file *s)
+static void dispc_dump_irqs(struct seq_file *s)
 {
 	unsigned long flags;
 	struct dispc_irq_stats stats;
