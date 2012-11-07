@@ -997,11 +997,9 @@ int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 
 	spin_lock_irqsave(&clkdm->lock, flags);
 
-#ifdef CONFIG_COMMON_CLK
 	/* corner case: disabling unused clocks */
 	if (__clk_get_enable_count(clk) == 0)
 		goto ccd_exit;
-#endif
 
 	if (atomic_read(&clkdm->usecount) == 0) {
 		spin_unlock_irqrestore(&clkdm->lock, flags);
@@ -1019,9 +1017,7 @@ int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk)
 
 	pr_debug("clockdomain: %s: disabled\n", clkdm->name);
 
-#ifdef CONFIG_COMMON_CLK
 ccd_exit:
-#endif
 	spin_unlock_irqrestore(&clkdm->lock, flags);
 
 	return 0;
