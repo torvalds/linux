@@ -18,6 +18,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
+#include <linux/of.h>
+
 /* Serialize access to ssc_list and user count */
 static DEFINE_SPINLOCK(user_lock);
 static LIST_HEAD(ssc_list);
@@ -29,7 +31,13 @@ struct ssc_device *ssc_request(unsigned int ssc_num)
 
 	spin_lock(&user_lock);
 	list_for_each_entry(ssc, &ssc_list, list) {
-		if (ssc->pdev->id == ssc_num) {
+		if (ssc->pdev->dev.of_node) {
+			if (of_alias_get_id(ssc->pdev->dev.of_node, "ssc")
+				== ssc_num) {
+				ssc_valid = 1;
+				break;
+			}
+		} else if (ssc->pdev->id == ssc_num) {
 			ssc_valid = 1;
 			break;
 		}
@@ -88,10 +96,41 @@ static const struct platform_device_id atmel_ssc_devtypes[] = {
 	}
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id atmel_ssc_dt_ids[] = {
+	{
+		.compatible = "atmel,at91rm9200-ssc",
+		.data = &at91rm9200_config,
+	}, {
+		.compatible = "atmel,at91sam9g45-ssc",
+		.data = &at91sam9g45_config,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, atmel_ssc_dt_ids);
+#endif
+
+static inline const struct atmel_ssc_platform_data * __init
+	atmel_ssc_get_driver_data(struct platform_device *pdev)
+{
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(atmel_ssc_dt_ids, pdev->dev.of_node);
+		if (match == NULL)
+			return NULL;
+		return match->data;
+	}
+
+	return (struct atmel_ssc_platform_data *)
+		platform_get_device_id(pdev)->driver_data;
+}
+
 static int ssc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	struct ssc_device *ssc;
+	const struct atmel_ssc_platform_data *plat_dat;
 
 	ssc = devm_kzalloc(&pdev->dev, sizeof(struct ssc_device), GFP_KERNEL);
 	if (!ssc) {
@@ -100,8 +139,11 @@ static int ssc_probe(struct platform_device *pdev)
 	}
 
 	ssc->pdev = pdev;
-	ssc->pdata = (struct atmel_ssc_platform_data *)
-			platform_get_device_id(pdev)->driver_data;
+
+	plat_dat = atmel_ssc_get_driver_data(pdev);
+	if (!plat_dat)
+		return -ENODEV;
+	ssc->pdata = (struct atmel_ssc_platform_data *)plat_dat;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs) {
@@ -160,6 +202,7 @@ static struct platform_driver ssc_driver = {
 	.driver		= {
 		.name		= "ssc",
 		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(atmel_ssc_dt_ids),
 	},
 	.id_table	= atmel_ssc_devtypes,
 	.probe		= ssc_probe,
