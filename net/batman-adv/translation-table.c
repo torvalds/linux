@@ -769,6 +769,12 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 		 */
 		tt_global_entry->common.flags &= ~BATADV_TT_CLIENT_TEMP;
 
+		/* the change can carry possible "attribute" flags like the
+		 * TT_CLIENT_WIFI, therefore they have to be copied in the
+		 * client entry
+		 */
+		tt_global_entry->common.flags |= flags;
+
 		/* If there is the BATADV_TT_CLIENT_ROAM flag set, there is only
 		 * one originator left in the list and we previously received a
 		 * delete + roaming change for this originator.
