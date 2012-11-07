@@ -442,11 +442,6 @@ void __init lpc32xx_init_irq(void)
 	lpc32xx_set_default_mappings(SIC1_APR_DEFAULT, SIC1_ATR_DEFAULT, 32);
 	lpc32xx_set_default_mappings(SIC2_APR_DEFAULT, SIC2_ATR_DEFAULT, 64);
 
-	/* mask all interrupts except SUBIRQ */
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_MIC_BASE));
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC1_BASE));
-	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_SIC2_BASE));
-
 	/* Initially disable all wake events */
 	__raw_writel(0, LPC32XX_CLKPWR_P01_ER);
 	__raw_writel(0, LPC32XX_CLKPWR_INT_ER);
