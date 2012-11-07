@@ -96,7 +96,9 @@ config LCD_HV070WSA100
 config LCD_COMMON
 	bool "LCD COMMON"
 config LCD_RK2928_A720
-        bool "RK2928 A720 panel 800x480"
+       bool "RK2928 A720 panel 800x480"
+config LCD_RK2926_V86
+	bool "RK2926 v86 panel 800x480"
 config LCD_HJ080NA
 	bool "HJ080NA_4J 1024X768"
 

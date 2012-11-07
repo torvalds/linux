@@ -44,6 +44,7 @@ obj-$(CONFIG_LCD_HSD100PXN_FOR_TDW851) += lcd_hsd100pxn_for_tdw851.o
 obj-$(CONFIG_LCD_HV070WSA100)    += lcd_hv070wsa.o
 obj-$(CONFIG_LCD_COMMON)    += lcd_common.o
 obj-$(CONFIG_LCD_RK2928_A720) += lcd_YQ70CPT9160.o
+obj-$(CONFIG_LCD_RK2926_V86) += lcd_YQ70CPT9160_v86.o
 obj-$(CONFIG_LCD_HSD07PFW1) += lcd_hsd07pfw1.o
 obj-$(CONFIG_LCD_HJ080NA)    += lcd_hj080na.o
 obj-$(CONFIG_LCD_HJ101NA)   += lcd_hj101na.o
