@@ -12,6 +12,7 @@ struct pci_root_info {
 	char name[16];
 	unsigned int res_num;
 	struct resource *res;
+	resource_size_t *res_offset;
 	struct pci_sysdata sd;
 #ifdef	CONFIG_PCI_MMCONFIG
 	bool mcfg_added;
@@ -305,6 +306,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->flags = flags;
 	res->start = start;
 	res->end = end;
+	info->res_offset[info->res_num] = addr.translation_offset;
 
 	if (!pci_use_crs) {
 		dev_printk(KERN_DEBUG, &info->bridge->dev,
@@ -374,7 +376,8 @@ static void add_resources(struct pci_root_info *info,
 				 "ignoring host bridge window %pR (conflicts with %s %pR)\n",
 				 res, conflict->name, conflict);
 		else
-			pci_add_resource(resources, res);
+			pci_add_resource_offset(resources, res,
+					info->res_offset[i]);
 	}
 }
 
@@ -382,6 +385,8 @@ static void free_pci_root_info_res(struct pci_root_info *info)
 {
 	kfree(info->res);
 	info->res = NULL;
+	kfree(info->res_offset);
+	info->res_offset = NULL;
 	info->res_num = 0;
 }
 
@@ -432,10 +437,20 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 		return;
 
 	size = sizeof(*info->res) * info->res_num;
-	info->res_num = 0;
 	info->res = kzalloc(size, GFP_KERNEL);
-	if (!info->res)
+	if (!info->res) {
+		info->res_num = 0;
 		return;
+	}
+
+	size = sizeof(*info->res_offset) * info->res_num;
+	info->res_num = 0;
+	info->res_offset = kzalloc(size, GFP_KERNEL);
+	if (!info->res_offset) {
+		kfree(info->res);
+		info->res = NULL;
+		return;
+	}
 
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				info);
