@@ -33,11 +33,7 @@
 
 #define DRIVER_NAME "sh_irda"
 
-#if defined(CONFIG_ARCH_SH7377)
-#define __IRDARAM_LEN	0x13FF
-#else
 #define __IRDARAM_LEN	0x1039
-#endif
 
 #define IRTMR		0x1F00 /* Transfer mode */
 #define IRCFR		0x1F02 /* Configuration */
