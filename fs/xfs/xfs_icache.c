@@ -1215,8 +1215,15 @@ xfs_inode_free_eofblocks(
 	    mapping_tagged(VFS_I(ip)->i_mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
 
-	if (eofb && !xfs_inode_match_id(ip, eofb))
-		return 0;
+	if (eofb) {
+		if (!xfs_inode_match_id(ip, eofb))
+			return 0;
+
+		/* skip the inode if the file size is too small */
+		if (eofb->eof_flags & XFS_EOF_FLAGS_MINFILESIZE &&
+		    XFS_ISIZE(ip) < eofb->eof_min_file_size)
+			return 0;
+	}
 
 	ret = xfs_free_eofblocks(ip->i_mount, ip, true);
 

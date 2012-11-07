@@ -350,7 +350,8 @@ struct xfs_eofblocks {
 	gid_t		eof_gid;
 	prid_t		eof_prid;
 	__u32		pad32;
-	__u64		pad64[13];
+	__u64		eof_min_file_size;
+	__u64		pad64[12];
 };
 
 /* eof_flags values */
@@ -358,11 +359,13 @@ struct xfs_eofblocks {
 #define XFS_EOF_FLAGS_UID		(1 << 1) /* filter by uid */
 #define XFS_EOF_FLAGS_GID		(1 << 2) /* filter by gid */
 #define XFS_EOF_FLAGS_PRID		(1 << 3) /* filter by project id */
+#define XFS_EOF_FLAGS_MINFILESIZE	(1 << 4) /* filter by min file size */
 #define XFS_EOF_FLAGS_VALID	\
 	(XFS_EOF_FLAGS_SYNC |	\
 	 XFS_EOF_FLAGS_UID |	\
 	 XFS_EOF_FLAGS_GID |	\
-	 XFS_EOF_FLAGS_PRID)
+	 XFS_EOF_FLAGS_PRID |	\
+	 XFS_EOF_FLAGS_MINFILESIZE)
 
 
 /*
