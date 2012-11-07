@@ -119,7 +119,8 @@ static int __devinit addi_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	if (!this_board->pc_EepromChip ||
-	    !strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
+	    strcmp(this_board->pc_EepromChip, ADDIDATA_9054)) {
+		/* board does not have an eeprom or is not ADDIDATA_9054 */
 		if (this_board->i_IorangeBase1)
 			dev->iobase = pci_resource_start(pcidev, 1);
 		else
@@ -129,6 +130,7 @@ static int __devinit addi_auto_attach(struct comedi_device *dev,
 		devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 		devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	} else {
+		/* board has an ADDIDATA_9054 eeprom */
 		dev->iobase = pci_resource_start(pcidev, 2);
 		devpriv->iobase = pci_resource_start(pcidev, 2);
 		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),

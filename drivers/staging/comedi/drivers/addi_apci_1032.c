@@ -265,7 +265,7 @@ static int __devinit apci1032_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	dev->iobase = pci_resource_start(pcidev, 2);
+	dev->iobase = pci_resource_start(pcidev, 1);
 
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci1032_interrupt, IRQF_SHARED,
