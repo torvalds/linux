@@ -508,9 +508,16 @@ static int ifx_spi_write(struct tty_struct *tty, const unsigned char *buf,
 {
 	struct ifx_spi_device *ifx_dev = tty->driver_data;
 	unsigned char *tmp_buf = (unsigned char *)buf;
-	int tx_count = kfifo_in_locked(&ifx_dev->tx_fifo, tmp_buf, count,
-				   &ifx_dev->fifo_lock);
-	mrdy_assert(ifx_dev);
+	unsigned long flags;
+	bool is_fifo_empty;
+
+	spin_lock_irqsave(&ifx_dev->fifo_lock, flags);
+	is_fifo_empty = kfifo_is_empty(&ifx_dev->tx_fifo);
+	int tx_count = kfifo_in(&ifx_dev->tx_fifo, tmp_buf, count);
+	spin_unlock_irqrestore(&ifx_dev->fifo_lock, flags);
+	if (is_fifo_empty)
+		mrdy_assert(ifx_dev);
+
 	return tx_count;
 }
 
