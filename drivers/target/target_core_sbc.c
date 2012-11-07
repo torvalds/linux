@@ -134,13 +134,7 @@ int spc_get_write_same_sectors(struct se_cmd *cmd)
 EXPORT_SYMBOL(spc_get_write_same_sectors);
 
 static sense_reason_t
-sbc_emulate_verify(struct se_cmd *cmd)
-{
-	target_complete_cmd(cmd, GOOD);
-	return 0;
-}
-
-static int sbc_emulate_noop(struct se_cmd *cmd)
+sbc_emulate_noop(struct se_cmd *cmd)
 {
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -540,7 +534,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		break;
 	case VERIFY:
 		size = 0;
-		cmd->execute_cmd = sbc_emulate_verify;
+		cmd->execute_cmd = sbc_emulate_noop;
 		break;
 	case REZERO_UNIT:
 	case SEEK_6:
