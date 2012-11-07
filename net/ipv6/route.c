@@ -321,13 +321,6 @@ static void ip6_dst_destroy(struct dst_entry *dst)
 	}
 }
 
-static atomic_t __rt6_peer_genid = ATOMIC_INIT(0);
-
-static u32 rt6_peer_genid(void)
-{
-	return atomic_read(&__rt6_peer_genid);
-}
-
 void rt6_bind_peer(struct rt6_info *rt, int create)
 {
 	struct inet_peer_base *base;
@@ -341,8 +334,6 @@ void rt6_bind_peer(struct rt6_info *rt, int create)
 	if (peer) {
 		if (!rt6_set_peer(rt, peer))
 			inet_putpeer(peer);
-		else
-			rt->rt6i_peer_genid = rt6_peer_genid();
 	}
 }
 
@@ -1099,14 +1090,9 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 	if (rt->rt6i_genid != rt_genid(dev_net(rt->dst.dev)))
 		return NULL;
 
-	if (rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie)) {
-		if (rt->rt6i_peer_genid != rt6_peer_genid()) {
-			if (!rt6_has_peer(rt))
-				rt6_bind_peer(rt, 0);
-			rt->rt6i_peer_genid = rt6_peer_genid();
-		}
+	if (rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie))
 		return dst;
-	}
+
 	return NULL;
 }
 

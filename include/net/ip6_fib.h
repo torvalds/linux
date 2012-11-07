@@ -117,7 +117,6 @@ struct rt6_info {
 	struct rt6key			rt6i_src;
 	struct rt6key			rt6i_prefsrc;
 	u32				rt6i_metric;
-	u32				rt6i_peer_genid;
 
 	struct inet6_dev		*rt6i_idev;
 	unsigned long			_rt6i_peer;
