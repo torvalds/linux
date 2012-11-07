@@ -822,6 +822,7 @@ static const struct nmk_pingroup nmk_db8540_groups[] = {
 	DB8540_PIN_GROUP(modaccuarttxrx_oc4_1, NMK_GPIO_ALT_C4),
 	DB8540_PIN_GROUP(modaccuartrtscts_oc4_1, NMK_GPIO_ALT_C4),
 	DB8540_PIN_GROUP(stmmod_oc4_1, NMK_GPIO_ALT_C4),
+	DB8540_PIN_GROUP(moduartstmmux_oc4_1, NMK_GPIO_ALT_C4),
 
 };
 
