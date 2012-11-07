@@ -1070,7 +1070,12 @@ static void rk30_adc_battery_poweron_capacity_check(void)
 //	//2）如果不这样做，短时间关机再开机，前后容量不一致又该怎么办？
 //	//3）一下那种方式合适？
 	//gBatteryData->bat_capacity = new_capacity;
-		gBatteryData->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
+	//	gBatteryData->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
+		if( gBatteryData ->pdata->is_reboot_charging == 1)
+			gBatteryData->bat_capacity = old_capacity;
+		else
+			gBatteryData->bat_capacity = (new_capacity > old_capacity) ? new_capacity : old_capacity;
+	
 	}else{
 
 		if(new_capacity > old_capacity + 50 )
