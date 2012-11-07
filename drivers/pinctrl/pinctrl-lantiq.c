@@ -275,16 +275,6 @@ static int ltq_pmx_enable(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-static void ltq_pmx_disable(struct pinctrl_dev *pctrldev,
-				unsigned func,
-				unsigned group)
-{
-	/*
-	 * Nothing to do here. However, pinconf_check_ops() requires this
-	 * callback to be defined.
-	 */
-}
-
 static int ltq_pmx_gpio_request_enable(struct pinctrl_dev *pctrldev,
 				struct pinctrl_gpio_range *range,
 				unsigned pin)
@@ -312,7 +302,6 @@ static struct pinmux_ops ltq_pmx_ops = {
 	.get_function_name	= ltq_pmx_func_name,
 	.get_function_groups	= ltq_pmx_get_groups,
 	.enable			= ltq_pmx_enable,
-	.disable		= ltq_pmx_disable,
 	.gpio_request_enable	= ltq_pmx_gpio_request_enable,
 };
 
