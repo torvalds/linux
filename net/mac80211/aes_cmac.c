@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/crypto.h>
+#include <linux/export.h>
 #include <linux/err.h>
 #include <crypto/aes.h>
 
