@@ -96,16 +96,23 @@
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGBE_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
-#define IXGBE_TX_FLAGS_CSUM		(u32)(1)
-#define IXGBE_TX_FLAGS_HW_VLAN		(u32)(1 << 1)
-#define IXGBE_TX_FLAGS_SW_VLAN		(u32)(1 << 2)
-#define IXGBE_TX_FLAGS_TSO		(u32)(1 << 3)
-#define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 4)
-#define IXGBE_TX_FLAGS_FCOE		(u32)(1 << 5)
-#define IXGBE_TX_FLAGS_FSO		(u32)(1 << 6)
-#define IXGBE_TX_FLAGS_TXSW		(u32)(1 << 7)
-#define IXGBE_TX_FLAGS_TSTAMP		(u32)(1 << 8)
-#define IXGBE_TX_FLAGS_NO_IFCS		(u32)(1 << 9)
+enum ixgbe_tx_flags {
+	/* cmd_type flags */
+	IXGBE_TX_FLAGS_HW_VLAN	= 0x01,
+	IXGBE_TX_FLAGS_TSO	= 0x02,
+	IXGBE_TX_FLAGS_TSTAMP	= 0x04,
+
+	/* olinfo flags */
+	IXGBE_TX_FLAGS_CC	= 0x08,
+	IXGBE_TX_FLAGS_IPV4	= 0x10,
+	IXGBE_TX_FLAGS_CSUM	= 0x20,
+
+	/* software defined flags */
+	IXGBE_TX_FLAGS_SW_VLAN	= 0x40,
+	IXGBE_TX_FLAGS_FCOE	= 0x80,
+};
+
+/* VLAN info */
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT  29
