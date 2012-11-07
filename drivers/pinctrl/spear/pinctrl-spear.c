@@ -14,7 +14,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -28,16 +27,6 @@
 #include "pinctrl-spear.h"
 
 #define DRIVER_NAME "spear-pinmux"
-
-static inline u32 pmx_readl(struct spear_pmx *pmx, u32 reg)
-{
-	return readl_relaxed(pmx->vbase + reg);
-}
-
-static inline void pmx_writel(struct spear_pmx *pmx, u32 val, u32 reg)
-{
-	writel_relaxed(val, pmx->vbase + reg);
-}
 
 static void muxregs_endisable(struct spear_pmx *pmx,
 		struct spear_muxreg *muxregs, u8 count, bool enable)
@@ -316,15 +305,24 @@ static int gpio_request_endisable(struct pinctrl_dev *pctldev,
 		struct pinctrl_gpio_range *range, unsigned offset, bool enable)
 {
 	struct spear_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	struct spear_pinctrl_machdata *machdata = pmx->machdata;
 	struct spear_gpio_pingroup *gpio_pingroup;
 
+	/*
+	 * Some SoC have configuration options applicable to group of pins,
+	 * rather than a single pin.
+	 */
 	gpio_pingroup = get_gpio_pingroup(pmx, offset);
-	if (IS_ERR(gpio_pingroup))
-		return PTR_ERR(gpio_pingroup);
-
 	if (gpio_pingroup)
 		muxregs_endisable(pmx, gpio_pingroup->muxregs,
 				gpio_pingroup->nmuxregs, enable);
+
+	/*
+	 * SoC may need some extra configurations, or configurations for single
+	 * pin
+	 */
+	if (machdata->gpio_request_endisable)
+		machdata->gpio_request_endisable(pmx, offset, enable);
 
 	return 0;
 }
