@@ -827,7 +827,6 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 	for (i = 0; i < num_mgrs; i++) {
 		struct omap_overlay_manager *mgr;
 		struct mgr_priv_data *mp;
-		bool was_updating;
 
 		mgr = omap_dss_get_overlay_manager(i);
 		mp = get_mgr_priv(mgr);
@@ -835,7 +834,6 @@ static void dss_apply_irq_handler(void *data, u32 mask)
 		if (!mp->enabled)
 			continue;
 
-		was_updating = mp->updating;
 		mp->updating = dispc_mgr_is_enabled(i);
 
 		if (!mgr_manual_update(mgr)) {
