@@ -21,7 +21,6 @@
 #include <linux/timex.h>
 #include <linux/errno.h>
 #include <linux/profile.h>
-#include <linux/syscore_ops.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
 
@@ -118,39 +117,6 @@ int __init register_persistent_clock(clock_access_fn read_boot,
 
 	return -EINVAL;
 }
-
-#if defined(CONFIG_PM) && !defined(CONFIG_GENERIC_CLOCKEVENTS)
-static int timer_suspend(void)
-{
-	if (system_timer->suspend)
-		system_timer->suspend();
-
-	return 0;
-}
-
-static void timer_resume(void)
-{
-	if (system_timer->resume)
-		system_timer->resume();
-}
-#else
-#define timer_suspend NULL
-#define timer_resume NULL
-#endif
-
-static struct syscore_ops timer_syscore_ops = {
-	.suspend	= timer_suspend,
-	.resume		= timer_resume,
-};
-
-static int __init timer_init_syscore_ops(void)
-{
-	register_syscore_ops(&timer_syscore_ops);
-
-	return 0;
-}
-
-device_initcall(timer_init_syscore_ops);
 
 void __init time_init(void)
 {

@@ -17,15 +17,6 @@
  *   Initialise the kernels jiffy timer source, claim interrupt
  *   using setup_irq.  This is called early on during initialisation
  *   while interrupts are still disabled on the local CPU.
- * - suspend
- *   Suspend the kernel jiffy timer source, if necessary.  This
- *   is called with interrupts disabled, after all normal devices
- *   have been suspended.  If no action is required, set this to
- *   NULL.
- * - resume
- *   Resume the kernel jiffy timer source, if necessary.  This
- *   is called with interrupts disabled before any normal devices
- *   are resumed.  If no action is required, set this to NULL.
  * - offset
  *   Return the timer offset in microseconds since the last timer
  *   interrupt.  Note: this must take account of any unprocessed
@@ -33,8 +24,6 @@
  */
 struct sys_timer {
 	void			(*init)(void);
-	void			(*suspend)(void);
-	void			(*resume)(void);
 };
 
 extern void timer_tick(void);
