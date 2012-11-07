@@ -109,17 +109,23 @@ int nouveau_object_del(struct nouveau_object *, u32 parent, u32 handle);
 void nouveau_object_debug(void);
 
 static inline int
-nv_call(void *obj, u32 mthd, u32 data)
+nv_exec(void *obj, u32 mthd, void *data, u32 size)
 {
 	struct nouveau_omthds *method = nv_oclass(obj)->omthds;
 
 	while (method && method->call) {
 		if (method->method == mthd)
-			return method->call(obj, mthd, &data, sizeof(data));
+			return method->call(obj, mthd, data, size);
 		method++;
 	}
 
 	return -EINVAL;
+}
+
+static inline int
+nv_call(void *obj, u32 mthd, u32 data)
+{
+	return nv_exec(obj, mthd, &data, sizeof(data));
 }
 
 static inline u8
