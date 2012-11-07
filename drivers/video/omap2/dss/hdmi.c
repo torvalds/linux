@@ -365,7 +365,7 @@ static int __init hdmi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void __exit hdmi_uninit_display(struct omap_dss_device *dssdev)
+static void hdmi_uninit_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("uninit_display\n");
 
