@@ -34,13 +34,13 @@
 #define LMI_CCITT		3 /* ITU-T Annex A */
 #define LMI_CISCO		4 /* The "original" LMI, aka Gang of Four */
 
-typedef struct { 
+typedef struct {
 	unsigned int clock_rate; /* bits per second */
 	unsigned int clock_type; /* internal, external, TX-internal etc. */
 	unsigned short loopback;
 } sync_serial_settings;          /* V.35, V.24, X.21 */
 
-typedef struct { 
+typedef struct {
 	unsigned int clock_rate; /* bits per second */
 	unsigned int clock_type; /* internal, external, TX-internal etc. */
 	unsigned short loopback;
