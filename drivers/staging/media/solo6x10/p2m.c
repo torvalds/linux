@@ -231,15 +231,15 @@ static void run_p2m_test(struct solo_dev *solo_dev)
 	u32 size = SOLO_JPEG_EXT_ADDR(solo_dev) + SOLO_JPEG_EXT_SIZE(solo_dev);
 	int i, d;
 
-	printk(KERN_WARNING "%s: Testing %u bytes of external ram\n",
-	       SOLO6X10_NAME, size);
+	dev_warn(&solo_dev->pdev->dev, "Testing %u bytes of external ram\n",
+		 size);
 
 	for (i = 0; i < size; i += TEST_CHUNK_SIZE)
 		for (d = 0; d < 4; d++)
 			errs += p2m_test(solo_dev, d, i, TEST_CHUNK_SIZE);
 
-	printk(KERN_WARNING "%s: Found %llu errors during p2m test\n",
-	       SOLO6X10_NAME, errs);
+	dev_warn(&solo_dev->pdev->dev, "Found %llu errors during p2m test\n",
+		 errs);
 
 	return;
 }
