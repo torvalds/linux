@@ -387,8 +387,6 @@ static int __init at91ether_probe(struct platform_device *pdev)
 	lp = netdev_priv(dev);
 	lp->pdev = pdev;
 	lp->dev = dev;
-	if (board_data)
-		lp->board_data = *board_data;
 	spin_lock_init(&lp->lock);
 
 	dev->base_addr = regs->start;		/* physical base address */

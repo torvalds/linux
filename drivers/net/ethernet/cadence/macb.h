@@ -557,12 +557,7 @@ struct macb {
 
 	phy_interface_t		phy_interface;
 
-	/* at91_private */
-	struct macb_platform_data board_data;	/* board-specific
-						 * configuration (shared with
-						 * macb for common data */
-
-	/* Transmit */
+	/* AT91RM9200 transmit */
 	struct sk_buff *skb;			/* holds skb until xmit interrupt completes */
 	dma_addr_t skb_physaddr;		/* phys addr from pci_map_single */
 	int skb_length;				/* saved skb length for pci_unmap_single */
