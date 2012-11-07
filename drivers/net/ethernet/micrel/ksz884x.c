@@ -7251,18 +7251,7 @@ static struct pci_driver pci_device_driver = {
 	.remove		= pcidev_exit
 };
 
-static int __init ksz884x_init_module(void)
-{
-	return pci_register_driver(&pci_device_driver);
-}
-
-static void __exit ksz884x_cleanup_module(void)
-{
-	pci_unregister_driver(&pci_device_driver);
-}
-
-module_init(ksz884x_init_module);
-module_exit(ksz884x_cleanup_module);
+module_pci_driver(pci_device_driver);
 
 MODULE_DESCRIPTION("KSZ8841/2 PCI network driver");
 MODULE_AUTHOR("Tristram Ha <Tristram.Ha@micrel.com>");
