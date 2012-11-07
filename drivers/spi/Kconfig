@@ -123,6 +123,13 @@ config SPI_BUTTERFLY
 	  inexpensive battery powered microcontroller evaluation board.
 	  This same cable can be used to flash new firmware.
 
+config SPI_CLPS711X
+	tristate "CLPS711X host SPI controller"
+	depends on ARCH_CLPS711X
+	help
+	  This enables dedicated general purpose SPI/Microwire1-compatible
+	  master mode interface (SSI1) for CLPS711X-based CPUs.
+
 config SPI_COLDFIRE_QSPI
 	tristate "Freescale Coldfire QSPI controller"
 	depends on (M520x || M523x || M5249 || M525x || M527x || M528x || M532x)
