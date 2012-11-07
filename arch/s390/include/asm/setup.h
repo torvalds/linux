@@ -64,13 +64,14 @@ extern unsigned int s390_user_mode;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
-#define MACHINE_FLAG_CSP	(1UL << 3)
-#define MACHINE_FLAG_MVPG	(1UL << 4)
-#define MACHINE_FLAG_DIAG44	(1UL << 5)
-#define MACHINE_FLAG_IDTE	(1UL << 6)
-#define MACHINE_FLAG_DIAG9C	(1UL << 7)
-#define MACHINE_FLAG_MVCOS	(1UL << 8)
-#define MACHINE_FLAG_KVM	(1UL << 9)
+#define MACHINE_FLAG_CSP	(1UL << 2)
+#define MACHINE_FLAG_MVPG	(1UL << 3)
+#define MACHINE_FLAG_DIAG44	(1UL << 4)
+#define MACHINE_FLAG_IDTE	(1UL << 5)
+#define MACHINE_FLAG_DIAG9C	(1UL << 6)
+#define MACHINE_FLAG_MVCOS	(1UL << 7)
+#define MACHINE_FLAG_KVM	(1UL << 8)
+#define MACHINE_FLAG_ESOP	(1UL << 9)
 #define MACHINE_FLAG_EDAT1	(1UL << 10)
 #define MACHINE_FLAG_EDAT2	(1UL << 11)
 #define MACHINE_FLAG_LPAR	(1UL << 12)
@@ -84,6 +85,7 @@ extern unsigned int s390_user_mode;
 #define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
 
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
+#define MACHINE_HAS_ESOP	(S390_lowcore.machine_flags & MACHINE_FLAG_ESOP)
 #define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
 #define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
 
