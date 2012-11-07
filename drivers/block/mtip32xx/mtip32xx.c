@@ -2218,8 +2218,8 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		fis.device);
 
 	/* check for erase mode support during secure erase.*/
-	if ((fis.command == ATA_CMD_SEC_ERASE_UNIT)
-					&& (outbuf[0] & MTIP_SEC_ERASE_MODE)) {
+	if ((fis.command == ATA_CMD_SEC_ERASE_UNIT) && outbuf &&
+					(outbuf[0] & MTIP_SEC_ERASE_MODE)) {
 		erasemode = 1;
 	}
 
