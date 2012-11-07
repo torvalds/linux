@@ -114,23 +114,28 @@ static void __init macb_get_hwaddr(struct macb *bp)
 	u32 bottom;
 	u16 top;
 	u8 addr[6];
+	int i;
 
-	bottom = macb_or_gem_readl(bp, SA1B);
-	top = macb_or_gem_readl(bp, SA1T);
+	/* Check all 4 address register for vaild address */
+	for (i = 0; i < 4; i++) {
+		bottom = macb_or_gem_readl(bp, SA1B + i * 8);
+		top = macb_or_gem_readl(bp, SA1T + i * 8);
 
-	addr[0] = bottom & 0xff;
-	addr[1] = (bottom >> 8) & 0xff;
-	addr[2] = (bottom >> 16) & 0xff;
-	addr[3] = (bottom >> 24) & 0xff;
-	addr[4] = top & 0xff;
-	addr[5] = (top >> 8) & 0xff;
+		addr[0] = bottom & 0xff;
+		addr[1] = (bottom >> 8) & 0xff;
+		addr[2] = (bottom >> 16) & 0xff;
+		addr[3] = (bottom >> 24) & 0xff;
+		addr[4] = top & 0xff;
+		addr[5] = (top >> 8) & 0xff;
 
-	if (is_valid_ether_addr(addr)) {
-		memcpy(bp->dev->dev_addr, addr, sizeof(addr));
-	} else {
-		netdev_info(bp->dev, "invalid hw address, using random\n");
-		eth_hw_addr_random(bp->dev);
+		if (is_valid_ether_addr(addr)) {
+			memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+			return;
+		}
 	}
+
+	netdev_info(bp->dev, "invalid hw address, using random\n");
+	eth_hw_addr_random(bp->dev);
 }
 
 static int macb_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
