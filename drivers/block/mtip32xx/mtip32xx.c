@@ -2465,8 +2465,12 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	fis->opts        = 1 << 7;
 	fis->command     =
 		(dir == READ ? ATA_CMD_FPDMA_READ : ATA_CMD_FPDMA_WRITE);
-	*((unsigned int *) &fis->lba_low) = (start & 0xFFFFFF);
-	*((unsigned int *) &fis->lba_low_ex) = ((start >> 24) & 0xFFFFFF);
+	fis->lba_low     = start & 0xFF;
+	fis->lba_mid     = (start >> 8) & 0xFF;
+	fis->lba_hi      = (start >> 16) & 0xFF;
+	fis->lba_low_ex  = (start >> 24) & 0xFF;
+	fis->lba_mid_ex  = (start >> 32) & 0xFF;
+	fis->lba_hi_ex   = (start >> 40) & 0xFF;
 	fis->device	 = 1 << 6;
 	fis->features    = nsect & 0xFF;
 	fis->features_ex = (nsect >> 8) & 0xFF;
