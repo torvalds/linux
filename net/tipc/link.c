@@ -97,7 +97,6 @@ static int  link_send_sections_long(struct tipc_port *sender,
 				    struct iovec const *msg_sect,
 				    u32 num_sect, unsigned int total_len,
 				    u32 destnode);
-static void link_check_defragm_bufs(struct tipc_link *l_ptr);
 static void link_state_event(struct tipc_link *l_ptr, u32 event);
 static void link_reset_statistics(struct tipc_link *l_ptr);
 static void link_print(struct tipc_link *l_ptr, const char *str);
@@ -271,7 +270,6 @@ static void link_timeout(struct tipc_link *l_ptr)
 	}
 
 	/* do all other link processing performed on a periodic basis */
-	link_check_defragm_bufs(l_ptr);
 
 	link_state_event(l_ptr, TIMEOUT_EVT);
 
@@ -2497,16 +2495,6 @@ static void set_expected_frags(struct sk_buff *buf, u32 exp)
 	msg_set_bcast_ack(buf_msg(buf), exp);
 }
 
-static u32 get_timer_cnt(struct sk_buff *buf)
-{
-	return msg_reroute_cnt(buf_msg(buf));
-}
-
-static void incr_timer_cnt(struct sk_buff *buf)
-{
-	msg_incr_reroute_cnt(buf_msg(buf));
-}
-
 /*
  * tipc_link_recv_fragment(): Called with node lock on. Returns
  * the reassembled buffer if message is complete.
@@ -2583,38 +2571,6 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 	}
 	kfree_skb(fbuf);
 	return 0;
-}
-
-/**
- * link_check_defragm_bufs - flush stale incoming message fragments
- * @l_ptr: pointer to link
- */
-static void link_check_defragm_bufs(struct tipc_link *l_ptr)
-{
-	struct sk_buff *prev = NULL;
-	struct sk_buff *next = NULL;
-	struct sk_buff *buf = l_ptr->defragm_buf;
-
-	if (!buf)
-		return;
-	if (!link_working_working(l_ptr))
-		return;
-	while (buf) {
-		u32 cnt = get_timer_cnt(buf);
-
-		next = buf->next;
-		if (cnt < 4) {
-			incr_timer_cnt(buf);
-			prev = buf;
-		} else {
-			if (prev)
-				prev->next = buf->next;
-			else
-				l_ptr->defragm_buf = buf->next;
-			kfree_skb(buf);
-		}
-		buf = next;
-	}
 }
 
 static void link_set_supervision_props(struct tipc_link *l_ptr, u32 tolerance)
