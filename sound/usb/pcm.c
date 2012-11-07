@@ -376,7 +376,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 		subs->period_bytes != params_period_bytes(hw_params) ||
 		subs->cur_rate != rate;
 
-	mutex_lock(&subs->stream->chip->shutdown_mutex);
+	down_read(&subs->stream->chip->shutdown_rwsem);
 	if (subs->stream->chip->shutdown) {
 		ret = -ENODEV;
 		goto unlock;
@@ -406,7 +406,7 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	}
 
 unlock:
-	mutex_unlock(&subs->stream->chip->shutdown_mutex);
+	up_read(&subs->stream->chip->shutdown_rwsem);
 	return ret;
 }
 
@@ -422,9 +422,9 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->cur_audiofmt = NULL;
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
-	mutex_lock(&subs->stream->chip->shutdown_mutex);
+	down_read(&subs->stream->chip->shutdown_rwsem);
 	snd_usb_release_substream_urbs(subs, 0);
-	mutex_unlock(&subs->stream->chip->shutdown_mutex);
+	up_read(&subs->stream->chip->shutdown_rwsem);
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
@@ -444,7 +444,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		return -ENXIO;
 	}
 
-	mutex_lock(&subs->stream->chip->shutdown_mutex);
+	down_read(&subs->stream->chip->shutdown_rwsem);
 	if (subs->stream->chip->shutdown) {
 		ret = -ENODEV;
 		goto unlock;
@@ -463,7 +463,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 
 	ret = snd_usb_substream_prepare(subs, runtime);
  unlock:
-	mutex_unlock(&subs->stream->chip->shutdown_mutex);
+	up_read(&subs->stream->chip->shutdown_rwsem);
 	return ret;
 }
 
