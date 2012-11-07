@@ -410,6 +410,7 @@ hist_entry__collapse(struct hist_entry *left, struct hist_entry *right)
 
 void hist_entry__free(struct hist_entry *he)
 {
+	free(he->branch_info);
 	free(he);
 }
 
