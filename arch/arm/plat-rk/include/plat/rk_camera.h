@@ -37,7 +37,7 @@
 
 #define RK_CAM_NUM 6
 #define RK29_CAM_SUPPORT_NUMS  RK_CAM_NUM
-#define RK_CAM_SUPPORT_RESOLUTION 0x500000
+#define RK_CAM_SUPPORT_RESOLUTION 0x800000
 /*---------------- Camera Sensor Must Define Macro Begin  ------------------------*/
 #define RK29_CAM_SENSOR_OV7675 ov7675
 #define RK29_CAM_SENSOR_OV9650 ov9650
@@ -114,7 +114,11 @@
 #define ov3640_FULL_RESOLUTION     0x300000           // 3 megapixel
 #define ov3660_FULL_RESOLUTION     0x300000           // 3 megapixel
 #define ov5640_FULL_RESOLUTION     0x500000           // 5 megapixel
-#define ov5642_FULL_RESOLUTION     0x500000           // 5 megapixel
+#if defined(CONFIG_SOC_CAMERA_OV5642_INTERPOLATION_8M)
+	#define ov5642_FULL_RESOLUTION     0x800000            // 8 megapixel
+#else	
+    #define ov5642_FULL_RESOLUTION     0x500000           // 5 megapixel
+#endif
 #define s5k6aa_FULL_RESOLUTION     0x130000           // 1.3 megapixel
 #define mt9d112_FULL_RESOLUTION    0x200000           // 2 megapixel
 #define mt9d113_FULL_RESOLUTION    0x200000           // 2 megapixel

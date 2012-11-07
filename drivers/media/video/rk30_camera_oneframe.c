@@ -271,9 +271,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 		  5.arm scale algorithm has something wrong(may exceed the bound of width or height) ,fix it.
 *v0.x.15: 
 *         1. support rk3066b;
-
+*v0.x.17: 
+*         1. support 8Mega picture;
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x15)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x17)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -932,6 +933,7 @@ static int rk_camera_scale_crop_ipp(struct work_struct *work)
 	int src_y_offset,src_uv_offset,dst_y_offset,dst_uv_offset,src_y_size,dst_y_size;
 	int scale_times,w,h;
 	 int ret = 0;
+
     /*
     *ddl@rock-chips.com: 
     * IPP Dest image resolution is 2047x1088, so scale operation break up some times
@@ -1002,7 +1004,6 @@ static int rk_camera_scale_crop_ipp(struct work_struct *work)
     		}
         }
     }
-
 do_ipp_err:
 	return ret;    
 }
@@ -1046,7 +1047,7 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
 
     zoomindstxIntInv = ((unsigned long)cropW<<16)/dstW + 1;
     zoomindstyIntInv = ((unsigned long)cropH<<16)/dstH + 1;
- 
+
     //y
     //for(y = 0; y<dstH - 1 ; y++ ) {   
     for(y = 0; y<dstH; y++ ) {   
@@ -1116,7 +1117,6 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
         }
         pdUV += dstW*2;
     }
-
 rk_camera_scale_crop_arm_end:
 
     dmac_flush_range((void*)src,(void*)(src+pcdev->vipmem_bsize));
@@ -2148,6 +2148,8 @@ static bool rk_camera_fmt_capturechk(struct v4l2_format *f)
 		ret = true;
 	} else if ((f->fmt.pix.width == 2592) && (f->fmt.pix.height == 1944)) {
 		ret = true;
+	} else if ((f->fmt.pix.width == 3264) && (f->fmt.pix.height == 2448)) {
+		ret = true;
 	}
 
 	if (ret == true)
@@ -2203,6 +2205,10 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 	mf.field	= pix->field;
 	mf.colorspace	= pix->colorspace;
 	mf.code		= xlate->code;
+    /* ddl@rock-chips.com : It is query max resolution only. */
+    if ((usr_w == 10000) && (usr_h == 10000)) {
+        mf.reserved[6] = 0xfefe5a5a;
+    }
 
 	ret = v4l2_subdev_call(sd, video, try_mbus_fmt, &mf);
 	if (ret < 0)

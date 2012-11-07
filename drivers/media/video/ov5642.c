@@ -49,8 +49,15 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_ID 0x5642
 #define SENSOR_MIN_WIDTH    176
 #define SENSOR_MIN_HEIGHT   144
-#define SENSOR_MAX_WIDTH    2592
-#define SENSOR_MAX_HEIGHT   1944
+#define SENSOR_MAX_WIDTH_REAL  2592
+#define SENSOR_MAX_HEIGHT_REAL  1944
+#if defined(CONFIG_SOC_CAMERA_OV5642_INTERPOLATION_8M)
+#define SENSOR_MAX_WIDTH    3264
+#define SENSOR_MAX_HEIGHT   2448
+#else
+#define SENSOR_MAX_WIDTH    SENSOR_MAX_WIDTH_REAL
+#define SENSOR_MAX_HEIGHT   SENSOR_MAX_HEIGHT_REAL
+#endif
 #define SENSOR_INIT_WIDTH	sensor_init_width			/* Sensor pixel size for sensor_init_data array */
 #define SENSOR_INIT_HEIGHT	sensor_init_height
 #define SENSOR_INIT_WINSEQADR  sensor_init_winseq_p
@@ -4587,6 +4594,8 @@ static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_mbus_frame
 		ret = true;
 	} else if ((mf->width == 2592) && (mf->height == 1944)) {
 		ret = true;
+	} else if ((mf->width == 3264) && (mf->height == 2448)) {
+		ret = true;
 	}
 
 	if (ret == true)
@@ -4726,6 +4735,14 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         set_w = 2592;
         set_h = 1944;
     }
+#if defined(CONFIG_SOC_CAMERA_OV5642_INTERPOLATION)
+    else if (((set_w <= SENSOR_MAX_WIDTH) && (set_h <= SENSOR_MAX_HEIGHT)) )
+	{
+	    winseqe_set_addr = sensor_qsxga;
+        set_w = SENSOR_MAX_WIDTH_REAL;
+	    set_h = SENSOR_MAX_HEIGHT_REAL;
+	}
+#endif     
     else
     {
         winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
@@ -4858,7 +4875,15 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 	if (fmt == NULL) {
 		fmt = &sensor->info_priv.fmt;
         mf->code = fmt->code;
-	} 
+	}
+    /* ddl@rock-chips.com : It is query max resolution only. */
+    if (mf->reserved[6] == 0xfefe5a5a) {
+        mf->height = SENSOR_MAX_HEIGHT;
+        mf->width = SENSOR_MAX_WIDTH;
+        ret = 0;
+        printk("%s(%d): query resolution\n",__FUNCTION__,__LINE__);
+        goto sensor_try_fmt_end;
+    }
 
     if (mf->height > SENSOR_MAX_HEIGHT)
         mf->height = SENSOR_MAX_HEIGHT;
@@ -4933,6 +4958,13 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         set_w = 2592;
         set_h = 1944;
     }
+#if defined(CONFIG_SOC_CAMERA_OV5642_INTERPOLATION)
+    else if (((set_w <= SENSOR_MAX_WIDTH) && (set_h <= SENSOR_MAX_HEIGHT)) )
+	{
+        set_w = SENSOR_MAX_WIDTH_REAL;
+	    set_h = SENSOR_MAX_HEIGHT_REAL;
+	}
+#endif    
     else
     {
         set_w = SENSOR_INIT_WIDTH;
@@ -4943,7 +4975,7 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     mf->height = set_h;
     
     mf->colorspace = fmt->colorspace;
-    
+sensor_try_fmt_end:    
     return ret;
 }
 

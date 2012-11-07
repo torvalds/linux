@@ -185,7 +185,10 @@
 #endif
 
 //CIF 0
-#if (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x500000)
+#if (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x800000)   /* ddl@rock-chips.com : It is only support 5Mega interplate to 8Mega */
+#define PMEM_CAM_NECESSARY_CIF_0   0x1900000       /* 1280*720*1.5*4(preview) + 12M(capture raw) + 7M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_0    0x800000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x500000)
 #define PMEM_CAM_NECESSARY_CIF_0   0x1400000       /* 1280*720*1.5*4(preview) + 7.5M(capture raw) + 4M(jpeg encode output) */
 #define PMEM_CAMIPP_NECESSARY_CIF_0    0x800000
 #elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x300000)
@@ -209,7 +212,10 @@
 #endif
 
 //CIF 1
-#if (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x500000)
+#if (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x800000)   /* ddl@rock-chips.com : It is only support 5Mega interplate to 8Mega */
+#define PMEM_CAM_NECESSARY_CIF_1   0x1900000       /* 1280*720*1.5*4(preview) + 12M(capture raw) + 7M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_1    0x800000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x500000)
 #define PMEM_CAM_NECESSARY_CIF_1	 0x1400000		 /* 1280*720*1.5*4(preview) + 7.5M(capture raw) + 4M(jpeg encode output) */
 #define PMEM_CAMIPP_NECESSARY_CIF_1	  0x800000
 #elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x300000)
