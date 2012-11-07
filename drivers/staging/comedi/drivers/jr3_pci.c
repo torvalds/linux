@@ -360,7 +360,7 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	return result;
 }
 
-static int jr3_download_firmware(struct comedi_device *dev, const u8 * data,
+static int jr3_download_firmware(struct comedi_device *dev, const u8 *data,
 				 size_t size)
 {
 	/*
@@ -470,14 +470,13 @@ static struct poll_delay_t jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 		struct jr3_channel __iomem *channel = p->channel;
 		int errors = get_u16(&channel->errors);
 
-		if (errors != p->errors) {
+		if (errors != p->errors)
 			p->errors = errors;
-		}
-		if (errors & (watch_dog | watch_dog2 | sensor_change)) {
+
+		if (errors & (watch_dog | watch_dog2 | sensor_change))
 			/*  Sensor communication lost, force poll mode */
 			p->state = state_jr3_poll;
 
-		}
 		switch (p->state) {
 		case state_jr3_poll: {
 				u16 model_no = get_u16(&channel->model_no);
