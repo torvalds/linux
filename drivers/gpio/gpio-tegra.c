@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/irqdomain.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm.h>
 
 #include <asm/mach/irq.h>
 
@@ -64,7 +65,7 @@ struct tegra_gpio_bank {
 	int bank;
 	int irq;
 	spinlock_t lvl_lock[4];
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u32 cnf[4];
 	u32 out[4];
 	u32 oe[4];
@@ -285,8 +286,8 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 }
 
-#ifdef CONFIG_PM
-void tegra_gpio_resume(void)
+#ifdef CONFIG_PM_SLEEP
+static int tegra_gpio_resume(struct device *dev)
 {
 	unsigned long flags;
 	int b;
@@ -308,9 +309,10 @@ void tegra_gpio_resume(void)
 	}
 
 	local_irq_restore(flags);
+	return 0;
 }
 
-void tegra_gpio_suspend(void)
+static int tegra_gpio_suspend(struct device *dev)
 {
 	unsigned long flags;
 	int b;
@@ -330,6 +332,7 @@ void tegra_gpio_suspend(void)
 		}
 	}
 	local_irq_restore(flags);
+	return 0;
 }
 
 static int tegra_gpio_wake_enable(struct irq_data *d, unsigned int enable)
@@ -345,9 +348,13 @@ static struct irq_chip tegra_gpio_irq_chip = {
 	.irq_mask	= tegra_gpio_irq_mask,
 	.irq_unmask	= tegra_gpio_irq_unmask,
 	.irq_set_type	= tegra_gpio_irq_set_type,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.irq_set_wake	= tegra_gpio_wake_enable,
 #endif
+};
+
+static const struct dev_pm_ops tegra_gpio_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
 struct tegra_gpio_soc_config {
@@ -489,6 +496,7 @@ static struct platform_driver tegra_gpio_driver = {
 	.driver		= {
 		.name	= "tegra-gpio",
 		.owner	= THIS_MODULE,
+		.pm	= &tegra_gpio_pm_ops,
 		.of_match_table = tegra_gpio_of_match,
 	},
 	.probe		= tegra_gpio_probe,
