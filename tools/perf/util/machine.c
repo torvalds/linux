@@ -84,15 +84,19 @@ int machine__process_lost_event(struct machine *machine __maybe_unused,
 static void machine__set_kernel_mmap_len(struct machine *machine,
 					 union perf_event *event)
 {
-	machine->vmlinux_maps[MAP__FUNCTION]->start = event->mmap.start;
-	machine->vmlinux_maps[MAP__FUNCTION]->end   = (event->mmap.start +
-						       event->mmap.len);
-	/*
-	 * Be a bit paranoid here, some perf.data file came with
-	 * a zero sized synthesized MMAP event for the kernel.
-	 */
-	if (machine->vmlinux_maps[MAP__FUNCTION]->end == 0)
-		machine->vmlinux_maps[MAP__FUNCTION]->end = ~0ULL;
+	int i;
+
+	for (i = 0; i < MAP__NR_TYPES; i++) {
+		machine->vmlinux_maps[i]->start = event->mmap.start;
+		machine->vmlinux_maps[i]->end   = (event->mmap.start +
+						   event->mmap.len);
+		/*
+		 * Be a bit paranoid here, some perf.data file came with
+		 * a zero sized synthesized MMAP event for the kernel.
+		 */
+		if (machine->vmlinux_maps[i]->end == 0)
+			machine->vmlinux_maps[i]->end = ~0ULL;
+	}
 }
 
 static int machine__process_kernel_mmap_event(struct machine *machine,
