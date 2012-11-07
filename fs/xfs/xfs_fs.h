@@ -340,6 +340,22 @@ typedef struct xfs_error_injection {
 
 
 /*
+ * Speculative preallocation trimming.
+ */
+#define XFS_EOFBLOCKS_VERSION		1
+struct xfs_eofblocks {
+	__u32		eof_version;
+	__u32		eof_flags;
+	__u64		pad[15];
+};
+
+/* eof_flags values */
+#define XFS_EOF_FLAGS_SYNC		(1 << 0) /* sync/wait mode scan */
+#define XFS_EOF_FLAGS_VALID	\
+	(XFS_EOF_FLAGS_SYNC)
+
+
+/*
  * The user-level Handle Request interface structure.
  */
 typedef struct xfs_fsop_handlereq {
@@ -457,6 +473,7 @@ typedef struct xfs_handle {
 /*	XFS_IOC_GETBIOSIZE ---- deprecated 47	   */
 #define XFS_IOC_GETBMAPX	_IOWR('X', 56, struct getbmap)
 #define XFS_IOC_ZERO_RANGE	_IOW ('X', 57, struct xfs_flock64)
+#define XFS_IOC_FREE_EOFBLOCKS	_IOR ('X', 58, struct xfs_eofblocks)
 
 /*
  * ioctl commands that replace IRIX syssgi()'s

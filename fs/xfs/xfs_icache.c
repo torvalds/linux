@@ -1206,11 +1206,15 @@ xfs_inode_free_eofblocks(
 int
 xfs_icache_free_eofblocks(
 	struct xfs_mount	*mp,
-	int			flags)
+	struct xfs_eofblocks	*eofb)
 {
-	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
+	int flags = SYNC_TRYLOCK;
+
+	if (eofb && (eofb->eof_flags & XFS_EOF_FLAGS_SYNC))
+		flags = SYNC_WAIT;
+
 	return xfs_inode_ag_iterator_tag(mp, xfs_inode_free_eofblocks, flags,
-					 NULL, XFS_ICI_EOFBLOCKS_TAG);
+					 eofb, XFS_ICI_EOFBLOCKS_TAG);
 }
 
 void
