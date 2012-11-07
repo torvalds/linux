@@ -2264,14 +2264,16 @@ static int dispc_ovl_calc_scaling_44xx(enum omap_plane plane,
 	u16 in_height = DIV_ROUND_UP(height, *decim_y);
 	const int maxsinglelinewidth =
 				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
-	unsigned long pclk = dispc_plane_pclk_rate(plane);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
 
-	if (mem_to_mem)
-		in_width_max = DIV_ROUND_UP(out_width, maxdownscale);
-	else
+	if (mem_to_mem) {
+		in_width_max = out_width * maxdownscale;
+	} else {
+		unsigned long pclk = dispc_plane_pclk_rate(plane);
+
 		in_width_max = dispc_core_clk_rate() /
 					DIV_ROUND_UP(pclk, out_width);
+	}
 
 	*decim_x = DIV_ROUND_UP(width, in_width_max);
 
