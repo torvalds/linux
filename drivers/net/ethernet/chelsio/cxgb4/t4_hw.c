@@ -2831,7 +2831,7 @@ int t4_fixup_host_params(struct adapter *adap, unsigned int page_size,
 		     HOSTPAGESIZEPF7(sge_hps));
 
 	t4_set_reg_field(adap, SGE_CONTROL,
-			 INGPADBOUNDARY(INGPADBOUNDARY_MASK) |
+			 INGPADBOUNDARY_MASK |
 			 EGRSTATUSPAGESIZE_MASK,
 			 INGPADBOUNDARY(fl_align_log - 5) |
 			 EGRSTATUSPAGESIZE(stat_len != 64));
