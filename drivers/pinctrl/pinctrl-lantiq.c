@@ -46,8 +46,8 @@ static int ltq_get_group_pins(struct pinctrl_dev *pctrldev,
 	return 0;
 }
 
-void ltq_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
-				struct pinctrl_map *map, unsigned num_maps)
+static void ltq_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
+				    struct pinctrl_map *map, unsigned num_maps)
 {
 	int i;
 
@@ -128,10 +128,10 @@ static int ltq_pinctrl_dt_subnode_size(struct device_node *np)
 	return ret;
 }
 
-int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				struct device_node *np_config,
-				struct pinctrl_map **map,
-				unsigned *num_maps)
+static int ltq_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+				      struct device_node *np_config,
+				      struct pinctrl_map **map,
+				      unsigned *num_maps)
 {
 	struct pinctrl_map *tmp;
 	struct device_node *np;
