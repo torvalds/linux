@@ -412,7 +412,6 @@ static const struct of_device_id mic_of_match[] __initconst = {
 void __init lpc32xx_init_irq(void)
 {
 	unsigned int i;
-	int irq_base;
 
 	/* Setup MIC */
 	__raw_writel(0, LPC32XX_INTC_MASK(LPC32XX_MIC_BASE));
@@ -475,15 +474,8 @@ void __init lpc32xx_init_irq(void)
 
 	of_irq_init(mic_of_match);
 
-	irq_base = irq_alloc_descs(-1, 0, NR_IRQS, 0);
-	if (irq_base < 0) {
-		pr_warn("Cannot allocate irq_descs, assuming pre-allocated\n");
-		irq_base = 0;
-	}
-
 	lpc32xx_mic_domain = irq_domain_add_legacy(lpc32xx_mic_np, NR_IRQS,
-						   irq_base, 0,
-						   &irq_domain_simple_ops,
+						   0, 0, &irq_domain_simple_ops,
 						   NULL);
 	if (!lpc32xx_mic_domain)
 		panic("Unable to add MIC irq domain\n");
