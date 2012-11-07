@@ -98,7 +98,7 @@ static void *macb_rx_buffer(struct macb *bp, unsigned int index)
 	return bp->rx_buffers + RX_BUFFER_SIZE * macb_rx_ring_wrap(index);
 }
 
-static void __macb_set_hwaddr(struct macb *bp)
+void macb_set_hwaddr(struct macb *bp)
 {
 	u32 bottom;
 	u16 top;
@@ -108,8 +108,9 @@ static void __macb_set_hwaddr(struct macb *bp)
 	top = cpu_to_le16(*((u16 *)(bp->dev->dev_addr + 4)));
 	macb_or_gem_writel(bp, SA1T, top);
 }
+EXPORT_SYMBOL_GPL(macb_set_hwaddr);
 
-static void __init macb_get_hwaddr(struct macb *bp)
+void macb_get_hwaddr(struct macb *bp)
 {
 	struct macb_platform_data *pdata;
 	u32 bottom;
@@ -149,6 +150,7 @@ static void __init macb_get_hwaddr(struct macb *bp)
 	netdev_info(bp->dev, "invalid hw address, using random\n");
 	eth_hw_addr_random(bp->dev);
 }
+EXPORT_SYMBOL_GPL(macb_get_hwaddr);
 
 static int macb_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
@@ -1035,7 +1037,7 @@ static void macb_init_hw(struct macb *bp)
 	u32 config;
 
 	macb_reset_hw(bp);
-	__macb_set_hwaddr(bp);
+	macb_set_hwaddr(bp);
 
 	config = macb_mdc_clk_div(bp);
 	config |= MACB_BF(RBOF, NET_IP_ALIGN);	/* Make eth data aligned */
