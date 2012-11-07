@@ -115,7 +115,7 @@ register struct thread_info *__current_thread_info __asm__("$28");
 #ifdef CONFIG_MIPS32_O32
 #define TIF_32BIT TIF_32BIT_REGS
 #elif defined(CONFIG_MIPS32_N32)
-#define TIF_32BIT _TIF_32BIT_ADDR
+#define TIF_32BIT TIF_32BIT_ADDR
 #endif /* CONFIG_MIPS32_O32 */
 
 #define _TIF_SYSCALL_TRACE	(1<<TIF_SYSCALL_TRACE)
