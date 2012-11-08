@@ -1049,34 +1049,6 @@ DEFINE_EVENT(local_only_evt, drv_cancel_remain_on_channel,
 	TP_ARGS(local)
 );
 
-TRACE_EVENT(drv_offchannel_tx,
-	TP_PROTO(struct ieee80211_local *local, struct sk_buff *skb,
-		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type channel_type,
-		 unsigned int wait),
-
-	TP_ARGS(local, skb, chan, channel_type, wait),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		__field(int, center_freq)
-		__field(int, channel_type)
-		__field(unsigned int, wait)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		__entry->center_freq = chan->center_freq;
-		__entry->channel_type = channel_type;
-		__entry->wait = wait;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT " freq:%dMHz, wait:%dms",
-		LOCAL_PR_ARG, __entry->center_freq, __entry->wait
-	)
-);
-
 TRACE_EVENT(drv_set_ringparam,
 	TP_PROTO(struct ieee80211_local *local, u32 tx, u32 rx),
 
