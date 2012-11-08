@@ -643,7 +643,8 @@ static int it913x_frontend_attach(struct dvb_usb_adapter *adap)
 	struct it913x_state *st = d->priv;
 	int ret = 0;
 	u8 adap_addr = I2C_BASE_ADDR + (adap->id << 5);
-	u16 ep_size = adap->stream.buf_size / 4;
+	u16 ep_size = (adap->pid_filtering) ? TS_BUFFER_SIZE_PID / 4 :
+		TS_BUFFER_SIZE_MAX / 4;
 	u8 pkt_size = 0x80;
 
 	if (d->udev->speed != USB_SPEED_HIGH)
