@@ -224,6 +224,11 @@ int dss_init_device(struct platform_device *pdev,
 void dss_uninit_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 
+int display_init_sysfs(struct platform_device *pdev,
+		struct omap_dss_device *dssdev);
+void display_uninit_sysfs(struct platform_device *pdev,
+		struct omap_dss_device *dssdev);
+
 /* manager */
 int dss_init_overlay_managers(struct platform_device *pdev);
 void dss_uninit_overlay_managers(struct platform_device *pdev);
