@@ -105,7 +105,7 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		retval = irq;
-		goto fail_irq_get;
+		goto fail;
 	}
 
 	/*
@@ -116,38 +116,39 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &spear_ohci_dma_mask;
 
-	usbh_clk = clk_get(&pdev->dev, NULL);
+	usbh_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {
 		dev_err(&pdev->dev, "Error getting interface clock\n");
 		retval = PTR_ERR(usbh_clk);
-		goto fail_get_usbh_clk;
+		goto fail;
 	}
 
 	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
-		goto fail_create_hcd;
+		goto fail;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		retval = -ENODEV;
-		goto fail_request_resource;
+		goto err_put_hcd;
 	}
 
 	hcd->rsrc_start = pdev->resource[0].start;
 	hcd->rsrc_len = resource_size(res);
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
+	if (!devm_request_mem_region(&pdev->dev, hcd->rsrc_start, hcd->rsrc_len,
+				hcd_name)) {
 		dev_dbg(&pdev->dev, "request_mem_region failed\n");
 		retval = -EBUSY;
-		goto fail_request_resource;
+		goto err_put_hcd;
 	}
 
-	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
+	hcd->regs = devm_ioremap(&pdev->dev, hcd->rsrc_start, hcd->rsrc_len);
 	if (!hcd->regs) {
 		dev_dbg(&pdev->dev, "ioremap failed\n");
 		retval = -ENOMEM;
-		goto fail_ioremap;
+		goto err_put_hcd;
 	}
 
 	ohci_p = (struct spear_ohci *)hcd_to_ohci(hcd);
@@ -160,15 +161,9 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 		return retval;
 
 	spear_stop_ohci(ohci_p);
-	iounmap(hcd->regs);
-fail_ioremap:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
-fail_request_resource:
+err_put_hcd:
 	usb_put_hcd(hcd);
-fail_create_hcd:
-	clk_put(usbh_clk);
-fail_get_usbh_clk:
-fail_irq_get:
+fail:
 	dev_err(&pdev->dev, "init fail, %d\n", retval);
 
 	return retval;
@@ -183,12 +178,8 @@ static int spear_ohci_hcd_drv_remove(struct platform_device *pdev)
 	if (ohci_p->clk)
 		spear_stop_ohci(ohci_p);
 
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 
-	if (ohci_p->clk)
-		clk_put(ohci_p->clk);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
