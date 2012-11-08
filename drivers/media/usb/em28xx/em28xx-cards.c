@@ -61,6 +61,11 @@ static unsigned int card[]     = {[0 ... (EM28XX_MAXBOARDS - 1)] = UNSET };
 module_param_array(card,  int, NULL, 0444);
 MODULE_PARM_DESC(card,     "card type");
 
+static unsigned int prefer_bulk;
+module_param(prefer_bulk, int, 0644);
+MODULE_PARM_DESC(prefer_bulk, "prefer USB bulk transfers");
+
+
 /* Bitmask marking allocated devices from 0 to EM28XX_MAXBOARDS - 1 */
 static unsigned long em28xx_devused;
 
@@ -3332,9 +3337,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* Select USB transfer types to use */
-	if (has_video && !dev->analog_ep_isoc)
+	if (has_video &&
+	    (!dev->analog_ep_isoc || (prefer_bulk && dev->analog_ep_bulk)))
 		dev->analog_xfer_bulk = 1;
-	if (has_dvb && !dev->dvb_ep_isoc)
+	if (has_dvb &&
+	    (!dev->dvb_ep_isoc || (prefer_bulk && dev->dvb_ep_bulk)))
 		dev->dvb_xfer_bulk = 1;
 
 	snprintf(dev->name, sizeof(dev->name), "em28xx #%d", nr);
