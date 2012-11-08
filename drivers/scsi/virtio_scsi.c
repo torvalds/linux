@@ -469,6 +469,8 @@ static int virtscsi_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *sc)
 			      sizeof cmd->req.cmd, sizeof cmd->resp.cmd,
 			      GFP_ATOMIC) >= 0)
 		ret = 0;
+	else
+		mempool_free(cmd, virtscsi_cmd_pool);
 
 out:
 	return ret;
