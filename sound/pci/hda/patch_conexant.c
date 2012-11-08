@@ -337,6 +337,8 @@ static const struct hda_pcm_stream cx5051_pcm_analog_capture = {
 	},
 };
 
+static bool is_2_1_speaker(struct conexant_spec *spec);
+
 static int conexant_build_pcms(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -351,6 +353,9 @@ static int conexant_build_pcms(struct hda_codec *codec)
 		spec->multiout.max_channels;
 	info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
 		spec->multiout.dac_nids[0];
+	if (is_2_1_speaker(spec))
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].chmap =
+			snd_pcm_2_1_chmaps;
 	if (spec->capture_stream)
 		info->stream[SNDRV_PCM_STREAM_CAPTURE] = *spec->capture_stream;
 	else {

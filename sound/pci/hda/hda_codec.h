@@ -757,6 +757,7 @@ struct hda_pcm_stream {
 	u32 rates;	/* supported rates */
 	u64 formats;	/* supported formats (SNDRV_PCM_FMTBIT_) */
 	unsigned int maxbps;	/* supported max. bit per sample */
+	const struct snd_pcm_chmap_elem *chmap; /* chmap to override */
 	struct hda_pcm_ops ops;
 };
 
@@ -1025,6 +1026,8 @@ unsigned int snd_hda_calc_stream_format(unsigned int rate,
 					unsigned short spdif_ctls);
 int snd_hda_is_supported_format(struct hda_codec *codec, hda_nid_t nid,
 				unsigned int format);
+
+extern const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[];
 
 /*
  * Misc

@@ -3747,13 +3747,14 @@ static int add_std_chmaps(struct hda_codec *codec)
 			struct hda_pcm_stream *hinfo =
 				&codec->pcm_info[i].stream[str];
 			struct snd_pcm_chmap *chmap;
+			const struct snd_pcm_chmap_elem *elem;
 
 			if (codec->pcm_info[i].own_chmap)
 				continue;
 			if (!pcm || !hinfo->substreams)
 				continue;
-			err = snd_pcm_add_chmap_ctls(pcm, str,
-						     snd_pcm_std_chmaps,
+			elem = hinfo->chmap ? hinfo->chmap : snd_pcm_std_chmaps;
+			err = snd_pcm_add_chmap_ctls(pcm, str, elem,
 						     hinfo->channels_max,
 						     0, &chmap);
 			if (err < 0)
@@ -3763,6 +3764,19 @@ static int add_std_chmaps(struct hda_codec *codec)
 	}
 	return 0;
 }
+
+/* default channel maps for 2.1 speakers;
+ * since HD-audio supports only stereo, odd number channels are omitted
+ */
+const struct snd_pcm_chmap_elem snd_pcm_2_1_chmaps[] = {
+	{ .channels = 2,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR } },
+	{ .channels = 4,
+	  .map = { SNDRV_CHMAP_FL, SNDRV_CHMAP_FR,
+		   SNDRV_CHMAP_LFE, SNDRV_CHMAP_LFE } },
+	{ }
+};
+EXPORT_SYMBOL_GPL(snd_pcm_2_1_chmaps);
 
 int snd_hda_codec_build_controls(struct hda_codec *codec)
 {
