@@ -2236,7 +2236,6 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 static int ieee80211_start_roc_work(struct ieee80211_local *local,
 				    struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_channel *channel,
-				    enum nl80211_channel_type channel_type,
 				    unsigned int duration, u64 *cookie,
 				    struct sk_buff *txskb)
 {
@@ -2254,7 +2253,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		return -ENOMEM;
 
 	roc->chan = channel;
-	roc->chan_type = channel_type;
 	roc->duration = duration;
 	roc->req_duration = duration;
 	roc->frame = txskb;
@@ -2287,8 +2285,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!duration)
 		duration = 10;
 
-	ret = drv_remain_on_channel(local, sdata, channel, channel_type,
-				    duration);
+	ret = drv_remain_on_channel(local, sdata, channel, duration);
 	if (ret) {
 		kfree(roc);
 		return ret;
@@ -2299,8 +2296,7 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 
  out_check_combine:
 	list_for_each_entry(tmp, &local->roc_list, list) {
-		if (tmp->chan != channel || tmp->chan_type != channel_type ||
-		    tmp->sdata != sdata)
+		if (tmp->chan != channel || tmp->sdata != sdata)
 			continue;
 
 		/*
@@ -2417,7 +2413,6 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 static int ieee80211_remain_on_channel(struct wiphy *wiphy,
 				       struct wireless_dev *wdev,
 				       struct ieee80211_channel *chan,
-				       enum nl80211_channel_type channel_type,
 				       unsigned int duration,
 				       u64 *cookie)
 {
@@ -2426,7 +2421,7 @@ static int ieee80211_remain_on_channel(struct wiphy *wiphy,
 	int ret;
 
 	mutex_lock(&local->mtx);
-	ret = ieee80211_start_roc_work(local, sdata, chan, channel_type,
+	ret = ieee80211_start_roc_work(local, sdata, chan,
 				       duration, cookie, NULL);
 	mutex_unlock(&local->mtx);
 
@@ -2519,10 +2514,8 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 
 static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			     struct ieee80211_channel *chan, bool offchan,
-			     enum nl80211_channel_type channel_type,
-			     bool channel_type_valid, unsigned int wait,
-			     const u8 *buf, size_t len, bool no_cck,
-			     bool dont_wait_for_ack, u64 *cookie)
+			     unsigned int wait, const u8 *buf, size_t len,
+			     bool no_cck, bool dont_wait_for_ack, u64 *cookie)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
@@ -2591,14 +2584,10 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		rcu_read_lock();
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 
-		if (chanctx_conf) {
+		if (chanctx_conf)
 			need_offchan = chan != chanctx_conf->channel;
-			if (channel_type_valid &&
-			    channel_type != chanctx_conf->channel_type)
-				need_offchan = true;
-		} else {
+		else
 			need_offchan = true;
-		}
 		rcu_read_unlock();
 	}
 
@@ -2633,7 +2622,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			local->hw.offchannel_tx_hw_queue;
 
 	/* This will handle all kinds of coalescing and immediate TX */
-	ret = ieee80211_start_roc_work(local, sdata, chan, channel_type,
+	ret = ieee80211_start_roc_work(local, sdata, chan,
 				       wait, cookie, skb);
 	if (ret)
 		kfree_skb(skb);

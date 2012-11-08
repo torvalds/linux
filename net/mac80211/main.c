@@ -115,7 +115,7 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 			channel_type = NL80211_CHAN_NO_HT;
 	} else if (local->tmp_channel) {
 		chan = local->tmp_channel;
-		channel_type = local->tmp_channel_type;
+		channel_type = NL80211_CHAN_NO_HT;
 	} else {
 		chan = local->_oper_channel;
 		channel_type = local->_oper_channel_type;

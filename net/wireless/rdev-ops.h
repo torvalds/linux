@@ -600,14 +600,12 @@ static inline int
 rdev_remain_on_channel(struct cfg80211_registered_device *rdev,
 		       struct wireless_dev *wdev,
 		       struct ieee80211_channel *chan,
-		       enum nl80211_channel_type channel_type,
 		       unsigned int duration, u64 *cookie)
 {
 	int ret;
-	trace_rdev_remain_on_channel(&rdev->wiphy, wdev, chan, channel_type,
-				     duration);
+	trace_rdev_remain_on_channel(&rdev->wiphy, wdev, chan, duration);
 	ret = rdev->ops->remain_on_channel(&rdev->wiphy, wdev, chan,
-					    channel_type, duration, cookie);
+					   duration, cookie);
 	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
 	return ret;
 }
@@ -626,17 +624,15 @@ rdev_cancel_remain_on_channel(struct cfg80211_registered_device *rdev,
 static inline int rdev_mgmt_tx(struct cfg80211_registered_device *rdev,
 			       struct wireless_dev *wdev,
 			       struct ieee80211_channel *chan, bool offchan,
-			       enum nl80211_channel_type channel_type,
-			       bool channel_type_valid, unsigned int wait,
-			       const u8 *buf, size_t len, bool no_cck,
-			       bool dont_wait_for_ack, u64 *cookie)
+			       unsigned int wait, const u8 *buf, size_t len,
+			       bool no_cck, bool dont_wait_for_ack, u64 *cookie)
 {
 	int ret;
-	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, chan, offchan, channel_type,
-			   channel_type_valid, wait, no_cck, dont_wait_for_ack);
+	trace_rdev_mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
+			   wait, no_cck, dont_wait_for_ack);
 	ret = rdev->ops->mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-				  channel_type, channel_type_valid, wait, buf,
-				  len, no_cck, dont_wait_for_ack, cookie);
+				  wait, buf, len, no_cck,
+				  dont_wait_for_ack, cookie);
 	trace_rdev_return_int_cookie(&rdev->wiphy, ret, *cookie);
 	return ret;
 }

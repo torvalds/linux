@@ -180,10 +180,8 @@ mwifiex_form_mgmt_frame(struct sk_buff *skb, const u8 *buf, size_t len)
 static int
 mwifiex_cfg80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			 struct ieee80211_channel *chan, bool offchan,
-			 enum nl80211_channel_type channel_type,
-			 bool channel_type_valid, unsigned int wait,
-			 const u8 *buf, size_t len, bool no_cck,
-			 bool dont_wait_for_ack, u64 *cookie)
+			 unsigned int wait, const u8 *buf, size_t len,
+			 bool no_cck, bool dont_wait_for_ack, u64 *cookie)
 {
 	struct sk_buff *skb;
 	u16 pkt_len;
@@ -253,7 +251,6 @@ static int
 mwifiex_cfg80211_remain_on_channel(struct wiphy *wiphy,
 				   struct wireless_dev *wdev,
 				   struct ieee80211_channel *chan,
-				   enum nl80211_channel_type channel_type,
 				   unsigned int duration, u64 *cookie)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(wdev->netdev);
@@ -271,15 +268,14 @@ mwifiex_cfg80211_remain_on_channel(struct wiphy *wiphy,
 	}
 
 	ret = mwifiex_remain_on_chan_cfg(priv, HostCmd_ACT_GEN_SET, chan,
-					 &channel_type, duration);
+					 duration);
 
 	if (!ret) {
 		*cookie = random32() | 1;
 		priv->roc_cfg.cookie = *cookie;
 		priv->roc_cfg.chan = *chan;
-		priv->roc_cfg.chan_type = channel_type;
 
-		cfg80211_ready_on_channel(wdev, *cookie, chan, channel_type,
+		cfg80211_ready_on_channel(wdev, *cookie, chan,
 					  duration, GFP_ATOMIC);
 
 		wiphy_dbg(wiphy, "info: ROC, cookie = 0x%llx\n", *cookie);
@@ -302,13 +298,11 @@ mwifiex_cfg80211_cancel_remain_on_channel(struct wiphy *wiphy,
 		return -ENOENT;
 
 	ret = mwifiex_remain_on_chan_cfg(priv, HostCmd_ACT_GEN_REMOVE,
-					 &priv->roc_cfg.chan,
-					 &priv->roc_cfg.chan_type, 0);
+					 &priv->roc_cfg.chan, 0);
 
 	if (!ret) {
 		cfg80211_remain_on_channel_expired(wdev, cookie,
 						   &priv->roc_cfg.chan,
-						   priv->roc_cfg.chan_type,
 						   GFP_ATOMIC);
 
 		memset(&priv->roc_cfg, 0, sizeof(struct mwifiex_roc_cfg));

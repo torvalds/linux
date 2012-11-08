@@ -5952,7 +5952,6 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 	struct sk_buff *msg;
 	void *hdr;
 	u64 cookie;
-	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 	u32 freq, duration;
 	int err;
 
@@ -5975,11 +5974,11 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 		return -EINVAL;
 
 	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
-	    !nl80211_valid_channel_type(info, &channel_type))
+	    !nl80211_valid_channel_type(info, NULL))
 		return -EINVAL;
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
-	chan = rdev_freq_to_chan(rdev, freq, channel_type);
+	chan = rdev_freq_to_chan(rdev, freq, NL80211_CHAN_NO_HT);
 	if (chan == NULL)
 		return -EINVAL;
 
@@ -5995,8 +5994,7 @@ static int nl80211_remain_on_channel(struct sk_buff *skb,
 		goto free_msg;
 	}
 
-	err = rdev_remain_on_channel(rdev, wdev, chan, channel_type, duration,
-				     &cookie);
+	err = rdev_remain_on_channel(rdev, wdev, chan, duration, &cookie);
 
 	if (err)
 		goto free_msg;
@@ -6216,8 +6214,6 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct wireless_dev *wdev = info->user_ptr[1];
 	struct ieee80211_channel *chan;
-	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
-	bool channel_type_valid = false;
 	u32 freq;
 	int err;
 	void *hdr = NULL;
@@ -6264,11 +6260,9 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 
 	}
 
-	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
-		if (!nl80211_valid_channel_type(info, &channel_type))
-			return -EINVAL;
-		channel_type_valid = true;
-	}
+	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
+	    !nl80211_valid_channel_type(info, NULL))
+		return -EINVAL;
 
 	offchan = info->attrs[NL80211_ATTR_OFFCHANNEL_TX_OK];
 
@@ -6278,7 +6272,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	no_cck = nla_get_flag(info->attrs[NL80211_ATTR_TX_NO_CCK_RATE]);
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
-	chan = rdev_freq_to_chan(rdev, freq, channel_type);
+	chan = rdev_freq_to_chan(rdev, freq, NL80211_CHAN_NO_HT);
 	if (chan == NULL)
 		return -EINVAL;
 
@@ -6296,8 +6290,7 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 		}
 	}
 
-	err = cfg80211_mlme_mgmt_tx(rdev, wdev, chan, offchan, channel_type,
-				    channel_type_valid, wait,
+	err = cfg80211_mlme_mgmt_tx(rdev, wdev, chan, offchan, wait,
 				    nla_data(info->attrs[NL80211_ATTR_FRAME]),
 				    nla_len(info->attrs[NL80211_ATTR_FRAME]),
 				    no_cck, dont_wait_for_ack, &cookie);
@@ -8395,7 +8388,6 @@ static void nl80211_send_remain_on_chan_event(
 	int cmd, struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev, u64 cookie,
 	struct ieee80211_channel *chan,
-	enum nl80211_channel_type channel_type,
 	unsigned int duration, gfp_t gfp)
 {
 	struct sk_buff *msg;
@@ -8416,7 +8408,8 @@ static void nl80211_send_remain_on_chan_event(
 					 wdev->netdev->ifindex)) ||
 	    nla_put_u64(msg, NL80211_ATTR_WDEV, wdev_id(wdev)) ||
 	    nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, chan->center_freq) ||
-	    nla_put_u32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, channel_type) ||
+	    nla_put_u32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE,
+			NL80211_CHAN_NO_HT) ||
 	    nla_put_u64(msg, NL80211_ATTR_COOKIE, cookie))
 		goto nla_put_failure;
 
@@ -8438,23 +8431,20 @@ static void nl80211_send_remain_on_chan_event(
 void nl80211_send_remain_on_channel(struct cfg80211_registered_device *rdev,
 				    struct wireless_dev *wdev, u64 cookie,
 				    struct ieee80211_channel *chan,
-				    enum nl80211_channel_type channel_type,
 				    unsigned int duration, gfp_t gfp)
 {
 	nl80211_send_remain_on_chan_event(NL80211_CMD_REMAIN_ON_CHANNEL,
 					  rdev, wdev, cookie, chan,
-					  channel_type, duration, gfp);
+					  duration, gfp);
 }
 
 void nl80211_send_remain_on_channel_cancel(
 	struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev,
-	u64 cookie, struct ieee80211_channel *chan,
-	enum nl80211_channel_type channel_type, gfp_t gfp)
+	u64 cookie, struct ieee80211_channel *chan, gfp_t gfp)
 {
 	nl80211_send_remain_on_chan_event(NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL,
-					  rdev, wdev, cookie, chan,
-					  channel_type, 0, gfp);
+					  rdev, wdev, cookie, chan, 0, gfp);
 }
 
 void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,

@@ -1455,7 +1455,6 @@ static void hw_roc_done(struct work_struct *work)
 static int mac80211_hwsim_roc(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_channel *chan,
-			      enum nl80211_channel_type channel_type,
 			      int duration)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;

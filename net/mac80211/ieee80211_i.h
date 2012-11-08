@@ -348,7 +348,6 @@ struct ieee80211_roc_work {
 	struct ieee80211_sub_if_data *sdata;
 
 	struct ieee80211_channel *chan;
-	enum nl80211_channel_type chan_type;
 
 	bool started, abort, hw_begun, notified;
 
@@ -1048,7 +1047,6 @@ struct ieee80211_local {
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
-	enum nl80211_channel_type tmp_channel_type;
 
 	/* channel contexts */
 	struct list_head chanctx_list;

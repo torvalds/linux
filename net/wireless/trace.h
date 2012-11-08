@@ -1573,25 +1573,22 @@ DEFINE_EVENT(rdev_pmksa, rdev_del_pmksa,
 TRACE_EVENT(rdev_remain_on_channel,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type channel_type, unsigned int duration),
-	TP_ARGS(wiphy, wdev, chan, channel_type, duration),
+		 unsigned int duration),
+	TP_ARGS(wiphy, wdev, chan, duration),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		WDEV_ENTRY
 		CHAN_ENTRY
-		__field(enum nl80211_channel_type, channel_type)
 		__field(unsigned int, duration)
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		WDEV_ASSIGN;
 		CHAN_ASSIGN(chan);
-		__entry->channel_type = channel_type;
 		__entry->duration = duration;
 	),
-	TP_printk(WIPHY_PR_FMT WDEV_PR_FMT CHAN_PR_FMT ", channel type: %d, duration: %u",
-		  WIPHY_PR_ARG, WDEV_PR_ARG, CHAN_PR_ARG, __entry->channel_type,
-		  __entry->duration)
+	TP_printk(WIPHY_PR_FMT WDEV_PR_FMT CHAN_PR_FMT ", duration: %u",
+		  WIPHY_PR_ARG, WDEV_PR_ARG, CHAN_PR_ARG, __entry->duration)
 );
 
 TRACE_EVENT(rdev_return_int_cookie,
@@ -1631,18 +1628,13 @@ TRACE_EVENT(rdev_cancel_remain_on_channel,
 TRACE_EVENT(rdev_mgmt_tx,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct ieee80211_channel *chan, bool offchan,
-		 enum nl80211_channel_type channel_type,
-		 bool channel_type_valid, unsigned int wait, bool no_cck,
-		 bool dont_wait_for_ack),
-	TP_ARGS(wiphy, wdev, chan, offchan, channel_type, channel_type_valid,
-		wait, no_cck, dont_wait_for_ack),
+		 unsigned int wait, bool no_cck, bool dont_wait_for_ack),
+	TP_ARGS(wiphy, wdev, chan, offchan, wait, no_cck, dont_wait_for_ack),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		WDEV_ENTRY
 		CHAN_ENTRY
 		__field(bool, offchan)
-		__field(enum nl80211_channel_type, channel_type)
-		__field(bool, channel_type_valid)
 		__field(unsigned int, wait)
 		__field(bool, no_cck)
 		__field(bool, dont_wait_for_ack)
@@ -1652,18 +1644,14 @@ TRACE_EVENT(rdev_mgmt_tx,
 		WDEV_ASSIGN;
 		CHAN_ASSIGN(chan);
 		__entry->offchan = offchan;
-		__entry->channel_type = channel_type;
-		__entry->channel_type_valid = channel_type_valid;
 		__entry->wait = wait;
 		__entry->no_cck = no_cck;
 		__entry->dont_wait_for_ack = dont_wait_for_ack;
 	),
-	TP_printk(WIPHY_PR_FMT WDEV_PR_FMT CHAN_PR_FMT ", offchan: %s, "
-		  "channel type: %d, channel type valid: %s, wait: %u, "
-		  "no cck: %s, dont wait for ack: %s",
+	TP_printk(WIPHY_PR_FMT WDEV_PR_FMT CHAN_PR_FMT ", offchan: %s,"
+		  " wait: %u, no cck: %s, dont wait for ack: %s",
 		  WIPHY_PR_ARG, WDEV_PR_ARG, CHAN_PR_ARG,
-		  BOOL_TO_STR(__entry->offchan), __entry->channel_type,
-		  BOOL_TO_STR(__entry->channel_type_valid), __entry->wait,
+		  BOOL_TO_STR(__entry->offchan), __entry->wait,
 		  BOOL_TO_STR(__entry->no_cck),
 		  BOOL_TO_STR(__entry->dont_wait_for_ack))
 );
@@ -1894,47 +1882,41 @@ TRACE_EVENT(cfg80211_michael_mic_failure,
 TRACE_EVENT(cfg80211_ready_on_channel,
 	TP_PROTO(struct wireless_dev *wdev, u64 cookie,
 		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type channel_type, unsigned int duration),
-	TP_ARGS(wdev, cookie, chan, channel_type, duration),
+		 unsigned int duration),
+	TP_ARGS(wdev, cookie, chan, duration),
 	TP_STRUCT__entry(
 		WDEV_ENTRY
 		__field(u64, cookie)
 		CHAN_ENTRY
-		__field(enum nl80211_channel_type, channel_type)
 		__field(unsigned int, duration)
 	),
 	TP_fast_assign(
 		WDEV_ASSIGN;
 		__entry->cookie = cookie;
 		CHAN_ASSIGN(chan);
-		__entry->channel_type = channel_type;
 		__entry->duration = duration;
 	),
-	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT ", channel type: %d, duration: %u",
+	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT ", duration: %u",
 		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG,
-		  __entry->channel_type, __entry->duration)
+		  __entry->duration)
 );
 
 TRACE_EVENT(cfg80211_ready_on_channel_expired,
 	TP_PROTO(struct wireless_dev *wdev, u64 cookie,
-		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type channel_type),
-	TP_ARGS(wdev, cookie, chan, channel_type),
+		 struct ieee80211_channel *chan),
+	TP_ARGS(wdev, cookie, chan),
 	TP_STRUCT__entry(
 		WDEV_ENTRY
 		__field(u64, cookie)
 		CHAN_ENTRY
-		__field(enum nl80211_channel_type, channel_type)
 	),
 	TP_fast_assign(
 		WDEV_ASSIGN;
 		__entry->cookie = cookie;
 		CHAN_ASSIGN(chan);
-		__entry->channel_type = channel_type;
 	),
-	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT ", channel type: %d",
-		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG,
-		  __entry->channel_type)
+	TP_printk(WDEV_PR_FMT ", cookie: %llu, " CHAN_PR_FMT,
+		  WDEV_PR_ARG, __entry->cookie, CHAN_PR_ARG)
 );
 
 TRACE_EVENT(cfg80211_new_sta,

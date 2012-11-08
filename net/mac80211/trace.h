@@ -1022,15 +1022,14 @@ TRACE_EVENT(drv_remain_on_channel,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type chantype, unsigned int duration),
+		 unsigned int duration),
 
-	TP_ARGS(local, sdata, chan, chantype, duration),
+	TP_ARGS(local, sdata, chan, duration),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
 		__field(int, center_freq)
-		__field(int, channel_type)
 		__field(unsigned int, duration)
 	),
 
@@ -1038,7 +1037,6 @@ TRACE_EVENT(drv_remain_on_channel,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->center_freq = chan->center_freq;
-		__entry->channel_type = chantype;
 		__entry->duration = duration;
 	),
 
