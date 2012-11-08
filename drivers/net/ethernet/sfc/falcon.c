@@ -2400,6 +2400,21 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.ev_read_ack = efx_farch_ev_read_ack,
 	.ev_test_generate = efx_farch_ev_test_generate,
 
+	/* We don't expose the filter table on Falcon A1 as it is not
+	 * mapped into function 0, but these implementations still
+	 * work with a degenerate case of all tables set to size 0.
+	 */
+	.filter_table_probe = efx_farch_filter_table_probe,
+	.filter_table_restore = efx_farch_filter_table_restore,
+	.filter_table_remove = efx_farch_filter_table_remove,
+	.filter_insert = efx_farch_filter_insert,
+	.filter_remove_safe = efx_farch_filter_remove_safe,
+	.filter_get_safe = efx_farch_filter_get_safe,
+	.filter_clear_rx = efx_farch_filter_clear_rx,
+	.filter_count_rx_used = efx_farch_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_farch_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_farch_filter_get_rx_ids,
+
 	.revision = EFX_REV_FALCON_A1,
 	.txd_ptr_tbl_base = FR_AA_TX_DESC_PTR_TBL_KER,
 	.rxd_ptr_tbl_base = FR_AA_RX_DESC_PTR_TBL_KER,
@@ -2468,6 +2483,21 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.ev_process = efx_farch_ev_process,
 	.ev_read_ack = efx_farch_ev_read_ack,
 	.ev_test_generate = efx_farch_ev_test_generate,
+	.filter_table_probe = efx_farch_filter_table_probe,
+	.filter_table_restore = efx_farch_filter_table_restore,
+	.filter_table_remove = efx_farch_filter_table_remove,
+	.filter_update_rx_scatter = efx_farch_filter_update_rx_scatter,
+	.filter_insert = efx_farch_filter_insert,
+	.filter_remove_safe = efx_farch_filter_remove_safe,
+	.filter_get_safe = efx_farch_filter_get_safe,
+	.filter_clear_rx = efx_farch_filter_clear_rx,
+	.filter_count_rx_used = efx_farch_filter_count_rx_used,
+	.filter_get_rx_id_limit = efx_farch_filter_get_rx_id_limit,
+	.filter_get_rx_ids = efx_farch_filter_get_rx_ids,
+#ifdef CONFIG_RFS_ACCEL
+	.filter_rfs_insert = efx_farch_filter_rfs_insert,
+	.filter_rfs_expire_one = efx_farch_filter_rfs_expire_one,
+#endif
 
 	.revision = EFX_REV_FALCON_B0,
 	.txd_ptr_tbl_base = FR_BZ_TX_DESC_PTR_TBL,
@@ -2483,5 +2513,6 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 	.mcdi_max_ver = -1,
+	.max_rx_ip_filters = FR_BZ_RX_FILTER_TBL0_ROWS,
 };
 

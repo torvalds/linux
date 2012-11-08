@@ -404,6 +404,34 @@ extern int efx_farch_ev_process(struct efx_channel *channel, int quota);
 extern void efx_farch_ev_read_ack(struct efx_channel *channel);
 extern void efx_farch_ev_test_generate(struct efx_channel *channel);
 
+/* Falcon/Siena filter operations */
+extern int efx_farch_filter_table_probe(struct efx_nic *efx);
+extern void efx_farch_filter_table_restore(struct efx_nic *efx);
+extern void efx_farch_filter_table_remove(struct efx_nic *efx);
+extern void efx_farch_filter_update_rx_scatter(struct efx_nic *efx);
+extern s32 efx_farch_filter_insert(struct efx_nic *efx,
+				   struct efx_filter_spec *spec, bool replace);
+extern int efx_farch_filter_remove_safe(struct efx_nic *efx,
+					enum efx_filter_priority priority,
+					u32 filter_id);
+extern int efx_farch_filter_get_safe(struct efx_nic *efx,
+				     enum efx_filter_priority priority,
+				     u32 filter_id, struct efx_filter_spec *);
+extern void efx_farch_filter_clear_rx(struct efx_nic *efx,
+				      enum efx_filter_priority priority);
+extern u32 efx_farch_filter_count_rx_used(struct efx_nic *efx,
+					  enum efx_filter_priority priority);
+extern u32 efx_farch_filter_get_rx_id_limit(struct efx_nic *efx);
+extern s32 efx_farch_filter_get_rx_ids(struct efx_nic *efx,
+				       enum efx_filter_priority priority,
+				       u32 *buf, u32 size);
+#ifdef CONFIG_RFS_ACCEL
+extern s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
+				       struct efx_filter_spec *spec);
+extern bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
+					    unsigned int index);
+#endif
+
 extern bool efx_nic_event_present(struct efx_channel *channel);
 
 /* Some statistics are computed as A - B where A and B each increase

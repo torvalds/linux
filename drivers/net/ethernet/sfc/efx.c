@@ -611,7 +611,7 @@ static void efx_start_datapath(struct efx_nic *efx)
 
 	/* RX filters also have scatter-enabled flags */
 	if (efx->rx_scatter != old_rx_scatter)
-		efx_filter_update_rx_scatter(efx);
+		efx->type->filter_update_rx_scatter(efx);
 
 	/* We must keep at least one descriptor in a TX ring empty.
 	 * We could avoid this when the queue size does not exactly
@@ -1497,6 +1497,44 @@ static void efx_remove_nic(struct efx_nic *efx)
 
 	efx_remove_interrupts(efx);
 	efx->type->remove(efx);
+}
+
+static int efx_probe_filters(struct efx_nic *efx)
+{
+	int rc;
+
+	spin_lock_init(&efx->filter_lock);
+
+	rc = efx->type->filter_table_probe(efx);
+	if (rc)
+		return rc;
+
+#ifdef CONFIG_RFS_ACCEL
+	if (efx->type->offload_features & NETIF_F_NTUPLE) {
+		efx->rps_flow_id = kcalloc(efx->type->max_rx_ip_filters,
+					   sizeof(*efx->rps_flow_id),
+					   GFP_KERNEL);
+		if (!efx->rps_flow_id) {
+			efx->type->filter_table_remove(efx);
+			return -ENOMEM;
+		}
+	}
+#endif
+
+	return 0;
+}
+
+static void efx_remove_filters(struct efx_nic *efx)
+{
+#ifdef CONFIG_RFS_ACCEL
+	kfree(efx->rps_flow_id);
+#endif
+	efx->type->filter_table_remove(efx);
+}
+
+static void efx_restore_filters(struct efx_nic *efx)
+{
+	efx->type->filter_table_restore(efx);
 }
 
 /**************************************************************************

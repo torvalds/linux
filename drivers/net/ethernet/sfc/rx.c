@@ -21,6 +21,7 @@
 #include <net/checksum.h>
 #include "net_driver.h"
 #include "efx.h"
+#include "filter.h"
 #include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
@@ -802,3 +803,96 @@ module_param(rx_refill_threshold, uint, 0444);
 MODULE_PARM_DESC(rx_refill_threshold,
 		 "RX descriptor ring refill threshold (%)");
 
+#ifdef CONFIG_RFS_ACCEL
+
+int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
+		   u16 rxq_index, u32 flow_id)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_channel *channel;
+	struct efx_filter_spec spec;
+	const struct iphdr *ip;
+	const __be16 *ports;
+	int nhoff;
+	int rc;
+
+	nhoff = skb_network_offset(skb);
+
+	if (skb->protocol == htons(ETH_P_8021Q)) {
+		EFX_BUG_ON_PARANOID(skb_headlen(skb) <
+				    nhoff + sizeof(struct vlan_hdr));
+		if (((const struct vlan_hdr *)skb->data + nhoff)->
+		    h_vlan_encapsulated_proto != htons(ETH_P_IP))
+			return -EPROTONOSUPPORT;
+
+		/* This is IP over 802.1q VLAN.  We can't filter on the
+		 * IP 5-tuple and the vlan together, so just strip the
+		 * vlan header and filter on the IP part.
+		 */
+		nhoff += sizeof(struct vlan_hdr);
+	} else if (skb->protocol != htons(ETH_P_IP)) {
+		return -EPROTONOSUPPORT;
+	}
+
+	/* RFS must validate the IP header length before calling us */
+	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + sizeof(*ip));
+	ip = (const struct iphdr *)(skb->data + nhoff);
+	if (ip_is_fragment(ip))
+		return -EPROTONOSUPPORT;
+	EFX_BUG_ON_PARANOID(skb_headlen(skb) < nhoff + 4 * ip->ihl + 4);
+	ports = (const __be16 *)(skb->data + nhoff + 4 * ip->ihl);
+
+	efx_filter_init_rx(&spec, EFX_FILTER_PRI_HINT,
+			   efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0,
+			   rxq_index);
+	rc = efx_filter_set_ipv4_full(&spec, ip->protocol,
+				      ip->daddr, ports[1], ip->saddr, ports[0]);
+	if (rc)
+		return rc;
+
+	rc = efx->type->filter_rfs_insert(efx, &spec);
+	if (rc < 0)
+		return rc;
+
+	/* Remember this so we can check whether to expire the filter later */
+	efx->rps_flow_id[rc] = flow_id;
+	channel = efx_get_channel(efx, skb_get_rx_queue(skb));
+	++channel->rfs_filters_added;
+
+	netif_info(efx, rx_status, efx->net_dev,
+		   "steering %s %pI4:%u:%pI4:%u to queue %u [flow %u filter %d]\n",
+		   (ip->protocol == IPPROTO_TCP) ? "TCP" : "UDP",
+		   &ip->saddr, ntohs(ports[0]), &ip->daddr, ntohs(ports[1]),
+		   rxq_index, flow_id, rc);
+
+	return rc;
+}
+
+bool __efx_filter_rfs_expire(struct efx_nic *efx, unsigned int quota)
+{
+	bool (*expire_one)(struct efx_nic *efx, u32 flow_id, unsigned int index);
+	unsigned int index, size;
+	u32 flow_id;
+
+	if (!spin_trylock_bh(&efx->filter_lock))
+		return false;
+
+	expire_one = efx->type->filter_rfs_expire_one;
+	index = efx->rps_expire_index;
+	size = efx->type->max_rx_ip_filters;
+	while (quota--) {
+		flow_id = efx->rps_flow_id[index];
+		if (expire_one(efx, flow_id, index))
+			netif_info(efx, rx_status, efx->net_dev,
+				   "expired filter %d [flow %u]\n",
+				   index, flow_id);
+		if (++index == size)
+			index = 0;
+	}
+	efx->rps_expire_index = index;
+
+	spin_unlock_bh(&efx->filter_lock);
+	return true;
+}
+
+#endif /* CONFIG_RFS_ACCEL */

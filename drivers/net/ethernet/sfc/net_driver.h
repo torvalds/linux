@@ -30,6 +30,7 @@
 
 #include "enum.h"
 #include "bitfield.h"
+#include "filter.h"
 
 /**************************************************************************
  *
@@ -1025,6 +1026,24 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @ev_process: Process events for a queue, up to the given NAPI quota
  * @ev_read_ack: Acknowledge read events on a queue, rearming its IRQ
  * @ev_test_generate: Generate a test event
+ * @filter_table_probe: Probe filter capabilities and set up filter software state
+ * @filter_table_restore: Restore filters removed from hardware
+ * @filter_table_remove: Remove filters from hardware and tear down software state
+ * @filter_update_rx_scatter: Update filters after change to rx scatter setting
+ * @filter_insert: add or replace a filter
+ * @filter_remove_safe: remove a filter by ID, carefully
+ * @filter_get_safe: retrieve a filter by ID, carefully
+ * @filter_clear_rx: remove RX filters by priority
+ * @filter_count_rx_used: Get the number of filters in use at a given priority
+ * @filter_get_rx_id_limit: Get maximum value of a filter id, plus 1
+ * @filter_get_rx_ids: Get list of RX filters at a given priority
+ * @filter_rfs_insert: Add or replace a filter for RFS.  This must be
+ *	atomic.  The hardware change may be asynchronous but should
+ *	not be delayed for long.  It may fail if this can't be done
+ *	atomically.
+ * @filter_rfs_expire_one: Consider expiring a filter inserted for RFS.
+ *	This must check whether the specified table entry is used by RFS
+ *	and that rps_may_expire_flow() returns true for it.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1102,6 +1121,32 @@ struct efx_nic_type {
 	int (*ev_process)(struct efx_channel *channel, int quota);
 	void (*ev_read_ack)(struct efx_channel *channel);
 	void (*ev_test_generate)(struct efx_channel *channel);
+	int (*filter_table_probe)(struct efx_nic *efx);
+	void (*filter_table_restore)(struct efx_nic *efx);
+	void (*filter_table_remove)(struct efx_nic *efx);
+	void (*filter_update_rx_scatter)(struct efx_nic *efx);
+	s32 (*filter_insert)(struct efx_nic *efx,
+			     struct efx_filter_spec *spec, bool replace);
+	int (*filter_remove_safe)(struct efx_nic *efx,
+				  enum efx_filter_priority priority,
+				  u32 filter_id);
+	int (*filter_get_safe)(struct efx_nic *efx,
+			       enum efx_filter_priority priority,
+			       u32 filter_id, struct efx_filter_spec *);
+	void (*filter_clear_rx)(struct efx_nic *efx,
+				enum efx_filter_priority priority);
+	u32 (*filter_count_rx_used)(struct efx_nic *efx,
+				    enum efx_filter_priority priority);
+	u32 (*filter_get_rx_id_limit)(struct efx_nic *efx);
+	s32 (*filter_get_rx_ids)(struct efx_nic *efx,
+				 enum efx_filter_priority priority,
+				 u32 *buf, u32 size);
+#ifdef CONFIG_RFS_ACCEL
+	s32 (*filter_rfs_insert)(struct efx_nic *efx,
+				 struct efx_filter_spec *spec);
+	bool (*filter_rfs_expire_one)(struct efx_nic *efx, u32 flow_id,
+				      unsigned int index);
+#endif
 
 	int revision;
 	unsigned int txd_ptr_tbl_base;
@@ -1117,6 +1162,7 @@ struct efx_nic_type {
 	unsigned int timer_period_max;
 	netdev_features_t offload_features;
 	int mcdi_max_ver;
+	unsigned int max_rx_ip_filters;
 };
 
 /**************************************************************************
