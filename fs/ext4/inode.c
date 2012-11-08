@@ -683,7 +683,7 @@ static int _ext4_get_block(struct inode *inode, sector_t iblock,
 	map.m_lblk = iblock;
 	map.m_len = bh->b_size >> inode->i_blkbits;
 
-	if (flags && !handle) {
+	if (flags && !(flags & EXT4_GET_BLOCKS_NO_LOCK) && !handle) {
 		/* Direct IO write... */
 		if (map.m_len > DIO_MAX_BLOCKS)
 			map.m_len = DIO_MAX_BLOCKS;
@@ -879,6 +879,8 @@ static int do_journal_get_write_access(handle_t *handle,
 }
 
 static int ext4_get_block_write(struct inode *inode, sector_t iblock,
+		   struct buffer_head *bh_result, int create);
+static int ext4_get_block_write_nolock(struct inode *inode, sector_t iblock,
 		   struct buffer_head *bh_result, int create);
 static int ext4_write_begin(struct file *file, struct address_space *mapping,
 			    loff_t pos, unsigned len, unsigned flags,
@@ -2850,29 +2852,12 @@ static int ext4_get_block_write(struct inode *inode, sector_t iblock,
 }
 
 static int ext4_get_block_write_nolock(struct inode *inode, sector_t iblock,
-		   struct buffer_head *bh_result, int flags)
+		   struct buffer_head *bh_result, int create)
 {
-	handle_t *handle = ext4_journal_current_handle();
-	struct ext4_map_blocks map;
-	int ret = 0;
-
-	ext4_debug("ext4_get_block_write_nolock: inode %lu, flag %d\n",
-		   inode->i_ino, flags);
-
-	flags = EXT4_GET_BLOCKS_NO_LOCK;
-
-	map.m_lblk = iblock;
-	map.m_len = bh_result->b_size >> inode->i_blkbits;
-
-	ret = ext4_map_blocks(handle, inode, &map, flags);
-	if (ret > 0) {
-		map_bh(bh_result, inode->i_sb, map.m_pblk);
-		bh_result->b_state = (bh_result->b_state & ~EXT4_MAP_FLAGS) |
-					map.m_flags;
-		bh_result->b_size = inode->i_sb->s_blocksize * map.m_len;
-		ret = 0;
-	}
-	return ret;
+	ext4_debug("ext4_get_block_write_nolock: inode %lu, create flag %d\n",
+		   inode->i_ino, create);
+	return _ext4_get_block(inode, iblock, bh_result,
+			       EXT4_GET_BLOCKS_NO_LOCK);
 }
 
 static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
@@ -3003,6 +2988,8 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 	loff_t final_size = offset + count;
 	if (rw == WRITE && final_size <= inode->i_size) {
 		int overwrite = 0;
+		get_block_t *get_block_func = NULL;
+		int dio_flags = 0;
 
 		BUG_ON(iocb->private == NULL);
 
@@ -3056,22 +3043,20 @@ static ssize_t ext4_ext_direct_IO(int rw, struct kiocb *iocb,
 			ext4_inode_aio_set(inode, io_end);
 		}
 
-		if (overwrite)
-			ret = __blockdev_direct_IO(rw, iocb, inode,
-						 inode->i_sb->s_bdev, iov,
-						 offset, nr_segs,
-						 ext4_get_block_write_nolock,
-						 ext4_end_io_dio,
-						 NULL,
-						 0);
-		else
-			ret = __blockdev_direct_IO(rw, iocb, inode,
-						 inode->i_sb->s_bdev, iov,
-						 offset, nr_segs,
-						 ext4_get_block_write,
-						 ext4_end_io_dio,
-						 NULL,
-						 DIO_LOCKING);
+		if (overwrite) {
+			get_block_func = ext4_get_block_write_nolock;
+		} else {
+			get_block_func = ext4_get_block_write;
+			dio_flags = DIO_LOCKING;
+		}
+		ret = __blockdev_direct_IO(rw, iocb, inode,
+					 inode->i_sb->s_bdev, iov,
+					 offset, nr_segs,
+					 get_block_func,
+					 ext4_end_io_dio,
+					 NULL,
+					 dio_flags);
+
 		if (iocb->private)
 			ext4_inode_aio_set(inode, NULL);
 		/*
