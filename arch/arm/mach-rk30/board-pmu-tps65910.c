@@ -571,7 +571,7 @@ void __sramfunc board_pmu_tps65910_resume(void)
 }
 static struct tps65910_board tps65910_data = {
 	.irq 	= (unsigned)TPS65910_HOST_IRQ,		
-	.irq_base = NR_GIC_IRQS + NR_GPIO_IRQS,
+	.irq_base = IRQ_BOARD_BASE,
 	.gpio_base = TPS65910_GPIO_EXPANDER_BASE,
 	
 	.pre_init = tps65910_pre_init,

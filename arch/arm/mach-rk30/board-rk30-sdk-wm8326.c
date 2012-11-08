@@ -914,7 +914,7 @@ static struct wm831x_pdata wm831x_platdata = {
 	.settinginfo = wm831x_gpio_settinginfo,
 	.settinginfolen = ARRAY_SIZE(wm831x_gpio_settinginfo),
 	.pin_type_init = wm831x_init_pin_type,
-	.irq_base = NR_GIC_IRQS + NR_GPIO_IRQS,
+	.irq_base = IRQ_BOARD_BASE,
 #endif
 
 	/** LED1 = 0 and so on */
