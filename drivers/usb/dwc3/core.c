@@ -153,10 +153,8 @@ dwc3_alloc_one_event_buffer(struct dwc3 *dwc, unsigned length)
 	evt->length	= length;
 	evt->buf	= dma_alloc_coherent(dwc->dev, length,
 			&evt->dma, GFP_KERNEL);
-	if (!evt->buf) {
-		kfree(evt);
+	if (!evt->buf)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	return evt;
 }
