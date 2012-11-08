@@ -232,6 +232,17 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			if (K >= 65536)
 				PPC_ORIS(r_A, r_A, IMM_H(K));
 			break;
+		case BPF_S_ANC_ALU_XOR_X:
+		case BPF_S_ALU_XOR_X: /* A ^= X */
+			ctx->seen |= SEEN_XREG;
+			PPC_XOR(r_A, r_A, r_X);
+			break;
+		case BPF_S_ALU_XOR_K: /* A ^= K */
+			if (IMM_L(K))
+				PPC_XORI(r_A, r_A, IMM_L(K));
+			if (K >= 65536)
+				PPC_XORIS(r_A, r_A, IMM_H(K));
+			break;
 		case BPF_S_ALU_LSH_X: /* A <<= X; */
 			ctx->seen |= SEEN_XREG;
 			PPC_SLW(r_A, r_A, r_X);
