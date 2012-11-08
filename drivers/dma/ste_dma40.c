@@ -1711,10 +1711,12 @@ static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 	int i;
 	int j;
 	int log_num;
+	int num_phy_chans;
 	bool is_src;
 	bool is_log = d40c->dma_cfg.mode == STEDMA40_MODE_LOGICAL;
 
 	phys = d40c->base->phy_res;
+	num_phy_chans = d40c->base->num_phy_chans;
 
 	if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
 		dev_type = d40c->dma_cfg.src_dev_type;
@@ -1735,12 +1737,19 @@ static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 	if (!is_log) {
 		if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
 			/* Find physical half channel */
-			for (i = 0; i < d40c->base->num_phy_chans; i++) {
-
+			if (d40c->dma_cfg.use_fixed_channel) {
+				i = d40c->dma_cfg.phy_channel;
 				if (d40_alloc_mask_set(&phys[i], is_src,
 						       0, is_log,
 						       first_phy_user))
 					goto found_phy;
+			} else {
+				for (i = 0; i < num_phy_chans; i++) {
+					if (d40_alloc_mask_set(&phys[i], is_src,
+						       0, is_log,
+						       first_phy_user))
+						goto found_phy;
+				}
 			}
 		} else
 			for (j = 0; j < d40c->base->num_phy_chans; j += 8) {
