@@ -111,7 +111,7 @@ static int ext4_end_io(ext4_io_end_t *io)
 		inode_dio_done(inode);
 	/* Wake up anyone waiting on unwritten extent conversion */
 	if (atomic_dec_and_test(&EXT4_I(inode)->i_unwritten))
-		wake_up_all(ext4_ioend_wq(io->inode));
+		wake_up_all(ext4_ioend_wq(inode));
 	return ret;
 }
 
