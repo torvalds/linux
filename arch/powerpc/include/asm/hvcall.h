@@ -356,6 +356,26 @@ struct hvcall_mpp_x_data {
 
 int h_get_mpp_x(struct hvcall_mpp_x_data *mpp_x_data);
 
+static inline unsigned int get_longbusy_msecs(int longbusy_rc)
+{
+	switch (longbusy_rc) {
+	case H_LONG_BUSY_ORDER_1_MSEC:
+		return 1;
+	case H_LONG_BUSY_ORDER_10_MSEC:
+		return 10;
+	case H_LONG_BUSY_ORDER_100_MSEC:
+		return 100;
+	case H_LONG_BUSY_ORDER_1_SEC:
+		return 1000;
+	case H_LONG_BUSY_ORDER_10_SEC:
+		return 10000;
+	case H_LONG_BUSY_ORDER_100_SEC:
+		return 100000;
+	default:
+		return 1;
+	}
+}
+
 #ifdef CONFIG_PPC_PSERIES
 extern int CMO_PrPSP;
 extern int CMO_SecPSP;
