@@ -104,6 +104,9 @@ struct dispc_features {
 
 	/* swap GFX & WB fifos */
 	bool gfx_fifo_workaround:1;
+
+	/* no DISPC_IRQ_FRAMEDONETV on this SoC */
+	bool no_framedone_tv:1;
 };
 
 #define DISPC_MAX_NR_FIFOS 5
@@ -191,7 +194,7 @@ static const struct {
 	[OMAP_DSS_CHANNEL_DIGIT] = {
 		.name		= "DIGIT",
 		.vsync_irq	= DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN,
-		.framedone_irq	= 0,
+		.framedone_irq	= DISPC_IRQ_FRAMEDONETV,
 		.sync_lost_irq	= DISPC_IRQ_SYNC_LOST_DIGIT,
 		.reg_desc	= {
 			[DISPC_MGR_FLD_ENABLE]		= { DISPC_CONTROL,  1,  1 },
@@ -543,6 +546,9 @@ u32 dispc_mgr_get_vsync_irq(enum omap_channel channel)
 
 u32 dispc_mgr_get_framedone_irq(enum omap_channel channel)
 {
+	if (channel == OMAP_DSS_CHANNEL_DIGIT && dispc.feat->no_framedone_tv)
+		return 0;
+
 	return mgr_desc[channel].framedone_irq;
 }
 
@@ -4095,6 +4101,7 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
+	.no_framedone_tv	=	true,
 };
 
 static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
@@ -4111,6 +4118,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.no_framedone_tv	=	true,
 };
 
 static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
@@ -4127,6 +4135,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.no_framedone_tv	=	true,
 };
 
 static const struct dispc_features omap44xx_dispc_feats __initconst = {
