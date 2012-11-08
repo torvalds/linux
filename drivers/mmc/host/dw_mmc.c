@@ -773,19 +773,16 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 regs;
 
-	/* set default 1 bit mode */
-	slot->ctype = SDMMC_CTYPE_1BIT;
-
 	switch (ios->bus_width) {
-	case MMC_BUS_WIDTH_1:
-		slot->ctype = SDMMC_CTYPE_1BIT;
-		break;
 	case MMC_BUS_WIDTH_4:
 		slot->ctype = SDMMC_CTYPE_4BIT;
 		break;
 	case MMC_BUS_WIDTH_8:
 		slot->ctype = SDMMC_CTYPE_8BIT;
 		break;
+	default:
+		/* set default 1 bit mode */
+		slot->ctype = SDMMC_CTYPE_1BIT;
 	}
 
 	regs = mci_readl(slot->host, UHS_REG);
