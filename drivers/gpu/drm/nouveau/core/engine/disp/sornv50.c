@@ -27,8 +27,21 @@
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
+#include <subdev/timer.h>
 
 #include "nv50.h"
+
+int
+nv50_sor_power(struct nv50_disp_priv *priv, int or, u32 data)
+{
+	const u32 stat = data & NV50_DISP_SOR_PWR_STATE;
+	const u32 soff = (or * 0x800);
+	nv_wait(priv, 0x61c004 + soff, 0x80000000, 0x00000000);
+	nv_mask(priv, 0x61c004 + soff, 0x80000001, 0x80000000 | stat);
+	nv_wait(priv, 0x61c004 + soff, 0x80000000, 0x00000000);
+	nv_wait(priv, 0x61c030 + soff, 0x10000000, 0x00000000);
+	return 0;
+}
 
 int
 nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
@@ -72,6 +85,9 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 
 	data = *(u32 *)args;
 	switch (mthd & ~0x3f) {
+	case NV50_DISP_SOR_PWR:
+		ret = priv->sor.power(priv, or, data);
+		break;
 	case NV94_DISP_SOR_DP_TRAIN:
 		ret = priv->sor.dp_train(priv, or, link, type, mask, data, &outp);
 		break;

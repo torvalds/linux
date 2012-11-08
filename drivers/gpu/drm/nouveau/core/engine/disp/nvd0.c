@@ -896,6 +896,7 @@ nvd0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->head.nr = nv_rd32(priv, 0x022448);
 	priv->dac.nr = 3;
 	priv->sor.nr = 4;
+	priv->sor.power = nv50_sor_power;
 	priv->sor.dp_train = nvd0_sor_dp_train;
 	priv->sor.dp_lnkctl = nvd0_sor_dp_lnkctl;
 	priv->sor.dp_drvctl = nvd0_sor_dp_drvctl;

@@ -1434,10 +1434,9 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvd0_disp *disp = nvd0_disp(dev);
 	struct drm_encoder *partner;
 	int or = nv_encoder->or;
-	u32 dpms_ctrl;
 
 	nv_encoder->last_dpms = mode;
 
@@ -1455,13 +1454,7 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 		}
 	}
 
-	dpms_ctrl  = (mode == DRM_MODE_DPMS_ON);
-	dpms_ctrl |= 0x80000000;
-
-	nv_wait(device, 0x61c004 + (or * 0x0800), 0x80000000, 0x00000000);
-	nv_mask(device, 0x61c004 + (or * 0x0800), 0x80000001, dpms_ctrl);
-	nv_wait(device, 0x61c004 + (or * 0x0800), 0x80000000, 0x00000000);
-	nv_wait(device, 0x61c030 + (or * 0x0800), 0x10000000, 0x00000000);
+	nv_call(disp->core, NV50_DISP_SOR_PWR + or, (mode == DRM_MODE_DPMS_ON));
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		struct dp_train_func func = {

@@ -177,6 +177,10 @@ struct nve0_channel_ind_class {
 #define NV50_DISP_SOR_MTHD_LINK                                      0x00000004
 #define NV50_DISP_SOR_MTHD_OR                                        0x00000003
 
+#define NV50_DISP_SOR_PWR                                            0x00010000
+#define NV50_DISP_SOR_PWR_STATE                                      0x00000001
+#define NV50_DISP_SOR_PWR_STATE_ON                                   0x00000001
+#define NV50_DISP_SOR_PWR_STATE_OFF                                  0x00000000
 #define NV94_DISP_SOR_DP_TRAIN                                       0x00016000
 #define NV94_DISP_SOR_DP_TRAIN_PATTERN                               0x00000003
 #define NV94_DISP_SOR_DP_TRAIN_PATTERN_DISABLED                      0x00000000
