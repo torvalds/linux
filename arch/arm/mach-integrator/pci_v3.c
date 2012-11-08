@@ -191,12 +191,9 @@ static void __iomem *v3_open_config_window(struct pci_bus *bus,
 	/*
 	 * Trap out illegal values
 	 */
-	if (offset > 255)
-		BUG();
-	if (busnr > 255)
-		BUG();
-	if (devfn > 255)
-		BUG();
+	BUG_ON(offset > 255);
+	BUG_ON(busnr > 255);
+	BUG_ON(devfn > 255);
 
 	if (busnr == 0) {
 		int slot = PCI_SLOT(devfn);
