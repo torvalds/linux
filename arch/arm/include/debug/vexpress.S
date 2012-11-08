@@ -21,6 +21,7 @@
 #if defined(CONFIG_DEBUG_VEXPRESS_UART0_DETECT)
 
 		.macro	addruart,rp,rv,tmp
+		.arch   armv7-a
 
 		@ Make an educated guess regarding the memory map:
 		@ - the original A9 core tile (based on ARM Cortex-A9 r0p1)
