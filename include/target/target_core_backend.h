@@ -41,6 +41,7 @@ struct sbc_ops {
 	sense_reason_t (*execute_rw)(struct se_cmd *cmd);
 	sense_reason_t (*execute_sync_cache)(struct se_cmd *cmd);
 	sense_reason_t (*execute_write_same)(struct se_cmd *cmd);
+	sense_reason_t (*execute_write_same_unmap)(struct se_cmd *cmd);
 	sense_reason_t (*execute_unmap)(struct se_cmd *cmd);
 };
 
