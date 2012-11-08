@@ -559,7 +559,7 @@ static void mtip_timeout_function(unsigned long int data)
 	struct mtip_cmd *command;
 	int tag, cmdto_cnt = 0;
 	unsigned int bit, group;
-	unsigned int num_command_slots = port->dd->slot_groups * 32;
+	unsigned int num_command_slots;
 	unsigned long to, tagaccum[SLOTBITS_IN_LONGS];
 
 	if (unlikely(!port))
@@ -572,6 +572,7 @@ static void mtip_timeout_function(unsigned long int data)
 	}
 	/* clear the tag accumulator */
 	memset(tagaccum, 0, SLOTBITS_IN_LONGS * sizeof(long));
+	num_command_slots = port->dd->slot_groups * 32;
 
 	for (tag = 0; tag < num_command_slots; tag++) {
 		/*
