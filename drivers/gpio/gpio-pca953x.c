@@ -16,6 +16,7 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
 #include <linux/slab.h>
@@ -83,6 +84,7 @@ struct pca953x_chip {
 	u32 irq_trig_raise;
 	u32 irq_trig_fall;
 	int	 irq_base;
+	struct irq_domain *domain;
 #endif
 
 	struct i2c_client *client;
@@ -333,14 +335,14 @@ static void pca953x_irq_mask(struct irq_data *d)
 {
 	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask &= ~(1 << (d->irq - chip->irq_base));
+	chip->irq_mask &= ~(1 << d->hwirq);
 }
 
 static void pca953x_irq_unmask(struct irq_data *d)
 {
 	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
 
-	chip->irq_mask |= 1 << (d->irq - chip->irq_base);
+	chip->irq_mask |= 1 << d->hwirq;
 }
 
 static void pca953x_irq_bus_lock(struct irq_data *d)
@@ -372,8 +374,7 @@ static void pca953x_irq_bus_sync_unlock(struct irq_data *d)
 static int pca953x_irq_set_type(struct irq_data *d, unsigned int type)
 {
 	struct pca953x_chip *chip = irq_data_get_irq_chip_data(d);
-	u32 level = d->irq - chip->irq_base;
-	u32 mask = 1 << level;
+	u32 mask = 1 << d->hwirq;
 
 	if (!(type & IRQ_TYPE_EDGE_BOTH)) {
 		dev_err(&chip->client->dev, "irq %d: unsupported type %d\n",
@@ -454,7 +455,7 @@ static irqreturn_t pca953x_irq_handler(int irq, void *devid)
 
 	do {
 		level = __ffs(pending);
-		handle_nested_irq(level + chip->irq_base);
+		handle_nested_irq(irq_find_mapping(chip->domain, level));
 
 		pending &= ~(1 << level);
 	} while (pending);
@@ -499,6 +500,17 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		if (chip->irq_base < 0)
 			goto out_failed;
 
+		chip->domain = irq_domain_add_legacy(client->dev.of_node,
+						chip->gpio_chip.ngpio,
+						chip->irq_base,
+						0,
+						&irq_domain_simple_ops,
+						NULL);
+		if (!chip->domain) {
+			ret = -ENODEV;
+			goto out_irqdesc_free;
+		}
+
 		for (lvl = 0; lvl < chip->gpio_chip.ngpio; lvl++) {
 			int irq = lvl + chip->irq_base;
 
@@ -521,7 +533,7 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 		if (ret) {
 			dev_err(&client->dev, "failed to request irq %d\n",
 				client->irq);
-			goto out_failed;
+			goto out_irqdesc_free;
 		}
 
 		chip->gpio_chip.to_irq = pca953x_gpio_to_irq;
@@ -529,6 +541,8 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 
 	return 0;
 
+out_irqdesc_free:
+	irq_free_descs(chip->irq_base, chip->gpio_chip.ngpio);
 out_failed:
 	chip->irq_base = -1;
 	return ret;
