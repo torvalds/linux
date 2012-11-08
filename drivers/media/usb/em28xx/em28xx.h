@@ -4,6 +4,7 @@
    Copyright (C) 2005 Markus Rechberger <mrechberger@gmail.com>
 		      Ludovico Cavedon <cavedon@sssup.it>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
+   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    Based on the em2800 driver from Sascha Sommer <saschasommer@freenet.de>
 
@@ -583,12 +584,13 @@ struct em28xx {
 
 	/* usb transfer */
 	struct usb_device *udev;	/* the usb device */
-	int alt;		/* alternate */
-	int max_pkt_size;	/* max packet size of isoc transaction */
-	int num_alt;		/* Number of alternative settings */
-	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
-	int dvb_alt;				/* alternate for DVB */
-	unsigned int dvb_max_pkt_size;		/* wMaxPacketSize for DVB */
+	int alt;		/* alternate setting */
+	int max_pkt_size;	/* max packet size of the selected ep at alt */
+	int num_alt;		/* number of alternative settings */
+	unsigned int *alt_max_pkt_size_isoc; /* array of isoc wMaxPacketSize */
+	int dvb_alt_isoc;	/* alternate setting for DVB isoc transfers */
+	unsigned int dvb_max_pkt_size_isoc;	/* isoc max packet size of the
+						   selected DVB ep at dvb_alt */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */

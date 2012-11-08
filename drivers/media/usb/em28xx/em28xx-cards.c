@@ -3183,9 +3183,10 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	/* compute alternate max packet sizes */
-	dev->alt_max_pkt_size = kmalloc(sizeof(dev->alt_max_pkt_size[0]) *
+	dev->alt_max_pkt_size_isoc =
+				kmalloc(sizeof(dev->alt_max_pkt_size_isoc[0]) *
 					interface->num_altsetting, GFP_KERNEL);
-	if (dev->alt_max_pkt_size == NULL) {
+	if (dev->alt_max_pkt_size_isoc == NULL) {
 		em28xx_errdev("out of memory!\n");
 		kfree(dev);
 		retval = -ENOMEM;
@@ -3216,13 +3217,14 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 					break;
 				case EM28XX_EP_ANALOG:
 					has_video = true;
-					dev->alt_max_pkt_size[i] = size;
+					dev->alt_max_pkt_size_isoc[i] = size;
 					break;
 				case EM28XX_EP_DIGITAL:
 					has_dvb = true;
-					if (size > dev->dvb_max_pkt_size) {
-						dev->dvb_max_pkt_size = size;
-						dev->dvb_alt = i;
+					if (size > dev->dvb_max_pkt_size_isoc) {
+						dev->dvb_max_pkt_size_isoc =
+									  size;
+						dev->dvb_alt_isoc = i;
 					}
 					break;
 				}
@@ -3324,7 +3326,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		/* pre-allocate DVB isoc transfer buffers */
 		retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE, 0,
 					   EM28XX_DVB_NUM_BUFS,
-					   dev->dvb_max_pkt_size,
+					   dev->dvb_max_pkt_size_isoc,
 					   EM28XX_DVB_NUM_ISOC_PACKETS);
 		if (retval) {
 			goto unlock_and_free;
@@ -3344,7 +3346,7 @@ unlock_and_free:
 	mutex_unlock(&dev->lock);
 
 err_free:
-	kfree(dev->alt_max_pkt_size);
+	kfree(dev->alt_max_pkt_size_isoc);
 	kfree(dev);
 
 err:
@@ -3409,7 +3411,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	em28xx_close_extension(dev);
 
 	if (!dev->users) {
-		kfree(dev->alt_max_pkt_size);
+		kfree(dev->alt_max_pkt_size_isoc);
 		kfree(dev);
 	}
 }
