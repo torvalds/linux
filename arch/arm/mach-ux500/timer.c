@@ -100,13 +100,6 @@ dt_fail:
 	ux500_twd_init();
 }
 
-static void ux500_timer_reset(void)
-{
-	nmdk_clkevt_reset();
-	nmdk_clksrc_reset();
-}
-
 struct sys_timer ux500_timer = {
 	.init		= ux500_timer_init,
-	.resume		= ux500_timer_reset,
 };
