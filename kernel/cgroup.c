@@ -1770,9 +1770,9 @@ int cgroup_path(const struct cgroup *cgrp, char *buf, int buflen)
 		return 0;
 	}
 
-	start = buf + buflen;
+	start = buf + buflen - 1;
 
-	*--start = '\0';
+	*start = '\0';
 	for (;;) {
 		int len = dentry->d_name.len;
 
