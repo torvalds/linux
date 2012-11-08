@@ -210,7 +210,7 @@ static int gfar_init_bds(struct net_device *ndev)
 				skb = gfar_new_skb(ndev);
 				if (!skb) {
 					netdev_err(ndev, "Can't allocate RX buffers\n");
-					goto err_rxalloc_fail;
+					return -ENOMEM;
 				}
 				rx_queue->rx_skbuff[j] = skb;
 
@@ -223,10 +223,6 @@ static int gfar_init_bds(struct net_device *ndev)
 	}
 
 	return 0;
-
-err_rxalloc_fail:
-	free_skb_resources(priv);
-	return -ENOMEM;
 }
 
 static int gfar_alloc_skb_resources(struct net_device *ndev)
@@ -1356,7 +1352,11 @@ static int gfar_restore(struct device *dev)
 	if (!netif_running(ndev))
 		return 0;
 
-	gfar_init_bds(ndev);
+	if (gfar_init_bds(ndev)) {
+		free_skb_resources(priv);
+		return -ENOMEM;
+	}
+
 	init_registers(ndev);
 	gfar_set_mac_address(ndev);
 	gfar_init_mac(ndev);
@@ -1709,6 +1709,7 @@ static void free_skb_tx_queue(struct gfar_priv_tx_q *tx_queue)
 		tx_queue->tx_skbuff[i] = NULL;
 	}
 	kfree(tx_queue->tx_skbuff);
+	tx_queue->tx_skbuff = NULL;
 }
 
 static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
@@ -1732,6 +1733,7 @@ static void free_skb_rx_queue(struct gfar_priv_rx_q *rx_queue)
 		rxbdp++;
 	}
 	kfree(rx_queue->rx_skbuff);
+	rx_queue->rx_skbuff = NULL;
 }
 
 /* If there are any tx skbs or rx skbs still around, free them.
