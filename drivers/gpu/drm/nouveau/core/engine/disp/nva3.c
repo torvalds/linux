@@ -43,6 +43,7 @@ struct nouveau_omthds
 nva3_disp_base_omthds[] = {
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
 	{ SOR_MTHD(NVA3_DISP_SOR_HDA_ELD)     , nv50_sor_mthd },
+	{ SOR_MTHD(NV84_DISP_SOR_HDMI_PWR)    , nv50_sor_mthd },
 	{ SOR_MTHD(NV94_DISP_SOR_DP_TRAIN)    , nv50_sor_mthd },
 	{ SOR_MTHD(NV94_DISP_SOR_DP_LNKCTL)   , nv50_sor_mthd },
 	{ SOR_MTHD(NV94_DISP_SOR_DP_DRVCTL(0)), nv50_sor_mthd },

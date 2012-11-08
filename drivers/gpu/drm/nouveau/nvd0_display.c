@@ -1269,9 +1269,8 @@ nvd0_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
-	int head = nv_crtc->index * 0x800;
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
+	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
 	u32 rekey = 56; /* binary driver, and tegra constant */
 	u32 max_ac_packet;
 
@@ -1284,26 +1283,9 @@ nvd0_hdmi_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 	max_ac_packet -= 18; /* constant from tegra */
 	max_ac_packet /= 32;
 
-	/* AVI InfoFrame */
-	nv_mask(device, 0x616714 + head, 0x00000001, 0x00000000);
-	nv_wr32(device, 0x61671c + head, 0x000d0282);
-	nv_wr32(device, 0x616720 + head, 0x0000006f);
-	nv_wr32(device, 0x616724 + head, 0x00000000);
-	nv_wr32(device, 0x616728 + head, 0x00000000);
-	nv_wr32(device, 0x61672c + head, 0x00000000);
-	nv_mask(device, 0x616714 + head, 0x00000001, 0x00000001);
-
-	/* ??? InfoFrame? */
-	nv_mask(device, 0x6167a4 + head, 0x00000001, 0x00000000);
-	nv_wr32(device, 0x6167ac + head, 0x00000010);
-	nv_mask(device, 0x6167a4 + head, 0x00000001, 0x00000001);
-
-	/* HDMI_CTRL */
-	nv_mask(device, 0x616798 + head, 0x401f007f, 0x40000000 | rekey |
-						  max_ac_packet << 16);
-
-	/* NFI, audio doesn't work without it though.. */
-	nv_mask(device, 0x616548 + head, 0x00000070, 0x00000000);
+	nv_call(disp->core, NV84_DISP_SOR_HDMI_PWR + moff,
+			    NV84_DISP_SOR_HDMI_PWR_STATE_ON |
+			    (max_ac_packet << 16) | rekey);
 
 	nvd0_audio_mode_set(encoder, mode);
 }
@@ -1313,15 +1295,12 @@ nvd0_hdmi_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(nv_encoder->crtc);
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
-	int head = nv_crtc->index * 0x800;
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
+	const u32 moff = (nv_crtc->index << 3) | nv_encoder->or;
 
 	nvd0_audio_disconnect(encoder);
 
-	nv_mask(device, 0x616798 + head, 0x40000000, 0x00000000);
-	nv_mask(device, 0x6167a4 + head, 0x00000001, 0x00000000);
-	nv_mask(device, 0x616714 + head, 0x00000001, 0x00000000);
+	nv_call(disp->core, NV84_DISP_SOR_HDMI_PWR + moff, 0x00000000);
 }
 
 /******************************************************************************
