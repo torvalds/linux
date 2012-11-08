@@ -987,13 +987,8 @@ retry:
 		}
 	}
 
-	if (conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE) < SS_SUCCESS)
-		return 0;
-
 	sock->sk->sk_sndtimeo = timeout;
 	sock->sk->sk_rcvtimeo = MAX_SCHEDULE_TIMEOUT;
-
-	drbd_thread_start(&tconn->asender);
 
 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
 		return -1;
@@ -1007,6 +1002,11 @@ retry:
 		rcu_read_lock();
 	}
 	rcu_read_unlock();
+
+	if (conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE) < SS_SUCCESS)
+		return 0;
+
+	drbd_thread_start(&tconn->asender);
 
 	return h;
 
