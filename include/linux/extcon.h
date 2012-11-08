@@ -23,7 +23,9 @@
 #ifndef __LINUX_EXTCON_H__
 #define __LINUX_EXTCON_H__
 
+#include <linux/device.h>
 #include <linux/notifier.h>
+#include <linux/sysfs.h>
 
 #define SUPPORTED_CABLE_MAX	32
 #define CABLE_NAME_MAX		30
