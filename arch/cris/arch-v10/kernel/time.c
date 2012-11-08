@@ -65,8 +65,8 @@ unsigned long do_slow_gettimeoffset(void)
 	 */
 	count = *R_TIMER0_DATA;
 
-	/* Convert timer value to usec */
-	return (TIMER0_DIV - count) * ((NSEC_PER_SEC/1000)/HZ)/TIMER0_DIV;
+	/* Convert timer value to nsec */
+	return (TIMER0_DIV - count) * (NSEC_PER_SEC/HZ)/TIMER0_DIV;
 }
 
 /* Excerpt from the Etrax100 HSDD about the built-in watchdog:
