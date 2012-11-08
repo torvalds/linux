@@ -129,7 +129,7 @@ static struct spi_board_info neocore926_spi_devices[] = {
 		.max_speed_hz	= 125000 * 16,
 		.bus_num	= 0,
 		.platform_data	= &ads_info,
-		.irq		= AT91SAM9263_ID_IRQ1,
+		.irq		= NR_IRQS_LEGACY + AT91SAM9263_ID_IRQ1,
 	},
 #endif
 };

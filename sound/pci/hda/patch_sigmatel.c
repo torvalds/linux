@@ -1763,6 +1763,8 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 			  "HP", STAC_HP_ZEPHYR),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3660,
 			  "HP Mini", STAC_92HD83XXX_HP_LED),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x144E,
+			  "HP Pavilion dv5", STAC_92HD83XXX_HP_INV_LED),
 	{} /* terminator */
 };
 
