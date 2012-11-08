@@ -633,15 +633,18 @@ int dev_pm_qos_expose_flags(struct device *dev, s32 val)
 	if (!req)
 		return -ENOMEM;
 
+	pm_runtime_get_sync(dev);
 	ret = dev_pm_qos_add_request(dev, req, DEV_PM_QOS_FLAGS, val);
 	if (ret < 0)
-		return ret;
+		goto fail;
 
 	dev->power.qos->flags_req = req;
 	ret = pm_qos_sysfs_add_flags(dev);
 	if (ret)
 		__dev_pm_qos_drop_user_request(dev, DEV_PM_QOS_FLAGS);
 
+fail:
+	pm_runtime_put(dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_expose_flags);
@@ -654,7 +657,9 @@ void dev_pm_qos_hide_flags(struct device *dev)
 {
 	if (dev->power.qos && dev->power.qos->flags_req) {
 		pm_qos_sysfs_remove_flags(dev);
+		pm_runtime_get_sync(dev);
 		__dev_pm_qos_drop_user_request(dev, DEV_PM_QOS_FLAGS);
+		pm_runtime_put(dev);
 	}
 }
 EXPORT_SYMBOL_GPL(dev_pm_qos_hide_flags);
