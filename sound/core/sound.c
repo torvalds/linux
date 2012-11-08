@@ -115,7 +115,7 @@ void *snd_lookup_minor_data(unsigned int minor, int type)
 	mreg = snd_minors[minor];
 	if (mreg && mreg->type == type) {
 		private_data = mreg->private_data;
-		if (mreg->card_ptr)
+		if (private_data && mreg->card_ptr)
 			atomic_inc(&mreg->card_ptr->refcount);
 	} else
 		private_data = NULL;
