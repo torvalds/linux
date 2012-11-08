@@ -964,7 +964,7 @@ static void em28xx_irq_callback(struct urb *urb)
 void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode)
 {
 	struct urb *urb;
-	struct em28xx_usb_isoc_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *isoc_bufs;
 	int i;
 
 	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc in mode %d\n", mode);
@@ -1012,7 +1012,7 @@ void em28xx_stop_urbs(struct em28xx *dev)
 {
 	int i;
 	struct urb *urb;
-	struct em28xx_usb_isoc_bufs *isoc_bufs = &dev->isoc_ctl.digital_bufs;
+	struct em28xx_usb_bufs *isoc_bufs = &dev->isoc_ctl.digital_bufs;
 
 	em28xx_isocdbg("em28xx: called em28xx_stop_urbs\n");
 
@@ -1036,7 +1036,7 @@ EXPORT_SYMBOL_GPL(em28xx_stop_urbs);
 int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 		      int num_packets, int num_bufs, int max_pkt_size)
 {
-	struct em28xx_usb_isoc_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *isoc_bufs;
 	int i;
 	int sb_size, pipe;
 	struct urb *urb;
@@ -1134,7 +1134,7 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;
-	struct em28xx_usb_isoc_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *isoc_bufs;
 	int i;
 	int rc;
 	int alloc;

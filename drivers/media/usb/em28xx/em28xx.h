@@ -203,7 +203,7 @@ enum em28xx_mode {
 
 struct em28xx;
 
-struct em28xx_usb_isoc_bufs {
+struct em28xx_usb_bufs {
 		/* max packet size of isoc transaction */
 	int				max_pkt_size;
 
@@ -213,19 +213,19 @@ struct em28xx_usb_isoc_bufs {
 		/* number of allocated urbs */
 	int				num_bufs;
 
-		/* urb for isoc transfers */
+		/* urb for isoc/bulk transfers */
 	struct urb			**urb;
 
-		/* transfer buffers for isoc transfer */
+		/* transfer buffers for isoc/bulk transfer */
 	char				**transfer_buffer;
 };
 
 struct em28xx_usb_isoc_ctl {
 		/* isoc transfer buffers for analog mode */
-	struct em28xx_usb_isoc_bufs	analog_bufs;
+	struct em28xx_usb_bufs		analog_bufs;
 
 		/* isoc transfer buffers for digital mode */
-	struct em28xx_usb_isoc_bufs	digital_bufs;
+	struct em28xx_usb_bufs		digital_bufs;
 
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*vid_buf;
