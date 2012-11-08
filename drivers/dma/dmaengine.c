@@ -267,7 +267,10 @@ enum dma_status dma_sync_wait(struct dma_chan *chan, dma_cookie_t cookie)
 			pr_err("%s: timeout!\n", __func__);
 			return DMA_ERROR;
 		}
-	} while (status == DMA_IN_PROGRESS);
+		if (status != DMA_IN_PROGRESS)
+			break;
+		cpu_relax();
+	} while (1);
 
 	return status;
 }
