@@ -1174,6 +1174,16 @@ int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
 			return rc;
 	}
 
+	if (xfer_bulk) {
+		rc = usb_clear_halt(dev->udev, usb_bufs->urb[0]->pipe);
+		if (rc < 0) {
+			em28xx_err("failed to clear USB bulk endpoint stall/halt condition (error=%i)\n",
+				   rc);
+			em28xx_uninit_usb_xfer(dev, mode);
+			return rc;
+		}
+	}
+
 	init_waitqueue_head(&dma_q->wq);
 	init_waitqueue_head(&vbi_dma_q->wq);
 
