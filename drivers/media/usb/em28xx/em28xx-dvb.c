@@ -176,10 +176,11 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 		EM28XX_DVB_NUM_ISOC_PACKETS,
 		max_dvb_packet_size);
 
-	return em28xx_init_isoc(dev, EM28XX_DIGITAL_MODE,
-				EM28XX_DVB_NUM_ISOC_PACKETS,
-				EM28XX_DVB_NUM_BUFS,
-				max_dvb_packet_size, em28xx_dvb_isoc_copy);
+	return em28xx_init_usb_xfer(dev, EM28XX_DIGITAL_MODE, 0,
+				    EM28XX_DVB_NUM_BUFS,
+				    max_dvb_packet_size,
+				    EM28XX_DVB_NUM_ISOC_PACKETS,
+				    em28xx_dvb_isoc_copy);
 }
 
 static int em28xx_stop_streaming(struct em28xx_dvb *dvb)

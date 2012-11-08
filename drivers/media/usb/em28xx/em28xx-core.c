@@ -1141,33 +1141,35 @@ EXPORT_SYMBOL_GPL(em28xx_alloc_urbs);
 /*
  * Allocate URBs and start IRQ
  */
-int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		     int num_packets, int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb))
+int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
+		    int xfer_bulk, int num_bufs, int max_pkt_size,
+		    int packet_multiplier,
+		    int (*urb_data_copy) (struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue *vbi_dma_q = &dev->vbiq;
-	struct em28xx_usb_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *usb_bufs;
 	int i;
 	int rc;
 	int alloc;
 
-	em28xx_isocdbg("em28xx: called em28xx_init_isoc in mode %d\n", mode);
+	em28xx_isocdbg("em28xx: called em28xx_init_usb_xfer in mode %d\n",
+		       mode);
 
-	dev->usb_ctl.urb_data_copy = isoc_copy;
+	dev->usb_ctl.urb_data_copy = urb_data_copy;
 
 	if (mode == EM28XX_DIGITAL_MODE) {
-		isoc_bufs = &dev->usb_ctl.digital_bufs;
-		/* no need to free/alloc isoc buffers in digital mode */
+		usb_bufs = &dev->usb_ctl.digital_bufs;
+		/* no need to free/alloc usb buffers in digital mode */
 		alloc = 0;
 	} else {
-		isoc_bufs = &dev->usb_ctl.analog_bufs;
+		usb_bufs = &dev->usb_ctl.analog_bufs;
 		alloc = 1;
 	}
 
 	if (alloc) {
-		rc = em28xx_alloc_urbs(dev, mode, 0, num_bufs,
-				       max_pkt_size, num_packets);
+		rc = em28xx_alloc_urbs(dev, mode, xfer_bulk, num_bufs,
+				       max_pkt_size, packet_multiplier);
 		if (rc)
 			return rc;
 	}
@@ -1178,8 +1180,8 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	em28xx_capture_start(dev, 1);
 
 	/* submit urbs and enables IRQ */
-	for (i = 0; i < isoc_bufs->num_bufs; i++) {
-		rc = usb_submit_urb(isoc_bufs->urb[i], GFP_ATOMIC);
+	for (i = 0; i < usb_bufs->num_bufs; i++) {
+		rc = usb_submit_urb(usb_bufs->urb[i], GFP_ATOMIC);
 		if (rc) {
 			em28xx_err("submit of urb %i failed (error=%i)\n", i,
 				   rc);
@@ -1190,7 +1192,7 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(em28xx_init_isoc);
+EXPORT_SYMBOL_GPL(em28xx_init_usb_xfer);
 
 /*
  * em28xx_wake_i2c()

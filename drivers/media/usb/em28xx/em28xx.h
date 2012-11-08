@@ -664,9 +664,11 @@ int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
 int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		      int num_bufs, int max_pkt_size, int packet_multiplier);
-int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		     int num_packets, int num_bufs, int max_pkt_size,
-		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
+int em28xx_init_usb_xfer(struct em28xx *dev, enum em28xx_mode mode,
+			 int xfer_bulk,
+			 int num_bufs, int max_pkt_size, int packet_multiplier,
+			 int (*urb_data_copy)
+					(struct em28xx *dev, struct urb *urb));
 void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode);
 void em28xx_stop_urbs(struct em28xx *dev);
 int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
