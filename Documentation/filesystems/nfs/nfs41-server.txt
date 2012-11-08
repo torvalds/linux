@@ -43,12 +43,6 @@ interoperability problems with future clients.  Known issues:
 	  client-server state (thus preventing unauthorized tampering
 	  with locks and opens, for example).  It is mandatory for
 	  servers to support this, though no clients use it yet.
-	- Mandatory operations which we do not support, such as
-	  DESTROY_CLIENTID, are not currently used by clients, but will be
-	  (and the spec recommends their uses in common cases), and
-	  clients should not be expected to know how to recover from the
-	  case where they are not supported.  This will eventually cause
-	  interoperability failures.
 
 In addition, some limitations are inherited from the current NFSv4
 implementation:
@@ -94,7 +88,7 @@ NS*| DELEGPURGE           | OPT        | FDELG (REQ)  | Section 18.5   |
    | DELEGRETURN          | OPT        | FDELG,       | Section 18.6   |
    |                      |            | DDELG, pNFS  |                |
    |                      |            | (REQ)        |                |
-NS | DESTROY_CLIENTID     | REQ        |              | Section 18.50  |
+I  | DESTROY_CLIENTID     | REQ        |              | Section 18.50  |
 I  | DESTROY_SESSION      | REQ        |              | Section 18.37  |
 I  | EXCHANGE_ID          | REQ        |              | Section 18.35  |
 I  | FREE_STATEID         | REQ        |              | Section 18.38  |
@@ -187,7 +181,6 @@ EXCHANGE_ID:
 
 CREATE_SESSION:
 * backchannel attributes are ignored
-* backchannel security parameters are ignored
 
 SEQUENCE:
 * no support for dynamic slot table renegotiation (optional)
