@@ -606,6 +606,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("spu2", "sh_fsi2", &mstp_clks[MSTP223]),
 	CLKDEV_ICK_ID("diva", "sh_fsi2", &fsidivs[FSIDIV_A]),
 	CLKDEV_ICK_ID("divb", "sh_fsi2", &fsidivs[FSIDIV_B]),
+	CLKDEV_ICK_ID("xcka", "sh_fsi2", &sh7372_fsiack_clk),
+	CLKDEV_ICK_ID("xckb", "sh_fsi2", &sh7372_fsibck_clk),
 };
 
 void __init sh7372_clock_init(void)
