@@ -109,8 +109,6 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	struct clk *usbh_clk;
 	const struct hc_driver *driver = &ehci_spear_hc_driver;
 	int irq, retval;
-	char clk_name[20] = "usbh_clk";
-	static int instance = -1;
 
 	if (usb_disabled())
 		return -ENODEV;
@@ -129,16 +127,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &spear_ehci_dma_mask;
 
-	/*
-	 * Increment the device instance, when probing via device-tree
-	 */
-	if (pdev->id < 0)
-		instance++;
-	else
-		instance = pdev->id;
-	sprintf(clk_name, "usbh.%01d_clk", instance);
-
-	usbh_clk = clk_get(NULL, clk_name);
+	usbh_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {
 		dev_err(&pdev->dev, "Error getting interface clock\n");
 		retval = PTR_ERR(usbh_clk);

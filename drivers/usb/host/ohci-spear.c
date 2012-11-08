@@ -101,8 +101,6 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	struct spear_ohci *ohci_p;
 	struct resource *res;
 	int retval, irq;
-	char clk_name[20] = "usbh_clk";
-	static int instance = -1;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -118,16 +116,7 @@ static int spear_ohci_hcd_drv_probe(struct platform_device *pdev)
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &spear_ohci_dma_mask;
 
-	/*
-	 * Increment the device instance, when probing via device-tree
-	 */
-	if (pdev->id < 0)
-		instance++;
-	else
-		instance = pdev->id;
-	sprintf(clk_name, "usbh.%01d_clk", instance);
-
-	usbh_clk = clk_get(NULL, clk_name);
+	usbh_clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {
 		dev_err(&pdev->dev, "Error getting interface clock\n");
 		retval = PTR_ERR(usbh_clk);
