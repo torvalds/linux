@@ -2331,6 +2331,11 @@ int drm_mode_addfb2(struct drm_device *dev,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
+	if (r->flags & ~DRM_MODE_FB_INTERLACED) {
+		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
+		return -EINVAL;
+	}
+
 	if ((config->min_width > r->width) || (r->width > config->max_width)) {
 		DRM_DEBUG_KMS("bad framebuffer width %d, should be >= %d && <= %d\n",
 			  r->width, config->min_width, config->max_width);
