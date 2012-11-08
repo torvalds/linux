@@ -118,12 +118,12 @@ static void tegra_gpio_disable(int gpio)
 }
 EXPORT_SYMBOL_GPL(tegra_gpio_disable);
 
-int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	return pinctrl_request_gpio(offset);
 }
 
-void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	pinctrl_free_gpio(offset);
 	tegra_gpio_disable(offset);
