@@ -1111,12 +1111,12 @@ static int rbd_do_request(struct request *rq,
 			  struct ceph_osd_req_op *ops,
 			  struct rbd_req_coll *coll,
 			  int coll_index,
-			  void (*rbd_cb)(struct ceph_osd_request *req,
-					 struct ceph_msg *msg),
+			  void (*rbd_cb)(struct ceph_osd_request *,
+					 struct ceph_msg *),
 			  struct ceph_osd_request **linger_req,
 			  u64 *ver)
 {
-	struct ceph_osd_request *req;
+	struct ceph_osd_request *osd_req;
 	struct ceph_file_layout *layout;
 	int ret;
 	u64 bno;
@@ -1143,67 +1143,68 @@ static int rbd_do_request(struct request *rq,
 		(unsigned long long) len, coll, coll_index);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
-	req = ceph_osdc_alloc_request(osdc, flags, snapc, ops,
+	osd_req = ceph_osdc_alloc_request(osdc, flags, snapc, ops,
 					false, GFP_NOIO, pages, bio);
-	if (!req) {
+	if (!osd_req) {
 		ret = -ENOMEM;
 		goto done_pages;
 	}
 
-	req->r_callback = rbd_cb;
+	osd_req->r_callback = rbd_cb;
 
 	rbd_req->rq = rq;
 	rbd_req->bio = bio;
 	rbd_req->pages = pages;
 	rbd_req->len = len;
 
-	req->r_priv = rbd_req;
+	osd_req->r_priv = rbd_req;
 
-	reqhead = req->r_request->front.iov_base;
+	reqhead = osd_req->r_request->front.iov_base;
 	reqhead->snapid = cpu_to_le64(CEPH_NOSNAP);
 
-	strncpy(req->r_oid, object_name, sizeof(req->r_oid));
-	req->r_oid_len = strlen(req->r_oid);
+	strncpy(osd_req->r_oid, object_name, sizeof(osd_req->r_oid));
+	osd_req->r_oid_len = strlen(osd_req->r_oid);
 
-	layout = &req->r_file_layout;
+	layout = &osd_req->r_file_layout;
 	memset(layout, 0, sizeof(*layout));
 	layout->fl_stripe_unit = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
 	layout->fl_stripe_count = cpu_to_le32(1);
 	layout->fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
 	layout->fl_pg_pool = cpu_to_le32((int) rbd_dev->spec->pool_id);
 	ret = ceph_calc_raw_layout(osdc, layout, snapid, ofs, &len, &bno,
-				   req, ops);
+				   osd_req, ops);
 	rbd_assert(ret == 0);
 
-	ceph_osdc_build_request(req, ofs, &len,
+	ceph_osdc_build_request(osd_req, ofs, &len,
 				ops,
 				snapc,
 				&mtime,
-				req->r_oid, req->r_oid_len);
+				osd_req->r_oid, osd_req->r_oid_len);
 
 	if (linger_req) {
-		ceph_osdc_set_request_linger(osdc, req);
-		*linger_req = req;
+		ceph_osdc_set_request_linger(osdc, osd_req);
+		*linger_req = osd_req;
 	}
 
-	ret = ceph_osdc_start_request(osdc, req, false);
+	ret = ceph_osdc_start_request(osdc, osd_req, false);
 	if (ret < 0)
 		goto done_err;
 
 	if (!rbd_cb) {
-		ret = ceph_osdc_wait_request(osdc, req);
+		u64 version;
+
+		ret = ceph_osdc_wait_request(osdc, osd_req);
+		version = le64_to_cpu(osd_req->r_reassert_version.version);
 		if (ver)
-			*ver = le64_to_cpu(req->r_reassert_version.version);
-		dout("reassert_ver=%llu\n",
-			(unsigned long long)
-				le64_to_cpu(req->r_reassert_version.version));
-		ceph_osdc_put_request(req);
+			*ver = version;
+		dout("reassert_ver=%llu\n", (unsigned long long) version);
+		ceph_osdc_put_request(osd_req);
 	}
 	return ret;
 
 done_err:
 	bio_chain_put(rbd_req->bio);
-	ceph_osdc_put_request(req);
+	ceph_osdc_put_request(osd_req);
 done_pages:
 	rbd_coll_end_req(rbd_req, ret, len);
 	kfree(rbd_req);
@@ -1213,9 +1214,9 @@ done_pages:
 /*
  * Ceph osd op callback
  */
-static void rbd_req_cb(struct ceph_osd_request *req, struct ceph_msg *msg)
+static void rbd_req_cb(struct ceph_osd_request *osd_req, struct ceph_msg *msg)
 {
-	struct rbd_request *rbd_req = req->r_priv;
+	struct rbd_request *rbd_req = osd_req->r_priv;
 	struct ceph_osd_reply_head *replyhead;
 	struct ceph_osd_op *op;
 	__s32 rc;
@@ -1246,13 +1247,14 @@ static void rbd_req_cb(struct ceph_osd_request *req, struct ceph_msg *msg)
 	if (rbd_req->bio)
 		bio_chain_put(rbd_req->bio);
 
-	ceph_osdc_put_request(req);
+	ceph_osdc_put_request(osd_req);
 	kfree(rbd_req);
 }
 
-static void rbd_simple_req_cb(struct ceph_osd_request *req, struct ceph_msg *msg)
+static void rbd_simple_req_cb(struct ceph_osd_request *osd_req,
+				struct ceph_msg *msg)
 {
-	ceph_osdc_put_request(req);
+	ceph_osdc_put_request(osd_req);
 }
 
 /*
