@@ -919,7 +919,7 @@ EXPORT_SYMBOL_GPL(em28xx_set_mode);
    ------------------------------------------------------------------*/
 
 /*
- * IRQ callback, called by URB callback
+ * URB completion handler for isoc/bulk transfers
  */
 static void em28xx_irq_callback(struct urb *urb)
 {
@@ -946,6 +946,7 @@ static void em28xx_irq_callback(struct urb *urb)
 
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
+		/* isoc only (bulk: number_of_packets = 0) */
 		urb->iso_frame_desc[i].status = 0;
 		urb->iso_frame_desc[i].actual_length = 0;
 	}
