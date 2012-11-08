@@ -452,6 +452,10 @@ enum {
 	SHDMA_SLAVE_SCIF5_RX,
 	SHDMA_SLAVE_SCIF6_TX,
 	SHDMA_SLAVE_SCIF6_RX,
+	SHDMA_SLAVE_FLCTL0_TX,
+	SHDMA_SLAVE_FLCTL0_RX,
+	SHDMA_SLAVE_FLCTL1_TX,
+	SHDMA_SLAVE_FLCTL1_RX,
 	SHDMA_SLAVE_SDHI0_RX,
 	SHDMA_SLAVE_SDHI0_TX,
 	SHDMA_SLAVE_SDHI1_RX,
@@ -475,8 +479,6 @@ extern struct clk sh7372_dv_clki_div2_clk;
 extern struct clk sh7372_pllc2_clk;
 extern struct clk sh7372_fsiack_clk;
 extern struct clk sh7372_fsibck_clk;
-extern struct clk sh7372_fsidiva_clk;
-extern struct clk sh7372_fsidivb_clk;
 
 extern void sh7372_intcs_suspend(void);
 extern void sh7372_intcs_resume(void);

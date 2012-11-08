@@ -882,7 +882,7 @@ static int __fsi_set_round_rate(struct clk *clk, long rate, int enable)
 static int fsi_b_set_rate(struct device *dev, int rate, int enable)
 {
 	struct clk *fsib_clk;
-	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
+	struct clk *fdiv_clk = clk_get(NULL, "fsidivb");
 	long fsib_rate = 0;
 	long fdiv_rate = 0;
 	int ackmd_bpfmd;
