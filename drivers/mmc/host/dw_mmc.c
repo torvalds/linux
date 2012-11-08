@@ -232,7 +232,7 @@ static u32 dw_mci_prepare_command(struct mmc_host *mmc, struct mmc_command *cmd)
 {
 	struct mmc_data	*data;
 	struct dw_mci_slot *slot = mmc_priv(mmc);
-	struct dw_mci_drv_data *drv_data = slot->host->drv_data;
+	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 cmdr;
 	cmd->error = -EINPROGRESS;
 
@@ -773,7 +773,7 @@ static void dw_mci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct dw_mci_slot *slot = mmc_priv(mmc);
-	struct dw_mci_drv_data *drv_data = slot->host->drv_data;
+	const struct dw_mci_drv_data *drv_data = slot->host->drv_data;
 	u32 regs;
 
 	/* set default 1 bit mode */
@@ -1817,7 +1817,7 @@ static int dw_mci_init_slot(struct dw_mci *host, unsigned int id)
 {
 	struct mmc_host *mmc;
 	struct dw_mci_slot *slot;
-	struct dw_mci_drv_data *drv_data = host->drv_data;
+	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int ctrl_id, ret;
 	u8 bus_width;
 
@@ -2038,7 +2038,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 	struct dw_mci_board *pdata;
 	struct device *dev = host->dev;
 	struct device_node *np = dev->of_node;
-	struct dw_mci_drv_data *drv_data = host->drv_data;
+	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int idx, ret;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
@@ -2084,7 +2084,7 @@ static struct dw_mci_board *dw_mci_parse_dt(struct dw_mci *host)
 
 int dw_mci_probe(struct dw_mci *host)
 {
-	struct dw_mci_drv_data *drv_data = host->drv_data;
+	const struct dw_mci_drv_data *drv_data = host->drv_data;
 	int width, i, ret = 0;
 	u32 fifo_size;
 	int init_slots = 0;
