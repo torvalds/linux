@@ -53,5 +53,61 @@
 			interrupts = <0 50 4>;
 			clock = <50000000>;
 		};
+
+		slcr: slcr@f8000000 {
+			compatible = "xlnx,zynq-slcr";
+			reg = <0xF8000000 0x1000>;
+
+			clocks {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				ps_clk: ps_clk {
+					#clock-cells = <0>;
+					compatible = "fixed-clock";
+					/* clock-frequency set in board-specific file */
+					clock-output-names = "ps_clk";
+				};
+				armpll: armpll {
+					#clock-cells = <0>;
+					compatible = "xlnx,zynq-pll";
+					clocks = <&ps_clk>;
+					reg = <0x100 0x110>;
+					clock-output-names = "armpll";
+				};
+				ddrpll: ddrpll {
+					#clock-cells = <0>;
+					compatible = "xlnx,zynq-pll";
+					clocks = <&ps_clk>;
+					reg = <0x104 0x114>;
+					clock-output-names = "ddrpll";
+				};
+				iopll: iopll {
+					#clock-cells = <0>;
+					compatible = "xlnx,zynq-pll";
+					clocks = <&ps_clk>;
+					reg = <0x108 0x118>;
+					clock-output-names = "iopll";
+				};
+				uart_clk: uart_clk {
+					#clock-cells = <1>;
+					compatible = "xlnx,zynq-periph-clock";
+					clocks = <&iopll &armpll &ddrpll>;
+					reg = <0x154>;
+					clock-output-names = "uart0_ref_clk",
+							     "uart1_ref_clk";
+				};
+				cpu_clk: cpu_clk {
+					#clock-cells = <1>;
+					compatible = "xlnx,zynq-cpu-clock";
+					clocks = <&iopll &armpll &ddrpll>;
+					reg = <0x120 0x1C4>;
+					clock-output-names = "cpu_6x4x",
+							     "cpu_3x2x",
+							     "cpu_2x",
+							     "cpu_1x";
+				};
+			};
+		};
 	};
 };

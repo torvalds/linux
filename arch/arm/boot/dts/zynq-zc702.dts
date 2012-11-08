@@ -28,3 +28,7 @@
 	};
 
 };
+
+&ps_clk {
+	clock-frequency = <33333330>;
+};
