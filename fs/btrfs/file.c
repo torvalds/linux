@@ -1964,6 +1964,9 @@ out_trans:
 	if (!trans)
 		goto out_free;
 
+	inode_inc_iversion(inode);
+	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+
 	trans->block_rsv = &root->fs_info->trans_block_rsv;
 	ret = btrfs_update_inode(trans, root, inode);
 	nr = trans->blocks_used;
