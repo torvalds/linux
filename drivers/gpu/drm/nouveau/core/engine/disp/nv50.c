@@ -653,9 +653,17 @@ nv50_disp_base_ofuncs = {
 	.fini = nv50_disp_base_fini,
 };
 
+static struct nouveau_omthds
+nv50_disp_base_omthds[] = {
+	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
+	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
+	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
+	{},
+};
+
 static struct nouveau_oclass
 nv50_disp_base_oclass[] = {
-	{ NV50_DISP_CLASS, &nv50_disp_base_ofuncs },
+	{ NV50_DISP_CLASS, &nv50_disp_base_ofuncs, nv50_disp_base_omthds },
 	{}
 };
 
@@ -798,6 +806,8 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
 	priv->sor.nr = 2;
+	priv->dac.power = nv50_dac_power;
+	priv->sor.power = nv50_sor_power;
 
 	INIT_LIST_HEAD(&priv->base.vblank.list);
 	spin_lock_init(&priv->base.vblank.lock);

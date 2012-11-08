@@ -36,6 +36,8 @@
 #include "nouveau_crtc.h"
 #include "nv50_display.h"
 
+#include <core/class.h>
+
 #include <subdev/timer.h>
 
 static u32
@@ -267,12 +269,11 @@ nv50_sor_disconnect(struct drm_encoder *encoder)
 static void
 nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct nouveau_device *device = nouveau_dev(encoder->dev);
+	struct nv50_display *priv = nv50_display(encoder->dev);
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct drm_encoder *enc;
-	uint32_t val;
 	int or = nv_encoder->or;
 
 	NV_DEBUG(drm, "or %d type %d mode %d\n", or, nv_encoder->dcb->type, mode);
@@ -292,29 +293,7 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 			return;
 	}
 
-	/* wait for it to be done */
-	if (!nv_wait(device, NV50_PDISPLAY_SOR_DPMS_CTRL(or),
-		     NV50_PDISPLAY_SOR_DPMS_CTRL_PENDING, 0)) {
-		NV_ERROR(drm, "timeout: SOR_DPMS_CTRL_PENDING(%d) == 0\n", or);
-		NV_ERROR(drm, "SOR_DPMS_CTRL(%d) = 0x%08x\n", or,
-			 nv_rd32(device, NV50_PDISPLAY_SOR_DPMS_CTRL(or)));
-	}
-
-	val = nv_rd32(device, NV50_PDISPLAY_SOR_DPMS_CTRL(or));
-
-	if (mode == DRM_MODE_DPMS_ON)
-		val |= NV50_PDISPLAY_SOR_DPMS_CTRL_ON;
-	else
-		val &= ~NV50_PDISPLAY_SOR_DPMS_CTRL_ON;
-
-	nv_wr32(device, NV50_PDISPLAY_SOR_DPMS_CTRL(or), val |
-		NV50_PDISPLAY_SOR_DPMS_CTRL_PENDING);
-	if (!nv_wait(device, NV50_PDISPLAY_SOR_DPMS_STATE(or),
-		     NV50_PDISPLAY_SOR_DPMS_STATE_WAIT, 0)) {
-		NV_ERROR(drm, "timeout: SOR_DPMS_STATE_WAIT(%d) == 0\n", or);
-		NV_ERROR(drm, "SOR_DPMS_STATE(%d) = 0x%08x\n", or,
-			 nv_rd32(device, NV50_PDISPLAY_SOR_DPMS_STATE(or)));
-	}
+	nv_call(priv->core, NV50_DISP_SOR_PWR + or, (mode == DRM_MODE_DPMS_ON));
 
 	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
 		struct dp_train_func func = {

@@ -36,6 +36,8 @@
 #include "nouveau_crtc.h"
 #include "nv50_display.h"
 
+#include <core/class.h>
+
 #include <subdev/timer.h>
 
 static void
@@ -124,7 +126,7 @@ nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 static void
 nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 {
-	struct nouveau_device *device = nouveau_dev(encoder->dev);
+	struct nv50_display *priv = nv50_display(encoder->dev);
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	uint32_t val;
@@ -132,19 +134,10 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 
 	NV_DEBUG(drm, "or %d mode %d\n", or, mode);
 
-	/* wait for it to be done */
-	if (!nv_wait(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or),
-		     NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING, 0)) {
-		NV_ERROR(drm, "timeout: DAC_DPMS_CTRL_PENDING(%d) == 0\n", or);
-		NV_ERROR(drm, "DAC_DPMS_CTRL(%d) = 0x%08x\n", or,
-			 nv_rd32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or)));
-		return;
-	}
-
-	val = nv_rd32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or)) & ~0x7F;
-
 	if (mode != DRM_MODE_DPMS_ON)
-		val |= NV50_PDISPLAY_DAC_DPMS_CTRL_BLANKED;
+		val = NV50_PDISPLAY_DAC_DPMS_CTRL_BLANKED;
+	else
+		val = 0;
 
 	switch (mode) {
 	case DRM_MODE_DPMS_STANDBY:
@@ -162,8 +155,7 @@ nv50_dac_dpms(struct drm_encoder *encoder, int mode)
 		break;
 	}
 
-	nv_wr32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or), val |
-		NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING);
+	nv_call(priv->core, NV50_DISP_DAC_PWR + or, val);
 }
 
 static void

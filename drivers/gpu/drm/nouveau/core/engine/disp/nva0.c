@@ -41,7 +41,7 @@ nva0_disp_sclass[] = {
 
 static struct nouveau_oclass
 nva0_disp_base_oclass[] = {
-	{ NVA0_DISP_CLASS, &nv50_disp_base_ofuncs },
+	{ NVA0_DISP_CLASS, &nv50_disp_base_ofuncs, nv84_disp_base_omthds },
 	{}
 };
 
@@ -66,6 +66,8 @@ nva0_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
 	priv->sor.nr = 2;
+	priv->dac.power = nv50_dac_power;
+	priv->sor.power = nv50_sor_power;
 
 	INIT_LIST_HEAD(&priv->base.vblank.list);
 	spin_lock_init(&priv->base.vblank.lock);

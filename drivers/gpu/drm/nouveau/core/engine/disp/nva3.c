@@ -57,7 +57,7 @@ nva3_disp_base_omthds[] = {
 
 static struct nouveau_oclass
 nva3_disp_base_oclass[] = {
-	{ NVA3_DISP_CLASS, &nv50_disp_base_ofuncs },
+	{ NVA3_DISP_CLASS, &nv50_disp_base_ofuncs, nva3_disp_base_omthds },
 	{}
 };
 
@@ -82,6 +82,8 @@ nva3_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->head.nr = 2;
 	priv->dac.nr = 3;
 	priv->sor.nr = 4;
+	priv->dac.power = nv50_dac_power;
+	priv->sor.power = nv50_sor_power;
 
 	INIT_LIST_HEAD(&priv->base.vblank.list);
 	spin_lock_init(&priv->base.vblank.lock);
