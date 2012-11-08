@@ -3394,7 +3394,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		     video_device_node_name(dev->vdev));
 
 		dev->state |= DEV_MISCONFIGURED;
-		em28xx_uninit_isoc(dev, dev->mode);
+		em28xx_uninit_usb_xfer(dev, dev->mode);
 		dev->state |= DEV_DISCONNECTED;
 	} else {
 		dev->state |= DEV_DISCONNECTED;
@@ -3402,7 +3402,7 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	}
 
 	/* free DVB isoc buffers */
-	em28xx_uninit_isoc(dev, EM28XX_DIGITAL_MODE);
+	em28xx_uninit_usb_xfer(dev, EM28XX_DIGITAL_MODE);
 
 	mutex_unlock(&dev->lock);
 

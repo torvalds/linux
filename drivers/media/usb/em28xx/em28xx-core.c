@@ -962,49 +962,50 @@ static void em28xx_irq_callback(struct urb *urb)
 /*
  * Stop and Deallocate URBs
  */
-void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode)
+void em28xx_uninit_usb_xfer(struct em28xx *dev, enum em28xx_mode mode)
 {
 	struct urb *urb;
-	struct em28xx_usb_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *usb_bufs;
 	int i;
 
-	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc in mode %d\n", mode);
+	em28xx_isocdbg("em28xx: called em28xx_uninit_usb_xfer in mode %d\n",
+		       mode);
 
 	if (mode == EM28XX_DIGITAL_MODE)
-		isoc_bufs = &dev->usb_ctl.digital_bufs;
+		usb_bufs = &dev->usb_ctl.digital_bufs;
 	else
-		isoc_bufs = &dev->usb_ctl.analog_bufs;
+		usb_bufs = &dev->usb_ctl.analog_bufs;
 
-	for (i = 0; i < isoc_bufs->num_bufs; i++) {
-		urb = isoc_bufs->urb[i];
+	for (i = 0; i < usb_bufs->num_bufs; i++) {
+		urb = usb_bufs->urb[i];
 		if (urb) {
 			if (!irqs_disabled())
 				usb_kill_urb(urb);
 			else
 				usb_unlink_urb(urb);
 
-			if (isoc_bufs->transfer_buffer[i]) {
+			if (usb_bufs->transfer_buffer[i]) {
 				usb_free_coherent(dev->udev,
 					urb->transfer_buffer_length,
-					isoc_bufs->transfer_buffer[i],
+					usb_bufs->transfer_buffer[i],
 					urb->transfer_dma);
 			}
 			usb_free_urb(urb);
-			isoc_bufs->urb[i] = NULL;
+			usb_bufs->urb[i] = NULL;
 		}
-		isoc_bufs->transfer_buffer[i] = NULL;
+		usb_bufs->transfer_buffer[i] = NULL;
 	}
 
-	kfree(isoc_bufs->urb);
-	kfree(isoc_bufs->transfer_buffer);
+	kfree(usb_bufs->urb);
+	kfree(usb_bufs->transfer_buffer);
 
-	isoc_bufs->urb = NULL;
-	isoc_bufs->transfer_buffer = NULL;
-	isoc_bufs->num_bufs = 0;
+	usb_bufs->urb = NULL;
+	usb_bufs->transfer_buffer = NULL;
+	usb_bufs->num_bufs = 0;
 
 	em28xx_capture_start(dev, 0);
 }
-EXPORT_SYMBOL_GPL(em28xx_uninit_isoc);
+EXPORT_SYMBOL_GPL(em28xx_uninit_usb_xfer);
 
 /*
  * Stop URBs
@@ -1051,7 +1052,7 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 		isoc_bufs = &dev->usb_ctl.analog_bufs;
 
 	/* De-allocates all pending stuff */
-	em28xx_uninit_isoc(dev, mode);
+	em28xx_uninit_usb_xfer(dev, mode);
 
 	isoc_bufs->num_bufs = num_bufs;
 
@@ -1081,7 +1082,7 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 		urb = usb_alloc_urb(isoc_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
 			em28xx_err("cannot alloc usb_ctl.urb %i\n", i);
-			em28xx_uninit_isoc(dev, mode);
+			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
 		isoc_bufs->urb[i] = urb;
@@ -1093,7 +1094,7 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 					" buffer %i%s\n",
 					sb_size, i,
 					in_interrupt() ? " while in int" : "");
-			em28xx_uninit_isoc(dev, mode);
+			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
 		memset(isoc_bufs->transfer_buffer[i], 0, sb_size);
@@ -1171,7 +1172,7 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 		if (rc) {
 			em28xx_err("submit of urb %i failed (error=%i)\n", i,
 				   rc);
-			em28xx_uninit_isoc(dev, mode);
+			em28xx_uninit_usb_xfer(dev, mode);
 			return rc;
 		}
 	}
