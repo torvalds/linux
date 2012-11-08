@@ -19,7 +19,7 @@ struct nv50_disp_priv {
 	struct {
 		int nr;
 		int (*power)(struct nv50_disp_priv *, int dac, u32 data);
-		int (*sense)(struct nv50_disp_priv *, int dac);
+		int (*sense)(struct nv50_disp_priv *, int dac, u32 load);
 	} dac;
 	struct {
 		int nr;
@@ -42,7 +42,7 @@ struct nv50_disp_priv {
 
 int nv50_dac_mthd(struct nouveau_object *, u32, void *, u32);
 int nv50_dac_power(struct nv50_disp_priv *, int, u32);
-int nv50_dac_sense(struct nv50_disp_priv *, int);
+int nv50_dac_sense(struct nv50_disp_priv *, int, u32);
 
 #define SOR_MTHD(n) (n), (n) + 0x3f
 

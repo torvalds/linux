@@ -1176,7 +1176,7 @@ nvd0_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
 	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
 	int ret, or = nouveau_encoder(encoder)->or;
-	u32 load;
+	u32 load = 0;
 
 	ret = nv_exec(disp->core, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
 	if (ret || load != 7)

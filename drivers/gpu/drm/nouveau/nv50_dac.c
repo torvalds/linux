@@ -71,56 +71,22 @@ nv50_dac_disconnect(struct drm_encoder *encoder)
 static enum drm_connector_status
 nv50_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
+	struct nv50_display *priv = nv50_display(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_device *device = nouveau_dev(encoder->dev);
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-	enum drm_connector_status status = connector_status_disconnected;
-	uint32_t dpms_state, load_pattern, load_state;
-	int or = nv_encoder->or;
+	int or = nv_encoder->or, ret;
+	u32 load;
 
-	nv_wr32(device, NV50_PDISPLAY_DAC_CLK_CTRL1(or), 0x00000001);
-	dpms_state = nv_rd32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or));
-
-	nv_wr32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or),
-		0x00150000 | NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING);
-	if (!nv_wait(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or),
-		     NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING, 0)) {
-		NV_ERROR(drm, "timeout: DAC_DPMS_CTRL_PENDING(%d) == 0\n", or);
-		NV_ERROR(drm, "DAC_DPMS_CTRL(%d) = 0x%08x\n", or,
-			  nv_rd32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or)));
-		return status;
-	}
-
-	/* Use bios provided value if possible. */
-	if (drm->vbios.dactestval) {
-		load_pattern = drm->vbios.dactestval;
-		NV_DEBUG(drm, "Using bios provided load_pattern of %d\n",
-			  load_pattern);
-	} else {
-		load_pattern = 340;
-		NV_DEBUG(drm, "Using default load_pattern of %d\n",
-			 load_pattern);
-	}
-
-	nv_wr32(device, NV50_PDISPLAY_DAC_LOAD_CTRL(or),
-		NV50_PDISPLAY_DAC_LOAD_CTRL_ACTIVE | load_pattern);
-	mdelay(45); /* give it some time to process */
-	load_state = nv_rd32(device, NV50_PDISPLAY_DAC_LOAD_CTRL(or));
-
-	nv_wr32(device, NV50_PDISPLAY_DAC_LOAD_CTRL(or), 0);
-	nv_wr32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(or), dpms_state |
-		NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING);
-
-	if ((load_state & NV50_PDISPLAY_DAC_LOAD_CTRL_PRESENT) ==
-			  NV50_PDISPLAY_DAC_LOAD_CTRL_PRESENT)
-		status = connector_status_connected;
-
-	if (status == connector_status_connected)
-		NV_DEBUG(drm, "Load was detected on output with or %d\n", or);
+	if (drm->vbios.dactestval)
+		load = drm->vbios.dactestval;
 	else
-		NV_DEBUG(drm, "Load was not detected on output with or %d\n", or);
+		load = 340;
 
-	return status;
+	ret = nv_exec(priv->core, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
+	if (ret || load != 7)
+		return connector_status_disconnected;
+
+	return connector_status_connected;
 }
 
 static void

@@ -807,6 +807,7 @@ nv50_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.nr = 3;
 	priv->sor.nr = 2;
 	priv->dac.power = nv50_dac_power;
+	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 
 	INIT_LIST_HEAD(&priv->base.vblank.list);

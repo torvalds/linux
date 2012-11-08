@@ -46,11 +46,11 @@ nv50_dac_power(struct nv50_disp_priv *priv, int or, u32 data)
 }
 
 int
-nv50_dac_sense(struct nv50_disp_priv *priv, int or)
+nv50_dac_sense(struct nv50_disp_priv *priv, int or, u32 loadval)
 {
 	const u32 doff = (or * 0x800);
 	int load = -EINVAL;
-	nv_wr32(priv, 0x61a00c + doff, 0x00100000);
+	nv_wr32(priv, 0x61a00c + doff, 0x00100000 | loadval);
 	udelay(9500);
 	nv_wr32(priv, 0x61a00c + doff, 0x80000000);
 	load = (nv_rd32(priv, 0x61a00c + doff) & 0x38000000) >> 27;
@@ -74,7 +74,7 @@ nv50_dac_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 		ret = priv->dac.power(priv, or, data[0]);
 		break;
 	case NV50_DISP_DAC_LOAD:
-		ret = priv->dac.sense(priv, or);
+		ret = priv->dac.sense(priv, or, data[0]);
 		if (ret >= 0) {
 			data[0] = ret;
 			ret = 0;
