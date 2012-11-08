@@ -319,6 +319,9 @@ enum {
 #define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
 #define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
 
+/* The core spec defines 127 as the "not available" value */
+#define HCI_TX_POWER_INVALID	127
+
 /* Extended Inquiry Response field types */
 #define EIR_FLAGS		0x01 /* flags */
 #define EIR_UUID16_SOME		0x02 /* 16-bit UUID, more available */

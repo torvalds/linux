@@ -484,7 +484,7 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 		ptr += (name_len + 2);
 	}
 
-	if (hdev->inq_tx_power) {
+	if (hdev->inq_tx_power != HCI_TX_POWER_INVALID) {
 		ptr[0] = 2;
 		ptr[1] = EIR_TX_POWER;
 		ptr[2] = (u8) hdev->inq_tx_power;

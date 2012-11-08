@@ -1606,6 +1606,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 	hdev->io_capability = 0x03; /* No Input No Output */
+	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
+	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
