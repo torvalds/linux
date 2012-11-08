@@ -901,8 +901,6 @@ static inline void dma_async_issue_pending(struct dma_chan *chan)
 	chan->device->device_issue_pending(chan);
 }
 
-#define dma_async_memcpy_issue_pending(chan) dma_async_issue_pending(chan)
-
 /**
  * dma_async_is_tx_complete - poll for transaction completion
  * @chan: DMA channel
