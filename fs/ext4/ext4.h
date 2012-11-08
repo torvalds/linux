@@ -811,6 +811,8 @@ struct ext4_ext_cache {
 	__u32		ec_len; /* must be 32bit to return holes */
 };
 
+#include "extents_status.h"
+
 /*
  * fourth extended file system inode data in memory
  */
@@ -887,6 +889,10 @@ struct ext4_inode_info {
 	/* mballoc */
 	struct list_head i_prealloc_list;
 	spinlock_t i_prealloc_lock;
+
+	/* extents status tree */
+	struct ext4_es_tree i_es_tree;
+	rwlock_t i_es_lock;
 
 	/* ialloc */
 	ext4_group_t	i_last_alloc_group;
