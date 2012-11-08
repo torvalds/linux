@@ -277,11 +277,6 @@ static int usbhs_runtime_resume(struct device *dev)
 
 	dev_dbg(dev, "usbhs_runtime_resume\n");
 
-	if (!pdata) {
-		dev_dbg(dev, "missing platform_data\n");
-		return  -ENODEV;
-	}
-
 	omap_tll_enable();
 	spin_lock_irqsave(&omap->lock, flags);
 
@@ -308,11 +303,6 @@ static int usbhs_runtime_suspend(struct device *dev)
 	unsigned long			flags;
 
 	dev_dbg(dev, "usbhs_runtime_suspend\n");
-
-	if (!pdata) {
-		dev_dbg(dev, "missing platform_data\n");
-		return  -ENODEV;
-	}
 
 	spin_lock_irqsave(&omap->lock, flags);
 
