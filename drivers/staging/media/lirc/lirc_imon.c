@@ -20,6 +20,8 @@
  *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -205,12 +207,12 @@ static void deregister_from_lirc(struct imon_context *context)
 
 	retval = lirc_unregister_driver(minor);
 	if (retval)
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": %s: unable to deregister from lirc(%d)",
-		       __func__, retval);
+		dev_err(&context->usbdev->dev,
+			": %s: unable to deregister from lirc(%d)",
+			__func__, retval);
 	else
-		printk(KERN_INFO MOD_NAME ": Deregistered iMON driver "
-		       "(minor:%d)\n", minor);
+		dev_info(&context->usbdev->dev,
+			 "Deregistered iMON driver (minor:%d)\n", minor);
 
 }
 
@@ -231,8 +233,7 @@ static int display_open(struct inode *inode, struct file *file)
 	subminor = iminor(inode);
 	interface = usb_find_interface(&imon_driver, subminor);
 	if (!interface) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       ": %s: could not find interface for minor %d\n",
+		pr_err("%s: could not find interface for minor %d\n",
 		       __func__, subminor);
 		retval = -ENODEV;
 		goto exit;
@@ -282,8 +283,7 @@ static int display_close(struct inode *inode, struct file *file)
 	context = file->private_data;
 
 	if (!context) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       "%s: no context for device\n", __func__);
+		pr_err("%s: no context for device\n", __func__);
 		return -ENODEV;
 	}
 
@@ -391,8 +391,7 @@ static ssize_t vfd_write(struct file *file, const char __user *buf,
 
 	context = file->private_data;
 	if (!context) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       "%s: no context for device\n", __func__);
+		pr_err("%s: no context for device\n", __func__);
 		return -ENODEV;
 	}
 
@@ -521,8 +520,7 @@ static void ir_close(void *data)
 
 	context = (struct imon_context *)data;
 	if (!context) {
-		printk(KERN_ERR KBUILD_MODNAME
-		       "%s: no context for device\n", __func__);
+		pr_err("%s: no context for device\n", __func__);
 		return;
 	}
 
@@ -1009,8 +1007,8 @@ static void imon_disconnect(struct usb_interface *interface)
 
 	mutex_unlock(&driver_lock);
 
-	printk(KERN_INFO "%s: iMON device (intf%d) disconnected\n",
-	       __func__, ifnum);
+	dev_info(&interface->dev, "%s: iMON device (intf%d) disconnected\n",
+		 __func__, ifnum);
 }
 
 static int imon_suspend(struct usb_interface *intf, pm_message_t message)
