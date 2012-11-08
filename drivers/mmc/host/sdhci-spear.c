@@ -302,7 +302,7 @@ static int sdhci_suspend(struct device *dev)
 
 	ret = sdhci_suspend_host(host);
 	if (!ret)
-		clk_disable_unprepare(sdhci->clk);
+		clk_disable(sdhci->clk);
 
 	return ret;
 }
@@ -313,7 +313,7 @@ static int sdhci_resume(struct device *dev)
 	struct spear_sdhci *sdhci = dev_get_platdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(sdhci->clk);
+	ret = clk_enable(sdhci->clk);
 	if (ret) {
 		dev_dbg(dev, "Resume: Error enabling clock\n");
 		return ret;
