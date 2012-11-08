@@ -716,3 +716,40 @@ void hists__inc_nr_events(struct hists *hists, u32 type)
 	++hists->stats.nr_events[0];
 	++hists->stats.nr_events[type];
 }
+
+static struct hist_entry *hists__find_entry(struct hists *hists,
+					    struct hist_entry *he)
+{
+	struct rb_node *n = hists->entries.rb_node;
+
+	while (n) {
+		struct hist_entry *iter = rb_entry(n, struct hist_entry, rb_node);
+		int64_t cmp = hist_entry__cmp(he, iter);
+
+		if (cmp < 0)
+			n = n->rb_left;
+		else if (cmp > 0)
+			n = n->rb_right;
+		else
+			return iter;
+	}
+
+	return NULL;
+}
+
+/*
+ * Look for pairs to link to the leader buckets (hist_entries):
+ */
+void hists__match(struct hists *leader, struct hists *other)
+{
+	struct rb_node *nd;
+	struct hist_entry *pos, *pair;
+
+	for (nd = rb_first(&leader->entries); nd; nd = rb_next(nd)) {
+		pos  = rb_entry(nd, struct hist_entry, rb_node);
+		pair = hists__find_entry(other, pos);
+
+		if (pair)
+			hist__entry_add_pair(pos, pair);
+	}
+}

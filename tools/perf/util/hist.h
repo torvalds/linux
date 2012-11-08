@@ -115,6 +115,8 @@ bool hists__new_col_len(struct hists *self, enum hist_column col, u16 len);
 void hists__reset_col_len(struct hists *hists);
 void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
+void hists__match(struct hists *leader, struct hists *other);
+
 struct perf_hpp {
 	char *buf;
 	size_t size;
