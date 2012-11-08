@@ -1454,7 +1454,7 @@ static const struct hda_pcm_stream via_pcm_digital_capture = {
  */
 static const char * const via_slave_pfxs[] = {
 	"Front", "Surround", "Center", "LFE", "Side",
-	"Headphone", "Speaker",
+	"Headphone", "Speaker", "Bass Speaker",
 	NULL,
 };
 
@@ -1969,8 +1969,8 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 		} else {
 			const char *pfx = chname[i];
 			if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT &&
-			    cfg->line_outs == 1)
-				pfx = "Speaker";
+			    cfg->line_outs <= 2)
+				pfx = i ? "Bass Speaker" : "Speaker";
 			err = create_ch_ctls(codec, pfx, 3, true, path);
 			if (err < 0)
 				return err;

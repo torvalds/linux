@@ -472,7 +472,7 @@ static const struct snd_kcontrol_new cxt_beep_mixer[] = {
 #endif
 
 static const char * const slave_pfxs[] = {
-	"Headphone", "Speaker", "Front", "Surround", "CLFE",
+	"Headphone", "Speaker", "Bass Speaker", "Front", "Surround", "CLFE",
 	NULL
 };
 
@@ -4116,17 +4116,34 @@ static int try_add_pb_volume(struct hda_codec *codec, hda_nid_t dac,
 	return 0;
 }
 
+static bool is_2_1_speaker(struct conexant_spec *spec)
+{
+	int i, type, num_spk = 0;
+
+	for (i = 0; i < spec->dac_info_filled; i++) {
+		type = spec->dac_info[i].type;
+		if (type == AUTO_PIN_LINE_OUT)
+			type = spec->autocfg.line_out_type;
+		if (type == AUTO_PIN_SPEAKER_OUT)
+			num_spk++;
+	}
+	return (num_spk == 2 && spec->autocfg.line_out_type != AUTO_PIN_LINE_OUT);
+}
+
 static int cx_auto_build_output_controls(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
 	int i, err;
 	int num_line = 0, num_hp = 0, num_spk = 0;
+	bool speaker_2_1;
 	static const char * const texts[3] = { "Front", "Surround", "CLFE" };
 
 	if (spec->dac_info_filled == 1)
 		return try_add_pb_volume(codec, spec->dac_info[0].dac,
 					 spec->dac_info[0].pin,
 					 "Master", 0);
+
+	speaker_2_1 = is_2_1_speaker(spec);
 
 	for (i = 0; i < spec->dac_info_filled; i++) {
 		const char *label;
@@ -4146,8 +4163,13 @@ static int cx_auto_build_output_controls(struct hda_codec *codec)
 			idx = num_hp++;
 			break;
 		case AUTO_PIN_SPEAKER_OUT:
-			label = "Speaker";
-			idx = num_spk++;
+			if (speaker_2_1) {
+				label = num_spk++ ? "Bass Speaker" : "Speaker";
+				idx = 0;
+			} else {
+				label = "Speaker";
+				idx = num_spk++;
+			}
 			break;
 		}
 		err = try_add_pb_volume(codec, dac,

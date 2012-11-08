@@ -68,6 +68,7 @@ struct cs_spec {
 
 	unsigned int hp_detect:1;
 	unsigned int mic_detect:1;
+	unsigned int speaker_2_1:1;
 	/* CS421x */
 	unsigned int spdif_detect:1;
 	unsigned int sense_b:1;
@@ -443,6 +444,9 @@ static int parse_output(struct hda_codec *codec)
 	spec->multiout.dac_nids = spec->dac_nid;
 	spec->multiout.max_channels = i * 2;
 
+	if (cfg->line_out_type == AUTO_PIN_SPEAKER_OUT && i == 2)
+		spec->speaker_2_1 = 1; /* assume 2.1 speakers */
+
 	/* add HP and speakers */
 	extra_nids = 0;
 	for (i = 0; i < cfg->hp_outs; i++) {
@@ -632,7 +636,9 @@ static int add_output(struct hda_codec *codec, hda_nid_t dac, int idx,
 		index = idx;
 		break;
 	case AUTO_PIN_SPEAKER_OUT:
-		if (num_ctls > 1)
+		if (spec->speaker_2_1)
+			name = idx ? "Bass Speaker" : "Speaker";
+		else if (num_ctls > 1)
 			name = speakers[idx];
 		else
 			name = "Speaker";

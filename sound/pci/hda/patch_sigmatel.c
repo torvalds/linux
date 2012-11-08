@@ -1081,7 +1081,7 @@ static struct snd_kcontrol_new stac_smux_mixer = {
 
 static const char * const slave_pfxs[] = {
 	"Front", "Surround", "Center", "LFE", "Side",
-	"Headphone", "Speaker", "IEC958", "PCM",
+	"Headphone", "Speaker", "Bass Speaker", "IEC958", "PCM",
 	NULL
 };
 
@@ -3269,9 +3269,9 @@ static int create_multi_out_ctls(struct hda_codec *codec, int num_outs,
 				idx = i;
 				break;
 			case AUTO_PIN_SPEAKER_OUT:
-				if (num_outs <= 1) {
-					name = "Speaker";
-					idx = i;
+				if (num_outs <= 2) {
+					name = i ? "Bass Speaker" : "Speaker";
+					idx = 0;
 					break;
 				}
 				/* Fall through in case of multi speaker outs */
