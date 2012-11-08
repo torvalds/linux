@@ -63,4 +63,19 @@ struct xen_feature_info {
 /* arg == xen_domain_handle_t. */
 #define XENVER_guest_handle 8
 
+/* Check if running on Xen version (major, minor) or later */
+static inline bool
+xen_running_on_version_or_later(unsigned int major, unsigned int minor)
+{
+	unsigned int version;
+
+	if (!xen_domain())
+		return false;
+
+	version = HYPERVISOR_xen_version(XENVER_version, NULL);
+	if ((((version >> 16) == major) && ((version & 0xffff) >= minor)) ||
+		((version >> 16) > major))
+		return true;
+	return false;
+}
 #endif /* __XEN_PUBLIC_VERSION_H__ */
