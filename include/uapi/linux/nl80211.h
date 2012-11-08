@@ -2438,6 +2438,15 @@ enum nl80211_ac {
 #define NL80211_TXQ_Q_BE	NL80211_AC_BE
 #define NL80211_TXQ_Q_BK	NL80211_AC_BK
 
+/**
+ * enum nl80211_channel_type - channel type
+ * @NL80211_CHAN_NO_HT: 20 MHz, non-HT channel
+ * @NL80211_CHAN_HT20: 20 MHz HT channel
+ * @NL80211_CHAN_HT40MINUS: HT40 channel, secondary channel
+ *	below the control channel
+ * @NL80211_CHAN_HT40PLUS: HT40 channel, secondary channel
+ *	above the control channel
+ */
 enum nl80211_channel_type {
 	NL80211_CHAN_NO_HT,
 	NL80211_CHAN_HT20,
