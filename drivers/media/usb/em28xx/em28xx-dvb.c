@@ -176,25 +176,39 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 {
 	int rc;
 	struct em28xx *dev = dvb->adapter.priv;
-	int max_dvb_packet_size;
+	int dvb_max_packet_size, packet_multiplier, dvb_alt;
 
-	usb_set_interface(dev->udev, 0, dev->dvb_alt_isoc);
+	if (dev->dvb_xfer_bulk) {
+		if (!dev->dvb_ep_bulk)
+			return -ENODEV;
+		dvb_max_packet_size = 512; /* USB 2.0 spec */
+		packet_multiplier = EM28XX_DVB_BULK_PACKET_MULTIPLIER;
+		dvb_alt = 0;
+	} else { /* isoc */
+		if (!dev->dvb_ep_isoc)
+			return -ENODEV;
+		dvb_max_packet_size = dev->dvb_max_pkt_size_isoc;
+		if (dvb_max_packet_size < 0)
+			return dvb_max_packet_size;
+		packet_multiplier = EM28XX_DVB_NUM_ISOC_PACKETS;
+		dvb_alt = dev->dvb_alt_isoc;
+	}
+
+	usb_set_interface(dev->udev, 0, dvb_alt);
 	rc = em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	if (rc < 0)
 		return rc;
 
-	max_dvb_packet_size = dev->dvb_max_pkt_size_isoc;
-	if (max_dvb_packet_size < 0)
-		return max_dvb_packet_size;
 	dprintk(1, "Using %d buffers each with %d x %d bytes\n",
 		EM28XX_DVB_NUM_BUFS,
-		EM28XX_DVB_NUM_ISOC_PACKETS,
-		max_dvb_packet_size);
+		packet_multiplier,
+		dvb_max_packet_size);
 
-	return em28xx_init_usb_xfer(dev, EM28XX_DIGITAL_MODE, 0,
+	return em28xx_init_usb_xfer(dev, EM28XX_DIGITAL_MODE,
+				    dev->dvb_xfer_bulk,
 				    EM28XX_DVB_NUM_BUFS,
-				    max_dvb_packet_size,
-				    EM28XX_DVB_NUM_ISOC_PACKETS,
+				    dvb_max_packet_size,
+				    packet_multiplier,
 				    em28xx_dvb_urb_data_copy);
 }
 

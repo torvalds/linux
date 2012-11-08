@@ -13,9 +13,9 @@
 #define EM_GPO_3   (1 << 3)
 
 /* em28xx endpoints */
-#define EM28XX_EP_ANALOG	0x82
+/* 0x82:   (always ?) analog */
 #define EM28XX_EP_AUDIO		0x83
-#define EM28XX_EP_DIGITAL	0x84
+/* 0x84:   digital or analog */
 
 /* em2800 registers */
 #define EM2800_R08_AUDIOSRC 0x08

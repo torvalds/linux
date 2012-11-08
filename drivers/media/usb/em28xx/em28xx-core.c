@@ -847,11 +847,13 @@ set_alt:
 	if (dev->alt != prev_alt) {
 		if (dev->analog_xfer_bulk) {
 			dev->max_pkt_size = 512; /* USB 2.0 spec */
+			dev->packet_multiplier = EM28XX_BULK_PACKET_MULTIPLIER;
 		} else { /* isoc */
 			em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
 				       min_pkt_size, dev->alt);
 			dev->max_pkt_size =
 					  dev->alt_max_pkt_size_isoc[dev->alt];
+			dev->packet_multiplier = EM28XX_NUM_ISOC_PACKETS;
 		}
 		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
 			       dev->alt, dev->max_pkt_size);
@@ -1054,10 +1056,28 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 
 	em28xx_isocdbg("em28xx: called em28xx_alloc_isoc in mode %d\n", mode);
 
-	if (mode == EM28XX_DIGITAL_MODE)
+	/* Check mode and if we have an endpoint for the selected
+	   transfer type, select buffer				 */
+	if (mode == EM28XX_DIGITAL_MODE) {
+		if ((xfer_bulk && !dev->dvb_ep_bulk) ||
+		    (!xfer_bulk && !dev->dvb_ep_isoc)) {
+			em28xx_errdev("no endpoint for DVB mode and transfer type %d\n",
+				      xfer_bulk > 0);
+			return -EINVAL;
+		}
 		usb_bufs = &dev->usb_ctl.digital_bufs;
-	else
+	} else if (mode == EM28XX_ANALOG_MODE) {
+		if ((xfer_bulk && !dev->analog_ep_bulk) ||
+		    (!xfer_bulk && !dev->analog_ep_isoc)) {
+			em28xx_errdev("no endpoint for analog mode and transfer type %d\n",
+				       xfer_bulk > 0);
+			return -EINVAL;
+		}
 		usb_bufs = &dev->usb_ctl.analog_bufs;
+	} else {
+		em28xx_errdev("invalid mode selected\n");
+		return -EINVAL;
+	}
 
 	/* De-allocates all pending stuff */
 	em28xx_uninit_usb_xfer(dev, mode);
@@ -1113,8 +1133,8 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		if (xfer_bulk) { /* bulk */
 			pipe = usb_rcvbulkpipe(dev->udev,
 					       mode == EM28XX_ANALOG_MODE ?
-					       EM28XX_EP_ANALOG :
-					       EM28XX_EP_DIGITAL);
+					       dev->analog_ep_bulk :
+					       dev->dvb_ep_bulk);
 			usb_fill_bulk_urb(urb, dev->udev, pipe,
 					  usb_bufs->transfer_buffer[i], sb_size,
 					  em28xx_irq_callback, dev);
@@ -1122,8 +1142,8 @@ int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
 		} else { /* isoc */
 			pipe = usb_rcvisocpipe(dev->udev,
 					       mode == EM28XX_ANALOG_MODE ?
-					       EM28XX_EP_ANALOG :
-					       EM28XX_EP_DIGITAL);
+					       dev->analog_ep_isoc :
+					       dev->dvb_ep_isoc);
 			usb_fill_int_urb(urb, dev->udev, pipe,
 					 usb_bufs->transfer_buffer[i], sb_size,
 					 em28xx_irq_callback, dev, 1);

@@ -6,6 +6,7 @@
 		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
+   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3209,26 +3210,67 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 			if (udev->speed == USB_SPEED_HIGH)
 				size = size * hb_mult(sizedescr);
 
-			if (usb_endpoint_xfer_isoc(e) &&
-			    usb_endpoint_dir_in(e)) {
+			if (usb_endpoint_dir_in(e)) {
 				switch (e->bEndpointAddress) {
-				case EM28XX_EP_AUDIO:
-					has_audio = true;
-					break;
-				case EM28XX_EP_ANALOG:
+				case 0x82:
 					has_video = true;
-					dev->alt_max_pkt_size_isoc[i] = size;
+					if (usb_endpoint_xfer_isoc(e)) {
+						dev->analog_ep_isoc =
+							    e->bEndpointAddress;
+						dev->alt_max_pkt_size_isoc[i] = size;
+					} else if (usb_endpoint_xfer_bulk(e)) {
+						dev->analog_ep_bulk =
+							    e->bEndpointAddress;
+					}
 					break;
-				case EM28XX_EP_DIGITAL:
-					has_dvb = true;
-					if (size > dev->dvb_max_pkt_size_isoc) {
-						dev->dvb_max_pkt_size_isoc =
-									  size;
-						dev->dvb_alt_isoc = i;
+				case 0x83:
+					if (usb_endpoint_xfer_isoc(e)) {
+						has_audio = true;
+					} else {
+						printk(KERN_INFO DRIVER_NAME
+						": error: skipping audio endpoint 0x83, because it uses bulk transfers !\n");
+					}
+					break;
+				case 0x84:
+					if (has_video &&
+					    (usb_endpoint_xfer_bulk(e))) {
+						dev->analog_ep_bulk =
+							    e->bEndpointAddress;
+					} else {
+						has_dvb = true;
+						if (usb_endpoint_xfer_isoc(e)) {
+							dev->dvb_ep_isoc = e->bEndpointAddress;
+							if (size > dev->dvb_max_pkt_size_isoc) {
+								dev->dvb_max_pkt_size_isoc = size;
+								dev->dvb_alt_isoc = i;
+							}
+						} else {
+							dev->dvb_ep_bulk = e->bEndpointAddress;
+						}
 					}
 					break;
 				}
 			}
+			/* NOTE:
+			 * Old logic with support for isoc transfers only was:
+			 *  0x82	isoc		=> analog
+			 *  0x83	isoc		=> audio
+			 *  0x84	isoc		=> digital
+			 *
+			 * New logic with support for bulk transfers
+			 *  0x82	isoc		=> analog
+			 *  0x82	bulk		=> analog
+			 *  0x83	isoc*		=> audio
+			 *  0x84	isoc		=> digital
+			 *  0x84	bulk		=> analog or digital**
+			 * (*: audio should always be isoc)
+			 * (**: analog, if ep 0x82 is isoc, otherwise digital)
+			 *
+			 * The new logic preserves backwards compatibility and
+			 * reflects the endpoint configurations we have seen
+			 * so far. But there might be devices for which this
+			 * logic is not sufficient...
+			 */
 		}
 	}
 
@@ -3289,6 +3331,12 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		goto err_free;
 	}
 
+	/* Select USB transfer types to use */
+	if (has_video && !dev->analog_ep_isoc)
+		dev->analog_xfer_bulk = 1;
+	if (has_dvb && !dev->dvb_ep_isoc)
+		dev->dvb_xfer_bulk = 1;
+
 	snprintf(dev->name, sizeof(dev->name), "em28xx #%d", nr);
 	dev->devno = nr;
 	dev->model = id->driver_info;
@@ -3323,12 +3371,23 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	}
 
 	if (has_dvb) {
-		/* pre-allocate DVB isoc transfer buffers */
-		retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE, 0,
-					   EM28XX_DVB_NUM_BUFS,
-					   dev->dvb_max_pkt_size_isoc,
-					   EM28XX_DVB_NUM_ISOC_PACKETS);
+		/* pre-allocate DVB usb transfer buffers */
+		if (dev->dvb_xfer_bulk) {
+			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
+					    dev->dvb_xfer_bulk,
+					    EM28XX_DVB_NUM_BUFS,
+					    512,
+					    EM28XX_DVB_BULK_PACKET_MULTIPLIER);
+		} else {
+			retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE,
+					    dev->dvb_xfer_bulk,
+					    EM28XX_DVB_NUM_BUFS,
+					    dev->dvb_max_pkt_size_isoc,
+					    EM28XX_DVB_NUM_ISOC_PACKETS);
+		}
 		if (retval) {
+			printk(DRIVER_NAME
+			       ": Failed to pre-allocate USB transfer buffers for DVB.\n");
 			goto unlock_and_free;
 		}
 	}
