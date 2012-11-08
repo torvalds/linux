@@ -3247,6 +3247,8 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset ^ 1), reg_offset - 1);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), (~0) << vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset ^ 1), reg_offset - 1);
+	if (adapter->flags2 & IXGBE_FLAG2_BRIDGE_MODE_VEB)
+		IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 
 	/* Map PF MAC address in RAR Entry 0 to first pool following VFs */
 	hw->mac.ops.set_vmdq(hw, 0, VMDQ_P(0));
@@ -7039,11 +7041,13 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 			continue;
 
 		mode = nla_get_u16(attr);
-		if (mode == BRIDGE_MODE_VEPA)
+		if (mode == BRIDGE_MODE_VEPA) {
 			reg = 0;
-		else if (mode == BRIDGE_MODE_VEB)
+			adapter->flags2 &= ~IXGBE_FLAG2_BRIDGE_MODE_VEB;
+		} else if (mode == BRIDGE_MODE_VEB) {
 			reg = IXGBE_PFDTXGSWC_VT_LBEN;
-		else
+			adapter->flags2 |= IXGBE_FLAG2_BRIDGE_MODE_VEB;
+		} else
 			return -EINVAL;
 
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, reg);
@@ -7064,7 +7068,7 @@ static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return 0;
 
-	if (IXGBE_READ_REG(&adapter->hw, IXGBE_PFDTXGSWC) & 1)
+	if (adapter->flags2 & IXGBE_FLAG2_BRIDGE_MODE_VEB)
 		mode = BRIDGE_MODE_VEB;
 	else
 		mode = BRIDGE_MODE_VEPA;
