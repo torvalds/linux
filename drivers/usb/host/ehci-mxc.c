@@ -39,8 +39,6 @@ struct ehci_mxc_priv {
 /* called during probe() after chip reset completes */
 static int ehci_mxc_setup(struct usb_hcd *hcd)
 {
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-
 	hcd->has_tt = 1;
 
 	return ehci_setup(hcd);
