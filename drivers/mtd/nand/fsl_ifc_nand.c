@@ -389,7 +389,7 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 			timing = IFC_FIR_OP_RBCD;
 
 		out_be32(&ifc->ifc_nand.nand_fir0,
-				(IFC_FIR_OP_CMD0 << IFC_NAND_FIR0_OP0_SHIFT) |
+				(IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
 				(IFC_FIR_OP_UA  << IFC_NAND_FIR0_OP1_SHIFT) |
 				(timing << IFC_NAND_FIR0_OP2_SHIFT));
 		out_be32(&ifc->ifc_nand.nand_fcr0,
@@ -754,7 +754,7 @@ static void fsl_ifc_sram_init(struct fsl_ifc_mtd *priv)
 
 	/* READID */
 	out_be32(&ifc->ifc_nand.nand_fir0,
-			(IFC_FIR_OP_CMD0 << IFC_NAND_FIR0_OP0_SHIFT) |
+			(IFC_FIR_OP_CW0 << IFC_NAND_FIR0_OP0_SHIFT) |
 			(IFC_FIR_OP_UA  << IFC_NAND_FIR0_OP1_SHIFT) |
 			(IFC_FIR_OP_RB << IFC_NAND_FIR0_OP2_SHIFT));
 	out_be32(&ifc->ifc_nand.nand_fcr0,
