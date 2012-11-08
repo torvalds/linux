@@ -224,8 +224,11 @@ static irqreturn_t tca8418_irq_handler(int irq, void *dev_id)
 	if (error) {
 		dev_err(&keypad_data->client->dev,
 			"unable to read REG_INT_STAT\n");
-		goto exit;
+		return IRQ_NONE;
 	}
+
+	if (!reg)
+		return IRQ_NONE;
 
 	if (reg & INT_STAT_OVR_FLOW_INT)
 		dev_warn(&keypad_data->client->dev, "overflow occurred\n");
@@ -233,7 +236,6 @@ static irqreturn_t tca8418_irq_handler(int irq, void *dev_id)
 	if (reg & INT_STAT_K_INT)
 		tca8418_read_keypad(keypad_data);
 
-exit:
 	/* Clear all interrupts, even IRQs we didn't check (GPI, CAD, LCK) */
 	reg = 0xff;
 	error = tca8418_write_byte(keypad_data, REG_INT_STAT, reg);
@@ -374,7 +376,9 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 		client->irq = gpio_to_irq(client->irq);
 
 	error = request_threaded_irq(client->irq, NULL, tca8418_irq_handler,
-				     IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+				     IRQF_TRIGGER_FALLING |
+				     IRQF_SHARED |
+				     IRQF_ONESHOT,
 				     client->name, keypad_data);
 	if (error) {
 		dev_dbg(&client->dev,
