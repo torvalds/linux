@@ -3663,8 +3663,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 		  flags, allocated);
 	ext4_ext_show_leaf(inode, path);
 
-	trace_ext4_ext_handle_uninitialized_extents(inode, map, allocated,
-						    newblock);
+	trace_ext4_ext_handle_uninitialized_extents(inode, map, flags,
+						    allocated, newblock);
 
 	/* get_block() before submit the IO, split the extent */
 	if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
