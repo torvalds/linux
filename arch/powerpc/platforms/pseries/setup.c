@@ -367,6 +367,36 @@ static void pSeries_idle(void)
 	}
 }
 
+/*
+ * Enable relocation on during exceptions. This has partition wide scope and
+ * may take a while to complete, if it takes longer than one second we will
+ * just give up rather than wasting any more time on this - if that turns out
+ * to ever be a problem in practice we can move this into a kernel thread to
+ * finish off the process later in boot.
+ */
+static int __init pSeries_enable_reloc_on_exc(void)
+{
+	long rc;
+	unsigned int delay, total_delay = 0;
+
+	while (1) {
+		rc = enable_reloc_on_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+
+		delay = get_longbusy_msecs(rc);
+		total_delay += delay;
+		if (total_delay > 1000) {
+			pr_warn("Warning: Giving up waiting to enable "
+				"relocation on exceptions (%u msec)!\n",
+				total_delay);
+			return rc;
+		}
+
+		mdelay(delay);
+	}
+}
+
 static void __init pSeries_setup_arch(void)
 {
 	panic_timeout = 10;
@@ -402,6 +432,14 @@ static void __init pSeries_setup_arch(void)
 		ppc_md.enable_pmcs = pseries_lpar_enable_pmcs;
 	else
 		ppc_md.enable_pmcs = power4_enable_pmcs;
+
+	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {
+		long rc;
+		if ((rc = pSeries_enable_reloc_on_exc()) != H_SUCCESS) {
+			pr_warn("Unable to enable relocation on exceptions: "
+				"%ld\n", rc);
+		}
+	}
 }
 
 static int __init pSeries_init_panel(void)
