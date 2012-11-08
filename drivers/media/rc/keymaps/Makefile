@@ -88,6 +88,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-tevii-nec.o \
 			rc-tivo.o \
 			rc-total-media-in-hand.o \
+                       rc-total-media-in-hand-02.o \
 			rc-trekstor.o \
 			rc-tt-1500.o \
 			rc-twinhan1027.o \
