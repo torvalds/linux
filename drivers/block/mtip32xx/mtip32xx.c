@@ -2439,7 +2439,7 @@ static int mtip_hw_ioctl(struct driver_data *dd, unsigned int cmd,
  * return value
  *	None
  */
-static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
+static void mtip_hw_submit_io(struct driver_data *dd, sector_t sector,
 			      int nsect, int nents, int tag, void *callback,
 			      void *data, int dir)
 {
@@ -2447,6 +2447,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	struct mtip_port *port = dd->port;
 	struct mtip_cmd *command = &port->commands[tag];
 	int dma_dir = (dir == READ) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	u64 start = sector;
 
 	/* Map the scatter list for DMA access */
 	nents = dma_map_sg(&dd->pdev->dev, command->sg, nents, dma_dir);
