@@ -41,6 +41,7 @@
 #include <linux/root_dev.h>
 #include <linux/cpuidle.h>
 #include <linux/of.h>
+#include <linux/kexec.h>
 
 #include <asm/mmu.h>
 #include <asm/processor.h>
@@ -397,6 +398,35 @@ static int __init pSeries_enable_reloc_on_exc(void)
 	}
 }
 
+#ifdef CONFIG_KEXEC
+static long pSeries_disable_reloc_on_exc(void)
+{
+	long rc;
+
+	while (1) {
+		rc = disable_reloc_on_exceptions();
+		if (!H_IS_LONG_BUSY(rc))
+			return rc;
+		mdelay(get_longbusy_msecs(rc));
+	}
+}
+
+static void pSeries_machine_kexec(struct kimage *image)
+{
+	long rc;
+
+	if (firmware_has_feature(FW_FEATURE_SET_MODE) &&
+	    (image->type != KEXEC_TYPE_CRASH)) {
+		rc = pSeries_disable_reloc_on_exc();
+		if (rc != H_SUCCESS)
+			pr_warning("Warning: Failed to disable relocation on "
+				   "exceptions: %ld\n", rc);
+	}
+
+	default_machine_kexec(image);
+}
+#endif
+
 static void __init pSeries_setup_arch(void)
 {
 	panic_timeout = 10;
@@ -697,4 +727,7 @@ define_machine(pseries) {
 	.progress		= rtas_progress,
 	.system_reset_exception = pSeries_system_reset_exception,
 	.machine_check_exception = pSeries_machine_check_exception,
+#ifdef CONFIG_KEXEC
+	.machine_kexec          = pSeries_machine_kexec,
+#endif
 };
