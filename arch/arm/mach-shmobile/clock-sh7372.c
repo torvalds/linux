@@ -507,8 +507,6 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pllc1_clk", &pllc1_clk),
 	CLKDEV_CON_ID("pllc1_div2_clk", &pllc1_div2_clk),
 	CLKDEV_CON_ID("pllc2_clk", &sh7372_pllc2_clk),
-	CLKDEV_CON_ID("fsidiva", &fsidivs[FSIDIV_A]),
-	CLKDEV_CON_ID("fsidivb", &fsidivs[FSIDIV_B]),
 
 	/* DIV4 clocks */
 	CLKDEV_CON_ID("i_clk", &div4_clks[DIV4_I]),
