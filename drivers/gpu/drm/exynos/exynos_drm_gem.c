@@ -349,17 +349,53 @@ int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 			&args->offset);
 }
 
+static struct drm_file *exynos_drm_find_drm_file(struct drm_device *drm_dev,
+							struct file *filp)
+{
+	struct drm_file *file_priv;
+
+	mutex_lock(&drm_dev->struct_mutex);
+
+	/* find current process's drm_file from filelist. */
+	list_for_each_entry(file_priv, &drm_dev->filelist, lhead) {
+		if (file_priv->filp == filp) {
+			mutex_unlock(&drm_dev->struct_mutex);
+			return file_priv;
+		}
+	}
+
+	mutex_unlock(&drm_dev->struct_mutex);
+	WARN_ON(1);
+
+	return ERR_PTR(-EFAULT);
+}
+
 static int exynos_drm_gem_mmap_buffer(struct file *filp,
 				      struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = filp->private_data;
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	struct drm_device *drm_dev = obj->dev;
 	struct exynos_drm_gem_buf *buffer;
+	struct drm_file *file_priv;
 	unsigned long vm_size;
+	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_private_data = obj;
+	vma->vm_ops = drm_dev->driver->gem_vm_ops;
+
+	/* restore it to driver's fops. */
+	filp->f_op = fops_get(drm_dev->driver->fops);
+
+	file_priv = exynos_drm_find_drm_file(drm_dev, filp);
+	if (IS_ERR(file_priv))
+		return PTR_ERR(file_priv);
+
+	/* restore it to drm_file. */
+	filp->private_data = file_priv;
 
 	update_vm_cache_attr(exynos_gem_obj, vma);
 
@@ -375,9 +411,25 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 	if (vm_size > buffer->size)
 		return -EINVAL;
 
-	return dma_mmap_attrs(obj->dev->dev, vma, buffer->kvaddr,
+	ret = dma_mmap_attrs(drm_dev->dev, vma, buffer->kvaddr,
 				buffer->dma_addr, buffer->size,
 				&buffer->dma_attrs);
+	if (ret < 0) {
+		DRM_ERROR("failed to mmap.\n");
+		return ret;
+	}
+
+	/*
+	 * take a reference to this mapping of the object. And this reference
+	 * is unreferenced by the corresponding vm_close call.
+	 */
+	drm_gem_object_reference(obj);
+
+	mutex_lock(&drm_dev->struct_mutex);
+	drm_vm_open_locked(drm_dev, vma);
+	mutex_unlock(&drm_dev->struct_mutex);
+
+	return 0;
 }
 
 static const struct file_operations exynos_drm_gem_fops = {
@@ -404,16 +456,29 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
-	obj->filp->f_op = &exynos_drm_gem_fops;
-	obj->filp->private_data = obj;
+	/*
+	 * Set specific mmper's fops. And it will be restored by
+	 * exynos_drm_gem_mmap_buffer to dev->driver->fops.
+	 * This is used to call specific mapper temporarily.
+	 */
+	file_priv->filp->f_op = &exynos_drm_gem_fops;
 
-	addr = vm_mmap(obj->filp, 0, args->size,
+	/*
+	 * Set gem object to private_data so that specific mmaper
+	 * can get the gem object. And it will be restored by
+	 * exynos_drm_gem_mmap_buffer to drm_file.
+	 */
+	file_priv->filp->private_data = obj;
+
+	addr = vm_mmap(file_priv->filp, 0, args->size,
 			PROT_READ | PROT_WRITE, MAP_SHARED, 0);
 
 	drm_gem_object_unreference_unlocked(obj);
 
-	if (IS_ERR((void *)addr))
+	if (IS_ERR((void *)addr)) {
+		file_priv->filp->private_data = file_priv;
 		return PTR_ERR((void *)addr);
+	}
 
 	args->mapped = addr;
 
