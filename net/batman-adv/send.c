@@ -18,6 +18,7 @@
  */
 
 #include "main.h"
+#include "distributed-arp-table.h"
 #include "send.h"
 #include "routing.h"
 #include "translation-table.h"
@@ -207,6 +208,9 @@ static void batadv_send_outstanding_bcast_packet(struct work_struct *work)
 	spin_unlock_bh(&bat_priv->forw_bcast_list_lock);
 
 	if (atomic_read(&bat_priv->mesh_state) == BATADV_MESH_DEACTIVATING)
+		goto out;
+
+	if (batadv_dat_drop_broadcast_packet(bat_priv, forw_packet))
 		goto out;
 
 	/* rebroadcast packet */

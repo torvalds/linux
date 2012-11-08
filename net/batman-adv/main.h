@@ -44,6 +44,7 @@
 #define BATADV_TT_LOCAL_TIMEOUT 3600000 /* in milliseconds */
 #define BATADV_TT_CLIENT_ROAM_TIMEOUT 600000 /* in milliseconds */
 #define BATADV_TT_CLIENT_TEMP_TIMEOUT 600000 /* in milliseconds */
+#define BATADV_DAT_ENTRY_TIMEOUT (5*60000) /* 5 mins in milliseconds */
 /* sliding packet range of received originator messages in sequence numbers
  * (should be a multiple of our word size)
  */
@@ -72,6 +73,11 @@
 #define BATADV_NUM_WORDS BITS_TO_LONGS(BATADV_TQ_LOCAL_WINDOW_SIZE)
 
 #define BATADV_LOG_BUF_LEN 8192	  /* has to be a power of 2 */
+
+/* msecs after which an ARP_REQUEST is sent in broadcast as fallback */
+#define ARP_REQ_DELAY 250
+/* numbers of originator to contact for any PUT/GET DHT operation */
+#define BATADV_DAT_CANDIDATES_NUM 3
 
 #define BATADV_VIS_INTERVAL 5000	/* 5 seconds */
 
@@ -116,6 +122,9 @@ enum batadv_uev_type {
 };
 
 #define BATADV_GW_THRESHOLD	50
+
+#define BATADV_DAT_CANDIDATE_NOT_FOUND	0
+#define BATADV_DAT_CANDIDATE_ORIG	1
 
 /* Debug Messages */
 #ifdef pr_fmt
@@ -171,6 +180,7 @@ int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
  * @BATADV_DBG_ROUTES: route added / changed / deleted
  * @BATADV_DBG_TT: translation table messages
  * @BATADV_DBG_BLA: bridge loop avoidance messages
+ * @BATADV_DBG_DAT: ARP snooping and DAT related messages
  * @BATADV_DBG_ALL: the union of all the above log levels
  */
 enum batadv_dbg_level {
@@ -178,7 +188,8 @@ enum batadv_dbg_level {
 	BATADV_DBG_ROUTES = BIT(1),
 	BATADV_DBG_TT	  = BIT(2),
 	BATADV_DBG_BLA    = BIT(3),
-	BATADV_DBG_ALL    = 15,
+	BATADV_DBG_DAT    = BIT(4),
+	BATADV_DBG_ALL    = 31,
 };
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG

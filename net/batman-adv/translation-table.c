@@ -1472,11 +1472,11 @@ batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 	tt_tot = tt_len / sizeof(struct batadv_tt_change);
 
 	len = tt_query_size + tt_len;
-	skb = dev_alloc_skb(len + ETH_HLEN);
+	skb = dev_alloc_skb(len + ETH_HLEN + NET_IP_ALIGN);
 	if (!skb)
 		goto out;
 
-	skb_reserve(skb, ETH_HLEN);
+	skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
 	tt_response = (struct batadv_tt_query_packet *)skb_put(skb, len);
 	tt_response->ttvn = ttvn;
 
@@ -1538,11 +1538,11 @@ static int batadv_send_tt_request(struct batadv_priv *bat_priv,
 	if (!tt_req_node)
 		goto out;
 
-	skb = dev_alloc_skb(sizeof(*tt_request) + ETH_HLEN);
+	skb = dev_alloc_skb(sizeof(*tt_request) + ETH_HLEN + NET_IP_ALIGN);
 	if (!skb)
 		goto out;
 
-	skb_reserve(skb, ETH_HLEN);
+	skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
 
 	tt_req_len = sizeof(*tt_request);
 	tt_request = (struct batadv_tt_query_packet *)skb_put(skb, tt_req_len);
@@ -1653,11 +1653,11 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 		tt_tot = tt_len / sizeof(struct batadv_tt_change);
 
 		len = sizeof(*tt_response) + tt_len;
-		skb = dev_alloc_skb(len + ETH_HLEN);
+		skb = dev_alloc_skb(len + ETH_HLEN + NET_IP_ALIGN);
 		if (!skb)
 			goto unlock;
 
-		skb_reserve(skb, ETH_HLEN);
+		skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
 		packet_pos = skb_put(skb, len);
 		tt_response = (struct batadv_tt_query_packet *)packet_pos;
 		tt_response->ttvn = req_ttvn;
@@ -1780,11 +1780,11 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 		tt_tot = tt_len / sizeof(struct batadv_tt_change);
 
 		len = sizeof(*tt_response) + tt_len;
-		skb = dev_alloc_skb(len + ETH_HLEN);
+		skb = dev_alloc_skb(len + ETH_HLEN + NET_IP_ALIGN);
 		if (!skb)
 			goto unlock;
 
-		skb_reserve(skb, ETH_HLEN);
+		skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
 		packet_pos = skb_put(skb, len);
 		tt_response = (struct batadv_tt_query_packet *)packet_pos;
 		tt_response->ttvn = req_ttvn;
@@ -2118,11 +2118,11 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 	if (!batadv_tt_check_roam_count(bat_priv, client))
 		goto out;
 
-	skb = dev_alloc_skb(sizeof(*roam_adv_packet) + ETH_HLEN);
+	skb = dev_alloc_skb(sizeof(*roam_adv_packet) + ETH_HLEN + NET_IP_ALIGN);
 	if (!skb)
 		goto out;
 
-	skb_reserve(skb, ETH_HLEN);
+	skb_reserve(skb, ETH_HLEN + NET_IP_ALIGN);
 
 	roam_adv_packet = (struct batadv_roam_adv_packet *)skb_put(skb, len);
 

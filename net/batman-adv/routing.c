@@ -28,6 +28,7 @@
 #include "vis.h"
 #include "unicast.h"
 #include "bridge_loop_avoidance.h"
+#include "distributed-arp-table.h"
 
 static int batadv_route_unicast_packet(struct sk_buff *skb,
 				       struct batadv_hard_iface *recv_if);
@@ -984,7 +985,19 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 {
 	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct batadv_unicast_packet *unicast_packet;
+	struct batadv_unicast_4addr_packet *unicast_4addr_packet;
+	uint8_t *orig_addr;
+	struct batadv_orig_node *orig_node = NULL;
 	int hdr_size = sizeof(*unicast_packet);
+	bool is4addr;
+
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	unicast_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
+
+	is4addr = unicast_packet->header.packet_type == BATADV_UNICAST_4ADDR;
+	/* the caller function should have already pulled 2 bytes */
+	if (is4addr)
+		hdr_size = sizeof(*unicast_4addr_packet);
 
 	if (batadv_check_unicast_packet(skb, hdr_size) < 0)
 		return NET_RX_DROP;
@@ -992,12 +1005,28 @@ int batadv_recv_unicast_packet(struct sk_buff *skb,
 	if (!batadv_check_unicast_ttvn(bat_priv, skb))
 		return NET_RX_DROP;
 
-	unicast_packet = (struct batadv_unicast_packet *)skb->data;
-
 	/* packet for me */
 	if (batadv_is_my_mac(unicast_packet->dest)) {
+		if (is4addr) {
+			batadv_dat_inc_counter(bat_priv,
+					       unicast_4addr_packet->subtype);
+			orig_addr = unicast_4addr_packet->src;
+			orig_node = batadv_orig_hash_find(bat_priv, orig_addr);
+		}
+
+		if (batadv_dat_snoop_incoming_arp_request(bat_priv, skb,
+							  hdr_size))
+			goto rx_success;
+		if (batadv_dat_snoop_incoming_arp_reply(bat_priv, skb,
+							hdr_size))
+			goto rx_success;
+
 		batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size,
-				    NULL);
+				    orig_node);
+
+rx_success:
+		if (orig_node)
+			batadv_orig_node_free_ref(orig_node);
 
 		return NET_RX_SUCCESS;
 	}
@@ -1034,8 +1063,17 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 		if (!new_skb)
 			return NET_RX_SUCCESS;
 
+		if (batadv_dat_snoop_incoming_arp_request(bat_priv, new_skb,
+							  hdr_size))
+			goto rx_success;
+		if (batadv_dat_snoop_incoming_arp_reply(bat_priv, new_skb,
+							hdr_size))
+			goto rx_success;
+
 		batadv_interface_rx(recv_if->soft_iface, new_skb, recv_if,
 				    sizeof(struct batadv_unicast_packet), NULL);
+
+rx_success:
 		return NET_RX_SUCCESS;
 	}
 
@@ -1127,9 +1165,16 @@ int batadv_recv_bcast_packet(struct sk_buff *skb,
 	if (batadv_bla_is_backbone_gw(skb, orig_node, hdr_size))
 		goto out;
 
+	if (batadv_dat_snoop_incoming_arp_request(bat_priv, skb, hdr_size))
+		goto rx_success;
+	if (batadv_dat_snoop_incoming_arp_reply(bat_priv, skb, hdr_size))
+		goto rx_success;
+
 	/* broadcast for me */
 	batadv_interface_rx(recv_if->soft_iface, skb, recv_if, hdr_size,
 			    orig_node);
+
+rx_success:
 	ret = NET_RX_SUCCESS;
 	goto out;
 

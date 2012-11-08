@@ -29,6 +29,7 @@
 #include "hard-interface.h"
 #include "gateway_client.h"
 #include "bridge_loop_avoidance.h"
+#include "distributed-arp-table.h"
 #include "vis.h"
 #include "hash.h"
 #include "bat_algo.h"
@@ -128,6 +129,10 @@ int batadv_mesh_init(struct net_device *soft_iface)
 	if (ret < 0)
 		goto err;
 
+	ret = batadv_dat_init(bat_priv);
+	if (ret < 0)
+		goto err;
+
 	atomic_set(&bat_priv->gw.reselect, 0);
 	atomic_set(&bat_priv->mesh_state, BATADV_MESH_ACTIVE);
 
@@ -154,6 +159,8 @@ void batadv_mesh_free(struct net_device *soft_iface)
 	batadv_tt_free(bat_priv);
 
 	batadv_bla_free(bat_priv);
+
+	batadv_dat_free(bat_priv);
 
 	free_percpu(bat_priv->bat_counters);
 
@@ -300,6 +307,8 @@ static void batadv_recv_handler_init(void)
 
 	/* batman icmp packet */
 	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
+	/* unicast with 4 addresses packet */
+	batadv_rx_handler[BATADV_UNICAST_4ADDR] = batadv_recv_unicast_packet;
 	/* unicast packet */
 	batadv_rx_handler[BATADV_UNICAST] = batadv_recv_unicast_packet;
 	/* fragmented unicast packet */
