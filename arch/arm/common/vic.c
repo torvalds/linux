@@ -407,7 +407,6 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 int __init vic_of_init(struct device_node *node, struct device_node *parent)
 {
 	void __iomem *regs;
-	int irq_base;
 
 	if (WARN(parent, "non-root VICs are not supported"))
 		return -EINVAL;
