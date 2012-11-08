@@ -2111,7 +2111,8 @@ static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
 	err = snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_PLAYBACK);
-	snd_card_unref(pcm->card);
+	if (pcm)
+		snd_card_unref(pcm->card);
 	return err;
 }
 
@@ -2124,7 +2125,8 @@ static int snd_pcm_capture_open(struct inode *inode, struct file *file)
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 	err = snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_CAPTURE);
-	snd_card_unref(pcm->card);
+	if (pcm)
+		snd_card_unref(pcm->card);
 	return err;
 }
 
