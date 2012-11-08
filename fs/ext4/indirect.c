@@ -755,8 +755,7 @@ cleanup:
 		partial--;
 	}
 out:
-	trace_ext4_ind_map_blocks_exit(inode, map->m_lblk,
-				map->m_pblk, map->m_len, err);
+	trace_ext4_ind_map_blocks_exit(inode, map, err);
 	return err;
 }
 
