@@ -1126,12 +1126,8 @@ static int rbd_do_request(struct request *rq,
 	struct ceph_osd_client *osdc;
 
 	rbd_req = kzalloc(sizeof(*rbd_req), GFP_NOIO);
-	if (!rbd_req) {
-		if (coll)
-			rbd_coll_end_req_index(rq, coll, coll_index,
-					       (s32)-ENOMEM, len);
+	if (!rbd_req)
 		return -ENOMEM;
-	}
 
 	if (coll) {
 		rbd_req->coll = coll;
@@ -1206,7 +1202,6 @@ done_err:
 	bio_chain_put(rbd_req->bio);
 	ceph_osdc_put_request(osd_req);
 done_pages:
-	rbd_coll_end_req(rbd_req, (s32)ret, len);
 	kfree(rbd_req);
 	return ret;
 }
@@ -1359,7 +1354,9 @@ static int rbd_do_op(struct request *rq,
 			     ops,
 			     coll, coll_index,
 			     rbd_req_cb, 0, NULL);
-
+	if (ret < 0)
+		rbd_coll_end_req_index(rq, coll, coll_index,
+					(s32)ret, seg_len);
 	rbd_destroy_ops(ops);
 done:
 	kfree(seg_name);
