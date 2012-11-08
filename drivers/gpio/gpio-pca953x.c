@@ -765,9 +765,38 @@ static int pca953x_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct of_device_id pca953x_dt_ids[] = {
+	{ .compatible = "nxp,pca9534", },
+	{ .compatible = "nxp,pca9535", },
+	{ .compatible = "nxp,pca9536", },
+	{ .compatible = "nxp,pca9537", },
+	{ .compatible = "nxp,pca9538", },
+	{ .compatible = "nxp,pca9539", },
+	{ .compatible = "nxp,pca9554", },
+	{ .compatible = "nxp,pca9555", },
+	{ .compatible = "nxp,pca9556", },
+	{ .compatible = "nxp,pca9557", },
+	{ .compatible = "nxp,pca9574", },
+	{ .compatible = "nxp,pca9575", },
+
+	{ .compatible = "maxim,max7310", },
+	{ .compatible = "maxim,max7312", },
+	{ .compatible = "maxim,max7313", },
+	{ .compatible = "maxim,max7315", },
+
+	{ .compatible = "ti,pca6107", },
+	{ .compatible = "ti,tca6408", },
+	{ .compatible = "ti,tca6416", },
+	{ .compatible = "ti,tca6424", },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(of, pca953x_dt_ids);
+
 static struct i2c_driver pca953x_driver = {
 	.driver = {
 		.name	= "pca953x",
+		.of_match_table = pca953x_dt_ids,
 	},
 	.probe		= pca953x_probe,
 	.remove		= pca953x_remove,
