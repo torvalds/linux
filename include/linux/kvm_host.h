@@ -42,19 +42,8 @@
  */
 #define KVM_MEMSLOT_INVALID	(1UL << 16)
 
-/*
- * If we support unaligned MMIO, at most one fragment will be split into two:
- */
-#ifdef KVM_UNALIGNED_MMIO
-#  define KVM_EXTRA_MMIO_FRAGMENTS 1
-#else
-#  define KVM_EXTRA_MMIO_FRAGMENTS 0
-#endif
-
-#define KVM_USER_MMIO_SIZE 8
-
-#define KVM_MAX_MMIO_FRAGMENTS \
-	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
+/* Two fragments for cross MMIO pages. */
+#define KVM_MAX_MMIO_FRAGMENTS	2
 
 /*
  * For the normal pfn, the highest 12 bits should be zero,

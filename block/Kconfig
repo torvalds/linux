@@ -89,7 +89,7 @@ config BLK_DEV_INTEGRITY
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
-	depends on BLK_CGROUP=y && EXPERIMENTAL
+	depends on BLK_CGROUP=y
 	default n
 	---help---
 	Block layer bio throttling support. It can be used to limit

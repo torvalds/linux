@@ -273,9 +273,9 @@ static irqreturn_t usbhs_interrupt(int irq, void *data)
 	usbhs_write(priv, INTSTS0, ~irq_state.intsts0 & INTSTS0_MAGIC);
 	usbhs_write(priv, INTSTS1, ~irq_state.intsts1 & INTSTS1_MAGIC);
 
-	usbhs_write(priv, BRDYSTS, 0);
-	usbhs_write(priv, NRDYSTS, 0);
-	usbhs_write(priv, BEMPSTS, 0);
+	usbhs_write(priv, BRDYSTS, ~irq_state.brdysts);
+	usbhs_write(priv, NRDYSTS, ~irq_state.nrdysts);
+	usbhs_write(priv, BEMPSTS, ~irq_state.bempsts);
 
 	/*
 	 * call irq callback functions

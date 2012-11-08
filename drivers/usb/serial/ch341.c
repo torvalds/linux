@@ -242,13 +242,11 @@ out:	kfree(buffer);
 	return r;
 }
 
-/* allocate private data */
-static int ch341_attach(struct usb_serial *serial)
+static int ch341_port_probe(struct usb_serial_port *port)
 {
 	struct ch341_private *priv;
 	int r;
 
-	/* private data */
 	priv = kzalloc(sizeof(struct ch341_private), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
@@ -258,15 +256,25 @@ static int ch341_attach(struct usb_serial *serial)
 	priv->baud_rate = DEFAULT_BAUD_RATE;
 	priv->line_control = CH341_BIT_RTS | CH341_BIT_DTR;
 
-	r = ch341_configure(serial->dev, priv);
+	r = ch341_configure(port->serial->dev, priv);
 	if (r < 0)
 		goto error;
 
-	usb_set_serial_port_data(serial->port[0], priv);
+	usb_set_serial_port_data(port, priv);
 	return 0;
 
 error:	kfree(priv);
 	return r;
+}
+
+static int ch341_port_remove(struct usb_serial_port *port)
+{
+	struct ch341_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
 }
 
 static int ch341_carrier_raised(struct usb_serial_port *port)
@@ -304,7 +312,7 @@ static void ch341_close(struct usb_serial_port *port)
 static int ch341_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	struct ch341_private *priv = usb_get_serial_port_data(serial->port[0]);
+	struct ch341_private *priv = usb_get_serial_port_data(port);
 	int r;
 
 	priv->baud_rate = DEFAULT_BAUD_RATE;
@@ -608,7 +616,8 @@ static struct usb_serial_driver ch341_device = {
 	.tiocmget          = ch341_tiocmget,
 	.tiocmset          = ch341_tiocmset,
 	.read_int_callback = ch341_read_int_callback,
-	.attach            = ch341_attach,
+	.port_probe        = ch341_port_probe,
+	.port_remove       = ch341_port_remove,
 	.reset_resume      = ch341_reset_resume,
 };
 
