@@ -312,7 +312,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 	struct usbduxfastsub_s *udfs;
 	struct comedi_device *this_comedidev;
 	struct comedi_subdevice *s;
-	uint16_t *p;
 
 	/* sanity checks - is the urb there? */
 	if (!urb) {
@@ -379,7 +378,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		return;
 	}
 
-	p = urb->transfer_buffer;
 	if (!udfs->ignore) {
 		if (!udfs->ai_continous) {
 			/* not continuous, fixed number of samples */
