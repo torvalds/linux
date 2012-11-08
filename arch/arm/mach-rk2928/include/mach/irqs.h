@@ -66,6 +66,4 @@
 #define NR_BOARD_IRQS                   64
 #define NR_IRQS                         (NR_GIC_IRQS + NR_GPIO_IRQS + NR_BOARD_IRQS)
 
-#define IRQ_BOARD_START                 (NR_GIC_IRQS + NR_GPIO_IRQS)
-
 #endif
