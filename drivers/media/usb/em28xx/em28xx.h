@@ -588,9 +588,13 @@ struct em28xx {
 	int max_pkt_size;	/* max packet size of the selected ep at alt */
 	int num_alt;		/* number of alternative settings */
 	unsigned int *alt_max_pkt_size_isoc; /* array of isoc wMaxPacketSize */
+	unsigned int analog_xfer_bulk:1;	/* use bulk instead of isoc
+						   transfers for analog      */
 	int dvb_alt_isoc;	/* alternate setting for DVB isoc transfers */
 	unsigned int dvb_max_pkt_size_isoc;	/* isoc max packet size of the
 						   selected DVB ep at dvb_alt */
+	unsigned int dvb_xfer_bulk:1;		/* use bulk instead of isoc
+						   transfers for DVB          */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
