@@ -306,6 +306,23 @@ struct key_params {
 };
 
 /**
+ * struct cfg80211_chan_def - channel definition
+ * @chan: the (control) channel
+ * @_type: the channel type, don't use this field,
+ *	use cfg80211_get_chandef_type() if needed.
+ */
+struct cfg80211_chan_def {
+	struct ieee80211_channel *chan;
+	enum nl80211_channel_type _type;
+};
+
+static inline enum nl80211_channel_type
+cfg80211_get_chandef_type(const struct cfg80211_chan_def *chandef)
+{
+	return chandef->_type;
+}
+
+/**
  * enum survey_info_flags - survey information flags
  *
  * @SURVEY_INFO_NOISE_DBM: noise (in dBm) was filled in
@@ -426,8 +443,7 @@ struct cfg80211_beacon_data {
  *
  * Used to configure an AP interface.
  *
- * @channel: the channel to start the AP on
- * @channel_type: the channel type to use
+ * @chandef: defines the channel to use
  * @beacon: beacon data
  * @beacon_interval: beacon interval
  * @dtim_period: DTIM period
@@ -441,8 +457,7 @@ struct cfg80211_beacon_data {
  * @inactivity_timeout: time in seconds to determine station's inactivity.
  */
 struct cfg80211_ap_settings {
-	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 
 	struct cfg80211_beacon_data beacon;
 
@@ -909,8 +924,7 @@ struct mesh_config {
 
 /**
  * struct mesh_setup - 802.11s mesh setup configuration
- * @channel: the channel to start the mesh network on
- * @channel_type: the channel type to use
+ * @chandef: defines the channel to use
  * @mesh_id: the mesh ID
  * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
  * @sync_method: which synchronization method to use
@@ -925,8 +939,7 @@ struct mesh_config {
  * These parameters are fixed when the mesh is created.
  */
 struct mesh_setup {
-	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 	const u8 *mesh_id;
 	u8 mesh_id_len;
 	u8 sync_method;
@@ -1266,8 +1279,7 @@ struct cfg80211_disassoc_request {
  * @ssid_len: The length of the SSID, will always be non-zero.
  * @bssid: Fixed BSSID requested, maybe be %NULL, if set do not
  *	search for IBSSs with a different BSSID.
- * @channel: The channel to use if no IBSS can be found to join.
- * @channel_type: channel type (HT mode)
+ * @chandef: defines the channel to use if no other IBSS to join can be found
  * @channel_fixed: The channel should be fixed -- do not search for
  *	IBSSs to join on other channels.
  * @ie: information element(s) to include in the beacon
@@ -1285,8 +1297,7 @@ struct cfg80211_disassoc_request {
 struct cfg80211_ibss_params {
 	u8 *ssid;
 	u8 *bssid;
-	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 	u8 *ie;
 	u8 ssid_len, ie_len;
 	u16 beacon_interval;
@@ -1728,8 +1739,7 @@ struct cfg80211_ops {
 					     struct ieee80211_channel *chan);
 
 	int	(*set_monitor_channel)(struct wiphy *wiphy,
-				       struct ieee80211_channel *chan,
-				       enum nl80211_channel_type channel_type);
+				       struct cfg80211_chan_def *chandef);
 
 	int	(*scan)(struct wiphy *wiphy,
 			struct cfg80211_scan_request *request);
@@ -1855,10 +1865,9 @@ struct cfg80211_ops {
 	void	(*get_et_strings)(struct wiphy *wiphy, struct net_device *dev,
 				  u32 sset, u8 *data);
 
-	struct ieee80211_channel *
-		(*get_channel)(struct wiphy *wiphy,
+	int	(*get_channel)(struct wiphy *wiphy,
 			       struct wireless_dev *wdev,
-			       enum nl80211_channel_type *type);
+			       struct cfg80211_chan_def *chandef);
 
 	int	(*start_p2p_device)(struct wiphy *wiphy,
 				    struct wireless_dev *wdev);
@@ -2466,8 +2475,7 @@ struct wireless_dev {
 	spinlock_t event_lock;
 
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
-	struct ieee80211_channel *preset_chan;
-	enum nl80211_channel_type preset_chantype;
+	struct cfg80211_chan_def preset_chandef;
 
 	/* for AP and mesh channel tracking */
 	struct ieee80211_channel *channel;
@@ -3563,28 +3571,25 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 int freq, int sig_dbm);
 
 /**
- * cfg80211_can_beacon_sec_chan - test if ht40 on extension channel can be used
+ * cfg80211_reg_can_beacon - check if beaconing is allowed
  * @wiphy: the wiphy
- * @chan: main channel
- * @channel_type: HT mode
+ * @chandef: the channel definition
  *
  * This function returns true if there is no secondary channel or the secondary
- * channel can be used for beaconing (i.e. is not a radar channel etc.)
+ * channel(s) can be used for beaconing (i.e. is not a radar channel etc.)
  */
-bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
-				  struct ieee80211_channel *chan,
-				  enum nl80211_channel_type channel_type);
+bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
+			     struct cfg80211_chan_def *chandef);
 
 /*
  * cfg80211_ch_switch_notify - update wdev channel and notify userspace
  * @dev: the device which switched channels
- * @freq: new channel frequency (in MHz)
- * @type: channel type
+ * @chandef: the new channel definition
  *
  * Acquires wdev_lock, so must only be called from sleepable driver context!
  */
-void cfg80211_ch_switch_notify(struct net_device *dev, int freq,
-			       enum nl80211_channel_type type);
+void cfg80211_ch_switch_notify(struct net_device *dev,
+			       struct cfg80211_chan_def *chandef);
 
 /*
  * cfg80211_tdls_oper_request - request userspace to perform TDLS operation

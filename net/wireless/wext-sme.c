@@ -119,7 +119,15 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 	 * channel we disconnected above and reconnect below.
 	 */
 	if (chan && !wdev->wext.connect.ssid_len) {
-		err = cfg80211_set_monitor_channel(rdev, freq, NL80211_CHAN_NO_HT);
+		struct cfg80211_chan_def chandef = {
+			._type = NL80211_CHAN_NO_HT,
+		};
+
+		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
+		if (chandef.chan)
+			err = cfg80211_set_monitor_channel(rdev, &chandef);
+		else
+			err = -EINVAL;
 		goto out;
 	}
 

@@ -51,7 +51,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_bss *bss;
 	u32 bss_change;
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 
 	lockdep_assert_held(&ifibss->mtx);
 
@@ -79,12 +79,13 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	channel_type = ifibss->channel_type;
-	if (!cfg80211_can_beacon_sec_chan(local->hw.wiphy, chan, channel_type))
-		channel_type = NL80211_CHAN_HT20;
+	chandef.chan = chan;
+	chandef._type = ifibss->channel_type;
+	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef))
+		chandef._type = NL80211_CHAN_HT20;
 
 	ieee80211_vif_release_channel(sdata);
-	if (ieee80211_vif_use_channel(sdata, chan, channel_type,
+	if (ieee80211_vif_use_channel(sdata, chan, chandef._type,
 				      ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
@@ -158,7 +159,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		       ifibss->ie, ifibss->ie_len);
 
 	/* add HT capability and information IEs */
-	if (channel_type && sband->ht_cap.ht_supported) {
+	if (chandef._type != NL80211_CHAN_NO_HT &&
+	    sband->ht_cap.ht_supported) {
 		pos = skb_put(skb, 4 +
 				   sizeof(struct ieee80211_ht_cap) +
 				   sizeof(struct ieee80211_ht_operation));
@@ -170,7 +172,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		 * keep them at 0
 		 */
 		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
-						 chan, channel_type, 0);
+						 chan, chandef._type, 0);
 	}
 
 	if (local->hw.queues >= IEEE80211_NUM_ACS) {
@@ -1078,8 +1080,9 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 
-	sdata->u.ibss.channel = params->channel;
-	sdata->u.ibss.channel_type = params->channel_type;
+	sdata->u.ibss.channel = params->chandef.chan;
+	sdata->u.ibss.channel_type =
+		cfg80211_get_chandef_type(&params->chandef);
 	sdata->u.ibss.fixed_channel = params->channel_fixed;
 
 	if (params->ie) {

@@ -309,9 +309,9 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		       const struct mesh_config *conf);
 int cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
-int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
-			   struct wireless_dev *wdev, int freq,
-			   enum nl80211_channel_type channel_type);
+int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
+			      struct wireless_dev *wdev,
+			      struct cfg80211_chan_def *chandef);
 
 /* AP */
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
@@ -470,11 +470,8 @@ cfg80211_get_chan_state(struct wireless_dev *wdev,
 		        struct ieee80211_channel **chan,
 		        enum cfg80211_chan_mode *chanmode);
 
-struct ieee80211_channel *
-rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
-		  int freq, enum nl80211_channel_type channel_type);
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
-				 int freq, enum nl80211_channel_type chantype);
+				 struct cfg80211_chan_def *chandef);
 
 int ieee80211_get_ratemask(struct ieee80211_supported_band *sband,
 			   const u8 *rates, unsigned int n_rates,

@@ -1212,8 +1212,8 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	else
 		WL_CONN("No BSSID specified\n");
 
-	if (params->channel)
-		WL_CONN("channel: %d\n", params->channel->center_freq);
+	if (params->chandef.chan)
+		WL_CONN("channel: %d\n", params->chandef.chan->center_freq);
 	else
 		WL_CONN("no channel specified\n");
 
@@ -1286,12 +1286,12 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	/* Channel */
-	if (params->channel) {
+	if (params->chandef.chan) {
 		u32 target_channel;
 
 		cfg->channel =
 			ieee80211_frequency_to_channel(
-				params->channel->center_freq);
+				params->chandef.chan->center_freq);
 		if (params->channel_fixed) {
 			/* adding chanspec */
 			brcmf_ch_to_chanspec(cfg->channel,
@@ -3938,7 +3938,8 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	s32 bssidx = 0;
 
 	WL_TRACE("channel_type=%d, beacon_interval=%d, dtim_period=%d,\n",
-		 settings->channel_type, settings->beacon_interval,
+		 cfg80211_get_chandef_type(&settings->chandef),
+		 settings->beacon_interval,
 		 settings->dtim_period);
 	WL_TRACE("ssid=%s(%d), auth_type=%d, inactivity_timeout=%d\n",
 		 settings->ssid, settings->ssid_len, settings->auth_type,

@@ -359,12 +359,11 @@ rdev_libertas_set_mesh_channel(struct cfg80211_registered_device *rdev,
 
 static inline int
 rdev_set_monitor_channel(struct cfg80211_registered_device *rdev,
-			 struct ieee80211_channel *chan,
-			 enum nl80211_channel_type channel_type)
+			 struct cfg80211_chan_def *chandef)
 {
 	int ret;
-	trace_rdev_set_monitor_channel(&rdev->wiphy, chan, channel_type);
-	ret = rdev->ops->set_monitor_channel(&rdev->wiphy, chan, channel_type);
+	trace_rdev_set_monitor_channel(&rdev->wiphy, chandef);
+	ret = rdev->ops->set_monitor_channel(&rdev->wiphy, chandef);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -844,14 +843,17 @@ static inline void rdev_get_et_strings(struct cfg80211_registered_device *rdev,
 	trace_rdev_return_void(&rdev->wiphy);
 }
 
-static inline struct ieee80211_channel
-*rdev_get_channel(struct cfg80211_registered_device *rdev,
-		  struct wireless_dev *wdev, enum nl80211_channel_type *type)
+static inline int
+rdev_get_channel(struct cfg80211_registered_device *rdev,
+		 struct wireless_dev *wdev,
+		 struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_channel *ret;
+	int ret;
+
 	trace_rdev_get_channel(&rdev->wiphy, wdev);
-	ret = rdev->ops->get_channel(&rdev->wiphy, wdev, type);
-	trace_rdev_return_channel(&rdev->wiphy, ret, *type);
+	ret = rdev->ops->get_channel(&rdev->wiphy, wdev, chandef);
+	trace_rdev_return_chandef(&rdev->wiphy, ret, chandef);
+
 	return ret;
 }
 

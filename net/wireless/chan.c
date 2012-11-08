@@ -11,51 +11,15 @@
 #include "core.h"
 #include "rdev-ops.h"
 
-struct ieee80211_channel *
-rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
-		  int freq, enum nl80211_channel_type channel_type)
-{
-	struct ieee80211_channel *chan;
-	struct ieee80211_sta_ht_cap *ht_cap;
-
-	chan = ieee80211_get_channel(&rdev->wiphy, freq);
-
-	/* Primary channel not allowed */
-	if (!chan || chan->flags & IEEE80211_CHAN_DISABLED)
-		return NULL;
-
-	if (channel_type == NL80211_CHAN_HT40MINUS &&
-	    chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
-		return NULL;
-	else if (channel_type == NL80211_CHAN_HT40PLUS &&
-		 chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
-		return NULL;
-
-	ht_cap = &rdev->wiphy.bands[chan->band]->ht_cap;
-
-	if (channel_type != NL80211_CHAN_NO_HT) {
-		if (!ht_cap->ht_supported)
-			return NULL;
-
-		if (channel_type != NL80211_CHAN_HT20 &&
-		    (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
-		    ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT))
-			return NULL;
-	}
-
-	return chan;
-}
-
-bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
-				  struct ieee80211_channel *chan,
-				  enum nl80211_channel_type channel_type)
+bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
+			     struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_channel *sec_chan;
 	int diff;
 
-	trace_cfg80211_can_beacon_sec_chan(wiphy, chan, channel_type);
+	trace_cfg80211_reg_can_beacon(wiphy, chandef);
 
-	switch (channel_type) {
+	switch (chandef->_type) {
 	case NL80211_CHAN_HT40PLUS:
 		diff = 20;
 		break;
@@ -67,7 +31,8 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 		return true;
 	}
 
-	sec_chan = ieee80211_get_channel(wiphy, chan->center_freq + diff);
+	sec_chan = ieee80211_get_channel(wiphy,
+					 chandef->chan->center_freq + diff);
 	if (!sec_chan) {
 		trace_cfg80211_return_bool(false);
 		return false;
@@ -84,23 +49,17 @@ bool cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 	trace_cfg80211_return_bool(true);
 	return true;
 }
-EXPORT_SYMBOL(cfg80211_can_beacon_sec_chan);
+EXPORT_SYMBOL(cfg80211_reg_can_beacon);
 
 int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
-				 int freq, enum nl80211_channel_type chantype)
+				 struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_channel *chan;
-
 	if (!rdev->ops->set_monitor_channel)
 		return -EOPNOTSUPP;
 	if (!cfg80211_has_monitors_only(rdev))
 		return -EBUSY;
 
-	chan = rdev_freq_to_chan(rdev, freq, chantype);
-	if (!chan)
-		return -EINVAL;
-
-	return rdev_set_monitor_channel(rdev, chan, chantype);
+	return rdev_set_monitor_channel(rdev, chandef);
 }
 
 void

@@ -126,6 +126,26 @@
 #define CHAN_PR_FMT ", band: %d, freq: %u"
 #define CHAN_PR_ARG __entry->band, __entry->center_freq
 
+#define CHAN_DEF_ENTRY __field(enum ieee80211_band, band)	\
+		       __field(u16, center_freq)		\
+		       __field(u32, channel_type)
+#define CHAN_DEF_ASSIGN(chandef)					\
+	do {								\
+		if ((chandef) && (chandef)->chan) {			\
+			__entry->band = (chandef)->chan->band;		\
+			__entry->center_freq =				\
+				(chandef)->chan->center_freq;		\
+			__entry->channel_type = (chandef)->_type;	\
+		} else {						\
+			__entry->band = 0;				\
+			__entry->center_freq = 0;			\
+			__entry->channel_type = 0;			\
+		}							\
+	} while (0)
+#define CHAN_DEF_PR_FMT ", band: %d, freq: %u, chantype: %d"
+#define CHAN_DEF_PR_ARG __entry->band, __entry->center_freq,		\
+			__entry->channel_type
+
 #define SINFO_ENTRY __field(int, generation)	    \
 		    __field(u32, connected_time)    \
 		    __field(u32, inactive_time)	    \
@@ -433,7 +453,7 @@ TRACE_EVENT(rdev_start_ap,
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
 		NETDEV_ENTRY
-		CHAN_ENTRY
+		CHAN_DEF_ENTRY
 		__field(int, beacon_interval)
 		__field(int, dtim_period)
 		__array(char, ssid, IEEE80211_MAX_SSID_LEN + 1)
@@ -446,7 +466,7 @@ TRACE_EVENT(rdev_start_ap,
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
-		CHAN_ASSIGN(settings->channel);
+		CHAN_DEF_ASSIGN(&settings->chandef);
 		__entry->beacon_interval = settings->beacon_interval;
 		__entry->dtim_period = settings->dtim_period;
 		__entry->hidden_ssid = settings->hidden_ssid;
@@ -458,10 +478,10 @@ TRACE_EVENT(rdev_start_ap,
 		memcpy(__entry->ssid, settings->ssid, settings->ssid_len);
 	),
 	TP_printk(WIPHY_PR_FMT NETDEV_PR_FMT ", AP settings - ssid: %s, "
-		  CHAN_PR_FMT ", beacon interval: %d, dtim period: %d, "
+		  CHAN_DEF_PR_FMT ", beacon interval: %d, dtim period: %d, "
 		  "hidden ssid: %d, wpa versions: %u, privacy: %s, "
 		  "auth type: %d, inactivity timeout: %d",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->ssid, CHAN_PR_ARG,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->ssid, CHAN_DEF_PR_ARG,
 		  __entry->beacon_interval, __entry->dtim_period,
 		  __entry->hidden_ssid, __entry->wpa_ver,
 		  BOOL_TO_STR(__entry->privacy), __entry->auth_type,
@@ -933,21 +953,19 @@ TRACE_EVENT(rdev_libertas_set_mesh_channel,
 );
 
 TRACE_EVENT(rdev_set_monitor_channel,
-	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *chan,
-		 enum nl80211_channel_type chan_type),
-	TP_ARGS(wiphy, chan, chan_type),
+	TP_PROTO(struct wiphy *wiphy,
+		 struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, chandef),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
-		CHAN_ENTRY
-		__field(enum nl80211_channel_type, chan_type)
+		CHAN_DEF_ENTRY
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
-		CHAN_ASSIGN(chan);
-		__entry->chan_type = chan_type;
+		CHAN_DEF_ASSIGN(chandef);
 	),
-	TP_printk(WIPHY_PR_FMT CHAN_PR_FMT ", channel type : %d",
-		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->chan_type)
+	TP_printk(WIPHY_PR_FMT CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
 TRACE_EVENT(rdev_auth,
@@ -1713,22 +1731,25 @@ DEFINE_EVENT(wiphy_wdev_evt, rdev_get_channel,
 	TP_ARGS(wiphy, wdev)
 );
 
-TRACE_EVENT(rdev_return_channel,
-	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *chan,
-		 enum nl80211_channel_type type),
-	TP_ARGS(wiphy, chan, type),
+TRACE_EVENT(rdev_return_chandef,
+	TP_PROTO(struct wiphy *wiphy, int ret,
+		 struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, ret, chandef),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
-		CHAN_ENTRY
-		__field(enum nl80211_channel_type, type)
+		__field(int, ret)
+		CHAN_DEF_ENTRY
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
-		CHAN_ASSIGN(chan);
-		__entry->type = type;
+		if (ret == 0)
+			CHAN_DEF_ASSIGN(chandef);
+		else
+			CHAN_DEF_ASSIGN((struct cfg80211_chan_def *)NULL);
+		__entry->ret = ret;
 	),
-	TP_printk(WIPHY_PR_FMT CHAN_PR_FMT ", channel type: %d",
-		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->type)
+	TP_printk(WIPHY_PR_FMT CHAN_DEF_PR_FMT ", ret: %d",
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG, __entry->ret)
 );
 
 DEFINE_EVENT(wiphy_wdev_evt, rdev_start_p2p_device,
@@ -1992,40 +2013,35 @@ TRACE_EVENT(cfg80211_cqm_rssi_notify,
 		  NETDEV_PR_ARG, __entry->rssi_event)
 );
 
-TRACE_EVENT(cfg80211_can_beacon_sec_chan,
-	TP_PROTO(struct wiphy *wiphy, struct ieee80211_channel *channel,
-		 enum nl80211_channel_type channel_type),
-	TP_ARGS(wiphy, channel, channel_type),
+TRACE_EVENT(cfg80211_reg_can_beacon,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
+	TP_ARGS(wiphy, chandef),
 	TP_STRUCT__entry(
 		WIPHY_ENTRY
-		CHAN_ENTRY
-		__field(enum nl80211_channel_type, channel_type)
+		CHAN_DEF_ENTRY
 	),
 	TP_fast_assign(
 		WIPHY_ASSIGN;
-		CHAN_ASSIGN(channel);
-		__entry->channel_type = channel_type;
+		CHAN_DEF_ASSIGN(chandef);
 	),
-	TP_printk(WIPHY_PR_FMT CHAN_PR_FMT ", channel_type: %d",
-		  WIPHY_PR_ARG, CHAN_PR_ARG, __entry->channel_type)
+	TP_printk(WIPHY_PR_FMT CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
 TRACE_EVENT(cfg80211_ch_switch_notify,
-	TP_PROTO(struct net_device *netdev, int freq,
-		 enum nl80211_channel_type type),
-	TP_ARGS(netdev, freq, type),
+	TP_PROTO(struct net_device *netdev,
+		 struct cfg80211_chan_def *chandef),
+	TP_ARGS(netdev, chandef),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
-		__field(int, freq)
-		__field(enum nl80211_channel_type, type)
+		CHAN_DEF_ENTRY
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
-		__entry->freq = freq;
-		__entry->type = type;
+		CHAN_DEF_ASSIGN(chandef);
 	),
-	TP_printk(NETDEV_PR_FMT ", freq: %d, type: %d", NETDEV_PR_ARG,
-		  __entry->freq, __entry->type)
+	TP_printk(NETDEV_PR_FMT CHAN_DEF_PR_FMT,
+		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
 DECLARE_EVENT_CLASS(cfg80211_rx_evt,

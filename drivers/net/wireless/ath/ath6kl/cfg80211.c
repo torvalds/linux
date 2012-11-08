@@ -1093,15 +1093,20 @@ out:
 void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 				      enum wmi_phy_mode mode)
 {
-	enum nl80211_channel_type type;
+	struct cfg80211_chan_def chandef;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
 		   "channel switch notify nw_type %d freq %d mode %d\n",
 		   vif->nw_type, freq, mode);
 
-	type = (mode == WMI_11G_HT20) ? NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT;
+	chandef.chan = ieee80211_get_channel(vif->ar->wiphy, freq);
+	if (WARN_ON(!chandef.chan))
+		return;
 
-	cfg80211_ch_switch_notify(vif->ndev, freq, type);
+	chandef._type = (mode == WMI_11G_HT20) ?
+		NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT;
+
+	cfg80211_ch_switch_notify(vif->ndev, &chandef);
 }
 
 static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
@@ -1613,8 +1618,8 @@ static int ath6kl_cfg80211_join_ibss(struct wiphy *wiphy,
 	vif->ssid_len = ibss_param->ssid_len;
 	memcpy(vif->ssid, ibss_param->ssid, vif->ssid_len);
 
-	if (ibss_param->channel)
-		vif->ch_hint = ibss_param->channel->center_freq;
+	if (ibss_param->chandef.chan)
+		vif->ch_hint = ibss_param->chandef.chan->center_freq;
 
 	if (ibss_param->channel_fixed) {
 		/*
@@ -2856,7 +2861,7 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	p.ssid_len = vif->ssid_len;
 	memcpy(p.ssid, vif->ssid, vif->ssid_len);
 	p.dot11_auth_mode = vif->dot11_auth_mode;
-	p.ch = cpu_to_le16(info->channel->center_freq);
+	p.ch = cpu_to_le16(info->chandef.chan->center_freq);
 
 	/* Enable uAPSD support by default */
 	res = ath6kl_wmi_ap_set_apsd(ar->wmi, vif->fw_vif_idx, true);
@@ -2880,8 +2885,9 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			return res;
 	}
 
-	if (ath6kl_set_htcap(vif, info->channel->band,
-			     info->channel_type != NL80211_CHAN_NO_HT))
+	if (ath6kl_set_htcap(vif, info->chandef.chan->band,
+			     cfg80211_get_chandef_type(&info->chandef)
+					!= NL80211_CHAN_NO_HT))
 		return -EIO;
 
 	/*

@@ -127,8 +127,8 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 				    const u8 *bssid, bool preauth, gfp_t gfp);
 
 void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
-			      struct net_device *dev, int freq,
-			      enum nl80211_channel_type type, gfp_t gfp);
+			      struct net_device *dev,
+			      struct cfg80211_chan_def *chandef, gfp_t gfp);
 
 bool nl80211_unexpected_frame(struct net_device *dev,
 			      const u8 *addr, gfp_t gfp);

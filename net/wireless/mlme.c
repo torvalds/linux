@@ -988,15 +988,14 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 }
 EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
 
-void cfg80211_ch_switch_notify(struct net_device *dev, int freq,
-			       enum nl80211_channel_type type)
+void cfg80211_ch_switch_notify(struct net_device *dev,
+			       struct cfg80211_chan_def *chandef)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
-	struct ieee80211_channel *chan;
 
-	trace_cfg80211_ch_switch_notify(dev, freq, type);
+	trace_cfg80211_ch_switch_notify(dev, chandef);
 
 	wdev_lock(wdev);
 
@@ -1004,12 +1003,8 @@ void cfg80211_ch_switch_notify(struct net_device *dev, int freq,
 		    wdev->iftype != NL80211_IFTYPE_P2P_GO))
 		goto out;
 
-	chan = rdev_freq_to_chan(rdev, freq, type);
-	if (WARN_ON(!chan))
-		goto out;
-
-	wdev->channel = chan;
-	nl80211_ch_switch_notify(rdev, dev, freq, type, GFP_KERNEL);
+	wdev->channel = chandef->chan;
+	nl80211_ch_switch_notify(rdev, dev, chandef, GFP_KERNEL);
 out:
 	wdev_unlock(wdev);
 	return;

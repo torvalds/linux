@@ -735,14 +735,16 @@ static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
-					 struct ieee80211_channel *chan,
-					 enum nl80211_channel_type channel_type)
+					 struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata;
+	enum nl80211_channel_type channel_type;
 	int ret = 0;
 
-	if (local->monitor_channel == chan &&
+	channel_type = cfg80211_get_chandef_type(chandef);
+
+	if (local->monitor_channel == chandef->chan &&
 	    local->monitor_channel_type == channel_type)
 		return 0;
 
@@ -754,17 +756,17 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 		if (sdata) {
 			ieee80211_vif_release_channel(sdata);
 			ret = ieee80211_vif_use_channel(
-					sdata, chan, channel_type,
+					sdata, chandef->chan, channel_type,
 					IEEE80211_CHANCTX_EXCLUSIVE);
 		}
 	} else if (local->open_count == local->monitors) {
-		local->_oper_channel = chan;
+		local->_oper_channel = chandef->chan;
 		local->_oper_channel_type = channel_type;
 		ieee80211_hw_config(local, 0);
 	}
 
 	if (ret == 0) {
-		local->monitor_channel = chan;
+		local->monitor_channel = chandef->chan;
 		local->monitor_channel_type = channel_type;
 	}
 	mutex_unlock(&local->iflist_mtx);
@@ -888,9 +890,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
-	err = ieee80211_vif_use_channel(sdata, params->channel,
-					params->channel_type,
-					IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_vif_use_channel(
+		sdata, params->chandef.chan,
+		cfg80211_get_chandef_type(&params->chandef),
+		IEEE80211_CHANCTX_SHARED);
 	if (err)
 		return err;
 
@@ -1707,9 +1710,10 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
-	err = ieee80211_vif_use_channel(sdata, setup->channel,
-					setup->channel_type,
-					IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_vif_use_channel(
+		sdata, setup->chandef.chan,
+		cfg80211_get_chandef_type(&setup->chandef),
+		IEEE80211_CHANCTX_SHARED);
 	if (err)
 		return err;
 
@@ -3110,23 +3114,24 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static struct ieee80211_channel *
-ieee80211_cfg_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
-			  enum nl80211_channel_type *type)
+static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
+				     struct wireless_dev *wdev,
+				     struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_channel *chan = NULL;
+	int ret = -ENODATA;
 
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (chanctx_conf) {
-		*type = chanctx_conf->channel_type;
-		chan = chanctx_conf->channel;
+		chandef->chan = chanctx_conf->channel;
+		chandef->_type = chanctx_conf->channel_type;
+		ret = 0;
 	}
 	rcu_read_unlock();
 
-	return chan;
+	return ret;
 }
 
 #ifdef CONFIG_PM
