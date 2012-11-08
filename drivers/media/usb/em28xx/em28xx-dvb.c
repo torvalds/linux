@@ -134,11 +134,8 @@ static inline int em28xx_dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
 	if ((dev->state & DEV_DISCONNECTED) || (dev->state & DEV_MISCONFIGURED))
 		return 0;
 
-	if (urb->status < 0) {
+	if (urb->status < 0)
 		print_err_status(dev, -1, urb->status);
-		if (urb->status == -ENOENT)
-			return 0;
-	}
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		int status = urb->iso_frame_desc[i].status;
