@@ -1502,7 +1502,7 @@ batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 
 			memcpy(tt_change->addr, tt_common_entry->addr,
 			       ETH_ALEN);
-			tt_change->flags = BATADV_NO_FLAGS;
+			tt_change->flags = tt_common_entry->flags;
 
 			tt_count++;
 			tt_change++;
