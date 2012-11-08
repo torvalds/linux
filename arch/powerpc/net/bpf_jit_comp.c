@@ -13,6 +13,8 @@
 #include <asm/cacheflush.h>
 #include <linux/netdevice.h>
 #include <linux/filter.h>
+#include <linux/if_vlan.h>
+
 #include "bpf_jit.h"
 
 #ifndef __BIG_ENDIAN
@@ -89,6 +91,8 @@ static void bpf_jit_build_prologue(struct sk_filter *fp, u32 *image,
 	case BPF_S_ANC_IFINDEX:
 	case BPF_S_ANC_MARK:
 	case BPF_S_ANC_RXHASH:
+	case BPF_S_ANC_VLAN_TAG:
+	case BPF_S_ANC_VLAN_TAG_PRESENT:
 	case BPF_S_ANC_CPU:
 	case BPF_S_ANC_QUEUE:
 	case BPF_S_LD_W_ABS:
@@ -381,6 +385,16 @@ static int bpf_jit_build_body(struct sk_filter *fp, u32 *image,
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, rxhash) != 4);
 			PPC_LWZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
 							  rxhash));
+			break;
+		case BPF_S_ANC_VLAN_TAG:
+		case BPF_S_ANC_VLAN_TAG_PRESENT:
+			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff, vlan_tci) != 2);
+			PPC_LHZ_OFFS(r_A, r_skb, offsetof(struct sk_buff,
+							  vlan_tci));
+			if (filter[i].code == BPF_S_ANC_VLAN_TAG)
+				PPC_ANDI(r_A, r_A, VLAN_VID_MASK);
+			else
+				PPC_ANDI(r_A, r_A, VLAN_TAG_PRESENT);
 			break;
 		case BPF_S_ANC_QUEUE:
 			BUILD_BUG_ON(FIELD_SIZEOF(struct sk_buff,
