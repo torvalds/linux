@@ -4310,8 +4310,10 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 repeat:
 		/* allocate space in core */
 		*errp = ext4_mb_regular_allocator(ac);
-		if (*errp)
+		if (*errp) {
+			ext4_discard_allocated_blocks(ac);
 			goto errout;
+		}
 
 		/* as we've just preallocated more space than
 		 * user requested orinally, we store allocated
@@ -4333,10 +4335,10 @@ repeat:
 			ac->ac_b_ex.fe_len = 0;
 			ac->ac_status = AC_STATUS_CONTINUE;
 			goto repeat;
-		} else if (*errp)
-		errout:
+		} else if (*errp) {
 			ext4_discard_allocated_blocks(ac);
-		else {
+			goto errout;
+		} else {
 			block = ext4_grp_offs_to_block(sb, &ac->ac_b_ex);
 			ar->len = ac->ac_b_ex.fe_len;
 		}
@@ -4347,6 +4349,7 @@ repeat:
 		*errp = -ENOSPC;
 	}
 
+errout:
 	if (*errp) {
 		ac->ac_b_ex.fe_len = 0;
 		ar->len = 0;
