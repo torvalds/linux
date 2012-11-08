@@ -3322,10 +3322,10 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 
 	if (has_dvb) {
 		/* pre-allocate DVB isoc transfer buffers */
-		retval = em28xx_alloc_isoc(dev, EM28XX_DIGITAL_MODE,
-					   EM28XX_DVB_NUM_ISOC_PACKETS,
+		retval = em28xx_alloc_urbs(dev, EM28XX_DIGITAL_MODE, 0,
 					   EM28XX_DVB_NUM_BUFS,
-					   dev->dvb_max_pkt_size);
+					   dev->dvb_max_pkt_size,
+					   EM28XX_DVB_NUM_ISOC_PACKETS);
 		if (retval) {
 			goto unlock_and_free;
 		}

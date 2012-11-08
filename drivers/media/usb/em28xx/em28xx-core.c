@@ -5,6 +5,7 @@
 		      Markus Rechberger <mrechberger@gmail.com>
 		      Mauro Carvalho Chehab <mchehab@infradead.org>
 		      Sascha Sommer <saschasommer@freenet.de>
+   Copyright (C) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1035,10 +1036,10 @@ EXPORT_SYMBOL_GPL(em28xx_stop_urbs);
 /*
  * Allocate URBs
  */
-int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		      int num_packets, int num_bufs, int max_pkt_size)
+int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
+		      int num_bufs, int max_pkt_size, int packet_multiplier)
 {
-	struct em28xx_usb_bufs *isoc_bufs;
+	struct em28xx_usb_bufs *usb_bufs;
 	int i;
 	int sb_size, pipe;
 	struct urb *urb;
@@ -1047,49 +1048,52 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	em28xx_isocdbg("em28xx: called em28xx_alloc_isoc in mode %d\n", mode);
 
 	if (mode == EM28XX_DIGITAL_MODE)
-		isoc_bufs = &dev->usb_ctl.digital_bufs;
+		usb_bufs = &dev->usb_ctl.digital_bufs;
 	else
-		isoc_bufs = &dev->usb_ctl.analog_bufs;
+		usb_bufs = &dev->usb_ctl.analog_bufs;
 
 	/* De-allocates all pending stuff */
 	em28xx_uninit_usb_xfer(dev, mode);
 
-	isoc_bufs->num_bufs = num_bufs;
+	usb_bufs->num_bufs = num_bufs;
 
-	isoc_bufs->urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
-	if (!isoc_bufs->urb) {
+	usb_bufs->urb = kzalloc(sizeof(void *)*num_bufs,  GFP_KERNEL);
+	if (!usb_bufs->urb) {
 		em28xx_errdev("cannot alloc memory for usb buffers\n");
 		return -ENOMEM;
 	}
 
-	isoc_bufs->transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
+	usb_bufs->transfer_buffer = kzalloc(sizeof(void *)*num_bufs,
 					     GFP_KERNEL);
-	if (!isoc_bufs->transfer_buffer) {
+	if (!usb_bufs->transfer_buffer) {
 		em28xx_errdev("cannot allocate memory for usb transfer\n");
-		kfree(isoc_bufs->urb);
+		kfree(usb_bufs->urb);
 		return -ENOMEM;
 	}
 
-	isoc_bufs->max_pkt_size = max_pkt_size;
-	isoc_bufs->num_packets = num_packets;
+	usb_bufs->max_pkt_size = max_pkt_size;
+	if (xfer_bulk)
+		usb_bufs->num_packets = 0;
+	else
+		usb_bufs->num_packets = packet_multiplier;
 	dev->usb_ctl.vid_buf = NULL;
 	dev->usb_ctl.vbi_buf = NULL;
 
-	sb_size = isoc_bufs->num_packets * isoc_bufs->max_pkt_size;
+	sb_size = packet_multiplier * usb_bufs->max_pkt_size;
 
 	/* allocate urbs and transfer buffers */
-	for (i = 0; i < isoc_bufs->num_bufs; i++) {
-		urb = usb_alloc_urb(isoc_bufs->num_packets, GFP_KERNEL);
+	for (i = 0; i < usb_bufs->num_bufs; i++) {
+		urb = usb_alloc_urb(usb_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
 			em28xx_err("cannot alloc usb_ctl.urb %i\n", i);
 			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
-		isoc_bufs->urb[i] = urb;
+		usb_bufs->urb[i] = urb;
 
-		isoc_bufs->transfer_buffer[i] = usb_alloc_coherent(dev->udev,
+		usb_bufs->transfer_buffer[i] = usb_alloc_coherent(dev->udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
-		if (!isoc_bufs->transfer_buffer[i]) {
+		if (!usb_bufs->transfer_buffer[i]) {
 			em28xx_err("unable to allocate %i bytes for transfer"
 					" buffer %i%s\n",
 					sb_size, i,
@@ -1097,35 +1101,42 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 			em28xx_uninit_usb_xfer(dev, mode);
 			return -ENOMEM;
 		}
-		memset(isoc_bufs->transfer_buffer[i], 0, sb_size);
+		memset(usb_bufs->transfer_buffer[i], 0, sb_size);
 
-		/* FIXME: this is a hack - should be
-			'desc.bEndpointAddress & USB_ENDPOINT_NUMBER_MASK'
-			should also be using 'desc.bInterval'
-		 */
-		pipe = usb_rcvisocpipe(dev->udev,
-				       mode == EM28XX_ANALOG_MODE ?
-				       EM28XX_EP_ANALOG : EM28XX_EP_DIGITAL);
-
-		usb_fill_int_urb(urb, dev->udev, pipe,
-				 isoc_bufs->transfer_buffer[i], sb_size,
-				 em28xx_irq_callback, dev, 1);
-
-		urb->number_of_packets = isoc_bufs->num_packets;
-		urb->transfer_flags = URB_ISO_ASAP | URB_NO_TRANSFER_DMA_MAP;
-
-		k = 0;
-		for (j = 0; j < isoc_bufs->num_packets; j++) {
-			urb->iso_frame_desc[j].offset = k;
-			urb->iso_frame_desc[j].length =
-						isoc_bufs->max_pkt_size;
-			k += isoc_bufs->max_pkt_size;
+		if (xfer_bulk) { /* bulk */
+			pipe = usb_rcvbulkpipe(dev->udev,
+					       mode == EM28XX_ANALOG_MODE ?
+					       EM28XX_EP_ANALOG :
+					       EM28XX_EP_DIGITAL);
+			usb_fill_bulk_urb(urb, dev->udev, pipe,
+					  usb_bufs->transfer_buffer[i], sb_size,
+					  em28xx_irq_callback, dev);
+			urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
+		} else { /* isoc */
+			pipe = usb_rcvisocpipe(dev->udev,
+					       mode == EM28XX_ANALOG_MODE ?
+					       EM28XX_EP_ANALOG :
+					       EM28XX_EP_DIGITAL);
+			usb_fill_int_urb(urb, dev->udev, pipe,
+					 usb_bufs->transfer_buffer[i], sb_size,
+					 em28xx_irq_callback, dev, 1);
+			urb->transfer_flags = URB_ISO_ASAP |
+					      URB_NO_TRANSFER_DMA_MAP;
+			k = 0;
+			for (j = 0; j < usb_bufs->num_packets; j++) {
+				urb->iso_frame_desc[j].offset = k;
+				urb->iso_frame_desc[j].length =
+							usb_bufs->max_pkt_size;
+				k += usb_bufs->max_pkt_size;
+			}
 		}
+
+		urb->number_of_packets = usb_bufs->num_packets;
 	}
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(em28xx_alloc_isoc);
+EXPORT_SYMBOL_GPL(em28xx_alloc_urbs);
 
 /*
  * Allocate URBs and start IRQ
@@ -1155,8 +1166,8 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	}
 
 	if (alloc) {
-		rc = em28xx_alloc_isoc(dev, mode, num_packets,
-				       num_bufs, max_pkt_size);
+		rc = em28xx_alloc_urbs(dev, mode, 0, num_bufs,
+				       max_pkt_size, num_packets);
 		if (rc)
 			return rc;
 	}

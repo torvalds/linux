@@ -662,8 +662,8 @@ int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
-int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		      int num_packets, int num_bufs, int max_pkt_size);
+int em28xx_alloc_urbs(struct em28xx *dev, enum em28xx_mode mode, int xfer_bulk,
+		      int num_bufs, int max_pkt_size, int packet_multiplier);
 int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 		     int num_packets, int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
