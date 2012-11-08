@@ -683,9 +683,6 @@ static void __dw_mci_start_request(struct dw_mci *host,
 	if (host->pdata->select_slot)
 		host->pdata->select_slot(slot->id);
 
-	/* Slot specific timing and width adjustment */
-	dw_mci_setup_bus(slot, false);
-
 	host->cur_slot = slot;
 	host->mrq = mrq;
 
@@ -811,6 +808,9 @@ static void dw_mci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (drv_data && drv_data->set_ios)
 		drv_data->set_ios(slot->host, ios);
+
+	/* Slot specific timing and width adjustment */
+	dw_mci_setup_bus(slot, false);
 
 	switch (ios->power_mode) {
 	case MMC_POWER_UP:
