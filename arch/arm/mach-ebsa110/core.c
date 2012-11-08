@@ -158,7 +158,7 @@ static void __init ebsa110_init_early(void)
  * interrupt, then the PIT counter will roll over (ie, be negative).
  * This actually works out to be convenient.
  */
-static unsigned long ebsa110_gettimeoffset(void)
+static u32 ebsa110_gettimeoffset(void)
 {
 	unsigned long offset, count;
 
@@ -181,7 +181,7 @@ static unsigned long ebsa110_gettimeoffset(void)
 	 */
 	offset = offset * (1000000 / HZ) / COUNT;
 
-	return offset;
+	return offset * 1000;
 }
 
 static irqreturn_t
@@ -215,6 +215,8 @@ static struct irqaction ebsa110_timer_irq = {
  */
 static void __init ebsa110_timer_init(void)
 {
+	arch_gettimeoffset = ebsa110_gettimeoffset;
+
 	/*
 	 * Timer 1, mode 2, LSB/MSB
 	 */
@@ -227,7 +229,6 @@ static void __init ebsa110_timer_init(void)
 
 static struct sys_timer ebsa110_timer = {
 	.init		= ebsa110_timer_init,
-	.offset		= ebsa110_gettimeoffset,
 };
 
 static struct plat_serial8250_port serial_platform_data[] = {

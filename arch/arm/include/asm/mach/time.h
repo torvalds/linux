@@ -35,9 +35,6 @@ struct sys_timer {
 	void			(*init)(void);
 	void			(*suspend)(void);
 	void			(*resume)(void);
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-	unsigned long		(*offset)(void);
-#endif
 };
 
 extern void timer_tick(void);

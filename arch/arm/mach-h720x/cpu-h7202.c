@@ -180,6 +180,8 @@ static struct irqaction h7202_timer_irq = {
  */
 void __init h7202_init_time(void)
 {
+	arch_gettimeoffset = h720x_gettimeoffset;
+
 	CPU_REG (TIMER_VIRT, TM0_PERIOD) = LATCH;
 	CPU_REG (TIMER_VIRT, TM0_CTRL) = TM_RESET;
 	CPU_REG (TIMER_VIRT, TM0_CTRL) = TM_REPEAT | TM_START;
@@ -190,7 +192,6 @@ void __init h7202_init_time(void)
 
 struct sys_timer h7202_timer = {
 	.init		= h7202_init_time,
-	.offset		= h720x_gettimeoffset,
 };
 
 void __init h7202_init_irq (void)
