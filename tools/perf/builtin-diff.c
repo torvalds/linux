@@ -491,6 +491,8 @@ static void hists__process(struct hists *old, struct hists *new)
 
 	if (show_baseline_only)
 		hists__baseline_only(new);
+	else
+		hists__link(new, old);
 
 	if (sort_compute) {
 		hists__precompute(new);
