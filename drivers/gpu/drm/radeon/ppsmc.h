@@ -77,6 +77,7 @@ typedef uint8_t PPSMC_Result;
 #define PPSMC_MSG_PG_SIMD_Config            ((uint32_t) 0x108)
 #define PPSMC_MSG_DCE_RemoveVoltageAdjustment   ((uint32_t) 0x11d)
 #define PPSMC_MSG_DCE_AllowVoltageAdjustment    ((uint32_t) 0x11e)
+#define PPSMC_MSG_UVD_DPM_Config            ((uint32_t) 0x124)
 
 
 typedef uint16_t PPSMC_Msg;

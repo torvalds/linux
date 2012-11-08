@@ -866,6 +866,117 @@ static void trinity_program_bootup_state(struct radeon_device *rdev)
 		trinity_power_level_enable_disable(rdev, i, false);
 }
 
+static void trinity_setup_uvd_clock_table(struct radeon_device *rdev,
+					  struct radeon_ps *rps)
+{
+	struct trinity_ps *ps = trinity_get_ps(rps);
+	u32 uvdstates = (ps->vclk_low_divider |
+			 ps->vclk_high_divider << 8 |
+			 ps->dclk_low_divider << 16 |
+			 ps->dclk_high_divider << 24);
+
+	WREG32_SMC(SMU_UVD_DPM_STATES, uvdstates);
+}
+
+static void trinity_setup_uvd_dpm_interval(struct radeon_device *rdev,
+					   u32 interval)
+{
+	u32 p, u;
+	u32 tp = RREG32_SMC(PM_TP);
+	u32 val;
+	u32 xclk = sumo_get_xclk(rdev);
+
+	r600_calculate_u_and_p(interval, xclk, 16, &p, &u);
+
+	val = (p + tp - 1) / tp;
+
+	WREG32_SMC(SMU_UVD_DPM_CNTL, val);
+}
+
+static bool trinity_uvd_clocks_zero(struct radeon_ps *rps)
+{
+	if ((rps->vclk == 0) && (rps->dclk == 0))
+		return true;
+	else
+		return false;
+}
+
+static bool trinity_uvd_clocks_equal(struct radeon_ps *rps1,
+				     struct radeon_ps *rps2)
+{
+	struct trinity_ps *ps1 = trinity_get_ps(rps1);
+	struct trinity_ps *ps2 = trinity_get_ps(rps2);
+
+	if ((rps1->vclk == rps2->vclk) &&
+	    (rps1->dclk == rps2->dclk) &&
+	    (ps1->vclk_low_divider == ps2->vclk_low_divider) &&
+	    (ps1->vclk_high_divider == ps2->vclk_high_divider) &&
+	    (ps1->dclk_low_divider == ps2->dclk_low_divider) &&
+	    (ps1->dclk_high_divider == ps2->dclk_high_divider))
+		return true;
+	else
+		return false;
+}
+
+static void trinity_setup_uvd_clocks(struct radeon_device *rdev,
+				     struct radeon_ps *current_rps,
+				     struct radeon_ps *new_rps)
+{
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+
+	if (pi->uvd_dpm) {
+		if (trinity_uvd_clocks_zero(new_rps) &&
+		    !trinity_uvd_clocks_zero(current_rps)) {
+			trinity_setup_uvd_dpm_interval(rdev, 0);
+		} else if (!trinity_uvd_clocks_zero(new_rps)) {
+			trinity_setup_uvd_clock_table(rdev, new_rps);
+
+			if (trinity_uvd_clocks_zero(current_rps)) {
+				u32 tmp = RREG32(CG_MISC_REG);
+				tmp &= 0xfffffffd;
+				WREG32(CG_MISC_REG, tmp);
+
+				radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+
+				trinity_setup_uvd_dpm_interval(rdev, 3000);
+			}
+		}
+		trinity_uvd_dpm_config(rdev);
+	} else {
+		if (trinity_uvd_clocks_zero(new_rps) ||
+		    trinity_uvd_clocks_equal(new_rps, current_rps))
+			return;
+
+		radeon_set_uvd_clocks(rdev, new_rps->vclk, new_rps->dclk);
+	}
+}
+
+static void trinity_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev)
+{
+	struct trinity_ps *new_ps = trinity_get_ps(rdev->pm.dpm.requested_ps);
+	struct trinity_ps *current_ps = trinity_get_ps(rdev->pm.dpm.current_ps);
+
+	if (new_ps->levels[new_ps->num_levels - 1].sclk >=
+	    current_ps->levels[current_ps->num_levels - 1].sclk)
+		return;
+
+	trinity_setup_uvd_clocks(rdev, rdev->pm.dpm.current_ps,
+				 rdev->pm.dpm.requested_ps);
+}
+
+static void trinity_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev)
+{
+	struct trinity_ps *new_ps = trinity_get_ps(rdev->pm.dpm.requested_ps);
+	struct trinity_ps *current_ps = trinity_get_ps(rdev->pm.dpm.current_ps);
+
+	if (new_ps->levels[new_ps->num_levels - 1].sclk <
+	    current_ps->levels[current_ps->num_levels - 1].sclk)
+		return;
+
+	trinity_setup_uvd_clocks(rdev, rdev->pm.dpm.current_ps,
+				 rdev->pm.dpm.requested_ps);
+}
+
 static void trinity_program_ttt(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
@@ -1017,6 +1128,7 @@ int trinity_dpm_set_power_state(struct radeon_device *rdev)
 
 	trinity_acquire_mutex(rdev);
 	if (pi->enable_dpm) {
+		trinity_set_uvd_clock_before_set_eng_clock(rdev);
 		trinity_enable_power_level_0(rdev);
 		trinity_force_level_0(rdev);
 		trinity_wait_for_level_0(rdev);
@@ -1024,6 +1136,7 @@ int trinity_dpm_set_power_state(struct radeon_device *rdev)
 		trinity_program_power_levels_0_to_n(rdev);
 		trinity_force_level_0(rdev);
 		trinity_unforce_levels(rdev);
+		trinity_set_uvd_clock_after_set_eng_clock(rdev);
 	}
 	trinity_release_mutex(rdev);
 
@@ -1198,6 +1311,61 @@ static u8 trinity_calculate_display_wm(struct radeon_device *rdev,
 	}
 }
 
+static u32 trinity_get_uvd_clock_index(struct radeon_device *rdev,
+				       struct radeon_ps *rps)
+{
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	u32 i = 0;
+
+	for (i = 0; i < 4; i++) {
+		if ((rps->vclk == pi->sys_info.uvd_clock_table_entries[i].vclk) &&
+		    (rps->dclk == pi->sys_info.uvd_clock_table_entries[i].dclk))
+		    break;
+	}
+
+	if (i >= 4) {
+		DRM_ERROR("UVD clock index not found!\n");
+		i = 3;
+	}
+	return i;
+}
+
+static void trinity_adjust_uvd_state(struct radeon_device *rdev,
+				     struct radeon_ps *rps)
+{
+	struct trinity_ps *ps = trinity_get_ps(rps);
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	u32 high_index = 0;
+	u32 low_index = 0;
+
+	if (pi->uvd_dpm && r600_is_uvd_state(rps->class, rps->class2)) {
+		high_index = trinity_get_uvd_clock_index(rdev, rps);
+
+		switch(high_index) {
+		case 3:
+		case 2:
+			low_index = 1;
+			break;
+		case 1:
+		case 0:
+		default:
+			low_index = 0;
+			break;
+		}
+
+		ps->vclk_low_divider =
+			pi->sys_info.uvd_clock_table_entries[high_index].vclk_did;
+		ps->dclk_low_divider =
+			pi->sys_info.uvd_clock_table_entries[high_index].dclk_did;
+		ps->vclk_high_divider =
+			pi->sys_info.uvd_clock_table_entries[low_index].vclk_did;
+		ps->dclk_high_divider =
+			pi->sys_info.uvd_clock_table_entries[low_index].dclk_did;
+	}
+}
+
+
+
 static void trinity_apply_state_adjust_rules(struct radeon_device *rdev)
 {
 	struct radeon_ps *rps = rdev->pm.dpm.requested_ps;
@@ -1213,6 +1381,8 @@ static void trinity_apply_state_adjust_rules(struct radeon_device *rdev)
 
 	if (rps->class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
 		return trinity_patch_thermal_state(rdev, ps, current_ps);
+
+	trinity_adjust_uvd_state(rdev, rps);
 
 	for (i = 0; i < ps->num_levels; i++) {
 		if (ps->levels[i].vddc_index < min_voltage)
@@ -1454,6 +1624,25 @@ union igp_info {
 	struct _ATOM_INTEGRATED_SYSTEM_INFO_V1_7 info_7;
 };
 
+static u32 trinity_convert_did_to_freq(struct radeon_device *rdev, u8 did)
+{
+	struct trinity_power_info *pi = trinity_get_pi(rdev);
+	u32 divider;
+
+	if (did >= 8 && did <= 0x3f)
+		divider = did * 25;
+	else if (did > 0x3f && did <= 0x5f)
+		divider = (did - 64) * 50 + 1600;
+	else if (did > 0x5f && did <= 0x7e)
+		divider = (did - 96) * 100 + 3200;
+	else if (did == 0x7f)
+		divider = 128 * 100;
+	else
+		return 10000;
+
+	return ((pi->sys_info.dentist_vco_freq * 100) + (divider - 1)) / divider;
+}
+
 static int trinity_parse_sys_info_table(struct radeon_device *rdev)
 {
 	struct trinity_power_info *pi = trinity_get_pi(rdev);
@@ -1476,6 +1665,7 @@ static int trinity_parse_sys_info_table(struct radeon_device *rdev)
 		pi->sys_info.bootup_sclk = le32_to_cpu(igp_info->info_7.ulBootUpEngineClock);
 		pi->sys_info.min_sclk = le32_to_cpu(igp_info->info_7.ulMinEngineClock);
 		pi->sys_info.bootup_uma_clk = le32_to_cpu(igp_info->info_7.ulBootUpUMAClock);
+		pi->sys_info.dentist_vco_freq = le32_to_cpu(igp_info->info_7.ulDentistVCOFreq);
 		pi->sys_info.bootup_nb_voltage_index =
 			le16_to_cpu(igp_info->info_7.usBootUpNBVoltage);
 		if (igp_info->info_7.ucHtcTmpLmt == 0)
@@ -1521,6 +1711,35 @@ static int trinity_parse_sys_info_table(struct radeon_device *rdev)
 		sumo_construct_vid_mapping_table(rdev, &pi->sys_info.vid_mapping_table,
 						 igp_info->info_7.sAvail_SCLK);
 
+		pi->sys_info.uvd_clock_table_entries[0].vclk_did =
+			igp_info->info_7.ucDPMState0VclkFid;
+		pi->sys_info.uvd_clock_table_entries[1].vclk_did =
+			igp_info->info_7.ucDPMState1VclkFid;
+		pi->sys_info.uvd_clock_table_entries[2].vclk_did =
+			igp_info->info_7.ucDPMState2VclkFid;
+		pi->sys_info.uvd_clock_table_entries[3].vclk_did =
+			igp_info->info_7.ucDPMState3VclkFid;
+
+		pi->sys_info.uvd_clock_table_entries[0].dclk_did =
+			igp_info->info_7.ucDPMState0DclkFid;
+		pi->sys_info.uvd_clock_table_entries[1].dclk_did =
+			igp_info->info_7.ucDPMState1DclkFid;
+		pi->sys_info.uvd_clock_table_entries[2].dclk_did =
+			igp_info->info_7.ucDPMState2DclkFid;
+		pi->sys_info.uvd_clock_table_entries[3].dclk_did =
+			igp_info->info_7.ucDPMState3DclkFid;
+
+		for (i = 0; i < 4; i++) {
+			pi->sys_info.uvd_clock_table_entries[i].vclk =
+				trinity_convert_did_to_freq(rdev,
+							    pi->sys_info.uvd_clock_table_entries[i].vclk_did);
+			pi->sys_info.uvd_clock_table_entries[i].dclk =
+				trinity_convert_did_to_freq(rdev,
+							    pi->sys_info.uvd_clock_table_entries[i].dclk_did);
+		}
+
+
+
 	}
 	return 0;
 }
@@ -1547,6 +1766,7 @@ int trinity_dpm_init(struct radeon_device *rdev)
 	pi->override_dynamic_mgpg = true;
 	pi->enable_auto_thermal_throttling = true;
 	pi->voltage_drop_in_dce = false; /* need to restructure dpm/modeset interaction */
+	pi->uvd_dpm = true; /* ??? */
 
 	ret = trinity_parse_sys_info_table(rdev);
 	if (ret)

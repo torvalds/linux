@@ -100,6 +100,9 @@
 #       define HT_MASK                                  (0xffff << 16)
 #       define HT_SHIFT                                 16
 
+#define SMU_UVD_DPM_STATES                              0x1f1a0
+#define SMU_UVD_DPM_CNTL                                0x1f1a4
+
 #define SMU_S_PG_CNTL                                   0x1f118
 #       define DS_PG_EN(x)                              ((x) << 16)
 #       define DS_PG_EN_MASK                            (0xff << 16)
@@ -197,6 +200,8 @@
 #       define SU(x)                                    ((x) << 16)
 #       define SU_MASK                                  (0xffff << 16)
 #       define SU_SHIFT                                 16
+
+#define CG_MISC_REG                                     0x708
 
 #define CG_THERMAL_INT_CTRL                             0x738
 #       define DIG_THERM_INTH(x)                        ((x) << 0)

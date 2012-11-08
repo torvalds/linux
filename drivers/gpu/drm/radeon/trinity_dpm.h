@@ -55,14 +55,29 @@ struct trinity_ps {
 	u8 Dpm0PgNbPsHi;
 	u8 DpmXNbPsLo;
 	u8 DpmXNbPsHi;
+
+	u32 vclk_low_divider;
+	u32 vclk_high_divider;
+	u32 dclk_low_divider;
+	u32 dclk_high_divider;
 };
 
 #define TRINITY_NUM_NBPSTATES   4
+
+struct trinity_uvd_clock_table_entry
+{
+	u32 vclk;
+	u32 dclk;
+	u8 vclk_did;
+	u8 dclk_did;
+	u8 rsv[2];
+};
 
 struct trinity_sys_info {
 	u32 bootup_uma_clk;
 	u32 bootup_sclk;
 	u32 min_sclk;
+	u32 dentist_vco_freq;
 	u32 nb_dpm_enable;
 	u32 nbp_mclk[TRINITY_NUM_NBPSTATES];
 	u32 nbp_nclk[TRINITY_NUM_NBPSTATES];
@@ -73,6 +88,7 @@ struct trinity_sys_info {
 	struct sumo_sclk_voltage_mapping_table sclk_voltage_mapping_table;
 	struct sumo_vid_mapping_table vid_mapping_table;
 	u32 uma_channel_number;
+	struct trinity_uvd_clock_table_entry uvd_clock_table_entries[4];
 };
 
 struct trinity_power_info {
@@ -93,12 +109,14 @@ struct trinity_power_info {
 	bool enable_auto_thermal_throttling;
 	bool enable_dpm;
 	bool enable_sclk_ds;
+	bool uvd_dpm;
 };
 
 #define TRINITY_AT_DFLT            30
 
 /* trinity_smc.c */
 int trinity_dpm_config(struct radeon_device *rdev, bool enable);
+int trinity_uvd_dpm_config(struct radeon_device *rdev);
 int trinity_dpm_force_state(struct radeon_device *rdev, u32 n);
 int trinity_dpm_no_forced_level(struct radeon_device *rdev);
 int trinity_dce_enable_voltage_adjustment(struct radeon_device *rdev,
