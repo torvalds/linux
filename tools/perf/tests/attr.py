@@ -228,24 +228,26 @@ class Test(object):
     def run(self):
         tempdir = tempfile.mkdtemp();
 
-        # run the test script
-        self.run_cmd(tempdir);
+        try:
+            # run the test script
+            self.run_cmd(tempdir);
 
-        # load events expectation for the test
-        log.info("  loading result events");
-        for f in glob.glob(tempdir + '/event*'):
-            self.load_events(f, self.result);
+            # load events expectation for the test
+            log.info("  loading result events");
+            for f in glob.glob(tempdir + '/event*'):
+                self.load_events(f, self.result);
 
-        # resolve group_fd to event names
-        self.resolve_groups(self.expect);
-        self.resolve_groups(self.result);
+            # resolve group_fd to event names
+            self.resolve_groups(self.expect);
+            self.resolve_groups(self.result);
 
-        # do the expectation - results matching - both ways
-        self.compare(self.expect, self.result)
-        self.compare(self.result, self.expect)
+            # do the expectation - results matching - both ways
+            self.compare(self.expect, self.result)
+            self.compare(self.result, self.expect)
 
-        # cleanup
-        shutil.rmtree(tempdir)
+        finally:
+            # cleanup
+            shutil.rmtree(tempdir)
 
 
 def run_tests(options):
