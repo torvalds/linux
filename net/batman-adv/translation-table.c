@@ -2456,6 +2456,13 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 {
 	bool ret = false;
 
+	/* if the originator is a backbone node (meaning it belongs to the same
+	 * LAN of this node) the temporary client must not be added because to
+	 * reach such destination the node must use the LAN instead of the mesh
+	 */
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
+		goto out;
+
 	if (!batadv_tt_global_add(bat_priv, orig_node, addr,
 				  BATADV_TT_CLIENT_TEMP,
 				  atomic_read(&orig_node->last_ttvn)))
