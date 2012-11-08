@@ -58,12 +58,6 @@ static struct map_desc sh7372_io_desc[] __initdata = {
 void __init sh7372_map_io(void)
 {
 	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
-
-	/*
-	 * DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
-	 * enough to allocate the frame buffer memory.
-	 */
-	init_consistent_dma_size(12 << 20);
 }
 
 /* SCIFA0 */
