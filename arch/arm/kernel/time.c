@@ -70,7 +70,7 @@ EXPORT_SYMBOL(profile_pc);
 #endif
 
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-u32 arch_gettimeoffset(void)
+static u32 arm_gettimeoffset(void)
 {
 	if (system_timer->offset != NULL)
 		return system_timer->offset() * 1000;
@@ -164,6 +164,10 @@ device_initcall(timer_init_syscore_ops);
 
 void __init time_init(void)
 {
+#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
+	arch_gettimeoffset = arm_gettimeoffset;
+#endif
+
 	system_timer = machine_desc->timer;
 	system_timer->init();
 	sched_clock_postinit();

@@ -80,14 +80,9 @@ void read_persistent_clock(struct timespec *ts)
 	}
 }
 
-void __init time_init(void)
-{
-	mach_sched_init(timer_interrupt);
-}
-
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 
-u32 arch_gettimeoffset(void)
+static u32 m68k_gettimeoffset(void)
 {
 	return mach_gettimeoffset() * 1000;
 }
@@ -106,3 +101,12 @@ static int __init rtc_init(void)
 module_init(rtc_init);
 
 #endif /* CONFIG_ARCH_USES_GETTIMEOFFSET */
+
+void __init time_init(void)
+{
+#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
+	arch_gettimeoffset = m68k_gettimeoffset;
+#endif
+
+	mach_sched_init(timer_interrupt);
+}
