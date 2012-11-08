@@ -717,6 +717,42 @@ void hists__inc_nr_events(struct hists *hists, u32 type)
 	++hists->stats.nr_events[type];
 }
 
+static struct hist_entry *hists__add_dummy_entry(struct hists *hists,
+						 struct hist_entry *pair)
+{
+	struct rb_node **p = &hists->entries.rb_node;
+	struct rb_node *parent = NULL;
+	struct hist_entry *he;
+	int cmp;
+
+	while (*p != NULL) {
+		parent = *p;
+		he = rb_entry(parent, struct hist_entry, rb_node);
+
+		cmp = hist_entry__cmp(pair, he);
+
+		if (!cmp)
+			goto out;
+
+		if (cmp < 0)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	he = hist_entry__new(pair);
+	if (he) {
+		he->stat.nr_events = 0;
+		he->stat.period    = 0;
+		he->hists	   = hists;
+		rb_link_node(&he->rb_node, parent, p);
+		rb_insert_color(&he->rb_node, &hists->entries);
+		hists__inc_nr_entries(hists, he);
+	}
+out:
+	return he;
+}
+
 static struct hist_entry *hists__find_entry(struct hists *hists,
 					    struct hist_entry *he)
 {
@@ -752,4 +788,28 @@ void hists__match(struct hists *leader, struct hists *other)
 		if (pair)
 			hist__entry_add_pair(pos, pair);
 	}
+}
+
+/*
+ * Look for entries in the other hists that are not present in the leader, if
+ * we find them, just add a dummy entry on the leader hists, with period=0,
+ * nr_events=0, to serve as the list header.
+ */
+int hists__link(struct hists *leader, struct hists *other)
+{
+	struct rb_node *nd;
+	struct hist_entry *pos, *pair;
+
+	for (nd = rb_first(&other->entries); nd; nd = rb_next(nd)) {
+		pos = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (!hist_entry__has_pairs(pos)) {
+			pair = hists__add_dummy_entry(leader, pos);
+			if (pair == NULL)
+				return -1;
+			hist__entry_add_pair(pair, pos);
+		}
+	}
+
+	return 0;
 }

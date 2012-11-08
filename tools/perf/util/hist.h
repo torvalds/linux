@@ -116,6 +116,7 @@ void hists__reset_col_len(struct hists *hists);
 void hists__calc_col_len(struct hists *hists, struct hist_entry *he);
 
 void hists__match(struct hists *leader, struct hists *other);
+int hists__link(struct hists *leader, struct hists *other);
 
 struct perf_hpp {
 	char *buf;
