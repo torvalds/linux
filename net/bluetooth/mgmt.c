@@ -1367,6 +1367,7 @@ static int remove_uuid(struct sock *sk, struct hci_dev *hdev, void *data,
 			continue;
 
 		list_del(&match->list);
+		kfree(match);
 		found++;
 	}
 
