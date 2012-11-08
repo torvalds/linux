@@ -82,11 +82,6 @@ void read_persistent_clock(struct timespec *ts)
 
 #ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
 
-static u32 m68k_gettimeoffset(void)
-{
-	return mach_gettimeoffset() * 1000;
-}
-
 static int __init rtc_init(void)
 {
 	struct platform_device *pdev;
@@ -104,9 +99,5 @@ module_init(rtc_init);
 
 void __init time_init(void)
 {
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-	arch_gettimeoffset = m68k_gettimeoffset;
-#endif
-
 	mach_sched_init(timer_interrupt);
 }
