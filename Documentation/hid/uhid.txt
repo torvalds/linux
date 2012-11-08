@@ -108,7 +108,7 @@ the request was handled successfully.
   UHID_FEATURE_ANSWER:
   If you receive a UHID_FEATURE request you must answer with this request. You
   must copy the "id" field from the request into the answer. Set the "err" field
-  to 0 if no error occured or to EIO if an I/O error occurred.
+  to 0 if no error occurred or to EIO if an I/O error occurred.
   If "err" is 0 then you should fill the buffer of the answer with the results
   of the feature request and set "size" correspondingly.
 
