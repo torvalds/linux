@@ -461,6 +461,7 @@ static int __merge_refs(struct list_head *head, int mode)
 		     pos2 = n2, n2 = pos2->next) {
 			struct __prelim_ref *ref2;
 			struct __prelim_ref *xchg;
+			struct extent_inode_elem *eie;
 
 			ref2 = list_entry(pos2, struct __prelim_ref, list);
 
@@ -472,12 +473,20 @@ static int __merge_refs(struct list_head *head, int mode)
 					ref1 = ref2;
 					ref2 = xchg;
 				}
-				ref1->count += ref2->count;
 			} else {
 				if (ref1->parent != ref2->parent)
 					continue;
-				ref1->count += ref2->count;
 			}
+
+			eie = ref1->inode_list;
+			while (eie && eie->next)
+				eie = eie->next;
+			if (eie)
+				eie->next = ref2->inode_list;
+			else
+				ref1->inode_list = ref2->inode_list;
+			ref1->count += ref2->count;
+
 			list_del(&ref2->list);
 			kfree(ref2);
 		}
