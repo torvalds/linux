@@ -516,15 +516,13 @@ static int gfs2_mmap(struct file *file, struct vm_area_struct *vma)
 		struct gfs2_holder i_gh;
 		int error;
 
-		gfs2_holder_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY, &i_gh);
-		error = gfs2_glock_nq(&i_gh);
-		if (error == 0) {
-			file_accessed(file);
-			gfs2_glock_dq(&i_gh);
-		}
-		gfs2_holder_uninit(&i_gh);
+		error = gfs2_glock_nq_init(ip->i_gl, LM_ST_SHARED, LM_FLAG_ANY,
+					   &i_gh);
 		if (error)
 			return error;
+		/* grab lock to update inode */
+		gfs2_glock_dq_uninit(&i_gh);
+		file_accessed(file);
 	}
 	vma->vm_ops = &gfs2_vm_ops;
 
@@ -677,10 +675,8 @@ static ssize_t gfs2_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	size_t writesize = iov_length(iov, nr_segs);
 	struct dentry *dentry = file->f_dentry;
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
-	struct gfs2_sbd *sdp;
 	int ret;
 
-	sdp = GFS2_SB(file->f_mapping->host);
 	ret = gfs2_rs_alloc(ip);
 	if (ret)
 		return ret;

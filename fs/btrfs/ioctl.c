@@ -343,7 +343,8 @@ static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
 		return -EOPNOTSUPP;
 	if (copy_from_user(&range, arg, sizeof(range)))
 		return -EFAULT;
-	if (range.start > total_bytes)
+	if (range.start > total_bytes ||
+	    range.len < fs_info->sb->s_blocksize)
 		return -EINVAL;
 
 	range.len = min(range.len, total_bytes - range.start);
@@ -570,7 +571,8 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 		ret = btrfs_commit_transaction(trans,
 					       root->fs_info->extent_root);
 	}
-	BUG_ON(ret);
+	if (ret)
+		goto fail;
 
 	ret = pending_snapshot->error;
 	if (ret)

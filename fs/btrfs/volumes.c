@@ -1819,6 +1819,13 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 				    "Failed to relocate sys chunks after "
 				    "device initialization. This can be fixed "
 				    "using the \"btrfs balance\" command.");
+		trans = btrfs_attach_transaction(root);
+		if (IS_ERR(trans)) {
+			if (PTR_ERR(trans) == -ENOENT)
+				return 0;
+			return PTR_ERR(trans);
+		}
+		ret = btrfs_commit_transaction(trans, root);
 	}
 
 	return ret;
