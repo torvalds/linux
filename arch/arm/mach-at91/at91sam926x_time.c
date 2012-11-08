@@ -224,7 +224,7 @@ static int __init of_at91sam926x_pit_init(void)
 /*
  * Set up both clocksource and clockevent support.
  */
-static void __init at91sam926x_pit_init(void)
+void __init at91sam926x_pit_init(void)
 {
 	unsigned long	pit_rate;
 	unsigned	bits;
@@ -279,7 +279,3 @@ void __init at91sam926x_ioremap_pit(u32 addr)
 	if (!pit_base_addr)
 		panic("Impossible to ioremap PIT\n");
 }
-
-struct sys_timer at91sam926x_timer = {
-	.init		= at91sam926x_pit_init,
-};

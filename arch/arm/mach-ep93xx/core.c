@@ -156,7 +156,7 @@ static u32 ep93xx_gettimeoffset(void)
 	return (offset + (53 * offset / 3072)) * 1000;
 }
 
-static void __init ep93xx_timer_init(void)
+void __init ep93xx_timer_init(void)
 {
 	u32 tmode = EP93XX_TIMER123_CONTROL_MODE |
 		    EP93XX_TIMER123_CONTROL_CLKSEL;
@@ -175,10 +175,6 @@ static void __init ep93xx_timer_init(void)
 
 	setup_irq(IRQ_EP93XX_TIMER1, &ep93xx_timer_irq);
 }
-
-struct sys_timer ep93xx_timer = {
-	.init		= ep93xx_timer_init,
-};
 
 
 /*************************************************************************

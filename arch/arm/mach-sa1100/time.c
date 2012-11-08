@@ -117,7 +117,7 @@ static struct irqaction sa1100_timer_irq = {
 	.dev_id		= &ckevt_sa1100_osmr0,
 };
 
-static void __init sa1100_timer_init(void)
+void __init sa1100_timer_init(void)
 {
 	writel_relaxed(0, OIER);
 	writel_relaxed(OSSR_M0 | OSSR_M1 | OSSR_M2 | OSSR_M3, OSSR);
@@ -137,7 +137,3 @@ static void __init sa1100_timer_init(void)
 		clocksource_mmio_readl_up);
 	clockevents_register_device(&ckevt_sa1100_osmr0);
 }
-
-struct sys_timer sa1100_timer = {
-	.init		= sa1100_timer_init,
-};

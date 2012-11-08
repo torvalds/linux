@@ -544,6 +544,6 @@ MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap3_beagle_init,
 	.init_late	= omap3_init_late,
-	.timer		= &omap3_secure_timer,
+	.init_time	= omap3_secure_sync32k_timer_init,
 	.restart	= omap3xxx_restart,
 MACHINE_END

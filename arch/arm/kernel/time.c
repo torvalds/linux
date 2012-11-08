@@ -30,11 +30,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-/*
- * Our system timer.
- */
-static struct sys_timer *system_timer;
-
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || \
     defined(CONFIG_NVRAM) || defined(CONFIG_NVRAM_MODULE)
 /* this needs a better home */
@@ -120,8 +115,6 @@ int __init register_persistent_clock(clock_access_fn read_boot,
 
 void __init time_init(void)
 {
-	system_timer = machine_desc->timer;
-	system_timer->init();
+	machine_desc->init_time();
 	sched_clock_postinit();
 }
-

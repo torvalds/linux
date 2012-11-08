@@ -82,8 +82,3 @@ void __init at91x40_timer_init(void)
 
 	at91_tc_write(AT91_TC_CLK1BASE + AT91_TC_CCR, (AT91_TC_SWTRG | AT91_TC_CLKEN));
 }
-
-struct sys_timer at91x40_timer = {
-	.init	= at91x40_timer_init,
-};
-

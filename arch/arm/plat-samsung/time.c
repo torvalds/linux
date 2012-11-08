@@ -276,7 +276,7 @@ static struct syscore_ops s3c24xx_syscore_ops = {
 	.resume		= s3c2410_timer_setup,
 };
 
-static void __init s3c2410_timer_init(void)
+void __init s3c24xx_timer_init(void)
 {
 	arch_gettimeoffset = s3c2410_gettimeoffset;
 
@@ -285,7 +285,3 @@ static void __init s3c2410_timer_init(void)
 	setup_irq(IRQ_TIMER4, &s3c2410_timer_irq);
 	register_syscore_ops(&s3c24xx_syscore_ops);
 }
-
-struct sys_timer s3c24xx_timer = {
-	.init		= s3c2410_timer_init,
-};

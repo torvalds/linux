@@ -55,7 +55,7 @@ DT_MACHINE_START(PXA_DT, "Marvell PXA3xx (Device Tree Support)")
 	.map_io		= pxa3xx_map_io,
 	.init_irq	= pxa3xx_dt_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
-	.timer		= &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.restart	= pxa_restart,
 	.init_machine	= pxa3xx_dt_init,
 	.dt_compat	= pxa3xx_dt_board_compat,

@@ -86,7 +86,7 @@ MACHINE_START(TETON_BGA, "PXA168-based Teton BGA Development Platform")
 	.map_io		= mmp_map_io,
 	.nr_irqs	= MMP_NR_IRQS,
 	.init_irq       = pxa168_init_irq,
-	.timer          = &pxa168_timer,
+	.init_time	= pxa168_timer_init,
 	.init_machine   = teton_bga_init,
 	.restart	= pxa168_restart,
 MACHINE_END

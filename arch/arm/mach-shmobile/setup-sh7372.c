@@ -1054,7 +1054,7 @@ void __init sh7372_add_standard_devices(void)
 				       ARRAY_SIZE(domain_devices));
 }
 
-static void __init sh7372_earlytimer_init(void)
+void __init sh7372_earlytimer_init(void)
 {
 	sh7372_clock_init();
 	shmobile_earlytimer_init();
@@ -1067,9 +1067,6 @@ void __init sh7372_add_early_devices(void)
 
 	/* setup early console here as well */
 	shmobile_setup_console();
-
-	/* override timer setup with soc-specific code */
-	shmobile_timer.init = sh7372_earlytimer_init;
 }
 
 #ifdef CONFIG_USE_OF
@@ -1113,7 +1110,7 @@ DT_MACHINE_START(SH7372_DT, "Generic SH7372 (Flattened Device Tree)")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= sh7372_add_standard_devices_dt,
-	.timer		= &shmobile_timer,
+	.init_time	= shmobile_timer_init,
 	.dt_compat	= sh7372_boards_compat_dt,
 MACHINE_END
 

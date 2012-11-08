@@ -167,7 +167,7 @@ MACHINE_START(GTWX5715, "Gemtek GTWX5715 (Linksys WRV54G)")
 	.map_io		= ixp4xx_map_io,
 	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
-	.timer		= &ixp4xx_timer,
+	.init_time	= ixp4xx_timer_init,
 	.atag_offset	= 0x100,
 	.init_machine	= gtwx5715_init,
 #if defined(CONFIG_PCI)

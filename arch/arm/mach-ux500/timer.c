@@ -46,7 +46,7 @@ const static struct of_device_id prcmu_timer_of_match[] __initconst = {
 	{ },
 };
 
-static void __init ux500_timer_init(void)
+void __init ux500_timer_init(void)
 {
 	void __iomem *mtu_timer_base;
 	void __iomem *prcmu_timer_base;
@@ -99,7 +99,3 @@ dt_fail:
 	clksrc_dbx500_prcmu_init(prcmu_timer_base);
 	ux500_twd_init();
 }
-
-struct sys_timer ux500_timer = {
-	.init		= ux500_timer_init,
-};

@@ -10,22 +10,6 @@
 #ifndef __ASM_ARM_MACH_TIME_H
 #define __ASM_ARM_MACH_TIME_H
 
-/*
- * This is our kernel timer structure.
- *
- * - init
- *   Initialise the kernels jiffy timer source, claim interrupt
- *   using setup_irq.  This is called early on during initialisation
- *   while interrupts are still disabled on the local CPU.
- * - offset
- *   Return the timer offset in microseconds since the last timer
- *   interrupt.  Note: this must take account of any unprocessed
- *   timer interrupt which may be pending.
- */
-struct sys_timer {
-	void			(*init)(void);
-};
-
 extern void timer_tick(void);
 
 struct timespec;

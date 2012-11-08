@@ -802,7 +802,7 @@ MACHINE_START(EZX_A780, "Motorola EZX A780")
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine   = a780_init,
 	.restart	= pxa_restart,
 MACHINE_END
@@ -869,7 +869,7 @@ MACHINE_START(EZX_E680, "Motorola EZX E680")
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine   = e680_init,
 	.restart	= pxa_restart,
 MACHINE_END
@@ -936,7 +936,7 @@ MACHINE_START(EZX_A1200, "Motorola EZX A1200")
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine   = a1200_init,
 	.restart	= pxa_restart,
 MACHINE_END
@@ -1128,7 +1128,7 @@ MACHINE_START(EZX_A910, "Motorola EZX A910")
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine   = a910_init,
 	.restart	= pxa_restart,
 MACHINE_END
@@ -1195,7 +1195,7 @@ MACHINE_START(EZX_E6, "Motorola EZX E6")
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine   = e6_init,
 	.restart	= pxa_restart,
 MACHINE_END
@@ -1236,7 +1236,7 @@ MACHINE_START(EZX_E2, "Motorola EZX E2")
 	.nr_irqs	= EZX_NR_IRQS,
 	.init_irq       = pxa27x_init_irq,
 	.handle_irq       = pxa27x_handle_irq,
-	.timer          = &pxa_timer,
+	.init_time	= pxa_timer_init,
 	.init_machine   = e2_init,
 	.restart	= pxa_restart,
 MACHINE_END

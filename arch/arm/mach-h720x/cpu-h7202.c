@@ -178,7 +178,7 @@ static struct irqaction h7202_timer_irq = {
 /*
  * Setup TIMER0 as system timer
  */
-void __init h7202_init_time(void)
+void __init h7202_timer_init(void)
 {
 	arch_gettimeoffset = h720x_gettimeoffset;
 
@@ -189,10 +189,6 @@ void __init h7202_init_time(void)
 
 	setup_irq(IRQ_TIMER0, &h7202_timer_irq);
 }
-
-struct sys_timer h7202_timer = {
-	.init		= h7202_init_time,
-};
 
 void __init h7202_init_irq (void)
 {
