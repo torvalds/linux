@@ -3911,7 +3911,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_extent newex, *ex, *ex2;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	ext4_fsblk_t newblock = 0;
-	int free_on_err = 0, err = 0, depth, ret;
+	int free_on_err = 0, err = 0, depth;
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
 	struct ext4_allocation_request ar;
@@ -4007,10 +4007,10 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 					ee_len, ee_start);
 				goto out;
 			}
-			ret = ext4_ext_handle_uninitialized_extents(
+			allocated = ext4_ext_handle_uninitialized_extents(
 				handle, inode, map, path, flags,
 				allocated, newblock);
-			return ret;
+			goto out3;
 		}
 	}
 
@@ -4284,6 +4284,7 @@ out2:
 		kfree(path);
 	}
 
+out3:
 	trace_ext4_ext_map_blocks_exit(inode, map, err ? err : allocated);
 
 	return err ? err : allocated;
