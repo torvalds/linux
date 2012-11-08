@@ -479,6 +479,10 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb->protocol != htons(ETH_P_IP))
 		goto tx_error;
 
+	if (skb->ip_summed == CHECKSUM_PARTIAL &&
+	    skb_checksum_help(skb))
+		goto tx_error;
+
 	if (tos & 1)
 		tos = old_iph->tos;
 
@@ -773,6 +777,11 @@ static void ipip_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+#define IPIP_FEATURES (NETIF_F_SG |		\
+		       NETIF_F_FRAGLIST |	\
+		       NETIF_F_HIGHDMA |	\
+		       NETIF_F_HW_CSUM)
+
 static void ipip_tunnel_setup(struct net_device *dev)
 {
 	dev->netdev_ops		= &ipip_netdev_ops;
@@ -787,6 +796,9 @@ static void ipip_tunnel_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_NETNS_LOCAL;
 	dev->features		|= NETIF_F_LLTX;
 	dev->priv_flags		&= ~IFF_XMIT_DST_RELEASE;
+
+	dev->features		|= IPIP_FEATURES;
+	dev->hw_features	|= IPIP_FEATURES;
 }
 
 static int ipip_tunnel_init(struct net_device *dev)
