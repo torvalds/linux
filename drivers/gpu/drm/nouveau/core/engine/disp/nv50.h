@@ -18,6 +18,8 @@ struct nv50_disp_priv {
 	} head;
 	struct {
 		int nr;
+		int (*power)(struct nv50_disp_priv *, int dac, u32 data);
+		int (*sense)(struct nv50_disp_priv *, int dac);
 	} dac;
 	struct {
 		int nr;
@@ -35,6 +37,12 @@ struct nv50_disp_priv {
 };
 
 extern struct nouveau_omthds nva3_disp_base_omthds[];
+
+#define DAC_MTHD(n) (n), (n) + 0x03
+
+int nv50_dac_mthd(struct nouveau_object *, u32, void *, u32);
+int nv50_dac_power(struct nv50_disp_priv *, int, u32);
+int nv50_dac_sense(struct nv50_disp_priv *, int);
 
 #define SOR_MTHD(n) (n), (n) + 0x3f
 

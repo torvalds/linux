@@ -1076,20 +1076,17 @@ static void
 nvd0_dac_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
 	int or = nv_encoder->or;
 	u32 dpms_ctrl;
 
-	dpms_ctrl = 0x80000000;
+	dpms_ctrl = 0x00000000;
 	if (mode == DRM_MODE_DPMS_STANDBY || mode == DRM_MODE_DPMS_OFF)
 		dpms_ctrl |= 0x00000001;
 	if (mode == DRM_MODE_DPMS_SUSPEND || mode == DRM_MODE_DPMS_OFF)
 		dpms_ctrl |= 0x00000004;
 
-	nv_wait(device, 0x61a004 + (or * 0x0800), 0x80000000, 0x00000000);
-	nv_mask(device, 0x61a004 + (or * 0x0800), 0xc000007f, dpms_ctrl);
-	nv_wait(device, 0x61a004 + (or * 0x0800), 0x80000000, 0x00000000);
+	nv_call(disp->core, NV50_DISP_DAC_PWR + or, dpms_ctrl);
 }
 
 static bool
@@ -1177,23 +1174,15 @@ nvd0_dac_disconnect(struct drm_encoder *encoder)
 static enum drm_connector_status
 nvd0_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
 {
-	enum drm_connector_status status = connector_status_disconnected;
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
-	int or = nv_encoder->or;
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
+	int ret, or = nouveau_encoder(encoder)->or;
 	u32 load;
 
-	nv_wr32(device, 0x61a00c + (or * 0x800), 0x00100000);
-	udelay(9500);
-	nv_wr32(device, 0x61a00c + (or * 0x800), 0x80000000);
+	ret = nv_exec(disp->core, NV50_DISP_DAC_LOAD + or, &load, sizeof(load));
+	if (ret || load != 7)
+		return connector_status_disconnected;
 
-	load = nv_rd32(device, 0x61a00c + (or * 0x800));
-	if ((load & 0x38000000) == 0x38000000)
-		status = connector_status_connected;
-
-	nv_wr32(device, 0x61a00c + (or * 0x800), 0x00000000);
-	return status;
+	return connector_status_connected;
 }
 
 static void
