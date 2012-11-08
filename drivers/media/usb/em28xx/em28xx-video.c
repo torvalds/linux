@@ -165,7 +165,7 @@ static inline void buffer_filled(struct em28xx *dev,
 	buf->vb.field_count++;
 	v4l2_get_timestamp(&buf->vb.ts);
 
-	dev->isoc_ctl.vid_buf = NULL;
+	dev->usb_ctl.vid_buf = NULL;
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
@@ -182,7 +182,7 @@ static inline void vbi_buffer_filled(struct em28xx *dev,
 	buf->vb.field_count++;
 	v4l2_get_timestamp(&buf->vb.ts);
 
-	dev->isoc_ctl.vbi_buf = NULL;
+	dev->usb_ctl.vbi_buf = NULL;
 
 	list_del(&buf->vb.queue);
 	wake_up(&buf->vb.done);
@@ -368,7 +368,7 @@ static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
 
 	if (list_empty(&dma_q->active)) {
 		em28xx_isocdbg("No active queue to serve\n");
-		dev->isoc_ctl.vid_buf = NULL;
+		dev->usb_ctl.vid_buf = NULL;
 		*buf = NULL;
 		return;
 	}
@@ -380,7 +380,7 @@ static inline void get_next_buf(struct em28xx_dmaqueue *dma_q,
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0, (*buf)->vb.size);
 
-	dev->isoc_ctl.vid_buf = *buf;
+	dev->usb_ctl.vid_buf = *buf;
 
 	return;
 }
@@ -396,7 +396,7 @@ static inline void vbi_get_next_buf(struct em28xx_dmaqueue *dma_q,
 
 	if (list_empty(&dma_q->active)) {
 		em28xx_isocdbg("No active queue to serve\n");
-		dev->isoc_ctl.vbi_buf = NULL;
+		dev->usb_ctl.vbi_buf = NULL;
 		*buf = NULL;
 		return;
 	}
@@ -407,7 +407,7 @@ static inline void vbi_get_next_buf(struct em28xx_dmaqueue *dma_q,
 	outp = videobuf_to_vmalloc(&(*buf)->vb);
 	memset(outp, 0x00, (*buf)->vb.size);
 
-	dev->isoc_ctl.vbi_buf = *buf;
+	dev->usb_ctl.vbi_buf = *buf;
 
 	return;
 }
@@ -435,7 +435,7 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 			return 0;
 	}
 
-	buf = dev->isoc_ctl.vid_buf;
+	buf = dev->usb_ctl.vid_buf;
 	if (buf != NULL)
 		outp = videobuf_to_vmalloc(&buf->vb);
 
@@ -531,11 +531,11 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 			return 0;
 	}
 
-	buf = dev->isoc_ctl.vid_buf;
+	buf = dev->usb_ctl.vid_buf;
 	if (buf != NULL)
 		outp = videobuf_to_vmalloc(&buf->vb);
 
-	vbi_buf = dev->isoc_ctl.vbi_buf;
+	vbi_buf = dev->usb_ctl.vbi_buf;
 	if (vbi_buf != NULL)
 		vbioutp = videobuf_to_vmalloc(&vbi_buf->vb);
 
@@ -725,8 +725,8 @@ static void free_buffer(struct videobuf_queue *vq, struct em28xx_buffer *buf)
 	   VIDEOBUF_ACTIVE, it won't be, though.
 	*/
 	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->isoc_ctl.vid_buf == buf)
-		dev->isoc_ctl.vid_buf = NULL;
+	if (dev->usb_ctl.vid_buf == buf)
+		dev->usb_ctl.vid_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
 
 	videobuf_vmalloc_free(&buf->vb);
@@ -758,7 +758,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			goto fail;
 	}
 
-	if (!dev->isoc_ctl.analog_bufs.num_bufs)
+	if (!dev->usb_ctl.analog_bufs.num_bufs)
 		urb_init = 1;
 
 	if (urb_init) {

@@ -60,8 +60,8 @@ free_buffer(struct videobuf_queue *vq, struct em28xx_buffer *buf)
 	   VIDEOBUF_ACTIVE, it won't be, though.
 	*/
 	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->isoc_ctl.vbi_buf == buf)
-		dev->isoc_ctl.vbi_buf = NULL;
+	if (dev->usb_ctl.vbi_buf == buf)
+		dev->usb_ctl.vbi_buf = NULL;
 	spin_unlock_irqrestore(&dev->slock, flags);
 
 	videobuf_vmalloc_free(&buf->vb);

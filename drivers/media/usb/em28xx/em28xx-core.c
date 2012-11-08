@@ -941,7 +941,7 @@ static void em28xx_irq_callback(struct urb *urb)
 
 	/* Copy data from URB */
 	spin_lock(&dev->slock);
-	dev->isoc_ctl.isoc_copy(dev, urb);
+	dev->usb_ctl.urb_data_copy(dev, urb);
 	spin_unlock(&dev->slock);
 
 	/* Reset urb buffers */
@@ -970,9 +970,9 @@ void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode)
 	em28xx_isocdbg("em28xx: called em28xx_uninit_isoc in mode %d\n", mode);
 
 	if (mode == EM28XX_DIGITAL_MODE)
-		isoc_bufs = &dev->isoc_ctl.digital_bufs;
+		isoc_bufs = &dev->usb_ctl.digital_bufs;
 	else
-		isoc_bufs = &dev->isoc_ctl.analog_bufs;
+		isoc_bufs = &dev->usb_ctl.analog_bufs;
 
 	for (i = 0; i < isoc_bufs->num_bufs; i++) {
 		urb = isoc_bufs->urb[i];
@@ -1012,7 +1012,7 @@ void em28xx_stop_urbs(struct em28xx *dev)
 {
 	int i;
 	struct urb *urb;
-	struct em28xx_usb_bufs *isoc_bufs = &dev->isoc_ctl.digital_bufs;
+	struct em28xx_usb_bufs *isoc_bufs = &dev->usb_ctl.digital_bufs;
 
 	em28xx_isocdbg("em28xx: called em28xx_stop_urbs\n");
 
@@ -1045,9 +1045,9 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	em28xx_isocdbg("em28xx: called em28xx_alloc_isoc in mode %d\n", mode);
 
 	if (mode == EM28XX_DIGITAL_MODE)
-		isoc_bufs = &dev->isoc_ctl.digital_bufs;
+		isoc_bufs = &dev->usb_ctl.digital_bufs;
 	else
-		isoc_bufs = &dev->isoc_ctl.analog_bufs;
+		isoc_bufs = &dev->usb_ctl.analog_bufs;
 
 	/* De-allocates all pending stuff */
 	em28xx_uninit_isoc(dev, mode);
@@ -1070,8 +1070,8 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 
 	isoc_bufs->max_pkt_size = max_pkt_size;
 	isoc_bufs->num_packets = num_packets;
-	dev->isoc_ctl.vid_buf = NULL;
-	dev->isoc_ctl.vbi_buf = NULL;
+	dev->usb_ctl.vid_buf = NULL;
+	dev->usb_ctl.vbi_buf = NULL;
 
 	sb_size = isoc_bufs->num_packets * isoc_bufs->max_pkt_size;
 
@@ -1079,7 +1079,7 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	for (i = 0; i < isoc_bufs->num_bufs; i++) {
 		urb = usb_alloc_urb(isoc_bufs->num_packets, GFP_KERNEL);
 		if (!urb) {
-			em28xx_err("cannot alloc isoc_ctl.urb %i\n", i);
+			em28xx_err("cannot alloc usb_ctl.urb %i\n", i);
 			em28xx_uninit_isoc(dev, mode);
 			return -ENOMEM;
 		}
@@ -1141,14 +1141,14 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 
 	em28xx_isocdbg("em28xx: called em28xx_init_isoc in mode %d\n", mode);
 
-	dev->isoc_ctl.isoc_copy = isoc_copy;
+	dev->usb_ctl.urb_data_copy = isoc_copy;
 
 	if (mode == EM28XX_DIGITAL_MODE) {
-		isoc_bufs = &dev->isoc_ctl.digital_bufs;
+		isoc_bufs = &dev->usb_ctl.digital_bufs;
 		/* no need to free/alloc isoc buffers in digital mode */
 		alloc = 0;
 	} else {
-		isoc_bufs = &dev->isoc_ctl.analog_bufs;
+		isoc_bufs = &dev->usb_ctl.analog_bufs;
 		alloc = 1;
 	}
 

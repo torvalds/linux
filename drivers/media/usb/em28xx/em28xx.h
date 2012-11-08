@@ -220,19 +220,19 @@ struct em28xx_usb_bufs {
 	char				**transfer_buffer;
 };
 
-struct em28xx_usb_isoc_ctl {
-		/* isoc transfer buffers for analog mode */
+struct em28xx_usb_ctl {
+		/* isoc/bulk transfer buffers for analog mode */
 	struct em28xx_usb_bufs		analog_bufs;
 
-		/* isoc transfer buffers for digital mode */
+		/* isoc/bulk transfer buffers for digital mode */
 	struct em28xx_usb_bufs		digital_bufs;
 
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*vid_buf;
 	struct em28xx_buffer    	*vbi_buf;
 
-		/* isoc urb callback */
-	int (*isoc_copy) (struct em28xx *dev, struct urb *urb);
+		/* copy data from URB */
+	int (*urb_data_copy) (struct em28xx *dev, struct urb *urb);
 
 };
 
@@ -582,7 +582,7 @@ struct em28xx {
 	/* Isoc control struct */
 	struct em28xx_dmaqueue vidq;
 	struct em28xx_dmaqueue vbiq;
-	struct em28xx_usb_isoc_ctl isoc_ctl;
+	struct em28xx_usb_ctl usb_ctl;
 	spinlock_t slock;
 
 	/* usb transfer */
