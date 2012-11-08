@@ -764,13 +764,13 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 	if (urb_init) {
 		if (em28xx_vbi_supported(dev) == 1)
 			rc = em28xx_init_isoc(dev, EM28XX_ANALOG_MODE,
-					      EM28XX_NUM_PACKETS,
+					      EM28XX_NUM_ISOC_PACKETS,
 					      EM28XX_NUM_BUFS,
 					      dev->max_pkt_size,
 					      em28xx_isoc_copy_vbi);
 		else
 			rc = em28xx_init_isoc(dev, EM28XX_ANALOG_MODE,
-					      EM28XX_NUM_PACKETS,
+					      EM28XX_NUM_ISOC_PACKETS,
 					      EM28XX_NUM_BUFS,
 					      dev->max_pkt_size,
 					      em28xx_isoc_copy);

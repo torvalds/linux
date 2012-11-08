@@ -3323,7 +3323,7 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	if (has_dvb) {
 		/* pre-allocate DVB isoc transfer buffers */
 		retval = em28xx_alloc_isoc(dev, EM28XX_DIGITAL_MODE,
-					   EM28XX_DVB_MAX_PACKETS,
+					   EM28XX_DVB_NUM_ISOC_PACKETS,
 					   EM28XX_DVB_NUM_BUFS,
 					   dev->dvb_max_pkt_size);
 		if (retval) {

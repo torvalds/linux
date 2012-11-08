@@ -173,11 +173,12 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 		return max_dvb_packet_size;
 	dprintk(1, "Using %d buffers each with %d x %d bytes\n",
 		EM28XX_DVB_NUM_BUFS,
-		EM28XX_DVB_MAX_PACKETS,
+		EM28XX_DVB_NUM_ISOC_PACKETS,
 		max_dvb_packet_size);
 
 	return em28xx_init_isoc(dev, EM28XX_DIGITAL_MODE,
-				EM28XX_DVB_MAX_PACKETS, EM28XX_DVB_NUM_BUFS,
+				EM28XX_DVB_NUM_ISOC_PACKETS,
+				EM28XX_DVB_NUM_BUFS,
 				max_dvb_packet_size, em28xx_dvb_isoc_copy);
 }
 

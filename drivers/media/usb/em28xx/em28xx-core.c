@@ -1034,7 +1034,7 @@ EXPORT_SYMBOL_GPL(em28xx_stop_urbs);
  * Allocate URBs
  */
 int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		      int max_packets, int num_bufs, int max_pkt_size)
+		      int num_packets, int num_bufs, int max_pkt_size)
 {
 	struct em28xx_usb_isoc_bufs *isoc_bufs;
 	int i;
@@ -1069,7 +1069,7 @@ int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	}
 
 	isoc_bufs->max_pkt_size = max_pkt_size;
-	isoc_bufs->num_packets = max_packets;
+	isoc_bufs->num_packets = num_packets;
 	dev->isoc_ctl.vid_buf = NULL;
 	dev->isoc_ctl.vbi_buf = NULL;
 
@@ -1129,7 +1129,7 @@ EXPORT_SYMBOL_GPL(em28xx_alloc_isoc);
  * Allocate URBs and start IRQ
  */
 int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		     int max_packets, int num_bufs, int max_pkt_size,
+		     int num_packets, int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb))
 {
 	struct em28xx_dmaqueue *dma_q = &dev->vidq;
@@ -1153,7 +1153,7 @@ int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
 	}
 
 	if (alloc) {
-		rc = em28xx_alloc_isoc(dev, mode, max_packets,
+		rc = em28xx_alloc_isoc(dev, mode, num_packets,
 				       num_bufs, max_pkt_size);
 		if (rc)
 			return rc;

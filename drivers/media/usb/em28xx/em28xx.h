@@ -157,12 +157,12 @@
 #define EM28XX_NUM_BUFS 5
 #define EM28XX_DVB_NUM_BUFS 5
 
-/* number of packets for each buffer
+/* isoc transfers: number of packets for each buffer
    windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
-#define EM28XX_NUM_PACKETS 64
-#define EM28XX_DVB_MAX_PACKETS 64
+#define EM28XX_NUM_ISOC_PACKETS 64
+#define EM28XX_DVB_NUM_ISOC_PACKETS 64
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -667,9 +667,9 @@ int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
 int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		      int max_packets, int num_bufs, int max_pkt_size);
+		      int num_packets, int num_bufs, int max_pkt_size);
 int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
-		     int max_packets, int num_bufs, int max_pkt_size,
+		     int num_packets, int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
 void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode);
 void em28xx_stop_urbs(struct em28xx *dev);
