@@ -3686,7 +3686,8 @@ struct mwl8k_cmd_bastream {
 } __packed;
 
 static int
-mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
+mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
+	       struct ieee80211_vif *vif)
 {
 	struct mwl8k_cmd_bastream *cmd;
 	int rc;
@@ -3709,7 +3710,7 @@ mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 		cpu_to_le32(BASTREAM_FLAG_IMMEDIATE_TYPE) |
 		cpu_to_le32(BASTREAM_FLAG_DIRECTION_UPSTREAM);
 
-	rc = mwl8k_post_cmd(hw, &cmd->header);
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 
 	kfree(cmd);
 
@@ -3718,7 +3719,7 @@ mwl8k_check_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream)
 
 static int
 mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
-		u8 buf_size)
+		u8 buf_size, struct ieee80211_vif *vif)
 {
 	struct mwl8k_cmd_bastream *cmd;
 	int rc;
@@ -3752,7 +3753,7 @@ mwl8k_create_ba(struct ieee80211_hw *hw, struct mwl8k_ampdu_stream *stream,
 		cpu_to_le32(BASTREAM_FLAG_IMMEDIATE_TYPE |
 					BASTREAM_FLAG_DIRECTION_UPSTREAM);
 
-	rc = mwl8k_post_cmd(hw, &cmd->header);
+	rc = mwl8k_post_pervif_cmd(hw, vif, &cmd->header);
 
 	wiphy_debug(hw->wiphy, "Created a BA stream for %pM : tid %d\n",
 		stream->sta->addr, stream->tid);
@@ -5144,7 +5145,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				return -EBUSY;
 			}
 
-			rc = mwl8k_check_ba(hw, stream);
+			rc = mwl8k_check_ba(hw, stream, vif);
 
 			/* If HW restart is in progress mwl8k_post_cmd will
 			 * return -EBUSY. Avoid retrying mwl8k_check_ba in
@@ -5184,7 +5185,7 @@ mwl8k_ampdu_action(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		BUG_ON(stream == NULL);
 		BUG_ON(stream->state != AMPDU_STREAM_IN_PROGRESS);
 		spin_unlock(&priv->stream_lock);
-		rc = mwl8k_create_ba(hw, stream, buf_size);
+		rc = mwl8k_create_ba(hw, stream, buf_size, vif);
 		spin_lock(&priv->stream_lock);
 		if (!rc)
 			stream->state = AMPDU_STREAM_ACTIVE;
