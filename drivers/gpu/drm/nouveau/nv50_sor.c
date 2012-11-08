@@ -40,94 +40,37 @@
 
 #include <subdev/timer.h>
 
-static u32
-nv50_sor_dp_lane_map(struct drm_device *dev, struct dcb_output *dcb, u8 lane)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	static const u8 nvaf[] = { 24, 16, 8, 0 }; /* thanks, apple.. */
-	static const u8 nv50[] = { 16, 8, 0, 24 };
-	if (nv_device(drm->device)->chipset == 0xaf)
-		return nvaf[lane];
-	return nv50[lane];
-}
-
 static void
 nv50_sor_dp_train_set(struct drm_device *dev, struct dcb_output *dcb, u8 pattern)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	nv_mask(device, NV50_SOR_DP_CTRL(or, link), 0x0f000000, pattern << 24);
+	struct nv50_display *disp = nv50_display(dev);
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (link << 2) | or;
+	nv_call(disp->core, NV94_DISP_SOR_DP_TRAIN + moff, pattern);
 }
 
 static void
 nv50_sor_dp_train_adj(struct drm_device *dev, struct dcb_output *dcb,
 		      u8 lane, u8 swing, u8 preem)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	u32 shift = nv50_sor_dp_lane_map(dev, dcb, lane);
-	u32 mask = 0x000000ff << shift;
-	u8 *table, *entry, *config;
-
-	table = nouveau_dp_bios_data(dev, dcb, &entry);
-	if (!table || (table[0] != 0x20 && table[0] != 0x21)) {
-		NV_ERROR(drm, "PDISP: unsupported DP table for chipset\n");
-		return;
-	}
-
-	config = entry + table[4];
-	while (config[0] != swing || config[1] != preem) {
-		config += table[5];
-		if (config >= entry + table[4] + entry[4] * table[5])
-			return;
-	}
-
-	nv_mask(device, NV50_SOR_DP_UNK118(or, link), mask, config[2] << shift);
-	nv_mask(device, NV50_SOR_DP_UNK120(or, link), mask, config[3] << shift);
-	nv_mask(device, NV50_SOR_DP_UNK130(or, link), 0x0000ff00, config[4] << 8);
+	struct nv50_display *disp = nv50_display(dev);
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (link << 2) | or;
+	const u32 data = (swing << 8) | preem;
+	nv_call(disp->core, NV94_DISP_SOR_DP_DRVCTL(lane) + moff, data);
 }
 
 static void
 nv50_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
 		     int link_nr, u32 link_bw, bool enhframe)
 {
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	u32 dpctrl = nv_rd32(device, NV50_SOR_DP_CTRL(or, link)) & ~0x001f4000;
-	u32 clksor = nv_rd32(device, 0x614300 + (or * 0x800)) & ~0x000c0000;
-	u8 *table, *entry, mask;
-	int i;
-
-	table = nouveau_dp_bios_data(dev, dcb, &entry);
-	if (!table || (table[0] != 0x20 && table[0] != 0x21)) {
-		NV_ERROR(drm, "PDISP: unsupported DP table for chipset\n");
-		return;
-	}
-
-	entry = ROMPTR(dev, entry[10]);
-	if (entry) {
-		while (link_bw < ROM16(entry[0]) * 10)
-			entry += 4;
-
-		nouveau_bios_run_init_table(dev, ROM16(entry[2]), dcb, crtc);
-	}
-
-	dpctrl |= ((1 << link_nr) - 1) << 16;
+	struct nv50_display *disp = nv50_display(dev);
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (crtc << 3) | (link << 2) | or;
+	u32 data = ((link_bw / 27000) << 8) | link_nr;
 	if (enhframe)
-		dpctrl |= 0x00004000;
-
-	if (link_bw > 162000)
-		clksor |= 0x00040000;
-
-	nv_wr32(device, 0x614300 + (or * 0x800), clksor);
-	nv_wr32(device, NV50_SOR_DP_CTRL(or, link), dpctrl);
-
-	mask = 0;
-	for (i = 0; i < link_nr; i++)
-		mask |= 1 << (nv50_sor_dp_lane_map(dev, dcb, i) >> 3);
-	nv_mask(device, NV50_SOR_DP_UNK130(or, link), 0x0000000f, mask);
+		data |= NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH;
+	nv_call(disp->core, NV94_DISP_SOR_DP_LNKCTL + moff, data);
 }
 
 static void
