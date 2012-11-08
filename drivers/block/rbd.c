@@ -1644,53 +1644,51 @@ static int rbd_dev_do_request(struct request *rq,
 static void rbd_rq_fn(struct request_queue *q)
 {
 	struct rbd_device *rbd_dev = q->queuedata;
+	bool read_only = rbd_dev->mapping.read_only;
 	struct request *rq;
 
 	while ((rq = blk_fetch_request(q))) {
-		struct bio *bio;
-		bool do_write;
-		unsigned int size;
-		u64 ofs;
-		struct ceph_snap_context *snapc;
+		struct ceph_snap_context *snapc = NULL;
+		unsigned int size = 0;
 		int result;
 
 		dout("fetched request\n");
 
-		/* filter out block requests we don't understand */
+		/* Filter out block requests we don't understand */
+
 		if ((rq->cmd_type != REQ_TYPE_FS)) {
 			__blk_end_request_all(rq, 0);
 			continue;
 		}
-
-		/* deduce our operation (read, write) */
-		do_write = (rq_data_dir(rq) == WRITE);
-		if (do_write && rbd_dev->mapping.read_only) {
-			__blk_end_request_all(rq, -EROFS);
-			continue;
-		}
-
 		spin_unlock_irq(q->queue_lock);
 
+		/* Stop writes to a read-only device */
+
+		result = -EROFS;
+		if (read_only && rq_data_dir(rq) == WRITE)
+			goto out_end_request;
+
+		/* Grab a reference to the snapshot context */
+
 		down_read(&rbd_dev->header_rwsem);
-
-		if (!rbd_dev->exists) {
-			rbd_assert(rbd_dev->spec->snap_id != CEPH_NOSNAP);
-			up_read(&rbd_dev->header_rwsem);
-			dout("request for non-existent snapshot");
-			spin_lock_irq(q->queue_lock);
-			__blk_end_request_all(rq, -ENXIO);
-			continue;
+		if (rbd_dev->exists) {
+			snapc = ceph_get_snap_context(rbd_dev->header.snapc);
+			rbd_assert(snapc != NULL);
 		}
-
-		snapc = ceph_get_snap_context(rbd_dev->header.snapc);
-
 		up_read(&rbd_dev->header_rwsem);
 
-		size = blk_rq_bytes(rq);
-		ofs = blk_rq_pos(rq) * SECTOR_SIZE;
-		bio = rq->bio;
+		if (!snapc) {
+			rbd_assert(rbd_dev->spec->snap_id != CEPH_NOSNAP);
+			dout("request for non-existent snapshot");
+			result = -ENXIO;
+			goto out_end_request;
+		}
 
-		result = rbd_dev_do_request(rq, rbd_dev, snapc, ofs, size, bio);
+		size = blk_rq_bytes(rq);
+		result = rbd_dev_do_request(rq, rbd_dev, snapc,
+				blk_rq_pos(rq) * SECTOR_SIZE,
+				size, rq->bio);
+out_end_request:
 		ceph_put_snap_context(snapc);
 		spin_lock_irq(q->queue_lock);
 		if (!size || result < 0)
