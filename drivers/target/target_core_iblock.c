@@ -151,6 +151,11 @@ static int iblock_configure_device(struct se_device *dev)
 		pr_debug("IBLOCK: BLOCK Discard support available,"
 				" disabled by default\n");
 	}
+	/*
+	 * Enable write same emulation for IBLOCK and use 0xFFFF as
+	 * the smaller WRITE_SAME(10) only has a two-byte block count.
+	 */
+	dev->dev_attrib.max_write_same_len = 0xFFFF;
 
 	if (blk_queue_nonrot(q))
 		dev->dev_attrib.is_nonrot = 1;
@@ -375,22 +380,88 @@ err:
 	return ret;
 }
 
+static struct bio *iblock_get_bio(struct se_cmd *, sector_t, u32);
+static void iblock_submit_bios(struct bio_list *, int);
+static void iblock_complete_cmd(struct se_cmd *);
+
 static sense_reason_t
-iblock_execute_write_same(struct se_cmd *cmd)
+iblock_execute_write_same_unmap(struct se_cmd *cmd)
 {
 	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
-	int ret;
+	int rc;
 
-	ret = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
-				   spc_get_write_same_sectors(cmd), GFP_KERNEL,
-				   0);
-	if (ret < 0) {
-		pr_debug("blkdev_issue_discard() failed for WRITE_SAME\n");
+	rc = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
+			spc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
+	if (rc < 0) {
+		pr_warn("blkdev_issue_discard() failed: %d\n", rc);
 		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 	}
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
+}
+
+static sense_reason_t
+iblock_execute_write_same(struct se_cmd *cmd)
+{
+	struct iblock_req *ibr;
+	struct scatterlist *sg;
+	struct bio *bio;
+	struct bio_list list;
+	sector_t block_lba = cmd->t_task_lba;
+	unsigned int sectors = spc_get_write_same_sectors(cmd);
+
+	sg = &cmd->t_data_sg[0];
+
+	if (cmd->t_data_nents > 1 ||
+	    sg->length != cmd->se_dev->dev_attrib.block_size) {
+		pr_err("WRITE_SAME: Illegal SGL t_data_nents: %u length: %u"
+			" block_size: %u\n", cmd->t_data_nents, sg->length,
+			cmd->se_dev->dev_attrib.block_size);
+		return TCM_INVALID_CDB_FIELD;
+	}
+
+	ibr = kzalloc(sizeof(struct iblock_req), GFP_KERNEL);
+	if (!ibr)
+		goto fail;
+	cmd->priv = ibr;
+
+	bio = iblock_get_bio(cmd, block_lba, 1);
+	if (!bio)
+		goto fail_free_ibr;
+
+	bio_list_init(&list);
+	bio_list_add(&list, bio);
+
+	atomic_set(&ibr->pending, 1);
+
+	while (sectors) {
+		while (bio_add_page(bio, sg_page(sg), sg->length, sg->offset)
+				!= sg->length) {
+
+			bio = iblock_get_bio(cmd, block_lba, 1);
+			if (!bio)
+				goto fail_put_bios;
+
+			atomic_inc(&ibr->pending);
+			bio_list_add(&list, bio);
+		}
+
+		/* Always in 512 byte units for Linux/Block */
+		block_lba += sg->length >> IBLOCK_LBA_SHIFT;
+		sectors -= 1;
+	}
+
+	iblock_submit_bios(&list, WRITE);
+	return 0;
+
+fail_put_bios:
+	while ((bio = bio_list_pop(&list)))
+		bio_put(bio);
+fail_free_ibr:
+	kfree(ibr);
+fail:
+	return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 }
 
 enum {
@@ -701,6 +772,7 @@ static struct sbc_ops iblock_sbc_ops = {
 	.execute_rw		= iblock_execute_rw,
 	.execute_sync_cache	= iblock_execute_sync_cache,
 	.execute_write_same	= iblock_execute_write_same,
+	.execute_write_same_unmap = iblock_execute_write_same_unmap,
 	.execute_unmap		= iblock_execute_unmap,
 };
 
