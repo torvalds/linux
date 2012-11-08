@@ -290,7 +290,7 @@ struct compat_shmid64_ds {
 
 static inline int is_compat_task(void)
 {
-	return test_thread_flag(TIF_32BIT);
+	return test_thread_flag(TIF_32BIT_ADDR);
 }
 
 #endif /* _ASM_COMPAT_H */
