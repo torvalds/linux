@@ -805,21 +805,23 @@ int em28xx_resolution_set(struct em28xx *dev)
 	return em28xx_scaler_set(dev, dev->hscale, dev->vscale);
 }
 
+/* Set USB alternate setting for analog video */
 int em28xx_set_alternate(struct em28xx *dev)
 {
 	int errCode, prev_alt = dev->alt;
 	int i;
 	unsigned int min_pkt_size = dev->width * 2 + 4;
 
-	/*
-	 * alt = 0 is used only for control messages, so, only values
-	 * greater than 0 can be used for streaming.
-	 */
-	if (alt && alt < dev->num_alt) {
+	/* NOTE: for isoc transfers, only alt settings > 0 are allowed
+		 for bulk transfers, use alt=0 as default value */
+	dev->alt = 0;
+	if ((alt > 0) && (alt < dev->num_alt)) {
 		em28xx_coredbg("alternate forced to %d\n", dev->alt);
 		dev->alt = alt;
 		goto set_alt;
 	}
+	if (dev->analog_xfer_bulk)
+		goto set_alt;
 
 	/* When image size is bigger than a certain value,
 	   the frame size should be increased, otherwise, only
@@ -843,9 +845,14 @@ int em28xx_set_alternate(struct em28xx *dev)
 
 set_alt:
 	if (dev->alt != prev_alt) {
-		em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
-				min_pkt_size, dev->alt);
-		dev->max_pkt_size = dev->alt_max_pkt_size_isoc[dev->alt];
+		if (dev->analog_xfer_bulk) {
+			dev->max_pkt_size = 512; /* USB 2.0 spec */
+		} else { /* isoc */
+			em28xx_coredbg("minimum isoc packet size: %u (alt=%d)\n",
+				       min_pkt_size, dev->alt);
+			dev->max_pkt_size =
+					  dev->alt_max_pkt_size_isoc[dev->alt];
+		}
 		em28xx_coredbg("setting alternate %d with wMaxPacketSize=%u\n",
 			       dev->alt, dev->max_pkt_size);
 		errCode = usb_set_interface(dev->udev, 0, dev->alt);
