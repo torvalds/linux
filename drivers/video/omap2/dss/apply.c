@@ -1562,6 +1562,7 @@ static DEFINE_MUTEX(compat_init_lock);
 int omapdss_compat_init(void)
 {
 	struct platform_device *pdev = dss_get_core_pdev();
+	struct omap_dss_device *dssdev = NULL;
 	int i, r;
 
 	mutex_lock(&compat_init_lock);
@@ -1607,6 +1608,13 @@ int omapdss_compat_init(void)
 	if (r)
 		goto err_mgr_ops;
 
+	for_each_dss_dev(dssdev) {
+		r = display_init_sysfs(pdev, dssdev);
+		/* XXX uninit sysfs files on error */
+		if (r)
+			goto err_disp_sysfs;
+	}
+
 	dispc_runtime_get();
 
 	r = dss_dispc_initialize_irq();
@@ -1622,6 +1630,8 @@ out:
 
 err_init_irq:
 	dispc_runtime_put();
+
+err_disp_sysfs:
 	dss_uninstall_mgr_ops();
 
 err_mgr_ops:
@@ -1639,6 +1649,7 @@ EXPORT_SYMBOL(omapdss_compat_init);
 void omapdss_compat_uninit(void)
 {
 	struct platform_device *pdev = dss_get_core_pdev();
+	struct omap_dss_device *dssdev = NULL;
 
 	mutex_lock(&compat_init_lock);
 
@@ -1646,6 +1657,9 @@ void omapdss_compat_uninit(void)
 		goto out;
 
 	dss_dispc_uninitialize_irq();
+
+	for_each_dss_dev(dssdev)
+		display_uninit_sysfs(pdev, dssdev);
 
 	dss_uninstall_mgr_ops();
 

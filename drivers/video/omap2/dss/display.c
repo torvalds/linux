@@ -76,26 +76,6 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-int dss_init_device(struct platform_device *pdev,
-		struct omap_dss_device *dssdev)
-{
-	int r;
-
-	r = display_init_sysfs(pdev, dssdev);
-	if (r) {
-		omapdss_output_unset_device(dssdev->output);
-		return r;
-	}
-
-	return 0;
-}
-
-void dss_uninit_device(struct platform_device *pdev,
-		struct omap_dss_device *dssdev)
-{
-	display_uninit_sysfs(pdev, dssdev);
-}
-
 static int dss_suspend_device(struct device *dev, void *data)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);

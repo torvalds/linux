@@ -347,15 +347,10 @@ static int dss_driver_probe(struct device *dev)
 				dev_name(dev), dssdev->driver_name,
 				dssdrv->driver.name);
 
-	r = dss_init_device(core.pdev, dssdev);
-	if (r)
-		return r;
-
 	r = dssdrv->probe(dssdev);
 
 	if (r) {
 		DSSERR("driver probe failed: %d\n", r);
-		dss_uninit_device(core.pdev, dssdev);
 		return r;
 	}
 
@@ -375,8 +370,6 @@ static int dss_driver_remove(struct device *dev)
 			dssdev->driver_name);
 
 	dssdrv->remove(dssdev);
-
-	dss_uninit_device(core.pdev, dssdev);
 
 	dssdev->driver = NULL;
 
