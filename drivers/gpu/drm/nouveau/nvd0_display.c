@@ -1238,38 +1238,26 @@ nvd0_audio_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_connector *nv_connector;
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
-	int i, or = nv_encoder->or * 0x30;
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!drm_detect_monitor_audio(nv_connector->edid))
 		return;
 
-	nv_mask(device, 0x10ec10 + or, 0x80000003, 0x80000001);
-
 	drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
-	if (nv_connector->base.eld[0]) {
-		u8 *eld = nv_connector->base.eld;
 
-		for (i = 0; i < eld[2] * 4; i++)
-			nv_wr32(device, 0x10ec00 + or, (i << 8) | eld[i]);
-		for (i = eld[2] * 4; i < 0x60; i++)
-			nv_wr32(device, 0x10ec00 + or, (i << 8) | 0x00);
-
-		nv_mask(device, 0x10ec10 + or, 0x80000002, 0x80000002);
-	}
+	nv_exec(disp->core, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or,
+			    nv_connector->base.eld,
+			    nv_connector->base.eld[2] * 4);
 }
 
 static void
 nvd0_audio_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct nouveau_device *device = nouveau_dev(dev);
-	int or = nv_encoder->or * 0x30;
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
 
-	nv_mask(device, 0x10ec10 + or, 0x80000003, 0x80000000);
+	nv_exec(disp->core, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or, NULL, 0);
 }
 
 /******************************************************************************

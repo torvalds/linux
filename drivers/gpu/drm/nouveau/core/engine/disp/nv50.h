@@ -24,6 +24,7 @@ struct nv50_disp_priv {
 	struct {
 		int nr;
 		int (*power)(struct nv50_disp_priv *, int sor, u32 data);
+		int (*hda_eld)(struct nv50_disp_priv *, int sor, u8 *, u32);
 		int (*dp_train)(struct nv50_disp_priv *, int sor, int link,
 				u16 type, u16 mask, u32 data,
 				struct dcb_output *);
@@ -48,6 +49,8 @@ int nv50_dac_sense(struct nv50_disp_priv *, int);
 
 int nv50_sor_mthd(struct nouveau_object *, u32, void *, u32);
 int nv50_sor_power(struct nv50_disp_priv *, int, u32);
+
+int nvd0_hda_eld(struct nv50_disp_priv *, int, u8 *, u32);
 
 int nvd0_sor_dp_train(struct nv50_disp_priv *, int, int, u16, u16, u32,
 		      struct dcb_output *);

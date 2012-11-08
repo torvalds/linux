@@ -138,6 +138,7 @@ nouveau-y += core/engine/disp/nva3.o
 nouveau-y += core/engine/disp/nvd0.o
 nouveau-y += core/engine/disp/nve0.o
 nouveau-y += core/engine/disp/dacnv50.o
+nouveau-y += core/engine/disp/hdanvd0.o
 nouveau-y += core/engine/disp/sornv50.o
 nouveau-y += core/engine/disp/sornvd0.o
 nouveau-y += core/engine/disp/vga.o

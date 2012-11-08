@@ -88,6 +88,9 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 	case NV50_DISP_SOR_PWR:
 		ret = priv->sor.power(priv, or, data);
 		break;
+	case NVA3_DISP_SOR_HDA_ELD:
+		ret = priv->sor.hda_eld(priv, or, args, size);
+		break;
 	case NV94_DISP_SOR_DP_TRAIN:
 		ret = priv->sor.dp_train(priv, or, link, type, mask, data, &outp);
 		break;
