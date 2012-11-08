@@ -1341,6 +1341,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		list_for_each_entry(sdata, &local->interfaces, list) {
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				continue;
+			if (!sdata->u.mgd.associated)
+				continue;
 
 			ieee80211_send_nullfunc(local, sdata, 0);
 		}
