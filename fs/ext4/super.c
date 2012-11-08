@@ -3256,7 +3256,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	unsigned int i;
 	int needs_recovery, has_huge_files, has_bigalloc;
 	__u64 blocks_count;
-	int err;
+	int err = 0;
 	unsigned int journal_ioprio = DEFAULT_JOURNAL_IOPRIO;
 	ext4_group_t first_not_zeroed;
 
@@ -3282,6 +3282,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	for (cp = sb->s_id; (cp = strchr(cp, '/'));)
 		*cp = '!';
 
+	/* -EINVAL is default */
 	ret = -EINVAL;
 	blocksize = sb_min_blocksize(sb, EXT4_MIN_BLOCK_SIZE);
 	if (!blocksize) {
@@ -3659,7 +3660,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 			 " too large to mount safely on this system");
 		if (sizeof(sector_t) < 8)
 			ext4_msg(sb, KERN_WARNING, "CONFIG_LBDAF not enabled");
-		ret = err;
 		goto failed_mount;
 	}
 
@@ -3767,7 +3767,6 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	}
 	if (err) {
 		ext4_msg(sb, KERN_ERR, "insufficient memory");
-		ret = err;
 		goto failed_mount3;
 	}
 
@@ -3894,8 +3893,8 @@ no_journal:
 	if (es->s_overhead_clusters)
 		sbi->s_overhead = le32_to_cpu(es->s_overhead_clusters);
 	else {
-		ret = ext4_calculate_overhead(sb);
-		if (ret)
+		err = ext4_calculate_overhead(sb);
+		if (err)
 			goto failed_mount_wq;
 	}
 
@@ -3907,6 +3906,7 @@ no_journal:
 		alloc_workqueue("ext4-dio-unwritten", WQ_MEM_RECLAIM | WQ_UNBOUND, 1);
 	if (!EXT4_SB(sb)->dio_unwritten_wq) {
 		printk(KERN_ERR "EXT4-fs: failed to create DIO workqueue\n");
+		ret = -ENOMEM;
 		goto failed_mount_wq;
 	}
 
@@ -4009,8 +4009,8 @@ no_journal:
 	/* Enable quota usage during mount. */
 	if (EXT4_HAS_RO_COMPAT_FEATURE(sb, EXT4_FEATURE_RO_COMPAT_QUOTA) &&
 	    !(sb->s_flags & MS_RDONLY)) {
-		ret = ext4_enable_quotas(sb);
-		if (ret)
+		err = ext4_enable_quotas(sb);
+		if (err)
 			goto failed_mount7;
 	}
 #endif  /* CONFIG_QUOTA */
@@ -4089,7 +4089,7 @@ out_fail:
 	kfree(sbi);
 out_free_orig:
 	kfree(orig_data);
-	return ret;
+	return err ? err : ret;
 }
 
 /*
