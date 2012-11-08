@@ -287,8 +287,7 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 static bool __init xen_check_mwait(void)
 {
-#if defined(CONFIG_ACPI) && !defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR) && \
-	!defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR_MODULE)
+#ifdef CONFIG_ACPI
 	struct xen_platform_op op = {
 		.cmd			= XENPF_set_processor_pminfo,
 		.u.set_pminfo.id	= -1,
@@ -307,6 +306,13 @@ static bool __init xen_check_mwait(void)
 	 * from the hardware and hypercall.
 	 */
 	if (!xen_initial_domain())
+		return false;
+
+	/*
+	 * When running under platform earlier than Xen4.2, do not expose
+	 * mwait, to avoid the risk of loading native acpi pad driver
+	 */
+	if (!xen_running_on_version_or_later(4, 2))
 		return false;
 
 	ax = 1;
