@@ -573,7 +573,8 @@ static void __init combiner_init(void __iomem *combiner_base,
 }
 
 #ifdef CONFIG_OF
-int __init combiner_of_init(struct device_node *np, struct device_node *parent)
+static int __init combiner_of_init(struct device_node *np,
+				   struct device_node *parent)
 {
 	void __iomem *combiner_base;
 
