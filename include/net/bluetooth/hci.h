@@ -957,6 +957,8 @@ struct hci_cp_le_set_adv_data {
 	__u8	data[HCI_MAX_AD_LENGTH];
 } __packed;
 
+#define HCI_OP_LE_SET_ADV_ENABLE	0x200a
+
 #define HCI_OP_LE_SET_SCAN_PARAM	0x200b
 struct hci_cp_le_set_scan_param {
 	__u8    type;
