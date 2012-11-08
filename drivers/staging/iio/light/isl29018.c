@@ -356,7 +356,7 @@ static int isl29018_write_raw(struct iio_dev *indio_dev,
 	}
 	mutex_unlock(&chip->lock);
 
-	return 0;
+	return ret;
 }
 
 static int isl29018_read_raw(struct iio_dev *indio_dev,
