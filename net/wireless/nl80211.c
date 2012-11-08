@@ -223,8 +223,13 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_WIPHY_NAME] = { .type = NLA_NUL_STRING,
 				      .len = 20-1 },
 	[NL80211_ATTR_WIPHY_TXQ_PARAMS] = { .type = NLA_NESTED },
+
 	[NL80211_ATTR_WIPHY_FREQ] = { .type = NLA_U32 },
 	[NL80211_ATTR_WIPHY_CHANNEL_TYPE] = { .type = NLA_U32 },
+	[NL80211_ATTR_CHANNEL_WIDTH] = { .type = NLA_U32 },
+	[NL80211_ATTR_CENTER_FREQ1] = { .type = NLA_U32 },
+	[NL80211_ATTR_CENTER_FREQ2] = { .type = NLA_U32 },
+
 	[NL80211_ATTR_WIPHY_RETRY_SHORT] = { .type = NLA_U8 },
 	[NL80211_ATTR_WIPHY_RETRY_LONG] = { .type = NLA_U8 },
 	[NL80211_ATTR_WIPHY_FRAG_THRESHOLD] = { .type = NLA_U32 },
@@ -1360,35 +1365,13 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 		wdev->iftype == NL80211_IFTYPE_P2P_GO;
 }
 
-static bool nl80211_valid_channel_type(struct genl_info *info,
-				       enum nl80211_channel_type *channel_type)
-{
-	enum nl80211_channel_type tmp;
-
-	if (!info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE])
-		return false;
-
-	tmp = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
-	if (tmp != NL80211_CHAN_NO_HT &&
-	    tmp != NL80211_CHAN_HT20 &&
-	    tmp != NL80211_CHAN_HT40PLUS &&
-	    tmp != NL80211_CHAN_HT40MINUS)
-		return false;
-
-	if (channel_type)
-		*channel_type = tmp;
-
-	return true;
-}
-
 static int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 				 struct genl_info *info,
 				 struct cfg80211_chan_def *chandef)
 {
 	struct ieee80211_sta_ht_cap *ht_cap;
-	struct ieee80211_channel *sc;
-	u32 control_freq;
-	int offs;
+	struct ieee80211_sta_vht_cap *vht_cap;
+	u32 control_freq, width;
 
 	if (!info->attrs[NL80211_ATTR_WIPHY_FREQ])
 		return -EINVAL;
@@ -1396,46 +1379,104 @@ static int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 	control_freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
 
 	chandef->chan = ieee80211_get_channel(&rdev->wiphy, control_freq);
-	chandef->_type = NL80211_CHAN_NO_HT;
-
-	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE] &&
-	    !nl80211_valid_channel_type(info, &chandef->_type))
-		return -EINVAL;
+	chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
+	chandef->center_freq1 = control_freq;
+	chandef->center_freq2 = 0;
 
 	/* Primary channel not allowed */
 	if (!chandef->chan || chandef->chan->flags & IEEE80211_CHAN_DISABLED)
 		return -EINVAL;
 
-	ht_cap = &rdev->wiphy.bands[chandef->chan->band]->ht_cap;
+	if (info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]) {
+		enum nl80211_channel_type chantype;
 
-	switch (chandef->_type) {
-	case NL80211_CHAN_NO_HT:
-		break;
-	case NL80211_CHAN_HT40MINUS:
-		if (chandef->chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+		chantype = nla_get_u32(
+				info->attrs[NL80211_ATTR_WIPHY_CHANNEL_TYPE]);
+
+		switch (chantype) {
+		case NL80211_CHAN_NO_HT:
+		case NL80211_CHAN_HT20:
+		case NL80211_CHAN_HT40PLUS:
+		case NL80211_CHAN_HT40MINUS:
+			cfg80211_chandef_create(chandef, chandef->chan,
+						chantype);
+			break;
+		default:
 			return -EINVAL;
-		offs = -20;
-		/* fall through */
-	case NL80211_CHAN_HT40PLUS:
-		if (chandef->_type == NL80211_CHAN_HT40PLUS) {
-			if (chandef->chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
-				return -EINVAL;
-			offs = 20;
 		}
+	} else if (info->attrs[NL80211_ATTR_CHANNEL_WIDTH]) {
+		chandef->width =
+			nla_get_u32(info->attrs[NL80211_ATTR_CHANNEL_WIDTH]);
+		if (info->attrs[NL80211_ATTR_CENTER_FREQ1])
+			chandef->center_freq1 =
+				nla_get_u32(
+					info->attrs[NL80211_ATTR_CENTER_FREQ1]);
+		if (info->attrs[NL80211_ATTR_CENTER_FREQ2])
+			chandef->center_freq2 =
+				nla_get_u32(
+					info->attrs[NL80211_ATTR_CENTER_FREQ2]);
+	}
+
+	ht_cap = &rdev->wiphy.bands[chandef->chan->band]->ht_cap;
+	vht_cap = &rdev->wiphy.bands[chandef->chan->band]->vht_cap;
+
+	if (!cfg80211_chan_def_valid(chandef))
+		return -EINVAL;
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20:
+		if (!ht_cap->ht_supported)
+			return -EINVAL;
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		width = 20;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		width = 40;
+		/* quick early regulatory check */
+		if (chandef->center_freq1 < control_freq &&
+		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+			return -EINVAL;
+		if (chandef->center_freq1 > control_freq &&
+		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
+			return -EINVAL;
+		if (!ht_cap->ht_supported)
+			return -EINVAL;
 		if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
 		    ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT)
 			return -EINVAL;
-
-		sc = ieee80211_get_channel(&rdev->wiphy,
-					   chandef->chan->center_freq + offs);
-		if (!sc || sc->flags & IEEE80211_CHAN_DISABLED)
-			return -EINVAL;
-		/* fall through */
-	case NL80211_CHAN_HT20:
-		if (!ht_cap->ht_supported)
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		width = 80;
+		if (!vht_cap->vht_supported)
 			return -EINVAL;
 		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		width = 80;
+		if (!vht_cap->vht_supported)
+			return -EINVAL;
+		if (!(vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ))
+			return -EINVAL;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		width = 160;
+		if (!vht_cap->vht_supported)
+			return -EINVAL;
+		if (!(vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ))
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
 	}
+
+	if (!cfg80211_secondary_chans_ok(&rdev->wiphy, chandef->center_freq1,
+					 width, IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+	if (chandef->center_freq2 &&
+	    !cfg80211_secondary_chans_ok(&rdev->wiphy, chandef->center_freq2,
+					 width, IEEE80211_CHAN_DISABLED))
+		return -EINVAL;
+
+	/* TODO: missing regulatory check on bandwidth */
 
 	return 0;
 }
@@ -1800,10 +1841,28 @@ static inline u64 wdev_id(struct wireless_dev *wdev)
 static int nl80211_send_chandef(struct sk_buff *msg,
 				 struct cfg80211_chan_def *chandef)
 {
+	WARN_ON(!cfg80211_chan_def_valid(chandef));
+
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ,
 			chandef->chan->center_freq))
 		return -ENOBUFS;
-	if (nla_put_u32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, chandef->_type))
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_40:
+		if (nla_put_u32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE,
+				cfg80211_get_chandef_type(chandef)))
+			return -ENOBUFS;
+		break;
+	default:
+		break;
+	}
+	if (nla_put_u32(msg, NL80211_ATTR_CHANNEL_WIDTH, chandef->width))
+		return -ENOBUFS;
+	if (nla_put_u32(msg, NL80211_ATTR_CENTER_FREQ1, chandef->center_freq1))
+		return -ENOBUFS;
+	if (chandef->center_freq2 &&
+	    nla_put_u32(msg, NL80211_ATTR_CENTER_FREQ2, chandef->center_freq2))
 		return -ENOBUFS;
 	return 0;
 }
@@ -5447,7 +5506,8 @@ static int nl80211_join_ibss(struct sk_buff *skb, struct genl_info *info)
 		if (IS_ERR(connkeys))
 			return PTR_ERR(connkeys);
 
-		if ((ibss.chandef._type != NL80211_CHAN_NO_HT) && no_ht) {
+		if ((ibss.chandef.width != NL80211_CHAN_WIDTH_20_NOHT) &&
+		    no_ht) {
 			kfree(connkeys);
 			return -EINVAL;
 		}

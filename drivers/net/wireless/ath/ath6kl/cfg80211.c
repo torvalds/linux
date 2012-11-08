@@ -1099,12 +1099,10 @@ void ath6kl_cfg80211_ch_switch_notify(struct ath6kl_vif *vif, int freq,
 		   "channel switch notify nw_type %d freq %d mode %d\n",
 		   vif->nw_type, freq, mode);
 
-	chandef.chan = ieee80211_get_channel(vif->ar->wiphy, freq);
-	if (WARN_ON(!chandef.chan))
-		return;
-
-	chandef._type = (mode == WMI_11G_HT20) ?
-		NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT;
+	cfg80211_chandef_create(&chandef,
+				ieee80211_get_channel(vif->ar->wiphy, freq),
+				(mode == WMI_11G_HT20) ?
+					NL80211_CHAN_HT20 : NL80211_CHAN_NO_HT);
 
 	cfg80211_ch_switch_notify(vif->ndev, &chandef);
 }

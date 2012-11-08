@@ -308,19 +308,84 @@ struct key_params {
 /**
  * struct cfg80211_chan_def - channel definition
  * @chan: the (control) channel
- * @_type: the channel type, don't use this field,
- *	use cfg80211_get_chandef_type() if needed.
+ * @width: channel width
+ * @center_freq1: center frequency of first segment
+ * @center_freq2: center frequency of second segment
+ *	(only with 80+80 MHz)
  */
 struct cfg80211_chan_def {
 	struct ieee80211_channel *chan;
-	enum nl80211_channel_type _type;
+	enum nl80211_chan_width width;
+	u32 center_freq1;
+	u32 center_freq2;
 };
 
+/**
+ * cfg80211_get_chandef_type - return old channel type from chandef
+ * @chandef: the channel definition
+ *
+ * Returns the old channel type (NOHT, HT20, HT40+/-) from a given
+ * chandef, which must have a bandwidth allowing this conversion.
+ */
 static inline enum nl80211_channel_type
 cfg80211_get_chandef_type(const struct cfg80211_chan_def *chandef)
 {
-	return chandef->_type;
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_20_NOHT:
+		return NL80211_CHAN_NO_HT;
+	case NL80211_CHAN_WIDTH_20:
+		return NL80211_CHAN_HT20;
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef->center_freq1 > chandef->chan->center_freq)
+			return NL80211_CHAN_HT40PLUS;
+		return NL80211_CHAN_HT40MINUS;
+	default:
+		WARN_ON(1);
+		return NL80211_CHAN_NO_HT;
+	}
 }
+
+/**
+ * cfg80211_chandef_create - create channel definition using channel type
+ * @chandef: the channel definition struct to fill
+ * @channel: the control channel
+ * @chantype: the channel type
+ *
+ * Given a channel type, create a channel definition.
+ */
+void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
+			     struct ieee80211_channel *channel,
+			     enum nl80211_channel_type chantype);
+
+/**
+ * cfg80211_chandef_identical - check if two channel definitions are identical
+ * @chandef1: first channel definition
+ * @chandef2: second channel definition
+ *
+ * Returns %true if the channels defined by the channel definitions are
+ * identical, %false otherwise.
+ */
+static inline bool
+cfg80211_chandef_identical(const struct cfg80211_chan_def *chandef1,
+			   const struct cfg80211_chan_def *chandef2)
+{
+	return (chandef1->chan == chandef2->chan &&
+		chandef1->width == chandef2->width &&
+		chandef1->center_freq1 == chandef2->center_freq1 &&
+		chandef1->center_freq2 == chandef2->center_freq2);
+}
+
+/**
+ * cfg80211_chandef_compatible - check if two channel definitions are compatible
+ * @chandef1: first channel definition
+ * @chandef2: second channel definition
+ *
+ * Returns %NULL if the given channel definitions are incompatible,
+ * chandef1 or chandef2 otherwise.
+ */
+const struct cfg80211_chan_def *
+cfg80211_chandef_compatible(const struct cfg80211_chan_def *chandef1,
+			    const struct cfg80211_chan_def *chandef2);
 
 /**
  * enum survey_info_flags - survey information flags

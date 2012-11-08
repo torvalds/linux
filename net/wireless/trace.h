@@ -126,25 +126,33 @@
 #define CHAN_PR_FMT ", band: %d, freq: %u"
 #define CHAN_PR_ARG __entry->band, __entry->center_freq
 
-#define CHAN_DEF_ENTRY __field(enum ieee80211_band, band)	\
-		       __field(u16, center_freq)		\
-		       __field(u32, channel_type)
+#define CHAN_DEF_ENTRY __field(enum ieee80211_band, band)		\
+		       __field(u32, control_freq)			\
+		       __field(u32, width)				\
+		       __field(u32, center_freq1)			\
+		       __field(u32, center_freq2)
 #define CHAN_DEF_ASSIGN(chandef)					\
 	do {								\
 		if ((chandef) && (chandef)->chan) {			\
 			__entry->band = (chandef)->chan->band;		\
-			__entry->center_freq =				\
+			__entry->control_freq =				\
 				(chandef)->chan->center_freq;		\
-			__entry->channel_type = (chandef)->_type;	\
+			__entry->width = (chandef)->width;		\
+			__entry->center_freq1 = (chandef)->center_freq1;\
+			__entry->center_freq2 = (chandef)->center_freq2;\
 		} else {						\
 			__entry->band = 0;				\
-			__entry->center_freq = 0;			\
-			__entry->channel_type = 0;			\
+			__entry->control_freq = 0;			\
+			__entry->width = 0;				\
+			__entry->center_freq1 = 0;			\
+			__entry->center_freq2 = 0;			\
 		}							\
 	} while (0)
-#define CHAN_DEF_PR_FMT ", band: %d, freq: %u, chantype: %d"
-#define CHAN_DEF_PR_ARG __entry->band, __entry->center_freq,		\
-			__entry->channel_type
+#define CHAN_DEF_PR_FMT							\
+	", band: %d, control freq: %u, width: %d, cf1: %u, cf2: %u"
+#define CHAN_DEF_PR_ARG __entry->band, __entry->control_freq,		\
+			__entry->width, __entry->center_freq1,		\
+			__entry->center_freq2
 
 #define SINFO_ENTRY __field(int, generation)	    \
 		    __field(u32, connected_time)    \

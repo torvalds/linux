@@ -146,7 +146,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 		if (!setup->chandef.chan)
 			return -EINVAL;
 
-		setup->chandef._type = NL80211_CHAN_NO_HT;
+		setup->chandef.width = NL80211_CHAN_WIDTH_20_NOHT;;
 	}
 
 	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
@@ -198,7 +198,7 @@ int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 	 * compatible with 802.11 mesh.
 	 */
 	if (rdev->ops->libertas_set_mesh_channel) {
-		if (chandef->_type != NL80211_CHAN_NO_HT)
+		if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
 			return -EINVAL;
 
 		if (!netif_running(wdev->netdev))

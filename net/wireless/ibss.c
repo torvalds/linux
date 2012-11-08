@@ -252,7 +252,7 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 
 	/* try to find an IBSS channel if none requested ... */
 	if (!wdev->wext.ibss.chandef.chan) {
-		wdev->wext.ibss.chandef._type = NL80211_CHAN_NO_HT;
+		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
@@ -352,7 +352,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 
 	if (chan) {
 		wdev->wext.ibss.chandef.chan = chan;
-		wdev->wext.ibss.chandef._type = NL80211_CHAN_NO_HT;
+		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 		wdev->wext.ibss.channel_fixed = true;
 	} else {
 		/* cfg80211_ibss_wext_join will pick one if needed */

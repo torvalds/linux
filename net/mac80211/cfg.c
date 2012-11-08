@@ -3125,8 +3125,9 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (chanctx_conf) {
-		chandef->chan = chanctx_conf->channel;
-		chandef->_type = chanctx_conf->channel_type;
+		cfg80211_chandef_create(chandef,
+					chanctx_conf->channel,
+					chanctx_conf->channel_type);
 		ret = 0;
 	}
 	rcu_read_unlock();

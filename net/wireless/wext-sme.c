@@ -120,7 +120,8 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 	 */
 	if (chan && !wdev->wext.connect.ssid_len) {
 		struct cfg80211_chan_def chandef = {
-			._type = NL80211_CHAN_NO_HT,
+			.width = NL80211_CHAN_WIDTH_20_NOHT,
+			.center_freq1 = freq,
 		};
 
 		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
