@@ -705,6 +705,47 @@ nvd0_display_unk1_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 }
 
 static void
+nvd0_display_unk2_calc_tu(struct nv50_disp_priv *priv, int head, int or)
+{
+	const u32 ctrl = nv_rd32(priv, 0x660200 + (or   * 0x020));
+	const u32 conf = nv_rd32(priv, 0x660404 + (head * 0x300));
+	const u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
+	const u32 bits = ((conf & 0x3c0) == 0x080) ? 18 : 24;
+	const u32 link = ((ctrl & 0xf00) == 0x800) ? 0 : 1;
+	const u32 hoff = (head * 0x800);
+	const u32 soff = (  or * 0x800);
+	const u32 loff = (link * 0x080) + soff;
+	const u32 symbol = 100000;
+	const u32 TU = 64;
+	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x000f0000;
+	u32 clksor = nv_rd32(priv, 0x612300 + soff);
+	u32 datarate = (pclk * bits) / 8;
+	u32 link_nr, link_bw;
+	u64 ratio, value;
+
+	if      (dpctrl > 0x00030000) link_nr = 4;
+	else if (dpctrl > 0x00010000) link_nr = 2;
+	else			      link_nr = 1;
+
+	link_bw  = (clksor & 0x007c0000) >> 18;
+	link_bw *= 27000;
+
+	ratio  = datarate;
+	ratio *= symbol;
+	do_div(ratio, link_nr * link_bw);
+
+	value  = (symbol - ratio) * TU;
+	value *= ratio;
+	do_div(value, symbol);
+	do_div(value, symbol);
+
+	value += 5;
+	value |= 0x08000000;
+
+	nv_wr32(priv, 0x616610 + hoff, value);
+}
+
+static void
 nvd0_display_unk2_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 {
 	u32 pclk;
@@ -735,6 +776,15 @@ nvd0_display_unk2_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 					addr = 0x612280 + ((i - 0) * 0x800);
 					mask = 0xffffffff;
 				} else {
+					switch (mcp & 0x00000f00) {
+					case 0x00000800:
+					case 0x00000900:
+						nvd0_display_unk2_calc_tu(priv, head, i - 4);
+						break;
+					default:
+						break;
+					}
+
 					addr = 0x612300 + ((i - 4) * 0x800);
 					mask = 0x00000707;
 					if (cfg & 0x00000100)

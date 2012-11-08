@@ -1340,52 +1340,6 @@ nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
 }
 
 static void
-nvd0_sor_dp_link_get(struct drm_device *dev, struct dcb_output *dcb,
-		     u32 *link_nr, u32 *link_bw)
-{
-	struct nouveau_device *device = nouveau_dev(dev);
-	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 loff = (or * 0x800) + (link * 0x80);
-	const u32 soff = (or * 0x800);
-	u32 dpctrl = nv_rd32(device, 0x61c10c + loff) & 0x000f0000;
-	u32 clksor = nv_rd32(device, 0x612300 + soff);
-
-	if      (dpctrl > 0x00030000) *link_nr = 4;
-	else if (dpctrl > 0x00010000) *link_nr = 2;
-	else			      *link_nr = 1;
-
-	*link_bw  = (clksor & 0x007c0000) >> 18;
-	*link_bw *= 27000;
-}
-
-static void
-nvd0_sor_dp_calc_tu(struct drm_device *dev, struct dcb_output *dcb,
-		    u32 crtc, u32 datarate)
-{
-	struct nouveau_device *device = nouveau_dev(dev);
-	const u32 symbol = 100000;
-	const u32 TU = 64;
-	u32 link_nr, link_bw;
-	u64 ratio, value;
-
-	nvd0_sor_dp_link_get(dev, dcb, &link_nr, &link_bw);
-
-	ratio  = datarate;
-	ratio *= symbol;
-	do_div(ratio, link_nr * link_bw);
-
-	value  = (symbol - ratio) * TU;
-	value *= ratio;
-	do_div(value, symbol);
-	do_div(value, symbol);
-
-	value += 5;
-	value |= 0x08000000;
-
-	nv_wr32(device, 0x616610 + (crtc * 0x800), value);
-}
-
-static void
 nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -1575,11 +1529,6 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	}
 
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
-
-	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-		nvd0_sor_dp_calc_tu(dev, nv_encoder->dcb, nv_crtc->index,
-					 nv_encoder->dp.datarate);
-	}
 
 	push = evo_wait(nvd0_mast(dev), 8);
 	if (push) {
