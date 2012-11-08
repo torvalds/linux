@@ -245,7 +245,6 @@ nv50_evo_destroy(struct drm_device *dev)
 		nv50_evo_channel_del(&disp->crtc[i].sync);
 	}
 	nv50_evo_channel_del(&disp->master);
-	nouveau_gpuobj_ref(NULL, &disp->ramin);
 }
 
 int
@@ -261,13 +260,7 @@ nv50_evo_create(struct drm_device *dev)
 	 * use this also as there's no per-channel support on the
 	 * hardware
 	 */
-	ret = nouveau_gpuobj_new(drm->device, NULL, 32768, 65536,
-				 NVOBJ_FLAG_ZERO_ALLOC, &disp->ramin);
-	if (ret) {
-		NV_ERROR(drm, "Error allocating EVO channel memory: %d\n", ret);
-		goto err;
-	}
-
+	disp->ramin = nv_gpuobj(disp->core->parent);
 	disp->hash = 0x0000;
 	disp->dmao = 0x1000;
 

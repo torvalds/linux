@@ -44,6 +44,7 @@ struct nv50_display_crtc {
 struct nv50_display {
 	struct nouveau_channel *master;
 
+	struct nouveau_object *core;
 	struct nouveau_gpuobj *ramin;
 	u32 dmao;
 	u32 hash;

@@ -36,6 +36,8 @@
 #include "nouveau_fence.h"
 
 #include <core/gpuobj.h>
+#include <core/class.h>
+
 #include <subdev/timer.h>
 
 static void nv50_display_bh(unsigned long);
@@ -120,62 +122,11 @@ nv50_display_init(struct drm_device *dev)
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_channel *evo;
 	int ret, i;
-	u32 val;
-
-	nv_wr32(device, 0x00610184, nv_rd32(device, 0x00614004));
-
-	/*
-	 * I think the 0x006101XX range is some kind of main control area
-	 * that enables things.
-	 */
-	/* CRTC? */
-	for (i = 0; i < 2; i++) {
-		val = nv_rd32(device, 0x00616100 + (i * 0x800));
-		nv_wr32(device, 0x00610190 + (i * 0x10), val);
-		val = nv_rd32(device, 0x00616104 + (i * 0x800));
-		nv_wr32(device, 0x00610194 + (i * 0x10), val);
-		val = nv_rd32(device, 0x00616108 + (i * 0x800));
-		nv_wr32(device, 0x00610198 + (i * 0x10), val);
-		val = nv_rd32(device, 0x0061610c + (i * 0x800));
-		nv_wr32(device, 0x0061019c + (i * 0x10), val);
-	}
-
-	/* DAC */
-	for (i = 0; i < 3; i++) {
-		val = nv_rd32(device, 0x0061a000 + (i * 0x800));
-		nv_wr32(device, 0x006101d0 + (i * 0x04), val);
-	}
-
-	/* SOR */
-	for (i = 0; i < nv50_sor_nr(dev); i++) {
-		val = nv_rd32(device, 0x0061c000 + (i * 0x800));
-		nv_wr32(device, 0x006101e0 + (i * 0x04), val);
-	}
-
-	/* EXT */
-	for (i = 0; i < 3; i++) {
-		val = nv_rd32(device, 0x0061e000 + (i * 0x800));
-		nv_wr32(device, 0x006101f0 + (i * 0x04), val);
-	}
 
 	for (i = 0; i < 3; i++) {
 		nv_wr32(device, NV50_PDISPLAY_DAC_DPMS_CTRL(i), 0x00550000 |
 			NV50_PDISPLAY_DAC_DPMS_CTRL_PENDING);
 		nv_wr32(device, NV50_PDISPLAY_DAC_CLK_CTRL1(i), 0x00000001);
-	}
-
-	/* The precise purpose is unknown, i suspect it has something to do
-	 * with text mode.
-	 */
-	if (nv_rd32(device, NV50_PDISPLAY_INTR_1) & 0x100) {
-		nv_wr32(device, NV50_PDISPLAY_INTR_1, 0x100);
-		nv_wr32(device, 0x006194e8, nv_rd32(device, 0x006194e8) & ~1);
-		if (!nv_wait(device, 0x006194e8, 2, 0)) {
-			NV_ERROR(drm, "timeout: (0x6194e8 & 2) != 0\n");
-			NV_ERROR(drm, "0x6194e8 = 0x%08x\n",
-						nv_rd32(device, 0x6194e8));
-			return -EBUSY;
-		}
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -201,21 +152,10 @@ nv50_display_init(struct drm_device *dev)
 		}
 	}
 
-	nv_wr32(device, NV50_PDISPLAY_PIO_CTRL, 0x00000000);
-	nv_mask(device, NV50_PDISPLAY_INTR_0, 0x00000000, 0x00000000);
-	nv_wr32(device, NV50_PDISPLAY_INTR_EN_0, 0x00000000);
-	nv_mask(device, NV50_PDISPLAY_INTR_1, 0x00000000, 0x00000000);
-	nv_wr32(device, NV50_PDISPLAY_INTR_EN_1,
-		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK10 |
-		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK20 |
-		     NV50_PDISPLAY_INTR_EN_1_CLK_UNK40);
-
 	ret = nv50_evo_init(dev);
 	if (ret)
 		return ret;
 	evo = nv50_display(dev)->master;
-
-	nv_wr32(device, NV50_PDISPLAY_OBJECTS, (nv50_display(dev)->ramin->addr >> 8) | 9);
 
 	ret = RING_SPACE(evo, 3);
 	if (ret)
@@ -289,14 +229,18 @@ nv50_display_fini(struct drm_device *dev)
 				  nv_rd32(device, NV50_PDISPLAY_SOR_DPMS_STATE(i)));
 		}
 	}
-
-	/* disable interrupts. */
-	nv_wr32(device, NV50_PDISPLAY_INTR_EN_1, 0x00000000);
 }
 
 int
 nv50_display_create(struct drm_device *dev)
 {
+	static const u16 oclass[] = {
+		NVA3_DISP_CLASS,
+		NV94_DISP_CLASS,
+		NVA0_DISP_CLASS,
+		NV84_DISP_CLASS,
+		NV50_DISP_CLASS,
+	};
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct dcb_table *dcb = &drm->vbios.dcb;
 	struct drm_connector *connector, *ct;
@@ -311,6 +255,17 @@ nv50_display_create(struct drm_device *dev)
 	nouveau_display(dev)->dtor = nv50_display_destroy;
 	nouveau_display(dev)->init = nv50_display_init;
 	nouveau_display(dev)->fini = nv50_display_fini;
+
+	/* attempt to allocate a supported evo display class */
+	ret = -ENODEV;
+	for (i = 0; ret && i < ARRAY_SIZE(oclass); i++) {
+		ret = nouveau_object_new(nv_object(drm), NVDRM_DEVICE,
+					 0xd1500000, oclass[i], NULL, 0,
+					 &priv->core);
+	}
+
+	if (ret)
+		return ret;
 
 	/* Create CRTC objects */
 	for (i = 0; i < 2; i++) {
