@@ -576,8 +576,7 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl,
 	    struct nvbios_outp *info)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
-	u16 data, idx = 0;
-	u16 mask, type;
+	u16 mask, type, data;
 
 	if (outp < 4) {
 		type = DCB_OUTPUT_ANALOG;
@@ -602,30 +601,11 @@ exec_lookup(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl,
 	mask |= 0x0001 << outp;
 	mask |= 0x0100 << head;
 
-	/* this is a tad special, but for the moment its needed to get
-	 * all the dcb data required by the vbios scripts.. will be cleaned
-	 * up later as more bits are moved to the core..
-	 */
-	while ((data = dcb_outp(bios, idx++, ver, hdr))) {
-		u32 conn = nv_ro32(bios, data + 0);
-		u32 conf = nv_ro32(bios, data + 4);
-		if ((conn & 0x00300000) ||
-		    (conn & 0x0000000f) != type ||
-		    (conn & 0x0f000000) != (0x01000000 << outp))
-			continue;
+	data = dcb_outp_match(bios, type, mask, ver, hdr, dcb);
+	if (!data)
+		return 0x0000;
 
-		if ( (mask & 0x00c0) && (mask & 0x00c0) !=
-		    ((mask & 0x00c0) & ((conf & 0x00000030) << 2)))
-			continue;
-
-		dcb->type = type;
-		dcb->or = 1 << outp;
-		dcb->connector = (conn & 0x0000f000) >> 12;
-
-		return nvbios_outp_match(bios, type, mask, ver, hdr, cnt, len, info);
-	}
-
-	return 0x0000;
+	return nvbios_outp_match(bios, type, mask, ver, hdr, cnt, len, info);
 }
 
 static bool

@@ -53,37 +53,18 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 	const u8  link = (mthd & NV50_DISP_SOR_MTHD_LINK) >> 2;
 	const u8    or = (mthd & NV50_DISP_SOR_MTHD_OR);
 	const u16 mask = (0x0100 << head) | (0x0040 << link) | (0x0001 << or);
-	struct dcb_output outp = {
-		.type = type,
-		.or = (1 << or),
-		.sorconf.link = (1 << link),
-	};
-	u8  ver, hdr, idx = 0;
+	struct dcb_output outp;
+	u8  ver, hdr;
 	u32 data;
 	int ret = -EINVAL;
 
 	if (size < sizeof(u32))
 		return -EINVAL;
+	data = *(u32 *)args;
 
-	while (type && (data = dcb_outp(bios, idx++, &ver, &hdr))) {
-		u32 conn = nv_ro32(bios, data + 0);
-		u32 conf = nv_ro32(bios, data + 4);
-		if ((conn & 0x00300000) ||
-		    (conn & 0x0000000f) != type ||
-		    (conn & 0x0f000000) != (0x01000000 << or))
-			continue;
-
-		if ( (mask & 0x00c0) && (mask & 0x00c0) !=
-		    ((mask & 0x00c0) & ((conf & 0x00000030) << 2)))
-			continue;
-
-		outp.connector = (conn & 0x0000f000) >> 12;
-	}
-
-	if (data == 0x0000)
+	if (type && !dcb_outp_match(bios, type, mask, &ver, &hdr, &outp))
 		return -ENODEV;
 
-	data = *(u32 *)args;
 	switch (mthd & ~0x3f) {
 	case NV50_DISP_SOR_PWR:
 		ret = priv->sor.power(priv, or, data);

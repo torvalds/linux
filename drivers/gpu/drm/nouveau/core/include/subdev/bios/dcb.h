@@ -23,6 +23,7 @@ struct dcb_output {
 	uint8_t bus;
 	uint8_t location;
 	uint8_t or;
+	uint8_t link;
 	bool duallink_possible;
 	union {
 		struct sor_conf {
@@ -55,6 +56,10 @@ struct dcb_output {
 
 u16 dcb_table(struct nouveau_bios *, u8 *ver, u8 *hdr, u8 *ent, u8 *len);
 u16 dcb_outp(struct nouveau_bios *, u8 idx, u8 *ver, u8 *len);
+u16 dcb_outp_parse(struct nouveau_bios *, u8 idx, u8 *, u8 *,
+		   struct dcb_output *);
+u16 dcb_outp_match(struct nouveau_bios *, u16 type, u16 mask, u8 *, u8 *,
+		   struct dcb_output *);
 int dcb_outp_foreach(struct nouveau_bios *, void *data, int (*exec)
 		     (struct nouveau_bios *, void *, int index, u16 entry));
 
