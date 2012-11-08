@@ -207,15 +207,10 @@ static void em28xx_copy_video(struct em28xx *dev,
 	startread = p;
 	remain = len;
 
-	if (dev->progressive)
+	if (dev->progressive || buf->top_field)
 		fieldstart = outp;
-	else {
-		/* Interlaces two half frames */
-		if (buf->top_field)
-			fieldstart = outp;
-		else
-			fieldstart = outp + bytesperline;
-	}
+	else /* interlaced mode, even nr. of lines */
+		fieldstart = outp + bytesperline;
 
 	linesdone = dma_q->pos / bytesperline;
 	currlinedone = dma_q->pos % bytesperline;
@@ -243,7 +238,10 @@ static void em28xx_copy_video(struct em28xx *dev,
 	remain -= lencopy;
 
 	while (remain > 0) {
-		startwrite += lencopy + bytesperline;
+		if (dev->progressive)
+			startwrite += lencopy;
+		else
+			startwrite += lencopy + bytesperline;
 		startread += lencopy;
 		if (bytesperline > remain)
 			lencopy = remain;
