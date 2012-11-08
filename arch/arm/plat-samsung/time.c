@@ -27,6 +27,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/syscore_ops.h>
 
 #include <asm/mach-types.h>
 
@@ -271,6 +272,10 @@ static void __init s3c2410_timer_resources(void)
 	clk_enable(tin);
 }
 
+static struct syscore_ops s3c24xx_syscore_ops = {
+	.resume		= s3c2410_timer_setup,
+};
+
 static void __init s3c2410_timer_init(void)
 {
 	arch_gettimeoffset = s3c2410_gettimeoffset;
@@ -278,9 +283,9 @@ static void __init s3c2410_timer_init(void)
 	s3c2410_timer_resources();
 	s3c2410_timer_setup();
 	setup_irq(IRQ_TIMER4, &s3c2410_timer_irq);
+	register_syscore_ops(&s3c24xx_syscore_ops);
 }
 
 struct sys_timer s3c24xx_timer = {
 	.init		= s3c2410_timer_init,
-	.resume		= s3c2410_timer_setup
 };
