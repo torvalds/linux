@@ -10,6 +10,8 @@
 
  (c) 2008 Aidan Thornton <makosoft@googlemail.com>
 
+ (c) 2012 Frank Schäfer <fschaefer.oss@googlemail.com>
+
  Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
 	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
 	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
@@ -124,9 +126,9 @@ static inline void print_err_status(struct em28xx *dev,
 	}
 }
 
-static inline int em28xx_dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
+static inline int em28xx_dvb_urb_data_copy(struct em28xx *dev, struct urb *urb)
 {
-	int i;
+	int xfer_bulk, num_packets, i;
 
 	if (!dev)
 		return 0;
@@ -137,18 +139,34 @@ static inline int em28xx_dvb_isoc_copy(struct em28xx *dev, struct urb *urb)
 	if (urb->status < 0)
 		print_err_status(dev, -1, urb->status);
 
-	for (i = 0; i < urb->number_of_packets; i++) {
-		int status = urb->iso_frame_desc[i].status;
+	xfer_bulk = usb_pipebulk(urb->pipe);
 
-		if (status < 0) {
-			print_err_status(dev, i, status);
-			if (urb->iso_frame_desc[i].status != -EPROTO)
-				continue;
+	if (xfer_bulk) /* bulk */
+		num_packets = 1;
+	else /* isoc */
+		num_packets = urb->number_of_packets;
+
+	for (i = 0; i < num_packets; i++) {
+		if (xfer_bulk) {
+			if (urb->status < 0) {
+				print_err_status(dev, i, urb->status);
+				if (urb->status != -EPROTO)
+					continue;
+			}
+			dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer,
+					urb->actual_length);
+		} else {
+			if (urb->iso_frame_desc[i].status < 0) {
+				print_err_status(dev, i,
+						 urb->iso_frame_desc[i].status);
+				if (urb->iso_frame_desc[i].status != -EPROTO)
+					continue;
+			}
+			dvb_dmx_swfilter(&dev->dvb->demux,
+					 urb->transfer_buffer +
+					 urb->iso_frame_desc[i].offset,
+					 urb->iso_frame_desc[i].actual_length);
 		}
-
-		dvb_dmx_swfilter(&dev->dvb->demux, urb->transfer_buffer +
-				 urb->iso_frame_desc[i].offset,
-				 urb->iso_frame_desc[i].actual_length);
 	}
 
 	return 0;
@@ -177,7 +195,7 @@ static int em28xx_start_streaming(struct em28xx_dvb *dvb)
 				    EM28XX_DVB_NUM_BUFS,
 				    max_dvb_packet_size,
 				    EM28XX_DVB_NUM_ISOC_PACKETS,
-				    em28xx_dvb_isoc_copy);
+				    em28xx_dvb_urb_data_copy);
 }
 
 static int em28xx_stop_streaming(struct em28xx_dvb *dvb)
