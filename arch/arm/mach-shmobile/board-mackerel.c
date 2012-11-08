@@ -816,6 +816,8 @@ static struct platform_device usbhs1_device = {
 	.id	= 1,
 	.dev = {
 		.platform_data		= &usbhs1_private.info,
+		.dma_mask		= &usbhs1_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(usbhs1_resources),
 	.resource	= usbhs1_resources,
