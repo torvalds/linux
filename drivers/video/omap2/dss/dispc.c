@@ -2732,7 +2732,6 @@ static void dispc_mgr_enable_digit_out(void)
 static void dispc_mgr_disable_digit_out(void)
 {
 	DECLARE_COMPLETION_ONSTACK(framedone_compl);
-	enum dss_hdmi_venc_clk_source_select src;
 	int r, i;
 	u32 irq_mask;
 	int num_irqs;
@@ -2740,18 +2739,20 @@ static void dispc_mgr_disable_digit_out(void)
 	if (dispc_mgr_is_enabled(OMAP_DSS_CHANNEL_DIGIT) == false)
 		return;
 
-	src = dss_get_hdmi_venc_clk_source();
-
 	/*
 	 * When we disable the digit output, we need to wait for FRAMEDONE to
-	 * know that DISPC has finished with the output. For analog tv out we'll
-	 * use vsync, as omap2/3 don't have framedone for TV.
+	 * know that DISPC has finished with the output.
 	 */
 
-	if (src == DSS_HDMI_M_PCLK) {
-		irq_mask = DISPC_IRQ_FRAMEDONETV;
-		num_irqs = 1;
-	} else {
+	irq_mask = dispc_mgr_get_framedone_irq(OMAP_DSS_CHANNEL_DIGIT);
+	num_irqs = 1;
+
+	if (!irq_mask) {
+		/*
+		 * omap 2/3 don't have framedone irq for TV, so we need to use
+		 * vsyncs for this.
+		 */
+
 		irq_mask = dispc_mgr_get_vsync_irq(OMAP_DSS_CHANNEL_DIGIT);
 		/*
 		 * We need to wait for both even and odd vsyncs. Note that this
