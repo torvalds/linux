@@ -815,7 +815,7 @@ static int del_wh_children(struct dentry *h_dentry, struct au_nhash *whlist,
 	struct au_vdir_destr *str;
 
 	err = -ENOMEM;
-	p = __getname_gfp(GFP_NOFS);
+	p = (void *)__get_free_page(GFP_NOFS);
 	wh_name.name = p;
 	if (unlikely(!wh_name.name))
 		goto out;
@@ -845,7 +845,7 @@ static int del_wh_children(struct dentry *h_dentry, struct au_nhash *whlist,
 			break;
 		}
 	}
-	__putname(wh_name.name);
+	free_page((unsigned long)wh_name.name);
 
 out:
 	return err;

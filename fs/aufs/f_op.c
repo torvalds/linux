@@ -473,7 +473,6 @@ static unsigned long au_flag_conv(unsigned long flags)
 {
 	return AuConv_VM_MAP(flags, GROWSDOWN)
 		| AuConv_VM_MAP(flags, DENYWRITE)
-		| AuConv_VM_MAP(flags, EXECUTABLE)
 		| AuConv_VM_MAP(flags, LOCKED);
 }
 

@@ -367,7 +367,7 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 		goto out;
 
 	dentry = ERR_PTR(-ENOMEM);
-	arg.name = __getname_gfp(GFP_NOFS);
+	arg.name = (void *)__get_free_page(GFP_NOFS);
 	if (unlikely(!arg.name))
 		goto out_file;
 	arg.ino = ino;
@@ -399,7 +399,7 @@ static struct dentry *au_lkup_by_ino(struct path *path, ino_t ino,
 	}
 
 out_name:
-	__putname(arg.name);
+	free_page((unsigned long)arg.name);
 out_file:
 	fput(file);
 out:
