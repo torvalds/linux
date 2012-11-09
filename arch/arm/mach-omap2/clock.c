@@ -26,17 +26,24 @@
 
 #include <asm/cpu.h>
 
-#include <plat/prcm.h>
 
 #include <trace/events/power.h>
 
 #include "soc.h"
 #include "clockdomain.h"
 #include "clock.h"
+#include "cm.h"
 #include "cm2xxx.h"
 #include "cm3xxx.h"
 #include "cm-regbits-24xx.h"
 #include "cm-regbits-34xx.h"
+#include "common.h"
+
+/*
+ * MAX_MODULE_ENABLE_WAIT: maximum of number of microseconds to wait
+ * for a module to indicate that it is no longer in idle
+ */
+#define MAX_MODULE_ENABLE_WAIT		100000
 
 u16 cpu_mask;
 
@@ -58,6 +65,40 @@ static DEFINE_SPINLOCK(clockfw_lock);
 
 /* Private functions */
 
+
+/**
+ * _wait_idlest_generic - wait for a module to leave the idle state
+ * @reg: virtual address of module IDLEST register
+ * @mask: value to mask against to determine if the module is active
+ * @idlest: idle state indicator (0 or 1) for the clock
+ * @name: name of the clock (for printk)
+ *
+ * Wait for a module to leave idle, where its idle-status register is
+ * not inside the CM module.  Returns 1 if the module left idle
+ * promptly, or 0 if the module did not leave idle before the timeout
+ * elapsed.  XXX Deprecated - should be moved into drivers for the
+ * individual IP block that the IDLEST register exists in.
+ */
+static int _wait_idlest_generic(void __iomem *reg, u32 mask, u8 idlest,
+				const char *name)
+{
+	int i = 0, ena = 0;
+
+	ena = (idlest) ? 0 : mask;
+
+	omap_test_timeout(((__raw_readl(reg) & mask) == ena),
+			  MAX_MODULE_ENABLE_WAIT, i);
+
+	if (i < MAX_MODULE_ENABLE_WAIT)
+		pr_debug("omap clock: module associated with clock %s ready after %d loops\n",
+			 name, i);
+	else
+		pr_err("omap clock: module associated with clock %s didn't enable in %d tries\n",
+		       name, MAX_MODULE_ENABLE_WAIT);
+
+	return (i < MAX_MODULE_ENABLE_WAIT) ? 1 : 0;
+};
+
 /**
  * _omap2_module_wait_ready - wait for an OMAP module to leave IDLE
  * @clk: struct clk * belonging to the module
@@ -71,7 +112,9 @@ static DEFINE_SPINLOCK(clockfw_lock);
 static void _omap2_module_wait_ready(struct clk *clk)
 {
 	void __iomem *companion_reg, *idlest_reg;
-	u8 other_bit, idlest_bit, idlest_val;
+	u8 other_bit, idlest_bit, idlest_val, idlest_reg_id;
+	s16 prcm_mod;
+	int r;
 
 	/* Not all modules have multiple clocks that their IDLEST depends on */
 	if (clk->ops->find_companion) {
@@ -82,8 +125,14 @@ static void _omap2_module_wait_ready(struct clk *clk)
 
 	clk->ops->find_idlest(clk, &idlest_reg, &idlest_bit, &idlest_val);
 
-	omap2_cm_wait_idlest(idlest_reg, (1 << idlest_bit), idlest_val,
-			     __clk_get_name(clk));
+	r = cm_split_idlest_reg(idlest_reg, &prcm_mod, &idlest_reg_id);
+	if (r) {
+		/* IDLEST register not in the CM module */
+		_wait_idlest_generic(idlest_reg, (1 << idlest_bit), idlest_val,
+				     clk->name);
+	} else {
+		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
+	};
 }
 
 /* Public functions */

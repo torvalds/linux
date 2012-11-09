@@ -18,7 +18,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/prcm.h>
 
 #include "soc.h"
 #include "iomap.h"

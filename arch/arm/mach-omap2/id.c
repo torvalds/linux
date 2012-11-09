@@ -559,11 +559,12 @@ void __init omap5xxx_check_revision(void)
  * detect the exact revision later on in omap2_detect_revision() once map_io
  * is done.
  */
-void __init omap2_set_globals_tap(struct omap_globals *omap2_globals)
+void __init omap2_set_globals_tap(u32 class, void __iomem *tap)
 {
-	omap_revision = omap2_globals->class;
-	tap_base = omap2_globals->tap;
+	omap_revision = class;
+	tap_base = tap;
 
+	/* XXX What is this intended to do? */
 	if (cpu_is_omap34xx())
 		tap_prod_id = 0x0210;
 	else

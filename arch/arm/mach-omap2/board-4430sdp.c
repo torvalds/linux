@@ -881,5 +881,5 @@ MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")
 	.init_machine	= omap_4430sdp_init,
 	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap44xx_restart,
 MACHINE_END

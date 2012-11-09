@@ -25,12 +25,12 @@
 #include <linux/slab.h>
 
 #include "../plat-omap/common.h"
-#include <plat/prcm.h>
 
 #include "prm2xxx_3xxx.h"
 #include "prm2xxx.h"
 #include "prm3xxx.h"
 #include "prm44xx.h"
+#include "common.h"
 
 /*
  * OMAP_PRCM_MAX_NR_PENDING_REG: maximum number of PRM_IRQ*_MPU regs
@@ -54,6 +54,9 @@ static struct irq_chip_generic **prcm_irq_chips;
  * that calls omap_prcm_register_chain_handler().
  */
 static struct omap_prcm_irq_setup *prcm_irq_setup;
+
+/* prm_base: base virtual address of the PRM IP block */
+void __iomem *prm_base;
 
 /*
  * prm_ll_data: function pointers to SoC-specific implementations of
@@ -326,6 +329,17 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 err:
 	omap_prcm_irq_cleanup();
 	return -ENOMEM;
+}
+
+/**
+ * omap2_set_globals_prm - set the PRM base address (for early use)
+ * @prm: PRM base virtual address
+ *
+ * XXX Will be replaced when the PRM/CM drivers are completed.
+ */
+void __init omap2_set_globals_prm(void __iomem *prm)
+{
+	prm_base = prm;
 }
 
 /**

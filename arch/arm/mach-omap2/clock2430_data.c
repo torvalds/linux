@@ -1,7 +1,7 @@
 /*
  * OMAP2430 clock data
  *
- * Copyright (C) 2005-2009 Texas Instruments, Inc.
+ * Copyright (C) 2005-2009, 2012 Texas Instruments, Inc.
  * Copyright (C) 2004-2011 Nokia Corporation
  *
  * Contacts:
@@ -123,6 +123,7 @@ static struct clk dpll_ck = {
 	.name		= "dpll_ck",
 	.ops		= &clkops_omap2xxx_dpll_ops,
 	.parent		= &sys_ck,		/* Can be func_32k also */
+	.init		= &omap2xxx_clkt_dpllcore_init,
 	.dpll_data	= &dpll_dd,
 	.clkdm_name	= "wkup_clkdm",
 	.recalc		= &omap2_dpllcore_recalc,
@@ -2023,12 +2024,9 @@ static struct omap_clk omap2430_clks[] = {
 
 int __init omap2430_clk_init(void)
 {
-	const struct prcm_config *prcm;
 	struct omap_clk *c;
-	u32 clkrate;
 
 	prcm_clksrc_ctrl = OMAP2430_PRCM_CLKSRC_CTRL;
-	cm_idlest_pll = OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST);
 	cpu_mask = RATE_IN_243X;
 	rate_table = omap2430_rate_table;
 
@@ -2048,20 +2046,13 @@ int __init omap2430_clk_init(void)
 		omap2_init_clk_clkdm(c->lk.clk);
 	}
 
+	omap2xxx_clkt_vps_late_init();
+
 	/* Disable autoidle on all clocks; let the PM code enable it later */
 	omap_clk_disable_autoidle_all();
 
-	/* Check the MPU rate set by bootloader */
-	clkrate = omap2xxx_clk_get_core_rate(&dpll_ck);
-	for (prcm = rate_table; prcm->mpu_speed; prcm++) {
-		if (!(prcm->flags & cpu_mask))
-			continue;
-		if (prcm->xtal_speed != sys_ck.rate)
-			continue;
-		if (prcm->dpll_speed <= clkrate)
-			break;
-	}
-	curr_prcm_set = prcm;
+	/* XXX Can this be done from the virt_prcm_set clk init function? */
+	omap2xxx_clkt_vps_check_bootloader_rates();
 
 	recalculate_root_clocks();
 
@@ -2074,11 +2065,6 @@ int __init omap2430_clk_init(void)
 	 * enable other clocks as necessary
 	 */
 	clk_enable_init_clocks();
-
-	/* Avoid sleeping sleeping during omap2_clk_prepare_for_reboot() */
-	vclk = clk_get(NULL, "virt_prcm_set");
-	sclk = clk_get(NULL, "sys_ck");
-	dclk = clk_get(NULL, "dpll_ck");
 
 	return 0;
 }

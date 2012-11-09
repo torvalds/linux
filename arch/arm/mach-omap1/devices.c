@@ -17,6 +17,8 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 
+#include <linux/platform_data/omap-wd-timer.h>
+
 #include <asm/mach/map.h>
 
 #include <mach/tc.h>
@@ -448,18 +450,31 @@ static struct resource wdt_resources[] = {
 };
 
 static struct platform_device omap_wdt_device = {
-	.name	   = "omap_wdt",
-	.id	     = -1,
+	.name		= "omap_wdt",
+	.id		= -1,
 	.num_resources	= ARRAY_SIZE(wdt_resources),
 	.resource	= wdt_resources,
 };
 
 static int __init omap_init_wdt(void)
 {
+	struct omap_wd_timer_platform_data pdata;
+	int ret;
+
 	if (!cpu_is_omap16xx())
 		return -ENODEV;
 
-	return platform_device_register(&omap_wdt_device);
+	pdata.read_reset_sources = omap1_get_reset_sources;
+
+	ret = platform_device_register(&omap_wdt_device);
+	if (!ret) {
+		ret = platform_device_add_data(&omap_wdt_device, &pdata,
+					       sizeof(pdata));
+		if (ret)
+			platform_device_del(&omap_wdt_device);
+	}
+
+	return ret;
 }
 subsys_initcall(omap_init_wdt);
 #endif
