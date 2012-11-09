@@ -694,27 +694,50 @@ static ssize_t efivarfs_file_write(struct file *file,
 	struct inode *inode = file->f_mapping->host;
 	unsigned long datasize = count - sizeof(attributes);
 	unsigned long newdatasize;
+	u64 storage_size, remaining_size, max_size;
 	ssize_t bytes = 0;
 
 	if (count < sizeof(attributes))
 		return -EINVAL;
 
-	data = kmalloc(datasize, GFP_KERNEL);
+	if (copy_from_user(&attributes, userbuf, sizeof(attributes)))
+		return -EFAULT;
 
-	if (!data)
-		return -ENOMEM;
+	if (attributes & ~(EFI_VARIABLE_MASK))
+		return -EINVAL;
 
 	efivars = var->efivars;
 
-	if (copy_from_user(&attributes, userbuf, sizeof(attributes))) {
-		bytes = -EFAULT;
-		goto out;
+	/*
+	 * Ensure that the user can't allocate arbitrarily large
+	 * amounts of memory. Pick a default size of 64K if
+	 * QueryVariableInfo() isn't supported by the firmware.
+	 */
+	spin_lock(&efivars->lock);
+
+	if (!efivars->ops->query_variable_info)
+		status = EFI_UNSUPPORTED;
+	else {
+		const struct efivar_operations *fops = efivars->ops;
+		status = fops->query_variable_info(attributes, &storage_size,
+						   &remaining_size, &max_size);
 	}
 
-	if (attributes & ~(EFI_VARIABLE_MASK)) {
-		bytes = -EINVAL;
-		goto out;
+	spin_unlock(&efivars->lock);
+
+	if (status != EFI_SUCCESS) {
+		if (status != EFI_UNSUPPORTED)
+			return efi_status_to_err(status);
+
+		remaining_size = 65536;
 	}
+
+	if (datasize > remaining_size)
+		return -ENOSPC;
+
+	data = kmalloc(datasize, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
 
 	if (copy_from_user(data, userbuf + sizeof(attributes), datasize)) {
 		bytes = -EFAULT;
@@ -1709,6 +1732,8 @@ efivars_init(void)
 	ops.get_variable = efi.get_variable;
 	ops.set_variable = efi.set_variable;
 	ops.get_next_variable = efi.get_next_variable;
+	ops.query_variable_info = efi.query_variable_info;
+
 	error = register_efivars(&__efivars, &ops, efi_kobj);
 	if (error)
 		goto err_put;
