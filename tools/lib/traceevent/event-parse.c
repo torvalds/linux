@@ -3931,7 +3931,8 @@ static int is_printable_array(char *p, unsigned int len)
 	return 1;
 }
 
-static void print_event_fields(struct trace_seq *s, void *data, int size,
+static void print_event_fields(struct trace_seq *s, void *data,
+			       int size __maybe_unused,
 			       struct event_format *event)
 {
 	struct format_field *field;
@@ -5070,8 +5071,8 @@ static const char * const pevent_error_str[] = {
 };
 #undef _PE
 
-int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,
-		    char *buf, size_t buflen)
+int pevent_strerror(struct pevent *pevent __maybe_unused,
+		    enum pevent_errno errnum, char *buf, size_t buflen)
 {
 	int idx;
 	const char *msg;
