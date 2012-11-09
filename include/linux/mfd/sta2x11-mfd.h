@@ -246,8 +246,29 @@ u32 sta2x11_sctl_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val)
 #define SCTL_SCCTL		0x00	/* System controller control register */
 #define SCTL_ARMCFG		0x04	/* ARM configuration register */
 #define SCTL_SCPLLCTL		0x08	/* PLL control status register */
+
+#define SCTL_SCPLLCTL_AUDIO_PLL_PD	     BIT(1)
+#define SCTL_SCPLLCTL_FRAC_CONTROL	     BIT(3)
+#define SCTL_SCPLLCTL_STRB_BYPASS	     BIT(6)
+#define SCTL_SCPLLCTL_STRB_INPUT	     BIT(8)
+
 #define SCTL_SCPLLFCTRL		0x0c	/* PLL frequency control register */
+
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_NDIV_MASK	0xff
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_NDIV_SHIFT	  10
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_IDF_MASK	   7
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_IDF_SHIFT	  21
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_ODF_MASK	   7
+#define SCTL_SCPLLFCTRL_AUDIO_PLL_ODF_SHIFT	  18
+#define SCTL_SCPLLFCTRL_DITHER_DISABLE_MASK     0x03
+#define SCTL_SCPLLFCTRL_DITHER_DISABLE_SHIFT       4
+
+
 #define SCTL_SCRESFRACT		0x10	/* PLL fractional input register */
+
+#define SCTL_SCRESFRACT_MASK	0x0000ffff
+
+
 #define SCTL_SCRESCTRL1		0x14	/* Peripheral reset control 1 */
 #define SCTL_SCRESXTRL2		0x18	/* Peripheral reset control 2 */
 #define SCTL_SCPEREN0		0x1c	/* Peripheral clock enable register 0 */
