@@ -14,6 +14,8 @@
 #include "extents_status.h"
 #include "ext4_extents.h"
 
+#include <trace/events/ext4.h>
+
 /*
  * According to previous discussion in Ext4 Developer Workshop, we
  * will introduce a new structure called io tree to track all extent
@@ -224,6 +226,8 @@ ext4_lblk_t ext4_es_find_extent(struct inode *inode, struct extent_status *es)
 	struct rb_node *node;
 	ext4_lblk_t ret = EXT_MAX_BLOCKS;
 
+	trace_ext4_es_find_extent_enter(inode, es->start);
+
 	read_lock(&EXT4_I(inode)->i_es_lock);
 	tree = &EXT4_I(inode)->i_es_tree;
 
@@ -253,6 +257,8 @@ out:
 	}
 
 	read_unlock(&EXT4_I(inode)->i_es_lock);
+
+	trace_ext4_es_find_extent_exit(inode, es, ret);
 	return ret;
 }
 
@@ -393,6 +399,7 @@ int ext4_es_insert_extent(struct inode *inode, ext4_lblk_t offset,
 	struct ext4_es_tree *tree;
 	int err = 0;
 
+	trace_ext4_es_insert_extent(inode, offset, len);
 	es_debug("add [%u/%u) to extent status tree of inode %lu\n",
 		 offset, len, inode->i_ino);
 
@@ -422,6 +429,7 @@ int ext4_es_remove_extent(struct inode *inode, ext4_lblk_t offset,
 	ext4_lblk_t len1, len2, end;
 	int err = 0;
 
+	trace_ext4_es_remove_extent(inode, offset, len);
 	es_debug("remove [%u/%u) from extent status tree of inode %lu\n",
 		 offset, len, inode->i_ino);
 
