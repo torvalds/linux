@@ -44,7 +44,7 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
 #include <mach/usb.h>
 
@@ -60,6 +60,8 @@
 
 #define	DRIVER_DESC	"OMAP UDC driver"
 #define	DRIVER_VERSION	"4 October 2004"
+
+#define OMAP_DMA_USB_W2FC_TX0		29
 
 /*
  * The OMAP UDC needs _very_ early endpoint setup:  before enabling the

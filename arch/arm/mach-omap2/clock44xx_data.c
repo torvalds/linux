@@ -28,8 +28,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clkdev_omap.h>
-
 #include "soc.h"
 #include "iomap.h"
 #include "clock.h"
@@ -3365,8 +3363,6 @@ int __init omap4xxx_clk_init(void)
 	} else {
 		return 0;
 	}
-
-	clk_init(&omap2_clk_functions);
 
 	/*
 	 * Must stay commented until all OMAP SoC drivers are

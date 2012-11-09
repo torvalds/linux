@@ -27,7 +27,7 @@
 #include "cm2xxx_3xxx.h"
 #include "prm2xxx_3xxx.h"
 #ifdef CONFIG_BRIDGE_DVFS
-#include <plat/omap-pm.h>
+#include "omap-pm.h"
 #endif
 
 #include <linux/platform_data/dsp-omap.h>

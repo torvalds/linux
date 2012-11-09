@@ -21,8 +21,6 @@
 
 #include <asm/div64.h>
 
-#include <plat/clock.h>
-
 #include "soc.h"
 #include "clock.h"
 #include "cm-regbits-24xx.h"
