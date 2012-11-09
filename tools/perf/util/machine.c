@@ -2,8 +2,191 @@
 #include "event.h"
 #include "machine.h"
 #include "map.h"
+#include "strlist.h"
 #include "thread.h"
 #include <stdbool.h>
+
+int machine__init(struct machine *machine, const char *root_dir, pid_t pid)
+{
+	map_groups__init(&machine->kmaps);
+	RB_CLEAR_NODE(&machine->rb_node);
+	INIT_LIST_HEAD(&machine->user_dsos);
+	INIT_LIST_HEAD(&machine->kernel_dsos);
+
+	machine->threads = RB_ROOT;
+	INIT_LIST_HEAD(&machine->dead_threads);
+	machine->last_match = NULL;
+
+	machine->kmaps.machine = machine;
+	machine->pid = pid;
+
+	machine->root_dir = strdup(root_dir);
+	if (machine->root_dir == NULL)
+		return -ENOMEM;
+
+	if (pid != HOST_KERNEL_ID) {
+		struct thread *thread = machine__findnew_thread(machine, pid);
+		char comm[64];
+
+		if (thread == NULL)
+			return -ENOMEM;
+
+		snprintf(comm, sizeof(comm), "[guest/%d]", pid);
+		thread__set_comm(thread, comm);
+	}
+
+	return 0;
+}
+
+static void dsos__delete(struct list_head *dsos)
+{
+	struct dso *pos, *n;
+
+	list_for_each_entry_safe(pos, n, dsos, node) {
+		list_del(&pos->node);
+		dso__delete(pos);
+	}
+}
+
+void machine__exit(struct machine *machine)
+{
+	map_groups__exit(&machine->kmaps);
+	dsos__delete(&machine->user_dsos);
+	dsos__delete(&machine->kernel_dsos);
+	free(machine->root_dir);
+	machine->root_dir = NULL;
+}
+
+void machine__delete(struct machine *machine)
+{
+	machine__exit(machine);
+	free(machine);
+}
+
+struct machine *machines__add(struct rb_root *machines, pid_t pid,
+			      const char *root_dir)
+{
+	struct rb_node **p = &machines->rb_node;
+	struct rb_node *parent = NULL;
+	struct machine *pos, *machine = malloc(sizeof(*machine));
+
+	if (machine == NULL)
+		return NULL;
+
+	if (machine__init(machine, root_dir, pid) != 0) {
+		free(machine);
+		return NULL;
+	}
+
+	while (*p != NULL) {
+		parent = *p;
+		pos = rb_entry(parent, struct machine, rb_node);
+		if (pid < pos->pid)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&machine->rb_node, parent, p);
+	rb_insert_color(&machine->rb_node, machines);
+
+	return machine;
+}
+
+struct machine *machines__find(struct rb_root *machines, pid_t pid)
+{
+	struct rb_node **p = &machines->rb_node;
+	struct rb_node *parent = NULL;
+	struct machine *machine;
+	struct machine *default_machine = NULL;
+
+	while (*p != NULL) {
+		parent = *p;
+		machine = rb_entry(parent, struct machine, rb_node);
+		if (pid < machine->pid)
+			p = &(*p)->rb_left;
+		else if (pid > machine->pid)
+			p = &(*p)->rb_right;
+		else
+			return machine;
+		if (!machine->pid)
+			default_machine = machine;
+	}
+
+	return default_machine;
+}
+
+struct machine *machines__findnew(struct rb_root *machines, pid_t pid)
+{
+	char path[PATH_MAX];
+	const char *root_dir = "";
+	struct machine *machine = machines__find(machines, pid);
+
+	if (machine && (machine->pid == pid))
+		goto out;
+
+	if ((pid != HOST_KERNEL_ID) &&
+	    (pid != DEFAULT_GUEST_KERNEL_ID) &&
+	    (symbol_conf.guestmount)) {
+		sprintf(path, "%s/%d", symbol_conf.guestmount, pid);
+		if (access(path, R_OK)) {
+			static struct strlist *seen;
+
+			if (!seen)
+				seen = strlist__new(true, NULL);
+
+			if (!strlist__has_entry(seen, path)) {
+				pr_err("Can't access file %s\n", path);
+				strlist__add(seen, path);
+			}
+			machine = NULL;
+			goto out;
+		}
+		root_dir = path;
+	}
+
+	machine = machines__add(machines, pid, root_dir);
+out:
+	return machine;
+}
+
+void machines__process(struct rb_root *machines,
+		       machine__process_t process, void *data)
+{
+	struct rb_node *nd;
+
+	for (nd = rb_first(machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		process(pos, data);
+	}
+}
+
+char *machine__mmap_name(struct machine *machine, char *bf, size_t size)
+{
+	if (machine__is_host(machine))
+		snprintf(bf, size, "[%s]", "kernel.kallsyms");
+	else if (machine__is_default_guest(machine))
+		snprintf(bf, size, "[%s]", "guest.kernel.kallsyms");
+	else {
+		snprintf(bf, size, "[%s.%d]", "guest.kernel.kallsyms",
+			 machine->pid);
+	}
+
+	return bf;
+}
+
+void machines__set_id_hdr_size(struct rb_root *machines, u16 id_hdr_size)
+{
+	struct rb_node *node;
+	struct machine *machine;
+
+	for (node = rb_first(machines); node; node = rb_next(node)) {
+		machine = rb_entry(node, struct machine, rb_node);
+		machine->id_hdr_size = id_hdr_size;
+	}
+
+	return;
+}
 
 static struct thread *__machine__findnew_thread(struct machine *machine, pid_t pid,
 						bool create)

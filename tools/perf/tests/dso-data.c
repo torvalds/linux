@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <string.h>
 
+#include "machine.h"
 #include "symbol.h"
 
 #define TEST_ASSERT_VAL(text, cond) \

@@ -10,6 +10,7 @@
 #include "util/debug.h"
 #include "util/debugfs.h"
 #include "util/evlist.h"
+#include "util/machine.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 #include "util/symbol.h"

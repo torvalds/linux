@@ -12,6 +12,7 @@
 #include "build-id.h"
 #include "util.h"
 #include "debug.h"
+#include "machine.h"
 #include "symbol.h"
 #include "strlist.h"
 

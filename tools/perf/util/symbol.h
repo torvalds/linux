@@ -200,16 +200,6 @@ int dso__load_vmlinux_path(struct dso *dso, struct map *map,
 			   symbol_filter_t filter);
 int dso__load_kallsyms(struct dso *dso, const char *filename, struct map *map,
 		       symbol_filter_t filter);
-int machine__load_kallsyms(struct machine *machine, const char *filename,
-			   enum map_type type, symbol_filter_t filter);
-int machine__load_vmlinux_path(struct machine *machine, enum map_type type,
-			       symbol_filter_t filter);
-
-size_t machine__fprintf_dsos_buildid(struct machine *machine,
-				     FILE *fp, bool with_hits);
-size_t machines__fprintf_dsos(struct rb_root *machines, FILE *fp);
-size_t machines__fprintf_dsos_buildid(struct rb_root *machines,
-				      FILE *fp, bool with_hits);
 
 struct symbol *dso__find_symbol(struct dso *dso, enum map_type type,
 				u64 addr);
@@ -224,14 +214,6 @@ int kallsyms__parse(const char *filename, void *arg,
 int filename__read_debuglink(const char *filename, char *debuglink,
 			     size_t size);
 
-void machine__destroy_kernel_maps(struct machine *machine);
-int __machine__create_kernel_maps(struct machine *machine, struct dso *kernel);
-int machine__create_kernel_maps(struct machine *machine);
-
-int machines__create_kernel_maps(struct rb_root *machines, pid_t pid);
-int machines__create_guest_kernel_maps(struct rb_root *machines);
-void machines__destroy_guest_kernel_maps(struct rb_root *machines);
-
 int symbol__init(void);
 void symbol__exit(void);
 void symbol__elf_init(void);
@@ -241,8 +223,6 @@ size_t symbol__fprintf_symname_offs(const struct symbol *sym,
 size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 size_t symbol__fprintf(struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
-
-size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);
 
 int dso__test_data(void);
 int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
