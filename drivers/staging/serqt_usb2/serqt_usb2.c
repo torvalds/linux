@@ -1473,12 +1473,32 @@ static void qt_throttle(struct tty_struct *tty)
 	mutex_unlock(&qt_port->lock);
 }
 
+static void qt_submit_urb_from_unthrottle(struct usb_serial_port *port,
+					  struct usb_serial *serial)
+{
+	int result;
+
+	/* Start reading from the device */
+	usb_fill_bulk_urb(port->read_urb, serial->dev,
+			  usb_rcvbulkpipe(serial->dev,
+					  port->bulk_in_endpointAddress),
+			  port->read_urb->transfer_buffer,
+			  port->read_urb->transfer_buffer_length,
+			  qt_read_bulk_callback, port);
+
+	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
+
+	if (result)
+		dev_err(&port->dev,
+			"%s - failed restarting read urb, error %d\n",
+			__func__, result);
+}
+
 static void qt_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = get_usb_serial(port, __func__);
 	struct quatech_port *qt_port;
-	unsigned int result;
 
 	if (!serial)
 		return;
@@ -1494,21 +1514,8 @@ static void qt_unthrottle(struct tty_struct *tty)
 		dev_dbg(&port->dev, "%s - qt_port->RxHolding = 0\n", __func__);
 
 		/* if we have a bulk endpoint, start it up */
-		if ((serial->num_bulk_in) && (qt_port->ReadBulkStopped == 1)) {
-			/* Start reading from the device */
-			usb_fill_bulk_urb(port->read_urb, serial->dev,
-					  usb_rcvbulkpipe(serial->dev,
-							  port->bulk_in_endpointAddress),
-					  port->read_urb->transfer_buffer,
-					  port->read_urb->
-					  transfer_buffer_length,
-					  qt_read_bulk_callback, port);
-			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-			if (result)
-				dev_err(&port->dev,
-					"%s - failed restarting read urb, error %d\n",
-					__func__, result);
-		}
+		if ((serial->num_bulk_in) && (qt_port->ReadBulkStopped == 1))
+			qt_submit_urb_from_unthrottle(port, serial);
 	}
 	mutex_unlock(&qt_port->lock);
 }
