@@ -7,9 +7,6 @@
 	compatible = "ad,tec", "ad,tamonten", "nvidia,tegra20";
 
 	i2c@7000c000 {
-		clock-frequency = <400000>;
-		status = "okay";
-
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
