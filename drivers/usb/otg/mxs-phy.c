@@ -80,7 +80,6 @@ static int mxs_phy_on_connect(struct usb_phy *phy, int port)
 {
 	dev_dbg(phy->dev, "Connect on port %d\n", port);
 
-	mxs_phy_hw_init(to_mxs_phy(phy));
 	writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
 			phy->io_priv + HW_USBPHY_CTRL_SET);
 
