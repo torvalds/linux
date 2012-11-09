@@ -321,5 +321,22 @@
 			ti,hwmods = "spi1";
 			status = "disabled";
 		};
+
+		usb@47400000 {
+			compatible = "ti,musb-am33xx";
+			reg = <0x47400000 0x1000	/* usbss */
+			       0x47401000 0x800		/* musb instance 0 */
+			       0x47401800 0x800>;	/* musb instance 1 */
+			interrupts = <17		/* usbss */
+				      18		/* musb instance 0 */
+				      19>;		/* musb instance 1 */
+			multipoint = <1>;
+			num-eps = <16>;
+			ram-bits = <12>;
+			port0-mode = <3>;
+			port1-mode = <3>;
+			power = <250>;
+			ti,hwmods = "usb_otg_hs";
+		};
 	};
 };

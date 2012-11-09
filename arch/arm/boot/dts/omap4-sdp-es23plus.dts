@@ -5,25 +5,9 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-/include/ "omap4-panda.dts"
+/include/ "omap4-sdp.dts"
 
-/* Audio routing is differnet between PandaBoard4430 and PandaBoardES */
-&sound {
-	ti,model = "PandaBoardES";
-
-	/* Audio routing */
-	ti,audio-routing =
-		"Headset Stereophone", "HSOL",
-		"Headset Stereophone", "HSOR",
-		"Ext Spk", "HFL",
-		"Ext Spk", "HFR",
-		"Line Out", "AUXL",
-		"Line Out", "AUXR",
-		"AFML", "Line In",
-		"AFMR", "Line In";
-};
-
-/* PandaboardES has external pullups on SCL & SDA */
+/* SDP boards with 4430 ES2.3+ or 4460 have external pullups on SCL & SDA */
 &dss_hdmi_pins {
 	pinctrl-single,pins = <
 		0x5a 0x118	/* hdmi_cec.hdmi_cec INPUT PULLUP | MODE 0 */

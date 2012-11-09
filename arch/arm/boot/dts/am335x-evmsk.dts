@@ -30,6 +30,29 @@
 		reg = <0x80000000 0x10000000>; /* 256 MB */
 	};
 
+	am33xx_pinmux: pinmux@44e10800 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&user_leds_s0 &gpio_keys_s0>;
+
+		user_leds_s0: user_leds_s0 {
+			pinctrl-single,pins = <
+				0x10 0x7	/* gpmc_ad4.gpio1_4, OUTPUT | MODE7 */
+				0x14 0x7	/* gpmc_ad5.gpio1_5, OUTPUT | MODE7 */
+				0x18 0x7	/* gpmc_ad6.gpio1_6, OUTPUT | MODE7 */
+				0x1c 0x7	/* gpmc_ad7.gpio1_7, OUTPUT | MODE7 */
+			>;
+		};
+
+		gpio_keys_s0: gpio_keys_s0 {
+			pinctrl-single,pins = <
+				0x94 0x27	/* gpmc_oen_ren.gpio2_3, INPUT | MODE7 */
+				0x90 0x27	/* gpmc_advn_ale.gpio2_2, INPUT | MODE7 */
+				0x70 0x27	/* gpmc_wait0.gpio0_30, INPUT | MODE7 */
+				0x9c 0x27	/* gpmc_ben0_cle.gpio2_5, INPUT | MODE7 */
+			>;
+		};
+	};
+
 	ocp {
 		uart1: serial@44e09000 {
 			status = "okay";
@@ -85,6 +108,67 @@
 		compatible = "regulator-fixed";
 		regulator-name = "lis3_reg";
 		regulator-boot-on;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led@1 {
+			label = "evmsk:green:usr0";
+			gpios = <&gpio2 4 0>;
+			default-state = "off";
+		};
+
+		led@2 {
+			label = "evmsk:green:usr1";
+			gpios = <&gpio2 5 0>;
+			default-state = "off";
+		};
+
+		led@3 {
+			label = "evmsk:green:mmc0";
+			gpios = <&gpio2 6 0>;
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+
+		led@4 {
+			label = "evmsk:green:heartbeat";
+			gpios = <&gpio2 7 0>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
+
+	gpio_buttons: gpio_buttons@0 {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		switch@1 {
+			label = "button0";
+			linux,code = <0x100>;
+			gpios = <&gpio3 3 0>;
+		};
+
+		switch@2 {
+			label = "button1";
+			linux,code = <0x101>;
+			gpios = <&gpio3 2 0>;
+		};
+
+		switch@3 {
+			label = "button2";
+			linux,code = <0x102>;
+			gpios = <&gpio1 30 0>;
+			gpio-key,wakeup;
+		};
+
+		switch@4 {
+			label = "button3";
+			linux,code = <0x103>;
+			gpios = <&gpio3 5 0>;
+		};
 	};
 };
 
