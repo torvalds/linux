@@ -32,7 +32,6 @@
 
 #include <video/omapdss.h>
 #include <plat/cpu.h>
-#include <plat/vram.h>
 #include <plat/vrfb.h>
 
 #include "omapfb.h"
@@ -1336,24 +1335,25 @@ static void omapfb_free_fbmem(struct fb_info *fbi)
 
 	rg = ofbi->region;
 
+	if (rg->token == NULL)
+		return;
+
 	WARN_ON(atomic_read(&rg->map_count));
-
-	if (rg->paddr)
-		if (omap_vram_free(rg->paddr, rg->size))
-			dev_err(fbdev->dev, "VRAM FREE failed\n");
-
-	if (rg->vaddr)
-		iounmap(rg->vaddr);
 
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
 		/* unmap the 0 angle rotation */
 		if (rg->vrfb.vaddr[0]) {
 			iounmap(rg->vrfb.vaddr[0]);
-			omap_vrfb_release_ctx(&rg->vrfb);
 			rg->vrfb.vaddr[0] = NULL;
 		}
+
+		omap_vrfb_release_ctx(&rg->vrfb);
 	}
 
+	dma_free_attrs(fbdev->dev, rg->size, rg->token, rg->dma_handle,
+			&rg->attrs);
+
+	rg->token = NULL;
 	rg->vaddr = NULL;
 	rg->paddr = 0;
 	rg->alloc = 0;
@@ -1388,7 +1388,9 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omapfb2_mem_region *rg;
-	void __iomem *vaddr;
+	void *token;
+	DEFINE_DMA_ATTRS(attrs);
+	dma_addr_t dma_handle;
 	int r;
 
 	rg = ofbi->region;
@@ -1403,42 +1405,43 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 
 	size = PAGE_ALIGN(size);
 
-	if (!paddr) {
-		DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
-		r = omap_vram_alloc(size, &paddr);
-	} else {
-		DBG("reserving %lu bytes at %lx for fb %d\n", size, paddr,
-				ofbi->id);
-		r = omap_vram_reserve(paddr, size);
-	}
+	WARN_ONCE(paddr,
+		"reserving memory at predefined address not supported\n");
 
-	if (r) {
+	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
+
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
+		dma_set_attr(DMA_ATTR_NO_KERNEL_MAPPING, &attrs);
+
+	DBG("allocating %lu bytes for fb %d\n", size, ofbi->id);
+
+	token = dma_alloc_attrs(fbdev->dev, size, &dma_handle,
+			GFP_KERNEL, &attrs);
+
+	if (token == NULL) {
 		dev_err(fbdev->dev, "failed to allocate framebuffer\n");
 		return -ENOMEM;
 	}
 
-	if (ofbi->rotation_type != OMAP_DSS_ROT_VRFB) {
-		vaddr = ioremap_wc(paddr, size);
+	DBG("allocated VRAM paddr %lx, vaddr %p\n",
+			(unsigned long)dma_handle, token);
 
-		if (!vaddr) {
-			dev_err(fbdev->dev, "failed to ioremap framebuffer\n");
-			omap_vram_free(paddr, size);
-			return -ENOMEM;
-		}
-
-		DBG("allocated VRAM paddr %lx, vaddr %p\n", paddr, vaddr);
-	} else {
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
 		r = omap_vrfb_request_ctx(&rg->vrfb);
 		if (r) {
+			dma_free_attrs(fbdev->dev, size, token, dma_handle,
+					&attrs);
 			dev_err(fbdev->dev, "vrfb create ctx failed\n");
 			return r;
 		}
-
-		vaddr = NULL;
 	}
 
-	rg->paddr = paddr;
-	rg->vaddr = vaddr;
+	rg->attrs = attrs;
+	rg->token = token;
+	rg->dma_handle = dma_handle;
+
+	rg->paddr = (unsigned long)dma_handle;
+	rg->vaddr = (void __iomem *)token;
 	rg->size = size;
 	rg->alloc = 1;
 
