@@ -135,6 +135,28 @@ u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 }
 EXPORT_SYMBOL(__sta2x11_mfd_mask);
 
+int sta2x11_mfd_get_regs_data(struct platform_device *dev,
+			      enum sta2x11_mfd_plat_dev index,
+			      void __iomem **regs,
+			      spinlock_t **lock)
+{
+	struct pci_dev *pdev = *(struct pci_dev **)(dev->dev.platform_data);
+	struct sta2x11_mfd *mfd;
+
+	if (!pdev)
+		return -ENODEV;
+	mfd = sta2x11_mfd_find(pdev);
+	if (!mfd)
+		return -ENODEV;
+	if (index >= sta2x11_n_mfd_plat_devs)
+		return -ENODEV;
+	*regs = mfd->regs[index];
+	*lock = &mfd->lock[index];
+	pr_debug("%s %d *regs = %p\n", __func__, __LINE__, *regs);
+	return *regs ? 0 : -ENODEV;
+}
+EXPORT_SYMBOL(sta2x11_mfd_get_regs_data);
+
 /*
  * Special sta2x11-mfd regmap lock/unlock functions
  */

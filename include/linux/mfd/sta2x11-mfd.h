@@ -474,4 +474,9 @@ u32 sta2x11_apb_soc_regs_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val)
 #define COMPENSATION_REG3		0x3cc
 #define TEST_CTL_REG			0x3d0
 
+extern int sta2x11_mfd_get_regs_data(struct platform_device *pdev,
+				     enum sta2x11_mfd_plat_dev index,
+				     void __iomem **regs,
+				     spinlock_t **lock);
+
 #endif /* __STA2X11_MFD_H */
