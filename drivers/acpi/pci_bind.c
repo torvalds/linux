@@ -49,7 +49,7 @@ static int acpi_pci_unbind(struct acpi_device *device)
 	if (!dev->subordinate)
 		goto out;
 
-	acpi_pci_irq_del_prt(dev->subordinate);
+	acpi_pci_irq_del_prt(pci_domain_nr(dev->bus), dev->subordinate->number);
 
 	device->ops.bind = NULL;
 	device->ops.unbind = NULL;
@@ -63,7 +63,7 @@ static int acpi_pci_bind(struct acpi_device *device)
 {
 	acpi_status status;
 	acpi_handle handle;
-	struct pci_bus *bus;
+	unsigned char bus;
 	struct pci_dev *dev;
 
 	dev = acpi_get_pci_dev(device->handle);
@@ -100,11 +100,11 @@ static int acpi_pci_bind(struct acpi_device *device)
 		goto out;
 
 	if (dev->subordinate)
-		bus = dev->subordinate;
+		bus = dev->subordinate->number;
 	else
-		bus = dev->bus;
+		bus = dev->bus->number;
 
-	acpi_pci_irq_add_prt(device->handle, bus);
+	acpi_pci_irq_add_prt(device->handle, pci_domain_nr(dev->bus), bus);
 
 out:
 	pci_dev_put(dev);

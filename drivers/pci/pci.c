@@ -3843,14 +3843,13 @@ static void __devinit pci_no_domains(void)
 }
 
 /**
- * pci_ext_cfg_enabled - can we access extended PCI config space?
- * @dev: The PCI device of the root bridge.
+ * pci_ext_cfg_avail - can we access extended PCI config space?
  *
  * Returns 1 if we can access PCI extended config space (offsets
  * greater than 0xff). This is the default implementation. Architecture
  * implementations can override this.
  */
-int __weak pci_ext_cfg_avail(struct pci_dev *dev)
+int __weak pci_ext_cfg_avail(void)
 {
 	return 1;
 }
