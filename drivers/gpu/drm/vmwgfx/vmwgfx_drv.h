@@ -699,10 +699,13 @@ static inline struct vmw_surface *vmw_surface_reference(struct vmw_surface *srf)
 static inline void vmw_dmabuf_unreference(struct vmw_dma_buffer **buf)
 {
 	struct vmw_dma_buffer *tmp_buf = *buf;
-	struct ttm_buffer_object *bo = &tmp_buf->base;
-	*buf = NULL;
 
-	ttm_bo_unref(&bo);
+	*buf = NULL;
+	if (tmp_buf != NULL) {
+		struct ttm_buffer_object *bo = &tmp_buf->base;
+
+		ttm_bo_unref(&bo);
+	}
 }
 
 static inline struct vmw_dma_buffer *vmw_dmabuf_reference(struct vmw_dma_buffer *buf)
