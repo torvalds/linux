@@ -634,38 +634,59 @@ exec_script(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl, int id)
 	return false;
 }
 
-static bool
+static u32
 exec_clkcmp(struct nv50_disp_priv *priv, int head, int outp,
-	    u32 ctrl, u32 conf, int id, u32 pclk)
+	    u32 ctrl, int id, u32 pclk)
 {
 	struct nouveau_bios *bios = nouveau_bios(priv);
 	struct nvbios_outp info1;
 	struct nvbios_ocfg info2;
 	struct dcb_output dcb;
 	u8  ver, hdr, cnt, len;
-	u16 data;
+	u16 data, conf;
 
 	data = exec_lookup(priv, head, outp, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info1);
-	if (data) {
-		data = nvbios_ocfg_match(bios, data, conf, &ver, &hdr, &cnt, &len, &info2);
-		if (data) {
-			data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
-			if (data) {
-				struct nvbios_init init = {
-					.subdev = nv_subdev(priv),
-					.bios = bios,
-					.offset = data,
-					.outp = &dcb,
-					.crtc = head,
-					.execute = 1,
-				};
+	if (data == 0x0000)
+		return false;
 
-				return nvbios_exec(&init) == 0;
-			}
+	switch (dcb.type) {
+	case DCB_OUTPUT_TMDS:
+		conf = (ctrl & 0x00000f00) >> 8;
+		if (pclk >= 165000)
+			conf |= 0x0100;
+		break;
+	case DCB_OUTPUT_LVDS:
+		conf = priv->sor.lvdsconf;
+		break;
+	case DCB_OUTPUT_DP:
+		conf = (ctrl & 0x00000f00) >> 8;
+		break;
+	case DCB_OUTPUT_ANALOG:
+	default:
+		conf = 0x00ff;
+		break;
+	}
+
+	data = nvbios_ocfg_match(bios, data, conf, &ver, &hdr, &cnt, &len, &info2);
+	if (data) {
+		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
+		if (data) {
+			struct nvbios_init init = {
+				.subdev = nv_subdev(priv),
+				.bios = bios,
+				.offset = data,
+				.outp = &dcb,
+				.crtc = head,
+				.execute = 1,
+			};
+
+			if (nvbios_exec(&init))
+				return 0x0000;
+			return conf;
 		}
 	}
 
-	return false;
+	return 0x0000;
 }
 
 static void
@@ -747,10 +768,9 @@ nvd0_display_unk2_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 	nv_wr32(priv, 0x612200 + (head * 0x800), 0x00000000);
 
 	for (i = 0; mask && i < 8; i++) {
-		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20));
-		u32 cfg = nv_rd32(priv, 0x660184 + (i * 0x20));
+		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20)), cfg;
 		if (mcp & (1 << head)) {
-			if (exec_clkcmp(priv, head, i, mcp, cfg, 0, pclk)) {
+			if ((cfg = exec_clkcmp(priv, head, i, mcp, 0, pclk))) {
 				u32 addr, mask, data = 0x00000000;
 				if (i < 4) {
 					addr = 0x612280 + ((i - 0) * 0x800);
@@ -790,9 +810,8 @@ nvd0_display_unk4_handler(struct nv50_disp_priv *priv, u32 head, u32 mask)
 
 	for (i = 0; mask && i < 8; i++) {
 		u32 mcp = nv_rd32(priv, 0x660180 + (i * 0x20));
-		u32 cfg = nv_rd32(priv, 0x660184 + (i * 0x20));
 		if (mcp & (1 << head))
-			exec_clkcmp(priv, head, i, mcp, cfg, 1, pclk);
+			exec_clkcmp(priv, head, i, mcp, 1, pclk);
 	}
 
 	nv_wr32(priv, 0x6101d4, 0x00000000);

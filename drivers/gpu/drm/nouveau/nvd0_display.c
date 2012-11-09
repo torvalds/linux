@@ -1139,9 +1139,8 @@ nvd0_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
 		evo_data(push, syncs);
 		evo_data(push, magic);
-		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 2);
+		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 1);
 		evo_data(push, 1 << nv_crtc->index);
-		evo_data(push, 0x00ff);
 		evo_kick(push, nvd0_mast(encoder->dev));
 	}
 
@@ -1440,12 +1439,14 @@ static void
 nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		  struct drm_display_mode *mode)
 {
+	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
+	int or = nv_encoder->or;
 	u32 mode_ctrl = (1 << nv_crtc->index);
 	u32 syncs, magic, *push;
 	u32 or_config;
@@ -1471,10 +1472,6 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		} else {
 			mode_ctrl |= 0x00000200;
 		}
-
-		or_config = (mode_ctrl & 0x00000f00) >> 8;
-		if (mode->clock >= 165000)
-			or_config |= 0x0100;
 
 		nvd0_hdmi_mode_set(encoder, mode);
 		break;
@@ -1504,8 +1501,9 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 			if (nv_connector->base.display_info.bpc == 8)
 				or_config |= 0x0200;
-
 		}
+
+		nv_call(disp->core, NV50_DISP_SOR_LVDS_SCRIPT + or, or_config);
 		break;
 	case DCB_OUTPUT_DP:
 		if (nv_connector->base.display_info.bpc == 6) {
@@ -1520,8 +1518,6 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			mode_ctrl |= 0x00000800;
 		else
 			mode_ctrl |= 0x00000900;
-
-		or_config = (mode_ctrl & 0x00000f00) >> 8;
 		break;
 	default:
 		BUG_ON(1);
@@ -1535,9 +1531,8 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
 		evo_data(push, syncs);
 		evo_data(push, magic);
-		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x020), 2);
+		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x020), 1);
 		evo_data(push, mode_ctrl);
-		evo_data(push, or_config);
 		evo_kick(push, nvd0_mast(dev));
 	}
 

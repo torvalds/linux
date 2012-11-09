@@ -35,6 +35,7 @@ struct nv50_disp_priv {
 		int (*dp_drvctl)(struct nv50_disp_priv *, int sor, int link,
 				 int lane, u16 type, u16 mask, u32 data,
 				 struct dcb_output *);
+		u32 lvdsconf;
 	} sor;
 };
 

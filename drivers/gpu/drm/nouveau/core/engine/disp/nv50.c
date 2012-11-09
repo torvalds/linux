@@ -656,6 +656,7 @@ nv50_disp_base_ofuncs = {
 static struct nouveau_omthds
 nv50_disp_base_omthds[] = {
 	{ SOR_MTHD(NV50_DISP_SOR_PWR)         , nv50_sor_mthd },
+	{ SOR_MTHD(NV50_DISP_SOR_LVDS_SCRIPT) , nv50_sor_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_PWR)         , nv50_dac_mthd },
 	{ DAC_MTHD(NV50_DISP_DAC_LOAD)        , nv50_dac_mthd },
 	{},
