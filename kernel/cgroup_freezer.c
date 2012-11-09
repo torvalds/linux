@@ -247,45 +247,57 @@ static void unfreeze_cgroup(struct freezer *freezer)
 	cgroup_iter_end(cgroup, &it);
 }
 
-static void freezer_change_state(struct freezer *freezer,
-				 enum freezer_state goal_state)
+/**
+ * freezer_apply_state - apply state change to a single cgroup_freezer
+ * @freezer: freezer to apply state change to
+ * @freeze: whether to freeze or unfreeze
+ */
+static void freezer_apply_state(struct freezer *freezer, bool freeze)
 {
 	/* also synchronizes against task migration, see freezer_attach() */
-	spin_lock_irq(&freezer->lock);
+	lockdep_assert_held(&freezer->lock);
 
-	switch (goal_state) {
-	case CGROUP_THAWED:
-		if (freezer->state != CGROUP_THAWED)
-			atomic_dec(&system_freezing_cnt);
-		freezer->state = CGROUP_THAWED;
-		unfreeze_cgroup(freezer);
-		break;
-	case CGROUP_FROZEN:
+	if (freeze) {
 		if (freezer->state == CGROUP_THAWED)
 			atomic_inc(&system_freezing_cnt);
 		freezer->state = CGROUP_FREEZING;
 		freeze_cgroup(freezer);
-		break;
-	default:
-		BUG();
+	} else {
+		if (freezer->state != CGROUP_THAWED)
+			atomic_dec(&system_freezing_cnt);
+		freezer->state = CGROUP_THAWED;
+		unfreeze_cgroup(freezer);
 	}
+}
 
+/**
+ * freezer_change_state - change the freezing state of a cgroup_freezer
+ * @freezer: freezer of interest
+ * @freeze: whether to freeze or thaw
+ *
+ * Freeze or thaw @cgroup according to @freeze.
+ */
+static void freezer_change_state(struct freezer *freezer, bool freeze)
+{
+	/* update @freezer */
+	spin_lock_irq(&freezer->lock);
+	freezer_apply_state(freezer, freeze);
 	spin_unlock_irq(&freezer->lock);
 }
 
 static int freezer_write(struct cgroup *cgroup, struct cftype *cft,
 			 const char *buffer)
 {
-	enum freezer_state goal_state;
+	bool freeze;
 
 	if (strcmp(buffer, freezer_state_strs[CGROUP_THAWED]) == 0)
-		goal_state = CGROUP_THAWED;
+		freeze = false;
 	else if (strcmp(buffer, freezer_state_strs[CGROUP_FROZEN]) == 0)
-		goal_state = CGROUP_FROZEN;
+		freeze = true;
 	else
 		return -EINVAL;
 
-	freezer_change_state(cgroup_freezer(cgroup), goal_state);
+	freezer_change_state(cgroup_freezer(cgroup), freeze);
 	return 0;
 }
 
