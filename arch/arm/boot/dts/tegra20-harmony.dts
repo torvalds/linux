@@ -396,6 +396,11 @@
 				};
 			};
 		};
+
+		temperature-sensor@4c {
+			compatible = "adi,adt7461";
+			reg = <0x4c>;
+		};
 	};
 
 	pmc {
