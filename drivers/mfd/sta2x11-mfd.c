@@ -175,10 +175,16 @@ static void sta2x11_regmap_unlock(void *__lock)
 	spin_unlock(lock);
 }
 
+/* OTP (one time programmable registers do not require locking */
+static void sta2x11_regmap_nolock(void *__lock)
+{
+}
+
 static const char *sta2x11_mfd_names[sta2x11_n_mfd_plat_devs] = {
 	[sta2x11_sctl] = STA2X11_MFD_SCTL_NAME,
 	[sta2x11_apbreg] = STA2X11_MFD_APBREG_NAME,
 	[sta2x11_apb_soc_regs] = STA2X11_MFD_APB_SOC_REGS_NAME,
+	[sta2x11_scr] = STA2X11_MFD_SCR_NAME,
 };
 
 static bool sta2x11_sctl_writeable_reg(struct device *dev, unsigned int reg)
@@ -194,6 +200,28 @@ static struct regmap_config sta2x11_sctl_regmap_config = {
 	.unlock = sta2x11_regmap_unlock,
 	.max_register = SCTL_SCRSTSTA,
 	.writeable_reg = sta2x11_sctl_writeable_reg,
+};
+
+static bool sta2x11_scr_readable_reg(struct device *dev, unsigned int reg)
+{
+	return (reg == STA2X11_SECR_CR) ||
+		__reg_within_range(reg, STA2X11_SECR_FVR0, STA2X11_SECR_FVR1);
+}
+
+static bool sta2x11_scr_writeable_reg(struct device *dev, unsigned int reg)
+{
+	return false;
+}
+
+static struct regmap_config sta2x11_scr_regmap_config = {
+	.reg_bits = 32,
+	.reg_stride = 4,
+	.val_bits = 32,
+	.lock = sta2x11_regmap_nolock,
+	.unlock = sta2x11_regmap_nolock,
+	.max_register = STA2X11_SECR_FVR1,
+	.readable_reg = sta2x11_scr_readable_reg,
+	.writeable_reg = sta2x11_scr_writeable_reg,
 };
 
 static bool sta2x11_apbreg_readable_reg(struct device *dev, unsigned int reg)
@@ -279,9 +307,10 @@ sta2x11_mfd_regmap_configs[sta2x11_n_mfd_plat_devs] = {
 	[sta2x11_sctl] = &sta2x11_sctl_regmap_config,
 	[sta2x11_apbreg] = &sta2x11_apbreg_regmap_config,
 	[sta2x11_apb_soc_regs] = &sta2x11_apb_soc_regs_regmap_config,
+	[sta2x11_scr] = &sta2x11_scr_regmap_config,
 };
 
-/* Probe for the three platform devices */
+/* Probe for the four platform devices */
 
 static int sta2x11_mfd_platform_probe(struct platform_device *dev,
 				      enum sta2x11_mfd_plat_dev index)
@@ -339,6 +368,11 @@ static int sta2x11_apb_soc_regs_probe(struct platform_device *dev)
 	return sta2x11_mfd_platform_probe(dev, sta2x11_apb_soc_regs);
 }
 
+static int sta2x11_scr_probe(struct platform_device *dev)
+{
+	return sta2x11_mfd_platform_probe(dev, sta2x11_scr);
+}
+
 /* The three platform drivers */
 static struct platform_driver sta2x11_sctl_platform_driver = {
 	.driver = {
@@ -381,6 +415,21 @@ static int __init sta2x11_apb_soc_regs_init(void)
 	pr_info("%s\n", __func__);
 	return platform_driver_register(&sta2x11_apb_soc_regs_platform_driver);
 }
+
+static struct platform_driver sta2x11_scr_platform_driver = {
+	.driver = {
+		.name = STA2X11_MFD_SCR_NAME,
+		.owner = THIS_MODULE,
+	},
+	.probe = sta2x11_scr_probe,
+};
+
+static int __init sta2x11_scr_init(void)
+{
+	pr_info("%s\n", __func__);
+	return platform_driver_register(&sta2x11_scr_platform_driver);
+}
+
 
 /*
  * What follows are the PCI devices that host the above pdevs.
@@ -631,6 +680,7 @@ static int __init sta2x11_mfd_init(void)
 subsys_initcall(sta2x11_apbreg_init);
 subsys_initcall(sta2x11_sctl_init);
 subsys_initcall(sta2x11_apb_soc_regs_init);
+subsys_initcall(sta2x11_scr_init);
 rootfs_initcall(sta2x11_mfd_init);
 
 MODULE_LICENSE("GPL v2");
