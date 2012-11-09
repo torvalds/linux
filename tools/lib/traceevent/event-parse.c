@@ -5363,7 +5363,7 @@ int pevent_register_print_function(struct pevent *pevent,
 		if (type == PEVENT_FUNC_ARG_VOID)
 			break;
 
-		if (type < 0 || type >= PEVENT_FUNC_ARG_MAX_TYPES) {
+		if (type >= PEVENT_FUNC_ARG_MAX_TYPES) {
 			do_warning("Invalid argument type %d", type);
 			ret = PEVENT_ERRNO__INVALID_ARG_TYPE;
 			goto out_free;
