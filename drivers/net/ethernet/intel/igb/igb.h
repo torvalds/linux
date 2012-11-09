@@ -370,8 +370,6 @@ struct igb_adapter {
 	u32 eims_other;
 
 	/* to not mess up cache alignment, always add to the bottom */
-	u32 eeprom_wol;
-
 	u16 tx_ring_count;
 	u16 rx_ring_count;
 	unsigned int vfs_allocated_count;
@@ -401,6 +399,7 @@ struct igb_adapter {
 #define IGB_FLAG_PTP			(1 << 5)
 #define IGB_FLAG_RSS_FIELD_IPV4_UDP	(1 << 6)
 #define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
+#define IGB_FLAG_WOL_SUPPORTED		(1 << 8)
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE           20408
