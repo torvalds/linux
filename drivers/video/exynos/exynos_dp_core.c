@@ -1094,13 +1094,6 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 
 	INIT_WORK(&dp->hotplug_work, exynos_dp_hotplug);
 
-	ret = devm_request_irq(&pdev->dev, dp->irq, exynos_dp_irq_handler, 0,
-				"exynos-dp", dp);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request irq\n");
-		return ret;
-	}
-
 	dp->video_info = pdata->video_info;
 
 	if (pdev->dev.of_node) {
@@ -1112,6 +1105,13 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 	}
 
 	exynos_dp_init_dp(dp);
+
+	ret = devm_request_irq(&pdev->dev, dp->irq, exynos_dp_irq_handler, 0,
+				"exynos-dp", dp);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to request irq\n");
+		return ret;
+	}
 
 	platform_set_drvdata(pdev, dp);
 
