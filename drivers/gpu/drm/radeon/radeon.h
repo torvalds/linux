@@ -600,10 +600,21 @@ struct evergreen_irq_stat_regs {
 	u32 afmt_status6;
 };
 
+struct cik_irq_stat_regs {
+	u32 disp_int;
+	u32 disp_int_cont;
+	u32 disp_int_cont2;
+	u32 disp_int_cont3;
+	u32 disp_int_cont4;
+	u32 disp_int_cont5;
+	u32 disp_int_cont6;
+};
+
 union radeon_irq_stat_regs {
 	struct r500_irq_stat_regs r500;
 	struct r600_irq_stat_regs r600;
 	struct evergreen_irq_stat_regs evergreen;
+	struct cik_irq_stat_regs cik;
 };
 
 #define RADEON_MAX_HPD_PINS 6
