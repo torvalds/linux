@@ -840,6 +840,31 @@ static void qt_release(struct usb_serial *serial)
 
 }
 
+static void qt_submit_urb_from_open(struct usb_serial *serial,
+				    struct usb_serial_port *port)
+{
+	int result;
+	struct usb_serial_port *port0 = serial->port[0];
+
+	/* set up interrupt urb */
+	usb_fill_int_urb(port0->interrupt_in_urb,
+			 serial->dev,
+			 usb_rcvintpipe(serial->dev,
+					port0->interrupt_in_endpointAddress),
+			 port0->interrupt_in_buffer,
+			 port0->interrupt_in_urb->transfer_buffer_length,
+			 qt_interrupt_callback, serial,
+			 port0->interrupt_in_urb->interval);
+
+	result = usb_submit_urb(port0->interrupt_in_urb,
+				GFP_KERNEL);
+	if (result) {
+		dev_err(&port->dev,
+			"%s - Error %d submitting interrupt urb\n",
+			__func__, result);
+	}
+}
+
 static int qt_open(struct tty_struct *tty,
 		   struct usb_serial_port *port)
 {
@@ -900,30 +925,8 @@ static int qt_open(struct tty_struct *tty,
 
 	/*  Check to see if we've set up our endpoint info yet */
 	if (port0->open_ports == 1) {
-		if (serial->port[0]->interrupt_in_buffer == NULL) {
-			/* set up interrupt urb */
-			usb_fill_int_urb(serial->port[0]->interrupt_in_urb,
-					 serial->dev,
-					 usb_rcvintpipe(serial->dev,
-							serial->port[0]->interrupt_in_endpointAddress),
-					 serial->port[0]->interrupt_in_buffer,
-					 serial->port[0]->
-					 interrupt_in_urb->transfer_buffer_length,
-					 qt_interrupt_callback, serial,
-					 serial->port[0]->
-					 interrupt_in_urb->interval);
-
-			result =
-			    usb_submit_urb(serial->port[0]->interrupt_in_urb,
-					   GFP_KERNEL);
-			if (result) {
-				dev_err(&port->dev,
-					"%s - Error %d submitting "
-					"interrupt urb\n", __func__, result);
-			}
-
-		}
-
+		if (serial->port[0]->interrupt_in_buffer == NULL)
+			qt_submit_urb_from_open(serial, port);
 	}
 
 	dev_dbg(&port->dev, "port number is %d\n", port->number);
