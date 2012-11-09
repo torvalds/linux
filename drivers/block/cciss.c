@@ -41,6 +41,7 @@
 #include <linux/spinlock.h>
 #include <linux/compat.h>
 #include <linux/mutex.h>
+#include <linux/bitmap.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 
@@ -978,8 +979,7 @@ static CommandList_struct *cmd_alloc(ctlr_info_t *h)
 		i = find_first_zero_bit(h->cmd_pool_bits, h->nr_cmds);
 		if (i == h->nr_cmds)
 			return NULL;
-	} while (test_and_set_bit(i & (BITS_PER_LONG - 1),
-		  h->cmd_pool_bits + (i / BITS_PER_LONG)) != 0);
+	} while (test_and_set_bit(i, h->cmd_pool_bits) != 0);
 	c = h->cmd_pool + i;
 	memset(c, 0, sizeof(CommandList_struct));
 	cmd_dma_handle = h->cmd_pool_dhandle + i * sizeof(CommandList_struct);
@@ -1046,8 +1046,7 @@ static void cmd_free(ctlr_info_t *h, CommandList_struct *c)
 	int i;
 
 	i = c - h->cmd_pool;
-	clear_bit(i & (BITS_PER_LONG - 1),
-		  h->cmd_pool_bits + (i / BITS_PER_LONG));
+	clear_bit(i, h->cmd_pool_bits);
 	h->nr_frees++;
 }
 
@@ -4812,8 +4811,7 @@ static __devinit int cciss_init_reset_devices(struct pci_dev *pdev)
 
 static __devinit int cciss_allocate_cmd_pool(ctlr_info_t *h)
 {
-	h->cmd_pool_bits = kmalloc(
-		DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG) *
+	h->cmd_pool_bits = kmalloc(BITS_TO_LONGS(h->nr_cmds) *
 		sizeof(unsigned long), GFP_KERNEL);
 	h->cmd_pool = pci_alloc_consistent(h->pdev,
 		h->nr_cmds * sizeof(CommandList_struct),
@@ -5068,9 +5066,7 @@ reinit_after_soft_reset:
 	pci_set_drvdata(pdev, h);
 	/* command and error info recs zeroed out before
 	   they are used */
-	memset(h->cmd_pool_bits, 0,
-	       DIV_ROUND_UP(h->nr_cmds, BITS_PER_LONG)
-			* sizeof(unsigned long));
+	bitmap_zero(h->cmd_pool_bits, h->nr_cmds);
 
 	h->num_luns = 0;
 	h->highest_lun = -1;
