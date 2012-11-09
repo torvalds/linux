@@ -485,7 +485,7 @@ int vmw_kms_init_screen_object_display(struct vmw_private *dev_priv)
 		return -EINVAL;
 	}
 
-	if (!(dev_priv->fifo.capabilities & SVGA_FIFO_CAP_SCREEN_OBJECT_2)) {
+	if (!(dev_priv->capabilities & SVGA_CAP_SCREEN_OBJECT_2)) {
 		DRM_INFO("Not using screen objects,"
 			 " missing cap SCREEN_OBJECT_2\n");
 		return -ENOSYS;
