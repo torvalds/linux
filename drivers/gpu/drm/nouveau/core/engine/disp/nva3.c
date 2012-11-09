@@ -86,6 +86,7 @@ nva3_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
 	priv->sor.hda_eld = nva3_hda_eld;
+	priv->sor.hdmi = nva3_hdmi_ctrl;
 	priv->sor.dp_train = nv94_sor_dp_train;
 	priv->sor.dp_lnkctl = nv94_sor_dp_lnkctl;
 	priv->sor.dp_drvctl = nv94_sor_dp_drvctl;

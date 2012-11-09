@@ -84,6 +84,7 @@ nv94_disp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->dac.power = nv50_dac_power;
 	priv->dac.sense = nv50_dac_sense;
 	priv->sor.power = nv50_sor_power;
+	priv->sor.hdmi = nv84_hdmi_ctrl;
 	priv->sor.dp_train = nv94_sor_dp_train;
 	priv->sor.dp_lnkctl = nv94_sor_dp_lnkctl;
 	priv->sor.dp_drvctl = nv94_sor_dp_drvctl;

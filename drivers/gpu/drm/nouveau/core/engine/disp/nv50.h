@@ -49,6 +49,8 @@ int nv50_dac_sense(struct nv50_disp_priv *, int, u32);
 int nva3_hda_eld(struct nv50_disp_priv *, int, u8 *, u32);
 int nvd0_hda_eld(struct nv50_disp_priv *, int, u8 *, u32);
 
+int nv84_hdmi_ctrl(struct nv50_disp_priv *, int, int, u32);
+int nva3_hdmi_ctrl(struct nv50_disp_priv *, int, int, u32);
 int nvd0_hdmi_ctrl(struct nv50_disp_priv *, int, int, u32);
 
 int nv50_sor_mthd(struct nouveau_object *, u32, void *, u32);
