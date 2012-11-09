@@ -553,7 +553,6 @@ static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
 {
 	int err, i;
 	struct sta2x11_mfd_setup_data *setup_data;
-	struct sta2x11_gpio_pdata *gpio_data;
 
 	dev_info(&pdev->dev, "%s\n", __func__);
 
@@ -570,16 +569,6 @@ static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
 	setup_data = pci_id->device == PCI_DEVICE_ID_STMICRO_GPIO ?
 		&mfd_setup_data[STA2X11_MFD0] :
 		&mfd_setup_data[STA2X11_MFD1];
-
-	/* Read gpio config data as pci device's platform data */
-	gpio_data = dev_get_platdata(&pdev->dev);
-	if (!gpio_data)
-		dev_warn(&pdev->dev, "no gpio configuration\n");
-
-	dev_dbg(&pdev->dev, "%s, gpio_data = %p (%p)\n", __func__,
-		gpio_data, &gpio_data);
-	dev_dbg(&pdev->dev, "%s, pdev = %p (%p)\n", __func__,
-		pdev, &pdev);
 
 	/* platform data is the pci device for all of them */
 	sta2x11_mfd_setup(pdev, setup_data);
