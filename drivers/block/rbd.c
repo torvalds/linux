@@ -1331,7 +1331,7 @@ static int rbd_do_op(struct request *rq,
 	} else {
 		opcode = CEPH_OSD_OP_READ;
 		flags = CEPH_OSD_FLAG_READ;
-		snapc = NULL;
+		rbd_assert(!snapc);
 		snapid = rbd_dev->spec->snap_id;
 		payload_len = 0;
 	}
@@ -1662,22 +1662,25 @@ static void rbd_rq_fn(struct request_queue *q)
 		}
 		spin_unlock_irq(q->queue_lock);
 
-		/* Stop writes to a read-only device */
+		/* Write requests need a reference to the snapshot context */
 
-		result = -EROFS;
-		if (read_only && rq_data_dir(rq) == WRITE)
-			goto out_end_request;
+		if (rq_data_dir(rq) == WRITE) {
+			result = -EROFS;
+			if (read_only) /* Can't write to a read-only device */
+				goto out_end_request;
 
-		/* Grab a reference to the snapshot context */
-
-		down_read(&rbd_dev->header_rwsem);
-		if (atomic_read(&rbd_dev->exists)) {
+			/*
+			 * Note that each osd request will take its
+			 * own reference to the snapshot context
+			 * supplied.  The reference we take here
+			 * just guarantees the one we provide stays
+			 * valid.
+			 */
+			down_read(&rbd_dev->header_rwsem);
 			snapc = ceph_get_snap_context(rbd_dev->header.snapc);
+			up_read(&rbd_dev->header_rwsem);
 			rbd_assert(snapc != NULL);
-		}
-		up_read(&rbd_dev->header_rwsem);
-
-		if (!snapc) {
+		} else if (!atomic_read(&rbd_dev->exists)) {
 			rbd_assert(rbd_dev->spec->snap_id != CEPH_NOSNAP);
 			dout("request for non-existent snapshot");
 			result = -ENXIO;
@@ -1689,7 +1692,8 @@ static void rbd_rq_fn(struct request_queue *q)
 				blk_rq_pos(rq) * SECTOR_SIZE,
 				size, rq->bio);
 out_end_request:
-		ceph_put_snap_context(snapc);
+		if (snapc)
+			ceph_put_snap_context(snapc);
 		spin_lock_irq(q->queue_lock);
 		if (!size || result < 0)
 			__blk_end_request_all(rq, result);
