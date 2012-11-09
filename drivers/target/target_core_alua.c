@@ -3,8 +3,7 @@
  *
  * This file contains SPC-3 compliant asymmetric logical unit assigntment (ALUA)
  *
- * Copyright (c) 2009-2010 Rising Tide Systems
- * Copyright (c) 2009-2010 Linux-iSCSI.org
+ * (c) Copyright 2009-2012 RisingTide Systems LLC.
  *
  * Nicholas A. Bellinger <nab@kernel.org>
  *

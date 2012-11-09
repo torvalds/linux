@@ -1,13 +1,10 @@
 /*******************************************************************************
  * Filename:  target_core_stat.c
  *
- * Copyright (c) 2011 Rising Tide Systems
- * Copyright (c) 2011 Linux-iSCSI.org
- *
  * Modern ConfigFS group context specific statistics based on original
  * target_core_mib.c code
  *
- * Copyright (c) 2006-2007 SBE, Inc.  All Rights Reserved.
+ * (c) Copyright 2006-2012 RisingTide Systems LLC.
  *
  * Nicholas A. Bellinger <nab@linux-iscsi.org>
  *

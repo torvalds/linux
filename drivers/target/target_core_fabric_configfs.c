@@ -4,10 +4,9 @@
  * This file contains generic fabric module configfs infrastructure for
  * TCM v4.x code
  *
- * Copyright (c) 2010,2011 Rising Tide Systems
- * Copyright (c) 2010,2011 Linux-iSCSI.org
+ * (c) Copyright 2010-2012 RisingTide Systems LLC.
  *
- * Copyright (c) Nicholas A. Bellinger <nab@linux-iscsi.org>
+ * Nicholas A. Bellinger <nab@linux-iscsi.org>
 *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
