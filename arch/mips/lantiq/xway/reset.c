@@ -28,9 +28,15 @@
 #define RCU_RST_REQ		0x0010
 /* reset status register */
 #define RCU_RST_STAT		0x0014
+/* vr9 gphy registers */
+#define RCU_GFS_ADD0_XRX200	0x0020
+#define RCU_GFS_ADD1_XRX200	0x0068
 
 /* reboot bit */
+#define RCU_RD_GPHY0_XRX200	BIT(31)
 #define RCU_RD_SRST		BIT(30)
+#define RCU_RD_GPHY1_XRX200	BIT(29)
+
 /* reset cause */
 #define RCU_STAT_SHIFT		26
 /* boot selection */
@@ -58,6 +64,36 @@ unsigned char ltq_boot_select(void)
 		return RCU_BOOT_SEL_XRX200(val);
 
 	return RCU_BOOT_SEL(val);
+}
+
+/* reset / boot a gphy */
+static struct ltq_xrx200_gphy_reset {
+	u32 rd;
+	u32 addr;
+} xrx200_gphy[] = {
+	{RCU_RD_GPHY0_XRX200, RCU_GFS_ADD0_XRX200},
+	{RCU_RD_GPHY1_XRX200, RCU_GFS_ADD1_XRX200},
+};
+
+/* reset and boot a gphy. these phys only exist on xrx200 SoC */
+int xrx200_gphy_boot(struct device *dev, unsigned int id, dma_addr_t dev_addr)
+{
+	if (!of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200")) {
+		dev_err(dev, "this SoC has no GPHY\n");
+		return -EINVAL;
+	}
+	if (id > 1) {
+		dev_err(dev, "%u is an invalid gphy id\n", id);
+		return -EINVAL;
+	}
+	dev_info(dev, "booting GPHY%u firmware at %X\n", id, dev_addr);
+
+	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) | xrx200_gphy[id].rd,
+			RCU_RST_REQ);
+	ltq_rcu_w32(dev_addr, xrx200_gphy[id].addr);
+	ltq_rcu_w32(ltq_rcu_r32(RCU_RST_REQ) & ~xrx200_gphy[id].rd,
+			RCU_RST_REQ);
+	return 0;
 }
 
 /* reset a io domain for u micro seconds */

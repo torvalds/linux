@@ -82,6 +82,9 @@ extern __iomem void *ltq_cgu_membase;
 #define LTQ_MPS_BASE_ADDR	(KSEG1 + 0x1F107000)
 #define LTQ_MPS_CHIPID		((u32 *)(LTQ_MPS_BASE_ADDR + 0x0344))
 
+/* allow booting xrx200 phys */
+int xrx200_gphy_boot(struct device *dev, unsigned int id, dma_addr_t dev_addr);
+
 /* request a non-gpio and set the PIO config */
 #define PMU_PPE			 BIT(13)
 extern void ltq_pmu_enable(unsigned int module);
