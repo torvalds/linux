@@ -172,6 +172,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 		uiomem->memtype = UIO_MEM_PHYS;
 		uiomem->addr = r->start;
 		uiomem->size = resource_size(r);
+		uiomem->name = r->name;
 		++uiomem;
 	}
 
