@@ -727,8 +727,7 @@ static int tegra_slink_start_transfer_one(struct spi_device *spi,
 	unsigned long command;
 	unsigned long command2;
 
-	bits_per_word = t->bits_per_word ? t->bits_per_word :
-					spi->bits_per_word;
+	bits_per_word = t->bits_per_word;
 	speed = t->speed_hz ? t->speed_hz : spi->max_speed_hz;
 	if (!speed)
 		speed = tspi->spi_max_frequency;
