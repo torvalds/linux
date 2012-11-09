@@ -171,7 +171,7 @@ static int __init mtd_readtest_init(void)
 	printk(KERN_INFO "=================================================\n");
 
 	if (dev < 0) {
-		pr_info("Please specify a valid mtd-device via module paramter\n");
+		pr_info("Please specify a valid mtd-device via module parameter\n");
 		return -EINVAL;
 	}
 

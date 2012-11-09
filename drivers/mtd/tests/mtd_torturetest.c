@@ -216,7 +216,7 @@ static int __init tort_init(void)
 	       "flash, stop it if this is not wanted.\n");
 
 	if (dev < 0) {
-		pr_info("Please specify a valid mtd-device via module paramter\n");
+		pr_info("Please specify a valid mtd-device via module parameter\n");
 		pr_crit("CAREFUL: This test wipes all data on the specified MTD device!\n");
 		return -EINVAL;
 	}
