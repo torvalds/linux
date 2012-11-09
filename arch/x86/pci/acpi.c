@@ -22,6 +22,7 @@ struct pci_root_info {
 };
 
 static bool pci_use_crs = true;
+static bool pci_ignore_seg = false;
 
 static int __init set_use_crs(const struct dmi_system_id *id)
 {
@@ -35,7 +36,14 @@ static int __init set_nouse_crs(const struct dmi_system_id *id)
 	return 0;
 }
 
-static const struct dmi_system_id pci_use_crs_table[] __initconst = {
+static int __init set_ignore_seg(const struct dmi_system_id *id)
+{
+	printk(KERN_INFO "PCI: %s detected: ignoring ACPI _SEG\n", id->ident);
+	pci_ignore_seg = true;
+	return 0;
+}
+
+static const struct dmi_system_id pci_crs_quirks[] __initconst = {
 	/* http://bugzilla.kernel.org/show_bug.cgi?id=14183 */
 	{
 		.callback = set_use_crs,
@@ -98,6 +106,16 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "6JET85WW (1.43 )"),
 		},
 	},
+
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=15362 */
+	{
+		.callback = set_ignore_seg,
+		.ident = "HP xw9300",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP xw9300 Workstation"),
+		},
+	},
 	{}
 };
 
@@ -108,7 +126,7 @@ void __init pci_acpi_crs_quirks(void)
 	if (dmi_get_date(DMI_BIOS_DATE, &year, NULL, NULL) && year < 2008)
 		pci_use_crs = false;
 
-	dmi_check_system(pci_use_crs_table);
+	dmi_check_system(pci_crs_quirks);
 
 	/*
 	 * If the user specifies "pci=use_crs" or "pci=nocrs" explicitly, that
@@ -454,6 +472,9 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 #ifdef CONFIG_ACPI_NUMA
 	int pxm;
 #endif
+
+	if (pci_ignore_seg)
+		domain = 0;
 
 	if (domain && !pci_domains_supported) {
 		printk(KERN_WARNING "pci_bus %04x:%02x: "
