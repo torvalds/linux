@@ -370,31 +370,32 @@ static int ieee80211_config_default_mgmt_key(struct wiphy *wiphy,
 	return 0;
 }
 
-static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, int idx)
-{
-	enum ieee80211_band band = ieee80211_get_sdata_band(sta->sdata);
-
-	if (!(rate->flags & RATE_INFO_FLAGS_MCS) &&
-	    !(rate->flags & RATE_INFO_FLAGS_VHT_MCS)) {
-		struct ieee80211_supported_band *sband;
-		sband = sta->local->hw.wiphy->bands[band];
-		rate->legacy = sband->bitrates[idx].bitrate;
-	} else
-		rate->mcs = idx;
-}
-
 void sta_set_rate_info_tx(struct sta_info *sta,
 			  const struct ieee80211_tx_rate *rate,
 			  struct rate_info *rinfo)
 {
 	rinfo->flags = 0;
-	if (rate->flags & IEEE80211_TX_RC_MCS)
+	if (rate->flags & IEEE80211_TX_RC_MCS) {
 		rinfo->flags |= RATE_INFO_FLAGS_MCS;
+		rinfo->mcs = rate->idx;
+	} else if (rate->flags & IEEE80211_TX_RC_VHT_MCS) {
+		rinfo->flags |= RATE_INFO_FLAGS_VHT_MCS;
+		rinfo->mcs = ieee80211_rate_get_vht_mcs(rate);
+		rinfo->nss = ieee80211_rate_get_vht_nss(rate);
+	} else {
+		struct ieee80211_supported_band *sband;
+		sband = sta->local->hw.wiphy->bands[
+				ieee80211_get_sdata_band(sta->sdata)];
+		rinfo->legacy = sband->bitrates[rate->idx].bitrate;
+	}
 	if (rate->flags & IEEE80211_TX_RC_40_MHZ_WIDTH)
 		rinfo->flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+	if (rate->flags & IEEE80211_TX_RC_80_MHZ_WIDTH)
+		rinfo->flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+	if (rate->flags & IEEE80211_TX_RC_160_MHZ_WIDTH)
+		rinfo->flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
 	if (rate->flags & IEEE80211_TX_RC_SHORT_GI)
 		rinfo->flags |= RATE_INFO_FLAGS_SHORT_GI;
-	rate_idx_to_bitrate(rinfo, sta, rate->idx);
 }
 
 static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
@@ -2003,10 +2004,16 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			return err;
 	}
 
-	if (changed & WIPHY_PARAM_RETRY_SHORT)
+	if (changed & WIPHY_PARAM_RETRY_SHORT) {
+		if (wiphy->retry_short > IEEE80211_MAX_TX_RETRY)
+			return -EINVAL;
 		local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
-	if (changed & WIPHY_PARAM_RETRY_LONG)
+	}
+	if (changed & WIPHY_PARAM_RETRY_LONG) {
+		if (wiphy->retry_long > IEEE80211_MAX_TX_RETRY)
+			return -EINVAL;
 		local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
+	}
 	if (changed &
 	    (WIPHY_PARAM_RETRY_SHORT | WIPHY_PARAM_RETRY_LONG))
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_RETRY_LIMITS);

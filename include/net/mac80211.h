@@ -499,9 +499,14 @@ enum mac80211_tx_control_flags {
  *	This is set if the current BSS requires ERP protection.
  * @IEEE80211_TX_RC_USE_SHORT_PREAMBLE: Use short preamble.
  * @IEEE80211_TX_RC_MCS: HT rate.
+ * @IEEE80211_TX_RC_VHT_MCS: VHT MCS rate, in this case the idx field is split
+ *	into a higher 4 bits (Nss) and lower 4 bits (MCS number)
  * @IEEE80211_TX_RC_GREEN_FIELD: Indicates whether this rate should be used in
  *	Greenfield mode.
  * @IEEE80211_TX_RC_40_MHZ_WIDTH: Indicates if the Channel Width should be 40 MHz.
+ * @IEEE80211_TX_RC_80_MHZ_WIDTH: Indicates 80 MHz transmission
+ * @IEEE80211_TX_RC_160_MHZ_WIDTH: Indicates 160 MHz transmission
+ *	(80+80 isn't supported yet)
  * @IEEE80211_TX_RC_DUP_DATA: The frame should be transmitted on both of the
  *	adjacent 20 MHz channels, if the current channel type is
  *	NL80211_CHAN_HT40MINUS or NL80211_CHAN_HT40PLUS.
@@ -512,12 +517,15 @@ enum mac80211_rate_control_flags {
 	IEEE80211_TX_RC_USE_CTS_PROTECT		= BIT(1),
 	IEEE80211_TX_RC_USE_SHORT_PREAMBLE	= BIT(2),
 
-	/* rate index is an MCS rate number instead of an index */
+	/* rate index is an HT/VHT MCS instead of an index */
 	IEEE80211_TX_RC_MCS			= BIT(3),
 	IEEE80211_TX_RC_GREEN_FIELD		= BIT(4),
 	IEEE80211_TX_RC_40_MHZ_WIDTH		= BIT(5),
 	IEEE80211_TX_RC_DUP_DATA		= BIT(6),
 	IEEE80211_TX_RC_SHORT_GI		= BIT(7),
+	IEEE80211_TX_RC_VHT_MCS			= BIT(8),
+	IEEE80211_TX_RC_80_MHZ_WIDTH		= BIT(9),
+	IEEE80211_TX_RC_160_MHZ_WIDTH		= BIT(10),
 };
 
 
@@ -560,9 +568,31 @@ enum mac80211_rate_control_flags {
  */
 struct ieee80211_tx_rate {
 	s8 idx;
-	u8 count;
-	u8 flags;
+	u16 count:5,
+	    flags:11;
 } __packed;
+
+#define IEEE80211_MAX_TX_RETRY		31
+
+static inline void ieee80211_rate_set_vht(struct ieee80211_tx_rate *rate,
+					  u8 mcs, u8 nss)
+{
+	WARN_ON(mcs & ~0xF);
+	WARN_ON(nss & ~0x7);
+	rate->idx = (nss << 4) | mcs;
+}
+
+static inline u8
+ieee80211_rate_get_vht_mcs(const struct ieee80211_tx_rate *rate)
+{
+	return rate->idx & 0xF;
+}
+
+static inline u8
+ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
+{
+	return rate->idx >> 4;
+}
 
 /**
  * struct ieee80211_tx_info - skb transmit information
