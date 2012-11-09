@@ -6,18 +6,6 @@ menuconfig OMAP2_DSS
 
 if OMAP2_DSS
 
-config OMAP2_VRAM_SIZE
-	int "VRAM size (MB)"
-	range 0 32
-	default 0
-	help
-	  The amount of SDRAM to reserve at boot time for video RAM use.
-	  This VRAM will be used by omapfb and other drivers that need
-	  large continuous RAM area for video use.
-
-	  You can also set this with "vram=<bytes>" kernel argument, or
-	  in the board file.
-
 config OMAP2_DSS_DEBUG_SUPPORT
         bool "Debug support"
 	default y

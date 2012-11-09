@@ -1,6 +1,3 @@
-config OMAP2_VRAM
-	bool
-
 config OMAP2_VRFB
 	bool
 
