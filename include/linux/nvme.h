@@ -107,6 +107,12 @@ struct nvme_id_ctrl {
 	__u8			vs[1024];
 };
 
+enum {
+	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
+	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
+	NVME_CTRL_ONCS_DSM			= 1 << 2,
+};
+
 struct nvme_lbaf {
 	__le16			ms;
 	__u8			ds;
@@ -246,6 +252,31 @@ enum {
 	NVME_RW_DSM_COMPRESSED		= 1 << 7,
 };
 
+struct nvme_dsm_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2[2];
+	__le64			prp1;
+	__le64			prp2;
+	__le32			nr;
+	__le32			attributes;
+	__u32			rsvd12[4];
+};
+
+enum {
+	NVME_DSMGMT_IDR		= 1 << 0,
+	NVME_DSMGMT_IDW		= 1 << 1,
+	NVME_DSMGMT_AD		= 1 << 2,
+};
+
+struct nvme_dsm_range {
+	__le32			cattr;
+	__le32			nlb;
+	__le64			slba;
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
@@ -372,6 +403,7 @@ struct nvme_command {
 		struct nvme_create_sq create_sq;
 		struct nvme_delete_queue delete_queue;
 		struct nvme_download_firmware dlfw;
+		struct nvme_dsm_cmd dsm;
 	};
 };
 

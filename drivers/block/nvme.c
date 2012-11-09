@@ -80,6 +80,7 @@ struct nvme_dev {
 	char model[40];
 	char firmware_rev[8];
 	u32 max_hw_sectors;
+	u16 oncs;
 };
 
 /*
@@ -510,6 +511,44 @@ static int nvme_map_bio(struct device *dev, struct nvme_iod *iod,
 	return length;
 }
 
+/*
+ * We reuse the small pool to allocate the 16-byte range here as it is not
+ * worth having a special pool for these or additional cases to handle freeing
+ * the iod.
+ */
+static int nvme_submit_discard(struct nvme_queue *nvmeq, struct nvme_ns *ns,
+		struct bio *bio, struct nvme_iod *iod, int cmdid)
+{
+	struct nvme_dsm_range *range;
+	struct nvme_command *cmnd = &nvmeq->sq_cmds[nvmeq->sq_tail];
+
+	range = dma_pool_alloc(nvmeq->dev->prp_small_pool, GFP_ATOMIC,
+							&iod->first_dma);
+	if (!range)
+		return -ENOMEM;
+
+	iod_list(iod)[0] = (__le64 *)range;
+	iod->npages = 0;
+
+	range->cattr = cpu_to_le32(0);
+	range->nlb = cpu_to_le32(bio->bi_size >> ns->lba_shift);
+	range->slba = cpu_to_le64(bio->bi_sector >> (ns->lba_shift - 9));
+
+	memset(cmnd, 0, sizeof(*cmnd));
+	cmnd->dsm.opcode = nvme_cmd_dsm;
+	cmnd->dsm.command_id = cmdid;
+	cmnd->dsm.nsid = cpu_to_le32(ns->ns_id);
+	cmnd->dsm.prp1 = cpu_to_le64(iod->first_dma);
+	cmnd->dsm.nr = 0;
+	cmnd->dsm.attributes = cpu_to_le32(NVME_DSMGMT_AD);
+
+	if (++nvmeq->sq_tail == nvmeq->q_depth)
+		nvmeq->sq_tail = 0;
+	writel(nvmeq->sq_tail, nvmeq->q_db);
+
+	return 0;
+}
+
 static int nvme_submit_flush(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 								int cmdid)
 {
@@ -567,6 +606,12 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	if (unlikely(cmdid < 0))
 		goto free_iod;
 
+	if (bio->bi_rw & REQ_DISCARD) {
+		result = nvme_submit_discard(nvmeq, ns, bio, iod, cmdid);
+		if (result)
+			goto free_cmdid;
+		return result;
+	}
 	if ((bio->bi_rw & REQ_FLUSH) && !psegs)
 		return nvme_submit_flush(nvmeq, ns, cmdid);
 
@@ -1347,6 +1392,16 @@ static void nvme_put_ns_idx(int index)
 	spin_unlock(&dev_list_lock);
 }
 
+static void nvme_config_discard(struct nvme_ns *ns)
+{
+	u32 logical_block_size = queue_logical_block_size(ns->queue);
+	ns->queue->limits.discard_zeroes_data = 0;
+	ns->queue->limits.discard_alignment = logical_block_size;
+	ns->queue->limits.discard_granularity = logical_block_size;
+	ns->queue->limits.max_discard_sectors = 0xffffffff;
+	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue);
+}
+
 static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 			struct nvme_id_ns *id, struct nvme_lba_range_type *rt)
 {
@@ -1366,7 +1421,6 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 	ns->queue->queue_flags = QUEUE_FLAG_DEFAULT;
 	queue_flag_set_unlocked(QUEUE_FLAG_NOMERGES, ns->queue);
 	queue_flag_set_unlocked(QUEUE_FLAG_NONROT, ns->queue);
-/*	queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, ns->queue); */
 	blk_queue_make_request(ns->queue, nvme_make_request);
 	ns->dev = dev;
 	ns->queue->queuedata = ns;
@@ -1391,6 +1445,9 @@ static struct nvme_ns *nvme_alloc_ns(struct nvme_dev *dev, int nsid,
 	disk->driverfs_dev = &dev->pci_dev->dev;
 	sprintf(disk->disk_name, "nvme%dn%d", dev->instance, nsid);
 	set_capacity(disk, le64_to_cpup(&id->nsze) << (ns->lba_shift - 9));
+
+	if (dev->oncs & NVME_CTRL_ONCS_DSM)
+		nvme_config_discard(ns);
 
 	return ns;
 
@@ -1520,6 +1577,7 @@ static int nvme_dev_add(struct nvme_dev *dev)
 
 	ctrl = mem;
 	nn = le32_to_cpup(&ctrl->nn);
+	dev->oncs = le16_to_cpup(&ctrl->oncs);
 	memcpy(dev->serial, ctrl->sn, sizeof(ctrl->sn));
 	memcpy(dev->model, ctrl->mn, sizeof(ctrl->mn));
 	memcpy(dev->firmware_rev, ctrl->fr, sizeof(ctrl->fr));
