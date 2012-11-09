@@ -105,7 +105,7 @@ static void sd_unlock_native_capacity(struct gendisk *disk);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
-static int sd_suspend(struct device *, pm_message_t state);
+static int sd_suspend(struct device *);
 static int sd_resume(struct device *);
 static void sd_rescan(struct device *);
 static int sd_done(struct scsi_cmnd *);
@@ -465,15 +465,23 @@ static struct class sd_disk_class = {
 	.dev_attrs	= sd_disk_attrs,
 };
 
+static const struct dev_pm_ops sd_pm_ops = {
+	.suspend		= sd_suspend,
+	.resume			= sd_resume,
+	.poweroff		= sd_suspend,
+	.restore		= sd_resume,
+	.runtime_suspend	= sd_suspend,
+	.runtime_resume		= sd_resume,
+};
+
 static struct scsi_driver sd_template = {
 	.owner			= THIS_MODULE,
 	.gendrv = {
 		.name		= "sd",
 		.probe		= sd_probe,
 		.remove		= sd_remove,
-		.suspend	= sd_suspend,
-		.resume		= sd_resume,
 		.shutdown	= sd_shutdown,
+		.pm		= &sd_pm_ops,
 	},
 	.rescan			= sd_rescan,
 	.done			= sd_done,
@@ -3054,7 +3062,7 @@ exit:
 	scsi_disk_put(sdkp);
 }
 
-static int sd_suspend(struct device *dev, pm_message_t mesg)
+static int sd_suspend(struct device *dev)
 {
 	struct scsi_disk *sdkp = scsi_disk_get_from_dev(dev);
 	int ret = 0;
@@ -3069,8 +3077,7 @@ static int sd_suspend(struct device *dev, pm_message_t mesg)
 			goto done;
 	}
 
-	if (((mesg.event & PM_EVENT_SLEEP) || PMSG_IS_AUTO(mesg)) &&
-			sdkp->device->manage_start_stop) {
+	if (sdkp->device->manage_start_stop) {
 		sd_printk(KERN_NOTICE, sdkp, "Stopping disk\n");
 		ret = sd_start_stop_device(sdkp, 0);
 	}
