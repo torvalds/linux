@@ -133,6 +133,8 @@ static int mga_vram_init(struct mga_device *mdev)
 {
 	void __iomem *mem;
 	struct apertures_struct *aper = alloc_apertures(1);
+	if (!aper)
+		return -ENOMEM;
 
 	/* BAR 0 is VRAM */
 	mdev->mc.vram_base = pci_resource_start(mdev->dev->pdev, 0);
