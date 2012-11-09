@@ -50,8 +50,8 @@
 
 #define VXLAN_N_VID	(1u << 24)
 #define VXLAN_VID_MASK	(VXLAN_N_VID - 1)
-/* VLAN + IP header + UDP + VXLAN */
-#define VXLAN_HEADROOM (4 + 20 + 8 + 8)
+/* IP header + UDP + VXLAN + Ethernet header */
+#define VXLAN_HEADROOM (20 + 8 + 8 + 14)
 
 #define VXLAN_FLAGS 0x08000000	/* struct vxlanhdr.vx_flags required value. */
 
