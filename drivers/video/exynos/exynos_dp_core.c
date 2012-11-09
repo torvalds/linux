@@ -838,6 +838,45 @@ static irqreturn_t exynos_dp_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static void exynos_dp_hotplug(struct work_struct *work)
+{
+	struct exynos_dp_device *dp;
+	int ret;
+
+	dp = container_of(work, struct exynos_dp_device, hotplug_work);
+
+	ret = exynos_dp_detect_hpd(dp);
+	if (ret) {
+		dev_err(dp->dev, "unable to detect hpd\n");
+		return;
+	}
+
+	ret = exynos_dp_handle_edid(dp);
+	if (ret) {
+		dev_err(dp->dev, "unable to handle edid\n");
+		return;
+	}
+
+	ret = exynos_dp_set_link_train(dp, dp->video_info->lane_count,
+					dp->video_info->link_rate);
+	if (ret) {
+		dev_err(dp->dev, "unable to do link train\n");
+		return;
+	}
+
+	exynos_dp_enable_scramble(dp, 1);
+	exynos_dp_enable_rx_to_enhanced_mode(dp, 1);
+	exynos_dp_enable_enhanced_mode(dp, 1);
+
+	exynos_dp_set_lane_count(dp, dp->video_info->lane_count);
+	exynos_dp_set_link_bandwidth(dp, dp->video_info->link_rate);
+
+	exynos_dp_init_video(dp);
+	ret = exynos_dp_config_video(dp, dp->video_info);
+	if (ret)
+		dev_err(dp->dev, "unable to config video\n");
+}
+
 #ifdef CONFIG_OF
 static struct exynos_dp_platdata *exynos_dp_dt_parse_pdata(struct device *dev)
 {
@@ -1032,6 +1071,8 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	INIT_WORK(&dp->hotplug_work, exynos_dp_hotplug);
+
 	ret = devm_request_irq(&pdev->dev, dp->irq, exynos_dp_irq_handler, 0,
 				"exynos-dp", dp);
 	if (ret) {
@@ -1051,36 +1092,8 @@ static int __devinit exynos_dp_probe(struct platform_device *pdev)
 
 	exynos_dp_init_dp(dp);
 
-	ret = exynos_dp_detect_hpd(dp);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to detect hpd\n");
-		return ret;
-	}
-
-	exynos_dp_handle_edid(dp);
-
-	ret = exynos_dp_set_link_train(dp, dp->video_info->lane_count,
-				dp->video_info->link_rate);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to do link train\n");
-		return ret;
-	}
-
-	exynos_dp_enable_scramble(dp, 1);
-	exynos_dp_enable_rx_to_enhanced_mode(dp, 1);
-	exynos_dp_enable_enhanced_mode(dp, 1);
-
-	exynos_dp_set_lane_count(dp, dp->video_info->lane_count);
-	exynos_dp_set_link_bandwidth(dp, dp->video_info->link_rate);
-
-	exynos_dp_init_video(dp);
-	ret = exynos_dp_config_video(dp, dp->video_info);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to config video\n");
-		return ret;
-	}
-
 	platform_set_drvdata(pdev, dp);
+	schedule_work(&dp->hotplug_work);
 
 	return 0;
 }
@@ -1089,6 +1102,9 @@ static int __devexit exynos_dp_remove(struct platform_device *pdev)
 {
 	struct exynos_dp_platdata *pdata = pdev->dev.platform_data;
 	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
+
+	if (work_pending(&dp->hotplug_work))
+		flush_work(&dp->hotplug_work);
 
 	if (pdev->dev.of_node) {
 		if (dp->phy_addr)
@@ -1100,6 +1116,7 @@ static int __devexit exynos_dp_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(dp->clock);
 
+
 	return 0;
 }
 
@@ -1108,6 +1125,9 @@ static int exynos_dp_suspend(struct device *dev)
 {
 	struct exynos_dp_platdata *pdata = dev->platform_data;
 	struct exynos_dp_device *dp = dev_get_drvdata(dev);
+
+	if (work_pending(&dp->hotplug_work))
+		flush_work(&dp->hotplug_work);
 
 	if (dev->of_node) {
 		if (dp->phy_addr)
@@ -1139,21 +1159,7 @@ static int exynos_dp_resume(struct device *dev)
 
 	exynos_dp_init_dp(dp);
 
-	exynos_dp_detect_hpd(dp);
-	exynos_dp_handle_edid(dp);
-
-	exynos_dp_set_link_train(dp, dp->video_info->lane_count,
-				dp->video_info->link_rate);
-
-	exynos_dp_enable_scramble(dp, 1);
-	exynos_dp_enable_rx_to_enhanced_mode(dp, 1);
-	exynos_dp_enable_enhanced_mode(dp, 1);
-
-	exynos_dp_set_lane_count(dp, dp->video_info->lane_count);
-	exynos_dp_set_link_bandwidth(dp, dp->video_info->link_rate);
-
-	exynos_dp_init_video(dp);
-	exynos_dp_config_video(dp, dp->video_info);
+	schedule_work(&dp->hotplug_work);
 
 	return 0;
 }
