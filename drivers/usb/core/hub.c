@@ -4038,6 +4038,9 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
+	if (hcd->phy && !hdev->parent)
+		usb_phy_notify_connect(hcd->phy, port1);
+
 	/*
 	 * Some superspeed devices have finished the link training process
 	 * and attached to a superspeed hub port, but the device descriptor
@@ -4232,8 +4235,12 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 	}
 
 	/* Disconnect any existing devices under this port */
-	if (udev)
+	if (udev) {
+		if (hcd->phy && !hdev->parent &&
+				!(portstatus & USB_PORT_STAT_CONNECTION))
+			usb_phy_notify_disconnect(hcd->phy, port1);
 		usb_disconnect(&hub->ports[port1 - 1]->child);
+	}
 	clear_bit(port1, hub->change_bits);
 
 	/* We can forget about a "removed" device when there's a physical
@@ -4254,13 +4261,6 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		} else {
 			portstatus = status;
 		}
-	}
-
-	if (hcd->phy && !hdev->parent) {
-		if (portstatus & USB_PORT_STAT_CONNECTION)
-			usb_phy_notify_connect(hcd->phy, port1);
-		else
-			usb_phy_notify_disconnect(hcd->phy, port1);
 	}
 
 	/* Return now if debouncing failed or nothing is connected or
