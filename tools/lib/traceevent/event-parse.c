@@ -5561,7 +5561,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	if (pevent->func_map) {
-		for (i = 0; i < pevent->func_count; i++) {
+		for (i = 0; i < (int)pevent->func_count; i++) {
 			free(pevent->func_map[i].func);
 			free(pevent->func_map[i].mod);
 		}
@@ -5583,7 +5583,7 @@ void pevent_free(struct pevent *pevent)
 	}
 
 	if (pevent->printk_map) {
-		for (i = 0; i < pevent->printk_count; i++)
+		for (i = 0; i < (int)pevent->printk_count; i++)
 			free(pevent->printk_map[i].printk);
 		free(pevent->printk_map);
 	}
