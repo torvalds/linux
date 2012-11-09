@@ -63,6 +63,15 @@ config MFD_SM501_GPIO
 	 lines on the SM501. The platform data is used to supply the
 	 base number for the first GPIO line to register.
 
+config MFD_RTSX_PCI
+	tristate "Support for Realtek PCI-E card reader"
+	depends on PCI
+	help
+	  This supports for Realtek PCI-Express card reader including rts5209,
+	  rts5229, rtl8411, etc. Realtek card reader supports access to many
+	  types of memory cards, such as Memory Stick, Memory Stick Pro,
+	  Secure Digital and MultiMediaCard.
+
 config MFD_ASIC3
 	bool "Support for Compaq ASIC3"
 	depends on GENERIC_HARDIRQS && GPIOLIB && ARM
