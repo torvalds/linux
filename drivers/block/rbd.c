@@ -1368,7 +1368,6 @@ done:
  * Request sync osd read
  */
 static int rbd_req_sync_read(struct rbd_device *rbd_dev,
-			  u64 snapid,
 			  const char *object_name,
 			  u64 ofs, u64 len,
 			  char *buf,
@@ -1382,7 +1381,7 @@ static int rbd_req_sync_read(struct rbd_device *rbd_dev,
 		return -ENOMEM;
 
 	ret = rbd_req_sync_op(rbd_dev, NULL,
-			       snapid,
+			       CEPH_NOSNAP,
 			       CEPH_OSD_FLAG_READ,
 			       ops, object_name, ofs, len, buf, NULL, ver);
 	rbd_destroy_ops(ops);
@@ -1799,8 +1798,7 @@ rbd_dev_v1_header_read(struct rbd_device *rbd_dev, u64 *version)
 		if (!ondisk)
 			return ERR_PTR(-ENOMEM);
 
-		ret = rbd_req_sync_read(rbd_dev, CEPH_NOSNAP,
-				       rbd_dev->header_name,
+		ret = rbd_req_sync_read(rbd_dev, rbd_dev->header_name,
 				       0, size,
 				       (char *) ondisk, version);
 
