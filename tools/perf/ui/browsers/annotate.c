@@ -188,6 +188,12 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	struct disasm_line *cursor = ab->selection, *target;
 	struct browser_disasm_line *btarget, *bcursor;
 	unsigned int from, to;
+	struct map_symbol *ms = ab->b.priv;
+	struct symbol *sym = ms->sym;
+
+	/* PLT symbols contain external offsets */
+	if (strstr(sym->name, "@plt"))
+		return;
 
 	if (!cursor || !cursor->ins || !ins__is_jump(cursor->ins) ||
 	    !disasm_line__has_offset(cursor))
@@ -771,6 +777,12 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 						size_t size)
 {
 	u64 offset;
+	struct map_symbol *ms = browser->b.priv;
+	struct symbol *sym = ms->sym;
+
+	/* PLT symbols contain external offsets */
+	if (strstr(sym->name, "@plt"))
+		return;
 
 	for (offset = 0; offset < size; ++offset) {
 		struct disasm_line *dl = browser->offsets[offset], *dlt;
