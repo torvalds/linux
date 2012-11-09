@@ -1257,8 +1257,6 @@ static void rbd_simple_req_cb(struct ceph_osd_request *osd_req,
  * Do a synchronous ceph osd operation
  */
 static int rbd_req_sync_op(struct rbd_device *rbd_dev,
-			   struct ceph_snap_context *snapc,
-			   u64 snapid,
 			   int flags,
 			   struct ceph_osd_req_op *ops,
 			   const char *object_name,
@@ -1278,7 +1276,7 @@ static int rbd_req_sync_op(struct rbd_device *rbd_dev,
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
-	ret = rbd_do_request(NULL, rbd_dev, snapc, snapid,
+	ret = rbd_do_request(NULL, rbd_dev, NULL, CEPH_NOSNAP,
 			  object_name, ofs, inbound_size, NULL,
 			  pages, num_pages,
 			  flags,
@@ -1380,9 +1378,7 @@ static int rbd_req_sync_read(struct rbd_device *rbd_dev,
 	if (!ops)
 		return -ENOMEM;
 
-	ret = rbd_req_sync_op(rbd_dev, NULL,
-			       CEPH_NOSNAP,
-			       CEPH_OSD_FLAG_READ,
+	ret = rbd_req_sync_op(rbd_dev, CEPH_OSD_FLAG_READ,
 			       ops, object_name, ofs, len, buf, NULL, ver);
 	rbd_destroy_ops(ops);
 
@@ -1461,8 +1457,7 @@ static int rbd_req_sync_watch(struct rbd_device *rbd_dev)
 	ops[0].watch.cookie = cpu_to_le64(rbd_dev->watch_event->cookie);
 	ops[0].watch.flag = 1;
 
-	ret = rbd_req_sync_op(rbd_dev, NULL,
-			      CEPH_NOSNAP,
+	ret = rbd_req_sync_op(rbd_dev,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			      ops,
 			      rbd_dev->header_name,
@@ -1499,8 +1494,7 @@ static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev)
 	ops[0].watch.cookie = cpu_to_le64(rbd_dev->watch_event->cookie);
 	ops[0].watch.flag = 0;
 
-	ret = rbd_req_sync_op(rbd_dev, NULL,
-			      CEPH_NOSNAP,
+	ret = rbd_req_sync_op(rbd_dev,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
 			      ops,
 			      rbd_dev->header_name,
@@ -1553,8 +1547,7 @@ static int rbd_req_sync_exec(struct rbd_device *rbd_dev,
 	ops[0].cls.indata = outbound;
 	ops[0].cls.indata_len = outbound_size;
 
-	ret = rbd_req_sync_op(rbd_dev, NULL,
-			       CEPH_NOSNAP, CEPH_OSD_FLAG_READ, ops,
+	ret = rbd_req_sync_op(rbd_dev, CEPH_OSD_FLAG_READ, ops,
 			       object_name, 0, inbound_size, inbound,
 			       NULL, ver);
 
