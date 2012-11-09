@@ -609,14 +609,18 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		}
 	}
 
+	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
+		ret = drm_irq_install(dev);
+		if (ret != 0) {
+			DRM_ERROR("Failed installing irq: %d\n", ret);
+			goto out_no_irq;
+		}
+	}
+
 	dev_priv->fman = vmw_fence_manager_init(dev_priv);
 	if (unlikely(dev_priv->fman == NULL))
 		goto out_no_fman;
 
-	/* Need to start the fifo to check if we can do screen objects */
-	ret = vmw_3d_resource_inc(dev_priv, true);
-	if (unlikely(ret != 0))
-		goto out_no_fifo;
 	vmw_kms_save_vga(dev_priv);
 
 	/* Start kms and overlay systems, needs fifo. */
@@ -625,25 +629,11 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_no_kms;
 	vmw_overlay_init(dev_priv);
 
-	/* 3D Depends on Screen Objects being used. */
-	DRM_INFO("Detected %sdevice 3D availability.\n",
-		 vmw_fifo_have_3d(dev_priv) ?
-		 "" : "no ");
-
-	/* We might be done with the fifo now */
 	if (dev_priv->enable_fb) {
+		ret = vmw_3d_resource_inc(dev_priv, true);
+		if (unlikely(ret != 0))
+			goto out_no_fifo;
 		vmw_fb_init(dev_priv);
-	} else {
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, true);
-	}
-
-	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
-		ret = drm_irq_install(dev);
-		if (unlikely(ret != 0)) {
-			DRM_ERROR("Failed installing irq: %d\n", ret);
-			goto out_no_irq;
-		}
 	}
 
 	dev_priv->pm_nb.notifier_call = vmwgfx_pm_notifier;
@@ -651,20 +641,16 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	return 0;
 
-out_no_irq:
-	if (dev_priv->enable_fb)
-		vmw_fb_close(dev_priv);
+out_no_fifo:
 	vmw_overlay_close(dev_priv);
 	vmw_kms_close(dev_priv);
 out_no_kms:
-	/* We still have a 3D resource reference held */
-	if (dev_priv->enable_fb) {
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, false);
-	}
-out_no_fifo:
+	vmw_kms_restore_vga(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
 out_no_fman:
+	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
+		drm_irq_uninstall(dev_priv->dev);
+out_no_irq:
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else
@@ -699,8 +685,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->ctx.cmd_bounce)
 		vfree(dev_priv->ctx.cmd_bounce);
-	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
-		drm_irq_uninstall(dev_priv->dev);
 	if (dev_priv->enable_fb) {
 		vmw_fb_close(dev_priv);
 		vmw_kms_restore_vga(dev_priv);
@@ -709,6 +693,8 @@ static int vmw_driver_unload(struct drm_device *dev)
 	vmw_kms_close(dev_priv);
 	vmw_overlay_close(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
+	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
+		drm_irq_uninstall(dev_priv->dev);
 	if (dev_priv->stealth)
 		pci_release_region(dev->pdev, 2);
 	else
