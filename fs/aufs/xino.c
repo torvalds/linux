@@ -1208,7 +1208,7 @@ struct file *au_xino_def(struct super_block *sb)
 
 	if (bwr >= 0) {
 		file = ERR_PTR(-ENOMEM);
-		page = __getname_gfp(GFP_NOFS);
+		page = (void *)__get_free_page(GFP_NOFS);
 		if (unlikely(!page))
 			goto out;
 		path.mnt = br->br_mnt;
@@ -1222,7 +1222,7 @@ struct file *au_xino_def(struct super_block *sb)
 			if (!IS_ERR(file))
 				au_xino_brid_set(sb, br->br_id);
 		}
-		__putname(page);
+		free_page((unsigned long)page);
 	} else {
 		file = au_xino_create(sb, AUFS_XINO_DEFPATH, /*silent*/0);
 		if (IS_ERR(file))

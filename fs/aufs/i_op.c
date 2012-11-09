@@ -907,7 +907,7 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	} buf;
 
 	err = -ENOMEM;
-	buf.k = __getname_gfp(GFP_NOFS);
+	buf.k = (void *)__get_free_page(GFP_NOFS);
 	if (unlikely(!buf.k))
 		goto out;
 
@@ -932,7 +932,7 @@ static void *aufs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 
 out_name:
-	__putname(buf.k);
+	free_page((unsigned long)buf.k);
 out:
 	AuTraceErr(err);
 	return ERR_PTR(err);
@@ -941,7 +941,11 @@ out:
 static void aufs_put_link(struct dentry *dentry __maybe_unused,
 			  struct nameidata *nd, void *cookie __maybe_unused)
 {
-	__putname(nd_get_link(nd));
+	char *p;
+
+	p = nd_get_link(nd);
+	if (!IS_ERR_OR_NULL(p))
+		free_page((unsigned long)p);
 }
 
 /* ---------------------------------------------------------------------- */
