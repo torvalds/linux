@@ -246,8 +246,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	struct device_node *np;
 	struct omap_hwmod *oh;
 	struct resource irq, mem;
-	int res = 0;
-	int r;
+	int r = 0;
 
 	if (of_have_populated_dt()) {
 		np = omap_get_timer_dt(omap_timer_match, NULL);
@@ -307,10 +306,10 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 		src = clk_get(NULL, fck_source);
 		if (IS_ERR(src)) {
-			res = -EINVAL;
+			r = -EINVAL;
 		} else {
-			res = clk_set_parent(timer->fclk, src);
-			if (IS_ERR_VALUE(res))
+			r = clk_set_parent(timer->fclk, src);
+			if (IS_ERR_VALUE(r))
 				pr_warn("%s: %s cannot set source\n",
 					__func__, oh->name);
 			clk_put(src);
@@ -331,7 +330,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	timer->rate = clk_get_rate(timer->fclk);
 	timer->reserved = 1;
 
-	return res;
+	return r;
 }
 
 static void __init omap2_gp_clockevent_init(int gptimer_id,
