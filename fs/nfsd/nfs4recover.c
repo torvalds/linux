@@ -320,7 +320,7 @@ purge_old(struct dentry *parent, struct dentry *child)
 {
 	int status;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name, false))
+	if (nfs4_has_reclaimed_state(child->d_name.name))
 		return 0;
 
 	status = vfs_rmdir(parent->d_inode, child);

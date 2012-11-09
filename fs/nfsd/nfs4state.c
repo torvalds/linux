@@ -4484,7 +4484,7 @@ alloc_reclaim(void)
 }
 
 int
-nfs4_has_reclaimed_state(const char *name, bool use_exchange_id)
+nfs4_has_reclaimed_state(const char *name)
 {
 	unsigned int strhashval = clientstr_hashval(name);
 	struct nfs4_client *clp;
