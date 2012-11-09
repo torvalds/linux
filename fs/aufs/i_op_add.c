@@ -267,7 +267,8 @@ static int add_simple(struct inode *dir, struct dentry *dentry,
 	h_dir = au_pinned_h_dir(&pin);
 	switch (arg->type) {
 	case Creat:
-		err = vfsub_create(h_dir, &h_path, arg->u.c.mode, arg->u.c.want_excl);
+		err = vfsub_create(h_dir, &h_path, arg->u.c.mode,
+				   arg->u.c.want_excl);
 		break;
 	case Symlink:
 		err = vfsub_symlink(h_dir, &h_path, arg->u.s.symname);
