@@ -27,6 +27,13 @@
 				status = "okay";
 			};
 
+			ssp2: ssp@80014000 {
+				compatible = "fsl,imx28-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
+			};
+
 			pinctrl@80018000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&hog_pins_apf28dev>;
@@ -71,6 +78,12 @@
 
 		apbx@80040000 {
 			lradc@80050000 {
+				status = "okay";
+			};
+
+			i2c0: i2c@80058000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c0_pins_a>;
 				status = "okay";
 			};
 
