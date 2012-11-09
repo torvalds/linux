@@ -223,6 +223,7 @@ nouveau_drm_probe(struct pci_dev *pdev, const struct pci_device_id *pent)
 	boot = pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
 #endif
 	remove_conflicting_framebuffers(aper, "nouveaufb", boot);
+	kfree(aper);
 
 	ret = nouveau_device_create(pdev, nouveau_name(pdev), pci_name(pdev),
 				    nouveau_config, nouveau_debug, &device);
