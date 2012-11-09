@@ -37,6 +37,14 @@ enum sta2x11_mfd_plat_dev {
 	sta2x11_n_mfd_plat_devs,
 };
 
+#define STA2X11_MFD_SCTL_NAME	       "sta2x11-sctl"
+#define STA2X11_MFD_GPIO_NAME	       "sta2x11-gpio"
+#define STA2X11_MFD_SCR_NAME	       "sta2x11-scr"
+#define STA2X11_MFD_TIME_NAME	       "sta2x11-time"
+#define STA2X11_MFD_APBREG_NAME	       "sta2x11-apbreg"
+#define STA2X11_MFD_APB_SOC_REGS_NAME  "sta2x11-apb-soc-regs"
+#define STA2X11_MFD_VIC_NAME	       "sta2x11-vic"
+
 extern u32
 __sta2x11_mfd_mask(struct pci_dev *, u32, u32, u32, enum sta2x11_mfd_plat_dev);
 
