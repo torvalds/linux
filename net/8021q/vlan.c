@@ -403,6 +403,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		break;
 
 	case NETDEV_DOWN:
+		if (dev->features & NETIF_F_HW_VLAN_FILTER)
+			vlan_vid_del(dev, 0);
+
 		/* Put all VLANs for this dev in the down state too.  */
 		for (i = 0; i < VLAN_N_VID; i++) {
 			vlandev = vlan_group_get_device(grp, i);

@@ -6647,6 +6647,11 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 		return -EINVAL;
 	}
 
+	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) {
+		e_err(drv, "Enable failed, SR-IOV enabled\n");
+		return -EINVAL;
+	}
+
 	/* Hardware supports up to 8 traffic classes */
 	if (tc > adapter->dcb_cfg.num_tcs.pg_tcs ||
 	    (hw->mac.type == ixgbe_mac_82598EB &&

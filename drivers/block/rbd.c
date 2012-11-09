@@ -499,7 +499,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 			 / sizeof (*ondisk))
 		return -EINVAL;
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
-				snap_count * sizeof (*ondisk),
+				snap_count * sizeof(u64),
 				gfp_flags);
 	if (!header->snapc)
 		return -ENOMEM;
@@ -977,7 +977,7 @@ static void rbd_req_cb(struct ceph_osd_request *req, struct ceph_msg *msg)
 	op = (void *)(replyhead + 1);
 	rc = le32_to_cpu(replyhead->result);
 	bytes = le64_to_cpu(op->extent.length);
-	read_op = (le32_to_cpu(op->op) == CEPH_OSD_OP_READ);
+	read_op = (le16_to_cpu(op->op) == CEPH_OSD_OP_READ);
 
 	dout("rbd_req_cb bytes=%lld readop=%d rc=%d\n", bytes, read_op, rc);
 

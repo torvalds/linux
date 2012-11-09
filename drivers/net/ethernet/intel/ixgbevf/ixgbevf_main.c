@@ -201,6 +201,9 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	unsigned int i, eop, count = 0;
 	unsigned int total_bytes = 0, total_packets = 0;
 
+	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
+		return true;
+
 	i = tx_ring->next_to_clean;
 	eop = tx_ring->tx_buffer_info[i].next_to_watch;
 	eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
@@ -969,8 +972,6 @@ static irqreturn_t ixgbevf_msix_clean_tx(int irq, void *data)
 	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
 	for (i = 0; i < q_vector->txr_count; i++) {
 		tx_ring = &(adapter->tx_ring[r_idx]);
-		tx_ring->total_bytes = 0;
-		tx_ring->total_packets = 0;
 		ixgbevf_clean_tx_irq(adapter, tx_ring);
 		r_idx = find_next_bit(q_vector->txr_idx, adapter->num_tx_queues,
 				      r_idx + 1);
@@ -994,16 +995,6 @@ static irqreturn_t ixgbevf_msix_clean_rx(int irq, void *data)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbevf_ring  *rx_ring;
 	int r_idx;
-	int i;
-
-	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
-	for (i = 0; i < q_vector->rxr_count; i++) {
-		rx_ring = &(adapter->rx_ring[r_idx]);
-		rx_ring->total_bytes = 0;
-		rx_ring->total_packets = 0;
-		r_idx = find_next_bit(q_vector->rxr_idx, adapter->num_rx_queues,
-				      r_idx + 1);
-	}
 
 	if (!q_vector->rxr_count)
 		return IRQ_HANDLED;

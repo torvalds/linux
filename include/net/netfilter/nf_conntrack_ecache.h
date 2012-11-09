@@ -78,7 +78,7 @@ nf_conntrack_event_cache(enum ip_conntrack_events event, struct nf_conn *ct)
 	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_ecache *e;
 
-	if (net->ct.nf_conntrack_event_cb == NULL)
+	if (!rcu_access_pointer(net->ct.nf_conntrack_event_cb))
 		return;
 
 	e = nf_ct_ecache_find(ct);

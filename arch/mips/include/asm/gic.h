@@ -206,7 +206,7 @@
 
 #define GIC_VPE_EIC_SHADOW_SET_BASE	0x0100
 #define GIC_VPE_EIC_SS(intr) \
-	(GIC_EIC_SHADOW_SET_BASE + (4 * intr))
+	(GIC_VPE_EIC_SHADOW_SET_BASE + (4 * intr))
 
 #define GIC_VPE_EIC_VEC_BASE		0x0800
 #define GIC_VPE_EIC_VEC(intr) \
@@ -330,6 +330,17 @@ struct gic_intr_map {
 #define GIC_FLAG_TRANSPARENT   0x02
 };
 
+/*
+ * This is only used in EIC mode. This helps to figure out which
+ * shared interrupts we need to process when we get a vector interrupt.
+ */
+#define GIC_MAX_SHARED_INTR  0x5
+struct gic_shared_intr_map {
+	unsigned int num_shared_intr;
+	unsigned int intr_list[GIC_MAX_SHARED_INTR];
+	unsigned int local_intr_mask;
+};
+
 extern void gic_init(unsigned long gic_base_addr,
 	unsigned long gic_addrspace_size, struct gic_intr_map *intrmap,
 	unsigned int intrmap_size, unsigned int irqbase);
@@ -338,5 +349,7 @@ extern unsigned int gic_get_int(void);
 extern void gic_send_ipi(unsigned int intr);
 extern unsigned int plat_ipi_call_int_xlate(unsigned int);
 extern unsigned int plat_ipi_resched_int_xlate(unsigned int);
+extern void gic_bind_eic_interrupt(int irq, int set);
+extern unsigned int gic_get_timer_pending(void);
 
 #endif /* _ASM_GICREGS_H */

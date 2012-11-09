@@ -28,7 +28,7 @@
 
 #define CRONUS_ADDR(x)	(CRONUS_IO_BASE + (x))
 
-const struct register_map cronus_register_map __initdata = {
+const struct register_map cronus_register_map __initconst = {
 	.eic_slow0_strt_add = {.phys = CRONUS_ADDR(0x000000)},
 	.eic_cfg_bits = {.phys = CRONUS_ADDR(0x000038)},
 	.eic_ready_status = {.phys = CRONUS_ADDR(0x00004C)},
