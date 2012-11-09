@@ -281,12 +281,15 @@ static struct drm_driver driver_old = {
 
 static struct drm_driver kms_driver;
 
-static void radeon_kick_out_firmware_fb(struct pci_dev *pdev)
+static int radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 {
 	struct apertures_struct *ap;
 	bool primary = false;
 
 	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
 
@@ -295,13 +298,19 @@ static void radeon_kick_out_firmware_fb(struct pci_dev *pdev)
 #endif
 	remove_conflicting_framebuffers(ap, "radeondrmfb", primary);
 	kfree(ap);
+
+	return 0;
 }
 
 static int __devinit
 radeon_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	int ret;
+
 	/* Get rid of things like offb */
-	radeon_kick_out_firmware_fb(pdev);
+	ret = radeon_kick_out_firmware_fb(pdev);
+	if (ret)
+		return ret;
 
 	return drm_get_pci_dev(pdev, ent, &kms_driver);
 }
