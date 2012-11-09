@@ -54,7 +54,7 @@ bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 		return false;
 	}
 
-	power = chanctx_conf->channel->max_power;
+	power = chanctx_conf->def.chan->max_power;
 	rcu_read_unlock();
 
 	if (sdata->user_power_level != IEEE80211_UNSET_POWER_LEVEL)
@@ -415,8 +415,7 @@ static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		goto out_unlock;
 	}
 
-	ret = ieee80211_vif_use_channel(sdata, local->monitor_channel,
-					local->monitor_channel_type,
+	ret = ieee80211_vif_use_channel(sdata, &local->monitor_chandef,
 					IEEE80211_CHANCTX_EXCLUSIVE);
 	if (ret) {
 		drv_remove_interface(local, sdata);

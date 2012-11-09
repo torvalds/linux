@@ -615,7 +615,7 @@ do_survey:
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (chanctx_conf)
-		channel = chanctx_conf->channel;
+		channel = chanctx_conf->def.chan;
 	else
 		channel = NULL;
 	rcu_read_unlock();
@@ -739,13 +739,9 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata;
-	enum nl80211_channel_type channel_type;
 	int ret = 0;
 
-	channel_type = cfg80211_get_chandef_type(chandef);
-
-	if (local->monitor_channel == chandef->chan &&
-	    local->monitor_channel_type == channel_type)
+	if (cfg80211_chandef_identical(&local->monitor_chandef, chandef))
 		return 0;
 
 	mutex_lock(&local->iflist_mtx);
@@ -755,20 +751,17 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 				lockdep_is_held(&local->iflist_mtx));
 		if (sdata) {
 			ieee80211_vif_release_channel(sdata);
-			ret = ieee80211_vif_use_channel(
-					sdata, chandef->chan, channel_type,
+			ret = ieee80211_vif_use_channel(sdata, chandef,
 					IEEE80211_CHANCTX_EXCLUSIVE);
 		}
 	} else if (local->open_count == local->monitors) {
 		local->_oper_channel = chandef->chan;
-		local->_oper_channel_type = channel_type;
+		local->_oper_channel_type = cfg80211_get_chandef_type(chandef);
 		ieee80211_hw_config(local, 0);
 	}
 
-	if (ret == 0) {
-		local->monitor_channel = chandef->chan;
-		local->monitor_channel_type = channel_type;
-	}
+	if (ret == 0)
+		local->monitor_chandef = *chandef;
 	mutex_unlock(&local->iflist_mtx);
 
 	return ret;
@@ -890,10 +883,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
-	err = ieee80211_vif_use_channel(
-		sdata, params->chandef.chan,
-		cfg80211_get_chandef_type(&params->chandef),
-		IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_vif_use_channel(sdata, &params->chandef,
+					IEEE80211_CHANCTX_SHARED);
 	if (err)
 		return err;
 
@@ -1710,10 +1701,8 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 	sdata->needed_rx_chains = sdata->local->rx_chains;
 
-	err = ieee80211_vif_use_channel(
-		sdata, setup->chandef.chan,
-		cfg80211_get_chandef_type(&setup->chandef),
-		IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_vif_use_channel(sdata, &setup->chandef,
+					IEEE80211_CHANCTX_SHARED);
 	if (err)
 		return err;
 
@@ -2133,7 +2122,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	 * the new value until we associate.
 	 */
 	if (!sdata->u.mgd.associated ||
-	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
+	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 		return 0;
 
 	ap = sdata->u.mgd.associated->bssid;
@@ -2589,7 +2578,7 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 
 		if (chanctx_conf)
-			need_offchan = chan != chanctx_conf->channel;
+			need_offchan = chan != chanctx_conf->def.chan;
 		else
 			need_offchan = true;
 		rcu_read_unlock();
@@ -3057,7 +3046,7 @@ static int ieee80211_probe_client(struct wiphy *wiphy, struct net_device *dev,
 		rcu_read_unlock();
 		return -EINVAL;
 	}
-	band = chanctx_conf->channel->band;
+	band = chanctx_conf->def.chan->band;
 	sta = sta_info_get(sdata, peer);
 	if (sta) {
 		qos = test_sta_flag(sta, WLAN_STA_WME);
@@ -3125,9 +3114,7 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (chanctx_conf) {
-		cfg80211_chandef_create(chandef,
-					chanctx_conf->channel,
-					chanctx_conf->channel_type);
+		*chandef = chanctx_conf->def;
 		ret = 0;
 	}
 	rcu_read_unlock();

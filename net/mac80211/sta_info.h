@@ -272,7 +272,7 @@ struct sta_ampdu_mlme {
  * @t_offset: timing offset relative to this host
  * @t_offset_setpoint: reference timing offset of this sta to be used when
  * 	calculating clockdrift
- * @ch_type: peer's channel type
+ * @ch_width: peer's channel width
  * @debugfs: debug filesystem info
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
@@ -368,7 +368,7 @@ struct sta_info {
 	struct timer_list plink_timer;
 	s64 t_offset;
 	s64 t_offset_setpoint;
-	enum nl80211_channel_type ch_type;
+	enum nl80211_chan_width ch_width;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS

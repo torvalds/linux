@@ -1087,7 +1087,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	ieee80211_xmit(sdata, skb, chanctx_conf->channel->band);
+	ieee80211_xmit(sdata, skb, chanctx_conf->def.chan->band);
 	rcu_read_unlock();
 }
 

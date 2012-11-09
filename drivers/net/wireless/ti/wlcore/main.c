@@ -3791,7 +3791,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 
 	/* Handle HT information change */
 	if ((changed & BSS_CHANGED_HT) &&
-	    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
+	    (bss_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT)) {
 		ret = wl1271_acx_set_ht_information(wl, wlvif,
 					bss_conf->ht_operation_mode);
 		if (ret < 0) {
@@ -3905,7 +3905,8 @@ sta_not_found:
 			u32 rates;
 			int ieoffset;
 			wlvif->aid = bss_conf->aid;
-			wlvif->channel_type = bss_conf->channel_type;
+			wlvif->channel_type =
+				cfg80211_get_chandef_type(&bss_conf->chandef);
 			wlvif->beacon_int = bss_conf->beacon_int;
 			do_join = true;
 			set_assoc = true;
@@ -4071,7 +4072,7 @@ sta_not_found:
 	/* Handle new association with HT. Do this after join. */
 	if (sta_exists) {
 		if ((changed & BSS_CHANGED_HT) &&
-		    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
+		    (bss_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT)) {
 			ret = wl1271_acx_set_ht_capabilities(wl,
 							     &sta_ht_cap,
 							     true,
@@ -4098,7 +4099,7 @@ sta_not_found:
 
 	/* Handle HT information change. Done after join. */
 	if ((changed & BSS_CHANGED_HT) &&
-	    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
+	    (bss_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT)) {
 		ret = wl1271_acx_set_ht_information(wl, wlvif,
 					bss_conf->ht_operation_mode);
 		if (ret < 0) {

@@ -1676,7 +1676,7 @@ netdev_tx_t ieee80211_monitor_start_xmit(struct sk_buff *skb,
 	if (!chanctx_conf)
 		goto fail_rcu;
 
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 
 	/*
 	 * Frame injection is not allowed if beaconing is not allowed
@@ -1779,7 +1779,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		chanctx_conf = rcu_dereference(ap_sdata->vif.chanctx_conf);
 		if (!chanctx_conf)
 			goto fail_rcu;
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 		if (sta)
 			break;
 		/* fall through */
@@ -1794,7 +1794,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 			chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 		if (!chanctx_conf)
 			goto fail_rcu;
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 		break;
 	case NL80211_IFTYPE_WDS:
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
@@ -1871,7 +1871,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 		if (!chanctx_conf)
 			goto fail_rcu;
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 		break;
 #endif
 	case NL80211_IFTYPE_STATION:
@@ -1930,7 +1930,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 		if (!chanctx_conf)
 			goto fail_rcu;
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		/* DA SA BSSID */
@@ -1941,7 +1941,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 		if (!chanctx_conf)
 			goto fail_rcu;
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 		break;
 	default:
 		goto fail_rcu;
@@ -2191,7 +2191,7 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 			return true;
 		}
 		result = ieee80211_tx(sdata, skb, true,
-				      chanctx_conf->channel->band);
+				      chanctx_conf->def.chan->band);
 	} else {
 		struct sk_buff_head skbs;
 
@@ -2455,7 +2455,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		*pos++ = WLAN_EID_SSID;
 		*pos++ = 0x0;
 
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 
 		if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
 		    mesh_add_ds_params_ie(skb, sdata) ||
@@ -2474,7 +2474,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		goto out;
 	}
 
-	band = chanctx_conf->channel->band;
+	band = chanctx_conf->def.chan->band;
 
 	info = IEEE80211_SKB_CB(skb);
 
@@ -2754,7 +2754,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 	info = IEEE80211_SKB_CB(skb);
 
 	tx.flags |= IEEE80211_TX_PS_BUFFERED;
-	info->band = chanctx_conf->channel->band;
+	info->band = chanctx_conf->def.chan->band;
 
 	if (invoke_tx_handlers(&tx))
 		skb = NULL;

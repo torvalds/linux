@@ -145,11 +145,11 @@ struct ieee80211_low_level_stats {
 
 /**
  * enum ieee80211_chanctx_change - change flag for channel context
- * @IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE: The channel type was changed
+ * @IEEE80211_CHANCTX_CHANGE_WIDTH: The channel width changed
  * @IEEE80211_CHANCTX_CHANGE_RX_CHAINS: The number of RX chains changed
  */
 enum ieee80211_chanctx_change {
-	IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE	= BIT(0),
+	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(0),
 	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(1),
 };
 
@@ -159,8 +159,7 @@ enum ieee80211_chanctx_change {
  * This is the driver-visible part. The ieee80211_chanctx
  * that contains it is visible in mac80211 only.
  *
- * @channel: the channel to tune to
- * @channel_type: the channel (HT) type
+ * @def: the channel definition
  * @rx_chains_static: The number of RX chains that must always be
  *	active on the channel to receive MIMO transmissions
  * @rx_chains_dynamic: The number of RX chains that must be enabled
@@ -170,8 +169,7 @@ enum ieee80211_chanctx_change {
  *	sizeof(void *), size is determined in hw information.
  */
 struct ieee80211_chanctx_conf {
-	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def def;
 
 	u8 rx_chains_static, rx_chains_dynamic;
 
@@ -288,9 +286,8 @@ enum ieee80211_rssi_event {
  * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
- * @channel_type: Channel type for this BSS -- the hardware might be
- *	configured for HT40+ while this BSS only uses no-HT, for
- *	example.
+ * @chandef: Channel definition for this BSS -- the hardware might be
+ *	configured a higher bandwidth than this BSS uses, for example.
  * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
  *	This field is only valid when the channel type is one of the HT types.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
@@ -339,7 +336,7 @@ struct ieee80211_bss_conf {
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
 	u8 arp_addr_cnt;
 	bool arp_filter_enabled;

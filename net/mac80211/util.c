@@ -898,7 +898,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	use_11b = (chanctx_conf &&
-		   chanctx_conf->channel->band == IEEE80211_BAND_2GHZ) &&
+		   chanctx_conf->def.chan->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 	rcu_read_unlock();
 
@@ -991,7 +991,7 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 
 	if (chanctx_conf &&
-	    chanctx_conf->channel->band == IEEE80211_BAND_2GHZ &&
+	    chanctx_conf->def.chan->band == IEEE80211_BAND_2GHZ &&
 	    have_higher_than_11mbit)
 		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
 	else
@@ -1871,8 +1871,7 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 }
 
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
-			       struct ieee80211_channel *channel,
-			       enum nl80211_channel_type channel_type,
+			       const struct cfg80211_chan_def *chandef,
 			       u16 prot_mode)
 {
 	struct ieee80211_ht_operation *ht_oper;
@@ -1880,23 +1879,25 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	*pos++ = WLAN_EID_HT_OPERATION;
 	*pos++ = sizeof(struct ieee80211_ht_operation);
 	ht_oper = (struct ieee80211_ht_operation *)pos;
-	ht_oper->primary_chan =
-			ieee80211_frequency_to_channel(channel->center_freq);
-	switch (channel_type) {
-	case NL80211_CHAN_HT40MINUS:
-		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+	ht_oper->primary_chan = ieee80211_frequency_to_channel(
+					chandef->chan->center_freq);
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_160:
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_80:
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef->center_freq1 > chandef->chan->center_freq)
+			ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+		else
+			ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
 		break;
-	case NL80211_CHAN_HT40PLUS:
-		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-		break;
-	case NL80211_CHAN_HT20:
 	default:
 		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 		break;
 	}
 	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
-	    channel_type != NL80211_CHAN_NO_HT &&
-	    channel_type != NL80211_CHAN_HT20)
+	    chandef->width != NL80211_CHAN_WIDTH_20_NOHT &&
+	    chandef->width != NL80211_CHAN_WIDTH_20)
 		ht_oper->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 
 	ht_oper->operation_mode = cpu_to_le16(prot_mode);
@@ -1910,13 +1911,17 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	return pos + sizeof(struct ieee80211_ht_operation);
 }
 
-enum nl80211_channel_type
-ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper)
+void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
+				  struct ieee80211_ht_operation *ht_oper,
+				  struct cfg80211_chan_def *chandef)
 {
 	enum nl80211_channel_type channel_type;
 
-	if (!ht_oper)
-		return NL80211_CHAN_NO_HT;
+	if (!ht_oper) {
+		cfg80211_chandef_create(chandef, control_chan,
+					NL80211_CHAN_NO_HT);
+		return;
+	}
 
 	switch (ht_oper->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
@@ -1932,7 +1937,7 @@ ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper)
 		channel_type = NL80211_CHAN_NO_HT;
 	}
 
-	return channel_type;
+	cfg80211_chandef_create(chandef, control_chan, channel_type);
 }
 
 int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,

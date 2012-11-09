@@ -191,17 +191,19 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 		rcu_read_unlock();
 		return 0;
 	}
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
 
-	switch (sdata->vif.bss_conf.channel_type) {
-	case NL80211_CHAN_HT40PLUS:
-		if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_40:
+		if (sdata->vif.bss_conf.chandef.chan->center_freq >
+				sdata->vif.bss_conf.chandef.center_freq1 &&
+		    chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
 			disable_40 = true;
-		break;
-	case NL80211_CHAN_HT40MINUS:
-		if (chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+		if (sdata->vif.bss_conf.chandef.chan->center_freq <
+				sdata->vif.bss_conf.chandef.center_freq1 &&
+		    chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
 			disable_40 = true;
 		break;
 	default:
@@ -381,7 +383,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		rcu_read_unlock();
 		return;
 	}
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
 
@@ -2476,11 +2478,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (rx_status->freq != chanctx_conf->channel->center_freq) {
+	if (rx_status->freq != chanctx_conf->def.chan->center_freq) {
 		rcu_read_unlock();
 		return;
 	}
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 
 	if (ifmgd->assoc_data && !ifmgd->assoc_data->have_beacon &&
@@ -3191,6 +3193,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	const u8 *ht_oper_ie;
 	const struct ieee80211_ht_operation *ht_oper = NULL;
 	struct ieee80211_supported_band *sband;
+	struct cfg80211_chan_def chandef;
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
@@ -3277,7 +3280,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 
 	ieee80211_vif_release_channel(sdata);
-	return ieee80211_vif_use_channel(sdata, cbss->channel, channel_type,
+	cfg80211_chandef_create(&chandef, cbss->channel, channel_type);
+	return ieee80211_vif_use_channel(sdata, &chandef,
 					 IEEE80211_CHANCTX_SHARED);
 }
 

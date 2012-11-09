@@ -111,7 +111,7 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 	u16 ht_opmode;
 	bool non_ht_sta = false, ht20_sta = false;
 
-	if (sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
+	if (sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 		return 0;
 
 	rcu_read_lock();
@@ -120,14 +120,14 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 		    sta->plink_state != NL80211_PLINK_ESTAB)
 			continue;
 
-		switch (sta->ch_type) {
-		case NL80211_CHAN_NO_HT:
+		switch (sta->ch_width) {
+		case NL80211_CHAN_WIDTH_20_NOHT:
 			mpl_dbg(sdata,
 				"mesh_plink %pM: nonHT sta (%pM) is present\n",
 				sdata->vif.addr, sta->sta.addr);
 			non_ht_sta = true;
 			goto out;
-		case NL80211_CHAN_HT20:
+		case NL80211_CHAN_WIDTH_20:
 			mpl_dbg(sdata,
 				"mesh_plink %pM: HT20 sta (%pM) is present\n",
 				sdata->vif.addr, sta->sta.addr);
@@ -142,7 +142,7 @@ out:
 	if (non_ht_sta)
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED;
 	else if (ht20_sta &&
-		 sdata->vif.bss_conf.channel_type > NL80211_CHAN_HT20)
+		 sdata->vif.bss_conf.chandef.width > NL80211_CHAN_WIDTH_20)
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_20MHZ;
 	else
 		ht_opmode = IEEE80211_HT_OP_MODE_PROTECTION_NONE;
@@ -372,7 +372,7 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 
 	sta->sta.supp_rates[band] = rates;
 	if (elems->ht_cap_elem &&
-	    sdata->vif.bss_conf.channel_type != NL80211_CHAN_NO_HT)
+	    sdata->vif.bss_conf.chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
 						  &sta->sta.ht_cap);
@@ -380,12 +380,15 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 		memset(&sta->sta.ht_cap, 0, sizeof(sta->sta.ht_cap));
 
 	if (elems->ht_operation) {
+		struct cfg80211_chan_def chandef;
+
 		if (!(elems->ht_operation->ht_param &
 		      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
 			sta->sta.ht_cap.cap &=
 					    ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
-		sta->ch_type =
-			ieee80211_ht_oper_to_channel_type(elems->ht_operation);
+		ieee80211_ht_oper_to_chandef(sdata->vif.bss_conf.chandef.chan,
+					     elems->ht_operation, &chandef);
+		sta->ch_width = chandef.width;
 	}
 
 	rate_control_rate_init(sta);

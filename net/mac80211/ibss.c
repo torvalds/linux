@@ -52,7 +52,6 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	u32 bss_change;
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	struct cfg80211_chan_def chandef;
-	enum nl80211_channel_type chan_type;
 
 	lockdep_assert_held(&ifibss->mtx);
 
@@ -80,13 +79,14 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	chan_type = ifibss->channel_type;
-	cfg80211_chandef_create(&chandef, chan, chan_type);
-	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef))
-		chan_type = NL80211_CHAN_HT20;
+	cfg80211_chandef_create(&chandef, chan, ifibss->channel_type);
+	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
+		chandef.width = NL80211_CHAN_WIDTH_20;
+		chandef.center_freq1 = chan->center_freq;
+	}
 
 	ieee80211_vif_release_channel(sdata);
-	if (ieee80211_vif_use_channel(sdata, chan, chan_type,
+	if (ieee80211_vif_use_channel(sdata, &chandef,
 				      ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
@@ -160,7 +160,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		       ifibss->ie, ifibss->ie_len);
 
 	/* add HT capability and information IEs */
-	if (chan_type != NL80211_CHAN_NO_HT &&
+	if (chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
 	    sband->ht_cap.ht_supported) {
 		pos = skb_put(skb, 4 +
 				   sizeof(struct ieee80211_ht_cap) +
@@ -173,7 +173,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		 * keep them at 0
 		 */
 		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
-						 chan, chan_type, 0);
+						 &chandef, 0);
 	}
 
 	if (local->hw.queues >= IEEE80211_NUM_ACS) {
@@ -329,7 +329,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (WARN_ON_ONCE(!chanctx_conf))
 		return NULL;
-	band = chanctx_conf->channel->band;
+	band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
 	sta = sta_info_alloc(sdata, addr, GFP_KERNEL);
@@ -478,9 +478,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
 			/* we both use HT */
 			struct ieee80211_sta_ht_cap sta_ht_cap_new;
-			enum nl80211_channel_type channel_type =
-				ieee80211_ht_oper_to_channel_type(
-							elems->ht_operation);
+			struct cfg80211_chan_def chandef;
+
+			ieee80211_ht_oper_to_chandef(channel,
+						     elems->ht_operation,
+						     &chandef);
 
 			ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 							  elems->ht_cap_elem,
@@ -490,9 +492,9 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			 * fall back to HT20 if we don't use or use
 			 * the other extension channel
 			 */
-			if (!(channel_type == NL80211_CHAN_HT40MINUS ||
-			      channel_type == NL80211_CHAN_HT40PLUS) ||
-			    channel_type != sdata->u.ibss.channel_type)
+			if (chandef.width != NL80211_CHAN_WIDTH_40 ||
+			    cfg80211_get_chandef_type(&chandef) !=
+						sdata->u.ibss.channel_type)
 				sta_ht_cap_new.cap &=
 					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
@@ -616,7 +618,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 		rcu_read_unlock();
 		return;
 	}
-	band = chanctx_conf->channel->band;
+	band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
