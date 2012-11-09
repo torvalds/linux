@@ -1650,7 +1650,6 @@ static struct dentry *cgroup_mount(struct file_system_type *fs_type,
 
 		free_cg_links(&tmp_cg_links);
 
-		BUG_ON(!list_empty(&root_cgrp->sibling));
 		BUG_ON(!list_empty(&root_cgrp->children));
 		BUG_ON(root->number_of_cgroups != 1);
 
@@ -1699,7 +1698,6 @@ static void cgroup_kill_sb(struct super_block *sb) {
 
 	BUG_ON(root->number_of_cgroups != 1);
 	BUG_ON(!list_empty(&cgrp->children));
-	BUG_ON(!list_empty(&cgrp->sibling));
 
 	mutex_lock(&cgroup_mutex);
 	mutex_lock(&cgroup_root_mutex);
@@ -4052,7 +4050,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		}
 	}
 
-	list_add(&cgrp->sibling, &cgrp->parent->children);
+	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
 	root->number_of_cgroups++;
 
 	err = cgroup_create_dir(cgrp, dentry, mode);
@@ -4083,7 +4081,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
  err_remove:
 
-	list_del(&cgrp->sibling);
+	list_del_rcu(&cgrp->sibling);
 	root->number_of_cgroups--;
 
  err_destroy:
@@ -4209,7 +4207,7 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	raw_spin_unlock(&release_list_lock);
 
 	/* delete this cgroup from parent->children */
-	list_del_init(&cgrp->sibling);
+	list_del_rcu(&cgrp->sibling);
 
 	list_del_init(&cgrp->allcg_node);
 
