@@ -422,7 +422,7 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 		goto out;
 
 	err = -ENOMEM;
-	sym.k = __getname_gfp(GFP_NOFS);
+	sym.k = (void *)__get_free_page(GFP_NOFS);
 	if (unlikely(!sym.k))
 		goto out;
 
@@ -437,7 +437,7 @@ static int au_do_cpup_symlink(struct path *h_path, struct dentry *h_src,
 		sym.k[symlen] = 0;
 		err = vfsub_symlink(h_dir, h_path, sym.k);
 	}
-	__putname(sym.k);
+	free_page((unsigned long)sym.k);
 
 out:
 	return err;
