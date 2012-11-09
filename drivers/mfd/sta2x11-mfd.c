@@ -585,7 +585,8 @@ static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
 	sta2x11_mfd_setup(pdev, setup_data);
 
 	/* Record this pdev before mfd_add_devices: their probe looks for it */
-	sta2x11_mfd_add(pdev, GFP_ATOMIC);
+	if (!sta2x11_mfd_find(pdev))
+		sta2x11_mfd_add(pdev, GFP_ATOMIC);
 
 	/* Just 2 bars for all mfd's at present */
 	for (i = 0; i < 2; i++) {
