@@ -1938,7 +1938,7 @@ static int via_auto_create_multi_out_ctls(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	struct nid_path *path;
 	static const char * const chname[4] = {
-		"Front", "Surround", "C/LFE", "Side"
+		"Front", "Surround", NULL /* "CLFE" */, "Side"
 	};
 	int i, idx, err;
 	int old_line_outs;
