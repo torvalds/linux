@@ -74,111 +74,6 @@ nv50_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
 }
 
 static void
-nv50_sor_dp_link_get(struct drm_device *dev, u32 or, u32 link, u32 *nr, u32 *bw)
-{
-	struct nouveau_device *device = nouveau_dev(dev);
-	u32 dpctrl = nv_rd32(device, NV50_SOR_DP_CTRL(or, link)) & 0x000f0000;
-	u32 clksor = nv_rd32(device, 0x614300 + (or * 0x800));
-	if (clksor & 0x000c0000)
-		*bw = 270000;
-	else
-		*bw = 162000;
-
-	if      (dpctrl > 0x00030000) *nr = 4;
-	else if (dpctrl > 0x00010000) *nr = 2;
-	else			      *nr = 1;
-}
-
-void
-nv50_sor_dp_calc_tu(struct drm_device *dev, int or, int link, u32 clk, u32 bpp)
-{
-	struct nouveau_device *device = nouveau_dev(dev);
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	const u32 symbol = 100000;
-	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
-	int TU, VTUi, VTUf, VTUa;
-	u64 link_data_rate, link_ratio, unk;
-	u32 best_diff = 64 * symbol;
-	u32 link_nr, link_bw, r;
-
-	/* calculate packed data rate for each lane */
-	nv50_sor_dp_link_get(dev, or, link, &link_nr, &link_bw);
-	link_data_rate = (clk * bpp / 8) / link_nr;
-
-	/* calculate ratio of packed data rate to link symbol rate */
-	link_ratio = link_data_rate * symbol;
-	r = do_div(link_ratio, link_bw);
-
-	for (TU = 64; TU >= 32; TU--) {
-		/* calculate average number of valid symbols in each TU */
-		u32 tu_valid = link_ratio * TU;
-		u32 calc, diff;
-
-		/* find a hw representation for the fraction.. */
-		VTUi = tu_valid / symbol;
-		calc = VTUi * symbol;
-		diff = tu_valid - calc;
-		if (diff) {
-			if (diff >= (symbol / 2)) {
-				VTUf = symbol / (symbol - diff);
-				if (symbol - (VTUf * diff))
-					VTUf++;
-
-				if (VTUf <= 15) {
-					VTUa  = 1;
-					calc += symbol - (symbol / VTUf);
-				} else {
-					VTUa  = 0;
-					VTUf  = 1;
-					calc += symbol;
-				}
-			} else {
-				VTUa  = 0;
-				VTUf  = min((int)(symbol / diff), 15);
-				calc += symbol / VTUf;
-			}
-
-			diff = calc - tu_valid;
-		} else {
-			/* no remainder, but the hw doesn't like the fractional
-			 * part to be zero.  decrement the integer part and
-			 * have the fraction add a whole symbol back
-			 */
-			VTUa = 0;
-			VTUf = 1;
-			VTUi--;
-		}
-
-		if (diff < best_diff) {
-			best_diff = diff;
-			bestTU = TU;
-			bestVTUa = VTUa;
-			bestVTUf = VTUf;
-			bestVTUi = VTUi;
-			if (diff == 0)
-				break;
-		}
-	}
-
-	if (!bestTU) {
-		NV_ERROR(drm, "DP: unable to find suitable config\n");
-		return;
-	}
-
-	/* XXX close to vbios numbers, but not right */
-	unk  = (symbol - link_ratio) * bestTU;
-	unk *= link_ratio;
-	r = do_div(unk, symbol);
-	r = do_div(unk, symbol);
-	unk += 6;
-
-	nv_mask(device, NV50_SOR_DP_CTRL(or, link), 0x000001fc, bestTU << 2);
-	nv_mask(device, NV50_SOR_DP_SCFG(or, link), 0x010f7f3f, bestVTUa << 24 |
-							     bestVTUf << 16 |
-							     bestVTUi << 8 |
-							     unk);
-}
-static void
 nv50_sor_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -312,7 +207,9 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_crtc *crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
-	uint32_t mode_ctl = 0;
+	struct nv50_display *disp = nv50_display(encoder->dev);
+	struct nvbios *bios = &drm->vbios;
+	uint32_t mode_ctl = 0, script;
 	int ret;
 
 	NV_DEBUG(drm, "or %d type %d -> crtc %d\n",
@@ -330,6 +227,43 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 			mode_ctl = 0x0200;
 
 		nouveau_hdmi_mode_set(encoder, mode);
+		break;
+	case DCB_OUTPUT_LVDS:
+		script = 0x0000;
+		if (bios->fp_no_ddc) {
+			if (bios->fp.dual_link)
+				script |= 0x0100;
+			if (bios->fp.if_is_24bit)
+				script |= 0x0200;
+		} else {
+			/* determine number of lvds links */
+			nv_connector = nouveau_encoder_connector_get(nv_encoder);
+			if (nv_connector && nv_connector->edid &&
+			    nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
+				/* http://www.spwg.org */
+				if (((u8 *)nv_connector->edid)[121] == 2)
+					script |= 0x0100;
+			} else
+			if (mode->clock >= bios->fp.duallink_transition_clk) {
+				script |= 0x0100;
+			}
+
+			/* determine panel depth */
+			if (script & 0x0100) {
+				if (bios->fp.strapless_is_24bit & 2)
+					script |= 0x0200;
+			} else {
+				if (bios->fp.strapless_is_24bit & 1)
+					script |= 0x0200;
+			}
+
+			if (nv_connector && nv_connector->edid &&
+			    (nv_connector->edid->revision >= 4) &&
+			    (nv_connector->edid->input & 0x70) >= 0x20)
+				script |= 0x0200;
+		}
+
+		nv_call(disp->core, NV50_DISP_SOR_LVDS_SCRIPT + nv_encoder->or, script);
 		break;
 	case DCB_OUTPUT_DP:
 		nv_connector = nouveau_encoder_connector_get(nv_encoder);

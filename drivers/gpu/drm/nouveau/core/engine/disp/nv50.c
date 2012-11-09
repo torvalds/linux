@@ -30,9 +30,15 @@
 #include <engine/software.h>
 #include <engine/disp.h>
 
+#include <subdev/bios.h>
+#include <subdev/bios/dcb.h>
+#include <subdev/bios/disp.h>
+#include <subdev/bios/init.h>
+#include <subdev/bios/pll.h>
 #include <subdev/timer.h>
 #include <subdev/fb.h>
 #include <subdev/bar.h>
+#include <subdev/clock.h>
 
 #include "nv50.h"
 
@@ -730,6 +736,27 @@ nv50_disp_cclass = {
  ******************************************************************************/
 
 static void
+nv50_disp_intr_error(struct nv50_disp_priv *priv)
+{
+	u32 channels = (nv_rd32(priv, 0x610020) & 0x001f0000) >> 16;
+	u32 addr, data;
+	int chid;
+
+	for (chid = 0; chid < 5; chid++) {
+		if (!(channels & (1 << chid)))
+			continue;
+
+		nv_wr32(priv, 0x610020, 0x00010000 << chid);
+		addr = nv_rd32(priv, 0x610080 + (chid * 0x08));
+		data = nv_rd32(priv, 0x610084 + (chid * 0x08));
+		nv_wr32(priv, 0x610080 + (chid * 0x08), 0x90000000);
+
+		nv_error(priv, "chid %d mthd 0x%04x data 0x%08x 0x%08x\n",
+			 chid, addr & 0xffc, data, addr);
+	}
+}
+
+static void
 nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
 {
 	struct nouveau_disp *disp = &priv->base;
@@ -766,24 +793,413 @@ nv50_disp_intr_vblank(struct nv50_disp_priv *priv, int crtc)
 		disp->vblank.notify(disp->vblank.data, crtc);
 }
 
+static u16
+exec_lookup(struct nv50_disp_priv *priv, int head, int outp, u32 ctrl,
+	    struct dcb_output *dcb, u8 *ver, u8 *hdr, u8 *cnt, u8 *len,
+	    struct nvbios_outp *info)
+{
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	u16 mask, type, data;
+
+	if (outp < 4) {
+		type = DCB_OUTPUT_ANALOG;
+		mask = 0;
+	} else {
+		outp -= 4;
+		switch (ctrl & 0x00000f00) {
+		case 0x00000000: type = DCB_OUTPUT_LVDS; mask = 1; break;
+		case 0x00000100: type = DCB_OUTPUT_TMDS; mask = 1; break;
+		case 0x00000200: type = DCB_OUTPUT_TMDS; mask = 2; break;
+		case 0x00000500: type = DCB_OUTPUT_TMDS; mask = 3; break;
+		case 0x00000800: type = DCB_OUTPUT_DP; mask = 1; break;
+		case 0x00000900: type = DCB_OUTPUT_DP; mask = 2; break;
+		default:
+			nv_error(priv, "unknown SOR mc 0x%08x\n", ctrl);
+			return 0x0000;
+		}
+	}
+
+	mask  = 0x00c0 & (mask << 6);
+	mask |= 0x0001 << outp;
+	mask |= 0x0100 << head;
+
+	data = dcb_outp_match(bios, type, mask, ver, hdr, dcb);
+	if (!data)
+		return 0x0000;
+
+	return nvbios_outp_match(bios, type, mask, ver, hdr, cnt, len, info);
+}
+
+static bool
+exec_script(struct nv50_disp_priv *priv, int head, int id)
+{
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_outp info;
+	struct dcb_output dcb;
+	u8  ver, hdr, cnt, len;
+	u16 data;
+	u32 ctrl = 0x00000000;
+	int i;
+
+	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
+		ctrl = nv_rd32(priv, 0x610b5c + (i * 8));
+
+	if (nv_device(priv)->chipset  < 0x90 ||
+	    nv_device(priv)->chipset == 0x92 ||
+	    nv_device(priv)->chipset == 0xa0) {
+		for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
+			ctrl = nv_rd32(priv, 0x610b74 + (i * 8));
+		i += 3;
+	} else {
+		for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
+			ctrl = nv_rd32(priv, 0x610798 + (i * 8));
+		i += 3;
+	}
+
+	if (!(ctrl & (1 << head)))
+		return false;
+
+	data = exec_lookup(priv, head, i, ctrl, &dcb, &ver, &hdr, &cnt, &len, &info);
+	if (data) {
+		struct nvbios_init init = {
+			.subdev = nv_subdev(priv),
+			.bios = bios,
+			.offset = info.script[id],
+			.outp = &dcb,
+			.crtc = head,
+			.execute = 1,
+		};
+
+		return nvbios_exec(&init) == 0;
+	}
+
+	return false;
+}
+
+static u32
+exec_clkcmp(struct nv50_disp_priv *priv, int head, int id, u32 pclk,
+	    struct dcb_output *outp)
+{
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_outp info1;
+	struct nvbios_ocfg info2;
+	u8  ver, hdr, cnt, len;
+	u16 data, conf;
+	u32 ctrl = 0x00000000;
+	int i;
+
+	for (i = 0; !(ctrl & (1 << head)) && i < 3; i++)
+		ctrl = nv_rd32(priv, 0x610b58 + (i * 8));
+
+	if (nv_device(priv)->chipset  < 0x90 ||
+	    nv_device(priv)->chipset == 0x92 ||
+	    nv_device(priv)->chipset == 0xa0) {
+		for (i = 0; !(ctrl & (1 << head)) && i < 2; i++)
+			ctrl = nv_rd32(priv, 0x610b70 + (i * 8));
+		i += 3;
+	} else {
+		for (i = 0; !(ctrl & (1 << head)) && i < 4; i++)
+			ctrl = nv_rd32(priv, 0x610794 + (i * 8));
+		i += 3;
+	}
+
+	if (!(ctrl & (1 << head)))
+		return 0x0000;
+
+	data = exec_lookup(priv, head, i, ctrl, outp, &ver, &hdr, &cnt, &len, &info1);
+	if (!data)
+		return 0x0000;
+
+	switch (outp->type) {
+	case DCB_OUTPUT_TMDS:
+		conf = (ctrl & 0x00000f00) >> 8;
+		if (pclk >= 165000)
+			conf |= 0x0100;
+		break;
+	case DCB_OUTPUT_LVDS:
+		conf = priv->sor.lvdsconf;
+		break;
+	case DCB_OUTPUT_DP:
+		conf = (ctrl & 0x00000f00) >> 8;
+		break;
+	case DCB_OUTPUT_ANALOG:
+	default:
+		conf = 0x00ff;
+		break;
+	}
+
+	data = nvbios_ocfg_match(bios, data, conf, &ver, &hdr, &cnt, &len, &info2);
+	if (data) {
+		data = nvbios_oclk_match(bios, info2.clkcmp[id], pclk);
+		if (data) {
+			struct nvbios_init init = {
+				.subdev = nv_subdev(priv),
+				.bios = bios,
+				.offset = data,
+				.outp = outp,
+				.crtc = head,
+				.execute = 1,
+			};
+
+			if (nvbios_exec(&init))
+				return 0x0000;
+			return conf;
+		}
+	}
+
+	return 0x0000;
+}
+
+static void
+nv50_disp_intr_unk10(struct nv50_disp_priv *priv, u32 super)
+{
+	int head = ffs((super & 0x00000060) >> 5) - 1;
+	if (head >= 0) {
+		head = ffs((super & 0x00000180) >> 7) - 1;
+		if (head >= 0)
+			exec_script(priv, head, 1);
+	}
+
+	nv_wr32(priv, 0x610024, 0x00000010);
+	nv_wr32(priv, 0x610030, 0x80000000);
+}
+
+static void
+nv50_disp_intr_unk20_dp(struct nv50_disp_priv *priv,
+		        struct dcb_output *outp, u32 pclk)
+{
+	const int link = !(outp->sorconf.link & 1);
+	const int   or = ffs(outp->or) - 1;
+	const u32 soff = (  or * 0x800);
+	const u32 loff = (link * 0x080) + soff;
+	const u32 ctrl = nv_rd32(priv, 0x610794 + (or * 8));
+	const u32 bits = ((ctrl & 0x000f0000) == 0x00020000) ? 18 : 24;
+	const u32 symbol = 100000;
+	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x0000f0000;
+	u32 clksor = nv_rd32(priv, 0x614300 + soff);
+	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
+	int TU, VTUi, VTUf, VTUa;
+	u64 link_data_rate, link_ratio, unk;
+	u32 best_diff = 64 * symbol;
+	u32 link_nr, link_bw, r;
+
+	/* calculate packed data rate for each lane */
+	if      (dpctrl > 0x00030000) link_nr = 4;
+	else if (dpctrl > 0x00010000) link_nr = 2;
+	else			      link_nr = 1;
+
+	if (clksor & 0x000c0000)
+		link_bw = 270000;
+	else
+		link_bw = 162000;
+
+	link_data_rate = (pclk * bits / 8) / link_nr;
+
+	/* calculate ratio of packed data rate to link symbol rate */
+	link_ratio = link_data_rate * symbol;
+	r = do_div(link_ratio, link_bw);
+
+	for (TU = 64; TU >= 32; TU--) {
+		/* calculate average number of valid symbols in each TU */
+		u32 tu_valid = link_ratio * TU;
+		u32 calc, diff;
+
+		/* find a hw representation for the fraction.. */
+		VTUi = tu_valid / symbol;
+		calc = VTUi * symbol;
+		diff = tu_valid - calc;
+		if (diff) {
+			if (diff >= (symbol / 2)) {
+				VTUf = symbol / (symbol - diff);
+				if (symbol - (VTUf * diff))
+					VTUf++;
+
+				if (VTUf <= 15) {
+					VTUa  = 1;
+					calc += symbol - (symbol / VTUf);
+				} else {
+					VTUa  = 0;
+					VTUf  = 1;
+					calc += symbol;
+				}
+			} else {
+				VTUa  = 0;
+				VTUf  = min((int)(symbol / diff), 15);
+				calc += symbol / VTUf;
+			}
+
+			diff = calc - tu_valid;
+		} else {
+			/* no remainder, but the hw doesn't like the fractional
+			 * part to be zero.  decrement the integer part and
+			 * have the fraction add a whole symbol back
+			 */
+			VTUa = 0;
+			VTUf = 1;
+			VTUi--;
+		}
+
+		if (diff < best_diff) {
+			best_diff = diff;
+			bestTU = TU;
+			bestVTUa = VTUa;
+			bestVTUf = VTUf;
+			bestVTUi = VTUi;
+			if (diff == 0)
+				break;
+		}
+	}
+
+	if (!bestTU) {
+		nv_error(priv, "unable to find suitable dp config\n");
+		return;
+	}
+
+	/* XXX close to vbios numbers, but not right */
+	unk  = (symbol - link_ratio) * bestTU;
+	unk *= link_ratio;
+	r = do_div(unk, symbol);
+	r = do_div(unk, symbol);
+	unk += 6;
+
+	nv_mask(priv, 0x61c10c + loff, 0x000001fc, bestTU << 2);
+	nv_mask(priv, 0x61c128 + loff, 0x010f7f3f, bestVTUa << 24 |
+						   bestVTUf << 16 |
+						   bestVTUi << 8 | unk);
+}
+
+static void
+nv50_disp_intr_unk20(struct nv50_disp_priv *priv, u32 super)
+{
+	struct dcb_output outp;
+	u32 addr, mask, data;
+	int head;
+
+	/* finish detaching encoder? */
+	head = ffs((super & 0x00000180) >> 7) - 1;
+	if (head >= 0)
+		exec_script(priv, head, 2);
+
+	/* check whether a vpll change is required */
+	head = ffs((super & 0x00000600) >> 9) - 1;
+	if (head >= 0) {
+		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+		if (pclk) {
+			struct nouveau_clock *clk = nouveau_clock(priv);
+			clk->pll_set(clk, PLL_VPLL0 + head, pclk);
+		}
+
+		nv_mask(priv, 0x614200 + head * 0x800, 0x0000000f, 0x00000000);
+	}
+
+	/* (re)attach the relevant OR to the head */
+	head = ffs((super & 0x00000180) >> 7) - 1;
+	if (head >= 0) {
+		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+		u32 conf = exec_clkcmp(priv, head, 0, pclk, &outp);
+		if (conf) {
+			if (outp.type == DCB_OUTPUT_ANALOG) {
+				addr = 0x614280 + (ffs(outp.or) - 1) * 0x800;
+				mask = 0xffffffff;
+				data = 0x00000000;
+			} else {
+				if (outp.type == DCB_OUTPUT_DP)
+					nv50_disp_intr_unk20_dp(priv, &outp, pclk);
+				addr = 0x614300 + (ffs(outp.or) - 1) * 0x800;
+				mask = 0x00000707;
+				data = (conf & 0x0100) ? 0x0101 : 0x0000;
+			}
+
+			nv_mask(priv, addr, mask, data);
+		}
+	}
+
+	nv_wr32(priv, 0x610024, 0x00000020);
+	nv_wr32(priv, 0x610030, 0x80000000);
+}
+
+/* If programming a TMDS output on a SOR that can also be configured for
+ * DisplayPort, make sure NV50_SOR_DP_CTRL_ENABLE is forced off.
+ *
+ * It looks like the VBIOS TMDS scripts make an attempt at this, however,
+ * the VBIOS scripts on at least one board I have only switch it off on
+ * link 0, causing a blank display if the output has previously been
+ * programmed for DisplayPort.
+ */
+static void
+nv50_disp_intr_unk40_tmds(struct nv50_disp_priv *priv, struct dcb_output *outp)
+{
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	const int link = !(outp->sorconf.link & 1);
+	const int   or = ffs(outp->or) - 1;
+	const u32 loff = (or * 0x800) + (link * 0x80);
+	const u16 mask = (outp->sorconf.link << 6) | outp->or;
+	u8  ver, hdr;
+
+	if (dcb_outp_match(bios, DCB_OUTPUT_DP, mask, &ver, &hdr, outp))
+		nv_mask(priv, 0x61c10c + loff, 0x00000001, 0x00000000);
+}
+
+static void
+nv50_disp_intr_unk40(struct nv50_disp_priv *priv, u32 super)
+{
+	int head = ffs((super & 0x00000180) >> 7) - 1;
+	if (head >= 0) {
+		struct dcb_output outp;
+		u32 pclk = nv_rd32(priv, 0x610ad0 + (head * 0x540)) & 0x3fffff;
+		if (pclk && exec_clkcmp(priv, head, 1, pclk, &outp)) {
+			if (outp.type == DCB_OUTPUT_TMDS)
+				nv50_disp_intr_unk40_tmds(priv, &outp);
+		}
+	}
+
+	nv_wr32(priv, 0x610024, 0x00000040);
+	nv_wr32(priv, 0x610030, 0x80000000);
+}
+
+static void
+nv50_disp_intr_super(struct nv50_disp_priv *priv, u32 intr1)
+{
+	u32 super = nv_rd32(priv, 0x610030);
+
+	nv_debug(priv, "supervisor 0x%08x 0x%08x\n", intr1, super);
+
+	if (intr1 & 0x00000010)
+		nv50_disp_intr_unk10(priv, super);
+	if (intr1 & 0x00000020)
+		nv50_disp_intr_unk20(priv, super);
+	if (intr1 & 0x00000040)
+		nv50_disp_intr_unk40(priv, super);
+}
+
 void
 nv50_disp_intr(struct nouveau_subdev *subdev)
 {
 	struct nv50_disp_priv *priv = (void *)subdev;
-	u32 stat1 = nv_rd32(priv, 0x610024);
+	u32 intr0 = nv_rd32(priv, 0x610020);
+	u32 intr1 = nv_rd32(priv, 0x610024);
 
-	if (stat1 & 0x00000004) {
+	if (intr0 & 0x001f0000) {
+		nv50_disp_intr_error(priv);
+		intr0 &= ~0x001f0000;
+	}
+
+	if (intr1 & 0x00000004) {
 		nv50_disp_intr_vblank(priv, 0);
 		nv_wr32(priv, 0x610024, 0x00000004);
-		stat1 &= ~0x00000004;
+		intr1 &= ~0x00000004;
 	}
 
-	if (stat1 & 0x00000008) {
+	if (intr1 & 0x00000008) {
 		nv50_disp_intr_vblank(priv, 1);
 		nv_wr32(priv, 0x610024, 0x00000008);
-		stat1 &= ~0x00000008;
+		intr1 &= ~0x00000008;
 	}
 
+	if (intr1 & 0x00000070) {
+		nv50_disp_intr_super(priv, intr1);
+		intr1 &= ~0x00000070;
+	}
 }
 
 static int
