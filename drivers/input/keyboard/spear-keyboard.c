@@ -60,10 +60,11 @@ struct spear_kbd {
 	struct clk *clk;
 	unsigned int irq;
 	unsigned int mode;
+	unsigned int suspended_rate;
 	unsigned short last_key;
 	unsigned short keycodes[NUM_ROWS * NUM_COLS];
 	bool rep;
-	unsigned int suspended_rate;
+	bool irq_wake_enabled;
 	u32 mode_ctl_reg;
 };
 
@@ -333,7 +334,8 @@ static int spear_kbd_suspend(struct device *dev)
 	mode_ctl_reg = readl_relaxed(kbd->io_base + MODE_CTL_REG);
 
 	if (device_may_wakeup(&pdev->dev)) {
-		enable_irq_wake(kbd->irq);
+		if (!enable_irq_wake(kbd->irq))
+			kbd->irq_wake_enabled = true;
 
 		/*
 		 * reprogram the keyboard operating frequency as on some
@@ -379,7 +381,10 @@ static int spear_kbd_resume(struct device *dev)
 	mutex_lock(&input_dev->mutex);
 
 	if (device_may_wakeup(&pdev->dev)) {
-		disable_irq_wake(kbd->irq);
+		if (kbd->irq_wake_enabled) {
+			kbd->irq_wake_enabled = false;
+			disable_irq_wake(kbd->irq);
+		}
 	} else {
 		if (input_dev->users)
 			clk_enable(kbd->clk);
