@@ -119,27 +119,29 @@ static dev_t devt_from_partuuid(const char *uuid_str)
 	struct gendisk *disk;
 	struct hd_struct *part;
 	int offset = 0;
-
-	if (strlen(uuid_str) < 36)
-		goto done;
+	bool clear_root_wait = false;
+	char *slash;
 
 	cmp.uuid = uuid_str;
-	cmp.len = 36;
 
+	slash = strchr(uuid_str, '/');
 	/* Check for optional partition number offset attributes. */
-	if (uuid_str[36]) {
+	if (slash) {
 		char c = 0;
 		/* Explicitly fail on poor PARTUUID syntax. */
-		if (sscanf(&uuid_str[36],
-			   "/PARTNROFF=%d%c", &offset, &c) != 1) {
-			printk(KERN_ERR "VFS: PARTUUID= is invalid.\n"
-			 "Expected PARTUUID=<valid-uuid-id>[/PARTNROFF=%%d]\n");
-			if (root_wait)
-				printk(KERN_ERR
-				     "Disabling rootwait; root= is invalid.\n");
-			root_wait = 0;
+		if (sscanf(slash + 1,
+			   "PARTNROFF=%d%c", &offset, &c) != 1) {
+			clear_root_wait = true;
 			goto done;
 		}
+		cmp.len = slash - uuid_str;
+	} else {
+		cmp.len = strlen(uuid_str);
+	}
+
+	if (!cmp.len) {
+		clear_root_wait = true;
+		goto done;
 	}
 
 	dev = class_find_device(&block_class, NULL, &cmp,
@@ -164,6 +166,13 @@ static dev_t devt_from_partuuid(const char *uuid_str)
 no_offset:
 	put_device(dev);
 done:
+	if (clear_root_wait) {
+		pr_err("VFS: PARTUUID= is invalid.\n"
+		       "Expected PARTUUID=<valid-uuid-id>[/PARTNROFF=%%d]\n");
+		if (root_wait)
+			pr_err("Disabling rootwait; root= is invalid.\n");
+		root_wait = 0;
+	}
 	return res;
 }
 #endif
