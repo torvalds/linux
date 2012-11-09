@@ -727,8 +727,7 @@ static int tegra_slink_start_transfer_one(struct spi_device *spi,
 	unsigned long command;
 	unsigned long command2;
 
-	bits_per_word = t->bits_per_word ? t->bits_per_word :
-					spi->bits_per_word;
+	bits_per_word = t->bits_per_word;
 	speed = t->speed_hz ? t->speed_hz : spi->max_speed_hz;
 	if (!speed)
 		speed = tspi->spi_max_frequency;
@@ -1110,8 +1109,8 @@ const struct tegra_slink_chip_data tegra20_spi_cdata = {
 };
 
 static struct of_device_id tegra_slink_of_match[] __devinitconst = {
-	{ .compatible = "nvidia,tegra20-slink", .data = &tegra20_spi_cdata, },
 	{ .compatible = "nvidia,tegra30-slink", .data = &tegra30_spi_cdata, },
+	{ .compatible = "nvidia,tegra20-slink", .data = &tegra20_spi_cdata, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tegra_slink_of_match);
