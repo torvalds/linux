@@ -924,11 +924,11 @@ static int vmw_master_set(struct drm_device *dev,
 
 out_no_active_lock:
 	if (!dev_priv->enable_fb) {
+		vmw_kms_restore_vga(dev_priv);
+		vmw_3d_resource_dec(dev_priv, true);
 		mutex_lock(&dev_priv->hw_mutex);
 		vmw_write(dev_priv, SVGA_REG_TRACES, 1);
 		mutex_unlock(&dev_priv->hw_mutex);
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, true);
 	}
 	return ret;
 }
@@ -962,11 +962,11 @@ static void vmw_master_drop(struct drm_device *dev,
 		ret = ttm_bo_evict_mm(&dev_priv->bdev, TTM_PL_VRAM);
 		if (unlikely(ret != 0))
 			DRM_ERROR("Unable to clean VRAM on master drop.\n");
+		vmw_kms_restore_vga(dev_priv);
+		vmw_3d_resource_dec(dev_priv, true);
 		mutex_lock(&dev_priv->hw_mutex);
 		vmw_write(dev_priv, SVGA_REG_TRACES, 1);
 		mutex_unlock(&dev_priv->hw_mutex);
-		vmw_kms_restore_vga(dev_priv);
-		vmw_3d_resource_dec(dev_priv, true);
 	}
 
 	dev_priv->active_master = &dev_priv->fbdev_master;
