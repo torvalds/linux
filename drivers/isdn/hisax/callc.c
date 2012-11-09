@@ -35,7 +35,7 @@ static int chancount;
 /* experimental REJECT after ALERTING for CALLBACK to beat the 4s delay */
 #define ALERT_REJECT 0
 
-/* Value to delay the sending of the first B-channel paket after CONNECT
+/* Value to delay the sending of the first B-channel packet after CONNECT
  * here is no value given by ITU, but experience shows that 300 ms will
  * work on many networks, if you or your other side is behind local exchanges
  * a greater value may be recommented. If the delay is to short the first paket
