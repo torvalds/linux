@@ -376,9 +376,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 			     u64 off, u64 *plen,
 			     struct ceph_osd_req_op *src_ops,
 			     struct ceph_snap_context *snapc,
-			     struct timespec *mtime,
-			     const char *oid,
-			     int oid_len)
+			     struct timespec *mtime)
 {
 	struct ceph_msg *msg = req->r_request;
 	struct ceph_osd_request_head *head;
@@ -405,9 +403,9 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 
 
 	/* fill in oid */
-	head->object_len = cpu_to_le32(oid_len);
-	memcpy(p, oid, oid_len);
-	p += oid_len;
+	head->object_len = cpu_to_le32(req->r_oid_len);
+	memcpy(p, req->r_oid, req->r_oid_len);
+	p += req->r_oid_len;
 
 	src_op = src_ops;
 	while (src_op->op) {
@@ -506,8 +504,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 
 	ceph_osdc_build_request(req, off, plen, ops,
 				snapc,
-				mtime,
-				req->r_oid, req->r_oid_len);
+				mtime);
 
 	return req;
 }
