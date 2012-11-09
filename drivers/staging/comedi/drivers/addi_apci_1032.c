@@ -31,6 +31,7 @@
 
 #include "../comedidev.h"
 #include "comedi_fc.h"
+#include "amcc_s5933.h"
 
 /*
  * I/O Register Map
@@ -45,6 +46,7 @@
 #define APCI1032_CTRL_INT_ENA		(1 << 2)
 
 struct apci1032_private {
+	unsigned long amcc_iobase;	/* base of AMCC I/O registers */
 	unsigned int mode1;	/* rising-edge/high level channels */
 	unsigned int mode2;	/* falling-edge/low level channels */
 	unsigned int ctrl;	/* interrupt mode OR (edge) . AND (level) */
@@ -218,11 +220,21 @@ static int apci1032_cos_cancel(struct comedi_device *dev,
 static irqreturn_t apci1032_interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
+	struct apci1032_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int ctrl;
 
-	/* disable the interrupt */
+	/* check interrupt is from this device */
+	if ((inl(devpriv->amcc_iobase + AMCC_OP_REG_INTCSR) &
+	     INTCSR_INTR_ASSERTED) == 0)
+		return IRQ_NONE;
+
+	/* check interrupt is enabled */
 	ctrl = inl(dev->iobase + APCI1032_CTRL_REG);
+	if ((ctrl & APCI1032_CTRL_INT_ENA) == 0)
+		return IRQ_HANDLED;
+
+	/* disable the interrupt */
 	outl(ctrl & ~APCI1032_CTRL_INT_ENA, dev->iobase + APCI1032_CTRL_REG);
 
 	s->state = inl(dev->iobase + APCI1032_STATUS_REG) & 0xffff;
@@ -265,8 +277,9 @@ static int __devinit apci1032_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
+	devpriv->amcc_iobase = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 1);
-
+	apci1032_reset(dev);
 	if (pcidev->irq > 0) {
 		ret = request_irq(pcidev->irq, apci1032_interrupt, IRQF_SHARED,
 				  dev->board_name, dev);
@@ -305,7 +318,6 @@ static int __devinit apci1032_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	apci1032_reset(dev);
 	return 0;
 }
 
