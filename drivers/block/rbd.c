@@ -740,13 +740,13 @@ static char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 	u64 segment;
 	int ret;
 
-	name = kmalloc(RBD_MAX_SEG_NAME_LEN + 1, GFP_NOIO);
+	name = kmalloc(MAX_OBJ_NAME_SIZE + 1, GFP_NOIO);
 	if (!name)
 		return NULL;
 	segment = offset >> rbd_dev->header.obj_order;
-	ret = snprintf(name, RBD_MAX_SEG_NAME_LEN, "%s.%012llx",
+	ret = snprintf(name, MAX_OBJ_NAME_SIZE + 1, "%s.%012llx",
 			rbd_dev->header.object_prefix, segment);
-	if (ret < 0 || ret >= RBD_MAX_SEG_NAME_LEN) {
+	if (ret < 0 || ret > MAX_OBJ_NAME_SIZE) {
 		pr_err("error formatting segment name for #%llu (%d)\n",
 			segment, ret);
 		kfree(name);
