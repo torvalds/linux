@@ -497,9 +497,54 @@
 #define	CP_MEC_ME2_UCODE_ADDR				0xC178
 #define	CP_MEC_ME2_UCODE_DATA				0xC17C
 
+#define CP_INT_CNTL_RING0                               0xC1A8
+#       define CNTX_BUSY_INT_ENABLE                     (1 << 19)
+#       define CNTX_EMPTY_INT_ENABLE                    (1 << 20)
+#       define PRIV_INSTR_INT_ENABLE                    (1 << 22)
+#       define PRIV_REG_INT_ENABLE                      (1 << 23)
+#       define TIME_STAMP_INT_ENABLE                    (1 << 26)
+#       define CP_RINGID2_INT_ENABLE                    (1 << 29)
+#       define CP_RINGID1_INT_ENABLE                    (1 << 30)
+#       define CP_RINGID0_INT_ENABLE                    (1 << 31)
+
 #define	CP_MAX_CONTEXT					0xC2B8
 
 #define	CP_RB0_BASE_HI					0xC2C4
+
+#define RLC_CNTL                                          0xC300
+#       define RLC_ENABLE                                 (1 << 0)
+
+#define RLC_MC_CNTL                                       0xC30C
+
+#define RLC_LB_CNTR_MAX                                   0xC348
+
+#define RLC_LB_CNTL                                       0xC364
+
+#define RLC_LB_CNTR_INIT                                  0xC36C
+
+#define RLC_SAVE_AND_RESTORE_BASE                         0xC374
+#define RLC_DRIVER_DMA_STATUS                             0xC378
+
+#define RLC_GPM_UCODE_ADDR                                0xC388
+#define RLC_GPM_UCODE_DATA                                0xC38C
+
+#define RLC_UCODE_CNTL                                    0xC39C
+
+#define RLC_CGCG_CGLS_CTRL                                0xC424
+
+#define RLC_LB_INIT_CU_MASK                               0xC43C
+
+#define RLC_LB_PARAMS                                     0xC444
+
+#define RLC_SERDES_CU_MASTER_BUSY                         0xC484
+#define RLC_SERDES_NONCU_MASTER_BUSY                      0xC488
+#       define SE_MASTER_BUSY_MASK                        0x0000ffff
+#       define GC_MASTER_BUSY                             (1 << 16)
+#       define TC0_MASTER_BUSY                            (1 << 17)
+#       define TC1_MASTER_BUSY                            (1 << 18)
+
+#define RLC_GPM_SCRATCH_ADDR                              0xC4B0
+#define RLC_GPM_SCRATCH_DATA                              0xC4B4
 
 #define PA_SC_RASTER_CONFIG                             0x28350
 #       define RASTER_CONFIG_RB_MAP_0                   0
@@ -598,6 +643,8 @@
 #define	CGTS_USER_TCC_DISABLE				0x3c010
 #define		TCC_DISABLE_MASK				0xFFFF0000
 #define		TCC_DISABLE_SHIFT				16
+
+#define	CB_CGTT_SCLK_CTRL				0x3c2a0
 
 /*
  * PM4

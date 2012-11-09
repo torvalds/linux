@@ -2777,3 +2777,145 @@ void cik_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, 0x0);
 }
 
+/*
+ * RLC
+ * The RLC is a multi-purpose microengine that handles a
+ * variety of functions, the most important of which is
+ * the interrupt controller.
+ */
+/**
+ * cik_rlc_stop - stop the RLC ME
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Halt the RLC ME (MicroEngine) (CIK).
+ */
+static void cik_rlc_stop(struct radeon_device *rdev)
+{
+	int i, j, k;
+	u32 mask, tmp;
+
+	tmp = RREG32(CP_INT_CNTL_RING0);
+	tmp &= ~(CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	WREG32(CP_INT_CNTL_RING0, tmp);
+
+	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(CB_CGTT_SCLK_CTRL);
+	RREG32(CB_CGTT_SCLK_CTRL);
+
+	tmp = RREG32(RLC_CGCG_CGLS_CTRL) & 0xfffffffc;
+	WREG32(RLC_CGCG_CGLS_CTRL, tmp);
+
+	WREG32(RLC_CNTL, 0);
+
+	for (i = 0; i < rdev->config.cik.max_shader_engines; i++) {
+		for (j = 0; j < rdev->config.cik.max_sh_per_se; j++) {
+			cik_select_se_sh(rdev, i, j);
+			for (k = 0; k < rdev->usec_timeout; k++) {
+				if (RREG32(RLC_SERDES_CU_MASTER_BUSY) == 0)
+					break;
+				udelay(1);
+			}
+		}
+	}
+	cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+
+	mask = SE_MASTER_BUSY_MASK | GC_MASTER_BUSY | TC0_MASTER_BUSY | TC1_MASTER_BUSY;
+	for (k = 0; k < rdev->usec_timeout; k++) {
+		if ((RREG32(RLC_SERDES_NONCU_MASTER_BUSY) & mask) == 0)
+			break;
+		udelay(1);
+	}
+}
+
+/**
+ * cik_rlc_start - start the RLC ME
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Unhalt the RLC ME (MicroEngine) (CIK).
+ */
+static void cik_rlc_start(struct radeon_device *rdev)
+{
+	u32 tmp;
+
+	WREG32(RLC_CNTL, RLC_ENABLE);
+
+	tmp = RREG32(CP_INT_CNTL_RING0);
+	tmp |= (CNTX_BUSY_INT_ENABLE | CNTX_EMPTY_INT_ENABLE);
+	WREG32(CP_INT_CNTL_RING0, tmp);
+
+	udelay(50);
+}
+
+/**
+ * cik_rlc_resume - setup the RLC hw
+ *
+ * @rdev: radeon_device pointer
+ *
+ * Initialize the RLC registers, load the ucode,
+ * and start the RLC (CIK).
+ * Returns 0 for success, -EINVAL if the ucode is not available.
+ */
+static int cik_rlc_resume(struct radeon_device *rdev)
+{
+	u32 i, size;
+	u32 clear_state_info[3];
+	const __be32 *fw_data;
+
+	if (!rdev->rlc_fw)
+		return -EINVAL;
+
+	switch (rdev->family) {
+	case CHIP_BONAIRE:
+	default:
+		size = BONAIRE_RLC_UCODE_SIZE;
+		break;
+	case CHIP_KAVERI:
+		size = KV_RLC_UCODE_SIZE;
+		break;
+	case CHIP_KABINI:
+		size = KB_RLC_UCODE_SIZE;
+		break;
+	}
+
+	cik_rlc_stop(rdev);
+
+	WREG32(GRBM_SOFT_RESET, SOFT_RESET_RLC);
+	RREG32(GRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(GRBM_SOFT_RESET, 0);
+	RREG32(GRBM_SOFT_RESET);
+	udelay(50);
+
+	WREG32(RLC_LB_CNTR_INIT, 0);
+	WREG32(RLC_LB_CNTR_MAX, 0x00008000);
+
+	cik_select_se_sh(rdev, 0xffffffff, 0xffffffff);
+	WREG32(RLC_LB_INIT_CU_MASK, 0xffffffff);
+	WREG32(RLC_LB_PARAMS, 0x00600408);
+	WREG32(RLC_LB_CNTL, 0x80000004);
+
+	WREG32(RLC_MC_CNTL, 0);
+	WREG32(RLC_UCODE_CNTL, 0);
+
+	fw_data = (const __be32 *)rdev->rlc_fw->data;
+		WREG32(RLC_GPM_UCODE_ADDR, 0);
+	for (i = 0; i < size; i++)
+		WREG32(RLC_GPM_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(RLC_GPM_UCODE_ADDR, 0);
+
+	/* XXX */
+	clear_state_info[0] = 0;//upper_32_bits(rdev->rlc.save_restore_gpu_addr);
+	clear_state_info[1] = 0;//rdev->rlc.save_restore_gpu_addr;
+	clear_state_info[2] = 0;//cik_default_size;
+	WREG32(RLC_GPM_SCRATCH_ADDR, 0x3d);
+	for (i = 0; i < 3; i++)
+		WREG32(RLC_GPM_SCRATCH_DATA, clear_state_info[i]);
+	WREG32(RLC_DRIVER_DMA_STATUS, 0);
+
+	cik_rlc_start(rdev);
+
+	return 0;
+}
