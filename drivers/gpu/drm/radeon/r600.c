@@ -1424,13 +1424,7 @@ u32 r6xx_remap_render_backend(struct radeon_device *rdev,
 
 int r600_count_pipe_bits(uint32_t val)
 {
-	int i, ret = 0;
-
-	for (i = 0; i < 32; i++) {
-		ret += val & 1;
-		val >>= 1;
-	}
-	return ret;
+	return hweight32(val);
 }
 
 static void r600_gpu_init(struct radeon_device *rdev)
