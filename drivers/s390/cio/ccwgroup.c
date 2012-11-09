@@ -68,7 +68,7 @@ static void __ccwgroup_remove_cdev_refs(struct ccwgroup_device *gdev)
 static int ccwgroup_set_online(struct ccwgroup_device *gdev)
 {
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(gdev->dev.driver);
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
 		return -EAGAIN;
@@ -88,7 +88,7 @@ out:
 static int ccwgroup_set_offline(struct ccwgroup_device *gdev)
 {
 	struct ccwgroup_driver *gdrv = to_ccwgroupdrv(gdev->dev.driver);
-	int ret = 0;
+	int ret = -EINVAL;
 
 	if (atomic_cmpxchg(&gdev->onoff, 0, 1) != 0)
 		return -EAGAIN;
