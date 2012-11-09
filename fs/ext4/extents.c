@@ -4344,6 +4344,8 @@ void ext4_ext_truncate(struct inode *inode)
 
 	last_block = (inode->i_size + sb->s_blocksize - 1)
 			>> EXT4_BLOCK_SIZE_BITS(sb);
+	err = ext4_es_remove_extent(inode, last_block,
+				    EXT_MAX_BLOCKS - last_block);
 	err = ext4_ext_remove_space(inode, last_block, EXT_MAX_BLOCKS - 1);
 
 	/* In a multi-transaction truncate, we only make the final
@@ -4971,6 +4973,8 @@ int ext4_ext_punch_hole(struct file *file, loff_t offset, loff_t length)
 	ext4_ext_invalidate_cache(inode);
 	ext4_discard_preallocations(inode);
 
+	err = ext4_es_remove_extent(inode, first_block,
+				    stop_block - first_block);
 	err = ext4_ext_remove_space(inode, first_block, stop_block - 1);
 
 	ext4_ext_invalidate_cache(inode);
