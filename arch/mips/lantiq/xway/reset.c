@@ -34,11 +34,12 @@
 /* reset cause */
 #define RCU_STAT_SHIFT		26
 /* boot selection */
-#define RCU_BOOT_SEL_SHIFT	26
-#define RCU_BOOT_SEL_MASK	0x7
+#define RCU_BOOT_SEL(x)		((x >> 18) & 0x7)
+#define RCU_BOOT_SEL_XRX200(x)	(((x >> 17) & 0xf) | ((x >> 8) & 0x10))
 
 /* remapped base addr of the reset control unit */
 static void __iomem *ltq_rcu_membase;
+static struct device_node *ltq_rcu_np;
 
 /* This function is used by the watchdog driver */
 int ltq_reset_cause(void)
@@ -52,7 +53,11 @@ EXPORT_SYMBOL_GPL(ltq_reset_cause);
 unsigned char ltq_boot_select(void)
 {
 	u32 val = ltq_rcu_r32(RCU_RST_STAT);
-	return (val >> RCU_BOOT_SEL_SHIFT) & RCU_BOOT_SEL_MASK;
+
+	if (of_device_is_compatible(ltq_rcu_np, "lantiq,rcu-xrx200"))
+		return RCU_BOOT_SEL_XRX200(val);
+
+	return RCU_BOOT_SEL(val);
 }
 
 /* reset a io domain for u micro seconds */
@@ -85,14 +90,17 @@ static void ltq_machine_power_off(void)
 static int __init mips_reboot_setup(void)
 {
 	struct resource res;
-	struct device_node *np =
-		of_find_compatible_node(NULL, NULL, "lantiq,rcu-xway");
+
+	ltq_rcu_np = of_find_compatible_node(NULL, NULL, "lantiq,rcu-xway");
+	if (!ltq_rcu_np)
+		ltq_rcu_np = of_find_compatible_node(NULL, NULL,
+							"lantiq,rcu-xrx200");
 
 	/* check if all the reset register range is available */
-	if (!np)
+	if (!ltq_rcu_np)
 		panic("Failed to load reset resources from devicetree");
 
-	if (of_address_to_resource(np, 0, &res))
+	if (of_address_to_resource(ltq_rcu_np, 0, &res))
 		panic("Failed to get rcu memory range");
 
 	if (request_mem_region(res.start, resource_size(&res), res.name) < 0)
