@@ -145,6 +145,7 @@ static int mga_vram_init(struct mga_device *mdev)
 	aper->count = 1;
 
 	remove_conflicting_framebuffers(aper, "mgafb", true);
+	kfree(aper);
 
 	if (!request_mem_region(mdev->mc.vram_base, mdev->mc.vram_window,
 				"mgadrmfb_vram")) {
