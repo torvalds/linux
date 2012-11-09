@@ -69,23 +69,28 @@ __setup("ro", readonly);
 __setup("rw", readwrite);
 
 #ifdef CONFIG_BLOCK
+struct uuidcmp {
+	const char *uuid;
+	int len;
+};
+
 /**
  * match_dev_by_uuid - callback for finding a partition using its uuid
  * @dev:	device passed in by the caller
- * @data:	opaque pointer to a 36 byte char array with a UUID
+ * @data:	opaque pointer to the desired struct uuidcmp to match
  *
  * Returns 1 if the device matches, and 0 otherwise.
  */
 static int match_dev_by_uuid(struct device *dev, void *data)
 {
-	u8 *uuid = data;
+	struct uuidcmp *cmp = data;
 	struct hd_struct *part = dev_to_part(dev);
 
 	if (!part->info)
 		goto no_match;
 
-	if (memcmp(uuid, part->info->uuid, sizeof(part->info->uuid)))
-			goto no_match;
+	if (strncasecmp(cmp->uuid, part->info->uuid, cmp->len))
+		goto no_match;
 
 	return 1;
 no_match:
@@ -95,7 +100,7 @@ no_match:
 
 /**
  * devt_from_partuuid - looks up the dev_t of a partition by its UUID
- * @uuid:	min 36 byte char array containing a hex ascii UUID
+ * @uuid:	char array containing ascii UUID
  *
  * The function will return the first partition which contains a matching
  * UUID value in its partition_meta_info struct.  This does not search
@@ -106,17 +111,20 @@ no_match:
  *
  * Returns the matching dev_t on success or 0 on failure.
  */
-static dev_t devt_from_partuuid(char *uuid_str)
+static dev_t devt_from_partuuid(const char *uuid_str)
 {
 	dev_t res = 0;
+	struct uuidcmp cmp;
 	struct device *dev = NULL;
-	u8 uuid[16];
 	struct gendisk *disk;
 	struct hd_struct *part;
 	int offset = 0;
 
 	if (strlen(uuid_str) < 36)
 		goto done;
+
+	cmp.uuid = uuid_str;
+	cmp.len = 36;
 
 	/* Check for optional partition number offset attributes. */
 	if (uuid_str[36]) {
@@ -134,10 +142,8 @@ static dev_t devt_from_partuuid(char *uuid_str)
 		}
 	}
 
-	/* Pack the requested UUID in the expected format. */
-	part_pack_uuid(uuid_str, uuid);
-
-	dev = class_find_device(&block_class, NULL, uuid, &match_dev_by_uuid);
+	dev = class_find_device(&block_class, NULL, &cmp,
+				&match_dev_by_uuid);
 	if (!dev)
 		goto done;
 

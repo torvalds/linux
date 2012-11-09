@@ -620,7 +620,6 @@ int efi_partition(struct parsed_partitions *state)
 	gpt_entry *ptes = NULL;
 	u32 i;
 	unsigned ssz = bdev_logical_block_size(state->bdev) / 512;
-	u8 unparsed_guid[37];
 
 	if (!find_valid_gpt(state, &gpt, &ptes) || !gpt || !ptes) {
 		kfree(gpt);
@@ -649,11 +648,7 @@ int efi_partition(struct parsed_partitions *state)
 			state->parts[i + 1].flags = ADDPART_FLAG_RAID;
 
 		info = &state->parts[i + 1].info;
-		/* Instead of doing a manual swap to big endian, reuse the
-		 * common ASCII hex format as the interim.
-		 */
-		efi_guid_unparse(&ptes[i].unique_partition_guid, unparsed_guid);
-		part_pack_uuid(unparsed_guid, info->uuid);
+		efi_guid_unparse(&ptes[i].unique_partition_guid, info->uuid);
 
 		/* Naively convert UTF16-LE to 7 bits. */
 		label_max = min(sizeof(info->volname) - 1,
