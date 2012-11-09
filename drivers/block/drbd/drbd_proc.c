@@ -171,7 +171,7 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 		if (mdev->state.conn == C_VERIFY_S ||
 		    mdev->state.conn == C_VERIFY_T) {
 			bit_pos = bm_bits - mdev->ov_left;
-			if (mdev->agreed_pro_version >= 97)
+			if (verify_can_do_stop_sector(mdev))
 				stop_sector = mdev->ov_stop_sector;
 		} else
 			bit_pos = mdev->bm_resync_fo;
@@ -200,9 +200,11 @@ static void resync_dump_detail(struct seq_file *seq, struct lc_element *e)
 
 static int drbd_seq_show(struct seq_file *seq, void *v)
 {
-	int i, hole = 0;
+	int i, prev_i = -1;
 	const char *sn;
 	struct drbd_conf *mdev;
+	struct net_conf *nc;
+	char wp;
 
 	static char write_ordering_chars[] = {
 		[WO_none] = 'n',
@@ -233,16 +235,11 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 	 oos .. known out-of-sync kB
 	*/
 
-	for (i = 0; i < minor_count; i++) {
-		mdev = minor_to_mdev(i);
-		if (!mdev) {
-			hole = 1;
-			continue;
-		}
-		if (hole) {
-			hole = 0;
+	rcu_read_lock();
+	idr_for_each_entry(&minors, mdev, i) {
+		if (prev_i != i - 1)
 			seq_printf(seq, "\n");
-		}
+		prev_i = i;
 
 		sn = drbd_conn_str(mdev->state.conn);
 
@@ -254,6 +251,8 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			/* reset mdev->congestion_reason */
 			bdi_rw_congested(&mdev->rq_queue->backing_dev_info);
 
+			nc = rcu_dereference(mdev->tconn->net_conf);
+			wp = nc ? nc->wire_protocol - DRBD_PROT_A + 'A' : ' ';
 			seq_printf(seq,
 			   "%2d: cs:%s ro:%s/%s ds:%s/%s %c %c%c%c%c%c%c\n"
 			   "    ns:%u nr:%u dw:%u dr:%u al:%u bm:%u "
@@ -263,14 +262,13 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   drbd_role_str(mdev->state.peer),
 			   drbd_disk_str(mdev->state.disk),
 			   drbd_disk_str(mdev->state.pdsk),
-			   (mdev->net_conf == NULL ? ' ' :
-			    (mdev->net_conf->wire_protocol - DRBD_PROT_A+'A')),
-			   is_susp(mdev->state) ? 's' : 'r',
+			   wp,
+			   drbd_suspended(mdev) ? 's' : 'r',
 			   mdev->state.aftr_isp ? 'a' : '-',
 			   mdev->state.peer_isp ? 'p' : '-',
 			   mdev->state.user_isp ? 'u' : '-',
 			   mdev->congestion_reason ?: '-',
-			   drbd_test_flag(mdev, AL_SUSPENDED) ? 's' : '-',
+			   test_bit(AL_SUSPENDED, &mdev->flags) ? 's' : '-',
 			   mdev->send_cnt/2,
 			   mdev->recv_cnt/2,
 			   mdev->writ_cnt/2,
@@ -282,8 +280,8 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&mdev->rs_pending_cnt),
 			   atomic_read(&mdev->unacked_cnt),
 			   atomic_read(&mdev->ap_bio_cnt),
-			   mdev->epochs,
-			   write_ordering_chars[mdev->write_ordering]
+			   mdev->tconn->epochs,
+			   write_ordering_chars[mdev->tconn->write_ordering]
 			);
 			seq_printf(seq, " oos:%llu\n",
 				   Bit2KB((unsigned long long)
@@ -308,6 +306,7 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 			}
 		}
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
