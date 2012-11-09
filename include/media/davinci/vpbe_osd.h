@@ -357,7 +357,7 @@ struct osd_state {
 	spinlock_t lock;
 	struct device *dev;
 	dma_addr_t osd_base_phys;
-	unsigned long osd_base;
+	void __iomem *osd_base;
 	unsigned long osd_size;
 	/* 1-->the isr will toggle the VID0 ping-pong buffer */
 	int pingpong;

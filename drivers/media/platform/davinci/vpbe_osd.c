@@ -62,7 +62,7 @@ static inline u32 osd_set(struct osd_state *sd, u32 mask, u32 offset)
 {
 	struct osd_state *osd = sd;
 
-	u32 addr = osd->osd_base + offset;
+	void __iomem *addr = osd->osd_base + offset;
 	u32 val = readl(addr) | mask;
 
 	writel(val, addr);
@@ -74,7 +74,7 @@ static inline u32 osd_clear(struct osd_state *sd, u32 mask, u32 offset)
 {
 	struct osd_state *osd = sd;
 
-	u32 addr = osd->osd_base + offset;
+	void __iomem *addr = osd->osd_base + offset;
 	u32 val = readl(addr) & ~mask;
 
 	writel(val, addr);
@@ -87,7 +87,7 @@ static inline u32 osd_modify(struct osd_state *sd, u32 mask, u32 val,
 {
 	struct osd_state *osd = sd;
 
-	u32 addr = osd->osd_base + offset;
+	void __iomem *addr = osd->osd_base + offset;
 	u32 new_val = (readl(addr) & ~mask) | (val & mask);
 
 	writel(new_val, addr);
@@ -1559,8 +1559,7 @@ static int osd_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto free_mem;
 	}
-	osd->osd_base = (unsigned long)ioremap_nocache(res->start,
-							osd->osd_size);
+	osd->osd_base = ioremap_nocache(res->start, osd->osd_size);
 	if (!osd->osd_base) {
 		dev_err(osd->dev, "Unable to map the OSD region\n");
 		ret = -ENODEV;
