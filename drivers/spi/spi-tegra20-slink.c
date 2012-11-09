@@ -1109,8 +1109,8 @@ const struct tegra_slink_chip_data tegra20_spi_cdata = {
 };
 
 static struct of_device_id tegra_slink_of_match[] __devinitconst = {
-	{ .compatible = "nvidia,tegra20-slink", .data = &tegra20_spi_cdata, },
 	{ .compatible = "nvidia,tegra30-slink", .data = &tegra30_spi_cdata, },
+	{ .compatible = "nvidia,tegra20-slink", .data = &tegra20_spi_cdata, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, tegra_slink_of_match);
