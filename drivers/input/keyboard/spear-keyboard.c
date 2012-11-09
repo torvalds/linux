@@ -55,7 +55,6 @@
 
 struct spear_kbd {
 	struct input_dev *input;
-	struct resource *res;
 	void __iomem *io_base;
 	struct clk *clk;
 	unsigned int irq;
@@ -204,12 +203,16 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	kbd = kzalloc(sizeof(*kbd), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!kbd || !input_dev) {
-		dev_err(&pdev->dev, "out of memory\n");
-		error = -ENOMEM;
-		goto err_free_mem;
+	kbd = devm_kzalloc(&pdev->dev, sizeof(*kbd), GFP_KERNEL);
+	if (!kbd) {
+		dev_err(&pdev->dev, "not enough memory for driver data\n");
+		return -ENOMEM;
+	}
+
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!input_dev) {
+		dev_err(&pdev->dev, "unable to allocate input device\n");
+		return -ENOMEM;
 	}
 
 	kbd->input = input_dev;
@@ -218,37 +221,25 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 	if (!pdata) {
 		error = spear_kbd_parse_dt(pdev, kbd);
 		if (error)
-			goto err_free_mem;
+			return error;
 	} else {
 		kbd->mode = pdata->mode;
 		kbd->rep = pdata->rep;
 		kbd->suspended_rate = pdata->suspended_rate;
 	}
 
-	kbd->res = request_mem_region(res->start, resource_size(res),
-				      pdev->name);
-	if (!kbd->res) {
-		dev_err(&pdev->dev, "keyboard region already claimed\n");
-		error = -EBUSY;
-		goto err_free_mem;
-	}
-
-	kbd->io_base = ioremap(res->start, resource_size(res));
+	kbd->io_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!kbd->io_base) {
-		dev_err(&pdev->dev, "ioremap failed for kbd_region\n");
-		error = -ENOMEM;
-		goto err_release_mem_region;
+		dev_err(&pdev->dev, "request-ioremap failed for kbd_region\n");
+		return -ENOMEM;
 	}
 
-	kbd->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(kbd->clk)) {
-		error = PTR_ERR(kbd->clk);
-		goto err_iounmap;
-	}
+	kbd->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(kbd->clk))
+		return PTR_ERR(kbd->clk);
 
 	input_dev->name = "Spear Keyboard";
 	input_dev->phys = "keyboard/input0";
-	input_dev->dev.parent = &pdev->dev;
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->id.vendor = 0x0001;
 	input_dev->id.product = 0x0001;
@@ -260,7 +251,7 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 					   kbd->keycodes, input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "Failed to build keymap\n");
-		goto err_put_clk;
+		return error;
 	}
 
 	if (kbd->rep)
@@ -269,49 +260,27 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 
 	input_set_drvdata(input_dev, kbd);
 
-	error = request_irq(irq, spear_kbd_interrupt, 0, "keyboard", kbd);
+	error = devm_request_irq(&pdev->dev, irq, spear_kbd_interrupt, 0,
+			"keyboard", kbd);
 	if (error) {
-		dev_err(&pdev->dev, "request_irq fail\n");
-		goto err_put_clk;
+		dev_err(&pdev->dev, "request_irq failed\n");
+		return error;
 	}
 
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "Unable to register keyboard device\n");
-		goto err_free_irq;
+		return error;
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
 	platform_set_drvdata(pdev, kbd);
 
 	return 0;
-
-err_free_irq:
-	free_irq(kbd->irq, kbd);
-err_put_clk:
-	clk_put(kbd->clk);
-err_iounmap:
-	iounmap(kbd->io_base);
-err_release_mem_region:
-	release_mem_region(res->start, resource_size(res));
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(kbd);
-
-	return error;
 }
 
 static int __devexit spear_kbd_remove(struct platform_device *pdev)
 {
-	struct spear_kbd *kbd = platform_get_drvdata(pdev);
-
-	free_irq(kbd->irq, kbd);
-	input_unregister_device(kbd->input);
-	clk_put(kbd->clk);
-	iounmap(kbd->io_base);
-	release_mem_region(kbd->res->start, resource_size(kbd->res));
-	kfree(kbd);
-
 	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
 
