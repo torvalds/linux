@@ -536,7 +536,9 @@ err_srcs:
 			thread_name, total_tests, failed_tests, ret);
 
 	/* terminate all transfers on specified channels */
-	dmaengine_terminate_all(chan);
+	if (ret)
+		dmaengine_terminate_all(chan);
+
 	if (iterations > 0)
 		while (!kthread_should_stop()) {
 			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait_dmatest_exit);
