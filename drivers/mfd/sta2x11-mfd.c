@@ -46,7 +46,7 @@ static inline int __reg_within_range(unsigned int r,
 struct sta2x11_mfd {
 	struct sta2x11_instance *instance;
 	struct regmap *regmap[sta2x11_n_mfd_plat_devs];
-	spinlock_t lock;
+	spinlock_t lock[sta2x11_n_mfd_plat_devs];
 	struct list_head list;
 	void __iomem *regs[sta2x11_n_mfd_plat_devs];
 };
@@ -78,6 +78,7 @@ static struct sta2x11_mfd *sta2x11_mfd_find(struct pci_dev *pdev)
 
 static int __devinit sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 {
+	int i;
 	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
 	struct sta2x11_instance *instance;
 
@@ -90,7 +91,8 @@ static int __devinit sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 	if (!mfd)
 		return -ENOMEM;
 	INIT_LIST_HEAD(&mfd->list);
-	spin_lock_init(&mfd->lock);
+	for (i = 0; i < ARRAY_SIZE(mfd->lock); i++)
+		spin_lock_init(&mfd->lock[i]);
 	mfd->instance = instance;
 	list_add(&mfd->list, &sta2x11_mfd_list);
 	return 0;
@@ -124,13 +126,13 @@ u32 __sta2x11_mfd_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val,
 		dev_warn(&pdev->dev, ": system ctl not initialized\n");
 		return 0;
 	}
-	spin_lock_irqsave(&mfd->lock, flags);
+	spin_lock_irqsave(&mfd->lock[index], flags);
 	r = readl(regs + reg);
 	r &= ~mask;
 	r |= val;
 	if (mask)
 		writel(r, regs + reg);
-	spin_unlock_irqrestore(&mfd->lock, flags);
+	spin_unlock_irqrestore(&mfd->lock[index], flags);
 	return r;
 }
 EXPORT_SYMBOL(__sta2x11_mfd_mask);
