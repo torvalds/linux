@@ -28,6 +28,10 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
+#include <core/class.h>
+
+#include "nv50_display.h"
+
 static bool
 hdmi_sor(struct drm_encoder *encoder)
 {
@@ -74,23 +78,21 @@ hdmi_mask(struct drm_encoder *encoder, u32 reg, u32 mask, u32 val)
 static void
 nouveau_audio_disconnect(struct drm_encoder *encoder)
 {
+	struct nv50_display *priv = nv50_display(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_device *device = nouveau_dev(encoder->dev);
-	u32 or = nv_encoder->or * 0x800;
+	u32 or = nv_encoder->or;
 
 	if (hdmi_sor(encoder))
-		nv_mask(device, 0x61c448 + or, 0x00000003, 0x00000000);
+		nv_exec(priv->core, NVA3_DISP_SOR_HDA_ELD + or, NULL, 0);
 }
 
 static void
 nouveau_audio_mode_set(struct drm_encoder *encoder,
 		       struct drm_display_mode *mode)
 {
+	struct nv50_display *priv = nv50_display(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_device *device = nouveau_dev(encoder->dev);
 	struct nouveau_connector *nv_connector;
-	u32 or = nv_encoder->or * 0x800;
-	int i;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	if (!drm_detect_monitor_audio(nv_connector->edid)) {
@@ -99,17 +101,10 @@ nouveau_audio_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (hdmi_sor(encoder)) {
-		nv_mask(device, 0x61c448 + or, 0x00000001, 0x00000001);
-
 		drm_edid_to_eld(&nv_connector->base, nv_connector->edid);
-		if (nv_connector->base.eld[0]) {
-			u8 *eld = nv_connector->base.eld;
-			for (i = 0; i < eld[2] * 4; i++)
-				nv_wr32(device, 0x61c440 + or, (i << 8) | eld[i]);
-			for (i = eld[2] * 4; i < 0x60; i++)
-				nv_wr32(device, 0x61c440 + or, (i << 8) | 0x00);
-			nv_mask(device, 0x61c448 + or, 0x00000002, 0x00000002);
-		}
+		nv_exec(priv->core, NVA3_DISP_SOR_HDA_ELD + nv_encoder->or,
+				    nv_connector->base.eld,
+				    nv_connector->base.eld[2] * 4);
 	}
 }
 
