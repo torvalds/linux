@@ -5101,6 +5101,7 @@ int pevent_strerror(struct pevent *pevent __maybe_unused,
 	case PEVENT_ERRNO__READ_FORMAT_FAILED:
 	case PEVENT_ERRNO__READ_PRINT_FAILED:
 	case PEVENT_ERRNO__OLD_FTRACE_ARG_FAILED:
+	case PEVENT_ERRNO__INVALID_ARG_TYPE:
 		snprintf(buf, buflen, "%s", msg);
 		break;
 
