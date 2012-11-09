@@ -23,7 +23,8 @@
 #define _NET_BATMAN_ADV_BLA_H_
 
 #ifdef CONFIG_BATMAN_ADV_BLA
-int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid);
+int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid,
+	   bool is_bcast);
 int bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid);
 int bla_is_backbone_gw(struct sk_buff *skb,
 		       struct orig_node *orig_node, int hdr_size);
@@ -41,7 +42,7 @@ void bla_free(struct bat_priv *bat_priv);
 #else /* ifdef CONFIG_BATMAN_ADV_BLA */
 
 static inline int bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb,
-			 short vid)
+			 short vid, bool is_bcast)
 {
 	return 0;
 }

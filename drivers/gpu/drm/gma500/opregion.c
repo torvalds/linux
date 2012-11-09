@@ -144,6 +144,8 @@ struct opregion_asle {
 
 #define ASLE_CBLV_VALID         (1<<31)
 
+static struct psb_intel_opregion *system_opregion;
+
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
@@ -205,7 +207,7 @@ void psb_intel_opregion_enable_asle(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
-	if (asle) {
+	if (asle && system_opregion ) {
 		/* Don't do this on Medfield or other non PC like devices, they
 		   use the bit for something different altogether */
 		psb_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
@@ -221,7 +223,6 @@ void psb_intel_opregion_enable_asle(struct drm_device *dev)
 #define ACPI_EV_LID            (1<<1)
 #define ACPI_EV_DOCK           (1<<2)
 
-static struct psb_intel_opregion *system_opregion;
 
 static int psb_intel_opregion_video_event(struct notifier_block *nb,
 					  unsigned long val, void *data)
@@ -266,9 +267,6 @@ void psb_intel_opregion_init(struct drm_device *dev)
 		system_opregion = opregion;
 		register_acpi_notifier(&psb_intel_opregion_notifier);
 	}
-
-	if (opregion->asle)
-		psb_intel_opregion_enable_asle(dev);
 }
 
 void psb_intel_opregion_fini(struct drm_device *dev)

@@ -82,8 +82,10 @@ void __init prom_free_prom_memory(void)
 
 void xlp_mmu_init(void)
 {
+	/* enable extended TLB and Large Fixed TLB */
 	write_c0_config6(read_c0_config6() | 0x24);
-	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
+	/* set page mask of Fixed TLB in config7 */
 	write_c0_config7(PM_DEFAULT_MASK >>
 		(13 + (ffz(PM_DEFAULT_MASK >> 13) / 2)));
 }
@@ -100,6 +102,10 @@ void __init prom_init(void)
 	nlm_common_ebase = read_c0_ebase() & (~((1 << 12) - 1));
 #ifdef CONFIG_SMP
 	nlm_wakeup_secondary_cpus(0xffffffff);
+
+	/* update TLB size after waking up threads */
+	current_cpu_data.tlbsize = ((read_c0_config6() >> 16) & 0xffff) + 1;
+
 	register_smp_ops(&nlm_smp_ops);
 #endif
 }

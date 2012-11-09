@@ -205,7 +205,6 @@ extern char kdb_grep_string[];
 extern int kdb_grep_leading;
 extern int kdb_grep_trailing;
 extern char *kdb_cmds[];
-extern void kdb_syslog_data(char *syslog_data[]);
 extern unsigned long kdb_task_state_string(const char *);
 extern char kdb_task_state_char (const struct task_struct *);
 extern unsigned long kdb_task_state(const struct task_struct *p,

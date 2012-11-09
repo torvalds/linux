@@ -256,7 +256,11 @@ void interface_rx(struct net_device *soft_iface,
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
 	struct ethhdr *ethhdr;
 	struct vlan_ethhdr *vhdr;
+	struct batman_header *batadv_header = (struct batman_header *)skb->data;
 	short vid __maybe_unused = -1;
+	bool is_bcast;
+
+	is_bcast = (batadv_header->packet_type == BAT_BCAST);
 
 	/* check if enough space is available for pulling, and pull */
 	if (!pskb_may_pull(skb, hdr_size))
@@ -302,7 +306,7 @@ void interface_rx(struct net_device *soft_iface,
 	/* Let the bridge loop avoidance check the packet. If will
 	 * not handle it, we can safely push it up.
 	 */
-	if (bla_rx(bat_priv, skb, vid))
+	if (bla_rx(bat_priv, skb, vid, is_bcast))
 		goto out;
 
 	netif_rx(skb);

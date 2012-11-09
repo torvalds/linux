@@ -14,6 +14,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/kmsg_dump.h>
 #include <linux/reboot.h>
 #include <linux/sched.h>
 #include <linux/sysrq.h>
@@ -2040,8 +2041,15 @@ static int kdb_env(int argc, const char **argv)
  */
 static int kdb_dmesg(int argc, const char **argv)
 {
-	char *syslog_data[4], *start, *end, c = '\0', *p;
-	int diag, logging, logsize, lines = 0, adjust = 0, n;
+	int diag;
+	int logging;
+	int lines = 0;
+	int adjust = 0;
+	int n = 0;
+	int skip = 0;
+	struct kmsg_dumper dumper = { .active = 1 };
+	size_t len;
+	char buf[201];
 
 	if (argc > 2)
 		return KDB_ARGCOUNT;
@@ -2064,22 +2072,10 @@ static int kdb_dmesg(int argc, const char **argv)
 		kdb_set(2, setargs);
 	}
 
-	/* syslog_data[0,1] physical start, end+1.  syslog_data[2,3]
-	 * logical start, end+1. */
-	kdb_syslog_data(syslog_data);
-	if (syslog_data[2] == syslog_data[3])
-		return 0;
-	logsize = syslog_data[1] - syslog_data[0];
-	start = syslog_data[2];
-	end = syslog_data[3];
-#define KDB_WRAP(p) (((p - syslog_data[0]) % logsize) + syslog_data[0])
-	for (n = 0, p = start; p < end; ++p) {
-		c = *KDB_WRAP(p);
-		if (c == '\n')
-			++n;
-	}
-	if (c != '\n')
-		++n;
+	kmsg_dump_rewind_nolock(&dumper);
+	while (kmsg_dump_get_line_nolock(&dumper, 1, NULL, 0, NULL))
+		n++;
+
 	if (lines < 0) {
 		if (adjust >= n)
 			kdb_printf("buffer only contains %d lines, nothing "
@@ -2087,21 +2083,11 @@ static int kdb_dmesg(int argc, const char **argv)
 		else if (adjust - lines >= n)
 			kdb_printf("buffer only contains %d lines, last %d "
 				   "lines printed\n", n, n - adjust);
-		if (adjust) {
-			for (; start < end && adjust; ++start) {
-				if (*KDB_WRAP(start) == '\n')
-					--adjust;
-			}
-			if (start < end)
-				++start;
-		}
-		for (p = start; p < end && lines; ++p) {
-			if (*KDB_WRAP(p) == '\n')
-				++lines;
-		}
-		end = p;
+		skip = adjust;
+		lines = abs(lines);
 	} else if (lines > 0) {
-		int skip = n - (adjust + lines);
+		skip = n - lines - adjust;
+		lines = abs(lines);
 		if (adjust >= n) {
 			kdb_printf("buffer only contains %d lines, "
 				   "nothing printed\n", n);
@@ -2112,35 +2098,24 @@ static int kdb_dmesg(int argc, const char **argv)
 			kdb_printf("buffer only contains %d lines, first "
 				   "%d lines printed\n", n, lines);
 		}
-		for (; start < end && skip; ++start) {
-			if (*KDB_WRAP(start) == '\n')
-				--skip;
-		}
-		for (p = start; p < end && lines; ++p) {
-			if (*KDB_WRAP(p) == '\n')
-				--lines;
-		}
-		end = p;
+	} else {
+		lines = n;
 	}
-	/* Do a line at a time (max 200 chars) to reduce protocol overhead */
-	c = '\n';
-	while (start != end) {
-		char buf[201];
-		p = buf;
-		if (KDB_FLAG(CMD_INTERRUPT))
-			return 0;
-		while (start < end && (c = *KDB_WRAP(start)) &&
-		       (p - buf) < sizeof(buf)-1) {
-			++start;
-			*p++ = c;
-			if (c == '\n')
-				break;
+
+	if (skip >= n || skip < 0)
+		return 0;
+
+	kmsg_dump_rewind_nolock(&dumper);
+	while (kmsg_dump_get_line_nolock(&dumper, 1, buf, sizeof(buf), &len)) {
+		if (skip) {
+			skip--;
+			continue;
 		}
-		*p = '\0';
-		kdb_printf("%s", buf);
+		if (!lines--)
+			break;
+
+		kdb_printf("%.*s\n", (int)len - 1, buf);
 	}
-	if (c != '\n')
-		kdb_printf("\n");
 
 	return 0;
 }

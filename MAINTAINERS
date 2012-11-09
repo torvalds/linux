@@ -3433,13 +3433,14 @@ S:	Supported
 F:	drivers/idle/i7300_idle.c
 
 IEEE 802.15.4 SUBSYSTEM
+M:	Alexander Smirnov <alex.bluesman.smirnov@gmail.com>
 M:	Dmitry Eremin-Solenikov <dbaryshkov@gmail.com>
-M:	Sergey Lapin <slapin@ossfans.org>
 L:	linux-zigbee-devel@lists.sourceforge.net (moderated for non-subscribers)
 W:	http://apps.sourceforge.net/trac/linux-zigbee
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lowpan/lowpan.git
 S:	Maintained
 F:	net/ieee802154/
+F:	net/mac802154/
 F:	drivers/ieee802154/
 
 IIO SUBSYSTEM AND DRIVERS
@@ -5564,7 +5565,7 @@ F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
-M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
+M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Sony Chacko <sony.chacko@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
@@ -5572,7 +5573,6 @@ S:	Supported
 F:	drivers/net/ethernet/qlogic/qlcnic/
 
 QLOGIC QLGE 10Gb ETHERNET DRIVER
-M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
 M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com

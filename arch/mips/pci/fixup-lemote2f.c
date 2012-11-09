@@ -96,21 +96,21 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 }
 
 /* CS5536 SPEC. fixup */
-static void __init loongson_cs5536_isa_fixup(struct pci_dev *pdev)
+static void __devinit loongson_cs5536_isa_fixup(struct pci_dev *pdev)
 {
 	/* the uart1 and uart2 interrupt in PIC is enabled as default */
 	pci_write_config_dword(pdev, PCI_UART1_INT_REG, 1);
 	pci_write_config_dword(pdev, PCI_UART2_INT_REG, 1);
 }
 
-static void __init loongson_cs5536_ide_fixup(struct pci_dev *pdev)
+static void __devinit loongson_cs5536_ide_fixup(struct pci_dev *pdev)
 {
 	/* setting the mutex pin as IDE function */
 	pci_write_config_dword(pdev, PCI_IDE_CFG_REG,
 			       CS5536_IDE_FLASH_SIGNATURE);
 }
 
-static void __init loongson_cs5536_acc_fixup(struct pci_dev *pdev)
+static void __devinit loongson_cs5536_acc_fixup(struct pci_dev *pdev)
 {
 	/* enable the AUDIO interrupt in PIC  */
 	pci_write_config_dword(pdev, PCI_ACC_INT_REG, 1);
@@ -118,14 +118,14 @@ static void __init loongson_cs5536_acc_fixup(struct pci_dev *pdev)
 	pci_write_config_byte(pdev, PCI_LATENCY_TIMER, 0xc0);
 }
 
-static void __init loongson_cs5536_ohci_fixup(struct pci_dev *pdev)
+static void __devinit loongson_cs5536_ohci_fixup(struct pci_dev *pdev)
 {
 	/* enable the OHCI interrupt in PIC */
 	/* THE OHCI, EHCI, UDC, OTG are shared with interrupt in PIC */
 	pci_write_config_dword(pdev, PCI_OHCI_INT_REG, 1);
 }
 
-static void __init loongson_cs5536_ehci_fixup(struct pci_dev *pdev)
+static void __devinit loongson_cs5536_ehci_fixup(struct pci_dev *pdev)
 {
 	u32 hi, lo;
 
@@ -137,7 +137,7 @@ static void __init loongson_cs5536_ehci_fixup(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, PCI_EHCI_FLADJ_REG, 0x2000);
 }
 
-static void __init loongson_nec_fixup(struct pci_dev *pdev)
+static void __devinit loongson_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 

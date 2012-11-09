@@ -322,6 +322,10 @@ static int __init mipsxx_init(void)
 
 	op_model_mipsxx_ops.num_counters = counters;
 	switch (current_cpu_type()) {
+	case CPU_M14KC:
+		op_model_mipsxx_ops.cpu_type = "mips/M14Kc";
+		break;
+
 	case CPU_20KC:
 		op_model_mipsxx_ops.cpu_type = "mips/20K";
 		break;
