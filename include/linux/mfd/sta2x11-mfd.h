@@ -246,6 +246,7 @@ u32 sta2x11_sctl_mask(struct pci_dev *pdev, u32 reg, u32 mask, u32 val)
 #define SCTL_SCPEREN1		0x20	/* Peripheral clock enable register 1 */
 #define SCTL_SCPEREN2		0x24	/* Peripheral clock enable register 2 */
 #define SCTL_SCGRST		0x28	/* Peripheral global reset */
+#define SCTL_SCPCIECSBRST       0x2c    /* PCIe PAB CSB reset status register */
 #define SCTL_SCPCIPMCR1		0x30	/* PCI power management control 1 */
 #define SCTL_SCPCIPMCR2		0x34	/* PCI power management control 2 */
 #define SCTL_SCPCIPMSR1		0x38	/* PCI power management status 1 */

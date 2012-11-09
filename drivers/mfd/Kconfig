@@ -1046,6 +1046,7 @@ config MFD_STA2X11
 	bool "STA2X11 multi function device support"
 	depends on STA2X11
 	select MFD_CORE
+	select REGMAP_MMIO
 
 config MFD_SYSCON
 	bool "System Controller Register R/W Based on Regmap"
