@@ -35,12 +35,15 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 };
 
 
-static void cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
+static int cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 {
 	struct apertures_struct *ap;
 	bool primary = false;
 
 	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
 
@@ -49,12 +52,18 @@ static void cirrus_kick_out_firmware_fb(struct pci_dev *pdev)
 #endif
 	remove_conflicting_framebuffers(ap, "cirrusdrmfb", primary);
 	kfree(ap);
+
+	return 0;
 }
 
 static int __devinit
 cirrus_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	cirrus_kick_out_firmware_fb(pdev);
+	int ret;
+
+	ret = cirrus_kick_out_firmware_fb(pdev);
+	if (ret)
+		return ret;
 
 	return drm_get_pci_dev(pdev, ent, &driver);
 }
