@@ -76,8 +76,8 @@ static inline void spear_pwm_writel(struct spear_pwm_chip *chip,
 	writel_relaxed(val, chip->mmio_base + (num << 4) + offset);
 }
 
-int spear_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm, int duty_ns,
-		     int period_ns)
+static int spear_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
+			    int duty_ns, int period_ns)
 {
 	struct spear_pwm_chip *pc = to_spear_pwm_chip(chip);
 	u64 val, div, clk_rate;
