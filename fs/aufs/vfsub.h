@@ -163,7 +163,8 @@ struct dentry *vfsub_lock_rename(struct dentry *d1, struct au_hinode *hdir1,
 void vfsub_unlock_rename(struct dentry *d1, struct au_hinode *hdir1,
 			 struct dentry *d2, struct au_hinode *hdir2);
 
-int vfsub_create(struct inode *dir, struct path *path, int mode, bool want_excl);
+int vfsub_create(struct inode *dir, struct path *path, int mode,
+		 bool want_excl);
 int vfsub_symlink(struct inode *dir, struct path *path,
 		  const char *symname);
 int vfsub_mknod(struct inode *dir, struct path *path, int mode, dev_t dev);
