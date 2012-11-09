@@ -23,8 +23,12 @@
 #include <linux/seq_file.h>
 
 enum freezer_state_flags {
-	CGROUP_FREEZING		= (1 << 1), /* this freezer is freezing */
+	CGROUP_FREEZING_SELF	= (1 << 1), /* this freezer is freezing */
+	CGROUP_FREEZING_PARENT	= (1 << 2), /* the parent freezer is freezing */
 	CGROUP_FROZEN		= (1 << 3), /* this and its descendants frozen */
+
+	/* mask for all FREEZING flags */
+	CGROUP_FREEZING		= CGROUP_FREEZING_SELF | CGROUP_FREEZING_PARENT,
 };
 
 struct freezer {
@@ -245,8 +249,13 @@ static void unfreeze_cgroup(struct freezer *freezer)
  * freezer_apply_state - apply state change to a single cgroup_freezer
  * @freezer: freezer to apply state change to
  * @freeze: whether to freeze or unfreeze
+ * @state: CGROUP_FREEZING_* flag to set or clear
+ *
+ * Set or clear @state on @cgroup according to @freeze, and perform
+ * freezing or thawing as necessary.
  */
-static void freezer_apply_state(struct freezer *freezer, bool freeze)
+static void freezer_apply_state(struct freezer *freezer, bool freeze,
+				unsigned int state)
 {
 	/* also synchronizes against task migration, see freezer_attach() */
 	lockdep_assert_held(&freezer->lock);
@@ -254,13 +263,19 @@ static void freezer_apply_state(struct freezer *freezer, bool freeze)
 	if (freeze) {
 		if (!(freezer->state & CGROUP_FREEZING))
 			atomic_inc(&system_freezing_cnt);
-		freezer->state |= CGROUP_FREEZING;
+		freezer->state |= state;
 		freeze_cgroup(freezer);
 	} else {
-		if (freezer->state & CGROUP_FREEZING)
-			atomic_dec(&system_freezing_cnt);
-		freezer->state &= ~(CGROUP_FREEZING | CGROUP_FROZEN);
-		unfreeze_cgroup(freezer);
+		bool was_freezing = freezer->state & CGROUP_FREEZING;
+
+		freezer->state &= ~state;
+
+		if (!(freezer->state & CGROUP_FREEZING)) {
+			if (was_freezing)
+				atomic_dec(&system_freezing_cnt);
+			freezer->state &= ~CGROUP_FROZEN;
+			unfreeze_cgroup(freezer);
+		}
 	}
 }
 
@@ -275,7 +290,7 @@ static void freezer_change_state(struct freezer *freezer, bool freeze)
 {
 	/* update @freezer */
 	spin_lock_irq(&freezer->lock);
-	freezer_apply_state(freezer, freeze);
+	freezer_apply_state(freezer, freeze, CGROUP_FREEZING_SELF);
 	spin_unlock_irq(&freezer->lock);
 }
 
@@ -295,12 +310,36 @@ static int freezer_write(struct cgroup *cgroup, struct cftype *cft,
 	return 0;
 }
 
+static u64 freezer_self_freezing_read(struct cgroup *cgroup, struct cftype *cft)
+{
+	struct freezer *freezer = cgroup_freezer(cgroup);
+
+	return (bool)(freezer->state & CGROUP_FREEZING_SELF);
+}
+
+static u64 freezer_parent_freezing_read(struct cgroup *cgroup, struct cftype *cft)
+{
+	struct freezer *freezer = cgroup_freezer(cgroup);
+
+	return (bool)(freezer->state & CGROUP_FREEZING_PARENT);
+}
+
 static struct cftype files[] = {
 	{
 		.name = "state",
 		.flags = CFTYPE_NOT_ON_ROOT,
 		.read_seq_string = freezer_read,
 		.write_string = freezer_write,
+	},
+	{
+		.name = "self_freezing",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = freezer_self_freezing_read,
+	},
+	{
+		.name = "parent_freezing",
+		.flags = CFTYPE_NOT_ON_ROOT,
+		.read_u64 = freezer_parent_freezing_read,
 	},
 	{ }	/* terminate */
 };
