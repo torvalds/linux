@@ -301,12 +301,13 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
-		goto out;
+		goto out_drop_write;
 
 	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
 	nfs4_reset_creds(original_cred);
 	if (status == 0)
 		vfs_fsync(rec_file, 0);
+out_drop_write:
 	mnt_drop_write_file(rec_file);
 out:
 	if (status)
