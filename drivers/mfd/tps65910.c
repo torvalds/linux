@@ -96,7 +96,7 @@ static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
 	//for(i=0;i<bytes;i++)
 	//printk("%s:reg=0x%x,value=0x%x\n",__func__,reg+i,msg[i+1]);
 	
-	ret = i2c_master_send(i2c, msg, bytes + 1);
+	ret = i2c_master_normal_send(i2c, msg, bytes + 1,TPS65910_SPEED);
 	if (ret < 0)
 		return ret;
 	if (ret != bytes + 1)
