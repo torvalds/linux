@@ -76,22 +76,28 @@ static void mxs_phy_shutdown(struct usb_phy *phy)
 	clk_disable_unprepare(mxs_phy->clk);
 }
 
-static int mxs_phy_on_connect(struct usb_phy *phy, int port)
+static int mxs_phy_on_connect(struct usb_phy *phy,
+		enum usb_device_speed speed)
 {
-	dev_dbg(phy->dev, "Connect on port %d\n", port);
+	dev_dbg(phy->dev, "%s speed device has connected\n",
+		(speed == USB_SPEED_HIGH) ? "high" : "non-high");
 
-	writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
-			phy->io_priv + HW_USBPHY_CTRL_SET);
+	if (speed == USB_SPEED_HIGH)
+		writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
+				phy->io_priv + HW_USBPHY_CTRL_SET);
 
 	return 0;
 }
 
-static int mxs_phy_on_disconnect(struct usb_phy *phy, int port)
+static int mxs_phy_on_disconnect(struct usb_phy *phy,
+		enum usb_device_speed speed)
 {
-	dev_dbg(phy->dev, "Disconnect on port %d\n", port);
+	dev_dbg(phy->dev, "%s speed device has disconnected\n",
+		(speed == USB_SPEED_HIGH) ? "high" : "non-high");
 
-	writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
-			phy->io_priv + HW_USBPHY_CTRL_CLR);
+	if (speed == USB_SPEED_HIGH)
+		writel_relaxed(BM_USBPHY_CTRL_ENHOSTDISCONDETECT,
+				phy->io_priv + HW_USBPHY_CTRL_CLR);
 
 	return 0;
 }
