@@ -325,7 +325,7 @@ unlock:
 	return ret;
 }
 
-static const struct block_device_operations mtd_blktrans_ops = {
+static const struct block_device_operations mtd_block_ops = {
 	.owner		= THIS_MODULE,
 	.open		= blktrans_open,
 	.release	= blktrans_release,
@@ -401,7 +401,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	gd->private_data = new;
 	gd->major = tr->major;
 	gd->first_minor = (new->devnum) << tr->part_bits;
-	gd->fops = &mtd_blktrans_ops;
+	gd->fops = &mtd_block_ops;
 
 	if (tr->part_bits)
 		if (new->devnum < 26)
