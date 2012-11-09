@@ -644,11 +644,18 @@ static int acpi_pci_root_start(struct acpi_device *device)
 	struct acpi_pci_root *root = acpi_driver_data(device);
 	struct acpi_pci_driver *driver;
 
+	if (system_state != SYSTEM_BOOTING)
+		pci_assign_unassigned_bus_resources(root->bus);
+
 	mutex_lock(&acpi_pci_root_lock);
 	list_for_each_entry(driver, &acpi_pci_drivers, node)
 		if (driver->add)
 			driver->add(root);
 	mutex_unlock(&acpi_pci_root_lock);
+
+	/* need to after hot-added ioapic is registered */
+	if (system_state != SYSTEM_BOOTING)
+		pci_enable_bridges(root->bus);
 
 	pci_bus_add_devices(root->bus);
 
@@ -657,17 +664,29 @@ static int acpi_pci_root_start(struct acpi_device *device)
 
 static int acpi_pci_root_remove(struct acpi_device *device, int type)
 {
+	acpi_status status;
+	acpi_handle handle;
 	struct acpi_pci_root *root = acpi_driver_data(device);
 	struct acpi_pci_driver *driver;
 
+	pci_stop_root_bus(root->bus);
+
 	mutex_lock(&acpi_pci_root_lock);
-	list_for_each_entry(driver, &acpi_pci_drivers, node)
+	list_for_each_entry_reverse(driver, &acpi_pci_drivers, node)
 		if (driver->remove)
 			driver->remove(root);
+	mutex_unlock(&acpi_pci_root_lock);
 
 	device_set_run_wake(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
+	status = acpi_get_handle(device->handle, METHOD_NAME__PRT, &handle);
+	if (ACPI_SUCCESS(status))
+		acpi_pci_irq_del_prt(root->bus);
+
+	pci_remove_root_bus(root->bus);
+
+	mutex_lock(&acpi_pci_root_lock);
 	list_del(&root->node);
 	mutex_unlock(&acpi_pci_root_lock);
 	kfree(root);
