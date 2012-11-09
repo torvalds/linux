@@ -174,7 +174,7 @@ static int cmdline_init(struct pevent *pevent)
 	return 0;
 }
 
-static char *find_cmdline(struct pevent *pevent, int pid)
+static const char *find_cmdline(struct pevent *pevent, int pid)
 {
 	const struct cmdline *comm;
 	struct cmdline key;
@@ -2637,7 +2637,7 @@ process_func_handler(struct event_format *event, struct pevent_function_handler 
 	struct print_arg *farg;
 	enum event_type type;
 	char *token;
-	char *test;
+	const char *test;
 	int i;
 
 	arg->type = PRINT_FUNC;
@@ -3889,7 +3889,7 @@ static void print_mac_arg(struct trace_seq *s, int mac, void *data, int size,
 			  struct event_format *event, struct print_arg *arg)
 {
 	unsigned char *buf;
-	char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
+	const char *fmt = "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x";
 
 	if (arg->type == PRINT_FUNC) {
 		process_defined_func(s, data, size, event, arg);
@@ -4409,7 +4409,7 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct pevent_record *record)
 {
-	static char *spaces = "                    "; /* 20 spaces */
+	static const char *spaces = "                    "; /* 20 spaces */
 	struct event_format *event;
 	unsigned long secs;
 	unsigned long usecs;
