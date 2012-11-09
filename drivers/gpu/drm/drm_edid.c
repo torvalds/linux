@@ -307,12 +307,9 @@ drm_do_probe_ddc_edid(struct i2c_adapter *adapter, unsigned char *buf,
 
 static bool drm_edid_is_zero(u8 *in_edid, int length)
 {
-	int i;
-	u32 *raw_edid = (u32 *)in_edid;
+	if (memchr_inv(in_edid, 0, length))
+		return false;
 
-	for (i = 0; i < length / 4; i++)
-		if (*(raw_edid + i) != 0)
-			return false;
 	return true;
 }
 
