@@ -1464,6 +1464,24 @@ out:
 	return written ? written : err;
 }
 
+static void update_time_for_write(struct inode *inode)
+{
+	struct timespec now;
+
+	if (IS_NOCMTIME(inode))
+		return;
+
+	now = current_fs_time(inode->i_sb);
+	if (!timespec_equal(&inode->i_mtime, &now))
+		inode->i_mtime = now;
+
+	if (!timespec_equal(&inode->i_ctime, &now))
+		inode->i_ctime = now;
+
+	if (IS_I_VERSION(inode))
+		inode_inc_iversion(inode);
+}
+
 static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 				    const struct iovec *iov,
 				    unsigned long nr_segs, loff_t pos)
@@ -1519,11 +1537,13 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		goto out;
 	}
 
-	err = file_update_time(file);
-	if (err) {
-		mutex_unlock(&inode->i_mutex);
-		goto out;
-	}
+	/*
+	 * We reserve space for updating the inode when we reserve space for the
+	 * extent we are going to write, so we will enospc out there.  We don't
+	 * need to start yet another transaction to update the inode as we will
+	 * update the inode when we finish writing whatever data we write.
+	 */
+	update_time_for_write(inode);
 
 	start_pos = round_down(pos, root->sectorsize);
 	if (start_pos > i_size_read(inode)) {
@@ -1563,8 +1583,13 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	 * this will either be one more than the running transaction
 	 * or the generation used for the next transaction if there isn't
 	 * one running right now.
+	 *
+	 * We also have to set last_sub_trans to the current log transid,
+	 * otherwise subsequent syncs to a file that's been synced in this
+	 * transaction will appear to have already occured.
 	 */
 	BTRFS_I(inode)->last_trans = root->fs_info->generation + 1;
+	BTRFS_I(inode)->last_sub_trans = root->log_transid;
 	if (num_written > 0 || num_written == -EIOCBQUEUED) {
 		err = generic_write_sync(file, pos, num_written);
 		if (err < 0 && num_written > 0)
