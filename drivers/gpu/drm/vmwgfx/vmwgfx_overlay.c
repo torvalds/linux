@@ -35,6 +35,7 @@
 #include "svga_escape.h"
 
 #define VMW_MAX_NUM_STREAMS 1
+#define VMW_OVERLAY_CAP_MASK (SVGA_FIFO_CAP_VIDEO | SVGA_FIFO_CAP_ESCAPE)
 
 struct vmw_stream {
 	struct vmw_dma_buffer *buf;
@@ -449,6 +450,14 @@ int vmw_overlay_pause_all(struct vmw_private *dev_priv)
 	return 0;
 }
 
+
+static bool vmw_overlay_available(const struct vmw_private *dev_priv)
+{
+	return (dev_priv->overlay_priv != NULL && 
+		((dev_priv->fifo.capabilities & VMW_OVERLAY_CAP_MASK) ==
+		 VMW_OVERLAY_CAP_MASK));
+}
+
 int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file_priv)
 {
@@ -461,7 +470,7 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 	struct vmw_resource *res;
 	int ret;
 
-	if (!overlay)
+	if (!vmw_overlay_available(dev_priv))
 		return -ENOSYS;
 
 	ret = vmw_user_stream_lookup(dev_priv, tfile, &arg->stream_id, &res);
@@ -492,7 +501,7 @@ out_unlock:
 
 int vmw_overlay_num_overlays(struct vmw_private *dev_priv)
 {
-	if (!dev_priv->overlay_priv)
+	if (!vmw_overlay_available(dev_priv))
 		return 0;
 
 	return VMW_MAX_NUM_STREAMS;
@@ -503,7 +512,7 @@ int vmw_overlay_num_free_overlays(struct vmw_private *dev_priv)
 	struct vmw_overlay *overlay = dev_priv->overlay_priv;
 	int i, k;
 
-	if (!overlay)
+	if (!vmw_overlay_available(dev_priv))
 		return 0;
 
 	mutex_lock(&overlay->mutex);
@@ -568,12 +577,6 @@ int vmw_overlay_init(struct vmw_private *dev_priv)
 
 	if (dev_priv->overlay_priv)
 		return -EINVAL;
-
-	if (!(dev_priv->fifo.capabilities & SVGA_FIFO_CAP_VIDEO) &&
-	     (dev_priv->fifo.capabilities & SVGA_FIFO_CAP_ESCAPE)) {
-		DRM_INFO("hardware doesn't support overlays\n");
-		return -ENOSYS;
-	}
 
 	overlay = kzalloc(sizeof(*overlay), GFP_KERNEL);
 	if (!overlay)
