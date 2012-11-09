@@ -2069,6 +2069,20 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 			ri.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 		if (status->flag & RX_FLAG_SHORT_GI)
 			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
+	} else if (status->flag & RX_FLAG_VHT) {
+		ri.flags |= RATE_INFO_FLAGS_VHT_MCS;
+		ri.mcs = status->rate_idx;
+		ri.nss = status->vht_nss;
+		if (status->flag & RX_FLAG_40MHZ)
+			ri.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
+		if (status->flag & RX_FLAG_80MHZ)
+			ri.flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+		if (status->flag & RX_FLAG_80P80MHZ)
+			ri.flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
+		if (status->flag & RX_FLAG_160MHZ)
+			ri.flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
+		if (status->flag & RX_FLAG_SHORT_GI)
+			ri.flags |= RATE_INFO_FLAGS_SHORT_GI;
 	} else {
 		struct ieee80211_supported_band *sband;
 

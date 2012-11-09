@@ -374,7 +374,8 @@ static void rate_idx_to_bitrate(struct rate_info *rate, struct sta_info *sta, in
 {
 	enum ieee80211_band band = ieee80211_get_sdata_band(sta->sdata);
 
-	if (!(rate->flags & RATE_INFO_FLAGS_MCS)) {
+	if (!(rate->flags & RATE_INFO_FLAGS_MCS) &&
+	    !(rate->flags & RATE_INFO_FLAGS_VHT_MCS)) {
 		struct ieee80211_supported_band *sband;
 		sband = sta->local->hw.wiphy->bands[band];
 		rate->legacy = sband->bitrates[idx].bitrate;
@@ -444,13 +445,32 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
 
 	sinfo->rxrate.flags = 0;
-	if (sta->last_rx_rate_flag & RX_FLAG_HT)
+	if (sta->last_rx_rate_flag & RX_FLAG_HT) {
 		sinfo->rxrate.flags |= RATE_INFO_FLAGS_MCS;
+		sinfo->rxrate.mcs = sta->last_rx_rate_idx;
+	} else if (sta->last_rx_rate_flag & RX_FLAG_VHT) {
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_VHT_MCS;
+		sinfo->rxrate.nss = sta->last_rx_rate_vht_nss;
+		sinfo->rxrate.mcs = sta->last_rx_rate_idx;
+	} else {
+		struct ieee80211_supported_band *sband;
+
+		sband = sta->local->hw.wiphy->bands[
+				ieee80211_get_sdata_band(sta->sdata)];
+		sinfo->rxrate.legacy =
+			sband->bitrates[sta->last_rx_rate_idx].bitrate;
+	}
+
 	if (sta->last_rx_rate_flag & RX_FLAG_40MHZ)
 		sinfo->rxrate.flags |= RATE_INFO_FLAGS_40_MHZ_WIDTH;
 	if (sta->last_rx_rate_flag & RX_FLAG_SHORT_GI)
 		sinfo->rxrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
-	rate_idx_to_bitrate(&sinfo->rxrate, sta, sta->last_rx_rate_idx);
+	if (sta->last_rx_rate_flag & RX_FLAG_80MHZ)
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_80_MHZ_WIDTH;
+	if (sta->last_rx_rate_flag & RX_FLAG_80P80MHZ)
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_80P80_MHZ_WIDTH;
+	if (sta->last_rx_rate_flag & RX_FLAG_160MHZ)
+		sinfo->rxrate.flags |= RATE_INFO_FLAGS_160_MHZ_WIDTH;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
 #ifdef CONFIG_MAC80211_MESH
