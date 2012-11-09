@@ -54,6 +54,7 @@
 
 /* It might be useful to have this defined elsewhere too */
 
+#define	U32_MAX	((u32) (~0U))
 #define	U64_MAX	((u64) (~0ULL))
 
 #define RBD_DRV_NAME "rbd"
@@ -1096,6 +1097,16 @@ static void rbd_coll_end_req(struct rbd_request *rbd_req,
 				ret, len);
 }
 
+static void rbd_layout_init(struct ceph_file_layout *layout, u64 pool_id)
+{
+	memset(layout, 0, sizeof (*layout));
+	layout->fl_stripe_unit = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
+	layout->fl_stripe_count = cpu_to_le32(1);
+	layout->fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
+	rbd_assert(pool_id <= (u64) U32_MAX);
+	layout->fl_pg_pool = cpu_to_le32((u32) pool_id);
+}
+
 /*
  * Send ceph osd request
  */
@@ -1117,7 +1128,6 @@ static int rbd_do_request(struct request *rq,
 			  u64 *ver)
 {
 	struct ceph_osd_request *osd_req;
-	struct ceph_file_layout *layout;
 	int ret;
 	u64 bno;
 	struct timespec mtime = CURRENT_TIME;
@@ -1161,14 +1171,9 @@ static int rbd_do_request(struct request *rq,
 	strncpy(osd_req->r_oid, object_name, sizeof(osd_req->r_oid));
 	osd_req->r_oid_len = strlen(osd_req->r_oid);
 
-	layout = &osd_req->r_file_layout;
-	memset(layout, 0, sizeof(*layout));
-	layout->fl_stripe_unit = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
-	layout->fl_stripe_count = cpu_to_le32(1);
-	layout->fl_object_size = cpu_to_le32(1 << RBD_MAX_OBJ_ORDER);
-	layout->fl_pg_pool = cpu_to_le32((int) rbd_dev->spec->pool_id);
-	ret = ceph_calc_raw_layout(osdc, layout, snapid, ofs, &len, &bno,
-				   osd_req, ops);
+	rbd_layout_init(&osd_req->r_file_layout, rbd_dev->spec->pool_id);
+	ret = ceph_calc_raw_layout(osdc, &osd_req->r_file_layout,
+				snapid, ofs, &len, &bno, osd_req, ops);
 	rbd_assert(ret == 0);
 
 	ceph_osdc_build_request(osd_req, ofs, &len,
