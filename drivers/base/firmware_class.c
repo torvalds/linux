@@ -246,7 +246,6 @@ static void __fw_free_buf(struct kref *ref)
 		 __func__, buf->fw_id, buf, buf->data,
 		 (unsigned int)buf->size);
 
-	spin_lock(&fwc->lock);
 	list_del(&buf->list);
 	spin_unlock(&fwc->lock);
 
@@ -263,7 +262,10 @@ static void __fw_free_buf(struct kref *ref)
 
 static void fw_free_buf(struct firmware_buf *buf)
 {
-	kref_put(&buf->ref, __fw_free_buf);
+	struct firmware_cache *fwc = buf->fwc;
+	spin_lock(&fwc->lock);
+	if (!kref_put(&buf->ref, __fw_free_buf))
+		spin_unlock(&fwc->lock);
 }
 
 /* direct firmware loading support */
