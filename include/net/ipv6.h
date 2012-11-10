@@ -630,6 +630,15 @@ extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
 
 extern bool			ipv6_ext_hdr(u8 nexthdr);
 
+enum {
+	IP6_FH_F_FRAG	= (1 << 0),
+	IP6_FH_F_AUTH	= (1 << 1),
+};
+
+/* find specified header and get offset to it */
+extern int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
+			 int target, unsigned short *fragoff, int *fragflg);
+
 extern int ipv6_find_tlv(struct sk_buff *skb, int offset, int type);
 
 extern struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
