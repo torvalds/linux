@@ -11,6 +11,7 @@ int test__rdpmc(void);
 int test__perf_evsel__roundtrip_name_test(void);
 int test__perf_evsel__tp_sched_test(void);
 int test__syscall_open_tp_fields(void);
+int test__pmu(void);
 
 /* Util */
 int trace_event__id(const char *evname);

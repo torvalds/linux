@@ -30,11 +30,6 @@
 #include <sched.h>
 
 
-static int test__perf_pmu(void)
-{
-	return perf_pmu__test();
-}
-
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -71,7 +66,7 @@ static struct test {
 	},
 	{
 		.desc = "Test perf pmu format parsing",
-		.func = test__perf_pmu,
+		.func = test__pmu,
 	},
 	{
 		.desc = "Test dso data interface",
