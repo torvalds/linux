@@ -4,31 +4,11 @@
  * Builtin regression testing command: ever growing number of sanity tests
  */
 #include "builtin.h"
-
-#include "util/cache.h"
-#include "util/color.h"
-#include "util/debug.h"
-#include "util/debugfs.h"
-#include "util/evlist.h"
-#include "util/machine.h"
-#include "util/parse-options.h"
-#include "util/parse-events.h"
-#include "util/symbol.h"
-#include "util/thread_map.h"
-#include "util/pmu.h"
-#include "event-parse.h"
-#include "../../include/linux/hw_breakpoint.h"
-
-#include <sys/mman.h>
-
-#include "util/cpumap.h"
-#include "util/evsel.h"
-#include <sys/types.h>
-
 #include "tests.h"
-
-#include <sched.h>
-
+#include "debug.h"
+#include "color.h"
+#include "parse-options.h"
+#include "symbol.h"
 
 static struct test {
 	const char *desc;
@@ -52,7 +32,7 @@ static struct test {
 	},
 	{
 		.desc = "parse events tests",
-		.func = parse_events__test,
+		.func = test__parse_events,
 	},
 #if defined(__x86_64__) || defined(__i386__)
 	{
@@ -70,7 +50,7 @@ static struct test {
 	},
 	{
 		.desc = "Test dso data interface",
-		.func = dso__test_data,
+		.func = test__dso_data,
 	},
 	{
 		.desc = "roundtrip evsel->name check",
@@ -86,7 +66,7 @@ static struct test {
 	},
 	{
 		.desc = "struct perf_event_attr setup",
-		.func = test_attr__run,
+		.func = test__attr,
 	},
 	{
 		.func = NULL,

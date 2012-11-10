@@ -4,6 +4,7 @@
 #include "evlist.h"
 #include "sysfs.h"
 #include "../../../include/linux/hw_breakpoint.h"
+#include "tests.h"
 
 #define TEST_ASSERT_VAL(text, cond) \
 do { \
@@ -1086,7 +1087,7 @@ static int test_pmu_events(void)
 	return ret;
 }
 
-int parse_events__test(void)
+int test__parse_events(void)
 {
 	int ret1, ret2 = 0;
 

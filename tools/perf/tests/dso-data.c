@@ -8,6 +8,7 @@
 
 #include "machine.h"
 #include "symbol.h"
+#include "tests.h"
 
 #define TEST_ASSERT_VAL(text, cond) \
 do { \
@@ -95,7 +96,7 @@ struct test_data_offset offsets[] = {
 	},
 };
 
-int dso__test_data(void)
+int test__dso_data(void)
 {
 	struct machine machine;
 	struct dso *dso;
