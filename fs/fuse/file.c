@@ -1148,9 +1148,9 @@ static inline int fuse_iter_npages(const struct iov_iter *ii_p)
 	return min(npages, FUSE_MAX_PAGES_PER_REQ);
 }
 
-static ssize_t __fuse_direct_io(struct file *file, const struct iovec *iov,
-				unsigned long nr_segs, size_t count,
-				loff_t *ppos, int write)
+ssize_t fuse_direct_io(struct file *file, const struct iovec *iov,
+		       unsigned long nr_segs, size_t count, loff_t *ppos,
+		       int write)
 {
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fc;
@@ -1209,13 +1209,6 @@ static ssize_t __fuse_direct_io(struct file *file, const struct iovec *iov,
 
 	return res;
 }
-
-ssize_t fuse_direct_io(struct file *file, const char __user *buf,
-		       size_t count, loff_t *ppos, int write)
-{
-	struct iovec iov = { .iov_base = (void *)buf, .iov_len = count };
-	return __fuse_direct_io(file, &iov, 1, count, ppos, write);
-}
 EXPORT_SYMBOL_GPL(fuse_direct_io);
 
 static ssize_t __fuse_direct_read(struct file *file, const struct iovec *iov,
@@ -1227,8 +1220,8 @@ static ssize_t __fuse_direct_read(struct file *file, const struct iovec *iov,
 	if (is_bad_inode(inode))
 		return -EIO;
 
-	res = __fuse_direct_io(file, iov, nr_segs, iov_length(iov, nr_segs),
-			       ppos, 0);
+	res = fuse_direct_io(file, iov, nr_segs, iov_length(iov, nr_segs),
+			     ppos, 0);
 
 	fuse_invalidate_attr(inode);
 
@@ -1238,7 +1231,7 @@ static ssize_t __fuse_direct_read(struct file *file, const struct iovec *iov,
 static ssize_t fuse_direct_read(struct file *file, char __user *buf,
 				     size_t count, loff_t *ppos)
 {
-	struct iovec iov = { .iov_base = (void *)buf, .iov_len = count };
+	struct iovec iov = { .iov_base = buf, .iov_len = count };
 	return __fuse_direct_read(file, &iov, 1, ppos);
 }
 
@@ -1251,7 +1244,7 @@ static ssize_t __fuse_direct_write(struct file *file, const struct iovec *iov,
 
 	res = generic_write_checks(file, ppos, &count, 0);
 	if (!res) {
-		res = __fuse_direct_io(file, iov, nr_segs, count, ppos, 1);
+		res = fuse_direct_io(file, iov, nr_segs, count, ppos, 1);
 		if (res > 0)
 			fuse_write_update_size(inode, *ppos);
 	}
@@ -1264,7 +1257,7 @@ static ssize_t __fuse_direct_write(struct file *file, const struct iovec *iov,
 static ssize_t fuse_direct_write(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
-	struct iovec iov = { .iov_base = (void *)buf, .iov_len = count };
+	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
 	struct inode *inode = file->f_path.dentry->d_inode;
 	ssize_t res;
 
