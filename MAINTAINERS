@@ -5160,6 +5160,14 @@ S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
 
+NVM EXPRESS DRIVER
+M:	Matthew Wilcox <willy@linux.intel.com>
+L:	linux-nvme@lists.infradead.org
+T:	git git://git.infradead.org/users/willy/linux-nvme.git
+S:	Supported
+F:	drivers/block/nvme.c
+F:	include/linux/nvme.h
+
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
