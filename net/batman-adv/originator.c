@@ -29,6 +29,9 @@
 #include "soft-interface.h"
 #include "bridge_loop_avoidance.h"
 
+/* hash class keys */
+static struct lock_class_key batadv_orig_hash_lock_class_key;
+
 static void batadv_purge_orig(struct work_struct *work);
 
 static void batadv_start_purge_timer(struct batadv_priv *bat_priv)
@@ -56,6 +59,9 @@ int batadv_originator_init(struct batadv_priv *bat_priv)
 
 	if (!bat_priv->orig_hash)
 		goto err;
+
+	batadv_hash_set_lock_class(bat_priv->orig_hash,
+				   &batadv_orig_hash_lock_class_key);
 
 	batadv_start_purge_timer(bat_priv);
 	return 0;

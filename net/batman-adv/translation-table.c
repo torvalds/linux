@@ -29,6 +29,10 @@
 
 #include <linux/crc16.h>
 
+/* hash class keys */
+static struct lock_class_key batadv_tt_local_hash_lock_class_key;
+static struct lock_class_key batadv_tt_global_hash_lock_class_key;
+
 static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 				 struct batadv_orig_node *orig_node);
 static void batadv_tt_purge(struct work_struct *work);
@@ -234,6 +238,9 @@ static int batadv_tt_local_init(struct batadv_priv *bat_priv)
 
 	if (!bat_priv->tt.local_hash)
 		return -ENOMEM;
+
+	batadv_hash_set_lock_class(bat_priv->tt.local_hash,
+				   &batadv_tt_local_hash_lock_class_key);
 
 	return 0;
 }
@@ -693,6 +700,9 @@ static int batadv_tt_global_init(struct batadv_priv *bat_priv)
 
 	if (!bat_priv->tt.global_hash)
 		return -ENOMEM;
+
+	batadv_hash_set_lock_class(bat_priv->tt.global_hash,
+				   &batadv_tt_global_hash_lock_class_key);
 
 	return 0;
 }
