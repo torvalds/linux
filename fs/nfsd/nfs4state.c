@@ -947,7 +947,7 @@ static struct nfsd4_session *alloc_session(struct nfsd4_channel_attrs *fchan)
 	return new;
 }
 
-void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, struct nfs4_client *clp, struct nfsd4_create_session *cses)
+static void init_session(struct svc_rqst *rqstp, struct nfsd4_session *new, struct nfs4_client *clp, struct nfsd4_create_session *cses)
 {
 	int idx;
 
