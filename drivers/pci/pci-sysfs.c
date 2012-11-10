@@ -421,7 +421,7 @@ static ssize_t sriov_numvfs_show(struct device *dev,
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 
-	return sprintf(buf, "%u\n", pdev->sriov->nr_virtfn);
+	return sprintf(buf, "%u\n", pdev->sriov->num_VFs);
 }
 
 /*
@@ -455,7 +455,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 	total = pci_sriov_get_totalvfs(pdev);
 	/* Requested VFs to enable < totalvfs and none enabled already */
 	if ((num_vfs > 0) && (num_vfs <= total)) {
-		if (pdev->sriov->nr_virtfn == 0) {
+		if (pdev->sriov->num_VFs == 0) {
 			num_vfs_enabled =
 				pdev->driver->sriov_configure(pdev, num_vfs);
 			if ((num_vfs_enabled >= 0) &&
@@ -467,7 +467,7 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 			} else if (num_vfs_enabled < 0)
 				/* error code from driver callback */
 				return num_vfs_enabled;
-		} else if (num_vfs == pdev->sriov->nr_virtfn) {
+		} else if (num_vfs == pdev->sriov->num_VFs) {
 			dev_warn(&pdev->dev,
 				 "%d VFs already enabled; no enable action taken\n",
 				 num_vfs);
@@ -475,14 +475,14 @@ static ssize_t sriov_numvfs_store(struct device *dev,
 		} else {
 			dev_warn(&pdev->dev,
 				 "%d VFs already enabled. Disable before enabling %d VFs\n",
-				 pdev->sriov->nr_virtfn, num_vfs);
+				 pdev->sriov->num_VFs, num_vfs);
 			return -EINVAL;
 		}
 	}
 
 	/* disable vfs */
 	if (num_vfs == 0) {
-		if (pdev->sriov->nr_virtfn != 0) {
+		if (pdev->sriov->num_VFs != 0) {
 			ret = pdev->driver->sriov_configure(pdev, 0);
 			return ret ? ret : count;
 		} else {
