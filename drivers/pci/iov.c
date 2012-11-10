@@ -729,10 +729,10 @@ EXPORT_SYMBOL_GPL(pci_sriov_migration);
  */
 int pci_num_vf(struct pci_dev *dev)
 {
-	if (!dev || !dev->is_physfn)
+	if (!dev->is_physfn)
 		return 0;
-	else
-		return dev->sriov->num_VFs;
+
+	return dev->sriov->num_VFs;
 }
 EXPORT_SYMBOL_GPL(pci_num_vf);
 
@@ -750,7 +750,7 @@ EXPORT_SYMBOL_GPL(pci_num_vf);
  */
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 {
-	if (!dev || !dev->is_physfn || (numvfs > dev->sriov->total_VFs))
+	if (!dev->is_physfn || (numvfs > dev->sriov->total_VFs))
 		return -EINVAL;
 
 	/* Shouldn't change if VFs already enabled */
@@ -773,12 +773,12 @@ EXPORT_SYMBOL_GPL(pci_sriov_set_totalvfs);
  */
 int pci_sriov_get_totalvfs(struct pci_dev *dev)
 {
-	if (!dev || !dev->is_physfn)
+	if (!dev->is_physfn)
 		return -EINVAL;
 
 	if (dev->sriov->driver_max_VFs)
 		return dev->sriov->driver_max_VFs;
-	else
-		return dev->sriov->total_VFs;
+
+	return dev->sriov->total_VFs;
 }
 EXPORT_SYMBOL_GPL(pci_sriov_get_totalvfs);
