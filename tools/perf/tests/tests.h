@@ -9,6 +9,7 @@ int test__basic_mmap(void);
 int test__PERF_RECORD(void);
 int test__rdpmc(void);
 int test__perf_evsel__roundtrip_name_test(void);
+int test__perf_evsel__tp_sched_test(void);
 
 /* Util */
 int trace_event__id(const char *evname);
