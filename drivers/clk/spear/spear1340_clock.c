@@ -535,6 +535,10 @@ void __init spear1340_clk_init(void)
 			2);
 	clk_register_clkdev(clk, NULL, "ec800620.wdt");
 
+	clk = clk_register_fixed_factor(NULL, "smp_twd_clk", "cpu_clk", 0, 1,
+			2);
+	clk_register_clkdev(clk, NULL, "smp_twd");
+
 	clk = clk_register_mux(NULL, "ahb_clk", ahb_parents,
 			ARRAY_SIZE(ahb_parents), 0, SPEAR1340_SYS_CLK_CTRL,
 			SPEAR1340_HCLK_SRC_SEL_SHIFT,

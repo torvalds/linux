@@ -491,6 +491,10 @@ void __init spear1310_clk_init(void)
 			2);
 	clk_register_clkdev(clk, NULL, "ec800620.wdt");
 
+	clk = clk_register_fixed_factor(NULL, "smp_twd_clk", "cpu_clk", 0, 1,
+			2);
+	clk_register_clkdev(clk, NULL, "smp_twd");
+
 	clk = clk_register_fixed_factor(NULL, "ahb_clk", "pll1_clk", 0, 1,
 			6);
 	clk_register_clkdev(clk, "ahb_clk", NULL);
