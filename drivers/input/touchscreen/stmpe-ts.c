@@ -319,6 +319,7 @@ static int __devinit stmpe_input_probe(struct platform_device *pdev)
 		return error;
 
 	idev->name = STMPE_TS_NAME;
+	idev->phys = STMPE_TS_NAME"/input0";
 	idev->id.bustype = BUS_I2C;
 	idev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	idev->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
