@@ -64,6 +64,18 @@
 		bootargs = "console=ttyAMA0,115200";
 	};
 
+	cpufreq {
+		compatible = "st,cpufreq-spear";
+		cpufreq_tbl = < 166000
+				200000
+				250000
+				300000
+				400000
+				500000
+				600000 >;
+		status = "disable";
+	};
+
 	ahb {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -126,6 +138,13 @@
 				      0 34 0x4>;
 			interrupt-names = "macirq", "eth_wake_irq";
 			status = "disabled";
+		};
+
+		pcm {
+			compatible = "st,pcm-audio";
+			#address-cells = <0>;
+			#size-cells = <0>;
+			status = "disable";
 		};
 
 		smi: flash@ea000000 {
@@ -217,9 +236,29 @@
 				status = "disabled";
 			};
 
+			i2s@e0180000 {
+				compatible = "st,designware-i2s";
+				reg = <0xe0180000 0x1000>;
+				interrupt-names = "play_irq", "record_irq";
+				interrupts = <0 10 0x4
+					      0 11 0x4 >;
+				status = "disabled";
+			};
+
+			i2s@e0200000 {
+				compatible = "st,designware-i2s";
+				reg = <0xe0200000 0x1000>;
+				interrupt-names = "play_irq", "record_irq";
+				interrupts = <0 26 0x4
+					      0 53 0x4>;
+				status = "disabled";
+			};
+
 			spi0: spi@e0100000 {
 				compatible = "arm,pl022", "arm,primecell";
 				reg = <0xe0100000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				interrupts = <0 31 0x4>;
 				status = "disabled";
 			};

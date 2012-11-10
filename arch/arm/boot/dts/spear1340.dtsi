@@ -38,15 +38,61 @@
 			status = "disabled";
 		};
 
+		i2s-play@b2400000 {
+			compatible = "snps,designware-i2s";
+			reg = <0xb2400000 0x10000>;
+			interrupt-names = "play_irq";
+			interrupts = <0 98 0x4
+				      0 99 0x4>;
+			play;
+			channel = <8>;
+			status = "disabled";
+		};
+
+		i2s-rec@b2000000 {
+			compatible = "snps,designware-i2s";
+			reg = <0xb2000000 0x10000>;
+			interrupt-names = "record_irq";
+			interrupts = <0 100  0x4
+				      0 101 0x4>;
+			record;
+			channel = <8>;
+			status = "disabled";
+		};
+
 		pinmux: pinmux@e0700000 {
 			compatible = "st,spear1340-pinmux";
 			reg = <0xe0700000 0x1000>;
 			#gpio-range-cells = <2>;
 		};
 
+		pwm: pwm@e0180000 {
+			compatible ="st,spear13xx-pwm";
+			reg = <0xe0180000 0x1000>;
+			#pwm-cells = <2>;
+			status = "disabled";
+		};
+
+		spdif-in@d0100000 {
+			compatible = "st,spdif-in";
+			reg = < 0xd0100000 0x20000
+				0xd0110000 0x10000 >;
+			interrupts = <0 84 0x4>;
+			status = "disabled";
+		};
+
+		spdif-out@d0000000 {
+			compatible = "st,spdif-out";
+			reg = <0xd0000000 0x20000>;
+			interrupts = <0 85 0x4>;
+			status = "disabled";
+		};
+
 		spi1: spi@5d400000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x5d400000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			interrupts = <0 99 0x4>;
 			status = "disabled";
 		};

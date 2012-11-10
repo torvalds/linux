@@ -24,12 +24,32 @@
 	};
 
 	ahb {
+		clcd@fc200000 {
+			status = "okay";
+		};
+
 		dma@fc400000 {
+			status = "okay";
+		};
+
+		ehci@e1800000 {
+			status = "okay";
+		};
+
+		ehci@e2000000 {
 			status = "okay";
 		};
 
 		gmac: ethernet@e0800000 {
 			phy-mode = "gmii";
+			status = "okay";
+		};
+
+		ohci@e1900000 {
+			status = "okay";
+		};
+
+		ohci@e2100000 {
 			status = "okay";
 		};
 
@@ -81,6 +101,10 @@
 				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <>;
+			};
+
+			rtc@fc900000 {
+			       status = "okay";
 			};
 
 			i2c@d0200000 {

@@ -118,6 +118,10 @@
 			};
 		};
 
+		ahci@b1000000 {
+			status = "okay";
+		};
+
 		dma@ea800000 {
 			status = "okay";
 		};
@@ -205,7 +209,34 @@
 			status = "okay";
 		};
 
+		gpio_keys {
+			compatible = "gpio-keys";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			button@1 {
+				label = "wakeup";
+				linux,code = <0x100>;
+				gpios = <&gpio1 1 0x4>;
+				debounce-interval = <20>;
+				gpio-key,wakeup = <1>;
+			};
+		};
+
 		ehci@e5800000 {
+			status = "okay";
+		};
+
+		i2s0: i2s-play@b2400000 {
+			status = "okay";
+		};
+
+		i2s1: i2s-rec@b2000000 {
+			status = "okay";
+		};
+
+		incodec: dir-hifi {
+			compatible = "dummy,dir-hifi";
 			status = "okay";
 		};
 
@@ -217,8 +248,40 @@
 			status = "okay";
 		};
 
+		outcodec: dit-hifi {
+			compatible = "dummy,dit-hifi";
+			status = "okay";
+		};
+
+		sound {
+			compatible = "spear,spear-evb";
+			audio-controllers = <&spdif0 &spdif1 &i2s0 &i2s1>;
+			audio-codecs = <&incodec &outcodec &sta529 &sta529>;
+			codec_dai_name = "dir-hifi", "dit-hifi", "sta529-audio", "sta529-audio";
+			stream_name = "spdif-cap", "spdif-play", "i2s-play", "i2s-cap";
+			dai_name = "spdifin-pcm", "spdifout-pcm", "i2s0-pcm", "i2s1-pcm";
+			nr_controllers = <4>;
+		        status = "okay";
+		};
+
+		spdif0: spdif-in@d0100000 {
+			status = "okay";
+		};
+
+		spdif1: spdif-out@d0000000 {
+			status = "okay";
+		};
+
 		apb {
 			adc@e0080000 {
+				status = "okay";
+			};
+
+			i2s-play@b2400000 {
+				status = "okay";
+			};
+
+			i2s-rec@b2000000 {
 				status = "okay";
 			};
 
@@ -236,10 +299,36 @@
 
 			i2c0: i2c@e0280000 {
 			       status = "okay";
+
+				sta529: sta529@1a {
+					compatible = "st,sta529";
+					reg = <0x1a>;
+				};
 			};
 
 			i2c1: i2c@b4000000 {
 			       status = "okay";
+
+				eeprom0@56 {
+					compatible = "st,eeprom";
+					reg = <0x56>;
+				};
+
+				stmpe801@41 {
+					compatible = "st,stmpe801";
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x41>;
+					interrupts = <4 0x4>;
+					interrupt-parent = <&gpio0>;
+					irq-trigger = <0x2>;
+
+					stmpegpio: stmpe_gpio {
+						compatible = "st,stmpe-gpio";
+						gpio-controller;
+						#gpio-cells = <2>;
+					};
+				};
 			};
 
 			kbd@e0300000 {
@@ -347,6 +436,80 @@
 			};
 
 			spi0: spi@e0100000 {
+				status = "okay";
+				num-cs = <3>;
+				cs-gpios = <&gpiopinctrl 80 0>, <&gpiopinctrl 24 0>,
+					   <&gpiopinctrl 85 0>;
+
+				m25p80@0 {
+					compatible = "m25p80";
+					reg = <0>;
+					spi-max-frequency = <12000000>;
+					spi-cpol;
+					spi-cpha;
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable;
+					pl022,com-mode = <0x2>;
+					pl022,rx-level-trig = <0>;
+					pl022,tx-level-trig = <0>;
+					pl022,ctrl-len = <0x11>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+				};
+
+				stmpe610@1 {
+					compatible = "st,stmpe610";
+					spi-max-frequency = <1000000>;
+					spi-cpha;
+					reg = <1>;
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable;
+					pl022,com-mode = <0>;
+					pl022,rx-level-trig = <0>;
+					pl022,tx-level-trig = <0>;
+					pl022,ctrl-len = <0x7>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+					interrupts = <100 0>;
+					interrupt-parent = <&gpiopinctrl>;
+					irq-trigger = <0x2>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					stmpe_touchscreen {
+						compatible = "st,stmpe-ts";
+						ts,sample-time = <4>;
+						ts,mod-12b = <1>;
+						ts,ref-sel = <0>;
+						ts,adc-freq = <1>;
+						ts,ave-ctrl = <1>;
+						ts,touch-det-delay = <2>;
+						ts,settling = <2>;
+						ts,fraction-z = <7>;
+						ts,i-drive = <1>;
+					};
+				};
+
+				spidev@2 {
+					compatible = "spidev";
+					reg = <2>;
+					spi-max-frequency = <25000000>;
+					spi-cpha;
+					pl022,hierarchy = <0>;
+					pl022,interface = <0>;
+					pl022,slave-tx-disable;
+					pl022,com-mode = <0x2>;
+					pl022,rx-level-trig = <0>;
+					pl022,tx-level-trig = <0>;
+					pl022,ctrl-len = <0x11>;
+					pl022,wait-state = <0>;
+					pl022,duplex = <0>;
+				};
+			};
+
+			timer@ec800600 {
 				status = "okay";
 			};
 

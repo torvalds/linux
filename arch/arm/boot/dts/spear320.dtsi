@@ -56,14 +56,25 @@
 		spi1: spi@a5000000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0xa5000000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
 		spi2: spi@a6000000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0xa6000000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
+
+		pwm: pwm@a8000000 {
+			compatible ="st,spear-pwm";
+			reg = <0xa8000000 0x1000>;
+			#pwm-cells = <2>;
+			status = "disabled";
+                };
 
 		apb {
 			#address-cells = <1>;

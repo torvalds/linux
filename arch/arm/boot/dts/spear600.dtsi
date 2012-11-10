@@ -45,6 +45,14 @@
 			#interrupt-cells = <1>;
 		};
 
+		clcd@fc200000 {
+			compatible = "arm,pl110", "arm,primecell";
+			reg = <0xfc200000 0x1000>;
+			interrupt-parent = <&vic1>;
+			interrupts = <12>;
+			status = "disabled";
+		};
+
 		dma@fc400000 {
 			compatible = "arm,pl080", "arm,primecell";
 			reg = <0xfc400000 0x1000>;
@@ -176,6 +184,13 @@
 				reg = <0xd0200000 0x1000>;
 				interrupt-parent = <&vic0>;
 				interrupts = <28>;
+				status = "disabled";
+			};
+
+			rtc@fc900000 {
+				compatible = "st,spear600-rtc";
+				reg = <0xfc900000 0x1000>;
+				interrupts = <10>;
 				status = "disabled";
 			};
 

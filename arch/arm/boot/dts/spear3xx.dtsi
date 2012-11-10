@@ -70,6 +70,8 @@
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0xd0100000 0x1000>;
 			interrupts = <20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 			status = "disabled";
 		};
 
