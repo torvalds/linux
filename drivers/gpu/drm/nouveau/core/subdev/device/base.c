@@ -208,7 +208,7 @@ nouveau_devobj_ctor(struct nouveau_object *parent,
 
 		/* determine frequency of timing crystal */
 		if ( device->chipset < 0x17 ||
-		    (device->chipset >= 0x20 && device->chipset <= 0x25))
+		    (device->chipset >= 0x20 && device->chipset < 0x25))
 			strap &= 0x00000040;
 		else
 			strap &= 0x00400040;
