@@ -260,10 +260,10 @@ static int __devinit stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 static int __devinit stmpe_keypad_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct stmpe_keypad_platform_data *plat;
+	const struct stmpe_keypad_platform_data *plat;
 	struct stmpe_keypad *keypad;
 	struct input_dev *input;
-	int ret;
+	int error;
 	int irq;
 	int i;
 
@@ -275,26 +275,25 @@ static int __devinit stmpe_keypad_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	keypad = kzalloc(sizeof(struct stmpe_keypad), GFP_KERNEL);
+	keypad = devm_kzalloc(&pdev->dev, sizeof(struct stmpe_keypad),
+			      GFP_KERNEL);
 	if (!keypad)
 		return -ENOMEM;
 
-	input = input_allocate_device();
-	if (!input) {
-		ret = -ENOMEM;
-		goto out_freekeypad;
-	}
+	input = devm_input_allocate_device(&pdev->dev);
+	if (!input)
+		return -ENOMEM;
 
 	input->name = "STMPE keypad";
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &pdev->dev;
 
-	ret = matrix_keypad_build_keymap(plat->keymap_data, NULL,
-					 STMPE_KEYPAD_MAX_ROWS,
-					 STMPE_KEYPAD_MAX_COLS,
-					 keypad->keymap, input);
-	if (ret)
-		goto out_freeinput;
+	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
+					   STMPE_KEYPAD_MAX_ROWS,
+					   STMPE_KEYPAD_MAX_COLS,
+					   keypad->keymap, input);
+	if (error)
+		return error;
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 	if (!plat->no_autorepeat)
@@ -312,50 +311,35 @@ static int __devinit stmpe_keypad_probe(struct platform_device *pdev)
 	keypad->input = input;
 	keypad->variant = &stmpe_keypad_variants[stmpe->partnum];
 
-	ret = stmpe_keypad_chip_init(keypad);
-	if (ret < 0)
-		goto out_freeinput;
+	error = stmpe_keypad_chip_init(keypad);
+	if (error < 0)
+		return error;
 
-	ret = input_register_device(input);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"unable to register input device: %d\n", ret);
-		goto out_freeinput;
+	error = devm_request_threaded_irq(&pdev->dev, irq,
+					  NULL, stmpe_keypad_irq,
+					  IRQF_ONESHOT, "stmpe-keypad", keypad);
+	if (error) {
+		dev_err(&pdev->dev, "unable to get irq: %d\n", error);
+		return error;
 	}
 
-	ret = request_threaded_irq(irq, NULL, stmpe_keypad_irq, IRQF_ONESHOT,
-				   "stmpe-keypad", keypad);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to get irq: %d\n", ret);
-		goto out_unregisterinput;
+	error = input_register_device(input);
+	if (error) {
+		dev_err(&pdev->dev,
+			"unable to register input device: %d\n", error);
+		return error;
 	}
 
 	platform_set_drvdata(pdev, keypad);
 
 	return 0;
-
-out_unregisterinput:
-	input_unregister_device(input);
-	input = NULL;
-out_freeinput:
-	input_free_device(input);
-out_freekeypad:
-	kfree(keypad);
-	return ret;
 }
 
 static int __devexit stmpe_keypad_remove(struct platform_device *pdev)
 {
 	struct stmpe_keypad *keypad = platform_get_drvdata(pdev);
-	struct stmpe *stmpe = keypad->stmpe;
-	int irq = platform_get_irq(pdev, 0);
 
-	stmpe_disable(stmpe, STMPE_BLOCK_KEYPAD);
-
-	free_irq(irq, keypad);
-	input_unregister_device(keypad->input);
-	platform_set_drvdata(pdev, NULL);
-	kfree(keypad);
+	stmpe_disable(keypad->stmpe, STMPE_BLOCK_KEYPAD);
 
 	return 0;
 }
