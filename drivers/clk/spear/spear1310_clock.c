@@ -633,7 +633,7 @@ void __init spear1310_clk_init(void)
 			ARRAY_SIZE(clcd_pixel_parents), 0,
 			SPEAR1310_PERIP_CLK_CFG, SPEAR1310_CLCD_CLK_SHIFT,
 			SPEAR1310_CLCD_CLK_MASK, 0, &_lock);
-	clk_register_clkdev(clk, "clcd_pixel_clk", NULL);
+	clk_register_clkdev(clk, "clcd_pixel_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "clcd_clk", "clcd_pixel_mclk", 0,
 			SPEAR1310_PERIP1_CLK_ENB, SPEAR1310_CLCD_CLK_ENB, 0,
@@ -645,7 +645,7 @@ void __init spear1310_clk_init(void)
 			ARRAY_SIZE(i2s_src_parents), 0, SPEAR1310_I2S_CLK_CFG,
 			SPEAR1310_I2S_SRC_CLK_SHIFT, SPEAR1310_I2S_SRC_CLK_MASK,
 			0, &_lock);
-	clk_register_clkdev(clk, "i2s_src_clk", NULL);
+	clk_register_clkdev(clk, "i2s_src_mclk", NULL);
 
 	clk = clk_register_aux("i2s_prs1_clk", NULL, "i2s_src_mclk", 0,
 			SPEAR1310_I2S_CLK_CFG, &i2s_prs1_masks, i2s_prs1_rtbl,
