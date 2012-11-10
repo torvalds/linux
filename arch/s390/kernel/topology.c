@@ -40,6 +40,7 @@ static DEFINE_SPINLOCK(topology_lock);
 static struct mask_info core_info;
 cpumask_t cpu_core_map[NR_CPUS];
 unsigned char cpu_core_id[NR_CPUS];
+unsigned char cpu_socket_id[NR_CPUS];
 
 static struct mask_info book_info;
 cpumask_t cpu_book_map[NR_CPUS];
@@ -83,11 +84,12 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 			cpumask_set_cpu(lcpu, &book->mask);
 			cpu_book_id[lcpu] = book->id;
 			cpumask_set_cpu(lcpu, &core->mask);
+			cpu_core_id[lcpu] = rcpu;
 			if (one_core_per_cpu) {
-				cpu_core_id[lcpu] = rcpu;
+				cpu_socket_id[lcpu] = rcpu;
 				core = core->next;
 			} else {
-				cpu_core_id[lcpu] = core->id;
+				cpu_socket_id[lcpu] = core->id;
 			}
 			smp_cpu_set_polarization(lcpu, tl_cpu->pp);
 		}
