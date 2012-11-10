@@ -425,7 +425,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "rtc-spear", "osc_32k_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_RTC_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "fc900000.rtc");
+	clk_register_clkdev(clk, NULL, "e0580000.rtc");
 
 	/* clock derived from 24 or 25 MHz osc clk */
 	/* vco-pll */
@@ -499,7 +499,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "thermal_gclk", "thermal_clk", 0,
 			SPEAR1340_PERIP2_CLK_ENB, SPEAR1340_THSENS_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "spear_thermal");
+	clk_register_clkdev(clk, NULL, "e07008c4.thermal");
 
 	/* clock derived from pll4 clk */
 	clk = clk_register_fixed_factor(NULL, "ddr_clk", "pll4_clk", 0, 1,
@@ -659,7 +659,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "c3_clk", "c3_mclk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_C3_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "c3");
+	clk_register_clkdev(clk, NULL, "e1800000.c3");
 
 	/* gmac */
 	clk = clk_register_mux(NULL, "phy_input_mclk", gmac_phy_input_parents,
@@ -679,7 +679,7 @@ void __init spear1340_clk_init(void)
 			ARRAY_SIZE(gmac_phy_parents), 0,
 			SPEAR1340_PERIP_CLK_CFG, SPEAR1340_GMAC_PHY_CLK_SHIFT,
 			SPEAR1340_GMAC_PHY_CLK_MASK, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "stmmacphy.0");
+	clk_register_clkdev(clk, "stmmacphy.0", NULL);
 
 	/* clcd */
 	clk = clk_register_mux(NULL, "clcd_syn_mclk", clcd_synth_parents,
@@ -702,7 +702,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "clcd_clk", "clcd_pixel_mclk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_CLCD_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, "clcd_clk", NULL);
+	clk_register_clkdev(clk, NULL, "e1000000.clcd");
 
 	/* i2s */
 	clk = clk_register_mux(NULL, "i2s_src_mclk", i2s_src_parents,
@@ -769,23 +769,25 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "usbh0_clk", "ahb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_UHC0_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, "usbh.0_clk", NULL);
+	clk_register_clkdev(clk, NULL, "e4000000.ohci");
+	clk_register_clkdev(clk, NULL, "e4800000.ehci");
 
 	clk = clk_register_gate(NULL, "usbh1_clk", "ahb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_UHC1_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, "usbh.1_clk", NULL);
+	clk_register_clkdev(clk, NULL, "e5000000.ohci");
+	clk_register_clkdev(clk, NULL, "e5800000.ehci");
 
 	clk = clk_register_gate(NULL, "uoc_clk", "ahb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_UOC_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "uoc");
+	clk_register_clkdev(clk, NULL, "e3800000.otg");
 
 	clk = clk_register_gate(NULL, "pcie_sata_clk", "ahb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_PCIE_SATA_CLK_ENB,
 			0, &_lock);
 	clk_register_clkdev(clk, NULL, "dw_pcie");
-	clk_register_clkdev(clk, NULL, "ahci");
+	clk_register_clkdev(clk, NULL, "b1000000.ahci");
 
 	clk = clk_register_gate(NULL, "sysram0_clk", "ahb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_SYSRAM0_CLK_ENB, 0,
@@ -806,7 +808,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "adc_clk", "adc_syn_gclk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_ADC_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "adc_clk");
+	clk_register_clkdev(clk, NULL, "e0080000.adc");
 
 	/* clock derived from apb clk */
 	clk = clk_register_gate(NULL, "ssp_clk", "apb_clk", 0,
@@ -827,12 +829,12 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "i2s_play_clk", "apb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_I2S_PLAY_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "b2400000.i2s");
+	clk_register_clkdev(clk, NULL, "b2400000.i2s-play");
 
 	clk = clk_register_gate(NULL, "i2s_rec_clk", "apb_clk", 0,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_I2S_REC_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "b2000000.i2s");
+	clk_register_clkdev(clk, NULL, "b2000000.i2s-rec");
 
 	clk = clk_register_gate(NULL, "kbd_clk", "apb_clk", 0,
 			SPEAR1340_PERIP2_CLK_ENB, SPEAR1340_KBD_CLK_ENB, 0,
@@ -896,7 +898,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "spdif_out_clk", "spdif_out_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_SPDIF_OUT_CLK_ENB,
 			0, &_lock);
-	clk_register_clkdev(clk, NULL, "spdif-out");
+	clk_register_clkdev(clk, NULL, "d0000000.spdif-out");
 
 	clk = clk_register_mux(NULL, "spdif_in_mclk", spdif_in_parents,
 			ARRAY_SIZE(spdif_in_parents), 0,
@@ -907,7 +909,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "spdif_in_clk", "spdif_in_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_SPDIF_IN_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "spdif-in");
+	clk_register_clkdev(clk, NULL, "d0100000.spdif-in");
 
 	clk = clk_register_gate(NULL, "acp_clk", "acp_mclk", 0,
 			SPEAR1340_PERIP2_CLK_ENB, SPEAR1340_ACP_CLK_ENB, 0,
@@ -917,7 +919,7 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "plgpio_clk", "plgpio_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_PLGPIO_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "plgpio");
+	clk_register_clkdev(clk, NULL, "e2800000.gpio");
 
 	clk = clk_register_gate(NULL, "video_dec_clk", "video_dec_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_VIDEO_DEC_CLK_ENB,
@@ -937,25 +939,25 @@ void __init spear1340_clk_init(void)
 	clk = clk_register_gate(NULL, "cam0_clk", "cam0_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_CAM0_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "spear_camif.0");
+	clk_register_clkdev(clk, NULL, "d0200000.cam0");
 
 	clk = clk_register_gate(NULL, "cam1_clk", "cam1_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_CAM1_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "spear_camif.1");
+	clk_register_clkdev(clk, NULL, "d0300000.cam1");
 
 	clk = clk_register_gate(NULL, "cam2_clk", "cam2_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_CAM2_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "spear_camif.2");
+	clk_register_clkdev(clk, NULL, "d0400000.cam2");
 
 	clk = clk_register_gate(NULL, "cam3_clk", "cam3_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_CAM3_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "spear_camif.3");
+	clk_register_clkdev(clk, NULL, "d0500000.cam3");
 
 	clk = clk_register_gate(NULL, "pwm_clk", "pwm_mclk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_PWM_CLK_ENB, 0,
 			&_lock);
-	clk_register_clkdev(clk, NULL, "pwm");
+	clk_register_clkdev(clk, NULL, "e0180000.pwm");
 }

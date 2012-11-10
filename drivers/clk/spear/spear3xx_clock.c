@@ -255,7 +255,7 @@ static void __init spear320_clk_init(void)
 
 	clk = clk_register_fixed_factor(NULL, "pwm_clk", "ras_ahb_clk", 0, 1,
 			1);
-	clk_register_clkdev(clk, "pwm", NULL);
+	clk_register_clkdev(clk, NULL, "a8000000.pwm");
 
 	clk = clk_register_fixed_factor(NULL, "ssp1_clk", "ras_ahb_clk", 0, 1,
 			1);
@@ -275,7 +275,7 @@ static void __init spear320_clk_init(void)
 
 	clk = clk_register_fixed_factor(NULL, "i2s_clk", "ras_apb_clk", 0, 1,
 			1);
-	clk_register_clkdev(clk, NULL, "i2s");
+	clk_register_clkdev(clk, NULL, "a9400000.i2s");
 
 	clk = clk_register_mux(NULL, "i2s_ref_clk", i2s_ref_parents,
 			ARRAY_SIZE(i2s_ref_parents), 0, SPEAR320_CONTROL_REG,
@@ -486,7 +486,9 @@ void __init spear3xx_clk_init(void)
 	/* clock derived from pll3 clk */
 	clk = clk_register_gate(NULL, "usbh_clk", "pll3_clk", 0, PERIP1_CLK_ENB,
 			USBH_CLK_ENB, 0, &_lock);
-	clk_register_clkdev(clk, "usbh_clk", NULL);
+	clk_register_clkdev(clk, NULL, "e1800000.ehci");
+	clk_register_clkdev(clk, NULL, "e1900000.ohci");
+	clk_register_clkdev(clk, NULL, "e2100000.ohci");
 
 	clk = clk_register_fixed_factor(NULL, "usbh.0_clk", "usbh_clk", 0, 1,
 			1);
@@ -498,7 +500,7 @@ void __init spear3xx_clk_init(void)
 
 	clk = clk_register_gate(NULL, "usbd_clk", "pll3_clk", 0, PERIP1_CLK_ENB,
 			USBD_CLK_ENB, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "designware_udc");
+	clk_register_clkdev(clk, NULL, "e1100000.usbd");
 
 	/* clock derived from ahb clk */
 	clk = clk_register_fixed_factor(NULL, "ahbmult2_clk", "ahb_clk", 0, 2,
@@ -546,7 +548,7 @@ void __init spear3xx_clk_init(void)
 	/* clock derived from apb clk */
 	clk = clk_register_gate(NULL, "adc_clk", "apb_clk", 0, PERIP1_CLK_ENB,
 			ADC_CLK_ENB, 0, &_lock);
-	clk_register_clkdev(clk, NULL, "adc");
+	clk_register_clkdev(clk, NULL, "d0080000.adc");
 
 	clk = clk_register_gate(NULL, "gpio0_clk", "apb_clk", 0, PERIP1_CLK_ENB,
 			GPIO_CLK_ENB, 0, &_lock);
