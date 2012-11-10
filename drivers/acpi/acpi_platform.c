@@ -120,25 +120,6 @@ static acpi_status acpi_platform_add_resources(struct acpi_resource *res,
 	return AE_OK;
 }
 
-static acpi_status acpi_platform_get_device_uid(struct acpi_device *adev,
-						int *uid)
-{
-	struct acpi_device_info *info;
-	acpi_status status;
-
-	status = acpi_get_object_info(adev->handle, &info);
-	if (ACPI_FAILURE(status))
-		return status;
-
-	status = AE_NOT_EXIST;
-	if ((info->valid & ACPI_VALID_UID) &&
-	     !kstrtoint(info->unique_id.string, 0, uid))
-		status = AE_OK;
-
-	kfree(info);
-	return status;
-}
-
 /**
  * acpi_create_platform_device - Create platform device for ACPI device node
  * @adev: ACPI device node to create a platform device for.
@@ -156,19 +137,12 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	struct device *parent = NULL;
 	struct resource_info ri;
 	acpi_status status;
-	int devid;
 
 	/* If the ACPI node already has a physical device attached, skip it. */
 	if (adev->physical_node_count)
 		return NULL;
 
-	/* Use the UID of the device as the new platform device id if found. */
-	status = acpi_platform_get_device_uid(adev, &devid);
-	if (ACPI_FAILURE(status))
-		devid = -1;
-
 	memset(&ri, 0, sizeof(ri));
-
 	/* First, count the resources. */
 	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
 				     acpi_platform_count_resources, &ri);
@@ -214,8 +188,8 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 		}
 		mutex_unlock(&acpi_parent->physical_node_lock);
 	}
-	pdev = platform_device_register_resndata(parent, acpi_device_hid(adev),
-						 devid, ri.res, ri.n, NULL, 0);
+	pdev = platform_device_register_resndata(parent, dev_name(&adev->dev),
+						 -1, ri.res, ri.n, NULL, 0);
 	if (IS_ERR(pdev)) {
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
 			PTR_ERR(pdev));
@@ -245,17 +219,7 @@ static acpi_status acpi_platform_match(acpi_handle handle, u32 depth,
 	if (adev->physical_node_count)
 		return AE_OK;
 
-	if (!strcmp(pdev->name, acpi_device_hid(adev))) {
-		int devid;
-
-		/* Check that both name and UID match if it exists */
-		status = acpi_platform_get_device_uid(adev, &devid);
-		if (ACPI_FAILURE(status))
-			devid = -1;
-
-		if (pdev->id != devid)
-			return AE_OK;
-
+	if (!strcmp(dev_name(&pdev->dev), dev_name(&adev->dev))) {
 		*(acpi_handle *)return_value = handle;
 		return AE_CTRL_TERMINATE;
 	}
@@ -266,10 +230,28 @@ static acpi_status acpi_platform_match(acpi_handle handle, u32 depth,
 static int acpi_platform_find_device(struct device *dev, acpi_handle *handle)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	char *name, *tmp, *hid;
+
+	/*
+	 * The platform device is named using the ACPI device name
+	 * _HID:INSTANCE so we strip the INSTANCE out in order to find the
+	 * correct device using its _HID.
+	 */
+	name = kstrdup(dev_name(dev), GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	tmp = name;
+	hid = strsep(&tmp, ":");
+	if (!hid) {
+		kfree(name);
+		return -ENODEV;
+	}
 
 	*handle = NULL;
-	acpi_get_devices(pdev->name, acpi_platform_match, pdev, handle);
+	acpi_get_devices(hid, acpi_platform_match, pdev, handle);
 
+	kfree(name);
 	return *handle ? 0 : -ENODEV;
 }
 
