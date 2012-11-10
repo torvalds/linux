@@ -631,8 +631,9 @@ extern int			ipv6_skip_exthdr(const struct sk_buff *, int start,
 extern bool			ipv6_ext_hdr(u8 nexthdr);
 
 enum {
-	IP6_FH_F_FRAG	= (1 << 0),
-	IP6_FH_F_AUTH	= (1 << 1),
+	IP6_FH_F_FRAG		= (1 << 0),
+	IP6_FH_F_AUTH		= (1 << 1),
+	IP6_FH_F_SKIP_RH	= (1 << 2),
 };
 
 /* find specified header and get offset to it */

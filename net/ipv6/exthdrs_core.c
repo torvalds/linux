@@ -132,9 +132,11 @@ EXPORT_SYMBOL(ipv6_skip_exthdr);
  * *offset is meaningless and fragment offset is stored in *fragoff if fragoff
  * isn't NULL.
  *
- * if flags is not NULL and it's a fragment, then the frag flag IP6_FH_F_FRAG
- * will be set. If it's an AH header, the IP6_FH_F_AUTH flag is set and
- * target < 0, then this function will stop at the AH header.
+ * if flags is not NULL and it's a fragment, then the frag flag
+ * IP6_FH_F_FRAG will be set. If it's an AH header, the
+ * IP6_FH_F_AUTH flag is set and target < 0, then this function will
+ * stop at the AH header. If IP6_FH_F_SKIP_RH flag was passed, then this
+ * function will skip all those routing headers, where segements_left was 0.
  */
 int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		  int target, unsigned short *fragoff, int *flags)
@@ -142,6 +144,7 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 	unsigned int start = skb_network_offset(skb) + sizeof(struct ipv6hdr);
 	u8 nexthdr = ipv6_hdr(skb)->nexthdr;
 	unsigned int len;
+	bool found;
 
 	if (fragoff)
 		*fragoff = 0;
@@ -159,9 +162,10 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 	}
 	len = skb->len - start;
 
-	while (nexthdr != target) {
+	do {
 		struct ipv6_opt_hdr _hdr, *hp;
 		unsigned int hdrlen;
+		found = (nexthdr == target);
 
 		if ((!ipv6_ext_hdr(nexthdr)) || nexthdr == NEXTHDR_NONE) {
 			if (target < 0)
@@ -172,6 +176,20 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		hp = skb_header_pointer(skb, start, sizeof(_hdr), &_hdr);
 		if (hp == NULL)
 			return -EBADMSG;
+
+		if (nexthdr == NEXTHDR_ROUTING) {
+			struct ipv6_rt_hdr _rh, *rh;
+
+			rh = skb_header_pointer(skb, start, sizeof(_rh),
+						&_rh);
+			if (rh == NULL)
+				return -EBADMSG;
+
+			if (flags && (*flags & IP6_FH_F_SKIP_RH) &&
+			    rh->segments_left == 0)
+				found = false;
+		}
+
 		if (nexthdr == NEXTHDR_FRAGMENT) {
 			unsigned short _frag_off;
 			__be16 *fp;
@@ -205,10 +223,12 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
 		} else
 			hdrlen = ipv6_optlen(hp);
 
-		nexthdr = hp->nexthdr;
-		len -= hdrlen;
-		start += hdrlen;
-	}
+		if (!found) {
+			nexthdr = hp->nexthdr;
+			len -= hdrlen;
+			start += hdrlen;
+		}
+	} while (!found);
 
 	*offset = start;
 	return nexthdr;
