@@ -370,7 +370,7 @@ static struct frac_rate_tbl gen_rtbl[] = {
 /* clock parents */
 static const char *vco_parents[] = { "osc_24m_clk", "osc_25m_clk", };
 static const char *sys_parents[] = { "pll1_clk", "pll1_clk", "pll1_clk",
-	"pll1_clk", "sys_synth_clk", "sys_synth_clk", "pll2_clk", "pll3_clk", };
+	"pll1_clk", "sys_syn_clk", "sys_syn_clk", "pll2_clk", "pll3_clk", };
 static const char *ahb_parents[] = { "cpu_div3_clk", "amba_syn_clk", };
 static const char *gpt_parents[] = { "osc_24m_clk", "apb_clk", };
 static const char *uart0_parents[] = { "pll5_clk", "osc_24m_clk",
@@ -391,7 +391,7 @@ static const char *spdif_in_parents[] = { "pll2_clk", "gen_syn3_clk", };
 
 static const char *gen_synth0_1_parents[] = { "vco1div4_clk", "vco3div2_clk",
 	"pll3_clk", };
-static const char *gen_synth2_3_parents[] = { "vco1div4_clk", "vco3div2_clk",
+static const char *gen_synth2_3_parents[] = { "vco1div4_clk", "vco2div2_clk",
 	"pll2_clk", };
 
 void __init spear1340_clk_init(void)
@@ -956,7 +956,7 @@ void __init spear1340_clk_init(void)
 			&_lock);
 	clk_register_clkdev(clk, NULL, "d0500000.cam3");
 
-	clk = clk_register_gate(NULL, "pwm_clk", "pwm_mclk", 0,
+	clk = clk_register_gate(NULL, "pwm_clk", "ahb_clk", 0,
 			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_PWM_CLK_ENB, 0,
 			&_lock);
 	clk_register_clkdev(clk, NULL, "e0180000.pwm");

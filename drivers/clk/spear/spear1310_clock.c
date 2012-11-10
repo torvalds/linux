@@ -664,7 +664,7 @@ void __init spear1310_clk_init(void)
 	clk_register_clkdev(clk, "i2s_ref_pad_clk", NULL);
 
 	clk = clk_register_aux("i2s_sclk_clk", "i2s_sclk_gclk",
-			"i2s_ref_pad_clk", 0, SPEAR1310_I2S_CLK_CFG,
+			"i2s_ref_mclk", 0, SPEAR1310_I2S_CLK_CFG,
 			&i2s_sclk_masks, i2s_sclk_rtbl,
 			ARRAY_SIZE(i2s_sclk_rtbl), &_lock, &clk1);
 	clk_register_clkdev(clk, "i2s_sclk_clk", NULL);
