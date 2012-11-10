@@ -409,11 +409,7 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 			dev_err(pctldev->dev,
 				"could not request pin %d on device %s\n",
 				pins[i], pinctrl_dev_get_name(pctldev));
-			/* On error release all taken pins */
-			i--; /* this pin just failed */
-			for (; i >= 0; i--)
-				pin_free(pctldev, pins[i], NULL);
-			return -ENODEV;
+			goto err_pin_request;
 		}
 	}
 
@@ -429,8 +425,26 @@ int pinmux_enable_setting(struct pinctrl_setting const *setting)
 		desc->mux_setting = &(setting->data.mux);
 	}
 
-	return ops->enable(pctldev, setting->data.mux.func,
-			   setting->data.mux.group);
+	ret = ops->enable(pctldev, setting->data.mux.func,
+			  setting->data.mux.group);
+
+	if (ret)
+		goto err_enable;
+
+	return 0;
+
+err_enable:
+	for (i = 0; i < num_pins; i++) {
+		desc = pin_desc_get(pctldev, pins[i]);
+		if (desc)
+			desc->mux_setting = NULL;
+	}
+err_pin_request:
+	/* On error release all taken pins */
+	while (--i >= 0)
+		pin_free(pctldev, pins[i], NULL);
+
+	return ret;
 }
 
 void pinmux_disable_setting(struct pinctrl_setting const *setting)
