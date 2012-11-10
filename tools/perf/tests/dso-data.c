@@ -26,6 +26,10 @@ static char *test_file(int size)
 	unsigned char *buf;
 
 	fd = mkstemp(templ);
+	if (fd < 0) {
+		perror("mkstemp failed");
+		return NULL;
+	}
 
 	buf = malloc(size);
 	if (!buf) {
