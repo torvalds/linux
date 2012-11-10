@@ -230,6 +230,14 @@ static int bq27x00_battery_read_charge(struct bq27x00_device_info *di, u8 reg)
  */
 static inline int bq27x00_battery_read_nac(struct bq27x00_device_info *di)
 {
+	int flags;
+	bool is_bq27500 = di->chip == BQ27500;
+	bool is_higher = bq27xxx_is_chip_version_higher(di);
+
+	flags = bq27x00_read(di, BQ27x00_REG_FLAGS, !is_bq27500);
+	if (flags >= 0 && !is_higher && (flags & BQ27000_FLAG_CI))
+		return -ENODATA;
+
 	return bq27x00_battery_read_charge(di, BQ27x00_REG_NAC);
 }
 
