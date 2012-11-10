@@ -1465,6 +1465,7 @@ static int tcp_v4_conn_req_fastopen(struct sock *sk,
 		skb_set_owner_r(skb, child);
 		__skb_queue_tail(&child->sk_receive_queue, skb);
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+		tp->syn_data_acked = 1;
 	}
 	sk->sk_data_ready(sk, 0);
 	bh_unlock_sock(child);

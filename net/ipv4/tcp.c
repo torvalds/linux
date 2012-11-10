@@ -2765,6 +2765,8 @@ void tcp_get_info(const struct sock *sk, struct tcp_info *info)
 		info->tcpi_options |= TCPI_OPT_ECN;
 	if (tp->ecn_flags & TCP_ECN_SEEN)
 		info->tcpi_options |= TCPI_OPT_ECN_SEEN;
+	if (tp->syn_data_acked)
+		info->tcpi_options |= TCPI_OPT_SYN_DATA;
 
 	info->tcpi_rto = jiffies_to_usecs(icsk->icsk_rto);
 	info->tcpi_ato = jiffies_to_usecs(icsk->icsk_ack.ato);

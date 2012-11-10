@@ -331,6 +331,13 @@ static inline bool of_have_populated_dt(void)
 #define for_each_child_of_node(parent, child) \
 	while (0)
 
+static inline struct device_node *of_get_child_by_name(
+					const struct device_node *node,
+					const char *name)
+{
+	return NULL;
+}
+
 static inline int of_get_child_count(const struct device_node *np)
 {
 	return 0;

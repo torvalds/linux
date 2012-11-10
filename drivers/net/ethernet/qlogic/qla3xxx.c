@@ -2522,6 +2522,13 @@ static int ql_alloc_net_req_rsp_queues(struct ql3_adapter *qdev)
 	qdev->req_q_size =
 	    (u32) (NUM_REQ_Q_ENTRIES * sizeof(struct ob_mac_iocb_req));
 
+	qdev->rsp_q_size = NUM_RSP_Q_ENTRIES * sizeof(struct net_rsp_iocb);
+
+	/* The barrier is required to ensure request and response queue
+	 * addr writes to the registers.
+	 */
+	wmb();
+
 	qdev->req_q_virt_addr =
 	    pci_alloc_consistent(qdev->pdev,
 				 (size_t) qdev->req_q_size,
@@ -2532,8 +2539,6 @@ static int ql_alloc_net_req_rsp_queues(struct ql3_adapter *qdev)
 		netdev_err(qdev->ndev, "reqQ failed\n");
 		return -ENOMEM;
 	}
-
-	qdev->rsp_q_size = NUM_RSP_Q_ENTRIES * sizeof(struct net_rsp_iocb);
 
 	qdev->rsp_q_virt_addr =
 	    pci_alloc_consistent(qdev->pdev,

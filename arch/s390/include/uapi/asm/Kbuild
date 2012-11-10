@@ -1,8 +1,6 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
-generic-y += kvm_para.h
-
 header-y += auxvec.h
 header-y += bitsperlong.h
 header-y += byteorder.h

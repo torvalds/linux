@@ -369,6 +369,20 @@ static const struct usb_device_id products[] = {
 		USB_VENDOR_AND_INTERFACE_INFO(0x106c, USB_CLASS_VENDOR_SPEC, 0xf1, 0xff),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* Novatel USB551L and MC551 */
+		USB_DEVICE_AND_INTERFACE_INFO(0x1410, 0xb001,
+		                              USB_CLASS_COMM,
+		                              USB_CDC_SUBCLASS_ETHERNET,
+		                              USB_CDC_PROTO_NONE),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* Novatel E362 */
+		USB_DEVICE_AND_INTERFACE_INFO(0x1410, 0x9010,
+		                              USB_CLASS_COMM,
+		                              USB_CDC_SUBCLASS_ETHERNET,
+		                              USB_CDC_PROTO_NONE),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 
 	/* 3. Combined interface devices matching on interface number */
 	{QMI_FIXED_INTF(0x19d2, 0x0002, 1)},

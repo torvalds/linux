@@ -8,7 +8,9 @@
 
 static int xen_dbgp_op(struct usb_hcd *hcd, int op)
 {
+#ifdef CONFIG_PCI
 	const struct device *ctrlr = hcd_to_bus(hcd)->controller;
+#endif
 	struct physdev_dbgp_op dbgp;
 
 	if (!xen_initial_domain())
