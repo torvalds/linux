@@ -1,4 +1,5 @@
-/* STMicroelectronics STMPE811 Touchscreen Driver
+/*
+ * STMicroelectronics STMPE811 Touchscreen Driver
  *
  * (C) 2010 Luotao Fu <l.fu@pengutronix.de>
  * All rights reserved.
@@ -264,28 +265,24 @@ static void stmpe_ts_close(struct input_dev *dev)
 static int __devinit stmpe_input_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	struct stmpe_platform_data *pdata = stmpe->pdata;
+	const struct stmpe_platform_data *pdata = stmpe->pdata;
+	const struct stmpe_ts_platform_data *ts_pdata = NULL;
 	struct stmpe_touch *ts;
 	struct input_dev *idev;
-	struct stmpe_ts_platform_data *ts_pdata = NULL;
-	int ret;
+	int error;
 	int ts_irq;
 
 	ts_irq = platform_get_irq_byname(pdev, "FIFO_TH");
 	if (ts_irq < 0)
 		return ts_irq;
 
-	ts = kzalloc(sizeof(*ts), GFP_KERNEL);
-	if (!ts) {
-		ret = -ENOMEM;
-		goto err_out;
-	}
+	ts = devm_kzalloc(&pdev->dev, sizeof(*ts), GFP_KERNEL);
+	if (!ts)
+		return -ENOMEM;
 
-	idev = input_allocate_device();
-	if (!idev) {
-		ret = -ENOMEM;
-		goto err_free_ts;
-	}
+	idev = devm_input_allocate_device(&pdev->dev);
+	if (!idev)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ts);
 	ts->stmpe = stmpe;
@@ -309,16 +306,17 @@ static int __devinit stmpe_input_probe(struct platform_device *pdev)
 
 	INIT_DELAYED_WORK(&ts->work, stmpe_work);
 
-	ret = request_threaded_irq(ts_irq, NULL, stmpe_ts_handler,
-			IRQF_ONESHOT, STMPE_TS_NAME, ts);
-	if (ret) {
+	error = devm_request_threaded_irq(&pdev->dev, ts_irq,
+					  NULL, stmpe_ts_handler,
+					  IRQF_ONESHOT, STMPE_TS_NAME, ts);
+	if (error) {
 		dev_err(&pdev->dev, "Failed to request IRQ %d\n", ts_irq);
-		goto err_free_input;
+		return error;
 	}
 
-	ret = stmpe_init_hw(ts);
-	if (ret)
-		goto err_free_irq;
+	error = stmpe_init_hw(ts);
+	if (error)
+		return error;
 
 	idev->name = STMPE_TS_NAME;
 	idev->id.bustype = BUS_I2C;
@@ -334,39 +332,20 @@ static int __devinit stmpe_input_probe(struct platform_device *pdev)
 	input_set_abs_params(idev, ABS_Y, 0, XY_MASK, 0, 0);
 	input_set_abs_params(idev, ABS_PRESSURE, 0x0, 0xff, 0, 0);
 
-	ret = input_register_device(idev);
-	if (ret) {
+	error = input_register_device(idev);
+	if (error) {
 		dev_err(&pdev->dev, "Could not register input device\n");
-		goto err_free_irq;
+		return error;
 	}
 
-	return ret;
-
-err_free_irq:
-	free_irq(ts_irq, ts);
-err_free_input:
-	input_free_device(idev);
-	platform_set_drvdata(pdev, NULL);
-err_free_ts:
-	kfree(ts);
-err_out:
-	return ret;
+	return 0;
 }
 
 static int __devexit stmpe_ts_remove(struct platform_device *pdev)
 {
 	struct stmpe_touch *ts = platform_get_drvdata(pdev);
-	unsigned int ts_irq = platform_get_irq_byname(pdev, "FIFO_TH");
 
 	stmpe_disable(ts->stmpe, STMPE_BLOCK_TOUCHSCREEN);
-
-	free_irq(ts_irq, ts);
-
-	platform_set_drvdata(pdev, NULL);
-
-	input_unregister_device(ts->idev);
-
-	kfree(ts);
 
 	return 0;
 }
