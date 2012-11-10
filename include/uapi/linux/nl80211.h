@@ -3057,6 +3057,9 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_SCAN_FLUSH: Scan flush is supported
  * @NL80211_FEATURE_AP_SCAN: Support scanning using an AP vif
  * @NL80211_FEATURE_VIF_TXPOWER: The driver supports per-vif TX power setting
+ * @NL80211_FEATURE_NEED_OBSS_SCAN: The driver expects userspace to perform
+ *	OBSS scans and generate 20/40 BSS coex reports. This flag is used only
+ *	for drivers implementing the CONNECT API, for AUTH/ASSOC it is implied.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3069,6 +3072,7 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_SCAN_FLUSH			= 1 << 7,
 	NL80211_FEATURE_AP_SCAN				= 1 << 8,
 	NL80211_FEATURE_VIF_TXPOWER			= 1 << 9,
+	NL80211_FEATURE_NEED_OBSS_SCAN			= 1 << 10,
 };
 
 /**
