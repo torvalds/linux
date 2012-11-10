@@ -20,7 +20,7 @@
 #include <mach/ddr.h>
 
 #ifdef CONFIG_ARCH_RK2928
-#define VIDEO_DDR_RATE	(330*1000*1000)
+#define VIDEO_DDR_RATE	(300*1000*1000)
 #else
 #define VIDEO_DDR_RATE	(300*1000*1000)
 #endif
