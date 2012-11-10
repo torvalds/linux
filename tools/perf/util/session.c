@@ -128,15 +128,6 @@ struct perf_session *perf_session__new(const char *filename, int mode,
 		goto out;
 
 	memcpy(self->filename, filename, len);
-	/*
-	 * On 64bit we can mmap the data file in one go. No need for tiny mmap
-	 * slices. On 32bit we use 32MB.
-	 */
-#if BITS_PER_LONG == 64
-	self->mmap_window = ULLONG_MAX;
-#else
-	self->mmap_window = 32 * 1024 * 1024ULL;
-#endif
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples);
@@ -1386,6 +1377,18 @@ fetch_mmaped_event(struct perf_session *session,
 	return event;
 }
 
+/*
+ * On 64bit we can mmap the data file in one go. No need for tiny mmap
+ * slices. On 32bit we use 32MB.
+ */
+#if BITS_PER_LONG == 64
+#define MMAP_SIZE ULLONG_MAX
+#define NUM_MMAPS 1
+#else
+#define MMAP_SIZE (32 * 1024 * 1024ULL)
+#define NUM_MMAPS 128
+#endif
+
 int __perf_session__process_events(struct perf_session *session,
 				   u64 data_offset, u64 data_size,
 				   u64 file_size, struct perf_tool *tool)
@@ -1393,7 +1396,7 @@ int __perf_session__process_events(struct perf_session *session,
 	u64 head, page_offset, file_offset, file_pos, progress_next;
 	int err, mmap_prot, mmap_flags, map_idx = 0;
 	size_t	mmap_size;
-	char *buf, *mmaps[8];
+	char *buf, *mmaps[NUM_MMAPS];
 	union perf_event *event;
 	uint32_t size;
 
@@ -1408,7 +1411,7 @@ int __perf_session__process_events(struct perf_session *session,
 
 	progress_next = file_size / 16;
 
-	mmap_size = session->mmap_window;
+	mmap_size = MMAP_SIZE;
 	if (mmap_size > file_size)
 		mmap_size = file_size;
 
