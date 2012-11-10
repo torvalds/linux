@@ -594,14 +594,14 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk1, "uart0_syn_gclk", NULL);
 
 	clk = clk_register_mux(NULL, "uart0_mclk", uart0_parents,
-			ARRAY_SIZE(uart0_parents), 0, SPEAR1340_PERIP_CLK_CFG,
-			SPEAR1340_UART0_CLK_SHIFT, SPEAR1340_UART_CLK_MASK, 0,
-			&_lock);
+			ARRAY_SIZE(uart0_parents), CLK_SET_RATE_PARENT,
+			SPEAR1340_PERIP_CLK_CFG, SPEAR1340_UART0_CLK_SHIFT,
+			SPEAR1340_UART_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "uart0_mclk", NULL);
 
-	clk = clk_register_gate(NULL, "uart0_clk", "uart0_mclk", 0,
-			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_UART0_CLK_ENB, 0,
-			&_lock);
+	clk = clk_register_gate(NULL, "uart0_clk", "uart0_mclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP1_CLK_ENB,
+			SPEAR1340_UART0_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "e0000000.serial");
 
 	clk = clk_register_aux("uart1_syn_clk", "uart1_syn_gclk",
@@ -627,9 +627,9 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk, "sdhci_syn_clk", NULL);
 	clk_register_clkdev(clk1, "sdhci_syn_gclk", NULL);
 
-	clk = clk_register_gate(NULL, "sdhci_clk", "sdhci_syn_gclk", 0,
-			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_SDHCI_CLK_ENB, 0,
-			&_lock);
+	clk = clk_register_gate(NULL, "sdhci_clk", "sdhci_syn_gclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP1_CLK_ENB,
+			SPEAR1340_SDHCI_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "b3000000.sdhci");
 
 	clk = clk_register_aux("cfxd_syn_clk", "cfxd_syn_gclk", "vco1div2_clk",
@@ -638,9 +638,9 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk, "cfxd_syn_clk", NULL);
 	clk_register_clkdev(clk1, "cfxd_syn_gclk", NULL);
 
-	clk = clk_register_gate(NULL, "cfxd_clk", "cfxd_syn_gclk", 0,
-			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_CFXD_CLK_ENB, 0,
-			&_lock);
+	clk = clk_register_gate(NULL, "cfxd_clk", "cfxd_syn_gclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP1_CLK_ENB,
+			SPEAR1340_CFXD_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "b2800000.cf");
 	clk_register_clkdev(clk, NULL, "arasan_xd");
 
@@ -651,12 +651,12 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk1, "c3_syn_gclk", NULL);
 
 	clk = clk_register_mux(NULL, "c3_mclk", c3_parents,
-			ARRAY_SIZE(c3_parents), 0, SPEAR1340_PERIP_CLK_CFG,
-			SPEAR1340_C3_CLK_SHIFT, SPEAR1340_C3_CLK_MASK, 0,
-			&_lock);
+			ARRAY_SIZE(c3_parents), CLK_SET_RATE_PARENT,
+			SPEAR1340_PERIP_CLK_CFG, SPEAR1340_C3_CLK_SHIFT,
+			SPEAR1340_C3_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "c3_mclk", NULL);
 
-	clk = clk_register_gate(NULL, "c3_clk", "c3_mclk", 0,
+	clk = clk_register_gate(NULL, "c3_clk", "c3_mclk", CLK_SET_RATE_PARENT,
 			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_C3_CLK_ENB, 0,
 			&_lock);
 	clk_register_clkdev(clk, NULL, "e1800000.c3");
@@ -694,7 +694,7 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk, "clcd_syn_clk", NULL);
 
 	clk = clk_register_mux(NULL, "clcd_pixel_mclk", clcd_pixel_parents,
-			ARRAY_SIZE(clcd_pixel_parents), 0,
+			ARRAY_SIZE(clcd_pixel_parents), CLK_SET_RATE_PARENT,
 			SPEAR1340_PERIP_CLK_CFG, SPEAR1340_CLCD_CLK_SHIFT,
 			SPEAR1340_CLCD_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "clcd_pixel_mclk", NULL);
@@ -711,15 +711,16 @@ void __init spear1340_clk_init(void)
 			0, &_lock);
 	clk_register_clkdev(clk, "i2s_src_mclk", NULL);
 
-	clk = clk_register_aux("i2s_prs1_clk", NULL, "i2s_src_mclk", 0,
-			SPEAR1340_I2S_CLK_CFG, &i2s_prs1_masks, i2s_prs1_rtbl,
+	clk = clk_register_aux("i2s_prs1_clk", NULL, "i2s_src_mclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_I2S_CLK_CFG,
+			&i2s_prs1_masks, i2s_prs1_rtbl,
 			ARRAY_SIZE(i2s_prs1_rtbl), &_lock, NULL);
 	clk_register_clkdev(clk, "i2s_prs1_clk", NULL);
 
 	clk = clk_register_mux(NULL, "i2s_ref_mclk", i2s_ref_parents,
-			ARRAY_SIZE(i2s_ref_parents), 0, SPEAR1340_I2S_CLK_CFG,
-			SPEAR1340_I2S_REF_SHIFT, SPEAR1340_I2S_REF_SEL_MASK, 0,
-			&_lock);
+			ARRAY_SIZE(i2s_ref_parents), CLK_SET_RATE_PARENT,
+			SPEAR1340_I2S_CLK_CFG, SPEAR1340_I2S_REF_SHIFT,
+			SPEAR1340_I2S_REF_SEL_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "i2s_ref_mclk", NULL);
 
 	clk = clk_register_gate(NULL, "i2s_ref_pad_clk", "i2s_ref_mclk", 0,
@@ -805,9 +806,9 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk, "adc_syn_clk", NULL);
 	clk_register_clkdev(clk1, "adc_syn_gclk", NULL);
 
-	clk = clk_register_gate(NULL, "adc_clk", "adc_syn_gclk", 0,
-			SPEAR1340_PERIP1_CLK_ENB, SPEAR1340_ADC_CLK_ENB, 0,
-			&_lock);
+	clk = clk_register_gate(NULL, "adc_clk", "adc_syn_gclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP1_CLK_ENB,
+			SPEAR1340_ADC_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "e0080000.adc");
 
 	/* clock derived from apb clk */
@@ -874,9 +875,9 @@ void __init spear1340_clk_init(void)
 			&_lock);
 	clk_register_clkdev(clk, "gen_syn3_clk", NULL);
 
-	clk = clk_register_gate(NULL, "mali_clk", "gen_syn3_clk", 0,
-			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_MALI_CLK_ENB, 0,
-			&_lock);
+	clk = clk_register_gate(NULL, "mali_clk", "gen_syn3_clk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP3_CLK_ENB,
+			SPEAR1340_MALI_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "mali");
 
 	clk = clk_register_gate(NULL, "cec0_clk", "ahb_clk", 0,
@@ -890,25 +891,25 @@ void __init spear1340_clk_init(void)
 	clk_register_clkdev(clk, NULL, "spear_cec.1");
 
 	clk = clk_register_mux(NULL, "spdif_out_mclk", spdif_out_parents,
-			ARRAY_SIZE(spdif_out_parents), 0,
+			ARRAY_SIZE(spdif_out_parents), CLK_SET_RATE_PARENT,
 			SPEAR1340_PERIP_CLK_CFG, SPEAR1340_SPDIF_OUT_CLK_SHIFT,
 			SPEAR1340_SPDIF_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "spdif_out_mclk", NULL);
 
-	clk = clk_register_gate(NULL, "spdif_out_clk", "spdif_out_mclk", 0,
-			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_SPDIF_OUT_CLK_ENB,
-			0, &_lock);
+	clk = clk_register_gate(NULL, "spdif_out_clk", "spdif_out_mclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP3_CLK_ENB,
+			SPEAR1340_SPDIF_OUT_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "d0000000.spdif-out");
 
 	clk = clk_register_mux(NULL, "spdif_in_mclk", spdif_in_parents,
-			ARRAY_SIZE(spdif_in_parents), 0,
+			ARRAY_SIZE(spdif_in_parents), CLK_SET_RATE_PARENT,
 			SPEAR1340_PERIP_CLK_CFG, SPEAR1340_SPDIF_IN_CLK_SHIFT,
 			SPEAR1340_SPDIF_CLK_MASK, 0, &_lock);
 	clk_register_clkdev(clk, "spdif_in_mclk", NULL);
 
-	clk = clk_register_gate(NULL, "spdif_in_clk", "spdif_in_mclk", 0,
-			SPEAR1340_PERIP3_CLK_ENB, SPEAR1340_SPDIF_IN_CLK_ENB, 0,
-			&_lock);
+	clk = clk_register_gate(NULL, "spdif_in_clk", "spdif_in_mclk",
+			CLK_SET_RATE_PARENT, SPEAR1340_PERIP3_CLK_ENB,
+			SPEAR1340_SPDIF_IN_CLK_ENB, 0, &_lock);
 	clk_register_clkdev(clk, NULL, "d0100000.spdif-in");
 
 	clk = clk_register_gate(NULL, "acp_clk", "acp_mclk", 0,
