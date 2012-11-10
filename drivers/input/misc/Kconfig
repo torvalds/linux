@@ -364,6 +364,16 @@ config INPUT_CM109
 	  To compile this driver as a module, choose M here: the module will be
 	  called cm109.
 
+config INPUT_RETU_PWRBUTTON
+	tristate "Retu Power button Driver"
+	depends on MFD_RETU
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  Retu chips found in Nokia Internet Tablets (770, N800, N810).
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called retu-pwrbutton.
+
 config INPUT_TWL4030_PWRBUTTON
 	tristate "TWL4030 Power button Driver"
 	depends on TWL4030_CORE
