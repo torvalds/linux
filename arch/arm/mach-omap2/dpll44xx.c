@@ -21,7 +21,11 @@
 #include "cm-regbits-44xx.h"
 
 /* Supported only on OMAP4 */
+#ifdef CONFIG_COMMON_CLK
+int omap4_dpllmx_gatectrl_read(struct clk_hw_omap *clk)
+#else
 int omap4_dpllmx_gatectrl_read(struct clk *clk)
+#endif
 {
 	u32 v;
 	u32 mask;
@@ -40,7 +44,11 @@ int omap4_dpllmx_gatectrl_read(struct clk *clk)
 	return v;
 }
 
+#ifdef CONFIG_COMMON_CLK
+void omap4_dpllmx_allow_gatectrl(struct clk_hw_omap *clk)
+#else
 void omap4_dpllmx_allow_gatectrl(struct clk *clk)
+#endif
 {
 	u32 v;
 	u32 mask;
@@ -58,7 +66,11 @@ void omap4_dpllmx_allow_gatectrl(struct clk *clk)
 	__raw_writel(v, clk->clksel_reg);
 }
 
+#ifdef CONFIG_COMMON_CLK
+void omap4_dpllmx_deny_gatectrl(struct clk_hw_omap *clk)
+#else
 void omap4_dpllmx_deny_gatectrl(struct clk *clk)
+#endif
 {
 	u32 v;
 	u32 mask;
@@ -76,10 +88,17 @@ void omap4_dpllmx_deny_gatectrl(struct clk *clk)
 	__raw_writel(v, clk->clksel_reg);
 }
 
+#ifdef CONFIG_COMMON_CLK
+const struct clk_hw_omap_ops clkhwops_omap4_dpllmx = {
+	.allow_idle	= omap4_dpllmx_allow_gatectrl,
+	.deny_idle      = omap4_dpllmx_deny_gatectrl,
+};
+#else
 const struct clkops clkops_omap4_dpllmx_ops = {
 	.allow_idle	= omap4_dpllmx_allow_gatectrl,
 	.deny_idle	= omap4_dpllmx_deny_gatectrl,
 };
+#endif
 
 /**
  * omap4_dpll_regm4xen_recalc - compute DPLL rate, considering REGM4XEN bit
@@ -90,8 +109,15 @@ const struct clkops clkops_omap4_dpllmx_ops = {
  * OMAP4 ABE DPLL.  Returns the DPLL's output rate (before M-dividers)
  * upon success, or 0 upon error.
  */
+#ifdef CONFIG_COMMON_CLK
+unsigned long omap4_dpll_regm4xen_recalc(struct clk_hw *hw,
+			unsigned long parent_rate)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+#else
 unsigned long omap4_dpll_regm4xen_recalc(struct clk *clk)
 {
+#endif
 	u32 v;
 	unsigned long rate;
 	struct dpll_data *dd;
@@ -123,8 +149,16 @@ unsigned long omap4_dpll_regm4xen_recalc(struct clk *clk)
  * M-dividers) upon success, -EINVAL if @clk is null or not a DPLL, or
  * ~0 if an error occurred in omap2_dpll_round_rate().
  */
+#ifdef CONFIG_COMMON_CLK
+long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
+				    unsigned long target_rate,
+				    unsigned long *parent_rate)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+#else
 long omap4_dpll_regm4xen_round_rate(struct clk *clk, unsigned long target_rate)
 {
+#endif
 	u32 v;
 	struct dpll_data *dd;
 	long r;
@@ -140,7 +174,11 @@ long omap4_dpll_regm4xen_round_rate(struct clk *clk, unsigned long target_rate)
 	if (v)
 		target_rate = target_rate / OMAP4430_REGM4XEN_MULT;
 
+#ifdef CONFIG_COMMON_CLK
+	r = omap2_dpll_round_rate(hw, target_rate, NULL);
+#else
 	r = omap2_dpll_round_rate(clk, target_rate);
+#endif
 	if (r == ~0)
 		return r;
 

@@ -20,7 +20,11 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#ifdef CONFIG_COMMON_CLK
+#include <linux/clk-provider.h>
+#else
 #include <linux/clk.h>
+#endif
 #include <linux/io.h>
 #include <linux/bitops.h>
 
@@ -57,7 +61,33 @@ static bool clkdm_control = true;
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
+#ifndef CONFIG_COMMON_CLK
 static DEFINE_SPINLOCK(clockfw_lock);
+#endif
+
+#ifdef CONFIG_COMMON_CLK
+
+/*
+ * Used for clocks that have the same value as the parent clock,
+ * divided by some factor
+ */
+unsigned long omap_fixed_divisor_recalc(struct clk_hw *hw,
+		unsigned long parent_rate)
+{
+	struct clk_hw_omap *oclk;
+
+	if (!hw) {
+		pr_warn("%s: hw is NULL\n", __func__);
+		return -EINVAL;
+	}
+
+	oclk = to_clk_hw_omap(hw);
+
+	WARN_ON(!oclk->fixed_div);
+
+	return parent_rate / oclk->fixed_div;
+}
+#endif
 
 /*
  * OMAP2+ specific clock functions
@@ -109,7 +139,11 @@ static int _wait_idlest_generic(void __iomem *reg, u32 mask, u8 idlest,
  * belong in the clock code and will be moved in the medium term to
  * module-dependent code.  No return value.
  */
+#ifdef CONFIG_COMMON_CLK
+static void _omap2_module_wait_ready(struct clk_hw_omap *clk)
+#else
 static void _omap2_module_wait_ready(struct clk *clk)
+#endif
 {
 	void __iomem *companion_reg, *idlest_reg;
 	u8 other_bit, idlest_bit, idlest_val, idlest_reg_id;
@@ -124,12 +158,15 @@ static void _omap2_module_wait_ready(struct clk *clk)
 	}
 
 	clk->ops->find_idlest(clk, &idlest_reg, &idlest_bit, &idlest_val);
-
 	r = cm_split_idlest_reg(idlest_reg, &prcm_mod, &idlest_reg_id);
 	if (r) {
 		/* IDLEST register not in the CM module */
 		_wait_idlest_generic(idlest_reg, (1 << idlest_bit), idlest_val,
+#ifdef CONFIG_COMMON_CLK
+				     __clk_get_name(clk->hw.clk));
+#else
 				     clk->name);
+#endif
 	} else {
 		cm_wait_module_ready(prcm_mod, idlest_reg_id, idlest_bit);
 	};
@@ -145,15 +182,25 @@ static void _omap2_module_wait_ready(struct clk *clk)
  * clockdomain pointer, and save it into the struct clk.  Intended to be
  * called during clk_register().  No return value.
  */
+#ifdef CONFIG_COMMON_CLK
+void omap2_init_clk_clkdm(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+#else
 void omap2_init_clk_clkdm(struct clk *clk)
 {
+#endif
 	struct clockdomain *clkdm;
 	const char *clk_name;
 
 	if (!clk->clkdm_name)
 		return;
 
+#ifdef CONFIG_COMMON_CLK
+	clk_name = __clk_get_name(hw->clk);
+#else
 	clk_name = __clk_get_name(clk);
+#endif
 
 	clkdm = clkdm_lookup(clk->clkdm_name);
 	if (clkdm) {
@@ -200,8 +247,12 @@ void __init omap2_clk_disable_clkdm_control(void)
  * associate this type of code with per-module data structures to
  * avoid this issue, and remove the casts.  No return value.
  */
-void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
-				   u8 *other_bit)
+#ifdef CONFIG_COMMON_CLK
+void omap2_clk_dflt_find_companion(struct clk_hw_omap *clk,
+#else
+void omap2_clk_dflt_find_companion(struct clk *clk,
+#endif
+			void __iomem **other_reg, u8 *other_bit)
 {
 	u32 r;
 
@@ -229,8 +280,12 @@ void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
  * register address ID (e.g., that CM_FCLKEN2 corresponds to
  * CM_IDLEST2).  This is not true for all modules.  No return value.
  */
-void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
-				u8 *idlest_bit, u8 *idlest_val)
+#ifdef CONFIG_COMMON_CLK
+void omap2_clk_dflt_find_idlest(struct clk_hw_omap *clk,
+#else
+void omap2_clk_dflt_find_idlest(struct clk *clk,
+#endif
+		void __iomem **idlest_reg, u8 *idlest_bit, u8 *idlest_val)
 {
 	u32 r;
 
@@ -252,6 +307,225 @@ void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
 
 }
 
+#ifdef CONFIG_COMMON_CLK
+/**
+ * omap2_dflt_clk_enable - enable a clock in the hardware
+ * @hw: struct clk_hw * of the clock to enable
+ *
+ * Enable the clock @hw in the hardware.  We first call into the OMAP
+ * clockdomain code to "enable" the corresponding clockdomain if this
+ * is the first enabled user of the clockdomain.  Then program the
+ * hardware to enable the clock.  Then wait for the IP block that uses
+ * this clock to leave idle (if applicable).  Returns the error value
+ * from clkdm_clk_enable() if it terminated with an error, or -EINVAL
+ * if @hw has a null clock enable_reg, or zero upon success.
+ */
+int omap2_dflt_clk_enable(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk;
+	u32 v;
+	int ret = 0;
+
+	clk = to_clk_hw_omap(hw);
+
+	if (clkdm_control && clk->clkdm) {
+		ret = clkdm_clk_enable(clk->clkdm, hw->clk);
+		if (ret) {
+			WARN(1, "%s: could not enable %s's clockdomain %s: %d\n",
+			     __func__, __clk_get_name(hw->clk),
+			     clk->clkdm->name, ret);
+			return ret;
+		}
+	}
+
+	if (unlikely(clk->enable_reg == NULL)) {
+		pr_err("%s: %s missing enable_reg\n", __func__,
+		       __clk_get_name(hw->clk));
+		ret = -EINVAL;
+		goto err;
+	}
+
+	/* FIXME should not have INVERT_ENABLE bit here */
+	v = __raw_readl(clk->enable_reg);
+	if (clk->flags & INVERT_ENABLE)
+		v &= ~(1 << clk->enable_bit);
+	else
+		v |= (1 << clk->enable_bit);
+	__raw_writel(v, clk->enable_reg);
+	v = __raw_readl(clk->enable_reg); /* OCP barrier */
+
+	if (clk->ops && clk->ops->find_idlest)
+		_omap2_module_wait_ready(clk);
+
+	return 0;
+
+err:
+	if (clkdm_control && clk->clkdm)
+		clkdm_clk_disable(clk->clkdm, hw->clk);
+	return ret;
+}
+
+/**
+ * omap2_dflt_clk_disable - disable a clock in the hardware
+ * @hw: struct clk_hw * of the clock to disable
+ *
+ * Disable the clock @hw in the hardware, and call into the OMAP
+ * clockdomain code to "disable" the corresponding clockdomain if all
+ * clocks/hwmods in that clockdomain are now disabled.  No return
+ * value.
+ */
+void omap2_dflt_clk_disable(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk;
+	u32 v;
+
+	clk = to_clk_hw_omap(hw);
+	if (!clk->enable_reg) {
+		/*
+		 * 'independent' here refers to a clock which is not
+		 * controlled by its parent.
+		 */
+		pr_err("%s: independent clock %s has no enable_reg\n",
+		       __func__, __clk_get_name(hw->clk));
+		return;
+	}
+
+	v = __raw_readl(clk->enable_reg);
+	if (clk->flags & INVERT_ENABLE)
+		v |= (1 << clk->enable_bit);
+	else
+		v &= ~(1 << clk->enable_bit);
+	__raw_writel(v, clk->enable_reg);
+	/* No OCP barrier needed here since it is a disable operation */
+
+	if (clkdm_control && clk->clkdm)
+		clkdm_clk_disable(clk->clkdm, hw->clk);
+}
+
+/**
+ * omap2_clkops_enable_clkdm - increment usecount on clkdm of @hw
+ * @hw: struct clk_hw * of the clock being enabled
+ *
+ * Increment the usecount of the clockdomain of the clock pointed to
+ * by @hw; if the usecount is 1, the clockdomain will be "enabled."
+ * Only needed for clocks that don't use omap2_dflt_clk_enable() as
+ * their enable function pointer.  Passes along the return value of
+ * clkdm_clk_enable(), -EINVAL if @hw is not associated with a
+ * clockdomain, or 0 if clock framework-based clockdomain control is
+ * not implemented.
+ */
+int omap2_clkops_enable_clkdm(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk;
+	int ret = 0;
+
+	clk = to_clk_hw_omap(hw);
+
+	if (unlikely(!clk->clkdm)) {
+		pr_err("%s: %s: no clkdm set ?!\n", __func__,
+		       __clk_get_name(hw->clk));
+		return -EINVAL;
+	}
+
+	if (unlikely(clk->enable_reg))
+		pr_err("%s: %s: should use dflt_clk_enable ?!\n", __func__,
+		       __clk_get_name(hw->clk));
+
+	if (!clkdm_control) {
+		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
+		       __func__, __clk_get_name(hw->clk));
+		return 0;
+	}
+
+	ret = clkdm_clk_enable(clk->clkdm, hw->clk);
+	WARN(ret, "%s: could not enable %s's clockdomain %s: %d\n",
+	     __func__, __clk_get_name(hw->clk), clk->clkdm->name, ret);
+
+	return ret;
+}
+
+/**
+ * omap2_clkops_disable_clkdm - decrement usecount on clkdm of @hw
+ * @hw: struct clk_hw * of the clock being disabled
+ *
+ * Decrement the usecount of the clockdomain of the clock pointed to
+ * by @hw; if the usecount is 0, the clockdomain will be "disabled."
+ * Only needed for clocks that don't use omap2_dflt_clk_disable() as their
+ * disable function pointer.  No return value.
+ */
+void omap2_clkops_disable_clkdm(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk;
+
+	clk = to_clk_hw_omap(hw);
+
+	if (unlikely(!clk->clkdm)) {
+		pr_err("%s: %s: no clkdm set ?!\n", __func__,
+		       __clk_get_name(hw->clk));
+		return;
+	}
+
+	if (unlikely(clk->enable_reg))
+		pr_err("%s: %s: should use dflt_clk_disable ?!\n", __func__,
+		       __clk_get_name(hw->clk));
+
+	if (!clkdm_control) {
+		pr_err("%s: %s: clkfw-based clockdomain control disabled ?!\n",
+		       __func__, __clk_get_name(hw->clk));
+		return;
+	}
+
+	clkdm_clk_disable(clk->clkdm, hw->clk);
+}
+
+/**
+ * omap2_dflt_clk_is_enabled - is clock enabled in the hardware?
+ * @hw: struct clk_hw * to check
+ *
+ * Return 1 if the clock represented by @hw is enabled in the
+ * hardware, or 0 otherwise.  Intended for use in the struct
+ * clk_ops.is_enabled function pointer.
+ */
+int omap2_dflt_clk_is_enabled(struct clk_hw *hw)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+	u32 v;
+
+	v = __raw_readl(clk->enable_reg);
+
+	if (clk->flags & INVERT_ENABLE)
+		v ^= BIT(clk->enable_bit);
+
+	v &= BIT(clk->enable_bit);
+
+	return v ? 1 : 0;
+}
+
+static int __initdata mpurate;
+
+/*
+ * By default we use the rate set by the bootloader.
+ * You can override this with mpurate= cmdline option.
+ */
+static int __init omap_clk_setup(char *str)
+{
+	get_option(&str, &mpurate);
+
+	if (!mpurate)
+		return 1;
+
+	if (mpurate < 1000)
+		mpurate *= 1000000;
+
+	return 1;
+}
+__setup("mpurate=", omap_clk_setup);
+
+const struct clk_hw_omap_ops clkhwops_wait = {
+	.find_idlest	= omap2_clk_dflt_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+#else
 int omap2_dflt_clk_enable(struct clk *clk)
 {
 	u32 v;
@@ -482,6 +756,8 @@ void omap2_clk_disable_unused(struct clk *clk)
 }
 #endif
 
+#endif /* CONFIG_COMMON_CLK */
+
 /**
  * omap2_clk_switch_mpurate_at_boot - switch ARM MPU rate by boot-time argument
  * @mpurate_ck_name: clk name of the clock to change rate
@@ -512,13 +788,15 @@ int __init omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name)
 	r = clk_set_rate(mpurate_ck, mpurate);
 	if (IS_ERR_VALUE(r)) {
 		WARN(1, "clock: %s: unable to set MPU rate to %d: %d\n",
-		     mpurate_ck->name, mpurate, r);
+		     mpurate_ck_name, mpurate, r);
 		clk_put(mpurate_ck);
 		return -EINVAL;
 	}
 
 	calibrate_delay();
+#ifndef CONFIG_COMMON_CLK
 	recalculate_root_clocks();
+#endif
 
 	clk_put(mpurate_ck);
 
@@ -564,8 +842,8 @@ void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 		(clk_get_rate(mpu_ck) / 1000000));
 }
 
+#ifndef CONFIG_COMMON_CLK
 /* Common data */
-
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
@@ -1072,4 +1350,4 @@ err_out:
 late_initcall(clk_debugfs_init);
 
 #endif /* defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS) */
-
+#endif /* CONFIG_COMMON_CLK */
