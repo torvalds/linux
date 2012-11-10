@@ -412,7 +412,7 @@ c_show(struct seq_file *f, void *slot)
 		     "icache size\t: %d\n"
 		     "icache flags\t: "
 #if XCHAL_ICACHE_LINE_LOCKABLE
-		     "lock"
+		     "lock "
 #endif
 		     "\n"
 		     "dcache line size: %d\n"
@@ -420,10 +420,10 @@ c_show(struct seq_file *f, void *slot)
 		     "dcache size\t: %d\n"
 		     "dcache flags\t: "
 #if XCHAL_DCACHE_IS_WRITEBACK
-		     "writeback"
+		     "writeback "
 #endif
 #if XCHAL_DCACHE_LINE_LOCKABLE
-		     "lock"
+		     "lock "
 #endif
 		     "\n",
 		     XCHAL_ICACHE_LINESIZE,
