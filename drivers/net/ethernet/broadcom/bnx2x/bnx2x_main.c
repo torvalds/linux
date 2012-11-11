@@ -1482,7 +1482,7 @@ static void bnx2x_igu_int_disable(struct bnx2x *bp)
 		BNX2X_ERR("BUG! proper val not read from IGU!\n");
 }
 
-void bnx2x_int_disable(struct bnx2x *bp)
+static void bnx2x_int_disable(struct bnx2x *bp)
 {
 	if (bp->common.int_block == INT_BLOCK_HC)
 		bnx2x_hc_int_disable(bp);
@@ -7051,7 +7051,7 @@ static void bnx2x_clear_func_ilt(struct bnx2x *bp, u32 func)
 }
 
 
-void bnx2x_init_searcher(struct bnx2x *bp)
+static void bnx2x_init_searcher(struct bnx2x *bp)
 {
 	int port = BP_PORT(bp);
 	bnx2x_src_init_t2(bp, bp->t2, bp->t2_mapping, SRC_CONN_NUM);
@@ -7081,7 +7081,7 @@ static inline int bnx2x_func_switch_update(struct bnx2x *bp, int suspend)
 	return rc;
 }
 
-int bnx2x_reset_nic_mode(struct bnx2x *bp)
+static int bnx2x_reset_nic_mode(struct bnx2x *bp)
 {
 	int rc, i, port = BP_PORT(bp);
 	int vlan_en = 0, mac_en[NUM_MACS];
@@ -7968,7 +7968,7 @@ static void bnx2x_pf_q_prep_init(struct bnx2x *bp,
 	}
 }
 
-int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
+static int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 			struct bnx2x_queue_state_params *q_params,
 			struct bnx2x_queue_setup_tx_only_params *tx_only_params,
 			int tx_index, bool leading)
@@ -9011,7 +9011,7 @@ static int bnx2x_process_kill(struct bnx2x *bp, bool global)
 	return 0;
 }
 
-int bnx2x_leader_reset(struct bnx2x *bp)
+static int bnx2x_leader_reset(struct bnx2x *bp)
 {
 	int rc = 0;
 	bool global = bnx2x_reset_is_global(bp);

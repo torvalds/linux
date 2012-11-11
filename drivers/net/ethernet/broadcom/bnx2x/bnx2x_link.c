@@ -11934,8 +11934,8 @@ int bnx2x_phy_probe(struct link_params *params)
 	return 0;
 }
 
-void bnx2x_init_bmac_loopback(struct link_params *params,
-			      struct link_vars *vars)
+static void bnx2x_init_bmac_loopback(struct link_params *params,
+				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 		vars->link_up = 1;
@@ -11954,8 +11954,8 @@ void bnx2x_init_bmac_loopback(struct link_params *params,
 		REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
 
-void bnx2x_init_emac_loopback(struct link_params *params,
-			      struct link_vars *vars)
+static void bnx2x_init_emac_loopback(struct link_params *params,
+				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 		vars->link_up = 1;
@@ -11973,8 +11973,8 @@ void bnx2x_init_emac_loopback(struct link_params *params,
 		REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
 
-void bnx2x_init_xmac_loopback(struct link_params *params,
-			      struct link_vars *vars)
+static void bnx2x_init_xmac_loopback(struct link_params *params,
+				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	vars->link_up = 1;
@@ -11999,8 +11999,8 @@ void bnx2x_init_xmac_loopback(struct link_params *params,
 	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
 
-void bnx2x_init_umac_loopback(struct link_params *params,
-			      struct link_vars *vars)
+static void bnx2x_init_umac_loopback(struct link_params *params,
+				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 	vars->link_up = 1;
@@ -12014,8 +12014,8 @@ void bnx2x_init_umac_loopback(struct link_params *params,
 	REG_WR(bp, NIG_REG_EGRESS_DRAIN0_MODE + params->port*4, 0);
 }
 
-void bnx2x_init_xgxs_loopback(struct link_params *params,
-			      struct link_vars *vars)
+static void bnx2x_init_xgxs_loopback(struct link_params *params,
+				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
 		vars->link_up = 1;
