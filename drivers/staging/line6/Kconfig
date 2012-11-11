@@ -23,14 +23,6 @@ menuconfig LINE6_USB
 
 if LINE6_USB
 
-config LINE6_USB_DEBUG
-	bool "print debug messages"
-	default n
-	help
-	  Say Y here to write debug messages to the syslog.
-
-	  If unsure, say N.
-
 config LINE6_USB_DUMP_CTRL
 	bool "dump control messages"
 	default n
