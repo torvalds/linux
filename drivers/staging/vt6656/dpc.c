@@ -332,7 +332,7 @@ RXbBulkInProcessData (
     PBYTE           pbyFrame;
     BOOL            bDeFragRx = FALSE;
     unsigned int            cbHeaderOffset;
-    unsigned int            FrameSize;
+	u32 FrameSize;
     WORD            wEtherType = 0;
     signed int             iSANodeIndex = -1;
     signed int             iDANodeIndex = -1;
@@ -351,7 +351,7 @@ RXbBulkInProcessData (
     /* signed long ldBm = 0; */
     BOOL            bIsWEP = FALSE;
     BOOL            bExtIV = FALSE;
-    DWORD           dwWbkStatus;
+	u32 dwWbkStatus;
     PRCB            pRCBIndicate = pRCB;
     PBYTE           pbyDAddress;
     PWORD           pwPLCP_Length;
@@ -366,15 +366,15 @@ RXbBulkInProcessData (
 
     skb = pRCB->skb;
 
-    //[31:16]RcvByteCount ( not include 4-byte Status )
-    dwWbkStatus =  *( (PDWORD)(skb->data) );
-    FrameSize = (unsigned int)(dwWbkStatus >> 16);
-    FrameSize += 4;
+	/* [31:16]RcvByteCount ( not include 4-byte Status ) */
+	dwWbkStatus = *((u32 *)(skb->data));
+	FrameSize = dwWbkStatus >> 16;
+	FrameSize += 4;
 
-    if (BytesToIndicate != FrameSize) {
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"---------- WRONG Length 1 \n");
-        return FALSE;
-    }
+	if (BytesToIndicate != FrameSize) {
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"------- WRONG Length 1\n");
+		return FALSE;
+	}
 
     if ((BytesToIndicate > 2372) || (BytesToIndicate <= 40)) {
         // Frame Size error drop this packet.
