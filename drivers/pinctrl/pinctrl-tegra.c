@@ -178,8 +178,9 @@ static int add_config(struct device *dev, unsigned long **configs,
 	return 0;
 }
 
-void tegra_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
-			       struct pinctrl_map *map, unsigned num_maps)
+static void tegra_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
+				      struct pinctrl_map *map,
+				      unsigned num_maps)
 {
 	int i;
 
@@ -209,11 +210,11 @@ static const struct cfg_param {
 	{"nvidia,slew-rate-rising",	TEGRA_PINCONF_PARAM_SLEW_RATE_RISING},
 };
 
-int tegra_pinctrl_dt_subnode_to_map(struct device *dev,
-				    struct device_node *np,
-				    struct pinctrl_map **map,
-				    unsigned *reserved_maps,
-				    unsigned *num_maps)
+static int tegra_pinctrl_dt_subnode_to_map(struct device *dev,
+					   struct device_node *np,
+					   struct pinctrl_map **map,
+					   unsigned *reserved_maps,
+					   unsigned *num_maps)
 {
 	int ret, i;
 	const char *function;
@@ -288,9 +289,10 @@ exit:
 	return ret;
 }
 
-int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
-				 struct pinctrl_map **map, unsigned *num_maps)
+static int tegra_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
+					struct device_node *np_config,
+					struct pinctrl_map **map,
+					unsigned *num_maps)
 {
 	unsigned reserved_maps;
 	struct device_node *np;
