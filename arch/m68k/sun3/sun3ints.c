@@ -66,6 +66,8 @@ static irqreturn_t sun3_int5(int irq, void *dev_id)
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
+	sun3_disable_irq(5);
+	sun3_enable_irq(5);
 #ifdef CONFIG_SUN3
 	intersil_clear();
 #endif
@@ -79,41 +81,18 @@ static irqreturn_t sun3_int5(int irq, void *dev_id)
 
 static irqreturn_t sun3_vec255(int irq, void *dev_id)
 {
-//	intersil_clear();
 	return IRQ_HANDLED;
 }
-
-static void sun3_irq_enable(struct irq_data *data)
-{
-    sun3_enable_irq(data->irq);
-};
-
-static void sun3_irq_disable(struct irq_data *data)
-{
-    sun3_disable_irq(data->irq);
-};
-
-static struct irq_chip sun3_irq_chip = {
-	.name		= "sun3",
-	.irq_startup	= m68k_irq_startup,
-	.irq_shutdown	= m68k_irq_shutdown,
-	.irq_enable	= sun3_irq_enable,
-	.irq_disable	= sun3_irq_disable,
-	.irq_mask	= sun3_irq_disable,
-	.irq_unmask	= sun3_irq_enable,
-};
 
 void __init sun3_init_IRQ(void)
 {
 	*sun3_intreg = 1;
 
-	m68k_setup_irq_controller(&sun3_irq_chip, handle_level_irq, IRQ_AUTO_1,
-				  7);
 	m68k_setup_user_interrupt(VEC_USER, 128);
 
-	if (request_irq(IRQ_AUTO_5, sun3_int5, 0, "int5", NULL))
+	if (request_irq(IRQ_AUTO_5, sun3_int5, 0, "clock", NULL))
 		pr_err("Couldn't register %s interrupt\n", "int5");
-	if (request_irq(IRQ_AUTO_7, sun3_int7, 0, "int7", NULL))
+	if (request_irq(IRQ_AUTO_7, sun3_int7, 0, "nmi", NULL))
 		pr_err("Couldn't register %s interrupt\n", "int7");
 	if (request_irq(IRQ_USER+127, sun3_vec255, 0, "vec255", NULL))
 		pr_err("Couldn't register %s interrupt\n", "vec255");
