@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/idr.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include "ipack.h"
 
 #define to_ipack_dev(device) container_of(device, struct ipack_device, dev)
@@ -242,7 +242,8 @@ static int ipack_unregister_bus_member(struct device *dev, void *data)
 
 int ipack_bus_unregister(struct ipack_bus_device *bus)
 {
-	bus_for_each_dev(&ipack_bus_type, NULL, bus, ipack_unregister_bus_member);
+	bus_for_each_dev(&ipack_bus_type, NULL, bus,
+		ipack_unregister_bus_member);
 	ida_simple_remove(&ipack_ida, bus->bus_nr);
 	kfree(bus);
 	return 0;
