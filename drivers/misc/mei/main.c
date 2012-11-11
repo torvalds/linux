@@ -227,7 +227,7 @@ static int mei_release(struct inode *inode, struct file *file)
 		clear_bit(cl->host_client_id, dev->host_clients_map);
 		dev->open_handle_count--;
 	}
-	mei_remove_client_from_file_list(dev, cl->host_client_id);
+	mei_me_cl_unlink(dev, cl);
 
 	/* free read cb */
 	cb = NULL;
@@ -913,8 +913,8 @@ static void __devexit mei_remove(struct pci_dev *pdev)
 
 	/* remove entry if already in list */
 	dev_dbg(&pdev->dev, "list del iamthif and wd file list.\n");
-	mei_remove_client_from_file_list(dev, dev->wd_cl.host_client_id);
-	mei_remove_client_from_file_list(dev, dev->iamthif_cl.host_client_id);
+	mei_me_cl_unlink(dev, &dev->wd_cl);
+	mei_me_cl_unlink(dev, &dev->iamthif_cl);
 
 	dev->iamthif_current_cb = NULL;
 	dev->me_clients_num = 0;

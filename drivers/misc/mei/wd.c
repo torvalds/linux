@@ -62,6 +62,7 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  */
 int mei_wd_host_init(struct mei_device *dev)
 {
+	int id;
 	mei_cl_init(&dev->wd_cl, dev);
 
 	/* look for WD client and connect to it */
@@ -69,12 +70,11 @@ int mei_wd_host_init(struct mei_device *dev)
 	dev->wd_timeout = MEI_WD_DEFAULT_TIMEOUT;
 	dev->wd_state = MEI_WD_IDLE;
 
-	/* find ME WD client */
-	mei_me_cl_update_filext(dev, &dev->wd_cl,
+	/* Connect WD ME client to the host client */
+	id = mei_me_cl_link(dev, &dev->wd_cl,
 				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
-	dev_dbg(&dev->pdev->dev, "wd: check client\n");
-	if (MEI_FILE_CONNECTING != dev->wd_cl.state) {
+	if (id < 0) {
 		dev_info(&dev->pdev->dev, "wd: failed to find the client\n");
 		return -ENOENT;
 	}

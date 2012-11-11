@@ -301,12 +301,12 @@ int mei_hw_init(struct mei_device *dev);
 int mei_task_initialize_clients(void *data);
 int mei_initialize_clients(struct mei_device *dev);
 int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl);
-void mei_remove_client_from_file_list(struct mei_device *dev, u8 host_client_id);
 void mei_allocate_me_clients_storage(struct mei_device *dev);
 
 
-int mei_me_cl_update_filext(struct mei_device *dev, struct mei_cl *cl,
+int mei_me_cl_link(struct mei_device *dev, struct mei_cl *cl,
 			const uuid_le *cguid, u8 host_client_id);
+void mei_me_cl_unlink(struct mei_device *dev, struct mei_cl *cl);
 int mei_me_cl_by_uuid(const struct mei_device *dev, const uuid_le *cuuid);
 int mei_me_cl_by_id(struct mei_device *dev, u8 client_id);
 

@@ -73,10 +73,10 @@ void mei_amthif_host_init(struct mei_device *dev)
 	dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 
 	/* find ME amthi client */
-	i = mei_me_cl_update_filext(dev, &dev->iamthif_cl,
+	i = mei_me_cl_link(dev, &dev->iamthif_cl,
 			    &mei_amthi_guid, MEI_IAMTHIF_HOST_CLIENT_ID);
 	if (i < 0) {
-		dev_dbg(&dev->pdev->dev, "failed to find iamthif client.\n");
+		dev_info(&dev->pdev->dev, "failed to find iamthif client.\n");
 		return;
 	}
 

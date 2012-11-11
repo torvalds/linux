@@ -171,8 +171,6 @@ int mei_ioctl_connect_client(struct file *file,
 	struct mei_cl_cb *cb;
 	struct mei_client *client;
 	struct mei_cl *cl;
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
 	long timeout = mei_secs_to_jiffies(MEI_CL_CONNECT_TIMEOUT);
 	int i;
 	int err;
@@ -229,21 +227,9 @@ int mei_ioctl_connect_client(struct file *file,
 			goto end;
 		}
 		clear_bit(cl->host_client_id, dev->host_clients_map);
-		list_for_each_entry_safe(cl_pos, cl_next,
-					 &dev->file_list, link) {
-			if (mei_cl_cmp_id(cl, cl_pos)) {
-				dev_dbg(&dev->pdev->dev,
-					"remove file private data node host"
-				    " client = %d, ME client = %d.\n",
-				    cl_pos->host_client_id,
-				    cl_pos->me_client_id);
-				list_del(&cl_pos->link);
-			}
+		mei_me_cl_unlink(dev, cl);
 
-		}
-		dev_dbg(&dev->pdev->dev, "free file private data memory.\n");
 		kfree(cl);
-
 		cl = NULL;
 		file->private_data = &dev->iamthif_cl;
 
