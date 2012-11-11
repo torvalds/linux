@@ -44,9 +44,9 @@ typedef int             BOOL;
 
 /****** Simple typedefs  ***************************************************/
 
-typedef unsigned char   BYTE;           //  8-bit
-typedef unsigned short  WORD;           // 16-bit
-typedef unsigned long   DWORD;          // 32-bit
+typedef u8 BYTE;
+typedef u16 WORD;
+typedef u32 DWORD;
 
 // QWORD is for those situation that we want
 // an 8-byte-aligned 8 byte long structure
@@ -62,8 +62,8 @@ typedef UQuadWord       QWORD;          // 64-bit
 
 /****** Common pointer types ***********************************************/
 
-typedef unsigned long   ULONG_PTR;      // 32-bit
-typedef unsigned long   DWORD_PTR;      // 32-bit
+typedef u32 ULONG_PTR;
+typedef u32 DWORD_PTR;
 
 // boolean pointer
 
