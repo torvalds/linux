@@ -1217,7 +1217,7 @@ static BOOL s_bHandleRxEncryption (
     if (byDecMode == KEY_CTL_WEP) {
         // handle WEP
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
-            (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == TRUE)) {
+		(((PSKeyTable)(&pKey->pvKeyTable))->bSoftWEP == TRUE)) {
             // Software WEP
             // 1. 3253A
             // 2. WEP 256
@@ -1324,9 +1324,9 @@ static BOOL s_bHostWepRxEncryption (
 
     if (byDecMode == KEY_CTL_WEP) {
         // handle WEP
-        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byDecMode == KEY_CTL_WEP \n");
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"byDecMode == KEY_CTL_WEP\n");
         if ((pDevice->byLocalID <= REV_ID_VT3253_A1) ||
-            (((PSKeyTable)(pKey->pvKeyTable))->bSoftWEP == TRUE) ||
+		(((PSKeyTable)(&pKey->pvKeyTable))->bSoftWEP == TRUE) ||
             (bOnFly == FALSE)) {
             // Software WEP
             // 1. 3253A
