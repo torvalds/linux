@@ -74,6 +74,12 @@
 #define GEM_HRT					0x0084
 #define GEM_SA1B				0x0088
 #define GEM_SA1T				0x008C
+#define GEM_SA2B				0x0090
+#define GEM_SA2T				0x0094
+#define GEM_SA3B				0x0098
+#define GEM_SA3T				0x009C
+#define GEM_SA4B				0x00A0
+#define GEM_SA4T				0x00A4
 #define GEM_OTX					0x0100
 #define GEM_DCFG1				0x0280
 #define GEM_DCFG2				0x0284

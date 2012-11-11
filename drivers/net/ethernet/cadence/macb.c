@@ -108,6 +108,14 @@ void macb_set_hwaddr(struct macb *bp)
 	macb_or_gem_writel(bp, SA1B, bottom);
 	top = cpu_to_le16(*((u16 *)(bp->dev->dev_addr + 4)));
 	macb_or_gem_writel(bp, SA1T, top);
+
+	/* Clear unused address register sets */
+	macb_or_gem_writel(bp, SA2B, 0);
+	macb_or_gem_writel(bp, SA2T, 0);
+	macb_or_gem_writel(bp, SA3B, 0);
+	macb_or_gem_writel(bp, SA3T, 0);
+	macb_or_gem_writel(bp, SA4B, 0);
+	macb_or_gem_writel(bp, SA4T, 0);
 }
 EXPORT_SYMBOL_GPL(macb_set_hwaddr);
 
