@@ -119,14 +119,12 @@ void mei_amthif_host_init(struct mei_device *dev)
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file)
 {
-	struct mei_cl *cl_temp;
 	struct mei_cl_cb *pos = NULL;
 	struct mei_cl_cb *next = NULL;
 
 	list_for_each_entry_safe(pos, next,
 				&dev->amthif_rd_complete_list.list, list) {
-		cl_temp = (struct mei_cl *)pos->file_private;
-		if (cl_temp && cl_temp == &dev->iamthif_cl &&
+		if (pos->cl && pos->cl == &dev->iamthif_cl &&
 			pos->file_object == file)
 			return pos;
 	}
@@ -370,7 +368,6 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
  */
 void mei_amthif_run_next_cmd(struct mei_device *dev)
 {
-	struct mei_cl *cl_tmp;
 	struct mei_cl_cb *pos = NULL;
 	struct mei_cl_cb *next = NULL;
 	int status;
@@ -390,9 +387,8 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	list_for_each_entry_safe(pos, next, &dev->amthif_cmd_list.list, list) {
 		list_del(&pos->list);
-		cl_tmp = (struct mei_cl *)pos->file_private;
 
-		if (cl_tmp && cl_tmp == &dev->iamthif_cl) {
+		if (pos->cl && pos->cl == &dev->iamthif_cl) {
 			status = mei_amthif_send_cmd(dev, pos);
 			if (status) {
 				dev_dbg(&dev->pdev->dev,
@@ -500,7 +496,6 @@ int mei_amthif_irq_process_completed(struct mei_device *dev, s32 *slots,
 int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
 		struct mei_device *dev, struct mei_msg_hdr *mei_hdr)
 {
-	struct mei_cl *cl;
 	struct mei_cl_cb *cb;
 	unsigned char *buffer;
 
@@ -528,14 +523,13 @@ int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
 	cb = dev->iamthif_current_cb;
 	dev->iamthif_current_cb = NULL;
 
-	cl = (struct mei_cl *)cb->file_private;
-	if (!cl)
+	if (!cb->cl)
 		return -ENODEV;
 
 	dev->iamthif_stall_timer = 0;
 	cb->buf_idx = dev->iamthif_msg_buf_index;
 	cb->read_time = jiffies;
-	if (dev->iamthif_ioctl && cl == &dev->iamthif_cl) {
+	if (dev->iamthif_ioctl && cb->cl == &dev->iamthif_cl) {
 		/* found the iamthif cb */
 		dev_dbg(&dev->pdev->dev, "complete the amthi read cb.\n ");
 		dev_dbg(&dev->pdev->dev, "add the amthi read cb to complete.\n ");

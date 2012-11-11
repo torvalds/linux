@@ -55,10 +55,8 @@ void mei_io_list_flush(struct mei_cl_cb *list, struct mei_cl *cl)
 	struct mei_cl_cb *next;
 
 	list_for_each_entry_safe(pos, next, &list->list, list) {
-		if (pos->file_private) {
-			struct mei_cl *cl_tmp;
-			cl_tmp = (struct mei_cl *)pos->file_private;
-			if (mei_cl_cmp_id(cl, cl_tmp))
+		if (pos->cl) {
+			if (mei_cl_cmp_id(cl, pos->cl))
 				list_del(&pos->list);
 		}
 	}

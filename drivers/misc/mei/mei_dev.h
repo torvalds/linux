@@ -143,10 +143,17 @@ struct mei_message_data {
 };
 
 
+struct mei_cl;
+
+/*
+ * struct mei_cl_cb - file operation callback structure
+ *
+ * @cl - file client who is running this operation
+ */
 struct mei_cl_cb {
 	struct list_head list;
+	struct mei_cl *cl;
 	enum mei_cb_major_types major_file_operations;
-	void *file_private;
 	struct mei_message_data request_buffer;
 	struct mei_message_data response_buffer;
 	unsigned long buf_idx;

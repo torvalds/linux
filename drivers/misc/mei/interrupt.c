@@ -113,7 +113,7 @@ static int mei_irq_thread_read_client_message(struct mei_cl_cb *complete_list,
 		goto quit;
 
 	list_for_each_entry_safe(cb_pos, cb_next, &dev->read_list.list, list) {
-		cl = (struct mei_cl *)cb_pos->file_private;
+		cl = cb_pos->cl;
 		if (cl && _mei_irq_thread_state_ok(cl, mei_hdr)) {
 			cl->reading_state = MEI_READING;
 			buffer = cb_pos->response_buffer.data + cb_pos->buf_idx;
@@ -263,7 +263,7 @@ static void mei_client_connect_response(struct mei_device *dev,
 	}
 	list_for_each_entry_safe(pos, next, &dev->ctrl_rd_list.list, list) {
 
-		cl = (struct mei_cl *)pos->file_private;
+		cl = pos->cl;
 		if (!cl) {
 			list_del(&pos->list);
 			return;
@@ -301,7 +301,7 @@ static void mei_client_disconnect_response(struct mei_device *dev,
 			rs->status);
 
 	list_for_each_entry_safe(pos, next, &dev->ctrl_rd_list.list, list) {
-		cl = (struct mei_cl *)pos->file_private;
+		cl = pos->cl;
 
 		if (!cl) {
 			list_del(&pos->list);
@@ -981,7 +981,7 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 
 	list = &dev->write_waiting_list;
 	list_for_each_entry_safe(pos, next, &list->list, list) {
-		cl = (struct mei_cl *)pos->file_private;
+		cl = pos->cl;
 		if (cl == NULL)
 			continue;
 
@@ -1039,7 +1039,7 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 	/* complete control write list CB */
 	dev_dbg(&dev->pdev->dev, "complete control write list cb.\n");
 	list_for_each_entry_safe(pos, next, &dev->ctrl_wr_list.list, list) {
-		cl = (struct mei_cl *) pos->file_private;
+		cl = pos->cl;
 		if (!cl) {
 			list_del(&pos->list);
 			return -ENODEV;
@@ -1077,7 +1077,7 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 	/* complete  write list CB */
 	dev_dbg(&dev->pdev->dev, "complete write list cb.\n");
 	list_for_each_entry_safe(pos, next, &dev->write_list.list, list) {
-		cl = (struct mei_cl *)pos->file_private;
+		cl = pos->cl;
 		if (cl == NULL)
 			continue;
 
@@ -1316,7 +1316,7 @@ end:
 
 
 	list_for_each_entry_safe(cb_pos, cb_next, &complete_list.list, list) {
-		cl = (struct mei_cl *)cb_pos->file_private;
+		cl = cb_pos->cl;
 		list_del(&cb_pos->list);
 		if (cl) {
 			if (cl != &dev->iamthif_cl) {

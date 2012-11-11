@@ -189,13 +189,9 @@ static struct mei_cl_cb *find_read_list_entry(
 	struct mei_cl_cb *next = NULL;
 
 	dev_dbg(&dev->pdev->dev, "remove read_list CB\n");
-	list_for_each_entry_safe(pos, next, &dev->read_list.list, list) {
-		struct mei_cl *cl_temp;
-		cl_temp = (struct mei_cl *)pos->file_private;
-
-		if (mei_cl_cmp_id(cl, cl_temp))
+	list_for_each_entry_safe(pos, next, &dev->read_list.list, list)
+		if (mei_cl_cmp_id(cl, pos->cl))
 			return pos;
-	}
 	return NULL;
 }
 

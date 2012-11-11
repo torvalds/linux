@@ -71,7 +71,7 @@ struct mei_cl_cb *mei_io_cb_init(struct mei_cl *cl, struct file *fp)
 	mei_io_list_init(cb);
 
 	cb->file_object = fp;
-	cb->file_private = cl;
+	cb->cl = cl;
 	cb->buf_idx = 0;
 	return cb;
 }
