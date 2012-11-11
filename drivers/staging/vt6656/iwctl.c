@@ -1488,17 +1488,15 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 	size_t seq_len = 0;
 	size_t key_len = 0;
 	u8 *buf;
-	size_t blen;
 	u8 key_array[64];
 	int ret = 0;
 
-	PRINT_K("SIOCSIWENCODEEXT...... \n");
+	PRINT_K("SIOCSIWENCODEEXT......\n");
 
-	blen = sizeof(*param);
-	buf = kmalloc((int)blen, (int)GFP_KERNEL);
+	buf = kzalloc(sizeof(struct viawget_wpa_param), GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
-	memset(buf, 0, blen);
+
 	param = (struct viawget_wpa_param *)buf;
 
 // recover alg_name
@@ -1592,7 +1590,7 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 	spin_unlock_irq(&pDevice->lock);
 
 error:
-	kfree(param);
+	kfree(buf);
 	return ret;
 }
 
