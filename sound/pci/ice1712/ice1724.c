@@ -2362,6 +2362,8 @@ static int __devinit snd_vt1724_read_eeprom(struct snd_ice1712 *ice,
 	}
 	printk(KERN_WARNING "ice1724: No matching model found for ID 0x%x\n",
 	       ice->eeprom.subvendor);
+	/* assume AC97-only card which can suspend without additional code */
+	ice->pm_suspend_enabled = 1;
 
  found:
 	ice->eeprom.size = snd_vt1724_read_i2c(ice, dev, 0x04);
