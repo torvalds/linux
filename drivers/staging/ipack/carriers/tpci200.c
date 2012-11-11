@@ -209,7 +209,8 @@ static int tpci200_request_irq(struct ipack_device *dev,
 
 	if (tpci200->slots[dev->slot].irq != NULL) {
 		dev_err(&dev->dev,
-			"Slot [%d:%d] IRQ already registered !\n", dev->bus->bus_nr,
+			"Slot [%d:%d] IRQ already registered !\n",
+			dev->bus->bus_nr,
 			dev->slot);
 		res = -EINVAL;
 		goto out_unlock;
