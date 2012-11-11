@@ -1452,12 +1452,10 @@ s_bPacketToWirelessUsb(
 
 
     pvRrvTime = pMICHDR = pvRTS = pvCTS = pvTxDataHd = NULL;
-    if ((bNeedEncryption) && (pTransmitKey != NULL))  {
-        if (((PSKeyTable) (pTransmitKey->pvKeyTable))->bSoftWEP == TRUE) {
-            // WEP 256
-            bSoftWEP = TRUE;
-        }
-    }
+	if (bNeedEncryption && pTransmitKey->pvKeyTable) {
+		if (((PSKeyTable)&pTransmitKey->pvKeyTable)->bSoftWEP == TRUE)
+			bSoftWEP = TRUE; /* WEP 256 */
+	}
 
     pTxBufHead = (PTX_BUFFER) usbPacketBuf;
     memset(pTxBufHead, 0, sizeof(TX_BUFFER));
