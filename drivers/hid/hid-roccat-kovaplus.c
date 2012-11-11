@@ -218,9 +218,10 @@ KOVAPLUS_SYSFS_R(thingy, THINGY)
 	.write = kovaplus_sysfs_write_ ## thingy \
 }
 
+KOVAPLUS_SYSFS_W(control, CONTROL)
 KOVAPLUS_SYSFS_RW(info, INFO)
-KOVAPLUS_SYSFS_W(profile_settings, PROFILE_SETTINGS)
-KOVAPLUS_SYSFS_W(profile_buttons, PROFILE_BUTTONS)
+KOVAPLUS_SYSFS_RW(profile_settings, PROFILE_SETTINGS)
+KOVAPLUS_SYSFS_RW(profile_buttons, PROFILE_BUTTONS)
 
 static ssize_t kovaplus_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
@@ -369,9 +370,10 @@ static struct device_attribute kovaplus_attributes[] = {
 };
 
 static struct bin_attribute kovaplus_bin_attributes[] = {
+	KOVAPLUS_BIN_ATTRIBUTE_W(control, CONTROL),
 	KOVAPLUS_BIN_ATTRIBUTE_RW(info, INFO),
-	KOVAPLUS_BIN_ATTRIBUTE_W(profile_settings, PROFILE_SETTINGS),
-	KOVAPLUS_BIN_ATTRIBUTE_W(profile_buttons, PROFILE_BUTTONS),
+	KOVAPLUS_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS),
+	KOVAPLUS_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS),
 	{
 		.attr = { .name = "profile1_settings", .mode = 0440 },
 		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
