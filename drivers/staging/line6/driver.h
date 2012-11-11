@@ -52,12 +52,6 @@
 
 #define LINE6_CHANNEL_MASK 0x0f
 
-#ifdef CONFIG_LINE6_USB_DEBUG
-#define DEBUG_MESSAGES(x) (x)
-#else
-#define DEBUG_MESSAGES(x)
-#endif
-
 #define MISSING_CASE	\
 	printk(KERN_ERR "line6usb driver bug: missing case in %s:%d\n", \
 		__FILE__, __LINE__)
