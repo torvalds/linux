@@ -125,13 +125,20 @@ enum mei_wd_states {
 	MEI_WD_STOPPING,
 };
 
-/* MEI CB */
-enum mei_cb_major_types {
-	MEI_READ = 0,
-	MEI_WRITE,
-	MEI_IOCTL,
-	MEI_OPEN,
-	MEI_CLOSE
+/**
+ * enum mei_cb_file_ops  - file operation associated with the callback
+ * @MEI_FOP_READ   - read
+ * @MEI_FOP_WRITE  - write
+ * @MEI_FOP_IOCTL  - ioctl
+ * @MEI_FOP_OPEN   - open
+ * @MEI_FOP_CLOSE  - close
+ */
+enum mei_cb_file_ops {
+	MEI_FOP_READ = 0,
+	MEI_FOP_WRITE,
+	MEI_FOP_IOCTL,
+	MEI_FOP_OPEN,
+	MEI_FOP_CLOSE
 };
 
 /*
@@ -145,15 +152,16 @@ struct mei_message_data {
 
 struct mei_cl;
 
-/*
+/**
  * struct mei_cl_cb - file operation callback structure
  *
  * @cl - file client who is running this operation
+ * @fop_type - file operation type
  */
 struct mei_cl_cb {
 	struct list_head list;
 	struct mei_cl *cl;
-	enum mei_cb_major_types major_file_operations;
+	enum mei_cb_file_ops fop_type;
 	struct mei_message_data request_buffer;
 	struct mei_message_data response_buffer;
 	unsigned long buf_idx;

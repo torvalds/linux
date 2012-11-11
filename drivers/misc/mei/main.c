@@ -626,7 +626,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		return length;
 	}
 
-	write_cb->major_file_operations = MEI_WRITE;
+	write_cb->fop_type = MEI_FOP_WRITE;
 
 	dev_dbg(&dev->pdev->dev, "host client = %d, ME client = %d\n",
 	    cl->host_client_id, cl->me_client_id);

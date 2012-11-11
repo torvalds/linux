@@ -193,7 +193,7 @@ int mei_ioctl_connect_client(struct file *file,
 		goto end;
 	}
 
-	cb->major_file_operations = MEI_IOCTL;
+	cb->fop_type = MEI_FOP_IOCTL;
 
 	if (dev->dev_state != MEI_DEV_ENABLED) {
 		rets = -ENODEV;
@@ -360,7 +360,7 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	if (rets)
 		goto err;
 
-	cb->major_file_operations = MEI_READ;
+	cb->fop_type = MEI_FOP_READ;
 	cl->read_cb = cb;
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;

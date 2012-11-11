@@ -57,14 +57,14 @@ irqreturn_t mei_interrupt_quick_handler(int irq, void *dev_id)
  */
 static void _mei_cmpl(struct mei_cl *cl, struct mei_cl_cb *cb_pos)
 {
-	if (cb_pos->major_file_operations == MEI_WRITE) {
+	if (cb_pos->fop_type == MEI_FOP_WRITE) {
 		mei_io_cb_free(cb_pos);
 		cb_pos = NULL;
 		cl->writing_state = MEI_WRITE_COMPLETE;
 		if (waitqueue_active(&cl->tx_wait))
 			wake_up_interruptible(&cl->tx_wait);
 
-	} else if (cb_pos->major_file_operations == MEI_READ &&
+	} else if (cb_pos->fop_type == MEI_FOP_READ &&
 			MEI_READING == cl->reading_state) {
 		cl->reading_state = MEI_READ_COMPLETE;
 		if (waitqueue_active(&cl->rx_wait))
@@ -268,7 +268,7 @@ static void mei_client_connect_response(struct mei_device *dev,
 			list_del(&pos->list);
 			return;
 		}
-		if (MEI_IOCTL == pos->major_file_operations) {
+		if (pos->fop_type == MEI_FOP_IOCTL) {
 			if (is_treat_specially_client(cl, rs)) {
 				list_del(&pos->list);
 				cl->status = 0;
@@ -988,8 +988,8 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 		cl->status = 0;
 		list_del(&pos->list);
 		if (MEI_WRITING == cl->writing_state &&
-		   (pos->major_file_operations == MEI_WRITE) &&
-		   (cl != &dev->iamthif_cl)) {
+		    pos->fop_type == MEI_FOP_WRITE &&
+		    cl != &dev->iamthif_cl) {
 			dev_dbg(&dev->pdev->dev, "MEI WRITE COMPLETE\n");
 			cl->writing_state = MEI_WRITE_COMPLETE;
 			list_add_tail(&pos->list, &cmpl_list->list);
@@ -1044,22 +1044,22 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 			list_del(&pos->list);
 			return -ENODEV;
 		}
-		switch (pos->major_file_operations) {
-		case MEI_CLOSE:
+		switch (pos->fop_type) {
+		case MEI_FOP_CLOSE:
 			/* send disconnect message */
 			ret = _mei_irq_thread_close(dev, slots, pos, cl, cmpl_list);
 			if (ret)
 				return ret;
 
 			break;
-		case MEI_READ:
+		case MEI_FOP_READ:
 			/* send flow control message */
 			ret = _mei_irq_thread_read(dev, slots, pos, cl, cmpl_list);
 			if (ret)
 				return ret;
 
 			break;
-		case MEI_IOCTL:
+		case MEI_FOP_IOCTL:
 			/* connect message */
 			if (mei_other_client_is_connecting(dev, cl))
 				continue;

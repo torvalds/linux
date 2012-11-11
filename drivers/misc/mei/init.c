@@ -597,7 +597,7 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	if (!cb)
 		return -ENOMEM;
 
-	cb->major_file_operations = MEI_CLOSE;
+	cb->fop_type = MEI_FOP_CLOSE;
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;
 		if (mei_disconnect(dev, cl)) {
