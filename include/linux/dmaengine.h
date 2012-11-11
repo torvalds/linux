@@ -608,7 +608,10 @@ static inline int dmaengine_device_control(struct dma_chan *chan,
 					   enum dma_ctrl_cmd cmd,
 					   unsigned long arg)
 {
-	return chan->device->device_control(chan, cmd, arg);
+	if (chan->device->device_control)
+		return chan->device->device_control(chan, cmd, arg);
+	else
+		return -ENOSYS;
 }
 
 static inline int dmaengine_slave_config(struct dma_chan *chan,
