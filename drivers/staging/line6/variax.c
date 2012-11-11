@@ -262,10 +262,9 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 					     2, VARIAX_DUMP_PASS3);
 				}
 			} else {
-				DEBUG_MESSAGES(dev_err
-					       (variax->line6.ifcdev,
-						"illegal length %d of model data\n",
-						variax->line6.message_length));
+				dev_dbg(variax->line6.ifcdev,
+					"illegal length %d of model data\n",
+					variax->line6.message_length);
 				line6_dump_finished(&variax->dumpreq);
 			}
 		} else if (memcmp(buf + 1, variax_request_bank + 1,
@@ -295,9 +294,8 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 		break;
 
 	default:
-		DEBUG_MESSAGES(dev_err
-			       (variax->line6.ifcdev,
-				"Variax: unknown message %02X\n", buf[0]));
+		dev_dbg(variax->line6.ifcdev,
+			"Variax: unknown message %02X\n", buf[0]);
 	}
 }
 

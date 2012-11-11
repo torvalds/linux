@@ -412,10 +412,8 @@ static void line6_data_received(struct urb *urb)
 
 	if (done < urb->actual_length) {
 		line6_midibuf_ignore(mb, done);
-		DEBUG_MESSAGES(dev_err
-			       (line6->ifcdev,
-				"%d %d buffer overflow - message skipped\n",
-				done, urb->actual_length));
+		dev_dbg(line6->ifcdev, "%d %d buffer overflow - message skipped\n",
+			done, urb->actual_length);
 	}
 
 	for (;;) {

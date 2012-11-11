@@ -252,25 +252,19 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 						break;
 
 					default:
-						DEBUG_MESSAGES(dev_err
-							       (pod->
-								line6.ifcdev,
-								"unknown dump code %02X\n",
-								pod->
-								dumpreq.in_progress));
+						dev_dbg(pod->line6.ifcdev,
+							"unknown dump code %02X\n",
+							pod->dumpreq.in_progress);
 					}
 
 					line6_dump_finished(&pod->dumpreq);
 					pod_startup3(pod);
 				} else
-					DEBUG_MESSAGES(dev_err
-						       (pod->line6.ifcdev,
-							"wrong size of channel dump message (%d instead of %d)\n",
-							pod->
-							line6.message_length,
-							(int)
-							sizeof(pod->prog_data) +
-							7));
+					dev_dbg(pod->line6.ifcdev,
+						"wrong size of channel dump message (%d instead of %d)\n",
+						pod->line6.message_length,
+						(int)sizeof(pod->prog_data) +
+						7);
 
 				break;
 
@@ -302,11 +296,9 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 #undef PROCESS_SYSTEM_PARAM
 
 					default:
-						DEBUG_MESSAGES(dev_err
-							       (pod->
-								line6.ifcdev,
-								"unknown tuner/system response %02X\n",
-								buf[6]));
+						dev_dbg(pod->line6.ifcdev,
+							"unknown tuner/system response %02X\n",
+							buf[6]);
 					}
 
 					break;
@@ -321,25 +313,21 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 				break;
 
 			case POD_SYSEX_CLIP:
-				DEBUG_MESSAGES(dev_err
-					       (pod->line6.ifcdev,
-						"audio clipped\n"));
+				dev_dbg(pod->line6.ifcdev, "audio clipped\n");
 				pod->clipping.value = 1;
 				wake_up(&pod->clipping.wait);
 				break;
 
 			case POD_SYSEX_STORE:
-				DEBUG_MESSAGES(dev_err
-					       (pod->line6.ifcdev,
-						"message %02X not yet implemented\n",
-						buf[5]));
+				dev_dbg(pod->line6.ifcdev,
+					"message %02X not yet implemented\n",
+					buf[5]);
 				break;
 
 			default:
-				DEBUG_MESSAGES(dev_err
-					       (pod->line6.ifcdev,
-						"unknown sysex message %02X\n",
-						buf[5]));
+				dev_dbg(pod->line6.ifcdev,
+					"unknown sysex message %02X\n",
+					buf[5]);
 			}
 		} else
 		    if (memcmp
@@ -352,9 +340,7 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 			    buf[10];
 			pod_startup4(pod);
 		} else
-			DEBUG_MESSAGES(dev_err
-				       (pod->line6.ifcdev,
-					"unknown sysex header\n"));
+			dev_dbg(pod->line6.ifcdev, "unknown sysex header\n");
 
 		break;
 
@@ -362,9 +348,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		break;
 
 	default:
-		DEBUG_MESSAGES(dev_err
-			       (pod->line6.ifcdev,
-				"POD: unknown message %02X\n", buf[0]));
+		dev_dbg(pod->line6.ifcdev, "POD: unknown message %02X\n",
+			buf[0]);
 	}
 }
 
