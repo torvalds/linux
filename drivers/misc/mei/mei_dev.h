@@ -389,6 +389,8 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
 int mei_amthif_read(struct mei_device *dev, struct file *file,
 	      char __user *ubuf, size_t length, loff_t *offset);
 
+int mei_amthif_release(struct mei_device *dev, struct file *file);
+
 struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 						struct file *file);
 
