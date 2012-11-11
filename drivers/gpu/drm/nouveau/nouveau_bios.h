@@ -128,12 +128,6 @@ struct nvbios {
 	} state;
 
 	struct {
-		struct dcb_output *output;
-		int crtc;
-		uint16_t script_table_ptr;
-	} display;
-
-	struct {
 		uint16_t fptablepointer;	/* also used by tmds */
 		uint16_t fpxlatetableptr;
 		int xlatwidth;
@@ -185,8 +179,6 @@ void nouveau_bios_takedown(struct drm_device *dev);
 int nouveau_run_vbios_init(struct drm_device *);
 struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *, int index);
-int nouveau_bios_run_display_table(struct drm_device *, u16 id, int clk,
-					  struct dcb_output *, int crtc);
 bool nouveau_bios_fp_mode(struct drm_device *, struct drm_display_mode *);
 uint8_t *nouveau_bios_embedded_edid(struct drm_device *);
 int nouveau_bios_parse_lvds_table(struct drm_device *, int pxclk,
