@@ -71,15 +71,6 @@ static int vti_tunnel_bind_dev(struct net_device *dev);
 #define for_each_ip_tunnel_rcu(start) \
 	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
-/* often modified stats are per cpu, other are shared (netdev->stats) */
-struct pcpu_tstats {
-	u64	rx_packets;
-	u64	rx_bytes;
-	u64	tx_packets;
-	u64	tx_bytes;
-	struct	u64_stats_sync	syncp;
-};
-
 #define VTI_XMIT(stats1, stats2) do {				\
 	int err;						\
 	int pkt_len = skb->len;					\

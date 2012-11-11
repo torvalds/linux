@@ -769,7 +769,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	vxlan_set_owner(dev, skb);
 
-	/* See __IPTUNNEL_XMIT */
+	/* See iptunnel_xmit() */
 	skb->ip_summed = CHECKSUM_NONE;
 	ip_select_ident(iph, &rt->dst, NULL);
 

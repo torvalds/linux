@@ -88,15 +88,6 @@ struct sit_net {
 #define for_each_ip_tunnel_rcu(start) \
 	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
-/* often modified stats are per cpu, other are shared (netdev->stats) */
-struct pcpu_tstats {
-	u64	rx_packets;
-	u64	rx_bytes;
-	u64	tx_packets;
-	u64	tx_bytes;
-	struct u64_stats_sync	syncp;
-};
-
 static struct rtnl_link_stats64 *ipip6_get_stats64(struct net_device *dev,
 						   struct rtnl_link_stats64 *tot)
 {
@@ -685,7 +676,6 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 				     struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
-	struct pcpu_tstats *tstats;
 	const struct iphdr  *tiph = &tunnel->parms.iph;
 	const struct ipv6hdr *iph6 = ipv6_hdr(skb);
 	u8     tos = tunnel->parms.iph.tos;
@@ -866,9 +856,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	if ((iph->ttl = tiph->ttl) == 0)
 		iph->ttl	=	iph6->hop_limit;
 
-	nf_reset(skb);
-	tstats = this_cpu_ptr(dev->tstats);
-	__IPTUNNEL_XMIT(tstats, &dev->stats);
+	iptunnel_xmit(skb, dev);
 	return NETDEV_TX_OK;
 
 tx_error_icmp:

@@ -116,15 +116,6 @@ static u32 HASH_ADDR(const struct in6_addr *addr)
 #define for_each_ip_tunnel_rcu(start) \
 	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
-/* often modified stats are per cpu, other are shared (netdev->stats) */
-struct pcpu_tstats {
-	u64	rx_packets;
-	u64	rx_bytes;
-	u64	tx_packets;
-	u64	tx_bytes;
-	struct u64_stats_sync	syncp;
-};
-
 static struct rtnl_link_stats64 *ip6gre_get_stats64(struct net_device *dev,
 		struct rtnl_link_stats64 *tot)
 {
