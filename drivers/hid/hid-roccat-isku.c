@@ -218,6 +218,7 @@ ISKU_SYSFS_RW(last_set, LAST_SET)
 ISKU_SYSFS_W(talk, TALK)
 ISKU_SYSFS_R(info, INFO)
 ISKU_SYSFS_W(control, CONTROL)
+ISKU_SYSFS_W(reset, RESET)
 
 static struct bin_attribute isku_bin_attributes[] = {
 	ISKU_BIN_ATTR_RW(macro, MACRO),
@@ -233,6 +234,7 @@ static struct bin_attribute isku_bin_attributes[] = {
 	ISKU_BIN_ATTR_W(talk, TALK),
 	ISKU_BIN_ATTR_R(info, INFO),
 	ISKU_BIN_ATTR_W(control, CONTROL),
+	ISKU_BIN_ATTR_W(reset, RESET),
 	__ATTR_NULL
 };
 
