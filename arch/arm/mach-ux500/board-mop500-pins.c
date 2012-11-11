@@ -9,10 +9,9 @@
 #include <linux/bug.h>
 #include <linux/string.h>
 #include <linux/pinctrl/machine.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <asm/mach-types.h>
-#include <plat/pincfg.h>
-#include <plat/gpio-nomadik.h>
 
 #include <mach/hardware.h>
 

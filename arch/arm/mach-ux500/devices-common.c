@@ -11,8 +11,7 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
-
-#include <plat/gpio-nomadik.h>
+#include <linux/platform_data/pinctrl-nomadik.h>
 
 #include <mach/hardware.h>
 
