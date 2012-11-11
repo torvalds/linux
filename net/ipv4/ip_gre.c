@@ -164,12 +164,6 @@ struct ipgre_net {
 #define tunnels_r	tunnels[2]
 #define tunnels_l	tunnels[1]
 #define tunnels_wc	tunnels[0]
-/*
- * Locking : hash tables are protected by RCU and RTNL
- */
-
-#define for_each_ip_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
 static struct rtnl_link_stats64 *ipgre_get_stats64(struct net_device *dev,
 						   struct rtnl_link_stats64 *tot)
@@ -241,7 +235,7 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 		       ARPHRD_ETHER : ARPHRD_IPGRE;
 	int score, cand_score = 4;
 
-	for_each_ip_tunnel_rcu(ign->tunnels_r_l[h0 ^ h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_r_l[h0 ^ h1]) {
 		if (local != t->parms.iph.saddr ||
 		    remote != t->parms.iph.daddr ||
 		    !(t->dev->flags & IFF_UP))
@@ -268,7 +262,7 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	for_each_ip_tunnel_rcu(ign->tunnels_r[h0 ^ h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_r[h0 ^ h1]) {
 		if (remote != t->parms.iph.daddr ||
 		    !(t->dev->flags & IFF_UP))
 			continue;
@@ -294,7 +288,7 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	for_each_ip_tunnel_rcu(ign->tunnels_l[h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_l[h1]) {
 		if ((local != t->parms.iph.saddr &&
 		     (local != t->parms.iph.daddr ||
 		      !ipv4_is_multicast(local))) ||
@@ -322,7 +316,7 @@ static struct ip_tunnel *ipgre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	for_each_ip_tunnel_rcu(ign->tunnels_wc[h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_wc[h1]) {
 		if (t->parms.i_key != key ||
 		    !(t->dev->flags & IFF_UP))
 			continue;

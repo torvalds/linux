@@ -109,12 +109,6 @@ static u32 HASH_ADDR(const struct in6_addr *addr)
 #define tunnels_r	tunnels[2]
 #define tunnels_l	tunnels[1]
 #define tunnels_wc	tunnels[0]
-/*
- * Locking : hash tables are protected by RCU and RTNL
- */
-
-#define for_each_ip_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
 
 static struct rtnl_link_stats64 *ip6gre_get_stats64(struct net_device *dev,
 		struct rtnl_link_stats64 *tot)
@@ -172,7 +166,7 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		       ARPHRD_ETHER : ARPHRD_IP6GRE;
 	int score, cand_score = 4;
 
-	for_each_ip_tunnel_rcu(ign->tunnels_r_l[h0 ^ h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_r_l[h0 ^ h1]) {
 		if (!ipv6_addr_equal(local, &t->parms.laddr) ||
 		    !ipv6_addr_equal(remote, &t->parms.raddr) ||
 		    key != t->parms.i_key ||
@@ -197,7 +191,7 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	for_each_ip_tunnel_rcu(ign->tunnels_r[h0 ^ h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_r[h0 ^ h1]) {
 		if (!ipv6_addr_equal(remote, &t->parms.raddr) ||
 		    key != t->parms.i_key ||
 		    !(t->dev->flags & IFF_UP))
@@ -221,7 +215,7 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	for_each_ip_tunnel_rcu(ign->tunnels_l[h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_l[h1]) {
 		if ((!ipv6_addr_equal(local, &t->parms.laddr) &&
 			  (!ipv6_addr_equal(local, &t->parms.raddr) ||
 				 !ipv6_addr_is_multicast(local))) ||
@@ -247,7 +241,7 @@ static struct ip6_tnl *ip6gre_tunnel_lookup(struct net_device *dev,
 		}
 	}
 
-	for_each_ip_tunnel_rcu(ign->tunnels_wc[h1]) {
+	for_each_ip_tunnel_rcu(t, ign->tunnels_wc[h1]) {
 		if (t->parms.i_key != key ||
 		    !(t->dev->flags & IFF_UP))
 			continue;

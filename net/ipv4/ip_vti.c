@@ -66,11 +66,6 @@ static void vti_tunnel_setup(struct net_device *dev);
 static void vti_dev_free(struct net_device *dev);
 static int vti_tunnel_bind_dev(struct net_device *dev);
 
-/* Locking : hash tables are protected by RCU and RTNL */
-
-#define for_each_ip_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
-
 #define VTI_XMIT(stats1, stats2) do {				\
 	int err;						\
 	int pkt_len = skb->len;					\
@@ -133,19 +128,19 @@ static struct ip_tunnel *vti_tunnel_lookup(struct net *net,
 	struct ip_tunnel *t;
 	struct vti_net *ipn = net_generic(net, vti_net_id);
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_r_l[h0 ^ h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r_l[h0 ^ h1])
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
-	for_each_ip_tunnel_rcu(ipn->tunnels_r[h0])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r[h0])
 		if (remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_l[h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_l[h1])
 		if (local == t->parms.iph.saddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_wc[0])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_wc[0])
 		if (t && (t->dev->flags&IFF_UP))
 			return t;
 	return NULL;

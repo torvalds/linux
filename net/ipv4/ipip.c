@@ -140,13 +140,6 @@ static void ipip_tunnel_setup(struct net_device *dev);
 static void ipip_dev_free(struct net_device *dev);
 static struct rtnl_link_ops ipip_link_ops __read_mostly;
 
-/*
- * Locking : hash tables are protected by RCU and RTNL
- */
-
-#define for_each_ip_tunnel_rcu(start) \
-	for (t = rcu_dereference(start); t; t = rcu_dereference(t->next))
-
 static struct rtnl_link_stats64 *ipip_get_stats64(struct net_device *dev,
 						  struct rtnl_link_stats64 *tot)
 {
@@ -189,16 +182,16 @@ static struct ip_tunnel *ipip_tunnel_lookup(struct net *net,
 	struct ip_tunnel *t;
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_r_l[h0 ^ h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r_l[h0 ^ h1])
 		if (local == t->parms.iph.saddr &&
 		    remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_r[h0])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_r[h0])
 		if (remote == t->parms.iph.daddr && (t->dev->flags&IFF_UP))
 			return t;
 
-	for_each_ip_tunnel_rcu(ipn->tunnels_l[h1])
+	for_each_ip_tunnel_rcu(t, ipn->tunnels_l[h1])
 		if (local == t->parms.iph.saddr && (t->dev->flags&IFF_UP))
 			return t;
 
