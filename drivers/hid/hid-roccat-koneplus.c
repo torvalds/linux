@@ -177,14 +177,15 @@ KONEPLUS_SYSFS_R(thingy, THINGY)
 	.write = koneplus_sysfs_write_ ## thingy \
 }
 
+KONEPLUS_SYSFS_W(control, CONTROL)
 KONEPLUS_SYSFS_RW(info, INFO)
 KONEPLUS_SYSFS_W(talk, TALK)
 KONEPLUS_SYSFS_W(macro, MACRO)
 KONEPLUS_SYSFS_RW(sensor, SENSOR)
 KONEPLUS_SYSFS_RW(tcu, TCU)
 KONEPLUS_SYSFS_R(tcu_image, TCU_IMAGE)
-KONEPLUS_SYSFS_W(profile_settings, PROFILE_SETTINGS)
-KONEPLUS_SYSFS_W(profile_buttons, PROFILE_BUTTONS)
+KONEPLUS_SYSFS_RW(profile_settings, PROFILE_SETTINGS)
+KONEPLUS_SYSFS_RW(profile_buttons, PROFILE_BUTTONS)
 
 static ssize_t koneplus_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
@@ -306,14 +307,15 @@ static struct device_attribute koneplus_attributes[] = {
 };
 
 static struct bin_attribute koneplus_bin_attributes[] = {
+	KONEPLUS_BIN_ATTRIBUTE_W(control, CONTROL),
 	KONEPLUS_BIN_ATTRIBUTE_RW(info, INFO),
 	KONEPLUS_BIN_ATTRIBUTE_W(talk, TALK),
 	KONEPLUS_BIN_ATTRIBUTE_W(macro, MACRO),
 	KONEPLUS_BIN_ATTRIBUTE_RW(sensor, SENSOR),
 	KONEPLUS_BIN_ATTRIBUTE_RW(tcu, TCU),
 	KONEPLUS_BIN_ATTRIBUTE_R(tcu_image, TCU_IMAGE),
-	KONEPLUS_BIN_ATTRIBUTE_W(profile_settings, PROFILE_SETTINGS),
-	KONEPLUS_BIN_ATTRIBUTE_W(profile_buttons, PROFILE_BUTTONS),
+	KONEPLUS_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS),
+	KONEPLUS_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS),
 	{
 		.attr = { .name = "profile1_settings", .mode = 0440 },
 		.size = KONEPLUS_SIZE_PROFILE_SETTINGS,
