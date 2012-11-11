@@ -185,7 +185,7 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 	if (urb_size == 0) {
 		/* can't determine URB size */
 		spin_unlock_irqrestore(&line6pcm->lock_audio_out, flags);
-		dev_err(line6pcm->line6->ifcdev, "driver bug: urb_size = 0\n");	/* this is somewhat paranoid */
+		dev_err(line6pcm->line6->ifcdev, "driver bug: urb_size = 0\n");
 		return -EINVAL;
 	}
 
@@ -218,7 +218,8 @@ static int submit_audio_out_urb(struct snd_line6_pcm *line6pcm)
 				       len * bytes_per_frame, runtime->dma_area,
 				       (urb_frames - len) * bytes_per_frame);
 			} else
-				dev_err(line6pcm->line6->ifcdev, "driver bug: len = %d\n", len);	/* this is somewhat paranoid */
+				dev_err(line6pcm->line6->ifcdev, "driver bug: len = %d\n",
+					len);
 		} else {
 			memcpy(urb_out->transfer_buffer,
 			       runtime->dma_area +
@@ -319,7 +320,8 @@ void line6_unlink_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 }
 
 /*
-	Wait until unlinking of all currently active playback URBs has been finished.
+	Wait until unlinking of all currently active playback URBs has been
+	finished.
 */
 void line6_wait_clear_audio_out_urbs(struct snd_line6_pcm *line6pcm)
 {
@@ -413,7 +415,8 @@ static void audio_out_callback(struct urb *urb)
 	if (!shutdown) {
 		submit_audio_out_urb(line6pcm);
 
-		if (test_bit(LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM, &line6pcm->flags)) {
+		if (test_bit(LINE6_INDEX_PCM_ALSA_PLAYBACK_STREAM,
+			     &line6pcm->flags)) {
 			line6pcm->bytes_out += length;
 			if (line6pcm->bytes_out >= line6pcm->period_out) {
 				line6pcm->bytes_out %= line6pcm->period_out;
@@ -499,7 +502,8 @@ int snd_line6_playback_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 #ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_RESUME:
 #endif
-		err = line6_pcm_acquire(line6pcm, LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
+		err = line6_pcm_acquire(line6pcm,
+					LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
 
 		if (err < 0)
 			return err;
@@ -510,7 +514,8 @@ int snd_line6_playback_trigger(struct snd_line6_pcm *line6pcm, int cmd)
 #ifdef CONFIG_PM
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 #endif
-		err = line6_pcm_release(line6pcm, LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
+		err = line6_pcm_release(line6pcm,
+					LINE6_BIT_PCM_ALSA_PLAYBACK_STREAM);
 
 		if (err < 0)
 			return err;
