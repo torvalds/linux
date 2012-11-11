@@ -70,13 +70,6 @@ static int kovaplus_select_profile(struct usb_device *usb_dev, uint number,
 	return kovaplus_send_control(usb_dev, number, request);
 }
 
-static int kovaplus_get_info(struct usb_device *usb_dev,
-		struct kovaplus_info *buf)
-{
-	return roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_INFO,
-			buf, sizeof(struct kovaplus_info));
-}
-
 static int kovaplus_get_profile_settings(struct usb_device *usb_dev,
 		struct kovaplus_profile_settings *buf, uint number)
 {
@@ -88,15 +81,7 @@ static int kovaplus_get_profile_settings(struct usb_device *usb_dev,
 		return retval;
 
 	return roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_SETTINGS,
-			buf, sizeof(struct kovaplus_profile_settings));
-}
-
-static int kovaplus_set_profile_settings(struct usb_device *usb_dev,
-		struct kovaplus_profile_settings const *settings)
-{
-	return roccat_common2_send_with_status(usb_dev,
-			KOVAPLUS_COMMAND_PROFILE_SETTINGS,
-			settings, sizeof(struct kovaplus_profile_settings));
+			buf, KOVAPLUS_SIZE_PROFILE_SETTINGS);
 }
 
 static int kovaplus_get_profile_buttons(struct usb_device *usb_dev,
@@ -110,15 +95,7 @@ static int kovaplus_get_profile_buttons(struct usb_device *usb_dev,
 		return retval;
 
 	return roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_PROFILE_BUTTONS,
-			buf, sizeof(struct kovaplus_profile_buttons));
-}
-
-static int kovaplus_set_profile_buttons(struct usb_device *usb_dev,
-		struct kovaplus_profile_buttons const *buttons)
-{
-	return roccat_common2_send_with_status(usb_dev,
-			KOVAPLUS_COMMAND_PROFILE_BUTTONS,
-			buttons, sizeof(struct kovaplus_profile_buttons));
+			buf, KOVAPLUS_SIZE_PROFILE_BUTTONS);
 }
 
 /* retval is 0-4 on success, < 0 on error */
@@ -147,63 +124,121 @@ static int kovaplus_set_actual_profile(struct usb_device *usb_dev,
 			&buf, sizeof(struct kovaplus_actual_profile));
 }
 
+static ssize_t kovaplus_sysfs_read(struct file *fp, struct kobject *kobj,
+		char *buf, loff_t off, size_t count,
+		size_t real_size, uint command)
+{
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
+	struct kovaplus_device *kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
+	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
+	int retval;
+
+	if (off >= real_size)
+		return 0;
+
+	if (off != 0 || count != real_size)
+		return -EINVAL;
+
+	mutex_lock(&kovaplus->kovaplus_lock);
+	retval = roccat_common2_receive(usb_dev, command, buf, real_size);
+	mutex_unlock(&kovaplus->kovaplus_lock);
+
+	if (retval)
+		return retval;
+
+	return real_size;
+}
+
+static ssize_t kovaplus_sysfs_write(struct file *fp, struct kobject *kobj,
+		void const *buf, loff_t off, size_t count,
+		size_t real_size, uint command)
+{
+	struct device *dev =
+			container_of(kobj, struct device, kobj)->parent->parent;
+	struct kovaplus_device *kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
+	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
+	int retval;
+
+	if (off != 0 || count != real_size)
+		return -EINVAL;
+
+	mutex_lock(&kovaplus->kovaplus_lock);
+	retval = roccat_common2_send_with_status(usb_dev, command,
+			buf, real_size);
+	mutex_unlock(&kovaplus->kovaplus_lock);
+
+	if (retval)
+		return retval;
+
+	return real_size;
+}
+
+#define KOVAPLUS_SYSFS_W(thingy, THINGY) \
+static ssize_t kovaplus_sysfs_write_ ## thingy(struct file *fp, \
+		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
+		loff_t off, size_t count) \
+{ \
+	return kovaplus_sysfs_write(fp, kobj, buf, off, count, \
+			KOVAPLUS_SIZE_ ## THINGY, KOVAPLUS_COMMAND_ ## THINGY); \
+}
+
+#define KOVAPLUS_SYSFS_R(thingy, THINGY) \
+static ssize_t kovaplus_sysfs_read_ ## thingy(struct file *fp, \
+		struct kobject *kobj, struct bin_attribute *attr, char *buf, \
+		loff_t off, size_t count) \
+{ \
+	return kovaplus_sysfs_read(fp, kobj, buf, off, count, \
+			KOVAPLUS_SIZE_ ## THINGY, KOVAPLUS_COMMAND_ ## THINGY); \
+}
+
+#define KOVAPLUS_SYSFS_RW(thingy, THINGY) \
+KOVAPLUS_SYSFS_W(thingy, THINGY) \
+KOVAPLUS_SYSFS_R(thingy, THINGY)
+
+#define KOVAPLUS_BIN_ATTRIBUTE_RW(thingy, THINGY) \
+{ \
+	.attr = { .name = #thingy, .mode = 0660 }, \
+	.size = KOVAPLUS_SIZE_ ## THINGY, \
+	.read = kovaplus_sysfs_read_ ## thingy, \
+	.write = kovaplus_sysfs_write_ ## thingy \
+}
+
+#define KOVAPLUS_BIN_ATTRIBUTE_R(thingy, THINGY) \
+{ \
+	.attr = { .name = #thingy, .mode = 0440 }, \
+	.size = KOVAPLUS_SIZE_ ## THINGY, \
+	.read = kovaplus_sysfs_read_ ## thingy, \
+}
+
+#define KOVAPLUS_BIN_ATTRIBUTE_W(thingy, THINGY) \
+{ \
+	.attr = { .name = #thingy, .mode = 0220 }, \
+	.size = KOVAPLUS_SIZE_ ## THINGY, \
+	.write = kovaplus_sysfs_write_ ## thingy \
+}
+
+KOVAPLUS_SYSFS_RW(info, INFO)
+KOVAPLUS_SYSFS_W(profile_settings, PROFILE_SETTINGS)
+KOVAPLUS_SYSFS_W(profile_buttons, PROFILE_BUTTONS)
+
 static ssize_t kovaplus_sysfs_read_profilex_settings(struct file *fp,
 		struct kobject *kobj, struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count)
 {
 	struct device *dev =
 			container_of(kobj, struct device, kobj)->parent->parent;
-	struct kovaplus_device *kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
-
-	if (off >= sizeof(struct kovaplus_profile_settings))
-		return 0;
-
-	if (off + count > sizeof(struct kovaplus_profile_settings))
-		count = sizeof(struct kovaplus_profile_settings) - off;
-
-	mutex_lock(&kovaplus->kovaplus_lock);
-	memcpy(buf, ((char const *)&kovaplus->profile_settings[*(uint *)(attr->private)]) + off,
-			count);
-	mutex_unlock(&kovaplus->kovaplus_lock);
-
-	return count;
-}
-
-static ssize_t kovaplus_sysfs_write_profile_settings(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
-	struct kovaplus_device *kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
-	int retval = 0;
-	int difference;
-	int profile_index;
-	struct kovaplus_profile_settings *profile_settings;
+	ssize_t retval;
 
-	if (off != 0 || count != sizeof(struct kovaplus_profile_settings))
-		return -EINVAL;
-
-	profile_index = ((struct kovaplus_profile_settings const *)buf)->profile_index;
-	profile_settings = &kovaplus->profile_settings[profile_index];
-
-	mutex_lock(&kovaplus->kovaplus_lock);
-	difference = memcmp(buf, profile_settings,
-			sizeof(struct kovaplus_profile_settings));
-	if (difference) {
-		retval = kovaplus_set_profile_settings(usb_dev,
-				(struct kovaplus_profile_settings const *)buf);
-		if (!retval)
-			memcpy(profile_settings, buf,
-					sizeof(struct kovaplus_profile_settings));
-	}
-	mutex_unlock(&kovaplus->kovaplus_lock);
-
+	retval = kovaplus_select_profile(usb_dev, *(uint *)(attr->private),
+			KOVAPLUS_CONTROL_REQUEST_PROFILE_SETTINGS);
 	if (retval)
 		return retval;
 
-	return sizeof(struct kovaplus_profile_settings);
+	return kovaplus_sysfs_read(fp, kobj, buf, off, count,
+			KOVAPLUS_SIZE_PROFILE_SETTINGS,
+			KOVAPLUS_COMMAND_PROFILE_SETTINGS);
 }
 
 static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
@@ -212,57 +247,17 @@ static ssize_t kovaplus_sysfs_read_profilex_buttons(struct file *fp,
 {
 	struct device *dev =
 			container_of(kobj, struct device, kobj)->parent->parent;
-	struct kovaplus_device *kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
-
-	if (off >= sizeof(struct kovaplus_profile_buttons))
-		return 0;
-
-	if (off + count > sizeof(struct kovaplus_profile_buttons))
-		count = sizeof(struct kovaplus_profile_buttons) - off;
-
-	mutex_lock(&kovaplus->kovaplus_lock);
-	memcpy(buf, ((char const *)&kovaplus->profile_buttons[*(uint *)(attr->private)]) + off,
-			count);
-	mutex_unlock(&kovaplus->kovaplus_lock);
-
-	return count;
-}
-
-static ssize_t kovaplus_sysfs_write_profile_buttons(struct file *fp,
-		struct kobject *kobj, struct bin_attribute *attr, char *buf,
-		loff_t off, size_t count)
-{
-	struct device *dev =
-			container_of(kobj, struct device, kobj)->parent->parent;
-	struct kovaplus_device *kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
 	struct usb_device *usb_dev = interface_to_usbdev(to_usb_interface(dev));
-	int retval = 0;
-	int difference;
-	uint profile_index;
-	struct kovaplus_profile_buttons *profile_buttons;
+	ssize_t retval;
 
-	if (off != 0 || count != sizeof(struct kovaplus_profile_buttons))
-		return -EINVAL;
-
-	profile_index = ((struct kovaplus_profile_buttons const *)buf)->profile_index;
-	profile_buttons = &kovaplus->profile_buttons[profile_index];
-
-	mutex_lock(&kovaplus->kovaplus_lock);
-	difference = memcmp(buf, profile_buttons,
-			sizeof(struct kovaplus_profile_buttons));
-	if (difference) {
-		retval = kovaplus_set_profile_buttons(usb_dev,
-				(struct kovaplus_profile_buttons const *)buf);
-		if (!retval)
-			memcpy(profile_buttons, buf,
-					sizeof(struct kovaplus_profile_buttons));
-	}
-	mutex_unlock(&kovaplus->kovaplus_lock);
-
+	retval = kovaplus_select_profile(usb_dev, *(uint *)(attr->private),
+			KOVAPLUS_CONTROL_REQUEST_PROFILE_BUTTONS);
 	if (retval)
 		return retval;
 
-	return sizeof(struct kovaplus_profile_buttons);
+	return kovaplus_sysfs_read(fp, kobj, buf, off, count,
+			KOVAPLUS_SIZE_PROFILE_BUTTONS,
+			KOVAPLUS_COMMAND_PROFILE_BUTTONS);
 }
 
 static ssize_t kovaplus_sysfs_show_actual_profile(struct device *dev,
@@ -342,9 +337,20 @@ static ssize_t kovaplus_sysfs_show_actual_sensitivity_y(struct device *dev,
 static ssize_t kovaplus_sysfs_show_firmware_version(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct kovaplus_device *kovaplus =
-			hid_get_drvdata(dev_get_drvdata(dev->parent->parent));
-	return snprintf(buf, PAGE_SIZE, "%d\n", kovaplus->info.firmware_version);
+	struct kovaplus_device *kovaplus;
+	struct usb_device *usb_dev;
+	struct kovaplus_info info;
+
+	dev = dev->parent->parent;
+	kovaplus = hid_get_drvdata(dev_get_drvdata(dev));
+	usb_dev = interface_to_usbdev(to_usb_interface(dev));
+
+	mutex_lock(&kovaplus->kovaplus_lock);
+	roccat_common2_receive(usb_dev, KOVAPLUS_COMMAND_INFO,
+			&info, KOVAPLUS_SIZE_INFO);
+	mutex_unlock(&kovaplus->kovaplus_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", info.firmware_version);
 }
 
 static struct device_attribute kovaplus_attributes[] = {
@@ -363,73 +369,66 @@ static struct device_attribute kovaplus_attributes[] = {
 };
 
 static struct bin_attribute kovaplus_bin_attributes[] = {
-	{
-		.attr = { .name = "profile_settings", .mode = 0220 },
-		.size = sizeof(struct kovaplus_profile_settings),
-		.write = kovaplus_sysfs_write_profile_settings
-	},
+	KOVAPLUS_BIN_ATTRIBUTE_RW(info, INFO),
+	KOVAPLUS_BIN_ATTRIBUTE_W(profile_settings, PROFILE_SETTINGS),
+	KOVAPLUS_BIN_ATTRIBUTE_W(profile_buttons, PROFILE_BUTTONS),
 	{
 		.attr = { .name = "profile1_settings", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_settings),
+		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
 		.read = kovaplus_sysfs_read_profilex_settings,
 		.private = &profile_numbers[0]
 	},
 	{
 		.attr = { .name = "profile2_settings", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_settings),
+		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
 		.read = kovaplus_sysfs_read_profilex_settings,
 		.private = &profile_numbers[1]
 	},
 	{
 		.attr = { .name = "profile3_settings", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_settings),
+		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
 		.read = kovaplus_sysfs_read_profilex_settings,
 		.private = &profile_numbers[2]
 	},
 	{
 		.attr = { .name = "profile4_settings", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_settings),
+		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
 		.read = kovaplus_sysfs_read_profilex_settings,
 		.private = &profile_numbers[3]
 	},
 	{
 		.attr = { .name = "profile5_settings", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_settings),
+		.size = KOVAPLUS_SIZE_PROFILE_SETTINGS,
 		.read = kovaplus_sysfs_read_profilex_settings,
 		.private = &profile_numbers[4]
 	},
 	{
-		.attr = { .name = "profile_buttons", .mode = 0220 },
-		.size = sizeof(struct kovaplus_profile_buttons),
-		.write = kovaplus_sysfs_write_profile_buttons
-	},
-	{
 		.attr = { .name = "profile1_buttons", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_buttons),
+		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
 		.read = kovaplus_sysfs_read_profilex_buttons,
 		.private = &profile_numbers[0]
 	},
 	{
 		.attr = { .name = "profile2_buttons", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_buttons),
+		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
 		.read = kovaplus_sysfs_read_profilex_buttons,
 		.private = &profile_numbers[1]
 	},
 	{
 		.attr = { .name = "profile3_buttons", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_buttons),
+		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
 		.read = kovaplus_sysfs_read_profilex_buttons,
 		.private = &profile_numbers[2]
 	},
 	{
 		.attr = { .name = "profile4_buttons", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_buttons),
+		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
 		.read = kovaplus_sysfs_read_profilex_buttons,
 		.private = &profile_numbers[3]
 	},
 	{
 		.attr = { .name = "profile5_buttons", .mode = 0440 },
-		.size = sizeof(struct kovaplus_profile_buttons),
+		.size = KOVAPLUS_SIZE_PROFILE_BUTTONS,
 		.read = kovaplus_sysfs_read_profilex_buttons,
 		.private = &profile_numbers[4]
 	},
@@ -443,10 +442,6 @@ static int kovaplus_init_kovaplus_device_struct(struct usb_device *usb_dev,
 	static uint wait = 70; /* device will freeze with just 60 */
 
 	mutex_init(&kovaplus->kovaplus_lock);
-
-	retval = kovaplus_get_info(usb_dev, &kovaplus->info);
-	if (retval)
-		return retval;
 
 	for (i = 0; i < 5; ++i) {
 		msleep(wait);

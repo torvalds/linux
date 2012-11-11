@@ -14,6 +14,12 @@
 
 #include <linux/types.h>
 
+enum {
+	KOVAPLUS_SIZE_INFO = 0x06,
+	KOVAPLUS_SIZE_PROFILE_SETTINGS = 0x10,
+	KOVAPLUS_SIZE_PROFILE_BUTTONS = 0x17,
+};
+
 enum kovaplus_control_requests {
 	/* write; value = profile number range 0-4 */
 	KOVAPLUS_CONTROL_REQUEST_PROFILE_SETTINGS = 0x10,
@@ -51,13 +57,6 @@ struct kovaplus_info {
 	uint8_t size; /* 6 */
 	uint8_t firmware_version;
 	uint8_t unknown[3];
-} __packed;
-
-/* writes 1 on plugin */
-struct kovaplus_a {
-	uint8_t command; /* KOVAPLUS_COMMAND_A */
-	uint8_t size; /* 3 */
-	uint8_t unknown;
 } __packed;
 
 enum kovaplus_commands {
@@ -125,7 +124,6 @@ struct kovaplus_device {
 	int roccat_claimed;
 	int chrdev_minor;
 	struct mutex kovaplus_lock;
-	struct kovaplus_info info;
 	struct kovaplus_profile_settings profile_settings[5];
 	struct kovaplus_profile_buttons profile_buttons[5];
 };
