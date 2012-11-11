@@ -293,6 +293,14 @@ struct hbm_props_response {
 	struct mei_client_properties client_properties;
 } __packed;
 
+/**
+ * struct hbm_client_connect_request - connect/disconnect request
+ *
+ * @hbm_cmd - bus message command header
+ * @me_addr - address of the client in ME
+ * @host_addr - address of the client in the driver
+ * @reserved
+ */
 struct hbm_client_connect_request {
 	u8 hbm_cmd;
 	u8 me_addr;
@@ -300,6 +308,14 @@ struct hbm_client_connect_request {
 	u8 reserved;
 } __packed;
 
+/**
+ * struct hbm_client_connect_response - connect/disconnect response
+ *
+ * @hbm_cmd - bus message command header
+ * @me_addr - address of the client in ME
+ * @host_addr - address of the client in the driver
+ * @status - status of the request
+ */
 struct hbm_client_connect_response {
 	u8 hbm_cmd;
 	u8 me_addr;
@@ -307,12 +323,6 @@ struct hbm_client_connect_response {
 	u8 status;
 } __packed;
 
-struct hbm_client_disconnect_request {
-	u8 hbm_cmd;
-	u8 me_addr;
-	u8 host_addr;
-	u8 reserved[1];
-} __packed;
 
 #define MEI_FC_MESSAGE_RESERVED_LENGTH           5
 

@@ -174,10 +174,10 @@ static int _mei_irq_thread_close(struct mei_device *dev, s32 *slots,
 				struct mei_cl_cb *cmpl_list)
 {
 	if ((*slots * sizeof(u32)) < (sizeof(struct mei_msg_hdr) +
-			sizeof(struct hbm_client_disconnect_request)))
+			sizeof(struct hbm_client_connect_request)))
 		return -EBADMSG;
 
-	*slots -= mei_data2slots(sizeof(struct hbm_client_disconnect_request));
+	*slots -= mei_data2slots(sizeof(struct hbm_client_connect_request));
 
 	if (mei_disconnect(dev, cl)) {
 		cl->status = 0;
@@ -414,10 +414,10 @@ static void mei_client_flow_control_response(struct mei_device *dev,
  * returns !=0, same; 0,not.
  */
 static int same_disconn_addr(struct mei_cl *cl,
-			     struct hbm_client_disconnect_request *disconn)
+			     struct hbm_client_connect_request *req)
 {
-	return (cl->host_client_id == disconn->host_addr &&
-		cl->me_client_id == disconn->me_addr);
+	return (cl->host_client_id == req->host_addr &&
+		cl->me_client_id == req->me_addr);
 }
 
 /**
@@ -427,7 +427,7 @@ static int same_disconn_addr(struct mei_cl *cl,
  * @disconnect_req: disconnect request bus message.
  */
 static void mei_client_disconnect_request(struct mei_device *dev,
-		struct hbm_client_disconnect_request *disconnect_req)
+		struct hbm_client_connect_request *disconnect_req)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_client_connect_response *disconnect_res;
@@ -484,10 +484,10 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_host_version_response *version_res;
 	struct hbm_client_connect_response *connect_res;
 	struct hbm_client_connect_response *disconnect_res;
+	struct hbm_client_connect_request *disconnect_req;
 	struct hbm_flow_control *flow_control;
 	struct hbm_props_response *props_res;
 	struct hbm_host_enum_response *enum_res;
-	struct hbm_client_disconnect_request *disconnect_req;
 	struct hbm_host_stop_request *host_stop_req;
 	int res;
 
@@ -653,8 +653,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 
 	case CLIENT_DISCONNECT_REQ_CMD:
 		/* search for client */
-		disconnect_req =
-			(struct hbm_client_disconnect_request *) mei_msg;
+		disconnect_req = (struct hbm_client_connect_request *)mei_msg;
 		mei_client_disconnect_request(dev, disconnect_req);
 		break;
 

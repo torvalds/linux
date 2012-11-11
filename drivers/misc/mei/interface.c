@@ -352,26 +352,24 @@ int mei_other_client_is_connecting(struct mei_device *dev,
 int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr;
-	struct hbm_client_disconnect_request *mei_cli_disconnect;
+	struct hbm_client_connect_request *req;
 
 	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
 	mei_hdr->host_addr = 0;
 	mei_hdr->me_addr = 0;
-	mei_hdr->length = sizeof(struct hbm_client_disconnect_request);
+	mei_hdr->length = sizeof(struct hbm_client_connect_request);
 	mei_hdr->msg_complete = 1;
 	mei_hdr->reserved = 0;
 
-	mei_cli_disconnect =
-	    (struct hbm_client_disconnect_request *) &dev->wr_msg_buf[1];
-	memset(mei_cli_disconnect, 0, sizeof(*mei_cli_disconnect));
-	mei_cli_disconnect->host_addr = cl->host_client_id;
-	mei_cli_disconnect->me_addr = cl->me_client_id;
-	mei_cli_disconnect->hbm_cmd = CLIENT_DISCONNECT_REQ_CMD;
-	mei_cli_disconnect->reserved[0] = 0;
+	req = (struct hbm_client_connect_request *)&dev->wr_msg_buf[1];
+	memset(req, 0, sizeof(*req));
+	req->host_addr = cl->host_client_id;
+	req->me_addr = cl->me_client_id;
+	req->hbm_cmd = CLIENT_DISCONNECT_REQ_CMD;
+	req->reserved = 0;
 
-	return mei_write_message(dev, mei_hdr,
-				(unsigned char *) mei_cli_disconnect,
-				sizeof(struct hbm_client_disconnect_request));
+	return mei_write_message(dev, mei_hdr, (unsigned char *)req,
+				sizeof(struct hbm_client_connect_request));
 }
 
 /**
