@@ -63,7 +63,7 @@ nouveau_bios_shadow_of(struct nouveau_bios *bios)
 	struct pci_dev *pdev = nv_device(bios)->pdev;
 	struct device_node *dn;
 	const u32 *data;
-	int size, i;
+	int size;
 
 	dn = pci_device_to_OF_node(pdev);
 	if (!dn) {
