@@ -160,7 +160,9 @@ static void variax_startup5(unsigned long data)
 	/* current model dump: */
 	line6_dump_request_async(&variax->dumpreq, &variax->line6, 0,
 				 VARIAX_DUMP_PASS1);
-	/* passes 2 and 3 are performed implicitly before entering variax_startup6 */
+	/* passes 2 and 3 are performed implicitly before entering
+	 * variax_startup6.
+	 */
 }
 
 static void variax_startup6(struct usb_line6_variax *variax)
