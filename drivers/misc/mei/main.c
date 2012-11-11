@@ -146,9 +146,8 @@ static bool mei_clear_lists(struct mei_device *dev, struct file *file)
 	bool removed = false;
 
 	/* remove callbacks associated with a file */
-	mei_clear_list(dev, file, &dev->amthi_cmd_list.list);
-	if (mei_clear_list(dev, file,
-			    &dev->amthi_read_complete_list.list))
+	mei_clear_list(dev, file, &dev->amthif_cmd_list.list);
+	if (mei_clear_list(dev, file, &dev->amthif_rd_complete_list.list))
 		removed = true;
 
 	mei_clear_list(dev, file, &dev->ctrl_rd_list.list);

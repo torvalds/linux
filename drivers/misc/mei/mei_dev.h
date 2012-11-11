@@ -184,16 +184,13 @@ struct mei_device {
 	/*
 	 * lists of queues
 	 */
-	 /* array of pointers to aio lists */
+	/* array of pointers to aio lists */
 	struct mei_cl_cb read_list;		/* driver read queue */
 	struct mei_cl_cb write_list;		/* driver write queue */
 	struct mei_cl_cb write_waiting_list;	/* write waiting queue */
 	struct mei_cl_cb ctrl_wr_list;		/* managed write IOCTL list */
 	struct mei_cl_cb ctrl_rd_list;		/* managed read IOCTL list */
-	struct mei_cl_cb amthi_cmd_list;	/* amthi list for cmd waiting */
 
-	/* driver managed amthi list for reading completed amthi cmd data */
-	struct mei_cl_cb amthi_read_complete_list;
 	/*
 	 * list of files
 	 */
@@ -254,6 +251,10 @@ struct mei_device {
 	unsigned char wd_data[MEI_WD_START_MSG_SIZE];
 
 
+	/* amthif list for cmd waiting */
+	struct mei_cl_cb amthif_cmd_list;
+	/* driver managed amthif list for reading completed amthif cmd data */
+	struct mei_cl_cb amthif_rd_complete_list;
 	struct file *iamthif_file_object;
 	struct mei_cl iamthif_cl;
 	struct mei_cl_cb *iamthif_current_cb;

@@ -1127,7 +1127,6 @@ void mei_timer(struct work_struct *work)
 	unsigned long timeout;
 	struct mei_cl *cl_pos = NULL;
 	struct mei_cl *cl_next = NULL;
-	struct list_head *amthi_complete_list = NULL;
 	struct mei_cl_cb  *cb_pos = NULL;
 	struct mei_cl_cb  *cb_next = NULL;
 
@@ -1195,9 +1194,8 @@ void mei_timer(struct work_struct *work)
 
 			dev_dbg(&dev->pdev->dev, "freeing AMTHI for other requests\n");
 
-			amthi_complete_list = &dev->amthi_read_complete_list.list;
-
-			list_for_each_entry_safe(cb_pos, cb_next, amthi_complete_list, list) {
+			list_for_each_entry_safe(cb_pos, cb_next,
+				&dev->amthif_rd_complete_list.list, list) {
 
 				cl_pos = cb_pos->file_object->private_data;
 

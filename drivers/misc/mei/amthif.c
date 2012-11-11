@@ -124,7 +124,7 @@ struct mei_cl_cb *mei_amthif_find_read_list_entry(struct mei_device *dev,
 	struct mei_cl_cb *next = NULL;
 
 	list_for_each_entry_safe(pos, next,
-	    &dev->amthi_read_complete_list.list, list) {
+				&dev->amthif_rd_complete_list.list, list) {
 		cl_temp = (struct mei_cl *)pos->file_private;
 		if (cl_temp && cl_temp == &dev->iamthif_cl &&
 			pos->file_object == file)
@@ -351,12 +351,12 @@ int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *cb)
 
 	cb->major_file_operations = MEI_IOCTL;
 
-	if (!list_empty(&dev->amthi_cmd_list.list) ||
+	if (!list_empty(&dev->amthif_cmd_list.list) ||
 	    dev->iamthif_state != MEI_IAMTHIF_IDLE) {
 		dev_dbg(&dev->pdev->dev,
 			"amthif state = %d\n", dev->iamthif_state);
 		dev_dbg(&dev->pdev->dev, "AMTHIF: add cb to the wait list\n");
-		list_add_tail(&cb->list, &dev->amthi_cmd_list.list);
+		list_add_tail(&cb->list, &dev->amthif_cmd_list.list);
 		return 0;
 	}
 	return mei_amthif_send_cmd(dev, cb);
@@ -388,7 +388,7 @@ void mei_amthif_run_next_cmd(struct mei_device *dev)
 
 	dev_dbg(&dev->pdev->dev, "complete amthi cmd_list cb.\n");
 
-	list_for_each_entry_safe(pos, next, &dev->amthi_cmd_list.list, list) {
+	list_for_each_entry_safe(pos, next, &dev->amthif_cmd_list.list, list) {
 		list_del(&pos->list);
 		cl_tmp = (struct mei_cl *)pos->file_private;
 
@@ -589,7 +589,7 @@ void mei_amthif_complete(struct mei_device *dev, struct mei_cl_cb *cb)
 		memcpy(cb->response_buffer.data,
 				dev->iamthif_msg_buf,
 				dev->iamthif_msg_buf_index);
-		list_add_tail(&cb->list, &dev->amthi_read_complete_list.list);
+		list_add_tail(&cb->list, &dev->amthif_rd_complete_list.list);
 		dev_dbg(&dev->pdev->dev, "amthi read completed\n");
 		dev->iamthif_timer = jiffies;
 		dev_dbg(&dev->pdev->dev, "dev->iamthif_timer = %ld\n",
