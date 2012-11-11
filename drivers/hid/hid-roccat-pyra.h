@@ -15,6 +15,7 @@
 #include <linux/types.h>
 
 enum {
+	PYRA_SIZE_CONTROL = 0x03,
 	PYRA_SIZE_INFO = 0x06,
 	PYRA_SIZE_PROFILE_SETTINGS = 0x0d,
 	PYRA_SIZE_PROFILE_BUTTONS = 0x13,
@@ -57,6 +58,7 @@ struct pyra_info {
 } __attribute__ ((__packed__));
 
 enum pyra_commands {
+	PYRA_COMMAND_CONTROL = 0x4,
 	PYRA_COMMAND_SETTINGS = 0x5,
 	PYRA_COMMAND_PROFILE_SETTINGS = 0x6,
 	PYRA_COMMAND_PROFILE_BUTTONS = 0x7,

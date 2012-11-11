@@ -177,9 +177,10 @@ PYRA_SYSFS_R(thingy, THINGY)
 	.write = pyra_sysfs_write_ ## thingy \
 }
 
+PYRA_SYSFS_W(control, CONTROL)
 PYRA_SYSFS_RW(info, INFO)
-PYRA_SYSFS_W(profile_settings, PROFILE_SETTINGS)
-PYRA_SYSFS_W(profile_buttons, PROFILE_BUTTONS)
+PYRA_SYSFS_RW(profile_settings, PROFILE_SETTINGS)
+PYRA_SYSFS_RW(profile_buttons, PROFILE_BUTTONS)
 PYRA_SYSFS_R(settings, SETTINGS)
 
 static ssize_t pyra_sysfs_read_profilex_settings(struct file *fp,
@@ -312,9 +313,10 @@ static struct device_attribute pyra_attributes[] = {
 };
 
 static struct bin_attribute pyra_bin_attributes[] = {
+	PYRA_BIN_ATTRIBUTE_W(control, CONTROL),
 	PYRA_BIN_ATTRIBUTE_RW(info, INFO),
-	PYRA_BIN_ATTRIBUTE_W(profile_settings, PROFILE_SETTINGS),
-	PYRA_BIN_ATTRIBUTE_W(profile_buttons, PROFILE_BUTTONS),
+	PYRA_BIN_ATTRIBUTE_RW(profile_settings, PROFILE_SETTINGS),
+	PYRA_BIN_ATTRIBUTE_RW(profile_buttons, PROFILE_BUTTONS),
 	PYRA_BIN_ATTRIBUTE_RW(settings, SETTINGS),
 	{
 		.attr = { .name = "profile1_settings", .mode = 0440 },
