@@ -694,15 +694,7 @@ static unsigned int mei_poll(struct file *file, poll_table *wait)
 
 
 	if (cl == &dev->iamthif_cl) {
-		mutex_unlock(&dev->device_lock);
-		poll_wait(file, &dev->iamthif_cl.wait, wait);
-		mutex_lock(&dev->device_lock);
-		if (dev->iamthif_state == MEI_IAMTHIF_READ_COMPLETE &&
-			dev->iamthif_file_object == file) {
-			mask |= (POLLIN | POLLRDNORM);
-			dev_dbg(&dev->pdev->dev, "run next amthi cb\n");
-			mei_amthif_run_next_cmd(dev);
-		}
+		mask = mei_amthif_poll(dev, file, wait);
 		goto out;
 	}
 

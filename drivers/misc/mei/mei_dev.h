@@ -19,6 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#include <linux/poll.h>
 #include <linux/mei.h>
 #include "hw.h"
 
@@ -387,7 +388,10 @@ void mei_amthif_host_init(struct mei_device *dev);
 int mei_amthif_write(struct mei_device *dev, struct mei_cl_cb *priv_cb);
 
 int mei_amthif_read(struct mei_device *dev, struct file *file,
-	      char __user *ubuf, size_t length, loff_t *offset);
+		char __user *ubuf, size_t length, loff_t *offset);
+
+unsigned int mei_amthif_poll(struct mei_device *dev,
+		struct file *file, poll_table *wait);
 
 int mei_amthif_release(struct mei_device *dev, struct file *file);
 
