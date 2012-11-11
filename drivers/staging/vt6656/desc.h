@@ -298,7 +298,7 @@ typedef const SCTS_FB *PCSCTS_FB;
 // Tx FIFO header
 //
 typedef struct tagSTxBufHead {
-    DWORD   adwTxKey[4];
+	u32 adwTxKey[4];
     WORD    wFIFOCtl;
     WORD    wTimeStamp;
     WORD    wFragCtl;
@@ -376,24 +376,24 @@ typedef const STxDataHead_a_FB *PCSTxDataHead_a_FB;
 // MICHDR data header
 //
 typedef struct tagSMICHDRHead {
-    DWORD   adwHDR0[4];
-    DWORD   adwHDR1[4];
-    DWORD   adwHDR2[4];
+	u32 adwHDR0[4];
+	u32 adwHDR1[4];
+	u32 adwHDR2[4];
 } __attribute__ ((__packed__))
 SMICHDRHead, *PSMICHDRHead;
 
 typedef const SMICHDRHead *PCSMICHDRHead;
 
 typedef struct tagSBEACONCtl {
-    DWORD   BufReady : 1;
-    DWORD   TSF : 15;
-    DWORD   BufLen : 11;
-    DWORD   Reserved : 5;
+	u32 BufReady:1;
+	u32 TSF:15;
+	u32 BufLen:11;
+	u32 Reserved:5;
 } __attribute__ ((__packed__))
 SBEACONCtl;
 
 typedef struct tagSSecretKey {
-    DWORD   dwLowDword;
+	u32 dwLowDword;
     BYTE    byHighByte;
 } __attribute__ ((__packed__))
 SSecretKey;
@@ -402,11 +402,11 @@ typedef struct tagSKeyEntry {
     BYTE  abyAddrHi[2];
     WORD  wKCTL;
     BYTE  abyAddrLo[4];
-    DWORD dwKey0[4];
-    DWORD dwKey1[4];
-    DWORD dwKey2[4];
-    DWORD dwKey3[4];
-    DWORD dwKey4[4];
+	u32 dwKey0[4];
+	u32 dwKey1[4];
+	u32 dwKey2[4];
+	u32 dwKey3[4];
+	u32 dwKey4[4];
 } __attribute__ ((__packed__))
 SKeyEntry;
 
