@@ -11,6 +11,7 @@
 #define pr_fmt(fmt) "bcm63xx_nvram: " fmt
 
 #include <linux/init.h>
+#include <linux/crc32.h>
 #include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/if_ether.h>
@@ -40,23 +41,25 @@ static int mac_addr_used;
 int __init bcm63xx_nvram_init(void *addr)
 {
 	unsigned int check_len;
-	u8 *p;
-	u32 val;
+	u32 crc, expected_crc;
 
 	/* extract nvram data */
 	memcpy(&nvram, addr, sizeof(nvram));
 
 	/* check checksum before using data */
-	if (nvram.version <= 4)
-		check_len = offsetof(struct bcm963xx_nvram, checksum_old);
-	else
+	if (nvram.version <= 4) {
+		check_len = offsetof(struct bcm963xx_nvram, reserved3);
+		expected_crc = nvram.checksum_old;
+		nvram.checksum_old = 0;
+	} else {
 		check_len = sizeof(nvram);
-	val = 0;
-	p = (u8 *)&nvram;
+		expected_crc = nvram.checksum_high;
+		nvram.checksum_high = 0;
+	}
 
-	while (check_len--)
-		val += *p;
-	if (val)
+	crc = crc32_le(~0, (u8 *)&nvram, check_len);
+
+	if (crc != expected_crc)
 		return -EINVAL;
 
 	return 0;
