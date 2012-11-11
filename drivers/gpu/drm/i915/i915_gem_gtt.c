@@ -682,7 +682,7 @@ int i915_gem_gtt_init(struct drm_device *dev)
 	}
 
 	/* GMADR is the PCI aperture used by SW to access tiled GFX surfaces in a linear fashion. */
-	DRM_INFO("Memory Usable by graphics device = %dK\n", dev_priv->mm.gtt->gtt_total_entries >> 10);
+	DRM_INFO("Memory usable by graphics device = %dM\n", dev_priv->mm.gtt->gtt_total_entries >> 8);
 	DRM_DEBUG_DRIVER("GMADR size = %dM\n", dev_priv->mm.gtt->gtt_mappable_entries >> 8);
 	DRM_DEBUG_DRIVER("GTT stolen size = %dM\n", dev_priv->mm.gtt->stolen_size >> 20);
 
