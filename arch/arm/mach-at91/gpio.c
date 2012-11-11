@@ -23,8 +23,6 @@
 #include <linux/io.h>
 #include <linux/irqdomain.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_gpio.h>
 
 #include <asm/mach/irq.h>
 
@@ -32,6 +30,8 @@
 #include <mach/at91_pio.h>
 
 #include "generic.h"
+
+#define MAX_NB_GPIO_PER_BANK	32
 
 struct at91_gpio_chip {
 	struct gpio_chip	chip;
@@ -46,6 +46,7 @@ struct at91_gpio_chip {
 
 #define to_at91_gpio_chip(c) container_of(c, struct at91_gpio_chip, chip)
 
+static int at91_gpiolib_request(struct gpio_chip *chip, unsigned offset);
 static void at91_gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip);
 static void at91_gpiolib_set(struct gpio_chip *chip, unsigned offset, int val);
 static int at91_gpiolib_get(struct gpio_chip *chip, unsigned offset);
@@ -55,26 +56,27 @@ static int at91_gpiolib_direction_input(struct gpio_chip *chip,
 					unsigned offset);
 static int at91_gpiolib_to_irq(struct gpio_chip *chip, unsigned offset);
 
-#define AT91_GPIO_CHIP(name, nr_gpio)					\
+#define AT91_GPIO_CHIP(name)						\
 	{								\
 		.chip = {						\
 			.label		  = name,			\
+			.request	  = at91_gpiolib_request,	\
 			.direction_input  = at91_gpiolib_direction_input, \
 			.direction_output = at91_gpiolib_direction_output, \
 			.get		  = at91_gpiolib_get,		\
 			.set		  = at91_gpiolib_set,		\
 			.dbg_show	  = at91_gpiolib_dbg_show,	\
 			.to_irq		  = at91_gpiolib_to_irq,	\
-			.ngpio		  = nr_gpio,			\
+			.ngpio		  = MAX_NB_GPIO_PER_BANK,	\
 		},							\
 	}
 
 static struct at91_gpio_chip gpio_chip[] = {
-	AT91_GPIO_CHIP("pioA", 32),
-	AT91_GPIO_CHIP("pioB", 32),
-	AT91_GPIO_CHIP("pioC", 32),
-	AT91_GPIO_CHIP("pioD", 32),
-	AT91_GPIO_CHIP("pioE", 32),
+	AT91_GPIO_CHIP("pioA"),
+	AT91_GPIO_CHIP("pioB"),
+	AT91_GPIO_CHIP("pioC"),
+	AT91_GPIO_CHIP("pioD"),
+	AT91_GPIO_CHIP("pioE"),
 };
 
 static int gpio_banks;
@@ -89,7 +91,7 @@ static unsigned long at91_gpio_caps;
 
 static inline void __iomem *pin_to_controller(unsigned pin)
 {
-	pin /= 32;
+	pin /= MAX_NB_GPIO_PER_BANK;
 	if (likely(pin < gpio_banks))
 		return gpio_chip[pin].regbase;
 
@@ -98,7 +100,7 @@ static inline void __iomem *pin_to_controller(unsigned pin)
 
 static inline unsigned pin_to_mask(unsigned pin)
 {
-	return 1 << (pin % 32);
+	return 1 << (pin % MAX_NB_GPIO_PER_BANK);
 }
 
 
@@ -713,80 +715,6 @@ postcore_initcall(at91_gpio_debugfs_init);
  */
 static struct lock_class_key gpio_lock_class;
 
-#if defined(CONFIG_OF)
-static int at91_gpio_irq_map(struct irq_domain *h, unsigned int virq,
-							irq_hw_number_t hw)
-{
-	struct at91_gpio_chip	*at91_gpio = h->host_data;
-
-	irq_set_lockdep_class(virq, &gpio_lock_class);
-
-	/*
-	 * Can use the "simple" and not "edge" handler since it's
-	 * shorter, and the AIC handles interrupts sanely.
-	 */
-	irq_set_chip_and_handler(virq, &gpio_irqchip,
-				 handle_simple_irq);
-	set_irq_flags(virq, IRQF_VALID);
-	irq_set_chip_data(virq, at91_gpio);
-
-	return 0;
-}
-
-static struct irq_domain_ops at91_gpio_ops = {
-	.map	= at91_gpio_irq_map,
-	.xlate	= irq_domain_xlate_twocell,
-};
-
-int __init at91_gpio_of_irq_setup(struct device_node *node,
-				     struct device_node *parent)
-{
-	struct at91_gpio_chip	*prev = NULL;
-	int			alias_idx = of_alias_get_id(node, "gpio");
-	struct at91_gpio_chip	*at91_gpio = &gpio_chip[alias_idx];
-
-	/* Setup proper .irq_set_type function */
-	if (has_pio3())
-		gpio_irqchip.irq_set_type = alt_gpio_irq_type;
-	else
-		gpio_irqchip.irq_set_type = gpio_irq_type;
-
-	/* Disable irqs of this PIO controller */
-	__raw_writel(~0, at91_gpio->regbase + PIO_IDR);
-
-	/* Setup irq domain */
-	at91_gpio->domain = irq_domain_add_linear(node, at91_gpio->chip.ngpio,
-						&at91_gpio_ops, at91_gpio);
-	if (!at91_gpio->domain)
-		panic("at91_gpio.%d: couldn't allocate irq domain (DT).\n",
-			at91_gpio->pioc_idx);
-
-	/* Setup chained handler */
-	if (at91_gpio->pioc_idx)
-		prev = &gpio_chip[at91_gpio->pioc_idx - 1];
-
-	/* The toplevel handler handles one bank of GPIOs, except
-	 * on some SoC it can handles up to three...
-	 * We only set up the handler for the first of the list.
-	 */
-	if (prev && prev->next == at91_gpio)
-		return 0;
-
-	at91_gpio->pioc_virq = irq_create_mapping(irq_find_host(parent),
-							at91_gpio->pioc_hwirq);
-	irq_set_chip_data(at91_gpio->pioc_virq, at91_gpio);
-	irq_set_chained_handler(at91_gpio->pioc_virq, gpio_irq_handler);
-
-	return 0;
-}
-#else
-int __init at91_gpio_of_irq_setup(struct device_node *node,
-				     struct device_node *parent)
-{
-	return -EINVAL;
-}
-#endif
-
 /*
  * irqdomain initialization: pile up irqdomains on top of AIC range
  */
@@ -862,6 +790,16 @@ void __init at91_gpio_irq_setup(void)
 }
 
 /* gpiolib support */
+static int at91_gpiolib_request(struct gpio_chip *chip, unsigned offset)
+{
+	struct at91_gpio_chip *at91_gpio = to_at91_gpio_chip(chip);
+	void __iomem *pio = at91_gpio->regbase;
+	unsigned mask = 1 << offset;
+
+	__raw_writel(mask, pio + PIO_PER);
+	return 0;
+}
+
 static int at91_gpiolib_direction_input(struct gpio_chip *chip,
 					unsigned offset)
 {
@@ -975,81 +913,11 @@ err:
 	return -EINVAL;
 }
 
-#ifdef CONFIG_OF_GPIO
-static void __init of_at91_gpio_init_one(struct device_node *np)
-{
-	int alias_idx;
-	struct at91_gpio_chip *at91_gpio;
-
-	if (!np)
-		return;
-
-	alias_idx = of_alias_get_id(np, "gpio");
-	if (alias_idx >= MAX_GPIO_BANKS) {
-		pr_err("at91_gpio, failed alias idx(%d) > MAX_GPIO_BANKS(%d), ignoring.\n",
-						alias_idx, MAX_GPIO_BANKS);
-		return;
-	}
-
-	at91_gpio = &gpio_chip[alias_idx];
-	at91_gpio->chip.base = alias_idx * at91_gpio->chip.ngpio;
-
-	at91_gpio->regbase = of_iomap(np, 0);
-	if (!at91_gpio->regbase) {
-		pr_err("at91_gpio.%d, failed to map registers, ignoring.\n",
-								alias_idx);
-		return;
-	}
-
-	/* Get the interrupts property */
-	if (of_property_read_u32(np, "interrupts", &at91_gpio->pioc_hwirq)) {
-		pr_err("at91_gpio.%d, failed to get interrupts property, ignoring.\n",
-								alias_idx);
-		goto ioremap_err;
-	}
-
-	/* Get capabilities from compatibility property */
-	if (of_device_is_compatible(np, "atmel,at91sam9x5-gpio"))
-		at91_gpio_caps |= AT91_GPIO_CAP_PIO3;
-
-	/* Setup clock */
-	if (at91_gpio_setup_clk(alias_idx))
-		goto ioremap_err;
-
-	at91_gpio->chip.of_node = np;
-	gpio_banks = max(gpio_banks, alias_idx + 1);
-	at91_gpio->pioc_idx = alias_idx;
-	return;
-
-ioremap_err:
-	iounmap(at91_gpio->regbase);
-}
-
-static int __init of_at91_gpio_init(void)
-{
-	struct device_node *np = NULL;
-
-	/*
-	 * This isn't ideal, but it gets things hooked up until this
-	 * driver is converted into a platform_device
-	 */
-	for_each_compatible_node(np, NULL, "atmel,at91rm9200-gpio")
-		of_at91_gpio_init_one(np);
-
-	return gpio_banks > 0 ? 0 : -EINVAL;
-}
-#else
-static int __init of_at91_gpio_init(void)
-{
-	return -EINVAL;
-}
-#endif
-
 static void __init at91_gpio_init_one(int idx, u32 regbase, int pioc_hwirq)
 {
 	struct at91_gpio_chip *at91_gpio = &gpio_chip[idx];
 
-	at91_gpio->chip.base = idx * at91_gpio->chip.ngpio;
+	at91_gpio->chip.base = idx * MAX_NB_GPIO_PER_BANK;
 	at91_gpio->pioc_hwirq = pioc_hwirq;
 	at91_gpio->pioc_idx = idx;
 
@@ -1079,11 +947,11 @@ void __init at91_gpio_init(struct at91_gpio_bank *data, int nr_banks)
 
 	BUG_ON(nr_banks > MAX_GPIO_BANKS);
 
-	if (of_at91_gpio_init() < 0) {
-		/* No GPIO controller found in device tree */
-		for (i = 0; i < nr_banks; i++)
-			at91_gpio_init_one(i, data[i].regbase, data[i].id);
-	}
+	if (of_have_populated_dt())
+		return;
+
+	for (i = 0; i < nr_banks; i++)
+		at91_gpio_init_one(i, data[i].regbase, data[i].id);
 
 	for (i = 0; i < gpio_banks; i++) {
 		at91_gpio = &gpio_chip[i];

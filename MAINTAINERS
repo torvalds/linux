@@ -5639,6 +5639,12 @@ S:	Maintained
 F:	drivers/pinctrl/
 F:	include/linux/pinctrl/
 
+PIN CONTROLLER - ATMEL AT91
+M:	Jean-Christophe Plagniol-Villard <plagnioj@jcrosoft.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/pinctrl/pinctrl-at91.c
+
 PIN CONTROLLER - ST SPEAR
 M:	Viresh Kumar <viresh.linux@gmail.com>
 L:	spear-devel@list.st.com

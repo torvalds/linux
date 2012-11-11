@@ -361,10 +361,10 @@ static unsigned int at91rm9200_default_irq_priority[NR_AIC_IRQS] __initdata = {
 	0	/* Advanced Interrupt Controller (IRQ6) */
 };
 
-struct at91_init_soc __initdata at91rm9200_soc = {
+AT91_SOC_START(rm9200)
 	.map_io = at91rm9200_map_io,
 	.default_irq_priority = at91rm9200_default_irq_priority,
 	.ioremap_registers = at91rm9200_ioremap_registers,
 	.register_clocks = at91rm9200_register_clocks,
 	.init = at91rm9200_initialize,
-};
+AT91_SOC_END

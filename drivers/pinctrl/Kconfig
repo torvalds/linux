@@ -26,6 +26,15 @@ config DEBUG_PINCTRL
 	help
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
+config PINCTRL_AT91
+	bool "AT91 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
+	select PINMUX
+	select PINCONF
+	help
+	  Say Y here to enable the at91 pinctrl driver
+
 config PINCTRL_BCM2835
 	bool
 	select PINMUX

@@ -1,21 +1,33 @@
 ifeq ($(CONFIG_OF),y)
 
-dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb \
-	at91sam9263ek.dtb \
-	at91sam9g20ek_2mmc.dtb \
-	at91sam9g20ek.dtb \
-	at91sam9g25ek.dtb \
-	at91sam9m10g45ek.dtb \
-	at91sam9n12ek.dtb \
-	ethernut5.dtb \
-	evk-pro3.dtb \
-	kizbox.dtb \
-	tny_a9260.dtb \
-	tny_a9263.dtb \
-	tny_a9g20.dtb \
-	usb_a9260.dtb \
-	usb_a9263.dtb \
-	usb_a9g20.dtb
+# Keep at91 dtb files sorted alphabetically for each SoC
+# sam9260
+dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb
+dtb-$(CONFIG_ARCH_AT91) += ethernut5.dtb
+dtb-$(CONFIG_ARCH_AT91) += evk-pro3.dtb
+dtb-$(CONFIG_ARCH_AT91) += tny_a9260.dtb
+dtb-$(CONFIG_ARCH_AT91) += usb_a9260.dtb
+# sam9263
+dtb-$(CONFIG_ARCH_AT91) += at91sam9263ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += tny_a9263.dtb
+dtb-$(CONFIG_ARCH_AT91) += usb_a9263.dtb
+# sam9g20
+dtb-$(CONFIG_ARCH_AT91) += at91sam9g20ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += at91sam9g20ek_2mmc.dtb
+dtb-$(CONFIG_ARCH_AT91) += kizbox.dtb
+dtb-$(CONFIG_ARCH_AT91) += tny_a9g20.dtb
+dtb-$(CONFIG_ARCH_AT91) += usb_a9g20.dtb
+# sam9g45
+dtb-$(CONFIG_ARCH_AT91) += at91sam9m10g45ek.dtb
+# sam9n12
+dtb-$(CONFIG_ARCH_AT91) += at91sam9n12ek.dtb
+# sam9x5
+dtb-$(CONFIG_ARCH_AT91) += at91sam9g15ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += at91sam9g25ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += at91sam9g35ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += at91sam9x25ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += at91sam9x35ek.dtb
+
 dtb-$(CONFIG_ARCH_BCM2835) += bcm2835-rpi-b.dtb
 dtb-$(CONFIG_ARCH_DOVE) += dove-cm-a510.dtb \
 	dove-cubox.dtb \

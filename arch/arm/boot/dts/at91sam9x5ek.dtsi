@@ -1,0 +1,59 @@
+/*
+ * at91sam9x5ek.dtsi - Device Tree file for AT91SAM9x5CM Base board
+ *
+ *  Copyright (C) 2012 Atmel,
+ *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
+ *
+ * Licensed under GPLv2 or later.
+ */
+/include/ "at91sam9x5cm.dtsi"
+
+/ {
+	model = "Atmel AT91SAM9X5-EK";
+	compatible = "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
+
+	chosen {
+		bootargs = "128M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=ubifs ubi.mtd=1 root=ubi0:rootfs";
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			usart0: serial@f801c000 {
+				status = "okay";
+			};
+
+			macb0: ethernet@f802c000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			i2c0: i2c@f8010000 {
+				status = "okay";
+			};
+
+			i2c1: i2c@f8014000 {
+				status = "okay";
+			};
+
+			i2c2: i2c@f8018000 {
+				status = "okay";
+			};
+		};
+
+		usb0: ohci@00600000 {
+			status = "okay";
+			num-ports = <2>;
+			atmel,vbus-gpio = <&pioD 19 1
+					   &pioD 20 1
+					  >;
+		};
+
+		usb1: ehci@00700000 {
+			status = "okay";
+		};
+	};
+};

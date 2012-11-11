@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/pm.h>
 #include <linux/of_address.h>
+#include <linux/pinctrl/machine.h>
 
 #include <asm/system_misc.h>
 #include <asm/mach/map.h>
@@ -448,7 +449,8 @@ void __init at91_dt_initialize(void)
 	/* Register the processor-specific clocks */
 	at91_boot_soc.register_clocks();
 
-	at91_boot_soc.init();
+	if (at91_boot_soc.init)
+		at91_boot_soc.init();
 }
 #endif
 
@@ -463,4 +465,6 @@ void __init at91_initialize(unsigned long main_clock)
 	at91_boot_soc.register_clocks();
 
 	at91_boot_soc.init();
+
+	pinctrl_provide_dummies();
 }
