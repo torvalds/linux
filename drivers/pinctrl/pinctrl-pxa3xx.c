@@ -187,8 +187,6 @@ int pxa3xx_pinctrl_register(struct platform_device *pdev,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENOENT;
-	info->phy_base = res->start;
-	info->phy_size = resource_size(res);
 	info->virt_base = devm_request_and_ioremap(&pdev->dev, res);
 	if (!info->virt_base)
 		return -ENOMEM;

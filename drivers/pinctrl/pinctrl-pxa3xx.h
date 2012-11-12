@@ -60,8 +60,6 @@ struct pxa3xx_pinmux_info {
 	struct device *dev;
 	struct pinctrl_dev *pctrl;
 	enum pxa_cpu_type cputype;
-	unsigned int phy_base;
-	unsigned int phy_size;
 	void __iomem *virt_base;
 
 	struct pxa3xx_mfp_pin *mfp;
