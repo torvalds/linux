@@ -1129,8 +1129,7 @@ xlog_iodone(xfs_buf_t *bp)
 	 * with it being freed after writing the unmount record to the
 	 * log.
 	 */
-
-}	/* xlog_iodone */
+}
 
 /*
  * Return size of each in-core log record buffer.

@@ -168,7 +168,7 @@ xfs_growfs_data_private(
 	dpct = pct - mp->m_sb.sb_imax_pct;
 	bp = xfs_buf_read_uncached(mp->m_ddev_targp,
 				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
-				XFS_FSS_TO_BB(mp, 1), 0);
+				XFS_FSS_TO_BB(mp, 1), 0, NULL);
 	if (!bp)
 		return EIO;
 	xfs_buf_relse(bp);
@@ -439,7 +439,7 @@ xfs_growfs_data_private(
 		if (agno < oagcount) {
 			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
-				  XFS_FSS_TO_BB(mp, 1), 0, &bp);
+				  XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
 		} else {
 			bp = xfs_trans_get_buf(NULL, mp->m_ddev_targp,
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),

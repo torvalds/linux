@@ -408,7 +408,7 @@ xfs_imap_to_bp(
 
 	buf_flags |= XBF_UNMAPPED;
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
-				   (int)imap->im_len, buf_flags, &bp);
+				   (int)imap->im_len, buf_flags, &bp, NULL);
 	if (error) {
 		if (error != EAGAIN) {
 			xfs_warn(mp,

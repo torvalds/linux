@@ -2144,7 +2144,7 @@ xlog_recover_buffer_pass2(
 		buf_flags |= XBF_UNMAPPED;
 
 	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
-			  buf_flags);
+			  buf_flags, NULL);
 	if (!bp)
 		return XFS_ERROR(ENOMEM);
 	error = bp->b_error;
@@ -2237,7 +2237,8 @@ xlog_recover_inode_pass2(
 	}
 	trace_xfs_log_recover_inode_recover(log, in_f);
 
-	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len, 0);
+	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len, 0,
+			  NULL);
 	if (!bp) {
 		error = ENOMEM;
 		goto error;
@@ -2548,7 +2549,8 @@ xlog_recover_dquot_pass2(
 	ASSERT(dq_f->qlf_len == 1);
 
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dq_f->qlf_blkno,
-				   XFS_FSB_TO_BB(mp, dq_f->qlf_len), 0, &bp);
+				   XFS_FSB_TO_BB(mp, dq_f->qlf_len), 0, &bp,
+				   NULL);
 	if (error)
 		return error;
 

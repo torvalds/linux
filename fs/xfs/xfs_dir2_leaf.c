@@ -926,7 +926,7 @@ xfs_dir2_leaf_readbuf(
 				XFS_FSB_TO_DADDR(mp,
 					map[mip->ra_index].br_startblock +
 							mip->ra_offset),
-				(int)BTOBB(mp->m_dirblksize));
+				(int)BTOBB(mp->m_dirblksize), NULL);
 			mip->ra_current = i;
 		}
 

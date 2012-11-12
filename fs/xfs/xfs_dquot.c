@@ -439,7 +439,7 @@ xfs_qm_dqtobp(
 		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 					   dqp->q_blkno,
 					   mp->m_quotainfo->qi_dqchunklen,
-					   0, &bp);
+					   0, &bp, NULL);
 		if (error || !bp)
 			return XFS_ERROR(error);
 	}
@@ -920,7 +920,7 @@ xfs_qm_dqflush(
 	 * Get the buffer containing the on-disk dquot
 	 */
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
-				   mp->m_quotainfo->qi_dqchunklen, 0, &bp);
+				   mp->m_quotainfo->qi_dqchunklen, 0, &bp, NULL);
 	if (error)
 		goto out_unlock;
 

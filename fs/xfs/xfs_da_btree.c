@@ -2161,7 +2161,7 @@ xfs_da_read_buf(
 
 	error = xfs_trans_read_buf_map(dp->i_mount, trans,
 					dp->i_mount->m_ddev_targp,
-					mapp, nmap, 0, &bp);
+					mapp, nmap, 0, &bp, NULL);
 	if (error)
 		goto out_free;
 
@@ -2237,7 +2237,7 @@ xfs_da_reada_buf(
 	}
 
 	mappedbno = mapp[0].bm_bn;
-	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap);
+	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap, NULL);
 
 out_free:
 	if (mapp != &map)

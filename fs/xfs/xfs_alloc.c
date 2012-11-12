@@ -447,7 +447,7 @@ xfs_alloc_read_agfl(
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, &bp);
+			XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
 	if (error)
 		return error;
 	ASSERT(!xfs_buf_geterror(bp));
@@ -2110,7 +2110,7 @@ xfs_read_agf(
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), flags, bpp);
+			XFS_FSS_TO_BB(mp, 1), flags, bpp, NULL);
 	if (error)
 		return error;
 	if (!*bpp)

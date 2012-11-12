@@ -654,7 +654,8 @@ xfs_buf_read_map(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
 	int			nmaps,
-	xfs_buf_flags_t		flags)
+	xfs_buf_flags_t		flags,
+	xfs_buf_iodone_t	verify)
 {
 	struct xfs_buf		*bp;
 
@@ -666,6 +667,7 @@ xfs_buf_read_map(
 
 		if (!XFS_BUF_ISDONE(bp)) {
 			XFS_STATS_INC(xb_get_read);
+			bp->b_iodone = verify;
 			_xfs_buf_read(bp, flags);
 		} else if (flags & XBF_ASYNC) {
 			/*
@@ -691,13 +693,14 @@ void
 xfs_buf_readahead_map(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
-	int			nmaps)
+	int			nmaps,
+	xfs_buf_iodone_t	verify)
 {
 	if (bdi_read_congested(target->bt_bdi))
 		return;
 
 	xfs_buf_read_map(target, map, nmaps,
-		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
+		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD, verify);
 }
 
 /*
@@ -709,7 +712,8 @@ xfs_buf_read_uncached(
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		daddr,
 	size_t			numblks,
-	int			flags)
+	int			flags,
+	xfs_buf_iodone_t	verify)
 {
 	xfs_buf_t		*bp;
 	int			error;
@@ -723,6 +727,7 @@ xfs_buf_read_uncached(
 	bp->b_bn = daddr;
 	bp->b_maps[0].bm_bn = daddr;
 	bp->b_flags |= XBF_READ;
+	bp->b_iodone = verify;
 
 	xfsbdstrat(target->bt_mount, bp);
 	error = xfs_buf_iowait(bp);

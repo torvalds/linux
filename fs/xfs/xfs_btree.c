@@ -266,9 +266,12 @@ xfs_btree_dup_cursor(
 	for (i = 0; i < new->bc_nlevels; i++) {
 		new->bc_ptrs[i] = cur->bc_ptrs[i];
 		new->bc_ra[i] = cur->bc_ra[i];
-		if ((bp = cur->bc_bufs[i])) {
-			if ((error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-				XFS_BUF_ADDR(bp), mp->m_bsize, 0, &bp))) {
+		bp = cur->bc_bufs[i];
+		if (bp) {
+			error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
+						   XFS_BUF_ADDR(bp), mp->m_bsize,
+						   0, &bp, NULL);
+			if (error) {
 				xfs_btree_del_cursor(new, error);
 				*ncur = NULL;
 				return error;
@@ -624,10 +627,10 @@ xfs_btree_read_bufl(
 
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
-	if ((error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, d,
-			mp->m_bsize, lock, &bp))) {
+	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, d,
+				   mp->m_bsize, lock, &bp, NULL);
+	if (error)
 		return error;
-	}
 	ASSERT(!xfs_buf_geterror(bp));
 	if (bp)
 		xfs_buf_set_ref(bp, refval);
@@ -650,7 +653,7 @@ xfs_btree_reada_bufl(
 
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
-	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count);
+	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count, NULL);
 }
 
 /*
@@ -670,7 +673,7 @@ xfs_btree_reada_bufs(
 	ASSERT(agno != NULLAGNUMBER);
 	ASSERT(agbno != NULLAGBLOCK);
 	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count);
+	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count, NULL);
 }
 
 STATIC int
@@ -1013,7 +1016,7 @@ xfs_btree_read_buf_block(
 
 	d = xfs_btree_ptr_to_daddr(cur, ptr);
 	error = xfs_trans_read_buf(mp, cur->bc_tp, mp->m_ddev_targp, d,
-				   mp->m_bsize, flags, bpp);
+				   mp->m_bsize, flags, bpp, NULL);
 	if (error)
 		return error;
 
