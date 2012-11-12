@@ -22,13 +22,6 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps65910.h>
 
-#if defined(CONFIG_MACH_RK2926_V86)
-#include <linux/irq.h>
-#include <linux/interrupt.h>
-int tps65910_charge_ok = 0 ;
-EXPORT_SYMBOL(tps65910_charge_ok);
-#endif
-
 struct tps65910 *g_tps65910;
 
 static struct mfd_cell tps65910s[] = {
@@ -239,22 +232,6 @@ out:
 }
 EXPORT_SYMBOL_GPL(tps65910_clear_bits);
 
-#if defined(CONFIG_MACH_RK2926_V86)
-static irqreturn_t tps65910_gpio0_r_irq(int irq, void *irq_data)
-{
-	//printk("#########chg_ok_det######### %s\n",__func__);
-	tps65910_charge_ok = 1 ;
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t tps65910_gpio0_f_irq(int irq, void *irq_data)
-{
-	//printk("#########chg_no_ok######### %s\n",__func__);
-	tps65910_charge_ok = 0 ;
-	return IRQ_HANDLED;
-}
-#endif
-
 static int tps65910_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -313,28 +290,6 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	ret = tps65910_irq_init(tps65910, init_data->irq, init_data);
 	if (ret < 0)
 		goto err;
-
-	/************************* chg_ok det ******************/
-	#if defined(CONFIG_MACH_RK2926_V86)
-	if ( tps65910->irq_base) {
-		ret = request_threaded_irq( tps65910->irq_base +
-			TPS65910_IRQ_GPIO_R,
-			 NULL, tps65910_gpio0_r_irq, IRQF_TRIGGER_RISING,
-			 "chg_ok", tps65910);
-		}
-	if (ret < 0)
-		printk( "chg_ok IRQ request failed: %d\n");
-		
-	if ( tps65910->irq_base) {
-		ret = request_threaded_irq( tps65910->irq_base +
-			TPS65910_IRQ_GPIO_F,
-			 NULL, tps65910_gpio0_f_irq, IRQF_TRIGGER_FALLING,
-			 "chg_no_ok", tps65910);
-		}
-	if (ret < 0)
-		printk( "chg_ok IRQ request failed: %d\n");
-      #endif
-	/****************************************************/
 
 	if (pmic_plat_data && pmic_plat_data->post_init) {
 		ret = pmic_plat_data->post_init(tps65910);

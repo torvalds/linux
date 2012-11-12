@@ -58,6 +58,9 @@
 #include "board-rk2928-sdk-camera.c" 
 #include "board-rk2928-sdk-key.c"
 
+#include <linux/irq.h>
+#include <linux/interrupt.h>
+
 #ifdef  CONFIG_THREE_FB_BUFFER
 #define RK30_FB0_MEM_SIZE 12*SZ_1M
 #else
@@ -75,13 +78,6 @@ extern  int act8931_charge_ok  ;
 //#define V86_VERSION_1_0
 #define V86_VERSION_1_1
 #endif
-
-#if defined(V86_VERSION_1_1)
-#if defined(CONFIG_MFD_TPS65910)
-extern int tps65910_charge_ok ;
-#endif
-#endif
-
 
 static struct spi_board_info board_spi_devices[] = {
 };
@@ -710,6 +706,13 @@ static struct platform_device device_acodec = {
 #ifdef CONFIG_BATTERY_RK30_ADC_FAC
 #if  defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
 #define   DC_DET_PIN  RK2928_PIN1_PA5
+
+#if defined(V86_VERSION_1_1)
+static int tps65910_charge_ok;
+static irqreturn_t tps65910_gpio0_r_irq(int irq, void *irq_data);
+static irqreturn_t tps65910_gpio0_f_irq(int irq, void *irq_data); 
+#endif
+
 int rk30_battery_adc_io_init(void){
 	int ret = 0;
 		
@@ -726,22 +729,54 @@ int rk30_battery_adc_io_init(void){
     		printk("failed to set gpio dc_det input\n");
     		return ret ;
     	}
-	
+
+      #if defined(V86_VERSION_1_1)
+      //上升沿
+	//ret = request_irq(IRQ_BOARD_BASE+TPS65910_IRQ_GPIO_R, tps65910_gpio0_r_irq, IRQF_TRIGGER_RISING, "chg_ok", NULL);
+      ret = request_threaded_irq( IRQ_BOARD_BASE +TPS65910_IRQ_GPIO_R,
+			 NULL, tps65910_gpio0_r_irq, IRQF_TRIGGER_RISING,
+			 "chg_ok", NULL);
+	if (ret) {
+    		printk("failed to request_irq IRQ_BOARD_BASE +TPS65910_IRQ_GPIO_R , error = %d \n",ret);
+    		return ret ;
+    	}
+    	#endif
+    	
 	return 0;
 
 }
+
 #if defined(V86_VERSION_1_1)
-extern int tps65910_charge_ok;
+static irqreturn_t tps65910_gpio0_r_irq(int irq, void *irq_data)//上升沿中断函数
+{
+	//printk("-----------------chg_ok_det######### %s\n",__func__);
+	tps65910_charge_ok = 1 ;
+      int ret = request_threaded_irq( IRQ_BOARD_BASE +TPS65910_IRQ_GPIO_F,
+			 NULL, tps65910_gpio0_f_irq, IRQF_TRIGGER_RISING,
+			 "chg_no_ok", NULL);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t tps65910_gpio0_f_irq(int irq, void *irq_data)//下降沿中断函数
+{
+	//printk("-----------------chg_no_ok######### %s\n",__func__);
+	tps65910_charge_ok = 0 ;
+      int ret = request_threaded_irq( IRQ_BOARD_BASE +TPS65910_IRQ_GPIO_R,
+			 NULL, tps65910_gpio0_r_irq, IRQF_TRIGGER_RISING,
+			 "chg_ok", NULL);
+
+	return IRQ_HANDLED;
+}
+
 #if defined(CONFIG_MFD_TPS65910)
 int rk30_battery_adc_charging_ok( ){
-
-       if( gpio_get_value(DC_DET_PIN) == GPIO_LOW){
-       //printk(">>>>>>>>>> DC_DET_OK\n");
+       //printk(">>>>>>>>>>return tps65910_charge_ok = %d \n",tps65910_charge_ok);
+       if( gpio_get_value(DC_DET_PIN) == GPIO_LOW){         
            if( tps65910_charge_ok ){
-                //printk(">>>>>>>>>>return tps65910_charge_ok = %d \n",tps65910_charge_ok);
+
                 return 1 ;
             }
-            //printk(">>>>>>>>>> tps65910_charge_ok = %d \n",tps65910_charge_ok);
        }
 
        return 0 ;
@@ -761,7 +796,7 @@ static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
          .charging_ok     = rk30_battery_adc_charging_ok ,
         #endif
 
-        .reference_voltage=3200,
+        .reference_voltage=3300,
         .pull_up_res = 200 ,
         .pull_down_res = 200 ,
 
