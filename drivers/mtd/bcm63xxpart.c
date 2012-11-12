@@ -37,8 +37,7 @@
 
 #define BCM63XX_EXTENDED_SIZE	0xBFC00000	/* Extended flash address */
 
-#define BCM63XX_MIN_CFE_SIZE	0x10000		/* always at least 64KiB */
-#define BCM63XX_MIN_NVRAM_SIZE	0x10000		/* always at least 64KiB */
+#define BCM63XX_CFE_BLOCK_SIZE	0x10000		/* always at least 64KiB */
 
 #define BCM63XX_CFE_MAGIC_OFFSET 0x4e0
 
@@ -79,6 +78,7 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	unsigned int rootfsaddr, kerneladdr, spareaddr;
 	unsigned int rootfslen, kernellen, sparelen, totallen;
 	unsigned int cfelen, nvramlen;
+	unsigned int cfe_erasesize;
 	int i;
 	u32 computed_crc;
 	bool rootfs_first = false;
@@ -86,8 +86,11 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	if (bcm63xx_detect_cfe(master))
 		return -EINVAL;
 
-	cfelen = max_t(uint32_t, master->erasesize, BCM63XX_MIN_CFE_SIZE);
-	nvramlen = max_t(uint32_t, master->erasesize, BCM63XX_MIN_NVRAM_SIZE);
+	cfe_erasesize = max_t(uint32_t, master->erasesize,
+			      BCM63XX_CFE_BLOCK_SIZE);
+
+	cfelen = cfe_erasesize;
+	nvramlen = cfe_erasesize;
 
 	/* Allocate memory for buffer */
 	buf = vmalloc(sizeof(struct bcm_tag));
