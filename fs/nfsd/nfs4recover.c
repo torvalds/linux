@@ -65,6 +65,7 @@ struct nfsd4_client_tracking_ops {
 static struct file *rec_file;
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 static struct nfsd4_client_tracking_ops *client_tracking_ops;
+static bool in_grace;
 
 static int
 nfs4_save_creds(const struct cred **original_creds)
@@ -142,6 +143,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	const struct cred *original_cred;
 	char *dname = clp->cl_recdir;
 	struct dentry *dir, *dentry;
+	struct nfs4_client_reclaim *crp;
 	int status;
 
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
@@ -182,13 +184,19 @@ out_put:
 	dput(dentry);
 out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
-	if (status == 0)
+	if (status == 0) {
+		if (in_grace) {
+			crp = nfs4_client_to_reclaim(clp->cl_recdir);
+			if (crp)
+				crp->cr_clp = clp;
+		}
 		vfs_fsync(rec_file, 0);
-	else
+	} else {
 		printk(KERN_ERR "NFSD: failed to write recovery record"
 				" (err %d); please check that %s exists"
 				" and is writeable", status,
 				user_recovery_dirname);
+	}
 	mnt_drop_write_file(rec_file);
 	nfs4_reset_creds(original_cred);
 }
@@ -289,6 +297,7 @@ static void
 nfsd4_remove_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
+	struct nfs4_client_reclaim *crp;
 	int status;
 
 	if (!rec_file || !test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -305,8 +314,15 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 
 	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
 	nfs4_reset_creds(original_cred);
-	if (status == 0)
+	if (status == 0) {
 		vfs_fsync(rec_file, 0);
+		if (in_grace) {
+			/* remove reclaim record */
+			crp = nfsd4_find_reclaim_client(clp->cl_recdir);
+			if (crp)
+				nfs4_remove_reclaim_record(crp);
+		}
+	}
 out_drop_write:
 	mnt_drop_write_file(rec_file);
 out:
@@ -336,6 +352,7 @@ nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
 {
 	int status;
 
+	in_grace = false;
 	if (!rec_file)
 		return;
 	status = mnt_want_write_file(rec_file);
@@ -410,6 +427,8 @@ nfsd4_init_recdir(void)
 	}
 
 	nfs4_reset_creds(original_cred);
+	if (!status)
+		in_grace = true;
 	return status;
 }
 
@@ -481,13 +500,17 @@ nfs4_recoverydir(void)
 static int
 nfsd4_check_legacy_client(struct nfs4_client *clp)
 {
+	struct nfs4_client_reclaim *crp;
+
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return 0;
 
 	/* look for it in the reclaim hashtable otherwise */
-	if (nfsd4_find_reclaim_client(clp->cl_recdir)) {
+	crp = nfsd4_find_reclaim_client(clp->cl_recdir);
+	if (crp) {
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+		crp->cr_clp = clp;
 		return 0;
 	}
 

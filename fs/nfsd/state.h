@@ -304,6 +304,7 @@ is_client_expired(struct nfs4_client *clp)
  */
 struct nfs4_client_reclaim {
 	struct list_head	cr_strhash;	/* hash by cr_name */
+	struct nfs4_client	*cr_clp;	/* pointer to associated clp */
 	char			cr_recdir[HEXDIR_LEN]; /* recover dir */
 };
 
@@ -464,7 +465,6 @@ extern __be32 nfs4_preprocess_stateid_op(struct net *net,
 		stateid_t *stateid, int flags, struct file **filp);
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
-extern int nfs4_in_grace(void);
 void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *);
 extern void nfs4_release_reclaim(void);
 extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(const char *recdir);
@@ -483,7 +483,7 @@ extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfs4_put_delegation(struct nfs4_delegation *dp);
 extern __be32 nfs4_make_rec_clidname(char *clidname, struct xdr_netobj *clname);
 extern struct nfs4_client_reclaim *nfs4_client_to_reclaim(const char *name);
-extern int nfs4_has_reclaimed_state(const char *name);
+extern bool nfs4_has_reclaimed_state(const char *name);
 extern void release_session_client(struct nfsd4_session *);
 extern void nfsd4_purge_closed_stateid(struct nfs4_stateowner *);
 

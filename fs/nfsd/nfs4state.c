@@ -4483,16 +4483,13 @@ alloc_reclaim(void)
 	return kmalloc(sizeof(struct nfs4_client_reclaim), GFP_KERNEL);
 }
 
-int
+bool
 nfs4_has_reclaimed_state(const char *name)
 {
-	unsigned int strhashval = clientstr_hashval(name);
-	struct nfs4_client *clp;
+	struct nfs4_client_reclaim *crp;
 
-	clp = find_confirmed_client_by_str(name, strhashval);
-	if (!clp)
-		return 0;
-	return test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+	crp = nfsd4_find_reclaim_client(name);
+	return (crp && crp->cr_clp);
 }
 
 /*
@@ -4511,6 +4508,7 @@ nfs4_client_to_reclaim(const char *name)
 		INIT_LIST_HEAD(&crp->cr_strhash);
 		list_add(&crp->cr_strhash, &reclaim_str_hashtbl[strhashval]);
 		memcpy(crp->cr_recdir, name, HEXDIR_LEN);
+		crp->cr_clp = NULL;
 		reclaim_str_hashtbl_size++;
 	}
 	return crp;
