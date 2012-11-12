@@ -408,10 +408,10 @@ xfs_qm_scall_getqstat(
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_inode	*uip, *gip;
-	boolean_t		tempuqip, tempgqip;
+	bool                    tempuqip, tempgqip;
 
 	uip = gip = NULL;
-	tempuqip = tempgqip = B_FALSE;
+	tempuqip = tempgqip = false;
 	memset(out, 0, sizeof(fs_quota_stat_t));
 
 	out->qs_version = FS_QSTAT_VERSION;
@@ -434,12 +434,12 @@ xfs_qm_scall_getqstat(
 	if (!uip && mp->m_sb.sb_uquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_uquotino,
 					0, 0, &uip) == 0)
-			tempuqip = B_TRUE;
+			tempuqip = true;
 	}
 	if (!gip && mp->m_sb.sb_gquotino != NULLFSINO) {
 		if (xfs_iget(mp, NULL, mp->m_sb.sb_gquotino,
 					0, 0, &gip) == 0)
-			tempgqip = B_TRUE;
+			tempgqip = true;
 	}
 	if (uip) {
 		out->qs_uquota.qfs_nblks = uip->i_d.di_nblocks;
