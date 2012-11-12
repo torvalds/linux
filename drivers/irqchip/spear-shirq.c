@@ -1,10 +1,11 @@
 /*
- * arch/arm/plat-spear/shirq.c
- *
  * SPEAr platform shared irq layer source file
  *
- * Copyright (C) 2009 ST Microelectronics
+ * Copyright (C) 2009-2012 ST Microelectronics
  * Viresh Kumar <viresh.linux@gmail.com>
+ *
+ * Copyright (C) 2012 ST Microelectronics
+ * Shiraz Hashim <shiraz.hashim@st.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -18,11 +19,11 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/spear-shirq.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
-#include <plat/shirq.h>
 
 static DEFINE_SPINLOCK(lock);
 

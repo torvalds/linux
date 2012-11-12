@@ -1,9 +1,7 @@
 /*
- * arch/arm/plat-spear/include/plat/shirq.h
- *
  * SPEAr platform shared irq layer header file
  *
- * Copyright (C) 2009 ST Microelectronics
+ * Copyright (C) 2009-2012 ST Microelectronics
  * Viresh Kumar <viresh.linux@gmail.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -11,8 +9,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __PLAT_SHIRQ_H
-#define __PLAT_SHIRQ_H
+#ifndef __SPEAR_SHIRQ_H
+#define __SPEAR_SHIRQ_H
 
 #include <linux/irq.h>
 #include <linux/types.h>
@@ -63,4 +61,4 @@ int __init spear310_shirq_of_init(struct device_node *np,
 int __init spear320_shirq_of_init(struct device_node *np,
 		struct device_node *parent);
 
-#endif /* __PLAT_SHIRQ_H */
+#endif /* __SPEAR_SHIRQ_H */
