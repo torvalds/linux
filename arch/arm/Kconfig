@@ -1450,6 +1450,10 @@ config ISA_DMA
 	bool
 	select ISA_DMA_API
 
+config ARCH_NO_VIRT_TO_BUS
+	def_bool y
+	depends on !ARCH_RPC && !ARCH_NETWINDER && !ARCH_SHARK
+
 # Select ISA DMA interface
 config ISA_DMA_API
 	bool
