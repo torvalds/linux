@@ -401,6 +401,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
 #define INTEL_PCH_LPT_DEVICE_ID_TYPE	0x8c00
+#define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE	0x9c00
 
 void intel_detect_pch(struct drm_device *dev)
 {
@@ -439,6 +440,11 @@ void intel_detect_pch(struct drm_device *dev)
 				dev_priv->pch_type = PCH_LPT;
 				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
+				WARN_ON(!IS_HASWELL(dev));
+			} else if (id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_LPT;
+				dev_priv->num_pch_pll = 0;
+				DRM_DEBUG_KMS("Found LynxPoint LP PCH\n");
 				WARN_ON(!IS_HASWELL(dev));
 			}
 			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
