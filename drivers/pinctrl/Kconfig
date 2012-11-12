@@ -100,17 +100,15 @@ config PINCTRL_MMP2
 
 config PINCTRL_MXS
 	bool
+	select PINMUX
+	select PINCONF
 
 config PINCTRL_IMX23
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_MXS
 
 config PINCTRL_IMX28
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_MXS
 
 config PINCTRL_NOMADIK
