@@ -1291,6 +1291,7 @@ xfs_attr_leaf_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	leaf2 = blk2->bp->b_addr;
 	ASSERT(leaf1->hdr.info.magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
 	ASSERT(leaf2->hdr.info.magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
+	ASSERT(leaf2->hdr.count == 0);
 	args = state->args;
 
 	trace_xfs_attr_leaf_rebalance(args);
@@ -1361,6 +1362,7 @@ xfs_attr_leaf_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		 * I assert that since all callers pass in an empty
 		 * second buffer, this code should never execute.
 		 */
+		ASSERT(0);
 
 		/*
 		 * Figure the total bytes to be added to the destination leaf.
@@ -1422,10 +1424,24 @@ xfs_attr_leaf_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 			args->index2 = 0;
 			args->blkno2 = blk2->blkno;
 		} else {
+			/*
+			 * On a double leaf split, the original attr location
+			 * is already stored in blkno2/index2, so don't
+			 * overwrite it overwise we corrupt the tree.
+			 */
 			blk2->index = blk1->index
 				    - be16_to_cpu(leaf1->hdr.count);
-			args->index = args->index2 = blk2->index;
-			args->blkno = args->blkno2 = blk2->blkno;
+			args->index = blk2->index;
+			args->blkno = blk2->blkno;
+			if (!state->extravalid) {
+				/*
+				 * set the new attr location to match the old
+				 * one and let the higher level split code
+				 * decide where in the leaf to place it.
+				 */
+				args->index2 = blk2->index;
+				args->blkno2 = blk2->blkno;
+			}
 		}
 	} else {
 		ASSERT(state->inleaf == 1);
