@@ -1299,7 +1299,7 @@ static struct nfs4_stid *find_stateid_by_type(struct nfs4_client *cl, stateid_t 
 	return NULL;
 }
 
-static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
+static struct nfs4_client *create_client(struct xdr_netobj name,
 		struct svc_rqst *rqstp, nfs4_verifier *verf)
 {
 	struct nfs4_client *clp;
@@ -1319,7 +1319,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 		return NULL;
 	}
 	idr_init(&clp->cl_stateids);
-	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
 	atomic_set(&clp->cl_refcount, 0);
 	clp->cl_cb_state = NFSD4_CB_UNKNOWN;
 	INIT_LIST_HEAD(&clp->cl_idhash);
@@ -1616,7 +1615,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 {
 	struct nfs4_client *unconf, *conf, *new;
 	__be32 status;
-	char			dname[HEXDIR_LEN];
 	char			addr_str[INET6_ADDRSTRLEN];
 	nfs4_verifier		verf = exid->verifier;
 	struct sockaddr		*sa = svc_addr(rqstp);
@@ -1642,11 +1640,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	case SP4_MACH_CRED:
 		return nfserr_serverfault;	/* no excuse :-/ */
 	}
-
-	status = nfs4_make_rec_clidname(dname, &exid->clname);
-
-	if (status)
-		return status;
 
 	/* Cases below refer to rfc 5661 section 18.35.4: */
 	nfs4_lock_state();
@@ -1701,7 +1694,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 
 	/* case 1 (normal case) */
 out_new:
-	new = create_client(exid->clname, dname, rqstp, &verf);
+	new = create_client(exid->clname, rqstp, &verf);
 	if (new == NULL) {
 		status = nfserr_jukebox;
 		goto out;
@@ -2236,12 +2229,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_verifier		clverifier = setclid->se_verf;
 	struct nfs4_client	*conf, *unconf, *new;
 	__be32 			status;
-	char                    dname[HEXDIR_LEN];
 	
-	status = nfs4_make_rec_clidname(dname, &clname);
-	if (status)
-		return status;
-
 	/* Cases below refer to rfc 3530 section 14.2.33: */
 	nfs4_lock_state();
 	conf = find_confirmed_client_by_name(&clname);
@@ -2263,7 +2251,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (unconf)
 		expire_client(unconf);
 	status = nfserr_jukebox;
-	new = create_client(clname, dname, rqstp, &clverifier);
+	new = create_client(clname, rqstp, &clverifier);
 	if (new == NULL)
 		goto out;
 	if (conf && same_verf(&conf->cl_verifier, &clverifier))
