@@ -44,7 +44,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
-#include <plat/dma.h>
 #include <video/omapvrfb.h>
 #include <video/omapdss.h>
 
