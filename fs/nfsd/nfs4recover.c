@@ -404,6 +404,7 @@ nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
 		vfs_fsync(rec_file, 0);
 	mnt_drop_write_file(rec_file);
 out:
+	nfs4_release_reclaim();
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"
 			" directory %s\n", rec_file->f_path.dentry->d_name.name);
