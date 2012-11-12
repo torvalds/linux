@@ -39,7 +39,7 @@ static struct timer_list runnables_timer;
 
 static RUNNABLES_STATE runnables_state;
 /* configurable parameters */
-static unsigned int sample_rate = 10;		/* msec */
+static unsigned int sample_rate = 20;		/* msec */
 
 static RUNNABLES_STATE runnables_state;
 
@@ -47,11 +47,11 @@ static RUNNABLES_STATE runnables_state;
 #define NR_FSHIFT	(1 << NR_FSHIFT_EXP)
 /* avg run threads * 8 (e.g., 11 = 1.375 threads) */
 static unsigned int default_thresholds[] = {
-	9, 17, 25, UINT_MAX
+	10, 18, 20, UINT_MAX
 };
 
 static unsigned int nr_run_last;
-static unsigned int nr_run_hysteresis = 4;		/* 1 / 4 thread */
+static unsigned int nr_run_hysteresis = 2;		/* 1 / 2 thread */
 static unsigned int default_threshold_level = 4;	/* 1 / 4 thread */
 static unsigned int nr_run_thresholds[NR_CPUS];
 
@@ -68,9 +68,9 @@ static DEFINE_PER_CPU(struct runnables_avg_sample, avg_nr_sample);
 
 /* EXP = alpha in the exponential moving average.
  * Alpha = e ^ (-sample_rate / window_size) * FIXED_1
- * Calculated for sample_rate of 10ms, window size of 63.82ms
+ * Calculated for sample_rate of 20ms, window size of 100ms
  */
-#define EXP    1751
+#define EXP    1677
 
 static unsigned int get_avg_nr_runnables(void)
 {
