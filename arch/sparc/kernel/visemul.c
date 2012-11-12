@@ -149,21 +149,24 @@ static inline void maybe_flush_windows(unsigned int rs1, unsigned int rs2,
 
 static unsigned long fetch_reg(unsigned int reg, struct pt_regs *regs)
 {
-	unsigned long value;
+	unsigned long value, fp;
 	
 	if (reg < 16)
 		return (!reg ? 0 : regs->u_regs[reg]);
+
+	fp = regs->u_regs[UREG_FP];
+
 	if (regs->tstate & TSTATE_PRIV) {
 		struct reg_window *win;
-		win = (struct reg_window *)(regs->u_regs[UREG_FP] + STACK_BIAS);
+		win = (struct reg_window *)(fp + STACK_BIAS);
 		value = win->locals[reg - 16];
-	} else if (test_thread_flag(TIF_32BIT)) {
+	} else if (!test_thread_64bit_stack(fp)) {
 		struct reg_window32 __user *win32;
-		win32 = (struct reg_window32 __user *)((unsigned long)((u32)regs->u_regs[UREG_FP]));
+		win32 = (struct reg_window32 __user *)((unsigned long)((u32)fp));
 		get_user(value, &win32->locals[reg - 16]);
 	} else {
 		struct reg_window __user *win;
-		win = (struct reg_window __user *)(regs->u_regs[UREG_FP] + STACK_BIAS);
+		win = (struct reg_window __user *)(fp + STACK_BIAS);
 		get_user(value, &win->locals[reg - 16]);
 	}
 	return value;
@@ -172,16 +175,18 @@ static unsigned long fetch_reg(unsigned int reg, struct pt_regs *regs)
 static inline unsigned long __user *__fetch_reg_addr_user(unsigned int reg,
 							  struct pt_regs *regs)
 {
+	unsigned long fp = regs->u_regs[UREG_FP];
+
 	BUG_ON(reg < 16);
 	BUG_ON(regs->tstate & TSTATE_PRIV);
 
-	if (test_thread_flag(TIF_32BIT)) {
+	if (!test_thread_64bit_stack(fp)) {
 		struct reg_window32 __user *win32;
-		win32 = (struct reg_window32 __user *)((unsigned long)((u32)regs->u_regs[UREG_FP]));
+		win32 = (struct reg_window32 __user *)((unsigned long)((u32)fp));
 		return (unsigned long __user *)&win32->locals[reg - 16];
 	} else {
 		struct reg_window __user *win;
-		win = (struct reg_window __user *)(regs->u_regs[UREG_FP] + STACK_BIAS);
+		win = (struct reg_window __user *)(fp + STACK_BIAS);
 		return &win->locals[reg - 16];
 	}
 }
@@ -204,7 +209,7 @@ static void store_reg(struct pt_regs *regs, unsigned long val, unsigned long rd)
 	} else {
 		unsigned long __user *rd_user = __fetch_reg_addr_user(rd, regs);
 
-		if (test_thread_flag(TIF_32BIT))
+		if (!test_thread_64bit_stack(regs->u_regs[UREG_FP]))
 			__put_user((u32)val, (u32 __user *)rd_user);
 		else
 			__put_user(val, rd_user);
