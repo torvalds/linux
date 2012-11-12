@@ -62,23 +62,9 @@ xfs_flush_pages(
 				last == -1 ? LLONG_MAX : last);
 	if (flags & XBF_ASYNC)
 		return ret;
-	ret2 = xfs_wait_on_pages(ip, first, last);
+	ret2 = -filemap_fdatawait_range(mapping, first,
+				last == -1 ? XFS_ISIZE(ip) - 1 : last);
 	if (!ret)
 		ret = ret2;
 	return ret;
-}
-
-int
-xfs_wait_on_pages(
-	xfs_inode_t	*ip,
-	xfs_off_t	first,
-	xfs_off_t	last)
-{
-	struct address_space *mapping = VFS_I(ip)->i_mapping;
-
-	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
-		return -filemap_fdatawait_range(mapping, first,
-					last == -1 ? XFS_ISIZE(ip) - 1 : last);
-	}
-	return 0;
 }
