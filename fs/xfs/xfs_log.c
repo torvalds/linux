@@ -35,6 +35,7 @@
 #include "xfs_inode.h"
 #include "xfs_trace.h"
 #include "xfs_fsops.h"
+#include "xfs_cksum.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;
 
@@ -1490,6 +1491,84 @@ xlog_grant_push_ail(
 }
 
 /*
+ * Stamp cycle number in every block
+ */
+STATIC void
+xlog_pack_data(
+	struct xlog		*log,
+	struct xlog_in_core	*iclog,
+	int			roundoff)
+{
+	int			i, j, k;
+	int			size = iclog->ic_offset + roundoff;
+	__be32			cycle_lsn;
+	xfs_caddr_t		dp;
+
+	cycle_lsn = CYCLE_LSN_DISK(iclog->ic_header.h_lsn);
+
+	dp = iclog->ic_datap;
+	for (i = 0; i < BTOBB(size); i++) {
+		if (i >= (XLOG_HEADER_CYCLE_SIZE / BBSIZE))
+			break;
+		iclog->ic_header.h_cycle_data[i] = *(__be32 *)dp;
+		*(__be32 *)dp = cycle_lsn;
+		dp += BBSIZE;
+	}
+
+	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
+		xlog_in_core_2_t *xhdr = iclog->ic_data;
+
+		for ( ; i < BTOBB(size); i++) {
+			j = i / (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			k = i % (XLOG_HEADER_CYCLE_SIZE / BBSIZE);
+			xhdr[j].hic_xheader.xh_cycle_data[k] = *(__be32 *)dp;
+			*(__be32 *)dp = cycle_lsn;
+			dp += BBSIZE;
+		}
+
+		for (i = 1; i < log->l_iclog_heads; i++)
+			xhdr[i].hic_xheader.xh_cycle = cycle_lsn;
+	}
+}
+
+/*
+ * Calculate the checksum for a log buffer.
+ *
+ * This is a little more complicated than it should be because the various
+ * headers and the actual data are non-contiguous.
+ */
+__be32
+xlog_cksum(
+	struct xlog		*log,
+	struct xlog_rec_header	*rhead,
+	char			*dp,
+	int			size)
+{
+	__uint32_t		crc;
+
+	/* first generate the crc for the record header ... */
+	crc = xfs_start_cksum((char *)rhead,
+			      sizeof(struct xlog_rec_header),
+			      offsetof(struct xlog_rec_header, h_crc));
+
+	/* ... then for additional cycle data for v2 logs ... */
+	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb)) {
+		union xlog_in_core2 *xhdr = (union xlog_in_core2 *)rhead;
+		int		i;
+
+		for (i = 1; i < log->l_iclog_heads; i++) {
+			crc = crc32c(crc, &xhdr[i].hic_xheader,
+				     sizeof(struct xlog_rec_ext_header));
+		}
+	}
+
+	/* ... and finally for the payload */
+	crc = crc32c(crc, dp, size);
+
+	return xfs_end_cksum(crc);
+}
+
+/*
  * The bdstrat callback function for log bufs. This gives us a central
  * place to trap bufs in case we get hit by a log I/O error and need to
  * shutdown. Actually, in practice, even when we didn't get a log error,
@@ -1549,7 +1628,6 @@ xlog_sync(
 	struct xlog		*log,
 	struct xlog_in_core	*iclog)
 {
-	xfs_caddr_t	dptr;		/* pointer to byte sized element */
 	xfs_buf_t	*bp;
 	int		i;
 	uint		count;		/* byte count of bwrite */
@@ -1558,6 +1636,7 @@ xlog_sync(
 	int		split = 0;	/* split write into two regions */
 	int		error;
 	int		v2 = xfs_sb_version_haslogv2(&log->l_mp->m_sb);
+	int		size;
 
 	XFS_STATS_INC(xs_log_writes);
 	ASSERT(atomic_read(&iclog->ic_refcnt) == 0);
@@ -1588,13 +1667,10 @@ xlog_sync(
 	xlog_pack_data(log, iclog, roundoff); 
 
 	/* real byte length */
-	if (v2) {
-		iclog->ic_header.h_len =
-			cpu_to_be32(iclog->ic_offset + roundoff);
-	} else {
-		iclog->ic_header.h_len =
-			cpu_to_be32(iclog->ic_offset);
-	}
+	size = iclog->ic_offset;
+	if (v2)
+		size += roundoff;
+	iclog->ic_header.h_len = cpu_to_be32(size);
 
 	bp = iclog->ic_bp;
 	XFS_BUF_SET_ADDR(bp, BLOCK_LSN(be64_to_cpu(iclog->ic_header.h_lsn)));
@@ -1603,12 +1679,36 @@ xlog_sync(
 
 	/* Do we need to split this write into 2 parts? */
 	if (XFS_BUF_ADDR(bp) + BTOBB(count) > log->l_logBBsize) {
+		char		*dptr;
+
 		split = count - (BBTOB(log->l_logBBsize - XFS_BUF_ADDR(bp)));
 		count = BBTOB(log->l_logBBsize - XFS_BUF_ADDR(bp));
-		iclog->ic_bwritecnt = 2;	/* split into 2 writes */
+		iclog->ic_bwritecnt = 2;
+
+		/*
+		 * Bump the cycle numbers at the start of each block in the
+		 * part of the iclog that ends up in the buffer that gets
+		 * written to the start of the log.
+		 *
+		 * Watch out for the header magic number case, though.
+		 */
+		dptr = (char *)&iclog->ic_header + count;
+		for (i = 0; i < split; i += BBSIZE) {
+			__uint32_t cycle = be32_to_cpu(*(__be32 *)dptr);
+			if (++cycle == XLOG_HEADER_MAGIC_NUM)
+				cycle++;
+			*(__be32 *)dptr = cpu_to_be32(cycle);
+
+			dptr += BBSIZE;
+		}
 	} else {
 		iclog->ic_bwritecnt = 1;
 	}
+
+	/* calculcate the checksum */
+	iclog->ic_header.h_crc = xlog_cksum(log, &iclog->ic_header,
+					    iclog->ic_datap, size);
+
 	bp->b_io_length = BTOBB(count);
 	bp->b_fspriv = iclog;
 	XFS_BUF_ZEROFLAGS(bp);
@@ -1662,19 +1762,6 @@ xlog_sync(
 		bp->b_flags |= XBF_SYNCIO;
 		if (log->l_mp->m_flags & XFS_MOUNT_BARRIER)
 			bp->b_flags |= XBF_FUA;
-		dptr = bp->b_addr;
-		/*
-		 * Bump the cycle numbers at the start of each block
-		 * since this part of the buffer is at the start of
-		 * a new cycle.  Watch out for the header magic number
-		 * case, though.
-		 */
-		for (i = 0; i < split; i += BBSIZE) {
-			be32_add_cpu((__be32 *)dptr, 1);
-			if (be32_to_cpu(*(__be32 *)dptr) == XLOG_HEADER_MAGIC_NUM)
-				be32_add_cpu((__be32 *)dptr, 1);
-			dptr += BBSIZE;
-		}
 
 		ASSERT(XFS_BUF_ADDR(bp) <= log->l_logBBsize-1);
 		ASSERT(XFS_BUF_ADDR(bp) + BTOBB(count) <= log->l_logBBsize);
@@ -1690,7 +1777,6 @@ xlog_sync(
 	}
 	return 0;
 }	/* xlog_sync */
-
 
 /*
  * Deallocate a log structure

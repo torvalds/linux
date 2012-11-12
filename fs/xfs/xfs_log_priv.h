@@ -139,7 +139,6 @@ static inline uint xlog_get_client_id(__be32 i)
 /*
  * Flags for log structure
  */
-#define XLOG_CHKSUM_MISMATCH	0x1	/* used only during recovery */
 #define XLOG_ACTIVE_RECOVERY	0x2	/* in the middle of recovery */
 #define	XLOG_RECOVERY_NEEDED	0x4	/* log was recovered */
 #define XLOG_IO_ERROR		0x8	/* log hit an I/O error, and being
@@ -291,7 +290,7 @@ typedef struct xlog_rec_header {
 	__be32	  h_len;	/* len in bytes; should be 64-bit aligned: 4 */
 	__be64	  h_lsn;	/* lsn of this LR			:  8 */
 	__be64	  h_tail_lsn;	/* lsn of 1st LR w/ buffers not committed: 8 */
-	__be32	  h_chksum;	/* may not be used; non-zero if used	:  4 */
+	__le32	  h_crc;	/* crc of log record                    :  4 */
 	__be32	  h_prev_block; /* block number to previous LR		:  4 */
 	__be32	  h_num_logops;	/* number of log operations in this LR	:  4 */
 	__be32	  h_cycle_data[XLOG_HEADER_CYCLE_SIZE / BBSIZE];
@@ -555,11 +554,9 @@ xlog_recover(
 extern int
 xlog_recover_finish(
 	struct xlog		*log);
-extern void
-xlog_pack_data(
-	struct xlog		*log,
-	struct xlog_in_core	*iclog,
-	int);
+
+extern __be32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
+			    char *dp, int size);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
 struct xlog_ticket *
