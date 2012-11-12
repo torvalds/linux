@@ -44,7 +44,7 @@
 static struct snd_soc_codec *rt3261_codec;
 
 #if 0
-#define DBG(x...)	printk(KERN_INFO x)
+#define DBG(x...)	printk(KERN_DEBUG x)
 #else
 #define DBG(x...)
 #endif
