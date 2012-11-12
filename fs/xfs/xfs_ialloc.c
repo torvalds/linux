@@ -1472,6 +1472,40 @@ xfs_check_agi_unlinked(
 #define xfs_check_agi_unlinked(agi)
 #endif
 
+static void
+xfs_agi_read_verify(
+	struct xfs_buf	*bp)
+{
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_agi	*agi = XFS_BUF_TO_AGI(bp);
+	int		agi_ok;
+
+	/*
+	 * Validate the magic number of the agi block.
+	 */
+	agi_ok = agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC) &&
+		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum));
+
+	/*
+	 * during growfs operations, the perag is not fully initialised,
+	 * so we can't use it for any useful checking. growfs ensures we can't
+	 * use it by using uncached buffers that don't have the perag attached
+	 * so we can detect and avoid this problem.
+	 */
+	if (bp->b_pag)
+		agi_ok = agi_ok && be32_to_cpu(agi->agi_seqno) ==
+						bp->b_pag->pag_agno;
+
+	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IALLOC_READ_AGI,
+			XFS_RANDOM_IALLOC_READ_AGI))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agi);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+	xfs_check_agi_unlinked(agi);
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
 /*
  * Read in the allocation group header (inode allocation section)
  */
@@ -1482,38 +1516,18 @@ xfs_read_agi(
 	xfs_agnumber_t		agno,	/* allocation group number */
 	struct xfs_buf		**bpp)	/* allocation group hdr buf */
 {
-	struct xfs_agi		*agi;	/* allocation group header */
-	int			agi_ok;	/* agi is consistent */
 	int			error;
 
 	ASSERT(agno != NULLAGNUMBER);
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, bpp, NULL);
+			XFS_FSS_TO_BB(mp, 1), 0, bpp, xfs_agi_read_verify);
 	if (error)
 		return error;
 
 	ASSERT(!xfs_buf_geterror(*bpp));
-	agi = XFS_BUF_TO_AGI(*bpp);
-
-	/*
-	 * Validate the magic number of the agi block.
-	 */
-	agi_ok = agi->agi_magicnum == cpu_to_be32(XFS_AGI_MAGIC) &&
-		XFS_AGI_GOOD_VERSION(be32_to_cpu(agi->agi_versionnum)) &&
-		be32_to_cpu(agi->agi_seqno) == agno;
-	if (unlikely(XFS_TEST_ERROR(!agi_ok, mp, XFS_ERRTAG_IALLOC_READ_AGI,
-			XFS_RANDOM_IALLOC_READ_AGI))) {
-		XFS_CORRUPTION_ERROR("xfs_read_agi", XFS_ERRLEVEL_LOW,
-				     mp, agi);
-		xfs_trans_brelse(tp, *bpp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
-
 	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
-
-	xfs_check_agi_unlinked(agi);
 	return 0;
 }
 
