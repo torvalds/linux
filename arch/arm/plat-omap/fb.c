@@ -30,7 +30,6 @@
 #include <linux/io.h>
 #include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/map.h>
 
 #include <plat/cpu.h>

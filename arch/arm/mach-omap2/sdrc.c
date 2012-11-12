@@ -23,8 +23,6 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include "../plat-omap/sram.h"
-
 #include "common.h"
 #include "clock.h"
 #include "sdrc.h"

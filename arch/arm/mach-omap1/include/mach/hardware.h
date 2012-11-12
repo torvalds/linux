@@ -39,7 +39,7 @@
 #include <asm/sizes.h>
 #ifndef __ASSEMBLER__
 #include <asm/types.h>
-#include "../../mach-omap1/soc.h"
+#include <mach/soc.h>
 
 /*
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these
@@ -71,6 +71,9 @@ static inline u32 omap_cs3_phys(void)
 }
 
 #endif	/* ifndef __ASSEMBLER__ */
+
+#define OMAP1_IO_OFFSET		0x01000000	/* Virtual IO = 0xfefb0000 */
+#define OMAP1_IO_ADDRESS(pa)	IOMEM((pa) - OMAP1_IO_OFFSET)
 
 #include <mach/serial.h>
 

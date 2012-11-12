@@ -44,8 +44,6 @@
 #include <video/omap-panel-tfp410.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
-#include <mach/hardware.h>
-
 #include "common.h"
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"

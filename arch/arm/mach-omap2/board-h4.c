@@ -33,7 +33,7 @@
 #include <asm/mach/map.h>
 
 #include <plat-omap/dma-omap.h>
-#include "debug-devices.h"
+#include <plat/debug-devices.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-generic-dpi.h>

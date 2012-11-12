@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/sram.h
- *
  * Interface for functions that need to be run in internal SRAM
  *
  * This program is free software; you can redistribute it and/or modify
@@ -8,26 +6,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ARCH_ARM_OMAP_SRAM_H
-#define __ARCH_ARM_OMAP_SRAM_H
-
 #ifndef __ASSEMBLY__
-#include <asm/fncpy.h>
-
-int __init omap_sram_init(void);
-
-extern void *omap_sram_push_address(unsigned long size);
-
-/* Macro to push a function to the internal SRAM, using the fncpy API */
-#define omap_sram_push(funcp, size) ({				\
-	typeof(&(funcp)) _res = NULL;				\
-	void *_sram_address = omap_sram_push_address(size);	\
-	if (_sram_address)					\
-		_res = fncpy(_sram_address, &(funcp), size);	\
-	_res;							\
-})
-
-extern void omap_sram_reprogram_clock(u32 dpllctl, u32 ckctl);
+#include <plat/sram.h>
 
 extern void omap2_sram_ddr_init(u32 *slow_dll_ctrl, u32 fast_dll_ctrl,
 				u32 base_cs, u32 force_unlock);
@@ -44,9 +24,6 @@ extern u32 omap3_configure_core_dpll(
 extern void omap3_sram_restore_context(void);
 
 /* Do not use these */
-extern void omap1_sram_reprogram_clock(u32 ckctl, u32 dpllctl);
-extern unsigned long omap1_sram_reprogram_clock_sz;
-
 extern void omap24xx_sram_reprogram_clock(u32 ckctl, u32 dpllctl);
 extern unsigned long omap24xx_sram_reprogram_clock_sz;
 
@@ -104,4 +81,3 @@ static inline void omap_push_sram_idle(void) {}
 #define OMAP4_SRAM_PA		0x40300000
 #endif
 #define AM33XX_SRAM_PA		0x40300000
-#endif

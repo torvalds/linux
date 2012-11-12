@@ -45,6 +45,7 @@
 #include <asm/arch_timer.h>
 #include "omap_hwmod.h"
 #include "omap_device.h"
+#include <plat/counter-32k.h>
 #include <plat/dmtimer.h>
 #include "omap-pm.h"
 
@@ -558,6 +559,8 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 
 	if (timer_dev_attr)
 		pdata->timer_capability = timer_dev_attr->timer_capability;
+
+	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
 
 	pdev = omap_device_build(name, id, oh, pdata, sizeof(*pdata),
 				 NULL, 0, 0);

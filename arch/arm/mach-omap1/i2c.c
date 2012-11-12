@@ -23,7 +23,7 @@
 #include <mach/mux.h>
 #include "soc.h"
 
-#include "../plat-omap/i2c.h"
+#include <plat/i2c.h>
 
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800
@@ -53,6 +53,9 @@ int __init omap_i2c_add_bus(struct omap_i2c_bus_platform_data *pdata,
 {
 	struct platform_device *pdev;
 	struct resource *res;
+
+	if (bus_id > 1)
+		return -EINVAL;
 
 	omap1_i2c_mux_pins(bus_id);
 

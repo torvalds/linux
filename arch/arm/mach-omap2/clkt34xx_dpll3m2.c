@@ -21,12 +21,11 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include "../plat-omap/sram.h"
-
 #include "clock.h"
 #include "clock3xxx.h"
 #include "clock34xx.h"
 #include "sdrc.h"
+#include "sram.h"
 
 #define CYCLES_PER_MHZ			1000000
 

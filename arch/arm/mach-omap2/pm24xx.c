@@ -31,14 +31,14 @@
 #include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
 
+#include <asm/fncpy.h>
+
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 #include <asm/system_misc.h>
 
 #include <plat-omap/dma-omap.h>
-
-#include "../plat-omap/sram.h"
 
 #include "soc.h"
 #include "common.h"
@@ -48,6 +48,7 @@
 #include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 #include "sdrc.h"
+#include "sram.h"
 #include "pm.h"
 #include "control.h"
 #include "powerdomain.h"

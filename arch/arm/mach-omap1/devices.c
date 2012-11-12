@@ -26,12 +26,11 @@
 #include <mach/camera.h>
 #include <mach/hardware.h>
 
-#include "../plat-omap/sram.h"
-
 #include "common.h"
 #include "clock.h"
 #include "dma.h"
 #include "mmc.h"
+#include "sram.h"
 
 #if defined(CONFIG_SND_SOC) || defined(CONFIG_SND_SOC_MODULE)
 

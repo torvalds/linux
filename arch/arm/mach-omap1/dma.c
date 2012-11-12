@@ -321,6 +321,9 @@ static int __init omap1_system_dma_init(void)
 		d->dev_caps = ENABLE_1510_MODE;
 	enable_1510_mode = d->dev_caps & ENABLE_1510_MODE;
 
+	if (cpu_is_omap16xx())
+		d->dev_caps = ENABLE_16XX_MODE;
+
 	d->dev_caps		|= SRC_PORT;
 	d->dev_caps		|= DST_PORT;
 	d->dev_caps		|= SRC_INDEX;
