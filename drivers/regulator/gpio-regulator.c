@@ -303,6 +303,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
 	cfg.driver_data = drvdata;
+	cfg.of_node = np;
 
 	if (config->enable_gpio >= 0)
 		cfg.ena_gpio = config->enable_gpio;
