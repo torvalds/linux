@@ -995,7 +995,6 @@ static int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
  * gfs2_unlink_inode - Removes an inode from its parent dir and unlinks it
  * @dip: The parent directory
  * @name: The name of the entry in the parent directory
- * @bh: The inode buffer for the inode to be removed
  * @inode: The inode to be removed
  *
  * Called with all the locks and in a transaction. This will only be
@@ -1005,8 +1004,7 @@ static int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
  */
 
 static int gfs2_unlink_inode(struct gfs2_inode *dip,
-			     const struct dentry *dentry,
-			     struct buffer_head *bh)
+			     const struct dentry *dentry)
 {
 	struct inode *inode = dentry->d_inode;
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -1046,7 +1044,6 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	struct gfs2_sbd *sdp = GFS2_SB(dir);
 	struct inode *inode = dentry->d_inode;
 	struct gfs2_inode *ip = GFS2_I(inode);
-	struct buffer_head *bh;
 	struct gfs2_holder ghs[3];
 	struct gfs2_rgrpd *rgd;
 	int error;
@@ -1095,14 +1092,9 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 
 	error = gfs2_trans_begin(sdp, 2*RES_DINODE + 3*RES_LEAF + RES_RG_BIT, 0);
 	if (error)
-		goto out_gunlock;
-
-	error = gfs2_meta_inode_buffer(ip, &bh);
-	if (error)
 		goto out_end_trans;
 
-	error = gfs2_unlink_inode(dip, dentry, bh);
-	brelse(bh);
+	error = gfs2_unlink_inode(dip, dentry);
 
 out_end_trans:
 	gfs2_trans_end(sdp);
@@ -1402,14 +1394,8 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 
 	/* Remove the target file, if it exists */
 
-	if (nip) {
-		struct buffer_head *bh;
-		error = gfs2_meta_inode_buffer(nip, &bh);
-		if (error)
-			goto out_end_trans;
-		error = gfs2_unlink_inode(ndip, ndentry, bh);
-		brelse(bh);
-	}
+	if (nip)
+		error = gfs2_unlink_inode(ndip, ndentry);
 
 	if (dir_rename) {
 		error = gfs2_dir_mvino(ip, &gfs2_qdotdot, ndip, DT_DIR);
