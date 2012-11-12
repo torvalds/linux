@@ -225,6 +225,23 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_format_passthrough);
 
+void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format)
+{
+	switch (pixel_format) {
+	case V4L2_PIX_FMT_UYVY:
+		ipu_ch_param_write_field(p, IPU_FIELD_BPP, 3);    /* bits/pixel */
+		ipu_ch_param_write_field(p, IPU_FIELD_PFS, 0xA);  /* pix format */
+		ipu_ch_param_write_field(p, IPU_FIELD_NPB, 31);   /* burst size */
+		break;
+	case V4L2_PIX_FMT_YUYV:
+		ipu_ch_param_write_field(p, IPU_FIELD_BPP, 3);    /* bits/pixel */
+		ipu_ch_param_write_field(p, IPU_FIELD_PFS, 0x8);  /* pix format */
+		ipu_ch_param_write_field(p, IPU_FIELD_NPB, 31);   /* burst size */
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_interleaved);
+
 void ipu_cpmem_set_yuv_planar_full(struct ipu_ch_param __iomem *p,
 		u32 pixel_format, int stride, int u_offset, int v_offset)
 {
