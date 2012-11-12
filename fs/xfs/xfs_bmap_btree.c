@@ -36,6 +36,7 @@
 #include "xfs_bmap.h"
 #include "xfs_error.h"
 #include "xfs_quota.h"
+#include "xfs_trace.h"
 
 /*
  * Determine the extent state.
@@ -707,6 +708,51 @@ xfs_bmbt_key_diff(
 				      cur->bc_rec.b.br_startoff;
 }
 
+void
+xfs_bmbt_read_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
+	unsigned int		level;
+	int			lblock_ok; /* block passes checks */
+
+	/* magic number and level verification.
+	 *
+	 * We don't know waht fork we belong to, so just verify that the level
+	 * is less than the maximum of the two. Later checks will be more
+	 * precise.
+	 */
+	level = be16_to_cpu(block->bb_level);
+	lblock_ok = block->bb_magic == cpu_to_be32(XFS_BMAP_MAGIC) &&
+		    level < max(mp->m_bm_maxlevels[0], mp->m_bm_maxlevels[1]);
+
+	/* numrecs verification */
+	lblock_ok = lblock_ok &&
+		be16_to_cpu(block->bb_numrecs) <= mp->m_bmap_dmxr[level != 0];
+
+	/* sibling pointer verification */
+	lblock_ok = lblock_ok &&
+		block->bb_u.l.bb_leftsib &&
+		(block->bb_u.l.bb_leftsib == cpu_to_be64(NULLDFSBNO) ||
+		 XFS_FSB_SANITY_CHECK(mp,
+			be64_to_cpu(block->bb_u.l.bb_leftsib))) &&
+		block->bb_u.l.bb_rightsib &&
+		(block->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO) ||
+		 XFS_FSB_SANITY_CHECK(mp,
+			be64_to_cpu(block->bb_u.l.bb_rightsib)));
+
+	if (!lblock_ok) {
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
+		XFS_CORRUPTION_ERROR("xfs_bmbt_read_verify",
+					XFS_ERRLEVEL_LOW, mp, block);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
 #ifdef DEBUG
 STATIC int
 xfs_bmbt_keys_inorder(
@@ -746,6 +792,7 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.init_rec_from_cur	= xfs_bmbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
 	.key_diff		= xfs_bmbt_key_diff,
+	.read_verify		= xfs_bmbt_read_verify,
 #ifdef DEBUG
 	.keys_inorder		= xfs_bmbt_keys_inorder,
 	.recs_inorder		= xfs_bmbt_recs_inorder,

@@ -396,7 +396,8 @@ xfs_bulkstat(
 					if (xfs_inobt_maskn(chunkidx, nicluster)
 							& ~r.ir_free)
 						xfs_btree_reada_bufs(mp, agno,
-							agbno, nbcluster);
+							agbno, nbcluster,
+							xfs_inode_buf_verify);
 				}
 				irbp->ir_startino = r.ir_startino;
 				irbp->ir_freecount = r.ir_freecount;

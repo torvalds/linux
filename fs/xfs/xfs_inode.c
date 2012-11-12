@@ -382,7 +382,7 @@ xfs_inobp_check(
 }
 #endif
 
-static void
+void
 xfs_inode_buf_verify(
 	struct xfs_buf	*bp)
 {

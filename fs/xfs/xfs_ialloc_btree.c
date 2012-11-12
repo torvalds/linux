@@ -33,6 +33,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 
 STATIC int
@@ -181,6 +182,44 @@ xfs_inobt_key_diff(
 			  cur->bc_rec.i.ir_startino;
 }
 
+void
+xfs_inobt_read_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
+	unsigned int		level;
+	int			sblock_ok; /* block passes checks */
+
+	/* magic number and level verification */
+	level = be16_to_cpu(block->bb_level);
+	sblock_ok = block->bb_magic == cpu_to_be32(XFS_IBT_MAGIC) &&
+		    level < mp->m_in_maxlevels;
+
+	/* numrecs verification */
+	sblock_ok = sblock_ok &&
+		be16_to_cpu(block->bb_numrecs) <= mp->m_inobt_mxr[level != 0];
+
+	/* sibling pointer verification */
+	sblock_ok = sblock_ok &&
+		(block->bb_u.s.bb_leftsib == cpu_to_be32(NULLAGBLOCK) ||
+		 be32_to_cpu(block->bb_u.s.bb_leftsib) < mp->m_sb.sb_agblocks) &&
+		block->bb_u.s.bb_leftsib &&
+		(block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK) ||
+		 be32_to_cpu(block->bb_u.s.bb_rightsib) < mp->m_sb.sb_agblocks) &&
+		block->bb_u.s.bb_rightsib;
+
+	if (!sblock_ok) {
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
+		XFS_CORRUPTION_ERROR("xfs_inobt_read_verify",
+					XFS_ERRLEVEL_LOW, mp, block);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
 #ifdef DEBUG
 STATIC int
 xfs_inobt_keys_inorder(
@@ -218,6 +257,7 @@ static const struct xfs_btree_ops xfs_inobt_ops = {
 	.init_rec_from_cur	= xfs_inobt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_inobt_init_ptr_from_cur,
 	.key_diff		= xfs_inobt_key_diff,
+	.read_verify		= xfs_inobt_read_verify,
 #ifdef DEBUG
 	.keys_inorder		= xfs_inobt_keys_inorder,
 	.recs_inorder		= xfs_inobt_recs_inorder,

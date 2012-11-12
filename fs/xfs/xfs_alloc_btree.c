@@ -272,6 +272,66 @@ xfs_allocbt_key_diff(
 	return (__int64_t)be32_to_cpu(kp->ar_startblock) - rec->ar_startblock;
 }
 
+void
+xfs_allocbt_read_verify(
+	struct xfs_buf		*bp)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
+	struct xfs_perag	*pag = bp->b_pag;
+	unsigned int		level;
+	int			sblock_ok; /* block passes checks */
+
+	/*
+	 * magic number and level verification
+	 *
+	 * During growfs operations, we can't verify the exact level as the
+	 * perag is not fully initialised and hence not attached to the buffer.
+	 * In this case, check against the maximum tree depth.
+	 */
+	level = be16_to_cpu(block->bb_level);
+	switch (block->bb_magic) {
+	case cpu_to_be32(XFS_ABTB_MAGIC):
+		if (pag)
+			sblock_ok = level < pag->pagf_levels[XFS_BTNUM_BNOi];
+		else
+			sblock_ok = level < mp->m_ag_maxlevels;
+		break;
+	case cpu_to_be32(XFS_ABTC_MAGIC):
+		if (pag)
+			sblock_ok = level < pag->pagf_levels[XFS_BTNUM_CNTi];
+		else
+			sblock_ok = level < mp->m_ag_maxlevels;
+		break;
+	default:
+		sblock_ok = 0;
+		break;
+	}
+
+	/* numrecs verification */
+	sblock_ok = sblock_ok &&
+		be16_to_cpu(block->bb_numrecs) <= mp->m_alloc_mxr[level != 0];
+
+	/* sibling pointer verification */
+	sblock_ok = sblock_ok &&
+		(block->bb_u.s.bb_leftsib == cpu_to_be32(NULLAGBLOCK) ||
+		 be32_to_cpu(block->bb_u.s.bb_leftsib) < mp->m_sb.sb_agblocks) &&
+		block->bb_u.s.bb_leftsib &&
+		(block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK) ||
+		 be32_to_cpu(block->bb_u.s.bb_rightsib) < mp->m_sb.sb_agblocks) &&
+		block->bb_u.s.bb_rightsib;
+
+	if (!sblock_ok) {
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
+		XFS_CORRUPTION_ERROR("xfs_allocbt_read_verify",
+					XFS_ERRLEVEL_LOW, mp, block);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
 #ifdef DEBUG
 STATIC int
 xfs_allocbt_keys_inorder(
@@ -327,6 +387,7 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_allocbt_key_diff,
+	.read_verify		= xfs_allocbt_read_verify,
 #ifdef DEBUG
 	.keys_inorder		= xfs_allocbt_keys_inorder,
 	.recs_inorder		= xfs_allocbt_recs_inorder,
