@@ -4,7 +4,7 @@ Required properties:
 - compatible		: Must be "regulator-gpio".
 
 Optional properties:
-- gpio-enable		: GPIO to use to enable/disable the regulator.
+- enable-gpio		: GPIO to use to enable/disable the regulator.
 - gpios			: GPIO group used to control voltage.
 - states		: Selection of available voltages and GPIO configs.
 - startup-delay-us	: Startup time in microseconds.
@@ -23,7 +23,7 @@ Example:
 		regulator-max-microvolt = <2600000>;
 		regulator-boot-on;
 
-		gpio-enable = <&gpio0 23 0x4>;
+		enable-gpio = <&gpio0 23 0x4>;
 		gpios = <&gpio0 24 0x4
 			 &gpio0 25 0x4>;
 		states = <1800000 0x3
