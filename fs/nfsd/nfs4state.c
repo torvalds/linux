@@ -4517,6 +4517,14 @@ nfs4_client_to_reclaim(const char *name)
 }
 
 void
+nfs4_remove_reclaim_record(struct nfs4_client_reclaim *crp)
+{
+	list_del(&crp->cr_strhash);
+	kfree(crp);
+	reclaim_str_hashtbl_size--;
+}
+
+void
 nfs4_release_reclaim(void)
 {
 	struct nfs4_client_reclaim *crp = NULL;
@@ -4526,9 +4534,7 @@ nfs4_release_reclaim(void)
 		while (!list_empty(&reclaim_str_hashtbl[i])) {
 			crp = list_entry(reclaim_str_hashtbl[i].next,
 			                struct nfs4_client_reclaim, cr_strhash);
-			list_del(&crp->cr_strhash);
-			kfree(crp);
-			reclaim_str_hashtbl_size--;
+			nfs4_remove_reclaim_record(crp);
 		}
 	}
 	BUG_ON(reclaim_str_hashtbl_size);

@@ -465,6 +465,7 @@ extern __be32 nfs4_preprocess_stateid_op(struct net *net,
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
 extern int nfs4_in_grace(void);
+void nfs4_remove_reclaim_record(struct nfs4_client_reclaim *);
 extern void nfs4_release_reclaim(void);
 extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(const char *recdir);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid, bool sessions);
