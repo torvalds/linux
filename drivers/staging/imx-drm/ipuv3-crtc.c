@@ -116,7 +116,7 @@ static void ipu_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
-	dev_info(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
+	dev_dbg(ipu_crtc->dev, "%s mode: %d\n", __func__, mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
