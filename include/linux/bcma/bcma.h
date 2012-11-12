@@ -345,6 +345,7 @@ extern void bcma_core_set_clockmode(struct bcma_device *core,
 				    enum bcma_clkmode clkmode);
 extern void bcma_core_pll_ctl(struct bcma_device *core, u32 req, u32 status,
 			      bool on);
+extern u32 bcma_chipco_pll_read(struct bcma_drv_cc *cc, u32 offset);
 #define BCMA_DMA_TRANSLATION_MASK	0xC0000000
 #define  BCMA_DMA_TRANSLATION_NONE	0x00000000
 #define  BCMA_DMA_TRANSLATION_DMA32_CMT	0x40000000 /* Client Mode Translation for 32-bit DMA */
