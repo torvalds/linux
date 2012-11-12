@@ -62,6 +62,13 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
+		ipu: ipu@40000000 {
+			#crtc-cells = <1>;
+			compatible = "fsl,imx51-ipu";
+			reg = <0x40000000 0x20000000>;
+			interrupts = <11 10>;
+		};
+
 		aips@70000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
@@ -291,6 +298,66 @@
 						fsl,pins = <
 							449 0x400001ed	/* MX51_PAD_KEY_COL4__I2C2_SCL */
 							454 0x400001ed	/* MX51_PAD_KEY_COL5__I2C2_SDA */
+						>;
+					};
+				};
+
+				ipu_disp1 {
+					pinctrl_ipu_disp1_1: ipudisp1grp-1 {
+						fsl,pins = <
+							528 0x5 /* MX51_PAD_DISP1_DAT0__DISP1_DAT0 */
+							529 0x5 /* MX51_PAD_DISP1_DAT1__DISP1_DAT1 */
+							530 0x5 /* MX51_PAD_DISP1_DAT2__DISP1_DAT2 */
+							531 0x5 /* MX51_PAD_DISP1_DAT3__DISP1_DAT3 */
+							532 0x5 /* MX51_PAD_DISP1_DAT4__DISP1_DAT4 */
+							533 0x5 /* MX51_PAD_DISP1_DAT5__DISP1_DAT5 */
+							535 0x5 /* MX51_PAD_DISP1_DAT6__DISP1_DAT6 */
+							537 0x5 /* MX51_PAD_DISP1_DAT7__DISP1_DAT7 */
+							539 0x5 /* MX51_PAD_DISP1_DAT8__DISP1_DAT8 */
+							541 0x5 /* MX51_PAD_DISP1_DAT9__DISP1_DAT9 */
+							543 0x5 /* MX51_PAD_DISP1_DAT10__DISP1_DAT10 */
+							545 0x5 /* MX51_PAD_DISP1_DAT11__DISP1_DAT11 */
+							547 0x5 /* MX51_PAD_DISP1_DAT12__DISP1_DAT12 */
+							549 0x5 /* MX51_PAD_DISP1_DAT13__DISP1_DAT13 */
+							551 0x5 /* MX51_PAD_DISP1_DAT14__DISP1_DAT14 */
+							553 0x5 /* MX51_PAD_DISP1_DAT15__DISP1_DAT15 */
+							555 0x5 /* MX51_PAD_DISP1_DAT16__DISP1_DAT16 */
+							557 0x5 /* MX51_PAD_DISP1_DAT17__DISP1_DAT17 */
+							559 0x5 /* MX51_PAD_DISP1_DAT18__DISP1_DAT18 */
+							563 0x5 /* MX51_PAD_DISP1_DAT19__DISP1_DAT19 */
+							567 0x5 /* MX51_PAD_DISP1_DAT20__DISP1_DAT20 */
+							571 0x5 /* MX51_PAD_DISP1_DAT21__DISP1_DAT21 */
+							575 0x5 /* MX51_PAD_DISP1_DAT22__DISP1_DAT22 */
+							579 0x5 /* MX51_PAD_DISP1_DAT23__DISP1_DAT23 */
+							584 0x5 /* MX51_PAD_DI1_PIN2__DI1_PIN2 (hsync) */
+							583 0x5 /* MX51_PAD_DI1_PIN3__DI1_PIN3 (vsync) */
+						>;
+					};
+				};
+
+				ipu_disp2 {
+					pinctrl_ipu_disp2_1: ipudisp2grp-1 {
+						fsl,pins = <
+							603 0x5 /* MX51_PAD_DISP2_DAT0__DISP2_DAT0 */
+							608 0x5 /* MX51_PAD_DISP2_DAT1__DISP2_DAT1 */
+							613 0x5 /* MX51_PAD_DISP2_DAT2__DISP2_DAT2 */
+							614 0x5 /* MX51_PAD_DISP2_DAT3__DISP2_DAT3 */
+							615 0x5 /* MX51_PAD_DISP2_DAT4__DISP2_DAT4 */
+							616 0x5 /* MX51_PAD_DISP2_DAT5__DISP2_DAT5 */
+							617 0x5 /* MX51_PAD_DISP2_DAT6__DISP2_DAT6 */
+							622 0x5 /* MX51_PAD_DISP2_DAT7__DISP2_DAT7 */
+							627 0x5 /* MX51_PAD_DISP2_DAT8__DISP2_DAT8 */
+							633 0x5 /* MX51_PAD_DISP2_DAT9__DISP2_DAT9 */
+							637 0x5 /* MX51_PAD_DISP2_DAT10__DISP2_DAT10 */
+							643 0x5 /* MX51_PAD_DISP2_DAT11__DISP2_DAT11 */
+							648 0x5 /* MX51_PAD_DISP2_DAT12__DISP2_DAT12 */
+							652 0x5 /* MX51_PAD_DISP2_DAT13__DISP2_DAT13 */
+							656 0x5 /* MX51_PAD_DISP2_DAT14__DISP2_DAT14 */
+							661 0x5 /* MX51_PAD_DISP2_DAT15__DISP2_DAT15 */
+							593 0x5 /* MX51_PAD_DI2_PIN2__DI2_PIN2 (hsync) */
+							595 0x5 /* MX51_PAD_DI2_PIN3__DI2_PIN3 (vsync) */
+							597 0x5 /* MX51_PAD_DI2_DISP_CLK__DI2_DISP_CLK */
+							599 0x5 /* MX51_PAD_DI_GP4__DI2_PIN15 */
 						>;
 					};
 				};
