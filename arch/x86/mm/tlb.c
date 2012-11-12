@@ -197,7 +197,7 @@ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 	}
 
 	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
-					|| vmflag == VM_HUGETLB) {
+					|| vmflag & VM_HUGETLB) {
 		local_flush_tlb();
 		goto flush_all;
 	}
