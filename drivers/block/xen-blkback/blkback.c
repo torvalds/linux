@@ -39,6 +39,7 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
+#include <linux/bitmap.h>
 
 #include <xen/events.h>
 #include <xen/page.h>
@@ -79,6 +80,7 @@ struct pending_req {
 	unsigned short		operation;
 	int			status;
 	struct list_head	free_list;
+	DECLARE_BITMAP(unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
 };
 
 #define BLKBACK_INVALID_HANDLE (~0)
@@ -97,6 +99,36 @@ struct xen_blkbk {
 };
 
 static struct xen_blkbk *blkbk;
+
+/*
+ * Maximum number of grant pages that can be mapped in blkback.
+ * BLKIF_MAX_SEGMENTS_PER_REQUEST * RING_SIZE is the maximum number of
+ * pages that blkback will persistently map.
+ * Currently, this is:
+ * RING_SIZE = 32 (for all known ring types)
+ * BLKIF_MAX_SEGMENTS_PER_REQUEST = 11
+ * sizeof(struct persistent_gnt) = 48
+ * So the maximum memory used to store the grants is:
+ * 32 * 11 * 48 = 16896 bytes
+ */
+static inline unsigned int max_mapped_grant_pages(enum blkif_protocol protocol)
+{
+	switch (protocol) {
+	case BLKIF_PROTOCOL_NATIVE:
+		return __CONST_RING_SIZE(blkif, PAGE_SIZE) *
+			   BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	case BLKIF_PROTOCOL_X86_32:
+		return __CONST_RING_SIZE(blkif_x86_32, PAGE_SIZE) *
+			   BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	case BLKIF_PROTOCOL_X86_64:
+		return __CONST_RING_SIZE(blkif_x86_64, PAGE_SIZE) *
+			   BLKIF_MAX_SEGMENTS_PER_REQUEST;
+	default:
+		BUG();
+	}
+	return 0;
+}
+
 
 /*
  * Little helpful macro to figure out the index and virtual address of the
@@ -128,6 +160,57 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 				struct pending_req *pending_req);
 static void make_response(struct xen_blkif *blkif, u64 id,
 			  unsigned short op, int st);
+
+#define foreach_grant(pos, rbtree, node) \
+	for ((pos) = container_of(rb_first((rbtree)), typeof(*(pos)), node); \
+	     &(pos)->node != NULL; \
+	     (pos) = container_of(rb_next(&(pos)->node), typeof(*(pos)), node))
+
+
+static void add_persistent_gnt(struct rb_root *root,
+			       struct persistent_gnt *persistent_gnt)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+	struct persistent_gnt *this;
+
+	/* Figure out where to put new node */
+	while (*new) {
+		this = container_of(*new, struct persistent_gnt, node);
+
+		parent = *new;
+		if (persistent_gnt->gnt < this->gnt)
+			new = &((*new)->rb_left);
+		else if (persistent_gnt->gnt > this->gnt)
+			new = &((*new)->rb_right);
+		else {
+			pr_alert(DRV_PFX " trying to add a gref that's already in the tree\n");
+			BUG();
+		}
+	}
+
+	/* Add new node and rebalance tree. */
+	rb_link_node(&(persistent_gnt->node), parent, new);
+	rb_insert_color(&(persistent_gnt->node), root);
+}
+
+static struct persistent_gnt *get_persistent_gnt(struct rb_root *root,
+						 grant_ref_t gref)
+{
+	struct persistent_gnt *data;
+	struct rb_node *node = root->rb_node;
+
+	while (node) {
+		data = container_of(node, struct persistent_gnt, node);
+
+		if (gref < data->gnt)
+			node = node->rb_left;
+		else if (gref > data->gnt)
+			node = node->rb_right;
+		else
+			return data;
+	}
+	return NULL;
+}
 
 /*
  * Retrieve from the 'pending_reqs' a free pending_req structure to be used.
@@ -275,6 +358,11 @@ int xen_blkif_schedule(void *arg)
 {
 	struct xen_blkif *blkif = arg;
 	struct xen_vbd *vbd = &blkif->vbd;
+	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt *persistent_gnt;
+	int ret = 0;
+	int segs_to_unmap = 0;
 
 	xen_blkif_get(blkif);
 
@@ -302,6 +390,36 @@ int xen_blkif_schedule(void *arg)
 			print_stats(blkif);
 	}
 
+	/* Free all persistent grant pages */
+	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts)) {
+		foreach_grant(persistent_gnt, &blkif->persistent_gnts, node) {
+			BUG_ON(persistent_gnt->handle ==
+				BLKBACK_INVALID_HANDLE);
+			gnttab_set_unmap_op(&unmap[segs_to_unmap],
+			    (unsigned long) pfn_to_kaddr(page_to_pfn(
+				persistent_gnt->page)),
+			    GNTMAP_host_map,
+			    persistent_gnt->handle);
+
+			pages[segs_to_unmap] = persistent_gnt->page;
+			rb_erase(&persistent_gnt->node,
+				&blkif->persistent_gnts);
+			kfree(persistent_gnt);
+			blkif->persistent_gnt_c--;
+
+			if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
+				!rb_next(&persistent_gnt->node)) {
+				ret = gnttab_unmap_refs(unmap, NULL, pages,
+							segs_to_unmap);
+				BUG_ON(ret);
+				segs_to_unmap = 0;
+			}
+		}
+	}
+
+	BUG_ON(blkif->persistent_gnt_c != 0);
+	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
+
 	if (log_stats)
 		print_stats(blkif);
 
@@ -328,6 +446,8 @@ static void xen_blkbk_unmap(struct pending_req *req)
 	int ret;
 
 	for (i = 0; i < req->nr_pages; i++) {
+		if (!test_bit(i, req->unmap_seg))
+			continue;
 		handle = pending_handle(req, i);
 		if (handle == BLKBACK_INVALID_HANDLE)
 			continue;
@@ -344,12 +464,26 @@ static void xen_blkbk_unmap(struct pending_req *req)
 
 static int xen_blkbk_map(struct blkif_request *req,
 			 struct pending_req *pending_req,
-			 struct seg_buf seg[])
+			 struct seg_buf seg[],
+			 struct page *pages[])
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	int i;
+	struct persistent_gnt *persistent_gnts[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *pages_to_gnt[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt *persistent_gnt = NULL;
+	struct xen_blkif *blkif = pending_req->blkif;
+	phys_addr_t addr = 0;
+	int i, j;
+	bool new_map;
 	int nseg = req->u.rw.nr_segments;
+	int segs_to_map = 0;
 	int ret = 0;
+	int use_persistent_gnts;
+
+	use_persistent_gnts = (blkif->vbd.feature_gnt_persistent);
+
+	BUG_ON(blkif->persistent_gnt_c >
+		   max_mapped_grant_pages(pending_req->blkif->blk_protocol));
 
 	/*
 	 * Fill out preq.nr_sects with proper amount of sectors, and setup
@@ -359,36 +493,146 @@ static int xen_blkbk_map(struct blkif_request *req,
 	for (i = 0; i < nseg; i++) {
 		uint32_t flags;
 
-		flags = GNTMAP_host_map;
-		if (pending_req->operation != BLKIF_OP_READ)
-			flags |= GNTMAP_readonly;
-		gnttab_set_map_op(&map[i], vaddr(pending_req, i), flags,
-				  req->u.rw.seg[i].gref,
-				  pending_req->blkif->domid);
+		if (use_persistent_gnts)
+			persistent_gnt = get_persistent_gnt(
+				&blkif->persistent_gnts,
+				req->u.rw.seg[i].gref);
+
+		if (persistent_gnt) {
+			/*
+			 * We are using persistent grants and
+			 * the grant is already mapped
+			 */
+			new_map = false;
+		} else if (use_persistent_gnts &&
+			   blkif->persistent_gnt_c <
+			   max_mapped_grant_pages(blkif->blk_protocol)) {
+			/*
+			 * We are using persistent grants, the grant is
+			 * not mapped but we have room for it
+			 */
+			new_map = true;
+			persistent_gnt = kmalloc(
+				sizeof(struct persistent_gnt),
+				GFP_KERNEL);
+			if (!persistent_gnt)
+				return -ENOMEM;
+			persistent_gnt->page = alloc_page(GFP_KERNEL);
+			if (!persistent_gnt->page) {
+				kfree(persistent_gnt);
+				return -ENOMEM;
+			}
+			persistent_gnt->gnt = req->u.rw.seg[i].gref;
+			persistent_gnt->handle = BLKBACK_INVALID_HANDLE;
+
+			pages_to_gnt[segs_to_map] =
+				persistent_gnt->page;
+			addr = (unsigned long) pfn_to_kaddr(
+				page_to_pfn(persistent_gnt->page));
+
+			add_persistent_gnt(&blkif->persistent_gnts,
+				persistent_gnt);
+			blkif->persistent_gnt_c++;
+			pr_debug(DRV_PFX " grant %u added to the tree of persistent grants, using %u/%u\n",
+				 persistent_gnt->gnt, blkif->persistent_gnt_c,
+				 max_mapped_grant_pages(blkif->blk_protocol));
+		} else {
+			/*
+			 * We are either using persistent grants and
+			 * hit the maximum limit of grants mapped,
+			 * or we are not using persistent grants.
+			 */
+			if (use_persistent_gnts &&
+				!blkif->vbd.overflow_max_grants) {
+				blkif->vbd.overflow_max_grants = 1;
+				pr_alert(DRV_PFX " domain %u, device %#x is using maximum number of persistent grants\n",
+					 blkif->domid, blkif->vbd.handle);
+			}
+			new_map = true;
+			pages[i] = blkbk->pending_page(pending_req, i);
+			addr = vaddr(pending_req, i);
+			pages_to_gnt[segs_to_map] =
+				blkbk->pending_page(pending_req, i);
+		}
+
+		if (persistent_gnt) {
+			pages[i] = persistent_gnt->page;
+			persistent_gnts[i] = persistent_gnt;
+		} else {
+			persistent_gnts[i] = NULL;
+		}
+
+		if (new_map) {
+			flags = GNTMAP_host_map;
+			if (!persistent_gnt &&
+			    (pending_req->operation != BLKIF_OP_READ))
+				flags |= GNTMAP_readonly;
+			gnttab_set_map_op(&map[segs_to_map++], addr,
+					  flags, req->u.rw.seg[i].gref,
+					  blkif->domid);
+		}
 	}
 
-	ret = gnttab_map_refs(map, NULL, &blkbk->pending_page(pending_req, 0), nseg);
-	BUG_ON(ret);
+	if (segs_to_map) {
+		ret = gnttab_map_refs(map, NULL, pages_to_gnt, segs_to_map);
+		BUG_ON(ret);
+	}
 
 	/*
 	 * Now swizzle the MFN in our domain with the MFN from the other domain
 	 * so that when we access vaddr(pending_req,i) it has the contents of
 	 * the page from the other domain.
 	 */
-	for (i = 0; i < nseg; i++) {
-		if (unlikely(map[i].status != 0)) {
-			pr_debug(DRV_PFX "invalid buffer -- could not remap it\n");
-			map[i].handle = BLKBACK_INVALID_HANDLE;
-			ret |= 1;
+	bitmap_zero(pending_req->unmap_seg, BLKIF_MAX_SEGMENTS_PER_REQUEST);
+	for (i = 0, j = 0; i < nseg; i++) {
+		if (!persistent_gnts[i] ||
+		    persistent_gnts[i]->handle == BLKBACK_INVALID_HANDLE) {
+			/* This is a newly mapped grant */
+			BUG_ON(j >= segs_to_map);
+			if (unlikely(map[j].status != 0)) {
+				pr_debug(DRV_PFX "invalid buffer -- could not remap it\n");
+				map[j].handle = BLKBACK_INVALID_HANDLE;
+				ret |= 1;
+				if (persistent_gnts[i]) {
+					rb_erase(&persistent_gnts[i]->node,
+						 &blkif->persistent_gnts);
+					blkif->persistent_gnt_c--;
+					kfree(persistent_gnts[i]);
+					persistent_gnts[i] = NULL;
+				}
+			}
 		}
+		if (persistent_gnts[i]) {
+			if (persistent_gnts[i]->handle ==
+			    BLKBACK_INVALID_HANDLE) {
+				/*
+				 * If this is a new persistent grant
+				 * save the handler
+				 */
+				persistent_gnts[i]->handle = map[j].handle;
+				persistent_gnts[i]->dev_bus_addr =
+					map[j++].dev_bus_addr;
+			}
+			pending_handle(pending_req, i) =
+				persistent_gnts[i]->handle;
 
-		pending_handle(pending_req, i) = map[i].handle;
+			if (ret)
+				continue;
 
-		if (ret)
-			continue;
+			seg[i].buf = persistent_gnts[i]->dev_bus_addr |
+				(req->u.rw.seg[i].first_sect << 9);
+		} else {
+			pending_handle(pending_req, i) = map[j].handle;
+			bitmap_set(pending_req->unmap_seg, i, 1);
 
-		seg[i].buf  = map[i].dev_bus_addr |
-			(req->u.rw.seg[i].first_sect << 9);
+			if (ret) {
+				j++;
+				continue;
+			}
+
+			seg[i].buf = map[j++].dev_bus_addr |
+				(req->u.rw.seg[i].first_sect << 9);
+		}
 	}
 	return ret;
 }
@@ -591,6 +835,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	int operation;
 	struct blk_plug plug;
 	bool drain = false;
+	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 
 	switch (req->operation) {
 	case BLKIF_OP_READ:
@@ -677,7 +922,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (xen_blkbk_map(req, pending_req, seg))
+	if (xen_blkbk_map(req, pending_req, seg, pages))
 		goto fail_flush;
 
 	/*
@@ -689,7 +934,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	for (i = 0; i < nseg; i++) {
 		while ((bio == NULL) ||
 		       (bio_add_page(bio,
-				     blkbk->pending_page(pending_req, i),
+				     pages[i],
 				     seg[i].nsec << 9,
 				     seg[i].buf & ~PAGE_MASK) == 0)) {
 
