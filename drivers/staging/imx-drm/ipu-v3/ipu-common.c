@@ -234,6 +234,11 @@ void ipu_cpmem_set_yuv_planar_full(struct ipu_ch_param __iomem *p,
 		ipu_ch_param_write_field(p, IPU_FIELD_UBO, u_offset / 8);
 		ipu_ch_param_write_field(p, IPU_FIELD_VBO, v_offset / 8);
 		break;
+	case V4L2_PIX_FMT_YVU420:
+		ipu_ch_param_write_field(p, IPU_FIELD_SLUV, (stride / 2) - 1);
+		ipu_ch_param_write_field(p, IPU_FIELD_UBO, v_offset / 8);
+		ipu_ch_param_write_field(p, IPU_FIELD_VBO, u_offset / 8);
+		break;
 	}
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar_full);
@@ -246,10 +251,11 @@ void ipu_cpmem_set_yuv_planar(struct ipu_ch_param __iomem *p, u32 pixel_format,
 
 	switch (pixel_format) {
 	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
 		uv_stride = stride / 2;
 		u_offset = stride * height;
 		v_offset = u_offset + (uv_stride * height / 2);
-		ipu_cpmem_set_yuv_planar_full(p, V4L2_PIX_FMT_YUV420, stride,
+		ipu_cpmem_set_yuv_planar_full(p, pixel_format, stride,
 				u_offset, v_offset);
 		break;
 	}
@@ -307,6 +313,7 @@ int ipu_cpmem_set_fmt(struct ipu_ch_param __iomem *cpmem, u32 pixelformat)
 {
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
 		/* pix format */
 		ipu_ch_param_write_field(cpmem, IPU_FIELD_PFS, 2);
 		/* burst size */
@@ -369,6 +376,7 @@ int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 
 	switch (pix->pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
 		y_offset = Y_OFFSET(pix, image->rect.left, image->rect.top);
 		u_offset = U_OFFSET(pix, image->rect.left,
 				image->rect.top) - y_offset;
@@ -414,6 +422,7 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 {
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
+	case V4L2_PIX_FMT_YVU420:
 	case V4L2_PIX_FMT_UYVY:
 	case V4L2_PIX_FMT_YUYV:
 		return IPUV3_COLORSPACE_YUV;
