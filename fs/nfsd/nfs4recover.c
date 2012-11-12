@@ -1166,6 +1166,9 @@ nfsd4_client_tracking_init(struct net *net)
 
 	/* Finally, try to use nfsdcld */
 	client_tracking_ops = &nfsd4_cld_tracking_ops;
+	printk(KERN_WARNING "NFSD: the nfsdcld client tracking upcall will be "
+			"removed in 3.10. Please transition to using "
+			"nfsdcltrack.\n");
 do_init:
 	status = client_tracking_ops->init(net);
 	if (status) {
