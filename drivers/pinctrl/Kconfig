@@ -156,17 +156,15 @@ config PINCTRL_SIRF
 
 config PINCTRL_TEGRA
 	bool
+	select PINMUX
+	select PINCONF
 
 config PINCTRL_TEGRA20
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_TEGRA
 
 config PINCTRL_TEGRA30
 	bool
-	select PINMUX
-	select PINCONF
 	select PINCTRL_TEGRA
 
 config PINCTRL_U300
