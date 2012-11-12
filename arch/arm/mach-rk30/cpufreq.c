@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/err.h>
+#include <linux/kernel_stat.h>
 #include <linux/init.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
@@ -58,6 +59,7 @@ static unsigned int max_freq = -1;
 #define ENABLE_FURTHER_CPUFREQ          0x20
 #define MASK_FURTHER_CPUFREQ            0x30
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
+#define CPUFREQ_PRIVATE                 0x100
 static int no_cpufreq_access;
 static unsigned int suspend_freq = 816 * 1000;
 
@@ -119,40 +121,48 @@ static const struct cpufreq_frequency_table temp_limits[] = {
 	{.frequency =  816 * 1000, .index = 75},
 };
 
+static const struct cpufreq_frequency_table temp_limits_high[] = {
+	{.frequency =  816 * 1000, .index = 100},
+};
+
 extern int rk30_tsadc_get_temp(unsigned int chn);
 
-#define get_cpu_thermal() rk30_tsadc_get_temp(0)
 static void rk30_cpufreq_temp_limit_work_func(struct work_struct *work)
 {
 	struct cpufreq_policy *policy;
 	int temp, i;
 	unsigned int new = -1;
+	unsigned long delay = HZ;
+	const struct cpufreq_frequency_table *limits_table = temp_limits;
+	size_t limits_size = ARRAY_SIZE(temp_limits);
+	unsigned int gpu_irqs[2];
+	gpu_irqs[0] = kstat_irqs(IRQ_GPU_GP);
 
-#ifdef GPU_MAX_RATE
-	if (clk_get_rate(gpu_clk) > GPU_MAX_RATE)
-		goto out;
-#endif
-
-	temp = max(rk30_tsadc_get_temp(0), rk30_tsadc_get_temp(1));
+	temp = rk30_tsadc_get_temp(0);
 	FREQ_PRINTK_LOG("cpu_thermal(%d)\n", temp);
 
-	for (i = 0; i < ARRAY_SIZE(temp_limits); i++) {
-		if (temp > temp_limits[i].index) {
-			new = temp_limits[i].frequency;
+	gpu_irqs[1] = kstat_irqs(IRQ_GPU_GP);
+	if (clk_get_rate(gpu_clk) > GPU_MAX_RATE) {
+		delay = HZ / 20;
+		if ((gpu_irqs[1] - gpu_irqs[0]) < 3) {
+			limits_table = temp_limits_high;
+			limits_size = ARRAY_SIZE(temp_limits_high);
+		}
+	}
+	for (i = 0; i < limits_size; i++) {
+		if (temp > limits_table[i].index) {
+			new = limits_table[i].frequency;
 		}
 	}
 	if (temp_limt_freq != new) {
 		temp_limt_freq = new;
-		if (new != -1) {
-			FREQ_PRINTK_DBG("temp_limit set rate %d kHz\n", temp_limt_freq);
-			policy = cpufreq_cpu_get(0);
-			cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L);
-			cpufreq_cpu_put(policy);
-		}
+		FREQ_PRINTK_DBG("temp_limit set rate %d kHz\n", temp_limt_freq);
+		policy = cpufreq_cpu_get(0);
+		cpufreq_driver_target(policy, policy->cur, CPUFREQ_RELATION_L | CPUFREQ_PRIVATE);
+		cpufreq_cpu_put(policy);
 	}
 
-out:
-	queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, HZ);
+	queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, delay);
 }
 
 static int rk30_cpufreq_notifier_policy(struct notifier_block *nb,
@@ -527,19 +537,18 @@ static void __exit ff_exit(void)
 	unregister_early_suspend(&ff_early_suspend);
 }
 
-
 /**************************target freq******************************/
-static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_policy *policy)
+static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_policy *policy, bool is_private)
 {
 	bool is_ondemand = rk30_cpufreq_is_ondemand_policy(policy);
 	static bool is_booting = true;
+	unsigned int i;
 
-#ifdef GPU_MAX_RATE
-	if (is_ondemand && clk_get_rate(gpu_clk) > GPU_MAX_RATE) // high performance?
-		return max_freq;
-#endif
+	if (!is_ondemand)
+		goto out;
+
 #if !defined(CONFIG_ARCH_RK3066B)
-	if (is_ondemand && is_booting && target_freq >= 1600 * 1000) {
+	if (is_booting && target_freq >= 1600 * 1000) {
 		s64 boottime_ms = ktime_to_ms(ktime_get_boottime());
 		if (boottime_ms > 30 * MSEC_PER_SEC) {
 			is_booting = false;
@@ -548,9 +557,17 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_
 		}
 	}
 #endif
+
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-	if (is_ondemand && target_freq > policy->cur && policy->cur >= TEMP_LIMIT_FREQ) {
-		unsigned int i;
+	{
+		static unsigned int ondemand_target = TEMP_LIMIT_FREQ;
+		if (is_private)
+			target_freq = ondemand_target;
+		else
+			ondemand_target = target_freq;
+	}
+
+	if (target_freq != policy->max && target_freq > policy->cur && policy->cur >= TEMP_LIMIT_FREQ) {
 		if (cpufreq_frequency_table_target(policy, freq_table, policy->cur + 1, CPUFREQ_RELATION_L, &i) == 0) {
 			unsigned int f = freq_table[i].frequency;
 			if (f < target_freq) {
@@ -562,10 +579,9 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq, struct cpufreq_
 	 * If the new frequency is more than the thermal max allowed
 	 * frequency, go ahead and scale the mpu device to proper frequency.
 	 */
-	if (is_ondemand) {
-		target_freq = min(target_freq, temp_limt_freq);
-	}
+	target_freq = min(target_freq, temp_limt_freq);
 #endif
+out:
 #ifdef CPU_FREQ_DVFS_TST
 	if (freq_dvfs_tst_rate) {
 		target_freq = freq_dvfs_tst_rate;
@@ -614,6 +630,7 @@ static int rk30_target(struct cpufreq_policy *policy, unsigned int target_freq, 
 {
 	unsigned int i, new_rate = 0;
 	int ret = 0;
+	bool is_private;
 
 	if (!freq_table) {
 		FREQ_PRINTK_ERR("no freq table!\n");
@@ -621,6 +638,9 @@ static int rk30_target(struct cpufreq_policy *policy, unsigned int target_freq, 
 	}
 
 	mutex_lock(&cpufreq_mutex);
+
+	is_private = relation & CPUFREQ_PRIVATE;
+	relation &= ~CPUFREQ_PRIVATE;
 
 	if (relation & ENABLE_FURTHER_CPUFREQ)
 		no_cpufreq_access--;
@@ -642,7 +662,7 @@ static int rk30_target(struct cpufreq_policy *policy, unsigned int target_freq, 
 	}
 	new_rate = freq_table[i].frequency;
 	if (!no_cpufreq_access)
-		new_rate = cpufreq_scale_limt(new_rate, policy);
+		new_rate = cpufreq_scale_limt(new_rate, policy, is_private);
 
 	FREQ_PRINTK_LOG("cpufreq req=%u,new=%u(was=%u)\n", target_freq, new_rate, rk30_getspeed(0));
 	if (new_rate == rk30_getspeed(0))
