@@ -644,16 +644,6 @@ static int nfs4_call_sync_sequence(struct rpc_clnt *clnt,
 	return ret;
 }
 
-static
-int _nfs4_call_sync_session(struct rpc_clnt *clnt,
-			    struct nfs_server *server,
-			    struct rpc_message *msg,
-			    struct nfs4_sequence_args *args,
-			    struct nfs4_sequence_res *res)
-{
-	return nfs4_call_sync_sequence(clnt, server, msg, args, res);
-}
-
 #else
 static
 void nfs41_init_sequence(struct nfs4_sequence_args *args,
@@ -6659,7 +6649,7 @@ static const struct nfs4_minor_version_ops nfs_v4_0_minor_ops = {
 #if defined(CONFIG_NFS_V4_1)
 static const struct nfs4_minor_version_ops nfs_v4_1_minor_ops = {
 	.minor_version = 1,
-	.call_sync = _nfs4_call_sync_session,
+	.call_sync = nfs4_call_sync_sequence,
 	.match_stateid = nfs41_match_stateid,
 	.find_root_sec = nfs41_find_root_sec,
 	.reboot_recovery_ops = &nfs41_reboot_recovery_ops,
