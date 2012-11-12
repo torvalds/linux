@@ -51,8 +51,7 @@ static bool arch_timer_use_virtual = true;
 #define ARCH_TIMER_CTRL_IT_STAT		(1 << 2)
 
 #define ARCH_TIMER_REG_CTRL		0
-#define ARCH_TIMER_REG_FREQ		1
-#define ARCH_TIMER_REG_TVAL		2
+#define ARCH_TIMER_REG_TVAL		1
 
 #define ARCH_TIMER_PHYS_ACCESS		0
 #define ARCH_TIMER_VIRT_ACCESS		1
@@ -101,9 +100,6 @@ static inline u32 arch_timer_reg_read(const int access, const int reg)
 		case ARCH_TIMER_REG_TVAL:
 			asm volatile("mrc p15, 0, %0, c14, c2, 0" : "=r" (val));
 			break;
-		case ARCH_TIMER_REG_FREQ:
-			asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
-			break;
 		}
 	}
 
@@ -118,6 +114,13 @@ static inline u32 arch_timer_reg_read(const int access, const int reg)
 		}
 	}
 
+	return val;
+}
+
+static inline u32 arch_timer_get_cntfrq(void)
+{
+	u32 val;
+	asm volatile("mrc p15, 0, %0, c14, c0, 0" : "=r" (val));
 	return val;
 }
 
@@ -253,8 +256,7 @@ static int arch_timer_available(void)
 	u32 freq;
 
 	if (arch_timer_rate == 0) {
-		freq = arch_timer_reg_read(ARCH_TIMER_PHYS_ACCESS,
-					   ARCH_TIMER_REG_FREQ);
+		freq = arch_timer_get_cntfrq();
 
 		/* Check the timer frequency. */
 		if (freq == 0) {
