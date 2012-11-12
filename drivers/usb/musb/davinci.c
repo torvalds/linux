@@ -512,7 +512,6 @@ static int __devinit davinci_probe(struct platform_device *pdev)
 	struct clk			*clk;
 
 	int				ret = -ENOMEM;
-	int				musbid;
 
 	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -520,18 +519,10 @@ static int __devinit davinci_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* get the musb id */
-	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(&pdev->dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	musb = platform_device_alloc("musb-hdrc", musbid);
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
 	if (!musb) {
 		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err2;
+		goto err1;
 	}
 
 	clk = clk_get(&pdev->dev, "usb");
@@ -547,7 +538,6 @@ static int __devinit davinci_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &davinci_dmamask;
 	musb->dev.coherent_dma_mask	= davinci_dmamask;
@@ -590,9 +580,6 @@ err4:
 err3:
 	platform_device_put(musb);
 
-err2:
-	musb_put_id(&pdev->dev, musbid);
-
 err1:
 	kfree(glue);
 
@@ -604,9 +591,7 @@ static int __devexit davinci_remove(struct platform_device *pdev)
 {
 	struct davinci_glue		*glue = platform_get_drvdata(pdev);
 
-	musb_put_id(&pdev->dev, glue->musb->id);
-	platform_device_del(glue->musb);
-	platform_device_put(glue->musb);
+	platform_device_unregister(glue->musb);
 	clk_disable(glue->clk);
 	clk_put(glue->clk);
 	kfree(glue);
@@ -625,15 +610,4 @@ static struct platform_driver davinci_driver = {
 MODULE_DESCRIPTION("DaVinci MUSB Glue Layer");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("GPL v2");
-
-static int __init davinci_init(void)
-{
-	return platform_driver_register(&davinci_driver);
-}
-module_init(davinci_init);
-
-static void __exit davinci_exit(void)
-{
-	platform_driver_unregister(&davinci_driver);
-}
-module_exit(davinci_exit);
+module_platform_driver(davinci_driver);

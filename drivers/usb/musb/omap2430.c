@@ -333,6 +333,26 @@ static void omap_musb_mailbox_work(struct work_struct *mailbox_work)
 	omap_musb_set_mailbox(glue);
 }
 
+static irqreturn_t omap2430_musb_interrupt(int irq, void *__hci)
+{
+	unsigned long   flags;
+	irqreturn_t     retval = IRQ_NONE;
+	struct musb     *musb = __hci;
+
+	spin_lock_irqsave(&musb->lock, flags);
+
+	musb->int_usb = musb_readb(musb->mregs, MUSB_INTRUSB);
+	musb->int_tx = musb_readw(musb->mregs, MUSB_INTRTX);
+	musb->int_rx = musb_readw(musb->mregs, MUSB_INTRRX);
+
+	if (musb->int_usb || musb->int_tx || musb->int_rx)
+		retval = musb_interrupt(musb);
+
+	spin_unlock_irqrestore(&musb->lock, flags);
+
+	return retval;
+}
+
 static int omap2430_musb_init(struct musb *musb)
 {
 	u32 l;
@@ -351,6 +371,8 @@ static int omap2430_musb_init(struct musb *musb)
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -ENODEV;
 	}
+
+	musb->isr = omap2430_musb_interrupt;
 
 	status = pm_runtime_get_sync(dev);
 	if (status < 0) {
@@ -478,7 +500,6 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 	struct musb_hdrc_config		*config;
 	struct resource			*res;
 	int				ret = -ENOMEM;
-	int				musbid;
 
 	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -486,21 +507,12 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 		goto err0;
 	}
 
-	/* get the musb id */
-	musbid = musb_get_id(&pdev->dev, GFP_KERNEL);
-	if (musbid < 0) {
-		dev_err(&pdev->dev, "failed to allocate musb id\n");
-		ret = -ENOMEM;
+	musb = platform_device_alloc("musb-hdrc", PLATFORM_DEVID_AUTO);
+	if (!musb) {
+		dev_err(&pdev->dev, "failed to allocate musb device\n");
 		goto err0;
 	}
 
-	musb = platform_device_alloc("musb-hdrc", musbid);
-	if (!musb) {
-		dev_err(&pdev->dev, "failed to allocate musb device\n");
-		goto err1;
-	}
-
-	musb->id			= musbid;
 	musb->dev.parent		= &pdev->dev;
 	musb->dev.dma_mask		= &omap2430_dmamask;
 	musb->dev.coherent_dma_mask	= omap2430_dmamask;
@@ -521,7 +533,7 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"failed to allocate musb platfrom data\n");
 			ret = -ENOMEM;
-			goto err1;
+			goto err2;
 		}
 
 		data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
@@ -529,14 +541,14 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 					"failed to allocate musb board data\n");
 			ret = -ENOMEM;
-			goto err1;
+			goto err2;
 		}
 
 		config = devm_kzalloc(&pdev->dev, sizeof(*config), GFP_KERNEL);
 		if (!data) {
 			dev_err(&pdev->dev,
 				"failed to allocate musb hdrc config\n");
-			goto err1;
+			goto err2;
 		}
 
 		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
@@ -589,9 +601,6 @@ static int __devinit omap2430_probe(struct platform_device *pdev)
 err2:
 	platform_device_put(musb);
 
-err1:
-	musb_put_id(&pdev->dev, musbid);
-
 err0:
 	return ret;
 }
@@ -601,7 +610,6 @@ static int __devexit omap2430_remove(struct platform_device *pdev)
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 
 	cancel_work_sync(&glue->omap_musb_mailbox_work);
-	musb_put_id(&pdev->dev, glue->musb->id);
 	platform_device_unregister(glue->musb);
 
 	return 0;
