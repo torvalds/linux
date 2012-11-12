@@ -66,45 +66,6 @@ MODULE_PARM_DESC(maximum_speed, "Maximum supported speed.");
 
 /* -------------------------------------------------------------------------- */
 
-#define DWC3_DEVS_POSSIBLE	32
-
-static DECLARE_BITMAP(dwc3_devs, DWC3_DEVS_POSSIBLE);
-
-int dwc3_get_device_id(void)
-{
-	int		id;
-
-again:
-	id = find_first_zero_bit(dwc3_devs, DWC3_DEVS_POSSIBLE);
-	if (id < DWC3_DEVS_POSSIBLE) {
-		int old;
-
-		old = test_and_set_bit(id, dwc3_devs);
-		if (old)
-			goto again;
-	} else {
-		pr_err("dwc3: no space for new device\n");
-		id = -ENOMEM;
-	}
-
-	return id;
-}
-EXPORT_SYMBOL_GPL(dwc3_get_device_id);
-
-void dwc3_put_device_id(int id)
-{
-	int			ret;
-
-	if (id < 0)
-		return;
-
-	ret = test_bit(id, dwc3_devs);
-	WARN(!ret, "dwc3: ID %d not in use\n", id);
-	smp_mb__before_clear_bit();
-	clear_bit(id, dwc3_devs);
-}
-EXPORT_SYMBOL_GPL(dwc3_put_device_id);
-
 void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
 {
 	u32 reg;
@@ -169,7 +130,6 @@ static void dwc3_free_one_event_buffer(struct dwc3 *dwc,
 		struct dwc3_event_buffer *evt)
 {
 	dma_free_coherent(dwc->dev, evt->length, evt->buf, evt->dma);
-	kfree(evt);
 }
 
 /**
@@ -185,7 +145,7 @@ dwc3_alloc_one_event_buffer(struct dwc3 *dwc, unsigned length)
 {
 	struct dwc3_event_buffer	*evt;
 
-	evt = kzalloc(sizeof(*evt), GFP_KERNEL);
+	evt = devm_kzalloc(dwc->dev, sizeof(*evt), GFP_KERNEL);
 	if (!evt)
 		return ERR_PTR(-ENOMEM);
 
@@ -193,10 +153,8 @@ dwc3_alloc_one_event_buffer(struct dwc3 *dwc, unsigned length)
 	evt->length	= length;
 	evt->buf	= dma_alloc_coherent(dwc->dev, length,
 			&evt->dma, GFP_KERNEL);
-	if (!evt->buf) {
-		kfree(evt);
+	if (!evt->buf)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	return evt;
 }
@@ -215,8 +173,6 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 		if (evt)
 			dwc3_free_one_event_buffer(dwc, evt);
 	}
-
-	kfree(dwc->ev_buffs);
 }
 
 /**
@@ -235,7 +191,8 @@ static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 	num = DWC3_NUM_INT(dwc->hwparams.hwparams1);
 	dwc->num_event_buffers = num;
 
-	dwc->ev_buffs = kzalloc(sizeof(*dwc->ev_buffs) * num, GFP_KERNEL);
+	dwc->ev_buffs = devm_kzalloc(dwc->dev, sizeof(*dwc->ev_buffs) * num,
+			GFP_KERNEL);
 	if (!dwc->ev_buffs) {
 		dev_err(dwc->dev, "can't allocate event buffers array\n");
 		return -ENOMEM;
@@ -383,23 +340,13 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 
-	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
-	if (ret) {
-		dev_err(dwc->dev, "failed to allocate event buffers\n");
-		ret = -ENOMEM;
-		goto err1;
-	}
-
 	ret = dwc3_event_buffers_setup(dwc);
 	if (ret) {
 		dev_err(dwc->dev, "failed to setup event buffers\n");
-		goto err1;
+		goto err0;
 	}
 
 	return 0;
-
-err1:
-	dwc3_free_event_buffers(dwc);
 
 err0:
 	return ret;
@@ -408,11 +355,9 @@ err0:
 static void dwc3_core_exit(struct dwc3 *dwc)
 {
 	dwc3_event_buffers_cleanup(dwc);
-	dwc3_free_event_buffers(dwc);
 
 	usb_phy_shutdown(dwc->usb2_phy);
 	usb_phy_shutdown(dwc->usb3_phy);
-
 }
 
 #define DWC3_ALIGN_MASK		(16 - 1)
@@ -515,10 +460,17 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
 
+	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
+	if (ret) {
+		dev_err(dwc->dev, "failed to allocate event buffers\n");
+		ret = -ENOMEM;
+		goto err0;
+	}
+
 	ret = dwc3_core_init(dwc);
 	if (ret) {
 		dev_err(dev, "failed to initialize core\n");
-		return ret;
+		goto err0;
 	}
 
 	mode = DWC3_MODE(dwc->hwparams.hwparams0);
@@ -589,6 +541,9 @@ err2:
 
 err1:
 	dwc3_core_exit(dwc);
+
+err0:
+	dwc3_free_event_buffers(dwc);
 
 	return ret;
 }
