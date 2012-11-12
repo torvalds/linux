@@ -171,6 +171,11 @@ xfs_growfs_data_private(
 				XFS_FSS_TO_BB(mp, 1), 0, NULL);
 	if (!bp)
 		return EIO;
+	if (bp->b_error) {
+		int	error = bp->b_error;
+		xfs_buf_relse(bp);
+		return error;
+	}
 	xfs_buf_relse(bp);
 
 	new = nb;	/* use new as a temporary here */

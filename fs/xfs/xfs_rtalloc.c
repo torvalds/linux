@@ -1876,6 +1876,11 @@ xfs_growfs_rt(
 				XFS_FSB_TO_BB(mp, 1), 0, NULL);
 	if (!bp)
 		return EIO;
+	if (bp->b_error) {
+		error = bp->b_error;
+		xfs_buf_relse(bp);
+		return error;
+	}
 	xfs_buf_relse(bp);
 
 	/*
@@ -2221,8 +2226,10 @@ xfs_rtmount_init(
 	bp = xfs_buf_read_uncached(mp->m_rtdev_targp,
 					d - XFS_FSB_TO_BB(mp, 1),
 					XFS_FSB_TO_BB(mp, 1), 0, NULL);
-	if (!bp) {
+	if (!bp || bp->b_error) {
 		xfs_warn(mp, "realtime device size check failed");
+		if (bp)
+			xfs_buf_relse(bp);
 		return EIO;
 	}
 	xfs_buf_relse(bp);

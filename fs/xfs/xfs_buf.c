@@ -715,8 +715,7 @@ xfs_buf_read_uncached(
 	int			flags,
 	xfs_buf_iodone_t	verify)
 {
-	xfs_buf_t		*bp;
-	int			error;
+	struct xfs_buf		*bp;
 
 	bp = xfs_buf_get_uncached(target, numblks, flags);
 	if (!bp)
@@ -730,11 +729,7 @@ xfs_buf_read_uncached(
 	bp->b_iodone = verify;
 
 	xfsbdstrat(target->bt_mount, bp);
-	error = xfs_buf_iowait(bp);
-	if (error) {
-		xfs_buf_relse(bp);
-		return NULL;
-	}
+	xfs_buf_iowait(bp);
 	return bp;
 }
 

@@ -658,6 +658,12 @@ reread:
 			xfs_warn(mp, "SB buffer read failed");
 		return EIO;
 	}
+	if (bp->b_error) {
+		error = bp->b_error;
+		if (loud)
+			xfs_warn(mp, "SB validate failed");
+		goto release_buf;
+	}
 
 	/*
 	 * Initialize the mount structure from the superblock.
