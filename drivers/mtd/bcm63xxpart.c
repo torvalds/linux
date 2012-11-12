@@ -198,9 +198,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	parts[curpart].size = master->size - cfelen - nvramlen;
 
 	for (i = 0; i < nrparts; i++)
-		pr_info("Partition %d is %s offset %lx and length %lx\n", i,
-			parts[i].name, (long unsigned int)(parts[i].offset),
-			(long unsigned int)(parts[i].size));
+		pr_info("Partition %d is %s offset %llx and length %llx\n", i,
+			parts[i].name, parts[i].offset,	parts[i].size);
 
 	pr_info("Spare partition is offset %x and length %x\n",	spareaddr,
 		sparelen);
