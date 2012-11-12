@@ -267,7 +267,7 @@ void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callba
 	struct clk_node *dvfs_clk = clk_get_dvfs_info(clk);
 	if (IS_ERR_OR_NULL(dvfs_clk)){
 		DVFS_ERR("%s %s get dvfs_clk err\n", __func__, clk->name);
-		return -1;
+		return ;
 	}
 	dvfs_clk->clk_dvfs_target = clk_dvfs_target;
 }
@@ -1865,10 +1865,12 @@ struct dvfs_attribute {
 
 static struct dvfs_attribute dvfs_attrs[] = {
 	/*     node_name	permision		show_func	store_func */
+#ifdef CONFIG_RK_CLOCK_PROC
 	__ATTR(dvfs_tree,	S_IRUGO | S_IWUSR,	dvfs_tree_show,	dvfs_tree_store),
-	__ATTR(avs_init,	S_IRUGO | S_IWUSR,	avs_init_show,	avs_init_store),
+	//__ATTR(avs_init,	S_IRUGO | S_IWUSR,	avs_init_show,	avs_init_store),
 	//__ATTR(avs_dyn,		S_IRUGO | S_IWUSR,	avs_dyn_show,	avs_dyn_store),
-	__ATTR(avs_now,		S_IRUGO | S_IWUSR,	avs_now_show,	avs_now_store),
+	//__ATTR(avs_now,		S_IRUGO | S_IWUSR,	avs_now_show,	avs_now_store),
+#endif
 };
 
 static int __init dvfs_init(void)
