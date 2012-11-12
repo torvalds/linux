@@ -2552,7 +2552,8 @@ static void gen6_update_ring_freq(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int min_freq = 15;
-	int gpu_freq, ia_freq, max_ia_freq;
+	int gpu_freq;
+	unsigned int ia_freq, max_ia_freq;
 	int scaling_factor = 180;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
