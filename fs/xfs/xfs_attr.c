@@ -1155,6 +1155,8 @@ xfs_attr_leaf_get(xfs_da_args_t *args)
 	struct xfs_buf *bp;
 	int error;
 
+	trace_xfs_attr_leaf_get(args);
+
 	args->blkno = 0;
 	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp,
 					     XFS_ATTR_FORK);
@@ -1184,6 +1186,8 @@ xfs_attr_leaf_list(xfs_attr_list_context_t *context)
 	xfs_attr_leafblock_t *leaf;
 	int error;
 	struct xfs_buf *bp;
+
+	trace_xfs_attr_leaf_list(context);
 
 	context->cursor->blkno = 0;
 	error = xfs_da_read_buf(NULL, context->dp, 0, -1, &bp, XFS_ATTR_FORK);
@@ -1653,6 +1657,8 @@ xfs_attr_fillstate(xfs_da_state_t *state)
 	xfs_da_state_blk_t *blk;
 	int level;
 
+	trace_xfs_attr_fillstate(state->args);
+
 	/*
 	 * Roll down the "path" in the state structure, storing the on-disk
 	 * block number for those buffers in the "path".
@@ -1698,6 +1704,8 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	xfs_da_state_path_t *path;
 	xfs_da_state_blk_t *blk;
 	int level, error;
+
+	trace_xfs_attr_refillstate(state->args);
 
 	/*
 	 * Roll down the "path" in the state structure, storing the on-disk
@@ -1755,6 +1763,8 @@ xfs_attr_node_get(xfs_da_args_t *args)
 	int error, retval;
 	int i;
 
+	trace_xfs_attr_node_get(args);
+
 	state = xfs_da_state_alloc();
 	state->args = args;
 	state->mp = args->dp->i_mount;
@@ -1803,6 +1813,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	xfs_da_node_entry_t *btree;
 	int error, i;
 	struct xfs_buf *bp;
+
+	trace_xfs_attr_node_list(context);
 
 	cursor = context->cursor;
 	cursor->initted = 1;
@@ -1959,6 +1971,8 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 	int nmap, error, tmp, valuelen, blkcnt, i;
 	xfs_dablk_t lblkno;
 
+	trace_xfs_attr_rmtval_get(args);
+
 	ASSERT(!(args->flags & ATTR_KERNOVAL));
 
 	mp = args->dp->i_mount;
@@ -2013,6 +2027,8 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 	xfs_buf_t *bp;
 	xfs_dablk_t lblkno;
 	int blkcnt, valuelen, nmap, error, tmp, committed;
+
+	trace_xfs_attr_rmtval_set(args);
 
 	dp = args->dp;
 	mp = dp->i_mount;
@@ -2142,6 +2158,8 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 	xfs_daddr_t dblkno;
 	xfs_dablk_t lblkno;
 	int valuelen, blkcnt, nmap, error, done, committed;
+
+	trace_xfs_attr_rmtval_remove(args);
 
 	mp = args->dp->i_mount;
 

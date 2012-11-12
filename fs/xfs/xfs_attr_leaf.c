@@ -57,7 +57,8 @@ STATIC int xfs_attr_leaf_create(xfs_da_args_t *args, xfs_dablk_t which_block,
 				struct xfs_buf **bpp);
 STATIC int xfs_attr_leaf_add_work(struct xfs_buf *leaf_buffer,
 				  xfs_da_args_t *args, int freemap_index);
-STATIC void xfs_attr_leaf_compact(xfs_trans_t *tp, struct xfs_buf *leaf_buffer);
+STATIC void xfs_attr_leaf_compact(struct xfs_da_args *args,
+				  struct xfs_buf *leaf_buffer);
 STATIC void xfs_attr_leaf_rebalance(xfs_da_state_t *state,
 						   xfs_da_state_blk_t *blk1,
 						   xfs_da_state_blk_t *blk2);
@@ -1071,7 +1072,7 @@ xfs_attr_leaf_add(
 	 * Compact the entries to coalesce free space.
 	 * This may change the hdr->count via dropping INCOMPLETE entries.
 	 */
-	xfs_attr_leaf_compact(args->trans, bp);
+	xfs_attr_leaf_compact(args, bp);
 
 	/*
 	 * After compaction, the block is guaranteed to have only one
@@ -1101,6 +1102,8 @@ xfs_attr_leaf_add_work(
 	xfs_attr_leaf_map_t *map;
 	xfs_mount_t *mp;
 	int tmp, i;
+
+	trace_xfs_attr_leaf_add_work(args);
 
 	leaf = bp->b_addr;
 	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));
@@ -1214,15 +1217,17 @@ xfs_attr_leaf_add_work(
  */
 STATIC void
 xfs_attr_leaf_compact(
-	struct xfs_trans *trans,
-	struct xfs_buf	*bp)
+	struct xfs_da_args	*args,
+	struct xfs_buf		*bp)
 {
-	xfs_attr_leafblock_t *leaf_s, *leaf_d;
-	xfs_attr_leaf_hdr_t *hdr_s, *hdr_d;
-	xfs_mount_t *mp;
-	char *tmpbuffer;
+	xfs_attr_leafblock_t	*leaf_s, *leaf_d;
+	xfs_attr_leaf_hdr_t	*hdr_s, *hdr_d;
+	struct xfs_trans	*trans = args->trans;
+	struct xfs_mount	*mp = trans->t_mountp;
+	char			*tmpbuffer;
 
-	mp = trans->t_mountp;
+	trace_xfs_attr_leaf_compact(args);
+
 	tmpbuffer = kmem_alloc(XFS_LBSIZE(mp), KM_SLEEP);
 	ASSERT(tmpbuffer != NULL);
 	memcpy(tmpbuffer, bp->b_addr, XFS_LBSIZE(mp));
@@ -1345,9 +1350,8 @@ xfs_attr_leaf_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		max  = be16_to_cpu(hdr2->firstused)
 						- sizeof(xfs_attr_leaf_hdr_t);
 		max -= be16_to_cpu(hdr2->count) * sizeof(xfs_attr_leaf_entry_t);
-		if (space > max) {
-			xfs_attr_leaf_compact(args->trans, blk2->bp);
-		}
+		if (space > max)
+			xfs_attr_leaf_compact(args, blk2->bp);
 
 		/*
 		 * Move high entries from leaf1 to low end of leaf2.
@@ -1378,9 +1382,8 @@ xfs_attr_leaf_rebalance(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 		max  = be16_to_cpu(hdr1->firstused)
 						- sizeof(xfs_attr_leaf_hdr_t);
 		max -= be16_to_cpu(hdr1->count) * sizeof(xfs_attr_leaf_entry_t);
-		if (space > max) {
-			xfs_attr_leaf_compact(args->trans, blk1->bp);
-		}
+		if (space > max)
+			xfs_attr_leaf_compact(args, blk1->bp);
 
 		/*
 		 * Move low entries from leaf2 to high end of leaf1.
@@ -1577,6 +1580,8 @@ xfs_attr_leaf_toosmall(xfs_da_state_t *state, int *action)
 	xfs_dablk_t blkno;
 	struct xfs_buf *bp;
 
+	trace_xfs_attr_leaf_toosmall(state->args);
+
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
 	 * If so, it's not worth even looking to see if we might be able
@@ -1701,6 +1706,8 @@ xfs_attr_leaf_remove(
 	int before, after, smallest, entsize;
 	int tablesize, tmp, i;
 	xfs_mount_t *mp;
+
+	trace_xfs_attr_leaf_remove(args);
 
 	leaf = bp->b_addr;
 	ASSERT(leaf->hdr.info.magic == cpu_to_be16(XFS_ATTR_LEAF_MAGIC));

@@ -779,6 +779,8 @@ xfs_da_node_toosmall(xfs_da_state_t *state, int *action)
 	xfs_dablk_t blkno;
 	struct xfs_buf *bp;
 
+	trace_xfs_da_node_toosmall(state->args);
+
 	/*
 	 * Check for the degenerate case of the block being over 50% full.
 	 * If so, it's not worth even looking to see if we might be able
@@ -899,6 +901,8 @@ xfs_da_fixhashpath(xfs_da_state_t *state, xfs_da_state_path_t *path)
 	xfs_da_node_entry_t *btree;
 	xfs_dahash_t lasthash=0;
 	int level, count;
+
+	trace_xfs_da_fixhashpath(state->args);
 
 	level = path->active-1;
 	blk = &path->blk[ level ];
@@ -1416,6 +1420,8 @@ xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 	xfs_da_args_t *args;
 	xfs_dablk_t blkno=0;
 	int level, error;
+
+	trace_xfs_da_path_shift(state->args);
 
 	/*
 	 * Roll up the Btree looking for the first block where our
