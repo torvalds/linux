@@ -1,0 +1,21 @@
+menu "I2C HID support"
+	depends on I2C
+
+config I2C_HID
+	tristate "HID over I2C transport layer"
+	default n
+	depends on I2C && INPUT
+	select HID
+	---help---
+	  Say Y here if you want to use the HID over i2c protocol
+	  implementation.
+
+	  If unsure, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-hid.
+
+comment "Input core support is needed for HID over I2C input layer"
+	depends on I2C_HID && INPUT=n
+
+endmenu

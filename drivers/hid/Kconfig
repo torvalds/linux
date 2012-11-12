@@ -728,4 +728,6 @@ endif # HID
 
 source "drivers/hid/usbhid/Kconfig"
 
+source "drivers/hid/i2c-hid/Kconfig"
+
 endmenu
