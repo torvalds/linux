@@ -44,7 +44,6 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 
-#include <plat/cpu.h>
 #include <plat/dma.h>
 #include <video/omapvrfb.h>
 #include <video/omapdss.h>
@@ -2064,7 +2063,7 @@ static int __init omap_vout_create_video_devices(struct platform_device *pdev)
 		vout->vid_info.id = k + 1;
 
 		/* Set VRFB as rotation_type for omap2 and omap3 */
-		if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		if (omap_vout_dss_omap24xx() || omap_vout_dss_omap34xx())
 			vout->vid_info.rotation_type = VOUT_ROT_VRFB;
 
 		/* Setup the default configuration for the video devices
