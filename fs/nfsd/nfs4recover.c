@@ -927,6 +927,137 @@ static struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
 	.grace_done	= nfsd4_cld_grace_done,
 };
 
+/* upcall via usermodehelper */
+static char cltrack_prog[PATH_MAX] = "/sbin/nfsdcltrack";
+module_param_string(cltrack_prog, cltrack_prog, sizeof(cltrack_prog),
+			S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(cltrack_prog, "Path to the nfsdcltrack upcall program");
+
+static int
+nfsd4_umh_cltrack_upcall(char *cmd, char *arg)
+{
+	char *envp[] = { NULL };
+	char *argv[4];
+	int ret;
+
+	if (unlikely(!cltrack_prog[0])) {
+		dprintk("%s: cltrack_prog is disabled\n", __func__);
+		return -EACCES;
+	}
+
+	dprintk("%s: cmd: %s\n", __func__, cmd);
+	dprintk("%s: arg: %s\n", __func__, arg ? arg : "(null)");
+
+	argv[0] = (char *)cltrack_prog;
+	argv[1] = cmd;
+	argv[2] = arg;
+	argv[3] = NULL;
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	/*
+	 * Disable the upcall mechanism if we're getting an ENOENT or EACCES
+	 * error. The admin can re-enable it on the fly by using sysfs
+	 * once the problem has been fixed.
+	 */
+	if (ret == -ENOENT || ret == -EACCES) {
+		dprintk("NFSD: %s was not found or isn't executable (%d). "
+			"Setting cltrack_prog to blank string!",
+			cltrack_prog, ret);
+		cltrack_prog[0] = '\0';
+	}
+	dprintk("%s: %s return value: %d\n", __func__, cltrack_prog, ret);
+
+	return ret;
+}
+
+static char *
+bin_to_hex_dup(const unsigned char *src, int srclen)
+{
+	int i;
+	char *buf, *hex;
+
+	/* +1 for terminating NULL */
+	buf = kmalloc((srclen * 2) + 1, GFP_KERNEL);
+	if (!buf)
+		return buf;
+
+	hex = buf;
+	for (i = 0; i < srclen; i++) {
+		sprintf(hex, "%2.2x", *src++);
+		hex += 2;
+	}
+	return buf;
+}
+
+static int
+nfsd4_umh_cltrack_init(struct net __attribute__((unused)) *net)
+{
+	return nfsd4_umh_cltrack_upcall("init", NULL);
+}
+
+static void
+nfsd4_umh_cltrack_create(struct nfs4_client *clp)
+{
+	char *hexid;
+
+	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
+	if (!hexid) {
+		dprintk("%s: can't allocate memory for upcall!\n", __func__);
+		return;
+	}
+	nfsd4_umh_cltrack_upcall("create", hexid);
+	kfree(hexid);
+}
+
+static void
+nfsd4_umh_cltrack_remove(struct nfs4_client *clp)
+{
+	char *hexid;
+
+	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
+	if (!hexid) {
+		dprintk("%s: can't allocate memory for upcall!\n", __func__);
+		return;
+	}
+	nfsd4_umh_cltrack_upcall("remove", hexid);
+	kfree(hexid);
+}
+
+static int
+nfsd4_umh_cltrack_check(struct nfs4_client *clp)
+{
+	int ret;
+	char *hexid;
+
+	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
+	if (!hexid) {
+		dprintk("%s: can't allocate memory for upcall!\n", __func__);
+		return -ENOMEM;
+	}
+	ret = nfsd4_umh_cltrack_upcall("check", hexid);
+	kfree(hexid);
+	return ret;
+}
+
+static void
+nfsd4_umh_cltrack_grace_done(struct net __attribute__((unused)) *net,
+				time_t boot_time)
+{
+	char timestr[22]; /* FIXME: better way to determine max size? */
+
+	sprintf(timestr, "%ld", boot_time);
+	nfsd4_umh_cltrack_upcall("gracedone", timestr);
+}
+
+static struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
+	.init		= nfsd4_umh_cltrack_init,
+	.exit		= NULL,
+	.create		= nfsd4_umh_cltrack_create,
+	.remove		= nfsd4_umh_cltrack_remove,
+	.check		= nfsd4_umh_cltrack_check,
+	.grace_done	= nfsd4_umh_cltrack_grace_done,
+};
+
 int
 nfsd4_client_tracking_init(struct net *net)
 {
@@ -957,7 +1088,8 @@ void
 nfsd4_client_tracking_exit(struct net *net)
 {
 	if (client_tracking_ops) {
-		client_tracking_ops->exit(net);
+		if (client_tracking_ops->exit)
+			client_tracking_ops->exit(net);
 		client_tracking_ops = NULL;
 	}
 }
