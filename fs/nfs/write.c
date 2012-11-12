@@ -1829,7 +1829,7 @@ int __init nfs_init_writepagecache(void)
 		goto out_destroy_write_mempool;
 
 	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,
-						      nfs_wdata_cachep);
+						      nfs_cdata_cachep);
 	if (nfs_commit_mempool == NULL)
 		goto out_destroy_commit_cache;
 
