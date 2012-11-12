@@ -31,6 +31,17 @@ config MV643XX_ETH
 	  Some boards that use the Discovery chipset are the Momenco
 	  Ocelot C and Jaguar ATX and Pegasos II.
 
+config MVMDIO
+	tristate "Marvell MDIO interface support"
+	---help---
+	  This driver supports the MDIO interface found in the network
+	  interface units of the Marvell EBU SoCs (Kirkwood, Orion5x,
+	  Dove, Armada 370 and Armada XP).
+
+	  For now, this driver is only needed for the MVNETA driver
+	  (used on Armada 370 and XP), but it could be used in the
+	  future by the MV643XX_ETH driver.
+
 config PXA168_ETH
 	tristate "Marvell pxa168 ethernet support"
 	depends on CPU_PXA168
