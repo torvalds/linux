@@ -597,8 +597,9 @@ sys_sigaction(int sig, const struct old_sigaction __user *act,
  * Do a signal return; undo the signal stack.
  */
 #ifdef CONFIG_X86_32
-unsigned long sys_sigreturn(struct pt_regs *regs)
+unsigned long sys_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct sigframe __user *frame;
 	unsigned long ax;
 	sigset_t set;
@@ -625,8 +626,9 @@ badframe:
 }
 #endif /* CONFIG_X86_32 */
 
-long sys_rt_sigreturn(struct pt_regs *regs)
+long sys_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;
 	unsigned long ax;
 	sigset_t set;
@@ -843,8 +845,9 @@ void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
 }
 
 #ifdef CONFIG_X86_X32_ABI
-asmlinkage long sys32_x32_rt_sigreturn(struct pt_regs *regs)
+asmlinkage long sys32_x32_rt_sigreturn(void)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe_x32 __user *frame;
 	sigset_t set;
 	unsigned long ax;

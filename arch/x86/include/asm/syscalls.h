@@ -24,7 +24,7 @@ asmlinkage long sys_iopl(unsigned int);
 asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);
 
 /* kernel/signal.c */
-long sys_rt_sigreturn(struct pt_regs *);
+long sys_rt_sigreturn(void);
 
 /* kernel/tls.c */
 asmlinkage int sys_set_thread_area(struct user_desc __user *);
@@ -37,7 +37,7 @@ asmlinkage int sys_get_thread_area(struct user_desc __user *);
 asmlinkage int sys_sigsuspend(int, int, old_sigset_t);
 asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
-unsigned long sys_sigreturn(struct pt_regs *);
+unsigned long sys_sigreturn(void);
 
 /* kernel/vm86_32.c */
 int sys_vm86old(struct vm86_struct __user *, struct pt_regs *);

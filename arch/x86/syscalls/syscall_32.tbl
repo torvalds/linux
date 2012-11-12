@@ -125,7 +125,7 @@
 116	i386	sysinfo			sys_sysinfo			compat_sys_sysinfo
 117	i386	ipc			sys_ipc				sys32_ipc
 118	i386	fsync			sys_fsync
-119	i386	sigreturn		ptregs_sigreturn		stub32_sigreturn
+119	i386	sigreturn		sys_sigreturn			stub32_sigreturn
 120	i386	clone			sys_clone			stub32_clone
 121	i386	setdomainname		sys_setdomainname
 122	i386	uname			sys_newuname
@@ -179,7 +179,7 @@
 170	i386	setresgid		sys_setresgid16
 171	i386	getresgid		sys_getresgid16
 172	i386	prctl			sys_prctl
-173	i386	rt_sigreturn		ptregs_rt_sigreturn		stub32_rt_sigreturn
+173	i386	rt_sigreturn		sys_rt_sigreturn		stub32_rt_sigreturn
 174	i386	rt_sigaction		sys_rt_sigaction		sys32_rt_sigaction
 175	i386	rt_sigprocmask		sys_rt_sigprocmask
 176	i386	rt_sigpending		sys_rt_sigpending		sys32_rt_sigpending

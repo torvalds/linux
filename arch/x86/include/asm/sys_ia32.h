@@ -69,8 +69,8 @@ asmlinkage long sys32_fallocate(int, int, unsigned,
 
 /* ia32/ia32_signal.c */
 asmlinkage long sys32_sigsuspend(int, int, old_sigset_t);
-asmlinkage long sys32_sigreturn(struct pt_regs *);
-asmlinkage long sys32_rt_sigreturn(struct pt_regs *);
+asmlinkage long sys32_sigreturn(void);
+asmlinkage long sys32_rt_sigreturn(void);
 
 /* ia32/ipc32.c */
 asmlinkage long sys32_ipc(u32, int, int, int, compat_uptr_t, u32);
