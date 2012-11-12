@@ -190,9 +190,9 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	parts[curpart].name = "nvram";
 	parts[curpart].offset = master->size - nvramlen;
 	parts[curpart].size = nvramlen;
+	curpart++;
 
 	/* Global partition "linux" to make easy firmware upgrade */
-	curpart++;
 	parts[curpart].name = "linux";
 	parts[curpart].offset = cfelen;
 	parts[curpart].size = master->size - cfelen - nvramlen;
