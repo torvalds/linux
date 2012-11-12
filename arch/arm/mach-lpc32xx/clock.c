@@ -585,6 +585,13 @@ static struct clk clk_timer3 = {
 	.enable_mask	= LPC32XX_CLKPWR_TMRPWMCLK_TIMER3_EN,
 	.get_rate	= local_return_parent_rate,
 };
+static struct clk clk_mpwm = {
+	.parent		= &clk_pclk,
+	.enable		= local_onoff_enable,
+	.enable_reg	= LPC32XX_CLKPWR_TIMERS_PWMS_CLK_CTRL_1,
+	.enable_mask	= LPC32XX_CLKPWR_TMRPWMCLK_MPWM_EN,
+	.get_rate	= local_return_parent_rate,
+};
 static struct clk clk_wdt = {
 	.parent		= &clk_pclk,
 	.enable		= local_onoff_enable,
@@ -1202,6 +1209,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_INIT("pl08xdmac", NULL, &clk_dma),
 	CLKDEV_INIT("4003c000.watchdog", NULL, &clk_wdt),
 	CLKDEV_INIT("4005c000.pwm", NULL, &clk_pwm),
+	CLKDEV_INIT("400e8000.mpwm", NULL, &clk_mpwm),
 	CLKDEV_INIT(NULL, "uart3_ck", &clk_uart3),
 	CLKDEV_INIT(NULL, "uart4_ck", &clk_uart4),
 	CLKDEV_INIT(NULL, "uart5_ck", &clk_uart5),
