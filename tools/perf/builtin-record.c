@@ -502,6 +502,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	struct perf_evlist *evsel_list = rec->evlist;
 	const char *output_name = rec->output_name;
 	struct perf_session *session;
+	bool disabled = false;
 
 	rec->progname = argv[0];
 
@@ -735,8 +736,10 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		 * die with the process and we wait for that. Thus no need to
 		 * disable events in this case.
 		 */
-		if (done && !perf_target__none(&opts->target))
+		if (done && !disabled && !perf_target__none(&opts->target)) {
 			perf_evlist__disable(evsel_list);
+			disabled = true;
+		}
 	}
 
 	if (quiet || signr == SIGUSR1)
