@@ -140,6 +140,7 @@ xfs_growfs_data_private(
 	xfs_growfs_data_t	*in)		/* growfs data input struct */
 {
 	xfs_agf_t		*agf;
+	struct xfs_agfl		*agfl;
 	xfs_agi_t		*agi;
 	xfs_agnumber_t		agno;
 	xfs_extlen_t		agsize;
@@ -207,7 +208,7 @@ xfs_growfs_data_private(
 	nfree = 0;
 	for (agno = nagcount - 1; agno >= oagcount; agno--, new -= agsize) {
 		/*
-		 * AG freelist header block
+		 * AG freespace header block
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
@@ -238,6 +239,26 @@ xfs_growfs_data_private(
 		tmpsize = agsize - XFS_PREALLOC_BLOCKS(mp);
 		agf->agf_freeblks = cpu_to_be32(tmpsize);
 		agf->agf_longest = cpu_to_be32(tmpsize);
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+		if (error)
+			goto error0;
+
+		/*
+		 * AG freelist header block
+		 */
+		bp = xfs_growfs_get_hdr_buf(mp,
+				XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
+				XFS_FSS_TO_BB(mp, 1), 0);
+		if (!bp) {
+			error = ENOMEM;
+			goto error0;
+		}
+
+		agfl = XFS_BUF_TO_AGFL(bp);
+		for (bucket = 0; bucket < XFS_AGFL_SIZE(mp); bucket++)
+			agfl->agfl_bno[bucket] = cpu_to_be32(NULLAGBLOCK);
+
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error)
