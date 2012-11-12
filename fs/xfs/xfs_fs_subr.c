@@ -44,27 +44,3 @@ xfs_flushinval_pages(
 		truncate_inode_pages_range(mapping, first, last);
 	return -ret;
 }
-
-int
-xfs_flush_pages(
-	xfs_inode_t	*ip,
-	xfs_off_t	first,
-	xfs_off_t	last,
-	uint64_t	flags,
-	int		fiopt)
-{
-	struct address_space *mapping = VFS_I(ip)->i_mapping;
-	int		ret = 0;
-	int		ret2;
-
-	xfs_iflags_clear(ip, XFS_ITRUNCATED);
-	ret = -filemap_fdatawrite_range(mapping, first,
-				last == -1 ? LLONG_MAX : last);
-	if (flags & XBF_ASYNC)
-		return ret;
-	ret2 = -filemap_fdatawait_range(mapping, first,
-				last == -1 ? XFS_ISIZE(ip) - 1 : last);
-	if (!ret)
-		ret = ret2;
-	return ret;
-}

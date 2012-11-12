@@ -780,8 +780,8 @@ xfs_setattr_size(
 	 * care about here.
 	 */
 	if (oldsize != ip->i_d.di_size && newsize > ip->i_d.di_size) {
-		error = xfs_flush_pages(ip, ip->i_d.di_size, newsize, 0,
-					FI_NONE);
+		error = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+						      ip->i_d.di_size, newsize);
 		if (error)
 			goto out_unlock;
 	}

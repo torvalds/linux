@@ -428,8 +428,11 @@ xfs_release(
 		truncated = xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED);
 		if (truncated) {
 			xfs_iflags_clear(ip, XFS_IDIRTY_RELEASE);
-			if (VN_DIRTY(VFS_I(ip)) && ip->i_delayed_blks > 0)
-				xfs_flush_pages(ip, 0, -1, XBF_ASYNC, FI_NONE);
+			if (VN_DIRTY(VFS_I(ip)) && ip->i_delayed_blks > 0) {
+				error = -filemap_flush(VFS_I(ip)->i_mapping);
+				if (error)
+					return error;
+			}
 		}
 	}
 
