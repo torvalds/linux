@@ -53,13 +53,18 @@
 					CKCTL_6338_SAR_EN |		\
 					CKCTL_6338_SPI_EN)
 
-#define CKCTL_6345_CPU_EN		(1 << 0)
-#define CKCTL_6345_BUS_EN		(1 << 1)
-#define CKCTL_6345_EBI_EN		(1 << 2)
-#define CKCTL_6345_UART_EN		(1 << 3)
-#define CKCTL_6345_ADSLPHY_EN		(1 << 4)
-#define CKCTL_6345_ENET_EN		(1 << 7)
-#define CKCTL_6345_USBH_EN		(1 << 8)
+/* BCM6345 clock bits are shifted by 16 on the left, because of the test
+ * control register which is 16-bits wide. That way we do not have any
+ * specific BCM6345 code for handling clocks, and writing 0 to the test
+ * control register is fine.
+ */
+#define CKCTL_6345_CPU_EN		(1 << 16)
+#define CKCTL_6345_BUS_EN		(1 << 17)
+#define CKCTL_6345_EBI_EN		(1 << 18)
+#define CKCTL_6345_UART_EN		(1 << 19)
+#define CKCTL_6345_ADSLPHY_EN		(1 << 20)
+#define CKCTL_6345_ENET_EN		(1 << 23)
+#define CKCTL_6345_USBH_EN		(1 << 24)
 
 #define CKCTL_6345_ALL_SAFE_EN		(CKCTL_6345_ENET_EN |	\
 					CKCTL_6345_USBH_EN |	\
