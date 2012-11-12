@@ -1127,25 +1127,32 @@ int hci_dev_open(__u16 dev)
 		goto done;
 	}
 
-	if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
-		set_bit(HCI_RAW, &hdev->flags);
-
-	/* Treat all non BR/EDR controllers as raw devices if
-	   enable_hs is not set */
-	if (hdev->dev_type != HCI_BREDR && !enable_hs)
-		set_bit(HCI_RAW, &hdev->flags);
-
 	if (hdev->open(hdev)) {
 		ret = -EIO;
 		goto done;
 	}
 
-	if (!test_bit(HCI_RAW, &hdev->flags)) {
-		atomic_set(&hdev->cmd_cnt, 1);
-		set_bit(HCI_INIT, &hdev->flags);
-		ret = __hci_init(hdev);
-		clear_bit(HCI_INIT, &hdev->flags);
+	atomic_set(&hdev->cmd_cnt, 1);
+	set_bit(HCI_INIT, &hdev->flags);
+
+	if (hdev->setup && test_bit(HCI_SETUP, &hdev->dev_flags))
+		ret = hdev->setup(hdev);
+
+	if (!ret) {
+		/* Treat all non BR/EDR controllers as raw devices if
+		 * enable_hs is not set.
+		 */
+		if (hdev->dev_type != HCI_BREDR && !enable_hs)
+			set_bit(HCI_RAW, &hdev->flags);
+
+		if (test_bit(HCI_QUIRK_RAW_DEVICE, &hdev->quirks))
+			set_bit(HCI_RAW, &hdev->flags);
+
+		if (!test_bit(HCI_RAW, &hdev->flags))
+			ret = __hci_init(hdev);
 	}
+
+	clear_bit(HCI_INIT, &hdev->flags);
 
 	if (!ret) {
 		hci_dev_hold(hdev);
