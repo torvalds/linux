@@ -41,10 +41,12 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 
 /* xfs_dir2_data.c */
 #ifdef DEBUG
-extern void xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
+#define	xfs_dir2_data_check(dp,bp) __xfs_dir2_data_check(dp, bp);
 #else
 #define	xfs_dir2_data_check(dp,bp)
 #endif
+extern int __xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
+
 extern struct xfs_dir2_data_free *
 xfs_dir2_data_freeinsert(struct xfs_dir2_data_hdr *hdr,
 		struct xfs_dir2_data_unused *dup, int *loghead);

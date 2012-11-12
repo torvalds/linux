@@ -34,14 +34,13 @@
 STATIC xfs_dir2_data_free_t *
 xfs_dir2_data_freefind(xfs_dir2_data_hdr_t *hdr, xfs_dir2_data_unused_t *dup);
 
-#ifdef DEBUG
 /*
  * Check the consistency of the data block.
  * The input can also be a block-format directory.
- * Pop an assert if we find anything bad.
+ * Return 0 is the buffer is good, otherwise an error.
  */
-void
-xfs_dir2_data_check(
+int
+__xfs_dir2_data_check(
 	struct xfs_inode	*dp,		/* incore inode pointer */
 	struct xfs_buf		*bp)		/* data block's buffer */
 {
@@ -64,18 +63,23 @@ xfs_dir2_data_check(
 	int			stale;		/* count of stale leaves */
 	struct xfs_name		name;
 
-	mp = dp->i_mount;
+	mp = bp->b_target->bt_mount;
 	hdr = bp->b_addr;
 	bf = hdr->bestfree;
 	p = (char *)(hdr + 1);
 
-	if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC)) {
+	switch (hdr->magic) {
+	case cpu_to_be32(XFS_DIR2_BLOCK_MAGIC):
 		btp = xfs_dir2_block_tail_p(mp, hdr);
 		lep = xfs_dir2_block_leaf_p(btp);
 		endp = (char *)lep;
-	} else {
-		ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC));
+		break;
+	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
 		endp = (char *)hdr + mp->m_dirblksize;
+		break;
+	default:
+		XFS_ERROR_REPORT("Bad Magic", XFS_ERRLEVEL_LOW, mp);
+		return EFSCORRUPTED;
 	}
 
 	count = lastfree = freeseen = 0;
@@ -83,19 +87,22 @@ xfs_dir2_data_check(
 	 * Account for zero bestfree entries.
 	 */
 	if (!bf[0].length) {
-		ASSERT(!bf[0].offset);
+		XFS_WANT_CORRUPTED_RETURN(!bf[0].offset);
 		freeseen |= 1 << 0;
 	}
 	if (!bf[1].length) {
-		ASSERT(!bf[1].offset);
+		XFS_WANT_CORRUPTED_RETURN(!bf[1].offset);
 		freeseen |= 1 << 1;
 	}
 	if (!bf[2].length) {
-		ASSERT(!bf[2].offset);
+		XFS_WANT_CORRUPTED_RETURN(!bf[2].offset);
 		freeseen |= 1 << 2;
 	}
-	ASSERT(be16_to_cpu(bf[0].length) >= be16_to_cpu(bf[1].length));
-	ASSERT(be16_to_cpu(bf[1].length) >= be16_to_cpu(bf[2].length));
+
+	XFS_WANT_CORRUPTED_RETURN(be16_to_cpu(bf[0].length) >=
+						be16_to_cpu(bf[1].length));
+	XFS_WANT_CORRUPTED_RETURN(be16_to_cpu(bf[1].length) >=
+						be16_to_cpu(bf[2].length));
 	/*
 	 * Loop over the data/unused entries.
 	 */
@@ -107,17 +114,20 @@ xfs_dir2_data_check(
 		 * doesn't need to be there.
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
-			ASSERT(lastfree == 0);
-			ASSERT(be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)) ==
-			       (char *)dup - (char *)hdr);
+			XFS_WANT_CORRUPTED_RETURN(lastfree == 0);
+			XFS_WANT_CORRUPTED_RETURN(
+				be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)) ==
+					       (char *)dup - (char *)hdr);
 			dfp = xfs_dir2_data_freefind(hdr, dup);
 			if (dfp) {
 				i = (int)(dfp - bf);
-				ASSERT((freeseen & (1 << i)) == 0);
+				XFS_WANT_CORRUPTED_RETURN(
+					(freeseen & (1 << i)) == 0);
 				freeseen |= 1 << i;
 			} else {
-				ASSERT(be16_to_cpu(dup->length) <=
-				       be16_to_cpu(bf[2].length));
+				XFS_WANT_CORRUPTED_RETURN(
+					be16_to_cpu(dup->length) <=
+						be16_to_cpu(bf[2].length));
 			}
 			p += be16_to_cpu(dup->length);
 			lastfree = 1;
@@ -130,10 +140,12 @@ xfs_dir2_data_check(
 		 * The linear search is crude but this is DEBUG code.
 		 */
 		dep = (xfs_dir2_data_entry_t *)p;
-		ASSERT(dep->namelen != 0);
-		ASSERT(xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)) == 0);
-		ASSERT(be16_to_cpu(*xfs_dir2_data_entry_tag_p(dep)) ==
-		       (char *)dep - (char *)hdr);
+		XFS_WANT_CORRUPTED_RETURN(dep->namelen != 0);
+		XFS_WANT_CORRUPTED_RETURN(
+			!xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)));
+		XFS_WANT_CORRUPTED_RETURN(
+			be16_to_cpu(*xfs_dir2_data_entry_tag_p(dep)) ==
+					       (char *)dep - (char *)hdr);
 		count++;
 		lastfree = 0;
 		if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC)) {
@@ -148,27 +160,30 @@ xfs_dir2_data_check(
 				    be32_to_cpu(lep[i].hashval) == hash)
 					break;
 			}
-			ASSERT(i < be32_to_cpu(btp->count));
+			XFS_WANT_CORRUPTED_RETURN(i < be32_to_cpu(btp->count));
 		}
 		p += xfs_dir2_data_entsize(dep->namelen);
 	}
 	/*
 	 * Need to have seen all the entries and all the bestfree slots.
 	 */
-	ASSERT(freeseen == 7);
+	XFS_WANT_CORRUPTED_RETURN(freeseen == 7);
 	if (hdr->magic == cpu_to_be32(XFS_DIR2_BLOCK_MAGIC)) {
 		for (i = stale = 0; i < be32_to_cpu(btp->count); i++) {
 			if (lep[i].address ==
 			    cpu_to_be32(XFS_DIR2_NULL_DATAPTR))
 				stale++;
 			if (i > 0)
-				ASSERT(be32_to_cpu(lep[i].hashval) >= be32_to_cpu(lep[i - 1].hashval));
+				XFS_WANT_CORRUPTED_RETURN(
+					be32_to_cpu(lep[i].hashval) >=
+						be32_to_cpu(lep[i - 1].hashval));
 		}
-		ASSERT(count == be32_to_cpu(btp->count) - be32_to_cpu(btp->stale));
-		ASSERT(stale == be32_to_cpu(btp->stale));
+		XFS_WANT_CORRUPTED_RETURN(count ==
+			be32_to_cpu(btp->count) - be32_to_cpu(btp->stale));
+		XFS_WANT_CORRUPTED_RETURN(stale == be32_to_cpu(btp->stale));
 	}
+	return 0;
 }
-#endif
 
 /*
  * Given a data block and an unused entry from that block,
