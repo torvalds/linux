@@ -748,6 +748,9 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	ret = info->fbops->fb_open(info,1);
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_set_par(info);
+	if(dev_drv->lcdc_hdmi_process)
+		dev_drv->lcdc_hdmi_process(dev_drv,enable);
+
 	#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 		if(likely(inf->num_lcdc == 2))
 		{
@@ -964,6 +967,8 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 		dev_drv->set_dsp_lut    = def_drv->set_dsp_lut;
 	if(def_drv->read_dsp_lut)
 		dev_drv->read_dsp_lut   = def_drv->read_dsp_lut;
+	if(def_drv->lcdc_hdmi_process)
+		dev_drv->lcdc_hdmi_process = def_drv->lcdc_hdmi_process;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);

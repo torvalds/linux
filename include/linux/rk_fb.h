@@ -236,6 +236,7 @@ struct rk_lcdc_device_driver{
 	int (*fb_layer_remap)(struct rk_lcdc_device_driver *dev_drv,enum fb_win_map_order order);
 	int (*set_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
 	int (*read_dsp_lut)(struct rk_lcdc_device_driver *dev_drv,int *lut);
+	int (*lcdc_hdmi_process)(struct rk_lcdc_device_driver *dev_drv,int mode); //some lcdc need to some process in hdmi mode
 	
 };
 

@@ -1006,6 +1006,16 @@ static int rk2928_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char 
         return  layer_id;
 }
 
+static int rk2928_lcdc_hdmi_process(struct rk_lcdc_device_driver *dev_drv,int mode)
+{
+	if(mode)
+		rk2928_lcdc_iomux(dev_drv->screen0,0); //switch to gpio mode,to avoid  current leakage
+	else
+		rk2928_lcdc_iomux(dev_drv->screen0,1); //switch to gpio mode,to avoid  current leakage
+	
+	return 0;
+	
+}
 int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk2928_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk2928_lcdc_device,driver);
@@ -1040,6 +1050,7 @@ int rk2928_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 
 	return 0;
 }
+
 
 
 int rk2928_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
@@ -1123,6 +1134,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.fps_mgr		= rk2928_lcdc_fps_mgr,
 	.fb_get_layer           = rk2928_fb_get_layer,
 	.fb_layer_remap         = rk2928_fb_layer_remap,
+	.lcdc_hdmi_process	= rk2928_lcdc_hdmi_process,
 };
 #ifdef CONFIG_PM
 static int rk2928_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
@@ -1298,7 +1310,7 @@ static int __init rk2928_lcdc_init(void)
 
 static void __exit rk2928_lcdc_exit(void)
 {
-    platform_driver_unregister(&rk2928lcdc_driver);
+	platform_driver_unregister(&rk2928lcdc_driver);
 }
 
 
