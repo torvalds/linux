@@ -32,3 +32,15 @@ config MV_U3D_PHY
 	help
 	  Enable this to support Marvell USB 3.0 phy controller for Marvell
 	  SoC.
+
+config USB_RCAR_PHY
+	tristate "Renesas R-Car USB phy support"
+	depends on USB || USB_GADGET
+	select USB_OTG_UTILS
+	help
+	  Say Y here to add support for the Renesas R-Car USB phy driver.
+	  This chip is typically used as USB phy for USB host, gadget.
+	  This driver supports: R8A7779
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rcar-phy.
