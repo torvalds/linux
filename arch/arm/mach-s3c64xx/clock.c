@@ -315,10 +315,6 @@ static struct clk init_clocks_off[] = {
 		.enable		= s3c64xx_sclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_SCLK_MFC,
 	}, {
-		.name		= "cam",
-		.enable		= s3c64xx_sclk_ctrl,
-		.ctrlbit	= S3C_CLKCON_SCLK_CAM,
-	}, {
 		.name		= "sclk_jpeg",
 		.enable		= s3c64xx_sclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_SCLK_JPEG,
