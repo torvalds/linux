@@ -933,10 +933,75 @@ module_param_string(cltrack_prog, cltrack_prog, sizeof(cltrack_prog),
 			S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(cltrack_prog, "Path to the nfsdcltrack upcall program");
 
-static int
-nfsd4_umh_cltrack_upcall(char *cmd, char *arg)
+static bool cltrack_legacy_disable;
+module_param(cltrack_legacy_disable, bool, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(cltrack_legacy_disable,
+		"Disable legacy recoverydir conversion. Default: false");
+
+#define LEGACY_TOPDIR_ENV_PREFIX "NFSDCLTRACK_LEGACY_TOPDIR="
+#define LEGACY_RECDIR_ENV_PREFIX "NFSDCLTRACK_LEGACY_RECDIR="
+
+static char *
+nfsd4_cltrack_legacy_topdir(void)
 {
-	char *envp[] = { NULL };
+	int copied;
+	size_t len;
+	char *result;
+
+	if (cltrack_legacy_disable)
+		return NULL;
+
+	len = strlen(LEGACY_TOPDIR_ENV_PREFIX) +
+		strlen(nfs4_recoverydir()) + 1;
+
+	result = kmalloc(len, GFP_KERNEL);
+	if (!result)
+		return result;
+
+	copied = snprintf(result, len, LEGACY_TOPDIR_ENV_PREFIX "%s",
+				nfs4_recoverydir());
+	if (copied >= len) {
+		/* just return nothing if output was truncated */
+		kfree(result);
+		return NULL;
+	}
+
+	return result;
+}
+
+static char *
+nfsd4_cltrack_legacy_recdir(const char *recdir)
+{
+	int copied;
+	size_t len;
+	char *result;
+
+	if (cltrack_legacy_disable)
+		return NULL;
+
+	/* +1 is for '/' between "topdir" and "recdir" */
+	len = strlen(LEGACY_RECDIR_ENV_PREFIX) +
+		strlen(nfs4_recoverydir()) + 1 + HEXDIR_LEN;
+
+	result = kmalloc(len, GFP_KERNEL);
+	if (!result)
+		return result;
+
+	copied = snprintf(result, len, LEGACY_RECDIR_ENV_PREFIX "%s/%s",
+				nfs4_recoverydir(), recdir);
+	if (copied >= len) {
+		/* just return nothing if output was truncated */
+		kfree(result);
+		return NULL;
+	}
+
+	return result;
+}
+
+static int
+nfsd4_umh_cltrack_upcall(char *cmd, char *arg, char *legacy)
+{
+	char *envp[2];
 	char *argv[4];
 	int ret;
 
@@ -947,6 +1012,10 @@ nfsd4_umh_cltrack_upcall(char *cmd, char *arg)
 
 	dprintk("%s: cmd: %s\n", __func__, cmd);
 	dprintk("%s: arg: %s\n", __func__, arg ? arg : "(null)");
+	dprintk("%s: legacy: %s\n", __func__, legacy ? legacy : "(null)");
+
+	envp[0] = legacy;
+	envp[1] = NULL;
 
 	argv[0] = (char *)cltrack_prog;
 	argv[1] = cmd;
@@ -992,7 +1061,7 @@ bin_to_hex_dup(const unsigned char *src, int srclen)
 static int
 nfsd4_umh_cltrack_init(struct net __attribute__((unused)) *net)
 {
-	return nfsd4_umh_cltrack_upcall("init", NULL);
+	return nfsd4_umh_cltrack_upcall("init", NULL, NULL);
 }
 
 static void
@@ -1005,7 +1074,7 @@ nfsd4_umh_cltrack_create(struct nfs4_client *clp)
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
 		return;
 	}
-	nfsd4_umh_cltrack_upcall("create", hexid);
+	nfsd4_umh_cltrack_upcall("create", hexid, NULL);
 	kfree(hexid);
 }
 
@@ -1019,7 +1088,7 @@ nfsd4_umh_cltrack_remove(struct nfs4_client *clp)
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
 		return;
 	}
-	nfsd4_umh_cltrack_upcall("remove", hexid);
+	nfsd4_umh_cltrack_upcall("remove", hexid, NULL);
 	kfree(hexid);
 }
 
@@ -1027,14 +1096,16 @@ static int
 nfsd4_umh_cltrack_check(struct nfs4_client *clp)
 {
 	int ret;
-	char *hexid;
+	char *hexid, *legacy;
 
 	hexid = bin_to_hex_dup(clp->cl_name.data, clp->cl_name.len);
 	if (!hexid) {
 		dprintk("%s: can't allocate memory for upcall!\n", __func__);
 		return -ENOMEM;
 	}
-	ret = nfsd4_umh_cltrack_upcall("check", hexid);
+	legacy = nfsd4_cltrack_legacy_recdir(clp->cl_recdir);
+	ret = nfsd4_umh_cltrack_upcall("check", hexid, legacy);
+	kfree(legacy);
 	kfree(hexid);
 	return ret;
 }
@@ -1043,10 +1114,13 @@ static void
 nfsd4_umh_cltrack_grace_done(struct net __attribute__((unused)) *net,
 				time_t boot_time)
 {
+	char *legacy;
 	char timestr[22]; /* FIXME: better way to determine max size? */
 
 	sprintf(timestr, "%ld", boot_time);
-	nfsd4_umh_cltrack_upcall("gracedone", timestr);
+	legacy = nfsd4_cltrack_legacy_topdir();
+	nfsd4_umh_cltrack_upcall("gracedone", timestr, legacy);
+	kfree(legacy);
 }
 
 static struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
