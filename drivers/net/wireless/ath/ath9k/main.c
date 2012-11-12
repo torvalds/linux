@@ -686,9 +686,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
-		common->bus_ops->extn_synch_en(common);
-
 	mutex_unlock(&sc->mutex);
 
 	ath9k_ps_restore(sc);
