@@ -100,6 +100,13 @@ ENTRY(printch)
 		b	1b
 ENDPROC(printch)
 
+ENTRY(debug_ll_addr)
+		addruart r2, r3, ip
+		str	r2, [r0]
+		str	r3, [r1]
+		mov	pc, lr
+ENDPROC(debug_ll_addr)
+
 #else
 
 ENTRY(printascii)
@@ -118,5 +125,12 @@ ENTRY(printch)
 	THUMB(	svc	#0xab		)
 		mov	pc, lr
 ENDPROC(printch)
+
+ENTRY(debug_ll_addr)
+		mov	r2, #0
+		str	r2, [r0]
+		str	r2, [r1]
+		mov	pc, lr
+ENDPROC(debug_ll_addr)
 
 #endif

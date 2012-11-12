@@ -26,32 +26,22 @@
 #include <linux/smp.h>
 #include <linux/amba/bus.h>
 
+#include <asm/arch_timer.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
-#include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
 #include "core.h"
 #include "sysregs.h"
 
 void __iomem *sregs_base;
-
-#define HB_SCU_VIRT_BASE	0xfee00000
-void __iomem *scu_base_addr = ((void __iomem *)(HB_SCU_VIRT_BASE));
-
-static struct map_desc scu_io_desc __initdata = {
-	.virtual	= HB_SCU_VIRT_BASE,
-	.pfn		= 0, /* run-time */
-	.length		= SZ_4K,
-	.type		= MT_DEVICE,
-};
+void __iomem *scu_base_addr;
 
 static void __init highbank_scu_map_io(void)
 {
@@ -60,13 +50,11 @@ static void __init highbank_scu_map_io(void)
 	/* Get SCU base */
 	asm("mrc p15, 4, %0, c15, c0, 0" : "=r" (base));
 
-	scu_io_desc.pfn = __phys_to_pfn(base);
-	iotable_init(&scu_io_desc, 1);
+	scu_base_addr = ioremap(base, SZ_4K);
 }
 
 static void __init highbank_map_io(void)
 {
-	highbank_scu_map_io();
 	highbank_lluart_map_io();
 }
 
@@ -83,6 +71,7 @@ void highbank_set_cpu_jump(int cpu, void *jump_addr)
 }
 
 const static struct of_device_id irq_match[] = {
+	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
 	{}
 };
@@ -98,6 +87,9 @@ static void highbank_l2x0_disable(void)
 static void __init highbank_init_irq(void)
 {
 	of_irq_init(irq_match);
+
+	if (of_find_compatible_node(NULL, NULL, "arm,cortex-a9"))
+		highbank_scu_map_io();
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Enable PL310 L2 Cache controller */
@@ -136,6 +128,9 @@ static void __init highbank_timer_init(void)
 	sp804_clockevents_init(timer_base, irq, "timer0");
 
 	twd_local_timer_of_register();
+
+	arch_timer_of_register();
+	arch_timer_sched_clock_init();
 }
 
 static struct sys_timer highbank_timer = {
@@ -145,7 +140,6 @@ static struct sys_timer highbank_timer = {
 static void highbank_power_off(void)
 {
 	hignbank_set_pwr_shutdown();
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
 
 	while (1)
 		cpu_do_idle();
@@ -211,6 +205,7 @@ static void __init highbank_init(void)
 
 static const char *highbank_match[] __initconst = {
 	"calxeda,highbank",
+	"calxeda,ecx-2000",
 	NULL,
 };
 
