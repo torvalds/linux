@@ -20,11 +20,9 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 
-#include <asm/cputype.h>
 #include <asm/delay.h>
 #include <asm/localtimer.h>
 #include <asm/arch_timer.h>
-#include <asm/system_info.h>
 #include <asm/sched_clock.h>
 
 static unsigned long arch_timer_rate;
@@ -259,19 +257,9 @@ static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
 	return 0;
 }
 
-/* Is the optional system timer available? */
-static int local_timer_is_architected(void)
-{
-	return (cpu_architecture() >= CPU_ARCH_ARMv7) &&
-	       ((read_cpuid_ext(CPUID_EXT_PFR1) >> 16) & 0xf) == 1;
-}
-
 static int arch_timer_available(void)
 {
 	unsigned long freq;
-
-	if (!local_timer_is_architected())
-		return -ENXIO;
 
 	if (arch_timer_rate == 0) {
 		freq = arch_timer_reg_read(ARCH_TIMER_PHYS_ACCESS,
