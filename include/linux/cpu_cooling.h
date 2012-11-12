@@ -35,7 +35,7 @@
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen
  */
 struct thermal_cooling_device *cpufreq_cooling_register(
-		struct cpumask *clip_cpus);
+		const struct cpumask *clip_cpus);
 
 /**
  * cpufreq_cooling_unregister - function to remove cpufreq cooling device.
@@ -44,7 +44,7 @@ struct thermal_cooling_device *cpufreq_cooling_register(
 void cpufreq_cooling_unregister(struct thermal_cooling_device *cdev);
 #else /* !CONFIG_CPU_THERMAL */
 static inline struct thermal_cooling_device *cpufreq_cooling_register(
-	struct cpumask *clip_cpus)
+	const struct cpumask *clip_cpus)
 {
 	return NULL;
 }

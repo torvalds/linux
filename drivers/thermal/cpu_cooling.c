@@ -313,7 +313,7 @@ static struct notifier_block thermal_cpufreq_notifier_block = {
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen.
  */
 struct thermal_cooling_device *cpufreq_cooling_register(
-	struct cpumask *clip_cpus)
+	const struct cpumask *clip_cpus)
 {
 	struct thermal_cooling_device *cool_dev;
 	struct cpufreq_cooling_device *cpufreq_dev = NULL;
