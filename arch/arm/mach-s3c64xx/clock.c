@@ -673,15 +673,6 @@ static struct clksrc_sources clkset_audio2 = {
 	.nr_sources	= ARRAY_SIZE(clkset_audio2_list),
 };
 
-static struct clk *clkset_camif_list[] = {
-	&clk_h2,
-};
-
-static struct clksrc_sources clkset_camif = {
-	.sources	= clkset_camif_list,
-	.nr_sources	= ARRAY_SIZE(clkset_camif_list),
-};
-
 static struct clksrc_clk clksrcs[] = {
 	{
 		.clk	= {
@@ -736,10 +727,9 @@ static struct clksrc_clk clksrcs[] = {
 			.name		= "camera",
 			.ctrlbit        = S3C_CLKCON_SCLK_CAM,
 			.enable		= s3c64xx_sclk_ctrl,
+			.parent		= &clk_h2,
 		},
 		.reg_div	= { .reg = S3C_CLK_DIV0, .shift = 20, .size = 4  },
-		.reg_src	= { .reg = NULL, .shift = 0, .size = 0  },
-		.sources	= &clkset_camif,
 	},
 };
 
