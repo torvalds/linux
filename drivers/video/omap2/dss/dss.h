@@ -382,8 +382,6 @@ static inline void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev)
 }
 static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 {
-	WARN("%s: DSI not compiled in, returning platform device as NULL\n",
-			__func__);
 	return NULL;
 }
 #endif
