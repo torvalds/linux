@@ -2266,7 +2266,9 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	u8 id;
 	u32 i, j;
 	u32 bufsize;
-	u32 pktstat_ringsize, fbr_chunksize;
+	u32 pktstat_ringsize;
+	u32 fbr_chunksize;
+	u32 fbr_align;
 	struct rx_ring *rx_ring;
 
 	/* Setup some convenience pointers */
@@ -2341,10 +2343,17 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	}
 
 	for (id = 0; id < NUM_FBRS; id++) {
+		if (id == 0 && rx_ring->fbr[id]->buffsize > 4096)
+				fbr_align = 4096;
+		else
+				fbr_align = rx_ring->fbr[id]->buffsize;
+
+		fbr_chunksize = (FBR_CHUNKS *
+				 rx_ring->fbr[id]->buffsize) + fbr_align - 1;
+
 		for (i = 0; i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
 			dma_addr_t fbr_tmp_physaddr;
 			dma_addr_t fbr_offset;
-			u32 fbr_align;
 
 			/* This code allocates an area of memory big enough for
 			 * N free buffers + (buffer_size - 1) so that the
@@ -2353,13 +2362,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 			 * effect would be to double the size of FBR0. By
 			 * allocating N buffers at once, we reduce this overhead
 			 */
-			if (id == 0 && rx_ring->fbr[id]->buffsize > 4096)
-					fbr_align = 4096;
-			else
-					fbr_align = rx_ring->fbr[id]->buffsize;
-
-			fbr_chunksize = (FBR_CHUNKS *
-				rx_ring->fbr[id]->buffsize) + fbr_align - 1;
 			rx_ring->fbr[id]->mem_virtaddrs[i] = dma_alloc_coherent(
 					&adapter->pdev->dev, fbr_chunksize,
 					&rx_ring->fbr[id]->mem_physaddrs[i],
