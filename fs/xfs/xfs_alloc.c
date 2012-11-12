@@ -430,6 +430,43 @@ xfs_alloc_fixup_trees(
 	return 0;
 }
 
+void
+xfs_agfl_read_verify(
+	struct xfs_buf	*bp)
+{
+#ifdef WHEN_CRCS_COME_ALONG
+	/*
+	 * we cannot actually do any verification of the AGFL because mkfs does
+	 * not initialise the AGFL to zero or NULL. Hence the only valid part of
+	 * the AGFL is what the AGF says is active. We can't get to the AGF, so
+	 * we can't verify just those entries are valid.
+	 *
+	 * This problem goes away when the CRC format change comes along as that
+	 * requires the AGFL to be initialised by mkfs. At that point, we can
+	 * verify the blocks in the agfl -active or not- lie within the bounds
+	 * of the AG. Until then, just leave this check ifdef'd out.
+	 */
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_agfl	*agfl = XFS_BUF_TO_AGFL(bp);
+	int		agfl_ok = 1;
+
+	int		i;
+
+	for (i = 0; i < XFS_AGFL_SIZE(mp); i++) {
+		if (be32_to_cpu(agfl->agfl_bno[i]) == NULLAGBLOCK ||
+		    be32_to_cpu(agfl->agfl_bno[i]) >= mp->m_sb.sb_agblocks)
+			agfl_ok = 0;
+	}
+
+	if (!agfl_ok) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agfl);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+#endif
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
 /*
  * Read in the allocation group free block array.
  */
@@ -447,7 +484,7 @@ xfs_alloc_read_agfl(
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, &bp, NULL);
+			XFS_FSS_TO_BB(mp, 1), 0, &bp, xfs_agfl_read_verify);
 	if (error)
 		return error;
 	ASSERT(!xfs_buf_geterror(bp));
