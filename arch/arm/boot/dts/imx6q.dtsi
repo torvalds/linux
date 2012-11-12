@@ -1001,5 +1001,23 @@
 				status = "disabled";
 			};
 		};
+
+		ipu1: ipu@02400000 {
+			#crtc-cells = <1>;
+			compatible = "fsl,imx6q-ipu";
+			reg = <0x02400000 0x400000>;
+			interrupts = <0 6 0x4 0 5 0x4>;
+			clocks = <&clks 130>, <&clks 131>, <&clks 132>;
+			clock-names = "bus", "di0", "di1";
+		};
+
+		ipu2: ipu@02800000 {
+			#crtc-cells = <1>;
+			compatible = "fsl,imx6q-ipu";
+			reg = <0x02800000 0x400000>;
+			interrupts = <0 8 0x4 0 7 0x4>;
+			clocks = <&clks 133>, <&clks 134>, <&clks 137>;
+			clock-names = "bus", "di0", "di1";
+		};
 	};
 };
