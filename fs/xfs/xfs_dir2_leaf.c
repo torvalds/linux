@@ -1863,8 +1863,7 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Read the freespace block.
 	 */
-	error = xfs_da_read_buf(tp, dp,  mp->m_dirfreeblk, -1, &fbp,
-				XFS_DATA_FORK, NULL);
+	error = xfs_dir2_free_read(tp, dp,  mp->m_dirfreeblk, &fbp);
 	if (error)
 		return error;
 	free = fbp->b_addr;
