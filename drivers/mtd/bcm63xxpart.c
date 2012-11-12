@@ -120,7 +120,6 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		kerneladdr = kerneladdr - BCM63XX_EXTENDED_SIZE;
 		rootfsaddr = rootfsaddr - BCM63XX_EXTENDED_SIZE;
 		spareaddr = roundup(totallen, master->erasesize) + cfelen;
-		sparelen = master->size - spareaddr - nvramlen;
 
 		if (rootfsaddr < kerneladdr) {
 			/* default Broadcom layout */
@@ -138,8 +137,8 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 		rootfslen = 0;
 		rootfsaddr = 0;
 		spareaddr = cfelen;
-		sparelen = master->size - cfelen - nvramlen;
 	}
+	sparelen = master->size - spareaddr - nvramlen;
 
 	/* Determine number of partitions */
 	if (rootfslen > 0)
