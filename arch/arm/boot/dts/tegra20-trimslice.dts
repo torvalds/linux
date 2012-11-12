@@ -254,6 +254,16 @@
 		clock-frequency = <400000>;
 	};
 
+	spi@7000c380 {
+		status = "okay";
+		spi-max-frequency = <48000000>;
+		spi-flash@0 {
+			compatible = "winbond,w25q80bl";
+			reg = <0>;
+			spi-max-frequency = <48000000>;
+		};
+	};
+
 	i2c@7000c400 {
 		status = "okay";
 		clock-frequency = <400000>;
