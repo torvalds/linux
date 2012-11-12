@@ -65,21 +65,6 @@ static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
  * values of the SHORT, MEDIUM, and LONG durations are retrieved
  * from the chip during initialization with a call to tpm_get_timeouts.
  */
-static const u8 tpm_protected_ordinal_duration[TPM_MAX_PROTECTED_ORDINAL] = {
-	TPM_UNDEFINED,		/* 0 */
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,		/* 5 */
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_SHORT,		/* 10 */
-	TPM_SHORT,
-};
-
 static const u8 tpm_ordinal_duration[TPM_MAX_ORDINAL] = {
 	TPM_UNDEFINED,		/* 0 */
 	TPM_UNDEFINED,
@@ -357,8 +342,7 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 	else if ((ordinal & TPM_PROTECTED_ORDINAL_MASK) <
 		 TPM_MAX_PROTECTED_ORDINAL)
 		duration_idx =
-		    tpm_protected_ordinal_duration[ordinal &
-						   TPM_PROTECTED_ORDINAL_MASK];
+		    tpm_ordinal_duration[ordinal & TPM_PROTECTED_ORDINAL_MASK];
 
 	if (duration_idx != TPM_UNDEFINED)
 		duration = chip->vendor.duration[duration_idx];
