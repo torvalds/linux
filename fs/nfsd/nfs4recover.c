@@ -1064,17 +1064,35 @@ nfsd4_client_tracking_init(struct net *net)
 	int status;
 	struct path path;
 
-	if (!client_tracking_ops) {
-		client_tracking_ops = &nfsd4_cld_tracking_ops;
-		status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
-		if (!status) {
-			if (S_ISDIR(path.dentry->d_inode->i_mode))
-				client_tracking_ops =
-						&nfsd4_legacy_tracking_ops;
-			path_put(&path);
-		}
+	/* just run the init if it the method is already decided */
+	if (client_tracking_ops)
+		goto do_init;
+
+	/*
+	 * First, try a UMH upcall. It should succeed or fail quickly, so
+	 * there's little harm in trying that first.
+	 */
+	client_tracking_ops = &nfsd4_umh_tracking_ops;
+	status = client_tracking_ops->init(net);
+	if (!status)
+		return status;
+
+	/*
+	 * See if the recoverydir exists and is a directory. If it is,
+	 * then use the legacy ops.
+	 */
+	client_tracking_ops = &nfsd4_legacy_tracking_ops;
+	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
+	if (!status) {
+		status = S_ISDIR(path.dentry->d_inode->i_mode);
+		path_put(&path);
+		if (status)
+			goto do_init;
 	}
 
+	/* Finally, try to use nfsdcld */
+	client_tracking_ops = &nfsd4_cld_tracking_ops;
+do_init:
 	status = client_tracking_ops->init(net);
 	if (status) {
 		printk(KERN_WARNING "NFSD: Unable to initialize client "
