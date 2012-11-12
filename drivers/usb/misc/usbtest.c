@@ -2386,6 +2386,7 @@ static struct usbtest_info gz_info = {
 	.name		= "Linux gadget zero",
 	.autoconf	= 1,
 	.ctrl_out	= 1,
+	.iso		= 1,
 	.alt		= 0,
 };
 
