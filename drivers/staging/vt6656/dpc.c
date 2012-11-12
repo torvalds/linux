@@ -864,7 +864,6 @@ RXbBulkInProcessData (
                             pDevice->dev->name);
                     }
                 }
-       #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 				//send event to wpa_supplicant
 				//if(pDevice->bWPASuppWextEnabled == TRUE)
 				{
@@ -889,7 +888,6 @@ RXbBulkInProcessData (
 					wireless_send_event(pDevice->dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 
 				}
-         #endif
 
 
                 if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {

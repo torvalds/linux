@@ -1056,13 +1056,11 @@ static int  device_open(struct net_device *dev) {
     pDevice->bEventAvailable = FALSE;
 
    pDevice->bWPADEVUp = FALSE;
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
      pDevice->bwextstep0 = FALSE;
      pDevice->bwextstep1 = FALSE;
      pDevice->bwextstep2 = FALSE;
      pDevice->bwextstep3 = FALSE;
      pDevice->bWPASuppWextEnabled = FALSE;
-#endif
     pDevice->byReAssocCount = 0;
 
     RXvWorkItem(pDevice);
@@ -1848,7 +1846,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 */
 		break;
 
-#ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	case SIOCSIWAUTH:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCSIWAUTH\n");
 		rc = iwctl_siwauth(dev, NULL, &(wrq->u.param), NULL);
@@ -1901,7 +1898,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		rc = iwctl_siwmlme(dev, NULL, &(wrq->u.data), wrq->u.data.pointer);
 		break;
 
-#endif // #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
     case IOCTL_CMD_TEST:
 
@@ -1995,10 +1991,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
            ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
 //End Modify
            netif_stop_queue(pDevice->dev);
-#ifdef  WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
            pMgmt->eScanType = WMAC_SCAN_ACTIVE;
 	   if (!pDevice->bWPASuppWextEnabled)
-#endif
 		bScheduleCommand((void *) pDevice,
 				 WLAN_CMD_BSSID_SCAN,
 				 pMgmt->abyDesireSSID);

@@ -913,7 +913,6 @@ if(pDevice->byReAssocCount > 0) {
    if((pDevice->byReAssocCount > 10) && (pDevice->bLinkPass != TRUE)) {  //10 sec timeout
                      printk("Re-association timeout!!!\n");
 		   pDevice->byReAssocCount = 0;
-                     #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                     // if(pDevice->bWPASuppWextEnabled == TRUE)
                         {
                   	union iwreq_data  wrqu;
@@ -922,7 +921,6 @@ if(pDevice->byReAssocCount > 0) {
                   	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
                   	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
                        }
-                    #endif
      }
    else if(pDevice->bLinkPass == TRUE)
    	pDevice->byReAssocCount = 0;
@@ -1116,7 +1114,6 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
              netif_rx(pDevice->skb);
              pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
          }
-   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
       {
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
@@ -1124,7 +1121,6 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
 	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
-  #endif
             }
         }
         else if (pItemSSID->len != 0) {
@@ -1169,11 +1165,9 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bIsRoaming %d, !\n", pDevice->bIsRoaming );
 else {
             if (pDevice->uAutoReConnectTime < 10) {
                 pDevice->uAutoReConnectTime++;
-               #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
                 //network manager support need not do Roaming scan???
                 if(pDevice->bWPASuppWextEnabled ==TRUE)
 		 pDevice->uAutoReConnectTime = 0;
-	     #endif
             }
             else {
 	    //mike use old encryption status for wpa reauthen

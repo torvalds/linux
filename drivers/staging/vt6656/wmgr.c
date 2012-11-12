@@ -998,7 +998,6 @@ s_vMgrRxAssocResponse(
                 pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
             }
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	//if(pDevice->bWPASuppWextEnabled == TRUE)
 	   {
 		BYTE buf[512];
@@ -1037,7 +1036,6 @@ s_vMgrRxAssocResponse(
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
 
 	}
-#endif //#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
         }
         else {
@@ -1053,14 +1051,12 @@ s_vMgrRxAssocResponse(
 
     }
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 //need clear flags related to Networkmanager
               pDevice->bwextstep0 = FALSE;
               pDevice->bwextstep1 = FALSE;
               pDevice->bwextstep2 = FALSE;
               pDevice->bwextstep3 = FALSE;
               pDevice->bWPASuppWextEnabled = FALSE;
-#endif
 
 if(pMgmt->eCurrState == WMAC_STATE_ASSOC)
       timer_expire(pDevice->sTimerCommand, 0);
@@ -1638,7 +1634,6 @@ s_vMgrRxDisassociation(
               }
         }
 
-   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
       {
 	union iwreq_data  wrqu;
@@ -1647,7 +1642,6 @@ s_vMgrRxDisassociation(
 	PRINT_K("wireless_send_event--->SIOCGIWAP(disassociated)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
-  #endif
     }
     /* else, ignore it */
 
@@ -1727,7 +1721,6 @@ s_vMgrRxDeauthentication(
                  pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
            }
 
-   #ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
   // if(pDevice->bWPASuppWextEnabled == TRUE)
       {
 	union iwreq_data  wrqu;
@@ -1736,7 +1729,6 @@ s_vMgrRxDeauthentication(
 	PRINT_K("wireless_send_event--->SIOCGIWAP(disauthen)\n");
 	wireless_send_event(pDevice->dev, SIOCGIWAP, &wrqu, NULL);
      }
-  #endif
 
         }
         /* else, ignore it.  TODO: IBSS authentication service
@@ -2645,10 +2637,8 @@ void vMgrJoinBSSBegin(void *hDeviceContext, PCMD_STATUS pStatus)
 */
         }
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	//if(pDevice->bWPASuppWextEnabled == TRUE)
             Encyption_Rebuild(pDevice, pCurr);
-#endif
 
         // Infrastructure BSS
         s_vMgrSynchBSS(pDevice,

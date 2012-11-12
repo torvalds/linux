@@ -38,19 +38,12 @@
 #include "hostap.h"
 #include "power.h"
 #include "rf.h"
-
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #include "iowpa.h"
 #include "wpactl.h"
-#endif
 
 #include <net/iw_handler.h>
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #define SUPPORTED_WIRELESS_EXT 18
-#else
-#define SUPPORTED_WIRELESS_EXT 17
-#endif
 
 static const long frequency_list[] = {
 	2412, 2417, 2422, 2427, 2432, 2437, 2442, 2447, 2452, 2457, 2462, 2467, 2472, 2484,
@@ -704,10 +697,8 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 		memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
 		memset(pMgmt->abyDesireBSSID, 0xFF,6);
 		PRINT_K("set essid to 'any' \n");
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 		// Unknown desired AP, so here need not associate??
 		return 0;
-#endif
 	} else {
 		// Set the SSID
 		memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
@@ -729,7 +720,6 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 			return 0;
 		}
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 		// Wext wil order another command of siwap to link
 		// with desired AP, so here need not associate??
 		if (pDevice->bWPASuppWextEnabled == TRUE)  {
@@ -778,7 +768,6 @@ int iwctl_siwessid(struct net_device *dev, struct iw_request_info *info,
 			}
 			return 0;
 		}
-#endif
 
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "set essid = %s \n", pItemSSID->abySSID);
 	}
@@ -1155,9 +1144,8 @@ int iwctl_siwencode(struct net_device *dev, struct iw_request_info *info,
 		pMgmt->bShareKeyAlgorithm = FALSE;
 	}
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 	memset(pMgmt->abyDesireBSSID, 0xFF, 6);
-#endif
+
 	return rc;
 }
 
@@ -1310,8 +1298,6 @@ int iwctl_giwsens(struct net_device *dev, struct iw_request_info *info,
 	wrq->fixed = 1;
 	return 0;
 }
-
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 
 int iwctl_siwauth(struct net_device *dev, struct iw_request_info *info,
 		struct iw_param *wrq, char *extra)
@@ -1626,8 +1612,6 @@ int iwctl_siwmlme(struct net_device *dev, struct iw_request_info *info,
 	}
 	return ret;
 }
-
-#endif
 
 static const iw_handler iwctl_handler[] = {
 	(iw_handler)NULL, // SIOCSIWCOMMIT

@@ -68,10 +68,6 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>	// New driver API
 
-#ifndef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#define WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
-#endif
-
 //please copy below macro to driver_event.c for API
 #define RT_INSMOD_EVENT_FLAG                             0x0101
 #define RT_UPDEV_EVENT_FLAG                               0x0102
@@ -815,13 +811,11 @@ typedef struct __device_info {
     struct sk_buff          *skb;
     //--
 
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
         BOOL                 bwextstep0;
         BOOL                 bwextstep1;
         BOOL                 bwextstep2;
         BOOL                 bwextstep3;
         BOOL                 bWPASuppWextEnabled;
-#endif
 
 #ifdef HOSTAP
     // user space daemon: hostapd, is used for HOSTAP

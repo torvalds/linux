@@ -30,9 +30,7 @@
 #define __WPACTL_H__
 
 #include "device.h"
-#ifdef WPA_SUPPLICANT_DRIVER_WEXT_SUPPORT
 #include "iowpa.h"
-#endif
 
 /*---------------------  Export Definitions -------------------------*/
 
