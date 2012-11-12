@@ -228,6 +228,8 @@ EXPORT_SYMBOL(rk29_get_backlight_status);
 
 void rk29_backlight_set(bool on)
 {
+	if(suspend_flag)
+		return 0;
 	printk("%s: set %d\n", __func__, on);
 	if(on)
 		rk29_bl_resume(NULL);
