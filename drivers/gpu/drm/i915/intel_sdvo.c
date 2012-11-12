@@ -1832,7 +1832,7 @@ static void intel_sdvo_destroy(struct drm_connector *connector)
 	intel_sdvo_destroy_enhance_property(connector);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(intel_sdvo_connector);
 }
 
 static bool intel_sdvo_detect_hdmi_audio(struct drm_connector *connector)
