@@ -76,7 +76,6 @@ MODULE_LICENSE ("GPL");
 /*----------------------------------------------------------------------*/
 
 #define GADGETFS_MAGIC		0xaee71ee7
-#define DMA_ADDR_INVALID	(~(dma_addr_t)0)
 
 /* /dev/gadget/$CHIP represents ep0 and the whole device */
 enum ep0_state {
@@ -918,7 +917,6 @@ static void clean_req (struct usb_ep *ep, struct usb_request *req)
 	if (req->buf != dev->rbuf) {
 		kfree(req->buf);
 		req->buf = dev->rbuf;
-		req->dma = DMA_ADDR_INVALID;
 	}
 	req->complete = epio_complete;
 	dev->setup_out_ready = 0;
@@ -1408,7 +1406,6 @@ gadgetfs_setup (struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 		dev->setup_abort = 1;
 
 	req->buf = dev->rbuf;
-	req->dma = DMA_ADDR_INVALID;
 	req->context = NULL;
 	value = -EOPNOTSUPP;
 	switch (ctrl->bRequest) {

@@ -332,7 +332,7 @@ static irqreturn_t dsps_interrupt(int irq, void *hci)
 	 * Also, DRVVBUS pulses for SRP (but not at 5V) ...
 	 */
 	if (usbintr & MUSB_INTR_BABBLE)
-		pr_info("CAUTION: musb: Babble Interrupt Occured\n");
+		pr_info("CAUTION: musb: Babble Interrupt Occurred\n");
 
 	if (usbintr & ((1 << wrp->drvvbus) << wrp->usb_shift)) {
 		int drvvbus = dsps_readl(reg_base, wrp->status);
