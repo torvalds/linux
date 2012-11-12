@@ -79,7 +79,6 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	unsigned int rootfsaddr, kerneladdr, spareaddr;
 	unsigned int rootfslen, kernellen, sparelen, totallen;
 	unsigned int cfelen, nvramlen;
-	int namelen = 0;
 	int i;
 	u32 computed_crc;
 	bool rootfs_first = false;
@@ -143,15 +142,11 @@ static int bcm63xx_parse_cfe_partitions(struct mtd_info *master,
 	}
 
 	/* Determine number of partitions */
-	namelen = 8;
-	if (rootfslen > 0) {
+	if (rootfslen > 0)
 		nrparts++;
-		namelen += 6;
-	}
-	if (kernellen > 0) {
+
+	if (kernellen > 0)
 		nrparts++;
-		namelen += 6;
-	}
 
 	/* Ask kernel for more memory */
 	parts = kzalloc(sizeof(*parts) * nrparts + 10 * nrparts, GFP_KERNEL);
