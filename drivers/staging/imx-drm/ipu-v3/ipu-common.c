@@ -673,8 +673,6 @@ static int ipu_reset(struct ipu_soc *ipu)
 		cpu_relax();
 	}
 
-	mdelay(300);
-
 	return 0;
 }
 
