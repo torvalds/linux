@@ -4537,19 +4537,16 @@ nfs4_release_reclaim(void)
 /*
  * called from OPEN, CLAIM_PREVIOUS with a new clientid. */
 struct nfs4_client_reclaim *
-nfsd4_find_reclaim_client(struct nfs4_client *clp)
+nfsd4_find_reclaim_client(const char *recdir)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp = NULL;
 
-	dprintk("NFSD: nfs4_find_reclaim_client for %.*s with recdir %s\n",
-		            clp->cl_name.len, clp->cl_name.data,
-			    clp->cl_recdir);
+	dprintk("NFSD: nfs4_find_reclaim_client for recdir %s\n", recdir);
 
-	/* find clp->cl_name in reclaim_str_hashtbl */
-	strhashval = clientstr_hashval(clp->cl_recdir);
+	strhashval = clientstr_hashval(recdir);
 	list_for_each_entry(crp, &reclaim_str_hashtbl[strhashval], cr_strhash) {
-		if (same_name(crp->cr_recdir, clp->cl_recdir)) {
+		if (same_name(crp->cr_recdir, recdir)) {
 			return crp;
 		}
 	}

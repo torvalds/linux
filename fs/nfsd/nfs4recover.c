@@ -486,7 +486,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 		return 0;
 
 	/* look for it in the reclaim hashtable otherwise */
-	if (nfsd4_find_reclaim_client(clp)) {
+	if (nfsd4_find_reclaim_client(clp->cl_recdir)) {
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 		return 0;
 	}
