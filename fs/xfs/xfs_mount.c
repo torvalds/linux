@@ -304,9 +304,8 @@ STATIC int
 xfs_mount_validate_sb(
 	xfs_mount_t	*mp,
 	xfs_sb_t	*sbp,
-	int		flags)
+	bool		check_inprogress)
 {
-	int		loud = !(flags & XFS_MFSI_QUIET);
 
 	/*
 	 * If the log device and data device have the
@@ -316,21 +315,18 @@ xfs_mount_validate_sb(
 	 * a volume filesystem in a non-volume manner.
 	 */
 	if (sbp->sb_magicnum != XFS_SB_MAGIC) {
-		if (loud)
-			xfs_warn(mp, "bad magic number");
+		xfs_warn(mp, "bad magic number");
 		return XFS_ERROR(EWRONGFS);
 	}
 
 	if (!xfs_sb_good_version(sbp)) {
-		if (loud)
-			xfs_warn(mp, "bad version");
+		xfs_warn(mp, "bad version");
 		return XFS_ERROR(EWRONGFS);
 	}
 
 	if (unlikely(
 	    sbp->sb_logstart == 0 && mp->m_logdev_targp == mp->m_ddev_targp)) {
-		if (loud)
-			xfs_warn(mp,
+		xfs_warn(mp,
 		"filesystem is marked as having an external log; "
 		"specify logdev on the mount command line.");
 		return XFS_ERROR(EINVAL);
@@ -338,8 +334,7 @@ xfs_mount_validate_sb(
 
 	if (unlikely(
 	    sbp->sb_logstart != 0 && mp->m_logdev_targp != mp->m_ddev_targp)) {
-		if (loud)
-			xfs_warn(mp,
+		xfs_warn(mp,
 		"filesystem is marked as having an internal log; "
 		"do not specify logdev on the mount command line.");
 		return XFS_ERROR(EINVAL);
@@ -373,8 +368,7 @@ xfs_mount_validate_sb(
 	    sbp->sb_dblocks == 0					||
 	    sbp->sb_dblocks > XFS_MAX_DBLOCKS(sbp)			||
 	    sbp->sb_dblocks < XFS_MIN_DBLOCKS(sbp))) {
-		if (loud)
-			XFS_CORRUPTION_ERROR("SB sanity check failed",
+		XFS_CORRUPTION_ERROR("SB sanity check failed",
 				XFS_ERRLEVEL_LOW, mp, sbp);
 		return XFS_ERROR(EFSCORRUPTED);
 	}
@@ -383,12 +377,10 @@ xfs_mount_validate_sb(
 	 * Until this is fixed only page-sized or smaller data blocks work.
 	 */
 	if (unlikely(sbp->sb_blocksize > PAGE_SIZE)) {
-		if (loud) {
-			xfs_warn(mp,
+		xfs_warn(mp,
 		"File system with blocksize %d bytes. "
 		"Only pagesize (%ld) or less will currently work.",
 				sbp->sb_blocksize, PAGE_SIZE);
-		}
 		return XFS_ERROR(ENOSYS);
 	}
 
@@ -402,23 +394,20 @@ xfs_mount_validate_sb(
 	case 2048:
 		break;
 	default:
-		if (loud)
-			xfs_warn(mp, "inode size of %d bytes not supported",
+		xfs_warn(mp, "inode size of %d bytes not supported",
 				sbp->sb_inodesize);
 		return XFS_ERROR(ENOSYS);
 	}
 
 	if (xfs_sb_validate_fsb_count(sbp, sbp->sb_dblocks) ||
 	    xfs_sb_validate_fsb_count(sbp, sbp->sb_rblocks)) {
-		if (loud)
-			xfs_warn(mp,
+		xfs_warn(mp,
 		"file system too large to be mounted on this system.");
 		return XFS_ERROR(EFBIG);
 	}
 
-	if (unlikely(sbp->sb_inprogress)) {
-		if (loud)
-			xfs_warn(mp, "file system busy");
+	if (check_inprogress && sbp->sb_inprogress) {
+		xfs_warn(mp, "Offline file system operation in progress!");
 		return XFS_ERROR(EFSCORRUPTED);
 	}
 
@@ -426,9 +415,7 @@ xfs_mount_validate_sb(
 	 * Version 1 directory format has never worked on Linux.
 	 */
 	if (unlikely(!xfs_sb_version_hasdirv2(sbp))) {
-		if (loud)
-			xfs_warn(mp,
-				"file system using version 1 directory format");
+		xfs_warn(mp, "file system using version 1 directory format");
 		return XFS_ERROR(ENOSYS);
 	}
 
@@ -521,11 +508,9 @@ out_unwind:
 
 void
 xfs_sb_from_disk(
-	struct xfs_mount	*mp,
+	struct xfs_sb	*to,
 	xfs_dsb_t	*from)
 {
-	struct xfs_sb *to = &mp->m_sb;
-
 	to->sb_magicnum = be32_to_cpu(from->sb_magicnum);
 	to->sb_blocksize = be32_to_cpu(from->sb_blocksize);
 	to->sb_dblocks = be64_to_cpu(from->sb_dblocks);
@@ -627,6 +612,50 @@ xfs_sb_to_disk(
 	}
 }
 
+void
+xfs_sb_read_verify(
+	struct xfs_buf	*bp)
+{
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_sb	sb;
+	int		error;
+
+	xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp));
+
+	/*
+	 * Only check the in progress field for the primary superblock as
+	 * mkfs.xfs doesn't clear it from secondary superblocks.
+	 */
+	error = xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR);
+	if (error)
+		xfs_buf_ioerror(bp, error);
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
+/*
+ * We may be probed for a filesystem match, so we may not want to emit
+ * messages when the superblock buffer is not actually an XFS superblock.
+ * If we find an XFS superblock, the run a normal, noisy mount because we are
+ * really going to mount it and want to know about errors.
+ */
+void
+xfs_sb_quiet_read_verify(
+	struct xfs_buf	*bp)
+{
+	struct xfs_sb	sb;
+
+	xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp));
+
+	if (sb.sb_magicnum == XFS_SB_MAGIC) {
+		/* XFS filesystem, verify noisily! */
+		xfs_sb_read_verify(bp);
+		return;
+	}
+	/* quietly fail */
+	xfs_buf_ioerror(bp, EFSCORRUPTED);
+}
+
 /*
  * xfs_readsb
  *
@@ -652,7 +681,9 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 
 reread:
 	bp = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
-					BTOBB(sector_size), 0, NULL);
+				   BTOBB(sector_size), 0,
+				   loud ? xfs_sb_read_verify
+				        : xfs_sb_quiet_read_verify);
 	if (!bp) {
 		if (loud)
 			xfs_warn(mp, "SB buffer read failed");
@@ -667,15 +698,8 @@ reread:
 
 	/*
 	 * Initialize the mount structure from the superblock.
-	 * But first do some basic consistency checking.
 	 */
-	xfs_sb_from_disk(mp, XFS_BUF_TO_SBP(bp));
-	error = xfs_mount_validate_sb(mp, &(mp->m_sb), flags);
-	if (error) {
-		if (loud)
-			xfs_warn(mp, "SB validate failed");
-		goto release_buf;
-	}
+	xfs_sb_from_disk(&mp->m_sb, XFS_BUF_TO_SBP(bp));
 
 	/*
 	 * We must be able to do sector-sized and sector-aligned IO.
