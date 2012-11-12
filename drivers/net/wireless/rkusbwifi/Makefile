@@ -7,6 +7,7 @@ rkcfg-y += $(rk_cfg)
 
 obj-$(CONFIG_RTL8188EU) += rkcfg.o
 obj-$(CONFIG_RTL8192CU) += rkcfg.o
+obj-$(CONFIG_RT5370) += rkcfg.o
 
 .PHONY: clean
 

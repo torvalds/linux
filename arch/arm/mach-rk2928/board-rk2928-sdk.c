@@ -479,7 +479,7 @@ struct platform_device pwm_regulator_device[1] = {
 /***********************************************************
 *	usb wifi
 ************************************************************/
-#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RT5370)
 
 static void rkusb_wifi_power(int on) {
 	struct regulator *ldo = NULL;

@@ -246,7 +246,7 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
 #define RK30SDK_WIFI_GPIO_RESET_ENABLE_VALUE GPIO_HIGH 
 #endif
 
-#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RT5370)
 #if defined(CONFIG_MACH_RK2926_V86)
 #define CONFIG_USB_WIFI_POWER_CONTROLED_BY_GPIO
 #define RK30SDK_WIFI_GPIO_POWER_N       RK2928_PIN0_PD3
@@ -358,7 +358,7 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
         return 0;
 }
 
-#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RT5370)
 static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
     return 0;
@@ -418,7 +418,7 @@ static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 }
 #endif
 
-#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) 
+#if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RT5370)
 static int usbwifi_power_status = 1;
 int rk29sdk_wifi_power(int on)
 {

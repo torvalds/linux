@@ -43,6 +43,11 @@ static ssize_t wifi_chip_read(struct class *cls, char *_buf)
     printk("Current WiFi chip is RK903.\n");
 #endif
     
+#ifdef CONFIG_RT5370
+    count = sprintf(_buf, "%s", "RT5370");
+    printk("Current WiFi chip is RT5370.\n");
+#endif
+
     return count;
 }
 
