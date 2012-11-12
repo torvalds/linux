@@ -679,7 +679,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 		return -ERESTARTSYS;
 	}
 	rc = qeth_l2_send_delmac(card, &card->dev->dev_addr[0]);
-	if (!rc)
+	if (!rc || (rc == IPA_RC_L2_MAC_NOT_FOUND))
 		rc = qeth_l2_send_setmac(card, addr->sa_data);
 	return rc ? -EINVAL : 0;
 }
