@@ -15,6 +15,4 @@ config=1
 sample_type=327
 mmap=0
 comm=0
-# TODO this is disabled for --group option, enabled otherwise
-#      check why..
-enable_on_exec=1
+enable_on_exec=0

@@ -41,7 +41,7 @@ int test__syscall_open_tp_fields(void)
 		goto out_delete_evlist;
 	}
 
-	perf_evsel__config(evsel, &opts, evsel);
+	perf_evsel__config(evsel, &opts);
 
 	evlist->threads->map[0] = getpid();
 

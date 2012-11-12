@@ -129,8 +129,7 @@ static struct stats runtime_itlb_cache_stats[MAX_NR_CPUS];
 static struct stats runtime_dtlb_cache_stats[MAX_NR_CPUS];
 static struct stats walltime_nsecs_stats;
 
-static int create_perf_stat_counter(struct perf_evsel *evsel,
-				    struct perf_evsel *first)
+static int create_perf_stat_counter(struct perf_evsel *evsel)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	bool exclude_guest_missing = false;
@@ -153,7 +152,7 @@ retry:
 		return 0;
 	}
 
-	if (!perf_target__has_task(&target) && (!group || evsel == first)) {
+	if (!perf_target__has_task(&target) && (!evsel->leader)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
@@ -272,7 +271,7 @@ static int read_counter(struct perf_evsel *counter)
 static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 {
 	unsigned long long t0, t1;
-	struct perf_evsel *counter, *first;
+	struct perf_evsel *counter;
 	int status = 0;
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
@@ -332,10 +331,8 @@ static int __run_perf_stat(int argc __maybe_unused, const char **argv)
 	if (group)
 		perf_evlist__set_leader(evsel_list);
 
-	first = perf_evlist__first(evsel_list);
-
 	list_for_each_entry(counter, &evsel_list->entries, node) {
-		if (create_perf_stat_counter(counter, first) < 0) {
+		if (create_perf_stat_counter(counter) < 0) {
 			/*
 			 * PPC returns ENXIO for HW counters until 2.6.37
 			 * (behavior changed with commit b0a873e).

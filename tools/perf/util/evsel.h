@@ -92,8 +92,7 @@ void perf_evsel__exit(struct perf_evsel *evsel);
 void perf_evsel__delete(struct perf_evsel *evsel);
 
 void perf_evsel__config(struct perf_evsel *evsel,
-			struct perf_record_opts *opts,
-			struct perf_evsel *first);
+			struct perf_record_opts *opts);
 
 bool perf_evsel__is_cache_op_valid(u8 type, u8 op);
 
