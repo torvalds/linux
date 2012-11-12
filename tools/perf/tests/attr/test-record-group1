@@ -16,3 +16,4 @@ sample_type=327
 mmap=0
 comm=0
 enable_on_exec=0
+disabled=0

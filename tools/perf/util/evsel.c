@@ -404,13 +404,40 @@ const char *perf_evsel__name(struct perf_evsel *evsel)
 	return evsel->name ?: "unknown";
 }
 
+/*
+ * The enable_on_exec/disabled value strategy:
+ *
+ *  1) For any type of traced program:
+ *    - all independent events and group leaders are disabled
+ *    - all group members are enabled
+ *
+ *     Group members are ruled by group leaders. They need to
+ *     be enabled, because the group scheduling relies on that.
+ *
+ *  2) For traced programs executed by perf:
+ *     - all independent events and group leaders have
+ *       enable_on_exec set
+ *     - we don't specifically enable or disable any event during
+ *       the record command
+ *
+ *     Independent events and group leaders are initially disabled
+ *     and get enabled by exec. Group members are ruled by group
+ *     leaders as stated in 1).
+ *
+ *  3) For traced programs attached by perf (pid/tid):
+ *     - we specifically enable or disable all events during
+ *       the record command
+ *
+ *     When attaching events to already running traced we
+ *     enable/disable events specifically, as there's no
+ *     initial traced exec call.
+ */
 void perf_evsel__config(struct perf_evsel *evsel,
 			struct perf_record_opts *opts)
 {
 	struct perf_event_attr *attr = &evsel->attr;
 	int track = !evsel->idx; /* only the first counter needs these */
 
-	attr->disabled = 1;
 	attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 	attr->inherit	    = !opts->no_inherit;
 	attr->read_format   = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -486,6 +513,19 @@ void perf_evsel__config(struct perf_evsel *evsel,
 	attr->mmap = track;
 	attr->comm = track;
 
+	/*
+	 * XXX see the function comment above
+	 *
+	 * Disabling only independent events or group leaders,
+	 * keeping group members enabled.
+	 */
+	if (!evsel->leader)
+		attr->disabled = 1;
+
+	/*
+	 * Setting enable_on_exec for independent events and
+	 * group leaders for traced executed by perf.
+	 */
 	if (perf_target__none(&opts->target) && (!evsel->leader))
 		attr->enable_on_exec = 1;
 }

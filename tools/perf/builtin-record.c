@@ -701,7 +701,13 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		}
 	}
 
-	perf_evlist__enable(evsel_list);
+	/*
+	 * When perf is starting the traced process, all the events
+	 * (apart from group members) have enable_on_exec=1 set,
+	 * so don't spoil it by prematurely enabling them.
+	 */
+	if (!perf_target__none(&opts->target))
+		perf_evlist__enable(evsel_list);
 
 	/*
 	 * Let the child rip
@@ -724,7 +730,12 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			waking++;
 		}
 
-		if (done)
+		/*
+		 * When perf is starting the traced process, at the end events
+		 * die with the process and we wait for that. Thus no need to
+		 * disable events in this case.
+		 */
+		if (done && !perf_target__none(&opts->target))
 			perf_evlist__disable(evsel_list);
 	}
 
