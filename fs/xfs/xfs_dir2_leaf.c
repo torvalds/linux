@@ -972,11 +972,11 @@ xfs_dir2_leaf_readbuf(
 		 */
 		if (i > mip->ra_current &&
 		    map[mip->ra_index].br_blockcount >= mp->m_dirblkfsbs) {
-			xfs_buf_readahead(mp->m_ddev_targp,
+			xfs_dir2_data_readahead(NULL, dp,
+				map[mip->ra_index].br_startoff + mip->ra_offset,
 				XFS_FSB_TO_DADDR(mp,
 					map[mip->ra_index].br_startblock +
-							mip->ra_offset),
-				(int)BTOBB(mp->m_dirblksize), NULL);
+							mip->ra_offset));
 			mip->ra_current = i;
 		}
 
@@ -985,10 +985,9 @@ xfs_dir2_leaf_readbuf(
 		 * use our mapping, but this is a very rare case.
 		 */
 		else if (i > mip->ra_current) {
-			xfs_da_reada_buf(NULL, dp,
+			xfs_dir2_data_readahead(NULL, dp,
 					map[mip->ra_index].br_startoff +
-							mip->ra_offset,
-					XFS_DATA_FORK, NULL);
+							mip->ra_offset, -1);
 			mip->ra_current = i;
 		}
 

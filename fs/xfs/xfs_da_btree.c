@@ -2285,10 +2285,10 @@ xfs_da_reada_buf(
 	struct xfs_trans	*trans,
 	struct xfs_inode	*dp,
 	xfs_dablk_t		bno,
+	xfs_daddr_t		mappedbno,
 	int			whichfork,
 	xfs_buf_iodone_t	verifier)
 {
-	xfs_daddr_t		mappedbno = -1;
 	struct xfs_buf_map	map;
 	struct xfs_buf_map	*mapp;
 	int			nmap;
@@ -2296,7 +2296,7 @@ xfs_da_reada_buf(
 
 	mapp = &map;
 	nmap = 1;
-	error = xfs_dabuf_map(trans, dp, bno, -1, whichfork,
+	error = xfs_dabuf_map(trans, dp, bno, mappedbno, whichfork,
 				&mapp, &nmap);
 	if (error) {
 		/* mapping a hole is not an error, but we don't continue */

@@ -185,7 +185,7 @@ __xfs_dir2_data_check(
 	return 0;
 }
 
-static void
+void
 xfs_dir2_data_verify(
 	struct xfs_buf		*bp)
 {
@@ -214,6 +214,17 @@ xfs_dir2_data_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, bno, mapped_bno, bpp,
+					XFS_DATA_FORK, xfs_dir2_data_verify);
+}
+
+int
+xfs_dir2_data_readahead(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	xfs_dablk_t		bno,
+	xfs_daddr_t		mapped_bno)
+{
+	return xfs_da_reada_buf(tp, dp, bno, mapped_bno,
 					XFS_DATA_FORK, xfs_dir2_data_verify);
 }
 
