@@ -316,28 +316,8 @@ static void amp_init(struct hci_request *req)
 static void hci_init1_req(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_request init_req;
-	struct sk_buff *skb;
 
 	BT_DBG("%s %ld", hdev->name, opt);
-
-	/* Driver initialization */
-
-	hci_req_init(&init_req, hdev);
-
-	/* Special commands */
-	while ((skb = skb_dequeue(&hdev->driver_init))) {
-		bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
-		skb->dev = (void *) hdev;
-
-		if (skb_queue_empty(&init_req.cmd_q))
-			bt_cb(skb)->req.start = true;
-
-		skb_queue_tail(&init_req.cmd_q, skb);
-	}
-	skb_queue_purge(&hdev->driver_init);
-
-	hci_req_run(&init_req, NULL);
 
 	/* Reset */
 	if (!test_bit(HCI_QUIRK_RESET_ON_CLOSE, &hdev->quirks))
@@ -2144,7 +2124,6 @@ struct hci_dev *hci_alloc_dev(void)
 	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 
-	skb_queue_head_init(&hdev->driver_init);
 	skb_queue_head_init(&hdev->rx_q);
 	skb_queue_head_init(&hdev->cmd_q);
 	skb_queue_head_init(&hdev->raw_q);
@@ -2163,8 +2142,6 @@ EXPORT_SYMBOL(hci_alloc_dev);
 /* Free HCI device */
 void hci_free_dev(struct hci_dev *hdev)
 {
-	skb_queue_purge(&hdev->driver_init);
-
 	/* will free via device release */
 	put_device(&hdev->dev);
 }
