@@ -685,7 +685,6 @@ void do_close_on_exec(struct files_struct *files)
 	struct fdtable *fdt;
 
 	/* exec unshares first */
-	BUG_ON(atomic_read(&files->count) != 1);
 	spin_lock(&files->file_lock);
 	for (i = 0; ; i++) {
 		unsigned long set;
