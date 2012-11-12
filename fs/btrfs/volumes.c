@@ -108,6 +108,44 @@ static noinline struct btrfs_fs_devices *find_fsid(u8 *fsid)
 	return NULL;
 }
 
+static int
+btrfs_get_bdev_and_sb(const char *device_path, fmode_t flags, void *holder,
+		      int flush, struct block_device **bdev,
+		      struct buffer_head **bh)
+{
+	int ret;
+
+	*bdev = blkdev_get_by_path(device_path, flags, holder);
+
+	if (IS_ERR(*bdev)) {
+		ret = PTR_ERR(*bdev);
+		printk(KERN_INFO "btrfs: open %s failed\n", device_path);
+		goto error;
+	}
+
+	if (flush)
+		filemap_write_and_wait((*bdev)->bd_inode->i_mapping);
+	ret = set_blocksize(*bdev, 4096);
+	if (ret) {
+		blkdev_put(*bdev, flags);
+		goto error;
+	}
+	invalidate_bdev(*bdev);
+	*bh = btrfs_read_dev_super(*bdev);
+	if (!*bh) {
+		ret = -EINVAL;
+		blkdev_put(*bdev, flags);
+		goto error;
+	}
+
+	return 0;
+
+error:
+	*bdev = NULL;
+	*bh = NULL;
+	return ret;
+}
+
 static void requeue_list(struct btrfs_pending_bios *pending_bios,
 			struct bio *head, struct bio *tail)
 {
@@ -637,18 +675,10 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 		if (!device->name)
 			continue;
 
-		bdev = blkdev_get_by_path(device->name->str, flags, holder);
-		if (IS_ERR(bdev)) {
-			printk(KERN_INFO "btrfs: open %s failed\n", device->name->str);
-			goto error;
-		}
-		filemap_write_and_wait(bdev->bd_inode->i_mapping);
-		invalidate_bdev(bdev);
-		set_blocksize(bdev, 4096);
-
-		bh = btrfs_read_dev_super(bdev);
-		if (!bh)
-			goto error_close;
+		ret = btrfs_get_bdev_and_sb(device->name->str, flags, holder, 1,
+					    &bdev, &bh);
+		if (ret)
+			continue;
 
 		disk_super = (struct btrfs_super_block *)bh->b_data;
 		devid = btrfs_stack_device_id(&disk_super->dev_item);
@@ -697,9 +727,7 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 
 error_brelse:
 		brelse(bh);
-error_close:
 		blkdev_put(bdev, flags);
-error:
 		continue;
 	}
 	if (fs_devices->open_devices == 0) {
@@ -744,22 +772,10 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	u64 total_devices;
 
 	flags |= FMODE_EXCL;
-	bdev = blkdev_get_by_path(path, flags, holder);
-
-	if (IS_ERR(bdev)) {
-		ret = PTR_ERR(bdev);
-		goto error;
-	}
-
 	mutex_lock(&uuid_mutex);
-	ret = set_blocksize(bdev, 4096);
+	ret = btrfs_get_bdev_and_sb(path, flags, holder, 0, &bdev, &bh);
 	if (ret)
-		goto error_close;
-	bh = btrfs_read_dev_super(bdev);
-	if (!bh) {
-		ret = -EINVAL;
-		goto error_close;
-	}
+		goto error;
 	disk_super = (struct btrfs_super_block *)bh->b_data;
 	devid = btrfs_stack_device_id(&disk_super->dev_item);
 	transid = btrfs_super_generation(disk_super);
@@ -777,10 +793,9 @@ int btrfs_scan_one_device(const char *path, fmode_t flags, void *holder,
 	if (!ret && fs_devices_ret)
 		(*fs_devices_ret)->total_devices = total_devices;
 	brelse(bh);
-error_close:
-	mutex_unlock(&uuid_mutex);
 	blkdev_put(bdev, flags);
 error:
+	mutex_unlock(&uuid_mutex);
 	return ret;
 }
 
@@ -1374,20 +1389,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 			goto out;
 		}
 	} else {
-		bdev = blkdev_get_by_path(device_path, FMODE_READ | FMODE_EXCL,
-					  root->fs_info->bdev_holder);
-		if (IS_ERR(bdev)) {
-			ret = PTR_ERR(bdev);
+		ret = btrfs_get_bdev_and_sb(device_path,
+					    FMODE_READ | FMODE_EXCL,
+					    root->fs_info->bdev_holder, 0,
+					    &bdev, &bh);
+		if (ret)
 			goto out;
-		}
-
-		set_blocksize(bdev, 4096);
-		invalidate_bdev(bdev);
-		bh = btrfs_read_dev_super(bdev);
-		if (!bh) {
-			ret = -EINVAL;
-			goto error_close;
-		}
 		disk_super = (struct btrfs_super_block *)bh->b_data;
 		devid = btrfs_stack_device_id(&disk_super->dev_item);
 		dev_uuid = disk_super->dev_item.uuid;
