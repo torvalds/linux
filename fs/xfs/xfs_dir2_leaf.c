@@ -48,6 +48,62 @@ static void xfs_dir2_leaf_log_bests(struct xfs_trans *tp, struct xfs_buf *bp,
 				    int first, int last);
 static void xfs_dir2_leaf_log_tail(struct xfs_trans *tp, struct xfs_buf *bp);
 
+static void
+xfs_dir2_leaf_verify(
+	struct xfs_buf		*bp,
+	__be16			magic)
+{
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_dir2_leaf_hdr *hdr = bp->b_addr;
+	int			block_ok = 0;
+
+	block_ok = hdr->info.magic == magic;
+	if (!block_ok) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
+static void
+xfs_dir2_leaf1_verify(
+	struct xfs_buf		*bp)
+{
+	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
+}
+
+static void
+xfs_dir2_leafn_verify(
+	struct xfs_buf		*bp)
+{
+	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
+}
+
+static int
+xfs_dir2_leaf_read(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	xfs_dablk_t		fbno,
+	xfs_daddr_t		mappedbno,
+	struct xfs_buf		**bpp)
+{
+	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
+					XFS_DATA_FORK, xfs_dir2_leaf1_verify);
+}
+
+int
+xfs_dir2_leafn_read(
+	struct xfs_trans	*tp,
+	struct xfs_inode	*dp,
+	xfs_dablk_t		fbno,
+	xfs_daddr_t		mappedbno,
+	struct xfs_buf		**bpp)
+{
+	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
+					XFS_DATA_FORK, xfs_dir2_leafn_verify);
+}
 
 /*
  * Convert a block form directory to a leaf form directory.
@@ -311,14 +367,11 @@ xfs_dir2_leaf_addname(
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
-	/*
-	 * Read the leaf block.
-	 */
-	error = xfs_da_read_buf(tp, dp, mp->m_dirleafblk, -1, &lbp,
-				XFS_DATA_FORK, NULL);
+
+	error = xfs_dir2_leaf_read(tp, dp, mp->m_dirleafblk, -1, &lbp);
 	if (error)
 		return error;
-	ASSERT(lbp != NULL);
+
 	/*
 	 * Look up the entry by hash value and name.
 	 * We know it's not there, our caller has already done a lookup.
@@ -1369,13 +1422,11 @@ xfs_dir2_leaf_lookup_int(
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
-	/*
-	 * Read the leaf block into the buffer.
-	 */
-	error = xfs_da_read_buf(tp, dp, mp->m_dirleafblk, -1, &lbp,
-							XFS_DATA_FORK, NULL);
+
+	error = xfs_dir2_leaf_read(tp, dp, mp->m_dirleafblk, -1, &lbp);
 	if (error)
 		return error;
+
 	*lbpp = lbp;
 	leaf = lbp->b_addr;
 	xfs_dir2_leaf_check(dp, lbp);

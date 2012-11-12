@@ -1232,11 +1232,11 @@ xfs_dir2_leafn_toosmall(
 		/*
 		 * Read the sibling leaf block.
 		 */
-		error = xfs_da_read_buf(state->args->trans, state->args->dp,
-					blkno, -1, &bp, XFS_DATA_FORK, NULL);
+		error = xfs_dir2_leafn_read(state->args->trans, state->args->dp,
+					    blkno, -1, &bp);
 		if (error)
 			return error;
-		ASSERT(bp != NULL);
+
 		/*
 		 * Count bytes in the two blocks combined.
 		 */
