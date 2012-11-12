@@ -26,6 +26,7 @@
  * A:  inversion
  * B:  format mode
  * C:  chip specific
+ * D:  clock selecter if master mode
  */
 
 /* A: clock inversion */
@@ -43,6 +44,11 @@
 /* C: chip specific */
 #define SH_FSI_OPTION_MASK	0x00000F00
 #define SH_FSI_ENABLE_STREAM_MODE	(1 << 8) /* for 16bit data */
+
+/* D:  clock selecter if master mode */
+#define SH_FSI_CLK_MASK		0x0000F000
+#define SH_FSI_CLK_EXTERNAL	(1 << 12)
+#define SH_FSI_CLK_CPG		(2 << 12) /* FSIxCK + FSI-DIV */
 
 /*
  * set_rate return value

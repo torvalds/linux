@@ -65,6 +65,9 @@
 #define SMSTPCR3	IOMEM(0xe615013c)
 #define SMSTPCR4	IOMEM(0xe6150140)
 
+#define FSIDIVA		IOMEM(0xFE1F8000)
+#define FSIDIVB		IOMEM(0xFE1F8008)
+
 /* Fixed 32 KHz root clock from EXTALR pin */
 static struct clk extalr_clk = {
 	.rate	= 32768,
@@ -188,6 +191,22 @@ static struct clk pllc1_div2_clk = {
 };
 
 /* USB clock */
+/*
+ * USBCKCR is controlling usb24 clock
+ * bit[7] : parent clock
+ * bit[6] : clock divide rate
+ * And this bit[7] is used as a "usb24s" from other devices.
+ * (Video clock / Sub clock / SPU clock)
+ * You can controll this clock as a below.
+ *
+ * struct clk *usb24	= clk_get(dev,  "usb24");
+ * struct clk *usb24s	= clk_get(NULL, "usb24s");
+ * struct clk *system	= clk_get(NULL, "system_clk");
+ * int rate = clk_get_rate(system);
+ *
+ * clk_set_parent(usb24s, system);  // for bit[7]
+ * clk_set_rate(usb24, rate / 2);   // for bit[6]
+ */
 static struct clk *usb24s_parents[] = {
 	[0] = &system_clk,
 	[1] = &extal2_clk
@@ -427,6 +446,14 @@ static struct clk *late_main_clks[] = {
 	&hdmi2_clk,
 };
 
+/* FSI DIV */
+enum { FSIDIV_A, FSIDIV_B, FSIDIV_REPARENT_NR };
+
+static struct clk fsidivs[] = {
+	[FSIDIV_A] = SH_CLK_FSIDIV(FSIDIVA, &div6_reparent_clks[DIV6_FSIA]),
+	[FSIDIV_B] = SH_CLK_FSIDIV(FSIDIVB, &div6_reparent_clks[DIV6_FSIB]),
+};
+
 /* MSTP */
 enum {
 	DIV4_I, DIV4_ZG, DIV4_B, DIV4_M1, DIV4_HP,
@@ -596,6 +623,10 @@ static struct clk_lookup lookups[] = {
 
 	CLKDEV_ICK_ID("icka", "sh_fsi2",	&div6_reparent_clks[DIV6_FSIA]),
 	CLKDEV_ICK_ID("ickb", "sh_fsi2",	&div6_reparent_clks[DIV6_FSIB]),
+	CLKDEV_ICK_ID("diva", "sh_fsi2",	&fsidivs[FSIDIV_A]),
+	CLKDEV_ICK_ID("divb", "sh_fsi2",	&fsidivs[FSIDIV_B]),
+	CLKDEV_ICK_ID("xcka", "sh_fsi2",	&fsiack_clk),
+	CLKDEV_ICK_ID("xckb", "sh_fsi2",	&fsibck_clk),
 };
 
 void __init r8a7740_clock_init(u8 md_ck)
@@ -640,6 +671,9 @@ void __init r8a7740_clock_init(u8 md_ck)
 
 	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
 		ret = clk_register(late_main_clks[k]);
+
+	if (!ret)
+		ret = sh_clk_fsidiv_register(fsidivs, FSIDIV_REPARENT_NR);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

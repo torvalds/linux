@@ -816,6 +816,8 @@ static struct platform_device usbhs1_device = {
 	.id	= 1,
 	.dev = {
 		.platform_data		= &usbhs1_private.info,
+		.dma_mask		= &usbhs1_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources	= ARRAY_SIZE(usbhs1_resources),
 	.resource	= usbhs1_resources,
@@ -860,76 +862,6 @@ static struct platform_device leds_device = {
 
 /* FSI */
 #define IRQ_FSI evt2irq(0x1840)
-static int __fsi_set_round_rate(struct clk *clk, long rate, int enable)
-{
-	int ret;
-
-	if (rate <= 0)
-		return 0;
-
-	if (!enable) {
-		clk_disable(clk);
-		return 0;
-	}
-
-	ret = clk_set_rate(clk, clk_round_rate(clk, rate));
-	if (ret < 0)
-		return ret;
-
-	return clk_enable(clk);
-}
-
-static int fsi_b_set_rate(struct device *dev, int rate, int enable)
-{
-	struct clk *fsib_clk;
-	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
-	long fsib_rate = 0;
-	long fdiv_rate = 0;
-	int ackmd_bpfmd;
-	int ret;
-
-	/* clock start */
-	switch (rate) {
-	case 44100:
-		fsib_rate	= rate * 256;
-		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
-		break;
-	case 48000:
-		fsib_rate	= 85428000; /* around 48kHz x 256 x 7 */
-		fdiv_rate	= rate * 256;
-		ackmd_bpfmd	= SH_FSI_ACKMD_256 | SH_FSI_BPFMD_64;
-		break;
-	default:
-		pr_err("unsupported rate in FSI2 port B\n");
-		return -EINVAL;
-	}
-
-	/* FSI B setting */
-	fsib_clk = clk_get(dev, "ickb");
-	if (IS_ERR(fsib_clk))
-		return -EIO;
-
-	/* fsib */
-	ret = __fsi_set_round_rate(fsib_clk, fsib_rate, enable);
-	if (ret < 0)
-		goto fsi_set_rate_end;
-
-	/* FSI DIV */
-	ret = __fsi_set_round_rate(fdiv_clk, fdiv_rate, enable);
-	if (ret < 0) {
-		/* disable FSI B */
-		if (enable)
-			__fsi_set_round_rate(fsib_clk, fsib_rate, 0);
-		goto fsi_set_rate_end;
-	}
-
-	ret = ackmd_bpfmd;
-
-fsi_set_rate_end:
-	clk_put(fsib_clk);
-	return ret;
-}
-
 static struct sh_fsi_platform_info fsi_info = {
 	.port_a = {
 		.flags = SH_FSI_BRS_INV,
@@ -940,8 +872,8 @@ static struct sh_fsi_platform_info fsi_info = {
 		.flags = SH_FSI_BRS_INV	|
 			SH_FSI_BRM_INV	|
 			SH_FSI_LRS_INV	|
+			SH_FSI_CLK_CPG	|
 			SH_FSI_FMT_SPDIF,
-		.set_rate = fsi_b_set_rate,
 	}
 };
 
@@ -1651,7 +1583,12 @@ static void __init mackerel_init(void)
 	pm_clk_add(&hdmi_lcdc_device.dev, "hdmi");
 }
 
-MACHINE_START(MACKEREL, "mackerel")
+static const char *mackerel_boards_compat_dt[] __initdata = {
+	"renesas,mackerel",
+	NULL,
+};
+
+DT_MACHINE_START(MACKEREL_DT, "mackerel")
 	.map_io		= sh7372_map_io,
 	.init_early	= sh7372_add_early_devices,
 	.init_irq	= sh7372_init_irq,
@@ -1659,4 +1596,5 @@ MACHINE_START(MACKEREL, "mackerel")
 	.init_machine	= mackerel_init,
 	.init_late	= sh7372_pm_init_late,
 	.timer		= &shmobile_timer,
+	.dt_compat  = mackerel_boards_compat_dt,
 MACHINE_END

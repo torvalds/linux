@@ -361,3 +361,89 @@ int __init sh_clk_div4_reparent_register(struct clk *clks, int nr,
 	return sh_clk_div_register_ops(clks, nr, table,
 				       &sh_clk_div4_reparent_clk_ops);
 }
+
+/* FSI-DIV */
+static unsigned long fsidiv_recalc(struct clk *clk)
+{
+	u32 value;
+
+	value = __raw_readl(clk->mapping->base);
+
+	value >>= 16;
+	if (value < 2)
+		return clk->parent->rate;
+
+	return clk->parent->rate / value;
+}
+
+static long fsidiv_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_div_range_round(clk, 1, 0xffff, rate);
+}
+
+static void fsidiv_disable(struct clk *clk)
+{
+	__raw_writel(0, clk->mapping->base);
+}
+
+static int fsidiv_enable(struct clk *clk)
+{
+	u32 value;
+
+	value  = __raw_readl(clk->mapping->base) >> 16;
+	if (value < 2)
+		return 0;
+
+	__raw_writel((value << 16) | 0x3, clk->mapping->base);
+
+	return 0;
+}
+
+static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 val;
+	int idx;
+
+	idx = (clk->parent->rate / rate) & 0xffff;
+	if (idx < 2)
+		__raw_writel(0, clk->mapping->base);
+	else
+		__raw_writel(idx << 16, clk->mapping->base);
+
+	return 0;
+}
+
+static struct sh_clk_ops fsidiv_clk_ops = {
+	.recalc		= fsidiv_recalc,
+	.round_rate	= fsidiv_round_rate,
+	.set_rate	= fsidiv_set_rate,
+	.enable		= fsidiv_enable,
+	.disable	= fsidiv_disable,
+};
+
+int __init sh_clk_fsidiv_register(struct clk *clks, int nr)
+{
+	struct clk_mapping *map;
+	int i;
+
+	for (i = 0; i < nr; i++) {
+
+		map = kzalloc(sizeof(struct clk_mapping), GFP_KERNEL);
+		if (!map) {
+			pr_err("%s: unable to alloc memory\n", __func__);
+			return -ENOMEM;
+		}
+
+		/* clks[i].enable_reg came from SH_CLK_FSIDIV() */
+		map->phys		= (phys_addr_t)clks[i].enable_reg;
+		map->len		= 8;
+
+		clks[i].enable_reg	= 0; /* remove .enable_reg */
+		clks[i].ops		= &fsidiv_clk_ops;
+		clks[i].mapping		= map;
+
+		clk_register(&clks[i]);
+	}
+
+	return 0;
+}
