@@ -313,6 +313,8 @@ static int rk2928_set_bias_level(struct snd_soc_codec *codec,
 {
 	DBG("%s level %d\n", __FUNCTION__, level);
 	
+        msleep(100);
+
 	if(codec == NULL)
 		return -1;
 		
