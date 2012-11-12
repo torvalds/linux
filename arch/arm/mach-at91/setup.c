@@ -18,8 +18,8 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_shdwc.h>
 
+#include "at91_shdwc.h"
 #include "soc.h"
 #include "generic.h"
 
@@ -47,7 +47,7 @@ void __init at91_init_irq_default(void)
 void __init at91_init_interrupts(unsigned int *priority)
 {
 	/* Initialize the AIC interrupt controller */
-	at91_aic_init(priority);
+	at91_aic_init(priority, at91_extern_irq);
 
 	/* Enable GPIO interrupts */
 	at91_gpio_irq_setup();
@@ -151,7 +151,7 @@ static void __init soc_detect(u32 dbgu_base)
 	}
 
 	/* at91sam9g10 */
-	if ((cidr & ~AT91_CIDR_EXT) == ARCH_ID_AT91SAM9G10) {
+	if ((socid & ~AT91_CIDR_EXT) == ARCH_ID_AT91SAM9G10) {
 		at91_soc_initdata.type = AT91_SOC_SAM9G10;
 		at91_boot_soc = at91sam9261_soc;
 	}

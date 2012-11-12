@@ -31,6 +31,7 @@
 #include <linux/clk.h>
 #include <linux/gfp.h>
 #include <linux/phy.h>
+#include <linux/platform_data/atmel.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -38,7 +39,6 @@
 
 #include <mach/at91rm9200_emac.h>
 #include <asm/gpio.h>
-#include <mach/board.h>
 
 #include "at91_ether.h"
 

@@ -780,17 +780,17 @@ do_entUnaUser(void __user * va, unsigned long opcode,
 	/* Check the UAC bits to decide what the user wants us to do
 	   with the unaliged access.  */
 
-	if (!test_thread_flag (TIF_UAC_NOPRINT)) {
+	if (!(current_thread_info()->status & TS_UAC_NOPRINT)) {
 		if (__ratelimit(&ratelimit)) {
 			printk("%s(%d): unaligned trap at %016lx: %p %lx %ld\n",
 			       current->comm, task_pid_nr(current),
 			       regs->pc - 4, va, opcode, reg);
 		}
 	}
-	if (test_thread_flag (TIF_UAC_SIGBUS))
+	if ((current_thread_info()->status & TS_UAC_SIGBUS))
 		goto give_sigbus;
 	/* Not sure why you'd want to use this, but... */
-	if (test_thread_flag (TIF_UAC_NOFIX))
+	if ((current_thread_info()->status & TS_UAC_NOFIX))
 		return;
 
 	/* Don't bother reading ds in the access check since we already

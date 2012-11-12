@@ -1072,6 +1072,8 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"gfx_fck_div_ck",	&gfx_fck_div_ck,	CK_AM33XX),
 	CLK(NULL,	"sysclkout_pre_ck",	&sysclkout_pre_ck,	CK_AM33XX),
 	CLK(NULL,	"clkout2_ck",		&clkout2_ck,	CK_AM33XX),
+	CLK(NULL,	"timer_32k_ck",		&clkdiv32k_ick,	CK_AM33XX),
+	CLK(NULL,	"timer_sys_ck",		&sys_clkin_ck,	CK_AM33XX),
 };
 
 int __init am33xx_clk_init(void)

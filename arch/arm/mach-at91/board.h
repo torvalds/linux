@@ -31,42 +31,15 @@
 #ifndef __ASM_ARCH_BOARD_H
 #define __ASM_ARCH_BOARD_H
 
-#include <linux/mtd/partitions.h>
-#include <linux/device.h>
-#include <linux/i2c.h>
-#include <linux/leds.h>
-#include <linux/spi/spi.h>
-#include <linux/usb/atmel_usba_udc.h>
-#include <linux/atmel-mci.h>
-#include <sound/atmel-ac97c.h>
-#include <linux/serial.h>
-#include <linux/platform_data/macb.h>
 #include <linux/platform_data/atmel.h>
 
  /* USB Device */
-struct at91_udc_data {
-	int	vbus_pin;		/* high == host powering us */
-	u8	vbus_active_low;	/* vbus polarity */
-	u8	vbus_polled;		/* Use polling, not interrupt */
-	int	pullup_pin;		/* active == D+ pulled up */
-	u8	pullup_active_low;	/* true == pullup_pin is active low */
-};
 extern void __init at91_add_device_udc(struct at91_udc_data *data);
 
  /* USB High Speed Device */
 extern void __init at91_add_device_usba(struct usba_platform_data *data);
 
  /* Compact Flash */
-struct at91_cf_data {
-	int	irq_pin;		/* I/O IRQ */
-	int	det_pin;		/* Card detect */
-	int	vcc_pin;		/* power switching */
-	int	rst_pin;		/* card reset */
-	u8	chipselect;		/* EBI Chip Select number */
-	u8	flags;
-#define AT91_CF_TRUE_IDE	0x01
-#define AT91_IDE_SWAP_A0_A2	0x02
-};
 extern void __init at91_add_device_cf(struct at91_cf_data *data);
 
  /* MMC / SD */
@@ -86,16 +59,6 @@ extern void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *d
 extern void __init at91_add_device_eth(struct macb_platform_data *data);
 
  /* USB Host */
-#define AT91_MAX_USBH_PORTS	3
-struct at91_usbh_data {
-	int		vbus_pin[AT91_MAX_USBH_PORTS];	/* port power-control pin */
-	int             overcurrent_pin[AT91_MAX_USBH_PORTS];
-	u8		ports;				/* number of ports on root hub */
-	u8              overcurrent_supported;
-	u8              vbus_pin_active_low[AT91_MAX_USBH_PORTS];
-	u8              overcurrent_status[AT91_MAX_USBH_PORTS];
-	u8              overcurrent_changed[AT91_MAX_USBH_PORTS];
-};
 extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 extern void __init at91_add_device_usbh_ohci(struct at91_usbh_data *data);
 extern void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data);
@@ -124,13 +87,6 @@ extern void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pin
 
 extern struct platform_device *atmel_default_console_device;
 
-struct atmel_uart_data {
-	int			num;		/* port num */
-	short			use_dma_tx;	/* use transmit DMA? */
-	short			use_dma_rx;	/* use receive DMA? */
-	void __iomem		*regs;		/* virt. base address, if any */
-	struct serial_rs485	rs485;		/* rs485 settings */
-};
 extern void __init at91_add_device_serial(void);
 
 /*
@@ -173,24 +129,13 @@ extern void __init at91_add_device_isi(struct isi_platform_data *data,
 		bool use_pck_as_mck);
 
  /* Touchscreen Controller */
-struct at91_tsadcc_data {
-	unsigned int    adc_clock;
-	u8		pendet_debounce;
-	u8		ts_sample_hold_time;
-};
 extern void __init at91_add_device_tsadcc(struct at91_tsadcc_data *data);
 
 /* CAN */
-struct at91_can_data {
-	void (*transceiver_switch)(int on);
-};
 extern void __init at91_add_device_can(struct at91_can_data *data);
 
  /* LEDs */
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
 extern void __init at91_pwm_leds(struct gpio_led *leds, int nr);
-
-/* FIXME: this needs a better location, but gets stuff building again */
-extern int at91_suspend_entering_slow_clock(void);
 
 #endif

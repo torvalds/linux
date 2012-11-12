@@ -27,9 +27,9 @@
 #include <linux/libata.h>
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
+#include <linux/platform_data/atmel.h>
 
 #include <mach/at91sam9_smc.h>
-#include <mach/board.h>
 #include <asm/gpio.h>
 
 #define DRV_NAME		"pata_at91"

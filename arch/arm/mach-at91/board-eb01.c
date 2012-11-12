@@ -27,8 +27,9 @@
 #include <mach/hardware.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <mach/board.h>
-#include <mach/at91_aic.h>
+
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 static void __init at91eb01_init_irq(void)

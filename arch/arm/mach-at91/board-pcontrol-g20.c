@@ -29,13 +29,13 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
-#include <mach/stamp9g20.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
+#include "stamp9g20.h"
 
 
 static void __init pcontrol_g20_init_early(void)
