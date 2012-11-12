@@ -4,22 +4,14 @@
 #include <asm/barrier.h>
 #include <asm/errno.h>
 #include <linux/clocksource.h>
+#include <linux/init.h>
 #include <linux/types.h>
+
+#include <clocksource/arm_arch_timer.h>
 
 #ifdef CONFIG_ARM_ARCH_TIMER
 int arch_timer_of_register(void);
 int arch_timer_sched_clock_init(void);
-struct timecounter *arch_timer_get_timecounter(void);
-
-#define ARCH_TIMER_CTRL_ENABLE		(1 << 0)
-#define ARCH_TIMER_CTRL_IT_MASK		(1 << 1)
-#define ARCH_TIMER_CTRL_IT_STAT		(1 << 2)
-
-#define ARCH_TIMER_REG_CTRL		0
-#define ARCH_TIMER_REG_TVAL		1
-
-#define ARCH_TIMER_PHYS_ACCESS		0
-#define ARCH_TIMER_VIRT_ACCESS		1
 
 /*
  * These register accessors are marked inline so the compiler can
@@ -127,11 +119,6 @@ static inline int arch_timer_of_register(void)
 static inline int arch_timer_sched_clock_init(void)
 {
 	return -ENXIO;
-}
-
-static inline struct timecounter *arch_timer_get_timecounter(void)
-{
-	return NULL;
 }
 #endif
 

@@ -76,12 +76,12 @@ config ARCH_OMAP4
 
 config SOC_OMAP5
 	bool "TI OMAP5"
-	select ARM_ARCH_TIMER
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
 	select CPU_V7
 	select HAVE_SMP
 	select COMMON_CLK
+	select HAVE_ARM_ARCH_TIMER
 
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2

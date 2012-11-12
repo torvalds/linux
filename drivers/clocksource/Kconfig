@@ -58,3 +58,6 @@ config CLKSRC_ARM_GENERIC
 	def_bool y if ARM64
 	help
 	  This option enables support for the ARM generic timer.
+
+config ARM_ARCH_TIMER
+	bool
