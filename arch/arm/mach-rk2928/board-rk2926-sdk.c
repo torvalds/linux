@@ -906,6 +906,11 @@ static  struct pmu_info  tps65910_ldo_info[] = {
 	},
 	#else
 	{
+		.name          = "vpll",   //vcc25
+		.min_uv          = 1000000,
+		.max_uv         = 2500000,
+	},
+	{
 		.name          = "vdig1",    //vcc18_cif
 		.min_uv          = 1500000,
 		.max_uv         = 1500000,

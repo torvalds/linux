@@ -156,24 +156,39 @@
  * author: ddl@rock-chips.com
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29
+#if defined(CONFIG_MACH_RK2926_V86)
+#define CAMERA_NAME	              "sp2518_back"
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_PMU  1
+#define CONFIG_SENSOR_POWER_IOCTL_USR	         1
+#define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   1
+#else
 #define CONFIG_SENSOR_POWER_IOCTL_USR	   0 //define this refer to your board layout
-#define CONFIG_SENSOR_RESET_IOCTL_USR	   0
 #define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
+#endif
+#define CONFIG_SENSOR_RESET_IOCTL_USR	   0
 #define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
 
 static void rk_cif_power(int on)
 {
     struct regulator *ldo_18,*ldo_28;
+
+      #if defined(CONFIG_MACH_RK2926_V86)
+      ldo_28 = regulator_get(NULL, "vaux1");	// vcc28_cif
+	ldo_18 = regulator_get(NULL, "vdig1");	// vcc18_cif
+      #else
 	ldo_28 = regulator_get(NULL, "ldo7");	// vcc28_cif
 	ldo_18 = regulator_get(NULL, "ldo1");	// vcc18_cif
+	#endif
 	if (ldo_28 == NULL || IS_ERR(ldo_28) || ldo_18 == NULL || IS_ERR(ldo_18)){
         printk("get cif ldo failed!\n");
 		return;
 	    }
-    if(on == 0){	
-    	regulator_disable(ldo_28);
+    if(on == 0){
+      while(regulator_is_enabled(ldo_28)>0)
+    	    regulator_disable(ldo_28);
     	regulator_put(ldo_28);
-    	regulator_disable(ldo_18);
+    	while(regulator_is_enabled(ldo_18)>0)
+    	    regulator_disable(ldo_18);
     	regulator_put(ldo_18);
     	mdelay(500);
         }
@@ -207,9 +222,77 @@ static int sensor_reset_usr_cb (struct rk29camera_gpio_res *res,int on)
 #endif
 
 #if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+static void rk_cif_powerdowen(int on)
+{
+    struct regulator *ldo_28;
+    ldo_28 = regulator_get(NULL, "vpll");   // vcc28_cif
+    if (ldo_28 == NULL || IS_ERR(ldo_28) ){
+            printk("get cif vpll ldo failed!\n");
+            return;
+    }
+    
+    if( CONFIG_SENSOR_POWERDNACTIVE_LEVEL_PMU ) {
+            if(on == 0){//enable camera
+                   regulator_set_voltage(ldo_28, 2500000, 2500000);
+                   regulator_enable(ldo_28);
+                   printk(" %s set  vpll vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
+                   regulator_put(ldo_28);
+            }else{//disable camera
+            	    while(regulator_is_enabled(ldo_28)>0){
+                        int a = regulator_disable(ldo_28);
+                  }
+                  regulator_put(ldo_28);
+                  mdelay(500);
+            }
+     }else{
+            
+            if(on == 1){//enable camera
+                   regulator_set_voltage(ldo_28, 2500000, 2500000);
+                   regulator_enable(ldo_28);
+                   printk(" %s set  vpll vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo_28));
+                   regulator_put(ldo_28);
+            }else{//disable camera
+            	    while(regulator_is_enabled(ldo_28)>0){
+                        regulator_disable(ldo_28);
+                  }
+                  regulator_put(ldo_28);
+                  mdelay(500);
+            }
+     }
+}
 static int sensor_powerdown_usr_cb (struct rk29camera_gpio_res *res,int on)
 {
-	#error "CONFIG_SENSOR_POWERDOWN_IOCTL_USR is 1, sensor_powerdown_usr_cb function must be writed!!";
+    #if defined(CONFIG_MACH_RK2926_V86)
+    int ret = 0; 
+    if(strcmp(res->dev_name,CAMERA_NAME)==0)//"sp2518_back") == 0)
+    { 
+        //如果为pmu控制的引脚，"ov5642_front_1" 根据 sensor名字 ，前后置 ， sensor序号确定 
+        //具体pmu控制操作，可参考文件末尾的参考代码 
+        printk("%s.............pwm power\n",__FUNCTION__);
+        rk_cif_powerdowen(on);
+    }else{ //gpio控制的操作
+            int camera_powerdown = res->gpio_powerdown;
+            int camera_ioflag = res->gpio_flag;
+            int camera_io_init = res->gpio_init; //  int ret = 0;    
+            if (camera_powerdown != INVALID_GPIO) { 
+                    if (camera_io_init & RK29_CAM_POWERDNACTIVE_MASK) {
+                          if (on) {
+                                gpio_set_value(camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS)); 
+                                printk("%s..%s..PowerDownPin=%d ..PinLevel = %x \n",__FUNCTION__,res->dev_name,camera_powerdown, ((camera_ioflag&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS)); 
+                         } else { 
+                                gpio_set_value(camera_powerdown,(((~camera_ioflag)&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS)); 
+                                printk("%s..%s..PowerDownPin= %d..PinLevel = %x   \n",__FUNCTION__,res->dev_name, camera_powerdown, (((~camera_ioflag)&RK29_CAM_POWERDNACTIVE_MASK)>>RK29_CAM_POWERDNACTIVE_BITPOS)); 
+                         }
+                  } else { ret = RK29_CAM_EIO_REQUESTFAIL;
+                                printk("%s..%s..PowerDownPin=%d request failed!\n",__FUNCTION__,res->dev_name,camera_powerdown); } 
+          } else { 
+                ret = RK29_CAM_EIO_INVALID; 
+          }
+    }
+    return ret;
+    #else
+    #error "CONFIG_SENSOR_POWERDOWN_IOCTL_USR is 1, sensor_powerdown_usr_cb function must be writed!!";
+    #endif
 }
 #endif
 

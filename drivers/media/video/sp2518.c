@@ -3068,7 +3068,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
 		ret = -ENODEV;
 		goto sensor_video_probe_err;
 	}
-	msleep(10);
+	msleep(100);
 
     /* check if it is an sensor sensor */
 	ret = sensor_read(client, SENSOR_ID_REG, &pid);
