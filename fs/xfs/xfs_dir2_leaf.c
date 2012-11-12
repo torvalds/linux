@@ -74,7 +74,7 @@ xfs_dir2_leaf1_verify(
 	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
 }
 
-static void
+void
 xfs_dir2_leafn_verify(
 	struct xfs_buf		*bp)
 {

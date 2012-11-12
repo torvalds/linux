@@ -227,9 +227,6 @@ int	xfs_attr_leaf_to_shortform(struct xfs_buf *bp,
 int	xfs_attr_leaf_clearflag(struct xfs_da_args *args);
 int	xfs_attr_leaf_setflag(struct xfs_da_args *args);
 int	xfs_attr_leaf_flipflags(xfs_da_args_t *args);
-int	xfs_attr_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
-			xfs_dablk_t bno, xfs_daddr_t mappedbno,
-			struct xfs_buf **bpp);
 
 /*
  * Routines used for growing the Btree.
@@ -264,4 +261,9 @@ int	xfs_attr_leaf_order(struct xfs_buf *leaf1_bp,
 				   struct xfs_buf *leaf2_bp);
 int	xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize,
 					int *local);
+int	xfs_attr_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
+			xfs_dablk_t bno, xfs_daddr_t mappedbno,
+			struct xfs_buf **bpp);
+void	xfs_attr_leaf_verify(struct xfs_buf *bp);
+
 #endif	/* __XFS_ATTR_LEAF_H__ */

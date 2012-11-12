@@ -1696,10 +1696,10 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->disk_blkno) {
-			error = xfs_da_read_buf(state->args->trans,
+			error = xfs_da_node_read(state->args->trans,
 						state->args->dp,
 						blk->blkno, blk->disk_blkno,
-						&blk->bp, XFS_ATTR_FORK, NULL);
+						&blk->bp, XFS_ATTR_FORK);
 			if (error)
 				return(error);
 		} else {
@@ -1715,10 +1715,10 @@ xfs_attr_refillstate(xfs_da_state_t *state)
 	ASSERT((path->active >= 0) && (path->active < XFS_DA_NODE_MAXDEPTH));
 	for (blk = path->blk, level = 0; level < path->active; blk++, level++) {
 		if (blk->disk_blkno) {
-			error = xfs_da_read_buf(state->args->trans,
+			error = xfs_da_node_read(state->args->trans,
 						state->args->dp,
 						blk->blkno, blk->disk_blkno,
-						&blk->bp, XFS_ATTR_FORK, NULL);
+						&blk->bp, XFS_ATTR_FORK);
 			if (error)
 				return(error);
 		} else {
@@ -1807,8 +1807,8 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	 */
 	bp = NULL;
 	if (cursor->blkno > 0) {
-		error = xfs_da_read_buf(NULL, context->dp, cursor->blkno, -1,
-					      &bp, XFS_ATTR_FORK, NULL);
+		error = xfs_da_node_read(NULL, context->dp, cursor->blkno, -1,
+					      &bp, XFS_ATTR_FORK);
 		if ((error != 0) && (error != EFSCORRUPTED))
 			return(error);
 		if (bp) {
@@ -1849,17 +1849,11 @@ xfs_attr_node_list(xfs_attr_list_context_t *context)
 	if (bp == NULL) {
 		cursor->blkno = 0;
 		for (;;) {
-			error = xfs_da_read_buf(NULL, context->dp,
+			error = xfs_da_node_read(NULL, context->dp,
 						      cursor->blkno, -1, &bp,
-						      XFS_ATTR_FORK, NULL);
+						      XFS_ATTR_FORK);
 			if (error)
 				return(error);
-			if (unlikely(bp == NULL)) {
-				XFS_ERROR_REPORT("xfs_attr_node_list(2)",
-						 XFS_ERRLEVEL_LOW,
-						 context->dp->i_mount);
-				return(XFS_ERROR(EFSCORRUPTED));
-			}
 			node = bp->b_addr;
 			if (node->hdr.info.magic ==
 			    cpu_to_be16(XFS_ATTR_LEAF_MAGIC))

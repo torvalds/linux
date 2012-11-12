@@ -213,6 +213,9 @@ int	xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
  */
 int	xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 				       xfs_da_state_blk_t *new_blk);
+int	xfs_da_node_read(struct xfs_trans *tp, struct xfs_inode *dp,
+			 xfs_dablk_t bno, xfs_daddr_t mappedbno,
+			 struct xfs_buf **bpp, int which_fork);
 
 /*
  * Utility routines.

@@ -88,7 +88,7 @@ STATIC void xfs_attr_leaf_moveents(xfs_attr_leafblock_t *src_leaf,
 					 xfs_mount_t *mp);
 STATIC int xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index);
 
-static void
+void
 xfs_attr_leaf_verify(
 	struct xfs_buf		*bp)
 {
@@ -2765,7 +2765,7 @@ xfs_attr_root_inactive(xfs_trans_t **trans, xfs_inode_t *dp)
 	 * the extents in reverse order the extent containing
 	 * block 0 must still be there.
 	 */
-	error = xfs_da_read_buf(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK, NULL);
+	error = xfs_da_node_read(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK);
 	if (error)
 		return(error);
 	blkno = XFS_BUF_ADDR(bp);
@@ -2850,8 +2850,8 @@ xfs_attr_node_inactive(
 		 * traversal of the tree so we may deal with many blocks
 		 * before we come back to this one.
 		 */
-		error = xfs_da_read_buf(*trans, dp, child_fsb, -2, &child_bp,
-						XFS_ATTR_FORK, NULL);
+		error = xfs_da_node_read(*trans, dp, child_fsb, -2, &child_bp,
+						XFS_ATTR_FORK);
 		if (error)
 			return(error);
 		if (child_bp) {
@@ -2891,8 +2891,8 @@ xfs_attr_node_inactive(
 		 * child block number.
 		 */
 		if ((i+1) < count) {
-			error = xfs_da_read_buf(*trans, dp, 0, parent_blkno,
-				&bp, XFS_ATTR_FORK, NULL);
+			error = xfs_da_node_read(*trans, dp, 0, parent_blkno,
+						 &bp, XFS_ATTR_FORK);
 			if (error)
 				return(error);
 			child_fsb = be32_to_cpu(node->btree[i+1].before);
