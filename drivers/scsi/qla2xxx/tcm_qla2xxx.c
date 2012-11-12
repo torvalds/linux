@@ -237,7 +237,7 @@ static char *tcm_qla2xxx_get_fabric_wwn(struct se_portal_group *se_tpg)
 				struct tcm_qla2xxx_tpg, se_tpg);
 	struct tcm_qla2xxx_lport *lport = tpg->lport;
 
-	return &lport->lport_name[0];
+	return lport->lport_naa_name;
 }
 
 static char *tcm_qla2xxx_npiv_get_fabric_wwn(struct se_portal_group *se_tpg)
@@ -1457,6 +1457,78 @@ static int tcm_qla2xxx_check_initiator_node_acl(
 	return 0;
 }
 
+static void tcm_qla2xxx_update_sess(struct qla_tgt_sess *sess, port_id_t s_id,
+				    uint16_t loop_id, bool conf_compl_supported)
+{
+	struct qla_tgt *tgt = sess->tgt;
+	struct qla_hw_data *ha = tgt->ha;
+	struct tcm_qla2xxx_lport *lport = ha->tgt.target_lport_ptr;
+	struct se_node_acl *se_nacl = sess->se_sess->se_node_acl;
+	struct tcm_qla2xxx_nacl *nacl = container_of(se_nacl,
+			struct tcm_qla2xxx_nacl, se_node_acl);
+	u32 key;
+
+
+	if (sess->loop_id != loop_id || sess->s_id.b24 != s_id.b24)
+		pr_info("Updating session %p from port %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x loop_id %d -> %d s_id %x:%x:%x -> %x:%x:%x\n",
+			sess,
+			sess->port_name[0], sess->port_name[1],
+			sess->port_name[2], sess->port_name[3],
+			sess->port_name[4], sess->port_name[5],
+			sess->port_name[6], sess->port_name[7],
+			sess->loop_id, loop_id,
+			sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa,
+			s_id.b.domain, s_id.b.area, s_id.b.al_pa);
+
+	if (sess->loop_id != loop_id) {
+		/*
+		 * Because we can shuffle loop IDs around and we
+		 * update different sessions non-atomically, we might
+		 * have overwritten this session's old loop ID
+		 * already, and we might end up overwriting some other
+		 * session that will be updated later.  So we have to
+		 * be extra careful and we can't warn about those things...
+		 */
+		if (lport->lport_loopid_map[sess->loop_id].se_nacl == se_nacl)
+			lport->lport_loopid_map[sess->loop_id].se_nacl = NULL;
+
+		lport->lport_loopid_map[loop_id].se_nacl = se_nacl;
+
+		sess->loop_id = loop_id;
+	}
+
+	if (sess->s_id.b24 != s_id.b24) {
+		key = (((u32) sess->s_id.b.domain << 16) |
+		       ((u32) sess->s_id.b.area   <<  8) |
+		       ((u32) sess->s_id.b.al_pa));
+
+		if (btree_lookup32(&lport->lport_fcport_map, key))
+			WARN(btree_remove32(&lport->lport_fcport_map, key) != se_nacl,
+			     "Found wrong se_nacl when updating s_id %x:%x:%x\n",
+			     sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa);
+		else
+			WARN(1, "No lport_fcport_map entry for s_id %x:%x:%x\n",
+			     sess->s_id.b.domain, sess->s_id.b.area, sess->s_id.b.al_pa);
+
+		key = (((u32) s_id.b.domain << 16) |
+		       ((u32) s_id.b.area   <<  8) |
+		       ((u32) s_id.b.al_pa));
+
+		if (btree_lookup32(&lport->lport_fcport_map, key)) {
+			WARN(1, "Already have lport_fcport_map entry for s_id %x:%x:%x\n",
+			     s_id.b.domain, s_id.b.area, s_id.b.al_pa);
+			btree_update32(&lport->lport_fcport_map, key, se_nacl);
+		} else {
+			btree_insert32(&lport->lport_fcport_map, key, se_nacl, GFP_ATOMIC);
+		}
+
+		sess->s_id = s_id;
+		nacl->nport_id = key;
+	}
+
+	sess->conf_compl_supported = conf_compl_supported;
+}
+
 /*
  * Calls into tcm_qla2xxx used by qla2xxx LLD I/O path.
  */
@@ -1467,6 +1539,7 @@ static struct qla_tgt_func_tmpl tcm_qla2xxx_template = {
 	.free_cmd		= tcm_qla2xxx_free_cmd,
 	.free_mcmd		= tcm_qla2xxx_free_mcmd,
 	.free_session		= tcm_qla2xxx_free_session,
+	.update_sess		= tcm_qla2xxx_update_sess,
 	.check_initiator_node_acl = tcm_qla2xxx_check_initiator_node_acl,
 	.find_sess_by_s_id	= tcm_qla2xxx_find_sess_by_s_id,
 	.find_sess_by_loop_id	= tcm_qla2xxx_find_sess_by_loop_id,
@@ -1534,6 +1607,7 @@ static struct se_wwn *tcm_qla2xxx_make_lport(
 	lport->lport_wwpn = wwpn;
 	tcm_qla2xxx_format_wwn(&lport->lport_name[0], TCM_QLA2XXX_NAMELEN,
 				wwpn);
+	sprintf(lport->lport_naa_name, "naa.%016llx", (unsigned long long) wwpn);
 
 	ret = tcm_qla2xxx_init_lport(lport);
 	if (ret != 0)
@@ -1601,6 +1675,7 @@ static struct se_wwn *tcm_qla2xxx_npiv_make_lport(
 	lport->lport_npiv_wwnn = npiv_wwnn;
 	tcm_qla2xxx_npiv_format_wwn(&lport->lport_npiv_name[0],
 			TCM_QLA2XXX_NAMELEN, npiv_wwpn, npiv_wwnn);
+	sprintf(lport->lport_naa_name, "naa.%016llx", (unsigned long long) npiv_wwpn);
 
 /* FIXME: tcm_qla2xxx_npiv_make_lport */
 	ret = -ENOSYS;
