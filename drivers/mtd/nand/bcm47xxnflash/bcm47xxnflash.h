@@ -11,6 +11,7 @@ struct bcm47xxnflash {
 	struct mtd_info mtd;
 
 	unsigned curr_command;
+	int curr_page_addr;
 	int curr_column;
 
 	u8 id_data[8];
