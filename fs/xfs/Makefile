@@ -37,7 +37,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_file.o \
 				   xfs_filestream.o \
 				   xfs_fsops.o \
-				   xfs_fs_subr.o \
 				   xfs_globals.o \
 				   xfs_icache.o \
 				   xfs_ioctl.o \

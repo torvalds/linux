@@ -255,15 +255,14 @@ xfs_file_aio_read(
 		xfs_buftarg_t	*target =
 			XFS_IS_REALTIME_INODE(ip) ?
 				mp->m_rtdev_targp : mp->m_ddev_targp;
-		if ((iocb->ki_pos & target->bt_smask) ||
-		    (size & target->bt_smask)) {
-			if (iocb->ki_pos == i_size_read(inode))
+		if ((pos & target->bt_smask) || (size & target->bt_smask)) {
+			if (pos == i_size_read(inode))
 				return 0;
 			return -XFS_ERROR(EINVAL);
 		}
 	}
 
-	n = mp->m_super->s_maxbytes - iocb->ki_pos;
+	n = mp->m_super->s_maxbytes - pos;
 	if (n <= 0 || size == 0)
 		return 0;
 
@@ -289,20 +288,21 @@ xfs_file_aio_read(
 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
 
 		if (inode->i_mapping->nrpages) {
-			ret = -xfs_flushinval_pages(ip,
-					(iocb->ki_pos & PAGE_CACHE_MASK),
-					-1, FI_REMAPF_LOCKED);
+			ret = -filemap_write_and_wait_range(
+							VFS_I(ip)->i_mapping,
+							pos, -1);
 			if (ret) {
 				xfs_rw_iunlock(ip, XFS_IOLOCK_EXCL);
 				return ret;
 			}
+			truncate_pagecache_range(VFS_I(ip), pos, -1);
 		}
 		xfs_rw_ilock_demote(ip, XFS_IOLOCK_EXCL);
 	}
 
-	trace_xfs_file_read(ip, size, iocb->ki_pos, ioflags);
+	trace_xfs_file_read(ip, size, pos, ioflags);
 
-	ret = generic_file_aio_read(iocb, iovp, nr_segs, iocb->ki_pos);
+	ret = generic_file_aio_read(iocb, iovp, nr_segs, pos);
 	if (ret > 0)
 		XFS_STATS_ADD(xs_read_bytes, ret);
 
@@ -670,10 +670,11 @@ xfs_file_dio_aio_write(
 		goto out;
 
 	if (mapping->nrpages) {
-		ret = -xfs_flushinval_pages(ip, (pos & PAGE_CACHE_MASK), -1,
-							FI_REMAPF_LOCKED);
+		ret = -filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+						    pos, -1);
 		if (ret)
 			goto out;
+		truncate_pagecache_range(VFS_I(ip), pos, -1);
 	}
 
 	/*
