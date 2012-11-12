@@ -119,7 +119,7 @@
 110	i386	iopl			sys_iopl
 111	i386	vhangup			sys_vhangup
 112	i386	idle
-113	i386	vm86old			ptregs_vm86old			sys32_vm86_warning
+113	i386	vm86old			sys_vm86old			sys32_vm86_warning
 114	i386	wait4			sys_wait4			compat_sys_wait4
 115	i386	swapoff			sys_swapoff
 116	i386	sysinfo			sys_sysinfo			compat_sys_sysinfo
@@ -172,7 +172,7 @@
 163	i386	mremap			sys_mremap
 164	i386	setresuid		sys_setresuid16
 165	i386	getresuid		sys_getresuid16
-166	i386	vm86			ptregs_vm86			sys32_vm86_warning
+166	i386	vm86			sys_vm86			sys32_vm86_warning
 167	i386	query_module
 168	i386	poll			sys_poll
 169	i386	nfsservctl

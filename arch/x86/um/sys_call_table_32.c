@@ -24,9 +24,6 @@
 
 #define old_mmap sys_old_mmap
 
-#define ptregs_vm86old sys_vm86old
-#define ptregs_vm86 sys_vm86
-
 #define __SYSCALL_I386(nr, sym, compat) extern asmlinkage void sym(void) ;
 #include <asm/syscalls_32.h>
 
