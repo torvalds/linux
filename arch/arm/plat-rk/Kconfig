@@ -101,6 +101,14 @@ config DVFS
 	depends on REGULATOR&&CPU_FREQ
 	default y
 
+config RK_DVFS_TREE_DBG
+	bool "Enable dvfs tree debug"
+	depends on DVFS
+
+config RK_AVS_DBG
+	bool "Enable avs(auto voltage scale) debug"
+	depends on DVFS
+
 config RK_CLOCK_PROC
 	bool "/proc/clocks support"
 	depends on PROC_FS
