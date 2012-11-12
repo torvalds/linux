@@ -17,4 +17,6 @@ struct bcm47xxnflash {
 	u8 id_data[8];
 };
 
+int bcm47xxnflash_ops_bcm4706_init(struct bcm47xxnflash *b47n);
+
 #endif /* BCM47XXNFLASH */

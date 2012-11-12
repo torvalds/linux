@@ -40,8 +40,8 @@ static int bcm47xxnflash_probe(struct platform_device *pdev)
 	b47n->mtd.priv = &b47n->nand_chip; /* Required */
 	b47n->cc = container_of(nflash, struct bcma_drv_cc, nflash);
 
-	if (0) {
-		/* TODO: init device */
+	if (b47n->cc->core->bus->chipinfo.id == BCMA_CHIP_ID_BCM4706) {
+		err = bcm47xxnflash_ops_bcm4706_init(b47n);
 	} else {
 		pr_err("Device not supported\n");
 		err = -ENOTSUPP;
