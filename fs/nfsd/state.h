@@ -232,7 +232,7 @@ struct nfsd4_sessionid {
  */
 struct nfs4_client {
 	struct list_head	cl_idhash; 	/* hash by cl_clientid.id */
-	struct list_head	cl_strhash; 	/* hash by cl_name */
+	struct rb_node		cl_namenode;	/* link into by-name trees */
 	struct list_head	cl_openowners;
 	struct idr		cl_stateids;	/* stateid lookup */
 	struct list_head	cl_delegations;
@@ -253,6 +253,7 @@ struct nfs4_client {
 #define NFSD4_CLIENT_CB_KILL		(1)
 #define NFSD4_CLIENT_STABLE		(2)	/* client on stable storage */
 #define NFSD4_CLIENT_RECLAIM_COMPLETE	(3)	/* reclaim_complete done */
+#define NFSD4_CLIENT_CONFIRMED		(4)	/* client is confirmed */
 #define NFSD4_CLIENT_CB_FLAG_MASK	(1 << NFSD4_CLIENT_CB_UPDATE | \
 					 1 << NFSD4_CLIENT_CB_KILL)
 	unsigned long		cl_flags;
