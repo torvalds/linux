@@ -21,7 +21,6 @@
 #include <linux/io.h>
 
 #include <asm/delay.h>
-#include <asm/localtimer.h>
 #include <asm/arch_timer.h>
 #include <asm/sched_clock.h>
 
@@ -37,7 +36,7 @@ enum ppi_nr {
 
 static int arch_timer_ppi[MAX_TIMER_PPI];
 
-static struct clock_event_device __percpu **arch_timer_evt;
+static struct clock_event_device __percpu *arch_timer_evt;
 static struct delay_timer arch_delay_timer;
 
 static bool arch_timer_use_virtual = true;
@@ -63,14 +62,14 @@ static irqreturn_t inline timer_handler(const int access,
 
 static irqreturn_t arch_timer_handler_virt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = *(struct clock_event_device **)dev_id;
+	struct clock_event_device *evt = dev_id;
 
 	return timer_handler(ARCH_TIMER_VIRT_ACCESS, evt);
 }
 
 static irqreturn_t arch_timer_handler_phys(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = *(struct clock_event_device **)dev_id;
+	struct clock_event_device *evt = dev_id;
 
 	return timer_handler(ARCH_TIMER_PHYS_ACCESS, evt);
 }
@@ -141,12 +140,12 @@ static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
 		clk->set_next_event = arch_timer_set_next_event_phys;
 	}
 
+	clk->cpumask = cpumask_of(smp_processor_id());
+
 	clk->set_mode(CLOCK_EVT_MODE_SHUTDOWN, NULL);
 
 	clockevents_config_and_register(clk, arch_timer_rate,
 					0xf, 0x7fffffff);
-
-	*__this_cpu_ptr(arch_timer_evt) = clk;
 
 	if (arch_timer_use_virtual)
 		enable_percpu_irq(arch_timer_ppi[VIRT_PPI], 0);
@@ -251,12 +250,26 @@ static void __cpuinit arch_timer_stop(struct clock_event_device *clk)
 	clk->set_mode(CLOCK_EVT_MODE_UNUSED, clk);
 }
 
-static struct local_timer_ops arch_timer_ops __cpuinitdata = {
-	.setup	= arch_timer_setup,
-	.stop	= arch_timer_stop,
-};
+static int __cpuinit arch_timer_cpu_notify(struct notifier_block *self,
+					   unsigned long action, void *hcpu)
+{
+	struct clock_event_device *evt = this_cpu_ptr(arch_timer_evt);
 
-static struct clock_event_device arch_timer_global_evt;
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_STARTING:
+		arch_timer_setup(evt);
+		break;
+	case CPU_DYING:
+		arch_timer_stop(evt);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block arch_timer_cpu_nb __cpuinitdata = {
+	.notifier_call = arch_timer_cpu_notify,
+};
 
 static int __init arch_timer_register(void)
 {
@@ -267,7 +280,7 @@ static int __init arch_timer_register(void)
 	if (err)
 		goto out;
 
-	arch_timer_evt = alloc_percpu(struct clock_event_device *);
+	arch_timer_evt = alloc_percpu(struct clock_event_device);
 	if (!arch_timer_evt) {
 		err = -ENOMEM;
 		goto out;
@@ -303,19 +316,12 @@ static int __init arch_timer_register(void)
 		goto out_free;
 	}
 
-	err = local_timer_register(&arch_timer_ops);
-	if (err) {
-		/*
-		 * We couldn't register as a local timer (could be
-		 * because we're on a UP platform, or because some
-		 * other local timer is already present...). Try as a
-		 * global timer instead.
-		 */
-		arch_timer_global_evt.cpumask = cpumask_of(0);
-		err = arch_timer_setup(&arch_timer_global_evt);
-	}
+	err = register_cpu_notifier(&arch_timer_cpu_nb);
 	if (err)
 		goto out_free_irq;
+
+	/* Immediately configure the timer on the boot CPU */
+	arch_timer_setup(this_cpu_ptr(arch_timer_evt));
 
 	/* Use the architected timer for the delay loop. */
 	arch_delay_timer.read_current_timer = &arch_timer_read_current_timer;
