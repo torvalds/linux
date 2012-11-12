@@ -155,6 +155,9 @@ typedef struct xfs_buf {
 	unsigned int		b_offset;	/* page offset in first page */
 	unsigned short		b_error;	/* error code on I/O */
 
+	void			(*b_pre_io)(struct xfs_buf *);
+						/* pre-io callback function */
+
 #ifdef XFS_BUF_LOCK_TRACKING
 	int			b_last_holder;
 #endif

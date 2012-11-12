@@ -569,7 +569,9 @@ found:
 	 */
 	if (bp->b_flags & XBF_STALE) {
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
+		ASSERT(bp->b_iodone == NULL);
 		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
+		bp->b_pre_io = NULL;
 	}
 
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
@@ -1322,6 +1324,20 @@ _xfs_buf_ioapply(
 
 	/* we only use the buffer cache for meta-data */
 	rw |= REQ_META;
+
+	/*
+	 * run the pre-io callback function if it exists. If this function
+	 * fails it will mark the buffer with an error and the IO should
+	 * not be dispatched.
+	 */
+	if (bp->b_pre_io) {
+		bp->b_pre_io(bp);
+		if (bp->b_error) {
+			xfs_force_shutdown(bp->b_target->bt_mount,
+					   SHUTDOWN_CORRUPT_INCORE);
+			return;
+		}
+	}
 
 	/*
 	 * Walk all the vectors issuing IO on them. Set up the initial offset
