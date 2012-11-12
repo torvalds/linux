@@ -970,8 +970,7 @@ xfs_dir2_leaf_to_block(
 	 * Read the data block if we don't already have it, give up if it fails.
 	 */
 	if (!dbp) {
-		error = xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &dbp,
-					XFS_DATA_FORK, NULL);
+		error = xfs_dir2_data_read(tp, dp, mp->m_dirdatablk, -1, &dbp);
 		if (error)
 			return error;
 	}

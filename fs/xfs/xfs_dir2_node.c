@@ -583,9 +583,9 @@ xfs_dir2_leafn_lookup_for_entry(
 				ASSERT(state->extravalid);
 				curbp = state->extrablk.bp;
 			} else {
-				error = xfs_da_read_buf(tp, dp,
+				error = xfs_dir2_data_read(tp, dp,
 						xfs_dir2_db_to_da(mp, newdb),
-						-1, &curbp, XFS_DATA_FORK, NULL);
+						-1, &curbp);
 				if (error)
 					return error;
 			}
@@ -1692,8 +1692,8 @@ xfs_dir2_node_addname_int(
 		/*
 		 * Read the data block in.
 		 */
-		error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, dbno),
-					-1, &dbp, XFS_DATA_FORK, NULL);
+		error = xfs_dir2_data_read(tp, dp, xfs_dir2_db_to_da(mp, dbno),
+					   -1, &dbp);
 		if (error)
 			return error;
 		hdr = dbp->b_addr;

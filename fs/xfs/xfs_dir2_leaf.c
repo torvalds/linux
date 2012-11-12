@@ -493,14 +493,14 @@ xfs_dir2_leaf_addname(
 		hdr = dbp->b_addr;
 		bestsp[use_block] = hdr->bestfree[0].length;
 		grown = 1;
-	}
-	/*
-	 * Already had space in some data block.
-	 * Just read that one in.
-	 */
-	else {
-		error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, use_block),
-					-1, &dbp, XFS_DATA_FORK, NULL);
+	} else {
+		/*
+		 * Already had space in some data block.
+		 * Just read that one in.
+		 */
+		error = xfs_dir2_data_read(tp, dp,
+					   xfs_dir2_db_to_da(mp, use_block),
+					   -1, &dbp);
 		if (error) {
 			xfs_trans_brelse(tp, lbp);
 			return error;
@@ -508,7 +508,6 @@ xfs_dir2_leaf_addname(
 		hdr = dbp->b_addr;
 		grown = 0;
 	}
-	xfs_dir2_data_check(dp, dbp);
 	/*
 	 * Point to the biggest freespace in our data block.
 	 */
@@ -891,10 +890,9 @@ xfs_dir2_leaf_readbuf(
 	 * Read the directory block starting at the first mapping.
 	 */
 	mip->curdb = xfs_dir2_da_to_db(mp, map->br_startoff);
-	error = xfs_da_read_buf(NULL, dp, map->br_startoff,
+	error = xfs_dir2_data_read(NULL, dp, map->br_startoff,
 			map->br_blockcount >= mp->m_dirblkfsbs ?
-			    XFS_FSB_TO_DADDR(mp, map->br_startblock) : -1,
-			&bp, XFS_DATA_FORK, NULL);
+			    XFS_FSB_TO_DADDR(mp, map->br_startblock) : -1, &bp);
 
 	/*
 	 * Should just skip over the data block instead of giving up.
@@ -1408,14 +1406,13 @@ xfs_dir2_leaf_lookup_int(
 		if (newdb != curdb) {
 			if (dbp)
 				xfs_trans_brelse(tp, dbp);
-			error = xfs_da_read_buf(tp, dp,
-						xfs_dir2_db_to_da(mp, newdb),
-						-1, &dbp, XFS_DATA_FORK, NULL);
+			error = xfs_dir2_data_read(tp, dp,
+						   xfs_dir2_db_to_da(mp, newdb),
+						   -1, &dbp);
 			if (error) {
 				xfs_trans_brelse(tp, lbp);
 				return error;
 			}
-			xfs_dir2_data_check(dp, dbp);
 			curdb = newdb;
 		}
 		/*
@@ -1450,9 +1447,9 @@ xfs_dir2_leaf_lookup_int(
 		ASSERT(cidb != -1);
 		if (cidb != curdb) {
 			xfs_trans_brelse(tp, dbp);
-			error = xfs_da_read_buf(tp, dp,
-						xfs_dir2_db_to_da(mp, cidb),
-						-1, &dbp, XFS_DATA_FORK, NULL);
+			error = xfs_dir2_data_read(tp, dp,
+						   xfs_dir2_db_to_da(mp, cidb),
+						   -1, &dbp);
 			if (error) {
 				xfs_trans_brelse(tp, lbp);
 				return error;
@@ -1737,8 +1734,7 @@ xfs_dir2_leaf_trim_data(
 	/*
 	 * Read the offending data block.  We need its buffer.
 	 */
-	error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, db), -1, &dbp,
-				XFS_DATA_FORK, NULL);
+	error = xfs_dir2_data_read(tp, dp, xfs_dir2_db_to_da(mp, db), -1, &dbp);
 	if (error)
 		return error;
 
