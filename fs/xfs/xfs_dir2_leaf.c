@@ -315,10 +315,9 @@ xfs_dir2_leaf_addname(
 	 * Read the leaf block.
 	 */
 	error = xfs_da_read_buf(tp, dp, mp->m_dirleafblk, -1, &lbp,
-		XFS_DATA_FORK);
-	if (error) {
+				XFS_DATA_FORK, NULL);
+	if (error)
 		return error;
-	}
 	ASSERT(lbp != NULL);
 	/*
 	 * Look up the entry by hash value and name.
@@ -500,9 +499,9 @@ xfs_dir2_leaf_addname(
 	 * Just read that one in.
 	 */
 	else {
-		if ((error =
-		    xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, use_block),
-			    -1, &dbp, XFS_DATA_FORK))) {
+		error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, use_block),
+					-1, &dbp, XFS_DATA_FORK, NULL);
+		if (error) {
 			xfs_trans_brelse(tp, lbp);
 			return error;
 		}
@@ -895,7 +894,7 @@ xfs_dir2_leaf_readbuf(
 	error = xfs_da_read_buf(NULL, dp, map->br_startoff,
 			map->br_blockcount >= mp->m_dirblkfsbs ?
 			    XFS_FSB_TO_DADDR(mp, map->br_startblock) : -1,
-			&bp, XFS_DATA_FORK);
+			&bp, XFS_DATA_FORK, NULL);
 
 	/*
 	 * Should just skip over the data block instead of giving up.
@@ -938,7 +937,7 @@ xfs_dir2_leaf_readbuf(
 			xfs_da_reada_buf(NULL, dp,
 					map[mip->ra_index].br_startoff +
 							mip->ra_offset,
-					XFS_DATA_FORK);
+					XFS_DATA_FORK, NULL);
 			mip->ra_current = i;
 		}
 
@@ -1376,7 +1375,7 @@ xfs_dir2_leaf_lookup_int(
 	 * Read the leaf block into the buffer.
 	 */
 	error = xfs_da_read_buf(tp, dp, mp->m_dirleafblk, -1, &lbp,
-							XFS_DATA_FORK);
+							XFS_DATA_FORK, NULL);
 	if (error)
 		return error;
 	*lbpp = lbp;
@@ -1411,7 +1410,7 @@ xfs_dir2_leaf_lookup_int(
 				xfs_trans_brelse(tp, dbp);
 			error = xfs_da_read_buf(tp, dp,
 						xfs_dir2_db_to_da(mp, newdb),
-						-1, &dbp, XFS_DATA_FORK);
+						-1, &dbp, XFS_DATA_FORK, NULL);
 			if (error) {
 				xfs_trans_brelse(tp, lbp);
 				return error;
@@ -1453,7 +1452,7 @@ xfs_dir2_leaf_lookup_int(
 			xfs_trans_brelse(tp, dbp);
 			error = xfs_da_read_buf(tp, dp,
 						xfs_dir2_db_to_da(mp, cidb),
-						-1, &dbp, XFS_DATA_FORK);
+						-1, &dbp, XFS_DATA_FORK, NULL);
 			if (error) {
 				xfs_trans_brelse(tp, lbp);
 				return error;
@@ -1738,10 +1737,10 @@ xfs_dir2_leaf_trim_data(
 	/*
 	 * Read the offending data block.  We need its buffer.
 	 */
-	if ((error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, db), -1, &dbp,
-			XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, db), -1, &dbp,
+				XFS_DATA_FORK, NULL);
+	if (error)
 		return error;
-	}
 
 	leaf = lbp->b_addr;
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
@@ -1864,10 +1863,10 @@ xfs_dir2_node_to_leaf(
 	/*
 	 * Read the freespace block.
 	 */
-	if ((error = xfs_da_read_buf(tp, dp, mp->m_dirfreeblk, -1, &fbp,
-			XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(tp, dp,  mp->m_dirfreeblk, -1, &fbp,
+				XFS_DATA_FORK, NULL);
+	if (error)
 		return error;
-	}
 	free = fbp->b_addr;
 	ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC));
 	ASSERT(!free->hdr.firstdb);

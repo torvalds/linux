@@ -97,10 +97,10 @@ xfs_dir2_block_addname(
 	/*
 	 * Read the (one and only) directory block into dabuf bp.
 	 */
-	if ((error =
-	    xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &bp, XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &bp,
+				XFS_DATA_FORK, NULL);
+	if (error)
 		return error;
-	}
 	ASSERT(bp != NULL);
 	hdr = bp->b_addr;
 	/*
@@ -457,7 +457,7 @@ xfs_dir2_block_getdents(
 	 * Can't read the block, give up, else get dabuf in bp.
 	 */
 	error = xfs_da_read_buf(NULL, dp, mp->m_dirdatablk, -1,
-				&bp, XFS_DATA_FORK);
+				&bp, XFS_DATA_FORK, NULL);
 	if (error)
 		return error;
 
@@ -640,10 +640,10 @@ xfs_dir2_block_lookup_int(
 	/*
 	 * Read the buffer, return error if we can't get it.
 	 */
-	if ((error =
-	    xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &bp, XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &bp,
+				XFS_DATA_FORK, NULL);
+	if (error)
 		return error;
-	}
 	ASSERT(bp != NULL);
 	hdr = bp->b_addr;
 	xfs_dir2_data_check(dp, bp);
@@ -917,10 +917,11 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Read the data block if we don't already have it, give up if it fails.
 	 */
-	if (dbp == NULL &&
-	    (error = xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &dbp,
-		    XFS_DATA_FORK))) {
-		return error;
+	if (!dbp) {
+		error = xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, &dbp,
+					XFS_DATA_FORK, NULL);
+		if (error)
+			return error;
 	}
 	hdr = dbp->b_addr;
 	ASSERT(hdr->magic == cpu_to_be32(XFS_DIR2_DATA_MAGIC));

@@ -891,7 +891,7 @@ xfs_dir_open(
 	 */
 	mode = xfs_ilock_map_shared(ip);
 	if (ip->i_d.di_nextents > 0)
-		xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK);
+		xfs_da_reada_buf(NULL, ip, 0, XFS_DATA_FORK, NULL);
 	xfs_iunlock(ip, mode);
 	return 0;
 }

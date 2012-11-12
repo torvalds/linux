@@ -399,7 +399,7 @@ xfs_dir2_leafn_lookup_for_addname(
 				 */
 				error = xfs_da_read_buf(tp, dp,
 						xfs_dir2_db_to_da(mp, newfdb),
-						-1, &curbp, XFS_DATA_FORK);
+						-1, &curbp, XFS_DATA_FORK, NULL);
 				if (error)
 					return error;
 				free = curbp->b_addr;
@@ -536,7 +536,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			} else {
 				error = xfs_da_read_buf(tp, dp,
 						xfs_dir2_db_to_da(mp, newdb),
-						-1, &curbp, XFS_DATA_FORK);
+						-1, &curbp, XFS_DATA_FORK, NULL);
 				if (error)
 					return error;
 			}
@@ -915,10 +915,10 @@ xfs_dir2_leafn_remove(
 		 * read in the free block.
 		 */
 		fdb = xfs_dir2_db_to_fdb(mp, db);
-		if ((error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, fdb),
-				-1, &fbp, XFS_DATA_FORK))) {
+		error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, fdb),
+					-1, &fbp, XFS_DATA_FORK, NULL);
+		if (error)
 			return error;
-		}
 		free = fbp->b_addr;
 		ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC));
 		ASSERT(be32_to_cpu(free->hdr.firstdb) ==
@@ -1169,11 +1169,10 @@ xfs_dir2_leafn_toosmall(
 		/*
 		 * Read the sibling leaf block.
 		 */
-		if ((error =
-		    xfs_da_read_buf(state->args->trans, state->args->dp, blkno,
-			    -1, &bp, XFS_DATA_FORK))) {
+		error = xfs_da_read_buf(state->args->trans, state->args->dp,
+					blkno, -1, &bp, XFS_DATA_FORK, NULL);
+		if (error)
 			return error;
-		}
 		ASSERT(bp != NULL);
 		/*
 		 * Count bytes in the two blocks combined.
@@ -1454,14 +1453,13 @@ xfs_dir2_node_addname_int(
 			 * This should be really rare, so there's no reason
 			 * to avoid it.
 			 */
-			if ((error = xfs_da_read_buf(tp, dp,
-					xfs_dir2_db_to_da(mp, fbno), -2, &fbp,
-					XFS_DATA_FORK))) {
+			error = xfs_da_read_buf(tp, dp,
+						xfs_dir2_db_to_da(mp, fbno), -2,
+						&fbp, XFS_DATA_FORK, NULL);
+			if (error)
 				return error;
-			}
-			if (unlikely(fbp == NULL)) {
+			if (!fbp)
 				continue;
-			}
 			free = fbp->b_addr;
 			ASSERT(free->hdr.magic == cpu_to_be32(XFS_DIR2_FREE_MAGIC));
 			findex = 0;
@@ -1520,9 +1518,9 @@ xfs_dir2_node_addname_int(
 		 * that was just allocated.
 		 */
 		fbno = xfs_dir2_db_to_fdb(mp, dbno);
-		if (unlikely(error = xfs_da_read_buf(tp, dp,
-				xfs_dir2_db_to_da(mp, fbno), -2, &fbp,
-				XFS_DATA_FORK)))
+		error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, fbno), -2,
+					&fbp, XFS_DATA_FORK, NULL);
+		if (error)
 			return error;
 
 		/*
@@ -1631,7 +1629,7 @@ xfs_dir2_node_addname_int(
 		 * Read the data block in.
 		 */
 		error = xfs_da_read_buf(tp, dp, xfs_dir2_db_to_da(mp, dbno),
-				-1, &dbp, XFS_DATA_FORK);
+					-1, &dbp, XFS_DATA_FORK, NULL);
 		if (error)
 			return error;
 		hdr = dbp->b_addr;
@@ -1917,11 +1915,10 @@ xfs_dir2_node_trim_free(
 	/*
 	 * Read the freespace block.
 	 */
-	if (unlikely(error = xfs_da_read_buf(tp, dp, (xfs_dablk_t)fo, -2, &bp,
-			XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(tp, dp, (xfs_dablk_t)fo, -2, &bp,
+				XFS_DATA_FORK, NULL);
+	if (error)
 		return error;
-	}
-
 	/*
 	 * There can be holes in freespace.  If fo is a hole, there's
 	 * nothing to do.

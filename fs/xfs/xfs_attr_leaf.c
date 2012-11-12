@@ -871,7 +871,7 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 	if (error)
 		goto out;
 	error = xfs_da_read_buf(args->trans, args->dp, 0, -1, &bp1,
-					     XFS_ATTR_FORK);
+					     XFS_ATTR_FORK, NULL);
 	if (error)
 		goto out;
 	ASSERT(bp1 != NULL);
@@ -1642,7 +1642,7 @@ xfs_attr_leaf_toosmall(xfs_da_state_t *state, int *action)
 		if (blkno == 0)
 			continue;
 		error = xfs_da_read_buf(state->args->trans, state->args->dp,
-					blkno, -1, &bp, XFS_ATTR_FORK);
+					blkno, -1, &bp, XFS_ATTR_FORK, NULL);
 		if (error)
 			return(error);
 		ASSERT(bp != NULL);
@@ -2519,7 +2519,7 @@ xfs_attr_leaf_clearflag(xfs_da_args_t *args)
 	 * Set up the operation.
 	 */
 	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp,
-					     XFS_ATTR_FORK);
+					     XFS_ATTR_FORK, NULL);
 	if (error) {
 		return(error);
 	}
@@ -2584,7 +2584,7 @@ xfs_attr_leaf_setflag(xfs_da_args_t *args)
 	 * Set up the operation.
 	 */
 	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp,
-					     XFS_ATTR_FORK);
+					     XFS_ATTR_FORK, NULL);
 	if (error) {
 		return(error);
 	}
@@ -2641,7 +2641,7 @@ xfs_attr_leaf_flipflags(xfs_da_args_t *args)
 	 * Read the block containing the "old" attr
 	 */
 	error = xfs_da_read_buf(args->trans, args->dp, args->blkno, -1, &bp1,
-					     XFS_ATTR_FORK);
+					     XFS_ATTR_FORK, NULL);
 	if (error) {
 		return(error);
 	}
@@ -2652,7 +2652,7 @@ xfs_attr_leaf_flipflags(xfs_da_args_t *args)
 	 */
 	if (args->blkno2 != args->blkno) {
 		error = xfs_da_read_buf(args->trans, args->dp, args->blkno2,
-					-1, &bp2, XFS_ATTR_FORK);
+					-1, &bp2, XFS_ATTR_FORK, NULL);
 		if (error) {
 			return(error);
 		}
@@ -2753,7 +2753,7 @@ xfs_attr_root_inactive(xfs_trans_t **trans, xfs_inode_t *dp)
 	 * the extents in reverse order the extent containing
 	 * block 0 must still be there.
 	 */
-	error = xfs_da_read_buf(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK);
+	error = xfs_da_read_buf(*trans, dp, 0, -1, &bp, XFS_ATTR_FORK, NULL);
 	if (error)
 		return(error);
 	blkno = XFS_BUF_ADDR(bp);
@@ -2839,7 +2839,7 @@ xfs_attr_node_inactive(
 		 * before we come back to this one.
 		 */
 		error = xfs_da_read_buf(*trans, dp, child_fsb, -2, &child_bp,
-						XFS_ATTR_FORK);
+						XFS_ATTR_FORK, NULL);
 		if (error)
 			return(error);
 		if (child_bp) {
@@ -2880,7 +2880,7 @@ xfs_attr_node_inactive(
 		 */
 		if ((i+1) < count) {
 			error = xfs_da_read_buf(*trans, dp, 0, parent_blkno,
-				&bp, XFS_ATTR_FORK);
+				&bp, XFS_ATTR_FORK, NULL);
 			if (error)
 				return(error);
 			child_fsb = be32_to_cpu(node->btree[i+1].before);
