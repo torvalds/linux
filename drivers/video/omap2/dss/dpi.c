@@ -412,7 +412,7 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 	 */
 	dsidev = dpi_get_dsidev(dssdev->channel);
 
-	if (dpi_verify_dsi_pll(dsidev)) {
+	if (dsidev && dpi_verify_dsi_pll(dsidev)) {
 		dsidev = NULL;
 		DSSWARN("DSI PLL not operational\n");
 	}
