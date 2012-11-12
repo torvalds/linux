@@ -886,7 +886,6 @@ ENTRY(stub_execve)
 	SAVE_REST
 	FIXUP_TOP_OF_STACK %r11
 	call sys_execve
-	RESTORE_TOP_OF_STACK %r11
 	movq %rax,RAX(%rsp)
 	RESTORE_REST
 	jmp int_ret_from_sys_call
