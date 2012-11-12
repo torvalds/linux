@@ -25,7 +25,7 @@
 #include <asm/arch_timer.h>
 #include <asm/sched_clock.h>
 
-static unsigned long arch_timer_rate;
+static u32 arch_timer_rate;
 
 enum ppi_nr {
 	PHYS_SECURE_PPI,
@@ -121,27 +121,18 @@ static inline u32 arch_timer_reg_read(const int access, const int reg)
 	return val;
 }
 
-static inline cycle_t arch_timer_counter_read(const int access)
+static inline u64 arch_counter_get_cntpct(void)
 {
-	cycle_t cval = 0;
-
-	if (access == ARCH_TIMER_PHYS_ACCESS)
-		asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (cval));
-
-	if (access == ARCH_TIMER_VIRT_ACCESS)
-		asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
-
+	u64 cval;
+	asm volatile("mrrc p15, 0, %Q0, %R0, c14" : "=r" (cval));
 	return cval;
 }
 
-static inline cycle_t arch_counter_get_cntpct(void)
+static inline u64 arch_counter_get_cntvct(void)
 {
-	return arch_timer_counter_read(ARCH_TIMER_PHYS_ACCESS);
-}
-
-static inline cycle_t arch_counter_get_cntvct(void)
-{
-	return arch_timer_counter_read(ARCH_TIMER_VIRT_ACCESS);
+	u64 cval;
+	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
+	return cval;
 }
 
 static irqreturn_t inline timer_handler(const int access,
@@ -259,7 +250,7 @@ static int __cpuinit arch_timer_setup(struct clock_event_device *clk)
 
 static int arch_timer_available(void)
 {
-	unsigned long freq;
+	u32 freq;
 
 	if (arch_timer_rate == 0) {
 		freq = arch_timer_reg_read(ARCH_TIMER_PHYS_ACCESS,
@@ -275,7 +266,8 @@ static int arch_timer_available(void)
 	}
 
 	pr_info_once("Architected local timer running at %lu.%02luMHz (%s).\n",
-		     arch_timer_rate / 1000000, (arch_timer_rate / 10000) % 100,
+		     (unsigned long)arch_timer_rate / 1000000,
+		     (unsigned long)(arch_timer_rate / 10000) % 100,
 		     arch_timer_use_virtual ? "virt" : "phys");
 	return 0;
 }
