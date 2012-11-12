@@ -45,6 +45,19 @@ config AD7476
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7476.
 
+config AD7887
+	tristate "Analog Devices AD7887 ADC driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7887 SPI analog to digital converter (ADC).
+	  If unsure, say N (but it's safe to say "Y").
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7887.
+
 config AT91_ADC
 	tristate "Atmel AT91 ADC"
 	depends on ARCH_AT91
@@ -59,5 +72,23 @@ config LP8788_ADC
 	depends on MFD_LP8788
 	help
 	  Say yes here to build support for TI LP8788 ADC.
+
+config MAX1363
+	tristate "Maxim max1363 ADC driver"
+	depends on I2C
+	select IIO_TRIGGER
+	select MAX1363_RING_BUFFER
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	help
+	  Say yes here to build support for many Maxim i2c analog to digital
+	  converters (ADC). (max1361, max1362, max1363, max1364, max1036,
+	  max1037, max1038, max1039, max1136, max1136, max1137, max1138,
+	  max1139, max1236, max1237, max11238, max1239, max11600, max11601,
+	  max11602, max11603, max11604, max11605, max11606, max11607,
+	  max11608, max11609, max11610, max11611, max11612, max11613,
+	  max11614, max11615, max11616, max11617, max11644, max11645,
+	  max11646, max11647) Provides direct access via sysfs and buffered
+	  data via the iio dev interface.
 
 endmenu

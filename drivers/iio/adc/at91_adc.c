@@ -65,7 +65,6 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *idev = pf->indio_dev;
 	struct at91_adc_state *st = iio_priv(idev);
-	struct iio_buffer *buffer = idev->buffer;
 	int i, j = 0;
 
 	for (i = 0; i < idev->masklength; i++) {
@@ -81,7 +80,7 @@ static irqreturn_t at91_adc_trigger_handler(int irq, void *p)
 		*timestamp = pf->timestamp;
 	}
 
-	iio_push_to_buffer(buffer, st->buffer);
+	iio_push_to_buffers(indio_dev, (u8 *)st->buffer);
 
 	iio_trigger_notify_done(idev->trig);
 

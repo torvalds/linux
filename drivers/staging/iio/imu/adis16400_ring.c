@@ -114,7 +114,6 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis16400_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0, j, ret = 0;
 	s16 *data;
 
@@ -148,9 +147,9 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 		}
 	}
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
-	iio_push_to_buffer(ring, (u8 *) data);
+	iio_push_to_buffers(indio_dev, (u8 *) data);
 
 done:
 	kfree(data);

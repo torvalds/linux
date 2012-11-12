@@ -93,7 +93,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 						 indio_dev->masklength); i++)
 		buf[i] = be16_to_cpu(st->rx_buf[i]);
 
-	iio_push_to_buffer(indio_dev->buffer, (u8 *)buf);
+	iio_push_to_buffers(indio_dev, (u8 *)buf);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);

@@ -154,7 +154,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data + ALIGN(len, sizeof(s64)))
 			= pf->timestamp;
-	iio_push_to_buffer(indio_dev->buffer, (u8 *)data);
+	iio_push_to_buffers(indio_dev, (u8 *)data);
 
 	kfree(data);
 done:
