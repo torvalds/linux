@@ -44,11 +44,11 @@
 #include <linux/slab.h>
 
 #ifdef CONFIG_ARCH_RK29
-#define IPP_VERSION "rk29-ipp 1.001"
+#define IPP_VERSION "rk29-ipp 1.002"
 #endif
 
 #ifdef CONFIG_ARCH_RK30
-#define IPP_VERSION "rk30-ipp 1.001"
+#define IPP_VERSION "rk30-ipp 1.002"
 #endif
 
 //#define IPP_TEST
@@ -88,7 +88,7 @@ struct ipp_drvdata {
 	struct clk *ahb_clk;
 	
 	struct mutex	mutex;	// mutex
-	
+	struct mutex	power_mutex;	// mutex
 	struct delayed_work power_off_work;
 	wait_queue_head_t ipp_wait;                 
 	atomic_t ipp_event;
@@ -104,18 +104,8 @@ static struct ipp_drvdata *drvdata = NULL;
 static DECLARE_WAIT_QUEUE_HEAD(hw_wait_queue);
 static volatile int wq_condition = 1;                //0:interact with hardware
 static DECLARE_WAIT_QUEUE_HEAD(blit_wait_queue);     
-static volatile int idle_condition = 1;              //1:idel, 0:busy
+static volatile int idle_condition = 1;              //1:idle, 0:busy
 
-/* Context data (unique) */
-
-struct ipp_context
-{
-	struct ipp_drvdata	*data;	// driver data
-	struct rk29_ipp_req	*blit;	// blit request
-	uint32_t			rot;	// rotation mode
-	struct file			*srcf;	// source file (for PMEM)
-	struct file			*dstf;	// destination file (for PMEM)
-};
 
 #define IPP_MAJOR		232
 
@@ -179,8 +169,15 @@ static void ipp_power_on(void)
 {
 	//printk("ipp_power_on\n");
 	cancel_delayed_work_sync(&drvdata->power_off_work);
+	
+	mutex_lock(&drvdata->power_mutex);
+	
 	if (drvdata->enable)
+	{
+		mutex_unlock(&drvdata->power_mutex);
 		return;
+	}
+	
 	clk_enable(drvdata->pd_ipp);
 #ifdef CONFIG_ARCH_RK29
 	clk_enable(drvdata->aclk_lcdc);
@@ -194,14 +191,22 @@ static void ipp_power_on(void)
 	clk_enable(drvdata->ahb_clk);
 
 	drvdata->enable = true;
+	
+	mutex_unlock(&drvdata->power_mutex);
 }
 
 
 static void ipp_power_off(struct work_struct *work)
 {
 	//printk("ipp_power_off\n");
+	
+	mutex_lock(&drvdata->power_mutex);
+	
 	if(!drvdata->enable)
+	{
+		mutex_unlock(&drvdata->power_mutex);
 		return;
+	}
 	
 #ifdef CONFIG_ARCH_RK29
 	clk_disable(drvdata->aclk_lcdc);
@@ -216,6 +221,8 @@ static void ipp_power_off(struct work_struct *work)
 	clk_disable(drvdata->pd_ipp);
 	
 	drvdata->enable = false;
+
+	mutex_unlock(&drvdata->power_mutex);
 }
 
 static unsigned int ipp_poll(struct file *filep, poll_table *wait)
@@ -244,17 +251,15 @@ static void ipp_blit_complete(int retval)
 
 static int ipp_get_result(unsigned long arg)
 {
-	//printk("ipp_get_result %d\n",drvdata->ipp_result);
 	int ret =0;
 	
+	//printk("ipp_get_result %d\n",drvdata->ipp_result);
 	if (unlikely(copy_to_user((void __user *)arg, &drvdata->ipp_async_result, sizeof(int)))) {
 			printk("copy_to_user failed\n");
 			ERR("copy_to_user failed\n");
 			ret =  -EFAULT;	
 		}
-	//idle_condition = 1;
-	//dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
-	//wake_up_interruptible_sync(&blit_wait_queue);
+	
 	return ret;
 }
 
@@ -978,7 +983,7 @@ static int ipp_blit_sync_real(const struct rk29_ipp_req *req)
 
 	//printk("ipp_blit_sync -------------------\n");
 
-	////If IPP is busy now,wait until it becomes idle
+	//If IPP is busy now,wait until it becomes idle
 	mutex_lock(&drvdata->mutex);
 	{
 		dmac_inv_range((const void*)&idle_condition,(const void*)&idle_condition+4);
@@ -1003,7 +1008,7 @@ static int ipp_blit_sync_real(const struct rk29_ipp_req *req)
 		hw_end = ktime_sub(hw_end,hw_start);
 		if((((int)ktime_to_us(hw_end)/1000)>10)||(((int)ktime_to_us(irq_end)/1000)>10))
 		{
-			printk("hw time: %d ms, irq time: %d ms\n",(int)ktime_to_us(hw_end)/1000,(int)ktime_to_us(irq_end)/1000);
+			//printk("hw time: %d ms, irq time: %d ms\n",(int)ktime_to_us(hw_end)/1000,(int)ktime_to_us(irq_end)/1000);
 		}
 #endif				
 		if (wait_ret <= 0)
@@ -1053,7 +1058,7 @@ static int ipp_blit_sync_real(const struct rk29_ipp_req *req)
 	return status;
 }
 
-static int stretch_blit(/*struct ipp_context *ctx,*/  unsigned long arg ,unsigned int cmd)
+static int stretch_blit(unsigned long arg ,unsigned int cmd)
 {
 	struct rk29_ipp_req req;
 	int ret = 0;
@@ -1097,14 +1102,13 @@ err_noput:
 
 static long ipp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-
-	//struct ipp_context *ctx = (struct ipp_context *)file->private_data;
 	int ret = 0;
+	
 	switch (cmd)
 	{
 		case IPP_BLIT_SYNC:
 		case IPP_BLIT_ASYNC:
-			ret = stretch_blit(/*ctx, */arg, cmd);
+			ret = stretch_blit(arg, cmd);
 			break;
 		case IPP_GET_RESULT:
 			ret = ipp_get_result(arg);
@@ -1119,6 +1123,7 @@ static long ipp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static int rk29_ipp_open(struct inode *inode, struct file *file)
 {
+#if 0
    struct ipp_context *ctx;
 
     ctx = kmalloc(sizeof(struct ipp_context), GFP_KERNEL);
@@ -1133,32 +1138,32 @@ static int rk29_ipp_open(struct inode *inode, struct file *file)
 	file->private_data = ctx;
 
 	DBG("device opened\n");
-
+#endif
 	return 0;
 }
 
 static int ipp_release(struct inode *inode, struct file *file)
 {
-    struct ipp_context *ctx = (struct ipp_context *)file->private_data;
 	//printk("ipp_release\n");
 
-	//clear event
+	//clear event if app forget to get result
 	if(atomic_read(&drvdata->ipp_event))
 	{
 		atomic_set(&drvdata->ipp_event, 0);
 	}
-
+	
+//chenli: all these work has been done in the rk29_ipp_irq, they should not be done again!
+#if 0
+	
 	//If app has not got the result after sending the request,the situation of idle_condition equals 1 will block the next request.
 	//so we must set idle_condition 1 here.
 	idle_condition = 1;
-	wq_condition = 0;
+	wq_condition = 1;
 	
 	//delay 20ms to wait HW completed
 	schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(20));
-	
-	kfree(ctx);
+#endif
 
-	DBG("device released\n");
 	return 0;
 }
 
@@ -1182,7 +1187,6 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 	//interacting with hardware done
 	wq_condition = 1;
 	
-	
 #ifdef IPP_TEST
 	irq_start = ktime_get();
 #endif
@@ -1195,7 +1199,7 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 	else//async
 	{
 		//power off
-		schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(1000));
+		schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(50));
 			
 		drvdata->ipp_irq_callback(drvdata->ipp_result);
 		
@@ -1228,7 +1232,7 @@ static int ipp_suspend(struct platform_device *pdev, pm_message_t state)
 static int ipp_resume(struct platform_device *pdev)
 {
 	//printk("ipp_resume\n");
-	//If IPP is woring before suspending, we power it on now
+	//If IPP is working before suspending, we power it on now
 	if (!wq_condition) 
 	{
 		drvdata->enable = false;
@@ -1263,46 +1267,37 @@ static void ipp_test_work_handler(struct work_struct *work)
 		 uint32_t dst_addr;
 		 uint8_t *p;
 		 pm_message_t pm;
-#if 0
-//test lzg's bug
-uint32_t size = 8*1024*1024;
+#if 1
+//test WIMO bug
+#define CAMERA_MEM 0x90400000
 
-#define PMEM_VPU_BASE 0x76000000
-#define PMEM_VPU_SIZE  0x4000000
-	//	srcY = ioremap_cached(PMEM_VPU_BASE, PMEM_VPU_SIZE);
-
-
-	//	srcUV = srcY + size;
-	//	dstY = srcUV + size;
-	//	dstUV = dstY + size;
-		//src_addr = virt_to_phys(srcY);
-		//dst_addr = virt_to_phys(dstY);
-		src_addr = PMEM_VPU_BASE;
-		dst_addr = PMEM_VPU_BASE + size*2;
+		src_addr = CAMERA_MEM;
+		dst_addr = CAMERA_MEM + 1280*800*4;
 		printk("src_addr: %x-%x, dst_addr: %x-%x\n",srcY,src_addr,dstY,dst_addr);
 
 		ipp_req.src0.YrgbMst = src_addr;
-		ipp_req.src0.CbrMst = src_addr + size;
-		ipp_req.src0.w = 2048;
-		ipp_req.src0.h = 1440;
-		ipp_req.src0.fmt = IPP_Y_CBCR_H2V2;
+		//ipp_req.src0.CbrMst = src_addr + 1280*800;
+		ipp_req.src0.w = 1280;
+		ipp_req.src0.h = 800;
+		ipp_req.src0.fmt = IPP_XRGB_8888;
 		
 		ipp_req.dst0.YrgbMst = dst_addr;
-		ipp_req.dst0.CbrMst = dst_addr + size;
-		ipp_req.dst0.w = 2048;
-		ipp_req.dst0.h = 1440;
+		//ipp_req.dst0.CbrMst = dst_addr + 1024*768;
+		ipp_req.dst0.w = 1280;
+		ipp_req.dst0.h = 800;
 	
-		ipp_req.src_vir_w = 2048;
-		ipp_req.dst_vir_w = 2048;
-		ipp_req.timeout = 500;
-		ipp_req.flag = IPP_ROT_0;
-		
-		ret = ipp_do_blit(&ipp_req);
-#undef PMEM_VPU_BASE
-#undef PMEM_VPU_SIZE
+		ipp_req.src_vir_w = 1280;
+		ipp_req.dst_vir_w = 1280;
+		ipp_req.timeout = 100;
+		ipp_req.flag = IPP_ROT_90;
 
+		while(ret==0)
+		{
+			ret = ipp_blit_sync_real(&ipp_req);
+			msleep(10);
+		}
 #endif
-
+/*
 //test zyc's bug		 
 
 		uint32_t size = 800*480;
@@ -1337,7 +1332,7 @@ uint32_t size = 8*1024*1024;
 		ipp_req.deinterlace_para2 = 0;
 
 		ipp_req.complete = ipp_test_complete;
-
+*/
 		/*0 test whether IPP_CONFIG is set correctly*/
 		/*
 		ipp_blit_sync(&ipp_req);
@@ -1499,12 +1494,14 @@ uint32_t size = 8*1024*1024;
 		*/
 
 		/*9 test rotate config*/
+/*
 		ipp_req.flag = IPP_ROT_180;
 		ipp_blit_sync(&ipp_req);
 		ipp_req.flag = IPP_ROT_270;
 		ipp_blit_sync(&ipp_req);
 		
 		free_pages(srcY, 9);
+*/
 //test deinterlace
 #if 0
 		uint32_t size = 16*16;
@@ -1744,6 +1741,7 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&data->mutex);
+	mutex_init(&data->power_mutex);
 	data->enable = false;
 
 
@@ -1769,7 +1767,7 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 
 #ifdef IPP_TEST
 	INIT_DELAYED_WORK(&d_work, ipp_test_work_handler);
-	schedule_delayed_work(&d_work, msecs_to_jiffies(15000));
+	schedule_delayed_work(&d_work, msecs_to_jiffies(35000));
 #endif
 
 	return 0;
@@ -1862,7 +1860,7 @@ static int __init rk29_ipp_init(void)
 	INFO("Module initialized.\n");
 	printk("IPP init, version %s\n",IPP_VERSION);
 	return 0;
-}
+}      
 
 static void __exit rk29_ipp_exit(void)
 {
