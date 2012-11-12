@@ -380,6 +380,7 @@ int ipu_cpmem_set_image(struct ipu_ch_param __iomem *cpmem,
 		ipu_cpmem_set_buffer(cpmem, 0, image->phys + y_offset);
 		break;
 	case V4L2_PIX_FMT_UYVY:
+	case V4L2_PIX_FMT_YUYV:
 		ipu_cpmem_set_buffer(cpmem, 0, image->phys +
 				image->rect.left * 2 +
 				image->rect.top * image->pix.bytesperline);
@@ -414,7 +415,7 @@ enum ipu_color_space ipu_pixelformat_to_colorspace(u32 pixelformat)
 	switch (pixelformat) {
 	case V4L2_PIX_FMT_YUV420:
 	case V4L2_PIX_FMT_UYVY:
-	case V4L2_PIX_FMT_YVYU:
+	case V4L2_PIX_FMT_YUYV:
 		return IPUV3_COLORSPACE_YUV;
 	case V4L2_PIX_FMT_RGB32:
 	case V4L2_PIX_FMT_BGR32:
