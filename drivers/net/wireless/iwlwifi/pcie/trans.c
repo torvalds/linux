@@ -2126,7 +2126,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans = kzalloc(sizeof(struct iwl_trans) +
 			sizeof(struct iwl_trans_pcie), GFP_KERNEL);
 
-	if (WARN_ON(!trans))
+	if (!trans)
 		return NULL;
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
