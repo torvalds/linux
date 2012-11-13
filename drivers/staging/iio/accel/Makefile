@@ -18,7 +18,6 @@ adis16220-y             := adis16220_core.o
 obj-$(CONFIG_ADIS16220) += adis16220.o
 
 adis16240-y             := adis16240_core.o
-adis16240-$(CONFIG_IIO_BUFFER) += adis16240_ring.o adis16240_trigger.o
 obj-$(CONFIG_ADIS16240) += adis16240.o
 
 obj-$(CONFIG_KXSD9)	+= kxsd9.o
