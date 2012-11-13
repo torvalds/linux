@@ -841,9 +841,16 @@ config CRYPTO_CAMELLIA_SPARC64
 	  See also:
 	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
 
+config CRYPTO_CAST_COMMON
+	tristate
+	help
+	  Common parts of the CAST cipher algorithms shared by the
+	  generic c and the assembler implementations.
+
 config CRYPTO_CAST5
 	tristate "CAST5 (CAST-128) cipher algorithm"
 	select CRYPTO_ALGAPI
+	select CRYPTO_CAST_COMMON
 	help
 	  The CAST5 encryption algorithm (synonymous with CAST-128) is
 	  described in RFC2144.
@@ -854,6 +861,7 @@ config CRYPTO_CAST5_AVX_X86_64
 	select CRYPTO_ALGAPI
 	select CRYPTO_CRYPTD
 	select CRYPTO_ABLK_HELPER_X86
+	select CRYPTO_CAST_COMMON
 	select CRYPTO_CAST5
 	help
 	  The CAST5 encryption algorithm (synonymous with CAST-128) is
@@ -865,6 +873,7 @@ config CRYPTO_CAST5_AVX_X86_64
 config CRYPTO_CAST6
 	tristate "CAST6 (CAST-256) cipher algorithm"
 	select CRYPTO_ALGAPI
+	select CRYPTO_CAST_COMMON
 	help
 	  The CAST6 encryption algorithm (synonymous with CAST-256) is
 	  described in RFC2612.
@@ -876,6 +885,7 @@ config CRYPTO_CAST6_AVX_X86_64
 	select CRYPTO_CRYPTD
 	select CRYPTO_ABLK_HELPER_X86
 	select CRYPTO_GLUE_HELPER_X86
+	select CRYPTO_CAST_COMMON
 	select CRYPTO_CAST6
 	select CRYPTO_LRW
 	select CRYPTO_XTS

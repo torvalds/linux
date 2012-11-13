@@ -27,20 +27,20 @@
 
 .file "cast6-avx-x86_64-asm_64.S"
 
-.extern cast6_s1
-.extern cast6_s2
-.extern cast6_s3
-.extern cast6_s4
+.extern cast_s1
+.extern cast_s2
+.extern cast_s3
+.extern cast_s4
 
 /* structure of crypto context */
 #define km	0
 #define kr	(12*4*4)
 
 /* s-boxes */
-#define s1	cast6_s1
-#define s2	cast6_s2
-#define s3	cast6_s3
-#define s4	cast6_s4
+#define s1	cast_s1
+#define s2	cast_s2
+#define s3	cast_s3
+#define s4	cast_s4
 
 /**********************************************************************
   8-way AVX cast6

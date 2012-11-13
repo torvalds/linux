@@ -25,10 +25,10 @@
 
 .file "cast5-avx-x86_64-asm_64.S"
 
-.extern cast5_s1
-.extern cast5_s2
-.extern cast5_s3
-.extern cast5_s4
+.extern cast_s1
+.extern cast_s2
+.extern cast_s3
+.extern cast_s4
 
 /* structure of crypto context */
 #define km	0
@@ -36,10 +36,10 @@
 #define rr	((16*4)+16)
 
 /* s-boxes */
-#define s1	cast5_s1
-#define s2	cast5_s2
-#define s3	cast5_s3
-#define s4	cast5_s4
+#define s1	cast_s1
+#define s2	cast_s2
+#define s3	cast_s3
+#define s4	cast_s4
 
 /**********************************************************************
   16-way AVX cast5
