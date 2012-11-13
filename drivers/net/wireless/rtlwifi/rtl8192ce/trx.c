@@ -567,7 +567,7 @@ bool rtl92ce_rx_query_desc(struct ieee80211_hw *hw,
 	if (GET_RX_DESC_RXHT(pdesc))
 		rx_status->flag |= RX_FLAG_HT;
 
-	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status->flag |= RX_FLAG_MACTIME_START;
 
 	if (stats->decrypted)
 		rx_status->flag |= RX_FLAG_DECRYPTED;

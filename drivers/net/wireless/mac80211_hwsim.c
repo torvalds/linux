@@ -699,7 +699,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
 	memset(&rx_status, 0, sizeof(rx_status));
-	rx_status.flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status.flag |= RX_FLAG_MACTIME_START;
 	rx_status.freq = chan->center_freq;
 	rx_status.band = chan->band;
 	rx_status.rate_idx = info->control.rates[0].idx;

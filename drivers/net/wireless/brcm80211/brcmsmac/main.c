@@ -7508,7 +7508,7 @@ prep_mac80211_status(struct brcms_c_info *wlc, struct d11rxhdr *rxh,
 
 	/* fill in TSF and flag its presence */
 	rx_status->mactime = brcms_c_recover_tsf64(wlc, rxh);
-	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
+	rx_status->flag |= RX_FLAG_MACTIME_START;
 
 	channel = BRCMS_CHAN_CHANNEL(rxh->RxChan);
 
