@@ -1860,10 +1860,14 @@ jme_open(struct net_device *netdev)
 	jme_clear_pm(jme);
 	JME_NAPI_ENABLE(jme);
 
-	tasklet_enable(&jme->linkch_task);
-	tasklet_enable(&jme->txclean_task);
-	tasklet_hi_enable(&jme->rxclean_task);
-	tasklet_hi_enable(&jme->rxempty_task);
+	tasklet_init(&jme->linkch_task, jme_link_change_tasklet,
+		     (unsigned long) jme);
+	tasklet_init(&jme->txclean_task, jme_tx_clean_tasklet,
+		     (unsigned long) jme);
+	tasklet_init(&jme->rxclean_task, jme_rx_clean_tasklet,
+		     (unsigned long) jme);
+	tasklet_init(&jme->rxempty_task, jme_rx_empty_tasklet,
+		     (unsigned long) jme);
 
 	rc = jme_request_irq(jme);
 	if (rc)
@@ -3079,22 +3083,6 @@ jme_init_one(struct pci_dev *pdev,
 	tasklet_init(&jme->pcc_task,
 		     jme_pcc_tasklet,
 		     (unsigned long) jme);
-	tasklet_init(&jme->linkch_task,
-		     jme_link_change_tasklet,
-		     (unsigned long) jme);
-	tasklet_init(&jme->txclean_task,
-		     jme_tx_clean_tasklet,
-		     (unsigned long) jme);
-	tasklet_init(&jme->rxclean_task,
-		     jme_rx_clean_tasklet,
-		     (unsigned long) jme);
-	tasklet_init(&jme->rxempty_task,
-		     jme_rx_empty_tasklet,
-		     (unsigned long) jme);
-	tasklet_disable_nosync(&jme->linkch_task);
-	tasklet_disable_nosync(&jme->txclean_task);
-	tasklet_disable_nosync(&jme->rxclean_task);
-	tasklet_disable_nosync(&jme->rxempty_task);
 	jme->dpi.cur = PCC_P1;
 
 	jme->reg_ghc = 0;
