@@ -67,7 +67,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	const struct addi_board *this_board;
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
-	int ret, n_subdevices;
+	int ret;
 
 	this_board = addi_find_boardinfo(dev, pcidev);
 	if (!this_board)
@@ -87,21 +87,12 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	dev->iobase = pci_resource_start(pcidev, 1);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 
-	n_subdevices = 7;
-	ret = comedi_alloc_subdevices(dev, n_subdevices);
+	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise AI Subdevice Structures */
-	s = &dev->subdevices[0];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/*  Allocate and Initialise AO Subdevice Structures */
-	s = &dev->subdevices[1];
-	s->type = COMEDI_SUBD_UNUSED;
-
 	/*  Allocate and Initialise DI Subdevice Structures */
-	s = &dev->subdevices[2];
+	s = &dev->subdevices[0];
 	if (this_board->i_NbrDiChannel) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
@@ -115,7 +106,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 	/*  Allocate and Initialise DO Subdevice Structures */
-	s = &dev->subdevices[3];
+	s = &dev->subdevices[1];
 	if (this_board->i_NbrDoChannel) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags =
@@ -131,7 +122,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	}
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
-	s = &dev->subdevices[4];
+	s = &dev->subdevices[2];
 	if (this_board->i_Timer) {
 		s->type = COMEDI_SUBD_TIMER;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
@@ -145,14 +136,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
-
-	/*  Allocate and Initialise TTL */
-	s = &dev->subdevices[5];
-	s->type = COMEDI_SUBD_UNUSED;
-
-	/* EEPROM */
-	s = &dev->subdevices[6];
-	s->type = COMEDI_SUBD_UNUSED;
 
 	apci1516_reset(dev);
 	return 0;
