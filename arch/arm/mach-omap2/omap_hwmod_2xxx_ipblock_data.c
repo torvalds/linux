@@ -58,8 +58,9 @@ static struct omap_hwmod_class_sysconfig omap2xxx_timer_sysc = {
 	.syss_offs	= 0x0014,
 	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_CLOCKACTIVITY |
 			   SYSC_HAS_ENAWAKEUP | SYSC_HAS_SOFTRESET |
-			   SYSC_HAS_AUTOIDLE),
+			   SYSC_HAS_AUTOIDLE | SYSS_HAS_RESET_STATUS),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
+	.clockact       = CLOCKACT_TEST_ICLK,
 	.sysc_fields	= &omap_hwmod_sysc_type1,
 };
 
@@ -268,6 +269,7 @@ struct omap_hwmod omap2xxx_timer1_hwmod = {
 	},
 	.dev_attr	= &capability_alwon_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer2 */
@@ -286,6 +288,7 @@ struct omap_hwmod omap2xxx_timer2_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer3 */
@@ -304,6 +307,7 @@ struct omap_hwmod omap2xxx_timer3_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer4 */
@@ -322,6 +326,7 @@ struct omap_hwmod omap2xxx_timer4_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer5 */
@@ -341,6 +346,7 @@ struct omap_hwmod omap2xxx_timer5_hwmod = {
 	},
 	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer6 */
@@ -360,6 +366,7 @@ struct omap_hwmod omap2xxx_timer6_hwmod = {
 	},
 	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer7 */
@@ -379,6 +386,7 @@ struct omap_hwmod omap2xxx_timer7_hwmod = {
 	},
 	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer8 */
@@ -398,6 +406,7 @@ struct omap_hwmod omap2xxx_timer8_hwmod = {
 	},
 	.dev_attr	= &capability_dsp_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer9 */
@@ -417,6 +426,7 @@ struct omap_hwmod omap2xxx_timer9_hwmod = {
 	},
 	.dev_attr	= &capability_pwm_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer10 */
@@ -436,6 +446,7 @@ struct omap_hwmod omap2xxx_timer10_hwmod = {
 	},
 	.dev_attr	= &capability_pwm_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer11 */
@@ -455,6 +466,7 @@ struct omap_hwmod omap2xxx_timer11_hwmod = {
 	},
 	.dev_attr	= &capability_pwm_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* timer12 */
@@ -474,6 +486,7 @@ struct omap_hwmod omap2xxx_timer12_hwmod = {
 	},
 	.dev_attr	= &capability_pwm_dev_attr,
 	.class		= &omap2xxx_timer_hwmod_class,
+	.flags          = HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
 /* wd_timer2 */
