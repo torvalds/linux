@@ -122,7 +122,7 @@ struct resource *platform_get_resource_byname(struct platform_device *dev,
 EXPORT_SYMBOL_GPL(platform_get_resource_byname);
 
 /**
- * platform_get_irq - get an IRQ for a device
+ * platform_get_irq_byname - get an IRQ for a device by name
  * @dev: platform device
  * @name: IRQ name
  */
