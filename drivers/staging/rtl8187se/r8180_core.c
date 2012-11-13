@@ -1984,10 +1984,10 @@ void rtl8180_link_change(struct net_device *dev)
 	write_nic_dword(dev, BSSID, ((u32 *)net->bssid)[0]);
 	write_nic_word(dev, BSSID+4, ((u16 *)net->bssid)[2]);
 
-	beacon_interval  = read_nic_dword(dev, BEACON_INTERVAL);
+	beacon_interval  = read_nic_word(dev, BEACON_INTERVAL);
 	beacon_interval &= ~BEACON_INTERVAL_MASK;
 	beacon_interval |= net->beacon_interval;
-	write_nic_dword(dev, BEACON_INTERVAL, beacon_interval);
+	write_nic_word(dev, BEACON_INTERVAL, beacon_interval);
 
 	rtl8180_set_mode(dev, EPROM_CMD_NORMAL);
 
