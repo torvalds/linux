@@ -244,41 +244,41 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[0];
 	if (this_board->di_nchan) {
-		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE;
-		s->n_chan = this_board->di_nchan;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = apci1516_di_insn_bits;
+		s->type		= COMEDI_SUBD_DI;
+		s->subdev_flags	= SDF_READABLE;
+		s->n_chan	= this_board->di_nchan;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci1516_di_insn_bits;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[1];
 	if (this_board->do_nchan) {
-		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags = SDF_WRITEABLE;
-		s->n_chan = this_board->do_nchan;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_bits = apci1516_do_insn_bits;
+		s->type		= COMEDI_SUBD_DO;
+		s->subdev_flags	= SDF_WRITEABLE;
+		s->n_chan	= this_board->do_nchan;
+		s->maxdata	= 1;
+		s->range_table	= &range_digital;
+		s->insn_bits	= apci1516_do_insn_bits;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[2];
 	if (this_board->has_timer) {
-		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE;
-		s->n_chan = 1;
-		s->maxdata = 0;
-		s->range_table = &range_digital;
-		s->insn_write = i_APCI1516_StartStopWriteWatchdog;
-		s->insn_read = i_APCI1516_ReadWatchdog;
-		s->insn_config = i_APCI1516_ConfigWatchdog;
+		s->type		= COMEDI_SUBD_TIMER;
+		s->subdev_flags	= SDF_WRITEABLE;
+		s->n_chan	= 1;
+		s->maxdata	= 0;
+		s->range_table	= &range_digital;
+		s->insn_write	= i_APCI1516_StartStopWriteWatchdog;
+		s->insn_read	= i_APCI1516_ReadWatchdog;
+		s->insn_config	= i_APCI1516_ConfigWatchdog;
 	} else {
-		s->type = COMEDI_SUBD_UNUSED;
+		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
 	apci1516_reset(dev);
