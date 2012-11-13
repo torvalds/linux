@@ -289,11 +289,9 @@ static void apci1516_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 
-	if (dev->iobase)
+	if (dev->iobase) {
 		apci1516_reset(dev);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
+		comedi_pci_disable(pcidev);
 	}
 }
 
