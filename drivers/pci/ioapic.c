@@ -125,3 +125,5 @@ static void __exit ioapic_exit(void)
 
 module_init(ioapic_init);
 module_exit(ioapic_exit);
+
+MODULE_LICENSE("GPL");
