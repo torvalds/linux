@@ -164,7 +164,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime,
 	task_group_account_field(p, index, (__force u64) cputime);
 
 	/* Account for user time used */
-	acct_update_integrals(p);
+	acct_account_cputime(p);
 }
 
 /*
@@ -214,7 +214,7 @@ void __account_system_time(struct task_struct *p, cputime_t cputime,
 	task_group_account_field(p, index, (__force u64) cputime);
 
 	/* Account for system time used */
-	acct_update_integrals(p);
+	acct_account_cputime(p);
 }
 
 /*
@@ -296,6 +296,7 @@ static __always_inline bool steal_account_process_tick(void)
 void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 {
 	struct signal_struct *sig = tsk->signal;
+	cputime_t utime, stime;
 	struct task_struct *t;
 
 	times->utime = sig->utime;
@@ -309,8 +310,9 @@ void thread_group_cputime(struct task_struct *tsk, struct task_cputime *times)
 
 	t = tsk;
 	do {
-		times->utime += t->utime;
-		times->stime += t->stime;
+		task_cputime(tsk, &utime, &stime);
+		times->utime += utime;
+		times->stime += stime;
 		times->sum_exec_runtime += task_sched_runtime(t);
 	} while_each_thread(tsk, t);
 out:
@@ -588,11 +590,10 @@ static void cputime_adjust(struct task_cputime *curr,
 void task_cputime_adjusted(struct task_struct *p, cputime_t *ut, cputime_t *st)
 {
 	struct task_cputime cputime = {
-		.utime = p->utime,
-		.stime = p->stime,
 		.sum_exec_runtime = p->se.sum_exec_runtime,
 	};
 
+	task_cputime(p, &cputime.utime, &cputime.stime);
 	cputime_adjust(&cputime, &p->prev_cputime, ut, st);
 }
 

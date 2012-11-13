@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 #include <linux/mISDNif.h>
 #include <linux/kthread.h>
+#include <linux/sched.h>
 #include "core.h"
 
 static u_int	*debug;
@@ -202,6 +203,9 @@ static int
 mISDNStackd(void *data)
 {
 	struct mISDNstack *st = data;
+#ifdef MISDN_MSG_STATS
+	cputime_t utime, stime;
+#endif
 	int err = 0;
 
 	sigfillset(&current->blocked);
@@ -303,9 +307,10 @@ mISDNStackd(void *data)
 	       "msg %d sleep %d stopped\n",
 	       dev_name(&st->dev->dev), st->msg_cnt, st->sleep_cnt,
 	       st->stopped_cnt);
+	task_cputime(st->thread, &utime, &stime);
 	printk(KERN_DEBUG
 	       "mISDNStackd daemon for %s utime(%ld) stime(%ld)\n",
-	       dev_name(&st->dev->dev), st->thread->utime, st->thread->stime);
+	       dev_name(&st->dev->dev), utime, stime);
 	printk(KERN_DEBUG
 	       "mISDNStackd daemon for %s nvcsw(%ld) nivcsw(%ld)\n",
 	       dev_name(&st->dev->dev), st->thread->nvcsw, st->thread->nivcsw);
