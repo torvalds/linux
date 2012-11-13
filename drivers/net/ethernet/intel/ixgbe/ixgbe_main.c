@@ -1338,25 +1338,28 @@ static unsigned int ixgbe_get_headlen(unsigned char *data,
 		if (hlen < sizeof(struct iphdr))
 			return hdr.network - data;
 
-		/* record next protocol */
-		nexthdr = hdr.ipv4->protocol;
-		hdr.network += hlen;
+		/* record next protocol if header is present */
+		if (!hdr.ipv4->frag_off)
+			nexthdr = hdr.ipv4->protocol;
 	} else if (protocol == __constant_htons(ETH_P_IPV6)) {
 		if ((hdr.network - data) > (max_len - sizeof(struct ipv6hdr)))
 			return max_len;
 
 		/* record next protocol */
 		nexthdr = hdr.ipv6->nexthdr;
-		hdr.network += sizeof(struct ipv6hdr);
+		hlen = sizeof(struct ipv6hdr);
 #ifdef IXGBE_FCOE
 	} else if (protocol == __constant_htons(ETH_P_FCOE)) {
 		if ((hdr.network - data) > (max_len - FCOE_HEADER_LEN))
 			return max_len;
-		hdr.network += FCOE_HEADER_LEN;
+		hlen = FCOE_HEADER_LEN;
 #endif
 	} else {
 		return hdr.network - data;
 	}
+
+	/* relocate pointer to start of L4 header */
+	hdr.network += hlen;
 
 	/* finally sort out TCP/UDP */
 	if (nexthdr == IPPROTO_TCP) {
