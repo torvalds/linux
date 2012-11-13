@@ -479,6 +479,7 @@ static int validate_set(const struct nlattr *a,
 
 	switch (key_type) {
 	const struct ovs_key_ipv4 *ipv4_key;
+	const struct ovs_key_ipv6 *ipv6_key;
 
 	case OVS_KEY_ATTR_PRIORITY:
 	case OVS_KEY_ATTR_ETHERNET:
@@ -496,6 +497,25 @@ static int validate_set(const struct nlattr *a,
 			return -EINVAL;
 
 		if (ipv4_key->ipv4_frag != flow_key->ip.frag)
+			return -EINVAL;
+
+		break;
+
+	case OVS_KEY_ATTR_IPV6:
+		if (flow_key->eth.type != htons(ETH_P_IPV6))
+			return -EINVAL;
+
+		if (!flow_key->ip.proto)
+			return -EINVAL;
+
+		ipv6_key = nla_data(ovs_key);
+		if (ipv6_key->ipv6_proto != flow_key->ip.proto)
+			return -EINVAL;
+
+		if (ipv6_key->ipv6_frag != flow_key->ip.frag)
+			return -EINVAL;
+
+		if (ntohl(ipv6_key->ipv6_label) & 0xFFF00000)
 			return -EINVAL;
 
 		break;
