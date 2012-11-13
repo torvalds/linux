@@ -594,10 +594,10 @@ config COMEDI_ADDI_APCI_1500
 	  called addi_apci_1500.
 
 config COMEDI_ADDI_APCI_1516
-	tristate "ADDI-DATA APCI_1516 support"
+	tristate "ADDI-DATA APCI-1516/2016 support"
 	depends on VIRT_TO_BUS
 	---help---
-	  Enable support for ADDI-DATA APCI_1516 cards
+	  Enable support for ADDI-DATA APCI-1516 and APCI-2016 boards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called addi_apci_1516.
@@ -619,15 +619,6 @@ config COMEDI_ADDI_APCI_16XX
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called addi_apci_16xx.
-
-config COMEDI_ADDI_APCI_2016
-	tristate "ADDI-DATA APCI_2016 support"
-	depends on VIRT_TO_BUS
-	---help---
-	  Enable support for ADDI-DATA APCI_2016 cards
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called addi_apci_2016.
 
 config COMEDI_ADDI_APCI_2032
 	tristate "ADDI-DATA APCI_2032 support"

@@ -62,7 +62,6 @@ obj-$(CONFIG_COMEDI_ADDI_APCI_1500)	+= addi_apci_1500.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1516)	+= addi_apci_1516.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_1564)	+= addi_apci_1564.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_16XX)	+= addi_apci_16xx.o
-obj-$(CONFIG_COMEDI_ADDI_APCI_2016)	+= addi_apci_2016.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_2032)	+= addi_apci_2032.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_2200)	+= addi_apci_2200.o
 obj-$(CONFIG_COMEDI_ADDI_APCI_3120)	+= addi_apci_3120.o
