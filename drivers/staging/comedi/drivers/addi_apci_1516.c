@@ -62,7 +62,7 @@ struct apci1516_boardinfo {
 	unsigned short device;
 	int di_nchan;
 	int do_nchan;
-	int has_timer;
+	int has_wdog;
 };
 
 static const struct apci1516_boardinfo apci1516_boardtypes[] = {
@@ -75,12 +75,12 @@ static const struct apci1516_boardinfo apci1516_boardtypes[] = {
 		.device		= PCI_DEVICE_ID_APCI1516,
 		.di_nchan	= 8,
 		.do_nchan	= 8,
-		.has_timer	= 1,
+		.has_wdog	= 1,
 	}, {
 		.name		= "apci2016",
 		.device		= PCI_DEVICE_ID_APCI2016,
 		.do_nchan	= 16,
-		.has_timer	= 1,
+		.has_wdog	= 1,
 	},
 };
 
@@ -201,7 +201,7 @@ static int apci1516_reset(struct comedi_device *dev)
 	const struct apci1516_boardinfo *this_board = comedi_board(dev);
 	struct apci1516_private *devpriv = dev->private;
 
-	if (!this_board->has_timer)
+	if (!this_board->has_wdog)
 		return 0;
 
 	outw(0x0, dev->iobase + APCI1516_DO_REG);
@@ -283,7 +283,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (this_board->has_timer) {
+	if (this_board->has_wdog) {
 		s->type		= COMEDI_SUBD_TIMER;
 		s->subdev_flags	= SDF_WRITEABLE;
 		s->n_chan	= 1;
