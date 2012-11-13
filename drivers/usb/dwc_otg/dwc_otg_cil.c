@@ -959,7 +959,8 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 		
 		/* Periodic Tx FIFO */
 		DWC_DEBUGPL(DBG_CIL,"initial hptxfsiz=%08x\n", dwc_read_reg32(&global_regs->hptxfsiz));
-		ptxfifosize.b.depth	 = 0x0200;//params->host_perio_tx_fifo_size;
+        /* rk3066 and later platform has 0x3cc dword FIFO total */
+		ptxfifosize.b.depth	 = 0x0100;//params->host_perio_tx_fifo_size;
 		ptxfifosize.b.startaddr = 0x0280;//nptxfifosize.b.startaddr + nptxfifosize.b.depth;
 		dwc_write_reg32(&global_regs->hptxfsiz, ptxfifosize.d32);
 		DWC_DEBUGPL(DBG_CIL,"new hptxfsiz=%08x\n", dwc_read_reg32(&global_regs->hptxfsiz));
