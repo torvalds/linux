@@ -1102,6 +1102,10 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 
 		if (!tb[IFLA_MTU])
 			dev->mtu = lowerdev->mtu - VXLAN_HEADROOM;
+
+		/* update header length based on lower device */
+		dev->hard_header_len = lowerdev->hard_header_len +
+				       VXLAN_HEADROOM;
 	}
 
 	if (data[IFLA_VXLAN_TOS])
