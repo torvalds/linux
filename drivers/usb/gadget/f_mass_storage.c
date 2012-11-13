@@ -307,21 +307,6 @@
 #include <linux/reboot.h>
 #include <linux/syscalls.h>
 
-static int usb_msc_connected;	/*usb charge status*/
-
-static void set_msc_connect_flag( int connected )
-{
-	printk("%s status = %d 20101216\n" , __func__, connected);
-	if( usb_msc_connected == connected )
-		return;
-	usb_msc_connected = connected;//usb mass storage is ok
-}
-
-int get_msc_connect_flag( void )
-{
-	return usb_msc_connected;
-}
-EXPORT_SYMBOL(get_msc_connect_flag);
 #endif
 
 /*------------------------------------------------------------------------*/
@@ -2675,8 +2660,6 @@ static void fsg_disable(struct usb_function *f)
 	struct fsg_dev *fsg = fsg_from_func(f);
 	fsg->common->new_fsg = NULL;
 	raise_exception(fsg->common, FSG_STATE_CONFIG_CHANGE);
-	// yk 201009
-	set_msc_connect_flag(0);
 }
 
 

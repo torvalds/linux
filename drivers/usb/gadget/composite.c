@@ -72,7 +72,7 @@ module_param(iSerialNumber, charp, 0);
 MODULE_PARM_DESC(iSerialNumber, "SerialNumber string");
 
 static char composite_manufacturer[50];
-
+static int gadget_connected = 0;
 /*-------------------------------------------------------------------------*/
 
 /**
@@ -420,6 +420,9 @@ static int set_config(struct usb_composite_dev *cdev,
 		goto done;
 
 	cdev->config = c;
+	
+	/* reset delay status to zero every time usb reconnect */
+	cdev->delayed_status = 0;
 
 	/* Initialize all interfaces by setting them to altsetting zero. */
 	for (tmp = 0; tmp < MAX_CONFIG_INTERFACES; tmp++) {
@@ -474,6 +477,9 @@ static int set_config(struct usb_composite_dev *cdev,
 
 	/* when we return, be sure our power usage is valid */
 	power = c->bMaxPower ? (2 * c->bMaxPower) : CONFIG_USB_GADGET_VBUS_DRAW;
+
+	/* usb gadget connect flag */
+	gadget_connected = 1;
 done:
 	usb_gadget_vbus_draw(gadget, power);
 
@@ -1053,10 +1059,17 @@ static void composite_disconnect(struct usb_gadget *gadget)
 		reset_config(cdev);
 	if (composite->disconnect)
 		composite->disconnect(cdev);
+	/* usb gadget connect flag */
+	gadget_connected = 0;
 	spin_unlock_irqrestore(&cdev->lock, flags);
 }
 
 /*-------------------------------------------------------------------------*/
+int get_gadget_connect_flag( void )
+{
+    return gadget_connected;
+}
+EXPORT_SYMBOL(get_gadget_connect_flag);
 
 static ssize_t composite_show_suspended(struct device *dev,
 					struct device_attribute *attr,
@@ -1369,6 +1382,9 @@ void usb_composite_setup_continue(struct usb_composite_dev *cdev)
 			req->status = 0;
 			composite_setup_complete(cdev->gadget->ep0, req);
 		}
+	}
+	else{
+	    WARN(cdev, "%s: Unexpected delayed status 0x%x\n", __func__, cdev->delayed_status);
 	}
 
 	spin_unlock_irqrestore(&cdev->lock, flags);
