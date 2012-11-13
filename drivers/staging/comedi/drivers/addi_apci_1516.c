@@ -10,6 +10,18 @@
 
 static const struct addi_board apci1516_boardtypes[] = {
 	{
+		.pc_DriverName		= "apci1016",
+		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
+		.i_DeviceId		= 0x1000,
+		.i_IorangeBase0		= 128,
+		.i_IorangeBase1		= APCI1516_ADDRESS_RANGE,
+		.i_IorangeBase2		= 32,
+		.i_PCIEeprom		= ADDIDATA_EEPROM,
+		.pc_EepromChip		= ADDIDATA_S5920,
+		.i_NbrDiChannel		= 16,
+		.reset			= i_APCI1516_Reset,
+		.di_bits		= apci1516_di_insn_bits,
+	}, {
 		.pc_DriverName		= "apci1516",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
 		.i_DeviceId		= 0x1001,
@@ -68,6 +80,7 @@ static void __devexit apci1516_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1516_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1000) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1001) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1002) },
 	{ 0 }
