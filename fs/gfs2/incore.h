@@ -539,6 +539,7 @@ enum {
 	SDF_DEMOTE		= 5,
 	SDF_NOJOURNALID		= 6,
 	SDF_RORECOVERY		= 7, /* read only recovery */
+	SDF_SKIP_DLM_UNLOCK	= 8,
 };
 
 #define GFS2_FSNAME_LEN		256
