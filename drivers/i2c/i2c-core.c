@@ -587,6 +587,55 @@ out_err_silent:
 }
 EXPORT_SYMBOL_GPL(i2c_new_device);
 #ifdef CONFIG_PLAT_RK
+#define RK610_KEY       "rk610"
+static int __i2c_client_print(struct device *dev, void *param)
+{
+        struct i2c_client *client = i2c_verify_client(dev);
+
+        if(client)
+                printk(KERN_WARNING "client: %s, addr: 0x%x\n", client->name, client->addr);
+        return 0;
+}
+static int __i2c_check_rk610_ex(struct device *dev, void *ex)
+{
+        struct i2c_client *client = i2c_verify_client(dev);
+
+        if(!client)
+                return 0;
+
+        if(strstr(client->name, RK610_KEY) != NULL)
+                *(int *)ex += 1 << 8;
+        else
+                *(int *)ex += 1;
+        return 0;
+}
+int i2c_check_rk610_ex(int nr)
+{
+        int ex = 0, rk610_ex = 0, oth_ex = 0;
+        struct i2c_adapter *adap = i2c_get_adapter(nr);
+
+        if(!adap){
+                printk(KERN_ERR "%s: adap(%d) is not exist\n", __func__, nr);
+                return -EINVAL;
+        }
+        device_for_each_child(&adap->dev, &ex, __i2c_check_rk610_ex);
+
+        if(ex & (1 << 8))
+                rk610_ex = 1;
+
+        oth_ex = ex & 0xff;
+
+        if(rk610_ex && oth_ex){
+                ex = 1;
+                printk(KERN_WARNING "******************* WARNING ********************\n");
+                dev_warn(&adap->dev, "%s is exist, clients:\n", RK610_KEY);
+                device_for_each_child(&adap->dev, NULL, __i2c_client_print);
+                printk(KERN_WARNING "************************************************\n");
+        }
+        else 
+                ex = 0;
+        return ex;
+}
 #ifdef CONFIG_I2C_RK30
 int i2c_add_device(int nr, struct i2c_board_info const *info)
 {
@@ -660,11 +709,16 @@ out_err_silent:
 	return status;
 }
 #else
+int i2c_check_rk610_ex(int nr)
+{
+        return 0;
+}
 int i2c_add_device(int nr, struct i2c_board_info const *info)
 {
         return 0;
 }
 #endif
+EXPORT_SYMBOL_GPL(i2c_check_rk610_ex);
 EXPORT_SYMBOL_GPL(i2c_add_device);
 #endif
 
