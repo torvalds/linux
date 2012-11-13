@@ -3,6 +3,10 @@
 
 #include "addi-data/addi_common.h"
 
+struct apci1516_private {
+	unsigned long wdog_iobase;
+};
+
 #include "addi-data/hwdrv_apci1516.c"
 
 static const struct addi_board apci1516_boardtypes[] = {
@@ -30,15 +34,15 @@ static const struct addi_board apci1516_boardtypes[] = {
 static int apci1516_reset(struct comedi_device *dev)
 {
 	const struct addi_board *this_board = comedi_board(dev);
-	struct addi_private *devpriv = dev->private;
+	struct apci1516_private *devpriv = dev->private;
 
 	if (!this_board->i_Timer)
 		return 0;
 
 	outw(0x0, dev->iobase + APCI1516_DO_REG);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_LSB_REG);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_MSB_REG);
+	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
+	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_LSB_REG);
+	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_MSB_REG);
 
 	return 0;
 }
@@ -65,7 +69,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct addi_board *this_board;
-	struct addi_private *devpriv;
+	struct apci1516_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 
@@ -85,7 +89,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
+	devpriv->wdog_iobase = pci_resource_start(pcidev, 2);
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

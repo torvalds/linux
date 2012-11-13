@@ -127,16 +127,16 @@ static int i_APCI1516_ConfigWatchdog(struct comedi_device *dev,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1516_private *devpriv = dev->private;
 
 	if (data[0] == 0) {
 		/* Disable the watchdog */
-		outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+		outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
 		/* Loading the Reload value */
-		outw(data[1], devpriv->i_IobaseAddon +
+		outw(data[1], devpriv->wdog_iobase +
 				APCI1516_WDOG_RELOAD_LSB_REG);
 		data[1] = data[1] >> 16;
-		outw(data[1], devpriv->i_IobaseAddon +
+		outw(data[1], devpriv->wdog_iobase +
 				APCI1516_WDOG_RELOAD_MSB_REG);
 	}			/* if(data[0]==0) */
 	else {
@@ -173,19 +173,19 @@ static int i_APCI1516_StartStopWriteWatchdog(struct comedi_device *dev,
 					     struct comedi_insn *insn,
 					     unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1516_private *devpriv = dev->private;
 
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
-		outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+		outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
 		break;
 	case 1:		/* start the watchdog */
 		outw(APCI1516_WDOG_CTRL_ENABLE,
-		     devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+		     devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
 		break;
 	case 2:		/* Software trigger */
 		outw(APCI1516_WDOG_CTRL_ENABLE | APCI1516_WDOG_CTRL_SOFT_TRIG,
-		     devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+		     devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
 		break;
 	default:
 		printk("\nSpecified functionality does not exist\n");
@@ -220,8 +220,8 @@ static int i_APCI1516_ReadWatchdog(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
+	struct apci1516_private *devpriv = dev->private;
 
-	data[0] = inw(devpriv->i_IobaseAddon + APCI1516_WDOG_STATUS_REG) & 0x1;
+	data[0] = inw(devpriv->wdog_iobase + APCI1516_WDOG_STATUS_REG) & 0x1;
 	return insn->n;
 }
