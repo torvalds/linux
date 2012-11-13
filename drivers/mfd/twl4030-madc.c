@@ -173,7 +173,7 @@ static int twl4030battery_temperature(int raw_volt)
 
 	volt = (raw_volt * TEMP_STEP_SIZE) / TEMP_PSR_R;
 	/* Getting and calculating the supply current in micro ampers */
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE, &val,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val,
 		REG_BCICTL2);
 	if (ret < 0)
 		return ret;
@@ -196,7 +196,7 @@ static int twl4030battery_current(int raw_volt)
 	int ret;
 	u8 val;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE, &val,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE, &val,
 		TWL4030_BCI_BCICTL1);
 	if (ret)
 		return ret;
@@ -635,7 +635,7 @@ static int twl4030_madc_set_current_generator(struct twl4030_madc_data *madc,
 	int ret;
 	u8 regval;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE,
 			      &regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(madc->dev, "unable to read BCICTL1 reg 0x%X",
@@ -646,7 +646,7 @@ static int twl4030_madc_set_current_generator(struct twl4030_madc_data *madc,
 		regval |= chan ? TWL4030_BCI_ITHEN : TWL4030_BCI_TYPEN;
 	else
 		regval &= chan ? ~TWL4030_BCI_ITHEN : ~TWL4030_BCI_TYPEN;
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_write_u8(TWL_MODULE_MAIN_CHARGE,
 			       regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(madc->dev, "unable to write BCICTL1 reg 0x%X\n",
@@ -668,7 +668,7 @@ static int twl4030_madc_set_power(struct twl4030_madc_data *madc, int on)
 	u8 regval;
 	int ret;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE,
 			      &regval, TWL4030_MADC_CTRL1);
 	if (ret) {
 		dev_err(madc->dev, "unable to read madc ctrl1 reg 0x%X\n",
@@ -725,7 +725,7 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto err_current_generator;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_read_u8(TWL_MODULE_MAIN_CHARGE,
 			      &regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to read reg BCI CTL1 0x%X\n",
@@ -733,7 +733,7 @@ static int __devinit twl4030_madc_probe(struct platform_device *pdev)
 		goto err_i2c;
 	}
 	regval |= TWL4030_BCI_MESBAT;
-	ret = twl_i2c_write_u8(TWL4030_MODULE_MAIN_CHARGE,
+	ret = twl_i2c_write_u8(TWL_MODULE_MAIN_CHARGE,
 			       regval, TWL4030_BCI_BCICTL1);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to write reg BCI Ctl1 0x%X\n",
