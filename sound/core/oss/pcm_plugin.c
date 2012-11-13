@@ -231,13 +231,14 @@ snd_pcm_sframes_t snd_pcm_plug_slave_size(struct snd_pcm_substream *plug, snd_pc
 {
 	struct snd_pcm_plugin *plugin, *plugin_prev, *plugin_next;
 	snd_pcm_sframes_t frames;
-	int stream = snd_pcm_plug_stream(plug);
+	int stream;
 	
 	if (snd_BUG_ON(!plug))
 		return -ENXIO;
 	if (clt_frames == 0)
 		return 0;
 	frames = clt_frames;
+	stream = snd_pcm_plug_stream(plug);
 	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		plugin = snd_pcm_plug_first(plug);
 		while (plugin && frames > 0) {
