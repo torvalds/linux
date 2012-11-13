@@ -1,5 +1,5 @@
 /*
- * VXLAN: Virtual eXtensiable Local Area Network
+ * VXLAN: Virtual eXtensible Local Area Network
  *
  * Copyright (c) 2012 Vyatta Inc.
  *
