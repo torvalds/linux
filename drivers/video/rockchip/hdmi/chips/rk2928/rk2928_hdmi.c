@@ -300,5 +300,5 @@ static void __exit rk2928_hdmi_exit(void)
 
 
 //fs_initcall(rk2928_hdmi_init);
-module_init(rk2928_hdmi_init);
+late_initcall(rk2928_hdmi_init);
 module_exit(rk2928_hdmi_exit);
