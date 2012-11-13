@@ -195,7 +195,7 @@ bool iio_validate_scan_mask_onehot(struct iio_dev *indio_dev,
 #else /* CONFIG_IIO_BUFFER */
 
 static inline int iio_buffer_register(struct iio_dev *indio_dev,
-					   struct iio_chan_spec *channels,
+					   const struct iio_chan_spec *channels,
 					   int num_channels)
 {
 	return 0;
