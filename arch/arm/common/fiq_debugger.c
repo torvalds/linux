@@ -1015,6 +1015,16 @@ static void debug_fiq(struct fiq_glue_handler *h, void *regs, void *svc_sp)
 	unsigned int this_cpu = THREAD_INFO(svc_sp)->cpu;
 	bool need_irq;
 
+	/* RK2928 USB-UART function, otg dp/dm default in uart status;
+	 * connect with otg cable&usb device, dp/dm will be hi-z status 
+	 * and make uart controller enter infinite fiq loop 
+	 */
+#ifdef CONFIG_RK_USB_UART
+	if(!(readl_relaxed(RK2928_GRF_BASE + 0x014c) & (1<<10))) //id low    
+	{         
+		writel_relaxed(0x34000000, RK2928_GRF_BASE + 0x190);   //enter usb phy    
+	}
+#endif
 	need_irq = debug_handle_uart_interrupt(state, this_cpu, regs, svc_sp);
 	if (need_irq)
 		debug_force_irq(state);
