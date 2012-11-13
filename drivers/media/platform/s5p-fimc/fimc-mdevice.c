@@ -225,28 +225,36 @@ static int __fimc_pipeline_close(struct fimc_pipeline *p)
 }
 
 /**
- * __fimc_pipeline_s_stream - invoke s_stream on pipeline subdevs
+ * __fimc_pipeline_s_stream - call s_stream() on pipeline subdevs
  * @pipeline: video pipeline structure
- * @on: passed as the s_stream call argument
+ * @on: passed as the s_stream() callback argument
  */
 static int __fimc_pipeline_s_stream(struct fimc_pipeline *p, bool on)
 {
-	int i, ret;
+	static const u8 seq[2][IDX_MAX] = {
+		{ IDX_FIMC, IDX_SENSOR, IDX_IS_ISP, IDX_CSIS, IDX_FLITE },
+		{ IDX_CSIS, IDX_FLITE, IDX_FIMC, IDX_SENSOR, IDX_IS_ISP },
+	};
+	int i, ret = 0;
 
 	if (p->subdevs[IDX_SENSOR] == NULL)
 		return -ENODEV;
 
 	for (i = 0; i < IDX_MAX; i++) {
-		unsigned int idx = on ? (IDX_MAX - 1) - i : i;
+		unsigned int idx = seq[on][i];
 
 		ret = v4l2_subdev_call(p->subdevs[idx], video, s_stream, on);
 
 		if (ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
-			return ret;
+			goto error;
 	}
-
 	return 0;
-
+error:
+	for (; i >= 0; i--) {
+		unsigned int idx = seq[on][i];
+		v4l2_subdev_call(p->subdevs[idx], video, s_stream, !on);
+	}
+	return ret;
 }
 
 /* Media pipeline operations for the FIMC/FIMC-LITE video device driver */
