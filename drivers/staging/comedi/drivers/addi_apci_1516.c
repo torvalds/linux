@@ -4,10 +4,6 @@
 
 #include "addi-data/addi_common.h"
 
-#ifndef COMEDI_SUBD_TTLIO
-#define COMEDI_SUBD_TTLIO   11	/* Digital Input Output But TTL */
-#endif
-
 #include "addi-data/hwdrv_apci1516.c"
 
 static const struct addi_board apci1516_boardtypes[] = {
