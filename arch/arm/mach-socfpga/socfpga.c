@@ -25,6 +25,7 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/smp_twd.h>
 
 #include "core.h"
 
@@ -136,6 +137,9 @@ static void __init socfpga_init_irq(void)
 		init_socfpga_vt();
 	else
 		init_socfpga();
+
+	socfpga_init_clocks();
+	twd_local_timer_of_register();
 }
 
 static void socfpga_cyclone5_restart(char mode, const char *cmd)
@@ -159,7 +163,6 @@ static void __init socfpga_cyclone5_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table,
 		socfpga_auxdata_lookup, NULL);
 
-	socfpga_init_clocks();
 	enable_periphs();
 }
 
