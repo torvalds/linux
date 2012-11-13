@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "../../../include/uapi/linux/perf_event.h"
 #include "types.h"
 #include "xyarray.h"
@@ -223,5 +224,10 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 {
 	return list_entry(evsel->node.next, struct perf_evsel, node);
+}
+
+static inline bool perf_evsel__is_group_member(const struct perf_evsel *evsel)
+{
+	return evsel->leader != NULL;
 }
 #endif /* __PERF_EVSEL_H */
