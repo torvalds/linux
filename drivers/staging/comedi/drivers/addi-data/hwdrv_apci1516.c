@@ -229,29 +229,3 @@ static int i_APCI1516_ReadWatchdog(struct comedi_device *dev,
 	data[0] = inw(devpriv->i_IobaseAddon + APCI1516_WDOG_STATUS_REG) & 0x1;
 	return insn->n;
 }
-
-/*
-+----------------------------------------------------------------------------+
-| Function   Name   : int i_APCI1516_Reset(struct comedi_device *dev)               |                                                                                                          |
-+----------------------------------------------------------------------------+
-| Task              :resets all the registers                                |
-+----------------------------------------------------------------------------+
-| Input Parameters  : struct comedi_device *dev
-+----------------------------------------------------------------------------+
-| Output Parameters :	--													 |
-+----------------------------------------------------------------------------+
-| Return Value      :                                                        |
-|			                                                         |
-+----------------------------------------------------------------------------+
-*/
-
-static int i_APCI1516_Reset(struct comedi_device *dev)
-{
-	struct addi_private *devpriv = dev->private;
-
-	outw(0x0, devpriv->iobase + APCI1516_DO_REG);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_LSB_REG);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_MSB_REG);
-	return 0;
-}

@@ -16,7 +16,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5920,
 		.i_NbrDiChannel		= 16,
-		.reset			= i_APCI1516_Reset,
 		.di_bits		= apci1516_di_insn_bits,
 	}, {
 		.pc_DriverName		= "apci1516",
@@ -30,7 +29,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.i_NbrDiChannel		= 8,
 		.i_NbrDoChannel		= 8,
 		.i_Timer		= 1,
-		.reset			= i_APCI1516_Reset,
 		.di_bits		= apci1516_di_insn_bits,
 		.do_bits		= apci1516_do_insn_bits,
 		.timer_config		= i_APCI1516_ConfigWatchdog,
@@ -47,7 +45,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_S5920,
 		.i_NbrDoChannel		= 16,
 		.i_Timer		= 1,
-		.reset			= i_APCI1516_Reset,
 		.do_bits		= apci1516_do_insn_bits,
 		.timer_config		= i_APCI1516_ConfigWatchdog,
 		.timer_write		= i_APCI1516_StartStopWriteWatchdog,
@@ -64,11 +61,15 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 	return IRQ_RETVAL(1);
 }
 
-static int i_ADDI_Reset(struct comedi_device *dev)
+static int apci1516_reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	struct addi_private *devpriv = dev->private;
 
-	this_board->reset(dev);
+	outw(0x0, devpriv->iobase + APCI1516_DO_REG);
+	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_LSB_REG);
+	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_MSB_REG);
+
 	return 0;
 }
 
@@ -236,7 +237,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[6];
 	s->type = COMEDI_SUBD_UNUSED;
 
-	i_ADDI_Reset(dev);
+	apci1516_reset(dev);
 	return 0;
 }
 
@@ -247,7 +248,7 @@ static void apci1516_detach(struct comedi_device *dev)
 
 	if (devpriv) {
 		if (dev->iobase)
-			i_ADDI_Reset(dev);
+			apci1516_reset(dev);
 		if (dev->irq)
 			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
