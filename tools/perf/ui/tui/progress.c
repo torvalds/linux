@@ -1,8 +1,8 @@
 #include "../cache.h"
-#include "progress.h"
-#include "libslang.h"
-#include "ui.h"
-#include "browser.h"
+#include "../progress.h"
+#include "../libslang.h"
+#include "../ui.h"
+#include "../browser.h"
 
 void ui_progress__update(u64 curr, u64 total, const char *title)
 {
