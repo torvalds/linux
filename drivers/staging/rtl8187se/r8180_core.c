@@ -2581,11 +2581,10 @@ short rtl8180_init(struct net_device *dev)
 
 	priv->CSMethod = (0x01 << 29);
 
-	priv->TransmitConfig =	TCR_DurProcMode_OFFSET |
+	priv->TransmitConfig =	(1<<TCR_DurProcMode_OFFSET) |
 				(7<<TCR_MXDMA_OFFSET) |
 				(priv->ShortRetryLimit<<TCR_SRL_OFFSET) |
-				(priv->LongRetryLimit<<TCR_LRL_OFFSET) |
-				(0 ? TCR_SAT : 0);
+				(priv->LongRetryLimit<<TCR_LRL_OFFSET);
 
 	priv->ReceiveConfig =	RCR_AMF | RCR_ADF | RCR_ACF |
 				RCR_AB | RCR_AM | RCR_APM |
