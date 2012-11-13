@@ -80,6 +80,14 @@ static int tps6586x_gpio_output(struct gpio_chip *gc, unsigned offset,
 				val, mask);
 }
 
+static int tps6586x_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
+{
+	struct tps6586x_gpio *tps6586x_gpio = to_tps6586x_gpio(gc);
+
+	return tps6586x_irq_get_virq(tps6586x_gpio->parent,
+				TPS6586X_INT_PLDO_0 + offset);
+}
+
 static int __devinit tps6586x_gpio_probe(struct platform_device *pdev)
 {
 	struct tps6586x_platform_data *pdata;
@@ -106,6 +114,7 @@ static int __devinit tps6586x_gpio_probe(struct platform_device *pdev)
 	tps6586x_gpio->gpio_chip.direction_output = tps6586x_gpio_output;
 	tps6586x_gpio->gpio_chip.set	= tps6586x_gpio_set;
 	tps6586x_gpio->gpio_chip.get	= tps6586x_gpio_get;
+	tps6586x_gpio->gpio_chip.to_irq	= tps6586x_gpio_to_irq;
 
 #ifdef CONFIG_OF_GPIO
 	tps6586x_gpio->gpio_chip.of_node = pdev->dev.parent->of_node;
