@@ -113,17 +113,16 @@ static const struct i2c_device_id pm2xxx_ident[] = {
 
 static void set_lpn_pin(struct pm2xxx_charger *pm2)
 {
-	gpio_set_value(pm2->lpn_pin, 1);
-	usleep_range(SLEEP_MIN, SLEEP_MAX);
-
-	return;
+	if (!pm2->ac.charger_connected && gpio_is_valid(pm2->lpn_pin)) {
+		gpio_set_value(pm2->lpn_pin, 1);
+		usleep_range(SLEEP_MIN, SLEEP_MAX);
+	}
 }
 
 static void clear_lpn_pin(struct pm2xxx_charger *pm2)
 {
-	gpio_set_value(pm2->lpn_pin, 0);
-
-	return;
+	if (!pm2->ac.charger_connected && gpio_is_valid(pm2->lpn_pin))
+		gpio_set_value(pm2->lpn_pin, 0);
 }
 
 static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
@@ -1035,14 +1034,6 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	pm2->bat = pl_data->battery;
 
-	/*get lpn GPIO from platform data*/
-	if (!pm2->pdata->lpn_gpio) {
-		dev_err(pm2->dev, "no lpn gpio data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
-	pm2->lpn_pin = pm2->pdata->lpn_gpio;
-
 	if (!i2c_check_functionality(i2c_client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA |
 			I2C_FUNC_SMBUS_READ_WORD_DATA)) {
@@ -1146,23 +1137,28 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	mutex_init(&pm2->lock);
 
-	/*
-	 * Charger detection mechanism requires pulling up the LPN pin
-	 * while i2c communication if Charger is not connected
-	 * LPN pin of PM2301 is GPIO60 of AB9540
-	 */
-	ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
-	if (ret < 0) {
-		dev_err(pm2->dev, "pm2301_lpm_gpio request failed\n");
-		goto disable_pm2_irq_wake;
-	}
-	ret = gpio_direction_output(pm2->lpn_pin, 0);
-	if (ret < 0) {
-		dev_err(pm2->dev, "pm2301_lpm_gpio direction failed\n");
-		goto free_gpio;
-	}
+	if (gpio_is_valid(pm2->pdata->lpn_gpio)) {
+		/* get lpn GPIO from platform data */
+		pm2->lpn_pin = pm2->pdata->lpn_gpio;
 
-	set_lpn_pin(pm2);
+		/*
+		 * Charger detection mechanism requires pulling up the LPN pin
+		 * while i2c communication if Charger is not connected
+		 * LPN pin of PM2301 is GPIO60 of AB9540
+		 */
+		ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
+
+		if (ret < 0) {
+			dev_err(pm2->dev, "pm2301_lpm_gpio request failed\n");
+			goto disable_pm2_irq_wake;
+		}
+		ret = gpio_direction_output(pm2->lpn_pin, 0);
+		if (ret < 0) {
+			dev_err(pm2->dev, "pm2301_lpm_gpio direction failed\n");
+			goto free_gpio;
+		}
+		set_lpn_pin(pm2);
+	}
 
 	/* read  interrupt registers */
 	for (i = 0; i < PM2XXX_NUM_INT_REG; i++)
@@ -1184,7 +1180,8 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	return 0;
 
 free_gpio:
-	gpio_free(pm2->lpn_pin);
+	if (gpio_is_valid(pm2->lpn_pin))
+		gpio_free(pm2->lpn_pin);
 disable_pm2_irq_wake:
 	disable_irq_wake(gpio_to_irq(pm2->pdata->gpio_irq_number));
 unregister_pm2xxx_interrupt:
@@ -1229,7 +1226,8 @@ static int pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 
 	power_supply_unregister(&pm2->ac_chg.psy);
 
-	gpio_free(pm2->lpn_pin);
+	if (gpio_is_valid(pm2->lpn_pin))
+		gpio_free(pm2->lpn_pin);
 
 	kfree(pm2);
 
@@ -1266,7 +1264,7 @@ static void __exit pm2xxx_charger_exit(void)
 	i2c_del_driver(&pm2xxx_charger_driver);
 }
 
-subsys_initcall_sync(pm2xxx_charger_init);
+device_initcall_sync(pm2xxx_charger_init);
 module_exit(pm2xxx_charger_exit);
 
 MODULE_LICENSE("GPL v2");
