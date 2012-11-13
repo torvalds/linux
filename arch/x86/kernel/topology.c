@@ -50,6 +50,57 @@ static int __init enable_cpu0_hotplug(char *str)
 __setup("cpu0_hotplug", enable_cpu0_hotplug);
 #endif
 
+#ifdef CONFIG_DEBUG_HOTPLUG_CPU0
+/*
+ * This function offlines a CPU as early as possible and allows userspace to
+ * boot up without the CPU. The CPU can be onlined back by user after boot.
+ *
+ * This is only called for debugging CPU offline/online feature.
+ */
+int __ref _debug_hotplug_cpu(int cpu, int action)
+{
+	struct device *dev = get_cpu_device(cpu);
+	int ret;
+
+	if (!cpu_is_hotpluggable(cpu))
+		return -EINVAL;
+
+	cpu_hotplug_driver_lock();
+
+	switch (action) {
+	case 0:
+		ret = cpu_down(cpu);
+		if (!ret) {
+			pr_info("CPU %u is now offline\n", cpu);
+			kobject_uevent(&dev->kobj, KOBJ_OFFLINE);
+		} else
+			pr_debug("Can't offline CPU%d.\n", cpu);
+		break;
+	case 1:
+		ret = cpu_up(cpu);
+		if (!ret)
+			kobject_uevent(&dev->kobj, KOBJ_ONLINE);
+		else
+			pr_debug("Can't online CPU%d.\n", cpu);
+		break;
+	default:
+		ret = -EINVAL;
+	}
+
+	cpu_hotplug_driver_unlock();
+
+	return ret;
+}
+
+static int __init debug_hotplug_cpu(void)
+{
+	_debug_hotplug_cpu(0, 0);
+	return 0;
+}
+
+late_initcall_sync(debug_hotplug_cpu);
+#endif /* CONFIG_DEBUG_HOTPLUG_CPU0 */
+
 int __ref arch_register_cpu(int num)
 {
 	struct cpuinfo_x86 *c = &cpu_data(num);
