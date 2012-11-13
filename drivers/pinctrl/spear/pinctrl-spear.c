@@ -286,12 +286,12 @@ static struct spear_gpio_pingroup *get_gpio_pingroup(struct spear_pmx *pmx,
 		unsigned pin)
 {
 	struct spear_gpio_pingroup *gpio_pingroup;
-	int i = 0, j;
+	int i, j;
 
 	if (!pmx->machdata->gpio_pingroups)
 		return NULL;
 
-	for (; i < pmx->machdata->ngpio_pingroups; i++) {
+	for (i = 0; i < pmx->machdata->ngpio_pingroups; i++) {
 		gpio_pingroup = &pmx->machdata->gpio_pingroups[i];
 
 		for (j = 0; j < gpio_pingroup->npins; j++) {
@@ -300,7 +300,7 @@ static struct spear_gpio_pingroup *get_gpio_pingroup(struct spear_pmx *pmx,
 		}
 	}
 
-	return ERR_PTR(-EINVAL);
+	return NULL;
 }
 
 static int gpio_request_endisable(struct pinctrl_dev *pctldev,
