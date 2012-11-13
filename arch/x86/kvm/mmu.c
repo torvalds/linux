@@ -2497,8 +2497,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		}
 	}
 
-	if (!is_error_pfn(pfn))
-		kvm_release_pfn_clean(pfn);
+	kvm_release_pfn_clean(pfn);
 }
 
 static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)

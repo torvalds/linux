@@ -12,6 +12,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include "tpci200.h"
 
 static u16 tpci200_status_timeout[] = {
