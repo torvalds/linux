@@ -412,22 +412,6 @@ static u32 read_rtl8225(struct net_device *dev, u8 adr)
 	return dataRead;
 }
 
-short rtl8225_is_V_z2(struct net_device *dev)
-{
-	short vz2 = 1;
-
-	if (read_rtl8225(dev, 8) != 0x588)
-		vz2 = 0;
-	else	/* reg 9 pg 1 = 24 */
-		if (read_rtl8225(dev, 9) != 0x700)
-			vz2 = 0;
-
-	/* sw back to pg 0 */
-	write_rtl8225(dev, 0, 0xb7);
-
-	return vz2;
-}
-
 void rtl8225z2_rf_close(struct net_device *dev)
 {
 	RF_WriteReg(dev, 0x4, 0x1f);
