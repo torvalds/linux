@@ -1540,7 +1540,7 @@ void dwc_otg_hc_start_transfer(dwc_otg_core_if_t *_core_if, dwc_hc_t *_hc)
 			uint32_t max_periodic_len = _hc->multi_count * _hc->max_packet;
 			if (_hc->xfer_len > max_periodic_len) 
 			{
-				_hc->xfer_len = max_periodic_len;
+//				_hc->xfer_len = max_periodic_len;
 			} 
 			else 
 			{

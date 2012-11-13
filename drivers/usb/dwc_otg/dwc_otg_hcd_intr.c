@@ -1134,8 +1134,12 @@ static int32_t handle_hc_xfercomp_intr(dwc_otg_hcd_t *_hcd,
 		break;
 	case PIPE_INTERRUPT:
 		DWC_DEBUGPL(DBG_HCDV, "  Interrupt transfer complete\n");
-		update_urb_state_xfer_comp(_hc, _hc_regs, urb, _qtd);
-
+		urb_xfer_done = update_urb_state_xfer_comp(_hc, _hc_regs, urb, _qtd);
+		if(!urb_xfer_done){
+		    save_data_toggle(_hc, _hc_regs, _qtd);
+    		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NAK);
+    		break;
+		}
 		/*
 		 * Interrupt URB is done on the first transfer complete
 		 * interrupt.
@@ -1297,6 +1301,8 @@ static int32_t handle_hc_nak_intr(dwc_otg_hcd_t *_hcd,
 		break;
 	case PIPE_INTERRUPT:
 		_qtd->error_count = 0;
+        update_urb_state_xfer_intr(_hc, _hc_regs, _qtd->urb,_qtd, DWC_OTG_HC_XFER_NAK);
+        save_data_toggle(_hc, _hc_regs, _qtd);
 		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NAK);
 		break;
 	case PIPE_ISOCHRONOUS:
