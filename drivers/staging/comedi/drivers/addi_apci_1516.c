@@ -16,7 +16,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.i_PCIEeprom		= ADDIDATA_EEPROM,
 		.pc_EepromChip		= ADDIDATA_S5920,
 		.i_NbrDiChannel		= 16,
-		.di_bits		= apci1516_di_insn_bits,
 	}, {
 		.pc_DriverName		= "apci1516",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
@@ -29,11 +28,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.i_NbrDiChannel		= 8,
 		.i_NbrDoChannel		= 8,
 		.i_Timer		= 1,
-		.di_bits		= apci1516_di_insn_bits,
-		.do_bits		= apci1516_do_insn_bits,
-		.timer_config		= i_APCI1516_ConfigWatchdog,
-		.timer_write		= i_APCI1516_StartStopWriteWatchdog,
-		.timer_read		= i_APCI1516_ReadWatchdog,
 	}, {
 		.pc_DriverName		= "apci2016",
 		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
@@ -45,10 +39,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 		.pc_EepromChip		= ADDIDATA_S5920,
 		.i_NbrDoChannel		= 16,
 		.i_Timer		= 1,
-		.do_bits		= apci1516_do_insn_bits,
-		.timer_config		= i_APCI1516_ConfigWatchdog,
-		.timer_write		= i_APCI1516_StartStopWriteWatchdog,
-		.timer_read		= i_APCI1516_ReadWatchdog,
 	},
 };
 
@@ -168,10 +158,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 			devpriv->s_EeParameters.i_NbrDiChannel;
 		s->range_table = &range_digital;
 		s->io_bits = 0;	/* all bits input */
-		s->insn_config = this_board->di_config;
-		s->insn_read = this_board->di_read;
-		s->insn_write = this_board->di_write;
-		s->insn_bits = this_board->di_bits;
+		s->insn_bits = apci1516_di_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -187,12 +174,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 			devpriv->s_EeParameters.i_NbrDoChannel;
 		s->range_table = &range_digital;
 		s->io_bits = 0xf;	/* all bits output */
-
-		/* insn_config - for digital output memory */
-		s->insn_config = this_board->do_config;
-		s->insn_write = this_board->do_write;
-		s->insn_bits = this_board->do_bits;
-		s->insn_read = this_board->do_read;
+		s->insn_bits = apci1516_do_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
@@ -206,11 +188,9 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->maxdata = 0;
 		s->len_chanlist = 1;
 		s->range_table = &range_digital;
-
-		s->insn_write = this_board->timer_write;
-		s->insn_read = this_board->timer_read;
-		s->insn_config = this_board->timer_config;
-		s->insn_bits = this_board->timer_bits;
+		s->insn_write = i_APCI1516_StartStopWriteWatchdog;
+		s->insn_read = i_APCI1516_ReadWatchdog;
+		s->insn_config = i_APCI1516_ConfigWatchdog;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
