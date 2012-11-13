@@ -52,15 +52,6 @@ static const struct addi_board apci1516_boardtypes[] = {
 	},
 };
 
-static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
-{
-	struct comedi_device *dev = d;
-	const struct addi_board *this_board = comedi_board(dev);
-
-	this_board->interrupt(irq, d);
-	return IRQ_RETVAL(1);
-}
-
 static int apci1516_reset(struct comedi_device *dev)
 {
 	const struct addi_board *this_board = comedi_board(dev);
@@ -153,15 +144,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	devpriv->s_EeParameters.ui_MinDelaytimeNs =
 		this_board->ui_MinDelaytimeNs;
 
-	/* ## */
-
-	if (pcidev->irq > 0) {
-		ret = request_irq(pcidev->irq, v_ADDI_Interrupt, IRQF_SHARED,
-				  dev->board_name, dev);
-		if (ret == 0)
-			dev->irq = pcidev->irq;
-	}
-
 	n_subdevices = 7;
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
 	if (ret)
@@ -253,8 +235,6 @@ static void apci1516_detach(struct comedi_device *dev)
 	if (devpriv) {
 		if (dev->iobase)
 			apci1516_reset(dev);
-		if (dev->irq)
-			free_irq(dev->irq, dev);
 		if (devpriv->dw_AiBase)
 			iounmap(devpriv->dw_AiBase);
 	}
