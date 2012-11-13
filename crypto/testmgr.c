@@ -1638,300 +1638,66 @@ static const struct alg_test_desc alg_test_descs[] = {
 	{
 		.alg = "__cbc-cast5-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__cbc-cast6-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__cbc-serpent-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__cbc-serpent-sse2",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__cbc-twofish-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-aes-aesni",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-camellia-aesni",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-cast5-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-cast6-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-serpent-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-serpent-sse2",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-cbc-twofish-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-aes-aesni",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-camellia-aesni",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-cast5-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-cast6-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-serpent-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-serpent-sse2",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__driver-ecb-twofish-avx",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "__ghash-pclmulqdqni",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.hash = {
-				.vecs = NULL,
-				.count = 0
-			}
-		}
 	}, {
 		.alg = "ansi_cprng",
 		.test = alg_test_cprng,
@@ -2160,165 +1926,39 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "cryptd(__driver-cbc-aes-aesni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-cbc-camellia-aesni)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-aes-aesni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-camellia-aesni)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-cast5-avx)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-cast6-avx)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-serpent-avx)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-serpent-sse2)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-ecb-twofish-avx)",
 		.test = alg_test_null,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__driver-gcm-aes-aesni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "cryptd(__ghash-pclmulqdqni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.hash = {
-				.vecs = NULL,
-				.count = 0
-			}
-		}
 	}, {
 		.alg = "ctr(aes)",
 		.test = alg_test_skcipher,
@@ -2489,18 +2129,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "ecb(__aes-aesni)",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-		.suite = {
-			.cipher = {
-				.enc = {
-					.vecs = NULL,
-					.count = 0
-				},
-				.dec = {
-					.vecs = NULL,
-					.count = 0
-				}
-			}
-		}
 	}, {
 		.alg = "ecb(aes)",
 		.test = alg_test_skcipher,
