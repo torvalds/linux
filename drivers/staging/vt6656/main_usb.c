@@ -1555,12 +1555,12 @@ static struct net_device_stats *device_get_stats(struct net_device *dev) {
 
 
 static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
-	PSDevice	        pDevice = (PSDevice)netdev_priv(dev);
-    PSMgmtObject        pMgmt = &(pDevice->sMgmtObj);
-    PSCmdRequest        pReq;
-    //BOOL                bCommit = FALSE;
+	PSDevice pDevice = (PSDevice)netdev_priv(dev);
+	PSMgmtObject pMgmt = &pDevice->sMgmtObj;
+	PSCmdRequest pReq;
+	u8 *buffer;
 	struct iwreq *wrq = (struct iwreq *) rq;
-	int                 rc =0;
+	int rc = 0;
 
     if (pMgmt == NULL) {
         rc = -EFAULT;
@@ -1797,20 +1797,28 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		break;
 
 	case SIOCGIWAPLIST:
-	    {
-            char buffer[IW_MAX_AP * (sizeof(struct sockaddr) + sizeof(struct iw_quality))];
+		if (wrq->u.data.pointer) {
+			buffer = kzalloc((sizeof(struct sockaddr) +
+				sizeof(struct iw_quality)) * IW_MAX_AP,
+					GFP_KERNEL);
+			if (buffer == NULL) {
+				rc = -ENOMEM;
+				break;
+			}
 
-		    if (wrq->u.data.pointer) {
-		        rc = iwctl_giwaplist(dev, NULL, &(wrq->u.data), buffer);
-		        if (rc == 0) {
-                    if (copy_to_user(wrq->u.data.pointer,
-					                buffer,
-					               (wrq->u.data.length * (sizeof(struct sockaddr) +  sizeof(struct iw_quality)))
-				        ))
-				    rc = -EFAULT;
-		        }
-            }
-        }
+			rc = iwctl_giwaplist(dev, NULL, &(wrq->u.data), buffer);
+			if (rc < 0) {
+				kfree(buffer);
+				break;
+			}
+
+			if (copy_to_user(wrq->u.data.pointer, buffer,
+				wrq->u.data.length * (sizeof(struct sockaddr)
+					+ sizeof(struct iw_quality))))
+				rc = -EFAULT;
+
+			kfree(buffer);
+		}
 		break;
 
 

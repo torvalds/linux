@@ -632,47 +632,56 @@ int iwctl_giwap(struct net_device *dev, struct iw_request_info *info,
  * Wireless Handler: get ap list
  */
 int iwctl_giwaplist(struct net_device *dev, struct iw_request_info *info,
-		struct iw_point *wrq, char *extra)
+		struct iw_point *wrq, u8 *extra)
 {
+	struct sockaddr *sock;
+	struct iw_quality *qual;
+	PSDevice pDevice = netdev_priv(dev);
+	PSMgmtObject pMgmt = &pDevice->sMgmtObj;
+	PKnownBSS pBSS = &pMgmt->sBSSList[0];
 	int ii;
 	int jj;
-	int rc = 0;
-	struct sockaddr sock[IW_MAX_AP];
-	struct iw_quality qual[IW_MAX_AP];
-	PSDevice pDevice = netdev_priv(dev);
-	PSMgmtObject pMgmt = &(pDevice->sMgmtObj);
 
-	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWAPLIST \n");
-	// Only super-user can see AP list
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWAPLIST\n");
+	/* Only super-user can see AP list */
 
-	if (!capable(CAP_NET_ADMIN)) {
-		rc = -EPERM;
-		return rc;
+	if (pBSS == NULL)
+		return -ENODEV;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (!wrq->pointer)
+		return -EINVAL;
+
+	sock = kzalloc(sizeof(struct sockaddr) * IW_MAX_AP, GFP_KERNEL);
+	qual = kzalloc(sizeof(struct iw_quality) * IW_MAX_AP, GFP_KERNEL);
+	if (sock == NULL || qual == NULL)
+		return -ENOMEM;
+
+	for (ii = 0, jj = 0; ii < MAX_BSS_NUM; ii++) {
+		if (!pBSS[ii].bActive)
+			continue;
+		if (jj >= IW_MAX_AP)
+			break;
+		memcpy(sock[jj].sa_data, pBSS[ii].abyBSSID, 6);
+		sock[jj].sa_family = ARPHRD_ETHER;
+		qual[jj].level = pBSS[ii].uRSSI;
+		qual[jj].qual = qual[jj].noise = 0;
+		qual[jj].updated = 2;
+		jj++;
 	}
 
-	if (wrq->pointer) {
-		PKnownBSS pBSS = &(pMgmt->sBSSList[0]);
+	wrq->flags = 1; /* Should be defined */
+	wrq->length = jj;
+	memcpy(extra, sock, sizeof(struct sockaddr) * jj);
+	memcpy(extra + sizeof(struct sockaddr) * jj, qual,
+		sizeof(struct iw_quality) * jj);
 
-		for (ii = 0, jj= 0; ii < MAX_BSS_NUM; ii++) {
-			pBSS = &(pMgmt->sBSSList[ii]);
-			if (!pBSS->bActive)
-				continue;
-			if (jj >= IW_MAX_AP)
-				break;
-			memcpy(sock[jj].sa_data, pBSS->abyBSSID, 6);
-			sock[jj].sa_family = ARPHRD_ETHER;
-			qual[jj].level = pBSS->uRSSI;
-			qual[jj].qual = qual[jj].noise = 0;
-			qual[jj].updated = 2;
-			jj++;
-		}
+	kfree(sock);
+	kfree(qual);
 
-		wrq->flags = 1; // Should be defined
-		wrq->length = jj;
-		memcpy(extra, sock, sizeof(struct sockaddr) * jj);
-		memcpy(extra + sizeof(struct sockaddr) * jj, qual, sizeof(struct iw_quality) * jj);
-	}
-	return rc;
+	return 0;
 }
 
 /*
