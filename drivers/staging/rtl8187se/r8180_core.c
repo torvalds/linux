@@ -2376,8 +2376,7 @@ short rtl8180_init(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
 	u16 word;
-	u16 version;
-	u32 usValue;
+	u16 usValue;
 	u16 tmpu16;
 	int i, j;
 	struct eeprom_93cx6 eeprom;
@@ -2614,36 +2613,31 @@ short rtl8180_init(struct net_device *dev)
 	/* just for sync 85 */
 	priv->enable_gpio0 = 0;
 
-	eeprom_93cx6_read(&eeprom, EEPROM_SW_REVD_OFFSET, &eeprom_val);
-	usValue = eeprom_val;
-	DMESG("usValue is 0x%x\n", usValue);
+	eeprom_93cx6_read(&eeprom, EEPROM_SW_REVD_OFFSET, &usValue);
+	DMESG("usValue is %#hx\n", usValue);
 	/* 3Read AntennaDiversity */
 
 	/* SW Antenna Diversity. */
-	if ((usValue & EEPROM_SW_AD_MASK) != EEPROM_SW_AD_ENABLE)
-		priv->EEPROMSwAntennaDiversity = false;
-	else
-		priv->EEPROMSwAntennaDiversity = true;
+	priv->EEPROMSwAntennaDiversity = (usValue & EEPROM_SW_AD_MASK) ==
+		EEPROM_SW_AD_ENABLE;
 
 	/* Default Antenna to use. */
-	if ((usValue & EEPROM_DEF_ANT_MASK) != EEPROM_DEF_ANT_1)
-		priv->EEPROMDefaultAntenna1 = false;
-	else
-		priv->EEPROMDefaultAntenna1 = true;
+	priv->EEPROMDefaultAntenna1 = (usValue & EEPROM_DEF_ANT_MASK) ==
+		EEPROM_DEF_ANT_1;
 
 	if (priv->RegSwAntennaDiversityMechanism == 0) /* Auto */
 		/* 0: default from EEPROM. */
 		priv->bSwAntennaDiverity = priv->EEPROMSwAntennaDiversity;
 	else
 		/* 1:disable antenna diversity, 2: enable antenna diversity. */
-		priv->bSwAntennaDiverity = ((priv->RegSwAntennaDiversityMechanism == 1) ? false : true);
+		priv->bSwAntennaDiverity = priv->RegSwAntennaDiversityMechanism == 2;
 
 	if (priv->RegDefaultAntenna == 0)
 		/* 0: default from EEPROM. */
 		priv->bDefaultAntenna1 = priv->EEPROMDefaultAntenna1;
 	else
 		/* 1: main, 2: aux. */
-		priv->bDefaultAntenna1 = ((priv->RegDefaultAntenna == 2) ? true : false);
+		priv->bDefaultAntenna1 = priv->RegDefaultAntenna == 2;
 
 	/* rtl8185 can calc plcp len in HW. */
 	priv->hw_plcp_len = 1;
@@ -2683,18 +2677,6 @@ short rtl8180_init(struct net_device *dev)
 	if ((tmpu16 & EEPROM_THERMAL_METER_ENABLE) >> 13)
 		priv->bTxPowerTrack = true;
 
-	eeprom_93cx6_read(&eeprom, EPROM_TXPW_BASE, &word);
-	priv->cck_txpwr_base = word & 0xf;
-	priv->ofdm_txpwr_base = (word>>4) & 0xf;
-
-	eeprom_93cx6_read(&eeprom, EPROM_VERSION, &version);
-	DMESG("EEPROM version %x", version);
-	priv->rcr_csense = 3;
-
-	eeprom_93cx6_read(&eeprom, ENERGY_TRESHOLD, &eeprom_val);
-	priv->cs_treshold = (eeprom_val & 0xff00) >> 8;
-
-	eeprom_93cx6_read(&eeprom, RFCHIPID, &eeprom_val);
 	priv->rf_sleep = rtl8225z4_rf_sleep;
 	priv->rf_wakeup = rtl8225z4_rf_wakeup;
 	DMESGW("**PLEASE** REPORT SUCCESSFUL/UNSUCCESSFUL TO Realtek!");

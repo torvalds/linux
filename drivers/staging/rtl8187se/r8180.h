@@ -365,8 +365,6 @@ typedef struct r8180_priv
 	short digphy;
 	short antb;
 	short diversity;
-	u8 cs_treshold;
-	short rcr_csense;
 	u32 key0[4];
 	short (*rf_set_sens)(struct net_device *dev,short sens);
 	void (*rf_set_chan)(struct net_device *dev,short ch);
@@ -623,8 +621,6 @@ typedef struct r8180_priv
 
 	u8 PowerProfile;
 	u32 CSMethod;
-	u8 cck_txpwr_base;
-	u8 ofdm_txpwr_base;
 	u8 dma_poll_stop_mask;
 
 	//u8 RegThreeWireMode;
