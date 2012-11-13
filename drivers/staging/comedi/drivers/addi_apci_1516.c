@@ -40,20 +40,22 @@
 #define PCI_DEVICE_ID_APCI2016		0x1002
 
 /*
- * PCI bar 1 I/O Register map
+ * PCI bar 1 I/O Register map - Digital input/output
  */
-#define APCI1516_DI_REG				0x00
-#define APCI1516_DO_REG				0x04
+#define APCI1516_DI_REG			0x00
+#define APCI1516_DO_REG			0x04
 
 /*
- * PCI bar 2 I/O Register map
+ * PCI bar 2 I/O Register map - Watchdog (APCI-1516 and APCI-2016)
  */
-#define APCI1516_WDOG_REG			0x00
-#define APCI1516_WDOG_RELOAD_REG		0x04
-#define APCI1516_WDOG_CTRL_REG			0x0c
-#define APCI1516_WDOG_CTRL_ENABLE		(1 << 0)
-#define APCI1516_WDOG_CTRL_SW_TRIG		(1 << 9)
-#define APCI1516_WDOG_STATUS_REG		0x10
+#define APCI1516_WDOG_REG		0x00
+#define APCI1516_WDOG_RELOAD_REG	0x04
+#define APCI1516_WDOG_CTRL_REG		0x0c
+#define APCI1516_WDOG_CTRL_ENABLE	(1 << 0)
+#define APCI1516_WDOG_CTRL_SW_TRIG	(1 << 9)
+#define APCI1516_WDOG_STATUS_REG	0x10
+#define APCI1516_WDOG_STATUS_ENABLED	(1 << 0)
+#define APCI1516_WDOG_STATUS_SW_TRIG	(1 << 1)
 
 struct apci1516_boardinfo {
 	const char *name;
