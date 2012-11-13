@@ -1,8 +1,6 @@
 #include "../comedidev.h"
 #include "comedi_fc.h"
 
-#include "addi-data/addi_common.h"
-
 struct apci1516_private {
 	unsigned long wdog_iobase;
 };
