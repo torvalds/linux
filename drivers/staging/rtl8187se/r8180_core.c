@@ -323,7 +323,6 @@ void rtl8180_proc_remove_one(struct net_device *dev)
 		remove_proc_entry("stats-tx", priv->dir_dev);
 		remove_proc_entry("stats-rx", priv->dir_dev);
 		remove_proc_entry("registers", priv->dir_dev);
-		remove_proc_entry(dev->name, rtl8180_proc);
 		priv->dir_dev = NULL;
 	}
 }
