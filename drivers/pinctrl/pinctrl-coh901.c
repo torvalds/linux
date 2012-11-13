@@ -752,8 +752,10 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 						     U300_GPIO_PINS_PER_PORT,
 						     &irq_domain_simple_ops,
 						     port);
-		if (!port->domain)
+		if (!port->domain) {
+			err = -ENOMEM;
 			goto err_no_domain;
+		}
 
 		irq_set_chained_handler(port->irq, u300_gpio_irq_handler);
 		irq_set_handler_data(port->irq, port);
@@ -801,7 +803,7 @@ err_no_domain:
 err_no_port:
 	u300_gpio_free_ports(gpio);
 	clk_disable_unprepare(gpio->clk);
-	dev_info(&pdev->dev, "module ERROR:%d\n", err);
+	dev_err(&pdev->dev, "module ERROR:%d\n", err);
 	return err;
 }
 
