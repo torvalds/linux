@@ -83,7 +83,7 @@ static struct clocksource *itc_clocksource;
 
 extern cputime_t cycle_to_cputime(u64 cyc);
 
-static void vtime_account_user(struct task_struct *tsk)
+void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t delta_utime;
 	struct thread_info *ti = task_thread_info(tsk);
@@ -145,15 +145,6 @@ void vtime_account_system(struct task_struct *tsk)
 void vtime_account_idle(struct task_struct *tsk)
 {
 	account_idle_time(vtime_delta(tsk));
-}
-
-/*
- * Called from the timer interrupt handler to charge accumulated user time
- * to the current process.  Must be called with interrupts disabled.
- */
-void account_process_tick(struct task_struct *p, int user_tick)
-{
-	vtime_account_user(p);
 }
 
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING */

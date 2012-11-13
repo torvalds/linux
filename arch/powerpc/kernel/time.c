@@ -355,15 +355,15 @@ void vtime_account_idle(struct task_struct *tsk)
 }
 
 /*
- * Transfer the user and system times accumulated in the paca
- * by the exception entry and exit code to the generic process
- * user and system time records.
+ * Transfer the user time accumulated in the paca
+ * by the exception entry and exit code to the generic
+ * process user time records.
  * Must be called with interrupts disabled.
- * Assumes that vtime_account() has been called recently
- * (i.e. since the last entry from usermode) so that
+ * Assumes that vtime_account_system/idle() has been called
+ * recently (i.e. since the last entry from usermode) so that
  * get_paca()->user_time_scaled is up to date.
  */
-void account_process_tick(struct task_struct *tsk, int user_tick)
+void vtime_account_user(struct task_struct *tsk)
 {
 	cputime_t utime, utimescaled;
 
@@ -378,7 +378,7 @@ void account_process_tick(struct task_struct *tsk, int user_tick)
 void vtime_task_switch(struct task_struct *prev)
 {
 	vtime_account(prev);
-	account_process_tick(prev, 0);
+	vtime_account_user(prev);
 }
 
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING */

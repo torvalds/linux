@@ -112,7 +112,12 @@ void vtime_task_switch(struct task_struct *prev)
 	S390_lowcore.system_timer = ti->system_timer;
 }
 
-void account_process_tick(struct task_struct *tsk, int user_tick)
+/*
+ * In s390, accounting pending user time also implies
+ * accounting system time in order to correctly compute
+ * the stolen time accounting.
+ */
+void vtime_account_user(struct task_struct *tsk)
 {
 	if (do_account_vtime(tsk, HARDIRQ_OFFSET))
 		virt_timer_expire();

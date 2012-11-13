@@ -127,7 +127,15 @@ extern void account_system_time(struct task_struct *, int, cputime_t, cputime_t)
 extern void account_steal_time(cputime_t);
 extern void account_idle_time(cputime_t);
 
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+static inline void account_process_tick(struct task_struct *tsk, int user)
+{
+	vtime_account_user(tsk);
+}
+#else
 extern void account_process_tick(struct task_struct *, int user);
+#endif
+
 extern void account_steal_ticks(unsigned long ticks);
 extern void account_idle_ticks(unsigned long ticks);
 
