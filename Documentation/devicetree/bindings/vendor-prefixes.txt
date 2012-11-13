@@ -46,6 +46,7 @@ schindler	Schindler
 sil	Silicon Image
 simtek
 sirf	SiRF Technology, Inc.
+snps 	Synopsys, Inc.
 st	STMicroelectronics
 stericsson	ST-Ericsson
 ti	Texas Instruments
