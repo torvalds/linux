@@ -229,6 +229,7 @@ struct ixgbevf_adapter {
 	 */
 	u32 flags;
 #define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1)
+#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 1)
 
 	/* OS defined structs */
 	struct net_device *netdev;
