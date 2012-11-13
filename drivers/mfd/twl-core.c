@@ -66,9 +66,6 @@
 
 /* Triton Core internal information (BEGIN) */
 
-/* Last - for index max*/
-#define TWL4030_MODULE_LAST		TWL4030_MODULE_SECURED_REG
-
 #define TWL_NUM_SLAVES		4
 
 #define SUB_CHIP_ID0 0
@@ -184,7 +181,7 @@ struct twl_mapping {
 };
 static struct twl_mapping *twl_map;
 
-static struct twl_mapping twl4030_map[TWL4030_MODULE_LAST + 1] = {
+static struct twl_mapping twl4030_map[] = {
 	/*
 	 * NOTE:  don't change this table without updating the
 	 * <linux/i2c/twl.h> defines for TWL4030_MODULE_*
@@ -327,7 +324,7 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	int sid;
 	struct twl_client *twl;
 
-	if (unlikely(mod_no > TWL_MODULE_LAST)) {
+	if (unlikely(mod_no >= TWL_MODULE_LAST)) {
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
@@ -369,7 +366,7 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	int sid;
 	struct twl_client *twl;
 
-	if (unlikely(mod_no > TWL_MODULE_LAST)) {
+	if (unlikely(mod_no >= TWL_MODULE_LAST)) {
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
