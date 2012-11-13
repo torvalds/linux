@@ -256,7 +256,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	if (ret)
 		return ret;
 
-	/*  Allocate and Initialise DI Subdevice Structures */
+	/* Initialize the digital input subdevice */
 	s = &dev->subdevices[0];
 	if (this_board->di_nchan) {
 		s->type		= COMEDI_SUBD_DI;
@@ -268,7 +268,8 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
-	/*  Allocate and Initialise DO Subdevice Structures */
+
+	/* Initialize the digital output subdevice */
 	s = &dev->subdevices[1];
 	if (this_board->do_nchan) {
 		s->type		= COMEDI_SUBD_DO;
@@ -281,7 +282,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
 
-	/*  Allocate and Initialise Timer Subdevice Structures */
+	/* Initialize the watchdog subdevice */
 	s = &dev->subdevices[2];
 	if (this_board->has_wdog) {
 		s->type		= COMEDI_SUBD_TIMER;
