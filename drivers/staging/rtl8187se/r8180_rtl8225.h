@@ -23,8 +23,8 @@ void rtl8225z2_rf_init(struct net_device *dev);
 void rtl8225z2_rf_set_chan(struct net_device *dev, short ch);
 void rtl8225z2_rf_close(struct net_device *dev);
 
-void RF_WriteReg(struct net_device *dev, u8 offset, u32	data);
-u32 RF_ReadReg(struct net_device *dev, u8 offset);
+void RF_WriteReg(struct net_device *dev, u8 offset, u16 data);
+u16 RF_ReadReg(struct net_device *dev, u8 offset);
 
 void rtl8180_set_mode(struct net_device *dev, int mode);
 void rtl8180_set_mode(struct net_device *dev, int mode);
