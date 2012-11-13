@@ -96,12 +96,22 @@ static const struct tps6586x_irq_data tps6586x_irqs[] = {
 	[TPS6586X_INT_RTC_ALM2] = TPS6586X_IRQ(TPS6586X_INT_MASK4, 1 << 1),
 };
 
+static struct resource tps6586x_rtc_resources[] = {
+	{
+		.start  = TPS6586X_INT_RTC_ALM1,
+		.end	= TPS6586X_INT_RTC_ALM1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct mfd_cell tps6586x_cell[] = {
 	{
 		.name = "tps6586x-gpio",
 	},
 	{
 		.name = "tps6586x-rtc",
+		.num_resources = ARRAY_SIZE(tps6586x_rtc_resources),
+		.resources = &tps6586x_rtc_resources[0],
 	},
 	{
 		.name = "tps6586x-onkey",
@@ -562,7 +572,7 @@ static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
 
 	ret = mfd_add_devices(tps6586x->dev, -1,
 			      tps6586x_cell, ARRAY_SIZE(tps6586x_cell),
-			      NULL, 0, NULL);
+			      NULL, 0, tps6586x->irq_domain);
 	if (ret < 0) {
 		dev_err(&client->dev, "mfd_add_devices failed: %d\n", ret);
 		goto err_mfd_add;
