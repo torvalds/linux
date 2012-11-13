@@ -169,14 +169,17 @@ static int i_APCI1516_StartStopWriteWatchdog(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_APCI1516_ReadWatchdog(struct comedi_device *dev,
+static int apci1516_wdog_insn_read(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
 	struct apci1516_private *devpriv = dev->private;
+	int i;
 
-	data[0] = inw(devpriv->wdog_iobase + APCI1516_WDOG_STATUS_REG) & 0x1;
+	for (i = 0; i < insn->n; i++)
+		data[i] = inw(devpriv->wdog_iobase + APCI1516_WDOG_STATUS_REG);
+
 	return insn->n;
 }
 
@@ -275,7 +278,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->maxdata	= 0;
 		s->range_table	= &range_digital;
 		s->insn_write	= i_APCI1516_StartStopWriteWatchdog;
-		s->insn_read	= i_APCI1516_ReadWatchdog;
+		s->insn_read	= apci1516_wdog_insn_read;
 		s->insn_config	= i_APCI1516_ConfigWatchdog;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
