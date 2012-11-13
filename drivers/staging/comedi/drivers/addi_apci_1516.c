@@ -241,7 +241,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->di_nchan;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->di_nchan;
 		s->range_table = &range_digital;
 		s->io_bits = 0;	/* all bits input */
 		s->insn_bits = apci1516_di_insn_bits;
@@ -256,7 +255,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = this_board->do_nchan;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->do_nchan;
 		s->range_table = &range_digital;
 		s->io_bits = 0xf;	/* all bits output */
 		s->insn_bits = apci1516_do_insn_bits;
@@ -271,7 +269,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = 1;
 		s->maxdata = 0;
-		s->len_chanlist = 1;
 		s->range_table = &range_digital;
 		s->insn_write = i_APCI1516_StartStopWriteWatchdog;
 		s->insn_read = i_APCI1516_ReadWatchdog;
