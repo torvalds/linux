@@ -217,6 +217,7 @@ enum {
 	IFLA_BRPORT_COST,	/* "             cost      */
 	IFLA_BRPORT_MODE,	/* mode (hairpin)          */
 	IFLA_BRPORT_GUARD,	/* bpdu guard              */
+	IFLA_BRPORT_PROTECT,	/* root port protection    */
 	__IFLA_BRPORT_MAX
 };
 #define IFLA_BRPORT_MAX (__IFLA_BRPORT_MAX - 1)

@@ -100,6 +100,21 @@ static int br_should_become_root_port(const struct net_bridge_port *p,
 	return 0;
 }
 
+static void br_root_port_block(const struct net_bridge *br,
+			       struct net_bridge_port *p)
+{
+
+	br_notice(br, "port %u(%s) tried to become root port (blocked)",
+		  (unsigned int) p->port_no, p->dev->name);
+
+	p->state = BR_STATE_LISTENING;
+	br_log_state(p);
+	br_ifinfo_notify(RTM_NEWLINK, p);
+
+	if (br->forward_delay > 0)
+		mod_timer(&p->forward_delay_timer, jiffies + br->forward_delay);
+}
+
 /* called under bridge lock */
 static void br_root_selection(struct net_bridge *br)
 {
@@ -107,7 +122,12 @@ static void br_root_selection(struct net_bridge *br)
 	u16 root_port = 0;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		if (br_should_become_root_port(p, root_port))
+		if (!br_should_become_root_port(p, root_port))
+			continue;
+
+		if (p->flags & BR_ROOT_BLOCK)
+			br_root_port_block(br, p);
+		else
 			root_port = p->port_no;
 	}
 
