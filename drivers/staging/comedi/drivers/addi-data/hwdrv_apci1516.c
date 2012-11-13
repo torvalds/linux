@@ -51,19 +51,22 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 /* Card Specific information */
 #define APCI1516_ADDRESS_RANGE			8
 
-/* DIGITAL INPUT-OUTPUT DEFINE */
+/*
+ * PCI bar 1 I/O Register map
+ */
+#define APCI1516_DI_REG				0x00
+#define APCI1516_DO_REG				0x04
 
-#define APCI1516_DIGITAL_OP			4
-#define APCI1516_DIGITAL_OP_RW			4
-#define APCI1516_DIGITAL_IP			0
-
-/* TIMER COUNTER WATCHDOG DEFINES */
+/*
+ * PCI bar 2 I/O Register map
+ */
+#define APCI1516_WDOG_REG			0x00
+#define APCI1516_WDOG_RELOAD_LSB_REG		0x04
+#define APCI1516_WDOG_RELOAD_MSB_REG		0x06
+#define APCI1516_WDOG_CTRL_REG			0x0c
+#define APCI1516_WDOG_STATUS_REG		0x10
 
 #define ADDIDATA_WATCHDOG			2
-#define APCI1516_DIGITAL_OP_WATCHDOG		0
-#define APCI1516_WATCHDOG_ENABLEDISABLE		12
-#define APCI1516_WATCHDOG_RELOAD_VALUE		4
-#define APCI1516_WATCHDOG_STATUS		16
 
 static int apci1516_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
@@ -72,7 +75,7 @@ static int apci1516_di_insn_bits(struct comedi_device *dev,
 {
 	struct addi_private *devpriv = dev->private;
 
-	data[1] = inw(devpriv->iobase + APCI1516_DIGITAL_IP);
+	data[1] = inw(devpriv->iobase + APCI1516_DI_REG);
 
 	return insn->n;
 }
@@ -87,12 +90,12 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inw(devpriv->iobase + APCI1516_DIGITAL_OP_RW);
+	s->state = inw(devpriv->iobase + APCI1516_DO_REG);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outw(s->state, devpriv->iobase + APCI1516_DIGITAL_OP);
+		outw(s->state, devpriv->iobase + APCI1516_DO_REG);
 	}
 
 	data[1] = s->state;
@@ -130,17 +133,13 @@ static int i_APCI1516_ConfigWatchdog(struct comedi_device *dev,
 
 	if (data[0] == 0) {
 		/* Disable the watchdog */
-		outw(0x0,
-			devpriv->i_IobaseAddon +
-			APCI1516_WATCHDOG_ENABLEDISABLE);
+		outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		/* Loading the Reload value */
-		outw(data[1],
-			devpriv->i_IobaseAddon +
-			APCI1516_WATCHDOG_RELOAD_VALUE);
+		outw(data[1], devpriv->i_IobaseAddon +
+				APCI1516_WDOG_RELOAD_LSB_REG);
 		data[1] = data[1] >> 16;
-		outw(data[1],
-			devpriv->i_IobaseAddon +
-			APCI1516_WATCHDOG_RELOAD_VALUE + 2);
+		outw(data[1], devpriv->i_IobaseAddon +
+				APCI1516_WDOG_RELOAD_MSB_REG);
 	}			/* if(data[0]==0) */
 	else {
 		printk("\nThe input parameters are wrong\n");
@@ -180,17 +179,13 @@ static int i_APCI1516_StartStopWriteWatchdog(struct comedi_device *dev,
 
 	switch (data[0]) {
 	case 0:		/* stop the watchdog */
-		outw(0x0, devpriv->i_IobaseAddon + APCI1516_WATCHDOG_ENABLEDISABLE);	/* disable the watchdog */
+		outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		break;
 	case 1:		/* start the watchdog */
-		outw(0x0001,
-			devpriv->i_IobaseAddon +
-			APCI1516_WATCHDOG_ENABLEDISABLE);
+		outw(0x0001, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		break;
 	case 2:		/* Software trigger */
-		outw(0x0201,
-			devpriv->i_IobaseAddon +
-			APCI1516_WATCHDOG_ENABLEDISABLE);
+		outw(0x0201, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		break;
 	default:
 		printk("\nSpecified functionality does not exist\n");
@@ -227,7 +222,7 @@ static int i_APCI1516_ReadWatchdog(struct comedi_device *dev,
 {
 	struct addi_private *devpriv = dev->private;
 
-	data[0] = inw(devpriv->i_IobaseAddon + APCI1516_WATCHDOG_STATUS) & 0x1;
+	data[0] = inw(devpriv->i_IobaseAddon + APCI1516_WDOG_STATUS_REG) & 0x1;
 	return insn->n;
 }
 
@@ -250,9 +245,9 @@ static int i_APCI1516_Reset(struct comedi_device *dev)
 {
 	struct addi_private *devpriv = dev->private;
 
-	outw(0x0, devpriv->iobase + APCI1516_DIGITAL_OP);	/* RESETS THE DIGITAL OUTPUTS */
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WATCHDOG_ENABLEDISABLE);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WATCHDOG_RELOAD_VALUE);
-	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WATCHDOG_RELOAD_VALUE + 2);
+	outw(0x0, devpriv->iobase + APCI1516_DO_REG);
+	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_LSB_REG);
+	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_MSB_REG);
 	return 0;
 }
