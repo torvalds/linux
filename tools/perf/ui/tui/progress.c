@@ -4,7 +4,7 @@
 #include "../ui.h"
 #include "../browser.h"
 
-void ui_progress__update(u64 curr, u64 total, const char *title)
+static void tui_progress__update(u64 curr, u64 total, const char *title)
 {
 	int bar, y;
 	/*
@@ -29,4 +29,14 @@ void ui_progress__update(u64 curr, u64 total, const char *title)
 	SLsmg_fill_region(y, 1, 1, bar, ' ');
 	SLsmg_refresh();
 	pthread_mutex_unlock(&ui__lock);
+}
+
+static struct ui_progress tui_progress_fns =
+{
+	.update		= tui_progress__update,
+};
+
+void ui_progress__init(void)
+{
+	progress_fns = &tui_progress_fns;
 }
