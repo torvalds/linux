@@ -2175,7 +2175,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "cryptd(__driver-cbc-camellia-aesni)",
 		.test = alg_test_null,
-		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -2207,7 +2206,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}, {
 		.alg = "cryptd(__driver-ecb-camellia-aesni)",
 		.test = alg_test_null,
-		.fips_allowed = 1,
 		.suite = {
 			.cipher = {
 				.enc = {
