@@ -11,3 +11,4 @@ header-y += reg.h
 header-y += regdef.h
 header-y += sysinfo.h
 generic-y += exec.h
+generic-y += trace_clock.h

@@ -24,6 +24,7 @@ generic-y += sections.h
 generic-y += siginfo.h
 generic-y += statfs.h
 generic-y += topology.h
+generic-y += trace_clock.h
 generic-y += types.h
 generic-y += word-at-a-time.h
 generic-y += xor.h

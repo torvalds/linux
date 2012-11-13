@@ -488,6 +488,7 @@ static struct {
 	{ trace_clock_local,	"local" },
 	{ trace_clock_global,	"global" },
 	{ trace_clock_counter,	"counter" },
+	ARCH_TRACE_CLOCKS
 };
 
 int trace_clock_id;

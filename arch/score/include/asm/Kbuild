@@ -3,3 +3,4 @@ include include/asm-generic/Kbuild.asm
 header-y +=
 
 generic-y += clkdev.h
+generic-y += trace_clock.h
