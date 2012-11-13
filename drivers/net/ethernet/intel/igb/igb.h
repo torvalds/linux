@@ -386,12 +386,14 @@ struct igb_adapter {
 	char fw_version[32];
 };
 
-#define IGB_FLAG_HAS_MSI           (1 << 0)
-#define IGB_FLAG_DCA_ENABLED       (1 << 1)
-#define IGB_FLAG_QUAD_PORT_A       (1 << 2)
-#define IGB_FLAG_QUEUE_PAIRS       (1 << 3)
-#define IGB_FLAG_DMAC              (1 << 4)
-#define IGB_FLAG_PTP               (1 << 5)
+#define IGB_FLAG_HAS_MSI		(1 << 0)
+#define IGB_FLAG_DCA_ENABLED		(1 << 1)
+#define IGB_FLAG_QUAD_PORT_A		(1 << 2)
+#define IGB_FLAG_QUEUE_PAIRS		(1 << 3)
+#define IGB_FLAG_DMAC			(1 << 4)
+#define IGB_FLAG_PTP			(1 << 5)
+#define IGB_FLAG_RSS_FIELD_IPV4_UDP	(1 << 6)
+#define IGB_FLAG_RSS_FIELD_IPV6_UDP	(1 << 7)
 
 /* DMA Coalescing defines */
 #define IGB_MIN_TXPBSIZE           20408

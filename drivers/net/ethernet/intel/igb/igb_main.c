@@ -2874,17 +2874,20 @@ static void igb_setup_mrqc(struct igb_adapter *adapter)
 
 	/* Don't need to set TUOFL or IPOFL, they default to 1 */
 	wr32(E1000_RXCSUM, rxcsum);
-	/*
-	 * Generate RSS hash based on TCP port numbers and/or
-	 * IPv4/v6 src and dst addresses since UDP cannot be
-	 * hashed reliably due to IP fragmentation
-	 */
 
+	/* Generate RSS hash based on packet types, TCP/UDP
+	 * port numbers and/or IPv4/v6 src and dst addresses
+	 */
 	mrqc = E1000_MRQC_RSS_FIELD_IPV4 |
 	       E1000_MRQC_RSS_FIELD_IPV4_TCP |
 	       E1000_MRQC_RSS_FIELD_IPV6 |
 	       E1000_MRQC_RSS_FIELD_IPV6_TCP |
 	       E1000_MRQC_RSS_FIELD_IPV6_TCP_EX;
+
+	if (adapter->flags & IGB_FLAG_RSS_FIELD_IPV4_UDP)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV4_UDP;
+	if (adapter->flags & IGB_FLAG_RSS_FIELD_IPV6_UDP)
+		mrqc |= E1000_MRQC_RSS_FIELD_IPV6_UDP;
 
 	/* If VMDq is enabled then we set the appropriate mode for that, else
 	 * we default to RSS so that an RSS hash is calculated per packet even
