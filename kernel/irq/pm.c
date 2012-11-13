@@ -103,13 +103,8 @@ int check_wakeup_irqs(void)
 	int irq;
 
 	for_each_irq_desc(irq, desc) {
-		/*
-		 * Only interrupts which are marked as wakeup source
-		 * and have not been disabled before the suspend check
-		 * can abort suspend.
-		 */
 		if (irqd_is_wakeup_set(&desc->irq_data)) {
-			if (desc->depth == 1 && desc->istate & IRQS_PENDING)
+			if (desc->istate & IRQS_PENDING)
 				return -EBUSY;
 			continue;
 		}
