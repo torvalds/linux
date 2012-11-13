@@ -23,8 +23,7 @@ config IIO_ADIS_LIB
 
 config IIO_ADIS_LIB_BUFFER
 	bool
-	select IIO_TRIGGER
-	select IIO_SW_RING
+	select IIO_TRIGGERED_BUFFER
 	help
 	  A set of buffer helper functions for the Analog Devices ADIS* device
 	  family.

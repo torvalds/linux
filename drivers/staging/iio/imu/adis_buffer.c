@@ -7,8 +7,8 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include "../ring_sw.h"
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include  "adis.h"
 
@@ -83,56 +83,6 @@ static irqreturn_t adis_trigger_handler(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static const struct iio_buffer_setup_ops adis_buffer_setup_ops = {
-	.preenable = &iio_sw_buffer_preenable,
-	.postenable = &iio_triggered_buffer_postenable,
-	.predisable = &iio_triggered_buffer_predisable,
-};
-
-static int adis_buffer_setup(struct iio_dev *indio_dev,
-	irqreturn_t (*trigger_handler)(int, void *))
-{
-	int ret = 0;
-	struct iio_buffer *buffer;
-
-	if (!trigger_handler)
-		trigger_handler = &adis_trigger_handler;
-
-	buffer = iio_sw_rb_allocate(indio_dev);
-	if (!buffer) {
-		ret = -ENOMEM;
-		return ret;
-	}
-
-	indio_dev->buffer = buffer;
-	indio_dev->setup_ops = &adis_buffer_setup_ops;
-
-	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
-						 trigger_handler,
-						 IRQF_ONESHOT,
-						 indio_dev,
-						 "%s_consumer%d",
-						 indio_dev->name,
-						 indio_dev->id);
-	if (indio_dev->pollfunc == NULL) {
-		ret = -ENOMEM;
-		goto error_iio_sw_rb_free;
-	}
-
-	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
-	return 0;
-
-error_iio_sw_rb_free:
-	iio_sw_rb_free(indio_dev->buffer);
-	return ret;
-}
-
-static void adis_buffer_cleanup(struct iio_dev *indio_dev)
-{
-	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
-}
-
 /**
  * adis_setup_buffer_and_trigger() - Sets up buffer and trigger for the adis device
  * @adis: The adis device.
@@ -154,30 +104,23 @@ int adis_setup_buffer_and_trigger(struct adis *adis, struct iio_dev *indio_dev,
 {
 	int ret;
 
-	ret = adis_buffer_setup(indio_dev, trigger_handler);
+	if (!trigger_handler)
+		trigger_handler = adis_trigger_handler;
+
+	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
+		trigger_handler, NULL);
 	if (ret)
 		return ret;
-
-	ret = iio_buffer_register(indio_dev,
-				  indio_dev->channels,
-				  indio_dev->num_channels);
-	if (ret) {
-		dev_err(&adis->spi->dev, "Failed to initialize buffer %d\n",
-			ret);
-		goto error_unreg_buffer_funcs;
-	}
 
 	if (adis->spi->irq) {
 		ret = adis_probe_trigger(adis, indio_dev);
 		if (ret)
-			goto error_uninitialize_buffer;
+			goto error_buffer_cleanup;
 	}
 	return 0;
 
-error_uninitialize_buffer:
-	iio_buffer_unregister(indio_dev);
-error_unreg_buffer_funcs:
-	adis_buffer_cleanup(indio_dev);
+error_buffer_cleanup:
+	iio_triggered_buffer_cleanup(indio_dev);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adis_setup_buffer_and_trigger);
@@ -194,7 +137,6 @@ void adis_cleanup_buffer_and_trigger(struct adis *adis,
 {
 	if (adis->spi->irq)
 		adis_remove_trigger(adis);
-	iio_buffer_unregister(indio_dev);
-	adis_buffer_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 }
 EXPORT_SYMBOL_GPL(adis_cleanup_buffer_and_trigger);
