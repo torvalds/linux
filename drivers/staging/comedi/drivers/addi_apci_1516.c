@@ -9,34 +9,43 @@ struct apci1516_private {
 
 #include "addi-data/hwdrv_apci1516.c"
 
-static const struct addi_board apci1516_boardtypes[] = {
+struct apci1516_boardinfo {
+	const char *name;
+	unsigned short vendor;
+	unsigned short device;
+	int di_nchan;
+	int do_nchan;
+	int has_timer;
+};
+
+static const struct apci1516_boardinfo apci1516_boardtypes[] = {
 	{
-		.pc_DriverName		= "apci1016",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1000,
-		.i_NbrDiChannel		= 16,
+		.name		= "apci1016",
+		.vendor		= PCI_VENDOR_ID_ADDIDATA,
+		.device		= 0x1000,
+		.di_nchan	= 16,
 	}, {
-		.pc_DriverName		= "apci1516",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1001,
-		.i_NbrDiChannel		= 8,
-		.i_NbrDoChannel		= 8,
-		.i_Timer		= 1,
+		.name		= "apci1516",
+		.vendor		= PCI_VENDOR_ID_ADDIDATA,
+		.device		= 0x1001,
+		.di_nchan	= 8,
+		.do_nchan	= 8,
+		.has_timer	= 1,
 	}, {
-		.pc_DriverName		= "apci2016",
-		.i_VendorId		= PCI_VENDOR_ID_ADDIDATA,
-		.i_DeviceId		= 0x1002,
-		.i_NbrDoChannel		= 16,
-		.i_Timer		= 1,
+		.name		= "apci2016",
+		.vendor		= PCI_VENDOR_ID_ADDIDATA,
+		.device		= 0x1002,
+		.do_nchan	= 16,
+		.has_timer	= 1,
 	},
 };
 
 static int apci1516_reset(struct comedi_device *dev)
 {
-	const struct addi_board *this_board = comedi_board(dev);
+	const struct apci1516_boardinfo *this_board = comedi_board(dev);
 	struct apci1516_private *devpriv = dev->private;
 
-	if (!this_board->i_Timer)
+	if (!this_board->has_timer)
 		return 0;
 
 	outw(0x0, dev->iobase + APCI1516_DO_REG);
@@ -51,13 +60,13 @@ static const void *addi_find_boardinfo(struct comedi_device *dev,
 				       struct pci_dev *pcidev)
 {
 	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
+	const struct apci1516_boardinfo *this_board;
 	int i;
 
 	for (i = 0; i < dev->driver->num_names; i++) {
 		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
+		if (this_board->vendor == pcidev->vendor &&
+		    this_board->device == pcidev->device)
 			return this_board;
 		p += dev->driver->offset;
 	}
@@ -68,7 +77,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 					  unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
+	const struct apci1516_boardinfo *this_board;
 	struct apci1516_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
@@ -77,7 +86,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
-	dev->board_name = this_board->pc_DriverName;
+	dev->board_name = this_board->name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -97,12 +106,12 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[0];
-	if (this_board->i_NbrDiChannel) {
+	if (this_board->di_nchan) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrDiChannel;
+		s->n_chan = this_board->di_nchan;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->i_NbrDiChannel;
+		s->len_chanlist = this_board->di_nchan;
 		s->range_table = &range_digital;
 		s->io_bits = 0;	/* all bits input */
 		s->insn_bits = apci1516_di_insn_bits;
@@ -111,13 +120,13 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	}
 	/*  Allocate and Initialise DO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (this_board->i_NbrDoChannel) {
+	if (this_board->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags =
 			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = this_board->i_NbrDoChannel;
+		s->n_chan = this_board->do_nchan;
 		s->maxdata = 1;
-		s->len_chanlist = this_board->i_NbrDoChannel;
+		s->len_chanlist = this_board->do_nchan;
 		s->range_table = &range_digital;
 		s->io_bits = 0xf;	/* all bits output */
 		s->insn_bits = apci1516_do_insn_bits;
@@ -127,7 +136,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise Timer Subdevice Structures */
 	s = &dev->subdevices[2];
-	if (this_board->i_Timer) {
+	if (this_board->has_timer) {
 		s->type = COMEDI_SUBD_TIMER;
 		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
 		s->n_chan = 1;
@@ -163,8 +172,8 @@ static struct comedi_driver apci1516_driver = {
 	.auto_attach	= apci1516_auto_attach,
 	.detach		= apci1516_detach,
 	.num_names	= ARRAY_SIZE(apci1516_boardtypes),
-	.board_name	= &apci1516_boardtypes[0].pc_DriverName,
-	.offset		= sizeof(struct addi_board),
+	.board_name	= &apci1516_boardtypes[0].name,
+	.offset		= sizeof(struct apci1516_boardinfo),
 };
 
 static int __devinit apci1516_pci_probe(struct pci_dev *dev,
