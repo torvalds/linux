@@ -63,7 +63,11 @@ static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 
 static int apci1516_reset(struct comedi_device *dev)
 {
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv = dev->private;
+
+	if (!this_board->i_Timer)
+		return 0;
 
 	outw(0x0, devpriv->iobase + APCI1516_DO_REG);
 	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
