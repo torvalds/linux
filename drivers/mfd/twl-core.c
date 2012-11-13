@@ -671,8 +671,15 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 			return PTR_ERR(child);
 	}
 
-	if (IS_ENABLED(CONFIG_PWM_TWL6030) && twl_class_is_6030()) {
-		child = add_child(TWL6030_MODULE_ID1, "twl6030-pwm", NULL, 0,
+	if (IS_ENABLED(CONFIG_PWM_TWL)) {
+		child = add_child(SUB_CHIP_ID1, "twl-pwm", NULL, 0,
+				  false, 0, 0);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+	}
+
+	if (IS_ENABLED(CONFIG_PWM_TWL_LED)) {
+		child = add_child(SUB_CHIP_ID1, "twl-pwmled", NULL, 0,
 				  false, 0, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
