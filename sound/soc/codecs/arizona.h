@@ -94,32 +94,29 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	const struct snd_kcontrol_new name##_mux =	\
 		SOC_DAPM_VALUE_ENUM("Route", name##_enum)
 
+#define ARIZONA_MUX_ENUMS(name, base_reg) \
+	static ARIZONA_MUX_ENUM_DECL(name##_enum, base_reg);      \
+	static ARIZONA_MUX_CTL_DECL(name)
+
 #define ARIZONA_MIXER_ENUMS(name, base_reg) \
-	static ARIZONA_MUX_ENUM_DECL(name##_in1_enum, base_reg);      \
-	static ARIZONA_MUX_ENUM_DECL(name##_in2_enum, base_reg + 2);  \
-	static ARIZONA_MUX_ENUM_DECL(name##_in3_enum, base_reg + 4);  \
-	static ARIZONA_MUX_ENUM_DECL(name##_in4_enum, base_reg + 6);  \
-	static ARIZONA_MUX_CTL_DECL(name##_in1); \
-	static ARIZONA_MUX_CTL_DECL(name##_in2); \
-	static ARIZONA_MUX_CTL_DECL(name##_in3); \
-	static ARIZONA_MUX_CTL_DECL(name##_in4)
+	ARIZONA_MUX_ENUMS(name##_in1, base_reg);     \
+	ARIZONA_MUX_ENUMS(name##_in2, base_reg + 2); \
+	ARIZONA_MUX_ENUMS(name##_in3, base_reg + 4); \
+	ARIZONA_MUX_ENUMS(name##_in4, base_reg + 6)
 
 #define ARIZONA_DSP_AUX_ENUMS(name, base_reg) \
-	static ARIZONA_MUX_ENUM_DECL(name##_aux1_enum, base_reg);	\
-	static ARIZONA_MUX_ENUM_DECL(name##_aux2_enum, base_reg + 8);	\
-	static ARIZONA_MUX_ENUM_DECL(name##_aux3_enum, base_reg + 16);	\
-	static ARIZONA_MUX_ENUM_DECL(name##_aux4_enum, base_reg + 24);	\
-	static ARIZONA_MUX_ENUM_DECL(name##_aux5_enum, base_reg + 32);	\
-	static ARIZONA_MUX_ENUM_DECL(name##_aux6_enum, base_reg + 40);	\
-	static ARIZONA_MUX_CTL_DECL(name##_aux1); \
-	static ARIZONA_MUX_CTL_DECL(name##_aux2); \
-	static ARIZONA_MUX_CTL_DECL(name##_aux3); \
-	static ARIZONA_MUX_CTL_DECL(name##_aux4); \
-	static ARIZONA_MUX_CTL_DECL(name##_aux5); \
-	static ARIZONA_MUX_CTL_DECL(name##_aux6)
+	ARIZONA_MUX_ENUMS(name##_aux1, base_reg);	\
+	ARIZONA_MUX_ENUMS(name##_aux2, base_reg + 8);	\
+	ARIZONA_MUX_ENUMS(name##_aux3, base_reg + 16);	\
+	ARIZONA_MUX_ENUMS(name##_aux4, base_reg + 24);	\
+	ARIZONA_MUX_ENUMS(name##_aux5, base_reg + 32);	\
+	ARIZONA_MUX_ENUMS(name##_aux6, base_reg + 40)
 
 #define ARIZONA_MUX(name, ctrl) \
 	SND_SOC_DAPM_VALUE_MUX(name, SND_SOC_NOPM, 0, 0, ctrl)
+
+#define ARIZONA_MUX_WIDGETS(name, name_str) \
+	ARIZONA_MUX(name_str " Input", &name##_mux)
 
 #define ARIZONA_MIXER_WIDGETS(name, name_str)	\
 	ARIZONA_MUX(name_str " Input 1", &name##_in1_mux), \
@@ -137,6 +134,9 @@ extern int arizona_mixer_values[ARIZONA_NUM_MIXER_INPUTS];
 	ARIZONA_MUX(name_str " Aux 4", &name##_aux4_mux), \
 	ARIZONA_MUX(name_str " Aux 5", &name##_aux5_mux), \
 	ARIZONA_MUX(name_str " Aux 6", &name##_aux6_mux)
+
+#define ARIZONA_MUX_ROUTES(name) \
+	ARIZONA_MIXER_INPUT_ROUTES(name " Input")
 
 #define ARIZONA_MIXER_ROUTES(widget, name) \
 	{ widget, NULL, name " Mixer" },         \
