@@ -18,3 +18,9 @@ void ui_progress__update(u64 curr, u64 total, const char *title)
 {
 	return progress_fns->update(curr, total, title);
 }
+
+void ui_progress__finish(void)
+{
+	if (progress_fns->finish)
+		progress_fns->finish();
+}

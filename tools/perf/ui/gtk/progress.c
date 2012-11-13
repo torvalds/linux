@@ -40,8 +40,17 @@ static void gtk_progress_update(u64 curr, u64 total, const char *title)
 		gtk_main_iteration();
 }
 
+static void gtk_progress_finish(void)
+{
+	/* this will also destroy all of its children */
+	gtk_widget_destroy(dialog);
+
+	dialog = NULL;
+}
+
 static struct ui_progress gtk_progress_fns = {
 	.update		= gtk_progress_update,
+	.finish		= gtk_progress_finish,
 };
 
 void perf_gtk__init_progress(void)
