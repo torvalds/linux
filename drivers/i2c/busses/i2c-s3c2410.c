@@ -38,6 +38,7 @@
 #include <linux/io.h>
 #include <linux/of_i2c.h>
 #include <linux/of_gpio.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/irq.h>
 
@@ -82,6 +83,7 @@ struct s3c24xx_i2c {
 
 	struct s3c2410_platform_i2c	*pdata;
 	int			gpios[2];
+	struct pinctrl          *pctrl;
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
@@ -860,9 +862,8 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	if (pdata->cfg_gpio)
 		pdata->cfg_gpio(to_platform_device(i2c->dev));
-	else
-		if (s3c24xx_i2c_parse_dt_gpio(i2c))
-			return -EINVAL;
+	else if (IS_ERR(i2c->pctrl) && s3c24xx_i2c_parse_dt_gpio(i2c))
+		return -EINVAL;
 
 	/* write slave address */
 
@@ -1003,6 +1004,8 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
 
+	i2c->pctrl = devm_pinctrl_get_select_default(i2c->dev);
+
 	/* initialise the i2c controller */
 
 	ret = s3c24xx_i2c_init(i2c);
@@ -1092,7 +1095,8 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	clk_disable_unprepare(i2c->clk);
 	clk_put(i2c->clk);
 
-	s3c24xx_i2c_dt_gpio_free(i2c);
+	if (pdev->dev.of_node && IS_ERR(i2c->pctrl))
+		s3c24xx_i2c_dt_gpio_free(i2c);
 
 	return 0;
 }
