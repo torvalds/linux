@@ -279,14 +279,6 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = mfd_add_devices(tps65910->dev, -1,
-			      tps65910s, ARRAY_SIZE(tps65910s),
-			      NULL, 0, NULL);
-	if (ret < 0) {
-		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
-		return ret;
-	}
-
 	init_data->irq = pmic_plat_data->irq;
 	init_data->irq_base = pmic_plat_data->irq_base;
 
@@ -297,6 +289,14 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	if (pmic_plat_data->pm_off && !pm_power_off) {
 		tps65910_i2c_client = i2c;
 		pm_power_off = tps65910_power_off;
+	}
+
+	ret = mfd_add_devices(tps65910->dev, -1,
+			      tps65910s, ARRAY_SIZE(tps65910s),
+			      NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
+		return ret;
 	}
 
 	return ret;
