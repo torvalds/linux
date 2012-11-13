@@ -1252,13 +1252,14 @@ static void hcd_reinit(dwc_otg_hcd_t *_hcd)
 		list_del(item);
 		item = _hcd->free_hc_list.next;
 	}
+#if 0
 	num_channels = _hcd->core_if->core_params->host_channels;
 	for (i = 0; i < num_channels; i++) {
 		channel = _hcd->hc_ptr_array[i];
 		list_add_tail(&channel->hc_list_entry, &_hcd->free_hc_list);
 		dwc_otg_hc_cleanup(_hcd->core_if, channel);
 	}
-
+#endif
 	/* Initialize the DWC core for host mode operation. */
 	dwc_otg_core_host_init(_hcd->core_if);
 }

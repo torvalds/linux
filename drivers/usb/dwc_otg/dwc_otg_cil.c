@@ -66,6 +66,7 @@
 #include "dwc_otg_driver.h"
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd.h"
+#include "dwc_otg_hcd.h"
 #include "usbdev_rk.h"
 static dwc_otg_core_if_t * dwc_core_if = NULL;
 /** 
@@ -917,6 +918,8 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 	dwc_otg_hc_regs_t	*hc_regs;
 	int			num_channels;
 	gotgctl_data_t	gotgctl = {.d32 = 0};
+	dwc_hc_t		*channel;
+	dwc_otg_hcd_t *_hcd = _core_if->otg_dev->hcd;
 	struct dwc_otg_platform_data *pldata;
     pldata = _core_if->otg_dev->pldata;
 
@@ -1008,6 +1011,11 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 			}
 		} 
 		while (hcchar.b.chen);
+
+		/* add channel to free list */
+		channel = _core_if->otg_dev->hcd->hc_ptr_array[i];
+		list_add_tail(&channel->hc_list_entry, &_hcd->free_hc_list);
+		dwc_otg_hc_cleanup(_hcd->core_if, channel);
 	}
 
 	/* Turn on the vbus power. */
