@@ -722,6 +722,27 @@ static int get_event_modifier(struct event_modifier *mod, char *str,
 	return 0;
 }
 
+/*
+ * Basic modifier sanity check to validate it contains only one
+ * instance of any modifier (apart from 'p') present.
+ */
+static int check_modifier(char *str)
+{
+	char *p = str;
+
+	/* The sizeof includes 0 byte as well. */
+	if (strlen(str) > (sizeof("ukhGHppp") - 1))
+		return -1;
+
+	while (*p) {
+		if (*p != 'p' && strchr(p + 1, *p))
+			return -1;
+		p++;
+	}
+
+	return 0;
+}
+
 int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 {
 	struct perf_evsel *evsel;
@@ -729,6 +750,9 @@ int parse_events__modifier_event(struct list_head *list, char *str, bool add)
 
 	if (str == NULL)
 		return 0;
+
+	if (check_modifier(str))
+		return -EINVAL;
 
 	if (!add && get_event_modifier(&mod, str, NULL))
 		return -EINVAL;
