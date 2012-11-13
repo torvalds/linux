@@ -238,7 +238,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[0];
 	if (this_board->di_nchan) {
 		s->type = COMEDI_SUBD_DI;
-		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags = SDF_READABLE;
 		s->n_chan = this_board->di_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
@@ -250,8 +250,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[1];
 	if (this_board->do_nchan) {
 		s->type = COMEDI_SUBD_DO;
-		s->subdev_flags =
-			SDF_READABLE | SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags = SDF_WRITEABLE;
 		s->n_chan = this_board->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
@@ -264,7 +263,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	s = &dev->subdevices[2];
 	if (this_board->has_timer) {
 		s->type = COMEDI_SUBD_TIMER;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
+		s->subdev_flags = SDF_WRITEABLE;
 		s->n_chan = 1;
 		s->maxdata = 0;
 		s->range_table = &range_digital;
