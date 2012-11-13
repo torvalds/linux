@@ -173,6 +173,13 @@ config MACH_NETSPACE_MINI_V2_DT
 	  Network Space Mini v2 NAS (aka SafeBox), using Flattened
 	  Device Tree.
 
+config MACH_OPENBLOCKS_A6_DT
+	bool "Plat'Home OpenBlocks A6 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Plat'Home OpenBlocks A6 (Flattened Device Tree).
+
 config MACH_TOPKICK_DT
 	bool "USI Topkick (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT

@@ -134,6 +134,12 @@ void nsa310_init(void);
 static inline void nsa310_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_OPENBLOCKS_A6_DT
+void openblocks_a6_init(void);
+#else
+static inline void openblocks_a6_init(void) {};
+#endif
+
 #ifdef CONFIG_MACH_TOPKICK_DT
 void usi_topkick_init(void);
 #else
