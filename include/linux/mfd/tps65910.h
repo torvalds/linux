@@ -915,10 +915,6 @@ struct tps65910_platform_data {
 	int irq_base;
 };
 
-int tps65910_irq_init(struct tps65910 *tps65910, int irq,
-		struct tps65910_platform_data *pdata);
-int tps65910_irq_exit(struct tps65910 *tps65910);
-
 static inline int tps65910_chip_id(struct tps65910 *tps65910)
 {
 	return tps65910->id;
