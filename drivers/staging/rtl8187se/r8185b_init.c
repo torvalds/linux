@@ -1231,11 +1231,9 @@ bool MgntActSet_RF_State(struct net_device *dev, RT_RF_POWER_STATE StateToSet, u
 			priv->RfOffReason = 0;
 			bActionAllowed = true;
 
-			if (rtState == eRfOff && ChangeSource >= RF_CHANGE_BY_HW && !priv->bInHctTest)
+			if (rtState == eRfOff && ChangeSource >= RF_CHANGE_BY_HW)
 				bConnectBySSID = true;
-
-		} else
-			;
+		}
 		break;
 
 	case eRfOff:

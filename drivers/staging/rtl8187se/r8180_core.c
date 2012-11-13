@@ -1437,14 +1437,9 @@ void rtl8180_rx(struct net_device *dev)
 				dev_kfree_skb_any(priv->rx_skb);
 				priv->stats.rxnolast++;
 			}
-			/* support for prism header has been originally added by Christian */
-			if (priv->prism_hdr && priv->ieee80211->iw_mode == IW_MODE_MONITOR) {
-
-			} else {
-				priv->rx_skb = dev_alloc_skb(len+2);
-				if (!priv->rx_skb)
-					goto drop;
-			}
+			priv->rx_skb = dev_alloc_skb(len+2);
+			if (!priv->rx_skb)
+				goto drop;
 
 			priv->rx_skb_complete = 0;
 			priv->rx_skb->dev = dev;
@@ -1717,8 +1712,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 	int remain;
 	int buflen;
 	int count;
-	u16 duration;
-	short ext;
 	struct buffer *buflist;
 	struct ieee80211_hdr_3addr *frag_hdr = (struct ieee80211_hdr_3addr *)txbuf;
 	u8 dest[ETH_ALEN];
@@ -1913,15 +1906,6 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 		*(tail+5) |= (11<<8); /* (priv->retry_data<<8); */ /* retry lim; */
 
 		*tail = *tail | ((rate&0xf) << 24);
-
-		/* hw_plcp_len is not used for rtl8180 chip */
-		/* FIXME */
-		if (!priv->hw_plcp_len) {
-			duration = rtl8180_len2duration(len, rate, &ext);
-			*(tail+1) = *(tail+1) | ((duration & 0x7fff)<<16);
-			if (ext)
-				*(tail+1) = *(tail+1) | (1<<31); /* plcp length extension */
-		}
 
 		if (morefrag)
 			*tail = (*tail) | (1<<17); /* more fragment */
@@ -2219,7 +2203,6 @@ void rtl8180_wmm_param_update(struct work_struct *work)
 	}
 }
 
-void rtl8180_tx_irq_wq(struct work_struct *work);
 void rtl8180_restart_wq(struct work_struct *work);
 /* void rtl8180_rq_tx_ack(struct work_struct *work); */
 void rtl8180_watch_dog_wq(struct work_struct *work);
@@ -2408,7 +2391,6 @@ short rtl8180_init(struct net_device *dev)
 	priv->RFChangeInProgress = false;
 	priv->SetRFPowerStateInProgress = false;
 	priv->RFProgType = 0;
-	priv->bInHctTest = false;
 
 	priv->irq_enabled = 0;
 
@@ -2432,14 +2414,12 @@ short rtl8180_init(struct net_device *dev)
 	priv->ieee80211->ps_is_queue_empty = rtl8180_is_tx_queue_empty;
 
 	priv->hw_wep = hwwep;
-	priv->prism_hdr = 0;
 	priv->dev = dev;
 	priv->retry_rts = DEFAULT_RETRY_RTS;
 	priv->retry_data = DEFAULT_RETRY_DATA;
 	priv->RFChangeInProgress = false;
 	priv->SetRFPowerStateInProgress = false;
 	priv->RFProgType = 0;
-	priv->bInHctTest = false;
 	priv->bInactivePs = true; /* false; */
 	priv->ieee80211->bInactivePs = priv->bInactivePs;
 	priv->bSwRfProcessing = false;
@@ -2522,15 +2502,12 @@ short rtl8180_init(struct net_device *dev)
 	priv->RegBModeGainStage = 1;
 
 	priv->promisc = (dev->flags & IFF_PROMISC) ? 1 : 0;
-	spin_lock_init(&priv->irq_lock);
 	spin_lock_init(&priv->irq_th_lock);
 	spin_lock_init(&priv->tx_lock);
 	spin_lock_init(&priv->ps_lock);
 	spin_lock_init(&priv->rf_ps_lock);
 	sema_init(&priv->wx_sem, 1);
-	sema_init(&priv->rf_state, 1);
 	INIT_WORK(&priv->reset_wq, (void *)rtl8180_restart_wq);
-	INIT_WORK(&priv->tx_irq_wq, (void *)rtl8180_tx_irq_wq);
 	INIT_DELAYED_WORK(&priv->ieee80211->hw_wakeup_wq,
 			  (void *)rtl8180_hw_wakeup_wq);
 	INIT_DELAYED_WORK(&priv->ieee80211->hw_sleep_wq,
@@ -2572,13 +2549,9 @@ short rtl8180_init(struct net_device *dev)
 	priv->ieee80211->stop_send_beacons = rtl8180_beacon_tx_disable;
 	priv->ieee80211->fts = DEFAULT_FRAG_THRESHOLD;
 
-	priv->MWIEnable = 0;
-
 	priv->ShortRetryLimit = 7;
 	priv->LongRetryLimit = 7;
 	priv->EarlyRxThreshold = 7;
-
-	priv->CSMethod = (0x01 << 29);
 
 	priv->TransmitConfig =	(1<<TCR_DurProcMode_OFFSET) |
 				(7<<TCR_MXDMA_OFFSET) |
@@ -2605,13 +2578,9 @@ short rtl8180_init(struct net_device *dev)
 	priv->InitialGain = 6;
 
 	DMESG("MAC controller is a RTL8187SE b/g");
-	priv->phy_ver = 2;
 
 	priv->ieee80211->modulation |= IEEE80211_OFDM_MODULATION;
 	priv->ieee80211->short_slot = 1;
-
-	/* just for sync 85 */
-	priv->enable_gpio0 = 0;
 
 	eeprom_93cx6_read(&eeprom, EEPROM_SW_REVD_OFFSET, &usValue);
 	DMESG("usValue is %#hx\n", usValue);
@@ -2638,9 +2607,6 @@ short rtl8180_init(struct net_device *dev)
 	else
 		/* 1: main, 2: aux. */
 		priv->bDefaultAntenna1 = priv->RegDefaultAntenna == 2;
-
-	/* rtl8185 can calc plcp len in HW. */
-	priv->hw_plcp_len = 1;
 
 	priv->plcp_preamble_mode = 2;
 	/* the eeprom type is stored in RCR register bit #6 */
@@ -3594,15 +3560,6 @@ void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 	spin_unlock_irqrestore(&priv->tx_lock, flag);
 }
 
-void rtl8180_tx_irq_wq(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct ieee80211_device * ieee = (struct ieee80211_device *)
-		container_of(dwork, struct ieee80211_device, watch_dog_wq);
-	struct net_device *dev = ieee->dev;
-
-	rtl8180_tx_isr(dev, MANAGE_PRIORITY, 0);
-}
 irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 {
 	struct net_device *dev = (struct net_device *) netdev;

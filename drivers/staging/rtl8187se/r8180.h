@@ -327,12 +327,8 @@ typedef struct r8180_priv
 	int irq;
 	struct ieee80211_device *ieee80211;
 
-	short phy_ver; /* meaningful for rtl8225 1:A 2:B 3:C */
-	short enable_gpio0;
-	short hw_plcp_len;
 	short plcp_preamble_mode; // 0:auto 1:short 2:long
 
-	spinlock_t irq_lock;
 	spinlock_t irq_th_lock;
 	spinlock_t tx_lock;
 	spinlock_t ps_lock;
@@ -350,7 +346,6 @@ typedef struct r8180_priv
 	u8 channel_plan;  // it's the channel plan index
 	short up;
 	short crcmon; //if 1 allow bad crc frame reception in monitor mode
-	short prism_hdr;
 
 	struct timer_list scan_timer;
 	/*short scanpending;
@@ -359,7 +354,6 @@ typedef struct r8180_priv
 	u8 active_probe;
 	//u8 active_scan_num;
 	struct semaphore wx_sem;
-	struct semaphore rf_state;
 	short hw_wep;
 
 	short digphy;
@@ -489,7 +483,6 @@ typedef struct r8180_priv
 	RT_RF_POWER_STATE eRFPowerState;
 	u32 RfOffReason;
 	bool RFChangeInProgress;
-	bool bInHctTest;
 	bool SetRFPowerStateInProgress;
 	u8   RFProgType;
 	bool bLeisurePs;
@@ -616,15 +609,12 @@ typedef struct r8180_priv
 //	struct workqueue_struct *workqueue;
 	struct work_struct reset_wq;
 	struct work_struct watch_dog_wq;
-	struct work_struct tx_irq_wq;
 	short ack_tx_to_ieee;
 
 	u8 PowerProfile;
-	u32 CSMethod;
 	u8 dma_poll_stop_mask;
 
 	//u8 RegThreeWireMode;
-	u8 MWIEnable;
 	u16 ShortRetryLimit;
 	u16 LongRetryLimit;
 	u16 EarlyRxThreshold;
