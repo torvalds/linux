@@ -1060,4 +1060,6 @@ static const u32 ar9485_1_1_mac_core[][2] = {
 	{0x000083d0, 0x000301ff},
 };
 
+#define ar9485_1_1_baseband_core_txfir_coeff_japan_2484 ar9462_2p0_baseband_core_txfir_coeff_japan_2484
+
 #endif /* INITVALS_9485_H */

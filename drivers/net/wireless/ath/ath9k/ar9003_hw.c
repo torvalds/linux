@@ -35,12 +35,6 @@
  */
 static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 {
-#define AR9462_BB_CTX_COEFJ(x)	\
-		ar9462_##x##_baseband_core_txfir_coeff_japan_2484
-
-#define AR9462_BBC_TXIFR_COEFFJ \
-		ar9462_2p0_baseband_core_txfir_coeff_japan_2484
-
 	if (AR_SREV_9330_11(ah)) {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
@@ -69,6 +63,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9331_common_rx_gain_1p1);
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9331_modes_lowest_ob_db_tx_gain_1p1);
+
+		/* Japan 2484 Mhz CCK */
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9331_1p1_baseband_core_txfir_coeff_japan_2484);
 
 		/* additional clock settings */
 		if (ah->is_clk_25mhz)
@@ -105,6 +103,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9331_common_rx_gain_1p2);
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9331_modes_lowest_ob_db_tx_gain_1p2);
+
+		/* Japan 2484 Mhz CCK */
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9331_1p2_baseband_core_txfir_coeff_japan_2484);
 
 		/* additional clock settings */
 		if (ah->is_clk_25mhz)
@@ -180,6 +182,10 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 				ar9485_modes_lowest_ob_db_tx_gain_1_1);
 
+		/* Japan 2484 Mhz CCK */
+		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
+			       ar9485_1_1_baseband_core_txfir_coeff_japan_2484);
+
 		/* Load PCIE SERDES settings from INI */
 
 		/* Awake Setting */
@@ -229,9 +235,7 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ar9462_modes_fast_clock_2p0);
 
 		INIT_INI_ARRAY(&ah->iniCckfirJapan2484,
-				AR9462_BB_CTX_COEFJ(2p0));
-
-		INIT_INI_ARRAY(&ah->ini_japan2484, AR9462_BBC_TXIFR_COEFFJ);
+			       ar9462_2p0_baseband_core_txfir_coeff_japan_2484);
 	} else if (AR_SREV_9550(ah)) {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_CORE],
