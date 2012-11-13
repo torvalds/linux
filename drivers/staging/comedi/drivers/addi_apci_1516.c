@@ -9,7 +9,6 @@ struct apci1516_private {
 
 struct apci1516_boardinfo {
 	const char *name;
-	unsigned short vendor;
 	unsigned short device;
 	int di_nchan;
 	int do_nchan;
@@ -19,19 +18,16 @@ struct apci1516_boardinfo {
 static const struct apci1516_boardinfo apci1516_boardtypes[] = {
 	{
 		.name		= "apci1016",
-		.vendor		= PCI_VENDOR_ID_ADDIDATA,
 		.device		= 0x1000,
 		.di_nchan	= 16,
 	}, {
 		.name		= "apci1516",
-		.vendor		= PCI_VENDOR_ID_ADDIDATA,
 		.device		= 0x1001,
 		.di_nchan	= 8,
 		.do_nchan	= 8,
 		.has_timer	= 1,
 	}, {
 		.name		= "apci2016",
-		.vendor		= PCI_VENDOR_ID_ADDIDATA,
 		.device		= 0x1002,
 		.do_nchan	= 16,
 		.has_timer	= 1,
@@ -54,19 +50,16 @@ static int apci1516_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
+static const void *apci1516_find_boardinfo(struct comedi_device *dev,
+					   struct pci_dev *pcidev)
 {
-	const void *p = dev->driver->board_name;
 	const struct apci1516_boardinfo *this_board;
 	int i;
 
 	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->vendor == pcidev->vendor &&
-		    this_board->device == pcidev->device)
+		this_board = &apci1516_boardtypes[i];
+		if (this_board->device == pcidev->device)
 			return this_board;
-		p += dev->driver->offset;
 	}
 	return NULL;
 }
@@ -80,7 +73,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
+	this_board = apci1516_find_boardinfo(dev, pcidev);
 	if (!this_board)
 		return -ENODEV;
 	dev->board_ptr = this_board;
@@ -169,9 +162,6 @@ static struct comedi_driver apci1516_driver = {
 	.module		= THIS_MODULE,
 	.auto_attach	= apci1516_auto_attach,
 	.detach		= apci1516_detach,
-	.num_names	= ARRAY_SIZE(apci1516_boardtypes),
-	.board_name	= &apci1516_boardtypes[0].name,
-	.offset		= sizeof(struct apci1516_boardinfo),
 };
 
 static int __devinit apci1516_pci_probe(struct pci_dev *dev,
