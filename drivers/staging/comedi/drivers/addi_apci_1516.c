@@ -33,6 +33,13 @@
 #include "comedi_fc.h"
 
 /*
+ * PCI device ids supported by this driver
+ */
+#define PCI_DEVICE_ID_APCI1016		0x1000
+#define PCI_DEVICE_ID_APCI1516		0x1001
+#define PCI_DEVICE_ID_APCI2016		0x1002
+
+/*
  * PCI bar 1 I/O Register map
  */
 #define APCI1516_DI_REG				0x00
@@ -60,17 +67,17 @@ struct apci1516_boardinfo {
 static const struct apci1516_boardinfo apci1516_boardtypes[] = {
 	{
 		.name		= "apci1016",
-		.device		= 0x1000,
+		.device		= PCI_DEVICE_ID_APCI1016,
 		.di_nchan	= 16,
 	}, {
 		.name		= "apci1516",
-		.device		= 0x1001,
+		.device		= PCI_DEVICE_ID_APCI1516,
 		.di_nchan	= 8,
 		.do_nchan	= 8,
 		.has_timer	= 1,
 	}, {
 		.name		= "apci2016",
-		.device		= 0x1002,
+		.device		= PCI_DEVICE_ID_APCI2016,
 		.do_nchan	= 16,
 		.has_timer	= 1,
 	},
@@ -309,9 +316,9 @@ static void __devexit apci1516_pci_remove(struct pci_dev *dev)
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci1516_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1000) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1001) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, 0x1002) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1016) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI1516) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADDIDATA, PCI_DEVICE_ID_APCI2016) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, apci1516_pci_table);
