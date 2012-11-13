@@ -3048,8 +3048,8 @@ static struct clk traceclk_fck = {
 /* SR clocks */
 
 /* SmartReflex fclk (VDD1) */
-static struct clk sr1_fck = {
-	.name		= "sr1_fck",
+static struct clk smartreflex_mpu_iva_fck = {
+	.name		= "smartreflex_mpu_iva_fck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &sys_ck,
 	.enable_reg	= OMAP_CM_REGADDR(WKUP_MOD, CM_FCLKEN),
@@ -3059,8 +3059,8 @@ static struct clk sr1_fck = {
 };
 
 /* SmartReflex fclk (VDD2) */
-static struct clk sr2_fck = {
-	.name		= "sr2_fck",
+static struct clk smartreflex_core_fck = {
+	.name		= "smartreflex_core_fck",
 	.ops		= &clkops_omap2_dflt_wait,
 	.parent		= &sys_ck,
 	.enable_reg	= OMAP_CM_REGADDR(WKUP_MOD, CM_FCLKEN),
@@ -3476,8 +3476,8 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"atclk_fck",	&atclk_fck,	CK_3XXX),
 	CLK(NULL,	"traceclk_src_fck", &traceclk_src_fck, CK_3XXX),
 	CLK(NULL,	"traceclk_fck",	&traceclk_fck,	CK_3XXX),
-	CLK(NULL,	"sr1_fck",	&sr1_fck,	CK_34XX | CK_36XX),
-	CLK(NULL,	"sr2_fck",	&sr2_fck,	CK_34XX | CK_36XX),
+	CLK(NULL,	"smartreflex_mpu_iva_fck",	&smartreflex_mpu_iva_fck,	CK_34XX | CK_36XX),
+	CLK(NULL,	"smartreflex_core_fck",	&smartreflex_core_fck,	CK_34XX | CK_36XX),
 	CLK(NULL,	"sr_l4_ick",	&sr_l4_ick,	CK_34XX | CK_36XX),
 	CLK(NULL,	"secure_32k_fck", &secure_32k_fck, CK_3XXX),
 	CLK(NULL,	"gpt12_fck",	&gpt12_fck,	CK_3XXX),

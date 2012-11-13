@@ -547,16 +547,16 @@ static struct clk mcasp1_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk smartreflex0_fck = {
-	.name		= "smartreflex0_fck",
+static struct clk smartreflex_mpu_fck = {
+	.name		= "smartreflex_mpu_fck",
 	.clkdm_name	= "l4_wkup_clkdm",
 	.parent		= &sys_clkin_ck,
 	.ops		= &clkops_null,
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk smartreflex1_fck = {
-	.name		= "smartreflex1_fck",
+static struct clk smartreflex_core_fck = {
+	.name		= "smartreflex_core_fck",
 	.clkdm_name	= "l4_wkup_clkdm",
 	.parent		= &sys_clkin_ck,
 	.ops		= &clkops_null,
@@ -1038,8 +1038,8 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"mcasp1_fck",		&mcasp1_fck,	CK_AM33XX),
 	CLK("NULL",	"mmc2_fck",		&mmc2_fck,	CK_AM33XX),
 	CLK(NULL,	"mmu_fck",		&mmu_fck,	CK_AM33XX),
-	CLK(NULL,	"smartreflex0_fck",	&smartreflex0_fck,	CK_AM33XX),
-	CLK(NULL,	"smartreflex1_fck",	&smartreflex1_fck,	CK_AM33XX),
+	CLK(NULL,	"smartreflex_mpu_fck",	&smartreflex_mpu_fck,	CK_AM33XX),
+	CLK(NULL,	"smartreflex_core_fck",	&smartreflex_core_fck,	CK_AM33XX),
 	CLK(NULL,	"timer1_fck",		&timer1_fck,	CK_AM33XX),
 	CLK(NULL,	"timer2_fck",		&timer2_fck,	CK_AM33XX),
 	CLK(NULL,	"timer3_fck",		&timer3_fck,	CK_AM33XX),
@@ -1072,6 +1072,8 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"gfx_fck_div_ck",	&gfx_fck_div_ck,	CK_AM33XX),
 	CLK(NULL,	"sysclkout_pre_ck",	&sysclkout_pre_ck,	CK_AM33XX),
 	CLK(NULL,	"clkout2_ck",		&clkout2_ck,	CK_AM33XX),
+	CLK(NULL,	"timer_32k_ck",		&clkdiv32k_ick,	CK_AM33XX),
+	CLK(NULL,	"timer_sys_ck",		&sys_clkin_ck,	CK_AM33XX),
 };
 
 int __init am33xx_clk_init(void)
