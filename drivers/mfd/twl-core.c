@@ -344,7 +344,7 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	twl = &twl_modules[sid];
 
 	ret = regmap_bulk_write(twl->regmap, twl_map[mod_no].base + reg,
-				&value[1], num_bytes);
+				value, num_bytes);
 
 	if (ret)
 		pr_err("%s: Write failed (mod %d, reg 0x%02x count %d)\n",
@@ -406,12 +406,7 @@ EXPORT_SYMBOL(twl_i2c_read);
  */
 int twl_i2c_write_u8(u8 mod_no, u8 value, u8 reg)
 {
-
-	/* 2 bytes offset 1 contains the data offset 0 is used by i2c_write */
-	u8 temp_buffer[2] = { 0 };
-	/* offset 1 contains the data */
-	temp_buffer[1] = value;
-	return twl_i2c_write(mod_no, temp_buffer, reg, 1);
+	return twl_i2c_write(mod_no, &value, reg, 1);
 }
 EXPORT_SYMBOL(twl_i2c_write_u8);
 

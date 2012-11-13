@@ -501,7 +501,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		} imr;
 
 		/* byte[0] gets overwritten as we write ... */
-		imr.word = cpu_to_le32(agent->imr << 8);
+		imr.word = cpu_to_le32(agent->imr);
 		agent->imr_change_pending = false;
 
 		/* write the whole mask ... simpler than subsetting it */
@@ -526,7 +526,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		 * any processor on the other IRQ line, EDR registers are
 		 * shared.
 		 */
-		status = twl_i2c_read(sih->module, bytes + 1,
+		status = twl_i2c_read(sih->module, bytes,
 				sih->edr_offset, sih->bytes_edr);
 		if (status) {
 			pr_err("twl4030: %s, %s --> %d\n", __func__,
@@ -538,7 +538,7 @@ static void twl4030_sih_bus_sync_unlock(struct irq_data *data)
 		while (edge_change) {
 			int		i = fls(edge_change) - 1;
 			struct irq_data	*idata;
-			int		byte = 1 + (i >> 2);
+			int		byte = i >> 2;
 			int		off = (i & 0x3) * 2;
 			unsigned int	type;
 

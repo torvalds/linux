@@ -233,7 +233,7 @@ static int twl_rtc_alarm_irq_enable(struct device *dev, unsigned enabled)
  */
 static int twl_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	unsigned char rtc_data[ALL_TIME_REGS + 1];
+	unsigned char rtc_data[ALL_TIME_REGS];
 	int ret;
 	u8 save_control;
 	u8 rtc_control;
@@ -300,15 +300,15 @@ static int twl_rtc_read_time(struct device *dev, struct rtc_time *tm)
 static int twl_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	unsigned char save_control;
-	unsigned char rtc_data[ALL_TIME_REGS + 1];
+	unsigned char rtc_data[ALL_TIME_REGS];
 	int ret;
 
-	rtc_data[1] = bin2bcd(tm->tm_sec);
-	rtc_data[2] = bin2bcd(tm->tm_min);
-	rtc_data[3] = bin2bcd(tm->tm_hour);
-	rtc_data[4] = bin2bcd(tm->tm_mday);
-	rtc_data[5] = bin2bcd(tm->tm_mon + 1);
-	rtc_data[6] = bin2bcd(tm->tm_year - 100);
+	rtc_data[0] = bin2bcd(tm->tm_sec);
+	rtc_data[1] = bin2bcd(tm->tm_min);
+	rtc_data[2] = bin2bcd(tm->tm_hour);
+	rtc_data[3] = bin2bcd(tm->tm_mday);
+	rtc_data[4] = bin2bcd(tm->tm_mon + 1);
+	rtc_data[5] = bin2bcd(tm->tm_year - 100);
 
 	/* Stop RTC while updating the TC registers */
 	ret = twl_rtc_read_u8(&save_control, REG_RTC_CTRL_REG);
@@ -341,7 +341,7 @@ out:
  */
 static int twl_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	unsigned char rtc_data[ALL_TIME_REGS + 1];
+	unsigned char rtc_data[ALL_TIME_REGS];
 	int ret;
 
 	ret = twl_i2c_read(TWL_MODULE_RTC, rtc_data,
@@ -368,19 +368,19 @@ static int twl_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static int twl_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	unsigned char alarm_data[ALL_TIME_REGS + 1];
+	unsigned char alarm_data[ALL_TIME_REGS];
 	int ret;
 
 	ret = twl_rtc_alarm_irq_enable(dev, 0);
 	if (ret)
 		goto out;
 
-	alarm_data[1] = bin2bcd(alm->time.tm_sec);
-	alarm_data[2] = bin2bcd(alm->time.tm_min);
-	alarm_data[3] = bin2bcd(alm->time.tm_hour);
-	alarm_data[4] = bin2bcd(alm->time.tm_mday);
-	alarm_data[5] = bin2bcd(alm->time.tm_mon + 1);
-	alarm_data[6] = bin2bcd(alm->time.tm_year - 100);
+	alarm_data[0] = bin2bcd(alm->time.tm_sec);
+	alarm_data[1] = bin2bcd(alm->time.tm_min);
+	alarm_data[2] = bin2bcd(alm->time.tm_hour);
+	alarm_data[3] = bin2bcd(alm->time.tm_mday);
+	alarm_data[4] = bin2bcd(alm->time.tm_mon + 1);
+	alarm_data[5] = bin2bcd(alm->time.tm_year - 100);
 
 	/* update all the alarm registers in one shot */
 	ret = twl_i2c_write(TWL_MODULE_RTC, alarm_data,

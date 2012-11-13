@@ -354,13 +354,13 @@ static struct gpio_chip twl_gpiochip = {
 
 static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
 {
-	u8		message[6];
+	u8		message[5];
 	unsigned	i, gpio_bit;
 
 	/* For most pins, a pulldown was enabled by default.
 	 * We should have data that's specific to this board.
 	 */
-	for (gpio_bit = 1, i = 1; i < 6; i++) {
+	for (gpio_bit = 1, i = 0; i < 5; i++) {
 		u8		bit_mask;
 		unsigned	j;
 
@@ -379,16 +379,16 @@ static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
 
 static int __devinit gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 {
-	u8		message[4];
+	u8		message[3];
 
 	/* 30 msec of debouncing is always used for MMC card detect,
 	 * and is optional for everything else.
 	 */
-	message[1] = (debounce & 0xff) | (mmc_cd & 0x03);
+	message[0] = (debounce & 0xff) | (mmc_cd & 0x03);
 	debounce >>= 8;
-	message[2] = (debounce & 0xff);
+	message[1] = (debounce & 0xff);
 	debounce >>= 8;
-	message[3] = (debounce & 0x03);
+	message[2] = (debounce & 0x03);
 
 	return twl_i2c_write(TWL4030_MODULE_GPIO, message,
 				REG_GPIO_DEBEN1, 3);
