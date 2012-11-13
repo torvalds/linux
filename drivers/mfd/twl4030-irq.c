@@ -295,8 +295,8 @@ static irqreturn_t handle_twl4030_pih(int irq, void *devid)
 	irqreturn_t	ret;
 	u8		pih_isr;
 
-	ret = twl_i2c_read_u8(TWL4030_MODULE_PIH, &pih_isr,
-			REG_PIH_ISR_P1);
+	ret = twl_i2c_read_u8(TWL_MODULE_PIH, &pih_isr,
+			      REG_PIH_ISR_P1);
 	if (ret) {
 		pr_warning("twl4030: I2C error %d reading PIH ISR\n", ret);
 		return IRQ_NONE;
