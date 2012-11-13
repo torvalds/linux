@@ -1721,8 +1721,8 @@ void ixgbevf_reset(struct ixgbevf_adapter *adapter)
 	}
 }
 
-static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
-					 int vectors)
+static int ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
+					int vectors)
 {
 	int err, vector_threshold;
 
@@ -1740,21 +1740,18 @@ static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 	while (vectors >= vector_threshold) {
 		err = pci_enable_msix(adapter->pdev, adapter->msix_entries,
 				      vectors);
-		if (!err) /* Success in acquiring all requested vectors. */
+		if (!err || err < 0) /* Success or a nasty failure. */
 			break;
-		else if (err < 0)
-			vectors = 0; /* Nasty failure, quit now */
 		else /* err == number of vectors we should try again with */
 			vectors = err;
 	}
 
-	if (vectors < vector_threshold) {
-		/* Can't allocate enough MSI-X interrupts?  Oh well.
-		 * This just means we'll go with either a single MSI
-		 * vector or fall back to legacy interrupts.
-		 */
-		hw_dbg(&adapter->hw,
-		       "Unable to allocate MSI-X interrupts\n");
+	if (vectors < vector_threshold)
+		err = -ENOMEM;
+
+	if (err) {
+		dev_err(&adapter->pdev->dev,
+			"Unable to allocate MSI-X interrupts\n");
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
 	} else {
@@ -1765,6 +1762,7 @@ static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 		 */
 		adapter->num_msix_vectors = vectors;
 	}
+	return err;
 }
 
 /**
@@ -1868,7 +1866,9 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 	for (vector = 0; vector < v_budget; vector++)
 		adapter->msix_entries[vector].entry = vector;
 
-	ixgbevf_acquire_msix_vectors(adapter, v_budget);
+	err = ixgbevf_acquire_msix_vectors(adapter, v_budget);
+	if (err)
+		goto out;
 
 	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
 	if (err)
