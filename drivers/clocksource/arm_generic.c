@@ -224,7 +224,7 @@ int __init arm_generic_timer_init(void)
 	lpj_fine = DIV_ROUND_CLOSEST(arch_timer_rate, HZ);
 
 	/* Immediately configure the timer on the boot CPU */
-	arch_timer_setup(per_cpu_ptr(&arch_timer_evt, smp_processor_id()));
+	arch_timer_setup(this_cpu_ptr(&arch_timer_evt));
 
 	register_cpu_notifier(&arch_timer_cpu_nb);
 
