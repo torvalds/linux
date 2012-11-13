@@ -317,24 +317,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	return last;
 }
 
-/*
- * Fill in the task's elfregs structure for a core dump.
- */
-int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs)
-{
-	elf_core_copy_regs(elfregs, task_pt_regs(t));
-	return 1;
-}
-
-/*
- * fill in the fpe structure for a core dump...
- */
-int dump_fpu (struct pt_regs *regs, struct user_fp *fp)
-{
-	return 0;
-}
-EXPORT_SYMBOL(dump_fpu);
-
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct stackframe frame;

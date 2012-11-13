@@ -618,4 +618,20 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 };
 #endif
 
+/**
+ * IIO_DEGREE_TO_RAD() - Convert degree to rad
+ * @deg: A value in degree
+ *
+ * Returns the given value converted from degree to rad
+ */
+#define IIO_DEGREE_TO_RAD(deg) (((deg) * 314159ULL + 9000000ULL) / 18000000ULL)
+
+/**
+ * IIO_G_TO_M_S_2() - Convert g to meter / second**2
+ * @g: A value in g
+ *
+ * Returns the given value converted from g to meter / second**2
+ */
+#define IIO_G_TO_M_S_2(g) ((g) * 980665ULL / 100000ULL)
+
 #endif /* _INDUSTRIAL_IO_H_ */

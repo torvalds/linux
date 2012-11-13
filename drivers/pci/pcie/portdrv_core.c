@@ -272,7 +272,8 @@ static int get_port_device_capability(struct pci_dev *dev)
 	}
 
 	/* Hot-Plug Capable */
-	if (cap_mask & PCIE_PORT_SERVICE_HP) {
+	if ((cap_mask & PCIE_PORT_SERVICE_HP) &&
+	    dev->pcie_flags_reg & PCI_EXP_FLAGS_SLOT) {
 		pcie_capability_read_dword(dev, PCI_EXP_SLTCAP, &reg32);
 		if (reg32 & PCI_EXP_SLTCAP_HPC) {
 			services |= PCIE_PORT_SERVICE_HP;

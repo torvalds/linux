@@ -1045,6 +1045,7 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 		      struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = codec->control_data;
 	int mask = WM8994_AIF1DAC1L_ENA | WM8994_AIF1DAC1R_ENA;
 	int i;
@@ -1063,6 +1064,10 @@ static int aif1clk_ev(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
+		/* Don't enable timeslot 2 if not in use */
+		if (wm8994->channels[0] <= 2)
+			mask &= ~(WM8994_AIF1DAC2L_ENA | WM8994_AIF1DAC2R_ENA);
+
 		val = snd_soc_read(codec, WM8994_AIF1_CONTROL_1);
 		if ((val & WM8994_AIF1ADCL_SRC) &&
 		    (val & WM8994_AIF1ADCR_SRC))
@@ -2687,7 +2692,7 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	bclk_rate = params_rate(params) * 4;
+	bclk_rate = params_rate(params);
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		bclk_rate *= 16;
@@ -2706,6 +2711,17 @@ static int wm8994_hw_params(struct snd_pcm_substream *substream,
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	wm8994->channels[id] = params_channels(params);
+	switch (params_channels(params)) {
+	case 1:
+	case 2:
+		bclk_rate *= 2;
+		break;
+	default:
+		bclk_rate *= 4;
+		break;
 	}
 
 	/* Try to find an appropriate sample rate; look for an exact match. */
@@ -3706,7 +3722,7 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	} while (count--);
 
 	if (count == 0)
-		dev_warn(codec->dev, "No impedence range reported for jack\n");
+		dev_warn(codec->dev, "No impedance range reported for jack\n");
 
 #ifndef CONFIG_SND_SOC_WM8994_MODULE
 	trace_snd_soc_jack_irq(dev_name(codec->dev));

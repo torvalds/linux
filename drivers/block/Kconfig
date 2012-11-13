@@ -131,6 +131,7 @@ config BLK_CPQ_DA
 config BLK_CPQ_CISS_DA
 	tristate "Compaq Smart Array 5xxx support"
 	depends on PCI
+	select CHECK_SIGNATURE
 	help
 	  This is the driver for Compaq Smart Array 5xxx controllers.
 	  Everyone using these boards should say Y here.
@@ -166,8 +167,8 @@ config BLK_DEV_DAC960
 	  module will be called DAC960.
 
 config BLK_DEV_UMEM
-	tristate "Micro Memory MM5415 Battery Backed RAM support (EXPERIMENTAL)"
-	depends on PCI && EXPERIMENTAL
+	tristate "Micro Memory MM5415 Battery Backed RAM support"
+	depends on PCI
 	---help---
 	  Saying Y here will include support for the MM5415 family of
 	  battery backed (Non-volatile) RAM cards.
@@ -430,8 +431,8 @@ config CDROM_PKTCDVD_BUFFERS
 	  a disc is opened for writing.
 
 config CDROM_PKTCDVD_WCACHE
-	bool "Enable write caching (EXPERIMENTAL)"
-	depends on CDROM_PKTCDVD && EXPERIMENTAL
+	bool "Enable write caching"
+	depends on CDROM_PKTCDVD
 	help
 	  If enabled, write caching will be set for the CD-R/W device. For now
 	  this option is dangerous unless the CD-RW media is known good, as we
@@ -508,8 +509,8 @@ config XEN_BLKDEV_BACKEND
 
 
 config VIRTIO_BLK
-	tristate "Virtio block driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
+	tristate "Virtio block driver"
+	depends on VIRTIO
 	---help---
 	  This is the virtual block driver for virtio.  It can be used with
           lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -528,7 +529,7 @@ config BLK_DEV_HD
 
 config BLK_DEV_RBD
 	tristate "Rados block device (RBD)"
-	depends on INET && EXPERIMENTAL && BLOCK
+	depends on INET && BLOCK
 	select CEPH_LIB
 	select LIBCRC32C
 	select CRYPTO_AES
