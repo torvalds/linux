@@ -61,28 +61,18 @@ static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
 	}
 };
 
-
 static char ifname[IFNAMSIZ] = "wlan%d";
-static int hwseqnum = 0;
 static int hwwep = 0;
-static int channels = 0x3fff;
 
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, rtl8180_pci_id_tbl);
 MODULE_AUTHOR("Andrea Merello <andreamrl@tiscali.it>");
-MODULE_DESCRIPTION("Linux driver for Realtek RTL8180 / RTL8185 WiFi cards");
-
+MODULE_DESCRIPTION("Linux driver for Realtek RTL8187SE WiFi cards");
 
 module_param_string(ifname, ifname, sizeof(ifname), S_IRUGO|S_IWUSR);
-module_param(hwseqnum, int, S_IRUGO|S_IWUSR);
 module_param(hwwep, int, S_IRUGO|S_IWUSR);
-module_param(channels, int, S_IRUGO|S_IWUSR);
 
-MODULE_PARM_DESC(devname, " Net interface name, wlan%d=default");
-MODULE_PARM_DESC(hwseqnum, " Try to use hardware 802.11 header sequence numbers. Zero=default");
 MODULE_PARM_DESC(hwwep, " Try to use hardware WEP support. Still broken and not available on all cards");
-MODULE_PARM_DESC(channels, " Channel bitmask for specific locales. NYI");
-
 
 static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id);
