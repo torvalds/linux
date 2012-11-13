@@ -3787,7 +3787,7 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 		priv->stats.txbkperr++;
 		priv->ieee80211->stats.tx_errors++;
 		rtl8180_tx_isr(dev, BK_PRIORITY, 1);
-		rtl8180_try_wake_queue(dev, BE_PRIORITY);
+		rtl8180_try_wake_queue(dev, BK_PRIORITY);
 	}
 
 	if (inta & ISR_TBEDER) { /* corresponding to BE_PRIORITY */
@@ -3841,6 +3841,7 @@ irqreturn_t rtl8180_interrupt(int irq, void *netdev, struct pt_regs *regs)
 		priv->link_detect.NumTxOkInPeriod++; /* YJ,add,080828 */
 		priv->stats.txnpokint++;
 		rtl8180_tx_isr(dev, NORM_PRIORITY, 0);
+		rtl8180_try_wake_queue(dev, NORM_PRIORITY);
 	}
 
 	if (inta & ISR_TLPDOK) { /* Low priority tx ok */
