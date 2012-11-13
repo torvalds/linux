@@ -125,7 +125,6 @@ xfs_growfs_data_private(
 	xfs_extlen_t		agsize;
 	xfs_extlen_t		tmpsize;
 	xfs_alloc_rec_t		*arec;
-	struct xfs_btree_block	*block;
 	xfs_buf_t		*bp;
 	int			bucket;
 	int			dpct;
@@ -263,17 +262,14 @@ xfs_growfs_data_private(
 			error = ENOMEM;
 			goto error0;
 		}
-		block = XFS_BUF_TO_BLOCK(bp);
-		memset(block, 0, mp->m_sb.sb_blocksize);
-		block->bb_magic = cpu_to_be32(XFS_ABTB_MAGIC);
-		block->bb_level = 0;
-		block->bb_numrecs = cpu_to_be16(1);
-		block->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
-		block->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		arec = XFS_ALLOC_REC_ADDR(mp, block, 1);
+		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+		xfs_btree_init_block(mp, bp, XFS_ABTB_MAGIC, 0, 1, 0);
+
+		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
+
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error)
@@ -289,18 +285,15 @@ xfs_growfs_data_private(
 			error = ENOMEM;
 			goto error0;
 		}
-		block = XFS_BUF_TO_BLOCK(bp);
-		memset(block, 0, mp->m_sb.sb_blocksize);
-		block->bb_magic = cpu_to_be32(XFS_ABTC_MAGIC);
-		block->bb_level = 0;
-		block->bb_numrecs = cpu_to_be16(1);
-		block->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
-		block->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
-		arec = XFS_ALLOC_REC_ADDR(mp, block, 1);
+		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+		xfs_btree_init_block(mp, bp, XFS_ABTC_MAGIC, 0, 1, 0);
+
+		arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 		arec->ar_startblock = cpu_to_be32(XFS_PREALLOC_BLOCKS(mp));
 		arec->ar_blockcount = cpu_to_be32(
 			agsize - be32_to_cpu(arec->ar_startblock));
 		nfree += be32_to_cpu(arec->ar_blockcount);
+
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error)
@@ -316,13 +309,9 @@ xfs_growfs_data_private(
 			error = ENOMEM;
 			goto error0;
 		}
-		block = XFS_BUF_TO_BLOCK(bp);
-		memset(block, 0, mp->m_sb.sb_blocksize);
-		block->bb_magic = cpu_to_be32(XFS_IBT_MAGIC);
-		block->bb_level = 0;
-		block->bb_numrecs = 0;
-		block->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
-		block->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
+		xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
+		xfs_btree_init_block(mp, bp, XFS_IBT_MAGIC, 0, 0, 0);
+
 		error = xfs_bwrite(bp);
 		xfs_buf_relse(bp);
 		if (error)

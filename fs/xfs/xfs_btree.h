@@ -378,6 +378,17 @@ xfs_btree_reada_bufs(
 	xfs_agblock_t		agbno,	/* allocation group block number */
 	xfs_extlen_t		count);	/* count of filesystem blocks */
 
+/*
+ * Initialise a new btree block header
+ */
+void
+xfs_btree_init_block(
+	struct xfs_mount *mp,
+	struct xfs_buf	*bp,
+	__u32		magic,
+	__u16		level,
+	__u16		numrecs,
+	unsigned int	flags);
 
 /*
  * Common btree core entry points.

@@ -853,24 +853,39 @@ xfs_btree_set_sibling(
 	}
 }
 
-STATIC void
+void
 xfs_btree_init_block(
-	struct xfs_btree_cur	*cur,
-	int			level,
-	int			numrecs,
-	struct xfs_btree_block	*new)	/* new block */
+	struct xfs_mount *mp,
+	struct xfs_buf	*bp,
+	__u32		magic,
+	__u16		level,
+	__u16		numrecs,
+	unsigned int	flags)
 {
-	new->bb_magic = cpu_to_be32(xfs_magics[cur->bc_btnum]);
+	struct xfs_btree_block	*new = XFS_BUF_TO_BLOCK(bp);
+
+	new->bb_magic = cpu_to_be32(magic);
 	new->bb_level = cpu_to_be16(level);
 	new->bb_numrecs = cpu_to_be16(numrecs);
 
-	if (cur->bc_flags & XFS_BTREE_LONG_PTRS) {
+	if (flags & XFS_BTREE_LONG_PTRS) {
 		new->bb_u.l.bb_leftsib = cpu_to_be64(NULLDFSBNO);
 		new->bb_u.l.bb_rightsib = cpu_to_be64(NULLDFSBNO);
 	} else {
 		new->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		new->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
 	}
+}
+
+STATIC void
+xfs_btree_init_block_cur(
+	struct xfs_btree_cur	*cur,
+	int			level,
+	int			numrecs,
+	struct xfs_buf		*bp)
+{
+	xfs_btree_init_block(cur->bc_mp, bp, xfs_magics[cur->bc_btnum],
+			       level, numrecs, cur->bc_flags);
 }
 
 /*
@@ -2183,7 +2198,7 @@ xfs_btree_split(
 		goto error0;
 
 	/* Fill in the btree header for the new right block. */
-	xfs_btree_init_block(cur, xfs_btree_get_level(left), 0, right);
+	xfs_btree_init_block_cur(cur, xfs_btree_get_level(left), 0, rbp);
 
 	/*
 	 * Split the entries between the old and the new block evenly.
@@ -2492,7 +2507,7 @@ xfs_btree_new_root(
 		nptr = 2;
 	}
 	/* Fill in the new block's btree header and log it. */
-	xfs_btree_init_block(cur, cur->bc_nlevels, 2, new);
+	xfs_btree_init_block_cur(cur, cur->bc_nlevels, 2, nbp);
 	xfs_btree_log_block(cur, nbp, XFS_BB_ALL_BITS);
 	ASSERT(!xfs_btree_ptr_is_null(cur, &lptr) &&
 			!xfs_btree_ptr_is_null(cur, &rptr));
