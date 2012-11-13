@@ -35,7 +35,7 @@ static int apci1516_reset(struct comedi_device *dev)
 	if (!this_board->i_Timer)
 		return 0;
 
-	outw(0x0, devpriv->iobase + APCI1516_DO_REG);
+	outw(0x0, dev->iobase + APCI1516_DO_REG);
 	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_LSB_REG);
 	outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_RELOAD_MSB_REG);
@@ -85,7 +85,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	dev->iobase = pci_resource_start(pcidev, 1);
-	devpriv->iobase = dev->iobase;
 	devpriv->i_IobaseAmcc = pci_resource_start(pcidev, 0);
 	devpriv->i_IobaseAddon = pci_resource_start(pcidev, 2);
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);

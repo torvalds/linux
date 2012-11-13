@@ -75,9 +75,7 @@ static int apci1516_di_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-	struct addi_private *devpriv = dev->private;
-
-	data[1] = inw(devpriv->iobase + APCI1516_DI_REG);
+	data[1] = inw(dev->iobase + APCI1516_DI_REG);
 
 	return insn->n;
 }
@@ -87,17 +85,15 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 				 struct comedi_insn *insn,
 				 unsigned int *data)
 {
-
-	struct addi_private *devpriv = dev->private;
 	unsigned int mask = data[0];
 	unsigned int bits = data[1];
 
-	s->state = inw(devpriv->iobase + APCI1516_DO_REG);
+	s->state = inw(dev->iobase + APCI1516_DO_REG);
 	if (mask) {
 		s->state &= ~mask;
 		s->state |= (bits & mask);
 
-		outw(s->state, devpriv->iobase + APCI1516_DO_REG);
+		outw(s->state, dev->iobase + APCI1516_DO_REG);
 	}
 
 	data[1] = s->state;
