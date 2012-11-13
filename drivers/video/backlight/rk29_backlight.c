@@ -121,6 +121,9 @@ static int rk29_bl_update_status(struct backlight_device *bl)
 	if (bl->props.fb_blank != FB_BLANK_UNBLANK)
 		brightness = 0;	
 
+	if (bl->props.state & BL_CORE_DRIVER3)
+		brightness = 0;	
+
 	if ((bl->props.state & BL_CORE_DRIVER2) && !suspend_flag ){
 		brightness = 0;
 		suspend_flag = 1;
@@ -183,7 +186,6 @@ static struct backlight_ops rk29_bl_ops = {
 
 static void rk29_backlight_work_func(struct work_struct *work)
 {
-	rk29_bl->props.state &= ~BL_CORE_DRIVER2;
 	rk29_bl_update_status(rk29_bl);
 }
 static DECLARE_DELAYED_WORK(rk29_backlight_work, rk29_backlight_work_func);
@@ -210,6 +212,7 @@ static void rk29_bl_resume(struct early_suspend *h)
 {
 	struct rk29_bl_info *rk29_bl_info = bl_get_data(rk29_bl);
 	DBG("%s : %s\n", __FILE__, __FUNCTION__);
+	rk29_bl->props.state &= ~BL_CORE_DRIVER2;
 	
 	schedule_delayed_work(&rk29_backlight_work, msecs_to_jiffies(rk29_bl_info->delay_ms));
 }
@@ -222,19 +225,20 @@ static struct early_suspend bl_early_suspend = {
 
 bool rk29_get_backlight_status()
 {
-	return (rk29_bl->props.state & BL_CORE_DRIVER1)?true:false;
+	return (rk29_bl->props.state & BL_CORE_DRIVER3)?true:false;
 }
 EXPORT_SYMBOL(rk29_get_backlight_status);
 
 void rk29_backlight_set(bool on)
 {
-	if(suspend_flag)
-		return 0;
 	printk("%s: set %d\n", __func__, on);
-	if(on)
-		rk29_bl_resume(NULL);
-	else
-		rk29_bl_suspend(NULL);
+	if(on){
+		rk29_bl->props.state &= ~BL_CORE_DRIVER3;
+		rk29_bl_update_status(rk29_bl);
+	}else{
+		rk29_bl->props.state |= BL_CORE_DRIVER3;
+		rk29_bl_update_status(rk29_bl);
+	}
 	return;
 }
 EXPORT_SYMBOL(rk29_backlight_set);
