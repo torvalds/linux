@@ -733,7 +733,11 @@ void wm831x_pmu_early_resume(struct regulator_dev *rdev)
 	printk("%s\n", __func__);
 	
 	dcdc = regulator_get(NULL, "dcdc4");	//vcc_io
+	#ifdef CONFIG_MACH_RK3066_SDK
+	regulator_set_voltage(dcdc, 3300000, 3300000);
+	#else
 	regulator_set_voltage(dcdc, 3000000, 3000000);
+	#endif
 	regulator_set_mode(dcdc, REGULATOR_MODE_FAST);
 	regulator_enable(dcdc);
 	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
