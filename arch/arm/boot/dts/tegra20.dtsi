@@ -147,6 +147,16 @@
 		status = "disabled";
 	};
 
+	spi@7000c380 {
+		compatible = "nvidia,tegra20-sflash";
+		reg = <0x7000c380 0x80>;
+		interrupts = <0 39 0x04>;
+		nvidia,dma-request-selector = <&apbdma 11>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
 	i2c@7000c400 {
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000c400 0x100>;
