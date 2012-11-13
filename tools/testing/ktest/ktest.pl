@@ -53,6 +53,7 @@ my %default = (
     "STOP_AFTER_FAILURE"	=> 60,
     "STOP_TEST_AFTER"		=> 600,
     "MAX_MONITOR_WAIT"		=> 1800,
+    "GRUB_REBOOT"		=> "grub2-reboot",
 
 # required, and we will ask users if they don't have them but we keep the default
 # value something that is common.
@@ -105,7 +106,9 @@ my $scp_to_target;
 my $scp_to_target_install;
 my $power_off;
 my $grub_menu;
+my $grub_file;
 my $grub_number;
+my $grub_reboot;
 my $target;
 my $make;
 my $pre_install;
@@ -232,6 +235,8 @@ my %option_map = (
     "ADD_CONFIG"		=> \$addconfig,
     "REBOOT_TYPE"		=> \$reboot_type,
     "GRUB_MENU"			=> \$grub_menu,
+    "GRUB_FILE"			=> \$grub_file,
+    "GRUB_REBOOT"		=> \$grub_reboot,
     "PRE_INSTALL"		=> \$pre_install,
     "POST_INSTALL"		=> \$post_install,
     "NO_INSTALL"		=> \$no_install,
@@ -368,7 +373,7 @@ EOF
     ;
 $config_help{"REBOOT_TYPE"} = << "EOF"
  Way to reboot the box to the test kernel.
- Only valid options so far are "grub" and "script".
+ Only valid options so far are "grub", "grub2", and "script".
 
  If you specify grub, it will assume grub version 1
  and will search in /boot/grub/menu.lst for the title \$GRUB_MENU
@@ -378,11 +383,14 @@ $config_help{"REBOOT_TYPE"} = << "EOF"
 
  The entry in /boot/grub/menu.lst must be entered in manually.
  The test will not modify that file.
+
+ If you specify grub2, then you also need to specify both \$GRUB_MENU
+ and \$GRUB_FILE.
 EOF
     ;
 $config_help{"GRUB_MENU"} = << "EOF"
  The grub title name for the test kernel to boot
- (Only mandatory if REBOOT_TYPE = grub)
+ (Only mandatory if REBOOT_TYPE = grub or grub2)
 
  Note, ktest.pl will not update the grub menu.lst, you need to
  manually add an option for the test. ktest.pl will search
@@ -393,6 +401,17 @@ $config_help{"GRUB_MENU"} = << "EOF"
  title Test Kernel
  kernel vmlinuz-test
  GRUB_MENU = Test Kernel
+
+ For grub2, a search of \$GRUB_FILE is performed for the lines
+ that begin with "menuentry". It will not detect submenus. The
+ menu must be a non-nested menu. Add the quotes used in the menu
+ to guarantee your selection, as the first menuentry with the content
+ of \$GRUB_MENU that is found will be used.
+EOF
+    ;
+$config_help{"GRUB_FILE"} = << "EOF"
+ If grub2 is used, the full path for the grub.cfg file is placed
+ here. Use something like /boot/grub2/grub.cfg to search.
 EOF
     ;
 $config_help{"REBOOT_SCRIPT"} = << "EOF"
@@ -520,6 +539,11 @@ sub get_ktest_configs {
 
     if ($rtype eq "grub") {
 	get_ktest_config("GRUB_MENU");
+    }
+
+    if ($rtype eq "grub2") {
+	get_ktest_config("GRUB_MENU");
+	get_ktest_config("GRUB_FILE");
     }
 }
 
@@ -1452,7 +1476,43 @@ sub run_scp_mod {
     return run_scp($src, $dst, $cp_scp);
 }
 
+sub get_grub2_index {
+
+    return if (defined($grub_number));
+
+    doprint "Find grub2 menu ... ";
+    $grub_number = -1;
+
+    my $ssh_grub = $ssh_exec;
+    $ssh_grub =~ s,\$SSH_COMMAND,cat $grub_file,g;
+
+    open(IN, "$ssh_grub |")
+	or die "unable to get $grub_file";
+
+    my $found = 0;
+
+    while (<IN>) {
+	if (/^menuentry.*$grub_menu/) {
+	    $grub_number++;
+	    $found = 1;
+	    last;
+	} elsif (/^menuentry\s/) {
+	    $grub_number++;
+	}
+    }
+    close(IN);
+
+    die "Could not find '$grub_menu' in $grub_file on $machine"
+	if (!$found);
+    doprint "$grub_number\n";
+}
+
 sub get_grub_index {
+
+    if ($reboot_type eq "grub2") {
+	get_grub2_index;
+	return;
+    }
 
     if ($reboot_type ne "grub") {
 	return;
@@ -1524,6 +1584,8 @@ sub reboot_to {
 
     if ($reboot_type eq "grub") {
 	run_ssh "'(echo \"savedefault --default=$grub_number --once\" | grub --batch)'";
+    } elsif ($reboot_type eq "grub2") {
+	run_ssh "$grub_reboot $grub_number";
     } elsif (defined $reboot_script) {
 	run_command "$reboot_script";
     }
@@ -3700,6 +3762,9 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	$target = "$ssh_user\@$machine";
 	if ($reboot_type eq "grub") {
 	    dodie "GRUB_MENU not defined" if (!defined($grub_menu));
+	} elsif ($reboot_type eq "grub2") {
+	    dodie "GRUB_MENU not defined" if (!defined($grub_menu));
+	    dodie "GRUB_FILE not defined" if (!defined($grub_file));
 	}
     }
 
