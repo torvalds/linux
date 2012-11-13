@@ -209,19 +209,8 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 
 	/*  Allocate and Initialise AO Subdevice Structures */
 	s = &dev->subdevices[1];
-	if (devpriv->s_EeParameters.i_NbrAoChannel) {
-		s->type = COMEDI_SUBD_AO;
-		s->subdev_flags = SDF_WRITEABLE | SDF_GROUND | SDF_COMMON;
-		s->n_chan = devpriv->s_EeParameters.i_NbrAoChannel;
-		s->maxdata = devpriv->s_EeParameters.i_AoMaxdata;
-		s->len_chanlist =
-			devpriv->s_EeParameters.i_NbrAoChannel;
-		s->range_table = this_board->pr_AoRangelist;
-		s->insn_config = this_board->ao_config;
-		s->insn_write = this_board->ao_write;
-	} else {
-		s->type = COMEDI_SUBD_UNUSED;
-	}
+	s->type = COMEDI_SUBD_UNUSED;
+
 	/*  Allocate and Initialise DI Subdevice Structures */
 	s = &dev->subdevices[2];
 	if (devpriv->s_EeParameters.i_NbrDiChannel) {
