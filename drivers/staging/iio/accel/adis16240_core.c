@@ -22,9 +22,9 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/imu/adis.h>
 
 #include "adis16240.h"
-#include "../imu/adis.h"
 
 static ssize_t adis16240_spi_read_signed(struct device *dev,
 		struct device_attribute *attr,

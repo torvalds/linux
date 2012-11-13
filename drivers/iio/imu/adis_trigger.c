@@ -14,8 +14,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
-
-#include "adis.h"
+#include <linux/iio/imu/adis.h>
 
 static int adis_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)

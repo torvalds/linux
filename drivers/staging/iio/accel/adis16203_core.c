@@ -18,9 +18,9 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/imu/adis.h>
 
 #include "adis16203.h"
-#include "../imu/adis.h"
 
 #define DRIVER_NAME		"adis16203"
 

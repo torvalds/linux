@@ -20,8 +20,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-
-#include "adis.h"
+#include <linux/iio/imu/adis.h>
 
 #define ADIS_MSC_CTRL_DATA_RDY_EN	BIT(2)
 #define ADIS_MSC_CTRL_DATA_RDY_POL_HIGH	BIT(1)

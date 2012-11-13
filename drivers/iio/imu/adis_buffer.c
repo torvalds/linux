@@ -18,8 +18,7 @@
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
-
-#include  "adis.h"
+#include <linux/iio/imu/adis.h>
 
 int adis_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)

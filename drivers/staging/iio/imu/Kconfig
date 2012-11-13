@@ -15,15 +15,3 @@ config ADIS16400
 	  (adis16400 series also have magnetometers).
 
 endmenu
-
-config IIO_ADIS_LIB
-	tristate
-	help
-	  A set of IO helper functions for the Analog Devices ADIS* device family.
-
-config IIO_ADIS_LIB_BUFFER
-	bool
-	select IIO_TRIGGERED_BUFFER
-	help
-	  A set of buffer helper functions for the Analog Devices ADIS* device
-	  family.
