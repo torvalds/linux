@@ -188,6 +188,12 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	struct disasm_line *cursor = ab->selection, *target;
 	struct browser_disasm_line *btarget, *bcursor;
 	unsigned int from, to;
+	struct map_symbol *ms = ab->b.priv;
+	struct symbol *sym = ms->sym;
+
+	/* PLT symbols contain external offsets */
+	if (strstr(sym->name, "@plt"))
+		return;
 
 	if (!cursor || !cursor->ins || !ins__is_jump(cursor->ins) ||
 	    !disasm_line__has_offset(cursor))
@@ -386,9 +392,8 @@ static void annotate_browser__init_asm_mode(struct annotate_browser *browser)
 	browser->b.nr_entries = browser->nr_asm_entries;
 }
 
-static bool annotate_browser__callq(struct annotate_browser *browser,
-				    int evidx, void (*timer)(void *arg),
-				    void *arg, int delay_secs)
+static bool annotate_browser__callq(struct annotate_browser *browser, int evidx,
+				    struct hist_browser_timer *hbt)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct disasm_line *dl = browser->selection;
@@ -418,7 +423,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	}
 
 	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(target, ms->map, evidx, timer, arg, delay_secs);
+	symbol__tui_annotate(target, ms->map, evidx, hbt);
 	ui_browser__show_title(&browser->b, sym->name);
 	return true;
 }
@@ -602,13 +607,13 @@ static void annotate_browser__update_addr_width(struct annotate_browser *browser
 }
 
 static int annotate_browser__run(struct annotate_browser *browser, int evidx,
-				 void(*timer)(void *arg),
-				 void *arg, int delay_secs)
+				 struct hist_browser_timer *hbt)
 {
 	struct rb_node *nd = NULL;
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	const char *help = "Press 'h' for help on key bindings";
+	int delay_secs = hbt ? hbt->refresh : 0;
 	int key;
 
 	if (ui_browser__show(&browser->b, sym->name, help) < 0)
@@ -639,8 +644,8 @@ static int annotate_browser__run(struct annotate_browser *browser, int evidx,
 
 		switch (key) {
 		case K_TIMER:
-			if (timer != NULL)
-				timer(arg);
+			if (hbt)
+				hbt->timer(hbt->arg);
 
 			if (delay_secs != 0)
 				symbol__annotate_decay_histogram(sym, evidx);
@@ -740,7 +745,7 @@ show_help:
 					goto show_sup_ins;
 				goto out;
 			} else if (!(annotate_browser__jump(browser) ||
-				     annotate_browser__callq(browser, evidx, timer, arg, delay_secs))) {
+				     annotate_browser__callq(browser, evidx, hbt))) {
 show_sup_ins:
 				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
 			}
@@ -763,16 +768,21 @@ out:
 }
 
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
-			     void(*timer)(void *arg), void *arg, int delay_secs)
+			     struct hist_browser_timer *hbt)
 {
-	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx,
-				    timer, arg, delay_secs);
+	return symbol__tui_annotate(he->ms.sym, he->ms.map, evidx, hbt);
 }
 
 static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,
 						size_t size)
 {
 	u64 offset;
+	struct map_symbol *ms = browser->b.priv;
+	struct symbol *sym = ms->sym;
+
+	/* PLT symbols contain external offsets */
+	if (strstr(sym->name, "@plt"))
+		return;
 
 	for (offset = 0; offset < size; ++offset) {
 		struct disasm_line *dl = browser->offsets[offset], *dlt;
@@ -816,8 +826,7 @@ static inline int width_jumps(int n)
 }
 
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
-			 void(*timer)(void *arg), void *arg,
-			 int delay_secs)
+			 struct hist_browser_timer *hbt)
 {
 	struct disasm_line *pos, *n;
 	struct annotation *notes;
@@ -899,7 +908,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	annotate_browser__update_addr_width(&browser);
 
-	ret = annotate_browser__run(&browser, evidx, timer, arg, delay_secs);
+	ret = annotate_browser__run(&browser, evidx, hbt);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
 		disasm_line__free(pos);

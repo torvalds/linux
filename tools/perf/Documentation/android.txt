@@ -48,7 +48,10 @@ For x86:
 II. Compile perf for Android
 ------------------------------------------------
 You need to run make with the NDK toolchain and sysroot defined above:
-  make CROSS_COMPILE=${NDK_TOOLCHAIN} CFLAGS="--sysroot=${NDK_SYSROOT}"
+For arm:
+  make ARCH=arm CROSS_COMPILE=${NDK_TOOLCHAIN} CFLAGS="--sysroot=${NDK_SYSROOT}"
+For x86:
+  make ARCH=x86 CROSS_COMPILE=${NDK_TOOLCHAIN} CFLAGS="--sysroot=${NDK_SYSROOT}"
 
 III. Install perf
 -----------------------------------------------

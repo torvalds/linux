@@ -93,15 +93,45 @@ static int lookup_triplets(const char *const *triplets, const char *name)
 	return -1;
 }
 
+/*
+ * Return architecture name in a normalized form.
+ * The conversion logic comes from the Makefile.
+ */
+static const char *normalize_arch(char *arch)
+{
+	if (!strcmp(arch, "x86_64"))
+		return "x86";
+	if (arch[0] == 'i' && arch[2] == '8' && arch[3] == '6')
+		return "x86";
+	if (!strcmp(arch, "sun4u") || !strncmp(arch, "sparc", 5))
+		return "sparc";
+	if (!strncmp(arch, "arm", 3) || !strcmp(arch, "sa110"))
+		return "arm";
+	if (!strncmp(arch, "s390", 4))
+		return "s390";
+	if (!strncmp(arch, "parisc", 6))
+		return "parisc";
+	if (!strncmp(arch, "powerpc", 7) || !strncmp(arch, "ppc", 3))
+		return "powerpc";
+	if (!strncmp(arch, "mips", 4))
+		return "mips";
+	if (!strncmp(arch, "sh", 2) && isdigit(arch[2]))
+		return "sh";
+
+	return arch;
+}
+
 static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
 						  const char *name,
 						  const char **path)
 {
 	int idx;
-	char *arch, *cross_env;
+	const char *arch, *cross_env;
 	struct utsname uts;
 	const char *const *path_list;
 	char *buf = NULL;
+
+	arch = normalize_arch(env->arch);
 
 	if (uname(&uts) < 0)
 		goto out;
@@ -110,7 +140,7 @@ static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
 	 * We don't need to try to find objdump path for native system.
 	 * Just use default binutils path (e.g.: "objdump").
 	 */
-	if (!strcmp(uts.machine, env->arch))
+	if (!strcmp(normalize_arch(uts.machine), arch))
 		goto out;
 
 	cross_env = getenv("CROSS_COMPILE");
@@ -127,8 +157,6 @@ static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
 		free(buf);
 	}
 
-	arch = env->arch;
-
 	if (!strcmp(arch, "arm"))
 		path_list = arm_triplets;
 	else if (!strcmp(arch, "powerpc"))
@@ -139,9 +167,7 @@ static int perf_session_env__lookup_binutils_path(struct perf_session_env *env,
 		path_list = s390_triplets;
 	else if (!strcmp(arch, "sparc"))
 		path_list = sparc_triplets;
-	else if (!strcmp(arch, "x86") || !strcmp(arch, "i386") ||
-		 !strcmp(arch, "i486") || !strcmp(arch, "i586") ||
-		 !strcmp(arch, "i686"))
+	else if (!strcmp(arch, "x86"))
 		path_list = x86_triplets;
 	else if (!strcmp(arch, "mips"))
 		path_list = mips_triplets;
@@ -173,6 +199,13 @@ out_error:
 
 int perf_session_env__lookup_objdump(struct perf_session_env *env)
 {
+	/*
+	 * For live mode, env->arch will be NULL and we can use
+	 * the native objdump tool.
+	 */
+	if (env->arch == NULL)
+		return 0;
+
 	return perf_session_env__lookup_binutils_path(env, "objdump",
 						      &objdump_path);
 }

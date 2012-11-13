@@ -77,6 +77,10 @@ struct hist_entry_diff {
 struct hist_entry {
 	struct rb_node		rb_node_in;
 	struct rb_node		rb_node;
+	union {
+		struct list_head node;
+		struct list_head head;
+	} pairs;
 	struct he_stat		stat;
 	struct map_symbol	ms;
 	struct thread		*thread;
@@ -96,14 +100,29 @@ struct hist_entry {
 	char			*srcline;
 	struct symbol		*parent;
 	unsigned long		position;
-	union {
-		struct hist_entry *pair;
-		struct rb_root	  sorted_chain;
-	};
+	struct rb_root		sorted_chain;
 	struct branch_info	*branch_info;
 	struct hists		*hists;
 	struct callchain_root	callchain[0];
 };
+
+static inline bool hist_entry__has_pairs(struct hist_entry *he)
+{
+	return !list_empty(&he->pairs.node);
+}
+
+static inline struct hist_entry *hist_entry__next_pair(struct hist_entry *he)
+{
+	if (hist_entry__has_pairs(he))
+		return list_entry(he->pairs.node.next, struct hist_entry, pairs.node);
+	return NULL;
+}
+
+static inline void hist__entry_add_pair(struct hist_entry *he,
+					struct hist_entry *pair)
+{
+	list_add_tail(&he->pairs.head, &pair->pairs.node);
+}
 
 enum sort_type {
 	SORT_PID,

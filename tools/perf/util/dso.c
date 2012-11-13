@@ -1,5 +1,6 @@
 #include "symbol.h"
 #include "dso.h"
+#include "machine.h"
 #include "util.h"
 #include "debug.h"
 

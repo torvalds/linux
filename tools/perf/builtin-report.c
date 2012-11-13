@@ -428,10 +428,11 @@ static int __cmd_report(struct perf_report *rep)
 	if (use_browser > 0) {
 		if (use_browser == 1) {
 			perf_evlist__tui_browse_hists(session->evlist, help,
-						      NULL, NULL, 0);
+						      NULL,
+						      &session->header.env);
 		} else if (use_browser == 2) {
 			perf_evlist__gtk_browse_hists(session->evlist, help,
-						      NULL, NULL, 0);
+						      NULL);
 		}
 	} else
 		perf_evlist__tty_browse_hists(session->evlist, rep, help);
@@ -671,12 +672,6 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 
 	has_br_stack = perf_header__has_feat(&session->header,
 					     HEADER_BRANCH_STACK);
-
-	if (!objdump_path) {
-		ret = perf_session_env__lookup_objdump(&session->header.env);
-		if (ret)
-			goto error;
-	}
 
 	if (sort__branch_mode == -1 && has_br_stack)
 		sort__branch_mode = 1;
