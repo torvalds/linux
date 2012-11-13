@@ -41,6 +41,10 @@
 /* Power architecture requires HPT is at least 256kB */
 #define PPC_MIN_HPT_ORDER	18
 
+static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
+				long pte_index, unsigned long pteh,
+				unsigned long ptel, unsigned long *pte_idx_ret);
+
 long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 {
 	unsigned long hpt;
@@ -185,6 +189,7 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 	unsigned long addr, hash;
 	unsigned long psize;
 	unsigned long hp0, hp1;
+	unsigned long idx_ret;
 	long ret;
 	struct kvm *kvm = vcpu->kvm;
 
@@ -216,7 +221,8 @@ void kvmppc_map_vrma(struct kvm_vcpu *vcpu, struct kvm_memory_slot *memslot,
 		hash = (hash << 3) + 7;
 		hp_v = hp0 | ((addr >> 16) & ~0x7fUL);
 		hp_r = hp1 | addr;
-		ret = kvmppc_virtmode_h_enter(vcpu, H_EXACT, hash, hp_v, hp_r);
+		ret = kvmppc_virtmode_do_h_enter(kvm, H_EXACT, hash, hp_v, hp_r,
+						 &idx_ret);
 		if (ret != H_SUCCESS) {
 			pr_err("KVM: map_vrma at %lx failed, ret=%ld\n",
 			       addr, ret);
@@ -354,15 +360,10 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	return err;
 }
 
-/*
- * We come here on a H_ENTER call from the guest when we are not
- * using mmu notifiers and we don't have the requested page pinned
- * already.
- */
-long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-			long pte_index, unsigned long pteh, unsigned long ptel)
+long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
+				long pte_index, unsigned long pteh,
+				unsigned long ptel, unsigned long *pte_idx_ret)
 {
-	struct kvm *kvm = vcpu->kvm;
 	unsigned long psize, gpa, gfn;
 	struct kvm_memory_slot *memslot;
 	long ret;
@@ -390,8 +391,8 @@ long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
  do_insert:
 	/* Protect linux PTE lookup from page table destruction */
 	rcu_read_lock_sched();	/* this disables preemption too */
-	vcpu->arch.pgdir = current->mm->pgd;
-	ret = kvmppc_h_enter(vcpu, flags, pte_index, pteh, ptel);
+	ret = kvmppc_do_h_enter(kvm, flags, pte_index, pteh, ptel,
+				current->mm->pgd, false, pte_idx_ret);
 	rcu_read_unlock_sched();
 	if (ret == H_TOO_HARD) {
 		/* this can't happen */
@@ -400,6 +401,19 @@ long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	}
 	return ret;
 
+}
+
+/*
+ * We come here on a H_ENTER call from the guest when we are not
+ * using mmu notifiers and we don't have the requested page pinned
+ * already.
+ */
+long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+			     long pte_index, unsigned long pteh,
+			     unsigned long ptel)
+{
+	return kvmppc_virtmode_do_h_enter(vcpu->kvm, flags, pte_index,
+					  pteh, ptel, &vcpu->arch.gpr[4]);
 }
 
 static struct kvmppc_slb *kvmppc_mmu_book3s_hv_find_slbe(struct kvm_vcpu *vcpu,

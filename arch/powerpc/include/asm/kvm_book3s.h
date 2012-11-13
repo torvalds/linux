@@ -157,8 +157,9 @@ extern void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long addr,
 extern void kvmppc_unpin_guest_page(struct kvm *kvm, void *addr);
 extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel);
-extern long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-			long pte_index, unsigned long pteh, unsigned long ptel);
+extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
+			long pte_index, unsigned long pteh, unsigned long ptel,
+			pgd_t *pgdir, bool realmode, unsigned long *idx_ret);
 extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
 

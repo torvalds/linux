@@ -103,14 +103,14 @@ static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 	unlock_rmap(rmap);
 }
 
-static pte_t lookup_linux_pte(struct kvm_vcpu *vcpu, unsigned long hva,
+static pte_t lookup_linux_pte(pgd_t *pgdir, unsigned long hva,
 			      int writing, unsigned long *pte_sizep)
 {
 	pte_t *ptep;
 	unsigned long ps = *pte_sizep;
 	unsigned int shift;
 
-	ptep = find_linux_pte_or_hugepte(vcpu->arch.pgdir, hva, &shift);
+	ptep = find_linux_pte_or_hugepte(pgdir, hva, &shift);
 	if (!ptep)
 		return __pte(0);
 	if (shift)
@@ -130,10 +130,10 @@ static inline void unlock_hpte(unsigned long *hpte, unsigned long hpte_v)
 	hpte[0] = hpte_v;
 }
 
-long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
-		    long pte_index, unsigned long pteh, unsigned long ptel)
+long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
+		       long pte_index, unsigned long pteh, unsigned long ptel,
+		       pgd_t *pgdir, bool realmode, unsigned long *pte_idx_ret)
 {
-	struct kvm *kvm = vcpu->kvm;
 	unsigned long i, pa, gpa, gfn, psize;
 	unsigned long slot_fn, hva;
 	unsigned long *hpte;
@@ -147,7 +147,6 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	unsigned int writing;
 	unsigned long mmu_seq;
 	unsigned long rcbits;
-	bool realmode = vcpu->arch.vcore->vcore_state == VCORE_RUNNING;
 
 	psize = hpte_page_size(pteh, ptel);
 	if (!psize)
@@ -201,7 +200,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 
 		/* Look up the Linux PTE for the backing page */
 		pte_size = psize;
-		pte = lookup_linux_pte(vcpu, hva, writing, &pte_size);
+		pte = lookup_linux_pte(pgdir, hva, writing, &pte_size);
 		if (pte_present(pte)) {
 			if (writing && !pte_write(pte))
 				/* make the actual HPTE be read-only */
@@ -210,6 +209,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 			pa = pte_pfn(pte) << PAGE_SHIFT;
 		}
 	}
+
 	if (pte_size < psize)
 		return H_PARAMETER;
 	if (pa && pte_size > psize)
@@ -297,7 +297,7 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 		lock_rmap(rmap);
 		/* Check for pending invalidations under the rmap chain lock */
 		if (kvm->arch.using_mmu_notifiers &&
-		    mmu_notifier_retry(vcpu->kvm, mmu_seq)) {
+		    mmu_notifier_retry(kvm, mmu_seq)) {
 			/* inval in progress, write a non-present HPTE */
 			pteh |= HPTE_V_ABSENT;
 			pteh &= ~HPTE_V_VALID;
@@ -318,10 +318,17 @@ long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 	hpte[0] = pteh;
 	asm volatile("ptesync" : : : "memory");
 
-	vcpu->arch.gpr[4] = pte_index;
+	*pte_idx_ret = pte_index;
 	return H_SUCCESS;
 }
-EXPORT_SYMBOL_GPL(kvmppc_h_enter);
+EXPORT_SYMBOL_GPL(kvmppc_do_h_enter);
+
+long kvmppc_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
+		    long pte_index, unsigned long pteh, unsigned long ptel)
+{
+	return kvmppc_do_h_enter(vcpu->kvm, flags, pte_index, pteh, ptel,
+				 vcpu->arch.pgdir, true, &vcpu->arch.gpr[4]);
+}
 
 #define LOCK_TOKEN	(*(u32 *)(&get_paca()->lock_token))
 
