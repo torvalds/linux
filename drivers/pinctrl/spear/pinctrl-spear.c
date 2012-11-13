@@ -86,10 +86,10 @@ void __devinit
 pmx_init_gpio_pingroup_addr(struct spear_gpio_pingroup *gpio_pingroup,
 		unsigned count, u16 reg)
 {
-	int i = 0, j = 0;
+	int i, j;
 
-	for (; i < count; i++)
-		for (; j < gpio_pingroup[i].nmuxregs; j++)
+	for (i = 0; i < count; i++)
+		for (j = 0; j < gpio_pingroup[i].nmuxregs; j++)
 			gpio_pingroup[i].muxregs[j].reg = reg;
 }
 
