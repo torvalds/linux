@@ -594,10 +594,11 @@ config COMEDI_ADDI_APCI_1500
 	  called addi_apci_1500.
 
 config COMEDI_ADDI_APCI_1516
-	tristate "ADDI-DATA APCI-1516/2016 support"
-	depends on VIRT_TO_BUS
+	tristate "ADDI-DATA APCI-1016/1516/2016 support"
 	---help---
-	  Enable support for ADDI-DATA APCI-1516 and APCI-2016 boards.
+	  Enable support for ADDI-DATA APCI-1016, APCI-1516 and APCI-2016 boards.
+	  These are 16 channel, optically isolated, digital I/O boards. The 1516
+	  and 2016 boards also have a watchdog for resetting the outputs to "0".
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called addi_apci_1516.
