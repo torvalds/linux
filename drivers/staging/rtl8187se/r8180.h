@@ -611,7 +611,6 @@ typedef struct r8180_priv
 	struct work_struct watch_dog_wq;
 	short ack_tx_to_ieee;
 
-	u8 PowerProfile;
 	u8 dma_poll_stop_mask;
 
 	//u8 RegThreeWireMode;

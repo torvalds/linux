@@ -2480,7 +2480,6 @@ short rtl8180_init(struct net_device *dev)
 	priv->NumTxOkTotal = 0;
 	priv->NumTxUnicast = 0;
 	priv->keepAliveLevel = DEFAULT_KEEP_ALIVE_LEVEL;
-	priv->PowerProfile = POWER_PROFILE_AC;
 	priv->CurrRetryCnt = 0;
 	priv->LastRetryCnt = 0;
 	priv->LastTxokCnt = 0;
@@ -2927,8 +2926,6 @@ static void MgntLinkKeepAlive(struct r8180_priv *priv)
 	}
 }
 
-static u8 read_acadapter_file(char *filename);
-
 void rtl8180_watch_dog(struct net_device *dev)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -2961,12 +2958,7 @@ void rtl8180_watch_dog(struct net_device *dev)
 	MgntLinkKeepAlive(priv);
 
 	/* YJ,add,080828,for LPS */
-	if (priv->PowerProfile == POWER_PROFILE_BATTERY)
-		priv->bLeisurePs = true;
-	else if (priv->PowerProfile == POWER_PROFILE_AC) {
-		LeisurePSLeave(priv);
-		priv->bLeisurePs = false;
-	}
+	LeisurePSLeave(priv);
 
 	if (priv->ieee80211->state == IEEE80211_LINKED) {
 		priv->link_detect.NumRxOkInPeriod = priv->ieee80211->NumRxDataInPeriod;
@@ -3735,9 +3727,6 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
 	static int readf_count = 0;
 
-	if (readf_count % 10 == 0)
-		priv->PowerProfile = read_acadapter_file("/proc/acpi/ac_adapter/AC0/state");
-
 	readf_count = (readf_count+1)%0xffff;
 	/* We should turn off LED before polling FF51[4]. */
 
@@ -3780,11 +3769,6 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 
 		call_usermodehelper(RadioPowerPath, argv, envp, UMH_WAIT_PROC);
 	}
-}
-
-static u8 read_acadapter_file(char *filename)
-{
-	return 0;
 }
 
 module_init(rtl8180_pci_module_init);
