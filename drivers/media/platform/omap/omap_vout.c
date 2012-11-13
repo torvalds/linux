@@ -1232,21 +1232,6 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *fh,
 	return ret;
 }
 
-static int vidioc_enum_fmt_vid_overlay(struct file *file, void *fh,
-			struct v4l2_fmtdesc *fmt)
-{
-	int index = fmt->index;
-
-	if (index >= NUM_OUTPUT_FORMATS)
-		return -EINVAL;
-
-	fmt->flags = omap_formats[index].flags;
-	strlcpy(fmt->description, omap_formats[index].description,
-			sizeof(fmt->description));
-	fmt->pixelformat = omap_formats[index].pixelformat;
-	return 0;
-}
-
 static int vidioc_g_fmt_vid_overlay(struct file *file, void *fh,
 			struct v4l2_format *f)
 {
@@ -1862,7 +1847,6 @@ static const struct v4l2_ioctl_ops vout_ioctl_ops = {
 	.vidioc_s_ctrl       			= vidioc_s_ctrl,
 	.vidioc_try_fmt_vid_overlay 		= vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay		= vidioc_s_fmt_vid_overlay,
-	.vidioc_enum_fmt_vid_overlay		= vidioc_enum_fmt_vid_overlay,
 	.vidioc_g_fmt_vid_overlay		= vidioc_g_fmt_vid_overlay,
 	.vidioc_cropcap				= vidioc_cropcap,
 	.vidioc_g_crop				= vidioc_g_crop,
