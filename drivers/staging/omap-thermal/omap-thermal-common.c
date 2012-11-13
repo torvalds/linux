@@ -256,12 +256,12 @@ static struct omap_thermal_data
 int omap_thermal_expose_sensor(struct omap_bandgap *bg_ptr, int id,
 			       char *domain)
 {
-	struct omap_thermal_pdata pdata;
+	struct omap_thermal_data *data;
 
 	data = omap_bandgap_get_sensor_data(bg_ptr, id);
 
 	if (!data)
-		data = omap_thermal_build_pdata(bg_ptr, id);
+		data = omap_thermal_build_data(bg_ptr, id);
 
 	if (!data)
 		return -EINVAL;
@@ -359,7 +359,7 @@ int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
 
 	data = omap_bandgap_get_sensor_data(bg_ptr, id);
 	if (!data)
-		data = omap_thermal_build_pdata(bg_ptr, id);
+		data = omap_thermal_build_data(bg_ptr, id);
 
 	if (!data)
 		return -EINVAL;
