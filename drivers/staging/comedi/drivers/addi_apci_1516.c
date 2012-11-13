@@ -1,6 +1,5 @@
 #include "../comedidev.h"
 #include "comedi_fc.h"
-#include "amcc_s5933.h"
 
 #include "addi-data/addi_common.h"
 
