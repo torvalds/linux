@@ -467,16 +467,10 @@ void vtime_task_switch(struct task_struct *prev)
 #ifndef __ARCH_HAS_VTIME_ACCOUNT
 void vtime_account(struct task_struct *tsk)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-
 	if (in_interrupt() || !is_idle_task(tsk))
 		vtime_account_system(tsk);
 	else
 		vtime_account_idle(tsk);
-
-	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(vtime_account);
 #endif /* __ARCH_HAS_VTIME_ACCOUNT */
