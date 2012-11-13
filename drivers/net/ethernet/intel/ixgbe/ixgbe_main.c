@@ -1015,7 +1015,6 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 	 * which will cause the DCA tag to be cleared.
 	 */
 	rxctrl |= IXGBE_DCA_RXCTRL_DESC_RRO_EN |
-		  IXGBE_DCA_RXCTRL_DATA_DCA_EN |
 		  IXGBE_DCA_RXCTRL_DESC_DCA_EN;
 
 	IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(reg_idx), rxctrl);
