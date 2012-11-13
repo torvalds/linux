@@ -444,24 +444,6 @@ void buffer_free(struct net_device *dev, struct buffer **buffer, int len, short 
 	*buffer = NULL;
 }
 
-void print_buffer(u32 *buffer, int len)
-{
-	int i;
-	u8 *buf = (u8 *)buffer;
-
-	printk("ASCII BUFFER DUMP (len: %x):\n", len);
-
-	for (i = 0; i < len; i++)
-		printk("%c", buf[i]);
-
-	printk("\nBINARY BUFFER DUMP (len: %x):\n", len);
-
-	for (i = 0; i < len; i++)
-		printk("%02x", buf[i]);
-
-	printk("\n");
-}
-
 int get_curr_tx_free_desc(struct net_device *dev, int priority)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -2968,29 +2950,6 @@ void write_phy_cck(struct net_device *dev, u8 adr, u32 data)
 {
 	data = data & 0xff;
 	rtl8185_write_phy(dev, adr, data | 0x10000);
-}
-
-void rtl8185_set_rate(struct net_device *dev)
-{
-	int i;
-	u16 word;
-	int basic_rate, min_rr_rate, max_rr_rate;
-
-	basic_rate = ieeerate2rtlrate(240);
-	min_rr_rate = ieeerate2rtlrate(60);
-	max_rr_rate = ieeerate2rtlrate(240);
-
-	write_nic_byte(dev, RESP_RATE,
-		       max_rr_rate<<MAX_RESP_RATE_SHIFT |
-		       min_rr_rate<<MIN_RESP_RATE_SHIFT);
-
-	word  = read_nic_word(dev, BRSR);
-	word &= ~BRSR_MBR_8185;
-
-	for (i = 0; i <= basic_rate; i++)
-		word |= (1<<i);
-
-	write_nic_word(dev, BRSR, word);
 }
 
 /*
