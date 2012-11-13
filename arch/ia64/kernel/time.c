@@ -100,17 +100,10 @@ void vtime_account_user(struct task_struct *tsk)
  * accumulated times to the current process, and to prepare accounting on
  * the next process.
  */
-void vtime_task_switch(struct task_struct *prev)
+void arch_vtime_task_switch(struct task_struct *prev)
 {
 	struct thread_info *pi = task_thread_info(prev);
 	struct thread_info *ni = task_thread_info(current);
-
-	if (idle_task(smp_processor_id()) != prev)
-		vtime_account_system(prev);
-	else
-		vtime_account_idle(prev);
-
-	vtime_account_user(prev);
 
 	pi->ac_stamp = ni->ac_stamp;
 	ni->ac_stime = ni->ac_utime = 0;

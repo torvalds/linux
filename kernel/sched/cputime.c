@@ -443,6 +443,19 @@ void vtime_account_system_irqsafe(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(vtime_account_system_irqsafe);
 
+#ifndef __ARCH_HAS_VTIME_TASK_SWITCH
+void vtime_task_switch(struct task_struct *prev)
+{
+	if (is_idle_task(prev))
+		vtime_account_idle(prev);
+	else
+		vtime_account_system(prev);
+
+	vtime_account_user(prev);
+	arch_vtime_task_switch(prev);
+}
+#endif
+
 /*
  * Archs that account the whole time spent in the idle task
  * (outside irq) as idle time can rely on this and just implement

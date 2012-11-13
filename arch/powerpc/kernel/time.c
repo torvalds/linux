@@ -375,12 +375,6 @@ void vtime_account_user(struct task_struct *tsk)
 	account_user_time(tsk, utime, utimescaled);
 }
 
-void vtime_task_switch(struct task_struct *prev)
-{
-	vtime_account(prev);
-	vtime_account_user(prev);
-}
-
 #else /* ! CONFIG_VIRT_CPU_ACCOUNTING */
 #define calc_cputime_factors()
 #endif

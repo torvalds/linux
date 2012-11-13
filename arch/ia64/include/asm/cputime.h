@@ -103,5 +103,7 @@ static inline void cputime_to_timeval(const cputime_t ct, struct timeval *val)
 #define cputime64_to_clock_t(__ct)	\
 	cputime_to_clock_t((__force cputime_t)__ct)
 
+extern void arch_vtime_task_switch(struct task_struct *tsk);
+
 #endif /* CONFIG_VIRT_CPU_ACCOUNTING */
 #endif /* __IA64_CPUTIME_H */
