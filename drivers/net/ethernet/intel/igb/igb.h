@@ -150,11 +150,18 @@ struct vf_data_storage {
 
 #define IGB_MNG_VLAN_NONE -1
 
-#define IGB_TX_FLAGS_CSUM		0x00000001
-#define IGB_TX_FLAGS_VLAN		0x00000002
-#define IGB_TX_FLAGS_TSO		0x00000004
-#define IGB_TX_FLAGS_IPV4		0x00000008
-#define IGB_TX_FLAGS_TSTAMP		0x00000010
+enum igb_tx_flags {
+	/* cmd_type flags */
+	IGB_TX_FLAGS_VLAN	= 0x01,
+	IGB_TX_FLAGS_TSO	= 0x02,
+	IGB_TX_FLAGS_TSTAMP	= 0x04,
+
+	/* olinfo flags */
+	IGB_TX_FLAGS_IPV4	= 0x10,
+	IGB_TX_FLAGS_CSUM	= 0x20,
+};
+
+/* VLAN info */
 #define IGB_TX_FLAGS_VLAN_MASK		0xffff0000
 #define IGB_TX_FLAGS_VLAN_SHIFT	16
 
