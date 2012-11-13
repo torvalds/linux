@@ -26,6 +26,7 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(2)	/* IFLA_BRPORT_PRIORITY */
 		+ nla_total_size(4)	/* IFLA_BRPORT_COST */
 		+ nla_total_size(1)	/* IFLA_BRPORT_MODE */
+		+ nla_total_size(1)	/* IFLA_BRPORT_GUARD */
 		+ 0;
 }
 
@@ -49,7 +50,8 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 	if (nla_put_u8(skb, IFLA_BRPORT_STATE, p->state) ||
 	    nla_put_u16(skb, IFLA_BRPORT_PRIORITY, p->priority) ||
 	    nla_put_u32(skb, IFLA_BRPORT_COST, p->path_cost) ||
-	    nla_put_u8(skb, IFLA_BRPORT_MODE, mode))
+	    nla_put_u8(skb, IFLA_BRPORT_MODE, mode) ||
+	    nla_put_u8(skb, IFLA_BRPORT_GUARD, !!(p->flags & BR_BPDU_GUARD)))
 		return -EMSGSIZE;
 
 	return 0;
@@ -162,6 +164,7 @@ static const struct nla_policy ifla_brport_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_COST]	= { .type = NLA_U32 },
 	[IFLA_BRPORT_PRIORITY]	= { .type = NLA_U16 },
 	[IFLA_BRPORT_MODE]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_GUARD]	= { .type = NLA_U8 },
 };
 
 /* Change the state of the port and notify spanning tree */
@@ -203,6 +206,7 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 	int err;
 
 	br_set_port_flag(p, tb, IFLA_BRPORT_MODE, BR_HAIRPIN_MODE);
+	br_set_port_flag(p, tb, IFLA_BRPORT_GUARD, BR_BPDU_GUARD);
 
 	if (tb[IFLA_BRPORT_COST]) {
 		err = br_stp_set_path_cost(p, nla_get_u32(tb[IFLA_BRPORT_COST]));
