@@ -2184,9 +2184,16 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	err = pci_enable_msi(pdev);
-	if (err)
+	if (err) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "pci_enable_msi failed(0X%x)\n", err);
+		/* enable rfkill interrupt: hw bug w/a */
+		pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
+		if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
+			pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
+			pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
+		}
+	}
 
 	trans->dev = &pdev->dev;
 	trans_pcie->irq = pdev->irq;
@@ -2195,14 +2202,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	trans->hw_id = (pdev->device << 16) + pdev->subsystem_device;
 	snprintf(trans->hw_id_str, sizeof(trans->hw_id_str),
 		 "PCI ID: 0x%04X:0x%04X", pdev->device, pdev->subsystem_device);
-
-	/* TODO: Move this away, not needed if not MSI */
-	/* enable rfkill interrupt: hw bug w/a */
-	pci_read_config_word(pdev, PCI_COMMAND, &pci_cmd);
-	if (pci_cmd & PCI_COMMAND_INTX_DISABLE) {
-		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
-		pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
-	}
 
 	/* Initialize the wait queue for commands */
 	init_waitqueue_head(&trans_pcie->wait_command_queue);
