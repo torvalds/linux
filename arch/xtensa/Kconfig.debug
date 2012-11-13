@@ -2,6 +2,15 @@ menu "Kernel hacking"
 
 source "lib/Kconfig.debug"
 
+config LD_NO_RELAX
+	bool "Disable linker relaxation"
+	default n
+	help
+	  Enable this function to disable link-time optimizations.
+	  The default linker behavior is to combine identical literal
+	  values to reduce code size and remove unnecessary overhead from
+	  assembler-generated 'longcall' sequences.
+	  Enabling this option improves the link time but increases the
+	  code size, and possibly execution time.
+
 endmenu
-
-
