@@ -180,14 +180,9 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 static void apci1516_detach(struct comedi_device *dev)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	struct addi_private *devpriv = dev->private;
 
-	if (devpriv) {
-		if (dev->iobase)
-			apci1516_reset(dev);
-		if (devpriv->dw_AiBase)
-			iounmap(devpriv->dw_AiBase);
-	}
+	if (dev->iobase)
+		apci1516_reset(dev);
 	if (pcidev) {
 		if (dev->iobase)
 			comedi_pci_disable(pcidev);
