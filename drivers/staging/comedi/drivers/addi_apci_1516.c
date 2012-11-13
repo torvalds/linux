@@ -52,7 +52,7 @@
 #define APCI1516_WDOG_RELOAD_REG		0x04
 #define APCI1516_WDOG_CTRL_REG			0x0c
 #define APCI1516_WDOG_CTRL_ENABLE		(1 << 0)
-#define APCI1516_WDOG_CTRL_SOFT_TRIG		(1 << 9)
+#define APCI1516_WDOG_CTRL_SW_TRIG		(1 << 9)
 #define APCI1516_WDOG_STATUS_REG		0x10
 
 struct apci1516_boardinfo {
@@ -158,29 +158,25 @@ static int apci1516_wdog_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_APCI1516_StartStopWriteWatchdog(struct comedi_device *dev,
-					     struct comedi_subdevice *s,
-					     struct comedi_insn *insn,
-					     unsigned int *data)
+static int apci1516_wdog_insn_write(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
 	struct apci1516_private *devpriv = dev->private;
+	int i;
 
-	switch (data[0]) {
-	case 0:		/* stop the watchdog */
-		outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-		break;
-	case 1:		/* start the watchdog */
-		outw(APCI1516_WDOG_CTRL_ENABLE,
-		     devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-		break;
-	case 2:		/* Software trigger */
-		outw(APCI1516_WDOG_CTRL_ENABLE | APCI1516_WDOG_CTRL_SOFT_TRIG,
-		     devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-		break;
-	default:
-		printk("\nSpecified functionality does not exist\n");
+	if (devpriv->ctrl == 0) {
+		dev_warn(dev->class_dev, "watchdog is disabled\n");
 		return -EINVAL;
-	}			/*  switch(data[0]) */
+	}
+
+	/* "ping" the watchdog */
+	for (i = 0; i < insn->n; i++) {
+		outw(devpriv->ctrl | APCI1516_WDOG_CTRL_SW_TRIG,
+			devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
+	}
+
 	return insn->n;
 }
 
@@ -290,7 +286,7 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->subdev_flags	= SDF_WRITEABLE;
 		s->n_chan	= 1;
 		s->maxdata	= 0xff;
-		s->insn_write	= i_APCI1516_StartStopWriteWatchdog;
+		s->insn_write	= apci1516_wdog_insn_write;
 		s->insn_read	= apci1516_wdog_insn_read;
 		s->insn_config	= apci1516_wdog_insn_config;
 	} else {
