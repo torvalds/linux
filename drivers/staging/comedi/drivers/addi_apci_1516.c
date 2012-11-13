@@ -344,6 +344,6 @@ static struct pci_driver apci1516_pci_driver = {
 };
 module_comedi_pci_driver(apci1516_driver, apci1516_pci_driver);
 
+MODULE_DESCRIPTION("ADDI-DATA APCI-1016/1516/2016, 16 channel DIO boards");
 MODULE_AUTHOR("Comedi http://www.comedi.org");
-MODULE_DESCRIPTION("Comedi low-level driver");
 MODULE_LICENSE("GPL");
