@@ -64,6 +64,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #define APCI1516_WDOG_RELOAD_LSB_REG		0x04
 #define APCI1516_WDOG_RELOAD_MSB_REG		0x06
 #define APCI1516_WDOG_CTRL_REG			0x0c
+#define APCI1516_WDOG_CTRL_ENABLE		(1 << 0)
+#define APCI1516_WDOG_CTRL_SOFT_TRIG		(1 << 9)
 #define APCI1516_WDOG_STATUS_REG		0x10
 
 #define ADDIDATA_WATCHDOG			2
@@ -182,10 +184,12 @@ static int i_APCI1516_StartStopWriteWatchdog(struct comedi_device *dev,
 		outw(0x0, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		break;
 	case 1:		/* start the watchdog */
-		outw(0x0001, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+		outw(APCI1516_WDOG_CTRL_ENABLE,
+		     devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		break;
 	case 2:		/* Software trigger */
-		outw(0x0201, devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
+		outw(APCI1516_WDOG_CTRL_ENABLE | APCI1516_WDOG_CTRL_SOFT_TRIG,
+		     devpriv->i_IobaseAddon + APCI1516_WDOG_CTRL_REG);
 		break;
 	default:
 		printk("\nSpecified functionality does not exist\n");
