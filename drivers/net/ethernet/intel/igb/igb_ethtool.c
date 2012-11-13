@@ -2529,6 +2529,104 @@ static int igb_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return ret;
 }
 
+static int igb_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	u32 ipcnfg, eeer;
+
+	if ((hw->mac.type < e1000_i350) ||
+	    (hw->phy.media_type != e1000_media_type_copper))
+		return -EOPNOTSUPP;
+
+	edata->supported = (SUPPORTED_1000baseT_Full |
+			    SUPPORTED_100baseT_Full);
+
+	ipcnfg = rd32(E1000_IPCNFG);
+	eeer = rd32(E1000_EEER);
+
+	/* EEE status on negotiated link */
+	if (ipcnfg & E1000_IPCNFG_EEE_1G_AN)
+		edata->advertised = ADVERTISED_1000baseT_Full;
+
+	if (ipcnfg & E1000_IPCNFG_EEE_100M_AN)
+		edata->advertised |= ADVERTISED_100baseT_Full;
+
+	if (eeer & E1000_EEER_EEE_NEG)
+		edata->eee_active = true;
+
+	edata->eee_enabled = !hw->dev_spec._82575.eee_disable;
+
+	if (eeer & E1000_EEER_TX_LPI_EN)
+		edata->tx_lpi_enabled = true;
+
+	/* Report correct negotiated EEE status for devices that
+	 * wrongly report EEE at half-duplex
+	 */
+	if (adapter->link_duplex == HALF_DUPLEX) {
+		edata->eee_enabled = false;
+		edata->eee_active = false;
+		edata->tx_lpi_enabled = false;
+		edata->advertised &= ~edata->advertised;
+	}
+
+	return 0;
+}
+
+static int igb_set_eee(struct net_device *netdev,
+		       struct ethtool_eee *edata)
+{
+	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
+	struct ethtool_eee eee_curr;
+	s32 ret_val;
+
+	if ((hw->mac.type < e1000_i350) ||
+	    (hw->phy.media_type != e1000_media_type_copper))
+		return -EOPNOTSUPP;
+
+	ret_val = igb_get_eee(netdev, &eee_curr);
+	if (ret_val)
+		return ret_val;
+
+	if (eee_curr.eee_enabled) {
+		if (eee_curr.tx_lpi_enabled != edata->tx_lpi_enabled) {
+			dev_err(&adapter->pdev->dev,
+				"Setting EEE tx-lpi is not supported\n");
+			return -EINVAL;
+		}
+
+		/* Tx LPI timer is not implemented currently */
+		if (edata->tx_lpi_timer) {
+			dev_err(&adapter->pdev->dev,
+				"Setting EEE Tx LPI timer is not supported\n");
+			return -EINVAL;
+		}
+
+		if (eee_curr.advertised != edata->advertised) {
+			dev_err(&adapter->pdev->dev,
+				"Setting EEE Advertisement is not supported\n");
+			return -EINVAL;
+		}
+
+	} else if (!edata->eee_enabled) {
+		dev_err(&adapter->pdev->dev,
+			"Setting EEE options are not supported with EEE disabled\n");
+			return -EINVAL;
+		}
+
+	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
+		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
+		igb_set_eee_i350(hw);
+
+		/* reset link */
+		if (!netif_running(netdev))
+			igb_reset(adapter);
+	}
+
+	return 0;
+}
+
 static int igb_ethtool_begin(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
@@ -2571,6 +2669,8 @@ static const struct ethtool_ops igb_ethtool_ops = {
 	.get_ts_info            = igb_get_ts_info,
 	.get_rxnfc		= igb_get_rxnfc,
 	.set_rxnfc		= igb_set_rxnfc,
+	.get_eee		= igb_get_eee,
+	.set_eee		= igb_set_eee,
 	.begin			= igb_ethtool_begin,
 	.complete		= igb_ethtool_complete,
 };
