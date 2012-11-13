@@ -71,7 +71,7 @@ static const struct imx_pin_reg *imx_find_pin_reg(
 			break;
 	}
 
-	if (!pin_reg) {
+	if (i == info->npin_regs) {
 		dev_err(info->dev, "Pin(%s): unable to find pin reg map\n",
 			info->pins[pin].name);
 		return NULL;
