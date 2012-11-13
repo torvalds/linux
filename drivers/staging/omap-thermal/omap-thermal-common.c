@@ -29,6 +29,7 @@
 #include <linux/workqueue.h>
 #include <linux/thermal.h>
 #include <linux/cpufreq.h>
+#include <linux/cpumask.h>
 #include <linux/cpu_cooling.h>
 
 #include "omap-thermal.h"
@@ -112,7 +113,7 @@ static int omap_thermal_bind(struct thermal_zone_device *thermal,
 			      struct thermal_cooling_device *cdev)
 {
 	struct omap_thermal_data *data = thermal->devdata;
-	int max, id;
+	int id;
 
 	if (IS_ERR_OR_NULL(data))
 		return -ENODEV;
@@ -122,7 +123,6 @@ static int omap_thermal_bind(struct thermal_zone_device *thermal,
 		return 0;
 
 	id = data->sensor_id;
-	max = data->bg_ptr->conf->sensors[id].cooling_data.freq_clip_count;
 
 	/* TODO: bind with min and max states */
 	/* Simple thing, two trips, one passive another critical */
@@ -304,58 +304,9 @@ int omap_thermal_report_sensor_temperature(struct omap_bandgap *bg_ptr, int id)
 	return 0;
 }
 
-static int omap_thermal_build_cpufreq_clip(struct omap_bandgap *bg_ptr,
-					   struct freq_clip_table **tab_ptr,
-					   int *tab_size)
-{
-	struct cpufreq_frequency_table *freq_table;
-	struct freq_clip_table *tab;
-	int i, count = 0;
-
-	freq_table = cpufreq_frequency_get_table(0);
-	if (IS_ERR_OR_NULL(freq_table)) {
-		dev_err(bg_ptr->dev,
-			"%s: failed to get cpufreq table (%p)\n",
-			__func__, freq_table);
-		return -EINVAL;
-	}
-
-	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned int freq = freq_table[i].frequency;
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-		count++;
-	}
-
-	tab = devm_kzalloc(bg_ptr->dev, sizeof(*tab) * count, GFP_KERNEL);
-	if (!tab) {
-		dev_err(bg_ptr->dev,
-			"%s: no memory available\n", __func__);
-		return -ENOMEM;
-	}
-
-	for (i = 0; freq_table[i].frequency != CPUFREQ_TABLE_END; i++) {
-		unsigned int freq = freq_table[i].frequency;
-
-		if (freq == CPUFREQ_ENTRY_INVALID)
-			continue;
-
-		tab[count - i - 1].freq_clip_max = freq;
-		tab[count - i - 1].temp_level = OMAP_TRIP_HOT;
-		tab[count - i - 1].mask_val = cpumask_of(0);
-	}
-
-	*tab_ptr = tab;
-	*tab_size = count;
-
-	return 0;
-}
-
 int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
 {
 	struct omap_thermal_data *data;
-	struct freq_clip_table *tab_ptr;
-	int tab_size, ret;
 
 	data = omap_bandgap_get_sensor_data(bg_ptr, id);
 	if (!data)
@@ -364,21 +315,13 @@ int omap_thermal_register_cpu_cooling(struct omap_bandgap *bg_ptr, int id)
 	if (!data)
 		return -EINVAL;
 
-	ret = omap_thermal_build_cpufreq_clip(bg_ptr, &tab_ptr, &tab_size);
-	if (ret < 0) {
-		dev_err(bg_ptr->dev,
-			"%s: failed to build cpufreq clip table\n", __func__);
-		return ret;
-	}
-
 	/* Register cooling device */
-	data->cool_dev = cpufreq_cooling_register(tab_ptr, tab_size);
+	data->cool_dev = cpufreq_cooling_register(cpu_present_mask);
 	if (IS_ERR_OR_NULL(data->cool_dev)) {
 		dev_err(bg_ptr->dev,
 			"Failed to register cpufreq cooling device\n");
 		return PTR_ERR(data->cool_dev);
 	}
-	bg_ptr->conf->sensors[id].cooling_data.freq_clip_count = tab_size;
 	omap_bandgap_set_sensor_data(bg_ptr, id, data);
 
 	return 0;

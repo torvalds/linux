@@ -336,14 +336,6 @@ struct temp_sensor_regval {
 };
 
 /**
- * struct thermal_cooling_conf - description on how to cool a thermal zone
- * @freq_clip_count: size of freq_data
- */
-struct thermal_cooling_conf {
-	int freq_clip_count;
-};
-
-/**
  * struct omap_temp_sensor - bandgap temperature sensor platform data
  * @ts_data: pointer to struct with thresholds, limits of temperature sensor
  * @registers: pointer to the list of register offsets and bitfields
@@ -365,7 +357,6 @@ struct omap_temp_sensor {
 	struct temp_sensor_registers	*registers;
 	struct temp_sensor_regval	regval;
 	char				*domain;
-	struct thermal_cooling_conf	cooling_data;
 	/* for hotspot extrapolation */
 	const int			slope;
 	const int			constant;
