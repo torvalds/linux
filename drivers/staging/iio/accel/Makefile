@@ -3,7 +3,6 @@
 #
 
 adis16201-y             := adis16201_core.o
-adis16201-$(CONFIG_IIO_BUFFER) += adis16201_ring.o adis16201_trigger.o
 obj-$(CONFIG_ADIS16201) += adis16201.o
 
 adis16203-y             := adis16203_core.o
