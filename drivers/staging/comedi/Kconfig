@@ -568,7 +568,6 @@ config COMEDI_8255_PCI
 
 config COMEDI_ADDI_APCI_035
 	tristate "ADDI-DATA APCI_035 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_035 cards
 
@@ -577,7 +576,6 @@ config COMEDI_ADDI_APCI_035
 
 config COMEDI_ADDI_APCI_1032
 	tristate "ADDI-DATA APCI_1032 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_1032 cards
 
@@ -586,7 +584,6 @@ config COMEDI_ADDI_APCI_1032
 
 config COMEDI_ADDI_APCI_1500
 	tristate "ADDI-DATA APCI_1500 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_1500 cards
 
@@ -605,7 +602,6 @@ config COMEDI_ADDI_APCI_1516
 
 config COMEDI_ADDI_APCI_1564
 	tristate "ADDI-DATA APCI_1564 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_1564 cards
 
@@ -614,7 +610,6 @@ config COMEDI_ADDI_APCI_1564
 
 config COMEDI_ADDI_APCI_16XX
 	tristate "ADDI-DATA APCI_16xx support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_16xx cards
 
@@ -623,7 +618,6 @@ config COMEDI_ADDI_APCI_16XX
 
 config COMEDI_ADDI_APCI_2032
 	tristate "ADDI-DATA APCI_2032 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_2032 cards
 
@@ -632,7 +626,6 @@ config COMEDI_ADDI_APCI_2032
 
 config COMEDI_ADDI_APCI_2200
 	tristate "ADDI-DATA APCI_2200 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_2200 cards
 
@@ -651,7 +644,6 @@ config COMEDI_ADDI_APCI_3120
 
 config COMEDI_ADDI_APCI_3501
 	tristate "ADDI-DATA APCI_3501 support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_3501 cards
 
@@ -660,7 +652,6 @@ config COMEDI_ADDI_APCI_3501
 
 config COMEDI_ADDI_APCI_3XXX
 	tristate "ADDI-DATA APCI_3xxx support"
-	depends on VIRT_TO_BUS
 	---help---
 	  Enable support for ADDI-DATA APCI_3xxx cards
 
