@@ -927,10 +927,7 @@ static void MacConfig_85BASIC(struct net_device *dev)
 
 u8 GetSupportedWirelessMode8185(struct net_device *dev)
 {
-	u8 btSupportedWirelessMode = 0;
-
-	btSupportedWirelessMode = (WIRELESS_MODE_B | WIRELESS_MODE_G);
-	return btSupportedWirelessMode;
+	return WIRELESS_MODE_B | WIRELESS_MODE_G;
 }
 
 void ActUpdateChannelAccessSetting(struct net_device *dev,
