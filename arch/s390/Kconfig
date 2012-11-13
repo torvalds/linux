@@ -169,6 +169,10 @@ config HAVE_MARCH_Z196_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z10_FEATURES
 
+config HAVE_MARCH_ZEC12_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z196_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_G5
@@ -219,6 +223,13 @@ config MARCH_Z196
 	  Select this to enable optimizations for IBM zEnterprise 114 and 196
 	  (2818 and 2817 series). The kernel will be slightly faster but will
 	  not work on older machines.
+
+config MARCH_ZEC12
+	bool "IBM zEC12"
+	select HAVE_MARCH_ZEC12_FEATURES if 64BIT
+	help
+	  Select this to enable optimizations for IBM zEC12 (2827 series). The
+	  kernel will be slightly faster but will not work on older machines.
 
 endchoice
 
