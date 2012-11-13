@@ -242,7 +242,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->n_chan = this_board->di_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->io_bits = 0;	/* all bits input */
 		s->insn_bits = apci1516_di_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
@@ -256,7 +255,6 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->n_chan = this_board->do_nchan;
 		s->maxdata = 1;
 		s->range_table = &range_digital;
-		s->io_bits = 0xf;	/* all bits output */
 		s->insn_bits = apci1516_do_insn_bits;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
