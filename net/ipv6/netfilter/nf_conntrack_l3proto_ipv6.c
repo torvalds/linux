@@ -334,9 +334,14 @@ ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
 	memcpy(&sin6.sin6_addr,
 		&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.in6,
 					sizeof(sin6.sin6_addr));
-	sin6.sin6_scope_id = sk->sk_bound_dev_if;
 
 	nf_ct_put(ct);
+
+	if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
+		sin6.sin6_scope_id = sk->sk_bound_dev_if;
+	else
+		sin6.sin6_scope_id = 0;
+
 	return copy_to_user(user, &sin6, sizeof(sin6)) ? -EFAULT : 0;
 }
 
