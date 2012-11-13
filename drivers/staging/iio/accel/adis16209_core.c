@@ -146,6 +146,7 @@ static const struct iio_chan_spec adis16209_channels[] = {
 static const struct iio_info adis16209_info = {
 	.read_raw = &adis16209_read_raw,
 	.write_raw = &adis16209_write_raw,
+	.update_scan_mode = adis_update_scan_mode,
 	.driver_module = THIS_MODULE,
 };
 

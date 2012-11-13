@@ -1,3 +1,12 @@
+/*
+ * Common library for ADIS16XXX devices
+ *
+ * Copyright 2012 Analog Devices Inc.
+ *   Author: Lars-Peter Clausen <lars@metafoo.de>
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
@@ -12,73 +21,80 @@
 
 #include  "adis.h"
 
-#define ADIS_MAX_OUTPUTS 12
-
-static int adis_read_buffer_data(struct adis *adis, struct iio_dev *indio_dev)
+int adis_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *scan_mask)
 {
-	int n_outputs = indio_dev->num_channels;
-	struct spi_transfer xfers[ADIS_MAX_OUTPUTS + 1];
-	struct spi_message msg;
-	int ret;
-	int i;
+	struct adis *adis = iio_device_get_drvdata(indio_dev);
+	const struct iio_chan_spec *chan;
+	unsigned int scan_count;
+	unsigned int i, j;
+	__be16 *tx, *rx;
 
-	mutex_lock(&adis->txrx_lock);
+	kfree(adis->xfer);
+	kfree(adis->buffer);
 
-	spi_message_init(&msg);
+	scan_count = indio_dev->scan_bytes / 2;
 
-	memset(xfers, 0, sizeof(xfers));
-	for (i = 0; i <= n_outputs; i++) {
-		xfers[i].bits_per_word = 8;
-		xfers[i].cs_change = 1;
-		xfers[i].len = 2;
-		xfers[i].delay_usecs = adis->data->read_delay;
-		if (i < n_outputs) {
-			xfers[i].tx_buf = adis->tx + 2 * i;
-			adis->tx[2 * i] = indio_dev->channels[i].address;
-			adis->tx[2 * i + 1] = 0;
-		}
-		if (i >= 1)
-			xfers[i].rx_buf = adis->rx + 2 * (i - 1);
-		spi_message_add_tail(&xfers[i], &msg);
+	adis->xfer = kcalloc(scan_count + 1, sizeof(*adis->xfer), GFP_KERNEL);
+	if (!adis->xfer)
+		return -ENOMEM;
+
+	adis->buffer = kzalloc(indio_dev->scan_bytes * 2, GFP_KERNEL);
+	if (!adis->buffer)
+		return -ENOMEM;
+
+	rx = adis->buffer;
+	tx = rx + indio_dev->scan_bytes;
+
+	spi_message_init(&adis->msg);
+
+	for (j = 0; j <= scan_count; j++) {
+		adis->xfer[j].bits_per_word = 8;
+		if (j != scan_count)
+			adis->xfer[j].cs_change = 1;
+		adis->xfer[j].len = 2;
+		adis->xfer[j].delay_usecs = adis->data->read_delay;
+		if (j < scan_count)
+			adis->xfer[j].tx_buf = &tx[j];
+		if (j >= 1)
+			adis->xfer[j].rx_buf = &rx[j - 1];
+		spi_message_add_tail(&adis->xfer[j], &adis->msg);
 	}
 
-	ret = spi_sync(adis->spi, &msg);
-	if (ret)
-		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
+	chan = indio_dev->channels;
+	for (i = 0; i < indio_dev->num_channels; i++, chan++) {
+		if (!test_bit(chan->scan_index, scan_mask))
+			continue;
+		*tx++ = cpu_to_be16(chan->address << 8);
+	}
 
-	mutex_unlock(&adis->txrx_lock);
-
-	return ret;
+	return 0;
 }
+EXPORT_SYMBOL_GPL(adis_update_scan_mode);
 
 static irqreturn_t adis_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
-	u16 *data;
-	int i = 0;
+	int ret;
 
-	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
-	if (data == NULL) {
-		dev_err(&adis->spi->dev, "Failed to allocate memory.");
+	if (!adis->buffer)
 		return -ENOMEM;
-	}
 
-	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength)
-	    && adis_read_buffer_data(adis, indio_dev) >= 0)
-		for (; i < bitmap_weight(indio_dev->active_scan_mask,
-					 indio_dev->masklength); i++)
-			data[i] = be16_to_cpup((__be16 *)&(adis->rx[i*2]));
+	ret = spi_sync(adis->spi, &adis->msg);
+	if (ret)
+		dev_err(&adis->spi->dev, "Failed to read data: %d", ret);
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (indio_dev->scan_timestamp)
-		*((s64 *)(PTR_ALIGN(data, sizeof(s64)))) = pf->timestamp;
+	if (indio_dev->scan_timestamp) {
+		void *b = adis->buffer + indio_dev->scan_bytes - sizeof(s64);
+		*(s64 *)b = pf->timestamp;
+	}
 
-	iio_push_to_buffers(indio_dev, (u8 *)data);
+	iio_push_to_buffers(indio_dev, adis->buffer);
 
 	iio_trigger_notify_done(indio_dev->trig);
-	kfree(data);
 
 	return IRQ_HANDLED;
 }
@@ -137,6 +153,8 @@ void adis_cleanup_buffer_and_trigger(struct adis *adis,
 {
 	if (adis->spi->irq)
 		adis_remove_trigger(adis);
+	kfree(adis->buffer);
+	kfree(adis->xfer);
 	iio_triggered_buffer_cleanup(indio_dev);
 }
 EXPORT_SYMBOL_GPL(adis_cleanup_buffer_and_trigger);

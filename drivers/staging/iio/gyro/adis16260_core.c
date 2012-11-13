@@ -267,6 +267,7 @@ static const struct iio_info adis16260_info = {
 	.attrs = &adis16260_attribute_group,
 	.read_raw = &adis16260_read_raw,
 	.write_raw = &adis16260_write_raw,
+	.update_scan_mode = adis_update_scan_mode,
 	.driver_module = THIS_MODULE,
 };
 

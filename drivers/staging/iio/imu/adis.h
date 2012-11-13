@@ -87,6 +87,7 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 		.sign = 'u', \
 		.realbits = (bits), \
 		.storagebits = 16, \
+		.endianness = IIO_BE, \
 	}, \
 }
 
@@ -109,6 +110,7 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 		.sign = 'u', \
 		.realbits = (bits), \
 		.storagebits = 16, \
+		.endianness = IIO_BE, \
 	}, \
 }
 
@@ -125,6 +127,7 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 		.sign = 's', \
 		.realbits = (bits), \
 		.storagebits = 16, \
+		.endianness = IIO_BE, \
 	}, \
 }
 
@@ -150,6 +153,9 @@ void adis_cleanup_buffer_and_trigger(struct adis *adis,
 int adis_probe_trigger(struct adis *adis, struct iio_dev *indio_dev);
 void adis_remove_trigger(struct adis *adis);
 
+int adis_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *scan_mask);
+
 #else /* CONFIG_IIO_BUFFER */
 
 static inline int adis_setup_buffer_and_trigger(struct adis *adis,
@@ -172,6 +178,8 @@ static inline int adis_probe_trigger(struct adis *adis,
 static inline void adis_remove_trigger(struct adis *adis)
 {
 }
+
+#define adis_update_scan_mode NULL
 
 #endif /* CONFIG_IIO_BUFFER */
 
