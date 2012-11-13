@@ -629,7 +629,6 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	int ret;
 	int i;
 	int layer_id;
-	bool backlight_status =	rk29_get_backlight_status();
 
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	rk29_backlight_set(0);
@@ -764,10 +763,10 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	#endif 
 
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
-	rk29_backlight_set(!enable);
-#elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)  //close backlight for device whic do not support dual display
-	if(backlight_status == true)
+	if(!enable)
 		rk29_backlight_set(1);
+#elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)  //close backlight for device whic do not support dual display
+	rk29_backlight_set(1);
 #endif
 	return 0;
 
