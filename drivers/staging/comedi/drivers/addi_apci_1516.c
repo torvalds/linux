@@ -49,8 +49,7 @@
  * PCI bar 2 I/O Register map
  */
 #define APCI1516_WDOG_REG			0x00
-#define APCI1516_WDOG_RELOAD_LSB_REG		0x04
-#define APCI1516_WDOG_RELOAD_MSB_REG		0x06
+#define APCI1516_WDOG_RELOAD_REG		0x04
 #define APCI1516_WDOG_CTRL_REG			0x0c
 #define APCI1516_WDOG_CTRL_ENABLE		(1 << 0)
 #define APCI1516_WDOG_CTRL_SOFT_TRIG		(1 << 9)
@@ -85,6 +84,7 @@ static const struct apci1516_boardinfo apci1516_boardtypes[] = {
 
 struct apci1516_private {
 	unsigned long wdog_iobase;
+	unsigned int ctrl;
 };
 
 static int apci1516_di_insn_bits(struct comedi_device *dev,
@@ -118,27 +118,42 @@ static int apci1516_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int i_APCI1516_ConfigWatchdog(struct comedi_device *dev,
+/*
+ * The watchdog subdevice is configured with two INSN_CONFIG instructions:
+ *
+ * Enable the watchdog and set the reload timeout:
+ *	data[0] = INSN_CONFIG_ARM
+ *	data[1] = timeout reload value
+ *
+ * Disable the watchdog:
+ *	data[0] = INSN_CONFIG_DISARM
+ */
+static int apci1516_wdog_insn_config(struct comedi_device *dev,
 				     struct comedi_subdevice *s,
 				     struct comedi_insn *insn,
 				     unsigned int *data)
 {
 	struct apci1516_private *devpriv = dev->private;
+	unsigned int reload;
 
-	if (data[0] == 0) {
-		/* Disable the watchdog */
-		outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-		/* Loading the Reload value */
-		outw(data[1], devpriv->wdog_iobase +
-				APCI1516_WDOG_RELOAD_LSB_REG);
-		data[1] = data[1] >> 16;
-		outw(data[1], devpriv->wdog_iobase +
-				APCI1516_WDOG_RELOAD_MSB_REG);
-	}			/* if(data[0]==0) */
-	else {
-		printk("\nThe input parameters are wrong\n");
+	switch (data[0]) {
+	case INSN_CONFIG_ARM:
+		devpriv->ctrl = APCI1516_WDOG_CTRL_ENABLE;
+		reload = data[1] & s->maxdata;
+		outw(reload, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_REG);
+
+		/* Time base is 20ms, let the user know the timeout */
+		dev_info(dev->class_dev, "watchdog enabled, timeout:%dms\n",
+			20 * reload + 20);
+		break;
+	case INSN_CONFIG_DISARM:
+		devpriv->ctrl = 0;
+		break;
+	default:
 		return -EINVAL;
-	}			/* elseif(data[0]==0) */
+	}
+
+	outw(devpriv->ctrl, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
 
 	return insn->n;
 }
@@ -193,8 +208,7 @@ static int apci1516_reset(struct comedi_device *dev)
 
 	outw(0x0, dev->iobase + APCI1516_DO_REG);
 	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_CTRL_REG);
-	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_LSB_REG);
-	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_MSB_REG);
+	outw(0x0, devpriv->wdog_iobase + APCI1516_WDOG_RELOAD_REG);
 
 	return 0;
 }
@@ -275,11 +289,10 @@ static int __devinit apci1516_auto_attach(struct comedi_device *dev,
 		s->type		= COMEDI_SUBD_TIMER;
 		s->subdev_flags	= SDF_WRITEABLE;
 		s->n_chan	= 1;
-		s->maxdata	= 0;
-		s->range_table	= &range_digital;
+		s->maxdata	= 0xff;
 		s->insn_write	= i_APCI1516_StartStopWriteWatchdog;
 		s->insn_read	= apci1516_wdog_insn_read;
-		s->insn_config	= i_APCI1516_ConfigWatchdog;
+		s->insn_config	= apci1516_wdog_insn_config;
 	} else {
 		s->type		= COMEDI_SUBD_UNUSED;
 	}
