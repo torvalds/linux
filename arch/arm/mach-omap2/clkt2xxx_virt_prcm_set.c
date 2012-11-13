@@ -59,7 +59,8 @@ static unsigned long sys_ck_rate;
  *
  * Set virt_prcm_set's rate to the mpu_speed field of the current PRCM set.
  */
-unsigned long omap2_table_mpu_recalc(struct clk *clk)
+unsigned long omap2_table_mpu_recalc(struct clk_hw *clk,
+				     unsigned long parent_rate)
 {
 	return curr_prcm_set->mpu_speed;
 }
@@ -71,7 +72,8 @@ unsigned long omap2_table_mpu_recalc(struct clk *clk)
  * Some might argue L3-DDR, others ARM, others IVA. This code is simple and
  * just uses the ARM rates.
  */
-long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
+long omap2_round_to_table_rate(struct clk_hw *hw, unsigned long rate,
+			       unsigned long *parent_rate)
 {
 	const struct prcm_config *ptr;
 	long highest_rate;
@@ -94,7 +96,8 @@ long omap2_round_to_table_rate(struct clk *clk, unsigned long rate)
 }
 
 /* Sets basic clocks based on the specified rate */
-int omap2_select_table_rate(struct clk *clk, unsigned long rate)
+int omap2_select_table_rate(struct clk_hw *hw, unsigned long rate,
+			    unsigned long parent_rate)
 {
 	u32 cur_rate, done_rate, bypass = 0, tmp;
 	const struct prcm_config *prcm;

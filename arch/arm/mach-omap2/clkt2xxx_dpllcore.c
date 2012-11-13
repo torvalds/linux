@@ -41,7 +41,7 @@
  * (currently defined as "dpll_ck" in the OMAP2xxx clock tree).  Set
  * during dpll_ck init and used later by omap2xxx_clk_get_core_rate().
  */
-static struct clk *dpll_core_ck;
+static struct clk_hw_omap *dpll_core_ck;
 
 /**
  * omap2xxx_clk_get_core_rate - return the CORE_CLK rate
@@ -105,13 +105,16 @@ static long omap2_dpllcore_round_rate(unsigned long target_rate)
 
 }
 
-unsigned long omap2_dpllcore_recalc(struct clk *clk)
+unsigned long omap2_dpllcore_recalc(struct clk_hw *hw,
+				    unsigned long parent_rate)
 {
 	return omap2xxx_clk_get_core_rate();
 }
 
-int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
+int omap2_reprogram_dpllcore(struct clk_hw *hw, unsigned long rate,
+			     unsigned long parent_rate)
 {
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
 	u32 cur_rate, low, mult, div, valid_rate, done_rate;
 	u32 bypass = 0;
 	struct prcm_config tmpset;
@@ -189,8 +192,8 @@ int omap2_reprogram_dpllcore(struct clk *clk, unsigned long rate)
  * statically defined, this code may need to change to increment some
  * kind of use count on dpll_ck.
  */
-void omap2xxx_clkt_dpllcore_init(struct clk *clk)
+void omap2xxx_clkt_dpllcore_init(struct clk_hw *hw)
 {
 	WARN(dpll_core_ck, "dpll_core_ck already set - should never happen");
-	dpll_core_ck = clk;
+	dpll_core_ck = to_clk_hw_omap(hw);
 }

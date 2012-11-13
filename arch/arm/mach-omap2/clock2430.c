@@ -40,7 +40,7 @@
  * passes back the correct CM_IDLEST register address for I2CHS
  * modules.  No return value.
  */
-static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
+static void omap2430_clk_i2chs_find_idlest(struct clk_hw_omap *clk,
 					   void __iomem **idlest_reg,
 					   u8 *idlest_bit,
 					   u8 *idlest_val)
@@ -51,9 +51,7 @@ static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
 }
 
 /* 2430 I2CHS has non-standard IDLEST register */
-const struct clkops clkops_omap2430_i2chs_wait = {
-	.enable		= omap2_dflt_clk_enable,
-	.disable	= omap2_dflt_clk_disable,
+const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait = {
 	.find_idlest	= omap2430_clk_i2chs_find_idlest,
-	.find_companion = omap2_clk_dflt_find_companion,
+	.find_companion	= omap2_clk_dflt_find_companion,
 };
