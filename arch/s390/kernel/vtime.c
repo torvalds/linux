@@ -140,9 +140,9 @@ void vtime_account(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(vtime_account);
 
-void __vtime_account_system(struct task_struct *tsk)
+void vtime_account_system(struct task_struct *tsk)
 __attribute__((alias("vtime_account")));
-EXPORT_SYMBOL_GPL(__vtime_account_system);
+EXPORT_SYMBOL_GPL(vtime_account_system);
 
 void __kprobes vtime_stop_cpu(void)
 {

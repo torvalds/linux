@@ -5,14 +5,14 @@ struct task_struct;
 
 #ifdef CONFIG_VIRT_CPU_ACCOUNTING
 extern void vtime_task_switch(struct task_struct *prev);
-extern void __vtime_account_system(struct task_struct *tsk);
 extern void vtime_account_system(struct task_struct *tsk);
-extern void __vtime_account_idle(struct task_struct *tsk);
+extern void vtime_account_system_irqsafe(struct task_struct *tsk);
+extern void vtime_account_idle(struct task_struct *tsk);
 extern void vtime_account(struct task_struct *tsk);
 #else
 static inline void vtime_task_switch(struct task_struct *prev) { }
-static inline void __vtime_account_system(struct task_struct *tsk) { }
 static inline void vtime_account_system(struct task_struct *tsk) { }
+static inline void vtime_account_system_irqsafe(struct task_struct *tsk) { }
 static inline void vtime_account(struct task_struct *tsk) { }
 #endif
 
@@ -40,7 +40,7 @@ static inline void vtime_account_irq_enter(struct task_struct *tsk)
 static inline void vtime_account_irq_exit(struct task_struct *tsk)
 {
 	/* On hard|softirq exit we always account to hard|softirq cputime */
-	__vtime_account_system(tsk);
+	vtime_account_system(tsk);
 	irqtime_account_irq(tsk);
 }
 

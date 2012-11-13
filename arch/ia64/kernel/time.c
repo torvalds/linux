@@ -106,9 +106,9 @@ void vtime_task_switch(struct task_struct *prev)
 	struct thread_info *ni = task_thread_info(current);
 
 	if (idle_task(smp_processor_id()) != prev)
-		__vtime_account_system(prev);
+		vtime_account_system(prev);
 	else
-		__vtime_account_idle(prev);
+		vtime_account_idle(prev);
 
 	vtime_account_user(prev);
 
@@ -135,14 +135,14 @@ static cputime_t vtime_delta(struct task_struct *tsk)
 	return delta_stime;
 }
 
-void __vtime_account_system(struct task_struct *tsk)
+void vtime_account_system(struct task_struct *tsk)
 {
 	cputime_t delta = vtime_delta(tsk);
 
 	account_system_time(tsk, 0, delta, delta);
 }
 
-void __vtime_account_idle(struct task_struct *tsk)
+void vtime_account_idle(struct task_struct *tsk)
 {
 	account_idle_time(vtime_delta(tsk));
 }
