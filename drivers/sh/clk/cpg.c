@@ -401,7 +401,6 @@ static int fsidiv_enable(struct clk *clk)
 
 static int fsidiv_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 val;
 	int idx;
 
 	idx = (clk->parent->rate / rate) & 0xffff;
