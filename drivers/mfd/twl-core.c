@@ -645,7 +645,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 
 	if (IS_ENABLED(CONFIG_TWL4030_MADC) && pdata->madc &&
 	    twl_class_is_4030()) {
-		child = add_child(2, "twl4030_madc",
+		child = add_child(SUB_CHIP_ID2, "twl4030_madc",
 				pdata->madc, sizeof(*pdata->madc),
 				true, irq_base + MADC_INTR_OFFSET, 0);
 		if (IS_ERR(child))
@@ -661,8 +661,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 		 * HW security concerns, and "least privilege".
 		 */
 		sub_chip_id = twl_map[TWL_MODULE_RTC].sid;
-		child = add_child(sub_chip_id, "twl_rtc",
-				NULL, 0,
+		child = add_child(sub_chip_id, "twl_rtc", NULL, 0,
 				true, irq_base + RTC_INTR_OFFSET, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
@@ -728,9 +727,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 
 		}
 
-		child = add_child(0, "twl4030_usb",
-				pdata->usb, sizeof(*pdata->usb),
-				true,
+		child = add_child(SUB_CHIP_ID0, "twl4030_usb",
+				pdata->usb, sizeof(*pdata->usb), true,
 				/* irq0 = USB_PRES, irq1 = USB */
 				irq_base + USB_PRES_INTR_OFFSET,
 				irq_base + USB_INTR_OFFSET);
@@ -778,9 +776,8 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 
 		pdata->usb->features = features;
 
-		child = add_child(0, "twl6030_usb",
-			pdata->usb, sizeof(*pdata->usb),
-			true,
+		child = add_child(SUB_CHIP_ID0, "twl6030_usb",
+			pdata->usb, sizeof(*pdata->usb), true,
 			/* irq1 = VBUS_PRES, irq0 = USB ID */
 			irq_base + USBOTG_INTR_OFFSET,
 			irq_base + USB_PRES_INTR_OFFSET);
@@ -804,22 +801,22 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 	}
 
 	if (IS_ENABLED(CONFIG_TWL4030_WATCHDOG) && twl_class_is_4030()) {
-		child = add_child(0, "twl4030_wdt", NULL, 0, false, 0, 0);
+		child = add_child(SUB_CHIP_ID3, "twl4030_wdt", NULL, 0,
+				  false, 0, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
 
 	if (IS_ENABLED(CONFIG_INPUT_TWL4030_PWRBUTTON) && twl_class_is_4030()) {
-		child = add_child(1, "twl4030_pwrbutton",
-				NULL, 0, true, irq_base + 8 + 0, 0);
+		child = add_child(SUB_CHIP_ID3, "twl4030_pwrbutton", NULL, 0,
+				  true, irq_base + 8 + 0, 0);
 		if (IS_ERR(child))
 			return PTR_ERR(child);
 	}
 
 	if (IS_ENABLED(CONFIG_MFD_TWL4030_AUDIO) && pdata->audio &&
 	    twl_class_is_4030()) {
-		sub_chip_id = twl_map[TWL_MODULE_AUDIO_VOICE].sid;
-		child = add_child(sub_chip_id, "twl4030-audio",
+		child = add_child(SUB_CHIP_ID1, "twl4030-audio",
 				pdata->audio, sizeof(*pdata->audio),
 				false, 0, 0);
 		if (IS_ERR(child))
@@ -1059,7 +1056,7 @@ add_children(struct twl4030_platform_data *pdata, unsigned irq_base,
 
 	if (IS_ENABLED(CONFIG_CHARGER_TWL4030) && pdata->bci &&
 			!(features & (TPS_SUBSET | TWL5031))) {
-		child = add_child(3, "twl4030_bci",
+		child = add_child(SUB_CHIP_ID3, "twl4030_bci",
 				pdata->bci, sizeof(*pdata->bci), false,
 				/* irq0 = CHG_PRES, irq1 = BCI */
 				irq_base + BCI_PRES_INTR_OFFSET,
