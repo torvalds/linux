@@ -630,7 +630,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	int i;
 	int layer_id;
 
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF) || defined(CONFIG_NO_DUAL_DISP)
 	rk29_backlight_set(0);
 #endif
 	
