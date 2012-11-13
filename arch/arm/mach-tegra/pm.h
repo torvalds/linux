@@ -21,6 +21,8 @@
 #ifndef _MACH_TEGRA_PM_H_
 #define _MACH_TEGRA_PM_H_
 
+extern unsigned long l2x0_saved_regs_addr;
+
 void save_cpu_arch_register(void);
 void restore_cpu_arch_register(void);
 

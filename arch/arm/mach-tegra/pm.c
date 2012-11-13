@@ -207,11 +207,9 @@ void tegra_idle_lp2_last(u32 cpu_on_time, u32 cpu_off_time)
 
 	cpu_cluster_pm_enter();
 	suspend_cpu_complex();
-	outer_disable();
 
 	cpu_suspend(PHYS_OFFSET - PAGE_OFFSET, &tegra_sleep_cpu);
 
-	outer_resume();
 	restore_cpu_complex();
 	cpu_cluster_pm_exit();
 }

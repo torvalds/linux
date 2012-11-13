@@ -36,6 +36,7 @@
 #include "pmc.h"
 #include "apbio.h"
 #include "sleep.h"
+#include "pm.h"
 
 /*
  * Storage for debug-macro.S's state.
@@ -117,6 +118,7 @@ static __initdata struct tegra_clk_init_table tegra30_clk_init_table[] = {
 static void __init tegra_init_cache(void)
 {
 #ifdef CONFIG_CACHE_L2X0
+	int ret;
 	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
 	u32 aux_ctrl, cache_type;
 
@@ -124,7 +126,9 @@ static void __init tegra_init_cache(void)
 	aux_ctrl = (cache_type & 0x700) << (17-8);
 	aux_ctrl |= 0x7C400001;
 
-	l2x0_of_init(aux_ctrl, 0x8200c3fe);
+	ret = l2x0_of_init(aux_ctrl, 0x8200c3fe);
+	if (!ret)
+		l2x0_saved_regs_addr = virt_to_phys(&l2x0_saved_regs);
 #endif
 
 }

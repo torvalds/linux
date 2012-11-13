@@ -27,6 +27,7 @@
 #include <asm/assembler.h>
 #include <asm/cache.h>
 #include <asm/cp15.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "iomap.h"
 
@@ -98,6 +99,12 @@ ENTRY(tegra_shut_off_mmu)
 	dsb
 	mcr	p15, 0, r3, c1, c0, 0
 	isb
+#ifdef CONFIG_CACHE_L2X0
+	/* Disable L2 cache */
+	mov32	r4, TEGRA_ARM_PERIF_BASE + 0x3000
+	mov	r5, #0
+	str	r5, [r4, #L2X0_CTRL]
+#endif
 	mov	pc, r0
 ENDPROC(tegra_shut_off_mmu)
 	.popsection

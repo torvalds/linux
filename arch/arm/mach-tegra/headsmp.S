@@ -2,6 +2,8 @@
 #include <linux/init.h>
 
 #include <asm/cache.h>
+#include <asm/asm-offsets.h>
+#include <asm/hardware/cache-l2x0.h>
 
 #include "flowctrl.h"
 #include "iomap.h"
@@ -113,8 +115,17 @@ ENTRY(tegra_resume)
 	str	r1, [r0]
 #endif
 
+	/* L2 cache resume & re-enable */
+	l2_cache_resume r0, r1, r2, l2x0_saved_regs_addr
+
 	b	cpu_resume
 ENDPROC(tegra_resume)
+#endif
+
+#ifdef CONFIG_CACHE_L2X0
+	.globl	l2x0_saved_regs_addr
+l2x0_saved_regs_addr:
+	.long	0
 #endif
 
 	.align L1_CACHE_SHIFT
