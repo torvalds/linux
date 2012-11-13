@@ -1087,20 +1087,20 @@ static void ixgbevf_set_rx_buffer_len(struct ixgbevf_adapter *adapter)
 	max_frame += VLAN_HLEN;
 
 	/*
-	 * Make best use of allocation by using all but 1K of a
-	 * power of 2 allocation that will be used for skb->head.
+	 * Allocate buffer sizes that fit well into 32K and
+	 * take into account max frame size of 9.5K
 	 */
 	if ((hw->mac.type == ixgbe_mac_X540_vf) &&
 	    (max_frame <= MAXIMUM_ETHERNET_VLAN_SIZE))
 		rx_buf_len = MAXIMUM_ETHERNET_VLAN_SIZE;
-	else if (max_frame <= IXGBEVF_RXBUFFER_3K)
-		rx_buf_len = IXGBEVF_RXBUFFER_3K;
-	else if (max_frame <= IXGBEVF_RXBUFFER_7K)
-		rx_buf_len = IXGBEVF_RXBUFFER_7K;
-	else if (max_frame <= IXGBEVF_RXBUFFER_15K)
-		rx_buf_len = IXGBEVF_RXBUFFER_15K;
+	else if (max_frame <= IXGBEVF_RXBUFFER_2K)
+		rx_buf_len = IXGBEVF_RXBUFFER_2K;
+	else if (max_frame <= IXGBEVF_RXBUFFER_4K)
+		rx_buf_len = IXGBEVF_RXBUFFER_4K;
+	else if (max_frame <= IXGBEVF_RXBUFFER_8K)
+		rx_buf_len = IXGBEVF_RXBUFFER_8K;
 	else
-		rx_buf_len = IXGBEVF_MAX_RXBUFFER;
+		rx_buf_len = IXGBEVF_RXBUFFER_10K;
 
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		adapter->rx_ring[i].rx_buf_len = rx_buf_len;
