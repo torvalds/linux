@@ -47,7 +47,7 @@ if GPIOLIB
 
 config OF_GPIO
 	def_bool y
-	depends on OF && !SPARC
+	depends on OF
 
 config DEBUG_GPIO
 	bool "Debug GPIO calls"

@@ -28,11 +28,13 @@ static inline unsigned long pci_address_to_pio(phys_addr_t addr) { return -1; }
 #endif
 
 #else /* CONFIG_OF_ADDRESS */
+#ifndef of_address_to_resource
 static inline int of_address_to_resource(struct device_node *dev, int index,
 					 struct resource *r)
 {
 	return -EINVAL;
 }
+#endif
 static inline struct device_node *of_find_matching_node_by_address(
 					struct device_node *from,
 					const struct of_device_id *matches,

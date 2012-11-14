@@ -613,17 +613,11 @@ enum armv8_pmuv3_perf_types {
 	ARMV8_PMUV3_PERFCTR_BUS_ACCESS				= 0x19,
 	ARMV8_PMUV3_PERFCTR_MEM_ERROR				= 0x1A,
 	ARMV8_PMUV3_PERFCTR_BUS_CYCLES				= 0x1D,
-
-	/*
-	 * This isn't an architected event.
-	 * We detect this event number and use the cycle counter instead.
-	 */
-	ARMV8_PMUV3_PERFCTR_CPU_CYCLES				= 0xFF,
 };
 
 /* PMUv3 HW events mapping. */
 static const unsigned armv8_pmuv3_perf_map[PERF_COUNT_HW_MAX] = {
-	[PERF_COUNT_HW_CPU_CYCLES]		= ARMV8_PMUV3_PERFCTR_CPU_CYCLES,
+	[PERF_COUNT_HW_CPU_CYCLES]		= ARMV8_PMUV3_PERFCTR_CLOCK_CYCLES,
 	[PERF_COUNT_HW_INSTRUCTIONS]		= ARMV8_PMUV3_PERFCTR_INSTR_EXECUTED,
 	[PERF_COUNT_HW_CACHE_REFERENCES]	= ARMV8_PMUV3_PERFCTR_L1_DCACHE_ACCESS,
 	[PERF_COUNT_HW_CACHE_MISSES]		= ARMV8_PMUV3_PERFCTR_L1_DCACHE_REFILL,
@@ -1106,7 +1100,7 @@ static int armv8pmu_get_event_idx(struct pmu_hw_events *cpuc,
 	unsigned long evtype = event->config_base & ARMV8_EVTYPE_EVENT;
 
 	/* Always place a cycle counter into the cycle counter. */
-	if (evtype == ARMV8_PMUV3_PERFCTR_CPU_CYCLES) {
+	if (evtype == ARMV8_PMUV3_PERFCTR_CLOCK_CYCLES) {
 		if (test_and_set_bit(ARMV8_IDX_CYCLE_COUNTER, cpuc->used_mask))
 			return -EAGAIN;
 

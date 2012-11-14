@@ -219,13 +219,11 @@ nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 			     ((priv->base.ram.size & 0x000000ff) << 32);
 
 	tags = nv_rd32(priv, 0x100320);
-	if (tags) {
-		ret = nouveau_mm_init(&priv->base.tags, 0, tags, 1);
-		if (ret)
-			return ret;
+	ret = nouveau_mm_init(&priv->base.tags, 0, tags, 1);
+	if (ret)
+		return ret;
 
-		nv_debug(priv, "%d compression tags\n", tags);
-	}
+	nv_debug(priv, "%d compression tags\n", tags);
 
 	size = (priv->base.ram.size >> 12) - rsvd_head - rsvd_tail;
 	switch (device->chipset) {
