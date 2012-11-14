@@ -84,7 +84,7 @@
 static int iwl_trans_rx_alloc(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	struct device *dev = trans->dev;
 
 	memset(&trans_pcie->rxq, 0, sizeof(trans_pcie->rxq));
@@ -120,7 +120,7 @@ err_bd:
 static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	int i;
 
 	/* Fill the rx_used queue with _all_ of the Rx buffers */
@@ -139,8 +139,7 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 	}
 }
 
-static void iwl_trans_rx_hw_init(struct iwl_trans *trans,
-				 struct iwl_rx_queue *rxq)
+static void iwl_trans_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 rb_size;
@@ -189,7 +188,7 @@ static void iwl_trans_rx_hw_init(struct iwl_trans *trans,
 static int iwl_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
 
 	int i, err;
 	unsigned long flags;
@@ -216,13 +215,13 @@ static int iwl_rx_init(struct iwl_trans *trans)
 	rxq->free_count = 0;
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
-	iwl_rx_replenish(trans);
+	iwl_pcie_rx_replenish(trans);
 
 	iwl_trans_rx_hw_init(trans, rxq);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	rxq->need_update = 1;
-	iwl_rx_queue_update_write_ptr(trans, rxq);
+	iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	return 0;
@@ -231,7 +230,7 @@ static int iwl_rx_init(struct iwl_trans *trans)
 static void iwl_trans_pcie_rx_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	unsigned long flags;
 
 	/*if rxq->bd is NULL, it means that nothing has been allocated,
@@ -295,7 +294,7 @@ static void iwlagn_free_dma_ptr(struct iwl_trans *trans,
 
 static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 {
-	struct iwl_tx_queue *txq = (void *)data;
+	struct iwl_txq *txq = (void *)data;
 	struct iwl_queue *q = &txq->q;
 	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
 	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
@@ -359,7 +358,7 @@ static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
 }
 
 static int iwl_trans_txq_alloc(struct iwl_trans *trans,
-			       struct iwl_tx_queue *txq, int slots_num,
+			       struct iwl_txq *txq, int slots_num,
 			       u32 txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -376,7 +375,7 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 	txq->q.n_window = slots_num;
 
 	txq->entries = kcalloc(slots_num,
-			       sizeof(struct iwl_pcie_tx_queue_entry),
+			       sizeof(struct iwl_pcie_txq_entry),
 			       GFP_KERNEL);
 
 	if (!txq->entries)
@@ -413,7 +412,7 @@ error:
 
 }
 
-static int iwl_trans_txq_init(struct iwl_trans *trans, struct iwl_tx_queue *txq,
+static int iwl_trans_txq_init(struct iwl_trans *trans, struct iwl_txq *txq,
 			      int slots_num, u32 txq_id)
 {
 	int ret;
@@ -443,12 +442,12 @@ static int iwl_trans_txq_init(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 }
 
 /*
- * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
+ * iwl_pcie_txq_unmap -  Unmap any remaining DMA mappings and free skb's
  */
-void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
+void iwl_pcie_txq_unmap(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	enum dma_data_direction dma_dir;
 
@@ -465,31 +464,31 @@ void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 
 	spin_lock_bh(&txq->lock);
 	while (q->write_ptr != q->read_ptr) {
-		iwl_txq_free_tfd(trans, txq, dma_dir);
+		iwl_pcie_txq_free_tfd(trans, txq, dma_dir);
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd);
 	}
 	spin_unlock_bh(&txq->lock);
 }
 
-/**
- * iwl_tx_queue_free - Deallocate DMA queue.
+/*
+ * iwl_txq_free - Deallocate DMA queue.
  * @txq: Transmit queue to deallocate.
  *
  * Empty queue by removing and destroying all BD's.
  * Free all buffers.
  * 0-fill, but do not free "txq" descriptor structure.
  */
-static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
+static void iwl_txq_free(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	struct device *dev = trans->dev;
 	int i;
 
 	if (WARN_ON(!txq))
 		return;
 
-	iwl_tx_queue_unmap(trans, txq_id);
+	iwl_pcie_txq_unmap(trans, txq_id);
 
 	/* De-alloc array of command/tx buffers */
 	if (txq_id == trans_pcie->cmd_queue)
@@ -515,7 +514,7 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 	memset(txq, 0, sizeof(*txq));
 }
 
-/**
+/*
  * iwl_trans_tx_free - Free TXQ Context
  *
  * Destroy all TX DMA queues and structures
@@ -529,7 +528,7 @@ static void iwl_trans_pcie_tx_free(struct iwl_trans *trans)
 	if (trans_pcie->txq) {
 		for (txq_id = 0;
 		     txq_id < trans->cfg->base_params->num_of_queues; txq_id++)
-			iwl_tx_queue_free(trans, txq_id);
+			iwl_txq_free(trans, txq_id);
 	}
 
 	kfree(trans_pcie->txq);
@@ -540,12 +539,9 @@ static void iwl_trans_pcie_tx_free(struct iwl_trans *trans)
 	iwlagn_free_dma_ptr(trans, &trans_pcie->scd_bc_tbls);
 }
 
-/**
+/*
  * iwl_trans_tx_alloc - allocate TX context
  * Allocate all Tx DMA structures and initialize them
- *
- * @param priv
- * @return error code
  */
 static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 {
@@ -578,7 +574,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 	}
 
 	trans_pcie->txq = kcalloc(trans->cfg->base_params->num_of_queues,
-				  sizeof(struct iwl_tx_queue), GFP_KERNEL);
+				  sizeof(struct iwl_txq), GFP_KERNEL);
 	if (!trans_pcie->txq) {
 		IWL_ERR(trans, "Not enough memory for txq\n");
 		ret = ENOMEM;
@@ -1146,11 +1142,11 @@ static void iwl_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 
 static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 {
-	iwl_reset_ict(trans);
+	iwl_pcie_reset_ict(trans);
 	iwl_tx_start(trans, scd_addr);
 }
 
-/**
+/*
  * iwlagn_txq_ctx_stop - Stop all Tx DMA channels
  */
 static int iwl_trans_tx_stop(struct iwl_trans *trans)
@@ -1188,7 +1184,7 @@ static int iwl_trans_tx_stop(struct iwl_trans *trans)
 	/* Unmap DMA from host system and free skb's */
 	for (txq_id = 0; txq_id < trans->cfg->base_params->num_of_queues;
 	     txq_id++)
-		iwl_tx_queue_unmap(trans, txq_id);
+		iwl_pcie_txq_unmap(trans, txq_id);
 
 	return 0;
 }
@@ -1204,7 +1200,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
 	/* device going down, Stop using ICT table */
-	iwl_disable_ict(trans);
+	iwl_pcie_disable_ict(trans);
 
 	/*
 	 * If a HW restart happens during firmware loading,
@@ -1274,7 +1270,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_tx_cmd *tx_cmd = (struct iwl_tx_cmd *) dev_cmd->payload;
 	struct iwl_cmd_meta *out_meta;
-	struct iwl_tx_queue *txq;
+	struct iwl_txq *txq;
 	struct iwl_queue *q;
 	dma_addr_t phys_addr = 0;
 	dma_addr_t txcmd_phys;
@@ -1370,10 +1366,9 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	}
 
 	/* Attach buffers to TFD */
-	iwlagn_txq_attach_buf_to_tfd(trans, txq, txcmd_phys, firstlen, 1);
+	iwl_pcie_tx_build_tfd(trans, txq, txcmd_phys, firstlen, 1);
 	if (secondlen > 0)
-		iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr,
-					     secondlen, 0);
+		iwl_pcie_tx_build_tfd(trans, txq, phys_addr, secondlen, 0);
 
 	scratch_phys = txcmd_phys + sizeof(struct iwl_cmd_header) +
 				offsetof(struct iwl_tx_cmd, scratch);
@@ -1389,7 +1384,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	IWL_DEBUG_TX(trans, "tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
 
 	/* Set up entry for this TFD in Tx byte-count array */
-	iwl_trans_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
+	iwl_pcie_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
 
 	dma_sync_single_for_device(trans->dev, txcmd_phys, firstlen,
 				   DMA_BIDIRECTIONAL);
@@ -1409,7 +1404,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl_txq_update_write_ptr(trans, txq);
+	iwl_pcie_txq_inc_wr_ptr(trans, txq);
 
 	/*
 	 * At this point the frame is "transmitted" successfully
@@ -1420,7 +1415,7 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	if (iwl_queue_space(q) < q->high_mark) {
 		if (wait_write_ptr) {
 			txq->need_update = 1;
-			iwl_txq_update_write_ptr(trans, txq);
+			iwl_pcie_txq_inc_wr_ptr(trans, txq);
 		} else {
 			iwl_stop_queue(trans, txq);
 		}
@@ -1442,19 +1437,20 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 
 	if (!trans_pcie->irq_requested) {
 		tasklet_init(&trans_pcie->irq_tasklet, (void (*)(unsigned long))
-			iwl_irq_tasklet, (unsigned long)trans);
+			iwl_pcie_tasklet, (unsigned long)trans);
 
-		iwl_alloc_isr_ict(trans);
+		iwl_pcie_alloc_ict(trans);
 
-		err = request_irq(trans_pcie->irq, iwl_isr_ict, IRQF_SHARED,
-				  DRV_NAME, trans);
+		err = request_irq(trans_pcie->irq, iwl_pcie_isr_ict,
+				  IRQF_SHARED, DRV_NAME, trans);
 		if (err) {
 			IWL_ERR(trans, "Error allocating IRQ %d\n",
 				trans_pcie->irq);
 			goto error;
 		}
 
-		INIT_WORK(&trans_pcie->rx_replenish, iwl_bg_rx_replenish);
+		INIT_WORK(&trans_pcie->rx_replenish,
+			  iwl_pcie_rx_replenish_work);
 		trans_pcie->irq_requested = true;
 	}
 
@@ -1478,7 +1474,7 @@ err_free_irq:
 	trans_pcie->irq_requested = false;
 	free_irq(trans_pcie->irq, trans);
 error:
-	iwl_free_isr_ict(trans);
+	iwl_pcie_free_ict(trans);
 	tasklet_kill(&trans_pcie->irq_tasklet);
 	return err;
 }
@@ -1522,7 +1518,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 				   struct sk_buff_head *skbs)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	/* n_bd is usually 256 => n_bd - 1 = 0xff */
 	int tfd_num = ssn & (txq->q.n_bd - 1);
 
@@ -1531,7 +1527,7 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (txq->q.read_ptr != tfd_num) {
 		IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 				   txq_id, txq->q.read_ptr, tfd_num, ssn);
-		iwl_tx_queue_reclaim(trans, txq_id, tfd_num, skbs);
+		iwl_pcie_txq_reclaim(trans, txq_id, tfd_num, skbs);
 		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
 			iwl_wake_queue(trans, txq);
 	}
@@ -1590,7 +1586,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 
 	if (trans_pcie->irq_requested == true) {
 		free_irq(trans_pcie->irq, trans);
-		iwl_free_isr_ict(trans);
+		iwl_pcie_free_ict(trans);
 	}
 
 	pci_disable_msi(trans_pcie->pci_dev);
@@ -1636,10 +1632,10 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 
 #define IWL_FLUSH_WAIT_MS	2000
 
-static int iwl_trans_pcie_wait_tx_queue_empty(struct iwl_trans *trans)
+static int iwl_trans_pcie_wait_txq_empty(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq;
+	struct iwl_txq *txq;
 	struct iwl_queue *q;
 	int cnt;
 	unsigned long now = jiffies;
@@ -1683,7 +1679,7 @@ static const char *get_fh_string(int cmd)
 #undef IWL_CMD
 }
 
-int iwl_dump_fh(struct iwl_trans *trans, char **buf)
+int iwl_pcie_dump_fh(struct iwl_trans *trans, char **buf)
 {
 	int i;
 	static const u32 fh_tbl[] = {
@@ -1762,7 +1758,7 @@ static const char *get_csr_string(int cmd)
 #undef IWL_CMD
 }
 
-void iwl_dump_csr(struct iwl_trans *trans)
+void iwl_pcie_dump_csr(struct iwl_trans *trans)
 {
 	int i;
 	static const u32 csr_tbl[] = {
@@ -1852,7 +1848,7 @@ static ssize_t iwl_dbgfs_tx_queue_read(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq;
+	struct iwl_txq *txq;
 	struct iwl_queue *q;
 	char *buf;
 	int pos = 0;
@@ -1889,7 +1885,7 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
+	struct iwl_rxq *rxq = &trans_pcie->rxq;
 	char buf[256];
 	int pos = 0;
 	const size_t bufsz = sizeof(buf);
@@ -2008,7 +2004,7 @@ static ssize_t iwl_dbgfs_csr_write(struct file *file,
 	if (sscanf(buf, "%d", &csr) != 1)
 		return -EFAULT;
 
-	iwl_dump_csr(trans);
+	iwl_pcie_dump_csr(trans);
 
 	return count;
 }
@@ -2022,7 +2018,7 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	int pos = 0;
 	ssize_t ret = -EFAULT;
 
-	ret = pos = iwl_dump_fh(trans, &buf);
+	ret = pos = iwl_pcie_dump_fh(trans, &buf);
 	if (buf) {
 		ret = simple_read_from_buffer(user_buf,
 					      count, ppos, buf, pos);
@@ -2091,17 +2087,17 @@ static const struct iwl_trans_ops trans_ops_pcie = {
 
 	.wowlan_suspend = iwl_trans_pcie_wowlan_suspend,
 
-	.send_cmd = iwl_trans_pcie_send_cmd,
+	.send_cmd = iwl_pcie_send_cmd,
 
 	.tx = iwl_trans_pcie_tx,
 	.reclaim = iwl_trans_pcie_reclaim,
 
-	.txq_disable = iwl_trans_pcie_txq_disable,
-	.txq_enable = iwl_trans_pcie_txq_enable,
+	.txq_disable = iwl_pcie_txq_disable,
+	.txq_enable = iwl_pcie_txq_enable,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
-	.wait_tx_queue_empty = iwl_trans_pcie_wait_tx_queue_empty,
+	.wait_tx_queue_empty = iwl_trans_pcie_wait_txq_empty,
 
 #ifdef CONFIG_PM_SLEEP
 	.suspend = iwl_trans_pcie_suspend,

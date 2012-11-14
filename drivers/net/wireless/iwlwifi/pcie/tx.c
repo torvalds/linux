@@ -42,12 +42,11 @@
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4
 
-/**
- * iwl_trans_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
+/*
+ * iwl_pcie_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
  */
-void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
-				       struct iwl_tx_queue *txq,
-				       u16 byte_cnt)
+void iwl_pcie_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
+				      struct iwl_txq *txq, u16 byte_cnt)
 {
 	struct iwlagn_scd_bc_tbl *scd_bc_tbl;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -88,10 +87,10 @@ void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 			tfd_offset[TFD_QUEUE_SIZE_MAX + write_ptr] = bc_ent;
 }
 
-/**
- * iwl_txq_update_write_ptr - Send new write index to hardware
+/*
+ * iwl_pcie_txq_inc_wr_ptr - Send new write index to hardware
  */
-void iwl_txq_update_write_ptr(struct iwl_trans *trans, struct iwl_tx_queue *txq)
+void iwl_pcie_txq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_txq *txq)
 {
 	u32 reg = 0;
 	int txq_id = txq->q.id;
@@ -206,8 +205,8 @@ static void iwl_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
 	tfd->num_tbs = 0;
 }
 
-/**
- * iwl_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
+/*
+ * iwl_pcie_txq_free_tfd - Free all chunks referenced by TFD [txq->q.read_ptr]
  * @trans - transport private data
  * @txq - tx queue
  * @dma_dir - the direction of the DMA mapping
@@ -215,8 +214,8 @@ static void iwl_unmap_tfd(struct iwl_trans *trans, struct iwl_cmd_meta *meta,
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
-		      enum dma_data_direction dma_dir)
+void iwl_pcie_txq_free_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
+			   enum dma_data_direction dma_dir)
 {
 	struct iwl_tfd *tfd_tmp = txq->tfds;
 
@@ -247,10 +246,8 @@ void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	}
 }
 
-int iwlagn_txq_attach_buf_to_tfd(struct iwl_trans *trans,
-				 struct iwl_tx_queue *txq,
-				 dma_addr_t addr, u16 len,
-				 u8 reset)
+int iwl_pcie_tx_build_tfd(struct iwl_trans *trans, struct iwl_txq *txq,
+				 dma_addr_t addr, u16 len, u8 reset)
 {
 	struct iwl_queue *q;
 	struct iwl_tfd *tfd, *tfd_tmp;
@@ -322,7 +319,7 @@ int iwl_queue_space(const struct iwl_queue *q)
 	return s;
 }
 
-/**
+/*
  * iwl_queue_init - Initialize queue's high/low-water and read/write indexes
  */
 int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id)
@@ -355,7 +352,7 @@ int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id)
 }
 
 static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
-					  struct iwl_tx_queue *txq)
+					  struct iwl_txq *txq)
 {
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -415,8 +412,8 @@ static inline void iwl_txq_set_inactive(struct iwl_trans *trans, u16 txq_id)
 		(1 << SCD_QUEUE_STTS_REG_POS_SCD_ACT_EN));
 }
 
-void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
-			       int sta_id, int tid, int frame_limit, u16 ssn)
+void iwl_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
+			 int sta_id, int tid, int frame_limit, u16 ssn)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -477,7 +474,7 @@ void iwl_trans_pcie_txq_enable(struct iwl_trans *trans, int txq_id, int fifo,
 			    txq_id, fifo, ssn & 0xff);
 }
 
-void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
+void iwl_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 stts_addr = trans_pcie->scd_base_addr +
@@ -494,14 +491,14 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 	_iwl_write_targ_mem_dwords(trans, stts_addr,
 				   zero_val, ARRAY_SIZE(zero_val));
 
-	iwl_tx_queue_unmap(trans, txq_id);
+	iwl_pcie_txq_unmap(trans, txq_id);
 
 	IWL_DEBUG_TX_QUEUES(trans, "Deactivate queue %d\n", txq_id);
 }
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
-/**
+/*
  * iwl_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
  * @cmd: a point to the ucode command structure
@@ -513,7 +510,7 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id)
 static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
@@ -576,8 +573,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	 */
 	if (WARN(copy_size > TFD_MAX_PAYLOAD_SIZE,
 		 "Command %s (%#x) is too large (%d bytes)\n",
-		 trans_pcie_get_cmd_string(trans_pcie, cmd->id),
-		 cmd->id, copy_size)) {
+		 get_cmd_string(trans_pcie, cmd->id), cmd->id, copy_size)) {
 		idx = -EINVAL;
 		goto free_dup_buf;
 	}
@@ -640,7 +636,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	IWL_DEBUG_HC(trans,
 		     "Sending command %s (#%x), seq: 0x%04X, %d bytes at %d[%d]:%d\n",
-		     trans_pcie_get_cmd_string(trans_pcie, out_cmd->hdr.cmd),
+		     get_cmd_string(trans_pcie, out_cmd->hdr.cmd),
 		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
 		     cmd_size, q->write_ptr, idx, trans_pcie->cmd_queue);
 
@@ -654,7 +650,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	dma_unmap_addr_set(out_meta, mapping, phys_addr);
 	dma_unmap_len_set(out_meta, len, copy_size);
 
-	iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr, copy_size, 1);
+	iwl_pcie_tx_build_tfd(trans, txq, phys_addr, copy_size, 1);
 
 	for (i = 0; i < IWL_MAX_CMD_TFDS; i++) {
 		const void *data = cmd->data[i];
@@ -676,8 +672,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			goto out;
 		}
 
-		iwlagn_txq_attach_buf_to_tfd(trans, txq, phys_addr,
-					     cmd->len[i], 0);
+		iwl_pcie_tx_build_tfd(trans, txq, phys_addr, cmd->len[i], 0);
 	}
 
 	out_meta->flags = cmd->flags;
@@ -696,7 +691,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
-	iwl_txq_update_write_ptr(trans, txq);
+	iwl_pcie_txq_inc_wr_ptr(trans, txq);
 
  out:
 	spin_unlock_bh(&txq->lock);
@@ -707,7 +702,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 }
 
 static inline void iwl_queue_progress(struct iwl_trans_pcie *trans_pcie,
-				      struct iwl_tx_queue *txq)
+				      struct iwl_txq *txq)
 {
 	if (!trans_pcie->wd_timeout)
 		return;
@@ -722,7 +717,7 @@ static inline void iwl_queue_progress(struct iwl_trans_pcie *trans_pcie,
 		mod_timer(&txq->stuck_timer, jiffies + trans_pcie->wd_timeout);
 }
 
-/**
+/*
  * iwl_hcmd_queue_reclaim - Reclaim TX command queue entries already Tx'd
  *
  * When FW advances 'R' index, all entries between old and new 'R' index
@@ -733,7 +728,7 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 				   int idx)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int nfreed = 0;
 
@@ -761,8 +756,8 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 	iwl_queue_progress(trans_pcie, txq);
 }
 
-/**
- * iwl_tx_cmd_complete - Pull unused buffers off the queue and reclaim them
+/*
+ * iwl_pcie_hcmd_complete - Pull unused buffers off the queue and reclaim them
  * @rxb: Rx buffer to reclaim
  * @handler_status: return value of the handler of the command
  *	(put in setup_rx_handlers)
@@ -771,8 +766,8 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
  * will be executed.  The attached skb (if present) will only be freed
  * if the callback returns 1
  */
-void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
-			 int handler_status)
+void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
+			    struct iwl_rx_cmd_buffer *rxb, int handler_status)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
@@ -782,7 +777,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
@@ -820,13 +815,11 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 		if (!test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
 			IWL_WARN(trans,
 				 "HCMD_ACTIVE already clear for command %s\n",
-				 trans_pcie_get_cmd_string(trans_pcie,
-							   cmd->hdr.cmd));
+				 get_cmd_string(trans_pcie, cmd->hdr.cmd));
 		}
 		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
-			       trans_pcie_get_cmd_string(trans_pcie,
-							 cmd->hdr.cmd));
+			       get_cmd_string(trans_pcie, cmd->hdr.cmd));
 		wake_up(&trans_pcie->wait_command_queue);
 	}
 
@@ -851,7 +844,7 @@ static int iwl_send_cmd_async(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (ret < 0) {
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
-			trans_pcie_get_cmd_string(trans_pcie, cmd->id), ret);
+			get_cmd_string(trans_pcie, cmd->id), ret);
 		return ret;
 	}
 	return 0;
@@ -864,17 +857,17 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	int ret;
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
-		       trans_pcie_get_cmd_string(trans_pcie, cmd->id));
+		       get_cmd_string(trans_pcie, cmd->id));
 
 	if (WARN_ON(test_and_set_bit(STATUS_HCMD_ACTIVE,
 				     &trans_pcie->status))) {
 		IWL_ERR(trans, "Command %s: a command is already active!\n",
-			trans_pcie_get_cmd_string(trans_pcie, cmd->id));
+			get_cmd_string(trans_pcie, cmd->id));
 		return -EIO;
 	}
 
 	IWL_DEBUG_INFO(trans, "Setting HCMD_ACTIVE for command %s\n",
-		       trans_pcie_get_cmd_string(trans_pcie, cmd->id));
+		       get_cmd_string(trans_pcie, cmd->id));
 
 	cmd_idx = iwl_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
@@ -882,7 +875,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
-			trans_pcie_get_cmd_string(trans_pcie, cmd->id), ret);
+			get_cmd_string(trans_pcie, cmd->id), ret);
 		return ret;
 	}
 
@@ -892,13 +885,13 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 				 HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
-			struct iwl_tx_queue *txq =
+			struct iwl_txq *txq =
 				&trans_pcie->txq[trans_pcie->cmd_queue];
 			struct iwl_queue *q = &txq->q;
 
 			IWL_ERR(trans,
 				"Error sending %s: time out after %dms.\n",
-				trans_pcie_get_cmd_string(trans_pcie, cmd->id),
+				get_cmd_string(trans_pcie, cmd->id),
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
 			IWL_ERR(trans,
@@ -908,8 +901,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 			IWL_DEBUG_INFO(trans,
 				       "Clearing HCMD_ACTIVE for command %s\n",
-				       trans_pcie_get_cmd_string(trans_pcie,
-								 cmd->id));
+				       get_cmd_string(trans_pcie, cmd->id));
 			ret = -ETIMEDOUT;
 			goto cancel;
 		}
@@ -917,7 +909,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
-			trans_pcie_get_cmd_string(trans_pcie, cmd->id));
+			get_cmd_string(trans_pcie, cmd->id));
 		ret = -EIO;
 		goto cancel;
 	}
@@ -930,7 +922,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	if ((cmd->flags & CMD_WANT_SKB) && !cmd->resp_pkt) {
 		IWL_ERR(trans, "Error: Response NULL in '%s'\n",
-			trans_pcie_get_cmd_string(trans_pcie, cmd->id));
+			get_cmd_string(trans_pcie, cmd->id));
 		ret = -EIO;
 		goto cancel;
 	}
@@ -957,7 +949,7 @@ cancel:
 	return ret;
 }
 
-int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
+int iwl_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
@@ -975,11 +967,11 @@ int iwl_trans_pcie_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 }
 
 /* Frees buffers until index _not_ inclusive */
-int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
+int iwl_pcie_txq_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			 struct sk_buff_head *skbs)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
+	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
 	struct iwl_queue *q = &txq->q;
 	int last_to_free;
 	int freed = 0;
@@ -1019,7 +1011,7 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
-		iwl_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
+		iwl_pcie_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
 		freed++;
 	}
 
