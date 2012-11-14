@@ -59,9 +59,6 @@ static void line6_midi_transmit(struct snd_rawmidi_substream *substream)
 		if (done == 0)
 			break;
 
-#ifdef CONFIG_LINE6_USB_DUMP_MIDI
-		line6_write_hexdump(line6, 's', chunk, done);
-#endif
 		line6_midibuf_write(mb, chunk, done);
 		snd_rawmidi_transmit_ack(substream, done);
 	}

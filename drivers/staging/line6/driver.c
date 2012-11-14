@@ -402,9 +402,6 @@ static void line6_data_received(struct urb *urb)
 			continue;
 
 		line6->message_length = done;
-#ifdef CONFIG_LINE6_USB_DUMP_MIDI
-		line6_write_hexdump(line6, 'r', line6->buffer_message, done);
-#endif
 		line6_midi_receive(line6, line6->buffer_message, done);
 
 		switch (line6->usbdev->descriptor.idProduct) {
