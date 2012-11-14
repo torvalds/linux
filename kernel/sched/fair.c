@@ -827,8 +827,8 @@ void task_numa_work(struct callback_head *work)
 	struct task_struct *p = current;
 	struct mm_struct *mm = p->mm;
 	struct vm_area_struct *vma;
-	unsigned long offset, end;
-	long length;
+	unsigned long start, end;
+	long pages;
 
 	WARN_ON_ONCE(p != container_of(work, struct task_struct, numa_work));
 
@@ -858,18 +858,20 @@ void task_numa_work(struct callback_head *work)
 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
 		return;
 
-	offset = mm->numa_scan_offset;
-	length = sysctl_numa_balancing_scan_size;
-	length <<= 20;
+	start = mm->numa_scan_offset;
+	pages = sysctl_numa_balancing_scan_size;
+	pages <<= 20 - PAGE_SHIFT; /* MB in pages */
+	if (!pages)
+		return;
 
 	down_read(&mm->mmap_sem);
-	vma = find_vma(mm, offset);
+	vma = find_vma(mm, start);
 	if (!vma) {
 		reset_ptenuma_scan(p);
-		offset = 0;
+		start = 0;
 		vma = mm->mmap;
 	}
-	for (; vma && length > 0; vma = vma->vm_next) {
+	for (; vma; vma = vma->vm_next) {
 		if (!vma_migratable(vma))
 			continue;
 
@@ -877,15 +879,19 @@ void task_numa_work(struct callback_head *work)
 		if (((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) < HPAGE_PMD_NR)
 			continue;
 
-		offset = max(offset, vma->vm_start);
-		end = min(ALIGN(offset + length, HPAGE_SIZE), vma->vm_end);
-		length -= end - offset;
+		do {
+			start = max(start, vma->vm_start);
+			end = ALIGN(start + (pages << PAGE_SHIFT), HPAGE_SIZE);
+			end = min(end, vma->vm_end);
+			pages -= change_prot_numa(vma, start, end);
 
-		change_prot_numa(vma, offset, end);
-
-		offset = end;
+			start = end;
+			if (pages <= 0)
+				goto out;
+		} while (end != vma->vm_end);
 	}
 
+out:
 	/*
 	 * It is possible to reach the end of the VMA list but the last few VMAs are
 	 * not guaranteed to the vma_migratable. If they are not, we would find the
@@ -893,7 +899,7 @@ void task_numa_work(struct callback_head *work)
 	 * so check it now.
 	 */
 	if (vma)
-		mm->numa_scan_offset = offset;
+		mm->numa_scan_offset = start;
 	else
 		reset_ptenuma_scan(p);
 	up_read(&mm->mmap_sem);
