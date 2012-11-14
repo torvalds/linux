@@ -55,6 +55,7 @@ struct nfsd_net {
 	int reclaim_str_hashtbl_size;
 	struct list_head *conf_id_hashtbl;
 	struct rb_root conf_name_tree;
+	struct list_head *unconf_id_hashtbl;
 };
 
 extern int nfsd_net_id;
