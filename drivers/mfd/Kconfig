@@ -265,6 +265,20 @@ config MFD_TPS65912_SPI
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with SPI interface.
 
+config MFD_TPS80031
+	bool "TI TPS80031/TPS80032 Power Management chips"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	select IRQ_DOMAIN
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TPS80031/ TPS80032 Fully Integrated Power Management with Power
+	  Path and Battery Charger. The device provides five configurable
+	  step-down converters, 11 general purpose LDOs, USB OTG Module,
+	  ADC, RTC, 2 PWM, System Voltage Regulator/Battery Charger with
+	  Power Path from USB, 32K clock generator.
+
 config MENELAUS
 	bool "Texas Instruments TWL92330/Menelaus PM chip"
 	depends on I2C=y && ARCH_OMAP2
