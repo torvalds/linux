@@ -32,6 +32,8 @@
 #define LOCKOWNER_INO_HASH_BITS		8
 #define LOCKOWNER_INO_HASH_SIZE		(1 << LOCKOWNER_INO_HASH_BITS)
 
+#define SESSION_HASH_SIZE	512
+
 struct cld_net;
 
 struct nfsd_net {
@@ -65,6 +67,7 @@ struct nfsd_net {
 	struct rb_root unconf_name_tree;
 	struct list_head *ownerstr_hashtbl;
 	struct list_head *lockowner_ino_hashtbl;
+	struct list_head *sessionid_hashtbl;
 };
 
 extern int nfsd_net_id;
