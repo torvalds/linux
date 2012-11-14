@@ -555,12 +555,6 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	if (!udfs->probed)
 		return -ENODEV;
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast_ai_cmdtest\n", dev->minor);
-	printk(KERN_DEBUG "comedi%d: usbduxfast: convert_arg=%u "
-	       "scan_begin_arg=%u\n",
-	       dev->minor, cmd->convert_arg, cmd->scan_begin_arg);
-#endif
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src,
@@ -590,20 +584,15 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_src == TRIG_NOW && cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	if (cmd->start_src == TRIG_NOW)
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (!cmd->chanlist_len)
-		err++;
+		err |= -EINVAL;
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->chanlist_len == 1)
 		minSamplPer = 1;
@@ -620,28 +609,19 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 
 		/* calc arg again */
 		tmp = steps / 30;
-		if (cmd->convert_arg != tmp) {
-			cmd->convert_arg = tmp;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, tmp);
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
-		err++;
+		err |= -EINVAL;
 
 	/* stop source */
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 		break;
 	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 		/*
 		 * TRIG_EXT doesn't care since it doesn't trigger
