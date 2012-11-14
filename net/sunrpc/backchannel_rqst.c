@@ -172,7 +172,7 @@ out_free:
 		xprt_free_allocation(req);
 
 	dprintk("RPC:       setup backchannel transport failed\n");
-	return -1;
+	return -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(xprt_setup_backchannel);
 

@@ -87,7 +87,7 @@ static union acpi_object *radeon_atpx_call(acpi_handle handle, int function,
 		atpx_arg_elements[1].integer.value = 0;
 	}
 
-	status = acpi_evaluate_object(handle, "ATPX", &atpx_arg, &buffer);
+	status = acpi_evaluate_object(handle, NULL, &atpx_arg, &buffer);
 
 	/* Fail only if calling the method fails and ATPX is supported */
 	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
@@ -352,9 +352,9 @@ static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
 }
 
 /**
- * radeon_atpx_switchto - switch to the requested GPU
+ * radeon_atpx_power_state - power down/up the requested GPU
  *
- * @id: GPU to switch to
+ * @id: GPU to power down/up
  * @state: requested power state (0 = off, 1 = on)
  *
  * Execute the necessary ATPX function to power down/up the discrete GPU
@@ -373,11 +373,11 @@ static int radeon_atpx_power_state(enum vga_switcheroo_client_id id,
 }
 
 /**
- * radeon_atpx_pci_probe_handle - look up the ATRM and ATPX handles
+ * radeon_atpx_pci_probe_handle - look up the ATPX handle
  *
  * @pdev: pci device
  *
- * Look up the ATPX and ATRM handles (all asics).
+ * Look up the ATPX handles (all asics).
  * Returns true if the handles are found, false if not.
  */
 static bool radeon_atpx_pci_probe_handle(struct pci_dev *pdev)
