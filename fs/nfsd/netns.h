@@ -29,6 +29,9 @@
 #define CLIENT_HASH_SIZE                (1 << CLIENT_HASH_BITS)
 #define CLIENT_HASH_MASK                (CLIENT_HASH_SIZE - 1)
 
+#define LOCKOWNER_INO_HASH_BITS		8
+#define LOCKOWNER_INO_HASH_SIZE		(1 << LOCKOWNER_INO_HASH_BITS)
+
 struct cld_net;
 
 struct nfsd_net {
@@ -61,6 +64,7 @@ struct nfsd_net {
 	struct list_head *unconf_id_hashtbl;
 	struct rb_root unconf_name_tree;
 	struct list_head *ownerstr_hashtbl;
+	struct list_head *lockowner_ino_hashtbl;
 };
 
 extern int nfsd_net_id;
