@@ -175,7 +175,8 @@ static int pstore_unlink(struct inode *dir, struct dentry *dentry)
 	struct pstore_private *p = dentry->d_inode->i_private;
 
 	if (p->psi->erase)
-		p->psi->erase(p->type, p->id, p->psi);
+		p->psi->erase(p->type, p->id, dentry->d_inode->i_ctime,
+			      p->psi);
 
 	return simple_unlink(dir, dentry);
 }

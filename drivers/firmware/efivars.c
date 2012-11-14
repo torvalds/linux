@@ -747,24 +747,25 @@ static int efi_pstore_write(enum pstore_type_id type,
 };
 
 static int efi_pstore_erase(enum pstore_type_id type, u64 id,
-			    struct pstore_info *psi)
+			    struct timespec time, struct pstore_info *psi)
 {
-	char stub_name[DUMP_NAME_LEN];
+	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct efivars *efivars = psi->data;
 	struct efivar_entry *entry, *found = NULL;
 	int i;
 
-	sprintf(stub_name, "dump-type%u-%u-", type, (unsigned int)id);
+	sprintf(name, "dump-type%u-%u-%lu", type, (unsigned int)id,
+		time.tv_sec);
 
 	spin_lock(&efivars->lock);
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
-		efi_name[i] = stub_name[i];
+		efi_name[i] = name[i];
 
 	/*
-	 * Clean up any entries with the same name
+	 * Clean up an entry with the same name
 	 */
 
 	list_for_each_entry(entry, &efivars->list, list) {
@@ -775,9 +776,6 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id,
 		if (utf16_strncmp(entry->var.VariableName, efi_name,
 				  utf16_strlen(efi_name)))
 			continue;
-		/* Needs to be a prefix */
-		if (entry->var.VariableName[utf16_strlen(efi_name)] == 0)
-			continue;
 
 		/* found */
 		found = entry;
@@ -785,6 +783,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id,
 					   &entry->var.VendorGuid,
 					   PSTORE_EFI_ATTRIBUTES,
 					   0, NULL);
+		break;
 	}
 
 	if (found)
@@ -823,7 +822,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 }
 
 static int efi_pstore_erase(enum pstore_type_id type, u64 id,
-			    struct pstore_info *psi)
+			    struct timespec time, struct pstore_info *psi)
 {
 	return 0;
 }
