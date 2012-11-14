@@ -1429,74 +1429,48 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 }
 
 /*
- * Request sync osd watch
+ * Request sync osd watch/unwatch.  The value of "start" determines
+ * whether a watch request is being initiated or torn down.
  */
-static int rbd_req_sync_watch(struct rbd_device *rbd_dev)
+static int rbd_req_sync_watch(struct rbd_device *rbd_dev, int start)
 {
 	struct ceph_osd_req_op *op;
-	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
+	struct ceph_osd_request **linger_req = NULL;
+	__le64 version = 0;
 	int ret;
 
 	op = rbd_create_rw_op(CEPH_OSD_OP_WATCH, 0);
 	if (!op)
 		return -ENOMEM;
 
-	ret = ceph_osdc_create_event(osdc, rbd_watch_cb, 0,
-				     (void *)rbd_dev, &rbd_dev->watch_event);
-	if (ret < 0)
-		goto fail;
+	if (start) {
+		struct ceph_osd_client *osdc;
 
-	op->watch.ver = cpu_to_le64(rbd_dev->header.obj_version);
+		osdc = &rbd_dev->rbd_client->client->osdc;
+		ret = ceph_osdc_create_event(osdc, rbd_watch_cb, 0, rbd_dev,
+						&rbd_dev->watch_event);
+		if (ret < 0)
+			goto done;
+		version = cpu_to_le64(rbd_dev->header.obj_version);
+		linger_req = &rbd_dev->watch_request;
+	}
+
+	op->watch.ver = version;
 	op->watch.cookie = cpu_to_le64(rbd_dev->watch_event->cookie);
-	op->watch.flag = 1;
+	op->watch.flag = (u8) start ? 1 : 0;
 
 	ret = rbd_req_sync_op(rbd_dev,
 			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			      op,
-			      rbd_dev->header_name,
-			      0, 0, NULL,
-			      &rbd_dev->watch_request, NULL);
+			      op, rbd_dev->header_name,
+			      0, 0, NULL, linger_req, NULL);
 
-	if (ret < 0)
-		goto fail_event;
-
+	if (!start || ret < 0) {
+		ceph_osdc_cancel_event(rbd_dev->watch_event);
+		rbd_dev->watch_event = NULL;
+	}
+done:
 	rbd_destroy_op(op);
-	return 0;
 
-fail_event:
-	ceph_osdc_cancel_event(rbd_dev->watch_event);
-	rbd_dev->watch_event = NULL;
-fail:
-	rbd_destroy_op(op);
-	return ret;
-}
-
-/*
- * Request sync osd unwatch
- */
-static int rbd_req_sync_unwatch(struct rbd_device *rbd_dev)
-{
-	struct ceph_osd_req_op *op;
-	int ret;
-
-	op = rbd_create_rw_op(CEPH_OSD_OP_WATCH, 0);
-	if (!op)
-		return -ENOMEM;
-
-	op->watch.ver = 0;
-	op->watch.cookie = cpu_to_le64(rbd_dev->watch_event->cookie);
-	op->watch.flag = 0;
-
-	ret = rbd_req_sync_op(rbd_dev,
-			      CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_ONDISK,
-			      op,
-			      rbd_dev->header_name,
-			      0, 0, NULL, NULL, NULL);
-
-
-	rbd_destroy_op(op);
-	ceph_osdc_cancel_event(rbd_dev->watch_event);
-	rbd_dev->watch_event = NULL;
 	return ret;
 }
 
@@ -3033,7 +3007,7 @@ static int rbd_init_watch_dev(struct rbd_device *rbd_dev)
 	int ret, rc;
 
 	do {
-		ret = rbd_req_sync_watch(rbd_dev);
+		ret = rbd_req_sync_watch(rbd_dev, 1);
 		if (ret == -ERANGE) {
 			rc = rbd_dev_refresh(rbd_dev, NULL);
 			if (rc < 0)
@@ -3752,8 +3726,7 @@ static void rbd_dev_release(struct device *dev)
 						    rbd_dev->watch_request);
 	}
 	if (rbd_dev->watch_event)
-		rbd_req_sync_unwatch(rbd_dev);
-
+		rbd_req_sync_watch(rbd_dev, 0);
 
 	/* clean up and free blkdev */
 	rbd_free_disk(rbd_dev);
