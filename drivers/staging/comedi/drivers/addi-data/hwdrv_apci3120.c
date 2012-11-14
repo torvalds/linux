@@ -767,54 +767,32 @@ static int i_APCI3120_CommandTestAnalogInput(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/*  step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {	/*  Test Delay timing */
-		if (cmd->scan_begin_arg < 100000) {
-			cmd->scan_begin_arg = 100000;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)	/* Test Delay timing */
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 100000);
 
 	if (cmd->convert_src == TRIG_TIMER) {	/*  Test Acquisition timing */
 		if (cmd->scan_begin_src == TRIG_TIMER) {
-			if (cmd->convert_arg &&
-			    (cmd->convert_arg < 10000)) {
-				cmd->convert_arg = 10000;
-				err++;
-			}
+			if (cmd->convert_arg)
+				err |= cfc_check_trigger_arg_min(
+						&cmd->convert_arg, 10000);
 		} else {
-			if (cmd->convert_arg < 10000) {
-				cmd->convert_arg = 10000;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+							10000);
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > this_board->i_AiChannelList) {
-		cmd->chanlist_len = this_board->i_AiChannelList;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/*  TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len,
+					 this_board->i_AiChannelList);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/*  TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
