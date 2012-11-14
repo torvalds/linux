@@ -78,7 +78,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
-#define CONFIG_SENSOR_WRITE_REGS  1
+#define CONFIG_SENSOR_WRITE_REGS  0
 #define WRITE_REGS_NUM 3
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
@@ -529,6 +529,7 @@ static struct reginfo sensor_1080p[]=
 /* 2592X1944 QSXGA */
 static struct reginfo sensor_qsxga[] =
 {
+#if 0
 	{0x3503, 0x07},
 	{0x3a00, 0x78},
 	{0x350c, 0x00},
@@ -564,12 +565,52 @@ static struct reginfo sensor_qsxga[] =
 	{0x3036, 0x46},
 	{0x4837, 0x2c},
 	{0x5001, 0x83},
-
+#else
+    {0x3820, 0x40}, 
+	{0x3821, 0x06}, 
+	{0x3814, 0x11}, 
+	{0x3815, 0x11}, 
+	{0x3803, 0x00}, 
+	{0x3807, 0x9f}, 
+	{0x3808, 0x0a}, 
+	{0x3809, 0x20}, 
+	{0x380a, 0x07}, 
+	{0x380b, 0x98}, 
+	{0x380c, 0x0b}, 
+	{0x380d, 0x1c}, 
+	{0x380e, 0x07}, 
+	{0x380f, 0xb0}, 
+	{0x3811, 0x10}, //
+	{0x3813, 0x04}, 
+	{0x3618, 0x04}, 
+	{0x3612, 0x2b}, //4b 
+	{0x3708, 0x64},
+	{0x3709, 0x12}, 
+	{0x370c, 0x00}, 
+	{0x3a02, 0x07}, 
+	{0x3a03, 0xb0}, 
+	{0x3a0e, 0x06}, 
+	{0x3a0d, 0x08}, 
+	{0x3a14, 0x07}, 
+	{0x3a15, 0xb0}, 
+	{0x4004, 0x06},
+	{0x5000, 0xa7}, 
+	{0x5001, 0x83},
+	{0x519e, 0x38},
+	{0x5381, 0x1e},
+	{0x5382, 0x5b},
+	{0x5383, 0x08},
+	{0x460b, 0x37}, 
+	{0x460c, 0x20}, 
+	{0x3824, 0x01}, 
+	{0x4005, 0x1A}, 
+#endif
 	{SEQUENCE_END, 0x00}
 };
 /* 2048*1536 QXGA */
 static struct reginfo sensor_qxga[] =
 {
+#if 0
 	{0x3503, 0x07},
 	{0x3a00, 0x78},
 	{0x350c, 0x00},
@@ -605,13 +646,14 @@ static struct reginfo sensor_qxga[] =
 	{0x3036, 0x46},
 	{0x4837, 0x2c},
 	{0x5001, 0xa3},
-
+#endif
 	{SEQUENCE_END, 0x00}
 };
 
 /* 1600X1200 UXGA */
 static struct reginfo sensor_uxga[] =
 {
+#if 0
 	{0x3503, 0x07},
 	{0x3a00, 0x78},
 	{0x350c, 0x00},
@@ -647,13 +689,14 @@ static struct reginfo sensor_uxga[] =
 	{0x3036, 0x46},
 	{0x4837, 0x2c},
 	{0x5001, 0xa3},
-
+#endif
 	{SEQUENCE_END, 0x00}
 };
 
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
+#if 0
 	{0x3503, 0x07},
 	{0x3a00, 0x78},
 	{0x350c, 0x00},
@@ -689,12 +732,13 @@ static struct reginfo sensor_sxga[] =
 	{0x3036, 0x46},
 	{0x4837, 0x2c},
 	{0x5001, 0xa3},
-
+#endif
 	{SEQUENCE_END, 0x00}
 };
 /* 1024X768 XGA */
 static struct reginfo sensor_xga[] =
 {
+#if 0
 	{0x3503, 0x07},
 	{0x3a00, 0x78},
 	{0x350c, 0x00},
@@ -730,6 +774,7 @@ static struct reginfo sensor_xga[] =
 	{0x3036, 0x46},
 	{0x4837, 0x2c},
 	{0x5001, 0xa3},
+#endif
 	{SEQUENCE_END, 0x00}
 };
 /* 800X600 SVGA*/
@@ -1515,7 +1560,7 @@ typedef struct sensor_info_priv_s
 struct sensor_parameter
 {
 	unsigned short int preview_maxlines;
-	unsigned short int preview_exposure;
+	unsigned int preview_exposure;
 	unsigned short int preview_line_width;
 	unsigned short int preview_gain;
 
@@ -1671,7 +1716,7 @@ static int sensor_read(struct i2c_client *client, u16 reg, u8 *val)
     msg[0].len = sizeof(buf);
     msg[0].scl_rate = CONFIG_SENSOR_I2C_SPEED;       /* ddl@rock-chips.com : 100kHz */
     msg[0].read_type = 2;   /* fpga i2c:0==I2C_NO_STOP : direct use number not enum for don't want include spi_fpga.h */
-
+    
     msg[1].addr = client->addr;
     msg[1].flags = client->flags|I2C_M_RD;
     msg[1].buf = buf;
@@ -2197,11 +2242,15 @@ sensor_af_workqueue_set_end:
 static int sensor_parameter_record(struct i2c_client *client)
 {
 	u8 ret_l,ret_m,ret_h;
-	u8 tp_l,tp_m,tp_h;
+	int tp_l,tp_m,tp_h;
 	struct sensor *sensor = to_sensor(client);
 
+    sensor_read(client,0x3a00, &ret_l);
+    sensor_write(client,0x3a00, ret_l&0xfb);
+
 	sensor_write(client,0x3503,0x07);	//stop AE/AG
-	sensor_write(client,0x3406,0x01);   //stop AWB
+	sensor_read(client,0x3406, &ret_l);
+    sensor_write(client,0x3406, ret_l|0x01);
 
 	sensor_read(client,0x3500,&ret_h);
 	sensor_read(client,0x3501, &ret_m);
@@ -2209,38 +2258,20 @@ static int sensor_parameter_record(struct i2c_client *client)
 	tp_l = ret_l;
 	tp_m = ret_m;
 	tp_h = ret_h;
-	SENSOR_DG(" %s Read 0x3500 = 0x%02x  0x3501 = 0x%02x 0x3502=0x%02x \n",SENSOR_NAME_STRING(), ret_h, ret_m, ret_l);
-	//sensor->parameter.preview_exposure = (tp_h<<12)+(tp_m<<4)+(tp_l>>4);
-	sensor->parameter.preview_exposure = ((((tp_h & 0x0f) << 8)+ tp_m) << 4) + (tp_l>>4);
-
-	sensor_read(client,0x350c, &ret_h);
-	sensor_read(client,0x350d, &ret_l);
-	sensor->parameter.preview_line_width = ret_h & 0xff;
-	sensor->parameter.preview_line_width = (sensor->parameter.preview_line_width << 8) +ret_l;
+    sensor->parameter.preview_exposure = ((tp_h<<12) & 0xF000) | ((tp_m<<4) & 0x0FF0) | ((tp_l>>4) & 0x0F);
+	
 	//Read back AGC Gain for preview
-	sensor_read(client,0x350a, &ret_h);
 	sensor_read(client,0x350b, &tp_l);
-	sensor->parameter.preview_gain = ((ret_h & 0x01) << 8)  + tp_l;
-	//preview_maxlines
-	sensor_read(client,0x380e, &ret_h);
-	sensor->parameter.preview_maxlines = ret_h;
-	sensor->parameter.preview_maxlines <<= 8;
-	sensor_read(client,0x380f, &tp_l);
-	sensor->parameter.preview_maxlines += tp_l;
-
-	sensor->parameter.capture_framerate = 375;
-	sensor->parameter.preview_framerate = 1500;
-
-	sensor_read(client,0x3400,&sensor->parameter.awb[0]);		//record awb value
-	sensor_read(client,0x3401,&sensor->parameter.awb[1]);
-	sensor_read(client,0x3402,&sensor->parameter.awb[2]);
-	sensor_read(client,0x3403,&sensor->parameter.awb[3]);
-	sensor_read(client,0x3404,&sensor->parameter.awb[4]);
-	sensor_read(client,0x3405,&sensor->parameter.awb[5]);
-
-	SENSOR_DG(" %s Read 0x350c = 0x%02x  0x350d = 0x%02x 0x350b=0x%02x \n",SENSOR_NAME_STRING(), ret_h, ret_l, sensor->parameter.preview_gain);
+	sensor->parameter.preview_gain = tp_l;
+    
+	SENSOR_DG(" %s Read 0x350b=0x%02x  PreviewExposure:%d 0x3500=0x%02x  0x3501=0x%02x 0x3502=0x%02x \n",
+     SENSOR_NAME_STRING(), tp_l,sensor->parameter.preview_exposure,ret_h, ret_m, ret_l);
 	return 0;
 }
+#define OV5640_FULL_PERIOD_PIXEL_NUMS_HTS         (2844) 
+#define OV5640_FULL_PERIOD_LINE_NUMS_VTS          (1968) 
+#define OV5640_PV_PERIOD_PIXEL_NUMS_HTS           (1896) 
+#define OV5640_PV_PERIOD_LINE_NUMS_VTS            (984) 
 static int sensor_ae_transfer(struct i2c_client *client)
 {
 	u8  ExposureLow;
@@ -2255,133 +2286,45 @@ static int sensor_ae_transfer(struct i2c_client *client)
 	u16 Preview_Maxlines;
 	u8  Gain;
 	u32  Capture_MaxLines;
+    u16 OV5640_g_iExtra_ExpLines;
 	struct sensor *sensor = to_sensor(client);
 
 	//Preview_Maxlines = sensor->parameter.preview_line_width;
 	Preview_Maxlines = sensor->parameter.preview_maxlines;
 	Gain = sensor->parameter.preview_gain;
-	/*
-	sensor_read(client,0x350c, &reg_h);
-	sensor_read(client,0x350d, &reg_l);
-	Capture_MaxLines = reg_h & 0xff;
-	Capture_MaxLines = (Capture_MaxLines << 8) + reg_l;
-	*/
-	//capture_maxlines
-	sensor_read(client,0x380e, &reg_h);
-	Capture_MaxLines = reg_h;
-	Capture_MaxLines <<= 8;
-	sensor_read(client,0x380f, &reg_l);
-	Capture_MaxLines +=  reg_l;
 	
-	if(m_60Hz== 1) {
-		Lines_10ms = sensor->parameter.capture_framerate * Capture_MaxLines/12000;
-	} else {
-		Lines_10ms = sensor->parameter.capture_framerate * Capture_MaxLines/10000;
-	}
-	Lines_10ms = Lines_10ms & 0xffff;
 	
-	if(Preview_Maxlines == 0)
-		Preview_Maxlines = 1;
-
-	//ulCapture_Exposure =
-	//	(sensor->parameter.preview_exposure*(sensor->parameter.capture_framerate)*(Capture_MaxLines))/(((Preview_Maxlines)*(sensor->parameter.preview_framerate)));
-
-	ulCapture_Exposure =
-		((sensor->parameter.preview_exposure*(((sensor->parameter.capture_framerate)*(Capture_MaxLines) + 50)/100)) << 1)/(((Preview_Maxlines)*(sensor->parameter.preview_framerate) + 50)/100);
-	ulCapture_Exposure = ulCapture_Exposure & 0xffff;
-	
-	iCapture_Gain = (Gain & 0x0f) + 16;
-	if (Gain & 0x10) {
-		iCapture_Gain = iCapture_Gain << 1;
-	}
-	if (Gain & 0x20) {
-		iCapture_Gain = iCapture_Gain << 1;
-	}
-	if (Gain & 0x40) {
-		iCapture_Gain = iCapture_Gain << 1;
-	}
-	if (Gain & 0x80) {
-		iCapture_Gain = iCapture_Gain << 1;
-	}
-	
-	//ulCapture_Exposure_Gain =(u32) (11 * ulCapture_Exposure * iCapture_Gain/5);   //0ld value 2.5, 解决过亮
-	ulCapture_Exposure_Gain =(u32) (ulCapture_Exposure * iCapture_Gain);
-	
-	if(ulCapture_Exposure_Gain < Capture_MaxLines*16) {
-		ulCapture_Exposure = ulCapture_Exposure_Gain/16;
-		if (ulCapture_Exposure > Lines_10ms)
-		{
-			//ulCapture_Exposure *= 1.7;
-		 	ulCapture_Exposure /= Lines_10ms;
-		 	ulCapture_Exposure *= Lines_10ms;
-		}
-	} else {
-		ulCapture_Exposure = Capture_MaxLines;
-		//ulCapture_Exposure_Gain *= 1.5;
-	}
-	
-	if(ulCapture_Exposure == 0)
-		ulCapture_Exposure = 1;
-	
-	iCapture_Gain = ((ulCapture_Exposure_Gain << 1)/ulCapture_Exposure + 1) >> 1;
-	iCapture_Gain = iCapture_Gain & 0xffff;
-	
-	ExposureLow = ((unsigned char)ulCapture_Exposure)<<4;
-	ExposureMid = (unsigned char)(ulCapture_Exposure >> 4) & 0xff;
-	ExposureHigh = (unsigned char)(ulCapture_Exposure >> 12);
-
-	//Gain = 0;
-	Gain = 0x10;
-	if (iCapture_Gain > 31) {
-		Gain |= 0x10;
-		iCapture_Gain = iCapture_Gain >> 1;
-	}
-	if (iCapture_Gain > 31) {
-		Gain |= 0x20;
-		iCapture_Gain = iCapture_Gain >> 1;
-	}
-	if (iCapture_Gain > 31) {
-		Gain |= 0x40;
-		iCapture_Gain = iCapture_Gain >> 1;
-	}
-	if (iCapture_Gain > 31) {
-		Gain |= 0x80;
-		iCapture_Gain = iCapture_Gain >> 1;
-	}
-	if (iCapture_Gain > 16)
-		Gain |= ((iCapture_Gain -16) & 0x0f);
-	if(Gain == 0x10)
-		Gain = 0x11;
-	// write the gain and exposure to 0x350* registers
-	//m_iWrite0x350b=Gain;
+    ulCapture_Exposure = (sensor->parameter.preview_exposure*OV5640_PV_PERIOD_PIXEL_NUMS_HTS)/OV5640_FULL_PERIOD_PIXEL_NUMS_HTS;
+        			
+    SENSOR_DG("cap shutter calutaed = %d, 0x%x\n", ulCapture_Exposure,ulCapture_Exposure);
+    
+	// write the gain and exposure to 0x350* registers	
 	sensor_write(client,0x350b, Gain);
-	Gain = (Gain >> 8) & 0x01;
-	sensor_write(client,0x350a, Gain);
-	//m_iWrite0x3502=ExposureLow;
+	//Gain = (Gain >> 8) & 0x01;
+	//sensor_write(client,0x350a, Gain);
+
+    if (ulCapture_Exposure <= 1940) {
+        OV5640_g_iExtra_ExpLines = 0;
+    }else {
+        OV5640_g_iExtra_ExpLines = ulCapture_Exposure - 1940;
+    }
+    SENSOR_DG("Set Extra-line = %d, iExp = %d \n", OV5640_g_iExtra_ExpLines, ulCapture_Exposure);
+
+    ExposureLow = (ulCapture_Exposure<<4)&0xff;
+	ExposureMid = (ulCapture_Exposure>>4)&0xff;
+	ExposureHigh = (ulCapture_Exposure>>12);
+    
+    sensor_write(client,0x350c, (OV5640_g_iExtra_ExpLines&0xff00)>>8);
+	sensor_write(client,0x350d, OV5640_g_iExtra_ExpLines&0xff);
 	sensor_write(client,0x3502, ExposureLow);
-	//m_iWrite0x3501=ExposureMid;
 	sensor_write(client,0x3501, ExposureMid);
-	//m_iWrite0x3500=ExposureHigh;
 	sensor_write(client,0x3500, ExposureHigh);
-	// SendToFile("Gain = 0x%x\r\n", Gain);
-	// SendToFile("ExposureLow = 0x%x\r\n", ExposureLow);
-	// SendToFile("ExposureMid = 0x%x\r\n", ExposureMid);
-	// SendToFile("ExposureHigh = 0x%x\r\n", ExposureHigh);
-	//加长延时，避免暗处拍照时的明暗分界问题
-	//camera_timed_wait(200);
-	//linzhk camera_timed_wait(500);
 
-	sensor_write(client,0x3400,sensor->parameter.awb[0]);		// resume awb value
-	sensor_write(client,0x3401,sensor->parameter.awb[1]);
-	sensor_write(client,0x3402,sensor->parameter.awb[2]);
-	sensor_write(client,0x3403,sensor->parameter.awb[3]);
-	sensor_write(client,0x3404,sensor->parameter.awb[4]);
-	sensor_write(client,0x3405,sensor->parameter.awb[5]);
-
-	SENSOR_DG(" %s Write 0x350b = 0x%02x  0x3502 = 0x%02x 0x3501=0x%02x 0x3500 = 0x%02x\n",SENSOR_NAME_STRING(), Gain, ExposureLow, ExposureMid, ExposureHigh);
+	SENSOR_DG(" %s Write 0x350b=0x%02x 0x350c=0x%2x  0x350d=0x%2x 0x3502=0x%02x 0x3501=0x%02x 0x3500=0x%02x\n",SENSOR_NAME_STRING(), Gain, ExposureLow, ExposureMid, ExposureHigh);
 	mdelay(100);
 	return 0;
 }
+
 static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -2449,7 +2392,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
     const struct sensor_datafmt *fmt;
-    char value;
+    char value,ret_h,ret_l;
     int ret,pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
@@ -2563,7 +2506,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
 
     sensor->info_priv.funmodule_state = SENSOR_INIT_IS_OK;
-        
+     
     return 0;
 sensor_INIT_ERR:
     sensor->info_priv.funmodule_state &= ~SENSOR_INIT_IS_OK;
@@ -2713,6 +2656,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 	struct soc_camera_device *icd = client->dev.platform_data;
     struct reginfo *winseqe_set_addr=NULL;
     int ret = 0, set_w,set_h;
+    char ret_h,ret_l;
 
 	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
 				   ARRAY_SIZE(sensor_colour_fmts));
