@@ -996,27 +996,11 @@ EXPORT_SYMBOL_GPL(comedi_pci_driver_unregister);
 
 #if IS_ENABLED(CONFIG_USB)
 
-static int comedi_usb_attach_wrapper(struct comedi_device *dev,
-				     unsigned long context)
-{
-	return dev->driver->attach_usb(dev, (struct usb_interface *)context);
-}
-
-static int comedi_new_usb_auto_config(struct usb_interface *intf,
-				      struct comedi_driver *driver)
-{
-	return comedi_auto_config_helper(&intf->dev, driver,
-					 comedi_usb_attach_wrapper,
-					 (unsigned long)intf);
-}
-
 int comedi_usb_auto_config(struct usb_interface *intf,
 			   struct comedi_driver *driver)
 {
 	BUG_ON(intf == NULL);
-	if (driver->attach_usb)
-		return comedi_new_usb_auto_config(intf, driver);
-	else if (driver->auto_attach)
+	if (driver->auto_attach)
 		return comedi_auto_config(&intf->dev, driver, 0);
 	else
 		return -EINVAL;
