@@ -3176,7 +3176,7 @@ nfsd4_end_grace(struct nfsd_net *nn)
 }
 
 static time_t
-nfs4_laundromat(void)
+nfs4_laundromat(struct nfsd_net *nn)
 {
 	struct nfs4_client *clp;
 	struct nfs4_openowner *oo;
@@ -3185,7 +3185,6 @@ nfs4_laundromat(void)
 	time_t cutoff = get_seconds() - nfsd4_lease;
 	time_t t, clientid_val = nfsd4_lease;
 	time_t u, test_val = nfsd4_lease;
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	nfs4_lock_state();
 
@@ -3251,16 +3250,19 @@ nfs4_laundromat(void)
 
 static struct workqueue_struct *laundry_wq;
 static void laundromat_main(struct work_struct *);
-static DECLARE_DELAYED_WORK(laundromat_work, laundromat_main);
 
 static void
-laundromat_main(struct work_struct *not_used)
+laundromat_main(struct work_struct *laundry)
 {
 	time_t t;
+	struct delayed_work *dwork = container_of(laundry, struct delayed_work,
+						  work);
+	struct nfsd_net *nn = container_of(dwork, struct nfsd_net,
+					   laundromat_work);
 
-	t = nfs4_laundromat();
+	t = nfs4_laundromat(nn);
 	dprintk("NFSD: laundromat_main - sleeping for %ld seconds\n", t);
-	queue_delayed_work(laundry_wq, &laundromat_work, t*HZ);
+	queue_delayed_work(laundry_wq, &nn->laundromat_work, t*HZ);
 }
 
 static inline __be32 nfs4_check_fh(struct svc_fh *fhp, struct nfs4_ol_stateid *stp)
@@ -4791,6 +4793,8 @@ static int nfs4_state_start_net(struct net *net)
 	INIT_LIST_HEAD(&nn->client_lru);
 	INIT_LIST_HEAD(&nn->close_lru);
 
+	INIT_DELAYED_WORK(&nn->laundromat_work, laundromat_main);
+
 	return 0;
 
 err_sessionid:
@@ -4875,7 +4879,8 @@ nfs4_state_start(void)
 	ret = nfsd4_create_callback_queue();
 	if (ret)
 		goto out_free_laundry;
-	queue_delayed_work(laundry_wq, &laundromat_work, nfsd4_grace * HZ);
+
+	queue_delayed_work(laundry_wq, &nn->laundromat_work, nfsd4_grace * HZ);
 	set_max_delegations();
 	return 0;
 out_free_laundry:
@@ -4918,7 +4923,7 @@ nfs4_state_shutdown(void)
 	struct net *net = &init_net;
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	cancel_delayed_work_sync(&laundromat_work);
+	cancel_delayed_work_sync(&nn->laundromat_work);
 	destroy_workqueue(laundry_wq);
 	locks_end_grace(&nn->nfsd4_manager);
 	nfs4_lock_state();

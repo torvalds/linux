@@ -79,6 +79,8 @@ struct nfsd_net {
 	 */
 	struct list_head client_lru;
 	struct list_head close_lru;
+
+	struct delayed_work laundromat_work;
 };
 
 extern int nfsd_net_id;
