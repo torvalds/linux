@@ -81,196 +81,6 @@
 	(((1<<trans->cfg->base_params->num_of_queues) - 1) &\
 	(~(1<<(trans_pcie)->cmd_queue)))
 
-static int iwl_trans_rx_alloc(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
-	struct device *dev = trans->dev;
-
-	memset(&trans_pcie->rxq, 0, sizeof(trans_pcie->rxq));
-
-	spin_lock_init(&rxq->lock);
-
-	if (WARN_ON(rxq->bd || rxq->rb_stts))
-		return -EINVAL;
-
-	/* Allocate the circular buffer of Read Buffer Descriptors (RBDs) */
-	rxq->bd = dma_zalloc_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
-				      &rxq->bd_dma, GFP_KERNEL);
-	if (!rxq->bd)
-		goto err_bd;
-
-	/*Allocate the driver's pointer to receive buffer status */
-	rxq->rb_stts = dma_zalloc_coherent(dev, sizeof(*rxq->rb_stts),
-					   &rxq->rb_stts_dma, GFP_KERNEL);
-	if (!rxq->rb_stts)
-		goto err_rb_stts;
-
-	return 0;
-
-err_rb_stts:
-	dma_free_coherent(dev, sizeof(__le32) * RX_QUEUE_SIZE,
-			  rxq->bd, rxq->bd_dma);
-	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
-	rxq->bd = NULL;
-err_bd:
-	return -ENOMEM;
-}
-
-static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
-	int i;
-
-	/* Fill the rx_used queue with _all_ of the Rx buffers */
-	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
-		/* In the reset function, these buffers may have been allocated
-		 * to an SKB, so we need to unmap and free potential storage */
-		if (rxq->pool[i].page != NULL) {
-			dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
-				       PAGE_SIZE << trans_pcie->rx_page_order,
-				       DMA_FROM_DEVICE);
-			__free_pages(rxq->pool[i].page,
-				     trans_pcie->rx_page_order);
-			rxq->pool[i].page = NULL;
-		}
-		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
-	}
-}
-
-static void iwl_trans_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u32 rb_size;
-	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
-	u32 rb_timeout = RX_RB_TIMEOUT; /* FIXME: RX_RB_TIMEOUT for all devices? */
-
-	if (trans_pcie->rx_buf_size_8k)
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
-	else
-		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
-
-	/* Stop Rx DMA */
-	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-
-	/* Reset driver's Rx queue write index */
-	iwl_write_direct32(trans, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
-
-	/* Tell device where to find RBD circular buffer in DRAM */
-	iwl_write_direct32(trans, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
-			   (u32)(rxq->bd_dma >> 8));
-
-	/* Tell device where in DRAM to update its Rx status */
-	iwl_write_direct32(trans, FH_RSCSR_CHNL0_STTS_WPTR_REG,
-			   rxq->rb_stts_dma >> 4);
-
-	/* Enable Rx DMA
-	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
-	 *      the credit mechanism in 5000 HW RX FIFO
-	 * Direct rx interrupts to hosts
-	 * Rx buffer size 4 or 8k
-	 * RB timeout 0x10
-	 * 256 RBDs
-	 */
-	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG,
-			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
-			   FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY |
-			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
-			   rb_size|
-			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
-			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
-
-	/* Set interrupt coalescing timer to default (2048 usecs) */
-	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
-}
-
-static int iwl_rx_init(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
-
-	int i, err;
-	unsigned long flags;
-
-	if (!rxq->bd) {
-		err = iwl_trans_rx_alloc(trans);
-		if (err)
-			return err;
-	}
-
-	spin_lock_irqsave(&rxq->lock, flags);
-	INIT_LIST_HEAD(&rxq->rx_free);
-	INIT_LIST_HEAD(&rxq->rx_used);
-
-	INIT_WORK(&trans_pcie->rx_replenish,
-		  iwl_pcie_rx_replenish_work);
-
-	iwl_trans_rxq_free_rx_bufs(trans);
-
-	for (i = 0; i < RX_QUEUE_SIZE; i++)
-		rxq->queue[i] = NULL;
-
-	/* Set us so that we have processed and used all buffers, but have
-	 * not restocked the Rx queue with fresh buffers */
-	rxq->read = rxq->write = 0;
-	rxq->write_actual = 0;
-	rxq->free_count = 0;
-	spin_unlock_irqrestore(&rxq->lock, flags);
-
-	iwl_pcie_rx_replenish(trans);
-
-	iwl_trans_rx_hw_init(trans, rxq);
-
-	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
-	rxq->need_update = 1;
-	iwl_pcie_rxq_inc_wr_ptr(trans, rxq);
-	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
-
-	return 0;
-}
-
-static void iwl_trans_pcie_rx_free(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_rxq *rxq = &trans_pcie->rxq;
-	unsigned long flags;
-
-	/*if rxq->bd is NULL, it means that nothing has been allocated,
-	 * exit now */
-	if (!rxq->bd) {
-		IWL_DEBUG_INFO(trans, "Free NULL rx context\n");
-		return;
-	}
-
-	spin_lock_irqsave(&rxq->lock, flags);
-	iwl_trans_rxq_free_rx_bufs(trans);
-	spin_unlock_irqrestore(&rxq->lock, flags);
-
-	dma_free_coherent(trans->dev, sizeof(__le32) * RX_QUEUE_SIZE,
-			  rxq->bd, rxq->bd_dma);
-	memset(&rxq->bd_dma, 0, sizeof(rxq->bd_dma));
-	rxq->bd = NULL;
-
-	if (rxq->rb_stts)
-		dma_free_coherent(trans->dev,
-				  sizeof(struct iwl_rb_status),
-				  rxq->rb_stts, rxq->rb_stts_dma);
-	else
-		IWL_DEBUG_INFO(trans, "Free rxq->rb_stts which is NULL\n");
-	memset(&rxq->rb_stts_dma, 0, sizeof(rxq->rb_stts_dma));
-	rxq->rb_stts = NULL;
-}
-
-static int iwl_trans_rx_stop(struct iwl_trans *trans)
-{
-
-	/* stop Rx DMA */
-	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
-	return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
-				   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
-}
-
 static int iwlagn_alloc_dma_ptr(struct iwl_trans *trans,
 				struct iwl_dma_ptr *ptr, size_t size)
 {
@@ -853,7 +663,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 	iwl_op_mode_nic_config(trans->op_mode);
 
 	/* Allocate the RX queue, or reset if it is already allocated */
-	iwl_rx_init(trans);
+	iwl_pcie_rx_init(trans);
 
 	/* Allocate or reset and init all Tx and Command queues */
 	if (iwl_tx_init(trans))
@@ -1214,7 +1024,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 */
 	if (test_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status)) {
 		iwl_trans_tx_stop(trans);
-		iwl_trans_rx_stop(trans);
+		iwl_pcie_rx_stop(trans);
 
 		/* Power-down device's busmaster DMA clocks */
 		iwl_write_prph(trans, APMG_CLK_DIS_REG,
@@ -1583,7 +1393,7 @@ void iwl_trans_pcie_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	iwl_trans_pcie_tx_free(trans);
-	iwl_trans_pcie_rx_free(trans);
+	iwl_pcie_rx_free(trans);
 
 	if (trans_pcie->irq_requested == true) {
 		free_irq(trans_pcie->irq, trans);
