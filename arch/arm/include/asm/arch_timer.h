@@ -106,6 +106,18 @@ static inline u64 arch_counter_get_cntvct(void)
 	asm volatile("mrrc p15, 1, %Q0, %R0, c14" : "=r" (cval));
 	return cval;
 }
+
+static inline void __cpuinit arch_counter_set_user_access(void)
+{
+	u32 cntkctl;
+
+	asm volatile("mrc p15, 0, %0, c14, c1, 0" : "=r" (cntkctl));
+
+	/* disable user access to everything */
+	cntkctl &= ~((3 << 8) | (7 << 0));
+
+	asm volatile("mcr p15, 0, %0, c14, c1, 0" : : "r" (cntkctl));
+}
 #else
 static inline int arch_timer_of_register(void)
 {
