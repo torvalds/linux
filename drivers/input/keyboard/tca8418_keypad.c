@@ -348,7 +348,7 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 	error = matrix_keypad_build_keymap(keymap_data, NULL, rows, cols,
 					   keypad_data->keymap, input);
 	if (error) {
-		dev_dbg(dev, "Failed to build keymap\n");
+		dev_err(dev, "Failed to build keymap\n");
 		goto fail2;
 	}
 
@@ -367,14 +367,14 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 				     IRQF_ONESHOT,
 				     client->name, keypad_data);
 	if (error) {
-		dev_dbg(dev, "Unable to claim irq %d; error %d\n",
+		dev_err(dev, "Unable to claim irq %d; error %d\n",
 			client->irq, error);
 		goto fail2;
 	}
 
 	error = input_register_device(input);
 	if (error) {
-		dev_dbg(dev, "Unable to register input device, error: %d\n",
+		dev_err(dev, "Unable to register input device, error: %d\n",
 			error);
 		goto fail3;
 	}
