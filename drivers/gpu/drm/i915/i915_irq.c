@@ -356,8 +356,8 @@ static void notify_ring(struct drm_device *dev,
 
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
-		dev_priv->hangcheck_count = 0;
-		mod_timer(&dev_priv->hangcheck_timer,
+		dev_priv->gpu_error.hangcheck_count = 0;
+		mod_timer(&dev_priv->gpu_error.hangcheck_timer,
 			  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 	}
 }
@@ -863,7 +863,7 @@ done:
 static void i915_error_work_func(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    error_work);
+						    gpu_error.work);
 	struct drm_device *dev = dev_priv->dev;
 	char *error_event[] = { "ERROR=1", NULL };
 	char *reset_event[] = { "RESET=1", NULL };
@@ -878,7 +878,7 @@ static void i915_error_work_func(struct work_struct *work)
 			atomic_set(&dev_priv->mm.wedged, 0);
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 		}
-		complete_all(&dev_priv->error_completion);
+		complete_all(&dev_priv->gpu_error.completion);
 	}
 }
 
@@ -1255,9 +1255,9 @@ static void i915_capture_error_state(struct drm_device *dev)
 	unsigned long flags;
 	int i, pipe;
 
-	spin_lock_irqsave(&dev_priv->error_lock, flags);
-	error = dev_priv->first_error;
-	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	error = dev_priv->gpu_error.first_error;
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 	if (error)
 		return;
 
@@ -1341,12 +1341,12 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->overlay = intel_overlay_capture_error_state(dev);
 	error->display = intel_display_capture_error_state(dev);
 
-	spin_lock_irqsave(&dev_priv->error_lock, flags);
-	if (dev_priv->first_error == NULL) {
-		dev_priv->first_error = error;
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	if (dev_priv->gpu_error.first_error == NULL) {
+		dev_priv->gpu_error.first_error = error;
 		error = NULL;
 	}
-	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
 	if (error)
 		i915_error_state_free(&error->ref);
@@ -1358,10 +1358,10 @@ void i915_destroy_error_state(struct drm_device *dev)
 	struct drm_i915_error_state *error;
 	unsigned long flags;
 
-	spin_lock_irqsave(&dev_priv->error_lock, flags);
-	error = dev_priv->first_error;
-	dev_priv->first_error = NULL;
-	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+	spin_lock_irqsave(&dev_priv->gpu_error.lock, flags);
+	error = dev_priv->gpu_error.first_error;
+	dev_priv->gpu_error.first_error = NULL;
+	spin_unlock_irqrestore(&dev_priv->gpu_error.lock, flags);
 
 	if (error)
 		kref_put(&error->ref, i915_error_state_free);
@@ -1482,7 +1482,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
-		INIT_COMPLETION(dev_priv->error_completion);
+		INIT_COMPLETION(dev_priv->gpu_error.completion);
 		atomic_set(&dev_priv->mm.wedged, 1);
 
 		/*
@@ -1492,7 +1492,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 			wake_up_all(&ring->irq_queue);
 	}
 
-	queue_work(dev_priv->wq, &dev_priv->error_work);
+	queue_work(dev_priv->wq, &dev_priv->gpu_error.work);
 }
 
 static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
@@ -1723,7 +1723,7 @@ static bool i915_hangcheck_hung(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (dev_priv->hangcheck_count++ > 1) {
+	if (dev_priv->gpu_error.hangcheck_count++ > 1) {
 		bool hung = true;
 
 		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
@@ -1782,25 +1782,29 @@ void i915_hangcheck_elapsed(unsigned long data)
 			goto repeat;
 		}
 
-		dev_priv->hangcheck_count = 0;
+		dev_priv->gpu_error.hangcheck_count = 0;
 		return;
 	}
 
 	i915_get_extra_instdone(dev, instdone);
-	if (memcmp(dev_priv->last_acthd, acthd, sizeof(acthd)) == 0 &&
-	    memcmp(dev_priv->prev_instdone, instdone, sizeof(instdone)) == 0) {
+	if (memcmp(dev_priv->gpu_error.last_acthd, acthd,
+		   sizeof(acthd)) == 0 &&
+	    memcmp(dev_priv->gpu_error.prev_instdone, instdone,
+		   sizeof(instdone)) == 0) {
 		if (i915_hangcheck_hung(dev))
 			return;
 	} else {
-		dev_priv->hangcheck_count = 0;
+		dev_priv->gpu_error.hangcheck_count = 0;
 
-		memcpy(dev_priv->last_acthd, acthd, sizeof(acthd));
-		memcpy(dev_priv->prev_instdone, instdone, sizeof(instdone));
+		memcpy(dev_priv->gpu_error.last_acthd, acthd,
+		       sizeof(acthd));
+		memcpy(dev_priv->gpu_error.prev_instdone, instdone,
+		       sizeof(instdone));
 	}
 
 repeat:
 	/* Reset timer case chip hangs without another request being added */
-	mod_timer(&dev_priv->hangcheck_timer,
+	mod_timer(&dev_priv->gpu_error.hangcheck_timer,
 		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
@@ -2769,11 +2773,12 @@ void intel_irq_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
-	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
+	INIT_WORK(&dev_priv->gpu_error.work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
 	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
-	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
+	setup_timer(&dev_priv->gpu_error.hangcheck_timer,
+		    i915_hangcheck_elapsed,
 		    (unsigned long) dev);
 
 	pm_qos_add_request(&dev_priv->pm_qos, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);

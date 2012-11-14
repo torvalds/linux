@@ -766,6 +766,28 @@ struct i915_gem_mm {
 	u32 object_count;
 };
 
+struct i915_gpu_error {
+	/* For hangcheck timer */
+#define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
+#define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
+	struct timer_list hangcheck_timer;
+	int hangcheck_count;
+	uint32_t last_acthd[I915_NUM_RINGS];
+	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
+
+	/* For reset and error_state handling. */
+	spinlock_t lock;
+	/* Protected by the above dev->gpu_error.lock. */
+	struct drm_i915_error_state *first_error;
+	struct work_struct work;
+	struct completion completion;
+
+	unsigned long last_reset;
+
+	/* For gpu hang simulation. */
+	unsigned int stop_rings;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -829,16 +851,6 @@ typedef struct drm_i915_private {
 	int num_pipe;
 	int num_pch_pll;
 
-	/* For hangcheck timer */
-#define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
-#define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
-	struct timer_list hangcheck_timer;
-	int hangcheck_count;
-	uint32_t last_acthd[I915_NUM_RINGS];
-	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
-
-	unsigned int stop_rings;
-
 	unsigned long cfb_size;
 	unsigned int cfb_fb;
 	enum plane cfb_plane;
@@ -886,11 +898,6 @@ typedef struct drm_i915_private {
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 
-	spinlock_t error_lock;
-	/* Protected by dev->error_lock. */
-	struct drm_i915_error_state *first_error;
-	struct work_struct error_work;
-	struct completion error_completion;
 	struct workqueue_struct *wq;
 
 	/* Display functions */
@@ -949,7 +956,7 @@ typedef struct drm_i915_private {
 	struct drm_mm_node *compressed_fb;
 	struct drm_mm_node *compressed_llb;
 
-	unsigned long last_gpu_reset;
+	struct i915_gpu_error gpu_error;
 
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;

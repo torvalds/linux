@@ -90,7 +90,7 @@ static int
 i915_gem_wait_for_error(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct completion *x = &dev_priv->error_completion;
+	struct completion *x = &dev_priv->gpu_error.completion;
 	unsigned long flags;
 	int ret;
 
@@ -943,7 +943,7 @@ i915_gem_check_wedge(struct drm_i915_private *dev_priv,
 		     bool interruptible)
 {
 	if (atomic_read(&dev_priv->mm.wedged)) {
-		struct completion *x = &dev_priv->error_completion;
+		struct completion *x = &dev_priv->gpu_error.completion;
 		bool recovery_complete;
 		unsigned long flags;
 
@@ -2045,7 +2045,7 @@ i915_add_request(struct intel_ring_buffer *ring,
 
 	if (!dev_priv->mm.suspended) {
 		if (i915_enable_hangcheck) {
-			mod_timer(&dev_priv->hangcheck_timer,
+			mod_timer(&dev_priv->gpu_error.hangcheck_timer,
 				  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 		}
 		if (was_empty) {
@@ -3803,7 +3803,7 @@ i915_gem_idle(struct drm_device *dev)
 	 * And not confound mm.suspended!
 	 */
 	dev_priv->mm.suspended = 1;
-	del_timer_sync(&dev_priv->hangcheck_timer);
+	del_timer_sync(&dev_priv->gpu_error.hangcheck_timer);
 
 	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);
@@ -4064,7 +4064,7 @@ i915_gem_load(struct drm_device *dev)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
-	init_completion(&dev_priv->error_completion);
+	init_completion(&dev_priv->gpu_error.completion);
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	if (IS_GEN3(dev)) {
