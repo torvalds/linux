@@ -115,8 +115,6 @@ enum {
 #define MWIFIEX_TYPE_DATA				0
 #define MWIFIEX_TYPE_EVENT				3
 
-#define DBG_CMD_NUM						5
-
 #define MAX_BITMAP_RATES_SIZE			10
 
 #define MAX_CHANNEL_BAND_BG     14
@@ -484,7 +482,6 @@ struct mwifiex_private {
 	u8 nick_name[16];
 	u16 current_key_index;
 	struct semaphore async_sem;
-	u8 scan_pending_on_block;
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
 	struct mwifiex_user_scan_cfg *user_scan_cfg;
@@ -750,9 +747,9 @@ int mwifiex_shutdown_fw_complete(struct mwifiex_adapter *adapter);
 
 int mwifiex_dnld_fw(struct mwifiex_adapter *, struct mwifiex_fw_image *);
 
-int mwifiex_recv_packet(struct mwifiex_adapter *, struct sk_buff *skb);
+int mwifiex_recv_packet(struct mwifiex_private *priv, struct sk_buff *skb);
 
-int mwifiex_process_mgmt_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_mgmt_packet(struct mwifiex_private *priv,
 				struct sk_buff *skb);
 
 int mwifiex_process_event(struct mwifiex_adapter *adapter);
@@ -809,7 +806,7 @@ void mwifiex_hs_activated_event(struct mwifiex_private *priv,
 					u8 activated);
 int mwifiex_ret_802_11_hs_cfg(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
-int mwifiex_process_rx_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_rx_packet(struct mwifiex_private *priv,
 			      struct sk_buff *skb);
 int mwifiex_sta_prepare_cmd(struct mwifiex_private *, uint16_t cmd_no,
 			    u16 cmd_action, u32 cmd_oid,
@@ -819,9 +816,9 @@ int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
 			    void *data_buf, void *cmd_buf);
 int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 				struct host_cmd_ds_command *resp);
-int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
+int mwifiex_process_sta_rx_packet(struct mwifiex_private *,
 				  struct sk_buff *skb);
-int mwifiex_process_uap_rx_packet(struct mwifiex_adapter *adapter,
+int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 				  struct sk_buff *skb);
 int mwifiex_handle_uap_rx_forward(struct mwifiex_private *priv,
 				  struct sk_buff *skb);

@@ -65,8 +65,9 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 							  -ETIME);
 			kfree(hdev->cmd_pending_msg);
 			hdev->cmd_pending_msg = NULL;
-		} else
+		} else {
 			goto exit;
+		}
 	}
 
 next_msg:
@@ -182,7 +183,7 @@ static u32 nfc_hci_sak_to_protocol(u8 sak)
 	}
 }
 
-static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
+int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 {
 	struct nfc_target *targets;
 	struct sk_buff *atqa_skb = NULL;
@@ -263,7 +264,9 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 		break;
 	}
 
-	targets->hci_reader_gate = gate;
+	/* if driver set the new gate, we will skip the old one */
+	if (targets->hci_reader_gate == 0x00)
+		targets->hci_reader_gate = gate;
 
 	r = nfc_targets_found(hdev->ndev, targets, 1);
 
@@ -275,6 +278,7 @@ exit:
 
 	return r;
 }
+EXPORT_SYMBOL(nfc_hci_target_discovered);
 
 void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			    struct sk_buff *skb)
@@ -307,8 +311,13 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 					      nfc_hci_pipe2gate(hdev, pipe));
 		break;
 	default:
-		/* TODO: Unknown events are hardware specific
-		 * pass them to the driver (needs a new hci_ops) */
+		if (hdev->ops->event_received) {
+			hdev->ops->event_received(hdev,
+						nfc_hci_pipe2gate(hdev, pipe),
+						event, skb);
+			return;
+		}
+
 		break;
 	}
 
@@ -527,7 +536,8 @@ static int hci_start_poll(struct nfc_dev *nfc_dev,
 		return hdev->ops->start_poll(hdev, im_protocols, tm_protocols);
 	else
 		return nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
-				       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
+					  NFC_HCI_EVT_READER_REQUESTED,
+					  NULL, 0);
 }
 
 static void hci_stop_poll(struct nfc_dev *nfc_dev)
@@ -536,6 +546,28 @@ static void hci_stop_poll(struct nfc_dev *nfc_dev)
 
 	nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 			   NFC_HCI_EVT_END_OPERATION, NULL, 0);
+}
+
+static int hci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
+				__u8 comm_mode, __u8 *gb, size_t gb_len)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->dep_link_up)
+		return hdev->ops->dep_link_up(hdev, target, comm_mode,
+						gb, gb_len);
+
+	return 0;
+}
+
+static int hci_dep_link_down(struct nfc_dev *nfc_dev)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->dep_link_down)
+		return hdev->ops->dep_link_down(hdev);
+
+	return 0;
 }
 
 static int hci_activate_target(struct nfc_dev *nfc_dev,
@@ -586,8 +618,8 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	switch (target->hci_reader_gate) {
 	case NFC_HCI_RF_READER_A_GATE:
 	case NFC_HCI_RF_READER_B_GATE:
-		if (hdev->ops->data_exchange) {
-			r = hdev->ops->data_exchange(hdev, target, skb, cb,
+		if (hdev->ops->im_transceive) {
+			r = hdev->ops->im_transceive(hdev, target, skb, cb,
 						     cb_context);
 			if (r <= 0)	/* handled */
 				break;
@@ -604,20 +636,30 @@ static int hci_transceive(struct nfc_dev *nfc_dev, struct nfc_target *target,
 					   skb->len, hci_transceive_cb, hdev);
 		break;
 	default:
-		if (hdev->ops->data_exchange) {
-			r = hdev->ops->data_exchange(hdev, target, skb, cb,
+		if (hdev->ops->im_transceive) {
+			r = hdev->ops->im_transceive(hdev, target, skb, cb,
 						     cb_context);
 			if (r == 1)
 				r = -ENOTSUPP;
-		}
-		else
+		} else {
 			r = -ENOTSUPP;
+		}
 		break;
 	}
 
 	kfree_skb(skb);
 
 	return r;
+}
+
+static int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->tm_send)
+		return hdev->ops->tm_send(hdev, skb);
+	else
+		return -ENOTSUPP;
 }
 
 static int hci_check_presence(struct nfc_dev *nfc_dev,
@@ -723,9 +765,12 @@ static struct nfc_ops hci_nfc_ops = {
 	.dev_down = hci_dev_down,
 	.start_poll = hci_start_poll,
 	.stop_poll = hci_stop_poll,
+	.dep_link_up = hci_dep_link_up,
+	.dep_link_down = hci_dep_link_down,
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
 	.im_transceive = hci_transceive,
+	.tm_send = hci_tm_send,
 	.check_presence = hci_check_presence,
 };
 
@@ -848,7 +893,7 @@ void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err)
 }
 EXPORT_SYMBOL(nfc_hci_driver_failure);
 
-void inline nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
+void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 {
 	nfc_llc_rcv_from_drv(hdev->llc, skb);
 }

@@ -471,13 +471,13 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 			flag = 1;
 			first_chan = (u32) ch->hw_value;
 			next_chan = first_chan;
-			max_pwr = ch->max_reg_power;
+			max_pwr = ch->max_power;
 			no_of_parsed_chan = 1;
 			continue;
 		}
 
 		if (ch->hw_value == next_chan + 1 &&
-		    ch->max_reg_power == max_pwr) {
+		    ch->max_power == max_pwr) {
 			next_chan++;
 			no_of_parsed_chan++;
 		} else {
@@ -488,7 +488,7 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 			no_of_triplet++;
 			first_chan = (u32) ch->hw_value;
 			next_chan = first_chan;
-			max_pwr = ch->max_reg_power;
+			max_pwr = ch->max_power;
 			no_of_parsed_chan = 1;
 		}
 	}
@@ -1819,9 +1819,15 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
-	if (atomic_read(&priv->wmm.tx_pkts_queued) >=
+	if ((request->flags & NL80211_SCAN_FLAG_LOW_PRIORITY) &&
+	    atomic_read(&priv->wmm.tx_pkts_queued) >=
 	    MWIFIEX_MIN_TX_PENDING_TO_CANCEL_SCAN) {
 		dev_dbg(priv->adapter->dev, "scan rejected due to traffic\n");
+		return -EBUSY;
+	}
+
+	if (priv->user_scan_cfg) {
+		dev_err(priv->adapter->dev, "cmd: Scan already in process..\n");
 		return -EBUSY;
 	}
 
@@ -2116,7 +2122,6 @@ struct wireless_dev *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	}
 
 	sema_init(&priv->async_sem, 1);
-	priv->scan_pending_on_block = false;
 
 	dev_dbg(adapter->dev, "info: %s: Marvell 802.11 Adapter\n", dev->name);
 
@@ -2253,8 +2258,9 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 	wiphy->available_antennas_tx = BIT(adapter->number_of_antenna) - 1;
 	wiphy->available_antennas_rx = BIT(adapter->number_of_antenna) - 1;
 
-	wiphy->features = NL80211_FEATURE_HT_IBSS |
-			  NL80211_FEATURE_INACTIVITY_TIMER;
+	wiphy->features |= NL80211_FEATURE_HT_IBSS |
+			   NL80211_FEATURE_INACTIVITY_TIMER |
+			   NL80211_FEATURE_LOW_PRIORITY_SCAN;
 
 	/* Reserve space for mwifiex specific private data for BSS */
 	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);

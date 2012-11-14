@@ -130,6 +130,20 @@ void hci_acl_disconn(struct hci_conn *conn, __u8 reason)
 	hci_send_cmd(conn->hdev, HCI_OP_DISCONNECT, sizeof(cp), &cp);
 }
 
+static void hci_amp_disconn(struct hci_conn *conn, __u8 reason)
+{
+	struct hci_cp_disconn_phy_link cp;
+
+	BT_DBG("hcon %p", conn);
+
+	conn->state = BT_DISCONN;
+
+	cp.phy_handle = HCI_PHY_HANDLE(conn->handle);
+	cp.reason = reason;
+	hci_send_cmd(conn->hdev, HCI_OP_DISCONN_PHY_LINK,
+		     sizeof(cp), &cp);
+}
+
 static void hci_add_sco(struct hci_conn *conn, __u16 handle)
 {
 	struct hci_dev *hdev = conn->hdev;
@@ -230,11 +244,24 @@ void hci_sco_setup(struct hci_conn *conn, __u8 status)
 	}
 }
 
+static void hci_conn_disconnect(struct hci_conn *conn)
+{
+	__u8 reason = hci_proto_disconn_ind(conn);
+
+	switch (conn->type) {
+	case ACL_LINK:
+		hci_acl_disconn(conn, reason);
+		break;
+	case AMP_LINK:
+		hci_amp_disconn(conn, reason);
+		break;
+	}
+}
+
 static void hci_conn_timeout(struct work_struct *work)
 {
 	struct hci_conn *conn = container_of(work, struct hci_conn,
 					     disc_work.work);
-	__u8 reason;
 
 	BT_DBG("hcon %p state %s", conn, state_to_string(conn->state));
 
@@ -253,8 +280,7 @@ static void hci_conn_timeout(struct work_struct *work)
 		break;
 	case BT_CONFIG:
 	case BT_CONNECTED:
-		reason = hci_proto_disconn_ind(conn);
-		hci_acl_disconn(conn, reason);
+		hci_conn_disconnect(conn);
 		break;
 	default:
 		conn->state = BT_CLOSED;
@@ -320,7 +346,7 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type, bdaddr_t *dst)
 {
 	struct hci_conn *conn;
 
-	BT_DBG("%s dst %s", hdev->name, batostr(dst));
+	BT_DBG("%s dst %pMR", hdev->name, dst);
 
 	conn = kzalloc(sizeof(struct hci_conn), GFP_KERNEL);
 	if (!conn)
@@ -437,7 +463,7 @@ struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src)
 	int use_src = bacmp(src, BDADDR_ANY);
 	struct hci_dev *hdev = NULL, *d;
 
-	BT_DBG("%s -> %s", batostr(src), batostr(dst));
+	BT_DBG("%pMR -> %pMR", src, dst);
 
 	read_lock(&hci_dev_list_lock);
 
@@ -567,7 +593,7 @@ static struct hci_conn *hci_connect_sco(struct hci_dev *hdev, int type,
 struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst,
 			     __u8 dst_type, __u8 sec_level, __u8 auth_type)
 {
-	BT_DBG("%s dst %s type 0x%x", hdev->name, batostr(dst), type);
+	BT_DBG("%s dst %pMR type 0x%x", hdev->name, dst, type);
 
 	switch (type) {
 	case LE_LINK:
@@ -962,4 +988,36 @@ void hci_chan_list_flush(struct hci_conn *conn)
 
 	list_for_each_entry_safe(chan, n, &conn->chan_list, list)
 		hci_chan_del(chan);
+}
+
+static struct hci_chan *__hci_chan_lookup_handle(struct hci_conn *hcon,
+						 __u16 handle)
+{
+	struct hci_chan *hchan;
+
+	list_for_each_entry(hchan, &hcon->chan_list, list) {
+		if (hchan->handle == handle)
+			return hchan;
+	}
+
+	return NULL;
+}
+
+struct hci_chan *hci_chan_lookup_handle(struct hci_dev *hdev, __u16 handle)
+{
+	struct hci_conn_hash *h = &hdev->conn_hash;
+	struct hci_conn *hcon;
+	struct hci_chan *hchan = NULL;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(hcon, &h->list, list) {
+		hchan = __hci_chan_lookup_handle(hcon, handle);
+		if (hchan)
+			break;
+	}
+
+	rcu_read_unlock();
+
+	return hchan;
 }

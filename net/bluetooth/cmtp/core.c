@@ -353,7 +353,7 @@ int cmtp_add_connection(struct cmtp_connadd_req *req, struct socket *sock)
 
 	BT_DBG("mtu %d", session->mtu);
 
-	sprintf(session->name, "%s", batostr(&bt_sk(sock->sk)->dst));
+	sprintf(session->name, "%pMR", &bt_sk(sock->sk)->dst);
 
 	session->sock  = sock;
 	session->state = BT_CONFIG;

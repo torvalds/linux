@@ -156,10 +156,10 @@ static int __init wgt634u_init(void)
 					    SSB_CHIPCO_IRQ_GPIO);
 		}
 
-		wgt634u_flash_data.width = mcore->flash_buswidth;
-		wgt634u_flash_resource.start = mcore->flash_window;
-		wgt634u_flash_resource.end = mcore->flash_window
-					   + mcore->flash_window_size
+		wgt634u_flash_data.width = mcore->pflash.buswidth;
+		wgt634u_flash_resource.start = mcore->pflash.window;
+		wgt634u_flash_resource.end = mcore->pflash.window
+					   + mcore->pflash.window_size
 					   - 1;
 		return platform_add_devices(wgt634u_devices,
 					    ARRAY_SIZE(wgt634u_devices));

@@ -43,8 +43,8 @@ static void early_nvram_init(void)
 #ifdef CONFIG_BCM47XX_SSB
 	case BCM47XX_BUS_TYPE_SSB:
 		mcore_ssb = &bcm47xx_bus.ssb.mipscore;
-		base = mcore_ssb->flash_window;
-		lim = mcore_ssb->flash_window_size;
+		base = mcore_ssb->pflash.window;
+		lim = mcore_ssb->pflash.window_size;
 		break;
 #endif
 #ifdef CONFIG_BCM47XX_BCMA

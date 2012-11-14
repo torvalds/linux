@@ -7433,7 +7433,7 @@ static inline char *airo_translate_scan(struct net_device *dev,
 					num_null_ies++;
 				break;
 
-			case WLAN_EID_GENERIC:
+			case WLAN_EID_VENDOR_SPECIFIC:
 				if (ie[1] >= 4 &&
 				    ie[2] == 0x00 &&
 				    ie[3] == 0x50 &&

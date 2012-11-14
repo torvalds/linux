@@ -16,6 +16,7 @@
 #include <net/rtnetlink.h>
 #include "nl80211.h"
 #include "reg.h"
+#include "rdev-ops.h"
 
 struct cfg80211_conn {
 	struct cfg80211_connect_params params;
@@ -138,10 +139,11 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 
 	request->wdev = wdev;
 	request->wiphy = &rdev->wiphy;
+	request->scan_start = jiffies;
 
 	rdev->scan_req = request;
 
-	err = rdev->ops->scan(wdev->wiphy, request);
+	err = rdev_scan(rdev, request);
 	if (!err) {
 		wdev->conn->state = CFG80211_CONN_SCANNING;
 		nl80211_send_scan_start(rdev, wdev);
@@ -179,7 +181,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev)
 					    params->ssid, params->ssid_len,
 					    NULL, 0,
 					    params->key, params->key_len,
-					    params->key_idx);
+					    params->key_idx, NULL, 0);
 	case CFG80211_CONN_ASSOCIATE_NEXT:
 		BUG_ON(!rdev->ops->assoc);
 		wdev->conn->state = CFG80211_CONN_ASSOCIATING;
@@ -716,7 +718,7 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	 */
 	if (rdev->ops->del_key)
 		for (i = 0; i < 6; i++)
-			rdev->ops->del_key(wdev->wiphy, dev, i, false, NULL);
+			rdev_del_key(rdev, dev, i, false, NULL);
 
 #ifdef CONFIG_CFG80211_WEXT
 	memset(&wrqu, 0, sizeof(wrqu));
@@ -892,7 +894,7 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 	} else {
 		wdev->sme_state = CFG80211_SME_CONNECTING;
 		wdev->connect_keys = connkeys;
-		err = rdev->ops->connect(&rdev->wiphy, dev, connect);
+		err = rdev_connect(rdev, dev, connect);
 		if (err) {
 			wdev->connect_keys = NULL;
 			wdev->sme_state = CFG80211_SME_IDLE;
@@ -964,7 +966,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		if (err)
 			return err;
 	} else {
-		err = rdev->ops->disconnect(&rdev->wiphy, dev, reason);
+		err = rdev_disconnect(rdev, dev, reason);
 		if (err)
 			return err;
 	}

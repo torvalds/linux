@@ -405,7 +405,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup(struct hci_dev *hdev,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
+	BT_DBG("cache %p, %pMR", cache, bdaddr);
 
 	list_for_each_entry(e, &cache->all, all) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
@@ -421,7 +421,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_unknown(struct hci_dev *hdev,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p, %s", cache, batostr(bdaddr));
+	BT_DBG("cache %p, %pMR", cache, bdaddr);
 
 	list_for_each_entry(e, &cache->unknown, list) {
 		if (!bacmp(&e->data.bdaddr, bdaddr))
@@ -438,7 +438,7 @@ struct inquiry_entry *hci_inquiry_cache_lookup_resolve(struct hci_dev *hdev,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *e;
 
-	BT_DBG("cache %p bdaddr %s state %d", cache, batostr(bdaddr), state);
+	BT_DBG("cache %p bdaddr %pMR state %d", cache, bdaddr, state);
 
 	list_for_each_entry(e, &cache->resolve, list) {
 		if (!bacmp(bdaddr, BDADDR_ANY) && e->name_state == state)
@@ -475,7 +475,7 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 	struct discovery_state *cache = &hdev->discovery;
 	struct inquiry_entry *ie;
 
-	BT_DBG("cache %p, %s", cache, batostr(&data->bdaddr));
+	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
 	if (ssp)
 		*ssp = data->ssp_mode;
@@ -1259,7 +1259,7 @@ int hci_add_link_key(struct hci_dev *hdev, struct hci_conn *conn, int new_key,
 		list_add(&key->list, &hdev->link_keys);
 	}
 
-	BT_DBG("%s key for %s type %u", hdev->name, batostr(bdaddr), type);
+	BT_DBG("%s key for %pMR type %u", hdev->name, bdaddr, type);
 
 	/* Some buggy controller combinations generate a changed
 	 * combination key for legacy pairing even when there's no
@@ -1338,7 +1338,7 @@ int hci_remove_link_key(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	if (!key)
 		return -ENOENT;
 
-	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
 	list_del(&key->list);
 	kfree(key);
@@ -1354,7 +1354,7 @@ int hci_remove_ltk(struct hci_dev *hdev, bdaddr_t *bdaddr)
 		if (bacmp(bdaddr, &k->bdaddr))
 			continue;
 
-		BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+		BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
 		list_del(&k->list);
 		kfree(k);
@@ -1401,7 +1401,7 @@ int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	if (!data)
 		return -ENOENT;
 
-	BT_DBG("%s removing %s", hdev->name, batostr(bdaddr));
+	BT_DBG("%s removing %pMR", hdev->name, bdaddr);
 
 	list_del(&data->list);
 	kfree(data);
@@ -1440,7 +1440,7 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 	memcpy(data->hash, hash, sizeof(data->hash));
 	memcpy(data->randomizer, randomizer, sizeof(data->randomizer));
 
-	BT_DBG("%s for %s", hdev->name, batostr(bdaddr));
+	BT_DBG("%s for %pMR", hdev->name, bdaddr);
 
 	return 0;
 }
@@ -2153,9 +2153,10 @@ static void hci_add_acl_hdr(struct sk_buff *skb, __u16 handle, __u16 flags)
 	hdr->dlen   = cpu_to_le16(len);
 }
 
-static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
+static void hci_queue_acl(struct hci_chan *chan, struct sk_buff_head *queue,
 			  struct sk_buff *skb, __u16 flags)
 {
+	struct hci_conn *conn = chan->conn;
 	struct hci_dev *hdev = conn->hdev;
 	struct sk_buff *list;
 
@@ -2163,7 +2164,18 @@ static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
 	skb->data_len = 0;
 
 	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags);
+
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		hci_add_acl_hdr(skb, conn->handle, flags);
+		break;
+	case HCI_AMP:
+		hci_add_acl_hdr(skb, chan->handle, flags);
+		break;
+	default:
+		BT_ERR("%s unknown dev_type %d", hdev->name, hdev->dev_type);
+		return;
+	}
 
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
@@ -2202,14 +2214,13 @@ static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
 
 void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 {
-	struct hci_conn *conn = chan->conn;
-	struct hci_dev *hdev = conn->hdev;
+	struct hci_dev *hdev = chan->conn->hdev;
 
 	BT_DBG("%s chan %p flags 0x%4.4x", hdev->name, chan, flags);
 
 	skb->dev = (void *) hdev;
 
-	hci_queue_acl(conn, &chan->data_q, skb, flags);
+	hci_queue_acl(chan, &chan->data_q, skb, flags);
 
 	queue_work(hdev->workqueue, &hdev->tx_work);
 }
@@ -2311,8 +2322,8 @@ static void hci_link_tx_to(struct hci_dev *hdev, __u8 type)
 	/* Kill stalled connections */
 	list_for_each_entry_rcu(c, &h->list, list) {
 		if (c->type == type && c->sent) {
-			BT_ERR("%s killing stalled connection %s",
-			       hdev->name, batostr(&c->dst));
+			BT_ERR("%s killing stalled connection %pMR",
+			       hdev->name, &c->dst);
 			hci_acl_disconn(c, HCI_ERROR_REMOTE_USER_TERM);
 		}
 	}
@@ -2380,6 +2391,9 @@ static struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 	switch (chan->conn->type) {
 	case ACL_LINK:
 		cnt = hdev->acl_cnt;
+		break;
+	case AMP_LINK:
+		cnt = hdev->block_cnt;
 		break;
 	case SCO_LINK:
 	case ESCO_LINK:
@@ -2510,11 +2524,19 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 	struct hci_chan *chan;
 	struct sk_buff *skb;
 	int quote;
+	u8 type;
 
 	__check_timeout(hdev, cnt);
 
+	BT_DBG("%s", hdev->name);
+
+	if (hdev->dev_type == HCI_AMP)
+		type = AMP_LINK;
+	else
+		type = ACL_LINK;
+
 	while (hdev->block_cnt > 0 &&
-	       (chan = hci_chan_sent(hdev, ACL_LINK, &quote))) {
+	       (chan = hci_chan_sent(hdev, type, &quote))) {
 		u32 priority = (skb_peek(&chan->data_q))->priority;
 		while (quote > 0 && (skb = skb_peek(&chan->data_q))) {
 			int blocks;
@@ -2547,14 +2569,19 @@ static void hci_sched_acl_blk(struct hci_dev *hdev)
 	}
 
 	if (cnt != hdev->block_cnt)
-		hci_prio_recalculate(hdev, ACL_LINK);
+		hci_prio_recalculate(hdev, type);
 }
 
 static void hci_sched_acl(struct hci_dev *hdev)
 {
 	BT_DBG("%s", hdev->name);
 
-	if (!hci_conn_num(hdev, ACL_LINK))
+	/* No ACL link over BR/EDR controller */
+	if (!hci_conn_num(hdev, ACL_LINK) && hdev->dev_type == HCI_BREDR)
+		return;
+
+	/* No AMP link over AMP controller */
+	if (!hci_conn_num(hdev, AMP_LINK) && hdev->dev_type == HCI_AMP)
 		return;
 
 	switch (hdev->flow_ctl_mode) {

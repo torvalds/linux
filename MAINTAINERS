@@ -7509,6 +7509,12 @@ S:	Maintained
 F:	Documentation/usb/acm.txt
 F:	drivers/usb/class/cdc-acm.*
 
+USB AR5523 WIRELESS DRIVER
+M:	Pontus Fuchs <pontus.fuchs@gmail.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/ath/ar5523/
+
 USB ATTACHED SCSI
 M:	Matthew Wilcox <willy@linux.intel.com>
 M:	Sarah Sharp <sarah.a.sharp@linux.intel.com>

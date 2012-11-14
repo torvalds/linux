@@ -172,7 +172,7 @@ static int sco_connect(struct sock *sk)
 	struct hci_dev  *hdev;
 	int err, type;
 
-	BT_DBG("%s -> %s", batostr(src), batostr(dst));
+	BT_DBG("%pMR -> %pMR", src, dst);
 
 	hdev = hci_get_route(dst, src);
 	if (!hdev)
@@ -460,7 +460,7 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 	struct sock *sk = sock->sk;
 	int err = 0;
 
-	BT_DBG("sk %p %s", sk, batostr(&sa->sco_bdaddr));
+	BT_DBG("sk %p %pMR", sk, &sa->sco_bdaddr);
 
 	if (!addr || addr->sa_family != AF_BLUETOOTH)
 		return -EINVAL;
@@ -893,7 +893,7 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 	struct hlist_node *node;
 	int lm = 0;
 
-	BT_DBG("hdev %s, bdaddr %s", hdev->name, batostr(bdaddr));
+	BT_DBG("hdev %s, bdaddr %pMR", hdev->name, bdaddr);
 
 	/* Find listening sockets */
 	read_lock(&sco_sk_list.lock);
@@ -914,7 +914,7 @@ int sco_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr)
 
 void sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 {
-	BT_DBG("hcon %p bdaddr %s status %d", hcon, batostr(&hcon->dst), status);
+	BT_DBG("hcon %p bdaddr %pMR status %d", hcon, &hcon->dst, status);
 	if (!status) {
 		struct sco_conn *conn;
 
@@ -959,8 +959,8 @@ static int sco_debugfs_show(struct seq_file *f, void *p)
 	read_lock(&sco_sk_list.lock);
 
 	sk_for_each(sk, node, &sco_sk_list.head) {
-		seq_printf(f, "%s %s %d\n", batostr(&bt_sk(sk)->src),
-			   batostr(&bt_sk(sk)->dst), sk->sk_state);
+		seq_printf(f, "%pMR %pMR %d\n", &bt_sk(sk)->src,
+			   &bt_sk(sk)->dst, sk->sk_state);
 	}
 
 	read_unlock(&sco_sk_list.lock);

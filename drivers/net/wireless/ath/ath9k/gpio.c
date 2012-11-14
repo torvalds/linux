@@ -187,34 +187,12 @@ static void ath9k_gen_timer_stop(struct ath_hw *ah, struct ath_gen_timer *timer)
 	}
 }
 
-/*
- * This is the master bt coex timer which runs for every
- * 45ms, bt traffic will be given priority during 55% of this
- * period while wlan gets remaining 45%
- */
-static void ath_btcoex_period_timer(unsigned long data)
+static void ath_mci_ftp_adjust(struct ath_softc *sc)
 {
-	struct ath_softc *sc = (struct ath_softc *) data;
-	struct ath_hw *ah = sc->sc_ah;
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_mci_profile *mci = &btcoex->mci;
-	u32 timer_period;
-	bool is_btscan;
-	unsigned long flags;
+	struct ath_hw *ah = sc->sc_ah;
 
-	spin_lock_irqsave(&sc->sc_pm_lock, flags);
-	if (sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP) {
-		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
-		goto skip_hw_wakeup;
-	}
-	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
-
-	ath9k_ps_wakeup(sc);
-	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
-		ath_detect_bt_priority(sc);
-	is_btscan = test_bit(BT_OP_SCAN, &btcoex->op_flags);
-
-	btcoex->bt_wait_time += btcoex->btcoex_period;
 	if (btcoex->bt_wait_time > ATH_BTCOEX_RX_WAIT_TIME) {
 		if (ar9003_mci_state(ah, MCI_STATE_NEED_FTP_STOMP) &&
 		    (mci->num_pan || mci->num_other_acl))
@@ -225,13 +203,55 @@ static void ath_btcoex_period_timer(unsigned long data)
 		btcoex->bt_wait_time = 0;
 		sc->rx.num_pkts = 0;
 	}
+}
+
+/*
+ * This is the master bt coex timer which runs for every
+ * 45ms, bt traffic will be given priority during 55% of this
+ * period while wlan gets remaining 45%
+ */
+static void ath_btcoex_period_timer(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *) data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	enum ath_stomp_type stomp_type;
+	u32 timer_period;
+	unsigned long flags;
+
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	if (sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP) {
+		btcoex->bt_wait_time += btcoex->btcoex_period;
+		spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+		goto skip_hw_wakeup;
+	}
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+
+	ath9k_mci_update_rssi(sc);
+
+	ath9k_ps_wakeup(sc);
+
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
+		ath_detect_bt_priority(sc);
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_MCI)
+		ath_mci_ftp_adjust(sc);
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
-	ath9k_hw_btcoex_bt_stomp(ah, is_btscan ? ATH_BTCOEX_STOMP_ALL :
-			      btcoex->bt_stomp_type);
+	stomp_type = btcoex->bt_stomp_type;
+	timer_period = btcoex->btcoex_no_stomp;
 
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI)) {
+		if (test_bit(BT_OP_SCAN, &btcoex->op_flags)) {
+			stomp_type = ATH_BTCOEX_STOMP_ALL;
+			timer_period = btcoex->btscan_no_stomp;
+		}
+	}
+
+	ath9k_hw_btcoex_bt_stomp(ah, stomp_type);
 	ath9k_hw_btcoex_enable(ah);
+
 	spin_unlock_bh(&btcoex->btcoex_lock);
 
 	/*
@@ -243,17 +263,16 @@ static void ath_btcoex_period_timer(unsigned long data)
 		if (btcoex->hw_timer_enabled)
 			ath9k_gen_timer_stop(ah, btcoex->no_stomp_timer);
 
-		timer_period = is_btscan ? btcoex->btscan_no_stomp :
-					   btcoex->btcoex_no_stomp;
 		ath9k_gen_timer_start(ah, btcoex->no_stomp_timer, timer_period,
 				      timer_period * 10);
 		btcoex->hw_timer_enabled = true;
 	}
 
 	ath9k_ps_restore(sc);
+
 skip_hw_wakeup:
-	timer_period = btcoex->btcoex_period;
-	mod_timer(&btcoex->period_timer, jiffies + msecs_to_jiffies(timer_period));
+	mod_timer(&btcoex->period_timer,
+		  jiffies + msecs_to_jiffies(btcoex->btcoex_period));
 }
 
 /*
@@ -273,7 +292,8 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	spin_lock_bh(&btcoex->btcoex_lock);
 
 	if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_LOW ||
-	    test_bit(BT_OP_SCAN, &btcoex->op_flags))
+	    (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI) &&
+	     test_bit(BT_OP_SCAN, &btcoex->op_flags)))
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_NONE);
 	 else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
@@ -474,4 +494,52 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 	return 0;
 }
 
+int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 len, u32 size)
+{
+#define ATH_DUMP_BTCOEX(_s, _val)                                \
+	do {                                                     \
+		len += snprintf(buf + len, size - len,           \
+				"%20s : %10d\n", _s, (_val));    \
+	} while (0)
+
+	struct ath_btcoex *btcoex = &sc->btcoex;
+	struct ath_mci_profile *mci = &btcoex->mci;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_btcoex_hw *btcoex_hw = &ah->btcoex_hw;
+	int i;
+
+	ATH_DUMP_BTCOEX("Total BT profiles", NUM_PROF(mci));
+	ATH_DUMP_BTCOEX("Number of MGMT", mci->num_mgmt);
+	ATH_DUMP_BTCOEX("Number of SCO", mci->num_sco);
+	ATH_DUMP_BTCOEX("Number of A2DP", mci->num_a2dp);
+	ATH_DUMP_BTCOEX("Number of HID", mci->num_hid);
+	ATH_DUMP_BTCOEX("Number of PAN", mci->num_pan);
+	ATH_DUMP_BTCOEX("Number of ACL", mci->num_other_acl);
+	ATH_DUMP_BTCOEX("Number of BDR", mci->num_bdr);
+	ATH_DUMP_BTCOEX("Aggr. Limit", mci->aggr_limit);
+	ATH_DUMP_BTCOEX("Stomp Type", btcoex->bt_stomp_type);
+	ATH_DUMP_BTCOEX("BTCoex Period (msec)", btcoex->btcoex_period);
+	ATH_DUMP_BTCOEX("Duty Cycle", btcoex->duty_cycle);
+	ATH_DUMP_BTCOEX("BT Wait time", btcoex->bt_wait_time);
+	ATH_DUMP_BTCOEX("Concurrent Tx", btcoex_hw->mci.concur_tx);
+	ATH_DUMP_BTCOEX("Concur RSSI count", btcoex->rssi_count);
+	len += snprintf(buf + len, size - len, "BT Weights: ");
+	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+		len += snprintf(buf + len, size - len, "%08x ",
+				btcoex_hw->bt_weight[i]);
+	len += snprintf(buf + len, size - len, "\n");
+	len += snprintf(buf + len, size - len, "WLAN Weights: ");
+	for (i = 0; i < AR9300_NUM_BT_WEIGHTS; i++)
+		len += snprintf(buf + len, size - len, "%08x ",
+				btcoex_hw->wlan_weight[i]);
+	len += snprintf(buf + len, size - len, "\n");
+	len += snprintf(buf + len, size - len, "Tx Priorities: ");
+	for (i = 0; i < ATH_BTCOEX_STOMP_MAX; i++)
+		len += snprintf(buf + len, size - len, "%08x ",
+				btcoex_hw->tx_prio[i]);
+	len += snprintf(buf + len, size - len, "\n");
+#undef ATH_DUMP_BTCOEX
+
+	return len;
+}
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */

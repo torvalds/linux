@@ -81,6 +81,18 @@ struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid)
 }
 EXPORT_SYMBOL_GPL(bcma_find_core);
 
+static struct bcma_device *bcma_find_core_unit(struct bcma_bus *bus, u16 coreid,
+					       u8 unit)
+{
+	struct bcma_device *core;
+
+	list_for_each_entry(core, &bus->cores, list) {
+		if (core->id.id == coreid && core->core_unit == unit)
+			return core;
+	}
+	return NULL;
+}
+
 static void bcma_release_core_dev(struct device *dev)
 {
 	struct bcma_device *core = container_of(dev, struct bcma_device, dev);
@@ -183,6 +195,20 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 		return -1;
 	}
 
+	/* Early init CC core */
+	core = bcma_find_core(bus, bcma_cc_core_id(bus));
+	if (core) {
+		bus->drv_cc.core = core;
+		bcma_core_chipcommon_early_init(&bus->drv_cc);
+	}
+
+	/* Try to get SPROM */
+	err = bcma_sprom_get(bus);
+	if (err == -ENOENT) {
+		bcma_err(bus, "No SPROM available\n");
+	} else if (err)
+		bcma_err(bus, "Failed to get SPROM: %d\n", err);
+
 	/* Init CC core */
 	core = bcma_find_core(bus, bcma_cc_core_id(bus));
 	if (core) {
@@ -198,10 +224,17 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 	}
 
 	/* Init PCIE core */
-	core = bcma_find_core(bus, BCMA_CORE_PCIE);
+	core = bcma_find_core_unit(bus, BCMA_CORE_PCIE, 0);
 	if (core) {
-		bus->drv_pci.core = core;
-		bcma_core_pci_init(&bus->drv_pci);
+		bus->drv_pci[0].core = core;
+		bcma_core_pci_init(&bus->drv_pci[0]);
+	}
+
+	/* Init PCIE core */
+	core = bcma_find_core_unit(bus, BCMA_CORE_PCIE, 1);
+	if (core) {
+		bus->drv_pci[1].core = core;
+		bcma_core_pci_init(&bus->drv_pci[1]);
 	}
 
 	/* Init GBIT MAC COMMON core */
@@ -210,13 +243,6 @@ int __devinit bcma_bus_register(struct bcma_bus *bus)
 		bus->drv_gmac_cmn.core = core;
 		bcma_core_gmac_cmn_init(&bus->drv_gmac_cmn);
 	}
-
-	/* Try to get SPROM */
-	err = bcma_sprom_get(bus);
-	if (err == -ENOENT) {
-		bcma_err(bus, "No SPROM available\n");
-	} else if (err)
-		bcma_err(bus, "Failed to get SPROM: %d\n", err);
 
 	/* Register found cores */
 	bcma_register_cores(bus);
@@ -275,18 +301,18 @@ int __init bcma_bus_early_register(struct bcma_bus *bus,
 		return -1;
 	}
 
-	/* Init CC core */
+	/* Early init CC core */
 	core = bcma_find_core(bus, bcma_cc_core_id(bus));
 	if (core) {
 		bus->drv_cc.core = core;
-		bcma_core_chipcommon_init(&bus->drv_cc);
+		bcma_core_chipcommon_early_init(&bus->drv_cc);
 	}
 
-	/* Init MIPS core */
+	/* Early init MIPS core */
 	core = bcma_find_core(bus, BCMA_CORE_MIPS_74K);
 	if (core) {
 		bus->drv_mips.core = core;
-		bcma_core_mips_init(&bus->drv_mips);
+		bcma_core_mips_early_init(&bus->drv_mips);
 	}
 
 	bcma_info(bus, "Early bus registered\n");

@@ -98,6 +98,7 @@ static void free_sta_work(struct work_struct *wk)
 	struct tid_ampdu_tx *tid_tx;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
+	struct ps_data *ps;
 
 	/*
 	 * At this point, when being called as call_rcu callback,
@@ -107,11 +108,15 @@ static void free_sta_work(struct work_struct *wk)
 	 */
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA)) {
-		BUG_ON(!sdata->bss);
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
+		    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+			ps = &sdata->bss->ps;
+		else
+			return;
 
 		clear_sta_flag(sta, WLAN_STA_PS_STA);
 
-		atomic_dec(&sdata->bss->num_sta_ps);
+		atomic_dec(&ps->num_sta_ps);
 		sta_info_recalc_tim(sta);
 	}
 
@@ -502,22 +507,22 @@ int sta_info_insert(struct sta_info *sta)
 	return err;
 }
 
-static inline void __bss_tim_set(struct ieee80211_if_ap *bss, u16 aid)
+static inline void __bss_tim_set(u8 *tim, u16 id)
 {
 	/*
 	 * This format has been mandated by the IEEE specifications,
 	 * so this line may not be changed to use the __set_bit() format.
 	 */
-	bss->tim[aid / 8] |= (1 << (aid % 8));
+	tim[id / 8] |= (1 << (id % 8));
 }
 
-static inline void __bss_tim_clear(struct ieee80211_if_ap *bss, u16 aid)
+static inline void __bss_tim_clear(u8 *tim, u16 id)
 {
 	/*
 	 * This format has been mandated by the IEEE specifications,
 	 * so this line may not be changed to use the __clear_bit() format.
 	 */
-	bss->tim[aid / 8] &= ~(1 << (aid % 8));
+	tim[id / 8] &= ~(1 << (id % 8));
 }
 
 static unsigned long ieee80211_tids_for_ac(int ac)
@@ -541,14 +546,23 @@ static unsigned long ieee80211_tids_for_ac(int ac)
 void sta_info_recalc_tim(struct sta_info *sta)
 {
 	struct ieee80211_local *local = sta->local;
-	struct ieee80211_if_ap *bss = sta->sdata->bss;
+	struct ps_data *ps;
 	unsigned long flags;
 	bool indicate_tim = false;
 	u8 ignore_for_tim = sta->sta.uapsd_queues;
 	int ac;
+	u16 id;
 
-	if (WARN_ON_ONCE(!sta->sdata->bss))
+	if (sta->sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
+		if (WARN_ON_ONCE(!sta->sdata->bss))
+			return;
+
+		ps = &sta->sdata->bss->ps;
+		id = sta->sta.aid;
+	} else {
 		return;
+	}
 
 	/* No need to do anything if the driver does all */
 	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
@@ -587,9 +601,9 @@ void sta_info_recalc_tim(struct sta_info *sta)
 	spin_lock_irqsave(&local->tim_lock, flags);
 
 	if (indicate_tim)
-		__bss_tim_set(bss, sta->sta.aid);
+		__bss_tim_set(ps->tim, id);
 	else
-		__bss_tim_clear(bss, sta->sta.aid);
+		__bss_tim_clear(ps->tim, id);
 
 	if (local->ops->set_tim) {
 		local->tim_in_locked_section = true;
@@ -893,8 +907,8 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			continue;
 
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
-			ibss_dbg(sdata, "expiring inactive STA %pM\n",
-				 sta->sta.addr);
+			sta_dbg(sta->sdata, "expiring inactive STA %pM\n",
+				sta->sta.addr);
 			WARN_ON(__sta_info_destroy(sta));
 		}
 	}
@@ -948,10 +962,17 @@ static void clear_sta_ps_flags(void *_sta)
 {
 	struct sta_info *sta = _sta;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ps_data *ps;
+
+	if (sdata->vif.type == NL80211_IFTYPE_AP ||
+	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		ps = &sdata->bss->ps;
+	else
+		return;
 
 	clear_sta_flag(sta, WLAN_STA_PS_DRIVER);
 	if (test_and_clear_sta_flag(sta, WLAN_STA_PS_STA))
-		atomic_dec(&sdata->bss->num_sta_ps);
+		atomic_dec(&ps->num_sta_ps);
 }
 
 /* powersave support code */
@@ -1008,6 +1029,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 	__le16 fc;
 	bool qos = test_sta_flag(sta, WLAN_STA_WME);
 	struct ieee80211_tx_info *info;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 
 	if (qos) {
 		fc = cpu_to_le16(IEEE80211_FTYPE_DATA |
@@ -1057,7 +1079,16 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 
 	drv_allow_buffered_frames(local, sta, BIT(tid), 1, reason, false);
 
-	ieee80211_xmit(sdata, skb);
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		kfree_skb(skb);
+		return;
+	}
+
+	ieee80211_xmit(sdata, skb, chanctx_conf->channel->band);
+	rcu_read_unlock();
 }
 
 static void

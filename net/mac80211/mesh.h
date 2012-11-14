@@ -256,7 +256,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
-struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
+const struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
 
 /* Mesh paths */
 int mesh_nexthop_lookup(struct sk_buff *skb,
@@ -324,7 +324,7 @@ extern int mesh_allocated;
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
 {
 	return sdata->u.mesh.mshcfg.dot11MeshMaxPeerLinks -
-	       atomic_read(&sdata->u.mesh.mshstats.estab_plinks);
+	       atomic_read(&sdata->u.mesh.estab_plinks);
 }
 
 static inline bool mesh_plink_availables(struct ieee80211_sub_if_data *sdata)

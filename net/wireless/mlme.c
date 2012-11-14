@@ -15,6 +15,8 @@
 #include <net/iw_handler.h>
 #include "core.h"
 #include "nl80211.h"
+#include "rdev-ops.h"
+
 
 void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len)
 {
@@ -22,6 +24,7 @@ void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len)
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_send_rx_auth(dev);
 	wdev_lock(wdev);
 
 	nl80211_send_rx_auth(rdev, dev, buf, len, GFP_KERNEL);
@@ -42,6 +45,7 @@ void cfg80211_send_rx_assoc(struct net_device *dev, struct cfg80211_bss *bss,
 	u8 *ie = mgmt->u.assoc_resp.variable;
 	int ieoffs = offsetof(struct ieee80211_mgmt, u.assoc_resp.variable);
 
+	trace_cfg80211_send_rx_assoc(dev, bss);
 	wdev_lock(wdev);
 
 	status_code = le16_to_cpu(mgmt->u.assoc_resp.status_code);
@@ -98,6 +102,7 @@ void __cfg80211_send_deauth(struct net_device *dev,
 	const u8 *bssid = mgmt->bssid;
 	bool was_current = false;
 
+	trace___cfg80211_send_deauth(dev);
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (wdev->current_bss &&
@@ -147,6 +152,7 @@ void __cfg80211_send_disassoc(struct net_device *dev,
 	u16 reason_code;
 	bool from_ap;
 
+	trace___cfg80211_send_disassoc(dev);
 	ASSERT_WDEV_LOCK(wdev);
 
 	nl80211_send_disassoc(rdev, dev, buf, len, GFP_KERNEL);
@@ -188,6 +194,7 @@ void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_send_unprot_deauth(dev);
 	nl80211_send_unprot_deauth(rdev, dev, buf, len, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(cfg80211_send_unprot_deauth);
@@ -199,6 +206,7 @@ void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_send_unprot_disassoc(dev);
 	nl80211_send_unprot_disassoc(rdev, dev, buf, len, GFP_ATOMIC);
 }
 EXPORT_SYMBOL(cfg80211_send_unprot_disassoc);
@@ -209,6 +217,7 @@ void cfg80211_send_auth_timeout(struct net_device *dev, const u8 *addr)
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_send_auth_timeout(dev, addr);
 	wdev_lock(wdev);
 
 	nl80211_send_auth_timeout(rdev, dev, addr, GFP_KERNEL);
@@ -227,6 +236,7 @@ void cfg80211_send_assoc_timeout(struct net_device *dev, const u8 *addr)
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_send_assoc_timeout(dev, addr);
 	wdev_lock(wdev);
 
 	nl80211_send_assoc_timeout(rdev, dev, addr, GFP_KERNEL);
@@ -261,6 +271,7 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 	}
 #endif
 
+	trace_cfg80211_michael_mic_failure(dev, addr, key_type, key_id, tsc);
 	nl80211_michael_mic_failure(rdev, dev, addr, key_type, key_id, tsc, gfp);
 }
 EXPORT_SYMBOL(cfg80211_michael_mic_failure);
@@ -273,7 +284,8 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 const u8 *bssid,
 			 const u8 *ssid, int ssid_len,
 			 const u8 *ie, int ie_len,
-			 const u8 *key, int key_len, int key_idx)
+			 const u8 *key, int key_len, int key_idx,
+			 const u8 *sae_data, int sae_data_len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_auth_request req;
@@ -293,6 +305,8 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 
 	req.ie = ie;
 	req.ie_len = ie_len;
+	req.sae_data = sae_data;
+	req.sae_data_len = sae_data_len;
 	req.auth_type = auth_type;
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
@@ -307,7 +321,7 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	if (err)
 		goto out;
 
-	err = rdev->ops->auth(&rdev->wiphy, dev, &req);
+	err = rdev_auth(rdev, dev, &req);
 
 out:
 	cfg80211_put_bss(req.bss);
@@ -319,7 +333,8 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       enum nl80211_auth_type auth_type, const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
 		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx)
+		       const u8 *key, int key_len, int key_idx,
+		       const u8 *sae_data, int sae_data_len)
 {
 	int err;
 
@@ -327,7 +342,8 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
 				   ssid, ssid_len, ie, ie_len,
-				   key, key_len, key_idx);
+				   key, key_len, key_idx,
+				   sae_data, sae_data_len);
 	wdev_unlock(dev->ieee80211_ptr);
 	mutex_unlock(&rdev->devlist_mtx);
 
@@ -410,7 +426,7 @@ int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	if (err)
 		goto out;
 
-	err = rdev->ops->assoc(&rdev->wiphy, dev, &req);
+	err = rdev_assoc(rdev, dev, &req);
 
 out:
 	if (err) {
@@ -466,7 +482,7 @@ int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 	    !ether_addr_equal(wdev->current_bss->pub.bssid, bssid)))
 		return 0;
 
-	return rdev->ops->deauth(&rdev->wiphy, dev, &req);
+	return rdev_deauth(rdev, dev, &req);
 }
 
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
@@ -511,7 +527,7 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	else
 		return -ENOTCONN;
 
-	return rdev->ops->disassoc(&rdev->wiphy, dev, &req);
+	return rdev_disassoc(rdev, dev, &req);
 }
 
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
@@ -552,7 +568,7 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 
 	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
 	req.bssid = bssid;
-	rdev->ops->deauth(&rdev->wiphy, dev, &req);
+	rdev_deauth(rdev, dev, &req);
 
 	if (wdev->current_bss) {
 		cfg80211_unhold_bss(wdev->current_bss);
@@ -569,6 +585,8 @@ void cfg80211_ready_on_channel(struct wireless_dev *wdev, u64 cookie,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_ready_on_channel(wdev, cookie, chan, channel_type,
+					duration);
 	nl80211_send_remain_on_channel(rdev, wdev, cookie, chan, channel_type,
 				       duration, gfp);
 }
@@ -582,6 +600,8 @@ void cfg80211_remain_on_channel_expired(struct wireless_dev *wdev, u64 cookie,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_ready_on_channel_expired(wdev, cookie, chan,
+						channel_type);
 	nl80211_send_remain_on_channel_cancel(rdev, wdev, cookie, chan,
 					      channel_type, gfp);
 }
@@ -593,6 +613,7 @@ void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_new_sta(dev, mac_addr, sinfo);
 	nl80211_send_sta_event(rdev, dev, mac_addr, sinfo, gfp);
 }
 EXPORT_SYMBOL(cfg80211_new_sta);
@@ -602,6 +623,7 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp)
 	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_del_sta(dev, mac_addr);
 	nl80211_send_sta_del_event(rdev, dev, mac_addr, gfp);
 }
 EXPORT_SYMBOL(cfg80211_del_sta);
@@ -682,7 +704,7 @@ int cfg80211_mlme_register_mgmt(struct wireless_dev *wdev, u32 snd_portid,
 	list_add(&nreg->list, &wdev->mgmt_registrations);
 
 	if (rdev->ops->mgmt_frame_register)
-		rdev->ops->mgmt_frame_register(wiphy, wdev, frame_type, true);
+		rdev_mgmt_frame_register(rdev, wdev, frame_type, true);
 
  out:
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
@@ -705,8 +727,8 @@ void cfg80211_mlme_unregister_socket(struct wireless_dev *wdev, u32 nlportid)
 		if (rdev->ops->mgmt_frame_register) {
 			u16 frame_type = le16_to_cpu(reg->frame_type);
 
-			rdev->ops->mgmt_frame_register(wiphy, wdev,
-						       frame_type, false);
+			rdev_mgmt_frame_register(rdev, wdev,
+						 frame_type, false);
 		}
 
 		list_del(&reg->list);
@@ -832,10 +854,10 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 
 	/* Transmit the Action frame as requested by user space */
-	return rdev->ops->mgmt_tx(&rdev->wiphy, wdev, chan, offchan,
-				  channel_type, channel_type_valid,
-				  wait, buf, len, no_cck, dont_wait_for_ack,
-				  cookie);
+	return rdev_mgmt_tx(rdev, wdev, chan, offchan,
+			    channel_type, channel_type_valid,
+			    wait, buf, len, no_cck, dont_wait_for_ack,
+			    cookie);
 }
 
 bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
@@ -854,10 +876,13 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 		cpu_to_le16(IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE);
 	u16 stype;
 
+	trace_cfg80211_rx_mgmt(wdev, freq, sig_mbm);
 	stype = (le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE) >> 4;
 
-	if (!(stypes->rx & BIT(stype)))
+	if (!(stypes->rx & BIT(stype))) {
+		trace_cfg80211_return_bool(false);
 		return false;
+	}
 
 	data = buf + ieee80211_hdrlen(mgmt->frame_control);
 	data_len = len - ieee80211_hdrlen(mgmt->frame_control);
@@ -888,6 +913,7 @@ bool cfg80211_rx_mgmt(struct wireless_dev *wdev, int freq, int sig_mbm,
 
 	spin_unlock_bh(&wdev->mgmt_registrations_lock);
 
+	trace_cfg80211_return_bool(result);
 	return result;
 }
 EXPORT_SYMBOL(cfg80211_rx_mgmt);
@@ -897,6 +923,8 @@ void cfg80211_mgmt_tx_status(struct wireless_dev *wdev, u64 cookie,
 {
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	trace_cfg80211_mgmt_tx_status(wdev, cookie, ack);
 
 	/* Indicate TX status of the Action frame to user space */
 	nl80211_send_mgmt_tx_status(rdev, wdev, cookie, buf, len, ack, gfp);
@@ -911,6 +939,8 @@ void cfg80211_cqm_rssi_notify(struct net_device *dev,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_cqm_rssi_notify(dev, rssi_event);
+
 	/* Indicate roaming trigger event to user space */
 	nl80211_send_cqm_rssi_notify(rdev, dev, rssi_event, gfp);
 }
@@ -922,6 +952,8 @@ void cfg80211_cqm_pktloss_notify(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
+
+	trace_cfg80211_cqm_pktloss_notify(dev, peer, num_packets);
 
 	/* Indicate roaming trigger event to user space */
 	nl80211_send_cqm_pktloss_notify(rdev, dev, peer, num_packets, gfp);
@@ -948,6 +980,7 @@ void cfg80211_gtk_rekey_notify(struct net_device *dev, const u8 *bssid,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_gtk_rekey_notify(dev, bssid);
 	nl80211_gtk_rekey_notify(rdev, dev, bssid, replay_ctr, gfp);
 }
 EXPORT_SYMBOL(cfg80211_gtk_rekey_notify);
@@ -959,6 +992,7 @@ void cfg80211_pmksa_candidate_notify(struct net_device *dev, int index,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 
+	trace_cfg80211_pmksa_candidate_notify(dev, index, bssid, preauth);
 	nl80211_pmksa_candidate_notify(rdev, dev, index, bssid, preauth, gfp);
 }
 EXPORT_SYMBOL(cfg80211_pmksa_candidate_notify);
@@ -970,6 +1004,8 @@ void cfg80211_ch_switch_notify(struct net_device *dev, int freq,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wiphy);
 	struct ieee80211_channel *chan;
+
+	trace_cfg80211_ch_switch_notify(dev, freq, type);
 
 	wdev_lock(wdev);
 
@@ -993,12 +1029,18 @@ bool cfg80211_rx_spurious_frame(struct net_device *dev,
 				const u8 *addr, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	bool ret;
+
+	trace_cfg80211_rx_spurious_frame(dev, addr);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
-		    wdev->iftype != NL80211_IFTYPE_P2P_GO))
+		    wdev->iftype != NL80211_IFTYPE_P2P_GO)) {
+		trace_cfg80211_return_bool(false);
 		return false;
-
-	return nl80211_unexpected_frame(dev, addr, gfp);
+	}
+	ret = nl80211_unexpected_frame(dev, addr, gfp);
+	trace_cfg80211_return_bool(ret);
+	return ret;
 }
 EXPORT_SYMBOL(cfg80211_rx_spurious_frame);
 
@@ -1006,12 +1048,18 @@ bool cfg80211_rx_unexpected_4addr_frame(struct net_device *dev,
 					const u8 *addr, gfp_t gfp)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	bool ret;
+
+	trace_cfg80211_rx_unexpected_4addr_frame(dev, addr);
 
 	if (WARN_ON(wdev->iftype != NL80211_IFTYPE_AP &&
 		    wdev->iftype != NL80211_IFTYPE_P2P_GO &&
-		    wdev->iftype != NL80211_IFTYPE_AP_VLAN))
+		    wdev->iftype != NL80211_IFTYPE_AP_VLAN)) {
+		trace_cfg80211_return_bool(false);
 		return false;
-
-	return nl80211_unexpected_4addr_frame(dev, addr, gfp);
+	}
+	ret = nl80211_unexpected_4addr_frame(dev, addr, gfp);
+	trace_cfg80211_return_bool(ret);
+	return ret;
 }
 EXPORT_SYMBOL(cfg80211_rx_unexpected_4addr_frame);

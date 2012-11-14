@@ -45,11 +45,37 @@ void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *sk)
 	write_unlock(&l->lock);
 }
 
+static void nfc_llcp_socket_purge(struct nfc_llcp_sock *sock)
+{
+	struct nfc_llcp_local *local = sock->local;
+	struct sk_buff *s, *tmp;
+
+	pr_debug("%p\n", &sock->sk);
+
+	skb_queue_purge(&sock->tx_queue);
+	skb_queue_purge(&sock->tx_pending_queue);
+	skb_queue_purge(&sock->tx_backlog_queue);
+
+	if (local == NULL)
+		return;
+
+	/* Search for local pending SKBs that are related to this socket */
+	skb_queue_walk_safe(&local->tx_queue, s, tmp) {
+		if (s->sk != &sock->sk)
+			continue;
+
+		skb_unlink(s, &local->tx_queue);
+		kfree_skb(s);
+	}
+}
+
 static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 {
 	struct sock *sk;
 	struct hlist_node *node, *tmp;
 	struct nfc_llcp_sock *llcp_sock;
+
+	skb_queue_purge(&local->tx_queue);
 
 	write_lock(&local->sockets.lock);
 
@@ -58,6 +84,8 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 
 		bh_lock_sock(sk);
 
+		nfc_llcp_socket_purge(llcp_sock);
+
 		if (sk->sk_state == LLCP_CONNECTED)
 			nfc_put_device(llcp_sock->dev);
 
@@ -65,7 +93,8 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 			struct nfc_llcp_sock *lsk, *n;
 			struct sock *accept_sk;
 
-			list_for_each_entry_safe(lsk, n, &llcp_sock->accept_queue,
+			list_for_each_entry_safe(lsk, n,
+						 &llcp_sock->accept_queue,
 						 accept_queue) {
 				accept_sk = &lsk->sk;
 				bh_lock_sock(accept_sk);
@@ -83,6 +112,16 @@ static void nfc_llcp_socket_release(struct nfc_llcp_local *local, bool listen)
 				bh_unlock_sock(sk);
 				continue;
 			}
+		}
+
+		/*
+		 * If we have a connection less socket bound, we keep it alive
+		 * if the device is still present.
+		 */
+		if (sk->sk_state == LLCP_BOUND && sk->sk_type == SOCK_DGRAM &&
+		    listen == true) {
+			bh_unlock_sock(sk);
+			continue;
 		}
 
 		sk->sk_state = LLCP_CLOSED;
@@ -134,7 +173,7 @@ static struct nfc_llcp_sock *nfc_llcp_sock_get(struct nfc_llcp_local *local,
 {
 	struct sock *sk;
 	struct hlist_node *node;
-	struct nfc_llcp_sock *llcp_sock;
+	struct nfc_llcp_sock *llcp_sock, *tmp_sock;
 
 	pr_debug("ssap dsap %d %d\n", ssap, dsap);
 
@@ -146,10 +185,12 @@ static struct nfc_llcp_sock *nfc_llcp_sock_get(struct nfc_llcp_local *local,
 	llcp_sock = NULL;
 
 	sk_for_each(sk, node, &local->sockets.head) {
-		llcp_sock = nfc_llcp_sock(sk);
+		tmp_sock = nfc_llcp_sock(sk);
 
-		if (llcp_sock->ssap == ssap && llcp_sock->dsap == dsap)
+		if (tmp_sock->ssap == ssap && tmp_sock->dsap == dsap) {
+			llcp_sock = tmp_sock;
 			break;
+		}
 	}
 
 	read_unlock(&local->sockets.lock);
@@ -249,7 +290,12 @@ struct nfc_llcp_sock *nfc_llcp_sock_from_sn(struct nfc_llcp_local *local,
 
 		pr_debug("llcp sock %p\n", tmp_sock);
 
-		if (tmp_sock->sk.sk_state != LLCP_LISTEN)
+		if (tmp_sock->sk.sk_type == SOCK_STREAM &&
+		    tmp_sock->sk.sk_state != LLCP_LISTEN)
+			continue;
+
+		if (tmp_sock->sk.sk_type == SOCK_DGRAM &&
+		    tmp_sock->sk.sk_state != LLCP_BOUND)
 			continue;
 
 		if (tmp_sock->service_name == NULL ||
@@ -421,10 +467,9 @@ static u8 nfc_llcp_reserve_sdp_ssap(struct nfc_llcp_local *local)
 static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 {
 	u8 *gb_cur, *version_tlv, version, version_length;
-	u8 *lto_tlv, lto, lto_length;
+	u8 *lto_tlv, lto_length;
 	u8 *wks_tlv, wks_length;
 	u8 *miux_tlv, miux_length;
-	__be16 miux;
 	u8 gb_len = 0;
 	int ret = 0;
 
@@ -433,9 +478,7 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 					 1, &version_length);
 	gb_len += version_length;
 
-	/* 1500 ms */
-	lto = 150;
-	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_LTO, &lto, 1, &lto_length);
+	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_LTO, &local->lto, 1, &lto_length);
 	gb_len += lto_length;
 
 	pr_debug("Local wks 0x%lx\n", local->local_wks);
@@ -443,8 +486,7 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 				     &wks_length);
 	gb_len += wks_length;
 
-	miux = cpu_to_be16(LLCP_MAX_MIUX);
-	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&local->miux, 0,
 				      &miux_length);
 	gb_len += miux_length;
 
@@ -610,7 +652,10 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 	if (skb != NULL) {
 		sk = skb->sk;
 		llcp_sock = nfc_llcp_sock(sk);
-		if (llcp_sock != NULL) {
+
+		if (llcp_sock == NULL && nfc_llcp_ptype(skb) == LLCP_PDU_I) {
+			nfc_llcp_send_symm(local->dev);
+		} else {
 			int ret;
 
 			pr_debug("Sending pending skb\n");
@@ -629,8 +674,6 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 				skb_queue_tail(&llcp_sock->tx_pending_queue,
 					       skb);
 			}
-		} else {
-			nfc_llcp_send_symm(local->dev);
 		}
 	} else {
 		nfc_llcp_send_symm(local->dev);
@@ -702,6 +745,39 @@ static u8 *nfc_llcp_connect_sn(struct sk_buff *skb, size_t *sn_len)
 	}
 
 	return NULL;
+}
+
+static void nfc_llcp_recv_ui(struct nfc_llcp_local *local,
+			     struct sk_buff *skb)
+{
+	struct nfc_llcp_sock *llcp_sock;
+	struct nfc_llcp_ui_cb *ui_cb;
+	u8 dsap, ssap;
+
+	dsap = nfc_llcp_dsap(skb);
+	ssap = nfc_llcp_ssap(skb);
+
+	ui_cb = nfc_llcp_ui_skb_cb(skb);
+	ui_cb->dsap = dsap;
+	ui_cb->ssap = ssap;
+
+	printk("%s %d %d\n", __func__, dsap, ssap);
+
+	pr_debug("%d %d\n", dsap, ssap);
+
+	/* We're looking for a bound socket, not a client one */
+	llcp_sock = nfc_llcp_sock_get(local, dsap, LLCP_SAP_SDP);
+	if (llcp_sock == NULL || llcp_sock->sk.sk_type != SOCK_DGRAM)
+		return;
+
+	/* There is no sequence with UI frames */
+	skb_pull(skb, LLCP_HEADER_SIZE);
+	if (sock_queue_rcv_skb(&llcp_sock->sk, skb)) {
+		pr_err("receive queue is full\n");
+		skb_queue_head(&llcp_sock->tx_backlog_queue, skb);
+	}
+
+	nfc_llcp_sock_put(llcp_sock);
 }
 
 static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
@@ -823,9 +899,6 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 fail:
 	/* Send DM */
 	nfc_llcp_send_dm(local, dsap, ssap, reason);
-
-	return;
-
 }
 
 int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
@@ -953,6 +1026,9 @@ static void nfc_llcp_recv_disc(struct nfc_llcp_local *local,
 
 	sk = &llcp_sock->sk;
 	lock_sock(sk);
+
+	nfc_llcp_socket_purge(llcp_sock);
+
 	if (sk->sk_state == LLCP_CLOSED) {
 		release_sock(sk);
 		nfc_llcp_sock_put(llcp_sock);
@@ -1027,7 +1103,7 @@ static void nfc_llcp_recv_dm(struct nfc_llcp_local *local, struct sk_buff *skb)
 	}
 
 	if (llcp_sock == NULL) {
-		pr_err("Invalid DM\n");
+		pr_debug("Already closed\n");
 		return;
 	}
 
@@ -1038,8 +1114,100 @@ static void nfc_llcp_recv_dm(struct nfc_llcp_local *local, struct sk_buff *skb)
 	sk->sk_state_change(sk);
 
 	nfc_llcp_sock_put(llcp_sock);
+}
 
-	return;
+static void nfc_llcp_recv_snl(struct nfc_llcp_local *local,
+			      struct sk_buff *skb)
+{
+	struct nfc_llcp_sock *llcp_sock;
+	u8 dsap, ssap, *tlv, type, length, tid, sap;
+	u16 tlv_len, offset;
+	char *service_name;
+	size_t service_name_len;
+
+	dsap = nfc_llcp_dsap(skb);
+	ssap = nfc_llcp_ssap(skb);
+
+	pr_debug("%d %d\n", dsap, ssap);
+
+	if (dsap != LLCP_SAP_SDP || ssap != LLCP_SAP_SDP) {
+		pr_err("Wrong SNL SAP\n");
+		return;
+	}
+
+	tlv = &skb->data[LLCP_HEADER_SIZE];
+	tlv_len = skb->len - LLCP_HEADER_SIZE;
+	offset = 0;
+
+	while (offset < tlv_len) {
+		type = tlv[0];
+		length = tlv[1];
+
+		switch (type) {
+		case LLCP_TLV_SDREQ:
+			tid = tlv[2];
+			service_name = (char *) &tlv[3];
+			service_name_len = length - 1;
+
+			pr_debug("Looking for %.16s\n", service_name);
+
+			if (service_name_len == strlen("urn:nfc:sn:sdp") &&
+			    !strncmp(service_name, "urn:nfc:sn:sdp",
+				     service_name_len)) {
+				sap = 1;
+				goto send_snl;
+			}
+
+			llcp_sock = nfc_llcp_sock_from_sn(local, service_name,
+							  service_name_len);
+			if (!llcp_sock) {
+				sap = 0;
+				goto send_snl;
+			}
+
+			/*
+			 * We found a socket but its ssap has not been reserved
+			 * yet. We need to assign it for good and send a reply.
+			 * The ssap will be freed when the socket is closed.
+			 */
+			if (llcp_sock->ssap == LLCP_SDP_UNBOUND) {
+				atomic_t *client_count;
+
+				sap = nfc_llcp_reserve_sdp_ssap(local);
+
+				pr_debug("Reserving %d\n", sap);
+
+				if (sap == LLCP_SAP_MAX) {
+					sap = 0;
+					goto send_snl;
+				}
+
+				client_count =
+					&local->local_sdp_cnt[sap -
+							      LLCP_WKS_NUM_SAP];
+
+				atomic_inc(client_count);
+
+				llcp_sock->ssap = sap;
+				llcp_sock->reserved_ssap = sap;
+			} else {
+				sap = llcp_sock->ssap;
+			}
+
+			pr_debug("%p %d\n", llcp_sock, sap);
+
+send_snl:
+			nfc_llcp_send_snl(local, tid, sap);
+			break;
+
+		default:
+			pr_err("Invalid SNL tlv value 0x%x\n", type);
+			break;
+		}
+
+		offset += length + 2;
+		tlv += length + 2;
+	}
 }
 
 static void nfc_llcp_rx_work(struct work_struct *work)
@@ -1072,6 +1240,11 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 		pr_debug("SYMM\n");
 		break;
 
+	case LLCP_PDU_UI:
+		pr_debug("UI\n");
+		nfc_llcp_recv_ui(local, skb);
+		break;
+
 	case LLCP_PDU_CONNECT:
 		pr_debug("CONNECT\n");
 		nfc_llcp_recv_connect(local, skb);
@@ -1092,6 +1265,11 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 		nfc_llcp_recv_dm(local, skb);
 		break;
 
+	case LLCP_PDU_SNL:
+		pr_debug("SNL\n");
+		nfc_llcp_recv_snl(local, skb);
+		break;
+
 	case LLCP_PDU_I:
 	case LLCP_PDU_RR:
 	case LLCP_PDU_RNR:
@@ -1104,8 +1282,6 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	schedule_work(&local->tx_work);
 	kfree_skb(local->rx_pending);
 	local->rx_pending = NULL;
-
-	return;
 }
 
 void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
@@ -1121,8 +1297,6 @@ void nfc_llcp_recv(void *data, struct sk_buff *skb, int err)
 	local->rx_pending = skb_get(skb);
 	del_timer(&local->link_timer);
 	schedule_work(&local->rx_work);
-
-	return;
 }
 
 int nfc_llcp_data_received(struct nfc_dev *dev, struct sk_buff *skb)
@@ -1204,6 +1378,10 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 	rwlock_init(&local->sockets.lock);
 	rwlock_init(&local->connecting_sockets.lock);
 	rwlock_init(&local->raw_sockets.lock);
+
+	local->lto = 150; /* 1500 ms */
+	local->rw = LLCP_MAX_RW;
+	local->miux = cpu_to_be16(LLCP_MAX_MIUX);
 
 	nfc_llcp_build_gb(local);
 

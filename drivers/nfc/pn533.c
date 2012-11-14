@@ -84,6 +84,10 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_LISTEN_TIME 2
 
 /* frame definitions */
+#define PN533_NORMAL_FRAME_MAX_LEN 262  /* 6   (PREAMBLE, SOF, LEN, LCS, TFI)
+					   254 (DATA)
+					   2   (DCS, postamble) */
+
 #define PN533_FRAME_TAIL_SIZE 2
 #define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
 				PN533_FRAME_TAIL_SIZE)
@@ -1165,8 +1169,7 @@ static void pn533_poll_create_mod_list(struct pn533 *dev,
 		pn533_poll_add_mod(dev, PN533_LISTEN_MOD);
 }
 
-static int pn533_start_poll_complete(struct pn533 *dev, void *arg,
-				     u8 *params, int params_len)
+static int pn533_start_poll_complete(struct pn533 *dev, u8 *params, int params_len)
 {
 	struct pn533_poll_response *resp;
 	int rc;
@@ -1304,8 +1307,7 @@ static void pn533_wq_tg_get_data(struct work_struct *work)
 }
 
 #define ATR_REQ_GB_OFFSET 17
-static int pn533_init_target_complete(struct pn533 *dev, void *arg,
-				      u8 *params, int params_len)
+static int pn533_init_target_complete(struct pn533 *dev, u8 *params, int params_len)
 {
 	struct pn533_cmd_init_target_response *resp;
 	u8 frame, comm_mode = NFC_COMM_PASSIVE, *gb;
@@ -1402,9 +1404,9 @@ static int pn533_poll_complete(struct pn533 *dev, void *arg,
 	if (cur_mod->len == 0) {
 		del_timer(&dev->listen_timer);
 
-		return pn533_init_target_complete(dev, arg, params, params_len);
+		return pn533_init_target_complete(dev, params, params_len);
 	} else {
-		rc = pn533_start_poll_complete(dev, arg, params, params_len);
+		rc = pn533_start_poll_complete(dev, params, params_len);
 		if (!rc)
 			return rc;
 	}
@@ -2373,9 +2375,9 @@ static int pn533_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	dev->in_frame = kmalloc(dev->in_maxlen, GFP_KERNEL);
+	dev->in_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->in_urb = usb_alloc_urb(0, GFP_KERNEL);
-	dev->out_frame = kmalloc(dev->out_maxlen, GFP_KERNEL);
+	dev->out_frame = kmalloc(PN533_NORMAL_FRAME_MAX_LEN, GFP_KERNEL);
 	dev->out_urb = usb_alloc_urb(0, GFP_KERNEL);
 
 	if (!dev->in_frame || !dev->out_frame ||

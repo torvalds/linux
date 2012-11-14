@@ -144,6 +144,41 @@ struct ieee80211_low_level_stats {
 };
 
 /**
+ * enum ieee80211_chanctx_change - change flag for channel context
+ * @IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE: The channel type was changed
+ * @IEEE80211_CHANCTX_CHANGE_RX_CHAINS: The number of RX chains changed
+ */
+enum ieee80211_chanctx_change {
+	IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE	= BIT(0),
+	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(1),
+};
+
+/**
+ * struct ieee80211_chanctx_conf - channel context that vifs may be tuned to
+ *
+ * This is the driver-visible part. The ieee80211_chanctx
+ * that contains it is visible in mac80211 only.
+ *
+ * @channel: the channel to tune to
+ * @channel_type: the channel (HT) type
+ * @rx_chains_static: The number of RX chains that must always be
+ *	active on the channel to receive MIMO transmissions
+ * @rx_chains_dynamic: The number of RX chains that must be enabled
+ *	after RTS/CTS handshake to receive SMPS MIMO transmissions;
+ *	this will always be >= @rx_chains_always.
+ * @drv_priv: data area for driver use, will always be aligned to
+ *	sizeof(void *), size is determined in hw information.
+ */
+struct ieee80211_chanctx_conf {
+	struct ieee80211_channel *channel;
+	enum nl80211_channel_type channel_type;
+
+	u8 rx_chains_static, rx_chains_dynamic;
+
+	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
+};
+
+/**
  * enum ieee80211_bss_change - BSS change notification flags
  *
  * These flags are used with the bss_info_changed() callback
@@ -223,6 +258,7 @@ enum ieee80211_rssi_event {
  * @assoc: association status
  * @ibss_joined: indicates whether this station is part of an IBSS
  *	or not
+ * @ibss_creator: indicates if a new IBSS network is being created
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble;
@@ -278,6 +314,7 @@ struct ieee80211_bss_conf {
 	const u8 *bssid;
 	/* association related data */
 	bool assoc, ibss_joined;
+	bool ibss_creator;
 	u16 aid;
 	/* erp related data */
 	bool use_cts_prot;
@@ -794,6 +831,8 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  * @IEEE80211_CONF_CHANGE_SMPS: Spatial multiplexing powersave mode changed
+ *	Note that this is only valid if channel contexts are not used,
+ *	otherwise each channel context has the number of chains listed.
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_SMPS		= BIT(1),
@@ -859,7 +898,9 @@ enum ieee80211_smps_mode {
  *
  * @smps_mode: spatial multiplexing powersave mode; note that
  *	%IEEE80211_SMPS_STATIC is used when the device is not
- *	configured for an HT channel
+ *	configured for an HT channel.
+ *	Note that this is only valid if channel contexts are not used,
+ *	otherwise each channel context has the number of chains listed.
  */
 struct ieee80211_conf {
 	u32 flags;
@@ -931,6 +972,11 @@ enum ieee80211_vif_flags {
  *	at runtime, mac80211 will never touch this field
  * @hw_queue: hardware queue for each AC
  * @cab_queue: content-after-beacon (DTIM beacon really) queue, AP mode only
+ * @chanctx_conf: The channel context this interface is assigned to, or %NULL
+ *	when it is not assigned. This pointer is RCU-protected due to the TX
+ *	path needing to access it; even though the netdev carrier will always
+ *	be off when it is %NULL there can still be races and packets could be
+ *	processed after it switches back to %NULL.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  */
@@ -942,6 +988,8 @@ struct ieee80211_vif {
 
 	u8 cab_queue;
 	u8 hw_queue[IEEE80211_NUM_ACS];
+
+	struct ieee80211_chanctx_conf __rcu *chanctx_conf;
 
 	u32 driver_flags;
 
@@ -1076,6 +1124,8 @@ enum ieee80211_sta_state {
  * @aid: AID we assigned to the station if we're an AP
  * @supp_rates: Bitmap of supported rates (per band)
  * @ht_cap: HT capabilities of this STA; restricted to our own TX capabilities
+ * @vht_cap: VHT capabilities of this STA; Not restricting any capabilities
+ * 	of remote STA. Taking as is.
  * @wme: indicates whether the STA supports WME. Only valid during AP-mode.
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *), size is determined in hw information.
@@ -1088,6 +1138,7 @@ struct ieee80211_sta {
 	u8 addr[ETH_ALEN];
 	u16 aid;
 	struct ieee80211_sta_ht_cap ht_cap;
+	struct ieee80211_sta_vht_cap vht_cap;
 	bool wme;
 	u8 uapsd_queues;
 	u8 max_sp;
@@ -1325,6 +1376,8 @@ enum ieee80211_hw_flags {
  *	within &struct ieee80211_vif.
  * @sta_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_sta.
+ * @chanctx_data_size: size (in bytes) of the drv_priv data area
+ *	within &struct ieee80211_chanctx_conf.
  *
  * @max_rates: maximum number of alternate rate retry stages the hw
  *	can handle.
@@ -1369,6 +1422,7 @@ struct ieee80211_hw {
 	int channel_change_time;
 	int vif_data_size;
 	int sta_data_size;
+	int chanctx_data_size;
 	int napi_weight;
 	u16 queues;
 	u16 max_listen_interval;
@@ -2317,6 +2371,16 @@ enum ieee80211_rate_control_changed {
  *	The callback will be called before each transmission and upon return
  *	mac80211 will transmit the frame right away.
  *	The callback is optional and can (should!) sleep.
+ *
+ * @add_chanctx: Notifies device driver about new channel context creation.
+ * @remove_chanctx: Notifies device driver about channel context destruction.
+ * @change_chanctx: Notifies device driver about channel context changes that
+ *	may happen when combining different virtual interfaces on the same
+ *	channel context with different settings
+ * @assign_vif_chanctx: Notifies device driver about channel context being bound
+ *	to vif. Possible use is for hw queue remapping.
+ * @unassign_vif_chanctx: Notifies device driver about channel context being
+ *	unbound from vif.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2461,6 +2525,20 @@ struct ieee80211_ops {
 
 	void	(*mgd_prepare_tx)(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif);
+
+	int (*add_chanctx)(struct ieee80211_hw *hw,
+			   struct ieee80211_chanctx_conf *ctx);
+	void (*remove_chanctx)(struct ieee80211_hw *hw,
+			       struct ieee80211_chanctx_conf *ctx);
+	void (*change_chanctx)(struct ieee80211_hw *hw,
+			       struct ieee80211_chanctx_conf *ctx,
+			       u32 changed);
+	int (*assign_vif_chanctx)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_chanctx_conf *ctx);
+	void (*unassign_vif_chanctx)(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_chanctx_conf *ctx);
 };
 
 /**
@@ -3145,6 +3223,19 @@ void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 			    struct sk_buff *skb, u8 *p2k);
 
 /**
+ * ieee80211_aes_cmac_calculate_k1_k2 - calculate the AES-CMAC sub keys
+ *
+ * This function computes the two AES-CMAC sub-keys, based on the
+ * previously installed master key.
+ *
+ * @keyconf: the parameter passed with the set key
+ * @k1: a buffer to be filled with the 1st sub-key
+ * @k2: a buffer to be filled with the 2nd sub-key
+ */
+void ieee80211_aes_cmac_calculate_k1_k2(struct ieee80211_key_conf *keyconf,
+					u8 *k1, u8 *k2);
+
+/**
  * struct ieee80211_key_seq - key sequence counter
  *
  * @tkip: TKIP data, containing IV32 and IV16 in host byte order
@@ -3522,6 +3613,27 @@ void ieee80211_iter_keys(struct ieee80211_hw *hw,
 				      struct ieee80211_key_conf *key,
 				      void *data),
 			 void *iter_data);
+
+/**
+ * ieee80211_iter_chan_contexts_atomic - iterate channel contexts
+ * @hw: pointre obtained from ieee80211_alloc_hw().
+ * @iter: iterator function
+ * @iter_data: data passed to iterator function
+ *
+ * Iterate all active channel contexts. This function is atomic and
+ * doesn't acquire any locks internally that might be held in other
+ * places while calling into the driver.
+ *
+ * The iterator will not find a context that's being added (during
+ * the driver callback to add it) but will find it while it's being
+ * removed.
+ */
+void ieee80211_iter_chan_contexts_atomic(
+	struct ieee80211_hw *hw,
+	void (*iter)(struct ieee80211_hw *hw,
+		     struct ieee80211_chanctx_conf *chanctx_conf,
+		     void *data),
+	void *iter_data);
 
 /**
  * ieee80211_ap_probereq_get - retrieve a Probe Request template

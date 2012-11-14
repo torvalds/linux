@@ -769,6 +769,18 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			else
 				elem_parse_failed = true;
 			break;
+		case WLAN_EID_VHT_CAPABILITY:
+			if (elen >= sizeof(struct ieee80211_vht_cap))
+				elems->vht_cap_elem = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
+		case WLAN_EID_VHT_OPERATION:
+			if (elen >= sizeof(struct ieee80211_vht_operation))
+				elems->vht_operation = (void *)pos;
+			else
+				elem_parse_failed = true;
+			break;
 		case WLAN_EID_MESH_ID:
 			elems->mesh_id = pos;
 			elems->mesh_id_len = elen;
@@ -837,7 +849,7 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		if (elem_parse_failed)
 			elems->parse_error = true;
 		else
-			set_bit(id, seen_elems);
+			__set_bit(id, seen_elems);
 
 		left -= elen;
 		pos += elen;
@@ -860,6 +872,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 	int ac;
 	bool use_11b, enable_qos;
 	int aCWmin, aCWmax;
@@ -872,8 +885,12 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 
 	memset(&qparam, 0, sizeof(qparam));
 
-	use_11b = (local->oper_channel->band == IEEE80211_BAND_2GHZ) &&
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	use_11b = (chanctx_conf &&
+		   chanctx_conf->channel->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
+	rcu_read_unlock();
 
 	/*
 	 * By default disable QoS in STA mode for old access points, which do
@@ -952,7 +969,7 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 				  const size_t supp_rates_len,
 				  const u8 *supp_rates)
 {
-	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
 	int i, have_higher_than_11mbit = 0;
 
 	/* cf. IEEE 802.11 9.2.12 */
@@ -960,11 +977,16 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 		if ((supp_rates[i] & 0x7f) * 5 > 110)
 			have_higher_than_11mbit = 1;
 
-	if (local->oper_channel->band == IEEE80211_BAND_2GHZ &&
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+
+	if (chanctx_conf &&
+	    chanctx_conf->channel->band == IEEE80211_BAND_2GHZ &&
 	    have_higher_than_11mbit)
 		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+	rcu_read_unlock();
 
 	ieee80211_set_wmm_default(sdata, true);
 }
@@ -996,7 +1018,7 @@ u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
 }
 
 void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
-			 u16 transaction, u16 auth_alg,
+			 u16 transaction, u16 auth_alg, u16 status,
 			 u8 *extra, size_t extra_len, const u8 *da,
 			 const u8 *bssid, const u8 *key, u8 key_len, u8 key_idx)
 {
@@ -1021,7 +1043,7 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->bssid, bssid, ETH_ALEN);
 	mgmt->u.auth.auth_alg = cpu_to_le16(auth_alg);
 	mgmt->u.auth.auth_transaction = cpu_to_le16(transaction);
-	mgmt->u.auth.status_code = cpu_to_le16(0);
+	mgmt->u.auth.status_code = cpu_to_le16(status);
 	if (extra)
 		memcpy(skb_put(skb, extra_len), extra, extra_len);
 
@@ -1234,7 +1256,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      const u8 *ssid, size_t ssid_len,
 			      const u8 *ie, size_t ie_len,
 			      u32 ratemask, bool directed, bool no_cck,
-			      struct ieee80211_channel *channel)
+			      struct ieee80211_channel *channel, bool scan)
 {
 	struct sk_buff *skb;
 
@@ -1245,7 +1267,10 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		if (no_cck)
 			IEEE80211_SKB_CB(skb)->flags |=
 				IEEE80211_TX_CTL_NO_CCK_RATE;
-		ieee80211_tx_skb(sdata, skb);
+		if (scan)
+			ieee80211_tx_skb_tid_band(sdata, skb, 7, channel->band);
+		else
+			ieee80211_tx_skb(sdata, skb);
 	}
 }
 
@@ -1308,6 +1333,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 {
 	struct ieee80211_hw *hw = &local->hw;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_chanctx *ctx;
 	struct sta_info *sta;
 	int res, i;
 
@@ -1380,6 +1406,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			res = drv_add_interface(local, sdata);
 	}
 
+	/* add channel contexts */
+	mutex_lock(&local->chanctx_mtx);
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		WARN_ON(drv_add_chanctx(local, ctx));
+	mutex_unlock(&local->chanctx_mtx);
+
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
@@ -1420,10 +1452,21 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		struct ieee80211_chanctx_conf *ctx_conf;
 		u32 changed;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+
+		mutex_lock(&local->chanctx_mtx);
+		ctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+				lockdep_is_held(&local->chanctx_mtx));
+		if (ctx_conf) {
+			ctx = container_of(ctx_conf, struct ieee80211_chanctx,
+					   conf);
+			drv_assign_vif_chanctx(local, sdata, ctx);
+		}
+		mutex_unlock(&local->chanctx_mtx);
 
 		/* common change flags for all interface types */
 		changed = BSS_CHANGED_ERP_CTS_PROT |
@@ -1615,68 +1658,24 @@ void ieee80211_resume_disconnect(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL_GPL(ieee80211_resume_disconnect);
 
-static int check_mgd_smps(struct ieee80211_if_managed *ifmgd,
-			  enum ieee80211_smps_mode *smps_mode)
+void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
 {
-	if (ifmgd->associated) {
-		*smps_mode = ifmgd->ap_smps;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_chanctx *chanctx;
 
-		if (*smps_mode == IEEE80211_SMPS_AUTOMATIC) {
-			if (ifmgd->powersave)
-				*smps_mode = IEEE80211_SMPS_DYNAMIC;
-			else
-				*smps_mode = IEEE80211_SMPS_OFF;
-		}
+	mutex_lock(&local->chanctx_mtx);
 
-		return 1;
-	}
+	chanctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+					lockdep_is_held(&local->chanctx_mtx));
 
-	return 0;
-}
-
-void ieee80211_recalc_smps(struct ieee80211_local *local)
-{
-	struct ieee80211_sub_if_data *sdata;
-	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_OFF;
-	int count = 0;
-
-	mutex_lock(&local->iflist_mtx);
-
-	/*
-	 * This function could be improved to handle multiple
-	 * interfaces better, but right now it makes any
-	 * non-station interfaces force SM PS to be turned
-	 * off. If there are multiple station interfaces it
-	 * could also use the best possible mode, e.g. if
-	 * one is in static and the other in dynamic then
-	 * dynamic is ok.
-	 */
-
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (!ieee80211_sdata_running(sdata))
-			continue;
-		if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
-			continue;
-		if (sdata->vif.type != NL80211_IFTYPE_STATION)
-			goto set;
-
-		count += check_mgd_smps(&sdata->u.mgd, &smps_mode);
-
-		if (count > 1) {
-			smps_mode = IEEE80211_SMPS_OFF;
-			break;
-		}
-	}
-
-	if (smps_mode == local->smps_mode)
+	if (WARN_ON_ONCE(!chanctx_conf))
 		goto unlock;
 
- set:
-	local->smps_mode = smps_mode;
-	/* changed flag is auto-detected for this */
-	ieee80211_hw_config(local, 0);
+	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
+	ieee80211_recalc_smps_chanctx(local, chanctx);
  unlock:
-	mutex_unlock(&local->iflist_mtx);
+	mutex_unlock(&local->chanctx_mtx);
 }
 
 static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
@@ -1816,8 +1815,8 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	__le32 tmp;
 
 	*pos++ = WLAN_EID_VHT_CAPABILITY;
-	*pos++ = sizeof(struct ieee80211_vht_capabilities);
-	memset(pos, 0, sizeof(struct ieee80211_vht_capabilities));
+	*pos++ = sizeof(struct ieee80211_vht_cap);
+	memset(pos, 0, sizeof(struct ieee80211_vht_cap));
 
 	/* capability flags */
 	tmp = cpu_to_le32(cap);
@@ -1975,3 +1974,19 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 	return ifmgd->ave_beacon_signal;
 }
 EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);
+
+u8 ieee80211_mcs_to_chains(const struct ieee80211_mcs_info *mcs)
+{
+	if (!mcs)
+		return 1;
+
+	/* TODO: consider rx_highest */
+
+	if (mcs->rx_mask[3])
+		return 4;
+	if (mcs->rx_mask[2])
+		return 3;
+	if (mcs->rx_mask[1])
+		return 2;
+	return 1;
+}

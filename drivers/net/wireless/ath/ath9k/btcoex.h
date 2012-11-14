@@ -39,6 +39,9 @@
 #define ATH_BTCOEX_RX_WAIT_TIME       100
 #define ATH_BTCOEX_STOMP_FTP_THRESH   5
 
+#define ATH_BTCOEX_HT20_MAX_TXPOWER   0x14
+#define ATH_BTCOEX_HT40_MAX_TXPOWER   0x10
+
 #define AR9300_NUM_BT_WEIGHTS   4
 #define AR9300_NUM_WLAN_WEIGHTS 4
 /* Defines the BT AR_BT_COEX_WGHT used */
@@ -84,6 +87,8 @@ struct ath9k_hw_mci {
 	u8 bt_ver_minor;
 	u8 bt_state;
 	u8 stomp_ftp;
+	bool concur_tx;
+	u32 last_recovery;
 };
 
 struct ath_btcoex_hw {
@@ -98,6 +103,7 @@ struct ath_btcoex_hw {
 	u32 bt_coex_mode2; 	/* Register setting for AR_BT_COEX_MODE2 */
 	u32 bt_weight[AR9300_NUM_BT_WEIGHTS];
 	u32 wlan_weight[AR9300_NUM_WLAN_WEIGHTS];
+	u8 tx_prio[ATH_BTCOEX_STOMP_MAX];
 };
 
 void ath9k_hw_btcoex_init_scheme(struct ath_hw *ah);
@@ -112,5 +118,6 @@ void ath9k_hw_btcoex_set_weight(struct ath_hw *ah,
 void ath9k_hw_btcoex_disable(struct ath_hw *ah);
 void ath9k_hw_btcoex_bt_stomp(struct ath_hw *ah,
 			      enum ath_stomp_type stomp_type);
+void ath9k_hw_btcoex_set_concur_txprio(struct ath_hw *ah, u8 *stomp_txprio);
 
 #endif

@@ -30,6 +30,8 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 #include <net/bluetooth/mgmt.h>
+#include <net/bluetooth/a2mp.h>
+#include <net/bluetooth/amp.h>
 
 /* Handle HCI Event packets */
 
@@ -846,7 +848,7 @@ static void hci_cc_read_local_amp_info(struct hci_dev *hdev,
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
 	if (rp->status)
-		return;
+		goto a2mp_rsp;
 
 	hdev->amp_status = rp->amp_status;
 	hdev->amp_total_bw = __le32_to_cpu(rp->total_bw);
@@ -860,6 +862,46 @@ static void hci_cc_read_local_amp_info(struct hci_dev *hdev,
 	hdev->amp_max_flush_to = __le32_to_cpu(rp->max_flush_to);
 
 	hci_req_complete(hdev, HCI_OP_READ_LOCAL_AMP_INFO, rp->status);
+
+a2mp_rsp:
+	a2mp_send_getinfo_rsp(hdev);
+}
+
+static void hci_cc_read_local_amp_assoc(struct hci_dev *hdev,
+					struct sk_buff *skb)
+{
+	struct hci_rp_read_local_amp_assoc *rp = (void *) skb->data;
+	struct amp_assoc *assoc = &hdev->loc_assoc;
+	size_t rem_len, frag_len;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
+
+	if (rp->status)
+		goto a2mp_rsp;
+
+	frag_len = skb->len - sizeof(*rp);
+	rem_len = __le16_to_cpu(rp->rem_len);
+
+	if (rem_len > frag_len) {
+		BT_DBG("frag_len %zu rem_len %zu", frag_len, rem_len);
+
+		memcpy(assoc->data + assoc->offset, rp->frag, frag_len);
+		assoc->offset += frag_len;
+
+		/* Read other fragments */
+		amp_read_loc_assoc_frag(hdev, rp->phy_handle);
+
+		return;
+	}
+
+	memcpy(assoc->data + assoc->offset, rp->frag, rem_len);
+	assoc->len = assoc->offset + rem_len;
+	assoc->offset = 0;
+
+a2mp_rsp:
+	/* Send A2MP Rsp when all fragments are received */
+	a2mp_send_getampassoc_rsp(hdev, rp->status);
+	a2mp_send_create_phy_link_req(hdev, rp->status);
 }
 
 static void hci_cc_delete_stored_link_key(struct hci_dev *hdev,
@@ -1174,6 +1216,20 @@ static void hci_cc_write_le_host_supported(struct hci_dev *hdev,
 	hci_req_complete(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, status);
 }
 
+static void hci_cc_write_remote_amp_assoc(struct hci_dev *hdev,
+					  struct sk_buff *skb)
+{
+	struct hci_rp_write_remote_amp_assoc *rp = (void *) skb->data;
+
+	BT_DBG("%s status 0x%2.2x phy_handle 0x%2.2x",
+	       hdev->name, rp->status, rp->phy_handle);
+
+	if (rp->status)
+		return;
+
+	amp_write_rem_assoc_continue(hdev, rp->phy_handle);
+}
+
 static void hci_cs_inquiry(struct hci_dev *hdev, __u8 status)
 {
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
@@ -1210,7 +1266,7 @@ static void hci_cs_create_conn(struct hci_dev *hdev, __u8 status)
 
 	conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->bdaddr);
 
-	BT_DBG("%s bdaddr %s hcon %p", hdev->name, batostr(&cp->bdaddr), conn);
+	BT_DBG("%s bdaddr %pMR hcon %p", hdev->name, &cp->bdaddr, conn);
 
 	if (status) {
 		if (conn && conn->state == BT_CONNECT) {
@@ -1639,8 +1695,7 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 			return;
 		}
 
-		BT_DBG("%s bdaddr %s conn %p", hdev->name, batostr(&conn->dst),
-		       conn);
+		BT_DBG("%s bdaddr %pMR conn %p", hdev->name, &conn->dst, conn);
 
 		conn->state = BT_CLOSED;
 		mgmt_connect_failed(hdev, &conn->dst, conn->type,
@@ -1655,6 +1710,38 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 static void hci_cs_le_start_enc(struct hci_dev *hdev, u8 status)
 {
 	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+}
+
+static void hci_cs_create_phylink(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_create_phy_link *cp;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_CREATE_PHY_LINK);
+	if (!cp)
+		return;
+
+	amp_write_remote_assoc(hdev, cp->phy_handle);
+}
+
+static void hci_cs_accept_phylink(struct hci_dev *hdev, u8 status)
+{
+	struct hci_cp_accept_phy_link *cp;
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	if (status)
+		return;
+
+	cp = hci_sent_cmd_data(hdev, HCI_OP_ACCEPT_PHY_LINK);
+	if (!cp)
+		return;
+
+	amp_write_remote_assoc(hdev, cp->phy_handle);
 }
 
 static void hci_inquiry_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
@@ -1822,7 +1909,7 @@ static void hci_conn_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	struct hci_ev_conn_request *ev = (void *) skb->data;
 	int mask = hdev->link_mode;
 
-	BT_DBG("%s bdaddr %s type 0x%x", hdev->name, batostr(&ev->bdaddr),
+	BT_DBG("%s bdaddr %pMR type 0x%x", hdev->name, &ev->bdaddr,
 	       ev->link_type);
 
 	mask |= hci_proto_connect_ind(hdev, &ev->bdaddr, ev->link_type);
@@ -2314,6 +2401,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		hci_cc_read_local_amp_info(hdev, skb);
 		break;
 
+	case HCI_OP_READ_LOCAL_AMP_ASSOC:
+		hci_cc_read_local_amp_assoc(hdev, skb);
+		break;
+
 	case HCI_OP_DELETE_STORED_LINK_KEY:
 		hci_cc_delete_stored_link_key(hdev, skb);
 		break;
@@ -2384,6 +2475,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_WRITE_LE_HOST_SUPPORTED:
 		hci_cc_write_le_host_supported(hdev, skb);
+		break;
+
+	case HCI_OP_WRITE_REMOTE_AMP_ASSOC:
+		hci_cc_write_remote_amp_assoc(hdev, skb);
 		break;
 
 	default:
@@ -2465,6 +2560,14 @@ static void hci_cmd_status_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_LE_START_ENC:
 		hci_cs_le_start_enc(hdev, ev->status);
+		break;
+
+	case HCI_OP_CREATE_PHY_LINK:
+		hci_cs_create_phylink(hdev, ev->status);
+		break;
+
+	case HCI_OP_ACCEPT_PHY_LINK:
+		hci_cs_accept_phylink(hdev, ev->status);
 		break;
 
 	default:
@@ -2574,6 +2677,27 @@ static void hci_num_comp_pkts_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	queue_work(hdev->workqueue, &hdev->tx_work);
 }
 
+static struct hci_conn *__hci_conn_lookup_handle(struct hci_dev *hdev,
+						 __u16 handle)
+{
+	struct hci_chan *chan;
+
+	switch (hdev->dev_type) {
+	case HCI_BREDR:
+		return hci_conn_hash_lookup_handle(hdev, handle);
+	case HCI_AMP:
+		chan = hci_chan_lookup_handle(hdev, handle);
+		if (chan)
+			return chan->conn;
+		break;
+	default:
+		BT_ERR("%s unknown dev_type %d", hdev->name, hdev->dev_type);
+		break;
+	}
+
+	return NULL;
+}
+
 static void hci_num_comp_blocks_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_num_comp_blocks *ev = (void *) skb->data;
@@ -2595,13 +2719,13 @@ static void hci_num_comp_blocks_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	for (i = 0; i < ev->num_hndl; i++) {
 		struct hci_comp_blocks_info *info = &ev->handles[i];
-		struct hci_conn *conn;
+		struct hci_conn *conn = NULL;
 		__u16  handle, block_count;
 
 		handle = __le16_to_cpu(info->handle);
 		block_count = __le16_to_cpu(info->blocks);
 
-		conn = hci_conn_hash_lookup_handle(hdev, handle);
+		conn = __hci_conn_lookup_handle(hdev, handle);
 		if (!conn)
 			continue;
 
@@ -2609,6 +2733,7 @@ static void hci_num_comp_blocks_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 		switch (conn->type) {
 		case ACL_LINK:
+		case AMP_LINK:
 			hdev->block_cnt += block_count;
 			if (hdev->block_cnt > hdev->num_blocks)
 				hdev->block_cnt = hdev->num_blocks;
@@ -2705,13 +2830,13 @@ static void hci_link_key_request_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	key = hci_find_link_key(hdev, &ev->bdaddr);
 	if (!key) {
-		BT_DBG("%s link key not found for %s", hdev->name,
-		       batostr(&ev->bdaddr));
+		BT_DBG("%s link key not found for %pMR", hdev->name,
+		       &ev->bdaddr);
 		goto not_found;
 	}
 
-	BT_DBG("%s found key type %u for %s", hdev->name, key->type,
-	       batostr(&ev->bdaddr));
+	BT_DBG("%s found key type %u for %pMR", hdev->name, key->type,
+	       &ev->bdaddr);
 
 	if (!test_bit(HCI_DEBUG_KEYS, &hdev->dev_flags) &&
 	    key->type == HCI_LK_DEBUG_COMBINATION) {
@@ -3558,6 +3683,22 @@ static void hci_le_meta_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	}
 }
 
+static void hci_chan_selected_evt(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	struct hci_ev_channel_selected *ev = (void *) skb->data;
+	struct hci_conn *hcon;
+
+	BT_DBG("%s handle 0x%2.2x", hdev->name, ev->phy_handle);
+
+	skb_pull(skb, sizeof(*ev));
+
+	hcon = hci_conn_hash_lookup_handle(hdev, ev->phy_handle);
+	if (!hcon)
+		return;
+
+	amp_read_loc_assoc_final_data(hdev, hcon);
+}
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_event_hdr *hdr = (void *) skb->data;
@@ -3720,6 +3861,10 @@ void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_EV_LE_META:
 		hci_le_meta_evt(hdev, skb);
+		break;
+
+	case HCI_EV_CHANNEL_SELECTED:
+		hci_chan_selected_evt(hdev, skb);
 		break;
 
 	case HCI_EV_REMOTE_OOB_DATA_REQUEST:

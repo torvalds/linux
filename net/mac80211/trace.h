@@ -28,6 +28,20 @@
 #define VIF_PR_FMT	" vif:%s(%d%s)"
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
+#define CHANCTX_ENTRY	__field(int, freq)					\
+			__field(int, chantype)					\
+			__field(u8, rx_chains_static)				\
+			__field(u8, rx_chains_dynamic)
+#define CHANCTX_ASSIGN	__entry->freq = ctx->conf.channel->center_freq;		\
+			__entry->chantype = ctx->conf.channel_type;		\
+			__entry->rx_chains_static = ctx->conf.rx_chains_static;	\
+			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
+#define CHANCTX_PR_FMT	" freq:%d MHz chantype:%d chains:%d/%d"
+#define CHANCTX_PR_ARG	__entry->freq, __entry->chantype,			\
+			__entry->rx_chains_static, __entry->rx_chains_dynamic
+
+
+
 /*
  * Tracing for driver callbacks.
  */
@@ -301,20 +315,33 @@ TRACE_EVENT(drv_bss_info_changed,
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
+		__field(u32, changed)
 		__field(bool, assoc)
+		__field(bool, ibss_joined)
+		__field(bool, ibss_creator)
 		__field(u16, aid)
 		__field(bool, cts)
 		__field(bool, shortpre)
 		__field(bool, shortslot)
+		__field(bool, enable_beacon)
 		__field(u8, dtimper)
 		__field(u16, bcnint)
 		__field(u16, assoc_cap)
 		__field(u64, sync_tsf)
 		__field(u32, sync_device_ts)
 		__field(u32, basic_rates)
-		__field(u32, changed)
-		__field(bool, enable_beacon)
+		__array(int, mcast_rate, IEEE80211_NUM_BANDS)
 		__field(u16, ht_operation_mode)
+		__field(s32, cqm_rssi_thold);
+		__field(s32, cqm_rssi_hyst);
+		__field(u32, channel_type);
+		__dynamic_array(u32, arp_addr_list, info->arp_addr_cnt);
+		__field(bool, arp_filter_enabled);
+		__field(bool, qos);
+		__field(bool, idle);
+		__field(bool, ps);
+		__dynamic_array(u8, ssid, info->ssid_len);
+		__field(bool, hidden_ssid);
 	),
 
 	TP_fast_assign(
@@ -323,17 +350,32 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->changed = changed;
 		__entry->aid = info->aid;
 		__entry->assoc = info->assoc;
+		__entry->ibss_joined = info->ibss_joined;
+		__entry->ibss_creator = info->ibss_creator;
 		__entry->shortpre = info->use_short_preamble;
 		__entry->cts = info->use_cts_prot;
 		__entry->shortslot = info->use_short_slot;
+		__entry->enable_beacon = info->enable_beacon;
 		__entry->dtimper = info->dtim_period;
 		__entry->bcnint = info->beacon_int;
 		__entry->assoc_cap = info->assoc_capability;
 		__entry->sync_tsf = info->sync_tsf;
 		__entry->sync_device_ts = info->sync_device_ts;
 		__entry->basic_rates = info->basic_rates;
-		__entry->enable_beacon = info->enable_beacon;
+		memcpy(__entry->mcast_rate, info->mcast_rate,
+		       sizeof(__entry->mcast_rate));
 		__entry->ht_operation_mode = info->ht_operation_mode;
+		__entry->cqm_rssi_thold = info->cqm_rssi_thold;
+		__entry->cqm_rssi_hyst = info->cqm_rssi_hyst;
+		__entry->channel_type = info->channel_type;
+		memcpy(__get_dynamic_array(arp_addr_list), info->arp_addr_list,
+		       sizeof(u32) * info->arp_addr_cnt);
+		__entry->arp_filter_enabled = info->arp_filter_enabled;
+		__entry->qos = info->qos;
+		__entry->idle = info->idle;
+		__entry->ps = info->ps;
+		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+		__entry->hidden_ssid = info->hidden_ssid;
 	),
 
 	TP_printk(
@@ -1254,6 +1296,104 @@ DEFINE_EVENT(local_sdata_evt, drv_mgd_prepare_tx,
 		 struct ieee80211_sub_if_data *sdata),
 
 	TP_ARGS(local, sdata)
+);
+
+DECLARE_EVENT_CLASS(local_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_chanctx *ctx),
+
+	TP_ARGS(local, ctx),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		CHANCTX_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		CHANCTX_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT CHANCTX_PR_FMT,
+		LOCAL_PR_ARG, CHANCTX_PR_ARG
+	)
+);
+
+DEFINE_EVENT(local_chanctx, drv_add_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_chanctx *ctx),
+	TP_ARGS(local, ctx)
+);
+
+DEFINE_EVENT(local_chanctx, drv_remove_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_chanctx *ctx),
+	TP_ARGS(local, ctx)
+);
+
+TRACE_EVENT(drv_change_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_chanctx *ctx,
+		 u32 changed),
+
+	TP_ARGS(local, ctx, changed),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		CHANCTX_ENTRY
+		__field(u32, changed)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		CHANCTX_ASSIGN;
+		__entry->changed = changed;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT CHANCTX_PR_FMT " changed:%#x",
+		LOCAL_PR_ARG, CHANCTX_PR_ARG, __entry->changed
+	)
+);
+
+DECLARE_EVENT_CLASS(local_sdata_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_chanctx *ctx),
+
+	TP_ARGS(local, sdata, ctx),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		CHANCTX_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		CHANCTX_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT CHANCTX_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, CHANCTX_PR_ARG
+	)
+);
+
+DEFINE_EVENT(local_sdata_chanctx, drv_assign_vif_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_chanctx *ctx),
+	TP_ARGS(local, sdata, ctx)
+);
+
+DEFINE_EVENT(local_sdata_chanctx, drv_unassign_vif_chanctx,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_chanctx *ctx),
+	TP_ARGS(local, sdata, ctx)
 );
 
 /*

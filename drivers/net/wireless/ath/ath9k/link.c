@@ -350,8 +350,18 @@ void ath_ani_calibrate(unsigned long data)
 		ATH_AP_SHORT_CALINTERVAL : ATH_STA_SHORT_CALINTERVAL;
 
 	/* Only calibrate if awake */
-	if (sc->sc_ah->power_mode != ATH9K_PM_AWAKE)
+	if (sc->sc_ah->power_mode != ATH9K_PM_AWAKE) {
+		if (++ah->ani_skip_count >= ATH_ANI_MAX_SKIP_COUNT) {
+			spin_lock_irqsave(&sc->sc_pm_lock, flags);
+			sc->ps_flags |= PS_WAIT_FOR_ANI;
+			spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
+		}
 		goto set_timer;
+	}
+	ah->ani_skip_count = 0;
+	spin_lock_irqsave(&sc->sc_pm_lock, flags);
+	sc->ps_flags &= ~PS_WAIT_FOR_ANI;
+	spin_unlock_irqrestore(&sc->sc_pm_lock, flags);
 
 	ath9k_ps_wakeup(sc);
 

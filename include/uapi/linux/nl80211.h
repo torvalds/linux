@@ -1273,6 +1273,14 @@ enum nl80211_commands {
  *	the connection request from a station. nl80211_connect_failed_reason
  *	enum has different reasons of connection failure.
  *
+ * @NL80211_ATTR_SAE_DATA: SAE elements in Authentication frames. This starts
+ *	with the Authentication transaction sequence number field.
+ *
+ * @NL80211_ATTR_VHT_CAPABILITY: VHT Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION)
+ *
+ * @NL80211_ATTR_SCAN_FLAGS: scan request control flags (u32)
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -1530,6 +1538,12 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_CONN_FAILED_REASON,
 
+	NL80211_ATTR_SAE_DATA,
+
+	NL80211_ATTR_VHT_CAPABILITY,
+
+	NL80211_ATTR_SCAN_FLAGS,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -1573,6 +1587,7 @@ enum nl80211_attrs {
 #define NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY	16
 #define NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY	24
 #define NL80211_HT_CAPABILITY_LEN		26
+#define NL80211_VHT_CAPABILITY_LEN		12
 
 #define NL80211_MAX_NR_CIPHER_SUITES		5
 #define NL80211_MAX_NR_AKM_SUITES		2
@@ -2489,6 +2504,7 @@ enum nl80211_bss_status {
  * @NL80211_AUTHTYPE_SHARED_KEY: Shared Key authentication (WEP only)
  * @NL80211_AUTHTYPE_FT: Fast BSS Transition (IEEE 802.11r)
  * @NL80211_AUTHTYPE_NETWORK_EAP: Network EAP (some Cisco APs and mainly LEAP)
+ * @NL80211_AUTHTYPE_SAE: Simultaneous authentication of equals
  * @__NL80211_AUTHTYPE_NUM: internal
  * @NL80211_AUTHTYPE_MAX: maximum valid auth algorithm
  * @NL80211_AUTHTYPE_AUTOMATIC: determine automatically (if necessary by
@@ -2500,6 +2516,7 @@ enum nl80211_auth_type {
 	NL80211_AUTHTYPE_SHARED_KEY,
 	NL80211_AUTHTYPE_FT,
 	NL80211_AUTHTYPE_NETWORK_EAP,
+	NL80211_AUTHTYPE_SAE,
 
 	/* keep last */
 	__NL80211_AUTHTYPE_NUM,
@@ -3028,6 +3045,12 @@ enum nl80211_ap_sme_features {
  *	in the interface combinations, even when it's only used for scan
  *	and remain-on-channel. This could be due to, for example, the
  *	remain-on-channel implementation requiring a channel context.
+ * @NL80211_FEATURE_SAE: This driver supports simultaneous authentication of
+ *	equals (SAE) with user space SME (NL80211_CMD_AUTHENTICATE) in station
+ *	mode
+ * @NL80211_FEATURE_LOW_PRIORITY_SCAN: This driver supports low priority scan
+ * @NL80211_FEATURE_SCAN_FLUSH: Scan flush is supported
+ * @NL80211_FEATURE_AP_SCAN: Support scanning using an AP vif
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3035,6 +3058,10 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_INACTIVITY_TIMER		= 1 << 2,
 	NL80211_FEATURE_CELL_BASE_REG_HINTS		= 1 << 3,
 	NL80211_FEATURE_P2P_DEVICE_NEEDS_CHANNEL	= 1 << 4,
+	NL80211_FEATURE_SAE				= 1 << 5,
+	NL80211_FEATURE_LOW_PRIORITY_SCAN		= 1 << 6,
+	NL80211_FEATURE_SCAN_FLUSH			= 1 << 7,
+	NL80211_FEATURE_AP_SCAN				= 1 << 8,
 };
 
 /**
@@ -3067,6 +3094,27 @@ enum nl80211_probe_resp_offload_support_attr {
 enum nl80211_connect_failed_reason {
 	NL80211_CONN_FAIL_MAX_CLIENTS,
 	NL80211_CONN_FAIL_BLOCKED_CLIENT,
+};
+
+/**
+ * enum nl80211_scan_flags -  scan request control flags
+ *
+ * Scan request control flags are used to control the handling
+ * of NL80211_CMD_TRIGGER_SCAN and NL80211_CMD_START_SCHED_SCAN
+ * requests.
+ *
+ * @NL80211_SCAN_FLAG_LOW_PRIORITY: scan request has low priority
+ * @NL80211_SCAN_FLAG_FLUSH: flush cache before scanning
+ * @NL80211_SCAN_FLAG_AP: force a scan even if the interface is configured
+ *	as AP and the beaconing has already been configured. This attribute is
+ *	dangerous because will destroy stations performance as a lot of frames
+ *	will be lost while scanning off-channel, therefore it must be used only
+ *	when really needed
+ */
+enum nl80211_scan_flags {
+	NL80211_SCAN_FLAG_LOW_PRIORITY			= 1<<0,
+	NL80211_SCAN_FLAG_FLUSH				= 1<<1,
+	NL80211_SCAN_FLAG_AP				= 1<<2,
 };
 
 #endif /* __LINUX_NL80211_H */
