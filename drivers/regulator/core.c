@@ -1381,22 +1381,14 @@ struct regulator *regulator_get_exclusive(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(regulator_get_exclusive);
 
-/**
- * regulator_put - "free" the regulator source
- * @regulator: regulator source
- *
- * Note: drivers must ensure that all regulator_enable calls made on this
- * regulator source are balanced by regulator_disable calls prior to calling
- * this function.
- */
-void regulator_put(struct regulator *regulator)
+/* Locks held by regulator_put() */
+static void _regulator_put(struct regulator *regulator)
 {
 	struct regulator_dev *rdev;
 
 	if (regulator == NULL || IS_ERR(regulator))
 		return;
 
-	mutex_lock(&regulator_list_mutex);
 	rdev = regulator->rdev;
 
 	debugfs_remove_recursive(regulator->debugfs);
@@ -1412,6 +1404,20 @@ void regulator_put(struct regulator *regulator)
 	rdev->exclusive = 0;
 
 	module_put(rdev->owner);
+}
+
+/**
+ * regulator_put - "free" the regulator source
+ * @regulator: regulator source
+ *
+ * Note: drivers must ensure that all regulator_enable calls made on this
+ * regulator source are balanced by regulator_disable calls prior to calling
+ * this function.
+ */
+void regulator_put(struct regulator *regulator)
+{
+	mutex_lock(&regulator_list_mutex);
+	_regulator_put(regulator);
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_put);
@@ -3445,7 +3451,7 @@ unset_supplies:
 
 scrub:
 	if (rdev->supply)
-		regulator_put(rdev->supply);
+		_regulator_put(rdev->supply);
 	if (rdev->ena_gpio)
 		gpio_free(rdev->ena_gpio);
 	kfree(rdev->constraints);
