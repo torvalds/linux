@@ -461,7 +461,7 @@ error:
 	return ret;
 }
 
-static void iwl_set_pwr_vmain(struct iwl_trans *trans)
+static void iwl_pcie_set_pwr_vmain(struct iwl_trans *trans)
 {
 /*
  * (for documentation purposes)
@@ -483,18 +483,11 @@ static void iwl_set_pwr_vmain(struct iwl_trans *trans)
 #define PCI_CFG_LINK_CTRL_VAL_L0S_EN	0x01
 #define PCI_CFG_LINK_CTRL_VAL_L1_EN	0x02
 
-static u16 iwl_pciexp_link_ctrl(struct iwl_trans *trans)
+static void iwl_pcie_apm_config(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	u16 pci_lnk_ctl;
+	u16 lctl;
 
-	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL,
-				  &pci_lnk_ctl);
-	return pci_lnk_ctl;
-}
-
-static void iwl_apm_config(struct iwl_trans *trans)
-{
 	/*
 	 * HW bug W/A for instability in PCIe bus L0S->L1 transition.
 	 * Check if BIOS (or OS) enabled L1-ASPM on this device.
@@ -503,7 +496,7 @@ static void iwl_apm_config(struct iwl_trans *trans)
 	 * If not (unlikely), enable L0S, so there is at least some
 	 *    power savings, even without L1.
 	 */
-	u16 lctl = iwl_pciexp_link_ctrl(trans);
+	pcie_capability_read_word(trans_pcie->pci_dev, PCI_EXP_LNKCTL, &lctl);
 
 	if ((lctl & PCI_CFG_LINK_CTRL_VAL_L1_EN) ==
 				PCI_CFG_LINK_CTRL_VAL_L1_EN) {
@@ -522,10 +515,10 @@ static void iwl_apm_config(struct iwl_trans *trans)
 
 /*
  * Start up NIC's basic functionality after it has been reset
- * (e.g. after platform boot, or shutdown via iwl_apm_stop())
+ * (e.g. after platform boot, or shutdown via iwl_pcie_apm_stop())
  * NOTE:  This does not load uCode nor start the embedded processor
  */
-static int iwl_apm_init(struct iwl_trans *trans)
+static int iwl_pcie_apm_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret = 0;
@@ -557,7 +550,7 @@ static int iwl_apm_init(struct iwl_trans *trans)
 	iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
 
-	iwl_apm_config(trans);
+	iwl_pcie_apm_config(trans);
 
 	/* Configure analog phase-lock-loop before activating to D0A */
 	if (trans->cfg->base_params->pll_cfg_val)
@@ -603,7 +596,7 @@ out:
 	return ret;
 }
 
-static int iwl_apm_stop_master(struct iwl_trans *trans)
+static int iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 {
 	int ret = 0;
 
@@ -621,7 +614,7 @@ static int iwl_apm_stop_master(struct iwl_trans *trans)
 	return ret;
 }
 
-static void iwl_apm_stop(struct iwl_trans *trans)
+static void iwl_pcie_apm_stop(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	IWL_DEBUG_INFO(trans, "Stop card, put in low power state\n");
@@ -629,7 +622,7 @@ static void iwl_apm_stop(struct iwl_trans *trans)
 	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 
 	/* Stop device's DMA activity */
-	iwl_apm_stop_master(trans);
+	iwl_pcie_apm_stop_master(trans);
 
 	/* Reset the entire device */
 	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
@@ -644,21 +637,21 @@ static void iwl_apm_stop(struct iwl_trans *trans)
 		      CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 }
 
-static int iwl_nic_init(struct iwl_trans *trans)
+static int iwl_pcie_nic_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	unsigned long flags;
 
 	/* nic_init */
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
-	iwl_apm_init(trans);
+	iwl_pcie_apm_init(trans);
 
 	/* Set interrupt coalescing calibration timer to default (512 usecs) */
 	iwl_write8(trans, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
 
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
-	iwl_set_pwr_vmain(trans);
+	iwl_pcie_set_pwr_vmain(trans);
 
 	iwl_op_mode_nic_config(trans->op_mode);
 
@@ -681,7 +674,7 @@ static int iwl_nic_init(struct iwl_trans *trans)
 #define HW_READY_TIMEOUT (50)
 
 /* Note: returns poll_bit return value, which is >= 0 if success */
-static int iwl_set_hw_ready(struct iwl_trans *trans)
+static int iwl_pcie_set_hw_ready(struct iwl_trans *trans)
 {
 	int ret;
 
@@ -699,14 +692,14 @@ static int iwl_set_hw_ready(struct iwl_trans *trans)
 }
 
 /* Note: returns standard 0/-ERROR code */
-static int iwl_prepare_card_hw(struct iwl_trans *trans)
+static int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 {
 	int ret;
 	int t = 0;
 
 	IWL_DEBUG_INFO(trans, "iwl_trans_prepare_card_hw enter\n");
 
-	ret = iwl_set_hw_ready(trans);
+	ret = iwl_pcie_set_hw_ready(trans);
 	/* If the card is ready, exit 0 */
 	if (ret >= 0)
 		return 0;
@@ -716,7 +709,7 @@ static int iwl_prepare_card_hw(struct iwl_trans *trans)
 		    CSR_HW_IF_CONFIG_REG_PREPARE);
 
 	do {
-		ret = iwl_set_hw_ready(trans);
+		ret = iwl_pcie_set_hw_ready(trans);
 		if (ret >= 0)
 			return 0;
 
@@ -730,7 +723,7 @@ static int iwl_prepare_card_hw(struct iwl_trans *trans)
 /*
  * ucode
  */
-static int iwl_load_firmware_chunk(struct iwl_trans *trans, u32 dst_addr,
+static int iwl_pcie_load_firmware_chunk(struct iwl_trans *trans, u32 dst_addr,
 				   dma_addr_t phy_addr, u32 byte_cnt)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -777,7 +770,7 @@ static int iwl_load_firmware_chunk(struct iwl_trans *trans, u32 dst_addr,
 	return 0;
 }
 
-static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
+static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 			    const struct fw_desc *section)
 {
 	u8 *v_addr;
@@ -798,8 +791,9 @@ static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
 		copy_size = min_t(u32, PAGE_SIZE, section->len - offset);
 
 		memcpy(v_addr, (u8 *)section->data + offset, copy_size);
-		ret = iwl_load_firmware_chunk(trans, section->offset + offset,
-					      p_addr, copy_size);
+		ret = iwl_pcie_load_firmware_chunk(trans,
+						   section->offset + offset,
+						   p_addr, copy_size);
 		if (ret) {
 			IWL_ERR(trans,
 				"Could not load the [%d] uCode section\n",
@@ -812,7 +806,7 @@ static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
 	return ret;
 }
 
-static int iwl_load_given_ucode(struct iwl_trans *trans,
+static int iwl_pcie_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
 	int i, ret = 0;
@@ -821,7 +815,7 @@ static int iwl_load_given_ucode(struct iwl_trans *trans,
 		if (!image->sec[i].data)
 			break;
 
-		ret = iwl_load_section(trans, i, &image->sec[i]);
+		ret = iwl_pcie_load_section(trans, i, &image->sec[i]);
 		if (ret)
 			return ret;
 	}
@@ -840,7 +834,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	bool hw_rfkill;
 
 	/* This may fail if AMT took ownership of the device */
-	if (iwl_prepare_card_hw(trans)) {
+	if (iwl_pcie_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
 	}
@@ -857,7 +851,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 
 	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
 
-	ret = iwl_nic_init(trans);
+	ret = iwl_pcie_nic_init(trans);
 	if (ret) {
 		IWL_ERR(trans, "Unable to init nic\n");
 		return ret;
@@ -877,7 +871,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR, CSR_UCODE_SW_BIT_RFKILL);
 
 	/* Load the given image to the HW */
-	return iwl_load_given_ucode(trans, fw);
+	return iwl_pcie_load_given_ucode(trans, fw);
 }
 
 /*
@@ -1037,7 +1031,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
-	iwl_apm_stop(trans);
+	iwl_pcie_apm_stop(trans);
 
 	/* Upon stop, the APM issues an interrupt if HW RF kill is set.
 	 * Clean again the interrupt here
@@ -1265,13 +1259,13 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 		trans_pcie->irq_requested = true;
 	}
 
-	err = iwl_prepare_card_hw(trans);
+	err = iwl_pcie_prepare_card_hw(trans);
 	if (err) {
 		IWL_ERR(trans, "Error while preparing HW: %d\n", err);
 		goto err_free_irq;
 	}
 
-	iwl_apm_init(trans);
+	iwl_pcie_apm_init(trans);
 
 	/* From now on, the op_mode will be kept updated about RF kill state */
 	iwl_enable_rfkill_int(trans);
@@ -1301,7 +1295,7 @@ static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans,
 	iwl_disable_interrupts(trans);
 	spin_unlock_irqrestore(&trans_pcie->irq_lock, flags);
 
-	iwl_apm_stop(trans);
+	iwl_pcie_apm_stop(trans);
 
 	spin_lock_irqsave(&trans_pcie->irq_lock, flags);
 	iwl_disable_interrupts(trans);
