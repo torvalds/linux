@@ -904,9 +904,6 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
 
-	dev_dbg(&this_usbduxsub->interface->dev,
-		"comedi%d: usbdux_ai_cmdtest\n", dev->minor);
-
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
@@ -928,19 +925,12 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (this_usbduxsub->high_speed) {
@@ -951,51 +941,35 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			 * are in the channel list the more time we need.
 			 */
 			i = chanToInterval(cmd->chanlist_len);
-			if (cmd->scan_begin_arg < (1000000 / 8 * i)) {
-				cmd->scan_begin_arg = 1000000 / 8 * i;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 (1000000 / 8 * i));
 			/* now calc the real sampling rate with all the
 			 * rounding errors */
 			tmpTimer =
 			    ((unsigned int)(cmd->scan_begin_arg / 125000)) *
 			    125000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
 		} else {
 			/* full speed */
 			/* 1kHz scans every USB frame */
-			if (cmd->scan_begin_arg < 1000000) {
-				cmd->scan_begin_arg = 1000000;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 1000000);
 			/*
 			 * calc the real sampling rate with the rounding errors
 			 */
 			tmpTimer = ((unsigned int)(cmd->scan_begin_arg /
 						   1000000)) * 1000000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
 		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg,
+						tmpTimer);
 	}
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
@@ -1576,56 +1550,29 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* timer */
-		if (cmd->scan_begin_arg < 1000000) {
-			cmd->scan_begin_arg = 1000000;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 1000000);
+
 	/* not used now, is for later use */
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < 125000) {
-			cmd->convert_arg = 125000;
-			err++;
-		}
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 125000);
 
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
-
-	dev_dbg(&this_usbduxsub->interface->dev, "comedi%d: err=%d, "
-		"scan_begin_src=%d, scan_begin_arg=%d, convert_src=%d, "
-		"convert_arg=%d\n", dev->minor, err, cmd->scan_begin_src,
-		cmd->scan_begin_arg, cmd->convert_src, cmd->convert_arg);
 
 	if (err)
 		return 3;
