@@ -32,7 +32,7 @@
  * @obj: obj in question
  * @gfpmask: gfp mask of requested pages
  */
-struct page ** _drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
+struct page **_drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
 {
 	struct inode *inode;
 	struct address_space *mapping;
