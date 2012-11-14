@@ -23,15 +23,6 @@ menuconfig LINE6_USB
 
 if LINE6_USB
 
-config LINE6_USB_DUMP_MIDI
-	bool "dump MIDI messages"
-	default n
-	help
-	  Say Y here to write MIDI messages sent to and received from
-	  Line6 devices to the syslog.
-
-	  If unsure, say N.
-
 config LINE6_USB_DUMP_PCM
 	bool "dump PCM data"
 	default n
