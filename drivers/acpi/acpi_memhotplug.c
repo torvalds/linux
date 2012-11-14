@@ -401,8 +401,9 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 		}
 
 		/*
-		 * TBD: Invoke acpi_bus_remove to cleanup data structures
+		 * Invoke acpi_bus_trim() to remove memory device
 		 */
+		acpi_bus_trim(device, 1);
 
 		/* _EJ0 succeeded; _OST is not necessary */
 		return;
