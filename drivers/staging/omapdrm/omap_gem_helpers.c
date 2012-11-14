@@ -80,9 +80,9 @@ struct page **_drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask)
 	return pages;
 
 fail:
-	while (i--) {
+	while (i--)
 		page_cache_release(pages[i]);
-	}
+
 	drm_free_large(pages);
 	return ERR_CAST(p);
 }
