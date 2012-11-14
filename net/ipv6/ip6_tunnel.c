@@ -1515,6 +1515,8 @@ static size_t ip6_get_size(const struct net_device *dev)
 		nla_total_size(4) +
 		/* IFLA_IPTUN_FLAGS */
 		nla_total_size(4) +
+		/* IFLA_IPTUN_PROTO */
+		nla_total_size(1) +
 		0;
 }
 
@@ -1531,7 +1533,8 @@ static int ip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->hop_limit) ||
 	    nla_put_u8(skb, IFLA_IPTUN_ENCAP_LIMIT, parm->encap_limit) ||
 	    nla_put_be32(skb, IFLA_IPTUN_FLOWINFO, parm->flowinfo) ||
-	    nla_put_u32(skb, IFLA_IPTUN_FLAGS, parm->flags))
+	    nla_put_u32(skb, IFLA_IPTUN_FLAGS, parm->flags) ||
+	    nla_put_u8(skb, IFLA_IPTUN_PROTO, parm->proto))
 		goto nla_put_failure;
 	return 0;
 
