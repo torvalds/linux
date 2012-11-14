@@ -226,6 +226,12 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 	 * already updated or not by exynos_drm_encoder_dpms function.
 	 */
 	exynos_encoder->updated = true;
+
+	/*
+	 * In case of setcrtc, there is no way to update encoder's dpms
+	 * so update it here.
+	 */
+	exynos_encoder->dpms = DRM_MODE_DPMS_ON;
 }
 
 static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
