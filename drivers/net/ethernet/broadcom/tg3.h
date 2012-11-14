@@ -3269,6 +3269,7 @@ struct tg3 {
 #if IS_ENABLED(CONFIG_HWMON)
 	struct device			*hwmon_dev;
 #endif
+	bool				link_up;
 };
 
 #endif /* !(_T3_H) */
