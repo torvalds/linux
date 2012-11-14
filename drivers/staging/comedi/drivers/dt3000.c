@@ -468,51 +468,30 @@ static int dt3k_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < this_board->ai_speed) {
-			cmd->scan_begin_arg = this_board->ai_speed;
-			err++;
-		}
-		if (cmd->scan_begin_arg > 100 * 16 * 65535) {
-			cmd->scan_begin_arg = 100 * 16 * 65535;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 this_board->ai_speed);
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 100 * 16 * 65535);
 	}
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < this_board->ai_speed) {
-			cmd->convert_arg = this_board->ai_speed;
-			err++;
-		}
-		if (cmd->convert_arg > 50 * 16 * 65535) {
-			cmd->convert_arg = 50 * 16 * 65535;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 this_board->ai_speed);
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
+						 50 * 16 * 65535);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
