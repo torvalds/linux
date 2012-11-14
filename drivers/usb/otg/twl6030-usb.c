@@ -92,7 +92,7 @@
 #define CONTROLLER_STAT1		0x03
 #define	VBUS_DET			BIT(2)
 
-extern int get_msc_connect_flag(void);
+extern int get_gadget_connect_flag(void);
 
 
 struct twl6030_usb {
@@ -313,7 +313,7 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 
 		regulator_enable(twl->usb3v3);
 		twl6030_phy_suspend(&twl->otg, 0);
-		if(0 == get_msc_connect_flag())
+		if(0 == get_gadget_connect_flag())
 			charger_type = POWER_SUPPLY_TYPE_USB_DCP;
 		else
 			charger_type = POWER_SUPPLY_TYPE_USB;

@@ -201,7 +201,7 @@ char gDischargeFlag[3] = {"on "};
 /********************************************************************************/
 
 extern int dwc_vbus_status(void);
-extern int get_msc_connect_flag(void);
+extern int get_gadget_connect_flag(void);
 
 struct rk30_adc_battery_data {
 	int irq;
@@ -492,7 +492,7 @@ static int rk30_adc_battery_get_charge_level(struct rk30_adc_battery_data *bat)
 	if(1 == pdata->spport_usb_charging){
 		if (charge_on == 0){
 			if (1 == dwc_vbus_status()) {
-				if (0 == get_msc_connect_flag()){ 
+				if (1 == get_gadget_connect_flag()){ 
 					if (++bat->gBatUsbChargeCnt >= NUM_USBCHARGE_IDENTIFY_TIMES){
 						bat->gBatUsbChargeCnt = NUM_USBCHARGE_IDENTIFY_TIMES + 1;
 						//charge_on = 1;

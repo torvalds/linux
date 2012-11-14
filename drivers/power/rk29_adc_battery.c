@@ -126,7 +126,7 @@ static struct batt_vol_cal  batt_table[BATT_NUM] = {
 /********************************************************************************/
 
 extern int dwc_vbus_status(void);
-extern int get_msc_connect_flag(void);
+extern int get_gadget_connect_flag(void);
 
 struct rk29_adc_battery_data {
 	int irq;
@@ -259,7 +259,7 @@ static int rk29_adc_battery_get_charge_level(struct rk29_adc_battery_data *bat)
 			return;
 		if (1 == dwc_vbus_status()) {          //检测到USB插入，但是无法识别是否是充电器
 		                                 //通过延时检测PC识别标志，如果超时检测不到，说明是充电
-			if (0 == get_msc_connect_flag()){                               //插入充电器时间大于一定时间之后，开始进入充电状态
+			if (1 == get_gadget_connect_flag()){                               //插入充电器时间大于一定时间之后，开始进入充电状态
 				if (++gBatUsbChargeCnt >= NUM_USBCHARGE_IDENTIFY_TIMES){
 					gBatUsbChargeCnt = NUM_USBCHARGE_IDENTIFY_TIMES + 1;
 					charge_on = 1;
