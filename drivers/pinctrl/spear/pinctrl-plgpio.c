@@ -213,7 +213,7 @@ static int plgpio_request(struct gpio_chip *chip, unsigned offset)
 		return ret;
 
 	if (!IS_ERR(plgpio->clk)) {
-		ret = clk_prepare_enable(plgpio->clk);
+		ret = clk_enable(plgpio->clk);
 		if (ret)
 			goto err0;
 	}
@@ -244,7 +244,7 @@ static int plgpio_request(struct gpio_chip *chip, unsigned offset)
 
 err1:
 	if (!IS_ERR(plgpio->clk))
-		clk_disable_unprepare(plgpio->clk);
+		clk_disable(plgpio->clk);
 err0:
 	pinctrl_free_gpio(gpio);
 	return ret;
@@ -275,7 +275,7 @@ static void plgpio_free(struct gpio_chip *chip, unsigned offset)
 
 disable_clk:
 	if (!IS_ERR(plgpio->clk))
-		clk_disable_unprepare(plgpio->clk);
+		clk_disable(plgpio->clk);
 
 	pinctrl_free_gpio(gpio);
 }
@@ -584,10 +584,18 @@ static int __devinit plgpio_probe(struct platform_device *pdev)
 	plgpio->chip.dev = &pdev->dev;
 	plgpio->chip.owner = THIS_MODULE;
 
+	if (!IS_ERR(plgpio->clk)) {
+		ret = clk_prepare(plgpio->clk);
+		if (ret) {
+			dev_err(&pdev->dev, "clk prepare failed\n");
+			return ret;
+		}
+	}
+
 	ret = gpiochip_add(&plgpio->chip);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpio chip\n");
-		return ret;
+		goto unprepare_clk;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -629,6 +637,9 @@ remove_gpiochip:
 	dev_info(&pdev->dev, "Remove gpiochip\n");
 	if (gpiochip_remove(&plgpio->chip))
 		dev_err(&pdev->dev, "unable to remove gpiochip\n");
+unprepare_clk:
+	if (!IS_ERR(plgpio->clk))
+		clk_unprepare(plgpio->clk);
 
 	return ret;
 }
