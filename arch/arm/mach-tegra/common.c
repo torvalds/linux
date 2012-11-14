@@ -121,7 +121,7 @@ static void __init tegra_init_cache(void)
 
 	cache_type = readl(p + L2X0_CACHE_TYPE);
 	aux_ctrl = (cache_type & 0x700) << (17-8);
-	aux_ctrl |= 0x7C000001;
+	aux_ctrl |= 0x7C400001;
 
 	l2x0_of_init(aux_ctrl, 0x8200c3fe);
 #endif
