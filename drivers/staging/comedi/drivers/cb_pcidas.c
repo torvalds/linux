@@ -840,49 +840,32 @@ static int cb_pcidas_ai_cmdtest(struct comedi_device *dev,
 		/* External trigger, only CR_EDGE and CR_INVERT flags allowed */
 		if ((cmd->start_arg
 		     & (CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT))) != 0) {
-			cmd->start_arg &=
-			    ~(CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT));
-			err++;
+			cmd->start_arg &= ~(CR_FLAGS_MASK &
+						~(CR_EDGE | CR_INVERT));
+			err |= -EINVAL;
 		}
 		if (!thisboard->is_1602 && (cmd->start_arg & CR_INVERT)) {
 			cmd->start_arg &= (CR_FLAGS_MASK & ~CR_INVERT);
-			err++;
+			err |= -EINVAL;
 		}
 		break;
 	default:
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	}
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg <
-		    thisboard->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-			    thisboard->ai_speed * cmd->chanlist_len;
-			err++;
-		}
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+				thisboard->ai_speed * cmd->chanlist_len);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 thisboard->ai_speed);
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1075,31 +1058,18 @@ static int cb_pcidas_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < thisboard->ao_scan_speed) {
-			cmd->scan_begin_arg = thisboard->ao_scan_speed;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 thisboard->ao_scan_speed);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
