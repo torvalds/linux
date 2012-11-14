@@ -315,8 +315,7 @@ xfs_swap_extents(
 	 * are safe.  We don't really care if non-io related
 	 * fields change.
 	 */
-
-	xfs_tosspages(ip, 0, -1, FI_REMAPF);
+	truncate_pagecache_range(VFS_I(ip), 0, -1);
 
 	tp = xfs_trans_alloc(mp, XFS_TRANS_SWAPEXT);
 	if ((error = xfs_trans_reserve(tp, 0,

@@ -2118,7 +2118,7 @@ xfs_change_file_space(
 	xfs_fsize_t	fsize;
 	int		setprealloc;
 	xfs_off_t	startoffset;
-	xfs_off_t	llen;
+	xfs_off_t	end;
 	xfs_trans_t	*tp;
 	struct iattr	iattr;
 	int		prealloc_type;
@@ -2139,12 +2139,30 @@ xfs_change_file_space(
 		return XFS_ERROR(EINVAL);
 	}
 
-	llen = bf->l_len > 0 ? bf->l_len - 1 : bf->l_len;
+	/*
+	 * length of <= 0 for resv/unresv/zero is invalid.  length for
+	 * alloc/free is ignored completely and we have no idea what userspace
+	 * might have set it to, so set it to zero to allow range
+	 * checks to pass.
+	 */
+	switch (cmd) {
+	case XFS_IOC_ZERO_RANGE:
+	case XFS_IOC_RESVSP:
+	case XFS_IOC_RESVSP64:
+	case XFS_IOC_UNRESVSP:
+	case XFS_IOC_UNRESVSP64:
+		if (bf->l_len <= 0)
+			return XFS_ERROR(EINVAL);
+		break;
+	default:
+		bf->l_len = 0;
+		break;
+	}
 
 	if (bf->l_start < 0 ||
 	    bf->l_start > mp->m_super->s_maxbytes ||
-	    bf->l_start + llen < 0 ||
-	    bf->l_start + llen > mp->m_super->s_maxbytes)
+	    bf->l_start + bf->l_len < 0 ||
+	    bf->l_start + bf->l_len >= mp->m_super->s_maxbytes)
 		return XFS_ERROR(EINVAL);
 
 	bf->l_whence = 0;
@@ -2169,7 +2187,9 @@ xfs_change_file_space(
 	switch (cmd) {
 	case XFS_IOC_ZERO_RANGE:
 		prealloc_type |= XFS_BMAPI_CONVERT;
-		xfs_tosspages(ip, startoffset, startoffset + bf->l_len, 0);
+		end = round_down(startoffset + bf->l_len, PAGE_SIZE) - 1;
+		if (startoffset > end)
+			truncate_pagecache_range(VFS_I(ip), startoffset, end);
 		/* FALLTHRU */
 	case XFS_IOC_RESVSP:
 	case XFS_IOC_RESVSP64:
