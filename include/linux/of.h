@@ -46,7 +46,7 @@ struct device_node {
 	const char *name;
 	const char *type;
 	phandle phandle;
-	char	*full_name;
+	const char *full_name;
 
 	struct	property *properties;
 	struct	property *deadprops;	/* removed properties */
@@ -60,7 +60,7 @@ struct device_node {
 	unsigned long _flags;
 	void	*data;
 #if defined(CONFIG_SPARC)
-	char	*path_component_name;
+	const char *path_component_name;
 	unsigned int unique_id;
 	struct of_irq_controller *irq_trans;
 #endif

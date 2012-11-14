@@ -281,12 +281,11 @@ static struct property *new_property(const char *name, const int length,
 	if (!new)
 		return NULL;
 
-	if (!(new->name = kmalloc(strlen(name) + 1, GFP_KERNEL)))
+	if (!(new->name = kstrdup(name, GFP_KERNEL)))
 		goto cleanup;
 	if (!(new->value = kmalloc(length + 1, GFP_KERNEL)))
 		goto cleanup;
 
-	strcpy(new->name, name);
 	memcpy(new->value, value, length);
 	*(((char *)new->value) + length) = 0;
 	new->length = length;

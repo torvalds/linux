@@ -136,7 +136,7 @@ static void __init setup_pci_atmu(struct pci_controller *hose,
 	u32 pcicsrbar = 0, pcicsrbar_sz;
 	u32 piwar = PIWAR_EN | PIWAR_PF | PIWAR_TGI_LOCAL |
 			PIWAR_READ_SNOOP | PIWAR_WRITE_SNOOP;
-	char *name = hose->dn->full_name;
+	const char *name = hose->dn->full_name;
 	const u64 *reg;
 	int len;
 
