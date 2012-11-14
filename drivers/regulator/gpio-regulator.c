@@ -183,6 +183,11 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
 
 	/* Fetch states. */
 	prop = of_find_property(np, "states", NULL);
+	if (!prop) {
+		dev_err(dev, "No 'states' property found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	proplen = prop->length / sizeof(int);
 
 	config->states = devm_kzalloc(dev,
