@@ -201,8 +201,6 @@ struct comedi_driver {
 	struct module *module;
 	int (*attach) (struct comedi_device *, struct comedi_devconfig *);
 	void (*detach) (struct comedi_device *);
-	int (*attach_pci) (struct comedi_device *, struct pci_dev *);
-	int (*attach_usb) (struct comedi_device *, struct usb_interface *);
 	int (*auto_attach) (struct comedi_device *, unsigned long);
 
 	/* number of elements in board_name and board_id arrays */
