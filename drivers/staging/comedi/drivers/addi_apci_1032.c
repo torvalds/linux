@@ -86,10 +86,14 @@ static int apci1032_reset(struct comedi_device *dev)
  * The COS interrupt must be configured before it can be enabled.
  *
  *	data[0] : INSN_CONFIG_DIGITAL_TRIG
- *	data[1] : 0 = OR (edge) interrupts
- *		  1 = AND (level) interrupts
- *	data[2] : rising-edge/high level channels
- *	data[3] : falling-edge/low level channels
+ *	data[1] : trigger number (= 0)
+ *	data[2] : configuration operation:
+ *	          COMEDI_DIGITAL_TRIG_DISABLE = no interrupts
+ *	          COMEDI_DIGITAL_TRIG_ENABLE_EDGES = OR (edge) interrupts
+ *	          COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = AND (level) interrupts
+ *	data[3] : left-shift for data[4] and data[5]
+ *	data[4] : rising-edge/high level channels
+ *	data[5] : falling-edge/low level channels
  */
 static int apci1032_cos_insn_config(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
@@ -97,21 +101,59 @@ static int apci1032_cos_insn_config(struct comedi_device *dev,
 				    unsigned int *data)
 {
 	struct apci1032_private *devpriv = dev->private;
+	unsigned int shift, oldmask;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIGITAL_TRIG:
-		devpriv->mode1 = data[2];
-		devpriv->mode2 = data[3];
-
-		if (devpriv->mode1 || devpriv->mode2) {
-			devpriv->ctrl = APCI1032_CTRL_INT_ENA;
-			if (data[1] == 1)
-				devpriv->ctrl = APCI1032_CTRL_INT_AND;
-			else
-				devpriv->ctrl = APCI1032_CTRL_INT_OR;
-		} else {
+		if (data[1] != 0)
+			return -EINVAL;
+		shift = data[3];
+		oldmask = (1U << shift) - 1;
+		switch (data[2]) {
+		case COMEDI_DIGITAL_TRIG_DISABLE:
 			devpriv->ctrl = 0;
+			devpriv->mode1 = 0;
+			devpriv->mode2 = 0;
 			apci1032_reset(dev);
+			break;
+		case COMEDI_DIGITAL_TRIG_ENABLE_EDGES:
+			if (devpriv->ctrl != (APCI1032_CTRL_INT_ENA |
+					      APCI1032_CTRL_INT_OR)) {
+				/* switching to 'OR' mode */
+				devpriv->ctrl = APCI1032_CTRL_INT_ENA |
+						APCI1032_CTRL_INT_OR;
+				/* wipe old channels */
+				devpriv->mode1 = 0;
+				devpriv->mode2 = 0;
+			} else {
+				/* preserve unspecified channels */
+				devpriv->mode1 &= oldmask;
+				devpriv->mode2 &= oldmask;
+			}
+			/* configure specified channels */
+			devpriv->mode1 |= data[4] << shift;
+			devpriv->mode2 |= data[5] << shift;
+			break;
+		case COMEDI_DIGITAL_TRIG_ENABLE_LEVELS:
+			if (devpriv->ctrl != (APCI1032_CTRL_INT_ENA |
+					      APCI1032_CTRL_INT_AND)) {
+				/* switching to 'AND' mode */
+				devpriv->ctrl = APCI1032_CTRL_INT_ENA |
+						APCI1032_CTRL_INT_AND;
+				/* wipe old channels */
+				devpriv->mode1 = 0;
+				devpriv->mode2 = 0;
+			} else {
+				/* preserve unspecified channels */
+				devpriv->mode1 &= oldmask;
+				devpriv->mode2 &= oldmask;
+			}
+			/* configure specified channels */
+			devpriv->mode1 |= data[4] << shift;
+			devpriv->mode2 |= data[5] << shift;
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 	default:
