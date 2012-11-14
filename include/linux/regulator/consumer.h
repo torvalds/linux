@@ -367,4 +367,12 @@ static inline int regulator_set_voltage_tol(struct regulator *regulator,
 				     new_uV - tol_uV, new_uV + tol_uV);
 }
 
+static inline int regulator_is_supported_voltage_tol(struct regulator *regulator,
+						     int target_uV, int tol_uV)
+{
+	return regulator_is_supported_voltage(regulator,
+					      target_uV - tol_uV,
+					      target_uV + tol_uV);
+}
+
 #endif
