@@ -37,11 +37,24 @@ enum ppc_dbell {
 #define SPRN_DOORBELL_CPUTAG		SPRN_TIR
 #define PPC_DBELL_TAG_MASK		0x7f
 
+static inline void _ppc_msgsnd(u32 msg)
+{
+	if (cpu_has_feature(CPU_FTR_HVMODE))
+		__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+	else
+		__asm__ __volatile__ (PPC_MSGSNDP(%0) : : "r" (msg));
+}
+
 #else /* CONFIG_PPC_BOOK3S */
 
 #define PPC_DBELL_MSGTYPE		PPC_DBELL
 #define SPRN_DOORBELL_CPUTAG		SPRN_PIR
 #define PPC_DBELL_TAG_MASK		0x3fff
+
+static inline void _ppc_msgsnd(u32 msg)
+{
+	__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+}
 
 #endif /* CONFIG_PPC_BOOK3S */
 
@@ -54,7 +67,7 @@ static inline void ppc_msgsnd(enum ppc_dbell type, u32 flags, u32 tag)
 	u32 msg = PPC_DBELL_TYPE(type) | (flags & PPC_DBELL_MSG_BRDCAST) |
 			(tag & 0x07ffffff);
 
-	__asm__ __volatile__ (PPC_MSGSND(%0) : : "r" (msg));
+	_ppc_msgsnd(msg);
 }
 
 #endif /* _ASM_POWERPC_DBELL_H */
