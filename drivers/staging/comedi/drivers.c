@@ -833,12 +833,8 @@ void comedi_reset_async_buf(struct comedi_async *async)
 	async->events = 0;
 }
 
-static int
-comedi_auto_config_helper(struct device *hardware_device,
-			  struct comedi_driver *driver,
-			  int (*attach_wrapper) (struct comedi_device *,
-						 unsigned long),
-			  unsigned long context)
+int comedi_auto_config(struct device *hardware_device,
+		       struct comedi_driver *driver, unsigned long context)
 {
 	int minor;
 	struct comedi_device_file_info *dev_file_info;
@@ -847,6 +843,13 @@ comedi_auto_config_helper(struct device *hardware_device,
 
 	if (!comedi_autoconfig)
 		return 0;
+
+	if (!driver->auto_attach) {
+		dev_warn(hardware_device,
+			 "BUG! comedi driver '%s' has no auto_attach handler\n",
+			 driver->driver_name);
+		return -EINVAL;
+	}
 
 	minor = comedi_alloc_board_minor(hardware_device);
 	if (minor < 0)
@@ -862,9 +865,8 @@ comedi_auto_config_helper(struct device *hardware_device,
 		ret = -EIO;
 	else {
 		comedi_set_hw_dev(comedi_dev, hardware_device);
-		/* set comedi_dev->driver here for attach wrapper */
 		comedi_dev->driver = driver;
-		ret = (*attach_wrapper)(comedi_dev, context);
+		ret = driver->auto_attach(comedi_dev, context);
 		if (ret < 0) {
 			module_put(driver->module);
 			__comedi_device_detach(comedi_dev);
@@ -877,25 +879,6 @@ comedi_auto_config_helper(struct device *hardware_device,
 	if (ret < 0)
 		comedi_free_board_minor(minor);
 	return ret;
-}
-
-static int comedi_auto_config_wrapper(struct comedi_device *dev,
-				      unsigned long context)
-{
-	if (!dev->driver->auto_attach) {
-		dev_warn(dev->class_dev,
-			 "BUG! driver '%s' has no auto_attach handler\n",
-			 dev->driver->driver_name);
-		return -EINVAL;
-	}
-	return dev->driver->auto_attach(dev, context);
-}
-
-int comedi_auto_config(struct device *hardware_device,
-		       struct comedi_driver *driver, unsigned long context)
-{
-	return comedi_auto_config_helper(hardware_device, driver,
-					 comedi_auto_config_wrapper, context);
 }
 EXPORT_SYMBOL_GPL(comedi_auto_config);
 
