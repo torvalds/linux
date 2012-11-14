@@ -1461,12 +1461,21 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
 }
 
 /*
+ * page migration rate limiting control.
+ * Do not migrate more than @pages_to_migrate in a @migrate_interval_millisecs
+ * window of time. Default here says do not migrate more than 1280M per second.
+ */
+static unsigned int migrate_interval_millisecs __read_mostly = 100;
+static unsigned int ratelimit_pages __read_mostly = 128 << (20 - PAGE_SHIFT);
+
+/*
  * Attempt to migrate a misplaced page to the specified destination
  * node. Caller is expected to have an elevated reference count on
  * the page that will be dropped by this function before returning.
  */
 int migrate_misplaced_page(struct page *page, int node)
 {
+	pg_data_t *pgdat = NODE_DATA(node);
 	int isolated = 0;
 	LIST_HEAD(migratepages);
 
@@ -1479,8 +1488,27 @@ int migrate_misplaced_page(struct page *page, int node)
 		goto out;
 	}
 
+	/*
+	 * Rate-limit the amount of data that is being migrated to a node.
+	 * Optimal placement is no good if the memory bus is saturated and
+	 * all the time is being spent migrating!
+	 */
+	spin_lock(&pgdat->numabalancing_migrate_lock);
+	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window)) {
+		pgdat->numabalancing_migrate_nr_pages = 0;
+		pgdat->numabalancing_migrate_next_window = jiffies +
+			msecs_to_jiffies(migrate_interval_millisecs);
+	}
+	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages) {
+		spin_unlock(&pgdat->numabalancing_migrate_lock);
+		put_page(page);
+		goto out;
+	}
+	pgdat->numabalancing_migrate_nr_pages++;
+	spin_unlock(&pgdat->numabalancing_migrate_lock);
+
 	/* Avoid migrating to a node that is nearly full */
-	if (migrate_balanced_pgdat(NODE_DATA(node), 1)) {
+	if (migrate_balanced_pgdat(pgdat, 1)) {
 		int page_lru;
 
 		if (isolate_lru_page(page)) {
