@@ -25,7 +25,7 @@
 #include "omap_dmm_tiler.h"
 
 /* remove these once drm core helpers are merged */
-struct page ** _drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
+struct page **_drm_gem_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 void _drm_gem_put_pages(struct drm_gem_object *obj, struct page **pages,
 		bool dirty, bool accessed);
 int _drm_gem_create_mmap_offset_size(struct drm_gem_object *obj, size_t size);
