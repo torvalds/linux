@@ -8,6 +8,11 @@ Required properties:
 
   - reg : The chip select number on the SPI bus
 
+Optional properties:
+
+  - reset-gpio : a GPIO spec for the reset pin. If specified, it will be
+		 deasserted before communication to the device starts.
+
 Example:
 
 spdif: ak4104@0 {

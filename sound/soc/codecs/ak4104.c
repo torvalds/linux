@@ -15,6 +15,8 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <linux/spi/spi.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <sound/asoundef.h>
 
 /* AK4104 registers addresses */
@@ -204,6 +206,7 @@ static const struct regmap_config ak4104_regmap = {
 
 static int ak4104_spi_probe(struct spi_device *spi)
 {
+	struct device_node *np = spi->dev.of_node;
 	struct ak4104_private *ak4104;
 	unsigned int val;
 	int ret;
@@ -223,6 +226,20 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	if (IS_ERR(ak4104->regmap)) {
 		ret = PTR_ERR(ak4104->regmap);
 		return ret;
+	}
+
+	if (np) {
+		enum of_gpio_flags flags;
+		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
+
+		if (gpio_is_valid(gpio)) {
+			ret = devm_gpio_request_one(&spi->dev, gpio,
+				     flags & OF_GPIO_ACTIVE_LOW ?
+					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
+				     "ak4104 reset");
+			if (ret < 0)
+				return ret;
+		}
 	}
 
 	/* read the 'reserved' register - according to the datasheet, it
