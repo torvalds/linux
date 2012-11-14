@@ -756,7 +756,7 @@ int check_volt_correct(int volt_old, int *volt_new, int volt_dep_old, int *volt_
 		} else if (*volt_dep_new > up_boundary) {
 			*volt_new = *volt_dep_new - dep_biger_than_clk;
 		}
-		DVFS_LOG("%s target volt out of bondary volt=%d(old=%d), volt_dep=%d(dep_old=%d), up_bnd=%d(dn=%d)\n",
+		DVFS_DBG("%s target volt out of bondary volt=%d(old=%d), volt_dep=%d(dep_old=%d), up_bnd=%d(dn=%d)\n",
 				__func__, *volt_new, volt_old, *volt_dep_new, volt_dep_old, up_boundary, low_boundary);		
 		return 0;
 	}
