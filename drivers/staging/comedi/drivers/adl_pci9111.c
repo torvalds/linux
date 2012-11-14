@@ -366,52 +366,29 @@ static int pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	if (error)
 		return 2;
 
-	/*  Step 3 : make sure arguments are trivialy compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if ((cmd->start_src == TRIG_NOW) && (cmd->start_arg != 0)) {
-		cmd->start_arg = 0;
-		error++;
-	}
+	error |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if ((cmd->convert_src == TRIG_TIMER) &&
-	    (cmd->convert_arg < PCI9111_AI_ACQUISITION_PERIOD_MIN_NS)) {
-		cmd->convert_arg = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS;
-		error++;
-	}
-	if ((cmd->convert_src == TRIG_EXT) && (cmd->convert_arg != 0)) {
-		cmd->convert_arg = 0;
-		error++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		error |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
+	else	/* TRIG_EXT */
+		error |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if ((cmd->scan_begin_src == TRIG_TIMER) &&
-	    (cmd->scan_begin_arg < PCI9111_AI_ACQUISITION_PERIOD_MIN_NS)) {
-		cmd->scan_begin_arg = PCI9111_AI_ACQUISITION_PERIOD_MIN_NS;
-		error++;
-	}
-	if ((cmd->scan_begin_src == TRIG_FOLLOW)
-	    && (cmd->scan_begin_arg != 0)) {
-		cmd->scan_begin_arg = 0;
-		error++;
-	}
-	if ((cmd->scan_begin_src == TRIG_EXT) && (cmd->scan_begin_arg != 0)) {
-		cmd->scan_begin_arg = 0;
-		error++;
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		error |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+					PCI9111_AI_ACQUISITION_PERIOD_MIN_NS);
+	else	/* TRIG_FOLLOW || TRIG_EXT */
+		error |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if ((cmd->scan_end_src == TRIG_COUNT) &&
-	    (cmd->scan_end_arg != cmd->chanlist_len)) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		error++;
-	}
+	error |= cfc_check_trigger_arg_is(&cmd->scan_end_arg,
+					  cmd->chanlist_len);
 
-	if ((cmd->stop_src == TRIG_COUNT) && (cmd->stop_arg < 1)) {
-		cmd->stop_arg = 1;
-		error++;
-	}
-	if ((cmd->stop_src == TRIG_NONE) && (cmd->stop_arg != 0)) {
-		cmd->stop_arg = 0;
-		error++;
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		error |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		error |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (error)
 		return 3;
