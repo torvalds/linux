@@ -108,7 +108,7 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
 		kmem_cache_free(gfs2_glock_aspace_cachep, gl);
 	} else {
-		kfree(gl->gl_lvb);
+		kfree(gl->gl_lksb.sb_lvbptr);
 		kmem_cache_free(gfs2_glock_cachep, gl);
 	}
 }
@@ -740,15 +740,13 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		return -ENOMEM;
 
 	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
-	gl->gl_lvb = NULL;
 
 	if (glops->go_flags & GLOF_LVB) {
-		gl->gl_lvb = kzalloc(GFS2_MIN_LVB_SIZE, GFP_KERNEL);
-		if (!gl->gl_lvb) {
+		gl->gl_lksb.sb_lvbptr = kzalloc(GFS2_MIN_LVB_SIZE, GFP_KERNEL);
+		if (!gl->gl_lksb.sb_lvbptr) {
 			kmem_cache_free(cachep, gl);
 			return -ENOMEM;
 		}
-		gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
 	}
 
 	atomic_inc(&sdp->sd_glock_disposal);
@@ -789,7 +787,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	tmp = search_bucket(hash, sdp, &name);
 	if (tmp) {
 		spin_unlock_bucket(hash);
-		kfree(gl->gl_lvb);
+		kfree(gl->gl_lksb.sb_lvbptr);
 		kmem_cache_free(cachep, gl);
 		atomic_dec(&sdp->sd_glock_disposal);
 		gl = tmp;

@@ -322,7 +322,6 @@ struct gfs2_glock {
 	ktime_t gl_dstamp;
 	struct gfs2_lkstats gl_stats;
 	struct dlm_lksb gl_lksb;
-	char *gl_lvb;
 	unsigned long gl_tchange;
 	void *gl_object;
 
