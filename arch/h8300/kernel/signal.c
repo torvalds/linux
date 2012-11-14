@@ -129,9 +129,9 @@ struct rt_sigframe
 } __attribute__((aligned(2),packed));
 
 static inline int
-restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc,
-		   int *pd0)
+restore_sigcontext(struct sigcontext *usc, int *pd0)
 {
+	struct pt_regs *regs = current_pt_regs();
 	int err = 0;
 	unsigned int ccr;
 	unsigned int usp;
@@ -160,9 +160,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext *usc,
 	return err;
 }
 
-asmlinkage int do_sigreturn(unsigned long __unused,...)
+asmlinkage int sys_sigreturn(void)
 {
-	struct pt_regs *regs = (struct pt_regs *) (&__unused - 1);
 	unsigned long usp = rdusp();
 	struct sigframe *frame = (struct sigframe *)(usp - 4);
 	sigset_t set;
@@ -178,7 +177,7 @@ asmlinkage int do_sigreturn(unsigned long __unused,...)
 
 	set_current_blocked(&set);
 	
-	if (restore_sigcontext(regs, &frame->sc, &er0))
+	if (restore_sigcontext(&frame->sc, &er0))
 		goto badframe;
 	return er0;
 
@@ -187,9 +186,8 @@ badframe:
 	return 0;
 }
 
-asmlinkage int do_rt_sigreturn(unsigned long __unused,...)
+asmlinkage int sys_rt_sigreturn(void)
 {
-	struct pt_regs *regs = (struct pt_regs *) &__unused;
 	unsigned long usp = rdusp();
 	struct rt_sigframe *frame = (struct rt_sigframe *)(usp - 4);
 	sigset_t set;
@@ -202,7 +200,7 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused,...)
 
 	set_current_blocked(&set);
 	
-	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &er0))
+	if (restore_sigcontext(&frame->uc.uc_mcontext, &er0))
 		goto badframe;
 
 	if (restore_altstack(&frame->uc.uc_stack))
