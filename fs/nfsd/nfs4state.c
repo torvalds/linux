@@ -393,11 +393,6 @@ unhash_delegation(struct nfs4_delegation *dp)
 /* client_lock protects the client lru list and session hash table */
 static DEFINE_SPINLOCK(client_lock);
 
-/* Hash tables for nfs4_clientid state */
-#define CLIENT_HASH_BITS                 4
-#define CLIENT_HASH_SIZE                (1 << CLIENT_HASH_BITS)
-#define CLIENT_HASH_MASK                (CLIENT_HASH_SIZE - 1)
-
 static unsigned int clientid_hashval(u32 id)
 {
 	return id & CLIENT_HASH_MASK;
@@ -409,11 +404,8 @@ static unsigned int clientstr_hashval(const char *name)
 }
 
 /*
- * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
- * used in reboot/reset lease grace period processing
- *
  * conf_id_hashtbl[], and conf_name_tree hold confirmed
- * setclientid_confirmed info. 
+ * setclientid_confirmed info.
  *
  * unconf_id_hashtbl[] and unconf_name_tree hold unconfirmed
  * setclientid info.
@@ -426,8 +418,6 @@ static unsigned int clientstr_hashval(const char *name)
  *
  * All of the above fields are protected by the client_mutex.
  */
-static struct list_head	reclaim_str_hashtbl[CLIENT_HASH_SIZE];
-static int reclaim_str_hashtbl_size = 0;
 static struct list_head	conf_id_hashtbl[CLIENT_HASH_SIZE];
 static struct list_head	unconf_id_hashtbl[CLIENT_HASH_SIZE];
 static struct rb_root conf_name_tree;
@@ -4509,11 +4499,11 @@ alloc_reclaim(void)
 }
 
 bool
-nfs4_has_reclaimed_state(const char *name)
+nfs4_has_reclaimed_state(const char *name, struct nfsd_net *nn)
 {
 	struct nfs4_client_reclaim *crp;
 
-	crp = nfsd4_find_reclaim_client(name);
+	crp = nfsd4_find_reclaim_client(name, nn);
 	return (crp && crp->cr_clp);
 }
 
@@ -4521,7 +4511,7 @@ nfs4_has_reclaimed_state(const char *name)
  * failure => all reset bets are off, nfserr_no_grace...
  */
 struct nfs4_client_reclaim *
-nfs4_client_to_reclaim(const char *name)
+nfs4_client_to_reclaim(const char *name, struct nfsd_net *nn)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp;
@@ -4531,42 +4521,42 @@ nfs4_client_to_reclaim(const char *name)
 	if (crp) {
 		strhashval = clientstr_hashval(name);
 		INIT_LIST_HEAD(&crp->cr_strhash);
-		list_add(&crp->cr_strhash, &reclaim_str_hashtbl[strhashval]);
+		list_add(&crp->cr_strhash, &nn->reclaim_str_hashtbl[strhashval]);
 		memcpy(crp->cr_recdir, name, HEXDIR_LEN);
 		crp->cr_clp = NULL;
-		reclaim_str_hashtbl_size++;
+		nn->reclaim_str_hashtbl_size++;
 	}
 	return crp;
 }
 
 void
-nfs4_remove_reclaim_record(struct nfs4_client_reclaim *crp)
+nfs4_remove_reclaim_record(struct nfs4_client_reclaim *crp, struct nfsd_net *nn)
 {
 	list_del(&crp->cr_strhash);
 	kfree(crp);
-	reclaim_str_hashtbl_size--;
+	nn->reclaim_str_hashtbl_size--;
 }
 
 void
-nfs4_release_reclaim(void)
+nfs4_release_reclaim(struct nfsd_net *nn)
 {
 	struct nfs4_client_reclaim *crp = NULL;
 	int i;
 
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
-		while (!list_empty(&reclaim_str_hashtbl[i])) {
-			crp = list_entry(reclaim_str_hashtbl[i].next,
+		while (!list_empty(&nn->reclaim_str_hashtbl[i])) {
+			crp = list_entry(nn->reclaim_str_hashtbl[i].next,
 			                struct nfs4_client_reclaim, cr_strhash);
-			nfs4_remove_reclaim_record(crp);
+			nfs4_remove_reclaim_record(crp, nn);
 		}
 	}
-	BUG_ON(reclaim_str_hashtbl_size);
+	BUG_ON(nn->reclaim_str_hashtbl_size);
 }
 
 /*
  * called from OPEN, CLAIM_PREVIOUS with a new clientid. */
 struct nfs4_client_reclaim *
-nfsd4_find_reclaim_client(const char *recdir)
+nfsd4_find_reclaim_client(const char *recdir, struct nfsd_net *nn)
 {
 	unsigned int strhashval;
 	struct nfs4_client_reclaim *crp = NULL;
@@ -4574,7 +4564,7 @@ nfsd4_find_reclaim_client(const char *recdir)
 	dprintk("NFSD: nfs4_find_reclaim_client for recdir %s\n", recdir);
 
 	strhashval = clientstr_hashval(recdir);
-	list_for_each_entry(crp, &reclaim_str_hashtbl[strhashval], cr_strhash) {
+	list_for_each_entry(crp, &nn->reclaim_str_hashtbl[strhashval], cr_strhash) {
 		if (same_name(crp->cr_recdir, recdir)) {
 			return crp;
 		}
@@ -4732,7 +4722,6 @@ nfs4_state_init(void)
 	for (i = 0; i < CLIENT_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&conf_id_hashtbl[i]);
 		INIT_LIST_HEAD(&unconf_id_hashtbl[i]);
-		INIT_LIST_HEAD(&reclaim_str_hashtbl[i]);
 	}
 	conf_name_tree = RB_ROOT;
 	unconf_name_tree = RB_ROOT;
@@ -4749,7 +4738,6 @@ nfs4_state_init(void)
 	INIT_LIST_HEAD(&close_lru);
 	INIT_LIST_HEAD(&client_lru);
 	INIT_LIST_HEAD(&del_recall_lru);
-	reclaim_str_hashtbl_size = 0;
 }
 
 /*

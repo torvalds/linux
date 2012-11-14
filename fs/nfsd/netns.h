@@ -24,6 +24,11 @@
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
+/* Hash tables for nfs4_clientid state */
+#define CLIENT_HASH_BITS                 4
+#define CLIENT_HASH_SIZE                (1 << CLIENT_HASH_BITS)
+#define CLIENT_HASH_MASK                (CLIENT_HASH_SIZE - 1)
+
 struct cld_net;
 
 struct nfsd_net {
@@ -38,6 +43,13 @@ struct nfsd_net {
 	struct lock_manager nfsd4_manager;
 	bool grace_ended;
 	time_t boot_time;
+
+	/*
+	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
+	 * used in reboot/reset lease grace period processing
+	 */
+	struct list_head *reclaim_str_hashtbl;
+	int reclaim_str_hashtbl_size;
 };
 
 extern int nfsd_net_id;

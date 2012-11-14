@@ -176,6 +176,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 	struct dentry *dir, *dentry;
 	struct nfs4_client_reclaim *crp;
 	int status;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
 
@@ -222,7 +223,7 @@ out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	if (status == 0) {
 		if (in_grace) {
-			crp = nfs4_client_to_reclaim(dname);
+			crp = nfs4_client_to_reclaim(dname, nn);
 			if (crp)
 				crp->cr_clp = clp;
 		}
@@ -237,7 +238,7 @@ out_unlock:
 	nfs4_reset_creds(original_cred);
 }
 
-typedef int (recdir_func)(struct dentry *, struct dentry *);
+typedef int (recdir_func)(struct dentry *, struct dentry *, struct nfsd_net *);
 
 struct name_list {
 	char name[HEXDIR_LEN];
@@ -263,7 +264,7 @@ nfsd4_build_namelist(void *arg, const char *name, int namlen,
 }
 
 static int
-nfsd4_list_rec_dir(recdir_func *f)
+nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 {
 	const struct cred *original_cred;
 	struct dentry *dir = rec_file->f_path.dentry;
@@ -292,7 +293,7 @@ nfsd4_list_rec_dir(recdir_func *f)
 				status = PTR_ERR(dentry);
 				break;
 			}
-			status = f(dir, dentry);
+			status = f(dir, dentry, nn);
 			dput(dentry);
 		}
 		list_del(&entry->list);
@@ -336,6 +337,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	struct nfs4_client_reclaim *crp;
 	char dname[HEXDIR_LEN];
 	int status;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	if (!rec_file || !test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
@@ -359,9 +361,9 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 		vfs_fsync(rec_file, 0);
 		if (in_grace) {
 			/* remove reclaim record */
-			crp = nfsd4_find_reclaim_client(dname);
+			crp = nfsd4_find_reclaim_client(dname, nn);
 			if (crp)
-				nfs4_remove_reclaim_record(crp);
+				nfs4_remove_reclaim_record(crp, nn);
 		}
 	}
 out_drop_write:
@@ -373,11 +375,11 @@ out:
 }
 
 static int
-purge_old(struct dentry *parent, struct dentry *child)
+purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	int status;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name))
+	if (nfs4_has_reclaimed_state(child->d_name.name, nn))
 		return 0;
 
 	status = vfs_rmdir(parent->d_inode, child);
@@ -392,6 +394,7 @@ static void
 nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
 {
 	int status;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	in_grace = false;
 	if (!rec_file)
@@ -399,19 +402,19 @@ nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
 	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out;
-	status = nfsd4_list_rec_dir(purge_old);
+	status = nfsd4_list_rec_dir(purge_old, nn);
 	if (status == 0)
 		vfs_fsync(rec_file, 0);
 	mnt_drop_write_file(rec_file);
 out:
-	nfs4_release_reclaim();
+	nfs4_release_reclaim(nn);
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"
 			" directory %s\n", rec_file->f_path.dentry->d_name.name);
 }
 
 static int
-load_recdir(struct dentry *parent, struct dentry *child)
+load_recdir(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	if (child->d_name.len != HEXDIR_LEN - 1) {
 		printk("nfsd4: illegal name %s in recovery directory\n",
@@ -419,18 +422,19 @@ load_recdir(struct dentry *parent, struct dentry *child)
 		/* Keep trying; maybe the others are OK: */
 		return 0;
 	}
-	nfs4_client_to_reclaim(child->d_name.name);
+	nfs4_client_to_reclaim(child->d_name.name, nn);
 	return 0;
 }
 
 static int
-nfsd4_recdir_load(void) {
+nfsd4_recdir_load(struct net *net) {
 	int status;
+	struct nfsd_net *nn =  net_generic(net, nfsd_net_id);
 
 	if (!rec_file)
 		return 0;
 
-	status = nfsd4_list_rec_dir(load_recdir);
+	status = nfsd4_list_rec_dir(load_recdir, nn);
 	if (status)
 		printk("nfsd4: failed loading clients from recovery"
 			" directory %s\n", rec_file->f_path.dentry->d_name.name);
@@ -474,8 +478,50 @@ nfsd4_init_recdir(void)
 	return status;
 }
 
+
+static int
+nfs4_legacy_state_init(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int i;
+
+	nn->reclaim_str_hashtbl = kmalloc(sizeof(struct list_head) *
+					  CLIENT_HASH_SIZE, GFP_KERNEL);
+	if (!nn->reclaim_str_hashtbl)
+		return -ENOMEM;
+
+	for (i = 0; i < CLIENT_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&nn->reclaim_str_hashtbl[i]);
+	nn->reclaim_str_hashtbl_size = 0;
+
+	return 0;
+}
+
+static void
+nfs4_legacy_state_shutdown(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	kfree(nn->reclaim_str_hashtbl);
+}
+
 static int
 nfsd4_load_reboot_recovery_data(struct net *net)
+{
+	int status;
+
+	nfs4_lock_state();
+	status = nfsd4_init_recdir();
+	if (!status)
+		status = nfsd4_recdir_load(net);
+	nfs4_unlock_state();
+	if (status)
+		printk(KERN_ERR "NFSD: Failure reading reboot recovery data\n");
+	return status;
+}
+
+static int
+nfsd4_legacy_tracking_init(struct net *net)
 {
 	int status;
 
@@ -486,13 +532,17 @@ nfsd4_load_reboot_recovery_data(struct net *net)
 		return -EINVAL;
 	}
 
-	nfs4_lock_state();
-	status = nfsd4_init_recdir();
-	if (!status)
-		status = nfsd4_recdir_load();
-	nfs4_unlock_state();
+	status = nfs4_legacy_state_init(net);
 	if (status)
-		printk(KERN_ERR "NFSD: Failure reading reboot recovery data\n");
+		return status;
+
+	status = nfsd4_load_reboot_recovery_data(net);
+	if (status)
+		goto err;
+	return 0;
+
+err:
+	nfs4_legacy_state_shutdown(net);
 	return status;
 }
 
@@ -508,8 +558,11 @@ nfsd4_shutdown_recdir(void)
 static void
 nfsd4_legacy_tracking_exit(struct net *net)
 {
-	nfs4_release_reclaim();
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	nfs4_release_reclaim(nn);
 	nfsd4_shutdown_recdir();
+	nfs4_legacy_state_shutdown(net);
 }
 
 /*
@@ -545,6 +598,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	int status;
 	char dname[HEXDIR_LEN];
 	struct nfs4_client_reclaim *crp;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -557,7 +611,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	}
 
 	/* look for it in the reclaim hashtable otherwise */
-	crp = nfsd4_find_reclaim_client(dname);
+	crp = nfsd4_find_reclaim_client(dname, nn);
 	if (crp) {
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 		crp->cr_clp = clp;
@@ -568,7 +622,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 }
 
 static struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
-	.init		= nfsd4_load_reboot_recovery_data,
+	.init		= nfsd4_legacy_tracking_init,
 	.exit		= nfsd4_legacy_tracking_exit,
 	.create		= nfsd4_create_clid_dir,
 	.remove		= nfsd4_remove_clid_dir,
