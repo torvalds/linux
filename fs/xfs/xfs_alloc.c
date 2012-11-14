@@ -2091,6 +2091,47 @@ xfs_alloc_put_freelist(
 	return 0;
 }
 
+static void
+xfs_agf_read_verify(
+	struct xfs_buf	*bp)
+ {
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_agf	*agf;
+	int		agf_ok;
+
+	agf = XFS_BUF_TO_AGF(bp);
+
+	agf_ok = agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
+		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
+		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
+		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
+		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
+		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp);
+
+	/*
+	 * during growfs operations, the perag is not fully initialised,
+	 * so we can't use it for any useful checking. growfs ensures we can't
+	 * use it by using uncached buffers that don't have the perag attached
+	 * so we can detect and avoid this problem.
+	 */
+	if (bp->b_pag)
+		agf_ok = agf_ok && be32_to_cpu(agf->agf_seqno) ==
+						bp->b_pag->pag_agno;
+
+	if (xfs_sb_version_haslazysbcount(&mp->m_sb))
+		agf_ok = agf_ok && be32_to_cpu(agf->agf_btreeblks) <=
+						be32_to_cpu(agf->agf_length);
+
+	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
+			XFS_RANDOM_ALLOC_READ_AGF))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agf);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
+}
+
 /*
  * Read in the allocation group header (free/alloc section).
  */
@@ -2102,44 +2143,19 @@ xfs_read_agf(
 	int			flags,	/* XFS_BUF_ */
 	struct xfs_buf		**bpp)	/* buffer for the ag freelist header */
 {
-	struct xfs_agf	*agf;		/* ag freelist header */
-	int		agf_ok;		/* set if agf is consistent */
 	int		error;
 
 	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), flags, bpp, NULL);
+			XFS_FSS_TO_BB(mp, 1), flags, bpp, xfs_agf_read_verify);
 	if (error)
 		return error;
 	if (!*bpp)
 		return 0;
 
 	ASSERT(!(*bpp)->b_error);
-	agf = XFS_BUF_TO_AGF(*bpp);
-
-	/*
-	 * Validate the magic number of the agf block.
-	 */
-	agf_ok =
-		agf->agf_magicnum == cpu_to_be32(XFS_AGF_MAGIC) &&
-		XFS_AGF_GOOD_VERSION(be32_to_cpu(agf->agf_versionnum)) &&
-		be32_to_cpu(agf->agf_freeblks) <= be32_to_cpu(agf->agf_length) &&
-		be32_to_cpu(agf->agf_flfirst) < XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_fllast) < XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_flcount) <= XFS_AGFL_SIZE(mp) &&
-		be32_to_cpu(agf->agf_seqno) == agno;
-	if (xfs_sb_version_haslazysbcount(&mp->m_sb))
-		agf_ok = agf_ok && be32_to_cpu(agf->agf_btreeblks) <=
-						be32_to_cpu(agf->agf_length);
-	if (unlikely(XFS_TEST_ERROR(!agf_ok, mp, XFS_ERRTAG_ALLOC_READ_AGF,
-			XFS_RANDOM_ALLOC_READ_AGF))) {
-		XFS_CORRUPTION_ERROR("xfs_alloc_read_agf",
-				     XFS_ERRLEVEL_LOW, mp, agf);
-		xfs_trans_brelse(tp, *bpp);
-		return XFS_ERROR(EFSCORRUPTED);
-	}
 	xfs_buf_set_ref(*bpp, XFS_AGF_REF);
 	return 0;
 }
