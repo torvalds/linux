@@ -272,51 +272,37 @@ static int arch_timer_available(void)
 	return 0;
 }
 
-static u32 notrace arch_counter_get_cntpct32(void)
+/*
+ * Some external users of arch_timer_read_counter (e.g. sched_clock) may try to
+ * call it before it has been initialised. Rather than incur a performance
+ * penalty checking for initialisation, provide a default implementation that
+ * won't lead to time appearing to jump backwards.
+ */
+static u64 arch_timer_read_zero(void)
 {
-	cycle_t cnt = arch_counter_get_cntpct();
-
-	/*
-	 * The sched_clock infrastructure only knows about counters
-	 * with at most 32bits. Forget about the upper 24 bits for the
-	 * time being...
-	 */
-	return (u32)cnt;
+	return 0;
 }
 
-static u32 notrace arch_counter_get_cntvct32(void)
-{
-	cycle_t cnt = arch_counter_get_cntvct();
+u64 (*arch_timer_read_counter)(void) = arch_timer_read_zero;
 
-	/*
-	 * The sched_clock infrastructure only knows about counters
-	 * with at most 32bits. Forget about the upper 24 bits for the
-	 * time being...
-	 */
-	return (u32)cnt;
+static u32 arch_timer_read_counter32(void)
+{
+	return arch_timer_read_counter();
 }
 
 static cycle_t arch_counter_read(struct clocksource *cs)
 {
-	/*
-	 * Always use the physical counter for the clocksource.
-	 * CNTHCTL.PL1PCTEN must be set to 1.
-	 */
-	return arch_counter_get_cntpct();
+	return arch_timer_read_counter();
 }
 
 static unsigned long arch_timer_read_current_timer(void)
 {
-	return arch_counter_get_cntpct();
+	return arch_timer_read_counter();
 }
 
 static cycle_t arch_counter_read_cc(const struct cyclecounter *cc)
 {
-	/*
-	 * Always use the physical counter for the clocksource.
-	 * CNTHCTL.PL1PCTEN must be set to 1.
-	 */
-	return arch_counter_get_cntpct();
+	return arch_timer_read_counter();
 }
 
 static struct clocksource clocksource_counter = {
@@ -484,23 +470,23 @@ int __init arch_timer_of_register(void)
 		}
 	}
 
+	if (arch_timer_use_virtual)
+		arch_timer_read_counter = arch_counter_get_cntvct;
+	else
+		arch_timer_read_counter = arch_counter_get_cntpct;
+
 	return arch_timer_register();
 }
 
 int __init arch_timer_sched_clock_init(void)
 {
-	u32 (*cnt32)(void);
 	int err;
 
 	err = arch_timer_available();
 	if (err)
 		return err;
 
-	if (arch_timer_use_virtual)
-		cnt32 = arch_counter_get_cntvct32;
-	else
-		cnt32 = arch_counter_get_cntpct32;
-
-	setup_sched_clock(cnt32, 32, arch_timer_rate);
+	setup_sched_clock(arch_timer_read_counter32,
+			  32, arch_timer_rate);
 	return 0;
 }
