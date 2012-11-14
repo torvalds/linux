@@ -892,39 +892,45 @@ static inline void iwl_pcie_txq_progress(struct iwl_trans_pcie *trans_pcie,
 }
 
 /* Frees buffers until index _not_ inclusive */
-static int iwl_pcie_txq_reclaim(struct iwl_trans *trans, int txq_id, int index,
-				struct sk_buff_head *skbs)
+void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
+			    struct sk_buff_head *skbs)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
+	/* n_bd is usually 256 => n_bd - 1 = 0xff */
+	int tfd_num = ssn & (txq->q.n_bd - 1);
 	struct iwl_queue *q = &txq->q;
 	int last_to_free;
-	int freed = 0;
 
 	/* This function is not meant to release cmd queue*/
 	if (WARN_ON(txq_id == trans_pcie->cmd_queue))
-		return 0;
+		return;
 
-	lockdep_assert_held(&txq->lock);
+	spin_lock(&txq->lock);
+
+	if (txq->q.read_ptr == tfd_num)
+		goto out;
+
+	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
+			   txq_id, txq->q.read_ptr, tfd_num, ssn);
 
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
-	last_to_free = iwl_queue_dec_wrap(index, q->n_bd);
+	last_to_free = iwl_queue_dec_wrap(tfd_num, q->n_bd);
 
-	if ((index >= q->n_bd) ||
-	    (iwl_queue_used(q, last_to_free) == 0)) {
+	if (iwl_queue_used(q, last_to_free) == 0) {
 		IWL_ERR(trans,
 			"%s: Read index for DMA queue txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, last_to_free, q->n_bd,
 			q->write_ptr, q->read_ptr);
-		return 0;
+		goto out;
 	}
 
 	if (WARN_ON(!skb_queue_empty(skbs)))
-		return 0;
+		goto out;
 
 	for (;
-	     q->read_ptr != index;
+	     q->read_ptr != tfd_num;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		if (WARN_ON_ONCE(txq->entries[txq->q.read_ptr].skb == NULL))
@@ -937,32 +943,13 @@ static int iwl_pcie_txq_reclaim(struct iwl_trans *trans, int txq_id, int index,
 		iwl_pcie_txq_inval_byte_cnt_tbl(trans, txq);
 
 		iwl_pcie_txq_free_tfd(trans, txq, DMA_TO_DEVICE);
-		freed++;
 	}
 
 	iwl_pcie_txq_progress(trans_pcie, txq);
 
-	return freed;
-}
-
-void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-			    struct sk_buff_head *skbs)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = &trans_pcie->txq[txq_id];
-	/* n_bd is usually 256 => n_bd - 1 = 0xff */
-	int tfd_num = ssn & (txq->q.n_bd - 1);
-
-	spin_lock(&txq->lock);
-
-	if (txq->q.read_ptr != tfd_num) {
-		IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
-				   txq_id, txq->q.read_ptr, tfd_num, ssn);
-		iwl_pcie_txq_reclaim(trans, txq_id, tfd_num, skbs);
-		if (iwl_queue_space(&txq->q) > txq->q.low_mark)
-			iwl_wake_queue(trans, txq);
-	}
-
+	if (iwl_queue_space(&txq->q) > txq->q.low_mark)
+		iwl_wake_queue(trans, txq);
+out:
 	spin_unlock(&txq->lock);
 }
 
