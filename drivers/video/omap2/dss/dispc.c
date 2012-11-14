@@ -87,6 +87,10 @@ struct dispc_features {
 	u16 sw_max;
 	u16 vp_max;
 	u16 hp_max;
+	u8 mgr_width_start;
+	u8 mgr_height_start;
+	u16 mgr_width_max;
+	u16 mgr_height_max;
 	int (*calc_scaling) (enum omap_plane plane,
 		const struct omap_video_timings *mgr_timings,
 		u16 width, u16 height, u16 out_width, u16 out_height,
@@ -1128,7 +1132,9 @@ static void dispc_mgr_set_size(enum omap_channel channel, u16 width,
 {
 	u32 val;
 
-	val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
+	val = FLD_VAL(height - 1, dispc.feat->mgr_height_start, 16) |
+		FLD_VAL(width - 1, dispc.feat->mgr_width_start, 0);
+
 	dispc_write_reg(DISPC_SIZE_MGR(channel), val);
 }
 
@@ -3000,8 +3006,8 @@ void dispc_mgr_set_lcd_config(enum omap_channel channel,
 
 static bool _dispc_mgr_size_ok(u16 width, u16 height)
 {
-	return width <= dss_feat_get_param_max(FEAT_PARAM_MGR_WIDTH) &&
-		height <= dss_feat_get_param_max(FEAT_PARAM_MGR_HEIGHT);
+	return width <= dispc.feat->mgr_width_max &&
+		height <= dispc.feat->mgr_height_max;
 }
 
 static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
@@ -4082,6 +4088,10 @@ static const struct dispc_features omap24xx_dispc_feats __initconst = {
 	.sw_max			=	64,
 	.vp_max			=	255,
 	.hp_max			=	256,
+	.mgr_width_start	=	10,
+	.mgr_height_start	=	26,
+	.mgr_width_max		=	2048,
+	.mgr_height_max		=	2048,
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
@@ -4094,6 +4104,10 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats __initconst = {
 	.sw_max			=	64,
 	.vp_max			=	255,
 	.hp_max			=	256,
+	.mgr_width_start	=	10,
+	.mgr_height_start	=	26,
+	.mgr_width_max		=	2048,
+	.mgr_height_max		=	2048,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -4106,6 +4120,10 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats __initconst = {
 	.sw_max			=	256,
 	.vp_max			=	4095,
 	.hp_max			=	4096,
+	.mgr_width_start	=	10,
+	.mgr_height_start	=	26,
+	.mgr_width_max		=	2048,
+	.mgr_height_max		=	2048,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -4118,6 +4136,10 @@ static const struct dispc_features omap44xx_dispc_feats __initconst = {
 	.sw_max			=	256,
 	.vp_max			=	4095,
 	.hp_max			=	4096,
+	.mgr_width_start	=	10,
+	.mgr_height_start	=	26,
+	.mgr_width_max		=	2048,
+	.mgr_height_max		=	2048,
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,

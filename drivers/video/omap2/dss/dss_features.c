@@ -429,8 +429,6 @@ static const struct dss_param_range omap2_dss_param_range[] = {
 	 * scaler cannot scale a image with width more than 768.
 	 */
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 768 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap3_dss_param_range[] = {
@@ -445,8 +443,6 @@ static const struct dss_param_range omap3_dss_param_range[] = {
 	[FEAT_PARAM_DSI_FCK]			= { 0, 173000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 1024 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap4_dss_param_range[] = {
@@ -461,8 +457,6 @@ static const struct dss_param_range omap4_dss_param_range[] = {
 	[FEAT_PARAM_DSI_FCK]			= { 0, 170000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap5_dss_param_range[] = {
@@ -477,8 +471,6 @@ static const struct dss_param_range omap5_dss_param_range[] = {
 	[FEAT_PARAM_DSI_FCK]			= { 0, 170000000 },
 	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_WIDTH]			= { 1, 2048 },
-	[FEAT_PARAM_MGR_HEIGHT]			= { 1, 2048 },
 };
 
 static const enum dss_feat_id omap2_dss_feat_list[] = {
