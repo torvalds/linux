@@ -524,6 +524,9 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	dev->buf = msg->buf;
 	dev->buf_len = msg->len;
 
+	/* make sure writes to dev->buf_len are ordered */
+	barrier();
+
 	omap_i2c_write_reg(dev, OMAP_I2C_CNT_REG, dev->buf_len);
 
 	/* Clear the FIFO Buffers */
@@ -581,7 +584,6 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	 */
 	timeout = wait_for_completion_timeout(&dev->cmd_complete,
 						OMAP_I2C_TIMEOUT);
-	dev->buf_len = 0;
 	if (timeout == 0) {
 		dev_err(dev->dev, "controller timed out\n");
 		omap_i2c_init(dev);
