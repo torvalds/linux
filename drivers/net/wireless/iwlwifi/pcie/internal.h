@@ -423,7 +423,7 @@ static inline void iwl_stop_queue(struct iwl_trans *trans,
 				    txq->q.id);
 }
 
-static inline int iwl_queue_used(const struct iwl_queue *q, int i)
+static inline bool iwl_queue_used(const struct iwl_queue *q, int i)
 {
 	return q->write_ptr >= q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :

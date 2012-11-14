@@ -918,7 +918,7 @@ void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	 * the last we will free. This one must be used */
 	last_to_free = iwl_queue_dec_wrap(tfd_num, q->n_bd);
 
-	if (iwl_queue_used(q, last_to_free) == 0) {
+	if (!iwl_queue_used(q, last_to_free)) {
 		IWL_ERR(trans,
 			"%s: Read index for DMA queue txq id (%d), last_to_free %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, last_to_free, q->n_bd,
@@ -969,7 +969,7 @@ static void iwl_pcie_cmdq_reclaim(struct iwl_trans *trans, int txq_id, int idx)
 
 	lockdep_assert_held(&txq->lock);
 
-	if ((idx >= q->n_bd) || (iwl_queue_used(q, idx) == 0)) {
+	if ((idx >= q->n_bd) || (!iwl_queue_used(q, idx))) {
 		IWL_ERR(trans,
 			"%s: Read index for DMA queue txq id (%d), index %d is out of range [0-%d] %d %d.\n",
 			__func__, txq_id, idx, q->n_bd,
