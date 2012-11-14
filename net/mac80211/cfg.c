@@ -893,7 +893,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	u32 changed = BSS_CHANGED_BEACON_INT |
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
-		      BSS_CHANGED_SSID;
+		      BSS_CHANGED_SSID |
+		      BSS_CHANGED_P2P_PS;
 	int err;
 
 	old = rtnl_dereference(sdata->u.ap.beacon);
@@ -931,6 +932,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		       params->ssid_len);
 	sdata->vif.bss_conf.hidden_ssid =
 		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
+
+	sdata->vif.bss_conf.p2p_ctwindow = params->p2p_ctwindow;
+	sdata->vif.bss_conf.p2p_oppps = params->p2p_opp_ps;
 
 	err = ieee80211_assign_beacon(sdata, &params->beacon);
 	if (err < 0)
@@ -1805,6 +1809,16 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		sdata->vif.bss_conf.ht_operation_mode =
 			(u16) params->ht_opmode;
 		changed |= BSS_CHANGED_HT;
+	}
+
+	if (params->p2p_ctwindow >= 0) {
+		sdata->vif.bss_conf.p2p_ctwindow = params->p2p_ctwindow;
+		changed |= BSS_CHANGED_P2P_PS;
+	}
+
+	if (params->p2p_opp_ps >= 0) {
+		sdata->vif.bss_conf.p2p_oppps = params->p2p_opp_ps;
+		changed |= BSS_CHANGED_P2P_PS;
 	}
 
 	ieee80211_bss_info_change_notify(sdata, changed);
