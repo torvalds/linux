@@ -892,7 +892,8 @@ xfs_qm_dqiter_bufs(
 	while (blkcnt--) {
 		error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
 			      XFS_FSB_TO_DADDR(mp, bno),
-			      mp->m_quotainfo->qi_dqchunklen, 0, &bp, NULL);
+			      mp->m_quotainfo->qi_dqchunklen, 0, &bp,
+			      xfs_dquot_read_verify);
 		if (error)
 			break;
 
