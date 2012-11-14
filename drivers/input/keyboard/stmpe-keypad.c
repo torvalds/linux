@@ -257,6 +257,51 @@ static int stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 			      (plat->debounce_ms << 1));
 }
 
+static void stmpe_keypad_fill_used_pins(struct stmpe_keypad *keypad)
+{
+	int row, col;
+
+	for (row = 0; row < STMPE_KEYPAD_MAX_ROWS; row++) {
+		for (col = 0; col < STMPE_KEYPAD_MAX_COLS; col++) {
+			int code = MATRIX_SCAN_CODE(row, col,
+						STMPE_KEYPAD_ROW_SHIFT);
+			if (keypad->keymap[code] != KEY_RESERVED) {
+				keypad->rows |= 1 << row;
+				keypad->cols |= 1 << col;
+			}
+		}
+	}
+}
+
+#ifdef CONFIG_OF
+static const struct stmpe_keypad_platform_data *
+stmpe_keypad_of_probe(struct device *dev)
+{
+	struct device_node *np = dev->of_node;
+	struct stmpe_keypad_platform_data *plat;
+
+	if (!np)
+		return ERR_PTR(-ENODEV);
+
+	plat = devm_kzalloc(dev, sizeof(*plat), GFP_KERNEL);
+	if (!plat)
+		return ERR_PTR(-ENOMEM);
+
+	of_property_read_u32(np, "debounce-interval", &plat->debounce_ms);
+	of_property_read_u32(np, "st,scan-count", &plat->scan_count);
+
+	plat->no_autorepeat = of_property_read_bool(np, "st,no-autorepeat");
+
+	return plat;
+}
+#else
+static inline const struct stmpe_keypad_platform_data *
+stmpe_keypad_of_probe(struct device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
+
 static int stmpe_keypad_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
@@ -265,11 +310,13 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	struct input_dev *input;
 	int error;
 	int irq;
-	int i;
 
 	plat = stmpe->pdata->keypad;
-	if (!plat)
-		return -ENODEV;
+	if (!plat) {
+		plat = stmpe_keypad_of_probe(&pdev->dev);
+		if (IS_ERR(plat))
+			return PTR_ERR(plat);
+	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -299,12 +346,7 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
-	for (i = 0; i < plat->keymap_data->keymap_size; i++) {
-		unsigned int key = plat->keymap_data->keymap[i];
-
-		keypad->cols |= 1 << KEY_COL(key);
-		keypad->rows |= 1 << KEY_ROW(key);
-	}
+	stmpe_keypad_fill_used_pins(keypad);
 
 	keypad->stmpe = stmpe;
 	keypad->plat = plat;

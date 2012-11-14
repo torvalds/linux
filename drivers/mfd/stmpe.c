@@ -324,6 +324,7 @@ static struct resource stmpe_keypad_resources[] = {
 
 static struct mfd_cell stmpe_keypad_cell = {
 	.name		= "stmpe-keypad",
+	.of_compatible  = "st,stmpe-keypad",
 	.resources	= stmpe_keypad_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_keypad_resources),
 };
