@@ -28,7 +28,22 @@ enum ppc_dbell {
 	PPC_G_DBELL = 2,	/* guest doorbell */
 	PPC_G_DBELL_CRIT = 3,	/* guest critical doorbell */
 	PPC_G_DBELL_MC = 4,	/* guest mcheck doorbell */
+	PPC_DBELL_SERVER = 5,	/* doorbell on server */
 };
+
+#ifdef CONFIG_PPC_BOOK3S
+
+#define PPC_DBELL_MSGTYPE		PPC_DBELL_SERVER
+#define SPRN_DOORBELL_CPUTAG		SPRN_TIR
+#define PPC_DBELL_TAG_MASK		0x7f
+
+#else /* CONFIG_PPC_BOOK3S */
+
+#define PPC_DBELL_MSGTYPE		PPC_DBELL
+#define SPRN_DOORBELL_CPUTAG		SPRN_PIR
+#define PPC_DBELL_TAG_MASK		0x3fff
+
+#endif /* CONFIG_PPC_BOOK3S */
 
 extern void doorbell_cause_ipi(int cpu, unsigned long data);
 extern void doorbell_exception(struct pt_regs *regs);
