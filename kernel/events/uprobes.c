@@ -1199,6 +1199,11 @@ static unsigned long xol_get_insn_slot(struct uprobe *uprobe, unsigned long slot
 	vaddr = kmap_atomic(area->page);
 	memcpy(vaddr + offset, uprobe->arch.insn, MAX_UINSN_BYTES);
 	kunmap_atomic(vaddr);
+	/*
+	 * We probably need flush_icache_user_range() but it needs vma.
+	 * This should work on supported architectures too.
+	 */
+	flush_dcache_page(area->page);
 
 	return current->utask->xol_vaddr;
 }
