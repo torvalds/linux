@@ -631,21 +631,11 @@ xfs_sb_verify(
 		xfs_buf_ioerror(bp, error);
 }
 
-void
-xfs_sb_write_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_sb_verify(bp);
-}
-
-void
+static void
 xfs_sb_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_sb_verify(bp);
-	bp->b_pre_io = xfs_sb_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
 
 /*
@@ -654,7 +644,7 @@ xfs_sb_read_verify(
  * If we find an XFS superblock, the run a normal, noisy mount because we are
  * really going to mount it and want to know about errors.
  */
-void
+static void
 xfs_sb_quiet_read_verify(
 	struct xfs_buf	*bp)
 {
@@ -670,6 +660,23 @@ xfs_sb_quiet_read_verify(
 	/* quietly fail */
 	xfs_buf_ioerror(bp, EFSCORRUPTED);
 }
+
+static void
+xfs_sb_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_sb_verify(bp);
+}
+
+const struct xfs_buf_ops xfs_sb_buf_ops = {
+	.verify_read = xfs_sb_read_verify,
+	.verify_write = xfs_sb_write_verify,
+};
+
+static const struct xfs_buf_ops xfs_sb_quiet_buf_ops = {
+	.verify_read = xfs_sb_quiet_read_verify,
+	.verify_write = xfs_sb_write_verify,
+};
 
 /*
  * xfs_readsb
@@ -697,8 +704,8 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 reread:
 	bp = xfs_buf_read_uncached(mp->m_ddev_targp, XFS_SB_DADDR,
 				   BTOBB(sector_size), 0,
-				   loud ? xfs_sb_read_verify
-				        : xfs_sb_quiet_read_verify);
+				   loud ? &xfs_sb_buf_ops
+				        : &xfs_sb_quiet_buf_ops);
 	if (!bp) {
 		if (loud)
 			xfs_warn(mp, "SB buffer read failed");

@@ -210,7 +210,7 @@ xfs_ialloc_inode_init(
 		 *	to log a whole cluster of inodes instead of all the
 		 *	individual transactions causing a lot of log traffic.
 		 */
-		fbuf->b_pre_io = xfs_inode_buf_write_verify;
+		fbuf->b_ops = &xfs_inode_buf_ops;
 		xfs_buf_zero(fbuf, 0, ninodes << mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			int	ioffset = i << mp->m_sb.sb_inodelog;
@@ -1505,22 +1505,24 @@ xfs_agi_verify(
 	xfs_check_agi_unlinked(agi);
 }
 
-void
-xfs_agi_write_verify(
+static void
+xfs_agi_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agi_verify(bp);
 }
 
 static void
-xfs_agi_read_verify(
+xfs_agi_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agi_verify(bp);
-	bp->b_pre_io = xfs_agi_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
+
+const struct xfs_buf_ops xfs_agi_buf_ops = {
+	.verify_read = xfs_agi_read_verify,
+	.verify_write = xfs_agi_write_verify,
+};
 
 /*
  * Read in the allocation group header (inode allocation section)
@@ -1538,7 +1540,7 @@ xfs_read_agi(
 
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, bpp, xfs_agi_read_verify);
+			XFS_FSS_TO_BB(mp, 1), 0, bpp, &xfs_agi_buf_ops);
 	if (error)
 		return error;
 

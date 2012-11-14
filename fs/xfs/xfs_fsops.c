@@ -119,7 +119,8 @@ xfs_growfs_get_hdr_buf(
 	struct xfs_mount	*mp,
 	xfs_daddr_t		blkno,
 	size_t			numblks,
-	int			flags)
+	int			flags,
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 
@@ -130,6 +131,7 @@ xfs_growfs_get_hdr_buf(
 	xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
 	bp->b_bn = blkno;
 	bp->b_maps[0].bm_bn = blkno;
+	bp->b_ops = ops;
 
 	return bp;
 }
@@ -217,12 +219,12 @@ xfs_growfs_data_private(
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-				XFS_FSS_TO_BB(mp, 1), 0);
+				XFS_FSS_TO_BB(mp, 1), 0,
+				&xfs_agf_buf_ops);
 		if (!bp) {
 			error = ENOMEM;
 			goto error0;
 		}
-		bp->b_pre_io = xfs_agf_write_verify;
 
 		agf = XFS_BUF_TO_AGF(bp);
 		agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
@@ -255,12 +257,12 @@ xfs_growfs_data_private(
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
-				XFS_FSS_TO_BB(mp, 1), 0);
+				XFS_FSS_TO_BB(mp, 1), 0,
+				&xfs_agfl_buf_ops);
 		if (!bp) {
 			error = ENOMEM;
 			goto error0;
 		}
-		bp->b_pre_io = xfs_agfl_write_verify;
 
 		agfl = XFS_BUF_TO_AGFL(bp);
 		for (bucket = 0; bucket < XFS_AGFL_SIZE(mp); bucket++)
@@ -276,12 +278,12 @@ xfs_growfs_data_private(
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-				XFS_FSS_TO_BB(mp, 1), 0);
+				XFS_FSS_TO_BB(mp, 1), 0,
+				&xfs_agi_buf_ops);
 		if (!bp) {
 			error = ENOMEM;
 			goto error0;
 		}
-		bp->b_pre_io = xfs_agi_write_verify;
 
 		agi = XFS_BUF_TO_AGI(bp);
 		agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
@@ -306,7 +308,8 @@ xfs_growfs_data_private(
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AGB_TO_DADDR(mp, agno, XFS_BNO_BLOCK(mp)),
-				BTOBB(mp->m_sb.sb_blocksize), 0);
+				BTOBB(mp->m_sb.sb_blocksize), 0,
+				&xfs_allocbt_buf_ops);
 
 		if (!bp) {
 			error = ENOMEM;
@@ -329,7 +332,8 @@ xfs_growfs_data_private(
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AGB_TO_DADDR(mp, agno, XFS_CNT_BLOCK(mp)),
-				BTOBB(mp->m_sb.sb_blocksize), 0);
+				BTOBB(mp->m_sb.sb_blocksize), 0,
+				&xfs_allocbt_buf_ops);
 		if (!bp) {
 			error = ENOMEM;
 			goto error0;
@@ -352,7 +356,8 @@ xfs_growfs_data_private(
 		 */
 		bp = xfs_growfs_get_hdr_buf(mp,
 				XFS_AGB_TO_DADDR(mp, agno, XFS_IBT_BLOCK(mp)),
-				BTOBB(mp->m_sb.sb_blocksize), 0);
+				BTOBB(mp->m_sb.sb_blocksize), 0,
+				&xfs_inobt_buf_ops);
 		if (!bp) {
 			error = ENOMEM;
 			goto error0;
@@ -448,14 +453,14 @@ xfs_growfs_data_private(
 			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
 				  XFS_FSS_TO_BB(mp, 1), 0, &bp,
-				  xfs_sb_read_verify);
+				  &xfs_sb_buf_ops);
 		} else {
 			bp = xfs_trans_get_buf(NULL, mp->m_ddev_targp,
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
 				  XFS_FSS_TO_BB(mp, 1), 0);
 			if (bp) {
+				bp->b_ops = &xfs_sb_buf_ops;
 				xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-				bp->b_pre_io = xfs_sb_write_verify;
 			} else
 				error = ENOMEM;
 		}

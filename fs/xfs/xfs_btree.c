@@ -271,7 +271,7 @@ xfs_btree_dup_cursor(
 			error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 						   XFS_BUF_ADDR(bp), mp->m_bsize,
 						   0, &bp,
-						   cur->bc_ops->read_verify);
+						   cur->bc_ops->buf_ops);
 			if (error) {
 				xfs_btree_del_cursor(new, error);
 				*ncur = NULL;
@@ -621,7 +621,7 @@ xfs_btree_read_bufl(
 	uint			lock,		/* lock flags for read_buf */
 	struct xfs_buf		**bpp,		/* buffer for fsbno */
 	int			refval,		/* ref count value for buffer */
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;		/* return value */
 	xfs_daddr_t		d;		/* real disk block address */
@@ -630,7 +630,7 @@ xfs_btree_read_bufl(
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, d,
-				   mp->m_bsize, lock, &bp, verify);
+				   mp->m_bsize, lock, &bp, ops);
 	if (error)
 		return error;
 	ASSERT(!xfs_buf_geterror(bp));
@@ -650,13 +650,13 @@ xfs_btree_reada_bufl(
 	struct xfs_mount	*mp,		/* file system mount point */
 	xfs_fsblock_t		fsbno,		/* file system block number */
 	xfs_extlen_t		count,		/* count of filesystem blocks */
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	xfs_daddr_t		d;
 
 	ASSERT(fsbno != NULLFSBLOCK);
 	d = XFS_FSB_TO_DADDR(mp, fsbno);
-	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count, verify);
+	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count, ops);
 }
 
 /*
@@ -670,14 +670,14 @@ xfs_btree_reada_bufs(
 	xfs_agnumber_t		agno,		/* allocation group number */
 	xfs_agblock_t		agbno,		/* allocation group block number */
 	xfs_extlen_t		count,		/* count of filesystem blocks */
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	xfs_daddr_t		d;
 
 	ASSERT(agno != NULLAGNUMBER);
 	ASSERT(agbno != NULLAGBLOCK);
 	d = XFS_AGB_TO_DADDR(mp, agno, agbno);
-	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count, verify);
+	xfs_buf_readahead(mp->m_ddev_targp, d, mp->m_bsize * count, ops);
 }
 
 STATIC int
@@ -692,13 +692,13 @@ xfs_btree_readahead_lblock(
 
 	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLDFSBNO) {
 		xfs_btree_reada_bufl(cur->bc_mp, left, 1,
-				     cur->bc_ops->read_verify);
+				     cur->bc_ops->buf_ops);
 		rval++;
 	}
 
 	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLDFSBNO) {
 		xfs_btree_reada_bufl(cur->bc_mp, right, 1,
-				     cur->bc_ops->read_verify);
+				     cur->bc_ops->buf_ops);
 		rval++;
 	}
 
@@ -718,13 +718,13 @@ xfs_btree_readahead_sblock(
 
 	if ((lr & XFS_BTCUR_LEFTRA) && left != NULLAGBLOCK) {
 		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				     left, 1, cur->bc_ops->read_verify);
+				     left, 1, cur->bc_ops->buf_ops);
 		rval++;
 	}
 
 	if ((lr & XFS_BTCUR_RIGHTRA) && right != NULLAGBLOCK) {
 		xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
-				     right, 1, cur->bc_ops->read_verify);
+				     right, 1, cur->bc_ops->buf_ops);
 		rval++;
 	}
 
@@ -996,7 +996,7 @@ xfs_btree_get_buf_block(
 	if (!*bpp)
 		return ENOMEM;
 
-	(*bpp)->b_pre_io = cur->bc_ops->write_verify;
+	(*bpp)->b_ops = cur->bc_ops->buf_ops;
 	*block = XFS_BUF_TO_BLOCK(*bpp);
 	return 0;
 }
@@ -1024,7 +1024,7 @@ xfs_btree_read_buf_block(
 	d = xfs_btree_ptr_to_daddr(cur, ptr);
 	error = xfs_trans_read_buf(mp, cur->bc_tp, mp->m_ddev_targp, d,
 				   mp->m_bsize, flags, bpp,
-				   cur->bc_ops->read_verify);
+				   cur->bc_ops->buf_ops);
 	if (error)
 		return error;
 

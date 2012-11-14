@@ -284,21 +284,23 @@ xfs_dquot_buf_verify(
 }
 
 static void
-xfs_dquot_buf_write_verify(
+xfs_dquot_buf_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dquot_buf_verify(bp);
 }
 
 void
-xfs_dquot_buf_read_verify(
+xfs_dquot_buf_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dquot_buf_verify(bp);
-	bp->b_pre_io = xfs_dquot_buf_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
+
+const struct xfs_buf_ops xfs_dquot_buf_ops = {
+	.verify_read = xfs_dquot_buf_read_verify,
+	.verify_write = xfs_dquot_buf_write_verify,
+};
 
 /*
  * Allocate a block and fill it with dquots.
@@ -365,7 +367,7 @@ xfs_qm_dqalloc(
 	error = xfs_buf_geterror(bp);
 	if (error)
 		goto error1;
-	bp->b_pre_io = xfs_dquot_buf_write_verify;
+	bp->b_ops = &xfs_dquot_buf_ops;
 
 	/*
 	 * Make a chunk of dquots out of this buffer and log
@@ -435,7 +437,7 @@ xfs_qm_dqrepair(
 		ASSERT(*bpp == NULL);
 		return XFS_ERROR(error);
 	}
-	(*bpp)->b_pre_io = xfs_dquot_buf_write_verify;
+	(*bpp)->b_ops = &xfs_dquot_buf_ops;
 
 	ASSERT(xfs_buf_islocked(*bpp));
 	d = (struct xfs_dqblk *)(*bpp)->b_addr;
@@ -534,7 +536,7 @@ xfs_qm_dqtobp(
 		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 					   dqp->q_blkno,
 					   mp->m_quotainfo->qi_dqchunklen,
-					   0, &bp, xfs_dquot_buf_read_verify);
+					   0, &bp, &xfs_dquot_buf_ops);
 
 		if (error == EFSCORRUPTED && (flags & XFS_QMOPT_DQREPAIR)) {
 			xfs_dqid_t firstid = (xfs_dqid_t)map.br_startoff *

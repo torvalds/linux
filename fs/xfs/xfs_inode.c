@@ -420,22 +420,26 @@ xfs_inode_buf_verify(
 	xfs_inobp_check(mp, bp);
 }
 
-void
+
+static void
+xfs_inode_buf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_inode_buf_verify(bp);
+}
+
+static void
 xfs_inode_buf_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_inode_buf_verify(bp);
 }
 
-void
-xfs_inode_buf_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_inode_buf_verify(bp);
-	bp->b_pre_io = xfs_inode_buf_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
-}
+const struct xfs_buf_ops xfs_inode_buf_ops = {
+	.verify_read = xfs_inode_buf_read_verify,
+	.verify_write = xfs_inode_buf_write_verify,
+};
+
 
 /*
  * This routine is called to map an inode to the buffer containing the on-disk
@@ -462,7 +466,7 @@ xfs_imap_to_bp(
 	buf_flags |= XBF_UNMAPPED;
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
 				   (int)imap->im_len, buf_flags, &bp,
-				   xfs_inode_buf_read_verify);
+				   &xfs_inode_buf_ops);
 	if (error) {
 		if (error == EAGAIN) {
 			ASSERT(buf_flags & XBF_TRYLOCK);
@@ -1792,7 +1796,7 @@ xfs_ifree_cluster(
 		 * want it to fail. We can acheive this by adding a write
 		 * verifier to the buffer.
 		 */
-		 bp->b_pre_io = xfs_inode_buf_write_verify;
+		 bp->b_ops = &xfs_inode_buf_ops;
 
 		/*
 		 * Walk the inodes already attached to the buffer and mark them

@@ -749,22 +749,25 @@ xfs_bmbt_verify(
 	}
 }
 
-void
+static void
+xfs_bmbt_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_bmbt_verify(bp);
+}
+
+static void
 xfs_bmbt_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_bmbt_verify(bp);
 }
 
-void
-xfs_bmbt_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_bmbt_verify(bp);
-	bp->b_pre_io = xfs_bmbt_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
-}
+const struct xfs_buf_ops xfs_bmbt_buf_ops = {
+	.verify_read = xfs_bmbt_read_verify,
+	.verify_write = xfs_bmbt_write_verify,
+};
+
 
 #ifdef DEBUG
 STATIC int
@@ -805,8 +808,7 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.init_rec_from_cur	= xfs_bmbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
 	.key_diff		= xfs_bmbt_key_diff,
-	.read_verify		= xfs_bmbt_read_verify,
-	.write_verify		= xfs_bmbt_write_verify,
+	.buf_ops		= &xfs_bmbt_buf_ops,
 #ifdef DEBUG
 	.keys_inorder		= xfs_bmbt_keys_inorder,
 	.recs_inorder		= xfs_bmbt_recs_inorder,

@@ -329,21 +329,24 @@ xfs_allocbt_verify(
 }
 
 static void
+xfs_allocbt_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_allocbt_verify(bp);
+}
+
+static void
 xfs_allocbt_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_allocbt_verify(bp);
 }
 
-void
-xfs_allocbt_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_allocbt_verify(bp);
-	bp->b_pre_io = xfs_allocbt_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
-}
+const struct xfs_buf_ops xfs_allocbt_buf_ops = {
+	.verify_read = xfs_allocbt_read_verify,
+	.verify_write = xfs_allocbt_write_verify,
+};
+
 
 #ifdef DEBUG
 STATIC int
@@ -400,8 +403,7 @@ static const struct xfs_btree_ops xfs_allocbt_ops = {
 	.init_rec_from_cur	= xfs_allocbt_init_rec_from_cur,
 	.init_ptr_from_cur	= xfs_allocbt_init_ptr_from_cur,
 	.key_diff		= xfs_allocbt_key_diff,
-	.read_verify		= xfs_allocbt_read_verify,
-	.write_verify		= xfs_allocbt_write_verify,
+	.buf_ops		= &xfs_allocbt_buf_ops,
 #ifdef DEBUG
 	.keys_inorder		= xfs_allocbt_keys_inorder,
 	.recs_inorder		= xfs_allocbt_recs_inorder,

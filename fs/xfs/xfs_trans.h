@@ -474,7 +474,7 @@ int		xfs_trans_read_buf_map(struct xfs_mount *mp,
 				       struct xfs_buf_map *map, int nmaps,
 				       xfs_buf_flags_t flags,
 				       struct xfs_buf **bpp,
-				       xfs_buf_iodone_t verify);
+				       const struct xfs_buf_ops *ops);
 
 static inline int
 xfs_trans_read_buf(
@@ -485,11 +485,11 @@ xfs_trans_read_buf(
 	int			numblks,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
 	return xfs_trans_read_buf_map(mp, tp, target, &map, 1,
-				      flags, bpp, verify);
+				      flags, bpp, ops);
 }
 
 struct xfs_buf	*xfs_trans_getsb(xfs_trans_t *, struct xfs_mount *, int);

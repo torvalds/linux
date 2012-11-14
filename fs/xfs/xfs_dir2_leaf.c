@@ -65,20 +65,24 @@ xfs_dir2_leaf_verify(
 }
 
 static void
-xfs_dir2_leaf1_write_verify(
+xfs_dir2_leaf1_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
 }
 
 static void
-xfs_dir2_leaf1_read_verify(
+xfs_dir2_leaf1_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
-	bp->b_pre_io = xfs_dir2_leaf1_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
+}
+
+void
+xfs_dir2_leafn_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
 }
 
 void
@@ -88,15 +92,15 @@ xfs_dir2_leafn_write_verify(
 	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
 }
 
-void
-xfs_dir2_leafn_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
-	bp->b_pre_io = xfs_dir2_leafn_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
-}
+static const struct xfs_buf_ops xfs_dir2_leaf1_buf_ops = {
+	.verify_read = xfs_dir2_leaf1_read_verify,
+	.verify_write = xfs_dir2_leaf1_write_verify,
+};
+
+const struct xfs_buf_ops xfs_dir2_leafn_buf_ops = {
+	.verify_read = xfs_dir2_leafn_read_verify,
+	.verify_write = xfs_dir2_leafn_write_verify,
+};
 
 static int
 xfs_dir2_leaf_read(
@@ -107,7 +111,7 @@ xfs_dir2_leaf_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-				XFS_DATA_FORK, xfs_dir2_leaf1_read_verify);
+				XFS_DATA_FORK, &xfs_dir2_leaf1_buf_ops);
 }
 
 int
@@ -119,7 +123,7 @@ xfs_dir2_leafn_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-				XFS_DATA_FORK, xfs_dir2_leafn_read_verify);
+				XFS_DATA_FORK, &xfs_dir2_leafn_buf_ops);
 }
 
 /*
@@ -198,7 +202,7 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Fix up the block header, make it a data block.
 	 */
-	dbp->b_pre_io = xfs_dir2_data_write_verify;
+	dbp->b_ops = &xfs_dir2_data_buf_ops;
 	hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	if (needscan)
 		xfs_dir2_data_freescan(mp, hdr, &needlog);
@@ -1264,12 +1268,12 @@ xfs_dir2_leaf_init(
 	 * the block.
 	 */
 	if (magic == XFS_DIR2_LEAF1_MAGIC) {
-		bp->b_pre_io = xfs_dir2_leaf1_write_verify;
+		bp->b_ops = &xfs_dir2_leaf1_buf_ops;
 		ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 		ltp->bestcount = 0;
 		xfs_dir2_leaf_log_tail(tp, bp);
 	} else
-		bp->b_pre_io = xfs_dir2_leafn_write_verify;
+		bp->b_ops = &xfs_dir2_leafn_buf_ops;
 	*bpp = bp;
 	return 0;
 }
@@ -1954,7 +1958,7 @@ xfs_dir2_node_to_leaf(
 	else
 		xfs_dir2_leaf_log_header(tp, lbp);
 
-	lbp->b_pre_io = xfs_dir2_leaf1_write_verify;
+	lbp->b_ops = &xfs_dir2_leaf1_buf_ops;
 	leaf->hdr.info.magic = cpu_to_be16(XFS_DIR2_LEAF1_MAGIC);
 
 	/*

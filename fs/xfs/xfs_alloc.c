@@ -465,7 +465,7 @@ xfs_agfl_verify(
 #endif
 }
 
-void
+static void
 xfs_agfl_write_verify(
 	struct xfs_buf	*bp)
 {
@@ -477,10 +477,12 @@ xfs_agfl_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agfl_verify(bp);
-	bp->b_pre_io = xfs_agfl_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
+
+const struct xfs_buf_ops xfs_agfl_buf_ops = {
+	.verify_read = xfs_agfl_read_verify,
+	.verify_write = xfs_agfl_write_verify,
+};
 
 /*
  * Read in the allocation group free block array.
@@ -499,7 +501,7 @@ xfs_alloc_read_agfl(
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGFL_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, &bp, xfs_agfl_read_verify);
+			XFS_FSS_TO_BB(mp, 1), 0, &bp, &xfs_agfl_buf_ops);
 	if (error)
 		return error;
 	ASSERT(!xfs_buf_geterror(bp));
@@ -2181,22 +2183,24 @@ xfs_agf_verify(
 	}
 }
 
-void
-xfs_agf_write_verify(
+static void
+xfs_agf_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agf_verify(bp);
 }
 
 static void
-xfs_agf_read_verify(
+xfs_agf_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agf_verify(bp);
-	bp->b_pre_io = xfs_agf_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
+
+const struct xfs_buf_ops xfs_agf_buf_ops = {
+	.verify_read = xfs_agf_read_verify,
+	.verify_write = xfs_agf_write_verify,
+};
 
 /*
  * Read in the allocation group header (free/alloc section).
@@ -2215,7 +2219,7 @@ xfs_read_agf(
 	error = xfs_trans_read_buf(
 			mp, tp, mp->m_ddev_targp,
 			XFS_AG_DADDR(mp, agno, XFS_AGF_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), flags, bpp, xfs_agf_read_verify);
+			XFS_FSS_TO_BB(mp, 1), flags, bpp, &xfs_agf_buf_ops);
 	if (error)
 		return error;
 	if (!*bpp)

@@ -229,10 +229,10 @@ int	xfs_da_get_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 int	xfs_da_read_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 			       xfs_dablk_t bno, xfs_daddr_t mappedbno,
 			       struct xfs_buf **bpp, int whichfork,
-			       xfs_buf_iodone_t verifier);
+			       const struct xfs_buf_ops *ops);
 xfs_daddr_t	xfs_da_reada_buf(struct xfs_trans *trans, struct xfs_inode *dp,
 				xfs_dablk_t bno, xfs_daddr_t mapped_bno,
-				int whichfork, xfs_buf_iodone_t verifier);
+				int whichfork, const struct xfs_buf_ops *ops);
 int	xfs_da_shrink_inode(xfs_da_args_t *args, xfs_dablk_t dead_blkno,
 					  struct xfs_buf *dead_buf);
 

@@ -571,7 +571,7 @@ found:
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
 		ASSERT(bp->b_iodone == NULL);
 		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
-		bp->b_pre_io = NULL;
+		bp->b_ops = NULL;
 	}
 
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
@@ -657,7 +657,7 @@ xfs_buf_read_map(
 	struct xfs_buf_map	*map,
 	int			nmaps,
 	xfs_buf_flags_t		flags,
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 
@@ -669,7 +669,7 @@ xfs_buf_read_map(
 
 		if (!XFS_BUF_ISDONE(bp)) {
 			XFS_STATS_INC(xb_get_read);
-			bp->b_iodone = verify;
+			bp->b_ops = ops;
 			_xfs_buf_read(bp, flags);
 		} else if (flags & XBF_ASYNC) {
 			/*
@@ -696,13 +696,13 @@ xfs_buf_readahead_map(
 	struct xfs_buftarg	*target,
 	struct xfs_buf_map	*map,
 	int			nmaps,
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	if (bdi_read_congested(target->bt_bdi))
 		return;
 
 	xfs_buf_read_map(target, map, nmaps,
-		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD, verify);
+		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD, ops);
 }
 
 /*
@@ -715,7 +715,7 @@ xfs_buf_read_uncached(
 	xfs_daddr_t		daddr,
 	size_t			numblks,
 	int			flags,
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 
@@ -728,7 +728,7 @@ xfs_buf_read_uncached(
 	bp->b_bn = daddr;
 	bp->b_maps[0].bm_bn = daddr;
 	bp->b_flags |= XBF_READ;
-	bp->b_iodone = verify;
+	bp->b_ops = ops;
 
 	xfsbdstrat(target->bt_mount, bp);
 	xfs_buf_iowait(bp);
@@ -1001,27 +1001,37 @@ STATIC void
 xfs_buf_iodone_work(
 	struct work_struct	*work)
 {
-	xfs_buf_t		*bp =
+	struct xfs_buf		*bp =
 		container_of(work, xfs_buf_t, b_iodone_work);
+	bool			read = !!(bp->b_flags & XBF_READ);
+
+	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
+	if (read && bp->b_ops)
+		bp->b_ops->verify_read(bp);
 
 	if (bp->b_iodone)
 		(*(bp->b_iodone))(bp);
 	else if (bp->b_flags & XBF_ASYNC)
 		xfs_buf_relse(bp);
+	else {
+		ASSERT(read && bp->b_ops);
+		complete(&bp->b_iowait);
+	}
 }
 
 void
 xfs_buf_ioend(
-	xfs_buf_t		*bp,
-	int			schedule)
+	struct xfs_buf	*bp,
+	int		schedule)
 {
+	bool		read = !!(bp->b_flags & XBF_READ);
+
 	trace_xfs_buf_iodone(bp, _RET_IP_);
 
-	bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 	if (bp->b_error == 0)
 		bp->b_flags |= XBF_DONE;
 
-	if ((bp->b_iodone) || (bp->b_flags & XBF_ASYNC)) {
+	if (bp->b_iodone || (read && bp->b_ops) || (bp->b_flags & XBF_ASYNC)) {
 		if (schedule) {
 			INIT_WORK(&bp->b_iodone_work, xfs_buf_iodone_work);
 			queue_work(xfslogd_workqueue, &bp->b_iodone_work);
@@ -1029,6 +1039,7 @@ xfs_buf_ioend(
 			xfs_buf_iodone_work(&bp->b_iodone_work);
 		}
 	} else {
+		bp->b_flags &= ~(XBF_READ | XBF_WRITE | XBF_READ_AHEAD);
 		complete(&bp->b_iowait);
 	}
 }
@@ -1316,6 +1327,20 @@ _xfs_buf_ioapply(
 			rw |= REQ_FUA;
 		if (bp->b_flags & XBF_FLUSH)
 			rw |= REQ_FLUSH;
+
+		/*
+		 * Run the write verifier callback function if it exists. If
+		 * this function fails it will mark the buffer with an error and
+		 * the IO should not be dispatched.
+		 */
+		if (bp->b_ops) {
+			bp->b_ops->verify_write(bp);
+			if (bp->b_error) {
+				xfs_force_shutdown(bp->b_target->bt_mount,
+						   SHUTDOWN_CORRUPT_INCORE);
+				return;
+			}
+		}
 	} else if (bp->b_flags & XBF_READ_AHEAD) {
 		rw = READA;
 	} else {
@@ -1324,20 +1349,6 @@ _xfs_buf_ioapply(
 
 	/* we only use the buffer cache for meta-data */
 	rw |= REQ_META;
-
-	/*
-	 * run the pre-io callback function if it exists. If this function
-	 * fails it will mark the buffer with an error and the IO should
-	 * not be dispatched.
-	 */
-	if (bp->b_pre_io) {
-		bp->b_pre_io(bp);
-		if (bp->b_error) {
-			xfs_force_shutdown(bp->b_target->bt_mount,
-					   SHUTDOWN_CORRUPT_INCORE);
-			return;
-		}
-	}
 
 	/*
 	 * Walk all the vectors issuing IO on them. Set up the initial offset

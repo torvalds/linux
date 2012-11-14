@@ -2663,7 +2663,7 @@ xfs_bmap_btree_to_extents(
 		return error;
 #endif
 	error = xfs_btree_read_bufl(mp, tp, cbno, 0, &cbp, XFS_BMAP_BTREE_REF,
-				xfs_bmbt_read_verify);
+				&xfs_bmbt_buf_ops);
 	if (error)
 		return error;
 	cblock = XFS_BUF_TO_BLOCK(cbp);
@@ -3124,7 +3124,7 @@ xfs_bmap_extents_to_btree(
 	/*
 	 * Fill in the child block.
 	 */
-	abp->b_pre_io = xfs_bmbt_write_verify;
+	abp->b_ops = &xfs_bmbt_buf_ops;
 	ablock = XFS_BUF_TO_BLOCK(abp);
 	ablock->bb_magic = cpu_to_be32(XFS_BMAP_MAGIC);
 	ablock->bb_level = 0;
@@ -3271,7 +3271,7 @@ xfs_bmap_local_to_extents(
 		ASSERT(args.len == 1);
 		*firstblock = args.fsbno;
 		bp = xfs_btree_get_bufl(args.mp, tp, args.fsbno, 0);
-		bp->b_pre_io = xfs_bmbt_write_verify;
+		bp->b_ops = &xfs_bmbt_buf_ops;
 		memcpy(bp->b_addr, ifp->if_u1.if_data, ifp->if_bytes);
 		xfs_trans_log_buf(tp, bp, 0, ifp->if_bytes - 1);
 		xfs_bmap_forkoff_reset(args.mp, ip, whichfork);
@@ -4082,7 +4082,7 @@ xfs_bmap_read_extents(
 	 */
 	while (level-- > 0) {
 		error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF, xfs_bmbt_read_verify);
+				XFS_BMAP_BTREE_REF, &xfs_bmbt_buf_ops);
 		if (error)
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
@@ -4129,7 +4129,7 @@ xfs_bmap_read_extents(
 		nextbno = be64_to_cpu(block->bb_u.l.bb_rightsib);
 		if (nextbno != NULLFSBLOCK)
 			xfs_btree_reada_bufl(mp, nextbno, 1,
-					     xfs_bmbt_read_verify);
+					     &xfs_bmbt_buf_ops);
 		/*
 		 * Copy records into the extent records.
 		 */
@@ -4162,7 +4162,7 @@ xfs_bmap_read_extents(
 		if (bno == NULLFSBLOCK)
 			break;
 		error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
-				XFS_BMAP_BTREE_REF, xfs_bmbt_read_verify);
+				XFS_BMAP_BTREE_REF, &xfs_bmbt_buf_ops);
 		if (error)
 			return error;
 		block = XFS_BUF_TO_BLOCK(bp);
@@ -5880,7 +5880,7 @@ xfs_bmap_check_leaf_extents(
 			bp_release = 1;
 			error = xfs_btree_read_bufl(mp, NULL, bno, 0, &bp,
 						XFS_BMAP_BTREE_REF,
-						xfs_bmbt_read_verify);
+						&xfs_bmbt_buf_ops);
 			if (error)
 				goto error_norelse;
 		}
@@ -5966,7 +5966,7 @@ xfs_bmap_check_leaf_extents(
 			bp_release = 1;
 			error = xfs_btree_read_bufl(mp, NULL, bno, 0, &bp,
 						XFS_BMAP_BTREE_REF,
-						xfs_bmbt_read_verify);
+						&xfs_bmbt_buf_ops);
 			if (error)
 				goto error_norelse;
 		}
@@ -6061,7 +6061,7 @@ xfs_bmap_count_tree(
 	int			numrecs;
 
 	error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp, XFS_BMAP_BTREE_REF,
-						xfs_bmbt_read_verify);
+						&xfs_bmbt_buf_ops);
 	if (error)
 		return error;
 	*count += 1;
@@ -6073,7 +6073,7 @@ xfs_bmap_count_tree(
 		while (nextbno != NULLFSBLOCK) {
 			error = xfs_btree_read_bufl(mp, tp, nextbno, 0, &nbp,
 						XFS_BMAP_BTREE_REF,
-						xfs_bmbt_read_verify);
+						&xfs_bmbt_buf_ops);
 			if (error)
 				return error;
 			*count += 1;
@@ -6105,7 +6105,7 @@ xfs_bmap_count_tree(
 			bno = nextbno;
 			error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
 						XFS_BMAP_BTREE_REF,
-						xfs_bmbt_read_verify);
+						&xfs_bmbt_buf_ops);
 			if (error)
 				return error;
 			*count += 1;

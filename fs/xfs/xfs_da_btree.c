@@ -117,6 +117,12 @@ xfs_da_node_write_verify(
 	xfs_da_node_verify(bp);
 }
 
+/*
+ * leaf/node format detection on trees is sketchy, so a node read can be done on
+ * leaf level blocks when detection identifies the tree as a node format tree
+ * incorrectly. In this case, we need to swap the verifier to match the correct
+ * format of the block being read.
+ */
 static void
 xfs_da_node_read_verify(
 	struct xfs_buf		*bp)
@@ -129,10 +135,12 @@ xfs_da_node_read_verify(
 			xfs_da_node_verify(bp);
 			break;
 		case XFS_ATTR_LEAF_MAGIC:
-			xfs_attr_leaf_read_verify(bp);
+			bp->b_ops = &xfs_attr_leaf_buf_ops;
+			bp->b_ops->verify_read(bp);
 			return;
 		case XFS_DIR2_LEAFN_MAGIC:
-			xfs_dir2_leafn_read_verify(bp);
+			bp->b_ops = &xfs_dir2_leafn_buf_ops;
+			bp->b_ops->verify_read(bp);
 			return;
 		default:
 			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
@@ -140,11 +148,13 @@ xfs_da_node_read_verify(
 			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			break;
 	}
-
-	bp->b_pre_io = xfs_da_node_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
+
+const struct xfs_buf_ops xfs_da_node_buf_ops = {
+	.verify_read = xfs_da_node_read_verify,
+	.verify_write = xfs_da_node_write_verify,
+};
+
 
 int
 xfs_da_node_read(
@@ -156,7 +166,7 @@ xfs_da_node_read(
 	int			which_fork)
 {
 	return xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
-					which_fork, xfs_da_node_read_verify);
+					which_fork, &xfs_da_node_buf_ops);
 }
 
 /*========================================================================
@@ -193,7 +203,7 @@ xfs_da_node_create(xfs_da_args_t *args, xfs_dablk_t blkno, int level,
 	xfs_trans_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
-	bp->b_pre_io = xfs_da_node_write_verify;
+	bp->b_ops = &xfs_da_node_buf_ops;
 	*bpp = bp;
 	return(0);
 }
@@ -394,7 +404,7 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	memcpy(node, oldroot, size);
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
 
-	bp->b_pre_io = blk1->bp->b_pre_io;
+	bp->b_ops = blk1->bp->b_ops;
 	blk1->bp = bp;
 	blk1->blkno = blkno;
 
@@ -828,11 +838,11 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	/*
 	 * This could be copying a leaf back into the root block in the case of
 	 * there only being a single leaf block left in the tree. Hence we have
-	 * to update the pre_io pointer as well to match the buffer type change
+	 * to update the b_ops pointer as well to match the buffer type change
 	 * that could occur.
 	 */
 	memcpy(root_blk->bp->b_addr, bp->b_addr, state->blocksize);
-	root_blk->bp->b_pre_io = bp->b_pre_io;
+	root_blk->bp->b_ops = bp->b_ops;
 	xfs_trans_log_buf(args->trans, root_blk->bp, 0, state->blocksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
 	return(error);
@@ -2223,7 +2233,7 @@ xfs_da_read_buf(
 	xfs_daddr_t		mappedbno,
 	struct xfs_buf		**bpp,
 	int			whichfork,
-	xfs_buf_iodone_t	verifier)
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf		*bp;
 	struct xfs_buf_map	map;
@@ -2245,7 +2255,7 @@ xfs_da_read_buf(
 
 	error = xfs_trans_read_buf_map(dp->i_mount, trans,
 					dp->i_mount->m_ddev_targp,
-					mapp, nmap, 0, &bp, verifier);
+					mapp, nmap, 0, &bp, ops);
 	if (error)
 		goto out_free;
 
@@ -2303,7 +2313,7 @@ xfs_da_reada_buf(
 	xfs_dablk_t		bno,
 	xfs_daddr_t		mappedbno,
 	int			whichfork,
-	xfs_buf_iodone_t	verifier)
+	const struct xfs_buf_ops *ops)
 {
 	struct xfs_buf_map	map;
 	struct xfs_buf_map	*mapp;
@@ -2322,7 +2332,7 @@ xfs_da_reada_buf(
 	}
 
 	mappedbno = mapp[0].bm_bn;
-	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap, NULL);
+	xfs_buf_readahead_map(dp->i_mount->m_ddev_targp, mapp, nmap, ops);
 
 out_free:
 	if (mapp != &map)

@@ -258,7 +258,7 @@ xfs_trans_read_buf_map(
 	int			nmaps,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp,
-	xfs_buf_iodone_t	verify)
+	const struct xfs_buf_ops *ops)
 {
 	xfs_buf_t		*bp;
 	xfs_buf_log_item_t	*bip;
@@ -266,7 +266,7 @@ xfs_trans_read_buf_map(
 
 	*bpp = NULL;
 	if (!tp) {
-		bp = xfs_buf_read_map(target, map, nmaps, flags, verify);
+		bp = xfs_buf_read_map(target, map, nmaps, flags, ops);
 		if (!bp)
 			return (flags & XBF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
@@ -315,7 +315,7 @@ xfs_trans_read_buf_map(
 			ASSERT(!XFS_BUF_ISASYNC(bp));
 			ASSERT(bp->b_iodone == NULL);
 			XFS_BUF_READ(bp);
-			bp->b_iodone = verify;
+			bp->b_ops = ops;
 			xfsbdstrat(tp->t_mountp, bp);
 			error = xfs_buf_iowait(bp);
 			if (error) {
@@ -352,7 +352,7 @@ xfs_trans_read_buf_map(
 		return 0;
 	}
 
-	bp = xfs_buf_read_map(target, map, nmaps, flags, verify);
+	bp = xfs_buf_read_map(target, map, nmaps, flags, ops);
 	if (bp == NULL) {
 		*bpp = NULL;
 		return (flags & XBF_TRYLOCK) ?

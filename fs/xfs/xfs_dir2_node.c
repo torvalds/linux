@@ -72,21 +72,23 @@ xfs_dir2_free_verify(
 }
 
 static void
+xfs_dir2_free_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_free_verify(bp);
+}
+
+static void
 xfs_dir2_free_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dir2_free_verify(bp);
 }
 
-void
-xfs_dir2_free_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_dir2_free_verify(bp);
-	bp->b_pre_io = xfs_dir2_free_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
-}
+static const struct xfs_buf_ops xfs_dir2_free_buf_ops = {
+	.verify_read = xfs_dir2_free_read_verify,
+	.verify_write = xfs_dir2_free_write_verify,
+};
 
 
 static int
@@ -98,7 +100,7 @@ __xfs_dir2_free_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-				XFS_DATA_FORK, xfs_dir2_free_read_verify);
+				XFS_DATA_FORK, &xfs_dir2_free_buf_ops);
 }
 
 int
@@ -201,7 +203,7 @@ xfs_dir2_leaf_to_node(
 				XFS_DATA_FORK);
 	if (error)
 		return error;
-	fbp->b_pre_io = xfs_dir2_free_write_verify;
+	fbp->b_ops = &xfs_dir2_free_buf_ops;
 
 	free = fbp->b_addr;
 	leaf = lbp->b_addr;
@@ -225,7 +227,7 @@ xfs_dir2_leaf_to_node(
 	}
 	free->hdr.nused = cpu_to_be32(n);
 
-	lbp->b_pre_io = xfs_dir2_leafn_write_verify;
+	lbp->b_ops = &xfs_dir2_leafn_buf_ops;
 	leaf->hdr.info.magic = cpu_to_be16(XFS_DIR2_LEAFN_MAGIC);
 
 	/*
@@ -636,7 +638,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.index = (int)((char *)dep -
 							(char *)curbp->b_addr);
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
-			curbp->b_pre_io = xfs_dir2_data_write_verify;
+			curbp->b_ops = &xfs_dir2_data_buf_ops;
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
 		}
@@ -651,7 +653,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.index = -1;
 			state->extrablk.blkno = curdb;
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
-			curbp->b_pre_io = xfs_dir2_data_write_verify;
+			curbp->b_ops = &xfs_dir2_data_buf_ops;
 		} else {
 			/* If the curbp is not the CI match block, drop it */
 			if (state->extrablk.bp != curbp)
@@ -1649,7 +1651,7 @@ xfs_dir2_node_addname_int(
 					       -1, &fbp, XFS_DATA_FORK);
 			if (error)
 				return error;
-			fbp->b_pre_io = xfs_dir2_free_write_verify;
+			fbp->b_ops = &xfs_dir2_free_buf_ops;
 
 			/*
 			 * Initialize the new block to be empty, and remember

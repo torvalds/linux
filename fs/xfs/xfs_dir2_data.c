@@ -202,11 +202,31 @@ xfs_dir2_data_verify(
 	}
 }
 
-void
-xfs_dir2_data_write_verify(
-	struct xfs_buf	*bp)
+/*
+ * Readahead of the first block of the directory when it is opened is completely
+ * oblivious to the format of the directory. Hence we can either get a block
+ * format buffer or a data format buffer on readahead.
+ */
+static void
+xfs_dir2_data_reada_verify(
+	struct xfs_buf		*bp)
 {
-	xfs_dir2_data_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_dir2_data_hdr *hdr = bp->b_addr;
+
+	switch (hdr->magic) {
+	case cpu_to_be32(XFS_DIR2_BLOCK_MAGIC):
+		bp->b_ops = &xfs_dir2_block_buf_ops;
+		bp->b_ops->verify_read(bp);
+		return;
+	case cpu_to_be32(XFS_DIR2_DATA_MAGIC):
+		xfs_dir2_data_verify(bp);
+		return;
+	default:
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		break;
+	}
 }
 
 static void
@@ -214,10 +234,24 @@ xfs_dir2_data_read_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dir2_data_verify(bp);
-	bp->b_pre_io = xfs_dir2_data_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
+
+static void
+xfs_dir2_data_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_data_verify(bp);
+}
+
+const struct xfs_buf_ops xfs_dir2_data_buf_ops = {
+	.verify_read = xfs_dir2_data_read_verify,
+	.verify_write = xfs_dir2_data_write_verify,
+};
+
+static const struct xfs_buf_ops xfs_dir2_data_reada_buf_ops = {
+	.verify_read = xfs_dir2_data_reada_verify,
+	.verify_write = xfs_dir2_data_write_verify,
+};
 
 
 int
@@ -229,7 +263,7 @@ xfs_dir2_data_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, bno, mapped_bno, bpp,
-				XFS_DATA_FORK, xfs_dir2_data_read_verify);
+				XFS_DATA_FORK, &xfs_dir2_data_buf_ops);
 }
 
 int
@@ -240,7 +274,7 @@ xfs_dir2_data_readahead(
 	xfs_daddr_t		mapped_bno)
 {
 	return xfs_da_reada_buf(tp, dp, bno, mapped_bno,
-				XFS_DATA_FORK, xfs_dir2_data_read_verify);
+				XFS_DATA_FORK, &xfs_dir2_data_reada_buf_ops);
 }
 
 /*
@@ -484,7 +518,7 @@ xfs_dir2_data_init(
 		XFS_DATA_FORK);
 	if (error)
 		return error;
-	bp->b_pre_io = xfs_dir2_data_write_verify;
+	bp->b_ops = &xfs_dir2_data_buf_ops;
 
 	/*
 	 * Initialize the header.

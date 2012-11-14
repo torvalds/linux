@@ -397,7 +397,7 @@ xfs_bulkstat(
 							& ~r.ir_free)
 						xfs_btree_reada_bufs(mp, agno,
 							agbno, nbcluster,
-							xfs_inode_buf_read_verify);
+							&xfs_inode_buf_ops);
 				}
 				irbp->ir_startino = r.ir_startino;
 				irbp->ir_freecount = r.ir_freecount;

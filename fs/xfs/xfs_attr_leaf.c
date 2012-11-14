@@ -104,22 +104,23 @@ xfs_attr_leaf_verify(
 }
 
 static void
+xfs_attr_leaf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_attr_leaf_verify(bp);
+}
+
+static void
 xfs_attr_leaf_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_attr_leaf_verify(bp);
 }
 
-void
-xfs_attr_leaf_read_verify(
-	struct xfs_buf	*bp)
-{
-	xfs_attr_leaf_verify(bp);
-	bp->b_pre_io = xfs_attr_leaf_write_verify;
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
-}
-
+const struct xfs_buf_ops xfs_attr_leaf_buf_ops = {
+	.verify_read = xfs_attr_leaf_read_verify,
+	.verify_write = xfs_attr_leaf_write_verify,
+};
 
 int
 xfs_attr_leaf_read(
@@ -130,7 +131,7 @@ xfs_attr_leaf_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
-				XFS_ATTR_FORK, xfs_attr_leaf_read_verify);
+				XFS_ATTR_FORK, &xfs_attr_leaf_buf_ops);
 }
 
 /*========================================================================
@@ -924,7 +925,7 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 					    XFS_ATTR_FORK);
 	if (error)
 		goto out;
-	bp2->b_pre_io = bp1->b_pre_io;
+	bp2->b_ops = bp1->b_ops;
 	memcpy(bp2->b_addr, bp1->b_addr, XFS_LBSIZE(dp->i_mount));
 	bp1 = NULL;
 	xfs_trans_log_buf(args->trans, bp2, 0, XFS_LBSIZE(dp->i_mount) - 1);
@@ -978,7 +979,7 @@ xfs_attr_leaf_create(
 					    XFS_ATTR_FORK);
 	if (error)
 		return(error);
-	bp->b_pre_io = xfs_attr_leaf_write_verify;
+	bp->b_ops = &xfs_attr_leaf_buf_ops;
 	leaf = bp->b_addr;
 	memset((char *)leaf, 0, XFS_LBSIZE(dp->i_mount));
 	hdr = &leaf->hdr;

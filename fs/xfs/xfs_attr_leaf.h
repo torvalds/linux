@@ -264,6 +264,7 @@ int	xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize,
 int	xfs_attr_leaf_read(struct xfs_trans *tp, struct xfs_inode *dp,
 			xfs_dablk_t bno, xfs_daddr_t mappedbno,
 			struct xfs_buf **bpp);
-void	xfs_attr_leaf_read_verify(struct xfs_buf *bp);
+
+extern const struct xfs_buf_ops xfs_attr_leaf_buf_ops;
 
 #endif	/* __XFS_ATTR_LEAF_H__ */

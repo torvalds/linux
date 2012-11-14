@@ -108,6 +108,8 @@ typedef struct xfs_agf {
 extern int xfs_read_agf(struct xfs_mount *mp, struct xfs_trans *tp,
 			xfs_agnumber_t agno, int flags, struct xfs_buf **bpp);
 
+extern const struct xfs_buf_ops xfs_agf_buf_ops;
+
 /*
  * Size of the unlinked inode hash table in the agi.
  */
@@ -160,6 +162,8 @@ typedef struct xfs_agi {
 
 extern int xfs_read_agi(struct xfs_mount *mp, struct xfs_trans *tp,
 				xfs_agnumber_t agno, struct xfs_buf **bpp);
+
+extern const struct xfs_buf_ops xfs_agi_buf_ops;
 
 /*
  * The third a.g. block contains the a.g. freelist, an array
