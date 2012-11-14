@@ -551,8 +551,8 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	return plane;
 
 fail:
-	if (plane) {
+	if (plane)
 		omap_plane_destroy(plane);
-	}
+
 	return NULL;
 }
