@@ -287,7 +287,7 @@ __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code)
 	}
 
 	/* Calculate resolution */
-	return logical_extents / physical_extents;
+	return DIV_ROUND_CLOSEST(logical_extents, physical_extents);
 }
 EXPORT_SYMBOL_GPL(hidinput_calc_abs_res);
 
