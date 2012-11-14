@@ -23,9 +23,6 @@
 /*
  * System call wrappers implemented in kernel/entry.S.
  */
-asmlinkage long sys_execve_wrapper(const char __user *filename,
-				   const char __user *const __user *argv,
-				   const char __user *const __user *envp);
 asmlinkage long sys_clone_wrapper(unsigned long clone_flags,
 				  unsigned long newsp,
 				  void __user *parent_tid,

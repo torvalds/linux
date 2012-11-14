@@ -240,27 +240,35 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	struct pt_regs *childregs = task_pt_regs(p);
 	unsigned long tls = p->thread.tp_value;
 
-	*childregs = *regs;
-	childregs->regs[0] = 0;
-
-	if (is_compat_thread(task_thread_info(p)))
-		childregs->compat_sp = stack_start;
-	else {
-		/*
-		 * Read the current TLS pointer from tpidr_el0 as it may be
-		 * out-of-sync with the saved value.
-		 */
-		asm("mrs %0, tpidr_el0" : "=r" (tls));
-		childregs->sp = stack_start;
-	}
-
 	memset(&p->thread.cpu_context, 0, sizeof(struct cpu_context));
-	p->thread.cpu_context.sp = (unsigned long)childregs;
-	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
 
-	/* If a TLS pointer was passed to clone, use that for the new thread. */
-	if (clone_flags & CLONE_SETTLS)
-		tls = regs->regs[3];
+	if (likely(regs)) {
+		*childregs = *regs;
+		childregs->regs[0] = 0;
+		if (is_compat_thread(task_thread_info(p))) {
+			childregs->compat_sp = stack_start;
+		} else {
+			/*
+			 * Read the current TLS pointer from tpidr_el0 as it may be
+			 * out-of-sync with the saved value.
+			 */
+			asm("mrs %0, tpidr_el0" : "=r" (tls));
+			childregs->sp = stack_start;
+		}
+		/*
+		 * If a TLS pointer was passed to clone (4th argument), use it
+		 * for the new thread.
+		 */
+		if (clone_flags & CLONE_SETTLS)
+			tls = regs->regs[3];
+	} else {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		childregs->pstate = PSR_MODE_EL1h;
+		p->thread.cpu_context.x19 = stack_start;
+		p->thread.cpu_context.x20 = stk_sz;
+	}
+	p->thread.cpu_context.pc = (unsigned long)ret_from_fork;
+	p->thread.cpu_context.sp = (unsigned long)childregs;
 	p->thread.tp_value = tls;
 
 	ptrace_hw_copy_thread(p);
@@ -308,43 +316,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	return last;
 }
-
-/*
- * Shuffle the argument into the correct register before calling the
- * thread function.  x1 is the thread argument, x2 is the pointer to
- * the thread function, and x3 points to the exit function.
- */
-extern void kernel_thread_helper(void);
-asm(	".section .text\n"
-"	.align\n"
-"	.type	kernel_thread_helper, #function\n"
-"kernel_thread_helper:\n"
-"	mov	x0, x1\n"
-"	mov	x30, x3\n"
-"	br	x2\n"
-"	.size	kernel_thread_helper, . - kernel_thread_helper\n"
-"	.previous");
-
-#define kernel_thread_exit	do_exit
-
-/*
- * Create a kernel thread.
- */
-pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-
-	regs.regs[1] = (unsigned long)arg;
-	regs.regs[2] = (unsigned long)fn;
-	regs.regs[3] = (unsigned long)kernel_thread_exit;
-	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.pstate = PSR_MODE_EL1h;
-
-	return do_fork(flags|CLONE_VM|CLONE_UNTRACED, 0, &regs, 0, NULL, NULL);
-}
-EXPORT_SYMBOL(kernel_thread);
 
 unsigned long get_wchan(struct task_struct *p)
 {
