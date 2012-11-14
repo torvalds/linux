@@ -105,10 +105,12 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 {
 	struct gfs2_glock *gl = container_of(rcu, struct gfs2_glock, gl_rcu);
 
-	if (gl->gl_ops->go_flags & GLOF_ASPACE)
+	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
 		kmem_cache_free(gfs2_glock_aspace_cachep, gl);
-	else
+	} else {
+		kfree(gl->gl_lvb);
 		kmem_cache_free(gfs2_glock_cachep, gl);
+	}
 }
 
 void gfs2_glock_free(struct gfs2_glock *gl)
@@ -545,7 +547,10 @@ __acquires(&gl->gl_spin)
 	if (sdp->sd_lockstruct.ls_ops->lm_lock)	{
 		/* lock_dlm */
 		ret = sdp->sd_lockstruct.ls_ops->lm_lock(gl, target, lck_flags);
-		GLOCK_BUG_ON(gl, ret);
+		if (ret) {
+			printk(KERN_ERR "GFS2: lm_lock ret %d\n", ret);
+			GLOCK_BUG_ON(gl, 1);
+		}
 	} else { /* lock_nolock */
 		finish_xmote(gl, target);
 		if (queue_delayed_work(glock_workqueue, &gl->gl_work, 0) == 0)
@@ -734,6 +739,18 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	if (!gl)
 		return -ENOMEM;
 
+	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
+	gl->gl_lvb = NULL;
+
+	if (glops->go_flags & GLOF_LVB) {
+		gl->gl_lvb = kzalloc(GFS2_MIN_LVB_SIZE, GFP_KERNEL);
+		if (!gl->gl_lvb) {
+			kmem_cache_free(cachep, gl);
+			return -ENOMEM;
+		}
+		gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
+	}
+
 	atomic_inc(&sdp->sd_glock_disposal);
 	gl->gl_sbd = sdp;
 	gl->gl_flags = 0;
@@ -751,9 +768,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	preempt_enable();
 	gl->gl_stats.stats[GFS2_LKS_DCOUNT] = 0;
 	gl->gl_stats.stats[GFS2_LKS_QCOUNT] = 0;
-	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
-	memset(gl->gl_lvb, 0, 32 * sizeof(char));
-	gl->gl_lksb.sb_lvbptr = gl->gl_lvb;
 	gl->gl_tchange = jiffies;
 	gl->gl_object = NULL;
 	gl->gl_hold_time = GL_GLOCK_DFT_HOLD;
@@ -775,6 +789,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	tmp = search_bucket(hash, sdp, &name);
 	if (tmp) {
 		spin_unlock_bucket(hash);
+		kfree(gl->gl_lvb);
 		kmem_cache_free(cachep, gl);
 		atomic_dec(&sdp->sd_glock_disposal);
 		gl = tmp;

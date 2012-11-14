@@ -120,7 +120,7 @@ static void gdlm_ast(void *arg)
 	gfs2_update_reply_times(gl);
 	BUG_ON(gl->gl_lksb.sb_flags & DLM_SBF_DEMOTED);
 
-	if (gl->gl_lksb.sb_flags & DLM_SBF_VALNOTVALID)
+	if (gl->gl_lksb.sb_flags & DLM_SBF_VALNOTVALID && gl->gl_lvb)
 		memset(gl->gl_lvb, 0, GDLM_LVB_SIZE);
 
 	switch (gl->gl_lksb.sb_status) {
@@ -203,8 +203,10 @@ static int make_mode(const unsigned int lmstate)
 static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 		      const int req)
 {
-	u32 lkf = DLM_LKF_VALBLK;
-	u32 lkid = gl->gl_lksb.sb_lkid;
+	u32 lkf = 0;
+
+	if (gl->gl_lvb)
+		lkf |= DLM_LKF_VALBLK;
 
 	if (gfs_flags & LM_FLAG_TRY)
 		lkf |= DLM_LKF_NOQUEUE;
@@ -228,7 +230,7 @@ static u32 make_flags(struct gfs2_glock *gl, const unsigned int gfs_flags,
 			BUG();
 	}
 
-	if (lkid != 0) {
+	if (gl->gl_lksb.sb_lkid != 0) {
 		lkf |= DLM_LKF_CONVERT;
 		if (test_bit(GLF_BLOCKING, &gl->gl_flags))
 			lkf |= DLM_LKF_QUECVT;
@@ -292,7 +294,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 
 	/* don't want to skip dlm_unlock writing the lvb when lock is ex */
 	if (test_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags) &&
-	    gl->gl_state != LM_ST_EXCLUSIVE) {
+	    gl->gl_lvb && gl->gl_state != LM_ST_EXCLUSIVE) {
 		gfs2_glock_free(gl);
 		return;
 	}

@@ -216,6 +216,7 @@ struct gfs2_glock_operations {
 	const int go_type;
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1
+#define GLOF_LVB    2
 };
 
 enum {
@@ -321,7 +322,7 @@ struct gfs2_glock {
 	ktime_t gl_dstamp;
 	struct gfs2_lkstats gl_stats;
 	struct dlm_lksb gl_lksb;
-	char gl_lvb[32];
+	char *gl_lvb;
 	unsigned long gl_tchange;
 	void *gl_object;
 

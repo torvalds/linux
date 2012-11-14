@@ -552,7 +552,7 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 	.go_unlock = gfs2_rgrp_go_unlock,
 	.go_dump = gfs2_rgrp_dump,
 	.go_type = LM_TYPE_RGRP,
-	.go_flags = GLOF_ASPACE,
+	.go_flags = GLOF_ASPACE | GLOF_LVB,
 };
 
 const struct gfs2_glock_operations gfs2_trans_glops = {
@@ -577,6 +577,7 @@ const struct gfs2_glock_operations gfs2_nondisk_glops = {
 
 const struct gfs2_glock_operations gfs2_quota_glops = {
 	.go_type = LM_TYPE_QUOTA,
+	.go_flags = GLOF_LVB,
 };
 
 const struct gfs2_glock_operations gfs2_journal_glops = {
