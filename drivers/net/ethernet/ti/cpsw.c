@@ -80,27 +80,35 @@ do {								\
 
 #define CPSW_VERSION_1		0x19010a
 #define CPSW_VERSION_2		0x19010c
+
+#define HOST_PORT_NUM		0
+#define SLIVER_SIZE		0x40
+
+#define CPSW1_HOST_PORT_OFFSET	0x028
+#define CPSW1_SLAVE_OFFSET	0x050
+#define CPSW1_SLAVE_SIZE	0x040
+#define CPSW1_CPDMA_OFFSET	0x100
+#define CPSW1_STATERAM_OFFSET	0x200
+#define CPSW1_CPTS_OFFSET	0x500
+#define CPSW1_ALE_OFFSET	0x600
+#define CPSW1_SLIVER_OFFSET	0x700
+
+#define CPSW2_HOST_PORT_OFFSET	0x108
+#define CPSW2_SLAVE_OFFSET	0x200
+#define CPSW2_SLAVE_SIZE	0x100
+#define CPSW2_CPDMA_OFFSET	0x800
+#define CPSW2_STATERAM_OFFSET	0xa00
+#define CPSW2_CPTS_OFFSET	0xc00
+#define CPSW2_ALE_OFFSET	0xd00
+#define CPSW2_SLIVER_OFFSET	0xd80
+#define CPSW2_BD_OFFSET		0x2000
+
 #define CPDMA_RXTHRESH		0x0c0
 #define CPDMA_RXFREE		0x0e0
 #define CPDMA_TXHDP		0x00
 #define CPDMA_RXHDP		0x20
 #define CPDMA_TXCP		0x40
 #define CPDMA_RXCP		0x60
-
-#define cpsw_dma_regs(base, offset)		\
-	(void __iomem *)((base) + (offset))
-#define cpsw_dma_rxthresh(base, offset)		\
-	(void __iomem *)((base) + (offset) + CPDMA_RXTHRESH)
-#define cpsw_dma_rxfree(base, offset)		\
-	(void __iomem *)((base) + (offset) + CPDMA_RXFREE)
-#define cpsw_dma_txhdp(base, offset)		\
-	(void __iomem *)((base) + (offset) + CPDMA_TXHDP)
-#define cpsw_dma_rxhdp(base, offset)		\
-	(void __iomem *)((base) + (offset) + CPDMA_RXHDP)
-#define cpsw_dma_txcp(base, offset)		\
-	(void __iomem *)((base) + (offset) + CPDMA_TXCP)
-#define cpsw_dma_rxcp(base, offset)		\
-	(void __iomem *)((base) + (offset) + CPDMA_RXCP)
 
 #define CPSW_POLL_WEIGHT	64
 #define CPSW_MIN_PACKET_SIZE	60
@@ -629,8 +637,7 @@ static int cpsw_ndo_open(struct net_device *ndev)
 
 	pm_runtime_get_sync(&priv->pdev->dev);
 
-	reg = __raw_readl(&priv->regs->id_ver);
-	priv->version = reg;
+	reg = priv->version;
 
 	dev_info(priv->dev, "initializing cpsw version %d.%d (%d)\n",
 		 CPSW_MAJOR_VERSION(reg), CPSW_MINOR_VERSION(reg),
@@ -995,15 +1002,16 @@ static const struct ethtool_ops cpsw_ethtool_ops = {
 	.get_ts_info	= cpsw_get_ts_info,
 };
 
-static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv)
+static void cpsw_slave_init(struct cpsw_slave *slave, struct cpsw_priv *priv,
+			    u32 slave_reg_ofs, u32 sliver_reg_ofs)
 {
 	void __iomem		*regs = priv->regs;
 	int			slave_num = slave->slave_num;
 	struct cpsw_slave_data	*data = priv->data.slave_data + slave_num;
 
 	slave->data	= data;
-	slave->regs	= regs + data->slave_reg_ofs;
-	slave->sliver	= regs + data->sliver_reg_ofs;
+	slave->regs	= regs + slave_reg_ofs;
+	slave->sliver	= regs + sliver_reg_ofs;
 }
 
 static int cpsw_probe_dt(struct cpsw_platform_data *data,
@@ -1051,8 +1059,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		return -EINVAL;
 	}
 
-	data->no_bd_ram = of_property_read_bool(node, "no_bd_ram");
-
 	if (of_property_read_u32(node, "cpdma_channels", &prop)) {
 		pr_err("Missing cpdma_channels property in the DT.\n");
 		ret = -EINVAL;
@@ -1060,68 +1066,12 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->channels = prop;
 
-	if (of_property_read_u32(node, "host_port_no", &prop)) {
-		pr_err("Missing host_port_no property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->host_port_num = prop;
-
-	if (of_property_read_u32(node, "cpdma_reg_ofs", &prop)) {
-		pr_err("Missing cpdma_reg_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->cpdma_reg_ofs = prop;
-
-	if (of_property_read_u32(node, "cpdma_sram_ofs", &prop)) {
-		pr_err("Missing cpdma_sram_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->cpdma_sram_ofs = prop;
-
-	if (of_property_read_u32(node, "ale_reg_ofs", &prop)) {
-		pr_err("Missing ale_reg_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->ale_reg_ofs = prop;
-
 	if (of_property_read_u32(node, "ale_entries", &prop)) {
 		pr_err("Missing ale_entries property in the DT.\n");
 		ret = -EINVAL;
 		goto error_ret;
 	}
 	data->ale_entries = prop;
-
-	if (of_property_read_u32(node, "host_port_reg_ofs", &prop)) {
-		pr_err("Missing host_port_reg_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->host_port_reg_ofs = prop;
-
-	if (of_property_read_u32(node, "hw_stats_reg_ofs", &prop)) {
-		pr_err("Missing hw_stats_reg_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->hw_stats_reg_ofs = prop;
-
-	if (of_property_read_u32(node, "cpts_reg_ofs", &prop)) {
-		pr_err("Missing cpts_reg_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->cpts_reg_ofs = prop;
-
-	if (of_property_read_u32(node, "bd_ram_ofs", &prop)) {
-		pr_err("Missing bd_ram_ofs property in the DT.\n");
-		ret = -EINVAL;
-		goto error_ret;
-	}
-	data->bd_ram_ofs = prop;
 
 	if (of_property_read_u32(node, "bd_ram_size", &prop)) {
 		pr_err("Missing bd_ram_size property in the DT.\n");
@@ -1144,41 +1094,6 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	}
 	data->mac_control = prop;
 
-	for_each_node_by_name(slave_node, "slave") {
-		struct cpsw_slave_data *slave_data = data->slave_data + i;
-		const char *phy_id = NULL;
-		const void *mac_addr = NULL;
-
-		if (of_property_read_string(slave_node, "phy_id", &phy_id)) {
-			pr_err("Missing slave[%d] phy_id property\n", i);
-			ret = -EINVAL;
-			goto error_ret;
-		}
-		slave_data->phy_id = phy_id;
-
-		if (of_property_read_u32(slave_node, "slave_reg_ofs", &prop)) {
-			pr_err("Missing slave[%d] slave_reg_ofs property\n", i);
-			ret = -EINVAL;
-			goto error_ret;
-		}
-		slave_data->slave_reg_ofs = prop;
-
-		if (of_property_read_u32(slave_node, "sliver_reg_ofs",
-					 &prop)) {
-			pr_err("Missing slave[%d] sliver_reg_ofs property\n",
-				i);
-			ret = -EINVAL;
-			goto error_ret;
-		}
-		slave_data->sliver_reg_ofs = prop;
-
-		mac_addr = of_get_mac_address(slave_node);
-		if (mac_addr)
-			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
-
-		i++;
-	}
-
 	/*
 	 * Populate all the child nodes here...
 	 */
@@ -1186,6 +1101,34 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 	/* We do not want to force this, as in some cases may not have child */
 	if (ret)
 		pr_warn("Doesn't have any child node\n");
+
+	for_each_node_by_name(slave_node, "slave") {
+		struct cpsw_slave_data *slave_data = data->slave_data + i;
+		const void *mac_addr = NULL;
+		u32 phyid;
+		int lenp;
+		const __be32 *parp;
+		struct device_node *mdio_node;
+		struct platform_device *mdio;
+
+		parp = of_get_property(slave_node, "phy_id", &lenp);
+		if ((parp == NULL) && (lenp != (sizeof(void *) * 2))) {
+			pr_err("Missing slave[%d] phy_id property\n", i);
+			ret = -EINVAL;
+			goto error_ret;
+		}
+		mdio_node = of_find_node_by_phandle(be32_to_cpup(parp));
+		phyid = be32_to_cpup(parp+1);
+		mdio = of_find_device_by_node(mdio_node);
+		snprintf(slave_data->phy_id, sizeof(slave_data->phy_id),
+			 PHY_ID_FMT, mdio->name, phyid);
+
+		mac_addr = of_get_mac_address(slave_node);
+		if (mac_addr)
+			memcpy(slave_data->mac_addr, mac_addr, ETH_ALEN);
+
+		i++;
+	}
 
 	return 0;
 
@@ -1201,8 +1144,9 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	struct cpsw_priv		*priv;
 	struct cpdma_params		dma_params;
 	struct cpsw_ale_params		ale_params;
-	void __iomem			*regs;
+	void __iomem			*ss_regs, *wr_regs;
 	struct resource			*res;
+	u32 slave_offset, sliver_offset, slave_size;
 	int ret = 0, i, k = 0;
 
 	ndev = alloc_etherdev(sizeof(struct cpsw_priv));
@@ -1270,15 +1214,14 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto clean_clk_ret;
 	}
-	regs = ioremap(priv->cpsw_res->start, resource_size(priv->cpsw_res));
-	if (!regs) {
+	ss_regs = ioremap(priv->cpsw_res->start, resource_size(priv->cpsw_res));
+	if (!ss_regs) {
 		dev_err(priv->dev, "unable to map i/o region\n");
 		goto clean_cpsw_iores_ret;
 	}
-	priv->regs = regs;
-	priv->host_port = data->host_port_num;
-	priv->host_port_regs = regs + data->host_port_reg_ofs;
-	priv->cpts.reg = regs + data->cpts_reg_ofs;
+	priv->regs = ss_regs;
+	priv->version = __raw_readl(&priv->regs->id_ver);
+	priv->host_port = HOST_PORT_NUM;
 
 	priv->cpsw_wr_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!priv->cpsw_wr_res) {
@@ -1292,32 +1235,59 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto clean_iomap_ret;
 	}
-	regs = ioremap(priv->cpsw_wr_res->start,
+	wr_regs = ioremap(priv->cpsw_wr_res->start,
 				resource_size(priv->cpsw_wr_res));
-	if (!regs) {
+	if (!wr_regs) {
 		dev_err(priv->dev, "unable to map i/o region\n");
 		goto clean_cpsw_wr_iores_ret;
 	}
-	priv->wr_regs = regs;
-
-	for_each_slave(priv, cpsw_slave_init, priv);
+	priv->wr_regs = wr_regs;
 
 	memset(&dma_params, 0, sizeof(dma_params));
+	memset(&ale_params, 0, sizeof(ale_params));
+
+	switch (priv->version) {
+	case CPSW_VERSION_1:
+		priv->host_port_regs = ss_regs + CPSW1_HOST_PORT_OFFSET;
+		priv->cpts.reg       = ss_regs + CPSW1_CPTS_OFFSET;
+		dma_params.dmaregs   = ss_regs + CPSW1_CPDMA_OFFSET;
+		dma_params.txhdp     = ss_regs + CPSW1_STATERAM_OFFSET;
+		ale_params.ale_regs  = ss_regs + CPSW1_ALE_OFFSET;
+		slave_offset         = CPSW1_SLAVE_OFFSET;
+		slave_size           = CPSW1_SLAVE_SIZE;
+		sliver_offset        = CPSW1_SLIVER_OFFSET;
+		dma_params.desc_mem_phys = 0;
+		break;
+	case CPSW_VERSION_2:
+		priv->host_port_regs = ss_regs + CPSW2_HOST_PORT_OFFSET;
+		priv->cpts.reg       = ss_regs + CPSW2_CPTS_OFFSET;
+		dma_params.dmaregs   = ss_regs + CPSW2_CPDMA_OFFSET;
+		dma_params.txhdp     = ss_regs + CPSW2_STATERAM_OFFSET;
+		ale_params.ale_regs  = ss_regs + CPSW2_ALE_OFFSET;
+		slave_offset         = CPSW2_SLAVE_OFFSET;
+		slave_size           = CPSW2_SLAVE_SIZE;
+		sliver_offset        = CPSW2_SLIVER_OFFSET;
+		dma_params.desc_mem_phys =
+			(u32 __force) priv->cpsw_res->start + CPSW2_BD_OFFSET;
+		break;
+	default:
+		dev_err(priv->dev, "unknown version 0x%08x\n", priv->version);
+		ret = -ENODEV;
+		goto clean_cpsw_wr_iores_ret;
+	}
+	for (i = 0; i < priv->data.slaves; i++) {
+		struct cpsw_slave *slave = &priv->slaves[i];
+		cpsw_slave_init(slave, priv, slave_offset, sliver_offset);
+		slave_offset  += slave_size;
+		sliver_offset += SLIVER_SIZE;
+	}
+
 	dma_params.dev		= &pdev->dev;
-	dma_params.dmaregs	= cpsw_dma_regs((u32)priv->regs,
-						data->cpdma_reg_ofs);
-	dma_params.rxthresh	= cpsw_dma_rxthresh((u32)priv->regs,
-						    data->cpdma_reg_ofs);
-	dma_params.rxfree	= cpsw_dma_rxfree((u32)priv->regs,
-						  data->cpdma_reg_ofs);
-	dma_params.txhdp	= cpsw_dma_txhdp((u32)priv->regs,
-						 data->cpdma_sram_ofs);
-	dma_params.rxhdp	= cpsw_dma_rxhdp((u32)priv->regs,
-						 data->cpdma_sram_ofs);
-	dma_params.txcp		= cpsw_dma_txcp((u32)priv->regs,
-						data->cpdma_sram_ofs);
-	dma_params.rxcp		= cpsw_dma_rxcp((u32)priv->regs,
-						data->cpdma_sram_ofs);
+	dma_params.rxthresh	= dma_params.dmaregs + CPDMA_RXTHRESH;
+	dma_params.rxfree	= dma_params.dmaregs + CPDMA_RXFREE;
+	dma_params.rxhdp	= dma_params.txhdp + CPDMA_RXHDP;
+	dma_params.txcp		= dma_params.txhdp + CPDMA_TXCP;
+	dma_params.rxcp		= dma_params.txhdp + CPDMA_RXCP;
 
 	dma_params.num_chan		= data->channels;
 	dma_params.has_soft_reset	= true;
@@ -1325,10 +1295,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 	dma_params.desc_mem_size	= data->bd_ram_size;
 	dma_params.desc_align		= 16;
 	dma_params.has_ext_regs		= true;
-	dma_params.desc_mem_phys        = data->no_bd_ram ? 0 :
-			(u32 __force)priv->cpsw_res->start + data->bd_ram_ofs;
-	dma_params.desc_hw_addr         = data->hw_ram_addr ?
-			data->hw_ram_addr : dma_params.desc_mem_phys ;
+	dma_params.desc_hw_addr         = dma_params.desc_mem_phys;
 
 	priv->dma = cpdma_ctlr_create(&dma_params);
 	if (!priv->dma) {
@@ -1348,10 +1315,7 @@ static int __devinit cpsw_probe(struct platform_device *pdev)
 		goto clean_dma_ret;
 	}
 
-	memset(&ale_params, 0, sizeof(ale_params));
 	ale_params.dev			= &ndev->dev;
-	ale_params.ale_regs		= (void *)((u32)priv->regs) +
-						((u32)data->ale_reg_ofs);
 	ale_params.ale_ageout		= ale_ageout;
 	ale_params.ale_entries		= data->ale_entries;
 	ale_params.ale_ports		= data->slaves;
