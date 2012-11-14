@@ -880,6 +880,10 @@ static int check_insn_config_length(struct comedi_insn *insn,
 		if (insn->n == 5)
 			return 0;
 		break;
+	case INSN_CONFIG_DIGITAL_TRIG:
+		if (insn->n == 6)
+			return 0;
+		break;
 		/* by default we allow the insn since we don't have checks for
 		 * all possible cases yet */
 	default:
