@@ -305,6 +305,8 @@ label##_relon_hv:					\
 #define SOFTEN_VALUE_0x502	PACA_IRQ_EE
 #define SOFTEN_VALUE_0x900	PACA_IRQ_DEC
 #define SOFTEN_VALUE_0x982	PACA_IRQ_DEC
+#define SOFTEN_VALUE_0xe80	PACA_IRQ_DBELL
+#define SOFTEN_VALUE_0xe82	PACA_IRQ_DBELL
 
 #define __SOFTEN_TEST(h, vec)						\
 	lbz	r10,PACASOFTIRQEN(r13);					\

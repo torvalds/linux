@@ -293,6 +293,8 @@ hv_exception_trampoline:
 	b	hmi_exception_hv
 	. = 0xe60
 	b	hmi_exception_hv
+	. = 0xe80
+	b	h_doorbell_hv
 
 	/* We need to deal with the Altivec unavailable exception
 	 * here which is at 0xf20, thus in the middle of the
@@ -514,6 +516,8 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe42)
 	STD_EXCEPTION_HV(., 0xe62, hmi_exception) /* need to flush cache ? */
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe62)
+	MASKABLE_EXCEPTION_HV(., 0xe82, h_doorbell)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe82)
 
 	/* moved from 0xf00 */
 	STD_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
@@ -657,6 +661,11 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xe40, emulation_assist, .program_check_exception)
 	STD_EXCEPTION_COMMON(0xe60, hmi_exception, .unknown_exception)
+#ifdef CONFIG_PPC_DOORBELL
+	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .doorbell_exception)
+#else
+	STD_EXCEPTION_COMMON_ASYNC(0xe80, h_doorbell, .unknown_exception)
+#endif
 	STD_EXCEPTION_COMMON_ASYNC(0xf00, performance_monitor, .performance_monitor_exception)
 	STD_EXCEPTION_COMMON(0x1300, instruction_breakpoint, .instruction_breakpoint_exception)
 	STD_EXCEPTION_COMMON(0x1502, denorm, .unknown_exception)
@@ -773,9 +782,8 @@ system_call_relon_pSeries:
 	. = 0x4e60
 	b	hmi_exception_relon_hv
 
-	/* For when we support the doorbell interrupt:
-	STD_RELON_EXCEPTION_HYPERVISOR(0x4e80, 0xe80, doorbell_hyper)
-	*/
+	. = 0x4e80
+	b	h_doorbell_relon_hv
 
 performance_monitor_relon_pSeries_1:
 	. = 0x4f00
@@ -1355,6 +1363,8 @@ _GLOBAL(do_stab_bolted)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe40)
 	STD_RELON_EXCEPTION_HV(., 0xe60, hmi_exception)
 	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe60)
+	MASKABLE_RELON_EXCEPTION_HV(., 0xe80, h_doorbell)
+	KVM_HANDLER(PACA_EXGEN, EXC_HV, 0xe80)
 
 	STD_RELON_EXCEPTION_PSERIES(., 0xf00, performance_monitor)
 	STD_RELON_EXCEPTION_PSERIES(., 0xf20, altivec_unavailable)
