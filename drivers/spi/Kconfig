@@ -385,6 +385,14 @@ config SPI_MXS
 	help
 	  SPI driver for Freescale MXS devices.
 
+config SPI_TEGRA20_SFLASH
+	tristate "Nvidia Tegra20 Serial flash Controller"
+	depends on ARCH_TEGRA
+	help
+	  SPI driver for Nvidia Tegra20 Serial flash Controller interface.
+	  The main usecase of this controller is to use spi flash as boot
+	  device.
+
 config SPI_TEGRA20_SLINK
 	tristate "Nvidia Tegra20/Tegra30 SLINK Controller"
 	depends on ARCH_TEGRA && TEGRA20_APB_DMA
