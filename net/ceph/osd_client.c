@@ -40,17 +40,13 @@ static int op_has_extent(int op)
 
 int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 			struct ceph_file_layout *layout,
-			u64 snapid,
 			u64 off, u64 *plen, u64 *bno,
 			struct ceph_osd_request *req,
 			struct ceph_osd_req_op *op)
 {
-	struct ceph_osd_request_head *reqhead = req->r_request->front.iov_base;
 	u64 orig_len = *plen;
 	u64 objoff, objlen;    /* extent in object */
 	int r;
-
-	reqhead->snapid = cpu_to_le64(snapid);
 
 	/* object extent? */
 	r = ceph_calc_file_object_mapping(layout, off, orig_len, bno,
@@ -121,8 +117,7 @@ static int calc_layout(struct ceph_osd_client *osdc,
 	u64 bno;
 	int r;
 
-	r = ceph_calc_raw_layout(osdc, layout, vino.snap, off,
-				 plen, &bno, req, op);
+	r = ceph_calc_raw_layout(osdc, layout, off, plen, &bno, req, op);
 	if (r < 0)
 		return r;
 
@@ -340,7 +335,7 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 void ceph_osdc_build_request(struct ceph_osd_request *req,
 			     u64 off, u64 len,
 			     struct ceph_osd_req_op *src_ops,
-			     struct ceph_snap_context *snapc,
+			     struct ceph_snap_context *snapc, u64 snap_id,
 			     struct timespec *mtime)
 {
 	struct ceph_msg *msg = req->r_request;
@@ -355,6 +350,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	int i;
 
 	head = msg->front.iov_base;
+	head->snapid = cpu_to_le64(snap_id);
 	op = (void *)(head + 1);
 	p = (void *)(op + num_op);
 
@@ -466,9 +462,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	req->r_num_pages = calc_pages_for(page_align, *plen);
 	req->r_page_alignment = page_align;
 
-	ceph_osdc_build_request(req, off, *plen, ops,
-				snapc,
-				mtime);
+	ceph_osdc_build_request(req, off, *plen, ops, snapc, vino.snap, mtime);
 
 	return req;
 }

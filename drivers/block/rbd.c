@@ -1169,10 +1169,10 @@ static int rbd_do_request(struct request *rq,
 
 	rbd_layout_init(&osd_req->r_file_layout, rbd_dev->spec->pool_id);
 	ret = ceph_calc_raw_layout(osdc, &osd_req->r_file_layout,
-				snapid, ofs, &len, &bno, osd_req, ops);
+				ofs, &len, &bno, osd_req, ops);
 	rbd_assert(ret == 0);
 
-	ceph_osdc_build_request(osd_req, ofs, len, ops, snapc, &mtime);
+	ceph_osdc_build_request(osd_req, ofs, len, ops, snapc, snapid, &mtime);
 
 	if (linger_req) {
 		ceph_osdc_set_request_linger(osdc, osd_req);
