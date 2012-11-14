@@ -81,4 +81,14 @@ config TCG_IBMVTPM
 	  will be accessible from within Linux.  To compile this driver
 	  as a module, choose M here; the module will be called tpm_ibmvtpm.
 
+config TCG_ST33_I2C
+        tristate "STMicroelectronics ST33 I2C TPM"
+        depends on I2C
+        depends on GPIOLIB
+        ---help---
+        If you have a TPM security chip from STMicroelectronics working with
+        an I2C bus say Yes and it will be accessible from within Linux.
+        To compile this driver as a module, choose M here; the module will be
+        called tpm_stm_st33_i2c.
+
 endif # TCG_TPM
