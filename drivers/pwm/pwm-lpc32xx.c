@@ -49,9 +49,24 @@ static int lpc32xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 		c = 0; /* 0 set division by 256 */
 	period_cycles = c;
 
+	/* The duty-cycle value is as follows:
+	 *
+	 *  DUTY-CYCLE     HIGH LEVEL
+	 *      1            99.9%
+	 *      25           90.0%
+	 *      128          50.0%
+	 *      220          10.0%
+	 *      255           0.1%
+	 *      0             0.0%
+	 *
+	 * In other words, the register value is duty-cycle % 256 with
+	 * duty-cycle in the range 1-256.
+	 */
 	c = 256 * duty_ns;
 	do_div(c, period_ns);
-	duty_cycles = c;
+	if (c > 255)
+		c = 255;
+	duty_cycles = 256 - c;
 
 	writel(PWM_ENABLE | PWM_RELOADV(period_cycles) | PWM_DUTY(duty_cycles),
 		lpc32xx->base + (pwm->hwpwm << 2));
