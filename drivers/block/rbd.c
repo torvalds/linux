@@ -1123,9 +1123,6 @@ static int rbd_do_request(struct request *rq,
 {
 	struct ceph_osd_request *osd_req;
 	int ret;
-	u64 bno;
-	u64 obj_off = 0;
-	u64 obj_len = 0;
 	struct timespec mtime = CURRENT_TIME;
 	struct rbd_request *rbd_req;
 	struct ceph_osd_client *osdc;
@@ -1169,19 +1166,12 @@ static int rbd_do_request(struct request *rq,
 	osd_req->r_oid_len = strlen(osd_req->r_oid);
 
 	rbd_layout_init(&osd_req->r_file_layout, rbd_dev->spec->pool_id);
-	ret = ceph_calc_file_object_mapping(&osd_req->r_file_layout, ofs, len,
-						&bno, &obj_off, &obj_len);
-	rbd_assert(ret == 0);
-	if (obj_len < len) {
-		dout(" skipping last %llu, final file extent %llu~%llu\n",
-		     len - obj_len, ofs, obj_len);
-		len = obj_len;
-	}
+
 	if (op->op == CEPH_OSD_OP_READ || op->op == CEPH_OSD_OP_WRITE) {
-		op->extent.offset = obj_off;
-		op->extent.length = obj_len;
+		op->extent.offset = ofs;
+		op->extent.length = len;
 		if (op->op == CEPH_OSD_OP_WRITE)
-			op->payload_len = obj_len;
+			op->payload_len = len;
 	}
 	osd_req->r_num_pages = calc_pages_for(ofs, len);
 	osd_req->r_page_alignment = ofs & ~PAGE_MASK;
