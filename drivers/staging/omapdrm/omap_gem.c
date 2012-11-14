@@ -952,7 +952,7 @@ int omap_gem_put_pages(struct drm_gem_object *obj)
 void *omap_gem_vaddr(struct drm_gem_object *obj)
 {
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
-	WARN_ON(! mutex_is_locked(&obj->dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&obj->dev->struct_mutex));
 	if (!omap_obj->vaddr) {
 		struct page **pages;
 		int ret = get_pages(obj, &pages);
@@ -971,7 +971,7 @@ void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 	struct omap_gem_object *omap_obj = to_omap_bo(obj);
 	uint64_t off = 0;
 
-	WARN_ON(! mutex_is_locked(&dev->struct_mutex));
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
 	if (obj->map_list.map)
 		off = (uint64_t)obj->map_list.hash.key;
