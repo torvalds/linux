@@ -2249,16 +2249,16 @@ static void hub_port_finish_reset(struct usb_hub *hub, int port1,
 		clear_port_feature(hub->hdev,
 				port1, USB_PORT_FEAT_C_RESET);
 		/* FIXME need disconnect() for NOTATTACHED device */
-		if (warm) {
+		if (hub_is_superspeed(hub->hdev)) {
 			clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_BH_PORT_RESET);
 			clear_port_feature(hub->hdev, port1,
 					USB_PORT_FEAT_C_PORT_LINK_STATE);
-		} else {
+		}
+		if (!warm)
 			usb_set_device_state(udev, *status
 					? USB_STATE_NOTATTACHED
 					: USB_STATE_DEFAULT);
-		}
 		break;
 	}
 }
