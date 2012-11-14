@@ -473,28 +473,17 @@ static struct snd_soc_platform_driver atmel_soc_platform = {
 	.resume		= atmel_pcm_resume,
 };
 
-static int __devinit atmel_soc_platform_probe(struct platform_device *pdev)
+int atmel_pcm_platform_register(struct device *dev)
 {
-	return snd_soc_register_platform(&pdev->dev, &atmel_soc_platform);
+	return snd_soc_register_platform(dev, &atmel_soc_platform);
 }
+EXPORT_SYMBOL(atmel_pcm_platform_register);
 
-static int __devexit atmel_soc_platform_remove(struct platform_device *pdev)
+void atmel_pcm_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(&pdev->dev);
-	return 0;
+	snd_soc_unregister_platform(dev);
 }
-
-static struct platform_driver atmel_pcm_driver = {
-	.driver = {
-			.name = "atmel-pcm-audio",
-			.owner = THIS_MODULE,
-	},
-
-	.probe = atmel_soc_platform_probe,
-	.remove = __devexit_p(atmel_soc_platform_remove),
-};
-
-module_platform_driver(atmel_pcm_driver);
+EXPORT_SYMBOL(atmel_pcm_platform_unregister);
 
 MODULE_AUTHOR("Sedji Gaouaou <sedji.gaouaou@atmel.com>");
 MODULE_DESCRIPTION("Atmel PCM module");

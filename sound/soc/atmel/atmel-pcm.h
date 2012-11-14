@@ -80,4 +80,7 @@ struct atmel_pcm_dma_params {
 #define ssc_readx(base, reg)            (__raw_readl((base) + (reg)))
 #define ssc_writex(base, reg, value)    __raw_writel((value), (base) + (reg))
 
+int atmel_pcm_platform_register(struct device *dev);
+void atmel_pcm_platform_unregister(struct device *dev);
+
 #endif /* _ATMEL_PCM_H */
