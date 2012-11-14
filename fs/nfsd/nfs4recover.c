@@ -859,8 +859,7 @@ nfsd4_cld_create(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
-	/* FIXME: determine net from clp */
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	/* Don't upcall if it's already stored */
@@ -897,8 +896,7 @@ nfsd4_cld_remove(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
-	/* FIXME: determine net from clp */
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	/* Don't upcall if it's already removed */
@@ -935,8 +933,7 @@ nfsd4_cld_check(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
-	/* FIXME: determine net from clp */
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	/* Don't upcall if one was already stored during this grace pd */

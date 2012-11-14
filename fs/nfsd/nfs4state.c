@@ -1263,10 +1263,9 @@ same_creds(struct svc_cred *cr1, struct svc_cred *cr2)
 	return 0 == strcmp(cr1->cr_principal, cr2->cr_principal);
 }
 
-static void gen_clid(struct nfs4_client *clp)
+static void gen_clid(struct nfs4_client *clp, struct nfsd_net *nn)
 {
 	static u32 current_clientid = 1;
-	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	clp->cl_clientid.cl_boot = nn->boot_time;
 	clp->cl_clientid.cl_id = current_clientid++; 
@@ -1305,6 +1304,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	struct nfs4_client *clp;
 	struct sockaddr *sa = svc_addr(rqstp);
 	int ret;
+	struct net *net = SVC_NET(rqstp);
 
 	clp = alloc_client(name);
 	if (clp == NULL)
@@ -1335,6 +1335,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name,
 	rpc_copy_addr((struct sockaddr *) &clp->cl_addr, sa);
 	gen_confirm(clp);
 	clp->cl_cb_session = NULL;
+	clp->net = net;
 	return clp;
 }
 
@@ -1471,7 +1472,7 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, struct svc_r
 	else
 		goto out_err;
 
-	conn->cb_addrlen = rpc_uaddr2sockaddr(&init_net, se->se_callback_addr_val,
+	conn->cb_addrlen = rpc_uaddr2sockaddr(clp->net, se->se_callback_addr_val,
 					    se->se_callback_addr_len,
 					    (struct sockaddr *)&conn->cb_addr,
 					    sizeof(conn->cb_addr));
@@ -1619,6 +1620,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 	nfs4_verifier		verf = exid->verifier;
 	struct sockaddr		*sa = svc_addr(rqstp);
 	bool	update = exid->flags & EXCHGID4_FLAG_UPD_CONFIRMED_REC_A;
+	struct nfsd_net		*nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	rpc_ntop(sa, addr_str, sizeof(addr_str));
 	dprintk("%s rqstp=%p exid=%p clname.len=%u clname.data=%p "
@@ -1701,7 +1703,7 @@ out_new:
 	}
 	new->cl_minorversion = 1;
 
-	gen_clid(new);
+	gen_clid(new, nn);
 	add_to_unconfirmed(new);
 out_copy:
 	exid->clientid.cl_boot = new->cl_clientid.cl_boot;
@@ -2229,7 +2231,8 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_verifier		clverifier = setclid->se_verf;
 	struct nfs4_client	*conf, *unconf, *new;
 	__be32 			status;
-	
+	struct nfsd_net		*nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+
 	/* Cases below refer to rfc 3530 section 14.2.33: */
 	nfs4_lock_state();
 	conf = find_confirmed_client_by_name(&clname);
@@ -2258,7 +2261,7 @@ nfsd4_setclientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		/* case 1: probable callback update */
 		copy_clid(new, conf);
 	else /* case 4 (new client) or cases 2, 3 (client reboot): */
-		gen_clid(new);
+		gen_clid(new, nn);
 	new->cl_minorversion = 0;
 	gen_callback(new, setclid, rqstp);
 	add_to_unconfirmed(new);

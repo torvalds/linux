@@ -283,6 +283,7 @@ struct nfs4_client {
 	unsigned long		cl_cb_slot_busy;
 	struct rpc_wait_queue	cl_cb_waitq;	/* backchannel callers may */
 						/* wait here for slots */
+	struct net		*net;
 };
 
 static inline void

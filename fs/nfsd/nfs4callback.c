@@ -663,7 +663,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.to_retries	= 0,
 	};
 	struct rpc_create_args args = {
-		.net		= &init_net,
+		.net		= clp->net,
 		.address	= (struct sockaddr *) &conn->cb_addr,
 		.addrsize	= conn->cb_addrlen,
 		.saddress	= (struct sockaddr *) &conn->cb_saddr,
