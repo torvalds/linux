@@ -1210,6 +1210,10 @@ static size_t sit_get_size(const struct net_device *dev)
 		nla_total_size(1) +
 		/* IFLA_IPTUN_TOS */
 		nla_total_size(1) +
+		/* IFLA_IPTUN_PMTUDISC */
+		nla_total_size(1) +
+		/* IFLA_IPTUN_FLAGS */
+		nla_total_size(2) +
 		0;
 }
 
@@ -1222,7 +1226,10 @@ static int sit_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_be32(skb, IFLA_IPTUN_LOCAL, parm->iph.saddr) ||
 	    nla_put_be32(skb, IFLA_IPTUN_REMOTE, parm->iph.daddr) ||
 	    nla_put_u8(skb, IFLA_IPTUN_TTL, parm->iph.ttl) ||
-	    nla_put_u8(skb, IFLA_IPTUN_TOS, parm->iph.tos))
+	    nla_put_u8(skb, IFLA_IPTUN_TOS, parm->iph.tos) ||
+	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,
+		       !!(parm->iph.frag_off & htons(IP_DF))) ||
+	    nla_put_u16(skb, IFLA_IPTUN_FLAGS, parm->i_flags))
 		goto nla_put_failure;
 	return 0;
 
