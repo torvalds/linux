@@ -217,6 +217,7 @@ static int rk_fb_io_disable(void)
 	}
 	#endif
         gpio_set_value(LCD_EN, !LCD_EN_VALUE);
+	msleep(50);
 	return 0;
 }
 static int rk_fb_io_enable(void)
@@ -234,6 +235,7 @@ static int rk_fb_io_enable(void)
 	#endif
 
         gpio_set_value(LCD_EN, LCD_EN_VALUE);
+	msleep(50);
 	return 0;
 }
 
