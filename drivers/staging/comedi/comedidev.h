@@ -517,11 +517,27 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s);
 int comedi_auto_config(struct device *hardware_device,
 		       struct comedi_driver *driver, unsigned long context);
 void comedi_auto_unconfig(struct device *hardware_device);
-int comedi_pci_auto_config(struct pci_dev *pcidev,
-			   struct comedi_driver *driver);
-void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
-int comedi_usb_auto_config(struct usb_interface *intf,
-			   struct comedi_driver *driver);
-void comedi_usb_auto_unconfig(struct usb_interface *intf);
+
+static inline int comedi_pci_auto_config(struct pci_dev *pcidev,
+					 struct comedi_driver *driver)
+{
+	return comedi_auto_config(&pcidev->dev, driver, 0);
+}
+
+static inline void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
+{
+	comedi_auto_unconfig(&pcidev->dev);
+}
+
+static inline int comedi_usb_auto_config(struct usb_interface *intf,
+					 struct comedi_driver *driver)
+{
+	return comedi_auto_config(&intf->dev, driver, 0);
+}
+
+static inline void comedi_usb_auto_unconfig(struct usb_interface *intf)
+{
+	comedi_auto_unconfig(&intf->dev);
+}
 
 #endif /* _COMEDIDEV_H */
