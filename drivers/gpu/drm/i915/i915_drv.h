@@ -665,6 +665,107 @@ struct intel_l3_parity {
 	struct work_struct error_work;
 };
 
+struct i915_gem_mm {
+	/** Bridge to intel-gtt-ko */
+	struct intel_gtt *gtt;
+	/** Memory allocator for GTT stolen memory */
+	struct drm_mm stolen;
+	/** Memory allocator for GTT */
+	struct drm_mm gtt_space;
+	/** List of all objects in gtt_space. Used to restore gtt
+	 * mappings on resume */
+	struct list_head bound_list;
+	/**
+	 * List of objects which are not bound to the GTT (thus
+	 * are idle and not used by the GPU) but still have
+	 * (presumably uncached) pages still attached.
+	 */
+	struct list_head unbound_list;
+
+	/** Usable portion of the GTT for GEM */
+	unsigned long stolen_base; /* limited to low memory (32-bit) */
+
+	int gtt_mtrr;
+
+	/** PPGTT used for aliasing the PPGTT with the GTT */
+	struct i915_hw_ppgtt *aliasing_ppgtt;
+
+	struct shrinker inactive_shrinker;
+	bool shrinker_no_lock_stealing;
+
+	/**
+	 * List of objects currently involved in rendering.
+	 *
+	 * Includes buffers having the contents of their GPU caches
+	 * flushed, not necessarily primitives.  last_rendering_seqno
+	 * represents when the rendering involved will be completed.
+	 *
+	 * A reference is held on the buffer while on this list.
+	 */
+	struct list_head active_list;
+
+	/**
+	 * LRU list of objects which are not in the ringbuffer and
+	 * are ready to unbind, but are still in the GTT.
+	 *
+	 * last_rendering_seqno is 0 while an object is in this list.
+	 *
+	 * A reference is not held on the buffer while on this list,
+	 * as merely being GTT-bound shouldn't prevent its being
+	 * freed, and we'll pull it off the list in the free path.
+	 */
+	struct list_head inactive_list;
+
+	/** LRU list of objects with fence regs on them. */
+	struct list_head fence_list;
+
+	/**
+	 * We leave the user IRQ off as much as possible,
+	 * but this means that requests will finish and never
+	 * be retired once the system goes idle. Set a timer to
+	 * fire periodically while the ring is running. When it
+	 * fires, go retire requests.
+	 */
+	struct delayed_work retire_work;
+
+	/**
+	 * Are we in a non-interruptible section of code like
+	 * modesetting?
+	 */
+	bool interruptible;
+
+	/**
+	 * Flag if the X Server, and thus DRM, is not currently in
+	 * control of the device.
+	 *
+	 * This is set between LeaveVT and EnterVT.  It needs to be
+	 * replaced with a semaphore.  It also needs to be
+	 * transitioned away from for kernel modesetting.
+	 */
+	int suspended;
+
+	/**
+	 * Flag if the hardware appears to be wedged.
+	 *
+	 * This is set when attempts to idle the device timeout.
+	 * It prevents command submission from occurring and makes
+	 * every pending request fail
+	 */
+	atomic_t wedged;
+
+	/** Bit 6 swizzling required for X tiling */
+	uint32_t bit_6_swizzle_x;
+	/** Bit 6 swizzling required for Y tiling */
+	uint32_t bit_6_swizzle_y;
+
+	/* storage for physical objects */
+	struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
+
+	/* accounting, useful for userland debugging */
+	size_t object_memory;
+	u32 object_count;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 	struct kmem_cache *slab;
@@ -806,106 +907,7 @@ typedef struct drm_i915_private {
 
 	struct i915_gtt gtt;
 
-	struct {
-		/** Bridge to intel-gtt-ko */
-		struct intel_gtt *gtt;
-		/** Memory allocator for GTT stolen memory */
-		struct drm_mm stolen;
-		/** Memory allocator for GTT */
-		struct drm_mm gtt_space;
-		/** List of all objects in gtt_space. Used to restore gtt
-		 * mappings on resume */
-		struct list_head bound_list;
-		/**
-		 * List of objects which are not bound to the GTT (thus
-		 * are idle and not used by the GPU) but still have
-		 * (presumably uncached) pages still attached.
-		 */
-		struct list_head unbound_list;
-
-		/** Usable portion of the GTT for GEM */
-		unsigned long stolen_base; /* limited to low memory (32-bit) */
-
-		int gtt_mtrr;
-
-		/** PPGTT used for aliasing the PPGTT with the GTT */
-		struct i915_hw_ppgtt *aliasing_ppgtt;
-
-		struct shrinker inactive_shrinker;
-		bool shrinker_no_lock_stealing;
-
-		/**
-		 * List of objects currently involved in rendering.
-		 *
-		 * Includes buffers having the contents of their GPU caches
-		 * flushed, not necessarily primitives.  last_rendering_seqno
-		 * represents when the rendering involved will be completed.
-		 *
-		 * A reference is held on the buffer while on this list.
-		 */
-		struct list_head active_list;
-
-		/**
-		 * LRU list of objects which are not in the ringbuffer and
-		 * are ready to unbind, but are still in the GTT.
-		 *
-		 * last_rendering_seqno is 0 while an object is in this list.
-		 *
-		 * A reference is not held on the buffer while on this list,
-		 * as merely being GTT-bound shouldn't prevent its being
-		 * freed, and we'll pull it off the list in the free path.
-		 */
-		struct list_head inactive_list;
-
-		/** LRU list of objects with fence regs on them. */
-		struct list_head fence_list;
-
-		/**
-		 * We leave the user IRQ off as much as possible,
-		 * but this means that requests will finish and never
-		 * be retired once the system goes idle. Set a timer to
-		 * fire periodically while the ring is running. When it
-		 * fires, go retire requests.
-		 */
-		struct delayed_work retire_work;
-
-		/**
-		 * Are we in a non-interruptible section of code like
-		 * modesetting?
-		 */
-		bool interruptible;
-
-		/**
-		 * Flag if the X Server, and thus DRM, is not currently in
-		 * control of the device.
-		 *
-		 * This is set between LeaveVT and EnterVT.  It needs to be
-		 * replaced with a semaphore.  It also needs to be
-		 * transitioned away from for kernel modesetting.
-		 */
-		int suspended;
-
-		/**
-		 * Flag if the hardware appears to be wedged.
-		 *
-		 * This is set when attempts to idle the device timeout.
-		 * It prevents command submission from occurring and makes
-		 * every pending request fail
-		 */
-		atomic_t wedged;
-
-		/** Bit 6 swizzling required for X tiling */
-		uint32_t bit_6_swizzle_x;
-		/** Bit 6 swizzling required for Y tiling */
-		uint32_t bit_6_swizzle_y;
-
-		/* storage for physical objects */
-		struct drm_i915_gem_phys_object *phys_objs[I915_MAX_PHYS_OBJECT];
-
-		/* accounting, useful for userland debugging */
-		size_t object_memory;
-		u32 object_count;
-	} mm;
+	struct i915_gem_mm mm;
 
 	/* Kernel Modesetting */
 
