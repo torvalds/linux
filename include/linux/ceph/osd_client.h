@@ -214,12 +214,13 @@ extern int ceph_calc_raw_layout(struct ceph_file_layout *layout,
 
 extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       struct ceph_snap_context *snapc,
-					       struct ceph_osd_req_op *ops,
+					       unsigned int num_op,
 					       bool use_mempool,
 					       gfp_t gfp_flags);
 
 extern void ceph_osdc_build_request(struct ceph_osd_request *req,
 				    u64 off, u64 len,
+				    unsigned int num_op,
 				    struct ceph_osd_req_op *src_ops,
 				    struct ceph_snap_context *snapc,
 				    u64 snap_id,

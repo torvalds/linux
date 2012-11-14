@@ -1026,12 +1026,12 @@ out_err:
 /*
  * helpers for osd request op vectors.
  */
-static struct ceph_osd_req_op *rbd_create_rw_ops(int num_ops,
+static struct ceph_osd_req_op *rbd_create_rw_ops(int num_op,
 					int opcode, u32 payload_len)
 {
 	struct ceph_osd_req_op *ops;
 
-	ops = kzalloc(sizeof (*ops) * (num_ops + 1), GFP_NOIO);
+	ops = kzalloc(num_op * sizeof (*ops), GFP_NOIO);
 	if (!ops)
 		return NULL;
 
@@ -1149,7 +1149,7 @@ static int rbd_do_request(struct request *rq,
 		(unsigned long long) len, coll, coll_index);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
-	osd_req = ceph_osdc_alloc_request(osdc, snapc, ops, false, GFP_NOIO);
+	osd_req = ceph_osdc_alloc_request(osdc, snapc, num_op, false, GFP_NOIO);
 	if (!osd_req) {
 		ret = -ENOMEM;
 		goto done_pages;
@@ -1178,7 +1178,8 @@ static int rbd_do_request(struct request *rq,
 				ofs, &len, &bno, osd_req, ops);
 	rbd_assert(ret == 0);
 
-	ceph_osdc_build_request(osd_req, ofs, len, ops, snapc, snapid, &mtime);
+	ceph_osdc_build_request(osd_req, ofs, len, num_op, ops,
+				snapc, snapid, &mtime);
 
 	if (linger_req) {
 		ceph_osdc_set_request_linger(osdc, osd_req);
