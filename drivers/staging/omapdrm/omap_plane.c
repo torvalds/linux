@@ -436,8 +436,8 @@ void omap_plane_install_properties(struct drm_plane *plane,
 		drm_object_attach_property(obj, prop, 0);
 	}
 
-        prop = priv->zorder_prop;
-        if (!prop) {
+	prop = priv->zorder_prop;
+	if (!prop) {
 		prop = drm_property_create_range(dev, 0, "zorder", 0, 3);
 		if (prop == NULL)
 			return;
