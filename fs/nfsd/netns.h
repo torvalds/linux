@@ -50,12 +50,16 @@ struct nfsd_net {
 	 *
 	 * conf_id_hashtbl[], and conf_name_tree hold confirmed
 	 * setclientid_confirmed info.
+	 *
+	 * unconf_str_hastbl[] and unconf_name_tree hold unconfirmed
+	 * setclientid info.
 	 */
 	struct list_head *reclaim_str_hashtbl;
 	int reclaim_str_hashtbl_size;
 	struct list_head *conf_id_hashtbl;
 	struct rb_root conf_name_tree;
 	struct list_head *unconf_id_hashtbl;
+	struct rb_root unconf_name_tree;
 };
 
 extern int nfsd_net_id;
