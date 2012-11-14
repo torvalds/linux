@@ -1197,7 +1197,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	return 0;
 }
 
-static size_t sit_get_size(const struct net_device *dev)
+static size_t ipip6_get_size(const struct net_device *dev)
 {
 	return
 		/* IFLA_IPTUN_LINK */
@@ -1217,7 +1217,7 @@ static size_t sit_get_size(const struct net_device *dev)
 		0;
 }
 
-static int sit_fill_info(struct sk_buff *skb, const struct net_device *dev)
+static int ipip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct ip_tunnel_parm *parm = &tunnel->parms;
@@ -1241,8 +1241,8 @@ static struct rtnl_link_ops sit_link_ops __read_mostly = {
 	.kind		= "sit",
 	.maxtype	= IFLA_IPTUN_MAX,
 	.priv_size	= sizeof(struct ip_tunnel),
-	.get_size	= sit_get_size,
-	.fill_info	= sit_fill_info,
+	.get_size	= ipip6_get_size,
+	.fill_info	= ipip6_fill_info,
 };
 
 static struct xfrm_tunnel sit_handler __read_mostly = {
