@@ -1216,19 +1216,13 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
 	if (cmd->start_src & (TRIG_NOW | TRIG_EXT))
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src & (TRIG_FOLLOW | TRIG_EXT))
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if ((cmd->scan_begin_src == TRIG_TIMER) &&
 	    (cmd->convert_src == TRIG_TIMER) && (cmd->scan_end_arg == 1)) {
@@ -1238,64 +1232,40 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
-		if (cmd->scan_begin_arg < this_board->ai_ns_min) {
-			cmd->scan_begin_arg = this_board->ai_ns_min;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 this_board->ai_ns_min);
 
 	if (cmd->scan_begin_src == TRIG_EXT)
 		if (cmd->scan_begin_arg) {
 			cmd->scan_begin_arg = 0;
-			err++;
-			if (cmd->scan_end_arg > 65535) {
-				cmd->scan_end_arg = 65535;
-				err++;
-			}
+			err |= -EINVAL;
+			err |= cfc_check_trigger_arg_max(&cmd->scan_end_arg,
+							 65535);
 		}
 
 	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW))
-		if (cmd->convert_arg < this_board->ai_ns_min) {
-			cmd->convert_arg = this_board->ai_ns_min;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 this_board->ai_ns_min);
 
 	if (cmd->convert_src == TRIG_EXT)
-		if (cmd->convert_arg) {
-			cmd->convert_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len,
+					 this_board->n_aichanlist);
 
-	if (cmd->chanlist_len > this_board->n_aichanlist) {
-		cmd->chanlist_len = this_board->n_aichanlist;
-		err++;
-	}
-
-	if (cmd->scan_end_arg < cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->scan_end_arg,
+					 cmd->chanlist_len);
 
 	if ((cmd->scan_end_arg % cmd->chanlist_len)) {
 		cmd->scan_end_arg =
 		    cmd->chanlist_len * (cmd->scan_end_arg / cmd->chanlist_len);
-		err++;
+		err |= -EINVAL;
 	}
 
 	if (err)
