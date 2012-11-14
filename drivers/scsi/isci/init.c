@@ -470,7 +470,7 @@ static int __devinit isci_pci_probe(struct pci_dev *pdev, const struct pci_devic
 		return -ENOMEM;
 	pci_set_drvdata(pdev, pci_info);
 
-	if (efi_enabled)
+	if (efi_enabled(EFI_RUNTIME_SERVICES))
 		orom = isci_get_efi_var(pdev);
 
 	if (!orom)

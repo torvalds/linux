@@ -1224,7 +1224,7 @@ efivars_init(void)
 	printk(KERN_INFO "EFI Variables Facility v%s %s\n", EFIVARS_VERSION,
 	       EFIVARS_DATE);
 
-	if (!efi_enabled)
+	if (!efi_enabled(EFI_RUNTIME_SERVICES))
 		return 0;
 
 	/* For now we'll register the efi directory at /sys/firmware/efi */
@@ -1262,7 +1262,7 @@ err_put:
 static void __exit
 efivars_exit(void)
 {
-	if (efi_enabled) {
+	if (efi_enabled(EFI_RUNTIME_SERVICES)) {
 		unregister_efivars(&__efivars);
 		kobject_put(efi_kobj);
 	}
