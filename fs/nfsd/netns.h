@@ -47,10 +47,14 @@ struct nfsd_net {
 	/*
 	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
 	 * used in reboot/reset lease grace period processing
+	 *
+	 * conf_id_hashtbl[], and conf_name_tree hold confirmed
+	 * setclientid_confirmed info.
 	 */
 	struct list_head *reclaim_str_hashtbl;
 	int reclaim_str_hashtbl_size;
 	struct list_head *conf_id_hashtbl;
+	struct rb_root conf_name_tree;
 };
 
 extern int nfsd_net_id;
