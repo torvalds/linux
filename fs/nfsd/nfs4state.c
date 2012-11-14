@@ -402,14 +402,6 @@ static unsigned int clientstr_hashval(const char *name)
 }
 
 /*
- * close_lru holds (open) stateowner queue ordered by nfs4_stateowner.so_time
- * for last close replay.
- *
- * All of the above fields are protected by the client_mutex.
- */
-static struct list_head close_lru;
-
-/*
  * We store the NONE, READ, WRITE, and BOTH bits separately in the
  * st_{access,deny}_bmap field of the stateid, in order to track not
  * only what share bits are currently in force, but also what
@@ -2465,11 +2457,13 @@ static void init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp,
 }
 
 static void
-move_to_close_lru(struct nfs4_openowner *oo)
+move_to_close_lru(struct nfs4_openowner *oo, struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
 	dprintk("NFSD: move_to_close_lru nfs4_openowner %p\n", oo);
 
-	list_move_tail(&oo->oo_close_lru, &close_lru);
+	list_move_tail(&oo->oo_close_lru, &nn->close_lru);
 	oo->oo_time = get_seconds();
 }
 
@@ -3242,7 +3236,7 @@ nfs4_laundromat(void)
 		unhash_delegation(dp);
 	}
 	test_val = nfsd4_lease;
-	list_for_each_safe(pos, next, &close_lru) {
+	list_for_each_safe(pos, next, &nn->close_lru) {
 		oo = container_of(pos, struct nfs4_openowner, oo_close_lru);
 		if (time_after((unsigned long)oo->oo_time, (unsigned long)cutoff)) {
 			u = oo->oo_time - cutoff;
@@ -3820,7 +3814,7 @@ nfsd4_close(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			 * little while to handle CLOSE replay.
 			 */
 			if (list_empty(&oo->oo_owner.so_stateids))
-				move_to_close_lru(oo);
+				move_to_close_lru(oo, SVC_NET(rqstp));
 		}
 	}
 out:
@@ -4721,7 +4715,6 @@ nfs4_state_init(void)
 	for (i = 0; i < FILE_HASH_SIZE; i++) {
 		INIT_LIST_HEAD(&file_hashtbl[i]);
 	}
-	INIT_LIST_HEAD(&close_lru);
 	INIT_LIST_HEAD(&del_recall_lru);
 }
 
@@ -4785,6 +4778,7 @@ static int nfs4_state_start_net(struct net *net)
 	nn->conf_name_tree = RB_ROOT;
 	nn->unconf_name_tree = RB_ROOT;
 	INIT_LIST_HEAD(&nn->client_lru);
+	INIT_LIST_HEAD(&nn->close_lru);
 
 	return 0;
 

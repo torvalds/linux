@@ -71,8 +71,14 @@ struct nfsd_net {
 	/*
 	 * client_lru holds client queue ordered by nfs4_client.cl_time
 	 * for lease renewal.
+	 *
+	 * close_lru holds (open) stateowner queue ordered by nfs4_stateowner.so_time
+	 * for last close replay.
+	 *
+	 * All of the above fields are protected by the client_mutex.
 	 */
 	struct list_head client_lru;
+	struct list_head close_lru;
 };
 
 extern int nfsd_net_id;
