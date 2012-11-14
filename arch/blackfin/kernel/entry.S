@@ -57,36 +57,3 @@ ENTRY(_ret_from_fork)
 	RESTORE_CONTEXT
 	rti;
 ENDPROC(_ret_from_fork)
-
-ENTRY(_sys_vfork)
-	r0 = sp;
-	r0 += 24;
-	[--sp] = rets;
-	SP += -12;
-	pseudo_long_call _bfin_vfork, p2;
-	SP += 12;
-	rets = [sp++];
-	rts;
-ENDPROC(_sys_vfork)
-
-ENTRY(_sys_clone)
-	r0 = sp;
-	r0 += 24;
-	[--sp] = rets;
-	SP += -12;
-	pseudo_long_call _bfin_clone, p2;
-	SP += 12;
-	rets = [sp++];
-	rts;
-ENDPROC(_sys_clone)
-
-ENTRY(_sys_rt_sigreturn)
-	r0 = sp;
-	r0 += 24;
-	[--sp] = rets;
-	SP += -12;
-	pseudo_long_call _do_rt_sigreturn, p2;
-	SP += 12;
-	rets = [sp++];
-	rts;
-ENDPROC(_sys_rt_sigreturn)

@@ -1431,7 +1431,7 @@ ENTRY(_sys_call_table)
 	.long _sys_ni_syscall	/* old sys_ipc */
 	.long _sys_fsync
 	.long _sys_ni_syscall	/* old sys_sigreturn */
-	.long _sys_clone		/* 120 */
+	.long _bfin_clone		/* 120 */
 	.long _sys_setdomainname
 	.long _sys_newuname
 	.long _sys_ni_syscall	/* old sys_modify_ldt */

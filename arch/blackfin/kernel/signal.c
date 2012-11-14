@@ -82,9 +82,9 @@ rt_restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc, int *p
 	return err;
 }
 
-asmlinkage int do_rt_sigreturn(unsigned long __unused)
+asmlinkage int sys_rt_sigreturn(void)
 {
-	struct pt_regs *regs = (struct pt_regs *)__unused;
+	struct pt_regs *regs = current_pt_regs();
 	unsigned long usp = rdusp();
 	struct rt_sigframe *frame = (struct rt_sigframe *)(usp);
 	sigset_t set;

@@ -127,28 +127,13 @@ void flush_thread(void)
 {
 }
 
-asmlinkage int bfin_vfork(struct pt_regs *regs)
+asmlinkage int bfin_clone(unsigned long clone_flags, unsigned long newsp)
 {
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, rdusp(), regs, 0, NULL,
-		       NULL);
-}
-
-asmlinkage int bfin_clone(struct pt_regs *regs)
-{
-	unsigned long clone_flags;
-	unsigned long newsp;
-
 #ifdef __ARCH_SYNC_CORE_DCACHE
 	if (current->nr_cpus_allowed == num_possible_cpus())
 		set_cpus_allowed_ptr(current, cpumask_of(smp_processor_id()));
 #endif
-
-	/* syscall2 puts clone_flags in r0 and usp in r1 */
-	clone_flags = regs->r0;
-	newsp = regs->r1;
-	if (!newsp)
-		newsp = rdusp();
-	else
+	if (newsp)
 		newsp -= 12;
 	return do_fork(clone_flags, newsp, regs, 0, NULL, NULL);
 }
@@ -174,7 +159,7 @@ copy_thread(unsigned long clone_flags,
 	} else {
 		*childregs = *regs;
 		childregs->r0 = 0;
-		p->thread.usp = usp;
+		p->thread.usp = usp ? : rdusp();
 		v[0] = v[1] = 0;
 	}
 
