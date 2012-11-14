@@ -121,6 +121,7 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 	lpc32xx->chip.dev = &pdev->dev;
 	lpc32xx->chip.ops = &lpc32xx_pwm_ops;
 	lpc32xx->chip.npwm = 2;
+	lpc32xx->chip.base = -1;
 
 	ret = pwmchip_add(&lpc32xx->chip);
 	if (ret < 0) {
