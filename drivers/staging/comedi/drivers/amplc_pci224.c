@@ -757,76 +757,58 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 2;
 
-	/* Step 3: make sure arguments are trivially compatible. */
+	/* Step 3: check if arguments are trivially valid */
 
 	switch (cmd->start_src) {
 	case TRIG_INT:
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
 		if ((cmd->start_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 ~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
 		if ((cmd->start_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
 			cmd->start_arg = COMBINE(cmd->start_arg, 0,
 						 CR_FLAGS_MASK & ~CR_EDGE);
-			err++;
+			err |= -EINVAL;
 		}
 		break;
 	}
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		if (cmd->scan_begin_arg > MAX_SCAN_PERIOD) {
-			cmd->scan_begin_arg = MAX_SCAN_PERIOD;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MAX_SCAN_PERIOD);
+
 		tmp = cmd->chanlist_len * CONVERT_PERIOD;
 		if (tmp < MIN_SCAN_PERIOD)
 			tmp = MIN_SCAN_PERIOD;
-
-		if (cmd->scan_begin_arg < tmp) {
-			cmd->scan_begin_arg = tmp;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, tmp);
 		break;
 	case TRIG_EXT:
 		/* Force to external trigger 0. */
 		if ((cmd->scan_begin_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      ~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* Only allow flags CR_EDGE and CR_INVERT.  Ignore CR_EDGE. */
 		if ((cmd->scan_begin_arg & CR_FLAGS_MASK &
 		     ~(CR_EDGE | CR_INVERT)) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
-						      CR_FLAGS_MASK & ~(CR_EDGE
-									|
-									CR_INVERT));
-			err++;
+						      CR_FLAGS_MASK &
+						      ~(CR_EDGE | CR_INVERT));
+			err |= -EINVAL;
 		}
 		break;
 	}
 
-	/* cmd->convert_src == TRIG_NOW */
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-
-	/* cmd->scan_end_arg == TRIG_COUNT */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
@@ -837,7 +819,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		if ((cmd->stop_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->stop_arg = COMBINE(cmd->stop_arg, 0,
 						~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
 		if ((cmd->stop_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
@@ -846,10 +828,7 @@ pci224_ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 		}
 		break;
 	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 	}
 
