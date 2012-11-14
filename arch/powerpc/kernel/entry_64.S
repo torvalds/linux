@@ -836,13 +836,22 @@ restore_check_irq_replay:
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	bl	.timer_interrupt
 	b	.ret_from_except
+#ifdef CONFIG_PPC_DOORBELL
+1:
 #ifdef CONFIG_PPC_BOOK3E
-1:	cmpwi	cr0,r3,0x280
+	cmpwi	cr0,r3,0x280
+#else
+	BEGIN_FTR_SECTION
+		cmpwi	cr0,r3,0xe80
+	FTR_SECTION_ELSE
+		cmpwi	cr0,r3,0xa00
+	ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+#endif /* CONFIG_PPC_BOOK3E */
 	bne	1f
 	addi	r3,r1,STACK_FRAME_OVERHEAD;
 	bl	.doorbell_exception
 	b	.ret_from_except
-#endif /* CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_DOORBELL */
 1:	b	.ret_from_except /* What else to do here ? */
  
 unrecov_restore:

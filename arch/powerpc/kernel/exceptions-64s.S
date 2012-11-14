@@ -528,10 +528,12 @@ ALT_FTR_SECTION_END_IFCLR(CPU_FTR_ARCH_206)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xf40)
 
 /*
- * An interrupt came in while soft-disabled. We set paca->irq_happened,
- * then, if it was a decrementer interrupt, we bump the dec to max and
- * and return, else we hard disable and return. This is called with
- * r10 containing the value to OR to the paca field.
+ * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
+ * - If it was a decrementer interrupt, we bump the dec to max and and return.
+ * - If it was a doorbell we return immediately since doorbells are edge
+ *   triggered and won't automatically refire.
+ * - else we hard disable and return.
+ * This is called with r10 containing the value to OR to the paca field.
  */
 #define MASKED_INTERRUPT(_H)				\
 masked_##_H##interrupt:					\
@@ -539,13 +541,15 @@ masked_##_H##interrupt:					\
 	lbz	r11,PACAIRQHAPPENED(r13);		\
 	or	r11,r11,r10;				\
 	stb	r11,PACAIRQHAPPENED(r13);		\
-	andi.	r10,r10,PACA_IRQ_DEC;			\
-	beq	1f;					\
+	cmpwi	r10,PACA_IRQ_DEC;			\
+	bne	1f;					\
 	lis	r10,0x7fff;				\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
 	b	2f;					\
-1:	mfspr	r10,SPRN_##_H##SRR1;			\
+1:	cmpwi	r10,PACA_IRQ_DBELL;			\
+	beq	2f;					\
+	mfspr	r10,SPRN_##_H##SRR1;			\
 	rldicl	r10,r10,48,1; /* clear MSR_EE */	\
 	rotldi	r10,r10,16;				\
 	mtspr	SPRN_##_H##SRR1,r10;			\
@@ -562,8 +566,8 @@ masked_##_H##interrupt:					\
 
 /*
  * Called from arch_local_irq_enable when an interrupt needs
- * to be resent. r3 contains 0x500 or 0x900 to indicate which
- * kind of interrupt. MSR:EE is already off. We generate a
+ * to be resent. r3 contains 0x500, 0x900, 0xa00 or 0xe80 to indicate
+ * which kind of interrupt. MSR:EE is already off. We generate a
  * stackframe like if a real interrupt had happened.
  *
  * Note: While MSR:EE is off, we need to make sure that _MSR
@@ -579,9 +583,18 @@ _GLOBAL(__replay_interrupt)
 	mflr	r11
 	mfcr	r9
 	ori	r12,r12,MSR_EE
-	andi.	r3,r3,0x0800
-	bne	decrementer_common
-	b	hardware_interrupt_common
+	cmpwi	r3,0x900
+	beq	decrementer_common
+	cmpwi	r3,0x500
+	beq	hardware_interrupt_common
+BEGIN_FTR_SECTION
+	cmpwi	r3,0xe80
+	beq	h_doorbell_common
+FTR_SECTION_ELSE
+	cmpwi	r3,0xa00
+	beq	doorbell_super_common
+ALT_FTR_SECTION_END_IFSET(CPU_FTR_HVMODE)
+	blr
 
 #ifdef CONFIG_PPC_PSERIES
 /*
