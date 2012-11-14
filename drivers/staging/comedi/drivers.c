@@ -949,11 +949,7 @@ EXPORT_SYMBOL_GPL(comedi_pci_disable);
 
 int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
 {
-
-	if (driver->auto_attach)
-		return comedi_auto_config(&pcidev->dev, driver, 0);
-	else
-		return -EINVAL;
+	return comedi_auto_config(&pcidev->dev, driver, 0);
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 
@@ -1000,10 +996,7 @@ int comedi_usb_auto_config(struct usb_interface *intf,
 			   struct comedi_driver *driver)
 {
 	BUG_ON(intf == NULL);
-	if (driver->auto_attach)
-		return comedi_auto_config(&intf->dev, driver, 0);
-	else
-		return -EINVAL;
+	return comedi_auto_config(&intf->dev, driver, 0);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 
