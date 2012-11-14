@@ -233,67 +233,40 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 #define MAX_SPEED	10000	/* in nanoseconds */
 #define MIN_SPEED	1000000000	/* in nanoseconds */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < MAX_SPEED) {
-			cmd->scan_begin_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SPEED) {
-			cmd->scan_begin_arg = MIN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if (cmd->scan_begin_arg > 9) {
-			cmd->scan_begin_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < MAX_SPEED) {
-			cmd->convert_arg = MAX_SPEED;
-			err++;
-		}
-		if (cmd->convert_arg > MIN_SPEED) {
-			cmd->convert_arg = MIN_SPEED;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, MAX_SPEED);
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, MIN_SPEED);
 	} else {
 		/* external trigger */
 		/* see above */
-		if (cmd->convert_arg > 9) {
-			cmd->convert_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (cmd->stop_arg > 0x00ffffff) {
-			cmd->stop_arg = 0x00ffffff;
-			err++;
-		}
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_max(&cmd->stop_arg, 0x00ffffff);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
