@@ -38,8 +38,7 @@ static int op_has_extent(int op)
 		op == CEPH_OSD_OP_WRITE);
 }
 
-int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
-			struct ceph_file_layout *layout,
+int ceph_calc_raw_layout(struct ceph_file_layout *layout,
 			u64 off, u64 *plen, u64 *bno,
 			struct ceph_osd_request *req,
 			struct ceph_osd_req_op *op)
@@ -107,8 +106,7 @@ EXPORT_SYMBOL(ceph_calc_raw_layout);
  *
  * fill osd op in request message.
  */
-static int calc_layout(struct ceph_osd_client *osdc,
-		       struct ceph_vino vino,
+static int calc_layout(struct ceph_vino vino,
 		       struct ceph_file_layout *layout,
 		       u64 off, u64 *plen,
 		       struct ceph_osd_request *req,
@@ -117,7 +115,7 @@ static int calc_layout(struct ceph_osd_client *osdc,
 	u64 bno;
 	int r;
 
-	r = ceph_calc_raw_layout(osdc, layout, off, plen, &bno, req, op);
+	r = ceph_calc_raw_layout(layout, off, plen, &bno, req, op);
 	if (r < 0)
 		return r;
 
@@ -452,7 +450,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 		return ERR_PTR(-ENOMEM);
 
 	/* calculate max write size */
-	r = calc_layout(osdc, vino, layout, off, plen, req, ops);
+	r = calc_layout(vino, layout, off, plen, req, ops);
 	if (r < 0)
 		return ERR_PTR(r);
 	req->r_file_layout = *layout;  /* keep a copy */

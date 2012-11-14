@@ -1168,7 +1168,7 @@ static int rbd_do_request(struct request *rq,
 	osd_req->r_oid_len = strlen(osd_req->r_oid);
 
 	rbd_layout_init(&osd_req->r_file_layout, rbd_dev->spec->pool_id);
-	ret = ceph_calc_raw_layout(osdc, &osd_req->r_file_layout,
+	ret = ceph_calc_raw_layout(&osd_req->r_file_layout,
 				ofs, &len, &bno, osd_req, ops);
 	rbd_assert(ret == 0);
 
