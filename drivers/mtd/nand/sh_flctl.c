@@ -727,7 +727,9 @@ static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 
 		if (!flctl->qos_request) {
 			ret = dev_pm_qos_add_request(&flctl->pdev->dev,
-							&flctl->pm_qos, 100);
+							&flctl->pm_qos,
+							DEV_PM_QOS_LATENCY,
+							100);
 			if (ret < 0)
 				dev_err(&flctl->pdev->dev,
 					"PM QoS request failed: %d\n", ret);
