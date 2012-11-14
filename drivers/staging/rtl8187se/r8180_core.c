@@ -3258,7 +3258,8 @@ static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
 
 	netif_carrier_off(dev);
 
-	register_netdev(dev);
+	if (register_netdev(dev))
+		goto fail1;
 
 	rtl8180_proc_init_one(dev);
 
