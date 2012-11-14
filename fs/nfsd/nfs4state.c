@@ -3157,17 +3157,15 @@ out:
 }
 
 static void
-nfsd4_end_grace(struct net *net)
+nfsd4_end_grace(struct nfsd_net *nn)
 {
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
-
 	/* do nothing if grace period already ended */
 	if (nn->grace_ended)
 		return;
 
 	dprintk("NFSD: end of grace period\n");
 	nn->grace_ended = true;
-	nfsd4_record_grace_done(net, nn->boot_time);
+	nfsd4_record_grace_done(nn, nn->boot_time);
 	locks_end_grace(&nn->nfsd4_manager);
 	/*
 	 * Now that every NFSv4 client has had the chance to recover and
@@ -3192,7 +3190,7 @@ nfs4_laundromat(void)
 	nfs4_lock_state();
 
 	dprintk("NFSD: laundromat service - starting\n");
-	nfsd4_end_grace(&init_net);
+	nfsd4_end_grace(nn);
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&client_lock);
 	list_for_each_safe(pos, next, &nn->client_lru) {

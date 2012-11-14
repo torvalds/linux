@@ -495,5 +495,5 @@ extern void nfsd4_client_tracking_exit(struct net *net);
 extern void nfsd4_client_record_create(struct nfs4_client *clp);
 extern void nfsd4_client_record_remove(struct nfs4_client *clp);
 extern int nfsd4_client_record_check(struct nfs4_client *clp);
-extern void nfsd4_record_grace_done(struct net *net, time_t boot_time);
+extern void nfsd4_record_grace_done(struct nfsd_net *nn, time_t boot_time);
 #endif   /* NFSD4_STATE_H */

@@ -58,7 +58,7 @@ struct nfsd4_client_tracking_ops {
 	void (*create)(struct nfs4_client *);
 	void (*remove)(struct nfs4_client *);
 	int (*check)(struct nfs4_client *);
-	void (*grace_done)(struct net *, time_t);
+	void (*grace_done)(struct nfsd_net *, time_t);
 };
 
 /* Globals */
@@ -391,10 +391,9 @@ purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 }
 
 static void
-nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
+nfsd4_recdir_purge_old(struct nfsd_net *nn, time_t boot_time)
 {
 	int status;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	in_grace = false;
 	if (!rec_file)
@@ -1017,11 +1016,10 @@ nfsd4_cld_check(struct nfs4_client *clp)
 }
 
 static void
-nfsd4_cld_grace_done(struct net *net, time_t boot_time)
+nfsd4_cld_grace_done(struct nfsd_net *nn, time_t boot_time)
 {
 	int ret;
 	struct cld_upcall *cup;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
 
 	cup = alloc_cld_upcall(cn);
@@ -1241,7 +1239,7 @@ nfsd4_umh_cltrack_check(struct nfs4_client *clp)
 }
 
 static void
-nfsd4_umh_cltrack_grace_done(struct net __attribute__((unused)) *net,
+nfsd4_umh_cltrack_grace_done(struct nfsd_net __attribute__((unused)) *nn,
 				time_t boot_time)
 {
 	char *legacy;
@@ -1343,10 +1341,10 @@ nfsd4_client_record_check(struct nfs4_client *clp)
 }
 
 void
-nfsd4_record_grace_done(struct net *net, time_t boot_time)
+nfsd4_record_grace_done(struct nfsd_net *nn, time_t boot_time)
 {
 	if (client_tracking_ops)
-		client_tracking_ops->grace_done(net, boot_time);
+		client_tracking_ops->grace_done(nn, boot_time);
 }
 
 static int
