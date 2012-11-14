@@ -1060,11 +1060,7 @@ static int rk_sensor_io_init(void)
                 if (i==j) {
                     printk(KERN_ERR"rk_cam_io: %s..%s..reset pin(%d) init failed\n",__FUNCTION__,plat_data->gpio_res[i].dev_name,camera_reset);
                     goto sensor_io_init_erro;
-                }else{
-                
-                printk("%s..%s..reset pin(%d) init failed\n",__FUNCTION__,plat_data->gpio_res[i].dev_name,camera_reset);
-                //goto sensor_io_init_erro;
-				}
+                }
             }
 
             if (rk_camera_platform_data.iomux(camera_reset) < 0) {
@@ -1091,10 +1087,7 @@ static int rk_sensor_io_init(void)
                 if (i==j) {
                     printk(KERN_ERR"rk_cam_io: %s..%s..powerdown pin(%d) init failed\n",__FUNCTION__,plat_data->gpio_res[i].dev_name,camera_powerdown);
                     goto sensor_io_init_erro;
-                }else{
-                printk("%s..%s..powerdown pin(%d) init failed\n",__FUNCTION__,plat_data->gpio_res[i].dev_name,camera_powerdown);
-                //goto sensor_io_init_erro;
-				}
+                }
             }
 
             if (rk_camera_platform_data.iomux(camera_powerdown) < 0) {
@@ -1121,9 +1114,7 @@ static int rk_sensor_io_init(void)
                 if (i==j) {
                     printk(KERN_ERR"rk_cam_io: %s..%s..flash pin(%d) init failed\n",__FUNCTION__,plat_data->gpio_res[i].dev_name,camera_flash);
                     goto sensor_io_init_erro;
-                }else{
-                printk("%s..%s..flash pin(%d) init failed\n",__FUNCTION__,plat_data->gpio_res[i].dev_name,camera_flash);
-				}
+                }
             }
 
             if (rk_camera_platform_data.iomux(camera_flash) < 0) {
