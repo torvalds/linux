@@ -745,97 +745,85 @@ static int rtd_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* Note: these are time periods, not actual rates */
 		if (1 == cmd->chanlist_len) {	/* no scanning */
-			if (cmd->scan_begin_arg < RTD_MAX_SPEED_1) {
-				cmd->scan_begin_arg = RTD_MAX_SPEED_1;
+			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						      RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						TRIG_ROUND_UP);
-				err++;
+				err |= -EINVAL;
 			}
-			if (cmd->scan_begin_arg > RTD_MIN_SPEED_1) {
-				cmd->scan_begin_arg = RTD_MIN_SPEED_1;
+			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						      RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						TRIG_ROUND_DOWN);
-				err++;
+				err |= -EINVAL;
 			}
 		} else {
-			if (cmd->scan_begin_arg < RTD_MAX_SPEED) {
-				cmd->scan_begin_arg = RTD_MAX_SPEED;
+			if (cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						      RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						TRIG_ROUND_UP);
-				err++;
+				err |= -EINVAL;
 			}
-			if (cmd->scan_begin_arg > RTD_MIN_SPEED) {
-				cmd->scan_begin_arg = RTD_MIN_SPEED;
+			if (cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						      RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->scan_begin_arg,
 						TRIG_ROUND_DOWN);
-				err++;
+				err |= -EINVAL;
 			}
 		}
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
 		/* should specify multiple external triggers */
-		if (cmd->scan_begin_arg > 9) {
-			cmd->scan_begin_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg, 9);
 	}
+
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (1 == cmd->chanlist_len) {	/* no scanning */
-			if (cmd->convert_arg < RTD_MAX_SPEED_1) {
-				cmd->convert_arg = RTD_MAX_SPEED_1;
+			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
+						      RTD_MAX_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_UP);
-				err++;
+				err |= -EINVAL;
 			}
-			if (cmd->convert_arg > RTD_MIN_SPEED_1) {
-				cmd->convert_arg = RTD_MIN_SPEED_1;
+			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
+						      RTD_MIN_SPEED_1)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_DOWN);
-				err++;
+				err |= -EINVAL;
 			}
 		} else {
-			if (cmd->convert_arg < RTD_MAX_SPEED) {
-				cmd->convert_arg = RTD_MAX_SPEED;
+			if (cfc_check_trigger_arg_min(&cmd->convert_arg,
+						      RTD_MAX_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_UP);
-				err++;
+				err |= -EINVAL;
 			}
-			if (cmd->convert_arg > RTD_MIN_SPEED) {
-				cmd->convert_arg = RTD_MIN_SPEED;
+			if (cfc_check_trigger_arg_max(&cmd->convert_arg,
+						      RTD_MIN_SPEED)) {
 				rtd_ns_to_timer(&cmd->convert_arg,
 						TRIG_ROUND_DOWN);
-				err++;
+				err |= -EINVAL;
 			}
 		}
 	} else {
 		/* external trigger */
 		/* see above */
-		if (cmd->convert_arg > 9) {
-			cmd->convert_arg = 9;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 9);
 	}
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* TODO check for rounding error due to counter wrap */
-
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
