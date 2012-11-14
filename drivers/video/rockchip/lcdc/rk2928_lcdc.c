@@ -730,7 +730,7 @@ int rk2928_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		 
 	}
 
-	if(dev_drv->num_buf < 3) //3buffer ,no need to  wait for sysn
+	//if(dev_drv->num_buf < 3) //3buffer ,no need to  wait for sysn
 	{
 		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
 		init_completion(&dev_drv->frame_done);
@@ -1008,10 +1008,19 @@ static int rk2928_fb_get_layer(struct rk_lcdc_device_driver *dev_drv,const char 
 
 static int rk2928_lcdc_hdmi_process(struct rk_lcdc_device_driver *dev_drv,int mode)
 {
+	printk("%s>>>>>>>>mode:%d\n",__func__,mode);
 	if(mode)
+	{
 		rk2928_lcdc_iomux(dev_drv->screen0,0); //switch to gpio mode,to avoid  current leakage
+		if(dev_drv->screen_ctr_info->io_disable)
+			dev_drv->screen_ctr_info->io_disable();
+	}
 	else
+	{
 		rk2928_lcdc_iomux(dev_drv->screen0,1); //switch to gpio mode,to avoid  current leakage
+		if(dev_drv->screen_ctr_info->io_enable)
+			dev_drv->screen_ctr_info->io_enable();
+	}
 	
 	return 0;
 	
@@ -1093,7 +1102,7 @@ static irqreturn_t rk2928_lcdc_isr(int irq, void *dev_id)
 	LCDC_REG_CFG_DONE();
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
  
-	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
+	//if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
 	{
 		spin_lock(&(lcdc_dev->driver.cpl_lock));
 		complete(&(lcdc_dev->driver.frame_done));
