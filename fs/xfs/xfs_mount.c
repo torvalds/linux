@@ -631,7 +631,7 @@ xfs_sb_verify(
 		xfs_buf_ioerror(bp, error);
 }
 
-static void
+void
 xfs_sb_write_verify(
 	struct xfs_buf	*bp)
 {

@@ -197,11 +197,12 @@ xfs_dir2_leaf_to_node(
 	/*
 	 * Get the buffer for the new freespace block.
 	 */
-	if ((error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, fdb), -1, &fbp,
-			XFS_DATA_FORK))) {
+	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, fdb), -1, &fbp,
+				XFS_DATA_FORK);
+	if (error)
 		return error;
-	}
-	ASSERT(fbp != NULL);
+	fbp->b_pre_io = xfs_dir2_free_write_verify;
+
 	free = fbp->b_addr;
 	leaf = lbp->b_addr;
 	ltp = xfs_dir2_leaf_tail_p(mp, leaf);
@@ -223,7 +224,10 @@ xfs_dir2_leaf_to_node(
 		*to = cpu_to_be16(off);
 	}
 	free->hdr.nused = cpu_to_be32(n);
+
+	lbp->b_pre_io = xfs_dir2_leafn_write_verify;
 	leaf->hdr.info.magic = cpu_to_be16(XFS_DIR2_LEAFN_MAGIC);
+
 	/*
 	 * Log everything.
 	 */
@@ -632,6 +636,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.index = (int)((char *)dep -
 							(char *)curbp->b_addr);
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
+			curbp->b_pre_io = xfs_dir2_data_write_verify;
 			if (cmp == XFS_CMP_EXACT)
 				return XFS_ERROR(EEXIST);
 		}
@@ -646,6 +651,7 @@ xfs_dir2_leafn_lookup_for_entry(
 			state->extrablk.index = -1;
 			state->extrablk.blkno = curdb;
 			state->extrablk.magic = XFS_DIR2_DATA_MAGIC;
+			curbp->b_pre_io = xfs_dir2_data_write_verify;
 		} else {
 			/* If the curbp is not the CI match block, drop it */
 			if (state->extrablk.bp != curbp)
@@ -1638,12 +1644,12 @@ xfs_dir2_node_addname_int(
 			/*
 			 * Get a buffer for the new block.
 			 */
-			if ((error = xfs_da_get_buf(tp, dp,
-						   xfs_dir2_db_to_da(mp, fbno),
-						   -1, &fbp, XFS_DATA_FORK))) {
+			error = xfs_da_get_buf(tp, dp,
+					       xfs_dir2_db_to_da(mp, fbno),
+					       -1, &fbp, XFS_DATA_FORK);
+			if (error)
 				return error;
-			}
-			ASSERT(fbp != NULL);
+			fbp->b_pre_io = xfs_dir2_free_write_verify;
 
 			/*
 			 * Initialize the new block to be empty, and remember

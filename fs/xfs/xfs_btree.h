@@ -189,6 +189,8 @@ struct xfs_btree_ops {
 			      union xfs_btree_key *key);
 
 	void	(*read_verify)(struct xfs_buf *bp);
+	void	(*write_verify)(struct xfs_buf *bp);
+
 #ifdef DEBUG
 	/* check that k1 is lower than k2 */
 	int	(*keys_inorder)(struct xfs_btree_cur *cur,

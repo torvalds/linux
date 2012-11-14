@@ -222,6 +222,7 @@ xfs_growfs_data_private(
 			error = ENOMEM;
 			goto error0;
 		}
+		bp->b_pre_io = xfs_agf_write_verify;
 
 		agf = XFS_BUF_TO_AGF(bp);
 		agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
@@ -259,6 +260,7 @@ xfs_growfs_data_private(
 			error = ENOMEM;
 			goto error0;
 		}
+		bp->b_pre_io = xfs_agfl_write_verify;
 
 		agfl = XFS_BUF_TO_AGFL(bp);
 		for (bucket = 0; bucket < XFS_AGFL_SIZE(mp); bucket++)
@@ -279,6 +281,7 @@ xfs_growfs_data_private(
 			error = ENOMEM;
 			goto error0;
 		}
+		bp->b_pre_io = xfs_agi_write_verify;
 
 		agi = XFS_BUF_TO_AGI(bp);
 		agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
@@ -450,9 +453,10 @@ xfs_growfs_data_private(
 			bp = xfs_trans_get_buf(NULL, mp->m_ddev_targp,
 				  XFS_AGB_TO_DADDR(mp, agno, XFS_SB_BLOCK(mp)),
 				  XFS_FSS_TO_BB(mp, 1), 0);
-			if (bp)
+			if (bp) {
 				xfs_buf_zero(bp, 0, BBTOB(bp->b_length));
-			else
+				bp->b_pre_io = xfs_sb_write_verify;
+			} else
 				error = ENOMEM;
 		}
 

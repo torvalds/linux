@@ -193,6 +193,7 @@ xfs_da_node_create(xfs_da_args_t *args, xfs_dablk_t blkno, int level,
 	xfs_trans_log_buf(tp, bp,
 		XFS_DA_LOGRANGE(node, &node->hdr, sizeof(node->hdr)));
 
+	bp->b_pre_io = xfs_da_node_write_verify;
 	*bpp = bp;
 	return(0);
 }
@@ -392,6 +393,8 @@ xfs_da_root_split(xfs_da_state_t *state, xfs_da_state_blk_t *blk1,
 	}
 	memcpy(node, oldroot, size);
 	xfs_trans_log_buf(tp, bp, 0, size - 1);
+
+	bp->b_pre_io = blk1->bp->b_pre_io;
 	blk1->bp = bp;
 	blk1->blkno = blkno;
 

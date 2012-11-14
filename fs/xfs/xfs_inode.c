@@ -420,7 +420,7 @@ xfs_inode_buf_verify(
 	xfs_inobp_check(mp, bp);
 }
 
-static void
+void
 xfs_inode_buf_write_verify(
 	struct xfs_buf	*bp)
 {
@@ -1782,6 +1782,18 @@ xfs_ifree_cluster(
 
 		if (!bp)
 			return ENOMEM;
+
+		/*
+		 * This buffer may not have been correctly initialised as we
+		 * didn't read it from disk. That's not important because we are
+		 * only using to mark the buffer as stale in the log, and to
+		 * attach stale cached inodes on it. That means it will never be
+		 * dispatched for IO. If it is, we want to know about it, and we
+		 * want it to fail. We can acheive this by adding a write
+		 * verifier to the buffer.
+		 */
+		 bp->b_pre_io = xfs_inode_buf_write_verify;
+
 		/*
 		 * Walk the inodes already attached to the buffer and mark them
 		 * stale. These will all have the flush locks held, so an

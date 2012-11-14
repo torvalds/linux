@@ -81,7 +81,7 @@ xfs_dir2_leaf1_read_verify(
 	xfs_buf_ioend(bp, 0);
 }
 
-static void
+void
 xfs_dir2_leafn_write_verify(
 	struct xfs_buf	*bp)
 {
@@ -198,6 +198,7 @@ xfs_dir2_block_to_leaf(
 	/*
 	 * Fix up the block header, make it a data block.
 	 */
+	dbp->b_pre_io = xfs_dir2_data_write_verify;
 	hdr->magic = cpu_to_be32(XFS_DIR2_DATA_MAGIC);
 	if (needscan)
 		xfs_dir2_data_freescan(mp, hdr, &needlog);
@@ -1243,15 +1244,14 @@ xfs_dir2_leaf_init(
 	 * Get the buffer for the block.
 	 */
 	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, bno), -1, &bp,
-		XFS_DATA_FORK);
-	if (error) {
+			       XFS_DATA_FORK);
+	if (error)
 		return error;
-	}
-	ASSERT(bp != NULL);
-	leaf = bp->b_addr;
+
 	/*
 	 * Initialize the header.
 	 */
+	leaf = bp->b_addr;
 	leaf->hdr.info.magic = cpu_to_be16(magic);
 	leaf->hdr.info.forw = 0;
 	leaf->hdr.info.back = 0;
@@ -1264,10 +1264,12 @@ xfs_dir2_leaf_init(
 	 * the block.
 	 */
 	if (magic == XFS_DIR2_LEAF1_MAGIC) {
+		bp->b_pre_io = xfs_dir2_leaf1_write_verify;
 		ltp = xfs_dir2_leaf_tail_p(mp, leaf);
 		ltp->bestcount = 0;
 		xfs_dir2_leaf_log_tail(tp, bp);
-	}
+	} else
+		bp->b_pre_io = xfs_dir2_leafn_write_verify;
 	*bpp = bp;
 	return 0;
 }
@@ -1951,7 +1953,10 @@ xfs_dir2_node_to_leaf(
 		xfs_dir2_leaf_compact(args, lbp);
 	else
 		xfs_dir2_leaf_log_header(tp, lbp);
+
+	lbp->b_pre_io = xfs_dir2_leaf1_write_verify;
 	leaf->hdr.info.magic = cpu_to_be16(XFS_DIR2_LEAF1_MAGIC);
+
 	/*
 	 * Set up the leaf tail from the freespace block.
 	 */

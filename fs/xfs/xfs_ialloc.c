@@ -210,6 +210,7 @@ xfs_ialloc_inode_init(
 		 *	to log a whole cluster of inodes instead of all the
 		 *	individual transactions causing a lot of log traffic.
 		 */
+		fbuf->b_pre_io = xfs_inode_buf_write_verify;
 		xfs_buf_zero(fbuf, 0, ninodes << mp->m_sb.sb_inodelog);
 		for (i = 0; i < ninodes; i++) {
 			int	ioffset = i << mp->m_sb.sb_inodelog;
@@ -1504,14 +1505,14 @@ xfs_agi_verify(
 	xfs_check_agi_unlinked(agi);
 }
 
-static void
+void
 xfs_agi_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agi_verify(bp);
 }
 
-void
+static void
 xfs_agi_read_verify(
 	struct xfs_buf	*bp)
 {

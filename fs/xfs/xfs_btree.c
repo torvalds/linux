@@ -996,6 +996,7 @@ xfs_btree_get_buf_block(
 	if (!*bpp)
 		return ENOMEM;
 
+	(*bpp)->b_pre_io = cur->bc_ops->write_verify;
 	*block = XFS_BUF_TO_BLOCK(*bpp);
 	return 0;
 }

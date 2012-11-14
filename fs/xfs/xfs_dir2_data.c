@@ -185,7 +185,7 @@ __xfs_dir2_data_check(
 	return 0;
 }
 
-void
+static void
 xfs_dir2_data_verify(
 	struct xfs_buf		*bp)
 {
@@ -202,14 +202,14 @@ xfs_dir2_data_verify(
 	}
 }
 
-static void
+void
 xfs_dir2_data_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_dir2_data_verify(bp);
 }
 
-void
+static void
 xfs_dir2_data_read_verify(
 	struct xfs_buf	*bp)
 {
@@ -482,10 +482,9 @@ xfs_dir2_data_init(
 	 */
 	error = xfs_da_get_buf(tp, dp, xfs_dir2_db_to_da(mp, blkno), -1, &bp,
 		XFS_DATA_FORK);
-	if (error) {
+	if (error)
 		return error;
-	}
-	ASSERT(bp != NULL);
+	bp->b_pre_io = xfs_dir2_data_write_verify;
 
 	/*
 	 * Initialize the header.

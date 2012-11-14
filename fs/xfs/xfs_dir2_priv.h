@@ -45,6 +45,7 @@ extern int xfs_dir2_leaf_to_block(struct xfs_da_args *args,
 #else
 #define	xfs_dir2_data_check(dp,bp)
 #endif
+extern void xfs_dir2_data_write_verify(struct xfs_buf *bp);
 extern int __xfs_dir2_data_check(struct xfs_inode *dp, struct xfs_buf *bp);
 extern int xfs_dir2_data_read(struct xfs_trans *tp, struct xfs_inode *dp,
 		xfs_dablk_t bno, xfs_daddr_t mapped_bno, struct xfs_buf **bpp);
@@ -73,6 +74,7 @@ extern void xfs_dir2_data_use_free(struct xfs_trans *tp, struct xfs_buf *bp,
 
 /* xfs_dir2_leaf.c */
 extern void xfs_dir2_leafn_read_verify(struct xfs_buf *bp);
+extern void xfs_dir2_leafn_write_verify(struct xfs_buf *bp);
 extern int xfs_dir2_leafn_read(struct xfs_trans *tp, struct xfs_inode *dp,
 		xfs_dablk_t fbno, xfs_daddr_t mappedbno, struct xfs_buf **bpp);
 extern int xfs_dir2_block_to_leaf(struct xfs_da_args *args,

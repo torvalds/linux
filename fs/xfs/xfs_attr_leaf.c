@@ -924,7 +924,7 @@ xfs_attr_leaf_to_node(xfs_da_args_t *args)
 					    XFS_ATTR_FORK);
 	if (error)
 		goto out;
-	ASSERT(bp2 != NULL);
+	bp2->b_pre_io = bp1->b_pre_io;
 	memcpy(bp2->b_addr, bp1->b_addr, XFS_LBSIZE(dp->i_mount));
 	bp1 = NULL;
 	xfs_trans_log_buf(args->trans, bp2, 0, XFS_LBSIZE(dp->i_mount) - 1);
@@ -978,7 +978,7 @@ xfs_attr_leaf_create(
 					    XFS_ATTR_FORK);
 	if (error)
 		return(error);
-	ASSERT(bp != NULL);
+	bp->b_pre_io = xfs_attr_leaf_write_verify;
 	leaf = bp->b_addr;
 	memset((char *)leaf, 0, XFS_LBSIZE(dp->i_mount));
 	hdr = &leaf->hdr;

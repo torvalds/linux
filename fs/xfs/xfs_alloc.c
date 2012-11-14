@@ -465,14 +465,14 @@ xfs_agfl_verify(
 #endif
 }
 
-static void
+void
 xfs_agfl_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agfl_verify(bp);
 }
 
-void
+static void
 xfs_agfl_read_verify(
 	struct xfs_buf	*bp)
 {
@@ -2181,14 +2181,14 @@ xfs_agf_verify(
 	}
 }
 
-static void
+void
 xfs_agf_write_verify(
 	struct xfs_buf	*bp)
 {
 	xfs_agf_verify(bp);
 }
 
-void
+static void
 xfs_agf_read_verify(
 	struct xfs_buf	*bp)
 {

@@ -231,4 +231,7 @@ xfs_alloc_get_rec(
 	xfs_extlen_t		*len,	/* output: length of extent */
 	int			*stat);	/* output: success/failure */
 
+void xfs_agf_write_verify(struct xfs_buf *bp);
+void xfs_agfl_write_verify(struct xfs_buf *bp);
+
 #endif	/* __XFS_ALLOC_H__ */

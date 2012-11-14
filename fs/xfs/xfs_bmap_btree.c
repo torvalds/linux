@@ -749,7 +749,7 @@ xfs_bmbt_verify(
 	}
 }
 
-static void
+void
 xfs_bmbt_write_verify(
 	struct xfs_buf	*bp)
 {
@@ -806,6 +806,7 @@ static const struct xfs_btree_ops xfs_bmbt_ops = {
 	.init_ptr_from_cur	= xfs_bmbt_init_ptr_from_cur,
 	.key_diff		= xfs_bmbt_key_diff,
 	.read_verify		= xfs_bmbt_read_verify,
+	.write_verify		= xfs_bmbt_write_verify,
 #ifdef DEBUG
 	.keys_inorder		= xfs_bmbt_keys_inorder,
 	.recs_inorder		= xfs_bmbt_recs_inorder,
