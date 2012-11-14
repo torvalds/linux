@@ -353,11 +353,6 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
         },
 };
 
-static struct platform_device sam9g20ek_pcm_device = {
-	.name	= "atmel-pcm-audio",
-	.id = -1,
-};
-
 static struct platform_device sam9g20ek_audio_device = {
 	.name   = "at91sam9g20ek-audio",
 	.id     = -1,
@@ -365,7 +360,6 @@ static struct platform_device sam9g20ek_audio_device = {
 
 static void __init ek_add_device_audio(void)
 {
-	platform_device_register(&sam9g20ek_pcm_device);
 	platform_device_register(&sam9g20ek_audio_device);
 }
 

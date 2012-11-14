@@ -179,10 +179,10 @@ static int at91sam9g20ek_wm8731_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link at91sam9g20ek_dai = {
 	.name = "WM8731",
 	.stream_name = "WM8731 PCM",
-	.cpu_dai_name = "atmel-ssc-dai.0",
+	.cpu_dai_name = "at91rm9200_ssc.0",
 	.codec_dai_name = "wm8731-hifi",
 	.init = at91sam9g20ek_wm8731_init,
-	.platform_name = "atmel-pcm-audio",
+	.platform_name = "at91rm9200_ssc.0",
 	.codec_name = "wm8731.0-001b",
 	.ops = &at91sam9g20ek_ops,
 };
@@ -203,6 +203,12 @@ static int __devinit at91sam9g20ek_audio_probe(struct platform_device *pdev)
 
 	if (!(machine_is_at91sam9g20ek() || machine_is_at91sam9g20ek_2mmc()))
 		return -ENODEV;
+
+	ret = atmel_ssc_set_audio(0);
+	if (ret) {
+		dev_err(&pdev->dev, "ssc channel is not valid\n");
+		return -EINVAL;
+	}
 
 	/*
 	 * Codec MCLK is supplied by PCK0 - set it up.
@@ -241,6 +247,7 @@ err_mclk:
 	clk_put(mclk);
 	mclk = NULL;
 err:
+	atmel_ssc_put_audio(0);
 	return ret;
 }
 
@@ -248,6 +255,7 @@ static int __devexit at91sam9g20ek_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
+	atmel_ssc_put_audio(0);
 	snd_soc_unregister_card(card);
 	clk_put(mclk);
 	mclk = NULL;

@@ -768,14 +768,6 @@ static inline void configure_ssc_pins(unsigned pins)
 		at91_set_A_periph(AT91_PIN_PB21, 1);
 }
 
-static struct platform_device at91sam9260_ssc_dai_device = {
-	.name	= "atmel-ssc-dai",
-	.id	= 0,
-	.dev	= {
-		.parent	= &(at91sam9260_ssc_device.dev),
-	},
-};
-
 /*
  * SSC controllers are accessed through library code, instead of any
  * kind of all-singing/all-dancing driver.  For example one could be
@@ -800,7 +792,6 @@ void __init at91_add_device_ssc(unsigned id, unsigned pins)
 	}
 
 	platform_device_register(pdev);
-	platform_device_register(&at91sam9260_ssc_dai_device);
 }
 
 #else
