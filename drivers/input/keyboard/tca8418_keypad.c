@@ -110,21 +110,6 @@
 #define KEY_EVENT_CODE		0x7f
 #define KEY_EVENT_VALUE		0x80
 
-
-static const struct i2c_device_id tca8418_id[] = {
-	{ TCA8418_NAME, 8418, },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, tca8418_id);
-
-#ifdef CONFIG_OF
-static const struct of_device_id tca8418_dt_ids[] __devinitconst = {
-	{ .compatible = "ti,tca8418", },
-	{ }
-};
-MODULE_DEVICE_TABLE(of, tca8418_dt_ids);
-#endif
-
 struct tca8418_keypad {
 	unsigned int irq;
 	unsigned int row_shift;
@@ -418,6 +403,20 @@ static int tca8418_keypad_remove(struct i2c_client *client)
 
 	return 0;
 }
+
+static const struct i2c_device_id tca8418_id[] = {
+	{ TCA8418_NAME, 8418, },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tca8418_id);
+
+#ifdef CONFIG_OF
+static const struct of_device_id tca8418_dt_ids[] __devinitconst = {
+	{ .compatible = "ti,tca8418", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, tca8418_dt_ids);
+#endif
 
 static struct i2c_driver tca8418_keypad_driver = {
 	.driver = {
