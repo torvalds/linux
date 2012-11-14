@@ -442,46 +442,27 @@ static int das16_cmd_test(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	/*  check against maximum frequency */
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg <
-		    board->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-			    board->ai_speed * cmd->chanlist_len;
-			err++;
-		}
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < board->ai_speed) {
-			cmd->convert_arg = board->ai_speed;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->stop_src == TRIG_NONE) {
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	/* check against maximum frequency */
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+					board->ai_speed * cmd->chanlist_len);
+
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 board->ai_speed);
+
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+
 	if (err)
 		return 3;
 
