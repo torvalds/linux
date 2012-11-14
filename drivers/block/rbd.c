@@ -1032,7 +1032,7 @@ static struct ceph_osd_req_op *rbd_create_rw_op(int opcode, u32 payload_len)
 		return NULL;
 	/*
 	 * op extent offset and length will be set later on
-	 * in calc_raw_layout()
+	 * after ceph_calc_file_object_mapping().
 	 */
 	op->op = opcode;
 	op->payload_len = payload_len;
@@ -1101,40 +1101,6 @@ static void rbd_layout_init(struct ceph_file_layout *layout, u64 pool_id)
 	layout->fl_pg_pool = cpu_to_le32((u32) pool_id);
 }
 
-int rbd_calc_raw_layout(struct ceph_file_layout *layout,
-			u64 off, u64 *plen, u64 *bno,
-			struct ceph_osd_request *req,
-			struct ceph_osd_req_op *op)
-{
-	u64 orig_len = *plen;
-	u64 objoff, objlen;    /* extent in object */
-	int r;
-
-	/* object extent? */
-	r = ceph_calc_file_object_mapping(layout, off, orig_len, bno,
-					  &objoff, &objlen);
-	if (r < 0)
-		return r;
-	if (objlen < orig_len) {
-		*plen = objlen;
-		dout(" skipping last %llu, final file extent %llu~%llu\n",
-		     orig_len - *plen, off, *plen);
-	}
-
-	if (op->op == CEPH_OSD_OP_READ || op->op == CEPH_OSD_OP_WRITE) {
-		op->extent.offset = objoff;
-		op->extent.length = objlen;
-	}
-	req->r_num_pages = calc_pages_for(off, *plen);
-	req->r_page_alignment = off & ~PAGE_MASK;
-	if (op->op == CEPH_OSD_OP_WRITE)
-		op->payload_len = *plen;
-
-	dout("calc_layout bno=%llx %llu~%llu (%d pages)\n",
-	     *bno, objoff, objlen, req->r_num_pages);
-	return 0;
-}
-
 /*
  * Send ceph osd request
  */
@@ -1158,6 +1124,8 @@ static int rbd_do_request(struct request *rq,
 	struct ceph_osd_request *osd_req;
 	int ret;
 	u64 bno;
+	u64 obj_off = 0;
+	u64 obj_len = 0;
 	struct timespec mtime = CURRENT_TIME;
 	struct rbd_request *rbd_req;
 	struct ceph_osd_client *osdc;
@@ -1201,9 +1169,22 @@ static int rbd_do_request(struct request *rq,
 	osd_req->r_oid_len = strlen(osd_req->r_oid);
 
 	rbd_layout_init(&osd_req->r_file_layout, rbd_dev->spec->pool_id);
-	ret = rbd_calc_raw_layout(&osd_req->r_file_layout,
-				ofs, &len, &bno, osd_req, op);
+	ret = ceph_calc_file_object_mapping(&osd_req->r_file_layout, ofs, len,
+						&bno, &obj_off, &obj_len);
 	rbd_assert(ret == 0);
+	if (obj_len < len) {
+		dout(" skipping last %llu, final file extent %llu~%llu\n",
+		     len - obj_len, ofs, obj_len);
+		len = obj_len;
+	}
+	if (op->op == CEPH_OSD_OP_READ || op->op == CEPH_OSD_OP_WRITE) {
+		op->extent.offset = obj_off;
+		op->extent.length = obj_len;
+		if (op->op == CEPH_OSD_OP_WRITE)
+			op->payload_len = obj_len;
+	}
+	osd_req->r_num_pages = calc_pages_for(ofs, len);
+	osd_req->r_page_alignment = ofs & ~PAGE_MASK;
 
 	ceph_osdc_build_request(osd_req, ofs, len, 1, op,
 				snapc, snapid, &mtime);
