@@ -4517,6 +4517,8 @@ void l2cap_move_start(struct l2cap_chan *chan)
 static void l2cap_do_create(struct l2cap_chan *chan, int result,
 			    u8 local_amp_id, u8 remote_amp_id)
 {
+	chan->fcs = L2CAP_FCS_NONE;
+
 	if (!test_bit(CONF_CONNECT_PEND, &chan->conf_state)) {
 		struct l2cap_conn_rsp rsp;
 		char buf[128];

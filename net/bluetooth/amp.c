@@ -392,7 +392,6 @@ void amp_physical_cfm(struct hci_conn *bredr_hcon, struct hci_conn *hs_hcon)
 	bredr_chan->remote_amp_id = hs_hcon->remote_id;
 	bredr_chan->hs_hcon = hs_hcon;
 	bredr_chan->conn->mtu = hs_hcon->hdev->block_mtu;
-	bredr_chan->fcs = L2CAP_FCS_NONE;
 
 	__l2cap_physical_cfm(bredr_chan, 0);
 
