@@ -1498,7 +1498,7 @@ static int __net_init ip6_fb_tnl_dev_init(struct net_device *dev)
 	return 0;
 }
 
-static size_t ip6_get_size(const struct net_device *dev)
+static size_t ip6_tnl_get_size(const struct net_device *dev)
 {
 	return
 		/* IFLA_IPTUN_LINK */
@@ -1520,7 +1520,7 @@ static size_t ip6_get_size(const struct net_device *dev)
 		0;
 }
 
-static int ip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
+static int ip6_tnl_fill_info(struct sk_buff *skb, const struct net_device *dev)
 {
 	struct ip6_tnl *tunnel = netdev_priv(dev);
 	struct __ip6_tnl_parm *parm = &tunnel->parms;
@@ -1546,8 +1546,8 @@ static struct rtnl_link_ops ip6_link_ops __read_mostly = {
 	.kind		= "ip6tnl",
 	.maxtype	= IFLA_IPTUN_MAX,
 	.priv_size	= sizeof(struct ip6_tnl),
-	.get_size	= ip6_get_size,
-	.fill_info	= ip6_fill_info,
+	.get_size	= ip6_tnl_get_size,
+	.fill_info	= ip6_tnl_fill_info,
 };
 
 static struct xfrm6_tunnel ip4ip6_handler __read_mostly = {
