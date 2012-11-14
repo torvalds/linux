@@ -521,7 +521,7 @@ static void iwlagn_mac_tx(struct ieee80211_hw *hw,
 		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
 	if (iwlagn_tx_skb(priv, control->sta, skb))
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 }
 
 static void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
