@@ -3390,8 +3390,13 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	u32 seqno = 0;
 	int ret;
 
-	if (atomic_read(&dev_priv->gpu_error.wedged))
-		return -EIO;
+	ret = i915_gem_wait_for_error(&dev_priv->gpu_error);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error, false);
+	if (ret)
+		return ret;
 
 	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
