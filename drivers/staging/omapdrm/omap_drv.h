@@ -218,17 +218,17 @@ static inline int objects_lookup(struct drm_device *dev,
 
 	for (i = 0; i < n; i++) {
 		bos[i] = drm_gem_object_lookup(dev, filp, handles[i]);
-		if (!bos[i]) {
+		if (!bos[i])
 			goto fail;
-		}
+
 	}
 
 	return 0;
 
 fail:
-	while (--i > 0) {
+	while (--i > 0)
 		drm_gem_object_unreference_unlocked(bos[i]);
-	}
+
 	return -ENOENT;
 }
 
