@@ -2188,7 +2188,7 @@ xfs_change_file_space(
 	case XFS_IOC_ZERO_RANGE:
 		prealloc_type |= XFS_BMAPI_CONVERT;
 		end = round_down(startoffset + bf->l_len, PAGE_SIZE) - 1;
-		if (startoffset > end)
+		if (startoffset <= end)
 			truncate_pagecache_range(VFS_I(ip), startoffset, end);
 		/* FALLTHRU */
 	case XFS_IOC_RESVSP:
