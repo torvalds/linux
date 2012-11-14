@@ -20,6 +20,9 @@ void mvebu_restart(char mode, const char *cmd);
 void armada_370_xp_init_irq(void);
 void armada_370_xp_handle_irq(struct pt_regs *regs);
 
+void armada_xp_cpu_die(unsigned int cpu);
 int armada_370_xp_coherency_init(void);
 int armada_370_xp_pmsu_init(void);
+void armada_xp_secondary_startup(void);
+extern struct smp_operations armada_xp_smp_ops;
 #endif

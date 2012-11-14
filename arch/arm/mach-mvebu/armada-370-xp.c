@@ -23,6 +23,7 @@
 #include <asm/mach/time.h>
 #include "armada-370-xp.h"
 #include "common.h"
+#include "coherency.h"
 
 static struct map_desc armada_370_xp_io_desc[] __initdata = {
 	{
@@ -51,6 +52,7 @@ struct sys_timer armada_370_xp_timer = {
 static void __init armada_370_xp_dt_init(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
+	coherency_init();
 }
 
 static const char * const armada_370_xp_dt_board_dt_compat[] = {
@@ -60,6 +62,7 @@ static const char * const armada_370_xp_dt_board_dt_compat[] = {
 };
 
 DT_MACHINE_START(ARMADA_XP_DT, "Marvell Aramada 370/XP (Device Tree)")
+	.smp		= smp_ops(armada_xp_smp_ops),
 	.init_machine	= armada_370_xp_dt_init,
 	.map_io		= armada_370_xp_map_io,
 	.init_irq	= armada_370_xp_init_irq,
