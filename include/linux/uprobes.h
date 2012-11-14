@@ -97,6 +97,8 @@ extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_con
 extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_mmap(struct vm_area_struct *vma);
 extern void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end);
+extern void uprobe_start_dup_mmap(void);
+extern void uprobe_end_dup_mmap(void);
 extern void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm);
 extern void uprobe_free_utask(struct task_struct *t);
 extern void uprobe_copy_process(struct task_struct *t);
@@ -125,6 +127,12 @@ static inline int uprobe_mmap(struct vm_area_struct *vma)
 }
 static inline void
 uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
+{
+}
+static inline void uprobe_start_dup_mmap(void)
+{
+}
+static inline void uprobe_end_dup_mmap(void)
 {
 }
 static inline void

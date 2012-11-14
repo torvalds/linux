@@ -33,6 +33,7 @@
 #include <linux/ptrace.h>	/* user_enable_single_step */
 #include <linux/kdebug.h>	/* notifier mechanism */
 #include "../../mm/internal.h"	/* munlock_vma_page */
+#include <linux/percpu-rwsem.h>
 
 #include <linux/uprobes.h>
 
@@ -70,6 +71,8 @@ static struct mutex uprobes_mutex[UPROBES_HASH_SZ];
 /* serialize uprobe->pending_list */
 static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
 #define uprobes_mmap_hash(v)	(&uprobes_mmap_mutex[((unsigned long)(v)) % UPROBES_HASH_SZ])
+
+static struct percpu_rw_semaphore dup_mmap_sem;
 
 /*
  * uprobe_events allows us to skip the uprobe_mmap if there are no uprobe
@@ -766,10 +769,13 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 	struct map_info *info;
 	int err = 0;
 
+	percpu_down_write(&dup_mmap_sem);
 	info = build_map_info(uprobe->inode->i_mapping,
 					uprobe->offset, is_register);
-	if (IS_ERR(info))
-		return PTR_ERR(info);
+	if (IS_ERR(info)) {
+		err = PTR_ERR(info);
+		goto out;
+	}
 
 	while (info) {
 		struct mm_struct *mm = info->mm;
@@ -799,7 +805,8 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 		mmput(mm);
 		info = free_map_info(info);
 	}
-
+ out:
+	percpu_up_write(&dup_mmap_sem);
 	return err;
 }
 
@@ -1129,6 +1136,16 @@ void uprobe_clear_state(struct mm_struct *mm)
 	put_page(area->page);
 	kfree(area->bitmap);
 	kfree(area);
+}
+
+void uprobe_start_dup_mmap(void)
+{
+	percpu_down_read(&dup_mmap_sem);
+}
+
+void uprobe_end_dup_mmap(void)
+{
+	percpu_up_read(&dup_mmap_sem);
 }
 
 void uprobe_dup_mmap(struct mm_struct *oldmm, struct mm_struct *newmm)
@@ -1596,6 +1613,9 @@ static int __init init_uprobes(void)
 		mutex_init(&uprobes_mutex[i]);
 		mutex_init(&uprobes_mmap_mutex[i]);
 	}
+
+	if (percpu_init_rwsem(&dup_mmap_sem))
+		return -ENOMEM;
 
 	return register_die_notifier(&uprobe_exception_nb);
 }
