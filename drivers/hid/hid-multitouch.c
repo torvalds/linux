@@ -294,6 +294,18 @@ static void mt_feature_mapping(struct hid_device *hdev,
 			td->maxcontacts = td->mtclass.maxcontacts;
 
 		break;
+	case 0xff0000c5:
+		if (field->report_count == 256 && field->report_size == 8) {
+			/* Win 8 devices need special quirks */
+			__s32 *quirks = &td->mtclass.quirks;
+			*quirks |= MT_QUIRK_ALWAYS_VALID;
+			*quirks |= MT_QUIRK_IGNORE_DUPLICATES;
+			*quirks |= MT_QUIRK_HOVERING;
+			*quirks &= ~MT_QUIRK_NOT_SEEN_MEANS_UP;
+			*quirks &= ~MT_QUIRK_VALID_IS_INRANGE;
+			*quirks &= ~MT_QUIRK_VALID_IS_CONFIDENCE;
+		}
+		break;
 	}
 }
 
