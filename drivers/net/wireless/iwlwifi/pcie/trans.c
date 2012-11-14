@@ -203,6 +203,9 @@ static int iwl_rx_init(struct iwl_trans *trans)
 	INIT_LIST_HEAD(&rxq->rx_free);
 	INIT_LIST_HEAD(&rxq->rx_used);
 
+	INIT_WORK(&trans_pcie->rx_replenish,
+		  iwl_pcie_rx_replenish_work);
+
 	iwl_trans_rxq_free_rx_bufs(trans);
 
 	for (i = 0; i < RX_QUEUE_SIZE; i++)
@@ -1449,8 +1452,6 @@ static int iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 			goto error;
 		}
 
-		INIT_WORK(&trans_pcie->rx_replenish,
-			  iwl_pcie_rx_replenish_work);
 		trans_pcie->irq_requested = true;
 	}
 
