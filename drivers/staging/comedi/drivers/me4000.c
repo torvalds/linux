@@ -969,28 +969,23 @@ static int me4000_ai_do_cmd_test(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/*
-	 * Stage 3. Check if arguments are generally valid.
-	 */
+	/* Step 3: check if arguments are trivially valid */
+
 	if (cmd->chanlist_len < 1) {
-		dev_err(dev->class_dev, "No channel list\n");
 		cmd->chanlist_len = 1;
-		err++;
+		err |= -EINVAL;
 	}
 	if (init_ticks < 66) {
-		dev_err(dev->class_dev, "Start arg to low\n");
 		cmd->start_arg = 2000;
-		err++;
+		err |= -EINVAL;
 	}
 	if (scan_ticks && scan_ticks < 67) {
-		dev_err(dev->class_dev, "Scan begin arg to low\n");
 		cmd->scan_begin_arg = 2031;
-		err++;
+		err |= -EINVAL;
 	}
 	if (chan_ticks < 66) {
-		dev_err(dev->class_dev, "Convert arg to low\n");
 		cmd->convert_arg = 2000;
-		err++;
+		err |= -EINVAL;
 	}
 
 	if (err)
