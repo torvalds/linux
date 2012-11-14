@@ -273,8 +273,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *         1. support rk3066b;
 *v0.x.17: 
 *         1. support 8Mega picture;
+*v0.x.19:
+*         1. invalidate the limit which scale is invalidat when scale ratio > 2;
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x17)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x19)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -2231,14 +2233,16 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
             pix->width = mf.width;
             pix->height = mf.height;            
 		}
-        
+        /* ddl@rock-chips.com: Invalidate these code, because sensor need interpolate */
+        #if 0     
         if ((mf.width < usr_w) || (mf.height < usr_h)) {
             if (((usr_w>>1) > mf.width) || ((usr_h>>1) > mf.height)) {
                 RKCAMERA_TR("The aspect ratio(%dx%d/%dx%d) is bigger than 2 !\n",mf.width,mf.height,usr_w,usr_h);
                 pix->width = mf.width;
                 pix->height = mf.height;
             }
-        }        
+        }    
+        #endif
 	}
 	#else
 	//need to change according to crop and scale capablicity
