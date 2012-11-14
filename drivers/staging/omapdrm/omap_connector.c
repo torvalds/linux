@@ -146,11 +146,10 @@ enum drm_connector_status omap_connector_detect(
 	enum drm_connector_status ret;
 
 	if (dssdrv->detect) {
-		if (dssdrv->detect(dssdev)) {
+		if (dssdrv->detect(dssdev))
 			ret = connector_status_connected;
-		} else {
+		else
 			ret = connector_status_disconnected;
-		}
 	} else {
 		ret = connector_status_unknown;
 	}
@@ -383,9 +382,8 @@ struct drm_connector *omap_connector_init(struct drm_device *dev,
 	return connector;
 
 fail:
-	if (connector) {
+	if (connector)
 		omap_connector_destroy(connector);
-	}
 
 	return NULL;
 }
