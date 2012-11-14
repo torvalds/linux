@@ -163,10 +163,10 @@ struct thread_info {
  */
 #ifndef __ASSEMBLY__
 
-#define current_stack_pointer ({		\
-	unsigned long sp;			\
-	asm("mov %%esp,%0" : "=g" (sp));	\
-	sp;					\
+#define current_stack_pointer ({			\
+	register unsigned long sp asm("esp") __used;	\
+	asm("" : "=r" (sp));				\
+	sp;						\
 })
 
 /* how to get the thread information struct from C */
