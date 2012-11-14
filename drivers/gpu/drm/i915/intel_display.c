@@ -2223,7 +2223,7 @@ intel_finish_fb(struct drm_framebuffer *old_fb)
 	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
 
 	wait_event(dev_priv->pending_flip_queue,
-		   atomic_read(&dev_priv->mm.wedged) ||
+		   atomic_read(&dev_priv->gpu_error.wedged) ||
 		   atomic_read(&obj->pending_flip) == 0);
 
 	/* Big Hammer, we also need to ensure that any pending
@@ -2871,7 +2871,7 @@ static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
 	unsigned long flags;
 	bool pending;
 
-	if (atomic_read(&dev_priv->mm.wedged))
+	if (atomic_read(&dev_priv->gpu_error.wedged))
 		return false;
 
 	spin_lock_irqsave(&dev->event_lock, flags);

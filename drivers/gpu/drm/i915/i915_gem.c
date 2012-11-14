@@ -87,14 +87,13 @@ static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 }
 
 static int
-i915_gem_wait_for_error(struct drm_device *dev)
+i915_gem_wait_for_error(struct i915_gpu_error *error)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct completion *x = &dev_priv->gpu_error.completion;
+	struct completion *x = &error->completion;
 	unsigned long flags;
 	int ret;
 
-	if (!atomic_read(&dev_priv->mm.wedged))
+	if (!atomic_read(&error->wedged))
 		return 0;
 
 	/*
@@ -110,7 +109,7 @@ i915_gem_wait_for_error(struct drm_device *dev)
 		return ret;
 	}
 
-	if (atomic_read(&dev_priv->mm.wedged)) {
+	if (atomic_read(&error->wedged)) {
 		/* GPU is hung, bump the completion count to account for
 		 * the token we just consumed so that we never hit zero and
 		 * end up waiting upon a subsequent completion event that
@@ -125,9 +124,10 @@ i915_gem_wait_for_error(struct drm_device *dev)
 
 int i915_mutex_lock_interruptible(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	ret = i915_gem_wait_for_error(dev);
+	ret = i915_gem_wait_for_error(&dev_priv->gpu_error);
 	if (ret)
 		return ret;
 
@@ -939,11 +939,11 @@ unlock:
 }
 
 int
-i915_gem_check_wedge(struct drm_i915_private *dev_priv,
+i915_gem_check_wedge(struct i915_gpu_error *error,
 		     bool interruptible)
 {
-	if (atomic_read(&dev_priv->mm.wedged)) {
-		struct completion *x = &dev_priv->gpu_error.completion;
+	if (atomic_read(&error->wedged)) {
+		struct completion *x = &error->completion;
 		bool recovery_complete;
 		unsigned long flags;
 
@@ -1025,7 +1025,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
-	atomic_read(&dev_priv->mm.wedged))
+	atomic_read(&dev_priv->gpu_error.wedged))
 	do {
 		if (interruptible)
 			end = wait_event_interruptible_timeout(ring->irq_queue,
@@ -1035,7 +1035,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			end = wait_event_timeout(ring->irq_queue, EXIT_COND,
 						 timeout_jiffies);
 
-		ret = i915_gem_check_wedge(dev_priv, interruptible);
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
 		if (ret)
 			end = ret;
 	} while (end == 0 && wait_forever);
@@ -1081,7 +1081,7 @@ i915_wait_seqno(struct intel_ring_buffer *ring, uint32_t seqno)
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(seqno == 0);
 
-	ret = i915_gem_check_wedge(dev_priv, interruptible);
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error, interruptible);
 	if (ret)
 		return ret;
 
@@ -1146,7 +1146,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 	if (seqno == 0)
 		return 0;
 
-	ret = i915_gem_check_wedge(dev_priv, true);
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error, true);
 	if (ret)
 		return ret;
 
@@ -1379,7 +1379,7 @@ out:
 		/* If this -EIO is due to a gpu hang, give the reset code a
 		 * chance to clean up the mess. Otherwise return the proper
 		 * SIGBUS. */
-		if (!atomic_read(&dev_priv->mm.wedged))
+		if (!atomic_read(&dev_priv->gpu_error.wedged))
 			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
 		/* Give the error handler a chance to run and move the
@@ -3390,7 +3390,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	u32 seqno = 0;
 	int ret;
 
-	if (atomic_read(&dev_priv->mm.wedged))
+	if (atomic_read(&dev_priv->gpu_error.wedged))
 		return -EIO;
 
 	spin_lock(&file_priv->mm.lock);
@@ -3978,9 +3978,9 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	if (atomic_read(&dev_priv->mm.wedged)) {
+	if (atomic_read(&dev_priv->gpu_error.wedged)) {
 		DRM_ERROR("Reenabling wedged hardware, good luck\n");
-		atomic_set(&dev_priv->mm.wedged, 0);
+		atomic_set(&dev_priv->gpu_error.wedged, 0);
 	}
 
 	mutex_lock(&dev->struct_mutex);

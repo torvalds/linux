@@ -1371,7 +1371,8 @@ static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 
 		msleep(1);
 
-		ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+					   dev_priv->mm.interruptible);
 		if (ret)
 			return ret;
 	} while (!time_after(jiffies, end));
@@ -1460,7 +1461,8 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	int ret;
 
-	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+	ret = i915_gem_check_wedge(&dev_priv->gpu_error,
+				   dev_priv->mm.interruptible);
 	if (ret)
 		return ret;
 

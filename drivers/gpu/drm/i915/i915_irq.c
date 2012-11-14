@@ -871,11 +871,11 @@ static void i915_error_work_func(struct work_struct *work)
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
-	if (atomic_read(&dev_priv->mm.wedged)) {
+	if (atomic_read(&dev_priv->gpu_error.wedged)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
 		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
 		if (!i915_reset(dev)) {
-			atomic_set(&dev_priv->mm.wedged, 0);
+			atomic_set(&dev_priv->gpu_error.wedged, 0);
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 		}
 		complete_all(&dev_priv->gpu_error.completion);
@@ -1483,7 +1483,7 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 
 	if (wedged) {
 		INIT_COMPLETION(dev_priv->gpu_error.completion);
-		atomic_set(&dev_priv->mm.wedged, 1);
+		atomic_set(&dev_priv->gpu_error.wedged, 1);
 
 		/*
 		 * Wakeup waiting processes so they don't hang
