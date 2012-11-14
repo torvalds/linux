@@ -80,7 +80,6 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_TOFFSET_KNOWN,
 };
 
-#define STA_TID_NUM 16
 #define ADDBA_RESP_INTERVAL HZ
 #define HT_AGG_MAX_RETRIES		15
 #define HT_AGG_BURST_RETRIES		3
@@ -197,15 +196,15 @@ struct tid_ampdu_rx {
 struct sta_ampdu_mlme {
 	struct mutex mtx;
 	/* rx */
-	struct tid_ampdu_rx __rcu *tid_rx[STA_TID_NUM];
-	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(STA_TID_NUM)];
-	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(STA_TID_NUM)];
+	struct tid_ampdu_rx __rcu *tid_rx[IEEE80211_NUM_TIDS];
+	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
+	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	/* tx */
 	struct work_struct work;
-	struct tid_ampdu_tx __rcu *tid_tx[STA_TID_NUM];
-	struct tid_ampdu_tx *tid_start_tx[STA_TID_NUM];
-	unsigned long last_addba_req_time[STA_TID_NUM];
-	u8 addba_req_num[STA_TID_NUM];
+	struct tid_ampdu_tx __rcu *tid_tx[IEEE80211_NUM_TIDS];
+	struct tid_ampdu_tx *tid_start_tx[IEEE80211_NUM_TIDS];
+	unsigned long last_addba_req_time[IEEE80211_NUM_TIDS];
+	u8 addba_req_num[IEEE80211_NUM_TIDS];
 	u8 dialog_token_allocator;
 };
 
@@ -330,7 +329,7 @@ struct sta_info {
 	int last_signal;
 	struct ewma avg_signal;
 	/* Plus 1 for non-QoS frames */
-	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES + 1];
+	__le16 last_seq_ctrl[IEEE80211_NUM_TIDS + 1];
 
 	/* Updated from TX status path only, no locking requirements */
 	unsigned long tx_filtered_count;
@@ -351,7 +350,7 @@ struct sta_info {
 	 * Aggregation information, locked with lock.
 	 */
 	struct sta_ampdu_mlme ampdu_mlme;
-	u8 timer_to_tid[STA_TID_NUM];
+	u8 timer_to_tid[IEEE80211_NUM_TIDS];
 
 #ifdef CONFIG_MAC80211_MESH
 	/*

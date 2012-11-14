@@ -116,7 +116,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 				size_t count, loff_t *ppos)
 {
 	struct ieee80211_key *key = file->private_data;
-	char buf[14*NUM_RX_DATA_QUEUES+1], *p = buf;
+	char buf[14*IEEE80211_NUM_TIDS+1], *p = buf;
 	int i, len;
 	const u8 *rpn;
 
@@ -126,7 +126,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = scnprintf(buf, sizeof(buf), "\n");
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
-		for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+		for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%08x %04x\n",
 				       key->u.tkip.rx[i].iv32,
@@ -134,7 +134,7 @@ static ssize_t key_rx_spec_read(struct file *file, char __user *userbuf,
 		len = p - buf;
 		break;
 	case WLAN_CIPHER_SUITE_CCMP:
-		for (i = 0; i < NUM_RX_DATA_QUEUES + 1; i++) {
+		for (i = 0; i < IEEE80211_NUM_TIDS + 1; i++) {
 			rpn = key->u.ccmp.rx_pn[i];
 			p += scnprintf(p, sizeof(buf)+buf-p,
 				       "%02x%02x%02x%02x%02x%02x\n",
