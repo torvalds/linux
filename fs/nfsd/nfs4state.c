@@ -402,15 +402,11 @@ static unsigned int clientstr_hashval(const char *name)
 }
 
 /*
- * client_lru holds client queue ordered by nfs4_client.cl_time
- * for lease renewal.
- *
  * close_lru holds (open) stateowner queue ordered by nfs4_stateowner.so_time
  * for last close replay.
  *
  * All of the above fields are protected by the client_mutex.
  */
-static struct list_head client_lru;
 static struct list_head close_lru;
 
 /*
@@ -995,6 +991,8 @@ unhash_session(struct nfsd4_session *ses)
 static inline void
 renew_client_locked(struct nfs4_client *clp)
 {
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+
 	if (is_client_expired(clp)) {
 		WARN_ON(1);
 		printk("%s: client (clientid %08x/%08x) already expired\n",
@@ -1007,7 +1005,7 @@ renew_client_locked(struct nfs4_client *clp)
 	dprintk("renewing client (clientid %08x/%08x)\n", 
 			clp->cl_clientid.cl_boot, 
 			clp->cl_clientid.cl_id);
-	list_move_tail(&clp->cl_lru, &client_lru);
+	list_move_tail(&clp->cl_lru, &nn->client_lru);
 	clp->cl_time = get_seconds();
 }
 
@@ -3196,6 +3194,7 @@ nfs4_laundromat(void)
 	time_t cutoff = get_seconds() - nfsd4_lease;
 	time_t t, clientid_val = nfsd4_lease;
 	time_t u, test_val = nfsd4_lease;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	nfs4_lock_state();
 
@@ -3203,7 +3202,7 @@ nfs4_laundromat(void)
 	nfsd4_end_grace(&init_net);
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&client_lock);
-	list_for_each_safe(pos, next, &client_lru) {
+	list_for_each_safe(pos, next, &nn->client_lru) {
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		if (time_after((unsigned long)clp->cl_time, (unsigned long)cutoff)) {
 			t = clp->cl_time - cutoff;
@@ -4590,9 +4589,10 @@ void nfsd_forget_clients(u64 num)
 {
 	struct nfs4_client *clp, *next;
 	int count = 0;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	nfs4_lock_state();
-	list_for_each_entry_safe(clp, next, &client_lru, cl_lru) {
+	list_for_each_entry_safe(clp, next, &nn->client_lru, cl_lru) {
 		expire_client(clp);
 		if (++count == num)
 			break;
@@ -4722,7 +4722,6 @@ nfs4_state_init(void)
 		INIT_LIST_HEAD(&file_hashtbl[i]);
 	}
 	INIT_LIST_HEAD(&close_lru);
-	INIT_LIST_HEAD(&client_lru);
 	INIT_LIST_HEAD(&del_recall_lru);
 }
 
@@ -4785,6 +4784,7 @@ static int nfs4_state_start_net(struct net *net)
 		INIT_LIST_HEAD(&nn->sessionid_hashtbl[i]);
 	nn->conf_name_tree = RB_ROOT;
 	nn->unconf_name_tree = RB_ROOT;
+	INIT_LIST_HEAD(&nn->client_lru);
 
 	return 0;
 

@@ -68,6 +68,11 @@ struct nfsd_net {
 	struct list_head *ownerstr_hashtbl;
 	struct list_head *lockowner_ino_hashtbl;
 	struct list_head *sessionid_hashtbl;
+	/*
+	 * client_lru holds client queue ordered by nfs4_client.cl_time
+	 * for lease renewal.
+	 */
+	struct list_head client_lru;
 };
 
 extern int nfsd_net_id;
