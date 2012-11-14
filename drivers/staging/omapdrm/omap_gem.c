@@ -521,9 +521,8 @@ int omap_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* if a shmem backed object, make sure we have pages attached now */
 	ret = get_pages(obj, &pages);
-	if (ret) {
+	if (ret)
 		goto fail;
-	}
 
 	/* where should we do corresponding put_pages().. we are mapping
 	 * the original page, rather than thru a GART, so we can't rely
@@ -1146,9 +1145,8 @@ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op)
 		struct omap_gem_sync_waiter *waiter =
 				kzalloc(sizeof(*waiter), GFP_KERNEL);
 
-		if (!waiter) {
+		if (!waiter)
 			return -ENOMEM;
-		}
 
 		waiter->omap_obj = omap_obj;
 		waiter->op = op;
@@ -1177,9 +1175,8 @@ int omap_gem_op_sync(struct drm_gem_object *obj, enum omap_gem_op op)
 		}
 		spin_unlock(&sync_lock);
 
-		if (waiter) {
+		if (waiter)
 			kfree(waiter);
-		}
 	}
 	return ret;
 }
@@ -1201,9 +1198,8 @@ int omap_gem_op_async(struct drm_gem_object *obj, enum omap_gem_op op,
 		struct omap_gem_sync_waiter *waiter =
 				kzalloc(sizeof(*waiter), GFP_ATOMIC);
 
-		if (!waiter) {
+		if (!waiter)
 			return -ENOMEM;
-		}
 
 		waiter->omap_obj = omap_obj;
 		waiter->op = op;
@@ -1285,9 +1281,8 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	list_del(&omap_obj->mm_list);
 
-	if (obj->map_list.map) {
+	if (obj->map_list.map)
 		drm_gem_free_mmap_offset(obj);
-	}
 
 	/* this means the object is still pinned.. which really should
 	 * not happen.  I think..
@@ -1296,9 +1291,9 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 
 	/* don't free externally allocated backing memory */
 	if (!(omap_obj->flags & OMAP_BO_EXT_MEM)) {
-		if (omap_obj->pages) {
+		if (omap_obj->pages)
 			omap_gem_detach_pages(obj);
-		}
+
 		if (!is_shmem(obj)) {
 			dma_free_writecombine(dev->dev, obj->size,
 					omap_obj->vaddr, omap_obj->paddr);
@@ -1308,9 +1303,8 @@ void omap_gem_free_object(struct drm_gem_object *obj)
 	}
 
 	/* don't free externally allocated syncobj */
-	if (!(omap_obj->flags & OMAP_BO_EXT_SYNC)) {
+	if (!(omap_obj->flags & OMAP_BO_EXT_SYNC))
 		kfree(omap_obj->sync);
-	}
 
 	drm_gem_object_release(obj);
 
@@ -1395,9 +1389,9 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		 */
 		omap_obj->vaddr =  dma_alloc_writecombine(dev->dev, size,
 				&omap_obj->paddr, GFP_KERNEL);
-		if (omap_obj->vaddr) {
+		if (omap_obj->vaddr)
 			flags |= OMAP_BO_DMA;
-		}
+
 	}
 
 	omap_obj->flags = flags;
@@ -1407,22 +1401,20 @@ struct drm_gem_object *omap_gem_new(struct drm_device *dev,
 		omap_obj->height = gsize.tiled.height;
 	}
 
-	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM)) {
+	if (flags & (OMAP_BO_DMA|OMAP_BO_EXT_MEM))
 		ret = drm_gem_private_object_init(dev, obj, size);
-	} else {
+	else
 		ret = drm_gem_object_init(dev, obj, size);
-	}
 
-	if (ret) {
+	if (ret)
 		goto fail;
-	}
 
 	return obj;
 
 fail:
-	if (obj) {
+	if (obj)
 		omap_gem_free_object(obj);
-	}
+
 	return NULL;
 }
 
