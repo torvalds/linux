@@ -157,7 +157,6 @@ struct ceph_osd_client {
 
 struct ceph_osd_req_op {
 	u16 op;           /* CEPH_OSD_OP_* */
-	u32 flags;        /* CEPH_OSD_FLAG_* */
 	union {
 		struct {
 			u64 offset, length;
