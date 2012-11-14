@@ -785,6 +785,17 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 
 	BUG_ON(sblock_to_check->page_count < 1);
 	fs_info = sctx->dev_root->fs_info;
+	if (sblock_to_check->pagev[0]->flags & BTRFS_EXTENT_FLAG_SUPER) {
+		/*
+		 * if we find an error in a super block, we just report it.
+		 * They will get written with the next transaction commit
+		 * anyway
+		 */
+		spin_lock(&sctx->stat_lock);
+		++sctx->stat.super_errors;
+		spin_unlock(&sctx->stat_lock);
+		return 0;
+	}
 	length = sblock_to_check->page_count * PAGE_SIZE;
 	logical = sblock_to_check->pagev[0]->logical;
 	generation = sblock_to_check->pagev[0]->generation;
