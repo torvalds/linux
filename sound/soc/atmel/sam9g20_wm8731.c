@@ -38,6 +38,8 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
+#include <linux/pinctrl/consumer.h>
+
 #include <linux/atmel-ssc.h>
 
 #include <sound/core.h>
@@ -197,12 +199,24 @@ static struct snd_soc_card snd_soc_at91sam9g20ek = {
 
 static int __devinit at91sam9g20ek_audio_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *codec_np, *cpu_np;
 	struct clk *pllb;
 	struct snd_soc_card *card = &snd_soc_at91sam9g20ek;
+	struct pinctrl *pinctrl;
 	int ret;
 
-	if (!(machine_is_at91sam9g20ek() || machine_is_at91sam9g20ek_2mmc()))
-		return -ENODEV;
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		dev_err(&pdev->dev, "Failed to request pinctrl for mck\n");
+		return PTR_ERR(pinctrl);
+	}
+
+	if (!np) {
+		if (!(machine_is_at91sam9g20ek() ||
+			machine_is_at91sam9g20ek_2mmc()))
+			return -ENODEV;
+	}
 
 	ret = atmel_ssc_set_audio(0);
 	if (ret) {
@@ -236,6 +250,42 @@ static int __devinit at91sam9g20ek_audio_probe(struct platform_device *pdev)
 	clk_set_rate(mclk, MCLK_RATE);
 
 	card->dev = &pdev->dev;
+
+	/* Parse device node info */
+	if (np) {
+		ret = snd_soc_of_parse_card_name(card, "atmel,model");
+		if (ret)
+			goto err;
+
+		ret = snd_soc_of_parse_audio_routing(card,
+			"atmel,audio-routing");
+		if (ret)
+			goto err;
+
+		/* Parse codec info */
+		at91sam9g20ek_dai.codec_name = NULL;
+		codec_np = of_parse_phandle(np, "atmel,audio-codec", 0);
+		if (!codec_np) {
+			dev_err(&pdev->dev, "codec info missing\n");
+			return -EINVAL;
+		}
+		at91sam9g20ek_dai.codec_of_node = codec_np;
+
+		/* Parse dai and platform info */
+		at91sam9g20ek_dai.cpu_dai_name = NULL;
+		at91sam9g20ek_dai.platform_name = NULL;
+		cpu_np = of_parse_phandle(np, "atmel,ssc-controller", 0);
+		if (!cpu_np) {
+			dev_err(&pdev->dev, "dai and pcm info missing\n");
+			return -EINVAL;
+		}
+		at91sam9g20ek_dai.cpu_of_node = cpu_np;
+		at91sam9g20ek_dai.platform_of_node = cpu_np;
+
+		of_node_put(codec_np);
+		of_node_put(cpu_np);
+	}
+
 	ret = snd_soc_register_card(card);
 	if (ret) {
 		printk(KERN_ERR "ASoC: snd_soc_register_card() failed\n");
@@ -263,10 +313,19 @@ static int __devexit at91sam9g20ek_audio_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id at91sam9g20ek_wm8731_dt_ids[] = {
+	{ .compatible = "atmel,at91sam9g20ek-wm8731-audio", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, at91sam9g20ek_wm8731_dt_ids);
+#endif
+
 static struct platform_driver at91sam9g20ek_audio_driver = {
 	.driver = {
 		.name	= "at91sam9g20ek-audio",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(at91sam9g20ek_wm8731_dt_ids),
 	},
 	.probe	= at91sam9g20ek_audio_probe,
 	.remove	= __devexit_p(at91sam9g20ek_audio_remove),
