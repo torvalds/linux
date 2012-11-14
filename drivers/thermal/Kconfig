@@ -67,7 +67,7 @@ config USER_SPACE
 	  Enable this to let the user space manage the platform thermals.
 
 config CPU_THERMAL
-	bool "generic cpu cooling support"
+	tristate "generic cpu cooling support"
 	depends on CPU_FREQ
 	select CPU_FREQ_TABLE
 	help

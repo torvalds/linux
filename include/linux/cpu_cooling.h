@@ -29,7 +29,7 @@
 #define CPUFREQ_COOLING_START		0
 #define CPUFREQ_COOLING_STOP		1
 
-#ifdef CONFIG_CPU_THERMAL
+#if defined(CONFIG_CPU_THERMAL) || defined(CONFIG_CPU_THERMAL_MODULE)
 /**
  * cpufreq_cooling_register - function to create cpufreq cooling device.
  * @clip_cpus: cpumask of cpus where the frequency constraints will happen
