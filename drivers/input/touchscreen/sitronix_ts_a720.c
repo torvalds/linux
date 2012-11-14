@@ -827,7 +827,7 @@ static void sitronix_ts_work_func(struct work_struct *work)
 				input_report_abs(ts->input_dev,  ABS_MT_TRACKING_ID, i);
 				input_report_abs(ts->input_dev,  ABS_MT_TOUCH_MAJOR, 200);
 				
-				if(pdata->direction_otation)
+				if( pdata && (pdata->direction_otation) )
 				{
 				      int temp_x , temp_y ;
 				      temp_x = MTDStructure[i].Pixel_X ;
