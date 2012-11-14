@@ -947,26 +947,10 @@ void comedi_pci_disable(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL_GPL(comedi_pci_disable);
 
-static int comedi_pci_attach_wrapper(struct comedi_device *dev,
-				     unsigned long context)
-{
-	return dev->driver->attach_pci(dev, (struct pci_dev *)context);
-}
-
-static int comedi_new_pci_auto_config(struct pci_dev *pcidev,
-				      struct comedi_driver *driver)
-{
-	return comedi_auto_config_helper(&pcidev->dev, driver,
-					 comedi_pci_attach_wrapper,
-					 (unsigned long)pcidev);
-}
-
 int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
 {
 
-	if (driver->attach_pci)
-		return comedi_new_pci_auto_config(pcidev, driver);
-	else if (driver->auto_attach)
+	if (driver->auto_attach)
 		return comedi_auto_config(&pcidev->dev, driver, 0);
 	else
 		return -EINVAL;
