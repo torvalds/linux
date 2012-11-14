@@ -283,7 +283,7 @@ static int tca8418_keypad_probe(struct i2c_client *client,
 {
 	struct device *dev = &client->dev;
 	const struct tca8418_keypad_platform_data *pdata =
-						client->dev.platform_data;
+						dev_get_platdata(dev);
 	struct tca8418_keypad *keypad_data;
 	struct input_dev *input;
 	const struct matrix_keymap_data *keymap_data = NULL;
