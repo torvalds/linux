@@ -283,6 +283,44 @@ enum configuration_ids {
 	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004
 };
 
+/*
+ * Settings for INSN_CONFIG_DIGITAL_TRIG:
+ * data[0] = INSN_CONFIG_DIGITAL_TRIG
+ * data[1] = trigger ID
+ * data[2] = configuration operation
+ * data[3] = configuration parameter 1
+ * data[4] = configuration parameter 2
+ * data[5] = configuration parameter 3
+ *
+ * operation                           parameter 1   parameter 2   parameter 3
+ * ---------------------------------   -----------   -----------   -----------
+ * COMEDI_DIGITAL_TRIG_DISABLE
+ * COMEDI_DIGITAL_TRIG_ENABLE_EDGES    left-shift    rising-edges  falling-edges
+ * COMEDI_DIGITAL_TRIG_ENABLE_LEVELS   left-shift    high-levels   low-levels
+ *
+ * COMEDI_DIGITAL_TRIG_DISABLE returns the trigger to its default, inactive,
+ * unconfigured state.
+ *
+ * COMEDI_DIGITAL_TRIG_ENABLE_EDGES sets the rising and/or falling edge inputs
+ * that each can fire the trigger.
+ *
+ * COMEDI_DIGITAL_TRIG_ENABLE_LEVELS sets a combination of high and/or low
+ * level inputs that can fire the trigger.
+ *
+ * "left-shift" is useful if the trigger has more than 32 inputs to specify the
+ * first input for this configuration.
+ *
+ * Some sequences of INSN_CONFIG_DIGITAL_TRIG instructions may have a (partly)
+ * accumulative effect, depending on the low-level driver.  This is useful
+ * when setting up a trigger that has more than 32 inputs or has a combination
+ * of edge and level triggered inputs.
+ */
+enum comedi_digital_trig_op {
+	COMEDI_DIGITAL_TRIG_DISABLE = 0,
+	COMEDI_DIGITAL_TRIG_ENABLE_EDGES = 1,
+	COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = 2
+};
+
 enum comedi_io_direction {
 	COMEDI_INPUT = 0,
 	COMEDI_OUTPUT = 1,
