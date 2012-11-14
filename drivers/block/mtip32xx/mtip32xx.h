@@ -155,14 +155,14 @@ enum {
 	MTIP_DDF_REBUILD_FAILED_BIT = 8,
 };
 
-__packed struct smart_attr{
+struct smart_attr {
 	u8 attr_id;
 	u16 flags;
 	u8 cur;
 	u8 worst;
 	u32 data;
 	u8 res[3];
-};
+} __packed;
 
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {
