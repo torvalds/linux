@@ -243,7 +243,8 @@ static int plgpio_request(struct gpio_chip *chip, unsigned offset)
 	return 0;
 
 err1:
-	clk_disable_unprepare(plgpio->clk);
+	if (!IS_ERR(plgpio->clk))
+		clk_disable_unprepare(plgpio->clk);
 err0:
 	pinctrl_free_gpio(gpio);
 	return ret;
