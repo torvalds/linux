@@ -287,10 +287,16 @@ struct iwl_trans_pcie {
 	unsigned long wd_timeout;
 };
 
-/*****************************************************
-* DRIVER STATUS FUNCTIONS
-******************************************************/
-enum {
+/**
+ * enum iwl_pcie_status: status of the PCIe transport
+ * @STATUS_HCMD_ACTIVE: a SYNC command is being processed
+ * @STATUS_DEVICE_ENABLED: APM is enabled
+ * @STATUS_TPOWER_PMI: the device might be asleep (need to wake it up)
+ * @STATUS_INT_ENABLED: interrupts are enabled
+ * @STATUS_RFKILL: the HW RFkill switch is in KILL position
+ * @STATUS_FW_ERROR: the fw is in error state
+ */
+enum iwl_pcie_status {
 	STATUS_HCMD_ACTIVE,
 	STATUS_DEVICE_ENABLED,
 	STATUS_TPOWER_PMI,
