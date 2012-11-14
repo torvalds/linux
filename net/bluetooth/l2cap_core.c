@@ -4528,12 +4528,12 @@ static void l2cap_do_create(struct l2cap_chan *chan, int result,
 		/* Incoming channel on AMP */
 		if (result == L2CAP_CR_SUCCESS) {
 			/* Send successful response */
-			rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
-			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+			rsp.result = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
+			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
 		} else {
 			/* Send negative response */
-			rsp.result = cpu_to_le16(L2CAP_CR_NO_MEM);
-			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+			rsp.result = __constant_cpu_to_le16(L2CAP_CR_NO_MEM);
+			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
 		}
 
 		l2cap_send_cmd(chan->conn, chan->ident, L2CAP_CREATE_CHAN_RSP,
