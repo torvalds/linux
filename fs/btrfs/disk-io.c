@@ -3411,7 +3411,8 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 	}
 }
 
-void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
+static void __btrfs_btree_balance_dirty(struct btrfs_root *root,
+					int flush_delayed)
 {
 	/*
 	 * looks as though older kernels can get into trouble with
@@ -3423,7 +3424,8 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	if (current->flags & PF_MEMALLOC)
 		return;
 
-	btrfs_balance_delayed_items(root);
+	if (flush_delayed)
+		btrfs_balance_delayed_items(root);
 
 	num_dirty = root->fs_info->dirty_metadata_bytes;
 
@@ -3434,25 +3436,14 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	return;
 }
 
-void __btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
+void btrfs_btree_balance_dirty(struct btrfs_root *root)
 {
-	/*
-	 * looks as though older kernels can get into trouble with
-	 * this code, they end up stuck in balance_dirty_pages forever
-	 */
-	u64 num_dirty;
-	unsigned long thresh = 32 * 1024 * 1024;
+	__btrfs_btree_balance_dirty(root, 1);
+}
 
-	if (current->flags & PF_MEMALLOC)
-		return;
-
-	num_dirty = root->fs_info->dirty_metadata_bytes;
-
-	if (num_dirty > thresh) {
-		balance_dirty_pages_ratelimited_nr(
-				   root->fs_info->btree_inode->i_mapping, 1);
-	}
-	return;
+void btrfs_btree_balance_dirty_nodelay(struct btrfs_root *root)
+{
+	__btrfs_btree_balance_dirty(root, 0);
 }
 
 int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)

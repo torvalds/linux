@@ -1257,7 +1257,6 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 	struct btrfs_delayed_node *delayed_node = NULL;
 	struct btrfs_root *root;
 	struct btrfs_block_rsv *block_rsv;
-	unsigned long nr = 0;
 	int need_requeue = 0;
 	int ret;
 
@@ -1318,11 +1317,9 @@ static void btrfs_async_run_delayed_node_done(struct btrfs_work *work)
 					   delayed_node);
 	mutex_unlock(&delayed_node->mutex);
 
-	nr = trans->blocks_used;
-
 	trans->block_rsv = block_rsv;
 	btrfs_end_transaction_dmeta(trans, root);
-	__btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty_nodelay(root);
 free_path:
 	btrfs_free_path(path);
 out:

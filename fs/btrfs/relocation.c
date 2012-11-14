@@ -2025,7 +2025,6 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 	struct btrfs_root_item *root_item;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	unsigned long nr;
 	int level;
 	int max_level;
 	int replaced = 0;
@@ -2126,10 +2125,9 @@ static noinline_for_stack int merge_reloc_root(struct reloc_control *rc,
 			       path->slots[level]);
 		root_item->drop_level = level;
 
-		nr = trans->blocks_used;
 		btrfs_end_transaction_throttle(trans, root);
 
-		btrfs_btree_balance_dirty(root, nr);
+		btrfs_btree_balance_dirty(root);
 
 		if (replaced && rc->stage == UPDATE_DATA_PTRS)
 			invalidate_extent_cache(root, &key, &next_key);
@@ -2156,10 +2154,9 @@ out:
 		btrfs_update_reloc_root(trans, root);
 	}
 
-	nr = trans->blocks_used;
 	btrfs_end_transaction_throttle(trans, root);
 
-	btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty(root);
 
 	if (replaced && rc->stage == UPDATE_DATA_PTRS)
 		invalidate_extent_cache(root, &key, &next_key);
@@ -3262,7 +3259,6 @@ static int delete_block_group_cache(struct btrfs_fs_info *fs_info,
 	struct btrfs_path *path;
 	struct btrfs_root *root = fs_info->tree_root;
 	struct btrfs_trans_handle *trans;
-	unsigned long nr;
 	int ret = 0;
 
 	if (inode)
@@ -3296,9 +3292,8 @@ truncate:
 	ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
 
 	btrfs_free_path(path);
-	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
-	btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty(root);
 out:
 	iput(inode);
 	return ret;
@@ -3715,7 +3710,6 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 	struct btrfs_trans_handle *trans = NULL;
 	struct btrfs_path *path;
 	struct btrfs_extent_item *ei;
-	unsigned long nr;
 	u64 flags;
 	u32 item_size;
 	int ret;
@@ -3832,9 +3826,8 @@ restart:
 			ret = btrfs_commit_transaction(trans, rc->extent_root);
 			BUG_ON(ret);
 		} else {
-			nr = trans->blocks_used;
 			btrfs_end_transaction_throttle(trans, rc->extent_root);
-			btrfs_btree_balance_dirty(rc->extent_root, nr);
+			btrfs_btree_balance_dirty(rc->extent_root);
 		}
 		trans = NULL;
 
@@ -3864,9 +3857,8 @@ restart:
 			  GFP_NOFS);
 
 	if (trans) {
-		nr = trans->blocks_used;
 		btrfs_end_transaction_throttle(trans, rc->extent_root);
-		btrfs_btree_balance_dirty(rc->extent_root, nr);
+		btrfs_btree_balance_dirty(rc->extent_root);
 	}
 
 	if (!err) {
@@ -3945,7 +3937,6 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	unsigned long nr;
 	u64 objectid = BTRFS_FIRST_FREE_OBJECTID;
 	int err = 0;
 
@@ -3973,9 +3964,8 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 
 	err = btrfs_orphan_add(trans, inode);
 out:
-	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
-	btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty(root);
 	if (err) {
 		if (inode)
 			iput(inode);

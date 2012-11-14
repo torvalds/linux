@@ -1349,7 +1349,7 @@ static noinline ssize_t __btrfs_buffered_write(struct file *file,
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping,
 						   dirty_pages);
 		if (dirty_pages < (root->leafsize >> PAGE_CACHE_SHIFT) + 1)
-			btrfs_btree_balance_dirty(root, 1);
+			btrfs_btree_balance_dirty(root);
 
 		pos += copied;
 		num_written += copied;
@@ -1803,7 +1803,6 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 	u64 cur_offset = lockstart;
 	u64 min_size = btrfs_calc_trunc_metadata_size(root, 1);
 	u64 drop_end;
-	unsigned long nr;
 	int ret = 0;
 	int err = 0;
 	bool same_page = (offset >> PAGE_CACHE_SHIFT) ==
@@ -1931,9 +1930,8 @@ static int btrfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
 			break;
 		}
 
-		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
-		btrfs_btree_balance_dirty(root, nr);
+		btrfs_btree_balance_dirty(root);
 
 		trans = btrfs_start_transaction(root, 3);
 		if (IS_ERR(trans)) {
@@ -1969,9 +1967,8 @@ out_trans:
 
 	trans->block_rsv = &root->fs_info->trans_block_rsv;
 	ret = btrfs_update_inode(trans, root, inode);
-	nr = trans->blocks_used;
 	btrfs_end_transaction(trans, root);
-	btrfs_btree_balance_dirty(root, nr);
+	btrfs_btree_balance_dirty(root);
 out_free:
 	btrfs_free_path(path);
 	btrfs_free_block_rsv(root, rsv);
