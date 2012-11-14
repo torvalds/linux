@@ -60,6 +60,7 @@ struct nfsd_net {
 	struct rb_root conf_name_tree;
 	struct list_head *unconf_id_hashtbl;
 	struct rb_root unconf_name_tree;
+	struct list_head *ownerstr_hashtbl;
 };
 
 extern int nfsd_net_id;
