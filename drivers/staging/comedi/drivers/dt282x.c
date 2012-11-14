@@ -611,52 +611,30 @@ static int dt282x_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 	if (cmd->scan_begin_src == TRIG_FOLLOW) {
 		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	} else {
 		/* external trigger */
 		/* should be level/edge, hi/lo specification here */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
-	if (cmd->convert_arg < 4000) {
-		/* XXX board dependent */
-		cmd->convert_arg = 4000;
-		err++;
-	}
+
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 4000);
+
 #define SLOWEST_TIMER	(250*(1<<15)*255)
-	if (cmd->convert_arg > SLOWEST_TIMER) {
-		cmd->convert_arg = SLOWEST_TIMER;
-		err++;
-	}
-	if (cmd->convert_arg < board->ai_speed) {
-		cmd->convert_arg = board->ai_speed;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_max(&cmd->convert_arg, SLOWEST_TIMER);
+	err |= cfc_check_trigger_arg_min(&cmd->convert_arg, board->ai_speed);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+	} else {	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
@@ -874,33 +852,17 @@ static int dt282x_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-	if (cmd->scan_begin_arg < 5000 /* XXX unknown */) {
-		cmd->scan_begin_arg = 5000;
-		err++;
-	}
-	if (cmd->convert_arg != 0) {
-		cmd->convert_arg = 0;
-		err++;
-	}
-	if (cmd->scan_end_arg > 2) {
-		/* XXX chanlist stuff? */
-		cmd->scan_end_arg = 2;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg, 5000);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_max(&cmd->scan_end_arg, 2);
+
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
-	} else {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+	} else {	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
