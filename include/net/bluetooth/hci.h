@@ -115,6 +115,7 @@ enum {
 	HCI_SSP_ENABLED,
 	HCI_HS_ENABLED,
 	HCI_LE_ENABLED,
+	HCI_LE_PERIPHERAL,
 	HCI_CONNECTABLE,
 	HCI_DISCOVERABLE,
 	HCI_LINK_SECURITY,
@@ -930,6 +931,12 @@ struct hci_rp_le_read_buffer_size {
 	__u8     status;
 	__le16   le_mtu;
 	__u8     le_max_pkt;
+} __packed;
+
+#define HCI_OP_LE_READ_ADV_TX_POWER	0x2007
+struct hci_rp_le_read_adv_tx_power {
+	__u8	status;
+	__s8	tx_power;
 } __packed;
 
 #define HCI_OP_LE_SET_SCAN_PARAM	0x200b
