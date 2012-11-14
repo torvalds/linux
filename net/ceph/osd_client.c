@@ -174,9 +174,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 					       struct ceph_snap_context *snapc,
 					       struct ceph_osd_req_op *ops,
 					       bool use_mempool,
-					       gfp_t gfp_flags,
-					       struct page **pages,
-					       struct bio *bio)
+					       gfp_t gfp_flags)
 {
 	struct ceph_osd_request *req;
 	struct ceph_msg *msg;
@@ -237,13 +235,6 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	memset(msg->front.iov_base, 0, msg->front.iov_len);
 
 	req->r_request = msg;
-	req->r_pages = pages;
-#ifdef CONFIG_BLOCK
-	if (bio) {
-		req->r_bio = bio;
-		bio_get(req->r_bio);
-	}
-#endif
 
 	return req;
 }
@@ -439,9 +430,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	} else
 		ops[1].op = 0;
 
-	req = ceph_osdc_alloc_request(osdc, snapc, ops,
-					 use_mempool,
-					 GFP_NOFS, NULL, NULL);
+	req = ceph_osdc_alloc_request(osdc, snapc, ops, use_mempool, GFP_NOFS);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 	req->r_flags = flags;
