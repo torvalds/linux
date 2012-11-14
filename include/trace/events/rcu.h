@@ -393,7 +393,7 @@ TRACE_EVENT(rcu_kfree_callback,
  */
 TRACE_EVENT(rcu_batch_start,
 
-	TP_PROTO(char *rcuname, long qlen_lazy, long qlen, int blimit),
+	TP_PROTO(char *rcuname, long qlen_lazy, long qlen, long blimit),
 
 	TP_ARGS(rcuname, qlen_lazy, qlen, blimit),
 
@@ -401,7 +401,7 @@ TRACE_EVENT(rcu_batch_start,
 		__field(char *, rcuname)
 		__field(long, qlen_lazy)
 		__field(long, qlen)
-		__field(int, blimit)
+		__field(long, blimit)
 	),
 
 	TP_fast_assign(
@@ -411,7 +411,7 @@ TRACE_EVENT(rcu_batch_start,
 		__entry->blimit = blimit;
 	),
 
-	TP_printk("%s CBs=%ld/%ld bl=%d",
+	TP_printk("%s CBs=%ld/%ld bl=%ld",
 		  __entry->rcuname, __entry->qlen_lazy, __entry->qlen,
 		  __entry->blimit)
 );
