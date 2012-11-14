@@ -171,7 +171,6 @@ static int get_num_ops(struct ceph_osd_req_op *ops)
 }
 
 struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
-					       int flags,
 					       struct ceph_snap_context *snapc,
 					       struct ceph_osd_req_op *ops,
 					       bool use_mempool,
@@ -207,10 +206,6 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	INIT_LIST_HEAD(&req->r_linger_osd);
 	INIT_LIST_HEAD(&req->r_req_lru_item);
 	INIT_LIST_HEAD(&req->r_osd_item);
-
-	req->r_flags = flags;
-
-	WARN_ON((flags & (CEPH_OSD_FLAG_READ|CEPH_OSD_FLAG_WRITE)) == 0);
 
 	/* create reply message */
 	if (use_mempool)
@@ -347,6 +342,8 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 	u64 data_len = 0;
 	int i;
 
+	WARN_ON((flags & (CEPH_OSD_FLAG_READ|CEPH_OSD_FLAG_WRITE)) == 0);
+
 	head = msg->front.iov_base;
 	head->snapid = cpu_to_le64(snap_id);
 	op = (void *)(head + 1);
@@ -442,12 +439,12 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	} else
 		ops[1].op = 0;
 
-	req = ceph_osdc_alloc_request(osdc, flags,
-					 snapc, ops,
+	req = ceph_osdc_alloc_request(osdc, snapc, ops,
 					 use_mempool,
 					 GFP_NOFS, NULL, NULL);
 	if (!req)
 		return ERR_PTR(-ENOMEM);
+	req->r_flags = flags;
 
 	/* calculate max write size */
 	r = calc_layout(vino, layout, off, plen, req, ops);

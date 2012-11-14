@@ -1148,13 +1148,14 @@ static int rbd_do_request(struct request *rq,
 		(unsigned long long) len, coll, coll_index);
 
 	osdc = &rbd_dev->rbd_client->client->osdc;
-	osd_req = ceph_osdc_alloc_request(osdc, flags, snapc, ops,
+	osd_req = ceph_osdc_alloc_request(osdc, snapc, ops,
 					false, GFP_NOIO, pages, bio);
 	if (!osd_req) {
 		ret = -ENOMEM;
 		goto done_pages;
 	}
 
+	osd_req->r_flags = flags;
 	osd_req->r_callback = rbd_cb;
 
 	rbd_req->rq = rq;
