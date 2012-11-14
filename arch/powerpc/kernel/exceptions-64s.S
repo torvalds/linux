@@ -252,7 +252,7 @@ hardware_interrupt_hv:
 	MASKABLE_EXCEPTION_PSERIES(0x900, 0x900, decrementer)
 	STD_EXCEPTION_HV(0x980, 0x982, hdecrementer)
 
-	STD_EXCEPTION_PSERIES(0xa00, 0xa00, trap_0a)
+	MASKABLE_EXCEPTION_PSERIES(0xa00, 0xa00, doorbell_super)
 	KVM_HANDLER_PR(PACA_EXGEN, EXC_STD, 0xa00)
 
 	STD_EXCEPTION_PSERIES(0xb00, 0xb00, trap_0b)
@@ -655,7 +655,11 @@ machine_check_common:
 	STD_EXCEPTION_COMMON_ASYNC(0x500, hardware_interrupt, do_IRQ)
 	STD_EXCEPTION_COMMON_ASYNC(0x900, decrementer, .timer_interrupt)
 	STD_EXCEPTION_COMMON(0x980, hdecrementer, .hdec_interrupt)
-	STD_EXCEPTION_COMMON(0xa00, trap_0a, .unknown_exception)
+#ifdef CONFIG_PPC_DOORBELL
+	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, .doorbell_exception)
+#else
+	STD_EXCEPTION_COMMON_ASYNC(0xa00, doorbell_super, .unknown_exception)
+#endif
 	STD_EXCEPTION_COMMON(0xb00, trap_0b, .unknown_exception)
 	STD_EXCEPTION_COMMON(0xd00, single_step, .single_step_exception)
 	STD_EXCEPTION_COMMON(0xe00, trap_0e, .unknown_exception)
@@ -755,6 +759,7 @@ hardware_interrupt_relon_hv:
 	STD_RELON_EXCEPTION_PSERIES(0x4800, 0x800, fp_unavailable)
 	MASKABLE_RELON_EXCEPTION_PSERIES(0x4900, 0x900, decrementer)
 	STD_RELON_EXCEPTION_HV(0x4980, 0x982, hdecrementer)
+	MASKABLE_RELON_EXCEPTION_PSERIES(0x4a00, 0xa00, doorbell_super)
 	STD_RELON_EXCEPTION_PSERIES(0x4b00, 0xb00, trap_0b)
 
 	. = 0x4c00
