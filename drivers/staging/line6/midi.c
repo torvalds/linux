@@ -131,9 +131,6 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 		dev_err(line6->ifcdev, "Out of memory\n");
 		return -ENOMEM;
 	}
-#ifdef CONFIG_LINE6_USB_DUMP_CTRL
-	line6_write_hexdump(line6, 'S', data, length);
-#endif
 
 	transfer_buffer = kmemdup(data, length, GFP_ATOMIC);
 
