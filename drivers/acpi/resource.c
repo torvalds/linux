@@ -26,6 +26,7 @@
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_X86
 #define valid_IRQ(i) (((i) != 0) && ((i) != 2))
@@ -391,3 +392,136 @@ bool acpi_dev_resource_interrupt(struct acpi_resource *ares, int index,
 	return true;
 }
 EXPORT_SYMBOL_GPL(acpi_dev_resource_interrupt);
+
+/**
+ * acpi_dev_free_resource_list - Free resource from %acpi_dev_get_resources().
+ * @list: The head of the resource list to free.
+ */
+void acpi_dev_free_resource_list(struct list_head *list)
+{
+	struct resource_list_entry *rentry, *re;
+
+	list_for_each_entry_safe(rentry, re, list, node) {
+		list_del(&rentry->node);
+		kfree(rentry);
+	}
+}
+EXPORT_SYMBOL_GPL(acpi_dev_free_resource_list);
+
+struct res_proc_context {
+	struct list_head *list;
+	int (*preproc)(struct acpi_resource *, void *);
+	void *preproc_data;
+	int count;
+	int error;
+};
+
+static acpi_status acpi_dev_new_resource_entry(struct resource *r,
+					       struct res_proc_context *c)
+{
+	struct resource_list_entry *rentry;
+
+	rentry = kmalloc(sizeof(*rentry), GFP_KERNEL);
+	if (!rentry) {
+		c->error = -ENOMEM;
+		return AE_NO_MEMORY;
+	}
+	INIT_LIST_HEAD(&rentry->node);
+	rentry->res = *r;
+	list_add_tail(&rentry->node, c->list);
+	c->count++;
+	return AE_OK;
+}
+
+static acpi_status acpi_dev_process_resource(struct acpi_resource *ares,
+					     void *context)
+{
+	struct res_proc_context *c = context;
+	struct resource r;
+	int i;
+
+	if (c->preproc) {
+		int ret;
+
+		ret = c->preproc(ares, c->preproc_data);
+		if (ret < 0) {
+			c->error = ret;
+			return AE_ABORT_METHOD;
+		} else if (ret > 0) {
+			return AE_OK;
+		}
+	}
+
+	memset(&r, 0, sizeof(r));
+
+	if (acpi_dev_resource_memory(ares, &r)
+	    || acpi_dev_resource_io(ares, &r)
+	    || acpi_dev_resource_address_space(ares, &r)
+	    || acpi_dev_resource_ext_address_space(ares, &r))
+		return acpi_dev_new_resource_entry(&r, c);
+
+	for (i = 0; acpi_dev_resource_interrupt(ares, i, &r); i++) {
+		acpi_status status;
+
+		status = acpi_dev_new_resource_entry(&r, c);
+		if (ACPI_FAILURE(status))
+			return status;
+	}
+
+	return AE_OK;
+}
+
+/**
+ * acpi_dev_get_resources - Get current resources of a device.
+ * @adev: ACPI device node to get the resources for.
+ * @list: Head of the resultant list of resources (must be empty).
+ * @preproc: The caller's preprocessing routine.
+ * @preproc_data: Pointer passed to the caller's preprocessing routine.
+ *
+ * Evaluate the _CRS method for the given device node and process its output by
+ * (1) executing the @preproc() rountine provided by the caller, passing the
+ * resource pointer and @preproc_data to it as arguments, for each ACPI resource
+ * returned and (2) converting all of the returned ACPI resources into struct
+ * resource objects if possible.  If the return value of @preproc() in step (1)
+ * is different from 0, step (2) is not applied to the given ACPI resource and
+ * if that value is negative, the whole processing is aborted and that value is
+ * returned as the final error code.
+ *
+ * The resultant struct resource objects are put on the list pointed to by
+ * @list, that must be empty initially, as members of struct resource_list_entry
+ * objects.  Callers of this routine should use %acpi_dev_free_resource_list() to
+ * free that list.
+ *
+ * The number of resources in the output list is returned on success, an error
+ * code reflecting the error condition is returned otherwise.
+ */
+int acpi_dev_get_resources(struct acpi_device *adev, struct list_head *list,
+			   int (*preproc)(struct acpi_resource *, void *),
+			   void *preproc_data)
+{
+	struct res_proc_context c;
+	acpi_handle not_used;
+	acpi_status status;
+
+	if (!adev || !adev->handle || !list_empty(list))
+		return -EINVAL;
+
+	status = acpi_get_handle(adev->handle, METHOD_NAME__CRS, &not_used);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	c.list = list;
+	c.preproc = preproc;
+	c.preproc_data = preproc_data;
+	c.count = 0;
+	c.error = 0;
+	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
+				     acpi_dev_process_resource, &c);
+	if (ACPI_FAILURE(status)) {
+		acpi_dev_free_resource_list(list);
+		return c.error ? c.error : -EIO;
+	}
+
+	return c.count;
+}
+EXPORT_SYMBOL_GPL(acpi_dev_get_resources);

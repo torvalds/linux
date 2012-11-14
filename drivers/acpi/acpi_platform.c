@@ -19,61 +19,6 @@
 
 ACPI_MODULE_NAME("platform");
 
-struct resource_info {
-	struct device *dev;
-	struct resource *res;
-	size_t n, cur;
-};
-
-static acpi_status acpi_platform_count_resources(struct acpi_resource *res,
-						 void *data)
-{
-	struct acpi_resource_extended_irq *acpi_xirq;
-	struct acpi_resource_irq *acpi_irq;
-	struct resource_info *ri = data;
-
-	switch (res->type) {
-	case ACPI_RESOURCE_TYPE_IRQ:
-		acpi_irq = &res->data.irq;
-		ri->n += acpi_irq->interrupt_count;
-		break;
-	case ACPI_RESOURCE_TYPE_EXTENDED_IRQ:
-		acpi_xirq = &res->data.extended_irq;
-		ri->n += acpi_xirq->interrupt_count;
-		break;
-	default:
-		ri->n++;
-	}
-
-	return AE_OK;
-}
-
-static acpi_status acpi_platform_add_resources(struct acpi_resource *res,
-					       void *data)
-{
-	struct resource_info *ri = data;
-	struct resource *r;
-
-	r = ri->res + ri->cur;
-	if (acpi_dev_resource_memory(res, r)
-	    || acpi_dev_resource_io(res, r)
-	    || acpi_dev_resource_address_space(res, r)
-	    || acpi_dev_resource_ext_address_space(res, r)) {
-		ri->cur++;
-		return AE_OK;
-	}
-	if (acpi_dev_resource_interrupt(res, 0, r)) {
-		int i;
-
-		r++;
-		for (i = 1; acpi_dev_resource_interrupt(res, i, r); i++)
-			r++;
-
-		ri->cur += i;
-	}
-	return AE_OK;
-}
-
 /**
  * acpi_create_platform_device - Create platform device for ACPI device node
  * @adev: ACPI device node to create a platform device for.
@@ -89,35 +34,31 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	struct platform_device *pdev = NULL;
 	struct acpi_device *acpi_parent;
 	struct device *parent = NULL;
-	struct resource_info ri;
-	acpi_status status;
+	struct resource_list_entry *rentry;
+	struct list_head resource_list;
+	struct resource *resources;
+	int count;
 
 	/* If the ACPI node already has a physical device attached, skip it. */
 	if (adev->physical_node_count)
 		return NULL;
 
-	memset(&ri, 0, sizeof(ri));
-	/* First, count the resources. */
-	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
-				     acpi_platform_count_resources, &ri);
-	if (ACPI_FAILURE(status) || !ri.n)
+	INIT_LIST_HEAD(&resource_list);
+	count = acpi_dev_get_resources(adev, &resource_list, NULL, NULL);
+	if (count <= 0)
 		return NULL;
 
-	/* Next, allocate memory for all the resources and populate it. */
-	ri.dev = &adev->dev;
-	ri.res = kzalloc(ri.n * sizeof(struct resource), GFP_KERNEL);
-	if (!ri.res) {
-		dev_err(&adev->dev,
-			"failed to allocate memory for resources\n");
+	resources = kmalloc(count * sizeof(struct resource), GFP_KERNEL);
+	if (!resources) {
+		dev_err(&adev->dev, "No memory for resources\n");
+		acpi_dev_free_resource_list(&resource_list);
 		return NULL;
 	}
+	count = 0;
+	list_for_each_entry(rentry, &resource_list, node)
+		resources[count++] = rentry->res;
 
-	status = acpi_walk_resources(adev->handle, METHOD_NAME__CRS,
-				     acpi_platform_add_resources, &ri);
-	if (ACPI_FAILURE(status)) {
-		dev_err(&adev->dev, "failed to walk resources\n");
-		goto out;
-	}
+	acpi_dev_free_resource_list(&resource_list);
 
 	/*
 	 * If the ACPI node has a parent and that parent has a physical device
@@ -140,7 +81,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 		mutex_unlock(&acpi_parent->physical_node_lock);
 	}
 	pdev = platform_device_register_resndata(parent, dev_name(&adev->dev),
-						 -1, ri.res, ri.cur, NULL, 0);
+						 -1, resources, count, NULL, 0);
 	if (IS_ERR(pdev)) {
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
 			PTR_ERR(pdev));
@@ -150,8 +91,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 			dev_name(&pdev->dev));
 	}
 
- out:
-	kfree(ri.res);
+	kfree(resources);
 	return pdev;
 }
 
