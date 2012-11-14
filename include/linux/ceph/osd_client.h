@@ -10,6 +10,7 @@
 #include <linux/ceph/osdmap.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/auth.h>
+#include <linux/ceph/pagelist.h>
 
 /* 
  * Maximum object name size 
@@ -22,7 +23,6 @@ struct ceph_snap_context;
 struct ceph_osd_request;
 struct ceph_osd_client;
 struct ceph_authorizer;
-struct ceph_pagelist;
 
 /*
  * completion callback for async writepages
@@ -95,7 +95,7 @@ struct ceph_osd_request {
 	struct bio       *r_bio;	      /* instead of pages */
 #endif
 
-	struct ceph_pagelist *r_trail;	      /* trailing part of the data */
+	struct ceph_pagelist r_trail;	      /* trailing part of the data */
 };
 
 struct ceph_osd_event {

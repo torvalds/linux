@@ -171,10 +171,7 @@ void ceph_osdc_release_request(struct kref *kref)
 		bio_put(req->r_bio);
 #endif
 	ceph_put_snap_context(req->r_snapc);
-	if (req->r_trail) {
-		ceph_pagelist_release(req->r_trail);
-		kfree(req->r_trail);
-	}
+	ceph_pagelist_release(&req->r_trail);
 	if (req->r_mempool)
 		mempool_free(req, req->r_osdc->req_mempool);
 	else
@@ -208,8 +205,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 {
 	struct ceph_osd_request *req;
 	struct ceph_msg *msg;
-	int needs_trail;
-	int num_op = get_num_ops(ops, &needs_trail);
+	int num_op = get_num_ops(ops, NULL);
 	size_t msg_size = sizeof(struct ceph_osd_request_head);
 
 	msg_size += num_op*sizeof(struct ceph_osd_op);
@@ -252,15 +248,7 @@ struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *osdc,
 	}
 	req->r_reply = msg;
 
-	/* allocate space for the trailing data */
-	if (needs_trail) {
-		req->r_trail = kmalloc(sizeof(struct ceph_pagelist), gfp_flags);
-		if (!req->r_trail) {
-			ceph_osdc_put_request(req);
-			return NULL;
-		}
-		ceph_pagelist_init(req->r_trail);
-	}
+	ceph_pagelist_init(&req->r_trail);
 
 	/* create request message; allow space for oid */
 	msg_size += MAX_OBJ_NAME_SIZE;
@@ -312,29 +300,25 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 	case CEPH_OSD_OP_GETXATTR:
 	case CEPH_OSD_OP_SETXATTR:
 	case CEPH_OSD_OP_CMPXATTR:
-		BUG_ON(!req->r_trail);
-
 		dst->xattr.name_len = cpu_to_le32(src->xattr.name_len);
 		dst->xattr.value_len = cpu_to_le32(src->xattr.value_len);
 		dst->xattr.cmp_op = src->xattr.cmp_op;
 		dst->xattr.cmp_mode = src->xattr.cmp_mode;
-		ceph_pagelist_append(req->r_trail, src->xattr.name,
+		ceph_pagelist_append(&req->r_trail, src->xattr.name,
 				     src->xattr.name_len);
-		ceph_pagelist_append(req->r_trail, src->xattr.val,
+		ceph_pagelist_append(&req->r_trail, src->xattr.val,
 				     src->xattr.value_len);
 		break;
 	case CEPH_OSD_OP_CALL:
-		BUG_ON(!req->r_trail);
-
 		dst->cls.class_len = src->cls.class_len;
 		dst->cls.method_len = src->cls.method_len;
 		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
 
-		ceph_pagelist_append(req->r_trail, src->cls.class_name,
+		ceph_pagelist_append(&req->r_trail, src->cls.class_name,
 				     src->cls.class_len);
-		ceph_pagelist_append(req->r_trail, src->cls.method_name,
+		ceph_pagelist_append(&req->r_trail, src->cls.method_name,
 				     src->cls.method_len);
-		ceph_pagelist_append(req->r_trail, src->cls.indata,
+		ceph_pagelist_append(&req->r_trail, src->cls.indata,
 				     src->cls.indata_len);
 		break;
 	case CEPH_OSD_OP_ROLLBACK:
@@ -347,11 +331,9 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 			__le32 prot_ver = cpu_to_le32(src->watch.prot_ver);
 			__le32 timeout = cpu_to_le32(src->watch.timeout);
 
-			BUG_ON(!req->r_trail);
-
-			ceph_pagelist_append(req->r_trail,
+			ceph_pagelist_append(&req->r_trail,
 						&prot_ver, sizeof(prot_ver));
-			ceph_pagelist_append(req->r_trail,
+			ceph_pagelist_append(&req->r_trail,
 						&timeout, sizeof(timeout));
 		}
 	case CEPH_OSD_OP_NOTIFY_ACK:
@@ -414,8 +396,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 		op++;
 	}
 
-	if (req->r_trail)
-		data_len += req->r_trail->length;
+	data_len += req->r_trail.length;
 
 	if (snapc) {
 		head->snap_seq = cpu_to_le64(snapc->seq);
@@ -1715,7 +1696,7 @@ int ceph_osdc_start_request(struct ceph_osd_client *osdc,
 #ifdef CONFIG_BLOCK
 	req->r_request->bio = req->r_bio;
 #endif
-	req->r_request->trail = req->r_trail;
+	req->r_request->trail = &req->r_trail;
 
 	register_request(osdc, req);
 
