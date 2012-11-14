@@ -978,28 +978,26 @@ ipip6_tunnel_ioctl (struct net_device *dev, struct ifreq *ifr, int cmd)
 					break;
 				}
 				t = netdev_priv(dev);
-				ipip6_tunnel_unlink(sitn, t);
-				synchronize_net();
-				t->parms.iph.saddr = p.iph.saddr;
-				t->parms.iph.daddr = p.iph.daddr;
-				memcpy(dev->dev_addr, &p.iph.saddr, 4);
-				memcpy(dev->broadcast, &p.iph.daddr, 4);
-				ipip6_tunnel_link(sitn, t);
-				netdev_state_change(dev);
 			}
+
+			ipip6_tunnel_unlink(sitn, t);
+			synchronize_net();
+			t->parms.iph.saddr = p.iph.saddr;
+			t->parms.iph.daddr = p.iph.daddr;
+			memcpy(dev->dev_addr, &p.iph.saddr, 4);
+			memcpy(dev->broadcast, &p.iph.daddr, 4);
+			ipip6_tunnel_link(sitn, t);
+			t->parms.iph.ttl = p.iph.ttl;
+			t->parms.iph.tos = p.iph.tos;
+			if (t->parms.link != p.link) {
+				t->parms.link = p.link;
+				ipip6_tunnel_bind_dev(dev);
+			}
+			netdev_state_change(dev);
 		}
 
 		if (t) {
 			err = 0;
-			if (cmd == SIOCCHGTUNNEL) {
-				t->parms.iph.ttl = p.iph.ttl;
-				t->parms.iph.tos = p.iph.tos;
-				if (t->parms.link != p.link) {
-					t->parms.link = p.link;
-					ipip6_tunnel_bind_dev(dev);
-					netdev_state_change(dev);
-				}
-			}
 			if (copy_to_user(ifr->ifr_ifru.ifru_data, &t->parms, sizeof(p)))
 				err = -EFAULT;
 		} else
