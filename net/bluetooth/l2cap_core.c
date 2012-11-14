@@ -4611,15 +4611,14 @@ static void l2cap_do_move_cancel(struct l2cap_chan *chan, int result)
 	l2cap_ertm_send(chan);
 }
 
-void l2cap_physical_cfm(struct l2cap_chan *chan, int result)
+/* Invoke with locked chan */
+void __l2cap_physical_cfm(struct l2cap_chan *chan, int result)
 {
 	u8 local_amp_id = chan->local_amp_id;
 	u8 remote_amp_id = chan->remote_amp_id;
 
 	BT_DBG("chan %p, result %d, local_amp_id %d, remote_amp_id %d",
 	       chan, result, local_amp_id, remote_amp_id);
-
-	l2cap_chan_lock(chan);
 
 	if (chan->state == BT_DISCONN || chan->state == BT_CLOSED) {
 		l2cap_chan_unlock(chan);
@@ -4644,8 +4643,6 @@ void l2cap_physical_cfm(struct l2cap_chan *chan, int result)
 			break;
 		}
 	}
-
-	l2cap_chan_unlock(chan);
 }
 
 static inline int l2cap_move_channel_req(struct l2cap_conn *conn,

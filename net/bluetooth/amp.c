@@ -386,13 +386,17 @@ void amp_physical_cfm(struct hci_conn *bredr_hcon, struct hci_conn *hs_hcon)
 
 	bredr_chan = mgr->bredr_chan;
 
+	l2cap_chan_lock(bredr_chan);
+
 	set_bit(FLAG_EFS_ENABLE, &bredr_chan->flags);
 	bredr_chan->remote_amp_id = hs_hcon->remote_id;
 	bredr_chan->hs_hcon = hs_hcon;
 	bredr_chan->conn->mtu = hs_hcon->hdev->block_mtu;
 	bredr_chan->fcs = L2CAP_FCS_NONE;
 
-	l2cap_physical_cfm(bredr_chan, 0);
+	__l2cap_physical_cfm(bredr_chan, 0);
+
+	l2cap_chan_unlock(bredr_chan);
 
 	hci_dev_put(bredr_hdev);
 }

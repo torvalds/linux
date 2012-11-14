@@ -811,6 +811,6 @@ void l2cap_send_conn_req(struct l2cap_chan *chan);
 void l2cap_move_start(struct l2cap_chan *chan);
 void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 		       u8 status);
-void l2cap_physical_cfm(struct l2cap_chan *chan, int result);
+void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
 
 #endif /* __L2CAP_H */
