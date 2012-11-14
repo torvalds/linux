@@ -1473,7 +1473,7 @@ xfs_check_agi_unlinked(
 #endif
 
 static void
-xfs_agi_read_verify(
+xfs_agi_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
@@ -1502,6 +1502,21 @@ xfs_agi_read_verify(
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
 	xfs_check_agi_unlinked(agi);
+}
+
+static void
+xfs_agi_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agi_verify(bp);
+}
+
+void
+xfs_agi_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agi_verify(bp);
+	bp->b_pre_io = xfs_agi_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }

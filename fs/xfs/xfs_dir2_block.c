@@ -71,7 +71,21 @@ xfs_dir2_block_verify(
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_dir2_block_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_block_verify(bp);
+}
+
+void
+xfs_dir2_block_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_block_verify(bp);
+	bp->b_pre_io = xfs_dir2_block_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
@@ -85,7 +99,7 @@ xfs_dir2_block_read(
 	struct xfs_mount	*mp = dp->i_mount;
 
 	return xfs_da_read_buf(tp, dp, mp->m_dirdatablk, -1, bpp,
-					XFS_DATA_FORK, xfs_dir2_block_verify);
+				XFS_DATA_FORK, xfs_dir2_block_read_verify);
 }
 
 static void

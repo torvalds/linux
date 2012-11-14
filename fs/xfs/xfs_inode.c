@@ -382,7 +382,7 @@ xfs_inobp_check(
 }
 #endif
 
-void
+static void
 xfs_inode_buf_verify(
 	struct xfs_buf	*bp)
 {
@@ -418,6 +418,21 @@ xfs_inode_buf_verify(
 		}
 	}
 	xfs_inobp_check(mp, bp);
+}
+
+static void
+xfs_inode_buf_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_inode_buf_verify(bp);
+}
+
+void
+xfs_inode_buf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_inode_buf_verify(bp);
+	bp->b_pre_io = xfs_inode_buf_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
@@ -447,7 +462,7 @@ xfs_imap_to_bp(
 	buf_flags |= XBF_UNMAPPED;
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
 				   (int)imap->im_len, buf_flags, &bp,
-				   xfs_inode_buf_verify);
+				   xfs_inode_buf_read_verify);
 	if (error) {
 		if (error == EAGAIN) {
 			ASSERT(buf_flags & XBF_TRYLOCK);

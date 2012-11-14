@@ -200,10 +200,25 @@ xfs_dir2_data_verify(
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_dir2_data_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_data_verify(bp);
+}
+
+void
+xfs_dir2_data_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_data_verify(bp);
+	bp->b_pre_io = xfs_dir2_data_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
+
 
 int
 xfs_dir2_data_read(
@@ -214,7 +229,7 @@ xfs_dir2_data_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, bno, mapped_bno, bpp,
-					XFS_DATA_FORK, xfs_dir2_data_verify);
+				XFS_DATA_FORK, xfs_dir2_data_read_verify);
 }
 
 int
@@ -225,7 +240,7 @@ xfs_dir2_data_readahead(
 	xfs_daddr_t		mapped_bno)
 {
 	return xfs_da_reada_buf(tp, dp, bno, mapped_bno,
-					XFS_DATA_FORK, xfs_dir2_data_verify);
+				XFS_DATA_FORK, xfs_dir2_data_read_verify);
 }
 
 /*

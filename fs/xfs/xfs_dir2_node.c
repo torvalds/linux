@@ -69,10 +69,25 @@ xfs_dir2_free_verify(
 				     XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_dir2_free_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_free_verify(bp);
+}
+
+void
+xfs_dir2_free_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_free_verify(bp);
+	bp->b_pre_io = xfs_dir2_free_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
+
 
 static int
 __xfs_dir2_free_read(
@@ -83,7 +98,7 @@ __xfs_dir2_free_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-					XFS_DATA_FORK, xfs_dir2_free_verify);
+				XFS_DATA_FORK, xfs_dir2_free_read_verify);
 }
 
 int

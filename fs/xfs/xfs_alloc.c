@@ -430,8 +430,8 @@ xfs_alloc_fixup_trees(
 	return 0;
 }
 
-void
-xfs_agfl_read_verify(
+static void
+xfs_agfl_verify(
 	struct xfs_buf	*bp)
 {
 #ifdef WHEN_CRCS_COME_ALONG
@@ -463,6 +463,21 @@ xfs_agfl_read_verify(
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
 #endif
+}
+
+static void
+xfs_agfl_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agfl_verify(bp);
+}
+
+void
+xfs_agfl_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agfl_verify(bp);
+	bp->b_pre_io = xfs_agfl_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
@@ -2129,7 +2144,7 @@ xfs_alloc_put_freelist(
 }
 
 static void
-xfs_agf_read_verify(
+xfs_agf_verify(
 	struct xfs_buf	*bp)
  {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
@@ -2164,7 +2179,21 @@ xfs_agf_read_verify(
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, agf);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_agf_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agf_verify(bp);
+}
+
+void
+xfs_agf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_agf_verify(bp);
+	bp->b_pre_io = xfs_agf_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }

@@ -88,7 +88,7 @@ STATIC void xfs_attr_leaf_moveents(xfs_attr_leafblock_t *src_leaf,
 					 xfs_mount_t *mp);
 STATIC int xfs_attr_leaf_entsize(xfs_attr_leafblock_t *leaf, int index);
 
-void
+static void
 xfs_attr_leaf_verify(
 	struct xfs_buf		*bp)
 {
@@ -101,10 +101,25 @@ xfs_attr_leaf_verify(
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_attr_leaf_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_attr_leaf_verify(bp);
+}
+
+void
+xfs_attr_leaf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_attr_leaf_verify(bp);
+	bp->b_pre_io = xfs_attr_leaf_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
+
 
 int
 xfs_attr_leaf_read(
@@ -115,7 +130,7 @@ xfs_attr_leaf_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
-					XFS_ATTR_FORK, xfs_attr_leaf_verify);
+				XFS_ATTR_FORK, xfs_attr_leaf_read_verify);
 }
 
 /*========================================================================

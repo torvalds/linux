@@ -708,8 +708,8 @@ xfs_bmbt_key_diff(
 				      cur->bc_rec.b.br_startoff;
 }
 
-void
-xfs_bmbt_read_verify(
+static void
+xfs_bmbt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
@@ -744,11 +744,24 @@ xfs_bmbt_read_verify(
 
 	if (!lblock_ok) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		XFS_CORRUPTION_ERROR("xfs_bmbt_read_verify",
-					XFS_ERRLEVEL_LOW, mp, block);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, block);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_bmbt_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_bmbt_verify(bp);
+}
+
+void
+xfs_bmbt_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_bmbt_verify(bp);
+	bp->b_pre_io = xfs_bmbt_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }

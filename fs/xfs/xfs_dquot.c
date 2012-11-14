@@ -360,8 +360,8 @@ xfs_qm_dqalloc(
 	return (error);
 }
 
-void
-xfs_dquot_read_verify(
+static void
+xfs_dquot_buf_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
@@ -388,12 +388,26 @@ xfs_dquot_read_verify(
 		error = xfs_qm_dqcheck(mp, ddq, id + i, 0, XFS_QMOPT_DOWARN,
 					"xfs_dquot_read_verify");
 		if (error) {
-			XFS_CORRUPTION_ERROR("xfs_dquot_read_verify",
-					     XFS_ERRLEVEL_LOW, mp, d);
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, d);
 			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			break;
 		}
 	}
+}
+
+static void
+xfs_dquot_buf_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dquot_buf_verify(bp);
+}
+
+void
+xfs_dquot_buf_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dquot_buf_verify(bp);
+	bp->b_pre_io = xfs_dquot_buf_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
@@ -413,7 +427,7 @@ xfs_qm_dqrepair(
 
 	/*
 	 * Read the buffer without verification so we get the corrupted
-	 * buffer returned to us.
+	 * buffer returned to us. make sure we verify it on write, though.
 	 */
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, dqp->q_blkno,
 				   mp->m_quotainfo->qi_dqchunklen,
@@ -423,6 +437,7 @@ xfs_qm_dqrepair(
 		ASSERT(*bpp == NULL);
 		return XFS_ERROR(error);
 	}
+	(*bpp)->b_pre_io = xfs_dquot_buf_write_verify;
 
 	ASSERT(xfs_buf_islocked(*bpp));
 	d = (struct xfs_dqblk *)(*bpp)->b_addr;
@@ -521,7 +536,7 @@ xfs_qm_dqtobp(
 		error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
 					   dqp->q_blkno,
 					   mp->m_quotainfo->qi_dqchunklen,
-					   0, &bp, xfs_dquot_read_verify);
+					   0, &bp, xfs_dquot_buf_read_verify);
 
 		if (error == EFSCORRUPTED && (flags & XFS_QMOPT_DQREPAIR)) {
 			xfs_dqid_t firstid = (xfs_dqid_t)map.br_startoff *

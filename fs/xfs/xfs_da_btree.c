@@ -92,7 +92,7 @@ STATIC int	xfs_da_blk_unlink(xfs_da_state_t *state,
 STATIC void	xfs_da_state_kill_altpath(xfs_da_state_t *state);
 
 static void
-__xfs_da_node_verify(
+xfs_da_node_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
@@ -108,12 +108,17 @@ __xfs_da_node_verify(
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
 
-	bp->b_iodone = NULL;
-	xfs_buf_ioend(bp, 0);
 }
 
 static void
-xfs_da_node_verify(
+xfs_da_node_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_da_node_verify(bp);
+}
+
+static void
+xfs_da_node_read_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
@@ -121,21 +126,22 @@ xfs_da_node_verify(
 
 	switch (be16_to_cpu(info->magic)) {
 		case XFS_DA_NODE_MAGIC:
-			__xfs_da_node_verify(bp);
-			return;
+			xfs_da_node_verify(bp);
+			break;
 		case XFS_ATTR_LEAF_MAGIC:
-			xfs_attr_leaf_verify(bp);
+			xfs_attr_leaf_read_verify(bp);
 			return;
 		case XFS_DIR2_LEAFN_MAGIC:
-			xfs_dir2_leafn_verify(bp);
+			xfs_dir2_leafn_read_verify(bp);
 			return;
 		default:
+			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
+					     mp, info);
+			xfs_buf_ioerror(bp, EFSCORRUPTED);
 			break;
 	}
 
-	XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, info);
-	xfs_buf_ioerror(bp, EFSCORRUPTED);
-
+	bp->b_pre_io = xfs_da_node_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
@@ -150,7 +156,7 @@ xfs_da_node_read(
 	int			which_fork)
 {
 	return xfs_da_read_buf(tp, dp, bno, mappedbno, bpp,
-					which_fork, xfs_da_node_verify);
+					which_fork, xfs_da_node_read_verify);
 }
 
 /*========================================================================
@@ -816,7 +822,14 @@ xfs_da_root_join(xfs_da_state_t *state, xfs_da_state_blk_t *root_blk)
 	xfs_da_blkinfo_onlychild_validate(bp->b_addr,
 					be16_to_cpu(oldroot->hdr.level));
 
+	/*
+	 * This could be copying a leaf back into the root block in the case of
+	 * there only being a single leaf block left in the tree. Hence we have
+	 * to update the pre_io pointer as well to match the buffer type change
+	 * that could occur.
+	 */
 	memcpy(root_blk->bp->b_addr, bp->b_addr, state->blocksize);
+	root_blk->bp->b_pre_io = bp->b_pre_io;
 	xfs_trans_log_buf(args->trans, root_blk->bp, 0, state->blocksize - 1);
 	error = xfs_da_shrink_inode(args, child, bp);
 	return(error);

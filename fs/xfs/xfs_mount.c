@@ -612,8 +612,8 @@ xfs_sb_to_disk(
 	}
 }
 
-void
-xfs_sb_read_verify(
+static void
+xfs_sb_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
@@ -629,6 +629,21 @@ xfs_sb_read_verify(
 	error = xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR);
 	if (error)
 		xfs_buf_ioerror(bp, error);
+}
+
+static void
+xfs_sb_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_sb_verify(bp);
+}
+
+void
+xfs_sb_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_sb_verify(bp);
+	bp->b_pre_io = xfs_sb_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }

@@ -183,7 +183,7 @@ xfs_inobt_key_diff(
 }
 
 void
-xfs_inobt_read_verify(
+xfs_inobt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
@@ -211,11 +211,24 @@ xfs_inobt_read_verify(
 
 	if (!sblock_ok) {
 		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		XFS_CORRUPTION_ERROR("xfs_inobt_read_verify",
-					XFS_ERRLEVEL_LOW, mp, block);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, block);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_inobt_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_inobt_verify(bp);
+}
+
+void
+xfs_inobt_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_inobt_verify(bp);
+	bp->b_pre_io = xfs_inobt_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }

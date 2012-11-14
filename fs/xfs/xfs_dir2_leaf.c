@@ -62,23 +62,40 @@ xfs_dir2_leaf_verify(
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, hdr);
 		xfs_buf_ioerror(bp, EFSCORRUPTED);
 	}
+}
 
+static void
+xfs_dir2_leaf1_write_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
+}
+
+static void
+xfs_dir2_leaf1_read_verify(
+	struct xfs_buf	*bp)
+{
+	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
+	bp->b_pre_io = xfs_dir2_leaf1_write_verify;
 	bp->b_iodone = NULL;
 	xfs_buf_ioend(bp, 0);
 }
 
 static void
-xfs_dir2_leaf1_verify(
-	struct xfs_buf		*bp)
+xfs_dir2_leafn_write_verify(
+	struct xfs_buf	*bp)
 {
-	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAF1_MAGIC));
+	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
 }
 
 void
-xfs_dir2_leafn_verify(
-	struct xfs_buf		*bp)
+xfs_dir2_leafn_read_verify(
+	struct xfs_buf	*bp)
 {
 	xfs_dir2_leaf_verify(bp, cpu_to_be16(XFS_DIR2_LEAFN_MAGIC));
+	bp->b_pre_io = xfs_dir2_leafn_write_verify;
+	bp->b_iodone = NULL;
+	xfs_buf_ioend(bp, 0);
 }
 
 static int
@@ -90,7 +107,7 @@ xfs_dir2_leaf_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-					XFS_DATA_FORK, xfs_dir2_leaf1_verify);
+				XFS_DATA_FORK, xfs_dir2_leaf1_read_verify);
 }
 
 int
@@ -102,7 +119,7 @@ xfs_dir2_leafn_read(
 	struct xfs_buf		**bpp)
 {
 	return xfs_da_read_buf(tp, dp, fbno, mappedbno, bpp,
-					XFS_DATA_FORK, xfs_dir2_leafn_verify);
+				XFS_DATA_FORK, xfs_dir2_leafn_read_verify);
 }
 
 /*
