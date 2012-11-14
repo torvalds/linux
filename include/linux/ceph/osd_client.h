@@ -224,7 +224,7 @@ extern struct ceph_osd_request *ceph_osdc_alloc_request(struct ceph_osd_client *
 					       struct bio *bio);
 
 extern void ceph_osdc_build_request(struct ceph_osd_request *req,
-				    u64 off, u64 *plen,
+				    u64 off, u64 len,
 				    struct ceph_osd_req_op *src_ops,
 				    struct ceph_snap_context *snapc,
 				    struct timespec *mtime);

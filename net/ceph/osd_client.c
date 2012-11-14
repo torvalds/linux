@@ -336,7 +336,7 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
  *
  */
 void ceph_osdc_build_request(struct ceph_osd_request *req,
-			     u64 off, u64 *plen,
+			     u64 off, u64 len,
 			     struct ceph_osd_req_op *src_ops,
 			     struct ceph_snap_context *snapc,
 			     struct timespec *mtime)
@@ -390,7 +390,7 @@ void ceph_osdc_build_request(struct ceph_osd_request *req,
 
 	if (flags & CEPH_OSD_FLAG_WRITE) {
 		req->r_request->hdr.data_off = cpu_to_le16(off);
-		req->r_request->hdr.data_len = cpu_to_le32(*plen + data_len);
+		req->r_request->hdr.data_len = cpu_to_le32(len + data_len);
 	} else if (data_len) {
 		req->r_request->hdr.data_off = 0;
 		req->r_request->hdr.data_len = cpu_to_le32(data_len);
@@ -464,7 +464,7 @@ struct ceph_osd_request *ceph_osdc_new_request(struct ceph_osd_client *osdc,
 	req->r_num_pages = calc_pages_for(page_align, *plen);
 	req->r_page_alignment = page_align;
 
-	ceph_osdc_build_request(req, off, plen, ops,
+	ceph_osdc_build_request(req, off, *plen, ops,
 				snapc,
 				mtime);
 
