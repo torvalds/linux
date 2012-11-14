@@ -1016,7 +1016,7 @@ bad:
  * pass a stride back to the caller.
  */
 int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-				   u64 off, u64 *plen,
+				   u64 off, u64 len,
 				   u64 *ono,
 				   u64 *oxoff, u64 *oxlen)
 {
@@ -1027,7 +1027,7 @@ int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 	u32 su_per_object;
 	u64 t, su_offset;
 
-	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, *plen,
+	dout("mapping %llu~%llu  osize %u fl_su %u\n", off, len,
 	     osize, su);
 	if (su == 0 || sc == 0)
 		goto invalid;
@@ -1060,11 +1060,10 @@ int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
 
 	/*
 	 * Calculate the length of the extent being written to the selected
-	 * object. This is the minimum of the full length requested (plen) or
+	 * object. This is the minimum of the full length requested (len) or
 	 * the remainder of the current stripe being written to.
 	 */
-	*oxlen = min_t(u64, *plen, su - su_offset);
-	*plen = *oxlen;
+	*oxlen = min_t(u64, len, su - su_offset);
 
 	dout(" obj extent %llu~%llu\n", *oxoff, *oxlen);
 	return 0;

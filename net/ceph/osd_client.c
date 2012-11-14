@@ -53,13 +53,15 @@ int ceph_calc_raw_layout(struct ceph_osd_client *osdc,
 	reqhead->snapid = cpu_to_le64(snapid);
 
 	/* object extent? */
-	r = ceph_calc_file_object_mapping(layout, off, plen, bno,
+	r = ceph_calc_file_object_mapping(layout, off, orig_len, bno,
 					  &objoff, &objlen);
 	if (r < 0)
 		return r;
-	if (*plen < orig_len)
+	if (objlen < orig_len) {
+		*plen = objlen;
 		dout(" skipping last %llu, final file extent %llu~%llu\n",
 		     orig_len - *plen, off, *plen);
+	}
 
 	if (op_has_extent(op->op)) {
 		u32 osize = le32_to_cpu(layout->fl_object_size);
