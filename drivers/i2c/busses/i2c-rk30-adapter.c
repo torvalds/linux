@@ -254,7 +254,7 @@ static void rk30_irq_read_prepare(struct rk30_i2c *i2c)
 static void rk30_irq_read_get_data(struct rk30_i2c *i2c)
 {
      unsigned int i, len = i2c->msg->len - i2c->msg_ptr;
-     unsigned int p;
+     unsigned int p = 0;
 
      len = (len >= 32)?32:len;
 
