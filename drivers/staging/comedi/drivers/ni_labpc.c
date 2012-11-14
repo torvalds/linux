@@ -1026,56 +1026,34 @@ static int labpc_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg == TRIG_NOW && cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	if (cmd->start_arg == TRIG_NOW)
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (!cmd->chanlist_len)
-		err++;
+		err |= -EINVAL;
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 thisboard->ai_speed);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
 	/* make sure scan timing is not too fast */
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->convert_src == TRIG_TIMER &&
-		    cmd->scan_begin_arg <
-		    cmd->convert_arg * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-			    cmd->convert_arg * cmd->chanlist_len;
-			err++;
-		}
-		if (cmd->scan_begin_arg <
-		    thisboard->ai_speed * cmd->chanlist_len) {
-			cmd->scan_begin_arg =
-			    thisboard->ai_speed * cmd->chanlist_len;
-			err++;
-		}
+		if (cmd->convert_src == TRIG_TIMER)
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+					cmd->convert_arg * cmd->chanlist_len);
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+				thisboard->ai_speed * cmd->chanlist_len);
 	}
-	/* stop source */
+
 	switch (cmd->stop_src) {
 	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 		break;
 	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 		/*
 		 * TRIG_EXT doesn't care since it doesn't
