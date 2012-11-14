@@ -565,53 +565,25 @@ static int pcl812_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_begin_arg != 0) {
-		cmd->scan_begin_arg = 0;
-		err++;
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 board->ai_ns_min);
+	else	/* TRIG_EXT */
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < board->ai_ns_min) {
-			cmd->convert_arg = board->ai_ns_min;
-			err++;
-		}
-	} else {		/* TRIG_EXT */
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len, MAX_CHANLIST_LEN);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > MAX_CHANLIST_LEN) {
-		cmd->chanlist_len = board->n_aichan;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
