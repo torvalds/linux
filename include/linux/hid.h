@@ -717,6 +717,7 @@ int hid_connect(struct hid_device *hid, unsigned int connect_mask);
 void hid_disconnect(struct hid_device *hid);
 const struct hid_device_id *hid_match_id(struct hid_device *hdev,
 					 const struct hid_device_id *id);
+s32 hid_snto32(__u32 value, unsigned n);
 
 /**
  * hid_map_usage - map usage input bits
