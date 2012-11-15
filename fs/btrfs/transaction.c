@@ -40,7 +40,6 @@ void put_transaction(struct btrfs_transaction *transaction)
 	if (atomic_dec_and_test(&transaction->use_count)) {
 		BUG_ON(!list_empty(&transaction->list));
 		WARN_ON(transaction->delayed_refs.root.rb_node);
-		memset(transaction, 0, sizeof(*transaction));
 		kmem_cache_free(btrfs_transaction_cachep, transaction);
 	}
 }
@@ -650,7 +649,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	}
 	assert_qgroups_uptodate(trans);
 
-	memset(trans, 0, sizeof(*trans));
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 	return err;
 }
