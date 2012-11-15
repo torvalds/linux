@@ -385,7 +385,6 @@ struct nfsd4_write {
 	u64		wr_offset;          /* request */
 	u32		wr_stable_how;      /* request */
 	u32		wr_buflen;          /* request */
-	int		wr_vlen;
 	struct kvec	wr_head;
 	struct page **	wr_pagelist;        /* request */
 
