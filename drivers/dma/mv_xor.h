@@ -53,7 +53,7 @@
 #define WINDOW_REMAP_HIGH(w)	(0x290 + ((w) << 2))
 #define WINDOW_BAR_ENABLE(chan)	(0x240 + ((chan) << 2))
 
-struct mv_xor_private {
+struct mv_xor_device {
 	void __iomem	     *xor_base;
 	void __iomem	     *xor_high_base;
 	struct clk	     *clk;
@@ -87,7 +87,7 @@ struct mv_xor_chan {
 	void			*dma_desc_pool_virt;
 	size_t                  pool_size;
 	struct dma_device	dmadev;
-	struct mv_xor_private	*shared;
+	struct mv_xor_device	*shared;
 	struct dma_chan		dmachan;
 	struct mv_xor_desc_slot	*last_used;
 	struct list_head	all_slots;
