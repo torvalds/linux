@@ -108,7 +108,7 @@ static int omap2_gp_timer_set_next_event(unsigned long cycles,
 					 struct clock_event_device *evt)
 {
 	__omap_dm_timer_load_start(&clkev, OMAP_TIMER_CTRL_ST,
-						0xffffffff - cycles, 1);
+				   0xffffffff - cycles, OMAP_TIMER_POSTED);
 
 	return 0;
 }
@@ -118,7 +118,7 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 {
 	u32 period;
 
-	__omap_dm_timer_stop(&clkev, 1, clkev.rate);
+	__omap_dm_timer_stop(&clkev, OMAP_TIMER_POSTED, clkev.rate);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
@@ -126,10 +126,10 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 		period -= 1;
 		/* Looks like we need to first set the load value separately */
 		__omap_dm_timer_write(&clkev, OMAP_TIMER_LOAD_REG,
-					0xffffffff - period, 1);
+				      0xffffffff - period, OMAP_TIMER_POSTED);
 		__omap_dm_timer_load_start(&clkev,
 					OMAP_TIMER_CTRL_AR | OMAP_TIMER_CTRL_ST,
-						0xffffffff - period, 1);
+					0xffffffff - period, OMAP_TIMER_POSTED);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		break;
@@ -222,10 +222,24 @@ void __init omap_dmtimer_init(void)
 	}
 }
 
+/**
+ * omap_dm_timer_get_errata - get errata flags for a timer
+ *
+ * Get the timer errata flags that are specific to the OMAP device being used.
+ */
+u32 __init omap_dm_timer_get_errata(void)
+{
+	if (cpu_is_omap24xx())
+		return 0;
+
+	return OMAP_TIMER_ERRATA_I103_I767;
+}
+
 static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 						int gptimer_id,
 						const char *fck_source,
-						const char *property)
+						const char *property,
+						int posted)
 {
 	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
 	const char *oh_name;
@@ -260,9 +274,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		oh_name = name;
 	}
 
-	omap_hwmod_setup_one(oh_name);
 	oh = omap_hwmod_lookup(oh_name);
-
 	if (!oh)
 		return -ENODEV;
 
@@ -292,8 +304,6 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	if (IS_ERR(timer->fclk))
 		return -ENODEV;
 
-	omap_hwmod_enable(oh);
-
 	/* FIXME: Need to remove hard-coded test on timer ID */
 	if (gptimer_id != 12) {
 		struct clk *src;
@@ -302,19 +312,26 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		if (IS_ERR(src)) {
 			res = -EINVAL;
 		} else {
-			res = __omap_dm_timer_set_source(timer->fclk, src);
+			res = clk_set_parent(timer->fclk, src);
 			if (IS_ERR_VALUE(res))
 				pr_warn("%s: %s cannot set source\n",
 					__func__, oh->name);
 			clk_put(src);
 		}
 	}
+
+	omap_hwmod_setup_one(oh_name);
+	omap_hwmod_enable(oh);
 	__omap_dm_timer_init_regs(timer);
-	__omap_dm_timer_reset(timer, 1, 1);
-	timer->posted = 1;
+
+	if (posted)
+		__omap_dm_timer_enable_posted(timer);
+
+	/* Check that the intended posted configuration matches the actual */
+	if (posted != timer->posted)
+		return -EINVAL;
 
 	timer->rate = clk_get_rate(timer->fclk);
-
 	timer->reserved = 1;
 
 	return res;
@@ -326,7 +343,17 @@ static void __init omap2_gp_clockevent_init(int gptimer_id,
 {
 	int res;
 
-	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source, property);
+	clkev.errata = omap_dm_timer_get_errata();
+
+	/*
+	 * For clock-event timers we never read the timer counter and
+	 * so we are not impacted by errata i103 and i767. Therefore,
+	 * we can safely ignore this errata for clock-event timers.
+	 */
+	__omap_dm_timer_override_errata(&clkev, OMAP_TIMER_ERRATA_I103_I767);
+
+	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source, property,
+				     OMAP_TIMER_POSTED);
 	BUG_ON(res);
 
 	omap2_gp_timer_irq.dev_id = &clkev;
@@ -359,7 +386,8 @@ static bool use_gptimer_clksrc;
  */
 static cycle_t clocksource_read_cycles(struct clocksource *cs)
 {
-	return (cycle_t)__omap_dm_timer_read_counter(&clksrc, 1);
+	return (cycle_t)__omap_dm_timer_read_counter(&clksrc,
+						     OMAP_TIMER_NONPOSTED);
 }
 
 static struct clocksource clocksource_gpt = {
@@ -373,7 +401,8 @@ static struct clocksource clocksource_gpt = {
 static u32 notrace dmtimer_read_sched_clock(void)
 {
 	if (clksrc.reserved)
-		return __omap_dm_timer_read_counter(&clksrc, 1);
+		return __omap_dm_timer_read_counter(&clksrc,
+						    OMAP_TIMER_NONPOSTED);
 
 	return 0;
 }
@@ -451,11 +480,15 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 {
 	int res;
 
-	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source, NULL);
+	clksrc.errata = omap_dm_timer_get_errata();
+
+	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source, NULL,
+				     OMAP_TIMER_NONPOSTED);
 	BUG_ON(res);
 
 	__omap_dm_timer_load_start(&clksrc,
-			OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0, 1);
+				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR, 0,
+				   OMAP_TIMER_NONPOSTED);
 	setup_sched_clock(dmtimer_read_sched_clock, 32, clksrc.rate);
 
 	if (clocksource_register_hz(&clocksource_gpt, clksrc.rate))
@@ -693,6 +726,7 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 	if (timer_dev_attr)
 		pdata->timer_capability = timer_dev_attr->timer_capability;
 
+	pdata->timer_errata = omap_dm_timer_get_errata();
 	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
 
 	pdev = omap_device_build(name, id, oh, pdata, sizeof(*pdata),
