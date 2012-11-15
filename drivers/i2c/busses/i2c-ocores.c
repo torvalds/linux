@@ -4,6 +4,9 @@
  *
  * Peter Korsgaard <jacmet@sunsite.dk>
  *
+ * Support for the GRLIB port of the controller by
+ * Andreas Larsson <andreas@gaisler.com>
+ *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
@@ -38,6 +41,8 @@ struct ocores_i2c {
 	int nmsgs;
 	int state; /* see STATE_ */
 	int clock_khz;
+	void (*setreg)(struct ocores_i2c *i2c, int reg, u8 value);
+	u8 (*getreg)(struct ocores_i2c *i2c, int reg);
 };
 
 /* registers */
@@ -71,24 +76,81 @@ struct ocores_i2c {
 #define STATE_READ		3
 #define STATE_ERROR		4
 
+#define TYPE_OCORES		0
+#define TYPE_GRLIB		1
+
+static void oc_setreg_8(struct ocores_i2c *i2c, int reg, u8 value)
+{
+	iowrite8(value, i2c->base + (reg << i2c->reg_shift));
+}
+
+static void oc_setreg_16(struct ocores_i2c *i2c, int reg, u8 value)
+{
+	iowrite16(value, i2c->base + (reg << i2c->reg_shift));
+}
+
+static void oc_setreg_32(struct ocores_i2c *i2c, int reg, u8 value)
+{
+	iowrite32(value, i2c->base + (reg << i2c->reg_shift));
+}
+
+static inline u8 oc_getreg_8(struct ocores_i2c *i2c, int reg)
+{
+	return ioread8(i2c->base + (reg << i2c->reg_shift));
+}
+
+static inline u8 oc_getreg_16(struct ocores_i2c *i2c, int reg)
+{
+	return ioread16(i2c->base + (reg << i2c->reg_shift));
+}
+
+static inline u8 oc_getreg_32(struct ocores_i2c *i2c, int reg)
+{
+	return ioread32(i2c->base + (reg << i2c->reg_shift));
+}
+
+/* Read and write functions for the GRLIB port of the controller. Registers are
+ * 32-bit big endian and the PRELOW and PREHIGH registers are merged into one
+ * register. The subsequent registers has their offset decreased accordingly. */
+static u8 oc_getreg_grlib(struct ocores_i2c *i2c, int reg)
+{
+	u32 rd;
+	int rreg = reg;
+	if (reg != OCI2C_PRELOW)
+		rreg--;
+	rd = ioread32be(i2c->base + (rreg << i2c->reg_shift));
+	if (reg == OCI2C_PREHIGH)
+		return (u8)(rd >> 8);
+	else
+		return (u8)rd;
+}
+
+static void oc_setreg_grlib(struct ocores_i2c *i2c, int reg, u8 value)
+{
+	u32 curr, wr;
+	int rreg = reg;
+	if (reg != OCI2C_PRELOW)
+		rreg--;
+	if (reg == OCI2C_PRELOW || reg == OCI2C_PREHIGH) {
+		curr = ioread32be(i2c->base + (rreg << i2c->reg_shift));
+		if (reg == OCI2C_PRELOW)
+			wr = (curr & 0xff00) | value;
+		else
+			wr = (((u32)value) << 8) | (curr & 0xff);
+	} else {
+		wr = value;
+	}
+	iowrite32be(wr, i2c->base + (rreg << i2c->reg_shift));
+}
+
 static inline void oc_setreg(struct ocores_i2c *i2c, int reg, u8 value)
 {
-	if (i2c->reg_io_width == 4)
-		iowrite32(value, i2c->base + (reg << i2c->reg_shift));
-	else if (i2c->reg_io_width == 2)
-		iowrite16(value, i2c->base + (reg << i2c->reg_shift));
-	else
-		iowrite8(value, i2c->base + (reg << i2c->reg_shift));
+	i2c->setreg(i2c, reg, value);
 }
 
 static inline u8 oc_getreg(struct ocores_i2c *i2c, int reg)
 {
-	if (i2c->reg_io_width == 4)
-		return ioread32(i2c->base + (reg << i2c->reg_shift));
-	else if (i2c->reg_io_width == 2)
-		return ioread16(i2c->base + (reg << i2c->reg_shift));
-	else
-		return ioread8(i2c->base + (reg << i2c->reg_shift));
+	return i2c->getreg(i2c, reg);
 }
 
 static void ocores_process(struct ocores_i2c *i2c)
@@ -227,11 +289,25 @@ static struct i2c_adapter ocores_adapter = {
 	.algo		= &ocores_algorithm,
 };
 
+static struct of_device_id ocores_i2c_match[] = {
+	{
+		.compatible = "opencores,i2c-ocores",
+		.data = (void *)TYPE_OCORES,
+	},
+	{
+		.compatible = "aeroflexgaisler,i2cmst",
+		.data = (void *)TYPE_GRLIB,
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ocores_i2c_match);
+
 #ifdef CONFIG_OF
 static int ocores_i2c_of_probe(struct platform_device *pdev,
 				struct ocores_i2c *i2c)
 {
 	struct device_node *np = pdev->dev.of_node;
+	const struct of_device_id *match;
 	u32 val;
 
 	if (of_property_read_u32(np, "reg-shift", &i2c->reg_shift)) {
@@ -257,6 +333,14 @@ static int ocores_i2c_of_probe(struct platform_device *pdev,
 
 	of_property_read_u32(pdev->dev.of_node, "reg-io-width",
 				&i2c->reg_io_width);
+
+	match = of_match_node(ocores_i2c_match, pdev->dev.of_node);
+	if (match && (int)match->data == TYPE_GRLIB) {
+		dev_dbg(&pdev->dev, "GRLIB variant of i2c-ocores\n");
+		i2c->setreg = oc_setreg_grlib;
+		i2c->getreg = oc_getreg_grlib;
+	}
+
 	return 0;
 }
 #else
@@ -301,6 +385,30 @@ static int __devinit ocores_i2c_probe(struct platform_device *pdev)
 
 	if (i2c->reg_io_width == 0)
 		i2c->reg_io_width = 1; /* Set to default value */
+
+	if (!i2c->setreg || !i2c->getreg) {
+		switch (i2c->reg_io_width) {
+		case 1:
+			i2c->setreg = oc_setreg_8;
+			i2c->getreg = oc_getreg_8;
+			break;
+
+		case 2:
+			i2c->setreg = oc_setreg_16;
+			i2c->getreg = oc_getreg_16;
+			break;
+
+		case 4:
+			i2c->setreg = oc_setreg_32;
+			i2c->getreg = oc_getreg_32;
+			break;
+
+		default:
+			dev_err(&pdev->dev, "Unsupported I/O width (%d)\n",
+				i2c->reg_io_width);
+			return -EINVAL;
+		}
+	}
 
 	ocores_init(i2c);
 
@@ -378,12 +486,6 @@ static SIMPLE_DEV_PM_OPS(ocores_i2c_pm, ocores_i2c_suspend, ocores_i2c_resume);
 #else
 #define OCORES_I2C_PM	NULL
 #endif
-
-static struct of_device_id ocores_i2c_match[] = {
-	{ .compatible = "opencores,i2c-ocores", },
-	{},
-};
-MODULE_DEVICE_TABLE(of, ocores_i2c_match);
 
 static struct platform_driver ocores_i2c_driver = {
 	.probe   = ocores_i2c_probe,
