@@ -42,7 +42,8 @@
 #ifdef CONFIG_BRCMFMAC_SDIO_OOB
 static irqreturn_t brcmf_sdio_irqhandler(int irq, void *dev_id)
 {
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(dev_id);
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev_id);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
 	brcmf_dbg(INTR, "oob intr triggered\n");
 
@@ -71,7 +72,7 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 	brcmf_dbg(ERROR, "requesting irq %d\n", sdiodev->irq);
 	ret = request_irq(sdiodev->irq, brcmf_sdio_irqhandler,
 			  sdiodev->irq_flags, "brcmf_oob_intr",
-			  &sdiodev->func[1]->card->dev);
+			  &sdiodev->func[1]->dev);
 	if (ret != 0)
 		return ret;
 	spin_lock_init(&sdiodev->irq_en_lock);
@@ -115,7 +116,7 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 		disable_irq_wake(sdiodev->irq);
 		sdiodev->irq_wake = false;
 	}
-	free_irq(sdiodev->irq, &sdiodev->func[1]->card->dev);
+	free_irq(sdiodev->irq, &sdiodev->func[1]->dev);
 	sdiodev->irq_en = false;
 
 	return 0;
@@ -123,7 +124,8 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 #else		/* CONFIG_BRCMFMAC_SDIO_OOB */
 static void brcmf_sdio_irqhandler(struct sdio_func *func)
 {
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+	struct brcmf_bus *bus_if = dev_get_drvdata(&func->dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
 	brcmf_dbg(INTR, "ib intr triggered\n");
 

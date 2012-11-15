@@ -456,101 +456,107 @@ static inline int brcmf_sdio_getintrcfg(struct brcmf_sdio_dev *sdiodev)
 #endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
 
 static int brcmf_ops_sdio_probe(struct sdio_func *func,
-			      const struct sdio_device_id *id)
+				const struct sdio_device_id *id)
 {
-	int ret = 0;
+	int err;
 	struct brcmf_sdio_dev *sdiodev;
 	struct brcmf_bus *bus_if;
 
 	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(TRACE, "func->class=%x\n", func->class);
-	brcmf_dbg(TRACE, "sdio_vendor: 0x%04x\n", func->vendor);
-	brcmf_dbg(TRACE, "sdio_device: 0x%04x\n", func->device);
-	brcmf_dbg(TRACE, "Function#: 0x%04x\n", func->num);
+	brcmf_dbg(TRACE, "Class=%x\n", func->class);
+	brcmf_dbg(TRACE, "sdio vendor ID: 0x%04x\n", func->vendor);
+	brcmf_dbg(TRACE, "sdio device ID: 0x%04x\n", func->device);
+	brcmf_dbg(TRACE, "Function#: %d\n", func->num);
 
-	if (func->num == 1) {
-		if (dev_get_drvdata(&func->card->dev)) {
-			brcmf_dbg(ERROR, "card private drvdata occupied\n");
-			return -ENXIO;
-		}
-		bus_if = kzalloc(sizeof(struct brcmf_bus), GFP_KERNEL);
-		if (!bus_if)
-			return -ENOMEM;
-		sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
-		if (!sdiodev) {
-			kfree(bus_if);
-			return -ENOMEM;
-		}
-		sdiodev->func[0] = func;
-		sdiodev->func[1] = func;
-		sdiodev->bus_if = bus_if;
-		bus_if->bus_priv.sdio = sdiodev;
-		bus_if->type = SDIO_BUS;
-		bus_if->align = BRCMF_SDALIGN;
-		dev_set_drvdata(&func->card->dev, sdiodev);
+	/* Consume func num 1 but dont do anything with it. */
+	if (func->num == 1)
+		return 0;
 
-		atomic_set(&sdiodev->suspend, false);
-		init_waitqueue_head(&sdiodev->request_byte_wait);
-		init_waitqueue_head(&sdiodev->request_word_wait);
-		init_waitqueue_head(&sdiodev->request_chain_wait);
-		init_waitqueue_head(&sdiodev->request_buffer_wait);
+	/* Ignore anything but func 2 */
+	if (func->num != 2)
+		return -ENODEV;
+
+	bus_if = kzalloc(sizeof(struct brcmf_bus), GFP_KERNEL);
+	if (!bus_if)
+		return -ENOMEM;
+	sdiodev = kzalloc(sizeof(struct brcmf_sdio_dev), GFP_KERNEL);
+	if (!sdiodev) {
+		kfree(bus_if);
+		return -ENOMEM;
 	}
 
-	if (func->num == 2) {
-		sdiodev = dev_get_drvdata(&func->card->dev);
-		if ((!sdiodev) || (sdiodev->func[1]->card != func->card))
-			return -ENODEV;
+	sdiodev->func[0] = func->card->sdio_func[0];
+	sdiodev->func[1] = func->card->sdio_func[0];
+	sdiodev->func[2] = func;
 
-		ret = brcmf_sdio_getintrcfg(sdiodev);
-		if (ret)
-			return ret;
-		sdiodev->func[2] = func;
+	sdiodev->bus_if = bus_if;
+	bus_if->bus_priv.sdio = sdiodev;
+	bus_if->type = SDIO_BUS;
+	bus_if->align = BRCMF_SDALIGN;
+	dev_set_drvdata(&func->dev, bus_if);
+	dev_set_drvdata(&sdiodev->func[1]->dev, bus_if);
+	sdiodev->dev = &sdiodev->func[1]->dev;
 
-		bus_if = sdiodev->bus_if;
-		sdiodev->dev = &func->dev;
-		dev_set_drvdata(&func->dev, bus_if);
+	atomic_set(&sdiodev->suspend, false);
+	init_waitqueue_head(&sdiodev->request_byte_wait);
+	init_waitqueue_head(&sdiodev->request_word_wait);
+	init_waitqueue_head(&sdiodev->request_chain_wait);
+	init_waitqueue_head(&sdiodev->request_buffer_wait);
+	err = brcmf_sdio_getintrcfg(sdiodev);
+	if (err)
+		goto fail;
 
-		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
-		ret = brcmf_sdio_probe(sdiodev);
-		if (ret)
-			dev_set_drvdata(&func->dev, NULL);
+	brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
+	err = brcmf_sdio_probe(sdiodev);
+	if (err) {
+		brcmf_dbg(ERROR, "F2 error, probe failed %d...\n", err);
+		goto fail;
 	}
+	brcmf_dbg(TRACE, "F2 init completed...\n");
+	return 0;
 
-	return ret;
+fail:
+	dev_set_drvdata(&func->dev, NULL);
+	dev_set_drvdata(&sdiodev->func[1]->dev, NULL);
+	kfree(sdiodev);
+	kfree(bus_if);
+	return err;
 }
 
 static void brcmf_ops_sdio_remove(struct sdio_func *func)
 {
 	struct brcmf_bus *bus_if;
 	struct brcmf_sdio_dev *sdiodev;
-	brcmf_dbg(TRACE, "Enter\n");
-	brcmf_dbg(INFO, "func->class=%x\n", func->class);
-	brcmf_dbg(INFO, "sdio_vendor: 0x%04x\n", func->vendor);
-	brcmf_dbg(INFO, "sdio_device: 0x%04x\n", func->device);
-	brcmf_dbg(INFO, "Function#: 0x%04x\n", func->num);
 
-	if (func->num == 2) {
-		bus_if = dev_get_drvdata(&func->dev);
+	brcmf_dbg(TRACE, "Enter\n");
+	brcmf_dbg(TRACE, "sdio vendor ID: 0x%04x\n", func->vendor);
+	brcmf_dbg(TRACE, "sdio device ID: 0x%04x\n", func->device);
+	brcmf_dbg(TRACE, "Function: %d\n", func->num);
+
+	if (func->num != 1 && func->num != 2)
+		return;
+
+	bus_if = dev_get_drvdata(&func->dev);
+	if (bus_if) {
 		sdiodev = bus_if->bus_priv.sdio;
-		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_remove...\n");
 		brcmf_sdio_remove(sdiodev);
-		dev_set_drvdata(&func->dev, NULL);
-	}
-	if (func->num == 1) {
-		sdiodev = dev_get_drvdata(&func->card->dev);
-		bus_if = sdiodev->bus_if;
-		dev_set_drvdata(&func->card->dev, NULL);
+
+		dev_set_drvdata(&sdiodev->func[1]->dev, NULL);
+		dev_set_drvdata(&sdiodev->func[2]->dev, NULL);
+
 		kfree(bus_if);
 		kfree(sdiodev);
 	}
+
+	brcmf_dbg(TRACE, "Exit\n");
 }
 
 #ifdef CONFIG_PM_SLEEP
 static int brcmf_sdio_suspend(struct device *dev)
 {
 	mmc_pm_flag_t sdio_flags;
-	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 	int ret = 0;
 
 	brcmf_dbg(TRACE, "\n");
@@ -576,8 +582,8 @@ static int brcmf_sdio_suspend(struct device *dev)
 
 static int brcmf_sdio_resume(struct device *dev)
 {
-	struct sdio_func *func = dev_to_sdio_func(dev);
-	struct brcmf_sdio_dev *sdiodev = dev_get_drvdata(&func->card->dev);
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
 	brcmf_sdio_wdtmr_enable(sdiodev, true);
 	atomic_set(&sdiodev->suspend, false);
