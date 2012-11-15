@@ -1566,6 +1566,13 @@ static const struct net_protocol tcp_protocol = {
 	.netns_ok	=	1,
 };
 
+static const struct net_offload tcp_offload = {
+	.gso_send_check	=	tcp_v4_gso_send_check,
+	.gso_segment	=	tcp_tso_segment,
+	.gro_receive	=	tcp4_gro_receive,
+	.gro_complete	=	tcp4_gro_complete,
+};
+
 static const struct net_protocol udp_protocol = {
 	.handler =	udp_rcv,
 	.err_handler =	udp_err,
@@ -1573,6 +1580,11 @@ static const struct net_protocol udp_protocol = {
 	.gso_segment = udp4_ufo_fragment,
 	.no_policy =	1,
 	.netns_ok =	1,
+};
+
+static const struct net_offload udp_offload = {
+	.gso_send_check = udp4_ufo_send_check,
+	.gso_segment = udp4_ufo_fragment,
 };
 
 static const struct net_protocol icmp_protocol = {

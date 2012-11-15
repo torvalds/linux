@@ -77,6 +77,15 @@ struct inet6_protocol {
 #define INET6_PROTO_GSO_EXTHDR	0x4
 #endif
 
+struct net_offload {
+	int			(*gso_send_check)(struct sk_buff *skb);
+	struct sk_buff	       *(*gso_segment)(struct sk_buff *skb,
+					       netdev_features_t features);
+	struct sk_buff	      **(*gro_receive)(struct sk_buff **head,
+					       struct sk_buff *skb);
+	int			(*gro_complete)(struct sk_buff *skb);
+};
+
 /* This is used to register socket interfaces for IP protocols.  */
 struct inet_protosw {
 	struct list_head list;
@@ -96,6 +105,7 @@ struct inet_protosw {
 #define INET_PROTOSW_ICSK      0x04  /* Is this an inet_connection_sock? */
 
 extern const struct net_protocol __rcu *inet_protos[MAX_INET_PROTOS];
+extern const struct net_offload __rcu *inet_offloads[MAX_INET_PROTOS];
 
 #if IS_ENABLED(CONFIG_IPV6)
 extern const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
@@ -103,6 +113,8 @@ extern const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
 
 extern int	inet_add_protocol(const struct net_protocol *prot, unsigned char num);
 extern int	inet_del_protocol(const struct net_protocol *prot, unsigned char num);
+extern int	inet_add_offload(const struct net_offload *prot, unsigned char num);
+extern int	inet_del_offload(const struct net_offload *prot, unsigned char num);
 extern void	inet_register_protosw(struct inet_protosw *p);
 extern void	inet_unregister_protosw(struct inet_protosw *p);
 
