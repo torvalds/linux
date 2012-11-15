@@ -516,9 +516,6 @@ int brcmf_sdio_probe(struct brcmf_sdio_dev *sdiodev)
 
 	regs = SI_ENUM_BASE;
 
-	/* Report the BAR, to fix if needed */
-	sdiodev->sbwad = SI_ENUM_BASE;
-
 	/* try to attach to the target device */
 	sdiodev->bus = brcmf_sdbrcm_probe(regs, sdiodev);
 	if (!sdiodev->bus) {
