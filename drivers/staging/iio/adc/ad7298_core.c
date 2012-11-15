@@ -130,7 +130,7 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7298_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
+	int scale_mv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -155,10 +155,17 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
-			*val =  scale_uv / 1000;
-			*val2 = (scale_uv % 1000) * 1000;
-			return IIO_VAL_INT_PLUS_MICRO;
+			if (st->ext_ref) {
+				scale_mv = regulator_get_voltage(st->reg);
+				if (scale_mv < 0)
+					return scale_mv;
+				scale_mv /= 1000;
+			} else {
+				scale_mv = AD7298_INTREF_mV;
+			}
+			*val =  scale_mv;
+			*val2 = chan->scan_type.realbits;
+			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
 			*val =  1;
 			*val2 = 0;
@@ -180,16 +187,23 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	int ret;
 	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	int ret;
 
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
+	if (pdata && pdata->ext_ref)
+		st->ext_ref = AD7298_EXTREF;
+
+	if (st->ext_ref) {
+		st->reg = regulator_get(&spi->dev, "vref");
+		if (IS_ERR(st->reg)) {
+			ret = PTR_ERR(st->reg);
+			goto error_free;
+		}
 		ret = regulator_enable(st->reg);
 		if (ret)
 			goto error_put_reg;
@@ -222,13 +236,6 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	spi_message_add_tail(&st->scan_single_xfer[1], &st->scan_single_msg);
 	spi_message_add_tail(&st->scan_single_xfer[2], &st->scan_single_msg);
 
-	if (pdata && pdata->vref_mv) {
-		st->int_vref_mv = pdata->vref_mv;
-		st->ext_ref = AD7298_EXTREF;
-	} else {
-		st->int_vref_mv = AD7298_INTREF_mV;
-	}
-
 	ret = ad7298_register_ring_funcs_and_init(indio_dev);
 	if (ret)
 		goto error_disable_reg;
@@ -242,11 +249,12 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 error_cleanup_ring:
 	ad7298_ring_cleanup(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
+	if (st->ext_ref)
 		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
+	if (st->ext_ref)
 		regulator_put(st->reg);
+error_free:
 	iio_device_free(indio_dev);
 
 	return ret;
@@ -259,7 +267,7 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	ad7298_ring_cleanup(indio_dev);
-	if (!IS_ERR(st->reg)) {
+	if (st->ext_ref) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}

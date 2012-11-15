@@ -26,19 +26,17 @@
 
 #define RES_MASK(bits)	((1 << (bits)) - 1)
 
-/*
- * TODO: struct ad7298_platform_data needs to go into include/linux/iio
- */
-
+/**
+ * struct ad7298_platform_data - Platform data for the ad7298 ADC driver
+ * @ext_ref: Whether to use an external reference voltage.
+ **/
 struct ad7298_platform_data {
-	/* External Vref voltage applied */
-	u16				vref_mv;
+	bool ext_ref;
 };
 
 struct ad7298_state {
 	struct spi_device		*spi;
 	struct regulator		*reg;
-	u16				int_vref_mv;
 	unsigned			ext_ref;
 	struct spi_transfer		ring_xfer[10];
 	struct spi_transfer		scan_single_xfer[3];
