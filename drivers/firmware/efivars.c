@@ -1004,7 +1004,7 @@ static int efivarfs_unlink(struct inode *dir, struct dentry *dentry)
 	return -EINVAL;
 };
 
-int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
+static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode = NULL;
 	struct dentry *root;
