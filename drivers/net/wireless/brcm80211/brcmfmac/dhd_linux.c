@@ -648,7 +648,6 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
 	struct net_device *ndev;
-	u8 temp_addr[ETH_ALEN];
 
 	brcmf_dbg(TRACE, "ifidx %d mac %pM\n", ifp->idx, ifp->mac_addr);
 	ndev = ifp->ndev;
@@ -659,21 +658,14 @@ int brcmf_net_attach(struct brcmf_if *ifp)
 	else
 		ndev->netdev_ops = &brcmf_netdev_ops_virt;
 
-	/*
-	 * determine mac address to use
-	 */
-	if (is_valid_ether_addr(ifp->mac_addr))
-		memcpy(temp_addr, ifp->mac_addr, ETH_ALEN);
-	else
-		memcpy(temp_addr, drvr->mac, ETH_ALEN);
-
 	ndev->hard_header_len = ETH_HLEN + drvr->hdrlen;
 	ndev->ethtool_ops = &brcmf_ethtool_ops;
 
 	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
 			      drvr->hdrlen;
 
-	memcpy(ndev->dev_addr, temp_addr, ETH_ALEN);
+	/* set the mac address */
+	memcpy(ndev->dev_addr, ifp->mac_addr, ETH_ALEN);
 
 	if (register_netdev(ndev) != 0) {
 		brcmf_dbg(ERROR, "couldn't register the net device\n");
