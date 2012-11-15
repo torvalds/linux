@@ -1113,7 +1113,11 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 			return ret;
 	}
 
-	obj = i915_gem_alloc_object(dev, ring->size);
+	obj = NULL;
+	if (!HAS_LLC(dev))
+		obj = i915_gem_object_create_stolen(dev, ring->size);
+	if (obj == NULL)
+		obj = i915_gem_alloc_object(dev, ring->size);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
 		ret = -ENOMEM;
