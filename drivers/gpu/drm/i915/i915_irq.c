@@ -929,6 +929,14 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 						     reloc_offset);
 			memcpy_fromio(d, s, PAGE_SIZE);
 			io_mapping_unmap_atomic(s);
+		} else if (src->stolen) {
+			unsigned long offset;
+
+			offset = dev_priv->mm.stolen_base;
+			offset += src->stolen->start;
+			offset += i << PAGE_SHIFT;
+
+			memcpy_fromio(d, (void *)offset, PAGE_SIZE);
 		} else {
 			struct page *page;
 			void *s;
