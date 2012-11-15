@@ -501,7 +501,7 @@ static __devinit int da9055_gpio_init(struct da9055_regulator *regulator,
 			goto err;
 	}
 
-	if (pdata->gpio_rsel && pdata->gpio_ren[id]) {
+	if (pdata->gpio_rsel && pdata->gpio_rsel[id]) {
 		char name[18];
 		int gpio_mux = pdata->gpio_rsel[id];
 
