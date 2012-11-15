@@ -11322,10 +11322,7 @@ static int ipw_up(struct ipw_priv *priv)
 				    priv->eeprom[EEPROM_COUNTRY_CODE + 2]);
 			j = 0;
 		}
-		if (libipw_set_geo(priv->ieee, &ipw_geos[j])) {
-			IPW_WARNING("Could not set geography.");
-			return 0;
-		}
+		libipw_set_geo(priv->ieee, &ipw_geos[j]);
 
 		if (priv->status & STATUS_RF_KILL_SW) {
 			IPW_WARNING("Radio disabled by module parameter.\n");

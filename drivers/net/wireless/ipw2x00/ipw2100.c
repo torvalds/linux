@@ -1788,10 +1788,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	}
 
 	/* Initialize the geo */
-	if (libipw_set_geo(priv->ieee, &ipw_geos[0])) {
-		printk(KERN_WARNING DRV_NAME "Could not set geo\n");
-		return 0;
-	}
+	libipw_set_geo(priv->ieee, &ipw_geos[0]);
 	priv->ieee->freq_band = LIBIPW_24GHZ_BAND;
 
 	lock = LOCK_NONE;
