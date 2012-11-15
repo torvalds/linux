@@ -109,6 +109,9 @@ bool irq_work_needs_cpu(void)
 	if (llist_empty(this_list))
 		return false;
 
+	/* All work should have been flushed before going offline */
+	WARN_ON_ONCE(cpu_is_offline(smp_processor_id()));
+
 	return true;
 }
 
