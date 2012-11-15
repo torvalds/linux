@@ -35,9 +35,11 @@ int tegra_sku_id;
 int tegra_cpu_process_id;
 int tegra_core_process_id;
 int tegra_chip_id;
+int tegra_soc_speedo_id;
 enum tegra_revision tegra_revision;
 
 static int tegra_fuse_spare_bit;
+static void (*tegra_init_speedo_data)(void);
 
 /* The BCT to use at boot is specified by board straps that can be read
  * through a APB misc register and decoded. 2 bits, i.e. 4 possible BCTs.
@@ -91,6 +93,16 @@ static enum tegra_revision tegra_get_revision(u32 id)
 	}
 }
 
+static void tegra_get_process_id(void)
+{
+	u32 reg;
+
+	reg = tegra_fuse_readl(tegra_fuse_spare_bit);
+	tegra_cpu_process_id = (reg >> 6) & 3;
+	reg = tegra_fuse_readl(tegra_fuse_spare_bit);
+	tegra_core_process_id = (reg >> 12) & 3;
+}
+
 void tegra_init_fuse(void)
 {
 	u32 id;
@@ -102,21 +114,24 @@ void tegra_init_fuse(void)
 	reg = tegra_fuse_readl(FUSE_SKU_INFO);
 	tegra_sku_id = reg & 0xFF;
 
-	tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
-
-	reg = tegra_fuse_readl(tegra_fuse_spare_bit);
-	tegra_cpu_process_id = (reg >> 6) & 3;
-
-	reg = tegra_fuse_readl(tegra_fuse_spare_bit);
-	tegra_core_process_id = (reg >> 12) & 3;
-
 	reg = tegra_apb_readl(TEGRA_APB_MISC_BASE + STRAP_OPT);
 	tegra_bct_strapping = (reg & RAM_ID_MASK) >> RAM_CODE_SHIFT;
 
 	id = readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
 	tegra_chip_id = (id >> 8) & 0xff;
 
+	tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
+
+	switch (tegra_chip_id) {
+	case TEGRA20:
+		tegra_init_speedo_data = &tegra20_init_speedo_data;
+		break;
+	default:
+		tegra_init_speedo_data = &tegra_get_process_id;
+	}
+
 	tegra_revision = tegra_get_revision(id);
+	tegra_init_speedo_data();
 
 	pr_info("Tegra Revision: %s SKU: %d CPU Process: %d Core Process: %d\n",
 		tegra_revision_name[tegra_revision],
