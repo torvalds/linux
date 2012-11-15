@@ -93,6 +93,7 @@ config CAN_PLX_PCI
 	   - Marathon CAN-bus-PCI card (http://www.marathon.ru/)
 	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
 	   - IXXAT Automation PC-I 04/PCI card (http://www.ixxat.com/)
+	   - Connect Tech Inc. CANpro/104-Plus Opto (CRG001) card (http://www.connecttech.com)
 
 config CAN_TSCAN1
 	tristate "TS-CAN1 PC104 boards"
