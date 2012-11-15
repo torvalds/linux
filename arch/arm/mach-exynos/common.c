@@ -58,9 +58,11 @@ static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
 static const char name_exynos4412[] = "EXYNOS4412";
 static const char name_exynos5250[] = "EXYNOS5250";
+static const char name_exynos5440[] = "EXYNOS5440";
 
 static void exynos4_map_io(void);
 static void exynos5_map_io(void);
+static void exynos5440_map_io(void);
 static void exynos4_init_clocks(int xtal);
 static void exynos5_init_clocks(int xtal);
 static void exynos_init_uarts(struct s3c2410_uartcfg *cfg, int no);
@@ -99,6 +101,12 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= exynos_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos5250,
+	}, {
+		.idcode		= EXYNOS5440_SOC_ID,
+		.idmask		= EXYNOS5_SOC_MASK,
+		.map_io		= exynos5440_map_io,
+		.init		= exynos_init,
+		.name		= name_exynos5440,
 	},
 };
 
@@ -108,6 +116,15 @@ static struct map_desc exynos_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_CHIPID,
 		.pfn		= __phys_to_pfn(EXYNOS_PA_CHIPID),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+};
+
+static struct map_desc exynos5440_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_CHIPID,
+		.pfn		= __phys_to_pfn(EXYNOS5440_PA_CHIPID),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	},
@@ -279,6 +296,15 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 	},
 };
 
+static struct map_desc exynos5440_iodesc0[] __initdata = {
+	{
+		.virtual	= (unsigned long)S3C_VA_UART,
+		.pfn		= __phys_to_pfn(EXYNOS5440_PA_UART0),
+		.length		= SZ_512K,
+		.type		= MT_DEVICE,
+	},
+};
+
 void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
@@ -286,11 +312,29 @@ void exynos4_restart(char mode, const char *cmd)
 
 void exynos5_restart(char mode, const char *cmd)
 {
-	__raw_writel(0x1, EXYNOS_SWRESET);
+	u32 val;
+	void __iomem *addr;
+
+	if (of_machine_is_compatible("samsung,exynos5250")) {
+		val = 0x1;
+		addr = EXYNOS_SWRESET;
+	} else if (of_machine_is_compatible("samsung,exynos5440")) {
+		val = (0x10 << 20) | (0x1 << 16);
+		addr = EXYNOS5440_SWRESET;
+	} else {
+		pr_err("%s: cannot support non-DT\n", __func__);
+		return;
+	}
+
+	__raw_writel(val, addr);
 }
 
 void __init exynos_init_late(void)
 {
+	if (of_machine_is_compatible("samsung,exynos5440"))
+		/* to be supported later */
+		return;
+
 	exynos_pm_late_initcall();
 }
 
@@ -303,7 +347,11 @@ void __init exynos_init_late(void)
 void __init exynos_init_io(struct map_desc *mach_desc, int size)
 {
 	/* initialize the io descriptors we need for initialization */
-	iotable_init(exynos_iodesc, ARRAY_SIZE(exynos_iodesc));
+	if (of_machine_is_compatible("samsung,exynos5440"))
+		iotable_init(exynos5440_iodesc, ARRAY_SIZE(exynos5440_iodesc));
+	else
+		iotable_init(exynos_iodesc, ARRAY_SIZE(exynos_iodesc));
+
 	if (mach_desc)
 		iotable_init(mach_desc, size);
 
@@ -387,6 +435,11 @@ static void __init exynos4_init_clocks(int xtal)
 
 	exynos4_register_clocks();
 	exynos4_setup_clocks();
+}
+
+static void __init exynos5440_map_io(void)
+{
+	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
 }
 
 static void __init exynos5_init_clocks(int xtal)
@@ -604,8 +657,9 @@ int __init combiner_of_init(struct device_node *np, struct device_node *parent)
 	return 0;
 }
 
-static const struct of_device_id exynos4_dt_irq_match[] = {
+static const struct of_device_id exynos_dt_irq_match[] = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
 	{ .compatible = "samsung,exynos4210-combiner",
 			.data = combiner_of_init, },
 	{},
@@ -622,7 +676,7 @@ void __init exynos4_init_irq(void)
 		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
 #ifdef CONFIG_OF
 	else
-		of_irq_init(exynos4_dt_irq_match);
+		of_irq_init(exynos_dt_irq_match);
 #endif
 
 	if (!of_have_populated_dt())
@@ -639,7 +693,7 @@ void __init exynos4_init_irq(void)
 void __init exynos5_init_irq(void)
 {
 #ifdef CONFIG_OF
-	of_irq_init(exynos4_dt_irq_match);
+	of_irq_init(exynos_dt_irq_match);
 #endif
 	/*
 	 * The parameters of s5p_init_irq() are for VIC init.
@@ -669,7 +723,7 @@ static int __init exynos4_l2x0_cache_init(void)
 {
 	int ret;
 
-	if (soc_is_exynos5250())
+	if (soc_is_exynos5250() || soc_is_exynos5440())
 		return 0;
 
 	ret = l2x0_of_init(L2_AUX_VAL, L2_AUX_MASK);
@@ -1010,6 +1064,8 @@ static int __init exynos_init_irq_eint(void)
 		}
 	}
 #endif
+	if (soc_is_exynos5440())
+		return 0;
 
 	if (soc_is_exynos5250())
 		exynos_eint_base = ioremap(EXYNOS5_PA_GPIO1, SZ_4K);
