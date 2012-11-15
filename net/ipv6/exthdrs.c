@@ -48,6 +48,7 @@
 #endif
 
 #include <asm/uaccess.h>
+#include "ip6_offload.h"
 
 int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
 {
@@ -528,52 +529,18 @@ unknown_rh:
 
 static const struct inet6_protocol rthdr_protocol = {
 	.handler	=	ipv6_rthdr_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
-};
-
-static const struct net_offload rthdr_offload = {
-	.flags		=	INET6_PROTO_GSO_EXTHDR,
+	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
 static const struct inet6_protocol destopt_protocol = {
 	.handler	=	ipv6_destopt_rcv,
-	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
-};
-
-static const struct net_offload dstopt_offload = {
-	.flags		=	INET6_PROTO_GSO_EXTHDR,
+	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
 static const struct inet6_protocol nodata_protocol = {
 	.handler	=	dst_discard,
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
-
-static int ipv6_exthdrs_offload_init(void)
-{
-	int ret;
-
-	ret = inet6_add_offload(&rthdr_offload, IPPROTO_ROUTING);
-	if (!ret)
-		goto out;
-
-	ret = inet6_add_offload(&dstopt_offload, IPPROTO_DSTOPTS);
-	if (!ret)
-		goto out_rt;
-
-out:
-	return ret;
-
-out_rt:
-	inet_del_offload(&rthdr_offload, IPPROTO_ROUTING);
-	goto out;
-}
-
-static void ipv6_exthdrs_offload_exit(void)
-{
-	inet_del_offload(&rthdr_offload, IPPROTO_ROUTING);
-	inet_del_offload(&rthdr_offload, IPPROTO_DSTOPTS);
-}
 
 int __init ipv6_exthdrs_init(void)
 {
@@ -608,6 +575,7 @@ out_offload:
 
 void ipv6_exthdrs_exit(void)
 {
+	ipv6_exthdrs_offload_exit();
 	inet6_del_protocol(&nodata_protocol, IPPROTO_NONE);
 	inet6_del_protocol(&destopt_protocol, IPPROTO_DSTOPTS);
 	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
