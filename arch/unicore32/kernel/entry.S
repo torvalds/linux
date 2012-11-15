@@ -573,16 +573,15 @@ ENDPROC(ret_to_user)
  */
 ENTRY(ret_from_fork)
 	b.l	schedule_tail
-	get_thread_info tsk
-	ldw	r1, [tsk+], #TI_FLAGS		@ check for syscall tracing
-	mov	why, #1
-	cand.a	r1, #_TIF_SYSCALL_TRACE		@ are we tracing syscalls?
-	beq	ret_slow_syscall
-	mov	r1, sp
-	mov	r0, #1				@ trace exit [IP = 1]
-	b.l	syscall_trace
 	b	ret_slow_syscall
 ENDPROC(ret_from_fork)
+
+ENTRY(ret_from_kernel_thread)
+	b.l	schedule_tail
+	mov	r0, r5
+	adr	lr, ret_slow_syscall
+	mov	pc, r4
+ENDPROC(ret_from_kernel_thread)
 
 /*=============================================================================
  * SWI handler
@@ -668,11 +667,6 @@ __cr_alignment:
 	.word	cr_alignment
 #endif
 	.ltorg
-
-ENTRY(sys_execve)
-		add	r3, sp, #S_OFF
-		b	__sys_execve
-ENDPROC(sys_execve)
 
 ENTRY(sys_clone)
 		add	ip, sp, #S_OFF
