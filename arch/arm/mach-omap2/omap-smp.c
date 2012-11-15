@@ -40,6 +40,8 @@
 
 #define OMAP5_CORE_COUNT	0x2
 
+u16 pm44xx_errata;
+
 /* SCU base address */
 static void __iomem *scu_base;
 
