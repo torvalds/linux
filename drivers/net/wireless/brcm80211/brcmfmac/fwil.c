@@ -29,6 +29,9 @@
 #include "fwil.h"
 
 
+#define MAX_HEX_DUMP_LEN	64
+
+
 static s32
 brcmf_fil_cmd_data(struct brcmf_if *ifp, u32 cmd, void *data, u32 len, bool set)
 {
@@ -64,7 +67,8 @@ brcmf_fil_cmd_data_set(struct brcmf_if *ifp, u32 cmd, void *data, u32 len)
 	mutex_lock(&ifp->drvr->proto_block);
 
 	brcmf_dbg(FIL, "cmd=%d, len=%d\n", cmd, len);
-	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
+	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
+			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data");
 
 	err = brcmf_fil_cmd_data(ifp, cmd, data, len, true);
 	mutex_unlock(&ifp->drvr->proto_block);
@@ -81,7 +85,8 @@ brcmf_fil_cmd_data_get(struct brcmf_if *ifp, u32 cmd, void *data, u32 len)
 	err = brcmf_fil_cmd_data(ifp, cmd, data, len, false);
 
 	brcmf_dbg(FIL, "cmd=%d, len=%d\n", cmd, len);
-	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
+	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
+			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data");
 
 	mutex_unlock(&ifp->drvr->proto_block);
 
@@ -147,7 +152,8 @@ brcmf_fil_iovar_data_set(struct brcmf_if *ifp, char *name, void *data,
 	mutex_lock(&drvr->proto_block);
 
 	brcmf_dbg(FIL, "name=%s, len=%d\n", name, len);
-	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
+	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
+			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data");
 
 	buflen = brcmf_create_iovar(name, data, len, drvr->proto_buf,
 				    sizeof(drvr->proto_buf));
@@ -186,7 +192,8 @@ brcmf_fil_iovar_data_get(struct brcmf_if *ifp, char *name, void *data,
 	}
 
 	brcmf_dbg(FIL, "name=%s, len=%d\n", name, len);
-	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
+	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
+			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data");
 
 	mutex_unlock(&drvr->proto_block);
 	return err;
@@ -268,7 +275,8 @@ brcmf_fil_bsscfg_data_set(struct brcmf_if *ifp, char *name,
 	mutex_lock(&drvr->proto_block);
 
 	brcmf_dbg(FIL, "bssidx=%d, name=%s, len=%d\n", ifp->bssidx, name, len);
-	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
+	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
+			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data");
 
 	buflen = brcmf_create_bsscfg(ifp->bssidx, name, data, len,
 				     drvr->proto_buf, sizeof(drvr->proto_buf));
@@ -306,7 +314,8 @@ brcmf_fil_bsscfg_data_get(struct brcmf_if *ifp, char *name,
 		brcmf_dbg(ERROR, "Creating bsscfg failed\n");
 	}
 	brcmf_dbg(FIL, "bssidx=%d, name=%s, len=%d\n", ifp->bssidx, name, len);
-	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data, len, "data");
+	brcmf_dbg_hex_dump(BRCMF_FIL_ON(), data,
+			   min_t(uint, len, MAX_HEX_DUMP_LEN), "data");
 
 	mutex_unlock(&drvr->proto_block);
 	return err;
