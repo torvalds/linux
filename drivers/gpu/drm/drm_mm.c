@@ -102,20 +102,6 @@ int drm_mm_pre_get(struct drm_mm *mm)
 }
 EXPORT_SYMBOL(drm_mm_pre_get);
 
-static inline unsigned long drm_mm_hole_node_start(struct drm_mm_node *hole_node)
-{
-	return hole_node->start + hole_node->size;
-}
-
-static inline unsigned long drm_mm_hole_node_end(struct drm_mm_node *hole_node)
-{
-	struct drm_mm_node *next_node =
-		list_entry(hole_node->node_list.next, struct drm_mm_node,
-			   node_list);
-
-	return next_node->start;
-}
-
 static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 				 struct drm_mm_node *node,
 				 unsigned long size, unsigned alignment,
@@ -127,7 +113,7 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	unsigned long adj_start = hole_start;
 	unsigned long adj_end = hole_end;
 
-	BUG_ON(!hole_node->hole_follows || node->allocated);
+	BUG_ON(node->allocated);
 
 	if (mm->color_adjust)
 		mm->color_adjust(hole_node, color, &adj_start, &adj_end);
@@ -155,7 +141,7 @@ static void drm_mm_insert_helper(struct drm_mm_node *hole_node,
 	BUG_ON(node->start + node->size > adj_end);
 
 	node->hole_follows = 0;
-	if (node->start + node->size < hole_end) {
+	if (__drm_mm_hole_node_start(node) < hole_end) {
 		list_add(&node->hole_stack, &mm->hole_stack);
 		node->hole_follows = 1;
 	}
@@ -168,15 +154,10 @@ struct drm_mm_node *drm_mm_create_block(struct drm_mm *mm,
 {
 	struct drm_mm_node *hole, *node;
 	unsigned long end = start + size;
+	unsigned long hole_start;
+	unsigned long hole_end;
 
-	list_for_each_entry(hole, &mm->hole_stack, hole_stack) {
-		unsigned long hole_start;
-		unsigned long hole_end;
-
-		BUG_ON(!hole->hole_follows);
-		hole_start = drm_mm_hole_node_start(hole);
-		hole_end = drm_mm_hole_node_end(hole);
-
+	drm_mm_for_each_hole(hole, mm, hole_start, hole_end) {
 		if (hole_start > start || hole_end < end)
 			continue;
 
@@ -293,7 +274,7 @@ static void drm_mm_insert_helper_range(struct drm_mm_node *hole_node,
 	BUG_ON(node->start + node->size > end);
 
 	node->hole_follows = 0;
-	if (node->start + node->size < hole_end) {
+	if (__drm_mm_hole_node_start(node) < hole_end) {
 		list_add(&node->hole_stack, &mm->hole_stack);
 		node->hole_follows = 1;
 	}
@@ -358,12 +339,13 @@ void drm_mm_remove_node(struct drm_mm_node *node)
 	    list_entry(node->node_list.prev, struct drm_mm_node, node_list);
 
 	if (node->hole_follows) {
-		BUG_ON(drm_mm_hole_node_start(node)
-				== drm_mm_hole_node_end(node));
+		BUG_ON(__drm_mm_hole_node_start(node) ==
+		       __drm_mm_hole_node_end(node));
 		list_del(&node->hole_stack);
 	} else
-		BUG_ON(drm_mm_hole_node_start(node)
-				!= drm_mm_hole_node_end(node));
+		BUG_ON(__drm_mm_hole_node_start(node) !=
+		       __drm_mm_hole_node_end(node));
+
 
 	if (!prev_node->hole_follows) {
 		prev_node->hole_follows = 1;
@@ -421,6 +403,8 @@ struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 {
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
+	unsigned long adj_start;
+	unsigned long adj_end;
 	unsigned long best_size;
 
 	BUG_ON(mm->scanned_blocks);
@@ -428,17 +412,13 @@ struct drm_mm_node *drm_mm_search_free_generic(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	list_for_each_entry(entry, &mm->hole_stack, hole_stack) {
-		unsigned long adj_start = drm_mm_hole_node_start(entry);
-		unsigned long adj_end = drm_mm_hole_node_end(entry);
-
+	drm_mm_for_each_hole(entry, mm, adj_start, adj_end) {
 		if (mm->color_adjust) {
 			mm->color_adjust(entry, color, &adj_start, &adj_end);
 			if (adj_end <= adj_start)
 				continue;
 		}
 
-		BUG_ON(!entry->hole_follows);
 		if (!check_free_hole(adj_start, adj_end, size, alignment))
 			continue;
 
@@ -465,6 +445,8 @@ struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
 {
 	struct drm_mm_node *entry;
 	struct drm_mm_node *best;
+	unsigned long adj_start;
+	unsigned long adj_end;
 	unsigned long best_size;
 
 	BUG_ON(mm->scanned_blocks);
@@ -472,13 +454,11 @@ struct drm_mm_node *drm_mm_search_free_in_range_generic(const struct drm_mm *mm,
 	best = NULL;
 	best_size = ~0UL;
 
-	list_for_each_entry(entry, &mm->hole_stack, hole_stack) {
-		unsigned long adj_start = drm_mm_hole_node_start(entry) < start ?
-			start : drm_mm_hole_node_start(entry);
-		unsigned long adj_end = drm_mm_hole_node_end(entry) > end ?
-			end : drm_mm_hole_node_end(entry);
-
-		BUG_ON(!entry->hole_follows);
+	drm_mm_for_each_hole(entry, mm, adj_start, adj_end) {
+		if (adj_start < start)
+			adj_start = start;
+		if (adj_end > end)
+			adj_end = end;
 
 		if (mm->color_adjust) {
 			mm->color_adjust(entry, color, &adj_start, &adj_end);
