@@ -39,6 +39,7 @@ static struct omap_device_pm_latency *pm_lats;
  */
 int (*omap_pm_suspend)(void);
 
+#ifdef CONFIG_PM
 /**
  * struct omap2_oscillator - Describe the board main oscillator latencies
  * @startup_time: oscillator startup latency
@@ -68,6 +69,7 @@ void omap_pm_get_oscillator(u32 *tstart, u32 *tshut)
 	*tstart = oscillator.startup_time;
 	*tshut = oscillator.shutdown_time;
 }
+#endif
 
 static int __init _init_omap_device(char *name)
 {

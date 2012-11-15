@@ -666,6 +666,7 @@ static u8 omap_vc_calc_vsel(struct voltagedomain *voltdm, u32 uvolt)
 	return voltdm->pmic->uv_to_vsel(uvolt);
 }
 
+#ifdef CONFIG_PM
 /**
  * omap_pm_setup_sr_i2c_pcb_length - set length of SR I2C traces on PCB
  * @mm: length of the PCB trace in millimetres
@@ -678,6 +679,7 @@ void __init omap_pm_setup_sr_i2c_pcb_length(u32 mm)
 {
 	sr_i2c_pcb_length = mm;
 }
+#endif
 
 void __init omap_vc_init_channel(struct voltagedomain *voltdm)
 {
