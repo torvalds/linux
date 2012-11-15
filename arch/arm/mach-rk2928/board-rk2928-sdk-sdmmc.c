@@ -361,7 +361,6 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
 #if defined(CONFIG_RTL8192CU) || defined(CONFIG_RTL8188EU) || defined(CONFIG_RT5370)
 static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
-    return 0;
     if (gpio_request(RK30SDK_WIFI_GPIO_POWER_N, "wifi_power")) {
            pr_info("%s: request wifi power gpio failed\n", __func__);
            return -1;
