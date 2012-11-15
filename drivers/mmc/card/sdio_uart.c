@@ -66,7 +66,6 @@ struct uart_icount {
 
 struct sdio_uart_port {
 	struct tty_port		port;
-	struct kref		kref;
 	unsigned int		index;
 	struct sdio_func	*func;
 	struct mutex		func_lock;
@@ -92,7 +91,6 @@ static int sdio_uart_add_port(struct sdio_uart_port *port)
 {
 	int index, ret = -EBUSY;
 
-	kref_init(&port->kref);
 	mutex_init(&port->func_lock);
 	spin_lock_init(&port->write_lock);
 	if (kfifo_alloc(&port->xmit_fifo, FIFO_SIZE, GFP_KERNEL))
@@ -122,23 +120,15 @@ static struct sdio_uart_port *sdio_uart_port_get(unsigned index)
 	spin_lock(&sdio_uart_table_lock);
 	port = sdio_uart_table[index];
 	if (port)
-		kref_get(&port->kref);
+		tty_port_get(&port->port);
 	spin_unlock(&sdio_uart_table_lock);
 
 	return port;
 }
 
-static void sdio_uart_port_destroy(struct kref *kref)
-{
-	struct sdio_uart_port *port =
-		container_of(kref, struct sdio_uart_port, kref);
-	kfifo_free(&port->xmit_fifo);
-	kfree(port);
-}
-
 static void sdio_uart_port_put(struct sdio_uart_port *port)
 {
-	kref_put(&port->kref, sdio_uart_port_destroy);
+	tty_port_put(&port->port);
 }
 
 static void sdio_uart_port_remove(struct sdio_uart_port *port)
@@ -736,6 +726,14 @@ static void sdio_uart_shutdown(struct tty_port *tport)
 	sdio_uart_release_func(port);
 }
 
+static void sdio_uart_port_destroy(struct tty_port *tport)
+{
+	struct sdio_uart_port *port =
+		container_of(tport, struct sdio_uart_port, port);
+	kfifo_free(&port->xmit_fifo);
+	kfree(port);
+}
+
 /**
  *	sdio_uart_install	-	install method
  *	@driver: the driver in use (sdio_uart in our case)
@@ -1044,6 +1042,7 @@ static const struct tty_port_operations sdio_uart_port_ops = {
 	.carrier_raised = uart_carrier_raised,
 	.shutdown = sdio_uart_shutdown,
 	.activate = sdio_uart_activate,
+	.destruct = sdio_uart_port_destroy,
 };
 
 static const struct tty_operations sdio_uart_ops = {
