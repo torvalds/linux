@@ -4284,7 +4284,6 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 
 		BT_DBG("mgr %p bredr_chan %p hs_hcon %p", mgr, chan, hs_hcon);
 
-		chan->local_amp_id = req->amp_id;
 		mgr->bredr_chan = chan;
 		chan->hs_hcon = hs_hcon;
 		conn->mtu = hdev->block_mtu;
