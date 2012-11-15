@@ -1118,7 +1118,6 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 
 	/* discover transaction capabilites from the platform data */
 	dma_dev->cap_mask = cap_mask;
-	mv_chan->shared = xordev;
 
 	INIT_LIST_HEAD(&dma_dev->channels);
 
