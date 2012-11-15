@@ -8655,6 +8655,9 @@ void intel_modeset_init(struct drm_device *dev)
 	/* Just disable it once at startup */
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
+
+	/* Just in case the BIOS is doing something questionable. */
+	intel_disable_fbc(dev);
 }
 
 static void
