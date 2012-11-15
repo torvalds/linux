@@ -603,7 +603,7 @@ static irqreturn_t isicom_interrupt(int irq, void *dev_id)
 			if (tty_port_cts_enabled(&port->port)) {
 				if (tty->hw_stopped) {
 					if (header & ISI_CTS) {
-						port->port.tty->hw_stopped = 0;
+						tty->hw_stopped = 0;
 						/* start tx ing */
 						port->status |= (ISI_TXOK
 							| ISI_CTS);
