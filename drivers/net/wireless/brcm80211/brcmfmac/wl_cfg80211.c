@@ -4526,19 +4526,18 @@ default_conf_out:
 
 }
 
-static s32 __brcmf_cfg80211_up(struct brcmf_cfg80211_info *cfg)
+static s32 __brcmf_cfg80211_up(struct brcmf_if *ifp)
 {
-	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));
-
 	set_bit(BRCMF_VIF_STATUS_READY, &ifp->vif->sme_state);
+	if (ifp->idx)
+		return 0;
 
-	return brcmf_config_dongle(cfg);
+	return brcmf_config_dongle(ifp->drvr->config);
 }
 
-static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_info *cfg)
+static s32 __brcmf_cfg80211_down(struct brcmf_if *ifp)
 {
-	struct net_device *ndev = cfg_to_ndev(cfg);
-	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 
 	/*
 	 * While going down, if associated with AP disassociate
@@ -4563,23 +4562,27 @@ static s32 __brcmf_cfg80211_down(struct brcmf_cfg80211_info *cfg)
 	return 0;
 }
 
-s32 brcmf_cfg80211_up(struct brcmf_cfg80211_info *cfg)
+s32 brcmf_cfg80211_up(struct net_device *ndev)
 {
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	s32 err = 0;
 
 	mutex_lock(&cfg->usr_sync);
-	err = __brcmf_cfg80211_up(cfg);
+	err = __brcmf_cfg80211_up(ifp);
 	mutex_unlock(&cfg->usr_sync);
 
 	return err;
 }
 
-s32 brcmf_cfg80211_down(struct brcmf_cfg80211_info *cfg)
+s32 brcmf_cfg80211_down(struct net_device *ndev)
 {
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	s32 err = 0;
 
 	mutex_lock(&cfg->usr_sync);
-	err = __brcmf_cfg80211_down(cfg);
+	err = __brcmf_cfg80211_down(ifp);
 	mutex_unlock(&cfg->usr_sync);
 
 	return err;

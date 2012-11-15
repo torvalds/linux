@@ -513,8 +513,6 @@ struct brcmf_pub {
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	struct work_struct setmacaddr_work;
-	struct work_struct multicast_work;
 	u8 macvalue[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
 	wait_queue_head_t pend_8021x_wait;
@@ -556,6 +554,8 @@ struct brcmf_if {
 	struct brcmf_cfg80211_vif *vif;
 	struct net_device *ndev;
 	struct net_device_stats stats;
+	struct work_struct setmacaddr_work;
+	struct work_struct multicast_work;
 	int idx;
 	s32 bssidx;
 	u8 mac_addr[ETH_ALEN];
