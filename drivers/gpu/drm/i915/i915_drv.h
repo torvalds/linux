@@ -935,6 +935,8 @@ enum i915_cache_level {
 	I915_CACHE_LLC_MLC, /* gen6+, in docs at least! */
 };
 
+#define I915_GTT_RESERVED ((struct drm_mm_node *)0x1)
+
 struct drm_i915_gem_object_ops {
 	/* Interface between the GEM object and its backing storage.
 	 * get_pages() is called once prior to the use of the associated set

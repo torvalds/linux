@@ -531,11 +531,27 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 			      unsigned long end)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_mm_node *entry;
+	struct drm_i915_gem_object *obj;
+	unsigned long hole_start, hole_end;
 
-	/* Substract the guard page ... */
+	/* Subtract the guard page ... */
 	drm_mm_init(&dev_priv->mm.gtt_space, start, end - start - PAGE_SIZE);
 	if (!HAS_LLC(dev))
 		dev_priv->mm.gtt_space.color_adjust = i915_gtt_color_adjust;
+
+	/* Mark any preallocated objects as occupied */
+	list_for_each_entry(obj, &dev_priv->mm.bound_list, gtt_list) {
+		DRM_DEBUG_KMS("reserving preallocated space: %x + %zx\n",
+			      obj->gtt_offset, obj->base.size);
+
+		BUG_ON(obj->gtt_space != I915_GTT_RESERVED);
+		obj->gtt_space = drm_mm_create_block(&dev_priv->mm.gtt_space,
+						     obj->gtt_offset,
+						     obj->base.size,
+						     false);
+		obj->has_global_gtt_mapping = 1;
+	}
 
 	dev_priv->mm.gtt_start = start;
 	dev_priv->mm.gtt_mappable_end = mappable_end;
@@ -543,8 +559,18 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 	dev_priv->mm.gtt_total = end - start;
 	dev_priv->mm.mappable_gtt_total = min(end, mappable_end) - start;
 
-	/* ... but ensure that we clear the entire range. */
-	i915_ggtt_clear_range(dev, start / PAGE_SIZE, (end-start) / PAGE_SIZE);
+	/* Clear any non-preallocated blocks */
+	drm_mm_for_each_hole(entry, &dev_priv->mm.gtt_space,
+			     hole_start, hole_end) {
+		DRM_DEBUG_KMS("clearing unused GTT space: [%lx, %lx]\n",
+			      hole_start, hole_end);
+		i915_ggtt_clear_range(dev,
+				      hole_start / PAGE_SIZE,
+				      (hole_end-hole_start) / PAGE_SIZE);
+	}
+
+	/* And finally clear the reserved guard page */
+	i915_ggtt_clear_range(dev, end / PAGE_SIZE - 1, 1);
 }
 
 static int setup_scratch_page(struct drm_device *dev)
