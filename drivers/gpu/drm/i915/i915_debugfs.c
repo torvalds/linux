@@ -124,6 +124,8 @@ describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 	if (obj->gtt_space != NULL)
 		seq_printf(m, " (gtt offset: %08x, size: %08x)",
 			   obj->gtt_offset, (unsigned int)obj->gtt_space->size);
+	if (obj->stolen)
+		seq_printf(m, " (stolen: %08lx)", obj->stolen->start);
 	if (obj->pin_mappable || obj->fault_mappable) {
 		char s[3], *t = s;
 		if (obj->pin_mappable)

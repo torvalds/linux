@@ -962,6 +962,8 @@ struct drm_i915_gem_object {
 
 	/** Current space allocated to this object in the GTT, if any. */
 	struct drm_mm_node *gtt_space;
+	/** Stolen memory for this object, instead of being backed by shmem. */
+	struct drm_mm_node *stolen;
 	struct list_head gtt_list;
 
 	/** This object's place on the active/inactive lists */
