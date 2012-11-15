@@ -70,9 +70,9 @@ static int ipv6_gso_send_check(struct sk_buff *skb)
 	ops = rcu_dereference(inet6_offloads[
 		ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr)]);
 
-	if (likely(ops && ops->gso_send_check)) {
+	if (likely(ops && ops->callbacks.gso_send_check)) {
 		skb_reset_transport_header(skb);
-		err = ops->gso_send_check(skb);
+		err = ops->callbacks.gso_send_check(skb);
 	}
 	rcu_read_unlock();
 
@@ -113,9 +113,9 @@ static struct sk_buff *ipv6_gso_segment(struct sk_buff *skb,
 	proto = ipv6_gso_pull_exthdrs(skb, ipv6h->nexthdr);
 	rcu_read_lock();
 	ops = rcu_dereference(inet6_offloads[proto]);
-	if (likely(ops && ops->gso_segment)) {
+	if (likely(ops && ops->callbacks.gso_segment)) {
 		skb_reset_transport_header(skb);
-		segs = ops->gso_segment(skb, features);
+		segs = ops->callbacks.gso_segment(skb, features);
 	}
 	rcu_read_unlock();
 
@@ -173,7 +173,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	rcu_read_lock();
 	proto = iph->nexthdr;
 	ops = rcu_dereference(inet6_offloads[proto]);
-	if (!ops || !ops->gro_receive) {
+	if (!ops || !ops->callbacks.gro_receive) {
 		__pskb_pull(skb, skb_gro_offset(skb));
 		proto = ipv6_gso_pull_exthdrs(skb, proto);
 		skb_gro_pull(skb, -skb_transport_offset(skb));
@@ -181,7 +181,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 		__skb_push(skb, skb_gro_offset(skb));
 
 		ops = rcu_dereference(inet6_offloads[proto]);
-		if (!ops || !ops->gro_receive)
+		if (!ops || !ops->callbacks.gro_receive)
 			goto out_unlock;
 
 		iph = ipv6_hdr(skb);
@@ -220,7 +220,7 @@ static struct sk_buff **ipv6_gro_receive(struct sk_buff **head,
 	csum = skb->csum;
 	skb_postpull_rcsum(skb, iph, skb_network_header_len(skb));
 
-	pp = ops->gro_receive(head, skb);
+	pp = ops->callbacks.gro_receive(head, skb);
 
 	skb->csum = csum;
 
@@ -244,10 +244,10 @@ static int ipv6_gro_complete(struct sk_buff *skb)
 
 	rcu_read_lock();
 	ops = rcu_dereference(inet6_offloads[NAPI_GRO_CB(skb)->proto]);
-	if (WARN_ON(!ops || !ops->gro_complete))
+	if (WARN_ON(!ops || !ops->callbacks.gro_complete))
 		goto out_unlock;
 
-	err = ops->gro_complete(skb);
+	err = ops->callbacks.gro_complete(skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -257,10 +257,12 @@ out_unlock:
 
 static struct packet_offload ipv6_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
-	.gso_send_check = ipv6_gso_send_check,
-	.gso_segment = ipv6_gso_segment,
-	.gro_receive = ipv6_gro_receive,
-	.gro_complete = ipv6_gro_complete,
+	.callbacks = {
+		.gso_send_check = ipv6_gso_send_check,
+		.gso_segment = ipv6_gso_segment,
+		.gro_receive = ipv6_gro_receive,
+		.gro_complete = ipv6_gro_complete,
+	},
 };
 
 static int __init ipv6_offload_init(void)

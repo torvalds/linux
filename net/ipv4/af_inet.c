@@ -1276,8 +1276,8 @@ static int inet_gso_send_check(struct sk_buff *skb)
 
 	rcu_read_lock();
 	ops = rcu_dereference(inet_offloads[proto]);
-	if (likely(ops && ops->gso_send_check))
-		err = ops->gso_send_check(skb);
+	if (likely(ops && ops->callbacks.gso_send_check))
+		err = ops->callbacks.gso_send_check(skb);
 	rcu_read_unlock();
 
 out:
@@ -1326,8 +1326,8 @@ static struct sk_buff *inet_gso_segment(struct sk_buff *skb,
 
 	rcu_read_lock();
 	ops = rcu_dereference(inet_offloads[proto]);
-	if (likely(ops && ops->gso_segment))
-		segs = ops->gso_segment(skb, features);
+	if (likely(ops && ops->callbacks.gso_segment))
+		segs = ops->callbacks.gso_segment(skb, features);
 	rcu_read_unlock();
 
 	if (!segs || IS_ERR(segs))
@@ -1379,7 +1379,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 
 	rcu_read_lock();
 	ops = rcu_dereference(inet_offloads[proto]);
-	if (!ops || !ops->gro_receive)
+	if (!ops || !ops->callbacks.gro_receive)
 		goto out_unlock;
 
 	if (*(u8 *)iph != 0x45)
@@ -1420,7 +1420,7 @@ static struct sk_buff **inet_gro_receive(struct sk_buff **head,
 	skb_gro_pull(skb, sizeof(*iph));
 	skb_set_transport_header(skb, skb_gro_offset(skb));
 
-	pp = ops->gro_receive(head, skb);
+	pp = ops->callbacks.gro_receive(head, skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -1444,10 +1444,10 @@ static int inet_gro_complete(struct sk_buff *skb)
 
 	rcu_read_lock();
 	ops = rcu_dereference(inet_offloads[proto]);
-	if (WARN_ON(!ops || !ops->gro_complete))
+	if (WARN_ON(!ops || !ops->callbacks.gro_complete))
 		goto out_unlock;
 
-	err = ops->gro_complete(skb);
+	err = ops->callbacks.gro_complete(skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -1563,10 +1563,12 @@ static const struct net_protocol tcp_protocol = {
 };
 
 static const struct net_offload tcp_offload = {
-	.gso_send_check	=	tcp_v4_gso_send_check,
-	.gso_segment	=	tcp_tso_segment,
-	.gro_receive	=	tcp4_gro_receive,
-	.gro_complete	=	tcp4_gro_complete,
+	.callbacks = {
+		.gso_send_check	=	tcp_v4_gso_send_check,
+		.gso_segment	=	tcp_tso_segment,
+		.gro_receive	=	tcp4_gro_receive,
+		.gro_complete	=	tcp4_gro_complete,
+	},
 };
 
 static const struct net_protocol udp_protocol = {
@@ -1577,8 +1579,10 @@ static const struct net_protocol udp_protocol = {
 };
 
 static const struct net_offload udp_offload = {
-	.gso_send_check = udp4_ufo_send_check,
-	.gso_segment = udp4_ufo_fragment,
+	.callbacks = {
+		.gso_send_check = udp4_ufo_send_check,
+		.gso_segment = udp4_ufo_fragment,
+	},
 };
 
 static const struct net_protocol icmp_protocol = {
@@ -1667,10 +1671,12 @@ static int ipv4_proc_init(void);
 
 static struct packet_offload ip_packet_offload __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IP),
-	.gso_send_check = inet_gso_send_check,
-	.gso_segment = inet_gso_segment,
-	.gro_receive = inet_gro_receive,
-	.gro_complete = inet_gro_complete,
+	.callbacks = {
+		.gso_send_check = inet_gso_send_check,
+		.gso_segment = inet_gso_segment,
+		.gro_receive = inet_gro_receive,
+		.gro_complete = inet_gro_complete,
+	},
 };
 
 static int __init ipv4_offload_init(void)

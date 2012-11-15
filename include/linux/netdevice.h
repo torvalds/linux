@@ -1515,15 +1515,19 @@ struct packet_type {
 	struct list_head	list;
 };
 
-struct packet_offload {
-	__be16			type;	/* This is really htons(ether_type). */
+struct offload_callbacks {
 	struct sk_buff		*(*gso_segment)(struct sk_buff *skb,
 						netdev_features_t features);
 	int			(*gso_send_check)(struct sk_buff *skb);
 	struct sk_buff		**(*gro_receive)(struct sk_buff **head,
 					       struct sk_buff *skb);
 	int			(*gro_complete)(struct sk_buff *skb);
-	struct list_head	list;
+};
+
+struct packet_offload {
+	__be16			 type;	/* This is really htons(ether_type). */
+	struct offload_callbacks callbacks;
+	struct list_head	 list;
 };
 
 #include <linux/notifier.h>

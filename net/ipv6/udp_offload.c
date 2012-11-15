@@ -107,8 +107,10 @@ out:
 	return segs;
 }
 static const struct net_offload udpv6_offload = {
-	.gso_send_check =	udp6_ufo_send_check,
-	.gso_segment	=	udp6_ufo_fragment,
+	.callbacks = {
+		.gso_send_check =	udp6_ufo_send_check,
+		.gso_segment	=	udp6_ufo_fragment,
+	},
 };
 
 int __init udp_offload_init(void)
