@@ -1541,7 +1541,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 			      unsigned long end);
 int i915_gem_gtt_init(struct drm_device *dev);
 void i915_gem_gtt_fini(struct drm_device *dev);
-extern inline void i915_gem_chipset_flush(struct drm_device *dev)
+static inline void i915_gem_chipset_flush(struct drm_device *dev)
 {
 	if (INTEL_INFO(dev)->gen < 6)
 		intel_gtt_chipset_flush();
