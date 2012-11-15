@@ -1482,6 +1482,7 @@ static void ext4_da_block_invalidatepages(struct mpage_da_data *mpd)
 	last = end << (PAGE_CACHE_SHIFT - inode->i_blkbits);
 	ext4_es_remove_extent(inode, start, last - start + 1);
 
+	pagevec_init(&pvec, 0);
 	while (index <= end) {
 		nr_pages = pagevec_lookup(&pvec, mapping, index, PAGEVEC_SIZE);
 		if (nr_pages == 0)
