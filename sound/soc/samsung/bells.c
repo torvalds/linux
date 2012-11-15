@@ -28,7 +28,7 @@
 #define MCLK_RATE 24576000
 
 #define SYS_AUDIO_RATE 44100
-#define SYS_MCLK_RATE  (SYS_AUDIO_RATE * 256)
+#define SYS_MCLK_RATE  (SYS_AUDIO_RATE * 512)
 
 #define DAI_AP_DSP    0
 #define DAI_DSP_CODEC 1
