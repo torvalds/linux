@@ -1,0 +1,67 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+/dts-v1/;
+
+/include/ "omap3.dtsi"
+
+/ {
+	model = "TI OMAP3 BeagleBoard";
+	compatible = "ti,omap3-beagle", "ti,omap3";
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>; /* 256 MB */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pmu_stat {
+			label = "beagleboard::pmu_stat";
+			gpios = <&twl_gpio 19 0>; /* LEDB */
+		};
+
+		heartbeat {
+			label = "beagleboard::usr0";
+			gpios = <&gpio5 22 0>; /* 150 -> D6 LED */
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			label = "beagleboard::usr1";
+			gpios = <&gpio5 21 0>; /* 149 -> D7 LED */
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+};
+
+&i2c1 {
+	clock-frequency = <2600000>;
+
+	twl: twl@48 {
+		reg = <0x48>;
+		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
+		interrupt-parent = <&intc>;
+	};
+};
+
+/include/ "twl4030.dtsi"
+
+&mmc1 {
+	vmmc-supply = <&vmmc1>;
+	vmmc_aux-supply = <&vsim>;
+	bus-width = <8>;
+};
+
+&mmc2 {
+	status = "disabled";
+};
+
+&mmc3 {
+	status = "disabled";
+};

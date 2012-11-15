@@ -5,6 +5,7 @@
 
 #include <linux/nfs_fs.h>
 #include "nfs4_fs.h"
+#include "internal.h"
 
 #define NFSDBG_FACILITY		NFSDBG_CLIENT
 

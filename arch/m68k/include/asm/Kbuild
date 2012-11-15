@@ -1,5 +1,3 @@
-include include/asm-generic/Kbuild.asm
-header-y += cachectl.h
 
 generic-y += bitsperlong.h
 generic-y += clkdev.h

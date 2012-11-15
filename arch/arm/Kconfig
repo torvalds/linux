@@ -1602,8 +1602,8 @@ config NR_CPUS
 	default "4"
 
 config HOTPLUG_CPU
-	bool "Support for hot-pluggable CPUs (EXPERIMENTAL)"
-	depends on SMP && HOTPLUG && EXPERIMENTAL
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && HOTPLUG
 	help
 	  Say Y here to experiment with turning CPUs off and on.  CPUs
 	  can be controlled through /sys/devices/system/cpu.
@@ -1644,8 +1644,8 @@ config HZ
 	default 100
 
 config THUMB2_KERNEL
-	bool "Compile the kernel in Thumb-2 mode (EXPERIMENTAL)"
-	depends on CPU_V7 && !CPU_V6 && !CPU_V6K && EXPERIMENTAL
+	bool "Compile the kernel in Thumb-2 mode"
+	depends on CPU_V7 && !CPU_V6 && !CPU_V6K
 	select AEABI
 	select ARM_ASM_UNIFIED
 	select ARM_UNWIND
@@ -1849,6 +1849,7 @@ config XEN_DOM0
 config XEN
 	bool "Xen guest support on ARM (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && ARM && OF
+	depends on CPU_V7 && !CPU_V6
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
