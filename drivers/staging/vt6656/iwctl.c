@@ -655,9 +655,13 @@ int iwctl_giwaplist(struct net_device *dev, struct iw_request_info *info,
 		return -EINVAL;
 
 	sock = kzalloc(sizeof(struct sockaddr) * IW_MAX_AP, GFP_KERNEL);
-	qual = kzalloc(sizeof(struct iw_quality) * IW_MAX_AP, GFP_KERNEL);
-	if (sock == NULL || qual == NULL)
+	if (sock == NULL)
 		return -ENOMEM;
+	qual = kzalloc(sizeof(struct iw_quality) * IW_MAX_AP, GFP_KERNEL);
+	if (qual == NULL) {
+		kfree(sock);
+		return -ENOMEM;
+	}
 
 	for (ii = 0, jj = 0; ii < MAX_BSS_NUM; ii++) {
 		if (!pBSS[ii].bActive)
