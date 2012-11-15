@@ -37,7 +37,7 @@ struct pt_regs {
 	unsigned long windowstart;	/*  52 */
 	unsigned long syscall;		/*  56 */
 	unsigned long icountlevel;	/*  60 */
-	int reserved[1];		/*  64 */
+	unsigned long scompare1;	/*  64 */
 
 	/* Additional configurable registers that are used by the compiler. */
 	xtregs_opt_t xtregs_opt;

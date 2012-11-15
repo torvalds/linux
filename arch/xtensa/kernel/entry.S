@@ -372,6 +372,13 @@ common_exception:
 	s32i	a2, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
 
+	/* Save SCOMPARE1 */
+
+#if XCHAL_HAVE_S32C1I
+	rsr     a2, scompare1
+	s32i    a2, a1, PT_SCOMPARE1
+#endif
+
 	/* Save optional registers. */
 
 	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
@@ -433,6 +440,12 @@ common_exception_return:
 
 	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 
+	/* Restore SCOMPARE1 */
+
+#if XCHAL_HAVE_S32C1I
+	l32i    a2, a1, PT_SCOMPARE1
+	wsr     a2, scompare1
+#endif
 	wsr	a3, ps		/* disable interrupts */
 
 	_bbci.l	a3, PS_UM_BIT, kernel_exception_exit
