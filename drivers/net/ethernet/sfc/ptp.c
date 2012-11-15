@@ -99,6 +99,9 @@
 #define PTP_V2_VERSION_LENGTH	1
 #define PTP_V2_VERSION_OFFSET	29
 
+#define PTP_V2_UUID_LENGTH	8
+#define PTP_V2_UUID_OFFSET	48
+
 /* Although PTP V2 UUIDs are comprised a ClockIdentity (8) and PortNumber (2),
  * the MC only captures the last six bytes of the clock identity. These values
  * reflect those, not the ones used in the standard.  The standard permits
@@ -1011,7 +1014,7 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 	struct efx_nic *efx = channel->efx;
 	struct efx_ptp_data *ptp = efx->ptp_data;
 	struct efx_ptp_match *match = (struct efx_ptp_match *)skb->cb;
-	u8 *data;
+	u8 *match_data_012, *match_data_345;
 	unsigned int version;
 
 	match->expiry = jiffies + msecs_to_jiffies(PKT_EVENT_LIFETIME_MS);
@@ -1025,20 +1028,34 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 		if (version != PTP_VERSION_V1) {
 			return false;
 		}
+
+		/* PTP V1 uses all six bytes of the UUID to match the packet
+		 * to the timestamp
+		 */
+		match_data_012 = skb->data + PTP_V1_UUID_OFFSET;
+		match_data_345 = skb->data + PTP_V1_UUID_OFFSET + 3;
 	} else {
 		if (skb->len < PTP_V2_MIN_LENGTH) {
 			return false;
 		}
 		version = skb->data[PTP_V2_VERSION_OFFSET];
-
-		BUG_ON(ptp->mode != MC_CMD_PTP_MODE_V2);
-		BUILD_BUG_ON(PTP_V1_UUID_OFFSET != PTP_V2_MC_UUID_OFFSET);
-		BUILD_BUG_ON(PTP_V1_UUID_LENGTH != PTP_V2_MC_UUID_LENGTH);
-		BUILD_BUG_ON(PTP_V1_SEQUENCE_OFFSET != PTP_V2_SEQUENCE_OFFSET);
-		BUILD_BUG_ON(PTP_V1_SEQUENCE_LENGTH != PTP_V2_SEQUENCE_LENGTH);
-
 		if ((version & PTP_VERSION_V2_MASK) != PTP_VERSION_V2) {
 			return false;
+		}
+
+		/* The original V2 implementation uses bytes 2-7 of
+		 * the UUID to match the packet to the timestamp. This
+		 * discards two of the bytes of the MAC address used
+		 * to create the UUID (SF bug 33070).  The PTP V2
+		 * enhanced mode fixes this issue and uses bytes 0-2
+		 * and byte 5-7 of the UUID.
+		 */
+		match_data_345 = skb->data + PTP_V2_UUID_OFFSET + 5;
+		if (ptp->mode == MC_CMD_PTP_MODE_V2) {
+			match_data_012 = skb->data + PTP_V2_UUID_OFFSET + 2;
+		} else {
+			match_data_012 = skb->data + PTP_V2_UUID_OFFSET + 0;
+			BUG_ON(ptp->mode != MC_CMD_PTP_MODE_V2_ENHANCED);
 		}
 	}
 
@@ -1052,14 +1069,19 @@ static bool efx_ptp_rx(struct efx_channel *channel, struct sk_buff *skb)
 		timestamps = skb_hwtstamps(skb);
 		memset(timestamps, 0, sizeof(*timestamps));
 
+		/* We expect the sequence number to be in the same position in
+		 * the packet for PTP V1 and V2
+		 */
+		BUILD_BUG_ON(PTP_V1_SEQUENCE_OFFSET != PTP_V2_SEQUENCE_OFFSET);
+		BUILD_BUG_ON(PTP_V1_SEQUENCE_LENGTH != PTP_V2_SEQUENCE_LENGTH);
+
 		/* Extract UUID/Sequence information */
-		data = skb->data + PTP_V1_UUID_OFFSET;
-		match->words[0] = (data[0]         |
-				   (data[1] << 8)  |
-				   (data[2] << 16) |
-				   (data[3] << 24));
-		match->words[1] = (data[4]         |
-				   (data[5] << 8)  |
+		match->words[0] = (match_data_012[0]         |
+				   (match_data_012[1] << 8)  |
+				   (match_data_012[2] << 16) |
+				   (match_data_345[0] << 24));
+		match->words[1] = (match_data_345[1]         |
+				   (match_data_345[2] << 8)  |
 				   (skb->data[PTP_V1_SEQUENCE_OFFSET +
 					      PTP_V1_SEQUENCE_LENGTH - 1] <<
 				    16));
@@ -1165,7 +1187,7 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
 	 * timestamped
 	 */
 		init->rx_filter = HWTSTAMP_FILTER_PTP_V2_L4_EVENT;
-		new_mode = MC_CMD_PTP_MODE_V2;
+		new_mode = MC_CMD_PTP_MODE_V2_ENHANCED;
 		enable_wanted = true;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
@@ -1184,7 +1206,14 @@ static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
 	if (init->tx_type != HWTSTAMP_TX_OFF)
 		enable_wanted = true;
 
+	/* Old versions of the firmware do not support the improved
+	 * UUID filtering option (SF bug 33070).  If the firmware does
+	 * not accept the enhanced mode, fall back to the standard PTP
+	 * v2 UUID filtering.
+	 */
 	rc = efx_ptp_change_mode(efx, enable_wanted, new_mode);
+	if ((rc != 0) && (new_mode == MC_CMD_PTP_MODE_V2_ENHANCED))
+		rc = efx_ptp_change_mode(efx, enable_wanted, MC_CMD_PTP_MODE_V2);
 	if (rc != 0)
 		return rc;
 
