@@ -327,21 +327,7 @@ static struct ctl_table_header *sysctl_hdr;
 int __init xfrm6_init(void)
 {
 	int ret;
-	unsigned int gc_thresh;
 
-	/*
-	 * We need a good default value for the xfrm6 gc threshold.
-	 * In ipv4 we set it to the route hash table size * 8, which
-	 * is half the size of the maximaum route cache for ipv4.  It
-	 * would be good to do the same thing for v6, except the table is
-	 * constructed differently here.  Here each table for a net namespace
-	 * can have FIB_TABLE_HASHSZ entries, so lets go with the same
-	 * computation that we used for ipv4 here.  Also, lets keep the initial
-	 * gc_thresh to a minimum of 1024, since, the ipv6 route cache defaults
-	 * to that as a minimum as well
-	 */
-	gc_thresh = FIB6_TABLE_HASHSZ * 8;
-	xfrm6_dst_ops.gc_thresh = (gc_thresh < 1024) ? 1024 : gc_thresh;
 	dst_entries_init(&xfrm6_dst_ops);
 
 	ret = xfrm6_policy_init();
