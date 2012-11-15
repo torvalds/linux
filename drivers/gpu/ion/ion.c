@@ -49,7 +49,7 @@ struct ion_device {
 	struct rb_root buffers;
 	struct mutex buffer_lock;
 	struct rw_semaphore lock;
-	struct rb_root heaps;
+	struct plist_head heaps;
 	long (*custom_ioctl) (struct ion_client *client, unsigned int cmd,
 			      unsigned long arg);
 	struct rb_root clients;
@@ -389,10 +389,10 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 			     size_t align, unsigned int heap_mask,
 			     unsigned int flags)
 {
-	struct rb_node *n;
 	struct ion_handle *handle;
 	struct ion_device *dev = client->dev;
 	struct ion_buffer *buffer = NULL;
+	struct ion_heap *heap;
 
 	pr_debug("%s: len %d align %d heap_mask %u flags %x\n", __func__, len,
 		 align, heap_mask, flags);
@@ -408,8 +408,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 	len = PAGE_ALIGN(len);
 
 	down_read(&dev->lock);
-	for (n = rb_first(&dev->heaps); n != NULL; n = rb_next(n)) {
-		struct ion_heap *heap = rb_entry(n, struct ion_heap, node);
+	plist_for_each_entry(heap, &dev->heaps, node) {
 		/* if the client doesn't support this heap type */
 		if (!((1 << heap->type) & client->heap_mask))
 			continue;
@@ -1266,10 +1265,6 @@ static const struct file_operations debug_heap_fops = {
 
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 {
-	struct rb_node **p = &dev->heaps.rb_node;
-	struct rb_node *parent = NULL;
-	struct ion_heap *entry;
-
 	if (!heap->ops->allocate || !heap->ops->free || !heap->ops->map_dma ||
 	    !heap->ops->unmap_dma)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
@@ -1277,26 +1272,12 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 
 	heap->dev = dev;
 	down_write(&dev->lock);
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct ion_heap, node);
-
-		if (heap->id < entry->id) {
-			p = &(*p)->rb_left;
-		} else if (heap->id > entry->id ) {
-			p = &(*p)->rb_right;
-		} else {
-			pr_err("%s: can not insert multiple heaps with "
-				"id %d\n", __func__, heap->id);
-			goto end;
-		}
-	}
-
-	rb_link_node(&heap->node, parent, p);
-	rb_insert_color(&heap->node, &dev->heaps);
+	/* use negative heap->id to reverse the priority -- when traversing
+	   the list later attempt higher id numbers first */
+	plist_node_init(&heap->node, -heap->id);
+	plist_add(&heap->node, &dev->heaps);
 	debugfs_create_file(heap->name, 0664, dev->debug_root, heap,
 			    &debug_heap_fops);
-end:
 	up_write(&dev->lock);
 }
 
@@ -1330,7 +1311,7 @@ struct ion_device *ion_device_create(long (*custom_ioctl)
 	idev->buffers = RB_ROOT;
 	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);
-	idev->heaps = RB_ROOT;
+	plist_head_init(&idev->heaps);
 	idev->clients = RB_ROOT;
 	return idev;
 }
