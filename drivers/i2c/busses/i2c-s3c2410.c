@@ -532,13 +532,6 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 	unsigned long iicstat;
 	int timeout = 400;
 
-	/* the timeout for HDMIPHY is reduced to 10 ms because
-	 * the hangup is expected to happen, so waiting 400 ms
-	 * causes only unnecessary system hangup
-	 */
-	if (i2c->quirks & QUIRK_HDMIPHY)
-		timeout = 10;
-
 	while (timeout-- > 0) {
 		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
 
@@ -546,15 +539,6 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 			return 0;
 
 		msleep(1);
-	}
-
-	/* hang-up of bus dedicated for HDMIPHY occurred, resetting */
-	if (i2c->quirks & QUIRK_HDMIPHY) {
-		writel(0, i2c->regs + S3C2410_IICCON);
-		writel(0, i2c->regs + S3C2410_IICSTAT);
-		writel(0, i2c->regs + S3C2410_IICDS);
-
-		return 0;
 	}
 
 	return -ETIMEDOUT;
