@@ -164,9 +164,6 @@ void carl9170_handle_command_response(struct ar9170 *ar, void *buf, u32 len)
 	struct carl9170_rsp *cmd = buf;
 	struct ieee80211_vif *vif;
 
-	if (carl9170_check_sequence(ar, cmd->hdr.seq))
-		return;
-
 	if ((cmd->hdr.cmd & CARL9170_RSP_FLAG) != CARL9170_RSP_FLAG) {
 		if (!(cmd->hdr.cmd & CARL9170_CMD_ASYNC_FLAG))
 			carl9170_cmd_callback(ar, len, buf);
@@ -663,6 +660,35 @@ static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms,
 	return false;
 }
 
+static int carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len,
+				struct ieee80211_rx_status *status)
+{
+	struct sk_buff *skb;
+
+	/* (driver) frame trap handler
+	 *
+	 * Because power-saving mode handing has to be implemented by
+	 * the driver/firmware. We have to check each incoming beacon
+	 * from the associated AP, if there's new data for us (either
+	 * broadcast/multicast or unicast) we have to react quickly.
+	 *
+	 * So, if you have you want to add additional frame trap
+	 * handlers, this would be the perfect place!
+	 */
+
+	carl9170_ps_beacon(ar, buf, len);
+
+	carl9170_ba_check(ar, buf, len);
+
+	skb = carl9170_rx_copy_data(buf, len);
+	if (!skb)
+		return -ENOMEM;
+
+	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
+	ieee80211_rx(ar->hw, skb);
+	return 0;
+}
+
 /*
  * If the frame alignment is right (or the kernel has
  * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS), and there
@@ -672,14 +698,12 @@ static bool carl9170_ampdu_check(struct ar9170 *ar, u8 *buf, u8 ms,
  * mode, and we need to observe the proper ordering,
  * this is non-trivial.
  */
-
-static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
+static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 {
 	struct ar9170_rx_head *head;
 	struct ar9170_rx_macstatus *mac;
 	struct ar9170_rx_phystatus *phy = NULL;
 	struct ieee80211_rx_status status;
-	struct sk_buff *skb;
 	int mpdu_len;
 	u8 mac_status;
 
@@ -791,18 +815,10 @@ static void carl9170_handle_mpdu(struct ar9170 *ar, u8 *buf, int len)
 	if (phy)
 		carl9170_rx_phy_status(ar, phy, &status);
 
-	carl9170_ps_beacon(ar, buf, mpdu_len);
-
-	carl9170_ba_check(ar, buf, mpdu_len);
-
-	skb = carl9170_rx_copy_data(buf, mpdu_len);
-	if (!skb)
+	if (carl9170_handle_mpdu(ar, buf, mpdu_len, &status))
 		goto drop;
 
-	memcpy(IEEE80211_SKB_RXCB(skb), &status, sizeof(status));
-	ieee80211_rx(ar->hw, skb);
 	return;
-
 drop:
 	ar->rx_dropped++;
 }
@@ -818,6 +834,9 @@ static void carl9170_rx_untie_cmds(struct ar9170 *ar, const u8 *respbuf,
 
 		i += cmd->hdr.len + 4;
 		if (unlikely(i > resplen))
+			break;
+
+		if (carl9170_check_sequence(ar, cmd->hdr.seq))
 			break;
 
 		carl9170_handle_command_response(ar, cmd, cmd->hdr.len + 4);
@@ -851,7 +870,7 @@ static void __carl9170_rx(struct ar9170 *ar, u8 *buf, unsigned int len)
 	if (i == 12)
 		carl9170_rx_untie_cmds(ar, buf, len);
 	else
-		carl9170_handle_mpdu(ar, buf, len);
+		carl9170_rx_untie_data(ar, buf, len);
 }
 
 static void carl9170_rx_stream(struct ar9170 *ar, void *buf, unsigned int len)

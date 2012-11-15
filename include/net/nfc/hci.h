@@ -24,6 +24,12 @@
 
 #include <net/nfc/nfc.h>
 
+struct nfc_phy_ops {
+	int (*write)(void *dev_id, struct sk_buff *skb);
+	int (*enable)(void *dev_id);
+	void (*disable)(void *dev_id);
+};
+
 struct nfc_hci_dev;
 
 struct nfc_hci_ops {
@@ -38,15 +44,21 @@ struct nfc_hci_ops {
 	int (*xmit) (struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*start_poll) (struct nfc_hci_dev *hdev,
 			   u32 im_protocols, u32 tm_protocols);
+	int (*dep_link_up)(struct nfc_hci_dev *hdev, struct nfc_target *target,
+			   u8 comm_mode, u8 *gb, size_t gb_len);
+	int (*dep_link_down)(struct nfc_hci_dev *hdev);
 	int (*target_from_gate) (struct nfc_hci_dev *hdev, u8 gate,
 				 struct nfc_target *target);
 	int (*complete_target_discovered) (struct nfc_hci_dev *hdev, u8 gate,
 					   struct nfc_target *target);
-	int (*data_exchange) (struct nfc_hci_dev *hdev,
+	int (*im_transceive) (struct nfc_hci_dev *hdev,
 			      struct nfc_target *target, struct sk_buff *skb,
 			      data_exchange_cb_t cb, void *cb_context);
+	int (*tm_send)(struct nfc_hci_dev *hdev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_hci_dev *hdev,
 			      struct nfc_target *target);
+	void (*event_received)(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+				struct sk_buff *skb);
 };
 
 /* Pipes */
@@ -114,6 +126,9 @@ struct nfc_hci_dev {
 	int async_cb_type;
 	data_exchange_cb_t async_cb;
 	void *async_cb_context;
+
+	u8 *gb;
+	size_t gb_len;
 };
 
 /* hci device allocation */
@@ -219,5 +234,6 @@ int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 			  const u8 *param, size_t param_len);
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
+int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate);
 
 #endif /* __NET_HCI_H */

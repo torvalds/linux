@@ -917,21 +917,24 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 
 		dev_err(adapter->dev, "last_cmd_index = %d\n",
 			adapter->dbg.last_cmd_index);
-		print_hex_dump_bytes("last_cmd_id: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_id, DBG_CMD_NUM);
-		print_hex_dump_bytes("last_cmd_act: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_act, DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_cmd_id: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_id),
+			adapter->dbg.last_cmd_id);
+		dev_err(adapter->dev, "last_cmd_act: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_act),
+			adapter->dbg.last_cmd_act);
 
 		dev_err(adapter->dev, "last_cmd_resp_index = %d\n",
 			adapter->dbg.last_cmd_resp_index);
-		print_hex_dump_bytes("last_cmd_resp_id: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_resp_id,
-				     DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_cmd_resp_id: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_resp_id),
+			adapter->dbg.last_cmd_resp_id);
 
 		dev_err(adapter->dev, "last_event_index = %d\n",
 			adapter->dbg.last_event_index);
-		print_hex_dump_bytes("last_event: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_event, DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_event: %*ph\n",
+			(int)sizeof(adapter->dbg.last_event),
+			adapter->dbg.last_event);
 
 		dev_err(adapter->dev, "data_sent=%d cmd_sent=%d\n",
 			adapter->data_sent, adapter->cmd_sent);

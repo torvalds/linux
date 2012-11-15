@@ -452,7 +452,7 @@ static size_t gelic_wl_synthesize_ie(u8 *buf,
 	if (rsn)
 		*buf++ = WLAN_EID_RSN;
 	else
-		*buf++ = WLAN_EID_GENERIC;
+		*buf++ = WLAN_EID_VENDOR_SPECIFIC;
 
 	/* length filed; set later */
 	buf++;
@@ -540,7 +540,7 @@ static void gelic_wl_parse_ie(u8 *data, size_t len,
 			break;
 
 		switch (item_id) {
-		case WLAN_EID_GENERIC:
+		case WLAN_EID_VENDOR_SPECIFIC:
 			if ((OUI_LEN + 1 <= item_len) &&
 			    !memcmp(pos, wpa_oui, OUI_LEN) &&
 			    pos[OUI_LEN] == 0x01) {

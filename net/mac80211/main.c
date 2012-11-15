@@ -93,15 +93,13 @@ static void ieee80211_reconfig_filter(struct work_struct *work)
 	ieee80211_configure_filter(local);
 }
 
-int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
+static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 {
 	struct ieee80211_channel *chan;
-	int ret = 0;
+	u32 changed = 0;
 	int power;
 	enum nl80211_channel_type channel_type;
 	u32 offchannel_flag;
-
-	might_sleep();
 
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (local->scan_channel) {
@@ -109,7 +107,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		/* If scanning on oper channel, use whatever channel-type
 		 * is currently in use.
 		 */
-		if (chan == local->oper_channel)
+		if (chan == local->_oper_channel)
 			channel_type = local->_oper_channel_type;
 		else
 			channel_type = NL80211_CHAN_NO_HT;
@@ -117,11 +115,11 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		chan = local->tmp_channel;
 		channel_type = local->tmp_channel_type;
 	} else {
-		chan = local->oper_channel;
+		chan = local->_oper_channel;
 		channel_type = local->_oper_channel_type;
 	}
 
-	if (chan != local->oper_channel ||
+	if (chan != local->_oper_channel ||
 	    channel_type != local->_oper_channel_type)
 		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	else
@@ -163,6 +161,21 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		changed |= IEEE80211_CONF_CHANGE_POWER;
 		local->hw.conf.power_level = power;
 	}
+
+	return changed;
+}
+
+int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	if (!local->use_chanctx)
+		changed |= ieee80211_hw_conf_chan(local);
+	else
+		changed &= ~(IEEE80211_CONF_CHANGE_CHANNEL |
+			     IEEE80211_CONF_CHANGE_POWER);
 
 	if (changed && local->open_count) {
 		ret = drv_config(local, changed);
@@ -359,14 +372,6 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_restart_hw);
 
-static void ieee80211_recalc_smps_work(struct work_struct *work)
-{
-	struct ieee80211_local *local =
-		container_of(work, struct ieee80211_local, recalc_smps);
-
-	ieee80211_recalc_smps(local);
-}
-
 #ifdef CONFIG_INET
 static int ieee80211_ifa_changed(struct notifier_block *nb,
 				 unsigned long data, void *arg)
@@ -540,6 +545,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	struct ieee80211_local *local;
 	int priv_size, i;
 	struct wiphy *wiphy;
+	bool use_chanctx;
 
 	if (WARN_ON(!ops->tx || !ops->start || !ops->stop || !ops->config ||
 		    !ops->add_interface || !ops->remove_interface ||
@@ -548,6 +554,14 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	if (WARN_ON(ops->sta_state && (ops->sta_add || ops->sta_remove)))
 		return NULL;
+
+	/* check all or no channel context operations exist */
+	i = !!ops->add_chanctx + !!ops->remove_chanctx +
+	    !!ops->change_chanctx + !!ops->assign_vif_chanctx +
+	    !!ops->unassign_vif_chanctx;
+	if (WARN_ON(i != 0 && i != 5))
+		return NULL;
+	use_chanctx = i == 5;
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
 	 * We use the wiphy priv data for both our ieee80211_local and for
@@ -584,8 +598,14 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	if (ops->remain_on_channel)
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
-	wiphy->features = NL80211_FEATURE_SK_TX_STATUS |
-			  NL80211_FEATURE_HT_IBSS;
+	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
+			   NL80211_FEATURE_SAE |
+			   NL80211_FEATURE_HT_IBSS;
+
+	if (!ops->hw_scan)
+		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
+				   NL80211_FEATURE_AP_SCAN;
+
 
 	if (!ops->set_key)
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
@@ -599,6 +619,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 
 	local->ops = ops;
+	local->use_chanctx = use_chanctx;
 
 	/* set up some defaults */
 	local->hw.queues = 1;
@@ -626,6 +647,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 
+	INIT_LIST_HEAD(&local->chanctx_list);
+	mutex_init(&local->chanctx_mtx);
+
 	/*
 	 * The rx_skb_queue is only accessed from tasklets,
 	 * but other SKB queues are used from within IRQ
@@ -641,7 +665,6 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	INIT_WORK(&local->restart_work, ieee80211_restart_work);
 
 	INIT_WORK(&local->reconfig_filter, ieee80211_reconfig_filter);
-	INIT_WORK(&local->recalc_smps, ieee80211_recalc_smps_work);
 	local->smps_mode = IEEE80211_SMPS_OFF;
 
 	INIT_WORK(&local->dynamic_ps_enable_work,
@@ -719,6 +742,25 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if ((hw->flags & IEEE80211_HW_SCAN_WHILE_IDLE) && !local->ops->hw_scan)
 		return -EINVAL;
 
+	if (!local->use_chanctx) {
+		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
+			const struct ieee80211_iface_combination *comb;
+
+			comb = &local->hw.wiphy->iface_combinations[i];
+
+			if (comb->num_different_channels > 1)
+				return -EINVAL;
+		}
+	} else {
+		/*
+		 * WDS is currently prohibited when channel contexts are used
+		 * because there's no clear definition of which channel WDS
+		 * type interfaces use
+		 */
+		if (local->hw.wiphy->interface_modes & BIT(NL80211_IFTYPE_WDS))
+			return -EINVAL;
+	}
+
 	/* Only HW csum features are currently compatible with mac80211 */
 	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			    NETIF_F_HW_CSUM;
@@ -727,6 +769,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (hw->max_report_rates == 0)
 		hw->max_report_rates = hw->max_rates;
+
+	local->rx_chains = 1;
 
 	/*
 	 * generic code guarantees at least one band,
@@ -743,11 +787,15 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		sband = local->hw.wiphy->bands[band];
 		if (!sband)
 			continue;
-		if (!local->oper_channel) {
+		if (!local->use_chanctx && !local->_oper_channel) {
 			/* init channel we're on */
 			local->hw.conf.channel =
-			local->oper_channel = &sband->channels[0];
+			local->_oper_channel = &sband->channels[0];
 			local->hw.conf.channel_type = NL80211_CHAN_NO_HT;
+		}
+		if (!local->monitor_channel) {
+			local->monitor_channel = &sband->channels[0];
+			local->monitor_channel_type = NL80211_CHAN_NO_HT;
 		}
 		channels += sband->n_channels;
 
@@ -755,6 +803,13 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			max_bitrates = sband->n_bitrates;
 		supp_ht = supp_ht || sband->ht_cap.ht_supported;
 		supp_vht = supp_vht || sband->vht_cap.vht_supported;
+
+		if (sband->ht_cap.ht_supported)
+			local->rx_chains =
+				max(ieee80211_mcs_to_chains(&sband->ht_cap.mcs),
+				    local->rx_chains);
+
+		/* TODO: consider VHT for RX chains, hopefully it's the same */
 	}
 
 	local->int_scan_req = kzalloc(sizeof(*local->int_scan_req) +
@@ -778,18 +833,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_MONITOR);
 	hw->wiphy->software_iftypes |= BIT(NL80211_IFTYPE_MONITOR);
 
-	/*
-	 * mac80211 doesn't support more than 1 channel, and also not more
-	 * than one IBSS interface
-	 */
+	/* mac80211 doesn't support more than one IBSS interface right now */
 	for (i = 0; i < hw->wiphy->n_iface_combinations; i++) {
 		const struct ieee80211_iface_combination *c;
 		int j;
 
 		c = &hw->wiphy->iface_combinations[i];
-
-		if (c->num_different_channels > 1)
-			return -EINVAL;
 
 		for (j = 0; j < c->n_limits; j++)
 			if ((c->limits[j].types & BIT(NL80211_IFTYPE_ADHOC)) &&
@@ -832,7 +881,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (supp_vht)
 		local->scan_ies_len +=
-			2 + sizeof(struct ieee80211_vht_capabilities);
+			2 + sizeof(struct ieee80211_vht_cap);
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */

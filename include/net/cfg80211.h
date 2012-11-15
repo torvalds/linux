@@ -498,6 +498,7 @@ enum station_parameters_apply_mask {
  * @plink_action: plink action to take
  * @plink_state: set the peer link state for a station
  * @ht_capa: HT capabilities of station
+ * @vht_capa: VHT capabilities of station
  * @uapsd_queues: bitmap of queues configured for uapsd. same format
  *	as the AC bitmap in the QoS info field
  * @max_sp: max Service Period. same format as the MAX_SP in the
@@ -517,6 +518,7 @@ struct station_parameters {
 	u8 plink_action;
 	u8 plink_state;
 	struct ieee80211_ht_cap *ht_capa;
+	struct ieee80211_vht_cap *vht_capa;
 	u8 uapsd_queues;
 	u8 max_sp;
 };
@@ -1000,8 +1002,10 @@ struct cfg80211_ssid {
  * @n_channels: total number of channels to scan
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @flags: bit field of flags controlling operation
  * @rates: bitmap of rates to advertise for each band
  * @wiphy: the wiphy this was for
+ * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
  * @aborted: (internal) scan request was notified as aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
@@ -1012,6 +1016,7 @@ struct cfg80211_scan_request {
 	u32 n_channels;
 	const u8 *ie;
 	size_t ie_len;
+	u32 flags;
 
 	u32 rates[IEEE80211_NUM_BANDS];
 
@@ -1019,6 +1024,7 @@ struct cfg80211_scan_request {
 
 	/* internal */
 	struct wiphy *wiphy;
+	unsigned long scan_start;
 	bool aborted;
 	bool no_cck;
 
@@ -1044,6 +1050,7 @@ struct cfg80211_match_set {
  * @interval: interval between each scheduled scan cycle
  * @ie: optional information element(s) to add into Probe Request or %NULL
  * @ie_len: length of ie in octets
+ * @flags: bit field of flags controlling operation
  * @match_sets: sets of parameters to be matched for a scan result
  * 	entry to be considered valid and to be passed to the host
  * 	(others are filtered out).
@@ -1061,6 +1068,7 @@ struct cfg80211_sched_scan_request {
 	u32 interval;
 	const u8 *ie;
 	size_t ie_len;
+	u32 flags;
 	struct cfg80211_match_set *match_sets;
 	int n_match_sets;
 	s32 rssi_thold;
@@ -1068,6 +1076,7 @@ struct cfg80211_sched_scan_request {
 	/* internal */
 	struct wiphy *wiphy;
 	struct net_device *dev;
+	unsigned long scan_start;
 
 	/* keep last */
 	struct ieee80211_channel *channels[0];
@@ -1152,6 +1161,9 @@ const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 ie);
  * @key_len: length of WEP key for shared key authentication
  * @key_idx: index of WEP key for shared key authentication
  * @key: WEP key for shared key authentication
+ * @sae_data: Non-IE data to use with SAE or %NULL. This starts with
+ *	Authentication transaction sequence number field.
+ * @sae_data_len: Length of sae_data buffer in octets
  */
 struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
@@ -1160,6 +1172,8 @@ struct cfg80211_auth_request {
 	enum nl80211_auth_type auth_type;
 	const u8 *key;
 	u8 key_len, key_idx;
+	const u8 *sae_data;
+	size_t sae_data_len;
 };
 
 /**

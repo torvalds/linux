@@ -97,7 +97,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		goto mismatch;
 
-	ieee80211_sta_get_rates(local, ie, local->oper_channel->band,
+	ieee80211_sta_get_rates(local, ie, ieee80211_get_sdata_band(sdata),
 				&basic_rates);
 
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
@@ -264,7 +264,7 @@ mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	/* Authentication Protocol identifier */
 	*pos++ = ifmsh->mesh_auth_id;
 	/* Mesh Formation Info - number of neighbors */
-	neighbors = atomic_read(&ifmsh->mshstats.estab_plinks);
+	neighbors = atomic_read(&ifmsh->estab_plinks);
 	/* Number of neighbor mesh STAs or 15 whichever is smaller */
 	neighbors = (neighbors > 15) ? 15 : neighbors;
 	*pos++ = neighbors << 1;
@@ -355,11 +355,21 @@ int mesh_add_ds_params_ie(struct sk_buff *skb,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *chan = local->oper_channel;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *chan;
 	u8 *pos;
 
 	if (skb_tailroom(skb) < 3)
 		return -ENOMEM;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	chan = chanctx_conf->channel;
+	rcu_read_unlock();
 
 	sband = local->hw.wiphy->bands[chan->band];
 	if (sband->band == IEEE80211_BAND_2GHZ) {
@@ -376,10 +386,11 @@ int mesh_add_ht_cap_ie(struct sk_buff *skb,
 		       struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 
-	sband = local->hw.wiphy->bands[local->oper_channel->band];
+	sband = local->hw.wiphy->bands[band];
 	if (!sband->ht_cap.ht_supported ||
 	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT)
 		return 0;
@@ -397,13 +408,25 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_channel *channel = local->oper_channel;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type =
-				sdata->vif.bss_conf.channel_type;
-	struct ieee80211_supported_band *sband =
-				local->hw.wiphy->bands[channel->band];
-	struct ieee80211_sta_ht_cap *ht_cap = &sband->ht_cap;
+		sdata->vif.bss_conf.channel_type;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_sta_ht_cap *ht_cap;
 	u8 *pos;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (WARN_ON(!chanctx_conf)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
+	channel = chanctx_conf->channel;
+	rcu_read_unlock();
+
+	sband = local->hw.wiphy->bands[channel->band];
+	ht_cap = &sband->ht_cap;
 
 	if (!ht_cap->ht_supported || channel_type == NL80211_CHAN_NO_HT)
 		return 0;
@@ -610,7 +633,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
 	sdata->vif.bss_conf.basic_rates =
 		ieee80211_mandatory_rates(sdata->local,
-					  sdata->local->oper_channel->band);
+					  ieee80211_get_sdata_band(sdata));
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED |
 						BSS_CHANGED_HT |
@@ -680,8 +703,10 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
 			       &elems);
 
-	/* ignore beacons from secure mesh peers if our security is off */
-	if (elems.rsn_len && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE)
+	/* ignore non-mesh or secure / unsecure mismatch */
+	if ((!elems.mesh_id || !elems.mesh_config) ||
+	    (elems.rsn && sdata->u.mesh.security == IEEE80211_MESH_SEC_NONE) ||
+	    (!elems.rsn && sdata->u.mesh.security != IEEE80211_MESH_SEC_NONE))
 		return;
 
 	if (elems.ds_params && elems.ds_params_len == 1)
@@ -694,8 +719,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
-	if (elems.mesh_id && elems.mesh_config &&
-	    mesh_matches_local(sdata, &elems))
+	if (mesh_matches_local(sdata, &elems))
 		mesh_neighbour_update(sdata, mgmt->sa, &elems);
 
 	if (ifmsh->sync_ops)

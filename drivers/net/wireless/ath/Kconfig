@@ -26,5 +26,6 @@ source "drivers/net/wireless/ath/ath5k/Kconfig"
 source "drivers/net/wireless/ath/ath9k/Kconfig"
 source "drivers/net/wireless/ath/carl9170/Kconfig"
 source "drivers/net/wireless/ath/ath6kl/Kconfig"
+source "drivers/net/wireless/ath/ar5523/Kconfig"
 
 endif

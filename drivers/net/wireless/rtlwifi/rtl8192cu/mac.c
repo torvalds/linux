@@ -46,7 +46,7 @@
 
 #define LINK_Q	ui_link_quality
 #define RX_EVM	rx_evm_percentage
-#define RX_SIGQ	rx_mimo_signalquality
+#define RX_SIGQ	rx_mimo_sig_qual
 
 
 void rtl92c_read_chip_version(struct ieee80211_hw *hw)
@@ -982,32 +982,27 @@ static void _rtl92c_process_pwdb(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	long undecorated_smoothed_pwdb = 0;
+	long undec_sm_pwdb = 0;
 
 	if (mac->opmode == NL80211_IFTYPE_ADHOC) {
 		return;
 	} else {
-		undecorated_smoothed_pwdb =
-		    rtlpriv->dm.undecorated_smoothed_pwdb;
+		undec_sm_pwdb = rtlpriv->dm.undec_sm_pwdb;
 	}
 	if (pstats->packet_toself || pstats->packet_beacon) {
-		if (undecorated_smoothed_pwdb < 0)
-			undecorated_smoothed_pwdb = pstats->rx_pwdb_all;
-		if (pstats->rx_pwdb_all > (u32) undecorated_smoothed_pwdb) {
-			undecorated_smoothed_pwdb =
-			    (((undecorated_smoothed_pwdb) *
+		if (undec_sm_pwdb < 0)
+			undec_sm_pwdb = pstats->rx_pwdb_all;
+		if (pstats->rx_pwdb_all > (u32) undec_sm_pwdb) {
+			undec_sm_pwdb = (((undec_sm_pwdb) *
 			      (RX_SMOOTH_FACTOR - 1)) +
 			     (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
-			undecorated_smoothed_pwdb = undecorated_smoothed_pwdb
-			    + 1;
+			undec_sm_pwdb += 1;
 		} else {
-			undecorated_smoothed_pwdb =
-			    (((undecorated_smoothed_pwdb) *
+			undec_sm_pwdb = (((undec_sm_pwdb) *
 			      (RX_SMOOTH_FACTOR - 1)) +
 			     (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
 		}
-		rtlpriv->dm.undecorated_smoothed_pwdb =
-		    undecorated_smoothed_pwdb;
+		rtlpriv->dm.undec_sm_pwdb = undec_sm_pwdb;
 		_rtl92c_update_rxsignalstatistics(hw, pstats);
 	}
 }

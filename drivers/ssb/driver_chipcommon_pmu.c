@@ -346,6 +346,8 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 			chipco_write32(cc, SSB_CHIPCO_PLLCTL_DATA, 0x380005C0);
 		}
 		break;
+	case 43222:
+		break;
 	default:
 		ssb_printk(KERN_ERR PFX
 			   "ERROR: PLL init unknown for device %04X\n",
@@ -434,6 +436,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		 min_msk = 0xCBB;
 		 break;
 	case 0x4322:
+	case 43222:
 		/* We keep the default settings:
 		 * min_msk = 0xCBB
 		 * max_msk = 0x7FFFF

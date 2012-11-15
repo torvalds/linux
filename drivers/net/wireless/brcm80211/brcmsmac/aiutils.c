@@ -692,7 +692,7 @@ void ai_pci_up(struct si_pub *sih)
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci[0], true);
 }
 
 /* Unconfigure and/or apply various WARs when going down */
@@ -703,7 +703,7 @@ void ai_pci_down(struct si_pub *sih)
 	sii = container_of(sih, struct si_info, pub);
 
 	if (sii->icbus->hosttype == BCMA_HOSTTYPE_PCI)
-		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci[0], false);
 }
 
 /* Enable BT-COEX & Ex-PA for 4313 */

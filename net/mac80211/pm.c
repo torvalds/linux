@@ -135,6 +135,8 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		ieee80211_bss_info_change_notify(sdata,
 			BSS_CHANGED_BEACON_ENABLED);
 
+		/* the interface is leaving the channel and is removed */
+		ieee80211_vif_release_channel(sdata);
 		drv_remove_interface(local, sdata);
 	}
 

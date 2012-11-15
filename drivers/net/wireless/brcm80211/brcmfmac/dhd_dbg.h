@@ -31,6 +31,7 @@
 #define BRCMF_EVENT_VAL	0x0800
 #define BRCMF_BTA_VAL	0x1000
 #define BRCMF_ISCAN_VAL 0x2000
+#define BRCMF_FIL_VAL	0x4000
 
 #if defined(DEBUG)
 
@@ -56,6 +57,7 @@ do {									\
 #define BRCMF_BYTES_ON()	(brcmf_msg_level & BRCMF_BYTES_VAL)
 #define BRCMF_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
 #define BRCMF_EVENT_ON()	(brcmf_msg_level & BRCMF_EVENT_VAL)
+#define BRCMF_FIL_ON()		(brcmf_msg_level & BRCMF_FIL_VAL)
 
 #else	/* (defined DEBUG) || (defined DEBUG) */
 
@@ -67,6 +69,7 @@ do {									\
 #define BRCMF_BYTES_ON()	0
 #define BRCMF_GLOM_ON()		0
 #define BRCMF_EVENT_ON()	0
+#define BRCMF_FIL_ON()		0
 
 #endif				/* defined(DEBUG) */
 

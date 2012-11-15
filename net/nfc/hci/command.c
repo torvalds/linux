@@ -257,16 +257,16 @@ static u8 nfc_hci_create_pipe(struct nfc_hci_dev *hdev, u8 dest_host,
 	*result = nfc_hci_execute_cmd(hdev, NFC_HCI_ADMIN_PIPE,
 				      NFC_HCI_ADM_CREATE_PIPE,
 				      (u8 *) &params, sizeof(params), &skb);
-	if (*result == 0) {
-		resp = (struct hci_create_pipe_resp *)skb->data;
-		pipe = resp->pipe;
-		kfree_skb(skb);
-
-		pr_debug("pipe created=%d\n", pipe);
-
-		return pipe;
-	} else
+	if (*result < 0)
 		return NFC_HCI_INVALID_PIPE;
+
+	resp = (struct hci_create_pipe_resp *)skb->data;
+	pipe = resp->pipe;
+	kfree_skb(skb);
+
+	pr_debug("pipe created=%d\n", pipe);
+
+	return pipe;
 }
 
 static int nfc_hci_delete_pipe(struct nfc_hci_dev *hdev, u8 pipe)
@@ -279,8 +279,6 @@ static int nfc_hci_delete_pipe(struct nfc_hci_dev *hdev, u8 pipe)
 
 static int nfc_hci_clear_all_pipes(struct nfc_hci_dev *hdev)
 {
-	int r;
-
 	u8 param[2];
 
 	/* TODO: Find out what the identity reference data is
@@ -288,10 +286,8 @@ static int nfc_hci_clear_all_pipes(struct nfc_hci_dev *hdev)
 
 	pr_debug("\n");
 
-	r = nfc_hci_execute_cmd(hdev, NFC_HCI_ADMIN_PIPE,
-				NFC_HCI_ADM_CLEAR_ALL_PIPE, param, 2, NULL);
-
-	return 0;
+	return nfc_hci_execute_cmd(hdev, NFC_HCI_ADMIN_PIPE,
+				   NFC_HCI_ADM_CLEAR_ALL_PIPE, param, 2, NULL);
 }
 
 int nfc_hci_disconnect_gate(struct nfc_hci_dev *hdev, u8 gate)

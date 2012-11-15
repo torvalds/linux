@@ -16,8 +16,10 @@
 #include <linux/debugfs.h>
 #include <linux/if_ether.h>
 #include <linux/if.h>
+#include <linux/netdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/module.h>
+#include <linux/netdevice.h>
 
 #include <defs.h>
 #include <brcmu_wifi.h>

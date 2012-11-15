@@ -198,15 +198,15 @@ struct bb_reg_def {
 	u32 rftxgain_stage;
 	u32 rfhssi_para1;
 	u32 rfhssi_para2;
-	u32 rfswitch_control;
+	u32 rfsw_ctrl;
 	u32 rfagc_control1;
 	u32 rfagc_control2;
-	u32 rfrxiq_imbalance;
+	u32 rfrxiq_imbal;
 	u32 rfrx_afe;
-	u32 rftxiq_imbalance;
+	u32 rftxiq_imbal;
 	u32 rftx_afe;
-	u32 rflssi_readback;
-	u32 rflssi_readbackpi;
+	u32 rf_rb;		/* rflssi_readback */
+	u32 rf_rbpi;		/* rflssi_readbackpi */
 };
 
 enum io_type {
@@ -885,7 +885,7 @@ struct rtl_phy {
 	u8 pwrgroup_cnt;
 	u8 cck_high_power;
 	/* MAX_PG_GROUP groups of pwr diff by rates */
-	u32 mcs_txpwrlevel_origoffset[MAX_PG_GROUP][16];
+	u32 mcs_offset[MAX_PG_GROUP][16];
 	u8 default_initialgain[4];
 
 	/* the current Tx power level */
@@ -933,7 +933,7 @@ struct rtl_tid_data {
 };
 
 struct rssi_sta {
-	long undecorated_smoothed_pwdb;
+	long undec_sm_pwdb;
 };
 
 struct rtl_sta_info {
@@ -1131,9 +1131,9 @@ struct rtl_security {
 
 struct rtl_dm {
 	/*PHY status for Dynamic Management */
-	long entry_min_undecoratedsmoothed_pwdb;
-	long undecorated_smoothed_pwdb;	/*out dm */
-	long entry_max_undecoratedsmoothed_pwdb;
+	long entry_min_undec_sm_pwdb;
+	long undec_sm_pwdb;	/*out dm */
+	long entry_max_undec_sm_pwdb;
 	bool dm_initialgain_enable;
 	bool dynamic_txpower_enable;
 	bool current_turbo_edca;
@@ -1209,7 +1209,7 @@ struct rtl_efuse {
 	u8 eeprom_pwrlimit_ht40[CHANNEL_GROUP_MAX];
 	u8 eeprom_chnlarea_txpwr_cck[2][CHANNEL_GROUP_MAX_2G];
 	u8 eeprom_chnlarea_txpwr_ht40_1s[2][CHANNEL_GROUP_MAX];
-	u8 eeprom_chnlarea_txpwr_ht40_2sdiif[2][CHANNEL_GROUP_MAX];
+	u8 eprom_chnl_txpwr_ht40_2sdf[2][CHANNEL_GROUP_MAX];
 	u8 txpwrlevel_cck[2][CHANNEL_MAX_NUMBER_2G];
 	u8 txpwrlevel_ht40_1s[2][CHANNEL_MAX_NUMBER];	/*For HT 40MHZ pwr */
 	u8 txpwrlevel_ht40_2s[2][CHANNEL_MAX_NUMBER];	/*For HT 40MHZ pwr */
@@ -1351,7 +1351,7 @@ struct rtl_stats {
 	bool rx_is40Mhzpacket;
 	u32 rx_pwdb_all;
 	u8 rx_mimo_signalstrength[4];	/*in 0~100 index */
-	s8 rx_mimo_signalquality[2];
+	s8 rx_mimo_sig_qual[2];
 	bool packet_matchbssid;
 	bool is_cck;
 	bool is_ht;
@@ -1503,6 +1503,9 @@ struct rtl_hal_ops {
 	void (*phy_lc_calibrate) (struct ieee80211_hw *hw, bool is2t);
 	void (*phy_set_bw_mode_callback) (struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower) (struct ieee80211_hw *hw);
+	void (*bt_wifi_media_status_notify) (struct ieee80211_hw *hw,
+					     bool mstate);
+	void (*bt_coex_off_before_lps) (struct ieee80211_hw *hw);
 };
 
 struct rtl_intf_ops {
@@ -1679,7 +1682,7 @@ struct dig_t {
 	u32 rssi_highthresh;
 	u32 fa_lowthresh;
 	u32 fa_highthresh;
-	long last_min_undecorated_pwdb_for_dm;
+	long last_min_undec_pwdb_for_dm;
 	long rssi_highpower_lowthresh;
 	long rssi_highpower_highthresh;
 	u32 recover_cnt;
@@ -1692,15 +1695,15 @@ struct dig_t {
 	u8 dig_twoport_algorithm;
 	u8 dig_dbgmode;
 	u8 dig_slgorithm_switch;
-	u8 cursta_connectstate;
-	u8 presta_connectstate;
-	u8 curmultista_connectstate;
-	char backoff_val;
-	char backoff_val_range_max;
-	char backoff_val_range_min;
+	u8 cursta_cstate;
+	u8 presta_cstate;
+	u8 curmultista_cstate;
+	char back_val;
+	char back_range_max;
+	char back_range_min;
 	u8 rx_gain_range_max;
 	u8 rx_gain_range_min;
-	u8 min_undecorated_pwdb_for_dm;
+	u8 min_undec_pwdb_for_dm;
 	u8 rssi_val_min;
 	u8 pre_cck_pd_state;
 	u8 cur_cck_pd_state;
@@ -1712,10 +1715,10 @@ struct dig_t {
 	u8 forbidden_igi;
 	u8 dig_state;
 	u8 dig_highpwrstate;
-	u8 cur_sta_connectstate;
-	u8 pre_sta_connectstate;
-	u8 cur_ap_connectstate;
-	u8 pre_ap_connectstate;
+	u8 cur_sta_cstate;
+	u8 pre_sta_cstate;
+	u8 cur_ap_cstate;
+	u8 pre_ap_cstate;
 	u8 cur_pd_thstate;
 	u8 pre_pd_thstate;
 	u8 cur_cs_ratiostate;
@@ -1846,7 +1849,7 @@ struct bt_coexist_info {
 	u8 eeprom_bt_coexist;
 	u8 eeprom_bt_type;
 	u8 eeprom_bt_ant_num;
-	u8 eeprom_bt_ant_isolation;
+	u8 eeprom_bt_ant_isol;
 	u8 eeprom_bt_radio_shared;
 
 	u8 bt_coexistence;

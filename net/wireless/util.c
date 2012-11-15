@@ -11,6 +11,8 @@
 #include <net/ip.h>
 #include <net/dsfield.h>
 #include "core.h"
+#include "rdev-ops.h"
+
 
 struct ieee80211_rate *
 ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
@@ -705,19 +707,18 @@ void cfg80211_upload_connect_keys(struct wireless_dev *wdev)
 	for (i = 0; i < 6; i++) {
 		if (!wdev->connect_keys->params[i].cipher)
 			continue;
-		if (rdev->ops->add_key(wdev->wiphy, dev, i, false, NULL,
-					&wdev->connect_keys->params[i])) {
+		if (rdev_add_key(rdev, dev, i, false, NULL,
+				 &wdev->connect_keys->params[i])) {
 			netdev_err(dev, "failed to set key %d\n", i);
 			continue;
 		}
 		if (wdev->connect_keys->def == i)
-			if (rdev->ops->set_default_key(wdev->wiphy, dev,
-						       i, true, true)) {
+			if (rdev_set_default_key(rdev, dev, i, true, true)) {
 				netdev_err(dev, "failed to set defkey %d\n", i);
 				continue;
 			}
 		if (wdev->connect_keys->defmgmt == i)
-			if (rdev->ops->set_default_mgmt_key(wdev->wiphy, dev, i))
+			if (rdev_set_default_mgmt_key(rdev, dev, i))
 				netdev_err(dev, "failed to set mgtdef %d\n", i);
 	}
 
@@ -850,8 +851,7 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 		cfg80211_process_rdev_events(rdev);
 	}
 
-	err = rdev->ops->change_virtual_intf(&rdev->wiphy, dev,
-					     ntype, flags, params);
+	err = rdev_change_virtual_intf(rdev, dev, ntype, flags, params);
 
 	WARN_ON(!err && dev->ieee80211_ptr->iftype != ntype);
 

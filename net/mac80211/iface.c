@@ -380,6 +380,15 @@ static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		goto out_unlock;
 	}
 
+	ret = ieee80211_vif_use_channel(sdata, local->monitor_channel,
+					local->monitor_channel_type,
+					IEEE80211_CHANCTX_EXCLUSIVE);
+	if (ret) {
+		drv_remove_interface(local, sdata);
+		kfree(sdata);
+		goto out_unlock;
+	}
+
 	rcu_assign_pointer(local->monitor_sdata, sdata);
  out_unlock:
 	mutex_unlock(&local->iflist_mtx);
@@ -402,6 +411,8 @@ static void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 
 	rcu_assign_pointer(local->monitor_sdata, NULL);
 	synchronize_net();
+
+	ieee80211_vif_release_channel(sdata);
 
 	drv_remove_interface(local, sdata);
 
@@ -665,7 +676,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb, *tmp;
 	u32 hw_reconf_flags = 0;
 	int i;
-	enum nl80211_channel_type orig_ct;
 
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 
@@ -729,6 +739,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
+	cancel_work_sync(&sdata->recalc_smps);
+
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
@@ -755,8 +767,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
 
 		/* free all potentially still buffered bcast frames */
-		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps_bc_buf);
-		skb_queue_purge(&sdata->u.ap.ps_bc_buf);
+		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
+		skb_queue_purge(&sdata->u.ap.ps.bc_buf);
 	} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		ieee80211_mgd_stop(sdata);
 	}
@@ -837,14 +849,8 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		hw_reconf_flags = 0;
 	}
 
-	/* Re-calculate channel-type, in case there are multiple vifs
-	 * on different channel types.
-	 */
-	orig_ct = local->_oper_channel_type;
-	ieee80211_set_channel_type(local, NULL, NL80211_CHAN_NO_HT);
-
 	/* do after stop to avoid reconfiguring when we stop anyway */
-	if (hw_reconf_flags || (orig_ct != local->_oper_channel_type))
+	if (hw_reconf_flags)
 		ieee80211_hw_config(local, hw_reconf_flags);
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
@@ -1121,6 +1127,13 @@ static void ieee80211_iface_work(struct work_struct *work)
 	}
 }
 
+static void ieee80211_recalc_smps_work(struct work_struct *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data, recalc_smps);
+
+	ieee80211_recalc_smps(sdata);
+}
 
 /*
  * Helper function to initialise an interface to a specific type.
@@ -1149,6 +1162,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 
 	skb_queue_head_init(&sdata->skb_queue);
 	INIT_WORK(&sdata->work, ieee80211_iface_work);
+	INIT_WORK(&sdata->recalc_smps, ieee80211_recalc_smps_work);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:
@@ -1157,7 +1171,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.p2p = true;
 		/* fall through */
 	case NL80211_IFTYPE_AP:
-		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
+		skb_queue_head_init(&sdata->u.ap.ps.bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -1282,11 +1296,6 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	if (type == ieee80211_vif_type_p2p(&sdata->vif))
 		return 0;
 
-	/* Setting ad-hoc mode on non-IBSS channel is not supported. */
-	if (sdata->local->oper_channel->flags & IEEE80211_CHAN_NO_IBSS &&
-	    type == NL80211_IFTYPE_ADHOC)
-		return -EOPNOTSUPP;
-
 	if (ieee80211_sdata_running(sdata)) {
 		ret = ieee80211_runtime_change_iftype(sdata, type);
 		if (ret)
@@ -1298,9 +1307,6 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* reset some values that shouldn't be kept across type changes */
-	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(sdata->local,
-			sdata->local->oper_channel->band);
 	sdata->drop_unencrypted = 0;
 	if (type == NL80211_IFTYPE_STATION)
 		sdata->u.mgd.use_4addr = false;

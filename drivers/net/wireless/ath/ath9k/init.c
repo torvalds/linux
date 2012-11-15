@@ -687,6 +687,7 @@ static const struct ieee80211_iface_combination if_comb = {
 	.n_limits = ARRAY_SIZE(if_limits),
 	.max_interfaces = 2048,
 	.num_different_channels = 1,
+	.beacon_int_infra_match = true,
 };
 
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)

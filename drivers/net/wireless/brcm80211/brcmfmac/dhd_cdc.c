@@ -458,35 +458,6 @@ void brcmf_proto_detach(struct brcmf_pub *drvr)
 	drvr->prot = NULL;
 }
 
-int brcmf_proto_init(struct brcmf_pub *drvr)
-{
-	int ret = 0;
-	char buf[128];
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	mutex_lock(&drvr->proto_block);
-
-	/* Get the device MAC address */
-	strcpy(buf, "cur_etheraddr");
-	ret = brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR,
-					  buf, sizeof(buf));
-	if (ret < 0) {
-		mutex_unlock(&drvr->proto_block);
-		return ret;
-	}
-	memcpy(drvr->mac, buf, ETH_ALEN);
-
-	mutex_unlock(&drvr->proto_block);
-
-	ret = brcmf_c_preinit_dcmds(drvr);
-
-	/* Always assumes wl for now */
-	drvr->iswl = true;
-
-	return ret;
-}
-
 void brcmf_proto_stop(struct brcmf_pub *drvr)
 {
 	/* Nothing to do for CDC */

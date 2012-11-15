@@ -32,6 +32,9 @@ int bcma_nflash_init(struct bcma_drv_cc *cc)
 	}
 
 	cc->nflash.present = true;
+	if (cc->core->id.rev == 38 &&
+	    (cc->status & BCMA_CC_CHIPST_5357_NAND_BOOT))
+		cc->nflash.boot = true;
 
 	/* Prepare platform device, but don't register it yet. It's too early,
 	 * malloc (required by device_private_init) is not available yet. */

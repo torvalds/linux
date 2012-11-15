@@ -318,6 +318,12 @@ struct brcmf_event {
 #define BRCMF_E_LINK_ASSOC_REC			3
 #define BRCMF_E_LINK_BSSCFG_DIS			4
 
+/* Small, medium and maximum buffer size for dcmd
+ */
+#define BRCMF_DCMD_SMLEN	256
+#define BRCMF_DCMD_MEDLEN	1536
+#define BRCMF_DCMD_MAXLEN	8192
+
 /* Pattern matching filter. Specifies an offset within received packets to
  * start matching, the pattern to match, the size of the pattern, and a bitmask
  * that indicates which bits within the pattern should be matched.
@@ -623,7 +629,6 @@ struct brcmf_pub {
 	u8 wme_dp;		/* wme discard priority */
 
 	/* Dongle media info */
-	bool iswl;		/* Dongle-resident driver is wl */
 	unsigned long drv_version;	/* Version of dongle-resident driver */
 	u8 mac[ETH_ALEN];		/* MAC address obtained from dongle */
 
@@ -651,16 +656,10 @@ struct brcmf_pub {
 	int in_suspend;		/* flag set to 1 when early suspend called */
 	int dtim_skip;		/* dtim skip , default 0 means wake each dtim */
 
-	/* Pkt filter defination */
-	char *pktfilter[100];
-	int pktfilter_count;
-
-	u8 country_code[BRCM_CNTRY_BUF_SZ];
-	char eventmask[BRCMF_EVENTING_MASK_LEN];
-
 	struct brcmf_if *iflist[BRCMF_MAX_IFS];
 
 	struct mutex proto_block;
+	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
 	struct work_struct setmacaddr_work;
 	struct work_struct multicast_work;
@@ -671,6 +670,11 @@ struct brcmf_pub {
 #endif
 };
 
+struct bcmevent_name {
+	uint event;
+	const char *name;
+};
+
 struct brcmf_if_event {
 	u8 ifidx;
 	u8 action;
@@ -678,22 +682,42 @@ struct brcmf_if_event {
 	u8 bssidx;
 };
 
-struct bcmevent_name {
-	uint event;
-	const char *name;
+/* forward declaration */
+struct brcmf_cfg80211_vif;
+
+/**
+ * struct brcmf_if - interface control information.
+ *
+ * @drvr: points to device related information.
+ * @vif: points to cfg80211 specific interface information.
+ * @ndev: associated network device.
+ * @stats: interface specific network statistics.
+ * @idx: interface index in device firmware.
+ * @bssidx: index of bss associated with this interface.
+ * @mac_addr: assigned mac address.
+ */
+struct brcmf_if {
+	struct brcmf_pub *drvr;
+	struct brcmf_cfg80211_vif *vif;
+	struct net_device *ndev;
+	struct net_device_stats stats;
+	int idx;
+	s32 bssidx;
+	u8 mac_addr[ETH_ALEN];
 };
+
+static inline s32 brcmf_ndev_bssidx(struct net_device *ndev)
+{
+	struct brcmf_if *ifp = netdev_priv(ndev);
+	return ifp->bssidx;
+}
 
 extern const struct bcmevent_name bcmevent_names[];
 
 extern uint brcmf_c_mkiovar(char *name, char *data, uint datalen,
 			  char *buf, uint len);
-extern uint brcmf_c_mkiovar_bsscfg(char *name, char *data, uint datalen,
-				   char *buf, uint buflen, s32 bssidx);
 
 extern int brcmf_netdev_wait_pend8021x(struct net_device *ndev);
-
-extern s32 brcmf_exec_dcmd(struct net_device *dev, u32 cmd, void *arg, u32 len);
-extern int brcmf_netlink_dcmd(struct net_device *ndev, struct brcmf_dcmd *dcmd);
 
 /* Return pointer to interface name */
 extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
@@ -701,24 +725,17 @@ extern char *brcmf_ifname(struct brcmf_pub *drvr, int idx);
 /* Query dongle */
 extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
-
-#ifdef DEBUG
-extern int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size);
-#endif				/* DEBUG */
+extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
+				    void *buf, uint len);
 
 extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
 extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void *pktdata, struct brcmf_event_msg *,
 			      void **data_ptr);
 
+extern int brcmf_net_attach(struct brcmf_if *ifp);
+extern struct brcmf_if *brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
+				     char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
-
-extern void brcmf_c_pktfilter_offload_set(struct brcmf_pub *drvr, char *arg);
-extern void brcmf_c_pktfilter_offload_enable(struct brcmf_pub *drvr, char *arg,
-					     int enable, int master_mode);
-
-#define	BRCMF_DCMD_SMLEN	256	/* "small" cmd buffer required */
-#define BRCMF_DCMD_MEDLEN	1536	/* "med" cmd buffer required */
-#define	BRCMF_DCMD_MAXLEN	8192	/* max length cmd buffer required */
 
 #endif				/* _BRCMF_H_ */

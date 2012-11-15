@@ -82,6 +82,8 @@ bool rtl92c_phy_mac_config(struct ieee80211_hw *hw)
 
 	if (is92c)
 		rtl_write_byte(rtlpriv, 0x14, 0x71);
+	else
+		rtl_write_byte(rtlpriv, 0x04CA, 0x0A);
 	return rtstatus;
 }
 
