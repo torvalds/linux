@@ -45,7 +45,8 @@ static const struct iio_chan_spec ad7298_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		.address = AD7298_CH_TEMP,
 		.scan_index = -1,
 		.scan_type = {
@@ -80,7 +81,7 @@ static int ad7298_scan_direct(struct ad7298_state *st, unsigned ch)
 
 static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 {
-	int tmp, ret;
+	int ret;
 	__be16 buf;
 
 	buf = cpu_to_be16(AD7298_WRITE | AD7298_TSENSE |
@@ -102,24 +103,24 @@ static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 	if (ret)
 		return ret;
 
-	tmp = be16_to_cpu(buf) & RES_MASK(AD7298_BITS);
-
-	/*
-	 * One LSB of the ADC corresponds to 0.25 deg C.
-	 * The temperature reading is in 12-bit twos complement format
-	 */
-
-	if (tmp & (1 << (AD7298_BITS - 1))) {
-		tmp = (4096 - tmp) * 250;
-		tmp -= (2 * tmp);
-
-	} else {
-		tmp *= 250; /* temperature in milli degrees Celsius */
-	}
-
-	*val = tmp;
+	*val = sign_extend32(be16_to_cpu(buf), 11);
 
 	return 0;
+}
+
+static int ad7298_get_ref_voltage(struct ad7298_state *st)
+{
+	int vref;
+
+	if (st->ext_ref) {
+		vref = regulator_get_voltage(st->reg);
+		if (vref < 0)
+			return vref;
+
+		return vref / 1000;
+	} else {
+		return AD7298_INTREF_mV;
+	}
 }
 
 static int ad7298_read_raw(struct iio_dev *indio_dev,
@@ -130,7 +131,6 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7298_state *st = iio_priv(indio_dev);
-	int scale_mv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -155,24 +155,19 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			if (st->ext_ref) {
-				scale_mv = regulator_get_voltage(st->reg);
-				if (scale_mv < 0)
-					return scale_mv;
-				scale_mv /= 1000;
-			} else {
-				scale_mv = AD7298_INTREF_mV;
-			}
-			*val =  scale_mv;
+			*val = ad7298_get_ref_voltage(st);
 			*val2 = chan->scan_type.realbits;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
-			*val =  1;
-			*val2 = 0;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = ad7298_get_ref_voltage(st);
+			*val2 = 10;
+			return IIO_VAL_FRACTIONAL;
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_OFFSET:
+		*val = 1093 - 2732500 / ad7298_get_ref_voltage(st);
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
