@@ -1864,9 +1864,14 @@ static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
 
 	if (platid)
 		version = platid->driver_data;
-	else if (np)
-		version = (unsigned int)
-			of_match_device(nmk_pinctrl_match, &pdev->dev)->data;
+	else if (np) {
+		const struct of_device_id *match;
+
+		match = of_match_device(nmk_pinctrl_match, &pdev->dev);
+		if (!match)
+			return -ENODEV;
+		version = (unsigned int) match->data;
+	}
 
 	/* Poke in other ASIC variants here */
 	if (version == PINCTRL_NMK_STN8815)
