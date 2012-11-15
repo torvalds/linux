@@ -938,6 +938,10 @@ out_unlock:
 static struct packet_type ipv6_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
+};
+
+static struct packet_offload ipv6_packet_offload __read_mostly = {
+	.type = cpu_to_be16(ETH_P_IPV6),
 	.gso_send_check = ipv6_gso_send_check,
 	.gso_segment = ipv6_gso_segment,
 	.gro_receive = ipv6_gro_receive,
@@ -946,6 +950,7 @@ static struct packet_type ipv6_packet_type __read_mostly = {
 
 static int __init ipv6_packet_init(void)
 {
+	dev_add_offload(&ipv6_packet_offload);
 	dev_add_pack(&ipv6_packet_type);
 	return 0;
 }
@@ -953,6 +958,7 @@ static int __init ipv6_packet_init(void)
 static void ipv6_packet_cleanup(void)
 {
 	dev_remove_pack(&ipv6_packet_type);
+	dev_remove_offload(&ipv6_packet_offload);
 }
 
 static int __net_init ipv6_init_mibs(struct net *net)

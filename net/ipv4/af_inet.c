@@ -1662,6 +1662,10 @@ static int ipv4_proc_init(void);
 static struct packet_type ip_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IP),
 	.func = ip_rcv,
+};
+
+static struct packet_offload ip_packet_offload __read_mostly = {
+	.type = cpu_to_be16(ETH_P_IP),
 	.gso_send_check = inet_gso_send_check,
 	.gso_segment = inet_gso_segment,
 	.gro_receive = inet_gro_receive,
@@ -1781,6 +1785,7 @@ static int __init inet_init(void)
 
 	ipfrag_init();
 
+	dev_add_offload(&ip_packet_offload);
 	dev_add_pack(&ip_packet_type);
 
 	rc = 0;
