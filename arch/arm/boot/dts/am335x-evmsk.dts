@@ -5,13 +5,19 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+
+/*
+ * AM335x Starter Kit
+ * http://www.ti.com/tool/tmdssk3358
+ */
+
 /dts-v1/;
 
 /include/ "am33xx.dtsi"
 
 / {
-	model = "TI AM335x EVM";
-	compatible = "ti,am335x-evm", "ti,am33xx";
+	model = "TI AM335x EVM-SK";
+	compatible = "ti,am335x-evmsk", "ti,am33xx";
 
 	cpus {
 		cpu@0 {
@@ -26,22 +32,23 @@
 
 	am33xx_pinmux: pinmux@44e10800 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&matrix_keypad_s0 &volume_keys_s0>;
+		pinctrl-0 = <&user_leds_s0 &gpio_keys_s0>;
 
-		matrix_keypad_s0: matrix_keypad_s0 {
+		user_leds_s0: user_leds_s0 {
 			pinctrl-single,pins = <
-				0x54 0x7	/* gpmc_a5.gpio1_21, OUTPUT | MODE7 */
-				0x58 0x7	/* gpmc_a6.gpio1_22, OUTPUT | MODE7 */
-				0x64 0x27	/* gpmc_a9.gpio1_25, INPUT | MODE7 */
-				0x68 0x27	/* gpmc_a10.gpio1_26, INPUT | MODE7 */
-				0x6c 0x27	/* gpmc_a11.gpio1_27, INPUT | MODE7 */
+				0x10 0x7	/* gpmc_ad4.gpio1_4, OUTPUT | MODE7 */
+				0x14 0x7	/* gpmc_ad5.gpio1_5, OUTPUT | MODE7 */
+				0x18 0x7	/* gpmc_ad6.gpio1_6, OUTPUT | MODE7 */
+				0x1c 0x7	/* gpmc_ad7.gpio1_7, OUTPUT | MODE7 */
 			>;
 		};
 
-		volume_keys_s0: volume_keys_s0 {
+		gpio_keys_s0: gpio_keys_s0 {
 			pinctrl-single,pins = <
-				0x150 0x27	/* spi0_sclk.gpio0_2, INPUT | MODE7 */
-				0x154 0x27	/* spi0_d0.gpio0_3, INPUT | MODE7 */
+				0x94 0x27	/* gpmc_oen_ren.gpio2_3, INPUT | MODE7 */
+				0x90 0x27	/* gpmc_advn_ale.gpio2_2, INPUT | MODE7 */
+				0x70 0x27	/* gpmc_wait0.gpio0_30, INPUT | MODE7 */
+				0x9c 0x27	/* gpmc_ben0_cle.gpio2_5, INPUT | MODE7 */
 			>;
 		};
 	};
@@ -58,11 +65,6 @@
 			tps: tps@2d {
 				reg = <0x2d>;
 			};
-		};
-
-		i2c2: i2c@4802a000 {
-			status = "okay";
-			clock-frequency = <100000>;
 
 			lis331dlh: lis331dlh@18 {
 				compatible = "st,lis331dlh", "st,lis3lv02d";
@@ -91,16 +93,6 @@
 				st,max-limit-y = <550>;
 				st,max-limit-z = <750>;
 			};
-
-			tsl2550: tsl2550@39 {
-				compatible = "taos,tsl2550";
-				reg = <0x39>;
-			};
-
-			tmp275: tmp275@48 {
-				compatible = "ti,tmp275";
-				reg = <0x48>;
-			};
 		};
 	};
 
@@ -118,44 +110,64 @@
 		regulator-boot-on;
 	};
 
-	matrix_keypad: matrix_keypad@0 {
-		compatible = "gpio-matrix-keypad";
-		debounce-delay-ms = <5>;
-		col-scan-delay-us = <2>;
+	leds {
+		compatible = "gpio-leds";
 
-		row-gpios = <&gpio2 25 0	/* Bank1, pin25 */
-			     &gpio2 26 0	/* Bank1, pin26 */
-			     &gpio2 27 0>;	/* Bank1, pin27 */
+		led@1 {
+			label = "evmsk:green:usr0";
+			gpios = <&gpio2 4 0>;
+			default-state = "off";
+		};
 
-		col-gpios = <&gpio2 21 0	/* Bank1, pin21 */
-			     &gpio2 22 0>;	/* Bank1, pin22 */
+		led@2 {
+			label = "evmsk:green:usr1";
+			gpios = <&gpio2 5 0>;
+			default-state = "off";
+		};
 
-		linux,keymap = <0x0000008b	/* MENU */
-				0x0100009e	/* BACK */
-				0x02000069	/* LEFT */
-				0x0001006a	/* RIGHT */
-				0x0101001c	/* ENTER */
-				0x0201006c>;	/* DOWN */
+		led@3 {
+			label = "evmsk:green:mmc0";
+			gpios = <&gpio2 6 0>;
+			linux,default-trigger = "mmc0";
+			default-state = "off";
+		};
+
+		led@4 {
+			label = "evmsk:green:heartbeat";
+			gpios = <&gpio2 7 0>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
 	};
 
-	gpio_keys: volume_keys@0 {
+	gpio_buttons: gpio_buttons@0 {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		autorepeat;
 
-		switch@9 {
-			label = "volume-up";
-			linux,code = <115>;
-			gpios = <&gpio1 2 1>;
+		switch@1 {
+			label = "button0";
+			linux,code = <0x100>;
+			gpios = <&gpio3 3 0>;
+		};
+
+		switch@2 {
+			label = "button1";
+			linux,code = <0x101>;
+			gpios = <&gpio3 2 0>;
+		};
+
+		switch@3 {
+			label = "button2";
+			linux,code = <0x102>;
+			gpios = <&gpio1 30 0>;
 			gpio-key,wakeup;
 		};
 
-		switch@10 {
-			label = "volume-down";
-			linux,code = <114>;
-			gpios = <&gpio1 3 1>;
-			gpio-key,wakeup;
+		switch@4 {
+			label = "button3";
+			linux,code = <0x103>;
+			gpios = <&gpio3 5 0>;
 		};
 	};
 };

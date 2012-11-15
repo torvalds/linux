@@ -37,6 +37,8 @@
 #include <linux/clockchips.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
 #include <asm/smp_twd.h>
@@ -67,11 +69,13 @@
 #define OMAP3_CLKEV_SOURCE	OMAP3_32K_SOURCE
 #define OMAP4_CLKEV_SOURCE	OMAP4_32K_SOURCE
 #define OMAP3_SECURE_TIMER	12
+#define TIMER_PROP_SECURE	"ti,timer-secure"
 #else
 #define OMAP2_CLKEV_SOURCE	OMAP2_MPU_SOURCE
 #define OMAP3_CLKEV_SOURCE	OMAP3_MPU_SOURCE
 #define OMAP4_CLKEV_SOURCE	OMAP4_MPU_SOURCE
 #define OMAP3_SECURE_TIMER	1
+#define TIMER_PROP_SECURE	"ti,timer-alwon"
 #endif
 
 #define REALTIME_COUNTER_BASE				0x48243200
@@ -145,36 +149,141 @@ static struct clock_event_device clockevent_gpt = {
 	.set_mode	= omap2_gp_timer_set_mode,
 };
 
+static struct property device_disabled = {
+	.name = "status",
+	.length = sizeof("disabled"),
+	.value = "disabled",
+};
+
+static struct of_device_id omap_timer_match[] __initdata = {
+	{ .compatible = "ti,omap2-timer", },
+	{ }
+};
+
+static struct of_device_id omap_counter_match[] __initdata = {
+	{ .compatible = "ti,omap-counter32k", },
+	{ }
+};
+
+/**
+ * omap_get_timer_dt - get a timer using device-tree
+ * @match	- device-tree match structure for matching a device type
+ * @property	- optional timer property to match
+ *
+ * Helper function to get a timer during early boot using device-tree for use
+ * as kernel system timer. Optionally, the property argument can be used to
+ * select a timer with a specific property. Once a timer is found then mark
+ * the timer node in device-tree as disabled, to prevent the kernel from
+ * registering this timer as a platform device and so no one else can use it.
+ */
+static struct device_node * __init omap_get_timer_dt(struct of_device_id *match,
+						     const char *property)
+{
+	struct device_node *np;
+
+	for_each_matching_node(np, match) {
+		if (!of_device_is_available(np)) {
+			of_node_put(np);
+			continue;
+		}
+
+		if (property && !of_get_property(np, property, NULL)) {
+			of_node_put(np);
+			continue;
+		}
+
+		prom_add_property(np, &device_disabled);
+		return np;
+	}
+
+	return NULL;
+}
+
+/**
+ * omap_dmtimer_init - initialisation function when device tree is used
+ *
+ * For secure OMAP3 devices, timers with device type "timer-secure" cannot
+ * be used by the kernel as they are reserved. Therefore, to prevent the
+ * kernel registering these devices remove them dynamically from the device
+ * tree on boot.
+ */
+void __init omap_dmtimer_init(void)
+{
+	struct device_node *np;
+
+	if (!cpu_is_omap34xx())
+		return;
+
+	/* If we are a secure device, remove any secure timer nodes */
+	if ((omap_type() != OMAP2_DEVICE_TYPE_GP)) {
+		np = omap_get_timer_dt(omap_timer_match, "ti,timer-secure");
+		if (np)
+			of_node_put(np);
+	}
+}
+
 static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 						int gptimer_id,
-						const char *fck_source)
+						const char *fck_source,
+						const char *property)
 {
 	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
+	const char *oh_name;
+	struct device_node *np;
 	struct omap_hwmod *oh;
 	struct resource irq_rsrc, mem_rsrc;
 	size_t size;
 	int res = 0;
 	int r;
 
-	sprintf(name, "timer%d", gptimer_id);
-	omap_hwmod_setup_one(name);
-	oh = omap_hwmod_lookup(name);
+	if (of_have_populated_dt()) {
+		np = omap_get_timer_dt(omap_timer_match, NULL);
+		if (!np)
+			return -ENODEV;
+
+		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		if (!oh_name)
+			return -ENODEV;
+
+		timer->irq = irq_of_parse_and_map(np, 0);
+		if (!timer->irq)
+			return -ENXIO;
+
+		timer->io_base = of_iomap(np, 0);
+
+		of_node_put(np);
+	} else {
+		if (omap_dm_timer_reserve_systimer(gptimer_id))
+			return -ENODEV;
+
+		sprintf(name, "timer%d", gptimer_id);
+		oh_name = name;
+	}
+
+	omap_hwmod_setup_one(oh_name);
+	oh = omap_hwmod_lookup(oh_name);
+
 	if (!oh)
 		return -ENODEV;
 
-	r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL, &irq_rsrc);
-	if (r)
-		return -ENXIO;
-	timer->irq = irq_rsrc.start;
+	if (!of_have_populated_dt()) {
+		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL,
+						   &irq_rsrc);
+		if (r)
+			return -ENXIO;
+		timer->irq = irq_rsrc.start;
 
-	r = omap_hwmod_get_resource_byname(oh, IORESOURCE_MEM, NULL, &mem_rsrc);
-	if (r)
-		return -ENXIO;
-	timer->phys_base = mem_rsrc.start;
-	size = mem_rsrc.end - mem_rsrc.start;
+		r = omap_hwmod_get_resource_byname(oh, IORESOURCE_MEM, NULL,
+						   &mem_rsrc);
+		if (r)
+			return -ENXIO;
+		timer->phys_base = mem_rsrc.start;
+		size = mem_rsrc.end - mem_rsrc.start;
 
-	/* Static mapping, never released */
-	timer->io_base = ioremap(timer->phys_base, size);
+		/* Static mapping, never released */
+		timer->io_base = ioremap(timer->phys_base, size);
+	}
+
 	if (!timer->io_base)
 		return -ENXIO;
 
@@ -185,9 +294,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 
 	omap_hwmod_enable(oh);
 
-	if (omap_dm_timer_reserve_systimer(gptimer_id))
-		return -ENODEV;
-
+	/* FIXME: Need to remove hard-coded test on timer ID */
 	if (gptimer_id != 12) {
 		struct clk *src;
 
@@ -197,8 +304,8 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		} else {
 			res = __omap_dm_timer_set_source(timer->fclk, src);
 			if (IS_ERR_VALUE(res))
-				pr_warning("%s: timer%i cannot set source\n",
-						__func__, gptimer_id);
+				pr_warn("%s: %s cannot set source\n",
+					__func__, oh->name);
 			clk_put(src);
 		}
 	}
@@ -214,11 +321,12 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 }
 
 static void __init omap2_gp_clockevent_init(int gptimer_id,
-						const char *fck_source)
+						const char *fck_source,
+						const char *property)
 {
 	int res;
 
-	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source);
+	res = omap_dm_timer_init_one(&clkev, gptimer_id, fck_source, property);
 	BUG_ON(res);
 
 	omap2_gp_timer_irq.dev_id = &clkev;
@@ -275,9 +383,24 @@ static u32 notrace dmtimer_read_sched_clock(void)
 static int __init omap2_sync32k_clocksource_init(void)
 {
 	int ret;
+	struct device_node *np = NULL;
 	struct omap_hwmod *oh;
 	void __iomem *vbase;
 	const char *oh_name = "counter_32k";
+
+	/*
+	 * If device-tree is present, then search the DT blob
+	 * to see if the 32kHz counter is supported.
+	 */
+	if (of_have_populated_dt()) {
+		np = omap_get_timer_dt(omap_counter_match, NULL);
+		if (!np)
+			return -ENODEV;
+
+		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		if (!oh_name)
+			return -ENODEV;
+	}
 
 	/*
 	 * First check hwmod data is available for sync32k counter
@@ -288,7 +411,13 @@ static int __init omap2_sync32k_clocksource_init(void)
 
 	omap_hwmod_setup_one(oh_name);
 
-	vbase = omap_hwmod_get_mpu_rt_va(oh);
+	if (np) {
+		vbase = of_iomap(np, 0);
+		of_node_put(np);
+	} else {
+		vbase = omap_hwmod_get_mpu_rt_va(oh);
+	}
+
 	if (!vbase) {
 		pr_warn("%s: failed to get counter_32k resource\n", __func__);
 		return -ENXIO;
@@ -322,7 +451,7 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 {
 	int res;
 
-	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source);
+	res = omap_dm_timer_init_one(&clksrc, gptimer_id, fck_source, NULL);
 	BUG_ON(res);
 
 	__omap_dm_timer_load_start(&clksrc,
@@ -434,11 +563,12 @@ static inline void __init realtime_counter_init(void)
 {}
 #endif
 
-#define OMAP_SYS_TIMER_INIT(name, clkev_nr, clkev_src,			\
+#define OMAP_SYS_TIMER_INIT(name, clkev_nr, clkev_src, clkev_prop,	\
 				clksrc_nr, clksrc_src)			\
 static void __init omap##name##_timer_init(void)			\
 {									\
-	omap2_gp_clockevent_init((clkev_nr), clkev_src);		\
+	omap_dmtimer_init();						\
+	omap2_gp_clockevent_init((clkev_nr), clkev_src, clkev_prop);	\
 	omap2_clocksource_init((clksrc_nr), clksrc_src);		\
 }
 
@@ -448,20 +578,23 @@ struct sys_timer omap##name##_timer = {					\
 };
 
 #ifdef CONFIG_ARCH_OMAP2
-OMAP_SYS_TIMER_INIT(2, 1, OMAP2_CLKEV_SOURCE, 2, OMAP2_MPU_SOURCE)
+OMAP_SYS_TIMER_INIT(2, 1, OMAP2_CLKEV_SOURCE, "ti,timer-alwon",
+		    2, OMAP2_MPU_SOURCE)
 OMAP_SYS_TIMER(2)
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-OMAP_SYS_TIMER_INIT(3, 1, OMAP3_CLKEV_SOURCE, 2, OMAP3_MPU_SOURCE)
+OMAP_SYS_TIMER_INIT(3, 1, OMAP3_CLKEV_SOURCE, "ti,timer-alwon",
+		    2, OMAP3_MPU_SOURCE)
 OMAP_SYS_TIMER(3)
 OMAP_SYS_TIMER_INIT(3_secure, OMAP3_SECURE_TIMER, OMAP3_CLKEV_SOURCE,
-			2, OMAP3_MPU_SOURCE)
+			TIMER_PROP_SECURE, 2, OMAP3_MPU_SOURCE)
 OMAP_SYS_TIMER(3_secure)
 #endif
 
 #ifdef CONFIG_SOC_AM33XX
-OMAP_SYS_TIMER_INIT(3_am33xx, 1, OMAP4_MPU_SOURCE, 2, OMAP4_MPU_SOURCE)
+OMAP_SYS_TIMER_INIT(3_am33xx, 1, OMAP4_MPU_SOURCE, "ti,timer-alwon",
+		    2, OMAP4_MPU_SOURCE)
 OMAP_SYS_TIMER(3_am33xx)
 #endif
 
@@ -473,7 +606,7 @@ static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
 
 static void __init omap4_timer_init(void)
 {
-	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
+	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE, "ti,timer-alwon");
 	omap2_clocksource_init(2, OMAP4_MPU_SOURCE);
 #ifdef CONFIG_LOCAL_TIMERS
 	/* Local timers are not supprted on OMAP4430 ES1.0 */
@@ -499,7 +632,7 @@ static void __init omap5_timer_init(void)
 {
 	int err;
 
-	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE);
+	omap2_gp_clockevent_init(1, OMAP4_CLKEV_SOURCE, "ti,timer-alwon");
 	omap2_clocksource_init(2, OMAP4_MPU_SOURCE);
 	realtime_counter_init();
 
@@ -585,6 +718,10 @@ static int __init omap_timer_init(struct omap_hwmod *oh, void *unused)
 static int __init omap2_dm_timer_init(void)
 {
 	int ret;
+
+	/* If dtb is there, the devices will be created dynamically */
+	if (of_have_populated_dt())
+		return -ENODEV;
 
 	ret = omap_hwmod_for_each_by_class("timer", omap_timer_init, NULL);
 	if (unlikely(ret)) {
