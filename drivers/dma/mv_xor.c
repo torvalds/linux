@@ -308,8 +308,7 @@ mv_xor_run_tx_complete_actions(struct mv_xor_desc_slot *desc,
 		 */
 		if (desc->group_head && desc->unmap_len) {
 			struct mv_xor_desc_slot *unmap = desc->group_head;
-			struct device *dev =
-				&mv_chan->device->pdev->dev;
+			struct device *dev = mv_chan_to_devp(mv_chan);
 			u32 len = unmap->unmap_len;
 			enum dma_ctrl_flags flags = desc->async_tx.flags;
 			u32 src_cnt;
@@ -1077,10 +1076,11 @@ static int mv_xor_channel_remove(struct mv_xor_device *device)
 {
 	struct dma_chan *chan, *_chan;
 	struct mv_xor_chan *mv_chan;
+	struct device *dev = device->common.dev;
 
 	dma_async_device_unregister(&device->common);
 
-	dma_free_coherent(&device->pdev->dev, device->pool_size,
+	dma_free_coherent(dev, device->pool_size,
 			  device->dma_desc_pool_virt, device->dma_desc_pool);
 
 	list_for_each_entry_safe(chan, _chan, &device->common.channels,
@@ -1123,7 +1123,6 @@ mv_xor_channel_add(struct mv_xor_private *msp,
 
 	/* discover transaction capabilites from the platform data */
 	dma_dev->cap_mask = cap_mask;
-	adev->pdev = pdev;
 	adev->shared = msp;
 
 	INIT_LIST_HEAD(&dma_dev->channels);
@@ -1208,7 +1207,7 @@ mv_xor_channel_add(struct mv_xor_private *msp,
 	return adev;
 
  err_free_dma:
-	dma_free_coherent(&adev->pdev->dev, pool_size,
+	dma_free_coherent(&pdev->dev, pool_size,
 			adev->dma_desc_pool_virt, adev->dma_desc_pool);
 	return ERR_PTR(ret);
 }

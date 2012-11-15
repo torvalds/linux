@@ -70,7 +70,6 @@ struct mv_xor_private {
  * @common: embedded struct dma_device
  */
 struct mv_xor_device {
-	struct platform_device		*pdev;
 	dma_addr_t			dma_desc_pool;
 	void				*dma_desc_pool_virt;
 	size_t                          pool_size;
