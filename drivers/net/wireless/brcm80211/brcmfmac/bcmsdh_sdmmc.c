@@ -512,6 +512,8 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_probe...\n");
 		ret = brcmf_sdio_probe(sdiodev);
+		if (ret)
+			dev_set_drvdata(&func->dev, NULL);
 	}
 
 	return ret;
@@ -532,8 +534,12 @@ static void brcmf_ops_sdio_remove(struct sdio_func *func)
 		sdiodev = bus_if->bus_priv.sdio;
 		brcmf_dbg(TRACE, "F2 found, calling brcmf_sdio_remove...\n");
 		brcmf_sdio_remove(sdiodev);
-		dev_set_drvdata(&func->card->dev, NULL);
 		dev_set_drvdata(&func->dev, NULL);
+	}
+	if (func->num == 1) {
+		sdiodev = dev_get_drvdata(&func->card->dev);
+		bus_if = sdiodev->bus_if;
+		dev_set_drvdata(&func->card->dev, NULL);
 		kfree(bus_if);
 		kfree(sdiodev);
 	}

@@ -3867,7 +3867,8 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 		brcmf_sdio_intr_unregister(bus->sdiodev);
 
 		cancel_work_sync(&bus->datawork);
-		destroy_workqueue(bus->brcmf_wq);
+		if (bus->brcmf_wq)
+			destroy_workqueue(bus->brcmf_wq);
 
 		if (bus->sdiodev->bus_if->drvr) {
 			brcmf_detach(bus->sdiodev->dev);
@@ -3909,6 +3910,13 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	bus->txminmax = BRCMF_TXMINMAX;
 	bus->tx_seq = SDPCM_SEQUENCE_WRAP - 1;
 
+	INIT_WORK(&bus->datawork, brcmf_sdio_dataworker);
+	bus->brcmf_wq = create_singlethread_workqueue("brcmf_wq");
+	if (bus->brcmf_wq == NULL) {
+		brcmf_dbg(ERROR, "insufficient memory to create txworkqueue\n");
+		goto fail;
+	}
+
 	/* attempt to attach to the dongle */
 	if (!(brcmf_sdbrcm_probe_attach(bus, regsva))) {
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_probe_attach failed\n");
@@ -3919,13 +3927,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 	spin_lock_init(&bus->txqlock);
 	init_waitqueue_head(&bus->ctrl_wait);
 	init_waitqueue_head(&bus->dcmd_resp_wait);
-
-	bus->brcmf_wq = create_singlethread_workqueue("brcmf_wq");
-	if (bus->brcmf_wq == NULL) {
-		brcmf_dbg(ERROR, "insufficient memory to create txworkqueue\n");
-		goto fail;
-	}
-	INIT_WORK(&bus->datawork, brcmf_sdio_dataworker);
 
 	/* Set up the watchdog timer */
 	init_timer(&bus->timer);
