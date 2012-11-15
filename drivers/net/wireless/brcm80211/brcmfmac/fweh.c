@@ -374,11 +374,13 @@ void brcmf_fweh_detach(struct brcmf_pub *drvr)
 	struct brcmf_if *ifp = drvr->iflist[0];
 	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
 
-	/* clear all events */
-	memset(eventmask, 0, BRCMF_EVENTING_MASK_LEN);
-	(void)brcmf_fil_iovar_data_set(ifp, "event_msgs",
-				       eventmask, BRCMF_EVENTING_MASK_LEN);
-
+	if (ifp) {
+		/* clear all events */
+		memset(eventmask, 0, BRCMF_EVENTING_MASK_LEN);
+		(void)brcmf_fil_iovar_data_set(ifp, "event_msgs",
+					       eventmask,
+					       BRCMF_EVENTING_MASK_LEN);
+	}
 	/* cancel the worker */
 	cancel_work_sync(&fweh->event_work);
 	WARN_ON(!list_empty(&fweh->event_q));
