@@ -67,7 +67,7 @@
 #define  QID_MASK    0xffff8000U
 #define  QID_SHIFT   15
 #define  QID(x)      ((x) << QID_SHIFT)
-#define  DBPRIO      0x00004000U
+#define  DBPRIO(x)   ((x) << 14)
 #define  PIDX_MASK   0x00003fffU
 #define  PIDX_SHIFT  0
 #define  PIDX(x)     ((x) << PIDX_SHIFT)
@@ -193,6 +193,12 @@
 #define SGE_FL_BUFFER_SIZE1 0x1048
 #define SGE_FL_BUFFER_SIZE2 0x104c
 #define SGE_FL_BUFFER_SIZE3 0x1050
+#define SGE_FL_BUFFER_SIZE4 0x1054
+#define SGE_FL_BUFFER_SIZE5 0x1058
+#define SGE_FL_BUFFER_SIZE6 0x105c
+#define SGE_FL_BUFFER_SIZE7 0x1060
+#define SGE_FL_BUFFER_SIZE8 0x1064
+
 #define SGE_INGRESS_RX_THRESHOLD 0x10a0
 #define  THRESHOLD_0_MASK   0x3f000000U
 #define  THRESHOLD_0_SHIFT  24
@@ -216,6 +222,17 @@
 #define  EGRTHRESHOLDshift   8
 #define  EGRTHRESHOLD(x)     ((x) << EGRTHRESHOLDshift)
 #define  EGRTHRESHOLD_GET(x) (((x) & EGRTHRESHOLD_MASK) >> EGRTHRESHOLDshift)
+
+#define SGE_DBFIFO_STATUS 0x10a4
+#define  HP_INT_THRESH_SHIFT 28
+#define  HP_INT_THRESH_MASK  0xfU
+#define  HP_INT_THRESH(x)    ((x) << HP_INT_THRESH_SHIFT)
+#define  LP_INT_THRESH_SHIFT 12
+#define  LP_INT_THRESH_MASK  0xfU
+#define  LP_INT_THRESH(x)    ((x) << LP_INT_THRESH_SHIFT)
+
+#define SGE_DOORBELL_CONTROL 0x10a8
+#define  ENABLE_DROP        (1 << 13)
 
 #define SGE_TIMER_VALUE_0_AND_1 0x10b8
 #define  TIMERVALUE0_MASK   0xffff0000U
@@ -277,6 +294,10 @@
 #define A_SGE_CTXT_CMD 0x11fc
 #define A_SGE_DBQ_CTXT_BADDR 0x1084
 
+#define PCIE_PF_CFG 0x40
+#define  AIVEC(x)	((x) << 4)
+#define  AIVEC_MASK	0x3ffU
+
 #define PCIE_PF_CLI 0x44
 #define PCIE_INT_CAUSE 0x3004
 #define  UNXSPLCPLERR  0x20000000U
@@ -322,6 +343,13 @@
 #define PCIE_MEM_ACCESS_OFFSET 0x306c
 
 #define PCIE_FW 0x30b8
+#define  PCIE_FW_ERR		0x80000000U
+#define  PCIE_FW_INIT		0x40000000U
+#define  PCIE_FW_HALT		0x20000000U
+#define  PCIE_FW_MASTER_VLD	0x00008000U
+#define  PCIE_FW_MASTER(x)	((x) << 12)
+#define  PCIE_FW_MASTER_MASK	0x7
+#define  PCIE_FW_MASTER_GET(x)	(((x) >> 12) & PCIE_FW_MASTER_MASK)
 
 #define PCIE_CORE_UTL_SYSTEM_BUS_AGENT_STATUS 0x5908
 #define  RNPP 0x80000000U
@@ -431,6 +459,9 @@
 #define  MBOWNER_SHIFT  0
 #define  MBOWNER(x)     ((x) << MBOWNER_SHIFT)
 #define  MBOWNER_GET(x) (((x) & MBOWNER_MASK) >> MBOWNER_SHIFT)
+
+#define CIM_PF_HOST_INT_ENABLE 0x288
+#define  MBMSGRDYINTEN(x) ((x) << 19)
 
 #define CIM_PF_HOST_INT_CAUSE 0x28c
 #define  MBMSGRDYINT 0x00080000U
@@ -922,7 +953,7 @@
 
 #define SF_DATA 0x193f8
 #define SF_OP 0x193fc
-#define  BUSY          0x80000000U
+#define  SF_BUSY       0x80000000U
 #define  SF_LOCK       0x00000010U
 #define  SF_CONT       0x00000008U
 #define  BYTECNT_MASK  0x00000006U
@@ -981,6 +1012,7 @@
 #define  I2CM       0x00000002U
 #define  CIM        0x00000001U
 
+#define PL_INT_ENABLE 0x19410
 #define PL_INT_MAP0 0x19414
 #define PL_RST 0x19428
 #define  PIORST     0x00000002U

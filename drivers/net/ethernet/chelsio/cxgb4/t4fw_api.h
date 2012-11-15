@@ -68,6 +68,7 @@ struct fw_wr_hdr {
 };
 
 #define FW_WR_OP(x)	 ((x) << 24)
+#define FW_WR_OP_GET(x)	 (((x) >> 24) & 0xff)
 #define FW_WR_ATOMIC(x)	 ((x) << 23)
 #define FW_WR_FLUSH(x)   ((x) << 22)
 #define FW_WR_COMPL(x)   ((x) << 21)
@@ -222,6 +223,7 @@ struct fw_cmd_hdr {
 #define FW_CMD_OP(x)		((x) << 24)
 #define FW_CMD_OP_GET(x)        (((x) >> 24) & 0xff)
 #define FW_CMD_REQUEST          (1U << 23)
+#define FW_CMD_REQUEST_GET(x)   (((x) >> 23) & 0x1)
 #define FW_CMD_READ		(1U << 22)
 #define FW_CMD_WRITE		(1U << 21)
 #define FW_CMD_EXEC		(1U << 20)
@@ -229,6 +231,7 @@ struct fw_cmd_hdr {
 #define FW_CMD_RETVAL(x)	((x) << 8)
 #define FW_CMD_RETVAL_GET(x)	(((x) >> 8) & 0xff)
 #define FW_CMD_LEN16(x)         ((x) << 0)
+#define FW_LEN16(fw_struct)	FW_CMD_LEN16(sizeof(fw_struct) / 16)
 
 enum fw_ldst_addrspc {
 	FW_LDST_ADDRSPC_FIRMWARE  = 0x0001,
@@ -241,7 +244,8 @@ enum fw_ldst_addrspc {
 	FW_LDST_ADDRSPC_TP_MIB    = 0x0012,
 	FW_LDST_ADDRSPC_MDIO      = 0x0018,
 	FW_LDST_ADDRSPC_MPS       = 0x0020,
-	FW_LDST_ADDRSPC_FUNC      = 0x0028
+	FW_LDST_ADDRSPC_FUNC      = 0x0028,
+	FW_LDST_ADDRSPC_FUNC_PCIE = 0x0029,
 };
 
 enum fw_ldst_mps_fid {
@@ -303,6 +307,16 @@ struct fw_ldst_cmd {
 			__be64 data0;
 			__be64 data1;
 		} func;
+		struct fw_ldst_pcie {
+			u8 ctrl_to_fn;
+			u8 bnum;
+			u8 r;
+			u8 ext_r;
+			u8 select_naccess;
+			u8 pcie_fn;
+			__be16 nset_pkd;
+			__be32 data[12];
+		} pcie;
 	} u;
 };
 
@@ -312,6 +326,9 @@ struct fw_ldst_cmd {
 #define FW_LDST_CMD_FID(x)	((x) << 15)
 #define FW_LDST_CMD_CTL(x)	((x) << 0)
 #define FW_LDST_CMD_RPLCPF(x)	((x) << 0)
+#define FW_LDST_CMD_LC		(1U << 4)
+#define FW_LDST_CMD_NACCESS(x)	((x) << 0)
+#define FW_LDST_CMD_FN(x)	((x) << 0)
 
 struct fw_reset_cmd {
 	__be32 op_to_write;
@@ -333,7 +350,7 @@ enum fw_hellow_cmd {
 struct fw_hello_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
-	__be32 err_to_mbasyncnot;
+	__be32 err_to_clearinit;
 #define FW_HELLO_CMD_ERR	    (1U << 31)
 #define FW_HELLO_CMD_INIT	    (1U << 30)
 #define FW_HELLO_CMD_MASTERDIS(x)   ((x) << 29)
@@ -343,6 +360,7 @@ struct fw_hello_cmd {
 #define FW_HELLO_CMD_MBMASTER(x)     ((x) << FW_HELLO_CMD_MBMASTER_SHIFT)
 #define FW_HELLO_CMD_MBMASTER_GET(x) \
 	(((x) >> FW_HELLO_CMD_MBMASTER_SHIFT) & FW_HELLO_CMD_MBMASTER_MASK)
+#define FW_HELLO_CMD_MBASYNCNOTINT(x)	((x) << 23)
 #define FW_HELLO_CMD_MBASYNCNOT(x)  ((x) << 20)
 #define FW_HELLO_CMD_STAGE(x)       ((x) << 17)
 #define FW_HELLO_CMD_CLEARINIT      (1U << 16)
@@ -428,6 +446,7 @@ enum fw_caps_config_iscsi {
 enum fw_caps_config_fcoe {
 	FW_CAPS_CONFIG_FCOE_INITIATOR	= 0x00000001,
 	FW_CAPS_CONFIG_FCOE_TARGET	= 0x00000002,
+	FW_CAPS_CONFIG_FCOE_CTRL_OFLD	= 0x00000004,
 };
 
 enum fw_memtype_cf {
@@ -440,7 +459,7 @@ enum fw_memtype_cf {
 
 struct fw_caps_config_cmd {
 	__be32 op_to_write;
-	__be32 retval_len16;
+	__be32 cfvalid_to_len16;
 	__be32 r2;
 	__be32 hwmbitmap;
 	__be16 nbmcaps;
@@ -701,8 +720,8 @@ struct fw_iq_cmd {
 #define FW_IQ_CMD_FL0FETCHRO(x) ((x) << 6)
 #define FW_IQ_CMD_FL0HOSTFCMODE(x) ((x) << 4)
 #define FW_IQ_CMD_FL0CPRIO(x) ((x) << 3)
-#define FW_IQ_CMD_FL0PADEN (1U << 2)
-#define FW_IQ_CMD_FL0PACKEN (1U << 1)
+#define FW_IQ_CMD_FL0PADEN(x) ((x) << 2)
+#define FW_IQ_CMD_FL0PACKEN(x) ((x) << 1)
 #define FW_IQ_CMD_FL0CONGEN (1U << 0)
 
 #define FW_IQ_CMD_FL0DCAEN(x) ((x) << 15)
@@ -1190,6 +1209,14 @@ enum fw_port_dcb_cfg_rc {
 	FW_PORT_DCB_CFG_ERROR	= 0x1
 };
 
+enum fw_port_dcb_type {
+	FW_PORT_DCB_TYPE_PGID		= 0x00,
+	FW_PORT_DCB_TYPE_PGRATE		= 0x01,
+	FW_PORT_DCB_TYPE_PRIORATE	= 0x02,
+	FW_PORT_DCB_TYPE_PFC		= 0x03,
+	FW_PORT_DCB_TYPE_APP_ID		= 0x04,
+};
+
 struct fw_port_cmd {
 	__be32 op_to_portid;
 	__be32 action_to_len16;
@@ -1257,6 +1284,7 @@ struct fw_port_cmd {
 #define FW_PORT_CMD_TXIPG(x) ((x) << 19)
 
 #define FW_PORT_CMD_LSTATUS (1U << 31)
+#define FW_PORT_CMD_LSTATUS_GET(x) (((x) >> 31) & 0x1)
 #define FW_PORT_CMD_LSPEED(x) ((x) << 24)
 #define FW_PORT_CMD_LSPEED_GET(x) (((x) >> 24) & 0x3f)
 #define FW_PORT_CMD_TXPAUSE (1U << 23)
@@ -1305,6 +1333,9 @@ enum fw_port_module_type {
 	FW_PORT_MOD_TYPE_TWINAX_PASSIVE,
 	FW_PORT_MOD_TYPE_TWINAX_ACTIVE,
 	FW_PORT_MOD_TYPE_LRM,
+	FW_PORT_MOD_TYPE_ERROR		= FW_PORT_CMD_MODTYPE_MASK - 3,
+	FW_PORT_MOD_TYPE_UNKNOWN	= FW_PORT_CMD_MODTYPE_MASK - 2,
+	FW_PORT_MOD_TYPE_NOTSUPPORTED	= FW_PORT_CMD_MODTYPE_MASK - 1,
 
 	FW_PORT_MOD_TYPE_NONE = FW_PORT_CMD_MODTYPE_MASK
 };
