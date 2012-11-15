@@ -35,12 +35,6 @@
 #include "main.h"
 #include "soc.h"
 
-/*
- * Indication for txflowcontrol that all priority bits in
- * TXQ_STOP_FOR_PRIOFC_MASK are to be considered.
- */
-#define ALLPRIO				-1
-
 /* watchdog timer, in unit of ms */
 #define TIMER_INTERVAL_WATCHDOG		1000
 /* radio monitor timer, in unit of ms */
@@ -3767,25 +3761,6 @@ static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc)
 	wlc->fifo2prec_map[TX_AC_VO_FIFO] = BRCMS_PREC_BMP_AC_VO;
 }
 
-static void
-brcms_c_txflowcontrol_signal(struct brcms_c_info *wlc,
-			     struct brcms_txq_info *qi, bool on, int prio)
-{
-	/* transmit flowcontrol is not yet implemented */
-}
-
-static void brcms_c_txflowcontrol_reset(struct brcms_c_info *wlc)
-{
-	struct brcms_txq_info *qi;
-
-	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next) {
-		if (qi->stopped) {
-			brcms_c_txflowcontrol_signal(wlc, qi, OFF, ALLPRIO);
-			qi->stopped = 0;
-		}
-	}
-}
-
 /* push sw hps and wake state through hardware */
 static void brcms_c_set_ps_ctrl(struct brcms_c_info *wlc)
 {
@@ -5352,9 +5327,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 	wlc->pub->up = false;
 
 	wlc_phy_mute_upd(wlc->band->pi, false, PHY_MUTE_ALL);
-
-	/* clear txq flow control */
-	brcms_c_txflowcontrol_reset(wlc);
 
 	/* flush tx queues */
 	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next)
@@ -8301,9 +8273,6 @@ void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 	/* suspend the tx fifos and mute the phy for preism cac time */
 	if (mute_tx)
 		brcms_b_mute(wlc->hw, true);
-
-	/* clear tx flow control */
-	brcms_c_txflowcontrol_reset(wlc);
 
 	/* enable the RF Disable Delay timer */
 	bcma_write32(core, D11REGOFFS(rfdisabledly), RFDISABLE_DEFAULT);
