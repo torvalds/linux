@@ -14,7 +14,6 @@
 
 struct mv_xor_channel_data {
 	dma_cap_mask_t			cap_mask;
-	size_t				pool_size;
 };
 
 struct mv_xor_platform_data {

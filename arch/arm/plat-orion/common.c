@@ -625,14 +625,7 @@ static struct resource orion_xor0_shared_resources[] = {
 	},
 };
 
-static struct mv_xor_channel_data orion_xor0_channels_data[2] = {
-	{
-		.pool_size	= PAGE_SIZE,
-	},
-	{
-		.pool_size	= PAGE_SIZE,
-	},
-};
+static struct mv_xor_channel_data orion_xor0_channels_data[2];
 
 static struct mv_xor_platform_data orion_xor0_pdata = {
 	.channels = orion_xor0_channels_data,
@@ -698,14 +691,7 @@ static struct resource orion_xor1_shared_resources[] = {
 	},
 };
 
-static struct mv_xor_channel_data orion_xor1_channels_data[2] = {
-	{
-		.pool_size	= PAGE_SIZE,
-	},
-	{
-		.pool_size	= PAGE_SIZE,
-	},
-};
+static struct mv_xor_channel_data orion_xor1_channels_data[2];
 
 static struct mv_xor_platform_data orion_xor1_pdata = {
 	.channels = orion_xor1_channels_data,

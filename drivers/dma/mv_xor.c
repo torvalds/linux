@@ -603,7 +603,7 @@ static int mv_xor_alloc_chan_resources(struct dma_chan *chan)
 	int idx;
 	struct mv_xor_chan *mv_chan = to_mv_xor_chan(chan);
 	struct mv_xor_desc_slot *slot = NULL;
-	int num_descs_in_pool = mv_chan->pool_size/MV_XOR_SLOT_SIZE;
+	int num_descs_in_pool = MV_XOR_POOL_SIZE/MV_XOR_SLOT_SIZE;
 
 	/* Allocate descriptor slots */
 	idx = mv_chan->slots_allocated;
@@ -1074,7 +1074,7 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 
 	dma_async_device_unregister(&mv_chan->dmadev);
 
-	dma_free_coherent(dev, mv_chan->pool_size,
+	dma_free_coherent(dev, MV_XOR_POOL_SIZE,
 			  mv_chan->dma_desc_pool_virt, mv_chan->dma_desc_pool);
 
 	list_for_each_entry_safe(chan, _chan, &mv_chan->dmadev.channels,
@@ -1088,8 +1088,7 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 static struct mv_xor_chan *
 mv_xor_channel_add(struct mv_xor_device *xordev,
 		   struct platform_device *pdev,
-		   int idx, dma_cap_mask_t cap_mask,
-		   size_t pool_size, int irq)
+		   int idx, dma_cap_mask_t cap_mask, int irq)
 {
 	int ret = 0;
 	struct mv_xor_chan *mv_chan;
@@ -1109,9 +1108,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	 * note: writecombine gives slightly better performance, but
 	 * requires that we explicitly flush the writes
 	 */
-	mv_chan->pool_size = pool_size;
 	mv_chan->dma_desc_pool_virt =
-	  dma_alloc_writecombine(&pdev->dev, mv_chan->pool_size,
+	  dma_alloc_writecombine(&pdev->dev, MV_XOR_POOL_SIZE,
 				 &mv_chan->dma_desc_pool, GFP_KERNEL);
 	if (!mv_chan->dma_desc_pool_virt)
 		return ERR_PTR(-ENOMEM);
@@ -1193,7 +1191,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	return mv_chan;
 
  err_free_dma:
-	dma_free_coherent(&pdev->dev, pool_size,
+	dma_free_coherent(&pdev->dev, MV_XOR_POOL_SIZE,
 			  mv_chan->dma_desc_pool_virt, mv_chan->dma_desc_pool);
 	return ERR_PTR(ret);
 }
@@ -1296,8 +1294,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 
 			xordev->channels[i] =
 				mv_xor_channel_add(xordev, pdev, i,
-						   cd->cap_mask,
-						   cd->pool_size, irq);
+						   cd->cap_mask, irq);
 			if (IS_ERR(xordev->channels[i])) {
 				ret = PTR_ERR(xordev->channels[i]);
 				goto err_channel_add;

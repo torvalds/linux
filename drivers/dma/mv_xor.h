@@ -24,6 +24,7 @@
 #include <linux/interrupt.h>
 
 #define USE_TIMER
+#define MV_XOR_POOL_SIZE		PAGE_SIZE
 #define MV_XOR_SLOT_SIZE		64
 #define MV_XOR_THRESHOLD		1
 #define MV_XOR_MAX_CHANNELS             2
