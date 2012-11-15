@@ -98,7 +98,7 @@ static struct rt3261_init_reg init_list[] = {
 	{RT3261_SPK_VOL     	, 0x8888},//SPKMIX -> SPKVOL
 	{RT3261_HP_VOL      	, 0x8888},
 	{RT3261_OUTPUT      	, 0x8888},//unmute OUTVOLL/R
-	{RT3261_SPO_CLSD_RATIO 	, 0x0001},
+	{RT3261_SPO_CLSD_RATIO 	, 0x0003},
 	{RT3261_I2S1_SDP	, 0xd000},
 };
 #define RT3261_INIT_REG_LEN ARRAY_SIZE(init_list)
@@ -1200,7 +1200,7 @@ static const struct snd_kcontrol_new rt3261_snd_controls[] = {
 	SOC_DOUBLE("HP Playback Switch", RT3261_HP_VOL,
 		RT3261_L_MUTE_SFT, RT3261_R_MUTE_SFT, 1, 1),
 	SOC_DOUBLE_EXT_TLV("Headphone Playback Volume", RT3261_HP_VOL,
-		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_HP_VOL_RSCL_RANGE, 0,
+		RT3261_L_VOL_SFT, RT3261_R_VOL_SFT, RT3261_VOL_RSCL_RANGE, 0,
 		rt3261_vol_rescale_get, rt3261_vol_rescale_put, out_vol_tlv),
 	/* OUTPUT Control */
 	SOC_DOUBLE("OUT Playback Switch", RT3261_OUTPUT,
