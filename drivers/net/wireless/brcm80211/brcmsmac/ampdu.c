@@ -21,6 +21,7 @@
 #include "antsel.h"
 #include "main.h"
 #include "ampdu.h"
+#include "debug.h"
 
 /* max number of mpdus in an ampdu */
 #define AMPDU_MAX_MPDU			32
@@ -179,18 +180,19 @@ static bool brcms_c_ampdu_cap(struct ampdu_info *ampdu)
 static int brcms_c_ampdu_set(struct ampdu_info *ampdu, bool on)
 {
 	struct brcms_c_info *wlc = ampdu->wlc;
+	struct bcma_device *core = wlc->hw->d11core;
 
 	wlc->pub->_ampdu = false;
 
 	if (on) {
 		if (!(wlc->pub->_n_enab & SUPPORT_11N)) {
-			wiphy_err(ampdu->wlc->wiphy, "wl%d: driver not "
-				"nmode enabled\n", wlc->pub->unit);
+			brcms_err(core, "wl%d: driver not nmode enabled\n",
+				  wlc->pub->unit);
 			return -ENOTSUPP;
 		}
 		if (!brcms_c_ampdu_cap(ampdu)) {
-			wiphy_err(ampdu->wlc->wiphy, "wl%d: device not "
-				"ampdu capable\n", wlc->pub->unit);
+			brcms_err(core, "wl%d: device not ampdu capable\n",
+				  wlc->pub->unit);
 			return -ENOTSUPP;
 		}
 		wlc->pub->_ampdu = on;
@@ -481,7 +483,7 @@ brcms_c_ampdu_tx_operational(struct brcms_c_info *wlc, u8 tid,
 	scb_ampdu = &scb->scb_ampdu;
 
 	if (!ampdu->ini_enable[tid]) {
-		wiphy_err(ampdu->wlc->wiphy, "%s: Rejecting tid %d\n",
+		brcms_err(wlc->hw->d11core, "%s: Rejecting tid %d\n",
 			  __func__, tid);
 		return;
 	}
@@ -896,13 +898,14 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		if (supr_status) {
 			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
-				wiphy_err(wiphy,
+				brcms_err(wlc->hw->d11core,
 					  "%s: Pkt tx suppressed, illegal channel possibly %d\n",
 					  __func__, CHSPEC_CHANNEL(
 					  wlc->default_bss->chanspec));
 			} else {
 				if (supr_status != TX_STATUS_SUPR_FRAG)
-					wiphy_err(wiphy, "%s: supr_status 0x%x\n",
+					brcms_err(wlc->hw->d11core,
+						  "%s: supr_status 0x%x\n",
 						  __func__, supr_status);
 			}
 			/* no need to retry for badch; will fail again */
@@ -923,7 +926,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			wiphy_err(wiphy, "%s: ampdu tx phy error (0x%x)\n",
+			brcms_err(wlc->hw->d11core,
+				  "%s: ampdu tx phy error (0x%x)\n",
 				  __func__, txs->phyerr);
 
 			if (brcm_msg_level & BRCM_DL_INFO) {
