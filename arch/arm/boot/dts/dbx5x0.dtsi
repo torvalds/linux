@@ -642,6 +642,8 @@
 			gpio-enable = <&tc3589x_gpio 17 0x4>;
 			states = <1800000 0x1
 				  2900000 0x0>;
+
+			status = "disabled";
 		};
 	};
 };
