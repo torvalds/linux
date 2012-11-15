@@ -42,6 +42,7 @@ extern int tegra_sku_id;
 extern int tegra_cpu_process_id;
 extern int tegra_core_process_id;
 extern int tegra_chip_id;
+extern int tegra_cpu_speedo_id;		/* only exist in Tegra30 and later */
 extern int tegra_soc_speedo_id;
 extern enum tegra_revision tegra_revision;
 
@@ -56,6 +57,12 @@ u32 tegra_fuse_readl(unsigned long offset);
 void tegra20_init_speedo_data(void);
 #else
 static inline void tegra20_init_speedo_data(void) {}
+#endif
+
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+void tegra30_init_speedo_data(void);
+#else
+static inline void tegra30_init_speedo_data(void) {}
 #endif
 
 #endif

@@ -30,11 +30,13 @@
 #define FUSE_SKU_INFO		0x110
 
 #define TEGRA20_FUSE_SPARE_BIT		0x200
+#define TEGRA30_FUSE_SPARE_BIT		0x244
 
 int tegra_sku_id;
 int tegra_cpu_process_id;
 int tegra_core_process_id;
 int tegra_chip_id;
+int tegra_cpu_speedo_id;		/* only exist in Tegra30 and later */
 int tegra_soc_speedo_id;
 enum tegra_revision tegra_revision;
 
@@ -120,13 +122,18 @@ void tegra_init_fuse(void)
 	id = readl_relaxed(IO_ADDRESS(TEGRA_APB_MISC_BASE) + 0x804);
 	tegra_chip_id = (id >> 8) & 0xff;
 
-	tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
-
 	switch (tegra_chip_id) {
 	case TEGRA20:
+		tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
 		tegra_init_speedo_data = &tegra20_init_speedo_data;
 		break;
+	case TEGRA30:
+		tegra_fuse_spare_bit = TEGRA30_FUSE_SPARE_BIT;
+		tegra_init_speedo_data = &tegra30_init_speedo_data;
+		break;
 	default:
+		pr_warn("Tegra: unknown chip id %d\n", tegra_chip_id);
+		tegra_fuse_spare_bit = TEGRA20_FUSE_SPARE_BIT;
 		tegra_init_speedo_data = &tegra_get_process_id;
 	}
 
