@@ -1610,10 +1610,15 @@ static int __devinit isicom_probe(struct pci_dev *pdev,
 	if (retval < 0)
 		goto errunri;
 
-	for (index = 0; index < board->port_count; index++)
-		tty_port_register_device(&board->ports[index].port,
-				isicom_normal, board->index * 16 + index,
-				&pdev->dev);
+	for (index = 0; index < board->port_count; index++) {
+		struct tty_port *tport = &board->ports[index].port;
+		tty_port_init(tport);
+		tport->ops = &isicom_port_ops;
+		tport->close_delay = 50 * HZ/100;
+		tport->closing_wait = 3000 * HZ/100;
+		tty_port_register_device(tport, isicom_normal,
+				board->index * 16 + index, &pdev->dev);
+	}
 
 	return 0;
 
@@ -1635,8 +1640,10 @@ static void __devexit isicom_remove(struct pci_dev *pdev)
 	struct isi_board *board = pci_get_drvdata(pdev);
 	unsigned int i;
 
-	for (i = 0; i < board->port_count; i++)
+	for (i = 0; i < board->port_count; i++) {
 		tty_unregister_device(isicom_normal, board->index * 16 + i);
+		tty_port_destroy(&board->ports[i].port);
+	}
 
 	free_irq(board->irq, board);
 	pci_release_region(pdev, 3);
@@ -1655,13 +1662,9 @@ static int __init isicom_init(void)
 		isi_card[idx].ports = port;
 		spin_lock_init(&isi_card[idx].card_lock);
 		for (channel = 0; channel < 16; channel++, port++) {
-			tty_port_init(&port->port);
-			port->port.ops = &isicom_port_ops;
 			port->magic = ISICOM_MAGIC;
 			port->card = &isi_card[idx];
 			port->channel = channel;
-			port->port.close_delay = 50 * HZ/100;
-			port->port.closing_wait = 3000 * HZ/100;
 			port->status = 0;
 			/*  . . .  */
 		}
