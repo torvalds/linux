@@ -458,11 +458,11 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	struct platform_device	*musb;
 	struct resource *res;
 	struct resource	resources[2];
-	char res_name[10];
+	char res_name[11];
 	int ret, musbid;
 
 	/* get memory resource */
-	sprintf(res_name, "musb%d", id);
+	snprintf(res_name, sizeof(res_name), "musb%d", id);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, res_name);
 	if (!res) {
 		dev_err(dev, "%s get mem resource failed\n", res_name);
@@ -473,7 +473,7 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 	resources[0] = *res;
 
 	/* get irq resource */
-	sprintf(res_name, "musb%d-irq", id);
+	snprintf(res_name, sizeof(res_name), "musb%d-irq", id);
 	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, res_name);
 	if (!res) {
 		dev_err(dev, "%s get irq resource failed\n", res_name);
@@ -530,7 +530,7 @@ static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 
 		of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
 		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
-		sprintf(res_name, "port%d-mode", id);
+		snprintf(res_name, sizeof(res_name), "port%d-mode", id);
 		of_property_read_u32(np, res_name, (u32 *)&pdata->mode);
 		of_property_read_u32(np, "power", (u32 *)&pdata->power);
 		config->multipoint = of_property_read_bool(np, "multipoint");

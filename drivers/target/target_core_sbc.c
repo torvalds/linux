@@ -135,6 +135,12 @@ static int sbc_emulate_verify(struct se_cmd *cmd)
 	return 0;
 }
 
+static int sbc_emulate_noop(struct se_cmd *cmd)
+{
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
 static inline u32 sbc_get_size(struct se_cmd *cmd, u32 sectors)
 {
 	return cmd->se_dev->se_sub_dev->se_dev_attrib.block_size * sectors;
@@ -530,6 +536,18 @@ int sbc_parse_cdb(struct se_cmd *cmd, struct spc_ops *ops)
 	case VERIFY:
 		size = 0;
 		cmd->execute_cmd = sbc_emulate_verify;
+		break;
+	case REZERO_UNIT:
+	case SEEK_6:
+	case SEEK_10:
+		/*
+		 * There are still clients out there which use these old SCSI-2
+		 * commands. This mainly happens when running VMs with legacy
+		 * guest systems, connected via SCSI command pass-through to
+		 * iSCSI targets. Make them happy and return status GOOD.
+		 */
+		size = 0;
+		cmd->execute_cmd = sbc_emulate_noop;
 		break;
 	default:
 		ret = spc_parse_cdb(cmd, &size);

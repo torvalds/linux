@@ -355,6 +355,8 @@ int radeon_wb_init(struct radeon_device *rdev)
  */
 void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 base)
 {
+	uint64_t limit = (uint64_t)radeon_vram_limit << 20;
+
 	mc->vram_start = base;
 	if (mc->mc_vram_size > (0xFFFFFFFF - base + 1)) {
 		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
@@ -368,8 +370,8 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
 		mc->mc_vram_size = mc->aper_size;
 	}
 	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
-	if (radeon_vram_limit && radeon_vram_limit < mc->real_vram_size)
-		mc->real_vram_size = radeon_vram_limit;
+	if (limit && limit < mc->real_vram_size)
+		mc->real_vram_size = limit;
 	dev_info(rdev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
 			mc->mc_vram_size >> 20, mc->vram_start,
 			mc->vram_end, mc->real_vram_size >> 20);
@@ -835,6 +837,19 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 }
 
 /**
+ * radeon_check_pot_argument - check that argument is a power of two
+ *
+ * @arg: value to check
+ *
+ * Validates that a certain argument is a power of two (all asics).
+ * Returns true if argument is valid.
+ */
+static bool radeon_check_pot_argument(int arg)
+{
+	return (arg & (arg - 1)) == 0;
+}
+
+/**
  * radeon_check_arguments - validate module params
  *
  * @rdev: radeon_device pointer
@@ -845,52 +860,25 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 static void radeon_check_arguments(struct radeon_device *rdev)
 {
 	/* vramlimit must be a power of two */
-	switch (radeon_vram_limit) {
-	case 0:
-	case 4:
-	case 8:
-	case 16:
-	case 32:
-	case 64:
-	case 128:
-	case 256:
-	case 512:
-	case 1024:
-	case 2048:
-	case 4096:
-		break;
-	default:
+	if (!radeon_check_pot_argument(radeon_vram_limit)) {
 		dev_warn(rdev->dev, "vram limit (%d) must be a power of 2\n",
 				radeon_vram_limit);
 		radeon_vram_limit = 0;
-		break;
 	}
-	radeon_vram_limit = radeon_vram_limit << 20;
+
 	/* gtt size must be power of two and greater or equal to 32M */
-	switch (radeon_gart_size) {
-	case 4:
-	case 8:
-	case 16:
+	if (radeon_gart_size < 32) {
 		dev_warn(rdev->dev, "gart size (%d) too small forcing to 512M\n",
 				radeon_gart_size);
 		radeon_gart_size = 512;
-		break;
-	case 32:
-	case 64:
-	case 128:
-	case 256:
-	case 512:
-	case 1024:
-	case 2048:
-	case 4096:
-		break;
-	default:
+
+	} else if (!radeon_check_pot_argument(radeon_gart_size)) {
 		dev_warn(rdev->dev, "gart size (%d) must be a power of 2\n",
 				radeon_gart_size);
 		radeon_gart_size = 512;
-		break;
 	}
-	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+	rdev->mc.gtt_size = (uint64_t)radeon_gart_size << 20;
+
 	/* AGP mode can only be -1, 1, 2, 4, 8 */
 	switch (radeon_agpmode) {
 	case -1:
