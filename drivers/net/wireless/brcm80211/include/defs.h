@@ -80,6 +80,7 @@
 
 /* Debug levels */
 #define BRCM_DL_INFO		0x00000001
+#define BRCM_DL_MAC80211	0x00000002
 
 #define PM_OFF	0
 #define PM_MAX	1
