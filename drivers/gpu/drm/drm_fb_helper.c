@@ -95,10 +95,16 @@ static int drm_fb_helper_parse_command_line(struct drm_fb_helper *fb_helper)
 			if (mode->force) {
 				const char *s;
 				switch (mode->force) {
-				case DRM_FORCE_OFF: s = "OFF"; break;
-				case DRM_FORCE_ON_DIGITAL: s = "ON - dig"; break;
+				case DRM_FORCE_OFF:
+					s = "OFF";
+					break;
+				case DRM_FORCE_ON_DIGITAL:
+					s = "ON - dig";
+					break;
 				default:
-				case DRM_FORCE_ON: s = "ON"; break;
+				case DRM_FORCE_ON:
+					s = "ON";
+					break;
 				}
 
 				DRM_INFO("forcing %s connector %s\n",
