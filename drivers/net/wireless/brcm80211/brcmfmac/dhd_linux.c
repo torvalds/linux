@@ -696,12 +696,17 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
 	 * in case we missed the BRCMF_E_IF_DEL event.
 	 */
 	if (ifp) {
-		brcmf_dbg(ERROR, "ERROR: netdev:%s already exists, try free & unregister\n",
+		brcmf_dbg(ERROR, "ERROR: netdev:%s already exists\n",
 			  ifp->ndev->name);
-		netif_stop_queue(ifp->ndev);
-		unregister_netdev(ifp->ndev);
-		free_netdev(ifp->ndev);
-		drvr->iflist[ifidx] = NULL;
+		if (ifidx) {
+			netif_stop_queue(ifp->ndev);
+			unregister_netdev(ifp->ndev);
+			free_netdev(ifp->ndev);
+			drvr->iflist[ifidx] = NULL;
+		} else {
+			brcmf_dbg(ERROR, "ignore IF event\n");
+			return ERR_PTR(-EINVAL);
+		}
 	}
 
 	/* Allocate netdev, including space for private structure */

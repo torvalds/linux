@@ -402,7 +402,8 @@ int brcmf_fweh_register(struct brcmf_pub *drvr, enum brcmf_fweh_event_code code,
 		return -ENOSPC;
 	}
 	drvr->fweh.evt_handler[code] = handler;
-	brcmf_dbg(TRACE, "event handler registered for code %d\n", code);
+	brcmf_dbg(TRACE, "event handler registered for %s\n",
+		  brcmf_fweh_event_name(code));
 	return 0;
 }
 
@@ -415,7 +416,8 @@ int brcmf_fweh_register(struct brcmf_pub *drvr, enum brcmf_fweh_event_code code,
 void brcmf_fweh_unregister(struct brcmf_pub *drvr,
 			   enum brcmf_fweh_event_code code)
 {
-	brcmf_dbg(TRACE, "event handler cleared for code %d\n", code);
+	brcmf_dbg(TRACE, "event handler cleared for %s\n",
+		  brcmf_fweh_event_name(code));
 	drvr->fweh.evt_handler[code] = NULL;
 }
 
@@ -438,6 +440,7 @@ int brcmf_fweh_activate_events(struct brcmf_if *ifp)
 	}
 
 	/* want to handle IF event as well */
+	brcmf_dbg(EVENT, "enable event IF\n");
 	setbit(eventmask, BRCMF_E_IF);
 
 	err = brcmf_fil_iovar_data_set(ifp, "event_msgs",
