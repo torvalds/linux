@@ -2470,7 +2470,7 @@ brcmf_cfg80211_escan_handler(struct brcmf_if *ifp,
 	u32 i;
 	bool aborted;
 
-	status = be32_to_cpu(e->status);
+	status = e->status;
 
 	if (!ndev || !test_bit(BRCMF_SCAN_STATUS_BUSY, &cfg->scan_status)) {
 		WL_ERR("scan not ready ndev %p drv_status %x\n", ndev,
@@ -2551,9 +2551,8 @@ exit:
 
 static void brcmf_init_escan(struct brcmf_cfg80211_info *cfg)
 {
-
-	cfg->el.handler[BRCMF_E_ESCAN_RESULT] =
-		brcmf_cfg80211_escan_handler;
+	brcmf_fweh_register(cfg->pub, BRCMF_E_ESCAN_RESULT,
+			    brcmf_cfg80211_escan_handler);
 	cfg->escan_info.escan_state = WL_ESCAN_STATE_IDLE;
 	/* Init scan_timeout timer */
 	init_timer(&cfg->escan_timeout);
@@ -2794,7 +2793,7 @@ brcmf_notify_sched_scan_results(struct brcmf_if *ifp,
 
 	WL_SCAN("Enter\n");
 
-	if (e->event_type == cpu_to_be32(BRCMF_E_PFN_NET_LOST)) {
+	if (e->event_code == BRCMF_E_PFN_NET_LOST) {
 		WL_SCAN("PFN NET LOST event. Do Nothing\n");
 		return 0;
 	}
@@ -3859,8 +3858,8 @@ static void brcmf_free_vif(struct brcmf_cfg80211_vif *vif)
 static bool brcmf_is_linkup(struct brcmf_cfg80211_info *cfg,
 			    const struct brcmf_event_msg *e)
 {
-	u32 event = be32_to_cpu(e->event_type);
-	u32 status = be32_to_cpu(e->status);
+	u32 event = e->event_code;
+	u32 status = e->status;
 
 	if (event == BRCMF_E_SET_SSID && status == BRCMF_E_STATUS_SUCCESS) {
 		WL_CONN("Processing set ssid\n");
@@ -3874,8 +3873,8 @@ static bool brcmf_is_linkup(struct brcmf_cfg80211_info *cfg,
 static bool brcmf_is_linkdown(struct brcmf_cfg80211_info *cfg,
 			      const struct brcmf_event_msg *e)
 {
-	u32 event = be32_to_cpu(e->event_type);
-	u16 flags = be16_to_cpu(e->flags);
+	u32 event = e->event_code;
+	u16 flags = e->flags;
 
 	if (event == BRCMF_E_LINK && (!(flags & BRCMF_EVENT_MSG_LINK))) {
 		WL_CONN("Processing link down\n");
@@ -3887,13 +3886,12 @@ static bool brcmf_is_linkdown(struct brcmf_cfg80211_info *cfg,
 static bool brcmf_is_nonetwork(struct brcmf_cfg80211_info *cfg,
 			       const struct brcmf_event_msg *e)
 {
-	u32 event = be32_to_cpu(e->event_type);
-	u32 status = be32_to_cpu(e->status);
+	u32 event = e->event_code;
+	u32 status = e->status;
 
 	if (event == BRCMF_E_LINK && status == BRCMF_E_STATUS_NO_NETWORKS) {
 		WL_CONN("Processing Link %s & no network found\n",
-				be16_to_cpu(e->flags) & BRCMF_EVENT_MSG_LINK ?
-				"up" : "down");
+			e->flags & BRCMF_EVENT_MSG_LINK ? "up" : "down");
 		return true;
 	}
 
@@ -4081,9 +4079,9 @@ brcmf_notify_connect_status_ap(struct brcmf_cfg80211_info *cfg,
 			       const struct brcmf_event_msg *e, void *data)
 {
 	s32 err = 0;
-	u32 event = be32_to_cpu(e->event_type);
-	u32 reason = be32_to_cpu(e->reason);
-	u32 len = be32_to_cpu(e->datalen);
+	u32 event = e->event_code;
+	u32 reason = e->reason;
+	u32 len = e->datalen;
 	static int generation;
 
 	struct station_info sinfo;
@@ -4172,8 +4170,8 @@ brcmf_notify_roaming_status(struct brcmf_if *ifp,
 {
 	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
 	s32 err = 0;
-	u32 event = be32_to_cpu(e->event_type);
-	u32 status = be32_to_cpu(e->status);
+	u32 event = e->event_code;
+	u32 status = e->status;
 
 	if (event == BRCMF_E_ROAM && status == BRCMF_E_STATUS_SUCCESS) {
 		if (test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
@@ -4189,7 +4187,7 @@ static s32
 brcmf_notify_mic_status(struct brcmf_if *ifp,
 			const struct brcmf_event_msg *e, void *data)
 {
-	u16 flags = be16_to_cpu(e->flags);
+	u16 flags = e->flags;
 	enum nl80211_key_type key_type;
 
 	if (flags & BRCMF_EVENT_MSG_GROUP)
@@ -4213,19 +4211,28 @@ static void brcmf_init_conf(struct brcmf_cfg80211_conf *conf)
 	conf->tx_power = -1;
 }
 
-static void brcmf_init_eloop_handler(struct brcmf_cfg80211_event_loop *el)
+static void brcmf_register_event_handlers(struct brcmf_cfg80211_info *cfg)
 {
-	memset(el, 0, sizeof(*el));
-	el->handler[BRCMF_E_LINK] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_DEAUTH_IND] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_DEAUTH] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_DISASSOC_IND] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_ASSOC_IND] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_REASSOC_IND] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_ROAM] = brcmf_notify_roaming_status;
-	el->handler[BRCMF_E_MIC_ERROR] = brcmf_notify_mic_status;
-	el->handler[BRCMF_E_SET_SSID] = brcmf_notify_connect_status;
-	el->handler[BRCMF_E_PFN_NET_FOUND] = brcmf_notify_sched_scan_results;
+	brcmf_fweh_register(cfg->pub, BRCMF_E_LINK,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_DEAUTH_IND,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_DEAUTH,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_DISASSOC_IND,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_ASSOC_IND,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_REASSOC_IND,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_ROAM,
+			    brcmf_notify_roaming_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_MIC_ERROR,
+			    brcmf_notify_mic_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_SET_SSID,
+			    brcmf_notify_connect_status);
+	brcmf_fweh_register(cfg->pub, BRCMF_E_PFN_NET_FOUND,
+			    brcmf_notify_sched_scan_results);
 }
 
 static void brcmf_deinit_priv_mem(struct brcmf_cfg80211_info *cfg)
@@ -4263,115 +4270,6 @@ init_priv_mem_out:
 	return -ENOMEM;
 }
 
-/*
-* retrieve first queued event from head
-*/
-
-static struct brcmf_cfg80211_event_q *brcmf_deq_event(
-	struct brcmf_cfg80211_info *cfg)
-{
-	struct brcmf_cfg80211_event_q *e = NULL;
-
-	spin_lock_irq(&cfg->evt_q_lock);
-	if (!list_empty(&cfg->evt_q_list)) {
-		e = list_first_entry(&cfg->evt_q_list,
-				     struct brcmf_cfg80211_event_q, evt_q_list);
-		list_del(&e->evt_q_list);
-	}
-	spin_unlock_irq(&cfg->evt_q_lock);
-
-	return e;
-}
-
-/*
-*	push event to tail of the queue
-*
-*	remark: this function may not sleep as it is called in atomic context.
-*/
-
-static s32
-brcmf_enq_event(struct brcmf_if *ifp, u32 event,
-		const struct brcmf_event_msg *msg, void *data)
-{
-	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
-	struct brcmf_cfg80211_event_q *e;
-	s32 err = 0;
-	ulong flags;
-	u32 data_len;
-	u32 total_len;
-
-	total_len = sizeof(struct brcmf_cfg80211_event_q);
-	if (data)
-		data_len = be32_to_cpu(msg->datalen);
-	else
-		data_len = 0;
-	total_len += data_len;
-	e = kzalloc(total_len, GFP_ATOMIC);
-	if (!e)
-		return -ENOMEM;
-
-	e->etype = event;
-	e->ifp = ifp;
-	memcpy(&e->emsg, msg, sizeof(struct brcmf_event_msg));
-	if (data)
-		memcpy(&e->edata, data, data_len);
-
-	spin_lock_irqsave(&cfg->evt_q_lock, flags);
-	list_add_tail(&e->evt_q_list, &cfg->evt_q_list);
-	spin_unlock_irqrestore(&cfg->evt_q_lock, flags);
-
-	return err;
-}
-
-static void brcmf_put_event(struct brcmf_cfg80211_event_q *e)
-{
-	kfree(e);
-}
-
-static void brcmf_cfg80211_event_handler(struct work_struct *work)
-{
-	struct brcmf_cfg80211_info *cfg =
-			container_of(work, struct brcmf_cfg80211_info,
-				     event_work);
-	struct brcmf_cfg80211_event_q *e;
-
-	e = brcmf_deq_event(cfg);
-	if (unlikely(!e)) {
-		WL_ERR("event queue empty...\n");
-		return;
-	}
-
-	do {
-		WL_INFO("event type (%d)\n", e->etype);
-		if (cfg->el.handler[e->etype])
-			cfg->el.handler[e->etype](e->ifp, &e->emsg, e->edata);
-		else
-			WL_INFO("Unknown Event (%d): ignoring\n", e->etype);
-		brcmf_put_event(e);
-	} while ((e = brcmf_deq_event(cfg)));
-
-}
-
-static void brcmf_init_eq(struct brcmf_cfg80211_info *cfg)
-{
-	spin_lock_init(&cfg->evt_q_lock);
-	INIT_LIST_HEAD(&cfg->evt_q_list);
-}
-
-static void brcmf_flush_eq(struct brcmf_cfg80211_info *cfg)
-{
-	struct brcmf_cfg80211_event_q *e;
-
-	spin_lock_irq(&cfg->evt_q_lock);
-	while (!list_empty(&cfg->evt_q_list)) {
-		e = list_first_entry(&cfg->evt_q_list,
-				     struct brcmf_cfg80211_event_q, evt_q_list);
-		list_del(&e->evt_q_list);
-		kfree(e);
-	}
-	spin_unlock_irq(&cfg->evt_q_lock);
-}
-
 static s32 wl_init_priv(struct brcmf_cfg80211_info *cfg)
 {
 	s32 err = 0;
@@ -4383,12 +4281,10 @@ static s32 wl_init_priv(struct brcmf_cfg80211_info *cfg)
 	cfg->active_scan = true;	/* we do active scan for
 				 specific scan per default */
 	cfg->dongle_up = false;	/* dongle is not up yet */
-	brcmf_init_eq(cfg);
 	err = brcmf_init_priv_mem(cfg);
 	if (err)
 		return err;
-	INIT_WORK(&cfg->event_work, brcmf_cfg80211_event_handler);
-	brcmf_init_eloop_handler(&cfg->el);
+	brcmf_register_event_handlers(cfg);
 	mutex_init(&cfg->usr_sync);
 	brcmf_init_escan(cfg);
 	brcmf_init_conf(cfg->conf);
@@ -4399,9 +4295,7 @@ static s32 wl_init_priv(struct brcmf_cfg80211_info *cfg)
 
 static void wl_deinit_priv(struct brcmf_cfg80211_info *cfg)
 {
-	cancel_work_sync(&cfg->event_work);
 	cfg->dongle_up = false;	/* dongle down */
-	brcmf_flush_eq(cfg);
 	brcmf_link_down(cfg);
 	brcmf_abort_scanning(cfg);
 	brcmf_deinit_priv_mem(cfg);
@@ -4461,64 +4355,6 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
 		brcmf_free_vif(vif);
 	}
-}
-
-void brcmf_cfg80211_event(struct brcmf_if *ifp,
-			  const struct brcmf_event_msg *e, void *data)
-{
-	struct brcmf_cfg80211_info *cfg = ifp->drvr->config;
-	u32 event_type = be32_to_cpu(e->event_type);
-
-	if (!brcmf_enq_event(ifp, event_type, e, data))
-		schedule_work(&cfg->event_work);
-}
-
-static s32 brcmf_dongle_eventmsg(struct net_device *ndev)
-{
-	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
-	s32 err = 0;
-
-	WL_TRACE("Enter\n");
-
-	/* Setup event_msgs */
-	err = brcmf_fil_iovar_data_get(netdev_priv(ndev), "event_msgs",
-				       eventmask, BRCMF_EVENTING_MASK_LEN);
-	if (err) {
-		WL_ERR("Get event_msgs error (%d)\n", err);
-		goto dongle_eventmsg_out;
-	}
-
-	setbit(eventmask, BRCMF_E_SET_SSID);
-	setbit(eventmask, BRCMF_E_ROAM);
-	setbit(eventmask, BRCMF_E_PRUNE);
-	setbit(eventmask, BRCMF_E_AUTH);
-	setbit(eventmask, BRCMF_E_REASSOC);
-	setbit(eventmask, BRCMF_E_REASSOC_IND);
-	setbit(eventmask, BRCMF_E_DEAUTH_IND);
-	setbit(eventmask, BRCMF_E_DISASSOC_IND);
-	setbit(eventmask, BRCMF_E_DISASSOC);
-	setbit(eventmask, BRCMF_E_JOIN);
-	setbit(eventmask, BRCMF_E_ASSOC_IND);
-	setbit(eventmask, BRCMF_E_PSK_SUP);
-	setbit(eventmask, BRCMF_E_LINK);
-	setbit(eventmask, BRCMF_E_NDIS_LINK);
-	setbit(eventmask, BRCMF_E_MIC_ERROR);
-	setbit(eventmask, BRCMF_E_PMKID_CACHE);
-	setbit(eventmask, BRCMF_E_TXFAIL);
-	setbit(eventmask, BRCMF_E_JOIN_START);
-	setbit(eventmask, BRCMF_E_ESCAN_RESULT);
-	setbit(eventmask, BRCMF_E_PFN_NET_FOUND);
-
-	err = brcmf_fil_iovar_data_set(netdev_priv(ndev), "event_msgs",
-				       eventmask, BRCMF_EVENTING_MASK_LEN);
-	if (err) {
-		WL_ERR("Set event_msgs error (%d)\n", err);
-		goto dongle_eventmsg_out;
-	}
-
-dongle_eventmsg_out:
-	WL_TRACE("Exit\n");
-	return err;
 }
 
 static s32
@@ -4659,10 +4495,6 @@ static s32 brcmf_config_dongle(struct brcmf_cfg80211_info *cfg)
 
 	brcmf_dongle_scantime(ndev, WL_SCAN_CHANNEL_TIME,
 			WL_SCAN_UNASSOC_TIME, WL_SCAN_PASSIVE_TIME);
-
-	err = brcmf_dongle_eventmsg(ndev);
-	if (err)
-		goto default_conf_out;
 
 	power_mode = cfg->pwr_save ? PM_FAST : PM_OFF;
 	err = brcmf_fil_cmd_int_set(netdev_priv(ndev), BRCMF_C_SET_PM,

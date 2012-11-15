@@ -23,6 +23,8 @@
 
 #define BRCMF_VERSION_STR		"4.218.248.5"
 
+#include "fweh.h"
+
 /*******************************************************************************
  * IO codes that are interpreted by dongle firmware
  ******************************************************************************/
@@ -117,118 +119,12 @@
 #define DOT11_BSSTYPE_ANY			2
 #define DOT11_MAX_DEFAULT_KEYS	4
 
-#define BRCMF_EVENT_MSG_LINK		0x01
-#define BRCMF_EVENT_MSG_FLUSHTXQ	0x02
-#define BRCMF_EVENT_MSG_GROUP		0x04
-
 #define BRCMF_ESCAN_REQ_VERSION 1
 
 #define WLC_BSS_RSSI_ON_CHANNEL		0x0002
 
 #define BRCMF_MAXRATES_IN_SET		16	/* max # of rates in rateset */
 #define BRCMF_STA_ASSOC			0x10		/* Associated */
-
-struct brcmf_event_msg {
-	__be16 version;
-	__be16 flags;
-	__be32 event_type;
-	__be32 status;
-	__be32 reason;
-	__be32 auth_type;
-	__be32 datalen;
-	u8 addr[ETH_ALEN];
-	char ifname[IFNAMSIZ];
-	u8 ifidx;
-	u8 bsscfgidx;
-} __packed;
-
-struct brcm_ethhdr {
-	u16 subtype;
-	u16 length;
-	u8 version;
-	u8 oui[3];
-	u16 usr_subtype;
-} __packed;
-
-struct brcmf_event {
-	struct ethhdr eth;
-	struct brcm_ethhdr hdr;
-	struct brcmf_event_msg msg;
-} __packed;
-
-/* event codes sent by the dongle to this driver */
-#define BRCMF_E_SET_SSID			0
-#define BRCMF_E_JOIN				1
-#define BRCMF_E_START				2
-#define BRCMF_E_AUTH				3
-#define BRCMF_E_AUTH_IND			4
-#define BRCMF_E_DEAUTH				5
-#define BRCMF_E_DEAUTH_IND			6
-#define BRCMF_E_ASSOC				7
-#define BRCMF_E_ASSOC_IND			8
-#define BRCMF_E_REASSOC				9
-#define BRCMF_E_REASSOC_IND			10
-#define BRCMF_E_DISASSOC			11
-#define BRCMF_E_DISASSOC_IND			12
-#define BRCMF_E_QUIET_START			13
-#define BRCMF_E_QUIET_END			14
-#define BRCMF_E_BEACON_RX			15
-#define BRCMF_E_LINK				16
-#define BRCMF_E_MIC_ERROR			17
-#define BRCMF_E_NDIS_LINK			18
-#define BRCMF_E_ROAM				19
-#define BRCMF_E_TXFAIL				20
-#define BRCMF_E_PMKID_CACHE			21
-#define BRCMF_E_RETROGRADE_TSF			22
-#define BRCMF_E_PRUNE				23
-#define BRCMF_E_AUTOAUTH			24
-#define BRCMF_E_EAPOL_MSG			25
-#define BRCMF_E_SCAN_COMPLETE			26
-#define BRCMF_E_ADDTS_IND			27
-#define BRCMF_E_DELTS_IND			28
-#define BRCMF_E_BCNSENT_IND			29
-#define BRCMF_E_BCNRX_MSG			30
-#define BRCMF_E_BCNLOST_MSG			31
-#define BRCMF_E_ROAM_PREP			32
-#define BRCMF_E_PFN_NET_FOUND			33
-#define BRCMF_E_PFN_NET_LOST			34
-#define BRCMF_E_RESET_COMPLETE			35
-#define BRCMF_E_JOIN_START			36
-#define BRCMF_E_ROAM_START			37
-#define BRCMF_E_ASSOC_START			38
-#define BRCMF_E_IBSS_ASSOC			39
-#define BRCMF_E_RADIO				40
-#define BRCMF_E_PSM_WATCHDOG			41
-#define BRCMF_E_PROBREQ_MSG			44
-#define BRCMF_E_SCAN_CONFIRM_IND		45
-#define BRCMF_E_PSK_SUP				46
-#define BRCMF_E_COUNTRY_CODE_CHANGED		47
-#define	BRCMF_E_EXCEEDED_MEDIUM_TIME		48
-#define BRCMF_E_ICV_ERROR			49
-#define BRCMF_E_UNICAST_DECODE_ERROR		50
-#define BRCMF_E_MULTICAST_DECODE_ERROR		51
-#define BRCMF_E_TRACE				52
-#define BRCMF_E_IF				54
-#define BRCMF_E_RSSI				56
-#define BRCMF_E_PFN_SCAN_COMPLETE		57
-#define BRCMF_E_EXTLOG_MSG			58
-#define BRCMF_E_ACTION_FRAME			59
-#define BRCMF_E_ACTION_FRAME_COMPLETE		60
-#define BRCMF_E_PRE_ASSOC_IND			61
-#define BRCMF_E_PRE_REASSOC_IND			62
-#define BRCMF_E_CHANNEL_ADOPTED			63
-#define BRCMF_E_AP_STARTED			64
-#define BRCMF_E_DFS_AP_STOP			65
-#define BRCMF_E_DFS_AP_RESUME			66
-#define BRCMF_E_RESERVED1			67
-#define BRCMF_E_RESERVED2			68
-#define BRCMF_E_ESCAN_RESULT			69
-#define BRCMF_E_ACTION_FRAME_OFF_CHAN_COMPLETE	70
-#define BRCMF_E_DCS_REQUEST			73
-
-#define BRCMF_E_FIFO_CREDIT_MAP			74
-
-#define BRCMF_E_LAST				75
 
 #define BRCMF_E_STATUS_SUCCESS			0
 #define BRCMF_E_STATUS_FAIL			1
@@ -622,6 +518,8 @@ struct brcmf_pub {
 	u8 macvalue[ETH_ALEN];
 	atomic_t pend_8021x_cnt;
 	wait_queue_head_t pend_8021x_wait;
+
+	struct brcmf_fweh_info fweh;
 #ifdef DEBUG
 	struct dentry *dbgfs_dir;
 #endif

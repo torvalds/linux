@@ -226,25 +226,6 @@ struct brcmf_cfg80211_vif {
 	struct list_head list;
 };
 
-/* forward declaration */
-struct brcmf_cfg80211_info;
-
-/* cfg80211 main event loop */
-struct brcmf_cfg80211_event_loop {
-	s32(*handler[BRCMF_E_LAST]) (struct brcmf_if *ifp,
-				     const struct brcmf_event_msg *e,
-				     void *data);
-};
-
-/* event queue for cfg80211 main event */
-struct brcmf_cfg80211_event_q {
-	struct list_head evt_q_list;
-	u32 etype;
-	struct brcmf_if *ifp;
-	struct brcmf_event_msg emsg;
-	s8 edata[1];
-};
-
 /* association inform */
 struct brcmf_cfg80211_connect_info {
 	u8 *req_ie;
@@ -365,9 +346,6 @@ struct brcmf_pno_scanresults_le {
  * @wiphy: wiphy object for cfg80211 interface.
  * @conf: dongle configuration.
  * @scan_request: cfg80211 scan request object.
- * @el: main event loop.
- * @evt_q_list: used for event queue.
- * @evt_q_lock: for event queue synchronization.
  * @usr_sync: mainly for dongle up/down synchronization.
  * @bss_list: bss_list holding scanned ap information.
  * @scan_req_int: internal scan request object.
@@ -375,7 +353,6 @@ struct brcmf_pno_scanresults_le {
  * @ie: information element object for internal purpose.
  * @conn_info: association info.
  * @pmk_list: wpa2 pmk list.
- * @event_work: event handler work struct.
  * @scan_status: scan activity on the dongle.
  * @pub: common driver information.
  * @channel: current channel.
@@ -401,9 +378,6 @@ struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
 	struct brcmf_cfg80211_conf *conf;
 	struct cfg80211_scan_request *scan_request;
-	struct brcmf_cfg80211_event_loop el;
-	struct list_head evt_q_list;
-	spinlock_t	 evt_q_lock;
 	struct mutex usr_sync;
 	struct brcmf_scan_results *bss_list;
 	struct brcmf_cfg80211_scan_req scan_req_int;
@@ -411,7 +385,6 @@ struct brcmf_cfg80211_info {
 	struct brcmf_cfg80211_ie ie;
 	struct brcmf_cfg80211_connect_info conn_info;
 	struct brcmf_cfg80211_pmk_list *pmk_list;
-	struct work_struct event_work;
 	unsigned long scan_status;
 	struct brcmf_pub *pub;
 	u32 channel;
@@ -482,10 +455,6 @@ brcmf_cfg80211_connect_info *cfg_to_conn(struct brcmf_cfg80211_info *cfg)
 
 struct brcmf_cfg80211_info *brcmf_cfg80211_attach(struct brcmf_pub *drvr);
 void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg);
-
-/* event handler from dongle */
-void brcmf_cfg80211_event(struct brcmf_if *ifp, const struct brcmf_event_msg *e,
-			  void *data);
 s32 brcmf_cfg80211_up(struct brcmf_cfg80211_info *cfg);
 s32 brcmf_cfg80211_down(struct brcmf_cfg80211_info *cfg);
 

@@ -294,33 +294,13 @@ void brcmf_txflowblock(struct device *dev, bool state)
 		}
 }
 
-static int brcmf_host_event(struct brcmf_pub *drvr, int *ifidx,
-			    void *pktdata, struct brcmf_event_msg *event,
-			    void **data)
-{
-	int bcmerror = 0;
-
-	bcmerror = brcmf_c_host_event(drvr, ifidx, pktdata, event, data);
-	if (bcmerror != 0)
-		return bcmerror;
-
-	/* only forward if interface has netdev */
-	if (drvr->iflist[*ifidx]->ndev)
-		brcmf_cfg80211_event(drvr->iflist[*ifidx],
-				     event, *data);
-
-	return bcmerror;
-}
-
-void brcmf_rx_frame(struct device *dev, int ifidx,
+void brcmf_rx_frame(struct device *dev, u8 ifidx,
 		    struct sk_buff_head *skb_list)
 {
 	unsigned char *eth;
 	uint len;
-	void *data;
 	struct sk_buff *skb, *pnext;
 	struct brcmf_if *ifp;
-	struct brcmf_event_msg event;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_pub *drvr = bus_if->drvr;
 
@@ -367,10 +347,7 @@ void brcmf_rx_frame(struct device *dev, int ifidx,
 		skb_pull(skb, ETH_HLEN);
 
 		/* Process special event packets and then discard them */
-		if (ntohs(skb->protocol) == ETH_P_LINK_CTL)
-			brcmf_host_event(drvr, &ifidx,
-					  skb_mac_header(skb),
-					  &event, &data);
+		brcmf_fweh_process_skb(drvr, skb, &ifidx);
 
 		if (drvr->iflist[ifidx]) {
 			ifp = drvr->iflist[ifidx];
@@ -823,6 +800,9 @@ int brcmf_attach(uint bus_hdrlen, struct device *dev)
 		goto fail;
 	}
 
+	/* attach firmware event handler */
+	brcmf_fweh_attach(drvr);
+
 	INIT_WORK(&drvr->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&drvr->multicast_work, _brcmf_set_multicast_list);
 
@@ -873,10 +853,14 @@ int brcmf_bus_start(struct device *dev)
 		goto fail;
 	}
 
+	ret = brcmf_fweh_activate_events(ifp);
+	if (ret < 0)
+		goto fail;
+
 	ret = brcmf_net_attach(ifp);
 fail:
 	if (ret < 0) {
-		brcmf_dbg(ERROR, "brcmf_net_attach failed");
+		brcmf_dbg(ERROR, "failed: %d\n", ret);
 		if (drvr->config)
 			brcmf_cfg80211_detach(drvr->config);
 		free_netdev(drvr->iflist[0]->ndev);
@@ -910,6 +894,9 @@ void brcmf_detach(struct device *dev)
 
 	if (drvr == NULL)
 		return;
+
+	/* stop firmware event handling */
+	brcmf_fweh_detach(drvr);
 
 	/* make sure primary interface removed last */
 	for (i = BRCMF_MAX_IFS-1; i > -1; i--)
