@@ -21,11 +21,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/prcm.h>
 
 #include "clock.h"
 #include "clock2xxx.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* CM_CLKEN_PLL.EN_{54,96}M_PLL options (24XX) */
@@ -37,44 +36,16 @@
 #define APLLS_CLKIN_13MHZ		2
 #define APLLS_CLKIN_12MHZ		3
 
-void __iomem *cm_idlest_pll;
-
 /* Private functions */
 
-/* Enable an APLL if off */
-static int omap2_clk_apll_enable(struct clk *clk, u32 status_mask)
+static int _apll96_enable(struct clk *clk)
 {
-	u32 cval, apll_mask;
-
-	apll_mask = EN_APLL_LOCKED << clk->enable_bit;
-
-	cval = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-
-	if ((cval & apll_mask) == apll_mask)
-		return 0;   /* apll already enabled */
-
-	cval &= ~apll_mask;
-	cval |= apll_mask;
-	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
-
-	omap2_cm_wait_idlest(cm_idlest_pll, status_mask,
-			     OMAP24XX_CM_IDLEST_VAL, __clk_get_name(clk));
-
-	/*
-	 * REVISIT: Should we return an error code if omap2_wait_clock_ready()
-	 * fails?
-	 */
-	return 0;
+	return omap2xxx_cm_apll96_enable();
 }
 
-static int omap2_clk_apll96_enable(struct clk *clk)
+static int _apll54_enable(struct clk *clk)
 {
-	return omap2_clk_apll_enable(clk, OMAP24XX_ST_96M_APLL_MASK);
-}
-
-static int omap2_clk_apll54_enable(struct clk *clk)
-{
-	return omap2_clk_apll_enable(clk, OMAP24XX_ST_54M_APLL_MASK);
+	return omap2xxx_cm_apll54_enable();
 }
 
 static void _apll96_allow_idle(struct clk *clk)
@@ -97,28 +68,28 @@ static void _apll54_deny_idle(struct clk *clk)
 	omap2xxx_cm_set_apll54_disable_autoidle();
 }
 
-/* Stop APLL */
-static void omap2_clk_apll_disable(struct clk *clk)
+static void _apll96_disable(struct clk *clk)
 {
-	u32 cval;
+	omap2xxx_cm_apll96_disable();
+}
 
-	cval = omap2_cm_read_mod_reg(PLL_MOD, CM_CLKEN);
-	cval &= ~(EN_APLL_LOCKED << clk->enable_bit);
-	omap2_cm_write_mod_reg(cval, PLL_MOD, CM_CLKEN);
+static void _apll54_disable(struct clk *clk)
+{
+	omap2xxx_cm_apll54_disable();
 }
 
 /* Public data */
 
 const struct clkops clkops_apll96 = {
-	.enable		= omap2_clk_apll96_enable,
-	.disable	= omap2_clk_apll_disable,
+	.enable		= _apll96_enable,
+	.disable	= _apll96_disable,
 	.allow_idle	= _apll96_allow_idle,
 	.deny_idle	= _apll96_deny_idle,
 };
 
 const struct clkops clkops_apll54 = {
-	.enable		= omap2_clk_apll54_enable,
-	.disable	= omap2_clk_apll_disable,
+	.enable		= _apll54_enable,
+	.disable	= _apll54_disable,
 	.allow_idle	= _apll54_allow_idle,
 	.deny_idle	= _apll54_deny_idle,
 };

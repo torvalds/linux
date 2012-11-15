@@ -771,6 +771,8 @@ extern void omap44xx_prm_ocp_barrier(void);
 extern void omap44xx_prm_save_and_clear_irqen(u32 *saved_mask);
 extern void omap44xx_prm_restore_irqen(u32 *saved_mask);
 
+extern u32 omap44xx_prm_get_reset_sources(void);
+
 # endif
 
 #endif

@@ -57,7 +57,7 @@ DT_MACHINE_START(OMAP242X_DT, "Generic OMAP2420 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap242x_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END
 #endif
 
@@ -76,7 +76,7 @@ DT_MACHINE_START(OMAP243X_DT, "Generic OMAP2430 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap2_timer,
 	.dt_compat	= omap243x_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap2xxx_restart,
 MACHINE_END
 #endif
 
@@ -95,7 +95,7 @@ DT_MACHINE_START(OMAP3_DT, "Generic OMAP3 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap3_timer,
 	.dt_compat	= omap3_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 static const char *omap3_gp_boards_compat[] __initdata = {
@@ -112,7 +112,7 @@ DT_MACHINE_START(OMAP3_GP_DT, "Generic OMAP3-GP (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap3_secure_timer,
 	.dt_compat	= omap3_gp_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 #endif
 
@@ -151,7 +151,7 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.init_late	= omap4430_init_late,
 	.timer		= &omap4_timer,
 	.dt_compat	= omap4_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap44xx_restart,
 MACHINE_END
 #endif
 
@@ -171,6 +171,6 @@ DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
 	.init_machine	= omap_generic_init,
 	.timer		= &omap5_timer,
 	.dt_compat	= omap5_boards_compat,
-	.restart	= omap_prcm_restart,
+	.restart	= omap44xx_restart,
 MACHINE_END
 #endif

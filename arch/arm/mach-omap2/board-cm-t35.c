@@ -751,18 +751,18 @@ MACHINE_START(CM_T35, "Compulab CM-T35")
 	.init_machine	= cm_t35_init,
 	.init_late	= omap35xx_init_late,
 	.timer		= &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.restart	= omap3xxx_restart,
 MACHINE_END
 
 MACHINE_START(CM_T3730, "Compulab CM-T3730")
-	.atag_offset    = 0x100,
-	.reserve        = omap_reserve,
-	.map_io         = omap3_map_io,
-	.init_early     = omap3630_init_early,
-	.init_irq       = omap3_init_irq,
+	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
+	.map_io		= omap3_map_io,
+	.init_early	= omap3630_init_early,
+	.init_irq	= omap3_init_irq,
 	.handle_irq	= omap3_intc_handle_irq,
-	.init_machine   = cm_t3730_init,
+	.init_machine	= cm_t3730_init,
 	.init_late     = omap3630_init_late,
-	.timer          = &omap3_timer,
-	.restart	= omap_prcm_restart,
+	.timer		= &omap3_timer,
+	.restart	= omap3xxx_restart,
 MACHINE_END
