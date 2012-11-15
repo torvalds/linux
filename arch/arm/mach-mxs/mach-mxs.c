@@ -211,7 +211,7 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 		macaddr[4] = (val >> 8) & 0xff;
 		macaddr[5] = (val >> 0) & 0xff;
 
-		prom_update_property(np, newmac);
+		of_update_property(np, newmac);
 	}
 }
 

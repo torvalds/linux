@@ -1028,13 +1028,36 @@ int of_parse_phandle_with_args(struct device_node *np, const char *list_name,
 }
 EXPORT_SYMBOL(of_parse_phandle_with_args);
 
+#if defined(CONFIG_OF_DYNAMIC)
+static int of_property_notify(int action, struct device_node *np,
+			      struct property *prop)
+{
+	struct of_prop_reconfig pr;
+
+	pr.dn = np;
+	pr.prop = prop;
+	return of_reconfig_notify(action, &pr);
+}
+#else
+static int of_property_notify(int action, struct device_node *np,
+			      struct property *prop)
+{
+	return 0;
+}
+#endif
+
 /**
- * prom_add_property - Add a property to a node
+ * of_add_property - Add a property to a node
  */
-int prom_add_property(struct device_node *np, struct property *prop)
+int of_add_property(struct device_node *np, struct property *prop)
 {
 	struct property **next;
 	unsigned long flags;
+	int rc;
+
+	rc = of_property_notify(OF_RECONFIG_ADD_PROPERTY, np, prop);
+	if (rc)
+		return rc;
 
 	prop->next = NULL;
 	write_lock_irqsave(&devtree_lock, flags);
@@ -1060,18 +1083,23 @@ int prom_add_property(struct device_node *np, struct property *prop)
 }
 
 /**
- * prom_remove_property - Remove a property from a node.
+ * of_remove_property - Remove a property from a node.
  *
  * Note that we don't actually remove it, since we have given out
  * who-knows-how-many pointers to the data using get-property.
  * Instead we just move the property to the "dead properties"
  * list, so it won't be found any more.
  */
-int prom_remove_property(struct device_node *np, struct property *prop)
+int of_remove_property(struct device_node *np, struct property *prop)
 {
 	struct property **next;
 	unsigned long flags;
 	int found = 0;
+	int rc;
+
+	rc = of_property_notify(OF_RECONFIG_REMOVE_PROPERTY, np, prop);
+	if (rc)
+		return rc;
 
 	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
@@ -1101,7 +1129,7 @@ int prom_remove_property(struct device_node *np, struct property *prop)
 }
 
 /*
- * prom_update_property - Update a property in a node, if the property does
+ * of_update_property - Update a property in a node, if the property does
  * not exist, add it.
  *
  * Note that we don't actually remove it, since we have given out
@@ -1109,19 +1137,22 @@ int prom_remove_property(struct device_node *np, struct property *prop)
  * Instead we just move the property to the "dead properties" list,
  * and add the new property to the property list
  */
-int prom_update_property(struct device_node *np,
-			 struct property *newprop)
+int of_update_property(struct device_node *np, struct property *newprop)
 {
 	struct property **next, *oldprop;
 	unsigned long flags;
-	int found = 0;
+	int rc, found = 0;
+
+	rc = of_property_notify(OF_RECONFIG_UPDATE_PROPERTY, np, newprop);
+	if (rc)
+		return rc;
 
 	if (!newprop->name)
 		return -EINVAL;
 
 	oldprop = of_find_property(np, newprop->name, NULL);
 	if (!oldprop)
-		return prom_add_property(np, newprop);
+		return of_add_property(np, newprop);
 
 	write_lock_irqsave(&devtree_lock, flags);
 	next = &np->properties;
@@ -1160,12 +1191,53 @@ int prom_update_property(struct device_node *np,
  * device tree nodes.
  */
 
+static BLOCKING_NOTIFIER_HEAD(of_reconfig_chain);
+
+int of_reconfig_notifier_register(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&of_reconfig_chain, nb);
+}
+
+int of_reconfig_notifier_unregister(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&of_reconfig_chain, nb);
+}
+
+int of_reconfig_notify(unsigned long action, void *p)
+{
+	int rc;
+
+	rc = blocking_notifier_call_chain(&of_reconfig_chain, action, p);
+	return notifier_to_errno(rc);
+}
+
+#ifdef CONFIG_PROC_DEVICETREE
+static void of_add_proc_dt_entry(struct device_node *dn)
+{
+	struct proc_dir_entry *ent;
+
+	ent = proc_mkdir(strrchr(dn->full_name, '/') + 1, dn->parent->pde);
+	if (ent)
+		proc_device_tree_add_node(dn, ent);
+}
+#else
+static void of_add_proc_dt_entry(struct device_node *dn)
+{
+	return;
+}
+#endif
+
 /**
  * of_attach_node - Plug a device node into the tree and global list.
  */
-void of_attach_node(struct device_node *np)
+int of_attach_node(struct device_node *np)
 {
 	unsigned long flags;
+	int rc;
+
+	rc = of_reconfig_notify(OF_RECONFIG_ATTACH_NODE, np);
+	if (rc)
+		return rc;
 
 	write_lock_irqsave(&devtree_lock, flags);
 	np->sibling = np->parent->child;
@@ -1173,7 +1245,31 @@ void of_attach_node(struct device_node *np)
 	np->parent->child = np;
 	allnodes = np;
 	write_unlock_irqrestore(&devtree_lock, flags);
+
+	of_add_proc_dt_entry(np);
+	return 0;
 }
+
+#ifdef CONFIG_PROC_DEVICETREE
+static void of_remove_proc_dt_entry(struct device_node *dn)
+{
+	struct device_node *parent = dn->parent;
+	struct property *prop = dn->properties;
+
+	while (prop) {
+		remove_proc_entry(prop->name, dn->pde);
+		prop = prop->next;
+	}
+
+	if (dn->pde)
+		remove_proc_entry(dn->pde->name, parent->pde);
+}
+#else
+static void of_remove_proc_dt_entry(struct device_node *dn)
+{
+	return;
+}
+#endif
 
 /**
  * of_detach_node - "Unplug" a node from the device tree.
@@ -1181,16 +1277,29 @@ void of_attach_node(struct device_node *np)
  * The caller must hold a reference to the node.  The memory associated with
  * the node is not freed until its refcount goes to zero.
  */
-void of_detach_node(struct device_node *np)
+int of_detach_node(struct device_node *np)
 {
 	struct device_node *parent;
 	unsigned long flags;
+	int rc = 0;
+
+	rc = of_reconfig_notify(OF_RECONFIG_DETACH_NODE, np);
+	if (rc)
+		return rc;
 
 	write_lock_irqsave(&devtree_lock, flags);
 
+	if (of_node_check_flag(np, OF_DETACHED)) {
+		/* someone already detached it */
+		write_unlock_irqrestore(&devtree_lock, flags);
+		return rc;
+	}
+
 	parent = np->parent;
-	if (!parent)
-		goto out_unlock;
+	if (!parent) {
+		write_unlock_irqrestore(&devtree_lock, flags);
+		return rc;
+	}
 
 	if (allnodes == np)
 		allnodes = np->allnext;
@@ -1215,9 +1324,10 @@ void of_detach_node(struct device_node *np)
 	}
 
 	of_node_set_flag(np, OF_DETACHED);
-
-out_unlock:
 	write_unlock_irqrestore(&devtree_lock, flags);
+
+	of_remove_proc_dt_entry(np);
+	return rc;
 }
 #endif /* defined(CONFIG_OF_DYNAMIC) */
 
