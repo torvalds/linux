@@ -224,7 +224,7 @@ void ion_system_heap_free(struct ion_buffer *buffer)
 	struct ion_system_heap *sys_heap = container_of(heap,
 							struct ion_system_heap,
 							heap);
-	struct sg_table *table = buffer->priv_virt;
+	struct sg_table *table = buffer->sg_table;
 	struct scatterlist *sg;
 	LIST_HEAD(pages);
 	int i;
@@ -247,86 +247,14 @@ void ion_system_heap_unmap_dma(struct ion_heap *heap,
 	return;
 }
 
-void *ion_system_heap_map_kernel(struct ion_heap *heap,
-				 struct ion_buffer *buffer)
-{
-	struct scatterlist *sg;
-	int i, j;
-	void *vaddr;
-	pgprot_t pgprot;
-	struct sg_table *table = buffer->priv_virt;
-	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	struct page **pages = vmalloc(sizeof(struct page *) * npages);
-	struct page **tmp = pages;
-
-	if (!pages)
-		return 0;
-
-	if (buffer->flags & ION_FLAG_CACHED)
-		pgprot = PAGE_KERNEL;
-	else
-		pgprot = pgprot_writecombine(PAGE_KERNEL);
-
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		int npages_this_entry = PAGE_ALIGN(sg_dma_len(sg)) / PAGE_SIZE;
-		struct page *page = sg_page(sg);
-		BUG_ON(i >= npages);
-		for (j = 0; j < npages_this_entry; j++) {
-			*(tmp++) = page++;
-		}
-	}
-	vaddr = vmap(pages, npages, VM_MAP, pgprot);
-	vfree(pages);
-
-	return vaddr;
-}
-
-void ion_system_heap_unmap_kernel(struct ion_heap *heap,
-				  struct ion_buffer *buffer)
-{
-	vunmap(buffer->vaddr);
-}
-
-int ion_system_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
-			     struct vm_area_struct *vma)
-{
-	struct sg_table *table = buffer->priv_virt;
-	unsigned long addr = vma->vm_start;
-	unsigned long offset = vma->vm_pgoff * PAGE_SIZE;
-	struct scatterlist *sg;
-	int i;
-
-	for_each_sg(table->sgl, sg, table->nents, i) {
-		struct page *page = sg_page(sg);
-		unsigned long remainder = vma->vm_end - addr;
-		unsigned long len = sg_dma_len(sg);
-
-		if (offset >= sg_dma_len(sg)) {
-			offset -= sg_dma_len(sg);
-			continue;
-		} else if (offset) {
-			page += offset / PAGE_SIZE;
-			len = sg_dma_len(sg) - offset;
-			offset = 0;
-		}
-		len = min(len, remainder);
-		remap_pfn_range(vma, addr, page_to_pfn(page), len,
-				vma->vm_page_prot);
-		addr += len;
-		if (addr >= vma->vm_end)
-			return 0;
-	}
-	return 0;
-}
-
 static struct ion_heap_ops system_heap_ops = {
 	.allocate = ion_system_heap_allocate,
 	.free = ion_system_heap_free,
 	.map_dma = ion_system_heap_map_dma,
 	.unmap_dma = ion_system_heap_unmap_dma,
-	.map_kernel = ion_system_heap_map_kernel,
-	.unmap_kernel = ion_system_heap_unmap_kernel,
-	.map_user = ion_system_heap_map_user,
+	.map_kernel = ion_heap_map_kernel,
+	.unmap_kernel = ion_heap_unmap_kernel,
+	.map_user = ion_heap_map_user,
 };
 
 static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
@@ -468,8 +396,8 @@ static struct ion_heap_ops kmalloc_ops = {
 	.phys = ion_system_contig_heap_phys,
 	.map_dma = ion_system_contig_heap_map_dma,
 	.unmap_dma = ion_system_contig_heap_unmap_dma,
-	.map_kernel = ion_system_heap_map_kernel,
-	.unmap_kernel = ion_system_heap_unmap_kernel,
+	.map_kernel = ion_heap_map_kernel,
+	.unmap_kernel = ion_heap_unmap_kernel,
 	.map_user = ion_system_contig_heap_map_user,
 };
 

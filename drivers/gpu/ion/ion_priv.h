@@ -177,6 +177,16 @@ void ion_device_destroy(struct ion_device *dev);
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
 
 /**
+ * some helpers for common operations on buffers using the sg_table
+ * and vaddr fields
+ */
+void *ion_heap_map_kernel(struct ion_heap *, struct ion_buffer *);
+void ion_heap_unmap_kernel(struct ion_heap *, struct ion_buffer *);
+int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
+			struct vm_area_struct *);
+
+
+/**
  * functions for creating and destroying the built in ion heaps.
  * architectures can add their own custom architecture specific
  * heaps as appropriate.
