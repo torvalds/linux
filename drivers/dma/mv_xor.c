@@ -34,7 +34,7 @@
 static void mv_xor_issue_pending(struct dma_chan *chan);
 
 #define to_mv_xor_chan(chan)		\
-	container_of(chan, struct mv_xor_chan, common)
+	container_of(chan, struct mv_xor_chan, dmachan)
 
 #define to_mv_xor_slot(tx)		\
 	container_of(tx, struct mv_xor_desc_slot, async_tx)
@@ -284,7 +284,7 @@ static void mv_xor_start_new_chain(struct mv_xor_chan *mv_chan,
 		mv_chan_set_next_descriptor(mv_chan, sw_desc->async_tx.phys);
 	}
 	mv_chan->pending += sw_desc->slot_cnt;
-	mv_xor_issue_pending(&mv_chan->common);
+	mv_xor_issue_pending(&mv_chan->dmachan);
 }
 
 static dma_cookie_t
@@ -437,7 +437,7 @@ static void __mv_xor_slot_cleanup(struct mv_xor_chan *mv_chan)
 	}
 
 	if (cookie > 0)
-		mv_chan->common.completed_cookie = cookie;
+		mv_chan->dmachan.completed_cookie = cookie;
 }
 
 static void
@@ -1177,10 +1177,10 @@ mv_xor_channel_add(struct mv_xor_private *msp,
 	INIT_LIST_HEAD(&mv_chan->chain);
 	INIT_LIST_HEAD(&mv_chan->completed_slots);
 	INIT_LIST_HEAD(&mv_chan->all_slots);
-	mv_chan->common.device = dma_dev;
-	dma_cookie_init(&mv_chan->common);
+	mv_chan->dmachan.device = dma_dev;
+	dma_cookie_init(&mv_chan->dmachan);
 
-	list_add_tail(&mv_chan->common.device_node, &dma_dev->channels);
+	list_add_tail(&mv_chan->dmachan.device_node, &dma_dev->channels);
 
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask)) {
 		ret = mv_xor_memcpy_self_test(adev);

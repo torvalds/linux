@@ -101,7 +101,7 @@ struct mv_xor_chan {
 	struct list_head	chain;
 	struct list_head	completed_slots;
 	struct mv_xor_device	*device;
-	struct dma_chan		common;
+	struct dma_chan		dmachan;
 	struct mv_xor_desc_slot	*last_used;
 	struct list_head	all_slots;
 	int			slots_allocated;
