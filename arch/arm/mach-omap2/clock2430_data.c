@@ -17,8 +17,6 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 
-#include <plat/clkdev_omap.h>
-
 #include "soc.h"
 #include "iomap.h"
 #include "clock.h"
@@ -2033,8 +2031,6 @@ int __init omap2430_clk_init(void)
 	cm_idlest_pll = OMAP_CM_REGADDR(PLL_MOD, CM_IDLEST);
 	cpu_mask = RATE_IN_243X;
 	rate_table = omap2430_rate_table;
-
-	clk_init(&omap2_clk_functions);
 
 	for (c = omap2430_clks; c < omap2430_clks + ARRAY_SIZE(omap2430_clks);
 	     c++)

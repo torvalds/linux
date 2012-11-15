@@ -28,14 +28,12 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
-#include <plat/usb.h>
+#include "gpmc.h"
 #include "gpmc-smc91x.h"
 
 #include <video/omapdss.h>

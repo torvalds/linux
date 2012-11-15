@@ -50,6 +50,7 @@
 #include <asm/suspend.h>
 #include <asm/hardware/cache-l2x0.h>
 
+#include "soc.h"
 #include "common.h"
 #include "omap44xx.h"
 #include "omap4-sar-layout.h"

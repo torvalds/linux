@@ -323,6 +323,7 @@ static void hdmi_runtime_put(void)
 
 static int __init hdmi_init_display(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_board_info *pdata = hdmi.pdev->dev.platform_data;
 	int r;
 
 	struct gpio gpios[] = {
@@ -333,7 +334,7 @@ static int __init hdmi_init_display(struct omap_dss_device *dssdev)
 
 	DSSDBG("init_display\n");
 
-	dss_init_hdmi_ip_ops(&hdmi.ip_data);
+	dss_init_hdmi_ip_ops(&hdmi.ip_data, pdata->version);
 
 	if (hdmi.vdda_hdmi_dac_reg == NULL) {
 		struct regulator *reg;

@@ -15,8 +15,6 @@
 #include <linux/io.h>
 #include <linux/bitops.h>
 
-#include <plat/clock.h>
-
 #include "soc.h"
 #include "clock.h"
 #include "clock44xx.h"

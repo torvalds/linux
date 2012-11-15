@@ -29,20 +29,19 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include "common.h"
-#include <plat/gpmc.h>
-#include <plat/usb.h>
-
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 
+#include "common.h"
+#include "gpmc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "sdram-numonyx-m65kxxxxam.h"
 #include "common-board-devices.h"
 #include "board-flash.h"
 #include "control.h"
+#include "gpmc-onenand.h"
 
 #define IGEP2_SMSC911X_CS       5
 #define IGEP2_SMSC911X_GPIO     176
@@ -175,7 +174,7 @@ static void __init igep_flash_init(void)
 		pr_info("IGEP: initializing NAND memory device\n");
 		board_nand_init(igep_flash_partitions,
 				ARRAY_SIZE(igep_flash_partitions),
-				0, NAND_BUSWIDTH_16);
+				0, NAND_BUSWIDTH_16, nand_default_timings);
 	} else if (mux == IGEP_SYSBOOT_ONENAND) {
 		pr_info("IGEP: initializing OneNAND memory device\n");
 		board_onenand_init(igep_flash_partitions,
