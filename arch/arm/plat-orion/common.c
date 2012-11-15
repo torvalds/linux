@@ -627,11 +627,9 @@ static struct resource orion_xor0_shared_resources[] = {
 
 static struct mv_xor_channel_data orion_xor0_channels_data[2] = {
 	{
-		.hw_id		= 0,
 		.pool_size	= PAGE_SIZE,
 	},
 	{
-		.hw_id		= 1,
 		.pool_size	= PAGE_SIZE,
 	},
 };
@@ -702,11 +700,9 @@ static struct resource orion_xor1_shared_resources[] = {
 
 static struct mv_xor_channel_data orion_xor1_channels_data[2] = {
 	{
-		.hw_id		= 0,
 		.pool_size	= PAGE_SIZE,
 	},
 	{
-		.hw_id		= 1,
 		.pool_size	= PAGE_SIZE,
 	},
 };

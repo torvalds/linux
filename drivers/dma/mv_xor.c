@@ -1088,7 +1088,7 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 static struct mv_xor_chan *
 mv_xor_channel_add(struct mv_xor_device *xordev,
 		   struct platform_device *pdev,
-		   int hw_id, dma_cap_mask_t cap_mask,
+		   int idx, dma_cap_mask_t cap_mask,
 		   size_t pool_size, int irq)
 {
 	int ret = 0;
@@ -1101,7 +1101,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 		goto err_free_dma;
 	}
 
-	mv_chan->idx = hw_id;
+	mv_chan->idx = idx;
 
 	dma_dev = &mv_chan->dmadev;
 
@@ -1295,7 +1295,7 @@ static int mv_xor_probe(struct platform_device *pdev)
 			}
 
 			xordev->channels[i] =
-				mv_xor_channel_add(xordev, pdev, cd->hw_id,
+				mv_xor_channel_add(xordev, pdev, i,
 						   cd->cap_mask,
 						   cd->pool_size, irq);
 			if (IS_ERR(xordev->channels[i])) {
