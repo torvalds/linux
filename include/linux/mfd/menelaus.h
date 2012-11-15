@@ -1,6 +1,4 @@
 /*
- * arch/arm/plat-omap/include/mach/menelaus.h
- *
  * Functions to access Menelaus power management chip
  */
 

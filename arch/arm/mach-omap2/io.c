@@ -25,14 +25,9 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <plat/sram.h>
-#include <plat/sdrc.h>
-#include <plat/serial.h>
-#include <plat/omap-pm.h>
-#include <plat/omap_hwmod.h>
-#include <plat/multi.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 
+#include "omap_hwmod.h"
 #include "soc.h"
 #include "iomap.h"
 #include "voltage.h"
@@ -43,6 +38,10 @@
 #include "clock2xxx.h"
 #include "clock3xxx.h"
 #include "clock44xx.h"
+#include "omap-pm.h"
+#include "sdrc.h"
+#include "serial.h"
+#include "sram.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -354,11 +353,6 @@ static int _set_hwmod_postsetup_state(struct omap_hwmod *oh, void *data)
 	return omap_hwmod_set_postsetup_state(oh, *(u8 *)data);
 }
 
-static void __init omap_common_init_early(void)
-{
-	omap_init_consistent_dma_size();
-}
-
 static void __init omap_hwmod_init_postsetup(void)
 {
 	u8 postsetup_state;
@@ -379,7 +373,6 @@ void __init omap2420_init_early(void)
 {
 	omap2_set_globals_242x();
 	omap2xxx_check_revision();
-	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap242x_powerdomains_init();
 	omap242x_clockdomains_init();
@@ -401,7 +394,6 @@ void __init omap2430_init_early(void)
 {
 	omap2_set_globals_243x();
 	omap2xxx_check_revision();
-	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
 	omap243x_powerdomains_init();
 	omap243x_clockdomains_init();
@@ -428,7 +420,6 @@ void __init omap3_init_early(void)
 	omap2_set_globals_3xxx();
 	omap3xxx_check_revision();
 	omap3xxx_check_features();
-	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	omap3xxx_clockdomains_init();
@@ -462,7 +453,6 @@ void __init ti81xx_init_early(void)
 	omap2_set_globals_ti81xx();
 	omap3xxx_check_revision();
 	ti81xx_check_features();
-	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
 	omap3xxx_powerdomains_init();
 	omap3xxx_clockdomains_init();
@@ -520,7 +510,6 @@ void __init am33xx_init_early(void)
 	omap2_set_globals_am33xx();
 	omap3xxx_check_revision();
 	ti81xx_check_features();
-	omap_common_init_early();
 	am33xx_voltagedomains_init();
 	am33xx_powerdomains_init();
 	am33xx_clockdomains_init();
@@ -536,7 +525,6 @@ void __init omap4430_init_early(void)
 	omap2_set_globals_443x();
 	omap4xxx_check_revision();
 	omap4xxx_check_features();
-	omap_common_init_early();
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();
 	omap44xx_clockdomains_init();
@@ -558,7 +546,6 @@ void __init omap5_init_early(void)
 {
 	omap2_set_globals_5xxx();
 	omap5xxx_check_revision();
-	omap_common_init_early();
 }
 #endif
 

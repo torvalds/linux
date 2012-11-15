@@ -14,16 +14,14 @@
  *
  * XXX these should be marked initdata for multi-OMAP kernels
  */
+
+#include <linux/i2c-omap.h>
 #include <linux/power/smartreflex.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/dma.h>
-#include <plat/serial.h>
+#include <plat-omap/dma-omap.h>
 #include "l3_3xxx.h"
 #include "l4_3xxx.h"
-#include <plat/i2c.h>
-#include <plat/mmc.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <plat/dmtimer.h>
@@ -32,10 +30,16 @@
 #include "am35xx.h"
 
 #include "soc.h"
+#include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
+
+#include "dma.h"
+#include "i2c.h"
+#include "mmc.h"
 #include "wd_timer.h"
+#include "serial.h"
 
 /*
  * OMAP3xxx hardware module integration data

@@ -34,16 +34,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "gpmc-smsc911x.h"
-#include <plat/gpmc.h>
-#include <plat/sdrc.h>
-#include <plat/usb.h>
-
 #include "common.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "common-board-devices.h"
+#include "gpmc.h"
+#include "gpmc-smsc911x.h"
 
 #define OMAP3LOGIC_SMSC911X_CS			1
 

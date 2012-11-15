@@ -30,7 +30,7 @@
 
 #include <linux/types.h>
 #include <linux/omap3isp.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
 #include <media/v4l2-event.h>
 
 #include "isp.h"

@@ -17,18 +17,18 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/leds.h>
+#include <linux/usb/musb.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
-#include <plat/dma.h>
-#include <plat/gpmc.h>
-#include <plat/usb.h>
+#include <plat-omap/dma-omap.h>
 
+#include "common.h"
 #include "mux.h"
+#include "gpmc.h"
 #include "pm.h"
 #include "sdram-nokia.h"
 

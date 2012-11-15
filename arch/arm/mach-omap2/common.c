@@ -16,14 +16,17 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/platform_data/dsp-omap.h>
 
-#include <plat/clock.h>
+#include <plat/vram.h>
 
 #include "soc.h"
 #include "iomap.h"
 #include "common.h"
+#include "clock.h"
 #include "sdrc.h"
 #include "control.h"
+#include "omap-secure.h"
 
 /* Global address base setup code */
 
@@ -200,3 +203,20 @@ void __init omap5_map_io(void)
 	omap5_map_common_io();
 }
 #endif
+
+/*
+ * Stub function for OMAP2 so that common files
+ * continue to build when custom builds are used
+ */
+int __weak omap_secure_ram_reserve_memblock(void)
+{
+	return 0;
+}
+
+void __init omap_reserve(void)
+{
+	omap_vram_reserve_sdram_memblock();
+	omap_dsp_reserve_sdram_memblock();
+	omap_secure_ram_reserve_memblock();
+	omap_barrier_reserve_memblock();
+}

@@ -924,7 +924,6 @@ config ARCH_OMAP
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
-	select NEED_MACH_GPIO_H
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
 
