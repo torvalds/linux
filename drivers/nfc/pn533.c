@@ -2077,7 +2077,11 @@ error:
 static int pn533_tm_send_complete(struct pn533 *dev, void *arg,
 				  u8 *params, int params_len)
 {
+	struct sk_buff *skb_out = arg;
+
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	dev_kfree_skb(skb_out);
 
 	if (params_len < 0) {
 		nfc_dev_err(&dev->interface->dev,
@@ -2116,7 +2120,7 @@ static int pn533_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	rc = pn533_send_cmd_frame_async(dev, out_frame, dev->in_frame,
 					dev->in_maxlen, pn533_tm_send_complete,
-					NULL, GFP_KERNEL);
+					skb, GFP_KERNEL);
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev,
 			    "Error %d when trying to send data", rc);
