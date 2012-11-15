@@ -83,6 +83,7 @@
 #define BRCM_DL_MAC80211	0x00000002
 #define BRCM_DL_RX		0x00000004
 #define BRCM_DL_TX		0x00000008
+#define BRCM_DL_INT		0x00000010
 
 #define PM_OFF	0
 #define PM_MAX	1

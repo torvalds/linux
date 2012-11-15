@@ -2343,8 +2343,8 @@ static void brcms_b_fifoerrors(struct brcms_hardware *wlc_hw)
 		if (!intstatus)
 			continue;
 
-		BCMMSG(wlc_hw->wlc->wiphy, "wl%d: intstatus%d 0x%x\n",
-			unit, idx, intstatus);
+		brcms_dbg_int(core, "wl%d: intstatus%d 0x%x\n",
+			      unit, idx, intstatus);
 
 		if (intstatus & I_RO) {
 			brcms_err(core, "wl%d: fifo %d: receive fifo "
@@ -2541,8 +2541,8 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 	/* macintstatus includes a DMA interrupt summary bit */
 	macintstatus = bcma_read32(core, D11REGOFFS(macintstatus));
 
-	BCMMSG(wlc->wiphy, "wl%d: macintstatus: 0x%x\n", wlc_hw->unit,
-		 macintstatus);
+	brcms_dbg_int(core, "wl%d: macintstatus: 0x%x\n", wlc_hw->unit,
+		      macintstatus);
 
 	/* detect cardbus removed, in power down(suspend) and in reset */
 	if (brcms_deviceremoved(wlc))
@@ -7950,8 +7950,8 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 	macintstatus = wlc->macintstatus;
 	wlc->macintstatus = 0;
 
-	BCMMSG(wlc->wiphy, "wl%d: macintstatus 0x%x\n",
-	       wlc_hw->unit, macintstatus);
+	brcms_dbg_int(core, "wl%d: macintstatus 0x%x\n",
+		      wlc_hw->unit, macintstatus);
 
 	WARN_ON(macintstatus & MI_PRQ); /* PRQ Interrupt in non-MBSS */
 
