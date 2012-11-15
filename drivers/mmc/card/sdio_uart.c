@@ -67,7 +67,6 @@ struct uart_icount {
 struct sdio_uart_port {
 	struct tty_port		port;
 	struct kref		kref;
-	struct tty_struct	*tty;
 	unsigned int		index;
 	struct sdio_func	*func;
 	struct mutex		func_lock;
