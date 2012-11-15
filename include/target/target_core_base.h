@@ -71,6 +71,8 @@
 #define DA_UNMAP_GRANULARITY_DEFAULT		0
 /* Default unmap_granularity_alignment */
 #define DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT	0
+/* Default max_write_same_len, disabled by default */
+#define DA_MAX_WRITE_SAME_LEN			0
 /* Default max transfer length */
 #define DA_FABRIC_MAX_SECTORS			8192
 /* Emulation for Direct Page Out */
@@ -609,6 +611,7 @@ struct se_dev_attrib {
 	u32		max_unmap_block_desc_count;
 	u32		unmap_granularity;
 	u32		unmap_granularity_alignment;
+	u32		max_write_same_len;
 	struct se_device *da_dev;
 	struct config_group da_group;
 };

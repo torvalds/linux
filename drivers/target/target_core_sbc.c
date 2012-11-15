@@ -238,11 +238,18 @@ static inline unsigned long long transport_lba_64_ext(unsigned char *cdb)
 static sense_reason_t
 sbc_setup_write_same(struct se_cmd *cmd, unsigned char *flags, struct sbc_ops *ops)
 {
+	unsigned int sectors = spc_get_write_same_sectors(cmd);
+
 	if ((flags[0] & 0x04) || (flags[0] & 0x02)) {
 		pr_err("WRITE_SAME PBDATA and LBDATA"
 			" bits not supported for Block Discard"
 			" Emulation\n");
 		return TCM_UNSUPPORTED_SCSI_OPCODE;
+	}
+	if (sectors > cmd->se_dev->dev_attrib.max_write_same_len) {
+		pr_warn("WRITE_SAME sectors: %u exceeds max_write_same_len: %u\n",
+			sectors, cmd->se_dev->dev_attrib.max_write_same_len);
+		return TCM_INVALID_CDB_FIELD;
 	}
 	/*
 	 * Special case for WRITE_SAME w/ UNMAP=1 that ends up getting

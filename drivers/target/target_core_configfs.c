@@ -676,6 +676,9 @@ SE_DEV_ATTR(unmap_granularity, S_IRUGO | S_IWUSR);
 DEF_DEV_ATTRIB(unmap_granularity_alignment);
 SE_DEV_ATTR(unmap_granularity_alignment, S_IRUGO | S_IWUSR);
 
+DEF_DEV_ATTRIB(max_write_same_len);
+SE_DEV_ATTR(max_write_same_len, S_IRUGO | S_IWUSR);
+
 CONFIGFS_EATTR_OPS(target_core_dev_attrib, se_dev_attrib, da_group);
 
 static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
@@ -701,6 +704,7 @@ static struct configfs_attribute *target_core_dev_attrib_attrs[] = {
 	&target_core_dev_attrib_max_unmap_block_desc_count.attr,
 	&target_core_dev_attrib_unmap_granularity.attr,
 	&target_core_dev_attrib_unmap_granularity_alignment.attr,
+	&target_core_dev_attrib_max_write_same_len.attr,
 	NULL,
 };
 

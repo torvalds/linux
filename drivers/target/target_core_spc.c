@@ -465,7 +465,7 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	 * Exit now if we don't support TP.
 	 */
 	if (!have_tp)
-		return 0;
+		goto max_write_same;
 
 	/*
 	 * Set MAXIMUM UNMAP LBA COUNT
@@ -490,6 +490,12 @@ spc_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 			   &buf[32]);
 	if (dev->dev_attrib.unmap_granularity_alignment != 0)
 		buf[32] |= 0x80; /* Set the UGAVALID bit */
+
+	/*
+	 * MAXIMUM WRITE SAME LENGTH
+	 */
+max_write_same:
+	put_unaligned_be64(dev->dev_attrib.max_write_same_len, &buf[36]);
 
 	return 0;
 }

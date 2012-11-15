@@ -706,6 +706,16 @@ int se_dev_set_unmap_granularity_alignment(
 	return 0;
 }
 
+int se_dev_set_max_write_same_len(
+	struct se_device *dev,
+	u32 max_write_same_len)
+{
+	dev->dev_attrib.max_write_same_len = max_write_same_len;
+	pr_debug("dev[%p]: Set max_write_same_len: %u\n",
+			dev, dev->dev_attrib.max_write_same_len);
+	return 0;
+}
+
 int se_dev_set_emulate_dpo(struct se_device *dev, int flag)
 {
 	if (flag != 0 && flag != 1) {
@@ -1393,6 +1403,7 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	dev->dev_attrib.unmap_granularity = DA_UNMAP_GRANULARITY_DEFAULT;
 	dev->dev_attrib.unmap_granularity_alignment =
 				DA_UNMAP_GRANULARITY_ALIGNMENT_DEFAULT;
+	dev->dev_attrib.max_write_same_len = DA_MAX_WRITE_SAME_LEN;
 	dev->dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
 	dev->dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
 
