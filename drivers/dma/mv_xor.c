@@ -36,9 +36,6 @@ static void mv_xor_issue_pending(struct dma_chan *chan);
 #define to_mv_xor_chan(chan)		\
 	container_of(chan, struct mv_xor_chan, common)
 
-#define to_mv_xor_device(dev)		\
-	container_of(dev, struct mv_xor_device, common)
-
 #define to_mv_xor_slot(tx)		\
 	container_of(tx, struct mv_xor_desc_slot, async_tx)
 
