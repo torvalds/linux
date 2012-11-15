@@ -898,7 +898,7 @@ static void mv_xor_issue_pending(struct dma_chan *chan)
  */
 #define MV_XOR_TEST_SIZE 2000
 
-static int __devinit mv_xor_memcpy_self_test(struct mv_xor_device *device)
+static int __devinit mv_xor_memcpy_self_test(struct mv_xor_chan *mv_chan)
 {
 	int i;
 	void *src, *dest;
@@ -922,10 +922,7 @@ static int __devinit mv_xor_memcpy_self_test(struct mv_xor_device *device)
 	for (i = 0; i < MV_XOR_TEST_SIZE; i++)
 		((u8 *) src)[i] = (u8)i;
 
-	/* Start copy, using first DMA channel */
-	dma_chan = container_of(device->dmadev.channels.next,
-				struct dma_chan,
-				device_node);
+	dma_chan = &mv_chan->dmachan;
 	if (mv_xor_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
@@ -971,7 +968,7 @@ out:
 
 #define MV_XOR_NUM_SRC_TEST 4 /* must be <= 15 */
 static int __devinit
-mv_xor_xor_self_test(struct mv_xor_device *device)
+mv_xor_xor_self_test(struct mv_xor_chan *mv_chan)
 {
 	int i, src_idx;
 	struct page *dest;
@@ -1016,9 +1013,7 @@ mv_xor_xor_self_test(struct mv_xor_device *device)
 
 	memset(page_address(dest), 0, PAGE_SIZE);
 
-	dma_chan = container_of(device->dmadev.channels.next,
-				struct dma_chan,
-				device_node);
+	dma_chan = &mv_chan->dmachan;
 	if (mv_xor_alloc_chan_resources(dma_chan) < 1) {
 		err = -ENODEV;
 		goto out;
@@ -1183,14 +1178,14 @@ mv_xor_channel_add(struct mv_xor_private *msp,
 	list_add_tail(&mv_chan->dmachan.device_node, &dma_dev->channels);
 
 	if (dma_has_cap(DMA_MEMCPY, dma_dev->cap_mask)) {
-		ret = mv_xor_memcpy_self_test(adev);
+		ret = mv_xor_memcpy_self_test(mv_chan);
 		dev_dbg(&pdev->dev, "memcpy self test returned %d\n", ret);
 		if (ret)
 			goto err_free_dma;
 	}
 
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
-		ret = mv_xor_xor_self_test(adev);
+		ret = mv_xor_xor_self_test(mv_chan);
 		dev_dbg(&pdev->dev, "xor self test returned %d\n", ret);
 		if (ret)
 			goto err_free_dma;
