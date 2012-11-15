@@ -14,24 +14,11 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/kthread.h>
-#include <linux/slab.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <linux/spinlock.h>
-#include <linux/ethtool.h>
-#include <linux/fcntl.h>
-#include <linux/fs.h>
-#include <linux/uaccess.h>
 #include <linux/firmware.h>
 #include <linux/usb.h>
-#include <linux/vmalloc.h>
-#include <net/cfg80211.h>
 
-#include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include <dhd_bus.h>
@@ -1240,8 +1227,7 @@ error:
 	return NULL;
 }
 
-static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
-			      const char *desc,	u32 bustype, u32 hdrlen)
+static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo)
 {
 	struct brcmf_bus *bus = NULL;
 	struct brcmf_usbdev *bus_pub = NULL;
@@ -1265,12 +1251,11 @@ static int brcmf_usb_probe_cb(struct brcmf_usbdev_info *devinfo,
 	bus->brcmf_bus_stop = brcmf_usb_down;
 	bus->brcmf_bus_txctl = brcmf_usb_tx_ctlpkt;
 	bus->brcmf_bus_rxctl = brcmf_usb_rx_ctlpkt;
-	bus->type = bustype;
 	bus->bus_priv.usb = bus_pub;
 	dev_set_drvdata(dev, bus);
 
 	/* Attach to the common driver interface */
-	ret = brcmf_attach(hdrlen, dev);
+	ret = brcmf_attach(0, dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "brcmf_attach failed\n");
 		goto fail;
@@ -1419,7 +1404,7 @@ brcmf_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	else
 		brcmf_dbg(USB, "Broadcom full speed USB wireless device detected\n");
 
-	ret = brcmf_usb_probe_cb(devinfo, "", USB_BUS, 0);
+	ret = brcmf_usb_probe_cb(devinfo);
 	if (ret)
 		goto fail;
 

@@ -14,17 +14,12 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include <linux/debugfs.h>
-#include <linux/if_ether.h>
-#include <linux/if.h>
 #include <linux/netdevice.h>
-#include <linux/ieee80211.h>
 #include <linux/module.h>
 
-#include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include "dhd.h"
-#include "dhd_bus.h"
 #include "dhd_dbg.h"
 
 static struct dentry *root_folder;

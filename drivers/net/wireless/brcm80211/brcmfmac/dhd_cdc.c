@@ -23,8 +23,6 @@
 
 #include <linux/types.h>
 #include <linux/netdevice.h>
-#include <linux/sched.h>
-#include <defs.h>
 
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>

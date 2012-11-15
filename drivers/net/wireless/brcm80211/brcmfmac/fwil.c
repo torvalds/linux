@@ -20,7 +20,6 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 #include "dhd.h"

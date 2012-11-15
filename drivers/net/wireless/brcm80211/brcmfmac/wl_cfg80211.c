@@ -19,14 +19,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/if_arp.h>
-#include <linux/sched.h>
-#include <linux/kthread.h>
-#include <linux/netdevice.h>
-#include <linux/bitops.h>
 #include <linux/etherdevice.h>
-#include <linux/ieee80211.h>
-#include <linux/uaccess.h>
 #include <net/cfg80211.h>
 #include <net/netlink.h>
 
@@ -883,7 +876,7 @@ static s32 brcmf_set_frag(struct net_device *ndev, u32 frag_threshold)
 static s32 brcmf_set_retry(struct net_device *ndev, u32 retry, bool l)
 {
 	s32 err = 0;
-	u32 cmd = (l ? BRCM_SET_LRL : BRCM_SET_SRL);
+	u32 cmd = (l ? BRCMF_C_SET_LRL : BRCMF_C_SET_SRL);
 
 	err = brcmf_fil_cmd_int_set(netdev_priv(ndev), cmd, retry);
 	if (err) {
@@ -1066,7 +1059,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 	else
 		bcnprd = 100;
 
-	err = brcmf_fil_cmd_int_set(ifp, BRCM_SET_BCNPRD, bcnprd);
+	err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_BCNPRD, bcnprd);
 	if (err) {
 		WL_ERR("WLC_SET_BCNPRD failed (%d)\n", err);
 		goto done;
@@ -1108,7 +1101,7 @@ brcmf_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *ndev,
 
 		/* set channel for starter */
 		target_channel = cfg->channel;
-		err = brcmf_fil_cmd_int_set(ifp, BRCM_SET_CHANNEL,
+		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_CHANNEL,
 					    target_channel);
 		if (err) {
 			WL_ERR("WLC_SET_CHANNEL failed (%d)\n", err);
@@ -2046,7 +2039,7 @@ brcmf_cfg80211_set_bitrate_mask(struct wiphy *wiphy, struct net_device *ndev,
 
 	/* addr param is always NULL. ignore it */
 	/* Get current rateset */
-	err = brcmf_fil_cmd_data_get(ifp, BRCM_GET_CURR_RATESET,
+	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_CURR_RATESET,
 				     &rateset_le, sizeof(rateset_le));
 	if (err) {
 		WL_ERR("could not get current rateset (%d)\n", err);
@@ -4458,7 +4451,7 @@ static s32 wl_update_wiphybands(struct brcmf_cfg80211_info *cfg)
 	s8 phy;
 	s32 err = 0;
 
-	err = brcmf_fil_cmd_data_get(ifp, BRCM_GET_PHYLIST,
+	err = brcmf_fil_cmd_data_get(ifp, BRCMF_C_GET_PHYLIST,
 				     &phy_list, sizeof(phy_list));
 	if (err) {
 		WL_ERR("error (%d)\n", err);

@@ -16,27 +16,11 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/kthread.h>
-#include <linux/slab.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/mmc/sdio_func.h>
-#include <linux/random.h>
-#include <linux/spinlock.h>
-#include <linux/ethtool.h>
-#include <linux/fcntl.h>
-#include <linux/fs.h>
-#include <linux/uaccess.h>
-#include <linux/hardirq.h>
-#include <linux/mutex.h>
-#include <linux/wait.h>
 #include <linux/module.h>
 #include <net/cfg80211.h>
 #include <net/rtnetlink.h>
-#include <defs.h>
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
 
@@ -48,8 +32,8 @@
 #include "fwil.h"
 
 MODULE_AUTHOR("Broadcom Corporation");
-MODULE_DESCRIPTION("Broadcom 802.11n wireless LAN fullmac driver.");
-MODULE_SUPPORTED_DEVICE("Broadcom 802.11n WLAN fullmac cards");
+MODULE_DESCRIPTION("Broadcom 802.11 wireless LAN fullmac driver.");
+MODULE_SUPPORTED_DEVICE("Broadcom 802.11 WLAN fullmac cards");
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define MAX_WAIT_FOR_8021X_TX		50	/* msecs */
@@ -58,24 +42,6 @@ MODULE_LICENSE("Dual BSD/GPL");
 int brcmf_msg_level = BRCMF_ERROR_VAL;
 module_param(brcmf_msg_level, int, 0);
 
-int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name)
-{
-	int i = BRCMF_MAX_IFS;
-	struct brcmf_if *ifp;
-
-	if (name == NULL || *name == '\0')
-		return 0;
-
-	while (--i > 0) {
-		ifp = drvr->iflist[i];
-		if (ifp && !strncmp(ifp->ndev->name, name, IFNAMSIZ))
-			break;
-	}
-
-	brcmf_dbg(TRACE, "return idx %d for \"%s\"\n", i, name);
-
-	return i;		/* default - the primary interface */
-}
 
 char *brcmf_ifname(struct brcmf_pub *drvr, int ifidx)
 {

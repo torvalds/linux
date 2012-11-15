@@ -40,8 +40,11 @@
 #define BRCMF_C_GET_SSID			25
 #define BRCMF_C_SET_SSID			26
 #define BRCMF_C_GET_CHANNEL			29
+#define BRCMF_C_SET_CHANNEL			30
 #define BRCMF_C_GET_SRL				31
+#define BRCMF_C_SET_SRL				32
 #define BRCMF_C_GET_LRL				33
+#define BRCMF_C_SET_LRL				34
 #define BRCMF_C_GET_RADIO			37
 #define BRCMF_C_SET_RADIO			38
 #define BRCMF_C_GET_PHYTYPE			39
@@ -60,6 +63,7 @@
 #define BRCMF_C_SET_COUNTRY			84
 #define BRCMF_C_GET_PM				85
 #define BRCMF_C_SET_PM				86
+#define BRCMF_C_GET_CURR_RATESET		114
 #define BRCMF_C_GET_AP				117
 #define BRCMF_C_SET_AP				118
 #define BRCMF_C_GET_RSSI			127
@@ -67,6 +71,7 @@
 #define BRCMF_C_SET_WSEC			134
 #define BRCMF_C_GET_PHY_NOISE			135
 #define BRCMF_C_GET_BSS_INFO			136
+#define BRCMF_C_GET_PHYLIST			180
 #define BRCMF_C_SET_SCAN_CHANNEL_TIME		185
 #define BRCMF_C_SET_SCAN_UNASSOC_TIME		187
 #define BRCMF_C_SCB_DEAUTHENTICATE_FOR_REASON	201
@@ -102,16 +107,8 @@
 #define BRCMF_SCAN_PARAMS_COUNT_MASK 0x0000ffff
 #define BRCMF_SCAN_PARAMS_NSSID_SHIFT 16
 
-/* Indicates this key is using soft encrypt */
-#define WL_SOFT_KEY	(1 << 0)
 /* primary (ie tx) key */
 #define BRCMF_PRIMARY_KEY	(1 << 1)
-/* Reserved for backward compat */
-#define WL_KF_RES_4	(1 << 4)
-/* Reserved for backward compat */
-#define WL_KF_RES_5	(1 << 5)
-/* Indicates a group key for a IBSS PEER */
-#define WL_IBSS_PEER_GROUP_KEY	(1 << 6)
 
 /* For supporting multiple interfaces */
 #define BRCMF_MAX_IFS	16
@@ -286,7 +283,7 @@ struct brcm_rateset_le {
 	/* # rates in this set */
 	__le32 count;
 	/* rates in 500kbps units w/hi bit set if basic */
-	u8 rates[WL_NUMRATES];
+	u8 rates[BRCMF_MAXRATES_IN_SET];
 };
 
 struct brcmf_ssid {
@@ -579,11 +576,6 @@ extern int brcmf_proto_cdc_query_dcmd(struct brcmf_pub *drvr, int ifidx,
 				       uint cmd, void *buf, uint len);
 extern int brcmf_proto_cdc_set_dcmd(struct brcmf_pub *drvr, int ifidx, uint cmd,
 				    void *buf, uint len);
-
-extern int brcmf_ifname2idx(struct brcmf_pub *drvr, char *name);
-extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
-			      void *pktdata, struct brcmf_event_msg *,
-			      void **data_ptr);
 
 extern int brcmf_net_attach(struct brcmf_if *ifp);
 extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,

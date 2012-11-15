@@ -45,7 +45,6 @@ struct brcmf_bus_dcmd {
 
 /* interface structure between common and bus layer */
 struct brcmf_bus {
-	u8 type;		/* bus type */
 	union {
 		struct brcmf_sdio_dev *sdio;
 		struct brcmf_usbdev *usb;

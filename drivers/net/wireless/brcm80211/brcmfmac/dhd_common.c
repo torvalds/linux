@@ -18,10 +18,7 @@
 
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/sched.h>
 #include <linux/netdevice.h>
-#include <asm/unaligned.h>
-#include <defs.h>
 #include <brcmu_wifi.h>
 #include <brcmu_utils.h>
 #include "dhd.h"
@@ -30,17 +27,12 @@
 #include "dhd_dbg.h"
 #include "fwil.h"
 
-#define BRCM_OUI			"\x00\x10\x18"
-#define DOT11_OUI_LEN			3
-#define BCMILCP_BCM_SUBTYPE_EVENT	1
 #define PKTFILTER_BUF_SIZE		128
 #define BRCMF_ARPOL_MODE		0xb	/* agent|snoop|peer_autoreply */
 #define BRCMF_DEFAULT_BCN_TIMEOUT	3
 #define BRCMF_DEFAULT_SCAN_CHANNEL_TIME	40
 #define BRCMF_DEFAULT_SCAN_UNASSOC_TIME	40
 #define BRCMF_DEFAULT_PACKET_FILTER	"100 0 0 0 0x01 0x00"
-
-#define MSGTRACE_VERSION	1
 
 #ifdef DEBUG
 static const char brcmf_version[] =
@@ -50,22 +42,6 @@ static const char brcmf_version[] =
 static const char brcmf_version[] =
 	"Dongle Host Driver, version " BRCMF_VERSION_STR;
 #endif
-
-/* Message trace header */
-struct msgtrace_hdr {
-	u8 version;
-	u8 spare;
-	__be16 len;		/* Len of the trace */
-	__be32 seqnum;		/* Sequence number of message. Useful
-				 * if the messsage has been lost
-				 * because of DMA error or a bus reset
-				 * (ex: SDIO Func2)
-				 */
-	__be32 discarded_bytes;	/* Number of discarded bytes because of
-				 trace overflow  */
-	__be32 discarded_printf;	/* Number of discarded printf
-				 because of trace overflow */
-} __packed;
 
 
 bool brcmf_c_prec_enq(struct device *dev, struct pktq *q,

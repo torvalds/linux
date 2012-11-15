@@ -36,10 +36,6 @@ extern void brcmf_proto_stop(struct brcmf_pub *drvr);
 extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx,
 				struct sk_buff *txp);
 
-/* Use protocol to issue command to dongle */
-extern int brcmf_proto_dcmd(struct brcmf_pub *drvr, int ifidx,
-				struct brcmf_dcmd *dcmd, int len);
-
 /* Sets dongle media info (drv_version, mac address). */
 extern int brcmf_c_preinit_dcmds(struct brcmf_if *ifp);
 

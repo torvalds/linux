@@ -15,7 +15,6 @@
  */
 #include <linux/netdevice.h>
 
-#include "defs.h"
 #include "brcmu_wifi.h"
 #include "brcmu_utils.h"
 
