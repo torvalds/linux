@@ -232,8 +232,8 @@
 
 #define MAX_DMA_SEGS			4
 
-/* Max # of entries in Tx FIFO based on 4kb page size */
-#define NTXD				256
+/* # of entries in Tx FIFO */
+#define NTXD				64
 /* Max # of entries in Rx FIFO based on 4kb page size */
 #define NRXD				256
 
