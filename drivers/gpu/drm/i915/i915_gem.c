@@ -830,9 +830,13 @@ out:
 	i915_gem_object_unpin_pages(obj);
 
 	if (hit_slowpath) {
-		/* Fixup: Flush dirty cachelines in case the object isn't in the
-		 * cpu write domain anymore. */
-		if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
+		/*
+		 * Fixup: Flush cpu caches in case we didn't flush the dirty
+		 * cachelines in-line while writing and the object moved
+		 * out of the cpu write domain while we've dropped the lock.
+		 */
+		if (!needs_clflush_after &&
+		    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 			i915_gem_clflush_object(obj);
 			i915_gem_chipset_flush(dev);
 		}
