@@ -85,6 +85,26 @@ TRACE_EVENT(brcms_dpc,
 	)
 );
 
+TRACE_EVENT(brcms_macintstatus,
+	TP_PROTO(const struct device *dev, int in_isr, u32 macintstatus,
+		 u32 mask),
+	TP_ARGS(dev, in_isr, macintstatus, mask),
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dev))
+		__field(int, in_isr)
+		__field(u32, macintstatus)
+		__field(u32, mask)
+	),
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dev));
+		__entry->in_isr = in_isr;
+		__entry->macintstatus = macintstatus;
+		__entry->mask = mask;
+	),
+	TP_printk("[%s] in_isr=%d macintstatus=%#x mask=%#x", __get_str(dev),
+		  __entry->in_isr, __entry->macintstatus, __entry->mask)
+);
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM brcmsmac_tx
 

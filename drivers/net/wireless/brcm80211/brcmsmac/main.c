@@ -2552,13 +2552,13 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	struct bcma_device *core = wlc_hw->d11core;
-	u32 macintstatus;
+	u32 macintstatus, mask;
 
 	/* macintstatus includes a DMA interrupt summary bit */
 	macintstatus = bcma_read32(core, D11REGOFFS(macintstatus));
+	mask = in_isr ? wlc->macintmask : wlc->defmacintmask;
 
-	brcms_dbg_int(core, "wl%d: macintstatus: 0x%x\n", wlc_hw->unit,
-		      macintstatus);
+	trace_brcms_macintstatus(&core->dev, in_isr, macintstatus, mask);
 
 	/* detect cardbus removed, in power down(suspend) and in reset */
 	if (brcms_deviceremoved(wlc))
@@ -2571,7 +2571,7 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 		return 0;
 
 	/* defer unsolicited interrupts */
-	macintstatus &= (in_isr ? wlc->macintmask : wlc->defmacintmask);
+	macintstatus &= mask;
 
 	/* if not for us */
 	if (macintstatus == 0)
