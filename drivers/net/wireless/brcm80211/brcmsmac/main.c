@@ -982,7 +982,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	totlen = p->len;
 	free_pdu = true;
 
-	brcms_c_txfifo_complete(wlc, queue, 1);
+	brcms_c_txfifo_complete(wlc, queue);
 
 	if (lastframe) {
 		/* remove PLCP & Broadcom tx descriptor header */
@@ -7319,8 +7319,7 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 			err = brcms_c_prep_pdu(wlc, pkt[0], &fifo);
 			if (!err) {
 				for (i = 0; i < count; i++)
-					brcms_c_txfifo(wlc, fifo, pkt[i], true,
-						       1);
+					brcms_c_txfifo(wlc, fifo, pkt[i], true);
 			}
 		}
 
@@ -7340,7 +7339,7 @@ void brcms_c_send_q(struct brcms_c_info *wlc)
 
 void
 brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
-	       bool commit, s8 txpktpend)
+	       bool commit)
 {
 	u16 frameid = INVALIDFID;
 	struct d11txh *txh;
@@ -7358,9 +7357,9 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 	 * used, this will be handled in brcms_b_txfifo()
 	 */
 	if (commit) {
-		wlc->core->txpktpend[fifo] += txpktpend;
-		BCMMSG(wlc->wiphy, "pktpend inc %d to %d\n",
-			 txpktpend, wlc->core->txpktpend[fifo]);
+		wlc->core->txpktpend[fifo] += 1;
+		BCMMSG(wlc->wiphy, "pktpend inc 1 to %d\n",
+			 wlc->core->txpktpend[fifo]);
 	}
 
 	/* Commit BCMC sequence number in the SHM frame ID location */
@@ -7424,10 +7423,10 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 }
 
 void
-brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo, s8 txpktpend)
+brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo)
 {
-	wlc->core->txpktpend[fifo] -= txpktpend;
-	BCMMSG(wlc->wiphy, "pktpend dec %d to %d\n", txpktpend,
+	wlc->core->txpktpend[fifo] -= 1;
+	BCMMSG(wlc->wiphy, "pktpend dec 1 to %d\n",
 	       wlc->core->txpktpend[fifo]);
 
 	/* There is more room; mark precedences related to this FIFO sendable */

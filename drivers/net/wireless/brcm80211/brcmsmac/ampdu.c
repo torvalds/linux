@@ -40,8 +40,6 @@
 #define AMPDU_DEF_RETRY_LIMIT		5
 /* default tx retry limit at reg rate */
 #define AMPDU_DEF_RR_RETRY_LIMIT	2
-/* default weight of ampdu in txfifo */
-#define AMPDU_DEF_TXPKT_WEIGHT		2
 /* default ffpld reserved bytes */
 #define AMPDU_DEF_FFPLD_RSVD		2048
 /* # of inis to be freed on detach */
@@ -114,7 +112,6 @@ struct brcms_fifo_info {
  * mpdu_density: min mpdu spacing (0-7) ==> 2^(x-1)/8 usec
  * max_pdu: max pdus allowed in ampdu
  * dur: max duration of an ampdu (in msec)
- * txpkt_weight: weight of ampdu in txfifo; reduces rate lag
  * rx_factor: maximum rx ampdu factor (0-3) ==> 2^(13+x) bytes
  * ffpld_rsvd: number of bytes to reserve for preload
  * max_txlen: max size of ampdu per mcs, bw and sgi
@@ -136,7 +133,6 @@ struct ampdu_info {
 	u8 mpdu_density;
 	s8 max_pdu;
 	u8 dur;
-	u8 txpkt_weight;
 	u8 rx_factor;
 	u32 ffpld_rsvd;
 	u32 max_txlen[MCS_TABLE_SIZE][2][2];
@@ -247,7 +243,6 @@ struct ampdu_info *brcms_c_ampdu_attach(struct brcms_c_info *wlc)
 	ampdu->mpdu_density = AMPDU_DEF_MPDU_DENSITY;
 	ampdu->max_pdu = AUTO;
 	ampdu->dur = AMPDU_MAX_DUR;
-	ampdu->txpkt_weight = AMPDU_DEF_TXPKT_WEIGHT;
 
 	ampdu->ffpld_rsvd = AMPDU_DEF_FFPLD_RSVD;
 	/*
@@ -942,8 +937,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 
 		while ((p = skb_dequeue(&session.skb_list)) != NULL)
 			brcms_c_txfifo(wlc, fifo, p,
-				       skb_queue_empty(&session.skb_list),
-				       ampdu->txpkt_weight);
+				       skb_queue_empty(&session.skb_list));
 	}
 	/* endif (count) */
 	return err;
@@ -1162,7 +1156,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	/* update rate state */
 	antselid = brcms_c_antsel_antsel2id(wlc->asi, mimoantsel);
 
-	brcms_c_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
+	brcms_c_txfifo_complete(wlc, queue);
 }
 
 void
@@ -1219,7 +1213,7 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 			p = dma_getnexttxp(wlc->hw->di[queue],
 					   DMA_RANGE_TRANSMITTED);
 		}
-		brcms_c_txfifo_complete(wlc, queue, ampdu->txpkt_weight);
+		brcms_c_txfifo_complete(wlc, queue);
 	}
 }
 
