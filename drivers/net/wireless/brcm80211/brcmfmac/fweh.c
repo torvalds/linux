@@ -191,42 +191,13 @@ static const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code)
 /**
  * brcmf_fweh_queue_event() - create and queue event.
  *
- * @ifp: firmware interface object.
- * @code: event code.
- * @pkt: event ether packet.
+ * @fweh: firmware event handling info.
+ * @event: event queue entry.
  */
-static void brcmf_fweh_queue_event(struct brcmf_if *ifp,
-				   enum brcmf_fweh_event_code code,
-				   struct brcmf_event *pkt)
+static void brcmf_fweh_queue_event(struct brcmf_fweh_info *fweh,
+				   struct brcmf_fweh_queue_item *event)
 {
-	struct brcmf_fweh_info *fweh = &ifp->drvr->fweh;
-	struct brcmf_fweh_queue_item *event;
-	gfp_t alloc_flag = GFP_KERNEL;
 	ulong flags;
-	void *data;
-	u32 datalen;
-
-	/* determine event data */
-	datalen = get_unaligned_be32(&pkt->msg.datalen);
-	data = &pkt[1];
-
-	if (!ifp->ndev || (code != BRCMF_E_IF && !fweh->evt_handler[code])) {
-		brcmf_dbg(EVENT, "event ignored: code=%d\n", code);
-		brcmf_dbg_hex_dump(BRCMF_EVENT_ON(), data, datalen, "event:");
-		return;
-	}
-
-	if (in_interrupt())
-		alloc_flag = GFP_ATOMIC;
-
-	event = kzalloc(sizeof(*event) + datalen, alloc_flag);
-	event->code = code;
-	event->ifidx = ifp->idx;
-
-	/* use memcpy to get aligned event message */
-	memcpy(&event->emsg, &pkt->msg, sizeof(event->emsg));
-	memcpy(event->data, data, datalen);
-	memcpy(event->ifaddr, pkt->eth.h_dest, ETH_ALEN);
 
 	spin_lock_irqsave(&fweh->evt_q_lock, flags);
 	list_add_tail(&event->q, &fweh->event_q);
@@ -489,10 +460,35 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 			      struct brcmf_event *event_packet, u8 *ifidx)
 {
 	enum brcmf_fweh_event_code code;
+	struct brcmf_fweh_info *fweh = &drvr->fweh;
+	struct brcmf_fweh_queue_item *event;
+	gfp_t alloc_flag = GFP_KERNEL;
+	void *data;
+	u32 datalen;
 
-	/* determine event code and interface index */
+	/* get event info */
 	code = get_unaligned_be32(&event_packet->msg.event_type);
+	datalen = get_unaligned_be32(&event_packet->msg.datalen);
 	*ifidx = event_packet->msg.ifidx;
+	data = &event_packet[1];
 
-	brcmf_fweh_queue_event(drvr->iflist[*ifidx], code, event_packet);
+	if (code != BRCMF_E_IF && !fweh->evt_handler[code]) {
+		brcmf_dbg(EVENT, "event ignored: code=%d\n", code);
+		brcmf_dbg_hex_dump(BRCMF_EVENT_ON(), data, datalen, "event:");
+		return;
+	}
+
+	if (in_interrupt())
+		alloc_flag = GFP_ATOMIC;
+
+	event = kzalloc(sizeof(*event) + datalen, alloc_flag);
+	event->code = code;
+	event->ifidx = *ifidx;
+
+	/* use memcpy to get aligned event message */
+	memcpy(&event->emsg, &event_packet->msg, sizeof(event->emsg));
+	memcpy(event->data, data, datalen);
+	memcpy(event->ifaddr, event_packet->eth.h_dest, ETH_ALEN);
+
+	brcmf_fweh_queue_event(fweh, event);
 }
