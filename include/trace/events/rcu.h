@@ -523,22 +523,30 @@ TRACE_EVENT(rcu_batch_end,
  */
 TRACE_EVENT(rcu_torture_read,
 
-	TP_PROTO(char *rcutorturename, struct rcu_head *rhp),
+	TP_PROTO(char *rcutorturename, struct rcu_head *rhp,
+		 unsigned long secs, unsigned long c_old, unsigned long c),
 
-	TP_ARGS(rcutorturename, rhp),
+	TP_ARGS(rcutorturename, rhp, secs, c_old, c),
 
 	TP_STRUCT__entry(
 		__field(char *, rcutorturename)
 		__field(struct rcu_head *, rhp)
+		__field(unsigned long, secs)
+		__field(unsigned long, c_old)
+		__field(unsigned long, c)
 	),
 
 	TP_fast_assign(
 		__entry->rcutorturename = rcutorturename;
 		__entry->rhp = rhp;
+		__entry->secs = secs;
+		__entry->c_old = c_old;
+		__entry->c = c;
 	),
 
-	TP_printk("%s torture read %p",
-		  __entry->rcutorturename, __entry->rhp)
+	TP_printk("%s torture read %p %luus c: %lu %lu",
+		  __entry->rcutorturename, __entry->rhp,
+		  __entry->secs, __entry->c_old, __entry->c)
 );
 
 /*
@@ -608,7 +616,8 @@ TRACE_EVENT(rcu_barrier,
 #define trace_rcu_invoke_kfree_callback(rcuname, rhp, offset) do { } while (0)
 #define trace_rcu_batch_end(rcuname, callbacks_invoked, cb, nr, iit, risk) \
 	do { } while (0)
-#define trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
+#define trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
+	do { } while (0)
 #define trace_rcu_barrier(name, s, cpu, cnt, done) do { } while (0)
 
 #endif /* #else #ifdef CONFIG_RCU_TRACE */

@@ -53,7 +53,10 @@ extern int rcutorture_runnable; /* for sysctl */
 extern void rcutorture_record_test_transition(void);
 extern void rcutorture_record_progress(unsigned long vernum);
 extern void do_trace_rcu_torture_read(char *rcutorturename,
-				      struct rcu_head *rhp);
+				      struct rcu_head *rhp,
+				      unsigned long secs,
+				      unsigned long c_old,
+				      unsigned long c);
 #else
 static inline void rcutorture_record_test_transition(void)
 {
@@ -63,9 +66,13 @@ static inline void rcutorture_record_progress(unsigned long vernum)
 }
 #ifdef CONFIG_RCU_TRACE
 extern void do_trace_rcu_torture_read(char *rcutorturename,
-				      struct rcu_head *rhp);
+				      struct rcu_head *rhp,
+				      unsigned long secs,
+				      unsigned long c_old,
+				      unsigned long c);
 #else
-#define do_trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
+#define do_trace_rcu_torture_read(rcutorturename, rhp, secs, c_old, c) \
+	do { } while (0)
 #endif
 #endif
 
