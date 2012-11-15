@@ -813,133 +813,6 @@ void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session)
 		session->ampdu_len);
 }
 
-int
-brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
-	      struct sk_buff **pdu, int prec)
-{
-	struct brcms_c_info *wlc;
-	struct sk_buff *p;
-	struct brcms_ampdu_session session;
-	int err = 0;
-	u8 tid;
-
-	uint count, fifo, seg_cnt = 0;
-	struct scb *scb;
-	struct scb_ampdu *scb_ampdu;
-	struct scb_ampdu_tid_ini *ini;
-	struct ieee80211_tx_info *tx_info;
-	u16 qlen;
-	struct wiphy *wiphy;
-
-	wlc = ampdu->wlc;
-	wiphy = wlc->wiphy;
-	p = *pdu;
-
-	tid = (u8) (p->priority);
-
-	scb = &wlc->pri_scb;
-	scb_ampdu = &scb->scb_ampdu;
-	ini = &scb_ampdu->ini[tid];
-
-	/* Let pressure continue to build ... */
-	qlen = pktq_plen(&qi->q, prec);
-	if (ini->tx_in_transit > 0 &&
-	    qlen < min(scb_ampdu->max_pdu, ini->ba_wsize))
-		/* Collect multiple MPDU's to be sent in the next AMPDU */
-		return -EBUSY;
-
-	/* at this point we intend to transmit an AMPDU */
-	brcms_c_ampdu_reset_session(&session, wlc);
-
-	while (p) {
-		struct ieee80211_tx_rate *txrate;
-
-		tx_info = IEEE80211_SKB_CB(p);
-		txrate = tx_info->status.rates;
-
-		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-			err = brcms_c_prep_pdu(wlc, p, &fifo);
-		} else {
-			wiphy_err(wiphy, "%s: AMPDU flag is off!\n", __func__);
-			*pdu = NULL;
-			err = 0;
-			break;
-		}
-
-		if (err) {
-			if (err == -EBUSY) {
-				wiphy_err(wiphy, "wl%d: sendampdu: "
-					  "prep_xdu retry\n", wlc->pub->unit);
-				*pdu = p;
-				break;
-			}
-
-			/* error in the packet; reject it */
-			wiphy_err(wiphy, "wl%d: sendampdu: prep_xdu "
-				  "rejected\n", wlc->pub->unit);
-			*pdu = NULL;
-			break;
-		}
-
-		err = brcms_c_ampdu_add_frame(&session, p);
-		if (err == -ENOSPC) {
-			/*
-			 * No space for this packet in the AMPDU.
-			 * Requeue packet and proceed;
-			 */
-			*pdu = p;
-			break;
-		} else if (err) {
-			/* Unexpected error; reject packet */
-			wiphy_err(wiphy, "wl%d: sendampdu: add_frame rejected",
-				  wlc->pub->unit);
-			*pdu = NULL;
-			break;
-		}
-
-		seg_cnt += 1;
-
-		/*
-		 * check to see if the next pkt is
-		 * a candidate for aggregation
-		 */
-		p = pktq_ppeek(&qi->q, prec);
-		if (p) {
-			tx_info = IEEE80211_SKB_CB(p);
-			if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-				/*
-				 * check if there are enough
-				 * descriptors available
-				 */
-				if (*wlc->core->txavail[fifo] <= seg_cnt + 1) {
-					wiphy_err(wiphy, "%s: No fifo space "
-						  "!!\n", __func__);
-					p = NULL;
-					continue;
-				}
-				/* next packet fit for aggregation so dequeue */
-				p = brcmu_pktq_pdeq(&qi->q, prec);
-			} else {
-				p = NULL;
-			}
-		}
-	}			/* end while(p) */
-
-	count = skb_queue_len(&session.skb_list);
-	ini->tx_in_transit += count;
-
-	if (count) {
-		/* patch up first and last txh's */
-		brcms_c_ampdu_finalize(&session);
-
-		while ((p = skb_dequeue(&session.skb_list)) != NULL)
-			brcms_c_txfifo(wlc, fifo, p,
-				       skb_queue_empty(&session.skb_list));
-	}
-	/* endif (count) */
-	return err;
-}
-
 static void
 brcms_c_ampdu_rate_status(struct brcms_c_info *wlc,
 			  struct ieee80211_tx_info *tx_info,
@@ -1113,9 +986,16 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		/* either retransmit or send bar if ack not recd */
 		if (!ack_recd) {
 			if (retry && (ini->txretry[index] < (int)retry_limit)) {
+				int ret;
 				ini->txretry[index]++;
 				ini->tx_in_transit--;
-				brcms_c_txq_enq(wlc, scb, p);
+				ret = brcms_c_txfifo(wlc, queue, p);
+				/*
+				 * We shouldn't be out of space in the DMA
+				 * ring here since we're reinserting a frame
+				 * that was just pulled out.
+				 */
+				WARN_ONCE(ret, "queue %d out of txds\n", queue);
 			} else {
 				/* Retry timeout */
 				ini->tx_in_transit--;
@@ -1142,12 +1022,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 
 		p = dma_getnexttxp(wlc->hw->di[queue], DMA_RANGE_TRANSMITTED);
 	}
-	brcms_c_send_q(wlc);
 
 	/* update rate state */
 	antselid = brcms_c_antsel_antsel2id(wlc->asi, mimoantsel);
-
-	brcms_c_txfifo_complete(wlc, queue);
 }
 
 void
@@ -1204,7 +1081,6 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 			p = dma_getnexttxp(wlc->hw->di[queue],
 					   DMA_RANGE_TRANSMITTED);
 		}
-		brcms_c_txfifo_complete(wlc, queue);
 	}
 }
 
@@ -1244,23 +1120,6 @@ void brcms_c_ampdu_shm_upd(struct ampdu_info *ampdu)
 }
 
 /*
- * callback function that helps flushing ampdu packets from a priority queue
- */
-static bool cb_del_ampdu_pkt(struct sk_buff *mpdu, void *arg_a)
-{
-	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(mpdu);
-	struct cb_del_ampdu_pars *ampdu_pars =
-				 (struct cb_del_ampdu_pars *)arg_a;
-	bool rc;
-
-	rc = tx_info->flags & IEEE80211_TX_CTL_AMPDU ? true : false;
-	rc = rc && (tx_info->rate_driver_data[0] == NULL || ampdu_pars->sta == NULL ||
-		    tx_info->rate_driver_data[0] == ampdu_pars->sta);
-	rc = rc && ((u8)(mpdu->priority) == ampdu_pars->tid);
-	return rc;
-}
-
-/*
  * callback function that helps invalidating ampdu packets in a DMA queue
  */
 static void dma_cb_fn_ampdu(void *txi, void *arg_a)
@@ -1280,15 +1139,5 @@ static void dma_cb_fn_ampdu(void *txi, void *arg_a)
 void brcms_c_ampdu_flush(struct brcms_c_info *wlc,
 		     struct ieee80211_sta *sta, u16 tid)
 {
-	struct brcms_txq_info *qi = wlc->pkt_queue;
-	struct pktq *pq = &qi->q;
-	int prec;
-	struct cb_del_ampdu_pars ampdu_pars;
-
-	ampdu_pars.sta = sta;
-	ampdu_pars.tid = tid;
-	for (prec = 0; prec < pq->num_prec; prec++)
-		brcmu_pktq_pflush(pq, prec, true, cb_del_ampdu_pkt,
-			    (void *)&ampdu_pars);
 	brcms_c_inval_dma_pkts(wlc->hw, sta, dma_cb_fn_ampdu);
 }

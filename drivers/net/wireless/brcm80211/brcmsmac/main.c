@@ -34,6 +34,7 @@
 #include "ucode_loader.h"
 #include "main.h"
 #include "soc.h"
+#include "dma.h"
 
 /* watchdog timer, in unit of ms */
 #define TIMER_INTERVAL_WATCHDOG		1000
@@ -236,11 +237,11 @@
 /* Max # of entries in Rx FIFO based on 4kb page size */
 #define NRXD				256
 
+/* Amount of headroom to leave in Tx FIFO */
+#define TX_HEADROOM			4
+
 /* try to keep this # rbufs posted to the chip */
 #define NRXBUFPOST			32
-
-/* data msg txq hiwat mark */
-#define BRCMS_DATAHIWAT			50
 
 /* max # frames to process in brcms_c_recv() */
 #define RXBND				8
@@ -303,6 +304,18 @@ static const u8 wme_ac2fifo[] = {
 	TX_AC_BK_FIFO
 };
 
+/* 802.1D Priority to precedence queue mapping */
+const u8 wlc_prio2prec_map[] = {
+	_BRCMS_PREC_BE,		/* 0 BE - Best-effort */
+	_BRCMS_PREC_BK,		/* 1 BK - Background */
+	_BRCMS_PREC_NONE,		/* 2 None = - */
+	_BRCMS_PREC_EE,		/* 3 EE - Excellent-effort */
+	_BRCMS_PREC_CL,		/* 4 CL - Controlled Load */
+	_BRCMS_PREC_VI,		/* 5 Vi - Video */
+	_BRCMS_PREC_VO,		/* 6 Vo - Voice */
+	_BRCMS_PREC_NC,		/* 7 NC - Network Control */
+};
+
 static const u16 xmtfifo_sz[][NFIFO] = {
 	/* corerev 17: 5120, 49152, 49152, 5376, 4352, 1280 */
 	{20, 192, 192, 21, 17, 5},
@@ -350,11 +363,26 @@ static const u8 ac_to_fifo_mapping[IEEE80211_NUM_ACS] = {
 	[IEEE80211_AC_BK]	= TX_AC_BK_FIFO,
 };
 
+/* Mapping of tx fifos to ieee80211 AC numbers */
+static const u8 fifo_to_ac_mapping[IEEE80211_NUM_ACS] = {
+	[TX_AC_BK_FIFO]	= IEEE80211_AC_BK,
+	[TX_AC_BE_FIFO]	= IEEE80211_AC_BE,
+	[TX_AC_VI_FIFO]	= IEEE80211_AC_VI,
+	[TX_AC_VO_FIFO]	= IEEE80211_AC_VO,
+};
+
 static u8 brcms_ac_to_fifo(u8 ac)
 {
 	if (ac >= ARRAY_SIZE(ac_to_fifo_mapping))
 		return TX_AC_BE_FIFO;
 	return ac_to_fifo_mapping[ac];
+}
+
+static u8 brcms_fifo_to_ac(u8 fifo)
+{
+	if (fifo >= ARRAY_SIZE(fifo_to_ac_mapping))
+		return IEEE80211_AC_BE;
+	return fifo_to_ac_mapping[fifo];
 }
 
 /* Find basic rate for a given rate */
@@ -401,10 +429,15 @@ static bool brcms_deviceremoved(struct brcms_c_info *wlc)
 }
 
 /* sum the individual fifo tx pending packet counts */
-static s16 brcms_txpktpendtot(struct brcms_c_info *wlc)
+static int brcms_txpktpendtot(struct brcms_c_info *wlc)
 {
-	return wlc->core->txpktpend[0] + wlc->core->txpktpend[1] +
-	       wlc->core->txpktpend[2] + wlc->core->txpktpend[3];
+	int i;
+	int pending = 0;
+
+	for (i = 0; i < ARRAY_SIZE(wlc->hw->di); i++)
+		if (wlc->hw->di[i])
+			pending += dma_txpending(wlc->hw->di[i]);
+	return pending;
 }
 
 static bool brcms_is_mband_unlocked(struct brcms_c_info *wlc)
@@ -827,8 +860,9 @@ static u32 brcms_c_setband_inact(struct brcms_c_info *wlc, uint bandunit)
 static bool
 brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 {
-	struct sk_buff *p;
-	uint queue;
+	struct sk_buff *p = NULL;
+	uint queue = NFIFO;
+	struct dma_pub *dma = NULL;
 	struct d11txh *txh;
 	struct scb *scb = NULL;
 	bool free_pdu;
@@ -840,6 +874,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *txrate;
 	int i;
+	bool fatal = true;
 
 	/* discard intermediate indications for ucode with one legitimate case:
 	 *   e.g. if "useRTS" is set. ucode did a successful rts/cts exchange,
@@ -849,18 +884,19 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	if (!(txs->status & TX_STATUS_AMPDU)
 	    && (txs->status & TX_STATUS_INTERMEDIATE)) {
 		BCMMSG(wlc->wiphy, "INTERMEDIATE but not AMPDU\n");
-		return false;
+		fatal = false;
+		goto out;
 	}
 
 	queue = txs->frameid & TXFID_QUEUE_MASK;
-	if (queue >= NFIFO) {
-		p = NULL;
-		goto fatal;
-	}
+	if (queue >= NFIFO)
+		goto out;
+
+	dma = wlc->hw->di[queue];
 
 	p = dma_getnexttxp(wlc->hw->di[queue], DMA_RANGE_TRANSMITTED);
 	if (p == NULL)
-		goto fatal;
+		goto out;
 
 	txh = (struct d11txh *) (p->data);
 	mcl = le16_to_cpu(txh->MacTxControlLow);
@@ -875,7 +911,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	}
 
 	if (txs->frameid != le16_to_cpu(txh->TxFrameID))
-		goto fatal;
+		goto out;
 	tx_info = IEEE80211_SKB_CB(p);
 	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
 
@@ -884,7 +920,8 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 
 	if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
 		brcms_c_ampdu_dotxstatus(wlc->ampdu, scb, p, txs);
-		return false;
+		fatal = false;
+		goto out;
 	}
 
 	supr_status = txs->status & TX_STATUS_SUPR_MASK;
@@ -968,8 +1005,6 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	totlen = p->len;
 	free_pdu = true;
 
-	brcms_c_txfifo_complete(wlc, queue);
-
 	if (lastframe) {
 		/* remove PLCP & Broadcom tx descriptor header */
 		skb_pull(p, D11_PHY_HDR_LEN);
@@ -980,14 +1015,21 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 			  "tx_status\n", __func__);
 	}
 
-	return false;
+	fatal = false;
 
- fatal:
-	if (p)
+ out:
+	if (fatal && p)
 		brcmu_pkt_buf_free_skb(p);
 
-	return true;
+	if (dma && queue < NFIFO) {
+		u16 ac_queue = brcms_fifo_to_ac(queue);
+		if (dma->txavail > TX_HEADROOM && queue < TX_BCMC_FIFO &&
+		    ieee80211_queue_stopped(wlc->pub->ieee_hw, ac_queue))
+			ieee80211_wake_queue(wlc->pub->ieee_hw, ac_queue);
+		dma_kick_tx(dma);
+	}
 
+	return fatal;
 }
 
 /* process tx completion events in BMAC
@@ -1043,9 +1085,6 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 
 	if (n >= max_tx_num)
 		morepending = true;
-
-	if (!pktq_empty(&wlc->pkt_queue->q))
-		brcms_c_send_q(wlc);
 
 	return morepending;
 }
@@ -1111,7 +1150,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_BK_FIFO (TX AC Background data packets)
 		 * RX: RX_FIFO (RX data packets)
 		 */
-		wlc_hw->di[0] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
+		wlc_hw->di[0] = dma_attach(name, wlc,
 					   (wme ? dmareg(DMA_TX, 0) : 0),
 					   dmareg(DMA_RX, 0),
 					   (wme ? NTXD : 0), NRXD,
@@ -1125,7 +1164,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 *   (legacy) TX_DATA_FIFO (TX data packets)
 		 * RX: UNUSED
 		 */
-		wlc_hw->di[1] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
+		wlc_hw->di[1] = dma_attach(name, wlc,
 					   dmareg(DMA_TX, 1), 0,
 					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
@@ -1136,7 +1175,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_VI_FIFO (TX AC Video data packets)
 		 * RX: UNUSED
 		 */
-		wlc_hw->di[2] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
+		wlc_hw->di[2] = dma_attach(name, wlc,
 					   dmareg(DMA_TX, 2), 0,
 					   NTXD, 0, 0, -1, 0, 0,
 					   &brcm_msg_level);
@@ -1146,7 +1185,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 * TX: TX_AC_VO_FIFO (TX AC Voice data packets)
 		 *   (legacy) TX_CTL_FIFO (TX control & mgmt packets)
 		 */
-		wlc_hw->di[3] = dma_attach(name, wlc_hw->sih, wlc_hw->d11core,
+		wlc_hw->di[3] = dma_attach(name, wlc,
 					   dmareg(DMA_TX, 3),
 					   0, NTXD, 0, 0, -1,
 					   0, 0, &brcm_msg_level);
@@ -2870,12 +2909,14 @@ static void brcms_c_flushqueues(struct brcms_c_info *wlc)
 	uint i;
 
 	/* free any posted tx packets */
-	for (i = 0; i < NFIFO; i++)
+	for (i = 0; i < NFIFO; i++) {
 		if (wlc_hw->di[i]) {
 			dma_txreclaim(wlc_hw->di[i], DMA_RANGE_ALL);
-			wlc->core->txpktpend[i] = 0;
-			BCMMSG(wlc->wiphy, "pktpend fifo %d clrd\n", i);
+			if (i < TX_BCMC_FIFO)
+				ieee80211_wake_queue(wlc->pub->ieee_hw,
+						     brcms_fifo_to_ac(i));
 		}
+	}
 
 	/* free any posted rx packets */
 	dma_rxreclaim(wlc_hw->di[RX_FIFO]);
@@ -3736,15 +3777,6 @@ brcms_c_duty_cycle_set(struct brcms_c_info *wlc, int duty_cycle, bool isOFDM,
 		wlc->tx_duty_cycle_cck = (u16) duty_cycle;
 
 	return 0;
-}
-
-/*
- * Initialize the base precedence map for dequeueing
- * from txq based on WME settings
- */
-static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc)
-{
-	wlc->tx_prec_map = BRCMS_PREC_BMP_ALL;
 }
 
 /* push sw hps and wake state through hardware */
@@ -4797,56 +4829,6 @@ static void brcms_c_bss_default_init(struct brcms_c_info *wlc)
 		bi->flags |= BRCMS_BSS_HT;
 }
 
-static struct brcms_txq_info *brcms_c_txq_alloc(struct brcms_c_info *wlc)
-{
-	struct brcms_txq_info *qi, *p;
-
-	qi = kzalloc(sizeof(struct brcms_txq_info), GFP_ATOMIC);
-	if (qi != NULL) {
-		/*
-		 * Have enough room for control packets along with HI watermark
-		 * Also, add room to txq for total psq packets if all the SCBs
-		 * leave PS mode. The watermark for flowcontrol to OS packets
-		 * will remain the same
-		 */
-		brcmu_pktq_init(&qi->q, BRCMS_PREC_COUNT,
-			  2 * BRCMS_DATAHIWAT + PKTQ_LEN_DEFAULT);
-
-		/* add this queue to the the global list */
-		p = wlc->tx_queues;
-		if (p == NULL) {
-			wlc->tx_queues = qi;
-		} else {
-			while (p->next != NULL)
-				p = p->next;
-			p->next = qi;
-		}
-	}
-	return qi;
-}
-
-static void brcms_c_txq_free(struct brcms_c_info *wlc,
-			     struct brcms_txq_info *qi)
-{
-	struct brcms_txq_info *p;
-
-	if (qi == NULL)
-		return;
-
-	/* remove the queue from the linked list */
-	p = wlc->tx_queues;
-	if (p == qi)
-		wlc->tx_queues = p->next;
-	else {
-		while (p != NULL && p->next != qi)
-			p = p->next;
-		if (p != NULL)
-			p->next = p->next->next;
-	}
-
-	kfree(qi);
-}
-
 static void brcms_c_update_mimo_band_bwcap(struct brcms_c_info *wlc, u8 bwcap)
 {
 	uint i;
@@ -4965,10 +4947,6 @@ uint brcms_c_detach(struct brcms_c_info *wlc)
 	brcms_c_timers_deinit(wlc);
 
 	brcms_c_detach_module(wlc);
-
-
-	while (wlc->tx_queues != NULL)
-		brcms_c_txq_free(wlc, wlc->tx_queues);
 
 	brcms_c_detach_mfree(wlc);
 	return callbacks;
@@ -5275,7 +5253,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 	uint callbacks = 0;
 	int i;
 	bool dev_gone = false;
-	struct brcms_txq_info *qi;
 
 	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
@@ -5313,10 +5290,6 @@ uint brcms_c_down(struct brcms_c_info *wlc)
 	wlc->pub->up = false;
 
 	wlc_phy_mute_upd(wlc->band->pi, false, PHY_MUTE_ALL);
-
-	/* flush tx queues */
-	for (qi = wlc->tx_queues; qi != NULL; qi = qi->next)
-		brcmu_pktq_flush(&qi->q, true, NULL, NULL);
 
 	callbacks += brcms_b_down_finish(wlc->hw);
 
@@ -5989,85 +5962,6 @@ u16 brcms_b_rate_shm_offset(struct brcms_hardware *wlc_hw, u8 rate)
 	 * Direct-map Table
 	 */
 	return 2 * brcms_b_read_shm(wlc_hw, table_ptr + (index * 2));
-}
-
-static bool
-brcms_c_prec_enq_head(struct brcms_c_info *wlc, struct pktq *q,
-		      struct sk_buff *pkt, int prec, bool head)
-{
-	struct sk_buff *p;
-	int eprec = -1;		/* precedence to evict from */
-
-	/* Determine precedence from which to evict packet, if any */
-	if (pktq_pfull(q, prec))
-		eprec = prec;
-	else if (pktq_full(q)) {
-		p = brcmu_pktq_peek_tail(q, &eprec);
-		if (eprec > prec) {
-			wiphy_err(wlc->wiphy, "%s: Failing: eprec %d > prec %d"
-				  "\n", __func__, eprec, prec);
-			return false;
-		}
-	}
-
-	/* Evict if needed */
-	if (eprec >= 0) {
-		bool discard_oldest;
-
-		discard_oldest = ac_bitmap_tst(0, eprec);
-
-		/* Refuse newer packet unless configured to discard oldest */
-		if (eprec == prec && !discard_oldest) {
-			wiphy_err(wlc->wiphy, "%s: No where to go, prec == %d"
-				  "\n", __func__, prec);
-			return false;
-		}
-
-		/* Evict packet according to discard policy */
-		p = discard_oldest ? brcmu_pktq_pdeq(q, eprec) :
-			brcmu_pktq_pdeq_tail(q, eprec);
-		brcmu_pkt_buf_free_skb(p);
-	}
-
-	/* Enqueue */
-	if (head)
-		p = brcmu_pktq_penq_head(q, prec, pkt);
-	else
-		p = brcmu_pktq_penq(q, prec, pkt);
-
-	return true;
-}
-
-/*
- * Attempts to queue a packet onto a multiple-precedence queue,
- * if necessary evicting a lower precedence packet from the queue.
- *
- * 'prec' is the precedence number that has already been mapped
- * from the packet priority.
- *
- * Returns true if packet consumed (queued), false if not.
- */
-static bool brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q,
-		      struct sk_buff *pkt, int prec)
-{
-	return brcms_c_prec_enq_head(wlc, q, pkt, prec, false);
-}
-
-void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
-		     struct sk_buff *sdu)
-{
-	struct brcms_txq_info *qi = wlc->pkt_queue;	/* Check me */
-	struct pktq *q = &qi->q;
-	uint prec;
-
-	prec = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
-	if (!brcms_c_prec_enq(wlc, q, sdu, prec)) {
-		/*
-		 * we might hit this condtion in case
-		 * packet flooding from mac80211 stack
-		 */
-		brcmu_pkt_buf_free_skb(sdu);
-	}
 }
 
 /*
@@ -7230,86 +7124,39 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 	return 0;
 }
 
-void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
-			      struct ieee80211_hw *hw)
+static int brcms_c_tx(struct brcms_c_info *wlc, struct sk_buff *skb)
 {
-	uint fifo;
-	struct scb *scb = &wlc->pri_scb;
-
-	fifo = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
-	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0))
-		return;
-	brcms_c_txq_enq(wlc, scb, sdu);
-	brcms_c_send_q(wlc);
-}
-
-void brcms_c_send_q(struct brcms_c_info *wlc)
-{
-	struct sk_buff *pkt[DOT11_MAXNUMFRAGS];
-	int prec;
-	u16 prec_map;
-	int err = 0, i, count;
-	uint fifo;
-	struct brcms_txq_info *qi = wlc->pkt_queue;
-	struct pktq *q = &qi->q;
-	struct ieee80211_tx_info *tx_info;
-
-	prec_map = wlc->tx_prec_map;
-
-	/* Send all the enq'd pkts that we can.
-	 * Dequeue packets with precedence with empty HW fifo only
-	 */
-	while (prec_map && (pkt[0] = brcmu_pktq_mdeq(q, prec_map, &prec))) {
-		tx_info = IEEE80211_SKB_CB(pkt[0]);
-		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU) {
-			err = brcms_c_sendampdu(wlc->ampdu, qi, pkt, prec);
-		} else {
-			count = 1;
-			err = brcms_c_prep_pdu(wlc, pkt[0], &fifo);
-			if (!err) {
-				for (i = 0; i < count; i++)
-					brcms_c_txfifo(wlc, fifo, pkt[i], true);
-			}
-		}
-
-		if (err == -EBUSY) {
-			brcmu_pktq_penq_head(q, prec, pkt[0]);
-			/*
-			 * If send failed due to any other reason than a
-			 * change in HW FIFO condition, quit. Otherwise,
-			 * read the new prec_map!
-			 */
-			if (prec_map == wlc->tx_prec_map)
-				break;
-			prec_map = wlc->tx_prec_map;
-		}
-	}
-}
-
-void
-brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
-	       bool commit)
-{
-	u16 frameid = INVALIDFID;
+	struct dma_pub *dma;
+	int fifo, ret = -ENOSPC;
 	struct d11txh *txh;
+	u16 frameid = INVALIDFID;
 
-	txh = (struct d11txh *) (p->data);
+	fifo = brcms_ac_to_fifo(skb_get_queue_mapping(skb));
+	dma = wlc->hw->di[fifo];
+	txh = (struct d11txh *)(skb->data);
+
+	if (dma->txavail == 0) {
+		/*
+		 * We sometimes get a frame from mac80211 after stopping
+		 * the queues. This only ever seems to be a single frame
+		 * and is seems likely to be a race. TX_HEADROOM should
+		 * ensure that we have enough space to handle these stray
+		 * packets, so warn if there isn't. If we're out of space
+		 * in the tx ring and the tx queue isn't stopped then
+		 * we've really got a bug; warn loudly if that happens.
+		 */
+		wiphy_warn(wlc->wiphy,
+			   "Received frame for tx with no space in DMA ring\n");
+		WARN_ON(!ieee80211_queue_stopped(wlc->pub->ieee_hw,
+						 skb_get_queue_mapping(skb)));
+		return -ENOSPC;
+	}
 
 	/* When a BC/MC frame is being committed to the BCMC fifo
 	 * via DMA (NOT PIO), update ucode or BSS info as appropriate.
 	 */
 	if (fifo == TX_BCMC_FIFO)
 		frameid = le16_to_cpu(txh->TxFrameID);
-
-	/*
-	 * Bump up pending count for if not using rpc. If rpc is
-	 * used, this will be handled in brcms_b_txfifo()
-	 */
-	if (commit) {
-		wlc->core->txpktpend[fifo] += 1;
-		BCMMSG(wlc->wiphy, "pktpend inc 1 to %d\n",
-			 wlc->core->txpktpend[fifo]);
-	}
 
 	/* Commit BCMC sequence number in the SHM frame ID location */
 	if (frameid != INVALIDFID) {
@@ -7320,8 +7167,52 @@ brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p,
 		brcms_b_write_shm(wlc->hw, M_BCMC_FID, frameid);
 	}
 
-	if (dma_txfast(wlc->hw->di[fifo], p, commit) < 0)
+	ret = brcms_c_txfifo(wlc, fifo, skb);
+	/*
+	 * The only reason for brcms_c_txfifo to fail is because
+	 * there weren't any DMA descriptors, but we've already
+	 * checked for that. So if it does fail yell loudly.
+	 */
+	WARN_ON_ONCE(ret);
+
+	return ret;
+}
+
+void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
+			      struct ieee80211_hw *hw)
+{
+	uint fifo;
+	struct scb *scb = &wlc->pri_scb;
+
+	fifo = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
+	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0))
+		return;
+	if (brcms_c_tx(wlc, sdu))
+		dev_kfree_skb_any(sdu);
+}
+
+int
+brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo, struct sk_buff *p)
+{
+	struct dma_pub *dma = wlc->hw->di[fifo];
+	int ret;
+	u16 queue;
+
+	ret = dma_txfast(wlc, dma, p);
+	if (ret	< 0)
 		wiphy_err(wlc->wiphy, "txfifo: fatal, toss frames !!!\n");
+
+	/*
+	 * Stop queue if DMA ring is full. Reserve some free descriptors,
+	 * as we sometimes receive a frame from mac80211 after the queues
+	 * are stopped.
+	 */
+	queue = skb_get_queue_mapping(p);
+	if (dma->txavail <= TX_HEADROOM && fifo < TX_BCMC_FIFO &&
+	    !ieee80211_queue_stopped(wlc->pub->ieee_hw, queue))
+		ieee80211_stop_queue(wlc->pub->ieee_hw, queue);
+
+	return ret;
 }
 
 u32
@@ -7369,19 +7260,6 @@ brcms_c_rspec_to_rts_rspec(struct brcms_c_info *wlc, u32 rspec,
 		}
 	}
 	return rts_rspec;
-}
-
-void
-brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo)
-{
-	wlc->core->txpktpend[fifo] -= 1;
-	BCMMSG(wlc->wiphy, "pktpend dec 1 to %d\n",
-	       wlc->core->txpktpend[fifo]);
-
-	/* There is more room; mark precedences related to this FIFO sendable */
-	wlc->tx_prec_map |= 1 << fifo;
-
-	/* figure out which bsscfg is being worked on... */
 }
 
 /* Update beacon listen interval in shared memory */
@@ -7831,35 +7709,6 @@ void brcms_c_update_probe_resp(struct brcms_c_info *wlc, bool suspend)
 		brcms_c_bss_update_probe_resp(wlc, bsscfg, suspend);
 }
 
-/* prepares pdu for transmission. returns BCM error codes */
-int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu, uint *fifop)
-{
-	uint fifo;
-	struct d11txh *txh;
-	struct ieee80211_hdr *h;
-	struct scb *scb;
-
-	txh = (struct d11txh *) (pdu->data);
-	h = (struct ieee80211_hdr *)((u8 *) (txh + 1) + D11_PHY_HDR_LEN);
-
-	/* get the pkt queue info. This was put at brcms_c_sendctl or
-	 * brcms_c_send for PDU */
-	fifo = le16_to_cpu(txh->TxFrameID) & TXFID_QUEUE_MASK;
-
-	scb = NULL;
-
-	*fifop = fifo;
-
-	/* return if insufficient dma resources */
-	if (*wlc->core->txavail[fifo] < MAX_DMA_SEGS) {
-		/* Mark precedences related to this FIFO, unsendable */
-		/* A fifo is full. Clear precedences related to that FIFO */
-		wlc->tx_prec_map &= ~(1 << fifo);
-		return -EBUSY;
-	}
-	return 0;
-}
-
 int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 			   uint *blocks)
 {
@@ -7925,13 +7774,15 @@ int brcms_c_get_curband(struct brcms_c_info *wlc)
 void brcms_c_wait_for_tx_completion(struct brcms_c_info *wlc, bool drop)
 {
 	int timeout = 20;
+	int i;
 
-	/* flush packet queue when requested */
-	if (drop)
-		brcmu_pktq_flush(&wlc->pkt_queue->q, false, NULL, NULL);
+	/* Kick DMA to send any pending AMPDU */
+	for (i = 0; i < ARRAY_SIZE(wlc->hw->di); i++)
+		if (wlc->hw->di[i])
+			dma_txflush(wlc->hw->di[i]);
 
 	/* wait for queue and DMA fifos to run dry */
-	while (!pktq_empty(&wlc->pkt_queue->q) || brcms_txpktpendtot(wlc) > 0) {
+	while (brcms_txpktpendtot(wlc) > 0) {
 		brcms_msleep(wlc->wl, 1);
 
 		if (--timeout == 0)
@@ -8159,10 +8010,6 @@ bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded)
 		brcms_rfkill_set_hw_state(wlc->wl);
 	}
 
-	/* send any enq'd tx packets. Just makes sure to jump start tx */
-	if (!pktq_empty(&wlc->pkt_queue->q))
-		brcms_c_send_q(wlc);
-
 	/* it isn't done and needs to be resched if macintstatus is non-zero */
 	return wlc->macintstatus != 0;
 
@@ -8233,9 +8080,6 @@ void brcms_c_init(struct brcms_c_info *wlc, bool mute_tx)
 	/* Enable EDCF mode (while the MAC is suspended) */
 	bcma_set16(core, D11REGOFFS(ifs_ctl), IFS_USEEDCF);
 	brcms_c_edcf_setparams(wlc, false);
-
-	/* Init precedence maps for empty FIFOs */
-	brcms_c_tx_prec_map_init(wlc);
 
 	/* read the ucode version if we have not yet done so */
 	if (wlc->ucode_rev == 0) {
@@ -8408,15 +8252,6 @@ brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
 	/*
 	 * Complete the wlc default state initializations..
 	 */
-
-	/* allocate our initial queue */
-	wlc->pkt_queue = brcms_c_txq_alloc(wlc);
-	if (wlc->pkt_queue == NULL) {
-		wiphy_err(wl->wiphy, "wl%d: %s: failed to malloc tx queue\n",
-			  unit, __func__);
-		err = 100;
-		goto fail;
-	}
 
 	wlc->bsscfg->wlc = wlc;
 

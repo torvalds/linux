@@ -200,19 +200,6 @@ enum wlc_par_id {
 /* WL11N Support */
 #define AMPDU_AGG_HOST	1
 
-#define	BRCMS_PREC_COUNT	4	/* Max precedence level implemented */
-
-/* Mask to describe all precedence levels */
-#define BRCMS_PREC_BMP_ALL		MAXBITVAL(BRCMS_PREC_COUNT)
-
-/*
- * This maps priority to one precedence higher - Used by PS-Poll response
- * packets to simulate enqueue-at-head operation, but still maintain the
- * order on the queue
- */
-#define BRCMS_PRIO_TO_HI_PREC(pri)	min(BRCMS_PRIO_TO_PREC(pri) + 1,\
-					    BRCMS_PREC_COUNT - 1)
-
 /* network protection config */
 #define	BRCMS_PROT_G_SPEC		1	/* SPEC g protection */
 #define	BRCMS_PROT_G_OVR		2	/* SPEC g prot override */

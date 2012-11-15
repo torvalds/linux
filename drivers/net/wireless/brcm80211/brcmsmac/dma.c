@@ -19,12 +19,17 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <net/cfg80211.h>
+#include <net/mac80211.h>
 
 #include <brcmu_utils.h>
 #include <aiutils.h>
 #include "types.h"
+#include "main.h"
 #include "dma.h"
 #include "soc.h"
+#include "scb.h"
+#include "ampdu.h"
 
 /*
  * dma register field offset calculation
@@ -229,6 +234,9 @@ struct dma_info {
 
 	struct bcma_device *core;
 	struct device *dmadev;
+
+	/* session information for AMPDU */
+	struct brcms_ampdu_session ampdu_session;
 
 	bool dma64;	/* this dma engine is operating in 64-bit mode */
 	bool addrext;	/* this dma engine supports DmaExtendedAddrChanges */
@@ -564,12 +572,13 @@ static bool _dma_alloc(struct dma_info *di, uint direction)
 	return dma64_alloc(di, direction);
 }
 
-struct dma_pub *dma_attach(char *name, struct si_pub *sih,
-			   struct bcma_device *core,
+struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 			   uint txregbase, uint rxregbase, uint ntxd, uint nrxd,
 			   uint rxbufsize, int rxextheadroom,
 			   uint nrxpost, uint rxoffset, uint *msg_level)
 {
+	struct si_pub *sih = wlc->hw->sih;
+	struct bcma_device *core = wlc->hw->d11core;
 	struct dma_info *di;
 	u8 rev = core->id.rev;
 	uint size;
@@ -713,6 +722,9 @@ struct dma_pub *dma_attach(char *name, struct si_pub *sih,
 			goto fail;
 		}
 	}
+
+	/* Initialize AMPDU session */
+	brcms_c_ampdu_reset_session(&di->ampdu_session, wlc);
 
 	DMA_TRACE("ddoffsetlow 0x%x ddoffsethigh 0x%x dataoffsetlow 0x%x dataoffsethigh 0x%x addrext %d\n",
 		  di->ddoffsetlow, di->ddoffsethigh,
@@ -1016,6 +1028,17 @@ static bool dma64_rxidle(struct dma_info *di)
 		 D64_RS0_CD_MASK));
 }
 
+static bool dma64_txidle(struct dma_info *di)
+{
+	if (di->ntxd == 0)
+		return true;
+
+	return ((bcma_read32(di->core,
+			     DMA64TXREGOFFS(di, status0)) & D64_XS0_CD_MASK) ==
+		(bcma_read32(di->core, DMA64TXREGOFFS(di, ptr)) &
+		 D64_XS0_CD_MASK));
+}
+
 /*
  * post receive buffers
  *  return false is refill failed completely and ring is empty this will stall
@@ -1264,49 +1287,24 @@ bool dma_rxreset(struct dma_pub *pub)
 	return status == D64_RS0_RS_DISABLED;
 }
 
-/* Update count of available tx descriptors based on current DMA state */
-static void dma_update_txavail(struct dma_info *di)
+static void dma_txenq(struct dma_info *di, struct sk_buff *p)
 {
-	/*
-	 * Available space is number of descriptors less the number of
-	 * active descriptors and the number of queued AMPDU frames.
-	 */
-	di->dma.txavail = di->ntxd - ntxdactive(di, di->txin, di->txout) - 1;
-}
-
-
-/*
- * !! tx entry routine
- * WARNING: call must check the return value for error.
- *   the error(toss frames) could be fatal and cause many subsequent hard
- *   to debug problems
- */
-int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
-{
-	struct dma_info *di = (struct dma_info *)pub;
 	unsigned char *data;
 	uint len;
 	u16 txout;
 	u32 flags = 0;
 	dma_addr_t pa;
 
-	DMA_TRACE("%s:\n", di->name);
-
 	txout = di->txout;
+
+	if (WARN_ON(nexttxd(di, txout) == di->txin))
+		return;
 
 	/*
 	 * obtain and initialize transmit descriptor entry.
 	 */
 	data = p->data;
 	len = p->len;
-
-	/* no use to transmit a zero length packet */
-	if (len == 0)
-		return 0;
-
-	/* return nonzero if out of tx descriptors */
-	if (nexttxd(di, txout) == di->txin)
-		goto outoftxd;
 
 	/* get physical address of buffer start */
 	pa = dma_map_single(di->dmadev, data, len, DMA_TO_DEVICE);
@@ -1329,14 +1327,105 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 
 	/* bump the tx descriptor index */
 	di->txout = txout;
+}
 
-	/* kick the chip */
-	if (commit)
-		bcma_write32(di->core, DMA64TXREGOFFS(di, ptr),
-		      di->xmtptrbase + I2B(txout, struct dma64desc));
+static void ampdu_finalize(struct dma_info *di)
+{
+	struct brcms_ampdu_session *session = &di->ampdu_session;
+	struct sk_buff *p;
+
+	if (WARN_ON(skb_queue_empty(&session->skb_list)))
+		return;
+
+	brcms_c_ampdu_finalize(session);
+
+	while (!skb_queue_empty(&session->skb_list)) {
+		p = skb_dequeue(&session->skb_list);
+		dma_txenq(di, p);
+	}
+
+	bcma_write32(di->core, DMA64TXREGOFFS(di, ptr),
+		     di->xmtptrbase + I2B(di->txout, struct dma64desc));
+	brcms_c_ampdu_reset_session(session, session->wlc);
+}
+
+static void prep_ampdu_frame(struct dma_info *di, struct sk_buff *p)
+{
+	struct brcms_ampdu_session *session = &di->ampdu_session;
+	int ret;
+
+	ret = brcms_c_ampdu_add_frame(session, p);
+	if (ret == -ENOSPC) {
+		/*
+		 * AMPDU cannot accomodate this frame. Close out the in-
+		 * progress AMPDU session and start a new one.
+		 */
+		ampdu_finalize(di);
+		ret = brcms_c_ampdu_add_frame(session, p);
+	}
+
+	WARN_ON(ret);
+}
+
+/* Update count of available tx descriptors based on current DMA state */
+static void dma_update_txavail(struct dma_info *di)
+{
+	/*
+	 * Available space is number of descriptors less the number of
+	 * active descriptors and the number of queued AMPDU frames.
+	 */
+	di->dma.txavail = di->ntxd - ntxdactive(di, di->txin, di->txout) -
+			  skb_queue_len(&di->ampdu_session.skb_list) - 1;
+}
+
+/*
+ * !! tx entry routine
+ * WARNING: call must check the return value for error.
+ *   the error(toss frames) could be fatal and cause many subsequent hard
+ *   to debug problems
+ */
+int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
+	       struct sk_buff *p)
+{
+	struct dma_info *di = (struct dma_info *)pub;
+	struct brcms_ampdu_session *session = &di->ampdu_session;
+	struct ieee80211_tx_info *tx_info;
+	bool is_ampdu;
+
+	DMA_TRACE("%s:\n", di->name);
+
+	/* no use to transmit a zero length packet */
+	if (p->len == 0)
+		return 0;
+
+	/* return nonzero if out of tx descriptors */
+	if (di->dma.txavail == 0 || nexttxd(di, di->txout) == di->txin)
+		goto outoftxd;
+
+	tx_info = IEEE80211_SKB_CB(p);
+	is_ampdu = tx_info->flags & IEEE80211_TX_CTL_AMPDU;
+	if (is_ampdu)
+		prep_ampdu_frame(di, p);
+	else
+		dma_txenq(di, p);
 
 	/* tx flow control */
 	dma_update_txavail(di);
+
+	/* kick the chip */
+	if (is_ampdu) {
+		/*
+		 * Start sending data if we've got a full AMPDU, there's
+		 * no more space in the DMA ring, or the ring isn't
+		 * currently transmitting.
+		 */
+		if (skb_queue_len(&session->skb_list) == session->max_ampdu_frames ||
+		    di->dma.txavail == 0 || dma64_txidle(di))
+			ampdu_finalize(di);
+	} else {
+		bcma_write32(di->core, DMA64TXREGOFFS(di, ptr),
+			     di->xmtptrbase + I2B(di->txout, struct dma64desc));
+	}
 
 	return 0;
 
@@ -1345,7 +1434,35 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 	brcmu_pkt_buf_free_skb(p);
 	di->dma.txavail = 0;
 	di->dma.txnobuf++;
-	return -1;
+	return -ENOSPC;
+}
+
+void dma_txflush(struct dma_pub *pub)
+{
+	struct dma_info *di = (struct dma_info *)pub;
+	struct brcms_ampdu_session *session = &di->ampdu_session;
+
+	if (!skb_queue_empty(&session->skb_list))
+		ampdu_finalize(di);
+}
+
+int dma_txpending(struct dma_pub *pub)
+{
+	struct dma_info *di = (struct dma_info *)pub;
+	return ntxdactive(di, di->txin, di->txout);
+}
+
+/*
+ * If we have an active AMPDU session and are not transmitting,
+ * this function will force tx to start.
+ */
+void dma_kick_tx(struct dma_pub *pub)
+{
+	struct dma_info *di = (struct dma_info *)pub;
+	struct brcms_ampdu_session *session = &di->ampdu_session;
+
+	if (!skb_queue_empty(&session->skb_list) && dma64_txidle(di))
+		ampdu_finalize(di);
 }
 
 /*
