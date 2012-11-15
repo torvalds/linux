@@ -3,6 +3,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * Copyright (C) 2012 Cavium, Inc.
  * Copyright (C) 2009 Wind River Systems,
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
@@ -20,9 +21,7 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define EDAC_MOD_STR "octeon"
-
-static void co_pci_poll(struct edac_pci_ctl_info *pci)
+static void octeon_pci_poll(struct edac_pci_ctl_info *pci)
 {
 	union cvmx_pci_cfg01 cfg01;
 
@@ -57,14 +56,9 @@ static void co_pci_poll(struct edac_pci_ctl_info *pci)
 		cfg01.s.mdpe = 1;		/* Reset */
 		octeon_npi_write32(CVMX_NPI_PCI_CFG01, cfg01.u32);
 	}
-	if (cfg01.s.mdpe) {
-		edac_pci_handle_npe(pci, "Master Data Parity Error");
-		cfg01.s.mdpe = 1;		/* Reset */
-		octeon_npi_write32(CVMX_NPI_PCI_CFG01, cfg01.u32);
-	}
 }
 
-static int __devinit co_pci_probe(struct platform_device *pdev)
+static int __devinit octeon_pci_probe(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci;
 	int res = 0;
@@ -79,7 +73,7 @@ static int __devinit co_pci_probe(struct platform_device *pdev)
 
 	pci->mod_name = "octeon-pci";
 	pci->ctl_name = "octeon_pci_err";
-	pci->edac_check = co_pci_poll;
+	pci->edac_check = octeon_pci_poll;
 
 	if (edac_pci_add_device(pci, 0) > 0) {
 		pr_err("%s: edac_pci_add_device() failed\n", __func__);
@@ -94,7 +88,7 @@ err:
 	return res;
 }
 
-static int co_pci_remove(struct platform_device *pdev)
+static int octeon_pci_remove(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci = platform_get_drvdata(pdev);
 
@@ -104,32 +98,14 @@ static int co_pci_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver co_pci_driver = {
-	.probe = co_pci_probe,
-	.remove = co_pci_remove,
+static struct platform_driver octeon_pci_driver = {
+	.probe = octeon_pci_probe,
+	.remove = octeon_pci_remove,
 	.driver = {
-		   .name = "co_pci_edac",
+		   .name = "octeon_pci_edac",
 	}
 };
-
-static int __init co_edac_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&co_pci_driver);
-	if (ret)
-		pr_warning(EDAC_MOD_STR " PCI EDAC failed to register\n");
-
-	return ret;
-}
-
-static void __exit co_edac_exit(void)
-{
-	platform_driver_unregister(&co_pci_driver);
-}
-
-module_init(co_edac_init);
-module_exit(co_edac_exit);
+module_platform_driver(octeon_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

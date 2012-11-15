@@ -3,6 +3,8 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
+ * Copyright (C) 2012 Cavium, Inc.
+ *
  * Copyright (C) 2009 Wind River Systems,
  *   written by Ralf Baechle <ralf@linux-mips.org>
  */
@@ -19,32 +21,124 @@
 
 #define EDAC_MOD_STR "octeon-l2c"
 
-static void co_l2c_poll(struct edac_device_ctl_info *l2c)
+static void octeon_l2c_poll_oct1(struct edac_device_ctl_info *l2c)
 {
-	union cvmx_l2t_err l2t_err;
+	union cvmx_l2t_err l2t_err, l2t_err_reset;
+	union cvmx_l2d_err l2d_err, l2d_err_reset;
 
+	l2t_err_reset.u64 = 0;
 	l2t_err.u64 = cvmx_read_csr(CVMX_L2T_ERR);
 	if (l2t_err.s.sec_err) {
 		edac_device_handle_ce(l2c, 0, 0,
-				      "Single bit error (corrected)");
-		l2t_err.s.sec_err = 1;		/* Reset */
-		cvmx_write_csr(CVMX_L2T_ERR, l2t_err.u64);
+				      "Tag Single bit error (corrected)");
+		l2t_err_reset.s.sec_err = 1;
 	}
 	if (l2t_err.s.ded_err) {
 		edac_device_handle_ue(l2c, 0, 0,
-				      "Double bit error (corrected)");
-		l2t_err.s.ded_err = 1;		/* Reset */
-		cvmx_write_csr(CVMX_L2T_ERR, l2t_err.u64);
+				      "Tag Double bit error (detected)");
+		l2t_err_reset.s.ded_err = 1;
 	}
+	if (l2t_err_reset.u64)
+		cvmx_write_csr(CVMX_L2T_ERR, l2t_err_reset.u64);
+
+	l2d_err_reset.u64 = 0;
+	l2d_err.u64 = cvmx_read_csr(CVMX_L2D_ERR);
+	if (l2d_err.s.sec_err) {
+		edac_device_handle_ce(l2c, 0, 1,
+				      "Data Single bit error (corrected)");
+		l2d_err_reset.s.sec_err = 1;
+	}
+	if (l2d_err.s.ded_err) {
+		edac_device_handle_ue(l2c, 0, 1,
+				      "Data Double bit error (detected)");
+		l2d_err_reset.s.ded_err = 1;
+	}
+	if (l2d_err_reset.u64)
+		cvmx_write_csr(CVMX_L2D_ERR, l2d_err_reset.u64);
+
 }
 
-static int __devinit co_l2c_probe(struct platform_device *pdev)
+static void _octeon_l2c_poll_oct2(struct edac_device_ctl_info *l2c, int tad)
+{
+	union cvmx_l2c_err_tdtx err_tdtx, err_tdtx_reset;
+	union cvmx_l2c_err_ttgx err_ttgx, err_ttgx_reset;
+	char buf1[64];
+	char buf2[80];
+
+	err_tdtx_reset.u64 = 0;
+	err_tdtx.u64 = cvmx_read_csr(CVMX_L2C_ERR_TDTX(tad));
+	if (err_tdtx.s.dbe || err_tdtx.s.sbe ||
+	    err_tdtx.s.vdbe || err_tdtx.s.vsbe)
+		snprintf(buf1, sizeof(buf1),
+			 "type:%d, syn:0x%x, way:%d",
+			 err_tdtx.s.type, err_tdtx.s.syn, err_tdtx.s.wayidx);
+
+	if (err_tdtx.s.dbe) {
+		snprintf(buf2, sizeof(buf2),
+			 "L2D Double bit error (detected):%s", buf1);
+		err_tdtx_reset.s.dbe = 1;
+		edac_device_handle_ue(l2c, tad, 1, buf2);
+	}
+	if (err_tdtx.s.sbe) {
+		snprintf(buf2, sizeof(buf2),
+			 "L2D Single bit error (corrected):%s", buf1);
+		err_tdtx_reset.s.sbe = 1;
+		edac_device_handle_ce(l2c, tad, 1, buf2);
+	}
+	if (err_tdtx.s.vdbe) {
+		snprintf(buf2, sizeof(buf2),
+			 "VBF Double bit error (detected):%s", buf1);
+		err_tdtx_reset.s.vdbe = 1;
+		edac_device_handle_ue(l2c, tad, 1, buf2);
+	}
+	if (err_tdtx.s.vsbe) {
+		snprintf(buf2, sizeof(buf2),
+			 "VBF Single bit error (corrected):%s", buf1);
+		err_tdtx_reset.s.vsbe = 1;
+		edac_device_handle_ce(l2c, tad, 1, buf2);
+	}
+	if (err_tdtx_reset.u64)
+		cvmx_write_csr(CVMX_L2C_ERR_TDTX(tad), err_tdtx_reset.u64);
+
+	err_ttgx_reset.u64 = 0;
+	err_ttgx.u64 = cvmx_read_csr(CVMX_L2C_ERR_TTGX(tad));
+
+	if (err_ttgx.s.dbe || err_ttgx.s.sbe)
+		snprintf(buf1, sizeof(buf1),
+			 "type:%d, syn:0x%x, way:%d",
+			 err_ttgx.s.type, err_ttgx.s.syn, err_ttgx.s.wayidx);
+
+	if (err_ttgx.s.dbe) {
+		snprintf(buf2, sizeof(buf2),
+			 "Tag Double bit error (detected):%s", buf1);
+		err_ttgx_reset.s.dbe = 1;
+		edac_device_handle_ue(l2c, tad, 0, buf2);
+	}
+	if (err_ttgx.s.sbe) {
+		snprintf(buf2, sizeof(buf2),
+			 "Tag Single bit error (corrected):%s", buf1);
+		err_ttgx_reset.s.sbe = 1;
+		edac_device_handle_ce(l2c, tad, 0, buf2);
+	}
+	if (err_ttgx_reset.u64)
+		cvmx_write_csr(CVMX_L2C_ERR_TTGX(tad), err_ttgx_reset.u64);
+}
+
+static void octeon_l2c_poll_oct2(struct edac_device_ctl_info *l2c)
+{
+	int i;
+	for (i = 0; i < l2c->nr_instances; i++)
+		_octeon_l2c_poll_oct2(l2c, i);
+}
+
+static int __devinit octeon_l2c_probe(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *l2c;
-	union cvmx_l2t_err l2t_err;
-	int res = 0;
 
-	l2c = edac_device_alloc_ctl_info(0, "l2c", 1, NULL, 0, 0,
+	int num_tads = OCTEON_IS_MODEL(OCTEON_CN68XX) ? 4 : 1;
+
+	/* 'Tags' are block 0, 'Data' is block 1*/
+	l2c = edac_device_alloc_ctl_info(0, "l2c", num_tads, "l2c", 2, 0,
 					 NULL, 0, edac_device_alloc_index());
 	if (!l2c)
 		return -ENOMEM;
@@ -55,29 +149,43 @@ static int __devinit co_l2c_probe(struct platform_device *pdev)
 
 	l2c->mod_name = "octeon-l2c";
 	l2c->ctl_name = "octeon_l2c_err";
-	l2c->edac_check = co_l2c_poll;
+
+
+	if (OCTEON_IS_MODEL(OCTEON_FAM_1_PLUS)) {
+		union cvmx_l2t_err l2t_err;
+		union cvmx_l2d_err l2d_err;
+
+		l2t_err.u64 = cvmx_read_csr(CVMX_L2T_ERR);
+		l2t_err.s.sec_intena = 0;	/* We poll */
+		l2t_err.s.ded_intena = 0;
+		cvmx_write_csr(CVMX_L2T_ERR, l2t_err.u64);
+
+		l2d_err.u64 = cvmx_read_csr(CVMX_L2D_ERR);
+		l2d_err.s.sec_intena = 0;	/* We poll */
+		l2d_err.s.ded_intena = 0;
+		cvmx_write_csr(CVMX_L2T_ERR, l2d_err.u64);
+
+		l2c->edac_check = octeon_l2c_poll_oct1;
+	} else {
+		/* OCTEON II */
+		l2c->edac_check = octeon_l2c_poll_oct2;
+	}
 
 	if (edac_device_add_device(l2c) > 0) {
 		pr_err("%s: edac_device_add_device() failed\n", __func__);
 		goto err;
 	}
 
-	l2t_err.u64 = cvmx_read_csr(CVMX_L2T_ERR);
-	l2t_err.s.sec_intena = 0;	/* We poll */
-	l2t_err.s.ded_intena = 0;
-	l2t_err.s.sec_err = 1;		/* Clear, just in case */
-	l2t_err.s.ded_err = 1;
-	cvmx_write_csr(CVMX_L2T_ERR, l2t_err.u64);
 
 	return 0;
 
 err:
 	edac_device_free_ctl_info(l2c);
 
-	return res;
+	return -ENXIO;
 }
 
-static int co_l2c_remove(struct platform_device *pdev)
+static int octeon_l2c_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *l2c = platform_get_drvdata(pdev);
 
@@ -87,32 +195,14 @@ static int co_l2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver co_l2c_driver = {
-	.probe = co_l2c_probe,
-	.remove = co_l2c_remove,
+static struct platform_driver octeon_l2c_driver = {
+	.probe = octeon_l2c_probe,
+	.remove = octeon_l2c_remove,
 	.driver = {
-		   .name = "co_l2c_edac",
+		   .name = "octeon_l2c_edac",
 	}
 };
-
-static int __init co_edac_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&co_l2c_driver);
-	if (ret)
-		pr_warning(EDAC_MOD_STR " EDAC failed to register\n");
-
-	return ret;
-}
-
-static void __exit co_edac_exit(void)
-{
-	platform_driver_unregister(&co_l2c_driver);
-}
-
-module_init(co_edac_init);
-module_exit(co_edac_exit);
+module_platform_driver(octeon_l2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");

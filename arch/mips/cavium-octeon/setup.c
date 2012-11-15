@@ -1112,17 +1112,29 @@ void __init device_tree_init(void)
 	unflatten_device_tree();
 }
 
+static int __initdata disable_octeon_edac_p;
+
+static int __init disable_octeon_edac(char *str)
+{
+	disable_octeon_edac_p = 1;
+	return 0;
+}
+early_param("disable_octeon_edac", disable_octeon_edac);
+
 static char *edac_device_names[] = {
-	"co_l2c_edac",
-	"co_lmc_edac",
-	"co_pc_edac",
+	"octeon_l2c_edac",
+	"octeon_pc_edac",
 };
 
 static int __init edac_devinit(void)
 {
 	struct platform_device *dev;
 	int i, err = 0;
+	int num_lmc;
 	char *name;
+
+	if (disable_octeon_edac_p)
+		return 0;
 
 	for (i = 0; i < ARRAY_SIZE(edac_device_names); i++) {
 		name = edac_device_names[i];
@@ -1133,7 +1145,17 @@ static int __init edac_devinit(void)
 		}
 	}
 
+	num_lmc = OCTEON_IS_MODEL(OCTEON_CN68XX) ? 4 :
+		(OCTEON_IS_MODEL(OCTEON_CN56XX) ? 2 : 1);
+	for (i = 0; i < num_lmc; i++) {
+		dev = platform_device_register_simple("octeon_lmc_edac",
+						      i, NULL, 0);
+		if (IS_ERR(dev)) {
+			pr_err("Registation of octeon_lmc_edac %d failed!\n", i);
+			err = PTR_ERR(dev);
+		}
+	}
+
 	return err;
 }
-
 device_initcall(edac_devinit);

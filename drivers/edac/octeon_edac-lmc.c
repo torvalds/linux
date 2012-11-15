@@ -12,139 +12,175 @@
 #include <linux/io.h>
 #include <linux/edac.h>
 
-#include <asm/octeon/cvmx.h>
+#include <asm/octeon/octeon.h>
+#include <asm/octeon/cvmx-lmcx-defs.h>
 
 #include "edac_core.h"
 #include "edac_module.h"
-#include "octeon_edac-lmc.h"
 
-#define EDAC_MOD_STR "octeon"
+#define OCTEON_MAX_MC 4
 
-static struct mem_ctl_info *mc_cavium;
-static void *lmc_base;
-
-static void co_lmc_poll(struct mem_ctl_info *mci)
+static void octeon_lmc_edac_poll(struct mem_ctl_info *mci)
 {
-	union lmc_mem_cfg0 cfg0;
-	union lmc_fadr fadr;
+	union cvmx_lmcx_mem_cfg0 cfg0;
+	bool do_clear = false;
 	char msg[64];
 
-	fadr.u64 = readq(lmc_base + LMC_FADR);
-	cfg0.u64 = readq(lmc_base + LMC_MEM_CFG0);
-	snprintf(msg, sizeof(msg), "DIMM %d rank %d bank %d row %d col %d",
-		fadr.fdimm, fadr.fbunk, fadr.fbank, fadr.frow, fadr.fcol);
-
-	if (cfg0.sec_err) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0, -1, -1, -1,
-				     msg, "");
-
-		cfg0.intr_sec_ena = -1;		/* Done, re-arm */
+	cfg0.u64 = cvmx_read_csr(CVMX_LMCX_MEM_CFG0(mci->mc_idx));
+	if (cfg0.s.sec_err || cfg0.s.ded_err) {
+		union cvmx_lmcx_fadr fadr;
+		fadr.u64 = cvmx_read_csr(CVMX_LMCX_FADR(mci->mc_idx));
+		snprintf(msg, sizeof(msg),
+			 "DIMM %d rank %d bank %d row %d col %d",
+			 fadr.cn30xx.fdimm, fadr.cn30xx.fbunk,
+			 fadr.cn30xx.fbank, fadr.cn30xx.frow, fadr.cn30xx.fcol);
 	}
 
-	if (cfg0.ded_err) {
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0, -1, -1, -1,
-				     msg, "");
-		cfg0.intr_ded_ena = -1;		/* Done, re-arm */
+	if (cfg0.s.sec_err) {
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1, msg, "");
+		cfg0.s.sec_err = -1;	/* Done, re-arm */
+		do_clear = true;
 	}
 
-	writeq(cfg0.u64, lmc_base + LMC_MEM_CFG0);
+	if (cfg0.s.ded_err) {
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1, msg, "");
+		cfg0.s.ded_err = -1;	/* Done, re-arm */
+		do_clear = true;
+	}
+	if (do_clear)
+		cvmx_write_csr(CVMX_LMCX_MEM_CFG0(mci->mc_idx), cfg0.u64);
 }
 
-static int __devinit co_lmc_probe(struct platform_device *pdev)
+static void octeon_lmc_edac_poll_o2(struct mem_ctl_info *mci)
+{
+	union cvmx_lmcx_int int_reg;
+	bool do_clear = false;
+	char msg[64];
+
+	int_reg.u64 = cvmx_read_csr(CVMX_LMCX_INT(mci->mc_idx));
+	if (int_reg.s.sec_err || int_reg.s.ded_err) {
+		union cvmx_lmcx_fadr fadr;
+		fadr.u64 = cvmx_read_csr(CVMX_LMCX_FADR(mci->mc_idx));
+		snprintf(msg, sizeof(msg),
+			 "DIMM %d rank %d bank %d row %d col %d",
+			 fadr.cn61xx.fdimm, fadr.cn61xx.fbunk,
+			 fadr.cn61xx.fbank, fadr.cn61xx.frow, fadr.cn61xx.fcol);
+	}
+
+	if (int_reg.s.sec_err) {
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1, msg, "");
+		int_reg.s.sec_err = -1;	/* Done, re-arm */
+		do_clear = true;
+	}
+
+	if (int_reg.s.ded_err) {
+		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1, 0, 0, 0,
+				     -1, -1, -1, msg, "");
+		int_reg.s.ded_err = -1;	/* Done, re-arm */
+		do_clear = true;
+	}
+	if (do_clear)
+		cvmx_write_csr(CVMX_LMCX_INT(mci->mc_idx), int_reg.u64);
+}
+
+static int __devinit octeon_lmc_edac_probe(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci;
-	union lmc_mem_cfg0 cfg0;
-	int res = 0;
+	struct edac_mc_layer layers[1];
+	int mc = pdev->id;
 
-	mci = edac_mc_alloc(0, 0, 0, 0);
-	if (!mci)
-		return -ENOMEM;
+	layers[0].type = EDAC_MC_LAYER_CHANNEL;
+	layers[0].size = 1;
+	layers[0].is_virt_csrow = false;
 
-	mci->pdev = &pdev->dev;
-	platform_set_drvdata(pdev, mci);
-	mci->dev_name = dev_name(&pdev->dev);
+	if (OCTEON_IS_MODEL(OCTEON_FAM_1_PLUS)) {
+		union cvmx_lmcx_mem_cfg0 cfg0;
 
-	mci->mod_name = "octeon-lmc";
-	mci->ctl_name = "co_lmc_err";
-	mci->edac_check = co_lmc_poll;
+		cfg0.u64 = cvmx_read_csr(CVMX_LMCX_MEM_CFG0(0));
+		if (!cfg0.s.ecc_ena) {
+			dev_info(&pdev->dev, "Disabled (ECC not enabled)\n");
+			return 0;
+		}
 
-	if (edac_mc_add_mc(mci) > 0) {
-		pr_err("%s: edac_mc_add_mc() failed\n", __func__);
-		goto err;
+		mci = edac_mc_alloc(mc, ARRAY_SIZE(layers), layers, 0);
+		if (!mci)
+			return -ENXIO;
+
+		mci->pdev = &pdev->dev;
+		mci->dev_name = dev_name(&pdev->dev);
+
+		mci->mod_name = "octeon-lmc";
+		mci->ctl_name = "octeon-lmc-err";
+		mci->edac_check = octeon_lmc_edac_poll;
+
+		if (edac_mc_add_mc(mci)) {
+			dev_err(&pdev->dev, "edac_mc_add_mc() failed\n");
+			edac_mc_free(mci);
+			return -ENXIO;
+		}
+
+		cfg0.u64 = cvmx_read_csr(CVMX_LMCX_MEM_CFG0(mc));
+		cfg0.s.intr_ded_ena = 0;	/* We poll */
+		cfg0.s.intr_sec_ena = 0;
+		cvmx_write_csr(CVMX_LMCX_MEM_CFG0(mc), cfg0.u64);
+	} else {
+		/* OCTEON II */
+		union cvmx_lmcx_int_en en;
+		union cvmx_lmcx_config config;
+
+		config.u64 = cvmx_read_csr(CVMX_LMCX_CONFIG(0));
+		if (!config.s.ecc_ena) {
+			dev_info(&pdev->dev, "Disabled (ECC not enabled)\n");
+			return 0;
+		}
+
+		mci = edac_mc_alloc(mc, ARRAY_SIZE(layers), layers, 0);
+		if (!mci)
+			return -ENXIO;
+
+		mci->pdev = &pdev->dev;
+		mci->dev_name = dev_name(&pdev->dev);
+
+		mci->mod_name = "octeon-lmc";
+		mci->ctl_name = "co_lmc_err";
+		mci->edac_check = octeon_lmc_edac_poll_o2;
+
+		if (edac_mc_add_mc(mci)) {
+			dev_err(&pdev->dev, "edac_mc_add_mc() failed\n");
+			edac_mc_free(mci);
+			return -ENXIO;
+		}
+
+		en.u64 = cvmx_read_csr(CVMX_LMCX_MEM_CFG0(mc));
+		en.s.intr_ded_ena = 0;	/* We poll */
+		en.s.intr_sec_ena = 0;
+		cvmx_write_csr(CVMX_LMCX_MEM_CFG0(mc), en.u64);
 	}
-
-	cfg0.u64 = readq(lmc_base + LMC_MEM_CFG0);	/* We poll */
-	cfg0.intr_ded_ena = 0;
-	cfg0.intr_sec_ena = 0;
-	writeq(cfg0.u64, lmc_base + LMC_MEM_CFG0);
-
-	mc_cavium = mci;
+	platform_set_drvdata(pdev, mci);
 
 	return 0;
-
-err:
-	edac_mc_free(mci);
-
-	return res;
 }
 
-static int co_lmc_remove(struct platform_device *pdev)
+static int octeon_lmc_edac_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
-	mc_cavium = NULL;
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
-
 	return 0;
 }
 
-static struct platform_driver co_lmc_driver = {
-	.probe = co_lmc_probe,
-	.remove = co_lmc_remove,
+static struct platform_driver octeon_lmc_edac_driver = {
+	.probe = octeon_lmc_edac_probe,
+	.remove = octeon_lmc_edac_remove,
 	.driver = {
-		   .name = "co_lmc_edac",
+		   .name = "octeon_lmc_edac",
 	}
 };
-
-static int __init co_edac_init(void)
-{
-	union lmc_mem_cfg0 cfg0;
-	int ret;
-
-	lmc_base = ioremap_nocache(LMC_BASE, LMC_SIZE);
-	if (!lmc_base)
-		return -ENOMEM;
-
-	cfg0.u64 = readq(lmc_base + LMC_MEM_CFG0);
-	if (!cfg0.ecc_ena) {
-		pr_info(EDAC_MOD_STR " LMC EDAC: ECC disabled, good bye\n");
-		ret = -ENODEV;
-		goto out;
-	}
-
-	ret = platform_driver_register(&co_lmc_driver);
-	if (ret) {
-		pr_warning(EDAC_MOD_STR " LMC EDAC failed to register\n");
-		goto out;
-	}
-
-	return ret;
-
-out:
-	iounmap(lmc_base);
-
-	return ret;
-}
-
-static void __exit co_edac_exit(void)
-{
-	platform_driver_unregister(&co_lmc_driver);
-	iounmap(lmc_base);
-}
-
-module_init(co_edac_init);
-module_exit(co_edac_exit);
+module_platform_driver(octeon_lmc_edac_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Ralf Baechle <ralf@linux-mips.org>");
