@@ -814,7 +814,7 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	screen_x = dev_drv->cur_screen->x_res;
 	screen_y = dev_drv->cur_screen->y_res;
 	
-#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)||defined(CONFIG_NO_DUAL_DISP)
 	if(dev_drv->cur_screen->screen_id == 1){
 		dev_drv->cur_screen->xpos = (screen_x-screen_x*scale_x/100)>>1;
 		dev_drv->cur_screen->ypos = (screen_y-screen_y*scale_y/100)>>1;
