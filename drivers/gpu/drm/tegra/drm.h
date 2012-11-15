@@ -130,6 +130,7 @@ struct tegra_output_ops {
 
 enum tegra_output_type {
 	TEGRA_OUTPUT_RGB,
+	TEGRA_OUTPUT_HDMI,
 };
 
 struct tegra_output {
@@ -226,6 +227,7 @@ extern int tegra_drm_fb_init(struct drm_device *drm);
 extern void tegra_drm_fb_exit(struct drm_device *drm);
 
 extern struct platform_driver tegra_host1x_driver;
+extern struct platform_driver tegra_hdmi_driver;
 extern struct platform_driver tegra_dc_driver;
 extern struct drm_driver tegra_drm_driver;
 

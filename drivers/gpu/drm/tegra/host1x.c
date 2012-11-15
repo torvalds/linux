@@ -67,6 +67,7 @@ static int host1x_parse_dt(struct host1x *host1x)
 {
 	static const char * const compat[] = {
 		"nvidia,tegra20-dc",
+		"nvidia,tegra20-hdmi",
 	};
 	unsigned int i;
 	int err;
@@ -294,8 +295,14 @@ static int __init tegra_host1x_init(void)
 	if (err < 0)
 		goto unregister_host1x;
 
+	err = platform_driver_register(&tegra_hdmi_driver);
+	if (err < 0)
+		goto unregister_dc;
+
 	return 0;
 
+unregister_dc:
+	platform_driver_unregister(&tegra_dc_driver);
 unregister_host1x:
 	platform_driver_unregister(&tegra_host1x_driver);
 	return err;
@@ -304,6 +311,7 @@ module_init(tegra_host1x_init);
 
 static void __exit tegra_host1x_exit(void)
 {
+	platform_driver_unregister(&tegra_hdmi_driver);
 	platform_driver_unregister(&tegra_dc_driver);
 	platform_driver_unregister(&tegra_host1x_driver);
 }
