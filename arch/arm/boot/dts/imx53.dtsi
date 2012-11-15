@@ -81,7 +81,7 @@
 				reg = <0x50000000 0x40000>;
 				ranges;
 
-				esdhc@50004000 { /* ESDHC1 */
+				esdhc1: esdhc@50004000 {
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50004000 0x4000>;
 					interrupts = <1>;
@@ -89,7 +89,7 @@
 					status = "disabled";
 				};
 
-				esdhc@50008000 { /* ESDHC2 */
+				esdhc2: esdhc@50008000 {
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50008000 0x4000>;
 					interrupts = <2>;
@@ -104,7 +104,7 @@
 					status = "disabled";
 				};
 
-				ecspi@50010000 { /* ECSPI1 */
+				ecspi1: ecspi@50010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
@@ -122,7 +122,7 @@
 					status = "disabled";
 				};
 
-				esdhc@50020000 { /* ESDHC3 */
+				esdhc3: esdhc@50020000 {
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50020000 0x4000>;
 					interrupts = <3>;
@@ -130,7 +130,7 @@
 					status = "disabled";
 				};
 
-				esdhc@50024000 { /* ESDHC4 */
+				esdhc4: esdhc@50024000 {
 					compatible = "fsl,imx53-esdhc";
 					reg = <0x50024000 0x4000>;
 					interrupts = <4>;
@@ -139,28 +139,28 @@
 				};
 			};
 
-			usb@53f80000 {
+			usbotg: usb@53f80000 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80000 0x0200>;
 				interrupts = <18>;
 				status = "disabled";
 			};
 
-			usb@53f80200 {
+			usbh1: usb@53f80200 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80200 0x0200>;
 				interrupts = <14>;
 				status = "disabled";
 			};
 
-			usb@53f80400 {
+			usbh2: usb@53f80400 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80400 0x0200>;
 				interrupts = <16>;
 				status = "disabled";
 			};
 
-			usb@53f80600 {
+			usbh3: usb@53f80600 {
 				compatible = "fsl,imx53-usb", "fsl,imx27-usb";
 				reg = <0x53f80600 0x0200>;
 				interrupts = <17>;
@@ -207,20 +207,20 @@
 				#interrupt-cells = <2>;
 			};
 
-			wdog@53f98000 { /* WDOG1 */
+			wdog1: wdog@53f98000 {
 				compatible = "fsl,imx53-wdt", "fsl,imx21-wdt";
 				reg = <0x53f98000 0x4000>;
 				interrupts = <58>;
 			};
 
-			wdog@53f9c000 { /* WDOG2 */
+			wdog2: wdog@53f9c000 {
 				compatible = "fsl,imx53-wdt", "fsl,imx21-wdt";
 				reg = <0x53f9c000 0x4000>;
 				interrupts = <59>;
 				status = "disabled";
 			};
 
-			iomuxc@53fa8000 {
+			iomuxc: iomuxc@53fa8000 {
 				compatible = "fsl,imx53-iomuxc";
 				reg = <0x53fa8000 0x4000>;
 
@@ -479,7 +479,7 @@
 				#interrupt-cells = <2>;
 			};
 
-			i2c@53fec000 { /* I2C3 */
+			i2c3: i2c@53fec000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
@@ -510,7 +510,7 @@
 				status = "disabled";
 			};
 
-			ecspi@63fac000 { /* ECSPI2 */
+			ecspi2: ecspi@63fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-ecspi", "fsl,imx51-ecspi";
@@ -519,14 +519,14 @@
 				status = "disabled";
 			};
 
-			sdma@63fb0000 {
+			sdma: sdma@63fb0000 {
 				compatible = "fsl,imx53-sdma", "fsl,imx35-sdma";
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx53.bin";
 			};
 
-			cspi@63fc0000 {
+			cspi: cspi@63fc0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-cspi", "fsl,imx35-cspi";
@@ -535,7 +535,7 @@
 				status = "disabled";
 			};
 
-			i2c@63fc4000 { /* I2C2 */
+			i2c2: i2c@63fc4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
@@ -544,7 +544,7 @@
 				status = "disabled";
 			};
 
-			i2c@63fc8000 { /* I2C1 */
+			i2c1: i2c@63fc8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
@@ -562,13 +562,13 @@
 				status = "disabled";
 			};
 
-			audmux@63fd0000 {
+			audmux: audmux@63fd0000 {
 				compatible = "fsl,imx53-audmux", "fsl,imx31-audmux";
 				reg = <0x63fd0000 0x4000>;
 				status = "disabled";
 			};
 
-			nand@63fdb000 {
+			nfc: nand@63fdb000 {
 				compatible = "fsl,imx53-nand";
 				reg = <0x63fdb000 0x1000 0xf7ff0000 0x10000>;
 				interrupts = <8>;
@@ -584,7 +584,7 @@
 				status = "disabled";
 			};
 
-			ethernet@63fec000 {
+			fec: ethernet@63fec000 {
 				compatible = "fsl,imx53-fec", "fsl,imx25-fec";
 				reg = <0x63fec000 0x4000>;
 				interrupts = <87>;
