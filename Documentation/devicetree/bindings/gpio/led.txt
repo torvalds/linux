@@ -10,16 +10,10 @@ LED sub-node properties:
 - gpios :  Should specify the LED's GPIO, see "gpios property" in
   Documentation/devicetree/bindings/gpio/gpio.txt.  Active low LEDs should be
   indicated using flags in the GPIO specifier.
-- label :  (optional) The label for this LED.  If omitted, the label is
-  taken from the node name (excluding the unit address).
-- linux,default-trigger :  (optional) This parameter, if present, is a
-  string defining the trigger assigned to the LED.  Current triggers are:
-    "backlight" - LED will act as a back-light, controlled by the framebuffer
-		  system
-    "default-on" - LED will turn on, but see "default-state" below
-    "heartbeat" - LED "double" flashes at a load average based rate
-    "ide-disk" - LED indicates disk activity
-    "timer" - LED flashes at a fixed, configurable rate
+- label :  (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
+- linux,default-trigger :  (optional)
+  see Documentation/devicetree/bindings/leds/common.txt
 - default-state:  (optional) The initial state of the LED.  Valid
   values are "on", "off", and "keep".  If the LED is already on or off
   and the default-state property is set the to same value, then no
