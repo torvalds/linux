@@ -19,7 +19,7 @@
 #ifndef __ARCH_ARM_MACH_OMAP2_OMAP_OPP_DATA_H
 #define __ARCH_ARM_MACH_OMAP2_OMAP_OPP_DATA_H
 
-#include <plat/omap_hwmod.h>
+#include "omap_hwmod.h"
 
 #include "voltage.h"
 

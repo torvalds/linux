@@ -38,18 +38,21 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include "common.h"
 #include <video/omapdss.h>
 #include <video/omap-panel-tfp410.h>
-#include <plat/gpmc.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/usb.h>
-#include <plat/omap_device.h>
 
+#include "common.h"
+#include "omap_device.h"
+#include "gpmc.h"
+#include "soc.h"
 #include "mux.h"
 #include "hsmmc.h"
 #include "pm.h"
+#include "board-flash.h"
 #include "common-board-devices.h"
+
+#define	NAND_CS	0
 
 /*
  * OMAP3 Beagle revision
@@ -512,8 +515,9 @@ static void __init omap3_beagle_init(void)
 
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3beagle_nand_partitions,
-			     ARRAY_SIZE(omap3beagle_nand_partitions));
+	board_nand_init(omap3beagle_nand_partitions,
+			ARRAY_SIZE(omap3beagle_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 	omap_twl4030_audio_init("omap3beagle");
 
 	/* Ensure msecure is mux'd to be able to set the RTC. */

@@ -1,6 +1,4 @@
 /*
- *  arch/arm/plat-omap/include/mach/led.h
- *
  *  Copyright (C) 2006 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *

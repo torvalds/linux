@@ -23,7 +23,6 @@
 #include <linux/slab.h>
 
 #include <video/omapdss.h>
-#include <plat/cpu.h>
 
 #include "dss.h"
 #include "dss_features.h"
@@ -825,10 +824,20 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 
 };
 
-void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data)
+void dss_init_hdmi_ip_ops(struct hdmi_ip_data *ip_data,
+		enum omapdss_version version)
 {
-	if (cpu_is_omap44xx())
+	switch (version) {
+	case OMAPDSS_VER_OMAP4430_ES1:
+	case OMAPDSS_VER_OMAP4430_ES2:
+	case OMAPDSS_VER_OMAP4:
 		ip_data->ops = &omap4_hdmi_functions;
+		break;
+	default:
+		ip_data->ops = NULL;
+	}
+
+	WARN_ON(ip_data->ops == NULL);
 }
 #endif
 
@@ -929,29 +938,44 @@ bool dss_feat_rotation_type_supported(enum omap_dss_rotation_type rot_type)
 	return omap_current_dss_features->supported_rotation_types & rot_type;
 }
 
-void dss_features_init(void)
+void dss_features_init(enum omapdss_version version)
 {
-	if (cpu_is_omap24xx())
+	switch (version) {
+	case OMAPDSS_VER_OMAP24xx:
 		omap_current_dss_features = &omap2_dss_features;
-	else if (cpu_is_omap3630())
+		break;
+
+	case OMAPDSS_VER_OMAP34xx_ES1:
+	case OMAPDSS_VER_OMAP34xx_ES3:
+		omap_current_dss_features = &omap3430_dss_features;
+		break;
+
+	case OMAPDSS_VER_OMAP3630:
 		omap_current_dss_features = &omap3630_dss_features;
-	else if (cpu_is_omap34xx()) {
-		if (soc_is_am35xx()) {
-			omap_current_dss_features = &am35xx_dss_features;
-		} else {
-			omap_current_dss_features = &omap3430_dss_features;
-		}
-	}
-	else if (omap_rev() == OMAP4430_REV_ES1_0)
+		break;
+
+	case OMAPDSS_VER_OMAP4430_ES1:
 		omap_current_dss_features = &omap4430_es1_0_dss_features;
-	else if (omap_rev() == OMAP4430_REV_ES2_0 ||
-		omap_rev() == OMAP4430_REV_ES2_1 ||
-		omap_rev() == OMAP4430_REV_ES2_2)
+		break;
+
+	case OMAPDSS_VER_OMAP4430_ES2:
 		omap_current_dss_features = &omap4430_es2_0_1_2_dss_features;
-	else if (cpu_is_omap44xx())
+		break;
+
+	case OMAPDSS_VER_OMAP4:
 		omap_current_dss_features = &omap4_dss_features;
-	else if (soc_is_omap54xx())
+		break;
+
+	case OMAPDSS_VER_OMAP5:
 		omap_current_dss_features = &omap5_dss_features;
-	else
+		break;
+
+	case OMAPDSS_VER_AM35xx:
+		omap_current_dss_features = &am35xx_dss_features;
+		break;
+
+	default:
 		DSSWARN("Unsupported OMAP version");
+		break;
+	}
 }

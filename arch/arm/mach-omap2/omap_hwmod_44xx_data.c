@@ -21,22 +21,23 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/power/smartreflex.h>
+#include <linux/i2c-omap.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/i2c.h>
-#include <plat/dma.h>
+#include <plat-omap/dma-omap.h>
+
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/platform_data/asoc-ti-mcbsp.h>
-#include <plat/mmc.h>
 #include <plat/dmtimer.h>
-#include <plat/common.h>
 #include <plat/iommu.h>
 
+#include "omap_hwmod.h"
 #include "omap_hwmod_common_data.h"
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
 #include "prm44xx.h"
 #include "prm-regbits-44xx.h"
+#include "i2c.h"
+#include "mmc.h"
 #include "wd_timer.h"
 
 /* Base offset for all OMAP4 interrupts external to MPUSS */

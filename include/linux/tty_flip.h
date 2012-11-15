@@ -11,7 +11,7 @@ void tty_schedule_flip(struct tty_struct *tty);
 static inline int tty_insert_flip_char(struct tty_struct *tty,
 					unsigned char ch, char flag)
 {
-	struct tty_buffer *tb = tty->buf.tail;
+	struct tty_buffer *tb = tty->port->buf.tail;
 	if (tb && tb->used < tb->size) {
 		tb->flag_buf_ptr[tb->used] = flag;
 		tb->char_buf_ptr[tb->used++] = ch;

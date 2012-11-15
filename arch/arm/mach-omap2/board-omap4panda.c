@@ -29,6 +29,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/ti_wilink_st.h>
+#include <linux/usb/musb.h>
 #include <linux/wl12xx.h>
 #include <linux/platform_data/omap-abe-twl6040.h>
 
@@ -38,12 +39,11 @@
 #include <asm/mach/map.h>
 #include <video/omapdss.h>
 
-#include "common.h"
-#include <plat/usb.h>
-#include <plat/mmc.h>
 #include <video/omap-panel-tfp410.h>
 
+#include "common.h"
 #include "soc.h"
+#include "mmc.h"
 #include "hsmmc.h"
 #include "control.h"
 #include "mux.h"

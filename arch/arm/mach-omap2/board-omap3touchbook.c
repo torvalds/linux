@@ -44,12 +44,12 @@
 #include <asm/system_info.h>
 
 #include "common.h"
-#include <plat/gpmc.h>
+#include "gpmc.h"
 #include <linux/platform_data/mtd-nand-omap2.h>
-#include <plat/usb.h>
 
 #include "mux.h"
 #include "hsmmc.h"
+#include "board-flash.h"
 #include "common-board-devices.h"
 
 #include <asm/setup.h>
@@ -58,6 +58,8 @@
 #define OMAP3_TS_GPIO		162
 #define TB_BL_PWM_TIMER		9
 #define TB_KILL_POWER_GPIO	168
+
+#define	NAND_CS			0
 
 static unsigned long touchbook_revision;
 
@@ -365,8 +367,9 @@ static void __init omap3_touchbook_init(void)
 	omap_ads7846_init(4, OMAP3_TS_GPIO, 310, &ads7846_pdata);
 	usb_musb_init(NULL);
 	usbhs_init(&usbhs_bdata);
-	omap_nand_flash_init(NAND_BUSWIDTH_16, omap3touchbook_nand_partitions,
-			     ARRAY_SIZE(omap3touchbook_nand_partitions));
+	board_nand_init(omap3touchbook_nand_partitions,
+			ARRAY_SIZE(omap3touchbook_nand_partitions), NAND_CS,
+			NAND_BUSWIDTH_16, NULL);
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);

@@ -14,6 +14,8 @@
 
 #include <linux/types.h>
 #include <plat/prcm.h>
+
+#include "soc.h"
 #include "prm.h"
 #include "prm2xxx_3xxx.h"
 #include "cm.h"

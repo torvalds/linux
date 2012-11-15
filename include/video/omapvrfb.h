@@ -36,6 +36,7 @@ struct vrfb {
 };
 
 #ifdef CONFIG_OMAP2_VRFB
+extern bool omap_vrfb_supported(void);
 extern int omap_vrfb_request_ctx(struct vrfb *vrfb);
 extern void omap_vrfb_release_ctx(struct vrfb *vrfb);
 extern void omap_vrfb_adjust_size(u16 *width, u16 *height,
@@ -49,6 +50,7 @@ extern int omap_vrfb_map_angle(struct vrfb *vrfb, u16 height, u8 rot);
 extern void omap_vrfb_restore_context(void);
 
 #else
+static inline bool omap_vrfb_supported(void) { return false; }
 static inline int omap_vrfb_request_ctx(struct vrfb *vrfb) { return 0; }
 static inline void omap_vrfb_release_ctx(struct vrfb *vrfb) {}
 static inline void omap_vrfb_adjust_size(u16 *width, u16 *height,
