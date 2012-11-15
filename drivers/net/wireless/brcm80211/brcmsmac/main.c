@@ -1153,7 +1153,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 					   dmareg(DMA_RX, 0),
 					   (wme ? NTXD : 0), NRXD,
 					   RXBUFSZ, -1, NRXBUFPOST,
-					   BRCMS_HWRXOFF, &brcm_msg_level);
+					   BRCMS_HWRXOFF);
 		dma_attach_err |= (NULL == wlc_hw->di[0]);
 
 		/*
@@ -1164,8 +1164,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 */
 		wlc_hw->di[1] = dma_attach(name, wlc,
 					   dmareg(DMA_TX, 1), 0,
-					   NTXD, 0, 0, -1, 0, 0,
-					   &brcm_msg_level);
+					   NTXD, 0, 0, -1, 0, 0);
 		dma_attach_err |= (NULL == wlc_hw->di[1]);
 
 		/*
@@ -1175,8 +1174,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		 */
 		wlc_hw->di[2] = dma_attach(name, wlc,
 					   dmareg(DMA_TX, 2), 0,
-					   NTXD, 0, 0, -1, 0, 0,
-					   &brcm_msg_level);
+					   NTXD, 0, 0, -1, 0, 0);
 		dma_attach_err |= (NULL == wlc_hw->di[2]);
 		/*
 		 * FIFO 3
@@ -1186,7 +1184,7 @@ static bool brcms_b_attach_dmapio(struct brcms_c_info *wlc, uint j, bool wme)
 		wlc_hw->di[3] = dma_attach(name, wlc,
 					   dmareg(DMA_TX, 3),
 					   0, NTXD, 0, 0, -1,
-					   0, 0, &brcm_msg_level);
+					   0, 0);
 		dma_attach_err |= (NULL == wlc_hw->di[3]);
 /* Cleaner to leave this as if with AP defined */
 

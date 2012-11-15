@@ -78,7 +78,7 @@ extern struct dma_pub *dma_attach(char *name, struct brcms_c_info *wlc,
 				  uint txregbase, uint rxregbase,
 				  uint ntxd, uint nrxd,
 				  uint rxbufsize, int rxextheadroom,
-				  uint nrxpost, uint rxoffset, uint *msg_level);
+				  uint nrxpost, uint rxoffset);
 
 void dma_rxinit(struct dma_pub *pub);
 int dma_rx(struct dma_pub *pub, struct sk_buff_head *skb_list);
