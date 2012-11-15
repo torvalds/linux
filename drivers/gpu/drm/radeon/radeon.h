@@ -1217,6 +1217,66 @@ struct radeon_dpm_thermal {
 	bool               high_to_low;
 };
 
+struct radeon_clock_and_voltage_limits {
+	u32 sclk;
+	u32 mclk;
+	u32 vddc;
+	u32 vddci;
+};
+
+struct radeon_clock_array {
+	u32 count;
+	u32 *values;
+};
+
+struct radeon_clock_voltage_dependency_entry {
+	u32 clk;
+	u16 v;
+};
+
+struct radeon_clock_voltage_dependency_table {
+	u32 count;
+	struct radeon_clock_voltage_dependency_entry *entries;
+};
+
+struct radeon_cac_leakage_entry {
+	u16 vddc;
+	u32 leakage;
+};
+
+struct radeon_cac_leakage_table {
+	u32 count;
+	struct radeon_cac_leakage_entry *entries;
+};
+
+struct radeon_dpm_dynamic_state {
+	struct radeon_clock_voltage_dependency_table vddc_dependency_on_sclk;
+	struct radeon_clock_voltage_dependency_table vddci_dependency_on_mclk;
+	struct radeon_clock_voltage_dependency_table vddc_dependency_on_mclk;
+	struct radeon_clock_array valid_sclk_values;
+	struct radeon_clock_array valid_mclk_values;
+	struct radeon_clock_and_voltage_limits max_clock_voltage_on_dc;
+	struct radeon_clock_and_voltage_limits max_clock_voltage_on_ac;
+	u32 mclk_sclk_ratio;
+	u32 sclk_mclk_delta;
+	u16 vddc_vddci_delta;
+	u16 min_vddc_for_pcie_gen2;
+	struct radeon_cac_leakage_table cac_leakage_table;
+};
+
+struct radeon_dpm_fan {
+	u16 t_min;
+	u16 t_med;
+	u16 t_high;
+	u16 pwm_min;
+	u16 pwm_med;
+	u16 pwm_high;
+	u8 t_hyst;
+	u32 cycle_delay;
+	u16 t_max;
+	bool ucode_fan_control;
+};
+
 struct radeon_dpm {
 	struct radeon_ps        *ps;
 	/* number of valid power states */
@@ -1239,6 +1299,16 @@ struct radeon_dpm {
 	int			new_active_crtc_count;
 	u32			current_active_crtcs;
 	int			current_active_crtc_count;
+	struct radeon_dpm_dynamic_state dyn_state;
+	struct radeon_dpm_fan fan;
+	u32 tdp_limit;
+	u32 near_tdp_limit;
+	u32 sq_ramping_threshold;
+	u32 cac_leakage;
+	u16 tdp_od_limit;
+	u32 tdp_adjustment;
+	u16 load_line_slope;
+	bool power_control;
 	/* special states active */
 	bool                    thermal_active;
 	bool                    uvd_active;

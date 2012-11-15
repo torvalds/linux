@@ -721,3 +721,182 @@ bool r600_is_internal_thermal_sensor(enum radeon_int_thermal_type sensor)
 		return false;
 	}
 }
+
+union power_info {
+	struct _ATOM_POWERPLAY_INFO info;
+	struct _ATOM_POWERPLAY_INFO_V2 info_2;
+	struct _ATOM_POWERPLAY_INFO_V3 info_3;
+	struct _ATOM_PPLIB_POWERPLAYTABLE pplib;
+	struct _ATOM_PPLIB_POWERPLAYTABLE2 pplib2;
+	struct _ATOM_PPLIB_POWERPLAYTABLE3 pplib3;
+	struct _ATOM_PPLIB_POWERPLAYTABLE4 pplib4;
+	struct _ATOM_PPLIB_POWERPLAYTABLE5 pplib5;
+};
+
+union fan_info {
+	struct _ATOM_PPLIB_FANTABLE fan;
+	struct _ATOM_PPLIB_FANTABLE2 fan2;
+};
+
+static int r600_parse_clk_voltage_dep_table(struct radeon_clock_voltage_dependency_table *radeon_table,
+					    ATOM_PPLIB_Clock_Voltage_Dependency_Table *atom_table)
+{
+	u32 size = atom_table->ucNumEntries *
+		sizeof(struct radeon_clock_voltage_dependency_entry);
+	int i;
+
+	radeon_table->entries = kzalloc(size, GFP_KERNEL);
+	if (!radeon_table->entries)
+		return -ENOMEM;
+
+	for (i = 0; i < atom_table->ucNumEntries; i++) {
+		radeon_table->entries[i].clk = le16_to_cpu(atom_table->entries[i].usClockLow) |
+			(atom_table->entries[i].ucClockHigh << 16);
+		radeon_table->entries[i].v = le16_to_cpu(atom_table->entries[i].usVoltage);
+	}
+	radeon_table->count = atom_table->ucNumEntries;
+
+	return 0;
+}
+
+int r600_parse_extended_power_table(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	union power_info *power_info;
+	union fan_info *fan_info;
+	ATOM_PPLIB_Clock_Voltage_Dependency_Table *dep_table;
+	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
+        u16 data_offset;
+	u8 frev, crev;
+	int ret, i;
+
+	if (!atom_parse_data_header(mode_info->atom_context, index, NULL,
+				   &frev, &crev, &data_offset))
+		return -EINVAL;
+	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
+
+	/* fan table */
+	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE3)) {
+		if (power_info->pplib3.usFanTableOffset) {
+			fan_info = (union fan_info *)(mode_info->atom_context->bios + data_offset +
+						      le16_to_cpu(power_info->pplib3.usFanTableOffset));
+			rdev->pm.dpm.fan.t_hyst = fan_info->fan.ucTHyst;
+			rdev->pm.dpm.fan.t_min = le16_to_cpu(fan_info->fan.usTMin);
+			rdev->pm.dpm.fan.t_med = le16_to_cpu(fan_info->fan.usTMed);
+			rdev->pm.dpm.fan.t_high = le16_to_cpu(fan_info->fan.usTHigh);
+			rdev->pm.dpm.fan.pwm_min = le16_to_cpu(fan_info->fan.usPWMMin);
+			rdev->pm.dpm.fan.pwm_med = le16_to_cpu(fan_info->fan.usPWMMed);
+			rdev->pm.dpm.fan.pwm_high = le16_to_cpu(fan_info->fan.usPWMHigh);
+			if (fan_info->fan.ucFanTableFormat >= 2)
+				rdev->pm.dpm.fan.t_max = le16_to_cpu(fan_info->fan2.usTMax);
+			else
+				rdev->pm.dpm.fan.t_max = 10900;
+			rdev->pm.dpm.fan.cycle_delay = 100000;
+			rdev->pm.dpm.fan.ucode_fan_control = true;
+		}
+	}
+
+	/* clock dependancy tables */
+	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE4)) {
+		if (power_info->pplib4.usVddcDependencyOnSCLKOffset) {
+			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib4.usVddcDependencyOnSCLKOffset));
+			ret = r600_parse_clk_voltage_dep_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk,
+							       dep_table);
+			if (ret)
+				return ret;
+		}
+		if (power_info->pplib4.usVddciDependencyOnMCLKOffset) {
+			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib4.usVddciDependencyOnMCLKOffset));
+			ret = r600_parse_clk_voltage_dep_table(&rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk,
+							       dep_table);
+			if (ret) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				return ret;
+			}
+		}
+		if (power_info->pplib4.usVddcDependencyOnMCLKOffset) {
+			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib4.usVddcDependencyOnMCLKOffset));
+			ret = r600_parse_clk_voltage_dep_table(&rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk,
+							       dep_table);
+			if (ret) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+				return ret;
+			}
+		}
+		if (power_info->pplib4.usMaxClockVoltageOnDCOffset) {
+			ATOM_PPLIB_Clock_Voltage_Limit_Table *clk_v =
+				(ATOM_PPLIB_Clock_Voltage_Limit_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib4.usMaxClockVoltageOnDCOffset));
+			if (clk_v->ucNumEntries) {
+				rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk =
+					le16_to_cpu(clk_v->entries[0].usSclkLow) |
+					(clk_v->entries[0].ucSclkHigh << 16);
+				rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.mclk =
+					le16_to_cpu(clk_v->entries[0].usMclkLow) |
+					(clk_v->entries[0].ucMclkHigh << 16);
+				rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.vddc =
+					le16_to_cpu(clk_v->entries[0].usVddc);
+				rdev->pm.dpm.dyn_state.max_clock_voltage_on_dc.vddci =
+					le16_to_cpu(clk_v->entries[0].usVddci);
+			}
+		}
+	}
+
+	/* cac data */
+	if (power_info->pplib.usTableSize >= sizeof(struct _ATOM_PPLIB_POWERPLAYTABLE5)) {
+		rdev->pm.dpm.tdp_limit = le32_to_cpu(power_info->pplib5.ulTDPLimit);
+		rdev->pm.dpm.near_tdp_limit = le32_to_cpu(power_info->pplib5.ulNearTDPLimit);
+		rdev->pm.dpm.tdp_od_limit = le16_to_cpu(power_info->pplib5.usTDPODLimit);
+		if (rdev->pm.dpm.tdp_od_limit)
+			rdev->pm.dpm.power_control = true;
+		else
+			rdev->pm.dpm.power_control = false;
+		rdev->pm.dpm.tdp_adjustment = 0;
+		rdev->pm.dpm.sq_ramping_threshold = le32_to_cpu(power_info->pplib5.ulSQRampingThreshold);
+		rdev->pm.dpm.cac_leakage = le32_to_cpu(power_info->pplib5.ulCACLeakage);
+		rdev->pm.dpm.load_line_slope = le16_to_cpu(power_info->pplib5.usLoadLineSlope);
+		if (power_info->pplib5.usCACLeakageTableOffset) {
+			ATOM_PPLIB_CAC_Leakage_Table *cac_table =
+				(ATOM_PPLIB_CAC_Leakage_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib5.usCACLeakageTableOffset));
+			u32 size = cac_table->ucNumEntries * sizeof(struct radeon_cac_leakage_table);
+			rdev->pm.dpm.dyn_state.cac_leakage_table.entries = kzalloc(size, GFP_KERNEL);
+			if (!rdev->pm.dpm.dyn_state.cac_leakage_table.entries) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				return -ENOMEM;
+			}
+			for (i = 0; i < cac_table->ucNumEntries; i++) {
+				rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].vddc =
+					le16_to_cpu(cac_table->entries[i].usVddc);
+				rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].leakage =
+					le32_to_cpu(cac_table->entries[i].ulLeakageValue);
+			}
+			rdev->pm.dpm.dyn_state.cac_leakage_table.count = cac_table->ucNumEntries;
+		}
+	}
+
+	return 0;
+}
+
+void r600_free_extended_power_table(struct radeon_device *rdev)
+{
+	if (rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries)
+		kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+	if (rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries)
+		kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+	if (rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries)
+		kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+	if (rdev->pm.dpm.dyn_state.cac_leakage_table.entries)
+		kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
+}
