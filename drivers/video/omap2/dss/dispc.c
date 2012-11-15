@@ -3232,14 +3232,24 @@ unsigned long dispc_core_clk_rate(void)
 
 static unsigned long dispc_plane_pclk_rate(enum omap_plane plane)
 {
-	enum omap_channel channel = dispc_ovl_get_channel_out(plane);
+	enum omap_channel channel;
+
+	if (plane == OMAP_DSS_WB)
+		return 0;
+
+	channel = dispc_ovl_get_channel_out(plane);
 
 	return dispc_mgr_pclk_rate(channel);
 }
 
 static unsigned long dispc_plane_lclk_rate(enum omap_plane plane)
 {
-	enum omap_channel channel = dispc_ovl_get_channel_out(plane);
+	enum omap_channel channel;
+
+	if (plane == OMAP_DSS_WB)
+		return 0;
+
+	channel	= dispc_ovl_get_channel_out(plane);
 
 	return dispc_mgr_lclk_rate(channel);
 }
