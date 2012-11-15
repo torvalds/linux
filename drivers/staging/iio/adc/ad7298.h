@@ -9,23 +9,6 @@
 #ifndef IIO_ADC_AD7298_H_
 #define IIO_ADC_AD7298_H_
 
-#define AD7298_WRITE	(1 << 15) /* write to the control register */
-#define AD7298_REPEAT	(1 << 14) /* repeated conversion enable */
-#define AD7298_CH(x)	(1 << (13 - (x))) /* channel select */
-#define AD7298_TSENSE	(1 << 5) /* temperature conversion enable */
-#define AD7298_EXTREF	(1 << 2) /* external reference enable */
-#define AD7298_TAVG	(1 << 1) /* temperature sensor averaging enable */
-#define AD7298_PDD	(1 << 0) /* partial power down enable */
-
-#define AD7298_MAX_CHAN		8
-#define AD7298_BITS		12
-#define AD7298_STORAGE_BITS	16
-#define AD7298_INTREF_mV	2500
-
-#define AD7298_CH_TEMP		9
-
-#define RES_MASK(bits)	((1 << (bits)) - 1)
-
 /**
  * struct ad7298_platform_data - Platform data for the ad7298 ADC driver
  * @ext_ref: Whether to use an external reference voltage.
@@ -34,40 +17,4 @@ struct ad7298_platform_data {
 	bool ext_ref;
 };
 
-struct ad7298_state {
-	struct spi_device		*spi;
-	struct regulator		*reg;
-	unsigned			ext_ref;
-	struct spi_transfer		ring_xfer[10];
-	struct spi_transfer		scan_single_xfer[3];
-	struct spi_message		ring_msg;
-	struct spi_message		scan_single_msg;
-	/*
-	 * DMA (thus cache coherency maintenance) requires the
-	 * transfer buffers to live in their own cache lines.
-	 */
-	unsigned short			rx_buf[12] ____cacheline_aligned;
-	unsigned short			tx_buf[2];
-};
-
-#ifdef CONFIG_IIO_BUFFER
-int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev);
-void ad7298_ring_cleanup(struct iio_dev *indio_dev);
-int ad7298_update_scan_mode(struct iio_dev *indio_dev,
-	const unsigned long *active_scan_mask);
-#else /* CONFIG_IIO_BUFFER */
-
-static inline int
-ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline void ad7298_ring_cleanup(struct iio_dev *indio_dev)
-{
-}
-
-#define ad7298_update_scan_mode NULL
-
-#endif /* CONFIG_IIO_BUFFER */
 #endif /* IIO_ADC_AD7298_H_ */
