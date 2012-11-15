@@ -812,6 +812,15 @@ void task_numa_fault(int node, int pages)
 
 	/* FIXME: Allocate task-specific structure for placement policy here */
 
+	/*
+	 * Assume that as faults occur that pages are getting properly placed
+	 * and fewer NUMA hints are required. Note that this is a big
+	 * assumption, it assumes processes reach a steady steady with no
+	 * further phase changes.
+	 */
+	p->numa_scan_period = min(sysctl_numa_balancing_scan_period_max,
+				p->numa_scan_period + jiffies_to_msecs(2));
+
 	task_numa_placement(p);
 }
 
@@ -858,7 +867,7 @@ void task_numa_work(struct callback_head *work)
 	if (p->numa_scan_period == 0)
 		p->numa_scan_period = sysctl_numa_balancing_scan_period_min;
 
-	next_scan = now + 2*msecs_to_jiffies(p->numa_scan_period);
+	next_scan = now + msecs_to_jiffies(p->numa_scan_period);
 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
 		return;
 
