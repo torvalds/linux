@@ -24,7 +24,7 @@
 #include <linux/tracepoint.h>
 #include "mac80211_if.h"
 
-#ifndef CONFIG_BRCMDBG
+#ifndef CONFIG_BRCM_TRACING
 #undef TRACE_EVENT
 #define TRACE_EVENT(name, proto, ...) \
 static inline void trace_ ## name(proto) {}
@@ -80,7 +80,7 @@ TRACE_EVENT(brcms_dpc,
 
 #endif /* __TRACE_BRCMSMAC_H */
 
-#ifdef CONFIG_BRCMDBG
+#ifdef CONFIG_BRCM_TRACING
 
 #undef TRACE_INCLUDE_PATH
 #define TRACE_INCLUDE_PATH .
@@ -89,4 +89,4 @@ TRACE_EVENT(brcms_dpc,
 
 #include <trace/define_trace.h>
 
-#endif /* CONFIG_BRCMDBG */
+#endif /* CONFIG_BRCM_TRACING */
