@@ -98,10 +98,14 @@ static struct bcma_device_id brcms_coreid_table[] = {
 };
 MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
-#ifdef DEBUG
-static int msglevel = 0xdeadbeef;
-module_param(msglevel, int, 0);
-#endif				/* DEBUG */
+#if defined(CONFIG_BRCMDBG)
+/*
+ * Module parameter for setting the debug message level. Available
+ * flags are specified by the BRCM_DL_* macros in
+ * drivers/net/wireless/brcm80211/include/defs.h.
+ */
+module_param_named(debug, brcm_msg_level, uint, S_IRUGO | S_IWUSR);
+#endif
 
 static struct ieee80211_channel brcms_2ghz_chantable[] = {
 	CHAN2GHZ(1, 2412, IEEE80211_CHAN_NO_HT40MINUS),
@@ -1184,10 +1188,6 @@ static DECLARE_WORK(brcms_driver_work, brcms_driver_init);
 
 static int __init brcms_module_init(void)
 {
-#ifdef DEBUG
-	if (msglevel != 0xdeadbeef)
-		brcm_msg_level = msglevel;
-#endif
 	if (!schedule_work(&brcms_driver_work))
 		return -EBUSY;
 

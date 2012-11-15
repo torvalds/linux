@@ -279,12 +279,7 @@ struct edcf_acparam {
 } __packed;
 
 /* debug/trace */
-uint brcm_msg_level =
-#if defined(DEBUG)
-	BRCM_DL_INFO;
-#else
-	0;
-#endif				/* DEBUG */
+uint brcm_msg_level;
 
 /* TX FIFO number to WME/802.1E Access Category */
 static const u8 wme_fifo2ac[] = {
