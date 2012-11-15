@@ -1082,6 +1082,8 @@ static int mv_xor_channel_remove(struct mv_xor_chan *mv_chan)
 		list_del(&chan->device_node);
 	}
 
+	free_irq(mv_chan->irq, mv_chan);
+
 	return 0;
 }
 
@@ -1101,6 +1103,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	}
 
 	mv_chan->idx = idx;
+	mv_chan->irq = irq;
 
 	dma_dev = &mv_chan->dmadev;
 
@@ -1147,7 +1150,7 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	/* clear errors before enabling interrupts */
 	mv_xor_device_clear_err_status(mv_chan);
 
-	ret = devm_request_irq(&pdev->dev, irq,
+	ret = devm_request_irq(&pdev->dev, mv_chan->irq,
 			       mv_xor_interrupt_handler,
 			       0, dev_name(&pdev->dev), mv_chan);
 	if (ret)

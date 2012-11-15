@@ -81,6 +81,7 @@ struct mv_xor_chan {
 	spinlock_t		lock; /* protects the descriptor slot pool */
 	void __iomem		*mmr_base;
 	unsigned int		idx;
+	int                     irq;
 	enum dma_transaction_type	current_type;
 	struct list_head	chain;
 	struct list_head	completed_slots;
