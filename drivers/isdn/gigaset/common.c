@@ -518,6 +518,7 @@ f_bcs:	gig_dbg(DEBUG_INIT, "freeing bcs[]");
 	kfree(cs->bcs);
 f_cs:	gig_dbg(DEBUG_INIT, "freeing cs");
 	mutex_unlock(&cs->mutex);
+	tty_port_destroy(&cs->port);
 	free_cs(cs);
 }
 EXPORT_SYMBOL_GPL(gigaset_freecs);
@@ -751,14 +752,14 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 	gig_dbg(DEBUG_INIT, "setting up iif");
 	if (gigaset_isdn_regdev(cs, modulename) < 0) {
 		pr_err("error registering ISDN device\n");
-		goto error;
+		goto error_port;
 	}
 
 	make_valid(cs, VALID_ID);
 	++cs->cs_init;
 	gig_dbg(DEBUG_INIT, "setting up hw");
 	if (cs->ops->initcshw(cs) < 0)
-		goto error;
+		goto error_port;
 
 	++cs->cs_init;
 
@@ -773,7 +774,7 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 		gig_dbg(DEBUG_INIT, "setting up bcs[%d]", i);
 		if (gigaset_initbcs(cs->bcs + i, cs, i) < 0) {
 			pr_err("could not allocate channel %d data\n", i);
-			goto error;
+			goto error_port;
 		}
 	}
 
@@ -786,7 +787,8 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	gig_dbg(DEBUG_INIT, "cs initialized");
 	return cs;
-
+error_port:
+	tty_port_destroy(&cs->port);
 error:
 	gig_dbg(DEBUG_INIT, "failed");
 	gigaset_freecs(cs);

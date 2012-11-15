@@ -3843,8 +3843,10 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 	for ( port = 0; port < SCA_MAX_PORTS; ++port ) {
 		port_array[port] = alloc_dev(adapter_num,port,pdev);
 		if( port_array[port] == NULL ) {
-			for ( --port; port >= 0; --port )
+			for (--port; port >= 0; --port) {
+				tty_port_destroy(&port_array[port]->port);
 				kfree(port_array[port]);
+			}
 			return;
 		}
 	}
@@ -3953,6 +3955,7 @@ static void synclinkmp_cleanup(void)
 		}
 		tmp = info;
 		info = info->next_device;
+		tty_port_destroy(&tmp->port);
 		kfree(tmp);
 	}
 

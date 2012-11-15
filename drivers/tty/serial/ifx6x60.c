@@ -829,6 +829,7 @@ static void ifx_spi_free_port(struct ifx_spi_device *ifx_dev)
 {
 	if (ifx_dev->tty_dev)
 		tty_unregister_device(tty_drv, ifx_dev->minor);
+	tty_port_destroy(&ifx_dev->tty_port);
 	kfifo_free(&ifx_dev->tx_fifo);
 }
 
@@ -862,10 +863,12 @@ static int ifx_spi_create_port(struct ifx_spi_device *ifx_dev)
 		dev_dbg(&ifx_dev->spi_dev->dev,
 			"%s: registering tty device failed", __func__);
 		ret = PTR_ERR(ifx_dev->tty_dev);
-		goto error_ret;
+		goto error_port;
 	}
 	return 0;
 
+error_port:
+	tty_port_destroy(pport);
 error_ret:
 	ifx_spi_free_port(ifx_dev);
 	return ret;

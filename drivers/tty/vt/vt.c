@@ -779,6 +779,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 		con_set_default_unimap(vc);
 	    vc->vc_screenbuf = kmalloc(vc->vc_screenbuf_size, GFP_KERNEL);
 	    if (!vc->vc_screenbuf) {
+		tty_port_destroy(&vc->port);
 		kfree(vc);
 		vc_cons[currcons].d = NULL;
 		return -ENOMEM;
@@ -999,8 +1000,10 @@ void vc_deallocate(unsigned int currcons)
 		put_pid(vc->vt_pid);
 		module_put(vc->vc_sw->owner);
 		kfree(vc->vc_screenbuf);
-		if (currcons >= MIN_NR_CONSOLES)
+		if (currcons >= MIN_NR_CONSOLES) {
+			tty_port_destroy(&vc->port);
 			kfree(vc);
+		}
 		vc_cons[currcons].d = NULL;
 	}
 }

@@ -3934,7 +3934,7 @@ err:
 static void __devexit cy_pci_remove(struct pci_dev *pdev)
 {
 	struct cyclades_card *cinfo = pci_get_drvdata(pdev);
-	unsigned int i;
+	unsigned int i, channel;
 
 	/* non-Z with old PLX */
 	if (!cy_is_Z(cinfo) && (readb(cinfo->base_addr + CyPLX_VER) & 0x0f) ==
@@ -3960,9 +3960,11 @@ static void __devexit cy_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 
 	cinfo->base_addr = NULL;
-	for (i = cinfo->first_line; i < cinfo->first_line +
-			cinfo->nports; i++)
+	for (channel = 0, i = cinfo->first_line; i < cinfo->first_line +
+			cinfo->nports; i++, channel++) {
 		tty_unregister_device(cy_serial_driver, i);
+		tty_port_destroy(&cinfo->ports[channel].port);
+	}
 	cinfo->nports = 0;
 	kfree(cinfo->ports);
 }

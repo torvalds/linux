@@ -882,11 +882,14 @@ err:
 static void __devexit pti_pci_remove(struct pci_dev *pdev)
 {
 	struct pti_dev *drv_data = pci_get_drvdata(pdev);
+	unsigned int a;
 
 	unregister_console(&pti_console);
 
-	tty_unregister_device(pti_tty_driver, 0);
-	tty_unregister_device(pti_tty_driver, 1);
+	for (a = 0; a < PTITTY_MINOR_NUM; a++) {
+		tty_unregister_device(pti_tty_driver, a);
+		tty_port_destroy(&drv_data->port[a]);
+	}
 
 	iounmap(drv_data->pti_ioaddr);
 	pci_set_drvdata(pdev, NULL);

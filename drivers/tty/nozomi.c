@@ -1479,6 +1479,7 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 		if (IS_ERR(tty_dev)) {
 			ret = PTR_ERR(tty_dev);
 			dev_err(&pdev->dev, "Could not allocate tty?\n");
+			tty_port_destroy(&port->port);
 			goto err_free_tty;
 		}
 	}
@@ -1486,8 +1487,10 @@ static int __devinit nozomi_card_init(struct pci_dev *pdev,
 	return 0;
 
 err_free_tty:
-	for (i = dc->index_start; i < dc->index_start + MAX_PORT; ++i)
-		tty_unregister_device(ntty_driver, i);
+	for (i = 0; i < MAX_PORT; ++i) {
+		tty_unregister_device(ntty_driver, dc->index_start + i);
+		tty_port_destroy(&dc->port[i].port);
+	}
 err_free_kfifo:
 	for (i = 0; i < MAX_PORT; i++)
 		kfifo_free(&dc->port[i].fifo_ul);
@@ -1520,8 +1523,10 @@ static void __devexit tty_exit(struct nozomi *dc)
 	   complete off a hangup method ? */
 	while (dc->open_ttys)
 		msleep(1);
-	for (i = dc->index_start; i < dc->index_start + MAX_PORT; ++i)
-		tty_unregister_device(ntty_driver, i);
+	for (i = 0; i < MAX_PORT; ++i) {
+		tty_unregister_device(ntty_driver, dc->index_start + i);
+		tty_port_destroy(&dc->port[i].port);
+	}
 }
 
 /* Deallocate memory for one device */

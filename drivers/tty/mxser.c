@@ -2411,12 +2411,25 @@ static int __devinit mxser_initbrd(struct mxser_board *brd,
 
 	retval = request_irq(brd->irq, mxser_interrupt, IRQF_SHARED, "mxser",
 			brd);
-	if (retval)
+	if (retval) {
+		for (i = 0; i < brd->info->nports; i++)
+			tty_port_destroy(&brd->ports[i].port);
 		printk(KERN_ERR "Board %s: Request irq failed, IRQ (%d) may "
 			"conflict with another device.\n",
 			brd->info->name, brd->irq);
+	}
 
 	return retval;
+}
+
+static void mxser_board_remove(struct mxser_board *brd)
+{
+	unsigned int i;
+
+	for (i = 0; i < brd->info->nports; i++) {
+		tty_unregister_device(mxvar_sdriver, brd->idx + i);
+		tty_port_destroy(&brd->ports[i].port);
+	}
 }
 
 static int __init mxser_get_ISA_conf(int cap, struct mxser_board *brd)
@@ -2649,10 +2662,8 @@ static void __devexit mxser_remove(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI
 	struct mxser_board *brd = pci_get_drvdata(pdev);
-	unsigned int i;
 
-	for (i = 0; i < brd->info->nports; i++)
-		tty_unregister_device(mxvar_sdriver, brd->idx + i);
+	mxser_board_remove(brd);
 
 	free_irq(pdev->irq, brd);
 	pci_release_region(pdev, 2);
@@ -2748,15 +2759,13 @@ err_put:
 
 static void __exit mxser_module_exit(void)
 {
-	unsigned int i, j;
+	unsigned int i;
 
 	pci_unregister_driver(&mxser_driver);
 
 	for (i = 0; i < MXSER_BOARDS; i++) /* ISA remains */
 		if (mxser_boards[i].info != NULL)
-			for (j = 0; j < mxser_boards[i].info->nports; j++)
-				tty_unregister_device(mxvar_sdriver,
-						mxser_boards[i].idx + j);
+			mxser_board_remove(&mxser_boards[i]);
 	tty_unregister_driver(mxvar_sdriver);
 	put_tty_driver(mxvar_sdriver);
 

@@ -446,6 +446,7 @@ static int ipoctal_inst_slot(struct ipoctal *ipoctal, unsigned int bus_nr,
 		tty_dev = tty_port_register_device(&channel->tty_port, tty, i, NULL);
 		if (IS_ERR(tty_dev)) {
 			dev_err(&ipoctal->dev->dev, "Failed to register tty device.\n");
+			tty_port_destroy(&channel->tty_port);
 			continue;
 		}
 		dev_set_drvdata(tty_dev, channel);
@@ -741,6 +742,7 @@ static void __ipoctal_remove(struct ipoctal *ipoctal)
 		struct ipoctal_channel *channel = &ipoctal->channel[i];
 		tty_unregister_device(ipoctal->tty_drv, i);
 		tty_port_free_xmit_buf(&channel->tty_port);
+		tty_port_destroy(&channel->tty_port);
 	}
 
 	tty_unregister_driver(ipoctal->tty_drv);

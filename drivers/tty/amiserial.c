@@ -1771,6 +1771,7 @@ fail_free_irq:
 fail_unregister:
 	tty_unregister_driver(serial_driver);
 fail_put_tty_driver:
+	tty_port_destroy(&state->tport);
 	put_tty_driver(serial_driver);
 	return error;
 }
@@ -1785,6 +1786,7 @@ static int __exit amiga_serial_remove(struct platform_device *pdev)
 		printk("SERIAL: failed to unregister serial driver (%d)\n",
 		       error);
 	put_tty_driver(serial_driver);
+	tty_port_destroy(&state->tport);
 
 	free_irq(IRQ_AMIGA_TBE, state);
 	free_irq(IRQ_AMIGA_RBF, state);

@@ -4425,6 +4425,7 @@ static void synclink_cleanup(void)
 		mgsl_release_resources(info);
 		tmp = info;
 		info = info->next_device;
+		tty_port_destroy(&tmp->port);
 		kfree(tmp);
 	}
 	

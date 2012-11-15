@@ -2297,6 +2297,8 @@ int uart_register_driver(struct uart_driver *drv)
 	if (retval >= 0)
 		return retval;
 
+	for (i = 0; i < drv->nr; i++)
+		tty_port_destroy(&drv->state[i].port);
 	put_tty_driver(normal);
 out_kfree:
 	kfree(drv->state);
@@ -2316,8 +2318,12 @@ out:
 void uart_unregister_driver(struct uart_driver *drv)
 {
 	struct tty_driver *p = drv->tty_driver;
+	unsigned int i;
+
 	tty_unregister_driver(p);
 	put_tty_driver(p);
+	for (i = 0; i < drv->nr; i++)
+		tty_port_destroy(&drv->state[i].port);
 	kfree(drv->state);
 	drv->state = NULL;
 	drv->tty_driver = NULL;

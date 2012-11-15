@@ -266,6 +266,7 @@ static int kgdb_nmi_tty_install(struct tty_driver *drv, struct tty_struct *tty)
 	}
 	return 0;
 err:
+	tty_port_destroy(&priv->port);
 	kfree(priv);
 	return ret;
 }
@@ -275,6 +276,7 @@ static void kgdb_nmi_tty_cleanup(struct tty_struct *tty)
 	struct kgdb_nmi_tty_priv *priv = tty->driver_data;
 
 	tty->driver_data = NULL;
+	tty_port_destroy(&priv->port);
 	kfree(priv);
 }
 

@@ -3119,6 +3119,7 @@ static void dgrp_tty_hangup(struct tty_struct *tty)
 void
 dgrp_tty_uninit(struct nd_struct *nd)
 {
+	unsigned int i;
 	char id[3];
 
 	ID_TO_CHAR(nd->nd_ID, id);
@@ -3152,6 +3153,8 @@ dgrp_tty_uninit(struct nd_struct *nd)
 		put_tty_driver(nd->nd_xprint_ttdriver);
 		nd->nd_ttdriver_flags &= ~XPRINT_TTDRV_REG;
 	}
+	for (i = 0; i < CHAN_MAX; i++)
+		tty_port_destroy(&nd->nd_chan[i].port);
 }
 
 
@@ -3334,7 +3337,6 @@ dgrp_tty_init(struct nd_struct *nd)
 
 		init_waitqueue_head(&(ch->ch_pun.un_open_wait));
 		init_waitqueue_head(&(ch->ch_pun.un_close_wait));
-		tty_port_init(&ch->port);
 		tty_port_init(&ch->port);
 	}
 	return 0;

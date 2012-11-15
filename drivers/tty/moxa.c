@@ -895,6 +895,8 @@ static int moxa_init_board(struct moxa_board_conf *brd, struct device *dev)
 
 	return 0;
 err_free:
+	for (i = 0; i < MAX_PORTS_PER_BOARD; i++)
+		tty_port_destroy(&brd->ports[i].port);
 	kfree(brd->ports);
 err:
 	return ret;
@@ -919,6 +921,8 @@ static void moxa_board_deinit(struct moxa_board_conf *brd)
 				tty_kref_put(tty);
 			}
 		}
+	for (a = 0; a < MAX_PORTS_PER_BOARD; a++)
+		tty_port_destroy(&brd->ports[a].port);
 	while (1) {
 		opened = 0;
 		for (a = 0; a < brd->numPorts; a++)

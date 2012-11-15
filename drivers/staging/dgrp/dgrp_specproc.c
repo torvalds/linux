@@ -752,6 +752,8 @@ static int dgrp_add_id(long id)
 
 	return 0;
 
+	/* FIXME this guy should free the tty driver stored in nd and destroy
+	 * all channel ports */
 error_out:
 	kfree(nd);
 	return ret;
