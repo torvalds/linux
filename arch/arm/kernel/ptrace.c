@@ -916,15 +916,10 @@ enum ptrace_syscall_dir {
 	PTRACE_SYSCALL_EXIT,
 };
 
-static int ptrace_syscall_trace(struct pt_regs *regs, int scno,
-				enum ptrace_syscall_dir dir)
+static int tracehook_report_syscall(struct pt_regs *regs,
+				    enum ptrace_syscall_dir dir)
 {
 	unsigned long ip;
-
-	current_thread_info()->syscall = scno;
-
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return scno;
 
 	/*
 	 * IP is used to denote syscall entry/exit:
@@ -944,19 +939,35 @@ static int ptrace_syscall_trace(struct pt_regs *regs, int scno,
 
 asmlinkage int syscall_trace_enter(struct pt_regs *regs, int scno)
 {
-	scno = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_ENTER);
+	current_thread_info()->syscall = scno;
+
+	/* Do the secure computing check first; failures should be fast. */
+	if (secure_computing(scno) == -1)
+		return -1;
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		scno = tracehook_report_syscall(regs, PTRACE_SYSCALL_ENTER);
+
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_enter(regs, scno);
+
 	audit_syscall_entry(AUDIT_ARCH_ARM, scno, regs->ARM_r0, regs->ARM_r1,
 			    regs->ARM_r2, regs->ARM_r3);
+
 	return scno;
 }
 
 asmlinkage int syscall_trace_exit(struct pt_regs *regs, int scno)
 {
-	scno = ptrace_syscall_trace(regs, scno, PTRACE_SYSCALL_EXIT);
+	current_thread_info()->syscall = scno;
+
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		scno = tracehook_report_syscall(regs, PTRACE_SYSCALL_EXIT);
+
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
 		trace_sys_exit(regs, scno);
+
 	audit_syscall_exit(regs);
+
 	return scno;
 }
