@@ -13,70 +13,15 @@ menuconfig THERMAL
 	  All platforms with ACPI thermal support can use this driver.
 	  If you want this support, you should say Y or M here.
 
+if THERMAL
+
 config THERMAL_HWMON
 	bool
-	depends on THERMAL
 	depends on HWMON=y || HWMON=THERMAL
 	default y
 
-config CPU_THERMAL
-	bool "generic cpu cooling support"
-	depends on THERMAL && CPU_FREQ
-	select CPU_FREQ_TABLE
-	help
-	  This implements the generic cpu cooling mechanism through frequency
-	  reduction, cpu hotplug and any other ways of reducing temperature. An
-	  ACPI version of this already exists(drivers/acpi/processor_thermal.c).
-	  This will be useful for platforms using the generic thermal interface
-	  and not the ACPI interface.
-	  If you want this support, you should say Y here.
-
-config SPEAR_THERMAL
-	bool "SPEAr thermal sensor driver"
-	depends on THERMAL
-	depends on PLAT_SPEAR
-	depends on OF
-	help
-	  Enable this to plug the SPEAr thermal sensor driver into the Linux
-	  thermal framework
-
-config RCAR_THERMAL
-	tristate "Renesas R-Car thermal driver"
-	depends on THERMAL
-	depends on ARCH_SHMOBILE
-	help
-	  Enable this to plug the R-Car thermal sensor driver into the Linux
-	  thermal framework
-
-config EXYNOS_THERMAL
-	tristate "Temperature sensor on Samsung EXYNOS"
-	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5) && THERMAL
-	select CPU_FREQ_TABLE
-	help
-	  If you say yes here you get support for TMU (Thermal Managment
-	  Unit) on SAMSUNG EXYNOS series of SoC.
-
-config FAIR_SHARE
-	bool "Fair-share thermal governor"
-	depends on THERMAL
-	help
-	  Enable this to manage platform thermals using fair-share governor.
-
-config STEP_WISE
-	bool "Step_wise thermal governor"
-	depends on THERMAL
-	help
-	  Enable this to manage platform thermals using a simple linear
-
-config USER_SPACE
-	bool "User_space thermal governor"
-	depends on THERMAL
-	help
-	  Enable this to let the user space manage the platform thermals.
-
 choice
 	prompt "Default Thermal governor"
-	depends on THERMAL
 	default THERMAL_DEFAULT_GOV_STEP_WISE
 	help
 	  This option sets which thermal governor shall be loaded at
@@ -102,5 +47,59 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	select USER_SPACE
 	help
 	  Select this if you want to let the user space manage the
-	  platform thermals.
+	  lpatform thermals.
+
 endchoice
+
+config FAIR_SHARE
+	bool "Fair-share thermal governor"
+	help
+	  Enable this to manage platform thermals using fair-share governor.
+
+config STEP_WISE
+	bool "Step_wise thermal governor"
+	help
+	  Enable this to manage platform thermals using a simple linear
+
+config USER_SPACE
+	bool "User_space thermal governor"
+	help
+	  Enable this to let the user space manage the platform thermals.
+
+config CPU_THERMAL
+	bool "generic cpu cooling support"
+	depends on CPU_FREQ
+	select CPU_FREQ_TABLE
+	help
+	  This implements the generic cpu cooling mechanism through frequency
+	  reduction, cpu hotplug and any other ways of reducing temperature. An
+	  ACPI version of this already exists(drivers/acpi/processor_thermal.c).
+	  This will be useful for platforms using the generic thermal interface
+	  and not the ACPI interface.
+	  If you want this support, you should say Y here.
+
+config SPEAR_THERMAL
+	bool "SPEAr thermal sensor driver"
+	depends on PLAT_SPEAR
+	depends on OF
+	help
+	  Enable this to plug the SPEAr thermal sensor driver into the Linux
+	  thermal framework
+
+config RCAR_THERMAL
+	tristate "Renesas R-Car thermal driver"
+	depends on ARCH_SHMOBILE
+	help
+	  Enable this to plug the R-Car thermal sensor driver into the Linux
+	  thermal framework
+
+config EXYNOS_THERMAL
+	tristate "Temperature sensor on Samsung EXYNOS"
+	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5)
+	select CPU_FREQ_TABLE
+	help
+	  If you say yes here you get support for TMU (Thermal Managment
+	  Unit) on SAMSUNG EXYNOS series of SoC.
+
+
+endif
