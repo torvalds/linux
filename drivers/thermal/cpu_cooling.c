@@ -64,7 +64,7 @@ static unsigned int cpufreq_dev_count;
 
 /* notify_table passes value to the CPUFREQ_ADJUST callback function. */
 #define NOTIFY_INVALID NULL
-struct cpufreq_cooling_device *notify_device;
+static struct cpufreq_cooling_device *notify_device;
 
 /**
  * get_idr - function to get a unique id.
