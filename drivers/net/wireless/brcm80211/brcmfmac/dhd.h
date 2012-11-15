@@ -586,8 +586,8 @@ extern int brcmf_c_host_event(struct brcmf_pub *drvr, int *idx,
 			      void **data_ptr);
 
 extern int brcmf_net_attach(struct brcmf_if *ifp);
-extern struct brcmf_if *brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
-				     char *name, u8 *mac_addr);
+extern struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx,
+				     s32 bssidx, char *name, u8 *mac_addr);
 extern void brcmf_del_if(struct brcmf_pub *drvr, int ifidx);
 
 #endif				/* _BRCMF_H_ */

@@ -694,13 +694,11 @@ fail:
 	return -EBADE;
 }
 
-struct brcmf_if *brcmf_add_if(struct device *dev, int ifidx, s32 bssidx,
+struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
 			      char *name, u8 *mac_addr)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
-	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pub *drvr = bus_if->drvr;
 
 	brcmf_dbg(TRACE, "idx %d\n", ifidx);
 
@@ -835,7 +833,7 @@ int brcmf_bus_start(struct device *dev)
 	}
 
 	/* add primary networking interface */
-	ifp = brcmf_add_if(dev, 0, 0, "wlan%d", NULL);
+	ifp = brcmf_add_if(drvr, 0, 0, "wlan%d", NULL);
 	if (IS_ERR(ifp))
 		return PTR_ERR(ifp);
 

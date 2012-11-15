@@ -264,7 +264,7 @@ static int brcmf_fweh_process_if_event(struct brcmf_pub *drvr,
 	case BRCMF_E_IF_ADD:
 		brcmf_dbg(EVENT, "adding %s (%pM, %pM)\n", event->ifname,
 			  event->addr, item->ifaddr);
-		ifp = brcmf_add_if(drvr->dev, ifevent->ifidx, ifevent->bssidx,
+		ifp = brcmf_add_if(drvr, ifevent->ifidx, ifevent->bssidx,
 				   event->ifname, item->ifaddr);
 		if (!IS_ERR(ifp)) {
 			*ifpp = ifp;
