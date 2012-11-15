@@ -50,6 +50,7 @@
 #include <linux/seq_file.h>
 #include <trace/events/skb.h>
 #include "udp_impl.h"
+#include "ip6_offload.h"
 
 int ipv6_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2)
 {
@@ -1343,107 +1344,10 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 }
 #endif
 
-static int udp6_ufo_send_check(struct sk_buff *skb)
-{
-	const struct ipv6hdr *ipv6h;
-	struct udphdr *uh;
-
-	if (!pskb_may_pull(skb, sizeof(*uh)))
-		return -EINVAL;
-
-	ipv6h = ipv6_hdr(skb);
-	uh = udp_hdr(skb);
-
-	uh->check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr, skb->len,
-				     IPPROTO_UDP, 0);
-	skb->csum_start = skb_transport_header(skb) - skb->head;
-	skb->csum_offset = offsetof(struct udphdr, check);
-	skb->ip_summed = CHECKSUM_PARTIAL;
-	return 0;
-}
-
-static struct sk_buff *udp6_ufo_fragment(struct sk_buff *skb,
-	netdev_features_t features)
-{
-	struct sk_buff *segs = ERR_PTR(-EINVAL);
-	unsigned int mss;
-	unsigned int unfrag_ip6hlen, unfrag_len;
-	struct frag_hdr *fptr;
-	u8 *mac_start, *prevhdr;
-	u8 nexthdr;
-	u8 frag_hdr_sz = sizeof(struct frag_hdr);
-	int offset;
-	__wsum csum;
-
-	mss = skb_shinfo(skb)->gso_size;
-	if (unlikely(skb->len <= mss))
-		goto out;
-
-	if (skb_gso_ok(skb, features | NETIF_F_GSO_ROBUST)) {
-		/* Packet is from an untrusted source, reset gso_segs. */
-		int type = skb_shinfo(skb)->gso_type;
-
-		if (unlikely(type & ~(SKB_GSO_UDP | SKB_GSO_DODGY) ||
-			     !(type & (SKB_GSO_UDP))))
-			goto out;
-
-		skb_shinfo(skb)->gso_segs = DIV_ROUND_UP(skb->len, mss);
-
-		segs = NULL;
-		goto out;
-	}
-
-	/* Do software UFO. Complete and fill in the UDP checksum as HW cannot
-	 * do checksum of UDP packets sent as multiple IP fragments.
-	 */
-	offset = skb_checksum_start_offset(skb);
-	csum = skb_checksum(skb, offset, skb->len - offset, 0);
-	offset += skb->csum_offset;
-	*(__sum16 *)(skb->data + offset) = csum_fold(csum);
-	skb->ip_summed = CHECKSUM_NONE;
-
-	/* Check if there is enough headroom to insert fragment header. */
-	if ((skb_mac_header(skb) < skb->head + frag_hdr_sz) &&
-	    pskb_expand_head(skb, frag_hdr_sz, 0, GFP_ATOMIC))
-		goto out;
-
-	/* Find the unfragmentable header and shift it left by frag_hdr_sz
-	 * bytes to insert fragment header.
-	 */
-	unfrag_ip6hlen = ip6_find_1stfragopt(skb, &prevhdr);
-	nexthdr = *prevhdr;
-	*prevhdr = NEXTHDR_FRAGMENT;
-	unfrag_len = skb_network_header(skb) - skb_mac_header(skb) +
-		     unfrag_ip6hlen;
-	mac_start = skb_mac_header(skb);
-	memmove(mac_start-frag_hdr_sz, mac_start, unfrag_len);
-
-	skb->mac_header -= frag_hdr_sz;
-	skb->network_header -= frag_hdr_sz;
-
-	fptr = (struct frag_hdr *)(skb_network_header(skb) + unfrag_ip6hlen);
-	fptr->nexthdr = nexthdr;
-	fptr->reserved = 0;
-	ipv6_select_ident(fptr, (struct rt6_info *)skb_dst(skb));
-
-	/* Fragment the skb. ipv6 header and the remaining fields of the
-	 * fragment header are updated in ipv6_gso_segment()
-	 */
-	segs = skb_segment(skb, features);
-
-out:
-	return segs;
-}
-
 static const struct inet6_protocol udpv6_protocol = {
 	.handler	=	udpv6_rcv,
 	.err_handler	=	udpv6_err,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
-};
-
-static const struct net_offload udpv6_offload = {
-	.gso_send_check =	udp6_ufo_send_check,
-	.gso_segment	=	udp6_ufo_fragment,
 };
 
 /* ------------------------------------------------------------------------ */
@@ -1568,7 +1472,7 @@ int __init udpv6_init(void)
 {
 	int ret;
 
-	ret = inet6_add_offload(&udpv6_offload, IPPROTO_UDP);
+	ret = udp_offload_init();
 	if (ret)
 		goto out;
 
@@ -1585,7 +1489,7 @@ out:
 out_udpv6_protocol:
 	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
 out_offload:
-	inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
+	udp_offload_cleanup();
 	goto out;
 }
 
@@ -1593,5 +1497,5 @@ void udpv6_exit(void)
 {
 	inet6_unregister_protosw(&udpv6_protosw);
 	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
-	inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
+	udp_offload_cleanup();
 }

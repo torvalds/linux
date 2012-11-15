@@ -11,6 +11,9 @@
 #ifndef __ip6_offload_h
 #define __ip6_offload_h
 
+int udp_offload_init(void);
+void udp_offload_cleanup(void);
+
 int tcpv6_offload_init(void);
 void tcpv6_offload_cleanup(void);
 
