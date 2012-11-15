@@ -872,17 +872,12 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 		return link_send_long_buf(l_ptr, buf);
 
 	/* Packet can be queued or sent. */
-	if (likely(!tipc_bearer_congested(l_ptr->b_ptr, l_ptr) &&
+	if (likely(!tipc_bearer_blocked(l_ptr->b_ptr) &&
 		   !link_congested(l_ptr))) {
 		link_add_to_outqueue(l_ptr, buf, msg);
 
-		if (likely(tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr))) {
-			l_ptr->unacked_window = 0;
-		} else {
-			tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
-			l_ptr->stats.bearer_congs++;
-			l_ptr->next_out = buf;
-		}
+		tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
+		l_ptr->unacked_window = 0;
 		return dsz;
 	}
 	/* Congestion: can message be bundled ? */
@@ -891,10 +886,8 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 
 		/* Try adding message to an existing bundle */
 		if (l_ptr->next_out &&
-		    link_bundle_buf(l_ptr, l_ptr->last_out, buf)) {
-			tipc_bearer_resolve_congestion(l_ptr->b_ptr, l_ptr);
+		    link_bundle_buf(l_ptr, l_ptr->last_out, buf))
 			return dsz;
-		}
 
 		/* Try creating a new bundle */
 		if (size <= max_packet * 2 / 3) {
@@ -917,7 +910,6 @@ int tipc_link_send_buf(struct tipc_link *l_ptr, struct sk_buff *buf)
 	if (!l_ptr->next_out)
 		l_ptr->next_out = buf;
 	link_add_to_outqueue(l_ptr, buf, msg);
-	tipc_bearer_resolve_congestion(l_ptr->b_ptr, l_ptr);
 	return dsz;
 }
 
@@ -1006,16 +998,11 @@ static int link_send_buf_fast(struct tipc_link *l_ptr, struct sk_buff *buf,
 
 	if (likely(!link_congested(l_ptr))) {
 		if (likely(msg_size(msg) <= l_ptr->max_pkt)) {
-			if (likely(list_empty(&l_ptr->b_ptr->cong_links))) {
+			if (likely(!tipc_bearer_blocked(l_ptr->b_ptr))) {
 				link_add_to_outqueue(l_ptr, buf, msg);
-				if (likely(tipc_bearer_send(l_ptr->b_ptr, buf,
-							    &l_ptr->media_addr))) {
-					l_ptr->unacked_window = 0;
-					return res;
-				}
-				tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
-				l_ptr->stats.bearer_congs++;
-				l_ptr->next_out = buf;
+				tipc_bearer_send(l_ptr->b_ptr, buf,
+						 &l_ptr->media_addr);
+				l_ptr->unacked_window = 0;
 				return res;
 			}
 		} else
@@ -1106,7 +1093,7 @@ exit:
 
 			/* Exit if link (or bearer) is congested */
 			if (link_congested(l_ptr) ||
-			    !list_empty(&l_ptr->b_ptr->cong_links)) {
+			    tipc_bearer_blocked(l_ptr->b_ptr)) {
 				res = link_schedule_port(l_ptr,
 							 sender->ref, res);
 				goto exit;
@@ -1329,15 +1316,11 @@ u32 tipc_link_push_packet(struct tipc_link *l_ptr)
 	if (r_q_size && buf) {
 		msg_set_ack(buf_msg(buf), mod(l_ptr->next_in_no - 1));
 		msg_set_bcast_ack(buf_msg(buf), l_ptr->owner->bclink.last_in);
-		if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-			l_ptr->retransm_queue_head = mod(++r_q_head);
-			l_ptr->retransm_queue_size = --r_q_size;
-			l_ptr->stats.retransmitted++;
-			return 0;
-		} else {
-			l_ptr->stats.bearer_congs++;
-			return PUSH_FAILED;
-		}
+		tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
+		l_ptr->retransm_queue_head = mod(++r_q_head);
+		l_ptr->retransm_queue_size = --r_q_size;
+		l_ptr->stats.retransmitted++;
+		return 0;
 	}
 
 	/* Send deferred protocol message, if any: */
@@ -1345,15 +1328,11 @@ u32 tipc_link_push_packet(struct tipc_link *l_ptr)
 	if (buf) {
 		msg_set_ack(buf_msg(buf), mod(l_ptr->next_in_no - 1));
 		msg_set_bcast_ack(buf_msg(buf), l_ptr->owner->bclink.last_in);
-		if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-			l_ptr->unacked_window = 0;
-			kfree_skb(buf);
-			l_ptr->proto_msg_queue = NULL;
-			return 0;
-		} else {
-			l_ptr->stats.bearer_congs++;
-			return PUSH_FAILED;
-		}
+		tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
+		l_ptr->unacked_window = 0;
+		kfree_skb(buf);
+		l_ptr->proto_msg_queue = NULL;
+		return 0;
 	}
 
 	/* Send one deferred data message, if send window not full: */
@@ -1366,18 +1345,14 @@ u32 tipc_link_push_packet(struct tipc_link *l_ptr)
 		if (mod(next - first) < l_ptr->queue_limit[0]) {
 			msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
 			msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
-			if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-				if (msg_user(msg) == MSG_BUNDLER)
-					msg_set_type(msg, CLOSED_MSG);
-				l_ptr->next_out = buf->next;
-				return 0;
-			} else {
-				l_ptr->stats.bearer_congs++;
-				return PUSH_FAILED;
-			}
+			tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
+			if (msg_user(msg) == MSG_BUNDLER)
+				msg_set_type(msg, CLOSED_MSG);
+			l_ptr->next_out = buf->next;
+			return 0;
 		}
 	}
-	return PUSH_FINISHED;
+	return 1;
 }
 
 /*
@@ -1388,15 +1363,12 @@ void tipc_link_push_queue(struct tipc_link *l_ptr)
 {
 	u32 res;
 
-	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr))
+	if (tipc_bearer_blocked(l_ptr->b_ptr))
 		return;
 
 	do {
 		res = tipc_link_push_packet(l_ptr);
 	} while (!res);
-
-	if (res == PUSH_FAILED)
-		tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
 }
 
 static void link_reset_all(unsigned long addr)
@@ -1481,7 +1453,7 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *buf,
 
 	msg = buf_msg(buf);
 
-	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
+	if (tipc_bearer_blocked(l_ptr->b_ptr)) {
 		if (l_ptr->retransm_queue_size == 0) {
 			l_ptr->retransm_queue_head = msg_seqno(msg);
 			l_ptr->retransm_queue_size = retransmits;
@@ -1491,7 +1463,7 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *buf,
 		}
 		return;
 	} else {
-		/* Detect repeated retransmit failures on uncongested bearer */
+		/* Detect repeated retransmit failures on unblocked bearer */
 		if (l_ptr->last_retransmitted == msg_seqno(msg)) {
 			if (++l_ptr->stale_count > 100) {
 				link_retransmit_failure(l_ptr, buf);
@@ -1507,17 +1479,10 @@ void tipc_link_retransmit(struct tipc_link *l_ptr, struct sk_buff *buf,
 		msg = buf_msg(buf);
 		msg_set_ack(msg, mod(l_ptr->next_in_no - 1));
 		msg_set_bcast_ack(msg, l_ptr->owner->bclink.last_in);
-		if (tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-			buf = buf->next;
-			retransmits--;
-			l_ptr->stats.retransmitted++;
-		} else {
-			tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
-			l_ptr->stats.bearer_congs++;
-			l_ptr->retransm_queue_head = buf_seqno(buf);
-			l_ptr->retransm_queue_size = retransmits;
-			return;
-		}
+		tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
+		buf = buf->next;
+		retransmits--;
+		l_ptr->stats.retransmitted++;
 	}
 
 	l_ptr->retransm_queue_head = l_ptr->retransm_queue_size = 0;
@@ -1972,21 +1937,13 @@ void tipc_link_send_proto_msg(struct tipc_link *l_ptr, u32 msg_typ,
 
 	skb_copy_to_linear_data(buf, msg, sizeof(l_ptr->proto_msg));
 
-	/* Defer message if bearer is already congested */
-	if (tipc_bearer_congested(l_ptr->b_ptr, l_ptr)) {
+	/* Defer message if bearer is already blocked */
+	if (tipc_bearer_blocked(l_ptr->b_ptr)) {
 		l_ptr->proto_msg_queue = buf;
 		return;
 	}
 
-	/* Defer message if attempting to send results in bearer congestion */
-	if (!tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr)) {
-		tipc_bearer_schedule(l_ptr->b_ptr, l_ptr);
-		l_ptr->proto_msg_queue = buf;
-		l_ptr->stats.bearer_congs++;
-		return;
-	}
-
-	/* Discard message if it was sent successfully */
+	tipc_bearer_send(l_ptr->b_ptr, buf, &l_ptr->media_addr);
 	l_ptr->unacked_window = 0;
 	kfree_skb(buf);
 }
@@ -2937,8 +2894,8 @@ static int tipc_link_stats(const char *name, char *buf, const u32 buf_size)
 			     s->sent_nacks, s->sent_acks, s->retransmitted);
 
 	ret += tipc_snprintf(buf + ret, buf_size - ret,
-			     "  Congestion bearer:%u link:%u  Send queue"
-			     " max:%u avg:%u\n", s->bearer_congs, s->link_congs,
+			     "  Congestion link:%u  Send queue"
+			     " max:%u avg:%u\n", s->link_congs,
 			     s->max_queue_sz, s->queue_sz_counts ?
 			     (s->accu_queue_sz / s->queue_sz_counts) : 0);
 
