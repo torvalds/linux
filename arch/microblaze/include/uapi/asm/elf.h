@@ -104,7 +104,7 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 /* Added _f parameter. Is this definition correct: TBD */
 #define ELF_PLAT_INIT(_r, _f)				\
 do {							\
-	_r->r1 =  _r->r1 =  _r->r2 =  _r->r3 =		\
+	_r->r0 =  _r->r1 =  _r->r2 =  _r->r3 =		\
 	_r->r4 =  _r->r5 =  _r->r6 =  _r->r7 =		\
 	_r->r8 =  _r->r9 =  _r->r10 = _r->r11 =		\
 	_r->r12 = _r->r13 = _r->r14 = _r->r15 =		\
