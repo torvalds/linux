@@ -25,6 +25,7 @@
 #ifndef _LINUX_ACPI_H
 #define _LINUX_ACPI_H
 
+#include <linux/errno.h>
 #include <linux/ioport.h>	/* for struct resource */
 
 #ifdef	CONFIG_ACPI
