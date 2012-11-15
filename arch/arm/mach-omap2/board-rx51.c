@@ -1,5 +1,5 @@
 /*
- * linux/arch/arm/mach-omap2/board-rx51.c
+ * Board support file for Nokia N900 (aka RX-51).
  *
  * Copyright (C) 2007, 2008 Nokia
  *

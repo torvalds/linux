@@ -1,5 +1,5 @@
 /*
- * Board support file for Nokia RM-680/696.
+ * Board support file for Nokia N950 (RM-680) / N9 (RM-696).
  *
  * Copyright (C) 2010 Nokia
  *
