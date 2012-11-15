@@ -111,3 +111,47 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
 	return start;
 }
 EXPORT_SYMBOL(ipv6_skip_exthdr);
+
+int ipv6_find_tlv(struct sk_buff *skb, int offset, int type)
+{
+	const unsigned char *nh = skb_network_header(skb);
+	int packet_len = skb->tail - skb->network_header;
+	struct ipv6_opt_hdr *hdr;
+	int len;
+
+	if (offset + 2 > packet_len)
+		goto bad;
+	hdr = (struct ipv6_opt_hdr *)(nh + offset);
+	len = ((hdr->hdrlen + 1) << 3);
+
+	if (offset + len > packet_len)
+		goto bad;
+
+	offset += 2;
+	len -= 2;
+
+	while (len > 0) {
+		int opttype = nh[offset];
+		int optlen;
+
+		if (opttype == type)
+			return offset;
+
+		switch (opttype) {
+		case IPV6_TLV_PAD1:
+			optlen = 1;
+			break;
+		default:
+			optlen = nh[offset + 1] + 2;
+			if (optlen > len)
+				goto bad;
+			break;
+		}
+		offset += optlen;
+		len -= optlen;
+	}
+	/* not_found */
+ bad:
+	return -1;
+}
+EXPORT_SYMBOL_GPL(ipv6_find_tlv);
