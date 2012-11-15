@@ -972,9 +972,9 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	}
 	/* Initialize videobuf2 queue as per the buffer type */
 	common->alloc_ctx = vb2_dma_contig_init_ctx(vpif_dev);
-	if (!common->alloc_ctx) {
+	if (IS_ERR(common->alloc_ctx)) {
 		vpif_err("Failed to get the context\n");
-		return -EINVAL;
+		return PTR_ERR(common->alloc_ctx);
 	}
 	q = &common->buffer_queue;
 	q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
