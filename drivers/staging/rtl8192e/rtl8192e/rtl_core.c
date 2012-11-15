@@ -2955,7 +2955,8 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	if (register_netdev(dev))
+		goto err_free_irq;
 	RT_TRACE(COMP_INIT, "dev name: %s\n", dev->name);
 
 	rtl8192_proc_init_one(dev);
