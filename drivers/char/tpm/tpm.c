@@ -40,8 +40,9 @@ enum tpm_duration {
 };
 
 #define TPM_MAX_ORDINAL 243
-#define TPM_MAX_PROTECTED_ORDINAL 12
-#define TPM_PROTECTED_ORDINAL_MASK 0xFF
+#define TSC_MAX_ORDINAL 12
+#define TPM_PROTECTED_COMMAND 0x00
+#define TPM_CONNECTION_COMMAND 0x40
 
 /*
  * Bug workaround - some TPM's don't flush the most
@@ -336,13 +337,11 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 {
 	int duration_idx = TPM_UNDEFINED;
 	int duration = 0;
+	u8 category = (ordinal >> 24) & 0xFF;
 
-	if (ordinal < TPM_MAX_ORDINAL)
+	if ((category == TPM_PROTECTED_COMMAND && ordinal < TPM_MAX_ORDINAL) ||
+	    (category == TPM_CONNECTION_COMMAND && ordinal < TSC_MAX_ORDINAL))
 		duration_idx = tpm_ordinal_duration[ordinal];
-	else if ((ordinal & TPM_PROTECTED_ORDINAL_MASK) <
-		 TPM_MAX_PROTECTED_ORDINAL)
-		duration_idx =
-		    tpm_ordinal_duration[ordinal & TPM_PROTECTED_ORDINAL_MASK];
 
 	if (duration_idx != TPM_UNDEFINED)
 		duration = chip->vendor.duration[duration_idx];
