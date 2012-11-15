@@ -690,10 +690,11 @@ fail:
 }
 
 struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
-			      char *name, u8 *mac_addr)
+			      char *name, u8 *addr_mask)
 {
 	struct brcmf_if *ifp;
 	struct net_device *ndev;
+	int i;
 
 	brcmf_dbg(TRACE, "idx %d\n", ifidx);
 
@@ -728,11 +729,12 @@ struct brcmf_if *brcmf_add_if(struct brcmf_pub *drvr, int ifidx, s32 bssidx,
 	INIT_WORK(&ifp->setmacaddr_work, _brcmf_set_mac_address);
 	INIT_WORK(&ifp->multicast_work, _brcmf_set_multicast_list);
 
-	if (mac_addr != NULL)
-		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
+	if (addr_mask != NULL)
+		for (i = 0; i < ETH_ALEN; i++)
+			ifp->mac_addr[i] = drvr->mac[i] ^ addr_mask[i];
 
-	brcmf_dbg(TRACE, " ==== pid:%x, net_device for if:%s created ===\n",
-		  current->pid, ifp->ndev->name);
+	brcmf_dbg(TRACE, " ==== pid:%x, if:%s (%pM) created ===\n",
+		  current->pid, ifp->ndev->name, ifp->mac_addr);
 
 	return ifp;
 }
