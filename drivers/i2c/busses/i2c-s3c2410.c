@@ -50,6 +50,9 @@
 #define QUIRK_HDMIPHY		(1 << 1)
 #define QUIRK_NO_GPIO		(1 << 2)
 
+/* Max time to wait for bus to become idle after a xfer (in us) */
+#define S3C2410_IDLE_TIMEOUT	5000
+
 /* i2c controller state */
 enum s3c24xx_i2c_state {
 	STATE_IDLE,
@@ -557,6 +560,48 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 	return -ETIMEDOUT;
 }
 
+/* s3c24xx_i2c_wait_idle
+ *
+ * wait for the i2c bus to become idle.
+*/
+
+static void s3c24xx_i2c_wait_idle(struct s3c24xx_i2c *i2c)
+{
+	unsigned long iicstat;
+	ktime_t start, now;
+	unsigned long delay;
+
+	/* ensure the stop has been through the bus */
+
+	dev_dbg(i2c->dev, "waiting for bus idle\n");
+
+	start = now = ktime_get();
+
+	/*
+	 * Most of the time, the bus is already idle within a few usec of the
+	 * end of a transaction.  However, really slow i2c devices can stretch
+	 * the clock, delaying STOP generation.
+	 *
+	 * As a compromise between idle detection latency for the normal, fast
+	 * case, and system load in the slow device case, use an exponential
+	 * back off in the polling loop, up to 1/10th of the total timeout,
+	 * then continue to poll at a constant rate up to the timeout.
+	 */
+	iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	delay = 1;
+	while ((iicstat & S3C2410_IICSTAT_START) &&
+	       ktime_us_delta(now, start) < S3C2410_IDLE_TIMEOUT) {
+		usleep_range(delay, 2 * delay);
+		if (delay < S3C2410_IDLE_TIMEOUT / 10)
+			delay <<= 1;
+		now = ktime_get();
+		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	}
+
+	if (iicstat & S3C2410_IICSTAT_START)
+		dev_warn(i2c->dev, "timeout waiting for bus idle\n");
+}
+
 /* s3c24xx_i2c_doxfer
  *
  * this starts an i2c transfer
@@ -565,8 +610,7 @@ static int s3c24xx_i2c_set_master(struct s3c24xx_i2c *i2c)
 static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 			      struct i2c_msg *msgs, int num)
 {
-	unsigned long iicstat, timeout;
-	int spins = 20;
+	unsigned long timeout;
 	int ret;
 
 	if (i2c->suspended)
@@ -604,24 +648,7 @@ static int s3c24xx_i2c_doxfer(struct s3c24xx_i2c *i2c,
 	if (i2c->quirks & QUIRK_HDMIPHY)
 		goto out;
 
-	/* ensure the stop has been through the bus */
-
-	dev_dbg(i2c->dev, "waiting for bus idle\n");
-
-	/* first, try busy waiting briefly */
-	do {
-		cpu_relax();
-		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
-	} while ((iicstat & S3C2410_IICSTAT_START) && --spins);
-
-	/* if that timed out sleep */
-	if (!spins) {
-		msleep(1);
-		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
-	}
-
-	if (iicstat & S3C2410_IICSTAT_START)
-		dev_warn(i2c->dev, "timeout waiting for bus idle\n");
+	s3c24xx_i2c_wait_idle(i2c);
 
  out:
 	return ret;
