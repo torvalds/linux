@@ -43,6 +43,64 @@ nv94_sor_dp_lane_map(struct nv50_disp_priv *priv, u8 lane)
 }
 
 int
+nv94_sor_dp_train_init(struct nv50_disp_priv *priv, int or, int link, int head,
+		       u16 type, u16 mask, u32 data, struct dcb_output *dcbo)
+{
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_dpout info;
+	u8  ver, hdr, cnt, len;
+	u16 outp;
+
+	outp = nvbios_dpout_match(bios, type, mask, &ver, &hdr, &cnt, &len, &info);
+	if (outp) {
+		struct nvbios_init init = {
+			.subdev = nv_subdev(priv),
+			.bios = bios,
+			.outp = dcbo,
+			.crtc = head,
+			.execute = 1,
+		};
+
+		if (data & NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON)
+			init.offset = info.script[2];
+		else
+			init.offset = info.script[3];
+		nvbios_exec(&init);
+
+		init.offset = info.script[0];
+		nvbios_exec(&init);
+	}
+
+	return 0;
+}
+
+int
+nv94_sor_dp_train_fini(struct nv50_disp_priv *priv, int or, int link, int head,
+		       u16 type, u16 mask, u32 data, struct dcb_output *dcbo)
+{
+	struct nouveau_bios *bios = nouveau_bios(priv);
+	struct nvbios_dpout info;
+	u8  ver, hdr, cnt, len;
+	u16 outp;
+
+	outp = nvbios_dpout_match(bios, type, mask, &ver, &hdr, &cnt, &len, &info);
+	if (outp) {
+		struct nvbios_init init = {
+			.subdev = nv_subdev(priv),
+			.bios = bios,
+			.offset = info.script[1],
+			.outp = dcbo,
+			.crtc = head,
+			.execute = 1,
+		};
+
+		nvbios_exec(&init);
+	}
+
+	return 0;
+}
+
+int
 nv94_sor_dp_train(struct nv50_disp_priv *priv, int or, int link,
 		  u16 type, u16 mask, u32 data, struct dcb_output *info)
 {

@@ -35,51 +35,6 @@
 #include <subdev/gpio.h>
 #include <subdev/i2c.h>
 
-u8 *
-nouveau_dp_bios_data(struct drm_device *dev, struct dcb_output *dcb, u8 **entry)
-{
-	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct bit_entry d;
-	u8 *table;
-	int i;
-
-	if (bit_table(dev, 'd', &d)) {
-		NV_ERROR(drm, "BIT 'd' table not found\n");
-		return NULL;
-	}
-
-	if (d.version != 1) {
-		NV_ERROR(drm, "BIT 'd' table version %d unknown\n", d.version);
-		return NULL;
-	}
-
-	table = ROMPTR(dev, d.data[0]);
-	if (!table) {
-		NV_ERROR(drm, "displayport table pointer invalid\n");
-		return NULL;
-	}
-
-	switch (table[0]) {
-	case 0x20:
-	case 0x21:
-	case 0x30:
-	case 0x40:
-		break;
-	default:
-		NV_ERROR(drm, "displayport table 0x%02x unknown\n", table[0]);
-		return NULL;
-	}
-
-	for (i = 0; i < table[3]; i++) {
-		*entry = ROMPTR(dev, table[table[1] + (i * table[2])]);
-		if (*entry && bios_encoder_match(dcb, ROM32((*entry)[0])))
-			return table;
-	}
-
-	NV_ERROR(drm, "displayport encoder table not found\n");
-	return NULL;
-}
-
 /******************************************************************************
  * link training
  *****************************************************************************/
@@ -250,54 +205,27 @@ dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
 }
 
 static void
-dp_set_downspread(struct drm_device *dev, struct dp_state *dp, bool enable)
+dp_link_train_init(struct drm_device *dev, struct dp_state *dp, bool spread)
 {
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30) {
-			if (enable) script = ROM16(entry[12]);
-			else        script = ROM16(entry[14]);
-		} else
-		if (table[0] == 0x40) {
-			if (enable) script = ROM16(entry[11]);
-			else        script = ROM16(entry[13]);
-		}
-	}
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
-}
-
-static void
-dp_link_train_init(struct drm_device *dev, struct dp_state *dp)
-{
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30)
-			script = ROM16(entry[6]);
-		else
-		if (table[0] == 0x40)
-			script = ROM16(entry[5]);
-	}
-
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff, (spread ?
+			  NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON :
+			  NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_OFF) |
+			  NV94_DISP_SOR_DP_TRAIN_OP_INIT);
 }
 
 static void
 dp_link_train_fini(struct drm_device *dev, struct dp_state *dp)
 {
-	u16 script = 0x0000;
-	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
-	if (table) {
-		if (table[0] >= 0x20 && table[0] <= 0x30)
-			script = ROM16(entry[8]);
-		else
-		if (table[0] == 0x40)
-			script = ROM16(entry[7]);
-	}
+	struct dcb_output *dcb = dp->dcb;
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 moff = (dp->crtc << 3) | (link << 2) | or;
 
-	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+	nv_call(dp->core, NV94_DISP_SOR_DP_TRAIN + moff,
+			  NV94_DISP_SOR_DP_TRAIN_OP_FINI);
 }
 
 static bool
@@ -334,11 +262,8 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	 */
 	gpio->irq(gpio, 0, nv_connector->hpd, 0xff, false);
 
-	/* enable down-spreading, if possible */
-	dp_set_downspread(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
-
-	/* execute pre-train script from vbios */
-	dp_link_train_init(dev, &dp);
+	/* enable down-spreading and execute pre-train script from vbios */
+	dp_link_train_init(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
 
 	/* start off at highest link rate supported by encoder and display */
 	while (*link_bw > nv_encoder->dp.link_bw)

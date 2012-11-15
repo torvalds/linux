@@ -80,7 +80,19 @@ nv50_sor_mthd(struct nouveau_object *object, u32 mthd, void *args, u32 size)
 		ret = 0;
 		break;
 	case NV94_DISP_SOR_DP_TRAIN:
-		ret = priv->sor.dp_train(priv, or, link, type, mask, data, &outp);
+		switch (data & NV94_DISP_SOR_DP_TRAIN_OP) {
+		case NV94_DISP_SOR_DP_TRAIN_OP_PATTERN:
+			ret = priv->sor.dp_train(priv, or, link, type, mask, data, &outp);
+			break;
+		case NV94_DISP_SOR_DP_TRAIN_OP_INIT:
+			ret = priv->sor.dp_train_init(priv, or, link, head, type, mask, data, &outp);
+			break;
+		case NV94_DISP_SOR_DP_TRAIN_OP_FINI:
+			ret = priv->sor.dp_train_fini(priv, or, link, head, type, mask, data, &outp);
+			break;
+		default:
+			break;
+		}
 		break;
 	case NV94_DISP_SOR_DP_LNKCTL:
 		ret = priv->sor.dp_lnkctl(priv, or, link, head, type, mask, data, &outp);

@@ -624,34 +624,6 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	return 0;
 }
 
-/* BIT 'U'/'d' table encoder subtables have hashes matching them to
- * a particular set of encoders.
- *
- * This function returns true if a particular DCB entry matches.
- */
-bool
-bios_encoder_match(struct dcb_output *dcb, u32 hash)
-{
-	if ((hash & 0x000000f0) != (dcb->location << 4))
-		return false;
-	if ((hash & 0x0000000f) != dcb->type)
-		return false;
-	if (!(hash & (dcb->or << 16)))
-		return false;
-
-	switch (dcb->type) {
-	case DCB_OUTPUT_TMDS:
-	case DCB_OUTPUT_LVDS:
-	case DCB_OUTPUT_DP:
-		if (hash & 0x00c00000) {
-			if (!(hash & (dcb->sorconf.link << 22)))
-				return false;
-		}
-	default:
-		return true;
-	}
-}
-
 int run_tmds_table(struct drm_device *dev, struct dcb_output *dcbent, int head, int pxclk)
 {
 	/*

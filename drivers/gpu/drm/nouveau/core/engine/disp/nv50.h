@@ -26,6 +26,12 @@ struct nv50_disp_priv {
 		int (*power)(struct nv50_disp_priv *, int sor, u32 data);
 		int (*hda_eld)(struct nv50_disp_priv *, int sor, u8 *, u32);
 		int (*hdmi)(struct nv50_disp_priv *, int head, int sor, u32);
+		int (*dp_train_init)(struct nv50_disp_priv *, int sor, int link,
+				     int head, u16 type, u16 mask, u32 data,
+				     struct dcb_output *);
+		int (*dp_train_fini)(struct nv50_disp_priv *, int sor, int link,
+				     int head, u16 type, u16 mask, u32 data,
+				     struct dcb_output *);
 		int (*dp_train)(struct nv50_disp_priv *, int sor, int link,
 				u16 type, u16 mask, u32 data,
 				struct dcb_output *);
@@ -57,6 +63,10 @@ int nvd0_hdmi_ctrl(struct nv50_disp_priv *, int, int, u32);
 int nv50_sor_mthd(struct nouveau_object *, u32, void *, u32);
 int nv50_sor_power(struct nv50_disp_priv *, int, u32);
 
+int nv94_sor_dp_train_init(struct nv50_disp_priv *, int, int, int, u16, u16,
+		           u32, struct dcb_output *);
+int nv94_sor_dp_train_fini(struct nv50_disp_priv *, int, int, int, u16, u16,
+		           u32, struct dcb_output *);
 int nv94_sor_dp_train(struct nv50_disp_priv *, int, int, u16, u16, u32,
 		      struct dcb_output *);
 int nv94_sor_dp_lnkctl(struct nv50_disp_priv *, int, int, int, u16, u16, u32,

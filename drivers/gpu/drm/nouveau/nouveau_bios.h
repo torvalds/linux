@@ -187,6 +187,5 @@ int run_tmds_table(struct drm_device *, struct dcb_output *,
 			  int head, int pxclk);
 int call_lvds_script(struct drm_device *, struct dcb_output *, int head,
 			    enum LVDS_script, int pxclk);
-bool bios_encoder_match(struct dcb_output *, u32 hash);
 
 #endif

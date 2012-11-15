@@ -191,6 +191,13 @@ struct nve0_channel_ind_class {
 #define NV50_DISP_SOR_LVDS_SCRIPT                                    0x00013000
 #define NV50_DISP_SOR_LVDS_SCRIPT_ID                                 0x0000ffff
 #define NV94_DISP_SOR_DP_TRAIN                                       0x00016000
+#define NV94_DISP_SOR_DP_TRAIN_OP                                    0xf0000000
+#define NV94_DISP_SOR_DP_TRAIN_OP_PATTERN                            0x00000000
+#define NV94_DISP_SOR_DP_TRAIN_OP_INIT                               0x10000000
+#define NV94_DISP_SOR_DP_TRAIN_OP_FINI                               0x20000000
+#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD                           0x00000001
+#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_OFF                       0x00000000
+#define NV94_DISP_SOR_DP_TRAIN_INIT_SPREAD_ON                        0x00000001
 #define NV94_DISP_SOR_DP_TRAIN_PATTERN                               0x00000003
 #define NV94_DISP_SOR_DP_TRAIN_PATTERN_DISABLED                      0x00000000
 #define NV94_DISP_SOR_DP_LNKCTL                                      0x00016040
