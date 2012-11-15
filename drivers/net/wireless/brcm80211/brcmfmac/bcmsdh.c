@@ -535,6 +535,8 @@ EXPORT_SYMBOL(brcmf_sdio_probe);
 
 int brcmf_sdio_remove(struct brcmf_sdio_dev *sdiodev)
 {
+	sdiodev->bus_if->state = BRCMF_BUS_DOWN;
+
 	if (sdiodev->bus) {
 		brcmf_sdbrcm_disconnect(sdiodev->bus);
 		sdiodev->bus = NULL;
