@@ -1568,7 +1568,7 @@ static void ip6_tnl_netlink_parms(struct nlattr *data[],
 		parms->encap_limit = nla_get_u8(data[IFLA_IPTUN_ENCAP_LIMIT]);
 
 	if (data[IFLA_IPTUN_FLOWINFO])
-		parms->flowinfo = nla_get_u32(data[IFLA_IPTUN_FLOWINFO]);
+		parms->flowinfo = nla_get_be32(data[IFLA_IPTUN_FLOWINFO]);
 
 	if (data[IFLA_IPTUN_FLAGS])
 		parms->flags = nla_get_u32(data[IFLA_IPTUN_FLAGS]);
