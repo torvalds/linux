@@ -55,7 +55,7 @@ config MIPS_ALCHEMY
 	bool "Alchemy processor based machines"
 	select 64BIT_PHYS_ADDR
 	select CEVT_R4K_LIB
-	select CSRC_R4K_LIB
+	select CSRC_R4K
 	select IRQ_CPU
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -948,11 +948,7 @@ config CSRC_IOASIC
 config CSRC_POWERTV
 	bool
 
-config CSRC_R4K_LIB
-	bool
-
 config CSRC_R4K
-	select CSRC_R4K_LIB
 	bool
 
 config CSRC_SB1250
