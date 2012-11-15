@@ -74,6 +74,17 @@
 #define GPMC_IRQ_COUNT_EVENT		0x02
 
 
+/* bool type time settings */
+struct gpmc_bool_timings {
+	bool cycle2cyclediffcsen;
+	bool cycle2cyclesamecsen;
+	bool we_extra_delay;
+	bool oe_extra_delay;
+	bool adv_extra_delay;
+	bool cs_extra_delay;
+	bool time_para_granularity;
+};
+
 /*
  * Note that all values in this struct are in nanoseconds except sync_clk
  * (which is in picoseconds), while the register values are in gpmc_fck cycles.
@@ -83,33 +94,103 @@ struct gpmc_timings {
 	u32 sync_clk;
 
 	/* Chip-select signal timings corresponding to GPMC_CS_CONFIG2 */
-	u16 cs_on;		/* Assertion time */
-	u16 cs_rd_off;		/* Read deassertion time */
-	u16 cs_wr_off;		/* Write deassertion time */
+	u32 cs_on;		/* Assertion time */
+	u32 cs_rd_off;		/* Read deassertion time */
+	u32 cs_wr_off;		/* Write deassertion time */
 
 	/* ADV signal timings corresponding to GPMC_CONFIG3 */
-	u16 adv_on;		/* Assertion time */
-	u16 adv_rd_off;		/* Read deassertion time */
-	u16 adv_wr_off;		/* Write deassertion time */
+	u32 adv_on;		/* Assertion time */
+	u32 adv_rd_off;		/* Read deassertion time */
+	u32 adv_wr_off;		/* Write deassertion time */
 
 	/* WE signals timings corresponding to GPMC_CONFIG4 */
-	u16 we_on;		/* WE assertion time */
-	u16 we_off;		/* WE deassertion time */
+	u32 we_on;		/* WE assertion time */
+	u32 we_off;		/* WE deassertion time */
 
 	/* OE signals timings corresponding to GPMC_CONFIG4 */
-	u16 oe_on;		/* OE assertion time */
-	u16 oe_off;		/* OE deassertion time */
+	u32 oe_on;		/* OE assertion time */
+	u32 oe_off;		/* OE deassertion time */
 
 	/* Access time and cycle time timings corresponding to GPMC_CONFIG5 */
-	u16 page_burst_access;	/* Multiple access word delay */
-	u16 access;		/* Start-cycle to first data valid delay */
-	u16 rd_cycle;		/* Total read cycle time */
-	u16 wr_cycle;		/* Total write cycle time */
+	u32 page_burst_access;	/* Multiple access word delay */
+	u32 access;		/* Start-cycle to first data valid delay */
+	u32 rd_cycle;		/* Total read cycle time */
+	u32 wr_cycle;		/* Total write cycle time */
+
+	u32 bus_turnaround;
+	u32 cycle2cycle_delay;
+
+	u32 wait_monitoring;
+	u32 clk_activation;
 
 	/* The following are only on OMAP3430 */
-	u16 wr_access;		/* WRACCESSTIME */
-	u16 wr_data_mux_bus;	/* WRDATAONADMUXBUS */
+	u32 wr_access;		/* WRACCESSTIME */
+	u32 wr_data_mux_bus;	/* WRDATAONADMUXBUS */
+
+	struct gpmc_bool_timings bool_timings;
 };
+
+/* Device timings in picoseconds */
+struct gpmc_device_timings {
+	u32 t_ceasu;	/* address setup to CS valid */
+	u32 t_avdasu;	/* address setup to ADV valid */
+	/* XXX: try to combine t_avdp_r & t_avdp_w. Issue is
+	 * of tusb using these timings even for sync whilst
+	 * ideally for adv_rd/(wr)_off it should have considered
+	 * t_avdh instead. This indirectly necessitates r/w
+	 * variations of t_avdp as it is possible to have one
+	 * sync & other async
+	 */
+	u32 t_avdp_r;	/* ADV low time (what about t_cer ?) */
+	u32 t_avdp_w;
+	u32 t_aavdh;	/* address hold time */
+	u32 t_oeasu;	/* address setup to OE valid */
+	u32 t_aa;	/* access time from ADV assertion */
+	u32 t_iaa;	/* initial access time */
+	u32 t_oe;	/* access time from OE assertion */
+	u32 t_ce;	/* access time from CS asertion */
+	u32 t_rd_cycle;	/* read cycle time */
+	u32 t_cez_r;	/* read CS deassertion to high Z */
+	u32 t_cez_w;	/* write CS deassertion to high Z */
+	u32 t_oez;	/* OE deassertion to high Z */
+	u32 t_weasu;	/* address setup to WE valid */
+	u32 t_wpl;	/* write assertion time */
+	u32 t_wph;	/* write deassertion time */
+	u32 t_wr_cycle;	/* write cycle time */
+
+	u32 clk;
+	u32 t_bacc;	/* burst access valid clock to output delay */
+	u32 t_ces;	/* CS setup time to clk */
+	u32 t_avds;	/* ADV setup time to clk */
+	u32 t_avdh;	/* ADV hold time from clk */
+	u32 t_ach;	/* address hold time from clk */
+	u32 t_rdyo;	/* clk to ready valid */
+
+	u32 t_ce_rdyz;	/* XXX: description ?, or use t_cez instead */
+	u32 t_ce_avd;	/* CS on to ADV on delay */
+
+	/* XXX: check the possibility of combining
+	 * cyc_aavhd_oe & cyc_aavdh_we
+	 */
+	u8 cyc_aavdh_oe;/* read address hold time in cycles */
+	u8 cyc_aavdh_we;/* write address hold time in cycles */
+	u8 cyc_oe;	/* access time from OE assertion in cycles */
+	u8 cyc_wpl;	/* write deassertion time in cycles */
+	u32 cyc_iaa;	/* initial access time in cycles */
+
+	bool mux;	/* address & data muxed */
+	bool sync_write;/* synchronous write */
+	bool sync_read;	/* synchronous read */
+
+	/* extra delays */
+	bool ce_xdelay;
+	bool avd_xdelay;
+	bool oe_xdelay;
+	bool we_xdelay;
+};
+
+extern int gpmc_calc_timings(struct gpmc_timings *gpmc_t,
+				struct gpmc_device_timings *dev_t);
 
 extern void gpmc_update_nand_reg(struct gpmc_nand_regs *reg, int cs);
 extern int gpmc_get_client_irq(unsigned irq_config);
