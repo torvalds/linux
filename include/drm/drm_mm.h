@@ -102,6 +102,10 @@ static inline bool drm_mm_initialized(struct drm_mm *mm)
 /*
  * Basic range manager support (drm_mm.c)
  */
+extern struct drm_mm_node *drm_mm_create_block(struct drm_mm *mm,
+					       unsigned long start,
+					       unsigned long size,
+					       bool atomic);
 extern struct drm_mm_node *drm_mm_get_block_generic(struct drm_mm_node *node,
 						    unsigned long size,
 						    unsigned alignment,
