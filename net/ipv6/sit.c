@@ -228,7 +228,7 @@ static int ipip6_tunnel_create(struct net_device *dev)
 		goto out;
 	ipip6_tunnel_clone_6rd(dev, sitn);
 
-	if (t->parms.i_flags & SIT_ISATAP)
+	if ((__force u16)t->parms.i_flags & SIT_ISATAP)
 		dev->priv_flags |= IFF_ISATAP;
 
 	err = register_netdevice(dev);
@@ -1240,10 +1240,10 @@ static void ipip6_netlink_parms(struct nlattr *data[],
 		parms->link = nla_get_u32(data[IFLA_IPTUN_LINK]);
 
 	if (data[IFLA_IPTUN_LOCAL])
-		parms->iph.saddr = nla_get_u32(data[IFLA_IPTUN_LOCAL]);
+		parms->iph.saddr = nla_get_be32(data[IFLA_IPTUN_LOCAL]);
 
 	if (data[IFLA_IPTUN_REMOTE])
-		parms->iph.daddr = nla_get_u32(data[IFLA_IPTUN_REMOTE]);
+		parms->iph.daddr = nla_get_be32(data[IFLA_IPTUN_REMOTE]);
 
 	if (data[IFLA_IPTUN_TTL]) {
 		parms->iph.ttl = nla_get_u8(data[IFLA_IPTUN_TTL]);
@@ -1258,7 +1258,7 @@ static void ipip6_netlink_parms(struct nlattr *data[],
 		parms->iph.frag_off = htons(IP_DF);
 
 	if (data[IFLA_IPTUN_FLAGS])
-		parms->i_flags = nla_get_u16(data[IFLA_IPTUN_FLAGS]);
+		parms->i_flags = nla_get_be16(data[IFLA_IPTUN_FLAGS]);
 }
 
 static int ipip6_newlink(struct net *src_net, struct net_device *dev,
@@ -1337,7 +1337,7 @@ static int ipip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_IPTUN_TOS, parm->iph.tos) ||
 	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,
 		       !!(parm->iph.frag_off & htons(IP_DF))) ||
-	    nla_put_u16(skb, IFLA_IPTUN_FLAGS, parm->i_flags))
+	    nla_put_be16(skb, IFLA_IPTUN_FLAGS, parm->i_flags))
 		goto nla_put_failure;
 	return 0;
 
