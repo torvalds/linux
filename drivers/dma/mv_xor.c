@@ -26,6 +26,9 @@
 #include <linux/platform_device.h>
 #include <linux/memory.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_irq.h>
+#include <linux/irqdomain.h>
 #include <linux/platform_data/dma-mv_xor.h>
 
 #include "dmaengine.h"
@@ -1278,7 +1281,42 @@ static int mv_xor_probe(struct platform_device *pdev)
 	if (!IS_ERR(xordev->clk))
 		clk_prepare_enable(xordev->clk);
 
-	if (pdata && pdata->channels) {
+	if (pdev->dev.of_node) {
+		struct device_node *np;
+		int i = 0;
+
+		for_each_child_of_node(pdev->dev.of_node, np) {
+			dma_cap_mask_t cap_mask;
+			int irq;
+
+			dma_cap_zero(cap_mask);
+			if (of_property_read_bool(np, "dmacap,memcpy"))
+				dma_cap_set(DMA_MEMCPY, cap_mask);
+			if (of_property_read_bool(np, "dmacap,xor"))
+				dma_cap_set(DMA_XOR, cap_mask);
+			if (of_property_read_bool(np, "dmacap,memset"))
+				dma_cap_set(DMA_MEMSET, cap_mask);
+			if (of_property_read_bool(np, "dmacap,interrupt"))
+				dma_cap_set(DMA_INTERRUPT, cap_mask);
+
+			irq = irq_of_parse_and_map(np, 0);
+			if (irq < 0) {
+				ret = irq;
+				goto err_channel_add;
+			}
+
+			xordev->channels[i] =
+				mv_xor_channel_add(xordev, pdev, i,
+						   cap_mask, irq);
+			if (IS_ERR(xordev->channels[i])) {
+				ret = PTR_ERR(xordev->channels[i]);
+				irq_dispose_mapping(irq);
+				goto err_channel_add;
+			}
+
+			i++;
+		}
+	} else if (pdata && pdata->channels) {
 		for (i = 0; i < MV_XOR_MAX_CHANNELS; i++) {
 			struct mv_xor_channel_data *cd;
 			int irq;
@@ -1309,8 +1347,11 @@ static int mv_xor_probe(struct platform_device *pdev)
 
 err_channel_add:
 	for (i = 0; i < MV_XOR_MAX_CHANNELS; i++)
-		if (xordev->channels[i])
+		if (xordev->channels[i]) {
+			if (pdev->dev.of_node)
+				irq_dispose_mapping(xordev->channels[i]->irq);
 			mv_xor_channel_remove(xordev->channels[i]);
+		}
 
 	clk_disable_unprepare(xordev->clk);
 	clk_put(xordev->clk);
@@ -1335,12 +1376,21 @@ static int mv_xor_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static struct of_device_id mv_xor_dt_ids[] __devinitdata = {
+       { .compatible = "marvell,orion-xor", },
+       {},
+};
+MODULE_DEVICE_TABLE(of, mv_xor_dt_ids);
+#endif
+
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
 	.remove		= mv_xor_remove,
 	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= MV_XOR_NAME,
+		.owner	        = THIS_MODULE,
+		.name	        = MV_XOR_NAME,
+		.of_match_table = of_match_ptr(mv_xor_dt_ids),
 	},
 };
 
