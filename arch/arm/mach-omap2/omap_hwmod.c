@@ -130,7 +130,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/io.h>
-#include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/list.h>
@@ -614,6 +614,19 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
 	return 0;
 }
 
+static struct clockdomain *_get_clkdm(struct omap_hwmod *oh)
+{
+	struct clk_hw_omap *clk;
+
+	if (oh->clkdm) {
+		return oh->clkdm;
+	} else if (oh->_clk) {
+		clk = to_clk_hw_omap(__clk_get_hw(oh->_clk));
+		return  clk->clkdm;
+	}
+	return NULL;
+}
+
 /**
  * _add_initiator_dep: prevent @oh from smart-idling while @init_oh is active
  * @oh: struct omap_hwmod *
@@ -629,13 +642,18 @@ static int _disable_wakeup(struct omap_hwmod *oh, u32 *v)
  */
 static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
-	if (!oh->_clk)
+	struct clockdomain *clkdm, *init_clkdm;
+
+	clkdm = _get_clkdm(oh);
+	init_clkdm = _get_clkdm(init_oh);
+
+	if (!clkdm || !init_clkdm)
 		return -EINVAL;
 
-	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+	if (clkdm && clkdm->flags & CLKDM_NO_AUTODEPS)
 		return 0;
 
-	return clkdm_add_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
+	return clkdm_add_sleepdep(clkdm, init_clkdm);
 }
 
 /**
@@ -653,13 +671,18 @@ static int _add_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  */
 static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
 {
-	if (!oh->_clk)
+	struct clockdomain *clkdm, *init_clkdm;
+
+	clkdm = _get_clkdm(oh);
+	init_clkdm = _get_clkdm(init_oh);
+
+	if (!clkdm || !init_clkdm)
 		return -EINVAL;
 
-	if (oh->_clk->clkdm && oh->_clk->clkdm->flags & CLKDM_NO_AUTODEPS)
+	if (clkdm && clkdm->flags & CLKDM_NO_AUTODEPS)
 		return 0;
 
-	return clkdm_del_sleepdep(oh->_clk->clkdm, init_oh->_clk->clkdm);
+	return clkdm_del_sleepdep(clkdm, init_clkdm);
 }
 
 /**
@@ -693,7 +716,7 @@ static int _init_main_clk(struct omap_hwmod *oh)
 	 */
 	clk_prepare(oh->_clk);
 
-	if (!oh->_clk->clkdm)
+	if (!_get_clkdm(oh))
 		pr_debug("omap_hwmod: %s: missing clockdomain for %s.\n",
 			   oh->name, oh->main_clk);
 
@@ -1276,6 +1299,7 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	u8 idlemode, sf;
 	u32 v;
 	bool clkdm_act;
+	struct clockdomain *clkdm;
 
 	if (!oh->class->sysc)
 		return;
@@ -1283,11 +1307,9 @@ static void _enable_sysc(struct omap_hwmod *oh)
 	v = oh->_sysc_cache;
 	sf = oh->class->sysc->sysc_flags;
 
+	clkdm = _get_clkdm(oh);
 	if (sf & SYSC_HAS_SIDLEMODE) {
-		clkdm_act = ((oh->clkdm &&
-			      oh->clkdm->flags & CLKDM_ACTIVE_WITH_MPU) ||
-			     (oh->_clk && oh->_clk->clkdm &&
-			      oh->_clk->clkdm->flags & CLKDM_ACTIVE_WITH_MPU));
+		clkdm_act = (clkdm && clkdm->flags & CLKDM_ACTIVE_WITH_MPU);
 		if (clkdm_act && !(oh->class->sysc->idlemodes &
 				   (SIDLE_SMART | SIDLE_SMART_WKUP)))
 			idlemode = HWMOD_IDLEMODE_FORCE;
@@ -1489,11 +1511,12 @@ static int _init_clocks(struct omap_hwmod *oh, void *data)
 
 	pr_debug("omap_hwmod: %s: looking up clocks\n", oh->name);
 
+	if (soc_ops.init_clkdm)
+		ret |= soc_ops.init_clkdm(oh);
+
 	ret |= _init_main_clk(oh);
 	ret |= _init_interface_clks(oh);
 	ret |= _init_opt_clks(oh);
-	if (soc_ops.init_clkdm)
-		ret |= soc_ops.init_clkdm(oh);
 
 	if (!ret)
 		oh->_state = _HWMOD_STATE_CLKS_INITED;
@@ -3556,9 +3579,14 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 {
 	struct clk *c;
 	struct omap_hwmod_ocp_if *oi;
+	struct clockdomain *clkdm;
+	struct clk_hw_omap *clk;
 
 	if (!oh)
 		return NULL;
+
+	if (oh->clkdm)
+		return oh->clkdm->pwrdm.ptr;
 
 	if (oh->_clk) {
 		c = oh->_clk;
@@ -3569,11 +3597,12 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 		c = oi->_clk;
 	}
 
-	if (!c->clkdm)
+	clk = to_clk_hw_omap(__clk_get_hw(c));
+	clkdm = clk->clkdm;
+	if (!clkdm)
 		return NULL;
 
-	return c->clkdm->pwrdm.ptr;
-
+	return clkdm->pwrdm.ptr;
 }
 
 /**
