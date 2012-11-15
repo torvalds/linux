@@ -647,10 +647,6 @@ static uint brcms_c_calc_frame_time(struct brcms_c_info *wlc, u32 ratespec,
 		rate = BRCM_RATE_1M;
 	}
 
-	brcms_dbg_mac80211(wlc->hw->d11core,
-			   "wl%d: rspec 0x%x, preamble_type %d, len%d\n",
-			   wlc->pub->unit, ratespec, preamble_type, mac_len);
-
 	if (is_mcs_rate(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
 		int tot_streams = mcs_2_txstreams(mcs) + rspec_stc(ratespec);
@@ -4943,8 +4939,6 @@ uint brcms_c_detach(struct brcms_c_info *wlc)
 	if (wlc == NULL)
 		return 0;
 
-	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
-
 	callbacks += brcms_b_detach(wlc);
 
 	/* delete software timers */
@@ -5778,9 +5772,6 @@ brcms_c_calc_ack_time(struct brcms_c_info *wlc, u32 rspec,
 {
 	uint dur = 0;
 
-	brcms_dbg_mac80211(wlc->hw->d11core,
-			   "wl%d: rspec 0x%x, preamble_type %d\n",
-			   wlc->pub->unit, rspec, preamble_type);
 	/*
 	 * Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that
 	 * is less than or equal to the rate of the immediately previous
@@ -5798,9 +5789,6 @@ static uint
 brcms_c_calc_cts_time(struct brcms_c_info *wlc, u32 rspec,
 		      u8 preamble_type)
 {
-	brcms_dbg_mac80211(wlc->hw->d11core,
-			   "wl%d: ratespec 0x%x, preamble_type %d\n",
-			   wlc->pub->unit, rspec, preamble_type);
 	return brcms_c_calc_ack_time(wlc, rspec, preamble_type);
 }
 
@@ -5808,9 +5796,6 @@ static uint
 brcms_c_calc_ba_time(struct brcms_c_info *wlc, u32 rspec,
 		     u8 preamble_type)
 {
-	brcms_dbg_mac80211(wlc->hw->d11core,
-			   "wl%d: rspec 0x%x, preamble_type %d\n",
-			   wlc->pub->unit, rspec, preamble_type);
 	/*
 	 * Spec 9.6: ack rate is the highest rate in BSSBasicRateSet that
 	 * is less than or equal to the rate of the immediately previous
@@ -5863,10 +5848,6 @@ brcms_c_calc_frame_len(struct brcms_c_info *wlc, u32 ratespec,
 {
 	uint nsyms, mac_len, Ndps, kNdps;
 	uint rate = rspec2rate(ratespec);
-
-	brcms_dbg_mac80211(wlc->hw->d11core,
-			   "wl%d: rspec 0x%x, preamble_type %d, dur %d\n",
-			   wlc->pub->unit, ratespec, preamble_type, dur);
 
 	if (is_mcs_rate(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
@@ -7272,9 +7253,6 @@ brcms_c_calc_lsig_len(struct brcms_c_info *wlc, u32 ratespec,
 {
 	uint nsyms, len = 0, kNdps;
 
-	brcms_dbg_mac80211(wlc->hw->d11core, "wl%d: rate %d, len%d\n",
-			   wlc->pub->unit, rspec2rate(ratespec), mac_len);
-
 	if (is_mcs_rate(ratespec)) {
 		uint mcs = ratespec & RSPEC_RATE_MASK;
 		int tot_streams = (mcs_2_txstreams(mcs) + 1) +
@@ -7628,8 +7606,6 @@ static void brcms_c_recv(struct brcms_c_info *wlc, struct sk_buff *p)
 	uint len;
 	bool is_amsdu;
 
-	brcms_dbg_rx(wlc->hw->d11core, "wl%d\n", wlc->pub->unit);
-
 	/* frame starts with rxhdr */
 	rxh = (struct d11rxhdr *) (p->data);
 
@@ -7686,7 +7662,6 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 	uint n = 0;
 	uint bound_limit = bound ? RXBND : -1;
 
-	brcms_dbg_rx(wlc_hw->d11core, "wl%d\n", wlc_hw->unit);
 	skb_queue_head_init(&recv_frames);
 
 	/* gather received frames */

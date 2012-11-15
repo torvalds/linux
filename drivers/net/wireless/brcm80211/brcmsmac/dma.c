@@ -1377,8 +1377,6 @@ int dma_txfast(struct brcms_c_info *wlc, struct dma_pub *pub,
 	struct ieee80211_tx_info *tx_info;
 	bool is_ampdu;
 
-	brcms_dbg_dma(di->core, "%s:\n", di->name);
-
 	/* no use to transmit a zero length packet */
 	if (p->len == 0)
 		return 0;
