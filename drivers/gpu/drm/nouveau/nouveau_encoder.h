@@ -93,7 +93,7 @@ get_slave_funcs(struct drm_encoder *enc)
 /* nouveau_dp.c */
 bool nouveau_dp_detect(struct drm_encoder *);
 void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
-		     struct dp_train_func *);
+		     struct nouveau_object *);
 u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_output *, u8 **);
 
 struct nouveau_connector *

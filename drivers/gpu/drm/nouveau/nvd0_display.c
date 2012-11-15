@@ -1306,39 +1306,6 @@ nvd0_hdmi_disconnect(struct drm_encoder *encoder)
  * SOR
  *****************************************************************************/
 static void
-nvd0_sor_dp_train_set(struct drm_device *dev, struct dcb_output *dcb, u8 pattern)
-{
-	struct nvd0_disp *disp = nvd0_disp(dev);
-	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 moff = (link << 2) | or;
-	nv_call(disp->core, NV94_DISP_SOR_DP_TRAIN + moff, pattern);
-}
-
-static void
-nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_output *dcb,
-		      u8 lane, u8 swing, u8 preem)
-{
-	struct nvd0_disp *disp = nvd0_disp(dev);
-	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 moff = (link << 2) | or;
-	const u32 data = (swing << 8) | preem;
-	nv_call(disp->core, NV94_DISP_SOR_DP_DRVCTL(lane) + moff, data);
-}
-
-static void
-nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_output *dcb, int crtc,
-		     int link_nr, u32 link_bw, bool enhframe)
-{
-	struct nvd0_disp *disp = nvd0_disp(dev);
-	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
-	const u32 moff = (crtc << 3) | (link << 2) | or;
-	u32 data = ((link_bw / 27000) << 8) | link_nr;
-	if (enhframe)
-		data |= NV94_DISP_SOR_DP_LNKCTL_FRAME_ENH;
-	nv_call(disp->core, NV94_DISP_SOR_DP_LNKCTL + moff, data);
-}
-
-static void
 nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
@@ -1365,15 +1332,8 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 
 	nv_call(disp->core, NV50_DISP_SOR_PWR + or, (mode == DRM_MODE_DPMS_ON));
 
-	if (nv_encoder->dcb->type == DCB_OUTPUT_DP) {
-		struct dp_train_func func = {
-			.link_set = nvd0_sor_dp_link_set,
-			.train_set = nvd0_sor_dp_train_set,
-			.train_adj = nvd0_sor_dp_train_adj
-		};
-
-		nouveau_dp_dpms(encoder, mode, nv_encoder->dp.datarate, &func);
-	}
+	if (nv_encoder->dcb->type == DCB_OUTPUT_DP)
+		nouveau_dp_dpms(encoder, mode, nv_encoder->dp.datarate, disp->core);
 }
 
 static bool
