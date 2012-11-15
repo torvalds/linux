@@ -27,6 +27,8 @@
  *      Dave Airlie <airlied@linux.ie>
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
 #include <linux/slab.h>
@@ -271,7 +273,7 @@ int drm_fb_helper_panic(struct notifier_block *n, unsigned long ununsed,
 	if (panic_timeout < 0)
 		return 0;
 
-	printk(KERN_ERR "panic occurred, switching back to text console\n");
+	pr_err("panic occurred, switching back to text console\n");
 	return drm_fb_helper_force_kernel_mode();
 }
 EXPORT_SYMBOL(drm_fb_helper_panic);
@@ -439,7 +441,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
-			printk(KERN_INFO "drm: unregistered panic notifier\n");
+			pr_info("drm: unregistered panic notifier\n");
 			atomic_notifier_chain_unregister(&panic_notifier_list,
 							 &paniced);
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
@@ -810,8 +812,8 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 			return -EINVAL;
 		}
 
-		printk(KERN_INFO "fb%d: %s frame buffer device\n", info->node,
-		       info->fix.id);
+		dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
+				info->node, info->fix.id);
 
 	} else {
 		drm_fb_helper_set_par(info);
@@ -820,7 +822,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		printk(KERN_INFO "drm: registered panic notifier\n");
+		dev_info(fb_helper->dev->dev, "registered panic notifier\n");
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
@@ -1326,7 +1328,7 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	 * we shouldn't end up with no modes here.
 	 */
 	if (count == 0) {
-		printk(KERN_INFO "No connectors reported connected with modes\n");
+		dev_info(fb_helper->dev->dev, "No connectors reported connected with modes\n");
 	}
 	drm_setup_crtcs(fb_helper);
 
