@@ -162,11 +162,6 @@ static struct of_device_id omap_timer_match[] __initdata = {
 	{ }
 };
 
-static struct of_device_id omap_counter_match[] __initdata = {
-	{ .compatible = "ti,omap-counter32k", },
-	{ }
-};
-
 /**
  * omap_get_timer_dt - get a timer using device-tree
  * @match	- device-tree match structure for matching a device type
@@ -406,6 +401,11 @@ static u32 notrace dmtimer_read_sched_clock(void)
 }
 
 #ifdef CONFIG_OMAP_32K_TIMER
+static struct of_device_id omap_counter_match[] __initdata = {
+	{ .compatible = "ti,omap-counter32k", },
+	{ }
+};
+
 /* Setup free-running counter for clocksource */
 static int __init omap2_sync32k_clocksource_init(void)
 {
