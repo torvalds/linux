@@ -22,6 +22,7 @@
 #include "main.h"
 #include "ampdu.h"
 #include "debug.h"
+#include "brcms_trace_events.h"
 
 /* max number of mpdus in an ampdu */
 #define AMPDU_MAX_MPDU			32
@@ -930,12 +931,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			brcms_err(wlc->hw->d11core,
 				  "%s: ampdu tx phy error (0x%x)\n",
 				  __func__, txs->phyerr);
-
-			if (brcm_msg_level & BRCM_DL_INFO) {
-				brcmu_prpkt("txpkt (AMPDU)", p);
-				brcms_c_print_txdesc((struct d11txh *) p->data);
-			}
-			brcms_c_print_txstatus(txs);
 		}
 	}
 
@@ -947,6 +942,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		plcp = (u8 *) (txh + 1);
 		h = (struct ieee80211_hdr *)(plcp + D11_PHY_HDR_LEN);
 		seq = le16_to_cpu(h->seq_ctrl) >> SEQNUM_SHIFT;
+
+		trace_brcms_txdesc(&wlc->hw->d11core->dev, txh, sizeof(*txh));
 
 		if (tot_mpdu == 0) {
 			mcs = plcp[0] & MIMO_PLCP_MCS_MASK;
@@ -1077,6 +1074,8 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		while (p) {
 			tx_info = IEEE80211_SKB_CB(p);
 			txh = (struct d11txh *) p->data;
+			trace_brcms_txdesc(&wlc->hw->d11core->dev, txh,
+					   sizeof(*txh));
 			mcl = le16_to_cpu(txh->MacTxControlLow);
 			brcmu_pkt_buf_free_skb(p);
 			/* break out if last packet of ampdu */

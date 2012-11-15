@@ -18,6 +18,8 @@
 
 #define __TRACE_BRCMSMAC_H
 
+#include <linux/types.h>
+#include <linux/device.h>
 #include <linux/tracepoint.h>
 #include "mac80211_if.h"
 
@@ -81,6 +83,57 @@ TRACE_EVENT(brcms_dpc,
 		"data=%p",
 		(void *)__entry->data
 	)
+);
+
+#undef TRACE_SYSTEM
+#define TRACE_SYSTEM brcmsmac_tx
+
+TRACE_EVENT(brcms_txdesc,
+	TP_PROTO(const struct device *dev,
+		 void *txh, size_t txh_len),
+	TP_ARGS(dev, txh, txh_len),
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dev))
+		__dynamic_array(u8, txh, txh_len)
+	),
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dev));
+		memcpy(__get_dynamic_array(txh), txh, txh_len);
+	),
+	TP_printk("[%s] txdesc", __get_str(dev))
+);
+
+TRACE_EVENT(brcms_txstatus,
+	TP_PROTO(const struct device *dev, u16 framelen, u16 frameid,
+		 u16 status, u16 lasttxtime, u16 sequence, u16 phyerr,
+		 u16 ackphyrxsh),
+	TP_ARGS(dev, framelen, frameid, status, lasttxtime, sequence, phyerr,
+		ackphyrxsh),
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dev))
+		__field(u16, framelen)
+		__field(u16, frameid)
+		__field(u16, status)
+		__field(u16, lasttxtime)
+		__field(u16, sequence)
+		__field(u16, phyerr)
+		__field(u16, ackphyrxsh)
+	),
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dev));
+		__entry->framelen = framelen;
+		__entry->frameid = frameid;
+		__entry->status = status;
+		__entry->lasttxtime = lasttxtime;
+		__entry->sequence = sequence;
+		__entry->phyerr = phyerr;
+		__entry->ackphyrxsh = ackphyrxsh;
+	),
+	TP_printk("[%s] FrameId %#04x TxStatus %#04x LastTxTime %#04x "
+		  "Seq %#04x PHYTxStatus %#04x RxAck %#04x",
+		  __get_str(dev), __entry->frameid, __entry->status,
+		  __entry->lasttxtime, __entry->sequence, __entry->phyerr,
+		  __entry->ackphyrxsh)
 );
 
 #undef TRACE_SYSTEM
