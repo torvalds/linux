@@ -13,6 +13,7 @@
 #include <net/protocol.h>
 #include <net/ipv6.h>
 #include <net/udp.h>
+#include <net/ip6_checksum.h>
 #include "ip6_offload.h"
 
 static int udp6_ufo_send_check(struct sk_buff *skb)
