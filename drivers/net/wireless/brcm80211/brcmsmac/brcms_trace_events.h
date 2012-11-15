@@ -156,6 +156,34 @@ TRACE_EVENT(brcms_txstatus,
 		  __entry->ackphyrxsh)
 );
 
+TRACE_EVENT(brcms_ampdu_session,
+	TP_PROTO(const struct device *dev, unsigned max_ampdu_len,
+		 u16 max_ampdu_frames, u16 ampdu_len, u16 ampdu_frames,
+		 u16 dma_len),
+	TP_ARGS(dev, max_ampdu_len, max_ampdu_frames, ampdu_len, ampdu_frames,
+		dma_len),
+	TP_STRUCT__entry(
+		__string(dev, dev_name(dev))
+		__field(unsigned, max_ampdu_len)
+		__field(u16, max_ampdu_frames)
+		__field(u16, ampdu_len)
+		__field(u16, ampdu_frames)
+		__field(u16, dma_len)
+	),
+	TP_fast_assign(
+		__assign_str(dev, dev_name(dev));
+		__entry->max_ampdu_len = max_ampdu_len;
+		__entry->max_ampdu_frames = max_ampdu_frames;
+		__entry->ampdu_len = ampdu_len;
+		__entry->ampdu_frames = ampdu_frames;
+		__entry->dma_len = dma_len;
+	),
+	TP_printk("[%s] ampdu session max_len=%u max_frames=%u len=%u frames=%u dma_len=%u",
+		  __get_str(dev), __entry->max_ampdu_len,
+		  __entry->max_ampdu_frames, __entry->ampdu_len,
+		  __entry->ampdu_frames, __entry->dma_len)
+);
+
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM brcmsmac_msg
 

@@ -29,6 +29,7 @@
 #include "scb.h"
 #include "ampdu.h"
 #include "debug.h"
+#include "brcms_trace_events.h"
 
 /*
  * dma register field offset calculation
@@ -1310,6 +1311,13 @@ static void ampdu_finalize(struct dma_info *di)
 {
 	struct brcms_ampdu_session *session = &di->ampdu_session;
 	struct sk_buff *p;
+
+	trace_brcms_ampdu_session(&session->wlc->hw->d11core->dev,
+				  session->max_ampdu_len,
+				  session->max_ampdu_frames,
+				  session->ampdu_len,
+				  skb_queue_len(&session->skb_list),
+				  session->dma_len);
 
 	if (WARN_ON(skb_queue_empty(&session->skb_list)))
 		return;
