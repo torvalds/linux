@@ -44,6 +44,7 @@
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/crc32c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/file.h>
