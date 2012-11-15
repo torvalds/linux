@@ -614,6 +614,7 @@ struct intel_l3_parity {
 
 typedef struct drm_i915_private {
 	struct drm_device *dev;
+	struct kmem_cache *slab;
 
 	const struct intel_device_info *info;
 
@@ -1379,12 +1380,15 @@ int i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 int i915_gem_wait_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 void i915_gem_load(struct drm_device *dev);
+void *i915_gem_object_alloc(struct drm_device *dev);
+void i915_gem_object_free(struct drm_i915_gem_object *obj);
 int i915_gem_init_object(struct drm_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			 const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size);
 void i915_gem_free_object(struct drm_gem_object *obj);
+
 int __must_check i915_gem_object_pin(struct drm_i915_gem_object *obj,
 				     uint32_t alignment,
 				     bool map_and_fenceable,

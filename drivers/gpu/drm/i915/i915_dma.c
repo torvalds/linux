@@ -1736,6 +1736,9 @@ int i915_driver_unload(struct drm_device *dev)
 
 	destroy_workqueue(dev_priv->wq);
 
+	if (dev_priv->slab)
+		kmem_cache_destroy(dev_priv->slab);
+
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev->dev_private);
 

@@ -192,6 +192,18 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+void *i915_gem_object_alloc(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	return kmem_cache_alloc(dev_priv->slab, GFP_KERNEL | __GFP_ZERO);
+}
+
+void i915_gem_object_free(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	kmem_cache_free(dev_priv->slab, obj);
+}
+
 static int
 i915_gem_create(struct drm_file *file,
 		struct drm_device *dev,
@@ -215,7 +227,7 @@ i915_gem_create(struct drm_file *file,
 	if (ret) {
 		drm_gem_object_release(&obj->base);
 		i915_gem_info_remove_obj(dev->dev_private, obj->base.size);
-		kfree(obj);
+		i915_gem_object_free(obj);
 		return ret;
 	}
 
@@ -3695,12 +3707,12 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 	struct address_space *mapping;
 	u32 mask;
 
-	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)
 		return NULL;
 
 	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
-		kfree(obj);
+		i915_gem_object_free(obj);
 		return NULL;
 	}
 
@@ -3783,7 +3795,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	i915_gem_info_remove_obj(dev_priv, obj->base.size);
 
 	kfree(obj->bit_17);
-	kfree(obj);
+	i915_gem_object_free(obj);
 }
 
 int
@@ -4101,8 +4113,14 @@ init_ring_lists(struct intel_ring_buffer *ring)
 void
 i915_gem_load(struct drm_device *dev)
 {
-	int i;
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	int i;
+
+	dev_priv->slab =
+		kmem_cache_create("i915_gem_object",
+				  sizeof(struct drm_i915_gem_object), 0,
+				  SLAB_HWCACHE_ALIGN,
+				  NULL);
 
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
