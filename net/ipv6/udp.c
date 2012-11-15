@@ -1438,8 +1438,6 @@ out:
 static const struct inet6_protocol udpv6_protocol = {
 	.handler	=	udpv6_rcv,
 	.err_handler	=	udpv6_err,
-	.gso_send_check =	udp6_ufo_send_check,
-	.gso_segment	=	udp6_ufo_fragment,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
@@ -1570,9 +1568,13 @@ int __init udpv6_init(void)
 {
 	int ret;
 
-	ret = inet6_add_protocol(&udpv6_protocol, IPPROTO_UDP);
+	ret = inet6_add_offload(&udpv6_offload, IPPROTO_UDP);
 	if (ret)
 		goto out;
+
+	ret = inet6_add_protocol(&udpv6_protocol, IPPROTO_UDP);
+	if (ret)
+		goto out_offload;
 
 	ret = inet6_register_protosw(&udpv6_protosw);
 	if (ret)
@@ -1582,6 +1584,8 @@ out:
 
 out_udpv6_protocol:
 	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
+out_offload:
+	inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
 	goto out;
 }
 
@@ -1589,4 +1593,5 @@ void udpv6_exit(void)
 {
 	inet6_unregister_protosw(&udpv6_protosw);
 	inet6_del_protocol(&udpv6_protocol, IPPROTO_UDP);
+	inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
 }

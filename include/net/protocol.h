@@ -54,14 +54,6 @@ struct inet6_protocol {
 			       struct inet6_skb_parm *opt,
 			       u8 type, u8 code, int offset,
 			       __be32 info);
-
-	int	(*gso_send_check)(struct sk_buff *skb);
-	struct sk_buff *(*gso_segment)(struct sk_buff *skb,
-				       netdev_features_t features);
-	struct sk_buff **(*gro_receive)(struct sk_buff **head,
-					struct sk_buff *skb);
-	int	(*gro_complete)(struct sk_buff *skb);
-
 	unsigned int	flags;	/* INET6_PROTO_xxx */
 };
 

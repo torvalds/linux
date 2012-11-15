@@ -2066,10 +2066,6 @@ static const struct inet6_protocol tcpv6_protocol = {
 	.early_demux	=	tcp_v6_early_demux,
 	.handler	=	tcp_v6_rcv,
 	.err_handler	=	tcp_v6_err,
-	.gso_send_check	=	tcp_v6_gso_send_check,
-	.gso_segment	=	tcp_tso_segment,
-	.gro_receive	=	tcp6_gro_receive,
-	.gro_complete	=	tcp6_gro_complete,
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
@@ -2116,9 +2112,13 @@ int __init tcpv6_init(void)
 {
 	int ret;
 
-	ret = inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	ret = inet6_add_offload(&tcpv6_offload, IPPROTO_TCP);
 	if (ret)
 		goto out;
+
+	ret = inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	if (ret)
+		goto out_offload;
 
 	/* register inet6 protocol */
 	ret = inet6_register_protosw(&tcpv6_protosw);
@@ -2131,10 +2131,12 @@ int __init tcpv6_init(void)
 out:
 	return ret;
 
-out_tcpv6_protocol:
-	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
 out_tcpv6_protosw:
 	inet6_unregister_protosw(&tcpv6_protosw);
+out_tcpv6_protocol:
+	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
+out_offload:
+	inet6_del_offload(&tcpv6_offload, IPPROTO_TCP);
 	goto out;
 }
 
@@ -2143,4 +2145,5 @@ void tcpv6_exit(void)
 	unregister_pernet_subsys(&tcpv6_net_ops);
 	inet6_unregister_protosw(&tcpv6_protosw);
 	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	inet6_del_offload(&tcpv6_offload, IPPROTO_TCP);
 }

@@ -549,13 +549,43 @@ static const struct inet6_protocol nodata_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY,
 };
 
+static int ipv6_exthdrs_offload_init(void)
+{
+	int ret;
+
+	ret = inet6_add_offload(&rthdr_offload, IPPROTO_ROUTING);
+	if (!ret)
+		goto out;
+
+	ret = inet6_add_offload(&dstopt_offload, IPPROTO_DSTOPTS);
+	if (!ret)
+		goto out_rt;
+
+out:
+	return ret;
+
+out_rt:
+	inet_del_offload(&rthdr_offload, IPPROTO_ROUTING);
+	goto out;
+}
+
+static void ipv6_exthdrs_offload_exit(void)
+{
+	inet_del_offload(&rthdr_offload, IPPROTO_ROUTING);
+	inet_del_offload(&rthdr_offload, IPPROTO_DSTOPTS);
+}
+
 int __init ipv6_exthdrs_init(void)
 {
 	int ret;
 
-	ret = inet6_add_protocol(&rthdr_protocol, IPPROTO_ROUTING);
+	ret = ipv6_exthdrs_offload_init();
 	if (ret)
 		goto out;
+
+	ret = inet6_add_protocol(&rthdr_protocol, IPPROTO_ROUTING);
+	if (ret)
+		goto out_offload;
 
 	ret = inet6_add_protocol(&destopt_protocol, IPPROTO_DSTOPTS);
 	if (ret)
@@ -567,10 +597,12 @@ int __init ipv6_exthdrs_init(void)
 
 out:
 	return ret;
-out_rthdr:
-	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
 out_destopt:
 	inet6_del_protocol(&destopt_protocol, IPPROTO_DSTOPTS);
+out_rthdr:
+	inet6_del_protocol(&rthdr_protocol, IPPROTO_ROUTING);
+out_offload:
+	ipv6_exthdrs_offload_exit();
 	goto out;
 };
 
