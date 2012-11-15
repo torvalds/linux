@@ -1298,8 +1298,6 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("usbd", "utmip-pad", NULL),
 	CLK_DUPLICATE("usbd", "tegra-ehci.0", NULL),
 	CLK_DUPLICATE("usbd", "tegra-otg", NULL),
-	CLK_DUPLICATE("hdmi", "tegradc.0", "hdmi"),
-	CLK_DUPLICATE("hdmi", "tegradc.1", "hdmi"),
 	CLK_DUPLICATE("dsib", "tegradc.0", "dsib"),
 	CLK_DUPLICATE("dsia", "tegradc.1", "dsia"),
 	CLK_DUPLICATE("bsev", "tegra-avp", "bsev"),
@@ -1337,6 +1335,9 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.2", "fast-clk"),
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.3", "fast-clk"),
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.4", "fast-clk"),
+	CLK_DUPLICATE("pll_p", "tegradc.0", "parent"),
+	CLK_DUPLICATE("pll_p", "tegradc.1", "parent"),
+	CLK_DUPLICATE("pll_d2_out0", "hdmi", "parent"),
 };
 
 struct clk *tegra_ptr_clks[] = {
