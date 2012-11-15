@@ -18,7 +18,7 @@
 #ifndef FWEH_H_
 #define FWEH_H_
 
-#include <linux/unaligned/access_ok.h>
+#include <asm/unaligned.h>
 #include <linux/skbuff.h>
 #include <linux/if_ether.h>
 #include <linux/if.h>
