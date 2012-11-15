@@ -6355,6 +6355,14 @@ F:	drivers/regulator/s5m*.c
 F:	drivers/rtc/rtc-sec.c
 F:	include/linux/mfd/samsung/
 
+SAMSUNG S3C24XX/S3C64XX SOC SERIES CAMIF DRIVER
+M:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
+L:	linux-media@vger.kernel.org
+L:	linux-samsung-soc@vger.kernel.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/media/platform/s3c-camif/
+F:	include/media/s3c_camif.h
+
 SERIAL DRIVERS
 M:	Alan Cox <alan@linux.intel.com>
 L:	linux-serial@vger.kernel.org
