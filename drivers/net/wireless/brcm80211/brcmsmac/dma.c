@@ -361,7 +361,7 @@ static uint prevtxd(struct dma_info *di, uint i)
 
 static uint nextrxd(struct dma_info *di, uint i)
 {
-	return txd(di, i + 1);
+	return rxd(di, i + 1);
 }
 
 static uint ntxdactive(struct dma_info *di, uint h, uint t)
