@@ -1443,6 +1443,11 @@ static const struct inet6_protocol udpv6_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
 };
 
+static const struct net_offload udpv6_offload = {
+	.gso_send_check =	udp6_ufo_send_check,
+	.gso_segment	=	udp6_ufo_fragment,
+};
+
 /* ------------------------------------------------------------------------ */
 #ifdef CONFIG_PROC_FS
 

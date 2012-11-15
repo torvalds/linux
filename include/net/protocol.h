@@ -84,6 +84,7 @@ struct net_offload {
 	struct sk_buff	      **(*gro_receive)(struct sk_buff **head,
 					       struct sk_buff *skb);
 	int			(*gro_complete)(struct sk_buff *skb);
+	unsigned int		flags;	/* Flags used by IPv6 for now */
 };
 
 /* This is used to register socket interfaces for IP protocols.  */
@@ -109,6 +110,7 @@ extern const struct net_offload __rcu *inet_offloads[MAX_INET_PROTOS];
 
 #if IS_ENABLED(CONFIG_IPV6)
 extern const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS];
+extern const struct net_offload __rcu *inet6_offloads[MAX_INET_PROTOS];
 #endif
 
 extern int	inet_add_protocol(const struct net_protocol *prot, unsigned char num);
@@ -121,6 +123,8 @@ extern void	inet_unregister_protosw(struct inet_protosw *p);
 #if IS_ENABLED(CONFIG_IPV6)
 extern int	inet6_add_protocol(const struct inet6_protocol *prot, unsigned char num);
 extern int	inet6_del_protocol(const struct inet6_protocol *prot, unsigned char num);
+extern int	inet6_add_offload(const struct net_offload *prot, unsigned char num);
+extern int	inet6_del_offload(const struct net_offload *prot, unsigned char num);
 extern int	inet6_register_protosw(struct inet_protosw *p);
 extern void	inet6_unregister_protosw(struct inet_protosw *p);
 #endif

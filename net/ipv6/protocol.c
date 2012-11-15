@@ -26,6 +26,7 @@
 #include <net/protocol.h>
 
 const struct inet6_protocol __rcu *inet6_protos[MAX_INET_PROTOS] __read_mostly;
+const struct net_offload __rcu *inet6_offloads[MAX_INET_PROTOS] __read_mostly;
 
 int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol)
 {
@@ -33,6 +34,13 @@ int inet6_add_protocol(const struct inet6_protocol *prot, unsigned char protocol
 			NULL, prot) ? 0 : -1;
 }
 EXPORT_SYMBOL(inet6_add_protocol);
+
+int inet6_add_offload(const struct net_offload *prot, unsigned char protocol)
+{
+	return !cmpxchg((const struct net_offload **)&inet6_offloads[protocol],
+			NULL, prot) ? 0 : -1;
+}
+EXPORT_SYMBOL(inet6_add_offload);
 
 /*
  *	Remove a protocol from the hash tables.
@@ -50,3 +58,16 @@ int inet6_del_protocol(const struct inet6_protocol *prot, unsigned char protocol
 	return ret;
 }
 EXPORT_SYMBOL(inet6_del_protocol);
+
+int inet6_del_offload(const struct net_offload *prot, unsigned char protocol)
+{
+	int ret;
+
+	ret = (cmpxchg((const struct net_offload **)&inet6_offloads[protocol],
+		       prot, NULL) == prot) ? 0 : -1;
+
+	synchronize_net();
+
+	return ret;
+}
+EXPORT_SYMBOL(inet6_del_offload);

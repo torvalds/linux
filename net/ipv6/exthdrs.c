@@ -531,9 +531,17 @@ static const struct inet6_protocol rthdr_protocol = {
 	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
 };
 
+static const struct net_offload rthdr_offload = {
+	.flags		=	INET6_PROTO_GSO_EXTHDR,
+};
+
 static const struct inet6_protocol destopt_protocol = {
 	.handler	=	ipv6_destopt_rcv,
 	.flags		=	INET6_PROTO_NOPOLICY | INET6_PROTO_GSO_EXTHDR,
+};
+
+static const struct net_offload dstopt_offload = {
+	.flags		=	INET6_PROTO_GSO_EXTHDR,
 };
 
 static const struct inet6_protocol nodata_protocol = {
