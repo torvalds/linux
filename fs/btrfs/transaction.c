@@ -1305,13 +1305,13 @@ static void wait_current_trans_commit_start_and_unblock(struct btrfs_root *root,
 struct btrfs_async_commit {
 	struct btrfs_trans_handle *newtrans;
 	struct btrfs_root *root;
-	struct delayed_work work;
+	struct work_struct work;
 };
 
 static void do_async_commit(struct work_struct *work)
 {
 	struct btrfs_async_commit *ac =
-		container_of(work, struct btrfs_async_commit, work.work);
+		container_of(work, struct btrfs_async_commit, work);
 
 	/*
 	 * We've got freeze protection passed with the transaction.
@@ -1339,7 +1339,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 	if (!ac)
 		return -ENOMEM;
 
-	INIT_DELAYED_WORK(&ac->work, do_async_commit);
+	INIT_WORK(&ac->work, do_async_commit);
 	ac->root = root;
 	ac->newtrans = btrfs_join_transaction(root);
 	if (IS_ERR(ac->newtrans)) {
@@ -1363,7 +1363,7 @@ int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 			&root->fs_info->sb->s_writers.lock_map[SB_FREEZE_FS-1],
 			1, _THIS_IP_);
 
-	schedule_delayed_work(&ac->work, 0);
+	schedule_work(&ac->work);
 
 	/* wait for transaction to start and unblock */
 	if (wait_for_unblock)
