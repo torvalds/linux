@@ -36,6 +36,7 @@
 #include <linux/serial_mfd.h>
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <linux/nmi.h>
 #include <linux/io.h>
 #include <linux/debugfs.h>
 #include <linux/pm_runtime.h>
@@ -1112,6 +1113,8 @@ serial_hsu_console_write(struct console *co, const char *s, unsigned int count)
 	unsigned long flags;
 	unsigned int ier;
 	int locked = 1;
+
+	touch_nmi_watchdog();
 
 	local_irq_save(flags);
 	if (up->port.sysrq)
