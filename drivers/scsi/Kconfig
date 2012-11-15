@@ -1812,6 +1812,7 @@ config SCSI_VIRTIO
           This is the virtual HBA driver for virtio.  If the kernel will
           be used in a virtual machine, say Y or M.
 
+source "drivers/scsi/csiostor/Kconfig"
 
 endif # SCSI_LOWLEVEL
 
