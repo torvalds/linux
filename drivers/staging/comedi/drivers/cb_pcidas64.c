@@ -2120,56 +2120,34 @@ static int ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		if (thisboard->layout == LAYOUT_4020) {
-			if (cmd->convert_arg) {
-				cmd->convert_arg = 0;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 		} else {
-			if (cmd->convert_arg < thisboard->ai_speed) {
-				cmd->convert_arg = thisboard->ai_speed;
-				err++;
-			}
-			if (cmd->scan_begin_src == TRIG_TIMER) {
-				/*  if scans are timed faster than
-				 *  conversion rate allows */
-				if (cmd->convert_arg * cmd->chanlist_len >
-				    cmd->scan_begin_arg) {
-					cmd->scan_begin_arg =
+			err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+							 thisboard->ai_speed);
+			/* if scans are timed faster than conversion rate allows */
+			if (cmd->scan_begin_src == TRIG_TIMER)
+				err |= cfc_check_trigger_arg_min(
+						&cmd->scan_begin_arg,
 						cmd->convert_arg *
-						cmd->chanlist_len;
-					err++;
-				}
-			}
+						cmd->chanlist_len);
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	switch (cmd->stop_src) {
 	case TRIG_EXT:
 		break;
 	case TRIG_COUNT:
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
 		break;
 	case TRIG_NONE:
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 		break;
 	default:
 		break;
@@ -3428,29 +3406,21 @@ static int ao_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (cmd->scan_begin_arg < thisboard->ao_scan_speed) {
-			cmd->scan_begin_arg = thisboard->ao_scan_speed;
-			err++;
-		}
-		if (get_ao_divisor(cmd->scan_begin_arg,
-				   cmd->flags) > max_counter_value) {
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 thisboard->ao_scan_speed);
+		if (get_ao_divisor(cmd->scan_begin_arg, cmd->flags) >
+		    max_counter_value) {
 			cmd->scan_begin_arg = (max_counter_value + 2) *
 					      TIMER_BASE;
-			err++;
+			err |= -EINVAL;
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (err)
 		return 3;
