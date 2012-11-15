@@ -128,7 +128,7 @@ static void tty_port_destructor(struct kref *kref)
 	if (port->xmit_buf)
 		free_page((unsigned long)port->xmit_buf);
 	tty_buffer_free_all(port);
-	if (port->ops->destruct)
+	if (port->ops && port->ops->destruct)
 		port->ops->destruct(port);
 	else
 		kfree(port);
