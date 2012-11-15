@@ -37,5 +37,7 @@ static inline void __brcms_dbg(struct device *dev, u32 level,
 
 #define brcms_dbg_info(core, f, a...)		brcms_dbg(core, BRCM_DL_INFO, f, ##a)
 #define brcms_dbg_mac80211(core, f, a...)	brcms_dbg(core, BRCM_DL_MAC80211, f, ##a)
+#define brcms_dbg_rx(core, f, a...)		brcms_dbg(core, BRCM_DL_RX, f, ##a)
+#define brcms_dbg_tx(core, f, a...)		brcms_dbg(core, BRCM_DL_TX, f, ##a)
 
 #endif /* _BRCMS_DEBUG_H_ */
