@@ -15,7 +15,7 @@
 #include <linux/io.h>
 
 #include "clock.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* Private functions */

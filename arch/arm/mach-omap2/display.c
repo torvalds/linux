@@ -35,6 +35,7 @@
 #include "mux.h"
 #include "control.h"
 #include "display.h"
+#include "prm.h"
 
 #define DISPC_CONTROL		0x0040
 #define DISPC_CONTROL2		0x0238
@@ -512,7 +513,6 @@ static void dispc_disable_outputs(void)
 	}
 }
 
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 int omap_dss_reset(struct omap_hwmod *oh)
 {
 	struct omap_hwmod_opt_clk *oc;

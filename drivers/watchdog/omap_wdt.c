@@ -46,8 +46,8 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 #include <mach/hardware.h>
-#include <plat/cpu.h>
-#include <plat/prcm.h>
+
+#include <linux/platform_data/omap-wd-timer.h>
 
 #include "omap_wdt.h"
 
@@ -202,8 +202,10 @@ static ssize_t omap_wdt_write(struct file *file, const char __user *data,
 static long omap_wdt_ioctl(struct file *file, unsigned int cmd,
 						unsigned long arg)
 {
+	struct omap_wd_timer_platform_data *pdata;
 	struct omap_wdt_dev *wdev;
-	int new_margin;
+	u32 rs;
+	int new_margin, bs;
 	static const struct watchdog_info ident = {
 		.identity = "OMAP Watchdog",
 		.options = WDIOF_SETTIMEOUT,
@@ -211,6 +213,7 @@ static long omap_wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	wdev = file->private_data;
+	pdata = wdev->dev->platform_data;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
@@ -219,17 +222,12 @@ static long omap_wdt_ioctl(struct file *file, unsigned int cmd,
 	case WDIOC_GETSTATUS:
 		return put_user(0, (int __user *)arg);
 	case WDIOC_GETBOOTSTATUS:
-#ifdef CONFIG_ARCH_OMAP1
-		if (cpu_is_omap16xx())
-			return put_user(__raw_readw(ARM_SYSST),
-					(int __user *)arg);
-#endif
-#ifdef CONFIG_ARCH_OMAP2PLUS
-		if (cpu_is_omap24xx())
-			return put_user(omap_prcm_get_reset_sources(),
-					(int __user *)arg);
-#endif
-		return put_user(0, (int __user *)arg);
+		if (!pdata || !pdata->read_reset_sources)
+			return put_user(0, (int __user *)arg);
+		rs = pdata->read_reset_sources();
+		bs = (rs & (1 << OMAP_MPU_WD_RST_SRC_ID_SHIFT)) ?
+			WDIOF_CARDRESET : 0;
+		return put_user(bs, (int __user *)arg);
 	case WDIOC_KEEPALIVE:
 		spin_lock(&wdt_lock);
 		omap_wdt_ping(wdev);
