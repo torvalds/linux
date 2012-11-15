@@ -3500,11 +3500,18 @@ static int ath6kl_cfg80211_reg_notify(struct wiphy *wiphy,
 	int ret, i;
 
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
-		   "cfg reg_notify %c%c%s%s initiator %d\n",
+		   "cfg reg_notify %c%c%s%s initiator %d hint_type %d\n",
 		   request->alpha2[0], request->alpha2[1],
 		   request->intersect ? " intersect" : "",
 		   request->processed ? " processed" : "",
-		   request->initiator);
+		   request->initiator, request->user_reg_hint_type);
+
+	/*
+	 * As firmware is not able intersect regdoms, we can only listen to
+	 * cellular hints.
+	 */
+	if (request->user_reg_hint_type != NL80211_USER_REG_HINT_CELL_BASE)
+		return -EOPNOTSUPP;
 
 	ret = ath6kl_wmi_set_regdomain_cmd(ar->wmi, request->alpha2);
 	if (ret) {
@@ -3668,8 +3675,10 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 	}
 
 	if (config_enabled(CONFIG_ATH6KL_REGDOMAIN) &&
-	    test_bit(ATH6KL_FW_CAPABILITY_REGDOMAIN, ar->fw_capabilities))
+	    test_bit(ATH6KL_FW_CAPABILITY_REGDOMAIN, ar->fw_capabilities)) {
 		wiphy->reg_notifier = ath6kl_cfg80211_reg_notify;
+		ar->wiphy->features |= NL80211_FEATURE_CELL_BASE_REG_HINTS;
+	}
 
 	/* max num of ssids that can be probed during scanning */
 	wiphy->max_scan_ssids = MAX_PROBED_SSIDS;
