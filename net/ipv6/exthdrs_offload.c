@@ -39,9 +39,3 @@ out_rt:
 	inet_del_offload(&rthdr_offload, IPPROTO_ROUTING);
 	goto out;
 }
-
-void ipv6_exthdrs_offload_exit(void)
-{
-	inet_del_offload(&rthdr_offload, IPPROTO_ROUTING);
-	inet_del_offload(&rthdr_offload, IPPROTO_DSTOPTS);
-}

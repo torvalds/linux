@@ -71,7 +71,6 @@
 
 #include <linux/crypto.h>
 #include <linux/scatterlist.h>
-#include "ip6_offload.h"
 
 static void	tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb);
 static void	tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
@@ -2007,13 +2006,9 @@ int __init tcpv6_init(void)
 {
 	int ret;
 
-	ret = tcpv6_offload_init();
-	if (ret)
-		goto out;
-
 	ret = inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP);
 	if (ret)
-		goto out_offload;
+		goto out;
 
 	/* register inet6 protocol */
 	ret = inet6_register_protosw(&tcpv6_protosw);
@@ -2030,8 +2025,6 @@ out_tcpv6_protosw:
 	inet6_unregister_protosw(&tcpv6_protosw);
 out_tcpv6_protocol:
 	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
-out_offload:
-	tcpv6_offload_cleanup();
 	goto out;
 }
 
@@ -2040,5 +2033,4 @@ void tcpv6_exit(void)
 	unregister_pernet_subsys(&tcpv6_net_ops);
 	inet6_unregister_protosw(&tcpv6_protosw);
 	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
-	tcpv6_offload_cleanup();
 }

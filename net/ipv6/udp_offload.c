@@ -115,8 +115,3 @@ int __init udp_offload_init(void)
 {
 	return inet6_add_offload(&udpv6_offload, IPPROTO_UDP);
 }
-
-void udp_offload_cleanup(void)
-{
-	inet6_del_offload(&udpv6_offload, IPPROTO_UDP);
-}
