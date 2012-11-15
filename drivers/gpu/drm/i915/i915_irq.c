@@ -862,8 +862,10 @@ done:
  */
 static void i915_error_work_func(struct work_struct *work)
 {
-	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    gpu_error.work);
+	struct i915_gpu_error *error = container_of(work, struct i915_gpu_error,
+						    work);
+	drm_i915_private_t *dev_priv = container_of(error, drm_i915_private_t,
+						    gpu_error);
 	struct drm_device *dev = dev_priv->dev;
 	char *error_event[] = { "ERROR=1", NULL };
 	char *reset_event[] = { "RESET=1", NULL };
@@ -871,14 +873,18 @@ static void i915_error_work_func(struct work_struct *work)
 
 	kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, error_event);
 
-	if (atomic_read(&dev_priv->gpu_error.wedged)) {
+	if (i915_reset_in_progress(error)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
 		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
+
 		if (!i915_reset(dev)) {
-			atomic_set(&dev_priv->gpu_error.wedged, 0);
+			atomic_set(&error->reset_counter, 0);
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
+		} else {
+			atomic_set(&error->reset_counter, I915_WEDGED);
 		}
-		complete_all(&dev_priv->gpu_error.completion);
+
+		wake_up_all(&dev_priv->gpu_error.reset_queue);
 	}
 }
 
@@ -1482,11 +1488,12 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
-		INIT_COMPLETION(dev_priv->gpu_error.completion);
-		atomic_set(&dev_priv->gpu_error.wedged, 1);
+		atomic_set(&dev_priv->gpu_error.reset_counter,
+			   I915_RESET_IN_PROGRESS_FLAG);
 
 		/*
-		 * Wakeup waiting processes so they don't hang
+		 * Wakeup waiting processes so that the reset work item
+		 * doesn't deadlock trying to grab various locks.
 		 */
 		for_each_ring(ring, dev_priv, i)
 			wake_up_all(&ring->irq_queue);

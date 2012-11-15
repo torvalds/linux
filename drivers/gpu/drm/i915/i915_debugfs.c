@@ -1672,7 +1672,7 @@ i915_wedged_read(struct file *filp,
 
 	len = snprintf(buf, sizeof(buf),
 		       "wedged :  %d\n",
-		       atomic_read(&dev_priv->gpu_error.wedged));
+		       atomic_read(&dev_priv->gpu_error.reset_counter));
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);

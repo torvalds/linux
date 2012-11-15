@@ -771,11 +771,37 @@ struct i915_gpu_error {
 	/* Protected by the above dev->gpu_error.lock. */
 	struct drm_i915_error_state *first_error;
 	struct work_struct work;
-	struct completion completion;
 
 	unsigned long last_reset;
 
-	atomic_t wedged;
+	/**
+	 * State variable controlling the reset flow
+	 *
+	 * Upper bits are for the reset counter.
+	 *
+	 * Lowest bit controls the reset state machine: Set means a reset is in
+	 * progress. This state will (presuming we don't have any bugs) decay
+	 * into either unset (successful reset) or the special WEDGED value (hw
+	 * terminally sour). All waiters on the reset_queue will be woken when
+	 * that happens.
+	 */
+	atomic_t reset_counter;
+
+	/**
+	 * Special values/flags for reset_counter
+	 *
+	 * Note that the code relies on
+	 * 	I915_WEDGED & I915_RESET_IN_PROGRESS_FLAG
+	 * being true.
+	 */
+#define I915_RESET_IN_PROGRESS_FLAG	1
+#define I915_WEDGED			0xffffffff
+
+	/**
+	 * Waitqueue to signal when the reset has completed. Used by clients
+	 * that wait for dev_priv->mm.wedged to settle.
+	 */
+	wait_queue_head_t reset_queue;
 
 	/* For gpu hang simulation. */
 	unsigned int stop_rings;
@@ -1543,6 +1569,16 @@ void i915_gem_retire_requests(struct drm_device *dev);
 void i915_gem_retire_requests_ring(struct intel_ring_buffer *ring);
 int __must_check i915_gem_check_wedge(struct i915_gpu_error *error,
 				      bool interruptible);
+static inline bool i915_reset_in_progress(struct i915_gpu_error *error)
+{
+	return unlikely(atomic_read(&error->reset_counter)
+			& I915_RESET_IN_PROGRESS_FLAG);
+}
+
+static inline bool i915_terminally_wedged(struct i915_gpu_error *error)
+{
+	return atomic_read(&error->reset_counter) == I915_WEDGED;
+}
 
 void i915_gem_reset(struct drm_device *dev);
 void i915_gem_clflush_object(struct drm_i915_gem_object *obj);

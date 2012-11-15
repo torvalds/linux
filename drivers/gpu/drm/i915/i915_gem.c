@@ -89,36 +89,32 @@ static void i915_gem_info_remove_obj(struct drm_i915_private *dev_priv,
 static int
 i915_gem_wait_for_error(struct i915_gpu_error *error)
 {
-	struct completion *x = &error->completion;
-	unsigned long flags;
 	int ret;
 
-	if (!atomic_read(&error->wedged))
+#define EXIT_COND (!i915_reset_in_progress(error))
+	if (EXIT_COND)
 		return 0;
+
+	/* GPU is already declared terminally dead, give up. */
+	if (i915_terminally_wedged(error))
+		return -EIO;
 
 	/*
 	 * Only wait 10 seconds for the gpu reset to complete to avoid hanging
 	 * userspace. If it takes that long something really bad is going on and
 	 * we should simply try to bail out and fail as gracefully as possible.
 	 */
-	ret = wait_for_completion_interruptible_timeout(x, 10*HZ);
+	ret = wait_event_interruptible_timeout(error->reset_queue,
+					       EXIT_COND,
+					       10*HZ);
 	if (ret == 0) {
 		DRM_ERROR("Timed out waiting for the gpu reset to complete\n");
 		return -EIO;
 	} else if (ret < 0) {
 		return ret;
 	}
+#undef EXIT_COND
 
-	if (atomic_read(&error->wedged)) {
-		/* GPU is hung, bump the completion count to account for
-		 * the token we just consumed so that we never hit zero and
-		 * end up waiting upon a subsequent completion event that
-		 * will never happen.
-		 */
-		spin_lock_irqsave(&x->wait.lock, flags);
-		x->done++;
-		spin_unlock_irqrestore(&x->wait.lock, flags);
-	}
 	return 0;
 }
 
@@ -942,23 +938,14 @@ int
 i915_gem_check_wedge(struct i915_gpu_error *error,
 		     bool interruptible)
 {
-	if (atomic_read(&error->wedged)) {
-		struct completion *x = &error->completion;
-		bool recovery_complete;
-		unsigned long flags;
-
-		/* Give the error handler a chance to run. */
-		spin_lock_irqsave(&x->wait.lock, flags);
-		recovery_complete = x->done > 0;
-		spin_unlock_irqrestore(&x->wait.lock, flags);
-
+	if (i915_reset_in_progress(error)) {
 		/* Non-interruptible callers can't handle -EAGAIN, hence return
 		 * -EIO unconditionally for these. */
 		if (!interruptible)
 			return -EIO;
 
-		/* Recovery complete, but still wedged means reset failure. */
-		if (recovery_complete)
+		/* Recovery complete, but the reset failed ... */
+		if (i915_terminally_wedged(error))
 			return -EIO;
 
 		return -EAGAIN;
@@ -1025,7 +1012,7 @@ static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 
 #define EXIT_COND \
 	(i915_seqno_passed(ring->get_seqno(ring, false), seqno) || \
-	atomic_read(&dev_priv->gpu_error.wedged))
+	i915_reset_in_progress(&dev_priv->gpu_error))
 	do {
 		if (interruptible)
 			end = wait_event_interruptible_timeout(ring->irq_queue,
@@ -1379,7 +1366,7 @@ out:
 		/* If this -EIO is due to a gpu hang, give the reset code a
 		 * chance to clean up the mess. Otherwise return the proper
 		 * SIGBUS. */
-		if (!atomic_read(&dev_priv->gpu_error.wedged))
+		if (i915_terminally_wedged(&dev_priv->gpu_error))
 			return VM_FAULT_SIGBUS;
 	case -EAGAIN:
 		/* Give the error handler a chance to run and move the
@@ -3983,9 +3970,9 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
 
-	if (atomic_read(&dev_priv->gpu_error.wedged)) {
+	if (i915_reset_in_progress(&dev_priv->gpu_error)) {
 		DRM_ERROR("Reenabling wedged hardware, good luck\n");
-		atomic_set(&dev_priv->gpu_error.wedged, 0);
+		atomic_set(&dev_priv->gpu_error.reset_counter, 0);
 	}
 
 	mutex_lock(&dev->struct_mutex);
@@ -4069,7 +4056,7 @@ i915_gem_load(struct drm_device *dev)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
-	init_completion(&dev_priv->gpu_error.completion);
+	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	if (IS_GEN3(dev)) {
