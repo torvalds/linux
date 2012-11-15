@@ -101,9 +101,6 @@
 
 #define DATA_BLOCK_TX_SUPR	(1 << 4)
 
-/* 802.1D Priority to TX FIFO number for wme */
-extern const u8 prio2fifo[];
-
 /* Ucode MCTL_WAKE override bits */
 #define BRCMS_WAKE_OVERRIDE_CLKCTL	0x01
 #define BRCMS_WAKE_OVERRIDE_PHYREG	0x02
@@ -534,7 +531,6 @@ struct brcms_c_info {
 
 	u16 wme_retries[IEEE80211_NUM_ACS];
 	u16 tx_prec_map;
-	u16 fifo2prec_map[NFIFO];
 
 	struct brcms_bss_cfg *bsscfg;
 
@@ -641,7 +637,7 @@ extern void brcms_c_txfifo(struct brcms_c_info *wlc, uint fifo,
 			   struct sk_buff *p, bool commit);
 extern void brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo);
 extern void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
-			    struct sk_buff *sdu, uint prec);
+			    struct sk_buff *sdu);
 extern void brcms_c_print_txstatus(struct tx_status *txs);
 extern int brcms_b_xmtfifo_sz_get(struct brcms_hardware *wlc_hw, uint fifo,
 		   uint *blocks);

@@ -277,17 +277,6 @@ struct edcf_acparam {
 	u16 TXOP;
 } __packed;
 
-const u8 prio2fifo[NUMPRIO] = {
-	TX_AC_BE_FIFO,		/* 0    BE      AC_BE   Best Effort */
-	TX_AC_BK_FIFO,		/* 1    BK      AC_BK   Background */
-	TX_AC_BK_FIFO,		/* 2    --      AC_BK   Background */
-	TX_AC_BE_FIFO,		/* 3    EE      AC_BE   Best Effort */
-	TX_AC_VI_FIFO,		/* 4    CL      AC_VI   Video */
-	TX_AC_VI_FIFO,		/* 5    VI      AC_VI   Video */
-	TX_AC_VO_FIFO,		/* 6    VO      AC_VO   Voice */
-	TX_AC_VO_FIFO		/* 7    NC      AC_VO   Voice */
-};
-
 /* debug/trace */
 uint brcm_msg_level =
 #if defined(DEBUG)
@@ -312,18 +301,6 @@ static const u8 wme_ac2fifo[] = {
 	TX_AC_VI_FIFO,
 	TX_AC_BE_FIFO,
 	TX_AC_BK_FIFO
-};
-
-/* 802.1D Priority to precedence queue mapping */
-const u8 wlc_prio2prec_map[] = {
-	_BRCMS_PREC_BE,		/* 0 BE - Best-effort */
-	_BRCMS_PREC_BK,		/* 1 BK - Background */
-	_BRCMS_PREC_NONE,		/* 2 None = - */
-	_BRCMS_PREC_EE,		/* 3 EE - Excellent-effort */
-	_BRCMS_PREC_CL,		/* 4 CL - Controlled Load */
-	_BRCMS_PREC_VI,		/* 5 Vi - Video */
-	_BRCMS_PREC_VO,		/* 6 Vo - Voice */
-	_BRCMS_PREC_NC,		/* 7 NC - Network Control */
 };
 
 static const u16 xmtfifo_sz[][NFIFO] = {
@@ -364,6 +341,21 @@ static const char fifo_names[6][0];
 /* pointer to most recently allocated wl/wlc */
 static struct brcms_c_info *wlc_info_dbg = (struct brcms_c_info *) (NULL);
 #endif
+
+/* Mapping of ieee80211 AC numbers to tx fifos */
+static const u8 ac_to_fifo_mapping[IEEE80211_NUM_ACS] = {
+	[IEEE80211_AC_VO]	= TX_AC_VO_FIFO,
+	[IEEE80211_AC_VI]	= TX_AC_VI_FIFO,
+	[IEEE80211_AC_BE]	= TX_AC_BE_FIFO,
+	[IEEE80211_AC_BK]	= TX_AC_BK_FIFO,
+};
+
+static u8 brcms_ac_to_fifo(u8 ac)
+{
+	if (ac >= ARRAY_SIZE(ac_to_fifo_mapping))
+		return TX_AC_BE_FIFO;
+	return ac_to_fifo_mapping[ac];
+}
 
 /* Find basic rate for a given rate */
 static u8 brcms_basic_rate(struct brcms_c_info *wlc, u32 rspec)
@@ -3753,12 +3745,6 @@ brcms_c_duty_cycle_set(struct brcms_c_info *wlc, int duty_cycle, bool isOFDM,
 static void brcms_c_tx_prec_map_init(struct brcms_c_info *wlc)
 {
 	wlc->tx_prec_map = BRCMS_PREC_BMP_ALL;
-	memset(wlc->fifo2prec_map, 0, NFIFO * sizeof(u16));
-
-	wlc->fifo2prec_map[TX_AC_BK_FIFO] = BRCMS_PREC_BMP_AC_BK;
-	wlc->fifo2prec_map[TX_AC_BE_FIFO] = BRCMS_PREC_BMP_AC_BE;
-	wlc->fifo2prec_map[TX_AC_VI_FIFO] = BRCMS_PREC_BMP_AC_VI;
-	wlc->fifo2prec_map[TX_AC_VO_FIFO] = BRCMS_PREC_BMP_AC_VO;
 }
 
 /* push sw hps and wake state through hardware */
@@ -6068,14 +6054,13 @@ static bool brcms_c_prec_enq(struct brcms_c_info *wlc, struct pktq *q,
 }
 
 void brcms_c_txq_enq(struct brcms_c_info *wlc, struct scb *scb,
-		     struct sk_buff *sdu, uint prec)
+		     struct sk_buff *sdu)
 {
 	struct brcms_txq_info *qi = wlc->pkt_queue;	/* Check me */
 	struct pktq *q = &qi->q;
-	int prio;
+	uint prec;
 
-	prio = sdu->priority;
-
+	prec = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
 	if (!brcms_c_prec_enq(wlc, q, sdu, prec)) {
 		/*
 		 * we might hit this condtion in case
@@ -7248,21 +7233,13 @@ brcms_c_d11hdrs_mac80211(struct brcms_c_info *wlc, struct ieee80211_hw *hw,
 void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 			      struct ieee80211_hw *hw)
 {
-	u8 prio;
 	uint fifo;
 	struct scb *scb = &wlc->pri_scb;
-	struct ieee80211_hdr *d11_header = (struct ieee80211_hdr *)(sdu->data);
 
-	/*
-	 * 802.11 standard requires management traffic
-	 * to go at highest priority
-	 */
-	prio = ieee80211_is_data(d11_header->frame_control) ? sdu->priority :
-		MAXPRIO;
-	fifo = prio2fifo[prio];
+	fifo = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
 	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0))
 		return;
-	brcms_c_txq_enq(wlc, scb, sdu, BRCMS_PRIO_TO_PREC(prio));
+	brcms_c_txq_enq(wlc, scb, sdu);
 	brcms_c_send_q(wlc);
 }
 
@@ -7402,7 +7379,7 @@ brcms_c_txfifo_complete(struct brcms_c_info *wlc, uint fifo)
 	       wlc->core->txpktpend[fifo]);
 
 	/* There is more room; mark precedences related to this FIFO sendable */
-	wlc->tx_prec_map |= wlc->fifo2prec_map[fifo];
+	wlc->tx_prec_map |= 1 << fifo;
 
 	/* figure out which bsscfg is being worked on... */
 }
@@ -7877,7 +7854,7 @@ int brcms_c_prep_pdu(struct brcms_c_info *wlc, struct sk_buff *pdu, uint *fifop)
 	if (*wlc->core->txavail[fifo] < MAX_DMA_SEGS) {
 		/* Mark precedences related to this FIFO, unsendable */
 		/* A fifo is full. Clear precedences related to that FIFO */
-		wlc->tx_prec_map &= ~(wlc->fifo2prec_map[fifo]);
+		wlc->tx_prec_map &= ~(1 << fifo);
 		return -EBUSY;
 	}
 	return 0;

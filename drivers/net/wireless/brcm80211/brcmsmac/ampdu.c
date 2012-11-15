@@ -827,7 +827,6 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 	struct scb *scb;
 	struct scb_ampdu *scb_ampdu;
 	struct scb_ampdu_tid_ini *ini;
-	struct brcms_fifo_info *f;
 	struct ieee80211_tx_info *tx_info;
 	u16 qlen;
 	struct wiphy *wiphy;
@@ -837,8 +836,6 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 	p = *pdu;
 
 	tid = (u8) (p->priority);
-
-	f = ampdu->fifo_tb + prio2fifo[tid];
 
 	scb = &wlc->pri_scb;
 	scb_ampdu = &scb->scb_ampdu;
@@ -1048,8 +1045,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				 * if there were underflows, but pre-loading
 				 * is not active, notify rate adaptation.
 				 */
-				if (brcms_c_ffpld_check_txfunfl(wlc,
-					prio2fifo[tid]) > 0)
+				if (brcms_c_ffpld_check_txfunfl(wlc, queue) > 0)
 					tx_error = true;
 			}
 		} else if (txs->phyerr) {
@@ -1119,12 +1115,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			if (retry && (ini->txretry[index] < (int)retry_limit)) {
 				ini->txretry[index]++;
 				ini->tx_in_transit--;
-				/*
-				 * Use high prededence for retransmit to
-				 * give some punch
-				 */
-				brcms_c_txq_enq(wlc, scb, p,
-						BRCMS_PRIO_TO_HI_PREC(tid));
+				brcms_c_txq_enq(wlc, scb, p);
 			} else {
 				/* Retry timeout */
 				ini->tx_in_transit--;
