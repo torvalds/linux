@@ -905,7 +905,6 @@ static int __devinit mv_xor_memcpy_self_test(struct mv_xor_device *device)
 	dma_cookie_t cookie;
 	struct dma_async_tx_descriptor *tx;
 	int err = 0;
-	struct mv_xor_chan *mv_chan;
 
 	src = kmalloc(sizeof(u8) * MV_XOR_TEST_SIZE, GFP_KERNEL);
 	if (!src)
@@ -951,8 +950,7 @@ static int __devinit mv_xor_memcpy_self_test(struct mv_xor_device *device)
 		goto free_resources;
 	}
 
-	mv_chan = to_mv_xor_chan(dma_chan);
-	dma_sync_single_for_cpu(&mv_chan->device->pdev->dev, dest_dma,
+	dma_sync_single_for_cpu(dma_chan->device->dev, dest_dma,
 				MV_XOR_TEST_SIZE, DMA_FROM_DEVICE);
 	if (memcmp(src, dest, MV_XOR_TEST_SIZE)) {
 		dev_err(dma_chan->device->dev,
@@ -984,7 +982,6 @@ mv_xor_xor_self_test(struct mv_xor_device *device)
 	u8 cmp_byte = 0;
 	u32 cmp_word;
 	int err = 0;
-	struct mv_xor_chan *mv_chan;
 
 	for (src_idx = 0; src_idx < MV_XOR_NUM_SRC_TEST; src_idx++) {
 		xor_srcs[src_idx] = alloc_page(GFP_KERNEL);
@@ -1049,8 +1046,7 @@ mv_xor_xor_self_test(struct mv_xor_device *device)
 		goto free_resources;
 	}
 
-	mv_chan = to_mv_xor_chan(dma_chan);
-	dma_sync_single_for_cpu(&mv_chan->device->pdev->dev, dest_dma,
+	dma_sync_single_for_cpu(dma_chan->device->dev, dest_dma,
 				PAGE_SIZE, DMA_FROM_DEVICE);
 	for (i = 0; i < (PAGE_SIZE / sizeof(u32)); i++) {
 		u32 *ptr = page_address(dest);
