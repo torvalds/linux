@@ -732,9 +732,9 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 
 	/* if driver picks 8 or 16 by default use that
 	   for both depth/bpp */
-	if (preferred_bpp != sizes.surface_bpp) {
+	if (preferred_bpp != sizes.surface_bpp)
 		sizes.surface_depth = sizes.surface_bpp = preferred_bpp;
-	}
+
 	/* first up get a count of crtcs now in use and new min/maxes width/heights */
 	for (i = 0; i < fb_helper->connector_count; i++) {
 		struct drm_fb_helper_connector *fb_helper_conn = fb_helper->connector_info[i];
@@ -802,15 +802,13 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	info = fb_helper->fbdev;
 
 	/* set the fb pointer */
-	for (i = 0; i < fb_helper->crtc_count; i++) {
+	for (i = 0; i < fb_helper->crtc_count; i++)
 		fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
-	}
 
 	if (new_fb) {
 		info->var.pixclock = 0;
-		if (register_framebuffer(info) < 0) {
+		if (register_framebuffer(info) < 0)
 			return -EINVAL;
-		}
 
 		dev_info(fb_helper->dev->dev, "fb%d: %s frame buffer device\n",
 				info->node, info->fix.id);
@@ -1010,11 +1008,11 @@ static bool drm_connector_enabled(struct drm_connector *connector, bool strict)
 {
 	bool enable;
 
-	if (strict) {
+	if (strict)
 		enable = connector->status == connector_status_connected;
-	} else {
+	else
 		enable = connector->status != connector_status_disconnected;
-	}
+
 	return enable;
 }
 
@@ -1199,9 +1197,8 @@ static int drm_pick_crtcs(struct drm_fb_helper *fb_helper,
 	for (c = 0; c < fb_helper->crtc_count; c++) {
 		crtc = &fb_helper->crtc_info[c];
 
-		if ((encoder->possible_crtcs & (1 << c)) == 0) {
+		if ((encoder->possible_crtcs & (1 << c)) == 0)
 			continue;
-		}
 
 		for (o = 0; o < n; o++)
 			if (best_crtcs[o] == crtc)
@@ -1327,9 +1324,9 @@ bool drm_fb_helper_initial_config(struct drm_fb_helper *fb_helper, int bpp_sel)
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
-	if (count == 0) {
+	if (count == 0)
 		dev_info(fb_helper->dev->dev, "No connectors reported connected with modes\n");
-	}
+
 	drm_setup_crtcs(fb_helper);
 
 	return drm_fb_helper_single_fb_probe(fb_helper, bpp_sel);
