@@ -99,6 +99,33 @@
 			status = "okay";
 		};
 
+		prcmu@80157000 {
+			thermal@801573c0 {
+				num-trips = <4>;
+
+				trip0-temp = <70000>;
+				trip0-type = "active";
+				trip0-cdev-num = <1>;
+				trip0-cdev-name0 = "thermal-cpufreq-0";
+
+				trip1-temp = <75000>;
+				trip1-type = "active";
+				trip1-cdev-num = <1>;
+				trip1-cdev-name0 = "thermal-cpufreq-0";
+
+				trip2-temp = <80000>;
+				trip2-type = "active";
+				trip2-cdev-num = <1>;
+				trip2-cdev-name0 = "thermal-cpufreq-0";
+
+				trip3-temp = <85000>;
+				trip3-type = "critical";
+				trip3-cdev-num = <0>;
+
+				status = "okay";
+			 };
+		};
+
 		external-bus@50000000 {
 			status = "okay";
 
@@ -182,6 +209,10 @@
 				// compatible = "rohm,bh1780gli";
 				reg = <0x33>;
 			};
+		};
+
+		cpufreq-cooling {
+			status = "okay";
 		};
 	};
 };
