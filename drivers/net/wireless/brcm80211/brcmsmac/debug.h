@@ -41,5 +41,6 @@ static inline void __brcms_dbg(struct device *dev, u32 level,
 #define brcms_dbg_tx(core, f, a...)		brcms_dbg(core, BRCM_DL_TX, f, ##a)
 #define brcms_dbg_int(core, f, a...)		brcms_dbg(core, BRCM_DL_INT, f, ##a)
 #define brcms_dbg_dma(core, f, a...)		brcms_dbg(core, BRCM_DL_DMA, f, ##a)
+#define brcms_dbg_ht(core, f, a...)		brcms_dbg(core, BRCM_DL_HT, f, ##a)
 
 #endif /* _BRCMS_DEBUG_H_ */

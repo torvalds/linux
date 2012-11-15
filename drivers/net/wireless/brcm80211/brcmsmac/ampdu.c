@@ -371,7 +371,8 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 				      offsetof(struct macstat, txfunfl[fid]));
 	new_txunfl = (u16) (cur_txunfl - fifo->prev_txfunfl);
 	if (new_txunfl == 0) {
-		BCMMSG(wlc->wiphy, "TX status FRAG set but no tx underflows\n");
+		brcms_dbg_ht(wlc->hw->d11core,
+			     "TX status FRAG set but no tx underflows\n");
 		return -1;
 	}
 	fifo->prev_txfunfl = cur_txunfl;
@@ -393,8 +394,8 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 	if (fifo->accum_txfunfl < 10)
 		return 0;
 
-	BCMMSG(wlc->wiphy, "ampdu_count %d  tx_underflows %d\n",
-		current_ampdu_cnt, fifo->accum_txfunfl);
+	brcms_dbg_ht(wlc->hw->d11core, "ampdu_count %d  tx_underflows %d\n",
+		     current_ampdu_cnt, fifo->accum_txfunfl);
 
 	/*
 	   compute the current ratio of tx unfl per ampdu.
@@ -447,9 +448,10 @@ static int brcms_c_ffpld_check_txfunfl(struct brcms_c_info *wlc, int fid)
 		      (max_mpdu * FFPLD_MPDU_SIZE - fifo->ampdu_pld_size))
 		     / (max_mpdu * FFPLD_MPDU_SIZE)) * 100;
 
-		BCMMSG(wlc->wiphy, "DMA estimated transfer rate %d; "
-			"pre-load size %d\n",
-			fifo->dmaxferrate, fifo->ampdu_pld_size);
+		brcms_dbg_ht(wlc->hw->d11core,
+			     "DMA estimated transfer rate %d; "
+			     "pre-load size %d\n",
+			     fifo->dmaxferrate, fifo->ampdu_pld_size);
 	} else {
 
 		/* decrease ampdu size */
@@ -810,9 +812,9 @@ void brcms_c_ampdu_finalize(struct brcms_ampdu_session *session)
 		BRCMS_SET_MIMO_PLCP_AMPDU(txh->FragPLCPFallback);
 	}
 
-	BCMMSG(wlc->wiphy, "wl%d: count %d ampdu_len %d\n",
-		wlc->pub->unit, skb_queue_len(&session->skb_list),
-		session->ampdu_len);
+	brcms_dbg_ht(wlc->hw->d11core, "wl%d: count %d ampdu_len %d\n",
+		     wlc->pub->unit, skb_queue_len(&session->skb_list),
+		     session->ampdu_len);
 }
 
 static void
@@ -852,7 +854,6 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	u8 antselid = 0;
 	u8 retry_limit, rr_retry_limit;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
-	struct wiphy *wiphy = wlc->wiphy;
 
 #ifdef DEBUG
 	u8 hole[AMPDU_MAX_MPDU];
@@ -956,10 +957,10 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		ack_recd = false;
 		if (ba_recd) {
 			bindex = MODSUB_POW2(seq, start_seq, SEQNUM_MAX);
-			BCMMSG(wiphy,
-			       "tid %d seq %d, start_seq %d, bindex %d set %d, index %d\n",
-			       tid, seq, start_seq, bindex,
-			       isset(bitmap, bindex), index);
+			brcms_dbg_ht(wlc->hw->d11core,
+				     "tid %d seq %d, start_seq %d, bindex %d set %d, index %d\n",
+				     tid, seq, start_seq, bindex,
+				     isset(bitmap, bindex), index);
 			/* if acked then clear bit and free packet */
 			if ((bindex < AMPDU_TX_BA_MAX_WSIZE)
 			    && isset(bitmap, bindex)) {
@@ -1010,9 +1011,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				    IEEE80211_TX_STAT_AMPDU_NO_BACK;
 				skb_pull(p, D11_PHY_HDR_LEN);
 				skb_pull(p, D11_TXH_LEN);
-				BCMMSG(wiphy,
-				       "BA Timeout, seq %d, in_transit %d\n",
-				       seq, ini->tx_in_transit);
+				brcms_dbg_ht(wlc->hw->d11core,
+					     "BA Timeout, seq %d, in_transit %d\n",
+					     seq, ini->tx_in_transit);
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);
 			}

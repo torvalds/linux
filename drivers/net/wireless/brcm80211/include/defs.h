@@ -85,6 +85,7 @@
 #define BRCM_DL_TX		0x00000008
 #define BRCM_DL_INT		0x00000010
 #define BRCM_DL_DMA		0x00000020
+#define BRCM_DL_HT		0x00000040
 
 #define PM_OFF	0
 #define PM_MAX	1
