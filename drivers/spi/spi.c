@@ -30,6 +30,7 @@
 #include <linux/slab.h>
 #include <linux/mod_devicetable.h>
 #include <linux/spi/spi.h>
+#include <linux/of_gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/export.h>
 #include <linux/sched.h>
@@ -327,6 +328,7 @@ struct spi_device *spi_alloc_device(struct spi_master *master)
 	spi->dev.parent = &master->dev;
 	spi->dev.bus = &spi_bus_type;
 	spi->dev.release = spidev_release;
+	spi->cs_gpio = -EINVAL;
 	device_initialize(&spi->dev);
 	return spi;
 }
@@ -344,15 +346,16 @@ EXPORT_SYMBOL_GPL(spi_alloc_device);
 int spi_add_device(struct spi_device *spi)
 {
 	static DEFINE_MUTEX(spi_add_lock);
-	struct device *dev = spi->master->dev.parent;
+	struct spi_master *master = spi->master;
+	struct device *dev = master->dev.parent;
 	struct device *d;
 	int status;
 
 	/* Chipselects are numbered 0..max; validate. */
-	if (spi->chip_select >= spi->master->num_chipselect) {
+	if (spi->chip_select >= master->num_chipselect) {
 		dev_err(dev, "cs%d >= max %d\n",
 			spi->chip_select,
-			spi->master->num_chipselect);
+			master->num_chipselect);
 		return -EINVAL;
 	}
 
@@ -375,6 +378,9 @@ int spi_add_device(struct spi_device *spi)
 		status = -EBUSY;
 		goto done;
 	}
+
+	if (master->cs_gpios)
+		spi->cs_gpio = master->cs_gpios[spi->chip_select];
 
 	/* Drivers may modify this initial i/o setup, but will
 	 * normally rely on the device being setup.  Devices
@@ -946,6 +952,44 @@ struct spi_master *spi_alloc_master(struct device *dev, unsigned size)
 }
 EXPORT_SYMBOL_GPL(spi_alloc_master);
 
+#ifdef CONFIG_OF
+static int of_spi_register_master(struct spi_master *master)
+{
+	u16 nb;
+	int i, *cs;
+	struct device_node *np = master->dev.of_node;
+
+	if (!np)
+		return 0;
+
+	nb = of_gpio_named_count(np, "cs-gpios");
+	master->num_chipselect = max(nb, master->num_chipselect);
+
+	if (nb < 1)
+		return 0;
+
+	cs = devm_kzalloc(&master->dev,
+			  sizeof(int) * master->num_chipselect,
+			  GFP_KERNEL);
+	master->cs_gpios = cs;
+
+	if (!master->cs_gpios)
+		return -ENOMEM;
+
+	memset(cs, -EINVAL, master->num_chipselect);
+
+	for (i = 0; i < nb; i++)
+		cs[i] = of_get_named_gpio(np, "cs-gpios", i);
+
+	return 0;
+}
+#else
+static int of_spi_register_master(struct spi_master *master)
+{
+	return 0;
+}
+#endif
+
 /**
  * spi_register_master - register SPI master controller
  * @master: initialized master, originally from spi_alloc_master()
@@ -976,6 +1020,10 @@ int spi_register_master(struct spi_master *master)
 
 	if (!dev)
 		return -ENODEV;
+
+	status = of_spi_register_master(master);
+	if (status)
+		return status;
 
 	/* even if it's just one always-selected device, there must
 	 * be at least one chipselect
