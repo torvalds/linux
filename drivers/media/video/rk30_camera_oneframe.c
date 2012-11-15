@@ -2202,6 +2202,7 @@ static int rk_camera_try_fmt(struct soc_camera_device *icd,
 		return pix->bytesperline;
 
     /* limit to sensor capabilities */
+    memset(&mf,0x00,sizeof(struct v4l2_mbus_framefmt));
 	mf.width	= pix->width;
 	mf.height	= pix->height;
 	mf.field	= pix->field;
