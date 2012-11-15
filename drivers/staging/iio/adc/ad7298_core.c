@@ -35,6 +35,7 @@
 			.sign = 'u',					\
 			.realbits = 12,					\
 			.storagebits = 16,				\
+			.endianness = IIO_BE,				\
 		},							\
 	}
 

@@ -76,8 +76,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7298_state *st = iio_priv(indio_dev);
 	s64 time_ns = 0;
-	__u16 buf[16];
-	int b_sent, i;
+	int b_sent;
 
 	b_sent = spi_sync(st->spi, &st->ring_msg);
 	if (b_sent)
@@ -85,15 +84,11 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 
 	if (indio_dev->scan_timestamp) {
 		time_ns = iio_get_time_ns();
-		memcpy((u8 *)buf + indio_dev->scan_bytes - sizeof(s64),
+		memcpy((u8 *)st->rx_buf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 	}
 
-	for (i = 0; i < bitmap_weight(indio_dev->active_scan_mask,
-						 indio_dev->masklength); i++)
-		buf[i] = be16_to_cpu(st->rx_buf[i]);
-
-	iio_push_to_buffers(indio_dev, (u8 *)buf);
+	iio_push_to_buffers(indio_dev, (u8 *)st->rx_buf);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
