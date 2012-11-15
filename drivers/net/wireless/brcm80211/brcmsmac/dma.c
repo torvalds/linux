@@ -1264,6 +1264,17 @@ bool dma_rxreset(struct dma_pub *pub)
 	return status == D64_RS0_RS_DISABLED;
 }
 
+/* Update count of available tx descriptors based on current DMA state */
+static void dma_update_txavail(struct dma_info *di)
+{
+	/*
+	 * Available space is number of descriptors less the number of
+	 * active descriptors and the number of queued AMPDU frames.
+	 */
+	di->dma.txavail = di->ntxd - ntxdactive(di, di->txin, di->txout) - 1;
+}
+
+
 /*
  * !! tx entry routine
  * WARNING: call must check the return value for error.
@@ -1325,7 +1336,7 @@ int dma_txfast(struct dma_pub *pub, struct sk_buff *p, bool commit)
 		      di->xmtptrbase + I2B(txout, struct dma64desc));
 
 	/* tx flow control */
-	di->dma.txavail = di->ntxd - ntxdactive(di, di->txin, di->txout) - 1;
+	dma_update_txavail(di);
 
 	return 0;
 
@@ -1412,7 +1423,7 @@ struct sk_buff *dma_getnexttxp(struct dma_pub *pub, enum txd_range range)
 	di->txin = i;
 
 	/* tx flow control */
-	di->dma.txavail = di->ntxd - ntxdactive(di, di->txin, di->txout) - 1;
+	dma_update_txavail(di);
 
 	return txp;
 
