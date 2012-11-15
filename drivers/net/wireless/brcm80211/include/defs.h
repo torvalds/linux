@@ -78,9 +78,8 @@
 #define PM_OFF	0
 #define PM_MAX	1
 
-/* Message levels */
-#define LOG_ERROR_VAL		0x00000001
-#define LOG_TRACE_VAL		0x00000002
+/* Debug levels */
+#define BRCM_DL_INFO		0x00000001
 
 #define PM_OFF	0
 #define PM_MAX	1

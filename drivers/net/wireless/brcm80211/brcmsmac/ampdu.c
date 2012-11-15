@@ -926,7 +926,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			wiphy_err(wiphy, "%s: ampdu tx phy error (0x%x)\n",
 				  __func__, txs->phyerr);
 
-			if (brcm_msg_level & LOG_ERROR_VAL) {
+			if (brcm_msg_level & BRCM_DL_INFO) {
 				brcmu_prpkt("txpkt (AMPDU)", p);
 				brcms_c_print_txdesc((struct d11txh *) p->data);
 			}

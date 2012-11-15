@@ -281,7 +281,7 @@ struct edcf_acparam {
 /* debug/trace */
 uint brcm_msg_level =
 #if defined(DEBUG)
-	LOG_ERROR_VAL;
+	BRCM_DL_INFO;
 #else
 	0;
 #endif				/* DEBUG */
@@ -902,7 +902,7 @@ brcms_c_dotxstatus(struct brcms_c_info *wlc, struct tx_status *txs)
 	mcl = le16_to_cpu(txh->MacTxControlLow);
 
 	if (txs->phyerr) {
-		if (brcm_msg_level & LOG_ERROR_VAL) {
+		if (brcm_msg_level & BRCM_DL_INFO) {
 			wiphy_err(wlc->wiphy, "phyerr 0x%x, rate 0x%x\n",
 				  txs->phyerr, txh->MainRates);
 			brcms_c_print_txdesc(txh);

@@ -246,7 +246,7 @@
 
 #define BCMMSG(dev, fmt, args...)		\
 do {						\
-	if (brcm_msg_level & LOG_TRACE_VAL)	\
+	if (brcm_msg_level & BRCM_DL_INFO)	\
 		wiphy_err(dev, "%s: " fmt, __func__, ##args);	\
 } while (0)
 
