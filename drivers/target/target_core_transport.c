@@ -2761,23 +2761,19 @@ EXPORT_SYMBOL(transport_send_check_condition_and_sense);
 
 int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
 {
-	int ret = 0;
+	if (!(cmd->transport_state & CMD_T_ABORTED))
+		return 0;
 
-	if (cmd->transport_state & CMD_T_ABORTED) {
-		if (!send_status ||
-		     (cmd->se_cmd_flags & SCF_SENT_DELAYED_TAS))
-			return 1;
+	if (!send_status || (cmd->se_cmd_flags & SCF_SENT_DELAYED_TAS))
+		return 1;
 
-		pr_debug("Sending delayed SAM_STAT_TASK_ABORTED"
-			" status for CDB: 0x%02x ITT: 0x%08x\n",
-			cmd->t_task_cdb[0],
-			cmd->se_tfo->get_task_tag(cmd));
+	pr_debug("Sending delayed SAM_STAT_TASK_ABORTED status for CDB: 0x%02x ITT: 0x%08x\n",
+		 cmd->t_task_cdb[0], cmd->se_tfo->get_task_tag(cmd));
 
-		cmd->se_cmd_flags |= SCF_SENT_DELAYED_TAS;
-		cmd->se_tfo->queue_status(cmd);
-		ret = 1;
-	}
-	return ret;
+	cmd->se_cmd_flags |= SCF_SENT_DELAYED_TAS;
+	cmd->se_tfo->queue_status(cmd);
+
+	return 1;
 }
 EXPORT_SYMBOL(transport_check_aborted_status);
 
