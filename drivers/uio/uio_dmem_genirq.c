@@ -62,8 +62,6 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 				(dma_addr_t *)&uiomem->addr, GFP_KERNEL);
 		if (!addr) {
 			uiomem->addr = DMEM_MAP_ERROR;
-			ret = -ENOMEM;
-			break;
 		}
 		priv->dmem_region_vaddr[dmem_region++] = addr;
 		++uiomem;
@@ -93,11 +91,13 @@ static int uio_dmem_genirq_release(struct uio_info *info, struct inode *inode)
 	while (!priv->refcnt && uiomem < &priv->uioinfo->mem[MAX_UIO_MAPS]) {
 		if (!uiomem->size)
 			break;
-
-		dma_free_coherent(&priv->pdev->dev, uiomem->size,
-				priv->dmem_region_vaddr[dmem_region++],
-				uiomem->addr);
+		if (priv->dmem_region_vaddr[dmem_region]) {
+			dma_free_coherent(&priv->pdev->dev, uiomem->size,
+					priv->dmem_region_vaddr[dmem_region],
+					uiomem->addr);
+		}
 		uiomem->addr = DMEM_MAP_ERROR;
+		++dmem_region;
 		++uiomem;
 	}
 
