@@ -265,9 +265,9 @@ static int rk_fb_io_disable(void)
 	}
 	#endif
 	
-	//#if defined(V86_VERSION_1_0)
+        #if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
 	msleep(30);
-	//#endif
+	#endif
 
         gpio_set_value(LCD_EN, !LCD_EN_VALUE);
 	return 0;
@@ -285,9 +285,9 @@ static int rk_fb_io_enable(void)
 	}
 	#endif
 
-      //#if defined(V86_VERSION_1_0)
+              #if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
       msleep(100);
-      //#endif
+      #endif
 
         gpio_set_value(LCD_EN, LCD_EN_VALUE);
 	return 0;
@@ -1110,6 +1110,35 @@ void  rk30_pwm_resume_voltage_set(void)
 #ifdef CONFIG_RK30_PWM_REGULATOR
 	pwm_resume_voltage();
 #endif
+}
+
+u32 gpio1b_iomux,gpio1c_iomux, gpio1b_pull,gpio1d_pull,gpio1_ddr;
+ 
+#define gpio1_readl(offset)	readl_relaxed(RK2928_GPIO1_BASE + offset)
+#define gpio1_writel(v, offset)	do { writel_relaxed(v, RK2928_GPIO1_BASE + offset); dsb(); } while (0)
+#define grf_readl(offset)	readl_relaxed(RK2928_GRF_BASE + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK2928_GRF_BASE + offset); dsb(); } while (0)
+
+void board_gpio_suspend(void) {
+        gpio1b_iomux = readl_relaxed(GRF_GPIO1B_IOMUX);
+        gpio1c_iomux = readl_relaxed(GRF_GPIO1C_IOMUX);
+        writel_relaxed((0x1<< 30), GRF_GPIO1B_IOMUX);
+        writel_relaxed((0x5 <<24) |(0x5 <<20)|(0x1 <<16), GRF_GPIO1C_IOMUX);
+        gpio1b_pull =  grf_readl(GRF_GPIO1L_PULL);
+        gpio1d_pull =  grf_readl(GRF_GPIO1H_PULL);
+        grf_writel(gpio1b_pull |(0x1<<31)|(0x1 <<15),GRF_GPIO1L_PULL); 
+        grf_writel( gpio1d_pull | (0xf<<18) |(0x1<<16) |(0xf <<2)|(0x1 <<0),GRF_GPIO1H_PULL);
+
+        gpio1_ddr =  gpio1_readl(GPIO_SWPORTA_DDR);
+        gpio1_writel(gpio1_ddr & (~((0x3 <<15) |(0xf <<18))),GPIO_SWPORTA_DDR);
+}
+ void board_gpio_resume(void) {
+        writel_relaxed(0xffff0000|gpio1b_iomux, GRF_GPIO1B_IOMUX);
+        writel_relaxed(0xffff0000|gpio1c_iomux, GRF_GPIO1C_IOMUX);
+        grf_writel( 0xffff0000|gpio1b_pull,GRF_GPIO1L_PULL);
+        grf_writel( 0xffff0000|gpio1d_pull,GRF_GPIO1H_PULL);
+
+        gpio1_writel(gpio1_ddr,GPIO_SWPORTA_DDR);
 }
 
 void __sramfunc board_pmu_suspend(void)
