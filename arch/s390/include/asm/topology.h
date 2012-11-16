@@ -8,6 +8,9 @@ struct cpu;
 
 #ifdef CONFIG_SCHED_BOOK
 
+extern unsigned char cpu_socket_id[NR_CPUS];
+#define topology_physical_package_id(cpu) (cpu_socket_id[cpu])
+
 extern unsigned char cpu_core_id[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
 
