@@ -266,6 +266,7 @@ struct fsi_priv {
 	int clk_master:1;
 	int clk_cpg:1;
 	int spdif:1;
+	int enable_stream:1;
 
 	long rate;
 };
@@ -393,6 +394,11 @@ static int fsi_is_port_a(struct fsi_priv *fsi)
 static int fsi_is_spdif(struct fsi_priv *fsi)
 {
 	return fsi->spdif;
+}
+
+static int fsi_is_enable_stream(struct fsi_priv *fsi)
+{
+	return fsi->enable_stream;
 }
 
 static int fsi_is_play(struct snd_pcm_substream *substream)
@@ -1138,10 +1144,9 @@ static int fsi_set_master_clk(struct device *dev, struct fsi_priv *fsi,
  */
 static void fsi_pio_push16(struct fsi_priv *fsi, u8 *_buf, int samples)
 {
-	u32 enable_stream = fsi_get_info_flags(fsi) & SH_FSI_ENABLE_STREAM_MODE;
 	int i;
 
-	if (enable_stream) {
+	if (fsi_is_enable_stream(fsi)) {
 		/*
 		 * stream mode
 		 * see
@@ -1299,8 +1304,6 @@ static void fsi_pio_start_stop(struct fsi_priv *fsi, struct fsi_stream *io,
 
 static int fsi_pio_push_init(struct fsi_priv *fsi, struct fsi_stream *io)
 {
-	u32 enable_stream = fsi_get_info_flags(fsi) & SH_FSI_ENABLE_STREAM_MODE;
-
 	/*
 	 * we can use 16bit stream mode
 	 * when "playback" and "16bit data"
@@ -1308,7 +1311,7 @@ static int fsi_pio_push_init(struct fsi_priv *fsi, struct fsi_stream *io)
 	 * see
 	 *	fsi_pio_push16()
 	 */
-	if (enable_stream)
+	if (fsi_is_enable_stream(fsi))
 		io->bus_option = BUSOP_SET(24, PACKAGE_24BITBUS_BACK) |
 				 BUSOP_SET(16, PACKAGE_16BITBUS_STREAM);
 	else
@@ -1988,6 +1991,9 @@ static void fsi_port_info_init(struct fsi_priv *fsi,
 
 	if (info->flags & SH_FSI_CLK_CPG)
 		fsi->clk_cpg = 1;
+
+	if (info->flags & SH_FSI_ENABLE_STREAM_MODE)
+		fsi->enable_stream = 1;
 }
 
 static void fsi_handler_init(struct fsi_priv *fsi,
