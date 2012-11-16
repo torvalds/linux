@@ -3740,6 +3740,15 @@ M:	Stanislaw Gruszka <stf_xl@wp.pl>
 S:	Maintained
 F:	drivers/usb/atm/ueagle-atm.c
 
+INDUSTRY PACK SUBSYSTEM (IPACK)
+M:	Samuel Iglesias Gonsalvez <siglesias@igalia.com>
+M:	Jens Taprogge <jens.taprogge@taprogge.org>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+L:	industrypack-devel@lists.sourceforge.net
+W:	http://industrypack.sourceforge.net
+S:	Maintained
+F:	drivers/ipack/
+
 INTEGRITY MEASUREMENT ARCHITECTURE (IMA)
 M:	Mimi Zohar <zohar@us.ibm.com>
 S:	Supported
