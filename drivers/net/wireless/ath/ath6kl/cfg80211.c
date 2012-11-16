@@ -1557,17 +1557,13 @@ static int ath6kl_cfg80211_change_iface(struct wiphy *wiphy,
 set_iface_type:
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
 		vif->next_mode = INFRA_NETWORK;
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		vif->next_mode = ADHOC_NETWORK;
 		break;
 	case NL80211_IFTYPE_AP:
-		vif->next_mode = AP_NETWORK;
-		break;
-	case NL80211_IFTYPE_P2P_CLIENT:
-		vif->next_mode = INFRA_NETWORK;
-		break;
 	case NL80211_IFTYPE_P2P_GO:
 		vif->next_mode = AP_NETWORK;
 		break;
