@@ -1815,7 +1815,7 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 {
 	struct sci_port *s = to_sci_port(port);
 	struct plat_sci_reg *reg;
-	unsigned int baud, smr_val, max_baud;
+	unsigned int baud, smr_val, max_baud, cks;
 	int t = -1;
 
 	/*
@@ -1849,21 +1849,18 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
-	serial_port_out(port, SCSMR, smr_val);
+	for (cks = 0; t >= 256 && cks <= 3; cks++)
+		t >>= 2;
 
-	dev_dbg(port->dev, "%s: SMR %x, t %x, SCSCR %x\n", __func__, smr_val, t,
-		s->cfg->scscr);
+	dev_dbg(port->dev, "%s: SMR %x, cks %x, t %x, SCSCR %x\n",
+		__func__, smr_val, cks, t, s->cfg->scscr);
 
 	if (t >= 0) {
-		if (t >= 256) {
-			serial_port_out(port, SCSMR, (serial_port_in(port, SCSMR) & ~3) | 1);
-			t >>= 2;
-		} else
-			serial_port_out(port, SCSMR, serial_port_in(port, SCSMR) & ~3);
-
+		serial_port_out(port, SCSMR, (smr_val & ~3) | cks);
 		serial_port_out(port, SCBRR, t);
 		udelay((1000000+(baud-1)) / baud); /* Wait one bit interval */
-	}
+	} else
+		serial_port_out(port, SCSMR, smr_val);
 
 	sci_init_pins(port, termios->c_cflag);
 
