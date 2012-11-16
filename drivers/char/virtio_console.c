@@ -1439,6 +1439,10 @@ static void remove_port_data(struct port *port)
 	/* Remove buffers we queued up for the Host to send us data in. */
 	while ((buf = virtqueue_detach_unused_buf(port->in_vq)))
 		free_buf(buf);
+
+	/* Free pending buffers from the out-queue. */
+	while ((buf = virtqueue_detach_unused_buf(port->out_vq)))
+		free_buf(buf);
 }
 
 /*
