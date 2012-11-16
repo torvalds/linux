@@ -243,6 +243,8 @@ static int __init omap_dss_probe(struct platform_device *pdev)
 
 	if (def_disp_name)
 		core.default_display_name = def_disp_name;
+	else if (pdata->default_display_name)
+		core.default_display_name = pdata->default_display_name;
 	else if (pdata->default_device)
 		core.default_display_name = pdata->default_device->name;
 
