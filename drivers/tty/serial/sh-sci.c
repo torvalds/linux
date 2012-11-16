@@ -99,12 +99,6 @@ struct sci_port {
 #endif
 
 	struct notifier_block		freq_transition;
-
-#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
-	unsigned short saved_smr;
-	unsigned short saved_fcr;
-	unsigned char saved_brr;
-#endif
 };
 
 /* Function prototypes */
@@ -2248,8 +2242,7 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	sci_port_disable(sci_port);
-
+	/* TODO: disable clock */
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
@@ -2292,46 +2285,6 @@ static int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
 	return 0;
 }
 
-#define uart_console(port)	((port)->cons->index == (port)->line)
-
-static int sci_runtime_suspend(struct device *dev)
-{
-	struct sci_port *sci_port = dev_get_drvdata(dev);
-	struct uart_port *port = &sci_port->port;
-
-	if (uart_console(port)) {
-		struct plat_sci_reg *reg;
-
-		sci_port->saved_smr = serial_port_in(port, SCSMR);
-		sci_port->saved_brr = serial_port_in(port, SCBRR);
-
-		reg = sci_getreg(port, SCFCR);
-		if (reg->size)
-			sci_port->saved_fcr = serial_port_in(port, SCFCR);
-		else
-			sci_port->saved_fcr = 0;
-	}
-	return 0;
-}
-
-static int sci_runtime_resume(struct device *dev)
-{
-	struct sci_port *sci_port = dev_get_drvdata(dev);
-	struct uart_port *port = &sci_port->port;
-
-	if (uart_console(port)) {
-		sci_reset(port);
-		serial_port_out(port, SCSMR, sci_port->saved_smr);
-		serial_port_out(port, SCBRR, sci_port->saved_brr);
-
-		if (sci_port->saved_fcr)
-			serial_port_out(port, SCFCR, sci_port->saved_fcr);
-
-		serial_port_out(port, SCSCR, sci_port->cfg->scscr);
-	}
-	return 0;
-}
-
 #define SCI_CONSOLE	(&serial_console)
 
 #else
@@ -2341,8 +2294,6 @@ static inline int __devinit sci_probe_earlyprintk(struct platform_device *pdev)
 }
 
 #define SCI_CONSOLE	NULL
-#define sci_runtime_suspend	NULL
-#define sci_runtime_resume	NULL
 
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
@@ -2460,8 +2411,6 @@ static int sci_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sci_dev_pm_ops = {
-	.runtime_suspend = sci_runtime_suspend,
-	.runtime_resume = sci_runtime_resume,
 	.suspend	= sci_suspend,
 	.resume		= sci_resume,
 };
