@@ -284,7 +284,7 @@ static int plgpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct plgpio *plgpio = container_of(chip, struct plgpio, chip);
 
-	if (plgpio->irq_base < 0)
+	if (IS_ERR_VALUE(plgpio->irq_base))
 		return -EINVAL;
 
 	return irq_find_mapping(plgpio->irq_domain, offset);
