@@ -486,6 +486,7 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 
 static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 {
+	struct nfs4_slot *slot;
 	unsigned long timestamp;
 	struct nfs_client *clp;
 
@@ -502,12 +503,14 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 	if (!RPC_WAS_SENT(task))
 		goto out;
 
+	slot = res->sr_slot;
+
 	/* Check the SEQUENCE operation status */
 	switch (res->sr_status) {
 	case 0:
 		/* Update the slot's sequence and clientid lease timer */
-		++res->sr_slot->seq_nr;
-		timestamp = res->sr_renewal_time;
+		++slot->seq_nr;
+		timestamp = slot->renewal_time;
 		clp = res->sr_session->clp;
 		do_renew_lease(clp, timestamp);
 		/* Check sequence flags */
@@ -521,12 +524,12 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		 */
 		dprintk("%s: slot=%td seq=%d: Operation in progress\n",
 			__func__,
-			res->sr_slot - res->sr_session->fc_slot_table.slots,
-			res->sr_slot->seq_nr);
+			slot - res->sr_session->fc_slot_table.slots,
+			slot->seq_nr);
 		goto out_retry;
 	default:
 		/* Just update the slot sequence no. */
-		++res->sr_slot->seq_nr;
+		++slot->seq_nr;
 	}
 out:
 	/* The session may be reset by one of the error handlers. */
@@ -637,6 +640,7 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 
 	rpc_task_set_priority(task, RPC_PRIORITY_NORMAL);
 	slot = tbl->slots + slotid;
+	slot->renewal_time = jiffies;
 	args->sa_session = session;
 	args->sa_slotid = slotid;
 
@@ -644,7 +648,6 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 
 	res->sr_session = session;
 	res->sr_slot = slot;
-	res->sr_renewal_time = jiffies;
 	res->sr_status_flags = 0;
 	/*
 	 * sr_status is only set in decode_sequence, and so will remain
