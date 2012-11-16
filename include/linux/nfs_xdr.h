@@ -189,6 +189,7 @@ struct nfs4_channel_attrs {
 struct nfs4_slot {
 	struct nfs4_slot_table	*table;
 	unsigned long		renewal_time;
+	u32			slot_nr;
 	u32		 	seq_nr;
 };
 

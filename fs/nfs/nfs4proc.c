@@ -526,9 +526,9 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		 * returned NFS4ERR_DELAY as per Section 2.10.6.2
 		 * of RFC5661.
 		 */
-		dprintk("%s: slot=%td seq=%d: Operation in progress\n",
+		dprintk("%s: slot=%u seq=%u: Operation in progress\n",
 			__func__,
-			slot - session->fc_slot_table.slots,
+			slot->slot_nr,
 			slot->seq_nr);
 		goto out_retry;
 	default:
@@ -671,9 +671,9 @@ int nfs4_setup_sequence(const struct nfs_server *server,
 	if (session == NULL)
 		goto out;
 
-	dprintk("--> %s clp %p session %p sr_slot %td\n",
+	dprintk("--> %s clp %p session %p sr_slot %d\n",
 		__func__, session->clp, session, res->sr_slot ?
-			res->sr_slot - session->fc_slot_table.slots : -1);
+			res->sr_slot->slot_nr : -1);
 
 	ret = nfs41_setup_sequence(session, args, res, task);
 out:
@@ -5669,8 +5669,10 @@ struct nfs4_slot *nfs4_alloc_slots(struct nfs4_slot_table *table,
 
 	tbl = kmalloc_array(max_slots, sizeof(*tbl), gfp_flags);
 	if (tbl != NULL) {
-		for (i = 0; i < max_slots; i++)
+		for (i = 0; i < max_slots; i++) {
 			tbl[i].table = table;
+			tbl[i].slot_nr = i;
+		}
 	}
 	return tbl;
 }
