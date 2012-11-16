@@ -1743,6 +1743,7 @@ static inline void sci_free_dma(struct uart_port *port)
 static int sci_startup(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
+	unsigned long flags;
 	int ret;
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
@@ -1753,8 +1754,10 @@ static int sci_startup(struct uart_port *port)
 
 	sci_request_dma(port);
 
+	spin_lock_irqsave(&port->lock, flags);
 	sci_start_tx(port);
 	sci_start_rx(port);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	return 0;
 }
@@ -1762,11 +1765,14 @@ static int sci_startup(struct uart_port *port)
 static void sci_shutdown(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
+	unsigned long flags;
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
+	spin_lock_irqsave(&port->lock, flags);
 	sci_stop_rx(port);
 	sci_stop_tx(port);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	sci_free_dma(port);
 	sci_free_irq(s);
