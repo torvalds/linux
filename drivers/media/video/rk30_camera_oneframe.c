@@ -275,8 +275,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *         1. support 8Mega picture;
 *v0.x.19:
 *         1. invalidate the limit which scale is invalidat when scale ratio > 2;
+*v0.x.1b: 1. fix oops bug  when using arm to do scale_crop if preview buffer is not allocated correctly 
+          2. rk_camera_set_fmt will called twice, optimize the procedure. at the first time call ,just to do the sensor init.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x19)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 0x1b)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -536,6 +538,7 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 				RKCAMERA_TR("\n %s vbinfo kmalloc fail\n", __FUNCTION__);
 				BUG();
 			}
+            memset(pcdev->vbinfo,0,sizeof(struct rk29_camera_vbinfo)*(*count));
 			pcdev->vbinfo_count = *count;
         }
 #endif        
@@ -575,8 +578,8 @@ static int rk_videobuf_prepare(struct videobuf_queue *vq, struct videobuf_buffer
     int ret;
     int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
 						icd->current_fmt->host_fmt);
-	if (bytes_per_line < 0)
-		return bytes_per_line;
+	if ((bytes_per_line < 0) || (vb->boff == 0))
+		return -EINVAL;
 
     buf = container_of(vb, struct rk_camera_buffer, vb);
 
@@ -1299,7 +1302,7 @@ static void rk_videobuf_release(struct videobuf_queue *vq,
 
     flush_workqueue(pcdev->camera_wq); 
 #if CAMERA_VIDEOBUF_ARM_ACCESS
-    if (pcdev->vbinfo) {
+    if ((pcdev->vbinfo) && (vb->i < pcdev->vbinfo_count)) {
         vb_info = pcdev->vbinfo + vb->i;
         
         if (vb_info->vir_addr) {
@@ -1991,6 +1994,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     if (pcdev->icd_init == 0) {
         v4l2_subdev_call(sd,core, init, 0); 
         pcdev->icd_init = 1;
+        return 0;
     }
     stream_on = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     if (stream_on & ENABLE_CAPTURE)
