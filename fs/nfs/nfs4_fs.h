@@ -258,7 +258,8 @@ extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 extern int nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data,
 				  bool sync);
 
-extern struct nfs4_slot *nfs4_alloc_slots(u32 max_slots, gfp_t gfp_flags);
+extern struct nfs4_slot *nfs4_alloc_slots(struct nfs4_slot_table *table,
+		u32 max_slots, gfp_t gfp_flags);
 
 static inline bool
 is_ds_only_client(struct nfs_client *clp)

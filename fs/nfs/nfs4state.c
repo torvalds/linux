@@ -2033,7 +2033,7 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 		return 0;
 	nfs4_begin_drain_session(clp);
 	fc_tbl = &clp->cl_session->fc_slot_table;
-	new = nfs4_alloc_slots(fc_tbl->target_max_slots, GFP_NOFS);
+	new = nfs4_alloc_slots(fc_tbl, fc_tbl->target_max_slots, GFP_NOFS);
         if (!new)
 		return -ENOMEM;
 

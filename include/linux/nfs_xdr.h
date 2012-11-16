@@ -187,6 +187,7 @@ struct nfs4_channel_attrs {
 
 /* nfs41 sessions slot seqid */
 struct nfs4_slot {
+	struct nfs4_slot_table	*table;
 	unsigned long		renewal_time;
 	u32		 	seq_nr;
 };
@@ -198,7 +199,6 @@ struct nfs4_sequence_args {
 };
 
 struct nfs4_sequence_res {
-	struct nfs4_session	*sr_session;
 	struct nfs4_slot	*sr_slot;	/* slot used to send request */
 	int			sr_status;	/* sequence operation status */
 	u32			sr_status_flags;
