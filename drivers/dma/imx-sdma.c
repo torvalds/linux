@@ -40,7 +40,6 @@
 #include <asm/irq.h>
 #include <linux/platform_data/dma-imx-sdma.h>
 #include <linux/platform_data/dma-imx.h>
-#include <mach/hardware.h>
 
 #include "dmaengine.h"
 

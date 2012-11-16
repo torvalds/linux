@@ -2387,14 +2387,27 @@ xlog_state_do_callback(
 
 
 				/*
-				 * update the last_sync_lsn before we drop the
+				 * Completion of a iclog IO does not imply that
+				 * a transaction has completed, as transactions
+				 * can be large enough to span many iclogs. We
+				 * cannot change the tail of the log half way
+				 * through a transaction as this may be the only
+				 * transaction in the log and moving th etail to
+				 * point to the middle of it will prevent
+				 * recovery from finding the start of the
+				 * transaction. Hence we should only update the
+				 * last_sync_lsn if this iclog contains
+				 * transaction completion callbacks on it.
+				 *
+				 * We have to do this before we drop the
 				 * icloglock to ensure we are the only one that
 				 * can update it.
 				 */
 				ASSERT(XFS_LSN_CMP(atomic64_read(&log->l_last_sync_lsn),
 					be64_to_cpu(iclog->ic_header.h_lsn)) <= 0);
-				atomic64_set(&log->l_last_sync_lsn,
-					be64_to_cpu(iclog->ic_header.h_lsn));
+				if (iclog->ic_callback)
+					atomic64_set(&log->l_last_sync_lsn,
+						be64_to_cpu(iclog->ic_header.h_lsn));
 
 			} else
 				ioerrors++;

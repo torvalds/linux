@@ -224,3 +224,5 @@ MODULE_DESCRIPTION("SHA-384 and SHA-512 Secure Hash Algorithm, sparc64 sha512 op
 
 MODULE_ALIAS("sha384");
 MODULE_ALIAS("sha512");
+
+#include "crop_devid.c"

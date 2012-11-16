@@ -1353,8 +1353,11 @@ static int gfar_restore(struct device *dev)
 	struct gfar_private *priv = dev_get_drvdata(dev);
 	struct net_device *ndev = priv->ndev;
 
-	if (!netif_running(ndev))
+	if (!netif_running(ndev)) {
+		netif_device_attach(ndev);
+
 		return 0;
+	}
 
 	gfar_init_bds(ndev);
 	init_registers(ndev);
