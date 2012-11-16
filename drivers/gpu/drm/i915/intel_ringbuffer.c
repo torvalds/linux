@@ -1079,6 +1079,29 @@ err:
 	return ret;
 }
 
+static int init_phys_hws_pga(struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 addr;
+
+	if (!dev_priv->status_page_dmah) {
+		dev_priv->status_page_dmah =
+			drm_pci_alloc(ring->dev, PAGE_SIZE, PAGE_SIZE);
+		if (!dev_priv->status_page_dmah)
+			return -ENOMEM;
+	}
+
+	addr = dev_priv->status_page_dmah->busaddr;
+	if (INTEL_INFO(ring->dev)->gen >= 4)
+		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
+	I915_WRITE(HWS_PGA, addr);
+
+	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+
+	return 0;
+}
+
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_ring_buffer *ring)
 {
@@ -1095,6 +1118,11 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
+		if (ret)
+			return ret;
+	} else {
+		BUG_ON(ring->id != RCS);
+		ret = init_phys_hws_pga(ring);
 		if (ret)
 			return ret;
 	}
@@ -1545,12 +1573,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	ring->init = init_render_ring;
 	ring->cleanup = render_ring_cleanup;
 
-
-	if (!I915_NEED_GFX_HWS(dev)) {
-		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-		memset(ring->status_page.page_addr, 0, PAGE_SIZE);
-	}
-
 	return intel_init_ring_buffer(dev, ring);
 }
 
@@ -1558,6 +1580,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	int ret;
 
 	ring->name = "render ring";
 	ring->id = RCS;
@@ -1595,9 +1618,6 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	ring->init = init_render_ring;
 	ring->cleanup = render_ring_cleanup;
 
-	if (!I915_NEED_GFX_HWS(dev))
-		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
@@ -1612,6 +1632,12 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
+	}
+
+	if (!I915_NEED_GFX_HWS(dev)) {
+		ret = init_phys_hws_pga(ring);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1661,7 +1687,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
 	}
 	ring->init = init_ring_common;
-
 
 	return intel_init_ring_buffer(dev, ring);
 }
