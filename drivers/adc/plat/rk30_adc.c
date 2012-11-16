@@ -315,7 +315,6 @@ static int __init adc_test_init(void)
 {
         printk("def_ref_volt: %dmV, curr_ref_volt: %dmV\n", 
                         get_def_ref_volt(), get_curr_ref_volt());
-        while(1);
 #ifdef ADC_TEST	
 	rk30_adc_test();
 #endif
