@@ -162,7 +162,7 @@ int __init hp300_setup_serial_console(void)
 static int __devinit hpdca_init_one(struct dio_dev *d,
 				const struct dio_device_id *ent)
 {
-	struct uart_port port;
+	struct uart_8250_port uart;
 	int line;
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
@@ -174,19 +174,19 @@ static int __devinit hpdca_init_one(struct dio_dev *d,
 	memset(&uart, 0, sizeof(uart));
 
 	/* Memory mapped I/O */
-	port.iotype = UPIO_MEM;
-	port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
-	port.irq = d->ipl;
-	port.uartclk = HPDCA_BAUD_BASE * 16;
-	port.mapbase = (d->resource.start + UART_OFFSET);
-	port.membase = (char *)(port.mapbase + DIO_VIRADDRBASE);
-	port.regshift = 1;
-	port.dev = &d->dev;
+	uart.port.iotype = UPIO_MEM;
+	uart.port.flags = UPF_SKIP_TEST | UPF_SHARE_IRQ | UPF_BOOT_AUTOCONF;
+	uart.port.irq = d->ipl;
+	uart.port.uartclk = HPDCA_BAUD_BASE * 16;
+	uart.port.mapbase = (d->resource.start + UART_OFFSET);
+	uart.port.membase = (char *)(uart.port.mapbase + DIO_VIRADDRBASE);
+	uart.port.regshift = 1;
+	uart.port.dev = &d->dev;
 	line = serial8250_register_8250_port(&uart);
 
 	if (line < 0) {
 		printk(KERN_NOTICE "8250_hp300: register_serial() DCA scode %d"
-		       " irq %d failed\n", d->scode, port.irq);
+		       " irq %d failed\n", d->scode, uart.port.irq);
 		return -ENOMEM;
 	}
 

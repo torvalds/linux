@@ -61,6 +61,8 @@ struct tcm_qla2xxx_lport {
 	u64 lport_npiv_wwnn;
 	/* ASCII formatted WWPN for FC Target Lport */
 	char lport_name[TCM_QLA2XXX_NAMELEN];
+	/* ASCII formatted naa WWPN for VPD page 83 etc */
+	char lport_naa_name[TCM_QLA2XXX_NAMELEN];
 	/* ASCII formatted WWPN+WWNN for NPIV FC Target Lport */
 	char lport_npiv_name[TCM_QLA2XXX_NPIV_NAMELEN];
 	/* map for fc_port pointers in 24-bit FC Port ID space */

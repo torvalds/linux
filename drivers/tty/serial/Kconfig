@@ -1150,7 +1150,7 @@ config SERIAL_SC26XX_CONSOLE
 	  Support for Console on SC2681/SC2692 serial ports.
 
 config SERIAL_SCCNXP
-	bool "SCCNXP serial port support"
+	tristate "SCCNXP serial port support"
 	depends on !SERIAL_SC26XX
 	select SERIAL_CORE
 	default n
@@ -1162,7 +1162,7 @@ config SERIAL_SCCNXP
 
 config SERIAL_SCCNXP_CONSOLE
 	bool "Console on SCCNXP serial port"
-	depends on SERIAL_SCCNXP
+	depends on SERIAL_SCCNXP=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Support for console on SCCNXP serial ports.

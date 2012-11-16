@@ -97,6 +97,8 @@ struct ti_device {
 
 static int ti_startup(struct usb_serial *serial);
 static void ti_release(struct usb_serial *serial);
+static int ti_port_probe(struct usb_serial_port *port);
+static int ti_port_remove(struct usb_serial_port *port);
 static int ti_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void ti_close(struct usb_serial_port *port);
 static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -221,6 +223,8 @@ static struct usb_serial_driver ti_1port_device = {
 	.num_ports		= 1,
 	.attach			= ti_startup,
 	.release		= ti_release,
+	.port_probe		= ti_port_probe,
+	.port_remove		= ti_port_remove,
 	.open			= ti_open,
 	.close			= ti_close,
 	.write			= ti_write,
@@ -249,6 +253,8 @@ static struct usb_serial_driver ti_2port_device = {
 	.num_ports		= 2,
 	.attach			= ti_startup,
 	.release		= ti_release,
+	.port_probe		= ti_port_probe,
+	.port_remove		= ti_port_remove,
 	.open			= ti_open,
 	.close			= ti_close,
 	.write			= ti_write,
@@ -347,11 +353,8 @@ module_exit(ti_exit);
 static int ti_startup(struct usb_serial *serial)
 {
 	struct ti_device *tdev;
-	struct ti_port *tport;
 	struct usb_device *dev = serial->dev;
 	int status;
-	int i;
-
 
 	dev_dbg(&dev->dev,
 		"%s - product 0x%4X, num configurations %d, configuration value %d",
@@ -399,42 +402,8 @@ static int ti_startup(struct usb_serial *serial)
 		goto free_tdev;
 	}
 
-	/* set up port structures */
-	for (i = 0; i < serial->num_ports; ++i) {
-		tport = kzalloc(sizeof(struct ti_port), GFP_KERNEL);
-		if (tport == NULL) {
-			dev_err(&dev->dev, "%s - out of memory\n", __func__);
-			status = -ENOMEM;
-			goto free_tports;
-		}
-		spin_lock_init(&tport->tp_lock);
-		tport->tp_uart_base_addr = (i == 0 ?
-				TI_UART1_BASE_ADDR : TI_UART2_BASE_ADDR);
-		tport->tp_closing_wait = closing_wait;
-		init_waitqueue_head(&tport->tp_msr_wait);
-		init_waitqueue_head(&tport->tp_write_wait);
-		if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE,
-								GFP_KERNEL)) {
-			dev_err(&dev->dev, "%s - out of memory\n", __func__);
-			kfree(tport);
-			status = -ENOMEM;
-			goto free_tports;
-		}
-		tport->tp_port = serial->port[i];
-		tport->tp_tdev = tdev;
-		usb_set_serial_port_data(serial->port[i], tport);
-		tport->tp_uart_mode = 0;	/* default is RS232 */
-	}
-
 	return 0;
 
-free_tports:
-	for (--i; i >= 0; --i) {
-		tport = usb_get_serial_port_data(serial->port[i]);
-		kfifo_free(&tport->write_fifo);
-		kfree(tport);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
 free_tdev:
 	kfree(tdev);
 	usb_set_serial_data(serial, NULL);
@@ -444,21 +413,50 @@ free_tdev:
 
 static void ti_release(struct usb_serial *serial)
 {
-	int i;
 	struct ti_device *tdev = usb_get_serial_data(serial);
-	struct ti_port *tport;
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		tport = usb_get_serial_port_data(serial->port[i]);
-		if (tport) {
-			kfifo_free(&tport->write_fifo);
-			kfree(tport);
-		}
-	}
 
 	kfree(tdev);
 }
 
+static int ti_port_probe(struct usb_serial_port *port)
+{
+	struct ti_port *tport;
+
+	tport = kzalloc(sizeof(*tport), GFP_KERNEL);
+	if (!tport)
+		return -ENOMEM;
+
+	spin_lock_init(&tport->tp_lock);
+	if (port == port->serial->port[0])
+		tport->tp_uart_base_addr = TI_UART1_BASE_ADDR;
+	else
+		tport->tp_uart_base_addr = TI_UART2_BASE_ADDR;
+	tport->tp_closing_wait = closing_wait;
+	init_waitqueue_head(&tport->tp_msr_wait);
+	init_waitqueue_head(&tport->tp_write_wait);
+	if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE, GFP_KERNEL)) {
+		kfree(tport);
+		return -ENOMEM;
+	}
+	tport->tp_port = port;
+	tport->tp_tdev = usb_get_serial_data(port->serial);
+	tport->tp_uart_mode = 0;	/* default is RS232 */
+
+	usb_set_serial_port_data(port, tport);
+
+	return 0;
+}
+
+static int ti_port_remove(struct usb_serial_port *port)
+{
+	struct ti_port *tport;
+
+	tport = usb_get_serial_port_data(port);
+	kfifo_free(&tport->write_fifo);
+	kfree(tport);
+
+	return 0;
+}
 
 static int ti_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
