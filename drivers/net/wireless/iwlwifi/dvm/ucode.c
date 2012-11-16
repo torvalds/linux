@@ -254,7 +254,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	int ret;
 	int i;
 
-	iwl_trans_fw_alive(priv->trans);
+	iwl_trans_fw_alive(priv->trans, 0);
 
 	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_PAN &&
 	    priv->eeprom_data->sku & EEPROM_SKU_CAP_IPAN_ENABLE) {

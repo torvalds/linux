@@ -2101,7 +2101,7 @@ static ssize_t iwl_dbgfs_txfifo_flush_write(struct file *file,
 	if (iwl_is_rfkill(priv))
 		return -EFAULT;
 
-	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	iwlagn_dev_txfifo_flush(priv);
 
 	return count;
 }

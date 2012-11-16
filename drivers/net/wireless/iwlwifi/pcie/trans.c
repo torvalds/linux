@@ -442,10 +442,10 @@ static int iwl_trans_txq_init(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	return 0;
 }
 
-/**
+/*
  * iwl_tx_queue_unmap -  Unmap any remaining DMA mappings and free skb's
  */
-static void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
+void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_tx_queue *txq = &trans_pcie->txq[txq_id];
@@ -496,6 +496,7 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 		for (i = 0; i < txq->q.n_window; i++) {
 			kfree(txq->entries[i].cmd);
 			kfree(txq->entries[i].copy_cmd);
+			kfree(txq->entries[i].free_buf);
 		}
 
 	/* De-alloc circular buffer of TFDs */
@@ -1023,6 +1024,7 @@ static int iwl_load_given_ucode(struct iwl_trans *trans,
 static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 				   const struct fw_img *fw)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int ret;
 	bool hw_rfkill;
 
@@ -1031,6 +1033,8 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		IWL_WARN(trans, "Exit HW not ready\n");
 		return -EIO;
 	}
+
+	clear_bit(STATUS_FW_ERROR, &trans_pcie->status);
 
 	iwl_enable_rfkill_int(trans);
 
@@ -1076,7 +1080,7 @@ static void iwl_trans_txq_set_sched(struct iwl_trans *trans, u32 mask)
 	iwl_write_prph(trans, SCD_TXFACT, mask);
 }
 
-static void iwl_tx_start(struct iwl_trans *trans)
+static void iwl_tx_start(struct iwl_trans *trans, u32 scd_base_addr)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 a;
@@ -1089,6 +1093,10 @@ static void iwl_tx_start(struct iwl_trans *trans)
 
 	trans_pcie->scd_base_addr =
 		iwl_read_prph(trans, SCD_SRAM_BASE_ADDR);
+
+	WARN_ON(scd_base_addr != 0 &&
+		scd_base_addr != trans_pcie->scd_base_addr);
+
 	a = trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_LOWER_BOUND;
 	/* reset conext data memory */
 	for (; a < trans_pcie->scd_base_addr + SCD_CONTEXT_MEM_UPPER_BOUND;
@@ -1134,10 +1142,10 @@ static void iwl_tx_start(struct iwl_trans *trans)
 			    APMG_PCIDEV_STT_VAL_L1_ACT_DIS);
 }
 
-static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans)
+static void iwl_trans_pcie_fw_alive(struct iwl_trans *trans, u32 scd_addr)
 {
 	iwl_reset_ict(trans);
-	iwl_tx_start(trans);
+	iwl_tx_start(trans, scd_addr);
 }
 
 /**
@@ -1243,6 +1251,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	clear_bit(STATUS_INT_ENABLED, &trans_pcie->status);
 	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
 	clear_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
+	clear_bit(STATUS_RFKILL, &trans_pcie->status);
 }
 
 static void iwl_trans_pcie_wowlan_suspend(struct iwl_trans *trans)
@@ -2166,12 +2175,6 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 		goto out_pci_release_regions;
 	}
 
-	dev_info(&pdev->dev, "pci_resource_len = 0x%08llx\n",
-		 (unsigned long long) pci_resource_len(pdev, 0));
-	dev_info(&pdev->dev, "pci_resource_base = %p\n", trans_pcie->hw_base);
-
-	dev_info(&pdev->dev, "HW Revision ID = 0x%X\n", pdev->revision);
-
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep
 	 * PCI Tx retries from interfering with C3 CPU state */
 	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
@@ -2197,7 +2200,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	}
 
 	/* Initialize the wait queue for commands */
-	init_waitqueue_head(&trans->wait_command_queue);
+	init_waitqueue_head(&trans_pcie->wait_command_queue);
 	spin_lock_init(&trans->reg_lock);
 
 	snprintf(trans->dev_cmd_pool_name, sizeof(trans->dev_cmd_pool_name),

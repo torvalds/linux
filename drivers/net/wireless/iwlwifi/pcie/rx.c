@@ -199,7 +199,6 @@ static void iwl_rx_queue_restock(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
-	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	unsigned long flags;
 
@@ -221,9 +220,9 @@ static void iwl_rx_queue_restock(struct iwl_trans *trans)
 		BUG_ON(rxb && rxb->page);
 
 		/* Get next free Rx buffer, remove from free list */
-		element = rxq->rx_free.next;
-		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
-		list_del(element);
+		rxb = list_first_entry(&rxq->rx_free, struct iwl_rx_mem_buffer,
+				       list);
+		list_del(&rxb->list);
 
 		/* Point to Rx buffer via next RBD in circular buffer */
 		rxq->bd[rxq->write] = iwl_dma_addr2rbd_ptr(rxb->page_dma);
@@ -260,7 +259,6 @@ static void iwl_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
-	struct list_head *element;
 	struct iwl_rx_mem_buffer *rxb;
 	struct page *page;
 	unsigned long flags;
@@ -308,10 +306,9 @@ static void iwl_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 			__free_pages(page, trans_pcie->rx_page_order);
 			return;
 		}
-		element = rxq->rx_used.next;
-		rxb = list_entry(element, struct iwl_rx_mem_buffer, list);
-		list_del(element);
-
+		rxb = list_first_entry(&rxq->rx_used, struct iwl_rx_mem_buffer,
+				       list);
+		list_del(&rxb->list);
 		spin_unlock_irqrestore(&rxq->lock, flags);
 
 		BUG_ON(rxb->page);
@@ -452,6 +449,9 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 			/* The original command isn't needed any more */
 			kfree(txq->entries[cmd_index].copy_cmd);
 			txq->entries[cmd_index].copy_cmd = NULL;
+			/* nor is the duplicated part of the command */
+			kfree(txq->entries[cmd_index].free_buf);
+			txq->entries[cmd_index].free_buf = NULL;
 		}
 
 		/*
@@ -565,23 +565,26 @@ static void iwl_rx_handle(struct iwl_trans *trans)
  */
 static void iwl_irq_handle_error(struct iwl_trans *trans)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
 	if (trans->cfg->internal_wimax_coex &&
 	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
 			     APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
 			    APMG_PS_CTRL_VAL_RESET_REQ))) {
-		struct iwl_trans_pcie *trans_pcie =
-			IWL_TRANS_GET_PCIE_TRANS(trans);
-
 		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		iwl_op_mode_wimax_active(trans->op_mode);
-		wake_up(&trans->wait_command_queue);
+		wake_up(&trans_pcie->wait_command_queue);
 		return;
 	}
 
 	iwl_dump_csr(trans);
 	iwl_dump_fh(trans, NULL);
+
+	set_bit(STATUS_FW_ERROR, &trans_pcie->status);
+	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+	wake_up(&trans_pcie->wait_command_queue);
 
 	iwl_op_mode_nic_error(trans->op_mode);
 }
@@ -676,6 +679,16 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 		isr_stats->rfkill++;
 
 		iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
+		if (hw_rfkill) {
+			set_bit(STATUS_RFKILL, &trans_pcie->status);
+			if (test_and_clear_bit(STATUS_HCMD_ACTIVE,
+					       &trans_pcie->status))
+				IWL_DEBUG_RF_KILL(trans,
+						  "Rfkill while SYNC HCMD in flight\n");
+			wake_up(&trans_pcie->wait_command_queue);
+		} else {
+			clear_bit(STATUS_RFKILL, &trans_pcie->status);
+		}
 
 		handled |= CSR_INT_BIT_RF_KILL;
 	}

@@ -186,6 +186,8 @@ struct iwl_pcie_tx_queue_entry {
 	struct iwl_device_cmd *cmd;
 	struct iwl_device_cmd *copy_cmd;
 	struct sk_buff *skb;
+	/* buffer to free after command completes */
+	const void *free_buf;
 	struct iwl_cmd_meta meta;
 };
 
@@ -268,6 +270,8 @@ struct iwl_trans_pcie {
 
 	bool ucode_write_complete;
 	wait_queue_head_t ucode_write_waitq;
+	wait_queue_head_t wait_command_queue;
+
 	unsigned long status;
 	u8 cmd_queue;
 	u8 cmd_fifo;
@@ -286,10 +290,14 @@ struct iwl_trans_pcie {
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
 ******************************************************/
-#define STATUS_HCMD_ACTIVE	0
-#define STATUS_DEVICE_ENABLED	1
-#define STATUS_TPOWER_PMI	2
-#define STATUS_INT_ENABLED	3
+enum {
+	STATUS_HCMD_ACTIVE,
+	STATUS_DEVICE_ENABLED,
+	STATUS_TPOWER_PMI,
+	STATUS_INT_ENABLED,
+	STATUS_RFKILL,
+	STATUS_FW_ERROR,
+};
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
 	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
@@ -346,6 +354,7 @@ void iwl_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 		      enum dma_data_direction dma_dir);
 int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 			 struct sk_buff_head *skbs);
+void iwl_tx_queue_unmap(struct iwl_trans *trans, int txq_id);
 int iwl_queue_space(const struct iwl_queue *q);
 
 /*****************************************************
