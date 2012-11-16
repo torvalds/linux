@@ -275,9 +275,6 @@ static int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	struct nlattr *tb[FRA_MAX+1];
 	int err = -EINVAL, unresolved = 0;
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh)))
 		goto errout;
 
@@ -426,9 +423,6 @@ static int fib_nl_delrule(struct sk_buff *skb, struct nlmsghdr* nlh, void *arg)
 	struct fib_rule *rule, *tmp;
 	struct nlattr *tb[FRA_MAX+1];
 	int err = -EINVAL;
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
 
 	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*frh)))
 		goto errout;

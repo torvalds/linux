@@ -539,9 +539,6 @@ static int inet_rtm_deladdr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 
 	ASSERT_RTNL();
 
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
-
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFA_MAX, ifa_ipv4_policy);
 	if (err < 0)
 		goto errout;
@@ -648,9 +645,6 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg
 	struct in_ifaddr *ifa;
 
 	ASSERT_RTNL();
-
-	if (!capable(CAP_NET_ADMIN))
-		return -EPERM;
 
 	ifa = rtm_to_ifaddr(net, nlh);
 	if (IS_ERR(ifa))
