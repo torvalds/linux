@@ -477,6 +477,7 @@ struct omap_dss_device *dss_alloc_and_init_device(struct device *parent)
 
 int dss_add_device(struct omap_dss_device *dssdev)
 {
+	omapdss_register_display(dssdev);
 	return device_add(&dssdev->dev);
 }
 
@@ -488,6 +489,7 @@ void dss_put_device(struct omap_dss_device *dssdev)
 void dss_unregister_device(struct omap_dss_device *dssdev)
 {
 	device_unregister(&dssdev->dev);
+	omapdss_unregister_display(dssdev);
 }
 
 static int dss_unregister_dss_dev(struct device *dev, void *data)

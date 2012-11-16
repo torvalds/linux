@@ -598,6 +598,11 @@ struct omap_dss_output {
 struct omap_dss_device {
 	struct device dev;
 
+	struct list_head panel_list;
+
+	/* alias in the form of "display%d" */
+	char alias[16];
+
 	enum omap_display_type type;
 
 	/* obsolete, to be removed */
@@ -758,6 +763,9 @@ bool omapdss_is_initialized(void);
 
 int omap_dss_register_driver(struct omap_dss_driver *);
 void omap_dss_unregister_driver(struct omap_dss_driver *);
+
+int omapdss_register_display(struct omap_dss_device *dssdev);
+void omapdss_unregister_display(struct omap_dss_device *dssdev);
 
 void omap_dss_get_device(struct omap_dss_device *dssdev);
 void omap_dss_put_device(struct omap_dss_device *dssdev);
