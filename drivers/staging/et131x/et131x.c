@@ -2310,13 +2310,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 		for (i = 0; i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
 			dma_addr_t fbr_tmp_physaddr;
 
-			/* This code allocates an area of memory big enough for
-			 * N free buffers + (buffer_size - 1) so that the
-			 * buffers can be aligned on 4k boundaries.  If each
-			 * buffer were aligned to a buffer_size boundary, the
-			 * effect would be to double the size of FBR0. By
-			 * allocating N buffers at once, we reduce this overhead
-			 */
 			rx_ring->fbr[id]->mem_virtaddrs[i] = dma_alloc_coherent(
 					&adapter->pdev->dev, fbr_chunksize,
 					&rx_ring->fbr[id]->mem_physaddrs[i],
@@ -2901,9 +2894,6 @@ static int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 		return -ENOMEM;
 	}
 
-	/* Allocate enough memory for the Tx descriptor ring, and allocate
-	 * some extra so that the ring can be aligned on a 4k boundary.
-	 */
 	desc_size = (sizeof(struct tx_desc) * NUM_DESC_PER_RING_TX);
 	tx_ring->tx_desc_ring =
 	    (struct tx_desc *) dma_alloc_coherent(&adapter->pdev->dev,
