@@ -1021,7 +1021,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	isi_writel(isi, ISI_CTRL, ISI_CTRL_DIS);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	if (IS_ERR_VALUE(irq)) {
 		ret = irq;
 		goto err_req_irq;
 	}
