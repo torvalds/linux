@@ -972,7 +972,7 @@ config RCU_CPU_STALL_TIMEOUT
 	int "RCU CPU stall timeout in seconds"
 	depends on TREE_RCU || TREE_PREEMPT_RCU
 	range 3 300
-	default 60
+	default 21
 	help
 	  If a given RCU grace period extends more than the specified
 	  number of seconds, a CPU stall warning is printed.  If the

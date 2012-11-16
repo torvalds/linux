@@ -494,11 +494,11 @@ config RCU_USER_QS
 	  puts RCU in extended quiescent state when the CPU runs in
 	  userspace. It means that when a CPU runs in userspace, it is
 	  excluded from the global RCU state machine and thus doesn't
-	  to keep the timer tick on for RCU.
+	  try to keep the timer tick on for RCU.
 
 	  Unless you want to hack and help the development of the full
-	  tickless feature, you shouldn't enable this option. It adds
-	  unnecessary overhead.
+	  tickless feature, you shouldn't enable this option.  It also
+	  adds unnecessary overhead.
 
 	  If unsure say N
 
@@ -582,14 +582,13 @@ config RCU_FAST_NO_HZ
 	depends on NO_HZ && SMP
 	default n
 	help
-	  This option causes RCU to attempt to accelerate grace periods
-	  in order to allow CPUs to enter dynticks-idle state more
-	  quickly.  On the other hand, this option increases the overhead
-	  of the dynticks-idle checking, particularly on systems with
-	  large numbers of CPUs.
+	  This option causes RCU to attempt to accelerate grace periods in
+	  order to allow CPUs to enter dynticks-idle state more quickly.
+	  On the other hand, this option increases the overhead of the
+	  dynticks-idle checking, thus degrading scheduling latency.
 
-	  Say Y if energy efficiency is critically important, particularly
-	  	if you have relatively few CPUs.
+	  Say Y if energy efficiency is critically important, and you don't
+	  	care about real-time response.
 
 	  Say N if you are unsure.
 

@@ -20,7 +20,7 @@ release_referenced()			delete()
 {					{
     ...					    write_lock(&list_lock);
     atomic_dec(&el->rc, relfunc)	    ...
-    ...					    delete_element
+    ...					    remove_element
 }					    write_unlock(&list_lock);
  					    ...
 					    if (atomic_dec_and_test(&el->rc))
@@ -52,7 +52,7 @@ release_referenced()			delete()
 {					{
     ...					    spin_lock(&list_lock);
     if (atomic_dec_and_test(&el->rc))       ...
-        call_rcu(&el->head, el_free);       delete_element
+        call_rcu(&el->head, el_free);       remove_element
     ...                                     spin_unlock(&list_lock);
 } 					    ...
 					    if (atomic_dec_and_test(&el->rc))
@@ -64,3 +64,60 @@ Sometimes, a reference to the element needs to be obtained in the
 update (write) stream.  In such cases, atomic_inc_not_zero() might be
 overkill, since we hold the update-side spinlock.  One might instead
 use atomic_inc() in such cases.
+
+It is not always convenient to deal with "FAIL" in the
+search_and_reference() code path.  In such cases, the
+atomic_dec_and_test() may be moved from delete() to el_free()
+as follows:
+
+1.					2.
+add()					search_and_reference()
+{					{
+    alloc_object			    rcu_read_lock();
+    ...					    search_for_element
+    atomic_set(&el->rc, 1);		    atomic_inc(&el->rc);
+    spin_lock(&list_lock);		    ...
+
+    add_element				    rcu_read_unlock();
+    ...					}
+    spin_unlock(&list_lock);		4.
+}					delete()
+3.					{
+release_referenced()			    spin_lock(&list_lock);
+{					    ...
+    ...					    remove_element
+    if (atomic_dec_and_test(&el->rc))       spin_unlock(&list_lock);
+        kfree(el);			    ...
+    ...                                     call_rcu(&el->head, el_free);
+} 					    ...
+5.					}
+void el_free(struct rcu_head *rhp)
+{
+    release_referenced();
+}
+
+The key point is that the initial reference added by add() is not removed
+until after a grace period has elapsed following removal.  This means that
+search_and_reference() cannot find this element, which means that the value
+of el->rc cannot increase.  Thus, once it reaches zero, there are no
+readers that can or ever will be able to reference the element.  The
+element can therefore safely be freed.  This in turn guarantees that if
+any reader finds the element, that reader may safely acquire a reference
+without checking the value of the reference counter.
+
+In cases where delete() can sleep, synchronize_rcu() can be called from
+delete(), so that el_free() can be subsumed into delete as follows:
+
+4.
+delete()
+{
+    spin_lock(&list_lock);
+    ...
+    remove_element
+    spin_unlock(&list_lock);
+    ...
+    synchronize_rcu();
+    if (atomic_dec_and_test(&el->rc))
+    	kfree(el);
+    ...
+}
