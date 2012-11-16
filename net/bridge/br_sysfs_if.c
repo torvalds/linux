@@ -221,7 +221,7 @@ static ssize_t brport_store(struct kobject * kobj,
 	char *endp;
 	unsigned long val;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(dev_net(p->dev)->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	val = simple_strtoul(buf, &endp, 0);
