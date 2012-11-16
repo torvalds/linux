@@ -95,8 +95,6 @@
 #define MLX4_EN_ALLOC_SIZE	PAGE_ALIGN(16384)
 #define MLX4_EN_ALLOC_ORDER	get_order(MLX4_EN_ALLOC_SIZE)
 
-#define MLX4_EN_MAX_LRO_DESCRIPTORS	32
-
 /* Receive fragment sizes; we use at most 4 fragments (for 9600 byte MTU
  * and 4K allocations) */
 enum {
@@ -289,21 +287,6 @@ struct mlx4_en_rx_ring {
 	unsigned long csum_ok;
 	unsigned long csum_none;
 };
-
-
-static inline int mlx4_en_can_lro(__be16 status)
-{
-	return (status & cpu_to_be16(MLX4_CQE_STATUS_IPV4	|
-				     MLX4_CQE_STATUS_IPV4F	|
-				     MLX4_CQE_STATUS_IPV6	|
-				     MLX4_CQE_STATUS_IPV4OPT	|
-				     MLX4_CQE_STATUS_TCP	|
-				     MLX4_CQE_STATUS_UDP	|
-				     MLX4_CQE_STATUS_IPOK)) ==
-		cpu_to_be16(MLX4_CQE_STATUS_IPV4 |
-			    MLX4_CQE_STATUS_IPOK |
-			    MLX4_CQE_STATUS_TCP);
-}
 
 struct mlx4_en_cq {
 	struct mlx4_cq          mcq;
