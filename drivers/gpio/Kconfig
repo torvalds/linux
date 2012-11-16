@@ -196,6 +196,13 @@ config GPIO_PXA
 	help
 	  Say yes here to support the PXA GPIO device
 
+config GPIO_SPEAR_SPICS
+	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
+	depends on PLAT_SPEAR
+	select GENERIC_IRQ_CHIP
+	help
+	  Say yes here to support ST SPEAr SPI Chip Select as GPIO device
+
 config GPIO_STA2X11
 	bool "STA2x11/ConneXt GPIO support"
 	depends on MFD_STA2X11
