@@ -272,40 +272,6 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	return 0;
 }
 
-static int acpi_memory_powerdown_device(struct acpi_memory_device *mem_device)
-{
-	acpi_status status;
-	struct acpi_object_list arg_list;
-	union acpi_object arg;
-	unsigned long long current_status;
-
-
-	/* Issue the _EJ0 command */
-	arg_list.count = 1;
-	arg_list.pointer = &arg;
-	arg.type = ACPI_TYPE_INTEGER;
-	arg.integer.value = 1;
-	status = acpi_evaluate_object(mem_device->device->handle,
-				      "_EJ0", &arg_list, NULL);
-	/* Return on _EJ0 failure */
-	if (ACPI_FAILURE(status)) {
-		ACPI_EXCEPTION((AE_INFO, status, "_EJ0 failed"));
-		return -ENODEV;
-	}
-
-	/* Evalute _STA to check if the device is disabled */
-	status = acpi_evaluate_integer(mem_device->device->handle, "_STA",
-				       NULL, &current_status);
-	if (ACPI_FAILURE(status))
-		return -ENODEV;
-
-	/* Check for device status.  Device should be disabled */
-	if (current_status & ACPI_STA_DEVICE_ENABLED)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 {
 	int result;
@@ -325,34 +291,11 @@ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 	return 0;
 }
 
-static int acpi_memory_disable_device(struct acpi_memory_device *mem_device)
-{
-	int result;
-
-	/*
-	 * Ask the VM to offline this memory range.
-	 * Note: Assume that this function returns zero on success
-	 */
-	result = acpi_memory_remove_memory(mem_device);
-	if (result)
-		return result;
-
-	/* Power-off and eject the device */
-	result = acpi_memory_powerdown_device(mem_device);
-	if (result) {
-		/* Set the status of the device to invalid */
-		mem_device->state = MEMORY_INVALID_STATE;
-		return result;
-	}
-
-	mem_device->state = MEMORY_POWER_OFF_STATE;
-	return result;
-}
-
 static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct acpi_memory_device *mem_device;
 	struct acpi_device *device;
+	struct acpi_eject_event *ej_event = NULL;
 	u32 ost_code = ACPI_OST_SC_NON_SPECIFIC_FAILURE; /* default */
 
 	switch (event) {
@@ -394,32 +337,19 @@ static void acpi_memory_device_notify(acpi_handle handle, u32 event, void *data)
 			break;
 		}
 
-		/*
-		 * Currently disabling memory device from kernel mode
-		 * TBD: Can also be disabled from user mode scripts
-		 * TBD: Can also be disabled by Callback registration
-		 *      with generic sysfs driver
-		 */
-		if (acpi_memory_disable_device(mem_device)) {
-			printk(KERN_ERR PREFIX "Disable memory device\n");
-			/*
-			 * If _EJ0 was called but failed, _OST is not
-			 * necessary.
-			 */
-			if (mem_device->state == MEMORY_INVALID_STATE)
-				return;
-
+		ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
+		if (!ej_event) {
+			pr_err(PREFIX "No memory, dropping EJECT\n");
 			break;
 		}
 
-		/*
-		 * Invoke acpi_bus_trim() to remove memory device
-		 */
-		acpi_bus_trim(device, 1);
+		ej_event->handle = handle;
+		ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
+		acpi_os_hotplug_execute(acpi_bus_hot_remove_device,
+					(void *)ej_event);
 
-		/* _EJ0 succeeded; _OST is not necessary */
+		/* eject is performed asynchronously */
 		return;
-
 	default:
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				  "Unsupported event [0x%x]\n", event));
