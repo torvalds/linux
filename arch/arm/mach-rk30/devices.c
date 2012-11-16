@@ -28,7 +28,7 @@
 
 #ifdef CONFIG_ADC_RK30
 static struct adc_platform_data rk30_adc_pdata = {
-        #if defind(CONFIG_ARCH_RK3066B)       
+        #if defined(CONFIG_ARCH_RK3066B)       
         .ref_volt = 1800, //1800mV
         #else
         .ref_volt = 2500, //2500mV
