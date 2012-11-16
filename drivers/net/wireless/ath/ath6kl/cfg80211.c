@@ -2770,9 +2770,11 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	ar->ap_mode_bkey.valid = false;
 
-	/* TODO:
-	 * info->interval
-	 */
+	ret = ath6kl_wmi_ap_set_beacon_intvl_cmd(ar->wmi, vif->fw_vif_idx,
+						 info->beacon_interval);
+
+	if (ret)
+		ath6kl_warn("Failed to set beacon interval: %d\n", ret);
 
 	ret = ath6kl_wmi_ap_set_dtim_cmd(ar->wmi, vif->fw_vif_idx,
 					 info->dtim_period);
