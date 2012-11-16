@@ -1264,30 +1264,46 @@ static void
 nvd0_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
 {
+	struct nvd0_mast *mast = nvd0_mast(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	u32 syncs, magic, *push;
-
-	syncs = 0x00000001;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		syncs |= 0x00000008;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		syncs |= 0x00000010;
-
-	magic = 0x31ec6000 | (nv_crtc->index << 25);
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		magic |= 0x00000001;
+	u32 *push;
 
 	nvd0_dac_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(nvd0_mast(encoder->dev), 8);
+	push = evo_wait(mast, 8);
 	if (push) {
-		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
-		evo_data(push, syncs);
-		evo_data(push, magic);
-		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 1);
-		evo_data(push, 1 << nv_crtc->index);
-		evo_kick(push, nvd0_mast(encoder->dev));
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			u32 syncs = 0x00000000;
+
+			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+				syncs |= 0x00000001;
+			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+				syncs |= 0x00000002;
+
+			evo_mthd(push, 0x0400 + (nv_encoder->or * 0x080), 2);
+			evo_data(push, 1 << nv_crtc->index);
+			evo_data(push, syncs);
+		} else {
+			u32 magic = 0x31ec6000 | (nv_crtc->index << 25);
+			u32 syncs = 0x00000001;
+
+			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+				syncs |= 0x00000008;
+			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+				syncs |= 0x00000010;
+
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				magic |= 0x00000001;
+
+			evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
+			evo_data(push, syncs);
+			evo_data(push, magic);
+			evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 1);
+			evo_data(push, 1 << nv_crtc->index);
+		}
+
+		evo_kick(push, mast);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
@@ -1297,23 +1313,30 @@ static void
 nvd0_dac_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
+	struct nvd0_mast *mast = nvd0_mast(encoder->dev);
+	const int or = nv_encoder->or;
 	u32 *push;
 
 	if (nv_encoder->crtc) {
 		nvd0_crtc_prepare(nv_encoder->crtc);
 
-		push = evo_wait(nvd0_mast(dev), 4);
+		push = evo_wait(mast, 4);
 		if (push) {
-			evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 1);
-			evo_data(push, 0x00000000);
+			if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+				evo_mthd(push, 0x0400 + (or * 0x080), 1);
+				evo_data(push, 0x00000000);
+			} else {
+				evo_mthd(push, 0x0180 + (or * 0x020), 1);
+				evo_data(push, 0x00000000);
+			}
+
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
-			evo_kick(push, nvd0_mast(dev));
+			evo_kick(push, mast);
 		}
-
-		nv_encoder->crtc = NULL;
 	}
+
+	nv_encoder->crtc = NULL;
 }
 
 static enum drm_connector_status
