@@ -401,7 +401,7 @@ EXPORT_SYMBOL_GPL(rio_release_inb_pwrite);
 /**
  * rio_map_inb_region -- Map inbound memory region.
  * @mport: Master port.
- * @lstart: physical address of memory region to be mapped
+ * @local: physical address of memory region to be mapped
  * @rbase: RIO base address assigned to this window
  * @size: Size of the memory region
  * @rflags: Flags for mapping.
