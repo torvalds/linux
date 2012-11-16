@@ -509,11 +509,9 @@ nfsd4_load_reboot_recovery_data(struct net *net)
 {
 	int status;
 
-	nfs4_lock_state();
 	status = nfsd4_init_recdir();
 	if (!status)
 		status = nfsd4_recdir_load(net);
-	nfs4_unlock_state();
 	if (status)
 		printk(KERN_ERR "NFSD: Failure reading reboot recovery data\n");
 	return status;
