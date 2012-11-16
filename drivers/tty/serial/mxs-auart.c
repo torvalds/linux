@@ -114,17 +114,46 @@
 
 static struct uart_driver auart_driver;
 
+enum mxs_auart_type {
+	IMX23_AUART,
+	IMX28_AUART,
+};
+
 struct mxs_auart_port {
 	struct uart_port port;
 
 	unsigned int flags;
 	unsigned int ctrl;
+	enum mxs_auart_type devtype;
 
 	unsigned int irq;
 
 	struct clk *clk;
 	struct device *dev;
 };
+
+static struct platform_device_id mxs_auart_devtype[] = {
+	{ .name = "mxs-auart-imx23", .driver_data = IMX23_AUART },
+	{ .name = "mxs-auart-imx28", .driver_data = IMX28_AUART },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, mxs_auart_devtype);
+
+static struct of_device_id mxs_auart_dt_ids[] = {
+	{
+		.compatible = "fsl,imx28-auart",
+		.data = &mxs_auart_devtype[IMX28_AUART]
+	}, {
+		.compatible = "fsl,imx23-auart",
+		.data = &mxs_auart_devtype[IMX23_AUART]
+	}, { /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_auart_dt_ids);
+
+static inline int is_imx28_auart(struct mxs_auart_port *s)
+{
+	return s->devtype == IMX28_AUART;
+}
 
 static void mxs_auart_stop_tx(struct uart_port *u);
 
@@ -706,6 +735,8 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 
 static int __devinit mxs_auart_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(mxs_auart_dt_ids, &pdev->dev);
 	struct mxs_auart_port *s;
 	u32 version;
 	int ret = 0;
@@ -728,6 +759,11 @@ static int __devinit mxs_auart_probe(struct platform_device *pdev)
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
 		goto out_free;
+	}
+
+	if (of_id) {
+		pdev->id_entry = of_id->data;
+		s->devtype = pdev->id_entry->driver_data;
 	}
 
 	s->clk = clk_get(&pdev->dev, NULL);
@@ -804,12 +840,6 @@ static int __devexit mxs_auart_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct of_device_id mxs_auart_dt_ids[] = {
-	{ .compatible = "fsl,imx23-auart", },
-	{ /* sentinel */ }
-};
-MODULE_DEVICE_TABLE(of, mxs_auart_dt_ids);
 
 static struct platform_driver mxs_auart_driver = {
 	.probe = mxs_auart_probe,
