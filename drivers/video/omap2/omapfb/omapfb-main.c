@@ -2445,7 +2445,6 @@ static int __init omapfb_probe(struct platform_device *pdev)
 	fbdev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, fbdev);
 
-	r = 0;
 	fbdev->num_displays = 0;
 	dssdev = NULL;
 	for_each_dss_dev(dssdev) {
@@ -2467,9 +2466,6 @@ static int __init omapfb_probe(struct platform_device *pdev)
 		else
 			d->update_mode = OMAPFB_AUTO_UPDATE;
 	}
-
-	if (r)
-		goto cleanup;
 
 	if (fbdev->num_displays == 0) {
 		dev_err(&pdev->dev, "no displays\n");
