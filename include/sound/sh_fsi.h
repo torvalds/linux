@@ -47,8 +47,8 @@
 
 /* D:  clock selecter if master mode */
 #define SH_FSI_CLK_MASK		0x0000F000
-#define SH_FSI_CLK_EXTERNAL	(1 << 12)
-#define SH_FSI_CLK_CPG		(2 << 12) /* FSIxCK + FSI-DIV */
+#define SH_FSI_CLK_EXTERNAL	(0 << 12)
+#define SH_FSI_CLK_CPG		(1 << 12) /* FSIxCK + FSI-DIV */
 
 /*
  * set_rate return value
