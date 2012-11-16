@@ -23,32 +23,15 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
+#include <linux/slab.h>
+#include <linux/clk-provider.h>
 
-#include <asm/mach/time.h>
 #include <mach/zynq_soc.h>
 #include "common.h"
 
-#define IRQ_TIMERCOUNTER0	42
-
-/*
- * This driver configures the 2 16-bit count-up timers as follows:
- *
- * T1: Timer 1, clocksource for generic timekeeping
- * T2: Timer 2, clockevent source for hrtimers
- * T3: Timer 3, <unused>
- *
- * The input frequency to the timer module for emulation is 2.5MHz which is
- * common to all the timer channels (T1, T2, and T3). With a pre-scaler of 32,
- * the timers are clocked at 78.125KHz (12.8 us resolution).
- *
- * The input frequency to the timer module in silicon will be 200MHz. With the
- * pre-scaler of 32, the timers are clocked at 6.25MHz (160ns resolution).
- */
-#define XTTCPSS_CLOCKSOURCE	0	/* Timer 1 as a generic timekeeping */
-#define XTTCPSS_CLOCKEVENT	1	/* Timer 2 as a clock event */
-
-#define XTTCPSS_TIMER_BASE		TTC0_BASE
-#define XTTCPCC_EVENT_TIMER_IRQ		(IRQ_TIMERCOUNTER0 + 1)
 /*
  * Timer Register Offset Definitions of Timer 1, Increment base address by 4
  * and use same offsets for Timer 2
@@ -65,9 +48,14 @@
 
 #define XTTCPSS_CNT_CNTRL_DISABLE_MASK	0x1
 
-/* Setup the timers to use pre-scaling */
-
-#define TIMER_RATE (PERIPHERAL_CLOCK_RATE / 32)
+/* Setup the timers to use pre-scaling, using a fixed value for now that will
+ * work across most input frequency, but it may need to be more dynamic
+ */
+#define PRESCALE_EXPONENT	11	/* 2 ^ PRESCALE_EXPONENT = PRESCALE */
+#define PRESCALE		2048	/* The exponent must match this */
+#define CLK_CNTRL_PRESCALE	((PRESCALE_EXPONENT - 1) << 1)
+#define CLK_CNTRL_PRESCALE_EN	1
+#define CNT_CNTRL_RESET		(1<<4)
 
 /**
  * struct xttcpss_timer - This definition defines local timer structure
@@ -75,11 +63,25 @@
  * @base_addr:	Base address of timer
  **/
 struct xttcpss_timer {
-	void __iomem *base_addr;
+	void __iomem	*base_addr;
 };
 
-static struct xttcpss_timer timers[2];
-static struct clock_event_device xttcpss_clockevent;
+struct xttcpss_timer_clocksource {
+	struct xttcpss_timer	xttc;
+	struct clocksource	cs;
+};
+
+#define to_xttcpss_timer_clksrc(x) \
+		container_of(x, struct xttcpss_timer_clocksource, cs)
+
+struct xttcpss_timer_clockevent {
+	struct xttcpss_timer		xttc;
+	struct clock_event_device	ce;
+	struct clk			*clk;
+};
+
+#define to_xttcpss_timer_clkevent(x) \
+		container_of(x, struct xttcpss_timer_clockevent, ce)
 
 /**
  * xttcpss_set_interval - Set the timer interval value
@@ -101,7 +103,7 @@ static void xttcpss_set_interval(struct xttcpss_timer *timer,
 
 	/* Reset the counter (0x10) so that it starts from 0, one-shot
 	   mode makes this needed for timing to be right. */
-	ctrl_reg |= 0x10;
+	ctrl_reg |= CNT_CNTRL_RESET;
 	ctrl_reg &= ~XTTCPSS_CNT_CNTRL_DISABLE_MASK;
 	__raw_writel(ctrl_reg, timer->base_addr + XTTCPSS_CNT_CNTRL_OFFSET);
 }
@@ -116,89 +118,30 @@ static void xttcpss_set_interval(struct xttcpss_timer *timer,
  **/
 static irqreturn_t xttcpss_clock_event_interrupt(int irq, void *dev_id)
 {
-	struct clock_event_device *evt = &xttcpss_clockevent;
-	struct xttcpss_timer *timer = dev_id;
+	struct xttcpss_timer_clockevent *xttce = dev_id;
+	struct xttcpss_timer *timer = &xttce->xttc;
 
 	/* Acknowledge the interrupt and call event handler */
 	__raw_writel(__raw_readl(timer->base_addr + XTTCPSS_ISR_OFFSET),
 			timer->base_addr + XTTCPSS_ISR_OFFSET);
 
-	evt->event_handler(evt);
+	xttce->ce.event_handler(&xttce->ce);
 
 	return IRQ_HANDLED;
 }
 
-static struct irqaction event_timer_irq = {
-	.name	= "xttcpss clockevent",
-	.flags	= IRQF_DISABLED | IRQF_TIMER,
-	.handler = xttcpss_clock_event_interrupt,
-};
-
 /**
- * xttcpss_timer_hardware_init - Initialize the timer hardware
- *
- * Initialize the hardware to start the clock source, get the clock
- * event timer ready to use, and hook up the interrupt.
- **/
-static void __init xttcpss_timer_hardware_init(void)
-{
-	/* Setup the clock source counter to be an incrementing counter
-	 * with no interrupt and it rolls over at 0xFFFF. Pre-scale
-	   it by 32 also. Let it start running now.
-	 */
-	timers[XTTCPSS_CLOCKSOURCE].base_addr = XTTCPSS_TIMER_BASE;
-
-	__raw_writel(0x0, timers[XTTCPSS_CLOCKSOURCE].base_addr +
-				XTTCPSS_IER_OFFSET);
-	__raw_writel(0x9, timers[XTTCPSS_CLOCKSOURCE].base_addr +
-				XTTCPSS_CLK_CNTRL_OFFSET);
-	__raw_writel(0x10, timers[XTTCPSS_CLOCKSOURCE].base_addr +
-				XTTCPSS_CNT_CNTRL_OFFSET);
-
-	/* Setup the clock event timer to be an interval timer which
-	 * is prescaled by 32 using the interval interrupt. Leave it
-	 * disabled for now.
-	 */
-
-	timers[XTTCPSS_CLOCKEVENT].base_addr = XTTCPSS_TIMER_BASE + 4;
-
-	__raw_writel(0x23, timers[XTTCPSS_CLOCKEVENT].base_addr +
-			XTTCPSS_CNT_CNTRL_OFFSET);
-	__raw_writel(0x9, timers[XTTCPSS_CLOCKEVENT].base_addr +
-			XTTCPSS_CLK_CNTRL_OFFSET);
-	__raw_writel(0x1, timers[XTTCPSS_CLOCKEVENT].base_addr +
-			XTTCPSS_IER_OFFSET);
-
-	/* Setup IRQ the clock event timer */
-	event_timer_irq.dev_id = &timers[XTTCPSS_CLOCKEVENT];
-	setup_irq(XTTCPCC_EVENT_TIMER_IRQ, &event_timer_irq);
-}
-
-/**
- * __raw_readl_cycles - Reads the timer counter register
+ * __xttc_clocksource_read - Reads the timer counter register
  *
  * returns: Current timer counter register value
  **/
-static cycle_t __raw_readl_cycles(struct clocksource *cs)
+static cycle_t __xttc_clocksource_read(struct clocksource *cs)
 {
-	struct xttcpss_timer *timer = &timers[XTTCPSS_CLOCKSOURCE];
+	struct xttcpss_timer *timer = &to_xttcpss_timer_clksrc(cs)->xttc;
 
 	return (cycle_t)__raw_readl(timer->base_addr +
 				XTTCPSS_COUNT_VAL_OFFSET);
 }
-
-
-/*
- * Instantiate and initialize the clock source structure
- */
-static struct clocksource clocksource_xttcpss = {
-	.name		= "xttcpss_timer1",
-	.rating		= 200,			/* Reasonable clock source */
-	.read		= __raw_readl_cycles,
-	.mask		= CLOCKSOURCE_MASK(16),
-	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
-};
-
 
 /**
  * xttcpss_set_next_event - Sets the time interval for next event
@@ -211,7 +154,8 @@ static struct clocksource clocksource_xttcpss = {
 static int xttcpss_set_next_event(unsigned long cycles,
 					struct clock_event_device *evt)
 {
-	struct xttcpss_timer *timer = &timers[XTTCPSS_CLOCKEVENT];
+	struct xttcpss_timer_clockevent *xttce = to_xttcpss_timer_clkevent(evt);
+	struct xttcpss_timer *timer = &xttce->xttc;
 
 	xttcpss_set_interval(timer, cycles);
 	return 0;
@@ -226,12 +170,15 @@ static int xttcpss_set_next_event(unsigned long cycles,
 static void xttcpss_set_mode(enum clock_event_mode mode,
 					struct clock_event_device *evt)
 {
-	struct xttcpss_timer *timer = &timers[XTTCPSS_CLOCKEVENT];
+	struct xttcpss_timer_clockevent *xttce = to_xttcpss_timer_clkevent(evt);
+	struct xttcpss_timer *timer = &xttce->xttc;
 	u32 ctrl_reg;
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		xttcpss_set_interval(timer, TIMER_RATE / HZ);
+		xttcpss_set_interval(timer,
+				     DIV_ROUND_CLOSEST(clk_get_rate(xttce->clk),
+						       PRESCALE * HZ));
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 	case CLOCK_EVT_MODE_UNUSED:
@@ -252,15 +199,106 @@ static void xttcpss_set_mode(enum clock_event_mode mode,
 	}
 }
 
-/*
- * Instantiate and initialize the clock event structure
- */
-static struct clock_event_device xttcpss_clockevent = {
-	.name		= "xttcpss_timer2",
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_next_event	= xttcpss_set_next_event,
-	.set_mode	= xttcpss_set_mode,
-	.rating		= 200,
+static void __init zynq_ttc_setup_clocksource(struct device_node *np,
+					     void __iomem *base)
+{
+	struct xttcpss_timer_clocksource *ttccs;
+	struct clk *clk;
+	int err;
+	u32 reg;
+
+	ttccs = kzalloc(sizeof(*ttccs), GFP_KERNEL);
+	if (WARN_ON(!ttccs))
+		return;
+
+	err = of_property_read_u32(np, "reg", &reg);
+	if (WARN_ON(err))
+		return;
+
+	clk = of_clk_get_by_name(np, "cpu_1x");
+	if (WARN_ON(IS_ERR(clk)))
+		return;
+
+	err = clk_prepare_enable(clk);
+	if (WARN_ON(err))
+		return;
+
+	ttccs->xttc.base_addr = base + reg * 4;
+
+	ttccs->cs.name = np->name;
+	ttccs->cs.rating = 200;
+	ttccs->cs.read = __xttc_clocksource_read;
+	ttccs->cs.mask = CLOCKSOURCE_MASK(16);
+	ttccs->cs.flags = CLOCK_SOURCE_IS_CONTINUOUS;
+
+	__raw_writel(0x0,  ttccs->xttc.base_addr + XTTCPSS_IER_OFFSET);
+	__raw_writel(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
+		     ttccs->xttc.base_addr + XTTCPSS_CLK_CNTRL_OFFSET);
+	__raw_writel(CNT_CNTRL_RESET,
+		     ttccs->xttc.base_addr + XTTCPSS_CNT_CNTRL_OFFSET);
+
+	err = clocksource_register_hz(&ttccs->cs, clk_get_rate(clk) / PRESCALE);
+	if (WARN_ON(err))
+		return;
+}
+
+static void __init zynq_ttc_setup_clockevent(struct device_node *np,
+					    void __iomem *base)
+{
+	struct xttcpss_timer_clockevent *ttcce;
+	int err, irq;
+	u32 reg;
+
+	ttcce = kzalloc(sizeof(*ttcce), GFP_KERNEL);
+	if (WARN_ON(!ttcce))
+		return;
+
+	err = of_property_read_u32(np, "reg", &reg);
+	if (WARN_ON(err))
+		return;
+
+	ttcce->xttc.base_addr = base + reg * 4;
+
+	ttcce->clk = of_clk_get_by_name(np, "cpu_1x");
+	if (WARN_ON(IS_ERR(ttcce->clk)))
+		return;
+
+	err = clk_prepare_enable(ttcce->clk);
+	if (WARN_ON(err))
+		return;
+
+	irq = irq_of_parse_and_map(np, 0);
+	if (WARN_ON(!irq))
+		return;
+
+	ttcce->ce.name = np->name;
+	ttcce->ce.features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	ttcce->ce.set_next_event = xttcpss_set_next_event;
+	ttcce->ce.set_mode = xttcpss_set_mode;
+	ttcce->ce.rating = 200;
+	ttcce->ce.irq = irq;
+
+	__raw_writel(0x23, ttcce->xttc.base_addr + XTTCPSS_CNT_CNTRL_OFFSET);
+	__raw_writel(CLK_CNTRL_PRESCALE | CLK_CNTRL_PRESCALE_EN,
+		     ttcce->xttc.base_addr + XTTCPSS_CLK_CNTRL_OFFSET);
+	__raw_writel(0x1,  ttcce->xttc.base_addr + XTTCPSS_IER_OFFSET);
+
+	err = request_irq(irq, xttcpss_clock_event_interrupt, IRQF_TIMER,
+			  np->name, ttcce);
+	if (WARN_ON(err))
+		return;
+
+	clockevents_config_and_register(&ttcce->ce,
+					clk_get_rate(ttcce->clk) / PRESCALE,
+					1, 0xfffe);
+}
+
+static const __initconst struct of_device_id zynq_ttc_match[] = {
+	{ .compatible = "xlnx,ttc-counter-clocksource",
+		.data = zynq_ttc_setup_clocksource, },
+	{ .compatible = "xlnx,ttc-counter-clockevent",
+		.data = zynq_ttc_setup_clockevent, },
+	{}
 };
 
 /**
@@ -269,30 +307,27 @@ static struct clock_event_device xttcpss_clockevent = {
  * Initializes the timer hardware and register the clock source and clock event
  * timers with Linux kernal timer framework
  **/
-static void __init xttcpss_timer_init(void)
+void __init xttcpss_timer_init(void)
 {
-	xttcpss_timer_hardware_init();
-	clocksource_register_hz(&clocksource_xttcpss, TIMER_RATE);
+	struct device_node *np;
 
-	/* Calculate the parameters to allow the clockevent to operate using
-	   integer math
-	*/
-	clockevents_calc_mult_shift(&xttcpss_clockevent, TIMER_RATE, 4);
+	for_each_compatible_node(np, NULL, "xlnx,ttc") {
+		struct device_node *np_chld;
+		void __iomem *base;
 
-	xttcpss_clockevent.max_delta_ns =
-		clockevent_delta2ns(0xfffe, &xttcpss_clockevent);
-	xttcpss_clockevent.min_delta_ns =
-		clockevent_delta2ns(1, &xttcpss_clockevent);
+		base = of_iomap(np, 0);
+		if (WARN_ON(!base))
+			return;
 
-	/* Indicate that clock event is on 1st CPU as SMP boot needs it */
+		for_each_available_child_of_node(np, np_chld) {
+			int (*cb)(struct device_node *np, void __iomem *base);
+			const struct of_device_id *match;
 
-	xttcpss_clockevent.cpumask = cpumask_of(0);
-	clockevents_register_device(&xttcpss_clockevent);
+			match = of_match_node(zynq_ttc_match, np_chld);
+			if (match) {
+				cb = match->data;
+				cb(np_chld, base);
+			}
+		}
+	}
 }
-
-/*
- * Instantiate and initialize the system timer structure
- */
-struct sys_timer xttcpss_sys_timer = {
-	.init		= xttcpss_timer_init,
-};
