@@ -315,8 +315,6 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 
 	dwc3_core_soft_reset(dwc);
 
-	dwc3_cache_hwparams(dwc);
-
 	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
 	reg &= ~DWC3_GCTL_SCALEDOWN_MASK;
 	reg &= ~DWC3_GCTL_DISSCRAMBLE;
@@ -459,6 +457,8 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 	pm_runtime_forbid(dev);
+
+	dwc3_cache_hwparams(dwc);
 
 	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
