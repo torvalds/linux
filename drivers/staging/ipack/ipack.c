@@ -85,8 +85,6 @@ static int ipack_bus_remove(struct device *device)
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG
-
 static int ipack_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct ipack_device *idev;
@@ -103,12 +101,6 @@ static int ipack_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-
-#else /* !CONFIG_HOTPLUG */
-
-#define ipack_uevent NULL
-
-#endif /* !CONFIG_HOTPLUG */
 
 #define ipack_device_attr(field, format_string)				\
 static ssize_t								\
