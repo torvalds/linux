@@ -591,7 +591,7 @@ out:
 static void nfs41_init_sequence(struct nfs4_sequence_args *args,
 		struct nfs4_sequence_res *res, int cache_reply)
 {
-	args->sa_session = NULL;
+	args->sa_slot = NULL;
 	args->sa_cache_this = 0;
 	if (cache_reply)
 		args->sa_cache_this = 1;
@@ -644,8 +644,8 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	rpc_task_set_priority(task, RPC_PRIORITY_NORMAL);
 	slot = tbl->slots + slotid;
 	slot->renewal_time = jiffies;
-	args->sa_session = session;
-	args->sa_slotid = slotid;
+
+	args->sa_slot = slot;
 
 	dprintk("<-- %s slotid=%d seqid=%d\n", __func__, slotid, slot->seq_nr);
 
