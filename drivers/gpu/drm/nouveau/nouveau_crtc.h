@@ -91,7 +91,4 @@ int nv50_crtc_cursor_move(struct drm_crtc *drm_crtc, int x, int y);
 int nv04_cursor_init(struct nouveau_crtc *);
 int nv50_cursor_init(struct nouveau_crtc *);
 
-struct nouveau_connector *
-nouveau_crtc_connector_get(struct nouveau_crtc *crtc);
-
 #endif /* __NOUVEAU_CRTC_H__ */

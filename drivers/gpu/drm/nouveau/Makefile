@@ -192,7 +192,7 @@ nouveau-y += nv04_fence.o nv10_fence.o nv50_fence.o nv84_fence.o nvc0_fence.o
 
 # drm/kms
 nouveau-y += nouveau_bios.o nouveau_fbcon.o nouveau_display.o
-nouveau-y += nouveau_connector.o nouveau_hdmi.o nouveau_dp.o
+nouveau-y += nouveau_connector.o nouveau_dp.o
 nouveau-y += nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o
 
 # drm/kms/nv04:nv50
@@ -201,9 +201,7 @@ nouveau-y += nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o
 nouveau-y += nv04_crtc.o nv04_display.o nv04_cursor.o
 
 # drm/kms/nv50-
-nouveau-y += nv50_display.o nvd0_display.o
-nouveau-y += nv50_crtc.o nv50_dac.o nv50_sor.o nv50_cursor.o
-nouveau-y += nv50_evo.o
+nouveau-y += nvd0_display.o
 
 # drm/pm
 nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o

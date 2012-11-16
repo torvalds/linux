@@ -70,7 +70,7 @@ nv50_fence_context_new(struct nouveau_channel *chan)
 
 	/* dma objects for display sync channel semaphore blocks */
 	for (i = 0; !ret && i < dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo = nv50_display_crtc_sema(dev, i);
+		struct nouveau_bo *bo = nvd0_display_crtc_sema(dev, i);
 
 		ret = nouveau_object_new(nv_object(chan->cli), chan->handle,
 					 NvEvoSema0 + i, 0x003d,
