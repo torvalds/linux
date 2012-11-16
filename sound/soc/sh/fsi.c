@@ -1771,7 +1771,6 @@ static int fsi_set_fmt_spdif(struct fsi_priv *fsi)
 
 	fsi->fmt = CR_DTMD_SPDIF_PCM | CR_PCM;
 	fsi->chan_num = 2;
-	fsi->spdif = 1;
 
 	return 0;
 }
@@ -1816,16 +1815,10 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	}
 
 	/* set format */
-	switch (flags & SH_FSI_FMT_MASK) {
-	case SH_FSI_FMT_DAI:
-		ret = fsi_set_fmt_dai(fsi, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
-		break;
-	case SH_FSI_FMT_SPDIF:
+	if (fsi_is_spdif(fsi))
 		ret = fsi_set_fmt_spdif(fsi);
-		break;
-	default:
-		ret = -EINVAL;
-	}
+	else
+		ret = fsi_set_fmt_dai(fsi, fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 
 	return ret;
 }
@@ -1991,6 +1984,13 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 /*
  *		platform function
  */
+static void fsi_port_info_init(struct fsi_priv *fsi,
+			       struct sh_fsi_port_info *info)
+{
+	if (info->flags & SH_FSI_FMT_SPDIF)
+		fsi->spdif = 1;
+}
+
 static void fsi_handler_init(struct fsi_priv *fsi,
 			     struct sh_fsi_port_info *info)
 {
@@ -2057,6 +2057,7 @@ static int fsi_probe(struct platform_device *pdev)
 	fsi->base	= master->base;
 	fsi->master	= master;
 	fsi->info	= pinfo;
+	fsi_port_info_init(fsi, pinfo);
 	fsi_handler_init(fsi, pinfo);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
@@ -2070,6 +2071,7 @@ static int fsi_probe(struct platform_device *pdev)
 	fsi->base	= master->base + 0x40;
 	fsi->master	= master;
 	fsi->info	= pinfo;
+	fsi_port_info_init(fsi, pinfo);
 	fsi_handler_init(fsi, pinfo);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
