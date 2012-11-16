@@ -578,6 +578,9 @@
  *	station, due to particular reason. %NL80211_ATTR_CONN_FAILED_REASON
  *	is used for this.
  *
+ * @NL80211_CMD_SET_MCAST_RATE: Change the rate used to send multicast frames
+ *	for IBSS or MESH vif.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -725,6 +728,8 @@ enum nl80211_commands {
 	NL80211_CMD_STOP_P2P_DEVICE,
 
 	NL80211_CMD_CONN_FAILED,
+
+	NL80211_CMD_SET_MCAST_RATE,
 
 	/* add new commands above here */
 
@@ -3051,6 +3056,7 @@ enum nl80211_ap_sme_features {
  * @NL80211_FEATURE_LOW_PRIORITY_SCAN: This driver supports low priority scan
  * @NL80211_FEATURE_SCAN_FLUSH: Scan flush is supported
  * @NL80211_FEATURE_AP_SCAN: Support scanning using an AP vif
+ * @NL80211_FEATURE_VIF_TXPOWER: The driver supports per-vif TX power setting
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3062,6 +3068,7 @@ enum nl80211_feature_flags {
 	NL80211_FEATURE_LOW_PRIORITY_SCAN		= 1 << 6,
 	NL80211_FEATURE_SCAN_FLUSH			= 1 << 7,
 	NL80211_FEATURE_AP_SCAN				= 1 << 8,
+	NL80211_FEATURE_VIF_TXPOWER			= 1 << 9,
 };
 
 /**

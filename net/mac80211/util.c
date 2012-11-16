@@ -512,7 +512,7 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw)
 EXPORT_SYMBOL(ieee80211_wake_queues);
 
 void ieee80211_iterate_active_interfaces(
-	struct ieee80211_hw *hw,
+	struct ieee80211_hw *hw, u32 iter_flags,
 	void (*iterator)(void *data, u8 *mac,
 			 struct ieee80211_vif *vif),
 	void *data)
@@ -530,6 +530,9 @@ void ieee80211_iterate_active_interfaces(
 		default:
 			break;
 		}
+		if (!(iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL) &&
+		    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+			continue;
 		if (ieee80211_sdata_running(sdata))
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
@@ -537,7 +540,9 @@ void ieee80211_iterate_active_interfaces(
 
 	sdata = rcu_dereference_protected(local->monitor_sdata,
 					  lockdep_is_held(&local->iflist_mtx));
-	if (sdata)
+	if (sdata &&
+	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL ||
+	     sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 		iterator(data, sdata->vif.addr, &sdata->vif);
 
 	mutex_unlock(&local->iflist_mtx);
@@ -545,7 +550,7 @@ void ieee80211_iterate_active_interfaces(
 EXPORT_SYMBOL_GPL(ieee80211_iterate_active_interfaces);
 
 void ieee80211_iterate_active_interfaces_atomic(
-	struct ieee80211_hw *hw,
+	struct ieee80211_hw *hw, u32 iter_flags,
 	void (*iterator)(void *data, u8 *mac,
 			 struct ieee80211_vif *vif),
 	void *data)
@@ -563,13 +568,18 @@ void ieee80211_iterate_active_interfaces_atomic(
 		default:
 			break;
 		}
+		if (!(iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL) &&
+		    !(sdata->flags & IEEE80211_SDATA_IN_DRIVER))
+			continue;
 		if (ieee80211_sdata_running(sdata))
 			iterator(data, sdata->vif.addr,
 				 &sdata->vif);
 	}
 
 	sdata = rcu_dereference(local->monitor_sdata);
-	if (sdata)
+	if (sdata &&
+	    (iter_flags & IEEE80211_IFACE_ITER_RESUME_ALL ||
+	     sdata->flags & IEEE80211_SDATA_IN_DRIVER))
 		iterator(data, sdata->vif.addr, &sdata->vif);
 
 	rcu_read_unlock();
@@ -1412,6 +1422,23 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		WARN_ON(drv_add_chanctx(local, ctx));
 	mutex_unlock(&local->chanctx_mtx);
 
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		struct ieee80211_chanctx_conf *ctx_conf;
+
+		if (!ieee80211_sdata_running(sdata))
+			continue;
+
+		mutex_lock(&local->chanctx_mtx);
+		ctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
+				lockdep_is_held(&local->chanctx_mtx));
+		if (ctx_conf) {
+			ctx = container_of(ctx_conf, struct ieee80211_chanctx,
+					   conf);
+			drv_assign_vif_chanctx(local, sdata, ctx);
+		}
+		mutex_unlock(&local->chanctx_mtx);
+	}
+
 	/* add STAs back */
 	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
@@ -1452,21 +1479,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		struct ieee80211_chanctx_conf *ctx_conf;
 		u32 changed;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
-
-		mutex_lock(&local->chanctx_mtx);
-		ctx_conf = rcu_dereference_protected(sdata->vif.chanctx_conf,
-				lockdep_is_held(&local->chanctx_mtx));
-		if (ctx_conf) {
-			ctx = container_of(ctx_conf, struct ieee80211_chanctx,
-					   conf);
-			drv_assign_vif_chanctx(local, sdata, ctx);
-		}
-		mutex_unlock(&local->chanctx_mtx);
 
 		/* common change flags for all interface types */
 		changed = BSS_CHANGED_ERP_CTS_PROT |
@@ -1478,7 +1494,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			  BSS_CHANGED_BSSID |
 			  BSS_CHANGED_CQM |
 			  BSS_CHANGED_QOS |
-			  BSS_CHANGED_IDLE;
+			  BSS_CHANGED_IDLE |
+			  BSS_CHANGED_TXPOWER;
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
@@ -1495,8 +1512,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		case NL80211_IFTYPE_AP:
 			changed |= BSS_CHANGED_SSID;
 
-			if (sdata->vif.type == NL80211_IFTYPE_AP)
+			if (sdata->vif.type == NL80211_IFTYPE_AP) {
 				changed |= BSS_CHANGED_AP_PROBE_RESP;
+
+				if (rcu_access_pointer(sdata->u.ap.beacon))
+					drv_start_ap(local, sdata);
+			}
 
 			/* fall through */
 		case NL80211_IFTYPE_MESH_POINT:
@@ -1594,8 +1615,10 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	 * If this is for hw restart things are still running.
 	 * We may want to change that later, however.
 	 */
-	if (!local->suspended)
+	if (!local->suspended) {
+		drv_restart_complete(local);
 		return 0;
+	}
 
 #ifdef CONFIG_PM
 	/* first set suspended false, then resuming */

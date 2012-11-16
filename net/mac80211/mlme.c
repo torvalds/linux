@@ -820,10 +820,10 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 					 cbss->beacon_interval));
 }
 
-static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
-					struct ieee80211_channel *channel,
-					const u8 *country_ie, u8 country_ie_len,
-					const u8 *pwr_constr_elem)
+static u32 ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_channel *channel,
+				       const u8 *country_ie, u8 country_ie_len,
+				       const u8 *pwr_constr_elem)
 {
 	struct ieee80211_country_ie_triplet *triplet;
 	int chan = ieee80211_frequency_to_channel(channel->center_freq);
@@ -832,7 +832,7 @@ static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 
 	/* Invalid IE */
 	if (country_ie_len % 2 || country_ie_len < IEEE80211_COUNTRY_IE_MIN_LEN)
-		return;
+		return 0;
 
 	triplet = (void *)(country_ie + 3);
 	country_ie_len -= 3;
@@ -873,19 +873,21 @@ static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!have_chan_pwr)
-		return;
+		return 0;
 
 	new_ap_level = max_t(int, 0, chan_pwr - *pwr_constr_elem);
 
-	if (sdata->local->ap_power_level == new_ap_level)
-		return;
+	if (sdata->ap_power_level == new_ap_level)
+		return 0;
 
 	sdata_info(sdata,
 		   "Limiting TX power to %d (%d - %d) dBm as advertised by %pM\n",
 		   new_ap_level, chan_pwr, *pwr_constr_elem,
 		   sdata->u.mgd.bssid);
-	sdata->local->ap_power_level = new_ap_level;
-	ieee80211_hw_config(sdata->local, 0);
+	sdata->ap_power_level = new_ap_level;
+	if (__ieee80211_recalc_txpower(sdata))
+		return BSS_CHANGED_TXPOWER;
+	return 0;
 }
 
 void ieee80211_enable_dyn_ps(struct ieee80211_vif *vif)
@@ -1363,6 +1365,22 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	sdata->u.mgd.flags |= IEEE80211_STA_RESET_SIGNAL_AVE;
 
+	if (sdata->vif.p2p) {
+		u8 noa[2];
+		int ret;
+
+		ret = cfg80211_get_p2p_attr(cbss->information_elements,
+					    cbss->len_information_elements,
+					    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
+					    noa, sizeof(noa));
+		if (ret >= 2) {
+			bss_conf->p2p_oppps = noa[1] & 0x80;
+			bss_conf->p2p_ctwindow = noa[1] & 0x7f;
+			bss_info_changed |= BSS_CHANGED_P2P_PS;
+			sdata->u.mgd.p2p_noa_index = noa[0];
+		}
+	}
+
 	/* just to be sure */
 	ieee80211_stop_poll(sdata);
 
@@ -1485,11 +1503,14 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_ASSOC;
 	sdata->vif.bss_conf.assoc = false;
 
+	sdata->vif.bss_conf.p2p_ctwindow = 0;
+	sdata->vif.bss_conf.p2p_oppps = false;
+
 	/* on the next assoc, re-program HT parameters */
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
 	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
 
-	local->ap_power_level = 0;
+	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
 
 	del_timer_sync(&local->dynamic_ps_timer);
 	cancel_work_sync(&local->dynamic_ps_enable_work);
@@ -2592,6 +2613,27 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
+	if (sdata->vif.p2p) {
+		u8 noa[2];
+		int ret;
+
+		ret = cfg80211_get_p2p_attr(mgmt->u.beacon.variable,
+					    len - baselen,
+					    IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
+					    noa, sizeof(noa));
+		if (ret >= 2 && sdata->u.mgd.p2p_noa_index != noa[0]) {
+			bss_conf->p2p_oppps = noa[1] & 0x80;
+			bss_conf->p2p_ctwindow = noa[1] & 0x7f;
+			changed |= BSS_CHANGED_P2P_PS;
+			sdata->u.mgd.p2p_noa_index = noa[0];
+			/*
+			 * make sure we update all information, the CRC
+			 * mechanism doesn't look at P2P attributes.
+			 */
+			ifmgd->beacon_crc_valid = false;
+		}
+	}
+
 	if (ncrc == ifmgd->beacon_crc && ifmgd->beacon_crc_valid)
 		return;
 	ifmgd->beacon_crc = ncrc;
@@ -2623,10 +2665,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	if (elems.country_elem && elems.pwr_constr_elem &&
 	    mgmt->u.probe_resp.capab_info &
 				cpu_to_le16(WLAN_CAPABILITY_SPECTRUM_MGMT))
-		ieee80211_handle_pwr_constr(sdata, chan,
-					    elems.country_elem,
-					    elems.country_elem_len,
-					    elems.pwr_constr_elem);
+		changed |= ieee80211_handle_pwr_constr(sdata, chan,
+						       elems.country_elem,
+						       elems.country_elem_len,
+						       elems.pwr_constr_elem);
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 }
@@ -3660,39 +3702,43 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 	bool tx = !req->local_state_change;
+	bool sent_frame = false;
 
 	mutex_lock(&ifmgd->mtx);
-
-	if (ifmgd->auth_data) {
-		ieee80211_destroy_auth_data(sdata, false);
-		mutex_unlock(&ifmgd->mtx);
-		return 0;
-	}
 
 	sdata_info(sdata,
 		   "deauthenticating from %pM by local choice (reason=%d)\n",
 		   req->bssid, req->reason_code);
 
-	if (ifmgd->associated &&
-	    ether_addr_equal(ifmgd->associated->bssid, req->bssid)) {
-		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
-				       req->reason_code, tx, frame_buf);
-	} else {
+	if (ifmgd->auth_data) {
 		drv_mgd_prepare_tx(sdata->local, sdata);
 		ieee80211_send_deauth_disassoc(sdata, req->bssid,
 					       IEEE80211_STYPE_DEAUTH,
 					       req->reason_code, tx,
 					       frame_buf);
+		ieee80211_destroy_auth_data(sdata, false);
+		mutex_unlock(&ifmgd->mtx);
+
+		sent_frame = tx;
+		goto out;
 	}
 
+	if (ifmgd->associated &&
+	    ether_addr_equal(ifmgd->associated->bssid, req->bssid)) {
+		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
+				       req->reason_code, tx, frame_buf);
+		sent_frame = tx;
+	}
 	mutex_unlock(&ifmgd->mtx);
 
-	__cfg80211_send_deauth(sdata->dev, frame_buf,
-			       IEEE80211_DEAUTH_FRAME_LEN);
-
+ out:
 	mutex_lock(&sdata->local->mtx);
 	ieee80211_recalc_idle(sdata->local);
 	mutex_unlock(&sdata->local->mtx);
+
+	if (sent_frame)
+		__cfg80211_send_deauth(sdata->dev, frame_buf,
+				       IEEE80211_DEAUTH_FRAME_LEN);
 
 	return 0;
 }

@@ -173,6 +173,8 @@ static int ieee80211_assign_vif_chanctx(struct ieee80211_sub_if_data *sdata,
 	rcu_assign_pointer(sdata->vif.chanctx_conf, &ctx->conf);
 	ctx->refcount++;
 
+	ieee80211_recalc_txpower(sdata);
+
 	return 0;
 }
 

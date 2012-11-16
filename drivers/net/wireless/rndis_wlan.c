@@ -490,9 +490,12 @@ static int rndis_scan(struct wiphy *wiphy,
 static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed);
 
 static int rndis_set_tx_power(struct wiphy *wiphy,
+			      struct wireless_dev *wdev,
 			      enum nl80211_tx_power_setting type,
 			      int mbm);
-static int rndis_get_tx_power(struct wiphy *wiphy, int *dbm);
+static int rndis_get_tx_power(struct wiphy *wiphy,
+			      struct wireless_dev *wdev,
+			      int *dbm);
 
 static int rndis_connect(struct wiphy *wiphy, struct net_device *dev,
 				struct cfg80211_connect_params *sme);
@@ -1903,6 +1906,7 @@ static int rndis_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 }
 
 static int rndis_set_tx_power(struct wiphy *wiphy,
+			      struct wireless_dev *wdev,
 			      enum nl80211_tx_power_setting type,
 			      int mbm)
 {
@@ -1930,7 +1934,9 @@ static int rndis_set_tx_power(struct wiphy *wiphy,
 	return -ENOTSUPP;
 }
 
-static int rndis_get_tx_power(struct wiphy *wiphy, int *dbm)
+static int rndis_get_tx_power(struct wiphy *wiphy,
+			      struct wireless_dev *wdev,
+			      int *dbm)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;

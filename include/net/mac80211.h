@@ -207,6 +207,9 @@ struct ieee80211_chanctx_conf {
  * @BSS_CHANGED_SSID: SSID changed for this BSS (AP mode)
  * @BSS_CHANGED_AP_PROBE_RESP: Probe Response changed for this BSS (AP mode)
  * @BSS_CHANGED_PS: PS changed for this BSS (STA mode)
+ * @BSS_CHANGED_TXPOWER: TX power setting changed for this interface
+ * @BSS_CHANGED_P2P_PS: P2P powersave settings (CTWindow, opportunistic PS)
+ *	changed (currently only in P2P client mode, GO mode will be later)
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -227,6 +230,8 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_SSID		= 1<<15,
 	BSS_CHANGED_AP_PROBE_RESP	= 1<<16,
 	BSS_CHANGED_PS			= 1<<17,
+	BSS_CHANGED_TXPOWER		= 1<<18,
+	BSS_CHANGED_P2P_PS		= 1<<19,
 
 	/* when adding here, make sure to change ieee80211_reconfig */
 };
@@ -309,6 +314,9 @@ enum ieee80211_rssi_event {
  * @ssid: The SSID of the current vif. Only valid in AP-mode.
  * @ssid_len: Length of SSID given in @ssid.
  * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
+ * @txpower: TX power in dBm
+ * @p2p_ctwindow: P2P CTWindow, only for P2P client interfaces
+ * @p2p_oppps: P2P opportunistic PS is enabled
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -341,6 +349,9 @@ struct ieee80211_bss_conf {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	size_t ssid_len;
 	bool hidden_ssid;
+	int txpower;
+	u8 p2p_ctwindow;
+	bool p2p_oppps;
 };
 
 /**
@@ -884,7 +895,8 @@ enum ieee80211_smps_mode {
  *	powersave documentation below. This variable is valid only when
  *	the CONF_PS flag is set.
  *
- * @power_level: requested transmit power (in dBm)
+ * @power_level: requested transmit power (in dBm), backward compatibility
+ *	value only that is set to the minimum of all interfaces
  *
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
@@ -2381,6 +2393,17 @@ enum ieee80211_rate_control_changed {
  *	to vif. Possible use is for hw queue remapping.
  * @unassign_vif_chanctx: Notifies device driver about channel context being
  *	unbound from vif.
+ * @start_ap: Start operation on the AP interface, this is called after all the
+ *	information in bss_conf is set and beacon can be retrieved. A channel
+ *	context is bound before this is called. Note that if the driver uses
+ *	software scan or ROC, this (and @stop_ap) isn't called when the AP is
+ *	just "paused" for scanning/ROC, which is indicated by the beacon being
+ *	disabled/enabled via @bss_info_changed.
+ * @stop_ap: Stop operation on the AP interface.
+ *
+ * @restart_complete: Called after a call to ieee80211_restart_hw(), when the
+ *	reconfiguration has completed. This can help the driver implement the
+ *	reconfiguration step. This callback may sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -2405,6 +2428,9 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+
+	int (*start_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
@@ -2539,6 +2565,8 @@ struct ieee80211_ops {
 	void (*unassign_vif_chanctx)(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_chanctx_conf *ctx);
+
+	void (*restart_complete)(struct ieee80211_hw *hw);
 };
 
 /**
@@ -3385,6 +3413,21 @@ void ieee80211_sched_scan_results(struct ieee80211_hw *hw);
 void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
 
 /**
+ * enum ieee80211_interface_iteration_flags - interface iteration flags
+ * @IEEE80211_IFACE_ITER_NORMAL: Iterate over all interfaces that have
+ *	been added to the driver; However, note that during hardware
+ *	reconfiguration (after restart_hw) it will iterate over a new
+ *	interface and over all the existing interfaces even if they
+ *	haven't been re-added to the driver yet.
+ * @IEEE80211_IFACE_ITER_RESUME_ALL: During resume, iterate over all
+ *	interfaces, even if they haven't been re-added to the driver yet.
+ */
+enum ieee80211_interface_iteration_flags {
+	IEEE80211_IFACE_ITER_NORMAL	= 0,
+	IEEE80211_IFACE_ITER_RESUME_ALL	= BIT(0),
+};
+
+/**
  * ieee80211_iterate_active_interfaces - iterate active interfaces
  *
  * This function iterates over the interfaces associated with a given
@@ -3392,13 +3435,15 @@ void ieee80211_sched_scan_stopped(struct ieee80211_hw *hw);
  * This function allows the iterator function to sleep, when the iterator
  * function is atomic @ieee80211_iterate_active_interfaces_atomic can
  * be used.
- * Does not iterate over a new interface during add_interface()
+ * Does not iterate over a new interface during add_interface().
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
  * @iterator: the iterator function to call
  * @data: first argument of the iterator function
  */
 void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
+					 u32 iter_flags,
 					 void (*iterator)(void *data, u8 *mac,
 						struct ieee80211_vif *vif),
 					 void *data);
@@ -3410,13 +3455,15 @@ void ieee80211_iterate_active_interfaces(struct ieee80211_hw *hw,
  * hardware that are currently active and calls the callback for them.
  * This function requires the iterator callback function to be atomic,
  * if that is not desired, use @ieee80211_iterate_active_interfaces instead.
- * Does not iterate over a new interface during add_interface()
+ * Does not iterate over a new interface during add_interface().
  *
  * @hw: the hardware struct of which the interfaces should be iterated over
+ * @iter_flags: iteration flags, see &enum ieee80211_interface_iteration_flags
  * @iterator: the iterator function to call, cannot sleep
  * @data: first argument of the iterator function
  */
 void ieee80211_iterate_active_interfaces_atomic(struct ieee80211_hw *hw,
+						u32 iter_flags,
 						void (*iterator)(void *data,
 						    u8 *mac,
 						    struct ieee80211_vif *vif),

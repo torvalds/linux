@@ -1545,13 +1545,19 @@ struct cfg80211_gtk_rekey_data {
  *	to a merge.
  * @leave_ibss: Leave the IBSS.
  *
+ * @set_mcast_rate: Set the specified multicast rate (only if vif is in ADHOC or
+ *	MESH mode)
+ *
  * @set_wiphy_params: Notify that wiphy parameters have changed;
  *	@changed bitfield (see &enum wiphy_params_flags) describes which values
  *	have changed. The actual parameter values are available in
  *	struct wiphy. If returning an error, no value should be changed.
  *
  * @set_tx_power: set the transmit power according to the parameters,
- *	the power passed is in mBm, to get dBm use MBM_TO_DBM().
+ *	the power passed is in mBm, to get dBm use MBM_TO_DBM(). The
+ *	wdev may be %NULL if power was set for the wiphy, and will
+ *	always be %NULL unless the driver supports per-vif TX power
+ *	(as advertised by the nl80211 feature flag.)
  * @get_tx_power: store the current TX power into the dbm variable;
  *	return 0 if successful
  *
@@ -1746,11 +1752,15 @@ struct cfg80211_ops {
 			     struct cfg80211_ibss_params *params);
 	int	(*leave_ibss)(struct wiphy *wiphy, struct net_device *dev);
 
+	int	(*set_mcast_rate)(struct wiphy *wiphy, struct net_device *dev,
+				  int rate[IEEE80211_NUM_BANDS]);
+
 	int	(*set_wiphy_params)(struct wiphy *wiphy, u32 changed);
 
-	int	(*set_tx_power)(struct wiphy *wiphy,
+	int	(*set_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
 				enum nl80211_tx_power_setting type, int mbm);
-	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
+	int	(*get_tx_power)(struct wiphy *wiphy, struct wireless_dev *wdev,
+				int *dbm);
 
 	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *addr);
@@ -3550,7 +3560,6 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  * @len: length of the frame
  * @freq: frequency the frame was received on
  * @sig_dbm: signal strength in mBm, or 0 if unknown
- * @gfp: allocation flags
  *
  * Use this function to report to userspace when a beacon was
  * received. It is not useful to call this when there is no
@@ -3558,7 +3567,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  */
 void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 const u8 *frame, size_t len,
-				 int freq, int sig_dbm, gfp_t gfp);
+				 int freq, int sig_dbm);
 
 /**
  * cfg80211_can_beacon_sec_chan - test if ht40 on extension channel can be used
@@ -3607,6 +3616,25 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate);
  * Requires the RTNL to be held.
  */
 void cfg80211_unregister_wdev(struct wireless_dev *wdev);
+
+/**
+ * cfg80211_get_p2p_attr - find and copy a P2P attribute from IE buffer
+ * @ies: the input IE buffer
+ * @len: the input length
+ * @attr: the attribute ID to find
+ * @buf: output buffer, can be %NULL if the data isn't needed, e.g.
+ *	if the function is only called to get the needed buffer size
+ * @bufsize: size of the output buffer
+ *
+ * The function finds a given P2P attribute in the (vendor) IEs and
+ * copies its contents to the given buffer.
+ *
+ * The return value is a negative error code (-%EILSEQ or -%ENOENT) if
+ * the data is malformed or the attribute can't be found (respectively),
+ * or the length of the found attribute (which can be zero).
+ */
+unsigned int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
+				   u8 attr, u8 *buf, unsigned int bufsize);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

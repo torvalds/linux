@@ -157,6 +157,7 @@ static void rt2x00lib_intf_scheduled(struct work_struct *work)
 	 * requested configurations.
 	 */
 	ieee80211_iterate_active_interfaces(rt2x00dev->hw,
+					    IEEE80211_IFACE_ITER_RESUME_ALL,
 					    rt2x00lib_intf_scheduled_iter,
 					    rt2x00dev);
 }
@@ -225,9 +226,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* send buffered bc/mc frames out for every bssid */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_bc_buffer_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_bc_buffer_iter, rt2x00dev);
 	/*
 	 * Devices with pre tbtt interrupt don't need to update the beacon
 	 * here as they will fetch the next beacon directly prior to
@@ -237,9 +238,9 @@ void rt2x00lib_beacondone(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beaconupdate_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_beaconupdate_iter, rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_beacondone);
 
@@ -249,9 +250,9 @@ void rt2x00lib_pretbtt(struct rt2x00_dev *rt2x00dev)
 		return;
 
 	/* fetch next beacon */
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00lib_beaconupdate_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00lib_beaconupdate_iter, rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_pretbtt);
 

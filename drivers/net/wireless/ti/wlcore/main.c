@@ -677,7 +677,7 @@ static void wl12xx_get_vif_count(struct ieee80211_hw *hw,
 	memset(data, 0, sizeof(*data));
 	data->cur_vif = cur_vif;
 
-	ieee80211_iterate_active_interfaces(hw,
+	ieee80211_iterate_active_interfaces(hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 					    wl12xx_vif_count_iter, data);
 }
 

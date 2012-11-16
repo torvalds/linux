@@ -42,6 +42,41 @@
  * by either the RTNL, the iflist_mtx or RCU.
  */
 
+bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	int power;
+
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+	if (!chanctx_conf) {
+		rcu_read_unlock();
+		return false;
+	}
+
+	power = chanctx_conf->channel->max_power;
+	rcu_read_unlock();
+
+	if (sdata->user_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, sdata->user_power_level);
+
+	if (sdata->ap_power_level != IEEE80211_UNSET_POWER_LEVEL)
+		power = min(power, sdata->ap_power_level);
+
+	if (power != sdata->vif.bss_conf.txpower) {
+		sdata->vif.bss_conf.txpower = power;
+		ieee80211_hw_config(sdata->local, 0);
+		return true;
+	}
+
+	return false;
+}
+
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
+{
+	if (__ieee80211_recalc_txpower(sdata))
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
+}
 
 static u32 ieee80211_idle_off(struct ieee80211_local *local,
 			      const char *reason)
@@ -744,31 +779,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	/* APs need special treatment */
 	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmpsdata;
-		struct beacon_data *old_beacon =
-			rtnl_dereference(sdata->u.ap.beacon);
-		struct probe_resp *old_probe_resp =
-			rtnl_dereference(sdata->u.ap.probe_resp);
-
-		/* sdata_running will return false, so this will disable */
-		ieee80211_bss_info_change_notify(sdata,
-						 BSS_CHANGED_BEACON_ENABLED);
-
-		/* remove beacon and probe response */
-		RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
-		RCU_INIT_POINTER(sdata->u.ap.probe_resp, NULL);
-		synchronize_rcu();
-		kfree(old_beacon);
-		kfree(old_probe_resp);
 
 		/* down all dependent devices, that is VLANs */
 		list_for_each_entry_safe(vlan, tmpsdata, &sdata->u.ap.vlans,
 					 u.vlan.list)
 			dev_close(vlan->dev);
 		WARN_ON(!list_empty(&sdata->u.ap.vlans));
-
-		/* free all potentially still buffered bcast frames */
-		local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
-		skb_queue_purge(&sdata->u.ap.ps.bc_buf);
 	} else if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 		ieee80211_mgd_stop(sdata);
 	}
@@ -1528,6 +1544,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	}
 
 	ieee80211_set_default_queues(sdata);
+
+	sdata->ap_power_level = IEEE80211_UNSET_POWER_LEVEL;
+	sdata->user_power_level = local->user_power_level;
 
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);

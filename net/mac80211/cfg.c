@@ -922,6 +922,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 	changed |= err;
 
+	err = drv_start_ap(sdata->local, sdata);
+	if (err) {
+		old = rtnl_dereference(sdata->u.ap.beacon);
+		if (old)
+			kfree_rcu(old, rcu_head);
+		RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
+		return err;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_carrier_on(dev);
@@ -953,25 +962,37 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata, *vlan;
-	struct beacon_data *old;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *vlan;
+	struct ieee80211_local *local = sdata->local;
+	struct beacon_data *old_beacon;
+	struct probe_resp *old_probe_resp;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
-	old = rtnl_dereference(sdata->u.ap.beacon);
-	if (!old)
+	old_beacon = rtnl_dereference(sdata->u.ap.beacon);
+	if (!old_beacon)
 		return -ENOENT;
+	old_probe_resp = rtnl_dereference(sdata->u.ap.probe_resp);
 
+	/* turn off carrier for this interface and dependent VLANs */
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
 		netif_carrier_off(vlan->dev);
 	netif_carrier_off(dev);
 
+	/* remove beacon and probe response */
 	RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
+	RCU_INIT_POINTER(sdata->u.ap.probe_resp, NULL);
+	kfree_rcu(old_beacon, rcu_head);
+	if (old_probe_resp)
+		kfree_rcu(old_probe_resp, rcu_head);
 
-	kfree_rcu(old, rcu_head);
-
-	sta_info_flush(sdata->local, sdata);
+	sta_info_flush(local, sdata);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+
+	drv_stop_ap(sdata->local, sdata);
+
+	/* free all potentially still buffered bcast frames */
+	local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
+	skb_queue_purge(&sdata->u.ap.ps.bc_buf);
 
 	ieee80211_vif_release_channel(sdata);
 
@@ -1933,6 +1954,16 @@ static int ieee80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	return ieee80211_ibss_leave(IEEE80211_DEV_TO_SUB_IF(dev));
 }
 
+static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
+				    int rate[IEEE80211_NUM_BANDS])
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	memcpy(sdata->vif.bss_conf.mcast_rate, rate, sizeof(rate));
+
+	return 0;
+}
+
 static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
@@ -1971,45 +2002,65 @@ static int ieee80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 }
 
 static int ieee80211_set_tx_power(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
 				  enum nl80211_tx_power_setting type, int mbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
-	struct ieee80211_channel *chan = local->_oper_channel;
-	u32 changes = 0;
+	struct ieee80211_sub_if_data *sdata;
 
-	/* FIXME */
-	if (local->use_chanctx)
-		return -EOPNOTSUPP;
+	if (wdev) {
+		sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+		switch (type) {
+		case NL80211_TX_POWER_AUTOMATIC:
+			sdata->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
+			break;
+		case NL80211_TX_POWER_LIMITED:
+		case NL80211_TX_POWER_FIXED:
+			if (mbm < 0 || (mbm % 100))
+				return -EOPNOTSUPP;
+			sdata->user_power_level = MBM_TO_DBM(mbm);
+			break;
+		}
+
+		ieee80211_recalc_txpower(sdata);
+
+		return 0;
+	}
 
 	switch (type) {
 	case NL80211_TX_POWER_AUTOMATIC:
-		local->user_power_level = -1;
+		local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
 		break;
 	case NL80211_TX_POWER_LIMITED:
-		if (mbm < 0 || (mbm % 100))
-			return -EOPNOTSUPP;
-		local->user_power_level = MBM_TO_DBM(mbm);
-		break;
 	case NL80211_TX_POWER_FIXED:
 		if (mbm < 0 || (mbm % 100))
 			return -EOPNOTSUPP;
-		/* TODO: move to cfg80211 when it knows the channel */
-		if (MBM_TO_DBM(mbm) > chan->max_power)
-			return -EINVAL;
 		local->user_power_level = MBM_TO_DBM(mbm);
 		break;
 	}
 
-	ieee80211_hw_config(local, changes);
+	mutex_lock(&local->iflist_mtx);
+	list_for_each_entry(sdata, &local->interfaces, list)
+		sdata->user_power_level = local->user_power_level;
+	list_for_each_entry(sdata, &local->interfaces, list)
+		ieee80211_recalc_txpower(sdata);
+	mutex_unlock(&local->iflist_mtx);
 
 	return 0;
 }
 
-static int ieee80211_get_tx_power(struct wiphy *wiphy, int *dbm)
+static int ieee80211_get_tx_power(struct wiphy *wiphy,
+				  struct wireless_dev *wdev,
+				  int *dbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 
-	*dbm = local->hw.conf.power_level;
+	if (!local->use_chanctx)
+		*dbm = local->hw.conf.power_level;
+	else
+		*dbm = sdata->vif.bss_conf.txpower;
 
 	return 0;
 }
@@ -2341,13 +2392,22 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		list_add_tail(&roc->list, &local->roc_list);
 
 	/*
-	 * cookie is either the roc (for normal roc)
+	 * cookie is either the roc cookie (for normal roc)
 	 * or the SKB (for mgmt TX)
 	 */
-	if (txskb)
+	if (!txskb) {
+		/* local->mtx protects this */
+		local->roc_cookie_counter++;
+		roc->cookie = local->roc_cookie_counter;
+		/* wow, you wrapped 64 bits ... more likely a bug */
+		if (WARN_ON(roc->cookie == 0)) {
+			roc->cookie = 1;
+			local->roc_cookie_counter++;
+		}
+		*cookie = roc->cookie;
+	} else {
 		*cookie = (unsigned long)txskb;
-	else
-		*cookie = (unsigned long)roc;
+	}
 
 	return 0;
 }
@@ -2382,7 +2442,7 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 		struct ieee80211_roc_work *dep, *tmp2;
 
 		list_for_each_entry_safe(dep, tmp2, &roc->dependents, list) {
-			if (!mgmt_tx && (unsigned long)dep != cookie)
+			if (!mgmt_tx && dep->cookie != cookie)
 				continue;
 			else if (mgmt_tx && dep->mgmt_tx_cookie != cookie)
 				continue;
@@ -2394,7 +2454,7 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 			return 0;
 		}
 
-		if (!mgmt_tx && (unsigned long)roc != cookie)
+		if (!mgmt_tx && roc->cookie != cookie)
 			continue;
 		else if (mgmt_tx && roc->mgmt_tx_cookie != cookie)
 			continue;
@@ -3130,6 +3190,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.disassoc = ieee80211_disassoc,
 	.join_ibss = ieee80211_join_ibss,
 	.leave_ibss = ieee80211_leave_ibss,
+	.set_mcast_rate = ieee80211_set_mcast_rate,
 	.set_wiphy_params = ieee80211_set_wiphy_params,
 	.set_tx_power = ieee80211_set_tx_power,
 	.get_tx_power = ieee80211_get_tx_power,

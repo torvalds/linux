@@ -342,6 +342,9 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(bool, ps);
 		__dynamic_array(u8, ssid, info->ssid_len);
 		__field(bool, hidden_ssid);
+		__field(int, txpower)
+		__field(u8, p2p_ctwindow)
+		__field(bool, p2p_oppps)
 	),
 
 	TP_fast_assign(
@@ -376,6 +379,9 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->ps = info->ps;
 		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
 		__entry->hidden_ssid = info->hidden_ssid;
+		__entry->txpower = info->txpower;
+		__entry->p2p_ctwindow = info->p2p_ctwindow;
+		__entry->p2p_oppps = info->p2p_oppps;
 	),
 
 	TP_printk(
@@ -1043,34 +1049,6 @@ DEFINE_EVENT(local_only_evt, drv_cancel_remain_on_channel,
 	TP_ARGS(local)
 );
 
-TRACE_EVENT(drv_offchannel_tx,
-	TP_PROTO(struct ieee80211_local *local, struct sk_buff *skb,
-		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type channel_type,
-		 unsigned int wait),
-
-	TP_ARGS(local, skb, chan, channel_type, wait),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		__field(int, center_freq)
-		__field(int, channel_type)
-		__field(unsigned int, wait)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		__entry->center_freq = chan->center_freq;
-		__entry->channel_type = channel_type;
-		__entry->wait = wait;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT " freq:%dMHz, wait:%dms",
-		LOCAL_PR_ARG, __entry->center_freq, __entry->wait
-	)
-);
-
 TRACE_EVENT(drv_set_ringparam,
 	TP_PROTO(struct ieee80211_local *local, u32 tx, u32 rx),
 
@@ -1394,6 +1372,48 @@ DEFINE_EVENT(local_sdata_chanctx, drv_unassign_vif_chanctx,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_chanctx *ctx),
 	TP_ARGS(local, sdata, ctx)
+);
+
+TRACE_EVENT(drv_start_ap,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_bss_conf *info),
+
+	TP_ARGS(local, sdata, info),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, dtimper)
+		__field(u16, bcnint)
+		__dynamic_array(u8, ssid, info->ssid_len);
+		__field(bool, hidden_ssid);
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->dtimper = info->dtim_period;
+		__entry->bcnint = info->beacon_int;
+		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+		__entry->hidden_ssid = info->hidden_ssid;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG
+	)
+);
+
+DEFINE_EVENT(local_sdata_evt, drv_stop_ap,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
+DEFINE_EVENT(local_only_evt, drv_restart_complete,
+	TP_PROTO(struct ieee80211_local *local),
+	TP_ARGS(local)
 );
 
 /*

@@ -2089,6 +2089,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		head_need = max_t(int, 0, head_need);
 		if (ieee80211_skb_resize(sdata, skb, head_need, true)) {
 			ieee80211_free_txskb(&local->hw, skb);
+			skb = NULL;
 			goto fail_rcu;
 		}
 	}

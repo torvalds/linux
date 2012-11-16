@@ -1529,7 +1529,7 @@ brcmf_cfg80211_disconnect(struct wiphy *wiphy, struct net_device *ndev,
 }
 
 static s32
-brcmf_cfg80211_set_tx_power(struct wiphy *wiphy,
+brcmf_cfg80211_set_tx_power(struct wiphy *wiphy, struct wireless_dev *wdev,
 			    enum nl80211_tx_power_setting type, s32 mbm)
 {
 
@@ -1578,7 +1578,9 @@ done:
 	return err;
 }
 
-static s32 brcmf_cfg80211_get_tx_power(struct wiphy *wiphy, s32 *dbm)
+static s32 brcmf_cfg80211_get_tx_power(struct wiphy *wiphy,
+				       struct wireless_dev *wdev,
+				       s32 *dbm)
 {
 	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(cfg_to_ndev(cfg));

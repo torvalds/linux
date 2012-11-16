@@ -936,4 +936,39 @@ static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline int drv_start_ap(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	int ret = 0;
+
+	check_sdata_in_driver(sdata);
+
+	trace_drv_start_ap(local, sdata, &sdata->vif.bss_conf);
+	if (local->ops->start_ap)
+		ret = local->ops->start_ap(&local->hw, &sdata->vif);
+	trace_drv_return_int(local, ret);
+	return ret;
+}
+
+static inline void drv_stop_ap(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	check_sdata_in_driver(sdata);
+
+	trace_drv_stop_ap(local, sdata);
+	if (local->ops->stop_ap)
+		local->ops->stop_ap(&local->hw, &sdata->vif);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_restart_complete(struct ieee80211_local *local)
+{
+	might_sleep();
+
+	trace_drv_restart_complete(local);
+	if (local->ops->restart_complete)
+		local->ops->restart_complete(&local->hw);
+	trace_drv_return_void(local);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

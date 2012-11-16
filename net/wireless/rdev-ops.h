@@ -476,21 +476,22 @@ rdev_set_wiphy_params(struct cfg80211_registered_device *rdev, u32 changed)
 }
 
 static inline int rdev_set_tx_power(struct cfg80211_registered_device *rdev,
+				    struct wireless_dev *wdev,
 				    enum nl80211_tx_power_setting type, int mbm)
 {
 	int ret;
-	trace_rdev_set_tx_power(&rdev->wiphy, type, mbm);
-	ret = rdev->ops->set_tx_power(&rdev->wiphy, type, mbm);
+	trace_rdev_set_tx_power(&rdev->wiphy, wdev, type, mbm);
+	ret = rdev->ops->set_tx_power(&rdev->wiphy, wdev, type, mbm);
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
 
 static inline int rdev_get_tx_power(struct cfg80211_registered_device *rdev,
-				    int *dbm)
+				    struct wireless_dev *wdev, int *dbm)
 {
 	int ret;
-	trace_rdev_get_tx_power(&rdev->wiphy);
-	ret = rdev->ops->get_tx_power(&rdev->wiphy, dbm);
+	trace_rdev_get_tx_power(&rdev->wiphy, wdev);
+	ret = rdev->ops->get_tx_power(&rdev->wiphy, wdev, dbm);
 	trace_rdev_return_int_int(&rdev->wiphy, ret, *dbm);
 	return ret;
 }

@@ -1384,11 +1384,8 @@ static int ath6kl_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 	return 0;
 }
 
-/*
- * The type nl80211_tx_power_setting replaces the following
- * data type from 2.6.36 onwards
-*/
 static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
+				       struct wireless_dev *wdev,
 				       enum nl80211_tx_power_setting type,
 				       int mbm)
 {
@@ -1423,7 +1420,9 @@ static int ath6kl_cfg80211_set_txpower(struct wiphy *wiphy,
 	return 0;
 }
 
-static int ath6kl_cfg80211_get_txpower(struct wiphy *wiphy, int *dbm)
+static int ath6kl_cfg80211_get_txpower(struct wiphy *wiphy,
+				       struct wireless_dev *wdev,
+				       int *dbm)
 {
 	struct ath6kl *ar = (struct ath6kl *)wiphy_priv(wiphy);
 	struct ath6kl_vif *vif;
