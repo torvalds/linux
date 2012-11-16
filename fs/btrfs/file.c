@@ -1472,6 +1472,7 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	ssize_t num_written = 0;
 	ssize_t err = 0;
 	size_t count, ocount;
+	bool sync = (file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host);
 
 	sb_start_write(inode->i_sb);
 
@@ -1529,6 +1530,9 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		}
 	}
 
+	if (sync)
+		atomic_inc(&BTRFS_I(inode)->sync_writers);
+
 	if (unlikely(file->f_flags & O_DIRECT)) {
 		num_written = __btrfs_direct_write(iocb, iov, nr_segs,
 						   pos, ppos, count, ocount);
@@ -1563,6 +1567,8 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 			num_written = err;
 	}
 out:
+	if (sync)
+		atomic_dec(&BTRFS_I(inode)->sync_writers);
 	sb_end_write(inode->i_sb);
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
@@ -1613,7 +1619,9 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * out of the ->i_mutex. If so, we can flush the dirty pages by
 	 * multi-task, and make the performance up.
 	 */
+	atomic_inc(&BTRFS_I(inode)->sync_writers);
 	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
+	atomic_dec(&BTRFS_I(inode)->sync_writers);
 	if (ret)
 		return ret;
 

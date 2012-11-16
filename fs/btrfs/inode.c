@@ -1622,6 +1622,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	int ret = 0;
 	int skip_sum;
 	int metadata = 0;
+	int async = !atomic_read(&BTRFS_I(inode)->sync_writers);
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
@@ -1644,7 +1645,7 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				goto out;
 		}
 		goto mapit;
-	} else if (!skip_sum) {
+	} else if (async && !skip_sum) {
 		/* csum items have already been cloned */
 		if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID)
 			goto mapit;
@@ -1655,6 +1656,10 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 				   __btrfs_submit_bio_start,
 				   __btrfs_submit_bio_done);
 		goto out;
+	} else if (!skip_sum) {
+		ret = btrfs_csum_one_bio(root, inode, bio, 0, 0);
+		if (ret)
+			goto out;
 	}
 
 mapit:
@@ -6333,6 +6338,9 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
+	if (async_submit)
+		async_submit = !atomic_read(&BTRFS_I(inode)->sync_writers);
+
 	bio_get(bio);
 
 	if (!write) {
@@ -7113,6 +7121,7 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	extent_io_tree_init(&ei->io_failure_tree, &inode->i_data);
 	ei->io_tree.track_uptodate = 1;
 	ei->io_failure_tree.track_uptodate = 1;
+	atomic_set(&ei->sync_writers, 0);
 	mutex_init(&ei->log_mutex);
 	mutex_init(&ei->delalloc_mutex);
 	btrfs_ordered_inode_tree_init(&ei->ordered_tree);
