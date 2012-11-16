@@ -51,10 +51,10 @@ static int net_ctl_permissions(struct ctl_table_header *head,
 		int mode = (table->mode >> 6) & 7;
 		return (mode << 6) | (mode << 3) | mode;
 	}
-	/* Allow netns root group to have the same assess as the root group */
+	/* Allow netns root group to have the same access as the root group */
 	if (gid_eq(root_gid, current_gid())) {
 		int mode = (table->mode >> 3) & 7;
-		return (mode << 3) | (mode << 3) | mode;
+		return (mode << 3) | mode;
 	}
 	return table->mode;
 }
