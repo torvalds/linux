@@ -1991,15 +1991,16 @@ static struct snd_soc_platform_driver fsi_soc_platform = {
 /*
  *		platform function
  */
-static void fsi_handler_init(struct fsi_priv *fsi)
+static void fsi_handler_init(struct fsi_priv *fsi,
+			     struct sh_fsi_port_info *info)
 {
 	fsi->playback.handler	= &fsi_pio_push_handler; /* default PIO */
 	fsi->playback.priv	= fsi;
 	fsi->capture.handler	= &fsi_pio_pop_handler;  /* default PIO */
 	fsi->capture.priv	= fsi;
 
-	if (fsi->info->tx_id) {
-		fsi->playback.slave.shdma_slave.slave_id = fsi->info->tx_id;
+	if (info->tx_id) {
+		fsi->playback.slave.shdma_slave.slave_id = info->tx_id;
 		fsi->playback.handler = &fsi_dma_push_handler;
 	}
 }
@@ -2009,10 +2010,15 @@ static int fsi_probe(struct platform_device *pdev)
 	struct fsi_master *master;
 	const struct platform_device_id	*id_entry;
 	struct sh_fsi_platform_info *info = pdev->dev.platform_data;
+	struct sh_fsi_port_info nul_info, *pinfo;
 	struct fsi_priv *fsi;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
+
+	nul_info.flags	= 0;
+	nul_info.tx_id	= 0;
+	nul_info.rx_id	= 0;
 
 	id_entry = pdev->id_entry;
 	if (!id_entry) {
@@ -2046,11 +2052,12 @@ static int fsi_probe(struct platform_device *pdev)
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
+	pinfo		= (info) ? &info->port_a : &nul_info;
 	fsi		= &master->fsia;
 	fsi->base	= master->base;
 	fsi->master	= master;
-	fsi->info	= &info->port_a;
-	fsi_handler_init(fsi);
+	fsi->info	= pinfo;
+	fsi_handler_init(fsi, pinfo);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
@@ -2058,11 +2065,12 @@ static int fsi_probe(struct platform_device *pdev)
 	}
 
 	/* FSI B setting */
+	pinfo		= (info) ? &info->port_b : &nul_info;
 	fsi		= &master->fsib;
 	fsi->base	= master->base + 0x40;
 	fsi->master	= master;
-	fsi->info	= &info->port_b;
-	fsi_handler_init(fsi);
+	fsi->info	= pinfo;
+	fsi_handler_init(fsi, pinfo);
 	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIB stream probe failed\n");
