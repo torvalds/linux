@@ -993,7 +993,7 @@ static ssize_t sleep_auth_write(struct file *file,
 		return -EINVAL;
 	}
 
-	if (value < 0 || value > WL1271_PSM_MAX) {
+	if (value > WL1271_PSM_MAX) {
 		wl1271_warning("sleep_auth must be between 0 and %d",
 			       WL1271_PSM_MAX);
 		return -ERANGE;
