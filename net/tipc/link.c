@@ -1426,8 +1426,7 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
 		pr_info("Broadcast link info for %s\n", addr_string);
-		pr_info("Supportable: %d,  Supported: %d,  Acked: %u\n",
-			n_ptr->bclink.supportable,
+		pr_info("Supported: %d,  Acked: %u\n",
 			n_ptr->bclink.supported,
 			n_ptr->bclink.acked);
 		pr_info("Last in: %u,  Oos state: %u,  Last sent: %u\n",
@@ -2014,7 +2013,6 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 		} else {
 			l_ptr->max_pkt = l_ptr->max_pkt_target;
 		}
-		l_ptr->owner->bclink.supportable = (max_pkt_info != 0);
 
 		/* Synchronize broadcast link info, if not done previously */
 		if (!tipc_node_is_up(l_ptr->owner)) {

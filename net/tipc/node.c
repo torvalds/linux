@@ -264,11 +264,9 @@ static void node_established_contact(struct tipc_node *n_ptr)
 {
 	tipc_k_signal((Handler)tipc_named_node_up, n_ptr->addr);
 
-	if (n_ptr->bclink.supportable) {
-		n_ptr->bclink.acked = tipc_bclink_get_last_sent();
-		tipc_bclink_add_node(n_ptr->addr);
-		n_ptr->bclink.supported = 1;
-	}
+	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
+	tipc_bclink_add_node(n_ptr->addr);
+	n_ptr->bclink.supported = 1;
 }
 
 static void node_name_purge_complete(unsigned long node_addr)

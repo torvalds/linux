@@ -67,7 +67,6 @@
  * @permit_changeover: non-zero if node has redundant links to this system
  * @signature: node instance identifier
  * @bclink: broadcast-related info
- *    @supportable: non-zero if node supports TIPC b'cast link capability
  *    @supported: non-zero if node supports TIPC b'cast capability
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
  *    @last_in: sequence # of last in-sequence b'cast message received from node
@@ -92,7 +91,6 @@ struct tipc_node {
 	int permit_changeover;
 	u32 signature;
 	struct {
-		u8 supportable;
 		u8 supported;
 		u32 acked;
 		u32 last_in;
