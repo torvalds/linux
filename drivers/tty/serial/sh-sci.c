@@ -485,7 +485,7 @@ static int sci_txfill(struct uart_port *port)
 
 	reg = sci_getreg(port, SCTFDR);
 	if (reg->size)
-		return serial_port_in(port, SCTFDR) & 0xff;
+		return serial_port_in(port, SCTFDR) & ((port->fifosize << 1) - 1);
 
 	reg = sci_getreg(port, SCFDR);
 	if (reg->size)
@@ -505,7 +505,7 @@ static int sci_rxfill(struct uart_port *port)
 
 	reg = sci_getreg(port, SCRFDR);
 	if (reg->size)
-		return serial_port_in(port, SCRFDR) & 0xff;
+		return serial_port_in(port, SCRFDR) & ((port->fifosize << 1) - 1);
 
 	reg = sci_getreg(port, SCFDR);
 	if (reg->size)
