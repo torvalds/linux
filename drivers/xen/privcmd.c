@@ -361,13 +361,13 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 	down_write(&mm->mmap_sem);
 
 	vma = find_vma(mm, m.addr);
-	ret = -EINVAL;
 	if (!vma ||
 	    vma->vm_ops != &privcmd_vm_ops ||
 	    (m.addr != vma->vm_start) ||
 	    ((m.addr + (nr_pages << PAGE_SHIFT)) != vma->vm_end) ||
 	    !privcmd_enforce_singleshot_mapping(vma)) {
 		up_write(&mm->mmap_sem);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -383,12 +383,16 @@ static long privcmd_ioctl_mmap_batch(void __user *udata, int version)
 
 	up_write(&mm->mmap_sem);
 
-	if (state.global_error && (version == 1)) {
-		/* Write back errors in second pass. */
-		state.user_mfn = (xen_pfn_t *)m.arr;
-		state.err      = err_array;
-		ret = traverse_pages(m.num, sizeof(xen_pfn_t),
-				     &pagelist, mmap_return_errors_v1, &state);
+	if (version == 1) {
+		if (state.global_error) {
+			/* Write back errors in second pass. */
+			state.user_mfn = (xen_pfn_t *)m.arr;
+			state.err      = err_array;
+			ret = traverse_pages(m.num, sizeof(xen_pfn_t),
+					     &pagelist, mmap_return_errors_v1, &state);
+		} else
+			ret = 0;
+
 	} else if (version == 2) {
 		ret = __copy_to_user(m.err, err_array, m.num * sizeof(int));
 		if (ret)
