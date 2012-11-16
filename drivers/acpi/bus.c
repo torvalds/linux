@@ -306,6 +306,12 @@ int acpi_device_set_power(struct acpi_device *device, int state)
 	 * a lower-powered state.
 	 */
 	if (state < device->power.state) {
+		if (device->power.state >= ACPI_STATE_D3_HOT &&
+		    state != ACPI_STATE_D0) {
+			printk(KERN_WARNING PREFIX
+			      "Cannot transition to non-D0 state from D3\n");
+			return -ENODEV;
+		}
 		if (device->power.flags.power_resources) {
 			result = acpi_power_transition(device, state);
 			if (result)
