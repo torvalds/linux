@@ -1,8 +1,8 @@
 /*
  * Industry-pack bus.
  *
- * (C) 2011 Samuel Iglesias Gonsalvez <siglesia@cern.ch>, CERN
- * (C) 2012 Samuel Iglesias Gonsalvez <siglesias@igalia.com>, Igalia
+ * Copyright (C) 2011-2012 CERN (www.cern.ch)
+ * Author: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free

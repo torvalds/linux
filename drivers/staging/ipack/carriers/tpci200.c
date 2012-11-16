@@ -2,9 +2,10 @@
  * tpci200.c
  *
  * driver for the TEWS TPCI-200 device
- * Copyright (c) 2009 Nicolas Serafini, EIC2 SA
- * Copyright (c) 2010,2011 Samuel Iglesias Gonsalvez <siglesia@cern.ch>, CERN
- * Copyright (c) 2012 Samuel Iglesias Gonsalvez <siglesias@igalia.com>, Igalia
+ *
+ * Copyright (C) 2009-2012 CERN (www.cern.ch)
+ * Author: Nicolas Serafini, EIC2 SA
+ * Author: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
