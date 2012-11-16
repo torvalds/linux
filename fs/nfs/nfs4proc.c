@@ -556,20 +556,18 @@ static int nfs4_sequence_done(struct rpc_task *task,
 }
 
 /*
- * nfs4_find_slot - efficiently look for a free slot
+ * nfs4_alloc_slot - efficiently look for a free slot
  *
- * nfs4_find_slot looks for an unset bit in the used_slots bitmap.
+ * nfs4_alloc_slot looks for an unset bit in the used_slots bitmap.
  * If found, we mark the slot as used, update the highest_used_slotid,
  * and respectively set up the sequence operation args.
- * The slot number is returned if found, or NFS4_NO_SLOT otherwise.
  *
  * Note: must be called with under the slot_tbl_lock.
  */
-static u32
-nfs4_find_slot(struct nfs4_slot_table *tbl)
+static struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl)
 {
+	struct nfs4_slot *ret = NULL;
 	u32 slotid;
-	u32 ret_id = NFS4_NO_SLOT;
 
 	dprintk("--> %s used_slots=%04lx highest_used=%u max_slots=%u\n",
 		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
@@ -581,11 +579,14 @@ nfs4_find_slot(struct nfs4_slot_table *tbl)
 	if (slotid > tbl->highest_used_slotid ||
 			tbl->highest_used_slotid == NFS4_NO_SLOT)
 		tbl->highest_used_slotid = slotid;
-	ret_id = slotid;
+	ret = &tbl->slots[slotid];
+	ret->renewal_time = jiffies;
+
 out:
 	dprintk("<-- %s used_slots=%04lx highest_used=%d slotid=%d \n",
-		__func__, tbl->used_slots[0], tbl->highest_used_slotid, ret_id);
-	return ret_id;
+		__func__, tbl->used_slots[0], tbl->highest_used_slotid,
+		ret ? ret->slot_nr : -1);
+	return ret;
 }
 
 static void nfs41_init_sequence(struct nfs4_sequence_args *args,
@@ -605,7 +606,6 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 {
 	struct nfs4_slot *slot;
 	struct nfs4_slot_table *tbl;
-	u32 slotid;
 
 	dprintk("--> %s\n", __func__);
 	/* slot already allocated? */
@@ -632,8 +632,8 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 		return -EAGAIN;
 	}
 
-	slotid = nfs4_find_slot(tbl);
-	if (slotid == NFS4_NO_SLOT) {
+	slot = nfs4_alloc_slot(tbl);
+	if (slot == NULL) {
 		rpc_sleep_on(&tbl->slot_tbl_waitq, task, NULL);
 		spin_unlock(&tbl->slot_tbl_lock);
 		dprintk("<-- %s: no free slots\n", __func__);
@@ -642,12 +642,11 @@ int nfs41_setup_sequence(struct nfs4_session *session,
 	spin_unlock(&tbl->slot_tbl_lock);
 
 	rpc_task_set_priority(task, RPC_PRIORITY_NORMAL);
-	slot = tbl->slots + slotid;
-	slot->renewal_time = jiffies;
 
 	args->sa_slot = slot;
 
-	dprintk("<-- %s slotid=%d seqid=%d\n", __func__, slotid, slot->seq_nr);
+	dprintk("<-- %s slotid=%d seqid=%d\n", __func__,
+			slot->slot_nr, slot->seq_nr);
 
 	res->sr_slot = slot;
 	res->sr_status_flags = 0;
