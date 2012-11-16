@@ -2304,7 +2304,7 @@ void tcp_sock_destruct(struct sock *sk)
 
 static inline bool tcp_can_repair_sock(const struct sock *sk)
 {
-	return capable(CAP_NET_ADMIN) &&
+	return ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN) &&
 		((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_ESTABLISHED));
 }
 

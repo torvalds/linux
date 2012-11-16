@@ -1213,7 +1213,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 
 	if (optname != MRT_INIT) {
 		if (sk != rcu_access_pointer(mrt->mroute_sk) &&
-		    !capable(CAP_NET_ADMIN))
+		    !ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EACCES;
 	}
 
