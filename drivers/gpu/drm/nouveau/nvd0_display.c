@@ -266,6 +266,7 @@ struct nvd0_head {
 #define nvd0_ovly(c) (&nvd0_head(c)->ovly)
 #define nvd0_oimm(c) (&nvd0_head(c)->oimm)
 #define nvd0_chan(c) (&(c)->base.base)
+#define nvd0_vers(c) nv_mclass(nvd0_chan(c)->user)
 
 struct nvd0_disp {
 	struct nouveau_object *core;
@@ -299,7 +300,7 @@ evo_wait(void *evoc, int nr)
 	struct nvd0_dmac *dmac = evoc;
 	u32 put = nv_ro32(dmac->base.user, 0x0000) / 4;
 
-	if (put + nr >= (PAGE_SIZE / 4)) {
+	if (put + nr >= (PAGE_SIZE / 4) - 8) {
 		dmac->ptr[put] = 0x20000000;
 
 		nv_wo32(dmac->base.user, 0x0000, 0x00000000);
@@ -471,12 +472,10 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 static int
 nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 {
-	struct nouveau_drm *drm = nouveau_drm(nv_crtc->base.dev);
-	struct drm_device *dev = nv_crtc->base.dev;
+	struct nvd0_mast *mast = nvd0_mast(nv_crtc->base.dev);
 	struct nouveau_connector *nv_connector;
 	struct drm_connector *connector;
 	u32 *push, mode = 0x00;
-	u32 mthd;
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	connector = &nv_connector->base;
@@ -494,20 +493,25 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 		mode |= nv_connector->dithering_depth;
 	}
 
-	if (nv_device(drm->device)->card_type < NV_E0)
-		mthd = 0x0490 + (nv_crtc->index * 0x0300);
-	else
-		mthd = 0x04a0 + (nv_crtc->index * 0x0300);
-
-	push = evo_wait(nvd0_mast(dev), 4);
+	push = evo_wait(mast, 4);
 	if (push) {
-		evo_mthd(push, mthd, 1);
-		evo_data(push, mode);
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x08a0 + (nv_crtc->index * 0x0400), 1);
+			evo_data(push, mode);
+		} else
+		if (nvd0_vers(mast) < NVE0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0490 + (nv_crtc->index * 0x0300), 1);
+			evo_data(push, mode);
+		} else {
+			evo_mthd(push, 0x04a0 + (nv_crtc->index * 0x0300), 1);
+			evo_data(push, mode);
+		}
+
 		if (update) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
 		}
-		evo_kick(push, nvd0_mast(dev));
+		evo_kick(push, mast);
 	}
 
 	return 0;
@@ -516,8 +520,8 @@ nvd0_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 static int
 nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 {
+	struct nvd0_mast *mast = nvd0_mast(nv_crtc->base.dev);
 	struct drm_display_mode *omode, *umode = &nv_crtc->base.mode;
-	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_crtc *crtc = &nv_crtc->base;
 	struct nouveau_connector *nv_connector;
 	int mode = DRM_MODE_SCALE_NONE;
@@ -584,17 +588,30 @@ nvd0_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 		break;
 	}
 
-	push = evo_wait(nvd0_mast(dev), 8);
+	push = evo_wait(mast, 8);
 	if (push) {
-		evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
-		evo_data(push, (oY << 16) | oX);
-		evo_data(push, (oY << 16) | oX);
-		evo_data(push, (oY << 16) | oX);
-		evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, (umode->vdisplay << 16) | umode->hdisplay);
-		evo_kick(push, nvd0_mast(dev));
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			/*XXX: SCALE_CTRL_ACTIVE??? */
+			evo_mthd(push, 0x08d8 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, (oY << 16) | oX);
+			evo_data(push, (oY << 16) | oX);
+			evo_mthd(push, 0x08a4 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x08c8 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, umode->vdisplay << 16 | umode->hdisplay);
+		} else {
+			evo_mthd(push, 0x04c0 + (nv_crtc->index * 0x300), 3);
+			evo_data(push, (oY << 16) | oX);
+			evo_data(push, (oY << 16) | oX);
+			evo_data(push, (oY << 16) | oX);
+			evo_mthd(push, 0x0494 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x04b8 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, umode->vdisplay << 16 | umode->hdisplay);
+		}
+
+		evo_kick(push, mast);
+
 		if (update) {
 			nvd0_display_flip_stop(crtc);
 			nvd0_display_flip_next(crtc, crtc->fb, NULL, 1);
@@ -609,24 +626,41 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 		    int x, int y, bool update)
 {
 	struct nouveau_framebuffer *nvfb = nouveau_framebuffer(fb);
+	struct nvd0_mast *mast = nvd0_mast(nv_crtc->base.dev);
 	u32 *push;
 
-	push = evo_wait(nvd0_mast(fb->dev), 16);
+	push = evo_wait(mast, 16);
 	if (push) {
-		evo_mthd(push, 0x0460 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, nvfb->nvbo->bo.offset >> 8);
-		evo_mthd(push, 0x0468 + (nv_crtc->index * 0x300), 4);
-		evo_data(push, (fb->height << 16) | fb->width);
-		evo_data(push, nvfb->r_pitch);
-		evo_data(push, nvfb->r_format);
-		evo_data(push, nvfb->r_dma);
-		evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, (y << 16) | x);
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0860 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, nvfb->nvbo->bo.offset >> 8);
+			evo_mthd(push, 0x0868 + (nv_crtc->index * 0x400), 3);
+			evo_data(push, (fb->height << 16) | fb->width);
+			evo_data(push, nvfb->r_pitch);
+			evo_data(push, nvfb->r_format);
+			evo_mthd(push, 0x08c0 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, (y << 16) | x);
+			if (nvd0_vers(mast) > NV50_DISP_MAST_CLASS) {
+				evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
+				evo_data(push, nvfb->r_dma);
+			}
+		} else {
+			evo_mthd(push, 0x0460 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, nvfb->nvbo->bo.offset >> 8);
+			evo_mthd(push, 0x0468 + (nv_crtc->index * 0x300), 4);
+			evo_data(push, (fb->height << 16) | fb->width);
+			evo_data(push, nvfb->r_pitch);
+			evo_data(push, nvfb->r_format);
+			evo_data(push, nvfb->r_dma);
+			evo_mthd(push, 0x04b0 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, (y << 16) | x);
+		}
+
 		if (update) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
 		}
-		evo_kick(push, nvd0_mast(fb->dev));
+		evo_kick(push, mast);
 	}
 
 	nv_crtc->fb.tile_flags = nvfb->r_dma;
@@ -634,30 +668,75 @@ nvd0_crtc_set_image(struct nouveau_crtc *nv_crtc, struct drm_framebuffer *fb,
 }
 
 static void
-nvd0_crtc_cursor_show(struct nouveau_crtc *nv_crtc, bool show, bool update)
+nvd0_crtc_cursor_show(struct nouveau_crtc *nv_crtc)
 {
-	struct drm_device *dev = nv_crtc->base.dev;
-	u32 *push = evo_wait(nvd0_mast(dev), 16);
+	struct nvd0_mast *mast = nvd0_mast(nv_crtc->base.dev);
+	u32 *push = evo_wait(mast, 16);
 	if (push) {
-		if (show) {
+		if (nvd0_vers(mast) < NV84_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, 0x85000000);
+			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
+		} else
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, 0x85000000);
+			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
+			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, NvEvoVRAM);
+		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 2);
 			evo_data(push, 0x85000000);
 			evo_data(push, nv_crtc->cursor.nvbo->bo.offset >> 8);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
 			evo_data(push, NvEvoVRAM);
+		}
+		evo_kick(push, mast);
+	}
+}
+
+static void
+nvd0_crtc_cursor_hide(struct nouveau_crtc *nv_crtc)
+{
+	struct nvd0_mast *mast = nvd0_mast(nv_crtc->base.dev);
+	u32 *push = evo_wait(mast, 16);
+	if (push) {
+		if (nvd0_vers(mast) < NV84_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x05000000);
+		} else
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0880 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x05000000);
+			evo_mthd(push, 0x089c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x00000000);
 		} else {
 			evo_mthd(push, 0x0480 + (nv_crtc->index * 0x300), 1);
 			evo_data(push, 0x05000000);
 			evo_mthd(push, 0x048c + (nv_crtc->index * 0x300), 1);
 			evo_data(push, 0x00000000);
 		}
+		evo_kick(push, mast);
+	}
+}
 
-		if (update) {
+static void
+nvd0_crtc_cursor_show_hide(struct nouveau_crtc *nv_crtc, bool show, bool update)
+{
+	struct nvd0_mast *mast = nvd0_mast(nv_crtc->base.dev);
+
+	if (show)
+		nvd0_crtc_cursor_show(nv_crtc);
+	else
+		nvd0_crtc_cursor_hide(nv_crtc);
+
+	if (update) {
+		u32 *push = evo_wait(mast, 2);
+		if (push) {
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
+			evo_kick(push, mast);
 		}
-
-		evo_kick(push, nvd0_mast(dev));
 	}
 }
 
@@ -670,47 +749,83 @@ static void
 nvd0_crtc_prepare(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nvd0_mast *mast = nvd0_mast(crtc->dev);
 	u32 *push;
 
 	nvd0_display_flip_stop(crtc);
 
-	push = evo_wait(nvd0_mast(crtc->dev), 2);
+	push = evo_wait(mast, 2);
 	if (push) {
-		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0x03000000);
-		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0x00000000);
-		evo_kick(push, nvd0_mast(crtc->dev));
+		if (nvd0_vers(mast) < NV84_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x40000000);
+		} else
+		if (nvd0_vers(mast) <  NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x40000000);
+			evo_mthd(push, 0x085c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x00000000);
+		} else {
+			evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x03000000);
+			evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x00000000);
+		}
+
+		evo_kick(push, mast);
 	}
 
-	nvd0_crtc_cursor_show(nv_crtc, false, false);
+	nvd0_crtc_cursor_show_hide(nv_crtc, false, false);
 }
 
 static void
 nvd0_crtc_commit(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
+	struct nvd0_mast *mast = nvd0_mast(crtc->dev);
 	u32 *push;
 
-	push = evo_wait(nvd0_mast(crtc->dev), 32);
+	push = evo_wait(mast, 32);
 	if (push) {
-		evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, nv_crtc->fb.tile_flags);
-		evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 4);
-		evo_data(push, 0x83000000);
-		evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
-		evo_data(push, 0x00000000);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
-		evo_data(push, NvEvoVRAM);
-		evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0xffffff00);
-		evo_kick(push, nvd0_mast(crtc->dev));
+		if (nvd0_vers(mast) < NV84_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, NvEvoVRAM_LP);
+			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, 0xc0000000);
+			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
+		} else
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0874 + (nv_crtc->index * 0x400), 1);
+			evo_data(push, nv_crtc->fb.tile_flags);
+			evo_mthd(push, 0x0840 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, 0xc0000000);
+			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
+			evo_mthd(push, 0x085c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, NvEvoVRAM);
+		} else {
+			evo_mthd(push, 0x0474 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, nv_crtc->fb.tile_flags);
+			evo_mthd(push, 0x0440 + (nv_crtc->index * 0x300), 4);
+			evo_data(push, 0x83000000);
+			evo_data(push, nv_crtc->lut.nvbo->bo.offset >> 8);
+			evo_data(push, 0x00000000);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x045c + (nv_crtc->index * 0x300), 1);
+			evo_data(push, NvEvoVRAM);
+			evo_mthd(push, 0x0430 + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0xffffff00);
+		}
+
+		evo_kick(push, mast);
 	}
 
-	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, true);
+	nvd0_crtc_cursor_show_hide(nv_crtc, nv_crtc->cursor.visible, true);
 	nvd0_display_flip_next(crtc, crtc->fb, NULL, 1);
 }
 
@@ -744,6 +859,7 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		   struct drm_display_mode *mode, int x, int y,
 		   struct drm_framebuffer *old_fb)
 {
+	struct nvd0_mast *mast = nvd0_mast(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nouveau_connector *nv_connector;
 	u32 ilace = (mode->flags & DRM_MODE_FLAG_INTERLACE) ? 2 : 1;
@@ -777,25 +893,44 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	if (ret)
 		return ret;
 
-	push = evo_wait(nvd0_mast(crtc->dev), 64);
+	push = evo_wait(mast, 64);
 	if (push) {
-		evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 6);
-		evo_data(push, 0x00000000);
-		evo_data(push, (vactive << 16) | hactive);
-		evo_data(push, ( vsynce << 16) | hsynce);
-		evo_data(push, (vblanke << 16) | hblanke);
-		evo_data(push, (vblanks << 16) | hblanks);
-		evo_data(push, (vblan2e << 16) | vblan2s);
-		evo_mthd(push, 0x042c + (nv_crtc->index * 0x300), 1);
-		evo_data(push, 0x00000000); /* ??? */
-		evo_mthd(push, 0x0450 + (nv_crtc->index * 0x300), 3);
-		evo_data(push, mode->clock * 1000);
-		evo_data(push, 0x00200000); /* ??? */
-		evo_data(push, mode->clock * 1000);
-		evo_mthd(push, 0x04d0 + (nv_crtc->index * 0x300), 2);
-		evo_data(push, 0x00000311);
-		evo_data(push, 0x00000100);
-		evo_kick(push, nvd0_mast(crtc->dev));
+		if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+			evo_mthd(push, 0x0804 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, 0x00800000 | mode->clock);
+			evo_data(push, (ilace == 2) ? 2 : 0);
+			evo_mthd(push, 0x0810 + (nv_crtc->index * 0x400), 6);
+			evo_data(push, 0x00000000);
+			evo_data(push, (vactive << 16) | hactive);
+			evo_data(push, ( vsynce << 16) | hsynce);
+			evo_data(push, (vblanke << 16) | hblanke);
+			evo_data(push, (vblanks << 16) | hblanks);
+			evo_data(push, (vblan2e << 16) | vblan2s);
+			evo_mthd(push, 0x082c + (nv_crtc->index * 0x400), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0900 + (nv_crtc->index * 0x400), 2);
+			evo_data(push, 0x00000311);
+			evo_data(push, 0x00000100);
+		} else {
+			evo_mthd(push, 0x0410 + (nv_crtc->index * 0x300), 6);
+			evo_data(push, 0x00000000);
+			evo_data(push, (vactive << 16) | hactive);
+			evo_data(push, ( vsynce << 16) | hsynce);
+			evo_data(push, (vblanke << 16) | hblanke);
+			evo_data(push, (vblanks << 16) | hblanks);
+			evo_data(push, (vblan2e << 16) | vblan2s);
+			evo_mthd(push, 0x042c + (nv_crtc->index * 0x300), 1);
+			evo_data(push, 0x00000000); /* ??? */
+			evo_mthd(push, 0x0450 + (nv_crtc->index * 0x300), 3);
+			evo_data(push, mode->clock * 1000);
+			evo_data(push, 0x00200000); /* ??? */
+			evo_data(push, mode->clock * 1000);
+			evo_mthd(push, 0x04d0 + (nv_crtc->index * 0x300), 2);
+			evo_data(push, 0x00000311);
+			evo_data(push, 0x00000100);
+		}
+
+		evo_kick(push, mast);
 	}
 
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
@@ -842,14 +977,25 @@ nvd0_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 static void
 nvd0_crtc_lut_load(struct drm_crtc *crtc)
 {
+	struct nvd0_disp *disp = nvd0_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
 	int i;
 
 	for (i = 0; i < 256; i++) {
-		writew(0x6000 + (nv_crtc->lut.r[i] >> 2), lut + (i * 0x20) + 0);
-		writew(0x6000 + (nv_crtc->lut.g[i] >> 2), lut + (i * 0x20) + 2);
-		writew(0x6000 + (nv_crtc->lut.b[i] >> 2), lut + (i * 0x20) + 4);
+		u16 r = nv_crtc->lut.r[i] >> 2;
+		u16 g = nv_crtc->lut.g[i] >> 2;
+		u16 b = nv_crtc->lut.b[i] >> 2;
+
+		if (nv_mclass(disp->core) < NVD0_DISP_CLASS) {
+			writew(r + 0x0000, lut + (i * 0x08) + 0);
+			writew(g + 0x0000, lut + (i * 0x08) + 2);
+			writew(b + 0x0000, lut + (i * 0x08) + 4);
+		} else {
+			writew(r + 0x6000, lut + (i * 0x20) + 0);
+			writew(g + 0x6000, lut + (i * 0x20) + 2);
+			writew(b + 0x6000, lut + (i * 0x20) + 4);
+		}
 	}
 }
 
@@ -886,7 +1032,7 @@ nvd0_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	}
 
 	if (visible != nv_crtc->cursor.visible) {
-		nvd0_crtc_cursor_show(nv_crtc, visible, true);
+		nvd0_crtc_cursor_show_hide(nv_crtc, visible, true);
 		nv_crtc->cursor.visible = visible;
 	}
 
