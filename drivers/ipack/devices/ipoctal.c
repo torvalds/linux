@@ -22,7 +22,8 @@
 #include <linux/slab.h>
 #include <linux/atomic.h>
 #include <linux/io.h>
-#include "../ipack.h"
+#include <linux/ipack.h>
+#include "../ipack_ids.h"
 #include "ipoctal.h"
 #include "scc2698.h"
 

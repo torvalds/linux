@@ -20,8 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/swab.h>
 #include <linux/io.h>
-
-#include "../ipack.h"
+#include <linux/ipack.h>
 
 #define TPCI200_NB_SLOT               0x4
 #define TPCI200_NB_BAR                0x6

@@ -13,8 +13,6 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 
-#include "ipack_ids.h"
-
 #define IPACK_IDPROM_OFFSET_I			0x01
 #define IPACK_IDPROM_OFFSET_P			0x03
 #define IPACK_IDPROM_OFFSET_A			0x05
