@@ -102,7 +102,7 @@ static int uio_pdrv_genirq_probe(struct platform_device *pdev)
 	int ret = -EINVAL;
 	int i;
 
-	if (!uioinfo) {
+	if (pdev->dev.of_node) {
 		int irq;
 
 		/* alloc uioinfo for one device */
