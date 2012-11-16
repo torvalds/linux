@@ -2481,16 +2481,11 @@ static int ath6kl_wmi_sync_point(struct wmi *wmi, u8 if_idx)
 
 free_cmd_skb:
 	/* free up any resources left over (possibly due to an error) */
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 
 free_data_skb:
-	for (index = 0; index < num_pri_streams; index++) {
-		if (data_sync_bufs[index].skb != NULL) {
-			dev_kfree_skb((struct sk_buff *)data_sync_bufs[index].
-				      skb);
-		}
-	}
+	for (index = 0; index < num_pri_streams; index++)
+		dev_kfree_skb((struct sk_buff *)data_sync_bufs[index].skb);
 
 	return ret;
 }

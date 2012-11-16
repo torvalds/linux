@@ -509,9 +509,7 @@ static void destroy_htc_txctrl_packet(struct htc_packet *packet)
 {
 	struct sk_buff *skb;
 	skb = packet->skb;
-	if (skb != NULL)
-		dev_kfree_skb(skb);
-
+	dev_kfree_skb(skb);
 	kfree(packet);
 }
 
@@ -1054,6 +1052,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 
 		dev_kfree_skb(skb);
 		skb = NULL;
+
 		goto free_skb;
 	}
 
@@ -1089,8 +1088,7 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	skb = NULL;
 
 free_skb:
-	if (skb != NULL)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 
 	return status;
 
