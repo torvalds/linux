@@ -12,6 +12,8 @@ void orion5x_map_io(void);
 void orion5x_init_early(void);
 void orion5x_init_irq(void);
 void orion5x_init(void);
+void orion5x_id(u32 *dev, u32 *rev, char **dev_name);
+void clk_init(void);
 extern int orion5x_tclk;
 extern struct sys_timer orion5x_timer;
 
