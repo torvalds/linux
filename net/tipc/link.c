@@ -1426,8 +1426,8 @@ static void link_retransmit_failure(struct tipc_link *l_ptr,
 
 		tipc_addr_string_fill(addr_string, n_ptr->addr);
 		pr_info("Broadcast link info for %s\n", addr_string);
-		pr_info("Supported: %d,  Acked: %u\n",
-			n_ptr->bclink.supported,
+		pr_info("Reception permitted: %d,  Acked: %u\n",
+			n_ptr->bclink.recv_permitted,
 			n_ptr->bclink.acked);
 		pr_info("Last in: %u,  Oos state: %u,  Last sent: %u\n",
 			n_ptr->bclink.last_in,
@@ -1640,7 +1640,7 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *b_ptr)
 		ackd = msg_ack(msg);
 
 		/* Release acked messages */
-		if (n_ptr->bclink.supported)
+		if (n_ptr->bclink.recv_permitted)
 			tipc_bclink_acknowledge(n_ptr, msg_bcast_ack(msg));
 
 		crs = l_ptr->first_out;
@@ -2067,7 +2067,7 @@ static void link_recv_proto_msg(struct tipc_link *l_ptr, struct sk_buff *buf)
 		}
 
 		/* Protocol message before retransmits, reduce loss risk */
-		if (l_ptr->owner->bclink.supported)
+		if (l_ptr->owner->bclink.recv_permitted)
 			tipc_bclink_update_link_state(l_ptr->owner,
 						      msg_last_bcast(msg));
 

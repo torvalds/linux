@@ -266,7 +266,7 @@ static void node_established_contact(struct tipc_node *n_ptr)
 
 	n_ptr->bclink.acked = tipc_bclink_get_last_sent();
 	tipc_bclink_add_node(n_ptr->addr);
-	n_ptr->bclink.supported = 1;
+	n_ptr->bclink.recv_permitted = true;
 }
 
 static void node_name_purge_complete(unsigned long node_addr)
@@ -292,7 +292,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		tipc_addr_string_fill(addr_string, n_ptr->addr));
 
 	/* Flush broadcast link info associated with lost node */
-	if (n_ptr->bclink.supported) {
+	if (n_ptr->bclink.recv_permitted) {
 		while (n_ptr->bclink.deferred_head) {
 			struct sk_buff *buf = n_ptr->bclink.deferred_head;
 			n_ptr->bclink.deferred_head = buf->next;
@@ -308,7 +308,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		tipc_bclink_remove_node(n_ptr->addr);
 		tipc_bclink_acknowledge(n_ptr, INVALID_LINK_SEQ);
 
-		n_ptr->bclink.supported = 0;
+		n_ptr->bclink.recv_permitted = false;
 	}
 
 	/* Abort link changeover */
