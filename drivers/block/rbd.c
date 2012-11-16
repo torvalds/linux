@@ -235,6 +235,7 @@ struct rbd_device {
 
 	/* sysfs related */
 	struct device		dev;
+	unsigned long		open_count;
 };
 
 static DEFINE_MUTEX(ctl_mutex);	  /* Serialize open/close/setup/teardown */
@@ -309,8 +310,11 @@ static int rbd_open(struct block_device *bdev, fmode_t mode)
 	if ((mode & FMODE_WRITE) && rbd_dev->mapping.read_only)
 		return -EROFS;
 
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	rbd_get_dev(rbd_dev);
 	set_device_ro(bdev, rbd_dev->mapping.read_only);
+	rbd_dev->open_count++;
+	mutex_unlock(&ctl_mutex);
 
 	return 0;
 }
@@ -319,7 +323,11 @@ static int rbd_release(struct gendisk *disk, fmode_t mode)
 {
 	struct rbd_device *rbd_dev = disk->private_data;
 
+	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
+	rbd_assert(rbd_dev->open_count > 0);
+	rbd_dev->open_count--;
 	rbd_put_dev(rbd_dev);
+	mutex_unlock(&ctl_mutex);
 
 	return 0;
 }
@@ -3742,6 +3750,11 @@ static ssize_t rbd_remove(struct bus_type *bus,
 	rbd_dev = __rbd_get_dev(target_id);
 	if (!rbd_dev) {
 		ret = -ENOENT;
+		goto done;
+	}
+
+	if (rbd_dev->open_count) {
+		ret = -EBUSY;
 		goto done;
 	}
 
