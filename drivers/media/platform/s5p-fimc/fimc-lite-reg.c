@@ -292,9 +292,11 @@ void flite_hw_dump_regs(struct fimc_lite *dev, const char *label)
 	};
 	u32 i;
 
-	pr_info("--- %s ---\n", label);
+	v4l2_info(&dev->subdev, "--- %s ---\n", label);
+
 	for (i = 0; i < ARRAY_SIZE(registers); i++) {
 		u32 cfg = readl(dev->regs + registers[i].offset);
-		pr_info("%s: %s:\t0x%08x\n", __func__, registers[i].name, cfg);
+		v4l2_info(&dev->subdev, "%9s: 0x%08x\n",
+			  registers[i].name, cfg);
 	}
 }
