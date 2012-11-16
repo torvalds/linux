@@ -291,33 +291,6 @@ static void qt_interrupt_callback(struct urb *urb)
 	/* FIXME */
 }
 
-static int qt_status_change(unsigned int limit,
-			    unsigned char *data,
-			    int i,
-			    struct quatech_port *qt_port,
-			    struct usb_serial_port *port)
-{
-	void (*fn)(struct quatech_port *, unsigned char);
-
-	if (0x00 == data[i + 2]) {
-		dev_dbg(&port->dev, "Line status status.\n");
-		fn = ProcessLineStatus;
-	} else {
-		dev_dbg(&port->dev, "Modem status status.\n");
-		fn = ProcessModemStatus;
-	}
-
-	if (i > limit) {
-		dev_dbg(&port->dev,
-			"Illegal escape seuences in received data\n");
-		return 0;
-	}
-
-	(*fn)(qt_port, data[i + 3]);
-
-	return 1;
-}
-
 static void qt_status_change_check(struct tty_struct *tty,
 				   struct urb *urb,
 				   struct quatech_port *qt_port,
@@ -334,11 +307,29 @@ static void qt_status_change_check(struct tty_struct *tty,
 			flag = 0;
 			switch (data[i + 2]) {
 			case 0x00:
+				if (i > (RxCount - 4)) {
+					dev_dbg(&port->dev,
+						"Illegal escape seuences in received data\n");
+					break;
+				}
+
+				ProcessLineStatus(qt_port, data[i + 3]);
+
+				i += 3;
+				flag = 1;
+				break;
+
 			case 0x01:
-				flag = qt_status_change((RxCount - 4), data, i,
-							qt_port, port);
-				if (flag == 1)
-					i += 3;
+				if (i > (RxCount - 4)) {
+					dev_dbg(&port->dev,
+						"Illegal escape seuences in received data\n");
+					break;
+				}
+
+				ProcessModemStatus(qt_port, data[i + 3]);
+
+				i += 3;
+				flag = 1;
 				break;
 
 			case 0xff:
