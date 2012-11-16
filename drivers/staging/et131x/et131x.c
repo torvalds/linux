@@ -1870,8 +1870,10 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		}
 
 		/* Now's the best time to initialize FBR contents */
-		fbr_entry = (struct fbr_desc *) rx_local->fbr[id]->ring_virtaddr;
-		for (entry = 0; entry < rx_local->fbr[id]->num_entries; entry++) {
+		fbr_entry =
+		    (struct fbr_desc *) rx_local->fbr[id]->ring_virtaddr;
+		for (entry = 0;
+		     entry < rx_local->fbr[id]->num_entries; entry++) {
 			fbr_entry->addr_hi = rx_local->fbr[id]->bus_high[entry];
 			fbr_entry->addr_lo = rx_local->fbr[id]->bus_low[entry];
 			fbr_entry->word2 = entry;
@@ -1881,8 +1883,10 @@ static void et131x_config_rx_dma_regs(struct et131x_adapter *adapter)
 		/* Set the address and parameters of Free buffer ring 1 and 0
 		 * into the 1310's registers
 		 */
-		writel(upper_32_bits(rx_local->fbr[id]->ring_physaddr), base_hi);
-		writel(lower_32_bits(rx_local->fbr[id]->ring_physaddr), base_lo);
+		writel(upper_32_bits(rx_local->fbr[id]->ring_physaddr),
+		       base_hi);
+		writel(lower_32_bits(rx_local->fbr[id]->ring_physaddr),
+		       base_lo);
 		writel(rx_local->fbr[id]->num_entries - 1, num_des);
 		writel(ET_DMA10_WRAP, full_offset);
 
@@ -2286,7 +2290,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	for (id = 0; id < NUM_FBRS; id++) {
 		/* Allocate an area of memory for Free Buffer Ring */
-		bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries);
+		bufsize =
+		    (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries);
 		rx_ring->fbr[id]->ring_virtaddr =
 				dma_alloc_coherent(&adapter->pdev->dev,
 					bufsize,
@@ -2302,7 +2307,8 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	for (id = 0; id < NUM_FBRS; id++) {
 		fbr_chunksize = (FBR_CHUNKS * rx_ring->fbr[id]->buffsize);
 
-		for (i = 0; i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
+		for (i = 0;
+		     i < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS); i++) {
 			dma_addr_t fbr_tmp_physaddr;
 
 			rx_ring->fbr[id]->mem_virtaddrs[i] = dma_alloc_coherent(
@@ -2424,7 +2430,8 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		     index < (rx_ring->fbr[id]->num_entries / FBR_CHUNKS);
 		     index++) {
 			if (rx_ring->fbr[id]->mem_virtaddrs[index]) {
-				bufsize = rx_ring->fbr[id]->buffsize * FBR_CHUNKS;
+				bufsize =
+				    rx_ring->fbr[id]->buffsize * FBR_CHUNKS;
 
 				dma_free_coherent(&adapter->pdev->dev,
 					bufsize,
@@ -2558,7 +2565,8 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 		else
 			offset = &rx_dma->fbr1_full_offset;
 
-		next = (struct fbr_desc *) (rx_local->fbr[ring_index]->ring_virtaddr) +
+		next = (struct fbr_desc *)
+			   (rx_local->fbr[ring_index]->ring_virtaddr) +
 				INDEX10(rx_local->fbr[ring_index]->local_full);
 
 		/* Handle the Free Buffer Ring advancement here. Write
@@ -2569,9 +2577,10 @@ static void nic_return_rfd(struct et131x_adapter *adapter, struct rfd *rfd)
 		next->addr_lo = rx_local->fbr[ring_index]->bus_low[buff_index];
 		next->word2 = buff_index;
 
-		writel(bump_free_buff_ring(&rx_local->fbr[ring_index]->local_full,
-				rx_local->fbr[ring_index]->num_entries - 1),
-				offset);
+		writel(bump_free_buff_ring(
+				  &rx_local->fbr[ring_index]->local_full,
+				  rx_local->fbr[ring_index]->num_entries - 1),
+		       offset);
 
 		spin_unlock_irqrestore(&adapter->fbr_lock, flags);
 	} else {
@@ -2980,19 +2989,19 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 			} else {
 				desc[frag].len_vlan = skb_headlen(skb) / 2;
 				dma_addr = dma_map_single(&adapter->pdev->dev,
-							  skb->data,
-							  (skb_headlen(skb) / 2),
-							  DMA_TO_DEVICE);
+							 skb->data,
+							 (skb_headlen(skb) / 2),
+							 DMA_TO_DEVICE);
 				desc[frag].addr_lo = lower_32_bits(dma_addr);
 				desc[frag].addr_hi = upper_32_bits(dma_addr);
 				frag++;
 
 				desc[frag].len_vlan = skb_headlen(skb) / 2;
 				dma_addr = dma_map_single(&adapter->pdev->dev,
-							  skb->data +
-							  (skb_headlen(skb) / 2),
-							  (skb_headlen(skb) / 2),
-							  DMA_TO_DEVICE);
+							 skb->data +
+							 (skb_headlen(skb) / 2),
+							 (skb_headlen(skb) / 2),
+							 DMA_TO_DEVICE);
 				desc[frag].addr_lo = lower_32_bits(dma_addr);
 				desc[frag].addr_hi = upper_32_bits(dma_addr);
 				frag++;
