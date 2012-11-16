@@ -560,6 +560,11 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 						GFP_KERNEL);
 		if (ipvs->lblc_ctl_table == NULL)
 			return -ENOMEM;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			ipvs->lblc_ctl_table[0].procname = NULL;
+
 	} else
 		ipvs->lblc_ctl_table = vs_vars_table;
 	ipvs->sysctl_lblc_expiration = DEFAULT_EXPIRATION;
@@ -569,7 +574,7 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 		register_net_sysctl(net, "net/ipv4/vs", ipvs->lblc_ctl_table);
 	if (!ipvs->lblc_ctl_header) {
 		if (!net_eq(net, &init_net))
-			kfree(ipvs->lblc_ctl_table);
+			kfree(ipvs->lblc_ctl_table);\
 		return -ENOMEM;
 	}
 

@@ -754,6 +754,10 @@ static int __net_init __ip_vs_lblcr_init(struct net *net)
 						GFP_KERNEL);
 		if (ipvs->lblcr_ctl_table == NULL)
 			return -ENOMEM;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			ipvs->lblcr_ctl_table[0].procname = NULL;
 	} else
 		ipvs->lblcr_ctl_table = vs_vars_table;
 	ipvs->sysctl_lblcr_expiration = DEFAULT_EXPIRATION;

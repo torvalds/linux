@@ -883,6 +883,9 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 		table[6].data =
 			&net->ipv4.sysctl_ping_group_range;
 
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			table[0].procname = NULL;
 	}
 
 	/*

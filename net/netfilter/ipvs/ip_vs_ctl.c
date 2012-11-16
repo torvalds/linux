@@ -3699,6 +3699,10 @@ static int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 		tbl = kmemdup(vs_vars, sizeof(vs_vars), GFP_KERNEL);
 		if (tbl == NULL)
 			return -ENOMEM;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			tbl[0].procname = NULL;
 	} else
 		tbl = vs_vars;
 	/* Initialize sysctl defaults */

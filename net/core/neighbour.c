@@ -2987,6 +2987,10 @@ int neigh_sysctl_register(struct net_device *dev, struct neigh_parms *p,
 		t->neigh_vars[NEIGH_VAR_BASE_REACHABLE_TIME_MS].extra1 = dev;
 	}
 
+	/* Don't export sysctls to unprivileged users */
+	if (neigh_parms_net(p)->user_ns != &init_user_ns)
+		t->neigh_vars[0].procname = NULL;
+
 	snprintf(neigh_path, sizeof(neigh_path), "net/%s/neigh/%s",
 		p_name, dev_name_source);
 	t->sysctl_header =

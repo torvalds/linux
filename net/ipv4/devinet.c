@@ -1815,6 +1815,10 @@ static int __devinet_sysctl_register(struct net *net, char *dev_name,
 		t->devinet_vars[i].extra2 = net;
 	}
 
+	/* Don't export sysctls to unprivileged users */
+	if (net->user_ns != &init_user_ns)
+		t->devinet_vars[0].procname = NULL;
+
 	snprintf(path, sizeof(path), "net/ipv4/conf/%s", dev_name);
 
 	t->sysctl_header = register_net_sysctl(net, path, t->devinet_vars);
@@ -1900,6 +1904,10 @@ static __net_init int devinet_init_net(struct net *net)
 		tbl[0].data = &all->data[IPV4_DEVCONF_FORWARDING - 1];
 		tbl[0].extra1 = all;
 		tbl[0].extra2 = net;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			tbl[0].procname = NULL;
 #endif
 	}
 

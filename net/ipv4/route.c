@@ -2493,6 +2493,10 @@ static __net_init int sysctl_route_net_init(struct net *net)
 		tbl = kmemdup(tbl, sizeof(ipv4_route_flush_table), GFP_KERNEL);
 		if (tbl == NULL)
 			goto err_dup;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			tbl[0].procname = NULL;
 	}
 	tbl[0].extra1 = net;
 

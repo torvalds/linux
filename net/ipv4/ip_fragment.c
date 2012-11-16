@@ -802,6 +802,10 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 		table[0].data = &net->ipv4.frags.high_thresh;
 		table[1].data = &net->ipv4.frags.low_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
+
+		/* Don't export sysctls to unprivileged users */
+		if (net->user_ns != &init_user_ns)
+			table[0].procname = NULL;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
