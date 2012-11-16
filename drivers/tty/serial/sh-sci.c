@@ -2117,7 +2117,6 @@ static int __devinit sci_init_single(struct platform_device *dev,
 
 		sci_init_gpios(sci_port);
 
-		pm_runtime_irq_safe(&dev->dev);
 		pm_runtime_enable(&dev->dev);
 	}
 
