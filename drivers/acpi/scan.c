@@ -283,11 +283,21 @@ static ssize_t description_show(struct device *dev,
 }
 static DEVICE_ATTR(description, 0444, description_show, NULL);
 
+static ssize_t
+acpi_device_sun_show(struct device *dev, struct device_attribute *attr,
+		     char *buf) {
+	struct acpi_device *acpi_dev = to_acpi_device(dev);
+
+	return sprintf(buf, "%lu\n", acpi_dev->pnp.sun);
+}
+static DEVICE_ATTR(sun, 0444, acpi_device_sun_show, NULL);
+
 static int acpi_device_setup_files(struct acpi_device *dev)
 {
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	acpi_status status;
 	acpi_handle temp;
+	unsigned long long sun;
 	int result = 0;
 
 	/*
@@ -329,6 +339,16 @@ static int acpi_device_setup_files(struct acpi_device *dev)
 	if (dev->pnp.unique_id)
 		result = device_create_file(&dev->dev, &dev_attr_uid);
 
+	status = acpi_evaluate_integer(dev->handle, "_SUN", NULL, &sun);
+	if (ACPI_SUCCESS(status)) {
+		dev->pnp.sun = (unsigned long)sun;
+		result = device_create_file(&dev->dev, &dev_attr_sun);
+		if (result)
+			goto end;
+	} else {
+		dev->pnp.sun = (unsigned long)-1;
+	}
+
         /*
          * If device has _EJ0, 'eject' file is created that is used to trigger
          * hot-removal function from userland.
@@ -359,6 +379,10 @@ static void acpi_device_remove_files(struct acpi_device *dev)
 	status = acpi_get_handle(dev->handle, "_EJ0", &temp);
 	if (ACPI_SUCCESS(status))
 		device_remove_file(&dev->dev, &dev_attr_eject);
+
+	status = acpi_get_handle(dev->handle, "_SUN", &temp);
+	if (ACPI_SUCCESS(status))
+		device_remove_file(&dev->dev, &dev_attr_sun);
 
 	if (dev->pnp.unique_id)
 		device_remove_file(&dev->dev, &dev_attr_uid);
