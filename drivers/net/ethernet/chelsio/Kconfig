@@ -5,7 +5,7 @@
 config NET_VENDOR_CHELSIO
 	bool "Chelsio devices"
 	default y
-	depends on PCI || INET
+	depends on PCI
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -48,7 +48,7 @@ config CHELSIO_T1_1G
 
 config CHELSIO_T3
 	tristate "Chelsio Communications T3 10Gb Ethernet support"
-	depends on PCI && INET
+	depends on PCI
 	select FW_LOADER
 	select MDIO
 	---help---

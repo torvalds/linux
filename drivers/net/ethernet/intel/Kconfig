@@ -166,7 +166,7 @@ config IXGB
 
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
-	depends on PCI && INET
+	depends on PCI
 	select MDIO
 	select PTP_1588_CLOCK
 	---help---

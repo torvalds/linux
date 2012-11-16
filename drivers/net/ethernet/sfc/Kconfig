@@ -1,6 +1,6 @@
 config SFC
 	tristate "Solarflare SFC4000/SFC9000-family support"
-	depends on PCI && INET
+	depends on PCI
 	select MDIO
 	select CRC32
 	select I2C
