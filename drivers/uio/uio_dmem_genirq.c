@@ -29,6 +29,7 @@
 #include <linux/of_address.h>
 
 #define DRIVER_NAME "uio_dmem_genirq"
+#define DMEM_MAP_ERROR (~0)
 
 struct uio_dmem_genirq_platdata {
 	struct uio_info *uioinfo;
@@ -60,6 +61,7 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 		addr = dma_alloc_coherent(&priv->pdev->dev, uiomem->size,
 				(dma_addr_t *)&uiomem->addr, GFP_KERNEL);
 		if (!addr) {
+			uiomem->addr = DMEM_MAP_ERROR;
 			ret = -ENOMEM;
 			break;
 		}
@@ -95,7 +97,7 @@ static int uio_dmem_genirq_release(struct uio_info *info, struct inode *inode)
 		dma_free_coherent(&priv->pdev->dev, uiomem->size,
 				priv->dmem_region_vaddr[dmem_region++],
 				uiomem->addr);
-		uiomem->addr = DMA_ERROR_CODE;
+		uiomem->addr = DMEM_MAP_ERROR;
 		++uiomem;
 	}
 
@@ -238,7 +240,7 @@ static int uio_dmem_genirq_probe(struct platform_device *pdev)
 			break;
 		}
 		uiomem->memtype = UIO_MEM_PHYS;
-		uiomem->addr = DMA_ERROR_CODE;
+		uiomem->addr = DMEM_MAP_ERROR;
 		uiomem->size = pdata->dynamic_region_sizes[i];
 		++uiomem;
 	}

@@ -771,7 +771,7 @@ framework to set up sysfs files for this region. Simply leave it alone.
 	<varname>/sys/class/uio/uioX/maps/mapY/*</varname>.
 	The dynmaic memory regions will be freed when the UIO device file is
 	closed. When no processes are holding the device file open, the address
-	returned to userspace is DMA_ERROR_CODE.
+	returned to userspace is ~0.
 	</para>
 </sect1>
 
