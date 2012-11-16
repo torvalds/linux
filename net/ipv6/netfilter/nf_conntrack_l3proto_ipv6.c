@@ -21,6 +21,7 @@
 
 #include <linux/netfilter_bridge.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/netfilter_ipv6/ip6_tables.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
@@ -295,6 +296,55 @@ static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
 	},
 };
 
+static int
+ipv6_getorigdst(struct sock *sk, int optval, void __user *user, int *len)
+{
+	const struct inet_sock *inet = inet_sk(sk);
+	const struct ipv6_pinfo *inet6 = inet6_sk(sk);
+	const struct nf_conntrack_tuple_hash *h;
+	struct sockaddr_in6 sin6;
+	struct nf_conntrack_tuple tuple = { .src.l3num = NFPROTO_IPV6 };
+	struct nf_conn *ct;
+
+	tuple.src.u3.in6 = inet6->rcv_saddr;
+	tuple.src.u.tcp.port = inet->inet_sport;
+	tuple.dst.u3.in6 = inet6->daddr;
+	tuple.dst.u.tcp.port = inet->inet_dport;
+	tuple.dst.protonum = sk->sk_protocol;
+
+	if (sk->sk_protocol != IPPROTO_TCP && sk->sk_protocol != IPPROTO_SCTP)
+		return -ENOPROTOOPT;
+
+	if (*len < 0 || (unsigned int) *len < sizeof(sin6))
+		return -EINVAL;
+
+	h = nf_conntrack_find_get(sock_net(sk), NF_CT_DEFAULT_ZONE, &tuple);
+	if (!h) {
+		pr_debug("IP6T_SO_ORIGINAL_DST: Can't find %pI6c/%u-%pI6c/%u.\n",
+			 &tuple.src.u3.ip6, ntohs(tuple.src.u.tcp.port),
+			 &tuple.dst.u3.ip6, ntohs(tuple.dst.u.tcp.port));
+		return -ENOENT;
+	}
+
+	ct = nf_ct_tuplehash_to_ctrack(h);
+
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_port = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u.tcp.port;
+	sin6.sin6_flowinfo = inet6->flow_label & IPV6_FLOWINFO_MASK;
+	memcpy(&sin6.sin6_addr,
+		&ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.dst.u3.in6,
+					sizeof(sin6.sin6_addr));
+
+	nf_ct_put(ct);
+
+	if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
+		sin6.sin6_scope_id = sk->sk_bound_dev_if;
+	else
+		sin6.sin6_scope_id = 0;
+
+	return copy_to_user(user, &sin6, sizeof(sin6)) ? -EFAULT : 0;
+}
+
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
 #include <linux/netfilter/nfnetlink.h>
@@ -358,6 +408,14 @@ struct nf_conntrack_l3proto nf_conntrack_l3proto_ipv6 __read_mostly = {
 MODULE_ALIAS("nf_conntrack-" __stringify(AF_INET6));
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yasuyuki KOZAKAI @USAGI <yasuyuki.kozakai@toshiba.co.jp>");
+
+static struct nf_sockopt_ops so_getorigdst6 = {
+	.pf		= NFPROTO_IPV6,
+	.get_optmin	= IP6T_SO_ORIGINAL_DST,
+	.get_optmax	= IP6T_SO_ORIGINAL_DST + 1,
+	.get		= ipv6_getorigdst,
+	.owner		= THIS_MODULE,
+};
 
 static int ipv6_net_init(struct net *net)
 {
@@ -425,6 +483,12 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 	need_conntrack();
 	nf_defrag_ipv6_enable();
 
+	ret = nf_register_sockopt(&so_getorigdst6);
+	if (ret < 0) {
+		pr_err("Unable to register netfilter socket option\n");
+		return ret;
+	}
+
 	ret = register_pernet_subsys(&ipv6_net_ops);
 	if (ret < 0)
 		goto cleanup_pernet;
@@ -440,6 +504,7 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
  cleanup_ipv6:
 	unregister_pernet_subsys(&ipv6_net_ops);
  cleanup_pernet:
+	nf_unregister_sockopt(&so_getorigdst6);
 	return ret;
 }
 
@@ -448,6 +513,7 @@ static void __exit nf_conntrack_l3proto_ipv6_fini(void)
 	synchronize_net();
 	nf_unregister_hooks(ipv6_conntrack_ops, ARRAY_SIZE(ipv6_conntrack_ops));
 	unregister_pernet_subsys(&ipv6_net_ops);
+	nf_unregister_sockopt(&so_getorigdst6);
 }
 
 module_init(nf_conntrack_l3proto_ipv6_init);

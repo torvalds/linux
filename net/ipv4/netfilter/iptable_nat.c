@@ -276,9 +276,7 @@ static int __net_init iptable_nat_net_init(struct net *net)
 		return -ENOMEM;
 	net->ipv4.nat_table = ipt_register_table(net, &nf_nat_ipv4_table, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv4.nat_table))
-		return PTR_ERR(net->ipv4.nat_table);
-	return 0;
+	return PTR_RET(net->ipv4.nat_table);
 }
 
 static void __net_exit iptable_nat_net_exit(struct net *net)

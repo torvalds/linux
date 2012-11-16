@@ -277,9 +277,7 @@ static int __net_init ip6table_nat_net_init(struct net *net)
 		return -ENOMEM;
 	net->ipv6.ip6table_nat = ip6t_register_table(net, &nf_nat_ipv6_table, repl);
 	kfree(repl);
-	if (IS_ERR(net->ipv6.ip6table_nat))
-		return PTR_ERR(net->ipv6.ip6table_nat);
-	return 0;
+	return PTR_RET(net->ipv6.ip6table_nat);
 }
 
 static void __net_exit ip6table_nat_net_exit(struct net *net)
