@@ -1715,38 +1715,6 @@ void ath6kl_init_hw_restart(struct ath6kl *ar)
 	}
 }
 
-/* FIXME: move this to cfg80211.c and rename to ath6kl_cfg80211_vif_stop() */
-void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
-{
-	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-	bool discon_issued;
-
-	netif_stop_queue(vif->ndev);
-
-	clear_bit(WLAN_ENABLED, &vif->flags);
-
-	if (wmi_ready) {
-		discon_issued = test_bit(CONNECTED, &vif->flags) ||
-				test_bit(CONNECT_PEND, &vif->flags);
-		ath6kl_disconnect(vif);
-		del_timer(&vif->disconnect_timer);
-
-		if (discon_issued)
-			ath6kl_disconnect_event(vif, DISCONNECT_CMD,
-						(vif->nw_type & AP_NETWORK) ?
-						bcast_mac : vif->bssid,
-						0, NULL, 0);
-	}
-
-	if (vif->scan_req) {
-		cfg80211_scan_done(vif->scan_req, true);
-		vif->scan_req = NULL;
-	}
-
-	/* need to clean up enhanced bmiss detection fw state */
-	ath6kl_cfg80211_sta_bmiss_enhance(vif, false);
-}
-
 void ath6kl_stop_txrx(struct ath6kl *ar)
 {
 	struct ath6kl_vif *vif, *tmp_vif;
@@ -1766,7 +1734,7 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
 		list_del(&vif->list);
 		spin_unlock_bh(&ar->list_lock);
-		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
+		ath6kl_cfg80211_vif_stop(vif, test_bit(WMI_READY, &ar->flag));
 		rtnl_lock();
 		ath6kl_cfg80211_vif_cleanup(vif);
 		rtnl_unlock();

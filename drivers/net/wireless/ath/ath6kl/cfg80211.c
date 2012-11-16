@@ -427,6 +427,30 @@ static bool ath6kl_is_tx_pending(struct ath6kl *ar)
 	return ar->tx_pending[ath6kl_wmi_get_control_ep(ar->wmi)] == 0;
 }
 
+static void ath6kl_cfg80211_sta_bmiss_enhance(struct ath6kl_vif *vif,
+					      bool enable)
+{
+	int err;
+
+	if (WARN_ON(!test_bit(WMI_READY, &vif->ar->flag)))
+		return;
+
+	if (vif->nw_type != INFRA_NETWORK)
+		return;
+
+	if (!test_bit(ATH6KL_FW_CAPABILITY_BMISS_ENHANCE,
+		      vif->ar->fw_capabilities))
+		return;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s fw bmiss enhance\n",
+		   enable ? "enable" : "disable");
+
+	err = ath6kl_wmi_sta_bmiss_enhance_cmd(vif->ar->wmi,
+					       vif->fw_vif_idx, enable);
+	if (err)
+		ath6kl_err("failed to %s enhanced bmiss detection: %d\n",
+			   enable ? "enable" : "disable", err);
+}
 
 static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_connect_params *sme)
@@ -1507,7 +1531,7 @@ static int ath6kl_cfg80211_del_iface(struct wiphy *wiphy,
 	list_del(&vif->list);
 	spin_unlock_bh(&ar->list_lock);
 
-	ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
+	ath6kl_cfg80211_vif_stop(vif, test_bit(WMI_READY, &ar->flag));
 
 	ath6kl_cfg80211_vif_cleanup(vif);
 
@@ -2667,30 +2691,6 @@ static int ath6kl_set_ies(struct ath6kl_vif *vif,
 	return 0;
 }
 
-void ath6kl_cfg80211_sta_bmiss_enhance(struct ath6kl_vif *vif, bool enable)
-{
-	int err;
-
-	if (WARN_ON(!test_bit(WMI_READY, &vif->ar->flag)))
-		return;
-
-	if (vif->nw_type != INFRA_NETWORK)
-		return;
-
-	if (!test_bit(ATH6KL_FW_CAPABILITY_BMISS_ENHANCE,
-		      vif->ar->fw_capabilities))
-		return;
-
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s fw bmiss enhance\n",
-		   enable ? "enable" : "disable");
-
-	err = ath6kl_wmi_sta_bmiss_enhance_cmd(vif->ar->wmi,
-					       vif->fw_vif_idx, enable);
-	if (err)
-		ath6kl_err("failed to %s enhanced bmiss detection: %d\n",
-			   enable ? "enable" : "disable", err);
-}
-
 static int ath6kl_get_rsn_capab(struct cfg80211_beacon_data *beacon,
 				u8 *rsn_capab)
 {
@@ -3559,6 +3559,37 @@ static int ath6kl_cfg80211_vif_init(struct ath6kl_vif *vif)
 	INIT_LIST_HEAD(&vif->mc_filter);
 
 	return 0;
+}
+
+void ath6kl_cfg80211_vif_stop(struct ath6kl_vif *vif, bool wmi_ready)
+{
+	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+	bool discon_issued;
+
+	netif_stop_queue(vif->ndev);
+
+	clear_bit(WLAN_ENABLED, &vif->flags);
+
+	if (wmi_ready) {
+		discon_issued = test_bit(CONNECTED, &vif->flags) ||
+				test_bit(CONNECT_PEND, &vif->flags);
+		ath6kl_disconnect(vif);
+		del_timer(&vif->disconnect_timer);
+
+		if (discon_issued)
+			ath6kl_disconnect_event(vif, DISCONNECT_CMD,
+						(vif->nw_type & AP_NETWORK) ?
+						bcast_mac : vif->bssid,
+						0, NULL, 0);
+	}
+
+	if (vif->scan_req) {
+		cfg80211_scan_done(vif->scan_req, true);
+		vif->scan_req = NULL;
+	}
+
+	/* need to clean up enhanced bmiss detection fw state */
+	ath6kl_cfg80211_sta_bmiss_enhance(vif, false);
 }
 
 void ath6kl_cfg80211_vif_cleanup(struct ath6kl_vif *vif)
