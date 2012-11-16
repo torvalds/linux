@@ -1747,8 +1747,6 @@ static int sci_startup(struct uart_port *port)
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
-	sci_port_enable(s);
-
 	ret = sci_request_irq(s);
 	if (unlikely(ret < 0))
 		return ret;
@@ -1772,8 +1770,6 @@ static void sci_shutdown(struct uart_port *port)
 
 	sci_free_dma(port);
 	sci_free_irq(s);
-
-	sci_port_disable(s);
 }
 
 static unsigned int sci_scbrr_calc(unsigned int algo_id, unsigned int bps,
@@ -1922,6 +1918,21 @@ static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 	sci_port_disable(s);
 }
 
+static void sci_pm(struct uart_port *port, unsigned int state,
+		   unsigned int oldstate)
+{
+	struct sci_port *sci_port = to_sci_port(port);
+
+	switch (state) {
+	case 3:
+		sci_port_disable(sci_port);
+		break;
+	default:
+		sci_port_enable(sci_port);
+		break;
+	}
+}
+
 static const char *sci_type(struct uart_port *port)
 {
 	switch (port->type) {
@@ -2043,6 +2054,7 @@ static struct uart_ops sci_uart_ops = {
 	.startup	= sci_startup,
 	.shutdown	= sci_shutdown,
 	.set_termios	= sci_set_termios,
+	.pm		= sci_pm,
 	.type		= sci_type,
 	.release_port	= sci_release_port,
 	.request_port	= sci_request_port,
@@ -2196,16 +2208,12 @@ static void serial_console_write(struct console *co, const char *s,
 	struct uart_port *port = &sci_port->port;
 	unsigned short bits;
 
-	sci_port_enable(sci_port);
-
 	uart_console_write(port, s, count, serial_console_putchar);
 
 	/* wait until fifo is empty and last bit has been transmitted */
 	bits = SCxSR_TDxE(port) | SCxSR_TEND(port);
 	while ((serial_port_in(port, SCxSR) & bits) != bits)
 		cpu_relax();
-
-	sci_port_disable(sci_port);
 }
 
 static int __devinit serial_console_setup(struct console *co, char *options)
@@ -2237,12 +2245,9 @@ static int __devinit serial_console_setup(struct console *co, char *options)
 	if (unlikely(ret != 0))
 		return ret;
 
-	sci_port_enable(sci_port);
-
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
 
-	/* TODO: disable clock */
 	return uart_set_options(port, co, baud, parity, bits, flow);
 }
 
