@@ -68,6 +68,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Flip          0
 #ifdef CONFIG_OV5640_AUTOFOCUS
 #define CONFIG_SENSOR_Focus         1
+#define CONFIG_SENSOR_FocusCenterInCapture    0
 #include "ov5640_af_firmware.c"
 #else
 #define CONFIG_SENSOR_Focus         0
@@ -128,9 +129,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define STA_FOCUS_Reg     	0x3029
 
 /* ov5640 VCM Command  */
-#define OverlayEn_Cmd     0x01
-#define OverlayDis_Cmd    0x02
-#define SingleFocus_Cmd   0x03
+
 #define ConstFocus_Cmd    0x04
 #define StepMode_Cmd      0x05
 #define PauseFocus_Cmd    0x06
@@ -138,11 +137,14 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SetZone_Cmd       0x10
 #define UpdateZone_Cmd    0x12
 #define SetMotor_Cmd      0x20
+#define SingleFocus_Cmd             0x03
+#define GetFocusResult_Cmd		    0x07
+#define ReleaseFocus_Cmd            0x08
+#define ZoneRelaunch_Cmd  	        0x12
+#define DefaultZoneConfig_Cmd       0x80
+#define TouchZoneConfig_Cmd         0x81
+#define CustomZoneConfig_Cmd        0x8f
 
-
-#define Zone_configuration_Cmd  	0x12
-#define Trig_autofocus_Cmd		0x03
-#define Get_focus_result_Cmd		0x07
 
 /* ov5640 Focus State */
 //#define S_FIRWRE          	0xFF		/*Firmware is downloaded and not run*/
@@ -1423,6 +1425,14 @@ static  struct v4l2_queryctrl sensor_controls[] =
         .default_value = 125,
     },*/
 	{
+        .id		= V4L2_CID_FOCUSZONE,
+        .type		= V4L2_CTRL_TYPE_INTEGER,
+        .name		= "FocusZone Control",
+        .minimum	= -1,
+        .maximum	= 1,
+        .step		= 1,
+        .default_value = 0,
+    },{
         .id		= V4L2_CID_FOCUS_AUTO,
         .type		= V4L2_CTRL_TYPE_BOOLEAN,
         .name		= "Focus Control",
@@ -1529,6 +1539,7 @@ struct sensor_work
     enum sensor_wq_result result;
     bool wait;
     int var;    
+    int zone_center_pos[2];
 };
 
 typedef struct sensor_info_priv_s
@@ -1876,6 +1887,16 @@ static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_c
 	char read_tag=0xff,cnt;
 
 	if (cmdinfo) {
+        for (i=0; i<4; i++) {
+			if (cmdinfo->validate_bit & (1<<i)) {
+				if (sensor_write(client, CMD_PARA0_Reg+i, cmdinfo->cmd_para[i])) {
+					SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
+					goto sensor_af_cmdset_err;
+				}
+				SENSOR_DG("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
+			}
+		}
+    
 		if (cmdinfo->validate_bit & 0x80) {
 			if (sensor_write(client, CMD_ACK_Reg, cmdinfo->cmd_tag)) {
 				SENSOR_TR("%s write CMD_ACK_Reg(main:0x%x tag:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,cmdinfo->cmd_tag);
@@ -1883,15 +1904,7 @@ static int sensor_af_cmdset(struct i2c_client *client, int cmd_main, struct af_c
 			}
 			SENSOR_DG("%s write CMD_ACK_Reg(main:0x%x tag:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,cmdinfo->cmd_tag);
 		}
-		for (i=0; i<4; i++) {
-			if (cmdinfo->validate_bit & (1<<i)) {
-				if (sensor_write(client, CMD_PARA0_Reg-i, cmdinfo->cmd_para[i])) {
-					SENSOR_TR("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) error!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
-					goto sensor_af_cmdset_err;
-				}
-				SENSOR_DG("%s write CMD_PARA_Reg(main:0x%x para%d:0x%x) success!\n",SENSOR_NAME_STRING(),cmd_main,i,cmdinfo->cmd_para[i]);
-			}
-		}
+		
 	} else {
 		if (sensor_write(client, CMD_ACK_Reg, 0xff)) {
 			SENSOR_TR("%s write CMD_ACK_Reg(main:0x%x no tag) error!\n",SENSOR_NAME_STRING(),cmd_main);
@@ -1952,13 +1965,42 @@ static int sensor_af_idlechk(struct i2c_client *client)
 sensor_af_idlechk_end:
 	return ret;
 }
+static int sensor_af_touch_zone(struct i2c_client *client, int *zone_center_pos)
+{
+	int ret = 0;
+	struct af_cmdinfo cmdinfo;
 
+    cmdinfo.cmd_tag = 0x01;
+	cmdinfo.validate_bit = 0x83;
+    if (zone_center_pos[0]<=8)
+        cmdinfo.cmd_para[0] = 0;
+    else if ((zone_center_pos[0]>8) && (zone_center_pos[0]<64))
+        cmdinfo.cmd_para[0] = zone_center_pos[0]-8;
+    else 
+        cmdinfo.cmd_para[0] = 64; 
+    
+    if (zone_center_pos[1]<=6)
+        cmdinfo.cmd_para[1] = 0;
+    else if ((zone_center_pos[1]>6) && (zone_center_pos[1]<48))
+        cmdinfo.cmd_para[1] = zone_center_pos[1]-6;
+    else 
+        cmdinfo.cmd_para[1] = 48;
+    
+    ret = sensor_af_cmdset(client, TouchZoneConfig_Cmd, &cmdinfo);
+	if(0 != ret) {
+		SENSOR_TR("%s touch zone config error!\n",SENSOR_NAME_STRING());
+		ret = -1;
+		goto sensor_af_zone_end;
+	}    
+sensor_af_zone_end:
+    return ret;
+}
 static int sensor_af_single(struct i2c_client *client)
 {
 	int ret = 0;
 	char state,cnt;
 	struct af_cmdinfo cmdinfo;
-
+    
 	cmdinfo.cmd_tag = 0x01;
 	cmdinfo.validate_bit = 0x80;
 	ret = sensor_af_cmdset(client, SingleFocus_Cmd, &cmdinfo);
@@ -2109,7 +2151,10 @@ static void sensor_af_workqueue(struct work_struct *work)
             break;
         }
         case WqCmd_af_single:
-        {
+        {      
+            if ((sensor_work->zone_center_pos[0] >=0) && (sensor_work->zone_center_pos[1]>=0))
+                sensor_af_touch_zone(client,sensor_work->zone_center_pos);
+            
             if (sensor_af_single(client) < 0) {
         		SENSOR_TR("%s Sensor_af_single is failed in sensor_af_workqueue!\n",SENSOR_NAME_STRING());
                 sensor_work->result = WqRet_fail;
@@ -2183,7 +2228,7 @@ set_end:
     return;
 }
 
-static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq_cmd cmd, int var, bool wait)
+static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq_cmd cmd, int var, bool wait, int *zone_pos)
 {
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct sensor *sensor = to_sensor(client); 
@@ -2211,6 +2256,26 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         wk->result = WqRet_inval;
         wk->wait = wait;
         wk->var = var;
+
+        if (zone_pos) {   
+            if (*zone_pos || *(zone_pos+1) || *(zone_pos+2) || *(zone_pos+3)) {
+                *zone_pos += 1000;
+                *(zone_pos+1) += 1000;
+                *(zone_pos+2) += 1000;
+                *(zone_pos+3) += 1000;
+                wk->zone_center_pos[0] = ((*zone_pos + *(zone_pos+2))>>1)*80/2000;
+                wk->zone_center_pos[1] = ((*(zone_pos+1) + *(zone_pos+3))>>1)*60/2000;
+            } else {
+                #if CONFIG_SENSOR_FocusCenterInCapture
+                wk->zone_center_pos[0] = 32;
+                wk->zone_center_pos[1] = 24;
+                #else
+                wk->zone_center_pos[0] = -1;
+                wk->zone_center_pos[1] = -1;
+                #endif
+            }
+        }
+        
         init_waitqueue_head(&wk->done);
         
 	    queue_delayed_work(sensor->sensor_wq,&(wk->dwork),0);
@@ -2261,11 +2326,11 @@ static int sensor_parameter_record(struct i2c_client *client)
     sensor->parameter.preview_exposure = ((tp_h<<12) & 0xF000) | ((tp_m<<4) & 0x0FF0) | ((tp_l>>4) & 0x0F);
 	
 	//Read back AGC Gain for preview
-	sensor_read(client,0x350b, &tp_l);
-	sensor->parameter.preview_gain = tp_l;
+	sensor_read(client,0x350b, &ret_l);
+	sensor->parameter.preview_gain = ret_l;
     
 	SENSOR_DG(" %s Read 0x350b=0x%02x  PreviewExposure:%d 0x3500=0x%02x  0x3501=0x%02x 0x3502=0x%02x \n",
-     SENSOR_NAME_STRING(), tp_l,sensor->parameter.preview_exposure,ret_h, ret_m, ret_l);
+     SENSOR_NAME_STRING(), tp_l,sensor->parameter.preview_exposure,tp_h, tp_m, tp_l);
 	return 0;
 }
 #define OV5640_FULL_PERIOD_PIXEL_NUMS_HTS         (2844) 
@@ -2278,14 +2343,8 @@ static int sensor_ae_transfer(struct i2c_client *client)
 	u8  ExposureMid;
 	u8  ExposureHigh;
 	u16 ulCapture_Exposure;
-	u32 ulCapture_Exposure_Gain;
-	u16  iCapture_Gain;
-	u8   Lines_10ms;
-	bool m_60Hz = 0;
-	u8  reg_l = 0,reg_h =0;
 	u16 Preview_Maxlines;
 	u8  Gain;
-	u32  Capture_MaxLines;
     u16 OV5640_g_iExtra_ExpLines;
 	struct sensor *sensor = to_sensor(client);
 
@@ -2299,9 +2358,7 @@ static int sensor_ae_transfer(struct i2c_client *client)
     SENSOR_DG("cap shutter calutaed = %d, 0x%x\n", ulCapture_Exposure,ulCapture_Exposure);
     
 	// write the gain and exposure to 0x350* registers	
-	sensor_write(client,0x350b, Gain);
-	//Gain = (Gain >> 8) & 0x01;
-	//sensor_write(client,0x350a, Gain);
+	sensor_write(client,0x350b, Gain);	
 
     if (ulCapture_Exposure <= 1940) {
         OV5640_g_iExtra_ExpLines = 0;
@@ -2392,7 +2449,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
     const struct sensor_datafmt *fmt;
-    char value,ret_h,ret_l;
+    char value;
     int ret,pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
@@ -2656,7 +2713,6 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 	struct soc_camera_device *icd = client->dev.platform_data;
     struct reginfo *winseqe_set_addr=NULL;
     int ret = 0, set_w,set_h;
-    char ret_h,ret_l;
 
 	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
 				   ARRAY_SIZE(sensor_colour_fmts));
@@ -2848,7 +2904,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd,struct v4l2_mbus_framefmt *mf)
 			}
             #if CONFIG_SENSOR_Focus
             if (sensor->info_priv.auto_focus == SENSOR_AF_MODE_AUTO) {
-                sensor_af_workqueue_set(icd,WqCmd_af_return_idle,0,true);
+                sensor_af_workqueue_set(icd,WqCmd_af_return_idle,0,true,NULL);
                 msleep(200);
             } else {
                 msleep(500);
@@ -3252,7 +3308,7 @@ static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct
     
 	if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) && (sensor->info_priv.affm_reinit == 0)) {
 		if ((value >= qctrl_info->minimum) && (value <= qctrl_info->maximum)) {
-            ret = sensor_af_workqueue_set(icd, WqCmd_af_special_pos, value, true);
+            ret = sensor_af_workqueue_set(icd, WqCmd_af_special_pos, value, true,NULL);
 			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
 		} else {
 			ret = -EINVAL;
@@ -3280,9 +3336,9 @@ static int sensor_set_focus_relative(struct soc_camera_device *icd, const struct
 	if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) && (sensor->info_priv.affm_reinit == 0)) {
 		if ((value >= qctrl_info->minimum) && (value <= qctrl_info->maximum)) {            
             if (value > 0) {
-                ret = sensor_af_workqueue_set(icd, WqCmd_af_near_pos, 0, true);
+                ret = sensor_af_workqueue_set(icd, WqCmd_af_near_pos, 0, true,NULL);
             } else {
-                ret = sensor_af_workqueue_set(icd, WqCmd_af_far_pos, 0, true);
+                ret = sensor_af_workqueue_set(icd, WqCmd_af_far_pos, 0, true,NULL);
             }
 			SENSOR_DG("%s..%s : %d  ret:0x%x\n",SENSOR_NAME_STRING(),__FUNCTION__, value,ret);
 		} else {
@@ -3297,7 +3353,7 @@ static int sensor_set_focus_relative(struct soc_camera_device *icd, const struct
 	return ret;
 }
 
-static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
+static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value, int *zone_pos)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
 	struct sensor *sensor = to_sensor(client);
@@ -3308,7 +3364,7 @@ static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l
 		{
 			case SENSOR_AF_MODE_AUTO:
 			{
-				ret = sensor_af_workqueue_set(icd, WqCmd_af_single, 0, true);
+				ret = sensor_af_workqueue_set(icd, WqCmd_af_single, 0, true, zone_pos);
 				break;
 			}
 
@@ -3326,7 +3382,7 @@ static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l
 			
 			case SENSOR_AF_MODE_CONTINUOUS:
 			{
-				ret = sensor_af_workqueue_set(icd, WqCmd_af_continues, 0, true);
+				ret = sensor_af_workqueue_set(icd, WqCmd_af_continues, 0, true,NULL);
 				break;
 			}*/
 			default:
@@ -3597,7 +3653,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
     const struct v4l2_queryctrl *qctrl;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
-    int val_offset,ret;
+    int val_offset;
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ext_ctrl->id);
 
@@ -3685,7 +3741,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
 		case V4L2_CID_FOCUS_AUTO:
 			{
 				if (ext_ctrl->value == 1) {
-					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO) != 0) {
+					if (sensor_set_focus_mode(icd, qctrl,SENSOR_AF_MODE_AUTO,ext_ctrl->rect) != 0) {
 						if(0 == (sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)) {
 							sensor->info_priv.auto_focus = SENSOR_AF_MODE_AUTO;
 						}
@@ -3800,7 +3856,7 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		/* If auto focus firmware haven't download success, must download firmware again when in video or preview stream on */
 		if (sensor_fmt_capturechk(sd, &mf) == false) {
 			if ((sensor->info_priv.affm_reinit == 1) || ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK)==0)) {
-                sensor_af_workqueue_set(icd, WqCmd_af_init, 0, false);
+                sensor_af_workqueue_set(icd, WqCmd_af_init, 0, false,NULL);
 				sensor->info_priv.affm_reinit = 0;
 			}
 		}
