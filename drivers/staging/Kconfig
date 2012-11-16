@@ -122,8 +122,6 @@ source "drivers/staging/ozwpan/Kconfig"
 
 source "drivers/staging/ccg/Kconfig"
 
-source "drivers/staging/ipack/Kconfig"
-
 source "drivers/staging/gdm72xx/Kconfig"
 
 source "drivers/staging/csr/Kconfig"
