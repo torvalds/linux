@@ -1966,9 +1966,10 @@ static void transport_put_cmd(struct se_cmd *cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (atomic_read(&cmd->t_fe_count)) {
-		if (!atomic_dec_and_test(&cmd->t_fe_count))
-			goto out_busy;
+	if (atomic_read(&cmd->t_fe_count) &&
+	    !atomic_dec_and_test(&cmd->t_fe_count)) {
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+		return;
 	}
 
 	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
@@ -1980,8 +1981,6 @@ static void transport_put_cmd(struct se_cmd *cmd)
 	transport_free_pages(cmd);
 	transport_release_cmd(cmd);
 	return;
-out_busy:
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
 
 void *transport_kmap_data_sg(struct se_cmd *cmd)
