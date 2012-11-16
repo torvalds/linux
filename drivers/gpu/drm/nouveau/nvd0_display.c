@@ -1896,6 +1896,11 @@ nvd0_display_create(struct drm_device *dev)
 	static const u16 oclass[] = {
 		NVE0_DISP_CLASS,
 		NVD0_DISP_CLASS,
+		NVA3_DISP_CLASS,
+		NV94_DISP_CLASS,
+		NVA0_DISP_CLASS,
+		NV84_DISP_CLASS,
+		NV50_DISP_CLASS,
 	};
 	struct nouveau_device *device = nouveau_dev(dev);
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -1949,7 +1954,11 @@ nvd0_display_create(struct drm_device *dev)
 		goto out;
 
 	/* create crtc objects to represent the hw heads */
-	crtcs = nv_rd32(device, 0x022448);
+	if (nv_mclass(disp->core) >= NVD0_DISP_CLASS)
+		crtcs = nv_rd32(device, 0x022448);
+	else
+		crtcs = 2;
+
 	for (i = 0; i < crtcs; i++) {
 		ret = nvd0_crtc_create(dev, disp->core, i);
 		if (ret)
