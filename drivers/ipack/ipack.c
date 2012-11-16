@@ -14,7 +14,6 @@
 #include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/ipack.h>
-#include "ipack_ids.h"
 
 #define to_ipack_dev(device) container_of(device, struct ipack_device, dev)
 #define to_ipack_driver(drv) container_of(drv, struct ipack_driver, driver)
