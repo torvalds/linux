@@ -21,7 +21,6 @@ enum {
 	MPOL_BIND,
 	MPOL_INTERLEAVE,
 	MPOL_LOCAL,
-	MPOL_NOOP,		/* retain existing policy for range */
 	MPOL_MAX,	/* always last member of enum */
 };
 
@@ -57,8 +56,7 @@ enum mpol_rebind_step {
 
 #define MPOL_MF_VALID	(MPOL_MF_STRICT   | 	\
 			 MPOL_MF_MOVE     | 	\
-			 MPOL_MF_MOVE_ALL |	\
-			 MPOL_MF_LAZY)
+			 MPOL_MF_MOVE_ALL)
 
 /*
  * Internal flags that share the struct mempolicy flags word with
