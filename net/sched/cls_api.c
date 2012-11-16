@@ -139,6 +139,8 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 	int err;
 	int tp_created = 0;
 
+	if ((n->nlmsg_type != RTM_GETTFILTER) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
 replay:
 	t = nlmsg_data(n);
 	protocol = TC_H_MIN(t->tcm_info);

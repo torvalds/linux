@@ -1547,6 +1547,9 @@ static int rtnl_setlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlattr *tb[IFLA_MAX+1];
 	char ifname[IFNAMSIZ];
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
 		goto errout;
@@ -1589,6 +1592,9 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlattr *tb[IFLA_MAX+1];
 	int err;
 	LIST_HEAD(list_kill);
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	err = nlmsg_parse(nlh, sizeof(*ifm), tb, IFLA_MAX, ifla_policy);
 	if (err < 0)
@@ -1719,6 +1725,9 @@ static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlattr *tb[IFLA_MAX+1];
 	struct nlattr *linkinfo[IFLA_INFO_MAX+1];
 	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 #ifdef CONFIG_MODULES
 replay:
@@ -2057,6 +2066,9 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	u8 *addr;
 	int err;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
 	if (err < 0)
 		return err;
@@ -2122,6 +2134,9 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct net_device *dev;
 	int err = -EINVAL;
 	__u8 *addr;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
 
 	if (nlmsg_len(nlh) < sizeof(*ndm))
 		return -EINVAL;
@@ -2488,7 +2503,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	sz_idx = type>>2;
 	kind = type&3;
 
-	if (kind != 2 && !capable(CAP_NET_ADMIN))
+	if (kind != 2 && !ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	if (kind == 2 && nlh->nlmsg_flags&NLM_F_DUMP) {

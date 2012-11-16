@@ -240,6 +240,9 @@ int br_setlink(struct net_device *dev, struct nlmsghdr *nlh)
 	struct nlattr *tb[IFLA_BRPORT_MAX];
 	int err;
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	ifm = nlmsg_data(nlh);
 
 	protinfo = nlmsg_find_attr(nlh, sizeof(*ifm), IFLA_PROTINFO);

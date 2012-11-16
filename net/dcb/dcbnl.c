@@ -1662,6 +1662,9 @@ static int dcb_doit(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	struct nlmsghdr *reply_nlh = NULL;
 	const struct reply_func *fn;
 
+	if ((nlh->nlmsg_type == RTM_SETDCB) && !capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	if (!net_eq(net, &init_net))
 		return -EINVAL;
 
