@@ -45,11 +45,13 @@ static int rk30_get_base_volt(void)
 
         return volt;
 }
+
 static struct adc_platform_data rk30_adc_pdata = {
         .ref_volt = 3300, //3300mV
         .base_chn = 3,
         .get_base_volt = &rk30_get_base_volt,
 };
+
 static struct resource rk30_adc_resource[] = {
 	{
 		.start	= IRQ_SARADC,

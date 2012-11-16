@@ -58,11 +58,11 @@ int adc_async_read(struct adc_client *client);
 /*
  * function: return current reference voltage, unit: mV
  */
-int get_curr_ref_volt(void);
+int adc_get_curr_ref_volt(void);
 /*
  * function: return default reference voltage, unit: mV
  */
-int get_def_ref_volt(void);
+int adc_get_def_ref_volt(void);
 #else
 static inline struct adc_client *adc_register(int chn,
 				void (*callback)(struct adc_client *, void *, int),
@@ -73,8 +73,8 @@ static inline struct adc_client *adc_register(int chn,
 static inline void adc_unregister(struct adc_client *client) {}
 static inline int adc_sync_read(struct adc_client *client) { return -1; }
 static inline int adc_async_read(struct adc_client *client) { return -1; }
-static inline int get_curr_ref_volt(void) { return -1; }
-static inline int get_def_ref_volt(void) { return -1; }
+static inline int adc_get_curr_ref_volt(void) { return -1; }
+static inline int adc_get_def_ref_volt(void) { return -1; }
 #endif
 
 #endif

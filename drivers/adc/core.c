@@ -118,6 +118,7 @@ adc_sync_read_callback(struct adc_client *client, void *param, int result)
 {
         client->result = result;
 }
+
 static void adc_callback(struct adc_host *adc)
 {
         struct adc_request *req = NULL, *n = NULL;
@@ -136,6 +137,7 @@ static void adc_callback(struct adc_host *adc)
                 kfree(req);
         }
 }
+
 void adc_finished(struct adc_host *adc, int result)
 {
 	unsigned long flags;
@@ -157,6 +159,7 @@ void adc_finished(struct adc_host *adc, int result)
 
         adc_callback(adc);
 }
+
 void adc_core_irq_handle(struct adc_host *adc)
 {
         int result = 0;
@@ -240,12 +243,14 @@ int adc_async_read(struct adc_client *client)
 }
 
 EXPORT_SYMBOL(adc_async_read);
-int get_def_ref_volt(void)
+
+int adc_get_def_ref_volt(void)
 {
         return g_adc->pdata->ref_volt;
 }
-EXPORT_SYMBOL(get_def_ref_volt);
-int get_curr_ref_volt(void)
+EXPORT_SYMBOL(adc_get_def_ref_volt);
+
+int adc_get_curr_ref_volt(void)
 {
         int v = 0, volt = 0;
 
@@ -264,7 +269,7 @@ int get_curr_ref_volt(void)
 
         return volt * 1024 / v;
 }
-EXPORT_SYMBOL(get_curr_ref_volt);
+EXPORT_SYMBOL(adc_get_curr_ref_volt);
 
 static int __init adc_core_init(void)
 {
