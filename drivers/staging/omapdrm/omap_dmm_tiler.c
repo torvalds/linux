@@ -296,7 +296,7 @@ static int fill(struct tcm_area *area, struct page **pages,
 
 	txn = dmm_txn_init(omap_dmm, area->tcm);
 	if (IS_ERR_OR_NULL(txn))
-		return PTR_ERR(-ENOMEM);
+		return -ENOMEM;
 
 	tcm_for_each_slice(slice, *area, area_s) {
 		struct pat_area p_area = {
