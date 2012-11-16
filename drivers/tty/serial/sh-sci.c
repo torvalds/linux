@@ -1753,8 +1753,6 @@ static int sci_startup(struct uart_port *port)
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
-	pm_runtime_put_noidle(port->dev);
-
 	sci_port_enable(s);
 
 	ret = sci_request_irq(s);
@@ -1782,8 +1780,6 @@ static void sci_shutdown(struct uart_port *port)
 	sci_free_irq(s);
 
 	sci_port_disable(s);
-
-	pm_runtime_get_noresume(port->dev);
 }
 
 static unsigned int sci_scbrr_calc(unsigned int algo_id, unsigned int bps,
@@ -2122,7 +2118,6 @@ static int __devinit sci_init_single(struct platform_device *dev,
 		sci_init_gpios(sci_port);
 
 		pm_runtime_irq_safe(&dev->dev);
-		pm_runtime_get_noresume(&dev->dev);
 		pm_runtime_enable(&dev->dev);
 	}
 
