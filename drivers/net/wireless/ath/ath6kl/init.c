@@ -1801,8 +1801,6 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		   "attempting to reset target on instance destroy\n");
 	ath6kl_reset_device(ar, ar->target_type, true, true);
 
-	clear_bit(WLAN_ENABLED, &ar->flag);
-
 	up(&ar->sem);
 }
 EXPORT_SYMBOL(ath6kl_stop_txrx);
