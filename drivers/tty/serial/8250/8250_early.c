@@ -48,7 +48,7 @@ struct early_serial8250_device {
 
 static struct early_serial8250_device early_device;
 
-static unsigned int __init serial_in(struct uart_port *port, int offset)
+unsigned int __weak __init serial8250_early_in(struct uart_port *port, int offset)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -62,7 +62,7 @@ static unsigned int __init serial_in(struct uart_port *port, int offset)
 	}
 }
 
-static void __init serial_out(struct uart_port *port, int offset, int value)
+void __weak __init serial8250_early_out(struct uart_port *port, int offset, int value)
 {
 	switch (port->iotype) {
 	case UPIO_MEM:
@@ -84,7 +84,7 @@ static void __init wait_for_xmitr(struct uart_port *port)
 	unsigned int status;
 
 	for (;;) {
-		status = serial_in(port, UART_LSR);
+		status = serial8250_early_in(port, UART_LSR);
 		if ((status & BOTH_EMPTY) == BOTH_EMPTY)
 			return;
 		cpu_relax();
@@ -94,7 +94,7 @@ static void __init wait_for_xmitr(struct uart_port *port)
 static void __init serial_putc(struct uart_port *port, int c)
 {
 	wait_for_xmitr(port);
-	serial_out(port, UART_TX, c);
+	serial8250_early_out(port, UART_TX, c);
 }
 
 static void __init early_serial8250_write(struct console *console,
@@ -104,14 +104,14 @@ static void __init early_serial8250_write(struct console *console,
 	unsigned int ier;
 
 	/* Save the IER and disable interrupts */
-	ier = serial_in(port, UART_IER);
-	serial_out(port, UART_IER, 0);
+	ier = serial8250_early_in(port, UART_IER);
+	serial8250_early_out(port, UART_IER, 0);
 
 	uart_console_write(port, s, count, serial_putc);
 
 	/* Wait for transmitter to become empty and restore the IER */
 	wait_for_xmitr(port);
-	serial_out(port, UART_IER, ier);
+	serial8250_early_out(port, UART_IER, ier);
 }
 
 static unsigned int __init probe_baud(struct uart_port *port)
@@ -119,11 +119,11 @@ static unsigned int __init probe_baud(struct uart_port *port)
 	unsigned char lcr, dll, dlm;
 	unsigned int quot;
 
-	lcr = serial_in(port, UART_LCR);
-	serial_out(port, UART_LCR, lcr | UART_LCR_DLAB);
-	dll = serial_in(port, UART_DLL);
-	dlm = serial_in(port, UART_DLM);
-	serial_out(port, UART_LCR, lcr);
+	lcr = serial8250_early_in(port, UART_LCR);
+	serial8250_early_out(port, UART_LCR, lcr | UART_LCR_DLAB);
+	dll = serial8250_early_in(port, UART_DLL);
+	dlm = serial8250_early_in(port, UART_DLM);
+	serial8250_early_out(port, UART_LCR, lcr);
 
 	quot = (dlm << 8) | dll;
 	return (port->uartclk / 16) / quot;
@@ -135,17 +135,17 @@ static void __init init_port(struct early_serial8250_device *device)
 	unsigned int divisor;
 	unsigned char c;
 
-	serial_out(port, UART_LCR, 0x3);	/* 8n1 */
-	serial_out(port, UART_IER, 0);		/* no interrupt */
-	serial_out(port, UART_FCR, 0);		/* no fifo */
-	serial_out(port, UART_MCR, 0x3);	/* DTR + RTS */
+	serial8250_early_out(port, UART_LCR, 0x3);	/* 8n1 */
+	serial8250_early_out(port, UART_IER, 0);	/* no interrupt */
+	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
+	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
 	divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
-	c = serial_in(port, UART_LCR);
-	serial_out(port, UART_LCR, c | UART_LCR_DLAB);
-	serial_out(port, UART_DLL, divisor & 0xff);
-	serial_out(port, UART_DLM, (divisor >> 8) & 0xff);
-	serial_out(port, UART_LCR, c & ~UART_LCR_DLAB);
+	c = serial8250_early_in(port, UART_LCR);
+	serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);
+	serial8250_early_out(port, UART_DLL, divisor & 0xff);
+	serial8250_early_out(port, UART_DLM, (divisor >> 8) & 0xff);
+	serial8250_early_out(port, UART_LCR, c & ~UART_LCR_DLAB);
 }
 
 static int __init parse_options(struct early_serial8250_device *device,
