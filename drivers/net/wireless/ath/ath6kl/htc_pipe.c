@@ -967,6 +967,22 @@ static int ath6kl_htc_pipe_rx_complete(struct ath6kl *ar, struct sk_buff *skb,
 	u16 payload_len;
 	int status = 0;
 
+	/*
+	 * ar->htc_target can be NULL due to a race condition that can occur
+	 * during driver initialization(we do 'ath6kl_hif_power_on' before
+	 * initializing 'ar->htc_target' via 'ath6kl_htc_create').
+	 * 'ath6kl_hif_power_on' assigns 'ath6kl_recv_complete' as
+	 * usb_complete_t/callback function for 'usb_fill_bulk_urb'.
+	 * Thus the possibility of ar->htc_target being NULL
+	 * via ath6kl_recv_complete -> ath6kl_usb_io_comp_work.
+	 */
+	if (WARN_ON_ONCE(!target)) {
+		ath6kl_err("Target not yet initialized\n");
+		status = -EINVAL;
+		goto free_skb;
+	}
+
+
 	netdata = skb->data;
 	netlen = skb->len;
 
