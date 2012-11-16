@@ -1139,16 +1139,17 @@ nfsd4_decode_verify(struct nfsd4_compoundargs *argp, struct nfsd4_verify *verify
 	DECODE_TAIL;
 }
 
-static int fill_in_write_vector(struct kvec *vec, struct kvec *head, struct page **pagelist, int buflen)
+static int fill_in_write_vector(struct kvec *vec, struct nfsd4_write *write)
 {
 	int i = 1;
+	int buflen = write->wr_buflen;
 
-	vec[0].iov_base = head->iov_base;
-	vec[0].iov_len = min_t(int, buflen, head->iov_len);
+	vec[0].iov_base = write->wr_head.iov_base;
+	vec[0].iov_len = min_t(int, buflen, write->wr_head.iov_len);
 	buflen -= vec[0].iov_len;
 
 	while (buflen) {
-		vec[i].iov_base = page_address(pagelist[i - 1]);
+		vec[i].iov_base = page_address(write->wr_pagelist[i - 1]);
 		vec[i].iov_len = min_t(int, PAGE_SIZE, buflen);
 		buflen -= vec[i].iov_len;
 		i++;
@@ -1161,8 +1162,6 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 {
 	int avail;
 	int len;
-	struct page **pagelist;
-	struct kvec head;
 	DECODE_HEAD;
 
 	status = nfsd4_decode_stateid(argp, &write->wr_stateid);
@@ -1185,10 +1184,10 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 				__FILE__, __LINE__);
 		goto xdr_error;
 	}
-	head.iov_base = p;
-	head.iov_len = avail;
+	write->wr_head.iov_base = p;
+	write->wr_head.iov_len = avail;
 	WARN_ON(avail != (XDR_QUADLEN(avail) << 2));
-	pagelist = argp->pagelist;
+	write->wr_pagelist = argp->pagelist;
 
 	len = XDR_QUADLEN(write->wr_buflen) << 2;
 	if (len >= avail) {
@@ -1205,8 +1204,7 @@ nfsd4_decode_write(struct nfsd4_compoundargs *argp, struct nfsd4_write *write)
 		argp->end = argp->p + XDR_QUADLEN(PAGE_SIZE);
 	}
 	argp->p += XDR_QUADLEN(len);
-	write->wr_vlen = fill_in_write_vector(argp->rqstp->rq_vec,
-		&head, pagelist, write->wr_buflen);
+	write->wr_vlen = fill_in_write_vector(argp->rqstp->rq_vec, write);
 	WARN_ON_ONCE(write->wr_vlen > ARRAY_SIZE(argp->rqstp->rq_vec));
 
 	DECODE_TAIL;
