@@ -4741,10 +4741,6 @@ static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 		t->addrconf_vars[i].extra2 = net;
 	}
 
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		t->addrconf_vars[0].procname = NULL;
-
 	snprintf(path, sizeof(path), "net/ipv6/conf/%s", dev_name);
 
 	t->sysctl_header = register_net_sysctl(net, path, t->addrconf_vars);

@@ -967,13 +967,8 @@ struct ctl_table * __net_init ipv6_icmp_sysctl_init(struct net *net)
 			sizeof(ipv6_icmp_table_template),
 			GFP_KERNEL);
 
-	if (table) {
+	if (table)
 		table[0].data = &net->ipv6.sysctl.icmpv6_time;
-
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table[0].procname = NULL;
-	}
 
 	return table;
 }

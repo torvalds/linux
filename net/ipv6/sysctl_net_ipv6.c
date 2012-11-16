@@ -52,10 +52,6 @@ static int __net_init ipv6_sysctl_net_init(struct net *net)
 		goto out;
 	ipv6_table[0].data = &net->ipv6.sysctl.bindv6only;
 
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		ipv6_table[0].procname = NULL;
-
 	ipv6_route_table = ipv6_route_sysctl_init(net);
 	if (!ipv6_route_table)
 		goto out_ipv6_table;
