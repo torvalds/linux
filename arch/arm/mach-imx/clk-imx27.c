@@ -6,9 +6,9 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
 #include "clk.h"
+#include "common.h"
+#include "hardware.h"
 
 #define IO_ADDR_CCM(off)	(MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR + (off)))
 
@@ -51,8 +51,10 @@
 
 static const char *vpu_sel_clks[] = { "spll", "mpll_main2", };
 static const char *cpu_sel_clks[] = { "mpll_main2", "mpll", };
+static const char *mpll_sel_clks[] = { "fpm", "mpll_osc_sel", };
+static const char *mpll_osc_sel_clks[] = { "ckih", "ckih_div1p5", };
 static const char *clko_sel_clks[] = {
-	"ckil", "prem", "ckih", "ckih",
+	"ckil", "fpm", "ckih", "ckih",
 	"ckih", "mpll", "spll", "cpu_div",
 	"ahb", "ipg", "per1_div", "per2_div",
 	"per3_div", "per4_div", "ssi1_div", "ssi2_div",
@@ -79,7 +81,8 @@ enum mx27_clks {
 	vpu_ahb_gate, fec_ahb_gate, emma_ahb_gate, emi_ahb_gate, dma_ahb_gate,
 	csi_ahb_gate, brom_ahb_gate, ata_ahb_gate, wdog_ipg_gate, usb_ipg_gate,
 	uart6_ipg_gate, uart5_ipg_gate, uart4_ipg_gate, uart3_ipg_gate,
-	uart2_ipg_gate, uart1_ipg_gate, clk_max
+	uart2_ipg_gate, uart1_ipg_gate, ckih_div1p5, fpm, mpll_osc_sel,
+	mpll_sel, clk_max
 };
 
 static struct clk *clk[clk_max];
@@ -91,7 +94,15 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
-	clk[mpll] = imx_clk_pllv1("mpll", "ckih", CCM_MPCTL0);
+	clk[fpm] = imx_clk_fixed_factor("fpm", "ckil", 1024, 1);
+	clk[ckih_div1p5] = imx_clk_fixed_factor("ckih_div1p5", "ckih", 2, 3);
+
+	clk[mpll_osc_sel] = imx_clk_mux("mpll_osc_sel", CCM_CSCR, 4, 1,
+			mpll_osc_sel_clks,
+			ARRAY_SIZE(mpll_osc_sel_clks));
+	clk[mpll_sel] = imx_clk_mux("mpll_sel", CCM_CSCR, 16, 1, mpll_sel_clks,
+			ARRAY_SIZE(mpll_sel_clks));
+	clk[mpll] = imx_clk_pllv1("mpll", "mpll_sel", CCM_MPCTL0);
 	clk[spll] = imx_clk_pllv1("spll", "ckih", CCM_SPCTL0);
 	clk[mpll_main2] = imx_clk_fixed_factor("mpll_main2", "mpll", 2, 3);
 
@@ -211,19 +222,20 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[gpt6_ipg_gate], "ipg", "imx-gpt.5");
 	clk_register_clkdev(clk[per1_gate], "per", "imx-gpt.5");
 	clk_register_clkdev(clk[pwm_ipg_gate], NULL, "mxc_pwm.0");
-	clk_register_clkdev(clk[per2_gate], "per", "mxc-mmc.0");
-	clk_register_clkdev(clk[sdhc1_ipg_gate], "ipg", "mxc-mmc.0");
-	clk_register_clkdev(clk[per2_gate], "per", "mxc-mmc.1");
-	clk_register_clkdev(clk[sdhc2_ipg_gate], "ipg", "mxc-mmc.1");
-	clk_register_clkdev(clk[per2_gate], "per", "mxc-mmc.2");
-	clk_register_clkdev(clk[sdhc2_ipg_gate], "ipg", "mxc-mmc.2");
+	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.0");
+	clk_register_clkdev(clk[sdhc1_ipg_gate], "ipg", "imx21-mmc.0");
+	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.1");
+	clk_register_clkdev(clk[sdhc2_ipg_gate], "ipg", "imx21-mmc.1");
+	clk_register_clkdev(clk[per2_gate], "per", "imx21-mmc.2");
+	clk_register_clkdev(clk[sdhc2_ipg_gate], "ipg", "imx21-mmc.2");
 	clk_register_clkdev(clk[cspi1_ipg_gate], NULL, "imx27-cspi.0");
 	clk_register_clkdev(clk[cspi2_ipg_gate], NULL, "imx27-cspi.1");
 	clk_register_clkdev(clk[cspi3_ipg_gate], NULL, "imx27-cspi.2");
-	clk_register_clkdev(clk[per3_gate], "per", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ipg_gate], "ipg", "imx-fb.0");
-	clk_register_clkdev(clk[lcdc_ahb_gate], "ahb", "imx-fb.0");
-	clk_register_clkdev(clk[csi_ahb_gate], "ahb", "mx2-camera.0");
+	clk_register_clkdev(clk[per3_gate], "per", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ipg_gate], "ipg", "imx21-fb.0");
+	clk_register_clkdev(clk[lcdc_ahb_gate], "ahb", "imx21-fb.0");
+	clk_register_clkdev(clk[csi_ahb_gate], "ahb", "imx27-camera.0");
+	clk_register_clkdev(clk[per4_gate], "per", "imx27-camera.0");
 	clk_register_clkdev(clk[usb_div], "per", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usb_ipg_gate], "ipg", "fsl-usb2-udc");
 	clk_register_clkdev(clk[usb_ahb_gate], "ahb", "fsl-usb2-udc");
@@ -238,27 +250,27 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_register_clkdev(clk[usb_ahb_gate], "ahb", "mxc-ehci.2");
 	clk_register_clkdev(clk[ssi1_ipg_gate], NULL, "imx-ssi.0");
 	clk_register_clkdev(clk[ssi2_ipg_gate], NULL, "imx-ssi.1");
-	clk_register_clkdev(clk[nfc_baud_gate], NULL, "mxc_nand.0");
+	clk_register_clkdev(clk[nfc_baud_gate], NULL, "imx27-nand.0");
 	clk_register_clkdev(clk[vpu_baud_gate], "per", "coda-imx27.0");
 	clk_register_clkdev(clk[vpu_ahb_gate], "ahb", "coda-imx27.0");
-	clk_register_clkdev(clk[dma_ahb_gate], "ahb", "imx-dma");
-	clk_register_clkdev(clk[dma_ipg_gate], "ipg", "imx-dma");
+	clk_register_clkdev(clk[dma_ahb_gate], "ahb", "imx27-dma");
+	clk_register_clkdev(clk[dma_ipg_gate], "ipg", "imx27-dma");
 	clk_register_clkdev(clk[fec_ipg_gate], "ipg", "imx27-fec.0");
 	clk_register_clkdev(clk[fec_ahb_gate], "ahb", "imx27-fec.0");
 	clk_register_clkdev(clk[wdog_ipg_gate], NULL, "imx2-wdt.0");
-	clk_register_clkdev(clk[i2c1_ipg_gate], NULL, "imx-i2c.0");
-	clk_register_clkdev(clk[i2c2_ipg_gate], NULL, "imx-i2c.1");
+	clk_register_clkdev(clk[i2c1_ipg_gate], NULL, "imx21-i2c.0");
+	clk_register_clkdev(clk[i2c2_ipg_gate], NULL, "imx21-i2c.1");
 	clk_register_clkdev(clk[owire_ipg_gate], NULL, "mxc_w1.0");
 	clk_register_clkdev(clk[kpp_ipg_gate], NULL, "imx-keypad");
-	clk_register_clkdev(clk[emma_ahb_gate], "emma-ahb", "mx2-camera.0");
-	clk_register_clkdev(clk[emma_ipg_gate], "emma-ipg", "mx2-camera.0");
+	clk_register_clkdev(clk[emma_ahb_gate], "emma-ahb", "imx27-camera.0");
+	clk_register_clkdev(clk[emma_ipg_gate], "emma-ipg", "imx27-camera.0");
 	clk_register_clkdev(clk[emma_ahb_gate], "ahb", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[emma_ipg_gate], "ipg", "m2m-emmaprp.0");
 	clk_register_clkdev(clk[iim_ipg_gate], "iim", NULL);
 	clk_register_clkdev(clk[gpio_ipg_gate], "gpio", NULL);
 	clk_register_clkdev(clk[brom_ahb_gate], "brom", NULL);
 	clk_register_clkdev(clk[ata_ahb_gate], "ata", NULL);
-	clk_register_clkdev(clk[rtc_ipg_gate], NULL, "mxc_rtc");
+	clk_register_clkdev(clk[rtc_ipg_gate], NULL, "imx21-rtc");
 	clk_register_clkdev(clk[scc_ipg_gate], "scc", NULL);
 	clk_register_clkdev(clk[cpu_div], "cpu", NULL);
 	clk_register_clkdev(clk[emi_ahb_gate], "emi_ahb" , NULL);

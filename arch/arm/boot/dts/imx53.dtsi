@@ -67,6 +67,13 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
+		ipu: ipu@18000000 {
+			#crtc-cells = <1>;
+			compatible = "fsl,imx53-ipu";
+			reg = <0x18000000 0x080000000>;
+			interrupts = <11 10>;
+		};
+
 		aips@50000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
@@ -432,7 +439,7 @@
 			i2c@53fec000 { /* I2C3 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx53-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
 				reg = <0x53fec000 0x4000>;
 				interrupts = <64>;
 				status = "disabled";
@@ -488,7 +495,7 @@
 			i2c@63fc4000 { /* I2C2 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx53-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
 				reg = <0x63fc4000 0x4000>;
 				interrupts = <63>;
 				status = "disabled";
@@ -497,7 +504,7 @@
 			i2c@63fc8000 { /* I2C1 */
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx53-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx53-i2c", "fsl,imx21-i2c";
 				reg = <0x63fc8000 0x4000>;
 				interrupts = <62>;
 				status = "disabled";
