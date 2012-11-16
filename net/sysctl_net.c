@@ -38,8 +38,7 @@ static int is_seen(struct ctl_table_set *set)
 }
 
 /* Return standard mode bits for table entry. */
-static int net_ctl_permissions(struct ctl_table_root *root,
-			       struct nsproxy *nsproxy,
+static int net_ctl_permissions(struct ctl_table_header *head,
 			       struct ctl_table *table)
 {
 	/* Allow network administrator to have same access as root. */
