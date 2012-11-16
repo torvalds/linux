@@ -267,6 +267,8 @@ struct fsi_priv {
 	int clk_cpg:1;
 	int spdif:1;
 	int enable_stream:1;
+	int bit_clk_inv:1;
+	int lr_clk_inv:1;
 
 	long rate;
 };
@@ -1645,6 +1647,16 @@ static int fsi_hw_startup(struct fsi_priv *fsi,
 
 	/* clock inversion (CKG2) */
 	data = 0;
+	if (fsi->bit_clk_inv)
+		data |= (1 << 0);
+	if (fsi->lr_clk_inv)
+		data |= (1 << 4);
+	if (fsi_is_clk_master(fsi))
+		data <<= 8;
+	/* FIXME
+	 *
+	 * SH_FSI_xxx_INV style will be removed
+	 */
 	if (SH_FSI_LRM_INV & flags)
 		data |= 1 << 12;
 	if (SH_FSI_BRM_INV & flags)
@@ -1794,6 +1806,27 @@ static int fsi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 		break;
 	default:
 		return -EINVAL;
+	}
+
+	/* set clock inversion */
+	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
+	case SND_SOC_DAIFMT_NB_IF:
+		fsi->bit_clk_inv = 0;
+		fsi->lr_clk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_IB_NF:
+		fsi->bit_clk_inv = 1;
+		fsi->lr_clk_inv = 0;
+		break;
+	case SND_SOC_DAIFMT_IB_IF:
+		fsi->bit_clk_inv = 1;
+		fsi->lr_clk_inv = 1;
+		break;
+	case SND_SOC_DAIFMT_NB_NF:
+	default:
+		fsi->bit_clk_inv = 0;
+		fsi->lr_clk_inv = 0;
+		break;
 	}
 
 	if (fsi_is_clk_master(fsi)) {
