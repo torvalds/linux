@@ -144,4 +144,6 @@ source "drivers/staging/imx-drm/Kconfig"
 
 source "drivers/staging/dgrp/Kconfig"
 
+source "drivers/staging/sb105x/Kconfig"
+
 endif # STAGING
