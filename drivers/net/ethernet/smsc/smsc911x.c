@@ -1463,11 +1463,6 @@ static int smsc911x_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
-		SMSC_WARN(pdata, hw, "dev_addr is not a valid MAC address");
-		return -EADDRNOTAVAIL;
-	}
-
 	/* Reset the LAN911x */
 	if (smsc911x_soft_reset(pdata)) {
 		SMSC_WARN(pdata, hw, "soft reset failed");

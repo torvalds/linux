@@ -97,9 +97,6 @@ static int at91ether_open(struct net_device *dev)
 	u32 ctl;
 	int ret;
 
-	if (!is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
-
 	/* Clear internal statistics */
 	ctl = macb_readl(lp, NCR);
 	macb_writel(lp, NCR, ctl | MACB_BIT(CLRSTAT));

@@ -1400,16 +1400,6 @@ smc911x_open(struct net_device *dev)
 
 	DBG(SMC_DEBUG_FUNC, "%s: --> %s\n", dev->name, __func__);
 
-	/*
-	 * Check that the address is valid.  If its not, refuse
-	 * to bring the device up.	 The user must specify an
-	 * address using ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx
-	 */
-	if (!is_valid_ether_addr(dev->dev_addr)) {
-		PRINTK("%s: no valid ethernet hw addr\n", __func__);
-		return -EINVAL;
-	}
-
 	/* reset the hardware */
 	smc911x_reset(dev);
 

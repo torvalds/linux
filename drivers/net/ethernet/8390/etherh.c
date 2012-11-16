@@ -463,12 +463,6 @@ etherh_open(struct net_device *dev)
 {
 	struct ei_device *ei_local = netdev_priv(dev);
 
-	if (!is_valid_ether_addr(dev->dev_addr)) {
-		printk(KERN_WARNING "%s: invalid ethernet MAC address\n",
-			dev->name);
-		return -EINVAL;
-	}
-
 	if (request_irq(dev->irq, __ei_interrupt, 0, dev->name, dev))
 		return -EAGAIN;
 

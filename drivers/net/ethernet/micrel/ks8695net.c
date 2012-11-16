@@ -1249,9 +1249,6 @@ ks8695_open(struct net_device *ndev)
 	struct ks8695_priv *ksp = netdev_priv(ndev);
 	int ret;
 
-	if (!is_valid_ether_addr(ndev->dev_addr))
-		return -EADDRNOTAVAIL;
-
 	ks8695_reset(ksp);
 
 	ks8695_update_mac(ksp);

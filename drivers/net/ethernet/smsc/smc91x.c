@@ -1474,16 +1474,6 @@ smc_open(struct net_device *dev)
 
 	DBG(2, "%s: %s\n", dev->name, __func__);
 
-	/*
-	 * Check that the address is valid.  If its not, refuse
-	 * to bring the device up.  The user must specify an
-	 * address using ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx
-	 */
-	if (!is_valid_ether_addr(dev->dev_addr)) {
-		PRINTK("%s: no valid ethernet hw addr\n", __func__);
-		return -EINVAL;
-	}
-
 	/* Setup the default Register Modes */
 	lp->tcr_cur_mode = TCR_DEFAULT;
 	lp->rcr_cur_mode = RCR_DEFAULT;

@@ -664,9 +664,6 @@ static int dnet_open(struct net_device *dev)
 	if (!bp->phy_dev)
 		return -EAGAIN;
 
-	if (!is_valid_ether_addr(dev->dev_addr))
-		return -EADDRNOTAVAIL;
-
 	napi_enable(&bp->napi);
 	dnet_init_hw(bp);
 
