@@ -28,6 +28,8 @@
 #endif
 
 #include <linux/rwsem.h>
+#include <linux/dma-attrs.h>
+#include <linux/dma-mapping.h>
 
 #include <video/omapdss.h>
 
@@ -49,6 +51,9 @@ extern bool omapfb_debug;
 
 struct omapfb2_mem_region {
 	int             id;
+	struct dma_attrs attrs;
+	void		*token;
+	dma_addr_t	dma_handle;
 	u32		paddr;
 	void __iomem	*vaddr;
 	struct vrfb	vrfb;

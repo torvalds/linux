@@ -31,7 +31,6 @@
 
 #include <video/omapdss.h>
 #include <video/omapvrfb.h>
-#include <plat/vram.h>
 
 #include "omapfb.h"
 
@@ -853,14 +852,15 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 		break;
 
 	case OMAPFB_GET_VRAM_INFO: {
-		unsigned long vram, free, largest;
-
 		DBG("ioctl GET_VRAM_INFO\n");
 
-		omap_vram_get_info(&vram, &free, &largest);
-		p.vram_info.total = vram;
-		p.vram_info.free = free;
-		p.vram_info.largest_free_block = largest;
+		/*
+		 * We don't have the ability to get this vram info anymore.
+		 * Fill in something that should keep the applications working.
+		 */
+		p.vram_info.total = SZ_1M * 64;
+		p.vram_info.free = SZ_1M * 64;
+		p.vram_info.largest_free_block = SZ_1M * 64;
 
 		if (copy_to_user((void __user *)arg, &p.vram_info,
 					sizeof(p.vram_info)))
