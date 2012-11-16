@@ -186,7 +186,8 @@ static unsigned long unflatten_dt_node(struct boot_param_header *blob,
 			 */
 			fpsize = 1;
 			allocl = 2;
-			l = 0;
+			l = 1;
+			*pathp = '\0';
 		} else {
 			/* account for '/' and path size minus terminal 0
 			 * already in 'l'
