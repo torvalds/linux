@@ -840,7 +840,7 @@ int _drbd_send_uuids(struct drbd_conf *mdev, u64 uuid_flags)
 	}
 	spin_lock_irq(&mdev->ldev->md.uuid_lock);
 	for (i = UI_CURRENT; i < UI_SIZE; i++)
-		p->uuid[i] = mdev->ldev ? cpu_to_be64(mdev->ldev->md.uuid[i]) : 0;
+		p->uuid[i] = cpu_to_be64(mdev->ldev->md.uuid[i]);
 	spin_unlock_irq(&mdev->ldev->md.uuid_lock);
 
 	mdev->comm_bm_set = drbd_bm_total_weight(mdev);
