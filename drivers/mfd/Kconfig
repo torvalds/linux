@@ -66,6 +66,7 @@ config MFD_SM501_GPIO
 config MFD_RTSX_PCI
 	tristate "Support for Realtek PCI-E card reader"
 	depends on PCI
+	select MFD_CORE
 	help
 	  This supports for Realtek PCI-Express card reader including rts5209,
 	  rts5229, rtl8411, etc. Realtek card reader supports access to many
