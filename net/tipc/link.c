@@ -1,7 +1,7 @@
 /*
  * net/tipc/link.c: TIPC link code
  *
- * Copyright (c) 1996-2007, Ericsson AB
+ * Copyright (c) 1996-2007, 2012, Ericsson AB
  * Copyright (c) 2004-2007, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -103,6 +103,8 @@ static void link_reset_statistics(struct tipc_link *l_ptr);
 static void link_print(struct tipc_link *l_ptr, const char *str);
 static void link_start(struct tipc_link *l_ptr);
 static int link_send_long_buf(struct tipc_link *l_ptr, struct sk_buff *buf);
+static void tipc_link_send_sync(struct tipc_link *l);
+static void tipc_link_recv_sync(struct tipc_node *n, struct sk_buff *buf);
 
 /*
  *  Simple link routines
@@ -712,6 +714,8 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_activate(l_ptr);
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG, 1, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
+			if (l_ptr->owner->working_links == 1)
+				tipc_link_send_sync(l_ptr);
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
@@ -745,6 +749,8 @@ static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 			link_activate(l_ptr);
 			tipc_link_send_proto_msg(l_ptr, STATE_MSG, 1, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
+			if (l_ptr->owner->working_links == 1)
+				tipc_link_send_sync(l_ptr);
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
@@ -941,7 +947,48 @@ int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 	return res;
 }
 
-/**
+/*
+ * tipc_link_send_sync - synchronize broadcast link endpoints.
+ *
+ * Give a newly added peer node the sequence number where it should
+ * start receiving and acking broadcast packets.
+ *
+ * Called with node locked
+ */
+static void tipc_link_send_sync(struct tipc_link *l)
+{
+	struct sk_buff *buf;
+	struct tipc_msg *msg;
+
+	buf = tipc_buf_acquire(INT_H_SIZE);
+	if (!buf)
+		return;
+
+	msg = buf_msg(buf);
+	tipc_msg_init(msg, BCAST_PROTOCOL, STATE_MSG, INT_H_SIZE, l->addr);
+	msg_set_last_bcast(msg, l->owner->bclink.acked);
+	link_add_chain_to_outqueue(l, buf, 0);
+	tipc_link_push_queue(l);
+}
+
+/*
+ * tipc_link_recv_sync - synchronize broadcast link endpoints.
+ * Receive the sequence number where we should start receiving and
+ * acking broadcast packets from a newly added peer node, and open
+ * up for reception of such packets.
+ *
+ * Called with node locked
+ */
+static void tipc_link_recv_sync(struct tipc_node *n, struct sk_buff *buf)
+{
+	struct tipc_msg *msg = buf_msg(buf);
+
+	n->bclink.last_sent = n->bclink.last_in = msg_last_bcast(msg);
+	n->bclink.recv_permitted = true;
+	kfree_skb(buf);
+}
+
+/*
  * tipc_link_send_names - send name table entries to new neighbor
  *
  * Send routine for bulk delivery of name table messages when contact
@@ -1691,8 +1738,13 @@ deliver:
 					tipc_link_recv_bundle(buf);
 					continue;
 				case NAME_DISTRIBUTOR:
+					n_ptr->bclink.recv_permitted = true;
 					tipc_node_unlock(n_ptr);
 					tipc_named_recv(buf);
+					continue;
+				case BCAST_PROTOCOL:
+					tipc_link_recv_sync(n_ptr, buf);
+					tipc_node_unlock(n_ptr);
 					continue;
 				case CONN_MANAGER:
 					tipc_node_unlock(n_ptr);
@@ -1736,16 +1788,19 @@ deliver:
 			continue;
 		}
 
+		/* Link is not in state WORKING_WORKING */
 		if (msg_user(msg) == LINK_PROTOCOL) {
 			link_recv_proto_msg(l_ptr, buf);
 			head = link_insert_deferred_queue(l_ptr, head);
 			tipc_node_unlock(n_ptr);
 			continue;
 		}
+
+		/* Traffic message. Conditionally activate link */
 		link_state_event(l_ptr, TRAFFIC_MSG_EVT);
 
 		if (link_working_working(l_ptr)) {
-			/* Re-insert in front of queue */
+			/* Re-insert buffer in front of queue */
 			buf->next = head;
 			head = buf;
 			tipc_node_unlock(n_ptr);
