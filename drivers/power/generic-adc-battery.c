@@ -327,7 +327,7 @@ static int __devinit gab_probe(struct platform_device *pdev)
 		ret = request_any_context_irq(irq, gab_charged,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"battery charged", adc_bat);
-		if (ret)
+		if (ret < 0)
 			goto err_gpio;
 	}
 
