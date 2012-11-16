@@ -142,6 +142,125 @@ nvd0_dmac_destroy(struct nouveau_object *core, struct nvd0_dmac *dmac)
 }
 
 static int
+nv50_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
+{
+	struct nouveau_fb *pfb = nouveau_fb(core);
+	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
+	struct nouveau_object *object;
+	int ret = nouveau_object_new(client, parent, NvEvoVRAM_LP,
+				     NV_DMA_IN_MEMORY_CLASS,
+				     &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NV50_DMA_CONF0_ENABLE |
+					         NV50_DMA_CONF0_PART_256,
+				     }, sizeof(struct nv_dma_class), &object);
+	if (ret)
+		return ret;
+
+	ret = nouveau_object_new(client, parent, NvEvoFB16,
+				 NV_DMA_IN_MEMORY_CLASS,
+				 &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NV50_DMA_CONF0_ENABLE | 0x70 |
+					         NV50_DMA_CONF0_PART_256,
+				 }, sizeof(struct nv_dma_class), &object);
+	if (ret)
+		return ret;
+
+	ret = nouveau_object_new(client, parent, NvEvoFB32,
+				 NV_DMA_IN_MEMORY_CLASS,
+				 &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NV50_DMA_CONF0_ENABLE | 0x7a |
+					         NV50_DMA_CONF0_PART_256,
+				 }, sizeof(struct nv_dma_class), &object);
+	return ret;
+}
+
+static int
+nvc0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
+{
+	struct nouveau_fb *pfb = nouveau_fb(core);
+	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
+	struct nouveau_object *object;
+	int ret = nouveau_object_new(client, parent, NvEvoVRAM_LP,
+				     NV_DMA_IN_MEMORY_CLASS,
+				     &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NVC0_DMA_CONF0_ENABLE,
+				     }, sizeof(struct nv_dma_class), &object);
+	if (ret)
+		return ret;
+
+	ret = nouveau_object_new(client, parent, NvEvoFB16,
+				 NV_DMA_IN_MEMORY_CLASS,
+				 &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NVC0_DMA_CONF0_ENABLE | 0xfe,
+				 }, sizeof(struct nv_dma_class), &object);
+	if (ret)
+		return ret;
+
+	ret = nouveau_object_new(client, parent, NvEvoFB32,
+				 NV_DMA_IN_MEMORY_CLASS,
+				 &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NVC0_DMA_CONF0_ENABLE | 0xfe,
+				 }, sizeof(struct nv_dma_class), &object);
+	return ret;
+}
+
+static int
+nvd0_dmac_create_fbdma(struct nouveau_object *core, u32 parent)
+{
+	struct nouveau_fb *pfb = nouveau_fb(core);
+	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
+	struct nouveau_object *object;
+	int ret = nouveau_object_new(client, parent, NvEvoVRAM_LP,
+				     NV_DMA_IN_MEMORY_CLASS,
+				     &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NVD0_DMA_CONF0_ENABLE |
+						 NVD0_DMA_CONF0_PAGE_LP,
+				     }, sizeof(struct nv_dma_class), &object);
+	if (ret)
+		return ret;
+
+	ret = nouveau_object_new(client, parent, NvEvoFB32,
+				 NV_DMA_IN_MEMORY_CLASS,
+				 &(struct nv_dma_class) {
+					.flags = NV_DMA_TARGET_VRAM |
+						 NV_DMA_ACCESS_RDWR,
+					.start = 0,
+					.limit = pfb->ram.size - 1,
+					.conf0 = NVD0_DMA_CONF0_ENABLE | 0xfe |
+						 NVD0_DMA_CONF0_PAGE_LP,
+				 }, sizeof(struct nv_dma_class), &object);
+	return ret;
+}
+
+static int
 nvd0_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 		 void *data, u32 size, u64 syncbuf,
 		 struct nvd0_dmac *dmac)
@@ -150,12 +269,11 @@ nvd0_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 	struct nouveau_object *client = nv_pclass(core, NV_CLIENT_CLASS);
 	struct nouveau_object *object;
 	u32 pushbuf = *(u32 *)data;
-	dma_addr_t handle;
-	void *ptr;
 	int ret;
 
-	ptr = pci_alloc_consistent(nv_device(core)->pdev, PAGE_SIZE, &handle);
-	if (!ptr)
+	dmac->ptr = pci_alloc_consistent(nv_device(core)->pdev, PAGE_SIZE,
+					&dmac->handle);
+	if (!dmac->ptr)
 		return -ENOMEM;
 
 	ret = nouveau_object_new(client, NVDRM_DEVICE, pushbuf,
@@ -163,8 +281,8 @@ nvd0_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 				 &(struct nv_dma_class) {
 					.flags = NV_DMA_TARGET_PCI_US |
 						 NV_DMA_ACCESS_RD,
-					.start = handle + 0x0000,
-					.limit = handle + 0x0fff,
+					.start = dmac->handle + 0x0000,
+					.limit = dmac->handle + 0x0fff,
 				 }, sizeof(struct nv_dma_class), &object);
 	if (ret)
 		return ret;
@@ -172,9 +290,6 @@ nvd0_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 	ret = nvd0_chan_create(core, bclass, head, data, size, &dmac->base);
 	if (ret)
 		return ret;
-
-	dmac->handle = handle;
-	dmac->ptr = ptr;
 
 	ret = nouveau_object_new(client, dmac->base.handle, NvEvoSync,
 				 NV_DMA_IN_MEMORY_CLASS,
@@ -185,7 +300,7 @@ nvd0_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 					.limit = syncbuf + 0x0fff,
 				 }, sizeof(struct nv_dma_class), &object);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = nouveau_object_new(client, dmac->base.handle, NvEvoVRAM,
 				 NV_DMA_IN_MEMORY_CLASS,
@@ -196,35 +311,15 @@ nvd0_dmac_create(struct nouveau_object *core, u32 bclass, u8 head,
 					.limit = pfb->ram.size - 1,
 				 }, sizeof(struct nv_dma_class), &object);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = nouveau_object_new(client, dmac->base.handle, NvEvoVRAM_LP,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram.size - 1,
-					.conf0 = NVD0_DMA_CONF0_ENABLE |
-						 NVD0_DMA_CONF0_PAGE_LP,
-				 }, sizeof(struct nv_dma_class), &object);
-	if (ret)
-		goto out;
-
-	ret = nouveau_object_new(client, dmac->base.handle, NvEvoFB32,
-				 NV_DMA_IN_MEMORY_CLASS,
-				 &(struct nv_dma_class) {
-					.flags = NV_DMA_TARGET_VRAM |
-						 NV_DMA_ACCESS_RDWR,
-					.start = 0,
-					.limit = pfb->ram.size - 1,
-					.conf0 = 0x00fe |
-						 NVD0_DMA_CONF0_ENABLE |
-						 NVD0_DMA_CONF0_PAGE_LP,
-				 }, sizeof(struct nv_dma_class), &object);
-out:
-	if (ret)
-		nvd0_dmac_destroy(core, dmac);
+	if (nv_device(core)->card_type < NV_C0)
+		ret = nv50_dmac_create_fbdma(core, dmac->base.handle);
+	else
+	if (nv_device(core)->card_type < NV_D0)
+		ret = nvc0_dmac_create_fbdma(core, dmac->base.handle);
+	else
+		ret = nvd0_dmac_create_fbdma(core, dmac->base.handle);
 	return ret;
 }
 
