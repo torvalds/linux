@@ -76,74 +76,53 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-static int dss_suspend_device(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
-		dssdev->activate_after_resume = false;
-		return 0;
-	}
-
-	dssdev->driver->disable(dssdev);
-
-	dssdev->activate_after_resume = true;
-
-	return 0;
-}
-
 int dss_suspend_all_devices(void)
 {
-	int r;
-	struct bus_type *bus = dss_get_bus();
+	struct omap_dss_device *dssdev = NULL;
 
-	r = bus_for_each_dev(bus, NULL, NULL, dss_suspend_device);
-	if (r) {
-		/* resume all displays that were suspended */
-		dss_resume_all_devices();
-		return r;
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+			dssdev->driver->disable(dssdev);
+			dssdev->activate_after_resume = true;
+		} else {
+			dssdev->activate_after_resume = false;
+		}
 	}
-
-	return 0;
-}
-
-static int dss_resume_device(struct device *dev, void *data)
-{
-	int r;
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	if (dssdev->activate_after_resume) {
-		r = dssdev->driver->enable(dssdev);
-		if (r)
-			return r;
-	}
-
-	dssdev->activate_after_resume = false;
 
 	return 0;
 }
 
 int dss_resume_all_devices(void)
 {
-	struct bus_type *bus = dss_get_bus();
+	struct omap_dss_device *dssdev = NULL;
 
-	return bus_for_each_dev(bus, NULL, NULL, dss_resume_device);
-}
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
 
-static int dss_disable_device(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-
-	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
-		dssdev->driver->disable(dssdev);
+		if (dssdev->activate_after_resume) {
+			dssdev->driver->enable(dssdev);
+			dssdev->activate_after_resume = false;
+		}
+	}
 
 	return 0;
 }
 
 void dss_disable_all_devices(void)
 {
-	struct bus_type *bus = dss_get_bus();
-	bus_for_each_dev(bus, NULL, NULL, dss_disable_device);
+	struct omap_dss_device *dssdev = NULL;
+
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+			dssdev->driver->disable(dssdev);
+	}
 }
 
 static LIST_HEAD(panel_list);
