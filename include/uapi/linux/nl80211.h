@@ -526,6 +526,12 @@
  *	of PMKSA caching dandidates.
  *
  * @NL80211_CMD_TDLS_OPER: Perform a high-level TDLS command (e.g. link setup).
+ *	In addition, this can be used as an event to request userspace to take
+ *	actions on TDLS links (set up a new link or tear down an existing one).
+ *	In such events, %NL80211_ATTR_TDLS_OPERATION indicates the requested
+ *	operation, %NL80211_ATTR_MAC contains the peer MAC address, and
+ *	%NL80211_ATTR_REASON_CODE the reason code to be used (only with
+ *	%NL80211_TDLS_TEARDOWN).
  * @NL80211_CMD_TDLS_MGMT: Send a TDLS management frame.
  *
  * @NL80211_CMD_UNEXPECTED_FRAME: Used by an application controlling an AP
