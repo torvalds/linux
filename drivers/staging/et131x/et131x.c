@@ -2291,8 +2291,7 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 
 	for (id = 0; id < NUM_FBRS; id++) {
 		/* Allocate an area of memory for Free Buffer Ring */
-		bufsize = (sizeof(struct fbr_desc) *
-				rx_ring->fbr[id]->num_entries) + 0xfff;
+		bufsize = (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries);
 		rx_ring->fbr[id]->ring_virtaddr =
 				dma_alloc_coherent(&adapter->pdev->dev,
 					bufsize,
@@ -2463,8 +2462,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 			}
 
 			bufsize =
-			    (sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries) +
-										0xfff;
+			    sizeof(struct fbr_desc) * rx_ring->fbr[id]->num_entries;
 
 			dma_free_coherent(&adapter->pdev->dev, bufsize,
 					    rx_ring->fbr[id]->ring_virtaddr,
