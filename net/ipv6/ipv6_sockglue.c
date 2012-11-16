@@ -343,7 +343,8 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case IPV6_TRANSPARENT:
-		if (valbool && !capable(CAP_NET_ADMIN) && !capable(CAP_NET_RAW)) {
+		if (valbool && !ns_capable(net->user_ns, CAP_NET_ADMIN) &&
+		    !ns_capable(net->user_ns, CAP_NET_RAW)) {
 			retv = -EPERM;
 			break;
 		}
@@ -381,7 +382,7 @@ static int do_ipv6_setsockopt(struct sock *sk, int level, int optname,
 
 		/* hop-by-hop / destination options are privileged option */
 		retv = -EPERM;
-		if (optname != IPV6_RTHDR && !capable(CAP_NET_RAW))
+		if (optname != IPV6_RTHDR && !ns_capable(net->user_ns, CAP_NET_RAW))
 			break;
 
 		opt = ipv6_renew_options(sk, np->opt, optname,
@@ -754,7 +755,7 @@ done:
 	case IPV6_IPSEC_POLICY:
 	case IPV6_XFRM_POLICY:
 		retv = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		retv = xfrm_user_policy(sk, optname, optval, optlen);
 		break;

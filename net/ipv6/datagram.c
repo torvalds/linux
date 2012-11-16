@@ -701,7 +701,7 @@ int datagram_send_ctl(struct net *net, struct sock *sk,
 				err = -EINVAL;
 				goto exit_f;
 			}
-			if (!capable(CAP_NET_RAW)) {
+			if (!ns_capable(net->user_ns, CAP_NET_RAW)) {
 				err = -EPERM;
 				goto exit_f;
 			}
@@ -721,7 +721,7 @@ int datagram_send_ctl(struct net *net, struct sock *sk,
 				err = -EINVAL;
 				goto exit_f;
 			}
-			if (!capable(CAP_NET_RAW)) {
+			if (!ns_capable(net->user_ns, CAP_NET_RAW)) {
 				err = -EPERM;
 				goto exit_f;
 			}
@@ -746,7 +746,7 @@ int datagram_send_ctl(struct net *net, struct sock *sk,
 				err = -EINVAL;
 				goto exit_f;
 			}
-			if (!capable(CAP_NET_RAW)) {
+			if (!ns_capable(net->user_ns, CAP_NET_RAW)) {
 				err = -EPERM;
 				goto exit_f;
 			}

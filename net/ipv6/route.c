@@ -2036,7 +2036,7 @@ int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 	switch(cmd) {
 	case SIOCADDRT:		/* Add a route */
 	case SIOCDELRT:		/* Delete a route */
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			return -EPERM;
 		err = copy_from_user(&rtmsg, arg,
 				     sizeof(struct in6_rtmsg));
