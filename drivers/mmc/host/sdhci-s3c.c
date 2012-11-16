@@ -24,6 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <linux/mmc/host.h>
 
@@ -57,6 +58,7 @@ struct sdhci_s3c {
 	int			ext_cd_irq;
 	int			ext_cd_gpio;
 	int			*gpios;
+	struct pinctrl          *pctrl;
 
 	struct clk		*clk_io;
 	struct clk		*clk_bus[MAX_BUS_CLK];
@@ -484,8 +486,9 @@ static int __devinit sdhci_s3c_parse_dt(struct device *dev,
 		return -EINVAL;
 	}
 
-	dev_info(dev, "assuming no card detect line available\n");
-	pdata->cd_type = S3C_SDHCI_CD_NONE;
+	/* assuming internal card detect that will be configured by pinctrl */
+	pdata->cd_type = S3C_SDHCI_CD_INTERNAL;
+	goto setup_bus;
 
  found_cd:
 	if (pdata->cd_type == S3C_SDHCI_CD_GPIO) {
@@ -503,6 +506,9 @@ static int __devinit sdhci_s3c_parse_dt(struct device *dev,
 	}
 
  setup_bus:
+	if (!IS_ERR(ourhost->pctrl))
+		return 0;
+
 	/* get the gpios for command, clock and data lines */
 	for (cnt = 0; cnt < NUM_GPIOS(pdata->max_width); cnt++) {
 		gpio = of_get_gpio(node, cnt);
@@ -580,6 +586,8 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_pdata_io_clk;
 	}
+
+	sc->pctrl = devm_pinctrl_get_select_default(&pdev->dev);
 
 	if (pdev->dev.of_node) {
 		ret = sdhci_s3c_parse_dt(&pdev->dev, host, pdata);
