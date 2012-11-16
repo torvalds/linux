@@ -6,7 +6,7 @@ config NET_VENDOR_IBM
 	bool "IBM devices"
 	default y
 	depends on MCA || PPC_PSERIES || PPC_PSERIES || PPC_DCR || \
-		   (IBMEBUS && INET && SPARSEMEM)
+		   (IBMEBUS && SPARSEMEM)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -33,8 +33,7 @@ source "drivers/net/ethernet/ibm/emac/Kconfig"
 
 config EHEA
 	tristate "eHEA Ethernet support"
-	depends on IBMEBUS && INET && SPARSEMEM
-	select INET_LRO
+	depends on IBMEBUS && SPARSEMEM
 	---help---
 	  This driver supports the IBM pSeries eHEA ethernet adapter.
 
