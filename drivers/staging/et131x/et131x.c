@@ -4234,182 +4234,169 @@ static void et131x_isr_handler(struct work_struct *work)
 
 	status &= 0xffffffd7;
 
-	if (status) {
-		/* Handle the TXDMA Error interrupt */
-		if (status & ET_INTR_TXDMA_ERR) {
-			u32 txdma_err;
+	if (!status)
+		goto out;
 
-			/* Following read also clears the register (COR) */
-			txdma_err = readl(&iomem->txdma.tx_dma_error);
+	/* Handle the TXDMA Error interrupt */
+	if (status & ET_INTR_TXDMA_ERR) {
+		u32 txdma_err;
 
-			dev_warn(&adapter->pdev->dev,
-				    "TXDMA_ERR interrupt, error = %d\n",
-				    txdma_err);
-		}
+		/* Following read also clears the register (COR) */
+		txdma_err = readl(&iomem->txdma.tx_dma_error);
 
-		/* Handle Free Buffer Ring 0 and 1 Low interrupt */
-		if (status &
-		    (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
-			/*
-			 * This indicates the number of unused buffers in
-			 * RXDMA free buffer ring 0 is <= the limit you
-			 * programmed. Free buffer resources need to be
-			 * returned.  Free buffers are consumed as packets
-			 * are passed from the network to the host. The host
-			 * becomes aware of the packets from the contents of
-			 * the packet status ring. This ring is queried when
-			 * the packet done interrupt occurs. Packets are then
-			 * passed to the OS. When the OS is done with the
-			 * packets the resources can be returned to the
-			 * ET1310 for re-use. This interrupt is one method of
-			 * returning resources.
-			 */
+		dev_warn(&adapter->pdev->dev,
+			    "TXDMA_ERR interrupt, error = %d\n",
+			    txdma_err);
+	}
 
-			/* If the user has flow control on, then we will
-			 * send a pause packet, otherwise just exit
-			 */
-			if (adapter->flowcontrol == FLOW_TXONLY ||
-			    adapter->flowcontrol == FLOW_BOTH) {
-				u32 pm_csr;
+	/* Handle Free Buffer Ring 0 and 1 Low interrupt */
+	if (status & (ET_INTR_RXDMA_FB_R0_LOW | ET_INTR_RXDMA_FB_R1_LOW)) {
+		/*
+		 * This indicates the number of unused buffers in RXDMA free
+		 * buffer ring 0 is <= the limit you programmed. Free buffer
+		 * resources need to be returned.  Free buffers are consumed as
+		 * packets are passed from the network to the host. The host
+		 * becomes aware of the packets from the contents of the packet
+		 * status ring. This ring is queried when the packet done
+		 * interrupt occurs. Packets are then passed to the OS. When
+		 * the OS is done with the packets the resources can be
+		 * returned to the ET1310 for re-use. This interrupt is one
+		 * method of returning resources.
+		 */
 
-				/* Tell the device to send a pause packet via
-				 * the back pressure register (bp req  and
-				 * bp xon/xoff)
-				 */
-				pm_csr = readl(&iomem->global.pm_csr);
-				if (!et1310_in_phy_coma(adapter))
-					writel(3, &iomem->txmac.bp_ctrl);
-			}
-		}
-
-		/* Handle Packet Status Ring Low Interrupt */
-		if (status & ET_INTR_RXDMA_STAT_LOW) {
+		/*
+		 *  If the user has flow control on, then we will
+		 * send a pause packet, otherwise just exit
+		 */
+		if (adapter->flowcontrol == FLOW_TXONLY ||
+		    adapter->flowcontrol == FLOW_BOTH) {
+			u32 pm_csr;
 
 			/*
-			 * Same idea as with the two Free Buffer Rings.
-			 * Packets going from the network to the host each
-			 * consume a free buffer resource and a packet status
-			 * resource.  These resoures are passed to the OS.
-			 * When the OS is done with the resources, they need
-			 * to be returned to the ET1310. This is one method
-			 * of returning the resources.
+			 * Tell the device to send a pause packet via the back
+			 * pressure register (bp req and bp xon/xoff)
 			 */
-		}
-
-		/* Handle RXDMA Error Interrupt */
-		if (status & ET_INTR_RXDMA_ERR) {
-			/*
-			 * The rxdma_error interrupt is sent when a time-out
-			 * on a request issued by the JAGCore has occurred or
-			 * a completion is returned with an un-successful
-			 * status.  In both cases the request is considered
-			 * complete. The JAGCore will automatically re-try the
-			 * request in question. Normally information on events
-			 * like these are sent to the host using the "Advanced
-			 * Error Reporting" capability. This interrupt is
-			 * another way of getting similar information. The
-			 * only thing required is to clear the interrupt by
-			 * reading the ISR in the global resources. The
-			 * JAGCore will do a re-try on the request.  Normally
-			 * you should never see this interrupt. If you start
-			 * to see this interrupt occurring frequently then
-			 * something bad has occurred. A reset might be the
-			 * thing to do.
-			 */
-			/* TRAP();*/
-
-			dev_warn(&adapter->pdev->dev,
-				    "RxDMA_ERR interrupt, error %x\n",
-				    readl(&iomem->txmac.tx_test));
-		}
-
-		/* Handle the Wake on LAN Event */
-		if (status & ET_INTR_WOL) {
-			/*
-			 * This is a secondary interrupt for wake on LAN.
-			 * The driver should never see this, if it does,
-			 * something serious is wrong. We will TRAP the
-			 * message when we are in DBG mode, otherwise we
-			 * will ignore it.
-			 */
-			dev_err(&adapter->pdev->dev, "WAKE_ON_LAN interrupt\n");
-		}
-
-		/* Let's move on to the TxMac */
-		if (status & ET_INTR_TXMAC) {
-			u32 err = readl(&iomem->txmac.err);
-
-			/*
-			 * When any of the errors occur and TXMAC generates
-			 * an interrupt to report these errors, it usually
-			 * means that TXMAC has detected an error in the data
-			 * stream retrieved from the on-chip Tx Q. All of
-			 * these errors are catastrophic and TXMAC won't be
-			 * able to recover data when these errors occur.  In
-			 * a nutshell, the whole Tx path will have to be reset
-			 * and re-configured afterwards.
-			 */
-			dev_warn(&adapter->pdev->dev,
-				    "TXMAC interrupt, error 0x%08x\n",
-				    err);
-
-			/* If we are debugging, we want to see this error,
-			 * otherwise we just want the device to be reset and
-			 * continue
-			 */
-		}
-
-		/* Handle RXMAC Interrupt */
-		if (status & ET_INTR_RXMAC) {
-			/*
-			 * These interrupts are catastrophic to the device,
-			 * what we need to do is disable the interrupts and
-			 * set the flag to cause us to reset so we can solve
-			 * this issue.
-			 */
-			/* MP_SET_FLAG( adapter,
-						fMP_ADAPTER_HARDWARE_ERROR); */
-
-			dev_warn(&adapter->pdev->dev,
-			  "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
-				    readl(&iomem->rxmac.err_reg));
-
-			dev_warn(&adapter->pdev->dev,
-				    "Enable 0x%08x, Diag 0x%08x\n",
-				    readl(&iomem->rxmac.ctrl),
-				    readl(&iomem->rxmac.rxq_diag));
-
-			/*
-			 * If we are debugging, we want to see this error,
-			 * otherwise we just want the device to be reset and
-			 * continue
-			 */
-		}
-
-		/* Handle MAC_STAT Interrupt */
-		if (status & ET_INTR_MAC_STAT) {
-			/*
-			 * This means at least one of the un-masked counters
-			 * in the MAC_STAT block has rolled over.  Use this
-			 * to maintain the top, software managed bits of the
-			 * counter(s).
-			 */
-			et1310_handle_macstat_interrupt(adapter);
-		}
-
-		/* Handle SLV Timeout Interrupt */
-		if (status & ET_INTR_SLV_TIMEOUT) {
-			/*
-			 * This means a timeout has occurred on a read or
-			 * write request to one of the JAGCore registers. The
-			 * Global Resources block has terminated the request
-			 * and on a read request, returned a "fake" value.
-			 * The most likely reasons are: Bad Address or the
-			 * addressed module is in a power-down state and
-			 * can't respond.
-			 */
+			pm_csr = readl(&iomem->global.pm_csr);
+			if (!et1310_in_phy_coma(adapter))
+				writel(3, &iomem->txmac.bp_ctrl);
 		}
 	}
+
+	/* Handle Packet Status Ring Low Interrupt */
+	if (status & ET_INTR_RXDMA_STAT_LOW) {
+		/*
+		 * Same idea as with the two Free Buffer Rings. Packets going
+		 * from the network to the host each consume a free buffer
+		 * resource and a packet status resource. These resoures are
+		 * passed to the OS. When the OS is done with the resources,
+		 * they need to be returned to the ET1310. This is one method
+		 * of returning the resources.
+		 */
+	}
+
+	/* Handle RXDMA Error Interrupt */
+	if (status & ET_INTR_RXDMA_ERR) {
+		/*
+		 * The rxdma_error interrupt is sent when a time-out on a
+		 * request issued by the JAGCore has occurred or a completion is
+		 * returned with an un-successful status. In both cases the
+		 * request is considered complete. The JAGCore will
+		 * automatically re-try the request in question. Normally
+		 * information on events like these are sent to the host using
+		 * the "Advanced Error Reporting" capability. This interrupt is
+		 * another way of getting similar information. The only thing
+		 * required is to clear the interrupt by reading the ISR in the
+		 * global resources. The JAGCore will do a re-try on the
+		 * request. Normally you should never see this interrupt. If
+		 * you start to see this interrupt occurring frequently then
+		 * something bad has occurred. A reset might be the thing to do.
+		 */
+		/* TRAP();*/
+
+		dev_warn(&adapter->pdev->dev,
+			    "RxDMA_ERR interrupt, error %x\n",
+			    readl(&iomem->txmac.tx_test));
+	}
+
+	/* Handle the Wake on LAN Event */
+	if (status & ET_INTR_WOL) {
+		/*
+		 * This is a secondary interrupt for wake on LAN. The driver
+		 * should never see this, if it does, something serious is
+		 * wrong. We will TRAP the message when we are in DBG mode,
+		 * otherwise we will ignore it.
+		 */
+		dev_err(&adapter->pdev->dev, "WAKE_ON_LAN interrupt\n");
+	}
+
+	/* Let's move on to the TxMac */
+	if (status & ET_INTR_TXMAC) {
+		u32 err = readl(&iomem->txmac.err);
+
+		/*
+		 * When any of the errors occur and TXMAC generates an
+		 * interrupt to report these errors, it usually means that
+		 * TXMAC has detected an error in the data stream retrieved
+		 * from the on-chip Tx Q. All of these errors are catastrophic
+		 * and TXMAC won't be able to recover data when these errors
+		 * occur. In a nutshell, the whole Tx path will have to be reset
+		 * and re-configured afterwards.
+		 */
+		dev_warn(&adapter->pdev->dev,
+			 "TXMAC interrupt, error 0x%08x\n",
+			 err);
+
+		/*
+		 * If we are debugging, we want to see this error, otherwise we
+		 * just want the device to be reset and continue
+		 */
+	}
+
+	/* Handle RXMAC Interrupt */
+	if (status & ET_INTR_RXMAC) {
+		/*
+		 * These interrupts are catastrophic to the device, what we need
+		 * to do is disable the interrupts and set the flag to cause us
+		 * to reset so we can solve this issue.
+		 */
+		/* MP_SET_FLAG( adapter, fMP_ADAPTER_HARDWARE_ERROR); */
+
+		dev_warn(&adapter->pdev->dev,
+			 "RXMAC interrupt, error 0x%08x.  Requesting reset\n",
+			 readl(&iomem->rxmac.err_reg));
+
+		dev_warn(&adapter->pdev->dev,
+			 "Enable 0x%08x, Diag 0x%08x\n",
+			 readl(&iomem->rxmac.ctrl),
+			 readl(&iomem->rxmac.rxq_diag));
+
+		/*
+		 * If we are debugging, we want to see this error, otherwise we
+		 * just want the device to be reset and continue
+		 */
+	}
+
+	/* Handle MAC_STAT Interrupt */
+	if (status & ET_INTR_MAC_STAT) {
+		/*
+		 * This means at least one of the un-masked counters in the
+		 * MAC_STAT block has rolled over. Use this to maintain the top,
+		 * software managed bits of the counter(s).
+		 */
+		et1310_handle_macstat_interrupt(adapter);
+	}
+
+	/* Handle SLV Timeout Interrupt */
+	if (status & ET_INTR_SLV_TIMEOUT) {
+		/*
+		 * This means a timeout has occurred on a read or write request
+		 * to one of the JAGCore registers. The Global Resources block
+		 * has terminated the request and on a read request, returned a
+		 * "fake" value. The most likely reasons are: Bad Address or the
+		 * addressed module is in a power-down state and can't respond.
+		 */
+	}
+out:
 	et131x_enable_interrupts(adapter);
 }
 
