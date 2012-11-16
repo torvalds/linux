@@ -203,6 +203,72 @@
 					};
 				};
 
+				mmc0 {
+					pinctrl_mmc0_clk: mmc0_clk-0 {
+						atmel,pins =
+							<0 12 0x1 0x0>;	/* PA12 periph A */
+					};
+
+					pinctrl_mmc0_slot0_cmd_dat0: mmc0_slot0_cmd_dat0-0 {
+						atmel,pins =
+							<0 1 0x1 0x1	/* PA1 periph A with pullup */
+							 0 0 0x1 0x1>;	/* PA0 periph A with pullup */
+					};
+
+					pinctrl_mmc0_slot0_dat1_3: mmc0_slot0_dat1_3-0 {
+						atmel,pins =
+							<0 3 0x1 0x1	/* PA3 periph A with pullup */
+							 0 4 0x1 0x1	/* PA4 periph A with pullup */
+							 0 5 0x1 0x1>;	/* PA5 periph A with pullup */
+					};
+
+					pinctrl_mmc0_slot1_cmd_dat0: mmc0_slot1_cmd_dat0-0 {
+						atmel,pins =
+							<0 16 0x1 0x1	/* PA16 periph A with pullup */
+							 0 17 0x1 0x1>;	/* PA17 periph A with pullup */
+					};
+
+					pinctrl_mmc0_slot1_dat1_3: mmc0_slot1_dat1_3-0 {
+						atmel,pins =
+							<0 18 0x1 0x1	/* PA18 periph A with pullup */
+							 0 19 0x1 0x1	/* PA19 periph A with pullup */
+							 0 20 0x1 0x1>;	/* PA20 periph A with pullup */
+					};
+				};
+
+				mmc1 {
+					pinctrl_mmc1_clk: mmc1_clk-0 {
+						atmel,pins =
+							<0 6 0x1 0x0>;	/* PA6 periph A */
+					};
+
+					pinctrl_mmc1_slot0_cmd_dat0: mmc1_slot0_cmd_dat0-0 {
+						atmel,pins =
+							<0 7 0x1 0x1	/* PA7 periph A with pullup */
+							 0 8 0x1 0x1>;	/* PA8 periph A with pullup */
+					};
+
+					pinctrl_mmc1_slot0_dat1_3: mmc1_slot0_dat1_3-0 {
+						atmel,pins =
+							<0 9 0x1 0x1	/* PA9 periph A with pullup */
+							 0 10 0x1 0x1	/* PA10 periph A with pullup */
+							 0 11 0x1 0x1>;	/* PA11 periph A with pullup */
+					};
+
+					pinctrl_mmc1_slot1_cmd_dat0: mmc1_slot1_cmd_dat0-0 {
+						atmel,pins =
+							<0 21 0x1 0x1	/* PA21 periph A with pullup */
+							 0 22 0x1 0x1>;	/* PA22 periph A with pullup */
+					};
+
+					pinctrl_mmc1_slot1_dat1_3: mmc1_slot1_dat1_3-0 {
+						atmel,pins =
+							<0 23 0x1 0x1	/* PA23 periph A with pullup */
+							 0 24 0x1 0x1	/* PA24 periph A with pullup */
+							 0 25 0x1 0x1>;	/* PA25 periph A with pullup */
+					};
+				};
+
 				pioA: gpio@fffff200 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff200 0x200>;

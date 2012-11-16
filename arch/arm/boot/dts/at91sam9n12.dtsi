@@ -220,6 +220,30 @@
 					};
 				};
 
+				mmc0 {
+					pinctrl_mmc0_slot0_clk_cmd_dat0: mmc0_slot0_clk_cmd_dat0-0 {
+						atmel,pins =
+							<0 17 0x1 0x0	/* PA17 periph A */
+							 0 16 0x1 0x1	/* PA16 periph A with pullup */
+							 0 15 0x1 0x1>;	/* PA15 periph A with pullup */
+					};
+
+					pinctrl_mmc0_slot0_dat1_3: mmc0_slot0_dat1_3-0 {
+						atmel,pins =
+							<0 18 0x1 0x1	/* PA18 periph A with pullup */
+							 0 19 0x1 0x1	/* PA19 periph A with pullup */
+							 0 20 0x1 0x1>;	/* PA20 periph A with pullup */
+					};
+
+					pinctrl_mmc0_slot0_dat4_7: mmc0_slot0_dat4_7-0 {
+						atmel,pins =
+							<0 11 0x2 0x1	/* PA11 periph B with pullup */
+							 0 12 0x2 0x1	/* PA12 periph B with pullup */
+							 0 13 0x2 0x1	/* PA13 periph B with pullup */
+							 0 14 0x2 0x1>;	/* PA14 periph B with pullup */
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91sam9x5-gpio", "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
