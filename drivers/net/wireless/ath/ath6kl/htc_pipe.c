@@ -1184,7 +1184,7 @@ static void reset_endpoint_states(struct htc_target *target)
 		INIT_LIST_HEAD(&ep->pipe.tx_lookup_queue);
 		INIT_LIST_HEAD(&ep->rx_bufq);
 		ep->target = target;
-		ep->pipe.tx_credit_flow_enabled = (bool) 1; /* FIXME */
+		ep->pipe.tx_credit_flow_enabled = true;
 	}
 }
 
