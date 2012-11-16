@@ -390,7 +390,6 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nvd0_disp *disp = nvd0_disp(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct nvd0_sync *sync = nvd0_sync(crtc);
-	u64 offset;
 	u32 *push;
 	int ret;
 
@@ -408,20 +407,36 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		if (ret)
 			return ret;
 
+		if (nv_mclass(chan->object) < NVC0_CHANNEL_IND_CLASS) {
+			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 2);
+			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
+			OUT_RING  (chan, sync->sem.offset);
+			BEGIN_NV04(chan, 0, NV11_SUBCHAN_SEMAPHORE_RELEASE, 1);
+			OUT_RING  (chan, 0xf00d0000 | sync->sem.value);
+			BEGIN_NV04(chan, 0, NV11_SUBCHAN_SEMAPHORE_OFFSET, 2);
+			OUT_RING  (chan, sync->sem.offset ^ 0x10);
+			OUT_RING  (chan, 0x74b1e000);
+			BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
+			if (nv_mclass(chan->object) < NV84_CHANNEL_DMA_CLASS)
+				OUT_RING  (chan, NvSema);
+			else
+				OUT_RING  (chan, chan->vram);
+		} else {
+			u64 offset = nvc0_fence_crtc(chan, nv_crtc->index);
+			offset += sync->sem.offset;
 
-		offset  = nvc0_fence_crtc(chan, nv_crtc->index);
-		offset += sync->sem.offset;
+			BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+			OUT_RING  (chan, upper_32_bits(offset));
+			OUT_RING  (chan, lower_32_bits(offset));
+			OUT_RING  (chan, 0xf00d0000 | sync->sem.value);
+			OUT_RING  (chan, 0x1002);
+			BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
+			OUT_RING  (chan, upper_32_bits(offset));
+			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
+			OUT_RING  (chan, 0x74b1e000);
+			OUT_RING  (chan, 0x1001);
+		}
 
-		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(offset));
-		OUT_RING  (chan, lower_32_bits(offset));
-		OUT_RING  (chan, 0xf00d0000 | sync->sem.value);
-		OUT_RING  (chan, 0x1002);
-		BEGIN_NVC0(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(offset));
-		OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
-		OUT_RING  (chan, 0x74b1e000);
-		OUT_RING  (chan, 0x1001);
 		FIRE_RING (chan);
 	} else {
 		nouveau_bo_wr32(disp->sync, sync->sem.offset / 4,
@@ -451,12 +466,21 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	evo_mthd(push, 0x0110, 2);
 	evo_data(push, 0x00000000);
 	evo_data(push, 0x00000000);
-	evo_mthd(push, 0x0400, 5);
-	evo_data(push, nv_fb->nvbo->bo.offset >> 8);
-	evo_data(push, 0);
-	evo_data(push, (fb->height << 16) | fb->width);
-	evo_data(push, nv_fb->r_pitch);
-	evo_data(push, nv_fb->r_format);
+	if (nvd0_vers(sync) < NVD0_DISP_SYNC_CLASS) {
+		evo_mthd(push, 0x0800, 5);
+		evo_data(push, nv_fb->nvbo->bo.offset >> 8);
+		evo_data(push, 0);
+		evo_data(push, (fb->height << 16) | fb->width);
+		evo_data(push, nv_fb->r_pitch);
+		evo_data(push, nv_fb->r_format);
+	} else {
+		evo_mthd(push, 0x0400, 5);
+		evo_data(push, nv_fb->nvbo->bo.offset >> 8);
+		evo_data(push, 0);
+		evo_data(push, (fb->height << 16) | fb->width);
+		evo_data(push, nv_fb->r_pitch);
+		evo_data(push, nv_fb->r_format);
+	}
 	evo_mthd(push, 0x0080, 1);
 	evo_data(push, 0x00000000);
 	evo_kick(push, sync);
