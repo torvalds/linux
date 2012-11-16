@@ -143,7 +143,6 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define fMP_DEST_BROAD			0x00000002
 
 /* MP_ADAPTER flags */
-#define fMP_ADAPTER_RECV_LOOKASIDE	0x00000004
 #define fMP_ADAPTER_INTERRUPT_IN_USE	0x00000008
 
 /* MP_SHARED flags */
@@ -184,7 +183,6 @@ MODULE_DESCRIPTION("10/100/1000 Base-T Ethernet Driver for the ET1310 by Agere S
 #define NIC_DEFAULT_NUM_RFD	1024
 #define NUM_FBRS		2
 
-#define NIC_MIN_NUM_RFD		64
 #define NUM_PACKETS_HANDLED	256
 
 #define ALCATEL_MULTICAST_PKT	0x01000000
@@ -316,9 +314,6 @@ struct rx_ring {
 	u32 num_rfd;
 
 	bool unfinished_receives;
-
-	/* lookaside lists */
-	struct kmem_cache *recv_lookaside;
 };
 
 /* TX defines */
@@ -2384,21 +2379,6 @@ static int et131x_rx_dma_memory_alloc(struct et131x_adapter *adapter)
 	rx_ring->num_rfd = NIC_DEFAULT_NUM_RFD;
 	pr_info("PRS %llx\n", (unsigned long long)rx_ring->rx_status_bus);
 
-	/* Recv
-	 * kmem_cache_create initializes a lookaside list. After successful
-	 * creation, nonpaged fixed-size blocks can be allocated from and
-	 * freed to the lookaside list.
-	 * RFDs will be allocated from this pool.
-	 */
-	rx_ring->recv_lookaside = kmem_cache_create(adapter->netdev->name,
-						   sizeof(struct rfd),
-						   0,
-						   SLAB_CACHE_DMA |
-						   SLAB_HWCACHE_ALIGN,
-						   NULL);
-
-	adapter->flags |= fMP_ADAPTER_RECV_LOOKASIDE;
-
 	/* The RFDs are going to be put on lists later on, so initialize the
 	 * lists now.
 	 */
@@ -2431,7 +2411,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 
 		list_del(&rfd->list_node);
 		rfd->skb = NULL;
-		kmem_cache_free(adapter->rx_ring.recv_lookaside, rfd);
+		kfree(rfd);
 	}
 
 	/* Free Free Buffer Rings */
@@ -2485,12 +2465,6 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
 		rx_ring->rx_status_block = NULL;
 	}
 
-	/* Destroy the lookaside (RFD) pool */
-	if (adapter->flags & fMP_ADAPTER_RECV_LOOKASIDE) {
-		kmem_cache_destroy(rx_ring->recv_lookaside);
-		adapter->flags &= ~fMP_ADAPTER_RECV_LOOKASIDE;
-	}
-
 	/* Free the FBR Lookup Table */
 	kfree(rx_ring->fbr[0]);
 	kfree(rx_ring->fbr[1]);
@@ -2507,8 +2481,7 @@ static void et131x_rx_dma_memory_free(struct et131x_adapter *adapter)
  */
 static int et131x_init_recv(struct et131x_adapter *adapter)
 {
-	int status = -ENOMEM;
-	struct rfd *rfd = NULL;
+	struct rfd *rfd;
 	u32 rfdct;
 	u32 numrfd = 0;
 	struct rx_ring *rx_ring;
@@ -2518,14 +2491,11 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 
 	/* Setup each RFD */
 	for (rfdct = 0; rfdct < rx_ring->num_rfd; rfdct++) {
-		rfd = kmem_cache_alloc(rx_ring->recv_lookaside,
-						     GFP_ATOMIC | GFP_DMA);
+		rfd = kzalloc(sizeof(struct rfd), GFP_ATOMIC | GFP_DMA);
 
 		if (!rfd) {
-			dev_err(&adapter->pdev->dev,
-				  "Couldn't alloc RFD out of kmem_cache\n");
-			status = -ENOMEM;
-			continue;
+			dev_err(&adapter->pdev->dev, "Couldn't alloc RFD\n");
+			return -ENOMEM;
 		}
 
 		rfd->skb = NULL;
@@ -2538,17 +2508,7 @@ static int et131x_init_recv(struct et131x_adapter *adapter)
 		numrfd++;
 	}
 
-	if (numrfd > NIC_MIN_NUM_RFD)
-		status = 0;
-
-	rx_ring->num_rfd = numrfd;
-
-	if (status != 0) {
-		kmem_cache_free(rx_ring->recv_lookaside, rfd);
-		dev_err(&adapter->pdev->dev,
-			  "Allocation problems in et131x_init_recv\n");
-	}
-	return status;
+	return 0;
 }
 
 /**
@@ -3779,6 +3739,17 @@ static void et131x_error_timer_handler(unsigned long data)
 }
 
 /**
+ * et131x_adapter_memory_free - Free all memory allocated for use by Tx & Rx
+ * @adapter: pointer to our private adapter structure
+ */
+static void et131x_adapter_memory_free(struct et131x_adapter *adapter)
+{
+	/* Free DMA memory */
+	et131x_tx_dma_memory_free(adapter);
+	et131x_rx_dma_memory_free(adapter);
+}
+
+/**
  * et131x_adapter_memory_alloc
  * @adapter: pointer to our private adapter structure
  *
@@ -3808,24 +3779,12 @@ static int et131x_adapter_memory_alloc(struct et131x_adapter *adapter)
 
 	/* Init receive data structures */
 	status = et131x_init_recv(adapter);
-	if (status != 0) {
+	if (status) {
 		dev_err(&adapter->pdev->dev,
 			"et131x_init_recv FAILED\n");
-		et131x_tx_dma_memory_free(adapter);
-		et131x_rx_dma_memory_free(adapter);
+		et131x_adapter_memory_free(adapter);
 	}
 	return status;
-}
-
-/**
- * et131x_adapter_memory_free - Free all memory allocated for use by Tx & Rx
- * @adapter: pointer to our private adapter structure
- */
-static void et131x_adapter_memory_free(struct et131x_adapter *adapter)
-{
-	/* Free DMA memory */
-	et131x_tx_dma_memory_free(adapter);
-	et131x_rx_dma_memory_free(adapter);
 }
 
 static void et131x_adjust_link(struct net_device *netdev)
