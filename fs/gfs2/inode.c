@@ -674,6 +674,10 @@ static int gfs2_create_inode(struct inode *dir, struct dentry *dentry,
 		goto fail_gunlock;
 
 	inode = new_inode(sdp->sd_vfs);
+	if (!inode) {
+		gfs2_glock_dq_uninit(ghs);
+		return -ENOMEM;
+	}
 	ip = GFS2_I(inode);
 	error = gfs2_rs_alloc(ip);
 	if (error)
