@@ -640,13 +640,13 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 					vif->req_bssid, vif->ch_hint,
 					ar->connect_ctrl_flags, nw_subtype);
 
-	/* disable background scan if period is 0 */
-	if (sme->bg_scan_period == 0)
+	if (sme->bg_scan_period == 0) {
+		/* disable background scan if period is 0 */
 		sme->bg_scan_period = 0xffff;
-
-	/* configure default value if not specified */
-	if (sme->bg_scan_period == -1)
+	} else if (sme->bg_scan_period == -1) {
+		/* configure default value if not specified */
 		sme->bg_scan_period = DEFAULT_BG_SCAN_PERIOD;
+	}
 
 	ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx, 0, 0,
 				  sme->bg_scan_period, 0, 0, 0, 3, 0, 0, 0);
