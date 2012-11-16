@@ -356,7 +356,6 @@ void xfrm6_fini(void)
 	if (sysctl_hdr)
 		unregister_net_sysctl_table(sysctl_hdr);
 #endif
-	//xfrm6_input_fini();
 	xfrm6_policy_fini();
 	xfrm6_state_fini();
 	dst_entries_destroy(&xfrm6_dst_ops);
