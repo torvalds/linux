@@ -789,12 +789,21 @@ enum mac80211_rx_flags {
  * @ampdu_reference: A-MPDU reference number, must be a different value for
  *	each A-MPDU but the same for each subframe within one A-MPDU
  * @ampdu_delimiter_crc: A-MPDU delimiter CRC
+ * @vendor_radiotap_bitmap: radiotap vendor namespace presence bitmap
+ * @vendor_radiotap_len: radiotap vendor namespace length
+ * @vendor_radiotap_align: radiotap vendor namespace alignment. Note
+ *	that the actual data must be at the start of the SKB data
+ *	already.
+ * @vendor_radiotap_oui: radiotap vendor namespace OUI
+ * @vendor_radiotap_subns: radiotap vendor sub namespace
  */
 struct ieee80211_rx_status {
 	u64 mactime;
 	u32 device_timestamp;
 	u32 ampdu_reference;
 	u32 flag;
+	u32 vendor_radiotap_bitmap;
+	u16 vendor_radiotap_len;
 	u16 freq;
 	u8 rate_idx;
 	u8 rx_flags;
@@ -802,6 +811,9 @@ struct ieee80211_rx_status {
 	u8 antenna;
 	s8 signal;
 	u8 ampdu_delimiter_crc;
+	u8 vendor_radiotap_align;
+	u8 vendor_radiotap_oui[3];
+	u8 vendor_radiotap_subns;
 };
 
 /**

@@ -40,6 +40,8 @@
 static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
 					   struct sk_buff *skb)
 {
+	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS) {
 		if (likely(skb->len > FCS_LEN))
 			__pskb_trim(skb, skb->len - FCS_LEN);
@@ -50,6 +52,9 @@ static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
 			skb = NULL;
 		}
 	}
+
+	if (status->vendor_radiotap_len)
+		__pskb_pull(skb, status->vendor_radiotap_len);
 
 	return skb;
 }
@@ -73,30 +78,46 @@ static inline int should_drop_frame(struct sk_buff *skb, int present_fcs_len)
 }
 
 static int
-ieee80211_rx_radiotap_len(struct ieee80211_local *local,
-			  struct ieee80211_rx_status *status)
+ieee80211_rx_radiotap_space(struct ieee80211_local *local,
+			    struct ieee80211_rx_status *status)
 {
 	int len;
 
 	/* always present fields */
 	len = sizeof(struct ieee80211_radiotap_header) + 9;
 
-	if (ieee80211_have_rx_timestamp(status))
+	/* allocate extra bitmap */
+	if (status->vendor_radiotap_len)
+		len += 4;
+
+	if (ieee80211_have_rx_timestamp(status)) {
+		len = ALIGN(len, 8);
 		len += 8;
+	}
 	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
 		len += 1;
 
-	if (len & 1) /* padding for RX_FLAGS if necessary */
-		len++;
+	/* padding for RX_FLAGS if necessary */
+	len = ALIGN(len, 2);
 
 	if (status->flag & RX_FLAG_HT) /* HT info */
 		len += 3;
 
 	if (status->flag & RX_FLAG_AMPDU_DETAILS) {
-		/* padding */
-		while (len & 3)
-			len++;
+		len = ALIGN(len, 4);
 		len += 8;
+	}
+
+	if (status->vendor_radiotap_len) {
+		if (WARN_ON_ONCE(status->vendor_radiotap_align == 0))
+			status->vendor_radiotap_align = 1;
+		/* align standard part of vendor namespace */
+		len = ALIGN(len, 2);
+		/* allocate standard part of vendor namespace */
+		len += 6;
+		/* align vendor-defined part */
+		len = ALIGN(len, status->vendor_radiotap_align);
+		/* vendor-defined part is already in skb */
 	}
 
 	return len;
@@ -132,14 +153,25 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			    (1 << IEEE80211_RADIOTAP_CHANNEL) |
 			    (1 << IEEE80211_RADIOTAP_ANTENNA) |
 			    (1 << IEEE80211_RADIOTAP_RX_FLAGS));
-	rthdr->it_len = cpu_to_le16(rtap_len);
+	rthdr->it_len = cpu_to_le16(rtap_len + status->vendor_radiotap_len);
 
 	pos = (unsigned char *)(rthdr + 1);
+
+	if (status->vendor_radiotap_len) {
+		rthdr->it_present |=
+			cpu_to_le32(BIT(IEEE80211_RADIOTAP_VENDOR_NAMESPACE)) |
+			cpu_to_le32(BIT(IEEE80211_RADIOTAP_EXT));
+		put_unaligned_le32(status->vendor_radiotap_bitmap, pos);
+		pos += 4;
+	}
 
 	/* the order of the following fields is important */
 
 	/* IEEE80211_RADIOTAP_TSFT */
 	if (ieee80211_have_rx_timestamp(status)) {
+		/* padding */
+		while ((pos - (u8 *)rthdr) & 7)
+			*pos++ = 0;
 		put_unaligned_le64(
 			ieee80211_calculate_rx_timestamp(local, status,
 							 mpdulen, 0),
@@ -211,7 +243,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_RX_FLAGS */
 	/* ensure 2 byte alignment for the 2 byte field as required */
 	if ((pos - (u8 *)rthdr) & 1)
-		pos++;
+		*pos++ = 0;
 	if (status->flag & RX_FLAG_FAILED_PLCP_CRC)
 		rx_flags |= IEEE80211_RADIOTAP_F_RX_BADPLCP;
 	put_unaligned_le16(rx_flags, pos);
@@ -261,6 +293,21 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 			*pos++ = 0;
 		*pos++ = 0;
 	}
+
+	if (status->vendor_radiotap_len) {
+		/* ensure 2 byte alignment for the vendor field as required */
+		if ((pos - (u8 *)rthdr) & 1)
+			*pos++ = 0;
+		*pos++ = status->vendor_radiotap_oui[0];
+		*pos++ = status->vendor_radiotap_oui[1];
+		*pos++ = status->vendor_radiotap_oui[2];
+		*pos++ = status->vendor_radiotap_subns;
+		put_unaligned_le16(status->vendor_radiotap_len, pos);
+		pos += 2;
+		/* align the actual payload as requested */
+		while ((pos - (u8 *)rthdr) & (status->vendor_radiotap_align - 1))
+			*pos++ = 0;
+	}
 }
 
 /*
@@ -289,7 +336,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	 */
 
 	/* room for the radiotap header based on driver features */
-	needed_headroom = ieee80211_rx_radiotap_len(local, status);
+	needed_headroom = ieee80211_rx_radiotap_space(local, status);
 
 	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
 		present_fcs_len = FCS_LEN;
@@ -2593,7 +2640,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 		goto out_free_skb;
 
 	/* room for the radiotap header based on driver features */
-	needed_headroom = ieee80211_rx_radiotap_len(local, status);
+	needed_headroom = ieee80211_rx_radiotap_space(local, status);
 
 	if (skb_headroom(skb) < needed_headroom &&
 	    pskb_expand_head(skb, needed_headroom, 0, GFP_ATOMIC))
