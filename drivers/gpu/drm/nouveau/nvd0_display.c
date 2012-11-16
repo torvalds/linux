@@ -1529,26 +1529,33 @@ static void
 nvd0_sor_disconnect(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
+	struct nvd0_mast *mast = nvd0_mast(encoder->dev);
+	const int or = nv_encoder->or;
 	u32 *push;
 
 	if (nv_encoder->crtc) {
 		nvd0_crtc_prepare(nv_encoder->crtc);
 
-		push = evo_wait(nvd0_mast(dev), 4);
+		push = evo_wait(mast, 4);
 		if (push) {
-			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
-			evo_data(push, 0x00000000);
+			if (nvd0_vers(mast) < NVD0_DISP_MAST_CLASS) {
+				evo_mthd(push, 0x0600 + (or * 0x40), 1);
+				evo_data(push, 0x00000000);
+			} else {
+				evo_mthd(push, 0x0200 + (or * 0x20), 1);
+				evo_data(push, 0x00000000);
+			}
+
 			evo_mthd(push, 0x0080, 1);
 			evo_data(push, 0x00000000);
-			evo_kick(push, nvd0_mast(dev));
+			evo_kick(push, mast);
 		}
 
 		nvd0_hdmi_disconnect(encoder);
-
-		nv_encoder->crtc = NULL;
-		nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
 	}
+
+	nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
+	nv_encoder->crtc = NULL;
 }
 
 static void
@@ -1569,84 +1576,76 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		  struct drm_display_mode *mode)
 {
 	struct nvd0_disp *disp = nvd0_disp(encoder->dev);
+	struct nvd0_mast *mast = nvd0_mast(encoder->dev);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &drm->vbios;
-	int or = nv_encoder->or;
-	u32 mode_ctrl = (1 << nv_crtc->index);
-	u32 syncs, magic, *push;
-	u32 or_config;
-
-	syncs = 0x00000001;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		syncs |= 0x00000008;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		syncs |= 0x00000010;
-
-	magic = 0x31ec6000 | (nv_crtc->index << 25);
-	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-		magic |= 0x00000001;
+	u32 *push, lvds = 0;
+	u8 owner = 1 << nv_crtc->index;
+	u8 proto = 0xf;
+	u8 depth = 0x0;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		if (nv_encoder->dcb->sorconf.link & 1) {
 			if (mode->clock < 165000)
-				mode_ctrl |= 0x00000100;
+				proto = 0x1;
 			else
-				mode_ctrl |= 0x00000500;
+				proto = 0x5;
 		} else {
-			mode_ctrl |= 0x00000200;
+			proto = 0x2;
 		}
 
 		nvd0_hdmi_mode_set(encoder, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
-		or_config = (mode_ctrl & 0x00000f00) >> 8;
+		proto = 0x0;
+
 		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
-				or_config |= 0x0100;
+				lvds |= 0x0100;
 			if (bios->fp.if_is_24bit)
-				or_config |= 0x0200;
+				lvds |= 0x0200;
 		} else {
 			if (nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 				if (((u8 *)nv_connector->edid)[121] == 2)
-					or_config |= 0x0100;
+					lvds |= 0x0100;
 			} else
 			if (mode->clock >= bios->fp.duallink_transition_clk) {
-				or_config |= 0x0100;
+				lvds |= 0x0100;
 			}
 
-			if (or_config & 0x0100) {
+			if (lvds & 0x0100) {
 				if (bios->fp.strapless_is_24bit & 2)
-					or_config |= 0x0200;
+					lvds |= 0x0200;
 			} else {
 				if (bios->fp.strapless_is_24bit & 1)
-					or_config |= 0x0200;
+					lvds |= 0x0200;
 			}
 
 			if (nv_connector->base.display_info.bpc == 8)
-				or_config |= 0x0200;
+				lvds |= 0x0200;
 		}
 
-		nv_call(disp->core, NV50_DISP_SOR_LVDS_SCRIPT + or, or_config);
+		nv_call(disp->core, NV50_DISP_SOR_LVDS_SCRIPT + nv_encoder->or, lvds);
 		break;
 	case DCB_OUTPUT_DP:
 		if (nv_connector->base.display_info.bpc == 6) {
 			nv_encoder->dp.datarate = mode->clock * 18 / 8;
-			syncs |= 0x00000002 << 6;
+			depth = 0x2;
 		} else {
 			nv_encoder->dp.datarate = mode->clock * 24 / 8;
-			syncs |= 0x00000005 << 6;
+			depth = 0x5;
 		}
 
 		if (nv_encoder->dcb->sorconf.link & 1)
-			mode_ctrl |= 0x00000800;
+			proto = 0x8;
 		else
-			mode_ctrl |= 0x00000900;
+			proto = 0x9;
 		break;
 	default:
 		BUG_ON(1);
@@ -1657,12 +1656,29 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 	push = evo_wait(nvd0_mast(dev), 8);
 	if (push) {
-		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
-		evo_data(push, syncs);
-		evo_data(push, magic);
-		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x020), 1);
-		evo_data(push, mode_ctrl);
-		evo_kick(push, nvd0_mast(dev));
+		if (nvd0_vers(mast) < NVD0_DISP_CLASS) {
+			evo_mthd(push, 0x0600 + (nv_encoder->or * 0x040), 1);
+			evo_data(push, (depth << 16) | (proto << 8) | owner);
+		} else {
+			u32 magic = 0x31ec6000 | (nv_crtc->index << 25);
+			u32 syncs = 0x00000001;
+
+			if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+				syncs |= 0x00000008;
+			if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+				syncs |= 0x00000010;
+
+			if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+				magic |= 0x00000001;
+
+			evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
+			evo_data(push, syncs | (depth << 6));
+			evo_data(push, magic);
+			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x020), 1);
+			evo_data(push, owner | (proto << 8));
+		}
+
+		evo_kick(push, mast);
 	}
 
 	nv_encoder->crtc = encoder->crtc;
