@@ -40,6 +40,15 @@
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x2013 /* MX23_PAD_SSP1_DETECT__GPIO_2_1 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				led_pin_gpio0_17: led_gpio0_17@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
 						0x0113 /* MX23_PAD_GPMI_ALE__GPIO_0_17 */
 					>;
 					fsl,drive-strength = <0>;
@@ -91,11 +100,12 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pin_gpio0_17>;
 
 		user {
 			label = "green";
-			gpios = <&gpio2 1 0>;
-			linux,default-trigger = "default-on";
+			gpios = <&gpio2 1 1>;
 		};
 	};
 };

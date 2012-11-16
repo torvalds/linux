@@ -29,6 +29,7 @@
 #include <linux/of_irq.h>
 
 #include <asm/mach/time.h>
+#include <asm/sched_clock.h>
 #include <mach/mxs.h>
 #include <mach/common.h>
 
@@ -233,15 +234,22 @@ static struct clocksource clocksource_mxs = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
+static u32 notrace mxs_read_sched_clock_v2(void)
+{
+	return ~readl_relaxed(mxs_timrot_base + HW_TIMROT_RUNNING_COUNTn(1));
+}
+
 static int __init mxs_clocksource_init(struct clk *timer_clk)
 {
 	unsigned int c = clk_get_rate(timer_clk);
 
 	if (timrot_is_v1())
 		clocksource_register_hz(&clocksource_mxs, c);
-	else
+	else {
 		clocksource_mmio_init(mxs_timrot_base + HW_TIMROT_RUNNING_COUNTn(1),
 			"mxs_timer", c, 200, 32, clocksource_mmio_readl_down);
+		setup_sched_clock(mxs_read_sched_clock_v2, 32, c);
+	}
 
 	return 0;
 }

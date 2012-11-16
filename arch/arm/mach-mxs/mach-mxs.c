@@ -100,6 +100,25 @@ static struct fb_videomode apx4devkit_video_modes[] = {
 	},
 };
 
+static struct fb_videomode apf28dev_video_modes[] = {
+	{
+		.name = "LW700",
+		.refresh = 60,
+		.xres = 800,
+		.yres = 480,
+		.pixclock = 30303, /* picosecond */
+		.left_margin = 96,
+		.right_margin = 96, /* at least 3 & 1 */
+		.upper_margin = 0x14,
+		.lower_margin = 0x15,
+		.hsync_len = 64,
+		.vsync_len = 4,
+		.sync = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT |
+				FB_SYNC_DATA_ENABLE_HIGH_ACT |
+				FB_SYNC_DOTCLK_FAILING_ACT,
+	},
+};
+
 static struct mxsfb_platform_data mxsfb_pdata __initdata;
 
 /*
@@ -160,6 +179,7 @@ static struct sys_timer imx28_timer = {
 enum mac_oui {
 	OUI_FSL,
 	OUI_DENX,
+	OUI_CRYSTALFONTZ,
 };
 
 static void __init update_fec_mac_prop(enum mac_oui oui)
@@ -175,7 +195,11 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 		np = of_find_compatible_node(from, NULL, "fsl,imx28-fec");
 		if (!np)
 			return;
+
 		from = np;
+
+		if (of_get_property(np, "local-mac-address", NULL))
+			continue;
 
 		newmac = kzalloc(sizeof(*newmac) + 6, GFP_KERNEL);
 		if (!newmac)
@@ -204,6 +228,11 @@ static void __init update_fec_mac_prop(enum mac_oui oui)
 			macaddr[0] = 0xc0;
 			macaddr[1] = 0xe5;
 			macaddr[2] = 0x4e;
+			break;
+		case OUI_CRYSTALFONTZ:
+			macaddr[0] = 0x58;
+			macaddr[1] = 0xb9;
+			macaddr[2] = 0xe1;
 			break;
 		}
 		val = ocotp[i];
@@ -355,6 +384,22 @@ static void __init tx28_post_init(void)
 	pinctrl_put(pctl);
 }
 
+static void __init cfa10049_init(void)
+{
+	enable_clk_enet_out();
+	update_fec_mac_prop(OUI_CRYSTALFONTZ);
+}
+
+static void __init apf28_init(void)
+{
+	enable_clk_enet_out();
+
+	mxsfb_pdata.mode_list = apf28dev_video_modes;
+	mxsfb_pdata.mode_count = ARRAY_SIZE(apf28dev_video_modes);
+	mxsfb_pdata.default_bpp = 16;
+	mxsfb_pdata.ld_intf_width = STMLCDIF_16BIT;
+}
+
 static void __init mxs_machine_init(void)
 {
 	if (of_machine_is_compatible("fsl,imx28-evk"))
@@ -365,6 +410,10 @@ static void __init mxs_machine_init(void)
 		m28evk_init();
 	else if (of_machine_is_compatible("bluegiga,apx4devkit"))
 		apx4devkit_init();
+	else if (of_machine_is_compatible("crystalfontz,cfa10049"))
+		cfa10049_init();
+	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
+		apf28_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);

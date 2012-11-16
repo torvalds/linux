@@ -22,6 +22,31 @@
 
 	apb@80000000 {
 		apbh@80000000 {
+			pinctrl@80018000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&hog_pins_cfa10036>;
+
+				hog_pins_cfa10036: hog-10036@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2073 /* MX28_PAD_SSP0_D7__GPIO_2_7 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				led_pins_cfa10036: leds-10036@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x3043 /* MX28_PAD_AUART1_RX__GPIO_3_4 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+			};
+
 			ssp0: ssp@80010000 {
 				compatible = "fsl,imx28-mmc";
 				pinctrl-names = "default";
@@ -43,6 +68,8 @@
 
 	leds {
 		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins_cfa10036>;
 
 		power {
 			gpios = <&gpio3 4 1>;
