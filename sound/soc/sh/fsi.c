@@ -2009,6 +2009,7 @@ static int fsi_probe(struct platform_device *pdev)
 	struct fsi_master *master;
 	const struct platform_device_id	*id_entry;
 	struct sh_fsi_platform_info *info = pdev->dev.platform_data;
+	struct fsi_priv *fsi;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
@@ -2045,22 +2046,24 @@ static int fsi_probe(struct platform_device *pdev)
 	spin_lock_init(&master->lock);
 
 	/* FSI A setting */
-	master->fsia.base	= master->base;
-	master->fsia.master	= master;
-	master->fsia.info	= &info->port_a;
-	fsi_handler_init(&master->fsia);
-	ret = fsi_stream_probe(&master->fsia, &pdev->dev);
+	fsi		= &master->fsia;
+	fsi->base	= master->base;
+	fsi->master	= master;
+	fsi->info	= &info->port_a;
+	fsi_handler_init(fsi);
+	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIA stream probe failed\n");
 		return ret;
 	}
 
 	/* FSI B setting */
-	master->fsib.base	= master->base + 0x40;
-	master->fsib.master	= master;
-	master->fsib.info	= &info->port_b;
-	fsi_handler_init(&master->fsib);
-	ret = fsi_stream_probe(&master->fsib, &pdev->dev);
+	fsi		= &master->fsib;
+	fsi->base	= master->base + 0x40;
+	fsi->master	= master;
+	fsi->info	= &info->port_b;
+	fsi_handler_init(fsi);
+	ret = fsi_stream_probe(fsi, &pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "FSIB stream probe failed\n");
 		goto exit_fsia;
