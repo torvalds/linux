@@ -402,7 +402,6 @@ struct i915_suspend_saved_registers {
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
-	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
 	u32 savePIPEASRC;

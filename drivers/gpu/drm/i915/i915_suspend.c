@@ -811,10 +811,6 @@ int i915_save_state(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	/* Hardware status page */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		dev_priv->regfile.saveHWS = I915_READ(HWS_PGA);
-
 	i915_save_display(dev);
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -864,10 +860,6 @@ int i915_restore_state(struct drm_device *dev)
 	pci_write_config_byte(dev->pdev, LBB, dev_priv->regfile.saveLBB);
 
 	mutex_lock(&dev->struct_mutex);
-
-	/* Hardware status page */
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		I915_WRITE(HWS_PGA, dev_priv->regfile.saveHWS);
 
 	i915_restore_display(dev);
 
