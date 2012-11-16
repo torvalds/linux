@@ -105,15 +105,20 @@ static int rk29_adc_test(void)
 
 static int rk29_adc_probe(struct platform_device *pdev)
 {
+        struct adc_platform_data *pdata = pdev->dev.platform_data;
 	struct adc_host *adc = NULL;
 	struct rk29_adc_device *dev;
 	struct resource *res;
 	int ret;
 
+        if(!pdata)
+                return -EINVAL;
+
 	adc = adc_alloc_host(&pdev->dev, sizeof(struct rk29_adc_device), SARADC_CHN_MASK);
 	if (!adc)
 		return -ENOMEM;
 	adc->ops = &rk29_adc_ops;
+        adc->pdata = pdata;
 	dev = adc_priv(adc);
 	dev->adc = adc;
 	dev->irq = platform_get_irq(pdev, 0);
@@ -161,6 +166,7 @@ static int rk29_adc_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_ioarea;
 	}
+        g_adc = adc;
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "rk29 adc: driver initialized\n");
 	return 0;

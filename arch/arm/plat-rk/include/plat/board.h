@@ -7,7 +7,11 @@
 #include <linux/rk_screen.h>
 #include <plat/sram.h>
 
-
+struct adc_platform_data {
+        int ref_volt;
+        int base_chn;
+        int (*get_base_volt)(void);
+};
 enum {
         I2C_IDLE = 0,
         I2C_SDA_LOW,

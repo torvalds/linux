@@ -10,7 +10,8 @@
 #include "rk30_adc.h"
 
 //#define ADC_TEST
-
+#define SAMPLE_COUNT            10
+#define MIN_SAMPLE_VALUE        310
 struct rk30_adc_device {
 	int			 irq;
 	void __iomem		*regs;
@@ -116,15 +117,20 @@ static int rk30_adc_test(void)
 
 static int rk30_adc_probe(struct platform_device *pdev)
 {
+        struct adc_platform_data *pdata = pdev->dev.platform_data;
 	struct adc_host *adc = NULL;
 	struct rk30_adc_device *dev;
 	struct resource *res;
-	int ret;
+	int ret = 0, i, v;
+
+        if(!pdata)
+                return -EINVAL;
 
 	adc = adc_alloc_host(&pdev->dev, sizeof(struct rk30_adc_device), SARADC_CHN_MASK);
 	if (!adc)
 		return -ENOMEM;
 	adc->ops = &rk30_adc_ops;
+        adc->pdata = pdata;
 	dev = adc_priv(adc);
 	dev->adc = adc;
 	dev->irq = platform_get_irq(pdev, 0);
@@ -181,29 +187,58 @@ static int rk30_adc_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_ioarea;
 	}
+        g_adc = adc;
 	platform_set_drvdata(pdev, dev);
+
+        if(adc->pdata->base_chn > 0){
+                adc->base_client = adc_register(adc->pdata->base_chn, NULL, NULL);
+                if(!adc->base_client){
+		        dev_err(&pdev->dev, "adc_register(base_chn: %d) failed\n", adc->pdata->base_chn);
+                        ret = -ENOMEM;
+                        goto err_adc_register;
+                }
+                for(i = 0; i < SAMPLE_COUNT; i++){
+                        v = adc_sync_read(adc->base_client);
+                        if(v < 0){
+		                dev_err(&pdev->dev, "adc_register(base_chn: %d) failed\n", adc->pdata->base_chn);
+                                ret = v;
+                                goto err_adc_sync_read;
+                        }else if(v < MIN_SAMPLE_VALUE){
+		                dev_info(&pdev->dev, "chn[%d]: adc value(%d) is invalide\n", adc->pdata->base_chn, v);
+                                adc_unregister(adc->base_client);
+                                adc->base_client = NULL;
+                                break;
+                        }
+                        adc_dbg(&pdev->dev, "read ref_adc: %d\n", v);
+                        mdelay(1);
+                }
+        }
 	dev_info(&pdev->dev, "rk30 adc: driver initialized\n");
 	return 0;
-
- err_ioarea:
+err_adc_sync_read:
+        adc_unregister(adc->base_client);
+        adc->base_client = NULL;
+err_adc_register:
+	iounmap(dev->regs);
+err_ioarea:
 	release_resource(dev->ioarea);
 	kfree(dev->ioarea);
 
- err_clk:
+err_clk:
 	clk_disable(dev->clk);
 
- err_pclk:
+err_pclk:
 	clk_disable(dev->pclk);
 	clk_put(dev->pclk);
 
- err_clk2:
+err_clk2:
 	clk_put(dev->clk);
 
- err_irq:
+err_irq:
 	free_irq(dev->irq, dev);
 
- err_alloc:
-	adc_free_host(dev->adc);
+err_alloc:
+        adc_free_host(dev->adc);
 	return ret;
 }
 
@@ -211,6 +246,10 @@ static int rk30_adc_remove(struct platform_device *pdev)
 {
 	struct rk30_adc_device *dev = platform_get_drvdata(pdev);
 
+        if(dev->adc->base_client){
+                adc_unregister(dev->adc->base_client);
+                dev->adc->base_client = NULL;
+        }
 	iounmap(dev->regs);
 	release_resource(dev->ioarea);
 	kfree(dev->ioarea);
@@ -274,8 +313,11 @@ MODULE_AUTHOR("kfx, kfx@rock-chips.com");
 MODULE_LICENSE("GPL");
 static int __init adc_test_init(void)
 {
+        printk("def_ref_volt: %dmV, curr_ref_volt: %dmV\n", 
+                        get_def_ref_volt(), get_curr_ref_volt());
+        while(1);
 #ifdef ADC_TEST	
-		rk30_adc_test();
+	rk30_adc_test();
 #endif
 	return 0;
 

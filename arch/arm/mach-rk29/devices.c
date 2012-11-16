@@ -31,6 +31,10 @@
 #include "devices.h"
 
 #ifdef CONFIG_ADC_RK29
+static struct adc_platform_data rk30_adc_pdata = {
+        .ref_volt = 2500, //2500mV
+        .base_chn = -1,
+};
 static struct resource rk29_adc_resource[] = {
 	{
 		.start	= IRQ_SARADC,
@@ -49,6 +53,9 @@ struct platform_device rk29_device_adc = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rk29_adc_resource),
 	.resource	= rk29_adc_resource,
+        .dev            = {
+		.platform_data = &rk29_adc_pdata,
+        },
 };
 #endif
 

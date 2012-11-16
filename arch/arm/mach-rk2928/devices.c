@@ -27,9 +27,29 @@
 #include <mach/dma-pl330.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
+#include <mach/dvfs.h>
 #include <plat/rk_fiq_debugger.h>
+#include <linux/regulator/consumer.h>
 
 #ifdef CONFIG_ADC_RK30
+static int rk30_get_base_volt(void)
+{
+        int volt;
+        struct regulator *logic = dvfs_get_regulator("vdd_core");
+
+        if(unlikely(IS_ERR_OR_NULL(logic))){
+                printk("%s: fail to get logic voltage\n", __func__);
+                return -EINVAL;
+        }
+        volt =  regulator_get_voltage(logic)/1000;
+
+        return volt;
+}
+static struct adc_platform_data rk30_adc_pdata = {
+        .ref_volt = 3300, //3300mV
+        .base_chn = 3,
+        .get_base_volt = &rk30_get_base_volt,
+};
 static struct resource rk30_adc_resource[] = {
 	{
 		.start	= IRQ_SARADC,
@@ -48,6 +68,9 @@ struct platform_device device_adc = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rk30_adc_resource),
 	.resource	= rk30_adc_resource,
+        .dev            = {
+		.platform_data = &rk30_adc_pdata,
+        },
 };
 #endif
 

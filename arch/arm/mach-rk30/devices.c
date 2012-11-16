@@ -27,6 +27,14 @@
 #include <plat/rk_fiq_debugger.h>
 
 #ifdef CONFIG_ADC_RK30
+static struct adc_platform_data rk30_adc_pdata = {
+        #if defind(CONFIG_ARCH_RK3066B)       
+        .ref_volt = 1800, //1800mV
+        #else
+        .ref_volt = 2500, //2500mV
+        #endif
+        .base_chn = -1,
+};
 static struct resource rk30_adc_resource[] = {
 	{
 		.start	= IRQ_SARADC,
@@ -45,6 +53,9 @@ struct platform_device device_adc = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rk30_adc_resource),
 	.resource	= rk30_adc_resource,
+        .dev            = {
+		.platform_data = &rk30_adc_pdata,
+        },
 };
 #endif
 

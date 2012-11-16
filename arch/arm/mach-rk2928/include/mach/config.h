@@ -336,6 +336,7 @@ enum {
 
 /* global */
 enum {
+        DEF_IS_PHONEPAD = 0,
         DEF_PWR_ON = 0x000001b4,
 };
 
