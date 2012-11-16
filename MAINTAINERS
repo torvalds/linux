@@ -4916,6 +4916,13 @@ S:	Maintained
 F:	Documentation/serial/moxa-smartio
 F:	drivers/tty/mxser.*
 
+MR800 AVERMEDIA USB FM RADIO DRIVER
+M:	Alexey Klimov <klimov.linux@gmail.com>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+S:	Maintained
+F:	drivers/media/radio/radio-mr800.c
+
 MSI LAPTOP SUPPORT
 M:	"Lee, Chun-Yi" <jlee@novell.com>
 L:	platform-driver-x86@vger.kernel.org
