@@ -905,7 +905,7 @@ should set this to 0.</entry>
 	  </row>
 	  <row>
 	    <entry></entry>
-	    <entry>__unsigned long</entry>
+	    <entry>unsigned long</entry>
 	    <entry><structfield>userptr</structfield></entry>
 	    <entry>When the memory type in the containing &v4l2-buffer; is
 	      <constant>V4L2_MEMORY_USERPTR</constant>, this is a userspace
