@@ -9,12 +9,6 @@ boards.
 The ipack driver is just an abstraction of the bus providing the common
 operations between the two kind of boards.
 
-TODO
-====
-
-checkpatch.pl warnings
-cleanup
-
 Contact
 =======
 
