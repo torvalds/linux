@@ -73,11 +73,12 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t len,
 			    int (*set)(struct net_device *, unsigned long))
 {
-	struct net_device *net = to_net_dev(dev);
+	struct net_device *netdev = to_net_dev(dev);
+	struct net *net = dev_net(netdev);
 	unsigned long new;
 	int ret = -EINVAL;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	ret = kstrtoul(buf, 0, &new);
@@ -87,8 +88,8 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	if (dev_isalive(net)) {
-		if ((ret = (*set)(net, new)) == 0)
+	if (dev_isalive(netdev)) {
+		if ((ret = (*set)(netdev, new)) == 0)
 			ret = len;
 	}
 	rtnl_unlock();
@@ -264,6 +265,9 @@ static ssize_t store_tx_queue_len(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t len)
 {
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	return netdev_store(dev, attr, buf, len, change_tx_queue_len);
 }
 
@@ -271,10 +275,11 @@ static ssize_t store_ifalias(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t len)
 {
 	struct net_device *netdev = to_net_dev(dev);
+	struct net *net = dev_net(netdev);
 	size_t count = len;
 	ssize_t ret;
 
-	if (!capable(CAP_NET_ADMIN))
+	if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
 	/* ignore trailing newline */
