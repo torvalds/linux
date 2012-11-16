@@ -689,4 +689,5 @@ void wl_cfg80211_enable_trace(int level);
 extern s32 wl_update_wiphybands(struct wl_priv *wl);
 extern s32 wl_cfg80211_if_is_group_owner(void);
 extern int wl_cfg80211_update_power_mode(struct net_device *dev);
+extern s32 wl_add_remove_eventmsg(struct net_device *ndev, u16 event, bool add);
 #endif				/* _wl_cfg80211_h_ */
