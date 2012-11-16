@@ -212,6 +212,39 @@ static struct persistent_gnt *get_persistent_gnt(struct rb_root *root,
 	return NULL;
 }
 
+static void free_persistent_gnts(struct rb_root *root, unsigned int num)
+{
+	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct persistent_gnt *persistent_gnt;
+	int ret = 0;
+	int segs_to_unmap = 0;
+
+	foreach_grant(persistent_gnt, root, node) {
+		BUG_ON(persistent_gnt->handle ==
+			BLKBACK_INVALID_HANDLE);
+		gnttab_set_unmap_op(&unmap[segs_to_unmap],
+			(unsigned long) pfn_to_kaddr(page_to_pfn(
+				persistent_gnt->page)),
+			GNTMAP_host_map,
+			persistent_gnt->handle);
+
+		pages[segs_to_unmap] = persistent_gnt->page;
+		rb_erase(&persistent_gnt->node, root);
+		kfree(persistent_gnt);
+		num--;
+
+		if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
+			!rb_next(&persistent_gnt->node)) {
+			ret = gnttab_unmap_refs(unmap, NULL, pages,
+				segs_to_unmap);
+			BUG_ON(ret);
+			segs_to_unmap = 0;
+		}
+	}
+	BUG_ON(num != 0);
+}
+
 /*
  * Retrieve from the 'pending_reqs' a free pending_req structure to be used.
  */
@@ -358,11 +391,6 @@ int xen_blkif_schedule(void *arg)
 {
 	struct xen_blkif *blkif = arg;
 	struct xen_vbd *vbd = &blkif->vbd;
-	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
-	struct persistent_gnt *persistent_gnt;
-	int ret = 0;
-	int segs_to_unmap = 0;
 
 	xen_blkif_get(blkif);
 
@@ -391,34 +419,12 @@ int xen_blkif_schedule(void *arg)
 	}
 
 	/* Free all persistent grant pages */
-	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts)) {
-		foreach_grant(persistent_gnt, &blkif->persistent_gnts, node) {
-			BUG_ON(persistent_gnt->handle ==
-				BLKBACK_INVALID_HANDLE);
-			gnttab_set_unmap_op(&unmap[segs_to_unmap],
-			    (unsigned long) pfn_to_kaddr(page_to_pfn(
-				persistent_gnt->page)),
-			    GNTMAP_host_map,
-			    persistent_gnt->handle);
+	if (!RB_EMPTY_ROOT(&blkif->persistent_gnts))
+		free_persistent_gnts(&blkif->persistent_gnts,
+			blkif->persistent_gnt_c);
 
-			pages[segs_to_unmap] = persistent_gnt->page;
-			rb_erase(&persistent_gnt->node,
-				&blkif->persistent_gnts);
-			kfree(persistent_gnt);
-			blkif->persistent_gnt_c--;
-
-			if (++segs_to_unmap == BLKIF_MAX_SEGMENTS_PER_REQUEST ||
-				!rb_next(&persistent_gnt->node)) {
-				ret = gnttab_unmap_refs(unmap, NULL, pages,
-							segs_to_unmap);
-				BUG_ON(ret);
-				segs_to_unmap = 0;
-			}
-		}
-	}
-
-	BUG_ON(blkif->persistent_gnt_c != 0);
 	BUG_ON(!RB_EMPTY_ROOT(&blkif->persistent_gnts));
+	blkif->persistent_gnt_c = 0;
 
 	if (log_stats)
 		print_stats(blkif);
