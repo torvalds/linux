@@ -20,6 +20,8 @@
 
 #define sys_mmap2 sys_mmap_pgoff
 
+#define __ARCH_WANT_SYS_EXECVE
+
 #include <asm-generic/unistd.h>
 
 #define __NR_or1k_atomic __NR_arch_specific_syscall
