@@ -208,8 +208,8 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	int i;
 
 	/* head if not big page alignment ? */
-	start_pfn = start >> PAGE_SHIFT;
-	pos = start_pfn << PAGE_SHIFT;
+	start_pfn = PFN_DOWN(start);
+	pos = PFN_PHYS(start_pfn);
 #ifdef CONFIG_X86_32
 	/*
 	 * Don't use a large page for the first 2/4MB of memory
@@ -218,59 +218,59 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
 	 * slowdowns.
 	 */
 	if (pos == 0)
-		end_pfn = PMD_SIZE >> PAGE_SHIFT;
+		end_pfn = PFN_DOWN(PMD_SIZE);
 	else
-		end_pfn = round_up(pos, PMD_SIZE) >> PAGE_SHIFT;
+		end_pfn = PFN_DOWN(round_up(pos, PMD_SIZE));
 #else /* CONFIG_X86_64 */
-	end_pfn = round_up(pos, PMD_SIZE) >> PAGE_SHIFT;
+	end_pfn = PFN_DOWN(round_up(pos, PMD_SIZE));
 #endif
-	if (end_pfn > (end >> PAGE_SHIFT))
-		end_pfn = end >> PAGE_SHIFT;
+	if (end_pfn > PFN_DOWN(end))
+		end_pfn = PFN_DOWN(end);
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
-		pos = end_pfn << PAGE_SHIFT;
+		pos = PFN_PHYS(end_pfn);
 	}
 
 	/* big page (2M) range */
-	start_pfn = round_up(pos, PMD_SIZE) >> PAGE_SHIFT;
+	start_pfn = PFN_DOWN(round_up(pos, PMD_SIZE));
 #ifdef CONFIG_X86_32
-	end_pfn = round_down(end, PMD_SIZE) >> PAGE_SHIFT;
+	end_pfn = PFN_DOWN(round_down(end, PMD_SIZE));
 #else /* CONFIG_X86_64 */
-	end_pfn = round_up(pos, PUD_SIZE) >> PAGE_SHIFT;
-	if (end_pfn > (round_down(end, PMD_SIZE) >> PAGE_SHIFT))
-		end_pfn = round_down(end, PMD_SIZE) >> PAGE_SHIFT;
+	end_pfn = PFN_DOWN(round_up(pos, PUD_SIZE));
+	if (end_pfn > PFN_DOWN(round_down(end, PMD_SIZE)))
+		end_pfn = PFN_DOWN(round_down(end, PMD_SIZE));
 #endif
 
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn,
 				page_size_mask & (1<<PG_LEVEL_2M));
-		pos = end_pfn << PAGE_SHIFT;
+		pos = PFN_PHYS(end_pfn);
 	}
 
 #ifdef CONFIG_X86_64
 	/* big page (1G) range */
-	start_pfn = round_up(pos, PUD_SIZE) >> PAGE_SHIFT;
-	end_pfn = round_down(end, PUD_SIZE) >> PAGE_SHIFT;
+	start_pfn = PFN_DOWN(round_up(pos, PUD_SIZE));
+	end_pfn = PFN_DOWN(round_down(end, PUD_SIZE));
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn,
 				page_size_mask &
 				 ((1<<PG_LEVEL_2M)|(1<<PG_LEVEL_1G)));
-		pos = end_pfn << PAGE_SHIFT;
+		pos = PFN_PHYS(end_pfn);
 	}
 
 	/* tail is not big page (1G) alignment */
-	start_pfn = round_up(pos, PMD_SIZE) >> PAGE_SHIFT;
-	end_pfn = round_down(end, PMD_SIZE) >> PAGE_SHIFT;
+	start_pfn = PFN_DOWN(round_up(pos, PMD_SIZE));
+	end_pfn = PFN_DOWN(round_down(end, PMD_SIZE));
 	if (start_pfn < end_pfn) {
 		nr_range = save_mr(mr, nr_range, start_pfn, end_pfn,
 				page_size_mask & (1<<PG_LEVEL_2M));
-		pos = end_pfn << PAGE_SHIFT;
+		pos = PFN_PHYS(end_pfn);
 	}
 #endif
 
 	/* tail is not big page (2M) alignment */
-	start_pfn = pos>>PAGE_SHIFT;
-	end_pfn = end>>PAGE_SHIFT;
+	start_pfn = PFN_DOWN(pos);
+	end_pfn = PFN_DOWN(end);
 	nr_range = save_mr(mr, nr_range, start_pfn, end_pfn, 0);
 
 	/* try to merge same page size and continuous */
