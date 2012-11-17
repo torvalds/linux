@@ -39,7 +39,6 @@ __ref void *alloc_low_pages(unsigned int num)
 	unsigned long pfn;
 	int i;
 
-#ifdef CONFIG_X86_64
 	if (after_bootmem) {
 		unsigned int order;
 
@@ -47,7 +46,6 @@ __ref void *alloc_low_pages(unsigned int num)
 		return (void *)__get_free_pages(GFP_ATOMIC | __GFP_NOTRACK |
 						__GFP_ZERO, order);
 	}
-#endif
 
 	if ((pgt_buf_end + num) >= pgt_buf_top) {
 		unsigned long ret;
