@@ -56,6 +56,15 @@
 					fsl,pull-up = <0>;
 				};
 			};
+
+			ssp1: ssp@80034000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx23-spi";
+				pinctrl-names = "default";
+				pinctrl-0 = <&spi2_pins_a>;
+				status = "okay";
+			};
 		};
 
 		apbx@80040000 {
