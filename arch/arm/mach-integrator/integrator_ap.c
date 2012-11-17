@@ -39,6 +39,7 @@
 #include <linux/of_platform.h>
 #include <linux/stat.h>
 #include <linux/sys_soc.h>
+#include <linux/termios.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -63,7 +64,7 @@
 #include "common.h"
 
 /* Base address to the AP system controller */
-static void __iomem *ap_syscon_base;
+void __iomem *ap_syscon_base;
 
 /*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
@@ -248,6 +249,45 @@ static struct physmap_flash_data ap_flash_data = {
 	.init		= ap_flash_init,
 	.exit		= ap_flash_exit,
 	.set_vpp	= ap_flash_set_vpp,
+};
+
+/*
+ * For the PL010 found in the Integrator/AP some of the UART control is
+ * implemented in the system controller and accessed using a callback
+ * from the driver.
+ */
+static void integrator_uart_set_mctrl(struct amba_device *dev,
+				void __iomem *base, unsigned int mctrl)
+{
+	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
+	u32 phybase = dev->res.start;
+
+	if (phybase == INTEGRATOR_UART0_BASE) {
+		/* UART0 */
+		rts_mask = 1 << 4;
+		dtr_mask = 1 << 5;
+	} else {
+		/* UART1 */
+		rts_mask = 1 << 6;
+		dtr_mask = 1 << 7;
+	}
+
+	if (mctrl & TIOCM_RTS)
+		ctrlc |= rts_mask;
+	else
+		ctrls |= rts_mask;
+
+	if (mctrl & TIOCM_DTR)
+		ctrlc |= dtr_mask;
+	else
+		ctrls |= dtr_mask;
+
+	__raw_writel(ctrls, ap_syscon_base + INTEGRATOR_SC_CTRLS_OFFSET);
+	__raw_writel(ctrlc, ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
+}
+
+struct amba_pl010_data ap_uart_data = {
+	.set_mctrl = integrator_uart_set_mctrl,
 };
 
 /*
@@ -447,9 +487,9 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
 		"rtc", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
-		"uart0", &integrator_uart_data),
+		"uart0", &ap_uart_data),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
-		"uart1", &integrator_uart_data),
+		"uart1", &ap_uart_data),
 	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
 		"kmi0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,

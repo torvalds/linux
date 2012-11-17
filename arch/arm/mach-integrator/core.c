@@ -18,7 +18,6 @@
 #include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
-#include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/io.h>
@@ -47,10 +46,10 @@ static AMBA_APB_DEVICE(rtc, "rtc", 0,
 	INTEGRATOR_RTC_BASE, INTEGRATOR_RTC_IRQ, NULL);
 
 static AMBA_APB_DEVICE(uart0, "uart0", 0,
-	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, &integrator_uart_data);
+	INTEGRATOR_UART0_BASE, INTEGRATOR_UART0_IRQ, NULL);
 
 static AMBA_APB_DEVICE(uart1, "uart1", 0,
-	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, &integrator_uart_data);
+	INTEGRATOR_UART1_BASE, INTEGRATOR_UART1_IRQ, NULL);
 
 static AMBA_APB_DEVICE(kmi0, "kmi0", 0, KMI0_BASE, KMI0_IRQ, NULL);
 static AMBA_APB_DEVICE(kmi1, "kmi1", 0, KMI1_BASE, KMI1_IRQ, NULL);
@@ -78,6 +77,8 @@ int __init integrator_init(bool is_cp)
 		uart1_device.periphid	= 0x00041010;
 		kmi0_device.periphid	= 0x00041050;
 		kmi1_device.periphid	= 0x00041050;
+		uart0_device.dev.platform_data = &ap_uart_data;
+		uart1_device.dev.platform_data = &ap_uart_data;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {
@@ -89,49 +90,6 @@ int __init integrator_init(bool is_cp)
 }
 
 #endif
-
-/*
- * On the Integrator platform, the port RTS and DTR are provided by
- * bits in the following SC_CTRLS register bits:
- *        RTS  DTR
- *  UART0  7    6
- *  UART1  5    4
- */
-#define SC_CTRLC	__io_address(INTEGRATOR_SC_CTRLC)
-#define SC_CTRLS	__io_address(INTEGRATOR_SC_CTRLS)
-
-static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
-{
-	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
-	u32 phybase = dev->res.start;
-
-	if (phybase == INTEGRATOR_UART0_BASE) {
-		/* UART0 */
-		rts_mask = 1 << 4;
-		dtr_mask = 1 << 5;
-	} else {
-		/* UART1 */
-		rts_mask = 1 << 6;
-		dtr_mask = 1 << 7;
-	}
-
-	if (mctrl & TIOCM_RTS)
-		ctrlc |= rts_mask;
-	else
-		ctrls |= rts_mask;
-
-	if (mctrl & TIOCM_DTR)
-		ctrlc |= dtr_mask;
-	else
-		ctrls |= dtr_mask;
-
-	__raw_writel(ctrls, SC_CTRLS);
-	__raw_writel(ctrlc, SC_CTRLC);
-}
-
-struct amba_pl010_data integrator_uart_data = {
-	.set_mctrl = integrator_uart_set_mctrl,
-};
 
 static DEFINE_RAW_SPINLOCK(cm_lock);
 
