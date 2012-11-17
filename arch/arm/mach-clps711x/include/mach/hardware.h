@@ -81,10 +81,4 @@
 
 #endif /* CONFIG_ARCH_EDB7211 */
 
-/*
- * Relevant bits in port D, which controls power to the various parts of
- * the LCD on the EDB7211.
- */
-#define EDB_PD3_LCDBL		(1<<3)
-
 #endif

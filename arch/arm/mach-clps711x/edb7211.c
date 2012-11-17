@@ -13,6 +13,7 @@
 #include <linux/memblock.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/backlight.h>
 #include <linux/platform_device.h>
 
 #include <asm/setup.h>
@@ -30,6 +31,7 @@
 
 #define EDB7211_LCD_DC_DC_EN	CLPS711X_GPIO(3, 1)
 #define EDB7211_LCDEN		CLPS711X_GPIO(3, 2)
+#define EDB7211_LCDBL		CLPS711X_GPIO(3, 3)
 
 #define EDB7211_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define EDB7211_CS8900_IRQ	(IRQ_EINT3)
@@ -56,9 +58,22 @@ static struct plat_lcd_data edb7211_lcd_power_pdata = {
 	.set_power	= edb7211_lcd_power_set,
 };
 
+static void edb7211_lcd_backlight_set_intensity(int intensity)
+{
+	gpio_set_value(EDB7211_LCDBL, intensity);
+}
+
+static struct generic_bl_info edb7211_lcd_backlight_pdata = {
+	.name			= "lcd-backlight.0",
+	.default_intensity	= 0x01,
+	.max_intensity		= 0x01,
+	.set_bl_intensity	= edb7211_lcd_backlight_set_intensity,
+};
+
 static struct gpio edb7211_gpios[] __initconst = {
 	{ EDB7211_LCD_DC_DC_EN,	GPIOF_OUT_INIT_LOW,	"LCD DC-DC" },
 	{ EDB7211_LCDEN,	GPIOF_OUT_INIT_LOW,	"LCD POWER" },
+	{ EDB7211_LCDBL,	GPIOF_OUT_INIT_LOW,	"LCD BACKLIGHT" },
 };
 
 static struct map_desc edb7211_io_desc[] __initdata = {
@@ -117,6 +132,9 @@ static void __init edb7211_init(void)
 	platform_device_register_data(&platform_bus, "platform-lcd", 0,
 				      &edb7211_lcd_power_pdata,
 				      sizeof(edb7211_lcd_power_pdata));
+	platform_device_register_data(&platform_bus, "generic-bl", 0,
+				      &edb7211_lcd_backlight_pdata,
+				      sizeof(edb7211_lcd_backlight_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
 					ARRAY_SIZE(edb7211_cs8900_resource));

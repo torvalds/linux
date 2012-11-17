@@ -25,6 +25,8 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
+#include <linux/sizes.h>
+#include <linux/backlight.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand-gpio.h>
@@ -33,7 +35,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <asm/sizes.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -101,6 +102,21 @@ static void p720t_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
 
 static struct plat_lcd_data p720t_lcd_power_pdata = {
 	.set_power	= p720t_lcd_power_set,
+};
+
+static void p720t_lcd_backlight_set_intensity(int intensity)
+{
+	if (intensity)
+		PLD_PWR |= PLD_S3_ON;
+	else
+		PLD_PWR = 0;
+}
+
+static struct generic_bl_info p720t_lcd_backlight_pdata = {
+	.name			= "lcd-backlight.0",
+	.default_intensity	= 0x01,
+	.max_intensity		= 0x01,
+	.set_bl_intensity	= p720t_lcd_backlight_set_intensity,
 };
 
 /*
@@ -187,6 +203,9 @@ static void __init p720t_init(void)
 	platform_device_register_data(&platform_bus, "platform-lcd", 0,
 				      &p720t_lcd_power_pdata,
 				      sizeof(p720t_lcd_power_pdata));
+	platform_device_register_data(&platform_bus, "generic-bl", 0,
+				      &p720t_lcd_backlight_pdata,
+				      sizeof(p720t_lcd_backlight_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 }
 

@@ -22,18 +22,14 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <linux/proc_fs.h>
 #include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <linux/uaccess.h>
-
-#include <mach/syspld.h>
 
 struct fb_info	*cfb;
 
@@ -162,25 +158,12 @@ clps7111fb_set_par(struct fb_info *info)
 
 static int clps7111fb_blank(int blank, struct fb_info *info)
 {
-    	if (blank) {
-		if (machine_is_edb7211()) {
-			/* Turn off the LCD backlight. */
-			clps_writeb(clps_readb(PDDR) & ~EDB_PD3_LCDBL, PDDR);
+	/* Enable/Disable LCD controller. */
+	if (blank)
+		clps_writel(clps_readl(SYSCON1) & ~SYSCON1_LCDEN, SYSCON1);
+	else
+		clps_writel(clps_readl(SYSCON1) | SYSCON1_LCDEN, SYSCON1);
 
-			/* Disable LCD controller. */
-			clps_writel(clps_readl(SYSCON1) & ~SYSCON1_LCDEN, 
-					SYSCON1);
-		}
-	} else {
-		if (machine_is_edb7211()) {
-			/* Enable LCD controller. */
-			clps_writel(clps_readl(SYSCON1) | SYSCON1_LCDEN,
-					SYSCON1);
-
-			/* Turn on the LCD backlight. */
-			clps_writeb(clps_readb(PDDR) | EDB_PD3_LCDBL, PDDR);
-		}
-	}
 	return 0;
 }
 
@@ -193,62 +176,6 @@ static struct fb_ops clps7111fb_ops = {
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-};
-
-static int backlight_proc_show(struct seq_file *m, void *v)
-{
-	if (machine_is_edb7211()) {
-		seq_printf(m, "%d\n",
-				(clps_readb(PDDR) & EDB_PD3_LCDBL) ? 1 : 0);
-	}
-
-	return 0;
-}
-
-static int backlight_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, backlight_proc_show, NULL);
-}
-
-static ssize_t backlight_proc_write(struct file *file, const char *buffer,
-				    size_t count, loff_t *pos)
-{
-	unsigned char char_value;
-	int value;
-
-	if (count < 1) {
-		return -EINVAL;
-	}
-
-	if (copy_from_user(&char_value, buffer, 1)) 
-		return -EFAULT;
-
-	value = char_value - '0';
-
-	if (machine_is_edb7211()) {
-		unsigned char port_d;
-
-		port_d = clps_readb(PDDR);
-
-		if (value) {
-			port_d |= EDB_PD3_LCDBL;
-		} else {
-			port_d &= ~EDB_PD3_LCDBL;
-		}
-
-		clps_writeb(port_d, PDDR);
-	}
-
-	return count;
-}
-
-static const struct file_operations backlight_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= backlight_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.write		= backlight_proc_write,
 };
 
 static void __devinit clps711x_guess_lcd_params(struct fb_info *info)
@@ -359,22 +286,6 @@ static int __devinit clps711x_fb_probe(struct platform_device *pdev)
 
 	fb_alloc_cmap(&cfb->cmap, CMAP_MAX_SIZE, 0);
 
-	if (!proc_create("backlight", 0444, NULL, &backlight_proc_fops)) {
-		printk("Couldn't create the /proc entry for the backlight.\n");
-		return -EINVAL;
-	}
-
-	/*
-	 * Power up the LCD
-	 */
-	if (machine_is_p720t())
-		PLD_PWR |= PLD_S3_ON;
-
-	if (machine_is_edb7211()) {
-		/* Turn on the LCD backlight. */
-		clps_writeb(clps_readb(PDDR) | EDB_PD3_LCDBL, PDDR);
-	}
-
 	err = register_framebuffer(cfb);
 
 out:	return err;
@@ -384,12 +295,6 @@ static int __devexit clps711x_fb_remove(struct platform_device *pdev)
 {
 	unregister_framebuffer(cfb);
 	kfree(cfb);
-
-	/*
-	 * Power down the LCD
-	 */
-	if (machine_is_p720t())
-		PLD_PWR &= ~PLD_S3_ON;
 
 	return 0;
 }
