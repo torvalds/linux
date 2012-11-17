@@ -1849,8 +1849,8 @@ static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 	}
 }
 
-void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter, int ring,
-			     u64 sts_data0)
+static void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter, int ring,
+				    u64 sts_data0)
 {
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct sk_buff *skb;
