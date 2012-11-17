@@ -352,9 +352,9 @@ static int radeon_atpx_switchto(enum vga_switcheroo_client_id id)
 }
 
 /**
- * radeon_atpx_switchto - switch to the requested GPU
+ * radeon_atpx_power_state - power down/up the requested GPU
  *
- * @id: GPU to switch to
+ * @id: GPU to power down/up
  * @state: requested power state (0 = off, 1 = on)
  *
  * Execute the necessary ATPX function to power down/up the discrete GPU

@@ -605,6 +605,8 @@ static int spc_emulate_inquiry(struct se_cmd *cmd)
 	unsigned char buf[SE_INQUIRY_BUF];
 	int p, ret;
 
+	memset(buf, 0, SE_INQUIRY_BUF);
+
 	if (dev == tpg->tpg_virt_lun0.lun_se_dev)
 		buf[0] = 0x3f; /* Not connected */
 	else

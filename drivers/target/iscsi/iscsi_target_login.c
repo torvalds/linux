@@ -41,6 +41,7 @@
 
 static int iscsi_login_init_conn(struct iscsi_conn *conn)
 {
+	init_waitqueue_head(&conn->queues_wq);
 	INIT_LIST_HEAD(&conn->conn_list);
 	INIT_LIST_HEAD(&conn->conn_cmd_list);
 	INIT_LIST_HEAD(&conn->immed_queue_list);

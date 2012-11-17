@@ -5,7 +5,7 @@
  *  http://www.gnu.org/licenses/gpl.html
  *
  *  Maintainer:
- *  Andreas Herrmann <andreas.herrmann3@amd.com>
+ *  Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *  Based on the powernow-k7.c module written by Dave Jones.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
