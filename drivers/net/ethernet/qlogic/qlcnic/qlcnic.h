@@ -1530,9 +1530,8 @@ int qlcnic_set_features(struct net_device *netdev, netdev_features_t features);
 int qlcnic_config_hw_lro(struct qlcnic_adapter *adapter, int enable);
 int qlcnic_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable);
 int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
-void qlcnic_update_cmd_producer(struct qlcnic_adapter *adapter,
-		struct qlcnic_host_tx_ring *tx_ring);
-void qlcnic_fetch_mac(struct qlcnic_adapter *, u32, u32, u8, u8 *);
+void qlcnic_update_cmd_producer(struct qlcnic_host_tx_ring *);
+void qlcnic_fetch_mac(u32, u32, u8, u8 *);
 void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 void qlcnic_clear_lb_mode(struct qlcnic_adapter *adapter);
 int qlcnic_set_lb_mode(struct qlcnic_adapter *adapter, u8 mode);

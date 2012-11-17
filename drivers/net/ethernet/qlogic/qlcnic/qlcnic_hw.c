@@ -350,7 +350,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 
 	tx_ring->producer = producer;
 
-	qlcnic_update_cmd_producer(adapter, tx_ring);
+	qlcnic_update_cmd_producer(tx_ring);
 
 	__netif_tx_unlock_bh(tx_ring->txq);
 

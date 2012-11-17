@@ -671,7 +671,7 @@ int qlcnic_get_mac_address(struct qlcnic_adapter *adapter, u8 *mac)
 	err = cmd.rsp.cmd;
 
 	if (err == QLCNIC_RCODE_SUCCESS)
-		qlcnic_fetch_mac(adapter, cmd.rsp.arg1, cmd.rsp.arg2, 0, mac);
+		qlcnic_fetch_mac(cmd.rsp.arg1, cmd.rsp.arg2, 0, mac);
 	else {
 		dev_err(&adapter->pdev->dev,
 			"Failed to get mac address%d\n", err);

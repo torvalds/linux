@@ -1583,7 +1583,6 @@ qlcnic_process_rcv(struct qlcnic_adapter *adapter,
 
 static struct qlcnic_rx_buffer *
 qlcnic_process_lro(struct qlcnic_adapter *adapter,
-		struct qlcnic_host_sds_ring *sds_ring,
 		int ring, u64 sts_data0, u64 sts_data1)
 {
 	struct net_device *netdev = adapter->netdev;
@@ -1698,8 +1697,8 @@ qlcnic_process_rcv_ring(struct qlcnic_host_sds_ring *sds_ring, int max)
 		case QLCNIC_LRO_DESC:
 			ring = qlcnic_get_lro_sts_type(sts_data0);
 			sts_data1 = le64_to_cpu(desc->status_desc_data[1]);
-			rxbuf = qlcnic_process_lro(adapter, sds_ring,
-					ring, sts_data0, sts_data1);
+			rxbuf = qlcnic_process_lro(adapter, ring, sts_data0,
+						   sts_data1);
 			break;
 		case QLCNIC_RESPONSE_DESC:
 			qlcnic_handle_fw_message(desc_cnt, consumer, sds_ring);
@@ -1850,9 +1849,8 @@ static void dump_skb(struct sk_buff *skb, struct qlcnic_adapter *adapter)
 	}
 }
 
-void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
-		struct qlcnic_host_sds_ring *sds_ring,
-		int ring, u64 sts_data0)
+void qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter, int ring,
+			     u64 sts_data0)
 {
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 	struct sk_buff *skb;
@@ -1920,7 +1918,7 @@ qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
 		break;
 	default:
 		ring = qlcnic_get_sts_type(sts_data0);
-		qlcnic_process_rcv_diag(adapter, sds_ring, ring, sts_data0);
+		qlcnic_process_rcv_diag(adapter, ring, sts_data0);
 		break;
 	}
 
@@ -1934,9 +1932,7 @@ qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
 	writel(consumer, sds_ring->crb_sts_consumer);
 }
 
-void
-qlcnic_fetch_mac(struct qlcnic_adapter *adapter, u32 off1, u32 off2,
-			u8 alt_mac, u8 *mac)
+void qlcnic_fetch_mac(u32 off1, u32 off2, u8 alt_mac, u8 *mac)
 {
 	u32 mac_low, mac_high;
 	int i;
