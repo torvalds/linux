@@ -485,15 +485,10 @@ __exit_unlock:
 static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 {
 	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
-	unsigned int i;
 	int alive;
 
 	do {
-		alive = 0;
-		for (i = 0; i < ep->nurbs; i++)
-			if (test_bit(i, &ep->active_mask))
-				alive++;
-
+		alive = bitmap_weight(&ep->active_mask, ep->nurbs);
 		if (!alive)
 			break;
 
