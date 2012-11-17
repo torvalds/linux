@@ -19,6 +19,12 @@
 #include <linux/serial.h>
 #include <linux/platform_data/macb.h>
 
+/*
+ * at91: 6 USARTs and one DBGU port (SAM9260)
+ * avr32: 4
+ */
+#define ATMEL_MAX_UART	7
+
  /* USB Device */
 struct at91_udc_data {
 	int	vbus_pin;		/* high == host powering us */
