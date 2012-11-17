@@ -35,6 +35,11 @@
 				      6000 2>;
 	};
 
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio1 4 0>;
+	};
+
 	ocp@f1000000 {
 		sata@80000 {
 			status = "okay";

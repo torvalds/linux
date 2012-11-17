@@ -46,6 +46,9 @@ config MACH_GURUPLUG
 
 config ARCH_KIRKWOOD_DT
 	bool "Marvell Kirkwood Flattened Device Tree"
+	select POWER_SUPPLY
+	select POWER_RESET
+	select POWER_RESET_GPIO
 	select USE_OF
 	help
 	  Say 'Y' here if you want your kernel to support the
