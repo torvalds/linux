@@ -4,6 +4,10 @@
 	compatible = "marvell,kirkwood";
 	interrupt-parent = <&intc>;
 
+	aliases {
+	       gpio0 = &gpio0;
+	       gpio1 = &gpio1;
+	};
 	intc: interrupt-controller {
 		compatible = "marvell,orion-intc", "marvell,intc";
 		interrupt-controller;
@@ -24,7 +28,8 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10100 0x40>;
-			ngpio = <32>;
+			ngpios = <32>;
+			interrupt-controller;
 			interrupts = <35>, <36>, <37>, <38>;
 		};
 
@@ -33,7 +38,8 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10140 0x40>;
-			ngpio = <18>;
+			ngpios = <18>;
+			interrupt-controller;
 			interrupts = <39>, <40>, <41>;
 		};
 
