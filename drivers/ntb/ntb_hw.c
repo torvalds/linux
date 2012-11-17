@@ -46,10 +46,12 @@
  * Jon Mason <jon.mason@intel.com>
  */
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/random.h>
 #include <linux/slab.h>
 #include "ntb_hw.h"
 #include "ntb_regs.h"
@@ -83,6 +85,8 @@ enum {
 };
 
 static struct dentry *debugfs_dir;
+
+#define BWD_LINK_RECOVERY_TIME	500
 
 /* Translate memory window 0,1 to BAR 2,4 */
 #define MW_TO_BAR(mw)	(mw * NTB_MAX_NUM_MW + 2)
@@ -425,6 +429,49 @@ void ntb_ring_sdb(struct ntb_device *ndev, unsigned int db)
 		       (db * ndev->bits_per_vector), ndev->reg_ofs.sdb);
 }
 
+static void bwd_recover_link(struct ntb_device *ndev)
+{
+	u32 status;
+
+	/* Driver resets the NTB ModPhy lanes - magic! */
+	writeb(0xe0, ndev->reg_base + BWD_MODPHY_PCSREG6);
+	writeb(0x40, ndev->reg_base + BWD_MODPHY_PCSREG4);
+	writeb(0x60, ndev->reg_base + BWD_MODPHY_PCSREG4);
+	writeb(0x60, ndev->reg_base + BWD_MODPHY_PCSREG6);
+
+	/* Driver waits 100ms to allow the NTB ModPhy to settle */
+	msleep(100);
+
+	/* Clear AER Errors, write to clear */
+	status = readl(ndev->reg_base + BWD_ERRCORSTS_OFFSET);
+	dev_dbg(&ndev->pdev->dev, "ERRCORSTS = %x\n", status);
+	status &= PCI_ERR_COR_REP_ROLL;
+	writel(status, ndev->reg_base + BWD_ERRCORSTS_OFFSET);
+
+	/* Clear unexpected electrical idle event in LTSSM, write to clear */
+	status = readl(ndev->reg_base + BWD_LTSSMERRSTS0_OFFSET);
+	dev_dbg(&ndev->pdev->dev, "LTSSMERRSTS0 = %x\n", status);
+	status |= BWD_LTSSMERRSTS0_UNEXPECTEDEI;
+	writel(status, ndev->reg_base + BWD_LTSSMERRSTS0_OFFSET);
+
+	/* Clear DeSkew Buffer error, write to clear */
+	status = readl(ndev->reg_base + BWD_DESKEWSTS_OFFSET);
+	dev_dbg(&ndev->pdev->dev, "DESKEWSTS = %x\n", status);
+	status |= BWD_DESKEWSTS_DBERR;
+	writel(status, ndev->reg_base + BWD_DESKEWSTS_OFFSET);
+
+	status = readl(ndev->reg_base + BWD_IBSTERRRCRVSTS0_OFFSET);
+	dev_dbg(&ndev->pdev->dev, "IBSTERRRCRVSTS0 = %x\n", status);
+	status &= BWD_IBIST_ERR_OFLOW;
+	writel(status, ndev->reg_base + BWD_IBSTERRRCRVSTS0_OFFSET);
+
+	/* Releases the NTB state machine to allow the link to retrain */
+	status = readl(ndev->reg_base + BWD_LTSSMSTATEJMP_OFFSET);
+	dev_dbg(&ndev->pdev->dev, "LTSSMSTATEJMP = %x\n", status);
+	status &= ~BWD_LTSSMSTATEJMP_FORCEDETECT;
+	writel(status, ndev->reg_base + BWD_LTSSMSTATEJMP_OFFSET);
+}
+
 static void ntb_link_event(struct ntb_device *ndev, int link_state)
 {
 	unsigned int event;
@@ -448,13 +495,16 @@ static void ntb_link_event(struct ntb_device *ndev, int link_state)
 			if (rc)
 				return;
 		}
+
+		ndev->link_width = (status & NTB_LINK_WIDTH_MASK) >> 4;
+		ndev->link_speed = (status & NTB_LINK_SPEED_MASK);
 		dev_info(&ndev->pdev->dev, "Link Width %d, Link Speed %d\n",
-			 (status & NTB_LINK_WIDTH_MASK) >> 4,
-			 (status & NTB_LINK_SPEED_MASK));
+			 ndev->link_width, ndev->link_speed);
 	} else {
 		dev_info(&ndev->pdev->dev, "Link Down\n");
 		ndev->link_status = NTB_LINK_DOWN;
 		event = NTB_EVENT_HW_LINK_DOWN;
+		/* Don't modify link width/speed, we need it in link recovery */
 	}
 
 	/* notify the upper layer if we have an event change */
@@ -494,6 +544,47 @@ static int ntb_link_status(struct ntb_device *ndev)
 	return 0;
 }
 
+static void bwd_link_recovery(struct work_struct *work)
+{
+	struct ntb_device *ndev = container_of(work, struct ntb_device,
+					       lr_timer.work);
+	u32 status32;
+
+	bwd_recover_link(ndev);
+	/* There is a potential race between the 2 NTB devices recovering at the
+	 * same time.  If the times are the same, the link will not recover and
+	 * the driver will be stuck in this loop forever.  Add a random interval
+	 * to the recovery time to prevent this race.
+	 */
+	msleep(BWD_LINK_RECOVERY_TIME + prandom_u32() % BWD_LINK_RECOVERY_TIME);
+
+	status32 = readl(ndev->reg_base + BWD_LTSSMSTATEJMP_OFFSET);
+	if (status32 & BWD_LTSSMSTATEJMP_FORCEDETECT)
+		goto retry;
+
+	status32 = readl(ndev->reg_base + BWD_IBSTERRRCRVSTS0_OFFSET);
+	if (status32 & BWD_IBIST_ERR_OFLOW)
+		goto retry;
+
+	status32 = readl(ndev->reg_ofs.lnk_cntl);
+	if (!(status32 & BWD_CNTL_LINK_DOWN)) {
+		unsigned char speed, width;
+		u16 status16;
+
+		status16 = readw(ndev->reg_ofs.lnk_stat);
+		width = (status16 & NTB_LINK_WIDTH_MASK) >> 4;
+		speed = (status16 & NTB_LINK_SPEED_MASK);
+		if (ndev->link_width != width || ndev->link_speed != speed)
+			goto retry;
+	}
+
+	schedule_delayed_work(&ndev->hb_timer, NTB_HB_TIMEOUT);
+	return;
+
+retry:
+	schedule_delayed_work(&ndev->lr_timer, NTB_HB_TIMEOUT);
+}
+
 /* BWD doesn't have link status interrupt, poll on that platform */
 static void bwd_link_poll(struct work_struct *work)
 {
@@ -509,6 +600,16 @@ static void bwd_link_poll(struct work_struct *work)
 		if (rc)
 			dev_err(&ndev->pdev->dev,
 				"Error determining link status\n");
+
+		/* Check to see if a link error is the cause of the link down */
+		if (ndev->link_status == NTB_LINK_DOWN) {
+			u32 status32 = readl(ndev->reg_base +
+					     BWD_LTSSMSTATEJMP_OFFSET);
+			if (status32 & BWD_LTSSMSTATEJMP_FORCEDETECT) {
+				schedule_delayed_work(&ndev->lr_timer, 0);
+				return;
+			}
+		}
 	}
 
 	schedule_delayed_work(&ndev->hb_timer, NTB_HB_TIMEOUT);
@@ -703,6 +804,7 @@ static int ntb_bwd_setup(struct ntb_device *ndev)
 
 	/* Since bwd doesn't have a link interrupt, setup a poll timer */
 	INIT_DELAYED_WORK(&ndev->hb_timer, bwd_link_poll);
+	INIT_DELAYED_WORK(&ndev->lr_timer, bwd_link_recovery);
 	schedule_delayed_work(&ndev->hb_timer, NTB_HB_TIMEOUT);
 
 	return 0;
@@ -743,8 +845,10 @@ static int ntb_device_setup(struct ntb_device *ndev)
 
 static void ntb_device_free(struct ntb_device *ndev)
 {
-	if (ndev->hw_type == BWD_HW)
+	if (ndev->hw_type == BWD_HW) {
 		cancel_delayed_work_sync(&ndev->hb_timer);
+		cancel_delayed_work_sync(&ndev->lr_timer);
+	}
 }
 
 static irqreturn_t bwd_callback_msix_irq(int irq, void *data)

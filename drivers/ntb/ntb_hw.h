@@ -125,9 +125,14 @@ struct ntb_device {
 	unsigned char num_msix;
 	unsigned char bits_per_vector;
 	unsigned char max_cbs;
+	unsigned char link_width;
+	unsigned char link_speed;
 	unsigned char link_status;
+
 	struct delayed_work hb_timer;
 	unsigned long last_ts;
+
+	struct delayed_work lr_timer;
 
 	struct dentry *debugfs_dir;
 };
