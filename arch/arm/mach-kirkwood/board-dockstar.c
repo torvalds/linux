@@ -31,17 +31,9 @@
 #include <mach/bridge-regs.h>
 #include <linux/platform_data/mmc-mvsdio.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data dockstar_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
-};
-
-static unsigned int dockstar_mpp_config[] __initdata = {
-	MPP29_GPIO,	/* USB Power Enable */
-	MPP46_GPIO,	/* LED green */
-	MPP47_GPIO,	/* LED orange */
-	0
 };
 
 void __init dockstar_dt_init(void)
@@ -49,7 +41,5 @@ void __init dockstar_dt_init(void)
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_mpp_conf(dockstar_mpp_config);
-
 	kirkwood_ge00_init(&dockstar_ge00_data);
 }
