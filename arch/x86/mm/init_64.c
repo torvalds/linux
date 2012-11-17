@@ -54,6 +54,8 @@
 #include <asm/uv/uv.h>
 #include <asm/setup.h>
 
+#include "mm_internal.h"
+
 static int __init parse_direct_gbpages_off(char *arg)
 {
 	direct_gbpages = 0;
@@ -312,36 +314,6 @@ void __init cleanup_highmap(void)
 		if (vaddr < (unsigned long) _text || vaddr > end)
 			set_pmd(pmd, __pmd(0));
 	}
-}
-
-static __ref void *alloc_low_page(void)
-{
-	unsigned long pfn;
-	void *adr;
-
-	if (after_bootmem) {
-		adr = (void *)get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
-
-		return adr;
-	}
-
-	if ((pgt_buf_end + 1) >= pgt_buf_top) {
-		unsigned long ret;
-		if (min_pfn_mapped >= max_pfn_mapped)
-			panic("alloc_low_page: ran out of memory");
-		ret = memblock_find_in_range(min_pfn_mapped << PAGE_SHIFT,
-					max_pfn_mapped << PAGE_SHIFT,
-					PAGE_SIZE, PAGE_SIZE);
-		if (!ret)
-			panic("alloc_low_page: can not alloc memory");
-		memblock_reserve(ret, PAGE_SIZE);
-		pfn = ret >> PAGE_SHIFT;
-	} else
-		pfn = pgt_buf_end++;
-
-	adr = __va(pfn * PAGE_SIZE);
-	clear_page(adr);
-	return adr;
 }
 
 static unsigned long __meminit
