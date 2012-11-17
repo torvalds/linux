@@ -117,7 +117,6 @@ struct vxlan_dev {
 	spinlock_t	  hash_lock;
 	unsigned int	  addrcnt;
 	unsigned int	  addrmax;
-	unsigned int	  addrexceeded;
 
 	struct hlist_head fdb_head[FDB_HASH_SIZE];
 };
