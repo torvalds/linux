@@ -74,6 +74,7 @@ fortunet_fixup(struct tag *tags, char **cmdline, struct meminfo *mi)
 
 MACHINE_START(FORTUNET, "ARM-FortuNet")
 	/* Maintainer: FortuNet Inc. */
+	.nr_irqs	= CLPS711X_NR_IRQS,
 	.fixup		= fortunet_fixup,
 	.map_io		= clps711x_map_io,
 	.init_irq	= clps711x_init_irq,

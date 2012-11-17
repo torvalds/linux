@@ -70,6 +70,7 @@ static void __init autcpu12_init(void)
 MACHINE_START(AUTCPU12, "autronix autcpu12")
 	/* Maintainer: Thomas Gleixner */
 	.atag_offset	= 0x20000,
+	.nr_irqs	= CLPS711X_NR_IRQS,
 	.map_io		= clps711x_map_io,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,

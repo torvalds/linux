@@ -134,6 +134,7 @@ static void __init p720t_init_late(void)
 MACHINE_START(P720T, "ARM-Prospector720T")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
+	.nr_irqs	= CLPS711X_NR_IRQS,
 	.fixup		= fixup_p720t,
 	.map_io		= p720t_map_io,
 	.init_early	= p720t_init_early,

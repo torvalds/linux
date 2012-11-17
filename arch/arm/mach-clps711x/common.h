@@ -4,6 +4,7 @@
  * Common bits.
  */
 
+#define CLPS711X_NR_IRQS	(30)
 #define CLPS711X_NR_GPIO	(4 * 8 + 3)
 #define CLPS711X_GPIO(prt, bit)	((prt) * 8 + (bit))
 
