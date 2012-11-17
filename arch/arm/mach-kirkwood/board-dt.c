@@ -14,11 +14,15 @@
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/clk-provider.h>
+#include <linux/clk/mvebu.h>
 #include <linux/kexec.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
+#include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/irq.h>
+#include <plat/common.h>
 #include "common.h"
 
 static struct of_device_id kirkwood_dt_match_table[] __initdata = {
@@ -26,16 +30,58 @@ static struct of_device_id kirkwood_dt_match_table[] __initdata = {
 	{ }
 };
 
-struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
-	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
-		       NULL),
-	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
-	OF_DEV_AUXDATA("marvell,orion-sata", 0xf1080000, "sata_mv.0", NULL),
-	OF_DEV_AUXDATA("marvell,orion-nand", 0xf4000000, "orion_nand", NULL),
-	OF_DEV_AUXDATA("marvell,orion-crypto", 0xf1030000, "mv_crypto", NULL),
-	{},
-};
+/*
+ * There are still devices that doesn't know about DT yet.  Get clock
+ * gates here and add a clock lookup alias, so that old platform
+ * devices still work.
+*/
+
+static void __init kirkwood_legacy_clk_init(void)
+{
+
+	struct device_node *np = of_find_compatible_node(
+		NULL, NULL, "marvell,kirkwood-gating-clock");
+
+	struct of_phandle_args clkspec;
+
+	clkspec.np = np;
+	clkspec.args_count = 1;
+
+	clkspec.args[0] = CGC_BIT_GE0;
+	orion_clkdev_add(NULL, "mv643xx_eth_port.0",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_PEX0;
+	orion_clkdev_add("0", "pcie",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_USB0;
+	orion_clkdev_add(NULL, "orion-ehci.0",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_XOR0;
+	orion_clkdev_add(NULL, "mv_xor_shared.0",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_XOR1;
+	orion_clkdev_add(NULL, "mv_xor_shared.1",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_PEX1;
+	orion_clkdev_add("1", "pcie",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CGC_BIT_GE1;
+	orion_clkdev_add(NULL, "mv643xx_eth_port.1",
+			 of_clk_get_from_provider(&clkspec));
+
+}
+
+static void __init kirkwood_of_clk_init(void)
+{
+	mvebu_clocks_init();
+	kirkwood_legacy_clk_init();
+}
 
 static void __init kirkwood_dt_init(void)
 {
@@ -54,7 +100,7 @@ static void __init kirkwood_dt_init(void)
 	kirkwood_l2_init();
 
 	/* Setup root of clk tree */
-	kirkwood_clk_init();
+	kirkwood_of_clk_init();
 
 	/* internal devices that every board has */
 	kirkwood_xor0_init();
@@ -94,8 +140,7 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("keymile,km_kirkwood"))
 		km_kirkwood_init();
 
-	of_platform_populate(NULL, kirkwood_dt_match_table,
-			     kirkwood_auxdata_lookup, NULL);
+	of_platform_populate(NULL, kirkwood_dt_match_table, NULL, NULL);
 }
 
 static const char *kirkwood_dt_board_compat[] = {
