@@ -1291,6 +1291,21 @@ STD_ENTRY(ret_from_fork)
 	}
 	STD_ENDPROC(ret_from_fork)
 
+STD_ENTRY(ret_from_kernel_thread)
+	jal     sim_notify_fork
+	jal     schedule_tail
+	FEEDBACK_REENTER(ret_from_fork)
+	{
+	 move   r0, r31
+	 jalr   r30
+	}
+	FEEDBACK_REENTER(ret_from_kernel_thread)
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
+	STD_ENDPROC(ret_from_kernel_thread)
+
 	/*
 	 * Code for ill interrupt.
 	 */
@@ -1437,15 +1452,6 @@ STD_ENTRY_LOCAL(bad_intr)
 	panic   "Unhandled interrupt %#x: PC %#lx"
 	STD_ENDPROC(bad_intr)
 
-/* Put address of pt_regs in reg and jump. */
-#define PTREGS_SYSCALL(x, reg)                          \
-	STD_ENTRY(_##x);                                \
-	{                                               \
-	 PTREGS_PTR(reg, PTREGS_OFFSET_BASE);           \
-	 j      x                                       \
-	};                                              \
-	STD_ENDPROC(_##x)
-
 /*
  * Special-case sigreturn to not write r0 to the stack on return.
  * This is technically more efficient, but it also avoids difficulties
@@ -1461,12 +1467,9 @@ STD_ENTRY_LOCAL(bad_intr)
 	};                                              \
 	STD_ENDPROC(_##x)
 
-PTREGS_SYSCALL(sys_execve, r3)
-PTREGS_SYSCALL(sys_sigaltstack, r2)
 PTREGS_SYSCALL_SIGRETURN(sys_rt_sigreturn, r0)
-PTREGS_SYSCALL(sys_cmpxchg_badaddr, r1)
 
-/* Save additional callee-saves to pt_regs, put address in r4 and jump. */
+/* Save additional callee-saves to pt_regs and jump to standard function. */
 STD_ENTRY(_sys_clone)
 	push_extra_callee_saves r4
 	j       sys_clone
