@@ -26,6 +26,10 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/plat-ram.h>
+#include <linux/mtd/partitions.h>
+
 #include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -44,8 +48,88 @@ static struct resource cdb89712_cs8900_resource[] __initdata = {
 	DEFINE_RES_IRQ(CDB89712_CS8900_IRQ),
 };
 
+static struct mtd_partition cdb89712_flash_partitions[] __initdata = {
+	{
+		.name	= "Flash",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data cdb89712_flash_pdata __initdata = {
+	.width		= 4,
+	.probe_type	= "map_rom",
+	.parts		= cdb89712_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(cdb89712_flash_partitions),
+};
+
+static struct resource cdb89712_flash_resources[] __initdata = {
+	DEFINE_RES_MEM(CS0_PHYS_BASE, SZ_8M),
+};
+
+static struct platform_device cdb89712_flash_pdev __initdata = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= cdb89712_flash_resources,
+	.num_resources	= ARRAY_SIZE(cdb89712_flash_resources),
+	.dev	= {
+		.platform_data	= &cdb89712_flash_pdata,
+	},
+};
+
+static struct mtd_partition cdb89712_bootrom_partitions[] __initdata = {
+	{
+		.name	= "BootROM",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data cdb89712_bootrom_pdata __initdata = {
+	.width		= 4,
+	.probe_type	= "map_rom",
+	.parts		= cdb89712_bootrom_partitions,
+	.nr_parts	= ARRAY_SIZE(cdb89712_bootrom_partitions),
+};
+
+static struct resource cdb89712_bootrom_resources[] __initdata = {
+	DEFINE_RES_NAMED(CS7_PHYS_BASE, SZ_128, "BOOTROM", IORESOURCE_MEM |
+			 IORESOURCE_CACHEABLE | IORESOURCE_READONLY),
+};
+
+static struct platform_device cdb89712_bootrom_pdev __initdata = {
+	.name		= "physmap-flash",
+	.id		= 1,
+	.resource	= cdb89712_bootrom_resources,
+	.num_resources	= ARRAY_SIZE(cdb89712_bootrom_resources),
+	.dev	= {
+		.platform_data	= &cdb89712_bootrom_pdata,
+	},
+};
+
+static struct platdata_mtd_ram cdb89712_sram_pdata __initdata = {
+	.bankwidth	= 4,
+};
+
+static struct resource cdb89712_sram_resources[] __initdata = {
+	DEFINE_RES_MEM(CLPS711X_SRAM_BASE, CLPS711X_SRAM_SIZE),
+};
+
+static struct platform_device cdb89712_sram_pdev __initdata = {
+	.name		= "mtd-ram",
+	.id		= 0,
+	.resource	= cdb89712_sram_resources,
+	.num_resources	= ARRAY_SIZE(cdb89712_sram_resources),
+	.dev	= {
+		.platform_data	= &cdb89712_sram_pdata,
+	},
+};
+
 static void __init cdb89712_init(void)
 {
+	platform_device_register(&cdb89712_flash_pdev);
+	platform_device_register(&cdb89712_bootrom_pdev);
+	platform_device_register(&cdb89712_sram_pdev);
 	platform_device_register_simple("cs89x0", 0, cdb89712_cs8900_resource,
 					ARRAY_SIZE(cdb89712_cs8900_resource));
 }
