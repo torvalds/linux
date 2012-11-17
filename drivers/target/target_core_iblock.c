@@ -55,8 +55,6 @@ static inline struct iblock_dev *IBLOCK_DEV(struct se_device *dev)
 
 static struct se_subsystem_api iblock_template;
 
-static void iblock_bio_done(struct bio *, int);
-
 /*	iblock_attach_hba(): (Part of se_subsystem_api_t template)
  *
  *
@@ -255,6 +253,87 @@ static unsigned long long iblock_emulate_read_cap_with_block_size(
 	return blocks_long;
 }
 
+static void iblock_complete_cmd(struct se_cmd *cmd)
+{
+	struct iblock_req *ibr = cmd->priv;
+	u8 status;
+
+	if (!atomic_dec_and_test(&ibr->pending))
+		return;
+
+	if (atomic_read(&ibr->ib_bio_err_cnt))
+		status = SAM_STAT_CHECK_CONDITION;
+	else
+		status = SAM_STAT_GOOD;
+
+	target_complete_cmd(cmd, status);
+	kfree(ibr);
+}
+
+static void iblock_bio_done(struct bio *bio, int err)
+{
+	struct se_cmd *cmd = bio->bi_private;
+	struct iblock_req *ibr = cmd->priv;
+
+	/*
+	 * Set -EIO if !BIO_UPTODATE and the passed is still err=0
+	 */
+	if (!test_bit(BIO_UPTODATE, &bio->bi_flags) && !err)
+		err = -EIO;
+
+	if (err != 0) {
+		pr_err("test_bit(BIO_UPTODATE) failed for bio: %p,"
+			" err: %d\n", bio, err);
+		/*
+		 * Bump the ib_bio_err_cnt and release bio.
+		 */
+		atomic_inc(&ibr->ib_bio_err_cnt);
+		smp_mb__after_atomic_inc();
+	}
+
+	bio_put(bio);
+
+	iblock_complete_cmd(cmd);
+}
+
+static struct bio *
+iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
+{
+	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
+	struct bio *bio;
+
+	/*
+	 * Only allocate as many vector entries as the bio code allows us to,
+	 * we'll loop later on until we have handled the whole request.
+	 */
+	if (sg_num > BIO_MAX_PAGES)
+		sg_num = BIO_MAX_PAGES;
+
+	bio = bio_alloc_bioset(GFP_NOIO, sg_num, ib_dev->ibd_bio_set);
+	if (!bio) {
+		pr_err("Unable to allocate memory for bio\n");
+		return NULL;
+	}
+
+	bio->bi_bdev = ib_dev->ibd_bd;
+	bio->bi_private = cmd;
+	bio->bi_end_io = &iblock_bio_done;
+	bio->bi_sector = lba;
+
+	return bio;
+}
+
+static void iblock_submit_bios(struct bio_list *list, int rw)
+{
+	struct blk_plug plug;
+	struct bio *bio;
+
+	blk_start_plug(&plug);
+	while ((bio = bio_list_pop(list)))
+		submit_bio(rw, bio);
+	blk_finish_plug(&plug);
+}
+
 static void iblock_end_io_flush(struct bio *bio, int err)
 {
 	struct se_cmd *cmd = bio->bi_private;
@@ -376,10 +455,6 @@ err:
 		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
-
-static struct bio *iblock_get_bio(struct se_cmd *, sector_t, u32);
-static void iblock_submit_bios(struct bio_list *, int);
-static void iblock_complete_cmd(struct se_cmd *);
 
 static sense_reason_t
 iblock_execute_write_same_unmap(struct se_cmd *cmd)
@@ -565,60 +640,6 @@ static ssize_t iblock_show_configfs_dev_params(struct se_device *dev, char *b)
 	return bl;
 }
 
-static void iblock_complete_cmd(struct se_cmd *cmd)
-{
-	struct iblock_req *ibr = cmd->priv;
-	u8 status;
-
-	if (!atomic_dec_and_test(&ibr->pending))
-		return;
-
-	if (atomic_read(&ibr->ib_bio_err_cnt))
-		status = SAM_STAT_CHECK_CONDITION;
-	else
-		status = SAM_STAT_GOOD;
-
-	target_complete_cmd(cmd, status);
-	kfree(ibr);
-}
-
-static struct bio *
-iblock_get_bio(struct se_cmd *cmd, sector_t lba, u32 sg_num)
-{
-	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
-	struct bio *bio;
-
-	/*
-	 * Only allocate as many vector entries as the bio code allows us to,
-	 * we'll loop later on until we have handled the whole request.
-	 */
-	if (sg_num > BIO_MAX_PAGES)
-		sg_num = BIO_MAX_PAGES;
-
-	bio = bio_alloc_bioset(GFP_NOIO, sg_num, ib_dev->ibd_bio_set);
-	if (!bio) {
-		pr_err("Unable to allocate memory for bio\n");
-		return NULL;
-	}
-
-	bio->bi_bdev = ib_dev->ibd_bd;
-	bio->bi_private = cmd;
-	bio->bi_end_io = &iblock_bio_done;
-	bio->bi_sector = lba;
-	return bio;
-}
-
-static void iblock_submit_bios(struct bio_list *list, int rw)
-{
-	struct blk_plug plug;
-	struct bio *bio;
-
-	blk_start_plug(&plug);
-	while ((bio = bio_list_pop(list)))
-		submit_bio(rw, bio);
-	blk_finish_plug(&plug);
-}
-
 static sense_reason_t
 iblock_execute_rw(struct se_cmd *cmd)
 {
@@ -737,32 +758,6 @@ static sector_t iblock_get_blocks(struct se_device *dev)
 	struct request_queue *q = bdev_get_queue(bd);
 
 	return iblock_emulate_read_cap_with_block_size(dev, bd, q);
-}
-
-static void iblock_bio_done(struct bio *bio, int err)
-{
-	struct se_cmd *cmd = bio->bi_private;
-	struct iblock_req *ibr = cmd->priv;
-
-	/*
-	 * Set -EIO if !BIO_UPTODATE and the passed is still err=0
-	 */
-	if (!test_bit(BIO_UPTODATE, &bio->bi_flags) && !err)
-		err = -EIO;
-
-	if (err != 0) {
-		pr_err("test_bit(BIO_UPTODATE) failed for bio: %p,"
-			" err: %d\n", bio, err);
-		/*
-		 * Bump the ib_bio_err_cnt and release bio.
-		 */
-		atomic_inc(&ibr->ib_bio_err_cnt);
-		smp_mb__after_atomic_inc();
-	}
-
-	bio_put(bio);
-
-	iblock_complete_cmd(cmd);
 }
 
 static struct sbc_ops iblock_sbc_ops = {
