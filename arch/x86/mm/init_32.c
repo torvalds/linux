@@ -61,11 +61,22 @@ bool __read_mostly __vmalloc_start_set = false;
 
 static __init void *alloc_low_page(void)
 {
-	unsigned long pfn = pgt_buf_end++;
+	unsigned long pfn;
 	void *adr;
 
-	if (pfn >= pgt_buf_top)
-		panic("alloc_low_page: ran out of memory");
+	if ((pgt_buf_end + 1) >= pgt_buf_top) {
+		unsigned long ret;
+		if (min_pfn_mapped >= max_pfn_mapped)
+			panic("alloc_low_page: ran out of memory");
+		ret = memblock_find_in_range(min_pfn_mapped << PAGE_SHIFT,
+					max_pfn_mapped << PAGE_SHIFT,
+					PAGE_SIZE, PAGE_SIZE);
+		if (!ret)
+			panic("alloc_low_page: can not alloc memory");
+		memblock_reserve(ret, PAGE_SIZE);
+		pfn = ret >> PAGE_SHIFT;
+	} else
+		pfn = pgt_buf_end++;
 
 	adr = __va(pfn * PAGE_SIZE);
 	clear_page(adr);

@@ -124,6 +124,7 @@
  */
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
+unsigned long min_pfn_mapped;
 
 #ifdef CONFIG_DMI
 RESERVE_BRK(dmi_alloc, 65536);
@@ -899,6 +900,8 @@ void __init setup_arch(char **cmdline_p)
 	find_smp_config();
 
 	reserve_ibft_region();
+
+	early_alloc_pgt_buf();
 
 	/*
 	 * Need to conclude brk, before memblock_x86_fill()
