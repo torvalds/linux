@@ -593,6 +593,7 @@ static inline int ata_is_data(u8 prot)
 #define ata_id_cdb_intr(id)	(((id)[ATA_ID_CONFIG] & 0x60) == 0x20)
 #define ata_id_has_da(id)	((id)[ATA_ID_SATA_CAPABILITY_2] & (1 << 4))
 #define ata_id_has_devslp(id)	((id)[ATA_ID_FEATURE_SUPP] & (1 << 8))
+#define ata_id_has_hw_feature_ctrl(id)	((id)[ATA_ID_FEATURE_SUPP] & (1 << 5))
 
 static inline bool ata_id_has_hipm(const u16 *id)
 {
