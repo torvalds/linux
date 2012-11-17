@@ -340,34 +340,10 @@ static __ref void *alloc_low_page(unsigned long *phys)
 	} else
 		pfn = pgt_buf_end++;
 
-	adr = early_memremap(pfn * PAGE_SIZE, PAGE_SIZE);
+	adr = __va(pfn * PAGE_SIZE);
 	clear_page(adr);
 	*phys  = pfn * PAGE_SIZE;
 	return adr;
-}
-
-static __ref void *map_low_page(void *virt)
-{
-	void *adr;
-	unsigned long phys, left;
-
-	if (after_bootmem)
-		return virt;
-
-	phys = __pa(virt);
-	left = phys & (PAGE_SIZE - 1);
-	adr = early_memremap(phys & PAGE_MASK, PAGE_SIZE);
-	adr = (void *)(((unsigned long)adr) | left);
-
-	return adr;
-}
-
-static __ref void unmap_low_page(void *adr)
-{
-	if (after_bootmem)
-		return;
-
-	early_iounmap((void *)((unsigned long)adr & PAGE_MASK), PAGE_SIZE);
 }
 
 static unsigned long __meminit
@@ -442,10 +418,9 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 		if (pmd_val(*pmd)) {
 			if (!pmd_large(*pmd)) {
 				spin_lock(&init_mm.page_table_lock);
-				pte = map_low_page((pte_t *)pmd_page_vaddr(*pmd));
+				pte = (pte_t *)pmd_page_vaddr(*pmd);
 				last_map_addr = phys_pte_init(pte, address,
 								end, prot);
-				unmap_low_page(pte);
 				spin_unlock(&init_mm.page_table_lock);
 				continue;
 			}
@@ -483,7 +458,6 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 
 		pte = alloc_low_page(&pte_phys);
 		last_map_addr = phys_pte_init(pte, address, end, new_prot);
-		unmap_low_page(pte);
 
 		spin_lock(&init_mm.page_table_lock);
 		pmd_populate_kernel(&init_mm, pmd, __va(pte_phys));
@@ -518,10 +492,9 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 
 		if (pud_val(*pud)) {
 			if (!pud_large(*pud)) {
-				pmd = map_low_page(pmd_offset(pud, 0));
+				pmd = pmd_offset(pud, 0);
 				last_map_addr = phys_pmd_init(pmd, addr, end,
 							 page_size_mask, prot);
-				unmap_low_page(pmd);
 				__flush_tlb_all();
 				continue;
 			}
@@ -560,7 +533,6 @@ phys_pud_init(pud_t *pud_page, unsigned long addr, unsigned long end,
 		pmd = alloc_low_page(&pmd_phys);
 		last_map_addr = phys_pmd_init(pmd, addr, end, page_size_mask,
 					      prot);
-		unmap_low_page(pmd);
 
 		spin_lock(&init_mm.page_table_lock);
 		pud_populate(&init_mm, pud, __va(pmd_phys));
@@ -596,17 +568,15 @@ kernel_physical_mapping_init(unsigned long start,
 			next = end;
 
 		if (pgd_val(*pgd)) {
-			pud = map_low_page((pud_t *)pgd_page_vaddr(*pgd));
+			pud = (pud_t *)pgd_page_vaddr(*pgd);
 			last_map_addr = phys_pud_init(pud, __pa(start),
 						 __pa(end), page_size_mask);
-			unmap_low_page(pud);
 			continue;
 		}
 
 		pud = alloc_low_page(&pud_phys);
 		last_map_addr = phys_pud_init(pud, __pa(start), __pa(next),
 						 page_size_mask);
-		unmap_low_page(pud);
 
 		spin_lock(&init_mm.page_table_lock);
 		pgd_populate(&init_mm, pgd, __va(pud_phys));
