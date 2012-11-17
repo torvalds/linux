@@ -450,6 +450,7 @@ ENTRY(fast_unaligned)
 1:	movi	a0, _user_exception
 	jx	a0
 
+ENDPROC(fast_unaligned)
 
 #endif /* XCHAL_UNALIGNED_LOAD_EXCEPTION || XCHAL_UNALIGNED_STORE_EXCEPTION */
 

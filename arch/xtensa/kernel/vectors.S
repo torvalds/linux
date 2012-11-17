@@ -79,6 +79,8 @@ ENTRY(_UserExceptionVector)
 	l32i	a0, a0, EXC_TABLE_FAST_USER	# load handler
 	jx	a0
 
+ENDPROC(_UserExceptionVector)
+
 /*
  * Kernel exception vector. (Exceptions with PS.UM == 0, PS.EXCM == 0)
  *
@@ -103,6 +105,7 @@ ENTRY(_KernelExceptionVector)
 	l32i	a0, a0, EXC_TABLE_FAST_KERNEL	# load handler address
 	jx	a0
 
+ENDPROC(_KernelExceptionVector)
 
 /*
  * Double exception vector (Exceptions with PS.EXCM == 1)
@@ -344,6 +347,7 @@ ENTRY(_DoubleExceptionVector)
 
 	.end literal_prefix
 
+ENDPROC(_DoubleExceptionVector)
 
 /*
  * Debug interrupt vector
@@ -355,9 +359,11 @@ ENTRY(_DoubleExceptionVector)
 	.section .DebugInterruptVector.text, "ax"
 
 ENTRY(_DebugInterruptVector)
+
 	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	jx	a0
 
+ENDPROC(_DebugInterruptVector)
 
 
 /* Window overflow and underflow handlers.
@@ -369,38 +375,43 @@ ENTRY(_DebugInterruptVector)
  *	 we try to access any page that would cause a page fault early.
  */
 
+#define ENTRY_ALIGN64(name)	\
+	.globl name;		\
+	.align 64;		\
+	name:
+
 	.section		.WindowVectors.text, "ax"
 
 
 /* 4-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow4
-_WindowOverflow4:
+ENTRY_ALIGN64(_WindowOverflow4)
+
 	s32e	a0, a5, -16
 	s32e	a1, a5, -12
 	s32e	a2, a5,  -8
 	s32e	a3, a5,  -4
 	rfwo
 
+ENDPROC(_WindowOverflow4)
+
 
 /* 4-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow4
-_WindowUnderflow4:
+ENTRY_ALIGN64(_WindowUnderflow4)
+
 	l32e	a0, a5, -16
 	l32e	a1, a5, -12
 	l32e	a2, a5,  -8
 	l32e	a3, a5,  -4
 	rfwu
 
+ENDPROC(_WindowUnderflow4)
 
 /* 8-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow8
-_WindowOverflow8:
+ENTRY_ALIGN64(_WindowOverflow8)
+
 	s32e	a0, a9, -16
 	l32e	a0, a1, -12
 	s32e	a2, a9,  -8
@@ -412,11 +423,12 @@ _WindowOverflow8:
 	s32e	a7, a0, -20
 	rfwo
 
+ENDPROC(_WindowOverflow8)
+
 /* 8-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow8
-_WindowUnderflow8:
+ENTRY_ALIGN64(_WindowUnderflow8)
+
 	l32e	a1, a9, -12
 	l32e	a0, a9, -16
 	l32e	a7, a1, -12
@@ -428,12 +440,12 @@ _WindowUnderflow8:
 	l32e	a7, a7, -20
 	rfwu
 
+ENDPROC(_WindowUnderflow8)
 
 /* 12-Register Window Overflow Vector (Handler) */
 
-	.align 64
-.global _WindowOverflow12
-_WindowOverflow12:
+ENTRY_ALIGN64(_WindowOverflow12)
+
 	s32e	a0,  a13, -16
 	l32e	a0,  a1,  -12
 	s32e	a1,  a13, -12
@@ -449,11 +461,12 @@ _WindowOverflow12:
 	s32e	a11, a0,  -20
 	rfwo
 
+ENDPROC(_WindowOverflow12)
+
 /* 12-Register Window Underflow Vector (Handler) */
 
-	.align 64
-.global _WindowUnderflow12
-_WindowUnderflow12:
+ENTRY_ALIGN64(_WindowUnderflow12)
+
 	l32e	a1,  a13, -12
 	l32e	a0,  a13, -16
 	l32e	a11, a1,  -12
@@ -468,6 +481,8 @@ _WindowUnderflow12:
 	l32e	a10, a11, -24
 	l32e	a11, a11, -20
 	rfwu
+
+ENDPROC(_WindowUnderflow12)
 
 	.text
 

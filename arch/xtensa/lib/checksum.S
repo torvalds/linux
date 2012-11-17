@@ -170,7 +170,7 @@ ENTRY(csum_partial)
 3:
 	j	5b		/* branch to handle the remaining byte */
 
-
+ENDPROC(csum_partial)
 
 /*
  * Copy from ds while checksumming, otherwise like csum_partial
@@ -211,6 +211,7 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst, int len,
  */
 
 ENTRY(csum_partial_copy_generic)
+
 	entry	sp, 32
 	mov	a12, a3
 	mov	a11, a4
@@ -366,6 +367,8 @@ DST(	s8i	a8, a3, 1	)
 #endif
 6:
 	j	4b		/* process the possible trailing odd byte */
+
+ENDPROC(csum_partial_copy_generic)
 
 
 # Exception handler:
