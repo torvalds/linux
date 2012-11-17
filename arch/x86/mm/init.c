@@ -196,12 +196,18 @@ static int __meminit split_mem_range(struct map_range *mr, int nr_range,
  * mr[0].start to mr[nr_range - 1].end, while accounting for possible 2M and 1GB
  * pages. Then find enough contiguous space for those page tables.
  */
-static void __init find_early_table_space(struct map_range *mr, int nr_range)
+static void __init find_early_table_space(unsigned long start, unsigned long end)
 {
 	int i;
 	unsigned long puds = 0, pmds = 0, ptes = 0, tables;
-	unsigned long start = 0, good_end;
+	unsigned long good_end;
 	phys_addr_t base;
+	struct map_range mr[NR_RANGE_MR];
+	int nr_range;
+
+	memset(mr, 0, sizeof(mr));
+	nr_range = 0;
+	nr_range = split_mem_range(mr, nr_range, start, end);
 
 	for (i = 0; i < nr_range; i++) {
 		unsigned long range, extra;
@@ -276,7 +282,7 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 	 * nodes are discovered.
 	 */
 	if (!after_bootmem)
-		find_early_table_space(mr, nr_range);
+		find_early_table_space(start, end);
 
 	for (i = 0; i < nr_range; i++)
 		ret = kernel_physical_mapping_init(mr[i].start, mr[i].end,
