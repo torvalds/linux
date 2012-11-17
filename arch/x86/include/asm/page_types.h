@@ -51,6 +51,14 @@ static inline phys_addr_t get_max_mapped(void)
 	return (phys_addr_t)max_pfn_mapped << PAGE_SHIFT;
 }
 
+static inline bool pfn_range_is_mapped(unsigned long start_pfn,
+					unsigned long end_pfn)
+{
+	return end_pfn <= max_low_pfn_mapped ||
+	       (end_pfn > (1UL << (32 - PAGE_SHIFT)) &&
+		end_pfn <= max_pfn_mapped);
+}
+
 extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);
 
