@@ -75,5 +75,20 @@
 			#interrupts-cells = <2>;
 			interrupts = <91>;
 		};
+
+		coreclk: mvebu-sar@d0018230 {
+			compatible = "marvell,armada-370-core-clock";
+			reg = <0xd0018230 0x08>;
+			#clock-cells = <1>;
+		};
+
+		gateclk: clock-gating-control@d0018220 {
+			compatible = "marvell,armada-370-gating-clock";
+			reg = <0xd0018220 0x4>;
+			clocks = <&coreclk 0>;
+			#clock-cells = <1>;
+		};
+
+
 	};
 };
