@@ -835,7 +835,7 @@ static int __init parse_memopt(char *p)
 }
 early_param("mem", parse_memopt);
 
-static int __init parse_memmap_opt(char *p)
+static int __init parse_memmap_one(char *p)
 {
 	char *oldp;
 	u64 start_at, mem_size;
@@ -876,6 +876,20 @@ static int __init parse_memmap_opt(char *p)
 		e820_remove_range(mem_size, ULLONG_MAX - mem_size, E820_RAM, 1);
 
 	return *p == '\0' ? 0 : -EINVAL;
+}
+static int __init parse_memmap_opt(char *str)
+{
+	while (str) {
+		char *k = strchr(str, ',');
+
+		if (k)
+			*k++ = 0;
+
+		parse_memmap_one(str);
+		str = k;
+	}
+
+	return 0;
 }
 early_param("memmap", parse_memmap_opt);
 
