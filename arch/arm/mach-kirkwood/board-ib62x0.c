@@ -22,28 +22,9 @@
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data ib62x0_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
-};
-
-static unsigned int ib62x0_mpp_config[] __initdata = {
-	MPP0_NF_IO2,
-	MPP1_NF_IO3,
-	MPP2_NF_IO4,
-	MPP3_NF_IO5,
-	MPP4_NF_IO6,
-	MPP5_NF_IO7,
-	MPP18_NF_IO0,
-	MPP19_NF_IO1,
-	MPP22_GPIO,	/* OS LED red */
-	MPP24_GPIO,	/* Power off device */
-	MPP25_GPIO,	/* OS LED green */
-	MPP27_GPIO,	/* USB transfer LED */
-	MPP28_GPIO,	/* Reset button */
-	MPP29_GPIO,	/* USB Copy button */
-	0
 };
 
 void __init ib62x0_init(void)
@@ -51,7 +32,5 @@ void __init ib62x0_init(void)
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_mpp_conf(ib62x0_mpp_config);
-
 	kirkwood_ge00_init(&ib62x0_ge00_data);
 }
