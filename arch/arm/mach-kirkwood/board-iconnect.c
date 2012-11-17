@@ -21,30 +21,13 @@
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data iconnect_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(11),
 };
 
-static unsigned int iconnect_mpp_config[] __initdata = {
-	MPP12_GPIO,
-	MPP35_GPIO,
-	MPP41_GPIO,
-	MPP42_GPIO,
-	MPP43_GPIO,
-	MPP44_GPIO,
-	MPP45_GPIO,
-	MPP46_GPIO,
-	MPP47_GPIO,
-	MPP48_GPIO,
-	0
-};
-
 void __init iconnect_init(void)
 {
-	kirkwood_mpp_conf(iconnect_mpp_config);
-
 	kirkwood_ge00_init(&iconnect_ge00_data);
 }
 
