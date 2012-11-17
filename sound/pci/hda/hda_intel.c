@@ -3563,6 +3563,8 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	/* Teradici */
 	{ PCI_DEVICE(0x6549, 0x1200),
 	  .driver_data = AZX_DRIVER_TERA | AZX_DCAPS_NO_64BIT },
+	{ PCI_DEVICE(0x6549, 0x2200),
+	  .driver_data = AZX_DRIVER_TERA | AZX_DCAPS_NO_64BIT },
 	/* Creative X-Fi (CA0110-IBG) */
 	/* CTHDA chips */
 	{ PCI_DEVICE(0x1102, 0x0010),

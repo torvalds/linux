@@ -568,6 +568,9 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		goto unlock;
 	}
 
+	snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
+	snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
+
 	ret = set_format(subs, subs->cur_audiofmt);
 	if (ret < 0)
 		goto unlock;

@@ -24,7 +24,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * as99127f	7	3	0	3	0x31	0x12c3	yes	no
  * as99127f rev.2 (type_name = as99127f)	0x31	0x5ca3	yes	no
  * w83781d	7	3	0	3	0x10-1	0x5ca3	yes	yes

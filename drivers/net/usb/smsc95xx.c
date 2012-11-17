@@ -1344,6 +1344,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 		} else {
 			u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
 			skb_push(skb, 4);
+			cpu_to_le32s(&csum_preamble);
 			memcpy(skb->data, &csum_preamble, 4);
 		}
 	}

@@ -101,8 +101,8 @@ enum {
 #define CS420X_VENDOR_NID	0x11
 #define CS_DIG_OUT1_PIN_NID	0x10
 #define CS_DIG_OUT2_PIN_NID	0x15
-#define CS_DMIC1_PIN_NID	0x12
-#define CS_DMIC2_PIN_NID	0x0e
+#define CS_DMIC1_PIN_NID	0x0e
+#define CS_DMIC2_PIN_NID	0x12
 
 /* coef indices */
 #define IDX_SPDIF_STAT		0x0000
@@ -1079,14 +1079,18 @@ static void init_input(struct hda_codec *codec)
 			cs_automic(codec, NULL);
 
 		coef = 0x000a; /* ADC1/2 - Digital and Analog Soft Ramp */
+		cs_vendor_coef_set(codec, IDX_ADC_CFG, coef);
+
+		coef = cs_vendor_coef_get(codec, IDX_BEEP_CFG);
 		if (is_active_pin(codec, CS_DMIC2_PIN_NID))
-			coef |= 0x0500; /* DMIC2 2 chan on, GPIO1 off */
+			coef |= 1 << 4; /* DMIC2 2 chan on, GPIO1 off */
 		if (is_active_pin(codec, CS_DMIC1_PIN_NID))
-			coef |= 0x1800; /* DMIC1 2 chan on, GPIO0 off
+			coef |= 1 << 3; /* DMIC1 2 chan on, GPIO0 off
 					 * No effect if SPDIF_OUT2 is
 					 * selected in IDX_SPDIF_CTL.
 					*/
-		cs_vendor_coef_set(codec, IDX_ADC_CFG, coef);
+
+		cs_vendor_coef_set(codec, IDX_BEEP_CFG, coef);
 	} else {
 		if (spec->mic_detect)
 			cs_automic(codec, NULL);
@@ -1107,7 +1111,7 @@ static const struct hda_verb cs_coef_init_verbs[] = {
 	  | 0x0400 /* Disable Coefficient Auto increment */
 	  )},
 	/* Beep */
-	{0x11, AC_VERB_SET_COEF_INDEX, IDX_DAC_CFG},
+	{0x11, AC_VERB_SET_COEF_INDEX, IDX_BEEP_CFG},
 	{0x11, AC_VERB_SET_PROC_COEF, 0x0007}, /* Enable Beep thru DAC1/2/3 */
 
 	{} /* terminator */
@@ -1728,8 +1732,7 @@ static int cs421x_mux_enum_put(struct snd_kcontrol *kcontrol,
 
 }
 
-static struct snd_kcontrol_new cs421x_capture_source = {
-
+static const struct snd_kcontrol_new cs421x_capture_source = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "Capture Source",
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
@@ -1946,7 +1949,7 @@ static int cs421x_suspend(struct hda_codec *codec)
 }
 #endif
 
-static struct hda_codec_ops cs421x_patch_ops = {
+static const struct hda_codec_ops cs421x_patch_ops = {
 	.build_controls = cs421x_build_controls,
 	.build_pcms = cs_build_pcms,
 	.init = cs421x_init,
