@@ -335,6 +335,9 @@ config AB8500_BATTERY_THERM_ON_BATCTRL
 	help
 	  Say Y to enable battery temperature measurements using
 	  thermistor connected on BATCTRL ADC.
+
+source "drivers/power/reset/Kconfig"
+
 endif # POWER_SUPPLY
 
 source "drivers/power/avs/Kconfig"
