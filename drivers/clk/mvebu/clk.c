@@ -16,8 +16,10 @@
 #include <linux/clk/mvebu.h>
 #include <linux/of.h>
 #include "clk-core.h"
+#include "clk-cpu.h"
 
 void __init mvebu_clocks_init(void)
 {
 	mvebu_core_clk_init();
+	mvebu_cpu_clk_init();
 }

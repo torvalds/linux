@@ -1,3 +1,6 @@
 config MVEBU_CLK_CORE
        bool
 
+config MVEBU_CLK_CPU
+       bool
+
