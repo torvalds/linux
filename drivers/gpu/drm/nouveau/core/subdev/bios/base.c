@@ -366,42 +366,42 @@ nouveau_bios_shadow(struct nouveau_bios *bios)
 }
 
 static u8
-nouveau_bios_rd08(struct nouveau_object *object, u32 addr)
+nouveau_bios_rd08(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_bios *bios = (void *)object;
 	return bios->data[addr];
 }
 
 static u16
-nouveau_bios_rd16(struct nouveau_object *object, u32 addr)
+nouveau_bios_rd16(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_bios *bios = (void *)object;
 	return get_unaligned_le16(&bios->data[addr]);
 }
 
 static u32
-nouveau_bios_rd32(struct nouveau_object *object, u32 addr)
+nouveau_bios_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_bios *bios = (void *)object;
 	return get_unaligned_le32(&bios->data[addr]);
 }
 
 static void
-nouveau_bios_wr08(struct nouveau_object *object, u32 addr, u8 data)
+nouveau_bios_wr08(struct nouveau_object *object, u64 addr, u8 data)
 {
 	struct nouveau_bios *bios = (void *)object;
 	bios->data[addr] = data;
 }
 
 static void
-nouveau_bios_wr16(struct nouveau_object *object, u32 addr, u16 data)
+nouveau_bios_wr16(struct nouveau_object *object, u64 addr, u16 data)
 {
 	struct nouveau_bios *bios = (void *)object;
 	put_unaligned_le16(data, &bios->data[addr]);
 }
 
 static void
-nouveau_bios_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nouveau_bios_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nouveau_bios *bios = (void *)object;
 	put_unaligned_le32(data, &bios->data[addr]);

@@ -119,14 +119,14 @@ _nouveau_fifo_channel_dtor(struct nouveau_object *object)
 }
 
 u32
-_nouveau_fifo_channel_rd32(struct nouveau_object *object, u32 addr)
+_nouveau_fifo_channel_rd32(struct nouveau_object *object, u64 addr)
 {
 	struct nouveau_fifo_chan *chan = (void *)object;
 	return ioread32_native(chan->user + addr);
 }
 
 void
-_nouveau_fifo_channel_wr32(struct nouveau_object *object, u32 addr, u32 data)
+_nouveau_fifo_channel_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	struct nouveau_fifo_chan *chan = (void *)object;
 	iowrite32_native(data, chan->user + addr);

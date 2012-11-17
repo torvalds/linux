@@ -34,14 +34,14 @@
 #include <subdev/fb.h>
 
 static u32
-nv50_evo_rd32(struct nouveau_object *object, u32 addr)
+nv50_evo_rd32(struct nouveau_object *object, u64 addr)
 {
 	void __iomem *iomem = object->oclass->ofuncs->rd08;
 	return ioread32_native(iomem + addr);
 }
 
 static void
-nv50_evo_wr32(struct nouveau_object *object, u32 addr, u32 data)
+nv50_evo_wr32(struct nouveau_object *object, u64 addr, u32 data)
 {
 	void __iomem *iomem = object->oclass->ofuncs->rd08;
 	iowrite32_native(data, iomem + addr);
