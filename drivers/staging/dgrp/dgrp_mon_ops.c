@@ -38,6 +38,7 @@
 #include <linux/sched.h>
 #include <asm/unaligned.h>
 #include <linux/proc_fs.h>
+#include <linux/uaccess.h>
 
 #include "dgrp_common.h"
 

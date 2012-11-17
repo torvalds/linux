@@ -478,6 +478,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	}
 
 out:
+	radeon_vm_add_to_lru(rdev, vm);
 	mutex_unlock(&vm->mutex);
 	mutex_unlock(&rdev->vm_manager.lock);
 	return r;

@@ -126,7 +126,7 @@ static inline int bnx2x_exe_queue_add(struct bnx2x *bp,
 		/* Check if this request is ok */
 		rc = o->validate(bp, o->owner, elem);
 		if (rc) {
-			BNX2X_ERR("Preamble failed: %d\n", rc);
+			DP(BNX2X_MSG_SP, "Preamble failed: %d\n", rc);
 			goto free_and_exit;
 		}
 	}

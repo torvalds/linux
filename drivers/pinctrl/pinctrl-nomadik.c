@@ -30,7 +30,20 @@
 #include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
+/*
+ * For the U8500 archs, use the PRCMU register interface, for the older
+ * Nomadik, provide some stubs. The functions using these will only be
+ * called on the U8500 series.
+ */
+#ifdef CONFIG_ARCH_U8500
 #include <linux/mfd/dbx500-prcmu.h>
+#else
+static inline u32 prcmu_read(unsigned int reg) {
+	return 0;
+}
+static inline void prcmu_write(unsigned int reg, u32 value) {}
+static inline void prcmu_write_masked(unsigned int reg, u32 mask, u32 value) {}
+#endif
 
 #include <asm/mach/irq.h>
 
@@ -1043,7 +1056,7 @@ static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
 
-	return irq_find_mapping(nmk_chip->domain, offset);
+	return irq_create_mapping(nmk_chip->domain, offset);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1268,6 +1281,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	struct clk *clk;
 	int secondary_irq;
 	void __iomem *base;
+	int irq_start = 0;
 	int irq;
 	int ret;
 
@@ -1371,19 +1385,11 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 
 	platform_set_drvdata(dev, nmk_chip);
 
-	if (np) {
-		/* The DT case will just grab a set of IRQ numbers */
-		nmk_chip->domain = irq_domain_add_linear(np, NMK_GPIO_PER_CHIP,
-				&nmk_gpio_irq_simple_ops, nmk_chip);
-	} else {
-		/* Non-DT legacy mode, use hardwired IRQ numbers */
-		int irq_start;
-
+	if (!np)
 		irq_start = NOMADIK_GPIO_TO_IRQ(pdata->first_gpio);
-		nmk_chip->domain = irq_domain_add_simple(NULL,
+	nmk_chip->domain = irq_domain_add_simple(np,
 				NMK_GPIO_PER_CHIP, irq_start,
 				&nmk_gpio_irq_simple_ops, nmk_chip);
-	}
 	if (!nmk_chip->domain) {
 		dev_err(&dev->dev, "failed to create irqdomain\n");
 		ret = -ENOSYS;

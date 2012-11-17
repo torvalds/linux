@@ -846,6 +846,8 @@ static void __maybe_unused das08_detach(struct comedi_device *dev)
 {
 	const struct das08_board_struct *thisboard = comedi_board(dev);
 
+	if (!thisboard)
+		return;
 	das08_common_detach(dev);
 	if (is_isa_board(thisboard)) {
 		if (dev->iobase)

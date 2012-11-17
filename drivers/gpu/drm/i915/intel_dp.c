@@ -1797,7 +1797,8 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 			if ((intel_dp->train_set[i] & DP_TRAIN_MAX_SWING_REACHED) == 0)
 				break;
 		if (i == intel_dp->lane_count && voltage_tries == 5) {
-			if (++loop_tries == 5) {
+			++loop_tries;
+			if (loop_tries == 5) {
 				DRM_DEBUG_KMS("too many full retries, give up\n");
 				break;
 			}
@@ -1807,11 +1808,15 @@ intel_dp_start_link_train(struct intel_dp *intel_dp)
 		}
 
 		/* Check to see if we've tried the same voltage 5 times */
-		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) != voltage) {
-			voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
-			voltage_tries = 0;
-		} else
+		if ((intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK) == voltage) {
 			++voltage_tries;
+			if (voltage_tries == 5) {
+				DRM_DEBUG_KMS("too many voltage retries, give up\n");
+				break;
+			}
+		} else
+			voltage_tries = 0;
+		voltage = intel_dp->train_set[0] & DP_TRAIN_VOLTAGE_SWING_MASK;
 
 		/* Compute new intel_dp->train_set as requested by target */
 		intel_get_adjust_train(intel_dp, link_status);
@@ -2369,8 +2374,9 @@ static void
 intel_dp_destroy(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
 
-	if (intel_dpd_is_edp(dev))
+	if (is_edp(intel_dp))
 		intel_panel_destroy_backlight(dev);
 
 	drm_sysfs_connector_remove(connector);

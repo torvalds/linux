@@ -115,7 +115,9 @@ struct irq_info {
 #define PIRQ_SHAREABLE	(1 << 1)
 
 static int *evtchn_to_irq;
+#ifdef CONFIG_X86
 static unsigned long *pirq_eoi_map;
+#endif
 static bool (*pirq_needs_eoi)(unsigned irq);
 
 static DEFINE_PER_CPU(unsigned long [NR_EVENT_CHANNELS/BITS_PER_LONG],
@@ -277,10 +279,12 @@ static unsigned int cpu_from_evtchn(unsigned int evtchn)
 	return ret;
 }
 
+#ifdef CONFIG_X86
 static bool pirq_check_eoi_map(unsigned irq)
 {
 	return test_bit(pirq_from_irq(irq), pirq_eoi_map);
 }
+#endif
 
 static bool pirq_needs_eoi_flag(unsigned irq)
 {

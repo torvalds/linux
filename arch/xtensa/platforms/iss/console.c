@@ -91,7 +91,7 @@ static int rs_write(struct tty_struct * tty,
 {
 	/* see drivers/char/serialX.c to reference original version */
 
-	__simc (SYS_write, 1, (unsigned long)buf, count, 0, 0);
+	simc_write(1, buf, count);
 	return count;
 }
 
@@ -122,12 +122,7 @@ static void rs_poll(unsigned long priv)
 
 static int rs_put_char(struct tty_struct *tty, unsigned char ch)
 {
-	char buf[2];
-
-	buf[0] = ch;
-	buf[1] = '\0';		/* Is this NULL necessary? */
-	__simc (SYS_write, 1, (unsigned long) buf, 1, 0, 0);
-	return 1;
+	return rs_write(tty, &ch, 1);
 }
 
 static void rs_flush_chars(struct tty_struct *tty)

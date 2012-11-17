@@ -122,12 +122,21 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 	}
 }
 
+static void filelayout_fenceme(struct inode *inode, struct pnfs_layout_hdr *lo)
+{
+	if (!test_and_clear_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
+		return;
+	clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
+	pnfs_return_layout(inode);
+}
+
 static int filelayout_async_handle_error(struct rpc_task *task,
 					 struct nfs4_state *state,
 					 struct nfs_client *clp,
 					 struct pnfs_layout_segment *lseg)
 {
-	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct pnfs_layout_hdr *lo = lseg->pls_layout;
+	struct inode *inode = lo->plh_inode;
 	struct nfs_server *mds_server = NFS_SERVER(inode);
 	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
 	struct nfs_client *mds_client = mds_server->nfs_client;
@@ -204,10 +213,8 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
 		nfs4_mark_deviceid_unavailable(devid);
-		clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
-		_pnfs_return_layout(inode);
+		set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
-		nfs4_ds_disconnect(clp);
 		/* fall through */
 	default:
 reset:
@@ -331,7 +338,9 @@ static void filelayout_read_count_stats(struct rpc_task *task, void *data)
 static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = data;
+	struct pnfs_layout_hdr *lo = rdata->header->lseg->pls_layout;
 
+	filelayout_fenceme(lo->plh_inode, lo);
 	nfs_put_client(rdata->ds_clp);
 	rdata->header->mds_ops->rpc_release(data);
 }
@@ -429,7 +438,9 @@ static void filelayout_write_count_stats(struct rpc_task *task, void *data)
 static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
+	struct pnfs_layout_hdr *lo = wdata->header->lseg->pls_layout;
 
+	filelayout_fenceme(lo->plh_inode, lo);
 	nfs_put_client(wdata->ds_clp);
 	wdata->header->mds_ops->rpc_release(data);
 }
@@ -739,7 +750,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 		goto out_err;
 
 	if (fl->num_fh > 0) {
-		fl->fh_array = kzalloc(fl->num_fh * sizeof(struct nfs_fh *),
+		fl->fh_array = kcalloc(fl->num_fh, sizeof(fl->fh_array[0]),
 				       gfp_flags);
 		if (!fl->fh_array)
 			goto out_err;

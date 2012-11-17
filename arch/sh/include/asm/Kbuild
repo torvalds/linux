@@ -1,4 +1,3 @@
-include include/asm-generic/Kbuild.asm
 
 generic-y += bitsperlong.h
 generic-y += cputime.h
@@ -34,13 +33,3 @@ generic-y += termbits.h
 generic-y += termios.h
 generic-y += ucontext.h
 generic-y += xor.h
-
-header-y += cachectl.h
-header-y += cpu-features.h
-header-y += hw_breakpoint.h
-header-y += posix_types_32.h
-header-y += posix_types_64.h
-header-y += ptrace_32.h
-header-y += ptrace_64.h
-header-y += unistd_32.h
-header-y += unistd_64.h

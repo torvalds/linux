@@ -341,7 +341,7 @@ static void __init omap_init_dmic(void)
 
 	oh = omap_hwmod_lookup("dmic");
 	if (!oh) {
-		printk(KERN_ERR "Could not look up mcpdm hw_mod\n");
+		pr_err("Could not look up dmic hw_mod\n");
 		return;
 	}
 
