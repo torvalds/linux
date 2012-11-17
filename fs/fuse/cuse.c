@@ -45,7 +45,6 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/stat.h>
 #include <linux/module.h>
 
@@ -63,7 +62,7 @@ struct cuse_conn {
 	bool			unrestricted_ioctl;
 };
 
-static DEFINE_SPINLOCK(cuse_lock);		/* protects cuse_conntbl */
+static DEFINE_MUTEX(cuse_lock);		/* protects registration */
 static struct list_head cuse_conntbl[CUSE_CONNTBL_LEN];
 static struct class *cuse_class;
 
@@ -114,14 +113,14 @@ static int cuse_open(struct inode *inode, struct file *file)
 	int rc;
 
 	/* look up and get the connection */
-	spin_lock(&cuse_lock);
+	mutex_lock(&cuse_lock);
 	list_for_each_entry(pos, cuse_conntbl_head(devt), list)
 		if (pos->dev->devt == devt) {
 			fuse_conn_get(&pos->fc);
 			cc = pos;
 			break;
 		}
-	spin_unlock(&cuse_lock);
+	mutex_unlock(&cuse_lock);
 
 	/* dead? */
 	if (!cc)
@@ -377,9 +376,9 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	cc->cdev = cdev;
 
 	/* make the device available */
-	spin_lock(&cuse_lock);
+	mutex_lock(&cuse_lock);
 	list_add(&cc->list, cuse_conntbl_head(devt));
-	spin_unlock(&cuse_lock);
+	mutex_unlock(&cuse_lock);
 
 	/* announce device availability */
 	dev_set_uevent_suppress(dev, 0);
@@ -520,9 +519,9 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 	int rc;
 
 	/* remove from the conntbl, no more access from this point on */
-	spin_lock(&cuse_lock);
+	mutex_lock(&cuse_lock);
 	list_del_init(&cc->list);
-	spin_unlock(&cuse_lock);
+	mutex_unlock(&cuse_lock);
 
 	/* remove device */
 	if (cc->dev)
