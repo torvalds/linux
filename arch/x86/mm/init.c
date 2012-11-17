@@ -343,14 +343,6 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 		ret = kernel_physical_mapping_init(mr[i].start, mr[i].end,
 						   mr[i].page_size_mask);
 
-#ifdef CONFIG_X86_32
-	early_ioremap_page_table_range_init();
-
-	load_cr3(swapper_pg_dir);
-#endif
-
-	__flush_tlb_all();
-
 	add_pfn_range_mapped(start >> PAGE_SHIFT, ret >> PAGE_SHIFT);
 
 	return ret >> PAGE_SHIFT;
@@ -447,7 +439,12 @@ void __init init_mem_mapping(void)
 		/* can we preseve max_low_pfn ?*/
 		max_low_pfn = max_pfn;
 	}
+#else
+	early_ioremap_page_table_range_init();
+	load_cr3(swapper_pg_dir);
+	__flush_tlb_all();
 #endif
+
 	early_memtest(0, max_pfn_mapped << PAGE_SHIFT);
 }
 

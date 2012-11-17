@@ -135,8 +135,39 @@ pte_t * __init populate_extra_pte(unsigned long vaddr)
 	return one_page_table_init(pmd) + pte_idx;
 }
 
+static unsigned long __init
+page_table_range_init_count(unsigned long start, unsigned long end)
+{
+	unsigned long count = 0;
+#ifdef CONFIG_HIGHMEM
+	int pmd_idx_kmap_begin = fix_to_virt(FIX_KMAP_END) >> PMD_SHIFT;
+	int pmd_idx_kmap_end = fix_to_virt(FIX_KMAP_BEGIN) >> PMD_SHIFT;
+	int pgd_idx, pmd_idx;
+	unsigned long vaddr;
+
+	if (pmd_idx_kmap_begin == pmd_idx_kmap_end)
+		return 0;
+
+	vaddr = start;
+	pgd_idx = pgd_index(vaddr);
+
+	for ( ; (pgd_idx < PTRS_PER_PGD) && (vaddr != end); pgd_idx++) {
+		for (; (pmd_idx < PTRS_PER_PMD) && (vaddr != end);
+							pmd_idx++) {
+			if ((vaddr >> PMD_SHIFT) >= pmd_idx_kmap_begin &&
+			    (vaddr >> PMD_SHIFT) <= pmd_idx_kmap_end)
+				count++;
+			vaddr += PMD_SIZE;
+		}
+		pmd_idx = 0;
+	}
+#endif
+	return count;
+}
+
 static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
-					   unsigned long vaddr, pte_t *lastpte)
+					   unsigned long vaddr, pte_t *lastpte,
+					   void **adr)
 {
 #ifdef CONFIG_HIGHMEM
 	/*
@@ -150,16 +181,15 @@ static pte_t *__init page_table_kmap_check(pte_t *pte, pmd_t *pmd,
 
 	if (pmd_idx_kmap_begin != pmd_idx_kmap_end
 	    && (vaddr >> PMD_SHIFT) >= pmd_idx_kmap_begin
-	    && (vaddr >> PMD_SHIFT) <= pmd_idx_kmap_end
-	    && ((__pa(pte) >> PAGE_SHIFT) < pgt_buf_start
-		|| (__pa(pte) >> PAGE_SHIFT) >= pgt_buf_end)) {
+	    && (vaddr >> PMD_SHIFT) <= pmd_idx_kmap_end) {
 		pte_t *newpte;
 		int i;
 
 		BUG_ON(after_bootmem);
-		newpte = alloc_low_page();
+		newpte = *adr;
 		for (i = 0; i < PTRS_PER_PTE; i++)
 			set_pte(newpte + i, pte[i]);
+		*adr = (void *)(((unsigned long)(*adr)) + PAGE_SIZE);
 
 		paravirt_alloc_pte(&init_mm, __pa(newpte) >> PAGE_SHIFT);
 		set_pmd(pmd, __pmd(__pa(newpte)|_PAGE_TABLE));
@@ -193,6 +223,11 @@ page_table_range_init(unsigned long start, unsigned long end, pgd_t *pgd_base)
 	pgd_t *pgd;
 	pmd_t *pmd;
 	pte_t *pte = NULL;
+	unsigned long count = page_table_range_init_count(start, end);
+	void *adr = NULL;
+
+	if (count)
+		adr = alloc_low_pages(count);
 
 	vaddr = start;
 	pgd_idx = pgd_index(vaddr);
@@ -205,7 +240,7 @@ page_table_range_init(unsigned long start, unsigned long end, pgd_t *pgd_base)
 		for (; (pmd_idx < PTRS_PER_PMD) && (vaddr != end);
 							pmd++, pmd_idx++) {
 			pte = page_table_kmap_check(one_page_table_init(pmd),
-			                            pmd, vaddr, pte);
+						    pmd, vaddr, pte, &adr);
 
 			vaddr += PMD_SIZE;
 		}
