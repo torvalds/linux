@@ -1,4 +1,5 @@
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	model = "D-Link DNS NASes (kirkwood-based)";
@@ -41,6 +42,110 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_nand &pmx_uart1
+				      &pmx_sata0 &pmx_sata1
+				      &pmx_led_power
+				      &pmx_led_red_right_hdd
+				      &pmx_led_red_left_hdd
+				      &pmx_led_red_usb_325
+				      &pmx_button_power
+				      &pmx_led_red_usb_320
+				      &pmx_power_off &pmx_power_back_on
+				      &pmx_power_sata0 &pmx_power_sata1
+				      &pmx_present_sata0 &pmx_present_sata1
+				      &pmx_led_white_usb &pmx_fan_tacho
+				      &pmx_fan_high_speed &pmx_fan_low_speed
+				      &pmx_button_unmount &pmx_button_reset
+				      &pmx_temp_alarm >;
+			pinctrl-names = "default";
+
+			pmx_sata0: pmx-sata0 {
+				marvell,pins = "mpp20";
+				marvell,function = "sata1";
+			};
+			pmx_sata1: pmx-sata1 {
+				marvell,pins = "mpp21";
+				marvell,function = "sata0";
+			};
+			pmx_led_power: pmx-led-power {
+				marvell,pins = "mpp26";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_right_hdd: pmx-led-red-right-hdd {
+				marvell,pins = "mpp27";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_left_hdd: pmx-led-red-left-hdd {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_usb_325: pmx-led-red-usb-325 {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+			pmx_button_power: pmx-button-power {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+			pmx_led_red_usb_320: pmx-led-red-usb-320 {
+				marvell,pins = "mpp35";
+				marvell,function = "gpio";
+			};
+			pmx_power_off: pmx-power-off {
+				marvell,pins = "mpp36";
+				marvell,function = "gpio";
+			};
+			pmx_power_back_on: pmx-power-back-on {
+				marvell,pins = "mpp37";
+				marvell,function = "gpio";
+			};
+			pmx_power_sata0: pmx-power-sata0 {
+				marvell,pins = "mpp39";
+				marvell,function = "gpio";
+			};
+			pmx_power_sata1: pmx-power-sata1 {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+			pmx_present_sata0: pmx-present-sata0 {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+			pmx_present_sata1: pmx-present-sata1 {
+				marvell,pins = "mpp42";
+				marvell,function = "gpio";
+			};
+			pmx_led_white_usb: pmx-led-white-usb {
+				marvell,pins = "mpp43";
+				marvell,function = "gpio";
+			};
+			pmx_fan_tacho: pmx-fan-tacho {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+			pmx_fan_high_speed: pmx-fan-high-speed {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+			pmx_fan_low_speed: pmx-fan-low-speed {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+			pmx_button_unmount: pmx-button-unmount {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+			pmx_button_reset: pmx-button-reset {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+			pmx_temp_alarm: pmx-temp-alarm {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+		};
 		sata@80000 {
 			status = "okay";
 			nr-ports = <2>;
