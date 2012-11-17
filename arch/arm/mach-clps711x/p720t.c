@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/leds.h>
+#include <linux/platform_device.h>
 
 #include <mach/hardware.h>
 #include <asm/pgtable.h>
@@ -37,6 +38,8 @@
 #include <mach/syspld.h>
 
 #include "common.h"
+
+#define GPIO_USERLED	CLPS711X_GPIO(3, 0)
 
 /*
  * Map the P720T system PLD. It occupies two address spaces:
@@ -103,71 +106,34 @@ static void __init p720t_init_early(void)
 	}
 }
 
-/*
- * LED controled by CPLD
- */
-#if defined(CONFIG_NEW_LEDS) && defined(CONFIG_LEDS_CLASS)
-static void p720t_led_set(struct led_classdev *cdev,
-			      enum led_brightness b)
+static struct gpio_led p720t_gpio_leds[] = {
+	{
+		.name			= "User LED",
+		.default_trigger	= "heartbeat",
+		.gpio			= GPIO_USERLED,
+	},
+};
+
+static struct gpio_led_platform_data p720t_gpio_led_pdata __initdata = {
+	.leds		= p720t_gpio_leds,
+	.num_leds	= ARRAY_SIZE(p720t_gpio_leds),
+};
+
+static void __init p720t_init_late(void)
 {
-	u8 reg = clps_readb(PDDR);
-
-	if (b != LED_OFF)
-		reg |= 0x1;
-	else
-		reg &= ~0x1;
-
-	clps_writeb(reg, PDDR);
+	platform_device_register_data(&platform_bus, "leds-gpio", 0,
+				      &p720t_gpio_led_pdata,
+				      sizeof(p720t_gpio_led_pdata));
 }
-
-static enum led_brightness p720t_led_get(struct led_classdev *cdev)
-{
-	u8 reg = clps_readb(PDDR);
-
-	return (reg & 0x1) ? LED_FULL : LED_OFF;
-}
-
-static int __init p720t_leds_init(void)
-{
-
-	struct led_classdev *cdev;
-	int ret;
-
-	if (!machine_is_p720t())
-		return -ENODEV;
-
-	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
-	if (!cdev)
-		return -ENOMEM;
-
-	cdev->name = "p720t:0";
-	cdev->brightness_set = p720t_led_set;
-	cdev->brightness_get = p720t_led_get;
-	cdev->default_trigger = "heartbeat";
-
-	ret = led_classdev_register(NULL, cdev);
-	if (ret	< 0) {
-		kfree(cdev);
-		return ret;
-	}
-
-	return 0;
-}
-
-/*
- * Since we may have triggers on any subsystem, defer registration
- * until after subsystem_init.
- */
-fs_initcall(p720t_leds_init);
-#endif
 
 MACHINE_START(P720T, "ARM-Prospector720T")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
 	.fixup		= fixup_p720t,
-	.init_early	= p720t_init_early,
 	.map_io		= p720t_map_io,
+	.init_early	= p720t_init_early,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
+	.init_late	= p720t_init_late,
 	.restart	= clps711x_restart,
 MACHINE_END
