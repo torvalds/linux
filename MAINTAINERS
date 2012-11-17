@@ -5398,6 +5398,7 @@ NTB DRIVER
 M:	Jon Mason <jon.mason@intel.com>
 S:	Supported
 F:	drivers/ntb/
+F:	drivers/net/ntb_netdev.c
 F:	include/linux/ntb.h
 
 NTFS FILESYSTEM

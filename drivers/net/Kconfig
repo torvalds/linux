@@ -189,6 +189,10 @@ config NETPOLL_TRAP
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
 
+config NTB_NETDEV
+	tristate "Virtual Ethernet over NTB"
+	depends on NTB
+
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
 	depends on RAPIDIO
