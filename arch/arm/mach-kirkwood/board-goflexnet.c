@@ -26,7 +26,6 @@
 #include <linux/of_fdt.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
-#include <linux/gpio.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -61,10 +60,6 @@ void __init goflexnet_init(void)
 	 * Basic setup. Needs to be called early.
 	 */
 	kirkwood_mpp_conf(goflexnet_mpp_config);
-
-	if (gpio_request(29, "USB Power Enable") != 0 ||
-	    gpio_direction_output(29, 1) != 0)
-		pr_err("can't setup GPIO 29 (USB Power Enable)\n");
 
 	kirkwood_ge00_init(&goflexnet_ge00_data);
 }
