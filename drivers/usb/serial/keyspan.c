@@ -2426,7 +2426,7 @@ static void keyspan_release(struct usb_serial *serial)
 static int keyspan_port_probe(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	struct keyspan_port_private *s_priv;
+	struct keyspan_serial_private *s_priv;
 	struct keyspan_port_private *p_priv;
 	const struct keyspan_device_details *d_details;
 	struct callbacks *cback;
@@ -2441,7 +2441,6 @@ static int keyspan_port_probe(struct usb_serial_port *port)
 	if (!p_priv)
 		return -ENOMEM;
 
-	s_priv = usb_get_serial_data(port->serial);
 	p_priv->device_details = d_details;
 
 	/* Setup values for the various callback routines */

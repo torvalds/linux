@@ -917,7 +917,7 @@ static int tile_net_setup_interrupts(struct net_device *dev)
 	ingress_irq = rc;
 	tile_irq_activate(ingress_irq, TILE_IRQ_PERCPU);
 	rc = request_irq(ingress_irq, tile_net_handle_ingress_irq,
-			 0, NULL, NULL);
+			 0, "tile_net", NULL);
 	if (rc != 0) {
 		netdev_err(dev, "request_irq failed: %d\n", rc);
 		destroy_irq(ingress_irq);

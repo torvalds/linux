@@ -1684,9 +1684,5 @@ static inline unsigned int debug_guardpage_minorder(void) { return 0; }
 static inline bool page_is_guard(struct page *page) { return false; }
 #endif /* CONFIG_DEBUG_PAGEALLOC */
 
-extern void reset_zone_present_pages(void);
-extern void fixup_zone_present_pages(int nid, unsigned long start_pfn,
-				unsigned long end_pfn);
-
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
