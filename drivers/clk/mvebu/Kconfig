@@ -4,3 +4,5 @@ config MVEBU_CLK_CORE
 config MVEBU_CLK_CPU
        bool
 
+config MVEBU_CLK_GATING
+       bool

@@ -1,0 +1,76 @@
+* Gated Clock bindings for Marvell Orion SoCs
+
+Marvell Dove and Kirkwood allow some peripheral clocks to be gated to save
+some power. The clock consumer should specify the desired clock by having
+the clock ID in its "clocks" phandle cell. The clock ID is directly mapped to
+the corresponding clock gating control bit in HW to ease manual clock lookup
+in datasheet.
+
+The following is a list of provided IDs for Dove:
+ID	Clock	Peripheral
+-----------------------------------
+0	usb0	USB Host 0
+1	usb1	USB Host 1
+2	ge	Gigabit Ethernet
+3	sata	SATA Host
+4	pex0	PCIe Cntrl 0
+5	pex1	PCIe Cntrl 1
+8	sdio0	SDHCI Host 0
+9	sdio1	SDHCI Host 1
+10	nand	NAND Cntrl
+11	camera	Camera Cntrl
+12	i2s0	I2S Cntrl 0
+13	i2s1	I2S Cntrl 1
+15	crypto	CESA engine
+21	ac97	AC97 Cntrl
+22	pdma	Peripheral DMA
+23	xor0	XOR DMA 0
+24	xor1	XOR DMA 1
+30	gephy	Gigabit Ethernel PHY
+Note: gephy(30) is implemented as a parent clock of ge(2)
+
+The following is a list of provided IDs for Kirkwood:
+ID	Clock	Peripheral
+-----------------------------------
+0	ge0	Gigabit Ethernet 0
+2	pex0	PCIe Cntrl 0
+3	usb0	USB Host 0
+4	sdio	SDIO Cntrl
+5	tsu	Transp. Stream Unit
+6	dunit	SDRAM Cntrl
+7	runit	Runit
+8	xor0	XOR DMA 0
+9	audio	I2S Cntrl 0
+14	sata0	SATA Host 0
+15	sata1	SATA Host 1
+16	xor1	XOR DMA 1
+17	crypto	CESA engine
+18	pex1	PCIe Cntrl 1
+19	ge1	Gigabit Ethernet 0
+20	tdm	Time Division Mplx
+
+Required properties:
+- compatible : shall be one of the following:
+	"marvell,dove-gating-clock" - for Dove SoC clock gating
+	"marvell,kirkwood-gating-clock" - for Kirkwood SoC clock gating
+- reg : shall be the register address of the Clock Gating Control register
+- #clock-cells : from common clock binding; shall be set to 1
+
+Optional properties:
+- clocks : default parent clock phandle (e.g. tclk)
+
+Example:
+
+gate_clk: clock-gating-control@d0038 {
+	compatible = "marvell,dove-gating-clock";
+	reg = <0xd0038 0x4>;
+	/* default parent clock is tclk */
+	clocks = <&core_clk 0>;
+	#clock-cells = <1>;
+};
+
+sdio0: sdio@92000 {
+	compatible = "marvell,dove-sdhci";
+	/* get clk gate bit 8 (sdio0) */
+	clocks = <&gate_clk 8>;
+};

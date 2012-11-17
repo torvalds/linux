@@ -17,9 +17,11 @@
 #include <linux/of.h>
 #include "clk-core.h"
 #include "clk-cpu.h"
+#include "clk-gating-ctrl.h"
 
 void __init mvebu_clocks_init(void)
 {
 	mvebu_core_clk_init();
+	mvebu_gating_clk_init();
 	mvebu_cpu_clk_init();
 }
