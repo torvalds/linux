@@ -3597,6 +3597,34 @@ static ssize_t rt3261_proc_write(struct file *file, const char __user *buffer,
 			}
 			break;
 		#endif
+		case 'd':
+			if(cookie_pot[1] ==':')
+			{
+				strsep(&cookie_pot,":");
+				while((p=strsep(&cookie_pot,"=")))
+				{
+					reg = simple_strtol(p,NULL,16);
+					p=strsep(&cookie_pot,",");
+					value = simple_strtol(p,NULL,16);
+					rt3261_index_write(rt3261_codec,reg,value);
+					printk("rt3261_index_write:0x%04x = 0x%04x\n",reg,value);
+				}
+				printk("\n");
+			}
+			break;
+		case 'e':	
+			if(cookie_pot[1] ==':')
+			{
+				strsep(&cookie_pot,":");
+				while((p=strsep(&cookie_pot,",")))
+				{
+					reg = simple_strtol(p,NULL,16);
+					value = rt3261_index_read(rt3261_codec,reg);
+					printk("rt3261_index_read:0x%04x = 0x%04x\n",reg,value);
+				}
+				printk("\n");
+			}
+			break;
 		default:
 			printk("Help for rt3261_ts .\n-->The Cmd list: \n");
 			printk("-->'d&&D' Open or Off the debug\n");
