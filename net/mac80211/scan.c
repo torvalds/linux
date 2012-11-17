@@ -917,7 +917,7 @@ int ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 				       struct cfg80211_sched_scan_request *req)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_sched_scan_ies sched_scan_ies;
+	struct ieee80211_sched_scan_ies sched_scan_ies = {};
 	int ret, i;
 
 	mutex_lock(&local->mtx);
