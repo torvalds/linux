@@ -83,6 +83,7 @@ fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
 
 static void __init edb7211_init(void)
 {
+	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
 					ARRAY_SIZE(edb7211_cs8900_resource));
 }

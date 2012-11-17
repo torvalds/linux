@@ -119,6 +119,11 @@ static struct gpio_led_platform_data p720t_gpio_led_pdata __initdata = {
 	.num_leds	= ARRAY_SIZE(p720t_gpio_leds),
 };
 
+static void __init p720t_init(void)
+{
+	platform_device_register_simple("video-clps711x", 0, NULL, 0);
+}
+
 static void __init p720t_init_late(void)
 {
 	platform_device_register_data(&platform_bus, "leds-gpio", 0,
@@ -134,6 +139,7 @@ MACHINE_START(P720T, "ARM-Prospector720T")
 	.init_early	= p720t_init_early,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
+	.init_machine	= p720t_init,
 	.init_late	= p720t_init_late,
 	.restart	= clps711x_restart,
 MACHINE_END

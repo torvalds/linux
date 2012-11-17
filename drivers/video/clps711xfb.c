@@ -270,7 +270,7 @@ static const struct file_operations backlight_proc_fops = {
 	.write		= backlight_proc_write,
 };
 
-static void __init clps711x_guess_lcd_params(struct fb_info *info)
+static void __devinit clps711x_guess_lcd_params(struct fb_info *info)
 {
 	unsigned int lcdcon, syscon, size;
 	unsigned long phys_base = PAGE_OFFSET;
@@ -358,7 +358,7 @@ static void __init clps711x_guess_lcd_params(struct fb_info *info)
 	info->fix.type       = FB_TYPE_PACKED_PIXELS;
 }
 
-int __init clps711xfb_init(void)
+static int __devinit clps711x_fb_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 
@@ -410,7 +410,7 @@ int __init clps711xfb_init(void)
 out:	return err;
 }
 
-static void __exit clps711xfb_exit(void)
+static int __devexit clps711x_fb_remove(struct platform_device *pdev)
 {
 	unregister_framebuffer(cfb);
 	kfree(cfb);
@@ -422,11 +422,20 @@ static void __exit clps711xfb_exit(void)
 		PLD_LCDEN = 0;
 		PLD_PWR &= ~(PLD_S4_ON|PLD_S3_ON|PLD_S2_ON|PLD_S1_ON);
 	}
+
+	return 0;
 }
 
-module_init(clps711xfb_init);
-module_exit(clps711xfb_exit);
+static struct platform_driver clps711x_fb_driver = {
+	.driver	= {
+		.name	= "video-clps711x",
+		.owner	= THIS_MODULE,
+	},
+	.probe	= clps711x_fb_probe,
+	.remove	= __devexit_p(clps711x_fb_remove),
+};
+module_platform_driver(clps711x_fb_driver);
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
-MODULE_DESCRIPTION("CLPS711x framebuffer driver");
+MODULE_DESCRIPTION("CLPS711X framebuffer driver");
 MODULE_LICENSE("GPL");

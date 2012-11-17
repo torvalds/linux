@@ -61,6 +61,7 @@ static struct platform_device autcpu12_nvram_pdev __initdata = {
 
 static void __init autcpu12_init(void)
 {
+	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, autcpu12_cs8900_resource,
 					ARRAY_SIZE(autcpu12_cs8900_resource));
 	platform_device_register(&autcpu12_nvram_pdev);
