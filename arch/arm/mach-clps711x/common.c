@@ -66,10 +66,6 @@ static void int1_mask(struct irq_data *d)
 	clps_writel(intmr1, INTMR1);
 }
 
-static void int1_ack(struct irq_data *d)
-{
-}
-
 static void int1_eoi(struct irq_data *d)
 {
 	switch (d->irq) {
@@ -93,7 +89,6 @@ static void int1_unmask(struct irq_data *d)
 
 static struct irq_chip int1_chip = {
 	.name		= "Interrupt Vector 1",
-	.irq_ack	= int1_ack,
 	.irq_eoi	= int1_eoi,
 	.irq_mask	= int1_mask,
 	.irq_unmask	= int1_unmask,
@@ -106,10 +101,6 @@ static void int2_mask(struct irq_data *d)
 	intmr2 = clps_readl(INTMR2);
 	intmr2 &= ~(1 << (d->irq - 16));
 	clps_writel(intmr2, INTMR2);
-}
-
-static void int2_ack(struct irq_data *d)
-{
 }
 
 static void int2_eoi(struct irq_data *d)
@@ -130,7 +121,6 @@ static void int2_unmask(struct irq_data *d)
 
 static struct irq_chip int2_chip = {
 	.name		= "Interrupt Vector 2",
-	.irq_ack	= int2_ack,
 	.irq_eoi	= int2_eoi,
 	.irq_mask	= int2_mask,
 	.irq_unmask	= int2_unmask,
