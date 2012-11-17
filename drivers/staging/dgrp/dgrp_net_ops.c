@@ -2495,7 +2495,7 @@ data:
 
 			/*
 			 *  Fabricate and insert a data packet header to
-			 *  preceed the remaining data when it comes in.
+			 *  preced the remaining data when it comes in.
 			 */
 
 			if (remain < plen) {
@@ -2664,7 +2664,7 @@ data:
 						}
 
 						/*
-						 *  Handle delayed response arrival preceeding
+						 *  Handle delayed response arrival preceding
 						 *  the open response we are waiting for.
 						 */
 
@@ -3502,7 +3502,7 @@ void dgrp_poll_handler(unsigned long arg)
 		/*
 		 * Decrement statistics.  These are only for use with
 		 * KME, so don't worry that the operations are done
-		 * unlocked, and so the results are occassionally wrong.
+		 * unlocked, and so the results are occasionally wrong.
 		 */
 
 		nd->nd_read_count -= (nd->nd_read_count +
