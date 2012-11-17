@@ -12,5 +12,6 @@ struct sys_timer;
 
 extern void clps711x_map_io(void);
 extern void clps711x_init_irq(void);
-extern struct sys_timer clps711x_timer;
+extern void clps711x_handle_irq(struct pt_regs *regs);
 extern void clps711x_restart(char mode, const char *cmd);
+extern struct sys_timer clps711x_timer;

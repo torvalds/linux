@@ -29,6 +29,7 @@
 #include <linux/clockchips.h>
 #include <linux/clk-provider.h>
 
+#include <asm/exception.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
@@ -134,13 +135,11 @@ static struct irq_chip int2_chip = {
 	.irq_unmask	= int2_unmask,
 };
 
-struct clps711x_irqdesc {
+static struct {
 	int			nr;
 	struct irq_chip		*chip;
 	irq_flow_handler_t	handle;
-};
-
-static struct clps711x_irqdesc clps711x_irqdescs[] __initdata = {
+} clps711x_irqdescs[] __initdata = {
 	{ IRQ_CSINT,	&int1_chip,	handle_fasteoi_irq,	},
 	{ IRQ_EINT1,	&int1_chip,	handle_level_irq,	},
 	{ IRQ_EINT2,	&int1_chip,	handle_level_irq,	},
@@ -189,6 +188,44 @@ void __init clps711x_init_irq(void)
 		set_irq_flags(clps711x_irqdescs[i].nr,
 			      IRQF_VALID | IRQF_PROBE);
 	}
+}
+
+inline u32 fls16(u32 x)
+{
+	u32 r = 15;
+
+	if (!(x & 0xff00)) {
+		x <<= 8;
+		r -= 8;
+	}
+	if (!(x & 0xf000)) {
+		x <<= 4;
+		r -= 4;
+	}
+	if (!(x & 0xc000)) {
+		x <<= 2;
+		r -= 2;
+	}
+	if (!(x & 0x8000))
+		r--;
+
+	return r;
+}
+
+asmlinkage void __exception_irq_entry clps711x_handle_irq(struct pt_regs *regs)
+{
+	u32 irqstat;
+	void __iomem *base = CLPS711X_VIRT_BASE;
+
+	irqstat = readl_relaxed(base + INTSR1) & readl_relaxed(base + INTMR1);
+	if (irqstat) {
+		handle_IRQ(fls16(irqstat), regs);
+		return;
+	}
+
+	irqstat = readl_relaxed(base + INTSR2) & readl_relaxed(base + INTMR2);
+	if (likely(irqstat))
+		handle_IRQ(fls16(irqstat) + 16, regs);
 }
 
 static void clps711x_clockevent_set_mode(enum clock_event_mode mode,

@@ -142,5 +142,6 @@ MACHINE_START(P720T, "ARM-Prospector720T")
 	.timer		= &clps711x_timer,
 	.init_machine	= p720t_init,
 	.init_late	= p720t_init_late,
+	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,
 MACHINE_END

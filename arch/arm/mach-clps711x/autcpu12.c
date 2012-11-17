@@ -75,6 +75,7 @@ MACHINE_START(AUTCPU12, "autronix autcpu12")
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
 	.init_machine	= autcpu12_init,
+	.handle_irq	= clps711x_handle_irq,
 	.restart	= clps711x_restart,
 MACHINE_END
 
