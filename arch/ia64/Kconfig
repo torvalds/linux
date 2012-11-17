@@ -42,6 +42,8 @@ config IA64
 	select GENERIC_TIME_VSYSCALL_OLD
 	select HAVE_MOD_ARCH_SPECIFIC
 	select MODULES_USE_ELF_RELA
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to
