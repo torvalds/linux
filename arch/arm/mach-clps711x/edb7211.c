@@ -16,6 +16,9 @@
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
 
+#include <linux/mtd/physmap.h>
+#include <linux/mtd/partitions.h>
+
 #include <asm/setup.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
@@ -33,12 +36,43 @@
 #define EDB7211_LCDEN		CLPS711X_GPIO(3, 2)
 #define EDB7211_LCDBL		CLPS711X_GPIO(3, 3)
 
+#define EDB7211_FLASH0_BASE	(CS0_PHYS_BASE)
+#define EDB7211_FLASH1_BASE	(CS1_PHYS_BASE)
 #define EDB7211_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define EDB7211_CS8900_IRQ	(IRQ_EINT3)
 
 static struct resource edb7211_cs8900_resource[] __initdata = {
 	DEFINE_RES_MEM(EDB7211_CS8900_BASE, SZ_1K),
 	DEFINE_RES_IRQ(EDB7211_CS8900_IRQ),
+};
+
+static struct mtd_partition edb7211_flash_partitions[] __initdata = {
+	{
+		.name	= "Flash",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data edb7211_flash_pdata __initdata = {
+	.width		= 4,
+	.parts		= edb7211_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(edb7211_flash_partitions),
+};
+
+static struct resource edb7211_flash_resources[] __initdata = {
+	DEFINE_RES_MEM(EDB7211_FLASH0_BASE, SZ_8M),
+	DEFINE_RES_MEM(EDB7211_FLASH1_BASE, SZ_8M),
+};
+
+static struct platform_device edb7211_flash_pdev __initdata = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= edb7211_flash_resources,
+	.num_resources	= ARRAY_SIZE(edb7211_flash_resources),
+	.dev	= {
+		.platform_data	= &edb7211_flash_pdata,
+	},
 };
 
 static void edb7211_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
@@ -82,16 +116,6 @@ static struct map_desc edb7211_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(EP7211_PHYS_EXTKBD),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE,
-	}, {	/* Flash bank 0 */
-		.virtual	= IO_ADDRESS(EP7211_PHYS_FLASH1),
-		.pfn		= __phys_to_pfn(EP7211_PHYS_FLASH1),
-		.length		= SZ_8M,
-		.type		= MT_DEVICE,
-	}, {	/* Flash bank 1 */
-		.virtual	= IO_ADDRESS(EP7211_PHYS_FLASH2),
-		.pfn		= __phys_to_pfn(EP7211_PHYS_FLASH2),
-		.length		= SZ_8M,
-		.type		= MT_DEVICE,
 	},
 };
 
@@ -129,6 +153,7 @@ static void __init edb7211_init(void)
 {
 	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
 
+	platform_device_register(&edb7211_flash_pdev);
 	platform_device_register_data(&platform_bus, "platform-lcd", 0,
 				      &edb7211_lcd_power_pdata,
 				      sizeof(edb7211_lcd_power_pdata));

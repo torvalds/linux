@@ -75,10 +75,6 @@
 /* The extra 8 lines of the keyboard matrix are wired to chip select 3 */
 #define EP7211_PHYS_EXTKBD	CS3_PHYS_BASE
 
-/* The two flash banks are wired to chip selects 0 and 1 */
-#define EP7211_PHYS_FLASH1	CS0_PHYS_BASE
-#define EP7211_PHYS_FLASH2	CS1_PHYS_BASE
-
 #endif /* CONFIG_ARCH_EDB7211 */
 
 #endif
