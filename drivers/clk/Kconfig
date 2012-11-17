@@ -54,3 +54,5 @@ config COMMON_CLK_MAX77686
 	  This driver supports Maxim 77686 crystal oscillator clock. 
 
 endmenu
+
+source "drivers/clk/mvebu/Kconfig"

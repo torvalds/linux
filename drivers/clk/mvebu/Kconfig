@@ -1,0 +1,3 @@
+config MVEBU_CLK_CORE
+       bool
+
