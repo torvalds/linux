@@ -890,7 +890,7 @@ void __init setup_arch(char **cmdline_p)
 
 	cleanup_highmap();
 
-	memblock.current_limit = get_max_mapped();
+	memblock.current_limit = ISA_END_ADDRESS;
 	memblock_x86_fill();
 
 	/*
