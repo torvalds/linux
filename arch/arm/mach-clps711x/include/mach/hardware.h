@@ -64,21 +64,10 @@
 #define CS7_PHYS_BASE		(0x00000000)
 #endif
 
-#if defined (CONFIG_ARCH_CDB89712)
-
-#define ETHER_PHYS_BASE		CS2_PHYS_BASE
-#define ETHER_SIZE		0x1000
-
-#endif
-
-
 #if defined (CONFIG_ARCH_EDB7211)
 
 /* The extra 8 lines of the keyboard matrix are wired to chip select 3 */
 #define EP7211_PHYS_EXTKBD	CS3_PHYS_BASE
-
-/* The CS8900A ethernet chip has its I/O registers wired to chip select 2 */
-#define EP7211_PHYS_CS8900A	CS2_PHYS_BASE
 
 /* The two flash banks are wired to chip selects 0 and 1 */
 #define EP7211_PHYS_FLASH1	CS0_PHYS_BASE

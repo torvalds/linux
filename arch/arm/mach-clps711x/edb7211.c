@@ -10,6 +10,8 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/types.h>
+#include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/setup.h>
 #include <asm/mach/map.h>
@@ -20,17 +22,20 @@
 
 #include "common.h"
 
-#define VIDEORAM_SIZE	SZ_128K
+#define VIDEORAM_SIZE		SZ_128K
+
+#define EDB7211_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
+#define EDB7211_CS8900_IRQ	(IRQ_EINT3)
+
+static struct resource edb7211_cs8900_resource[] __initdata = {
+	DEFINE_RES_MEM(EDB7211_CS8900_BASE, SZ_1K),
+	DEFINE_RES_IRQ(EDB7211_CS8900_IRQ),
+};
 
 static struct map_desc edb7211_io_desc[] __initdata = {
 	{	/* Memory-mapped extra keyboard row */
 		.virtual	= IO_ADDRESS(EP7211_PHYS_EXTKBD),
 		.pfn		= __phys_to_pfn(EP7211_PHYS_EXTKBD),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE,
-	}, {	/* CS8900A Ethernet chip */
-		.virtual	= IO_ADDRESS(EP7211_PHYS_CS8900A),
-		.pfn		= __phys_to_pfn(EP7211_PHYS_CS8900A),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE,
 	}, {	/* Flash bank 0 */
@@ -76,13 +81,20 @@ fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
 	mi->nr_banks = 2;
 }
 
+static void __init edb7211_init(void)
+{
+	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
+					ARRAY_SIZE(edb7211_cs8900_resource));
+}
+
 MACHINE_START(EDB7211, "CL-EDB7211 (EP7211 eval board)")
 	/* Maintainer: Jon McClintock */
 	.atag_offset	= VIDEORAM_SIZE + 0x100,
 	.fixup		= fixup_edb7211,
-	.map_io		= edb7211_map_io,
 	.reserve	= edb7211_reserve,
+	.map_io		= edb7211_map_io,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
+	.init_machine	= edb7211_init,
 	.restart	= clps711x_restart,
 MACHINE_END

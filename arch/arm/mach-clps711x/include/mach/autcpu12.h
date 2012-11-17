@@ -20,9 +20,6 @@
 #ifndef __ASM_ARCH_AUTCPU12_H
 #define __ASM_ARCH_AUTCPU12_H
 
-/* The CS8900A ethernet chip has its I/O registers wired to chip select 2 */
-#define AUTCPU12_PHYS_CS8900A		CS2_PHYS_BASE
-
 /*
  * The flash bank is wired to chip select 0
  */
