@@ -30,6 +30,7 @@
 #include <linux/clk-provider.h>
 
 #include <asm/exception.h>
+#include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
@@ -91,7 +92,7 @@ static void int1_unmask(struct irq_data *d)
 }
 
 static struct irq_chip int1_chip = {
-	.name		= "Interrupt Vector 1  ",
+	.name		= "Interrupt Vector 1",
 	.irq_ack	= int1_ack,
 	.irq_eoi	= int1_eoi,
 	.irq_mask	= int1_mask,
@@ -128,11 +129,35 @@ static void int2_unmask(struct irq_data *d)
 }
 
 static struct irq_chip int2_chip = {
-	.name		= "Interrupt Vector 2  ",
+	.name		= "Interrupt Vector 2",
 	.irq_ack	= int2_ack,
 	.irq_eoi	= int2_eoi,
 	.irq_mask	= int2_mask,
 	.irq_unmask	= int2_unmask,
+};
+
+static void int3_mask(struct irq_data *d)
+{
+	u32 intmr3;
+
+	intmr3 = clps_readl(INTMR3);
+	intmr3 &= ~(1 << (d->irq - 32));
+	clps_writel(intmr3, INTMR3);
+}
+
+static void int3_unmask(struct irq_data *d)
+{
+	u32 intmr3;
+
+	intmr3 = clps_readl(INTMR3);
+	intmr3 |= 1 << (d->irq - 32);
+	clps_writel(intmr3, INTMR3);
+}
+
+static struct irq_chip int3_chip = {
+	.name		= "Interrupt Vector 3",
+	.irq_mask	= int3_mask,
+	.irq_unmask	= int3_unmask,
 };
 
 static struct {
@@ -187,6 +212,14 @@ void __init clps711x_init_irq(void)
 					 clps711x_irqdescs[i].handle);
 		set_irq_flags(clps711x_irqdescs[i].nr,
 			      IRQF_VALID | IRQF_PROBE);
+	}
+
+	if (IS_ENABLED(CONFIG_FIQ)) {
+		init_FIQ(0);
+		irq_set_chip_and_handler(IRQ_DAIINT, &int3_chip,
+					 handle_bad_irq);
+		set_irq_flags(IRQ_DAIINT,
+			      IRQF_VALID | IRQF_PROBE | IRQF_NOAUTOEN);
 	}
 }
 

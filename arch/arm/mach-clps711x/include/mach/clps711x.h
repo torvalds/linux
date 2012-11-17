@@ -298,4 +298,7 @@
 #define IRQ_UTXINT2		(16 + 12)
 #define IRQ_URXINT2		(16 + 13)
 
+/* INTSR3 Interrupts */
+#define IRQ_DAIINT		(32 + 0)
+
 #endif /* __MACH_CLPS711X_H */
