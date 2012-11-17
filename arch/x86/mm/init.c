@@ -243,6 +243,38 @@ static unsigned long __init calculate_table_space_size(unsigned long start, unsi
 	return tables;
 }
 
+static unsigned long __init calculate_all_table_space_size(void)
+{
+	unsigned long start_pfn, end_pfn;
+	unsigned long tables;
+	int i;
+
+	/* the ISA range is always mapped regardless of memory holes */
+	tables = calculate_table_space_size(0, ISA_END_ADDRESS);
+
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
+		u64 start = start_pfn << PAGE_SHIFT;
+		u64 end = end_pfn << PAGE_SHIFT;
+
+		if (end <= ISA_END_ADDRESS)
+			continue;
+
+		if (start < ISA_END_ADDRESS)
+			start = ISA_END_ADDRESS;
+#ifdef CONFIG_X86_32
+		/* on 32 bit, we only map up to max_low_pfn */
+		if ((start >> PAGE_SHIFT) >= max_low_pfn)
+			continue;
+
+		if ((end >> PAGE_SHIFT) > max_low_pfn)
+			end = max_low_pfn << PAGE_SHIFT;
+#endif
+		tables += calculate_table_space_size(start, end);
+	}
+
+	return tables;
+}
+
 static void __init find_early_table_space(unsigned long start,
 					  unsigned long good_end,
 					  unsigned long tables)
@@ -256,6 +288,34 @@ static void __init find_early_table_space(unsigned long start,
 	pgt_buf_start = base >> PAGE_SHIFT;
 	pgt_buf_end = pgt_buf_start;
 	pgt_buf_top = pgt_buf_start + (tables >> PAGE_SHIFT);
+}
+
+static struct range pfn_mapped[E820_X_MAX];
+static int nr_pfn_mapped;
+
+static void add_pfn_range_mapped(unsigned long start_pfn, unsigned long end_pfn)
+{
+	nr_pfn_mapped = add_range_with_merge(pfn_mapped, E820_X_MAX,
+					     nr_pfn_mapped, start_pfn, end_pfn);
+	nr_pfn_mapped = clean_sort_range(pfn_mapped, E820_X_MAX);
+
+	max_pfn_mapped = max(max_pfn_mapped, end_pfn);
+
+	if (start_pfn < (1UL<<(32-PAGE_SHIFT)))
+		max_low_pfn_mapped = max(max_low_pfn_mapped,
+					 min(end_pfn, 1UL<<(32-PAGE_SHIFT)));
+}
+
+bool pfn_range_is_mapped(unsigned long start_pfn, unsigned long end_pfn)
+{
+	int i;
+
+	for (i = 0; i < nr_pfn_mapped; i++)
+		if ((start_pfn >= pfn_mapped[i].start) &&
+		    (end_pfn <= pfn_mapped[i].end))
+			return true;
+
+	return false;
 }
 
 /*
@@ -288,7 +348,53 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
 
 	__flush_tlb_all();
 
+	add_pfn_range_mapped(start >> PAGE_SHIFT, ret >> PAGE_SHIFT);
+
 	return ret >> PAGE_SHIFT;
+}
+
+/*
+ * Iterate through E820 memory map and create direct mappings for only E820_RAM
+ * regions. We cannot simply create direct mappings for all pfns from
+ * [0 to max_low_pfn) and [4GB to max_pfn) because of possible memory holes in
+ * high addresses that cannot be marked as UC by fixed/variable range MTRRs.
+ * Depending on the alignment of E820 ranges, this may possibly result in using
+ * smaller size (i.e. 4K instead of 2M or 1G) page tables.
+ */
+static void __init init_all_memory_mapping(void)
+{
+	unsigned long start_pfn, end_pfn;
+	int i;
+
+	/* the ISA range is always mapped regardless of memory holes */
+	init_memory_mapping(0, ISA_END_ADDRESS);
+
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
+		u64 start = (u64)start_pfn << PAGE_SHIFT;
+		u64 end = (u64)end_pfn << PAGE_SHIFT;
+
+		if (end <= ISA_END_ADDRESS)
+			continue;
+
+		if (start < ISA_END_ADDRESS)
+			start = ISA_END_ADDRESS;
+#ifdef CONFIG_X86_32
+		/* on 32 bit, we only map up to max_low_pfn */
+		if ((start >> PAGE_SHIFT) >= max_low_pfn)
+			continue;
+
+		if ((end >> PAGE_SHIFT) > max_low_pfn)
+			end = max_low_pfn << PAGE_SHIFT;
+#endif
+		init_memory_mapping(start, end);
+	}
+
+#ifdef CONFIG_X86_64
+	if (max_pfn > max_low_pfn) {
+		/* can we preseve max_low_pfn ?*/
+		max_low_pfn = max_pfn;
+	}
+#endif
 }
 
 void __init init_mem_mapping(void)
@@ -311,23 +417,15 @@ void __init init_mem_mapping(void)
 	end = max_low_pfn << PAGE_SHIFT;
 	good_end = max_pfn_mapped << PAGE_SHIFT;
 #endif
-	tables = calculate_table_space_size(0, end);
+	tables = calculate_all_table_space_size();
 	find_early_table_space(0, good_end, tables);
 	printk(KERN_DEBUG "kernel direct mapping tables up to %#lx @ [mem %#010lx-%#010lx] prealloc\n",
 		end - 1, pgt_buf_start << PAGE_SHIFT,
 		(pgt_buf_top << PAGE_SHIFT) - 1);
 
-	max_low_pfn_mapped = init_memory_mapping(0, max_low_pfn<<PAGE_SHIFT);
-	max_pfn_mapped = max_low_pfn_mapped;
+	max_pfn_mapped = 0; /* will get exact value next */
+	init_all_memory_mapping();
 
-#ifdef CONFIG_X86_64
-	if (max_pfn > max_low_pfn) {
-		max_pfn_mapped = init_memory_mapping(1UL<<32,
-						     max_pfn<<PAGE_SHIFT);
-		/* can we preseve max_low_pfn ?*/
-		max_low_pfn = max_pfn;
-	}
-#endif
 	/*
 	 * Reserve the kernel pagetable pages we used (pgt_buf_start -
 	 * pgt_buf_end) and free the other ones (pgt_buf_end - pgt_buf_top)
