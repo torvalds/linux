@@ -75,10 +75,6 @@ void __init dnskw_init(void)
 
 	kirkwood_ge00_init(&dnskw_ge00_data);
 
-	/* Ensure power is supplied to both HDDs */
-	dnskw_gpio_register(39, "dnskw:power:sata0", 1);
-	dnskw_gpio_register(40, "dnskw:power:sata1", 1);
-
 	/* Set NAS to turn back on after a power failure */
 	dnskw_gpio_register(37, "dnskw:power:recover", 1);
 }
