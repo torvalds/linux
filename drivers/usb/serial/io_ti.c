@@ -2532,12 +2532,7 @@ static void edge_break(struct tty_struct *tty, int break_state)
 static int edge_startup(struct usb_serial *serial)
 {
 	struct edgeport_serial *edge_serial;
-	struct edgeport_port *edge_port;
-	struct usb_device *dev;
 	int status;
-	int i;
-
-	dev = serial->dev;
 
 	/* create our private serial structure */
 	edge_serial = kzalloc(sizeof(struct edgeport_serial), GFP_KERNEL);
@@ -2555,40 +2550,7 @@ static int edge_startup(struct usb_serial *serial)
 		return status;
 	}
 
-	/* set up our port private structures */
-	for (i = 0; i < serial->num_ports; ++i) {
-		edge_port = kzalloc(sizeof(struct edgeport_port), GFP_KERNEL);
-		if (edge_port == NULL) {
-			dev_err(&serial->dev->dev, "%s - Out of memory\n",
-								__func__);
-			goto cleanup;
-		}
-		spin_lock_init(&edge_port->ep_lock);
-		if (kfifo_alloc(&edge_port->write_fifo, EDGE_OUT_BUF_SIZE,
-								GFP_KERNEL)) {
-			dev_err(&serial->dev->dev, "%s - Out of memory\n",
-								__func__);
-			kfree(edge_port);
-			goto cleanup;
-		}
-		edge_port->port = serial->port[i];
-		edge_port->edge_serial = edge_serial;
-		usb_set_serial_port_data(serial->port[i], edge_port);
-		edge_port->bUartMode = default_uart_mode;
-	}
-
 	return 0;
-
-cleanup:
-	for (--i; i >= 0; --i) {
-		edge_port = usb_get_serial_port_data(serial->port[i]);
-		kfifo_free(&edge_port->write_fifo);
-		kfree(edge_port);
-		usb_set_serial_port_data(serial->port[i], NULL);
-	}
-	kfree(edge_serial);
-	usb_set_serial_data(serial, NULL);
-	return -ENOMEM;
 }
 
 static void edge_disconnect(struct usb_serial *serial)
@@ -2597,17 +2559,54 @@ static void edge_disconnect(struct usb_serial *serial)
 
 static void edge_release(struct usb_serial *serial)
 {
-	int i;
-	struct edgeport_port *edge_port;
-
-	for (i = 0; i < serial->num_ports; ++i) {
-		edge_port = usb_get_serial_port_data(serial->port[i]);
-		kfifo_free(&edge_port->write_fifo);
-		kfree(edge_port);
-	}
 	kfree(usb_get_serial_data(serial));
 }
 
+static int edge_port_probe(struct usb_serial_port *port)
+{
+	struct edgeport_port *edge_port;
+	int ret;
+
+	edge_port = kzalloc(sizeof(*edge_port), GFP_KERNEL);
+	if (!edge_port)
+		return -ENOMEM;
+
+	ret = kfifo_alloc(&edge_port->write_fifo, EDGE_OUT_BUF_SIZE,
+								GFP_KERNEL);
+	if (ret) {
+		kfree(edge_port);
+		return -ENOMEM;
+	}
+
+	spin_lock_init(&edge_port->ep_lock);
+	edge_port->port = port;
+	edge_port->edge_serial = usb_get_serial_data(port->serial);
+	edge_port->bUartMode = default_uart_mode;
+
+	usb_set_serial_port_data(port, edge_port);
+
+	ret = edge_create_sysfs_attrs(port);
+	if (ret) {
+		kfifo_free(&edge_port->write_fifo);
+		kfree(edge_port);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int edge_port_remove(struct usb_serial_port *port)
+{
+	struct edgeport_port *edge_port;
+
+	edge_port = usb_get_serial_port_data(port);
+
+	edge_remove_sysfs_attrs(port);
+	kfifo_free(&edge_port->write_fifo);
+	kfree(edge_port);
+
+	return 0;
+}
 
 /* Sysfs Attributes */
 
@@ -2667,8 +2666,8 @@ static struct usb_serial_driver edgeport_1port_device = {
 	.attach			= edge_startup,
 	.disconnect		= edge_disconnect,
 	.release		= edge_release,
-	.port_probe		= edge_create_sysfs_attrs,
-	.port_remove		= edge_remove_sysfs_attrs,
+	.port_probe		= edge_port_probe,
+	.port_remove		= edge_port_remove,
 	.ioctl			= edge_ioctl,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,
@@ -2698,8 +2697,8 @@ static struct usb_serial_driver edgeport_2port_device = {
 	.attach			= edge_startup,
 	.disconnect		= edge_disconnect,
 	.release		= edge_release,
-	.port_probe		= edge_create_sysfs_attrs,
-	.port_remove		= edge_remove_sysfs_attrs,
+	.port_probe		= edge_port_probe,
+	.port_remove		= edge_port_remove,
 	.ioctl			= edge_ioctl,
 	.set_termios		= edge_set_termios,
 	.tiocmget		= edge_tiocmget,

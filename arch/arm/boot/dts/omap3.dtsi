@@ -257,7 +257,7 @@
 			interrupt-names = "common", "tx", "rx", "sidetone";
 			interrupt-parent = <&intc>;
 			ti,buffer-size = <1280>;
-			ti,hwmods = "mcbsp2";
+			ti,hwmods = "mcbsp2", "mcbsp2_sidetone";
 		};
 
 		mcbsp3: mcbsp@49024000 {
@@ -272,7 +272,7 @@
 			interrupt-names = "common", "tx", "rx", "sidetone";
 			interrupt-parent = <&intc>;
 			ti,buffer-size = <128>;
-			ti,hwmods = "mcbsp3";
+			ti,hwmods = "mcbsp3", "mcbsp3_sidetone";
 		};
 
 		mcbsp4: mcbsp@49026000 {

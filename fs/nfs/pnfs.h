@@ -62,6 +62,7 @@ enum {
 	NFS_LAYOUT_RW_FAILED,		/* get rw layout failed stop trying */
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
+	NFS_LAYOUT_RETURN,		/* Return this layout ASAP */
 };
 
 enum layoutdriver_policy_flags {

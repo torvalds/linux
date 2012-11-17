@@ -32,11 +32,8 @@ typedef void (*syscall_t)(void);
 syscall_t sys_call_table[__NR_syscall_count] /* FIXME __cacheline_aligned */= {
 	[0 ... __NR_syscall_count - 1] = (syscall_t)&sys_ni_syscall,
 
-#undef __SYSCALL
 #define __SYSCALL(nr,symbol,nargs) [ nr ] = (syscall_t)symbol,
-#undef _XTENSA_UNISTD_H
-#undef  __KERNEL_SYSCALLS__
-#include <asm/unistd.h>
+#include <uapi/asm/unistd.h>
 };
 
 asmlinkage long xtensa_shmat(int shmid, char __user *shmaddr, int shmflg)
@@ -50,7 +47,8 @@ asmlinkage long xtensa_shmat(int shmid, char __user *shmaddr, int shmflg)
 	return (long)ret;
 }
 
-asmlinkage long xtensa_fadvise64_64(int fd, int advice, unsigned long long offset, unsigned long long len)
+asmlinkage long xtensa_fadvise64_64(int fd, int advice,
+		unsigned long long offset, unsigned long long len)
 {
 	return sys_fadvise64_64(fd, offset, len, advice);
 }

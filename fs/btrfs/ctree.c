@@ -596,6 +596,11 @@ tree_mod_log_insert_move(struct btrfs_fs_info *fs_info,
 	if (tree_mod_dont_log(fs_info, eb))
 		return 0;
 
+	/*
+	 * When we override something during the move, we log these removals.
+	 * This can only happen when we move towards the beginning of the
+	 * buffer, i.e. dst_slot < src_slot.
+	 */
 	for (i = 0; i + dst_slot < src_slot && i < nr_items; i++) {
 		ret = tree_mod_log_insert_key_locked(fs_info, eb, i + dst_slot,
 					      MOD_LOG_KEY_REMOVE_WHILE_MOVING);
@@ -646,8 +651,6 @@ tree_mod_log_insert_root(struct btrfs_fs_info *fs_info,
 
 	if (tree_mod_dont_log(fs_info, NULL))
 		return 0;
-
-	__tree_mod_log_free_eb(fs_info, old_root);
 
 	ret = tree_mod_alloc(fs_info, flags, &tm);
 	if (ret < 0)
@@ -926,12 +929,7 @@ static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
 			ret = btrfs_dec_ref(trans, root, buf, 1, 1);
 			BUG_ON(ret); /* -ENOMEM */
 		}
-		/*
-		 * don't log freeing in case we're freeing the root node, this
-		 * is done by tree_mod_log_set_root_pointer later
-		 */
-		if (buf != root->node && btrfs_header_level(buf) != 0)
-			tree_mod_log_free_eb(root->fs_info, buf);
+		tree_mod_log_free_eb(root->fs_info, buf);
 		clean_tree_block(trans, root, buf);
 		*last_ref = 1;
 	}
@@ -1225,6 +1223,8 @@ tree_mod_log_rewind(struct btrfs_fs_info *fs_info, struct extent_buffer *eb,
 	free_extent_buffer(eb);
 
 	__tree_mod_log_rewind(eb_rewin, time_seq, tm);
+	WARN_ON(btrfs_header_nritems(eb_rewin) >
+		BTRFS_NODEPTRS_PER_BLOCK(fs_info->fs_root));
 
 	return eb_rewin;
 }
@@ -1241,9 +1241,11 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 {
 	struct tree_mod_elem *tm;
 	struct extent_buffer *eb;
+	struct extent_buffer *old;
 	struct tree_mod_root *old_root = NULL;
 	u64 old_generation = 0;
 	u64 logical;
+	u32 blocksize;
 
 	eb = btrfs_read_lock_root_node(root);
 	tm = __tree_mod_log_oldest_root(root->fs_info, root, time_seq);
@@ -1259,14 +1261,32 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 	}
 
 	tm = tree_mod_log_search(root->fs_info, logical, time_seq);
-	if (old_root)
+	if (old_root && tm && tm->op != MOD_LOG_KEY_REMOVE_WHILE_FREEING) {
+		btrfs_tree_read_unlock(root->node);
+		free_extent_buffer(root->node);
+		blocksize = btrfs_level_size(root, old_root->level);
+		old = read_tree_block(root, logical, blocksize, 0);
+		if (!old) {
+			pr_warn("btrfs: failed to read tree block %llu from get_old_root\n",
+				logical);
+			WARN_ON(1);
+		} else {
+			eb = btrfs_clone_extent_buffer(old);
+			free_extent_buffer(old);
+		}
+	} else if (old_root) {
+		btrfs_tree_read_unlock(root->node);
+		free_extent_buffer(root->node);
 		eb = alloc_dummy_extent_buffer(logical, root->nodesize);
-	else
+	} else {
 		eb = btrfs_clone_extent_buffer(root->node);
-	btrfs_tree_read_unlock(root->node);
-	free_extent_buffer(root->node);
+		btrfs_tree_read_unlock(root->node);
+		free_extent_buffer(root->node);
+	}
+
 	if (!eb)
 		return NULL;
+	extent_buffer_get(eb);
 	btrfs_tree_read_lock(eb);
 	if (old_root) {
 		btrfs_set_header_bytenr(eb, eb->start);
@@ -1279,9 +1299,26 @@ get_old_root(struct btrfs_root *root, u64 time_seq)
 		__tree_mod_log_rewind(eb, time_seq, tm);
 	else
 		WARN_ON(btrfs_header_level(eb) != 0);
-	extent_buffer_get(eb);
+	WARN_ON(btrfs_header_nritems(eb) > BTRFS_NODEPTRS_PER_BLOCK(root));
 
 	return eb;
+}
+
+int btrfs_old_root_level(struct btrfs_root *root, u64 time_seq)
+{
+	struct tree_mod_elem *tm;
+	int level;
+
+	tm = __tree_mod_log_oldest_root(root->fs_info, root, time_seq);
+	if (tm && tm->op == MOD_LOG_ROOT_REPLACE) {
+		level = tm->old_root.level;
+	} else {
+		rcu_read_lock();
+		level = btrfs_header_level(root->node);
+		rcu_read_unlock();
+	}
+
+	return level;
 }
 
 static inline int should_cow_block(struct btrfs_trans_handle *trans,
@@ -1725,6 +1762,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			goto enospc;
 		}
 
+		tree_mod_log_free_eb(root->fs_info, root->node);
 		tree_mod_log_set_root_pointer(root, child);
 		rcu_assign_pointer(root->node, child);
 
@@ -2970,8 +3008,10 @@ static int push_node_left(struct btrfs_trans_handle *trans,
 			   push_items * sizeof(struct btrfs_key_ptr));
 
 	if (push_items < src_nritems) {
-		tree_mod_log_eb_move(root->fs_info, src, 0, push_items,
-				     src_nritems - push_items);
+		/*
+		 * don't call tree_mod_log_eb_move here, key removal was already
+		 * fully logged by tree_mod_log_eb_copy above.
+		 */
 		memmove_extent_buffer(src, btrfs_node_key_ptr_offset(0),
 				      btrfs_node_key_ptr_offset(push_items),
 				      (src_nritems - push_items) *

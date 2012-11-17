@@ -2930,10 +2930,10 @@ static void vbus_work(struct work_struct *work)
 
 		/* Get the VBUS status from the transceiver */
 		value = i2c_smbus_read_byte_data(udc->isp1301_i2c_client,
-						 ISP1301_I2C_OTG_CONTROL_2);
+						 ISP1301_I2C_INTERRUPT_SOURCE);
 
 		/* VBUS on or off? */
-		if (value & OTG_B_SESS_VLD)
+		if (value & INT_SESS_VLD)
 			udc->vbus = 1;
 		else
 			udc->vbus = 0;

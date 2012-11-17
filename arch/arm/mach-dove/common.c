@@ -32,6 +32,7 @@
 #include <linux/irq.h>
 #include <plat/time.h>
 #include <linux/platform_data/usb-ehci-orion.h>
+#include <plat/irq.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
 #include "common.h"
@@ -109,8 +110,8 @@ static void __init dove_clk_init(void)
 
 	orion_clkdev_add(NULL, "orion-ehci.0", usb0);
 	orion_clkdev_add(NULL, "orion-ehci.1", usb1);
-	orion_clkdev_add(NULL, "mv643xx_eth.0", ge);
-	orion_clkdev_add("0", "sata_mv.0", sata);
+	orion_clkdev_add(NULL, "mv643xx_eth_port.0", ge);
+	orion_clkdev_add(NULL, "sata_mv.0", sata);
 	orion_clkdev_add("0", "pcie", pex0);
 	orion_clkdev_add("1", "pcie", pex1);
 	orion_clkdev_add(NULL, "sdhci-dove.0", sdio0);
@@ -399,7 +400,7 @@ static void __init dove_dt_init(void)
 		(dove_tclk + 499999) / 1000000);
 
 #ifdef CONFIG_CACHE_TAUROS2
-	tauros2_init();
+	tauros2_init(0);
 #endif
 	dove_setup_cpu_mbus();
 
@@ -415,7 +416,6 @@ static void __init dove_dt_init(void)
 	dove_ehci0_init();
 	dove_ehci1_init();
 	dove_pcie_init(1, 1);
-	dove_crypto_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     dove_auxdata_lookup, NULL);

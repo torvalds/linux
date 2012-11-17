@@ -1690,10 +1690,10 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		}
 		/* all other cases */
 		pll_in_use = radeon_get_pll_use_mask(crtc);
-		if (!(pll_in_use & (1 << ATOM_PPLL2)))
-			return ATOM_PPLL2;
 		if (!(pll_in_use & (1 << ATOM_PPLL1)))
 			return ATOM_PPLL1;
+		if (!(pll_in_use & (1 << ATOM_PPLL2)))
+			return ATOM_PPLL2;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
 	} else {
@@ -1715,10 +1715,10 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 			}
 			/* all other cases */
 			pll_in_use = radeon_get_pll_use_mask(crtc);
-			if (!(pll_in_use & (1 << ATOM_PPLL2)))
-				return ATOM_PPLL2;
 			if (!(pll_in_use & (1 << ATOM_PPLL1)))
 				return ATOM_PPLL1;
+			if (!(pll_in_use & (1 << ATOM_PPLL2)))
+				return ATOM_PPLL2;
 			DRM_ERROR("unable to allocate a PPLL\n");
 			return ATOM_PPLL_INVALID;
 		} else {

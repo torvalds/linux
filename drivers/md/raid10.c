@@ -1783,7 +1783,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		clear_bit(Unmerged, &rdev->flags);
 	}
 	md_integrity_add_rdev(rdev, mddev);
-	if (blk_queue_discard(bdev_get_queue(rdev->bdev)))
+	if (mddev->queue && blk_queue_discard(bdev_get_queue(rdev->bdev)))
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
 
 	print_conf(conf);
@@ -3613,11 +3613,14 @@ static int run(struct mddev *mddev)
 			discard_supported = true;
 	}
 
-	if (discard_supported)
-		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
-	else
-		queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD, mddev->queue);
-
+	if (mddev->queue) {
+		if (discard_supported)
+			queue_flag_set_unlocked(QUEUE_FLAG_DISCARD,
+						mddev->queue);
+		else
+			queue_flag_clear_unlocked(QUEUE_FLAG_DISCARD,
+						  mddev->queue);
+	}
 	/* need to check that every block has at least one working mirror */
 	if (!enough(conf, -1)) {
 		printk(KERN_ERR "md/raid10:%s: not enough operational mirrors.\n",

@@ -162,14 +162,14 @@ void *write_thread_function(void *function_data)
 	int index;
 	struct write_thread_data *thread_data =
 		(struct write_thread_data *)function_data;
-	while (!write_thread_data->stop)
+	while (!thread_data->stop)
 		for (index = 0;
 		     !thread_data->stop && (index < thread_data->n_fds);
 		     ++index)
 			if ((write(thread_data->fds[index], &data, 1) < 1) &&
 				(errno != EAGAIN) &&
 				(errno != EWOULDBLOCK)) {
-				write_thread_data->status = errno;
+				thread_data->status = errno;
 				return;
 			}
 }

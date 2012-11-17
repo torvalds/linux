@@ -513,7 +513,7 @@ static int samsung_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
  * Parse the pin names listed in the 'samsung,pins' property and convert it
  * into a list of gpio numbers are create a pin group from it.
  */
-static int __init samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
+static int __devinit samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
 			struct device_node *cfg_np, struct pinctrl_desc *pctl,
 			unsigned int **pin_list, unsigned int *npins)
 {
@@ -560,7 +560,7 @@ static int __init samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
  * from device node of the pin-controller. A pin group is formed with all
  * the pins listed in the "samsung,pins" property.
  */
-static int __init samsung_pinctrl_parse_dt(struct platform_device *pdev,
+static int __devinit samsung_pinctrl_parse_dt(struct platform_device *pdev,
 				struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct device *dev = &pdev->dev;
@@ -655,7 +655,7 @@ static int __init samsung_pinctrl_parse_dt(struct platform_device *pdev,
 }
 
 /* register the pinctrl interface with the pinctrl subsystem */
-static int __init samsung_pinctrl_register(struct platform_device *pdev,
+static int __devinit samsung_pinctrl_register(struct platform_device *pdev,
 				struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct pinctrl_desc *ctrldesc = &drvdata->pctl;
@@ -729,7 +729,7 @@ static int __init samsung_pinctrl_register(struct platform_device *pdev,
 }
 
 /* register the gpiolib interface with the gpiolib subsystem */
-static int __init samsung_gpiolib_register(struct platform_device *pdev,
+static int __devinit samsung_gpiolib_register(struct platform_device *pdev,
 				struct samsung_pinctrl_drv_data *drvdata)
 {
 	struct gpio_chip *gc;
@@ -762,7 +762,7 @@ static int __init samsung_gpiolib_register(struct platform_device *pdev,
 }
 
 /* unregister the gpiolib interface with the gpiolib subsystem */
-static int __init samsung_gpiolib_unregister(struct platform_device *pdev,
+static int __devinit samsung_gpiolib_unregister(struct platform_device *pdev,
 				struct samsung_pinctrl_drv_data *drvdata)
 {
 	int ret = gpiochip_remove(drvdata->gc);

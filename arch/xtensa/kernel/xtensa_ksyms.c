@@ -43,7 +43,6 @@ EXPORT_SYMBOL(__strncpy_user);
 EXPORT_SYMBOL(clear_page);
 EXPORT_SYMBOL(copy_page);
 
-EXPORT_SYMBOL(kernel_thread);
 EXPORT_SYMBOL(empty_zero_page);
 
 /*

@@ -24,17 +24,17 @@
 #include <linux/clkdev.h>
 #include <mach/common.h>
 
-#define FRQMR   0xffc80014
-#define MSTPCR0 0xffc80030
-#define MSTPCR1 0xffc80034
-#define MSTPCR3 0xffc8003c
-#define MSTPSR1 0xffc80044
-#define MSTPSR4 0xffc80048
-#define MSTPSR6 0xffc8004c
-#define MSTPCR4 0xffc80050
-#define MSTPCR5 0xffc80054
-#define MSTPCR6 0xffc80058
-#define MSTPCR7 0xffc80040
+#define FRQMR		IOMEM(0xffc80014)
+#define MSTPCR0		IOMEM(0xffc80030)
+#define MSTPCR1		IOMEM(0xffc80034)
+#define MSTPCR3		IOMEM(0xffc8003c)
+#define MSTPSR1		IOMEM(0xffc80044)
+#define MSTPSR4		IOMEM(0xffc80048)
+#define MSTPSR6		IOMEM(0xffc8004c)
+#define MSTPCR4		IOMEM(0xffc80050)
+#define MSTPCR5		IOMEM(0xffc80054)
+#define MSTPCR6		IOMEM(0xffc80058)
+#define MSTPCR7		IOMEM(0xffc80040)
 
 /* ioremap() through clock mapping mandatory to avoid
  * collision with ARM coherent DMA virtual memory range.
