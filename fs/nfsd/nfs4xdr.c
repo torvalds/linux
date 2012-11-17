@@ -1624,38 +1624,8 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 		op = &argp->ops[i];
 		op->replay = NULL;
 
-		/*
-		 * We can't use READ_BUF() here because we need to handle
-		 * a missing opcode as an OP_WRITE + 1. So we need to check
-		 * to see if we're truly at the end of our buffer or if there
-		 * is another page we need to flip to.
-		 */
-
-		if (argp->p == argp->end) {
-			if (argp->pagelen < 4) {
-				/* There isn't an opcode still on the wire */
-				op->opnum = OP_WRITE + 1;
-				op->status = nfserr_bad_xdr;
-				argp->opcnt = i+1;
-				break;
-			}
-
-			/*
-			 * False alarm. We just hit a page boundary, but there
-			 * is still data available.  Move pointer across page
-			 * boundary.  *snip from READ_BUF*
-			 */
-			argp->p = page_address(argp->pagelist[0]);
-			argp->pagelist++;
-			if (argp->pagelen < PAGE_SIZE) {
-				argp->end = argp->p + (argp->pagelen>>2);
-				argp->pagelen = 0;
-			} else {
-				argp->end = argp->p + (PAGE_SIZE>>2);
-				argp->pagelen -= PAGE_SIZE;
-			}
-		}
-		op->opnum = ntohl(*argp->p++);
+		READ_BUF(4);
+		READ32(op->opnum);
 
 		if (op->opnum >= FIRST_NFS4_OP && op->opnum <= LAST_NFS4_OP)
 			op->status = ops->decoders[op->opnum](argp, &op->u);
