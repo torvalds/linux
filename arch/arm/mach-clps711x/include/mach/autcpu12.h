@@ -40,8 +40,6 @@
 
 #define AUTCPU12_PHYS_CSAUX1           	CS1_PHYS_BASE +0x04000000  /* physical */
 
-#define AUTCPU12_PHYS_SMC              	CS1_PHYS_BASE +0x06000000  /* physical */
-
 #define AUTCPU12_PHYS_CAN              	CS1_PHYS_BASE +0x08000000  /* physical */
 
 #define AUTCPU12_PHYS_TOUCH            	CS1_PHYS_BASE +0x0A000000  /* physical */
@@ -50,14 +48,6 @@
 
 #define AUTCPU12_PHYS_LPT              	CS1_PHYS_BASE +0x0E000000  /* physical */
 
-/* 
-* defines for smartmedia card access 
-*/
-#define AUTCPU12_SMC_RDY		(1<<2)
-#define AUTCPU12_SMC_ALE		(1<<3)
-#define AUTCPU12_SMC_CLE  		(1<<4)
-#define AUTCPU12_SMC_PORT_OFFSET	PBDR
-#define AUTCPU12_SMC_SELECT_OFFSET 	0x10
 /*
 * defines for lcd contrast 
 */
