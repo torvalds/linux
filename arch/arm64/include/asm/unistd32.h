@@ -23,7 +23,7 @@
 
 __SYSCALL(0,   sys_restart_syscall)
 __SYSCALL(1,   sys_exit)
-__SYSCALL(2,   compat_sys_fork_wrapper)
+__SYSCALL(2,   compat_sys_fork)
 __SYSCALL(3,   sys_read)
 __SYSCALL(4,   sys_write)
 __SYSCALL(5,   compat_sys_open)
@@ -141,7 +141,7 @@ __SYSCALL(116, compat_sys_sysinfo)
 __SYSCALL(117, sys_ni_syscall)			/* 117 was sys_ipc */
 __SYSCALL(118, sys_fsync)
 __SYSCALL(119, compat_sys_sigreturn_wrapper)
-__SYSCALL(120, compat_sys_clone_wrapper)
+__SYSCALL(120, sys_clone)
 __SYSCALL(121, sys_setdomainname)
 __SYSCALL(122, sys_newuname)
 __SYSCALL(123, sys_ni_syscall)			/* 123 was sys_modify_ldt */
@@ -211,7 +211,7 @@ __SYSCALL(186, compat_sys_sigaltstack_wrapper)
 __SYSCALL(187, compat_sys_sendfile)
 __SYSCALL(188, sys_ni_syscall)			/* 188 reserved */
 __SYSCALL(189, sys_ni_syscall)			/* 189 reserved */
-__SYSCALL(190, compat_sys_vfork_wrapper)
+__SYSCALL(190, compat_sys_vfork)
 __SYSCALL(191, compat_sys_getrlimit)		/* SuS compliant getrlimit */
 __SYSCALL(192, sys_mmap_pgoff)
 __SYSCALL(193, compat_sys_truncate64_wrapper)

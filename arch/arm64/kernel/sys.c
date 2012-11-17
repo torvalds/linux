@@ -31,14 +31,10 @@
  */
 asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
 			  int __user *parent_tidptr, unsigned long tls_val,
-			  int __user *child_tidptr, struct pt_regs *regs)
+			  int __user *child_tidptr)
 {
-	if (!newsp)
-		newsp = regs->sp;
-	/* 16-byte aligned stack mandatory on AArch64 */
-	if (newsp & 15)
-		return -EINVAL;
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
+	return do_fork(clone_flags, newsp, current_pt_regs(), 0,
+			parent_tidptr, child_tidptr);
 }
 
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
@@ -54,7 +50,6 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 /*
  * Wrappers to pass the pt_regs argument.
  */
-#define sys_clone		sys_clone_wrapper
 #define sys_rt_sigreturn	sys_rt_sigreturn_wrapper
 #define sys_sigaltstack		sys_sigaltstack_wrapper
 

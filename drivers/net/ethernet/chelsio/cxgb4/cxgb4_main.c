@@ -3416,16 +3416,6 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 			 finicsum, cfcsum);
 
 	/*
-	 * If we're a pure NIC driver then disable all offloading facilities.
-	 * This will allow the firmware to optimize aspects of the hardware
-	 * configuration which will result in improved performance.
-	 */
-	caps_cmd.ofldcaps = 0;
-	caps_cmd.iscsicaps = 0;
-	caps_cmd.rdmacaps = 0;
-	caps_cmd.fcoecaps = 0;
-
-	/*
 	 * And now tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd.op_to_write =
