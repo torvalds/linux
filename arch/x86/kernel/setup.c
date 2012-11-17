@@ -124,7 +124,6 @@
  */
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
-unsigned long min_pfn_mapped;
 
 #ifdef CONFIG_DMI
 RESERVE_BRK(dmi_alloc, 65536);

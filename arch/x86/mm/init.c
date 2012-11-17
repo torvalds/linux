@@ -23,6 +23,8 @@ unsigned long __initdata pgt_buf_start;
 unsigned long __meminitdata pgt_buf_end;
 unsigned long __meminitdata pgt_buf_top;
 
+static unsigned long min_pfn_mapped;
+
 __ref void *alloc_low_page(void)
 {
 	unsigned long pfn;
