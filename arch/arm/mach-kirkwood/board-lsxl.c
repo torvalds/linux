@@ -20,7 +20,6 @@
 #include <linux/spi/spi.h>
 #include <linux/mv643xx_eth.h>
 #include "common.h"
-#include "mpp.h"
 
 static struct mv643xx_eth_platform_data lsxl_ge00_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(0),
@@ -28,23 +27,6 @@ static struct mv643xx_eth_platform_data lsxl_ge00_data = {
 
 static struct mv643xx_eth_platform_data lsxl_ge01_data = {
 	.phy_addr	= MV643XX_ETH_PHY_ADDR(8),
-};
-
-static unsigned int lsxl_mpp_config[] __initdata = {
-	MPP10_GPO,	/* HDD Power Enable */
-	MPP11_GPIO,	/* USB Vbus Enable */
-	MPP18_GPO,	/* FAN High Enable# */
-	MPP19_GPO,	/* FAN Low Enable# */
-	MPP36_GPIO,	/* Function Blue LED */
-	MPP37_GPIO,	/* Alarm LED */
-	MPP38_GPIO,	/* Info LED */
-	MPP39_GPIO,	/* Power LED */
-	MPP40_GPIO,	/* Fan Lock */
-	MPP41_GPIO,	/* Function Button */
-	MPP42_GPIO,	/* Power Switch */
-	MPP43_GPIO,	/* Power Auto Switch */
-	MPP48_GPIO,	/* Function Red LED */
-	0
 };
 
 /*
@@ -65,7 +47,6 @@ void __init lsxl_init(void)
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_mpp_conf(lsxl_mpp_config);
 
 	kirkwood_ge00_init(&lsxl_ge00_data);
 	kirkwood_ge01_init(&lsxl_ge01_data);
