@@ -357,31 +357,20 @@ unsigned long __init_refok init_memory_mapping(unsigned long start,
  * would have hole in the middle or ends, and only ram parts will be mapped.
  */
 static unsigned long __init init_range_memory_mapping(
-					   unsigned long range_start,
-					   unsigned long range_end)
+					   unsigned long r_start,
+					   unsigned long r_end)
 {
 	unsigned long start_pfn, end_pfn;
 	unsigned long mapped_ram_size = 0;
 	int i;
 
 	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, NULL) {
-		u64 start = (u64)start_pfn << PAGE_SHIFT;
-		u64 end = (u64)end_pfn << PAGE_SHIFT;
-
-		if (end <= range_start)
+		u64 start = clamp_val(PFN_PHYS(start_pfn), r_start, r_end);
+		u64 end = clamp_val(PFN_PHYS(end_pfn), r_start, r_end);
+		if (start >= end)
 			continue;
-
-		if (start < range_start)
-			start = range_start;
-
-		if (start >= range_end)
-			continue;
-
-		if (end > range_end)
-			end = range_end;
 
 		init_memory_mapping(start, end);
-
 		mapped_ram_size += end - start;
 	}
 
