@@ -108,9 +108,6 @@
 #include <asm/topology.h>
 #include <asm/apicdef.h>
 #include <asm/amd_nb.h>
-#ifdef CONFIG_X86_64
-#include <asm/numa_64.h>
-#endif
 #include <asm/mce.h>
 #include <asm/alternative.h>
 #include <asm/prom.h>

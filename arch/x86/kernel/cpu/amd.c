@@ -12,7 +12,6 @@
 #include <asm/pci-direct.h>
 
 #ifdef CONFIG_X86_64
-# include <asm/numa_64.h>
 # include <asm/mmconfig.h>
 # include <asm/cacheflush.h>
 #endif
