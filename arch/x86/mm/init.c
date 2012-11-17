@@ -112,10 +112,6 @@ static void __init probe_page_size_mask(void)
 		__supported_pte_mask |= _PAGE_GLOBAL;
 	}
 }
-void __init native_pagetable_reserve(u64 start, u64 end)
-{
-	memblock_reserve(start, end - start);
-}
 
 #ifdef CONFIG_X86_32
 #define NR_RANGE_MR 3
