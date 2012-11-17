@@ -6,6 +6,49 @@ the clock ID in its "clocks" phandle cell. The clock ID is directly mapped to
 the corresponding clock gating control bit in HW to ease manual clock lookup
 in datasheet.
 
+The following is a list of provided IDs for Armada 370:
+ID	Clock	Peripheral
+-----------------------------------
+0	Audio	AC97 Cntrl
+1	pex0_en	PCIe 0 Clock out
+2	pex1_en	PCIe 1 Clock out
+3	ge1	Gigabit Ethernet 1
+4	ge0	Gigabit Ethernet 0
+5	pex0	PCIe Cntrl 0
+9	pex1	PCIe Cntrl 1
+15	sata0	SATA Host 0
+17	sdio	SDHCI Host
+25	tdm	Time Division Mplx
+28	ddr	DDR Cntrl
+30	sata1	SATA Host 0
+
+The following is a list of provided IDs for Armada XP:
+ID	Clock	Peripheral
+-----------------------------------
+0	audio	Audio Cntrl
+1	ge3	Gigabit Ethernet 3
+2	ge2	Gigabit Ethernet 2
+3	ge1	Gigabit Ethernet 1
+4	ge0	Gigabit Ethernet 0
+5	pex0	PCIe Cntrl 0
+6	pex1	PCIe Cntrl 1
+7	pex2	PCIe Cntrl 2
+8	pex3	PCIe Cntrl 3
+13	bp
+14	sata0lnk
+15	sata0	SATA Host 0
+16	lcd	LCD Cntrl
+17	sdio	SDHCI Host
+18	usb0	USB Host 0
+19	usb1	USB Host 1
+20	usb2	USB Host 2
+22	xor0	XOR DMA 0
+23	crypto	CESA engine
+25	tdm	Time Division Mplx
+28	xor1	XOR DMA 1
+29	sata1lnk
+30	sata1	SATA Host 0
+
 The following is a list of provided IDs for Dove:
 ID	Clock	Peripheral
 -----------------------------------
