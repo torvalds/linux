@@ -25,36 +25,45 @@ unsigned long __meminitdata pgt_buf_top;
 
 static unsigned long min_pfn_mapped;
 
-__ref void *alloc_low_page(void)
+__ref void *alloc_low_pages(unsigned int num)
 {
 	unsigned long pfn;
-	void *adr;
+	int i;
 
 #ifdef CONFIG_X86_64
 	if (after_bootmem) {
-		adr = (void *)get_zeroed_page(GFP_ATOMIC | __GFP_NOTRACK);
+		unsigned int order;
 
-		return adr;
+		order = get_order((unsigned long)num << PAGE_SHIFT);
+		return (void *)__get_free_pages(GFP_ATOMIC | __GFP_NOTRACK |
+						__GFP_ZERO, order);
 	}
 #endif
 
-	if ((pgt_buf_end + 1) >= pgt_buf_top) {
+	if ((pgt_buf_end + num) >= pgt_buf_top) {
 		unsigned long ret;
 		if (min_pfn_mapped >= max_pfn_mapped)
 			panic("alloc_low_page: ran out of memory");
 		ret = memblock_find_in_range(min_pfn_mapped << PAGE_SHIFT,
 					max_pfn_mapped << PAGE_SHIFT,
-					PAGE_SIZE, PAGE_SIZE);
+					PAGE_SIZE * num , PAGE_SIZE);
 		if (!ret)
 			panic("alloc_low_page: can not alloc memory");
-		memblock_reserve(ret, PAGE_SIZE);
+		memblock_reserve(ret, PAGE_SIZE * num);
 		pfn = ret >> PAGE_SHIFT;
-	} else
-		pfn = pgt_buf_end++;
+	} else {
+		pfn = pgt_buf_end;
+		pgt_buf_end += num;
+	}
 
-	adr = __va(pfn * PAGE_SIZE);
-	clear_page(adr);
-	return adr;
+	for (i = 0; i < num; i++) {
+		void *adr;
+
+		adr = __va((pfn + i) << PAGE_SHIFT);
+		clear_page(adr);
+	}
+
+	return __va(pfn << PAGE_SHIFT);
 }
 
 /* need 4 4k for initial PMD_SIZE, 4k for 0-ISA_END_ADDRESS */
