@@ -729,3 +729,8 @@ SYSCALL_DEFINE5(rt_sigaction, int, sig, const struct sigaction __user *, act,
 
 	return ret;
 }
+
+asmlinkage long sys_kern_features(void)
+{
+	return KERN_FEATURE_MIXED_MODE_STACK;
+}

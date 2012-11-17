@@ -381,11 +381,13 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		u = readl_relaxed(mvebu_gpioreg_in_pol(mvchip));
 		u &= ~(1 << pin);
 		writel_relaxed(u, mvebu_gpioreg_in_pol(mvchip));
+		break;
 	case IRQ_TYPE_EDGE_FALLING:
 	case IRQ_TYPE_LEVEL_LOW:
 		u = readl_relaxed(mvebu_gpioreg_in_pol(mvchip));
 		u |= 1 << pin;
 		writel_relaxed(u, mvebu_gpioreg_in_pol(mvchip));
+		break;
 	case IRQ_TYPE_EDGE_BOTH: {
 		u32 v;
 
@@ -401,6 +403,7 @@ static int mvebu_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 		else
 			u &= ~(1 << pin);	/* rising */
 		writel_relaxed(u, mvebu_gpioreg_in_pol(mvchip));
+		break;
 	}
 	}
 	return 0;

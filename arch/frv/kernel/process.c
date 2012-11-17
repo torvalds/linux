@@ -194,7 +194,7 @@ int copy_thread(unsigned long clone_flags,
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gr9 = usp; /* function */
 		childregs->gr8 = arg;
-		chilregs->psr = PSR_S;
+		childregs->psr = PSR_S;
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
 		save_user_regs(p->thread.user);
 		return 0;

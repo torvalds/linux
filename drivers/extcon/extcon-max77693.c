@@ -239,25 +239,19 @@ const char *max77693_extcon_cable[] = {
 static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 		enum max77693_muic_adc_debounce_time time)
 {
-	int ret = 0;
-	u8 ctrl3;
+	int ret;
 
 	switch (time) {
 	case ADC_DEBOUNCE_TIME_5MS:
 	case ADC_DEBOUNCE_TIME_10MS:
 	case ADC_DEBOUNCE_TIME_25MS:
 	case ADC_DEBOUNCE_TIME_38_62MS:
-		ret = max77693_read_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, &ctrl3);
-		ctrl3 &= ~CONTROL3_ADCDBSET_MASK;
-		ctrl3 |= (time << CONTROL3_ADCDBSET_SHIFT);
-
-		ret = max77693_write_reg(info->max77693->regmap_muic,
-				MAX77693_MUIC_REG_CTRL3, ctrl3);
-		if (ret) {
+		ret = max77693_update_reg(info->max77693->regmap_muic,
+					  MAX77693_MUIC_REG_CTRL3,
+					  time << CONTROL3_ADCDBSET_SHIFT,
+					  CONTROL3_ADCDBSET_MASK);
+		if (ret)
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			ret = -EINVAL;
-		}
 		break;
 	default:
 		dev_err(info->dev, "invalid ADC debounce time\n");
@@ -657,6 +651,8 @@ out:
 static int __devinit max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
+	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
+	struct max77693_muic_platform_data *muic_pdata = pdata->muic_data;
 	struct max77693_muic_info *info;
 	int ret, i;
 	u8 id;
@@ -727,6 +723,31 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 		goto err_extcon;
 	}
 
+	/* Initialize MUIC register by using platform data */
+	for (i = 0 ; i < muic_pdata->num_init_data ; i++) {
+		enum max77693_irq_source irq_src = MAX77693_IRQ_GROUP_NR;
+
+		max77693_write_reg(info->max77693->regmap_muic,
+				muic_pdata->init_data[i].addr,
+				muic_pdata->init_data[i].data);
+
+		switch (muic_pdata->init_data[i].addr) {
+		case MAX77693_MUIC_REG_INTMASK1:
+			irq_src = MUIC_INT1;
+			break;
+		case MAX77693_MUIC_REG_INTMASK2:
+			irq_src = MUIC_INT2;
+			break;
+		case MAX77693_MUIC_REG_INTMASK3:
+			irq_src = MUIC_INT3;
+			break;
+		}
+
+		if (irq_src < MAX77693_IRQ_GROUP_NR)
+			info->max77693->irq_masks_cur[irq_src]
+				= muic_pdata->init_data[i].data;
+	}
+
 	/* Check revision number of MUIC device*/
 	ret = max77693_read_reg(info->max77693->regmap_muic,
 			MAX77693_MUIC_REG_ID, &id);
@@ -762,6 +783,7 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	extcon_dev_unregister(info->edev);
+	kfree(info->edev);
 	kfree(info);
 
 	return 0;

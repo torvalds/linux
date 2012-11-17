@@ -405,8 +405,12 @@
 #define __NR_setns		337
 #define __NR_process_vm_readv	338
 #define __NR_process_vm_writev	339
+#define __NR_kern_features	340
 
-#define NR_syscalls		340
+#define NR_syscalls		341
+
+/* Bitmask values returned from kern_features system call.  */
+#define KERN_FEATURE_MIXED_MODE_STACK	0x00000001
 
 #ifdef __32bit_syscall_numbers__
 /* Sparc 32-bit only has the "setresuid32", "getresuid32" variants,

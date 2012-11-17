@@ -817,15 +817,17 @@ static u64 nop_for_index(int idx)
 
 static inline void sparc_pmu_enable_event(struct cpu_hw_events *cpuc, struct hw_perf_event *hwc, int idx)
 {
-	u64 val, mask = mask_for_index(idx);
+	u64 enc, val, mask = mask_for_index(idx);
 	int pcr_index = 0;
 
 	if (sparc_pmu->num_pcrs > 1)
 		pcr_index = idx;
 
+	enc = perf_event_get_enc(cpuc->events[idx]);
+
 	val = cpuc->pcr[pcr_index];
 	val &= ~mask;
-	val |= hwc->config;
+	val |= event_encoding(enc, idx);
 	cpuc->pcr[pcr_index] = val;
 
 	pcr_ops->write_pcr(pcr_index, cpuc->pcr[pcr_index]);
@@ -1738,8 +1740,6 @@ static void perf_callchain_user_64(struct perf_callchain_entry *entry,
 {
 	unsigned long ufp;
 
-	perf_callchain_store(entry, regs->tpc);
-
 	ufp = regs->u_regs[UREG_I6] + STACK_BIAS;
 	do {
 		struct sparc_stackf *usf, sf;
@@ -1760,19 +1760,27 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 {
 	unsigned long ufp;
 
-	perf_callchain_store(entry, regs->tpc);
-
 	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
-		struct sparc_stackf32 *usf, sf;
 		unsigned long pc;
 
-		usf = (struct sparc_stackf32 *) ufp;
-		if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
-			break;
+		if (thread32_stack_is_64bit(ufp)) {
+			struct sparc_stackf *usf, sf;
 
-		pc = sf.callers_pc;
-		ufp = (unsigned long)sf.fp;
+			ufp += STACK_BIAS;
+			usf = (struct sparc_stackf *) ufp;
+			if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
+				break;
+			pc = sf.callers_pc & 0xffffffff;
+			ufp = ((unsigned long) sf.fp) & 0xffffffff;
+		} else {
+			struct sparc_stackf32 *usf, sf;
+			usf = (struct sparc_stackf32 *) ufp;
+			if (__copy_from_user_inatomic(&sf, usf, sizeof(sf)))
+				break;
+			pc = sf.callers_pc;
+			ufp = (unsigned long)sf.fp;
+		}
 		perf_callchain_store(entry, pc);
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
@@ -1780,6 +1788,11 @@ static void perf_callchain_user_32(struct perf_callchain_entry *entry,
 void
 perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
+	perf_callchain_store(entry, regs->tpc);
+
+	if (!current->mm)
+		return;
+
 	flushw_user();
 	if (test_thread_flag(TIF_32BIT))
 		perf_callchain_user_32(entry, regs);

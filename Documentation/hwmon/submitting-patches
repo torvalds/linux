@@ -60,8 +60,7 @@ increase the chances of your change being accepted.
 
 * Add the driver to Kconfig and Makefile in alphabetical order.
 
-* Make sure that all dependencies are listed in Kconfig. For new drivers, it
-  is most likely prudent to add a dependency on EXPERIMENTAL.
+* Make sure that all dependencies are listed in Kconfig.
 
 * Avoid forward declarations if you can. Rearrange the code if necessary.
 

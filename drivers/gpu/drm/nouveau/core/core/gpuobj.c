@@ -39,6 +39,11 @@ nouveau_gpuobj_destroy(struct nouveau_gpuobj *gpuobj)
 			nv_wo32(gpuobj, i, 0x00000000);
 	}
 
+	if (gpuobj->node) {
+		nouveau_mm_free(&nv_gpuobj(gpuobj->parent)->heap,
+				&gpuobj->node);
+	}
+
 	if (gpuobj->heap.block_size)
 		nouveau_mm_fini(&gpuobj->heap);
 

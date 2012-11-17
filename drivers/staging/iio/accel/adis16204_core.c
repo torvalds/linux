@@ -317,26 +317,28 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			*val = 0;
-			if (chan->channel == 0)
-				*val2 = 1220;
-			else
-				*val2 = 610;
+			if (chan->channel == 0) {
+				*val = 1;
+				*val2 = 220000; /* 1.22 mV */
+			} else {
+				*val = 0;
+				*val2 = 610000; /* 0.61 mV */
+			}
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
-			*val = 0;
-			*val2 = -470000;
+			*val = -470; /* 0.47 C */
+			*val2 = 0;
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
 			*val = 0;
 			switch (chan->channel2) {
 			case IIO_MOD_X:
 			case IIO_MOD_ROOT_SUM_SQUARED_X_Y:
-				*val2 = 17125;
+				*val2 = IIO_G_TO_M_S_2(17125); /* 17.125 mg */
 				break;
 			case IIO_MOD_Y:
 			case IIO_MOD_Z:
-				*val2 = 8407;
+				*val2 = IIO_G_TO_M_S_2(8407); /* 8.407 mg */
 				break;
 			}
 			return IIO_VAL_INT_PLUS_MICRO;
@@ -345,7 +347,7 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 25;
+		*val = 25000 / -470 - 1278; /* 25 C = 1278 */
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 	case IIO_CHAN_INFO_PEAK:

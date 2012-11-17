@@ -269,27 +269,6 @@ static const struct drm_encoder_helper_funcs radeon_legacy_lvds_helper_funcs = {
 	.disable = radeon_legacy_encoder_disable,
 };
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
-static uint8_t radeon_legacy_lvds_level(struct backlight_device *bd)
-{
-	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
-	uint8_t level;
-
-	/* Convert brightness to hardware level */
-	if (bd->props.brightness < 0)
-		level = 0;
-	else if (bd->props.brightness > RADEON_MAX_BL_LEVEL)
-		level = RADEON_MAX_BL_LEVEL;
-	else
-		level = bd->props.brightness;
-
-	if (pdata->negative)
-		level = RADEON_MAX_BL_LEVEL - level;
-
-	return level;
-}
-
 u8
 radeon_legacy_get_backlight_level(struct radeon_encoder *radeon_encoder)
 {
@@ -331,6 +310,27 @@ radeon_legacy_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 leve
 	radeon_legacy_lvds_update(&radeon_encoder->base, dpms_mode);
 }
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+static uint8_t radeon_legacy_lvds_level(struct backlight_device *bd)
+{
+	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
+	uint8_t level;
+
+	/* Convert brightness to hardware level */
+	if (bd->props.brightness < 0)
+		level = 0;
+	else if (bd->props.brightness > RADEON_MAX_BL_LEVEL)
+		level = RADEON_MAX_BL_LEVEL;
+	else
+		level = bd->props.brightness;
+
+	if (pdata->negative)
+		level = RADEON_MAX_BL_LEVEL - level;
+
+	return level;
+}
+
 static int radeon_legacy_backlight_update_status(struct backlight_device *bd)
 {
 	struct radeon_backlight_privdata *pdata = bl_get_data(bd);
@@ -370,6 +370,7 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 	struct backlight_properties props;
 	struct radeon_backlight_privdata *pdata;
 	uint8_t backlight_level;
+	char bl_name[16];
 
 	if (!radeon_encoder->enc_priv)
 		return;
@@ -389,7 +390,9 @@ void radeon_legacy_backlight_init(struct radeon_encoder *radeon_encoder,
 	memset(&props, 0, sizeof(props));
 	props.max_brightness = RADEON_MAX_BL_LEVEL;
 	props.type = BACKLIGHT_RAW;
-	bd = backlight_device_register("radeon_bl", &drm_connector->kdev,
+	snprintf(bl_name, sizeof(bl_name),
+		 "radeon_bl%d", dev->primary->index);
+	bd = backlight_device_register(bl_name, &drm_connector->kdev,
 				       pdata, &radeon_backlight_ops, &props);
 	if (IS_ERR(bd)) {
 		DRM_ERROR("Backlight registration failed\n");
@@ -991,11 +994,7 @@ static void radeon_legacy_tmds_ext_mode_set(struct drm_encoder *encoder,
 static void radeon_ext_tmds_enc_destroy(struct drm_encoder *encoder)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct radeon_encoder_ext_tmds *tmds = radeon_encoder->enc_priv;
-	if (tmds) {
-		if (tmds->i2c_bus)
-			radeon_i2c_destroy(tmds->i2c_bus);
-	}
+	/* don't destroy the i2c bus record here, this will be done in radeon_i2c_fini */
 	kfree(radeon_encoder->enc_priv);
 	drm_encoder_cleanup(encoder);
 	kfree(radeon_encoder);

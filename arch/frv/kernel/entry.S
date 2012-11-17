@@ -867,8 +867,8 @@ ret_from_fork:
 ret_from_kernel_thread:
 	lddi.p		@(gr28,#REG_GR(8)),gr20
 	call		schedule_tail
-	or.p		gr20,gr20,gr8
-	calll		@(gr21,gr0)
+	calll.p		@(gr21,gr0)
+	or		gr20,gr20,gr8
 	bra		sys_exit
 
 	.globl		ret_from_kernel_execve

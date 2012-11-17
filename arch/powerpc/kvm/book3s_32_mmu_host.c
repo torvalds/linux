@@ -173,8 +173,8 @@ int kvmppc_mmu_map_page(struct kvm_vcpu *vcpu, struct kvmppc_pte *orig_pte)
 	BUG_ON(!map);
 
 	vsid = map->host_vsid;
-	vpn = (vsid << (SID_SHIFT - VPN_SHIFT)) | ((eaddr & ~ESID_MASK) >> VPN_SHIFT)
-
+	vpn = (vsid << (SID_SHIFT - VPN_SHIFT)) |
+		((eaddr & ~ESID_MASK) >> VPN_SHIFT);
 next_pteg:
 	if (rr == 16) {
 		primary = !primary;
