@@ -26,6 +26,8 @@
 #include <linux/slab.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/mtd/partitions.h>
+#include <linux/mtd/nand-gpio.h>
 
 #include <mach/hardware.h>
 #include <asm/pgtable.h>
@@ -41,7 +43,50 @@
 
 #include "common.h"
 
-#define GPIO_USERLED	CLPS711X_GPIO(3, 0)
+#define P720T_USERLED		CLPS711X_GPIO(3, 0)
+#define P720T_NAND_CLE		CLPS711X_GPIO(4, 0)
+#define P720T_NAND_ALE		CLPS711X_GPIO(4, 1)
+#define P720T_NAND_NCE		CLPS711X_GPIO(4, 2)
+
+#define P720T_NAND_BASE		(CLPS711X_SDRAM1_BASE)
+
+static struct resource p720t_nand_resource[] __initdata = {
+	DEFINE_RES_MEM(P720T_NAND_BASE, SZ_4),
+};
+
+static struct mtd_partition p720t_nand_parts[] __initdata = {
+	{
+		.name	= "Flash partition 1",
+		.offset	= 0,
+		.size	= SZ_2M,
+	},
+	{
+		.name	= "Flash partition 2",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct gpio_nand_platdata p720t_nand_pdata __initdata = {
+	.gpio_rdy	= -1,
+	.gpio_nce	= P720T_NAND_NCE,
+	.gpio_ale	= P720T_NAND_ALE,
+	.gpio_cle	= P720T_NAND_CLE,
+	.gpio_nwp	= -1,
+	.chip_delay	= 15,
+	.parts		= p720t_nand_parts,
+	.num_parts	= ARRAY_SIZE(p720t_nand_parts),
+};
+
+static struct platform_device p720t_nand_pdev __initdata = {
+	.name		= "gpio-nand",
+	.id		= -1,
+	.resource	= p720t_nand_resource,
+	.num_resources	= ARRAY_SIZE(p720t_nand_resource),
+	.dev		= {
+		.platform_data = &p720t_nand_pdata,
+	},
+};
 
 static void p720t_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
 {
@@ -127,7 +172,7 @@ static struct gpio_led p720t_gpio_leds[] = {
 	{
 		.name			= "User LED",
 		.default_trigger	= "heartbeat",
-		.gpio			= GPIO_USERLED,
+		.gpio			= P720T_USERLED,
 	},
 };
 
@@ -138,6 +183,7 @@ static struct gpio_led_platform_data p720t_gpio_led_pdata __initdata = {
 
 static void __init p720t_init(void)
 {
+	platform_device_register(&p720t_nand_pdev);
 	platform_device_register_data(&platform_bus, "platform-lcd", 0,
 				      &p720t_lcd_power_pdata,
 				      sizeof(p720t_lcd_power_pdata));

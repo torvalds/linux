@@ -67,6 +67,9 @@
 #define CLPS711X_SRAM_BASE	CS6_PHYS_BASE
 #define CLPS711X_SRAM_SIZE	(48 * 1024)
 
+#define CLPS711X_SDRAM0_BASE	(0xc0000000)
+#define CLPS711X_SDRAM1_BASE	(0xd0000000)
+
 #if defined (CONFIG_ARCH_EDB7211)
 
 /* The extra 8 lines of the keyboard matrix are wired to chip select 3 */

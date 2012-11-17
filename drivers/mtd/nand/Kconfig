@@ -79,12 +79,6 @@ config MTD_NAND_GPIO
 	help
 	  This enables a GPIO based NAND flash driver.
 
-config MTD_NAND_SPIA
-	tristate "NAND Flash device on SPIA board"
-	depends on ARCH_P720T
-	help
-	  If you had to ask, you don't have one. Say 'N'.
-
 config MTD_NAND_AMS_DELTA
 	tristate "NAND Flash device on Amstrad E3"
 	depends on MACH_AMS_DELTA
