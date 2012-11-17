@@ -282,18 +282,7 @@ void * __init extend_brk(size_t size, size_t align)
 	return ret;
 }
 
-#ifdef CONFIG_X86_64
-static void __init init_gbpages(void)
-{
-	if (direct_gbpages && cpu_has_gbpages)
-		printk(KERN_INFO "Using GB pages for direct mapping\n");
-	else
-		direct_gbpages = 0;
-}
-#else
-static inline void init_gbpages(void)
-{
-}
+#ifdef CONFIG_X86_32
 static void __init cleanup_highmap(void)
 {
 }
@@ -932,8 +921,6 @@ void __init setup_arch(char **cmdline_p)
 			(max_pfn_mapped<<PAGE_SHIFT) - 1);
 
 	setup_real_mode();
-
-	init_gbpages();
 
 	init_mem_mapping();
 

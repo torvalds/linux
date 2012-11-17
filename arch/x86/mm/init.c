@@ -98,6 +98,16 @@ int direct_gbpages
 #endif
 ;
 
+static void __init init_gbpages(void)
+{
+#ifdef CONFIG_X86_64
+	if (direct_gbpages && cpu_has_gbpages)
+		printk(KERN_INFO "Using GB pages for direct mapping\n");
+	else
+		direct_gbpages = 0;
+#endif
+}
+
 struct map_range {
 	unsigned long start;
 	unsigned long end;
@@ -108,6 +118,8 @@ static int page_size_mask;
 
 static void __init probe_page_size_mask(void)
 {
+	init_gbpages();
+
 #if !defined(CONFIG_DEBUG_PAGEALLOC) && !defined(CONFIG_KMEMCHECK)
 	/*
 	 * For CONFIG_DEBUG_PAGEALLOC, identity mapping will use small pages.
