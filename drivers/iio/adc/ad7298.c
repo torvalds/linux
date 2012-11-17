@@ -23,7 +23,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 
-#include "ad7298.h"
+#include <linux/platform_data/ad7298.h>
 
 #define AD7298_WRITE	(1 << 15) /* write to the control register */
 #define AD7298_REPEAT	(1 << 14) /* repeated conversion enable */
