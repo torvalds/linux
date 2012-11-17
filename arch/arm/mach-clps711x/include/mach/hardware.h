@@ -82,8 +82,6 @@
  * Relevant bits in port D, which controls power to the various parts of
  * the LCD on the EDB7211.
  */
-#define EDB_PD1_LCD_DC_DC_EN	(1<<1)
-#define EDB_PD2_LCDEN		(1<<2)
 #define EDB_PD3_LCDBL		(1<<3)
 
 #endif

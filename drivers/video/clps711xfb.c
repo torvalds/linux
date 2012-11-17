@@ -167,34 +167,15 @@ static int clps7111fb_blank(int blank, struct fb_info *info)
 			/* Turn off the LCD backlight. */
 			clps_writeb(clps_readb(PDDR) & ~EDB_PD3_LCDBL, PDDR);
 
-			/* Power off the LCD DC-DC converter. */
-			clps_writeb(clps_readb(PDDR) & ~EDB_PD1_LCD_DC_DC_EN, PDDR);
-
-			/* Delay for a little while (half a second). */
-			udelay(100);
-
-			/* Power off the LCD panel. */
-			clps_writeb(clps_readb(PDDR) & ~EDB_PD2_LCDEN, PDDR);
-
-			/* Power off the LCD controller. */
+			/* Disable LCD controller. */
 			clps_writel(clps_readl(SYSCON1) & ~SYSCON1_LCDEN, 
 					SYSCON1);
 		}
 	} else {
 		if (machine_is_edb7211()) {
-			/* Power up the LCD controller. */
+			/* Enable LCD controller. */
 			clps_writel(clps_readl(SYSCON1) | SYSCON1_LCDEN,
 					SYSCON1);
-
-			/* Power up the LCD panel. */
-			clps_writeb(clps_readb(PDDR) | EDB_PD2_LCDEN, PDDR);
-
-			/* Delay for a little while. */
-			udelay(100);
-
-			/* Power up the LCD DC-DC converter. */
-			clps_writeb(clps_readb(PDDR) | EDB_PD1_LCD_DC_DC_EN,
-					PDDR);
 
 			/* Turn on the LCD backlight. */
 			clps_writeb(clps_readb(PDDR) | EDB_PD3_LCDBL, PDDR);
@@ -386,21 +367,10 @@ static int __devinit clps711x_fb_probe(struct platform_device *pdev)
 	/*
 	 * Power up the LCD
 	 */
-	if (machine_is_p720t()) {
-		PLD_LCDEN = PLD_LCDEN_EN;
-		PLD_PWR |= (PLD_S4_ON|PLD_S3_ON|PLD_S2_ON|PLD_S1_ON);
-	}
+	if (machine_is_p720t())
+		PLD_PWR |= PLD_S3_ON;
 
 	if (machine_is_edb7211()) {
-		/* Power up the LCD panel. */
-		clps_writeb(clps_readb(PDDR) | EDB_PD2_LCDEN, PDDR);
-
-		/* Delay for a little while. */
-		udelay(100);
-
-		/* Power up the LCD DC-DC converter. */
-		clps_writeb(clps_readb(PDDR) | EDB_PD1_LCD_DC_DC_EN, PDDR);
-
 		/* Turn on the LCD backlight. */
 		clps_writeb(clps_readb(PDDR) | EDB_PD3_LCDBL, PDDR);
 	}
@@ -418,10 +388,8 @@ static int __devexit clps711x_fb_remove(struct platform_device *pdev)
 	/*
 	 * Power down the LCD
 	 */
-	if (machine_is_p720t()) {
-		PLD_LCDEN = 0;
-		PLD_PWR &= ~(PLD_S4_ON|PLD_S3_ON|PLD_S2_ON|PLD_S1_ON);
-	}
+	if (machine_is_p720t())
+		PLD_PWR &= ~PLD_S3_ON;
 
 	return 0;
 }

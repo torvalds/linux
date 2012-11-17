@@ -37,9 +37,26 @@
 #include <asm/mach/map.h>
 #include <mach/syspld.h>
 
+#include <video/platform_lcd.h>
+
 #include "common.h"
 
 #define GPIO_USERLED	CLPS711X_GPIO(3, 0)
+
+static void p720t_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
+{
+	if (power) {
+		PLD_LCDEN = PLD_LCDEN_EN;
+		PLD_PWR |= PLD_S4_ON | PLD_S2_ON | PLD_S1_ON;
+	} else {
+		PLD_PWR &= ~(PLD_S4_ON | PLD_S2_ON | PLD_S1_ON);
+		PLD_LCDEN = 0;
+	}
+}
+
+static struct plat_lcd_data p720t_lcd_power_pdata = {
+	.set_power	= p720t_lcd_power_set,
+};
 
 /*
  * Map the P720T system PLD. It occupies two address spaces:
@@ -121,6 +138,9 @@ static struct gpio_led_platform_data p720t_gpio_led_pdata __initdata = {
 
 static void __init p720t_init(void)
 {
+	platform_device_register_data(&platform_bus, "platform-lcd", 0,
+				      &p720t_lcd_power_pdata,
+				      sizeof(p720t_lcd_power_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 }
 

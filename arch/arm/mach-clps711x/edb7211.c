@@ -8,6 +8,8 @@
  */
 
 #include <linux/init.h>
+#include <linux/gpio.h>
+#include <linux/delay.h>
 #include <linux/memblock.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -18,11 +20,16 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <video/platform_lcd.h>
+
 #include <mach/hardware.h>
 
 #include "common.h"
 
 #define VIDEORAM_SIZE		SZ_128K
+
+#define EDB7211_LCD_DC_DC_EN	CLPS711X_GPIO(3, 1)
+#define EDB7211_LCDEN		CLPS711X_GPIO(3, 2)
 
 #define EDB7211_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define EDB7211_CS8900_IRQ	(IRQ_EINT3)
@@ -30,6 +37,28 @@
 static struct resource edb7211_cs8900_resource[] __initdata = {
 	DEFINE_RES_MEM(EDB7211_CS8900_BASE, SZ_1K),
 	DEFINE_RES_IRQ(EDB7211_CS8900_IRQ),
+};
+
+static void edb7211_lcd_power_set(struct plat_lcd_data *pd, unsigned int power)
+{
+	if (power) {
+		gpio_set_value(EDB7211_LCDEN, 1);
+		udelay(100);
+		gpio_set_value(EDB7211_LCD_DC_DC_EN, 1);
+	} else {
+		gpio_set_value(EDB7211_LCD_DC_DC_EN, 0);
+		udelay(100);
+		gpio_set_value(EDB7211_LCDEN, 0);
+	}
+}
+
+static struct plat_lcd_data edb7211_lcd_power_pdata = {
+	.set_power	= edb7211_lcd_power_set,
+};
+
+static struct gpio edb7211_gpios[] __initconst = {
+	{ EDB7211_LCD_DC_DC_EN,	GPIOF_OUT_INIT_LOW,	"LCD DC-DC" },
+	{ EDB7211_LCDEN,	GPIOF_OUT_INIT_LOW,	"LCD POWER" },
 };
 
 static struct map_desc edb7211_io_desc[] __initdata = {
@@ -83,6 +112,11 @@ fixup_edb7211(struct tag *tags, char **cmdline, struct meminfo *mi)
 
 static void __init edb7211_init(void)
 {
+	gpio_request_array(edb7211_gpios, ARRAY_SIZE(edb7211_gpios));
+
+	platform_device_register_data(&platform_bus, "platform-lcd", 0,
+				      &edb7211_lcd_power_pdata,
+				      sizeof(edb7211_lcd_power_pdata));
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, edb7211_cs8900_resource,
 					ARRAY_SIZE(edb7211_cs8900_resource));
