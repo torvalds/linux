@@ -1595,12 +1595,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 	bool cachethis = false;
 	int i;
 
-	/*
-	 * XXX: According to spec, we should check the tag
-	 * for UTF-8 compliance.  I'm postponing this for
-	 * now because it seems that some clients do use
-	 * binary tags.
-	 */
 	READ_BUF(4);
 	READ32(argp->taglen);
 	READ_BUF(argp->taglen + 8);
