@@ -19,9 +19,9 @@
 
 #include "mm_internal.h"
 
-unsigned long __initdata pgt_buf_start;
-unsigned long __meminitdata pgt_buf_end;
-unsigned long __meminitdata pgt_buf_top;
+static unsigned long __initdata pgt_buf_start;
+static unsigned long __initdata pgt_buf_end;
+static unsigned long __initdata pgt_buf_top;
 
 static unsigned long min_pfn_mapped;
 
