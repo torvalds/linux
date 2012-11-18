@@ -40,10 +40,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* This structure holds all of the individual device information */
 struct opticon_private {
-	unsigned char *bulk_in_buffer;
 	struct urb *bulk_read_urb;
-	int buffer_size;
-	u8 bulk_address;
 	spinlock_t lock;	/* protects the following flags */
 	bool throttled;
 	bool actually_throttled;
@@ -478,49 +475,24 @@ static int opticon_startup(struct usb_serial *serial)
 
 static int opticon_port_probe(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	struct opticon_private *priv;
-	int retval = -ENOMEM;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
-
-	priv->bulk_read_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!priv->bulk_read_urb)
-		goto error;
-
-	priv->buffer_size = port->bulk_in_size;
-	priv->bulk_in_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
-	if (!priv->bulk_in_buffer)
-		goto error;
-
-	priv->bulk_address = port->bulk_in_endpointAddress;
-
-	usb_fill_bulk_urb(priv->bulk_read_urb, serial->dev,
-				usb_rcvbulkpipe(serial->dev,
-						priv->bulk_address),
-				priv->bulk_in_buffer, priv->buffer_size,
-				opticon_read_bulk_callback, port);
+	priv->bulk_read_urb = port->read_urbs[0];
 
 	usb_set_serial_port_data(port, priv);
 
 	return 0;
-error:
-	usb_free_urb(priv->bulk_read_urb);
-	kfree(priv->bulk_in_buffer);
-	kfree(priv);
-	return retval;
 }
 
 static int opticon_port_remove(struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_port_data(port);
 
-	usb_free_urb(priv->bulk_read_urb);
-	kfree(priv->bulk_in_buffer);
 	kfree(priv);
 
 	return 0;
@@ -574,6 +546,7 @@ static struct usb_serial_driver opticon_device = {
 	.tiocmset =		opticon_tiocmset,
 	.suspend = 		opticon_suspend,
 	.resume =		opticon_resume,
+	.read_bulk_callback =	opticon_read_bulk_callback,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
