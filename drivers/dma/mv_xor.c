@@ -1233,7 +1233,7 @@ mv_xor_conf_mbus_windows(struct mv_xor_device *xordev,
 	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
 }
 
-static int mv_xor_probe(struct platform_device *pdev)
+static int __devinit mv_xor_probe(struct platform_device *pdev)
 {
 	const struct mbus_dram_target_info *dram;
 	struct mv_xor_device *xordev;
@@ -1358,7 +1358,7 @@ err_channel_add:
 	return ret;
 }
 
-static int mv_xor_remove(struct platform_device *pdev)
+static int __devexit mv_xor_remove(struct platform_device *pdev)
 {
 	struct mv_xor_device *xordev = platform_get_drvdata(pdev);
 	int i;
@@ -1386,7 +1386,7 @@ MODULE_DEVICE_TABLE(of, mv_xor_dt_ids);
 
 static struct platform_driver mv_xor_driver = {
 	.probe		= mv_xor_probe,
-	.remove		= mv_xor_remove,
+	.remove		= __devexit_p(mv_xor_remove),
 	.driver		= {
 		.owner	        = THIS_MODULE,
 		.name	        = MV_XOR_NAME,
