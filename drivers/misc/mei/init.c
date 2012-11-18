@@ -423,53 +423,86 @@ void mei_allocate_me_clients_storage(struct mei_device *dev)
 	dev->me_clients = clients;
 	return ;
 }
-/**
- * host_client_properties - reads properties for client
- *
- * @dev: the device structure
- *
- * returns:
- * 	< 0 - Error.
- *  = 0 - no more clients.
- *  = 1 - still have clients to send properties request.
- */
-int mei_host_client_properties(struct mei_device *dev)
+
+void mei_host_client_init(struct work_struct *work)
+{
+	struct mei_device *dev = container_of(work,
+					      struct mei_device, init_work);
+	struct mei_client_properties *client_props;
+	int i;
+
+	mutex_lock(&dev->device_lock);
+
+	bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
+	dev->open_handle_count = 0;
+
+	/*
+	 * Reserving the first three client IDs
+	 * 0: Reserved for MEI Bus Message communications
+	 * 1: Reserved for Watchdog
+	 * 2: Reserved for AMTHI
+	 */
+	bitmap_set(dev->host_clients_map, 0, 3);
+
+	for (i = 0; i < dev->me_clients_num; i++) {
+		client_props = &dev->me_clients[i].props;
+
+		if (!uuid_le_cmp(client_props->protocol_name, mei_amthi_guid))
+			mei_amthif_host_init(dev);
+		else if (!uuid_le_cmp(client_props->protocol_name, mei_wd_guid))
+			mei_wd_host_init(dev);
+	}
+
+	dev->dev_state = MEI_DEV_ENABLED;
+
+	mutex_unlock(&dev->device_lock);
+}
+
+int mei_host_client_enumerate(struct mei_device *dev)
 {
 
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_props_request *prop_req;
 	const size_t len = sizeof(struct hbm_props_request);
+	unsigned long next_client_index;
+	u8 client_num;
 
-	int b;
-	u8 client_num = dev->me_client_presentation_num;
 
+	client_num = dev->me_client_presentation_num;
+
+	next_client_index = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX,
+					  dev->me_client_index);
+
+	/* We got all client properties */
+	if (next_client_index == MEI_CLIENTS_MAX) {
+		schedule_work(&dev->init_work);
+
+		return 0;
+	}
+
+	dev->me_clients[client_num].client_id = next_client_index;
+	dev->me_clients[client_num].mei_flow_ctrl_creds = 0;
+
+	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 	prop_req = (struct hbm_props_request *)&dev->wr_msg_buf[1];
 
-	b = dev->me_client_index;
-	b = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX, b);
-	if (b < MEI_CLIENTS_MAX) {
-		dev->me_clients[client_num].client_id = b;
-		dev->me_clients[client_num].mei_flow_ctrl_creds = 0;
-		mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
+	memset(prop_req, 0, sizeof(struct hbm_props_request));
 
 
-		memset(prop_req, 0, sizeof(struct hbm_props_request));
+	prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
+	prop_req->address = next_client_index;
 
-		prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
-		prop_req->address = b;
+	if (mei_write_message(dev, mei_hdr, (unsigned char *) prop_req,
+			      mei_hdr->length)) {
+		dev->dev_state = MEI_DEV_RESETING;
+		dev_err(&dev->pdev->dev, "Properties request command failed\n");
+		mei_reset(dev, 1);
 
-		if (mei_write_message(dev, mei_hdr,
-				(unsigned char *)prop_req, len)) {
-			dev->dev_state = MEI_DEV_RESETING;
-			dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
-			mei_reset(dev, 1);
-			return -EIO;
-		}
-
-		dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
-		dev->me_client_index = b;
-		return 1;
+		return -EIO;
 	}
+
+	dev->init_clients_timer = MEI_CLIENTS_INIT_TIMEOUT;
+	dev->me_client_index = next_client_index;
 
 	return 0;
 }

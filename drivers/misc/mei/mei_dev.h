@@ -287,6 +287,8 @@ struct mei_device {
 	bool iamthif_flow_control_pending;
 	bool iamthif_ioctl;
 	bool iamthif_canceled;
+
+	struct work_struct init_work;
 };
 
 static inline unsigned long mei_secs_to_jiffies(unsigned long sec)
@@ -363,7 +365,8 @@ static inline bool mei_cl_cmp_id(const struct mei_cl *cl1,
  */
 void mei_host_start_message(struct mei_device *dev);
 void mei_host_enum_clients_message(struct mei_device *dev);
-int mei_host_client_properties(struct mei_device *dev);
+int mei_host_client_enumerate(struct mei_device *dev);
+void mei_host_client_init(struct work_struct *work);
 
 /*
  *  MEI interrupt functions prototype

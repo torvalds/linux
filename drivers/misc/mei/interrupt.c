@@ -252,8 +252,6 @@ static void mei_client_connect_response(struct mei_device *dev,
 		dev_dbg(&dev->pdev->dev, "successfully connected to WD client.\n");
 		mei_watchdog_register(dev);
 
-		/* next step in the state maching */
-		mei_amthif_host_init(dev);
 		return;
 	}
 
@@ -470,6 +468,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 		struct mei_msg_hdr *mei_hdr)
 {
 	struct mei_bus_message *mei_msg;
+	struct mei_me_client *me_client;
 	struct hbm_host_version_response *version_res;
 	struct hbm_client_connect_response *connect_res;
 	struct hbm_client_connect_response *disconnect_res;
@@ -478,8 +477,6 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_props_response *props_res;
 	struct hbm_host_enum_response *enum_res;
 	struct hbm_host_stop_request *stop_req;
-	int res;
-
 
 	/* read the message to our buffer */
 	BUG_ON(mei_hdr->length >= sizeof(dev->rd_msg_buf));
@@ -547,64 +544,37 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 
 	case HOST_CLIENT_PROPERTIES_RES_CMD:
 		props_res = (struct hbm_props_response *)mei_msg;
+		me_client = &dev->me_clients[dev->me_client_presentation_num];
+
 		if (props_res->status || !dev->me_clients) {
 			dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message wrong status.\n");
 			mei_reset(dev, 1);
 			return;
 		}
-		if (dev->me_clients[dev->me_client_presentation_num]
-					.client_id == props_res->address) {
 
-			dev->me_clients[dev->me_client_presentation_num].props
-						= props_res->client_properties;
-
-			if (dev->dev_state == MEI_DEV_INIT_CLIENTS &&
-			    dev->init_clients_state ==
-					MEI_CLIENT_PROPERTIES_MESSAGE) {
-				dev->me_client_index++;
-				dev->me_client_presentation_num++;
-
-				/** Send Client Properties request **/
-				res = mei_host_client_properties(dev);
-				if (res < 0) {
-					dev_dbg(&dev->pdev->dev, "mei_host_client_properties() failed");
-					return;
-				} else if (!res) {
-					/*
-					 * No more clients to send to.
-					 * Clear Map for indicating now ME clients
-					 * with associated host client
-					 */
-					bitmap_zero(dev->host_clients_map, MEI_CLIENTS_MAX);
-					dev->open_handle_count = 0;
-
-					/*
-					 * Reserving the first three client IDs
-					 * Client Id 0 - Reserved for MEI Bus Message communications
-					 * Client Id 1 - Reserved for Watchdog
-					 * Client ID 2 - Reserved for AMTHI
-					 */
-					bitmap_set(dev->host_clients_map, 0, 3);
-					dev->dev_state = MEI_DEV_ENABLED;
-
-					/* if wd initialization fails, initialization the AMTHI client,
-					 * otherwise the AMTHI client will be initialized after the WD client connect response
-					 * will be received
-					 */
-					if (mei_wd_host_init(dev))
-						mei_amthif_host_init(dev);
-				}
-
-			} else {
-				dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message");
-				mei_reset(dev, 1);
-				return;
-			}
-		} else {
-			dev_dbg(&dev->pdev->dev, "reset due to received host client properties response bus message for wrong client ID\n");
+		if (me_client->client_id != props_res->address) {
+			dev_err(&dev->pdev->dev,
+				"Host client properties reply mismatch\n");
 			mei_reset(dev, 1);
+
 			return;
 		}
+
+		if (dev->dev_state != MEI_DEV_INIT_CLIENTS ||
+		    dev->init_clients_state != MEI_CLIENT_PROPERTIES_MESSAGE) {
+			dev_err(&dev->pdev->dev,
+				"Unexpected client properties reply\n");
+			mei_reset(dev, 1);
+
+			return;
+		}
+
+		me_client->props = props_res->client_properties;
+		dev->me_client_index++;
+		dev->me_client_presentation_num++;
+
+		mei_host_client_enumerate(dev);
+
 		break;
 
 	case HOST_ENUM_RES_CMD:
@@ -618,7 +588,8 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 				mei_allocate_me_clients_storage(dev);
 				dev->init_clients_state =
 					MEI_CLIENT_PROPERTIES_MESSAGE;
-				mei_host_client_properties(dev);
+
+				mei_host_client_enumerate(dev);
 		} else {
 			dev_dbg(&dev->pdev->dev, "reset due to received host enumeration clients response bus message.\n");
 			mei_reset(dev, 1);
