@@ -94,6 +94,46 @@
 			status = "okay";
 		};
 
+		xor@60800 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60800 0x100
+			       0x60A00 0x100>;
+			status = "okay";
+			clocks = <&gate_clk 8>;
+
+			xor00 {
+			      interrupts = <5>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <6>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
+		xor@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0xd0B00 0x100>;
+			status = "okay";
+			clocks = <&gate_clk 16>;
+
+			xor00 {
+			      interrupts = <7>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <8>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
 		sata@80000 {
 			compatible = "marvell,orion-sata";
 			reg = <0x80000 0x5000>;
