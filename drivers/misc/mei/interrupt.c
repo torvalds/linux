@@ -446,15 +446,14 @@ static void mei_client_disconnect_request(struct mei_device *dev,
 				dev->iamthif_timer = 0;
 
 			/* prepare disconnect response */
-			(void)mei_hbm_hdr(&dev->ext_msg_buf[0], len);
+			(void)mei_hbm_hdr((u32 *)&dev->wr_ext_msg.hdr, len);
 			disconnect_res =
 				(struct hbm_client_connect_response *)
-				&dev->ext_msg_buf[1];
+				&dev->wr_ext_msg.data;
 			disconnect_res->hbm_cmd = CLIENT_DISCONNECT_RES_CMD;
 			disconnect_res->host_addr = pos->host_client_id;
 			disconnect_res->me_addr = pos->me_client_id;
 			disconnect_res->status = 0;
-			dev->extra_write_index = 2;
 			break;
 		}
 	}
@@ -643,16 +642,13 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	{
 		/* prepare stop request: sent in next interrupt event */
 
-		u32 *buf = dev->ext_msg_buf;
 		const size_t len = sizeof(struct hbm_host_stop_request);
 
-		mei_hdr = mei_hbm_hdr(&buf[0], len);
-		stop_req = (struct hbm_host_stop_request *)&buf[1];
+		mei_hdr = mei_hbm_hdr((u32 *)&dev->wr_ext_msg.hdr, len);
+		stop_req = (struct hbm_host_stop_request *)&dev->wr_ext_msg.data;
 		memset(stop_req, 0, len);
 		stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
 		stop_req->reason = DRIVER_STOP_REQUEST;
-
-		dev->extra_write_index = 2;
 		break;
 	}
 	default:
@@ -988,15 +984,11 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 		wake_up_interruptible(&dev->wait_stop_wd);
 	}
 
-	if (dev->extra_write_index) {
-		dev_dbg(&dev->pdev->dev, "extra_write_index =%d.\n",
-				dev->extra_write_index);
-		mei_write_message(dev,
-				(struct mei_msg_hdr *) &dev->ext_msg_buf[0],
-				(unsigned char *) &dev->ext_msg_buf[1],
-				(dev->extra_write_index - 1) * sizeof(u32));
-		*slots -= dev->extra_write_index;
-		dev->extra_write_index = 0;
+	if (dev->wr_ext_msg.hdr.length) {
+		mei_write_message(dev, &dev->wr_ext_msg.hdr,
+			dev->wr_ext_msg.data, dev->wr_ext_msg.hdr.length);
+		*slots -= mei_data2slots(dev->wr_ext_msg.hdr.length);
+		dev->wr_ext_msg.hdr.length = 0;
 	}
 	if (dev->dev_state == MEI_DEV_ENABLED) {
 		if (dev->wd_pending &&
@@ -1263,11 +1255,11 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	}
 	/* check slots available for reading */
 	slots = mei_count_full_read_slots(dev);
-	dev_dbg(&dev->pdev->dev, "slots =%08x  extra_write_index =%08x.\n",
-		slots, dev->extra_write_index);
-	while (slots > 0 && !dev->extra_write_index) {
-		dev_dbg(&dev->pdev->dev, "slots =%08x  extra_write_index =%08x.\n",
-				slots, dev->extra_write_index);
+	while (slots > 0) {
+		/* we have urgent data to send so break the read */
+		if (dev->wr_ext_msg.hdr.length)
+			break;
+		dev_dbg(&dev->pdev->dev, "slots =%08x\n", slots);
 		dev_dbg(&dev->pdev->dev, "call mei_irq_thread_read_handler.\n");
 		rets = mei_irq_thread_read_handler(&complete_list, dev, &slots);
 		if (rets)

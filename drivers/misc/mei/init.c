@@ -288,7 +288,7 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 		mei_me_cl_unlink(dev, &dev->iamthif_cl);
 
 		mei_amthif_reset_params(dev);
-		dev->extra_write_index = 0;
+		memset(&dev->wr_ext_msg, 0, sizeof(dev->wr_ext_msg));
 	}
 
 	dev->me_clients_num = 0;

@@ -192,8 +192,9 @@ struct mei_cl {
 };
 
 /**
- * struct mei_deive -  MEI private device struct
+ * struct mei_device -  MEI private device struct
  * @hbuf_depth - depth of host(write) buffer
+ * @wr_ext_msg - buffer for hbm control responses (set in read cycle)
  */
 struct mei_device {
 	struct pci_dev *pdev;	/* pointer to pci device struct */
@@ -244,11 +245,13 @@ struct mei_device {
 	u16 init_clients_timer;
 	bool need_reset;
 
-	u32 extra_write_index;
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];	/* control messages */
-	u32 wr_msg_buf[128];	/* used for control messages */
-	u32 ext_msg_buf[8];	/* for control responses */
 	u32 rd_msg_hdr;
+	u32 wr_msg_buf[128];	/* used for control messages */
+	struct {
+		struct mei_msg_hdr hdr;
+		unsigned char data[4];	/* All HBM messages are 4 bytes */
+	} wr_ext_msg;		/* for control responses */
 
 	struct hbm_version version;
 
