@@ -1027,34 +1027,21 @@ static int mei_irq_thread_write_handler(struct mei_device *dev,
 		cl = pos->cl;
 		if (cl == NULL)
 			continue;
+		if (mei_flow_ctrl_creds(dev, cl) <= 0) {
+			dev_dbg(&dev->pdev->dev,
+				"No flow control credentials for client %d, not sending.\n",
+				cl->host_client_id);
+			continue;
+		}
 
-		if (cl != &dev->iamthif_cl) {
-			if (mei_flow_ctrl_creds(dev, cl) <= 0) {
-				dev_dbg(&dev->pdev->dev,
-					"No flow control credentials for client %d, not sending.\n",
-					cl->host_client_id);
-				continue;
-			}
-			ret = mei_irq_thread_write_complete(dev, &slots, pos,
-						cmpl_list);
-			if (ret)
-				return ret;
-
-		} else if (cl == &dev->iamthif_cl) {
-			/* IAMTHIF IOCTL */
-			dev_dbg(&dev->pdev->dev, "complete amthi write cb.\n");
-			if (mei_flow_ctrl_creds(dev, cl) <= 0) {
-				dev_dbg(&dev->pdev->dev,
-					"No flow control credentials for amthi client %d.\n",
-					cl->host_client_id);
-				continue;
-			}
+		if (cl == &dev->iamthif_cl)
 			ret = mei_amthif_irq_write_complete(dev, &slots,
 							pos, cmpl_list);
-			if (ret)
-				return ret;
-
-		}
+		else
+			ret = mei_irq_thread_write_complete(dev, &slots, pos,
+						cmpl_list);
+		if (ret)
+			return ret;
 
 	}
 	return 0;
