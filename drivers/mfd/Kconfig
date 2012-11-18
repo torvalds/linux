@@ -1094,6 +1094,15 @@ config MFD_VIPERBOARD
 	  You need to select the mfd cell drivers separately.
 	  The drivers do not support all features the board exposes.
 
+config MFD_RETU
+	tristate "Support for Retu multi-function device"
+	select MFD_CORE
+	depends on I2C
+	select REGMAP_IRQ
+	help
+	  Retu is a multi-function device found on Nokia Internet Tablets
+	  (770, N800 and N810).
+
 endmenu
 endif
 
