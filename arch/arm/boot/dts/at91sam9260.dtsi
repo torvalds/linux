@@ -127,10 +127,14 @@
 							 1 5 0x1 0x0>;	/* PB5 periph A */
 					};
 
-					pinctrl_usart0_rts_cts: usart0_rts_cts-0 {
+					pinctrl_usart0_rts: usart0_rts-0 {
 						atmel,pins =
-							<1 26 0x1 0x0	/* PB26 periph A */
-							 1 27 0x1 0x0>;	/* PB27 periph A */
+							<1 26 0x1 0x0>;	/* PB26 periph A */
+					};
+
+					pinctrl_usart0_cts: usart0_cts-0 {
+						atmel,pins =
+							<1 27 0x1 0x0>;	/* PB27 periph A */
 					};
 
 					pinctrl_usart0_dtr_dsr: usart0_dtr_dsr-0 {
@@ -157,10 +161,14 @@
 							 2 7 0x1 0x0>;	/* PB7 periph A */
 					};
 
-					pinctrl_usart1_rts_cts: usart1_rts_cts-0 {
+					pinctrl_usart1_rts: usart1_rts-0 {
 						atmel,pins =
-							<1 28 0x1 0x0	/* PB28 periph A */
-							 1 29 0x1 0x0>;	/* PB29 periph A */
+							<1 28 0x1 0x0>;	/* PB28 periph A */
+					};
+
+					pinctrl_usart1_cts: usart1_cts-0 {
+						atmel,pins =
+							<1 29 0x1 0x0>;	/* PB29 periph A */
 					};
 				};
 
@@ -171,10 +179,14 @@
 							 1 9 0x1 0x0>;	/* PB9 periph A */
 					};
 
-					pinctrl_usart2_rts_cts: usart2_rts_cts-0 {
+					pinctrl_usart2_rts: usart2_rts-0 {
 						atmel,pins =
-							<0 4 0x1 0x0	/* PA4 periph A */
-							 0 5 0x1 0x0>;	/* PA5 periph A */
+							<0 4 0x1 0x0>;	/* PA4 periph A */
+					};
+
+					pinctrl_usart2_cts: usart2_cts-0 {
+						atmel,pins =
+							<0 5 0x1 0x0>;	/* PA5 periph A */
 					};
 				};
 
@@ -185,10 +197,14 @@
 							 2 11 0x1 0x0>;	/* PB11 periph A */
 					};
 
-					pinctrl_usart3_rts_cts: usart3_rts_cts-0 {
+					pinctrl_usart3_rts: usart3_rts-0 {
 						atmel,pins =
-							<3 8 0x2 0x0	/* PB8 periph B */
-							 3 10 0x2 0x0>;	/* PB10 periph B */
+							<3 8 0x2 0x0>;	/* PB8 periph B */
+					};
+
+					pinctrl_usart3_cts: usart3_cts-0 {
+						atmel,pins =
+							<3 10 0x2 0x0>;	/* PB10 periph B */
 					};
 				};
 
