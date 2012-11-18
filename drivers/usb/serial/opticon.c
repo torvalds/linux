@@ -76,11 +76,11 @@ static void opticon_read_bulk_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dev_dbg(&priv->udev->dev, "%s - urb shutting down with status: %d\n",
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
 			__func__, status);
 		return;
 	default:
-		dev_dbg(&priv->udev->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
 			__func__, status);
 		goto exit;
 	}
@@ -118,14 +118,14 @@ static void opticon_read_bulk_callback(struct urb *urb)
 					priv->cts = true;
 				spin_unlock_irqrestore(&priv->lock, flags);
 			} else {
-				dev_dbg(&priv->udev->dev,
+				dev_dbg(&port->dev,
 					"Unknown data packet received from the device:"
 					" %2x %2x\n",
 					data[0], data[1]);
 			}
 		}
 	} else {
-		dev_dbg(&priv->udev->dev,
+		dev_dbg(&port->dev,
 			"Improper amount of data received from the device, "
 			"%d bytes", urb->actual_length);
 	}
@@ -219,7 +219,8 @@ static void opticon_write_control_callback(struct urb *urb)
 	kfree(urb->setup_packet);
 
 	if (status)
-		dev_dbg(&priv->udev->dev, "%s - nonzero write bulk status received: %d\n",
+		dev_dbg(&priv->port->dev,
+			"%s - non-zero urb status received: %d\n",
 			__func__, status);
 
 	spin_lock_irqsave(&priv->lock, flags);
