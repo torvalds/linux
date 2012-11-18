@@ -518,13 +518,6 @@ error:
 	return retval;
 }
 
-static void opticon_disconnect(struct usb_serial *serial)
-{
-	struct opticon_private *priv = usb_get_serial_data(serial);
-
-	usb_kill_urb(priv->bulk_read_urb);
-}
-
 static void opticon_release(struct usb_serial *serial)
 {
 	struct opticon_private *priv = usb_get_serial_data(serial);
@@ -570,7 +563,6 @@ static struct usb_serial_driver opticon_device = {
 	.close =		opticon_close,
 	.write =		opticon_write,
 	.write_room = 		opticon_write_room,
-	.disconnect =		opticon_disconnect,
 	.release =		opticon_release,
 	.throttle = 		opticon_throttle,
 	.unthrottle =		opticon_unthrottle,
