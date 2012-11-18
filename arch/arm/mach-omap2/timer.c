@@ -594,6 +594,9 @@ OMAP_SYS_TIMER(3, sync32k);
 OMAP_SYS_32K_TIMER_INIT(3_secure, 12, OMAP3_32K_SOURCE, "ti,timer-secure",
 			2, OMAP3_MPU_SOURCE);
 OMAP_SYS_TIMER(3_secure, sync32k);
+OMAP_SYS_GP_TIMER_INIT(3_gp, 1, OMAP3_MPU_SOURCE, "ti,timer-alwon",
+		       2, OMAP3_MPU_SOURCE);
+OMAP_SYS_TIMER(3_gp, gptimer);
 #endif /* CONFIG_ARCH_OMAP3 */
 
 #ifdef CONFIG_SOC_AM33XX

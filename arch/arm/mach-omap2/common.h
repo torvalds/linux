@@ -138,6 +138,7 @@ extern void omap2_init_common_infrastructure(void);
 extern struct sys_timer omap2_timer;
 extern struct sys_timer omap3_timer;
 extern struct sys_timer omap3_secure_timer;
+extern struct sys_timer omap3_gp_timer;
 extern struct sys_timer omap3_am33xx_timer;
 extern struct sys_timer omap4_timer;
 extern struct sys_timer omap5_timer;
