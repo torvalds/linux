@@ -861,6 +861,12 @@ int batadv_tt_global_add(struct batadv_priv *bat_priv,
 		 */
 		common->flags &= ~BATADV_TT_CLIENT_TEMP;
 
+		/* the change can carry possible "attribute" flags like the
+		 * TT_CLIENT_WIFI, therefore they have to be copied in the
+		 * client entry
+		 */
+		tt_global_entry->common.flags |= flags;
+
 		/* If there is the BATADV_TT_CLIENT_ROAM flag set, there is only
 		 * one originator left in the list and we previously received a
 		 * delete + roaming change for this originator.
@@ -1574,7 +1580,7 @@ batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 
 			memcpy(tt_change->addr, tt_common_entry->addr,
 			       ETH_ALEN);
-			tt_change->flags = BATADV_NO_FLAGS;
+			tt_change->flags = tt_common_entry->flags;
 
 			tt_count++;
 			tt_change++;
@@ -2544,6 +2550,13 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 					  const unsigned char *addr)
 {
 	bool ret = false;
+
+	/* if the originator is a backbone node (meaning it belongs to the same
+	 * LAN of this node) the temporary client must not be added because to
+	 * reach such destination the node must use the LAN instead of the mesh
+	 */
+	if (batadv_bla_is_backbone_gw_orig(bat_priv, orig_node->orig))
+		goto out;
 
 	if (!batadv_tt_global_add(bat_priv, orig_node, addr,
 				  BATADV_TT_CLIENT_TEMP,

@@ -440,10 +440,12 @@ advance:
 	    ((!ctx->mbim_desc) && ((ctx->ether_desc == NULL) || (ctx->control != intf))))
 		goto error;
 
-	/* claim interfaces, if any */
-	temp = usb_driver_claim_interface(driver, ctx->data, dev);
-	if (temp)
-		goto error;
+	/* claim data interface, if different from control */
+	if (ctx->data != ctx->control) {
+		temp = usb_driver_claim_interface(driver, ctx->data, dev);
+		if (temp)
+			goto error;
+	}
 
 	iface_no = ctx->data->cur_altsetting->desc.bInterfaceNumber;
 
@@ -518,6 +520,10 @@ void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 		hrtimer_cancel(&ctx->tx_timer);
 
 	tasklet_kill(&ctx->bh);
+
+	/* handle devices with combined control and data interface */
+	if (ctx->control == ctx->data)
+		ctx->data = NULL;
 
 	/* disconnect master --> disconnect slave */
 	if (intf == ctx->control && ctx->data) {
@@ -1184,6 +1190,14 @@ static const struct usb_device_id cdc_devs[] = {
 	  .bInterfaceSubClass = USB_CDC_SUBCLASS_NCM,
 	  .bInterfaceProtocol = USB_CDC_PROTO_NONE,
 	  .driver_info = (unsigned long) &wwan_info,
+	},
+
+	/* Huawei NCM devices disguised as vendor specific */
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, 0xff, 0x02, 0x16),
+	  .driver_info = (unsigned long)&wwan_info,
+	},
+	{ USB_VENDOR_AND_INTERFACE_INFO(0x12d1, 0xff, 0x02, 0x46),
+	  .driver_info = (unsigned long)&wwan_info,
 	},
 
 	/* Generic CDC-NCM devices */

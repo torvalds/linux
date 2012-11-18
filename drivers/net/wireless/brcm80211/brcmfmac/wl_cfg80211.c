@@ -4197,7 +4197,7 @@ static s32 brcmf_mode_to_nl80211_iftype(s32 mode)
 
 static void brcmf_wiphy_pno_params(struct wiphy *wiphy)
 {
-#ifndef CONFIG_BRCMFISCAN
+#ifndef CONFIG_BRCMISCAN
 	/* scheduled scan settings */
 	wiphy->max_sched_scan_ssids = BRCMF_PNO_MAX_PFN_COUNT;
 	wiphy->max_match_sets = BRCMF_PNO_MAX_PFN_COUNT;

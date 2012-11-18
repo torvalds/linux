@@ -346,7 +346,7 @@ static inline struct epitem *ep_item_from_epqueue(poll_table *p)
 /* Tells if the epoll_ctl(2) operation needs an event copy from userspace */
 static inline int ep_op_has_event(int op)
 {
-	return op == EPOLL_CTL_ADD || op == EPOLL_CTL_MOD;
+	return op != EPOLL_CTL_DEL;
 }
 
 /* Initialize the poll safe wake up structure */
@@ -674,34 +674,6 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 	atomic_long_dec(&ep->user->epoll_watches);
 
 	return 0;
-}
-
-/*
- * Disables a "struct epitem" in the eventpoll set. Returns -EBUSY if the item
- * had no event flags set, indicating that another thread may be currently
- * handling that item's events (in the case that EPOLLONESHOT was being
- * used). Otherwise a zero result indicates that the item has been disabled
- * from receiving events. A disabled item may be re-enabled via
- * EPOLL_CTL_MOD. Must be called with "mtx" held.
- */
-static int ep_disable(struct eventpoll *ep, struct epitem *epi)
-{
-	int result = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ep->lock, flags);
-	if (epi->event.events & ~EP_PRIVATE_BITS) {
-		if (ep_is_linked(&epi->rdllink))
-			list_del_init(&epi->rdllink);
-		/* Ensure ep_poll_callback will not add epi back onto ready
-		   list: */
-		epi->event.events &= EP_PRIVATE_BITS;
-		}
-	else
-		result = -EBUSY;
-	spin_unlock_irqrestore(&ep->lock, flags);
-
-	return result;
 }
 
 static void ep_free(struct eventpoll *ep)
@@ -1047,6 +1019,8 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 	rb_link_node(&epi->rbn, parent, p);
 	rb_insert_color(&epi->rbn, &ep->rbr);
 }
+
+
 
 #define PATH_ARR_SIZE 5
 /*
@@ -1811,12 +1785,6 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 			epds.events |= POLLERR | POLLHUP;
 			error = ep_modify(ep, epi, &epds);
 		} else
-			error = -ENOENT;
-		break;
-	case EPOLL_CTL_DISABLE:
-		if (epi)
-			error = ep_disable(ep, epi);
-		else
 			error = -ENOENT;
 		break;
 	}

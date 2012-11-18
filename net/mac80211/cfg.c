@@ -2613,6 +2613,9 @@ static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
 		else
 			local->probe_req_reg--;
 
+		if (!local->open_count)
+			break;
+
 		ieee80211_queue_work(&local->hw, &local->reconfig_filter);
 		break;
 	default:

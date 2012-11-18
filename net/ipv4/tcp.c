@@ -1213,7 +1213,7 @@ new_segment:
 wait_for_sndbuf:
 			set_bit(SOCK_NOSPACE, &sk->sk_socket->flags);
 wait_for_memory:
-			if (copied && likely(!tp->repair))
+			if (copied)
 				tcp_push(sk, flags & ~MSG_MORE, mss_now, TCP_NAGLE_PUSH);
 
 			if ((err = sk_stream_wait_memory(sk, &timeo)) != 0)
@@ -1224,7 +1224,7 @@ wait_for_memory:
 	}
 
 out:
-	if (copied && likely(!tp->repair))
+	if (copied)
 		tcp_push(sk, flags, mss_now, tp->nonagle);
 	release_sock(sk);
 	return copied + copied_syn;

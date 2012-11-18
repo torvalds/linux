@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/gpio-omap.h>
 #include <linux/power/smartreflex.h>
+#include <linux/platform_data/omap_ocp2scp.h>
 
 #include <plat/omap_hwmod.h>
 #include <plat/i2c.h>
@@ -2125,6 +2126,14 @@ static struct omap_hwmod omap44xx_mcpdm_hwmod = {
 	.name		= "mcpdm",
 	.class		= &omap44xx_mcpdm_hwmod_class,
 	.clkdm_name	= "abe_clkdm",
+	/*
+	 * It's suspected that the McPDM requires an off-chip main
+	 * functional clock, controlled via I2C.  This IP block is
+	 * currently reset very early during boot, before I2C is
+	 * available, so it doesn't seem that we have any choice in
+	 * the kernel other than to avoid resetting it.
+	 */
+	.flags		= HWMOD_EXT_OPT_MAIN_CLK,
 	.mpu_irqs	= omap44xx_mcpdm_irqs,
 	.sdma_reqs	= omap44xx_mcpdm_sdma_reqs,
 	.main_clk	= "mcpdm_fck",
@@ -2681,6 +2690,32 @@ static struct omap_hwmod_class omap44xx_ocp2scp_hwmod_class = {
 	.sysc	= &omap44xx_ocp2scp_sysc,
 };
 
+/* ocp2scp dev_attr */
+static struct resource omap44xx_usb_phy_and_pll_addrs[] = {
+	{
+		.name		= "usb_phy",
+		.start		= 0x4a0ad080,
+		.end		= 0x4a0ae000,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		/* XXX: Remove this once control module driver is in place */
+		.name		= "ctrl_dev",
+		.start		= 0x4a002300,
+		.end		= 0x4a002303,
+		.flags		= IORESOURCE_MEM,
+	},
+	{ }
+};
+
+static struct omap_ocp2scp_dev ocp2scp_dev_attr[] = {
+	{
+		.drv_name       = "omap-usb2",
+		.res		= omap44xx_usb_phy_and_pll_addrs,
+	},
+	{ }
+};
+
 /* ocp2scp_usb_phy */
 static struct omap_hwmod omap44xx_ocp2scp_usb_phy_hwmod = {
 	.name		= "ocp2scp_usb_phy",
@@ -2694,6 +2729,7 @@ static struct omap_hwmod omap44xx_ocp2scp_usb_phy_hwmod = {
 			.modulemode   = MODULEMODE_HWCTRL,
 		},
 	},
+	.dev_attr	= ocp2scp_dev_attr,
 };
 
 /*

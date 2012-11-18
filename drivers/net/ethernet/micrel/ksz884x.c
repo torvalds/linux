@@ -5459,8 +5459,10 @@ static int prepare_hardware(struct net_device *dev)
 	rc = request_irq(dev->irq, netdev_intr, IRQF_SHARED, dev->name, dev);
 	if (rc)
 		return rc;
-	tasklet_enable(&hw_priv->rx_tasklet);
-	tasklet_enable(&hw_priv->tx_tasklet);
+	tasklet_init(&hw_priv->rx_tasklet, rx_proc_task,
+		     (unsigned long) hw_priv);
+	tasklet_init(&hw_priv->tx_tasklet, tx_proc_task,
+		     (unsigned long) hw_priv);
 
 	hw->promiscuous = 0;
 	hw->all_multi = 0;
@@ -7032,16 +7034,6 @@ static int __devinit pcidev_init(struct pci_dev *pdev,
 
 	spin_lock_init(&hw_priv->hwlock);
 	mutex_init(&hw_priv->lock);
-
-	/* tasklet is enabled. */
-	tasklet_init(&hw_priv->rx_tasklet, rx_proc_task,
-		(unsigned long) hw_priv);
-	tasklet_init(&hw_priv->tx_tasklet, tx_proc_task,
-		(unsigned long) hw_priv);
-
-	/* tasklet_enable will decrement the atomic counter. */
-	tasklet_disable(&hw_priv->rx_tasklet);
-	tasklet_disable(&hw_priv->tx_tasklet);
 
 	for (i = 0; i < TOTAL_PORT_NUM; i++)
 		init_waitqueue_head(&hw_priv->counter[i].counter);
