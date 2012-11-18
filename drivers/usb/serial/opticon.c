@@ -1,6 +1,7 @@
 /*
  * Opticon USB barcode to serial driver
  *
+ * Copyright (C) 2011 - 2012 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2011 Martin Jansen <martin.jansen@opticon.com>
  * Copyright (C) 2008 - 2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2008 - 2009 Novell Inc.
@@ -40,10 +41,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* This structure holds all of the individual device information */
 struct opticon_private {
-	struct urb *bulk_read_urb;
 	spinlock_t lock;	/* protects the following flags */
-	bool throttled;
-	bool actually_throttled;
 	bool rts;
 	bool cts;
 	int outstanding_urbs;
@@ -109,49 +107,6 @@ static void opticon_process_read_urb(struct urb *urb)
 	}
 }
 
-static void opticon_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	struct opticon_private *priv = usb_get_serial_port_data(port);
-	unsigned char *data = urb->transfer_buffer;
-	int status = urb->status;
-	int result;
-
-	switch (status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
-			__func__, status);
-		return;
-	default:
-		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
-			__func__, status);
-		goto exit;
-	}
-
-	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
-
-	opticon_process_read_urb(urb);
-exit:
-	spin_lock(&priv->lock);
-
-	/* Continue trying to always read if we should */
-	if (!priv->throttled) {
-		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&port->dev,
-			    "%s - failed resubmitting read urb, error %d\n",
-							__func__, result);
-	} else
-		priv->actually_throttled = true;
-	spin_unlock(&priv->lock);
-}
-
 static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
 				u8 val)
 {
@@ -179,11 +134,9 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
-	int result = 0;
+	int res;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	priv->throttled = false;
-	priv->actually_throttled = false;
 	priv->rts = false;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -191,25 +144,17 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	send_control_msg(port, CONTROL_RTS, 0);
 
 	/* clear the halt status of the enpoint */
-	usb_clear_halt(port->serial->dev, priv->bulk_read_urb->pipe);
+	usb_clear_halt(port->serial->dev, port->read_urb->pipe);
 
-	result = usb_submit_urb(priv->bulk_read_urb, GFP_KERNEL);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-			__func__, result);
+	res = usb_serial_generic_open(tty, port);
+	if (!res)
+		return res;
+
 	/* Request CTS line state, sometimes during opening the current
 	 * CTS state can be missed. */
 	send_control_msg(port, RESEND_CTS_STATE, 1);
-	return result;
-}
 
-static void opticon_close(struct usb_serial_port *port)
-{
-	struct opticon_private *priv = usb_get_serial_port_data(port);
-
-	/* shutdown our urbs */
-	usb_kill_urb(priv->bulk_read_urb);
+	return res;
 }
 
 static void opticon_write_control_callback(struct urb *urb)
@@ -346,40 +291,6 @@ static int opticon_write_room(struct tty_struct *tty)
 	return 2048;
 }
 
-static void opticon_throttle(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->throttled = true;
-	spin_unlock_irqrestore(&priv->lock, flags);
-}
-
-
-static void opticon_unthrottle(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
-	int result, was_throttled;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->throttled = false;
-	was_throttled = priv->actually_throttled;
-	priv->actually_throttled = false;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	if (was_throttled) {
-		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&port->dev,
-				"%s - failed submitting read urb, error %d\n",
-							__func__, result);
-	}
-}
-
 static int opticon_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -495,7 +406,6 @@ static int opticon_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
-	priv->bulk_read_urb = port->read_urbs[0];
 
 	usb_set_serial_port_data(port, priv);
 
@@ -511,32 +421,6 @@ static int opticon_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-static int opticon_suspend(struct usb_serial *serial, pm_message_t message)
-{
-	struct opticon_private *priv;
-
-	priv = usb_get_serial_port_data(serial->port[0]);
-
-	usb_kill_urb(priv->bulk_read_urb);
-	return 0;
-}
-
-static int opticon_resume(struct usb_serial *serial)
-{
-	struct usb_serial_port *port = serial->port[0];
-	struct opticon_private *priv = usb_get_serial_port_data(port);
-	int result;
-
-	mutex_lock(&port->port.mutex);
-	/* This is protected by the port mutex against close/open */
-	if (test_bit(ASYNCB_INITIALIZED, &port->port.flags))
-		result = usb_submit_urb(priv->bulk_read_urb, GFP_NOIO);
-	else
-		result = 0;
-	mutex_unlock(&port->port.mutex);
-	return result;
-}
-
 static struct usb_serial_driver opticon_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -549,17 +433,14 @@ static struct usb_serial_driver opticon_device = {
 	.port_probe =		opticon_port_probe,
 	.port_remove =		opticon_port_remove,
 	.open =			opticon_open,
-	.close =		opticon_close,
 	.write =		opticon_write,
 	.write_room = 		opticon_write_room,
-	.throttle = 		opticon_throttle,
-	.unthrottle =		opticon_unthrottle,
+	.throttle =		usb_serial_generic_throttle,
+	.unthrottle =		usb_serial_generic_unthrottle,
 	.ioctl =		opticon_ioctl,
 	.tiocmget =		opticon_tiocmget,
 	.tiocmset =		opticon_tiocmset,
-	.suspend = 		opticon_suspend,
-	.resume =		opticon_resume,
-	.read_bulk_callback =	opticon_read_bulk_callback,
+	.process_read_urb =	opticon_process_read_urb,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
