@@ -184,13 +184,6 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	/* Clear RTS line */
 	send_control_msg(port, CONTROL_RTS, 0);
 
-	/* Setup the read URB and start reading from the device */
-	usb_fill_bulk_urb(priv->bulk_read_urb, priv->udev,
-			  usb_rcvbulkpipe(priv->udev,
-					  priv->bulk_address),
-			  priv->bulk_in_buffer, priv->buffer_size,
-			  opticon_read_bulk_callback, priv);
-
 	/* clear the halt status of the enpoint */
 	usb_clear_halt(priv->udev, priv->bulk_read_urb->pipe);
 
@@ -529,6 +522,12 @@ static int opticon_startup(struct usb_serial *serial)
 			"Error - the proper endpoints were not found!\n");
 		goto error;
 	}
+
+	usb_fill_bulk_urb(priv->bulk_read_urb, serial->dev,
+				usb_rcvbulkpipe(serial->dev,
+						priv->bulk_address),
+				priv->bulk_in_buffer, priv->buffer_size,
+				opticon_read_bulk_callback, priv);
 
 	usb_set_serial_data(serial, priv);
 	return 0;
