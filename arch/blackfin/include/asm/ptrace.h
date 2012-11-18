@@ -106,6 +106,7 @@ struct pt_regs {
 #define arch_has_single_step()	(1)
 /* common code demands this function */
 #define ptrace_disable(child) user_disable_single_step(child)
+#define current_user_stack_pointer() rdusp()
 
 extern int is_user_addr_valid(struct task_struct *child,
 			      unsigned long start, unsigned long len);

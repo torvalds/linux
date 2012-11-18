@@ -10,6 +10,7 @@
 #define PTRACE_SETREGS            13
 
 #define profile_pc(regs) instruction_pointer(regs)
+#define current_user_stack_pointer() rdusp()
 
 #endif /* __KERNEL__ */
 

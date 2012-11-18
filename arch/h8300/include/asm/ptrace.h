@@ -63,6 +63,7 @@ struct pt_regs {
 #define current_pt_regs() ((struct pt_regs *) \
 	(THREAD_SIZE + (unsigned long)current_thread_info()) - 1)
 #define signal_pt_regs() ((struct pt_regs *)current->thread.esp0)
+#define current_user_stack_pointer() rdusp()
 #endif /* __KERNEL__ */
 #endif /* __ASSEMBLY__ */
 #endif /* _H8300_PTRACE_H */
