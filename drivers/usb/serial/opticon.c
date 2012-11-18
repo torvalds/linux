@@ -40,7 +40,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* This structure holds all of the individual device information */
 struct opticon_private {
-	struct usb_serial_port *port;
 	unsigned char *bulk_in_buffer;
 	struct urb *bulk_read_urb;
 	int buffer_size;
@@ -57,9 +56,9 @@ struct opticon_private {
 
 static void opticon_read_bulk_callback(struct urb *urb)
 {
-	struct opticon_private *priv = urb->context;
+	struct usb_serial_port *port = urb->context;
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	struct usb_serial_port *port = priv->port;
 	int status = urb->status;
 	struct tty_struct *tty;
 	int result;
@@ -175,7 +174,6 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
 	priv->actually_throttled = false;
-	priv->port = port;
 	priv->rts = false;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -206,7 +204,8 @@ static void opticon_close(struct usb_serial_port *port)
 
 static void opticon_write_control_callback(struct urb *urb)
 {
-	struct opticon_private *priv = urb->context;
+	struct usb_serial_port *port = urb->context;
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	int status = urb->status;
 	unsigned long flags;
 
@@ -217,7 +216,7 @@ static void opticon_write_control_callback(struct urb *urb)
 	kfree(urb->setup_packet);
 
 	if (status)
-		dev_dbg(&priv->port->dev,
+		dev_dbg(&port->dev,
 			"%s - non-zero urb status received: %d\n",
 			__func__, status);
 
@@ -225,7 +224,7 @@ static void opticon_write_control_callback(struct urb *urb)
 	--priv->outstanding_urbs;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	usb_serial_port_softint(priv->port);
+	usb_serial_port_softint(port);
 }
 
 static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
@@ -285,7 +284,7 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	usb_fill_control_urb(urb, serial->dev,
 		usb_sndctrlpipe(serial->dev, 0),
 		(unsigned char *)dr, buffer, count,
-		opticon_write_control_callback, priv);
+		opticon_write_control_callback, port);
 
 	/* send it down the pipe */
 	status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -488,7 +487,6 @@ static int opticon_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
-	priv->port = port;
 
 	priv->bulk_read_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->bulk_read_urb)
@@ -505,7 +503,7 @@ static int opticon_port_probe(struct usb_serial_port *port)
 				usb_rcvbulkpipe(serial->dev,
 						priv->bulk_address),
 				priv->bulk_in_buffer, priv->buffer_size,
-				opticon_read_bulk_callback, priv);
+				opticon_read_bulk_callback, port);
 
 	usb_set_serial_port_data(port, priv);
 
