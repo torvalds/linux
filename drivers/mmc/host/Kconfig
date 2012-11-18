@@ -601,3 +601,14 @@ config MMC_USHC
 
 	  Note: These controllers only support SDIO cards and do not
 	  support MMC or SD memory cards.
+
+config MMC_WMT
+	tristate "Wondermedia SD/MMC Host Controller support"
+	depends on ARCH_VT8500
+	default y
+	help
+	  This selects support for the SD/MMC Host Controller on
+	  Wondermedia WM8505/WM8650 based SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wmt-sdmmc.
