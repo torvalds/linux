@@ -471,10 +471,12 @@ static int opticon_ioctl(struct tty_struct *tty,
 static int opticon_startup(struct usb_serial *serial)
 {
 	struct opticon_private *priv;
-	struct usb_host_interface *intf;
-	int i;
 	int retval = -ENOMEM;
-	bool bulk_in_found = false;
+
+	if (!serial->num_bulk_in) {
+		dev_err(&serial->dev->dev, "no bulk in endpoint\n");
+		return -ENODEV;
+	}
 
 	/* create our private serial structure */
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
@@ -485,39 +487,20 @@ static int opticon_startup(struct usb_serial *serial)
 	spin_lock_init(&priv->lock);
 	priv->port = serial->port[0];
 
-	/* find our bulk endpoint */
-	intf = serial->interface->altsetting;
-	for (i = 0; i < intf->desc.bNumEndpoints; ++i) {
-		struct usb_endpoint_descriptor *endpoint;
-
-		endpoint = &intf->endpoint[i].desc;
-		if (!usb_endpoint_is_bulk_in(endpoint))
-			continue;
-
-		priv->bulk_read_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!priv->bulk_read_urb) {
-			dev_err(&serial->dev->dev, "out of memory\n");
-			goto error;
-		}
-
-		priv->buffer_size = usb_endpoint_maxp(endpoint) * 2;
-		priv->bulk_in_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
-		if (!priv->bulk_in_buffer) {
-			dev_err(&serial->dev->dev, "out of memory\n");
-			goto error;
-		}
-
-		priv->bulk_address = endpoint->bEndpointAddress;
-
-		bulk_in_found = true;
-		break;
-		}
-
-	if (!bulk_in_found) {
-		dev_err(&serial->dev->dev,
-			"Error - the proper endpoints were not found!\n");
+	priv->bulk_read_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!priv->bulk_read_urb) {
+		dev_err(&serial->dev->dev, "out of memory\n");
 		goto error;
 	}
+
+	priv->buffer_size = 2 * priv->port->bulk_in_size;
+	priv->bulk_in_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
+	if (!priv->bulk_in_buffer) {
+		dev_err(&serial->dev->dev, "out of memory\n");
+		goto error;
+	}
+
+	priv->bulk_address = priv->port->bulk_in_endpointAddress;
 
 	usb_fill_bulk_urb(priv->bulk_read_urb, serial->dev,
 				usb_rcvbulkpipe(serial->dev,
