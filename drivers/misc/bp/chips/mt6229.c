@@ -82,7 +82,7 @@ static int ap_wake_bp(struct bp_private_data *bp, int wake)
 	}
 	else
 	{
-		gpio_direction_output(bp->ops->bp_usb_en, GPIO_HIGH);
+		gpio_direction_output(bp->ops->bp_usb_en, GPIO_LOW);
 		gpio_direction_output(bp->ops->bp_uart_en, GPIO_HIGH);	
 		gpio_direction_output(bp->ops->ap_ready, GPIO_LOW);
 	}

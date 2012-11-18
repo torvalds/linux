@@ -533,63 +533,6 @@ void bp_shutdown(struct platform_device *pdev)
 	if(bp->ops->shutdown)
 		bp->ops->shutdown(bp);
 	
-	if(bp->ops->bp_power != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_power);	
-	}
-	
-	if(bp->ops->bp_en != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_en);
-		
-	}
-
-	if(bp->ops->bp_reset != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_reset);	
-	}
-	
-	if(bp->ops->ap_ready != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->ap_ready);
-		
-	}
-	
-	if(bp->ops->bp_ready != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_ready);
-		
-	}
-	
-	if(bp->ops->ap_wakeup_bp != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->ap_wakeup_bp);
-		
-	}
-	
-	if(bp->ops->bp_wakeup_ap != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_wakeup_ap);
-		
-	}
-	
-	if(bp->ops->bp_usb_en != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_usb_en);
-		
-	}
-	
-	if(bp->ops->bp_uart_en != BP_UNKNOW_DATA)
-	{
-		gpio_free(bp->ops->bp_uart_en);
-		
-	}
-	
-	if(bp->pdata->exit_platform_hw)
-		bp->pdata->exit_platform_hw();
-	
-	kfree(bp);
-	
 }
 
 

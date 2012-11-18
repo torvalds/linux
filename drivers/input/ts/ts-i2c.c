@@ -45,7 +45,7 @@
 static int ts_i2c_read_device(struct ts_private_data *ts, unsigned short reg,
 				  int bytes, void *dest, int reg_size)
 {
-	const struct i2c_client *client = ts->control_data;
+	struct i2c_client *client = ts->control_data;
 	struct i2c_adapter *i2c_adap = client->adapter;
 	struct i2c_msg msgs[2];
 	int i,res;
@@ -54,6 +54,8 @@ static int ts_i2c_read_device(struct ts_private_data *ts, unsigned short reg,
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return -EINVAL;
 	}
+
+	client->addr = ts->ops->slave_addr;
 
 	msgs[0].addr = client->addr;
 	msgs[0].flags = 0;	/* write */
@@ -95,7 +97,7 @@ static int ts_i2c_read_device(struct ts_private_data *ts, unsigned short reg,
 static int ts_i2c_write_device(struct ts_private_data *ts, unsigned short reg,
 				   int bytes, void *src, int reg_size)
 {
-	const struct i2c_client *client = ts->control_data;
+	struct i2c_client *client = ts->control_data;
 	struct i2c_adapter *i2c_adap = client->adapter;
 	struct i2c_msg msgs[1];
 	int res;
@@ -105,6 +107,9 @@ static int ts_i2c_write_device(struct ts_private_data *ts, unsigned short reg,
 		printk("%s:line=%d,error\n",__func__,__LINE__);
 		return -EINVAL;
 	}
+
+	
+	client->addr = ts->ops->slave_addr;
 	
 	if(ts->ops->reg_size == 2)
 	{
@@ -134,7 +139,10 @@ static int ts_i2c_write_device(struct ts_private_data *ts, unsigned short reg,
 	msgs[0].addr = client->addr;
 	msgs[0].flags = 0;	/* write */
 	msgs[0].buf = buf;
-	msgs[0].len = bytes;
+	if(ts->ops->reg_size  == 2)		
+	msgs[0].len = bytes+2;
+	else	
+	msgs[0].len = bytes+1;	
 	msgs[0].scl_rate = TS_I2C_RATE;
 
 	res = i2c_transfer(i2c_adap, msgs, 1);
@@ -146,6 +154,44 @@ static int ts_i2c_write_device(struct ts_private_data *ts, unsigned short reg,
 		return res;
 			
 }
+
+int ts_bulk_read_normal(struct ts_private_data *ts,
+		     int count, unsigned char *buf, int rate)
+{
+	int ret;
+	unsigned short reg;
+	struct i2c_client *client = ts->control_data;
+	client->addr = ts->ops->slave_addr;
+	
+	mutex_lock(&ts->io_lock);
+	ret = i2c_master_normal_recv(client, buf, count, rate);
+	if(ret == 1)
+		ret = 0;
+	mutex_unlock(&ts->io_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ts_bulk_read_normal);
+
+
+int ts_bulk_write_normal(struct ts_private_data *ts, int count, unsigned char *buf, int rate)
+{
+	int ret;
+	unsigned short reg;
+	struct i2c_client *client = ts->control_data;
+	client->addr = ts->ops->slave_addr;
+	
+	mutex_lock(&ts->io_lock);
+	ret = i2c_master_normal_send(client, buf, count, rate);
+	if(ret == 1)
+		ret = 0;
+	mutex_unlock(&ts->io_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(ts_bulk_write_normal);
+
+
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void ts_suspend(struct early_suspend *h)

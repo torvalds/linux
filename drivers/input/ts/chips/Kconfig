@@ -15,6 +15,10 @@ config TS_GT8110
 config TS_GT828
 	bool "touch screen gt828"
 	default n
+
+config TS_CT360
+	bool "touch screen ct360"
+	default n
 	
 endif
 

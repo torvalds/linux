@@ -152,7 +152,7 @@ static int ts_init(struct ts_private_data *ts)
 	u8 rd_cfg_buf[2];
 	
 	//init some register	
-	result = ts_bulk_read(ts, ts->ops->version_reg, 1, (unsigned short *)rd_cfg_buf);
+	result = ts_bulk_read(ts, ts->ops->version_reg, 1, rd_cfg_buf);
 	if(result < 0)
 	{
 		printk("%s:fail to read rd_cfg_buf\n",__func__);
@@ -182,7 +182,7 @@ static int ts_init(struct ts_private_data *ts)
 		config[TRIGGER_LOC+2] |= 0x08;
 	}
 	
-	result = ts_bulk_write(ts, GTP_REG_CONFIG_DATA, GTP_CONFIG_LENGTH, (unsigned short *)config);
+	result = ts_bulk_write(ts, GTP_REG_CONFIG_DATA, GTP_CONFIG_LENGTH, config);
 	if(result < 0)
 	{
 		printk("%s:fail to send config data\n",__func__);
@@ -197,7 +197,7 @@ static int ts_init(struct ts_private_data *ts)
 	}
 
 	//read version
-	result = ts_bulk_read(ts, ts->ops->version_reg, 4, (unsigned short *)version_data);
+	result = ts_bulk_read(ts, ts->ops->version_reg, 4, version_data);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);
@@ -227,7 +227,7 @@ static int ts_report_value(struct ts_private_data *ts)
 	int finger = 0;
 	int checksum = 0;
 
-	result = ts_bulk_read(ts, ts->ops->read_reg, ts->ops->read_len, (unsigned short *)buf);
+	result = ts_bulk_read(ts, ts->ops->read_reg, ts->ops->read_len, buf);
 	if(result < 0)
 	{
 		printk("%s:fail to init ts\n",__func__);

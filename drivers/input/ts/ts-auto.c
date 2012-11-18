@@ -80,7 +80,7 @@ EXPORT_SYMBOL_GPL(ts_reg_read);
  * @buf: Buffer to fill.
  */
 int ts_bulk_read(struct ts_private_data *ts, unsigned short reg,
-		     int count, u16 *buf)
+		     int count, unsigned char *buf)
 {
 	int ret;
 
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(ts_reg_write);
 
 
 int ts_bulk_write(struct ts_private_data *ts, unsigned short reg,
-		     int count, u16 *buf)
+		     int count, unsigned char *buf)
 {
 	int ret;
 
@@ -132,6 +132,7 @@ int ts_bulk_write(struct ts_private_data *ts, unsigned short reg,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(ts_bulk_write);
+
 
 
 /**
@@ -404,11 +405,11 @@ static int ts_irq_init(struct ts_private_data *ts)
 		if(ts->ops->poll_delay_ms < 0)
 			ts->ops->poll_delay_ms = 30;
 		
-		result = gpio_request(ts->irq, ts->i2c_id->name);
-		if (result)
-		{
-			printk("%s:fail to request gpio :%d\n",__func__,ts->irq);
-		}
+		//result = gpio_request(ts->irq, ts->i2c_id->name);
+		//if (result)
+		//{
+		//	printk("%s:fail to request gpio :%d\n",__func__,ts->irq);
+		//}
 	
 		gpio_pull_updown(ts->irq, PullEnable);
 		irq = gpio_to_irq(ts->irq);

@@ -25,34 +25,62 @@
 #include <linux/ts-auto.h>
 #include "screen.h"
 
+#include <linux/rk_board_id.h>
+
+
 extern struct rk29_bl_info rk29_bl_info;
 
 
 //FOR ID0
 /* Base */
 #define OUT_TYPE_ID0			SCREEN_RGB
+
 #define OUT_FACE_ID0			OUT_P888
 #define OUT_CLK_ID0			71000000
-#define LCDC_ACLK_ID0       		300000000     //29 lcdc axi DMA ÆµÂÊ
+#define LCDC_ACLK_ID0       		500000000//312000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
-#define H_PW_ID0			10
-#define H_BP_ID0			64
-#define H_VD_ID0			800
-#define H_FP_ID0			16
+#define H_PW_ID0			100
+#define H_BP_ID0			100
+#define H_VD_ID0			1024
+#define H_FP_ID0			120
 
-#define V_PW_ID0			3
-#define V_BP_ID0			8
-#define V_VD_ID0			1280
-#define V_FP_ID0			10
+#define V_PW_ID0			10
+#define V_BP_ID0			10
+#define V_VD_ID0			600
+#define V_FP_ID0			15
+
+#define LCD_WIDTH_ID0       		202
+#define LCD_HEIGHT_ID0      		152
+/* Other */
+#define DCLK_POL_ID0			0
+#define SWAP_RB_ID0			0   
+
+//FOR ID1
+/* Base */
+#define OUT_TYPE_ID1			SCREEN_RGB
+#define OUT_FACE_ID1			OUT_P888
+#define OUT_CLK_ID1			71000000
+#define LCDC_ACLK_ID1       		500000000
+
+/* Timing */
+#define H_PW_ID1			10
+#define H_BP_ID1			160
+#define H_VD_ID1			1024
+#define H_FP_ID1			16
+
+#define V_PW_ID1			3
+#define V_BP_ID1			23
+#define V_VD_ID1			768
+#define V_FP_ID1			12
 
 
 /* Other */
-#define DCLK_POL_ID0			0
-#define SWAP_RB_ID0			0
+#define DCLK_POL_ID1			0
+#define SWAP_RB_ID1			0
 
-#define LCD_WIDTH_ID0                  152
-#define LCD_HEIGHT_ID0                 202
+#define LCD_WIDTH_ID1      		270
+#define LCD_HEIGHT_ID1      		202
 
 
 
@@ -80,7 +108,7 @@ extern struct rk29_bl_info rk29_bl_info;
 #define DCLK_POL_ID2			0
 #define SWAP_RB_ID2			0 
 
-//FOR ID2
+//FOR ID3
 /* Base */
 #define OUT_TYPE_ID3			SCREEN_RGB
 #define OUT_FACE_ID3			OUT_P888
@@ -106,6 +134,34 @@ extern struct rk29_bl_info rk29_bl_info;
 #define LCD_WIDTH_ID3       		270
 #define LCD_HEIGHT_ID3      		202
 
+
+//FOR ID4
+/* Base */
+#define OUT_TYPE_ID4			SCREEN_RGB
+#define OUT_FACE_ID4			OUT_P888
+#define OUT_CLK_ID4			71000000
+#define LCDC_ACLK_ID4       		300000000     //29 lcdc axi DMA ÆµÂÊ
+
+/* Timing */
+#define H_PW_ID4			10
+#define H_BP_ID4			64
+#define H_VD_ID4			800
+#define H_FP_ID4			16
+
+#define V_PW_ID4			3
+#define V_BP_ID4			8
+#define V_VD_ID4			1280
+#define V_FP_ID4			10
+
+
+/* Other */
+#define DCLK_POL_ID4			0
+#define SWAP_RB_ID4			0
+
+#define LCD_WIDTH_ID4                  152
+#define LCD_HEIGHT_ID4                 202
+
+
 #if defined(CONFIG_TS_AUTO)
 extern struct ts_private_data *g_ts;
 #else
@@ -113,9 +169,9 @@ static struct ts_private_data *g_ts = NULL;
 #endif
 
 #if defined(CONFIG_RK_BOARD_ID)
-extern int rk_get_board_id(void);
+extern enum rk_board_id rk_get_board_id(void);
 #else
-static int rk_get_board_id(void)
+static enum rk_board_id rk_get_board_id(void)
 {
 	return -1;
 }
@@ -136,13 +192,19 @@ static int lcd_get_id(void)
 	switch(ts_id)
 	{
 		case TS_ID_FT5306:	
-			id = 2;
+			id = BOARD_ID_C8003;
 			break;
 		case TS_ID_GT8110:	
-			id = 3;
+			id = BOARD_ID_C1014;
 			break;
 		case TS_ID_GT828:
-			id = 0;
+			id = BOARD_ID_C7018;
+			break;
+		case TS_ID_GT8005:
+			id = BOARD_ID_C8002;
+			break;
+		case TS_ID_CT360:
+			id = BOARD_ID_DS763;
 			break;
 		default:
 			break;
@@ -160,7 +222,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 
 	switch(id)
 	{
-		case 0:
+		case BOARD_ID_DS763:
 			
 		/* screen type & face */
 		screen->type = OUT_TYPE_ID0;
@@ -202,7 +264,48 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 
 		break;
 
-		case 2:
+		case BOARD_ID_C8002:
+
+		/* screen type & face */
+		screen->type = OUT_TYPE_ID1;
+		screen->face = OUT_FACE_ID1;
+
+		/* Screen size */
+		screen->x_res = H_VD_ID1;
+		screen->y_res = V_VD_ID1;
+
+		screen->width = LCD_WIDTH_ID1;
+		screen->height = LCD_HEIGHT_ID1;
+
+		/* Timing */
+		screen->lcdc_aclk = LCDC_ACLK_ID1;
+		screen->pixclock = OUT_CLK_ID1;
+		screen->left_margin = H_BP_ID1;
+		screen->right_margin = H_FP_ID1;
+		screen->hsync_len = H_PW_ID1;
+		screen->upper_margin = V_BP_ID1;
+		screen->lower_margin = V_FP_ID1;
+		screen->vsync_len = V_PW_ID1;
+
+		/* Pin polarity */
+		screen->pin_hsync = 0;
+		screen->pin_vsync = 0;
+		screen->pin_den = 0;
+		screen->pin_dclk = DCLK_POL_ID1;
+
+		/* Swap rule */
+		screen->swap_rb = SWAP_RB_ID1;
+		screen->swap_rg = 0;
+		screen->swap_gb = 0;
+		screen->swap_delta = 0;
+		screen->swap_dumy = 0;
+
+		/* Operation function*/
+		screen->init = NULL;
+		screen->standby = NULL;
+		break;
+
+		case BOARD_ID_C8003:
 			
 		/* screen type & face */
 		screen->type = OUT_TYPE_ID2;
@@ -244,7 +347,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 
 		break;
 
-		case 3:
+		case BOARD_ID_C1014:
 		default:
 			
 		/* screen type & face */
@@ -286,6 +389,49 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 		screen->standby = NULL;
 
 		break;
+
+		case BOARD_ID_C7018:
+			
+		/* screen type & face */
+		screen->type = OUT_TYPE_ID4;
+		screen->face = OUT_FACE_ID4;
+
+		/* Screen size */
+		screen->x_res = H_VD_ID4;
+		screen->y_res = V_VD_ID4;
+
+		screen->width = LCD_WIDTH_ID4;
+		screen->height = LCD_HEIGHT_ID4;
+
+		/* Timing */
+		screen->lcdc_aclk = LCDC_ACLK_ID4;
+		screen->pixclock = OUT_CLK_ID4;
+		screen->left_margin = H_BP_ID4;
+		screen->right_margin = H_FP_ID4;
+		screen->hsync_len = H_PW_ID4;
+		screen->upper_margin = V_BP_ID4;
+		screen->lower_margin = V_FP_ID4;
+		screen->vsync_len = V_PW_ID4;
+
+		/* Pin polarity */
+		screen->pin_hsync = 0;
+		screen->pin_vsync = 0;
+		screen->pin_den = 0;
+		screen->pin_dclk = DCLK_POL_ID4;
+
+		/* Swap rule */
+		screen->swap_rb = SWAP_RB_ID4;
+		screen->swap_rg = 0;
+		screen->swap_gb = 0;
+		screen->swap_delta = 0;
+		screen->swap_dumy = 0;
+
+		/* Operation function*/
+		screen->init = NULL;
+		screen->standby = NULL;
+
+		break;
+		
 
 	}
 

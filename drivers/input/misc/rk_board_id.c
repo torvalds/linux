@@ -12,15 +12,18 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-
+#include <linux/rk_board_id.h>
 #if 0
 #define DBG(x...)  printk(x)
 #else
 #define DBG(x...)
 #endif
 
+extern void kernel_restart(char *cmd);
+
 struct board_id_private_data {
 	struct mutex id_mutex;
+	int last_value[16];
 	int board_id;
 	struct board_id_platform_data *pdata;
 };
@@ -28,7 +31,7 @@ struct board_id_private_data {
 static struct board_id_private_data *g_id;
 
 
-int rk_get_board_id(void)
+enum rk_board_id rk_get_board_id(void)
 {
 	struct board_id_private_data *id = g_id;
 	DBG("%s:id:0x%x\n",__func__,id->board_id);
@@ -39,8 +42,8 @@ EXPORT_SYMBOL(rk_get_board_id);
 static int _rk_get_board_id(struct board_id_private_data *id)
 {
 	int result = 0;
-	int value = 0;
-	int i = 0;
+	int value1 = 0, value2 = 0, value3 = 0;
+	int i = 0, j = 0;
 	
 	id->board_id = -1;
 			
@@ -49,14 +52,33 @@ static int _rk_get_board_id(struct board_id_private_data *id)
 		gpio_request(id->pdata->gpio_pin[i],"gpio_board_id");
 		gpio_direction_input(id->pdata->gpio_pin[i]);
 		gpio_pull_updown(id->pdata->gpio_pin[i], PullDisable);
-		value = gpio_get_value(id->pdata->gpio_pin[i]);
-		if(value < 0)
-			return value;
-		result = (value << i) | result;
+		for(j=0; j<1000; j++)
+		{
+			value1 = gpio_get_value(id->pdata->gpio_pin[i]);
+			if(value1 < 0)
+				continue;
+			mdelay(1);
+			value2 = gpio_get_value(id->pdata->gpio_pin[i]);
+			if(value2 < 0)
+				continue;
+			mdelay(1);
+			value3 = gpio_get_value(id->pdata->gpio_pin[i]);
+			if(value3 < 0)
+				continue;
+			if((value1 == value2) && (value2 == value3))
+				break;
+		}
+		if(j >= 1000)
+		{
+			printk("%s:hareware error,gpio level changed always!\n");			
+			kernel_restart(NULL);
+		}
 		
-		DBG("%s:gpio:%d,value:%d\n",__func__,id->pdata->gpio_pin[i],value);
+		result = (value1 << i) | result;
+		
+		DBG("%s:gpio:%d,value:%d\n",__func__,id->pdata->gpio_pin[i],value1);
 	}
-	
+
 	id->board_id = result;
 
 	
@@ -130,7 +152,7 @@ static void __exit rk_get_board_exit(void)
 	platform_driver_unregister(&rk_board_id_driver);
 }
 
-subsys_initcall_sync(rk_get_board_init);
+arch_initcall_sync(rk_get_board_init);
 module_exit(rk_get_board_exit);
 
 MODULE_AUTHOR("ROCKCHIP Corporation:lw@rock-chips.com");

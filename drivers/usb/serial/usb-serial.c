@@ -53,19 +53,19 @@ static struct usb_driver usb_serial_driver = {
 	.no_dynamic_id = 	1,
 	.supports_autosuspend =	1,
 };
-#ifdef CONFIG_MU509
+#if defined(CONFIG_MU509) || defined(CONFIG_BP_AUTO_MU509)
 static int MU509_USB = 0;
 #define MU509_USB_PORT     (SERIAL_TTY_MINORS - 10)
 #endif
-#ifdef CONFIG_MW100
+#if defined(CONFIG_MW100) || defined(CONFIG_BP_AUTO_MW100)
 static int MW100_USB = 0;
 #define MW100_USB_PORT     (SERIAL_TTY_MINORS - 10)
 #endif
-#ifdef CONFIG_MT6229
+#if defined(CONFIG_MT6229) || defined(CONFIG_BP_AUTO_MT6229)
 static int MT6229_USB = 0;
 #define MT6229_USB_PORT     (SERIAL_TTY_MINORS - 10)
 #endif
-#ifdef CONFIG_SEW868
+#if defined(CONFIG_SEW868) || defined(CONFIG_BP_AUTO_SEW868)
 static int SEW868_USB = 0;
 #define SEW868_USB_PORT     (SERIAL_TTY_MINORS - 10)
 #endif
@@ -119,19 +119,19 @@ static struct usb_serial *get_free_serial(struct usb_serial *serial,
 
 	*minor = 0;
 	mutex_lock(&table_lock);
-#ifdef CONFIG_MU509
+#if defined(CONFIG_MU509) || defined(CONFIG_BP_AUTO_MU509)
 	if (MU509_USB)
 		a= MU509_USB_PORT;
 #endif
-#ifdef CONFIG_MW100	
+#if defined(CONFIG_MW100) || defined(CONFIG_BP_AUTO_MW100)
 	if (MW100_USB)		
 		a= MW100_USB_PORT;
 #endif
-#ifdef CONFIG_MT6229	
+#if defined(CONFIG_MT6229) || defined(CONFIG_BP_AUTO_MT6229)
 	if (MT6229_USB)		
 		a= MT6229_USB_PORT;
 #endif
-#ifdef CONFIG_SEW868	
+#if defined(CONFIG_SEW868) || defined(CONFIG_BP_AUTO_SEW868)
 	if (SEW868_USB)		
 		a= SEW868_USB_PORT;
 #endif
@@ -1093,25 +1093,25 @@ int usb_serial_probe(struct usb_interface *interface,
 	} else {
 		serial->attached = 1;
 	}
-#ifdef CONFIG_MU509
+#if defined(CONFIG_MU509) || defined(CONFIG_BP_AUTO_MU509)
 		if ((le16_to_cpu(dev->descriptor.idVendor) == 0x12D1 ) && (le16_to_cpu(dev->descriptor.idProduct) == 0x1001))
 			MU509_USB =1;
 		else
 			MU509_USB = 0;
 #endif
-#ifdef CONFIG_MW100		
+#if defined(CONFIG_MW100) || defined(CONFIG_BP_AUTO_MW100)
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x19f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9013))			
 		MW100_USB =1;		
 	else			
 		MW100_USB = 0;
 #endif
-#ifdef CONFIG_MT6229		
+#if defined(CONFIG_MT6229) || defined(CONFIG_BP_AUTO_MT6229)
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x0E8D) && (le16_to_cpu(dev->descriptor.idProduct) == 0x00A2))			
 		MT6229_USB =1;		
 	else			
 		MT6229_USB = 0;
 #endif
-#ifdef CONFIG_SEW868		
+#if defined(CONFIG_SEW868) || defined(CONFIG_BP_AUTO_SEW868)
 	if ((le16_to_cpu(dev->descriptor.idVendor) == 0x19d2) && (le16_to_cpu(dev->descriptor.idProduct) == 0xffeb))			
 		SEW868_USB =1;		
 	else			

@@ -27,6 +27,7 @@ enum ts_id {
 	TS_ID_CT360,
 	TS_ID_GT8110,
 	TS_ID_GT828,
+	TS_ID_GT8005,
 	
 	TS_NUM_ID,
 };
@@ -136,9 +137,11 @@ extern int ts_reg_read(struct ts_private_data *ts, unsigned short reg);
 extern int ts_reg_write(struct ts_private_data *ts, unsigned short reg,
 		     unsigned short val);
 extern int ts_bulk_read(struct ts_private_data *ts, unsigned short reg,
-		     int count, u16 *buf);
+		     int count, unsigned char *buf);
+extern int ts_bulk_read_normal(struct ts_private_data *ts, int count, unsigned char *buf, int rate);
 extern int ts_bulk_write(struct ts_private_data *ts, unsigned short reg,
-		     int count, u16 *buf);
+		     int count, unsigned char *buf);
+extern int ts_bulk_write_normal(struct ts_private_data *ts, int count, unsigned char *buf, int rate);
 extern int ts_set_bits(struct ts_private_data *ts, unsigned short reg,
 		    unsigned short mask, unsigned short val);
 extern int ts_device_suspend(struct ts_private_data *ts);
