@@ -367,10 +367,8 @@ static struct ctl_table kern_table[] = {
 		.procname	= "sched_autogroup_enabled",
 		.data		= &sysctl_sched_autogroup_enabled,
 		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &one,
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
 	},
 #endif
 #ifdef CONFIG_CFS_BANDWIDTH

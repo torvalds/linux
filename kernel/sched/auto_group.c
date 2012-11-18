@@ -110,6 +110,9 @@ out_fail:
 
 bool task_wants_autogroup(struct task_struct *p, struct task_group *tg)
 {
+	if (!sysctl_sched_autogroup_enabled)
+		return false;
+
 	if (tg != &root_task_group)
 		return false;
 
@@ -143,15 +146,11 @@ autogroup_move_group(struct task_struct *p, struct autogroup *ag)
 
 	p->signal->autogroup = autogroup_kref_get(ag);
 
-	if (!ACCESS_ONCE(sysctl_sched_autogroup_enabled))
-		goto out;
-
 	t = p;
 	do {
 		sched_move_task(t);
 	} while_each_thread(p, t);
 
-out:
 	unlock_task_sighand(p, &flags);
 	autogroup_kref_put(prev);
 }
@@ -159,8 +158,11 @@ out:
 /* Allocates GFP_KERNEL, cannot be called under any spinlock */
 void sched_autogroup_create_attach(struct task_struct *p)
 {
-	struct autogroup *ag = autogroup_create();
+	struct autogroup *ag;
 
+	if (!sysctl_sched_autogroup_enabled)
+		return;
+	ag = autogroup_create();
 	autogroup_move_group(p, ag);
 	/* drop extra reference added by autogroup_create() */
 	autogroup_kref_put(ag);
@@ -176,11 +178,15 @@ EXPORT_SYMBOL(sched_autogroup_detach);
 
 void sched_autogroup_fork(struct signal_struct *sig)
 {
+	if (!sysctl_sched_autogroup_enabled)
+		return;
 	sig->autogroup = autogroup_task_get(current);
 }
 
 void sched_autogroup_exit(struct signal_struct *sig)
 {
+	if (!sysctl_sched_autogroup_enabled)
+		return;
 	autogroup_kref_put(sig->autogroup);
 }
 
@@ -192,58 +198,6 @@ static int __init setup_autogroup(char *str)
 }
 
 __setup("noautogroup", setup_autogroup);
-
-#ifdef CONFIG_PROC_FS
-
-int proc_sched_autogroup_set_nice(struct task_struct *p, int nice)
-{
-	static unsigned long next = INITIAL_JIFFIES;
-	struct autogroup *ag;
-	int err;
-
-	if (nice < -20 || nice > 19)
-		return -EINVAL;
-
-	err = security_task_setnice(current, nice);
-	if (err)
-		return err;
-
-	if (nice < 0 && !can_nice(current, nice))
-		return -EPERM;
-
-	/* this is a heavy operation taking global locks.. */
-	if (!capable(CAP_SYS_ADMIN) && time_before(jiffies, next))
-		return -EAGAIN;
-
-	next = HZ / 10 + jiffies;
-	ag = autogroup_task_get(p);
-
-	down_write(&ag->lock);
-	err = sched_group_set_shares(ag->tg, prio_to_weight[nice + 20]);
-	if (!err)
-		ag->nice = nice;
-	up_write(&ag->lock);
-
-	autogroup_kref_put(ag);
-
-	return err;
-}
-
-void proc_sched_autogroup_show_task(struct task_struct *p, struct seq_file *m)
-{
-	struct autogroup *ag = autogroup_task_get(p);
-
-	if (!task_group_is_autogroup(ag->tg))
-		goto out;
-
-	down_read(&ag->lock);
-	seq_printf(m, "/autogroup-%ld nice %d\n", ag->id, ag->nice);
-	up_read(&ag->lock);
-
-out:
-	autogroup_kref_put(ag);
-}
-#endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SCHED_DEBUG
 int autogroup_path(struct task_group *tg, char *buf, int buflen)
