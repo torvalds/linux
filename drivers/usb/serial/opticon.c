@@ -135,11 +135,6 @@ exit:
 
 	/* Continue trying to always read if we should */
 	if (!priv->throttled) {
-		usb_fill_bulk_urb(priv->bulk_read_urb, priv->udev,
-				  usb_rcvbulkpipe(priv->udev,
-						  priv->bulk_address),
-				  priv->bulk_in_buffer, priv->buffer_size,
-				  opticon_read_bulk_callback, priv);
 		result = usb_submit_urb(priv->bulk_read_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
