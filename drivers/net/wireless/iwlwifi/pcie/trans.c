@@ -933,7 +933,6 @@ static ssize_t iwl_dbgfs_##name##_write(struct file *file,              \
 					const char __user *user_buf,    \
 					size_t count, loff_t *ppos);
 
-
 #define DEBUGFS_READ_FILE_OPS(name)					\
 	DEBUGFS_READ_FUNC(name);					\
 static const struct file_operations iwl_dbgfs_##name##_ops = {		\

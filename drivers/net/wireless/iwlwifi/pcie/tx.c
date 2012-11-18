@@ -112,7 +112,6 @@ static int iwl_queue_init(struct iwl_queue *q, int count, int slots_num, u32 id)
 	return 0;
 }
 
-
 static int iwl_pcie_alloc_dma_ptr(struct iwl_trans *trans,
 				  struct iwl_dma_ptr *ptr, size_t size)
 {
@@ -1399,7 +1398,6 @@ static int iwl_pcie_send_hcmd_async(struct iwl_trans *trans,
 	/* An asynchronous command can not expect an SKB to be set. */
 	if (WARN_ON(cmd->flags & CMD_WANT_SKB))
 		return -EINVAL;
-
 
 	ret = iwl_pcie_enqueue_hcmd(trans, cmd);
 	if (ret < 0) {

@@ -130,10 +130,11 @@ static inline __le32 iwl_pcie_dma_addr2rbd_ptr(dma_addr_t dma_addr)
 	return cpu_to_le32((u32)(dma_addr >> 8));
 }
 
+/*
+ * iwl_pcie_rx_stop - stops the Rx DMA
+ */
 int iwl_pcie_rx_stop(struct iwl_trans *trans)
 {
-
-	/* stop Rx DMA */
 	iwl_write_direct32(trans, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
 	return iwl_poll_direct_bit(trans, FH_MEM_RSSR_RX_STATUS_REG,
 				   FH_RSSR_CHNL0_RX_STATUS_CHNL_IDLE, 1000);
@@ -440,9 +441,6 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 
-	/* FIXME: RX_RB_TIMEOUT for all devices? */
-	u32 rb_timeout = RX_RB_TIMEOUT;
-
 	if (trans_pcie->rx_buf_size_8k)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
@@ -475,7 +473,7 @@ static void iwl_pcie_rx_hw_init(struct iwl_trans *trans, struct iwl_rxq *rxq)
 			   FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY |
 			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
 			   rb_size|
-			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
+			   (RX_RB_TIMEOUT << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
 			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
 
 	/* Set interrupt coalescing timer to default (2048 usecs) */
@@ -776,7 +774,6 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 	iwl_op_mode_nic_error(trans->op_mode);
 }
 
-/* tasklet for iwlagn interrupt */
 void iwl_pcie_tasklet(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -1189,7 +1186,6 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 
 	trace_iwlwifi_dev_irq(trans->dev);
 
-
 	/* Disable (but don't clear!) interrupts here to avoid
 	 * back-to-back ISRs and sporadic interrupts from our NIC.
 	 * If we have something to service, the tasklet will re-enable ints.
@@ -1197,7 +1193,6 @@ irqreturn_t iwl_pcie_isr_ict(int irq, void *data)
 	 */
 	inta_mask = iwl_read32(trans, CSR_INT_MASK);  /* just for debug */
 	iwl_write32(trans, CSR_INT_MASK, 0x00000000);
-
 
 	/* Ignore interrupt if there's nothing in NIC to service.
 	 * This may be due to IRQ shared with another device,
