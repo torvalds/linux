@@ -523,13 +523,13 @@ static void opticon_disconnect(struct usb_serial *serial)
 	struct opticon_private *priv = usb_get_serial_data(serial);
 
 	usb_kill_urb(priv->bulk_read_urb);
-	usb_free_urb(priv->bulk_read_urb);
 }
 
 static void opticon_release(struct usb_serial *serial)
 {
 	struct opticon_private *priv = usb_get_serial_data(serial);
 
+	usb_free_urb(priv->bulk_read_urb);
 	kfree(priv->bulk_in_buffer);
 	kfree(priv);
 }
