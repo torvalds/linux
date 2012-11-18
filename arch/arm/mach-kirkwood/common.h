@@ -112,6 +112,12 @@ void km_kirkwood_init(void);
 static inline void km_kirkwood_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_MPLCEC4_DT
+void mplcec4_init(void);
+#else
+static inline void mplcec4_init(void) {};
+#endif
+
 #if defined(CONFIG_MACH_INETSPACE_V2_DT) || \
 	defined(CONFIG_MACH_NETSPACE_V2_DT) || \
 	defined(CONFIG_MACH_NETSPACE_MAX_V2_DT) || \

@@ -103,6 +103,9 @@ static void __init kirkwood_dt_init(void)
 	    of_machine_is_compatible("lacie,netspace_mini_v2"))
 		ns2_init();
 
+	if (of_machine_is_compatible("mpl,cec4"))
+		mplcec4_init();
+
 	if (of_machine_is_compatible("usi,topkick"))
 		usi_topkick_init();
 
@@ -130,6 +133,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"lacie,netspace_v2",
 	"lacie,netspace_lite_v2",
 	"lacie,netspace_mini_v2",
+	"mpl,cec4",
 	"usi,topkick",
 	"zyxel,nsa310",
 	NULL

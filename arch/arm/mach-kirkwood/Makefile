@@ -32,6 +32,7 @@ obj-$(CONFIG_MACH_LSXL_DT)		+= board-lsxl.o
 obj-$(CONFIG_MACH_IOMEGA_IX2_200_DT)	+= board-iomega_ix2_200.o
 obj-$(CONFIG_MACH_KM_KIRKWOOD_DT)	+= board-km_kirkwood.o
 obj-$(CONFIG_MACH_INETSPACE_V2_DT)	+= board-ns2.o
+obj-$(CONFIG_MACH_MPLCEC4_DT)		+= board-mplcec4.o
 obj-$(CONFIG_MACH_NETSPACE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_MAX_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NETSPACE_LITE_V2_DT)	+= board-ns2.o
