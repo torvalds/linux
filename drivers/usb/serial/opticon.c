@@ -486,7 +486,6 @@ static int opticon_startup(struct usb_serial *serial)
 	spin_lock_init(&priv->lock);
 	priv->serial = serial;
 	priv->port = serial->port[0];
-	priv->outstanding_urbs = 0;	/* Init the outstanding urbs */
 
 	/* find our bulk endpoint */
 	intf = serial->interface->altsetting;
