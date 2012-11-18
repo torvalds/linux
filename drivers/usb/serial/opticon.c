@@ -168,7 +168,7 @@ static int send_control_msg(struct usb_serial_port *port, u8 requesttype,
 
 static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result = 0;
 
@@ -198,7 +198,7 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void opticon_close(struct usb_serial_port *port)
 {
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 
 	/* shutdown our urbs */
 	usb_kill_urb(priv->bulk_read_urb);
@@ -231,7 +231,7 @@ static void opticon_write_control_callback(struct urb *urb)
 static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 			 const unsigned char *buf, int count)
 {
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	struct usb_serial *serial = port->serial;
 	struct urb *urb;
 	unsigned char *buffer;
@@ -318,7 +318,7 @@ error_no_buffer:
 static int opticon_write_room(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
 	/*
@@ -340,7 +340,7 @@ static int opticon_write_room(struct tty_struct *tty)
 static void opticon_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -352,7 +352,7 @@ static void opticon_throttle(struct tty_struct *tty)
 static void opticon_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result, was_throttled;
 
@@ -374,7 +374,7 @@ static void opticon_unthrottle(struct tty_struct *tty)
 static int opticon_tiocmget(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	int result = 0;
 
@@ -394,7 +394,7 @@ static int opticon_tiocmset(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	bool rts;
 	bool changed = false;
@@ -455,7 +455,7 @@ static int opticon_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct opticon_private *priv = usb_get_serial_data(port->serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 
 	dev_dbg(&port->dev, "%s - port %d, cmd = 0x%x\n", __func__, port->number, cmd);
 
@@ -470,37 +470,37 @@ static int opticon_ioctl(struct tty_struct *tty,
 
 static int opticon_startup(struct usb_serial *serial)
 {
-	struct opticon_private *priv;
-	int retval = -ENOMEM;
-
 	if (!serial->num_bulk_in) {
 		dev_err(&serial->dev->dev, "no bulk in endpoint\n");
 		return -ENODEV;
 	}
 
-	/* create our private serial structure */
+	return 0;
+}
+
+static int opticon_port_probe(struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct opticon_private *priv;
+	int retval = -ENOMEM;
+
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (priv == NULL) {
-		dev_err(&serial->dev->dev, "%s - Out of memory\n", __func__);
+	if (!priv)
 		return -ENOMEM;
-	}
+
 	spin_lock_init(&priv->lock);
-	priv->port = serial->port[0];
+	priv->port = port;
 
 	priv->bulk_read_urb = usb_alloc_urb(0, GFP_KERNEL);
-	if (!priv->bulk_read_urb) {
-		dev_err(&serial->dev->dev, "out of memory\n");
+	if (!priv->bulk_read_urb)
 		goto error;
-	}
 
-	priv->buffer_size = 2 * priv->port->bulk_in_size;
+	priv->buffer_size = 2 * port->bulk_in_size;
 	priv->bulk_in_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
-	if (!priv->bulk_in_buffer) {
-		dev_err(&serial->dev->dev, "out of memory\n");
+	if (!priv->bulk_in_buffer)
 		goto error;
-	}
 
-	priv->bulk_address = priv->port->bulk_in_endpointAddress;
+	priv->bulk_address = port->bulk_in_endpointAddress;
 
 	usb_fill_bulk_urb(priv->bulk_read_urb, serial->dev,
 				usb_rcvbulkpipe(serial->dev,
@@ -508,9 +508,9 @@ static int opticon_startup(struct usb_serial *serial)
 				priv->bulk_in_buffer, priv->buffer_size,
 				opticon_read_bulk_callback, priv);
 
-	usb_set_serial_data(serial, priv);
-	return 0;
+	usb_set_serial_port_data(port, priv);
 
+	return 0;
 error:
 	usb_free_urb(priv->bulk_read_urb);
 	kfree(priv->bulk_in_buffer);
@@ -518,18 +518,22 @@ error:
 	return retval;
 }
 
-static void opticon_release(struct usb_serial *serial)
+static int opticon_port_remove(struct usb_serial_port *port)
 {
-	struct opticon_private *priv = usb_get_serial_data(serial);
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 
 	usb_free_urb(priv->bulk_read_urb);
 	kfree(priv->bulk_in_buffer);
 	kfree(priv);
+
+	return 0;
 }
 
 static int opticon_suspend(struct usb_serial *serial, pm_message_t message)
 {
-	struct opticon_private *priv = usb_get_serial_data(serial);
+	struct opticon_private *priv;
+
+	priv = usb_get_serial_port_data(serial->port[0]);
 
 	usb_kill_urb(priv->bulk_read_urb);
 	return 0;
@@ -537,8 +541,8 @@ static int opticon_suspend(struct usb_serial *serial, pm_message_t message)
 
 static int opticon_resume(struct usb_serial *serial)
 {
-	struct opticon_private *priv = usb_get_serial_data(serial);
 	struct usb_serial_port *port = serial->port[0];
+	struct opticon_private *priv = usb_get_serial_port_data(port);
 	int result;
 
 	mutex_lock(&port->port.mutex);
@@ -559,11 +563,12 @@ static struct usb_serial_driver opticon_device = {
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		opticon_startup,
+	.port_probe =		opticon_port_probe,
+	.port_remove =		opticon_port_remove,
 	.open =			opticon_open,
 	.close =		opticon_close,
 	.write =		opticon_write,
 	.write_room = 		opticon_write_room,
-	.release =		opticon_release,
 	.throttle = 		opticon_throttle,
 	.unthrottle =		opticon_unthrottle,
 	.ioctl =		opticon_ioctl,
