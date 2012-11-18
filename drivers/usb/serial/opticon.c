@@ -50,6 +50,64 @@ struct opticon_private {
 };
 
 
+static void opticon_process_data_packet(struct usb_serial_port *port,
+					const unsigned char *buf, size_t len)
+{
+	struct tty_struct *tty;
+
+	tty = tty_port_tty_get(&port->port);
+	if (!tty)
+		return;
+
+	tty_insert_flip_string(tty, buf, len);
+	tty_flip_buffer_push(tty);
+	tty_kref_put(tty);
+}
+
+static void opticon_process_status_packet(struct usb_serial_port *port,
+					const unsigned char *buf, size_t len)
+{
+	struct opticon_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	if (buf[0] == 0x00)
+		priv->cts = false;
+	else
+		priv->cts = true;
+	spin_unlock_irqrestore(&priv->lock, flags);
+}
+
+static void opticon_process_read_urb(struct urb *urb)
+{
+	struct usb_serial_port *port = urb->context;
+	const unsigned char *hdr = urb->transfer_buffer;
+	const unsigned char *data = hdr + 2;
+	size_t data_len = urb->actual_length - 2;
+
+	if (urb->actual_length <= 2) {
+		dev_dbg(&port->dev, "malformed packet received: %d bytes\n",
+							urb->actual_length);
+		return;
+	}
+	/*
+	 * Data from the device comes with a 2 byte header:
+	 *
+	 * <0x00><0x00>data...
+	 *      This is real data to be sent to the tty layer
+	 * <0x00><0x01>level
+	 *      This is a CTS level change, the third byte is the CTS
+	 *      value (0 for low, 1 for high).
+	 */
+	if ((hdr[0] == 0x00) && (hdr[1] == 0x00)) {
+		opticon_process_data_packet(port, data, data_len);
+	} else if ((hdr[0] == 0x00) && (hdr[1] == 0x01)) {
+		opticon_process_status_packet(port, data, data_len);
+	} else {
+		dev_dbg(&port->dev, "unknown packet received: %02x %02x\n",
+							hdr[0], hdr[1]);
+	}
+}
 
 static void opticon_read_bulk_callback(struct urb *urb)
 {
@@ -57,10 +115,7 @@ static void opticon_read_bulk_callback(struct urb *urb)
 	struct opticon_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
-	struct tty_struct *tty;
 	int result;
-	int data_length;
-	unsigned long flags;
 
 	switch (status) {
 	case 0:
@@ -81,49 +136,7 @@ static void opticon_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(&port->dev, __func__, urb->actual_length, data);
 
-	if (urb->actual_length > 2) {
-		data_length = urb->actual_length - 2;
-
-		/*
-		 * Data from the device comes with a 2 byte header:
-		 *
-		 * <0x00><0x00>data...
-		 *	This is real data to be sent to the tty layer
-		 * <0x00><0x01)level
-		 *	This is a CTS level change, the third byte is the CTS
-		 *	value (0 for low, 1 for high).
-		 */
-		if ((data[0] == 0x00) && (data[1] == 0x00)) {
-			/* real data, send it to the tty layer */
-			tty = tty_port_tty_get(&port->port);
-			if (tty) {
-				tty_insert_flip_string(tty, data + 2,
-						       data_length);
-				tty_flip_buffer_push(tty);
-				tty_kref_put(tty);
-			}
-		} else {
-			if ((data[0] == 0x00) && (data[1] == 0x01)) {
-				spin_lock_irqsave(&priv->lock, flags);
-				/* CTS status information package */
-				if (data[2] == 0x00)
-					priv->cts = false;
-				else
-					priv->cts = true;
-				spin_unlock_irqrestore(&priv->lock, flags);
-			} else {
-				dev_dbg(&port->dev,
-					"Unknown data packet received from the device:"
-					" %2x %2x\n",
-					data[0], data[1]);
-			}
-		}
-	} else {
-		dev_dbg(&port->dev,
-			"Improper amount of data received from the device, "
-			"%d bytes", urb->actual_length);
-	}
-
+	opticon_process_read_urb(urb);
 exit:
 	spin_lock(&priv->lock);
 
