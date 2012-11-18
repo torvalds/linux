@@ -365,13 +365,6 @@ config MTD_IXP2000
 	  IXP2000 based board and would like to use the flash chips on it,
 	  say 'Y'.
 
-config MTD_FORTUNET
-	tristate "CFI Flash device mapped on the FortuNet board"
-	depends on MTD_CFI && SA1100_FORTUNET
-	help
-	  This enables access to the Flash on the FortuNet board.  If you
-	  have such a board, say 'Y'.
-
 config MTD_AUTCPU12
 	bool "NV-RAM mapping AUTCPU12 board"
 	depends on ARCH_AUTCPU12
