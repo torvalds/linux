@@ -5294,7 +5294,7 @@ void md_stop_writes(struct mddev *mddev)
 }
 EXPORT_SYMBOL_GPL(md_stop_writes);
 
-void md_stop(struct mddev *mddev)
+static void __md_stop(struct mddev *mddev)
 {
 	mddev->ready = 0;
 	mddev->pers->stop(mddev);
@@ -5304,6 +5304,18 @@ void md_stop(struct mddev *mddev)
 	mddev->pers = NULL;
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 }
+
+void md_stop(struct mddev *mddev)
+{
+	/* stop the array and free an attached data structures.
+	 * This is called from dm-raid
+	 */
+	__md_stop(mddev);
+	bitmap_destroy(mddev);
+	if (mddev->bio_set)
+		bioset_free(mddev->bio_set);
+}
+
 EXPORT_SYMBOL_GPL(md_stop);
 
 static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
@@ -5364,7 +5376,7 @@ static int do_md_stop(struct mddev * mddev, int mode,
 			set_disk_ro(disk, 0);
 
 		__md_stop_writes(mddev);
-		md_stop(mddev);
+		__md_stop(mddev);
 		mddev->queue->merge_bvec_fn = NULL;
 		mddev->queue->backing_dev_info.congested_fn = NULL;
 
