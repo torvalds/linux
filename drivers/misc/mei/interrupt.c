@@ -1046,8 +1046,8 @@ static int mei_irq_thread_write_handler(struct mei_cl_cb *cmpl_list,
 					cl->host_client_id);
 				continue;
 			}
-			ret = mei_amthif_irq_process_completed(dev, slots, pos,
-								cl, cmpl_list);
+			ret = mei_amthif_irq_write_complete(dev, slots,
+							pos, cmpl_list);
 			if (ret)
 				return ret;
 
