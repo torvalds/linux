@@ -142,9 +142,8 @@ int iwl_pcie_rx_stop(struct iwl_trans *trans)
 
 /*
  * iwl_pcie_rxq_inc_wr_ptr - Update the write pointer for the RX queue
- * TODO - could be made static
  */
-void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q)
+static void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q)
 {
 	unsigned long flags;
 	u32 reg;

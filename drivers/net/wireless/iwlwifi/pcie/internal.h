@@ -329,7 +329,6 @@ void iwl_trans_pcie_free(struct iwl_trans *trans);
 ******************************************************/
 int iwl_pcie_rx_init(struct iwl_trans *trans);
 void iwl_pcie_tasklet(struct iwl_trans *trans);
-void iwl_pcie_rxq_inc_wr_ptr(struct iwl_trans *trans, struct iwl_rxq *q);
 int iwl_pcie_rx_stop(struct iwl_trans *trans);
 void iwl_pcie_rx_free(struct iwl_trans *trans);
 
