@@ -40,7 +40,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* This structure holds all of the individual device information */
 struct opticon_private {
-	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	unsigned char *bulk_in_buffer;
 	struct urb *bulk_read_urb;
@@ -438,7 +437,7 @@ static int get_serial_info(struct opticon_private *priv,
 
 	/* fake emulate a 16550 uart to make userspace code happy */
 	tmp.type		= PORT_16550A;
-	tmp.line		= priv->serial->minor;
+	tmp.line		= priv->port->serial->minor;
 	tmp.port		= 0;
 	tmp.irq			= 0;
 	tmp.flags		= ASYNC_SKIP_TEST | ASYNC_AUTO_IRQ;
@@ -484,7 +483,6 @@ static int opticon_startup(struct usb_serial *serial)
 		return -ENOMEM;
 	}
 	spin_lock_init(&priv->lock);
-	priv->serial = serial;
 	priv->port = serial->port[0];
 
 	/* find our bulk endpoint */
