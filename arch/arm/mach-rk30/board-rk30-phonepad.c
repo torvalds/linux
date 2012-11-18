@@ -46,6 +46,7 @@
 #include <linux/sensor-dev.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/regulator/rk29-pwm-regulator.h>
+#include <plat/rk_fiq_debugger.h>
 #include "../../../drivers/headset_observe/rk_headset.h"
 
 #if defined(CONFIG_HDMI_RK30)
@@ -1470,7 +1471,7 @@ static struct sensor_platform_data lis3dh_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
         .init_platform_hw = lis3dh_init_platform_hw,
-	.orientation = {-1, 0, 0, 0, 0, -1, 0, 1, 0},
+	.orientation = {0, -1, 0, 0, 0, -1, -1, 0, 0},
 };
 #endif
 #if defined (CONFIG_GS_KXTIK)
@@ -1509,7 +1510,7 @@ static struct sensor_platform_data mma7660_info = {
 	.irq_enable = 1,
 	.poll_delay_ms = 30,
         .init_platform_hw = mma7660_init_platform_hw,
-        .orientation = {1, 0, 0, 0, 0, -1, 0, -1, 0},
+        .orientation = {0, 1, 0, 0, 0, -1, 1, 0, 0},
 };
 #endif
 
@@ -1982,6 +1983,8 @@ static struct platform_device device_ion = {
 #define RK29SDK_WIFI_SDIO_CARD_DETECT_N    RK30_PIN6_PB2
 #define RK29SDK_WIFI_SDIO_CARD_INT         RK30_PIN3_PD2
 
+#define RK29SDK_SD_CARD_DETECT_N        RK30_PIN3_PB6  //According to your own project to set the value of card-detect-pin.
+#define RK29SDK_SD_CARD_INSERT_LEVEL    GPIO_LOW         // set the voltage of insert-card. Please pay attention to the default setting.
 #endif //endif ---#ifdef CONFIG_SDMMC_RK29
 
 #ifdef CONFIG_SDMMC0_RK29
@@ -2004,7 +2007,11 @@ static int rk29_sdmmc0_cfg_gpio(void)
 #else
 	rk29_sdmmc_set_iomux(0, 0xFFFF);
 
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+     rk30_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_GPIO3B6);
+#else
 	rk30_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0_DETECT_N);
+#endif	
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 	gpio_request(SDMMC0_WRITE_PROTECT_PIN, "sdmmc-wp");
@@ -2041,8 +2048,12 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
     .status = rk29sdk_wifi_mmc0_status,
     .register_status_notify = rk29sdk_wifi_mmc0_status_register,
 #endif
-
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)
+    .detect_irq = RK29SDK_SD_CARD_DETECT_N,
+    .insert_card_level = RK29SDK_SD_CARD_INSERT_LEVEL,
+#else
 	.detect_irq = RK30_PIN3_PB6,	// INVALID_GPIO
+#endif
 	.enable_sd_wakeup = 0,
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
@@ -2110,8 +2121,10 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 	.status = rk29sdk_wifi_status,
 	.register_status_notify = rk29sdk_wifi_status_register,
 #endif
-#if 0
-	.detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#if defined(CONFIG_SDMMC0_RK29_SDCARD_DET_FROM_GPIO)	
+	.detect_irq = INVALID_GPIO,//RK29SDK_WIFI_SDIO_CARD_DETECT_N,
+#else
+	//.detect_irq = RK29SDK_WIFI_SDIO_CARD_DETECT_N, 	
 #endif
 
 #if defined(CONFIG_SDMMC1_RK29_WRITE_PROTECT)
@@ -2136,15 +2149,48 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if (defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC))
+static int batt_table[2*11+6] =
+{
+	0x4B434F52,0x7461625F,0x79726574,0,200,200,
+	3617,3630,3650,3670,3709,3749,3783,3828,3881,3930,4089, 
+	3692,3906,3944,3978,4028,4091,4110,4125,4132,4140,4141 
+};
+
+void charge_current_set(int on)
+{
+	int ret = 0, value = 0;
+	int charge_current_pin = RK30_PIN0_PC6;
+
+	ret = gpio_request(charge_current_pin, NULL);
+	if (ret) {
+		printk("failed to request charge_current_pin gpio%d\n", charge_current_pin);
+		return;
+	}
+	value = gpio_get_value(charge_current_pin);
+	if(value != on){
+		gpio_direction_output(charge_current_pin, on);
+	//	printk("charge_current_set %s\n", on ? "2000mA" : "500mA");
+	}
+	gpio_free(charge_current_pin);
+}
+
 static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
         .dc_det_pin      = RK30_PIN6_PA5,
         .batt_low_pin    = RK30_PIN6_PA0,
         .charge_set_pin  = INVALID_GPIO,
         .charge_ok_pin   = RK30_PIN6_PA6,
+//	.usb_det_pin     = RK30_PIN6_PA3, 
+
         .dc_det_level    = GPIO_LOW,
         .charge_ok_level = GPIO_HIGH,
+//	.usb_det_level = GPIO_LOW,
         .save_capacity	 = 1,
+        .spport_usb_charging = 1,
+        .is_reboot_charging = 1,
+        .use_board_table = 1,
+        .board_batt_table = batt_table,
+        .control_usb_charging = charge_current_set,
 };
 
 static struct platform_device rk30_device_adc_battery = {
@@ -2304,14 +2350,29 @@ static int init_paramter_according_id(int id)
 	signed char orientation[4][9] = {
 		{0, -1, 0, 0, 0, 1, 1, 0, 0},
 		{1, 0, 0, 0, 0, -1, 0, -1, 0},
-		{1, 0, 0, 0, 0, -1, 0, -1, 0},
+    {0, 1, 0, 0, 0, -1, 1, 0, 0},
 		{0, -1, 0, 0, 0, -1, -1, 0, 0},
 	};
 
 	u32 bl_ref[4] = {1, 0, 0, 0};
+	int bp_id[4]={BP_ID_MT6229,BP_ID_MU509,BP_ID_MT6229,BP_ID_MT6229};
 	
+#if defined (CONFIG_GS_MMA7660)	
 	memcpy(mma7660_info.orientation, orientation[id], 9);	
+#endif
+#ifdef  LCD_DISP_ON_PIN
 	rk29_bl_info.bl_ref = bl_ref[id];
+#endif
+#if defined(CONFIG_BP_AUTO)
+	bp_auto_info.bp_id=bp_id[id];
+#endif
+	if(id == BOARD_ID_C8003)
+	{
+		//enable vccio_wl 
+		gpio_request(RK30_PIN0_PA6, "codec_en");
+		rk30_mux_api_set(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_GPIO0A6);
+		gpio_direction_output(RK30_PIN0_PA6, GPIO_HIGH);
+	}
 #else
 
 
@@ -2320,7 +2381,7 @@ static int init_paramter_according_id(int id)
 }
 
 
-static struct board_id_platform_data rk_board_id = {
+static struct board_id_platform_data rk30_board_id = {
 	.gpio_pin = {RK30_PIN0_PD2,RK30_PIN0_PD3,RK30_PIN0_PD4,RK30_PIN0_PD5},
 	.num_gpio = 4,
 	.init_platform_hw = board_id_init_platform_hw,
@@ -2333,7 +2394,7 @@ static struct platform_device device_board_id = {
     .name   = "rk-board-id",
     .id     = -1,
     .dev    = {
-        .platform_data = &rk_board_id,
+        .platform_data = &rk30_board_id,
     },
 };
 
@@ -2400,7 +2461,7 @@ static struct platform_device *devices[] __initdata = {
 	&device_bp_auto,
 #endif
 
-#ifdef CONFIG_BATTERY_RK30_ADC
+#if (defined(CONFIG_BATTERY_RK30_ADC)||defined(CONFIG_BATTERY_RK30_ADC_FAC))
  	&rk30_device_adc_battery,
 #endif
 #ifdef CONFIG_RFKILL_RK
@@ -2694,6 +2755,45 @@ void  rk30_pwm_resume_voltage_set(void)
 #endif
 }
 
+u32 gpio1a_iomux,gpio2c_iomux, gpio1b_pull,gpio2d_pull, gpio1b_dir,gpio2d_dir,gpio1b_en, gpio2d_en;
+void board_gpio_suspend(void) {
+	
+	gpio1a_iomux = readl_relaxed(GRF_GPIO1A_IOMUX);
+	gpio2c_iomux = readl_relaxed(GRF_GPIO2C_IOMUX);
+	writel_relaxed((0xf<< 26), GRF_GPIO1A_IOMUX);
+	writel_relaxed((0x3 <<18), GRF_GPIO2C_IOMUX);
+
+	gpio1b_pull =  grf_readl(GRF_GPIO1L_PULL);
+	gpio2d_pull =  grf_readl(GRF_GPIO2H_PULL);
+	grf_writel(gpio1b_pull |(0x3<<21)|(0x3<<5),GRF_GPIO1L_PULL);	
+	grf_writel( gpio2d_pull | (0x1<<17) |(0x1<<1),GRF_GPIO2H_PULL);
+	
+	gpio1b_dir =  grf_readl(GRF_GPIO1L_DIR);
+	gpio2d_dir =  grf_readl(GRF_GPIO2H_DIR);
+	grf_writel(gpio1b_dir |(0x1<<21),GRF_GPIO1L_DIR);	
+	grf_writel(gpio2d_dir | (0x1<<17) ,GRF_GPIO2H_DIR);
+
+	gpio1b_en =  grf_readl(GRF_GPIO1L_EN);
+	gpio2d_en =  grf_readl(GRF_GPIO2H_EN);
+	grf_writel( gpio1b_en |(0x3<<21)|(0x3<<5),GRF_GPIO1L_EN);	
+	grf_writel( gpio2d_en | (0x1<<17) |(0x1<<1),GRF_GPIO2H_EN);
+	
+}
+ void board_gpio_resume(void) {
+
+	writel_relaxed(0xffff0000|gpio1a_iomux, GRF_GPIO1A_IOMUX);
+	writel_relaxed(0xffff0000|gpio2c_iomux, GRF_GPIO2C_IOMUX);
+	
+	grf_writel( 0xffff0000|gpio1b_pull,GRF_GPIO1L_PULL);
+	grf_writel( 0xffff0000|gpio2d_pull,GRF_GPIO2H_PULL);
+
+	grf_writel( 0xffff0000|gpio1b_dir,GRF_GPIO1L_DIR);
+	grf_writel( 0xffff0000|gpio2d_dir,GRF_GPIO2H_DIR);
+
+	grf_writel( 0xffff0000|gpio1b_en,GRF_GPIO1L_EN);
+	grf_writel( 0xffff0000|gpio2d_en,GRF_GPIO2H_EN);
+	
+}
 
 #ifdef CONFIG_I2C2_RK30
 static struct i2c_board_info __initdata i2c2_info[] = {
@@ -2768,7 +2868,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #if defined (CONFIG_TS_AUTO_I2C)
 	{
 		.type          = "auto_ts_i2c",
-		.addr          = 0x3e,
+		.addr          = 0x01,
 		.flags         = 0,
 		.irq           = TOUCH_INT_PIN,
 		.platform_data = &auto_ts_info,
@@ -2965,8 +3065,8 @@ static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
 	{.frequency = 1200 * 1000,	.cpu_volt = 1175 * 1000,	.logic_volt = 1200 * 1000},//1.100V/1.050V
 	{.frequency = 1272 * 1000,	.cpu_volt = 1225 * 1000,	.logic_volt = 1200 * 1000},//1.150V/1.100V
 	{.frequency = 1416 * 1000,	.cpu_volt = 1300 * 1000,	.logic_volt = 1200 * 1000},//1.225V/1.100V
-	//{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},//1.300V/1.150V
-	//{.frequency = 1608 * 1000,	.cpu_volt = 1425 * 1000,	.logic_volt = 1300 * 1000},//1.325V/1.175V
+	{.frequency = 1512 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1250 * 1000},//1.300V/1.150V
+	{.frequency = 1608 * 1000,	.cpu_volt = 1425 * 1000,	.logic_volt = 1300 * 1000},//1.325V/1.175V
 	{.frequency = CPUFREQ_TABLE_END},
 };
 
