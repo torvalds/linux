@@ -21,8 +21,8 @@
 		serial2 = &usart1;
 		serial3 = &usart2;
 		serial4 = &usart3;
-		serial5 = &usart4;
-		serial6 = &usart5;
+		serial5 = &uart0;
+		serial6 = &uart1;
 		gpio0 = &pioA;
 		gpio1 = &pioB;
 		gpio2 = &pioC;
@@ -120,88 +120,88 @@
 					};
 				};
 
-				uart0 {
-					pinctrl_uart0: uart0-0 {
+				usart0 {
+					pinctrl_usart0: usart0-0 {
 						atmel,pins =
 							<1 4 0x1 0x0	/* PB4 periph A */
 							 1 5 0x1 0x0>;	/* PB5 periph A */
 					};
 
-					pinctrl_uart0_rts_cts: uart0_rts_cts-0 {
+					pinctrl_usart0_rts_cts: usart0_rts_cts-0 {
 						atmel,pins =
 							<1 26 0x1 0x0	/* PB26 periph A */
 							 1 27 0x1 0x0>;	/* PB27 periph A */
 					};
 
-					pinctrl_uart0_dtr_dsr: uart0_dtr_dsr-0 {
+					pinctrl_usart0_dtr_dsr: usart0_dtr_dsr-0 {
 						atmel,pins =
 							<1 24 0x1 0x0	/* PB24 periph A */
 							 1 22 0x1 0x0>;	/* PB22 periph A */
 					};
 
-					pinctrl_uart0_dcd: uart0_dcd-0 {
+					pinctrl_usart0_dcd: usart0_dcd-0 {
 						atmel,pins =
 							<1 23 0x1 0x0>;	/* PB23 periph A */
 					};
 
-					pinctrl_uart0_ri: uart0_ri-0 {
+					pinctrl_usart0_ri: usart0_ri-0 {
 						atmel,pins =
 							<1 25 0x1 0x0>;	/* PB25 periph A */
 					};
 				};
 
-				uart1 {
-					pinctrl_uart1: uart1-0 {
+				usart1 {
+					pinctrl_usart1: usart1-0 {
 						atmel,pins =
 							<2 6 0x1 0x1	/* PB6 periph A with pullup */
 							 2 7 0x1 0x0>;	/* PB7 periph A */
 					};
 
-					pinctrl_uart1_rts_cts: uart1_rts_cts-0 {
+					pinctrl_usart1_rts_cts: usart1_rts_cts-0 {
 						atmel,pins =
 							<1 28 0x1 0x0	/* PB28 periph A */
 							 1 29 0x1 0x0>;	/* PB29 periph A */
 					};
 				};
 
-				uart2 {
-					pinctrl_uart2: uart2-0 {
+				usart2 {
+					pinctrl_usart2: usart2-0 {
 						atmel,pins =
 							<1 8 0x1 0x1	/* PB8 periph A with pullup */
 							 1 9 0x1 0x0>;	/* PB9 periph A */
 					};
 
-					pinctrl_uart2_rts_cts: uart2_rts_cts-0 {
+					pinctrl_usart2_rts_cts: usart2_rts_cts-0 {
 						atmel,pins =
 							<0 4 0x1 0x0	/* PA4 periph A */
 							 0 5 0x1 0x0>;	/* PA5 periph A */
 					};
 				};
 
-				uart3 {
-					pinctrl_uart3: uart3-0 {
+				usart3 {
+					pinctrl_usart3: usart3-0 {
 						atmel,pins =
 							<2 10 0x1 0x1	/* PB10 periph A with pullup */
 							 2 11 0x1 0x0>;	/* PB11 periph A */
 					};
 
-					pinctrl_uart3_rts_cts: uart3_rts_cts-0 {
+					pinctrl_usart3_rts_cts: usart3_rts_cts-0 {
 						atmel,pins =
 							<3 8 0x2 0x0	/* PB8 periph B */
 							 3 10 0x2 0x0>;	/* PB10 periph B */
 					};
 				};
 
-				uart4 {
-					pinctrl_uart4: uart4-0 {
+				uart0 {
+					pinctrl_uart0: uart0-0 {
 						atmel,pins =
 							<0 31 0x2 0x1	/* PA31 periph B with pullup */
 							 0 30 0x2 0x0>;	/* PA30 periph B */
 					};
 				};
 
-				uart5 {
-					pinctrl_uart5: uart5-0 {
+				uart1 {
+					pinctrl_uart1: uart1-0 {
 						atmel,pins =
 							<2 12 0x1 0x1	/* PB12 periph A with pullup */
 							 2 13 0x1 0x0>;	/* PB13 periph A */
@@ -303,7 +303,7 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart0>;
+				pinctrl-0 = <&pinctrl_usart0>;
 				status = "disabled";
 			};
 
@@ -314,7 +314,7 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart1>;
+				pinctrl-0 = <&pinctrl_usart1>;
 				status = "disabled";
 			};
 
@@ -325,7 +325,7 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart2>;
+				pinctrl-0 = <&pinctrl_usart2>;
 				status = "disabled";
 			};
 
@@ -336,29 +336,29 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart3>;
+				pinctrl-0 = <&pinctrl_usart3>;
 				status = "disabled";
 			};
 
-			usart4: serial@fffd4000 {
+			uart0: serial@fffd4000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffd4000 0x200>;
 				interrupts = <24 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart4>;
+				pinctrl-0 = <&pinctrl_uart0>;
 				status = "disabled";
 			};
 
-			usart5: serial@fffd8000 {
+			uart1: serial@fffd8000 {
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfffd8000 0x200>;
 				interrupts = <25 4 5>;
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart5>;
+				pinctrl-0 = <&pinctrl_uart1>;
 				status = "disabled";
 			};
 

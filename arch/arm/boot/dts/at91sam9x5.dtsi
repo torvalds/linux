@@ -126,36 +126,36 @@
 					};
 				};
 
-				uart0 {
-					pinctrl_uart0: uart0-0 {
+				usart0 {
+					pinctrl_usart0: usart0-0 {
 						atmel,pins =
 							<0 0 0x1 0x1	/* PA0 periph A with pullup */
 							 0 1 0x1 0x0>;	/* PA1 periph A */
 					};
 
-					pinctrl_uart0_rts_cts: uart0_rts_cts-0 {
+					pinctrl_usart0_rts_cts: usart0_rts_cts-0 {
 						atmel,pins =
 							<0 2 0x1 0x0	/* PA2 periph A */
 							 0 3 0x1 0x0>;	/* PA3 periph A */
 					};
 				};
 
-				uart1 {
-					pinctrl_uart1: uart1-0 {
+				usart1 {
+					pinctrl_usart1: usart1-0 {
 						atmel,pins =
 							<0 5 0x1 0x1	/* PA5 periph A with pullup */
 							 0 6 0x1 0x0>;	/* PA6 periph A */
 					};
 
-					pinctrl_uart1_rts_cts: uart1_rts_cts-0 {
+					pinctrl_usart1_rts_cts: usart1_rts_cts-0 {
 						atmel,pins =
 							<3 27 0x3 0x0	/* PC27 periph C */
 							 3 28 0x3 0x0>;	/* PC28 periph C */
 					};
 				};
 
-				uart2 {
-					pinctrl_uart2: uart2-0 {
+				usart2 {
+					pinctrl_usart2: usart2-0 {
 						atmel,pins =
 							<0 7 0x1 0x1	/* PA7 periph A with pullup */
 							 0 8 0x1 0x0>;	/* PA8 periph A */
@@ -168,30 +168,30 @@
 					};
 				};
 
-				uart3 {
-					pinctrl_uart3: uart3-0 {
+				usart3 {
+					pinctrl_uart3: usart3-0 {
 						atmel,pins =
 							<3 23 0x2 0x1	/* PC22 periph B with pullup */
 							 3 23 0x2 0x0>;	/* PC23 periph B */
 					};
 
-					pinctrl_uart3_rts_cts: uart3_rts_cts-0 {
+					pinctrl_usart3_rts_cts: usart3_rts_cts-0 {
 						atmel,pins =
 							<3 24 0x2 0x0	/* PC24 periph B */
 							 3 25 0x2 0x0>;	/* PC25 periph B */
 					};
 				};
 
-				usart0 {
-					pinctrl_usart0: usart0-0 {
+				uart0 {
+					pinctrl_uart0: uart0-0 {
 						atmel,pins =
 							<3 8 0x3 0x0	/* PC8 periph C */
 							 3 9 0x3 0x1>;	/* PC9 periph C with pullup */
 					};
 				};
 
-				usart1 {
-					pinctrl_usart1: usart1-0 {
+				uart1 {
+					pinctrl_uart1: uart1-0 {
 						atmel,pins =
 							<3 16 0x3 0x0	/* PC16 periph C */
 							 3 17 0x3 0x1>;	/* PC17 periph C with pullup */
@@ -293,7 +293,7 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart0>;
+				pinctrl-0 = <&pinctrl_usart0>;
 				status = "disabled";
 			};
 
@@ -304,7 +304,7 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart1>;
+				pinctrl-0 = <&pinctrl_usart1>;
 				status = "disabled";
 			};
 
@@ -315,7 +315,7 @@
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
 				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart2>;
+				pinctrl-0 = <&pinctrl_usart2>;
 				status = "disabled";
 			};
 
