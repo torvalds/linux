@@ -47,17 +47,17 @@ AArch64 Linux 内存布局：
 -----------------------------------------------------------------------
 0000000000000000	0000007fffffffff	 512GB		用户空间
 
-ffffff8000000000	ffffffbbfffcffff	~240GB		vmalloc
+ffffff8000000000	ffffffbbfffeffff	~240GB		vmalloc
 
-ffffffbbfffd0000	ffffffbcfffdffff	  64KB		[防护页]
-
-ffffffbbfffe0000	ffffffbcfffeffff	  64KB		PCI I/O 空间
-
-ffffffbbffff0000	ffffffbcffffffff	  64KB		[防护页]
+ffffffbbffff0000	ffffffbbffffffff	  64KB		[防护页]
 
 ffffffbc00000000	ffffffbdffffffff	   8GB		vmemmap
 
-ffffffbe00000000	ffffffbffbffffff	  ~8GB		[防护页，未来用于 vmmemap]
+ffffffbe00000000	ffffffbffbbfffff	  ~8GB		[防护页，未来用于 vmmemap]
+
+ffffffbffbe00000	ffffffbffbe0ffff	  64KB		PCI I/O 空间
+
+ffffffbbffff0000	ffffffbcffffffff	  ~2MB		[防护页]
 
 ffffffbffc000000	ffffffbfffffffff	  64MB		模块
 
