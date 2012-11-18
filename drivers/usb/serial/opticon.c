@@ -40,7 +40,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 /* This structure holds all of the individual device information */
 struct opticon_private {
-	struct usb_device *udev;
 	struct usb_serial *serial;
 	struct usb_serial_port *port;
 	unsigned char *bulk_in_buffer;
@@ -185,7 +184,7 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	send_control_msg(port, CONTROL_RTS, 0);
 
 	/* clear the halt status of the enpoint */
-	usb_clear_halt(priv->udev, priv->bulk_read_urb->pipe);
+	usb_clear_halt(port->serial->dev, priv->bulk_read_urb->pipe);
 
 	result = usb_submit_urb(priv->bulk_read_urb, GFP_KERNEL);
 	if (result)
@@ -487,7 +486,6 @@ static int opticon_startup(struct usb_serial *serial)
 	spin_lock_init(&priv->lock);
 	priv->serial = serial;
 	priv->port = serial->port[0];
-	priv->udev = serial->dev;
 	priv->outstanding_urbs = 0;	/* Init the outstanding urbs */
 
 	/* find our bulk endpoint */
@@ -501,14 +499,14 @@ static int opticon_startup(struct usb_serial *serial)
 
 		priv->bulk_read_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!priv->bulk_read_urb) {
-			dev_err(&priv->udev->dev, "out of memory\n");
+			dev_err(&serial->dev->dev, "out of memory\n");
 			goto error;
 		}
 
 		priv->buffer_size = usb_endpoint_maxp(endpoint) * 2;
 		priv->bulk_in_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
 		if (!priv->bulk_in_buffer) {
-			dev_err(&priv->udev->dev, "out of memory\n");
+			dev_err(&serial->dev->dev, "out of memory\n");
 			goto error;
 		}
 
@@ -519,7 +517,7 @@ static int opticon_startup(struct usb_serial *serial)
 		}
 
 	if (!bulk_in_found) {
-		dev_err(&priv->udev->dev,
+		dev_err(&serial->dev->dev,
 			"Error - the proper endpoints were not found!\n");
 		goto error;
 	}
