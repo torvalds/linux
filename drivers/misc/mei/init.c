@@ -43,6 +43,7 @@ const char *mei_dev_state_str(int state)
 }
 
 
+
 /**
  * mei_io_list_flush - removes list entry belonging to cl.
  *
@@ -331,25 +332,20 @@ void mei_reset(struct mei_device *dev, int interrupts_enabled)
 void mei_host_start_message(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr;
-	struct hbm_host_version_request *host_start_req;
+	struct hbm_host_version_request *start_req;
+	const size_t len = sizeof(struct hbm_host_version_request);
+
+	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
 	/* host start message */
-	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
-	mei_hdr->host_addr = 0;
-	mei_hdr->me_addr = 0;
-	mei_hdr->length = sizeof(struct hbm_host_version_request);
-	mei_hdr->msg_complete = 1;
-	mei_hdr->reserved = 0;
+	start_req = (struct hbm_host_version_request *)&dev->wr_msg_buf[1];
+	memset(start_req, 0, len);
+	start_req->hbm_cmd = HOST_START_REQ_CMD;
+	start_req->host_version.major_version = HBM_MAJOR_VERSION;
+	start_req->host_version.minor_version = HBM_MINOR_VERSION;
 
-	host_start_req =
-	    (struct hbm_host_version_request *) &dev->wr_msg_buf[1];
-	memset(host_start_req, 0, sizeof(struct hbm_host_version_request));
-	host_start_req->hbm_cmd = HOST_START_REQ_CMD;
-	host_start_req->host_version.major_version = HBM_MAJOR_VERSION;
-	host_start_req->host_version.minor_version = HBM_MINOR_VERSION;
 	dev->recvd_msg = false;
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)host_start_req,
-				       mei_hdr->length)) {
+	if (mei_write_message(dev, mei_hdr, (unsigned char *)start_req, len)) {
 		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
 		dev->dev_state = MEI_DEV_RESETING;
 		mei_reset(dev, 1);
@@ -369,20 +365,16 @@ void mei_host_start_message(struct mei_device *dev)
 void mei_host_enum_clients_message(struct mei_device *dev)
 {
 	struct mei_msg_hdr *mei_hdr;
-	struct hbm_host_enum_request *host_enum_req;
-	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
+	struct hbm_host_enum_request *enum_req;
+	const size_t len = sizeof(struct hbm_host_enum_request);
 	/* enumerate clients */
-	mei_hdr->host_addr = 0;
-	mei_hdr->me_addr = 0;
-	mei_hdr->length = sizeof(struct hbm_host_enum_request);
-	mei_hdr->msg_complete = 1;
-	mei_hdr->reserved = 0;
+	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
-	host_enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
-	memset(host_enum_req, 0, sizeof(struct hbm_host_enum_request));
-	host_enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
-	if (mei_write_message(dev, mei_hdr, (unsigned char *)host_enum_req,
-				mei_hdr->length)) {
+	enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
+	memset(enum_req, 0, sizeof(struct hbm_host_enum_request));
+	enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
+
+	if (mei_write_message(dev, mei_hdr, (unsigned char *)enum_req, len)) {
 		dev->dev_state = MEI_DEV_RESETING;
 		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 		mei_reset(dev, 1);
@@ -443,33 +435,31 @@ void mei_allocate_me_clients_storage(struct mei_device *dev)
  */
 int mei_host_client_properties(struct mei_device *dev)
 {
-	struct mei_msg_hdr *mei_header;
-	struct hbm_props_request *host_cli_req;
+
+	struct mei_msg_hdr *mei_hdr;
+	struct hbm_props_request *prop_req;
+	const size_t len = sizeof(struct hbm_props_request);
+
 	int b;
 	u8 client_num = dev->me_client_presentation_num;
+
+	prop_req = (struct hbm_props_request *)&dev->wr_msg_buf[1];
 
 	b = dev->me_client_index;
 	b = find_next_bit(dev->me_clients_map, MEI_CLIENTS_MAX, b);
 	if (b < MEI_CLIENTS_MAX) {
 		dev->me_clients[client_num].client_id = b;
 		dev->me_clients[client_num].mei_flow_ctrl_creds = 0;
-		mei_header = (struct mei_msg_hdr *)&dev->wr_msg_buf[0];
-		mei_header->host_addr = 0;
-		mei_header->me_addr = 0;
-		mei_header->length = sizeof(struct hbm_props_request);
-		mei_header->msg_complete = 1;
-		mei_header->reserved = 0;
+		mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
-		host_cli_req = (struct hbm_props_request *)&dev->wr_msg_buf[1];
 
-		memset(host_cli_req, 0, sizeof(struct hbm_props_request));
+		memset(prop_req, 0, sizeof(struct hbm_props_request));
 
-		host_cli_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
-		host_cli_req->address = b;
+		prop_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
+		prop_req->address = b;
 
-		if (mei_write_message(dev, mei_header,
-				(unsigned char *)host_cli_req,
-				mei_header->length)) {
+		if (mei_write_message(dev, mei_hdr,
+				(unsigned char *)prop_req, len)) {
 			dev->dev_state = MEI_DEV_RESETING;
 			dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
 			mei_reset(dev, 1);

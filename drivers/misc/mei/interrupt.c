@@ -429,46 +429,36 @@ static int same_disconn_addr(struct mei_cl *cl,
 static void mei_client_disconnect_request(struct mei_device *dev,
 		struct hbm_client_connect_request *disconnect_req)
 {
-	struct mei_msg_hdr *mei_hdr;
 	struct hbm_client_connect_response *disconnect_res;
-	struct mei_cl *cl_pos = NULL;
-	struct mei_cl *cl_next = NULL;
+	struct mei_cl *pos, *next;
+	const size_t len = sizeof(struct hbm_client_connect_response);
 
-	list_for_each_entry_safe(cl_pos, cl_next, &dev->file_list, link) {
-		if (same_disconn_addr(cl_pos, disconnect_req)) {
+	list_for_each_entry_safe(pos, next, &dev->file_list, link) {
+		if (same_disconn_addr(pos, disconnect_req)) {
 			dev_dbg(&dev->pdev->dev, "disconnect request host client %d ME client %d.\n",
 					disconnect_req->host_addr,
 					disconnect_req->me_addr);
-			cl_pos->state = MEI_FILE_DISCONNECTED;
-			cl_pos->timer_count = 0;
-			if (cl_pos == &dev->wd_cl)
+			pos->state = MEI_FILE_DISCONNECTED;
+			pos->timer_count = 0;
+			if (pos == &dev->wd_cl)
 				dev->wd_pending = false;
-			else if (cl_pos == &dev->iamthif_cl)
+			else if (pos == &dev->iamthif_cl)
 				dev->iamthif_timer = 0;
 
 			/* prepare disconnect response */
-			mei_hdr =
-				(struct mei_msg_hdr *) &dev->ext_msg_buf[0];
-			mei_hdr->host_addr = 0;
-			mei_hdr->me_addr = 0;
-			mei_hdr->length =
-				sizeof(struct hbm_client_connect_response);
-			mei_hdr->msg_complete = 1;
-			mei_hdr->reserved = 0;
-
+			(void)mei_hbm_hdr(&dev->ext_msg_buf[0], len);
 			disconnect_res =
 				(struct hbm_client_connect_response *)
 				&dev->ext_msg_buf[1];
-			disconnect_res->host_addr = cl_pos->host_client_id;
-			disconnect_res->me_addr = cl_pos->me_client_id;
 			disconnect_res->hbm_cmd = CLIENT_DISCONNECT_RES_CMD;
+			disconnect_res->host_addr = pos->host_client_id;
+			disconnect_res->me_addr = pos->me_client_id;
 			disconnect_res->status = 0;
 			dev->extra_write_index = 2;
 			break;
 		}
 	}
 }
-
 
 /**
  * mei_irq_thread_read_bus_message - bottom half read routine after ISR to
@@ -488,7 +478,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 	struct hbm_flow_control *flow_control;
 	struct hbm_props_response *props_res;
 	struct hbm_host_enum_response *enum_res;
-	struct hbm_host_stop_request *host_stop_req;
+	struct hbm_host_stop_request *stop_req;
 	int res;
 
 
@@ -514,26 +504,20 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 				return;
 			}
 		} else {
+			u32 *buf = dev->wr_msg_buf;
+			const size_t len = sizeof(struct hbm_host_stop_request);
+
 			dev->version = version_res->me_max_version;
+
 			/* send stop message */
-			mei_hdr = (struct mei_msg_hdr *)&dev->wr_msg_buf[0];
-			mei_hdr->host_addr = 0;
-			mei_hdr->me_addr = 0;
-			mei_hdr->length = sizeof(struct hbm_host_stop_request);
-			mei_hdr->msg_complete = 1;
-			mei_hdr->reserved = 0;
+			mei_hdr = mei_hbm_hdr(&buf[0], len);
+			stop_req = (struct hbm_host_stop_request *)&buf[1];
+			memset(stop_req, 0, len);
+			stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
+			stop_req->reason = DRIVER_STOP_REQUEST;
 
-			host_stop_req = (struct hbm_host_stop_request *)
-							&dev->wr_msg_buf[1];
-
-			memset(host_stop_req,
-					0,
-					sizeof(struct hbm_host_stop_request));
-			host_stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
-			host_stop_req->reason = DRIVER_STOP_REQUEST;
 			mei_write_message(dev, mei_hdr,
-					   (unsigned char *) (host_stop_req),
-					   mei_hdr->length);
+					(unsigned char *)stop_req, len);
 			dev_dbg(&dev->pdev->dev, "version mismatch.\n");
 			return;
 		}
@@ -543,16 +527,14 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 		break;
 
 	case CLIENT_CONNECT_RES_CMD:
-		connect_res =
-			(struct hbm_client_connect_response *) mei_msg;
+		connect_res = (struct hbm_client_connect_response *) mei_msg;
 		mei_client_connect_response(dev, connect_res);
 		dev_dbg(&dev->pdev->dev, "client connect response message received.\n");
 		wake_up(&dev->wait_recvd_msg);
 		break;
 
 	case CLIENT_DISCONNECT_RES_CMD:
-		disconnect_res =
-			(struct hbm_client_connect_response *) mei_msg;
+		disconnect_res = (struct hbm_client_connect_response *) mei_msg;
 		mei_client_disconnect_response(dev, disconnect_res);
 		dev_dbg(&dev->pdev->dev, "client disconnect response message received.\n");
 		wake_up(&dev->wait_recvd_msg);
@@ -658,23 +640,21 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 		break;
 
 	case ME_STOP_REQ_CMD:
-		/* prepare stop request */
-		mei_hdr = (struct mei_msg_hdr *) &dev->ext_msg_buf[0];
-		mei_hdr->host_addr = 0;
-		mei_hdr->me_addr = 0;
-		mei_hdr->length = sizeof(struct hbm_host_stop_request);
-		mei_hdr->msg_complete = 1;
-		mei_hdr->reserved = 0;
-		host_stop_req =
-			(struct hbm_host_stop_request *) &dev->ext_msg_buf[1];
-		memset(host_stop_req, 0, sizeof(struct hbm_host_stop_request));
-		host_stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
-		host_stop_req->reason = DRIVER_STOP_REQUEST;
-		host_stop_req->reserved[0] = 0;
-		host_stop_req->reserved[1] = 0;
+	{
+		/* prepare stop request: sent in next interrupt event */
+
+		u32 *buf = dev->ext_msg_buf;
+		const size_t len = sizeof(struct hbm_host_stop_request);
+
+		mei_hdr = mei_hbm_hdr(&buf[0], len);
+		stop_req = (struct hbm_host_stop_request *)&buf[1];
+		memset(stop_req, 0, len);
+		stop_req->hbm_cmd = HOST_STOP_REQ_CMD;
+		stop_req->reason = DRIVER_STOP_REQUEST;
+
 		dev->extra_write_index = 2;
 		break;
-
+	}
 	default:
 		BUG();
 		break;

@@ -292,28 +292,23 @@ int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl)
 int mei_send_flow_control(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr;
-	struct hbm_flow_control *mei_flow_control;
+	struct hbm_flow_control *flow_ctrl;
+	const size_t len = sizeof(struct hbm_flow_control);
 
-	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
-	mei_hdr->host_addr = 0;
-	mei_hdr->me_addr = 0;
-	mei_hdr->length = sizeof(struct hbm_flow_control);
-	mei_hdr->msg_complete = 1;
-	mei_hdr->reserved = 0;
+	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
-	mei_flow_control = (struct hbm_flow_control *) &dev->wr_msg_buf[1];
-	memset(mei_flow_control, 0, sizeof(*mei_flow_control));
-	mei_flow_control->host_addr = cl->host_client_id;
-	mei_flow_control->me_addr = cl->me_client_id;
-	mei_flow_control->hbm_cmd = MEI_FLOW_CONTROL_CMD;
-	memset(mei_flow_control->reserved, 0,
-			sizeof(mei_flow_control->reserved));
+	flow_ctrl = (struct hbm_flow_control *)&dev->wr_msg_buf[1];
+	memset(flow_ctrl, 0, len);
+	flow_ctrl->hbm_cmd = MEI_FLOW_CONTROL_CMD;
+	flow_ctrl->host_addr = cl->host_client_id;
+	flow_ctrl->me_addr = cl->me_client_id;
+	/* FIXME: reserved !? */
+	memset(flow_ctrl->reserved, 0, sizeof(flow_ctrl->reserved));
 	dev_dbg(&dev->pdev->dev, "sending flow control host client = %d, ME client = %d\n",
 		cl->host_client_id, cl->me_client_id);
 
 	return mei_write_message(dev, mei_hdr,
-				(unsigned char *) mei_flow_control,
-				sizeof(struct hbm_flow_control));
+			(unsigned char *) flow_ctrl, len);
 }
 
 /**
@@ -353,23 +348,18 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr;
 	struct hbm_client_connect_request *req;
+	const size_t len = sizeof(struct hbm_client_connect_request);
 
-	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
-	mei_hdr->host_addr = 0;
-	mei_hdr->me_addr = 0;
-	mei_hdr->length = sizeof(struct hbm_client_connect_request);
-	mei_hdr->msg_complete = 1;
-	mei_hdr->reserved = 0;
+	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
 	req = (struct hbm_client_connect_request *)&dev->wr_msg_buf[1];
-	memset(req, 0, sizeof(*req));
+	memset(req, 0, len);
+	req->hbm_cmd = CLIENT_DISCONNECT_REQ_CMD;
 	req->host_addr = cl->host_client_id;
 	req->me_addr = cl->me_client_id;
-	req->hbm_cmd = CLIENT_DISCONNECT_REQ_CMD;
 	req->reserved = 0;
 
-	return mei_write_message(dev, mei_hdr, (unsigned char *)req,
-				sizeof(struct hbm_client_connect_request));
+	return mei_write_message(dev, mei_hdr, (unsigned char *)req, len);
 }
 
 /**
@@ -383,23 +373,16 @@ int mei_disconnect(struct mei_device *dev, struct mei_cl *cl)
 int mei_connect(struct mei_device *dev, struct mei_cl *cl)
 {
 	struct mei_msg_hdr *mei_hdr;
-	struct hbm_client_connect_request *mei_cli_connect;
+	struct hbm_client_connect_request *req;
+	const size_t len = sizeof(struct hbm_client_connect_request);
 
-	mei_hdr = (struct mei_msg_hdr *) &dev->wr_msg_buf[0];
-	mei_hdr->host_addr = 0;
-	mei_hdr->me_addr = 0;
-	mei_hdr->length = sizeof(struct hbm_client_connect_request);
-	mei_hdr->msg_complete = 1;
-	mei_hdr->reserved = 0;
+	mei_hdr = mei_hbm_hdr(&dev->wr_msg_buf[0], len);
 
-	mei_cli_connect =
-	    (struct hbm_client_connect_request *) &dev->wr_msg_buf[1];
-	mei_cli_connect->host_addr = cl->host_client_id;
-	mei_cli_connect->me_addr = cl->me_client_id;
-	mei_cli_connect->hbm_cmd = CLIENT_CONNECT_REQ_CMD;
-	mei_cli_connect->reserved = 0;
+	req = (struct hbm_client_connect_request *) &dev->wr_msg_buf[1];
+	req->hbm_cmd = CLIENT_CONNECT_REQ_CMD;
+	req->host_addr = cl->host_client_id;
+	req->me_addr = cl->me_client_id;
+	req->reserved = 0;
 
-	return mei_write_message(dev, mei_hdr,
-				(unsigned char *) mei_cli_connect,
-				sizeof(struct hbm_client_connect_request));
+	return mei_write_message(dev, mei_hdr, (unsigned char *) req, len);
 }

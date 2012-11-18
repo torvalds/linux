@@ -491,4 +491,15 @@ void mei_csr_clear_his(struct mei_device *dev);
 void mei_enable_interrupts(struct mei_device *dev);
 void mei_disable_interrupts(struct mei_device *dev);
 
+static inline struct mei_msg_hdr *mei_hbm_hdr(u32 *buf, size_t length)
+{
+	struct mei_msg_hdr *hdr = (struct mei_msg_hdr *)buf;
+	hdr->host_addr = 0;
+	hdr->me_addr = 0;
+	hdr->length = length;
+	hdr->msg_complete = 1;
+	hdr->reserved = 0;
+	return hdr;
+}
+
 #endif
