@@ -399,7 +399,7 @@ err_xtal:
 	return ret;
 }
 
-static int __devexit wm831x_clk_remove(struct platform_device *pdev)
+static int wm831x_clk_remove(struct platform_device *pdev)
 {
 	struct wm831x_clk *clkdata = dev_get_drvdata(&pdev->dev);
 

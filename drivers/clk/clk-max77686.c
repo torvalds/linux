@@ -199,7 +199,7 @@ out:
 	return ret;
 }
 
-static int __devexit max77686_clk_remove(struct platform_device *pdev)
+static int max77686_clk_remove(struct platform_device *pdev)
 {
 	struct max77686_clk **max77686_clks = platform_get_drvdata(pdev);
 	int i;
