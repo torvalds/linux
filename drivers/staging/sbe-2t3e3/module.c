@@ -52,7 +52,7 @@ static void t3e3_remove_channel(struct channel *channel)
 	pci_set_drvdata(pdev, NULL);
 }
 
-static int __devinit t3e3_init_channel(struct channel *channel, struct pci_dev *pdev, struct card *card)
+static int t3e3_init_channel(struct channel *channel, struct pci_dev *pdev, struct card *card)
 {
 	struct net_device *dev;
 	unsigned int val;
@@ -131,7 +131,7 @@ static void __devexit t3e3_remove_card(struct pci_dev *pdev)
 	kfree(card);
 }
 
-static int __devinit t3e3_init_card(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int t3e3_init_card(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	/* pdev points to channel #0 */
 	struct pci_dev *pdev1 = NULL;
