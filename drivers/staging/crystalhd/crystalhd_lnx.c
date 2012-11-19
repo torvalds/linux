@@ -353,7 +353,7 @@ static const struct file_operations chd_dec_fops = {
 	.llseek = noop_llseek,
 };
 
-static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
+static int chd_dec_init_chdev(struct crystalhd_adp *adp)
 {
 	struct crystalhd_ioctl_data *temp;
 	struct device *dev;
@@ -443,7 +443,7 @@ static void __devexit chd_dec_release_chdev(struct crystalhd_adp *adp)
 	crystalhd_delete_elem_pool(adp);
 }
 
-static int __devinit chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
+static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 {
 	int rc;
 	unsigned long bar2 = pci_resource_start(pinfo->pdev, 2);
@@ -537,7 +537,7 @@ static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
 	g_adp_info = NULL;
 }
 
-static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
+static int chd_dec_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *entry)
 {
 	struct crystalhd_adp *pinfo;

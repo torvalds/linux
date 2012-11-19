@@ -951,7 +951,7 @@ enum BC_STATUS crystalhd_user_close(struct crystalhd_cmd *ctx, struct crystalhd_
  *
  * Called at the time of driver load.
  */
-enum BC_STATUS __devinit crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx,
+enum BC_STATUS crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx,
 				    struct crystalhd_adp *adp)
 {
 	int i = 0;
