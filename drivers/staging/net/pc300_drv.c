@@ -3409,7 +3409,7 @@ static void cpc_init_card(pc300_t * card)
 	board_nbr++;
 }
 
-static int __devinit
+static int
 cpc_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int err, eeprom_outdated = 0;
