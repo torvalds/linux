@@ -59,10 +59,10 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 		head->back = pte_index;
 	} else {
 		rev->forw = rev->back = pte_index;
-		i = pte_index;
+		*rmap = (*rmap & ~KVMPPC_RMAP_INDEX) |
+			pte_index | KVMPPC_RMAP_PRESENT;
 	}
-	smp_wmb();
-	*rmap = i | KVMPPC_RMAP_REFERENCED | KVMPPC_RMAP_PRESENT; /* unlock */
+	unlock_rmap(rmap);
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
