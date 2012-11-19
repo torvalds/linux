@@ -768,7 +768,7 @@ static inline void sm7xx_init_hw(void)
 	outb_p(0x11, 0x3c5);
 }
 
-static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
+static int smtcfb_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	struct smtcfb_info *sfb;
