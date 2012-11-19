@@ -426,7 +426,7 @@ static void max8997_muic_detect_dev(struct max8997_muic_info *info)
 	max8997_muic_handle_charger_type(info, chg_type);
 }
 
-static int __devinit max8997_muic_probe(struct platform_device *pdev)
+static int max8997_muic_probe(struct platform_device *pdev)
 {
 	struct max8997_dev *max8997 = dev_get_drvdata(pdev->dev.parent);
 	struct max8997_platform_data *pdata = dev_get_platdata(max8997->dev);

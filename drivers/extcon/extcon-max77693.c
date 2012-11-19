@@ -648,7 +648,7 @@ out:
 	return ret;
 }
 
-static int __devinit max77693_muic_probe(struct platform_device *pdev)
+static int max77693_muic_probe(struct platform_device *pdev)
 {
 	struct max77693_dev *max77693 = dev_get_drvdata(pdev->dev.parent);
 	struct max77693_platform_data *pdata = dev_get_platdata(max77693->dev);
