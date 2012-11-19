@@ -117,7 +117,7 @@ disable:
 	return err;
 }
 
-static void __devexit t3e3_remove_card(struct pci_dev *pdev)
+static void t3e3_remove_card(struct pci_dev *pdev)
 {
 	struct channel *channel0 = pci_get_drvdata(pdev);
 	struct card *card = channel0->card;
