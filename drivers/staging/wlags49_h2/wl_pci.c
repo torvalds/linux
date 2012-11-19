@@ -124,7 +124,7 @@ MODULE_DEVICE_TABLE(pci, wl_pci_tbl);
 /*******************************************************************************
  * function prototypes
  ******************************************************************************/
-int __devinit wl_pci_probe( struct pci_dev *pdev,
+int wl_pci_probe( struct pci_dev *pdev,
                                 const struct pci_device_id *ent );
 void __devexit wl_pci_remove(struct pci_dev *pdev);
 int wl_pci_setup( struct pci_dev *pdev );
@@ -398,7 +398,7 @@ int wl_adapter_is_open( struct net_device *dev )
  *      errno value otherwise
  *
  ******************************************************************************/
-int __devinit wl_pci_probe( struct pci_dev *pdev,
+int wl_pci_probe( struct pci_dev *pdev,
                                 const struct pci_device_id *ent )
 {
     int result;
