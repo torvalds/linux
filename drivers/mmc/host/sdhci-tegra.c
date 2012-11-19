@@ -206,7 +206,7 @@ static struct sdhci_tegra_soc_data soc_data_tegra30 = {
 };
 #endif
 
-static const struct of_device_id sdhci_tegra_dt_match[] __devinitdata = {
+static const struct of_device_id sdhci_tegra_dt_match[] = {
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	{ .compatible = "nvidia,tegra30-sdhci", .data = &soc_data_tegra30 },
 #endif

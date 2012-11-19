@@ -129,7 +129,7 @@ static int __devexit sdhci_dove_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id sdhci_dove_of_match_table[] __devinitdata = {
+static const struct of_device_id sdhci_dove_of_match_table[] = {
 	{ .compatible = "marvell,dove-sdhci", },
 	{}
 };
