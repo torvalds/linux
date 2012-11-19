@@ -352,7 +352,17 @@
 					vddadc-supply = <&ab8500_ldo_tvout_reg>;
 				};
 
-				ab8500-usb {
+				ab8500_battery: ab8500_battery {
+					stericsson,battery-type = "LIPO";
+					thermistor-on-batctrl;
+				};
+
+				ab8500_fg {
+					compatible = "stericsson,ab8500-fg";
+					battery	   = <&ab8500_battery>;
+				};
+
+				ab8500_usb {
 					compatible = "stericsson,ab8500-usb";
 					interrupts = < 90 0x4
 						       96 0x4

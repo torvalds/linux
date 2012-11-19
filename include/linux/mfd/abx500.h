@@ -267,39 +267,27 @@ struct abx500_bm_data {
 	int gnd_lift_resistance;
 	const struct abx500_maxim_parameters *maxi;
 	const struct abx500_bm_capacity_levels *cap_levels;
-	const struct abx500_battery_type *bat_type;
+	struct abx500_battery_type *bat_type;
 	const struct abx500_bm_charger_parameters *chg_params;
 	const struct abx500_fg_parameters *fg_params;
 };
 
-struct abx500_chargalg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
+extern struct abx500_bm_data ab8500_bm_data;
+
+struct abx500_bmdevs_plat_data {
+	char	**supplied_to;
+	size_t	num_supplicants;
+	bool	autopower_cfg;
 };
 
-struct abx500_charger_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-	bool autopower_cfg;
+enum {
+	NTC_EXTERNAL = 0,
+	NTC_INTERNAL,
 };
 
-struct abx500_btemp_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct abx500_fg_platform_data {
-	char **supplied_to;
-	size_t num_supplicants;
-};
-
-struct abx500_bm_plat_data {
-	struct abx500_bm_data *battery;
-	struct abx500_charger_platform_data *charger;
-	struct abx500_btemp_platform_data *btemp;
-	struct abx500_fg_platform_data *fg;
-	struct abx500_chargalg_platform_data *chargalg;
-};
+int bmdevs_of_probe(struct device *dev,
+		struct device_node *np,
+		struct abx500_bm_data **battery);
 
 int abx500_set_register_interruptible(struct device *dev, u8 bank, u8 reg,
 	u8 value);

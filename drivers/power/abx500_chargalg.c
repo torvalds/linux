@@ -231,7 +231,7 @@ struct abx500_chargalg {
 	struct abx500_chargalg_charger_info chg_info;
 	struct abx500_chargalg_battery_data batt_data;
 	struct abx500_chargalg_suspension_status susp_status;
-	struct abx500_chargalg_platform_data *pdata;
+	struct abx500_bmdevs_plat_data *pdata;
 	struct abx500_bm_data *bat;
 	struct power_supply chargalg_psy;
 	struct ux500_charger *ac_chg;
@@ -1802,7 +1802,7 @@ static int __devexit abx500_chargalg_remove(struct platform_device *pdev)
 
 static int __devinit abx500_chargalg_probe(struct platform_device *pdev)
 {
-	struct abx500_bm_plat_data *plat_data;
+	struct abx500_bmdevs_plat_data *plat_data;
 	int ret = 0;
 
 	struct abx500_chargalg *di =
@@ -1812,10 +1812,8 @@ static int __devinit abx500_chargalg_probe(struct platform_device *pdev)
 
 	/* get device struct */
 	di->dev = &pdev->dev;
-
 	plat_data = pdev->dev.platform_data;
-	di->pdata = plat_data->chargalg;
-	di->bat = plat_data->battery;
+	di->pdata = plat_data;
 
 	/* chargalg supply */
 	di->chargalg_psy.name = "abx500_chargalg";

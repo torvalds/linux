@@ -24,7 +24,12 @@ ab8500-bm                :                      :              : Battery Manager
 ab8500-btemp             :                      :              : Battery Temperature
 ab8500-charger           :                      :              : Battery Charger
 ab8500-codec             :                      :              : Audio Codec
-ab8500-fg                :                      :              : Fuel Gauge
+ab8500-fg                : 			: vddadc       : Fuel Gauge
+			 : NCONV_ACCU           :	       : Accumulate N Sample Conversion
+			 : BATT_OVV		:	       : Battery Over Voltage
+			 : LOW_BAT_F		:	       : LOW threshold battery voltage
+			 : CC_INT_CALIB		:	       : Coulomb Counter Internal Calibration
+			 : CCEOC		:	       : Coulomb Counter End of Conversion
 ab8500-gpadc             : HW_CONV_END          : vddadc       : Analogue to Digital Converter
                            SW_CONV_END          :              :
 ab8500-gpio              :                      :              : GPIO Controller

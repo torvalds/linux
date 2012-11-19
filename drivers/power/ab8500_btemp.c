@@ -93,7 +93,7 @@ struct ab8500_btemp {
 	struct ab8500 *parent;
 	struct ab8500_gpadc *gpadc;
 	struct ab8500_fg *fg;
-	struct abx500_btemp_platform_data *pdata;
+	struct abx500_bmdevs_plat_data *pdata;
 	struct abx500_bm_data *bat;
 	struct power_supply btemp_psy;
 	struct ab8500_btemp_events events;
@@ -962,10 +962,10 @@ static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
 
 static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 {
+	struct abx500_bmdevs_plat_data *plat_data = pdev->dev.platform_data;
+	struct ab8500_btemp *di;
 	int irq, i, ret = 0;
 	u8 val;
-	struct abx500_bm_plat_data *plat_data = pdev->dev.platform_data;
-	struct ab8500_btemp *di;
 
 	if (!plat_data) {
 		dev_err(&pdev->dev, "No platform data\n");
@@ -982,17 +982,9 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
 
 	/* get btemp specific platform data */
-	di->pdata = plat_data->btemp;
+	di->pdata = plat_data;
 	if (!di->pdata) {
 		dev_err(di->dev, "no btemp platform data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
-
-	/* get battery specific platform data */
-	di->bat = plat_data->battery;
-	if (!di->bat) {
-		dev_err(di->dev, "no battery platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}

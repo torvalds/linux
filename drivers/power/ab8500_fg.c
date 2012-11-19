@@ -22,15 +22,16 @@
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/kobject.h>
-#include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/abx500.h>
 #include <linux/slab.h>
-#include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/delay.h>
-#include <linux/mfd/abx500/ab8500-gpadc.h>
-#include <linux/mfd/abx500.h>
 #include <linux/time.h>
+#include <linux/of.h>
 #include <linux/completion.h>
+#include <linux/mfd/core.h>
+#include <linux/mfd/abx500.h>
+#include <linux/mfd/abx500/ab8500.h>
+#include <linux/mfd/abx500/ab8500-bm.h>
+#include <linux/mfd/abx500/ab8500-gpadc.h>
 
 #define MILLI_TO_MICRO			1000
 #define FG_LSB_IN_MA			1627
@@ -172,7 +173,6 @@ struct inst_curr_result_list {
  * @avg_cap:		Average capacity filter
  * @parent:		Pointer to the struct ab8500
  * @gpadc:		Pointer to the struct gpadc
- * @pdata:		Pointer to the abx500_fg platform data
  * @bat:		Pointer to the abx500_bm platform data
  * @fg_psy:		Structure that holds the FG specific battery properties
  * @fg_wq:		Work queue for running the FG algorithm
@@ -212,7 +212,6 @@ struct ab8500_fg {
 	struct ab8500_fg_avg_cap avg_cap;
 	struct ab8500 *parent;
 	struct ab8500_gpadc *gpadc;
-	struct abx500_fg_platform_data *pdata;
 	struct abx500_bm_data *bat;
 	struct power_supply fg_psy;
 	struct workqueue_struct *fg_wq;
@@ -2429,7 +2428,6 @@ static int __devexit ab8500_fg_remove(struct platform_device *pdev)
 	flush_scheduled_work();
 	power_supply_unregister(&di->fg_psy);
 	platform_set_drvdata(pdev, NULL);
-	kfree(di);
 	return ret;
 }
 
@@ -2442,21 +2440,39 @@ static struct ab8500_fg_interrupts ab8500_fg_irq[] = {
 	{"CCEOC", ab8500_fg_cc_data_end_handler},
 };
 
+static char *supply_interface[] = {
+	"ab8500_chargalg",
+	"ab8500_usb",
+};
+
 static int __devinit ab8500_fg_probe(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
+	struct ab8500_fg *di;
 	int i, irq;
 	int ret = 0;
-	struct abx500_bm_plat_data *plat_data = pdev->dev.platform_data;
-	struct ab8500_fg *di;
 
-	if (!plat_data) {
-		dev_err(&pdev->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
-	if (!di)
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
+	if (!di) {
+		dev_err(&pdev->dev, "%s no mem for ab8500_fg\n", __func__);
 		return -ENOMEM;
+	}
+	di->bat = pdev->mfd_cell->platform_data;
+	if (!di->bat) {
+		if (np) {
+			ret = bmdevs_of_probe(&pdev->dev, np, &di->bat);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"failed to get battery information\n");
+				return ret;
+			}
+		} else {
+			dev_err(&pdev->dev, "missing dt node for ab8500_fg\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_info(&pdev->dev, "falling back to legacy platform data\n");
+	}
 
 	mutex_init(&di->cc_lock);
 
@@ -2465,29 +2481,13 @@ static int __devinit ab8500_fg_probe(struct platform_device *pdev)
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
 
-	/* get fg specific platform data */
-	di->pdata = plat_data->fg;
-	if (!di->pdata) {
-		dev_err(di->dev, "no fg platform data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
-
-	/* get battery specific platform data */
-	di->bat = plat_data->battery;
-	if (!di->bat) {
-		dev_err(di->dev, "no battery platform data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
-
 	di->fg_psy.name = "ab8500_fg";
 	di->fg_psy.type = POWER_SUPPLY_TYPE_BATTERY;
 	di->fg_psy.properties = ab8500_fg_props;
 	di->fg_psy.num_properties = ARRAY_SIZE(ab8500_fg_props);
 	di->fg_psy.get_property = ab8500_fg_get_property;
-	di->fg_psy.supplied_to = di->pdata->supplied_to;
-	di->fg_psy.num_supplicants = di->pdata->num_supplicants;
+	di->fg_psy.supplied_to = supply_interface;
+	di->fg_psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	di->fg_psy.external_power_changed = ab8500_fg_external_power_changed;
 
 	di->bat_cap.max_mah_design = MILLI_TO_MICRO *
@@ -2506,8 +2506,7 @@ static int __devinit ab8500_fg_probe(struct platform_device *pdev)
 	di->fg_wq = create_singlethread_workqueue("ab8500_fg_wq");
 	if (di->fg_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
-		ret = -ENOMEM;
-		goto free_device_info;
+		return -ENOMEM;
 	}
 
 	/* Init work for running the fg algorithm instantly */
@@ -2606,11 +2605,13 @@ free_irq:
 	}
 free_inst_curr_wq:
 	destroy_workqueue(di->fg_wq);
-free_device_info:
-	kfree(di);
-
 	return ret;
 }
+
+static const struct of_device_id ab8500_fg_match[] = {
+	{ .compatible = "stericsson,ab8500-fg", },
+	{ },
+};
 
 static struct platform_driver ab8500_fg_driver = {
 	.probe = ab8500_fg_probe,
@@ -2620,6 +2621,7 @@ static struct platform_driver ab8500_fg_driver = {
 	.driver = {
 		.name = "ab8500-fg",
 		.owner = THIS_MODULE,
+		.of_match_table = ab8500_fg_match,
 	},
 };
 
