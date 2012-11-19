@@ -159,6 +159,8 @@ struct cgroup {
 	 */
 	atomic_t count;
 
+	int id;				/* ida allocated in-hierarchy ID */
+
 	/*
 	 * We link our 'sibling' struct into our parent's 'children'.
 	 * Our children link their 'sibling' into our 'children'.

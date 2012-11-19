@@ -138,6 +138,9 @@ struct cgroupfs_root {
 	/* Hierarchy-specific flags */
 	unsigned long flags;
 
+	/* IDs for cgroups in this hierarchy */
+	struct ida cgroup_ida;
+
 	/* The path to use for release notifications. */
 	char release_agent_path[PATH_MAX];
 
@@ -890,6 +893,7 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 
 		simple_xattrs_free(&cgrp->xattrs);
 
+		ida_simple_remove(&cgrp->root->cgroup_ida, cgrp->id);
 		kfree_rcu(cgrp, rcu_head);
 	} else {
 		struct cfent *cfe = __d_cfe(dentry);
@@ -1465,6 +1469,7 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 
 	root->subsys_mask = opts->subsys_mask;
 	root->flags = opts->flags;
+	ida_init(&root->cgroup_ida);
 	if (opts->release_agent)
 		strcpy(root->release_agent_path, opts->release_agent);
 	if (opts->name)
@@ -1483,6 +1488,7 @@ static void cgroup_drop_root(struct cgroupfs_root *root)
 	spin_lock(&hierarchy_id_lock);
 	ida_remove(&hierarchy_ida, root->hierarchy_id);
 	spin_unlock(&hierarchy_id_lock);
+	ida_destroy(&root->cgroup_ida);
 	kfree(root);
 }
 
@@ -4093,9 +4099,14 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	struct cgroup_subsys *ss;
 	struct super_block *sb = root->sb;
 
+	/* allocate the cgroup and its ID, 0 is reserved for the root */
 	cgrp = kzalloc(sizeof(*cgrp), GFP_KERNEL);
 	if (!cgrp)
 		return -ENOMEM;
+
+	cgrp->id = ida_simple_get(&root->cgroup_ida, 1, 0, GFP_KERNEL);
+	if (cgrp->id < 0)
+		goto err_free_cgrp;
 
 	/*
 	 * Only live parents can have children.  Note that the liveliness
@@ -4106,7 +4117,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	 */
 	if (!cgroup_lock_live_group(parent)) {
 		err = -ENODEV;
-		goto err_free_cgrp;
+		goto err_free_id;
 	}
 
 	/* Grab a reference on the superblock so the hierarchy doesn't
@@ -4198,6 +4209,8 @@ err_free_all:
 	mutex_unlock(&cgroup_mutex);
 	/* Release the reference count that we took on the superblock */
 	deactivate_super(sb);
+err_free_id:
+	ida_simple_remove(&root->cgroup_ida, cgrp->id);
 err_free_cgrp:
 	kfree(cgrp);
 	return err;
