@@ -18,6 +18,7 @@
 #include <asm/processor.h>
 #include <asm/page.h>
 #include <asm/cacheasm.h>
+#include <asm/initialize_mmu.h>
 
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -154,6 +155,8 @@ ENTRY(_startup)
 	___invalidate_icache_all a2 a3
 
 	isync
+
+	initialize_mmu
 
 	/* Unpack data sections
 	 *
