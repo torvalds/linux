@@ -2657,9 +2657,15 @@ static int cgroup_create_file(struct dentry *dentry, umode_t mode,
 		inc_nlink(inode);
 		inc_nlink(dentry->d_parent->d_inode);
 
-		/* start with the directory inode held, so that we can
-		 * populate it without racing with another mkdir */
-		mutex_lock_nested(&inode->i_mutex, I_MUTEX_CHILD);
+		/*
+		 * Control reaches here with cgroup_mutex held.
+		 * @inode->i_mutex should nest outside cgroup_mutex but we
+		 * want to populate it immediately without releasing
+		 * cgroup_mutex.  As @inode isn't visible to anyone else
+		 * yet, trylock will always succeed without affecting
+		 * lockdep checks.
+		 */
+		WARN_ON_ONCE(!mutex_trylock(&inode->i_mutex));
 	} else if (S_ISREG(mode)) {
 		inode->i_size = 0;
 		inode->i_fop = &cgroup_file_operations;
