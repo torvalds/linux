@@ -42,9 +42,14 @@
 
 		timer@01c20c00 {
 			compatible = "allwinner,sunxi-timer";
-			reg = <0x01c20c00 0x400>;
+			reg = <0x01c20c00 0x90>;
 			interrupts = <22>;
 			clocks = <&osc>;
+		};
+
+		wdt: watchdog@01c20c90 {
+			compatible = "allwinner,sunxi-wdt";
+			reg = <0x01c20c90 0x10>;
 		};
 
 		intc: interrupt-controller@01c20400 {
