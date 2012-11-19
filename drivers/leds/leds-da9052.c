@@ -204,7 +204,7 @@ static struct platform_driver da9052_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da9052_led_probe,
-	.remove		= __devexit_p(da9052_led_remove),
+	.remove		= da9052_led_remove,
 };
 
 module_platform_driver(da9052_led_driver);

@@ -801,7 +801,7 @@ static struct i2c_driver blinkm_driver = {
 		   .name = "blinkm",
 		   },
 	.probe = blinkm_probe,
-	.remove = __devexit_p(blinkm_remove),
+	.remove = blinkm_remove,
 	.id_table = blinkm_id,
 	.detect = blinkm_detect,
 	.address_list = normal_i2c,

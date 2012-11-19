@@ -77,7 +77,7 @@ static int __devexit cobalt_qube_led_remove(struct platform_device *pdev)
 
 static struct platform_driver cobalt_qube_led_driver = {
 	.probe	= cobalt_qube_led_probe,
-	.remove	= __devexit_p(cobalt_qube_led_remove),
+	.remove	= cobalt_qube_led_remove,
 	.driver	= {
 		.name	= "cobalt-qube-leds",
 		.owner	= THIS_MODULE,

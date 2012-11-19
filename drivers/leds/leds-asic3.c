@@ -167,7 +167,7 @@ static const struct dev_pm_ops asic3_led_pm_ops = {
 
 static struct platform_driver asic3_led_driver = {
 	.probe		= asic3_led_probe,
-	.remove		= __devexit_p(asic3_led_remove),
+	.remove		= asic3_led_remove,
 	.driver		= {
 		.name	= "leds-asic3",
 		.owner	= THIS_MODULE,

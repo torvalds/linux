@@ -774,7 +774,7 @@ static struct platform_driver lm3533_led_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= lm3533_led_probe,
-	.remove		= __devexit_p(lm3533_led_remove),
+	.remove		= lm3533_led_remove,
 	.shutdown	= lm3533_led_shutdown,
 };
 module_platform_driver(lm3533_led_driver);

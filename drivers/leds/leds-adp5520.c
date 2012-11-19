@@ -208,7 +208,7 @@ static struct platform_driver adp5520_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_led_probe,
-	.remove		= __devexit_p(adp5520_led_remove),
+	.remove		= adp5520_led_remove,
 };
 
 module_platform_driver(adp5520_led_driver);

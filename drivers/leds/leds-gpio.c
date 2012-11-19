@@ -288,7 +288,7 @@ static int __devexit gpio_led_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_led_driver = {
 	.probe		= gpio_led_probe,
-	.remove		= __devexit_p(gpio_led_remove),
+	.remove		= gpio_led_remove,
 	.driver		= {
 		.name	= "leds-gpio",
 		.owner	= THIS_MODULE,

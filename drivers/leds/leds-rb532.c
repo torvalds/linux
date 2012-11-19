@@ -50,7 +50,7 @@ static int __devexit rb532_led_remove(struct platform_device *pdev)
 
 static struct platform_driver rb532_led_driver = {
 	.probe = rb532_led_probe,
-	.remove = __devexit_p(rb532_led_remove),
+	.remove = rb532_led_remove,
 	.driver = {
 		.name = "rb532-led",
 		.owner = THIS_MODULE,

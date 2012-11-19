@@ -223,7 +223,7 @@ static struct platform_driver regulator_led_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe  = regulator_led_probe,
-	.remove = __devexit_p(regulator_led_remove),
+	.remove = regulator_led_remove,
 };
 
 module_platform_driver(regulator_led_driver);

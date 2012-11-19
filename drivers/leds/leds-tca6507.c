@@ -752,7 +752,7 @@ static struct i2c_driver tca6507_driver = {
 		.owner   = THIS_MODULE,
 	},
 	.probe    = tca6507_probe,
-	.remove   = __devexit_p(tca6507_remove),
+	.remove   = tca6507_remove,
 	.id_table = tca6507_id,
 };
 

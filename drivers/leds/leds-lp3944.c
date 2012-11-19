@@ -446,7 +446,7 @@ static struct i2c_driver lp3944_driver = {
 		   .name = "lp3944",
 	},
 	.probe    = lp3944_probe,
-	.remove   = __devexit_p(lp3944_remove),
+	.remove   = lp3944_remove,
 	.id_table = lp3944_id,
 };
 

@@ -560,7 +560,7 @@ static struct i2c_driver lm355x_i2c_driver = {
 		   .pm = NULL,
 		   },
 	.probe = lm355x_probe,
-	.remove = __devexit_p(lm355x_remove),
+	.remove = lm355x_remove,
 	.id_table = lm355x_id,
 };
 

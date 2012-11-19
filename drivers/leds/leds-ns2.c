@@ -310,7 +310,7 @@ static int __devexit ns2_led_remove(struct platform_device *pdev)
 
 static struct platform_driver ns2_led_driver = {
 	.probe		= ns2_led_probe,
-	.remove		= __devexit_p(ns2_led_remove),
+	.remove		= ns2_led_remove,
 	.driver		= {
 		.name	= "leds-ns2",
 		.owner	= THIS_MODULE,

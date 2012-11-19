@@ -382,7 +382,7 @@ static struct i2c_driver pca955x_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pca955x_probe,
-	.remove	= __devexit_p(pca955x_remove),
+	.remove	= pca955x_remove,
 	.id_table = pca955x_id,
 };
 

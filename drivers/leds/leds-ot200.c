@@ -156,7 +156,7 @@ static int __devexit ot200_led_remove(struct platform_device *pdev)
 
 static struct platform_driver ot200_led_driver = {
 	.probe		= ot200_led_probe,
-	.remove		= __devexit_p(ot200_led_remove),
+	.remove		= ot200_led_remove,
 	.driver		= {
 		.name	= "leds-ot200",
 		.owner	= THIS_MODULE,

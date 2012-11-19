@@ -308,7 +308,7 @@ static struct platform_driver max8997_led_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe  = max8997_led_probe,
-	.remove = __devexit_p(max8997_led_remove),
+	.remove = max8997_led_remove,
 };
 
 module_platform_driver(max8997_led_driver);

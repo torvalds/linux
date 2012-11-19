@@ -407,7 +407,7 @@ static int __devexit netxbig_led_remove(struct platform_device *pdev)
 
 static struct platform_driver netxbig_led_driver = {
 	.probe		= netxbig_led_probe,
-	.remove		= __devexit_p(netxbig_led_remove),
+	.remove		= netxbig_led_remove,
 	.driver		= {
 		.name	= "leds-netxbig",
 		.owner	= THIS_MODULE,

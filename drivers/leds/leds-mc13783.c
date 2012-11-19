@@ -381,7 +381,7 @@ static struct platform_driver mc13783_led_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= mc13783_led_probe,
-	.remove		= __devexit_p(mc13783_led_remove),
+	.remove		= mc13783_led_remove,
 };
 
 module_platform_driver(mc13783_led_driver);

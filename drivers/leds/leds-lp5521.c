@@ -886,7 +886,7 @@ static struct i2c_driver lp5521_driver = {
 		.name	= "lp5521",
 	},
 	.probe		= lp5521_probe,
-	.remove		= __devexit_p(lp5521_remove),
+	.remove		= lp5521_remove,
 	.id_table	= lp5521_id,
 };
 

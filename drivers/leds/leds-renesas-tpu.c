@@ -328,7 +328,7 @@ static int __devexit r_tpu_remove(struct platform_device *pdev)
 
 static struct platform_driver r_tpu_device_driver = {
 	.probe		= r_tpu_probe,
-	.remove		= __devexit_p(r_tpu_remove),
+	.remove		= r_tpu_remove,
 	.driver		= {
 		.name	= "leds-renesas-tpu",
 	}
