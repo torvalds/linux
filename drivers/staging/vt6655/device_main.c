@@ -356,7 +356,7 @@ static char* get_chip_name(int chip_id)
 	return chip_info_table[i].name;
 }
 
-static void __devexit vt6655_remove(struct pci_dev *pcid)
+static void vt6655_remove(struct pci_dev *pcid)
 {
 	PSDevice pDevice = pci_get_drvdata(pcid);
 
