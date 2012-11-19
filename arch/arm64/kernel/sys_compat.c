@@ -28,25 +28,15 @@
 #include <asm/cacheflush.h>
 #include <asm/unistd32.h>
 
-asmlinkage int compat_sys_fork(struct pt_regs *regs)
+asmlinkage int compat_sys_fork(void)
 {
-	return do_fork(SIGCHLD, regs->compat_sp, regs, 0, NULL, NULL);
+	return do_fork(SIGCHLD, 0, current_pt_regs(), 0, NULL, NULL);
 }
 
-asmlinkage int compat_sys_clone(unsigned long clone_flags, unsigned long newsp,
-			  int __user *parent_tidptr, int tls_val,
-			  int __user *child_tidptr, struct pt_regs *regs)
+asmlinkage int compat_sys_vfork(void)
 {
-	if (!newsp)
-		newsp = regs->compat_sp;
-
-	return do_fork(clone_flags, newsp, regs, 0, parent_tidptr, child_tidptr);
-}
-
-asmlinkage int compat_sys_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->compat_sp,
-		       regs, 0, NULL, NULL);
+	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, 0,
+		       current_pt_regs(), 0, NULL, NULL);
 }
 
 asmlinkage int compat_sys_sched_rr_get_interval(compat_pid_t pid,
