@@ -215,7 +215,7 @@ static struct miscdevice geodewdt_miscdev = {
 	.fops = &geodewdt_fops,
 };
 
-static int __devinit geodewdt_probe(struct platform_device *dev)
+static int geodewdt_probe(struct platform_device *dev)
 {
 	int ret;
 

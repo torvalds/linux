@@ -528,7 +528,7 @@ static const struct file_operations cpwd_fops = {
 	.llseek =		no_llseek,
 };
 
-static int __devinit cpwd_probe(struct platform_device *op)
+static int cpwd_probe(struct platform_device *op)
 {
 	struct device_node *options;
 	const char *str_prop;

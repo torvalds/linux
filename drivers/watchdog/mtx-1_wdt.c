@@ -204,7 +204,7 @@ static struct miscdevice mtx1_wdt_misc = {
 };
 
 
-static int __devinit mtx1_wdt_probe(struct platform_device *pdev)
+static int mtx1_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 

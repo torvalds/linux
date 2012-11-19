@@ -240,7 +240,7 @@ static struct miscdevice acq_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit acq_probe(struct platform_device *dev)
+static int acq_probe(struct platform_device *dev)
 {
 	int ret;
 

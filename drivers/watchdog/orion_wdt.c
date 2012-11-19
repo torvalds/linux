@@ -142,7 +142,7 @@ static struct watchdog_device orion_wdt = {
 	.ops = &orion_wdt_ops,
 };
 
-static int __devinit orion_wdt_probe(struct platform_device *pdev)
+static int orion_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;

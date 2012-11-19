@@ -293,7 +293,7 @@ static struct miscdevice dw_wdt_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 };
 
-static int __devinit dw_wdt_drv_probe(struct platform_device *pdev)
+static int dw_wdt_drv_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);

@@ -344,7 +344,7 @@ MODULE_DEVICE_TABLE(pci, esb_pci_tbl);
  *      Init & exit routines
  */
 
-static unsigned char __devinit esb_getdevice(struct pci_dev *pdev)
+static unsigned char esb_getdevice(struct pci_dev *pdev)
 {
 	if (pci_enable_device(pdev)) {
 		pr_err("failed to enable device\n");
@@ -375,7 +375,7 @@ err_devput:
 	return 0;
 }
 
-static void __devinit esb_initdevice(void)
+static void esb_initdevice(void)
 {
 	u8 val1;
 	u16 val2;
@@ -416,7 +416,7 @@ static void __devinit esb_initdevice(void)
 	esb_timer_set_heartbeat(heartbeat);
 }
 
-static int __devinit esb_probe(struct pci_dev *pdev,
+static int esb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	int ret;

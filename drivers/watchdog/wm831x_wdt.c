@@ -181,7 +181,7 @@ static const struct watchdog_ops wm831x_wdt_ops = {
 	.set_timeout = wm831x_wdt_set_timeout,
 };
 
-static int __devinit wm831x_wdt_probe(struct platform_device *pdev)
+static int wm831x_wdt_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *chip_pdata;

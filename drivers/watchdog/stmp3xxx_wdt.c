@@ -204,7 +204,7 @@ static struct miscdevice stmp3xxx_wdt_miscdev = {
 	.fops = &stmp3xxx_wdt_fops,
 };
 
-static int __devinit stmp3xxx_wdt_probe(struct platform_device *pdev)
+static int stmp3xxx_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 

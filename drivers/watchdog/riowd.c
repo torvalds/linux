@@ -174,7 +174,7 @@ static struct miscdevice riowd_miscdev = {
 	.fops	= &riowd_fops
 };
 
-static int __devinit riowd_probe(struct platform_device *op)
+static int riowd_probe(struct platform_device *op)
 {
 	struct riowd *p;
 	int err = -EINVAL;

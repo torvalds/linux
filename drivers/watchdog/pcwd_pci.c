@@ -682,7 +682,7 @@ static struct notifier_block pcipcwd_notifier = {
  *	Init & exit routines
  */
 
-static int __devinit pcipcwd_card_init(struct pci_dev *pdev,
+static int pcipcwd_card_init(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	int ret = -EIO;

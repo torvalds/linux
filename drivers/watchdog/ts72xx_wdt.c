@@ -390,7 +390,7 @@ static struct miscdevice ts72xx_wdt_miscdev = {
 	.fops		= &ts72xx_wdt_fops,
 };
 
-static __devinit int ts72xx_wdt_probe(struct platform_device *pdev)
+static int ts72xx_wdt_probe(struct platform_device *pdev)
 {
 	struct ts72xx_wdt *wdt;
 	struct resource *r1, *r2;

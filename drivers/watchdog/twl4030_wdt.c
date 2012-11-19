@@ -170,7 +170,7 @@ static const struct file_operations twl4030_wdt_fops = {
 	.write		= twl4030_wdt_write_fop,
 };
 
-static int __devinit twl4030_wdt_probe(struct platform_device *pdev)
+static int twl4030_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct twl4030_wdt *wdt;

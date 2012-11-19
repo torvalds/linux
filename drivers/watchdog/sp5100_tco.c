@@ -271,7 +271,7 @@ MODULE_DEVICE_TABLE(pci, sp5100_tco_pci_tbl);
  * Init & exit routines
  */
 
-static unsigned char __devinit sp5100_tco_setupdevice(void)
+static unsigned char sp5100_tco_setupdevice(void)
 {
 	struct pci_dev *dev = NULL;
 	u32 val;
@@ -361,7 +361,7 @@ exit:
 	return 0;
 }
 
-static int __devinit sp5100_tco_init(struct platform_device *dev)
+static int sp5100_tco_init(struct platform_device *dev)
 {
 	int ret;
 	u32 val;

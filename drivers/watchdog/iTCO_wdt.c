@@ -390,7 +390,7 @@ static void __devexit iTCO_wdt_cleanup(void)
 	iTCO_wdt_private.gcs = NULL;
 }
 
-static int __devinit iTCO_wdt_probe(struct platform_device *dev)
+static int iTCO_wdt_probe(struct platform_device *dev)
 {
 	int ret = -ENODEV;
 	unsigned long val32;

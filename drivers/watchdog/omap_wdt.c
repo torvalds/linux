@@ -264,7 +264,7 @@ static const struct file_operations omap_wdt_fops = {
 	.llseek = no_llseek,
 };
 
-static int __devinit omap_wdt_probe(struct platform_device *pdev)
+static int omap_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res, *mem;
 	struct omap_wdt_dev *wdev;

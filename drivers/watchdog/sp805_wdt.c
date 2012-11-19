@@ -210,7 +210,7 @@ static const struct watchdog_ops wdt_ops = {
 	.get_timeleft	= wdt_timeleft,
 };
 
-static int __devinit
+static int
 sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct sp805_wdt *wdt;

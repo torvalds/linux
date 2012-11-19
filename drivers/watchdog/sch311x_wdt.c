@@ -356,7 +356,7 @@ static struct miscdevice sch311x_wdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit sch311x_wdt_probe(struct platform_device *pdev)
+static int sch311x_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int err;

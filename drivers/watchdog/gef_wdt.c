@@ -262,7 +262,7 @@ static struct miscdevice gef_wdt_miscdev = {
 };
 
 
-static int __devinit gef_wdt_probe(struct platform_device *dev)
+static int gef_wdt_probe(struct platform_device *dev)
 {
 	int timeout = 10;
 	u32 freq;

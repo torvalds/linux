@@ -356,7 +356,7 @@ static const struct watchdog_info bfin_wdt_info = {
  *	Registers the misc device.  Actual device
  *	initialization is handled by bfin_wdt_open().
  */
-static int __devinit bfin_wdt_probe(struct platform_device *pdev)
+static int bfin_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 

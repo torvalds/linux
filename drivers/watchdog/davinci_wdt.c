@@ -199,7 +199,7 @@ static struct miscdevice davinci_wdt_miscdev = {
 	.fops = &davinci_wdt_fops,
 };
 
-static int __devinit davinci_wdt_probe(struct platform_device *pdev)
+static int davinci_wdt_probe(struct platform_device *pdev)
 {
 	int ret = 0, size;
 	struct device *dev = &pdev->dev;

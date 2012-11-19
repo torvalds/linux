@@ -224,7 +224,7 @@ static struct miscdevice ath79_wdt_miscdev = {
 	.fops = &ath79_wdt_fops,
 };
 
-static int __devinit ath79_wdt_probe(struct platform_device *pdev)
+static int ath79_wdt_probe(struct platform_device *pdev)
 {
 	u32 ctrl;
 	int err;

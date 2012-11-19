@@ -225,7 +225,7 @@ static const struct file_operations ie6xx_wdt_dbg_operations = {
 	.release	= single_release,
 };
 
-static void __devinit ie6xx_wdt_debugfs_init(void)
+static void ie6xx_wdt_debugfs_init(void)
 {
 	/* /sys/kernel/debug/ie6xx_wdt */
 	ie6xx_wdt_data.debugfs = debugfs_create_file("ie6xx_wdt",
@@ -238,7 +238,7 @@ static void ie6xx_wdt_debugfs_exit(void)
 }
 
 #else
-static void __devinit ie6xx_wdt_debugfs_init(void)
+static void ie6xx_wdt_debugfs_init(void)
 {
 }
 
@@ -247,7 +247,7 @@ static void ie6xx_wdt_debugfs_exit(void)
 }
 #endif
 
-static int __devinit ie6xx_wdt_probe(struct platform_device *pdev)
+static int ie6xx_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	u8 wdtlr;

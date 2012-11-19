@@ -238,7 +238,7 @@ static struct miscdevice advwdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit advwdt_probe(struct platform_device *dev)
+static int advwdt_probe(struct platform_device *dev)
 {
 	int ret;
 

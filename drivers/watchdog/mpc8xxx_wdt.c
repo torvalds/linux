@@ -188,7 +188,7 @@ static struct miscdevice mpc8xxx_wdt_miscdev = {
 };
 
 static const struct of_device_id mpc8xxx_wdt_match[];
-static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev)
+static int mpc8xxx_wdt_probe(struct platform_device *ofdev)
 {
 	int ret;
 	const struct of_device_id *match;

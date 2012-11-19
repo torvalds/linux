@@ -277,7 +277,7 @@ static struct miscdevice ibwdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit ibwdt_probe(struct platform_device *dev)
+static int ibwdt_probe(struct platform_device *dev)
 {
 	int res;
 

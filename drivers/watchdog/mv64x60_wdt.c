@@ -253,7 +253,7 @@ static struct miscdevice mv64x60_wdt_miscdev = {
 	.fops = &mv64x60_wdt_fops,
 };
 
-static int __devinit mv64x60_wdt_probe(struct platform_device *dev)
+static int mv64x60_wdt_probe(struct platform_device *dev)
 {
 	struct mv64x60_wdt_pdata *pdata = dev->dev.platform_data;
 	struct resource *r;

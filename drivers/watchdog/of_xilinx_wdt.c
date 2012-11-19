@@ -289,7 +289,7 @@ static struct miscdevice xwdt_miscdev = {
 	.fops       = &xwdt_fops,
 };
 
-static int __devinit xwdt_probe(struct platform_device *pdev)
+static int xwdt_probe(struct platform_device *pdev)
 {
 	int rc;
 	u32 *tmptr;

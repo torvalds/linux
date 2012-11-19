@@ -215,7 +215,7 @@ static struct miscdevice cpu5wdt_misc = {
 
 /* init/exit function */
 
-static int __devinit cpu5wdt_init(void)
+static int cpu5wdt_init(void)
 {
 	unsigned int val;
 	int err;
@@ -256,7 +256,7 @@ no_port:
 	return err;
 }
 
-static int __devinit cpu5wdt_init_module(void)
+static int cpu5wdt_init_module(void)
 {
 	return cpu5wdt_init();
 }

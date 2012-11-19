@@ -605,7 +605,7 @@ static struct notifier_block wdtpci_notifier = {
 };
 
 
-static int __devinit wdtpci_init_one(struct pci_dev *dev,
+static int wdtpci_init_one(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	int ret = -EIO;

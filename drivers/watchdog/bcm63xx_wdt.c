@@ -236,7 +236,7 @@ static struct miscdevice bcm63xx_wdt_miscdev = {
 };
 
 
-static int __devinit bcm63xx_wdt_probe(struct platform_device *pdev)
+static int bcm63xx_wdt_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;
