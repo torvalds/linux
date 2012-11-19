@@ -418,7 +418,7 @@ fail:
 	return rc;
 }
 
-static void __devexit chd_dec_release_chdev(struct crystalhd_adp *adp)
+static void chd_dec_release_chdev(struct crystalhd_adp *adp)
 {
 	struct crystalhd_ioctl_data *temp = NULL;
 	if (!adp)
@@ -496,7 +496,7 @@ static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 	return 0;
 }
 
-static void __devexit chd_pci_release_mem(struct crystalhd_adp *pinfo)
+static void chd_pci_release_mem(struct crystalhd_adp *pinfo)
 {
 	if (!pinfo)
 		return;
@@ -511,7 +511,7 @@ static void __devexit chd_pci_release_mem(struct crystalhd_adp *pinfo)
 }
 
 
-static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
+static void chd_dec_pci_remove(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *pinfo;
 	enum BC_STATUS sts = BC_STS_SUCCESS;

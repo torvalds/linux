@@ -986,7 +986,7 @@ enum BC_STATUS crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx,
  *
  * Called at the time of driver un-load.
  */
-enum BC_STATUS __devexit crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx)
+enum BC_STATUS crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx)
 {
 	BCMLOG(BCMLOG_DBG, "Deleting Command context..\n");
 
