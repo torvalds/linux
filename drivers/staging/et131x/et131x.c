@@ -4034,7 +4034,7 @@ static struct et131x_adapter *et131x_adapter_init(struct net_device *netdev,
  * PCI subsystem detects that a PCI device which matches the information
  * contained in the pci_device_id table has been removed.
  */
-static void __devexit et131x_pci_remove(struct pci_dev *pdev)
+static void et131x_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct et131x_adapter *adapter = netdev_priv(netdev);
