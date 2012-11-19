@@ -403,7 +403,7 @@ static irqreturn_t cd_irq(int irq, void *data)
 };
 
 #ifdef CONFIG_OF
-static int __devinit
+static int
 sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 			 struct esdhc_platform_data *boarddata)
 {
@@ -440,7 +440,7 @@ sdhci_esdhc_imx_probe_dt(struct platform_device *pdev,
 }
 #endif
 
-static int __devinit sdhci_esdhc_imx_probe(struct platform_device *pdev)
+static int sdhci_esdhc_imx_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(imx_esdhc_dt_ids, &pdev->dev);

@@ -117,7 +117,7 @@ static const struct sh_mobile_sdhi_ops sdhi_ops = {
 	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
 };
 
-static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
+static int sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_sdhi *priv;
 	struct tmio_mmc_data *mmc_data;

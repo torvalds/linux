@@ -57,7 +57,7 @@ static int tmio_mmc_resume(struct platform_device *dev)
 #define tmio_mmc_resume NULL
 #endif
 
-static int __devinit tmio_mmc_probe(struct platform_device *pdev)
+static int tmio_mmc_probe(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct tmio_mmc_data *pdata;

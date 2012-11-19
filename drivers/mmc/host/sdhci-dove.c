@@ -78,7 +78,7 @@ static struct sdhci_pltfm_data sdhci_dove_pdata = {
 		  SDHCI_QUIRK_NO_HISPD_BIT,
 };
 
-static int __devinit sdhci_dove_probe(struct platform_device *pdev)
+static int sdhci_dove_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
 	struct sdhci_pltfm_host *pltfm_host;

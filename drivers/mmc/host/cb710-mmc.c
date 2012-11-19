@@ -690,7 +690,7 @@ static int cb710_mmc_resume(struct platform_device *pdev)
 
 #endif /* CONFIG_PM */
 
-static int __devinit cb710_mmc_init(struct platform_device *pdev)
+static int cb710_mmc_init(struct platform_device *pdev)
 {
 	struct cb710_slot *slot = cb710_pdev_to_slot(pdev);
 	struct cb710_chip *chip = cb710_slot_to_chip(slot);

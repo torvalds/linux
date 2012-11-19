@@ -1715,7 +1715,7 @@ static inline struct omap_mmc_platform_data
 }
 #endif
 
-static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
+static int omap_hsmmc_probe(struct platform_device *pdev)
 {
 	struct omap_mmc_platform_data *pdata = pdev->dev.platform_data;
 	struct mmc_host *mmc;

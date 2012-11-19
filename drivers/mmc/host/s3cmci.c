@@ -1540,7 +1540,7 @@ static inline void s3cmci_debugfs_remove(struct s3cmci_host *host) { }
 
 #endif /* CONFIG_DEBUG_FS */
 
-static int __devinit s3cmci_probe(struct platform_device *pdev)
+static int s3cmci_probe(struct platform_device *pdev)
 {
 	struct s3cmci_host *host;
 	struct mmc_host	*mmc;

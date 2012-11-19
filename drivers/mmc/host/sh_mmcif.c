@@ -1302,7 +1302,7 @@ static void sh_mmcif_init_ocr(struct sh_mmcif_host *host)
 		dev_warn(mmc_dev(mmc), "Platform OCR mask is ignored\n");
 }
 
-static int __devinit sh_mmcif_probe(struct platform_device *pdev)
+static int sh_mmcif_probe(struct platform_device *pdev)
 {
 	int ret = 0, irq[2];
 	struct mmc_host *mmc;

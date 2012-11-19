@@ -71,8 +71,7 @@ static irqreturn_t sdhci_gpio_irq(int irq, void *dev_id)
 }
 
 #ifdef CONFIG_OF
-static struct sdhci_plat_data * __devinit
-sdhci_probe_config_dt(struct platform_device *pdev)
+static struct sdhci_plat_data *sdhci_probe_config_dt(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_plat_data *pdata = NULL;
@@ -96,14 +95,13 @@ sdhci_probe_config_dt(struct platform_device *pdev)
 	return pdata;
 }
 #else
-static struct sdhci_plat_data * __devinit
-sdhci_probe_config_dt(struct platform_device *pdev)
+static struct sdhci_plat_data *sdhci_probe_config_dt(struct platform_device *pdev)
 {
 	return ERR_PTR(-ENOSYS);
 }
 #endif
 
-static int __devinit sdhci_probe(struct platform_device *pdev)
+static int sdhci_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct sdhci_host *host;

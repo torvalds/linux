@@ -37,7 +37,7 @@ static struct dw_mci_board pci_board_data = {
 	.fifo_depth			= 32,
 };
 
-static int __devinit dw_mci_pci_probe(struct pci_dev *pdev,
+static int dw_mci_pci_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *entries)
 {
 	struct dw_mci *host;

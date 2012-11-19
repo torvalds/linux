@@ -702,7 +702,7 @@ static const struct jz_gpio_bulk_request jz4740_mmc_pins[] = {
 	JZ_GPIO_BULK_PIN(MSC_DATA3),
 };
 
-static int __devinit jz4740_mmc_request_gpio(struct device *dev, int gpio,
+static int jz4740_mmc_request_gpio(struct device *dev, int gpio,
 	const char *name, bool output, int value)
 {
 	int ret;
@@ -724,7 +724,7 @@ static int __devinit jz4740_mmc_request_gpio(struct device *dev, int gpio,
 	return 0;
 }
 
-static int __devinit jz4740_mmc_request_gpios(struct platform_device *pdev)
+static int jz4740_mmc_request_gpios(struct platform_device *pdev)
 {
 	int ret;
 	struct jz4740_mmc_platform_data *pdata = pdev->dev.platform_data;
@@ -759,7 +759,7 @@ err:
 	return ret;
 }
 
-static int __devinit jz4740_mmc_request_cd_irq(struct platform_device *pdev,
+static int jz4740_mmc_request_cd_irq(struct platform_device *pdev,
 	struct jz4740_mmc_host *host)
 {
 	struct jz4740_mmc_platform_data *pdata = pdev->dev.platform_data;
@@ -802,7 +802,7 @@ static inline size_t jz4740_mmc_num_pins(struct jz4740_mmc_host *host)
 	return num_pins;
 }
 
-static int __devinit jz4740_mmc_probe(struct platform_device* pdev)
+static int jz4740_mmc_probe(struct platform_device* pdev)
 {
 	int ret;
 	struct mmc_host *mmc;

@@ -217,7 +217,7 @@ static const struct of_device_id sdhci_tegra_dt_match[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(of, sdhci_dt_ids);
 
-static struct tegra_sdhci_platform_data * __devinit sdhci_tegra_dt_parse_pdata(
+static struct tegra_sdhci_platform_data *sdhci_tegra_dt_parse_pdata(
 						struct platform_device *pdev)
 {
 	struct tegra_sdhci_platform_data *plat;
@@ -244,7 +244,7 @@ static struct tegra_sdhci_platform_data * __devinit sdhci_tegra_dt_parse_pdata(
 	return plat;
 }
 
-static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
+static int sdhci_tegra_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	const struct sdhci_tegra_soc_data *soc_data;

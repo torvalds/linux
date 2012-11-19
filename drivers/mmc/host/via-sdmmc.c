@@ -1082,7 +1082,7 @@ static void via_init_mmc_host(struct via_crdr_mmc_host *host)
 	msleep(1);
 }
 
-static int __devinit via_sd_probe(struct pci_dev *pcidev,
+static int via_sd_probe(struct pci_dev *pcidev,
 				    const struct pci_device_id *id)
 {
 	struct mmc_host *mmc;

@@ -511,7 +511,7 @@ static const struct of_device_id atmci_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, atmci_dt_ids);
 
-static struct mci_platform_data __devinit*
+static struct mci_platform_data*
 atmci_of_init(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;

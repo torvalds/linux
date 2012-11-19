@@ -522,7 +522,7 @@ static void sdh_reset(void)
 	SSYNC();
 }
 
-static int __devinit sdh_probe(struct platform_device *pdev)
+static int sdh_probe(struct platform_device *pdev)
 {
 	struct mmc_host *mmc;
 	struct sdh_host *host;
