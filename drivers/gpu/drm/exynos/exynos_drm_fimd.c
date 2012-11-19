@@ -61,11 +61,11 @@ struct fimd_driver_data {
 	unsigned int timing_base;
 };
 
-struct fimd_driver_data exynos4_fimd_driver_data = {
+static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.timing_base = 0x0,
 };
 
-struct fimd_driver_data exynos5_fimd_driver_data = {
+static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.timing_base = 0x20000,
 };
 
