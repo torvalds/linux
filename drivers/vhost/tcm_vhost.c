@@ -34,7 +34,6 @@
 #include <linux/ctype.h>
 #include <linux/compat.h>
 #include <linux/eventfd.h>
-#include <linux/vhost.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
 #include <asm/unaligned.h>
