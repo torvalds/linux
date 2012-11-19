@@ -164,6 +164,8 @@ extern void kvmppc_bookehv_exit(void);
 
 extern int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu);
 
+extern int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *);
+
 /*
  * Cuts out inst bits with ordering according to spec.
  * That means the leftmost bit is zero. All given bits are included.

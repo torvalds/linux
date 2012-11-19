@@ -634,6 +634,7 @@ struct kvm_ppc_smmu_info {
 #endif
 #define KVM_CAP_IRQFD_RESAMPLE 82
 #define KVM_CAP_PPC_BOOKE_WATCHDOG 83
+#define KVM_CAP_PPC_HTAB_FD 84
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -859,6 +860,8 @@ struct kvm_s390_ucas_mapping {
 #define KVM_CREATE_SPAPR_TCE	  _IOW(KVMIO,  0xa8, struct kvm_create_spapr_tce)
 /* Available with KVM_CAP_RMA */
 #define KVM_ALLOCATE_RMA	  _IOR(KVMIO,  0xa9, struct kvm_allocate_rma)
+/* Available with KVM_CAP_PPC_HTAB_FD */
+#define KVM_PPC_GET_HTAB_FD	  _IOW(KVMIO,  0xaa, struct kvm_get_htab_fd)
 
 /*
  * ioctls for vcpu fds

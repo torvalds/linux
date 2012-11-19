@@ -1563,18 +1563,6 @@ out:
 	return r;
 }
 
-static unsigned long slb_pgsize_encoding(unsigned long psize)
-{
-	unsigned long senc = 0;
-
-	if (psize > 0x1000) {
-		senc = SLB_VSID_L;
-		if (psize == 0x10000)
-			senc |= SLB_VSID_LP_01;
-	}
-	return senc;
-}
-
 static void unpin_slot(struct kvm_memory_slot *memslot)
 {
 	unsigned long *physp;

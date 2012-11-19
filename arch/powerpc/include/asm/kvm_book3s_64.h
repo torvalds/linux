@@ -246,4 +246,26 @@ static inline bool slot_is_aligned(struct kvm_memory_slot *memslot,
 	return !(memslot->base_gfn & mask) && !(memslot->npages & mask);
 }
 
+/*
+ * This works for 4k, 64k and 16M pages on POWER7,
+ * and 4k and 16M pages on PPC970.
+ */
+static inline unsigned long slb_pgsize_encoding(unsigned long psize)
+{
+	unsigned long senc = 0;
+
+	if (psize > 0x1000) {
+		senc = SLB_VSID_L;
+		if (psize == 0x10000)
+			senc |= SLB_VSID_LP_01;
+	}
+	return senc;
+}
+
+static inline int is_vrma_hpte(unsigned long hpte_v)
+{
+	return (hpte_v & ~0xffffffUL) ==
+		(HPTE_V_1TB_SEG | (VRMA_VSID << (40 - 16)));
+}
+
 #endif /* __ASM_KVM_BOOK3S_64_H__ */

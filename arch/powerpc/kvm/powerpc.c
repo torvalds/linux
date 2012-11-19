@@ -354,6 +354,12 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = 1;
 #else
 		r = 0;
+		break;
+#endif
+#ifdef CONFIG_KVM_BOOK3S_64_HV
+	case KVM_CAP_PPC_HTAB_FD:
+		r = 1;
+		break;
 #endif
 		break;
 	case KVM_CAP_NR_VCPUS:
@@ -952,6 +958,17 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		if (put_user(htab_order, (u32 __user *)argp))
 			break;
 		r = 0;
+		break;
+	}
+
+	case KVM_PPC_GET_HTAB_FD: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_get_htab_fd ghf;
+
+		r = -EFAULT;
+		if (copy_from_user(&ghf, argp, sizeof(ghf)))
+			break;
+		r = kvm_vm_ioctl_get_htab_fd(kvm, &ghf);
 		break;
 	}
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
