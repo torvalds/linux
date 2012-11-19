@@ -132,27 +132,16 @@ static int rt3261_customer_redefine(struct snd_soc_codec *codec, struct rt3261_p
 			RT3261_M_SV_R_SPM_R, 1 << RT3261_M_SV_R_SPM_R_SFT);
 	}
 
-	if(rt3261->modem_input_mode==DIFFERENTIAL)
-	{
-		snd_soc_update_bits(codec, RT3261_IN3_IN4,
-			RT3261_IN_DF2, 1 << RT3261_IN_SFT2);
-	}
-	else
-	{
-		snd_soc_update_bits(codec, RT3261_IN3_IN4,
-			RT3261_IN_DF2, 0 << RT3261_IN_SFT2);
-	}
 	
-	if(rt3261->lout_to_modem_mode==DIFFERENTIAL)
-	{
-		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
-			RT3261_LOUT_DF_MASK, 1 << RT3261_LOUT_DF);
-	}
-	else
-	{
-		snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
-			RT3261_LOUT_DF_MASK, 0 << RT3261_LOUT_DF);
-	}
+	snd_soc_update_bits(codec, RT3261_IN3_IN4,
+		RT3261_IN_DF2, rt3261->modem_input_mode << RT3261_IN_SFT2);
+	snd_soc_update_bits(codec, RT3261_GEN_CTRL1,
+		RT3261_LOUT_DF_MASK, rt3261->lout_to_modem_mode << RT3261_LOUT_DF);
+	snd_soc_update_bits(codec, RT3261_SPO_CLSD_RATIO,
+		RT3261_SPO_CLSD_RATIO_MASK, rt3261->spk_amplify);
+	snd_soc_update_bits(codec, RT3261_DIG_INF_DATA,
+		RT3261_IF1_DAC_SEL_MASK	| RT3261_IF2_DAC_SEL_MASK, 
+		(rt3261->playback_if1_data_control<<RT3261_IF1_DAC_SEL_SFT) | (rt3261->playback_if2_data_control<<RT3261_IF2_DAC_SEL_SFT));
 
 	return 0;
 }
@@ -3423,6 +3412,9 @@ static int __devinit rt3261_i2c_probe(struct i2c_client *i2c,
 	rt3261->spk_num = pdata->spk_num;
 	rt3261->modem_input_mode = pdata->modem_input_mode;
 	rt3261->lout_to_modem_mode = pdata->lout_to_modem_mode;
+	rt3261->spk_amplify = pdata->spk_amplify;
+	rt3261->playback_if1_data_control = pdata->playback_if1_data_control;
+	rt3261->playback_if2_data_control = pdata->playback_if2_data_control;
 
 	if(rt3261->io_init)
 		rt3261->io_init(pdata->codec_en_gpio, pdata->codec_en_gpio_info.iomux_name, pdata->codec_en_gpio_info.iomux_mode);

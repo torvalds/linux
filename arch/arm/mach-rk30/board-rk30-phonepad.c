@@ -1162,6 +1162,20 @@ static struct platform_device rk29_device_backlight = {
 #define TWO_SPK 2
 #define ONE_SPK 1
 
+enum {
+	SPK_AMPLIFY_ZERO_POINT_FIVE_WATT=1,
+	SPK_AMPLIFY_ZERO_POINT_SIX_WATT,
+	SPK_AMPLIFY_ZERO_POINT_EIGHT_WATT,
+	SPK_AMPLIFY_ONE_WATT,
+};
+
+enum {
+	NORMAL,
+	SWAP,
+	LEFT_COPY_TO_RIGHT,
+	RIGHT_COPY_LEFT,
+};
+
 static int rt3261_io_init(int gpio, char *iomux_name, int iomux_mode)
 {
 	gpio_request(gpio,NULL);
@@ -1177,8 +1191,10 @@ static struct rt3261_platform_data rt3261_info = {
 	.spk_num 			= TWO_SPK,
 	.modem_input_mode		= DIFFERENTIAL,
 	.lout_to_modem_mode		= DIFFERENTIAL,
+	.spk_amplify			= SPK_AMPLIFY_ZERO_POINT_SIX_WATT,
+	.playback_if1_data_control	= NORMAL,
+	.playback_if2_data_control	= NORMAL,
 };
-
 #endif
 
 #ifdef CONFIG_RK29_SUPPORT_MODEM

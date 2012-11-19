@@ -64,6 +64,9 @@ struct rt3261_platform_data{
 	unsigned int spk_num;
 	unsigned int modem_input_mode;
 	unsigned int lout_to_modem_mode;
+	unsigned int spk_amplify;
+	unsigned int playback_if1_data_control;
+	unsigned int playback_if2_data_control;
 };
 
 extern struct rk29_sdmmc_platform_data default_sdmmc0_data;

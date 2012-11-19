@@ -2154,6 +2154,9 @@ struct rt3261_priv {
 	unsigned int spk_num;
 	unsigned int modem_input_mode;
 	unsigned int lout_to_modem_mode;
+	unsigned int spk_amplify;
+	unsigned int playback_if1_data_control;
+	unsigned int playback_if2_data_control;
 };
 
 int rt3261_conn_mux_path(struct snd_soc_codec *codec,
