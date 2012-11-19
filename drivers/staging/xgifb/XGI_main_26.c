@@ -2127,7 +2127,7 @@ static struct pci_driver xgifb_driver = {
 	.name = "xgifb",
 	.id_table = xgifb_pci_table,
 	.probe = xgifb_probe,
-	.remove = __devexit_p(xgifb_remove)
+	.remove = xgifb_remove
 };
 
 
