@@ -1540,7 +1540,6 @@ static void usb_release_interface(struct device *dev)
 	kfree(intf);
 }
 
-#ifdef	CONFIG_HOTPLUG
 static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct usb_device *usb_dev;
@@ -1574,14 +1573,6 @@ static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-
-#else
-
-static int usb_if_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	return -ENODEV;
-}
-#endif	/* CONFIG_HOTPLUG */
 
 struct device_type usb_if_device_type = {
 	.name =		"usb_interface",

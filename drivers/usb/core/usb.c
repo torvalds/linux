@@ -233,7 +233,6 @@ static void usb_release_dev(struct device *dev)
 	kfree(udev);
 }
 
-#ifdef	CONFIG_HOTPLUG
 static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	struct usb_device *usb_dev;
@@ -248,14 +247,6 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 	return 0;
 }
-
-#else
-
-static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	return -ENODEV;
-}
-#endif	/* CONFIG_HOTPLUG */
 
 #ifdef	CONFIG_PM
 
