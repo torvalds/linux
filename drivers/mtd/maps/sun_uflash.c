@@ -108,7 +108,7 @@ int uflash_devinit(struct platform_device *op, struct device_node *dp)
 	return 0;
 }
 
-static int __devinit uflash_probe(struct platform_device *op)
+static int uflash_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 

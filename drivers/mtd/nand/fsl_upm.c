@@ -152,7 +152,7 @@ static void fun_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
 		fun_wait_rnb(fun);
 }
 
-static int __devinit fun_chip_init(struct fsl_upm_nand *fun,
+static int fun_chip_init(struct fsl_upm_nand *fun,
 				   const struct device_node *upm_np,
 				   const struct resource *io_res)
 {
@@ -201,7 +201,7 @@ err:
 	return ret;
 }
 
-static int __devinit fun_probe(struct platform_device *ofdev)
+static int fun_probe(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun;
 	struct resource io_res;

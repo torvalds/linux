@@ -585,7 +585,7 @@ static int cafe_nand_block_bad(struct mtd_info *mtd, loff_t ofs, int getchip)
 }
 
 /* F_2[X]/(X**6+X+1)  */
-static unsigned short __devinit gf64_mul(u8 a, u8 b)
+static unsigned short gf64_mul(u8 a, u8 b)
 {
 	u8 c;
 	unsigned int i;
@@ -604,7 +604,7 @@ static unsigned short __devinit gf64_mul(u8 a, u8 b)
 }
 
 /* F_64[X]/(X**2+X+A**-1) with A the generator of F_64[X]  */
-static u16 __devinit gf4096_mul(u16 a, u16 b)
+static u16 gf4096_mul(u16 a, u16 b)
 {
 	u8 ah, al, bh, bl, ch, cl;
 
@@ -619,14 +619,14 @@ static u16 __devinit gf4096_mul(u16 a, u16 b)
 	return (ch << 6) ^ cl;
 }
 
-static int __devinit cafe_mul(int x)
+static int cafe_mul(int x)
 {
 	if (x == 0)
 		return 1;
 	return gf4096_mul(x, 0xe01);
 }
 
-static int __devinit cafe_nand_probe(struct pci_dev *pdev,
+static int cafe_nand_probe(struct pci_dev *pdev,
 				     const struct pci_device_id *ent)
 {
 	struct mtd_info *mtd;

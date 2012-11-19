@@ -185,7 +185,7 @@ static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", NULL };
  *	...
  * };
  */
-static int __devinit gpio_flash_probe(struct platform_device *pdev)
+static int gpio_flash_probe(struct platform_device *pdev)
 {
 	size_t i, arr_size;
 	struct physmap_flash_data *pdata;

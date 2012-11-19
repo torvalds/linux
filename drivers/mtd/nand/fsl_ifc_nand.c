@@ -922,7 +922,7 @@ static int match_bank(struct fsl_ifc_regs __iomem *ifc, int bank,
 
 static DEFINE_MUTEX(fsl_ifc_nand_mutex);
 
-static int __devinit fsl_ifc_nand_probe(struct platform_device *dev)
+static int fsl_ifc_nand_probe(struct platform_device *dev)
 {
 	struct fsl_ifc_regs __iomem *ifc;
 	struct fsl_ifc_mtd *priv;

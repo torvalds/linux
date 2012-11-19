@@ -864,7 +864,7 @@ static bool filter(struct dma_chan *chan, void *slave)
 }
 
 #ifdef CONFIG_OF
-static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
+static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 					       struct device_node *np)
 {
 	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
@@ -886,7 +886,7 @@ static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
 	return 0;
 }
 #else
-static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
+static int fsmc_nand_probe_config_dt(struct platform_device *pdev,
 					       struct device_node *np)
 {
 	return -ENOSYS;

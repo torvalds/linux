@@ -140,7 +140,7 @@ static int socrates_nand_device_ready(struct mtd_info *mtd)
 /*
  * Probe for the NAND device.
  */
-static int __devinit socrates_nand_probe(struct platform_device *ofdev)
+static int socrates_nand_probe(struct platform_device *ofdev)
 {
 	struct socrates_nand_host *host;
 	struct mtd_info *mtd;

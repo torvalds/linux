@@ -68,7 +68,7 @@ static void __devexit vr_nor_destroy_partitions(struct vr_nor_mtd *p)
 	mtd_device_unregister(p->info);
 }
 
-static int __devinit vr_nor_init_partitions(struct vr_nor_mtd *p)
+static int vr_nor_init_partitions(struct vr_nor_mtd *p)
 {
 	/* register the flash bank */
 	/* partition the flash bank */
@@ -80,7 +80,7 @@ static void __devexit vr_nor_destroy_mtd_setup(struct vr_nor_mtd *p)
 	map_destroy(p->info);
 }
 
-static int __devinit vr_nor_mtd_setup(struct vr_nor_mtd *p)
+static int vr_nor_mtd_setup(struct vr_nor_mtd *p)
 {
 	static const char *probe_types[] =
 	    { "cfi_probe", "jedec_probe", NULL };
@@ -116,7 +116,7 @@ static void __devexit vr_nor_destroy_maps(struct vr_nor_mtd *p)
  * Initialize the map_info structure and map the flash.
  * Returns 0 on success, nonzero otherwise.
  */
-static int __devinit vr_nor_init_maps(struct vr_nor_mtd *p)
+static int vr_nor_init_maps(struct vr_nor_mtd *p)
 {
 	unsigned long csr_phys, csr_len;
 	unsigned long win_phys, win_len;
@@ -189,7 +189,7 @@ static void __devexit vr_nor_pci_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-static int __devinit
+static int
 vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct vr_nor_mtd *p = NULL;

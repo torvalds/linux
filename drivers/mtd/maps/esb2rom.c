@@ -144,7 +144,7 @@ static void esb2rom_cleanup(struct esb2rom_window *window)
 	pci_dev_put(window->pdev);
 }
 
-static int __devinit esb2rom_init_one(struct pci_dev *pdev,
+static int esb2rom_init_one(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	static char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };

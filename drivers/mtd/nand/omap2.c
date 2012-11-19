@@ -1239,7 +1239,7 @@ static void omap3_free_bch(struct mtd_info *mtd)
 }
 #endif /* CONFIG_MTD_NAND_OMAP_BCH */
 
-static int __devinit omap_nand_probe(struct platform_device *pdev)
+static int omap_nand_probe(struct platform_device *pdev)
 {
 	struct omap_nand_info		*info;
 	struct omap_nand_platform_data	*pdata;

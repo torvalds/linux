@@ -1363,7 +1363,7 @@ static int __init mxcnd_probe_pdata(struct mxc_nand_host *host)
 	return 0;
 }
 
-static int __devinit mxcnd_probe(struct platform_device *pdev)
+static int mxcnd_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct mtd_info *mtd;

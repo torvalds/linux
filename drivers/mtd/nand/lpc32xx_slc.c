@@ -755,7 +755,7 @@ static struct lpc32xx_nand_cfg_slc *lpc32xx_parse_dt(struct device *dev)
 /*
  * Probe for NAND controller
  */
-static int __devinit lpc32xx_nand_probe(struct platform_device *pdev)
+static int lpc32xx_nand_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host;
 	struct mtd_info *mtd;

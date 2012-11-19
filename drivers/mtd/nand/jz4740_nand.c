@@ -322,7 +322,7 @@ static inline void jz_nand_iounmap_resource(struct resource *res, void __iomem *
 	release_mem_region(res->start, resource_size(res));
 }
 
-static int __devinit jz_nand_detect_bank(struct platform_device *pdev, struct jz_nand *nand, unsigned char bank, size_t chipnr, uint8_t *nand_maf_id, uint8_t *nand_dev_id) {
+static int jz_nand_detect_bank(struct platform_device *pdev, struct jz_nand *nand, unsigned char bank, size_t chipnr, uint8_t *nand_maf_id, uint8_t *nand_dev_id) {
 	int ret;
 	int gpio;
 	char gpio_name[9];
@@ -400,7 +400,7 @@ notfound_gpio:
 	return ret;
 }
 
-static int __devinit jz_nand_probe(struct platform_device *pdev)
+static int jz_nand_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct jz_nand *nand;

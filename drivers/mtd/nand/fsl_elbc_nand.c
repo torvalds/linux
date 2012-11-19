@@ -799,7 +799,7 @@ static int fsl_elbc_chip_remove(struct fsl_elbc_mtd *priv)
 
 static DEFINE_MUTEX(fsl_elbc_nand_mutex);
 
-static int __devinit fsl_elbc_nand_probe(struct platform_device *pdev)
+static int fsl_elbc_nand_probe(struct platform_device *pdev)
 {
 	struct fsl_lbc_regs __iomem *lbc;
 	struct fsl_elbc_mtd *priv;

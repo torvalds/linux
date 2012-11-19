@@ -1086,7 +1086,7 @@ static struct sh_flctl_platform_data *flctl_parse_dt(struct device *dev)
 }
 #endif /* CONFIG_OF */
 
-static int __devinit flctl_probe(struct platform_device *pdev)
+static int flctl_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct sh_flctl *flctl;

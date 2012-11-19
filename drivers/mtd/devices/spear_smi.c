@@ -756,7 +756,7 @@ err_probe:
 
 
 #ifdef CONFIG_OF
-static int __devinit spear_smi_probe_config_dt(struct platform_device *pdev,
+static int spear_smi_probe_config_dt(struct platform_device *pdev,
 					       struct device_node *np)
 {
 	struct spear_smi_plat_data *pdata = dev_get_platdata(&pdev->dev);
@@ -799,7 +799,7 @@ static int __devinit spear_smi_probe_config_dt(struct platform_device *pdev,
 	return 0;
 }
 #else
-static int __devinit spear_smi_probe_config_dt(struct platform_device *pdev,
+static int spear_smi_probe_config_dt(struct platform_device *pdev,
 					       struct device_node *np)
 {
 	return -ENOSYS;
@@ -901,7 +901,7 @@ static int spear_smi_setup_banks(struct platform_device *pdev,
  * and do proper init for any found one.
  * Returns 0 on success, non zero otherwise
  */
-static int __devinit spear_smi_probe(struct platform_device *pdev)
+static int spear_smi_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct spear_smi_plat_data *pdata = NULL;

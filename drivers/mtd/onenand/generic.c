@@ -35,7 +35,7 @@ struct onenand_info {
 	struct onenand_chip	onenand;
 };
 
-static int __devinit generic_onenand_probe(struct platform_device *pdev)
+static int generic_onenand_probe(struct platform_device *pdev)
 {
 	struct onenand_info *info;
 	struct onenand_platform_data *pdata = pdev->dev.platform_data;

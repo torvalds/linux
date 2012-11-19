@@ -33,7 +33,7 @@ struct autcpu12_nvram_priv {
 	struct map_info map;
 };
 
-static int __devinit autcpu12_nvram_probe(struct platform_device *pdev)
+static int autcpu12_nvram_probe(struct platform_device *pdev)
 {
 	map_word tmp, save0, save1;
 	struct resource *res;

@@ -596,7 +596,7 @@ fail_name:
 }
 
 /* Handles very basic info about the flash, queries for details */
-static int __devinit vmu_connect(struct maple_device *mdev)
+static int vmu_connect(struct maple_device *mdev)
 {
 	unsigned long test_flash_data, basic_flash_data;
 	int c, error;
@@ -772,7 +772,7 @@ static void vmu_file_error(struct maple_device *mdev, void *recvbuf)
 }
 
 
-static int __devinit probe_maple_vmu(struct device *dev)
+static int probe_maple_vmu(struct device *dev)
 {
 	int error;
 	struct maple_device *mdev = to_maple_dev(dev);

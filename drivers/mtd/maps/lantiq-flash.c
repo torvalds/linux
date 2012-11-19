@@ -109,7 +109,7 @@ ltq_copy_to(struct map_info *map, unsigned long to,
 	spin_unlock_irqrestore(&ebu_lock, flags);
 }
 
-static int __devinit
+static int
 ltq_mtd_probe(struct platform_device *pdev)
 {
 	struct mtd_part_parser_data ppdata;

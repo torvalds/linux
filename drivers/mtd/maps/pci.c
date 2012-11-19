@@ -253,7 +253,7 @@ static struct pci_device_id mtd_pci_ids[] = {
  * Generic code follows.
  */
 
-static int __devinit
+static int
 mtd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct mtd_pci_info *info = (struct mtd_pci_info *)id->driver_data;

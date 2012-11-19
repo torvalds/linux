@@ -28,7 +28,7 @@ static const char *part_probe_types[] = { "cmdlinepart", NULL };
 /*
  * Probe for the NAND device.
  */
-static int __devinit plat_nand_probe(struct platform_device *pdev)
+static int plat_nand_probe(struct platform_device *pdev)
 {
 	struct platform_nand_data *pdata = pdev->dev.platform_data;
 	struct mtd_part_parser_data ppdata;

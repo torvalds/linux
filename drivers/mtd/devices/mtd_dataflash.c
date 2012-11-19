@@ -618,7 +618,7 @@ static char *otp_setup(struct mtd_info *device, char revision)
 /*
  * Register DataFlash device with MTD subsystem.
  */
-static int __devinit
+static int
 add_dataflash_otp(struct spi_device *spi, char *name,
 		int nr_pages, int pagesize, int pageoffset, char revision)
 {
@@ -679,7 +679,7 @@ add_dataflash_otp(struct spi_device *spi, char *name,
 	return err;
 }
 
-static inline int __devinit
+static inline int
 add_dataflash(struct spi_device *spi, char *name,
 		int nr_pages, int pagesize, int pageoffset)
 {
@@ -740,7 +740,7 @@ static struct flash_info __devinitdata dataflash_data [] = {
 	{ "at45db642d",  0x1f2800, 8192, 1024, 10, SUP_POW2PS | IS_POW2PS},
 };
 
-static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
+static struct flash_info *jedec_probe(struct spi_device *spi)
 {
 	int			tmp;
 	uint8_t			code = OP_READ_ID;
@@ -823,7 +823,7 @@ static struct flash_info *__devinit jedec_probe(struct spi_device *spi)
  *   AT45DB0642  64Mbit  (8M)    xx111xxx (0x3c)   8192   1056     11
  *   AT45DB1282  128Mbit (16M)   xx0100xx (0x10)  16384   1056     11
  */
-static int __devinit dataflash_probe(struct spi_device *spi)
+static int dataflash_probe(struct spi_device *spi)
 {
 	int status;
 	struct flash_info	*info;

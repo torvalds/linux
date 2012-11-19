@@ -69,7 +69,7 @@ static struct map_info scb2_map = {
 };
 static int region_fail;
 
-static int __devinit
+static int
 scb2_fixup_mtd(struct mtd_info *mtd)
 {
 	int i;
@@ -133,7 +133,7 @@ scb2_fixup_mtd(struct mtd_info *mtd)
 /* CSB5's 'Function Control Register' has bits for decoding @ >= 0xffc00000 */
 #define CSB5_FCR	0x41
 #define CSB5_FCR_DECODE_ALL 0x0e
-static int __devinit
+static int
 scb2_flash_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	u8 reg;

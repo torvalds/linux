@@ -319,7 +319,7 @@ int start_dma_with_bch_irq(struct gpmi_nand_data *this,
 	return 0;
 }
 
-static int __devinit
+static int
 acquire_register_block(struct gpmi_nand_data *this, const char *res_name)
 {
 	struct platform_device *pdev = this->pdev;
@@ -360,7 +360,7 @@ static void release_register_block(struct gpmi_nand_data *this)
 	res->bch_regs = NULL;
 }
 
-static int __devinit
+static int
 acquire_bch_irq(struct gpmi_nand_data *this, irq_handler_t irq_h)
 {
 	struct platform_device *pdev = this->pdev;
@@ -427,7 +427,7 @@ static void release_dma_channels(struct gpmi_nand_data *this)
 		}
 }
 
-static int __devinit acquire_dma_channels(struct gpmi_nand_data *this)
+static int acquire_dma_channels(struct gpmi_nand_data *this)
 {
 	struct platform_device *pdev = this->pdev;
 	struct resource *r_dma;
@@ -492,7 +492,7 @@ static char *extra_clks_for_mx6q[GPMI_CLK_MAX] = {
 	"gpmi_apb", "gpmi_bch", "gpmi_bch_apb", "per1_bch",
 };
 
-static int __devinit gpmi_get_clks(struct gpmi_nand_data *this)
+static int gpmi_get_clks(struct gpmi_nand_data *this)
 {
 	struct resources *r = &this->resources;
 	char **extra_clks = NULL;
@@ -538,7 +538,7 @@ err_clock:
 	return -ENOMEM;
 }
 
-static int __devinit acquire_resources(struct gpmi_nand_data *this)
+static int acquire_resources(struct gpmi_nand_data *this)
 {
 	struct pinctrl *pinctrl;
 	int ret;
@@ -588,7 +588,7 @@ static void release_resources(struct gpmi_nand_data *this)
 	release_dma_channels(this);
 }
 
-static int __devinit init_hardware(struct gpmi_nand_data *this)
+static int init_hardware(struct gpmi_nand_data *this)
 {
 	int ret;
 
@@ -1542,7 +1542,7 @@ static void gpmi_nfc_exit(struct gpmi_nand_data *this)
 	gpmi_free_dma_buffer(this);
 }
 
-static int __devinit gpmi_nfc_init(struct gpmi_nand_data *this)
+static int gpmi_nfc_init(struct gpmi_nand_data *this)
 {
 	struct mtd_info  *mtd = &this->mtd;
 	struct nand_chip *chip = &this->nand;
@@ -1625,7 +1625,7 @@ static const struct of_device_id gpmi_nand_id_table[] = {
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
 
-static int __devinit gpmi_nand_probe(struct platform_device *pdev)
+static int gpmi_nand_probe(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this;
 	const struct of_device_id *of_id;

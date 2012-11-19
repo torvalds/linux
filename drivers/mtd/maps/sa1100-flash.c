@@ -149,8 +149,7 @@ static void sa1100_destroy(struct sa_info *info, struct flash_platform_data *pla
 		plat->exit();
 }
 
-static struct sa_info *__devinit
-sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
+static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 {
 	struct sa_info *info;
 	int nr, size, i, ret = 0;
@@ -246,7 +245,7 @@ sa1100_setup_mtd(struct platform_device *pdev, struct flash_platform_data *plat)
 
 static const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
-static int __devinit sa1100_mtd_probe(struct platform_device *pdev)
+static int sa1100_mtd_probe(struct platform_device *pdev)
 {
 	struct flash_platform_data *plat = pdev->dev.platform_data;
 	struct sa_info *info;

@@ -57,7 +57,7 @@ MODULE_DEVICE_TABLE(of, denali_nand_dt_ids);
 
 static u64 denali_dma_mask;
 
-static int __devinit denali_dt_probe(struct platform_device *ofdev)
+static int denali_dt_probe(struct platform_device *ofdev)
 {
 	struct resource *denali_reg, *nand_data;
 	struct denali_dt *dt;

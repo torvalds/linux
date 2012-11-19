@@ -125,7 +125,7 @@ static int latch_addr_flash_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit latch_addr_flash_probe(struct platform_device *dev)
+static int latch_addr_flash_probe(struct platform_device *dev)
 {
 	struct latch_addr_flash_data *latch_addr_data;
 	struct latch_addr_flash_info *info;
