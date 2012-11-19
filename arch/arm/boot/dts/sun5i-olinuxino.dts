@@ -18,8 +18,12 @@
 	model = "Olimex A13-Olinuxino";
 	compatible = "olimex,a13-olinuxino", "allwinner,sun5i";
 
+	chosen {
+		bootargs = "earlyprintk console=ttyS0,115200";
+	};
+
 	soc {
-		duart: uart@01c28400 {
+		uart1: uart@01c28400 {
 			status = "okay";
 		};
 	};
