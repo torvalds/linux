@@ -718,7 +718,7 @@ static const struct v4l2_ioctl_ops dt3155_ioctl_ops = {
 */
 };
 
-static int __devinit
+static int
 dt3155_init_board(struct pci_dev *pdev)
 {
 	struct dt3155_priv *pd = pci_get_drvdata(pdev);
@@ -836,7 +836,7 @@ struct dma_coherent_mem {
 	unsigned long	*bitmap;
 };
 
-static int __devinit
+static int
 dt3155_alloc_coherent(struct device *dev, size_t size, int flags)
 {
 	struct dma_coherent_mem *mem;
@@ -891,7 +891,7 @@ dt3155_free_coherent(struct device *dev)
 	kfree(mem);
 }
 
-static int __devinit
+static int
 dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int err;
