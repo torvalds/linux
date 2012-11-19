@@ -1617,7 +1617,7 @@ static struct pci_driver icom_pci_driver = {
 	.name = ICOM_DRIVER_NAME,
 	.id_table = icom_pci_table,
 	.probe = icom_probe,
-	.remove = __devexit_p(icom_remove),
+	.remove = icom_remove,
 };
 
 static int __init icom_init(void)

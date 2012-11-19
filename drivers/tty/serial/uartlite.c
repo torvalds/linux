@@ -603,7 +603,7 @@ MODULE_ALIAS("platform:uartlite");
 
 static struct platform_driver ulite_platform_driver = {
 	.probe = ulite_probe,
-	.remove = __devexit_p(ulite_remove),
+	.remove = ulite_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = "uartlite",

@@ -617,7 +617,7 @@ static int __devexit mcf_remove(struct platform_device *pdev)
 
 static struct platform_driver mcf_platform_driver = {
 	.probe		= mcf_probe,
-	.remove		= __devexit_p(mcf_remove),
+	.remove		= mcf_remove,
 	.driver		= {
 		.name	= "mcfuart",
 		.owner	= THIS_MODULE,

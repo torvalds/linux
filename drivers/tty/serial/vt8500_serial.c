@@ -652,7 +652,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver vt8500_platform_driver = {
 	.probe  = vt8500_serial_probe,
-	.remove = __devexit_p(vt8500_serial_remove),
+	.remove = vt8500_serial_remove,
 	.driver = {
 		.name = "vt8500_serial",
 		.owner = THIS_MODULE,

@@ -1838,7 +1838,7 @@ static const struct dev_pm_ops msm_hs_dev_pm_ops = {
 
 static struct platform_driver msm_serial_hs_platform_driver = {
 	.probe = msm_hs_probe,
-	.remove = __devexit_p(msm_hs_remove),
+	.remove = msm_hs_remove,
 	.driver = {
 		.name = "msm_serial_hs",
 		.owner = THIS_MODULE,

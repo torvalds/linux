@@ -1100,7 +1100,7 @@ static struct platform_driver sab_driver = {
 		.of_match_table = sab_match,
 	},
 	.probe		= sab_probe,
-	.remove		= __devexit_p(sab_remove),
+	.remove		= sab_remove,
 };
 
 static int __init sunsab_init(void)

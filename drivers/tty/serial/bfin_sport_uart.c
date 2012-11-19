@@ -871,7 +871,7 @@ static int __devexit sport_uart_remove(struct platform_device *pdev)
 
 static struct platform_driver sport_uart_driver = {
 	.probe		= sport_uart_probe,
-	.remove		= __devexit_p(sport_uart_remove),
+	.remove		= sport_uart_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 #ifdef CONFIG_PM

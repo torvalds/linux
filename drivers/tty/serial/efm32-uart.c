@@ -791,7 +791,7 @@ MODULE_DEVICE_TABLE(of, efm32_uart_dt_ids);
 
 static struct platform_driver efm32_uart_driver = {
 	.probe = efm32_uart_probe,
-	.remove = __devexit_p(efm32_uart_remove),
+	.remove = efm32_uart_remove,
 
 	.driver = {
 		.name = DRIVER_NAME,

@@ -1876,7 +1876,7 @@ static int __devexit atmel_serial_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
-	.remove		= __devexit_p(atmel_serial_remove),
+	.remove		= atmel_serial_remove,
 	.suspend	= atmel_serial_suspend,
 	.resume		= atmel_serial_resume,
 	.driver		= {

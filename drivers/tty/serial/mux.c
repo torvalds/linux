@@ -571,14 +571,14 @@ static struct parisc_driver builtin_serial_mux_driver = {
 	.name =		"builtin_serial_mux",
 	.id_table =	builtin_mux_tbl,
 	.probe =	mux_probe,
-	.remove =       __devexit_p(mux_remove),
+	.remove =       mux_remove,
 };
 
 static struct parisc_driver serial_mux_driver = {
 	.name =		"serial_mux",
 	.id_table =	mux_tbl,
 	.probe =	mux_probe,
-	.remove =       __devexit_p(mux_remove),
+	.remove =       mux_remove,
 };
 
 /**

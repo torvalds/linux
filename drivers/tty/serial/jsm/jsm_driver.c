@@ -217,7 +217,7 @@ static struct pci_driver jsm_driver = {
 	.name		= "jsm",
 	.id_table	= jsm_pci_tbl,
 	.probe		= jsm_probe_one,
-	.remove		= __devexit_p(jsm_remove_one),
+	.remove		= jsm_remove_one,
 	.err_handler    = &jsm_err_handler,
 };
 

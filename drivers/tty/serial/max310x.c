@@ -1249,7 +1249,7 @@ static struct spi_driver max310x_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max310x_probe,
-	.remove		= __devexit_p(max310x_remove),
+	.remove		= max310x_remove,
 	.suspend	= max310x_suspend,
 	.resume		= max310x_resume,
 	.id_table	= max310x_id_table,

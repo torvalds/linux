@@ -52,7 +52,7 @@ static struct dio_driver hpdca_driver = {
 	.name      = "hpdca",
 	.id_table  = hpdca_dio_tbl,
 	.probe     = hpdca_init_one,
-	.remove    = __devexit_p(hpdca_remove_one),
+	.remove    = hpdca_remove_one,
 };
 
 #endif

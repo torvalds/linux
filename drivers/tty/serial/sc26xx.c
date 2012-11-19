@@ -733,7 +733,7 @@ static int __exit sc26xx_driver_remove(struct platform_device *dev)
 
 static struct platform_driver sc26xx_driver = {
 	.probe	= sc26xx_probe,
-	.remove	= __devexit_p(sc26xx_driver_remove),
+	.remove	= sc26xx_driver_remove,
 	.driver	= {
 		.name	= "SC26xx",
 		.owner	= THIS_MODULE,

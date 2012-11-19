@@ -1548,7 +1548,7 @@ static struct platform_driver zs_driver = {
 		.of_match_table = zs_match,
 	},
 	.probe		= zs_probe,
-	.remove		= __devexit_p(zs_remove),
+	.remove		= zs_remove,
 };
 
 static int __init sunzilog_init(void)

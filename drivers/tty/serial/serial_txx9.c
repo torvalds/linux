@@ -1171,7 +1171,7 @@ static int serial_txx9_resume(struct platform_device *dev)
 
 static struct platform_driver serial_txx9_plat_driver = {
 	.probe		= serial_txx9_probe,
-	.remove		= __devexit_p(serial_txx9_remove),
+	.remove		= serial_txx9_remove,
 #ifdef CONFIG_PM
 	.suspend	= serial_txx9_suspend,
 	.resume		= serial_txx9_resume,
@@ -1261,7 +1261,7 @@ static const struct pci_device_id serial_txx9_pci_tbl[] = {
 static struct pci_driver serial_txx9_pci_driver = {
 	.name		= "serial_txx9",
 	.probe		= pciserial_txx9_init_one,
-	.remove		= __devexit_p(pciserial_txx9_remove_one),
+	.remove		= pciserial_txx9_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= pciserial_txx9_suspend_one,
 	.resume		= pciserial_txx9_resume_one,

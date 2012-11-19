@@ -1869,7 +1869,7 @@ static struct pci_driver pch_uart_pci_driver = {
 	.name = "pch_uart",
 	.id_table = pch_uart_pci_id,
 	.probe = pch_uart_pci_probe,
-	.remove = __devexit_p(pch_uart_pci_remove),
+	.remove = pch_uart_pci_remove,
 	.suspend = pch_uart_pci_suspend,
 	.resume = pch_uart_pci_resume,
 };

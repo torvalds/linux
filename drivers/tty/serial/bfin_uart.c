@@ -1409,7 +1409,7 @@ static int __devexit bfin_serial_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_serial_driver = {
 	.probe		= bfin_serial_probe,
-	.remove		= __devexit_p(bfin_serial_remove),
+	.remove		= bfin_serial_remove,
 	.suspend	= bfin_serial_suspend,
 	.resume		= bfin_serial_resume,
 	.driver		= {

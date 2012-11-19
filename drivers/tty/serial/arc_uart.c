@@ -697,7 +697,7 @@ static int __devexit arc_serial_remove(struct platform_device *pdev)
 
 static struct platform_driver arc_platform_driver = {
 	.probe = arc_serial_probe,
-	.remove = __devexit_p(arc_serial_remove),
+	.remove = arc_serial_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,

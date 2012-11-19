@@ -176,7 +176,7 @@ static struct platform_driver serial8250_em_platform_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe			= serial8250_em_probe,
-	.remove			= __devexit_p(serial8250_em_remove),
+	.remove			= serial8250_em_remove,
 };
 
 module_platform_driver(serial8250_em_platform_driver);

@@ -879,7 +879,7 @@ static struct spi_driver uart_max3110_driver = {
 			.owner	= THIS_MODULE,
 	},
 	.probe		= serial_m3110_probe,
-	.remove		= __devexit_p(serial_m3110_remove),
+	.remove		= serial_m3110_remove,
 	.suspend	= serial_m3110_suspend,
 	.resume		= serial_m3110_resume,
 };

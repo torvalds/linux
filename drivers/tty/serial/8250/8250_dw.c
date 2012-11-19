@@ -197,7 +197,7 @@ static struct platform_driver dw8250_platform_driver = {
 		.of_match_table	= dw8250_match,
 	},
 	.probe			= dw8250_probe,
-	.remove			= __devexit_p(dw8250_remove),
+	.remove			= dw8250_remove,
 	.suspend		= dw8250_suspend,
 	.resume			= dw8250_resume,
 };

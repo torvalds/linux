@@ -1314,7 +1314,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ite887x_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ite887x_exit),
+		.exit		= pci_ite887x_exit,
 	},
 	/*
 	 * National Instruments
@@ -1326,7 +1326,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1335,7 +1335,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1344,7 +1344,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1353,7 +1353,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1362,7 +1362,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1371,7 +1371,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1380,7 +1380,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1389,7 +1389,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1398,7 +1398,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1407,7 +1407,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1416,7 +1416,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1425,7 +1425,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8420_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_ni8420_exit),
+		.exit		= pci_ni8420_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_NI,
@@ -1434,7 +1434,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_ni8430_init,
 		.setup		= pci_ni8430_setup,
-		.exit		= __devexit_p(pci_ni8430_exit),
+		.exit		= pci_ni8430_exit,
 	},
 	/*
 	 * Panacom
@@ -1446,7 +1446,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_plx9050_exit),
+		.exit		= pci_plx9050_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_PANACOM,
@@ -1455,7 +1455,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_ANY_ID,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_plx9050_exit),
+		.exit		= pci_plx9050_exit,
 	},
 	/*
 	 * PLX
@@ -1474,7 +1474,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_EXSYS_4055,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_plx9050_exit),
+		.exit		= pci_plx9050_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_PLX,
@@ -1483,7 +1483,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_KEYSPAN_SX2,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_plx9050_exit),
+		.exit		= pci_plx9050_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_PLX,
@@ -1492,7 +1492,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_UNKNOWN_0x1584,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_plx9050_exit),
+		.exit		= pci_plx9050_exit,
 	},
 	{
 		.vendor		= PCI_VENDOR_ID_PLX,
@@ -1501,7 +1501,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_DEVICE_ID_PLX_ROMULUS,
 		.init		= pci_plx9050_init,
 		.setup		= pci_default_setup,
-		.exit		= __devexit_p(pci_plx9050_exit),
+		.exit		= pci_plx9050_exit,
 	},
 	/*
 	 * SBS Technologies, Inc., PMC-OCTALPRO 232
@@ -1513,7 +1513,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_OCTPRO232,
 		.init		= sbs_init,
 		.setup		= sbs_setup,
-		.exit		= __devexit_p(sbs_exit),
+		.exit		= sbs_exit,
 	},
 	/*
 	 * SBS Technologies, Inc., PMC-OCTALPRO 422
@@ -1525,7 +1525,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_OCTPRO422,
 		.init		= sbs_init,
 		.setup		= sbs_setup,
-		.exit		= __devexit_p(sbs_exit),
+		.exit		= sbs_exit,
 	},
 	/*
 	 * SBS Technologies, Inc., P-Octal 232
@@ -1537,7 +1537,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_POCTAL232,
 		.init		= sbs_init,
 		.setup		= sbs_setup,
-		.exit		= __devexit_p(sbs_exit),
+		.exit		= sbs_exit,
 	},
 	/*
 	 * SBS Technologies, Inc., P-Octal 422
@@ -1549,7 +1549,7 @@ static struct pci_serial_quirk pci_serial_quirks[] __refdata = {
 		.subdevice	= PCI_SUBDEVICE_ID_POCTAL422,
 		.init		= sbs_init,
 		.setup		= sbs_setup,
-		.exit		= __devexit_p(sbs_exit),
+		.exit		= sbs_exit,
 	},
 	/*
 	 * SIIG cards - these may be called via parport_serial
@@ -4323,7 +4323,7 @@ static const struct pci_error_handlers serial8250_err_handler = {
 static struct pci_driver serial_pci_driver = {
 	.name		= "serial",
 	.probe		= pciserial_init_one,
-	.remove		= __devexit_p(pciserial_remove_one),
+	.remove		= pciserial_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= pciserial_suspend_one,
 	.resume		= pciserial_resume_one,

@@ -510,7 +510,7 @@ static struct platform_driver timbuart_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= timbuart_probe,
-	.remove		= __devexit_p(timbuart_remove),
+	.remove		= timbuart_remove,
 };
 
 module_platform_driver(timbuart_platform_driver);

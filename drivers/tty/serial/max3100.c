@@ -907,7 +907,7 @@ static struct spi_driver max3100_driver = {
 	},
 
 	.probe		= max3100_probe,
-	.remove		= __devexit_p(max3100_remove),
+	.remove		= max3100_remove,
 	.suspend	= max3100_suspend,
 	.resume		= max3100_resume,
 };

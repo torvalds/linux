@@ -1155,7 +1155,7 @@ static int __devexit mxs_auart_remove(struct platform_device *pdev)
 
 static struct platform_driver mxs_auart_driver = {
 	.probe = mxs_auart_probe,
-	.remove = __devexit_p(mxs_auart_remove),
+	.remove = mxs_auart_remove,
 	.driver = {
 		.name = "mxs-auart",
 		.owner = THIS_MODULE,

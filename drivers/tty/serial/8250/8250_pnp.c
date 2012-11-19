@@ -511,7 +511,7 @@ static int serial_pnp_resume(struct pnp_dev *dev)
 static struct pnp_driver serial_pnp_driver = {
 	.name		= "serial",
 	.probe		= serial_pnp_probe,
-	.remove		= __devexit_p(serial_pnp_remove),
+	.remove		= serial_pnp_remove,
 	.suspend	= serial_pnp_suspend,
 	.resume		= serial_pnp_resume,
 	.id_table	= pnp_dev_table,

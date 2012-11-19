@@ -512,7 +512,7 @@ static struct platform_driver clps711x_uart_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= uart_clps711x_probe,
-	.remove	= __devexit_p(uart_clps711x_remove),
+	.remove	= uart_clps711x_remove,
 };
 module_platform_driver(clps711x_uart_driver);
 

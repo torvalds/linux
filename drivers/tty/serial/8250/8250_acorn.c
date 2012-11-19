@@ -116,7 +116,7 @@ static const struct ecard_id serial_cids[] = {
 
 static struct ecard_driver serial_card_driver = {
 	.probe		= serial_card_probe,
-	.remove 	= __devexit_p(serial_card_remove),
+	.remove		= serial_card_remove,
 	.id_table	= serial_cids,
 	.drv = {
 		.name	= "8250_acorn",

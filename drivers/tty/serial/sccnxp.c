@@ -981,7 +981,7 @@ static struct platform_driver sccnxp_uart_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sccnxp_probe,
-	.remove		= __devexit_p(sccnxp_remove),
+	.remove		= sccnxp_remove,
 	.id_table	= sccnxp_id_table,
 };
 module_platform_driver(sccnxp_uart_driver);

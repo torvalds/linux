@@ -865,7 +865,7 @@ static int __devexit bcm_uart_remove(struct platform_device *pdev)
  */
 static struct platform_driver bcm_uart_platform_driver = {
 	.probe	= bcm_uart_probe,
-	.remove	= __devexit_p(bcm_uart_remove),
+	.remove	= bcm_uart_remove,
 	.driver	= {
 		.owner = THIS_MODULE,
 		.name  = "bcm63xx_uart",

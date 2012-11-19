@@ -725,7 +725,7 @@ static int __devexit ar933x_uart_remove(struct platform_device *pdev)
 
 static struct platform_driver ar933x_uart_platform_driver = {
 	.probe		= ar933x_uart_probe,
-	.remove		= __devexit_p(ar933x_uart_remove),
+	.remove		= ar933x_uart_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.owner		= THIS_MODULE,
