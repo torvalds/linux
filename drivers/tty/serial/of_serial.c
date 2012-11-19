@@ -231,7 +231,7 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 /*
  * A few common types, add more as needed.
  */
-static struct of_device_id __devinitdata of_platform_serial_table[] = {
+static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns8250",   .data = (void *)PORT_8250, },
 	{ .compatible = "ns16450",  .data = (void *)PORT_16450, },
 	{ .compatible = "ns16550a", .data = (void *)PORT_16550A, },

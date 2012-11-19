@@ -1987,7 +1987,7 @@ enum pci_board_num_t {
  * see first lines of serial_in() and serial_out() in 8250.c
 */
 
-static struct pciserial_board pci_boards[] __devinitdata = {
+static struct pciserial_board pci_boards[] = {
 	[pbn_default] = {
 		.flags		= FL_BASE0,
 		.num_ports	= 1,
