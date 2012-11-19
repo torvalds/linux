@@ -5,6 +5,7 @@ using them to avoid name-space collisions.
 
 ad	Avionic Design GmbH
 adi	Analog Devices, Inc.
+ak	Asahi Kasei Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 apm	Applied Micro Circuits Corporation (APM)
 arm	ARM Ltd.
