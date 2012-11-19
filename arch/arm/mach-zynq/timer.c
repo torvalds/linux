@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/clk-provider.h>
 
-#include <mach/zynq_soc.h>
 #include "common.h"
 
 /*

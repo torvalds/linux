@@ -74,11 +74,6 @@ static void __init xilinx_irq_init(void)
 
 static struct map_desc io_desc[] __initdata = {
 	{
-		.virtual	= TTC0_VIRT,
-		.pfn		= __phys_to_pfn(TTC0_PHYS),
-		.length		= TTC0_SIZE,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= SCU_PERIPH_VIRT,
 		.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
 		.length		= SCU_PERIPH_SIZE,
