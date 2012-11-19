@@ -99,7 +99,7 @@ static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
 	.probe	= rtl8192_pci_probe,	/* probe fn      */
-	.remove	 = __devexit_p(rtl8192_pci_disconnect),	/* remove fn */
+	.remove	 = rtl8192_pci_disconnect,	/* remove fn */
 	.suspend = rtl8192E_suspend,	/* PM suspend fn */
 	.resume = rtl8192E_resume,                 /* PM resume fn  */
 };
