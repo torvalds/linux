@@ -758,7 +758,7 @@ static DEFINE_PCI_DEVICE_TABLE(sis5595_pci_ids) = {
 
 MODULE_DEVICE_TABLE(pci, sis5595_pci_ids);
 
-static int blacklist[] __devinitdata = {
+static int blacklist[] = {
 	PCI_DEVICE_ID_SI_540,
 	PCI_DEVICE_ID_SI_550,
 	PCI_DEVICE_ID_SI_630,

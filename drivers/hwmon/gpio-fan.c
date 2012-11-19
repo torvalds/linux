@@ -499,7 +499,7 @@ static int gpio_fan_get_of_pdata(struct device *dev,
 	return 0;
 }
 
-static struct of_device_id of_gpio_fan_match[] __devinitdata = {
+static struct of_device_id of_gpio_fan_match[] = {
 	{ .compatible = "gpio-fan", },
 	{},
 };

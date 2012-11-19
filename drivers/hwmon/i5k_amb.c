@@ -488,14 +488,14 @@ out:
 static struct {
 	unsigned long err;
 	unsigned long fbd0;
-} chipset_ids[] __devinitdata  = {
+} chipset_ids[]  = {
 	{ PCI_DEVICE_ID_INTEL_5000_ERR, PCI_DEVICE_ID_INTEL_5000_FBD0 },
 	{ PCI_DEVICE_ID_INTEL_5400_ERR, PCI_DEVICE_ID_INTEL_5400_FBD0 },
 	{ 0, 0 }
 };
 
 #ifdef MODULE
-static struct pci_device_id i5k_amb_ids[] __devinitdata = {
+static struct pci_device_id i5k_amb_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5000_ERR) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_5400_ERR) },
 	{ 0, }
