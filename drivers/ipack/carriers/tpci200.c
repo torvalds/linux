@@ -599,7 +599,7 @@ static void __tpci200_pci_remove(struct tpci200_board *tpci200)
 	kfree(tpci200);
 }
 
-static void __devexit tpci200_pci_remove(struct pci_dev *dev)
+static void tpci200_pci_remove(struct pci_dev *dev)
 {
 	struct tpci200_board *tpci200 = pci_get_drvdata(dev);
 
