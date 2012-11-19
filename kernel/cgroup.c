@@ -4142,10 +4142,6 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			if (err)
 				goto err_free_all;
 		}
-		/* At error, ->css_free() callback has to free assigned ID. */
-		if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &parent->flags) &&
-		    ss->post_clone)
-			ss->post_clone(cgrp);
 
 		if (ss->broken_hierarchy && !ss->warned_broken_hierarchy &&
 		    parent->parent) {

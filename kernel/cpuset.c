@@ -1784,56 +1784,20 @@ static struct cftype files[] = {
 };
 
 /*
- * post_clone() is called during cgroup_create() when the
- * clone_children mount argument was specified.  The cgroup
- * can not yet have any tasks.
- *
- * Currently we refuse to set up the cgroup - thereby
- * refusing the task to be entered, and as a result refusing
- * the sys_unshare() or clone() which initiated it - if any
- * sibling cpusets have exclusive cpus or mem.
- *
- * If this becomes a problem for some users who wish to
- * allow that scenario, then cpuset_post_clone() could be
- * changed to grant parent->cpus_allowed-sibling_cpus_exclusive
- * (and likewise for mems) to the new cgroup. Called with cgroup_mutex
- * held.
- */
-static void cpuset_post_clone(struct cgroup *cgroup)
-{
-	struct cgroup *parent, *child;
-	struct cpuset *cs, *parent_cs;
-
-	parent = cgroup->parent;
-	list_for_each_entry(child, &parent->children, sibling) {
-		cs = cgroup_cs(child);
-		if (is_mem_exclusive(cs) || is_cpu_exclusive(cs))
-			return;
-	}
-	cs = cgroup_cs(cgroup);
-	parent_cs = cgroup_cs(parent);
-
-	mutex_lock(&callback_mutex);
-	cs->mems_allowed = parent_cs->mems_allowed;
-	cpumask_copy(cs->cpus_allowed, parent_cs->cpus_allowed);
-	mutex_unlock(&callback_mutex);
-	return;
-}
-
-/*
  *	cpuset_css_alloc - allocate a cpuset css
  *	cont:	control group that the new cpuset will be part of
  */
 
 static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
 {
-	struct cpuset *cs;
-	struct cpuset *parent;
+	struct cgroup *parent_cg = cont->parent;
+	struct cgroup *tmp_cg;
+	struct cpuset *parent, *cs;
 
-	if (!cont->parent) {
+	if (!parent_cg)
 		return &top_cpuset.css;
-	}
-	parent = cgroup_cs(cont->parent);
+	parent = cgroup_cs(parent_cg);
+
 	cs = kmalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
@@ -1855,7 +1819,36 @@ static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
 
 	cs->parent = parent;
 	number_of_cpusets++;
-	return &cs->css ;
+
+	if (!test_bit(CGRP_CPUSET_CLONE_CHILDREN, &cont->flags))
+		goto skip_clone;
+
+	/*
+	 * Clone @parent's configuration if CGRP_CPUSET_CLONE_CHILDREN is
+	 * set.  This flag handling is implemented in cgroup core for
+	 * histrical reasons - the flag may be specified during mount.
+	 *
+	 * Currently, if any sibling cpusets have exclusive cpus or mem, we
+	 * refuse to clone the configuration - thereby refusing the task to
+	 * be entered, and as a result refusing the sys_unshare() or
+	 * clone() which initiated it.  If this becomes a problem for some
+	 * users who wish to allow that scenario, then this could be
+	 * changed to grant parent->cpus_allowed-sibling_cpus_exclusive
+	 * (and likewise for mems) to the new cgroup.
+	 */
+	list_for_each_entry(tmp_cg, &parent_cg->children, sibling) {
+		struct cpuset *tmp_cs = cgroup_cs(tmp_cg);
+
+		if (is_mem_exclusive(tmp_cs) || is_cpu_exclusive(tmp_cs))
+			goto skip_clone;
+	}
+
+	mutex_lock(&callback_mutex);
+	cs->mems_allowed = parent->mems_allowed;
+	cpumask_copy(cs->cpus_allowed, parent->cpus_allowed);
+	mutex_unlock(&callback_mutex);
+skip_clone:
+	return &cs->css;
 }
 
 /*
@@ -1882,7 +1875,6 @@ struct cgroup_subsys cpuset_subsys = {
 	.css_free = cpuset_css_free,
 	.can_attach = cpuset_can_attach,
 	.attach = cpuset_attach,
-	.post_clone = cpuset_post_clone,
 	.subsys_id = cpuset_subsys_id,
 	.base_cftypes = files,
 	.early_init = 1,

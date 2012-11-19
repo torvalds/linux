@@ -642,14 +642,6 @@ void exit(struct task_struct *task)
 
 Called during task exit.
 
-void post_clone(struct cgroup *cgrp)
-(cgroup_mutex held by caller)
-
-Called during cgroup_create() to do any parameter
-initialization which might be required before a task could attach.  For
-example, in cpusets, no task may attach before 'cpus' and 'mems' are set
-up.
-
 void bind(struct cgroup *root)
 (cgroup_mutex held by caller)
 
