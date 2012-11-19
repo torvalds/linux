@@ -1136,7 +1136,7 @@ failed_ioremap:
 	return ret;
 }
 
-static int __devexit ipu_remove(struct platform_device *pdev)
+static int ipu_remove(struct platform_device *pdev)
 {
 	struct ipu_soc *ipu = platform_get_drvdata(pdev);
 	struct resource *res;

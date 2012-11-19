@@ -554,7 +554,7 @@ static int ipu_drm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ipu_drm_remove(struct platform_device *pdev)
+static int ipu_drm_remove(struct platform_device *pdev)
 {
 	struct ipu_crtc *ipu_crtc = platform_get_drvdata(pdev);
 

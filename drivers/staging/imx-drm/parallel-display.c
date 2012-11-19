@@ -235,7 +235,7 @@ static int imx_pd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit imx_pd_remove(struct platform_device *pdev)
+static int imx_pd_remove(struct platform_device *pdev)
 {
 	struct imx_parallel_display *imxpd = platform_get_drvdata(pdev);
 	struct drm_connector *connector = &imxpd->connector;
