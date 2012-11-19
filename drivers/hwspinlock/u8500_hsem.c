@@ -148,7 +148,7 @@ iounmap_base:
 	return ret;
 }
 
-static int __devexit u8500_hsem_remove(struct platform_device *pdev)
+static int u8500_hsem_remove(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
 	void __iomem *io_base = bank->lock[0].priv - HSEM_REGISTER_OFFSET;

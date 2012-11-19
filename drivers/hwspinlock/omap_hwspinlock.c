@@ -142,7 +142,7 @@ iounmap_base:
 	return ret;
 }
 
-static int __devexit omap_hwspinlock_remove(struct platform_device *pdev)
+static int omap_hwspinlock_remove(struct platform_device *pdev)
 {
 	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
 	void __iomem *io_base = bank->lock[0].priv - LOCK_BASE_OFFSET;
