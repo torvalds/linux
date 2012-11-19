@@ -984,7 +984,7 @@ static void pcwd_isa_shutdown(struct device *dev, unsigned int id)
 static struct isa_driver pcwd_isa_driver = {
 	.match		= pcwd_isa_match,
 	.probe		= pcwd_isa_probe,
-	.remove		= __devexit_p(pcwd_isa_remove),
+	.remove		= pcwd_isa_remove,
 	.shutdown	= pcwd_isa_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

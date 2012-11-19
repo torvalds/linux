@@ -684,7 +684,7 @@ static struct platform_driver cpwd_driver = {
 		.of_match_table = cpwd_match,
 	},
 	.probe		= cpwd_probe,
-	.remove		= __devexit_p(cpwd_remove),
+	.remove		= cpwd_remove,
 };
 
 module_platform_driver(cpwd_driver);

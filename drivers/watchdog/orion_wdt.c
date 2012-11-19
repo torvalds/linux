@@ -201,7 +201,7 @@ MODULE_DEVICE_TABLE(of, orion_wdt_of_match_table);
 
 static struct platform_driver orion_wdt_driver = {
 	.probe		= orion_wdt_probe,
-	.remove		= __devexit_p(orion_wdt_remove),
+	.remove		= orion_wdt_remove,
 	.shutdown	= orion_wdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

@@ -300,7 +300,7 @@ static void advwdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver advwdt_driver = {
 	.probe		= advwdt_probe,
-	.remove		= __devexit_p(advwdt_remove),
+	.remove		= advwdt_remove,
 	.shutdown	= advwdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

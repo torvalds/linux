@@ -508,7 +508,7 @@ MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
 
 static struct platform_driver s3c2410wdt_driver = {
 	.probe		= s3c2410wdt_probe,
-	.remove		= __devexit_p(s3c2410wdt_remove),
+	.remove		= s3c2410wdt_remove,
 	.shutdown	= s3c2410wdt_shutdown,
 	.suspend	= s3c2410wdt_suspend,
 	.resume		= s3c2410wdt_resume,

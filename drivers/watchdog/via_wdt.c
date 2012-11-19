@@ -250,7 +250,7 @@ static struct pci_driver wdt_driver = {
 	.name		= "via_wdt",
 	.id_table	= wdt_pci_table,
 	.probe		= wdt_probe,
-	.remove		= __devexit_p(wdt_remove),
+	.remove		= wdt_remove,
 };
 
 module_pci_driver(wdt_driver);

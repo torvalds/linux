@@ -236,7 +236,7 @@ static int __devexit da9052_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_wdt_driver = {
 	.probe = da9052_wdt_probe,
-	.remove = __devexit_p(da9052_wdt_remove),
+	.remove = da9052_wdt_remove,
 	.driver = {
 		.name	= "da9052-watchdog",
 	},

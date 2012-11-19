@@ -863,7 +863,7 @@ static struct pci_driver hpwdt_driver = {
 	.name = "hpwdt",
 	.id_table = hpwdt_devices,
 	.probe = hpwdt_init_one,
-	.remove = __devexit_p(hpwdt_exit),
+	.remove = hpwdt_exit,
 };
 
 MODULE_AUTHOR("Tom Mingarelli");

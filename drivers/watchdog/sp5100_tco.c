@@ -439,7 +439,7 @@ static void sp5100_tco_shutdown(struct platform_device *dev)
 
 static struct platform_driver sp5100_tco_driver = {
 	.probe		= sp5100_tco_init,
-	.remove		= __devexit_p(sp5100_tco_remove),
+	.remove		= sp5100_tco_remove,
 	.shutdown	= sp5100_tco_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

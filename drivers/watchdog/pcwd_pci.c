@@ -812,7 +812,7 @@ static struct pci_driver pcipcwd_driver = {
 	.name		= WATCHDOG_NAME,
 	.id_table	= pcipcwd_pci_tbl,
 	.probe		= pcipcwd_card_init,
-	.remove		= __devexit_p(pcipcwd_card_exit),
+	.remove		= pcipcwd_card_exit,
 };
 
 module_pci_driver(pcipcwd_driver);

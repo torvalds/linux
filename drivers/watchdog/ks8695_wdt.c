@@ -290,7 +290,7 @@ static int ks8695wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver ks8695wdt_driver = {
 	.probe		= ks8695wdt_probe,
-	.remove		= __devexit_p(ks8695wdt_remove),
+	.remove		= ks8695wdt_remove,
 	.shutdown	= ks8695wdt_shutdown,
 	.suspend	= ks8695wdt_suspend,
 	.resume		= ks8695wdt_resume,

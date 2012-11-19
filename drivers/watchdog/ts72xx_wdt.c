@@ -499,7 +499,7 @@ static __devexit int ts72xx_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver ts72xx_wdt_driver = {
 	.probe		= ts72xx_wdt_probe,
-	.remove		= __devexit_p(ts72xx_wdt_remove),
+	.remove		= ts72xx_wdt_remove,
 	.driver		= {
 		.name	= "ts72xx-wdt",
 		.owner	= THIS_MODULE,

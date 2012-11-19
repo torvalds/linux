@@ -247,7 +247,7 @@ static int twl4030_wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver twl4030_wdt_driver = {
 	.probe		= twl4030_wdt_probe,
-	.remove		= __devexit_p(twl4030_wdt_remove),
+	.remove		= twl4030_wdt_remove,
 	.suspend	= twl4030_wdt_suspend,
 	.resume		= twl4030_wdt_resume,
 	.driver		= {

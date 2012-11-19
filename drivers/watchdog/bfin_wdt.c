@@ -401,7 +401,7 @@ static struct platform_device *bfin_wdt_device;
 
 static struct platform_driver bfin_wdt_driver = {
 	.probe     = bfin_wdt_probe,
-	.remove    = __devexit_p(bfin_wdt_remove),
+	.remove    = bfin_wdt_remove,
 	.shutdown  = bfin_wdt_shutdown,
 	.suspend   = bfin_wdt_suspend,
 	.resume    = bfin_wdt_resume,

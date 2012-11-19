@@ -401,7 +401,7 @@ MODULE_DEVICE_TABLE(of, xwdt_of_match);
 
 static struct platform_driver xwdt_driver = {
 	.probe       = xwdt_probe,
-	.remove      = __devexit_p(xwdt_remove),
+	.remove      = xwdt_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = WATCHDOG_NAME,

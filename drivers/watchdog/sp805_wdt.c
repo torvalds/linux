@@ -326,7 +326,7 @@ static struct amba_driver sp805_wdt_driver = {
 	},
 	.id_table	= sp805_wdt_ids,
 	.probe		= sp805_wdt_probe,
-	.remove = __devexit_p(sp805_wdt_remove),
+	.remove = sp805_wdt_remove,
 };
 
 module_amba_driver(sp805_wdt_driver);

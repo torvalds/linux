@@ -315,7 +315,7 @@ static int xen_wdt_resume(struct platform_device *dev)
 
 static struct platform_driver xen_wdt_driver = {
 	.probe          = xen_wdt_probe,
-	.remove         = __devexit_p(xen_wdt_remove),
+	.remove         = xen_wdt_remove,
 	.shutdown       = xen_wdt_shutdown,
 	.suspend        = xen_wdt_suspend,
 	.resume         = xen_wdt_resume,

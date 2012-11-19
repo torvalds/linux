@@ -304,7 +304,7 @@ static void bcm63xx_wdt_shutdown(struct platform_device *pdev)
 
 static struct platform_driver bcm63xx_wdt_driver = {
 	.probe	= bcm63xx_wdt_probe,
-	.remove = __devexit_p(bcm63xx_wdt_remove),
+	.remove = bcm63xx_wdt_remove,
 	.shutdown = bcm63xx_wdt_shutdown,
 	.driver = {
 		.owner = THIS_MODULE,

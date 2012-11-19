@@ -293,7 +293,7 @@ static void acq_shutdown(struct platform_device *dev)
 
 static struct platform_driver acquirewdt_driver = {
 	.probe		= acq_probe,
-	.remove		= __devexit_p(acq_remove),
+	.remove		= acq_remove,
 	.shutdown	= acq_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

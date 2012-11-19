@@ -256,7 +256,7 @@ static void geodewdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver geodewdt_driver = {
 	.probe		= geodewdt_probe,
-	.remove		= __devexit_p(geodewdt_remove),
+	.remove		= geodewdt_remove,
 	.shutdown	= geodewdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

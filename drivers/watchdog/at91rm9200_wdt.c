@@ -254,7 +254,7 @@ static int at91wdt_resume(struct platform_device *pdev)
 
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove		= __devexit_p(at91wdt_remove),
+	.remove		= at91wdt_remove,
 	.shutdown	= at91wdt_shutdown,
 	.suspend	= at91wdt_suspend,
 	.resume		= at91wdt_resume,

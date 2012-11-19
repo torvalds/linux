@@ -415,7 +415,7 @@ MODULE_ALIAS("platform:mpcore_wdt");
 
 static struct platform_driver mpcore_wdt_driver = {
 	.probe		= mpcore_wdt_probe,
-	.remove		= __devexit_p(mpcore_wdt_remove),
+	.remove		= mpcore_wdt_remove,
 	.suspend	= mpcore_wdt_suspend,
 	.resume		= mpcore_wdt_resume,
 	.shutdown	= mpcore_wdt_shutdown,

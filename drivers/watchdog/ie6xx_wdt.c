@@ -311,7 +311,7 @@ static int __devexit ie6xx_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver ie6xx_wdt_driver = {
 	.probe		= ie6xx_wdt_probe,
-	.remove		= __devexit_p(ie6xx_wdt_remove),
+	.remove		= ie6xx_wdt_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.owner	= THIS_MODULE,

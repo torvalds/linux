@@ -488,7 +488,7 @@ static struct pci_driver esb_driver = {
 	.name		= ESB_MODULE_NAME,
 	.id_table	= esb_pci_tbl,
 	.probe          = esb_probe,
-	.remove         = __devexit_p(esb_remove),
+	.remove         = esb_remove,
 	.shutdown       = esb_shutdown,
 };
 

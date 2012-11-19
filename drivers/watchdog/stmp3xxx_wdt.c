@@ -269,7 +269,7 @@ static struct platform_driver platform_wdt_driver = {
 		.name = "stmp3xxx_wdt",
 	},
 	.probe = stmp3xxx_wdt_probe,
-	.remove = __devexit_p(stmp3xxx_wdt_remove),
+	.remove = stmp3xxx_wdt_remove,
 	.suspend = stmp3xxx_wdt_suspend,
 	.resume = stmp3xxx_wdt_resume,
 };

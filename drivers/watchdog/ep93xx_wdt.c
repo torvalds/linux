@@ -168,7 +168,7 @@ static struct platform_driver ep93xx_wdt_driver = {
 		.name	= "ep93xx-wdt",
 	},
 	.probe		= ep93xx_wdt_probe,
-	.remove		= __devexit_p(ep93xx_wdt_remove),
+	.remove		= ep93xx_wdt_remove,
 };
 
 module_platform_driver(ep93xx_wdt_driver);

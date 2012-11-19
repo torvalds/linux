@@ -236,7 +236,7 @@ MODULE_DEVICE_TABLE(of, ltq_wdt_match);
 
 static struct platform_driver ltq_wdt_driver = {
 	.probe = ltq_wdt_probe,
-	.remove = __devexit_p(ltq_wdt_remove),
+	.remove = ltq_wdt_remove,
 	.driver = {
 		.name = "wdt",
 		.owner = THIS_MODULE,

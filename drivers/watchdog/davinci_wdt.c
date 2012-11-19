@@ -268,7 +268,7 @@ static struct platform_driver platform_wdt_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe = davinci_wdt_probe,
-	.remove = __devexit_p(davinci_wdt_remove),
+	.remove = davinci_wdt_remove,
 };
 
 module_platform_driver(platform_wdt_driver);

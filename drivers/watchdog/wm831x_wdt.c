@@ -306,7 +306,7 @@ static int __devexit wm831x_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_wdt_driver = {
 	.probe = wm831x_wdt_probe,
-	.remove = __devexit_p(wm831x_wdt_remove),
+	.remove = wm831x_wdt_remove,
 	.driver = {
 		.name = "wm831x-watchdog",
 	},
