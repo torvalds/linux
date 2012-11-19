@@ -334,7 +334,7 @@ static struct platform_device *tb0219_platform_device;
 
 static struct platform_driver tb0219_device_driver = {
 	.probe		= tb0219_probe,
-	.remove		= __devexit_p(tb0219_remove),
+	.remove		= tb0219_remove,
 	.driver		= {
 		.name	= "TB0219",
 		.owner	= THIS_MODULE,

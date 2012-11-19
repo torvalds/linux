@@ -1491,7 +1491,7 @@ static struct platform_driver sonypi_driver = {
 		.pm	= SONYPI_PM,
 	},
 	.probe		= sonypi_probe,
-	.remove		= __devexit_p(sonypi_remove),
+	.remove		= sonypi_remove,
 	.shutdown	= sonypi_shutdown,
 };
 
