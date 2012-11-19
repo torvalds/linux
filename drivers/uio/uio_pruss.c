@@ -220,7 +220,7 @@ static int __devexit pruss_remove(struct platform_device *dev)
 
 static struct platform_driver pruss_driver = {
 	.probe = pruss_probe,
-	.remove = __devexit_p(pruss_remove),
+	.remove = pruss_remove,
 	.driver = {
 		   .name = DRV_NAME,
 		   .owner = THIS_MODULE,
