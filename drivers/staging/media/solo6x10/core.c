@@ -129,7 +129,7 @@ static void free_solo_dev(struct solo_dev *solo_dev)
 	kfree(solo_dev);
 }
 
-static int __devinit solo_pci_probe(struct pci_dev *pdev,
+static int solo_pci_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	struct solo_dev *solo_dev;
