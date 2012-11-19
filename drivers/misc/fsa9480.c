@@ -407,7 +407,7 @@ static int fsa9480_irq_init(struct fsa9480_usbsw *usbsw)
 	return 0;
 }
 
-static int __devinit fsa9480_probe(struct i2c_client *client,
+static int fsa9480_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);

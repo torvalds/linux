@@ -62,7 +62,7 @@ module_param(ibmasm_debug, int , S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ibmasm_debug, " Set debug mode on or off");
 
 
-static int __devinit ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
+static int ibmasm_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int result;
 	struct service_processor *sp;

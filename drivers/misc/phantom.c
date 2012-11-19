@@ -324,7 +324,7 @@ static irqreturn_t phantom_isr(int irq, void *data)
  * Init and deinit driver
  */
 
-static unsigned int __devinit phantom_get_free(void)
+static unsigned int phantom_get_free(void)
 {
 	unsigned int i;
 
@@ -335,7 +335,7 @@ static unsigned int __devinit phantom_get_free(void)
 	return i;
 }
 
-static int __devinit phantom_probe(struct pci_dev *pdev,
+static int phantom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *pci_id)
 {
 	struct phantom_device *pht;

@@ -75,7 +75,7 @@ static const struct ad_dpot_bus_ops bops = {
 	.write_r8d8	= write16,
 	.write_r8d16	= write24,
 };
-static int __devinit ad_dpot_spi_probe(struct spi_device *spi)
+static int ad_dpot_spi_probe(struct spi_device *spi)
 {
 	struct ad_dpot_bus_data bdata = {
 		.client = spi,

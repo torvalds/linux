@@ -743,7 +743,7 @@ static struct miscdevice  mei_misc_device = {
  *
  * returns true if ME Interface is valid, false otherwise
  */
-static bool __devinit mei_quirk_probe(struct pci_dev *pdev,
+static bool mei_quirk_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	u32 reg;
@@ -765,7 +765,7 @@ static bool __devinit mei_quirk_probe(struct pci_dev *pdev,
  *
  * returns 0 on success, <0 on failure.
  */
-static int __devinit mei_probe(struct pci_dev *pdev,
+static int mei_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	struct mei_device *dev;

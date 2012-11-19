@@ -1047,7 +1047,7 @@ static struct attribute_group apds990x_attribute_group[] = {
 	{.attrs = sysfs_attrs_ctrl },
 };
 
-static int __devinit apds990x_probe(struct i2c_client *client,
+static int apds990x_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct apds990x_chip *chip;

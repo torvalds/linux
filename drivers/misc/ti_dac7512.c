@@ -54,7 +54,7 @@ static const struct attribute_group dac7512_attr_group = {
 	.attrs = dac7512_attributes,
 };
 
-static int __devinit dac7512_probe(struct spi_device *spi)
+static int dac7512_probe(struct spi_device *spi)
 {
 	int ret;
 

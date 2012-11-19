@@ -711,7 +711,7 @@ static void spear13xx_pcie_device_init(struct spear_pcie_gadget_config *config)
 	spear_dbi_write_reg(config, PCI_INTERRUPT_LINE, 1, 1);
 }
 
-static int __devinit spear_pcie_gadget_probe(struct platform_device *pdev)
+static int spear_pcie_gadget_probe(struct platform_device *pdev)
 {
 	struct resource *res0, *res1;
 	unsigned int status = 0;

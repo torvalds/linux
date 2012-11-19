@@ -1162,7 +1162,7 @@ static struct attribute_group bh1770_attribute_group = {
 	.attrs = sysfs_attrs
 };
 
-static int __devinit bh1770_probe(struct i2c_client *client,
+static int bh1770_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct bh1770_chip *chip;

@@ -796,7 +796,7 @@ static const struct tty_port_operations tty_port_ops = {
  *	0 for success
  *	otherwise, error
  */
-static int __devinit pti_pci_probe(struct pci_dev *pdev,
+static int pti_pci_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	unsigned int a;

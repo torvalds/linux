@@ -69,7 +69,7 @@ static struct of_device_id lis302dl_spi_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, lis302dl_spi_dt_ids);
 #endif
 
-static int __devinit lis302dl_spi_probe(struct spi_device *spi)
+static int lis302dl_spi_probe(struct spi_device *spi)
 {
 	int ret;
 

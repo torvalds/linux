@@ -365,7 +365,7 @@ static int isl29003_init_client(struct i2c_client *client)
  * I2C layer
  */
 
-static int __devinit isl29003_probe(struct i2c_client *client,
+static int isl29003_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);

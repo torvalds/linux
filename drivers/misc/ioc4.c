@@ -139,7 +139,7 @@ ioc4_unregister_submodule(struct ioc4_submodule *is)
  * even though the following code utilizes external interrupt registers
  * to perform the speed calculation.
  */
-static void __devinit
+static void
 ioc4_clock_calibrate(struct ioc4_driver_data *idd)
 {
 	union ioc4_int_out int_out;
@@ -231,7 +231,7 @@ ioc4_clock_calibrate(struct ioc4_driver_data *idd)
  * on the same PCI bus at slot number 3 to differentiate IO9 from IO10.
  * If neither is present, it's a PCI-RT.
  */
-static unsigned int __devinit
+static unsigned int
 ioc4_variant(struct ioc4_driver_data *idd)
 {
 	struct pci_dev *pdev = NULL;
@@ -279,7 +279,7 @@ ioc4_load_modules(struct work_struct *work)
 static DECLARE_WORK(ioc4_load_modules_work, ioc4_load_modules);
 
 /* Adds a new instance of an IOC4 card */
-static int __devinit
+static int
 ioc4_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 {
 	struct ioc4_driver_data *idd;

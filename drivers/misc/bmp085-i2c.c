@@ -36,7 +36,7 @@ static int bmp085_i2c_detect(struct i2c_client *client,
 	return bmp085_detect(&client->dev);
 }
 
-static int __devinit bmp085_i2c_probe(struct i2c_client *client,
+static int bmp085_i2c_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	int err;

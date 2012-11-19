@@ -51,7 +51,7 @@ static const struct ad_dpot_bus_ops bops = {
 	.write_r8d16	= write_r8d16,
 };
 
-static int __devinit ad_dpot_i2c_probe(struct i2c_client *client,
+static int ad_dpot_i2c_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	struct ad_dpot_bus_data bdata = {

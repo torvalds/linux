@@ -686,7 +686,7 @@ static void ilo_unmap_device(struct pci_dev *pdev, struct ilo_hwinfo *hw)
 	pci_iounmap(pdev, hw->mmio_vaddr);
 }
 
-static int __devinit ilo_map_device(struct pci_dev *pdev, struct ilo_hwinfo *hw)
+static int ilo_map_device(struct pci_dev *pdev, struct ilo_hwinfo *hw)
 {
 	int error = -ENOMEM;
 
@@ -751,7 +751,7 @@ static void ilo_remove(struct pci_dev *pdev)
 	ilo_hwdev[(minor / max_ccb)] = 0;
 }
 
-static int __devinit ilo_probe(struct pci_dev *pdev,
+static int ilo_probe(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	int devnum, minor, start, error = 0;

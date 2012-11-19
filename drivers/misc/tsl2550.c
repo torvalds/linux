@@ -347,7 +347,7 @@ static int tsl2550_init_client(struct i2c_client *client)
  */
 
 static struct i2c_driver tsl2550_driver;
-static int __devinit tsl2550_probe(struct i2c_client *client,
+static int tsl2550_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);

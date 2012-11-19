@@ -114,7 +114,7 @@ static struct of_device_id lis3lv02d_i2c_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, lis3lv02d_i2c_dt_ids);
 #endif
 
-static int __devinit lis3lv02d_i2c_probe(struct i2c_client *client,
+static int lis3lv02d_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	int ret = 0;

@@ -666,7 +666,7 @@ static struct bin_attribute pch_bin_attr = {
 	.write = pch_phub_bin_write,
 };
 
-static int __devinit pch_phub_probe(struct pci_dev *pdev,
+static int pch_phub_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	int retval;
