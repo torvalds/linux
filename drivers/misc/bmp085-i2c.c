@@ -71,7 +71,7 @@ static struct i2c_driver bmp085_i2c_driver = {
 	},
 	.id_table	= bmp085_id,
 	.probe		= bmp085_i2c_probe,
-	.remove		= __devexit_p(bmp085_i2c_remove),
+	.remove		= bmp085_i2c_remove,
 
 	.detect		= bmp085_i2c_detect,
 	.address_list	= normal_i2c

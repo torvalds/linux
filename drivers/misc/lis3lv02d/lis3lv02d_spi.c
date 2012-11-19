@@ -144,7 +144,7 @@ static struct spi_driver lis302dl_spi_driver = {
 		.of_match_table = of_match_ptr(lis302dl_spi_dt_ids),
 	},
 	.probe	= lis302dl_spi_probe,
-	.remove	= __devexit_p(lis302dl_spi_remove),
+	.remove	= lis302dl_spi_remove,
 };
 
 module_spi_driver(lis302dl_spi_driver);

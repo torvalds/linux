@@ -109,7 +109,7 @@ static struct i2c_driver ad_dpot_i2c_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad_dpot_i2c_probe,
-	.remove		= __devexit_p(ad_dpot_i2c_remove),
+	.remove		= ad_dpot_i2c_remove,
 	.id_table	= ad_dpot_id,
 };
 

@@ -326,7 +326,7 @@ static struct i2c_driver apds9802als_driver = {
 		.pm = APDS9802ALS_PM_OPS,
 	},
 	.probe = apds9802als_probe,
-	.remove = __devexit_p(apds9802als_remove),
+	.remove = apds9802als_remove,
 	.suspend = apds9802als_suspend,
 	.resume = apds9802als_resume,
 	.id_table = apds9802als_id,

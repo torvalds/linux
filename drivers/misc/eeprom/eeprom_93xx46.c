@@ -389,7 +389,7 @@ static struct spi_driver eeprom_93xx46_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= eeprom_93xx46_probe,
-	.remove		= __devexit_p(eeprom_93xx46_remove),
+	.remove		= eeprom_93xx46_remove,
 };
 
 module_spi_driver(eeprom_93xx46_driver);

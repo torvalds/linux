@@ -859,7 +859,7 @@ static struct pci_driver ilo_driver = {
 	.name 	  = ILO_NAME,
 	.id_table = ilo_devices,
 	.probe 	  = ilo_probe,
-	.remove   = __devexit_p(ilo_remove),
+	.remove   = ilo_remove,
 };
 
 static int __init ilo_init(void)

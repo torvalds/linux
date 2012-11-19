@@ -466,7 +466,7 @@ static struct pci_driver ioc4_driver = {
 	.name = "IOC4",
 	.id_table = ioc4_id_table,
 	.probe = ioc4_probe,
-	.remove = __devexit_p(ioc4_remove),
+	.remove = ioc4_remove,
 };
 
 MODULE_DEVICE_TABLE(pci, ioc4_id_table);

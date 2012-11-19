@@ -499,7 +499,7 @@ static struct pci_driver phantom_pci_driver = {
 	.name = "phantom",
 	.id_table = phantom_pci_tbl,
 	.probe = phantom_probe,
-	.remove = __devexit_p(phantom_remove),
+	.remove = phantom_remove,
 	.suspend = phantom_suspend,
 	.resume = phantom_resume
 };

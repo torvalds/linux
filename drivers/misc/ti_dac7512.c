@@ -79,7 +79,7 @@ static struct spi_driver dac7512_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= dac7512_probe,
-	.remove	= __devexit_p(dac7512_remove),
+	.remove	= dac7512_remove,
 };
 
 module_spi_driver(dac7512_driver);

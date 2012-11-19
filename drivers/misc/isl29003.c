@@ -451,7 +451,7 @@ static struct i2c_driver isl29003_driver = {
 	.suspend = isl29003_suspend,
 	.resume	= isl29003_resume,
 	.probe	= isl29003_probe,
-	.remove	= __devexit_p(isl29003_remove),
+	.remove	= isl29003_remove,
 	.id_table = isl29003_id,
 };
 

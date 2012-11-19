@@ -1275,7 +1275,7 @@ static struct i2c_driver apds990x_driver = {
 		.pm	= &apds990x_pm_ops,
 	},
 	.probe	  = apds990x_probe,
-	.remove	  = __devexit_p(apds990x_remove),
+	.remove	  = apds990x_remove,
 	.id_table = apds990x_id,
 };
 

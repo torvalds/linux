@@ -450,7 +450,7 @@ static struct i2c_driver tsl2550_driver = {
 	.suspend = tsl2550_suspend,
 	.resume	= tsl2550_resume,
 	.probe	= tsl2550_probe,
-	.remove	= __devexit_p(tsl2550_remove),
+	.remove	= tsl2550_remove,
 	.id_table = tsl2550_id,
 };
 

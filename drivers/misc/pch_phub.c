@@ -888,7 +888,7 @@ static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",
 	.id_table = pch_phub_pcidev_id,
 	.probe = pch_phub_probe,
-	.remove = __devexit_p(pch_phub_remove),
+	.remove = pch_phub_remove,
 	.suspend = pch_phub_suspend,
 	.resume = pch_phub_resume
 };

@@ -332,7 +332,7 @@ static struct pci_driver cb710_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = cb710_pci_tbl,
 	.probe = cb710_probe,
-	.remove = __devexit_p(cb710_remove_one),
+	.remove = cb710_remove_one,
 #ifdef CONFIG_PM
 	.suspend = cb710_suspend,
 	.resume = cb710_resume,

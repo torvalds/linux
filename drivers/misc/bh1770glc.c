@@ -1395,7 +1395,7 @@ static struct i2c_driver bh1770_driver = {
 		.pm	= &bh1770_pm_ops,
 	},
 	.probe	  = bh1770_probe,
-	.remove	  = __devexit_p(bh1770_remove),
+	.remove	  = bh1770_remove,
 	.id_table = bh1770_id,
 };
 

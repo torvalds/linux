@@ -198,7 +198,7 @@ static struct pci_driver ibmasm_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= ibmasm_pci_table,
 	.probe		= ibmasm_init_one,
-	.remove		= __devexit_p(ibmasm_remove_one),
+	.remove		= ibmasm_remove_one,
 };
 
 static void __exit ibmasm_exit (void)

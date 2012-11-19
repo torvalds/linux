@@ -533,7 +533,7 @@ static struct i2c_driver fsa9480_i2c_driver = {
 		.name = "fsa9480",
 	},
 	.probe = fsa9480_probe,
-	.remove = __devexit_p(fsa9480_remove),
+	.remove = fsa9480_remove,
 	.resume = fsa9480_resume,
 	.suspend = fsa9480_suspend,
 	.id_table = fsa9480_id,

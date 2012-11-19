@@ -477,7 +477,7 @@ static struct spi_driver at25_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= at25_probe,
-	.remove		= __devexit_p(at25_remove),
+	.remove		= at25_remove,
 };
 
 module_spi_driver(at25_driver);

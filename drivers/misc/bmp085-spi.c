@@ -70,7 +70,7 @@ static struct spi_driver bmp085_spi_driver = {
 	},
 	.id_table	= bmp085_id,
 	.probe		= bmp085_spi_probe,
-	.remove		= __devexit_p(bmp085_spi_remove)
+	.remove		= bmp085_spi_remove
 };
 
 module_spi_driver(bmp085_spi_driver);

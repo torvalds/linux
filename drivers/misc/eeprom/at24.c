@@ -680,7 +680,7 @@ static struct i2c_driver at24_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = at24_probe,
-	.remove = __devexit_p(at24_remove),
+	.remove = at24_remove,
 	.id_table = at24_ids,
 };
 
