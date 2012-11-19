@@ -3607,7 +3607,7 @@ err_disable_dev:
 	return err;
 }
 
-static void __devexit cpc_remove_one(struct pci_dev *pdev)
+static void cpc_remove_one(struct pci_dev *pdev)
 {
 	pc300_t *card = pci_get_drvdata(pdev);
 
