@@ -305,7 +305,7 @@ enum bar1_cells {
 		.flags = IORESOURCE_MEM, \
 		}
 
-static const __devinitconst struct resource gpio_resources[] = {
+static const struct resource gpio_resources[] = {
 	{
 		.name = "sta2x11_gpio", /* 4 consecutive cells, 1 driver */
 		.start = 0,
@@ -313,17 +313,17 @@ static const __devinitconst struct resource gpio_resources[] = {
 		.flags = IORESOURCE_MEM,
 	}
 };
-static const __devinitconst struct resource sctl_resources[] = {
+static const struct resource sctl_resources[] = {
 	CELL_4K("sta2x11-sctl", STA2X11_SCTL),
 };
-static const __devinitconst struct resource scr_resources[] = {
+static const struct resource scr_resources[] = {
 	CELL_4K("sta2x11-scr", STA2X11_SCR),
 };
-static const __devinitconst struct resource time_resources[] = {
+static const struct resource time_resources[] = {
 	CELL_4K("sta2x11-time", STA2X11_TIME),
 };
 
-static const __devinitconst struct resource apbreg_resources[] = {
+static const struct resource apbreg_resources[] = {
 	CELL_4K("sta2x11-apbreg", STA2X11_APBREG),
 };
 

@@ -661,8 +661,7 @@ struct ab3100_init_setting {
 	u8 setting;
 };
 
-static const struct ab3100_init_setting __devinitconst
-ab3100_init_settings[] = {
+static const struct ab3100_init_setting ab3100_init_settings[] = {
 	{
 		.abreg = AB3100_MCA,
 		.setting = 0x01
@@ -803,7 +802,7 @@ struct ab_family_id {
 	char	*name;
 };
 
-static const struct ab_family_id ids[] __devinitconst = {
+static const struct ab_family_id ids[] = {
 	/* AB3100 */
 	{
 		.id = 0xc0,
