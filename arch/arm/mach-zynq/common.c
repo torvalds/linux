@@ -72,23 +72,11 @@ static void __init xilinx_irq_init(void)
  * running include the GIC, UART and Timer Counter.
  */
 
-static struct map_desc io_desc[] __initdata = {
-	{
-		.virtual	= SCU_PERIPH_VIRT,
-		.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
-		.length		= SCU_PERIPH_SIZE,
-		.type		= MT_DEVICE,
-	},
-
-#ifdef CONFIG_DEBUG_LL
-	{
-		.virtual	= LL_UART_VADDR,
-		.pfn		= __phys_to_pfn(LL_UART_PADDR),
-		.length		= UART_SIZE,
-		.type		= MT_DEVICE,
-	},
-#endif
-
+static struct map_desc scu_desc __initdata = {
+	.virtual	= SCU_PERIPH_VIRT,
+	.pfn		= __phys_to_pfn(SCU_PERIPH_PHYS),
+	.length		= SCU_PERIPH_SIZE,
+	.type		= MT_DEVICE,
 };
 
 static void __init xilinx_zynq_timer_init(void)
@@ -117,7 +105,8 @@ static struct sys_timer xttcpss_sys_timer = {
  */
 static void __init xilinx_map_io(void)
 {
-	iotable_init(io_desc, ARRAY_SIZE(io_desc));
+	debug_ll_io_init();
+	iotable_init(&scu_desc, 1);
 }
 
 static const char *xilinx_dt_match[] = {

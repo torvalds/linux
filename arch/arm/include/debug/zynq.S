@@ -1,5 +1,4 @@
-/* arch/arm/mach-zynq/include/mach/debug-macro.S
- *
+/*
  * Debugging macro include header
  *
  *  Copyright (C) 2011 Xilinx
