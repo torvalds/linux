@@ -233,8 +233,6 @@ unifi_fw_read(void *ospriv, void *arg, u32 offset, void *buf, u32 len)
 int
 uf_run_unifihelper(unifi_priv_t *priv)
 {
-#ifdef CONFIG_HOTPLUG
-
 #ifdef ANDROID_BUILD
     char *prog = "/system/bin/unififw";
 #else
@@ -280,10 +278,6 @@ uf_run_unifihelper(unifi_priv_t *priv)
     r = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
 
     return r;
-#else
-    unifi_trace(priv, UDBG1, "Can't automatically download firmware because kernel does not have HOTPLUG\n");
-    return -1;
-#endif
 } /* uf_run_unifihelper() */
 
 #ifdef CSR_WIFI_SPLIT_PATCH
