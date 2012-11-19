@@ -4084,8 +4084,8 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 	int ret;
 
-	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info changed 0x%x",
-		     (int)changed);
+	wl1271_debug(DEBUG_MAC80211, "mac80211 bss info role %d changed 0x%x",
+		     wlvif->role_id, (int)changed);
 
 	/*
 	 * make sure to cancel pending disconnections if our association
