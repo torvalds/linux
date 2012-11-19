@@ -397,7 +397,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit lm3639_remove(struct i2c_client *client)
+static int lm3639_remove(struct i2c_client *client)
 {
 	struct lm3639_chip_data *pchip = i2c_get_clientdata(client);
 

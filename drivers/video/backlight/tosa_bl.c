@@ -126,7 +126,7 @@ err_reg:
 	return ret;
 }
 
-static int __devexit tosa_bl_remove(struct i2c_client *client)
+static int tosa_bl_remove(struct i2c_client *client)
 {
 	struct tosa_bl_data *data = i2c_get_clientdata(client);
 

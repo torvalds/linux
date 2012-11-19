@@ -297,7 +297,7 @@ err_dev:
 	return ret;
 }
 
-static int __devexit lp855x_remove(struct i2c_client *cl)
+static int lp855x_remove(struct i2c_client *cl)
 {
 	struct lp855x *lp = i2c_get_clientdata(cl);
 

@@ -112,7 +112,7 @@ static int platform_lcd_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit platform_lcd_remove(struct platform_device *pdev)
+static int platform_lcd_remove(struct platform_device *pdev)
 {
 	struct platform_lcd *plcd = platform_get_drvdata(pdev);
 

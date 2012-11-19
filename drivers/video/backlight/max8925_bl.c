@@ -171,7 +171,7 @@ out:
 	return ret;
 }
 
-static int __devexit max8925_backlight_remove(struct platform_device *pdev)
+static int max8925_backlight_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 

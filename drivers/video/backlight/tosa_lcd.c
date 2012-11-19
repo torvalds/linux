@@ -226,7 +226,7 @@ err_gpio_tg:
 	return ret;
 }
 
-static int __devexit tosa_lcd_remove(struct spi_device *spi)
+static int tosa_lcd_remove(struct spi_device *spi)
 {
 	struct tosa_lcd_data *data = dev_get_drvdata(&spi->dev);
 

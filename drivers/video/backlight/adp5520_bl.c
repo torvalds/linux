@@ -333,7 +333,7 @@ static int adp5520_bl_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit adp5520_bl_remove(struct platform_device *pdev)
+static int adp5520_bl_remove(struct platform_device *pdev)
 {
 	struct backlight_device *bl = platform_get_drvdata(pdev);
 	struct adp5520_bl *data = bl_get_data(bl);

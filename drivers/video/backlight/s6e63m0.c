@@ -825,7 +825,7 @@ out_lcd_unregister:
 	return ret;
 }
 
-static int __devexit s6e63m0_remove(struct spi_device *spi)
+static int s6e63m0_remove(struct spi_device *spi)
 {
 	struct s6e63m0 *lcd = dev_get_drvdata(&spi->dev);
 

@@ -429,7 +429,7 @@ err_chip_init:
 	return ret;
 }
 
-static int __devexit lm3630_remove(struct i2c_client *client)
+static int lm3630_remove(struct i2c_client *client)
 {
 	int ret;
 	struct lm3630_chip_data *pchip = i2c_get_clientdata(client);

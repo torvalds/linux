@@ -230,7 +230,7 @@ err1:
 	return ret;
 }
 
-static int __devexit l4f00242t03_remove(struct spi_device *spi)
+static int l4f00242t03_remove(struct spi_device *spi)
 {
 	struct l4f00242t03_priv *priv = dev_get_drvdata(&spi->dev);
 

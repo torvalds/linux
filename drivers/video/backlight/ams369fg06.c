@@ -548,7 +548,7 @@ out_lcd_unregister:
 	return ret;
 }
 
-static int __devexit ams369fg06_remove(struct spi_device *spi)
+static int ams369fg06_remove(struct spi_device *spi)
 {
 	struct ams369fg06 *lcd = dev_get_drvdata(&spi->dev);
 

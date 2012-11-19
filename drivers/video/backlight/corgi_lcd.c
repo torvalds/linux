@@ -590,7 +590,7 @@ err_unregister_lcd:
 	return ret;
 }
 
-static int __devexit corgi_lcd_remove(struct spi_device *spi)
+static int corgi_lcd_remove(struct spi_device *spi)
 {
 	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
 

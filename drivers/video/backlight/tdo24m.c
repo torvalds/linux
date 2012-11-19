@@ -401,7 +401,7 @@ out_unregister:
 	return err;
 }
 
-static int __devexit tdo24m_remove(struct spi_device *spi)
+static int tdo24m_remove(struct spi_device *spi)
 {
 	struct tdo24m *lcd = dev_get_drvdata(&spi->dev);
 

@@ -351,7 +351,7 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit lm3533_bl_remove(struct platform_device *pdev)
+static int lm3533_bl_remove(struct platform_device *pdev)
 {
 	struct lm3533_bl *bl = platform_get_drvdata(pdev);
 	struct backlight_device *bd = bl->bd;

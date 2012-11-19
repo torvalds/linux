@@ -193,7 +193,7 @@ static int lms283gf05_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit lms283gf05_remove(struct spi_device *spi)
+static int lms283gf05_remove(struct spi_device *spi)
 {
 	struct lms283gf05_state *st = dev_get_drvdata(&spi->dev);
 
