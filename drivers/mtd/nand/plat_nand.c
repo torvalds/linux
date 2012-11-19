@@ -134,7 +134,7 @@ out_free:
 /*
  * Remove a NAND device.
  */
-static int __devexit plat_nand_remove(struct platform_device *pdev)
+static int plat_nand_remove(struct platform_device *pdev)
 {
 	struct plat_nand_data *data = platform_get_drvdata(pdev);
 	struct platform_nand_data *pdata = pdev->dev.platform_data;

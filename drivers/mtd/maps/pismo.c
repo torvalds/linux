@@ -197,7 +197,7 @@ static void pismo_add_one(struct pismo_data *pismo, int i,
 	}
 }
 
-static int __devexit pismo_remove(struct i2c_client *client)
+static int pismo_remove(struct i2c_client *client)
 {
 	struct pismo_data *pismo = i2c_get_clientdata(client);
 	int i;

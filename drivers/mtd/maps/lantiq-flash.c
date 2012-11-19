@@ -185,7 +185,7 @@ err_out:
 	return err;
 }
 
-static int __devexit
+static int
 ltq_mtd_remove(struct platform_device *pdev)
 {
 	struct ltq_mtd *ltq_mtd = platform_get_drvdata(pdev);

@@ -1198,7 +1198,7 @@ err_iomap:
 	return ret;
 }
 
-static int __devexit flctl_remove(struct platform_device *pdev)
+static int flctl_remove(struct platform_device *pdev)
 {
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 

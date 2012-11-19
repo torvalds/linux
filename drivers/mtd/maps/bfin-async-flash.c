@@ -172,7 +172,7 @@ static int bfin_flash_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bfin_flash_remove(struct platform_device *pdev)
+static int bfin_flash_remove(struct platform_device *pdev)
 {
 	struct async_state *state = platform_get_drvdata(pdev);
 	gpio_free(state->enet_flash_pin);

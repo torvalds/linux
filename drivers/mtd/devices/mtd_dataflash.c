@@ -897,7 +897,7 @@ static int dataflash_probe(struct spi_device *spi)
 	return status;
 }
 
-static int __devexit dataflash_remove(struct spi_device *spi)
+static int dataflash_remove(struct spi_device *spi)
 {
 	struct dataflash	*flash = dev_get_drvdata(&spi->dev);
 	int			status;

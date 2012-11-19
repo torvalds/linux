@@ -256,7 +256,7 @@ static int ndfc_probe(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devexit ndfc_remove(struct platform_device *ofdev)
+static int ndfc_remove(struct platform_device *ofdev)
 {
 	struct ndfc_controller *ndfc = dev_get_drvdata(&ofdev->dev);
 

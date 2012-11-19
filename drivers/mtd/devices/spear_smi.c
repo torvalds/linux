@@ -1016,7 +1016,7 @@ err:
  *
  * free all allocations and delete the partitions.
  */
-static int __devexit spear_smi_remove(struct platform_device *pdev)
+static int spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
 	struct spear_snor_flash *flash;

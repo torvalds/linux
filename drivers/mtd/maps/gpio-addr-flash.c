@@ -258,7 +258,7 @@ static int gpio_flash_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit gpio_flash_remove(struct platform_device *pdev)
+static int gpio_flash_remove(struct platform_device *pdev)
 {
 	struct async_state *state = platform_get_drvdata(pdev);
 	size_t i = 0;

@@ -491,7 +491,7 @@ out1:
 	return ret;
 }
 
-static int __devexit au1550nd_remove(struct platform_device *pdev)
+static int au1550nd_remove(struct platform_device *pdev)
 {
 	struct au1550nd_ctx *ctx = platform_get_drvdata(pdev);
 	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);

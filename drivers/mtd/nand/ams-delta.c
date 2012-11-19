@@ -270,7 +270,7 @@ out_free:
 /*
  * Clean up routine
  */
-static int __devexit ams_delta_cleanup(struct platform_device *pdev)
+static int ams_delta_cleanup(struct platform_device *pdev)
 {
 	void __iomem *io_base = platform_get_drvdata(pdev);
 

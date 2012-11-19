@@ -289,7 +289,7 @@ static int amd76xrom_init_one (struct pci_dev *pdev,
 }
 
 
-static void __devexit amd76xrom_remove_one (struct pci_dev *pdev)
+static void amd76xrom_remove_one (struct pci_dev *pdev)
 {
 	struct amd76xrom_window *window = &amd76xrom_window;
 

@@ -66,7 +66,7 @@ out:
 	return err;
 }
 
-static int __devexit bcm47xxsflash_remove(struct platform_device *pdev)
+static int bcm47xxsflash_remove(struct platform_device *pdev)
 {
 	struct bcma_sflash *sflash = dev_get_platdata(&pdev->dev);
 

@@ -197,7 +197,7 @@ scb2_flash_probe(struct pci_dev *dev, const struct pci_device_id *ent)
 	return 0;
 }
 
-static void __devexit
+static void
 scb2_flash_remove(struct pci_dev *dev)
 {
 	if (!scb2_mtd)

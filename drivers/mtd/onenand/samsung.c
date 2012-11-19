@@ -1053,7 +1053,7 @@ onenand_fail:
 	return err;
 }
 
-static int __devexit s3c_onenand_remove(struct platform_device *pdev)
+static int s3c_onenand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 

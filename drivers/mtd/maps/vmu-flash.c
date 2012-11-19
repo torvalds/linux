@@ -690,7 +690,7 @@ fail_nomem:
 	return error;
 }
 
-static void __devexit vmu_disconnect(struct maple_device *mdev)
+static void vmu_disconnect(struct maple_device *mdev)
 {
 	struct memcard *card;
 	struct mdev_part *mpart;
@@ -789,7 +789,7 @@ static int probe_maple_vmu(struct device *dev)
 	return 0;
 }
 
-static int __devexit remove_maple_vmu(struct device *dev)
+static int remove_maple_vmu(struct device *dev)
 {
 	struct maple_device *mdev = to_maple_dev(dev);
 

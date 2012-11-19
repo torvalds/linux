@@ -433,7 +433,7 @@ static int __init block2mtd_init(void)
 }
 
 
-static void __devexit block2mtd_exit(void)
+static void block2mtd_exit(void)
 {
 	struct list_head *pos, *next;
 

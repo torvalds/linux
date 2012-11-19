@@ -315,7 +315,7 @@ static int ichxrom_init_one (struct pci_dev *pdev,
 }
 
 
-static void __devexit ichxrom_remove_one (struct pci_dev *pdev)
+static void ichxrom_remove_one (struct pci_dev *pdev)
 {
 	struct ichxrom_window *window = &ichxrom_window;
 	ichxrom_cleanup(window);

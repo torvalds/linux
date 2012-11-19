@@ -320,7 +320,7 @@ static int ck804xrom_init_one (struct pci_dev *pdev,
 }
 
 
-static void __devexit ck804xrom_remove_one (struct pci_dev *pdev)
+static void ck804xrom_remove_one (struct pci_dev *pdev)
 {
 	struct ck804xrom_window *window = &ck804xrom_window;
 

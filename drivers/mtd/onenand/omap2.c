@@ -787,7 +787,7 @@ err_kfree:
 	return r;
 }
 
-static int __devexit omap2_onenand_remove(struct platform_device *pdev)
+static int omap2_onenand_remove(struct platform_device *pdev)
 {
 	struct omap2_onenand *c = dev_get_drvdata(&pdev->dev);
 

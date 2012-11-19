@@ -184,7 +184,7 @@ static int pasemi_nand_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int __devexit pasemi_nand_remove(struct platform_device *ofdev)
+static int pasemi_nand_remove(struct platform_device *ofdev)
 {
 	struct nand_chip *chip;
 

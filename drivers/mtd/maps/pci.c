@@ -308,7 +308,7 @@ out:
 	return err;
 }
 
-static void __devexit
+static void
 mtd_pci_remove(struct pci_dev *dev)
 {
 	struct mtd_info *mtd = pci_get_drvdata(dev);

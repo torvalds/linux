@@ -121,7 +121,7 @@ static int uflash_probe(struct platform_device *op)
 	return uflash_devinit(op, dp);
 }
 
-static int __devexit uflash_remove(struct platform_device *op)
+static int uflash_remove(struct platform_device *op)
 {
 	struct uflash_dev *up = dev_get_drvdata(&op->dev);
 

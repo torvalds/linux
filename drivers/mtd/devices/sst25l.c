@@ -411,7 +411,7 @@ static int sst25l_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit sst25l_remove(struct spi_device *spi)
+static int sst25l_remove(struct spi_device *spi)
 {
 	struct sst25l_flash *flash = dev_get_drvdata(&spi->dev);
 	int ret;

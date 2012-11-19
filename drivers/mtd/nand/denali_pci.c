@@ -137,7 +137,7 @@ static int denali_init_pci(void)
 }
 module_init(denali_init_pci);
 
-static void __devexit denali_exit_pci(void)
+static void denali_exit_pci(void)
 {
 	pci_unregister_driver(&denali_pci_driver);
 }

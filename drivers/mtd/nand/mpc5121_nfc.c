@@ -827,7 +827,7 @@ error:
 	return retval;
 }
 
-static int __devexit mpc5121_nfc_remove(struct platform_device *op)
+static int mpc5121_nfc_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mtd_info *mtd = dev_get_drvdata(dev);

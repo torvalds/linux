@@ -318,7 +318,7 @@ err1:
 	return ret;
 }
 
-static int __devexit fun_remove(struct platform_device *ofdev)
+static int fun_remove(struct platform_device *ofdev)
 {
 	struct fsl_upm_nand *fun = dev_get_drvdata(&ofdev->dev);
 	int i;

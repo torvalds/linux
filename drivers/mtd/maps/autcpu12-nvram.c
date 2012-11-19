@@ -105,7 +105,7 @@ static int autcpu12_nvram_probe(struct platform_device *pdev)
 	return -ENOMEM;
 }
 
-static int __devexit autcpu12_nvram_remove(struct platform_device *pdev)
+static int autcpu12_nvram_remove(struct platform_device *pdev)
 {
 	struct autcpu12_nvram_priv *priv = platform_get_drvdata(pdev);
 

@@ -1675,7 +1675,7 @@ exit_acquire_resources:
 	return ret;
 }
 
-static int __devexit gpmi_nand_remove(struct platform_device *pdev)
+static int gpmi_nand_remove(struct platform_device *pdev)
 {
 	struct gpmi_nand_data *this = platform_get_drvdata(pdev);
 

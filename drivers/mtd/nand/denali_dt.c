@@ -129,7 +129,7 @@ out_disable_clk:
 	return ret;
 }
 
-static int __devexit denali_dt_remove(struct platform_device *ofdev)
+static int denali_dt_remove(struct platform_device *ofdev)
 {
 	struct denali_dt *dt = platform_get_drvdata(ofdev);
 

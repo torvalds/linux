@@ -821,7 +821,7 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit cafe_nand_remove(struct pci_dev *pdev)
+static void cafe_nand_remove(struct pci_dev *pdev)
 {
 	struct mtd_info *mtd = pci_get_drvdata(pdev);
 	struct cafe_priv *cafe = mtd->priv;

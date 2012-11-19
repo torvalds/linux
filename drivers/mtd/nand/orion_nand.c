@@ -194,7 +194,7 @@ no_res:
 	return ret;
 }
 
-static int __devexit orion_nand_remove(struct platform_device *pdev)
+static int orion_nand_remove(struct platform_device *pdev)
 {
 	struct mtd_info *mtd = platform_get_drvdata(pdev);
 	struct nand_chip *nc = mtd->priv;

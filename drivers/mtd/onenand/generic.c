@@ -88,7 +88,7 @@ out_free_info:
 	return err;
 }
 
-static int __devexit generic_onenand_remove(struct platform_device *pdev)
+static int generic_onenand_remove(struct platform_device *pdev)
 {
 	struct onenand_info *info = platform_get_drvdata(pdev);
 	struct resource *res = pdev->resource;

@@ -845,7 +845,7 @@ err_exit1:
 /*
  * Remove NAND device
  */
-static int __devexit lpc32xx_nand_remove(struct platform_device *pdev)
+static int lpc32xx_nand_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_nand_host *host = platform_get_drvdata(pdev);
 	struct mtd_info *mtd = &host->mtd;
