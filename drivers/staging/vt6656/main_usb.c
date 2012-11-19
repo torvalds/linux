@@ -1202,7 +1202,7 @@ device_release_WPADEV(pDevice);
     return 0;
 }
 
-static void __devexit vt6656_disconnect(struct usb_interface *intf)
+static void vt6656_disconnect(struct usb_interface *intf)
 {
 	PSDevice device = usb_get_intfdata(intf);
 
