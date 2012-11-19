@@ -3678,7 +3678,7 @@ static u32 slic_card_locate(struct adapter *adapter)
 	return 0;
 }
 
-static int __devinit slic_entry_probe(struct pci_dev *pcidev,
+static int slic_entry_probe(struct pci_dev *pcidev,
 			       const struct pci_device_id *pci_tbl_entry)
 {
 	static int cards_found;
