@@ -683,7 +683,7 @@ fail_disable:
 	return ret;
 }
 
-static struct pci_device_id pci_table[] __devinitdata = {
+static struct pci_device_id pci_table[] = {
 	{
 		.vendor =    PCI_VENDOR_ID_TI,
 		.device =    PCI_DEVICE_ID_TI_PCILYNX,
