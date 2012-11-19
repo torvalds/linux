@@ -109,40 +109,6 @@ static inline u8 oc_getreg_32(struct ocores_i2c *i2c, int reg)
 	return ioread32(i2c->base + (reg << i2c->reg_shift));
 }
 
-/* Read and write functions for the GRLIB port of the controller. Registers are
- * 32-bit big endian and the PRELOW and PREHIGH registers are merged into one
- * register. The subsequent registers has their offset decreased accordingly. */
-static u8 oc_getreg_grlib(struct ocores_i2c *i2c, int reg)
-{
-	u32 rd;
-	int rreg = reg;
-	if (reg != OCI2C_PRELOW)
-		rreg--;
-	rd = ioread32be(i2c->base + (rreg << i2c->reg_shift));
-	if (reg == OCI2C_PREHIGH)
-		return (u8)(rd >> 8);
-	else
-		return (u8)rd;
-}
-
-static void oc_setreg_grlib(struct ocores_i2c *i2c, int reg, u8 value)
-{
-	u32 curr, wr;
-	int rreg = reg;
-	if (reg != OCI2C_PRELOW)
-		rreg--;
-	if (reg == OCI2C_PRELOW || reg == OCI2C_PREHIGH) {
-		curr = ioread32be(i2c->base + (rreg << i2c->reg_shift));
-		if (reg == OCI2C_PRELOW)
-			wr = (curr & 0xff00) | value;
-		else
-			wr = (((u32)value) << 8) | (curr & 0xff);
-	} else {
-		wr = value;
-	}
-	iowrite32be(wr, i2c->base + (rreg << i2c->reg_shift));
-}
-
 static inline void oc_setreg(struct ocores_i2c *i2c, int reg, u8 value)
 {
 	i2c->setreg(i2c, reg, value);
@@ -303,6 +269,40 @@ static struct of_device_id ocores_i2c_match[] = {
 MODULE_DEVICE_TABLE(of, ocores_i2c_match);
 
 #ifdef CONFIG_OF
+/* Read and write functions for the GRLIB port of the controller. Registers are
+ * 32-bit big endian and the PRELOW and PREHIGH registers are merged into one
+ * register. The subsequent registers has their offset decreased accordingly. */
+static u8 oc_getreg_grlib(struct ocores_i2c *i2c, int reg)
+{
+	u32 rd;
+	int rreg = reg;
+	if (reg != OCI2C_PRELOW)
+		rreg--;
+	rd = ioread32be(i2c->base + (rreg << i2c->reg_shift));
+	if (reg == OCI2C_PREHIGH)
+		return (u8)(rd >> 8);
+	else
+		return (u8)rd;
+}
+
+static void oc_setreg_grlib(struct ocores_i2c *i2c, int reg, u8 value)
+{
+	u32 curr, wr;
+	int rreg = reg;
+	if (reg != OCI2C_PRELOW)
+		rreg--;
+	if (reg == OCI2C_PRELOW || reg == OCI2C_PREHIGH) {
+		curr = ioread32be(i2c->base + (rreg << i2c->reg_shift));
+		if (reg == OCI2C_PRELOW)
+			wr = (curr & 0xff00) | value;
+		else
+			wr = (((u32)value) << 8) | (curr & 0xff);
+	} else {
+		wr = value;
+	}
+	iowrite32be(wr, i2c->base + (rreg << i2c->reg_shift));
+}
+
 static int ocores_i2c_of_probe(struct platform_device *pdev,
 				struct ocores_i2c *i2c)
 {
