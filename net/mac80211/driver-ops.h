@@ -704,6 +704,7 @@ static inline int drv_get_antenna(struct ieee80211_local *local,
 }
 
 static inline int drv_remain_on_channel(struct ieee80211_local *local,
+					struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_channel *chan,
 					enum nl80211_channel_type chantype,
 					unsigned int duration)
@@ -712,9 +713,9 @@ static inline int drv_remain_on_channel(struct ieee80211_local *local,
 
 	might_sleep();
 
-	trace_drv_remain_on_channel(local, chan, chantype, duration);
-	ret = local->ops->remain_on_channel(&local->hw, chan, chantype,
-					    duration);
+	trace_drv_remain_on_channel(local, sdata, chan, chantype, duration);
+	ret = local->ops->remain_on_channel(&local->hw, &sdata->vif,
+					    chan, chantype, duration);
 	trace_drv_return_int(local, ret);
 
 	return ret;
