@@ -908,7 +908,7 @@ static void handle_channel(struct wiphy *wiphy,
 			map_regdom_flags(reg_rule->flags) | bw_flags;
 		chan->max_antenna_gain = chan->orig_mag =
 			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
-		chan->max_power = chan->orig_mpwr =
+		chan->max_reg_power = chan->max_power = chan->orig_mpwr =
 			(int) MBM_TO_DBM(power_rule->max_eirp);
 		return;
 	}
@@ -1331,7 +1331,8 @@ static void handle_channel_custom(struct wiphy *wiphy,
 
 	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
 	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
-	chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
+	chan->max_reg_power = chan->max_power =
+		(int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
 static void handle_band_custom(struct wiphy *wiphy, enum ieee80211_band band,

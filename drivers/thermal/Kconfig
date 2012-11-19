@@ -22,6 +22,7 @@ config THERMAL_HWMON
 config CPU_THERMAL
 	bool "generic cpu cooling support"
 	depends on THERMAL && CPU_FREQ
+	select CPU_FREQ_TABLE
 	help
 	  This implements the generic cpu cooling mechanism through frequency
 	  reduction, cpu hotplug and any other ways of reducing temperature. An
@@ -50,6 +51,7 @@ config RCAR_THERMAL
 config EXYNOS_THERMAL
 	tristate "Temperature sensor on Samsung EXYNOS"
 	depends on (ARCH_EXYNOS4 || ARCH_EXYNOS5) && THERMAL
+	select CPU_FREQ_TABLE
 	help
 	  If you say yes here you get support for TMU (Thermal Managment
 	  Unit) on SAMSUNG EXYNOS series of SoC.

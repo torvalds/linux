@@ -47,6 +47,7 @@
 #include <plat/fimc-core.h>
 #include <plat/iic-core.h>
 #include <plat/tv-core.h>
+#include <plat/spi-core.h>
 #include <plat/regs-serial.h>
 
 #include "common.h"
@@ -346,6 +347,8 @@ static void __init exynos4_map_io(void)
 
 	s5p_fb_setname(0, "exynos4-fb");
 	s5p_hdmi_setname("exynos4-hdmi");
+
+	s3c64xx_spi_setname("exynos4210-spi");
 }
 
 static void __init exynos5_map_io(void)
@@ -366,6 +369,8 @@ static void __init exynos5_map_io(void)
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
 	s3c_i2c2_setname("s3c2440-i2c");
+
+	s3c64xx_spi_setname("exynos4210-spi");
 }
 
 static void __init exynos4_init_clocks(int xtal)
@@ -992,11 +997,14 @@ static int __init exynos_init_irq_eint(void)
 	 * platforms switch over to using the pinctrl driver, the wakeup
 	 * interrupt support code here can be completely removed.
 	 */
+	static const struct of_device_id exynos_pinctrl_ids[] = {
+		{ .compatible = "samsung,pinctrl-exynos4210", },
+		{ .compatible = "samsung,pinctrl-exynos4x12", },
+	};
 	struct device_node *pctrl_np, *wkup_np;
-	const char *pctrl_compat = "samsung,pinctrl-exynos4210";
 	const char *wkup_compat = "samsung,exynos4210-wakeup-eint";
 
-	for_each_compatible_node(pctrl_np, NULL, pctrl_compat) {
+	for_each_matching_node(pctrl_np, exynos_pinctrl_ids) {
 		if (of_device_is_available(pctrl_np)) {
 			wkup_np = of_find_compatible_node(pctrl_np, NULL,
 							wkup_compat);

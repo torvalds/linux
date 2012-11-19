@@ -651,29 +651,17 @@ void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
 
 /*
  * Skip these instructions as per the currently known x86 ISA.
- * 0x66* { 0x90 | 0x0f 0x1f | 0x0f 0x19 | 0x87 0xc0 }
+ * rep=0x66*; nop=0x90
  */
 static bool __skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
 {
 	int i;
 
 	for (i = 0; i < MAX_UINSN_BYTES; i++) {
-		if ((auprobe->insn[i] == 0x66))
+		if (auprobe->insn[i] == 0x66)
 			continue;
 
 		if (auprobe->insn[i] == 0x90)
-			return true;
-
-		if (i == (MAX_UINSN_BYTES - 1))
-			break;
-
-		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x1f))
-			return true;
-
-		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x19))
-			return true;
-
-		if ((auprobe->insn[i] == 0x87) && (auprobe->insn[i+1] == 0xc0))
 			return true;
 
 		break;

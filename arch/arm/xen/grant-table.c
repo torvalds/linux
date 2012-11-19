@@ -33,7 +33,7 @@
 #include <xen/page.h>
 #include <xen/grant_table.h>
 
-int arch_gnttab_map_shared(unsigned long *frames, unsigned long nr_gframes,
+int arch_gnttab_map_shared(xen_pfn_t *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   void **__shared)
 {

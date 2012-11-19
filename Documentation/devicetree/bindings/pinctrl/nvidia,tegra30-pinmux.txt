@@ -83,7 +83,7 @@ Valid values for pin and group names are:
   drive groups:
 
     These all support nvidia,pull-down-strength, nvidia,pull-up-strength,
-    nvidia,slew_rate-rising, nvidia,slew_rate-falling. Most but not all
+    nvidia,slew-rate-rising, nvidia,slew-rate-falling. Most but not all
     support nvidia,high-speed-mode, nvidia,schmitt, nvidia,low-power-mode.
 
     ao1, ao2, at1, at2, at3, at4, at5, cdev1, cdev2, cec, crt, csus, dap1,

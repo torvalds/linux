@@ -132,7 +132,7 @@
 
 struct s3c64xx_spi_dma_data {
 	unsigned		ch;
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	enum dma_ch	dmach;
 	struct property		*dma_prop;
 };
@@ -1067,11 +1067,11 @@ static int __devinit s3c64xx_spi_get_dmares(
 
 	if (tx) {
 		dma_data = &sdd->tx_dma;
-		dma_data->direction = DMA_TO_DEVICE;
+		dma_data->direction = DMA_MEM_TO_DEV;
 		chan_str = "tx";
 	} else {
 		dma_data = &sdd->rx_dma;
-		dma_data->direction = DMA_FROM_DEVICE;
+		dma_data->direction = DMA_DEV_TO_MEM;
 		chan_str = "rx";
 	}
 

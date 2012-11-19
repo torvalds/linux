@@ -69,11 +69,11 @@
 
 ENTRY(_UserExceptionVector)
 
-	xsr	a3, EXCSAVE_1		# save a3 and get dispatch table
-	wsr	a2, DEPC		# save a2
+	xsr	a3, excsave1		# save a3 and get dispatch table
+	wsr	a2, depc		# save a2
 	l32i	a2, a3, EXC_TABLE_KSTK	# load kernel stack to a2
 	s32i	a0, a2, PT_AREG0	# save a0 to ESF
-	rsr	a0, EXCCAUSE		# retrieve exception cause
+	rsr	a0, exccause		# retrieve exception cause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
 	addx4	a0, a0, a3		# find entry in table
 	l32i	a0, a0, EXC_TABLE_FAST_USER	# load handler
@@ -93,11 +93,11 @@ ENTRY(_UserExceptionVector)
 
 ENTRY(_KernelExceptionVector)
 
-	xsr	a3, EXCSAVE_1		# save a3, and get dispatch table
-	wsr	a2, DEPC		# save a2
+	xsr	a3, excsave1		# save a3, and get dispatch table
+	wsr	a2, depc		# save a2
 	addi	a2, a1, -16-PT_SIZE	# adjust stack pointer
 	s32i	a0, a2, PT_AREG0	# save a0 to ESF
-	rsr	a0, EXCCAUSE		# retrieve exception cause
+	rsr	a0, exccause		# retrieve exception cause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
 	addx4	a0, a0, a3		# find entry in table
 	l32i	a0, a0, EXC_TABLE_FAST_KERNEL	# load handler address
@@ -205,17 +205,17 @@ ENTRY(_DoubleExceptionVector)
 
 	/* Deliberately destroy excsave (don't assume it's value was valid). */
 
-	wsr	a3, EXCSAVE_1		# save a3
+	wsr	a3, excsave1		# save a3
 
 	/* Check for kernel double exception (usually fatal). */
 
-	rsr	a3, PS
+	rsr	a3, ps
 	_bbci.l	a3, PS_UM_BIT, .Lksp
 
 	/* Check if we are currently handling a window exception. */
 	/* Note: We don't need to indicate that we enter a critical section. */
 
-	xsr	a0, DEPC		# get DEPC, save a0
+	xsr	a0, depc		# get DEPC, save a0
 
 	movi	a3, XCHAL_WINDOW_VECTORS_VADDR
 	_bltu	a0, a3, .Lfixup
@@ -243,21 +243,21 @@ ENTRY(_DoubleExceptionVector)
 	 * Note: We can trash the current window frame (a0...a3) and depc!
 	 */
 
-	wsr	a2, DEPC		# save stack pointer temporarily
-	rsr	a0, PS
+	wsr	a2, depc		# save stack pointer temporarily
+	rsr	a0, ps
 	extui	a0, a0, PS_OWB_SHIFT, 4
-	wsr	a0, WINDOWBASE
+	wsr	a0, windowbase
 	rsync
 
 	/* We are now in the previous window frame. Save registers again. */
 
-	xsr	a2, DEPC		# save a2 and get stack pointer
+	xsr	a2, depc		# save a2 and get stack pointer
 	s32i	a0, a2, PT_AREG0
 
-	wsr	a3, EXCSAVE_1		# save a3
+	wsr	a3, excsave1		# save a3
 	movi	a3, exc_table
 
-	rsr	a0, EXCCAUSE
+	rsr	a0, exccause
 	s32i	a0, a2, PT_DEPC		# mark it as a regular exception
 	addx4	a0, a0, a3
 	l32i	a0, a0, EXC_TABLE_FAST_USER
@@ -290,14 +290,14 @@ ENTRY(_DoubleExceptionVector)
 
 	/* a0: depc, a1: a1, a2: kstk, a3: a2, depc: a0, excsave: a3 */
 
-	xsr	a3, DEPC
+	xsr	a3, depc
 	s32i	a0, a2, PT_DEPC
 	s32i	a3, a2, PT_AREG0
 
 	/* a0: avail, a1: a1, a2: kstk, a3: avail, depc: a2, excsave: a3 */
 
 	movi	a3, exc_table
-	rsr	a0, EXCCAUSE
+	rsr	a0, exccause
 	addx4	a0, a0, a3
 	l32i	a0, a0, EXC_TABLE_FAST_USER
 	jx	a0
@@ -312,7 +312,7 @@ ENTRY(_DoubleExceptionVector)
 
 .Lksp:	/* a0: a0, a1: a1, a2: a2, a3: trashed, depc: depc, excsave: a3 */
 
-	rsr	a3, EXCCAUSE
+	rsr	a3, exccause
 	beqi	a3, EXCCAUSE_ITLB_MISS, 1f
 	addi	a3, a3, -EXCCAUSE_DTLB_MISS
 	bnez	a3, .Lunrecoverable
@@ -328,11 +328,11 @@ ENTRY(_DoubleExceptionVector)
 
 .Lunrecoverable_fixup:
 	l32i	a2, a3, EXC_TABLE_DOUBLE_SAVE
-	xsr	a0, DEPC
+	xsr	a0, depc
 
 .Lunrecoverable:
-	rsr	a3, EXCSAVE_1
-	wsr	a0, EXCSAVE_1
+	rsr	a3, excsave1
+	wsr	a0, excsave1
 	movi	a0, unrecoverable_exception
 	callx0	a0
 
@@ -349,7 +349,7 @@ ENTRY(_DoubleExceptionVector)
 	.section .DebugInterruptVector.text, "ax"
 
 ENTRY(_DebugInterruptVector)
-	xsr	a0, EXCSAVE + XCHAL_DEBUGLEVEL
+	xsr	a0, SREG_EXCSAVE + XCHAL_DEBUGLEVEL
 	jx	a0
 
 

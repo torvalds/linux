@@ -6794,8 +6794,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
 
+	bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
+
 	if (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp)) {
-		bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
 
 		if (IS_MF(bp))
 			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
@@ -11902,7 +11903,15 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	/* disable FCOE L2 queue for E1x */
 	if (CHIP_IS_E1x(bp))
 		bp->flags |= NO_FCOE_FLAG;
-
+	/* disable FCOE for 57840 device, until FW supports it */
+	switch (ent->driver_data) {
+	case BCM57840_O:
+	case BCM57840_4_10:
+	case BCM57840_2_20:
+	case BCM57840_MFO:
+	case BCM57840_MF:
+		bp->flags |= NO_FCOE_FLAG;
+	}
 #endif
 
 

@@ -48,17 +48,19 @@
 		#size-cells = <0>;
 		button@1 {
 			label = "Function Button";
-			linux,code = <132>;
+			linux,code = <357>;
 			gpios = <&gpio1 9 1>;
 		};
 		button@2 {
 			label = "Power-on Switch";
-			linux,code = <116>;
+			linux,code = <0>;
+			linux,input-type = <5>;
 			gpios = <&gpio1 10 1>;
 		};
 		button@3 {
 			label = "Power-auto Switch";
-			linux,code = <142>;
+			linux,code = <1>;
+			linux,input-type = <5>;
 			gpios = <&gpio1 11 1>;
 		};
 	};
@@ -67,28 +69,28 @@
 		compatible = "gpio-leds";
 
 		led@1 {
-			label = "lschlv2:blue:func";
+			label = "lsxl:blue:func";
 			gpios = <&gpio1 4 1>;
 		};
 
 		led@2 {
-			label = "lschlv2:red:alarm";
+			label = "lsxl:red:alarm";
 			gpios = <&gpio1 5 1>;
 		};
 
 		led@3 {
-			label = "lschlv2:amber:info";
+			label = "lsxl:amber:info";
 			gpios = <&gpio1 6 1>;
 		};
 
 		led@4 {
-			label = "lschlv2:blue:power";
+			label = "lsxl:blue:power";
 			gpios = <&gpio1 7 1>;
 			linux,default-trigger = "default-on";
 		};
 
 		led@5 {
-			label = "lschlv2:red:func";
+			label = "lsxl:red:func";
 			gpios = <&gpio1 16 1>;
 		};
 	};
