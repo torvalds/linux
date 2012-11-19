@@ -582,13 +582,13 @@ static __devexit int adnp_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-static const struct i2c_device_id adnp_i2c_id[] __devinitconst = {
+static const struct i2c_device_id adnp_i2c_id[] = {
 	{ "gpio-adnp" },
 	{ },
 };
 MODULE_DEVICE_TABLE(i2c, adnp_i2c_id);
 
-static const struct of_device_id adnp_of_match[] __devinitconst = {
+static const struct of_device_id adnp_of_match[] = {
 	{ .compatible = "ad,gpio-adnp", },
 	{ },
 };
