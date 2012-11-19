@@ -211,6 +211,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_DEV_ID("hclk", "a00000.ohci", &ohci_clk),
 	CLKDEV_CON_DEV_ID("spi_clk", "fffa4000.spi", &spi0_clk),
 	CLKDEV_CON_DEV_ID("spi_clk", "fffa8000.spi", &spi1_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "fff80000.mmc", &mmc0_clk),
+	CLKDEV_CON_DEV_ID("mci_clk", "fff84000.mmc", &mmc1_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fff88000.i2c", &twi_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff200.gpio", &pioA_clk),
 	CLKDEV_CON_DEV_ID(NULL, "fffff400.gpio", &pioB_clk),
