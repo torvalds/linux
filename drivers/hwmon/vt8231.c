@@ -772,7 +772,7 @@ static DEFINE_PCI_DEVICE_TABLE(vt8231_pci_ids) = {
 
 MODULE_DEVICE_TABLE(pci, vt8231_pci_ids);
 
-static int __devinit vt8231_pci_probe(struct pci_dev *dev,
+static int vt8231_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id);
 
 static struct pci_driver vt8231_pci_driver = {
@@ -943,7 +943,7 @@ static struct vt8231_data *vt8231_update_device(struct device *dev)
 	return data;
 }
 
-static int __devinit vt8231_device_add(unsigned short address)
+static int vt8231_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -984,7 +984,7 @@ exit:
 	return err;
 }
 
-static int __devinit vt8231_pci_probe(struct pci_dev *dev,
+static int vt8231_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u16 address, val;

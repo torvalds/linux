@@ -1966,7 +1966,7 @@ static void it87_remove_files(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &it87_group_label);
 }
 
-static int __devinit it87_probe(struct platform_device *pdev)
+static int it87_probe(struct platform_device *pdev)
 {
 	struct it87_data *data;
 	struct resource *res;
@@ -2191,7 +2191,7 @@ static void it87_write_value(struct it87_data *data, u8 reg, u8 value)
 }
 
 /* Return 1 if and only if the PWM interface is safe to use */
-static int __devinit it87_check_pwm(struct device *dev)
+static int it87_check_pwm(struct device *dev)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
 	/*
@@ -2248,7 +2248,7 @@ static int __devinit it87_check_pwm(struct device *dev)
 }
 
 /* Called when we have found a new IT87. */
-static void __devinit it87_init_device(struct platform_device *pdev)
+static void it87_init_device(struct platform_device *pdev)
 {
 	struct it87_sio_data *sio_data = pdev->dev.platform_data;
 	struct it87_data *data = platform_get_drvdata(pdev);

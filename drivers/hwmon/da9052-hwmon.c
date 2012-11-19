@@ -283,7 +283,7 @@ static struct attribute *da9052_attr[] = {
 
 static const struct attribute_group da9052_attr_group = {.attrs = da9052_attr};
 
-static int __devinit da9052_hwmon_probe(struct platform_device *pdev)
+static int da9052_hwmon_probe(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon;
 	int ret;

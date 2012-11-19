@@ -157,7 +157,7 @@ static const struct attribute_group wm831x_attr_group = {
 	.attrs	= wm831x_attributes,
 };
 
-static int __devinit wm831x_hwmon_probe(struct platform_device *pdev)
+static int wm831x_hwmon_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_hwmon *hwmon;

@@ -2630,7 +2630,7 @@ exit:
 	return err;
 }
 
-static int __devinit dme1737_isa_probe(struct platform_device *pdev)
+static int dme1737_isa_probe(struct platform_device *pdev)
 {
 	u8 company, device;
 	struct resource *res;

@@ -276,7 +276,7 @@ static int adt7411_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int __devinit adt7411_probe(struct i2c_client *client,
+static int adt7411_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct adt7411_data *data;

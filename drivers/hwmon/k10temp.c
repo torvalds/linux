@@ -95,7 +95,7 @@ static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, show_temp_crit, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_crit_hyst, S_IRUGO, show_temp_crit, NULL, 1);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
-static bool __devinit has_erratum_319(struct pci_dev *pdev)
+static bool has_erratum_319(struct pci_dev *pdev)
 {
 	u32 pkg_type, reg_dram_cfg;
 
@@ -129,7 +129,7 @@ static bool __devinit has_erratum_319(struct pci_dev *pdev)
 	       (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask <= 2);
 }
 
-static int __devinit k10temp_probe(struct pci_dev *pdev,
+static int k10temp_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct device *hwmon_dev;

@@ -1221,7 +1221,7 @@ static void pc87360_remove_files(struct device *dev)
 	sysfs_remove_group(&dev->kobj, &pc8736x_vin_group);
 }
 
-static int __devinit pc87360_probe(struct platform_device *pdev)
+static int pc87360_probe(struct platform_device *pdev)
 {
 	int i;
 	struct pc87360_data *data;

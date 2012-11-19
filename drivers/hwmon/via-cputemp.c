@@ -121,7 +121,7 @@ static const struct attribute_group via_cputemp_group = {
 /* Optional attributes */
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_cpu_vid, NULL);
 
-static int __devinit via_cputemp_probe(struct platform_device *pdev)
+static int via_cputemp_probe(struct platform_device *pdev)
 {
 	struct via_cputemp_data *data;
 	struct cpuinfo_x86 *c = &cpu_data(pdev->id);

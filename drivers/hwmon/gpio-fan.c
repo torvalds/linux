@@ -505,7 +505,7 @@ static struct of_device_id of_gpio_fan_match[] __devinitdata = {
 };
 #endif /* CONFIG_OF_GPIO */
 
-static int __devinit gpio_fan_probe(struct platform_device *pdev)
+static int gpio_fan_probe(struct platform_device *pdev)
 {
 	int err;
 	struct gpio_fan_data *fan_data;

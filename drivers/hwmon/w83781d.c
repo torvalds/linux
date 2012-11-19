@@ -1764,7 +1764,7 @@ w83781d_write_value(struct w83781d_data *data, u16 reg, u16 value)
 	return 0;
 }
 
-static int __devinit
+static int
 w83781d_isa_probe(struct platform_device *pdev)
 {
 	int err, reg;

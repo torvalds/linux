@@ -257,7 +257,7 @@ static const struct attribute_group max197_sysfs_group = {
 	},
 };
 
-static int __devinit max197_probe(struct platform_device *pdev)
+static int max197_probe(struct platform_device *pdev)
 {
 	int ch, ret;
 	struct max197_data *data;

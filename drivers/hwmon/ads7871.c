@@ -173,7 +173,7 @@ static const struct attribute_group ads7871_group = {
 	.attrs = ads7871_attributes,
 };
 
-static int __devinit ads7871_probe(struct spi_device *spi)
+static int ads7871_probe(struct spi_device *spi)
 {
 	int ret, err;
 	uint8_t val;

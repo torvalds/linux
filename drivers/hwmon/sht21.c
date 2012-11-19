@@ -187,7 +187,7 @@ static const struct attribute_group sht21_attr_group = {
  * device's name.
  * Returns 0 on success.
  */
-static int __devinit sht21_probe(struct i2c_client *client,
+static int sht21_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct sht21 *sht21;

@@ -249,7 +249,7 @@ static struct platform_driver smsc47b397_driver = {
 	.remove		= smsc47b397_remove,
 };
 
-static int __devinit smsc47b397_probe(struct platform_device *pdev)
+static int smsc47b397_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct smsc47b397_data *data;

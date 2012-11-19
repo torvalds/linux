@@ -157,7 +157,7 @@ static const struct attribute_group max1110_attr_group = {
 	.attrs	= max1110_attributes,
 };
 
-static int __devinit setup_transfer(struct max1111_data *data)
+static int setup_transfer(struct max1111_data *data)
 {
 	struct spi_message *m;
 	struct spi_transfer *x;
@@ -179,7 +179,7 @@ static int __devinit setup_transfer(struct max1111_data *data)
 	return 0;
 }
 
-static int __devinit max1111_probe(struct spi_device *spi)
+static int max1111_probe(struct spi_device *spi)
 {
 	enum chips chip = spi_get_device_id(spi)->driver_data;
 	struct max1111_data *data;

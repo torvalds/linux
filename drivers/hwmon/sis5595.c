@@ -583,7 +583,7 @@ static const struct attribute_group sis5595_group_temp1 = {
 };
 
 /* This is called when the module is loaded */
-static int __devinit sis5595_probe(struct platform_device *pdev)
+static int sis5595_probe(struct platform_device *pdev)
 {
 	int err = 0;
 	int i;
@@ -693,7 +693,7 @@ static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value)
 }
 
 /* Called when we have found a new SIS5595. */
-static void __devinit sis5595_init_device(struct sis5595_data *data)
+static void sis5595_init_device(struct sis5595_data *data)
 {
 	u8 config = sis5595_read_value(data, SIS5595_REG_CONFIG);
 	if (!(config & 0x01))
@@ -774,7 +774,7 @@ static int blacklist[] __devinitdata = {
 	PCI_DEVICE_ID_SI_5598,
 	0 };
 
-static int __devinit sis5595_device_add(unsigned short address)
+static int sis5595_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -815,7 +815,7 @@ exit:
 	return err;
 }
 
-static int __devinit sis5595_pci_probe(struct pci_dev *dev,
+static int sis5595_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	u16 address;

@@ -884,7 +884,7 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static int __devinit sht15_probe(struct platform_device *pdev)
+static int sht15_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct sht15_data *data;

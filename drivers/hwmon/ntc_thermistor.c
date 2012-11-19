@@ -309,7 +309,7 @@ static const struct attribute_group ntc_attr_group = {
 	.attrs = ntc_attributes,
 };
 
-static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
+static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	struct ntc_data *data;
 	struct ntc_thermistor_platform_data *pdata = pdev->dev.platform_data;

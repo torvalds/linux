@@ -220,7 +220,7 @@ static const struct attribute_group hih6130_attr_group = {
  * device's name.
  * Returns 0 on success.
  */
-static int __devinit hih6130_probe(struct i2c_client *client,
+static int hih6130_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct hih6130 *hih6130;

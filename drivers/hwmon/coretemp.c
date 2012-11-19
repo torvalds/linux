@@ -358,7 +358,7 @@ static int __cpuinit get_tjmax(struct cpuinfo_x86 *c, u32 id,
 	return adjust_tjmax(c, id, dev);
 }
 
-static int __devinit create_name_attr(struct platform_data *pdata,
+static int create_name_attr(struct platform_data *pdata,
 				      struct device *dev)
 {
 	sysfs_attr_init(&pdata->name_attr.attr);
@@ -553,7 +553,7 @@ static void coretemp_remove_core(struct platform_data *pdata,
 	pdata->core_data[indx] = NULL;
 }
 
-static int __devinit coretemp_probe(struct platform_device *pdev)
+static int coretemp_probe(struct platform_device *pdev)
 {
 	struct platform_data *pdata;
 	int err;

@@ -96,7 +96,7 @@ static const struct attribute_group twl4030_madc_group = {
 	.attrs = twl4030_madc_attributes,
 };
 
-static int __devinit twl4030_madc_hwmon_probe(struct platform_device *pdev)
+static int twl4030_madc_hwmon_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *hwmon;
