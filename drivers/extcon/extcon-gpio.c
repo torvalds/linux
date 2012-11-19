@@ -150,7 +150,7 @@ static int gpio_extcon_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_extcon_driver = {
 	.probe		= gpio_extcon_probe,
-	.remove		= __devexit_p(gpio_extcon_remove),
+	.remove		= gpio_extcon_remove,
 	.driver		= {
 		.name	= "extcon-gpio",
 		.owner	= THIS_MODULE,

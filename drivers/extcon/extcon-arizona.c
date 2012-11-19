@@ -544,7 +544,7 @@ static struct platform_driver arizona_extcon_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= arizona_extcon_probe,
-	.remove		= __devexit_p(arizona_extcon_remove),
+	.remove		= arizona_extcon_remove,
 };
 
 module_platform_driver(arizona_extcon_driver);

@@ -531,7 +531,7 @@ static struct platform_driver max8997_muic_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8997_muic_probe,
-	.remove		= __devexit_p(max8997_muic_remove),
+	.remove		= max8997_muic_remove,
 };
 
 module_platform_driver(max8997_muic_driver);
