@@ -267,7 +267,7 @@ static irqreturn_t tps6586x_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
+static int tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 				       int irq_base)
 {
 	int i, ret;
@@ -316,7 +316,7 @@ static int __devinit tps6586x_irq_init(struct tps6586x *tps6586x, int irq,
 	return ret;
 }
 
-static int __devinit tps6586x_add_subdevs(struct tps6586x *tps6586x,
+static int tps6586x_add_subdevs(struct tps6586x *tps6586x,
 					  struct tps6586x_platform_data *pdata)
 {
 	struct tps6586x_subdev_info *subdev;
@@ -468,7 +468,7 @@ static void tps6586x_power_off(void)
 	tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
 }
 
-static int __devinit tps6586x_i2c_probe(struct i2c_client *client,
+static int tps6586x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct tps6586x_platform_data *pdata = client->dev.platform_data;

@@ -80,7 +80,7 @@ static struct pm8xxx_drvdata pm8921_drvdata = {
 	.pmic_read_irq_stat	= pm8921_read_irq_stat,
 };
 
-static int __devinit pm8921_add_subdevices(const struct pm8921_platform_data
+static int pm8921_add_subdevices(const struct pm8921_platform_data
 					   *pdata,
 					   struct pm8921 *pmic,
 					   u32 rev)
@@ -104,7 +104,7 @@ static int __devinit pm8921_add_subdevices(const struct pm8921_platform_data
 	return ret;
 }
 
-static int __devinit pm8921_probe(struct platform_device *pdev)
+static int pm8921_probe(struct platform_device *pdev)
 {
 	const struct pm8921_platform_data *pdata = pdev->dev.platform_data;
 	struct pm8921 *pmic;

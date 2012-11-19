@@ -769,7 +769,7 @@ struct regmap_config da9052_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(da9052_regmap_config);
 
-int __devinit da9052_device_init(struct da9052 *da9052, u8 chip_id)
+int da9052_device_init(struct da9052 *da9052, u8 chip_id)
 {
 	struct da9052_pdata *pdata = da9052->dev->platform_data;
 	int ret;

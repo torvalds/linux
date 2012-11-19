@@ -18,7 +18,7 @@
 
 #include <linux/mfd/da9055/core.h>
 
-static int __devinit da9055_i2c_probe(struct i2c_client *i2c,
+static int da9055_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct da9055 *da9055;

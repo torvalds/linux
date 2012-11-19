@@ -692,7 +692,7 @@ static int twl4030_madc_set_power(struct twl4030_madc_data *madc, int on)
 /*
  * Initialize MADC and request for threaded irq
  */
-static int __devinit twl4030_madc_probe(struct platform_device *pdev)
+static int twl4030_madc_probe(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc;
 	struct twl4030_madc_platform_data *pdata = pdev->dev.platform_data;

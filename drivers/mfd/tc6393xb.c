@@ -602,7 +602,7 @@ static void tc6393xb_detach_irq(struct platform_device *dev)
 
 /*--------------------------------------------------------------------------*/
 
-static int __devinit tc6393xb_probe(struct platform_device *dev)
+static int tc6393xb_probe(struct platform_device *dev)
 {
 	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
 	struct tc6393xb *tc6393xb;

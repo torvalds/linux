@@ -565,7 +565,7 @@ static struct irq_domain_ops pm860x_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 
-static int __devinit device_irq_init(struct pm860x_chip *chip,
+static int device_irq_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
 	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
@@ -730,7 +730,7 @@ out:
 }
 EXPORT_SYMBOL(pm8606_osc_disable);
 
-static void __devinit device_osc_init(struct i2c_client *i2c)
+static void device_osc_init(struct i2c_client *i2c)
 {
 	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 
@@ -745,7 +745,7 @@ static void __devinit device_osc_init(struct i2c_client *i2c)
 	chip->osc_status = PM8606_REF_GP_OSC_OFF;
 }
 
-static void __devinit device_bk_init(struct pm860x_chip *chip,
+static void device_bk_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
 	int ret, i;
@@ -765,7 +765,7 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add backlight subdev\n");
 }
 
-static void __devinit device_led_init(struct pm860x_chip *chip,
+static void device_led_init(struct pm860x_chip *chip,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret, i;
@@ -787,7 +787,7 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_regulator_init(struct pm860x_chip *chip,
+static void device_regulator_init(struct pm860x_chip *chip,
 					    struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -866,7 +866,7 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_rtc_init(struct pm860x_chip *chip,
+static void device_rtc_init(struct pm860x_chip *chip,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -885,7 +885,7 @@ static void __devinit device_rtc_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 }
 
-static void __devinit device_touch_init(struct pm860x_chip *chip,
+static void device_touch_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -904,7 +904,7 @@ static void __devinit device_touch_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add touch subdev\n");
 }
 
-static void __devinit device_power_init(struct pm860x_chip *chip,
+static void device_power_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -951,7 +951,7 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_onkey_init(struct pm860x_chip *chip,
+static void device_onkey_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -965,7 +965,7 @@ static void __devinit device_onkey_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 }
 
-static void __devinit device_codec_init(struct pm860x_chip *chip,
+static void device_codec_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -979,7 +979,7 @@ static void __devinit device_codec_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add codec subdev\n");
 }
 
-static void __devinit device_8607_init(struct pm860x_chip *chip,
+static void device_8607_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
@@ -1040,7 +1040,7 @@ out:
 	return;
 }
 
-static void __devinit device_8606_init(struct pm860x_chip *chip,
+static void device_8606_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
@@ -1049,7 +1049,7 @@ static void __devinit device_8606_init(struct pm860x_chip *chip,
 	device_led_init(chip, pdata);
 }
 
-static int __devinit pm860x_device_init(struct pm860x_chip *chip,
+static int pm860x_device_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	chip->core_irq = 0;
@@ -1109,7 +1109,7 @@ static struct regmap_config pm860x_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit pm860x_dt_init(struct device_node *np,
+static int pm860x_dt_init(struct device_node *np,
 				    struct device *dev,
 				    struct pm860x_platform_data *pdata)
 {
@@ -1127,7 +1127,7 @@ static int __devinit pm860x_dt_init(struct device_node *np,
 	return 0;
 }
 
-static int __devinit pm860x_probe(struct i2c_client *client,
+static int pm860x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct pm860x_platform_data *pdata = client->dev.platform_data;

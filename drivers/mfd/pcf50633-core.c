@@ -191,7 +191,7 @@ static struct regmap_config pcf50633_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit pcf50633_probe(struct i2c_client *client,
+static int pcf50633_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct pcf50633 *pcf;

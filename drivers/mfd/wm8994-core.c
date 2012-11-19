@@ -399,7 +399,7 @@ static const __devinitconst struct reg_default wm1811_reva_patch[] = {
 /*
  * Instantiate the generic non-control parts of the device.
  */
-static __devinit int wm8994_device_init(struct wm8994 *wm8994, int irq)
+static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 {
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
 	struct regmap_config *regmap_config;
@@ -689,7 +689,7 @@ static const struct of_device_id wm8994_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, wm8994_of_match);
 
-static __devinit int wm8994_i2c_probe(struct i2c_client *i2c,
+static int wm8994_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8994 *wm8994;

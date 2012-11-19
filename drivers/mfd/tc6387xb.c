@@ -138,7 +138,7 @@ static struct mfd_cell tc6387xb_cells[] = {
 	},
 };
 
-static int __devinit tc6387xb_probe(struct platform_device *dev)
+static int tc6387xb_probe(struct platform_device *dev)
 {
 	struct tc6387xb_platform_data *pdata = dev->dev.platform_data;
 	struct resource *iomem, *rscr;

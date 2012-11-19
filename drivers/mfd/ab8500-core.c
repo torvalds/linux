@@ -1248,7 +1248,7 @@ static struct attribute_group ab9540_attr_group = {
 	.attrs	= ab9540_sysfs_entries,
 };
 
-static int __devinit ab8500_probe(struct platform_device *pdev)
+static int ab8500_probe(struct platform_device *pdev)
 {
 	static char *switch_off_status[] = {
 		"Swoff bit programming",

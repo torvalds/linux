@@ -282,7 +282,7 @@ static int tc3589x_chip_init(struct tc3589x *tc3589x)
 	return tc3589x_reg_write(tc3589x, TC3589x_RSTINTCLR, 0x1);
 }
 
-static int __devinit tc3589x_device_init(struct tc3589x *tc3589x)
+static int tc3589x_device_init(struct tc3589x *tc3589x)
 {
 	int ret = 0;
 	unsigned int blocks = tc3589x->pdata->block;
@@ -329,7 +329,7 @@ static int tc3589x_of_probe(struct device_node *np,
 	return 0;
 }
 
-static int __devinit tc3589x_probe(struct i2c_client *i2c,
+static int tc3589x_probe(struct i2c_client *i2c,
 				   const struct i2c_device_id *id)
 {
 	struct tc3589x_platform_data *pdata = i2c->dev.platform_data;

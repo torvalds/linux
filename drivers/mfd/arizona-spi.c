@@ -22,7 +22,7 @@
 
 #include "arizona.h"
 
-static int __devinit arizona_spi_probe(struct spi_device *spi)
+static int arizona_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
 	struct arizona *arizona;

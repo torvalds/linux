@@ -246,7 +246,7 @@ int da903x_query_status(struct device *dev, unsigned int sbits)
 }
 EXPORT_SYMBOL(da903x_query_status);
 
-static int __devinit da9030_init_chip(struct da903x_chip *chip)
+static int da9030_init_chip(struct da903x_chip *chip)
 {
 	uint8_t chip_id;
 	int err;
@@ -459,7 +459,7 @@ static int da903x_remove_subdevs(struct da903x_chip *chip)
 	return device_for_each_child(chip->dev, NULL, __remove_subdev);
 }
 
-static int __devinit da903x_add_subdevs(struct da903x_chip *chip,
+static int da903x_add_subdevs(struct da903x_chip *chip,
 					struct da903x_platform_data *pdata)
 {
 	struct da903x_subdev_info *subdev;
@@ -491,7 +491,7 @@ failed:
 	return ret;
 }
 
-static int __devinit da903x_probe(struct i2c_client *client,
+static int da903x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct da903x_platform_data *pdata = client->dev.platform_data;

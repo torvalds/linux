@@ -153,7 +153,7 @@ static const struct of_device_id tps65217_of_match[] = {
 	{ /* sentinel */ },
 };
 
-static int __devinit tps65217_probe(struct i2c_client *client,
+static int tps65217_probe(struct i2c_client *client,
 				const struct i2c_device_id *ids)
 {
 	struct tps65217 *tps;

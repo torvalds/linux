@@ -52,7 +52,7 @@ static struct stmpe_client_info i2c_ci = {
 	.write_block = i2c_block_write,
 };
 
-static int __devinit
+static int
 stmpe_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
 	i2c_ci.data = (void *)id;

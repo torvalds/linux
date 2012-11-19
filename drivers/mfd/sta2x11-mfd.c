@@ -69,7 +69,7 @@ static struct sta2x11_mfd *sta2x11_mfd_find(struct pci_dev *pdev)
 	return NULL;
 }
 
-static int __devinit sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
+static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 {
 	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
 	struct sta2x11_instance *instance;
@@ -363,7 +363,7 @@ static int sta2x11_mfd_resume(struct pci_dev *pdev)
 	return 0;
 }
 
-static int __devinit sta2x11_mfd_probe(struct pci_dev *pdev,
+static int sta2x11_mfd_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *pci_id)
 {
 	int err, i;

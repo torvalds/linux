@@ -672,7 +672,7 @@ static void lpc_ich_restore_config_space(struct pci_dev *dev)
 	}
 }
 
-static void __devinit lpc_ich_enable_acpi_space(struct pci_dev *dev)
+static void lpc_ich_enable_acpi_space(struct pci_dev *dev)
 {
 	u8 reg_save;
 
@@ -681,7 +681,7 @@ static void __devinit lpc_ich_enable_acpi_space(struct pci_dev *dev)
 	lpc_ich_acpi_save = reg_save;
 }
 
-static void __devinit lpc_ich_enable_gpio_space(struct pci_dev *dev)
+static void lpc_ich_enable_gpio_space(struct pci_dev *dev)
 {
 	u8 reg_save;
 
@@ -690,7 +690,7 @@ static void __devinit lpc_ich_enable_gpio_space(struct pci_dev *dev)
 	lpc_ich_gpio_save = reg_save;
 }
 
-static void __devinit lpc_ich_finalize_cell(struct mfd_cell *cell,
+static void lpc_ich_finalize_cell(struct mfd_cell *cell,
 					const struct pci_device_id *id)
 {
 	cell->platform_data = &lpc_chipset_info[id->driver_data];
@@ -702,7 +702,7 @@ static void __devinit lpc_ich_finalize_cell(struct mfd_cell *cell,
  * GPIO groups and it's enough to have access to one of these to instantiate
  * the device.
  */
-static int __devinit lpc_ich_check_conflict_gpio(struct resource *res)
+static int lpc_ich_check_conflict_gpio(struct resource *res)
 {
 	int ret;
 	u8 use_gpio = 0;
@@ -721,7 +721,7 @@ static int __devinit lpc_ich_check_conflict_gpio(struct resource *res)
 	return use_gpio ? use_gpio : ret;
 }
 
-static int __devinit lpc_ich_init_gpio(struct pci_dev *dev,
+static int lpc_ich_init_gpio(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u32 base_addr_cfg;
@@ -798,7 +798,7 @@ gpio_done:
 	return ret;
 }
 
-static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
+static int lpc_ich_init_wdt(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u32 base_addr_cfg;
@@ -852,7 +852,7 @@ wdt_done:
 	return ret;
 }
 
-static int __devinit lpc_ich_probe(struct pci_dev *dev,
+static int lpc_ich_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	int ret;

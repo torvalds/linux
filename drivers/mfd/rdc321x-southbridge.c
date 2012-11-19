@@ -72,7 +72,7 @@ static struct mfd_cell rdc321x_sb_cells[] = {
 	},
 };
 
-static int __devinit rdc321x_sb_probe(struct pci_dev *pdev,
+static int rdc321x_sb_probe(struct pci_dev *pdev,
 					const struct pci_device_id *ent)
 {
 	int err;

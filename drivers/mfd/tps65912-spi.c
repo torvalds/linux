@@ -81,7 +81,7 @@ static int tps65912_spi_read(struct tps65912 *tps65912, u8 addr,
 	return ret;
 }
 
-static int __devinit tps65912_spi_probe(struct spi_device *spi)
+static int tps65912_spi_probe(struct spi_device *spi)
 {
 	struct tps65912 *tps65912;
 

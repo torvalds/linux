@@ -382,7 +382,7 @@ static struct attribute_group lm3533_attribute_group = {
 	.attrs		= lm3533_attributes
 };
 
-static int __devinit lm3533_device_als_init(struct lm3533 *lm3533)
+static int lm3533_device_als_init(struct lm3533 *lm3533)
 {
 	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
 	int ret;
@@ -405,7 +405,7 @@ static int __devinit lm3533_device_als_init(struct lm3533 *lm3533)
 	return 0;
 }
 
-static int __devinit lm3533_device_bl_init(struct lm3533 *lm3533)
+static int lm3533_device_bl_init(struct lm3533 *lm3533)
 {
 	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
 	int i;
@@ -434,7 +434,7 @@ static int __devinit lm3533_device_bl_init(struct lm3533 *lm3533)
 	return 0;
 }
 
-static int __devinit lm3533_device_led_init(struct lm3533 *lm3533)
+static int lm3533_device_led_init(struct lm3533 *lm3533)
 {
 	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
 	int i;
@@ -463,7 +463,7 @@ static int __devinit lm3533_device_led_init(struct lm3533 *lm3533)
 	return 0;
 }
 
-static int __devinit lm3533_device_setup(struct lm3533 *lm3533,
+static int lm3533_device_setup(struct lm3533 *lm3533,
 					struct lm3533_platform_data *pdata)
 {
 	int ret;
@@ -479,7 +479,7 @@ static int __devinit lm3533_device_setup(struct lm3533 *lm3533,
 	return 0;
 }
 
-static int __devinit lm3533_device_init(struct lm3533 *lm3533)
+static int lm3533_device_init(struct lm3533 *lm3533)
 {
 	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
 	int ret;
@@ -596,7 +596,7 @@ static struct regmap_config regmap_config = {
 	.precious_reg	= lm3533_precious_register,
 };
 
-static int __devinit lm3533_i2c_probe(struct i2c_client *i2c,
+static int lm3533_i2c_probe(struct i2c_client *i2c,
 					const struct i2c_device_id *id)
 {
 	struct lm3533 *lm3533;

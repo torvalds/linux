@@ -63,7 +63,7 @@ struct cmodio_device {
  * Subdevices using the mfd-core API
  */
 
-static int __devinit cmodio_setup_subdevice(struct cmodio_device *priv,
+static int cmodio_setup_subdevice(struct cmodio_device *priv,
 					    char *name, unsigned int devno,
 					    unsigned int modno)
 {
@@ -120,7 +120,7 @@ static int __devinit cmodio_setup_subdevice(struct cmodio_device *priv,
 }
 
 /* Probe each submodule using kernel parameters */
-static int __devinit cmodio_probe_submodules(struct cmodio_device *priv)
+static int cmodio_probe_submodules(struct cmodio_device *priv)
 {
 	struct pci_dev *pdev = priv->pdev;
 	unsigned int num_probed = 0;
@@ -177,7 +177,7 @@ static const struct attribute_group cmodio_sysfs_attr_group = {
  * PCI Driver
  */
 
-static int __devinit cmodio_pci_probe(struct pci_dev *dev,
+static int cmodio_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
 	struct cmodio_device *priv;

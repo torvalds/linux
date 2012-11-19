@@ -188,7 +188,7 @@ static irqreturn_t tps65090_irq(int irq, void *data)
 	return acks ? IRQ_HANDLED : IRQ_NONE;
 }
 
-static int __devinit tps65090_irq_init(struct tps65090 *tps65090, int irq,
+static int tps65090_irq_init(struct tps65090 *tps65090, int irq,
 	int irq_base)
 {
 	int i, ret;
@@ -251,7 +251,7 @@ static const struct regmap_config tps65090_regmap_config = {
 	.volatile_reg = is_volatile_reg,
 };
 
-static int __devinit tps65090_i2c_probe(struct i2c_client *client,
+static int tps65090_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct tps65090_platform_data *pdata = client->dev.platform_data;

@@ -285,7 +285,7 @@ static struct mfd_cell wm5110_devs[] = {
 	{ .name = "wm5110-codec" },
 };
 
-int __devinit arizona_dev_init(struct arizona *arizona)
+int arizona_dev_init(struct arizona *arizona)
 {
 	struct device *dev = arizona->dev;
 	const char *type_name;

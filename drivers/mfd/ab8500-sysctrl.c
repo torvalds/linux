@@ -49,7 +49,7 @@ int ab8500_sysctrl_write(u16 reg, u8 mask, u8 value)
 		(u8)(reg & 0xFF), mask, value);
 }
 
-static int __devinit ab8500_sysctrl_probe(struct platform_device *pdev)
+static int ab8500_sysctrl_probe(struct platform_device *pdev)
 {
 	sysctrl_dev = &pdev->dev;
 	return 0;

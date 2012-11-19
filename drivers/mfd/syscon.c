@@ -97,7 +97,7 @@ static struct regmap_config syscon_regmap_config = {
 	.reg_stride = 4,
 };
 
-static int __devinit syscon_probe(struct platform_device *pdev)
+static int syscon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;

@@ -135,7 +135,7 @@ static struct regmap_irq pm805_irqs[] = {
 	},
 };
 
-static int __devinit device_irq_init_805(struct pm80x_chip *chip)
+static int device_irq_init_805(struct pm80x_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
@@ -189,7 +189,7 @@ static struct regmap_irq_chip pm805_irq_chip = {
 	.ack_base = PM805_INT_STATUS1,
 };
 
-static int __devinit device_805_init(struct pm80x_chip *chip)
+static int device_805_init(struct pm80x_chip *chip)
 {
 	int ret = 0;
 	unsigned int val;
@@ -232,7 +232,7 @@ out_irq_init:
 	return ret;
 }
 
-static int __devinit pm805_probe(struct i2c_client *client,
+static int pm805_probe(struct i2c_client *client,
 				 const struct i2c_device_id *id)
 {
 	int ret = 0;

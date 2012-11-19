@@ -72,7 +72,7 @@ static struct mfd_cell vx855_cells[] = {
 	},
 };
 
-static __devinit int vx855_probe(struct pci_dev *pdev,
+static int vx855_probe(struct pci_dev *pdev,
 				 const struct pci_device_id *id)
 {
 	int ret;

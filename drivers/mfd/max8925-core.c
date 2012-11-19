@@ -714,7 +714,7 @@ tsc_irq:
 	return 0;
 }
 
-static void __devinit init_regulator(struct max8925_chip *chip,
+static void init_regulator(struct max8925_chip *chip,
 				     struct max8925_platform_data *pdata)
 {
 	int ret;
@@ -821,7 +821,7 @@ static void __devinit init_regulator(struct max8925_chip *chip,
 	}
 }
 
-int __devinit max8925_device_init(struct max8925_chip *chip,
+int max8925_device_init(struct max8925_chip *chip,
 				  struct max8925_platform_data *pdata)
 {
 	int ret;

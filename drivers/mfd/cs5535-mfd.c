@@ -113,7 +113,7 @@ static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
 };
 
 #ifdef CONFIG_OLPC
-static void __devinit cs5535_clone_olpc_cells(void)
+static void cs5535_clone_olpc_cells(void)
 {
 	const char *acpi_clones[] = { "olpc-xo1-pm-acpi", "olpc-xo1-sci-acpi" };
 
@@ -126,7 +126,7 @@ static void __devinit cs5535_clone_olpc_cells(void)
 static void cs5535_clone_olpc_cells(void) { }
 #endif
 
-static int __devinit cs5535_mfd_probe(struct pci_dev *pdev,
+static int cs5535_mfd_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	int err, i;

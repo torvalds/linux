@@ -377,7 +377,7 @@ static struct regmap_irq_chip da9055_regmap_irq_chip = {
 	.num_irqs = ARRAY_SIZE(da9055_irqs),
 };
 
-int __devinit da9055_device_init(struct da9055 *da9055)
+int da9055_device_init(struct da9055 *da9055)
 {
 	struct da9055_pdata *pdata = da9055->dev->platform_data;
 	int ret;

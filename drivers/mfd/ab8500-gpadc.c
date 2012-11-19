@@ -571,7 +571,7 @@ static void ab8500_gpadc_read_calibration_data(struct ab8500_gpadc *gpadc)
 		gpadc->cal_data[ADC_INPUT_VBAT].offset);
 }
 
-static int __devinit ab8500_gpadc_probe(struct platform_device *pdev)
+static int ab8500_gpadc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ab8500_gpadc *gpadc;

@@ -708,7 +708,7 @@ ab3100_init_settings[] = {
 	},
 };
 
-static int __devinit ab3100_setup(struct ab3100 *ab3100)
+static int ab3100_setup(struct ab3100 *ab3100)
 {
 	int err = 0;
 	int i;
@@ -857,7 +857,7 @@ static const struct ab_family_id ids[] __devinitconst = {
 	},
 };
 
-static int __devinit ab3100_probe(struct i2c_client *client,
+static int ab3100_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct ab3100 *ab3100;

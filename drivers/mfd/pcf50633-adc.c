@@ -199,7 +199,7 @@ static void pcf50633_adc_irq(int irq, void *data)
 	kfree(req);
 }
 
-static int __devinit pcf50633_adc_probe(struct platform_device *pdev)
+static int pcf50633_adc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_adc *adc;
 

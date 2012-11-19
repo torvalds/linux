@@ -650,7 +650,7 @@ static DEVICE_ATTR(fw_ver, S_IRUGO, show_fw_ver, NULL);
 
 /*--------------------------------------------------------------------------*/
 
-static int __devinit timb_probe(struct pci_dev *dev,
+static int timb_probe(struct pci_dev *dev,
 	const struct pci_device_id *id)
 {
 	struct timberdale_device *priv;
