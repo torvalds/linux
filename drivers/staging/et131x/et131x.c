@@ -5099,7 +5099,7 @@ static struct pci_driver et131x_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= et131x_pci_table,
 	.probe		= et131x_pci_setup,
-	.remove		= __devexit_p(et131x_pci_remove),
+	.remove		= et131x_pci_remove,
 	.driver.pm	= ET131X_PM_OPS,
 };
 
