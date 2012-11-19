@@ -229,8 +229,7 @@ void ipack_device_unregister(struct ipack_device *dev);
  * in a generic manner.
  */
 #define DEFINE_IPACK_DEVICE_TABLE(_table) \
-	const struct ipack_device_id _table[] __devinitconst
-
+	const struct ipack_device_id _table[]
 /**
  * IPACK_DEVICE - macro used to describe a specific IndustryPack device
  * @_format: the format version (currently either 1 or 2, 8 bit value)
