@@ -42,7 +42,7 @@ static int variant_num;
 static bool loopback;
 
 static int pio2_match(struct vme_dev *);
-static int __devinit pio2_probe(struct vme_dev *);
+static int pio2_probe(struct vme_dev *);
 static int __devexit pio2_remove(struct vme_dev *);
 
 static int pio2_get_led(struct pio2_card *card)
@@ -222,7 +222,7 @@ static int pio2_match(struct vme_dev *vdev)
 	return 1;
 }
 
-static int __devinit pio2_probe(struct vme_dev *vdev)
+static int pio2_probe(struct vme_dev *vdev)
 {
 	struct pio2_card *card;
 	int retval;
