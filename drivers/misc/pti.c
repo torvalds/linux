@@ -76,7 +76,7 @@ struct pti_dev {
  */
 static DEFINE_MUTEX(alloclock);
 
-static const struct pci_device_id pci_ids[] __devinitconst = {
+static const struct pci_device_id pci_ids[] = {
 		{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x82B)},
 		{0}
 };
