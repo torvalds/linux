@@ -527,7 +527,7 @@ err1:
 	return err;
 }
 
-static int __devexit omap34_xx_bridge_remove(struct platform_device *pdev)
+static int omap34_xx_bridge_remove(struct platform_device *pdev)
 {
 	dev_t devno;
 	int status = 0;
