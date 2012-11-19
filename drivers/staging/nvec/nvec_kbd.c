@@ -169,7 +169,7 @@ static int __devexit nvec_kbd_remove(struct platform_device *pdev)
 
 static struct platform_driver nvec_kbd_driver = {
 	.probe  = nvec_kbd_probe,
-	.remove = __devexit_p(nvec_kbd_remove),
+	.remove = nvec_kbd_remove,
 	.driver = {
 		.name = "nvec-kbd",
 		.owner = THIS_MODULE,

@@ -909,7 +909,7 @@ MODULE_DEVICE_TABLE(of, nvidia_nvec_of_match);
 
 static struct platform_driver nvec_device_driver = {
 	.probe   = tegra_nvec_probe,
-	.remove  = __devexit_p(tegra_nvec_remove),
+	.remove  = tegra_nvec_remove,
 	.driver  = {
 		.name = "nvec",
 		.owner = THIS_MODULE,

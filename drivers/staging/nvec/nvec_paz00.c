@@ -83,7 +83,7 @@ static int __devexit nvec_paz00_remove(struct platform_device *pdev)
 
 static struct platform_driver nvec_paz00_driver = {
 	.probe  = nvec_paz00_probe,
-	.remove = __devexit_p(nvec_paz00_remove),
+	.remove = nvec_paz00_remove,
 	.driver = {
 		.name  = "nvec-paz00",
 		.owner = THIS_MODULE,

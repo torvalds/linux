@@ -164,7 +164,7 @@ static const SIMPLE_DEV_PM_OPS(nvec_mouse_pm_ops, nvec_mouse_suspend,
 
 static struct platform_driver nvec_mouse_driver = {
 	.probe  = nvec_mouse_probe,
-	.remove = __devexit_p(nvec_mouse_remove),
+	.remove = nvec_mouse_remove,
 	.driver = {
 		.name = "nvec-mouse",
 		.owner = THIS_MODULE,
