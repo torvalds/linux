@@ -1399,7 +1399,7 @@ struct root_device {
 	struct module *owner;
 };
 
-inline struct root_device *to_root_device(struct device *d)
+static inline struct root_device *to_root_device(struct device *d)
 {
 	return container_of(d, struct root_device, dev);
 }
