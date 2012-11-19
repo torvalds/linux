@@ -413,7 +413,7 @@ static struct platform_driver gab_driver = {
 		.pm	= GAB_PM_OPS
 	},
 	.probe		= gab_probe,
-	.remove		= __devexit_p(gab_remove),
+	.remove		= gab_remove,
 };
 module_platform_driver(gab_driver);
 

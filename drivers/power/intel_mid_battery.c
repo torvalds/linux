@@ -776,7 +776,7 @@ static struct platform_driver platform_pmic_battery_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = platform_pmic_battery_probe,
-	.remove = __devexit_p(platform_pmic_battery_remove),
+	.remove = platform_pmic_battery_remove,
 };
 
 module_platform_driver(platform_pmic_battery_driver);

@@ -367,7 +367,7 @@ static __devexit int max8903_remove(struct platform_device *pdev)
 
 static struct platform_driver max8903_driver = {
 	.probe	= max8903_probe,
-	.remove	= __devexit_p(max8903_remove),
+	.remove	= max8903_remove,
 	.driver = {
 		.name	= "max8903-charger",
 		.owner	= THIS_MODULE,

@@ -1812,7 +1812,7 @@ static struct platform_driver charger_manager_driver = {
 		.pm = &charger_manager_pm,
 	},
 	.probe = charger_manager_probe,
-	.remove = __devexit_p(charger_manager_remove),
+	.remove = charger_manager_remove,
 	.id_table = charger_manager_id,
 };
 

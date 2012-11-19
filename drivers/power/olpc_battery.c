@@ -681,7 +681,7 @@ static struct platform_driver olpc_battery_driver = {
 		.of_match_table = olpc_battery_ids,
 	},
 	.probe = olpc_battery_probe,
-	.remove = __devexit_p(olpc_battery_remove),
+	.remove = olpc_battery_remove,
 	.suspend = olpc_battery_suspend,
 };
 

@@ -502,7 +502,7 @@ static struct platform_driver isp1704_charger_driver = {
 		.name = "isp1704_charger",
 	},
 	.probe = isp1704_charger_probe,
-	.remove = __devexit_p(isp1704_charger_remove),
+	.remove = isp1704_charger_remove,
 };
 
 module_platform_driver(isp1704_charger_driver);

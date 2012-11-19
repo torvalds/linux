@@ -1893,7 +1893,7 @@ free_device_info:
 
 static struct platform_driver abx500_chargalg_driver = {
 	.probe = abx500_chargalg_probe,
-	.remove = __devexit_p(abx500_chargalg_remove),
+	.remove = abx500_chargalg_remove,
 	.suspend = abx500_chargalg_suspend,
 	.resume = abx500_chargalg_resume,
 	.driver = {

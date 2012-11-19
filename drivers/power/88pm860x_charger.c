@@ -738,7 +738,7 @@ static struct platform_driver pm860x_charger_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = pm860x_charger_probe,
-	.remove = __devexit_p(pm860x_charger_remove),
+	.remove = pm860x_charger_remove,
 };
 module_platform_driver(pm860x_charger_driver);
 

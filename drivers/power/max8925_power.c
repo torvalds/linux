@@ -517,7 +517,7 @@ static __devexit int max8925_power_remove(struct platform_device *pdev)
 
 static struct platform_driver max8925_power_driver = {
 	.probe	= max8925_power_probe,
-	.remove	= __devexit_p(max8925_power_remove),
+	.remove	= max8925_power_remove,
 	.driver	= {
 		.name	= "max8925-power",
 	},

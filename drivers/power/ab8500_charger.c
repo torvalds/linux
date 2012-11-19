@@ -2765,7 +2765,7 @@ free_device_info:
 
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
-	.remove = __devexit_p(ab8500_charger_remove),
+	.remove = ab8500_charger_remove,
 	.suspend = ab8500_charger_suspend,
 	.resume = ab8500_charger_resume,
 	.driver = {

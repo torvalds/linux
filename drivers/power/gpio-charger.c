@@ -177,7 +177,7 @@ static SIMPLE_DEV_PM_OPS(gpio_charger_pm_ops, NULL, gpio_charger_resume);
 
 static struct platform_driver gpio_charger_driver = {
 	.probe = gpio_charger_probe,
-	.remove = __devexit_p(gpio_charger_remove),
+	.remove = gpio_charger_remove,
 	.driver = {
 		.name = "gpio-charger",
 		.owner = THIS_MODULE,

@@ -648,7 +648,7 @@ static int __devexit da9052_bat_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_bat_driver = {
 	.probe = da9052_bat_probe,
-	.remove = __devexit_p(da9052_bat_remove),
+	.remove = da9052_bat_remove,
 	.driver = {
 		.name = "da9052-bat",
 		.owner = THIS_MODULE,

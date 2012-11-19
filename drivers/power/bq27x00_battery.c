@@ -983,7 +983,7 @@ static int __devexit bq27000_battery_remove(struct platform_device *pdev)
 
 static struct platform_driver bq27000_battery_driver = {
 	.probe	= bq27000_battery_probe,
-	.remove = __devexit_p(bq27000_battery_remove),
+	.remove = bq27000_battery_remove,
 	.driver = {
 		.name = "bq27000-battery",
 		.owner = THIS_MODULE,

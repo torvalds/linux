@@ -367,7 +367,7 @@ static void __devexit collie_bat_remove(struct ucb1x00_dev *dev)
 
 static struct ucb1x00_driver collie_bat_driver = {
 	.add		= collie_bat_probe,
-	.remove		= __devexit_p(collie_bat_remove),
+	.remove		= collie_bat_remove,
 	.suspend	= collie_bat_suspend,
 	.resume		= collie_bat_resume,
 };

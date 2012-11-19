@@ -827,7 +827,7 @@ static struct platform_driver ds2781_battery_driver = {
 		.name = "ds2781-battery",
 	},
 	.probe	  = ds2781_battery_probe,
-	.remove   = __devexit_p(ds2781_battery_remove),
+	.remove   = ds2781_battery_remove,
 };
 module_platform_driver(ds2781_battery_driver);
 

@@ -853,7 +853,7 @@ MODULE_DEVICE_TABLE(i2c, sbs_id);
 
 static struct i2c_driver sbs_battery_driver = {
 	.probe		= sbs_probe,
-	.remove		= __devexit_p(sbs_remove),
+	.remove		= sbs_remove,
 	.suspend	= sbs_suspend,
 	.resume		= sbs_resume,
 	.id_table	= sbs_id,

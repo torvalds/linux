@@ -433,7 +433,7 @@ static struct platform_driver tosa_bat_driver = {
 	.driver.name	= "wm97xx-battery",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tosa_bat_probe,
-	.remove		= __devexit_p(tosa_bat_remove),
+	.remove		= tosa_bat_remove,
 	.suspend	= tosa_bat_suspend,
 	.resume		= tosa_bat_resume,
 };

@@ -220,7 +220,7 @@ static __devexit int wm831x_backup_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_backup_driver = {
 	.probe = wm831x_backup_probe,
-	.remove = __devexit_p(wm831x_backup_remove),
+	.remove = wm831x_backup_remove,
 	.driver = {
 		.name = "wm831x-backup",
 	},

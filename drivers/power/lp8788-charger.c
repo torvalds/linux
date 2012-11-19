@@ -781,7 +781,7 @@ static int __devexit lp8788_charger_remove(struct platform_device *pdev)
 
 static struct platform_driver lp8788_charger_driver = {
 	.probe = lp8788_charger_probe,
-	.remove = __devexit_p(lp8788_charger_remove),
+	.remove = lp8788_charger_remove,
 	.driver = {
 		.name = LP8788_DEV_CHARGER,
 		.owner = THIS_MODULE,

@@ -851,7 +851,7 @@ static struct i2c_driver max17042_i2c_driver = {
 		.pm	= MAX17042_PM_OPS,
 	},
 	.probe		= max17042_probe,
-	.remove		= __devexit_p(max17042_remove),
+	.remove		= max17042_remove,
 	.id_table	= max17042_id,
 };
 module_i2c_driver(max17042_i2c_driver);

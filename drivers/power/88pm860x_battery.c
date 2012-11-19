@@ -1033,7 +1033,7 @@ static struct platform_driver pm860x_battery_driver = {
 		   .pm = &pm860x_battery_pm_ops,
 	},
 	.probe = pm860x_battery_probe,
-	.remove = __devexit_p(pm860x_battery_remove),
+	.remove = pm860x_battery_remove,
 };
 module_platform_driver(pm860x_battery_driver);
 

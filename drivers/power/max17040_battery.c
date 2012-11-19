@@ -285,7 +285,7 @@ static struct i2c_driver max17040_i2c_driver = {
 		.name	= "max17040",
 	},
 	.probe		= max17040_probe,
-	.remove		= __devexit_p(max17040_remove),
+	.remove		= max17040_remove,
 	.suspend	= max17040_suspend,
 	.resume		= max17040_resume,
 	.id_table	= max17040_id,

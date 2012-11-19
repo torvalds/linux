@@ -187,7 +187,7 @@ static struct platform_driver max8997_battery_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8997_battery_probe,
-	.remove = __devexit_p(max8997_battery_remove),
+	.remove = max8997_battery_remove,
 	.id_table = max8997_battery_id,
 };
 

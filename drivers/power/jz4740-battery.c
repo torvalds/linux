@@ -431,7 +431,7 @@ static const struct dev_pm_ops jz_battery_pm_ops = {
 
 static struct platform_driver jz_battery_driver = {
 	.probe		= jz_battery_probe,
-	.remove		= __devexit_p(jz_battery_remove),
+	.remove		= jz_battery_remove,
 	.driver = {
 		.name = "jz4740-battery",
 		.owner = THIS_MODULE,

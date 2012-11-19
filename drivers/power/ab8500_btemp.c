@@ -1101,7 +1101,7 @@ free_device_info:
 
 static struct platform_driver ab8500_btemp_driver = {
 	.probe = ab8500_btemp_probe,
-	.remove = __devexit_p(ab8500_btemp_remove),
+	.remove = ab8500_btemp_remove,
 	.suspend = ab8500_btemp_suspend,
 	.resume = ab8500_btemp_resume,
 	.driver = {

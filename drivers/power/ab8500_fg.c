@@ -2614,7 +2614,7 @@ free_device_info:
 
 static struct platform_driver ab8500_fg_driver = {
 	.probe = ab8500_fg_probe,
-	.remove = __devexit_p(ab8500_fg_remove),
+	.remove = ab8500_fg_remove,
 	.suspend = ab8500_fg_suspend,
 	.resume = ab8500_fg_resume,
 	.driver = {
