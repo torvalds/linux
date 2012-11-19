@@ -63,6 +63,7 @@
 
 #define VS18			(1 << 26)
 #define VS30			(1 << 25)
+#define HSS			(1 << 21)
 #define SDVS18			(0x5 << 9)
 #define SDVS30			(0x6 << 9)
 #define SDVS33			(0x7 << 9)
@@ -90,6 +91,7 @@
 #define MSBS			(1 << 5)
 #define BCE			(1 << 1)
 #define FOUR_BIT		(1 << 1)
+#define HSPE			(1 << 2)
 #define DDR			(1 << 19)
 #define DW8			(1 << 5)
 #define CC			0x1
@@ -495,6 +497,7 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	struct mmc_ios *ios = &host->mmc->ios;
 	unsigned long regval;
 	unsigned long timeout;
+	unsigned long clkdiv;
 
 	dev_vdbg(mmc_dev(host->mmc), "Set clock to %uHz\n", ios->clock);
 
@@ -502,7 +505,8 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 
 	regval = OMAP_HSMMC_READ(host->base, SYSCTL);
 	regval = regval & ~(CLKD_MASK | DTO_MASK);
-	regval = regval | (calc_divisor(host, ios) << 6) | (DTO << 16);
+	clkdiv = calc_divisor(host, ios);
+	regval = regval | (clkdiv << 6) | (DTO << 16);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL, regval);
 	OMAP_HSMMC_WRITE(host->base, SYSCTL,
 		OMAP_HSMMC_READ(host->base, SYSCTL) | ICE);
@@ -512,6 +516,27 @@ static void omap_hsmmc_set_clock(struct omap_hsmmc_host *host)
 	while ((OMAP_HSMMC_READ(host->base, SYSCTL) & ICS) != ICS
 		&& time_before(jiffies, timeout))
 		cpu_relax();
+
+	/*
+	 * Enable High-Speed Support
+	 * Pre-Requisites
+	 *	- Controller should support High-Speed-Enable Bit
+	 *	- Controller should not be using DDR Mode
+	 *	- Controller should advertise that it supports High Speed
+	 *	  in capabilities register
+	 *	- MMC/SD clock coming out of controller > 25MHz
+	 */
+	if ((mmc_slot(host).features & HSMMC_HAS_HSPE_SUPPORT) &&
+	    (ios->timing != MMC_TIMING_UHS_DDR50) &&
+	    ((OMAP_HSMMC_READ(host->base, CAPA) & HSS) == HSS)) {
+		regval = OMAP_HSMMC_READ(host->base, HCTL);
+		if (clkdiv && (clk_get_rate(host->fclk)/clkdiv) > 25000000)
+			regval |= HSPE;
+		else
+			regval &= ~HSPE;
+
+		OMAP_HSMMC_WRITE(host->base, HCTL, regval);
+	}
 
 	omap_hsmmc_start_clock(host);
 }
@@ -1714,6 +1739,9 @@ static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
 
 	if (!of_property_read_u32(np, "max-frequency", &max_freq))
 		pdata->max_freq = max_freq;
+
+	if (of_find_property(np, "ti,needs-special-hs-handling", NULL))
+		pdata->slots[0].features |= HSMMC_HAS_HSPE_SUPPORT;
 
 	return pdata;
 }
