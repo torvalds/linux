@@ -4112,15 +4112,22 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		}
 	}
 
-	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
-	root->number_of_cgroups++;
-
+	/*
+	 * Create directory.  cgroup_create_file() returns with the new
+	 * directory locked on success so that it can be populated without
+	 * dropping cgroup_mutex.
+	 */
 	err = cgroup_create_file(dentry, S_IFDIR | mode, sb);
 	if (err < 0)
-		goto err_remove;
+		goto err_destroy;
+	lockdep_assert_held(&dentry->d_inode->i_mutex);
 
+	/* allocation complete, commit to creation */
 	dentry->d_fsdata = cgrp;
 	rcu_assign_pointer(cgrp->dentry, dentry);
+	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
+	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
+	root->number_of_cgroups++;
 
 	for_each_subsys(root, ss) {
 		/* each css holds a ref to the cgroup's dentry */
@@ -4131,11 +4138,6 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			ss->post_create(cgrp);
 	}
 
-	/* The cgroup directory was pre-locked for us */
-	BUG_ON(!mutex_is_locked(&cgrp->dentry->d_inode->i_mutex));
-
-	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
-
 	err = cgroup_populate_dir(cgrp, true, root->subsys_mask);
 	/* If err < 0, we have a half-filled directory - oh well ;) */
 
@@ -4144,20 +4146,12 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	return 0;
 
- err_remove:
-
-	list_del_rcu(&cgrp->sibling);
-	root->number_of_cgroups--;
-
- err_destroy:
-
+err_destroy:
 	for_each_subsys(root, ss) {
 		if (cgrp->subsys[ss->subsys_id])
 			ss->destroy(cgrp);
 	}
-
 	mutex_unlock(&cgroup_mutex);
-
 	/* Release the reference count that we took on the superblock */
 	deactivate_super(sb);
 err_free:
