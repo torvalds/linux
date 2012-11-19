@@ -669,6 +669,15 @@ static void intel_ddi_mode_set(struct drm_encoder *encoder,
 			break;
 		}
 
+		if (intel_dp->has_audio) {
+			DRM_DEBUG_DRIVER("DP audio on pipe %c on DDI\n",
+					 pipe_name(intel_crtc->pipe));
+
+			/* write eld */
+			DRM_DEBUG_DRIVER("DP audio: write eld information\n");
+			intel_write_eld(encoder, adjusted_mode);
+		}
+
 		intel_dp_init_link_config(intel_dp);
 
 	} else if (type == INTEL_OUTPUT_HDMI) {
