@@ -12,9 +12,25 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#define UART_CR_OFFSET		0x00  /* Control Register [8:0] */
+#define UART_SR_OFFSET		0x2C  /* Channel Status [11:0] */
+#define UART_FIFO_OFFSET	0x30  /* FIFO [15:0] or [7:0] */
 
-#include <mach/zynq_soc.h>
-#include <mach/uart.h>
+#define UART_SR_TXFULL		0x00000010	/* TX FIFO full */
+#define UART_SR_TXEMPTY		0x00000008	/* TX FIFO empty */
+
+#define UART0_PHYS		0xE0000000
+#define UART1_PHYS		0xE0001000
+#define UART_SIZE		SZ_4K
+#define UART_VIRT		0xF0001000
+
+#if IS_ENABLED(CONFIG_DEBUG_ZYNQ_UART1)
+# define LL_UART_PADDR		UART1_PHYS
+#else
+# define LL_UART_PADDR		UART0_PHYS
+#endif
+
+#define LL_UART_VADDR		UART_VIRT
 
 		.macro	addruart, rp, rv, tmp
 		ldr	\rp, =LL_UART_PADDR	@ physical

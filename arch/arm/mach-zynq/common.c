@@ -30,10 +30,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
 #include <asm/page.h>
+#include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 
-#include <mach/zynq_soc.h>
 #include "common.h"
 
 static struct of_device_id zynq_of_bus_ids[] __initdata = {
@@ -68,9 +68,9 @@ static void __init xilinx_irq_init(void)
 	of_irq_init(irq_match);
 }
 
-/* The minimum devices needed to be mapped before the VM system is up and
- * running include the GIC, UART and Timer Counter.
- */
+#define SCU_PERIPH_PHYS		0xF8F00000
+#define SCU_PERIPH_SIZE		SZ_8K
+#define SCU_PERIPH_VIRT		(VMALLOC_END - SCU_PERIPH_SIZE)
 
 static struct map_desc scu_desc __initdata = {
 	.virtual	= SCU_PERIPH_VIRT,
