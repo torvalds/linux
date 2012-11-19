@@ -126,7 +126,7 @@ MODULE_DEVICE_TABLE(pci, wl_pci_tbl);
  ******************************************************************************/
 int wl_pci_probe( struct pci_dev *pdev,
                                 const struct pci_device_id *ent );
-void __devexit wl_pci_remove(struct pci_dev *pdev);
+void wl_pci_remove(struct pci_dev *pdev);
 int wl_pci_setup( struct pci_dev *pdev );
 void wl_pci_enable_cardbus_interrupts( struct pci_dev *pdev );
 
@@ -435,7 +435,7 @@ int wl_pci_probe( struct pci_dev *pdev,
  *      N/A
  *
  ******************************************************************************/
-void __devexit wl_pci_remove(struct pci_dev *pdev)
+void wl_pci_remove(struct pci_dev *pdev)
 {
     struct net_device       *dev = NULL;
     /*------------------------------------------------------------------------*/
