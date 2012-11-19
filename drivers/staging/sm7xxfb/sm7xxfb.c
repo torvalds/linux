@@ -1027,7 +1027,7 @@ static struct pci_driver smtcfb_driver = {
 	.name = "smtcfb",
 	.id_table = smtcfb_pci_table,
 	.probe = smtcfb_pci_probe,
-	.remove = __devexit_p(smtcfb_pci_remove),
+	.remove = smtcfb_pci_remove,
 	.driver.pm  = SM7XX_PM_OPS,
 };
 
