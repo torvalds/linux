@@ -602,7 +602,7 @@ static void ibmvtpm_tasklet(void *data)
  *	0 - Success
  *	Non-zero - Failure
  */
-static int __devinit tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
+static int tpm_ibmvtpm_probe(struct vio_dev *vio_dev,
 				   const struct vio_device_id *id)
 {
 	struct ibmvtpm_dev *ibmvtpm;

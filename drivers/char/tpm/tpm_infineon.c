@@ -415,7 +415,7 @@ static const struct pnp_device_id tpm_inf_pnp_tbl[] = {
 
 MODULE_DEVICE_TABLE(pnp, tpm_inf_pnp_tbl);
 
-static int __devinit tpm_inf_pnp_probe(struct pnp_dev *dev,
+static int tpm_inf_pnp_probe(struct pnp_dev *dev,
 				       const struct pnp_device_id *dev_id)
 {
 	int rc = 0;
