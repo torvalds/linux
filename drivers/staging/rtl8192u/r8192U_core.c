@@ -144,7 +144,7 @@ MODULE_PARM_DESC(ifname," Net interface name, wlan%d=default");
 MODULE_PARM_DESC(hwwep," Try to use hardware security support. ");
 MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 
-static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
+static int rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
 static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf);
 
@@ -5739,7 +5739,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
      ---------------------------- USB_STUFF---------------------------
 *****************************************************************************/
 
-static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
+static int rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
 //	unsigned long ioaddr = 0;
