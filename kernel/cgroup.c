@@ -4420,9 +4420,10 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	if (ss->use_id) {
 		int ret = cgroup_init_idr(ss, css);
 		if (ret) {
-			dummytop->subsys[ss->subsys_id] = NULL;
 			ss->destroy(dummytop);
+			dummytop->subsys[ss->subsys_id] = NULL;
 			subsys[ss->subsys_id] = NULL;
+			list_del_init(&ss->sibling);
 			mutex_unlock(&cgroup_mutex);
 			return ret;
 		}
@@ -4490,7 +4491,19 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	 */
 	BUG_ON(ss->root != &rootnode);
 
+	/* ->pre_destroy() should be called outside cgroup_mutex for now */
+	if (ss->pre_destroy)
+		ss->pre_destroy(dummytop);
+
 	mutex_lock(&cgroup_mutex);
+
+	ss->active = 0;
+
+	if (ss->use_id) {
+		idr_remove_all(&ss->idr);
+		idr_destroy(&ss->idr);
+	}
+
 	/* deassign the subsys_id */
 	subsys[ss->subsys_id] = NULL;
 
