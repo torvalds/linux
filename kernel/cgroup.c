@@ -4400,8 +4400,8 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
  */
 int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 {
-	int i;
 	struct cgroup_subsys_state *css;
+	int i, ret;
 
 	/* check name and function validity */
 	if (ss->name == NULL || strlen(ss->name) > MAX_CGROUP_TYPE_NAMELEN ||
@@ -4452,15 +4452,9 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	init_cgroup_css(css, ss, dummytop);
 	/* init_idr must be after init_cgroup_css because it sets css->id. */
 	if (ss->use_id) {
-		int ret = cgroup_init_idr(ss, css);
-		if (ret) {
-			ss->destroy(dummytop);
-			dummytop->subsys[ss->subsys_id] = NULL;
-			subsys[ss->subsys_id] = NULL;
-			list_del_init(&ss->sibling);
-			mutex_unlock(&cgroup_mutex);
-			return ret;
-		}
+		ret = cgroup_init_idr(ss, css);
+		if (ret)
+			goto err_unload;
 	}
 
 	/*
@@ -4498,6 +4492,12 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	/* success! */
 	mutex_unlock(&cgroup_mutex);
 	return 0;
+
+err_unload:
+	mutex_unlock(&cgroup_mutex);
+	/* @ss can't be mounted here as try_module_get() would fail */
+	cgroup_unload_subsys(ss);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(cgroup_load_subsys);
 
@@ -4548,7 +4548,6 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 		struct css_set *cg = link->cg;
 
 		hlist_del(&cg->hlist);
-		BUG_ON(!cg->subsys[ss->subsys_id]);
 		cg->subsys[ss->subsys_id] = NULL;
 		hhead = css_set_hash(cg->subsys);
 		hlist_add_head(&cg->hlist, hhead);
