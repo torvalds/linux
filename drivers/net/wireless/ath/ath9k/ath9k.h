@@ -461,6 +461,12 @@ void ath9k_queue_reset(struct ath_softc *sc, enum ath_reset_type type);
 /* BTCOEX */
 /**********/
 
+#define ATH_DUMP_BTCOEX(_s, _val)				\
+	do {							\
+		len += snprintf(buf + len, size - len,		\
+				"%20s : %10d\n", _s, (_val));	\
+	} while (0)
+
 enum bt_op_flags {
 	BT_OP_PRIORITY_DETECTED,
 	BT_OP_SCAN,
@@ -494,7 +500,7 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc);
 void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status);
 u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen);
 void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc);
-int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 len, u32 size);
+int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 size);
 #else
 static inline int ath9k_init_btcoex(struct ath_softc *sc)
 {
@@ -521,8 +527,7 @@ static inline u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc,
 static inline void ath9k_btcoex_stop_gen_timer(struct ath_softc *sc)
 {
 }
-static inline int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf,
-				    u32 len, u32 size)
+static inline int ath9k_dump_btcoex(struct ath_softc *sc, u8 *buf, u32 size)
 {
 	return 0;
 }

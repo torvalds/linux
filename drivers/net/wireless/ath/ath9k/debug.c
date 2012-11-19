@@ -1599,8 +1599,14 @@ static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len = ath9k_dump_btcoex(sc, buf, len, size);
+	if (!sc->sc_ah->common.btcoex_enabled) {
+		len = snprintf(buf, size, "%s\n",
+			       "BTCOEX is disabled");
+		goto exit;
+	}
 
+	len = ath9k_dump_btcoex(sc, buf, size);
+exit:
 	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
 	kfree(buf);
 
