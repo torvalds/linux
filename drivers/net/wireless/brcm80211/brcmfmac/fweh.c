@@ -494,6 +494,9 @@ void brcmf_fweh_process_event(struct brcmf_pub *drvr,
 		alloc_flag = GFP_ATOMIC;
 
 	event = kzalloc(sizeof(*event) + datalen, alloc_flag);
+	if (!event)
+		return;
+
 	event->code = code;
 	event->ifidx = *ifidx;
 
