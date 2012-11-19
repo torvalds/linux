@@ -400,7 +400,7 @@ struct buffer {
 } __attribute__ ((packed));
 
 /*    Global variables */
-static const struct pci_device_id nozomi_pci_tbl[] __devinitconst = {
+static const struct pci_device_id nozomi_pci_tbl[] = {
 	{PCI_DEVICE(0x1931, 0x000c)},	/* Nozomi HSDPA */
 	{},
 };

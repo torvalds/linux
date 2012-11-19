@@ -163,7 +163,7 @@ static int __devexit serial8250_em_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id serial8250_em_dt_ids[] __devinitconst = {
+static const struct of_device_id serial8250_em_dt_ids[] = {
 	{ .compatible = "renesas,em-uart", },
 	{},
 };
