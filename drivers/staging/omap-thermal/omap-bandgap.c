@@ -849,7 +849,7 @@ static struct omap_bandgap *omap_bandgap_build(struct platform_device *pdev)
 }
 
 static
-int __devinit omap_bandgap_probe(struct platform_device *pdev)
+int omap_bandgap_probe(struct platform_device *pdev)
 {
 	struct omap_bandgap *bg_ptr;
 	int clk_rate, ret = 0, i;
