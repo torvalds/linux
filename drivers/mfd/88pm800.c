@@ -554,7 +554,7 @@ out_init:
 	return ret;
 }
 
-static int __devexit pm800_remove(struct i2c_client *client)
+static int pm800_remove(struct i2c_client *client)
 {
 	struct pm80x_chip *chip = i2c_get_clientdata(client);
 

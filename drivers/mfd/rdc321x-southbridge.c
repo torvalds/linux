@@ -91,7 +91,7 @@ static int rdc321x_sb_probe(struct pci_dev *pdev,
 			       NULL, 0, NULL);
 }
 
-static void __devexit rdc321x_sb_remove(struct pci_dev *pdev)
+static void rdc321x_sb_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 }

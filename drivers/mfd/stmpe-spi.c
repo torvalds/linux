@@ -101,7 +101,7 @@ stmpe_spi_probe(struct spi_device *spi)
 	return stmpe_probe(&spi_ci, id->driver_data);
 }
 
-static int __devexit stmpe_spi_remove(struct spi_device *spi)
+static int stmpe_spi_remove(struct spi_device *spi)
 {
 	struct stmpe *stmpe = dev_get_drvdata(&spi->dev);
 

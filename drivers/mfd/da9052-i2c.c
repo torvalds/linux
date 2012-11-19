@@ -121,7 +121,7 @@ static int da9052_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit da9052_i2c_remove(struct i2c_client *client)
+static int da9052_i2c_remove(struct i2c_client *client)
 {
 	struct da9052 *da9052 = i2c_get_clientdata(client);
 

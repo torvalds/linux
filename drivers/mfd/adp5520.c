@@ -307,7 +307,7 @@ out_free_chip:
 	return ret;
 }
 
-static int __devexit adp5520_remove(struct i2c_client *client)
+static int adp5520_remove(struct i2c_client *client)
 {
 	struct adp5520_chip *chip = dev_get_drvdata(&client->dev);
 

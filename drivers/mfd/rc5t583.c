@@ -303,7 +303,7 @@ err_add_devs:
 	return ret;
 }
 
-static int  __devexit rc5t583_i2c_remove(struct i2c_client *i2c)
+static int  rc5t583_i2c_remove(struct i2c_client *i2c)
 {
 	struct rc5t583 *rc5t583 = i2c_get_clientdata(i2c);
 

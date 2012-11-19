@@ -364,7 +364,7 @@ fail:
 	return ret;
 }
 
-static void __devexit intel_msic_remove_devices(struct intel_msic *msic)
+static void intel_msic_remove_devices(struct intel_msic *msic)
 {
 	struct platform_device *pdev = msic->pdev;
 	struct intel_msic_platform_data *pdata = pdev->dev.platform_data;
@@ -445,7 +445,7 @@ static int intel_msic_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit intel_msic_remove(struct platform_device *pdev)
+static int intel_msic_remove(struct platform_device *pdev)
 {
 	struct intel_msic *msic = platform_get_drvdata(pdev);
 

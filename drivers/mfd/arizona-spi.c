@@ -65,7 +65,7 @@ static int arizona_spi_probe(struct spi_device *spi)
 	return arizona_dev_init(arizona);
 }
 
-static int __devexit arizona_spi_remove(struct spi_device *spi)
+static int arizona_spi_remove(struct spi_device *spi)
 {
 	struct arizona *arizona = dev_get_drvdata(&spi->dev);
 	arizona_dev_exit(arizona);

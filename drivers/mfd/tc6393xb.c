@@ -731,7 +731,7 @@ err_kzalloc:
 	return ret;
 }
 
-static int __devexit tc6393xb_remove(struct platform_device *dev)
+static int tc6393xb_remove(struct platform_device *dev)
 {
 	struct tc6393xb_platform_data *tcpd = dev->dev.platform_data;
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);

@@ -961,7 +961,7 @@ static int ab3100_probe(struct i2c_client *client,
 	return err;
 }
 
-static int __devexit ab3100_remove(struct i2c_client *client)
+static int ab3100_remove(struct i2c_client *client)
 {
 	struct ab3100 *ab3100 = i2c_get_clientdata(client);
 

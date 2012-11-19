@@ -308,7 +308,7 @@ err_exit:
 	return ret;
 }
 
-static int __devexit tps65090_i2c_remove(struct i2c_client *client)
+static int tps65090_i2c_remove(struct i2c_client *client)
 {
 	struct tps65090 *tps65090 = i2c_get_clientdata(client);
 

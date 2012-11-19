@@ -348,7 +348,7 @@ end:
  *
  * Reverses the effect of usbtll_omap_probe().
  */
-static int __devexit usbtll_omap_remove(struct platform_device *pdev)
+static int usbtll_omap_remove(struct platform_device *pdev)
 {
 	struct usbtll_omap *tll = platform_get_drvdata(pdev);
 

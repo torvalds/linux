@@ -1473,7 +1473,7 @@ out_free_ab8500:
 	return ret;
 }
 
-static int __devexit ab8500_remove(struct platform_device *pdev)
+static int ab8500_remove(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = platform_get_drvdata(pdev);
 

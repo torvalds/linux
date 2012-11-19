@@ -634,7 +634,7 @@ fail:
 	return ret;
 }
 
-static int __devexit ab8500_gpadc_remove(struct platform_device *pdev)
+static int ab8500_gpadc_remove(struct platform_device *pdev)
 {
 	struct ab8500_gpadc *gpadc = platform_get_drvdata(pdev);
 

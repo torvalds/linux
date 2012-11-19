@@ -597,7 +597,7 @@ exit_no_debugfs:
 	return -ENOMEM;
 }
 
-static int __devexit ab8500_debug_remove(struct platform_device *plf)
+static int ab8500_debug_remove(struct platform_device *plf)
 {
 	debugfs_remove(ab8500_val_file);
 	debugfs_remove(ab8500_address_file);

@@ -548,7 +548,7 @@ err_mfd_add:
 	return ret;
 }
 
-static int __devexit tps6586x_i2c_remove(struct i2c_client *client)
+static int tps6586x_i2c_remove(struct i2c_client *client)
 {
 	struct tps6586x *tps6586x = i2c_get_clientdata(client);
 

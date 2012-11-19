@@ -878,7 +878,7 @@ static int lpc_ich_probe(struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit lpc_ich_remove(struct pci_dev *dev)
+static void lpc_ich_remove(struct pci_dev *dev)
 {
 	mfd_remove_devices(&dev->dev);
 	lpc_ich_restore_config_space(dev);

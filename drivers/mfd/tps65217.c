@@ -214,7 +214,7 @@ static int tps65217_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit tps65217_remove(struct i2c_client *client)
+static int tps65217_remove(struct i2c_client *client)
 {
 	struct tps65217 *tps = i2c_get_clientdata(client);
 

@@ -1685,7 +1685,7 @@ static void sm501_dev_remove(struct sm501_devdata *sm)
 	sm501_gpio_remove(sm);
 }
 
-static void __devexit sm501_pci_remove(struct pci_dev *dev)
+static void sm501_pci_remove(struct pci_dev *dev)
 {
 	struct sm501_devdata *sm = pci_get_drvdata(dev);
 

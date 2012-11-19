@@ -433,7 +433,7 @@ error_res:
 	return error;
 }
 
-static int __devexit ti_ssp_remove(struct platform_device *pdev)
+static int ti_ssp_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ti_ssp *ssp = dev_get_drvdata(dev);

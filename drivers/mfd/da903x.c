@@ -544,7 +544,7 @@ out_free_chip:
 	return ret;
 }
 
-static int __devexit da903x_remove(struct i2c_client *client)
+static int da903x_remove(struct i2c_client *client)
 {
 	struct da903x_chip *chip = i2c_get_clientdata(client);
 

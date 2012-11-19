@@ -402,7 +402,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit tc3589x_remove(struct i2c_client *client)
+static int tc3589x_remove(struct i2c_client *client)
 {
 	struct tc3589x *tc3589x = i2c_get_clientdata(client);
 

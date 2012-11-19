@@ -166,7 +166,7 @@ err_disable:
 	return err;
 }
 
-static void __devexit cs5535_mfd_remove(struct pci_dev *pdev)
+static void cs5535_mfd_remove(struct pci_dev *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	pci_disable_device(pdev);

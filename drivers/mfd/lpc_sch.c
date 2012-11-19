@@ -164,7 +164,7 @@ out_dev:
 	return ret;
 }
 
-static void __devexit lpc_sch_remove(struct pci_dev *dev)
+static void lpc_sch_remove(struct pci_dev *dev)
 {
 	mfd_remove_devices(&dev->dev);
 }

@@ -58,7 +58,7 @@ static int da9052_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit da9052_spi_remove(struct spi_device *spi)
+static int da9052_spi_remove(struct spi_device *spi)
 {
 	struct da9052 *da9052 = dev_get_drvdata(&spi->dev);
 

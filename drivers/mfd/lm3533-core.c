@@ -534,7 +534,7 @@ err_disable:
 	return ret;
 }
 
-static void __devexit lm3533_device_exit(struct lm3533 *lm3533)
+static void lm3533_device_exit(struct lm3533 *lm3533)
 {
 	dev_dbg(lm3533->dev, "%s\n", __func__);
 
@@ -624,7 +624,7 @@ static int lm3533_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
-static int __devexit lm3533_i2c_remove(struct i2c_client *i2c)
+static int lm3533_i2c_remove(struct i2c_client *i2c)
 {
 	struct lm3533 *lm3533 = i2c_get_clientdata(i2c);
 

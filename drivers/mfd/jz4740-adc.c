@@ -307,7 +307,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz4740_adc_remove(struct platform_device *pdev)
+static int jz4740_adc_remove(struct platform_device *pdev)
 {
 	struct jz4740_adc *adc = platform_get_drvdata(pdev);
 

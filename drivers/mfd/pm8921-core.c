@@ -165,7 +165,7 @@ err_read_rev:
 	return rc;
 }
 
-static int __devexit pm8921_remove(struct platform_device *pdev)
+static int pm8921_remove(struct platform_device *pdev)
 {
 	struct pm8xxx_drvdata *drvdata;
 	struct pm8921 *pmic = NULL;

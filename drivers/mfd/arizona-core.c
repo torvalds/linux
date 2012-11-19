@@ -553,7 +553,7 @@ err_early:
 }
 EXPORT_SYMBOL_GPL(arizona_dev_init);
 
-int __devexit arizona_dev_exit(struct arizona *arizona)
+int arizona_dev_exit(struct arizona *arizona)
 {
 	mfd_remove_devices(arizona->dev);
 	arizona_free_irq(arizona, ARIZONA_IRQ_UNDERCLOCKED, arizona);

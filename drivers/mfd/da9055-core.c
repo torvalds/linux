@@ -412,7 +412,7 @@ err:
 	return ret;
 }
 
-void __devexit da9055_device_exit(struct da9055 *da9055)
+void da9055_device_exit(struct da9055 *da9055)
 {
 	regmap_del_irq_chip(da9055->chip_irq, da9055->irq_data);
 	mfd_remove_devices(da9055->dev);

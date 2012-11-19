@@ -275,7 +275,7 @@ static int pcf50633_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit pcf50633_remove(struct i2c_client *client)
+static int pcf50633_remove(struct i2c_client *client)
 {
 	struct pcf50633 *pcf = i2c_get_clientdata(client);
 	int i;

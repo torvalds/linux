@@ -151,7 +151,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit davinci_vc_remove(struct platform_device *pdev)
+static int davinci_vc_remove(struct platform_device *pdev)
 {
 	struct davinci_vc *davinci_vc = platform_get_drvdata(pdev);
 

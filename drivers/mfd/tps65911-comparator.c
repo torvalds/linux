@@ -152,7 +152,7 @@ static int tps65911_comparator_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static __devexit int tps65911_comparator_remove(struct platform_device *pdev)
+static int tps65911_comparator_remove(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910;
 

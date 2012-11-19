@@ -1077,7 +1077,7 @@ static int pm860x_device_init(struct pm860x_chip *chip,
 	return 0;
 }
 
-static void __devexit pm860x_device_exit(struct pm860x_chip *chip)
+static void pm860x_device_exit(struct pm860x_chip *chip)
 {
 	device_irq_exit(chip);
 	mfd_remove_devices(chip->dev);
@@ -1200,7 +1200,7 @@ err:
 	return ret;
 }
 
-static int __devexit pm860x_remove(struct i2c_client *client)
+static int pm860x_remove(struct i2c_client *client)
 {
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 

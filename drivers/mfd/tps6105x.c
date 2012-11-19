@@ -199,7 +199,7 @@ fail:
 	return ret;
 }
 
-static int __devexit tps6105x_remove(struct i2c_client *client)
+static int tps6105x_remove(struct i2c_client *client)
 {
 	struct tps6105x *tps6105x = i2c_get_clientdata(client);
 

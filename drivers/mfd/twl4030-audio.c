@@ -269,7 +269,7 @@ static int twl4030_audio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit twl4030_audio_remove(struct platform_device *pdev)
+static int twl4030_audio_remove(struct platform_device *pdev)
 {
 	mfd_remove_devices(&pdev->dev);
 	platform_set_drvdata(pdev, NULL);

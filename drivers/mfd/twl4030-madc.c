@@ -785,7 +785,7 @@ err_power:
 	return ret;
 }
 
-static int __devexit twl4030_madc_remove(struct platform_device *pdev)
+static int twl4030_madc_remove(struct platform_device *pdev)
 {
 	struct twl4030_madc_data *madc = platform_get_drvdata(pdev);
 

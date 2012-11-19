@@ -208,7 +208,7 @@ err_no_irq:
 	return ret;
 }
 
-static int __devexit tc6387xb_remove(struct platform_device *dev)
+static int tc6387xb_remove(struct platform_device *dev)
 {
 	struct tc6387xb *tc6387xb = platform_get_drvdata(dev);
 

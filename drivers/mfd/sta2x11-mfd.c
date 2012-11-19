@@ -89,7 +89,7 @@ static int sta2x11_mfd_add(struct pci_dev *pdev, gfp_t flags)
 	return 0;
 }
 
-static int __devexit mfd_remove(struct pci_dev *pdev)
+static int mfd_remove(struct pci_dev *pdev)
 {
 	struct sta2x11_mfd *mfd = sta2x11_mfd_find(pdev);
 

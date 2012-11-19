@@ -288,7 +288,7 @@ err_alloc_drvdata:
 	return ret;
 }
 
-static __devexit int max8907_i2c_remove(struct i2c_client *i2c)
+static int max8907_i2c_remove(struct i2c_client *i2c)
 {
 	struct max8907 *max8907 = i2c_get_clientdata(i2c);
 

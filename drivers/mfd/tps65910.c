@@ -302,7 +302,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static __devexit int tps65910_i2c_remove(struct i2c_client *i2c)
+static int tps65910_i2c_remove(struct i2c_client *i2c)
 {
 	struct tps65910 *tps65910 = i2c_get_clientdata(i2c);
 

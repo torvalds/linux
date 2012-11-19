@@ -901,7 +901,7 @@ out:
 	return ret;
 }
 
-void __devexit max8925_device_exit(struct max8925_chip *chip)
+void max8925_device_exit(struct max8925_chip *chip)
 {
 	if (chip->core_irq)
 		free_irq(chip->core_irq, chip);

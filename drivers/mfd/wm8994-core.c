@@ -671,7 +671,7 @@ err:
 	return ret;
 }
 
-static __devexit void wm8994_device_exit(struct wm8994 *wm8994)
+static void wm8994_device_exit(struct wm8994 *wm8994)
 {
 	pm_runtime_disable(wm8994->dev);
 	mfd_remove_devices(wm8994->dev);
@@ -715,7 +715,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	return wm8994_device_init(wm8994, i2c->irq);
 }
 
-static __devexit int wm8994_i2c_remove(struct i2c_client *i2c)
+static int wm8994_i2c_remove(struct i2c_client *i2c)
 {
 	struct wm8994 *wm8994 = i2c_get_clientdata(i2c);
 

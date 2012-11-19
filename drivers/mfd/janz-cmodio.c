@@ -254,7 +254,7 @@ out_return:
 	return ret;
 }
 
-static void __devexit cmodio_pci_remove(struct pci_dev *dev)
+static void cmodio_pci_remove(struct pci_dev *dev)
 {
 	struct cmodio_device *priv = pci_get_drvdata(dev);
 

@@ -840,7 +840,7 @@ err_enable:
 	return -ENODEV;
 }
 
-static void __devexit timb_remove(struct pci_dev *dev)
+static void timb_remove(struct pci_dev *dev)
 {
 	struct timberdale_device *priv = pci_get_drvdata(dev);
 

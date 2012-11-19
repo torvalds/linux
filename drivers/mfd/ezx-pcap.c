@@ -391,7 +391,7 @@ static int pcap_add_subdev(struct pcap_chip *pcap,
 	return ret;
 }
 
-static int __devexit ezx_pcap_remove(struct spi_device *spi)
+static int ezx_pcap_remove(struct spi_device *spi)
 {
 	struct pcap_chip *pcap = dev_get_drvdata(&spi->dev);
 	struct pcap_platform_data *pdata = spi->dev.platform_data;

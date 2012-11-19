@@ -652,7 +652,7 @@ end_probe:
  *
  * Reverses the effect of usbhs_omap_probe().
  */
-static int __devexit usbhs_omap_remove(struct platform_device *pdev)
+static int usbhs_omap_remove(struct platform_device *pdev)
 {
 	struct usbhs_hcd_omap *omap = platform_get_drvdata(pdev);
 
