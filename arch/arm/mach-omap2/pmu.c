@@ -57,8 +57,6 @@ static int __init omap2_init_pmu(unsigned oh_num, char *oh_names[])
 	if (IS_ERR(omap_pmu_dev))
 		return PTR_ERR(omap_pmu_dev);
 
-	pm_runtime_enable(&omap_pmu_dev->dev);
-
 	return 0;
 }
 

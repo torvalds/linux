@@ -86,12 +86,10 @@ armpmu_map_event(struct perf_event *event,
 	return -ENOENT;
 }
 
-int
-armpmu_event_set_period(struct perf_event *event,
-			struct hw_perf_event *hwc,
-			int idx)
+int armpmu_event_set_period(struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
 	int ret = 0;
@@ -119,24 +117,22 @@ armpmu_event_set_period(struct perf_event *event,
 
 	local64_set(&hwc->prev_count, (u64)-left);
 
-	armpmu->write_counter(idx, (u64)(-left) & 0xffffffff);
+	armpmu->write_counter(event, (u64)(-left) & 0xffffffff);
 
 	perf_event_update_userpage(event);
 
 	return ret;
 }
 
-u64
-armpmu_event_update(struct perf_event *event,
-		    struct hw_perf_event *hwc,
-		    int idx)
+u64 armpmu_event_update(struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
 	u64 delta, prev_raw_count, new_raw_count;
 
 again:
 	prev_raw_count = local64_read(&hwc->prev_count);
-	new_raw_count = armpmu->read_counter(idx);
+	new_raw_count = armpmu->read_counter(event);
 
 	if (local64_cmpxchg(&hwc->prev_count, prev_raw_count,
 			     new_raw_count) != prev_raw_count)
@@ -159,7 +155,7 @@ armpmu_read(struct perf_event *event)
 	if (hwc->idx < 0)
 		return;
 
-	armpmu_event_update(event, hwc, hwc->idx);
+	armpmu_event_update(event);
 }
 
 static void
@@ -173,14 +169,13 @@ armpmu_stop(struct perf_event *event, int flags)
 	 * PERF_EF_UPDATE, see comments in armpmu_start().
 	 */
 	if (!(hwc->state & PERF_HES_STOPPED)) {
-		armpmu->disable(hwc, hwc->idx);
-		armpmu_event_update(event, hwc, hwc->idx);
+		armpmu->disable(event);
+		armpmu_event_update(event);
 		hwc->state |= PERF_HES_STOPPED | PERF_HES_UPTODATE;
 	}
 }
 
-static void
-armpmu_start(struct perf_event *event, int flags)
+static void armpmu_start(struct perf_event *event, int flags)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -200,8 +195,8 @@ armpmu_start(struct perf_event *event, int flags)
 	 * get an interrupt too soon or *way* too late if the overflow has
 	 * happened since disabling.
 	 */
-	armpmu_event_set_period(event, hwc, hwc->idx);
-	armpmu->enable(hwc, hwc->idx);
+	armpmu_event_set_period(event);
+	armpmu->enable(event);
 }
 
 static void
@@ -233,7 +228,7 @@ armpmu_add(struct perf_event *event, int flags)
 	perf_pmu_disable(event->pmu);
 
 	/* If we don't have a space for the counter then finish early. */
-	idx = armpmu->get_event_idx(hw_events, hwc);
+	idx = armpmu->get_event_idx(hw_events, event);
 	if (idx < 0) {
 		err = idx;
 		goto out;
@@ -244,7 +239,7 @@ armpmu_add(struct perf_event *event, int flags)
 	 * sure it is disabled.
 	 */
 	event->hw.idx = idx;
-	armpmu->disable(hwc, idx);
+	armpmu->disable(event);
 	hw_events->events[idx] = event;
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
@@ -264,13 +259,12 @@ validate_event(struct pmu_hw_events *hw_events,
 	       struct perf_event *event)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
-	struct hw_perf_event fake_event = event->hw;
 	struct pmu *leader_pmu = event->group_leader->pmu;
 
 	if (event->pmu != leader_pmu || event->state <= PERF_EVENT_STATE_OFF)
 		return 1;
 
-	return armpmu->get_event_idx(hw_events, &fake_event) >= 0;
+	return armpmu->get_event_idx(hw_events, event) >= 0;
 }
 
 static int
@@ -316,7 +310,7 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 static void
 armpmu_release_hardware(struct arm_pmu *armpmu)
 {
-	armpmu->free_irq();
+	armpmu->free_irq(armpmu);
 	pm_runtime_put_sync(&armpmu->plat_device->dev);
 }
 
@@ -330,7 +324,7 @@ armpmu_reserve_hardware(struct arm_pmu *armpmu)
 		return -ENODEV;
 
 	pm_runtime_get_sync(&pmu_device->dev);
-	err = armpmu->request_irq(armpmu_dispatch_irq);
+	err = armpmu->request_irq(armpmu, armpmu_dispatch_irq);
 	if (err) {
 		armpmu_release_hardware(armpmu);
 		return err;
@@ -465,13 +459,13 @@ static void armpmu_enable(struct pmu *pmu)
 	int enabled = bitmap_weight(hw_events->used_mask, armpmu->num_events);
 
 	if (enabled)
-		armpmu->start();
+		armpmu->start(armpmu);
 }
 
 static void armpmu_disable(struct pmu *pmu)
 {
 	struct arm_pmu *armpmu = to_arm_pmu(pmu);
-	armpmu->stop();
+	armpmu->stop(armpmu);
 }
 
 #ifdef CONFIG_PM_RUNTIME
@@ -517,12 +511,13 @@ static void __init armpmu_init(struct arm_pmu *armpmu)
 	};
 }
 
-int armpmu_register(struct arm_pmu *armpmu, char *name, int type)
+int armpmu_register(struct arm_pmu *armpmu, int type)
 {
 	armpmu_init(armpmu);
+	pm_runtime_enable(&armpmu->plat_device->dev);
 	pr_info("enabled with %s PMU driver, %d counters available\n",
 			armpmu->name, armpmu->num_events);
-	return perf_pmu_register(&armpmu->pmu, name, type);
+	return perf_pmu_register(&armpmu->pmu, armpmu->name, type);
 }
 
 /*
@@ -576,6 +571,10 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	struct frame_tail __user *tail;
 
+	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+		/* We don't support guest os callchain now */
+		return;
+	}
 
 	tail = (struct frame_tail __user *)regs->ARM_fp - 1;
 
@@ -603,9 +602,41 @@ perf_callchain_kernel(struct perf_callchain_entry *entry, struct pt_regs *regs)
 {
 	struct stackframe fr;
 
+	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+		/* We don't support guest os callchain now */
+		return;
+	}
+
 	fr.fp = regs->ARM_fp;
 	fr.sp = regs->ARM_sp;
 	fr.lr = regs->ARM_lr;
 	fr.pc = regs->ARM_pc;
 	walk_stackframe(&fr, callchain_trace, entry);
+}
+
+unsigned long perf_instruction_pointer(struct pt_regs *regs)
+{
+	if (perf_guest_cbs && perf_guest_cbs->is_in_guest())
+		return perf_guest_cbs->get_guest_ip();
+
+	return instruction_pointer(regs);
+}
+
+unsigned long perf_misc_flags(struct pt_regs *regs)
+{
+	int misc = 0;
+
+	if (perf_guest_cbs && perf_guest_cbs->is_in_guest()) {
+		if (perf_guest_cbs->is_user_mode())
+			misc |= PERF_RECORD_MISC_GUEST_USER;
+		else
+			misc |= PERF_RECORD_MISC_GUEST_KERNEL;
+	} else {
+		if (user_mode(regs))
+			misc |= PERF_RECORD_MISC_USER;
+		else
+			misc |= PERF_RECORD_MISC_KERNEL;
+	}
+
+	return misc;
 }
