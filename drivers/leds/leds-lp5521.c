@@ -616,7 +616,7 @@ static ssize_t store_led_pattern(struct device *dev,
 	unsigned long val;
 	int ret;
 
-	ret = strict_strtoul(buf, 16, &val);
+	ret = kstrtoul(buf, 16, &val);
 	if (ret)
 		return ret;
 
