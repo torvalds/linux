@@ -157,7 +157,7 @@ static inline void dwc3_omap_writel(void __iomem *base, u32 offset, u32 value)
 	writel(value, base + offset);
 }
 
-static int __devinit dwc3_omap_register_phys(struct dwc3_omap *omap)
+static int dwc3_omap_register_phys(struct dwc3_omap *omap)
 {
 	struct nop_usb_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
@@ -262,7 +262,7 @@ static irqreturn_t dwc3_omap_interrupt(int irq, void *_omap)
 	return IRQ_HANDLED;
 }
 
-static int __devinit dwc3_omap_probe(struct platform_device *pdev)
+static int dwc3_omap_probe(struct platform_device *pdev)
 {
 	struct dwc3_omap_data	*pdata = pdev->dev.platform_data;
 	struct device_node	*node = pdev->dev.of_node;

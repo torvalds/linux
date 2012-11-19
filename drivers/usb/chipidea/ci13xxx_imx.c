@@ -93,7 +93,7 @@ static struct ci13xxx_platform_data ci13xxx_imx_platdata __devinitdata  = {
 	.capoffset		= DEF_CAPOFFSET,
 };
 
-static int __devinit ci13xxx_imx_probe(struct platform_device *pdev)
+static int ci13xxx_imx_probe(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data;
 	struct platform_device *plat_ci, *phy_pdev;

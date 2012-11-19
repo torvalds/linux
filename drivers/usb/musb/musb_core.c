@@ -1163,7 +1163,7 @@ static struct musb_fifo_cfg __devinitdata mode_5_cfg[] = {
  *
  * returns negative errno or offset for next fifo.
  */
-static int __devinit
+static int
 fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 		const struct musb_fifo_cfg *cfg, u16 offset)
 {
@@ -1238,7 +1238,7 @@ static struct musb_fifo_cfg __devinitdata ep0_cfg = {
 	.style = FIFO_RXTX, .maxpacket = 64,
 };
 
-static int __devinit ep_config_from_table(struct musb *musb)
+static int ep_config_from_table(struct musb *musb)
 {
 	const struct musb_fifo_cfg	*cfg;
 	unsigned		i, n;
@@ -1329,7 +1329,7 @@ done:
  * ep_config_from_hw - when MUSB_C_DYNFIFO_DEF is false
  * @param musb the controller
  */
-static int __devinit ep_config_from_hw(struct musb *musb)
+static int ep_config_from_hw(struct musb *musb)
 {
 	u8 epnum = 0;
 	struct musb_hw_ep *hw_ep;
@@ -1376,7 +1376,7 @@ enum { MUSB_CONTROLLER_MHDRC, MUSB_CONTROLLER_HDRC, };
 /* Initialize MUSB (M)HDRC part of the USB hardware subsystem;
  * configure endpoints, or take their config from silicon
  */
-static int __devinit musb_core_init(u16 musb_type, struct musb *musb)
+static int musb_core_init(u16 musb_type, struct musb *musb)
 {
 	u8 reg;
 	char *type;
@@ -1759,8 +1759,7 @@ static void musb_irq_work(struct work_struct *data)
  * Init support
  */
 
-static struct musb *__devinit
-allocate_instance(struct device *dev,
+static struct musb *allocate_instance(struct device *dev,
 		struct musb_hdrc_config *config, void __iomem *mbase)
 {
 	struct musb		*musb;
@@ -1835,7 +1834,7 @@ static void musb_free(struct musb *musb)
  * @ctrl: virtual address of controller registers,
  *	not yet corrected for platform-specific offsets
  */
-static int __devinit
+static int
 musb_init_controller(struct device *dev, int nIrq, void __iomem *ctrl)
 {
 	int			status;
@@ -2010,7 +2009,7 @@ fail0:
 /* all implementations (PCI bridge to FPGA, VLYNQ, etc) should just
  * bridge to a platform device; this driver then suffices.
  */
-static int __devinit musb_probe(struct platform_device *pdev)
+static int musb_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	int		irq = platform_get_irq_byname(pdev, "mc");

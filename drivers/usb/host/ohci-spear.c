@@ -33,7 +33,7 @@ static void spear_stop_ohci(struct spear_ohci *ohci)
 	clk_disable_unprepare(ohci->clk);
 }
 
-static int __devinit ohci_spear_start(struct usb_hcd *hcd)
+static int ohci_spear_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	int ret;

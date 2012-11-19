@@ -107,7 +107,7 @@ static void usb_hcd_ep93xx_remove(struct usb_hcd *hcd,
 	usb_put_hcd(hcd);
 }
 
-static int __devinit ohci_ep93xx_start(struct usb_hcd *hcd)
+static int ohci_ep93xx_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	int ret;

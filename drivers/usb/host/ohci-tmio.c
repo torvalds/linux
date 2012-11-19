@@ -184,7 +184,7 @@ static const struct hc_driver ohci_tmio_hc_driver = {
 /*-------------------------------------------------------------------------*/
 static struct platform_driver ohci_hcd_tmio_driver;
 
-static int __devinit ohci_hcd_tmio_drv_probe(struct platform_device *dev)
+static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(dev);
 	struct resource *regs = platform_get_resource(dev, IORESOURCE_MEM, 0);

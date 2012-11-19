@@ -310,7 +310,7 @@ static int twl6030_set_vbus(struct phy_companion *comparator, bool enabled)
 	return 0;
 }
 
-static int __devinit twl6030_usb_probe(struct platform_device *pdev)
+static int twl6030_usb_probe(struct platform_device *pdev)
 {
 	u32 ret;
 	struct twl6030_usb	*twl;

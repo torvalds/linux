@@ -76,7 +76,7 @@ static const struct hc_driver exynos_ohci_hc_driver = {
 
 static u64 ohci_exynos_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit exynos_ohci_probe(struct platform_device *pdev)
+static int exynos_ohci_probe(struct platform_device *pdev)
 {
 	struct exynos4_ohci_platdata *pdata;
 	struct exynos_ohci_hcd *exynos_ohci;

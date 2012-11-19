@@ -116,7 +116,7 @@ static irqreturn_t c67x00_irq(int irq, void *__dev)
 
 /* ------------------------------------------------------------------------- */
 
-static int __devinit c67x00_drv_probe(struct platform_device *pdev)
+static int c67x00_drv_probe(struct platform_device *pdev)
 {
 	struct c67x00_device *c67x00;
 	struct c67x00_platform_data *pdata;

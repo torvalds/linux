@@ -145,7 +145,7 @@ static const struct hc_driver ohci_jz4740_hc_driver = {
 };
 
 
-static __devinit int jz4740_ohci_probe(struct platform_device *pdev)
+static int jz4740_ohci_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct usb_hcd *hcd;

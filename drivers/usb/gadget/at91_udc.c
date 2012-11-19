@@ -1673,7 +1673,7 @@ static void at91udc_shutdown(struct platform_device *dev)
 	spin_unlock_irqrestore(&udc->lock, flags);
 }
 
-static void __devinit at91udc_of_init(struct at91_udc *udc,
+static void at91udc_of_init(struct at91_udc *udc,
 				     struct device_node *np)
 {
 	struct at91_udc_data *board = &udc->board;
@@ -1693,7 +1693,7 @@ static void __devinit at91udc_of_init(struct at91_udc *udc,
 	board->pullup_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
 }
 
-static int __devinit at91udc_probe(struct platform_device *pdev)
+static int at91udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;

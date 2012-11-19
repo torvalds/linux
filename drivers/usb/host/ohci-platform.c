@@ -83,7 +83,7 @@ static const struct hc_driver ohci_platform_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
-static int __devinit ohci_platform_probe(struct platform_device *dev)
+static int ohci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;

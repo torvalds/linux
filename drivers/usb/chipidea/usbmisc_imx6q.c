@@ -82,7 +82,7 @@ static const struct of_device_id usbmisc_imx6q_dt_ids[] = {
 	{ /* sentinel */ }
 };
 
-static int __devinit usbmisc_imx6q_probe(struct platform_device *pdev)
+static int usbmisc_imx6q_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	struct imx6q_usbmisc *data;

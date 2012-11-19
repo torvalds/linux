@@ -108,7 +108,7 @@ static void __devexit usb_hcd_at91_remove (struct usb_hcd *, struct platform_dev
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-static int __devinit usb_hcd_at91_probe(const struct hc_driver *driver,
+static int usb_hcd_at91_probe(const struct hc_driver *driver,
 			struct platform_device *pdev)
 {
 	int retval;
@@ -222,7 +222,7 @@ static void __devexit usb_hcd_at91_remove(struct usb_hcd *hcd,
 
 /*-------------------------------------------------------------------------*/
 
-static int __devinit
+static int
 ohci_at91_reset (struct usb_hcd *hcd)
 {
 	struct at91_usbh_data	*board = hcd->self.controller->platform_data;
@@ -236,7 +236,7 @@ ohci_at91_reset (struct usb_hcd *hcd)
 	return 0;
 }
 
-static int __devinit
+static int
 ohci_at91_start (struct usb_hcd *hcd)
 {
 	struct ohci_hcd		*ohci = hcd_to_ohci (hcd);
@@ -506,7 +506,7 @@ MODULE_DEVICE_TABLE(of, at91_ohci_dt_ids);
 
 static u64 at91_ohci_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit ohci_at91_of_init(struct platform_device *pdev)
+static int ohci_at91_of_init(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	int i, gpio;
@@ -548,7 +548,7 @@ static int __devinit ohci_at91_of_init(struct platform_device *pdev)
 	return 0;
 }
 #else
-static int __devinit ohci_at91_of_init(struct platform_device *pdev)
+static int ohci_at91_of_init(struct platform_device *pdev)
 {
 	return 0;
 }
@@ -556,7 +556,7 @@ static int __devinit ohci_at91_of_init(struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int __devinit ohci_hcd_at91_drv_probe(struct platform_device *pdev)
+static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 {
 	struct at91_usbh_data	*pdata;
 	int			i;

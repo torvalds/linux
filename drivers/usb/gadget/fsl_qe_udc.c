@@ -2347,7 +2347,7 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 }
 
 /* udc structure's alloc and setup, include ep-param alloc */
-static struct qe_udc __devinit *qe_udc_config(struct platform_device *ofdev)
+static struct qe_udc *qe_udc_config(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	struct device_node *np = ofdev->dev.of_node;
@@ -2402,7 +2402,7 @@ cleanup:
 }
 
 /* USB Controller register init */
-static int __devinit qe_udc_reg_init(struct qe_udc *udc)
+static int qe_udc_reg_init(struct qe_udc *udc)
 {
 	struct usb_ctlr __iomem *qe_usbregs;
 	qe_usbregs = udc->usb_regs;
@@ -2420,7 +2420,7 @@ static int __devinit qe_udc_reg_init(struct qe_udc *udc)
 	return 0;
 }
 
-static int __devinit qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
+static int qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 {
 	struct qe_ep *ep = &udc->eps[pipe_num];
 
@@ -2473,7 +2473,7 @@ static void qe_udc_release(struct device *dev)
 
 /* Driver probe functions */
 static const struct of_device_id qe_udc_match[];
-static int __devinit qe_udc_probe(struct platform_device *ofdev)
+static int qe_udc_probe(struct platform_device *ofdev)
 {
 	struct qe_udc *udc;
 	const struct of_device_id *match;

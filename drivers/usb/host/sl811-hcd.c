@@ -1618,7 +1618,7 @@ sl811h_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit
+static int
 sl811h_probe(struct platform_device *dev)
 {
 	struct usb_hcd		*hcd;

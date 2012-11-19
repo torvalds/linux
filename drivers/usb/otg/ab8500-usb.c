@@ -468,7 +468,7 @@ static int ab8500_usb_v2_res_setup(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit ab8500_usb_probe(struct platform_device *pdev)
+static int ab8500_usb_probe(struct platform_device *pdev)
 {
 	struct ab8500_usb	*ab;
 	struct usb_otg		*otg;

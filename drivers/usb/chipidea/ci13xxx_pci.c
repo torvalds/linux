@@ -48,7 +48,7 @@ struct ci13xxx_platform_data penwell_pci_platdata = {
  * Allocates basic PCI resources for this USB device controller, and then
  * invokes the udc_probe() method to start the UDC associated with it
  */
-static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
+static int ci13xxx_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
 	struct ci13xxx_platform_data *platdata = (void *)id->driver_data;

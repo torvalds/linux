@@ -85,7 +85,7 @@ static void s5p_setup_vbus_gpio(struct platform_device *pdev)
 
 static u64 ehci_s5p_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit s5p_ehci_probe(struct platform_device *pdev)
+static int s5p_ehci_probe(struct platform_device *pdev)
 {
 	struct s5p_ehci_platdata *pdata;
 	struct s5p_ehci_hcd *s5p_ehci;

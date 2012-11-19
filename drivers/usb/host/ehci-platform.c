@@ -61,7 +61,7 @@ static const struct ehci_driver_overrides platform_overrides __initdata = {
 	.reset =	ehci_platform_reset,
 };
 
-static int __devinit ehci_platform_probe(struct platform_device *dev)
+static int ehci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;

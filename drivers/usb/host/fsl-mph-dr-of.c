@@ -42,7 +42,7 @@ struct fsl_usb2_dev_data dr_mode_data[] __devinitdata = {
 	},
 };
 
-struct fsl_usb2_dev_data * __devinit get_dr_mode_data(struct device_node *np)
+struct fsl_usb2_dev_data *get_dr_mode_data(struct device_node *np)
 {
 	const unsigned char *prop;
 	int i;
@@ -59,7 +59,7 @@ struct fsl_usb2_dev_data * __devinit get_dr_mode_data(struct device_node *np)
 	return &dr_mode_data[0]; /* mode not specified, use host */
 }
 
-static enum fsl_usb2_phy_modes __devinit determine_usb_phy(const char *phy_type)
+static enum fsl_usb2_phy_modes determine_usb_phy(const char *phy_type)
 {
 	if (!phy_type)
 		return FSL_USB2_PHY_NONE;
@@ -75,7 +75,7 @@ static enum fsl_usb2_phy_modes __devinit determine_usb_phy(const char *phy_type)
 	return FSL_USB2_PHY_NONE;
 }
 
-struct platform_device * __devinit fsl_usb2_device_register(
+struct platform_device *fsl_usb2_device_register(
 					struct platform_device *ofdev,
 					struct fsl_usb2_platform_data *pdata,
 					const char *name, int id)
@@ -154,7 +154,7 @@ static int usb_get_ver_info(struct device_node *np)
 	return ver;
 }
 
-static int __devinit fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
+static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
 	struct platform_device *usb_dev;

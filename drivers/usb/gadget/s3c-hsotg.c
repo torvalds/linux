@@ -3072,7 +3072,7 @@ static struct usb_gadget_ops s3c_hsotg_gadget_ops = {
  * creation) to give to the gadget driver. Setup the endpoint name, any
  * direction information and other state that may be required.
  */
-static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
+static void s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 				       struct s3c_hsotg_ep *hs_ep,
 				       int epnum)
 {
@@ -3414,7 +3414,7 @@ static const struct file_operations ep_fops = {
  * with the same name as the device itself, in case we end up
  * with multiple blocks in future systems.
  */
-static void __devinit s3c_hsotg_create_debug(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_create_debug(struct s3c_hsotg *hsotg)
 {
 	struct dentry *root;
 	unsigned epidx;
@@ -3490,7 +3490,7 @@ static void s3c_hsotg_release(struct device *dev)
  * @pdev: The platform information for the driver
  */
 
-static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
+static int s3c_hsotg_probe(struct platform_device *pdev)
 {
 	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;

@@ -125,7 +125,7 @@ static const struct hc_driver ohci_omap3_hc_driver = {
  * then invokes the start() method for the HCD associated with it
  * through the hotplug entry's driver_data.
  */
-static int __devinit ohci_hcd_omap3_probe(struct platform_device *pdev)
+static int ohci_hcd_omap3_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
 	struct usb_hcd		*hcd = NULL;

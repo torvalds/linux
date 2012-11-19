@@ -140,8 +140,7 @@ static void dwc3_free_one_event_buffer(struct dwc3 *dwc,
  * Returns a pointer to the allocated event buffer structure on success
  * otherwise ERR_PTR(errno).
  */
-static struct dwc3_event_buffer *__devinit
-dwc3_alloc_one_event_buffer(struct dwc3 *dwc, unsigned length)
+static struct dwc3_event_buffer *dwc3_alloc_one_event_buffer(struct dwc3 *dwc, unsigned length)
 {
 	struct dwc3_event_buffer	*evt;
 
@@ -183,7 +182,7 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
  * Returns 0 on success otherwise negative errno. In the error case, dwc
  * may contain some buffers allocated but not all which were requested.
  */
-static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
+static int dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 {
 	int			num;
 	int			i;
@@ -260,7 +259,7 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 	}
 }
 
-static void __devinit dwc3_cache_hwparams(struct dwc3 *dwc)
+static void dwc3_cache_hwparams(struct dwc3 *dwc)
 {
 	struct dwc3_hwparams	*parms = &dwc->hwparams;
 
@@ -281,7 +280,7 @@ static void __devinit dwc3_cache_hwparams(struct dwc3 *dwc)
  *
  * Returns 0 on success otherwise negative errno.
  */
-static int __devinit dwc3_core_init(struct dwc3 *dwc)
+static int dwc3_core_init(struct dwc3 *dwc)
 {
 	unsigned long		timeout;
 	u32			reg;
@@ -360,7 +359,7 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 
 #define DWC3_ALIGN_MASK		(16 - 1)
 
-static int __devinit dwc3_probe(struct platform_device *pdev)
+static int dwc3_probe(struct platform_device *pdev)
 {
 	struct device_node	*node = pdev->dev.of_node;
 	struct resource		*res;

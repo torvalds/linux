@@ -390,7 +390,7 @@ void ci13xxx_remove_device(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(ci13xxx_remove_device);
 
-static int __devinit ci_hdrc_probe(struct platform_device *pdev)
+static int ci_hdrc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct ci13xxx	*ci;

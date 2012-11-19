@@ -142,7 +142,7 @@ static void rcar_usb_phy_shutdown(struct usb_phy *phy)
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
-static int __devinit rcar_usb_phy_probe(struct platform_device *pdev)
+static int rcar_usb_phy_probe(struct platform_device *pdev)
 {
 	struct rcar_usb_phy_priv *priv;
 	struct resource *res0, *res1;

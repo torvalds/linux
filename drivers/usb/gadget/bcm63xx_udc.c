@@ -2323,7 +2323,7 @@ static void bcm63xx_udc_gadget_release(struct device *dev)
  * Note that platform data is required, because pd.port_no varies from chip
  * to chip and is used to switch the correct USB port to device mode.
  */
-static int __devinit bcm63xx_udc_probe(struct platform_device *pdev)
+static int bcm63xx_udc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct bcm63xx_usbd_platform_data *pd = dev->platform_data;

@@ -55,7 +55,7 @@ static struct ci13xxx_platform_data ci13xxx_msm_platdata = {
 	.notify_event		= ci13xxx_msm_notify_event,
 };
 
-static int __devinit ci13xxx_msm_probe(struct platform_device *pdev)
+static int ci13xxx_msm_probe(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci;
 

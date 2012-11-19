@@ -39,7 +39,7 @@ struct ssb_hcd_device {
 	u32 enable_flags;
 };
 
-static void __devinit ssb_hcd_5354wa(struct ssb_device *dev)
+static void ssb_hcd_5354wa(struct ssb_device *dev)
 {
 #ifdef CONFIG_SSB_DRIVER_MIPS
 	/* Work around for 5354 failures */
@@ -53,7 +53,7 @@ static void __devinit ssb_hcd_5354wa(struct ssb_device *dev)
 #endif
 }
 
-static void __devinit ssb_hcd_usb20wa(struct ssb_device *dev)
+static void ssb_hcd_usb20wa(struct ssb_device *dev)
 {
 	if (dev->id.coreid == SSB_DEV_USB20_HOST) {
 		/*
@@ -80,7 +80,7 @@ static void __devinit ssb_hcd_usb20wa(struct ssb_device *dev)
 }
 
 /* based on arch/mips/brcm-boards/bcm947xx/pcibios.c */
-static u32 __devinit ssb_hcd_init_chip(struct ssb_device *dev)
+static u32 ssb_hcd_init_chip(struct ssb_device *dev)
 {
 	u32 flags = 0;
 
@@ -101,8 +101,7 @@ static const struct usb_ehci_pdata ehci_pdata = {
 static const struct usb_ohci_pdata ohci_pdata = {
 };
 
-static struct platform_device * __devinit
-ssb_hcd_create_pdev(struct ssb_device *dev, bool ohci, u32 addr, u32 len)
+static struct platform_device *ssb_hcd_create_pdev(struct ssb_device *dev, bool ohci, u32 addr, u32 len)
 {
 	struct platform_device *hci_dev;
 	struct resource hci_res[2];
@@ -148,7 +147,7 @@ err_alloc:
 	return ERR_PTR(ret);
 }
 
-static int __devinit ssb_hcd_probe(struct ssb_device *dev,
+static int ssb_hcd_probe(struct ssb_device *dev,
 				   const struct ssb_device_id *id)
 {
 	int err, tmp;

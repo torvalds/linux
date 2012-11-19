@@ -85,7 +85,7 @@ static const struct hc_driver uhci_grlib_hc_driver = {
 };
 
 
-static int __devinit uhci_hcd_grlib_probe(struct platform_device *op)
+static int uhci_hcd_grlib_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;

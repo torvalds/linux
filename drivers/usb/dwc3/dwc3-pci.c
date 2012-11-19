@@ -58,7 +58,7 @@ struct dwc3_pci {
 	struct platform_device	*usb3_phy;
 };
 
-static int __devinit dwc3_pci_register_phys(struct dwc3_pci *glue)
+static int dwc3_pci_register_phys(struct dwc3_pci *glue)
 {
 	struct nop_usb_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
@@ -112,7 +112,7 @@ err1:
 	return ret;
 }
 
-static int __devinit dwc3_pci_probe(struct pci_dev *pci,
+static int dwc3_pci_probe(struct pci_dev *pci,
 		const struct pci_device_id *id)
 {
 	struct resource		res[2];

@@ -652,7 +652,7 @@ static const struct file_operations dwc3_link_state_fops = {
 	.release		= single_release,
 };
 
-int __devinit dwc3_debugfs_init(struct dwc3 *dwc)
+int dwc3_debugfs_init(struct dwc3 *dwc)
 {
 	struct dentry		*root;
 	struct dentry		*file;

@@ -34,7 +34,7 @@ struct dwc3_exynos {
 	struct clk		*clk;
 };
 
-static int __devinit dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
+static int dwc3_exynos_register_phys(struct dwc3_exynos *exynos)
 {
 	struct nop_usb_xceiv_platform_data pdata;
 	struct platform_device	*pdev;
@@ -90,7 +90,7 @@ err1:
 
 static u64 dwc3_exynos_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit dwc3_exynos_probe(struct platform_device *pdev)
+static int dwc3_exynos_probe(struct platform_device *pdev)
 {
 	struct platform_device	*dwc3;
 	struct dwc3_exynos	*exynos;

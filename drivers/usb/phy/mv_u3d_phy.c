@@ -262,7 +262,7 @@ calstart:
 	return 0;
 }
 
-static int __devinit mv_u3d_phy_probe(struct platform_device *pdev)
+static int mv_u3d_phy_probe(struct platform_device *pdev)
 {
 	struct mv_u3d_phy *mv_u3d_phy;
 	struct mv_usb_platform_data *pdata;

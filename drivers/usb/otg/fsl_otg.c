@@ -1110,7 +1110,7 @@ static const struct file_operations otg_fops = {
 	.release = fsl_otg_release,
 };
 
-static int __devinit fsl_otg_probe(struct platform_device *pdev)
+static int fsl_otg_probe(struct platform_device *pdev)
 {
 	int ret;
 

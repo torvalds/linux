@@ -455,7 +455,7 @@ static const struct musb_platform_ops am35x_ops = {
 
 static u64 am35x_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit am35x_probe(struct platform_device *pdev)
+static int am35x_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;

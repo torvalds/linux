@@ -141,7 +141,7 @@ static int omap_usb2_suspend(struct usb_phy *x, int suspend)
 	return 0;
 }
 
-static int __devinit omap_usb2_probe(struct platform_device *pdev)
+static int omap_usb2_probe(struct platform_device *pdev)
 {
 	struct omap_usb			*phy;
 	struct usb_otg			*otg;

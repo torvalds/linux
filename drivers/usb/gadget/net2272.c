@@ -2215,8 +2215,7 @@ net2272_remove(struct net2272 *dev)
 	dev_info(dev->dev, "unbind\n");
 }
 
-static struct net2272 * __devinit
-net2272_probe_init(struct device *dev, unsigned int irq)
+static struct net2272 *net2272_probe_init(struct device *dev, unsigned int irq)
 {
 	struct net2272 *ret;
 
@@ -2246,7 +2245,7 @@ net2272_probe_init(struct device *dev, unsigned int irq)
 	return ret;
 }
 
-static int __devinit
+static int
 net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 {
 	int ret;
@@ -2306,7 +2305,7 @@ err_add_udc:
  * don't respond over USB until a gadget driver binds to us
  */
 
-static int __devinit
+static int
 net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 {
 	unsigned long resource, len, tmp;
@@ -2389,7 +2388,7 @@ net2272_rdk1_probe(struct pci_dev *pdev, struct net2272 *dev)
 	return ret;
 }
 
-static int __devinit
+static int
 net2272_rdk2_probe(struct pci_dev *pdev, struct net2272 *dev)
 {
 	unsigned long resource, len;
@@ -2447,7 +2446,7 @@ net2272_rdk2_probe(struct pci_dev *pdev, struct net2272 *dev)
 	return ret;
 }
 
-static int __devinit
+static int
 net2272_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct net2272 *dev;
@@ -2595,7 +2594,7 @@ static inline void net2272_pci_unregister(void) { }
 
 /*---------------------------------------------------------------------------*/
 
-static int __devinit
+static int
 net2272_plat_probe(struct platform_device *pdev)
 {
 	struct net2272 *dev;

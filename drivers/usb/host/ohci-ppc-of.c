@@ -19,7 +19,7 @@
 #include <asm/prom.h>
 
 
-static int __devinit
+static int
 ohci_ppc_of_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd	*ohci = hcd_to_ohci(hcd);
@@ -81,7 +81,7 @@ static const struct hc_driver ohci_ppc_of_hc_driver = {
 };
 
 
-static int __devinit ohci_hcd_ppc_of_probe(struct platform_device *op)
+static int ohci_hcd_ppc_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;

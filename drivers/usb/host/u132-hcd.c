@@ -3084,7 +3084,7 @@ static void u132_initialise(struct u132 *u132, struct platform_device *pdev)
 	mutex_unlock(&u132->sw_lock);
 }
 
-static int __devinit u132_probe(struct platform_device *pdev)
+static int u132_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	int retval;

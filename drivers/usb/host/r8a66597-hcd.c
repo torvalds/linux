@@ -2405,7 +2405,7 @@ static int __devexit r8a66597_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit r8a66597_probe(struct platform_device *pdev)
+static int r8a66597_probe(struct platform_device *pdev)
 {
 	char clk_name[8];
 	struct resource *res = NULL, *ires;

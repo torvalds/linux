@@ -402,7 +402,7 @@ static struct snd_pcm_ops uac2_pcm_ops = {
 	.prepare = uac2_pcm_null,
 };
 
-static int __devinit snd_uac2_probe(struct platform_device *pdev)
+static int snd_uac2_probe(struct platform_device *pdev)
 {
 	struct snd_uac2_chip *uac2 = pdev_to_uac2(pdev);
 	struct snd_card *card;

@@ -2188,7 +2188,7 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit mv_udc_probe(struct platform_device *dev)
+static int mv_udc_probe(struct platform_device *dev)
 {
 	struct mv_usb_platform_data *pdata = dev->dev.platform_data;
 	struct mv_udc *udc;

@@ -479,7 +479,7 @@ static struct musb_platform_ops dsps_ops = {
 
 static u64 musb_dmamask = DMA_BIT_MASK(32);
 
-static int __devinit dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
+static int dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 {
 	struct device *dev = glue->dev;
 	struct platform_device *pdev = to_platform_device(dev);
@@ -592,7 +592,7 @@ err0:
 	return ret;
 }
 
-static int __devinit dsps_probe(struct platform_device *pdev)
+static int dsps_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
