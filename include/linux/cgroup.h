@@ -165,7 +165,7 @@ struct cgroup {
 	struct list_head files;		/* my files */
 
 	struct cgroup *parent;		/* my parent */
-	struct dentry __rcu *dentry;	/* cgroup fs entry, RCU protected */
+	struct dentry *dentry;		/* cgroup fs entry, RCU protected */
 
 	/* Private pointers for each registered subsystem */
 	struct cgroup_subsys_state *subsys[CGROUP_SUBSYS_COUNT];
