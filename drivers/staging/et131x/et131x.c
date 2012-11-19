@@ -4897,7 +4897,7 @@ static const struct net_device_ops et131x_netdev_ops = {
  * contained in the pci_device_id table. This routine is the equivalent to
  * a device insertion routine.
  */
-static int __devinit et131x_pci_setup(struct pci_dev *pdev,
+static int et131x_pci_setup(struct pci_dev *pdev,
 			       const struct pci_device_id *ent)
 {
 	struct net_device *netdev;
