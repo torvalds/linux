@@ -69,7 +69,7 @@ struct hdq_data {
 	int			init_trans;
 };
 
-static int __devinit omap_hdq_probe(struct platform_device *pdev);
+static int omap_hdq_probe(struct platform_device *pdev);
 static int __devexit omap_hdq_remove(struct platform_device *pdev);
 
 static struct platform_driver omap_hdq_driver = {
@@ -537,7 +537,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 	}
 }
 
-static int __devinit omap_hdq_probe(struct platform_device *pdev)
+static int omap_hdq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hdq_data *hdq_data;

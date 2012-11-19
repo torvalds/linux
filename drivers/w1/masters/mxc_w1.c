@@ -103,7 +103,7 @@ static u8 mxc_w1_ds2_touch_bit(void *data, u8 bit)
 	return ((__raw_readb(ctrl_addr)) >> 3) & 0x1;
 }
 
-static int __devinit mxc_w1_probe(struct platform_device *pdev)
+static int mxc_w1_probe(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev;
 	struct resource *res;
