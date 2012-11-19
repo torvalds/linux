@@ -91,7 +91,7 @@ static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 
-static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
+static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id);
 static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev);
 
@@ -2846,7 +2846,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_start_xmit = rtllib_xmit,
 };
 
-static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
+static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id)
 {
 	unsigned long ioaddr = 0;
