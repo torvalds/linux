@@ -371,7 +371,7 @@ static const struct of_device_id regulator_gpio_of_match[] __devinitconst = {
 
 static struct platform_driver gpio_regulator_driver = {
 	.probe		= gpio_regulator_probe,
-	.remove		= __devexit_p(gpio_regulator_remove),
+	.remove		= gpio_regulator_remove,
 	.driver		= {
 		.name		= "gpio-regulator",
 		.owner		= THIS_MODULE,

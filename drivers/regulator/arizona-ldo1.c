@@ -126,7 +126,7 @@ static __devexit int arizona_ldo1_remove(struct platform_device *pdev)
 
 static struct platform_driver arizona_ldo1_driver = {
 	.probe = arizona_ldo1_probe,
-	.remove = __devexit_p(arizona_ldo1_remove),
+	.remove = arizona_ldo1_remove,
 	.driver		= {
 		.name	= "arizona-ldo1",
 		.owner	= THIS_MODULE,

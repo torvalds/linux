@@ -385,7 +385,7 @@ static struct platform_driver max8907_regulator_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = max8907_regulator_probe,
-	.remove = __devexit_p(max8907_regulator_remove),
+	.remove = max8907_regulator_remove,
 };
 
 static int __init max8907_regulator_init(void)

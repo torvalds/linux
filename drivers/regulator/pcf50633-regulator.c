@@ -237,7 +237,7 @@ static struct platform_driver pcf50633_regulator_driver = {
 		.name = "pcf50633-regltr",
 	},
 	.probe = pcf50633_regulator_probe,
-	.remove = __devexit_p(pcf50633_regulator_remove),
+	.remove = pcf50633_regulator_remove,
 };
 
 static int __init pcf50633_regulator_init(void)

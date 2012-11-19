@@ -291,7 +291,7 @@ MODULE_DEVICE_TABLE(i2c, max8649_id);
 
 static struct i2c_driver max8649_driver = {
 	.probe		= max8649_regulator_probe,
-	.remove		= __devexit_p(max8649_regulator_remove),
+	.remove		= max8649_regulator_remove,
 	.driver		= {
 		.name	= "max8649",
 	},

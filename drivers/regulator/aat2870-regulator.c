@@ -201,7 +201,7 @@ static struct platform_driver aat2870_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= aat2870_regulator_probe,
-	.remove	= __devexit_p(aat2870_regulator_remove),
+	.remove	= aat2870_regulator_remove,
 };
 
 static int __init aat2870_regulator_init(void)

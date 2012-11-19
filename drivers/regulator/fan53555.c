@@ -311,7 +311,7 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.name = "fan53555-regulator",
 	},
 	.probe = fan53555_regulator_probe,
-	.remove = __devexit_p(fan53555_regulator_remove),
+	.remove = fan53555_regulator_remove,
 	.id_table = fan53555_id,
 };
 

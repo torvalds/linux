@@ -582,7 +582,7 @@ static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_buckv_driver = {
 	.probe = wm831x_buckv_probe,
-	.remove = __devexit_p(wm831x_buckv_remove),
+	.remove = wm831x_buckv_remove,
 	.driver		= {
 		.name	= "wm831x-buckv",
 		.owner	= THIS_MODULE,
@@ -725,7 +725,7 @@ static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_buckp_driver = {
 	.probe = wm831x_buckp_probe,
-	.remove = __devexit_p(wm831x_buckp_remove),
+	.remove = wm831x_buckp_remove,
 	.driver		= {
 		.name	= "wm831x-buckp",
 		.owner	= THIS_MODULE,
@@ -860,7 +860,7 @@ static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_boostp_driver = {
 	.probe = wm831x_boostp_probe,
-	.remove = __devexit_p(wm831x_boostp_remove),
+	.remove = wm831x_boostp_remove,
 	.driver		= {
 		.name	= "wm831x-boostp",
 		.owner	= THIS_MODULE,
@@ -948,7 +948,7 @@ static __devexit int wm831x_epe_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_epe_driver = {
 	.probe = wm831x_epe_probe,
-	.remove = __devexit_p(wm831x_epe_remove),
+	.remove = wm831x_epe_remove,
 	.driver		= {
 		.name	= "wm831x-epe",
 		.owner	= THIS_MODULE,

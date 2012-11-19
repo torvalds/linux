@@ -266,7 +266,7 @@ static int __devexit ad5398_remove(struct i2c_client *client)
 
 static struct i2c_driver ad5398_driver = {
 	.probe = ad5398_probe,
-	.remove = __devexit_p(ad5398_remove),
+	.remove = ad5398_remove,
 	.driver		= {
 		.name	= "ad5398",
 	},

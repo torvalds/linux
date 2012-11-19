@@ -798,7 +798,7 @@ static struct platform_driver s5m8767_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s5m8767_pmic_probe,
-	.remove = __devexit_p(s5m8767_pmic_remove),
+	.remove = s5m8767_pmic_remove,
 	.id_table = s5m8767_pmic_id,
 };
 

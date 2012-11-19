@@ -589,7 +589,7 @@ static struct platform_driver ab3100_regulators_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab3100_regulators_probe,
-	.remove = __devexit_p(ab3100_regulators_remove),
+	.remove = ab3100_regulators_remove,
 };
 
 static __init int ab3100_regulators_init(void)

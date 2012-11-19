@@ -255,7 +255,7 @@ MODULE_DEVICE_TABLE(of, fixed_of_match);
 
 static struct platform_driver regulator_fixed_voltage_driver = {
 	.probe		= reg_fixed_voltage_probe,
-	.remove		= __devexit_p(reg_fixed_voltage_remove),
+	.remove		= reg_fixed_voltage_remove,
 	.driver		= {
 		.name		= "reg-fixed-voltage",
 		.owner		= THIS_MODULE,

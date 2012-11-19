@@ -131,7 +131,7 @@ static struct of_device_id vexpress_regulator_of_match[] = {
 
 static struct platform_driver vexpress_regulator_driver = {
 	.probe = vexpress_regulator_probe,
-	.remove = __devexit_p(vexpress_regulator_remove),
+	.remove = vexpress_regulator_remove,
 	.driver	= {
 		.name = DRVNAME,
 		.owner = THIS_MODULE,

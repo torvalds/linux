@@ -349,7 +349,7 @@ static __devexit int wm831x_gp_ldo_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_gp_ldo_driver = {
 	.probe = wm831x_gp_ldo_probe,
-	.remove = __devexit_p(wm831x_gp_ldo_remove),
+	.remove = wm831x_gp_ldo_remove,
 	.driver		= {
 		.name	= "wm831x-ldo",
 		.owner	= THIS_MODULE,
@@ -603,7 +603,7 @@ static __devexit int wm831x_aldo_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_aldo_driver = {
 	.probe = wm831x_aldo_probe,
-	.remove = __devexit_p(wm831x_aldo_remove),
+	.remove = wm831x_aldo_remove,
 	.driver		= {
 		.name	= "wm831x-aldo",
 		.owner	= THIS_MODULE,
@@ -748,7 +748,7 @@ static __devexit int wm831x_alive_ldo_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_alive_ldo_driver = {
 	.probe = wm831x_alive_ldo_probe,
-	.remove = __devexit_p(wm831x_alive_ldo_remove),
+	.remove = wm831x_alive_ldo_remove,
 	.driver		= {
 		.name	= "wm831x-alive-ldo",
 		.owner	= THIS_MODULE,

@@ -330,7 +330,7 @@ static struct platform_driver s2mps11_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s2mps11_pmic_probe,
-	.remove = __devexit_p(s2mps11_pmic_remove),
+	.remove = s2mps11_pmic_remove,
 	.id_table = s2mps11_pmic_id,
 };
 

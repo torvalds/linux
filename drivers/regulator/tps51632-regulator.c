@@ -311,7 +311,7 @@ static struct i2c_driver tps51632_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps51632_probe,
-	.remove = __devexit_p(tps51632_remove),
+	.remove = tps51632_remove,
 	.id_table = tps51632_id,
 };
 

@@ -836,7 +836,7 @@ static __devexit int ab8500_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver ab8500_regulator_driver = {
 	.probe = ab8500_regulator_probe,
-	.remove = __devexit_p(ab8500_regulator_remove),
+	.remove = ab8500_regulator_remove,
 	.driver         = {
 		.name   = "ab8500-regulator",
 		.owner  = THIS_MODULE,

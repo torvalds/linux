@@ -772,7 +772,7 @@ static struct platform_driver tps80031_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tps80031_regulator_probe,
-	.remove		= __devexit_p(tps80031_regulator_remove),
+	.remove		= tps80031_regulator_remove,
 };
 
 static int __init tps80031_regulator_init(void)

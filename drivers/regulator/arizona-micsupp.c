@@ -177,7 +177,7 @@ static __devexit int arizona_micsupp_remove(struct platform_device *pdev)
 
 static struct platform_driver arizona_micsupp_driver = {
 	.probe = arizona_micsupp_probe,
-	.remove = __devexit_p(arizona_micsupp_remove),
+	.remove = arizona_micsupp_remove,
 	.driver		= {
 		.name	= "arizona-micsupp",
 		.owner	= THIS_MODULE,

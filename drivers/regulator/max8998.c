@@ -842,7 +842,7 @@ static struct platform_driver max8998_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max8998_pmic_probe,
-	.remove = __devexit_p(max8998_pmic_remove),
+	.remove = max8998_pmic_remove,
 	.id_table = max8998_pmic_id,
 };
 

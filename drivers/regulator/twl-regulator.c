@@ -1255,7 +1255,7 @@ MODULE_ALIAS("platform:twl_reg");
 
 static struct platform_driver twlreg_driver = {
 	.probe		= twlreg_probe,
-	.remove		= __devexit_p(twlreg_remove),
+	.remove		= twlreg_remove,
 	/* NOTE: short name, to work around driver model truncation of
 	 * "twl_regulator.12" (and friends) to "twl_regulator.1".
 	 */

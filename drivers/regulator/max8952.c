@@ -268,7 +268,7 @@ MODULE_DEVICE_TABLE(i2c, max8952_ids);
 
 static struct i2c_driver max8952_pmic_driver = {
 	.probe		= max8952_pmic_probe,
-	.remove		= __devexit_p(max8952_pmic_remove),
+	.remove		= max8952_pmic_remove,
 	.driver		= {
 		.name	= "max8952",
 	},

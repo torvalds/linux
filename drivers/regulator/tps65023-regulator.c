@@ -446,7 +446,7 @@ static struct i2c_driver tps_65023_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps_65023_probe,
-	.remove = __devexit_p(tps_65023_remove),
+	.remove = tps_65023_remove,
 	.id_table = tps_65023_id,
 };
 

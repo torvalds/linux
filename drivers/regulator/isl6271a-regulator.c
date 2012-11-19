@@ -174,7 +174,7 @@ static struct i2c_driver isl6271a_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = isl6271a_probe,
-	.remove = __devexit_p(isl6271a_remove),
+	.remove = isl6271a_remove,
 	.id_table = isl6271a_id,
 };
 

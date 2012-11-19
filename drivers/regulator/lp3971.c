@@ -498,7 +498,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe    = lp3971_i2c_probe,
-	.remove   = __devexit_p(lp3971_i2c_remove),
+	.remove   = lp3971_i2c_remove,
 	.id_table = lp3971_i2c_id,
 };
 

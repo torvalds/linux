@@ -236,7 +236,7 @@ static __devexit int wm831x_isink_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_isink_driver = {
 	.probe = wm831x_isink_probe,
-	.remove = __devexit_p(wm831x_isink_remove),
+	.remove = wm831x_isink_remove,
 	.driver		= {
 		.name	= "wm831x-isink",
 		.owner	= THIS_MODULE,

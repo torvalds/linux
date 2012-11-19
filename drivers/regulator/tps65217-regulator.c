@@ -415,7 +415,7 @@ static struct platform_driver tps65217_regulator_driver = {
 		.name = "tps65217-pmic",
 	},
 	.probe = tps65217_regulator_probe,
-	.remove = __devexit_p(tps65217_regulator_remove),
+	.remove = tps65217_regulator_remove,
 };
 
 static int __init tps65217_regulator_init(void)

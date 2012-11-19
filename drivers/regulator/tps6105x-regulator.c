@@ -172,7 +172,7 @@ static struct platform_driver tps6105x_regulator_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps6105x_regulator_probe,
-	.remove = __devexit_p(tps6105x_regulator_remove),
+	.remove = tps6105x_regulator_remove,
 };
 
 static __init int tps6105x_regulator_init(void)

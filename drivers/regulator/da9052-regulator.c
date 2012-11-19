@@ -440,7 +440,7 @@ static int __devexit da9052_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_regulator_driver = {
 	.probe = da9052_regulator_probe,
-	.remove = __devexit_p(da9052_regulator_remove),
+	.remove = da9052_regulator_remove,
 	.driver = {
 		.name = "da9052-regulator",
 		.owner = THIS_MODULE,

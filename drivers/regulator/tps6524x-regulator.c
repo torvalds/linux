@@ -649,7 +649,7 @@ fail:
 
 static struct spi_driver pmic_driver = {
 	.probe		= pmic_probe,
-	.remove		= __devexit_p(pmic_remove),
+	.remove		= pmic_remove,
 	.driver		= {
 		.name	= "tps6524x",
 		.owner	= THIS_MODULE,

@@ -1231,7 +1231,7 @@ static struct platform_driver tps65910_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65910_probe,
-	.remove = __devexit_p(tps65910_remove),
+	.remove = tps65910_remove,
 	.shutdown = tps65910_shutdown,
 };
 

@@ -914,7 +914,7 @@ static struct i2c_driver lp872x_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lp872x_probe,
-	.remove = __devexit_p(lp872x_remove),
+	.remove = lp872x_remove,
 	.id_table = lp872x_ids,
 };
 

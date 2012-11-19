@@ -890,7 +890,7 @@ static struct platform_driver palmas_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = palmas_probe,
-	.remove = __devexit_p(palmas_remove),
+	.remove = palmas_remove,
 };
 
 static int __init palmas_init(void)

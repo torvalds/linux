@@ -531,7 +531,7 @@ static struct i2c_driver tps62360_i2c_driver = {
 		.of_match_table = of_match_ptr(tps62360_of_match),
 	},
 	.probe = tps62360_probe,
-	.remove = __devexit_p(tps62360_remove),
+	.remove = tps62360_remove,
 	.shutdown = tps62360_shutdown,
 	.id_table = tps62360_id,
 };

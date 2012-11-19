@@ -271,7 +271,7 @@ static struct platform_driver pcap_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pcap_regulator_probe,
-	.remove	= __devexit_p(pcap_regulator_remove),
+	.remove	= pcap_regulator_remove,
 };
 
 static int __init pcap_regulator_init(void)

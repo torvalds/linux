@@ -261,7 +261,7 @@ static struct platform_driver wm8400_regulator_driver = {
 		.name = "wm8400-regulator",
 	},
 	.probe = wm8400_regulator_probe,
-	.remove = __devexit_p(wm8400_regulator_remove),
+	.remove = wm8400_regulator_remove,
 };
 
 /**

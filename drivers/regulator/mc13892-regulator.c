@@ -606,7 +606,7 @@ static struct platform_driver mc13892_regulator_driver = {
 		.name	= "mc13892-regulator",
 		.owner	= THIS_MODULE,
 	},
-	.remove	= __devexit_p(mc13892_regulator_remove),
+	.remove	= mc13892_regulator_remove,
 	.probe	= mc13892_regulator_probe,
 };
 

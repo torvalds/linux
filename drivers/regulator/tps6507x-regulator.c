@@ -456,7 +456,7 @@ static struct platform_driver tps6507x_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps6507x_pmic_probe,
-	.remove = __devexit_p(tps6507x_pmic_remove),
+	.remove = tps6507x_pmic_remove,
 };
 
 static int __init tps6507x_pmic_init(void)

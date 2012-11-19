@@ -214,7 +214,7 @@ static struct platform_driver rc5t583_regulator_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rc5t583_regulator_probe,
-	.remove		= __devexit_p(rc5t583_regulator_remove),
+	.remove		= rc5t583_regulator_remove,
 };
 
 static int __init rc5t583_regulator_init(void)
