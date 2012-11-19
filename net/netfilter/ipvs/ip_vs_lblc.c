@@ -574,7 +574,7 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 		register_net_sysctl(net, "net/ipv4/vs", ipvs->lblc_ctl_table);
 	if (!ipvs->lblc_ctl_header) {
 		if (!net_eq(net, &init_net))
-			kfree(ipvs->lblc_ctl_table);\
+			kfree(ipvs->lblc_ctl_table);
 		return -ENOMEM;
 	}
 
