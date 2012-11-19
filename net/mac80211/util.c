@@ -1417,10 +1417,12 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	}
 
 	/* add channel contexts */
-	mutex_lock(&local->chanctx_mtx);
-	list_for_each_entry(ctx, &local->chanctx_list, list)
-		WARN_ON(drv_add_chanctx(local, ctx));
-	mutex_unlock(&local->chanctx_mtx);
+	if (local->use_chanctx) {
+		mutex_lock(&local->chanctx_mtx);
+		list_for_each_entry(ctx, &local->chanctx_list, list)
+			WARN_ON(drv_add_chanctx(local, ctx));
+		mutex_unlock(&local->chanctx_mtx);
+	}
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		struct ieee80211_chanctx_conf *ctx_conf;
