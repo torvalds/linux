@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/firmware.h>
 #include <linux/usb.h>
+#include <linux/vmalloc.h>
 
 #include <brcmu_utils.h>
 #include <brcmu_wifi.h>
