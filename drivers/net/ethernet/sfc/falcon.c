@@ -764,7 +764,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 			     FRF_AB_XM_RXEN, 1,
 			     FRF_AB_XM_AUTO_DEPAD, 0,
 			     FRF_AB_XM_ACPT_ALL_MCAST, 1,
-			     FRF_AB_XM_ACPT_ALL_UCAST, efx->promiscuous,
+			     FRF_AB_XM_ACPT_ALL_UCAST, !efx->unicast_filter,
 			     FRF_AB_XM_PASS_CRC_ERR, 1);
 	efx_writeo(efx, &reg, FR_AB_XM_RX_CFG);
 
@@ -863,6 +863,8 @@ static bool falcon_xmac_check_fault(struct efx_nic *efx)
 static int falcon_reconfigure_xmac(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
+
+	efx_farch_filter_sync_rx_mode(efx);
 
 	falcon_reconfigure_xgxs_core(efx);
 	falcon_reconfigure_xmac_core(efx);
@@ -1081,7 +1083,7 @@ static void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	EFX_POPULATE_OWORD_5(reg,
 			     FRF_AB_MAC_XOFF_VAL, 0xffff /* max pause time */,
 			     FRF_AB_MAC_BCAD_ACPT, 1,
-			     FRF_AB_MAC_UC_PROM, efx->promiscuous,
+			     FRF_AB_MAC_UC_PROM, !efx->unicast_filter,
 			     FRF_AB_MAC_LINK_STATUS, 1, /* always set */
 			     FRF_AB_MAC_SPEED, link_speed);
 	/* On B0, MAC backpressure can be disabled and packets get

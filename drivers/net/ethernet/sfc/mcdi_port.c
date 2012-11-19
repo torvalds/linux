@@ -861,7 +861,7 @@ void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 
 int efx_mcdi_set_mac(struct efx_nic *efx)
 {
-	u32 reject, fcntl;
+	u32 fcntl;
 	MCDI_DECLARE_BUF(cmdbytes, MC_CMD_SET_MAC_IN_LEN);
 
 	BUILD_BUG_ON(MC_CMD_SET_MAC_OUT_LEN != 0);
@@ -873,12 +873,9 @@ int efx_mcdi_set_mac(struct efx_nic *efx)
 			EFX_MAX_FRAME_LEN(efx->net_dev->mtu));
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_DRAIN, 0);
 
-	/* The MCDI command provides for controlling accept/reject
-	 * of broadcast packets too, but the driver doesn't currently
-	 * expose this. */
-	reject = (efx->promiscuous) ? 0 :
-		(1 << MC_CMD_SET_MAC_IN_REJECT_UNCST_LBN);
-	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_REJECT, reject);
+	/* Set simple MAC filter for Siena */
+	MCDI_POPULATE_DWORD_1(cmdbytes, SET_MAC_IN_REJECT,
+			      SET_MAC_IN_REJECT_UNCST, efx->unicast_filter);
 
 	switch (efx->wanted_fc) {
 	case EFX_FC_RX | EFX_FC_TX:

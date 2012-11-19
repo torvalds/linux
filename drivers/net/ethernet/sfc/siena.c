@@ -503,6 +503,8 @@ static int siena_mac_reconfigure(struct efx_nic *efx)
 		     MC_CMD_SET_MCAST_HASH_IN_HASH0_OFST +
 		     sizeof(efx->multicast_hash));
 
+	efx_farch_filter_sync_rx_mode(efx);
+
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
 	rc = efx_mcdi_set_mac(efx);

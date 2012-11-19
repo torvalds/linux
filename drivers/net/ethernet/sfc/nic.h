@@ -431,6 +431,7 @@ extern s32 efx_farch_filter_rfs_insert(struct efx_nic *efx,
 extern bool efx_farch_filter_rfs_expire_one(struct efx_nic *efx, u32 flow_id,
 					    unsigned int index);
 #endif
+extern void efx_farch_filter_sync_rx_mode(struct efx_nic *efx);
 
 extern bool efx_nic_event_present(struct efx_channel *channel);
 
