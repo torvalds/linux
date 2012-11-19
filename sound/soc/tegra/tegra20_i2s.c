@@ -463,12 +463,12 @@ static int __devexit tegra20_i2s_platform_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id tegra20_i2s_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_i2s_of_match[] = {
 	{ .compatible = "nvidia,tegra20-i2s", },
 	{},
 };
 
-static const struct dev_pm_ops tegra20_i2s_pm_ops __devinitconst = {
+static const struct dev_pm_ops tegra20_i2s_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra20_i2s_runtime_suspend,
 			   tegra20_i2s_runtime_resume, NULL)
 };

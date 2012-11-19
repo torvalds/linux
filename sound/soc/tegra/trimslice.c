@@ -195,7 +195,7 @@ static int __devexit tegra_snd_trimslice_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id trimslice_of_match[] __devinitconst = {
+static const struct of_device_id trimslice_of_match[] = {
 	{ .compatible = "nvidia,tegra-audio-trimslice", },
 	{},
 };

@@ -4007,7 +4007,7 @@ int snd_soc_register_codec(struct device *dev,
 		codec->reg_size = reg_size;
 		/* it is necessary to make a copy of the default register cache
 		 * because in the case of using a compression type that requires
-		 * the default register cache to be marked as __devinitconst the
+		 * the default register cache to be marked as the
 		 * kernel might have freed the array by the time we initialize
 		 * the cache.
 		 */
