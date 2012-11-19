@@ -191,21 +191,9 @@ static struct platform_driver mxc_w1_driver = {
 		   .name = "mxc_w1",
 	},
 	.probe = mxc_w1_probe,
-	.remove = mxc_w1_remove,
+	.remove = __devexit_p(mxc_w1_remove),
 };
-
-static int __init mxc_w1_init(void)
-{
-	return platform_driver_register(&mxc_w1_driver);
-}
-
-static void mxc_w1_exit(void)
-{
-	platform_driver_unregister(&mxc_w1_driver);
-}
-
-module_init(mxc_w1_init);
-module_exit(mxc_w1_exit);
+module_platform_driver(mxc_w1_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Freescale Semiconductors Inc");
