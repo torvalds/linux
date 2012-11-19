@@ -4317,6 +4317,8 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 
 	printk(KERN_INFO "Initializing cgroup subsys %s\n", ss->name);
 
+	mutex_lock(&cgroup_mutex);
+
 	/* init base cftset */
 	cgroup_init_cftsets(ss);
 
@@ -4345,6 +4347,8 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 
 	if (ss->post_create)
 		ss->post_create(dummytop);
+
+	mutex_unlock(&cgroup_mutex);
 
 	/* this function shouldn't be used with modular subsystems, since they
 	 * need to register a subsys_id, among other things */
