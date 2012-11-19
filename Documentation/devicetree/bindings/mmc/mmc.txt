@@ -22,6 +22,10 @@ Optional properties:
 - wp-inverted: when present, polarity on the wp gpio line is inverted
 - max-frequency: maximum operating clock frequency
 
+Optional SDIO properties:
+- keep-power-in-suspend: Preserves card power during a suspend/resume cycle
+- enable-sdio-wakeup: Enables wake up of host system on SDIO IRQ assertion
+
 Example:
 
 sdhci@ab000000 {
@@ -33,4 +37,6 @@ sdhci@ab000000 {
 	cd-inverted;
 	wp-gpios = <&gpio 70 0>;
 	max-frequency = <50000000>;
+	keep-power-in-suspend;
+	enable-sdio-wakeup;
 }
