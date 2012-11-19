@@ -209,7 +209,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit pruss_remove(struct platform_device *dev)
+static int pruss_remove(struct platform_device *dev)
 {
 	struct uio_pruss_dev *gdev = platform_get_drvdata(dev);
 
