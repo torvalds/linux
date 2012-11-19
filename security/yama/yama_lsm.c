@@ -17,6 +17,7 @@
 #include <linux/ptrace.h>
 #include <linux/prctl.h>
 #include <linux/ratelimit.h>
+#include <linux/workqueue.h>
 
 #define YAMA_SCOPE_DISABLED	0
 #define YAMA_SCOPE_RELATIONAL	1
@@ -29,12 +30,36 @@ static int ptrace_scope = YAMA_SCOPE_RELATIONAL;
 struct ptrace_relation {
 	struct task_struct *tracer;
 	struct task_struct *tracee;
+	bool invalid;
 	struct list_head node;
 	struct rcu_head rcu;
 };
 
 static LIST_HEAD(ptracer_relations);
 static DEFINE_SPINLOCK(ptracer_relations_lock);
+
+static void yama_relation_cleanup(struct work_struct *work);
+static DECLARE_WORK(yama_relation_work, yama_relation_cleanup);
+
+/**
+ * yama_relation_cleanup - remove invalid entries from the relation list
+ *
+ */
+static void yama_relation_cleanup(struct work_struct *work)
+{
+	struct ptrace_relation *relation;
+
+	spin_lock(&ptracer_relations_lock);
+	rcu_read_lock();
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid) {
+			list_del_rcu(&relation->node);
+			kfree_rcu(relation, rcu);
+		}
+	}
+	rcu_read_unlock();
+	spin_unlock(&ptracer_relations_lock);
+}
 
 /**
  * yama_ptracer_add - add/replace an exception for this tracer/tracee pair
@@ -57,10 +82,13 @@ static int yama_ptracer_add(struct task_struct *tracer,
 
 	added->tracee = tracee;
 	added->tracer = tracer;
+	added->invalid = false;
 
-	spin_lock_bh(&ptracer_relations_lock);
+	spin_lock(&ptracer_relations_lock);
 	rcu_read_lock();
 	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid)
+			continue;
 		if (relation->tracee == tracee) {
 			list_replace_rcu(&relation->node, &added->node);
 			kfree_rcu(relation, rcu);
@@ -72,7 +100,7 @@ static int yama_ptracer_add(struct task_struct *tracer,
 
 out:
 	rcu_read_unlock();
-	spin_unlock_bh(&ptracer_relations_lock);
+	spin_unlock(&ptracer_relations_lock);
 	return 0;
 }
 
@@ -85,18 +113,22 @@ static void yama_ptracer_del(struct task_struct *tracer,
 			     struct task_struct *tracee)
 {
 	struct ptrace_relation *relation;
+	bool marked = false;
 
-	spin_lock_bh(&ptracer_relations_lock);
 	rcu_read_lock();
 	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid)
+			continue;
 		if (relation->tracee == tracee ||
 		    (tracer && relation->tracer == tracer)) {
-			list_del_rcu(&relation->node);
-			kfree_rcu(relation, rcu);
+			relation->invalid = true;
+			marked = true;
 		}
 	}
 	rcu_read_unlock();
-	spin_unlock_bh(&ptracer_relations_lock);
+
+	if (marked)
+		schedule_work(&yama_relation_work);
 }
 
 /**
@@ -223,12 +255,15 @@ static int ptracer_exception_found(struct task_struct *tracer,
 	rcu_read_lock();
 	if (!thread_group_leader(tracee))
 		tracee = rcu_dereference(tracee->group_leader);
-	list_for_each_entry_rcu(relation, &ptracer_relations, node)
+	list_for_each_entry_rcu(relation, &ptracer_relations, node) {
+		if (relation->invalid)
+			continue;
 		if (relation->tracee == tracee) {
 			parent = relation->tracer;
 			found = true;
 			break;
 		}
+	}
 
 	if (found && (parent == NULL || task_is_descendant(parent, tracer)))
 		rc = 1;
