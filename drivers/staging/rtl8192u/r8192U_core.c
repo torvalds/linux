@@ -146,7 +146,7 @@ MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 
 static int rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
-static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf);
+static void rtl8192_usb_disconnect(struct usb_interface *intf);
 
 
 static struct usb_driver rtl8192_usb_driver = {
@@ -5826,7 +5826,7 @@ void rtl8192_cancel_deferred_work(struct r8192_priv* priv)
 }
 
 
-static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf)
+static void rtl8192_usb_disconnect(struct usb_interface *intf)
 {
 	struct net_device *dev = usb_get_intfdata(intf);
 
