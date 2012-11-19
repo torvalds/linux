@@ -42,14 +42,10 @@ __s32 BSP_disp_hwc_get_pos(__u32 sel, __disp_pos_t *pos)
 
 __s32 BSP_disp_hwc_set_framebuffer(__u32 sel, __disp_hwc_pattern_t *patmem)
 {
-	de_hwc_src_t hsrc;
-
 	if (patmem == NULL)
 		return DIS_PARA_FAILED;
 
-	hsrc.mode = patmem->pat_mode;
-	hsrc.paddr = patmem->addr;
-	DE_BE_HWC_Set_Src(sel, &hsrc);
+	DE_BE_HWC_Set_Src(sel, patmem);
 
 	return DIS_SUCCESS;
 }

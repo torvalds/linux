@@ -242,7 +242,7 @@ static inline __s32 Hal_Set_Frame(__u32 sel, __u32 tcon_index, __u32 id)
 		}
 
 		in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
-		in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+		in_type.mod = scaler->in_fb.mode;
 		in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 		in_type.byte_seq = 0;
 		in_type.sample_method = 0;
