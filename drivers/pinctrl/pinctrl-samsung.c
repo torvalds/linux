@@ -560,7 +560,7 @@ static int __devinit samsung_pinctrl_parse_dt_pins(struct platform_device *pdev,
 	const char *pin_name;
 
 	*npins = of_property_count_strings(cfg_np, "samsung,pins");
-	if (*npins < 0) {
+	if (IS_ERR_VALUE(*npins)) {
 		dev_err(dev, "invalid pin list in %s node", cfg_np->name);
 		return -EINVAL;
 	}
