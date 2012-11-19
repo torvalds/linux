@@ -1023,8 +1023,8 @@ static struct pci_driver mei_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = mei_pci_tbl,
 	.probe = mei_probe,
-	.remove = __devexit_p(mei_remove),
-	.shutdown = __devexit_p(mei_remove),
+	.remove = mei_remove,
+	.shutdown = mei_remove,
 	.driver.pm = MEI_PM_OPS,
 };
 
