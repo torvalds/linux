@@ -981,8 +981,8 @@ static void hsmmc_command_incomplete(struct omap_hsmmc_host *host,
 	if (host->data) {
 		omap_hsmmc_reset_controller_fsm(host, SRD);
 		omap_hsmmc_dma_cleanup(host, err);
-	}
-
+	} else if (host->mrq && host->mrq->cmd)
+		host->mrq->cmd->error = err;
 }
 
 static void omap_hsmmc_do_irq(struct omap_hsmmc_host *host, int status)
