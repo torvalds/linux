@@ -27,8 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/platform_device.h>
-
-#include <asm/delay.h>
+#include <linux/delay.h>
 
 #define MVMDIO_SMI_DATA_SHIFT              0
 #define MVMDIO_SMI_PHY_ADDR_SHIFT          16
