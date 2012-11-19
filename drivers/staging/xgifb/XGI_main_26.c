@@ -1695,7 +1695,7 @@ static int __init XGIfb_setup(char *options)
 	return 0;
 }
 
-static int __devinit xgifb_probe(struct pci_dev *pdev,
+static int xgifb_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 	u8 reg, reg1;
