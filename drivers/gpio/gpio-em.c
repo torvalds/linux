@@ -268,7 +268,7 @@ static void em_gio_irq_domain_cleanup(struct em_gio_priv *p)
 	/* FIXME: irq domain wants to be freed! */
 }
 
-static int __devinit em_gio_probe(struct platform_device *pdev)
+static int em_gio_probe(struct platform_device *pdev)
 {
 	struct gpio_em_config *pdata = pdev->dev.platform_data;
 	struct em_gio_priv *p;

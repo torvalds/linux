@@ -243,7 +243,7 @@ static struct gpio_chip template_chip = {
 	.can_sleep		= 1,
 };
 
-static int __devinit wm831x_gpio_probe(struct platform_device *pdev)
+static int wm831x_gpio_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;

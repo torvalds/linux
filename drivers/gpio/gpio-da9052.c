@@ -201,7 +201,7 @@ static struct gpio_chip reference_gp __devinitdata = {
 	.base = -1,
 };
 
-static int __devinit da9052_gpio_probe(struct platform_device *pdev)
+static int da9052_gpio_probe(struct platform_device *pdev)
 {
 	struct da9052_gpio *gpio;
 	struct da9052_pdata *pdata;

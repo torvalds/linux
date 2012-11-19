@@ -111,7 +111,7 @@ static void rc5t583_gpio_free(struct gpio_chip *gc, unsigned offset)
 	rc5t583_set_bits(parent, RC5T583_GPIO_PGSEL, BIT(offset));
 }
 
-static int __devinit rc5t583_gpio_probe(struct platform_device *pdev)
+static int rc5t583_gpio_probe(struct platform_device *pdev)
 {
 	struct rc5t583 *rc5t583 = dev_get_drvdata(pdev->dev.parent);
 	struct rc5t583_platform_data *pdata = dev_get_platdata(rc5t583->dev);

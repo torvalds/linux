@@ -490,7 +490,7 @@ static struct gpio_chip vr41xx_gpio_chip = {
 	.to_irq			= vr41xx_gpio_to_irq,
 };
 
-static int __devinit giu_probe(struct platform_device *pdev)
+static int giu_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	unsigned int trigger, i, pin;

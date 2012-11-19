@@ -475,7 +475,7 @@ fail:
 
 #ifdef CONFIG_I2C
 
-static int __devinit mcp230xx_probe(struct i2c_client *client,
+static int mcp230xx_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct mcp23s08_platform_data *pdata;

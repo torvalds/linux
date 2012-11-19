@@ -346,7 +346,7 @@ static void adp5588_irq_teardown(struct adp5588_gpio *dev)
 }
 #endif /* CONFIG_GPIO_ADP5588_IRQ */
 
-static int __devinit adp5588_gpio_probe(struct i2c_client *client,
+static int adp5588_gpio_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct adp5588_gpio_platform_data *pdata = client->dev.platform_data;

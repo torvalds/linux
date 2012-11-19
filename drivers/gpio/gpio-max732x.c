@@ -526,7 +526,7 @@ static void max732x_irq_teardown(struct max732x_chip *chip)
 }
 #endif
 
-static int __devinit max732x_setup_gpio(struct max732x_chip *chip,
+static int max732x_setup_gpio(struct max732x_chip *chip,
 					const struct i2c_device_id *id,
 					unsigned gpio_start)
 {
@@ -574,7 +574,7 @@ static int __devinit max732x_setup_gpio(struct max732x_chip *chip,
 	return port;
 }
 
-static int __devinit max732x_probe(struct i2c_client *client,
+static int max732x_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct max732x_platform_data *pdata;

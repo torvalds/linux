@@ -108,13 +108,13 @@ static void ttl_set_value(struct gpio_chip *gpio, unsigned offset, int value)
 	spin_unlock(&mod->lock);
 }
 
-static void __devinit ttl_write_reg(struct ttl_module *mod, u8 reg, u16 val)
+static void ttl_write_reg(struct ttl_module *mod, u8 reg, u16 val)
 {
 	iowrite16be(reg, &mod->regs->control);
 	iowrite16be(val, &mod->regs->control);
 }
 
-static void __devinit ttl_setup_device(struct ttl_module *mod)
+static void ttl_setup_device(struct ttl_module *mod)
 {
 	/* reset the device to a known state */
 	iowrite16be(0x0000, &mod->regs->control);
@@ -140,7 +140,7 @@ static void __devinit ttl_setup_device(struct ttl_module *mod)
 	ttl_write_reg(mod, MASTER_CONF_CTL, CONF_PAE | CONF_PBE | CONF_PCE);
 }
 
-static int __devinit ttl_probe(struct platform_device *pdev)
+static int ttl_probe(struct platform_device *pdev)
 {
 	struct janz_platform_data *pdata;
 	struct device *dev = &pdev->dev;

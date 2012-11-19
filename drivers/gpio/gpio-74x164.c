@@ -105,7 +105,7 @@ static int gen_74x164_direction_output(struct gpio_chip *gc,
 	return 0;
 }
 
-static int __devinit gen_74x164_probe(struct spi_device *spi)
+static int gen_74x164_probe(struct spi_device *spi)
 {
 	struct gen_74x164_chip *chip;
 	struct gen_74x164_chip_platform_data *pdata;

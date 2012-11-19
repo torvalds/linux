@@ -516,7 +516,7 @@ static void adnp_irq_teardown(struct adnp *adnp)
 	irq_domain_remove(adnp->domain);
 }
 
-static __devinit int adnp_i2c_probe(struct i2c_client *client,
+static int adnp_i2c_probe(struct i2c_client *client,
 				    const struct i2c_device_id *id)
 {
 	struct device_node *np = client->dev.of_node;

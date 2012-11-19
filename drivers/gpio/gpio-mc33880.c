@@ -80,7 +80,7 @@ static void mc33880_set(struct gpio_chip *chip, unsigned offset, int value)
 	mutex_unlock(&mc->lock);
 }
 
-static int __devinit mc33880_probe(struct spi_device *spi)
+static int mc33880_probe(struct spi_device *spi)
 {
 	struct mc33880 *mc;
 	struct mc33880_platform_data *pdata;

@@ -80,7 +80,7 @@ static int tps6586x_gpio_output(struct gpio_chip *gc, unsigned offset,
 				val, mask);
 }
 
-static int __devinit tps6586x_gpio_probe(struct platform_device *pdev)
+static int tps6586x_gpio_probe(struct platform_device *pdev)
 {
 	struct tps6586x_platform_data *pdata;
 	struct tps6586x_gpio *tps6586x_gpio;

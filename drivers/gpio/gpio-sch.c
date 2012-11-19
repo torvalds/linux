@@ -185,7 +185,7 @@ static struct gpio_chip sch_gpio_resume = {
 	.set			= sch_gpio_resume_set,
 };
 
-static int __devinit sch_gpio_probe(struct platform_device *pdev)
+static int sch_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err, id;

@@ -444,7 +444,7 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 	return ret;
 }
 
-static int __devinit bgpio_pdev_probe(struct platform_device *pdev)
+static int bgpio_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *r;

@@ -332,7 +332,7 @@ static const struct dev_pm_ops lnw_gpio_pm_ops = {
 	.runtime_idle = lnw_gpio_runtime_idle,
 };
 
-static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
+static int lnw_gpio_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id)
 {
 	void *base;
@@ -435,7 +435,7 @@ static struct pci_driver lnw_gpio_driver = {
 };
 
 
-static int __devinit wp_gpio_probe(struct platform_device *pdev)
+static int wp_gpio_probe(struct platform_device *pdev)
 {
 	struct lnw_gpio *lnw;
 	struct gpio_chip *gc;

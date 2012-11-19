@@ -352,7 +352,7 @@ static struct gpio_chip twl_gpiochip = {
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
+static int gpio_twl4030_pulls(u32 ups, u32 downs)
 {
 	u8		message[6];
 	unsigned	i, gpio_bit;
@@ -377,7 +377,7 @@ static int __devinit gpio_twl4030_pulls(u32 ups, u32 downs)
 				REG_GPIOPUPDCTR1, 5);
 }
 
-static int __devinit gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
+static int gpio_twl4030_debounce(u32 debounce, u8 mmc_cd)
 {
 	u8		message[4];
 
@@ -419,7 +419,7 @@ static struct twl4030_gpio_platform_data *of_gpio_twl4030(struct device *dev)
 	return omap_twl_info;
 }
 
-static int __devinit gpio_twl4030_probe(struct platform_device *pdev)
+static int gpio_twl4030_probe(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;
 	struct device_node *node = pdev->dev.of_node;

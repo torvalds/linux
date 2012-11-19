@@ -352,7 +352,7 @@ static struct irq_chip msm_gpio_irq_chip = {
 	.irq_set_wake	= msm_gpio_irq_set_wake,
 };
 
-static int __devinit msm_gpio_probe(struct platform_device *dev)
+static int msm_gpio_probe(struct platform_device *dev)
 {
 	int i, irq, ret;
 

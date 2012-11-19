@@ -159,7 +159,7 @@ static void xgpio_save_regs(struct of_mm_gpio_chip *mm_gc)
  * driver data structure. It returns 0, if the driver is bound to the GPIO
  * device, or a negative value if there is an error.
  */
-static int __devinit xgpio_of_probe(struct device_node *np)
+static int xgpio_of_probe(struct device_node *np)
 {
 	struct xgpio_instance *chip;
 	int status = 0;

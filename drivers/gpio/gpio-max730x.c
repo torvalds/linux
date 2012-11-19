@@ -160,7 +160,7 @@ static void max7301_set(struct gpio_chip *chip, unsigned offset, int value)
 	mutex_unlock(&ts->lock);
 }
 
-int __devinit __max730x_probe(struct max7301 *ts)
+int __max730x_probe(struct max7301 *ts)
 {
 	struct device *dev = ts->dev;
 	struct max7301_platform_data *pdata;

@@ -300,7 +300,7 @@ static struct cs5535_gpio_chip cs5535_gpio_chip = {
 	},
 };
 
-static int __devinit cs5535_gpio_probe(struct platform_device *pdev)
+static int cs5535_gpio_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int err = -EIO;

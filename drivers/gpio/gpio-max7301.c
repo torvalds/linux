@@ -50,7 +50,7 @@ static int max7301_spi_read(struct device *dev, unsigned int reg)
 	return word & 0xff;
 }
 
-static int __devinit max7301_probe(struct spi_device *spi)
+static int max7301_probe(struct spi_device *spi)
 {
 	struct max7301 *ts;
 	int ret;

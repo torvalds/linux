@@ -325,7 +325,7 @@ static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 	return ret;
 }
 
-static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
+static void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 				unsigned int irq_start, unsigned int num)
 {
 	struct irq_chip_generic *gc;
@@ -345,7 +345,7 @@ static __devinit void pch_gpio_alloc_generic_chip(struct pch_gpio *chip,
 			       IRQ_NOREQUEST | IRQ_NOPROBE, 0);
 }
 
-static int __devinit pch_gpio_probe(struct pci_dev *pdev,
+static int pch_gpio_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	s32 ret;

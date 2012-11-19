@@ -542,7 +542,7 @@ static int lpc32xx_of_xlate(struct gpio_chip *gc,
 	return gpiospec->args[1];
 }
 
-static int __devinit lpc32xx_gpio_probe(struct platform_device *pdev)
+static int lpc32xx_gpio_probe(struct platform_device *pdev)
 {
 	int i;
 

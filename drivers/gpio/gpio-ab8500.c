@@ -402,7 +402,7 @@ static void ab8500_gpio_irq_remove(struct ab8500_gpio *ab8500_gpio)
 	}
 }
 
-static int __devinit ab8500_gpio_probe(struct platform_device *pdev)
+static int ab8500_gpio_probe(struct platform_device *pdev)
 {
 	struct ab8500_platform_data *ab8500_pdata =
 				dev_get_platdata(pdev->dev.parent);

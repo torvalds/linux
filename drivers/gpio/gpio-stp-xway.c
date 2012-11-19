@@ -197,7 +197,7 @@ static int xway_stp_hw_init(struct xway_stp *chip)
 	return 0;
 }
 
-static int __devinit xway_stp_probe(struct platform_device *pdev)
+static int xway_stp_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	const __be32 *shadow, *groups, *dsl, *phy;
