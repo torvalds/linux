@@ -17,6 +17,7 @@ dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb \
 	usb_a9263.dtb \
 	usb_a9g20.dtb
 dtb-$(CONFIG_ARCH_BCM2835) += bcm2835-rpi-b.dtb
+dtb-$(CONFIG_ARCH_BCM) += bcm11351-brt.dtb
 dtb-$(CONFIG_ARCH_DOVE) += dove-cm-a510.dtb \
 	dove-cubox.dtb \
 	dove-dove-db.dtb
