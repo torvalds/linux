@@ -100,7 +100,7 @@ static int vt8500_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	struct vt8500_chip *vt8500 = to_vt8500_chip(chip);
 
 	err = clk_enable(vt8500->clk);
-	if (err < 0)
+	if (err < 0) {
 		dev_err(chip->dev, "failed to enable clock\n");
 		return err;
 	};
