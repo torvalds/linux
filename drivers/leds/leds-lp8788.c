@@ -167,7 +167,7 @@ static int lp8788_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_led_remove(struct platform_device *pdev)
+static int lp8788_led_remove(struct platform_device *pdev)
 {
 	struct lp8788_led *led = platform_get_drvdata(pdev);
 

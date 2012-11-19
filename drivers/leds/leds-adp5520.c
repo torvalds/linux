@@ -183,7 +183,7 @@ err:
 	return ret;
 }
 
-static int __devexit adp5520_led_remove(struct platform_device *pdev)
+static int adp5520_led_remove(struct platform_device *pdev)
 {
 	struct adp5520_leds_platform_data *pdata = pdev->dev.platform_data;
 	struct adp5520_led *led;

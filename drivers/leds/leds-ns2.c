@@ -292,7 +292,7 @@ static int ns2_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ns2_led_remove(struct platform_device *pdev)
+static int ns2_led_remove(struct platform_device *pdev)
 {
 	int i;
 	struct ns2_led_platform_data *pdata = pdev->dev.platform_data;

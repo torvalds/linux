@@ -136,7 +136,7 @@ static int da903x_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit da903x_led_remove(struct platform_device *pdev)
+static int da903x_led_remove(struct platform_device *pdev)
 {
 	struct da903x_led *led = platform_get_drvdata(pdev);
 

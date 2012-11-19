@@ -107,7 +107,7 @@ err:
 	return ret;
 }
 
-static int __devexit led_pwm_remove(struct platform_device *pdev)
+static int led_pwm_remove(struct platform_device *pdev)
 {
 	int i;
 	struct led_pwm_platform_data *pdata = pdev->dev.platform_data;

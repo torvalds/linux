@@ -292,7 +292,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit max8997_led_remove(struct platform_device *pdev)
+static int max8997_led_remove(struct platform_device *pdev)
 {
 	struct max8997_led *led = platform_get_drvdata(pdev);
 

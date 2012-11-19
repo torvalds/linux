@@ -164,7 +164,7 @@ exit:
 	return err;
 }
 
-static int __devexit pca9633_remove(struct i2c_client *client)
+static int pca9633_remove(struct i2c_client *client)
 {
 	struct pca9633_led *pca9633 = i2c_get_clientdata(client);
 	int i;

@@ -309,7 +309,7 @@ static int r_tpu_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit r_tpu_remove(struct platform_device *pdev)
+static int r_tpu_remove(struct platform_device *pdev)
 {
 	struct r_tpu_priv *p = platform_get_drvdata(pdev);
 

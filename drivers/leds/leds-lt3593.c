@@ -173,7 +173,7 @@ err:
 	return ret;
 }
 
-static int __devexit lt3593_led_remove(struct platform_device *pdev)
+static int lt3593_led_remove(struct platform_device *pdev)
 {
 	int i;
 	struct gpio_led_platform_data *pdata = pdev->dev.platform_data;

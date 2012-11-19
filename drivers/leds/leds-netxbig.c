@@ -389,7 +389,7 @@ err_free_leds:
 	return ret;
 }
 
-static int __devexit netxbig_led_remove(struct platform_device *pdev)
+static int netxbig_led_remove(struct platform_device *pdev)
 {
 	struct netxbig_led_platform_data *pdata = pdev->dev.platform_data;
 	struct netxbig_led_data *leds_data;

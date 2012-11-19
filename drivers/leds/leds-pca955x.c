@@ -363,7 +363,7 @@ exit:
 	return err;
 }
 
-static int __devexit pca955x_remove(struct i2c_client *client)
+static int pca955x_remove(struct i2c_client *client)
 {
 	struct pca955x *pca955x = i2c_get_clientdata(client);
 	int i;

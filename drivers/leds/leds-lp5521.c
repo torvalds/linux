@@ -855,7 +855,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit lp5521_remove(struct i2c_client *client)
+static int lp5521_remove(struct i2c_client *client)
 {
 	struct lp5521_chip *chip = i2c_get_clientdata(client);
 	int i;

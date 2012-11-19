@@ -526,7 +526,7 @@ err_out:
 	return err;
 }
 
-static int __devexit lm355x_remove(struct i2c_client *client)
+static int lm355x_remove(struct i2c_client *client)
 {
 	struct lm355x_chip_data *chip = i2c_get_clientdata(client);
 	struct lm355x_reg_data *preg = chip->regs;

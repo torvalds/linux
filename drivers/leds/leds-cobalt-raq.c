@@ -109,7 +109,7 @@ err_iounmap:
 	return retval;
 }
 
-static int __devexit cobalt_raq_led_remove(struct platform_device *pdev)
+static int cobalt_raq_led_remove(struct platform_device *pdev)
 {
 	led_classdev_unregister(&raq_power_off_led);
 	led_classdev_unregister(&raq_web_led);

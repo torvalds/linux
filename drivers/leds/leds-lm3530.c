@@ -452,7 +452,7 @@ err_create_file:
 	return err;
 }
 
-static int __devexit lm3530_remove(struct i2c_client *client)
+static int lm3530_remove(struct i2c_client *client)
 {
 	struct lm3530_data *drvdata = i2c_get_clientdata(client);
 

@@ -165,7 +165,7 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devexit sunfire_led_generic_remove(struct platform_device *pdev)
+static int sunfire_led_generic_remove(struct platform_device *pdev)
 {
 	struct sunfire_drvdata *p = dev_get_drvdata(&pdev->dev);
 	int i;

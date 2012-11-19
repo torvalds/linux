@@ -273,7 +273,7 @@ static int gpio_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit gpio_led_remove(struct platform_device *pdev)
+static int gpio_led_remove(struct platform_device *pdev)
 {
 	struct gpio_leds_priv *priv = platform_get_drvdata(pdev);
 	int i;

@@ -125,7 +125,7 @@ out:
 	return ret;
 }
 
-static int __devexit asic3_led_remove(struct platform_device *pdev)
+static int asic3_led_remove(struct platform_device *pdev)
 {
 	struct asic3_led *led = pdev->dev.platform_data;
 

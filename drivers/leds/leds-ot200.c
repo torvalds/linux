@@ -144,7 +144,7 @@ err:
 	return ret;
 }
 
-static int __devexit ot200_led_remove(struct platform_device *pdev)
+static int ot200_led_remove(struct platform_device *pdev)
 {
 	int i;
 

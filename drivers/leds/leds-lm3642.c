@@ -420,7 +420,7 @@ err_out:
 	return err;
 }
 
-static int __devexit lm3642_remove(struct i2c_client *client)
+static int lm3642_remove(struct i2c_client *client)
 {
 	struct lm3642_chip_data *chip = i2c_get_clientdata(client);
 

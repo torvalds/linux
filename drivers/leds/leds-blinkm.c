@@ -743,7 +743,7 @@ exit:
 	return err;
 }
 
-static int __devexit blinkm_remove(struct i2c_client *client)
+static int blinkm_remove(struct i2c_client *client)
 {
 	struct blinkm_data *data = i2c_get_clientdata(client);
 	int ret = 0;

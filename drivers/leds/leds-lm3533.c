@@ -742,7 +742,7 @@ err_unregister:
 	return ret;
 }
 
-static int __devexit lm3533_led_remove(struct platform_device *pdev)
+static int lm3533_led_remove(struct platform_device *pdev)
 {
 	struct lm3533_led *led = platform_get_drvdata(pdev);
 

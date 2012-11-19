@@ -348,7 +348,7 @@ err_register:
 	return ret;
 }
 
-static int __devexit mc13783_led_remove(struct platform_device *pdev)
+static int mc13783_led_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_leds_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct mc13783_led *led = platform_get_drvdata(pdev);

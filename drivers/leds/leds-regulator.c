@@ -206,7 +206,7 @@ err_vcc:
 	return ret;
 }
 
-static int __devexit regulator_led_remove(struct platform_device *pdev)
+static int regulator_led_remove(struct platform_device *pdev)
 {
 	struct regulator_led *led = platform_get_drvdata(pdev);
 
