@@ -606,7 +606,7 @@ static struct platform_driver bridge_driver = {
 		   .name = "omap-dsp",
 		   },
 	.probe = omap34_xx_bridge_probe,
-	.remove = __devexit_p(omap34_xx_bridge_remove),
+	.remove = omap34_xx_bridge_remove,
 #ifdef CONFIG_PM
 	.suspend = bridge_suspend,
 	.resume = bridge_resume,
