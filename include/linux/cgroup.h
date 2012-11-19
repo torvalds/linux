@@ -143,9 +143,11 @@ enum {
 	/* Control Group requires release notifications to userspace */
 	CGRP_NOTIFY_ON_RELEASE,
 	/*
-	 * Clone cgroup values when creating a new child cgroup
+	 * Clone the parent's configuration when creating a new child
+	 * cpuset cgroup.  For historical reasons, this option can be
+	 * specified at mount time and thus is implemented here.
 	 */
-	CGRP_CLONE_CHILDREN,
+	CGRP_CPUSET_CLONE_CHILDREN,
 };
 
 struct cgroup {

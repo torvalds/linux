@@ -299,11 +299,9 @@ a cgroup hierarchy's release_agent path is empty.
 1.5 What does clone_children do ?
 ---------------------------------
 
-If the clone_children flag is enabled (1) in a cgroup, then all
-cgroups created beneath will call the post_clone callbacks for each
-subsystem of the newly created cgroup. Usually when this callback is
-implemented for a subsystem, it copies the values of the parent
-subsystem, this is the case for the cpuset.
+This flag only affects the cpuset controller. If the clone_children
+flag is enabled (1) in a cgroup, a new cpuset cgroup will copy its
+configuration from the parent during initialization.
 
 1.6 How do I use cgroups ?
 --------------------------

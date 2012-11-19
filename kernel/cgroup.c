@@ -296,11 +296,6 @@ static int notify_on_release(const struct cgroup *cgrp)
 	return test_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 }
 
-static int clone_children(const struct cgroup *cgrp)
-{
-	return test_bit(CGRP_CLONE_CHILDREN, &cgrp->flags);
-}
-
 /*
  * for_each_subsys() allows you to iterate on each subsystem attached to
  * an active hierarchy
@@ -1101,7 +1096,7 @@ static int cgroup_show_options(struct seq_file *seq, struct dentry *dentry)
 		seq_puts(seq, ",xattr");
 	if (strlen(root->release_agent_path))
 		seq_printf(seq, ",release_agent=%s", root->release_agent_path);
-	if (clone_children(&root->top_cgroup))
+	if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->top_cgroup.flags))
 		seq_puts(seq, ",clone_children");
 	if (strlen(root->name))
 		seq_printf(seq, ",name=%s", root->name);
@@ -1113,7 +1108,7 @@ struct cgroup_sb_opts {
 	unsigned long subsys_mask;
 	unsigned long flags;
 	char *release_agent;
-	bool clone_children;
+	bool cpuset_clone_children;
 	char *name;
 	/* User explicitly requested empty subsystem */
 	bool none;
@@ -1164,7 +1159,7 @@ static int parse_cgroupfs_options(char *data, struct cgroup_sb_opts *opts)
 			continue;
 		}
 		if (!strcmp(token, "clone_children")) {
-			opts->clone_children = true;
+			opts->cpuset_clone_children = true;
 			continue;
 		}
 		if (!strcmp(token, "xattr")) {
@@ -1474,8 +1469,8 @@ static struct cgroupfs_root *cgroup_root_from_opts(struct cgroup_sb_opts *opts)
 		strcpy(root->release_agent_path, opts->release_agent);
 	if (opts->name)
 		strcpy(root->name, opts->name);
-	if (opts->clone_children)
-		set_bit(CGRP_CLONE_CHILDREN, &root->top_cgroup.flags);
+	if (opts->cpuset_clone_children)
+		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &root->top_cgroup.flags);
 	return root;
 }
 
@@ -3905,7 +3900,7 @@ fail:
 static u64 cgroup_clone_children_read(struct cgroup *cgrp,
 				    struct cftype *cft)
 {
-	return clone_children(cgrp);
+	return test_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 }
 
 static int cgroup_clone_children_write(struct cgroup *cgrp,
@@ -3913,9 +3908,9 @@ static int cgroup_clone_children_write(struct cgroup *cgrp,
 				     u64 val)
 {
 	if (val)
-		set_bit(CGRP_CLONE_CHILDREN, &cgrp->flags);
+		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 	else
-		clear_bit(CGRP_CLONE_CHILDREN, &cgrp->flags);
+		clear_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 	return 0;
 }
 
@@ -4130,8 +4125,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (notify_on_release(parent))
 		set_bit(CGRP_NOTIFY_ON_RELEASE, &cgrp->flags);
 
-	if (clone_children(parent))
-		set_bit(CGRP_CLONE_CHILDREN, &cgrp->flags);
+	if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &parent->flags))
+		set_bit(CGRP_CPUSET_CLONE_CHILDREN, &cgrp->flags);
 
 	for_each_subsys(root, ss) {
 		struct cgroup_subsys_state *css;
@@ -4148,7 +4143,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 				goto err_free_all;
 		}
 		/* At error, ->css_free() callback has to free assigned ID. */
-		if (clone_children(parent) && ss->post_clone)
+		if (test_bit(CGRP_CPUSET_CLONE_CHILDREN, &parent->flags) &&
+		    ss->post_clone)
 			ss->post_clone(cgrp);
 
 		if (ss->broken_hierarchy && !ss->warned_broken_hierarchy &&
