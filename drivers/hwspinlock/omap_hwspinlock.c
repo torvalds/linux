@@ -78,7 +78,7 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 	.relax = omap_hwspinlock_relax,
 };
 
-static int __devinit omap_hwspinlock_probe(struct platform_device *pdev)
+static int omap_hwspinlock_probe(struct platform_device *pdev)
 {
 	struct hwspinlock_pdata *pdata = pdev->dev.platform_data;
 	struct hwspinlock_device *bank;

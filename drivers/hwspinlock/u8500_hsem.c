@@ -91,7 +91,7 @@ static const struct hwspinlock_ops u8500_hwspinlock_ops = {
 	.relax		= u8500_hsem_relax,
 };
 
-static int __devinit u8500_hsem_probe(struct platform_device *pdev)
+static int u8500_hsem_probe(struct platform_device *pdev)
 {
 	struct hwspinlock_pdata *pdata = pdev->dev.platform_data;
 	struct hwspinlock_device *bank;
