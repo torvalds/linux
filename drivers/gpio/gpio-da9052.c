@@ -188,7 +188,7 @@ static int da9052_gpio_to_irq(struct gpio_chip *gc, u32 offset)
 	return da9052->irq_base + DA9052_IRQ_GPI0 + offset;
 }
 
-static struct gpio_chip reference_gp __devinitdata = {
+static struct gpio_chip reference_gp = {
 	.label = "da9052-gpio",
 	.owner = THIS_MODULE,
 	.get = da9052_gpio_get,

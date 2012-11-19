@@ -459,7 +459,7 @@ static struct platform_device_id mvebu_gpio_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, mvebu_gpio_ids);
 
-static struct of_device_id mvebu_gpio_of_match[] __devinitdata = {
+static struct of_device_id mvebu_gpio_of_match[] = {
 	{
 		.compatible = "marvell,orion-gpio",
 		.data       = (void*) MVEBU_GPIO_SOC_VARIANT_ORION,

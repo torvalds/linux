@@ -559,7 +559,7 @@ static int lpc32xx_gpio_probe(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_OF
-static struct of_device_id lpc32xx_gpio_of_match[] __devinitdata = {
+static struct of_device_id lpc32xx_gpio_of_match[] = {
 	{ .compatible = "nxp,lpc3220-gpio", },
 	{ },
 };
