@@ -720,7 +720,7 @@ static int __devexit mmp_pdma_remove(struct platform_device *op)
 	return 0;
 }
 
-static int __devinit mmp_pdma_chan_init(struct mmp_pdma_device *pdev,
+static int mmp_pdma_chan_init(struct mmp_pdma_device *pdev,
 							int idx, int irq)
 {
 	struct mmp_pdma_phy *phy  = &pdev->phy[idx];
@@ -764,7 +764,7 @@ static struct of_device_id mmp_pdma_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mmp_pdma_dt_ids);
 
-static int __devinit mmp_pdma_probe(struct platform_device *op)
+static int mmp_pdma_probe(struct platform_device *op)
 {
 	struct mmp_pdma_device *pdev;
 	const struct of_device_id *of_id;

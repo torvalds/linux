@@ -1462,7 +1462,7 @@ static void dw_dma_off(struct dw_dma *dw)
 		dw->chan[i].initialized = false;
 }
 
-static int __devinit dw_probe(struct platform_device *pdev)
+static int dw_probe(struct platform_device *pdev)
 {
 	struct dw_dma_platform_data *pdata;
 	struct resource		*io;

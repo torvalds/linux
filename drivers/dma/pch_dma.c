@@ -843,7 +843,7 @@ static int pch_dma_resume(struct pci_dev *pdev)
 }
 #endif
 
-static int __devinit pch_dma_probe(struct pci_dev *pdev,
+static int pch_dma_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct pch_dma *pd;

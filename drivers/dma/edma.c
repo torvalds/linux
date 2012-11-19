@@ -545,7 +545,7 @@ static void edma_dma_init(struct edma_cc *ecc, struct dma_device *dma,
 	INIT_LIST_HEAD(&dma->channels);
 }
 
-static int __devinit edma_probe(struct platform_device *pdev)
+static int edma_probe(struct platform_device *pdev)
 {
 	struct edma_cc *ecc;
 	int ret;

@@ -1197,7 +1197,7 @@ static const struct of_device_id tegra_dma_of_match[] __devinitconst = {
 MODULE_DEVICE_TABLE(of, tegra_dma_of_match);
 #endif
 
-static int __devinit tegra_dma_probe(struct platform_device *pdev)
+static int tegra_dma_probe(struct platform_device *pdev)
 {
 	struct resource	*res;
 	struct tegra_dma *tdma;

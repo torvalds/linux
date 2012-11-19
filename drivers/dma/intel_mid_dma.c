@@ -1225,7 +1225,7 @@ static void middma_shutdown(struct pci_dev *pdev)
  * Initialize the PCI device, map BARs, query driver data.
  * Call setup_dma to complete contoller and chan initilzation
  */
-static int __devinit intel_mid_dma_probe(struct pci_dev *pdev,
+static int intel_mid_dma_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	struct middma_device *device;

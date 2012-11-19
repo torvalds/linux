@@ -550,7 +550,7 @@ bool sirfsoc_dma_filter_id(struct dma_chan *chan, void *chan_id)
 }
 EXPORT_SYMBOL(sirfsoc_dma_filter_id);
 
-static int __devinit sirfsoc_dma_probe(struct platform_device *op)
+static int sirfsoc_dma_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
