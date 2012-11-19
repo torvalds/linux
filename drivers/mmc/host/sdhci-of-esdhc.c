@@ -234,7 +234,7 @@ static struct platform_driver sdhci_esdhc_driver = {
 		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_esdhc_probe,
-	.remove = __devexit_p(sdhci_esdhc_remove),
+	.remove = sdhci_esdhc_remove,
 };
 
 module_platform_driver(sdhci_esdhc_driver);

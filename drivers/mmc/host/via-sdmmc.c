@@ -1332,7 +1332,7 @@ static struct pci_driver via_sd_driver = {
 	.name = DRV_NAME,
 	.id_table = via_ids,
 	.probe = via_sd_probe,
-	.remove = __devexit_p(via_sd_remove),
+	.remove = via_sd_remove,
 	.suspend = via_sd_suspend,
 	.resume = via_sd_resume,
 };

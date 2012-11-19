@@ -112,7 +112,7 @@ static struct platform_driver sdhci_cns3xxx_driver = {
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_cns3xxx_probe,
-	.remove		= __devexit_p(sdhci_cns3xxx_remove),
+	.remove		= sdhci_cns3xxx_remove,
 };
 
 module_platform_driver(sdhci_cns3xxx_driver);

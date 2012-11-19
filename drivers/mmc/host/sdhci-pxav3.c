@@ -346,7 +346,7 @@ static struct platform_driver sdhci_pxav3_driver = {
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.probe		= sdhci_pxav3_probe,
-	.remove		= __devexit_p(sdhci_pxav3_remove),
+	.remove		= sdhci_pxav3_remove,
 };
 
 module_platform_driver(sdhci_pxav3_driver);

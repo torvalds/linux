@@ -680,7 +680,7 @@ static int sdh_resume(struct platform_device *dev)
 
 static struct platform_driver sdh_driver = {
 	.probe   = sdh_probe,
-	.remove  = __devexit_p(sdh_remove),
+	.remove  = sdh_remove,
 	.suspend = sdh_suspend,
 	.resume  = sdh_resume,
 	.driver  = {

@@ -1004,7 +1004,7 @@ const struct dev_pm_ops jz4740_mmc_pm_ops = {
 
 static struct platform_driver jz4740_mmc_driver = {
 	.probe = jz4740_mmc_probe,
-	.remove = __devexit_p(jz4740_mmc_remove),
+	.remove = jz4740_mmc_remove,
 	.driver = {
 		.name = "jz4740-mmc",
 		.owner = THIS_MODULE,

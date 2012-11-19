@@ -1669,7 +1669,7 @@ static struct amba_driver mmci_driver = {
 		.pm	= &mmci_dev_pm_ops,
 	},
 	.probe		= mmci_probe,
-	.remove		= __devexit_p(mmci_remove),
+	.remove		= mmci_remove,
 	.id_table	= mmci_ids,
 };
 

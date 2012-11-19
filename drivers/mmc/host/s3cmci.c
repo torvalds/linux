@@ -1906,7 +1906,7 @@ static struct platform_driver s3cmci_driver = {
 	},
 	.id_table	= s3cmci_driver_ids,
 	.probe		= s3cmci_probe,
-	.remove		= __devexit_p(s3cmci_remove),
+	.remove		= s3cmci_remove,
 	.shutdown	= s3cmci_shutdown,
 };
 

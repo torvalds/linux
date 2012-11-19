@@ -143,7 +143,7 @@ static struct platform_driver sdhci_dove_driver = {
 		.of_match_table = of_match_ptr(sdhci_dove_of_match_table),
 	},
 	.probe		= sdhci_dove_probe,
-	.remove		= __devexit_p(sdhci_dove_remove),
+	.remove		= sdhci_dove_remove,
 };
 
 module_platform_driver(sdhci_dove_driver);

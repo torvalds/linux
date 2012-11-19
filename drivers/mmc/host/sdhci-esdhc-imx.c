@@ -637,7 +637,7 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 	},
 	.id_table	= imx_esdhc_devtype,
 	.probe		= sdhci_esdhc_imx_probe,
-	.remove		= __devexit_p(sdhci_esdhc_imx_remove),
+	.remove		= sdhci_esdhc_imx_remove,
 };
 
 module_platform_driver(sdhci_esdhc_imx_driver);

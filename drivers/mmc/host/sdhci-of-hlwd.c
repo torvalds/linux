@@ -90,7 +90,7 @@ static struct platform_driver sdhci_hlwd_driver = {
 		.pm = SDHCI_PLTFM_PMOPS,
 	},
 	.probe = sdhci_hlwd_probe,
-	.remove = __devexit_p(sdhci_hlwd_remove),
+	.remove = sdhci_hlwd_remove,
 };
 
 module_platform_driver(sdhci_hlwd_driver);

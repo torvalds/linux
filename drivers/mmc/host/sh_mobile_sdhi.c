@@ -330,7 +330,7 @@ static struct platform_driver sh_mobile_sdhi_driver = {
 		.of_match_table = sh_mobile_sdhi_of_match,
 	},
 	.probe		= sh_mobile_sdhi_probe,
-	.remove		= __devexit_p(sh_mobile_sdhi_remove),
+	.remove		= sh_mobile_sdhi_remove,
 };
 
 module_platform_driver(sh_mobile_sdhi_driver);

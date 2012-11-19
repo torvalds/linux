@@ -336,7 +336,7 @@ static struct platform_driver sdhci_driver = {
 		.of_match_table = of_match_ptr(sdhci_spear_id_table),
 	},
 	.probe		= sdhci_probe,
-	.remove		= __devexit_p(sdhci_remove),
+	.remove		= sdhci_remove,
 };
 
 module_platform_driver(sdhci_driver);

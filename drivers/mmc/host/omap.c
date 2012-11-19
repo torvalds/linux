@@ -1566,7 +1566,7 @@ static int mmc_omap_resume(struct platform_device *pdev)
 
 static struct platform_driver mmc_omap_driver = {
 	.probe		= mmc_omap_probe,
-	.remove		= __devexit_p(mmc_omap_remove),
+	.remove		= mmc_omap_remove,
 	.suspend	= mmc_omap_suspend,
 	.resume		= mmc_omap_resume,
 	.driver		= {

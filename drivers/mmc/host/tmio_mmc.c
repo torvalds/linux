@@ -133,7 +133,7 @@ static struct platform_driver tmio_mmc_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tmio_mmc_probe,
-	.remove = __devexit_p(tmio_mmc_remove),
+	.remove = tmio_mmc_remove,
 	.suspend = tmio_mmc_suspend,
 	.resume = tmio_mmc_resume,
 };

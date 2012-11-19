@@ -1529,7 +1529,7 @@ static struct spi_driver mmc_spi_driver = {
 		.of_match_table = mmc_spi_of_match_table,
 	},
 	.probe =	mmc_spi_probe,
-	.remove =	__devexit_p(mmc_spi_remove),
+	.remove =	mmc_spi_remove,
 };
 
 module_spi_driver(mmc_spi_driver);
