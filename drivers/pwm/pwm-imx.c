@@ -231,7 +231,7 @@ static const struct of_device_id imx_pwm_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, imx_pwm_dt_ids);
 
-static int __devinit imx_pwm_probe(struct platform_device *pdev)
+static int imx_pwm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(imx_pwm_dt_ids, &pdev->dev);

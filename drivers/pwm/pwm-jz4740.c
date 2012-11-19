@@ -162,7 +162,7 @@ static const struct pwm_ops jz4740_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit jz4740_pwm_probe(struct platform_device *pdev)
+static int jz4740_pwm_probe(struct platform_device *pdev)
 {
 	struct jz4740_pwm_chip *jz4740;
 	int ret;

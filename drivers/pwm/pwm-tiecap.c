@@ -184,7 +184,7 @@ static const struct pwm_ops ecap_pwm_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit ecap_pwm_probe(struct platform_device *pdev)
+static int ecap_pwm_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;

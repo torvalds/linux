@@ -90,7 +90,7 @@ static const struct pwm_ops ab8500_pwm_ops = {
 	.disable = ab8500_pwm_disable,
 };
 
-static int __devinit ab8500_pwm_probe(struct platform_device *pdev)
+static int ab8500_pwm_probe(struct platform_device *pdev)
 {
 	struct ab8500_pwm_chip *ab8500;
 	int err;

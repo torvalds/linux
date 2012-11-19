@@ -392,7 +392,7 @@ static const struct pwm_ops ehrpwm_pwm_ops = {
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit ehrpwm_pwm_probe(struct platform_device *pdev)
+static int ehrpwm_pwm_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *r;

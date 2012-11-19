@@ -101,7 +101,7 @@ static const struct pwm_ops puv3_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit pwm_probe(struct platform_device *pdev)
+static int pwm_probe(struct platform_device *pdev)
 {
 	struct puv3_pwm_chip *puv3;
 	struct resource *r;
