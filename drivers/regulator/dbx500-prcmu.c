@@ -173,7 +173,7 @@ int __attribute__((weak)) dbx500_regulator_testcase(
 	return 0;
 }
 
-int __devinit
+int
 ux500_regulator_debug_init(struct platform_device *pdev,
 	struct dbx500_regulator_info *regulator_info,
 	int num_regulators)

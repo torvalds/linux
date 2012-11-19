@@ -211,7 +211,7 @@ static const struct i2c_device_id ad5398_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, ad5398_id);
 
-static int __devinit ad5398_probe(struct i2c_client *client,
+static int ad5398_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct regulator_init_data *init_data = client->dev.platform_data;

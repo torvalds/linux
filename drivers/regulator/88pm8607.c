@@ -394,7 +394,7 @@ static int pm8607_regulator_dt_init(struct platform_device *pdev,
 #define pm8607_regulator_dt_init(x, y, z)	(-1)
 #endif
 
-static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
+static int pm8607_regulator_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm8607_regulator_info *info = NULL;

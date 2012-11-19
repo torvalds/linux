@@ -356,7 +356,7 @@ static struct regulator_ops tps6507x_pmic_ops = {
 	.list_voltage = regulator_list_voltage_table,
 };
 
-static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
+static int tps6507x_pmic_probe(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = dev_get_drvdata(pdev->dev.parent);
 	struct tps_info *info = &tps6507x_pmic_regs[0];

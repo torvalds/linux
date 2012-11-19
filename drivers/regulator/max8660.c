@@ -305,7 +305,7 @@ static const struct regulator_desc max8660_reg[] = {
 	},
 };
 
-static int __devinit max8660_probe(struct i2c_client *client,
+static int max8660_probe(struct i2c_client *client,
 				   const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;

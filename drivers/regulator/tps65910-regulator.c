@@ -1026,7 +1026,7 @@ static inline struct tps65910_board *tps65910_parse_dt_reg_data(
 }
 #endif
 
-static __devinit int tps65910_probe(struct platform_device *pdev)
+static int tps65910_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };

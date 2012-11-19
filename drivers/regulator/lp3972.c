@@ -481,7 +481,7 @@ static const struct regulator_desc regulators[] = {
 	},
 };
 
-static int __devinit setup_regulators(struct lp3972 *lp3972,
+static int setup_regulators(struct lp3972 *lp3972,
 	struct lp3972_platform_data *pdata)
 {
 	int i, err;
@@ -523,7 +523,7 @@ err_nomem:
 	return err;
 }
 
-static int __devinit lp3972_i2c_probe(struct i2c_client *i2c,
+static int lp3972_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3972 *lp3972;

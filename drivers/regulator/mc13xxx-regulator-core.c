@@ -162,7 +162,7 @@ struct regulator_ops mc13xxx_fixed_regulator_ops = {
 EXPORT_SYMBOL_GPL(mc13xxx_fixed_regulator_ops);
 
 #ifdef CONFIG_OF
-int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
+int mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 {
 	struct device_node *parent, *child;
 	int num = 0;
@@ -179,7 +179,7 @@ int __devinit mc13xxx_get_num_regulators_dt(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(mc13xxx_get_num_regulators_dt);
 
-struct mc13xxx_regulator_init_data * __devinit mc13xxx_parse_regulators_dt(
+struct mc13xxx_regulator_init_data *mc13xxx_parse_regulators_dt(
 	struct platform_device *pdev, struct mc13xxx_regulator *regulators,
 	int num_regulators)
 {

@@ -486,7 +486,7 @@ static unsigned int mc13892_vcam_get_mode(struct regulator_dev *rdev)
 }
 
 
-static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
+static int mc13892_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13892 = dev_get_drvdata(pdev->dev.parent);

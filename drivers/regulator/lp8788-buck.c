@@ -504,7 +504,7 @@ set_default_dvs_mode:
 				  default_dvs_mode[id]);
 }
 
-static __devinit int lp8788_buck_probe(struct platform_device *pdev)
+static int lp8788_buck_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	int id = pdev->id;

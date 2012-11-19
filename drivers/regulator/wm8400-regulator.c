@@ -226,7 +226,7 @@ static struct regulator_desc regulators[] = {
 	},
 };
 
-static int __devinit wm8400_regulator_probe(struct platform_device *pdev)
+static int wm8400_regulator_probe(struct platform_device *pdev)
 {
 	struct wm8400 *wm8400 = container_of(pdev, struct wm8400, regulators[pdev->id]);
 	struct regulator_config config = { };

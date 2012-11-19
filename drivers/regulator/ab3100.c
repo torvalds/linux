@@ -494,7 +494,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
  * for all the different regulators.
  */
 
-static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
+static int ab3100_regulators_probe(struct platform_device *pdev)
 {
 	struct ab3100_platform_data *plfdata = pdev->dev.platform_data;
 	struct regulator_config config = { };

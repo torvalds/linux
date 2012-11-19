@@ -298,7 +298,7 @@ static inline struct tps6586x_regulator *find_regulator_info(int id)
 	return NULL;
 }
 
-static int __devinit tps6586x_regulator_probe(struct platform_device *pdev)
+static int tps6586x_regulator_probe(struct platform_device *pdev)
 {
 	struct tps6586x_regulator *ri = NULL;
 	struct regulator_config config = { };

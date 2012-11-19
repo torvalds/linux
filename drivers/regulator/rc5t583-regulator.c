@@ -119,7 +119,7 @@ static struct rc5t583_regulator_info rc5t583_reg_info[RC5T583_REGULATOR_MAX] = {
 	RC5T583_REG(LDO9, LDOEN1, 1, LDODIS1, 1, 0x7F, 900, 3400, 25000, 133),
 };
 
-static int __devinit rc5t583_regulator_probe(struct platform_device *pdev)
+static int rc5t583_regulator_probe(struct platform_device *pdev)
 {
 	struct rc5t583 *rc5t583 = dev_get_drvdata(pdev->dev.parent);
 	struct rc5t583_platform_data *pdata = dev_get_platdata(rc5t583->dev);

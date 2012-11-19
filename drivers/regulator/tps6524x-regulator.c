@@ -592,7 +592,7 @@ static int pmic_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int __devinit pmic_probe(struct spi_device *spi)
+static int pmic_probe(struct spi_device *spi)
 {
 	struct tps6524x *hw;
 	struct device *dev = &spi->dev;

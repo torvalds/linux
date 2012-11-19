@@ -127,7 +127,7 @@ static const struct regulator_desc tps6105x_regulator_desc = {
 /*
  * Registers the chip as a voltage regulator
  */
-static int __devinit tps6105x_regulator_probe(struct platform_device *pdev)
+static int tps6105x_regulator_probe(struct platform_device *pdev)
 {
 	struct tps6105x *tps6105x = dev_get_platdata(&pdev->dev);
 	struct tps6105x_platform_data *pdata = tps6105x->pdata;

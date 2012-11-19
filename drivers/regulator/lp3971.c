@@ -386,7 +386,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val)
 	return ret;
 }
 
-static int __devinit setup_regulators(struct lp3971 *lp3971,
+static int setup_regulators(struct lp3971 *lp3971,
 				      struct lp3971_platform_data *pdata)
 {
 	int i, err;
@@ -429,7 +429,7 @@ err_nomem:
 	return err;
 }
 
-static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
+static int lp3971_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
 	struct lp3971 *lp3971;

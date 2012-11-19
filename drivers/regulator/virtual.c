@@ -285,7 +285,7 @@ static const struct attribute_group regulator_virtual_attr_group = {
 	.attrs	= regulator_virtual_attributes,
 };
 
-static int __devinit regulator_virtual_probe(struct platform_device *pdev)
+static int regulator_virtual_probe(struct platform_device *pdev)
 {
 	char *reg_id = pdev->dev.platform_data;
 	struct virtual_consumer_data *drvdata;

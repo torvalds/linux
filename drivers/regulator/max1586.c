@@ -125,7 +125,7 @@ static struct regulator_desc max1586_reg[] = {
 	},
 };
 
-static int __devinit max1586_pmic_probe(struct i2c_client *client,
+static int max1586_pmic_probe(struct i2c_client *client,
 					const struct i2c_device_id *i2c_id)
 {
 	struct regulator_dev **rdev;

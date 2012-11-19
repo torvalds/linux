@@ -134,7 +134,7 @@ static struct regulator_ops fixed_voltage_ops = {
 	.list_voltage = fixed_voltage_list_voltage,
 };
 
-static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
+static int reg_fixed_voltage_probe(struct platform_device *pdev)
 {
 	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;

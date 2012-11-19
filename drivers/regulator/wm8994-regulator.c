@@ -99,7 +99,7 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 	},
 };
 
-static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
+static int wm8994_ldo_probe(struct platform_device *pdev)
 {
 	struct wm8994 *wm8994 = dev_get_drvdata(pdev->dev.parent);
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;

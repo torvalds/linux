@@ -157,7 +157,7 @@ static struct regulator_ops tps51632_dcdc_ops = {
 	.set_ramp_delay		= tps51632_dcdc_set_ramp_delay,
 };
 
-static int __devinit tps51632_init_dcdc(struct tps51632_chip *tps,
+static int tps51632_init_dcdc(struct tps51632_chip *tps,
 		struct tps51632_regulator_platform_data *pdata)
 {
 	int ret;
@@ -227,7 +227,7 @@ static const struct regmap_config tps51632_regmap_config = {
 	.cache_type		= REGCACHE_RBTREE,
 };
 
-static int __devinit tps51632_probe(struct i2c_client *client,
+static int tps51632_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct tps51632_regulator_platform_data *pdata;

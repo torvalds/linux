@@ -87,7 +87,7 @@ static struct regulator_ops anatop_rops = {
 	.map_voltage = regulator_map_voltage_linear,
 };
 
-static int __devinit anatop_regulator_probe(struct platform_device *pdev)
+static int anatop_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;

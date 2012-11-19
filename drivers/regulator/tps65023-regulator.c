@@ -219,7 +219,7 @@ static struct regmap_config tps65023_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit tps_65023_probe(struct i2c_client *client,
+static int tps_65023_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
 	const struct tps_driver_data *drv_data = (void *)id->driver_data;

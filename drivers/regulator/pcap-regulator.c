@@ -236,7 +236,7 @@ static const struct regulator_desc pcap_regulators[] = {
 	VREG(VAUX4), VREG(VSIM), VREG(VSIM2), VREG(VVIB), VREG(SW1), VREG(SW2),
 };
 
-static int __devinit pcap_regulator_probe(struct platform_device *pdev)
+static int pcap_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev;
 	void *pcap = dev_get_drvdata(pdev->dev.parent);

@@ -126,7 +126,7 @@ static const struct regulator_desc regulator = {
 	.owner		= THIS_MODULE,
 };
 
-static int __devinit max8952_pmic_probe(struct i2c_client *client,
+static int max8952_pmic_probe(struct i2c_client *client,
 		const struct i2c_device_id *i2c_id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);

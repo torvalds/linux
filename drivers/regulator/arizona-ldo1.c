@@ -67,7 +67,7 @@ static const struct regulator_init_data arizona_ldo1_default = {
 	.num_consumer_supplies = 1,
 };
 
-static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
+static int arizona_ldo1_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };

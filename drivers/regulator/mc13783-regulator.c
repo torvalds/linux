@@ -392,7 +392,7 @@ static struct regulator_ops mc13783_gpo_regulator_ops = {
 	.set_voltage = mc13xxx_fixed_regulator_set_voltage,
 };
 
-static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
+static int mc13783_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13783 = dev_get_drvdata(pdev->dev.parent);

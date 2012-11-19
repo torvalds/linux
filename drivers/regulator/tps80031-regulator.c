@@ -675,7 +675,7 @@ static int check_smps_mode_mult(struct device *parent,
 	return 0;
 }
 
-static int __devinit tps80031_regulator_probe(struct platform_device *pdev)
+static int tps80031_regulator_probe(struct platform_device *pdev)
 {
 	struct tps80031_platform_data *pdata;
 	struct tps80031_regulator_platform_data *tps_pdata;

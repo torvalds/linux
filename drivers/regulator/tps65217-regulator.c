@@ -332,7 +332,7 @@ static struct tps65217_board *tps65217_parse_dt(struct platform_device *pdev)
 }
 #endif
 
-static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
+static int tps65217_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65217 *tps = dev_get_drvdata(pdev->dev.parent);
 	struct tps65217_board *pdata = dev_get_platdata(tps->dev);

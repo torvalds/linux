@@ -1116,7 +1116,7 @@ static const struct of_device_id twl_of_match[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, twl_of_match);
 
-static int __devinit twlreg_probe(struct platform_device *pdev)
+static int twlreg_probe(struct platform_device *pdev)
 {
 	int				i, id;
 	struct twlreg_info		*info;

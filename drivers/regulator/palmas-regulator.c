@@ -595,7 +595,7 @@ static struct of_regulator_match palmas_matches[] = {
 	{ .name = "ldousb", },
 };
 
-static void __devinit palmas_dt_to_pdata(struct device *dev,
+static void palmas_dt_to_pdata(struct device *dev,
 		struct device_node *node,
 		struct palmas_pmic_platform_data *pdata)
 {
@@ -663,7 +663,7 @@ static void __devinit palmas_dt_to_pdata(struct device *dev,
 }
 
 
-static __devinit int palmas_probe(struct platform_device *pdev)
+static int palmas_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
 	struct palmas_pmic_platform_data *pdata = pdev->dev.platform_data;

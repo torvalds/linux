@@ -275,7 +275,7 @@ static inline struct device_node *match_of_node(int index)
 }
 #endif
 
-static __devinit int max8907_regulator_probe(struct platform_device *pdev)
+static int max8907_regulator_probe(struct platform_device *pdev)
 {
 	struct max8907 *max8907 = dev_get_drvdata(pdev->dev.parent);
 	struct max8907_platform_data *pdata = dev_get_platdata(max8907->dev);

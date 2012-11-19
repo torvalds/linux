@@ -247,7 +247,7 @@ static struct regulator_ops wm831x_gp_ldo_ops = {
 	.disable = regulator_disable_regmap,
 };
 
-static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
+static int wm831x_gp_ldo_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -504,7 +504,7 @@ static struct regulator_ops wm831x_aldo_ops = {
 	.disable = regulator_disable_regmap,
 };
 
-static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
+static int wm831x_aldo_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
@@ -660,7 +660,7 @@ static struct regulator_ops wm831x_alive_ldo_ops = {
 	.disable = regulator_disable_regmap,
 };
 
-static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
+static int wm831x_alive_ldo_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;

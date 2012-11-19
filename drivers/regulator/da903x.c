@@ -460,7 +460,7 @@ static inline struct da903x_regulator_info *find_regulator_info(int id)
 	return NULL;
 }
 
-static int __devinit da903x_regulator_probe(struct platform_device *pdev)
+static int da903x_regulator_probe(struct platform_device *pdev)
 {
 	struct da903x_regulator_info *ri = NULL;
 	struct regulator_dev *rdev;

@@ -83,7 +83,7 @@ static inline bool is_dcdc(int id)
 	}
 }
 
-static int __devinit tps65090_config_ext_control(
+static int tps65090_config_ext_control(
 	struct tps65090_regulator *ri, bool enable)
 {
 	int ret;
@@ -99,7 +99,7 @@ static int __devinit tps65090_config_ext_control(
 	return ret;
 }
 
-static int __devinit tps65090_regulator_disable_ext_control(
+static int tps65090_regulator_disable_ext_control(
 		struct tps65090_regulator *ri,
 		struct tps65090_regulator_plat_data *tps_pdata)
 {
@@ -122,7 +122,7 @@ static int __devinit tps65090_regulator_disable_ext_control(
 	return tps65090_config_ext_control(ri, false);
 }
 
-static void __devinit tps65090_configure_regulator_config(
+static void tps65090_configure_regulator_config(
 		struct tps65090_regulator_plat_data *tps_pdata,
 		struct regulator_config *config)
 {
@@ -138,7 +138,7 @@ static void __devinit tps65090_configure_regulator_config(
 	}
 }
 
-static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
+static int tps65090_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65090 *tps65090_mfd = dev_get_drvdata(pdev->dev.parent);
 	struct tps65090_regulator *ri = NULL;

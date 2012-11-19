@@ -176,7 +176,7 @@ static struct regmap_config max8649_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit max8649_regulator_probe(struct i2c_client *client,
+static int max8649_regulator_probe(struct i2c_client *client,
 					     const struct i2c_device_id *id)
 {
 	struct max8649_platform_data *pdata = client->dev.platform_data;
