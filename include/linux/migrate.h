@@ -77,10 +77,16 @@ static inline int migrate_huge_page_move_mapping(struct address_space *mapping,
 
 #ifdef CONFIG_NUMA_BALANCING
 extern int migrate_misplaced_page(struct page *page, int node);
+extern int migrate_misplaced_page(struct page *page, int node);
+extern bool migrate_ratelimited(int node);
 #else
 static inline int migrate_misplaced_page(struct page *page, int node)
 {
 	return -EAGAIN; /* can't migrate now */
+}
+static inline bool migrate_ratelimited(int node)
+{
+	return false;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 

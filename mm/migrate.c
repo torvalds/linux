@@ -1464,9 +1464,29 @@ static struct page *alloc_misplaced_dst_page(struct page *page,
  * page migration rate limiting control.
  * Do not migrate more than @pages_to_migrate in a @migrate_interval_millisecs
  * window of time. Default here says do not migrate more than 1280M per second.
+ * If a node is rate-limited then PTE NUMA updates are also rate-limited. However
+ * as it is faults that reset the window, pte updates will happen unconditionally
+ * if there has not been a fault since @pteupdate_interval_millisecs after the
+ * throttle window closed.
  */
 static unsigned int migrate_interval_millisecs __read_mostly = 100;
+static unsigned int pteupdate_interval_millisecs __read_mostly = 1000;
 static unsigned int ratelimit_pages __read_mostly = 128 << (20 - PAGE_SHIFT);
+
+/* Returns true if NUMA migration is currently rate limited */
+bool migrate_ratelimited(int node)
+{
+	pg_data_t *pgdat = NODE_DATA(node);
+
+	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window +
+				msecs_to_jiffies(pteupdate_interval_millisecs)))
+		return false;
+
+	if (pgdat->numabalancing_migrate_nr_pages < ratelimit_pages)
+		return false;
+
+	return true;
+}
 
 /*
  * Attempt to migrate a misplaced page to the specified destination

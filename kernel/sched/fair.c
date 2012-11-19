@@ -27,6 +27,7 @@
 #include <linux/profile.h>
 #include <linux/interrupt.h>
 #include <linux/mempolicy.h>
+#include <linux/migrate.h>
 #include <linux/task_work.h>
 
 #include <trace/events/sched.h>
@@ -859,6 +860,14 @@ void task_numa_work(struct callback_head *work)
 
 	next_scan = now + 2*msecs_to_jiffies(p->numa_scan_period);
 	if (cmpxchg(&mm->numa_next_scan, migrate, next_scan) != migrate)
+		return;
+
+	/*
+	 * Do not set pte_numa if the current running node is rate-limited.
+	 * This loses statistics on the fault but if we are unwilling to
+	 * migrate to this node, it is less likely we can do useful work
+	 */
+	if (migrate_ratelimited(numa_node_id()))
 		return;
 
 	start = mm->numa_scan_offset;
