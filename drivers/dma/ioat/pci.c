@@ -125,7 +125,7 @@ static struct pci_driver ioat_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= ioat_pci_tbl,
 	.probe		= ioat_pci_probe,
-	.remove		= __devexit_p(ioat_remove),
+	.remove		= ioat_remove,
 };
 
 static struct ioatdma_device *

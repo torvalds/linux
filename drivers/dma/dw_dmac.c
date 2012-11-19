@@ -1700,7 +1700,7 @@ MODULE_DEVICE_TABLE(of, dw_dma_id_table);
 #endif
 
 static struct platform_driver dw_driver = {
-	.remove		= __devexit_p(dw_remove),
+	.remove		= dw_remove,
 	.shutdown	= dw_shutdown,
 	.driver = {
 		.name	= "dw_dmac",

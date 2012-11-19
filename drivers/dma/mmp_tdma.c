@@ -609,7 +609,7 @@ static struct platform_driver mmp_tdma_driver = {
 	},
 	.id_table	= mmp_tdma_id_table,
 	.probe		= mmp_tdma_probe,
-	.remove		= __devexit_p(mmp_tdma_remove),
+	.remove		= mmp_tdma_remove,
 };
 
 module_platform_driver(mmp_tdma_driver);

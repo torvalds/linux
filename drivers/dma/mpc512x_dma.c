@@ -818,7 +818,7 @@ static struct of_device_id mpc_dma_match[] = {
 
 static struct platform_driver mpc_dma_driver = {
 	.probe		= mpc_dma_probe,
-	.remove		= __devexit_p(mpc_dma_remove),
+	.remove		= mpc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

@@ -1432,7 +1432,7 @@ static struct pci_driver intel_mid_dma_pci_driver = {
 	.name		=	"Intel MID DMA",
 	.id_table	=	intel_mid_dma_ids,
 	.probe		=	intel_mid_dma_probe,
-	.remove		=	__devexit_p(intel_mid_dma_remove),
+	.remove		=	intel_mid_dma_remove,
 #ifdef CONFIG_PM
 	.driver = {
 		.pm = &intel_mid_dma_pm,

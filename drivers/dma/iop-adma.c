@@ -1711,7 +1711,7 @@ static void iop_chan_start_null_xor(struct iop_adma_chan *iop_chan)
 
 static struct platform_driver iop_adma_driver = {
 	.probe		= iop_adma_probe,
-	.remove		= __devexit_p(iop_adma_remove),
+	.remove		= iop_adma_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "iop-adma",

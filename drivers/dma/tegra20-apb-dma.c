@@ -1418,7 +1418,7 @@ static struct platform_driver tegra_dmac_driver = {
 		.of_match_table = of_match_ptr(tegra_dma_of_match),
 	},
 	.probe		= tegra_dma_probe,
-	.remove		= __devexit_p(tegra_dma_remove),
+	.remove		= tegra_dma_remove,
 };
 
 module_platform_driver(tegra_dmac_driver);

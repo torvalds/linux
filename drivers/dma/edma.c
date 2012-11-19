@@ -598,7 +598,7 @@ static int __devexit edma_remove(struct platform_device *pdev)
 
 static struct platform_driver edma_driver = {
 	.probe		= edma_probe,
-	.remove		= __devexit_p(edma_remove),
+	.remove		= edma_remove,
 	.driver = {
 		.name = "edma-dma-engine",
 		.owner = THIS_MODULE,

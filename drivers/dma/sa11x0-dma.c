@@ -1072,7 +1072,7 @@ static struct platform_driver sa11x0_dma_driver = {
 		.pm	= &sa11x0_dma_pm_ops,
 	},
 	.probe		= sa11x0_dma_probe,
-	.remove		= __devexit_p(sa11x0_dma_remove),
+	.remove		= sa11x0_dma_remove,
 };
 
 bool sa11x0_dma_filter_fn(struct dma_chan *chan, void *param)
