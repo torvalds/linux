@@ -619,7 +619,7 @@ static struct vme_driver vme_user_driver = {
 	.name = driver_name,
 	.match = vme_user_match,
 	.probe = vme_user_probe,
-	.remove = __devexit_p(vme_user_remove),
+	.remove = vme_user_remove,
 };
 
 

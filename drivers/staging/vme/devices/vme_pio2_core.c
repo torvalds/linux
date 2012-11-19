@@ -156,7 +156,7 @@ static struct vme_driver pio2_driver = {
 	.name = driver_name,
 	.match = pio2_match,
 	.probe = pio2_probe,
-	.remove = __devexit_p(pio2_remove),
+	.remove = pio2_remove,
 };
 
 
