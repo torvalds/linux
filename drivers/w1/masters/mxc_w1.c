@@ -167,7 +167,7 @@ failed_clk:
 /*
  * disassociate the w1 device from the driver
  */
-static int __devexit mxc_w1_remove(struct platform_device *pdev)
+static int mxc_w1_remove(struct platform_device *pdev)
 {
 	struct mxc_w1_device *mdev = platform_get_drvdata(pdev);
 	struct resource *res;

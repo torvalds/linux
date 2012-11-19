@@ -70,7 +70,7 @@ struct hdq_data {
 };
 
 static int omap_hdq_probe(struct platform_device *pdev);
-static int __devexit omap_hdq_remove(struct platform_device *pdev);
+static int omap_hdq_remove(struct platform_device *pdev);
 
 static struct platform_driver omap_hdq_driver = {
 	.probe =	omap_hdq_probe,
@@ -613,7 +613,7 @@ err_w1:
 	return ret;
 }
 
-static int __devexit omap_hdq_remove(struct platform_device *pdev)
+static int omap_hdq_remove(struct platform_device *pdev)
 {
 	struct hdq_data *hdq_data = platform_get_drvdata(pdev);
 
