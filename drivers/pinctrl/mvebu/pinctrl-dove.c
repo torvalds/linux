@@ -234,6 +234,14 @@ static int dove_audio1_ctrl_set(struct mvebu_mpp_ctrl *ctrl,
 	unsigned long gmpp = readl(DOVE_MPP_GENERAL_VIRT_BASE);
 	unsigned long gcfg2 = readl(DOVE_GLOBAL_CONFIG_2);
 
+	/*
+	 * clear all audio1 related bits before configure
+	 */
+	gcfg2 &= ~DOVE_TWSI_OPTION3_GPIO;
+	gmpp &= ~DOVE_AU1_SPDIFO_GPIO_EN;
+	sspc1 &= ~DOVE_SSP_ON_AU1;
+	mpp4 &= ~DOVE_AU1_GPIO_SEL;
+
 	if (config & BIT(0))
 		gcfg2 |= DOVE_TWSI_OPTION3_GPIO;
 	if (config & BIT(1))
