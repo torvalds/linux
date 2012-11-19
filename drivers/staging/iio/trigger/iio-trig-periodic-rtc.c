@@ -167,7 +167,7 @@ error_free_completed_registrations:
 	return ret;
 }
 
-static int __devexit iio_trig_periodic_rtc_remove(struct platform_device *dev)
+static int iio_trig_periodic_rtc_remove(struct platform_device *dev)
 {
 	struct iio_trigger *trig, *trig2;
 	struct iio_prtc_trigger_info *trig_info;

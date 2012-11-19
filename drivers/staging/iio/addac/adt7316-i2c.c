@@ -108,7 +108,7 @@ static int adt7316_i2c_probe(struct i2c_client *client,
 	return adt7316_probe(&client->dev, &bus, id->name);
 }
 
-static int __devexit adt7316_i2c_remove(struct i2c_client *client)
+static int adt7316_i2c_remove(struct i2c_client *client)
 {
 	return adt7316_remove(&client->dev);
 }

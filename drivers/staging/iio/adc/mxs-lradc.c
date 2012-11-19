@@ -551,7 +551,7 @@ err_addr:
 	return ret;
 }
 
-static int __devexit mxs_lradc_remove(struct platform_device *pdev)
+static int mxs_lradc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iio = platform_get_drvdata(pdev);
 	struct mxs_lradc *lradc = iio_priv(iio);

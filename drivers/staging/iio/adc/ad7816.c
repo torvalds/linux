@@ -431,7 +431,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7816_remove(struct spi_device *spi_dev)
+static int ad7816_remove(struct spi_device *spi_dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&spi_dev->dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);

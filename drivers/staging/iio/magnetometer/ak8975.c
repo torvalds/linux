@@ -475,7 +475,7 @@ exit:
 	return err;
 }
 
-static int __devexit ak8975_remove(struct i2c_client *client)
+static int ak8975_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ak8975_data *data = iio_priv(indio_dev);

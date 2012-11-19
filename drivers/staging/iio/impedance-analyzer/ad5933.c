@@ -787,7 +787,7 @@ error_put_reg:
 	return ret;
 }
 
-static __devexit int ad5933_remove(struct i2c_client *client)
+static int ad5933_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad5933_state *st = iio_priv(indio_dev);

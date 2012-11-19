@@ -409,7 +409,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit adxrs450_remove(struct spi_device *spi)
+static int adxrs450_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));

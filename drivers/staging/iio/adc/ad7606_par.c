@@ -100,7 +100,7 @@ out1:
 	return ret;
 }
 
-static int __devexit ad7606_par_remove(struct platform_device *pdev)
+static int ad7606_par_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct resource *res;

@@ -2026,7 +2026,7 @@ static int tsl2x7x_resume(struct device *dev)
 	return ret;
 }
 
-static int __devexit tsl2x7x_remove(struct i2c_client *client)
+static int tsl2x7x_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 

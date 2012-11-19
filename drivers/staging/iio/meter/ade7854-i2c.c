@@ -231,7 +231,7 @@ static int ade7854_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int __devexit ade7854_i2c_remove(struct i2c_client *client)
+static int ade7854_i2c_remove(struct i2c_client *client)
 {
 	return ade7854_remove(i2c_get_clientdata(client));
 }

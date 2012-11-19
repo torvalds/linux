@@ -674,7 +674,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7291_remove(struct i2c_client *client)
+static int ad7291_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);

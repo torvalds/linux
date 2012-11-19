@@ -127,7 +127,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad5930_remove(struct spi_device *spi)
+static int ad5930_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
 	iio_device_free(spi_get_drvdata(spi));

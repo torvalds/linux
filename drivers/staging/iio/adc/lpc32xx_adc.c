@@ -207,7 +207,7 @@ errout1:
 	return retval;
 }
 
-static int __devexit lpc32xx_adc_remove(struct platform_device *pdev)
+static int lpc32xx_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iodev = platform_get_drvdata(pdev);
 	struct lpc32xx_adc_info *info = iio_priv(iodev);

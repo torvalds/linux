@@ -768,7 +768,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad7746_remove(struct i2c_client *client)
+static int ad7746_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 

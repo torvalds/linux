@@ -130,7 +130,7 @@ error_free_completed_registrations:
 	return ret;
 }
 
-static int __devexit iio_gpio_trigger_remove(struct platform_device *pdev)
+static int iio_gpio_trigger_remove(struct platform_device *pdev)
 {
 	struct iio_trigger *trig, *trig2;
 	struct iio_gpio_trigger_info *trig_info;

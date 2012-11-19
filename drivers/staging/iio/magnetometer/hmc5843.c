@@ -704,7 +704,7 @@ exit:
 	return err;
 }
 
-static int __devexit hmc5843_remove(struct i2c_client *client)
+static int hmc5843_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 

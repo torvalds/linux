@@ -401,7 +401,7 @@ errout1:
 	return ret;
 }
 
-static int __devexit spear_adc_remove(struct platform_device *pdev)
+static int spear_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *iodev = platform_get_drvdata(pdev);
 	struct spear_adc_info *info = iio_priv(iodev);

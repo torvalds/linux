@@ -792,7 +792,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit adt7410_remove(struct device *dev, int irq)
+static int adt7410_remove(struct device *dev, int irq)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	unsigned long *adt7410_platform_data = dev->platform_data;
@@ -883,7 +883,7 @@ static int adt7410_i2c_probe(struct i2c_client *client,
 		&adt7410_i2c_ops);
 }
 
-static int __devexit adt7410_i2c_remove(struct i2c_client *client)
+static int adt7410_i2c_remove(struct i2c_client *client)
 {
 	return adt7410_remove(&client->dev, client->irq);
 }
@@ -1036,7 +1036,7 @@ static int adt7310_spi_probe(struct spi_device *spi)
 		spi_get_device_id(spi)->name, &adt7310_spi_ops);
 }
 
-static int __devexit adt7310_spi_remove(struct spi_device *spi)
+static int adt7310_spi_remove(struct spi_device *spi)
 {
 	return adt7410_remove(&spi->dev, spi->irq);
 }

@@ -782,7 +782,7 @@ err_ret:
 }
 
 /* fixme, confirm ordering in this function */
-static int __devexit lis3l02dq_remove(struct spi_device *spi)
+static int lis3l02dq_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct lis3l02dq_state *st = iio_priv(indio_dev);

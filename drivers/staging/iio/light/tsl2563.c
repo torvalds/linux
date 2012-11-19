@@ -805,7 +805,7 @@ fail1:
 	return err;
 }
 
-static int __devexit tsl2563_remove(struct i2c_client *client)
+static int tsl2563_remove(struct i2c_client *client)
 {
 	struct tsl2563_chip *chip = i2c_get_clientdata(client);
 	struct iio_dev *indio_dev = iio_priv_to_dev(chip);

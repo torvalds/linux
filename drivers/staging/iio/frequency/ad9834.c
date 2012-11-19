@@ -424,7 +424,7 @@ error_put_reg:
 	return ret;
 }
 
-static int __devexit ad9834_remove(struct spi_device *spi)
+static int ad9834_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad9834_state *st = iio_priv(indio_dev);

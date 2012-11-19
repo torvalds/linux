@@ -2216,7 +2216,7 @@ error_ret:
 }
 EXPORT_SYMBOL(adt7316_probe);
 
-int __devexit adt7316_remove(struct device *dev)
+int adt7316_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct adt7316_chip_info *chip = iio_priv(indio_dev);

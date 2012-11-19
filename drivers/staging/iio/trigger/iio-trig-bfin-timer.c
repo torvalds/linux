@@ -275,7 +275,7 @@ out:
 	return ret;
 }
 
-static int __devexit iio_bfin_tmr_trigger_remove(struct platform_device *pdev)
+static int iio_bfin_tmr_trigger_remove(struct platform_device *pdev)
 {
 	struct bfin_tmr_state *st = platform_get_drvdata(pdev);
 

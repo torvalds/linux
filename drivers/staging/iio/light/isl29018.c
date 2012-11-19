@@ -598,7 +598,7 @@ exit:
 	return err;
 }
 
-static int __devexit isl29018_remove(struct i2c_client *client)
+static int isl29018_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 

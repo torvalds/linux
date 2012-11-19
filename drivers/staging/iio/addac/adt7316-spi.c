@@ -116,7 +116,7 @@ static int adt7316_spi_probe(struct spi_device *spi_dev)
 	return adt7316_probe(&spi_dev->dev, &bus, spi_dev->modalias);
 }
 
-static int __devexit adt7316_spi_remove(struct spi_device *spi_dev)
+static int adt7316_spi_remove(struct spi_device *spi_dev)
 {
 	return adt7316_remove(&spi_dev->dev);
 }
