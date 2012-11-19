@@ -284,7 +284,7 @@ static void tb0219_pci_irq_init(void)
 	vr41xx_set_irq_level(TB0219_PCI_SLOT3_PIN, IRQ_LEVEL_LOW);
 }
 
-static int __devinit tb0219_probe(struct platform_device *dev)
+static int tb0219_probe(struct platform_device *dev)
 {
 	int retval;
 

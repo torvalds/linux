@@ -595,7 +595,7 @@ static const struct file_operations hwicap_fops = {
 	.llseek = noop_llseek,
 };
 
-static int __devinit hwicap_setup(struct device *dev, int id,
+static int hwicap_setup(struct device *dev, int id,
 		const struct resource *regs_res,
 		const struct hwicap_driver_config *config,
 		const struct config_registers *config_regs)
@@ -740,7 +740,7 @@ static int __devexit hwicap_remove(struct device *dev)
 }
 
 #ifdef CONFIG_OF
-static int __devinit hwicap_of_probe(struct platform_device *op,
+static int hwicap_of_probe(struct platform_device *op,
 				     const struct hwicap_driver_config *config)
 {
 	struct resource res;
@@ -786,7 +786,7 @@ static inline int hwicap_of_probe(struct platform_device *op,
 #endif /* CONFIG_OF */
 
 static const struct of_device_id __devinitconst hwicap_of_match[];
-static int __devinit hwicap_drv_probe(struct platform_device *pdev)
+static int hwicap_drv_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct resource *res;
