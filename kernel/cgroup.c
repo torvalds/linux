@@ -2652,6 +2652,7 @@ static int cgroup_create_file(struct dentry *dentry, umode_t mode,
 
 		/* start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);
+		inc_nlink(dentry->d_parent->d_inode);
 
 		/* start with the directory inode held, so that we can
 		 * populate it without racing with another mkdir */
@@ -2664,30 +2665,6 @@ static int cgroup_create_file(struct dentry *dentry, umode_t mode,
 	d_instantiate(dentry, inode);
 	dget(dentry);	/* Extra count - pin the dentry in core */
 	return 0;
-}
-
-/*
- * cgroup_create_dir - create a directory for an object.
- * @cgrp: the cgroup we create the directory for. It must have a valid
- *        ->parent field. And we are going to fill its ->dentry field.
- * @dentry: dentry of the new cgroup
- * @mode: mode to set on new directory.
- */
-static int cgroup_create_dir(struct cgroup *cgrp, struct dentry *dentry,
-				umode_t mode)
-{
-	struct dentry *parent;
-	int error = 0;
-
-	parent = cgrp->parent->dentry;
-	error = cgroup_create_file(dentry, S_IFDIR | mode, cgrp->root->sb);
-	if (!error) {
-		dentry->d_fsdata = cgrp;
-		inc_nlink(parent->d_inode);
-		rcu_assign_pointer(cgrp->dentry, dentry);
-	}
-
-	return error;
 }
 
 /**
@@ -4138,9 +4115,12 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
 	root->number_of_cgroups++;
 
-	err = cgroup_create_dir(cgrp, dentry, mode);
+	err = cgroup_create_file(dentry, S_IFDIR | mode, sb);
 	if (err < 0)
 		goto err_remove;
+
+	dentry->d_fsdata = cgrp;
+	rcu_assign_pointer(cgrp->dentry, dentry);
 
 	for_each_subsys(root, ss) {
 		/* each css holds a ref to the cgroup's dentry */
