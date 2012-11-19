@@ -3758,6 +3758,12 @@ F:	net/ieee802154/
 F:	net/mac802154/
 F:	drivers/ieee802154/
 
+IGUANAWORKS USB IR TRANSCEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/iguanair.c
+
 IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@cam.ac.uk>
 L:	linux-iio@vger.kernel.org
@@ -7320,6 +7326,12 @@ L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/team/
 F:	include/linux/if_team.h
+
+TECHNOTREND USB IR RECEIVER
+M:	Sean Young <sean@mess.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/rc/ttusbir.c
 
 TEGRA SUPPORT
 M:	Stephen Warren <swarren@wwwdotorg.org>
