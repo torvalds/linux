@@ -285,7 +285,7 @@ static struct platform_driver imx23_pinctrl_driver = {
 		.of_match_table = imx23_pinctrl_of_match,
 	},
 	.probe = imx23_pinctrl_probe,
-	.remove = __devexit_p(mxs_pinctrl_remove),
+	.remove = mxs_pinctrl_remove,
 };
 
 static int __init imx23_pinctrl_init(void)

@@ -1184,7 +1184,7 @@ static struct platform_driver u300_pmx_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = u300_pmx_probe,
-	.remove = __devexit_p(u300_pmx_remove),
+	.remove = u300_pmx_remove,
 };
 
 static int __init u300_pmx_init(void)

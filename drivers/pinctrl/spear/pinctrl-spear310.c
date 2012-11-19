@@ -410,7 +410,7 @@ static struct platform_driver spear310_pinctrl_driver = {
 		.of_match_table = spear310_pinctrl_of_match,
 	},
 	.probe = spear310_pinctrl_probe,
-	.remove = __devexit_p(spear310_pinctrl_remove),
+	.remove = spear310_pinctrl_remove,
 };
 
 static int __init spear310_pinctrl_init(void)

@@ -987,7 +987,7 @@ static struct platform_driver pxa910_pinmux_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pxa910_pinmux_probe,
-	.remove	= __devexit_p(pxa910_pinmux_remove),
+	.remove	= pxa910_pinmux_remove,
 };
 
 static int __init pxa910_pinmux_init(void)

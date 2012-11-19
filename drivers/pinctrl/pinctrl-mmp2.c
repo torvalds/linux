@@ -702,7 +702,7 @@ static struct platform_driver mmp2_pinmux_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= mmp2_pinmux_probe,
-	.remove	= __devexit_p(mmp2_pinmux_remove),
+	.remove	= mmp2_pinmux_remove,
 };
 
 static int __init mmp2_pinmux_init(void)

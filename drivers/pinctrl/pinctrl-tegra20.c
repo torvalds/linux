@@ -2873,7 +2873,7 @@ static struct platform_driver tegra20_pinctrl_driver = {
 		.of_match_table = tegra20_pinctrl_of_match,
 	},
 	.probe = tegra20_pinctrl_probe,
-	.remove = __devexit_p(tegra_pinctrl_remove),
+	.remove = tegra_pinctrl_remove,
 };
 
 static int __init tegra20_pinctrl_init(void)

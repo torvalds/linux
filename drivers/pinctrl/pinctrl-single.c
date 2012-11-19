@@ -1006,7 +1006,7 @@ MODULE_DEVICE_TABLE(of, pcs_of_match);
 
 static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
-	.remove		= __devexit_p(pcs_remove),
+	.remove		= pcs_remove,
 	.driver = {
 		.owner		= THIS_MODULE,
 		.name		= DRIVER_NAME,
