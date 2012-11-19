@@ -716,7 +716,7 @@ static void nvec_power_off(void)
 	nvec_write_async(nvec_power_handle, "\x04\x01", 2);
 }
 
-static int __devinit tegra_nvec_probe(struct platform_device *pdev)
+static int tegra_nvec_probe(struct platform_device *pdev)
 {
 	int err, ret;
 	struct clk *i2c_clk;

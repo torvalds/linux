@@ -93,7 +93,7 @@ static int nvec_ps2_notifier(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
-static int __devinit nvec_mouse_probe(struct platform_device *pdev)
+static int nvec_mouse_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct serio *ser_dev;

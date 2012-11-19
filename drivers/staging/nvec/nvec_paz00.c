@@ -43,7 +43,7 @@ static void nvec_led_brightness_set(struct led_classdev *led_cdev,
 
 }
 
-static int __devinit nvec_paz00_probe(struct platform_device *pdev)
+static int nvec_paz00_probe(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
 	struct nvec_led *led;

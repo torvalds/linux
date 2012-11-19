@@ -368,7 +368,7 @@ static void nvec_power_poll(struct work_struct *work)
 	schedule_delayed_work(to_delayed_work(work), msecs_to_jiffies(5000));
 };
 
-static int __devinit nvec_power_probe(struct platform_device *pdev)
+static int nvec_power_probe(struct platform_device *pdev)
 {
 	struct power_supply *psy;
 	struct nvec_power *power;
