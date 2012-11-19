@@ -293,6 +293,17 @@ do_debug(struct pt_regs *regs)
 }
 
 
+/* Set exception C handler - for temporary use when probing exceptions */
+
+void * __init trap_set_handler(int cause, void *handler)
+{
+	unsigned long *entry = &exc_table[EXC_TABLE_DEFAULT / 4 + cause];
+	void *previous = (void *)*entry;
+	*entry = (unsigned long)handler;
+	return previous;
+}
+
+
 /*
  * Initialize dispatch tables.
  *
