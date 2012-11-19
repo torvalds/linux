@@ -411,7 +411,7 @@ static int qeth_l2_process_inbound_buffer(struct qeth_card *card,
 	unsigned int len;
 
 	*done = 0;
-	BUG_ON(!budget);
+	WARN_ON_ONCE(!budget);
 	while (budget) {
 		skb = qeth_core_get_next_skb(card,
 			&card->qdio.in_q->bufs[card->rx.b_index],
@@ -973,7 +973,6 @@ static int __qeth_l2_set_online(struct ccwgroup_device *gdev, int recovery_mode)
 	int rc = 0;
 	enum qeth_card_states recover_flag;
 
-	BUG_ON(!card);
 	mutex_lock(&card->discipline_mutex);
 	mutex_lock(&card->conf_mutex);
 	QETH_DBF_TEXT(SETUP, 2, "setonlin");
