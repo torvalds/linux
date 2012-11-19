@@ -390,7 +390,7 @@ static struct pci_driver apci1032_pci_driver = {
 	.name		= "addi_apci_1032",
 	.id_table	= apci1032_pci_table,
 	.probe		= apci1032_pci_probe,
-	.remove		= __devexit_p(apci1032_pci_remove),
+	.remove		= apci1032_pci_remove,
 };
 module_comedi_pci_driver(apci1032_driver, apci1032_pci_driver);
 

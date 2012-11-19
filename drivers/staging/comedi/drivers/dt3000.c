@@ -877,7 +877,7 @@ static struct pci_driver dt3000_pci_driver = {
 	.name		= "dt3000",
 	.id_table	= dt3000_pci_table,
 	.probe		= dt3000_pci_probe,
-	.remove		= __devexit_p(dt3000_pci_remove),
+	.remove		= dt3000_pci_remove,
 };
 module_comedi_pci_driver(dt3000_driver, dt3000_pci_driver);
 

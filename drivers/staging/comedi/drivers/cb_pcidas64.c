@@ -4253,7 +4253,7 @@ static struct pci_driver cb_pcidas64_pci_driver = {
 	.name		= "cb_pcidas64",
 	.id_table	= cb_pcidas64_pci_table,
 	.probe		= cb_pcidas64_pci_probe,
-	.remove		= __devexit_p(cb_pcidas64_pci_remove),
+	.remove		= cb_pcidas64_pci_remove,
 };
 module_comedi_pci_driver(cb_pcidas64_driver, cb_pcidas64_pci_driver);
 

@@ -381,7 +381,7 @@ static struct pci_driver amplc_pc263_pci_driver = {
 	.name = PC263_DRIVER_NAME,
 	.id_table = pc263_pci_table,
 	.probe = &amplc_pc263_pci_probe,
-	.remove = __devexit_p(&amplc_pc263_pci_remove)
+	.remove = &amplc_pc263_pci_remove
 };
 module_comedi_pci_driver(amplc_pc263_driver, amplc_pc263_pci_driver);
 #else

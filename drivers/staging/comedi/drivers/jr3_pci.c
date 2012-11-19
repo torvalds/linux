@@ -863,7 +863,7 @@ static struct pci_driver jr3_pci_pci_driver = {
 	.name		= "jr3_pci",
 	.id_table	= jr3_pci_pci_table,
 	.probe		= jr3_pci_pci_probe,
-	.remove		= __devexit_p(jr3_pci_pci_remove),
+	.remove		= jr3_pci_pci_remove,
 };
 module_comedi_pci_driver(jr3_pci_driver, jr3_pci_pci_driver);
 

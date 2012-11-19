@@ -68,7 +68,7 @@ static struct pci_driver apci1500_pci_driver = {
 	.name		= "addi_apci_1500",
 	.id_table	= apci1500_pci_table,
 	.probe		= apci1500_pci_probe,
-	.remove		= __devexit_p(apci1500_pci_remove),
+	.remove		= apci1500_pci_remove,
 };
 module_comedi_pci_driver(apci1500_driver, apci1500_pci_driver);
 

@@ -2125,7 +2125,7 @@ static struct pci_driver labpc_pci_driver = {
 	.name = DRV_NAME,
 	.id_table = labpc_pci_table,
 	.probe = labpc_pci_probe,
-	.remove = __devexit_p(labpc_pci_remove)
+	.remove = labpc_pci_remove
 };
 module_comedi_pci_driver(labpc_driver, labpc_pci_driver);
 #else

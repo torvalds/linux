@@ -145,7 +145,7 @@ static struct pci_driver contec_pci_dio_pci_driver = {
 	.name		= "contec_pci_dio",
 	.id_table	= contec_pci_dio_pci_table,
 	.probe		= contec_pci_dio_pci_probe,
-	.remove		= __devexit_p(contec_pci_dio_pci_remove),
+	.remove		= contec_pci_dio_pci_remove,
 };
 module_comedi_pci_driver(contec_pci_dio_driver, contec_pci_dio_pci_driver);
 

@@ -719,7 +719,7 @@ static void __devexit skel_pci_remove(struct pci_dev *dev)
 static struct pci_driver skel_pci_driver = {
 	.id_table = skel_pci_table,
 	.probe = &skel_pci_probe,
-	.remove = __devexit_p(&skel_pci_remove)
+	.remove = &skel_pci_remove
 };
 module_comedi_pci_driver(skel_driver, skel_pci_driver);
 #else

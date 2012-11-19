@@ -900,7 +900,7 @@ static struct pci_driver das08_pci_driver = {
 	.id_table = das08_pci_table,
 	.name =  DRV_NAME,
 	.probe = &das08_pci_probe,
-	.remove = __devexit_p(&das08_pci_remove)
+	.remove = &das08_pci_remove
 };
 #endif /* DO_PCI */
 

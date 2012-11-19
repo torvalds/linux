@@ -291,7 +291,7 @@ static struct pci_driver dyna_pci10xx_pci_driver = {
 	.name		= "dyna_pci10xx",
 	.id_table	= dyna_pci10xx_pci_table,
 	.probe		= dyna_pci10xx_pci_probe,
-	.remove		= __devexit_p(dyna_pci10xx_pci_remove),
+	.remove		= dyna_pci10xx_pci_remove,
 };
 module_comedi_pci_driver(dyna_pci10xx_driver, dyna_pci10xx_pci_driver);
 

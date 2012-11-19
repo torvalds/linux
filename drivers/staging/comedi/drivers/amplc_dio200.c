@@ -2088,7 +2088,7 @@ static struct pci_driver amplc_dio200_pci_driver = {
 	.name = DIO200_DRIVER_NAME,
 	.id_table = dio200_pci_table,
 	.probe = &amplc_dio200_pci_probe,
-	.remove = __devexit_p(&amplc_dio200_pci_remove)
+	.remove = &amplc_dio200_pci_remove
 };
 module_comedi_pci_driver(amplc_dio200_driver, amplc_dio200_pci_driver);
 #else

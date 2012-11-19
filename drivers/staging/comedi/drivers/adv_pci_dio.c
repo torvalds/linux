@@ -1234,7 +1234,7 @@ static struct pci_driver adv_pci_dio_pci_driver = {
 	.name		= "adv_pci_dio",
 	.id_table	= adv_pci_dio_pci_table,
 	.probe		= adv_pci_dio_pci_probe,
-	.remove		= __devexit_p(adv_pci_dio_pci_remove),
+	.remove		= adv_pci_dio_pci_remove,
 };
 module_comedi_pci_driver(adv_pci_dio_driver, adv_pci_dio_pci_driver);
 

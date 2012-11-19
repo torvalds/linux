@@ -790,7 +790,7 @@ static struct pci_driver apci3xxx_pci_driver = {
 	.name		= "addi_apci_3xxx",
 	.id_table	= apci3xxx_pci_table,
 	.probe		= apci3xxx_pci_probe,
-	.remove		= __devexit_p(apci3xxx_pci_remove),
+	.remove		= apci3xxx_pci_remove,
 };
 module_comedi_pci_driver(apci3xxx_driver, apci3xxx_pci_driver);
 

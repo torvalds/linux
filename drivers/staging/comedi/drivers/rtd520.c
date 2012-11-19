@@ -1436,7 +1436,7 @@ static struct pci_driver rtd520_pci_driver = {
 	.name		= "rtd520",
 	.id_table	= rtd520_pci_table,
 	.probe		= rtd520_pci_probe,
-	.remove		= __devexit_p(rtd520_pci_remove),
+	.remove		= rtd520_pci_remove,
 };
 module_comedi_pci_driver(rtd520_driver, rtd520_pci_driver);
 

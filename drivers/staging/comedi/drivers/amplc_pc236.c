@@ -623,7 +623,7 @@ static struct pci_driver amplc_pc236_pci_driver = {
 	.name = PC236_DRIVER_NAME,
 	.id_table = pc236_pci_table,
 	.probe = &amplc_pc236_pci_probe,
-	.remove = __devexit_p(&amplc_pc236_pci_remove)
+	.remove = &amplc_pc236_pci_remove
 };
 
 module_comedi_pci_driver(amplc_pc236_driver, amplc_pc236_pci_driver);

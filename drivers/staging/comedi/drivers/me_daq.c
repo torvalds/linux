@@ -635,7 +635,7 @@ static struct pci_driver me_daq_pci_driver = {
 	.name		= "me_daq",
 	.id_table	= me_daq_pci_table,
 	.probe		= me_daq_pci_probe,
-	.remove		= __devexit_p(me_daq_pci_remove),
+	.remove		= me_daq_pci_remove,
 };
 module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 

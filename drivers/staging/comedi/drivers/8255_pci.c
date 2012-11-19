@@ -342,7 +342,7 @@ static struct pci_driver pci_8255_pci_driver = {
 	.name		= "8255_pci",
 	.id_table	= pci_8255_pci_table,
 	.probe		= pci_8255_pci_probe,
-	.remove		= __devexit_p(pci_8255_pci_remove),
+	.remove		= pci_8255_pci_remove,
 };
 module_comedi_pci_driver(pci_8255_driver, pci_8255_pci_driver);
 

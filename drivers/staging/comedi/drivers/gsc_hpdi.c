@@ -962,7 +962,7 @@ static struct pci_driver gsc_hpdi_pci_driver = {
 	.name		= "gsc_hpdi",
 	.id_table	= gsc_hpdi_pci_table,
 	.probe		= gsc_hpdi_pci_probe,
-	.remove		= __devexit_p(gsc_hpdi_pci_remove)
+	.remove		= gsc_hpdi_pci_remove
 };
 module_comedi_pci_driver(gsc_hpdi_driver, gsc_hpdi_pci_driver);
 

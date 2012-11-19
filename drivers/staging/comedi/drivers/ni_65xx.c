@@ -797,7 +797,7 @@ static struct pci_driver ni_65xx_pci_driver = {
 	.name = "ni_65xx",
 	.id_table = ni_65xx_pci_table,
 	.probe = ni_65xx_pci_probe,
-	.remove = __devexit_p(ni_65xx_pci_remove)
+	.remove = ni_65xx_pci_remove
 };
 module_comedi_pci_driver(ni_65xx_driver, ni_65xx_pci_driver);
 

@@ -167,7 +167,7 @@ static struct pci_driver ke_counter_pci_driver = {
 	.name		= "ke_counter",
 	.id_table	= ke_counter_pci_table,
 	.probe		= ke_counter_pci_probe,
-	.remove		= __devexit_p(ke_counter_pci_remove),
+	.remove		= ke_counter_pci_remove,
 };
 module_comedi_pci_driver(ke_counter_driver, ke_counter_pci_driver);
 

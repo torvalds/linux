@@ -1654,7 +1654,7 @@ static struct pci_driver cb_pcidas_pci_driver = {
 	.name		= "cb_pcidas",
 	.id_table	= cb_pcidas_pci_table,
 	.probe		= cb_pcidas_pci_probe,
-	.remove		= __devexit_p(cb_pcidas_pci_remove)
+	.remove		= cb_pcidas_pci_remove
 };
 module_comedi_pci_driver(cb_pcidas_driver, cb_pcidas_pci_driver);
 

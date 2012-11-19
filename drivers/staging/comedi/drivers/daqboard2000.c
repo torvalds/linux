@@ -814,7 +814,7 @@ static struct pci_driver daqboard2000_pci_driver = {
 	.name		= "daqboard2000",
 	.id_table	= daqboard2000_pci_table,
 	.probe		= daqboard2000_pci_probe,
-	.remove		= __devexit_p(daqboard2000_pci_remove),
+	.remove		= daqboard2000_pci_remove,
 };
 module_comedi_pci_driver(daqboard2000_driver, daqboard2000_pci_driver);
 

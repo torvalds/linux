@@ -1528,7 +1528,7 @@ static struct pci_driver amplc_pci224_pci_driver = {
 	.name		= "amplc_pci224",
 	.id_table	= amplc_pci224_pci_table,
 	.probe		= amplc_pci224_pci_probe,
-	.remove		= __devexit_p(amplc_pci224_pci_remove),
+	.remove		= amplc_pci224_pci_remove,
 };
 module_comedi_pci_driver(amplc_pci224_driver, amplc_pci224_pci_driver);
 

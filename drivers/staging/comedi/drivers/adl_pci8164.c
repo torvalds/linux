@@ -313,7 +313,7 @@ static struct pci_driver adl_pci8164_pci_driver = {
 	.name		= "adl_pci8164",
 	.id_table	= adl_pci8164_pci_table,
 	.probe		= adl_pci8164_pci_probe,
-	.remove		= __devexit_p(adl_pci8164_pci_remove),
+	.remove		= adl_pci8164_pci_remove,
 };
 module_comedi_pci_driver(adl_pci8164_driver, adl_pci8164_pci_driver);
 

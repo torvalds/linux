@@ -322,7 +322,7 @@ static struct pci_driver adl_pci7x3x_pci_driver = {
 	.name		= "adl_pci7x3x",
 	.id_table	= adl_pci7x3x_pci_table,
 	.probe		= adl_pci7x3x_pci_probe,
-	.remove		= __devexit_p(adl_pci7x3x_pci_remove),
+	.remove		= adl_pci7x3x_pci_remove,
 };
 module_comedi_pci_driver(adl_pci7x3x_driver, adl_pci7x3x_pci_driver);
 

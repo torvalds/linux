@@ -1345,7 +1345,7 @@ static struct pci_driver ni_660x_pci_driver = {
 	.name		= "ni_660x",
 	.id_table	= ni_660x_pci_table,
 	.probe		= ni_660x_pci_probe,
-	.remove		= __devexit_p(ni_660x_pci_remove),
+	.remove		= ni_660x_pci_remove,
 };
 module_comedi_pci_driver(ni_660x_driver, ni_660x_pci_driver);
 

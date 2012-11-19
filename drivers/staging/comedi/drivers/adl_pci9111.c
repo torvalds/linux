@@ -979,7 +979,7 @@ static struct pci_driver adl_pci9111_pci_driver = {
 	.name		= "adl_pci9111",
 	.id_table	= pci9111_pci_table,
 	.probe		= pci9111_pci_probe,
-	.remove		= __devexit_p(pci9111_pci_remove),
+	.remove		= pci9111_pci_remove,
 };
 module_comedi_pci_driver(adl_pci9111_driver, adl_pci9111_pci_driver);
 

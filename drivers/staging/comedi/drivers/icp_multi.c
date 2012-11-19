@@ -638,7 +638,7 @@ static struct pci_driver icp_multi_pci_driver = {
 	.name		= "icp_multi",
 	.id_table	= icp_multi_pci_table,
 	.probe		= icp_multi_pci_probe,
-	.remove		= __devexit_p(icp_multi_pci_remove),
+	.remove		= icp_multi_pci_remove,
 };
 module_comedi_pci_driver(icp_multi_driver, icp_multi_pci_driver);
 

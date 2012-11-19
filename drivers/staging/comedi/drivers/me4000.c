@@ -1761,7 +1761,7 @@ static struct pci_driver me4000_pci_driver = {
 	.name		= "me4000",
 	.id_table	= me4000_pci_table,
 	.probe		= me4000_pci_probe,
-	.remove		= __devexit_p(me4000_pci_remove),
+	.remove		= me4000_pci_remove,
 };
 module_comedi_pci_driver(me4000_driver, me4000_pci_driver);
 

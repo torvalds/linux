@@ -60,7 +60,7 @@ static struct pci_driver apci2200_pci_driver = {
 	.name		= "addi_apci_2200",
 	.id_table	= apci2200_pci_table,
 	.probe		= apci2200_pci_probe,
-	.remove		= __devexit_p(apci2200_pci_remove),
+	.remove		= apci2200_pci_remove,
 };
 module_comedi_pci_driver(apci2200_driver, apci2200_pci_driver);
 

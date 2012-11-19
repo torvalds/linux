@@ -2857,7 +2857,7 @@ static struct pci_driver s626_pci_driver = {
 	.name		= "s626",
 	.id_table	= s626_pci_table,
 	.probe		= s626_pci_probe,
-	.remove		= __devexit_p(s626_pci_remove),
+	.remove		= s626_pci_remove,
 };
 module_comedi_pci_driver(s626_driver, s626_pci_driver);
 
