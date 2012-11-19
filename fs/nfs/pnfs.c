@@ -925,8 +925,8 @@ pnfs_find_alloc_layout(struct inode *ino,
 	if (likely(nfsi->layout == NULL)) {	/* Won the race? */
 		nfsi->layout = new;
 		return new;
-	}
-	pnfs_free_layout_hdr(new);
+	} else if (new != NULL)
+		pnfs_free_layout_hdr(new);
 out_existing:
 	pnfs_get_layout_hdr(nfsi->layout);
 	return nfsi->layout;

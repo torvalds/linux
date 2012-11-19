@@ -323,6 +323,8 @@ static void pc263_detach(struct comedi_device *dev)
 {
 	const struct pc263_board *thisboard = comedi_board(dev);
 
+	if (!thisboard)
+		return;
 	if (is_isa_board(thisboard)) {
 		if (dev->iobase)
 			release_region(dev->iobase, PC263_IO_SIZE);

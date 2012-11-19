@@ -1,14 +1,4 @@
-/*
- * include/asm-xtensa/unistd.h
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
- * Copyright (C) 2001 - 2012 Tensilica Inc.
- */
-
-#ifndef _UAPI_XTENSA_UNISTD_H
+#if !defined(_UAPI_XTENSA_UNISTD_H) || defined(__SYSCALL)
 #define _UAPI_XTENSA_UNISTD_H
 
 #ifndef __SYSCALL
@@ -272,7 +262,7 @@ __SYSCALL(115, sys_sendmmsg, 4)
 #define __NR_clone 				116
 __SYSCALL(116, xtensa_clone, 5)
 #define __NR_execve 				117
-__SYSCALL(117, xtensa_execve, 3)
+__SYSCALL(117, sys_execve, 3)
 #define __NR_exit 				118
 __SYSCALL(118, sys_exit, 1)
 #define __NR_exit_group 			119
@@ -758,5 +748,7 @@ __SYSCALL(331, sys_kcmp, 5)
 #define SYS_XTENSA_ATOMIC_CMP_SWP         4     /* compare and swap */
 
 #define SYS_XTENSA_COUNT                  5     /* count */
+
+#undef __SYSCALL
 
 #endif /* _UAPI_XTENSA_UNISTD_H */

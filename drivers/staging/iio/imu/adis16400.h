@@ -139,6 +139,8 @@ struct adis16400_chip_info {
 	const long flags;
 	unsigned int gyro_scale_micro;
 	unsigned int accel_scale_micro;
+	int temp_scale_nano;
+	int temp_offset;
 	unsigned long default_scan_mask;
 };
 

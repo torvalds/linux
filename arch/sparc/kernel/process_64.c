@@ -452,13 +452,16 @@ void flush_thread(void)
 /* It's a bit more tricky when 64-bit tasks are involved... */
 static unsigned long clone_stackframe(unsigned long csp, unsigned long psp)
 {
+	bool stack_64bit = test_thread_64bit_stack(psp);
 	unsigned long fp, distance, rval;
 
-	if (!(test_thread_flag(TIF_32BIT))) {
+	if (stack_64bit) {
 		csp += STACK_BIAS;
 		psp += STACK_BIAS;
 		__get_user(fp, &(((struct reg_window __user *)psp)->ins[6]));
 		fp += STACK_BIAS;
+		if (test_thread_flag(TIF_32BIT))
+			fp &= 0xffffffff;
 	} else
 		__get_user(fp, &(((struct reg_window32 __user *)psp)->ins[6]));
 
@@ -472,7 +475,7 @@ static unsigned long clone_stackframe(unsigned long csp, unsigned long psp)
 	rval = (csp - distance);
 	if (copy_in_user((void __user *) rval, (void __user *) psp, distance))
 		rval = 0;
-	else if (test_thread_flag(TIF_32BIT)) {
+	else if (!stack_64bit) {
 		if (put_user(((u32)csp),
 			     &(((struct reg_window32 __user *)rval)->ins[6])))
 			rval = 0;
@@ -507,18 +510,18 @@ void synchronize_user_stack(void)
 
 	flush_user_windows();
 	if ((window = get_thread_wsaved()) != 0) {
-		int winsize = sizeof(struct reg_window);
-		int bias = 0;
-
-		if (test_thread_flag(TIF_32BIT))
-			winsize = sizeof(struct reg_window32);
-		else
-			bias = STACK_BIAS;
-
 		window -= 1;
 		do {
-			unsigned long sp = (t->rwbuf_stkptrs[window] + bias);
 			struct reg_window *rwin = &t->reg_window[window];
+			int winsize = sizeof(struct reg_window);
+			unsigned long sp;
+
+			sp = t->rwbuf_stkptrs[window];
+
+			if (test_thread_64bit_stack(sp))
+				sp += STACK_BIAS;
+			else
+				winsize = sizeof(struct reg_window32);
 
 			if (!copy_to_user((char __user *)sp, rwin, winsize)) {
 				shift_window_buffer(window, get_thread_wsaved() - 1, t);
@@ -544,13 +547,6 @@ void fault_in_user_windows(void)
 {
 	struct thread_info *t = current_thread_info();
 	unsigned long window;
-	int winsize = sizeof(struct reg_window);
-	int bias = 0;
-
-	if (test_thread_flag(TIF_32BIT))
-		winsize = sizeof(struct reg_window32);
-	else
-		bias = STACK_BIAS;
 
 	flush_user_windows();
 	window = get_thread_wsaved();
@@ -558,8 +554,16 @@ void fault_in_user_windows(void)
 	if (likely(window != 0)) {
 		window -= 1;
 		do {
-			unsigned long sp = (t->rwbuf_stkptrs[window] + bias);
 			struct reg_window *rwin = &t->reg_window[window];
+			int winsize = sizeof(struct reg_window);
+			unsigned long sp;
+
+			sp = t->rwbuf_stkptrs[window];
+
+			if (test_thread_64bit_stack(sp))
+				sp += STACK_BIAS;
+			else
+				winsize = sizeof(struct reg_window32);
 
 			if (unlikely(sp & 0x7UL))
 				stack_unaligned(sp);

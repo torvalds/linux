@@ -15,6 +15,7 @@
 #include "pinctrl-spear.h"
 
 /* pad mux declarations */
+#define PMX_PWM_MASK		(1 << 16)
 #define PMX_FIRDA_MASK		(1 << 14)
 #define PMX_I2C_MASK		(1 << 13)
 #define PMX_SSP_CS_MASK		(1 << 12)
