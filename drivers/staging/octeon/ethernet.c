@@ -813,7 +813,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit cvm_oct_remove(struct platform_device *pdev)
+static int cvm_oct_remove(struct platform_device *pdev)
 {
 	int port;
 
