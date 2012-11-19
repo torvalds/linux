@@ -78,12 +78,19 @@ enum efx_filter_priority {
  *	according to the indirection table.
  * @EFX_FILTER_FLAG_RX_SCATTER: Enable DMA scatter on the receiving
  *	queue.
+ * @EFX_FILTER_FLAG_RX_STACK: Indicates a filter inserted for the
+ *	network stack.  The filter must have a priority of
+ *	%EFX_FILTER_PRI_REQUIRED.  It can be steered by a replacement
+ *	request with priority %EFX_FILTER_PRI_MANUAL, and a removal
+ *	request with priority %EFX_FILTER_PRI_MANUAL will reset the
+ *	steering (but not remove the filter).
  * @EFX_FILTER_FLAG_RX: Filter is for RX
  * @EFX_FILTER_FLAG_TX: Filter is for TX
  */
 enum efx_filter_flags {
 	EFX_FILTER_FLAG_RX_RSS = 0x01,
 	EFX_FILTER_FLAG_RX_SCATTER = 0x02,
+	EFX_FILTER_FLAG_RX_STACK = 0x04,
 	EFX_FILTER_FLAG_RX = 0x08,
 	EFX_FILTER_FLAG_TX = 0x10,
 };

@@ -2186,23 +2186,17 @@ efx_farch_filter_to_gen_spec(struct efx_filter_spec *gen_spec,
 }
 
 static void
-efx_farch_filter_reset_rx_def(struct efx_nic *efx, unsigned filter_idx)
+efx_farch_filter_init_rx_for_stack(struct efx_nic *efx,
+				   struct efx_farch_filter_spec *spec)
 {
-	struct efx_farch_filter_state *state = efx->filter_state;
-	struct efx_farch_filter_table *table =
-		&state->table[EFX_FARCH_FILTER_TABLE_RX_DEF];
-	struct efx_farch_filter_spec *spec = &table->spec[filter_idx];
-
 	/* If there's only one channel then disable RSS for non VF
 	 * traffic, thereby allowing VFs to use RSS when the PF can't.
 	 */
-	spec->type = EFX_FARCH_FILTER_UC_DEF + filter_idx;
-	spec->priority = EFX_FILTER_PRI_MANUAL;
-	spec->flags = (EFX_FILTER_FLAG_RX |
+	spec->priority = EFX_FILTER_PRI_REQUIRED;
+	spec->flags = (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_RX_STACK |
 		       (efx->n_rx_channels > 1 ? EFX_FILTER_FLAG_RX_RSS : 0) |
 		       (efx->rx_scatter ? EFX_FILTER_FLAG_RX_SCATTER : 0));
 	spec->dmaq_id = 0;
-	table->used_bitmap[0] |= 1 << filter_idx;
 }
 
 /* Build a filter entry and return its n-tuple key. */
@@ -2464,10 +2458,20 @@ s32 efx_farch_filter_insert(struct efx_nic *efx,
 			rc = -EEXIST;
 			goto out;
 		}
-		if (spec.priority < saved_spec->priority) {
+		if (spec.priority < saved_spec->priority &&
+		    !(saved_spec->priority == EFX_FILTER_PRI_REQUIRED &&
+		      saved_spec->flags & EFX_FILTER_FLAG_RX_STACK)) {
 			rc = -EPERM;
 			goto out;
 		}
+		if (spec.flags & EFX_FILTER_FLAG_RX_STACK) {
+			/* Just make sure it won't be removed */
+			saved_spec->flags |= EFX_FILTER_FLAG_RX_STACK;
+			rc = 0;
+			goto out;
+		}
+		/* Retain the RX_STACK flag */
+		spec.flags |= saved_spec->flags & EFX_FILTER_FLAG_RX_STACK;
 	}
 
 	/* Insert the filter */
@@ -2517,6 +2521,7 @@ efx_farch_filter_table_clear_entry(struct efx_nic *efx,
 	static efx_oword_t filter;
 
 	EFX_WARN_ON_PARANOID(!test_bit(filter_idx, table->used_bitmap));
+	BUG_ON(table->offset == 0); /* can't clear MAC default filters */
 
 	__clear_bit(filter_idx, table->used_bitmap);
 	--table->used;
@@ -2550,9 +2555,8 @@ static int efx_farch_filter_remove(struct efx_nic *efx,
 	    spec->priority > priority)
 		return -ENOENT;
 
-	if (table->id == EFX_FARCH_FILTER_TABLE_RX_DEF) {
-		/* RX default filters must always exist */
-		efx_farch_filter_reset_rx_def(efx, filter_idx);
+	if (spec->flags & EFX_FILTER_FLAG_RX_STACK) {
+		efx_farch_filter_init_rx_for_stack(efx, spec);
 		efx_farch_filter_push_rx_config(efx);
 	} else {
 		efx_farch_filter_table_clear_entry(efx, table, filter_idx);
@@ -2646,6 +2650,8 @@ void efx_farch_filter_clear_rx(struct efx_nic *efx,
 	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_IP,
 				     priority);
 	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_MAC,
+				     priority);
+	efx_farch_filter_table_clear(efx, EFX_FARCH_FILTER_TABLE_RX_DEF,
 				     priority);
 }
 
@@ -2806,11 +2812,18 @@ int efx_farch_filter_table_probe(struct efx_nic *efx)
 			goto fail;
 	}
 
-	if (state->table[EFX_FARCH_FILTER_TABLE_RX_DEF].size) {
+	table = &state->table[EFX_FARCH_FILTER_TABLE_RX_DEF];
+	if (table->size) {
 		/* RX default filters must always exist */
+		struct efx_farch_filter_spec *spec;
 		unsigned i;
-		for (i = 0; i < EFX_FARCH_FILTER_SIZE_RX_DEF; i++)
-			efx_farch_filter_reset_rx_def(efx, i);
+
+		for (i = 0; i < EFX_FARCH_FILTER_SIZE_RX_DEF; i++) {
+			spec = &table->spec[i];
+			spec->type = EFX_FARCH_FILTER_UC_DEF + i;
+			efx_farch_filter_init_rx_for_stack(efx, spec);
+			__set_bit(i, table->used_bitmap);
+		}
 	}
 
 	efx_farch_filter_push_rx_config(efx);
