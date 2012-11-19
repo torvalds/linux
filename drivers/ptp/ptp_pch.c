@@ -557,7 +557,7 @@ static s32 pch_resume(struct pci_dev *pdev)
 #define pch_resume NULL
 #endif
 
-static void __devexit pch_remove(struct pci_dev *pdev)
+static void pch_remove(struct pci_dev *pdev)
 {
 	struct pch_dev *chip = pci_get_drvdata(pdev);
 
