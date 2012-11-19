@@ -998,7 +998,7 @@ free_irqs:
 }
 
 static
-int __devexit omap_bandgap_remove(struct platform_device *pdev)
+int omap_bandgap_remove(struct platform_device *pdev)
 {
 	struct omap_bandgap *bg_ptr = platform_get_drvdata(pdev);
 	int i;
