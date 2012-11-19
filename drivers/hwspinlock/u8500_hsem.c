@@ -172,7 +172,7 @@ static int __devexit u8500_hsem_remove(struct platform_device *pdev)
 
 static struct platform_driver u8500_hsem_driver = {
 	.probe		= u8500_hsem_probe,
-	.remove		= __devexit_p(u8500_hsem_remove),
+	.remove		= u8500_hsem_remove,
 	.driver		= {
 		.name	= "u8500_hsem",
 		.owner	= THIS_MODULE,
