@@ -4107,7 +4107,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	 */
 	if (!cgroup_lock_live_group(parent)) {
 		err = -ENODEV;
-		goto err_free;
+		goto err_free_cgrp;
 	}
 
 	/* Grab a reference on the superblock so the hierarchy doesn't
@@ -4135,13 +4135,13 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		css = ss->create(cgrp);
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
-			goto err_destroy;
+			goto err_free_all;
 		}
 		init_cgroup_css(css, ss, cgrp);
 		if (ss->use_id) {
 			err = alloc_css_id(ss, parent, cgrp);
 			if (err)
-				goto err_destroy;
+				goto err_free_all;
 		}
 		/* At error, ->destroy() callback has to free assigned ID. */
 		if (clone_children(parent) && ss->post_clone)
@@ -4164,7 +4164,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	 */
 	err = cgroup_create_file(dentry, S_IFDIR | mode, sb);
 	if (err < 0)
-		goto err_destroy;
+		goto err_free_all;
 	lockdep_assert_held(&dentry->d_inode->i_mutex);
 
 	/* allocation complete, commit to creation */
@@ -4183,14 +4183,15 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	}
 
 	err = cgroup_populate_dir(cgrp, true, root->subsys_mask);
-	/* If err < 0, we have a half-filled directory - oh well ;) */
+	if (err)
+		goto err_destroy;
 
 	mutex_unlock(&cgroup_mutex);
 	mutex_unlock(&cgrp->dentry->d_inode->i_mutex);
 
 	return 0;
 
-err_destroy:
+err_free_all:
 	for_each_subsys(root, ss) {
 		if (cgrp->subsys[ss->subsys_id])
 			ss->destroy(cgrp);
@@ -4198,8 +4199,14 @@ err_destroy:
 	mutex_unlock(&cgroup_mutex);
 	/* Release the reference count that we took on the superblock */
 	deactivate_super(sb);
-err_free:
+err_free_cgrp:
 	kfree(cgrp);
+	return err;
+
+err_destroy:
+	cgroup_destroy_locked(cgrp);
+	mutex_unlock(&cgroup_mutex);
+	mutex_unlock(&dentry->d_inode->i_mutex);
 	return err;
 }
 
