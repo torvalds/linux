@@ -48,6 +48,14 @@ static HDMI_VIDE_INFO video_timing[] = {
 	{HDMI720P_60_3D_FP,  148500000,  0,  1280, 1440, 1650, 260, 110, 40, 3000, 25,  5,  5},
 };
 
+void hdmi_delay_ms(__u32 t)
+{
+	__u32 timeout = t * HZ / 1000;
+
+	set_current_state(TASK_INTERRUPTIBLE);
+	schedule_timeout(timeout);
+}
+
 __s32 hdmi_core_initial(void)
 {
 	hdmi_state = HDMI_State_Idle;
