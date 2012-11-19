@@ -415,3 +415,4 @@ header-y += wireless.h
 header-y += x25.h
 header-y += xattr.h
 header-y += xfrm.h
+header-y += hw_breakpoint.h

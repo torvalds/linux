@@ -22,9 +22,9 @@
 #include <pthread.h>
 #include <math.h>
 
-#include "../../arch/x86/include/asm/svm.h"
-#include "../../arch/x86/include/asm/vmx.h"
-#include "../../arch/x86/include/asm/kvm.h"
+#include <asm/svm.h>
+#include <asm/vmx.h>
+#include <asm/kvm.h>
 
 struct event_key {
 	#define INVALID_KEY     (~0ULL)
