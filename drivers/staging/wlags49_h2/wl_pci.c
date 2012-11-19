@@ -160,14 +160,13 @@ void wl_pci_dma_hcf_reclaim_rx( struct wl_private *lp );
 /*******************************************************************************
  * PCI module function registration
  ******************************************************************************/
-static struct pci_driver wl_driver =
-{
-	name:		MODULE_NAME,
-    id_table:	wl_pci_tbl,
-	probe:		wl_pci_probe,
-	remove:		__devexit_p(wl_pci_remove),
-    suspend:    NULL,
-    resume:     NULL,
+static struct pci_driver wl_driver = {
+	.name	  = MODULE_NAME,
+	.id_table = wl_pci_tbl,
+	.probe	  = wl_pci_probe,
+	.remove	  = wl_pci_remove,
+	.suspend  = NULL,
+	.resume	  = NULL
 };
 
 /*******************************************************************************
