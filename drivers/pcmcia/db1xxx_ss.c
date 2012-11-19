@@ -559,7 +559,7 @@ out0:
 	return ret;
 }
 
-static int __devexit db1x_pcmcia_socket_remove(struct platform_device *pdev)
+static int db1x_pcmcia_socket_remove(struct platform_device *pdev)
 {
 	struct db1x_pcmcia_sock *sock = platform_get_drvdata(pdev);
 

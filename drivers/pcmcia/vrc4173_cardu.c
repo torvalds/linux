@@ -581,7 +581,7 @@ static int vrc4173_cardu_init(void)
 	return pci_register_driver(&vrc4173_cardu_driver);
 }
 
-static void __devexit vrc4173_cardu_exit(void)
+static void vrc4173_cardu_exit(void)
 {
 	pci_unregister_driver(&vrc4173_cardu_driver);
 }

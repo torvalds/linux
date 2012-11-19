@@ -211,7 +211,7 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 	return 0;
 }
 
-static int __devexit pcmcia_remove(struct sa1111_dev *dev)
+static int pcmcia_remove(struct sa1111_dev *dev)
 {
 	struct sa1111_pcmcia_socket *next, *s = dev_get_drvdata(&dev->dev);
 

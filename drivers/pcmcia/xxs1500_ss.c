@@ -299,7 +299,7 @@ out0:
 	return ret;
 }
 
-static int __devexit xxs1500_pcmcia_remove(struct platform_device *pdev)
+static int xxs1500_pcmcia_remove(struct platform_device *pdev)
 {
 	struct xxs1500_pcmcia_sock *sock = platform_get_drvdata(pdev);
 

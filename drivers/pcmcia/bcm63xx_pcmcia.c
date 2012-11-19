@@ -436,7 +436,7 @@ err:
 	return ret;
 }
 
-static int __devexit bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
+static int bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
 {
 	struct bcm63xx_pcmcia_socket *skt;
 	struct resource *res;
@@ -469,7 +469,7 @@ static int bcm63xx_cb_probe(struct pci_dev *dev,
 	return platform_driver_register(&bcm63xx_pcmcia_driver);
 }
 
-static void __devexit bcm63xx_cb_exit(struct pci_dev *dev)
+static void bcm63xx_cb_exit(struct pci_dev *dev)
 {
 	platform_driver_unregister(&bcm63xx_pcmcia_driver);
 	bcm63xx_cb_dev = NULL;

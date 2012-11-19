@@ -739,7 +739,7 @@ err_out_free_mem:
 	return ret;
 }
 
-static void __devexit pd6729_pci_remove(struct pci_dev *dev)
+static void pd6729_pci_remove(struct pci_dev *dev)
 {
 	int i;
 	struct pd6729_socket *socket = pci_get_drvdata(dev);

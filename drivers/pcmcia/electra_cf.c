@@ -324,7 +324,7 @@ fail1:
 
 }
 
-static int __devexit electra_cf_remove(struct platform_device *ofdev)
+static int electra_cf_remove(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct electra_cf_socket *cf;

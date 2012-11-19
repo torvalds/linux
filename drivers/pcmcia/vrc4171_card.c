@@ -746,7 +746,7 @@ static int vrc4171_card_init(void)
 	return 0;
 }
 
-static void __devexit vrc4171_card_exit(void)
+static void vrc4171_card_exit(void)
 {
 	free_irq(vrc4171_irq, vrc4171_sockets);
 	vrc4171_remove_sockets();

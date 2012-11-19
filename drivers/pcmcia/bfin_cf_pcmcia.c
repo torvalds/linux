@@ -286,7 +286,7 @@ fail0:
 	return status;
 }
 
-static int __devexit bfin_cf_remove(struct platform_device *pdev)
+static int bfin_cf_remove(struct platform_device *pdev)
 {
 	struct bfin_cf_socket *cf = platform_get_drvdata(pdev);
 

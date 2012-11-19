@@ -162,7 +162,7 @@ err_out_disable:
 	return ret;			
 }
 
-static void __devexit i82092aa_pci_remove(struct pci_dev *dev)
+static void i82092aa_pci_remove(struct pci_dev *dev)
 {
 	struct pcmcia_socket *socket = pci_get_drvdata(dev);
 
