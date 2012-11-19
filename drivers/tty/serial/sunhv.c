@@ -519,7 +519,7 @@ static struct console sunhv_console = {
 	.data	=	&sunhv_reg,
 };
 
-static int __devinit hv_probe(struct platform_device *op)
+static int hv_probe(struct platform_device *op)
 {
 	struct uart_port *port;
 	unsigned long minor;

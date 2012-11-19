@@ -1521,7 +1521,7 @@ err_msm_hs_init_clk:
 }
 
 /* Initialize tx and rx data structures */
-static int __devinit uartdm_init_port(struct uart_port *uport)
+static int uartdm_init_port(struct uart_port *uport)
 {
 	int ret = 0;
 	struct msm_hs_port *msm_uport = UARTDM_TO_MSM(uport);
@@ -1614,7 +1614,7 @@ err_tx_command_ptr_ptr:
 	return ret;
 }
 
-static int __devinit msm_hs_probe(struct platform_device *pdev)
+static int msm_hs_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct uart_port *uport;

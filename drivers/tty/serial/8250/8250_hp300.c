@@ -36,7 +36,7 @@ static struct hp300_port *hp300_ports;
 
 #ifdef CONFIG_HPDCA
 
-static int __devinit hpdca_init_one(struct dio_dev *d,
+static int hpdca_init_one(struct dio_dev *d,
 					const struct dio_device_id *ent);
 static void __devexit hpdca_remove_one(struct dio_dev *d);
 
@@ -159,7 +159,7 @@ int __init hp300_setup_serial_console(void)
 #endif /* CONFIG_SERIAL_8250_CONSOLE */
 
 #ifdef CONFIG_HPDCA
-static int __devinit hpdca_init_one(struct dio_dev *d,
+static int hpdca_init_one(struct dio_dev *d,
 				const struct dio_device_id *ent)
 {
 	struct uart_8250_port uart;

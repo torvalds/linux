@@ -1308,7 +1308,7 @@ static struct of_device_id mpc52xx_uart_of_match[] = {
 	{},
 };
 
-static int __devinit mpc52xx_uart_of_probe(struct platform_device *op)
+static int mpc52xx_uart_of_probe(struct platform_device *op)
 {
 	int idx = -1;
 	unsigned int uartclk;

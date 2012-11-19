@@ -1423,7 +1423,7 @@ static struct uart_ops atmel_pops = {
 #endif
 };
 
-static void __devinit atmel_of_init_port(struct atmel_uart_port *atmel_port,
+static void atmel_of_init_port(struct atmel_uart_port *atmel_port,
 					 struct device_node *np)
 {
 	u32 rs485_delay[2];
@@ -1458,7 +1458,7 @@ static void __devinit atmel_of_init_port(struct atmel_uart_port *atmel_port,
 /*
  * Configure the port from the platform device resource info.
  */
-static void __devinit atmel_init_port(struct atmel_uart_port *atmel_port,
+static void atmel_init_port(struct atmel_uart_port *atmel_port,
 				      struct platform_device *pdev)
 {
 	struct uart_port *port = &atmel_port->uart;
@@ -1766,7 +1766,7 @@ static int atmel_serial_resume(struct platform_device *pdev)
 #define atmel_serial_resume NULL
 #endif
 
-static int __devinit atmel_serial_probe(struct platform_device *pdev)
+static int atmel_serial_probe(struct platform_device *pdev)
 {
 	struct atmel_uart_port *port;
 	struct device_node *np = pdev->dev.of_node;

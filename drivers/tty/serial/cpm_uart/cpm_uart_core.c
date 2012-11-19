@@ -1373,7 +1373,7 @@ static struct uart_driver cpm_reg = {
 
 static int probe_index;
 
-static int __devinit cpm_uart_probe(struct platform_device *ofdev)
+static int cpm_uart_probe(struct platform_device *ofdev)
 {
 	int index = probe_index++;
 	struct uart_cpm_port *pinfo = &cpm_uart_ports[index];

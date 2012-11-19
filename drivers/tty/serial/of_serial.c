@@ -52,7 +52,7 @@ EXPORT_SYMBOL_GPL(tegra_serial_handle_break);
 /*
  * Fill a struct uart_port for a given device node
  */
-static int __devinit of_platform_serial_setup(struct platform_device *ofdev,
+static int of_platform_serial_setup(struct platform_device *ofdev,
 			int type, struct uart_port *port,
 			struct of_serial_info *info)
 {
@@ -138,7 +138,7 @@ out:
  * Try to register a serial port
  */
 static struct of_device_id of_platform_serial_table[];
-static int __devinit of_platform_serial_probe(struct platform_device *ofdev)
+static int of_platform_serial_probe(struct platform_device *ofdev)
 {
 	const struct of_device_id *match;
 	struct of_serial_info *info;

@@ -5595,7 +5595,7 @@ static void write_control_reg(SLMP_INFO * info)
 }
 
 
-static int __devinit synclinkmp_init_one (struct pci_dev *dev,
+static int synclinkmp_init_one (struct pci_dev *dev,
 					  const struct pci_device_id *ent)
 {
 	if (pci_enable_device(dev)) {

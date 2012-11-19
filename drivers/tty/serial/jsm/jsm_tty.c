@@ -371,7 +371,7 @@ static struct uart_ops jsm_ops = {
  * Init the tty subsystem.  Called once per board after board has been
  * downloaded and init'ed.
  */
-int __devinit jsm_tty_init(struct jsm_board *brd)
+int jsm_tty_init(struct jsm_board *brd)
 {
 	int i;
 	void __iomem *vaddr;

@@ -377,7 +377,7 @@ static char *modem_names[] __devinitdata = {
 	"33600", "28800", "14400", "V.90", "V.34", "V.32", NULL
 };
 
-static int __devinit check_name(char *name)
+static int check_name(char *name)
 {
 	char **tmp;
 
@@ -388,7 +388,7 @@ static int __devinit check_name(char *name)
 	return 0;
 }
 
-static int __devinit check_resources(struct pnp_dev *dev)
+static int check_resources(struct pnp_dev *dev)
 {
 	resource_size_t base[] = {0x2f8, 0x3f8, 0x2e8, 0x3e8};
 	int i;
@@ -412,7 +412,7 @@ static int __devinit check_resources(struct pnp_dev *dev)
  * PnP modems, alternatively we must hardcode all modems in pnp_devices[]
  * table.
  */
-static int __devinit serial_pnp_guess_board(struct pnp_dev *dev)
+static int serial_pnp_guess_board(struct pnp_dev *dev)
 {
 	if (!(check_name(pnp_dev_name(dev)) ||
 		(dev->card && check_name(dev->card->name))))
@@ -424,7 +424,7 @@ static int __devinit serial_pnp_guess_board(struct pnp_dev *dev)
 	return -ENODEV;
 }
 
-static int __devinit
+static int
 serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 {
 	struct uart_8250_port uart;

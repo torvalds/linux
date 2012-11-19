@@ -525,7 +525,7 @@ static struct uart_ops arc_serial_pops = {
 #endif
 };
 
-static int __devinit
+static int
 arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 {
 	struct resource *res, *res2;
@@ -577,7 +577,7 @@ arc_uart_init_one(struct platform_device *pdev, struct arc_uart_port *uart)
 
 #ifdef CONFIG_SERIAL_ARC_CONSOLE
 
-static int __devinit arc_serial_console_setup(struct console *co, char *options)
+static int arc_serial_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 115200;
@@ -655,7 +655,7 @@ static struct __initdata console arc_early_serial_console = {
 	.index = -1
 };
 
-static int __devinit arc_serial_probe_earlyprintk(struct platform_device *pdev)
+static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
 {
 	arc_early_serial_console.index = pdev->id;
 
@@ -667,13 +667,13 @@ static int __devinit arc_serial_probe_earlyprintk(struct platform_device *pdev)
 	return 0;
 }
 #else
-static int __devinit arc_serial_probe_earlyprintk(struct platform_device *pdev)
+static int arc_serial_probe_earlyprintk(struct platform_device *pdev)
 {
 	return -ENODEV;
 }
 #endif	/* CONFIG_SERIAL_ARC_CONSOLE */
 
-static int __devinit arc_serial_probe(struct platform_device *pdev)
+static int arc_serial_probe(struct platform_device *pdev)
 {
 	struct arc_uart_port *uart;
 	int rc;

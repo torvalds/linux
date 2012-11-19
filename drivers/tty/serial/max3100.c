@@ -742,7 +742,7 @@ static struct uart_driver max3100_uart_driver = {
 };
 static int uart_driver_registered;
 
-static int __devinit max3100_probe(struct spi_device *spi)
+static int max3100_probe(struct spi_device *spi)
 {
 	int i, retval;
 	struct plat_max3100 *pdata;

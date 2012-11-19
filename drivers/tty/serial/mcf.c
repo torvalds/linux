@@ -571,7 +571,7 @@ static struct uart_driver mcf_driver = {
 
 /****************************************************************************/
 
-static int __devinit mcf_probe(struct platform_device *pdev)
+static int mcf_probe(struct platform_device *pdev)
 {
 	struct mcf_platform_uart *platp = pdev->dev.platform_data;
 	struct uart_port *port;

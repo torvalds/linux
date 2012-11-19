@@ -740,7 +740,7 @@ static int sccnxp_console_setup(struct console *co, char *options)
 }
 #endif
 
-static int __devinit sccnxp_probe(struct platform_device *pdev)
+static int sccnxp_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	int chiptype = pdev->id_entry->driver_data;

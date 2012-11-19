@@ -1307,7 +1307,7 @@ static const struct tty_port_operations isicom_port_ops = {
 	.shutdown		= isicom_shutdown,
 };
 
-static int __devinit reset_card(struct pci_dev *pdev,
+static int reset_card(struct pci_dev *pdev,
 	const unsigned int card, unsigned int *signature)
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
@@ -1368,7 +1368,7 @@ end:
 	return retval;
 }
 
-static int __devinit load_firmware(struct pci_dev *pdev,
+static int load_firmware(struct pci_dev *pdev,
 	const unsigned int index, const unsigned int signature)
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
@@ -1548,7 +1548,7 @@ end:
  */
 static unsigned int card_count;
 
-static int __devinit isicom_probe(struct pci_dev *pdev,
+static int isicom_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	unsigned int uninitialized_var(signature), index;

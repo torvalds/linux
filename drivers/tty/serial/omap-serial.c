@@ -1238,7 +1238,7 @@ static int serial_omap_resume(struct device *dev)
 }
 #endif
 
-static void __devinit omap_serial_fill_features_erratas(struct uart_omap_port *up)
+static void omap_serial_fill_features_erratas(struct uart_omap_port *up)
 {
 	u32 mvr, scheme;
 	u16 revision, major, minor;
@@ -1291,7 +1291,7 @@ static void __devinit omap_serial_fill_features_erratas(struct uart_omap_port *u
 	}
 }
 
-static __devinit struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
+static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 {
 	struct omap_uart_port_info *omap_up_info;
 
@@ -1304,7 +1304,7 @@ static __devinit struct omap_uart_port_info *of_get_uart_port_info(struct device
 	return omap_up_info;
 }
 
-static int __devinit serial_omap_probe(struct platform_device *pdev)
+static int serial_omap_probe(struct platform_device *pdev)
 {
 	struct uart_omap_port	*up;
 	struct resource		*mem, *irq;

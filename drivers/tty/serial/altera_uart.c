@@ -532,7 +532,7 @@ static int altera_uart_get_of_uartclk(struct platform_device *pdev,
 }
 #endif /* CONFIG_OF */
 
-static int __devinit altera_uart_probe(struct platform_device *pdev)
+static int altera_uart_probe(struct platform_device *pdev)
 {
 	struct altera_uart_platform_uart *platp = pdev->dev.platform_data;
 	struct uart_port *port;

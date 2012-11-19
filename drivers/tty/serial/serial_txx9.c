@@ -1030,7 +1030,7 @@ static DEFINE_MUTEX(serial_txx9_mutex);
  *
  *	On success the port is ready to use and the line number is returned.
  */
-static int __devinit serial_txx9_register_port(struct uart_port *port)
+static int serial_txx9_register_port(struct uart_port *port)
 {
 	int i;
 	struct uart_txx9_port *uart;
@@ -1096,7 +1096,7 @@ static void __devexit serial_txx9_unregister_port(int line)
 /*
  * Register a set of serial devices attached to a platform device.
  */
-static int __devinit serial_txx9_probe(struct platform_device *dev)
+static int serial_txx9_probe(struct platform_device *dev)
 {
 	struct uart_port *p = dev->dev.platform_data;
 	struct uart_port port;
@@ -1187,7 +1187,7 @@ static struct platform_driver serial_txx9_plat_driver = {
  * Probe one serial board.  Unfortunately, there is no rhyme nor reason
  * to the arrangement of serial ports on a PCI card.
  */
-static int __devinit
+static int
 pciserial_txx9_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct uart_port port;

@@ -8065,7 +8065,7 @@ static void hdlcdev_exit(struct mgsl_struct *info)
 #endif /* CONFIG_HDLC */
 
 
-static int __devinit synclink_init_one (struct pci_dev *dev,
+static int synclink_init_one (struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	struct mgsl_struct *info;

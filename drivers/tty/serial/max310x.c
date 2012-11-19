@@ -378,7 +378,7 @@ static void max310x_wait_pll(struct max310x_port *s)
 	}
 }
 
-static int __devinit max310x_update_best_err(unsigned long f, long *besterr)
+static int max310x_update_best_err(unsigned long f, long *besterr)
 {
 	/* Use baudrate 115200 for calculate error */
 	long err = f % (115200 * 16);
@@ -391,7 +391,7 @@ static int __devinit max310x_update_best_err(unsigned long f, long *besterr)
 	return 1;
 }
 
-static int __devinit max310x_set_ref_clk(struct max310x_port *s)
+static int max310x_set_ref_clk(struct max310x_port *s)
 {
 	unsigned int div, clksrc, pllcfg = 0;
 	long besterr = -1;
@@ -995,7 +995,7 @@ static struct max310x_pdata generic_plat_data = {
 	.frequency	= 26000000,
 };
 
-static int __devinit max310x_probe(struct spi_device *spi)
+static int max310x_probe(struct spi_device *spi)
 {
 	struct max310x_port *s;
 	struct device *dev = &spi->dev;

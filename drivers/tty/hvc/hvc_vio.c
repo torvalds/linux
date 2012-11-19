@@ -293,7 +293,7 @@ static int udbg_hvc_getc(void)
 	}
 }
 
-static int __devinit hvc_vio_probe(struct vio_dev *vdev,
+static int hvc_vio_probe(struct vio_dev *vdev,
 				   const struct vio_device_id *id)
 {
 	const struct hv_ops *ops;

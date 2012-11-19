@@ -330,12 +330,12 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp);
 static void hvcs_close(struct tty_struct *tty, struct file *filp);
 static void hvcs_hangup(struct tty_struct * tty);
 
-static int __devinit hvcs_probe(struct vio_dev *dev,
+static int hvcs_probe(struct vio_dev *dev,
 		const struct vio_device_id *id);
 static int __devexit hvcs_remove(struct vio_dev *dev);
 static int __init hvcs_module_init(void);
 static void __exit hvcs_module_exit(void);
-static int __devinit hvcs_initialize(void);
+static int hvcs_initialize(void);
 
 #define HVCS_SCHED_READ	0x00000001
 #define HVCS_QUICK_READ	0x00000002
@@ -756,7 +756,7 @@ static int hvcs_get_index(void)
 	return -1;
 }
 
-static int __devinit hvcs_probe(
+static int hvcs_probe(
 	struct vio_dev *dev,
 	const struct vio_device_id *id)
 {
@@ -1478,7 +1478,7 @@ static void hvcs_free_index_list(void)
 	hvcs_index_count = 0;
 }
 
-static int __devinit hvcs_initialize(void)
+static int hvcs_initialize(void)
 {
 	int rc, num_ttys_to_alloc;
 

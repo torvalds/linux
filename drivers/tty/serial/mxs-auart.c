@@ -1046,7 +1046,7 @@ static int serial_mxs_probe_dt(struct mxs_auart_port *s,
 	return 0;
 }
 
-static int __devinit mxs_auart_probe(struct platform_device *pdev)
+static int mxs_auart_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxs_auart_dt_ids, &pdev->dev);

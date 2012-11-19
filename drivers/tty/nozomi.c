@@ -1360,7 +1360,7 @@ static void remove_sysfs_files(struct nozomi *dc)
 }
 
 /* Allocate memory for one device */
-static int __devinit nozomi_card_init(struct pci_dev *pdev,
+static int nozomi_card_init(struct pci_dev *pdev,
 				      const struct pci_device_id *ent)
 {
 	resource_size_t start;

@@ -422,7 +422,7 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	return ret;
 }
 
-static int __devinit xencons_probe(struct xenbus_device *dev,
+static int xencons_probe(struct xenbus_device *dev,
 				  const struct xenbus_device_id *id)
 {
 	int ret, devid;

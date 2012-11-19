@@ -429,7 +429,7 @@ static int uart_clps711x_console_setup(struct console *co, char *options)
 }
 #endif
 
-static int __devinit uart_clps711x_probe(struct platform_device *pdev)
+static int uart_clps711x_probe(struct platform_device *pdev)
 {
 	struct clps711x_port *s;
 	int ret, i;

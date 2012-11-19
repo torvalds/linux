@@ -699,7 +699,7 @@ static const struct tty_port_operations ehv_bc_tty_port_ops = {
 	.shutdown = ehv_bc_tty_port_shutdown,
 };
 
-static int __devinit ehv_bc_tty_probe(struct platform_device *pdev)
+static int ehv_bc_tty_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct ehv_bc_data *bc;

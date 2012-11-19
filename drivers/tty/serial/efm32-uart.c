@@ -690,7 +690,7 @@ static int efm32_uart_probe_dt(struct platform_device *pdev,
 
 }
 
-static int __devinit efm32_uart_probe(struct platform_device *pdev)
+static int efm32_uart_probe(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port;
 	struct resource *res;

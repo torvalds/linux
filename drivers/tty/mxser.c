@@ -487,7 +487,7 @@ static void mxser_disable_must_rx_software_flow_control(unsigned long baseio)
 }
 
 #ifdef CONFIG_PCI
-static int __devinit CheckIsMoxaMust(unsigned long io)
+static int CheckIsMoxaMust(unsigned long io)
 {
 	u8 oldmcr, hwid;
 	int i;
@@ -2369,7 +2369,7 @@ static void mxser_release_ISA_res(struct mxser_board *brd)
 	mxser_release_vector(brd);
 }
 
-static int __devinit mxser_initbrd(struct mxser_board *brd,
+static int mxser_initbrd(struct mxser_board *brd,
 		struct pci_dev *pdev)
 {
 	struct mxser_port *info;
@@ -2547,7 +2547,7 @@ err_irqconflict:
 	return -EIO;
 }
 
-static int __devinit mxser_probe(struct pci_dev *pdev,
+static int mxser_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent)
 {
 #ifdef CONFIG_PCI

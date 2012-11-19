@@ -1282,7 +1282,7 @@ static inline struct console *SUNZILOG_CONSOLE(void)
 #define SUNZILOG_CONSOLE()	(NULL)
 #endif
 
-static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up)
+static void sunzilog_init_kbdms(struct uart_sunzilog_port *up)
 {
 	int baud, brg;
 
@@ -1302,7 +1302,7 @@ static void __devinit sunzilog_init_kbdms(struct uart_sunzilog_port *up)
 }
 
 #ifdef CONFIG_SERIO
-static void __devinit sunzilog_register_serio(struct uart_sunzilog_port *up)
+static void sunzilog_register_serio(struct uart_sunzilog_port *up)
 {
 	struct serio *serio = &up->serio;
 
@@ -1331,7 +1331,7 @@ static void __devinit sunzilog_register_serio(struct uart_sunzilog_port *up)
 }
 #endif
 
-static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
+static void sunzilog_init_hw(struct uart_sunzilog_port *up)
 {
 	struct zilog_channel __iomem *channel;
 	unsigned long flags;
@@ -1400,7 +1400,7 @@ static void __devinit sunzilog_init_hw(struct uart_sunzilog_port *up)
 
 static int zilog_irq;
 
-static int __devinit zs_probe(struct platform_device *op)
+static int zs_probe(struct platform_device *op)
 {
 	static int kbm_inst, uart_inst;
 	int inst;

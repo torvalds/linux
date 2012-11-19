@@ -38,7 +38,7 @@ struct serial_card_info {
 	void __iomem *vaddr;
 };
 
-static int __devinit
+static int
 serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
 	struct serial_card_info *info;

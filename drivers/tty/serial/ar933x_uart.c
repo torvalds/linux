@@ -627,7 +627,7 @@ static struct uart_driver ar933x_uart_driver = {
 	.cons		= AR933X_SERIAL_CONSOLE,
 };
 
-static int __devinit ar933x_uart_probe(struct platform_device *pdev)
+static int ar933x_uart_probe(struct platform_device *pdev)
 {
 	struct ar933x_uart_platform_data *pdata;
 	struct ar933x_uart_port *up;

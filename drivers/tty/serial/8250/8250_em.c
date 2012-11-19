@@ -89,7 +89,7 @@ static void serial8250_em_serial_dl_write(struct uart_8250_port *up, int value)
 	serial_out(up, UART_DLM_EM, value >> 8 & 0xff);
 }
 
-static int __devinit serial8250_em_probe(struct platform_device *pdev)
+static int serial8250_em_probe(struct platform_device *pdev)
 {
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);

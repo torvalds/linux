@@ -801,7 +801,7 @@ static struct uart_driver bcm_uart_driver = {
 /*
  * platform driver probe/remove callback
  */
-static int __devinit bcm_uart_probe(struct platform_device *pdev)
+static int bcm_uart_probe(struct platform_device *pdev)
 {
 	struct resource *res_mem, *res_irq;
 	struct uart_port *port;

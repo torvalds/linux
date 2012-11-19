@@ -87,7 +87,7 @@ static int dw8250_handle_irq(struct uart_port *p)
 	return 0;
 }
 
-static int __devinit dw8250_probe(struct platform_device *pdev)
+static int dw8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);

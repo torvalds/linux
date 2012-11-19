@@ -621,7 +621,7 @@ static u8 sc26xx_flags2mask(unsigned int flags, unsigned int bitpos)
 	return bit ? (1 << (bit - 1)) : 0;
 }
 
-static void __devinit sc26xx_init_masks(struct uart_sc26xx_port *up,
+static void sc26xx_init_masks(struct uart_sc26xx_port *up,
 					int line, unsigned int data)
 {
 	up->dtr_mask[line] = sc26xx_flags2mask(data,  0);
@@ -632,7 +632,7 @@ static void __devinit sc26xx_init_masks(struct uart_sc26xx_port *up,
 	up->ri_mask[line]  = sc26xx_flags2mask(data, 20);
 }
 
-static int __devinit sc26xx_probe(struct platform_device *dev)
+static int sc26xx_probe(struct platform_device *dev)
 {
 	struct resource *res;
 	struct uart_sc26xx_port *up;

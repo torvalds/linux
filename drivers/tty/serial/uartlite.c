@@ -408,7 +408,7 @@ static void ulite_console_write(struct console *co, const char *s,
 		spin_unlock_irqrestore(&port->lock, flags);
 }
 
-static int __devinit ulite_console_setup(struct console *co, char *options)
+static int ulite_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
 	int baud = 9600;
@@ -486,7 +486,7 @@ static struct uart_driver ulite_uart_driver = {
  *
  * Returns: 0 on success, <0 otherwise
  */
-static int __devinit ulite_assign(struct device *dev, int id, u32 base, int irq)
+static int ulite_assign(struct device *dev, int id, u32 base, int irq)
 {
 	struct uart_port *port;
 	int rc;
@@ -570,7 +570,7 @@ static struct of_device_id ulite_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, ulite_of_match);
 #endif /* CONFIG_OF */
 
-static int __devinit ulite_probe(struct platform_device *pdev)
+static int ulite_probe(struct platform_device *pdev)
 {
 	struct resource *res, *res2;
 	int id = pdev->id;

@@ -939,7 +939,7 @@ static struct uart_driver xuartps_uart_driver = {
  *
  * Returns 0 on success, negative error otherwise
  **/
-static int __devinit xuartps_probe(struct platform_device *pdev)
+static int xuartps_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct uart_port *port;

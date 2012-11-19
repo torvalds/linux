@@ -1839,7 +1839,7 @@ static DEFINE_PCI_DEVICE_TABLE(pch_uart_pci_id) = {
 	{0,},
 };
 
-static int __devinit pch_uart_pci_probe(struct pci_dev *pdev,
+static int pch_uart_pci_probe(struct pci_dev *pdev,
 					const struct pci_device_id *id)
 {
 	int ret;

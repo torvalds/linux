@@ -426,7 +426,7 @@ static struct uart_driver timbuart_driver = {
 	.nr = 1
 };
 
-static int __devinit timbuart_probe(struct platform_device *dev)
+static int timbuart_probe(struct platform_device *dev)
 {
 	int err, irq;
 	struct timbuart_port *uart;

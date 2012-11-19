@@ -686,7 +686,7 @@ static struct uart_ops serial_lpc32xx_pops = {
 /*
  * Register a set of serial devices attached to a platform device
  */
-static int __devinit serial_hs_lpc32xx_probe(struct platform_device *pdev)
+static int serial_hs_lpc32xx_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_hsuart_port *p = &lpc32xx_hs_ports[uarts_registered];
 	int ret = 0;

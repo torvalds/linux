@@ -773,7 +773,7 @@ static int serial_m3110_resume(struct spi_device *spi)
 #define serial_m3110_resume	NULL
 #endif
 
-static int __devinit serial_m3110_probe(struct spi_device *spi)
+static int serial_m3110_probe(struct spi_device *spi)
 {
 	struct uart_max3110 *max;
 	void *buffer;

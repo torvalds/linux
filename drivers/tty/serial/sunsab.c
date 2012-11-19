@@ -954,7 +954,7 @@ static inline struct console *SUNSAB_CONSOLE(void)
 #define sunsab_console_init()	do { } while (0)
 #endif
 
-static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
+static int sunsab_init_one(struct uart_sunsab_port *up,
 				     struct platform_device *op,
 				     unsigned long offset,
 				     int line)
@@ -1007,7 +1007,7 @@ static int __devinit sunsab_init_one(struct uart_sunsab_port *up,
 	return 0;
 }
 
-static int __devinit sab_probe(struct platform_device *op)
+static int sab_probe(struct platform_device *op)
 {
 	static int inst;
 	struct uart_sunsab_port *up;

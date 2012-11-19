@@ -3698,7 +3698,7 @@ static void device_init(int adapter_num, struct pci_dev *pdev)
 	}
 }
 
-static int __devinit init_one(struct pci_dev *dev,
+static int init_one(struct pci_dev *dev,
 			      const struct pci_device_id *ent)
 {
 	if (pci_enable_device(dev)) {

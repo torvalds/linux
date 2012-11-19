@@ -2691,7 +2691,7 @@ static const struct pci_device_id blacklist[] = {
  * guess what the configuration might be, based on the pitiful PCI
  * serial specs.  Returns 0 on success, 1 on failure.
  */
-static int __devinit
+static int
 serial_pci_guess_board(struct pci_dev *dev, struct pciserial_board *board)
 {
 	const struct pci_device_id *bldev;
@@ -2917,7 +2917,7 @@ EXPORT_SYMBOL_GPL(pciserial_resume_ports);
  * Probe one serial board.  Unfortunately, there is no rhyme nor reason
  * to the arrangement of serial ports on a PCI card.
  */
-static int __devinit
+static int
 pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 {
 	struct pci_serial_quirk *quirk;
