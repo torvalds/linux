@@ -1327,7 +1327,7 @@ static int ni_660x_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_660x_driver);
 }
 
-static void __devexit ni_660x_pci_remove(struct pci_dev *dev)
+static void ni_660x_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

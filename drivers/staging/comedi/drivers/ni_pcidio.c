@@ -1224,7 +1224,7 @@ static int ni_pcidio_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &ni_pcidio_driver);
 }
 
-static void __devexit ni_pcidio_pci_remove(struct pci_dev *dev)
+static void ni_pcidio_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

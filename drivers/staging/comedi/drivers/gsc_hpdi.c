@@ -946,7 +946,7 @@ static int gsc_hpdi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &gsc_hpdi_driver);
 }
 
-static void __devexit gsc_hpdi_pci_remove(struct pci_dev *dev)
+static void gsc_hpdi_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

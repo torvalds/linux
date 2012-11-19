@@ -2863,7 +2863,7 @@ static int amplc_pci230_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &amplc_pci230_driver);
 }
 
-static void __devexit amplc_pci230_pci_remove(struct pci_dev *dev)
+static void amplc_pci230_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

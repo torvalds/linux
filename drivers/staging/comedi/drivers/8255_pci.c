@@ -314,7 +314,7 @@ static int pci_8255_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &pci_8255_driver);
 }
 
-static void __devexit pci_8255_pci_remove(struct pci_dev *dev)
+static void pci_8255_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

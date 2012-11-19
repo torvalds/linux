@@ -844,7 +844,7 @@ static int jr3_pci_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &jr3_pci_driver);
 }
 
-static void __devexit jr3_pci_pci_remove(struct pci_dev *dev)
+static void jr3_pci_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

@@ -856,7 +856,7 @@ static int dt3000_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &dt3000_driver);
 }
 
-static void __devexit dt3000_pci_remove(struct pci_dev *dev)
+static void dt3000_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

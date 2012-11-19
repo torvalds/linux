@@ -623,7 +623,7 @@ static int icp_multi_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &icp_multi_driver);
 }
 
-static void __devexit icp_multi_pci_remove(struct pci_dev *dev)
+static void icp_multi_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

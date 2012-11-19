@@ -619,7 +619,7 @@ static int me_daq_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &me_daq_driver);
 }
 
-static void __devexit me_daq_pci_remove(struct pci_dev *dev)
+static void me_daq_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

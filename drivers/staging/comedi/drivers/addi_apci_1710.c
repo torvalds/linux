@@ -128,7 +128,7 @@ static int apci1710_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &apci1710_driver);
 }
 
-static void __devexit apci1710_pci_remove(struct pci_dev *dev)
+static void apci1710_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

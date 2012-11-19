@@ -963,7 +963,7 @@ static int pci9111_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
 }
 
-static void __devexit pci9111_pci_remove(struct pci_dev *dev)
+static void pci9111_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

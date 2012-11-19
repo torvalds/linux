@@ -2116,7 +2116,7 @@ static int labpc_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &labpc_driver);
 }
 
-static void __devexit labpc_pci_remove(struct pci_dev *dev)
+static void labpc_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

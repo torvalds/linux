@@ -2836,7 +2836,7 @@ static int s626_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &s626_driver);
 }
 
-static void __devexit s626_pci_remove(struct pci_dev *dev)
+static void s626_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

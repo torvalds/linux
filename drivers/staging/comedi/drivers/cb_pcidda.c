@@ -438,7 +438,7 @@ static int cb_pcidda_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &cb_pcidda_driver);
 }
 
-static void __devexit cb_pcidda_pci_remove(struct pci_dev *dev)
+static void cb_pcidda_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }

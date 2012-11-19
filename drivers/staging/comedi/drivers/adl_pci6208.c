@@ -270,7 +270,7 @@ static int adl_pci6208_pci_probe(struct pci_dev *dev,
 	return comedi_pci_auto_config(dev, &adl_pci6208_driver);
 }
 
-static void __devexit adl_pci6208_pci_remove(struct pci_dev *dev)
+static void adl_pci6208_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
