@@ -4035,6 +4035,42 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 	INIT_WORK(&css->dput_work, css_dput_fn);
 }
 
+/* invoke ->post_create() on a new CSS and mark it online */
+static void online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
+{
+	lockdep_assert_held(&cgroup_mutex);
+
+	if (ss->post_create)
+		ss->post_create(cgrp);
+	cgrp->subsys[ss->subsys_id]->flags |= CSS_ONLINE;
+}
+
+/* if the CSS is online, invoke ->pre_destory() on it and mark it offline */
+static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
+	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
+{
+	struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	if (!(css->flags & CSS_ONLINE))
+		return;
+
+	/*
+	 * pre_destroy() should be called with cgroup_mutex unlocked.  See
+	 * 3fa59dfbc3 ("cgroup: fix potential deadlock in pre_destroy") for
+	 * details.  This temporary unlocking should go away once
+	 * cgroup_mutex is unexported from controllers.
+	 */
+	if (ss->pre_destroy) {
+		mutex_unlock(&cgroup_mutex);
+		ss->pre_destroy(cgrp);
+		mutex_lock(&cgroup_mutex);
+	}
+
+	cgrp->subsys[ss->subsys_id]->flags &= ~CSS_ONLINE;
+}
+
 /*
  * cgroup_create - create a cgroup
  * @parent: cgroup that will be parent of the new cgroup
@@ -4137,8 +4173,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 		dget(dentry);
 
 		/* creation succeeded, notify subsystems */
-		if (ss->post_create)
-			ss->post_create(cgrp);
+		online_css(ss, cgrp);
 	}
 
 	err = cgroup_populate_dir(cgrp, true, root->subsys_mask);
@@ -4240,18 +4275,9 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	}
 	set_bit(CGRP_REMOVED, &cgrp->flags);
 
-	/*
-	 * Tell subsystems to initate destruction.  pre_destroy() should be
-	 * called with cgroup_mutex unlocked.  See 3fa59dfbc3 ("cgroup: fix
-	 * potential deadlock in pre_destroy") for details.  This temporary
-	 * unlocking should go away once cgroup_mutex is unexported from
-	 * controllers.
-	 */
-	mutex_unlock(&cgroup_mutex);
+	/* tell subsystems to initate destruction */
 	for_each_subsys(cgrp->root, ss)
-		if (ss->pre_destroy)
-			ss->pre_destroy(cgrp);
-	mutex_lock(&cgroup_mutex);
+		offline_css(ss, cgrp);
 
 	/*
 	 * Put all the base refs.  Each css holds an extra reference to the
@@ -4354,9 +4380,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	BUG_ON(!list_empty(&init_task.tasks));
 
 	ss->active = 1;
-
-	if (ss->post_create)
-		ss->post_create(dummytop);
+	online_css(ss, dummytop);
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -4469,9 +4493,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	write_unlock(&css_set_lock);
 
 	ss->active = 1;
-
-	if (ss->post_create)
-		ss->post_create(dummytop);
+	online_css(ss, dummytop);
 
 	/* success! */
 	mutex_unlock(&cgroup_mutex);
@@ -4501,12 +4523,9 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	 */
 	BUG_ON(ss->root != &rootnode);
 
-	/* ->pre_destroy() should be called outside cgroup_mutex for now */
-	if (ss->pre_destroy)
-		ss->pre_destroy(dummytop);
-
 	mutex_lock(&cgroup_mutex);
 
+	offline_css(ss, dummytop);
 	ss->active = 0;
 
 	if (ss->use_id) {
