@@ -160,6 +160,9 @@ extern long kvmppc_virtmode_h_enter(struct kvm_vcpu *vcpu, unsigned long flags,
 extern long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 			long pte_index, unsigned long pteh, unsigned long ptel,
 			pgd_t *pgdir, bool realmode, unsigned long *idx_ret);
+extern long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
+			unsigned long pte_index, unsigned long avpn,
+			unsigned long *hpret);
 extern long kvmppc_hv_get_dirty_log(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
 

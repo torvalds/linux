@@ -365,11 +365,10 @@ static inline int try_lock_tlbie(unsigned int *lock)
 	return old == 0;
 }
 
-long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
-		     unsigned long pte_index, unsigned long avpn,
-		     unsigned long va)
+long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
+			unsigned long pte_index, unsigned long avpn,
+			unsigned long *hpret)
 {
-	struct kvm *kvm = vcpu->kvm;
 	unsigned long *hpte;
 	unsigned long v, r, rb;
 	struct revmap_entry *rev;
@@ -411,9 +410,17 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 	note_hpte_modification(kvm, rev);
 	unlock_hpte(hpte, 0);
 
-	vcpu->arch.gpr[4] = v;
-	vcpu->arch.gpr[5] = r;
+	hpret[0] = v;
+	hpret[1] = r;
 	return H_SUCCESS;
+}
+EXPORT_SYMBOL_GPL(kvmppc_do_h_remove);
+
+long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
+		     unsigned long pte_index, unsigned long avpn)
+{
+	return kvmppc_do_h_remove(vcpu->kvm, flags, pte_index, avpn,
+				  &vcpu->arch.gpr[4]);
 }
 
 long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
