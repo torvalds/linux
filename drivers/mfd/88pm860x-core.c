@@ -1258,7 +1258,7 @@ static struct i2c_driver pm860x_driver = {
 		.of_match_table	= of_match_ptr(pm860x_dt_ids),
 	},
 	.probe		= pm860x_probe,
-	.remove		= __devexit_p(pm860x_remove),
+	.remove		= pm860x_remove,
 	.id_table	= pm860x_id_table,
 };
 

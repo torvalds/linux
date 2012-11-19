@@ -176,7 +176,7 @@ static struct spi_driver mc13xxx_spi_driver = {
 		.of_match_table = mc13xxx_dt_ids,
 	},
 	.probe = mc13xxx_spi_probe,
-	.remove = __devexit_p(mc13xxx_spi_remove),
+	.remove = mc13xxx_spi_remove,
 };
 
 static int __init mc13xxx_init(void)

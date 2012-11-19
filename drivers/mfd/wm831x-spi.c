@@ -99,7 +99,7 @@ static struct spi_driver wm831x_spi_driver = {
 	},
 	.id_table	= wm831x_spi_ids,
 	.probe		= wm831x_spi_probe,
-	.remove		= __devexit_p(wm831x_spi_remove),
+	.remove		= wm831x_spi_remove,
 	.shutdown	= wm831x_spi_shutdown,
 };
 

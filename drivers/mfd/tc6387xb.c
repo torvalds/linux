@@ -229,7 +229,7 @@ static struct platform_driver tc6387xb_platform_driver = {
 		.name		= "tc6387xb",
 	},
 	.probe		= tc6387xb_probe,
-	.remove		= __devexit_p(tc6387xb_remove),
+	.remove		= tc6387xb_remove,
 	.suspend        = tc6387xb_suspend,
 	.resume         = tc6387xb_resume,
 };

@@ -308,7 +308,7 @@ static struct i2c_driver pcf50633_driver = {
 	},
 	.id_table = pcf50633_id_table,
 	.probe = pcf50633_probe,
-	.remove = __devexit_p(pcf50633_remove),
+	.remove = pcf50633_remove,
 };
 
 static int __init pcf50633_init(void)

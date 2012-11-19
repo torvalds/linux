@@ -986,7 +986,7 @@ static struct i2c_driver ab3100_driver = {
 	},
 	.id_table	= ab3100_id,
 	.probe		= ab3100_probe,
-	.remove		= __devexit_p(ab3100_remove),
+	.remove		= ab3100_remove,
 };
 
 static int __init ab3100_i2c_init(void)

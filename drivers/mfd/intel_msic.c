@@ -457,7 +457,7 @@ static int __devexit intel_msic_remove(struct platform_device *pdev)
 
 static struct platform_driver intel_msic_driver = {
 	.probe		= intel_msic_probe,
-	.remove		= __devexit_p(intel_msic_remove),
+	.remove		= intel_msic_remove,
 	.driver		= {
 		.name	= "intel_msic",
 		.owner	= THIS_MODULE,

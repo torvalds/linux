@@ -224,7 +224,7 @@ static struct i2c_driver lp8788_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lp8788_probe,
-	.remove = __devexit_p(lp8788_remove),
+	.remove = lp8788_remove,
 	.id_table = lp8788_ids,
 };
 

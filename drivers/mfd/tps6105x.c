@@ -226,7 +226,7 @@ static struct i2c_driver tps6105x_driver = {
 		.name	= "tps6105x",
 	},
 	.probe		= tps6105x_probe,
-	.remove		= __devexit_p(tps6105x_remove),
+	.remove		= tps6105x_remove,
 	.id_table	= tps6105x_id,
 };
 

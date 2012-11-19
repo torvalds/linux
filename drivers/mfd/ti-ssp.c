@@ -451,7 +451,7 @@ static int __devexit ti_ssp_remove(struct platform_device *pdev)
 
 static struct platform_driver ti_ssp_driver = {
 	.probe		= ti_ssp_probe,
-	.remove		= __devexit_p(ti_ssp_remove),
+	.remove		= ti_ssp_remove,
 	.driver		= {
 		.name	= "ti-ssp",
 		.owner	= THIS_MODULE,

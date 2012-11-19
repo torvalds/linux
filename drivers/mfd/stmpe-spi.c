@@ -128,7 +128,7 @@ static struct spi_driver stmpe_spi_driver = {
 #endif
 	},
 	.probe		= stmpe_spi_probe,
-	.remove		= __devexit_p(stmpe_spi_remove),
+	.remove		= stmpe_spi_remove,
 	.id_table	= stmpe_spi_id,
 };
 

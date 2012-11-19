@@ -332,7 +332,7 @@ static int __devexit jz4740_adc_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_adc_driver = {
 	.probe	= jz4740_adc_probe,
-	.remove = __devexit_p(jz4740_adc_remove),
+	.remove = jz4740_adc_remove,
 	.driver = {
 		.name = "jz4740-adc",
 		.owner = THIS_MODULE,

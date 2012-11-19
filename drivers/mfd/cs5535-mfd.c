@@ -183,7 +183,7 @@ static struct pci_driver cs5535_mfd_driver = {
 	.name = DRV_NAME,
 	.id_table = cs5535_mfd_pci_tbl,
 	.probe = cs5535_mfd_probe,
-	.remove = __devexit_p(cs5535_mfd_remove),
+	.remove = cs5535_mfd_remove,
 };
 
 module_pci_driver(cs5535_mfd_driver);

@@ -525,7 +525,7 @@ ret:
 
 static struct spi_driver ezxpcap_driver = {
 	.probe	= ezx_pcap_probe,
-	.remove = __devexit_p(ezx_pcap_remove),
+	.remove = ezx_pcap_remove,
 	.driver = {
 		.name	= "ezx-pcap",
 		.owner	= THIS_MODULE,

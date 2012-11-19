@@ -281,7 +281,7 @@ static struct i2c_driver pm805_driver = {
 		.pm = &pm80x_pm_ops,
 		},
 	.probe = pm805_probe,
-	.remove = __devexit_p(pm805_remove),
+	.remove = pm805_remove,
 	.id_table = pm80x_id_table,
 };
 

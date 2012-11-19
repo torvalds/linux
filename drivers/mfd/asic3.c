@@ -1071,7 +1071,7 @@ static struct platform_driver asic3_device_driver = {
 	.driver		= {
 		.name	= "asic3",
 	},
-	.remove		= __devexit_p(asic3_remove),
+	.remove		= asic3_remove,
 	.shutdown	= asic3_shutdown,
 };
 

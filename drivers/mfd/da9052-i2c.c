@@ -131,7 +131,7 @@ static int __devexit da9052_i2c_remove(struct i2c_client *client)
 
 static struct i2c_driver da9052_i2c_driver = {
 	.probe = da9052_i2c_probe,
-	.remove = __devexit_p(da9052_i2c_remove),
+	.remove = da9052_i2c_remove,
 	.id_table = da9052_i2c_id,
 	.driver = {
 		.name = "da9052",

@@ -173,7 +173,7 @@ static struct pci_driver lpc_sch_driver = {
 	.name		= "lpc_sch",
 	.id_table	= lpc_sch_ids,
 	.probe		= lpc_sch_probe,
-	.remove		= __devexit_p(lpc_sch_remove),
+	.remove		= lpc_sch_remove,
 };
 
 module_pci_driver(lpc_sch_driver);

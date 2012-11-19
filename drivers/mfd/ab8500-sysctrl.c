@@ -67,7 +67,7 @@ static struct platform_driver ab8500_sysctrl_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab8500_sysctrl_probe,
-	.remove = __devexit_p(ab8500_sysctrl_remove),
+	.remove = ab8500_sysctrl_remove,
 };
 
 static int __init ab8500_sysctrl_init(void)

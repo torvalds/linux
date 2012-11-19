@@ -128,7 +128,7 @@ static struct pci_driver vx855_pci_driver = {
 	.name		= "vx855",
 	.id_table	= vx855_pci_tbl,
 	.probe		= vx855_probe,
-	.remove		= __devexit_p(vx855_remove),
+	.remove		= vx855_remove,
 };
 
 module_pci_driver(vx855_pci_driver);

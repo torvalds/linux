@@ -325,7 +325,7 @@ static struct i2c_driver rc5t583_i2c_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = rc5t583_i2c_probe,
-	.remove = __devexit_p(rc5t583_i2c_remove),
+	.remove = rc5t583_i2c_remove,
 	.id_table = rc5t583_i2c_id,
 };
 

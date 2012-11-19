@@ -262,7 +262,7 @@ static struct i2c_driver wl1273_core_driver = {
 	},
 	.probe = wl1273_core_probe,
 	.id_table = wl1273_driver_id_table,
-	.remove = __devexit_p(wl1273_core_remove),
+	.remove = wl1273_core_remove,
 };
 
 static int __init wl1273_core_init(void)

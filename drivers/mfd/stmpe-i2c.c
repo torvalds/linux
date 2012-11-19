@@ -88,7 +88,7 @@ static struct i2c_driver stmpe_i2c_driver = {
 	.driver.pm	= &stmpe_dev_pm_ops,
 #endif
 	.probe		= stmpe_i2c_probe,
-	.remove		= __devexit_p(stmpe_i2c_remove),
+	.remove		= stmpe_i2c_remove,
 	.id_table	= stmpe_i2c_id,
 };
 

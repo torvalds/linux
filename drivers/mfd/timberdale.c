@@ -867,7 +867,7 @@ static struct pci_driver timberdale_pci_driver = {
 	.name = DRIVER_NAME,
 	.id_table = timberdale_pci_tbl,
 	.probe = timb_probe,
-	.remove = __devexit_p(timb_remove),
+	.remove = timb_remove,
 };
 
 static int __init timberdale_init(void)

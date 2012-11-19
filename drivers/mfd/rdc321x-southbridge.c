@@ -106,7 +106,7 @@ static struct pci_driver rdc321x_sb_driver = {
 	.name		= "RDC321x Southbridge",
 	.id_table	= rdc321x_sb_table,
 	.probe		= rdc321x_sb_probe,
-	.remove		= __devexit_p(rdc321x_sb_remove),
+	.remove		= rdc321x_sb_remove,
 };
 
 module_pci_driver(rdc321x_sb_driver);

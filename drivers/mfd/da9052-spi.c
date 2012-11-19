@@ -76,7 +76,7 @@ static struct spi_device_id da9052_spi_id[] = {
 
 static struct spi_driver da9052_spi_driver = {
 	.probe = da9052_spi_probe,
-	.remove = __devexit_p(da9052_spi_remove),
+	.remove = da9052_spi_remove,
 	.id_table = da9052_spi_id,
 	.driver = {
 		.name = "da9052",

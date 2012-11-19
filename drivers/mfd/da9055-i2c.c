@@ -60,7 +60,7 @@ static struct i2c_device_id da9055_i2c_id[] = {
 
 static struct i2c_driver da9055_i2c_driver = {
 	.probe = da9055_i2c_probe,
-	.remove = __devexit_p(da9055_i2c_remove),
+	.remove = da9055_i2c_remove,
 	.id_table = da9055_i2c_id,
 	.driver = {
 		.name = "da9055",

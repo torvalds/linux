@@ -280,7 +280,7 @@ static struct pci_driver cmodio_pci_driver = {
 	.name     = DRV_NAME,
 	.id_table = cmodio_pci_ids,
 	.probe    = cmodio_pci_probe,
-	.remove   = __devexit_p(cmodio_pci_remove),
+	.remove   = cmodio_pci_remove,
 };
 
 module_pci_driver(cmodio_pci_driver);

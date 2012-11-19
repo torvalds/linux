@@ -888,7 +888,7 @@ static struct pci_driver lpc_ich_driver = {
 	.name		= "lpc_ich",
 	.id_table	= lpc_ich_ids,
 	.probe		= lpc_ich_probe,
-	.remove		= __devexit_p(lpc_ich_remove),
+	.remove		= lpc_ich_remove,
 };
 
 static int __init lpc_ich_init(void)

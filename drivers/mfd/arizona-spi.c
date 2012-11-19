@@ -86,7 +86,7 @@ static struct spi_driver arizona_spi_driver = {
 		.pm	= &arizona_pm_ops,
 	},
 	.probe		= arizona_spi_probe,
-	.remove		= __devexit_p(arizona_spi_remove),
+	.remove		= arizona_spi_remove,
 	.id_table	= arizona_spi_ids,
 };
 

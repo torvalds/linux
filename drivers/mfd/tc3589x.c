@@ -458,7 +458,7 @@ static struct i2c_driver tc3589x_driver = {
 	.driver.owner	= THIS_MODULE,
 	.driver.pm	= &tc3589x_dev_pm_ops,
 	.probe		= tc3589x_probe,
-	.remove		= __devexit_p(tc3589x_remove),
+	.remove		= tc3589x_remove,
 	.id_table	= tc3589x_id,
 };
 

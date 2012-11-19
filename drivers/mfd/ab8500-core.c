@@ -1506,7 +1506,7 @@ static struct platform_driver ab8500_core_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe	= ab8500_probe,
-	.remove	= __devexit_p(ab8500_remove),
+	.remove	= ab8500_remove,
 	.id_table = ab8500_id,
 };
 

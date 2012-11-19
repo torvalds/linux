@@ -1723,7 +1723,7 @@ static struct pci_driver sm501_pci_driver = {
 	.name		= "sm501",
 	.id_table	= sm501_pci_tbl,
 	.probe		= sm501_pci_probe,
-	.remove		= __devexit_p(sm501_pci_remove),
+	.remove		= sm501_pci_remove,
 };
 
 MODULE_ALIAS("platform:sm501");

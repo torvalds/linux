@@ -169,7 +169,7 @@ static struct platform_driver tps65911_comparator_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65911_comparator_probe,
-	.remove = __devexit_p(tps65911_comparator_remove),
+	.remove = tps65911_comparator_remove,
 };
 
 static int __init tps65911_comparator_init(void)

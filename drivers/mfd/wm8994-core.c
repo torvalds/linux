@@ -744,7 +744,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 		.of_match_table = wm8994_of_match,
 	},
 	.probe = wm8994_i2c_probe,
-	.remove = __devexit_p(wm8994_i2c_remove),
+	.remove = wm8994_i2c_remove,
 	.id_table = wm8994_i2c_id,
 };
 

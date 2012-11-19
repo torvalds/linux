@@ -424,7 +424,7 @@ static struct platform_driver usbtll_omap_driver = {
 		.pm		= &usbtllomap_dev_pm_ops,
 	},
 	.probe		= usbtll_omap_probe,
-	.remove		= __devexit_p(usbtll_omap_remove),
+	.remove		= usbtll_omap_remove,
 };
 
 int omap_tll_enable(void)

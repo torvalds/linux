@@ -354,7 +354,7 @@ static struct i2c_driver tps65090_driver = {
 		.pm	= &tps65090_pm_ops,
 	},
 	.probe		= tps65090_i2c_probe,
-	.remove		= __devexit_p(tps65090_i2c_remove),
+	.remove		= tps65090_i2c_remove,
 	.id_table	= tps65090_id_table,
 };
 

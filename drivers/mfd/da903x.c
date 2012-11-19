@@ -560,7 +560,7 @@ static struct i2c_driver da903x_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da903x_probe,
-	.remove		= __devexit_p(da903x_remove),
+	.remove		= da903x_remove,
 	.id_table	= da903x_id_table,
 };
 

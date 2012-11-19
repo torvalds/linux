@@ -648,7 +648,7 @@ static struct i2c_driver lm3533_i2c_driver = {
 	},
 	.id_table	= lm3533_i2c_ids,
 	.probe		= lm3533_i2c_probe,
-	.remove		= __devexit_p(lm3533_i2c_remove),
+	.remove		= lm3533_i2c_remove,
 };
 
 static int __init lm3533_i2c_init(void)

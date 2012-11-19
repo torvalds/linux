@@ -237,7 +237,7 @@ static struct i2c_driver tps65217_driver = {
 	},
 	.id_table	= tps65217_id_table,
 	.probe		= tps65217_probe,
-	.remove		= __devexit_p(tps65217_remove),
+	.remove		= tps65217_remove,
 };
 
 static int __init tps65217_init(void)

@@ -156,7 +156,7 @@ static struct platform_driver syscon_driver = {
 		.of_match_table = of_syscon_match,
 	},
 	.probe		= syscon_probe,
-	.remove		= __devexit_p(syscon_remove),
+	.remove		= syscon_remove,
 };
 
 static int __init syscon_init(void)

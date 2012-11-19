@@ -102,7 +102,7 @@ static struct i2c_driver mc13xxx_i2c_driver = {
 		.of_match_table = mc13xxx_dt_ids,
 	},
 	.probe = mc13xxx_i2c_probe,
-	.remove = __devexit_p(mc13xxx_i2c_remove),
+	.remove = mc13xxx_i2c_remove,
 };
 
 static int __init mc13xxx_i2c_init(void)

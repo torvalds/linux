@@ -831,7 +831,7 @@ static int tc6393xb_resume(struct platform_device *dev)
 
 static struct platform_driver tc6393xb_driver = {
 	.probe = tc6393xb_probe,
-	.remove = __devexit_p(tc6393xb_remove),
+	.remove = tc6393xb_remove,
 	.suspend = tc6393xb_suspend,
 	.resume = tc6393xb_resume,
 

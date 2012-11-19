@@ -614,7 +614,7 @@ static struct platform_driver ab8500_debug_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe  = ab8500_debug_probe,
-	.remove = __devexit_p(ab8500_debug_remove)
+	.remove = ab8500_debug_remove
 };
 
 static int __init ab8500_debug_init(void)

@@ -86,7 +86,7 @@ static struct i2c_driver arizona_i2c_driver = {
 		.pm	= &arizona_pm_ops,
 	},
 	.probe		= arizona_i2c_probe,
-	.remove		= __devexit_p(arizona_i2c_remove),
+	.remove		= arizona_i2c_remove,
 	.id_table	= arizona_i2c_id,
 };
 
