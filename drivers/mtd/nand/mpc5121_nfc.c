@@ -841,7 +841,7 @@ static int __devexit mpc5121_nfc_remove(struct platform_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc5121_nfc_match[] __devinitdata = {
+static struct of_device_id mpc5121_nfc_match[] = {
 	{ .compatible = "fsl,mpc5121-nfc", },
 	{},
 };

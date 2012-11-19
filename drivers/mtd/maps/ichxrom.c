@@ -321,7 +321,7 @@ static void __devexit ichxrom_remove_one (struct pci_dev *pdev)
 	ichxrom_cleanup(window);
 }
 
-static struct pci_device_id ichxrom_pci_tbl[] __devinitdata = {
+static struct pci_device_id ichxrom_pci_tbl[] = {
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801BA_0,
 	  PCI_ANY_ID, PCI_ANY_ID, },
 	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82801CA_0,
