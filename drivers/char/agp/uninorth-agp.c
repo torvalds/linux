@@ -557,7 +557,7 @@ const struct agp_bridge_driver u3_agp_driver = {
 	.needs_scratch_page	= true,
 };
 
-static struct agp_device_ids uninorth_agp_device_ids[] __devinitdata = {
+static struct agp_device_ids uninorth_agp_device_ids[] = {
 	{
 		.device_id	= PCI_DEVICE_ID_APPLE_UNI_N_AGP,
 		.chipset_name	= "UniNorth",

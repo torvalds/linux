@@ -769,7 +769,7 @@ static int tpm_tis_pnp_resume(struct pnp_dev *dev)
 	return ret;
 }
 
-static struct pnp_device_id tpm_pnp_tbl[] __devinitdata = {
+static struct pnp_device_id tpm_pnp_tbl[] = {
 	{"PNP0C31", 0},		/* TPM */
 	{"ATM1200", 0},		/* Atmel */
 	{"IFX0102", 0},		/* Infineon */

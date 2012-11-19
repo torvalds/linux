@@ -3047,7 +3047,7 @@ static inline void wait_for_timer_and_thread(struct smi_info *smi_info)
 	}
 }
 
-static __devinitdata struct ipmi_default_vals
+static struct ipmi_default_vals
 {
 	int type;
 	int port;

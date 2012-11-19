@@ -445,7 +445,7 @@ static const struct agp_bridge_driver ati_generic_bridge = {
 };
 
 
-static struct agp_device_ids ati_agp_device_ids[] __devinitdata =
+static struct agp_device_ids ati_agp_device_ids[] =
 {
 	{
 		.device_id	= PCI_DEVICE_ID_ATI_RS100,

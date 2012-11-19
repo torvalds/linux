@@ -388,7 +388,7 @@ static const struct agp_bridge_driver amd_irongate_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_device_ids amd_agp_device_ids[] __devinitdata =
+static struct agp_device_ids amd_agp_device_ids[] =
 {
 	{
 		.device_id	= PCI_DEVICE_ID_AMD_FE_GATE_7006,
