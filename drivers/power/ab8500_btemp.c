@@ -20,11 +20,13 @@
 #include <linux/power_supply.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
-#include <linux/mfd/abx500/ab8500.h>
+#include <linux/jiffies.h>
+#include <linux/of.h>
+#include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
 #include <linux/mfd/abx500/ab8500-gpadc.h>
-#include <linux/jiffies.h>
 
 #define VTVOUT_V			1800
 
@@ -76,7 +78,6 @@ struct ab8500_btemp_ranges {
  * @parent:		Pointer to the struct ab8500
  * @gpadc:		Pointer to the struct gpadc
  * @fg:			Pointer to the struct fg
- * @pdata:		Pointer to the abx500_btemp platform data
  * @bat:		Pointer to the abx500_bm platform data
  * @btemp_psy:		Structure for BTEMP specific battery properties
  * @events:		Structure for information about events triggered
@@ -93,7 +94,6 @@ struct ab8500_btemp {
 	struct ab8500 *parent;
 	struct ab8500_gpadc *gpadc;
 	struct ab8500_fg *fg;
-	struct abx500_bmdevs_plat_data *pdata;
 	struct abx500_bm_data *bat;
 	struct power_supply btemp_psy;
 	struct ab8500_btemp_events events;
@@ -955,39 +955,48 @@ static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
 	flush_scheduled_work();
 	power_supply_unregister(&di->btemp_psy);
 	platform_set_drvdata(pdev, NULL);
-	kfree(di);
 
 	return 0;
 }
 
+static char *supply_interface[] = {
+	"ab8500_chargalg",
+	"ab8500_fg",
+};
+
 static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 {
-	struct abx500_bmdevs_plat_data *plat_data = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	struct ab8500_btemp *di;
 	int irq, i, ret = 0;
 	u8 val;
 
-	if (!plat_data) {
-		dev_err(&pdev->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
-	if (!di)
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
+	if (!di) {
+		dev_err(&pdev->dev, "%s no mem for ab8500_btemp\n", __func__);
 		return -ENOMEM;
+	}
+	di->bat = pdev->mfd_cell->platform_data;
+	if (!di->bat) {
+		if (np) {
+			ret = bmdevs_of_probe(&pdev->dev, np, &di->bat);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"failed to get battery information\n");
+				return ret;
+			}
+		} else {
+			dev_err(&pdev->dev, "missing dt node for ab8500_btemp\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_info(&pdev->dev, "falling back to legacy platform data\n");
+	}
 
 	/* get parent data */
 	di->dev = &pdev->dev;
 	di->parent = dev_get_drvdata(pdev->dev.parent);
 	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
-
-	/* get btemp specific platform data */
-	di->pdata = plat_data;
-	if (!di->pdata) {
-		dev_err(di->dev, "no btemp platform data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
 
 	/* BTEMP supply */
 	di->btemp_psy.name = "ab8500_btemp";
@@ -995,8 +1004,8 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 	di->btemp_psy.properties = ab8500_btemp_props;
 	di->btemp_psy.num_properties = ARRAY_SIZE(ab8500_btemp_props);
 	di->btemp_psy.get_property = ab8500_btemp_get_property;
-	di->btemp_psy.supplied_to = di->pdata->supplied_to;
-	di->btemp_psy.num_supplicants = di->pdata->num_supplicants;
+	di->btemp_psy.supplied_to = supply_interface;
+	di->btemp_psy.num_supplicants = ARRAY_SIZE(supply_interface);
 	di->btemp_psy.external_power_changed =
 		ab8500_btemp_external_power_changed;
 
@@ -1006,8 +1015,7 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 		create_singlethread_workqueue("ab8500_btemp_wq");
 	if (di->btemp_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
-		ret = -ENOMEM;
-		goto free_device_info;
+		return -ENOMEM;
 	}
 
 	/* Init work for measuring temperature periodically */
@@ -1085,11 +1093,13 @@ free_irq:
 	}
 free_btemp_wq:
 	destroy_workqueue(di->btemp_wq);
-free_device_info:
-	kfree(di);
-
 	return ret;
 }
+
+static const struct of_device_id ab8500_btemp_match[] = {
+	{ .compatible = "stericsson,ab8500-btemp", },
+	{ },
+};
 
 static struct platform_driver ab8500_btemp_driver = {
 	.probe = ab8500_btemp_probe,
@@ -1099,6 +1109,7 @@ static struct platform_driver ab8500_btemp_driver = {
 	.driver = {
 		.name = "ab8500-btemp",
 		.owner = THIS_MODULE,
+		.of_match_table = ab8500_btemp_match,
 	},
 };
 

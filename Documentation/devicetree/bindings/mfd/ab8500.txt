@@ -30,6 +30,12 @@ ab8500-fg                : 			: vddadc       : Fuel Gauge
 			 : LOW_BAT_F		:	       : LOW threshold battery voltage
 			 : CC_INT_CALIB		:	       : Coulomb Counter Internal Calibration
 			 : CCEOC		:	       : Coulomb Counter End of Conversion
+ab8500-btemp		 :			: vtvout       : Battery Temperature
+			 : BAT_CTRL_INDB        :              : Battery Removal Indicator
+			 : BTEMP_LOW            :              : Btemp < BtempLow, if battery temperature is lower than -10°C
+			 : BTEMP_LOW_MEDIUM     :              : BtempLow < Btemp < BtempMedium,if battery temperature is between -10 and 0°C
+			 : BTEMP_MEDIUM_HIGH    :	       : BtempMedium < Btemp < BtempHigh,if battery temperature is between 0°C and“MaxTemp
+			 : BTEMP_HIGH           :              : Btemp > BtempHigh, if battery temperature is higher than “MaxTemp
 ab8500-gpadc             : HW_CONV_END          : vddadc       : Analogue to Digital Converter
                            SW_CONV_END          :              :
 ab8500-gpio              :                      :              : GPIO Controller

@@ -346,12 +346,6 @@ config AB8500_BM
 	help
 	  Say Y to include support for AB8500 battery management.
 
-config AB8500_BATTERY_THERM_ON_BATCTRL
-	bool "Thermistor connected on BATCTRL ADC"
-	depends on AB8500_BM
-	help
-	  Say Y to enable battery temperature measurements using
-	  thermistor connected on BATCTRL ADC.
 endif # POWER_SUPPLY
 
 source "drivers/power/avs/Kconfig"

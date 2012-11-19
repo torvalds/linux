@@ -362,6 +362,11 @@
 					battery	   = <&ab8500_battery>;
 				};
 
+				ab8500_btemp {
+					compatible = "stericsson,ab8500-btemp";
+					battery	   = <&ab8500_battery>;
+				};
+
 				ab8500_usb {
 					compatible = "stericsson,ab8500-usb";
 					interrupts = < 90 0x4

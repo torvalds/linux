@@ -30,7 +30,7 @@ static struct abx500_res_to_temp temp_tbl_A_thermistor[] = {
 };
 
 static struct abx500_res_to_temp temp_tbl_B_thermistor[] = {
-	{-5, 165418},
+	{-5, 200000},
 	{ 0, 159024},
 	{ 5, 151921},
 	{10, 144300},
@@ -240,7 +240,7 @@ static struct abx500_battery_type bat_type_thermistor[] = {
 },
 {
 	.name = POWER_SUPPLY_TECHNOLOGY_LIPO,
-	.resis_high = 165418,
+	.resis_high = 200000,
 	.resis_low = 82869,
 	.battery_resistance = 300,
 	.charge_full_design = 900,
