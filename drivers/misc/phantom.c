@@ -487,7 +487,7 @@ static int phantom_resume(struct pci_dev *pdev)
 #define phantom_resume	NULL
 #endif
 
-static struct pci_device_id phantom_pci_tbl[] __devinitdata = {
+static struct pci_device_id phantom_pci_tbl[] = {
 	{ .vendor = PCI_VENDOR_ID_PLX, .device = PCI_DEVICE_ID_PLX_9050,
 	  .subvendor = PCI_VENDOR_ID_PLX, .subdevice = PCI_DEVICE_ID_PLX_9050,
 	  .class = PCI_CLASS_BRIDGE_OTHER << 8, .class_mask = 0xffff00 },
