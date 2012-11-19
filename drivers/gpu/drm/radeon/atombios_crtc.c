@@ -1690,41 +1690,49 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 		}
 		/* all other cases */
 		pll_in_use = radeon_get_pll_use_mask(crtc);
-		if (!(pll_in_use & (1 << ATOM_PPLL2)))
-			return ATOM_PPLL2;
 		if (!(pll_in_use & (1 << ATOM_PPLL1)))
 			return ATOM_PPLL1;
+		if (!(pll_in_use & (1 << ATOM_PPLL2)))
+			return ATOM_PPLL2;
 		DRM_ERROR("unable to allocate a PPLL\n");
 		return ATOM_PPLL_INVALID;
-	} else {
-		if (ASIC_IS_AVIVO(rdev)) {
-			/* in DP mode, the DP ref clock can come from either PPLL
-			 * depending on the asic:
-			 * DCE3: PPLL1 or PPLL2
-			 */
-			if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
-				/* use the same PPLL for all DP monitors */
-				pll = radeon_get_shared_dp_ppll(crtc);
-				if (pll != ATOM_PPLL_INVALID)
-					return pll;
-			} else {
-				/* use the same PPLL for all monitors with the same clock */
-				pll = radeon_get_shared_nondp_ppll(crtc);
-				if (pll != ATOM_PPLL_INVALID)
-					return pll;
-			}
-			/* all other cases */
-			pll_in_use = radeon_get_pll_use_mask(crtc);
+	} else if (ASIC_IS_AVIVO(rdev)) {
+		/* in DP mode, the DP ref clock can come from either PPLL
+		 * depending on the asic:
+		 * DCE3: PPLL1 or PPLL2
+		 */
+		if (ENCODER_MODE_IS_DP(atombios_get_encoder_mode(radeon_crtc->encoder))) {
+			/* use the same PPLL for all DP monitors */
+			pll = radeon_get_shared_dp_ppll(crtc);
+			if (pll != ATOM_PPLL_INVALID)
+				return pll;
+		} else {
+			/* use the same PPLL for all monitors with the same clock */
+			pll = radeon_get_shared_nondp_ppll(crtc);
+			if (pll != ATOM_PPLL_INVALID)
+				return pll;
+		}
+		/* all other cases */
+		pll_in_use = radeon_get_pll_use_mask(crtc);
+		/* the order shouldn't matter here, but we probably
+		 * need this until we have atomic modeset
+		 */
+		if (rdev->flags & RADEON_IS_IGP) {
+			if (!(pll_in_use & (1 << ATOM_PPLL1)))
+				return ATOM_PPLL1;
+			if (!(pll_in_use & (1 << ATOM_PPLL2)))
+				return ATOM_PPLL2;
+		} else {
 			if (!(pll_in_use & (1 << ATOM_PPLL2)))
 				return ATOM_PPLL2;
 			if (!(pll_in_use & (1 << ATOM_PPLL1)))
 				return ATOM_PPLL1;
-			DRM_ERROR("unable to allocate a PPLL\n");
-			return ATOM_PPLL_INVALID;
-		} else {
-			/* on pre-R5xx asics, the crtc to pll mapping is hardcoded */
-			return radeon_crtc->crtc_id;
 		}
+		DRM_ERROR("unable to allocate a PPLL\n");
+		return ATOM_PPLL_INVALID;
+	} else {
+		/* on pre-R5xx asics, the crtc to pll mapping is hardcoded */
+		return radeon_crtc->crtc_id;
 	}
 }
 

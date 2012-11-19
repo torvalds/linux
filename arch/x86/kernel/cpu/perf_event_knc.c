@@ -3,6 +3,8 @@
 #include <linux/perf_event.h>
 #include <linux/types.h>
 
+#include <asm/hardirq.h>
+
 #include "perf_event.h"
 
 static const u64 knc_perfmon_event_map[] =
@@ -173,29 +175,99 @@ static void knc_pmu_enable_all(int added)
 static inline void
 knc_pmu_disable_event(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	u64 val;
 
 	val = hwc->config;
-	if (cpuc->enabled)
-		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
+	val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 
 	(void)wrmsrl_safe(hwc->config_base + hwc->idx, val);
 }
 
 static void knc_pmu_enable_event(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct hw_perf_event *hwc = &event->hw;
 	u64 val;
 
 	val = hwc->config;
-	if (cpuc->enabled)
-		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
+	val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 
 	(void)wrmsrl_safe(hwc->config_base + hwc->idx, val);
 }
+
+static inline u64 knc_pmu_get_status(void)
+{
+	u64 status;
+
+	rdmsrl(MSR_KNC_IA32_PERF_GLOBAL_STATUS, status);
+
+	return status;
+}
+
+static inline void knc_pmu_ack_status(u64 ack)
+{
+	wrmsrl(MSR_KNC_IA32_PERF_GLOBAL_OVF_CONTROL, ack);
+}
+
+static int knc_pmu_handle_irq(struct pt_regs *regs)
+{
+	struct perf_sample_data data;
+	struct cpu_hw_events *cpuc;
+	int handled = 0;
+	int bit, loops;
+	u64 status;
+
+	cpuc = &__get_cpu_var(cpu_hw_events);
+
+	knc_pmu_disable_all();
+
+	status = knc_pmu_get_status();
+	if (!status) {
+		knc_pmu_enable_all(0);
+		return handled;
+	}
+
+	loops = 0;
+again:
+	knc_pmu_ack_status(status);
+	if (++loops > 100) {
+		WARN_ONCE(1, "perf: irq loop stuck!\n");
+		perf_event_print_debug();
+		goto done;
+	}
+
+	inc_irq_stat(apic_perf_irqs);
+
+	for_each_set_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
+		struct perf_event *event = cpuc->events[bit];
+
+		handled++;
+
+		if (!test_bit(bit, cpuc->active_mask))
+			continue;
+
+		if (!intel_pmu_save_and_restart(event))
+			continue;
+
+		perf_sample_data_init(&data, 0, event->hw.last_period);
+
+		if (perf_event_overflow(event, &data, regs))
+			x86_pmu_stop(event, 0);
+	}
+
+	/*
+	 * Repeat if there is more work to be done:
+	 */
+	status = knc_pmu_get_status();
+	if (status)
+		goto again;
+
+done:
+	knc_pmu_enable_all(0);
+
+	return handled;
+}
+
 
 PMU_FORMAT_ATTR(event,	"config:0-7"	);
 PMU_FORMAT_ATTR(umask,	"config:8-15"	);
@@ -214,7 +286,7 @@ static struct attribute *intel_knc_formats_attr[] = {
 
 static __initconst struct x86_pmu knc_pmu = {
 	.name			= "knc",
-	.handle_irq		= x86_pmu_handle_irq,
+	.handle_irq		= knc_pmu_handle_irq,
 	.disable_all		= knc_pmu_disable_all,
 	.enable_all		= knc_pmu_enable_all,
 	.enable			= knc_pmu_enable_event,
@@ -226,12 +298,11 @@ static __initconst struct x86_pmu knc_pmu = {
 	.event_map		= knc_pmu_event_map,
 	.max_events             = ARRAY_SIZE(knc_perfmon_event_map),
 	.apic			= 1,
-	.max_period		= (1ULL << 31) - 1,
+	.max_period		= (1ULL << 39) - 1,
 	.version		= 0,
 	.num_counters		= 2,
-	/* in theory 40 bits, early silicon is buggy though */
-	.cntval_bits		= 32,
-	.cntval_mask		= (1ULL << 32) - 1,
+	.cntval_bits		= 40,
+	.cntval_mask		= (1ULL << 40) - 1,
 	.get_event_constraints	= x86_get_event_constraints,
 	.event_constraints	= knc_event_constraints,
 	.format_attrs		= intel_knc_formats_attr,

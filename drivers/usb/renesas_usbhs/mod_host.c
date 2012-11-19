@@ -334,6 +334,11 @@ static void usbhsh_pipe_detach(struct usbhsh_hpriv *hpriv,
 	struct device *dev = usbhs_priv_to_dev(priv);
 	unsigned long flags;
 
+	if (unlikely(!uep)) {
+		dev_err(dev, "no uep\n");
+		return;
+	}
+
 	/********************  spin lock ********************/
 	usbhs_lock(priv, flags);
 

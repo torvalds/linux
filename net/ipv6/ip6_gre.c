@@ -1633,9 +1633,9 @@ static size_t ip6gre_get_size(const struct net_device *dev)
 		/* IFLA_GRE_OKEY */
 		nla_total_size(4) +
 		/* IFLA_GRE_LOCAL */
-		nla_total_size(4) +
+		nla_total_size(sizeof(struct in6_addr)) +
 		/* IFLA_GRE_REMOTE */
-		nla_total_size(4) +
+		nla_total_size(sizeof(struct in6_addr)) +
 		/* IFLA_GRE_TTL */
 		nla_total_size(1) +
 		/* IFLA_GRE_TOS */
@@ -1659,8 +1659,8 @@ static int ip6gre_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_be16(skb, IFLA_GRE_OFLAGS, p->o_flags) ||
 	    nla_put_be32(skb, IFLA_GRE_IKEY, p->i_key) ||
 	    nla_put_be32(skb, IFLA_GRE_OKEY, p->o_key) ||
-	    nla_put(skb, IFLA_GRE_LOCAL, sizeof(struct in6_addr), &p->raddr) ||
-	    nla_put(skb, IFLA_GRE_REMOTE, sizeof(struct in6_addr), &p->laddr) ||
+	    nla_put(skb, IFLA_GRE_LOCAL, sizeof(struct in6_addr), &p->laddr) ||
+	    nla_put(skb, IFLA_GRE_REMOTE, sizeof(struct in6_addr), &p->raddr) ||
 	    nla_put_u8(skb, IFLA_GRE_TTL, p->hop_limit) ||
 	    /*nla_put_u8(skb, IFLA_GRE_TOS, t->priority) ||*/
 	    nla_put_u8(skb, IFLA_GRE_ENCAP_LIMIT, p->encap_limit) ||

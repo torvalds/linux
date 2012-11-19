@@ -84,7 +84,7 @@ struct gnttab_ops {
 	 * nr_gframes is the number of frames to map grant table. Returning
 	 * GNTST_okay means success and negative value means failure.
 	 */
-	int (*map_frames)(unsigned long *frames, unsigned int nr_gframes);
+	int (*map_frames)(xen_pfn_t *frames, unsigned int nr_gframes);
 	/*
 	 * Release a list of frames which are mapped in map_frames for grant
 	 * entry status.
@@ -960,7 +960,7 @@ static unsigned nr_status_frames(unsigned nr_grant_frames)
 	return (nr_grant_frames * GREFS_PER_GRANT_FRAME + SPP - 1) / SPP;
 }
 
-static int gnttab_map_frames_v1(unsigned long *frames, unsigned int nr_gframes)
+static int gnttab_map_frames_v1(xen_pfn_t *frames, unsigned int nr_gframes)
 {
 	int rc;
 
@@ -977,7 +977,7 @@ static void gnttab_unmap_frames_v1(void)
 	arch_gnttab_unmap(gnttab_shared.addr, nr_grant_frames);
 }
 
-static int gnttab_map_frames_v2(unsigned long *frames, unsigned int nr_gframes)
+static int gnttab_map_frames_v2(xen_pfn_t *frames, unsigned int nr_gframes)
 {
 	uint64_t *sframes;
 	unsigned int nr_sframes;
@@ -1029,7 +1029,7 @@ static void gnttab_unmap_frames_v2(void)
 static int gnttab_map(unsigned int start_idx, unsigned int end_idx)
 {
 	struct gnttab_setup_table setup;
-	unsigned long *frames;
+	xen_pfn_t *frames;
 	unsigned int nr_gframes = end_idx + 1;
 	int rc;
 

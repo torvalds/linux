@@ -1,6 +1,6 @@
 /* atomic.S: These things are too big to do inline.
  *
- * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 1999, 2007 2012 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/linkage.h>
@@ -117,3 +117,17 @@ ENTRY(atomic64_sub_ret) /* %o0 = decrement, %o1 = atomic_ptr */
 	 sub	%g1, %o0, %o0
 2:	BACKOFF_SPIN(%o2, %o3, 1b)
 ENDPROC(atomic64_sub_ret)
+
+ENTRY(atomic64_dec_if_positive) /* %o0 = atomic_ptr */
+	BACKOFF_SETUP(%o2)
+1:	ldx	[%o0], %g1
+	brlez,pn %g1, 3f
+	 sub	%g1, 1, %g7
+	casx	[%o0], %g1, %g7
+	cmp	%g1, %g7
+	bne,pn	%xcc, BACKOFF_LABEL(2f, 1b)
+	 nop
+3:	retl
+	 sub	%g1, 1, %o0
+2:	BACKOFF_SPIN(%o2, %o3, 1b)
+ENDPROC(atomic64_dec_if_positive)

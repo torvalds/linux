@@ -52,7 +52,7 @@ nouveau_pm_perflvl_aux(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_pm *pm = nouveau_pm(dev);
-	struct nouveau_therm *therm = nouveau_therm(drm);
+	struct nouveau_therm *therm = nouveau_therm(drm->device);
 	int ret;
 
 	/*XXX: not on all boards, we should control based on temperature
@@ -64,7 +64,6 @@ nouveau_pm_perflvl_aux(struct drm_device *dev, struct nouveau_pm_level *perflvl,
 		ret = therm->fan_set(therm, perflvl->fanspeed);
 		if (ret && ret != -ENODEV) {
 			NV_ERROR(drm, "fanspeed set failed: %d\n", ret);
-			return ret;
 		}
 	}
 
@@ -706,8 +705,7 @@ nouveau_hwmon_init(struct drm_device *dev)
 	struct device *hwmon_dev;
 	int ret = 0;
 
-	if (!therm || !therm->temp_get || !therm->attr_get ||
-		!therm->attr_set || therm->temp_get(therm) < 0)
+	if (!therm || !therm->temp_get || !therm->attr_get || !therm->attr_set)
 		return -ENODEV;
 
 	hwmon_dev = hwmon_device_register(&dev->pdev->dev);

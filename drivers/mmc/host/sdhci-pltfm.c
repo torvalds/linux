@@ -150,6 +150,13 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 		goto err_remap;
 	}
 
+	/*
+	 * Some platforms need to probe the controller to be able to
+	 * determine which caps should be used.
+	 */
+	if (host->ops && host->ops->platform_init)
+		host->ops->platform_init(host);
+
 	platform_set_drvdata(pdev, host);
 
 	return host;

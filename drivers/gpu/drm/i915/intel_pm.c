@@ -3442,8 +3442,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
 	/* Bspec says we need to always set all mask bits. */
-	I915_WRITE(_3D_CHICKEN, (0xFFFF << 16) |
-		   _3D_CHICKEN_SF_DISABLE_FASTCLIP_CULL);
+	I915_WRITE(_3D_CHICKEN3, (0xFFFF << 16) |
+		   _3D_CHICKEN3_SF_DISABLE_FASTCLIP_CULL);
 
 	/*
 	 * According to the spec the following bits should be

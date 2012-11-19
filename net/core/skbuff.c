@@ -3379,10 +3379,12 @@ EXPORT_SYMBOL(__skb_warn_lro_forwarding);
 
 void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
 {
-	if (head_stolen)
+	if (head_stolen) {
+		skb_release_head_state(skb);
 		kmem_cache_free(skbuff_head_cache, skb);
-	else
+	} else {
 		__kfree_skb(skb);
+	}
 }
 EXPORT_SYMBOL(kfree_skb_partial);
 

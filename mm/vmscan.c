@@ -1760,28 +1760,6 @@ static bool in_reclaim_compaction(struct scan_control *sc)
 	return false;
 }
 
-#ifdef CONFIG_COMPACTION
-/*
- * If compaction is deferred for sc->order then scale the number of pages
- * reclaimed based on the number of consecutive allocation failures
- */
-static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-			struct lruvec *lruvec, struct scan_control *sc)
-{
-	struct zone *zone = lruvec_zone(lruvec);
-
-	if (zone->compact_order_failed <= sc->order)
-		pages_for_compaction <<= zone->compact_defer_shift;
-	return pages_for_compaction;
-}
-#else
-static unsigned long scale_for_compaction(unsigned long pages_for_compaction,
-			struct lruvec *lruvec, struct scan_control *sc)
-{
-	return pages_for_compaction;
-}
-#endif
-
 /*
  * Reclaim/compaction is used for high-order allocation requests. It reclaims
  * order-0 pages before compacting the zone. should_continue_reclaim() returns
@@ -1829,9 +1807,6 @@ static inline bool should_continue_reclaim(struct lruvec *lruvec,
 	 * inactive lists are large enough, continue reclaiming
 	 */
 	pages_for_compaction = (2UL << sc->order);
-
-	pages_for_compaction = scale_for_compaction(pages_for_compaction,
-						    lruvec, sc);
 	inactive_lru_pages = get_lru_size(lruvec, LRU_INACTIVE_FILE);
 	if (nr_swap_pages > 0)
 		inactive_lru_pages += get_lru_size(lruvec, LRU_INACTIVE_ANON);
@@ -3017,6 +2992,8 @@ static int kswapd(void *p)
 						&balanced_classzone_idx);
 		}
 	}
+
+	current->reclaim_state = NULL;
 	return 0;
 }
 

@@ -77,6 +77,7 @@ struct wm8994_priv {
 	int sysclk_rate[2];
 	int mclk[2];
 	int aifclk[2];
+	int channels[2];
 	struct wm8994_fll_config fll[2], fll_suspend[2];
 	struct completion fll_locked[2];
 	bool fll_locked_irq;

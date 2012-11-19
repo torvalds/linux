@@ -201,7 +201,7 @@ static int radeon_atif_verify_interface(acpi_handle handle,
 
 	size = *(u16 *) info->buffer.pointer;
 	if (size < 12) {
-		DRM_INFO("ATIF buffer is too small: %lu\n", size);
+		DRM_INFO("ATIF buffer is too small: %zu\n", size);
 		err = -EINVAL;
 		goto out;
 	}
@@ -370,6 +370,7 @@ int radeon_atif_handler(struct radeon_device *rdev,
 
 			radeon_set_backlight_level(rdev, enc, req.backlight_level);
 
+#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 			if (rdev->is_atom_bios) {
 				struct radeon_encoder_atom_dig *dig = enc->enc_priv;
 				backlight_force_update(dig->bl_dev,
@@ -379,6 +380,7 @@ int radeon_atif_handler(struct radeon_device *rdev,
 				backlight_force_update(dig->bl_dev,
 						       BACKLIGHT_UPDATE_HOTKEY);
 			}
+#endif
 		}
 	}
 	/* TODO: check other events */
@@ -485,7 +487,7 @@ static int radeon_atcs_verify_interface(acpi_handle handle,
 
 	size = *(u16 *) info->buffer.pointer;
 	if (size < 8) {
-		DRM_INFO("ATCS buffer is too small: %lu\n", size);
+		DRM_INFO("ATCS buffer is too small: %zu\n", size);
 		err = -EINVAL;
 		goto out;
 	}

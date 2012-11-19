@@ -1809,10 +1809,10 @@ static void __paginginit init_zone_allows_reclaim(int nid)
 	int i;
 
 	for_each_online_node(i)
-		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
+		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
 			node_set(i, NODE_DATA(nid)->reclaim_nodes);
+		else
 			zone_reclaim_mode = 1;
-		}
 }
 
 #else	/* CONFIG_NUMA */
@@ -4505,7 +4505,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
 		zone->zone_pgdat = pgdat;
 
 		zone_pcp_init(zone);
-		lruvec_init(&zone->lruvec, zone);
+		lruvec_init(&zone->lruvec);
 		if (!size)
 			continue;
 
@@ -5825,7 +5825,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
 	ret = start_isolate_page_range(pfn_max_align_down(start),
 				       pfn_max_align_up(end), migratetype);
 	if (ret)
-		goto done;
+		return ret;
 
 	ret = __alloc_contig_migrate_range(&cc, start, end);
 	if (ret)
@@ -6097,38 +6097,4 @@ void dump_page(struct page *page)
 		page->mapping, page->index);
 	dump_page_flags(page->flags);
 	mem_cgroup_print_bad_page(page);
-}
-
-/* reset zone->present_pages */
-void reset_zone_present_pages(void)
-{
-	struct zone *z;
-	int i, nid;
-
-	for_each_node_state(nid, N_HIGH_MEMORY) {
-		for (i = 0; i < MAX_NR_ZONES; i++) {
-			z = NODE_DATA(nid)->node_zones + i;
-			z->present_pages = 0;
-		}
-	}
-}
-
-/* calculate zone's present pages in buddy system */
-void fixup_zone_present_pages(int nid, unsigned long start_pfn,
-				unsigned long end_pfn)
-{
-	struct zone *z;
-	unsigned long zone_start_pfn, zone_end_pfn;
-	int i;
-
-	for (i = 0; i < MAX_NR_ZONES; i++) {
-		z = NODE_DATA(nid)->node_zones + i;
-		zone_start_pfn = z->zone_start_pfn;
-		zone_end_pfn = zone_start_pfn + z->spanned_pages;
-
-		/* if the two regions intersect */
-		if (!(zone_start_pfn >= end_pfn	|| zone_end_pfn <= start_pfn))
-			z->present_pages += min(end_pfn, zone_end_pfn) -
-					    max(start_pfn, zone_start_pfn);
-	}
 }

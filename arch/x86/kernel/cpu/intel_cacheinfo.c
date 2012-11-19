@@ -991,7 +991,7 @@ static struct attribute ** __cpuinit amd_l3_attrs(void)
 	if (attrs)
 		return attrs;
 
-	n = sizeof (default_attrs) / sizeof (struct attribute *);
+	n = ARRAY_SIZE(default_attrs);
 
 	if (amd_nb_has_feature(AMD_NB_L3_INDEX_DISABLE))
 		n += 2;

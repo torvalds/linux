@@ -206,11 +206,11 @@ static ssize_t lm3639_bled_mode_store(struct device *dev,
 
 out:
 	dev_err(pchip->dev, "%s:i2c access fail to register\n", __func__);
-	return size;
+	return ret;
 
 out_input:
 	dev_err(pchip->dev, "%s:input conversion fail\n", __func__);
-	return size;
+	return ret;
 
 }
 

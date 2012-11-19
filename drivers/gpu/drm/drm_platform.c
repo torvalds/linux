@@ -64,7 +64,6 @@ int drm_get_platform_dev(struct platform_device *platdev,
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		dev_set_drvdata(&platdev->dev, dev);
 		ret = drm_get_minor(dev, &dev->control, DRM_MINOR_CONTROL);
 		if (ret)
 			goto err_g1;

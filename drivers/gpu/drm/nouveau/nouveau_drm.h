@@ -141,4 +141,6 @@ int nouveau_drm_resume(struct pci_dev *);
 		nv_info((cli), fmt, ##args);                                   \
 } while (0)
 
+extern int nouveau_modeset;
+
 #endif

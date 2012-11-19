@@ -610,7 +610,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 			 gfp_t gfp, pgprot_t prot, bool is_coherent, const void *caller)
 {
 	u64 mask = get_coherent_dma_mask(dev);
-	struct page *page;
+	struct page *page = NULL;
 	void *addr;
 
 #ifdef CONFIG_DMA_API_DEBUG
