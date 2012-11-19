@@ -253,7 +253,7 @@ __s32 Yuv_Channel_Set_framebuffer(__u32 sel, __disp_fb_t *pfb, __u32 xoffset,
 	de_yuv_ch_src_t yuv_src;
 
 	yuv_src.format = img_sw_para_to_reg(0, pfb->mode, pfb->format);
-	yuv_src.mode = (__u8) pfb->mode;
+	yuv_src.mode = pfb->mode;
 	yuv_src.pixseq = img_sw_para_to_reg(1, pfb->mode, pfb->seq);
 	yuv_src.ch0_base = pfb->addr[0];
 	yuv_src.ch1_base = pfb->addr[1];

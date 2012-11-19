@@ -25,93 +25,99 @@
 #include "disp_lcd.h"
 #include "disp_de.h"
 
-/*
- * 0:scaler input pixel format
- * 1:scaler input yuv mode
- * 2:scaler input pixel sequence
- * 3:scaler output format
- */
-__s32 Scaler_sw_para_to_reg(__u8 type, __u8 value)
+/* scaler input pixel format */
+__scal_infmt_t Scaler_sw_para_to_reg1(__disp_pixel_fmt_t value)
 {
-	if (type == 0) { /* scaler input pixel format */
-		if (value == DISP_FORMAT_YUV444)
-			return DE_SCAL_INYUV444;
-		else if (value == DISP_FORMAT_YUV420)
-			return DE_SCAL_INYUV420;
-		else if (value == DISP_FORMAT_YUV422)
-			return DE_SCAL_INYUV422;
-		else if (value == DISP_FORMAT_YUV411)
-			return DE_SCAL_INYUV411;
-		else if (value == DISP_FORMAT_CSIRGB)
-			return DE_SCAL_INCSIRGB;
-		else if (value == DISP_FORMAT_ARGB8888)
-			return DE_SCAL_INRGB888;
-		else if (value == DISP_FORMAT_RGB888)
-			return DE_SCAL_INRGB888;
-		else
-			DE_WRN("not supported scaler input pixel format:%d in "
-			       "Scaler_sw_para_to_reg\n", value);
+	if (value == DISP_FORMAT_YUV444)
+		return DE_SCAL_INYUV444;
+	else if (value == DISP_FORMAT_YUV420)
+		return DE_SCAL_INYUV420;
+	else if (value == DISP_FORMAT_YUV422)
+		return DE_SCAL_INYUV422;
+	else if (value == DISP_FORMAT_YUV411)
+		return DE_SCAL_INYUV411;
+	else if (value == DISP_FORMAT_CSIRGB)
+		return DE_SCAL_INCSIRGB;
+	else if (value == DISP_FORMAT_ARGB8888)
+		return DE_SCAL_INRGB888;
+	else if (value == DISP_FORMAT_RGB888)
+		return DE_SCAL_INRGB888;
+	else
+		DE_WRN("not supported scaler input pixel format:%d in "
+		       "Scaler_sw_para_to_reg1\n", value);
 
-	} else if (type == 1) { /* scaler input mode */
-		if (value == DISP_MOD_INTERLEAVED)
-			return DE_SCAL_INTER_LEAVED;
-		else if (value == DISP_MOD_MB_PLANAR)
-			return DE_SCAL_PLANNARMB;
-		else if (value == DISP_MOD_NON_MB_PLANAR)
-			return DE_SCAL_PLANNAR;
-		else if (value == DISP_MOD_NON_MB_UV_COMBINED)
-			return DE_SCAL_UVCOMBINED;
-		else if (value == DISP_MOD_MB_UV_COMBINED)
-			return DE_SCAL_UVCOMBINEDMB;
-		else
-			DE_WRN("not supported scaler input mode:%d in "
-			       "Scaler_sw_para_to_reg\n", value);
+	return DE_SCAL_INRGB888;
+}
 
-	} else if (type == 2) { /* scaler input pixel sequence */
-		if (value == DISP_SEQ_UYVY)
-			return DE_SCAL_UYVY;
-		else if (value == DISP_SEQ_YUYV)
-			return DE_SCAL_YUYV;
-		else if (value == DISP_SEQ_VYUY)
-			return DE_SCAL_VYUY;
-		else if (value == DISP_SEQ_YVYU)
-			return DE_SCAL_YVYU;
-		else if (value == DISP_SEQ_AYUV)
-			return DE_SCAL_AYUV;
-		else if (value == DISP_SEQ_UVUV)
-			return DE_SCAL_UVUV;
-		else if (value == DISP_SEQ_VUVU)
-			return DE_SCAL_VUVU;
-		else if (value == DISP_SEQ_ARGB)
-			return DE_SCAL_ARGB;
-		else if (value == DISP_SEQ_BGRA)
-			return DE_SCAL_BGRA;
-		else if (value == DISP_SEQ_P3210)
-			return 0;
-		else
-			DE_WRN("not supported scaler input pixel sequence:%d "
-			       "in Scaler_sw_para_to_reg\n", value);
+/* scaler input yuv mode */
+__scal_inmode_t Scaler_sw_para_to_reg2(__disp_pixel_mod_t value)
+{
+	if (value == DISP_MOD_INTERLEAVED)
+		return DE_SCAL_INTER_LEAVED;
+	else if (value == DISP_MOD_MB_PLANAR)
+		return DE_SCAL_PLANNARMB;
+	else if (value == DISP_MOD_NON_MB_PLANAR)
+		return DE_SCAL_PLANNAR;
+	else if (value == DISP_MOD_NON_MB_UV_COMBINED)
+		return DE_SCAL_UVCOMBINED;
+	else if (value == DISP_MOD_MB_UV_COMBINED)
+		return DE_SCAL_UVCOMBINEDMB;
+	else
+		DE_WRN("not supported scaler input mode:%d in "
+		       "Scaler_sw_para_to_reg2\n", value);
 
-	} else if (type == 3) { /* scaler output value */
-		if (value == DISP_FORMAT_YUV444)
-			return DE_SCAL_OUTPYUV444;
-		else if (value == DISP_FORMAT_YUV422)
-			return DE_SCAL_OUTPYUV422;
-		else if (value == DISP_FORMAT_YUV420)
-			return DE_SCAL_OUTPYUV420;
-		else if (value == DISP_FORMAT_YUV411)
-			return DE_SCAL_OUTPYUV411;
-		else if (value == DISP_FORMAT_ARGB8888)
-			return DE_SCAL_OUTI0RGB888;
-		else if (value == DISP_FORMAT_RGB888)
-			return DE_SCAL_OUTPRGB888;
-		else
-			DE_WRN("not supported scaler output value:%d in "
-			       "Scaler_sw_para_to_reg\n", value);
+	return DE_SCAL_UVCOMBINEDMB;
+}
 
-	}
-	DE_WRN("not supported type:%d in Scaler_sw_para_to_reg\n", type);
-	return DIS_FAIL;
+/* scaler input pixel sequence */
+__scal_ps_t Scaler_sw_para_to_reg3(__disp_pixel_seq_t value)
+{
+	if (value == DISP_SEQ_UYVY)
+		return DE_SCAL_UYVY;
+	else if (value == DISP_SEQ_YUYV)
+		return DE_SCAL_YUYV;
+	else if (value == DISP_SEQ_VYUY)
+		return DE_SCAL_VYUY;
+	else if (value == DISP_SEQ_YVYU)
+		return DE_SCAL_YVYU;
+	else if (value == DISP_SEQ_AYUV)
+		return DE_SCAL_AYUV;
+	else if (value == DISP_SEQ_UVUV)
+		return DE_SCAL_UVUV;
+	else if (value == DISP_SEQ_VUVU)
+		return DE_SCAL_VUVU;
+	else if (value == DISP_SEQ_ARGB)
+		return DE_SCAL_ARGB;
+	else if (value == DISP_SEQ_BGRA)
+		return DE_SCAL_BGRA;
+	else if (value == DISP_SEQ_P3210)
+		return 0;
+	else
+		DE_WRN("not supported scaler input pixel sequence:%d "
+		       "in Scaler_sw_para_to_reg3\n", value);
+	return 0;
+}
+
+/* scaler output format */
+__scal_outfmt_t Scaler_sw_para_to_reg4(__disp_pixel_fmt_t value)
+{
+	if (value == DISP_FORMAT_YUV444)
+		return DE_SCAL_OUTPYUV444;
+	else if (value == DISP_FORMAT_YUV422)
+		return DE_SCAL_OUTPYUV422;
+	else if (value == DISP_FORMAT_YUV420)
+		return DE_SCAL_OUTPYUV420;
+	else if (value == DISP_FORMAT_YUV411)
+		return DE_SCAL_OUTPYUV411;
+	else if (value == DISP_FORMAT_ARGB8888)
+		return DE_SCAL_OUTI0RGB888;
+	else if (value == DISP_FORMAT_RGB888)
+		return DE_SCAL_OUTPRGB888;
+	else
+		DE_WRN("not supported scaler output value:%d in "
+		       "Scaler_sw_para_to_reg4\n", value);
+
+	return DE_SCAL_OUTI0RGB888;
 }
 
 /*
@@ -352,9 +358,9 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 
 	memcpy(&scaler->in_fb, pfb, sizeof(__disp_fb_t));
 
-	in_type.fmt = Scaler_sw_para_to_reg(0, scaler->in_fb.format);
-	in_type.mod = Scaler_sw_para_to_reg(1, scaler->in_fb.mode);
-	in_type.ps = Scaler_sw_para_to_reg(2, (__u8) scaler->in_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
@@ -370,7 +376,7 @@ __s32 Scaler_Set_Framebuffer(__u32 sel, __disp_fb_t *pfb)
 	in_size.scal_height = scaler->src_win.height;
 
 	out_type.byte_seq = scaler->out_fb.seq;
-	out_type.fmt = scaler->out_fb.format;
+	out_type.fmt = Scaler_sw_para_to_reg4(scaler->out_fb.format);
 
 	out_size.width = scaler->out_size.width;
 	out_size.height = scaler->out_size.height;
@@ -473,9 +479,9 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 	scaler->out_size.height = size->height;
 	scaler->out_size.width = size->width;
 
-	in_type.mod = Scaler_sw_para_to_reg(1, scaler->in_fb.mode);
-	in_type.fmt = Scaler_sw_para_to_reg(0, scaler->in_fb.format);
-	in_type.ps = Scaler_sw_para_to_reg(2, (__u8) scaler->in_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
@@ -487,7 +493,7 @@ __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *size)
 	in_size.scal_width = scaler->src_win.width;
 
 	out_type.byte_seq = scaler->out_fb.seq;
-	out_type.fmt = scaler->out_fb.format;
+	out_type.fmt = Scaler_sw_para_to_reg4(scaler->out_fb.format);
 
 	out_size.width = scaler->out_size.width;
 	out_size.height = scaler->out_size.height;
@@ -548,9 +554,9 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	scaler->src_win.height = scl_rect->height;
 	scaler->src_win.width = scl_rect->width;
 
-	in_type.mod = Scaler_sw_para_to_reg(1, scaler->in_fb.mode);
-	in_type.fmt = Scaler_sw_para_to_reg(0, scaler->in_fb.format);
-	in_type.ps = Scaler_sw_para_to_reg(2, (__u8) scaler->in_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
@@ -566,7 +572,7 @@ __s32 Scaler_Set_SclRegn(__u32 sel, __disp_rect_t *scl_rect)
 	in_size.scal_height = scaler->src_win.height;
 
 	out_type.byte_seq = scaler->out_fb.seq;
-	out_type.fmt = scaler->out_fb.format;
+	out_type.fmt = Scaler_sw_para_to_reg4(scaler->out_fb.format);
 
 	out_size.width = scaler->out_size.width;
 	out_size.height = scaler->out_size.height;
@@ -665,9 +671,9 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	memcpy(&(scaler->src_win), &(scl->src_win), sizeof(__disp_rect_t));
 	memcpy(&(scaler->out_size), &(scl->out_size), sizeof(__disp_rectsz_t));
 
-	in_type.mod = Scaler_sw_para_to_reg(1, scaler->in_fb.mode);
-	in_type.fmt = Scaler_sw_para_to_reg(0, scaler->in_fb.format);
-	in_type.ps = Scaler_sw_para_to_reg(2, (__u8) scaler->in_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
@@ -683,7 +689,7 @@ __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl)
 	in_size.scal_width = scaler->src_win.width;
 
 	out_type.byte_seq = scaler->out_fb.seq;
-	out_type.fmt = scaler->out_fb.format;
+	out_type.fmt = Scaler_sw_para_to_reg4(scaler->out_fb.format);
 
 	out_size.width = scaler->out_size.width;
 	out_size.height = scaler->out_size.height;
@@ -770,9 +776,9 @@ __s32 Scaler_Set_Outitl(__u32 sel, __bool enable)
 
 	scaler = &(gdisp.scaler[sel]);
 
-	in_type.fmt = Scaler_sw_para_to_reg(0, scaler->in_fb.format);
-	in_type.mod = Scaler_sw_para_to_reg(1, scaler->in_fb.mode);
-	in_type.ps = Scaler_sw_para_to_reg(2, scaler->in_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
@@ -784,7 +790,7 @@ __s32 Scaler_Set_Outitl(__u32 sel, __bool enable)
 	in_size.scal_width = scaler->src_win.width;
 
 	out_type.byte_seq = scaler->out_fb.seq;
-	out_type.fmt = scaler->out_fb.format;
+	out_type.fmt = Scaler_sw_para_to_reg4(scaler->out_fb.format);
 
 	out_size.width = scaler->out_size.width;
 	out_size.height = scaler->out_size.height;
@@ -826,9 +832,9 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t mode)
 	screen_index = gdisp.scaler[sel].screen_index;
 	scaler->smooth_mode = mode;
 
-	in_type.mod = Scaler_sw_para_to_reg(1, scaler->in_fb.mode);
-	in_type.fmt = Scaler_sw_para_to_reg(0, scaler->in_fb.format);
-	in_type.ps = Scaler_sw_para_to_reg(2, (__u8) scaler->in_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(scaler->in_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(scaler->in_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(scaler->in_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
@@ -840,7 +846,7 @@ __s32 BSP_disp_scaler_set_smooth(__u32 sel, __disp_video_smooth_t mode)
 	in_size.scal_width = scaler->src_win.width;
 
 	out_type.byte_seq = scaler->out_fb.seq;
-	out_type.fmt = scaler->out_fb.format;
+	out_type.fmt = Scaler_sw_para_to_reg4(scaler->out_fb.format);
 
 	out_size.width = scaler->out_size.width;
 	out_size.height = scaler->out_size.height;
@@ -919,16 +925,16 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 
 	sel = SCALER_HANDTOID(handle);
 
-	in_type.mod = Scaler_sw_para_to_reg(1, para->input_fb.mode);
-	in_type.fmt = Scaler_sw_para_to_reg(0, para->input_fb.format);
-	in_type.ps = Scaler_sw_para_to_reg(2, (__u8) para->input_fb.seq);
+	in_type.fmt = Scaler_sw_para_to_reg1(para->input_fb.format);
+	in_type.mod = Scaler_sw_para_to_reg2(para->input_fb.mode);
+	in_type.ps = Scaler_sw_para_to_reg3(para->input_fb.seq);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
 	if (get_fb_type(para->output_fb.format) == DISP_FB_TYPE_YUV) {
 		if (para->output_fb.mode == DISP_MOD_NON_MB_PLANAR) {
 			out_type.fmt =
-			    Scaler_sw_para_to_reg(3, para->output_fb.format);
+			    Scaler_sw_para_to_reg4(para->output_fb.format);
 		} else {
 			DE_WRN("output mode:%d invalid in "
 			       "Display_Scaler_Start\n", para->output_fb.mode);
@@ -949,7 +955,7 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 			return DIS_FAIL;
 		}
 	}
-	out_type.byte_seq = Scaler_sw_para_to_reg(2, para->output_fb.seq);
+	out_type.byte_seq = Scaler_sw_para_to_reg3(para->output_fb.seq);
 
 	out_size.width = para->output_fb.size.width;
 	out_size.height = para->output_fb.size.height;
@@ -1146,16 +1152,16 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t *para)
 		gdisp.scaler[sel].screen_index = 0xff;
 	}
 
-	in_type.mod = Scaler_sw_para_to_reg(1, DISP_MOD_INTERLEAVED);
-	in_type.fmt = Scaler_sw_para_to_reg(0, DISP_FORMAT_ARGB8888);
-	in_type.ps = Scaler_sw_para_to_reg(2, DISP_SEQ_ARGB);
+	in_type.fmt = Scaler_sw_para_to_reg1(DISP_FORMAT_ARGB8888);
+	in_type.mod = Scaler_sw_para_to_reg2(DISP_MOD_INTERLEAVED);
+	in_type.ps = Scaler_sw_para_to_reg3(DISP_SEQ_ARGB);
 	in_type.byte_seq = 0;
 	in_type.sample_method = 0;
 
 	if (get_fb_type(para->output_fb.format) == DISP_FB_TYPE_YUV) {
 		if (para->output_fb.mode == DISP_MOD_NON_MB_PLANAR) {
 			out_type.fmt =
-			    Scaler_sw_para_to_reg(3, para->output_fb.format);
+			    Scaler_sw_para_to_reg4(para->output_fb.format);
 		} else {
 			DE_WRN("output mode:%d invalid in "
 			       "Display_Scaler_Start\n", para->output_fb.mode);
@@ -1177,7 +1183,7 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t *para)
 		}
 		para->output_fb.br_swap = FALSE;
 	}
-	out_type.byte_seq = Scaler_sw_para_to_reg(2, para->output_fb.seq);
+	out_type.byte_seq = Scaler_sw_para_to_reg3(para->output_fb.seq);
 
 	out_size.width = para->output_fb.size.width;
 	out_size.height = para->output_fb.size.height;

@@ -147,7 +147,7 @@ typedef struct hwc_src {
 
 typedef struct yuv_ch_src {
 	__u8 format;
-	__u8 mode;
+	__disp_pixel_mod_t mode;
 	__u8 pixseq;
 	__u32 ch0_base;		/* in bits */
 	__u32 ch1_base;		/* in bits */
@@ -195,7 +195,7 @@ typedef struct __SCAL_SRC_TYPE {
 	 * 4: csi rgb
 	 * 5: rgb888
 	 */
-	__u8 fmt;
+	__scal_infmt_t fmt;
 	__u8 ps;
 } __scal_src_type_t;
 
@@ -211,7 +211,7 @@ typedef struct __SCAL_OUT_TYPE {
 	 * 1: argb(byte0,byte1, byte2, byte3);
 	 * 2:bgra; 4:yuv444; 5:yuv420; 6:yuv422; 7:yuv411
 	 */
-	__u8 fmt;
+	__scal_outfmt_t fmt;
 } __scal_out_type_t;
 
 typedef struct __SCAL_SRC_SIZE {
