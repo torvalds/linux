@@ -403,6 +403,15 @@
 				status = "disabled";
 			};
 
+			mmc0: mmc@fffa8000 {
+				compatible = "atmel,hsmci";
+				reg = <0xfffa8000 0x600>;
+				interrupts = <9 4 0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			adc0: adc@fffe0000 {
 				compatible = "atmel,at91sam9260-adc";
 				reg = <0xfffe0000 0x100>;
