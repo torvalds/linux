@@ -242,6 +242,8 @@ static DEFINE_SPINLOCK(hierarchy_id_lock);
  */
 static int need_forkexit_callback __read_mostly;
 
+static int cgroup_destroy_locked(struct cgroup *cgrp);
+
 #ifdef CONFIG_PROVE_LOCKING
 int cgroup_lock_is_held(void)
 {
@@ -4209,22 +4211,20 @@ static int cgroup_has_css_refs(struct cgroup *cgrp)
 	return 0;
 }
 
-static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
+static int cgroup_destroy_locked(struct cgroup *cgrp)
+	__releases(&cgroup_mutex) __acquires(&cgroup_mutex)
 {
-	struct cgroup *cgrp = dentry->d_fsdata;
-	struct dentry *d;
-	struct cgroup *parent;
+	struct dentry *d = cgrp->dentry;
+	struct cgroup *parent = cgrp->parent;
 	DEFINE_WAIT(wait);
 	struct cgroup_event *event, *tmp;
 	struct cgroup_subsys *ss;
 
-	/* the vfs holds both inode->i_mutex already */
-	mutex_lock(&cgroup_mutex);
-	parent = cgrp->parent;
-	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children)) {
-		mutex_unlock(&cgroup_mutex);
+	lockdep_assert_held(&d->d_inode->i_mutex);
+	lockdep_assert_held(&cgroup_mutex);
+
+	if (atomic_read(&cgrp->count) || !list_empty(&cgrp->children))
 		return -EBUSY;
-	}
 
 	/*
 	 * Block new css_tryget() by deactivating refcnt and mark @cgrp
@@ -4243,7 +4243,9 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	/*
 	 * Tell subsystems to initate destruction.  pre_destroy() should be
 	 * called with cgroup_mutex unlocked.  See 3fa59dfbc3 ("cgroup: fix
-	 * potential deadlock in pre_destroy") for details.
+	 * potential deadlock in pre_destroy") for details.  This temporary
+	 * unlocking should go away once cgroup_mutex is unexported from
+	 * controllers.
 	 */
 	mutex_unlock(&cgroup_mutex);
 	for_each_subsys(cgrp->root, ss)
@@ -4268,11 +4270,9 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 
 	/* delete this cgroup from parent->children */
 	list_del_rcu(&cgrp->sibling);
-
 	list_del_init(&cgrp->allcg_node);
 
-	d = dget(cgrp->dentry);
-
+	dget(d);
 	cgroup_d_remove_dir(d);
 	dput(d);
 
@@ -4293,8 +4293,18 @@ static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
 	}
 	spin_unlock(&cgrp->event_list_lock);
 
-	mutex_unlock(&cgroup_mutex);
 	return 0;
+}
+
+static int cgroup_rmdir(struct inode *unused_dir, struct dentry *dentry)
+{
+	int ret;
+
+	mutex_lock(&cgroup_mutex);
+	ret = cgroup_destroy_locked(dentry->d_fsdata);
+	mutex_unlock(&cgroup_mutex);
+
+	return ret;
 }
 
 static void __init_or_module cgroup_init_cftsets(struct cgroup_subsys *ss)
