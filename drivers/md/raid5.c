@@ -5529,6 +5529,10 @@ static int run(struct mddev *mddev)
 		 * discard data disk but write parity disk
 		 */
 		stripe = stripe * PAGE_SIZE;
+		/* Round up to power of 2, as discard handling
+		 * currently assumes that */
+		while ((stripe-1) & stripe)
+			stripe = (stripe | (stripe-1)) + 1;
 		mddev->queue->limits.discard_alignment = stripe;
 		mddev->queue->limits.discard_granularity = stripe;
 		/*
