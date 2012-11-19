@@ -138,7 +138,7 @@ static long vme_user_unlocked_ioctl(struct file *, unsigned int, unsigned long);
 
 static int vme_user_match(struct vme_dev *);
 static int vme_user_probe(struct vme_dev *);
-static int __devexit vme_user_remove(struct vme_dev *);
+static int vme_user_remove(struct vme_dev *);
 
 static const struct file_operations vme_user_fops = {
 	.open = vme_user_open,
@@ -846,7 +846,7 @@ err_dev:
 	return err;
 }
 
-static int __devexit vme_user_remove(struct vme_dev *dev)
+static int vme_user_remove(struct vme_dev *dev)
 {
 	int i;
 
