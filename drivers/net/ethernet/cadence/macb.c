@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/circ_buf.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
@@ -38,8 +39,8 @@
 #define TX_RING_SIZE		128 /* must be power of 2 */
 #define TX_RING_BYTES		(sizeof(struct macb_dma_desc) * TX_RING_SIZE)
 
-/* minimum number of free TX descriptors before waking up TX process */
-#define MACB_TX_WAKEUP_THRESH	(TX_RING_SIZE / 4)
+/* level of occupied TX descriptors under which we wake up TX process */
+#define MACB_TX_WAKEUP_THRESH	(3 * TX_RING_SIZE / 4)
 
 #define MACB_RX_INT_FLAGS	(MACB_BIT(RCOMP) | MACB_BIT(RXUBR)	\
 				 | MACB_BIT(ISR_ROVR))
@@ -58,11 +59,6 @@
 static unsigned int macb_tx_ring_wrap(unsigned int index)
 {
 	return index & (TX_RING_SIZE - 1);
-}
-
-static unsigned int macb_tx_ring_avail(struct macb *bp)
-{
-	return (bp->tx_tail - bp->tx_head) & (TX_RING_SIZE - 1);
 }
 
 static struct macb_dma_desc *macb_tx_desc(struct macb *bp, unsigned int index)
@@ -524,7 +520,8 @@ static void macb_tx_interrupt(struct macb *bp)
 
 	bp->tx_tail = tail;
 	if (netif_queue_stopped(bp->dev)
-			&& macb_tx_ring_avail(bp) > MACB_TX_WAKEUP_THRESH)
+			&& CIRC_CNT(bp->tx_head, bp->tx_tail,
+				    TX_RING_SIZE) <= MACB_TX_WAKEUP_THRESH)
 		netif_wake_queue(bp->dev);
 }
 
@@ -818,7 +815,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	spin_lock_irqsave(&bp->lock, flags);
 
 	/* This is a hard error, log it. */
-	if (macb_tx_ring_avail(bp) < 1) {
+	if (CIRC_SPACE(bp->tx_head, bp->tx_tail, TX_RING_SIZE) < 1) {
 		netif_stop_queue(dev);
 		spin_unlock_irqrestore(&bp->lock, flags);
 		netdev_err(bp->dev, "BUG! Tx Ring full when queue awake!\n");
@@ -855,7 +852,7 @@ static int macb_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
 
-	if (macb_tx_ring_avail(bp) < 1)
+	if (CIRC_SPACE(bp->tx_head, bp->tx_tail, TX_RING_SIZE) < 1)
 		netif_stop_queue(dev);
 
 	spin_unlock_irqrestore(&bp->lock, flags);
