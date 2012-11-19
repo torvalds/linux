@@ -928,7 +928,7 @@ static DEFINE_PCI_DEVICE_TABLE(smtcfb_pci_table) = {
 	{0,}
 };
 
-static void __devexit smtcfb_pci_remove(struct pci_dev *pdev)
+static void smtcfb_pci_remove(struct pci_dev *pdev)
 {
 	struct smtcfb_info *sfb;
 
