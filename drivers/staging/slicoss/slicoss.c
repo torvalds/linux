@@ -3046,7 +3046,7 @@ static void slic_card_cleanup(struct sliccard *card)
 	kfree(card);
 }
 
-static void __devexit slic_entry_remove(struct pci_dev *pcidev)
+static void slic_entry_remove(struct pci_dev *pcidev)
 {
 	struct net_device *dev = pci_get_drvdata(pcidev);
 	u32 mmio_start = 0;
