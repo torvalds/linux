@@ -488,8 +488,9 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 
 	seq_printf(seq,
-		   "Locally retrieved addresses (from %s) announced via TT (TTVN: %u):\n",
-		   net_dev->name, (uint8_t)atomic_read(&bat_priv->tt.vn));
+		   "Locally retrieved addresses (from %s) announced via TT (TTVN: %u CRC: %#.4x):\n",
+		   net_dev->name, (uint8_t)atomic_read(&bat_priv->tt.vn),
+		   bat_priv->tt.local_crc);
 	seq_printf(seq, "       %-13s %-7s %-10s\n", "Client", "Flags",
 		   "Last seen");
 
@@ -986,10 +987,11 @@ batadv_tt_global_print_entry(struct batadv_tt_global_entry *tt_global_entry,
 	best_entry = batadv_transtable_best_orig(tt_global_entry);
 	if (best_entry) {
 		last_ttvn = atomic_read(&best_entry->orig_node->last_ttvn);
-		seq_printf(seq,	" %c %pM  (%3u) via %pM     (%3u)   [%c%c%c]\n",
+		seq_printf(seq,
+			   " %c %pM  (%3u) via %pM     (%3u)   (%#.4x) [%c%c%c]\n",
 			   '*', tt_global_entry->common.addr,
 			   best_entry->ttvn, best_entry->orig_node->orig,
-			   last_ttvn,
+			   last_ttvn, best_entry->orig_node->tt_crc,
 			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
 			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
 			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
@@ -1031,8 +1033,9 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	seq_printf(seq,
 		   "Globally announced TT entries received via the mesh %s\n",
 		   net_dev->name);
-	seq_printf(seq, "       %-13s %s       %-15s %s %s\n",
-		   "Client", "(TTVN)", "Originator", "(Curr TTVN)", "Flags");
+	seq_printf(seq, "       %-13s %s       %-15s %s (%-6s) %s\n",
+		   "Client", "(TTVN)", "Originator", "(Curr TTVN)", "CRC",
+		   "Flags");
 
 	for (i = 0; i < hash->size; i++) {
 		head = &hash->table[i];
