@@ -445,7 +445,7 @@ out:
 }
 EXPORT_SYMBOL(acpi_pci_osc_control_set);
 
-static int __devinit acpi_pci_root_add(struct acpi_device *device)
+static int acpi_pci_root_add(struct acpi_device *device)
 {
 	unsigned long long segment, bus;
 	acpi_status status;

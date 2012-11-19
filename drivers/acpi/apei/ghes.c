@@ -901,7 +901,7 @@ static unsigned long ghes_esource_prealloc_size(
 	return prealloc_size;
 }
 
-static int __devinit ghes_probe(struct platform_device *ghes_dev)
+static int ghes_probe(struct platform_device *ghes_dev)
 {
 	struct acpi_hest_generic *generic;
 	struct ghes *ghes = NULL;
