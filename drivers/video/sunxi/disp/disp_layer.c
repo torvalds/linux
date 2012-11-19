@@ -383,7 +383,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 	__s32 ret;
 	layer_src_t layer_fb;
 	__layer_man_t *layer_man;
-	__u32 size;
 
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -435,10 +434,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 			}
 
 			memcpy(&layer_man->para.fb, pfb, sizeof(__disp_fb_t));
-
-			size = (pfb->size.width *
-				layer_man->para.src_win.height *
-				DE_BE_Format_To_Bpp(pfb->format) + 7) / 8;
 
 			if (layer_man->para.mode ==
 			    DISP_LAYER_WORK_MODE_SCALER) {
@@ -689,7 +684,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 	__s32 ret;
 	__layer_man_t *layer_man;
 	__u32 prio_tmp = 0;
-	__u32 size;
 
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -813,7 +807,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 							    player->src_win.y);
 			} else { /* normal rgb */
 				layer_src_t layer_fb;
-				__u32 bpp, size;
 
 				layer_fb.fb_addr = player->fb.addr[0];
 				layer_fb.format = player->fb.format;
@@ -823,10 +816,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 				layer_fb.fb_width = player->fb.size.width;
 				layer_fb.offset_x = player->src_win.x;
 				layer_fb.offset_y = player->src_win.y;
-
-				bpp = DE_BE_Format_To_Bpp(layer_fb.format);
-				size = (player->fb.size.width *
-					player->scn_win.height * bpp + 7) / 8;
 
 				DE_BE_Layer_Set_Framebuffer(sel, hid,
 							    &layer_fb);
@@ -848,9 +837,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 			layer_man->para.src_win.height = player->src_win.height;
 			layer_man->para.b_from_screen = player->b_from_screen;
 		}
-
-		size = (player->fb.size.width * player->src_win.height *
-				DE_BE_Format_To_Bpp(player->fb.format) + 7) / 8;
 
 		if (layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER) {
 			gdisp.scaler[layer_man->scaler_index].b_reg_change =
