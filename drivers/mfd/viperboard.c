@@ -41,6 +41,9 @@ static struct mfd_cell vprbrd_devs[] = {
 	{
 		.name = "viperboard-gpio",
 	},
+	{
+		.name = "viperboard-i2c",
+	},
 };
 
 static int vprbrd_probe(struct usb_interface *interface,
