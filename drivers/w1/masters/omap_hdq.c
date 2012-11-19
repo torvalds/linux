@@ -74,7 +74,7 @@ static int __devexit omap_hdq_remove(struct platform_device *pdev);
 
 static struct platform_driver omap_hdq_driver = {
 	.probe =	omap_hdq_probe,
-	.remove =	__devexit_p(omap_hdq_remove),
+	.remove =	omap_hdq_remove,
 	.driver =	{
 		.name =	"omap_hdq",
 	},

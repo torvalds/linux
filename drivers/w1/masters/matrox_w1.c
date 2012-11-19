@@ -55,7 +55,7 @@ static struct pci_driver matrox_w1_pci_driver = {
 	.name = "matrox_w1",
 	.id_table = matrox_w1_tbl,
 	.probe = matrox_w1_probe,
-	.remove = __devexit_p(matrox_w1_remove),
+	.remove = matrox_w1_remove,
 };
 
 /*
