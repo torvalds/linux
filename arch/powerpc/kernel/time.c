@@ -297,6 +297,8 @@ static u64 vtime_delta(struct task_struct *tsk,
 	u64 now, nowscaled, deltascaled;
 	u64 udelta, delta, user_scaled;
 
+	WARN_ON_ONCE(!irqs_disabled());
+
 	now = mftb();
 	nowscaled = read_spurr(now);
 	get_paca()->system_time += now - get_paca()->starttime;

@@ -119,6 +119,8 @@ static cputime_t vtime_delta(struct task_struct *tsk)
 	cputime_t delta_stime;
 	__u64 now;
 
+	WARN_ON_ONCE(!irqs_disabled());
+
 	now = ia64_get_itc();
 
 	delta_stime = cycle_to_cputime(ti->ac_stime + (now - ti->ac_stamp));
