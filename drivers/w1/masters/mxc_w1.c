@@ -134,7 +134,7 @@ static int __devinit mxc_w1_probe(struct platform_device *pdev)
 
 	mdev->regs = ioremap(res->start, resource_size(res));
 	if (!mdev->regs) {
-		printk(KERN_ERR "Cannot map frame buffer registers\n");
+		dev_err(&pdev->dev, "Cannot map mxc_w1 registers\n");
 		goto failed_ioremap;
 	}
 
