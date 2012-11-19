@@ -879,7 +879,7 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 		pcdev->discard_size = icd->user_height * bytesperline;
 		pcdev->discard_buffer = dma_alloc_coherent(ici->v4l2_dev.dev,
 				pcdev->discard_size, &pcdev->discard_buffer_dma,
-				GFP_KERNEL);
+				GFP_ATOMIC);
 		if (!pcdev->discard_buffer) {
 			spin_unlock_irqrestore(&pcdev->lock, flags);
 			return -ENOMEM;
