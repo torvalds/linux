@@ -609,16 +609,6 @@ static inline unsigned int efx_filter_id_index(u32 id)
 	return id & EFX_FILTER_INDEX_MASK;
 }
 
-static inline u8 efx_filter_id_flags(u32 id)
-{
-	unsigned int range = id >> EFX_FILTER_INDEX_WIDTH;
-
-	if (range < EFX_FILTER_MATCH_PRI_COUNT)
-		return EFX_FILTER_FLAG_RX;
-	else
-		return EFX_FILTER_FLAG_TX;
-}
-
 u32 efx_filter_get_rx_id_limit(struct efx_nic *efx)
 {
 	struct efx_filter_state *state = efx->filter_state;
@@ -829,7 +819,6 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 	struct efx_filter_table *table;
 	unsigned int filter_idx;
 	struct efx_filter_spec *spec;
-	u8 filter_flags;
 	int rc;
 
 	table_id = efx_filter_id_table_id(filter_id);
@@ -841,8 +830,6 @@ int efx_filter_remove_id_safe(struct efx_nic *efx,
 	if (filter_idx >= table->size)
 		return -ENOENT;
 	spec = &table->spec[filter_idx];
-
-	filter_flags = efx_filter_id_flags(filter_id);
 
 	spin_lock_bh(&state->lock);
 
@@ -880,7 +867,6 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 	struct efx_filter_table *table;
 	struct efx_filter_spec *spec;
 	unsigned int filter_idx;
-	u8 filter_flags;
 	int rc;
 
 	table_id = efx_filter_id_table_id(filter_id);
@@ -892,8 +878,6 @@ int efx_filter_get_filter_safe(struct efx_nic *efx,
 	if (filter_idx >= table->size)
 		return -ENOENT;
 	spec = &table->spec[filter_idx];
-
-	filter_flags = efx_filter_id_flags(filter_id);
 
 	spin_lock_bh(&state->lock);
 
