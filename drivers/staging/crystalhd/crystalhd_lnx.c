@@ -711,7 +711,7 @@ MODULE_DEVICE_TABLE(pci, chd_dec_pci_id_table);
 static struct pci_driver bc_chd_70012_driver = {
 	.name     = "Broadcom 70012 Decoder",
 	.probe    = chd_dec_pci_probe,
-	.remove   = __devexit_p(chd_dec_pci_remove),
+	.remove   = chd_dec_pci_remove,
 	.id_table = chd_dec_pci_id_table,
 #ifdef CONFIG_PM
 	.suspend  = chd_dec_pci_suspend,
