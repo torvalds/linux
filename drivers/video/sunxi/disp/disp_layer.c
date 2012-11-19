@@ -172,53 +172,6 @@ __s32 img_sw_para_to_reg(__u8 type, __u8 mode, __u8 value)
 	return 0;
 }
 
-__s32 de_format_to_bpp(__disp_pixel_fmt_t fmt)
-{
-	switch (fmt) {
-	case DISP_FORMAT_1BPP:
-		return 1;
-
-	case DISP_FORMAT_2BPP:
-		return 2;
-
-	case DISP_FORMAT_4BPP:
-		return 4;
-
-	case DISP_FORMAT_8BPP:
-		return 8;
-
-	case DISP_FORMAT_RGB655:
-	case DISP_FORMAT_RGB565:
-	case DISP_FORMAT_RGB556:
-	case DISP_FORMAT_ARGB1555:
-	case DISP_FORMAT_RGBA5551:
-	case DISP_FORMAT_ARGB4444:
-		return 16;
-
-	case DISP_FORMAT_RGB888:
-		return 24;
-
-	case DISP_FORMAT_ARGB8888:
-		return 32;
-
-	case DISP_FORMAT_YUV444:
-		return 24;
-
-	case DISP_FORMAT_YUV422:
-		return 16;
-
-	case DISP_FORMAT_YUV420:
-	case DISP_FORMAT_YUV411:
-		return 12;
-
-	case DISP_FORMAT_CSIRGB:
-		return 32; /* ? */
-
-	default:
-		return 0;
-	}
-}
-
 static __s32 Yuv_Channel_Request(__u32 sel, __u8 hid)
 {
 	if (!(gdisp.screen[sel].status & YUV_CH_USED)) {
@@ -485,7 +438,7 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 
 			size = (pfb->size.width *
 				layer_man->para.src_win.height *
-				de_format_to_bpp(pfb->format) + 7) / 8;
+				DE_BE_Format_To_Bpp(pfb->format) + 7) / 8;
 
 			if (layer_man->para.mode ==
 			    DISP_LAYER_WORK_MODE_SCALER) {
@@ -871,7 +824,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 				layer_fb.offset_x = player->src_win.x;
 				layer_fb.offset_y = player->src_win.y;
 
-				bpp = DE_BE_Format_To_Bpp(sel, layer_fb.format);
+				bpp = DE_BE_Format_To_Bpp(layer_fb.format);
 				size = (player->fb.size.width *
 					player->scn_win.height * bpp + 7) / 8;
 
@@ -897,7 +850,7 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 		}
 
 		size = (player->fb.size.width * player->src_win.height *
-			de_format_to_bpp(player->fb.format) + 7) / 8;
+				DE_BE_Format_To_Bpp(player->fb.format) + 7) / 8;
 
 		if (layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER) {
 			gdisp.scaler[layer_man->scaler_index].b_reg_change =

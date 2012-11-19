@@ -286,7 +286,7 @@ static __s32 sprite_set_sprite_block_para(__u32 sel, __u32 id, __u32 next_id,
 {
 	__u32 bpp, addr;
 
-	bpp = de_format_to_bpp(gsprite[sel].format);
+	bpp = DE_BE_Format_To_Bpp(gsprite[sel].format);
 
 	addr = DE_BE_Offset_To_Addr((__u32) para->fb.addr[0],
 				    para->fb.size.width,
@@ -766,7 +766,7 @@ __s32 BSP_disp_sprite_block_set_src_win(__u32 sel, __s32 hid,
 	if (gsprite[sel].block_status[id] & SPRITE_BLOCK_USED) {
 		node = List_Find_Sprite_Block(sel, id);
 
-		bpp = de_format_to_bpp(gsprite[sel].format);
+		bpp = DE_BE_Format_To_Bpp(gsprite[sel].format);
 		addr =
 		    DE_BE_Offset_To_Addr(node->data->address,
 					 node->data->size.width, src_win->x,
@@ -819,7 +819,7 @@ __s32 BSP_disp_sprite_block_set_framebuffer(__u32 sel, __s32 hid,
 	if (gsprite[sel].block_status[id] & SPRITE_BLOCK_USED) {
 		node = List_Find_Sprite_Block(sel, id);
 
-		bpp = de_format_to_bpp(gsprite[sel].format);
+		bpp = DE_BE_Format_To_Bpp(gsprite[sel].format);
 
 		addr = DE_BE_Offset_To_Addr(fb->addr[0], fb->size.width,
 					    node->data->src_win.x,

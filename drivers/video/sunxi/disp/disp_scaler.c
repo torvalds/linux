@@ -966,10 +966,10 @@ __s32 BSP_disp_scaler_start(__u32 handle, __disp_scaler_para_t *para)
 	out_addr.ch2_addr = para->output_fb.addr[2];
 
 	size = (para->input_fb.size.width * para->input_fb.size.height *
-		de_format_to_bpp(para->input_fb.format) + 7) / 8;
+		DE_BE_Format_To_Bpp(para->input_fb.format) + 7) / 8;
 
 	size = (para->output_fb.size.width * para->output_fb.size.height *
-		de_format_to_bpp(para->output_fb.format) + 7) / 8;
+		DE_BE_Format_To_Bpp(para->output_fb.format) + 7) / 8;
 
 	if (para->input_fb.b_trd_src) {
 		__scal_3d_inmode_t inmode;
@@ -1203,7 +1203,7 @@ __s32 BSP_disp_capture_screen(__u32 sel, __disp_capture_screen_para_t *para)
 	out_addr.ch2_addr = para->output_fb.addr[2];
 
 	size = (para->output_fb.size.width * para->output_fb.size.height *
-		de_format_to_bpp(para->output_fb.format) + 7) / 8;
+		DE_BE_Format_To_Bpp(para->output_fb.format) + 7) / 8;
 
 	if (BSP_disp_get_output_type(sel) == DISP_OUTPUT_TYPE_NONE) {
 		DE_SCAL_Input_Select(scaler_idx, 6 + sel);

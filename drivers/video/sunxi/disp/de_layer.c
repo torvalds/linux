@@ -19,7 +19,7 @@
 
 #include "de_be.h"
 
-__s32 DE_BE_Format_To_Bpp(__u32 sel, __disp_pixel_fmt_t format)
+__s32 DE_BE_Format_To_Bpp(__disp_pixel_fmt_t format)
 {
 	__u8 bpp = 0;
 
@@ -48,7 +48,9 @@ __s32 DE_BE_Format_To_Bpp(__u32 sel, __disp_pixel_fmt_t format)
 	case DISP_FORMAT_ARGB4444:
 		bpp = 16;
 		break;
-
+	case DISP_FORMAT_RGB888:
+		bpp = 24;
+		break;
 	case DISP_FORMAT_ARGB888:
 		bpp = 32;
 		break;
@@ -57,8 +59,21 @@ __s32 DE_BE_Format_To_Bpp(__u32 sel, __disp_pixel_fmt_t format)
 		bpp = 32;
 		break;
 
-	case DISP_FORMAT_RGB888:
+	case DISP_FORMAT_YUV444:
 		bpp = 24;
+		break;
+
+	case DISP_FORMAT_YUV422:
+		bpp = 16;
+		break;
+
+	case DISP_FORMAT_YUV420:
+	case DISP_FORMAT_YUV411:
+		bpp = 12;
+		break;
+
+	case DISP_FORMAT_CSIRGB:
+		bpp = 32; /* ? */
 		break;
 
 	default:
@@ -152,7 +167,7 @@ __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
 	__s32 bpp;
 	__u32 addr;
 
-	bpp = DE_BE_Format_To_Bpp(sel, layer_fb->format);
+	bpp = DE_BE_Format_To_Bpp(layer_fb->format);
 	if (bpp <= 0)
 		return -1;
 
