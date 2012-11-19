@@ -908,13 +908,6 @@ static int s3c24xx_i2c_init(struct s3c24xx_i2c *i2c)
 
 	pdata = i2c->pdata;
 
-	/* inititalise the gpio */
-
-	if (pdata->cfg_gpio)
-		pdata->cfg_gpio(to_platform_device(i2c->dev));
-	else if (IS_ERR(i2c->pctrl) && s3c24xx_i2c_parse_dt_gpio(i2c))
-		return -EINVAL;
-
 	/* write slave address */
 
 	writeb(pdata->slave_addr, i2c->regs + S3C2410_IICADD);
@@ -1054,6 +1047,15 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	i2c->adap.dev.parent = &pdev->dev;
 
 	i2c->pctrl = devm_pinctrl_get_select_default(i2c->dev);
+
+	/* inititalise the i2c gpio lines */
+
+	if (i2c->pdata->cfg_gpio) {
+		i2c->pdata->cfg_gpio(to_platform_device(i2c->dev));
+	} else if (IS_ERR(i2c->pctrl) && s3c24xx_i2c_parse_dt_gpio(i2c)) {
+		ret = -EINVAL;
+		goto err_clk;
+	}
 
 	/* initialise the i2c controller */
 
