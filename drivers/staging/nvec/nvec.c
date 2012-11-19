@@ -901,7 +901,7 @@ static int nvec_resume(struct device *dev)
 static const SIMPLE_DEV_PM_OPS(nvec_pm_ops, nvec_suspend, nvec_resume);
 
 /* Match table for of_platform binding */
-static const struct of_device_id nvidia_nvec_of_match[] __devinitconst = {
+static const struct of_device_id nvidia_nvec_of_match[] = {
 	{ .compatible = "nvidia,nvec", },
 	{},
 };
