@@ -21,9 +21,10 @@
  * Semaphore stuff seems quite broken in here. --libv
  */
 #include "drv_hdmi_i.h"
-#include "hdmi_hal.h"
+#include "hdmi_core.h"
 #include "dev_hdmi.h"
 #include "../disp/dev_disp.h"
+
 
 /*
  * Bad separation!
@@ -34,20 +35,25 @@ extern void audio_set_hdmi_func(__audio_hdmi_func *hdmi_func);
 
 static struct semaphore *run_sem;
 static struct task_struct *HDMI_task;
+void __iomem *HDMI_BASE;
 
-void hdmi_delay_ms(__u32 t)
+
+static __s32 Hdmi_enable(__bool enable)
 {
-	__u32 timeout = t * HZ / 1000;
+	if ((video_enable != enable) &&
+	    (hdmi_state >= HDMI_State_Video_config))
+		hdmi_state = HDMI_State_Video_config;
 
-	set_current_state(TASK_INTERRUPTIBLE);
-	schedule_timeout(timeout);
+	video_enable = enable;
+
+	return 0;
 }
 
 __s32 Hdmi_open(void)
 {
 	__inf("[Hdmi_open]\n");
 
-	Hdmi_hal_video_enable(1);
+	Hdmi_enable(1);
 
 #if 0
 	if (ghdmi.bopen == 0)
@@ -63,7 +69,7 @@ __s32 Hdmi_close(void)
 {
 	__inf("[Hdmi_close]\n");
 
-	Hdmi_hal_video_enable(0);
+	Hdmi_enable(0);
 	ghdmi.bopen = 0;
 
 	return 0;
@@ -139,21 +145,54 @@ __s32 Hdmi_set_display_mode(__disp_tv_mode_t mode)
 	}
 
 	ghdmi.mode = mode;
-	return Hdmi_hal_set_display_mode(hdmi_mode);
+	if (hdmi_mode != video_mode) {
+		if (hdmi_state >= HDMI_State_Video_config)
+			hdmi_state = HDMI_State_Video_config;
+
+		video_mode = hdmi_mode;
+	}
+	return 0;
 }
 
 __s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel)
 {
 	__inf("[Hdmi_Audio_Enable],ch:%d\n", channel);
 
-	return Hdmi_hal_audio_enable(mode, channel);
+	/* ???????????????????????? */
+	if (hdmi_state >= HDMI_State_Audio_config)
+		hdmi_state = HDMI_State_Audio_config;
+
+	audio_info.audio_en = (channel == 0) ? 0 : 1;
+
+	return 0;
 }
 
 __s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para)
 {
 	__inf("[Hdmi_Set_Audio_Para]\n");
 
-	return Hdmi_hal_set_audio_para(audio_para);
+	if (!audio_para)
+		return -1;
+
+	if (audio_para->sample_rate != audio_info.sample_rate) {
+		if (hdmi_state >= HDMI_State_Audio_config)
+			hdmi_state = HDMI_State_Audio_config;
+		audio_info.sample_rate = audio_para->sample_rate;
+		/* audio_info.channel_num  = 2; */
+
+		__inf("sample_rate:%d in Hdmi_hal_set_audio_para\n",
+		      audio_info.sample_rate);
+	}
+	if (audio_para->channel_num != audio_info.channel_num) {
+		if (hdmi_state >= HDMI_State_Audio_config)
+			hdmi_state = HDMI_State_Audio_config;
+		audio_info.channel_num = audio_para->channel_num;
+
+		__inf("channel_num:%d in Hdmi_hal_set_audio_para\n",
+		      audio_info.channel_num);
+	}
+
+	return 0;
 }
 
 __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
@@ -222,18 +261,25 @@ __s32 Hdmi_mode_support(__disp_tv_mode_t mode)
 		break;
 	}
 
-	return Hdmi_hal_mode_support(hdmi_mode);
+	if (Hpd_Check() == 0)
+		return 0;
+
+	while (hdmi_state < HDMI_State_Wait_Video_config)
+		hdmi_delay_ms(1);
+
+	return Device_Support_VIC[mode];
 }
 
 __s32 Hdmi_get_HPD_status(void)
 {
-	return Hdmi_hal_get_HPD();
+	return Hpd_Check();
 }
 
 static __s32
 Hdmi_set_pll(__u32 pll, __u32 clk)
 {
-	Hdmi_hal_set_pll(pll, clk);
+	hdmi_pll = pll;
+	hdmi_clk = clk;
 	return 0;
 }
 
@@ -241,7 +287,7 @@ static int
 Hdmi_run_thread(void *parg)
 {
 	while (1) {
-		Hdmi_hal_main_task();
+		hdmi_main_task_loop();
 
 		if (kthread_should_stop())
 			break;
@@ -271,8 +317,21 @@ __s32 Hdmi_init(void)
 	}
 	wake_up_process(HDMI_task);
 
-	Hdmi_set_reg_base((void __iomem *) ghdmi.base_hdmi);
-	Hdmi_hal_init();
+	HDMI_BASE = (void __iomem *) ghdmi.base_hdmi;
+	hdmi_core_initial();
+	audio_info.channel_num = 2;
+#if 0
+	{ /* for audio test */
+		hdmi_audio_t audio_para;
+
+		audio_para.ch0_en = 1;
+		audio_para.sample_rate = 44100;
+		Hdmi_hal_set_audio_para(&audio_para);
+
+		Hdmi_hal_audio_enable(0, 1);
+	}
+#endif
+
 
 	audio_func.hdmi_audio_enable = Hdmi_Audio_Enable;
 	audio_func.hdmi_set_audio_para = Hdmi_Set_Audio_Para;
@@ -291,7 +350,6 @@ __s32 Hdmi_init(void)
 
 __s32 Hdmi_exit(void)
 {
-	Hdmi_hal_exit();
 
 	kfree(run_sem);
 	run_sem = NULL;
