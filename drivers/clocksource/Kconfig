@@ -1,3 +1,6 @@
+config CLKSRC_OF
+	bool
+
 config CLKSRC_I8253
 	bool
 
