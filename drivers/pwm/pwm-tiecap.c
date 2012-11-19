@@ -249,7 +249,7 @@ static struct platform_driver ecap_pwm_driver = {
 		.name = "ecap",
 	},
 	.probe = ecap_pwm_probe,
-	.remove = __devexit_p(ecap_pwm_remove),
+	.remove = ecap_pwm_remove,
 };
 
 module_platform_driver(ecap_pwm_driver);

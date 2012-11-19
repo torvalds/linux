@@ -154,7 +154,7 @@ static struct platform_driver puv3_pwm_driver = {
 		.name = "PKUnity-v3-PWM",
 	},
 	.probe = pwm_probe,
-	.remove = __devexit_p(pwm_remove),
+	.remove = pwm_remove,
 };
 module_platform_driver(puv3_pwm_driver);
 

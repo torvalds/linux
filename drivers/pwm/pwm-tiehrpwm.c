@@ -457,7 +457,7 @@ static struct platform_driver ehrpwm_pwm_driver = {
 		.name = "ehrpwm",
 	},
 	.probe = ehrpwm_pwm_probe,
-	.remove = __devexit_p(ehrpwm_pwm_remove),
+	.remove = ehrpwm_pwm_remove,
 };
 
 module_platform_driver(ehrpwm_pwm_driver);

@@ -138,7 +138,7 @@ static struct platform_driver lpc32xx_pwm_driver = {
 		.of_match_table = of_match_ptr(lpc32xx_pwm_dt_ids),
 	},
 	.probe = lpc32xx_pwm_probe,
-	.remove = __devexit_p(lpc32xx_pwm_remove),
+	.remove = lpc32xx_pwm_remove,
 };
 module_platform_driver(lpc32xx_pwm_driver);
 

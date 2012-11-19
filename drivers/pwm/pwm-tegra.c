@@ -249,7 +249,7 @@ static struct platform_driver tegra_pwm_driver = {
 		.of_match_table = of_match_ptr(tegra_pwm_of_match),
 	},
 	.probe = tegra_pwm_probe,
-	.remove = __devexit_p(tegra_pwm_remove),
+	.remove = tegra_pwm_remove,
 };
 
 module_platform_driver(tegra_pwm_driver);

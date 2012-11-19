@@ -327,7 +327,7 @@ static struct platform_driver s3c_pwm_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c_pwm_probe,
-	.remove		= __devexit_p(s3c_pwm_remove),
+	.remove		= s3c_pwm_remove,
 	.suspend	= s3c_pwm_suspend,
 	.resume		= s3c_pwm_resume,
 };

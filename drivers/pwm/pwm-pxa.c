@@ -196,7 +196,7 @@ static struct platform_driver pwm_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pwm_probe,
-	.remove		= __devexit_p(pwm_remove),
+	.remove		= pwm_remove,
 	.id_table	= pwm_id_table,
 };
 

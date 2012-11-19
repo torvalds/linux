@@ -193,7 +193,7 @@ static struct platform_driver mxs_pwm_driver = {
 		.of_match_table = of_match_ptr(mxs_pwm_dt_ids),
 	},
 	.probe = mxs_pwm_probe,
-	.remove = __devexit_p(mxs_pwm_remove),
+	.remove = mxs_pwm_remove,
 };
 module_platform_driver(mxs_pwm_driver);
 

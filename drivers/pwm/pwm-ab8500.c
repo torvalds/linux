@@ -143,7 +143,7 @@ static struct platform_driver ab8500_pwm_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab8500_pwm_probe,
-	.remove = __devexit_p(ab8500_pwm_remove),
+	.remove = ab8500_pwm_remove,
 };
 module_platform_driver(ab8500_pwm_driver);
 

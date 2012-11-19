@@ -151,7 +151,7 @@ static struct platform_driver bfin_pwm_driver = {
 		.name = "bfin-pwm",
 	},
 	.probe = bfin_pwm_probe,
-	.remove = __devexit_p(bfin_pwm_remove),
+	.remove = bfin_pwm_remove,
 };
 
 module_platform_driver(bfin_pwm_driver);

@@ -211,7 +211,7 @@ static struct platform_driver jz4740_pwm_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = jz4740_pwm_probe,
-	.remove = __devexit_p(jz4740_pwm_remove),
+	.remove = jz4740_pwm_remove,
 };
 module_platform_driver(jz4740_pwm_driver);
 

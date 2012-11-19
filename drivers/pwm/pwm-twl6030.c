@@ -176,7 +176,7 @@ static struct platform_driver twl6030_pwm_driver = {
 		.name = "twl6030-pwm",
 	},
 	.probe = twl6030_pwm_probe,
-	.remove = __devexit_p(twl6030_pwm_remove),
+	.remove = twl6030_pwm_remove,
 };
 module_platform_driver(twl6030_pwm_driver);
 
