@@ -196,7 +196,7 @@ enum lpc_chipsets {
 	LPC_LPT_LP,	/* Lynx Point-LP */
 };
 
-struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
+struct lpc_ich_info lpc_chipset_info[] = {
 	[LPC_ICH] = {
 		.name = "ICH",
 		.iTCO_version = 1,

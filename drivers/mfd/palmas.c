@@ -492,7 +492,7 @@ static const struct i2c_device_id palmas_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, palmas_i2c_id);
 
-static struct of_device_id __devinitdata of_palmas_match_tbl[] = {
+static struct of_device_id of_palmas_match_tbl[] = {
 	{ .compatible = "ti,palmas", },
 	{ /* end */ }
 };

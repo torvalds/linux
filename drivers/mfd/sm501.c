@@ -1728,7 +1728,7 @@ static struct pci_driver sm501_pci_driver = {
 
 MODULE_ALIAS("platform:sm501");
 
-static struct of_device_id __devinitdata of_sm501_match_tbl[] = {
+static struct of_device_id of_sm501_match_tbl[] = {
 	{ .compatible = "smi,sm501", },
 	{ /* end */ }
 };

@@ -515,7 +515,7 @@ static struct resource da9052_tsi_resources[] = {
 	},
 };
 
-static struct mfd_cell __devinitdata da9052_subdev_info[] = {
+static struct mfd_cell da9052_subdev_info[] = {
 	{
 		.name = "da9052-regulator",
 		.id = 1,

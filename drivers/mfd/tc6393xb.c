@@ -137,7 +137,7 @@ static int tc6393xb_nand_enable(struct platform_device *nand)
 	return 0;
 }
 
-static struct resource __devinitdata tc6393xb_nand_resources[] = {
+static struct resource tc6393xb_nand_resources[] = {
 	{
 		.start	= 0x1000,
 		.end	= 0x1007,
@@ -196,7 +196,7 @@ static const struct resource tc6393xb_ohci_resources[] = {
 	},
 };
 
-static struct resource __devinitdata tc6393xb_fb_resources[] = {
+static struct resource tc6393xb_fb_resources[] = {
 	{
 		.start	= 0x5000,
 		.end	= 0x51ff,
@@ -382,7 +382,7 @@ static struct tmio_mmc_data tc6393xb_mmc_data = {
 	.set_clk_div = tc6393xb_mmc_clk_div,
 };
 
-static struct mfd_cell __devinitdata tc6393xb_cells[] = {
+static struct mfd_cell tc6393xb_cells[] = {
 	[TC6393XB_CELL_NAND] = {
 		.name = "tmio-nand",
 		.enable = tc6393xb_nand_enable,

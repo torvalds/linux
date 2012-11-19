@@ -71,9 +71,9 @@ static int cs5535_mfd_res_disable(struct platform_device *pdev)
 	return 0;
 }
 
-static __devinitdata struct resource cs5535_mfd_resources[NR_BARS];
+static struct resource cs5535_mfd_resources[NR_BARS];
 
-static __devinitdata struct mfd_cell cs5535_mfd_cells[] = {
+static struct mfd_cell cs5535_mfd_cells[] = {
 	{
 		.id = SMB_BAR,
 		.name = "cs5535-smb",

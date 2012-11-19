@@ -330,14 +330,14 @@ static const __devinitconst struct resource apbreg_resources[] = {
 #define DEV(_name, _r) \
 	{ .name = _name, .num_resources = ARRAY_SIZE(_r), .resources = _r, }
 
-static __devinitdata struct mfd_cell sta2x11_mfd_bar0[] = {
+static struct mfd_cell sta2x11_mfd_bar0[] = {
 	DEV("sta2x11-gpio", gpio_resources), /* offset 0: we add pdata later */
 	DEV("sta2x11-sctl", sctl_resources),
 	DEV("sta2x11-scr", scr_resources),
 	DEV("sta2x11-time", time_resources),
 };
 
-static __devinitdata struct mfd_cell sta2x11_mfd_bar1[] = {
+static struct mfd_cell sta2x11_mfd_bar1[] = {
 	DEV("sta2x11-apbreg", apbreg_resources),
 };
 
