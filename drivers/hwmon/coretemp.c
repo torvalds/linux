@@ -608,7 +608,7 @@ static struct platform_driver coretemp_driver = {
 		.name = DRVNAME,
 	},
 	.probe = coretemp_probe,
-	.remove = __devexit_p(coretemp_remove),
+	.remove = coretemp_remove,
 };
 
 static int __cpuinit coretemp_device_add(unsigned int cpu)

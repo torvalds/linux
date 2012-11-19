@@ -1545,7 +1545,7 @@ static struct platform_driver abituguru_driver = {
 		.pm	= ABIT_UGURU_PM,
 	},
 	.probe		= abituguru_probe,
-	.remove		= __devexit_p(abituguru_remove),
+	.remove		= abituguru_remove,
 };
 
 static int __init abituguru_detect(void)

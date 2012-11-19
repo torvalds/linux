@@ -283,7 +283,7 @@ MODULE_DEVICE_TABLE(i2c, hih6130_id);
 static struct i2c_driver hih6130_driver = {
 	.driver.name = "hih6130",
 	.probe       = hih6130_probe,
-	.remove      = __devexit_p(hih6130_remove),
+	.remove      = hih6130_remove,
 	.id_table    = hih6130_id,
 };
 

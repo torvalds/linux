@@ -219,7 +219,7 @@ static struct pci_driver k10temp_driver = {
 	.name = "k10temp",
 	.id_table = k10temp_id_table,
 	.probe = k10temp_probe,
-	.remove = __devexit_p(k10temp_remove),
+	.remove = k10temp_remove,
 };
 
 module_pci_driver(k10temp_driver);

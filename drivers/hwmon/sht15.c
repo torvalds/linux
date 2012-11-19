@@ -1043,7 +1043,7 @@ static struct platform_driver sht15_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = sht15_probe,
-	.remove = __devexit_p(sht15_remove),
+	.remove = sht15_remove,
 	.id_table = sht15_device_ids,
 };
 module_platform_driver(sht15_driver);

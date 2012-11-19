@@ -283,7 +283,7 @@ static struct spi_driver max1111_driver = {
 	},
 	.id_table	= max1111_ids,
 	.probe		= max1111_probe,
-	.remove		= __devexit_p(max1111_remove),
+	.remove		= max1111_remove,
 };
 
 module_spi_driver(max1111_driver);

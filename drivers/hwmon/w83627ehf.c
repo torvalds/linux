@@ -2614,7 +2614,7 @@ static struct platform_driver w83627ehf_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= w83627ehf_probe,
-	.remove		= __devexit_p(w83627ehf_remove),
+	.remove		= w83627ehf_remove,
 };
 
 /* w83627ehf_find() looks for a '627 in the Super-I/O config space */

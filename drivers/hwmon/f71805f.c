@@ -1510,7 +1510,7 @@ static struct platform_driver f71805f_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= f71805f_probe,
-	.remove		= __devexit_p(f71805f_remove),
+	.remove		= f71805f_remove,
 };
 
 static int __init f71805f_device_add(unsigned short address,

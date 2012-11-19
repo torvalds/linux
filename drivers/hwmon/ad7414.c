@@ -246,7 +246,7 @@ static struct i2c_driver ad7414_driver = {
 		.name	= "ad7414",
 	},
 	.probe	= ad7414_probe,
-	.remove	= __devexit_p(ad7414_remove),
+	.remove	= ad7414_remove,
 	.id_table = ad7414_id,
 };
 

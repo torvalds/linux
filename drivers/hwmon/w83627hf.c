@@ -407,7 +407,7 @@ static struct platform_driver w83627hf_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= w83627hf_probe,
-	.remove		= __devexit_p(w83627hf_remove),
+	.remove		= w83627hf_remove,
 };
 
 static ssize_t

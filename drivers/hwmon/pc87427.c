@@ -1158,7 +1158,7 @@ static struct platform_driver pc87427_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= pc87427_probe,
-	.remove		= __devexit_p(pc87427_remove),
+	.remove		= pc87427_remove,
 };
 
 static int __init pc87427_device_add(const struct pc87427_sio_data *sio_data)

@@ -256,7 +256,7 @@ static struct pci_driver fam15h_power_driver = {
 	.name = "fam15h_power",
 	.id_table = fam15h_power_id_table,
 	.probe = fam15h_power_probe,
-	.remove = __devexit_p(fam15h_power_remove),
+	.remove = fam15h_power_remove,
 	.resume = fam15h_power_resume,
 };
 

@@ -1233,7 +1233,7 @@ static struct platform_driver vt1211_driver = {
 		.name  = DRVNAME,
 	},
 	.probe  = vt1211_probe,
-	.remove = __devexit_p(vt1211_remove),
+	.remove = vt1211_remove,
 };
 
 static int __init vt1211_device_add(unsigned short address)

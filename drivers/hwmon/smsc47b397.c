@@ -246,7 +246,7 @@ static struct platform_driver smsc47b397_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= smsc47b397_probe,
-	.remove		= __devexit_p(smsc47b397_remove),
+	.remove		= smsc47b397_remove,
 };
 
 static int __devinit smsc47b397_probe(struct platform_device *pdev)

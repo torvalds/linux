@@ -283,7 +283,7 @@ static struct i2c_driver tmp102_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.pm	= TMP102_DEV_PM_OPS,
 	.probe		= tmp102_probe,
-	.remove		= __devexit_p(tmp102_remove),
+	.remove		= tmp102_remove,
 	.id_table	= tmp102_id,
 };
 

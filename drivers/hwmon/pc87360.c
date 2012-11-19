@@ -248,7 +248,7 @@ static struct platform_driver pc87360_driver = {
 		.name	= "pc87360",
 	},
 	.probe		= pc87360_probe,
-	.remove		= __devexit_p(pc87360_remove),
+	.remove		= pc87360_remove,
 };
 
 /*

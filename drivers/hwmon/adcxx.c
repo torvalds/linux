@@ -240,7 +240,7 @@ static struct spi_driver adcxx_driver = {
 	},
 	.id_table = adcxx_ids,
 	.probe	= adcxx_probe,
-	.remove	= __devexit_p(adcxx_remove),
+	.remove	= adcxx_remove,
 };
 
 module_spi_driver(adcxx_driver);

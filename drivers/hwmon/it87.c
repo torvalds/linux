@@ -443,7 +443,7 @@ static struct platform_driver it87_driver = {
 		.name	= DRVNAME,
 	},
 	.probe	= it87_probe,
-	.remove	= __devexit_p(it87_remove),
+	.remove	= it87_remove,
 };
 
 static ssize_t show_in(struct device *dev, struct device_attribute *attr,

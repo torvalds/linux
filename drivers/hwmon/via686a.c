@@ -677,7 +677,7 @@ static struct platform_driver via686a_driver = {
 		.name	= "via686a",
 	},
 	.probe		= via686a_probe,
-	.remove		= __devexit_p(via686a_remove),
+	.remove		= via686a_remove,
 };
 
 

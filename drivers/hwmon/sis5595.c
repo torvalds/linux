@@ -217,7 +217,7 @@ static struct platform_driver sis5595_driver = {
 		.name	= "sis5595",
 	},
 	.probe		= sis5595_probe,
-	.remove		= __devexit_p(sis5595_remove),
+	.remove		= sis5595_remove,
 };
 
 /* 4 Voltages */

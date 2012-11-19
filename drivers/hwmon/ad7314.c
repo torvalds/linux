@@ -159,7 +159,7 @@ static struct spi_driver ad7314_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad7314_probe,
-	.remove = __devexit_p(ad7314_remove),
+	.remove = ad7314_remove,
 	.id_table = ad7314_id,
 };
 

@@ -419,7 +419,7 @@ static struct platform_driver ntc_thermistor_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ntc_thermistor_probe,
-	.remove = __devexit_p(ntc_thermistor_remove),
+	.remove = ntc_thermistor_remove,
 	.id_table = ntc_thermistor_id,
 };
 

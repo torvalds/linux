@@ -324,7 +324,7 @@ static struct pci_driver k8temp_driver = {
 	.name = "k8temp",
 	.id_table = k8temp_ids,
 	.probe = k8temp_probe,
-	.remove = __devexit_p(k8temp_remove),
+	.remove = k8temp_remove,
 };
 
 module_pci_driver(k8temp_driver);

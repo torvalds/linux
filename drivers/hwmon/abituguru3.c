@@ -1171,7 +1171,7 @@ static struct platform_driver abituguru3_driver = {
 		.pm	= ABIT_UGURU3_PM
 	},
 	.probe	= abituguru3_probe,
-	.remove	= __devexit_p(abituguru3_remove),
+	.remove	= abituguru3_remove,
 };
 
 static int __init abituguru3_dmi_detect(void)

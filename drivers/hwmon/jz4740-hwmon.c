@@ -184,7 +184,7 @@ static int __devexit jz4740_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_hwmon_driver = {
 	.probe	= jz4740_hwmon_probe,
-	.remove = __devexit_p(jz4740_hwmon_remove),
+	.remove = jz4740_hwmon_remove,
 	.driver = {
 		.name = "jz4740-hwmon",
 		.owner = THIS_MODULE,

@@ -762,7 +762,7 @@ static struct platform_driver vt8231_driver = {
 		.name	= "vt8231",
 	},
 	.probe	= vt8231_probe,
-	.remove	= __devexit_p(vt8231_remove),
+	.remove	= vt8231_remove,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(vt8231_pci_ids) = {

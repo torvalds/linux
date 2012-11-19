@@ -126,7 +126,7 @@ static int __devexit wm8350_hwmon_remove(struct platform_device *pdev)
 
 static struct platform_driver wm8350_hwmon_driver = {
 	.probe = wm8350_hwmon_probe,
-	.remove = __devexit_p(wm8350_hwmon_remove),
+	.remove = wm8350_hwmon_remove,
 	.driver = {
 		.name = "wm8350-hwmon",
 		.owner = THIS_MODULE,

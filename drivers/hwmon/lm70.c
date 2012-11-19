@@ -207,7 +207,7 @@ static struct spi_driver lm70_driver = {
 	},
 	.id_table = lm70_ids,
 	.probe	= lm70_probe,
-	.remove	= __devexit_p(lm70_remove),
+	.remove	= lm70_remove,
 };
 
 module_spi_driver(lm70_driver);
