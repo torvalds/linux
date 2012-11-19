@@ -564,7 +564,7 @@ static inline void reserve_using_irq(int slot)
 	vrc4171_irq_mask &= ~(1 << irq);
 }
 
-static int __devinit vrc4171_add_sockets(void)
+static int vrc4171_add_sockets(void)
 {
 	vrc4171_socket_t *socket;
 	int slot, retval;
@@ -631,7 +631,7 @@ static void vrc4171_remove_sockets(void)
 	}
 }
 
-static int __devinit vrc4171_card_setup(char *options)
+static int vrc4171_card_setup(char *options)
 {
 	if (options == NULL || *options == '\0')
 		return 1;
@@ -712,7 +712,7 @@ static struct platform_driver vrc4171_card_driver = {
 	},
 };
 
-static int __devinit vrc4171_card_init(void)
+static int vrc4171_card_init(void)
 {
 	int retval;
 

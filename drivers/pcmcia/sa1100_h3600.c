@@ -153,7 +153,7 @@ struct pcmcia_low_level h3600_pcmcia_ops = {
 	.socket_suspend		= h3600_pcmcia_socket_suspend,
 };
 
-int __devinit pcmcia_h3600_init(struct device *dev)
+int pcmcia_h3600_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

@@ -195,7 +195,7 @@ static struct pccard_operations bfin_cf_ops = {
 
 /*--------------------------------------------------------------------------*/
 
-static int __devinit bfin_cf_probe(struct platform_device *pdev)
+static int bfin_cf_probe(struct platform_device *pdev)
 {
 	struct bfin_cf_socket *cf;
 	struct resource *io_mem, *attr_mem;

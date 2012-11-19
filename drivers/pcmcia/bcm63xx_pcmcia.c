@@ -323,7 +323,7 @@ static struct pccard_operations bcm63xx_pcmcia_operations = {
 /*
  * register pcmcia socket to core
  */
-static int __devinit bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
+static int bcm63xx_drv_pcmcia_probe(struct platform_device *pdev)
 {
 	struct bcm63xx_pcmcia_socket *skt;
 	struct pcmcia_socket *sock;
@@ -461,7 +461,7 @@ struct platform_driver bcm63xx_pcmcia_driver = {
 };
 
 #ifdef CONFIG_CARDBUS
-static int __devinit bcm63xx_cb_probe(struct pci_dev *dev,
+static int bcm63xx_cb_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
 	/* keep pci device */

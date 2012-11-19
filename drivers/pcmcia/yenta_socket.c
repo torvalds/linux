@@ -1142,7 +1142,7 @@ static void yenta_fixup_parent_bridge(struct pci_bus *cardbus_bridge)
  * interrupt, and that we can map the cardbus area. Fill in the
  * socket information structure..
  */
-static int __devinit yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int yenta_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct yenta_socket *socket;
 	int ret;
