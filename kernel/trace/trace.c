@@ -4506,7 +4506,7 @@ struct dentry *tracing_init_dentry(void)
 
 static struct dentry *d_percpu;
 
-struct dentry *tracing_dentry_percpu(void)
+static struct dentry *tracing_dentry_percpu(void)
 {
 	static int once;
 	struct dentry *d_tracer;
