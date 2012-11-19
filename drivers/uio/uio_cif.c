@@ -40,7 +40,7 @@ static irqreturn_t hilscher_handler(int irq, struct uio_info *dev_info)
 	return IRQ_HANDLED;
 }
 
-static int __devinit hilscher_pci_probe(struct pci_dev *dev,
+static int hilscher_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
 	struct uio_info *info;

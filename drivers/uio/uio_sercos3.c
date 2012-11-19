@@ -116,7 +116,7 @@ static int sercos3_setup_iomem(struct pci_dev *dev, struct uio_info *info,
 	return 0;
 }
 
-static int __devinit sercos3_pci_probe(struct pci_dev *dev,
+static int sercos3_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *id)
 {
 	struct uio_info *info;

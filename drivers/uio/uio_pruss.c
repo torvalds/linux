@@ -112,7 +112,7 @@ static void pruss_cleanup(struct platform_device *dev,
 	kfree(gdev);
 }
 
-static int __devinit pruss_probe(struct platform_device *dev)
+static int pruss_probe(struct platform_device *dev)
 {
 	struct uio_info *p;
 	struct uio_pruss_dev *gdev;
