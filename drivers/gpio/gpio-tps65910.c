@@ -199,7 +199,7 @@ static struct platform_driver tps65910_gpio_driver = {
 	.driver.name    = "tps65910-gpio",
 	.driver.owner   = THIS_MODULE,
 	.probe		= tps65910_gpio_probe,
-	.remove		= __devexit_p(tps65910_gpio_remove),
+	.remove		= tps65910_gpio_remove,
 };
 
 static int __init tps65910_gpio_init(void)

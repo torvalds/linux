@@ -646,7 +646,7 @@ static struct i2c_driver sx150x_driver = {
 		.owner = THIS_MODULE
 	},
 	.probe    = sx150x_probe,
-	.remove   = __devexit_p(sx150x_remove),
+	.remove   = sx150x_remove,
 	.id_table = sx150x_id,
 };
 

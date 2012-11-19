@@ -312,7 +312,7 @@ static struct platform_driver vx855gpio_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= vx855gpio_probe,
-	.remove		= __devexit_p(vx855gpio_remove),
+	.remove		= vx855gpio_remove,
 };
 
 module_platform_driver(vx855gpio_driver);

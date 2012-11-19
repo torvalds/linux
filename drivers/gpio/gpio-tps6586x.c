@@ -137,7 +137,7 @@ static struct platform_driver tps6586x_gpio_driver = {
 	.driver.name	= "tps6586x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tps6586x_gpio_probe,
-	.remove		= __devexit_p(tps6586x_gpio_remove),
+	.remove		= tps6586x_gpio_remove,
 };
 
 static int __init tps6586x_gpio_init(void)

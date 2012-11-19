@@ -303,7 +303,7 @@ static struct platform_driver sch_gpio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe		= sch_gpio_probe,
-	.remove		= __devexit_p(sch_gpio_remove),
+	.remove		= sch_gpio_remove,
 };
 
 module_platform_driver(sch_gpio_driver);

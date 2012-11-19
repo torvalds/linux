@@ -378,7 +378,7 @@ static struct platform_driver cs5535_gpio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = cs5535_gpio_probe,
-	.remove = __devexit_p(cs5535_gpio_remove),
+	.remove = cs5535_gpio_remove,
 };
 
 module_platform_driver(cs5535_gpio_driver);

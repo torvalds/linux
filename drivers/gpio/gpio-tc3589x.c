@@ -419,7 +419,7 @@ static struct platform_driver tc3589x_gpio_driver = {
 	.driver.name	= "tc3589x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= tc3589x_gpio_probe,
-	.remove		= __devexit_p(tc3589x_gpio_remove),
+	.remove		= tc3589x_gpio_remove,
 };
 
 static int __init tc3589x_gpio_init(void)

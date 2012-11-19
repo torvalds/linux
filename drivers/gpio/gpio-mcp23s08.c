@@ -533,7 +533,7 @@ static struct i2c_driver mcp230xx_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= mcp230xx_probe,
-	.remove		= __devexit_p(mcp230xx_remove),
+	.remove		= mcp230xx_remove,
 	.id_table	= mcp230xx_id,
 };
 

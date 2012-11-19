@@ -234,7 +234,7 @@ static struct platform_driver ttl_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ttl_probe,
-	.remove		= __devexit_p(ttl_remove),
+	.remove		= ttl_remove,
 };
 
 module_platform_driver(ttl_driver);

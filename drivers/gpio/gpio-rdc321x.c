@@ -225,7 +225,7 @@ static struct platform_driver rdc321x_gpio_driver = {
 	.driver.name	= "rdc321x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= rdc321x_gpio_probe,
-	.remove		= __devexit_p(rdc321x_gpio_remove),
+	.remove		= rdc321x_gpio_remove,
 };
 
 module_platform_driver(rdc321x_gpio_driver);

@@ -479,7 +479,7 @@ static struct i2c_driver adp5588_gpio_driver = {
 		   .name = DRV_NAME,
 		   },
 	.probe = adp5588_gpio_probe,
-	.remove = __devexit_p(adp5588_gpio_remove),
+	.remove = adp5588_gpio_remove,
 	.id_table = adp5588_gpio_id,
 };
 

@@ -412,7 +412,7 @@ static struct platform_driver stmpe_gpio_driver = {
 	.driver.name	= "stmpe-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= stmpe_gpio_probe,
-	.remove		= __devexit_p(stmpe_gpio_remove),
+	.remove		= stmpe_gpio_remove,
 };
 
 static int __init stmpe_gpio_init(void)

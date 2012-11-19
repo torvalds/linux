@@ -152,7 +152,7 @@ static struct platform_driver arizona_gpio_driver = {
 	.driver.name	= "arizona-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= arizona_gpio_probe,
-	.remove		= __devexit_p(arizona_gpio_remove),
+	.remove		= arizona_gpio_remove,
 };
 
 module_platform_driver(arizona_gpio_driver);

@@ -190,7 +190,7 @@ static struct platform_driver adp5520_gpio_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_gpio_probe,
-	.remove		= __devexit_p(adp5520_gpio_remove),
+	.remove		= adp5520_gpio_remove,
 };
 
 module_platform_driver(adp5520_gpio_driver);

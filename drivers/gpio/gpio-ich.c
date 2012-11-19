@@ -467,7 +467,7 @@ static struct platform_driver ichx_gpio_driver = {
 		.name	= DRV_NAME,
 	},
 	.probe		= ichx_gpio_probe,
-	.remove		= __devexit_p(ichx_gpio_remove),
+	.remove		= ichx_gpio_remove,
 };
 
 module_platform_driver(ichx_gpio_driver);

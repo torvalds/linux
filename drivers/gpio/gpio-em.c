@@ -399,7 +399,7 @@ static int __devexit em_gio_remove(struct platform_device *pdev)
 
 static struct platform_driver em_gio_device_driver = {
 	.probe		= em_gio_probe,
-	.remove		= __devexit_p(em_gio_remove),
+	.remove		= em_gio_remove,
 	.driver		= {
 		.name	= "em_gio",
 	}

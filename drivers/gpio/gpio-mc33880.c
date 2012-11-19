@@ -175,7 +175,7 @@ static struct spi_driver mc33880_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= mc33880_probe,
-	.remove		= __devexit_p(mc33880_remove),
+	.remove		= mc33880_remove,
 };
 
 static int __init mc33880_init(void)

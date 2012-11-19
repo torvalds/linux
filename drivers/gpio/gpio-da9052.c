@@ -238,7 +238,7 @@ static int __devexit da9052_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_gpio_driver = {
 	.probe = da9052_gpio_probe,
-	.remove = __devexit_p(da9052_gpio_remove),
+	.remove = da9052_gpio_remove,
 	.driver = {
 		.name	= "da9052-gpio",
 		.owner	= THIS_MODULE,

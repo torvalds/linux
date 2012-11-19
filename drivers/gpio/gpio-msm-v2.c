@@ -390,7 +390,7 @@ static int __devexit msm_gpio_remove(struct platform_device *dev)
 
 static struct platform_driver msm_gpio_driver = {
 	.probe = msm_gpio_probe,
-	.remove = __devexit_p(msm_gpio_remove),
+	.remove = msm_gpio_remove,
 	.driver = {
 		.name = "msmgpio",
 		.owner = THIS_MODULE,

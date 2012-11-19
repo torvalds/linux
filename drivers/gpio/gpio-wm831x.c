@@ -286,7 +286,7 @@ static struct platform_driver wm831x_gpio_driver = {
 	.driver.name	= "wm831x-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= wm831x_gpio_probe,
-	.remove		= __devexit_p(wm831x_gpio_remove),
+	.remove		= wm831x_gpio_remove,
 };
 
 static int __init wm831x_gpio_init(void)

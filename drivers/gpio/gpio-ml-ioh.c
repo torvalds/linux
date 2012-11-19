@@ -606,7 +606,7 @@ static struct pci_driver ioh_gpio_driver = {
 	.name = "ml_ioh_gpio",
 	.id_table = ioh_gpio_pcidev_id,
 	.probe = ioh_gpio_probe,
-	.remove = __devexit_p(ioh_gpio_remove),
+	.remove = ioh_gpio_remove,
 	.suspend = ioh_gpio_suspend,
 	.resume = ioh_gpio_resume
 };

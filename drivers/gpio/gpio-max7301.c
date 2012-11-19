@@ -92,7 +92,7 @@ static struct spi_driver max7301_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max7301_probe,
-	.remove = __devexit_p(max7301_remove),
+	.remove = max7301_remove,
 	.id_table = max7301_id,
 };
 

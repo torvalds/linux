@@ -531,7 +531,7 @@ static struct pci_driver pch_gpio_driver = {
 	.name = "pch_gpio",
 	.id_table = pch_gpio_pcidev_id,
 	.probe = pch_gpio_probe,
-	.remove = __devexit_p(pch_gpio_remove),
+	.remove = pch_gpio_remove,
 	.suspend = pch_gpio_suspend,
 	.resume = pch_gpio_resume
 };

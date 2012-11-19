@@ -72,7 +72,7 @@ static struct i2c_driver max7300_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = max7300_probe,
-	.remove = __devexit_p(max7300_remove),
+	.remove = max7300_remove,
 	.id_table = max7300_id,
 };
 

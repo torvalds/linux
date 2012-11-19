@@ -499,7 +499,7 @@ static int __devexit wp_gpio_remove(struct platform_device *pdev)
 
 static struct platform_driver wp_gpio_driver = {
 	.probe		= wp_gpio_probe,
-	.remove		= __devexit_p(wp_gpio_remove),
+	.remove		= wp_gpio_remove,
 	.driver		= {
 		.name	= "wp_gpio",
 		.owner	= THIS_MODULE,

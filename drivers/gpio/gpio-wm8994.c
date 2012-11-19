@@ -292,7 +292,7 @@ static struct platform_driver wm8994_gpio_driver = {
 	.driver.name	= "wm8994-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= wm8994_gpio_probe,
-	.remove		= __devexit_p(wm8994_gpio_remove),
+	.remove		= wm8994_gpio_remove,
 };
 
 static int __init wm8994_gpio_init(void)

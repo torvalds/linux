@@ -159,7 +159,7 @@ static struct platform_driver rc5t583_gpio_driver = {
 		.owner   = THIS_MODULE,
 	},
 	.probe		= rc5t583_gpio_probe,
-	.remove		= __devexit_p(rc5t583_gpio_remove),
+	.remove		= rc5t583_gpio_remove,
 };
 
 static int __init rc5t583_gpio_init(void)

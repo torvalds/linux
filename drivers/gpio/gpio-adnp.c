@@ -601,7 +601,7 @@ static struct i2c_driver adnp_i2c_driver = {
 		.of_match_table = of_match_ptr(adnp_of_match),
 	},
 	.probe = adnp_i2c_probe,
-	.remove = __devexit_p(adnp_i2c_remove),
+	.remove = adnp_i2c_remove,
 	.id_table = adnp_i2c_id,
 };
 module_i2c_driver(adnp_i2c_driver);

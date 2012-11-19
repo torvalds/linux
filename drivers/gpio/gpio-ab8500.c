@@ -499,7 +499,7 @@ static struct platform_driver ab8500_gpio_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ab8500_gpio_probe,
-	.remove = __devexit_p(ab8500_gpio_remove),
+	.remove = ab8500_gpio_remove,
 };
 
 static int __init ab8500_gpio_init(void)

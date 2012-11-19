@@ -564,7 +564,7 @@ static int __devexit giu_remove(struct platform_device *pdev)
 
 static struct platform_driver giu_device_driver = {
 	.probe		= giu_probe,
-	.remove		= __devexit_p(giu_remove),
+	.remove		= giu_remove,
 	.driver		= {
 		.name	= "GIU",
 		.owner	= THIS_MODULE,

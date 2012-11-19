@@ -527,7 +527,7 @@ static struct platform_driver bgpio_driver = {
 	},
 	.id_table = bgpio_id_table,
 	.probe = bgpio_pdev_probe,
-	.remove = __devexit_p(bgpio_pdev_remove),
+	.remove = bgpio_pdev_remove,
 };
 
 module_platform_driver(bgpio_driver);

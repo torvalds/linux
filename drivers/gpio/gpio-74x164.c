@@ -215,7 +215,7 @@ static struct spi_driver gen_74x164_driver = {
 		.of_match_table	= of_match_ptr(gen_74x164_dt_ids),
 	},
 	.probe		= gen_74x164_probe,
-	.remove		= __devexit_p(gen_74x164_remove),
+	.remove		= gen_74x164_remove,
 };
 module_spi_driver(gen_74x164_driver);
 
