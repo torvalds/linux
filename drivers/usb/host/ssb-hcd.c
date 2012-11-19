@@ -248,7 +248,7 @@ static int ssb_hcd_resume(struct ssb_device *dev)
 #define ssb_hcd_resume	NULL
 #endif /* CONFIG_PM */
 
-static const struct ssb_device_id ssb_hcd_table[] __devinitconst = {
+static const struct ssb_device_id ssb_hcd_table[] = {
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB11_HOSTDEV, SSB_ANY_REV),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB11_HOST, SSB_ANY_REV),
 	SSB_DEVICE(SSB_VENDOR_BROADCOM, SSB_DEV_USB20_HOST, SSB_ANY_REV),

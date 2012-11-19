@@ -533,7 +533,7 @@ static void quirk_usb_handoff_ohci(struct pci_dev *pdev)
 	iounmap(base);
 }
 
-static const struct dmi_system_id __devinitconst ehci_dmi_nohandoff_table[] = {
+static const struct dmi_system_id ehci_dmi_nohandoff_table[] = {
 	{
 		/*  Pegatron Lucid (ExoPC) */
 		.matches = {

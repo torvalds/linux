@@ -716,7 +716,7 @@ static int dsps_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(dsps_pm_ops, dsps_suspend, dsps_resume);
 
-static const struct dsps_musb_wrapper ti81xx_driver_data __devinitconst = {
+static const struct dsps_musb_wrapper ti81xx_driver_data = {
 	.revision		= 0x00,
 	.control		= 0x14,
 	.status			= 0x18,
@@ -747,7 +747,7 @@ static const struct dsps_musb_wrapper ti81xx_driver_data __devinitconst = {
 	.instances		= 1,
 };
 
-static const struct platform_device_id musb_dsps_id_table[] __devinitconst = {
+static const struct platform_device_id musb_dsps_id_table[] = {
 	{
 		.name	= "musb-ti81xx",
 		.driver_data	= (kernel_ulong_t) &ti81xx_driver_data,
@@ -757,7 +757,7 @@ static const struct platform_device_id musb_dsps_id_table[] __devinitconst = {
 MODULE_DEVICE_TABLE(platform, musb_dsps_id_table);
 
 #ifdef CONFIG_OF
-static const struct of_device_id musb_dsps_of_match[] __devinitconst = {
+static const struct of_device_id musb_dsps_of_match[] = {
 	{ .compatible = "ti,musb-am33xx",
 		.data = (void *) &ti81xx_driver_data, },
 	{  },
