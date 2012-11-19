@@ -185,7 +185,7 @@ static struct platform_driver max8925_backlight_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= max8925_backlight_probe,
-	.remove		= __devexit_p(max8925_backlight_remove),
+	.remove		= max8925_backlight_remove,
 };
 
 module_platform_driver(max8925_backlight_driver);

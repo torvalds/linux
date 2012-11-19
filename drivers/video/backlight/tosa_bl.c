@@ -170,7 +170,7 @@ static struct i2c_driver tosa_bl_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= tosa_bl_probe,
-	.remove		= __devexit_p(tosa_bl_remove),
+	.remove		= tosa_bl_remove,
 	.suspend	= tosa_bl_suspend,
 	.resume		= tosa_bl_resume,
 	.id_table	= tosa_bl_id,

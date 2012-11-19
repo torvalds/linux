@@ -444,7 +444,7 @@ static struct spi_driver tdo24m_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= tdo24m_probe,
-	.remove		= __devexit_p(tdo24m_remove),
+	.remove		= tdo24m_remove,
 	.shutdown	= tdo24m_shutdown,
 	.suspend	= tdo24m_suspend,
 	.resume		= tdo24m_resume,

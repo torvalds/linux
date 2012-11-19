@@ -305,7 +305,7 @@ static struct spi_driver ltv350qv_driver = {
 	},
 
 	.probe		= ltv350qv_probe,
-	.remove		= __devexit_p(ltv350qv_remove),
+	.remove		= ltv350qv_remove,
 	.shutdown	= ltv350qv_shutdown,
 	.suspend	= ltv350qv_suspend,
 	.resume		= ltv350qv_resume,

@@ -611,7 +611,7 @@ static struct spi_driver corgi_lcd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= corgi_lcd_probe,
-	.remove		= __devexit_p(corgi_lcd_remove),
+	.remove		= corgi_lcd_remove,
 	.suspend	= corgi_lcd_suspend,
 	.resume		= corgi_lcd_resume,
 };

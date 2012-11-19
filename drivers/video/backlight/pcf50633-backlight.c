@@ -158,7 +158,7 @@ static int __devexit pcf50633_bl_remove(struct platform_device *pdev)
 
 static struct platform_driver pcf50633_bl_driver = {
 	.probe =	pcf50633_bl_probe,
-	.remove =	__devexit_p(pcf50633_bl_remove),
+	.remove =	pcf50633_bl_remove,
 	.driver = {
 		.name = "pcf50633-backlight",
 	},

@@ -617,7 +617,7 @@ static struct spi_driver ams369fg06_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ams369fg06_probe,
-	.remove		= __devexit_p(ams369fg06_remove),
+	.remove		= ams369fg06_remove,
 	.shutdown	= ams369fg06_shutdown,
 	.suspend	= ams369fg06_suspend,
 	.resume		= ams369fg06_resume,

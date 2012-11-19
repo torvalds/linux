@@ -275,7 +275,7 @@ static struct spi_driver tosa_lcd_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= tosa_lcd_probe,
-	.remove		= __devexit_p(tosa_lcd_remove),
+	.remove		= tosa_lcd_remove,
 	.suspend	= tosa_lcd_suspend,
 	.resume		= tosa_lcd_resume,
 };

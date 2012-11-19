@@ -375,7 +375,7 @@ static struct platform_driver adp5520_bl_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= adp5520_bl_probe,
-	.remove		= __devexit_p(adp5520_bl_remove),
+	.remove		= adp5520_bl_remove,
 	.suspend	= adp5520_bl_suspend,
 	.resume		= adp5520_bl_resume,
 };

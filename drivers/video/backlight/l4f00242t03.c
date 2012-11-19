@@ -260,7 +260,7 @@ static struct spi_driver l4f00242t03_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= l4f00242t03_probe,
-	.remove		= __devexit_p(l4f00242t03_remove),
+	.remove		= l4f00242t03_remove,
 	.shutdown	= l4f00242t03_shutdown,
 };
 

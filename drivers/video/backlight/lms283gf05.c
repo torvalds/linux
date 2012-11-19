@@ -208,7 +208,7 @@ static struct spi_driver lms283gf05_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lms283gf05_probe,
-	.remove		= __devexit_p(lms283gf05_remove),
+	.remove		= lms283gf05_remove,
 };
 
 module_spi_driver(lms283gf05_driver);

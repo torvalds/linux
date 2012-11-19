@@ -897,7 +897,7 @@ static struct spi_driver s6e63m0_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s6e63m0_probe,
-	.remove		= __devexit_p(s6e63m0_remove),
+	.remove		= s6e63m0_remove,
 	.shutdown	= s6e63m0_shutdown,
 	.suspend	= s6e63m0_suspend,
 	.resume		= s6e63m0_resume,

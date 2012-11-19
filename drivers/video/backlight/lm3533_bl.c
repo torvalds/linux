@@ -406,7 +406,7 @@ static struct platform_driver lm3533_bl_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= lm3533_bl_probe,
-	.remove		= __devexit_p(lm3533_bl_remove),
+	.remove		= lm3533_bl_remove,
 	.shutdown	= lm3533_bl_shutdown,
 	.suspend	= lm3533_bl_suspend,
 	.resume		= lm3533_bl_resume,

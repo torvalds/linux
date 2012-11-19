@@ -256,7 +256,7 @@ static struct spi_driver vgg2432a4_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= vgg2432a4_probe,
-	.remove		= __devexit_p(vgg2432a4_remove),
+	.remove		= vgg2432a4_remove,
 	.shutdown	= vgg2432a4_shutdown,
 	.suspend	= vgg2432a4_suspend,
 	.resume		= vgg2432a4_resume,

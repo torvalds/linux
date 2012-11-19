@@ -805,7 +805,7 @@ static struct i2c_driver adp8860_driver = {
 		.name = KBUILD_MODNAME,
 	},
 	.probe    = adp8860_probe,
-	.remove   = __devexit_p(adp8860_remove),
+	.remove   = adp8860_remove,
 	.suspend = adp8860_i2c_suspend,
 	.resume  = adp8860_i2c_resume,
 	.id_table = adp8860_id,
