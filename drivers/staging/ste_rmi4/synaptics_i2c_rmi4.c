@@ -879,7 +879,7 @@ static int synaptics_rmi4_i2c_query_device(struct synaptics_rmi4_data *pdata)
  * the rmi4 Physical Device Table and enumerate any rmi4 functions that
  * have data sources associated with them.
  */
-static int __devinit synaptics_rmi4_probe
+static int synaptics_rmi4_probe
 	(struct i2c_client *client, const struct i2c_device_id *dev_id)
 {
 	int retval;
