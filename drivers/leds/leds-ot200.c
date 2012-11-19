@@ -115,7 +115,7 @@ static void ot200_led_brightness_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(&value_lock, flags);
 }
 
-static int __devinit ot200_led_probe(struct platform_device *pdev)
+static int ot200_led_probe(struct platform_device *pdev)
 {
 	int i;
 	int ret;

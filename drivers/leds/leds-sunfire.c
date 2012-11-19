@@ -123,7 +123,7 @@ struct sunfire_drvdata {
 	struct sunfire_led	leds[NUM_LEDS_PER_BOARD];
 };
 
-static int __devinit sunfire_led_generic_probe(struct platform_device *pdev,
+static int sunfire_led_generic_probe(struct platform_device *pdev,
 					       struct led_type *types)
 {
 	struct sunfire_drvdata *p;
@@ -192,7 +192,7 @@ static struct led_type clockboard_led_types[NUM_LEDS_PER_BOARD] = {
 	},
 };
 
-static int __devinit sunfire_clockboard_led_probe(struct platform_device *pdev)
+static int sunfire_clockboard_led_probe(struct platform_device *pdev)
 {
 	return sunfire_led_generic_probe(pdev, clockboard_led_types);
 }
@@ -213,7 +213,7 @@ static struct led_type fhc_led_types[NUM_LEDS_PER_BOARD] = {
 	},
 };
 
-static int __devinit sunfire_fhc_led_probe(struct platform_device *pdev)
+static int sunfire_fhc_led_probe(struct platform_device *pdev)
 {
 	return sunfire_led_generic_probe(pdev, fhc_led_types);
 }

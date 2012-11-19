@@ -168,7 +168,7 @@ static char lm355x_name[][I2C_NAME_SIZE] = {
 };
 
 /* chip initialize */
-static int __devinit lm355x_chip_init(struct lm355x_chip_data *chip)
+static int lm355x_chip_init(struct lm355x_chip_data *chip)
 {
 	int ret;
 	unsigned int reg_val;
@@ -420,7 +420,7 @@ static const struct regmap_config lm355x_regmap = {
 };
 
 /* module initialize */
-static int __devinit lm355x_probe(struct i2c_client *client,
+static int lm355x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm355x_platform_data *pdata = client->dev.platform_data;

@@ -71,7 +71,7 @@ static void gpio_ext_set_value(struct netxbig_gpio_ext *gpio_ext,
 	spin_unlock_irqrestore(&gpio_ext_lock, flags);
 }
 
-static int __devinit gpio_ext_init(struct netxbig_gpio_ext *gpio_ext)
+static int gpio_ext_init(struct netxbig_gpio_ext *gpio_ext)
 {
 	int err;
 	int i;
@@ -301,7 +301,7 @@ static void delete_netxbig_led(struct netxbig_led_data *led_dat)
 	led_classdev_unregister(&led_dat->cdev);
 }
 
-static int __devinit
+static int
 create_netxbig_led(struct platform_device *pdev,
 		   struct netxbig_led_data *led_dat,
 		   const struct netxbig_led *template)
@@ -352,7 +352,7 @@ create_netxbig_led(struct platform_device *pdev,
 	return ret;
 }
 
-static int __devinit netxbig_led_probe(struct platform_device *pdev)
+static int netxbig_led_probe(struct platform_device *pdev)
 {
 	struct netxbig_led_platform_data *pdata = pdev->dev.platform_data;
 	struct netxbig_led_data *leds_data;

@@ -833,7 +833,7 @@ static int __init lp5523_init_engine(struct lp5523_engine *engine, int id)
 	return 0;
 }
 
-static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
+static int lp5523_init_led(struct lp5523_led *led, struct device *dev,
 			   int chan, struct lp5523_platform_data *pdata,
 			   const char *chip_name)
 {
@@ -882,7 +882,7 @@ static int __devinit lp5523_init_led(struct lp5523_led *led, struct device *dev,
 	return 0;
 }
 
-static int __devinit lp5523_probe(struct i2c_client *client,
+static int lp5523_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct lp5523_chip		*chip;

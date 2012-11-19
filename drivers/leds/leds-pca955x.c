@@ -255,7 +255,7 @@ static void pca955x_led_set(struct led_classdev *led_cdev, enum led_brightness v
 	schedule_work(&pca955x->work);
 }
 
-static int __devinit pca955x_probe(struct i2c_client *client,
+static int pca955x_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct pca955x *pca955x;

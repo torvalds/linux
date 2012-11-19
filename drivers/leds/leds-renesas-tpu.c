@@ -238,7 +238,7 @@ static void r_tpu_set_brightness(struct led_classdev *ldev,
 	schedule_work(&p->work);
 }
 
-static int __devinit r_tpu_probe(struct platform_device *pdev)
+static int r_tpu_probe(struct platform_device *pdev)
 {
 	struct led_renesas_tpu_config *cfg = pdev->dev.platform_data;
 	struct r_tpu_priv *p;

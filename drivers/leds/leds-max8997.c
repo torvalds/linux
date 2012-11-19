@@ -229,7 +229,7 @@ static ssize_t max8997_led_store_mode(struct device *dev,
 
 static DEVICE_ATTR(mode, 0644, max8997_led_show_mode, max8997_led_store_mode);
 
-static int __devinit max8997_led_probe(struct platform_device *pdev)
+static int max8997_led_probe(struct platform_device *pdev)
 {
 	struct max8997_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8997_platform_data *pdata = dev_get_platdata(iodev->dev);

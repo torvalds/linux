@@ -667,7 +667,7 @@ static void tca6507_remove_gpio(struct tca6507_chip *tca)
 }
 #endif /* CONFIG_GPIOLIB */
 
-static int __devinit tca6507_probe(struct i2c_client *client,
+static int tca6507_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct tca6507_chip *tca;

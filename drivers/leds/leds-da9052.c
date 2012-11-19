@@ -102,7 +102,7 @@ static int da9052_configure_leds(struct da9052 *da9052)
 	return error;
 }
 
-static int __devinit da9052_led_probe(struct platform_device *pdev)
+static int da9052_led_probe(struct platform_device *pdev)
 {
 	struct da9052_pdata *pdata;
 	struct da9052 *da9052;

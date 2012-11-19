@@ -646,7 +646,7 @@ static struct attribute_group lm3533_led_attribute_group = {
 	.attrs		= lm3533_led_attributes
 };
 
-static int __devinit lm3533_led_setup(struct lm3533_led *led,
+static int lm3533_led_setup(struct lm3533_led *led,
 					struct lm3533_led_platform_data *pdata)
 {
 	int ret;
@@ -658,7 +658,7 @@ static int __devinit lm3533_led_setup(struct lm3533_led *led,
 	return lm3533_ctrlbank_set_pwm(&led->cb, pdata->pwm);
 }
 
-static int __devinit lm3533_led_probe(struct platform_device *pdev)
+static int lm3533_led_probe(struct platform_device *pdev)
 {
 	struct lm3533 *lm3533;
 	struct lm3533_led_platform_data *pdata;

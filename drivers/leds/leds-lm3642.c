@@ -93,7 +93,7 @@ struct lm3642_chip_data {
 };
 
 /* chip initialize */
-static int __devinit lm3642_chip_init(struct lm3642_chip_data *chip)
+static int lm3642_chip_init(struct lm3642_chip_data *chip)
 {
 	int ret;
 	struct lm3642_platform_data *pdata = chip->pdata;
@@ -313,7 +313,7 @@ static const struct regmap_config lm3642_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int __devinit lm3642_probe(struct i2c_client *client,
+static int lm3642_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm3642_platform_data *pdata = client->dev.platform_data;

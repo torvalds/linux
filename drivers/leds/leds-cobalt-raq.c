@@ -76,7 +76,7 @@ static struct led_classdev raq_power_off_led = {
 	.default_trigger	= "power-off",
 };
 
-static int __devinit cobalt_raq_led_probe(struct platform_device *pdev)
+static int cobalt_raq_led_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int retval;

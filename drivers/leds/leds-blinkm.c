@@ -632,7 +632,7 @@ static int blinkm_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
-static int __devinit blinkm_probe(struct i2c_client *client,
+static int blinkm_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct blinkm_data *data;
