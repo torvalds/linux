@@ -44,7 +44,7 @@
 
 #include "ieee80211/dot11d.h"
 
-static struct pci_device_id rtl8180_pci_id_tbl[] __devinitdata = {
+static struct pci_device_id rtl8180_pci_id_tbl[] = {
 	{
 		.vendor = PCI_VENDOR_ID_REALTEK,
 		.device = 0x8199,
