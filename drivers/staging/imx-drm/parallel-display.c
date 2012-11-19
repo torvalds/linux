@@ -189,7 +189,7 @@ static int imx_pd_register(struct imx_parallel_display *imxpd)
 	return 0;
 }
 
-static int __devinit imx_pd_probe(struct platform_device *pdev)
+static int imx_pd_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	const u8 *edidp;

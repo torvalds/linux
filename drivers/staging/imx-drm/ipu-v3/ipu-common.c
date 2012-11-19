@@ -1013,7 +1013,7 @@ static void ipu_irq_exit(struct ipu_soc *ipu)
 	irq_free_descs(ipu->irq_start, IPU_NUM_IRQS);
 }
 
-static int __devinit ipu_probe(struct platform_device *pdev)
+static int ipu_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(imx_ipu_dt_ids, &pdev->dev);

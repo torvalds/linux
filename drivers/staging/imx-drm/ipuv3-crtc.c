@@ -530,7 +530,7 @@ err_put_resources:
 	return ret;
 }
 
-static int __devinit ipu_drm_probe(struct platform_device *pdev)
+static int ipu_drm_probe(struct platform_device *pdev)
 {
 	struct ipu_client_platformdata *pdata = pdev->dev.platform_data;
 	struct ipu_crtc *ipu_crtc;
