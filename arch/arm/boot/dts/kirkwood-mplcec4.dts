@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	model = "MPL CEC4";
@@ -16,6 +17,64 @@
         };
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_nand &pmx_uart0
+				      &pmx_led_health &pmx_sdio
+				      &pmx_sata0 &pmx_sata1
+				      &pmx_led_user1o
+				      &pmx_led_user1g &pmx_led_user0o
+				      &pmx_led_user0g &pmx_led_misc
+				      &pmx_sdio_cd
+				    >;
+			pinctrl-names = "default";
+
+			pmx_led_health: pmx-led-health {
+				marvell,pins = "mpp7";
+				marvell,function = "gpo";
+			};
+
+			pmx_sata1: pmx-sata1 {
+				marvell,pins = "mpp34";
+				marvell,function = "sata1";
+			};
+
+			pmx_sata0: pmx-sata0 {
+				marvell,pins = "mpp35";
+				marvell,function = "sata0";
+			};
+
+			pmx_led_user1o: pmx-led-user1o {
+				marvell,pins = "mpp40";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_user1g: pmx-led-user1g {
+				marvell,pins = "mpp41";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_user0o: pmx-led-user0o {
+				marvell,pins = "mpp44";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_user0g: pmx-led-user0g {
+				marvell,pins = "mpp45";
+				marvell,function = "gpio";
+			};
+
+			pmx_led_misc: pmx-led-misc {
+				marvell,pins = "mpp46";
+				marvell,function = "gpio";
+			};
+
+			pmx_sdio_cd: pmx-sdio-cd {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+		};
+
                 i2c@11000 {
                         status = "okay";
 
