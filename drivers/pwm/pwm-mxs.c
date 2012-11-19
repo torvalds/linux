@@ -174,7 +174,7 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit mxs_pwm_remove(struct platform_device *pdev)
+static int mxs_pwm_remove(struct platform_device *pdev)
 {
 	struct mxs_pwm_chip *mxs = platform_get_drvdata(pdev);
 

@@ -122,7 +122,7 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ab8500_pwm_remove(struct platform_device *pdev)
+static int ab8500_pwm_remove(struct platform_device *pdev)
 {
 	struct ab8500_pwm_chip *ab8500 = platform_get_drvdata(pdev);
 	int err;

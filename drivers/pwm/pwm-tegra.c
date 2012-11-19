@@ -210,7 +210,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra_pwm_remove(struct platform_device *pdev)
+static int tegra_pwm_remove(struct platform_device *pdev)
 {
 	struct tegra_pwm_chip *pc = platform_get_drvdata(pdev);
 	int i;

@@ -118,7 +118,7 @@ static int lpc32xx_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lpc32xx_pwm_remove(struct platform_device *pdev)
+static int lpc32xx_pwm_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_pwm_chip *lpc32xx = platform_get_drvdata(pdev);
 

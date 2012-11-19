@@ -191,7 +191,7 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit jz4740_pwm_remove(struct platform_device *pdev)
+static int jz4740_pwm_remove(struct platform_device *pdev)
 {
 	struct jz4740_pwm_chip *jz4740 = platform_get_drvdata(pdev);
 	int ret;

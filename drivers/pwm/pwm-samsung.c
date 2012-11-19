@@ -273,7 +273,7 @@ static int s3c_pwm_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit s3c_pwm_remove(struct platform_device *pdev)
+static int s3c_pwm_remove(struct platform_device *pdev)
 {
 	struct s3c_chip *s3c = platform_get_drvdata(pdev);
 	int err;

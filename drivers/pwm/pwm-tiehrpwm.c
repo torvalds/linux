@@ -443,7 +443,7 @@ static int ehrpwm_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ehrpwm_pwm_remove(struct platform_device *pdev)
+static int ehrpwm_pwm_remove(struct platform_device *pdev)
 {
 	struct ehrpwm_pwm_chip *pc = platform_get_drvdata(pdev);
 

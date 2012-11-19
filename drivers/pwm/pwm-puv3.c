@@ -142,7 +142,7 @@ static int pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pwm_remove(struct platform_device *pdev)
+static int pwm_remove(struct platform_device *pdev)
 {
 	struct puv3_pwm_chip *puv3 = platform_get_drvdata(pdev);
 

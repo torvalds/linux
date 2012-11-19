@@ -235,7 +235,7 @@ static int ecap_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ecap_pwm_remove(struct platform_device *pdev)
+static int ecap_pwm_remove(struct platform_device *pdev)
 {
 	struct ecap_pwm_chip *pc = platform_get_drvdata(pdev);
 
