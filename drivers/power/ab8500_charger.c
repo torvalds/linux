@@ -23,6 +23,8 @@
 #include <linux/err.h>
 #include <linux/workqueue.h>
 #include <linux/kobject.h>
+#include <linux/of.h>
+#include <linux/mfd/core.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
@@ -181,9 +183,9 @@ struct ab8500_charger_usb_state {
  * @vbat		Battery voltage
  * @old_vbat		Previously measured battery voltage
  * @autopower		Indicate if we should have automatic pwron after pwrloss
+ * @autopower_cfg	platform specific power config support for "pwron after pwrloss"
  * @parent:		Pointer to the struct ab8500
  * @gpadc:		Pointer to the struct gpadc
- * @pdata:		Pointer to the abx500_charger platform data
  * @bat:		Pointer to the abx500_bm platform data
  * @flags:		Structure for information about events triggered
  * @usb_state:		Structure for usb stack information
@@ -218,9 +220,9 @@ struct ab8500_charger {
 	int vbat;
 	int old_vbat;
 	bool autopower;
+	bool autopower_cfg;
 	struct ab8500 *parent;
 	struct ab8500_gpadc *gpadc;
-	struct abx500_bmdevs_plat_data *pdata;
 	struct abx500_bm_data *bat;
 	struct ab8500_charger_event_flags flags;
 	struct ab8500_charger_usb_state usb_state;
@@ -322,7 +324,7 @@ static void ab8500_power_loss_handling(struct ab8500_charger *di)
 static void ab8500_power_supply_changed(struct ab8500_charger *di,
 					struct power_supply *psy)
 {
-	if (di->pdata->autopower_cfg) {
+	if (di->autopower_cfg) {
 		if (!di->usb.charger_connected &&
 		    !di->ac.charger_connected &&
 		    di->autopower) {
@@ -2526,25 +2528,45 @@ static int __devexit ab8500_charger_remove(struct platform_device *pdev)
 	power_supply_unregister(&di->usb_chg.psy);
 	power_supply_unregister(&di->ac_chg.psy);
 	platform_set_drvdata(pdev, NULL);
-	kfree(di);
 
 	return 0;
 }
 
+static char *supply_interface[] = {
+	"ab8500_chargalg",
+	"ab8500_fg",
+	"ab8500_btemp",
+};
+
 static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 {
-	struct abx500_bmdevs_plat_data *plat_data = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	struct ab8500_charger *di;
 	int irq, i, charger_status, ret = 0;
 
-	if (!plat_data) {
-		dev_err(&pdev->dev, "No platform data\n");
-		return -EINVAL;
-	}
-
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
-	if (!di)
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
+	if (!di) {
+		dev_err(&pdev->dev, "%s no mem for ab8500_charger\n", __func__);
 		return -ENOMEM;
+	}
+	di->bat = pdev->mfd_cell->platform_data;
+	if (!di->bat) {
+		if (np) {
+			ret = bmdevs_of_probe(&pdev->dev, np, &di->bat);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"failed to get battery information\n");
+				return ret;
+			}
+			di->autopower_cfg = of_property_read_bool(np, "autopower_cfg");
+		} else {
+			dev_err(&pdev->dev, "missing dt node for ab8500_charger\n");
+			return -EINVAL;
+		}
+	} else {
+		dev_info(&pdev->dev, "falling back to legacy platform data\n");
+		di->autopower_cfg = false;
+	}
 
 	/* get parent data */
 	di->dev = &pdev->dev;
@@ -2553,14 +2575,6 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 
 	/* initialize lock */
 	spin_lock_init(&di->usb_state.usb_lock);
-
-	/* get charger specific platform data */
-	di->pdata = plat_data;
-	if (!di->pdata) {
-		dev_err(di->dev, "no charger platform data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
 
 	di->autopower = false;
 
@@ -2571,8 +2585,8 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.psy.properties = ab8500_charger_ac_props;
 	di->ac_chg.psy.num_properties = ARRAY_SIZE(ab8500_charger_ac_props);
 	di->ac_chg.psy.get_property = ab8500_charger_ac_get_property;
-	di->ac_chg.psy.supplied_to = di->pdata->supplied_to;
-	di->ac_chg.psy.num_supplicants = di->pdata->num_supplicants;
+	di->ac_chg.psy.supplied_to = supply_interface;
+	di->ac_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->ac_chg.ops.enable = &ab8500_charger_ac_en;
 	di->ac_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
@@ -2589,8 +2603,8 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.psy.properties = ab8500_charger_usb_props;
 	di->usb_chg.psy.num_properties = ARRAY_SIZE(ab8500_charger_usb_props);
 	di->usb_chg.psy.get_property = ab8500_charger_usb_get_property;
-	di->usb_chg.psy.supplied_to = di->pdata->supplied_to;
-	di->usb_chg.psy.num_supplicants = di->pdata->num_supplicants;
+	di->usb_chg.psy.supplied_to = supply_interface;
+	di->usb_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->usb_chg.ops.enable = &ab8500_charger_usb_en;
 	di->usb_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
@@ -2606,8 +2620,7 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		create_singlethread_workqueue("ab8500_charger_wq");
 	if (di->charger_wq == NULL) {
 		dev_err(di->dev, "failed to create work queue\n");
-		ret = -ENOMEM;
-		goto free_device_info;
+		return -ENOMEM;
 	}
 
 	/* Init work for HW failure check */
@@ -2749,11 +2762,13 @@ free_regulator:
 	regulator_put(di->regu);
 free_charger_wq:
 	destroy_workqueue(di->charger_wq);
-free_device_info:
-	kfree(di);
-
 	return ret;
 }
+
+static const struct of_device_id ab8500_charger_match[] = {
+	{ .compatible = "stericsson,ab8500-charger", },
+	{ },
+};
 
 static struct platform_driver ab8500_charger_driver = {
 	.probe = ab8500_charger_probe,
@@ -2763,6 +2778,7 @@ static struct platform_driver ab8500_charger_driver = {
 	.driver = {
 		.name = "ab8500-charger",
 		.owner = THIS_MODULE,
+		.of_match_table = ab8500_charger_match,
 	},
 };
 

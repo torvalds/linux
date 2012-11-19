@@ -36,6 +36,20 @@ ab8500-btemp		 :			: vtvout       : Battery Temperature
 			 : BTEMP_LOW_MEDIUM     :              : BtempLow < Btemp < BtempMedium,if battery temperature is between -10 and 0°C
 			 : BTEMP_MEDIUM_HIGH    :	       : BtempMedium < Btemp < BtempHigh,if battery temperature is between 0°C and“MaxTemp
 			 : BTEMP_HIGH           :              : Btemp > BtempHigh, if battery temperature is higher than “MaxTemp
+ab8500-charger		 :			: vddadc       : Charger interface
+			 : MAIN_CH_UNPLUG_DET	:	       : main charger unplug detection management (not in 8505)
+			 : MAIN_CHARGE_PLUG_DET	:	       : main charger plug detection management (not in 8505)
+			 : MAIN_EXT_CH_NOT_OK	:	       : main charger not OK
+			 : MAIN_CH_TH_PROT_R	:	       : Die temp is above main charger
+			 : MAIN_CH_TH_PROT_F	:	       : Die temp is below main charger
+			 : VBUS_DET_F		:	       : VBUS falling detected
+			 : VBUS_DET_R		:	       : VBUS rising detected
+			 : USB_LINK_STATUS	:	       : USB link status has changed
+			 : USB_CH_TH_PROT_R	:	       : Die temp is above usb charger
+			 : USB_CH_TH_PROT_F	:	       : Die temp is below usb charger
+			 : USB_CHARGER_NOT_OKR	:	       : allowed USB charger not ok detection
+			 : VBUS_OVV		:	       : Overvoltage on Vbus ball detected (USB charge is stopped)
+			 : CH_WD_EXP		:	       : Charger watchdog detected
 ab8500-gpadc             : HW_CONV_END          : vddadc       : Analogue to Digital Converter
                            SW_CONV_END          :              :
 ab8500-gpio              :                      :              : GPIO Controller

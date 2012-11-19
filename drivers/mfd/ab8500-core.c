@@ -1041,8 +1041,13 @@ static struct mfd_cell __devinitdata abx500_common_devs[] = {
 static struct mfd_cell __devinitdata ab8500_bm_devs[] = {
 	{
 		.name = "ab8500-charger",
+		.of_compatible = "stericsson,ab8500-charger",
 		.num_resources = ARRAY_SIZE(ab8500_charger_resources),
 		.resources = ab8500_charger_resources,
+#ifndef CONFIG_OF
+		.platform_data = &ab8500_bm_data,
+		.pdata_size = sizeof(ab8500_bm_data),
+#endif
 	},
 	{
 		.name = "ab8500-btemp",
