@@ -284,7 +284,7 @@ fail_probe:
 	return ret;
 }
 
-static void __devexit solo_pci_remove(struct pci_dev *pdev)
+static void solo_pci_remove(struct pci_dev *pdev)
 {
 	struct solo_dev *solo_dev = pci_get_drvdata(pdev);
 
