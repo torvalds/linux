@@ -275,7 +275,7 @@ static int wm831x_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit wm831x_gpio_remove(struct platform_device *pdev)
+static int wm831x_gpio_remove(struct platform_device *pdev)
 {
 	struct wm831x_gpio *wm831x_gpio = platform_get_drvdata(pdev);
 

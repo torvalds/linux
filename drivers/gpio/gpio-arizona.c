@@ -141,7 +141,7 @@ err:
 	return ret;
 }
 
-static int __devexit arizona_gpio_remove(struct platform_device *pdev)
+static int arizona_gpio_remove(struct platform_device *pdev)
 {
 	struct arizona_gpio *arizona_gpio = platform_get_drvdata(pdev);
 

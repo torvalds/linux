@@ -505,7 +505,7 @@ out:
 	return ret;
 }
 
-/* Cannot use __devexit as gpio_twl4030_probe() calls us */
+/* Cannot use as gpio_twl4030_probe() calls us */
 static int gpio_twl4030_remove(struct platform_device *pdev)
 {
 	struct twl4030_gpio_platform_data *pdata = pdev->dev.platform_data;

@@ -284,7 +284,7 @@ out_release:
 	return ret;
 }
 
-static int __devexit vx855gpio_remove(struct platform_device *pdev)
+static int vx855gpio_remove(struct platform_device *pdev)
 {
 	struct vx855_gpio *vg = platform_get_drvdata(pdev);
 	struct resource *res;

@@ -113,7 +113,7 @@ static int gpo_twl6040_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit gpo_twl6040_remove(struct platform_device *pdev)
+static int gpo_twl6040_remove(struct platform_device *pdev)
 {
 	return gpiochip_remove(&twl6040gpo_chip);
 }

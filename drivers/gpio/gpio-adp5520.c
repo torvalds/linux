@@ -167,7 +167,7 @@ err:
 	return ret;
 }
 
-static int __devexit adp5520_gpio_remove(struct platform_device *pdev)
+static int adp5520_gpio_remove(struct platform_device *pdev)
 {
 	struct adp5520_gpio *dev;
 	int ret;

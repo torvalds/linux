@@ -376,7 +376,7 @@ static int msm_gpio_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit msm_gpio_remove(struct platform_device *dev)
+static int msm_gpio_remove(struct platform_device *dev)
 {
 	int ret = gpiochip_remove(&msm_gpio.gpio_chip);
 

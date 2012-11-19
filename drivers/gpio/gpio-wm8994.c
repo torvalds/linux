@@ -281,7 +281,7 @@ err:
 	return ret;
 }
 
-static int __devexit wm8994_gpio_remove(struct platform_device *pdev)
+static int wm8994_gpio_remove(struct platform_device *pdev)
 {
 	struct wm8994_gpio *wm8994_gpio = platform_get_drvdata(pdev);
 

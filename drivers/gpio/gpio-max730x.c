@@ -226,7 +226,7 @@ exit_destroy:
 }
 EXPORT_SYMBOL_GPL(__max730x_probe);
 
-int __devexit __max730x_remove(struct device *dev)
+int __max730x_remove(struct device *dev)
 {
 	struct max7301 *ts = dev_get_drvdata(dev);
 	int ret;

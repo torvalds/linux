@@ -442,7 +442,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit pch_gpio_remove(struct pci_dev *pdev)
+static void pch_gpio_remove(struct pci_dev *pdev)
 {
 	int err;
 	struct pch_gpio *chip = pci_get_drvdata(pdev);

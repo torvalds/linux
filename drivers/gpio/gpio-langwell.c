@@ -484,7 +484,7 @@ err_kmalloc:
 	return retval;
 }
 
-static int __devexit wp_gpio_remove(struct platform_device *pdev)
+static int wp_gpio_remove(struct platform_device *pdev)
 {
 	struct lnw_gpio *lnw = platform_get_drvdata(pdev);
 	int err;

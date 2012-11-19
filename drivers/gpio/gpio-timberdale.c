@@ -316,7 +316,7 @@ err_mem:
 	return err;
 }
 
-static int __devexit timbgpio_remove(struct platform_device *pdev)
+static int timbgpio_remove(struct platform_device *pdev)
 {
 	int err;
 	struct timbgpio_platform_data *pdata = pdev->dev.platform_data;

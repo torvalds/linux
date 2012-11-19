@@ -508,7 +508,7 @@ fail:
 	return status;
 }
 
-static int __devexit mcp230xx_remove(struct i2c_client *client)
+static int mcp230xx_remove(struct i2c_client *client)
 {
 	struct mcp23s08 *mcp = i2c_get_clientdata(client);
 	int status;

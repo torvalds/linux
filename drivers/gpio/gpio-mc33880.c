@@ -147,7 +147,7 @@ exit_destroy:
 	return ret;
 }
 
-static int __devexit mc33880_remove(struct spi_device *spi)
+static int mc33880_remove(struct spi_device *spi)
 {
 	struct mc33880 *mc;
 	int ret;

@@ -146,7 +146,7 @@ static int rc5t583_gpio_probe(struct platform_device *pdev)
 	return gpiochip_add(&rc5t583_gpio->gpio_chip);
 }
 
-static int __devexit rc5t583_gpio_remove(struct platform_device *pdev)
+static int rc5t583_gpio_remove(struct platform_device *pdev)
 {
 	struct rc5t583_gpio *rc5t583_gpio = platform_get_drvdata(pdev);
 

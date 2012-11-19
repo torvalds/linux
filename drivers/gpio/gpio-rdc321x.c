@@ -206,7 +206,7 @@ out_free:
 	return err;
 }
 
-static int __devexit rdc321x_gpio_remove(struct platform_device *pdev)
+static int rdc321x_gpio_remove(struct platform_device *pdev)
 {
 	int ret;
 	struct rdc321x_gpio *rdc321x_gpio_dev = platform_get_drvdata(pdev);

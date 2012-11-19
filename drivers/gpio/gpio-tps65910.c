@@ -188,7 +188,7 @@ skip_init:
 	return ret;
 }
 
-static int __devexit tps65910_gpio_remove(struct platform_device *pdev)
+static int tps65910_gpio_remove(struct platform_device *pdev)
 {
 	struct tps65910_gpio *tps65910_gpio = platform_get_drvdata(pdev);
 

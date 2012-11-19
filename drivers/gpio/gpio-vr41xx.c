@@ -552,7 +552,7 @@ static int giu_probe(struct platform_device *pdev)
 	return cascade_irq(irq, giu_get_irq);
 }
 
-static int __devexit giu_remove(struct platform_device *pdev)
+static int giu_remove(struct platform_device *pdev)
 {
 	if (giu_base) {
 		iounmap(giu_base);

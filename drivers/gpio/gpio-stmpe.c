@@ -378,7 +378,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit stmpe_gpio_remove(struct platform_device *pdev)
+static int stmpe_gpio_remove(struct platform_device *pdev)
 {
 	struct stmpe_gpio *stmpe_gpio = platform_get_drvdata(pdev);
 	struct stmpe *stmpe = stmpe_gpio->stmpe;

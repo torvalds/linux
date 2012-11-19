@@ -507,7 +507,7 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	return gpiochip_add(&bgc->gc);
 }
 
-static int __devexit bgpio_pdev_remove(struct platform_device *pdev)
+static int bgpio_pdev_remove(struct platform_device *pdev)
 {
 	struct bgpio_chip *bgc = platform_get_drvdata(pdev);
 

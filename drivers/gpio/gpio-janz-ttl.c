@@ -211,7 +211,7 @@ out_return:
 	return ret;
 }
 
-static int __devexit ttl_remove(struct platform_device *pdev)
+static int ttl_remove(struct platform_device *pdev)
 {
 	struct ttl_module *mod = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;

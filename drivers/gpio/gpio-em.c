@@ -375,7 +375,7 @@ err0:
 	return ret;
 }
 
-static int __devexit em_gio_remove(struct platform_device *pdev)
+static int em_gio_remove(struct platform_device *pdev)
 {
 	struct em_gio_priv *p = platform_get_drvdata(pdev);
 	struct resource *irq[2];

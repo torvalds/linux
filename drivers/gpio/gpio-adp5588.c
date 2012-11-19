@@ -438,7 +438,7 @@ err:
 	return ret;
 }
 
-static int __devexit adp5588_gpio_remove(struct i2c_client *client)
+static int adp5588_gpio_remove(struct i2c_client *client)
 {
 	struct adp5588_gpio_platform_data *pdata = client->dev.platform_data;
 	struct adp5588_gpio *dev = i2c_get_clientdata(client);

@@ -563,7 +563,7 @@ teardown:
 	return err;
 }
 
-static __devexit int adnp_i2c_remove(struct i2c_client *client)
+static int adnp_i2c_remove(struct i2c_client *client)
 {
 	struct adnp *adnp = i2c_get_clientdata(client);
 	struct device_node *np = client->dev.of_node;

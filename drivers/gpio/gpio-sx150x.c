@@ -622,7 +622,7 @@ probe_fail_pre_gpiochip_add:
 	return rc;
 }
 
-static int __devexit sx150x_remove(struct i2c_client *client)
+static int sx150x_remove(struct i2c_client *client)
 {
 	struct sx150x_chip *chip;
 	int rc;

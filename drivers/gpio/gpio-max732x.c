@@ -651,7 +651,7 @@ out_failed:
 	return ret;
 }
 
-static int __devexit max732x_remove(struct i2c_client *client)
+static int max732x_remove(struct i2c_client *client)
 {
 	struct max732x_platform_data *pdata = client->dev.platform_data;
 	struct max732x_chip *chip = i2c_get_clientdata(client);

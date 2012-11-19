@@ -271,7 +271,7 @@ err_sch_gpio_core:
 	return err;
 }
 
-static int __devexit sch_gpio_remove(struct platform_device *pdev)
+static int sch_gpio_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	if (gpio_ba) {

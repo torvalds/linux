@@ -474,7 +474,7 @@ out_free:
  * ab8500_gpio_remove() - remove Ab8500-gpio driver
  * @pdev :	Platform device registered
  */
-static int __devexit ab8500_gpio_remove(struct platform_device *pdev)
+static int ab8500_gpio_remove(struct platform_device *pdev)
 {
 	struct ab8500_gpio *ab8500_gpio = platform_get_drvdata(pdev);
 	int ret;

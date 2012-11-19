@@ -389,7 +389,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit tc3589x_gpio_remove(struct platform_device *pdev)
+static int tc3589x_gpio_remove(struct platform_device *pdev)
 {
 	struct tc3589x_gpio *tc3589x_gpio = platform_get_drvdata(pdev);
 	struct tc3589x *tc3589x = tc3589x_gpio->tc3589x;

@@ -517,7 +517,7 @@ err_pci_enable:
 	return ret;
 }
 
-static void __devexit ioh_gpio_remove(struct pci_dev *pdev)
+static void ioh_gpio_remove(struct pci_dev *pdev)
 {
 	int err;
 	int i;

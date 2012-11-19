@@ -442,7 +442,7 @@ add_err:
 	return err;
 }
 
-static int __devexit ichx_gpio_remove(struct platform_device *pdev)
+static int ichx_gpio_remove(struct platform_device *pdev)
 {
 	int err;
 

@@ -113,7 +113,7 @@ static int tps65912_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit tps65912_gpio_remove(struct platform_device *pdev)
+static int tps65912_gpio_remove(struct platform_device *pdev)
 {
 	struct tps65912_gpio_data  *tps65912_gpio = platform_get_drvdata(pdev);
 
