@@ -746,7 +746,7 @@ err_free_mmc:
 	return err;
 }
 
-static int __devexit cb710_mmc_exit(struct platform_device *pdev)
+static int cb710_mmc_exit(struct platform_device *pdev)
 {
 	struct cb710_slot *slot = cb710_pdev_to_slot(pdev);
 	struct mmc_host *mmc = cb710_slot_to_mmc(slot);

@@ -107,7 +107,7 @@ out:
 	return ret;
 }
 
-static int __devexit tmio_mmc_remove(struct platform_device *pdev)
+static int tmio_mmc_remove(struct platform_device *pdev)
 {
 	const struct mfd_cell *cell = mfd_get_cell(pdev);
 	struct mmc_host *mmc = platform_get_drvdata(pdev);

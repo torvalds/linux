@@ -1176,7 +1176,7 @@ disable:
 	return ret;
 }
 
-static void __devexit via_sd_remove(struct pci_dev *pcidev)
+static void via_sd_remove(struct pci_dev *pcidev)
 {
 	struct via_crdr_mmc_host *sdhost = pci_get_drvdata(pcidev);
 	unsigned long flags;

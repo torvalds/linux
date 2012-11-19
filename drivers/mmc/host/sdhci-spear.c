@@ -266,7 +266,7 @@ err:
 	return ret;
 }
 
-static int __devexit sdhci_remove(struct platform_device *pdev)
+static int sdhci_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct spear_sdhci *sdhci = dev_get_platdata(&pdev->dev);

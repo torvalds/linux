@@ -1114,7 +1114,7 @@ out0:
 	return ret;
 }
 
-static int __devexit au1xmmc_remove(struct platform_device *pdev)
+static int au1xmmc_remove(struct platform_device *pdev)
 {
 	struct au1xmmc_host *host = platform_get_drvdata(pdev);
 

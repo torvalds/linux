@@ -1735,7 +1735,7 @@ static int wbsd_init(struct device *dev, int base, int irq, int dma,
 	return 0;
 }
 
-static void __devexit wbsd_shutdown(struct device *dev, int pnp)
+static void wbsd_shutdown(struct device *dev, int pnp)
 {
 	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct wbsd_host *host;
@@ -1768,7 +1768,7 @@ static int wbsd_probe(struct platform_device *dev)
 	return wbsd_init(&dev->dev, param_io, param_irq, param_dma, 0);
 }
 
-static int __devexit wbsd_remove(struct platform_device *dev)
+static int wbsd_remove(struct platform_device *dev)
 {
 	wbsd_shutdown(&dev->dev, 0);
 
@@ -1801,7 +1801,7 @@ wbsd_pnp_probe(struct pnp_dev *pnpdev, const struct pnp_device_id *dev_id)
 	return wbsd_init(&pnpdev->dev, io, irq, dma, 1);
 }
 
-static void __devexit wbsd_pnp_remove(struct pnp_dev *dev)
+static void wbsd_pnp_remove(struct pnp_dev *dev)
 {
 	wbsd_shutdown(&dev->dev, 1);
 }

@@ -1478,7 +1478,7 @@ err_free_mem_region:
 	return ret;
 }
 
-static int __devexit mmc_omap_remove(struct platform_device *pdev)
+static int mmc_omap_remove(struct platform_device *pdev)
 {
 	struct mmc_omap_host *host = platform_get_drvdata(pdev);
 	int i;

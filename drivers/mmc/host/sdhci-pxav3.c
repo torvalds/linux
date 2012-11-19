@@ -313,7 +313,7 @@ err_clk_get:
 	return ret;
 }
 
-static int __devexit sdhci_pxav3_remove(struct platform_device *pdev)
+static int sdhci_pxav3_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);

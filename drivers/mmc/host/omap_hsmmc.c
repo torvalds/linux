@@ -1986,7 +1986,7 @@ err:
 	return ret;
 }
 
-static int __devexit omap_hsmmc_remove(struct platform_device *pdev)
+static int omap_hsmmc_remove(struct platform_device *pdev)
 {
 	struct omap_hsmmc_host *host = platform_get_drvdata(pdev);
 	struct resource *res;

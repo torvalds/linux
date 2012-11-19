@@ -100,7 +100,7 @@ static int sdhci_cns3xxx_probe(struct platform_device *pdev)
 	return sdhci_pltfm_register(pdev, &sdhci_cns3xxx_pdata);
 }
 
-static int __devexit sdhci_cns3xxx_remove(struct platform_device *pdev)
+static int sdhci_cns3xxx_remove(struct platform_device *pdev)
 {
 	return sdhci_pltfm_unregister(pdev);
 }

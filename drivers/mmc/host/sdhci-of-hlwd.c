@@ -71,7 +71,7 @@ static int sdhci_hlwd_probe(struct platform_device *pdev)
 	return sdhci_pltfm_register(pdev, &sdhci_hlwd_pdata);
 }
 
-static int __devexit sdhci_hlwd_remove(struct platform_device *pdev)
+static int sdhci_hlwd_remove(struct platform_device *pdev)
 {
 	return sdhci_pltfm_unregister(pdev);
 }

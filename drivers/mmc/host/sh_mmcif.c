@@ -1430,7 +1430,7 @@ ealloch:
 	return ret;
 }
 
-static int __devexit sh_mmcif_remove(struct platform_device *pdev)
+static int sh_mmcif_remove(struct platform_device *pdev)
 {
 	struct sh_mmcif_host *host = platform_get_drvdata(pdev);
 	struct sh_mmcif_plat_data *pd = pdev->dev.platform_data;

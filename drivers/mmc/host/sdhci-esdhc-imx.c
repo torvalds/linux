@@ -599,7 +599,7 @@ err_imx_data:
 	return err;
 }
 
-static int __devexit sdhci_esdhc_imx_remove(struct platform_device *pdev)
+static int sdhci_esdhc_imx_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);

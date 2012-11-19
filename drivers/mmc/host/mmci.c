@@ -337,7 +337,7 @@ static void mmci_dma_setup(struct mmci_host *host)
 }
 
 /*
- * This is used in or __devexit so inline it
+ * This is used in or so inline it
  * so it can be discarded.
  */
 static inline void mmci_dma_release(struct mmci_host *host)
@@ -1522,7 +1522,7 @@ static int mmci_probe(struct amba_device *dev,
 	return ret;
 }
 
-static int __devexit mmci_remove(struct amba_device *dev)
+static int mmci_remove(struct amba_device *dev)
 {
 	struct mmc_host *mmc = amba_get_drvdata(dev);
 

@@ -938,7 +938,7 @@ err_free_host:
 	return ret;
 }
 
-static int __devexit jz4740_mmc_remove(struct platform_device *pdev)
+static int jz4740_mmc_remove(struct platform_device *pdev)
 {
 	struct jz4740_mmc_host *host = platform_get_drvdata(pdev);
 

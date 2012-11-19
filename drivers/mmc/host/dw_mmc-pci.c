@@ -85,7 +85,7 @@ err_disable_dev:
 	return ret;
 }
 
-static void __devexit dw_mci_pci_remove(struct pci_dev *pdev)
+static void dw_mci_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_mci *host = pci_get_drvdata(pdev);
 
