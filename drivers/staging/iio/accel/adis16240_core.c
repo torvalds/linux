@@ -297,7 +297,7 @@ static struct spi_driver adis16240_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16240_probe,
-	.remove = __devexit_p(adis16240_remove),
+	.remove = adis16240_remove,
 };
 module_spi_driver(adis16240_driver);
 

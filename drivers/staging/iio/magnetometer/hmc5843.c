@@ -755,7 +755,7 @@ static struct i2c_driver hmc5843_driver = {
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,
-	.remove		= __devexit_p(hmc5843_remove),
+	.remove		= hmc5843_remove,
 	.detect		= hmc5843_detect,
 	.address_list	= normal_i2c,
 };

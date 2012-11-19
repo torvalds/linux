@@ -454,7 +454,7 @@ static struct spi_driver ad9834_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad9834_probe,
-	.remove		= __devexit_p(ad9834_remove),
+	.remove		= ad9834_remove,
 	.id_table	= ad9834_id,
 };
 module_spi_driver(ad9834_driver);

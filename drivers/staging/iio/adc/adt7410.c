@@ -900,7 +900,7 @@ static struct i2c_driver adt7410_driver = {
 		.name = "adt7410",
 	},
 	.probe = adt7410_i2c_probe,
-	.remove = __devexit_p(adt7410_i2c_remove),
+	.remove = adt7410_i2c_remove,
 	.id_table = adt7410_id,
 };
 
@@ -1053,7 +1053,7 @@ static struct spi_driver adt7310_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adt7310_spi_probe,
-	.remove = __devexit_p(adt7310_spi_remove),
+	.remove = adt7310_spi_remove,
 	.id_table = adt7310_id,
 };
 

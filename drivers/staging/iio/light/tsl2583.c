@@ -947,7 +947,7 @@ static struct i2c_driver taos_driver = {
 	},
 	.id_table = taos_idtable,
 	.probe = taos_probe,
-	.remove = __devexit_p(taos_remove),
+	.remove = taos_remove,
 };
 module_i2c_driver(taos_driver);
 

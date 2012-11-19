@@ -970,7 +970,7 @@ static struct i2c_driver ad799x_driver = {
 		.name = "ad799x",
 	},
 	.probe = ad799x_probe,
-	.remove = __devexit_p(ad799x_remove),
+	.remove = ad799x_remove,
 	.id_table = ad799x_id,
 };
 module_i2c_driver(ad799x_driver);

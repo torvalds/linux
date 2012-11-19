@@ -555,7 +555,7 @@ static struct i2c_driver isl29028_driver = {
 		.of_match_table = isl29028_of_match,
 	},
 	.probe	 = isl29028_probe,
-	.remove  = __devexit_p(isl29028_remove),
+	.remove  = isl29028_remove,
 	.id_table = isl29028_id,
 };
 

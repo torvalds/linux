@@ -250,7 +250,7 @@ static struct i2c_driver ade7854_i2c_driver = {
 		.name = "ade7854",
 	},
 	.probe    = ade7854_i2c_probe,
-	.remove   = __devexit_p(ade7854_i2c_remove),
+	.remove   = ade7854_i2c_remove,
 	.id_table = ade7854_id,
 };
 module_i2c_driver(ade7854_i2c_driver);

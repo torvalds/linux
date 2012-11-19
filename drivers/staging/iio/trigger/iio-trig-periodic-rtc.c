@@ -188,7 +188,7 @@ static int iio_trig_periodic_rtc_remove(struct platform_device *dev)
 
 static struct platform_driver iio_trig_periodic_rtc_driver = {
 	.probe = iio_trig_periodic_rtc_probe,
-	.remove = __devexit_p(iio_trig_periodic_rtc_remove),
+	.remove = iio_trig_periodic_rtc_remove,
 	.driver = {
 		.name = "iio_prtc_trigger",
 		.owner = THIS_MODULE,

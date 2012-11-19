@@ -510,7 +510,7 @@ static struct i2c_driver ak8975_driver = {
 		.of_match_table = ak8975_of_match,
 	},
 	.probe		= ak8975_probe,
-	.remove		= __devexit_p(ak8975_remove),
+	.remove		= ak8975_remove,
 	.id_table	= ak8975_id,
 };
 module_i2c_driver(ak8975_driver);

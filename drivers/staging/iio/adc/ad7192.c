@@ -716,7 +716,7 @@ static struct spi_driver ad7192_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7192_probe,
-	.remove		= __devexit_p(ad7192_remove),
+	.remove		= ad7192_remove,
 	.id_table	= ad7192_id,
 };
 module_spi_driver(ad7192_driver);

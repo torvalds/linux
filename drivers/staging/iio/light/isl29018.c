@@ -669,7 +669,7 @@ static struct i2c_driver isl29018_driver = {
 			.of_match_table = isl29018_of_match,
 		    },
 	.probe	 = isl29018_probe,
-	.remove	 = __devexit_p(isl29018_remove),
+	.remove	 = isl29018_remove,
 	.id_table = isl29018_id,
 };
 module_i2c_driver(isl29018_driver);

@@ -430,7 +430,7 @@ static struct spi_driver adxrs450_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adxrs450_probe,
-	.remove = __devexit_p(adxrs450_remove),
+	.remove = adxrs450_remove,
 	.id_table	= adxrs450_id,
 };
 module_spi_driver(adxrs450_driver);

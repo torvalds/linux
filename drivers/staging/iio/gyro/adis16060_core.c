@@ -221,7 +221,7 @@ static struct spi_driver adis16060_r_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_r_probe,
-	.remove = __devexit_p(adis16060_r_remove),
+	.remove = adis16060_r_remove,
 };
 
 static struct spi_driver adis16060_w_driver = {
@@ -230,7 +230,7 @@ static struct spi_driver adis16060_w_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = adis16060_w_probe,
-	.remove = __devexit_p(adis16060_w_remove),
+	.remove = adis16060_w_remove,
 };
 
 static __init int adis16060_init(void)

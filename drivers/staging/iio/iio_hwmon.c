@@ -189,7 +189,7 @@ static struct platform_driver __refdata iio_hwmon_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = iio_hwmon_probe,
-	.remove = __devexit_p(iio_hwmon_remove),
+	.remove = iio_hwmon_remove,
 };
 
 module_platform_driver(iio_hwmon_driver);

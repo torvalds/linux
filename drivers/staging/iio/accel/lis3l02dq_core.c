@@ -810,7 +810,7 @@ static struct spi_driver lis3l02dq_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lis3l02dq_probe,
-	.remove = __devexit_p(lis3l02dq_remove),
+	.remove = lis3l02dq_remove,
 };
 module_spi_driver(lis3l02dq_driver);
 

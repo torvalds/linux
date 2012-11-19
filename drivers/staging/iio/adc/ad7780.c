@@ -283,7 +283,7 @@ static struct spi_driver ad7780_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7780_probe,
-	.remove		= __devexit_p(ad7780_remove),
+	.remove		= ad7780_remove,
 	.id_table	= ad7780_id,
 };
 module_spi_driver(ad7780_driver);

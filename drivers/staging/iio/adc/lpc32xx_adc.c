@@ -233,7 +233,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_adc_match);
 
 static struct platform_driver lpc32xx_adc_driver = {
 	.probe		= lpc32xx_adc_probe,
-	.remove		= __devexit_p(lpc32xx_adc_remove),
+	.remove		= lpc32xx_adc_remove,
 	.driver		= {
 		.name	= MOD_NAME,
 		.owner	= THIS_MODULE,

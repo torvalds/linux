@@ -572,7 +572,7 @@ static struct spi_driver ade7753_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ade7753_probe,
-	.remove = __devexit_p(ade7753_remove),
+	.remove = ade7753_remove,
 };
 module_spi_driver(ade7753_driver);
 

@@ -153,7 +153,7 @@ static int iio_gpio_trigger_remove(struct platform_device *pdev)
 
 static struct platform_driver iio_gpio_trigger_driver = {
 	.probe = iio_gpio_trigger_probe,
-	.remove = __devexit_p(iio_gpio_trigger_remove),
+	.remove = iio_gpio_trigger_remove,
 	.driver = {
 		.name = "iio_gpio_trigger",
 		.owner = THIS_MODULE,

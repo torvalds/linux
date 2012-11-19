@@ -2070,7 +2070,7 @@ static struct i2c_driver tsl2x7x_driver = {
 	},
 	.id_table = tsl2x7x_idtable,
 	.probe = tsl2x7x_probe,
-	.remove = __devexit_p(tsl2x7x_remove),
+	.remove = tsl2x7x_remove,
 };
 
 module_i2c_driver(tsl2x7x_driver);

@@ -281,7 +281,7 @@ static struct spi_driver kxsd9_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = kxsd9_probe,
-	.remove = __devexit_p(kxsd9_remove),
+	.remove = kxsd9_remove,
 	.id_table = kxsd9_id,
 };
 module_spi_driver(kxsd9_driver);

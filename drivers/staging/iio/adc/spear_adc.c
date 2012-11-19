@@ -424,7 +424,7 @@ MODULE_DEVICE_TABLE(of, spear_adc_dt_ids);
 
 static struct platform_driver spear_adc_driver = {
 	.probe		= spear_adc_probe,
-	.remove		= __devexit_p(spear_adc_remove),
+	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= MOD_NAME,
 		.owner	= THIS_MODULE,

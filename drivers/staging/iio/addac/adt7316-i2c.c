@@ -132,7 +132,7 @@ static struct i2c_driver adt7316_driver = {
 		.owner  = THIS_MODULE,
 	},
 	.probe = adt7316_i2c_probe,
-	.remove = __devexit_p(adt7316_i2c_remove),
+	.remove = adt7316_i2c_remove,
 	.id_table = adt7316_i2c_id,
 };
 module_i2c_driver(adt7316_driver);

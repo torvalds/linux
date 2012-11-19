@@ -1265,7 +1265,7 @@ static struct spi_driver sca3000_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = sca3000_probe,
-	.remove = __devexit_p(sca3000_remove),
+	.remove = sca3000_remove,
 	.id_table = sca3000_id,
 };
 module_spi_driver(sca3000_driver);

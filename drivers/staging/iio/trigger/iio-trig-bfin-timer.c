@@ -296,7 +296,7 @@ static struct platform_driver iio_bfin_tmr_trigger_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = iio_bfin_tmr_trigger_probe,
-	.remove = __devexit_p(iio_bfin_tmr_trigger_remove),
+	.remove = iio_bfin_tmr_trigger_remove,
 };
 
 module_platform_driver(iio_bfin_tmr_trigger_driver);

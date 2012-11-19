@@ -106,7 +106,7 @@ static struct spi_driver ad7606_driver = {
 		.pm    = AD7606_SPI_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,
-	.remove = __devexit_p(ad7606_spi_remove),
+	.remove = ad7606_spi_remove,
 	.id_table = ad7606_id,
 };
 module_spi_driver(ad7606_driver);

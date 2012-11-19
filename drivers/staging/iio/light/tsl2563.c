@@ -889,7 +889,7 @@ static struct i2c_driver tsl2563_i2c_driver = {
 		.pm	= TSL2563_PM_OPS,
 	},
 	.probe		= tsl2563_probe,
-	.remove		= __devexit_p(tsl2563_remove),
+	.remove		= tsl2563_remove,
 	.id_table	= tsl2563_id,
 };
 module_i2c_driver(tsl2563_i2c_driver);
