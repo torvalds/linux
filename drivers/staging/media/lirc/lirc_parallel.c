@@ -606,7 +606,7 @@ static int lirc_parallel_resume(struct platform_device *dev)
 
 static struct platform_driver lirc_parallel_driver = {
 	.probe	= lirc_parallel_probe,
-	.remove	= __devexit_p(lirc_parallel_remove),
+	.remove	= lirc_parallel_remove,
 	.suspend	= lirc_parallel_suspend,
 	.resume	= lirc_parallel_resume,
 	.driver	= {
