@@ -139,7 +139,7 @@ static struct platform_driver pxa2xx_flash_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= pxa2xx_flash_probe,
-	.remove		= __devexit_p(pxa2xx_flash_remove),
+	.remove		= pxa2xx_flash_remove,
 	.shutdown	= pxa2xx_flash_shutdown,
 };
 

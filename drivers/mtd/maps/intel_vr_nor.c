@@ -256,7 +256,7 @@ vr_nor_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 static struct pci_driver vr_nor_pci_driver = {
 	.name = DRV_NAME,
 	.probe = vr_nor_pci_probe,
-	.remove = __devexit_p(vr_nor_pci_remove),
+	.remove = vr_nor_pci_remove,
 	.id_table = vr_nor_pci_ids,
 };
 

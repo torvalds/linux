@@ -326,7 +326,7 @@ mtd_pci_remove(struct pci_dev *dev)
 static struct pci_driver mtd_pci_driver = {
 	.name =		"MTD PCI",
 	.probe =	mtd_pci_probe,
-	.remove =	__devexit_p(mtd_pci_remove),
+	.remove =	mtd_pci_remove,
 	.id_table =	mtd_pci_ids,
 };
 

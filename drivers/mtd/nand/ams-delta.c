@@ -289,7 +289,7 @@ static int __devexit ams_delta_cleanup(struct platform_device *pdev)
 
 static struct platform_driver ams_delta_nand_driver = {
 	.probe		= ams_delta_init,
-	.remove		= __devexit_p(ams_delta_cleanup),
+	.remove		= ams_delta_cleanup,
 	.driver		= {
 		.name	= "ams-delta-nand",
 		.owner	= THIS_MODULE,

@@ -887,7 +887,7 @@ static struct pci_driver cafe_nand_pci_driver = {
 	.name = "CAFÉ NAND",
 	.id_table = cafe_nand_tbl,
 	.probe = cafe_nand_probe,
-	.remove = __devexit_p(cafe_nand_remove),
+	.remove = cafe_nand_remove,
 	.resume = cafe_nand_resume,
 };
 

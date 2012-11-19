@@ -121,7 +121,7 @@ static struct platform_driver autcpu12_nvram_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= autcpu12_nvram_probe,
-	.remove		= __devexit_p(autcpu12_nvram_remove),
+	.remove		= autcpu12_nvram_remove,
 };
 module_platform_driver(autcpu12_nvram_driver);
 

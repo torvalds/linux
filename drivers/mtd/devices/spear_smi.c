@@ -1092,7 +1092,7 @@ static struct platform_driver spear_smi_driver = {
 #endif
 	},
 	.probe = spear_smi_probe,
-	.remove = __devexit_p(spear_smi_remove),
+	.remove = spear_smi_remove,
 };
 module_platform_driver(spear_smi_driver);
 

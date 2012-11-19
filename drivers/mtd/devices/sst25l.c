@@ -428,7 +428,7 @@ static struct spi_driver sst25l_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sst25l_probe,
-	.remove		= __devexit_p(sst25l_remove),
+	.remove		= sst25l_remove,
 };
 
 module_spi_driver(sst25l_driver);

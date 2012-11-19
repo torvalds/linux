@@ -184,7 +184,7 @@ static int __devexit bfin_flash_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_flash_driver = {
 	.probe		= bfin_flash_probe,
-	.remove		= __devexit_p(bfin_flash_remove),
+	.remove		= bfin_flash_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

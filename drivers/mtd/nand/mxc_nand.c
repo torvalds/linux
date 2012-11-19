@@ -1556,7 +1556,7 @@ static struct platform_driver mxcnd_driver = {
 		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
 	.probe = mxcnd_probe,
-	.remove = __devexit_p(mxcnd_remove),
+	.remove = mxcnd_remove,
 };
 module_platform_driver(mxcnd_driver);
 

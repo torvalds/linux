@@ -1692,7 +1692,7 @@ static struct platform_driver gpmi_nand_driver = {
 		.of_match_table = gpmi_nand_id_table,
 	},
 	.probe   = gpmi_nand_probe,
-	.remove  = __devexit_p(gpmi_nand_remove),
+	.remove  = gpmi_nand_remove,
 	.id_table = gpmi_ids,
 };
 module_platform_driver(gpmi_nand_driver);

@@ -273,7 +273,7 @@ static int __devexit gpio_flash_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_flash_driver = {
 	.probe		= gpio_flash_probe,
-	.remove		= __devexit_p(gpio_flash_remove),
+	.remove		= gpio_flash_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},

@@ -223,7 +223,7 @@ static struct of_device_id orion_nand_of_match_table[] = {
 #endif
 
 static struct platform_driver orion_nand_driver = {
-	.remove		= __devexit_p(orion_nand_remove),
+	.remove		= orion_nand_remove,
 	.driver		= {
 		.name	= "orion_nand",
 		.owner	= THIS_MODULE,

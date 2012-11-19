@@ -1130,7 +1130,7 @@ static struct platform_driver s3c_onenand_driver = {
 	},
 	.id_table	= s3c_onenand_driver_ids,
 	.probe          = s3c_onenand_probe,
-	.remove         = __devexit_p(s3c_onenand_remove),
+	.remove         = s3c_onenand_remove,
 };
 
 module_platform_driver(s3c_onenand_driver);

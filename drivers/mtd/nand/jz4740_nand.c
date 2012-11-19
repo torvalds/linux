@@ -573,7 +573,7 @@ static int __devexit jz_nand_remove(struct platform_device *pdev)
 
 static struct platform_driver jz_nand_driver = {
 	.probe = jz_nand_probe,
-	.remove = __devexit_p(jz_nand_remove),
+	.remove = jz_nand_remove,
 	.driver = {
 		.name = "jz4740-nand",
 		.owner = THIS_MODULE,

@@ -209,7 +209,7 @@ MODULE_DEVICE_TABLE(of, ltq_mtd_match);
 
 static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
-	.remove = __devexit_p(ltq_mtd_remove),
+	.remove = ltq_mtd_remove,
 	.driver = {
 		.name = "ltq-nor",
 		.owner = THIS_MODULE,

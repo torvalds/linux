@@ -340,7 +340,7 @@ static int __devexit nuc900_nand_remove(struct platform_device *pdev)
 
 static struct platform_driver nuc900_nand_driver = {
 	.probe		= nuc900_nand_probe,
-	.remove		= __devexit_p(nuc900_nand_remove),
+	.remove		= nuc900_nand_remove,
 	.driver		= {
 		.name	= "nuc900-fmi",
 		.owner	= THIS_MODULE,

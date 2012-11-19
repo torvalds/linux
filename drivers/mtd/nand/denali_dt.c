@@ -142,7 +142,7 @@ static int __devexit denali_dt_remove(struct platform_device *ofdev)
 
 static struct platform_driver denali_dt_driver = {
 	.probe		= denali_dt_probe,
-	.remove		= __devexit_p(denali_dt_remove),
+	.remove		= denali_dt_remove,
 	.driver		= {
 		.name	= "denali-nand-dt",
 		.owner	= THIS_MODULE,

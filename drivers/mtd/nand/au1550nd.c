@@ -509,7 +509,7 @@ static struct platform_driver au1550nd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1550nd_probe,
-	.remove		= __devexit_p(au1550nd_remove),
+	.remove		= au1550nd_remove,
 };
 
 module_platform_driver(au1550nd_driver);

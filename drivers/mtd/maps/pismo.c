@@ -267,7 +267,7 @@ static struct i2c_driver pismo_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pismo_probe,
-	.remove		= __devexit_p(pismo_remove),
+	.remove		= pismo_remove,
 	.id_table	= pismo_id,
 };
 

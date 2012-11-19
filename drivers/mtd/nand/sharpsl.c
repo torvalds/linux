@@ -228,7 +228,7 @@ static struct platform_driver sharpsl_nand_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= sharpsl_nand_probe,
-	.remove		= __devexit_p(sharpsl_nand_remove),
+	.remove		= sharpsl_nand_remove,
 };
 
 module_platform_driver(sharpsl_nand_driver);

@@ -231,7 +231,7 @@ static struct pci_driver scb2_flash_driver = {
 	.name =     "Intel SCB2 BIOS Flash",
 	.id_table = scb2_flash_pci_ids,
 	.probe =    scb2_flash_probe,
-	.remove =   __devexit_p(scb2_flash_remove),
+	.remove =   scb2_flash_remove,
 };
 
 module_pci_driver(scb2_flash_driver);

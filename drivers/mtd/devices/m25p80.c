@@ -994,7 +994,7 @@ static struct spi_driver m25p80_driver = {
 	},
 	.id_table	= m25p_ids,
 	.probe	= m25p_probe,
-	.remove	= __devexit_p(m25p_remove),
+	.remove	= m25p_remove,
 
 	/* REVISIT: many of these chips have deep power-down modes, which
 	 * should clearly be entered on suspend() to minimize power use.

@@ -848,7 +848,7 @@ static struct of_device_id mpc5121_nfc_match[] __devinitdata = {
 
 static struct platform_driver mpc5121_nfc_driver = {
 	.probe		= mpc5121_nfc_probe,
-	.remove		= __devexit_p(mpc5121_nfc_remove),
+	.remove		= mpc5121_nfc_remove,
 	.driver		= {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

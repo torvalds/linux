@@ -77,7 +77,7 @@ static int __devexit bcm47xxsflash_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver bcma_sflash_driver = {
-	.remove = __devexit_p(bcm47xxsflash_remove),
+	.remove = bcm47xxsflash_remove,
 	.driver = {
 		.name = "bcma_sflash",
 		.owner = THIS_MODULE,

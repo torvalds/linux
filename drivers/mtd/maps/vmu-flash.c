@@ -802,7 +802,7 @@ static struct maple_driver vmu_flash_driver = {
 	.drv = {
 		.name =		"Dreamcast_visual_memory",
 		.probe =	probe_maple_vmu,
-		.remove = 	__devexit_p(remove_maple_vmu),
+		.remove =	remove_maple_vmu,
 	},
 };
 

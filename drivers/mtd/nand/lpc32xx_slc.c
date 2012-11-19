@@ -1021,7 +1021,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_nand_match);
 
 static struct platform_driver lpc32xx_nand_driver = {
 	.probe		= lpc32xx_nand_probe,
-	.remove		= __devexit_p(lpc32xx_nand_remove),
+	.remove		= lpc32xx_nand_remove,
 	.resume		= lpc32xx_nand_resume,
 	.suspend	= lpc32xx_nand_suspend,
 	.driver		= {

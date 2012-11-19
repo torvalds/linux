@@ -279,7 +279,7 @@ static struct platform_driver ndfc_driver = {
 		.of_match_table = ndfc_match,
 	},
 	.probe = ndfc_probe,
-	.remove = __devexit_p(ndfc_remove),
+	.remove = ndfc_remove,
 };
 
 module_platform_driver(ndfc_driver);

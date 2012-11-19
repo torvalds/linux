@@ -920,7 +920,7 @@ static struct spi_driver dataflash_driver = {
 	},
 
 	.probe		= dataflash_probe,
-	.remove		= __devexit_p(dataflash_remove),
+	.remove		= dataflash_remove,
 
 	/* FIXME:  investigate suspend and resume... */
 };

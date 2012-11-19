@@ -218,7 +218,7 @@ done:
 
 static struct platform_driver latch_addr_flash_driver = {
 	.probe		= latch_addr_flash_probe,
-	.remove		= __devexit_p(latch_addr_flash_remove),
+	.remove		= latch_addr_flash_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 	},
