@@ -367,4 +367,5 @@ ENTRY(sys_call_table)
 	.long sys_setns
 	.long sys_process_vm_readv	/* 345 */
 	.long sys_process_vm_writev
+	.long sys_kcmp
 

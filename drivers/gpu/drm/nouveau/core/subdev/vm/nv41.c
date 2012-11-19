@@ -67,7 +67,7 @@ nv41_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv41_vm_flush(struct nouveau_vm *vm)
 {
-	struct nv04_vm_priv *priv = (void *)vm->vmm;
+	struct nv04_vmmgr_priv *priv = (void *)vm->vmm;
 
 	mutex_lock(&nv_subdev(priv)->mutex);
 	nv_wr32(priv, 0x100810, 0x00000022);
@@ -92,7 +92,8 @@ nv41_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv04_vmmgr_priv *priv;
 	int ret;
 
-	if (!nouveau_boolopt(device->cfgopt, "NvPCIE", true)) {
+	if (pci_find_capability(device->pdev, PCI_CAP_ID_AGP) ||
+	    !nouveau_boolopt(device->cfgopt, "NvPCIE", true)) {
 		return nouveau_object_ctor(parent, engine, &nv04_vmmgr_oclass,
 					   data, size, pobject);
 	}

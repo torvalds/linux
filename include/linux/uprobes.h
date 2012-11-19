@@ -35,16 +35,6 @@ struct inode;
 # include <asm/uprobes.h>
 #endif
 
-/* flags that denote/change uprobes behaviour */
-
-/* Have a copy of original instruction */
-#define UPROBE_COPY_INSN	0x1
-
-/* Dont run handlers when first register/ last unregister in progress*/
-#define UPROBE_RUN_HANDLER	0x2
-/* Can skip singlestep */
-#define UPROBE_SKIP_SSTEP	0x4
-
 struct uprobe_consumer {
 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
 	/*
@@ -59,7 +49,6 @@ struct uprobe_consumer {
 #ifdef CONFIG_UPROBES
 enum uprobe_task_state {
 	UTASK_RUNNING,
-	UTASK_BP_HIT,
 	UTASK_SSTEP,
 	UTASK_SSTEP_ACK,
 	UTASK_SSTEP_TRAPPED,

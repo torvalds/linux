@@ -114,9 +114,10 @@ static void udlfb_dpy_deferred_io(struct fb_info *info,
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 
 		if (udl_render_hline(dev, (ufbdev->ufb.base.bits_per_pixel / 8),
-				  &urb, (char *) info->fix.smem_start,
-				  &cmd, cur->index << PAGE_SHIFT,
-				  PAGE_SIZE, &bytes_identical, &bytes_sent))
+				     &urb, (char *) info->fix.smem_start,
+				     &cmd, cur->index << PAGE_SHIFT,
+				     cur->index << PAGE_SHIFT,
+				     PAGE_SIZE, &bytes_identical, &bytes_sent))
 			goto error;
 		bytes_rendered += PAGE_SIZE;
 	}
@@ -187,10 +188,11 @@ int udl_handle_damage(struct udl_framebuffer *fb, int x, int y,
 	for (i = y; i < y + height ; i++) {
 		const int line_offset = fb->base.pitches[0] * i;
 		const int byte_offset = line_offset + (x * bpp);
-
+		const int dev_byte_offset = (fb->base.width * bpp * i) + (x * bpp);
 		if (udl_render_hline(dev, bpp, &urb,
 				     (char *) fb->obj->vmapping,
-				     &cmd, byte_offset, width * bpp,
+				     &cmd, byte_offset, dev_byte_offset,
+				     width * bpp,
 				     &bytes_identical, &bytes_sent))
 			goto error;
 	}

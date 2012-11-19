@@ -502,13 +502,18 @@ int __init at91_aic5_of_init(struct device_node *node,
 /*
  * Initialize the AIC interrupt controller.
  */
-void __init at91_aic_init(unsigned int *priority)
+void __init at91_aic_init(unsigned int *priority, unsigned int ext_irq_mask)
 {
 	unsigned int i;
 	int irq_base;
 
-	if (at91_aic_pm_init())
+	at91_extern_irq = kzalloc(BITS_TO_LONGS(n_irqs)
+				  * sizeof(*at91_extern_irq), GFP_KERNEL);
+
+	if (at91_aic_pm_init() || at91_extern_irq == NULL)
 		panic("Unable to allocate bit maps\n");
+
+	*at91_extern_irq = ext_irq_mask;
 
 	at91_aic_base = ioremap(AT91_AIC, 512);
 	if (!at91_aic_base)

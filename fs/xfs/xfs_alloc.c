@@ -1866,6 +1866,7 @@ xfs_alloc_fix_freelist(
 	/*
 	 * Initialize the args structure.
 	 */
+	memset(&targs, 0, sizeof(targs));
 	targs.tp = tp;
 	targs.mp = mp;
 	targs.agbp = agbp;
@@ -2207,7 +2208,7 @@ xfs_alloc_read_agf(
  * group or loop over the allocation groups to find the result.
  */
 int				/* error */
-__xfs_alloc_vextent(
+xfs_alloc_vextent(
 	xfs_alloc_arg_t	*args)	/* allocation argument structure */
 {
 	xfs_agblock_t	agsize;	/* allocation group size */
@@ -2415,46 +2416,6 @@ __xfs_alloc_vextent(
 error0:
 	xfs_perag_put(args->pag);
 	return error;
-}
-
-static void
-xfs_alloc_vextent_worker(
-	struct work_struct	*work)
-{
-	struct xfs_alloc_arg	*args = container_of(work,
-						struct xfs_alloc_arg, work);
-	unsigned long		pflags;
-
-	/* we are in a transaction context here */
-	current_set_flags_nested(&pflags, PF_FSTRANS);
-
-	args->result = __xfs_alloc_vextent(args);
-	complete(args->done);
-
-	current_restore_flags_nested(&pflags, PF_FSTRANS);
-}
-
-/*
- * Data allocation requests often come in with little stack to work on. Push
- * them off to a worker thread so there is lots of stack to use. Metadata
- * requests, OTOH, are generally from low stack usage paths, so avoid the
- * context switch overhead here.
- */
-int
-xfs_alloc_vextent(
-	struct xfs_alloc_arg	*args)
-{
-	DECLARE_COMPLETION_ONSTACK(done);
-
-	if (!args->userdata)
-		return __xfs_alloc_vextent(args);
-
-
-	args->done = &done;
-	INIT_WORK_ONSTACK(&args->work, xfs_alloc_vextent_worker);
-	queue_work(xfs_alloc_wq, &args->work);
-	wait_for_completion(&done);
-	return args->result;
 }
 
 /*

@@ -174,10 +174,8 @@ signing_key.priv signing_key.x509: x509.genkey
 	@echo "###"
 	@echo "### If this takes a long time, you might wish to run rngd in the"
 	@echo "### background to keep the supply of entropy topped up.  It"
-	@echo "### needs to be run as root, and should use a hardware random"
-	@echo "### number generator if one is available, eg:"
-	@echo "###"
-	@echo "###     rngd -r /dev/hwrandom"
+	@echo "### needs to be run as root, and uses a hardware random"
+	@echo "### number generator if one is available."
 	@echo "###"
 	openssl req -new -nodes -utf8 $(sign_key_with_hash) -days 36500 -batch \
 		-x509 -config x509.genkey \

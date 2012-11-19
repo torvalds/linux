@@ -871,6 +871,7 @@ struct hda_codec {
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int d3_stop_clk:1;	/* support D3 operation without BCLK */
 	unsigned int pm_down_notified:1; /* PM notified to controller */
+	unsigned int in_pm:1;		/* suspend/resume being performed */
 	int power_transition;	/* power-state in transition */
 	int power_count;	/* current (global) power refcount */
 	struct delayed_work power_work; /* delayed task for powerdown */

@@ -1405,7 +1405,10 @@ unmap_bf:
 	unmap_bf_area(dev);
 
 err_close:
-	mlx4_close_hca(dev);
+	if (mlx4_is_slave(dev))
+		mlx4_slave_exit(dev);
+	else
+		mlx4_CLOSE_HCA(dev, 0);
 
 err_free_icm:
 	if (!mlx4_is_slave(dev))

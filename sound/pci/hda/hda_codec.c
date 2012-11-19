@@ -228,7 +228,7 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 	}
 	mutex_unlock(&bus->cmd_mutex);
 	snd_hda_power_down(codec);
-	if (res && *res == -1 && bus->rirb_error) {
+	if (!codec->in_pm && res && *res == -1 && bus->rirb_error) {
 		if (bus->response_reset) {
 			snd_printd("hda_codec: resetting BUS due to "
 				   "fatal communication error\n");
@@ -238,7 +238,7 @@ static int codec_exec_verb(struct hda_codec *codec, unsigned int cmd,
 		goto again;
 	}
 	/* clear reset-flag when the communication gets recovered */
-	if (!err)
+	if (!err || codec->in_pm)
 		bus->response_reset = 0;
 	return err;
 }
@@ -3655,6 +3655,8 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec, bool in_wq)
 {
 	unsigned int state;
 
+	codec->in_pm = 1;
+
 	if (codec->patch_ops.suspend)
 		codec->patch_ops.suspend(codec);
 	hda_cleanup_all_streams(codec);
@@ -3669,6 +3671,7 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec, bool in_wq)
 	codec->power_transition = 0;
 	codec->power_jiffies = jiffies;
 	spin_unlock(&codec->power_lock);
+	codec->in_pm = 0;
 	return state;
 }
 
@@ -3677,6 +3680,8 @@ static unsigned int hda_call_codec_suspend(struct hda_codec *codec, bool in_wq)
  */
 static void hda_call_codec_resume(struct hda_codec *codec)
 {
+	codec->in_pm = 1;
+
 	/* set as if powered on for avoiding re-entering the resume
 	 * in the resume / power-save sequence
 	 */
@@ -3700,6 +3705,8 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 		snd_hda_jack_set_dirty_all(codec);
 		snd_hda_jack_report_sync(codec);
 	}
+
+	codec->in_pm = 0;
 	snd_hda_power_down(codec); /* flag down before returning */
 }
 #endif /* CONFIG_PM */

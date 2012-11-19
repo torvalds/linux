@@ -208,12 +208,14 @@ static bool check_hw_exists(void)
 	}
 
 	/*
-	 * Now write a value and read it back to see if it matches,
-	 * this is needed to detect certain hardware emulators (qemu/kvm)
-	 * that don't trap on the MSR access and always return 0s.
+	 * Read the current value, change it and read it back to see if it
+	 * matches, this is needed to detect certain hardware emulators
+	 * (qemu/kvm) that don't trap on the MSR access and always return 0s.
 	 */
-	val = 0xabcdUL;
 	reg = x86_pmu_event_addr(0);
+	if (rdmsrl_safe(reg, &val))
+		goto msr_fail;
+	val ^= 0xffffUL;
 	ret = wrmsrl_safe(reg, val);
 	ret |= rdmsrl_safe(reg, &val_new);
 	if (ret || val != val_new)

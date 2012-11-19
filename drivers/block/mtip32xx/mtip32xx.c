@@ -2035,8 +2035,9 @@ static unsigned int implicit_sector(unsigned char command,
 	}
 	return rv;
 }
-
-static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
+static void mtip_set_timeout(struct driver_data *dd,
+					struct host_to_dev_fis *fis,
+					unsigned int *timeout, u8 erasemode)
 {
 	switch (fis->command) {
 	case ATA_CMD_DOWNLOAD_MICRO:
@@ -2044,7 +2045,10 @@ static void mtip_set_timeout(struct host_to_dev_fis *fis, unsigned int *timeout)
 		break;
 	case ATA_CMD_SEC_ERASE_UNIT:
 	case 0xFC:
-		*timeout = 240000; /* 4 minutes */
+		if (erasemode)
+			*timeout = ((*(dd->port->identify + 90) * 2) * 60000);
+		else
+			*timeout = ((*(dd->port->identify + 89) * 2) * 60000);
 		break;
 	case ATA_CMD_STANDBYNOW1:
 		*timeout = 120000;  /* 2 minutes */
@@ -2087,6 +2091,7 @@ static int exec_drive_taskfile(struct driver_data *dd,
 	unsigned int transfer_size;
 	unsigned long task_file_data;
 	int intotal = outtotal + req_task->out_size;
+	int erasemode = 0;
 
 	taskout = req_task->out_size;
 	taskin = req_task->in_size;
@@ -2212,7 +2217,13 @@ static int exec_drive_taskfile(struct driver_data *dd,
 		fis.lba_hi,
 		fis.device);
 
-	mtip_set_timeout(&fis, &timeout);
+	/* check for erase mode support during secure erase.*/
+	if ((fis.command == ATA_CMD_SEC_ERASE_UNIT)
+					&& (outbuf[0] & MTIP_SEC_ERASE_MODE)) {
+		erasemode = 1;
+	}
+
+	mtip_set_timeout(dd, &fis, &timeout, erasemode);
 
 	/* Determine the correct transfer size.*/
 	if (force_single_sector)

@@ -49,7 +49,8 @@
  * Function prototypes
  */
 static int  mct_u232_startup(struct usb_serial *serial);
-static void mct_u232_release(struct usb_serial *serial);
+static int  mct_u232_port_probe(struct usb_serial_port *port);
+static int  mct_u232_port_remove(struct usb_serial_port *remove);
 static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port);
 static void mct_u232_close(struct usb_serial_port *port);
 static void mct_u232_dtr_rts(struct usb_serial_port *port, int on);
@@ -99,7 +100,8 @@ static struct usb_serial_driver mct_u232_device = {
 	.tiocmget =	     mct_u232_tiocmget,
 	.tiocmset =	     mct_u232_tiocmset,
 	.attach =	     mct_u232_startup,
-	.release =	     mct_u232_release,
+	.port_probe =        mct_u232_port_probe,
+	.port_remove =       mct_u232_port_remove,
 	.ioctl =             mct_u232_ioctl,
 	.get_icount =        mct_u232_get_icount,
 };
@@ -388,17 +390,7 @@ static void mct_u232_msr_to_state(struct usb_serial_port *port,
 
 static int mct_u232_startup(struct usb_serial *serial)
 {
-	struct mct_u232_private *priv;
 	struct usb_serial_port *port, *rport;
-
-	priv = kzalloc(sizeof(struct mct_u232_private), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	spin_lock_init(&priv->lock);
-	init_waitqueue_head(&priv->msr_wait);
-	usb_set_serial_port_data(serial->port[0], priv);
-
-	init_waitqueue_head(&serial->port[0]->write_wait);
 
 	/* Puh, that's dirty */
 	port = serial->port[0];
@@ -412,18 +404,31 @@ static int mct_u232_startup(struct usb_serial *serial)
 	return 0;
 } /* mct_u232_startup */
 
-
-static void mct_u232_release(struct usb_serial *serial)
+static int mct_u232_port_probe(struct usb_serial_port *port)
 {
 	struct mct_u232_private *priv;
-	int i;
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		/* My special items, the standard routines free my urbs */
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-	}
-} /* mct_u232_release */
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spin_lock_init(&priv->lock);
+	init_waitqueue_head(&priv->msr_wait);
+
+	usb_set_serial_port_data(port, priv);
+
+	return 0;
+}
+
+static int mct_u232_port_remove(struct usb_serial_port *port)
+{
+	struct mct_u232_private *priv;
+
+	priv = usb_get_serial_port_data(port);
+	kfree(priv);
+
+	return 0;
+}
 
 static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
@@ -515,12 +520,14 @@ static void mct_u232_dtr_rts(struct usb_serial_port *port, int on)
 
 static void mct_u232_close(struct usb_serial_port *port)
 {
-	if (port->serial->dev) {
-		/* shutdown our urbs */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-		usb_kill_urb(port->interrupt_in_urb);
-	}
+	/*
+	 * Must kill the read urb as it is actually an interrupt urb, which
+	 * generic close thus fails to kill.
+	 */
+	usb_kill_urb(port->read_urb);
+	usb_kill_urb(port->interrupt_in_urb);
+
+	usb_serial_generic_close(port);
 } /* mct_u232_close */
 
 

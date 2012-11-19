@@ -4529,6 +4529,9 @@ int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size)
 	struct tcphdr *th;
 	bool fragstolen;
 
+	if (size == 0)
+		return 0;
+
 	skb = alloc_skb(size + sizeof(*th), sk->sk_allocation);
 	if (!skb)
 		goto err;
@@ -5646,6 +5649,7 @@ static bool tcp_rcv_fastopen_synack(struct sock *sk, struct sk_buff *synack,
 		tcp_rearm_rto(sk);
 		return true;
 	}
+	tp->syn_data_acked = tp->syn_data;
 	return false;
 }
 
@@ -5963,7 +5967,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 	req = tp->fastopen_rsk;
 	if (req != NULL) {
-		BUG_ON(sk->sk_state != TCP_SYN_RECV &&
+		WARN_ON_ONCE(sk->sk_state != TCP_SYN_RECV &&
 		    sk->sk_state != TCP_FIN_WAIT1);
 
 		if (tcp_check_req(sk, skb, req, NULL, true) == NULL)
@@ -6052,7 +6056,15 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 			 * ACK we have received, this would have acknowledged
 			 * our SYNACK so stop the SYNACK timer.
 			 */
-			if (acceptable && req != NULL) {
+			if (req != NULL) {
+				/* Return RST if ack_seq is invalid.
+				 * Note that RFC793 only says to generate a
+				 * DUPACK for it but for TCP Fast Open it seems
+				 * better to treat this case like TCP_SYN_RECV
+				 * above.
+				 */
+				if (!acceptable)
+					return 1;
 				/* We no longer need the request sock. */
 				reqsk_fastopen_remove(sk, req, false);
 				tcp_rearm_rto(sk);

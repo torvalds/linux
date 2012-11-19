@@ -5,7 +5,7 @@
  *  http://www.gnu.org/licenses/gpl.html
  *
  *  Maintainer:
- *  Andreas Herrmann <andreas.herrmann3@amd.com>
+ *  Andreas Herrmann <herrmann.der.user@googlemail.com>
  *
  *  Based on the powernow-k7.c module written by Dave Jones.
  *  (C) 2003 Dave Jones on behalf of SuSE Labs
@@ -1052,14 +1052,7 @@ static int powernowk8_target(struct cpufreq_policy *pol,
 	struct powernowk8_target_arg pta = { .pol = pol, .targfreq = targfreq,
 					     .relation = relation };
 
-	/*
-	 * Must run on @pol->cpu.  cpufreq core is responsible for ensuring
-	 * that we're bound to the current CPU and pol->cpu stays online.
-	 */
-	if (smp_processor_id() == pol->cpu)
-		return powernowk8_target_fn(&pta);
-	else
-		return work_on_cpu(pol->cpu, powernowk8_target_fn, &pta);
+	return work_on_cpu(pol->cpu, powernowk8_target_fn, &pta);
 }
 
 /* Driver entry point to verify the policy and range of frequencies */
