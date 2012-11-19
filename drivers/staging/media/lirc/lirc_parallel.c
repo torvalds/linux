@@ -583,7 +583,7 @@ static struct lirc_driver driver = {
 
 static struct platform_device *lirc_parallel_dev;
 
-static int __devinit lirc_parallel_probe(struct platform_device *dev)
+static int lirc_parallel_probe(struct platform_device *dev)
 {
 	return 0;
 }

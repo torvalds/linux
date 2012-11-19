@@ -841,7 +841,7 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static int __devinit lirc_serial_probe(struct platform_device *dev)
+static int lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
