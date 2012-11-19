@@ -1223,7 +1223,7 @@ static int lirc_sir_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit lirc_sir_remove(struct platform_device *dev)
+static int lirc_sir_remove(struct platform_device *dev)
 {
 	return 0;
 }

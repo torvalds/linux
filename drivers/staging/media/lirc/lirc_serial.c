@@ -927,7 +927,7 @@ exit_free_irq:
 	return result;
 }
 
-static int __devexit lirc_serial_remove(struct platform_device *dev)
+static int lirc_serial_remove(struct platform_device *dev)
 {
 	free_irq(irq, (void *)&hardware);
 
