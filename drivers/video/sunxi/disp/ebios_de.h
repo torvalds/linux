@@ -33,24 +33,6 @@
 /* unvalid write back */
 #define SCAL_WB_ERR_STATUS (1<<12)
 
-/* layer framebuffer format enum definition */
-typedef enum {
-	DE_MONO_1BPP = 0,
-	DE_MONO_2BPP,
-	DE_MONO_4BPP,
-	DE_MONO_8BPP,
-	DE_COLOR_RGB655,
-	DE_COLOR_RGB565,
-	DE_COLOR_RGB556,
-	DE_COLOR_ARGB1555,
-	DE_COLOR_RGBA5551,
-	DE_COLOR_RGB0888,
-	DE_COLOR_ARGB8888,
-	DE_COLOR_RGB888,
-	DE_COLOR_ARGB4444,
-
-} de_fbfmt_e;
-
 /* internal layer framebuffer format enum definition */
 typedef enum {
 	DE_IF1BPP = 0,
@@ -147,7 +129,7 @@ typedef enum __SCAL_3D_OUTMODE {
 } __scal_3d_outmode_t;
 
 typedef struct layer_input_src {
-	__u8 format;
+	__disp_pixel_fmt_t format;
 	__u8 pixseq;
 	__u8 br_swap;
 	__u32 fb_width;
@@ -157,16 +139,6 @@ typedef struct layer_input_src {
 
 	__bool yuv_ch;
 } layer_src_t;
-
-/* direct lcd pipe input source definition */
-typedef struct dlcdp_src {
-	__u8 format;
-	__u8 pixseq;
-	__u32 fb_width;
-	__u32 fb_addr;
-	__u32 offset_x;
-	__u32 offset_y;
-} de_dlcdp_src_t;
 
 typedef struct hwc_src {
 	__u8 mode;
@@ -192,15 +164,6 @@ typedef struct yuv_ch_src {
 	 */
 	__u8 cs_mode;
 } de_yuv_ch_src_t;
-
-typedef struct sprite_src {
-	__u8 pixel_seq;	/* 0,1 */
-	__u8 format;	/* 0: 32bpp; 1: 8bpp */
-	__u32 offset_x;
-	__u32 offset_y;
-	__u32 fb_addr;
-	__u32 fb_width;
-} de_sprite_src_t;
 
 typedef struct __SCAL_SRC_TYPE {
 	/*
@@ -388,7 +351,7 @@ __u32 DE_BE_ClearINT(__u8 sel, __u32 irqsrc);
 __s32 DE_BE_reg_auto_load_en(__u32 sel, __u32 en);
 
 __s32 DE_BE_Layer_Enable(__u32 sel, __u8 layidx, __bool enable);
-__s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __u8 format,
+__s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __disp_pixel_fmt_t format,
 			     __bool br_swap, __u8 order);
 __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
 				  layer_src_t *layer_fb);
@@ -443,7 +406,7 @@ __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable);
 __s32 DE_BE_output_csc_enable(__u32 sel, __bool enable);
 #endif
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable);
-__s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
+__s32 DE_BE_Format_To_Bpp(__u32 sel, __disp_pixel_fmt_t format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr, __u32 width, __u32 x, __u32 y,
 			   __u32 bpp);
 __u32 DE_BE_Addr_To_Offset(__u32 src_addr, __u32 off_addr, __u32 width,
