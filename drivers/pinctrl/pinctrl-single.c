@@ -998,7 +998,7 @@ static int __devexit pcs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id pcs_of_match[] __devinitdata = {
+static struct of_device_id pcs_of_match[] = {
 	{ .compatible = DRIVER_NAME, },
 	{ },
 };

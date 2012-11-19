@@ -1286,7 +1286,7 @@ static struct imx_pinctrl_soc_info imx51_pinctrl_info = {
 	.npin_regs = ARRAY_SIZE(imx51_pin_regs),
 };
 
-static struct of_device_id imx51_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id imx51_pinctrl_of_match[] = {
 	{ .compatible = "fsl,imx51-iomuxc", },
 	{ /* sentinel */ }
 };
