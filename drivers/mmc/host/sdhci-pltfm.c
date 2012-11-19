@@ -89,6 +89,12 @@ void sdhci_get_of_property(struct platform_device *pdev)
 		clk = of_get_property(np, "clock-frequency", &size);
 		if (clk && size == sizeof(*clk) && *clk)
 			pltfm_host->clock = be32_to_cpup(clk);
+
+		if (of_find_property(np, "keep-power-in-suspend", NULL))
+			host->mmc->pm_caps |= MMC_PM_KEEP_POWER;
+
+		if (of_find_property(np, "enable-sdio-wakeup", NULL))
+			host->mmc->pm_caps |= MMC_PM_WAKE_SDIO_IRQ;
 	}
 }
 #else
