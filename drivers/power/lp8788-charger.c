@@ -766,7 +766,7 @@ static int lp8788_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_charger_remove(struct platform_device *pdev)
+static int lp8788_charger_remove(struct platform_device *pdev)
 {
 	struct lp8788_charger *pchg = platform_get_drvdata(pdev);
 

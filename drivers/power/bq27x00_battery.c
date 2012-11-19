@@ -969,7 +969,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit bq27000_battery_remove(struct platform_device *pdev)
+static int bq27000_battery_remove(struct platform_device *pdev)
 {
 	struct bq27x00_device_info *di = platform_get_drvdata(pdev);
 

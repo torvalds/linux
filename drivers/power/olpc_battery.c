@@ -659,7 +659,7 @@ battery_failed:
 	return ret;
 }
 
-static int __devexit olpc_battery_remove(struct platform_device *pdev)
+static int olpc_battery_remove(struct platform_device *pdev)
 {
 	device_remove_file(olpc_bat.dev, &olpc_bat_error);
 	device_remove_bin_file(olpc_bat.dev, &olpc_bat_eeprom);

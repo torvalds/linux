@@ -351,7 +351,7 @@ first_mem_fail:
 	return ret;
 }
 
-static int __devexit gab_remove(struct platform_device *pdev)
+static int gab_remove(struct platform_device *pdev)
 {
 	int chan;
 	struct gab *adc_bat = platform_get_drvdata(pdev);

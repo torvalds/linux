@@ -144,7 +144,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit gpio_charger_remove(struct platform_device *pdev)
+static int gpio_charger_remove(struct platform_device *pdev)
 {
 	struct gpio_charger *gpio_charger = platform_get_drvdata(pdev);
 

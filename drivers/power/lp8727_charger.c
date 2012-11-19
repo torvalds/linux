@@ -522,7 +522,7 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 	return 0;
 }
 
-static int __devexit lp8727_remove(struct i2c_client *cl)
+static int lp8727_remove(struct i2c_client *cl)
 {
 	struct lp8727_chg *pchg = i2c_get_clientdata(cl);
 

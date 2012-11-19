@@ -625,7 +625,7 @@ err_kmalloc:
 	return ret;
 }
 
-static __devexit int wm831x_power_remove(struct platform_device *pdev)
+static int wm831x_power_remove(struct platform_device *pdev)
 {
 	struct wm831x_power *wm831x_power = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = wm831x_power->wm831x;

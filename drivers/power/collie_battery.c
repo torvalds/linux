@@ -349,7 +349,7 @@ err_psy_reg_main:
 	return ret;
 }
 
-static void __devexit collie_bat_remove(struct ucb1x00_dev *dev)
+static void collie_bat_remove(struct ucb1x00_dev *dev)
 {
 	free_irq(gpio_to_irq(COLLIE_GPIO_CO), &collie_bat_main);
 

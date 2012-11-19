@@ -754,7 +754,7 @@ static int platform_pmic_battery_probe(struct platform_device *pdev)
  * pmic_battery_probe.
  */
 
-static int __devexit platform_pmic_battery_remove(struct platform_device *pdev)
+static int platform_pmic_battery_remove(struct platform_device *pdev)
 {
 	struct pmic_power_module_info *pbi = dev_get_drvdata(&pdev->dev);
 

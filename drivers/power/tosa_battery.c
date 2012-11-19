@@ -409,7 +409,7 @@ err_psy_reg_main:
 	return ret;
 }
 
-static int __devexit tosa_bat_remove(struct platform_device *dev)
+static int tosa_bat_remove(struct platform_device *dev)
 {
 	free_irq(gpio_to_irq(TOSA_GPIO_JACKET_DETECT), &tosa_bat_jacket);
 	free_irq(gpio_to_irq(TOSA_GPIO_BAT1_CRG), &tosa_bat_jacket);

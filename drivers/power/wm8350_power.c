@@ -501,7 +501,7 @@ battery_failed:
 	return ret;
 }
 
-static __devexit int wm8350_power_remove(struct platform_device *pdev)
+static int wm8350_power_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_power *power = &wm8350->power;

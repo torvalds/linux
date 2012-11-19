@@ -2411,7 +2411,7 @@ static int ab8500_fg_suspend(struct platform_device *pdev,
 #define ab8500_fg_resume       NULL
 #endif
 
-static int __devexit ab8500_fg_remove(struct platform_device *pdev)
+static int ab8500_fg_remove(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ab8500_fg *di = platform_get_drvdata(pdev);

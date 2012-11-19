@@ -251,7 +251,7 @@ err:
 	return ret;
 }
 
-static int __devexit z2_batt_remove(struct i2c_client *client)
+static int z2_batt_remove(struct i2c_client *client)
 {
 	struct z2_charger *charger = i2c_get_clientdata(client);
 	struct z2_battery_info *info = charger->info;

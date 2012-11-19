@@ -484,7 +484,7 @@ fail0:
 	return ret;
 }
 
-static int __devexit isp1704_charger_remove(struct platform_device *pdev)
+static int isp1704_charger_remove(struct platform_device *pdev)
 {
 	struct isp1704_charger *isp = platform_get_drvdata(pdev);
 

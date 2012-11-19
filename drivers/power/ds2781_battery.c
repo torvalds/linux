@@ -810,7 +810,7 @@ fail:
 	return ret;
 }
 
-static int __devexit ds2781_battery_remove(struct platform_device *pdev)
+static int ds2781_battery_remove(struct platform_device *pdev)
 {
 	struct ds2781_device_info *dev_info = platform_get_drvdata(pdev);
 

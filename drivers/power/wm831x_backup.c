@@ -207,7 +207,7 @@ err_kmalloc:
 	return ret;
 }
 
-static __devexit int wm831x_backup_remove(struct platform_device *pdev)
+static int wm831x_backup_remove(struct platform_device *pdev)
 {
 	struct wm831x_backup *devdata = platform_get_drvdata(pdev);
 

@@ -414,7 +414,7 @@ static int max8925_init_charger(struct max8925_chip *chip,
 	return 0;
 }
 
-static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
+static int max8925_deinit_charger(struct max8925_power_info *info)
 {
 	struct max8925_chip *chip = info->chip;
 	int irq;
@@ -501,7 +501,7 @@ out:
 	return ret;
 }
 
-static __devexit int max8925_power_remove(struct platform_device *pdev)
+static int max8925_power_remove(struct platform_device *pdev)
 {
 	struct max8925_power_info *info = platform_get_drvdata(pdev);
 

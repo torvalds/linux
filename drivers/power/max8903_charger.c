@@ -345,7 +345,7 @@ err:
 	return ret;
 }
 
-static __devexit int max8903_remove(struct platform_device *pdev)
+static int max8903_remove(struct platform_device *pdev)
 {
 	struct max8903_data *data = platform_get_drvdata(pdev);
 

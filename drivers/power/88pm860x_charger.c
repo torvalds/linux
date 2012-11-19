@@ -718,7 +718,7 @@ out:
 	return ret;
 }
 
-static int __devexit pm860x_charger_remove(struct platform_device *pdev)
+static int pm860x_charger_remove(struct platform_device *pdev)
 {
 	struct pm860x_charger_info *info = platform_get_drvdata(pdev);
 	int i;

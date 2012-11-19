@@ -1782,7 +1782,7 @@ static int abx500_chargalg_suspend(struct platform_device *pdev,
 #define abx500_chargalg_resume       NULL
 #endif
 
-static int __devexit abx500_chargalg_remove(struct platform_device *pdev)
+static int abx500_chargalg_remove(struct platform_device *pdev)
 {
 	struct abx500_chargalg *di = platform_get_drvdata(pdev);
 

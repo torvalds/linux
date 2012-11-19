@@ -800,7 +800,7 @@ exit_free_name:
 	return rc;
 }
 
-static int __devexit sbs_remove(struct i2c_client *client)
+static int sbs_remove(struct i2c_client *client)
 {
 	struct sbs_info *chip = i2c_get_clientdata(client);
 

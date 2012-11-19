@@ -938,7 +938,7 @@ static int ab8500_btemp_suspend(struct platform_device *pdev,
 #define ab8500_btemp_resume       NULL
 #endif
 
-static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
+static int ab8500_btemp_remove(struct platform_device *pdev)
 {
 	struct ab8500_btemp *di = platform_get_drvdata(pdev);
 	int i, irq;

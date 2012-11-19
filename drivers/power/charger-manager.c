@@ -1655,7 +1655,7 @@ err_alloc:
 	return ret;
 }
 
-static int __devexit charger_manager_remove(struct platform_device *pdev)
+static int charger_manager_remove(struct platform_device *pdev)
 {
 	struct charger_manager *cm = platform_get_drvdata(pdev);
 	struct charger_desc *desc = cm->desc;

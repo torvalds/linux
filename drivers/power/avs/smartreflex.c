@@ -1026,7 +1026,7 @@ err_free_devinfo:
 	return ret;
 }
 
-static int __devexit omap_sr_remove(struct platform_device *pdev)
+static int omap_sr_remove(struct platform_device *pdev)
 {
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct omap_sr *sr_info;
@@ -1059,7 +1059,7 @@ static int __devexit omap_sr_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void __devexit omap_sr_shutdown(struct platform_device *pdev)
+static void omap_sr_shutdown(struct platform_device *pdev)
 {
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct omap_sr *sr_info;

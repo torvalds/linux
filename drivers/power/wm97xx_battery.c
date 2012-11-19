@@ -263,7 +263,7 @@ err:
 	return ret;
 }
 
-static int __devexit wm97xx_bat_remove(struct platform_device *dev)
+static int wm97xx_bat_remove(struct platform_device *dev)
 {
 	struct wm97xx_pdata *wmdata = dev->dev.platform_data;
 	struct wm97xx_batt_pdata *pdata = wmdata->batt_pdata;

@@ -376,7 +376,7 @@ err_free:
 	return ret;
 }
 
-static int __devexit jz_battery_remove(struct platform_device *pdev)
+static int jz_battery_remove(struct platform_device *pdev)
 {
 	struct jz_battery *jz_battery = platform_get_drvdata(pdev);
 

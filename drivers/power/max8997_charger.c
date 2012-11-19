@@ -167,7 +167,7 @@ err:
 	return ret;
 }
 
-static int __devexit max8997_battery_remove(struct platform_device *pdev)
+static int max8997_battery_remove(struct platform_device *pdev)
 {
 	struct charger_data *charger = platform_get_drvdata(pdev);
 

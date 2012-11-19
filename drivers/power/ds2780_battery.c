@@ -819,7 +819,7 @@ fail:
 	return ret;
 }
 
-static int __devexit ds2780_battery_remove(struct platform_device *pdev)
+static int ds2780_battery_remove(struct platform_device *pdev)
 {
 	struct ds2780_device_info *dev_info = platform_get_drvdata(pdev);
 

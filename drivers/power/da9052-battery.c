@@ -630,7 +630,7 @@ err:
 	kfree(bat);
 	return ret;
 }
-static int __devexit da9052_bat_remove(struct platform_device *pdev)
+static int da9052_bat_remove(struct platform_device *pdev)
 {
 	int i;
 	int irq;

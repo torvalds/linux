@@ -238,7 +238,7 @@ static int max17040_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit max17040_remove(struct i2c_client *client)
+static int max17040_remove(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
