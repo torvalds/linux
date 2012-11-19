@@ -569,7 +569,7 @@ err_detect:
 	return ret;
 }
 
-static int __devexit lp3972_i2c_remove(struct i2c_client *i2c)
+static int lp3972_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3972 *lp3972 = i2c_get_clientdata(i2c);
 	int i;

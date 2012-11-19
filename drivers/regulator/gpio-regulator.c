@@ -348,7 +348,7 @@ err:
 	return ret;
 }
 
-static int __devexit gpio_regulator_remove(struct platform_device *pdev)
+static int gpio_regulator_remove(struct platform_device *pdev)
 {
 	struct gpio_regulator_data *drvdata = platform_get_drvdata(pdev);
 

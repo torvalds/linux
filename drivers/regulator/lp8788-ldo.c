@@ -749,7 +749,7 @@ static int lp8788_dldo_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_dldo_remove(struct platform_device *pdev)
+static int lp8788_dldo_remove(struct platform_device *pdev)
 {
 	struct lp8788_ldo *ldo = platform_get_drvdata(pdev);
 
@@ -805,7 +805,7 @@ static int lp8788_aldo_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_aldo_remove(struct platform_device *pdev)
+static int lp8788_aldo_remove(struct platform_device *pdev)
 {
 	struct lp8788_ldo *ldo = platform_get_drvdata(pdev);
 

@@ -337,7 +337,7 @@ err:
 	return ret;
 }
 
-static int __devexit max77686_pmic_remove(struct platform_device *pdev)
+static int max77686_pmic_remove(struct platform_device *pdev)
 {
 	struct max77686_data *max77686 = platform_get_drvdata(pdev);
 	int i;

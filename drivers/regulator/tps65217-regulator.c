@@ -397,7 +397,7 @@ err_unregister_regulator:
 	return ret;
 }
 
-static int __devexit tps65217_regulator_remove(struct platform_device *pdev)
+static int tps65217_regulator_remove(struct platform_device *pdev)
 {
 	struct tps65217 *tps = platform_get_drvdata(pdev);
 	unsigned int i;

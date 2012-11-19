@@ -773,7 +773,7 @@ err:
 	return ret;
 }
 
-static int __devexit s5m8767_pmic_remove(struct platform_device *pdev)
+static int s5m8767_pmic_remove(struct platform_device *pdev)
 {
 	struct s5m8767_info *s5m8767 = platform_get_drvdata(pdev);
 	struct regulator_dev **rdev = s5m8767->rdev;

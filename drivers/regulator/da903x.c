@@ -499,7 +499,7 @@ static int da903x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit da903x_regulator_remove(struct platform_device *pdev)
+static int da903x_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 

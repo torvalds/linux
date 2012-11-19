@@ -159,7 +159,7 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tps6105x_regulator_remove(struct platform_device *pdev)
+static int tps6105x_regulator_remove(struct platform_device *pdev)
 {
 	struct tps6105x *tps6105x = dev_get_platdata(&pdev->dev);
 	regulator_unregister(tps6105x->regulator);

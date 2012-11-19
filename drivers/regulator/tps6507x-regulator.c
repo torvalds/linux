@@ -439,7 +439,7 @@ fail:
 	return error;
 }
 
-static int __devexit tps6507x_pmic_remove(struct platform_device *pdev)
+static int tps6507x_pmic_remove(struct platform_device *pdev)
 {
 	struct tps6507x_dev *tps6507x_dev = platform_get_drvdata(pdev);
 	struct tps6507x_pmic *tps = tps6507x_dev->pmic;

@@ -753,7 +753,7 @@ fail:
 	return ret;
 }
 
-static int __devexit tps80031_regulator_remove(struct platform_device *pdev)
+static int tps80031_regulator_remove(struct platform_device *pdev)
 {
 	struct tps80031_regulator *pmic = platform_get_drvdata(pdev);
 	struct tps80031_regulator *ri = NULL;

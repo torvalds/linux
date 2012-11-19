@@ -868,7 +868,7 @@ err_unregister_regulator:
 	return ret;
 }
 
-static int __devexit palmas_remove(struct platform_device *pdev)
+static int palmas_remove(struct platform_device *pdev)
 {
 	struct palmas_pmic *pmic = platform_get_drvdata(pdev);
 	int id;

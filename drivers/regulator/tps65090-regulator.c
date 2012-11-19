@@ -232,7 +232,7 @@ scrub:
 	return ret;
 }
 
-static int __devexit tps65090_regulator_remove(struct platform_device *pdev)
+static int tps65090_regulator_remove(struct platform_device *pdev)
 {
 	struct tps65090_regulator *pmic = platform_get_drvdata(pdev);
 	struct tps65090_regulator *ri;

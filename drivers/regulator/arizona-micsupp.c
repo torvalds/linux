@@ -166,7 +166,7 @@ static int arizona_micsupp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __devexit int arizona_micsupp_remove(struct platform_device *pdev)
+static int arizona_micsupp_remove(struct platform_device *pdev)
 {
 	struct arizona_micsupp *micsupp = platform_get_drvdata(pdev);
 

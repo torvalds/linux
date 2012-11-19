@@ -542,7 +542,7 @@ static int lp8788_buck_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_buck_remove(struct platform_device *pdev)
+static int lp8788_buck_remove(struct platform_device *pdev)
 {
 	struct lp8788_buck *buck = platform_get_drvdata(pdev);
 

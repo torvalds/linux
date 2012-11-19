@@ -461,7 +461,7 @@ fail:
 	return err;
 }
 
-static int __devexit tps6586x_regulator_remove(struct platform_device *pdev)
+static int tps6586x_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev **rdev = platform_get_drvdata(pdev);
 	int id = TPS6586X_ID_MAX_REGULATOR;

@@ -230,7 +230,7 @@ exit_no_debugfs:
 	return -ENOMEM;
 }
 
-int __devexit ux500_regulator_debug_exit(void)
+int ux500_regulator_debug_exit(void)
 {
 	debugfs_remove_recursive(rdebug.dir);
 	kfree(rdebug.state_after_suspend);

@@ -142,7 +142,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm8994_ldo_remove(struct platform_device *pdev)
+static int wm8994_ldo_remove(struct platform_device *pdev)
 {
 	struct wm8994_ldo *ldo = platform_get_drvdata(pdev);
 

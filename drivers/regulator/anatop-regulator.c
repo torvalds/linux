@@ -186,7 +186,7 @@ anatop_probe_end:
 	return ret;
 }
 
-static int __devexit anatop_regulator_remove(struct platform_device *pdev)
+static int anatop_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct anatop_regulator *sreg = rdev_get_drvdata(rdev);

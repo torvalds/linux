@@ -368,7 +368,7 @@ err_unregister_regulator:
 	return ret;
 }
 
-static __devexit int max8907_regulator_remove(struct platform_device *pdev)
+static int max8907_regulator_remove(struct platform_device *pdev)
 {
 	struct max8907_regulator *pmic = platform_get_drvdata(pdev);
 	int i;

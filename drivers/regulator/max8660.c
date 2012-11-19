@@ -420,7 +420,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit max8660_remove(struct i2c_client *client)
+static int max8660_remove(struct i2c_client *client)
 {
 	struct max8660 *max8660 = i2c_get_clientdata(client);
 	int i;

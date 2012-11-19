@@ -562,7 +562,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
+static int wm831x_buckv_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = dcdc->wm831x;
@@ -710,7 +710,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
+static int wm831x_buckp_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
@@ -845,7 +845,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
+static int wm831x_boostp_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
@@ -936,7 +936,7 @@ err:
 	return ret;
 }
 
-static __devexit int wm831x_epe_remove(struct platform_device *pdev)
+static int wm831x_epe_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 

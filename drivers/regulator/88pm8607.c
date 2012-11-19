@@ -454,7 +454,7 @@ static int pm8607_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pm8607_regulator_remove(struct platform_device *pdev)
+static int pm8607_regulator_remove(struct platform_device *pdev)
 {
 	struct pm8607_regulator_info *info = platform_get_drvdata(pdev);
 

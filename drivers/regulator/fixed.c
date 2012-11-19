@@ -234,7 +234,7 @@ err:
 	return ret;
 }
 
-static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
+static int reg_fixed_voltage_remove(struct platform_device *pdev)
 {
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 

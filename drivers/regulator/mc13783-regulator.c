@@ -445,7 +445,7 @@ err:
 	return ret;
 }
 
-static int __devexit mc13783_regulator_remove(struct platform_device *pdev)
+static int mc13783_regulator_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	struct mc13xxx_regulator_platform_data *pdata =

@@ -188,7 +188,7 @@ err:
 	return ret;
 }
 
-static int __devexit max1586_pmic_remove(struct i2c_client *client)
+static int max1586_pmic_remove(struct i2c_client *client)
 {
 	struct max1586_data *max1586 = i2c_get_clientdata(client);
 	int i;

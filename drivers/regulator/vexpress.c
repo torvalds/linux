@@ -114,7 +114,7 @@ error_kzalloc:
 	return err;
 }
 
-static int __devexit vexpress_regulator_remove(struct platform_device *pdev)
+static int vexpress_regulator_remove(struct platform_device *pdev)
 {
 	struct vexpress_regulator *reg = platform_get_drvdata(pdev);
 

@@ -817,7 +817,7 @@ static int ab8500_regulator_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __devexit int ab8500_regulator_remove(struct platform_device *pdev)
+static int ab8500_regulator_remove(struct platform_device *pdev)
 {
 	int i;
 

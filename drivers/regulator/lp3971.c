@@ -472,7 +472,7 @@ err_detect:
 	return ret;
 }
 
-static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
+static int lp3971_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
 	int i;

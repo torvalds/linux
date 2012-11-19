@@ -271,7 +271,7 @@ static int max8649_regulator_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit max8649_regulator_remove(struct i2c_client *client)
+static int max8649_regulator_remove(struct i2c_client *client)
 {
 	struct max8649_regulator_info *info = i2c_get_clientdata(client);
 

@@ -256,7 +256,7 @@ err:
 	return ret;
 }
 
-static int __devexit ad5398_remove(struct i2c_client *client)
+static int ad5398_remove(struct i2c_client *client)
 {
 	struct ad5398_chip_info *chip = i2c_get_clientdata(client);
 

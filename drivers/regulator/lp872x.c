@@ -893,7 +893,7 @@ err_dev:
 	return ret;
 }
 
-static int __devexit lp872x_remove(struct i2c_client *cl)
+static int lp872x_remove(struct i2c_client *cl)
 {
 	struct lp872x *lp = i2c_get_clientdata(cl);
 

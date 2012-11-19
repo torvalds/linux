@@ -307,7 +307,7 @@ err:
 	return ret;
 }
 
-static int __devexit s2mps11_pmic_remove(struct platform_device *pdev)
+static int s2mps11_pmic_remove(struct platform_device *pdev)
 {
 	struct s2mps11_info *s2mps11 = platform_get_drvdata(pdev);
 	int i;

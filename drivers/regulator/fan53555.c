@@ -293,7 +293,7 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 
 }
 
-static int __devexit fan53555_regulator_remove(struct i2c_client *client)
+static int fan53555_regulator_remove(struct i2c_client *client)
 {
 	struct fan53555_device_info *di = i2c_get_clientdata(client);
 

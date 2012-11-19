@@ -525,7 +525,7 @@ err:
 	return err;
 }
 
-static int __devexit tps65912_remove(struct platform_device *pdev)
+static int tps65912_remove(struct platform_device *pdev)
 {
 	struct tps65912_reg *tps65912_reg = platform_get_drvdata(pdev);
 	int i;

@@ -151,7 +151,7 @@ error:
 	return err;
 }
 
-static int __devexit isl6271a_remove(struct i2c_client *i2c)
+static int isl6271a_remove(struct i2c_client *i2c)
 {
 	struct isl_pmic *pmic = i2c_get_clientdata(i2c);
 	int i;
