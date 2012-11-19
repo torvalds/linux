@@ -655,7 +655,7 @@ static struct pnp_driver tpm_inf_pnp_driver = {
 	.probe = tpm_inf_pnp_probe,
 	.suspend = tpm_inf_pnp_suspend,
 	.resume = tpm_inf_pnp_resume,
-	.remove = __devexit_p(tpm_inf_pnp_remove)
+	.remove = tpm_inf_pnp_remove
 };
 
 static int __init init_inf(void)
