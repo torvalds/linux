@@ -785,7 +785,7 @@ static inline int hwicap_of_probe(struct platform_device *op,
 }
 #endif /* CONFIG_OF */
 
-static const struct of_device_id __devinitconst hwicap_of_match[];
+static const struct of_device_id hwicap_of_match[];
 static int hwicap_drv_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
@@ -829,7 +829,7 @@ static int __devexit hwicap_drv_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 /* Match table for device tree binding */
-static const struct of_device_id __devinitconst hwicap_of_match[] = {
+static const struct of_device_id hwicap_of_match[] = {
 	{ .compatible = "xlnx,opb-hwicap-1.00.b", .data = &buffer_icap_config},
 	{ .compatible = "xlnx,xps-hwicap-1.00.a", .data = &fifo_icap_config},
 	{},
