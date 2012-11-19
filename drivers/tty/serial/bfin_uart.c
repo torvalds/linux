@@ -799,6 +799,7 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long flags;
 	unsigned int baud, quot;
 	unsigned int ier, lcr = 0;
+	unsigned long timeout;
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS8:
@@ -867,6 +868,14 @@ bfin_serial_set_termios(struct uart_port *port, struct ktermios *termios,
 		quot -= ANOMALY_05000230;
 
 	UART_SET_ANOMALY_THRESHOLD(uart, USEC_PER_SEC / baud * 15);
+
+	/* Wait till the transfer buffer is empty */
+	timeout = jiffies + msecs_to_jiffies(10);
+	while (UART_GET_GCTL(uart) & UCEN && !(UART_GET_LSR(uart) & TEMT))
+		if (time_after(jiffies, timeout)) {
+			dev_warn(port->dev, "timeout waiting for TX buffer empty\n");
+			break;
+		}
 
 	/* Disable UART */
 	ier = UART_GET_IER(uart);
