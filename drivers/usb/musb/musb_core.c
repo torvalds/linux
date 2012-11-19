@@ -2034,7 +2034,7 @@ static int musb_probe(struct platform_device *pdev)
 	return status;
 }
 
-static int __devexit musb_remove(struct platform_device *pdev)
+static int musb_remove(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct musb	*musb = dev_to_musb(dev);

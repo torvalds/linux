@@ -206,7 +206,7 @@ err_free_usb_dev:
 	return err;
 }
 
-static void __devexit ssb_hcd_remove(struct ssb_device *dev)
+static void ssb_hcd_remove(struct ssb_device *dev)
 {
 	struct ssb_hcd_device *usb_dev = ssb_get_drvdata(dev);
 	struct platform_device *ohci_dev = usb_dev->ohci_dev;
@@ -220,7 +220,7 @@ static void __devexit ssb_hcd_remove(struct ssb_device *dev)
 	ssb_device_disable(dev, 0);
 }
 
-static void __devexit ssb_hcd_shutdown(struct ssb_device *dev)
+static void ssb_hcd_shutdown(struct ssb_device *dev)
 {
 	ssb_device_disable(dev, 0);
 }

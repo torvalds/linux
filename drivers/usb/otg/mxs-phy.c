@@ -149,7 +149,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit mxs_phy_remove(struct platform_device *pdev)
+static int mxs_phy_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
 

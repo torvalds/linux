@@ -239,7 +239,7 @@ err_free:
 	return ret;
 }
 
-static __devexit int jz4740_ohci_remove(struct platform_device *pdev)
+static int jz4740_ohci_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct jz4740_ohci_hcd *jz4740_ohci = hcd_to_jz4740_hcd(hcd);

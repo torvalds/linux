@@ -413,7 +413,7 @@ out:
 	return ret;
 }
 
-static int __devexit isp1760_plat_remove(struct platform_device *pdev)
+static int isp1760_plat_remove(struct platform_device *pdev)
 {
 	struct resource *mem_res;
 	resource_size_t mem_size;

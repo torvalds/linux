@@ -173,7 +173,7 @@ put_hcd:
 	return ret;
 }
 
-static int __devexit ehci_msm_remove(struct platform_device *pdev)
+static int ehci_msm_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 

@@ -3352,7 +3352,7 @@ phy_fail:
 	return retval;
 }
 
-static int __devexit lpc32xx_udc_remove(struct platform_device *pdev)
+static int lpc32xx_udc_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_udc *udc = platform_get_drvdata(pdev);
 

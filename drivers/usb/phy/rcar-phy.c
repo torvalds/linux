@@ -196,7 +196,7 @@ static int rcar_usb_phy_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit rcar_usb_phy_remove(struct platform_device *pdev)
+static int rcar_usb_phy_remove(struct platform_device *pdev)
 {
 	struct rcar_usb_phy_priv *priv = platform_get_drvdata(pdev);
 

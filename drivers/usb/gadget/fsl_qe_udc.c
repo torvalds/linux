@@ -2651,7 +2651,7 @@ static int qe_udc_resume(struct platform_device *dev)
 }
 #endif
 
-static int __devexit qe_udc_remove(struct platform_device *ofdev)
+static int qe_udc_remove(struct platform_device *ofdev)
 {
 	struct qe_udc *udc = dev_get_drvdata(&ofdev->dev);
 	struct qe_ep *ep;

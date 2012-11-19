@@ -2433,7 +2433,7 @@ out_uninit:
  * bcm63xx_udc_remove - Remove the device from the system.
  * @pdev: Platform device struct from the bcm63xx BSP code.
  */
-static int __devexit bcm63xx_udc_remove(struct platform_device *pdev)
+static int bcm63xx_udc_remove(struct platform_device *pdev)
 {
 	struct bcm63xx_udc *udc = platform_get_drvdata(pdev);
 

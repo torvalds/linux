@@ -155,7 +155,7 @@ static int ehci_w90x900_probe(struct platform_device *pdev)
 	return usb_w90x900_probe(&ehci_w90x900_hc_driver, pdev);
 }
 
-static int __devexit ehci_w90x900_remove(struct platform_device *pdev)
+static int ehci_w90x900_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 

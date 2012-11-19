@@ -170,7 +170,7 @@ err0:
 	return ret;
 }
 
-static int __devexit dwc3_exynos_remove(struct platform_device *pdev)
+static int dwc3_exynos_remove(struct platform_device *pdev)
 {
 	struct dwc3_exynos	*exynos = platform_get_drvdata(pdev);
 

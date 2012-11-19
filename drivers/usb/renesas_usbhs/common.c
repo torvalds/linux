@@ -556,7 +556,7 @@ probe_end_pipe_exit:
 	return ret;
 }
 
-static int __devexit usbhs_remove(struct platform_device *pdev)
+static int usbhs_remove(struct platform_device *pdev)
 {
 	struct usbhs_priv *priv = usbhs_pdev_to_priv(pdev);
 	struct renesas_usbhs_platform_info *info = pdev->dev.platform_data;

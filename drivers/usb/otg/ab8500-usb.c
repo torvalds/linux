@@ -546,7 +546,7 @@ fail0:
 	return err;
 }
 
-static int __devexit ab8500_usb_remove(struct platform_device *pdev)
+static int ab8500_usb_remove(struct platform_device *pdev)
 {
 	struct ab8500_usb *ab = platform_get_drvdata(pdev);
 

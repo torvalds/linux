@@ -2974,7 +2974,7 @@ cleanup0:
 	return status;
 }
 
-static int __devexit omap_udc_remove(struct platform_device *pdev)
+static int omap_udc_remove(struct platform_device *pdev)
 {
 	DECLARE_COMPLETION_ONSTACK(done);
 

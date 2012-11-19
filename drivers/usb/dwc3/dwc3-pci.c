@@ -194,7 +194,7 @@ err1:
 	return ret;
 }
 
-static void __devexit dwc3_pci_remove(struct pci_dev *pci)
+static void dwc3_pci_remove(struct pci_dev *pci)
 {
 	struct dwc3_pci	*glue = pci_get_drvdata(pci);
 

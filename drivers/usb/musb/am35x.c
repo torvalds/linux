@@ -560,7 +560,7 @@ err0:
 	return ret;
 }
 
-static int __devexit am35x_remove(struct platform_device *pdev)
+static int am35x_remove(struct platform_device *pdev)
 {
 	struct am35x_glue	*glue = platform_get_drvdata(pdev);
 

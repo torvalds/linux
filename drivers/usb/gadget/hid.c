@@ -203,7 +203,7 @@ static int __init hidg_plat_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit hidg_plat_driver_remove(struct platform_device *pdev)
+static int hidg_plat_driver_remove(struct platform_device *pdev)
 {
 	struct hidg_func_node *e, *n;
 

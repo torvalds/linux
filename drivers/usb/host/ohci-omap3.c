@@ -209,7 +209,7 @@ err_io:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int __devexit ohci_hcd_omap3_remove(struct platform_device *pdev)
+static int ohci_hcd_omap3_remove(struct platform_device *pdev)
 {
 	struct device *dev	= &pdev->dev;
 	struct usb_hcd *hcd	= dev_get_drvdata(dev);

@@ -182,7 +182,7 @@ fail_create_hcd:
 	return retval;
 }
 
-static int __devexit ehci_atmel_drv_remove(struct platform_device *pdev)
+static int ehci_atmel_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 

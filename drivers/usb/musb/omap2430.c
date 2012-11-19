@@ -605,7 +605,7 @@ err0:
 	return ret;
 }
 
-static int __devexit omap2430_remove(struct platform_device *pdev)
+static int omap2430_remove(struct platform_device *pdev)
 {
 	struct omap2430_glue		*glue = platform_get_drvdata(pdev);
 

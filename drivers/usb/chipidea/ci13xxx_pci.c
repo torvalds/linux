@@ -107,7 +107,7 @@ static int ci13xxx_pci_probe(struct pci_dev *pdev,
  * first invoking the udc_remove() and then releases
  * all PCI resources allocated for this USB device controller
  */
-static void __devexit ci13xxx_pci_remove(struct pci_dev *pdev)
+static void ci13xxx_pci_remove(struct pci_dev *pdev)
 {
 	struct platform_device *plat_ci = pci_get_drvdata(pdev);
 

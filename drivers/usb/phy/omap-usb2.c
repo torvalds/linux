@@ -199,7 +199,7 @@ static int omap_usb2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit omap_usb2_remove(struct platform_device *pdev)
+static int omap_usb2_remove(struct platform_device *pdev)
 {
 	struct omap_usb	*phy = platform_get_drvdata(pdev);
 

@@ -265,7 +265,7 @@ err_free_usb_dev:
 	return err;
 }
 
-static void __devexit bcma_hcd_remove(struct bcma_device *dev)
+static void bcma_hcd_remove(struct bcma_device *dev)
 {
 	struct bcma_hcd_device *usb_dev = bcma_get_drvdata(dev);
 	struct platform_device *ohci_dev = usb_dev->ohci_dev;

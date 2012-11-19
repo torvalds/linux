@@ -271,7 +271,7 @@ err_usb_create_hcd:
 	return ret;
 }
 
-static int __devexit ohci_hcd_tmio_drv_remove(struct platform_device *dev)
+static int ohci_hcd_tmio_drv_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct tmio_hcd *tmio = hcd_to_tmio(hcd);

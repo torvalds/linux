@@ -141,7 +141,7 @@ exit:
 	return err;
 }
 
-static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
+static int nop_usb_xceiv_remove(struct platform_device *pdev)
 {
 	struct nop_usb_xceiv *nop = platform_get_drvdata(pdev);
 

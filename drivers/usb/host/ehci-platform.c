@@ -126,7 +126,7 @@ err_power:
 	return err;
 }
 
-static int __devexit ehci_platform_remove(struct platform_device *dev)
+static int ehci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ehci_pdata *pdata = dev->dev.platform_data;

@@ -224,13 +224,13 @@ static int fsl_usb2_mph_dr_of_probe(struct platform_device *ofdev)
 	return 0;
 }
 
-static int __devexit __unregister_subdev(struct device *dev, void *d)
+static int __unregister_subdev(struct device *dev, void *d)
 {
 	platform_device_unregister(to_platform_device(dev));
 	return 0;
 }
 
-static int __devexit fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
+static int fsl_usb2_mph_dr_of_remove(struct platform_device *ofdev)
 {
 	device_for_each_child(&ofdev->dev, NULL, __unregister_subdev);
 	return 0;

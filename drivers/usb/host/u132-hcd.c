@@ -2990,7 +2990,7 @@ static struct hc_driver u132_hc_driver = {
 * synchronously - but instead should immediately stop activity to the
 * device and asynchronously call usb_remove_hcd()
 */
-static int __devexit u132_remove(struct platform_device *pdev)
+static int u132_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	if (hcd) {

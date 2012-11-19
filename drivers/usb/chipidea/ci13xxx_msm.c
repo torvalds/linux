@@ -77,7 +77,7 @@ static int ci13xxx_msm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
+static int ci13xxx_msm_remove(struct platform_device *pdev)
 {
 	struct platform_device *plat_ci = platform_get_drvdata(pdev);
 

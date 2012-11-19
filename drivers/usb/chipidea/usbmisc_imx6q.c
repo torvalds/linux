@@ -127,7 +127,7 @@ static int usbmisc_imx6q_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit usbmisc_imx6q_remove(struct platform_device *pdev)
+static int usbmisc_imx6q_remove(struct platform_device *pdev)
 {
 	usbmisc_unset_ops(&imx6q_usbmisc_ops);
 	clk_disable_unprepare(usbmisc->clk);

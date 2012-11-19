@@ -220,7 +220,7 @@ put_np:
 	return ret;
 }
 
-static int __devexit ci13xxx_imx_remove(struct platform_device *pdev)
+static int ci13xxx_imx_remove(struct platform_device *pdev)
 {
 	struct ci13xxx_imx_data *data = platform_get_drvdata(pdev);
 
