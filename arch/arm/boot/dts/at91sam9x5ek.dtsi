@@ -18,6 +18,24 @@
 
 	ahb {
 		apb {
+			mmc0: mmc@f0008000 {
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioD 15 0>;
+				};
+			};
+
+			mmc1: mmc@f000c000 {
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioD 14 0>;
+				};
+			};
+
 			dbgu: serial@fffff200 {
 				status = "okay";
 			};

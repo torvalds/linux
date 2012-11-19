@@ -12,6 +12,18 @@
 	model = "Atmel at91sam9g20ek 2 mmc";
 	compatible = "atmel,at91sam9g20ek_2mmc", "atmel,at91sam9g20", "atmel,at91sam9";
 
+	ahb {
+		apb{
+			mmc0: mmc@fffa8000 {
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioC 2 0>;
+				};
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 

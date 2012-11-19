@@ -54,6 +54,16 @@
 				atmel,vbus-gpio = <&pioA 25 0>;
 				status = "okay";
 			};
+
+			mmc0: mmc@fff80000 {
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioE 18 0>;
+					wp-gpios = <&pioE 19 0>;
+				};
+			};
 		};
 
 		nand0: nand@40000000 {

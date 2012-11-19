@@ -45,6 +45,15 @@
 			i2c1: i2c@f8014000 {
 				status = "okay";
 			};
+
+			mmc0: mmc@f0008000 {
+				status = "okay";
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioA 7 0>;
+				};
+			};
 		};
 
 		nand0: nand@40000000 {
