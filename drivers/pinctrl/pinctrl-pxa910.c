@@ -976,7 +976,7 @@ static int __devinit pxa910_pinmux_probe(struct platform_device *pdev)
 	return pxa3xx_pinctrl_register(pdev, &pxa910_info);
 }
 
-static int __devexit pxa910_pinmux_remove(struct platform_device *pdev)
+static int pxa910_pinmux_remove(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_unregister(pdev);
 }

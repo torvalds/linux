@@ -2440,7 +2440,7 @@ static int __devinit spear1310_pinctrl_probe(struct platform_device *pdev)
 	return spear_pinctrl_probe(pdev, &spear1310_machdata);
 }
 
-static int __devexit spear1310_pinctrl_remove(struct platform_device *pdev)
+static int spear1310_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }

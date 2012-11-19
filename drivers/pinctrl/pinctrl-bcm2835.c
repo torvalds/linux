@@ -1042,7 +1042,7 @@ static int __devinit bcm2835_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bcm2835_pinctrl_remove(struct platform_device *pdev)
+static int bcm2835_pinctrl_remove(struct platform_device *pdev)
 {
 	struct bcm2835_pinctrl *pc = platform_get_drvdata(pdev);
 

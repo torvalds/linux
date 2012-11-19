@@ -611,7 +611,7 @@ int __devinit imx_pinctrl_probe(struct platform_device *pdev,
 	return 0;
 }
 
-int __devexit imx_pinctrl_remove(struct platform_device *pdev)
+int imx_pinctrl_remove(struct platform_device *pdev)
 {
 	struct imx_pinctrl *ipctl = platform_get_drvdata(pdev);
 

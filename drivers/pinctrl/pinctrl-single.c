@@ -986,7 +986,7 @@ free:
 	return ret;
 }
 
-static int __devexit pcs_remove(struct platform_device *pdev)
+static int pcs_remove(struct platform_device *pdev)
 {
 	struct pcs_device *pcs = platform_get_drvdata(pdev);
 

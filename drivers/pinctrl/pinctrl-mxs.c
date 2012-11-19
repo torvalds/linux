@@ -522,7 +522,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(mxs_pinctrl_probe);
 
-int __devexit mxs_pinctrl_remove(struct platform_device *pdev)
+int mxs_pinctrl_remove(struct platform_device *pdev)
 {
 	struct mxs_pinctrl_data *d = platform_get_drvdata(pdev);
 

@@ -691,7 +691,7 @@ static int __devinit mmp2_pinmux_probe(struct platform_device *pdev)
 	return pxa3xx_pinctrl_register(pdev, &mmp2_info);
 }
 
-static int __devexit mmp2_pinmux_remove(struct platform_device *pdev)
+static int mmp2_pinmux_remove(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_unregister(pdev);
 }

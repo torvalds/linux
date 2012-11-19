@@ -398,7 +398,7 @@ static int __devinit spear310_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit spear310_pinctrl_remove(struct platform_device *pdev)
+static int spear310_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }

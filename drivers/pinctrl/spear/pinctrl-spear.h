@@ -138,7 +138,7 @@ struct spear_pmx {
 void __devinit pmx_init_addr(struct spear_pinctrl_machdata *machdata, u16 reg);
 int __devinit spear_pinctrl_probe(struct platform_device *pdev,
 		struct spear_pinctrl_machdata *machdata);
-int __devexit spear_pinctrl_remove(struct platform_device *pdev);
+int spear_pinctrl_remove(struct platform_device *pdev);
 
 #define SPEAR_PIN_0_TO_101		\
 	PINCTRL_PIN(0, "PLGPIO0"),	\
