@@ -19,7 +19,7 @@ drm-$(CONFIG_DRM_GEM_CMA_HELPER) += drm_gem_cma_helper.o
 
 drm-usb-y   := drm_usb.o
 
-drm_kms_helper-y := drm_fb_helper.o drm_crtc_helper.o drm_dp_i2c_helper.o
+drm_kms_helper-y := drm_fb_helper.o drm_crtc_helper.o drm_dp_helper.o
 drm_kms_helper-$(CONFIG_DRM_LOAD_EDID_FIRMWARE) += drm_edid_load.o
 drm_kms_helper-$(CONFIG_DRM_KMS_CMA_HELPER) += drm_fb_cma_helper.o
 

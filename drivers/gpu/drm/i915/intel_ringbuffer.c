@@ -245,7 +245,7 @@ gen6_render_ring_flush(struct intel_ring_buffer *ring,
 		/*
 		 * TLB invalidate requires a post-sync write.
 		 */
-		flags |= PIPE_CONTROL_QW_WRITE;
+		flags |= PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_CS_STALL;
 	}
 
 	ret = intel_ring_begin(ring, 4);
@@ -964,7 +964,9 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 }
 
 static int
-i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
+i965_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			 u32 offset, u32 length,
+			 unsigned flags)
 {
 	int ret;
 
@@ -975,7 +977,7 @@ i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 	intel_ring_emit(ring,
 			MI_BATCH_BUFFER_START |
 			MI_BATCH_GTT |
-			MI_BATCH_NON_SECURE_I965);
+			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
 
@@ -984,7 +986,8 @@ i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 
 static int
 i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
-				u32 offset, u32 len)
+				u32 offset, u32 len,
+				unsigned flags)
 {
 	int ret;
 
@@ -993,7 +996,7 @@ i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER);
-	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
+	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
 	intel_ring_emit(ring, offset + len - 8);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
@@ -1003,7 +1006,8 @@ i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 static int
 i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
-				u32 offset, u32 len)
+			 u32 offset, u32 len,
+			 unsigned flags)
 {
 	int ret;
 
@@ -1012,7 +1016,7 @@ i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
 		return ret;
 
 	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_GTT);
-	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
+	intel_ring_emit(ring, offset | (flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE));
 	intel_ring_advance(ring);
 
 	return 0;
@@ -1075,6 +1079,29 @@ err:
 	return ret;
 }
 
+static int init_phys_hws_pga(struct intel_ring_buffer *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	u32 addr;
+
+	if (!dev_priv->status_page_dmah) {
+		dev_priv->status_page_dmah =
+			drm_pci_alloc(ring->dev, PAGE_SIZE, PAGE_SIZE);
+		if (!dev_priv->status_page_dmah)
+			return -ENOMEM;
+	}
+
+	addr = dev_priv->status_page_dmah->busaddr;
+	if (INTEL_INFO(ring->dev)->gen >= 4)
+		addr |= (dev_priv->status_page_dmah->busaddr >> 28) & 0xf0;
+	I915_WRITE(HWS_PGA, addr);
+
+	ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
+	memset(ring->status_page.page_addr, 0, PAGE_SIZE);
+
+	return 0;
+}
+
 static int intel_init_ring_buffer(struct drm_device *dev,
 				  struct intel_ring_buffer *ring)
 {
@@ -1091,6 +1118,11 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 
 	if (I915_NEED_GFX_HWS(dev)) {
 		ret = init_status_page(ring);
+		if (ret)
+			return ret;
+	} else {
+		BUG_ON(ring->id != RCS);
+		ret = init_phys_hws_pga(ring);
 		if (ret)
 			return ret;
 	}
@@ -1391,10 +1423,17 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
+	/*
+	 * Bspec vol 1c.5 - video engine command streamer:
+	 * "If ENABLED, all TLBs will be invalidated once the flush
+	 * operation is complete. This bit is only valid when the
+	 * Post-Sync Operation field is a value of 1h or 3h."
+	 */
 	if (invalidate & I915_GEM_GPU_DOMAINS)
-		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD;
+		cmd |= MI_INVALIDATE_TLB | MI_INVALIDATE_BSD |
+			MI_FLUSH_DW_STORE_INDEX | MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
-	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1402,8 +1441,9 @@ static int gen6_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
-gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
-			      u32 offset, u32 len)
+hsw_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			      u32 offset, u32 len,
+			      unsigned flags)
 {
 	int ret;
 
@@ -1411,7 +1451,30 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_NON_SECURE_I965);
+	intel_ring_emit(ring,
+			MI_BATCH_BUFFER_START | MI_BATCH_PPGTT_HSW |
+			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_HSW));
+	/* bit0-7 is the length on GEN6+ */
+	intel_ring_emit(ring, offset);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
+gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
+			      u32 offset, u32 len,
+			      unsigned flags)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring,
+			MI_BATCH_BUFFER_START |
+			(flags & I915_DISPATCH_SECURE ? 0 : MI_BATCH_NON_SECURE_I965));
 	/* bit0-7 is the length on GEN6+ */
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
@@ -1432,10 +1495,17 @@ static int blt_ring_flush(struct intel_ring_buffer *ring,
 		return ret;
 
 	cmd = MI_FLUSH_DW;
+	/*
+	 * Bspec vol 1c.3 - blitter engine command streamer:
+	 * "If ENABLED, all TLBs will be invalidated once the flush
+	 * operation is complete. This bit is only valid when the
+	 * Post-Sync Operation field is a value of 1h or 3h."
+	 */
 	if (invalidate & I915_GEM_DOMAIN_RENDER)
-		cmd |= MI_INVALIDATE_TLB;
+		cmd |= MI_INVALIDATE_TLB | MI_FLUSH_DW_STORE_INDEX |
+			MI_FLUSH_DW_OP_STOREDW;
 	intel_ring_emit(ring, cmd);
-	intel_ring_emit(ring, 0);
+	intel_ring_emit(ring, I915_GEM_HWS_SCRATCH_ADDR | MI_FLUSH_DW_USE_GTT);
 	intel_ring_emit(ring, 0);
 	intel_ring_emit(ring, MI_NOOP);
 	intel_ring_advance(ring);
@@ -1490,7 +1560,9 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
-	if (INTEL_INFO(dev)->gen >= 6)
+	if (IS_HASWELL(dev))
+		ring->dispatch_execbuffer = hsw_ring_dispatch_execbuffer;
+	else if (INTEL_INFO(dev)->gen >= 6)
 		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
 	else if (INTEL_INFO(dev)->gen >= 4)
 		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
@@ -1501,12 +1573,6 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	ring->init = init_render_ring;
 	ring->cleanup = render_ring_cleanup;
 
-
-	if (!I915_NEED_GFX_HWS(dev)) {
-		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-		memset(ring->status_page.page_addr, 0, PAGE_SIZE);
-	}
-
 	return intel_init_ring_buffer(dev, ring);
 }
 
@@ -1514,6 +1580,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	int ret;
 
 	ring->name = "render ring";
 	ring->id = RCS;
@@ -1551,16 +1618,13 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	ring->init = init_render_ring;
 	ring->cleanup = render_ring_cleanup;
 
-	if (!I915_NEED_GFX_HWS(dev))
-		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
-
 	ring->dev = dev;
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 
 	ring->size = size;
 	ring->effective_size = ring->size;
-	if (IS_I830(ring->dev))
+	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
 
 	ring->virtual_start = ioremap_wc(start, size);
@@ -1568,6 +1632,12 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
+	}
+
+	if (!I915_NEED_GFX_HWS(dev)) {
+		ret = init_phys_hws_pga(ring);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1617,7 +1687,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
 	}
 	ring->init = init_ring_common;
-
 
 	return intel_init_ring_buffer(dev, ring);
 }

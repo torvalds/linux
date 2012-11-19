@@ -3,7 +3,7 @@
 #ifndef _DRM_INTEL_GTT_H
 #define	_DRM_INTEL_GTT_H
 
-const struct intel_gtt {
+struct intel_gtt {
 	/* Size of memory reserved for graphics by the BIOS */
 	unsigned int stolen_size;
 	/* Total number of gtt entries. */
@@ -17,6 +17,7 @@ const struct intel_gtt {
 	unsigned int do_idle_maps : 1;
 	/* Share the scratch page dma with ppgtts. */
 	dma_addr_t scratch_page_dma;
+	struct page *scratch_page;
 	/* for ppgtt PDE access */
 	u32 __iomem *gtt;
 	/* needed for ioremap in drm/i915 */
@@ -38,10 +39,6 @@ void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries);
 /* Special gtt memory types */
 #define AGP_DCACHE_MEMORY	1
 #define AGP_PHYS_MEMORY		2
-
-/* New caching attributes for gen6/sandybridge */
-#define AGP_USER_CACHED_MEMORY_LLC_MLC (AGP_USER_TYPES + 2)
-#define AGP_USER_UNCACHED_MEMORY (AGP_USER_TYPES + 4)
 
 /* flag for GFDT type */
 #define AGP_USER_CACHED_MEMORY_GFDT (1 << 3)

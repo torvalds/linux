@@ -122,7 +122,10 @@ static int
 i915_pipe_enabled(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	return I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
+
+	return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE;
 }
 
 /* Called from drm generic code, passed a 'crtc', which
@@ -182,6 +185,8 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	int vbl_start, vbl_end, htotal, vtotal;
 	bool in_vbl = true;
 	int ret = 0;
+	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
+								      pipe);
 
 	if (!i915_pipe_enabled(dev, pipe)) {
 		DRM_DEBUG_DRIVER("trying to get scanoutpos for disabled "
@@ -190,7 +195,7 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 	}
 
 	/* Get vtotal. */
-	vtotal = 1 + ((I915_READ(VTOTAL(pipe)) >> 16) & 0x1fff);
+	vtotal = 1 + ((I915_READ(VTOTAL(cpu_transcoder)) >> 16) & 0x1fff);
 
 	if (INTEL_INFO(dev)->gen >= 4) {
 		/* No obvious pixelcount register. Only query vertical
@@ -210,13 +215,13 @@ static int i915_get_crtc_scanoutpos(struct drm_device *dev, int pipe,
 		 */
 		position = (I915_READ(PIPEFRAMEPIXEL(pipe)) & PIPE_PIXEL_MASK) >> PIPE_PIXEL_SHIFT;
 
-		htotal = 1 + ((I915_READ(HTOTAL(pipe)) >> 16) & 0x1fff);
+		htotal = 1 + ((I915_READ(HTOTAL(cpu_transcoder)) >> 16) & 0x1fff);
 		*vpos = position / htotal;
 		*hpos = position - (*vpos * htotal);
 	}
 
 	/* Query vblank area. */
-	vbl = I915_READ(VBLANK(pipe));
+	vbl = I915_READ(VBLANK(cpu_transcoder));
 
 	/* Test position against vblank region. */
 	vbl_start = vbl & 0x1fff;
@@ -352,8 +357,7 @@ static void notify_ring(struct drm_device *dev,
 	if (i915_enable_hangcheck) {
 		dev_priv->hangcheck_count = 0;
 		mod_timer(&dev_priv->hangcheck_timer,
-			  jiffies +
-			  msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+			  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 	}
 }
 
@@ -374,7 +378,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	if ((pm_iir & GEN6_PM_DEFERRED_EVENTS) == 0)
 		return;
 
-	mutex_lock(&dev_priv->dev->struct_mutex);
+	mutex_lock(&dev_priv->rps.hw_lock);
 
 	if (pm_iir & GEN6_PM_RP_UP_THRESHOLD)
 		new_delay = dev_priv->rps.cur_delay + 1;
@@ -389,7 +393,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 		gen6_set_rps(dev_priv->dev, new_delay);
 	}
 
-	mutex_unlock(&dev_priv->dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
 
@@ -405,7 +409,7 @@ static void gen6_pm_rps_work(struct work_struct *work)
 static void ivybridge_parity_work(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv = container_of(work, drm_i915_private_t,
-						    parity_error_work);
+						    l3_parity.error_work);
 	u32 error_status, row, bank, subbank;
 	char *parity_event[5];
 	uint32_t misccpctl;
@@ -469,7 +473,7 @@ static void ivybridge_handle_parity_error(struct drm_device *dev)
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, flags);
 
-	queue_work(dev_priv->wq, &dev_priv->parity_error_work);
+	queue_work(dev_priv->wq, &dev_priv->l3_parity.error_work);
 }
 
 static void snb_gt_irq_handler(struct drm_device *dev,
@@ -520,7 +524,7 @@ static void gen6_queue_rps_work(struct drm_i915_private *dev_priv,
 	queue_work(dev_priv->wq, &dev_priv->rps.work);
 }
 
-static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t valleyview_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -606,6 +610,9 @@ static void ibx_irq_handler(struct drm_device *dev, u32 pch_iir)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
 
+	if (pch_iir & SDE_HOTPLUG_MASK)
+		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+
 	if (pch_iir & SDE_AUDIO_POWER_MASK)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
 				 (pch_iir & SDE_AUDIO_POWER_MASK) >>
@@ -646,6 +653,9 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
 
+	if (pch_iir & SDE_HOTPLUG_MASK_CPT)
+		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+
 	if (pch_iir & SDE_AUDIO_POWER_MASK_CPT)
 		DRM_DEBUG_DRIVER("PCH audio power change on port %d\n",
 				 (pch_iir & SDE_AUDIO_POWER_MASK_CPT) >>
@@ -670,7 +680,7 @@ static void cpt_irq_handler(struct drm_device *dev, u32 pch_iir)
 					 I915_READ(FDI_RX_IIR(pipe)));
 }
 
-static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t ivybridge_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -709,8 +719,6 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		if (de_iir & DE_PCH_EVENT_IVB) {
 			u32 pch_iir = I915_READ(SDEIIR);
 
-			if (pch_iir & SDE_HOTPLUG_MASK_CPT)
-				queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 			cpt_irq_handler(dev, pch_iir);
 
 			/* clear PCH hotplug event before clear CPU irq */
@@ -745,13 +753,12 @@ static void ilk_gt_irq_handler(struct drm_device *dev,
 		notify_ring(dev, &dev_priv->ring[VCS]);
 }
 
-static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t ironlake_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
-	u32 hotplug_mask;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -768,11 +775,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 &&
 	    (!IS_GEN6(dev) || pm_iir == 0))
 		goto done;
-
-	if (HAS_PCH_CPT(dev))
-		hotplug_mask = SDE_HOTPLUG_MASK_CPT;
-	else
-		hotplug_mask = SDE_HOTPLUG_MASK;
 
 	ret = IRQ_HANDLED;
 
@@ -802,8 +804,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT) {
-		if (pch_iir & hotplug_mask)
-			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
 		if (HAS_PCH_CPT(dev))
 			cpt_irq_handler(dev, pch_iir);
 		else
@@ -1751,7 +1751,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 repeat:
 	/* Reset timer case chip hangs without another request being added */
 	mod_timer(&dev_priv->hangcheck_timer,
-		  jiffies + msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD));
+		  round_jiffies_up(jiffies + DRM_I915_HANGCHECK_JIFFIES));
 }
 
 /* drm_dma.h hooks
@@ -1956,6 +1956,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	u32 enable_mask;
 	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 	u32 pipestat_enable = PLANE_FLIP_DONE_INT_EN_VLV;
+	u32 render_irqs;
 	u16 msid;
 
 	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
@@ -1995,21 +1996,12 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(VLV_IIR, 0xffffffff);
 	I915_WRITE(VLV_IIR, 0xffffffff);
 
-	dev_priv->gt_irq_mask = ~0;
-
-	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
-	I915_WRITE(GTIER, GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT |
-		   GT_GEN6_BLT_CS_ERROR_INTERRUPT |
-		   GT_GEN6_BLT_USER_INTERRUPT |
-		   GT_GEN6_BSD_USER_INTERRUPT |
-		   GT_GEN6_BSD_CS_ERROR_INTERRUPT |
-		   GT_GEN7_L3_PARITY_ERROR_INTERRUPT |
-		   GT_PIPE_NOTIFY |
-		   GT_RENDER_CS_ERROR_INTERRUPT |
-		   GT_SYNC_STATUS |
-		   GT_USER_INTERRUPT);
+
+	render_irqs = GT_USER_INTERRUPT | GEN6_BSD_USER_INTERRUPT |
+		GEN6_BLITTER_USER_INTERRUPT;
+	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
 
 	/* ack & enable invalid PTE error interrupts */
@@ -2019,7 +2011,6 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 #endif
 
 	I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
-#if 0 /* FIXME: check register definitions; some have moved */
 	/* Note HDMI and DP share bits */
 	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
 		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
@@ -2027,15 +2018,14 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
 		hotplug_en |= HDMID_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I915)
 		hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I915)
 		hotplug_en |= SDVOB_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 		hotplug_en |= CRT_HOTPLUG_INT_EN;
 		hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 	}
-#endif
 
 	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 
@@ -2129,7 +2119,7 @@ static int i8xx_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i8xx_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i8xx_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2307,7 +2297,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i915_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2545,7 +2535,7 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
-static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
+static irqreturn_t i965_irq_handler(int irq, void *arg)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2691,7 +2681,7 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps.work, gen6_pm_rps_work);
-	INIT_WORK(&dev_priv->parity_error_work, ivybridge_parity_work);
+	INIT_WORK(&dev_priv->l3_parity.error_work, ivybridge_parity_work);
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */

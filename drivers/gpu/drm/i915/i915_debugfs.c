@@ -1068,7 +1068,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rpmodectl1, gt_core_status, rcctl1;
+	u32 rpmodectl1, gt_core_status, rcctl1, rc6vids = 0;
 	unsigned forcewake_count;
 	int count=0, ret;
 
@@ -1097,6 +1097,9 @@ static int gen6_drpc_info(struct seq_file *m)
 	rpmodectl1 = I915_READ(GEN6_RP_CONTROL);
 	rcctl1 = I915_READ(GEN6_RC_CONTROL);
 	mutex_unlock(&dev->struct_mutex);
+	mutex_lock(&dev_priv->rps.hw_lock);
+	sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	seq_printf(m, "Video Turbo Mode: %s\n",
 		   yesno(rpmodectl1 & GEN6_RP_MEDIA_TURBO));
@@ -1148,6 +1151,12 @@ static int gen6_drpc_info(struct seq_file *m)
 	seq_printf(m, "RC6++ residency since boot: %u\n",
 		   I915_READ(GEN6_GT_GFX_RC6pp));
 
+	seq_printf(m, "RC6   voltage: %dmV\n",
+		   GEN6_DECODE_RC6_VID(((rc6vids >> 0) & 0xff)));
+	seq_printf(m, "RC6+  voltage: %dmV\n",
+		   GEN6_DECODE_RC6_VID(((rc6vids >> 8) & 0xff)));
+	seq_printf(m, "RC6++ voltage: %dmV\n",
+		   GEN6_DECODE_RC6_VID(((rc6vids >> 16) & 0xff)));
 	return 0;
 }
 
@@ -1273,7 +1282,7 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 		return 0;
 	}
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
@@ -1282,19 +1291,14 @@ static int i915_ring_freq_table(struct seq_file *m, void *unused)
 	for (gpu_freq = dev_priv->rps.min_delay;
 	     gpu_freq <= dev_priv->rps.max_delay;
 	     gpu_freq++) {
-		I915_WRITE(GEN6_PCODE_DATA, gpu_freq);
-		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
-			   GEN6_PCODE_READ_MIN_FREQ_TABLE);
-		if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) &
-			      GEN6_PCODE_READY) == 0, 10)) {
-			DRM_ERROR("pcode read of freq table timed out\n");
-			continue;
-		}
-		ia_freq = I915_READ(GEN6_PCODE_DATA);
+		ia_freq = gpu_freq;
+		sandybridge_pcode_read(dev_priv,
+				       GEN6_PCODE_READ_MIN_FREQ_TABLE,
+				       &ia_freq);
 		seq_printf(m, "%d\t\t%d\n", gpu_freq * GT_FREQUENCY_MULTIPLIER, ia_freq * 100);
 	}
 
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return 0;
 }
@@ -1398,15 +1402,15 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	if (ret)
 		return ret;
 
-	if (dev_priv->pwrctx) {
+	if (dev_priv->ips.pwrctx) {
 		seq_printf(m, "power context ");
-		describe_obj(m, dev_priv->pwrctx);
+		describe_obj(m, dev_priv->ips.pwrctx);
 		seq_printf(m, "\n");
 	}
 
-	if (dev_priv->renderctx) {
+	if (dev_priv->ips.renderctx) {
 		seq_printf(m, "render context ");
-		describe_obj(m, dev_priv->renderctx);
+		describe_obj(m, dev_priv->ips.renderctx);
 		seq_printf(m, "\n");
 	}
 
@@ -1711,13 +1715,13 @@ i915_max_freq_read(struct file *filp,
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
 	len = snprintf(buf, sizeof(buf),
 		       "max freq: %d\n", dev_priv->rps.max_delay * GT_FREQUENCY_MULTIPLIER);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1752,7 +1756,7 @@ i915_max_freq_write(struct file *filp,
 
 	DRM_DEBUG_DRIVER("Manually setting max freq to %d\n", val);
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
@@ -1762,7 +1766,7 @@ i915_max_freq_write(struct file *filp,
 	dev_priv->rps.max_delay = val / GT_FREQUENCY_MULTIPLIER;
 
 	gen6_set_rps(dev, val / GT_FREQUENCY_MULTIPLIER);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return cnt;
 }
@@ -1787,13 +1791,13 @@ i915_min_freq_read(struct file *filp, char __user *ubuf, size_t max,
 	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
 	len = snprintf(buf, sizeof(buf),
 		       "min freq: %d\n", dev_priv->rps.min_delay * GT_FREQUENCY_MULTIPLIER);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);
@@ -1826,7 +1830,7 @@ i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
 
 	DRM_DEBUG_DRIVER("Manually setting min freq to %d\n", val);
 
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
+	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
@@ -1836,7 +1840,7 @@ i915_min_freq_write(struct file *filp, const char __user *ubuf, size_t cnt,
 	dev_priv->rps.min_delay = val / GT_FREQUENCY_MULTIPLIER;
 
 	gen6_set_rps(dev, val / GT_FREQUENCY_MULTIPLIER);
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&dev_priv->rps.hw_lock);
 
 	return cnt;
 }

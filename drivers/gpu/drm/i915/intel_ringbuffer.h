@@ -81,7 +81,9 @@ struct  intel_ring_buffer {
 	u32		(*get_seqno)(struct intel_ring_buffer *ring,
 				     bool lazy_coherency);
 	int		(*dispatch_execbuffer)(struct intel_ring_buffer *ring,
-					       u32 offset, u32 length);
+					       u32 offset, u32 length,
+					       unsigned flags);
+#define I915_DISPATCH_SECURE 0x1
 	void		(*cleanup)(struct intel_ring_buffer *ring);
 	int		(*sync_to)(struct intel_ring_buffer *ring,
 				   struct intel_ring_buffer *to,
@@ -181,6 +183,8 @@ intel_read_status_page(struct intel_ring_buffer *ring,
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
 #define I915_GEM_HWS_INDEX		0x20
+#define I915_GEM_HWS_SCRATCH_INDEX	0x30
+#define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 

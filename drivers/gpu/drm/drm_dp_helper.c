@@ -37,7 +37,7 @@ i2c_algo_dp_aux_transaction(struct i2c_adapter *adapter, int mode,
 {
 	struct i2c_algo_dp_aux_data *algo_data = adapter->algo_data;
 	int ret;
-	
+
 	ret = (*algo_data->aux_ch)(adapter, mode,
 				   write_byte, read_byte);
 	return ret;
@@ -182,7 +182,6 @@ i2c_dp_aux_reset_bus(struct i2c_adapter *adapter)
 {
 	(void) i2c_algo_dp_aux_address(adapter, 0, false);
 	(void) i2c_algo_dp_aux_stop(adapter, false);
-					   
 }
 
 static int
@@ -198,7 +197,7 @@ int
 i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 {
 	int error;
-	
+
 	error = i2c_dp_aux_prepare_bus(adapter);
 	if (error)
 		return error;
@@ -206,3 +205,123 @@ i2c_dp_aux_add_bus(struct i2c_adapter *adapter)
 	return error;
 }
 EXPORT_SYMBOL(i2c_dp_aux_add_bus);
+
+/* Helpers for DP link training */
+static u8 dp_link_status(u8 link_status[DP_LINK_STATUS_SIZE], int r)
+{
+	return link_status[r - DP_LANE0_1_STATUS];
+}
+
+static u8 dp_get_lane_status(u8 link_status[DP_LINK_STATUS_SIZE],
+			     int lane)
+{
+	int i = DP_LANE0_1_STATUS + (lane >> 1);
+	int s = (lane & 1) * 4;
+	u8 l = dp_link_status(link_status, i);
+	return (l >> s) & 0xf;
+}
+
+bool drm_dp_channel_eq_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+			  int lane_count)
+{
+	u8 lane_align;
+	u8 lane_status;
+	int lane;
+
+	lane_align = dp_link_status(link_status,
+				    DP_LANE_ALIGN_STATUS_UPDATED);
+	if ((lane_align & DP_INTERLANE_ALIGN_DONE) == 0)
+		return false;
+	for (lane = 0; lane < lane_count; lane++) {
+		lane_status = dp_get_lane_status(link_status, lane);
+		if ((lane_status & DP_CHANNEL_EQ_BITS) != DP_CHANNEL_EQ_BITS)
+			return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL(drm_dp_channel_eq_ok);
+
+bool drm_dp_clock_recovery_ok(u8 link_status[DP_LINK_STATUS_SIZE],
+			      int lane_count)
+{
+	int lane;
+	u8 lane_status;
+
+	for (lane = 0; lane < lane_count; lane++) {
+		lane_status = dp_get_lane_status(link_status, lane);
+		if ((lane_status & DP_LANE_CR_DONE) == 0)
+			return false;
+	}
+	return true;
+}
+EXPORT_SYMBOL(drm_dp_clock_recovery_ok);
+
+u8 drm_dp_get_adjust_request_voltage(u8 link_status[DP_LINK_STATUS_SIZE],
+				     int lane)
+{
+	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
+	int s = ((lane & 1) ?
+		 DP_ADJUST_VOLTAGE_SWING_LANE1_SHIFT :
+		 DP_ADJUST_VOLTAGE_SWING_LANE0_SHIFT);
+	u8 l = dp_link_status(link_status, i);
+
+	return ((l >> s) & 0x3) << DP_TRAIN_VOLTAGE_SWING_SHIFT;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_request_voltage);
+
+u8 drm_dp_get_adjust_request_pre_emphasis(u8 link_status[DP_LINK_STATUS_SIZE],
+					  int lane)
+{
+	int i = DP_ADJUST_REQUEST_LANE0_1 + (lane >> 1);
+	int s = ((lane & 1) ?
+		 DP_ADJUST_PRE_EMPHASIS_LANE1_SHIFT :
+		 DP_ADJUST_PRE_EMPHASIS_LANE0_SHIFT);
+	u8 l = dp_link_status(link_status, i);
+
+	return ((l >> s) & 0x3) << DP_TRAIN_PRE_EMPHASIS_SHIFT;
+}
+EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
+
+void drm_dp_link_train_clock_recovery_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
+	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
+		udelay(100);
+	else
+		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+}
+EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
+
+void drm_dp_link_train_channel_eq_delay(u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
+	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
+		udelay(400);
+	else
+		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+}
+EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
+
+u8 drm_dp_link_rate_to_bw_code(int link_rate)
+{
+	switch (link_rate) {
+	case 162000:
+	default:
+		return DP_LINK_BW_1_62;
+	case 270000:
+		return DP_LINK_BW_2_7;
+	case 540000:
+		return DP_LINK_BW_5_4;
+	}
+}
+EXPORT_SYMBOL(drm_dp_link_rate_to_bw_code);
+
+int drm_dp_bw_code_to_link_rate(u8 link_bw)
+{
+	switch (link_bw) {
+	case DP_LINK_BW_1_62:
+	default:
+		return 162000;
+	case DP_LINK_BW_2_7:
+		return 270000;
+	case DP_LINK_BW_5_4:
+		return 540000;
+	}
+}
+EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);

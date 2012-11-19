@@ -138,24 +138,24 @@ static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
 
 	if (HAS_PCH_SPLIT(dev_priv->dev)) {
 		val = I915_READ(BLC_PWM_PCH_CTL2);
-		if (dev_priv->saveBLC_PWM_CTL2 == 0) {
-			dev_priv->saveBLC_PWM_CTL2 = val;
+		if (dev_priv->regfile.saveBLC_PWM_CTL2 == 0) {
+			dev_priv->regfile.saveBLC_PWM_CTL2 = val;
 		} else if (val == 0) {
 			I915_WRITE(BLC_PWM_PCH_CTL2,
-				   dev_priv->saveBLC_PWM_CTL2);
-			val = dev_priv->saveBLC_PWM_CTL2;
+				   dev_priv->regfile.saveBLC_PWM_CTL2);
+			val = dev_priv->regfile.saveBLC_PWM_CTL2;
 		}
 	} else {
 		val = I915_READ(BLC_PWM_CTL);
-		if (dev_priv->saveBLC_PWM_CTL == 0) {
-			dev_priv->saveBLC_PWM_CTL = val;
-			dev_priv->saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
+		if (dev_priv->regfile.saveBLC_PWM_CTL == 0) {
+			dev_priv->regfile.saveBLC_PWM_CTL = val;
+			dev_priv->regfile.saveBLC_PWM_CTL2 = I915_READ(BLC_PWM_CTL2);
 		} else if (val == 0) {
 			I915_WRITE(BLC_PWM_CTL,
-				   dev_priv->saveBLC_PWM_CTL);
+				   dev_priv->regfile.saveBLC_PWM_CTL);
 			I915_WRITE(BLC_PWM_CTL2,
-				   dev_priv->saveBLC_PWM_CTL2);
-			val = dev_priv->saveBLC_PWM_CTL;
+				   dev_priv->regfile.saveBLC_PWM_CTL2);
+			val = dev_priv->regfile.saveBLC_PWM_CTL;
 		}
 	}
 
@@ -416,20 +416,13 @@ static const struct backlight_ops intel_panel_bl_ops = {
 	.get_brightness = intel_panel_get_brightness,
 };
 
-int intel_panel_setup_backlight(struct drm_device *dev)
+int intel_panel_setup_backlight(struct drm_connector *connector)
 {
+	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct backlight_properties props;
-	struct drm_connector *connector;
 
 	intel_panel_init_backlight(dev);
-
-	if (dev_priv->int_lvds_connector)
-		connector = dev_priv->int_lvds_connector;
-	else if (dev_priv->int_edp_connector)
-		connector = dev_priv->int_edp_connector;
-	else
-		return -ENODEV;
 
 	memset(&props, 0, sizeof(props));
 	props.type = BACKLIGHT_RAW;
@@ -460,9 +453,9 @@ void intel_panel_destroy_backlight(struct drm_device *dev)
 		backlight_device_unregister(dev_priv->backlight);
 }
 #else
-int intel_panel_setup_backlight(struct drm_device *dev)
+int intel_panel_setup_backlight(struct drm_connector *connector)
 {
-	intel_panel_init_backlight(dev);
+	intel_panel_init_backlight(connector->dev);
 	return 0;
 }
 
@@ -471,3 +464,20 @@ void intel_panel_destroy_backlight(struct drm_device *dev)
 	return;
 }
 #endif
+
+int intel_panel_init(struct intel_panel *panel,
+		     struct drm_display_mode *fixed_mode)
+{
+	panel->fixed_mode = fixed_mode;
+
+	return 0;
+}
+
+void intel_panel_fini(struct intel_panel *panel)
+{
+	struct intel_connector *intel_connector =
+		container_of(panel, struct intel_connector, panel);
+
+	if (panel->fixed_mode)
+		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
+}

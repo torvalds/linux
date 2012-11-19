@@ -229,24 +229,26 @@ TRACE_EVENT(i915_gem_evict_everything,
 );
 
 TRACE_EVENT(i915_gem_ring_dispatch,
-	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno),
-	    TP_ARGS(ring, seqno),
+	    TP_PROTO(struct intel_ring_buffer *ring, u32 seqno, u32 flags),
+	    TP_ARGS(ring, seqno, flags),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
 			     __field(u32, seqno)
+			     __field(u32, flags)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = ring->dev->primary->index;
 			   __entry->ring = ring->id;
 			   __entry->seqno = seqno;
+			   __entry->flags = flags;
 			   i915_trace_irq_get(ring, seqno);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u",
-		      __entry->dev, __entry->ring, __entry->seqno)
+	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
+		      __entry->dev, __entry->ring, __entry->seqno, __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
