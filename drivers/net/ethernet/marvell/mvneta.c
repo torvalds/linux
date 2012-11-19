@@ -2606,7 +2606,7 @@ static int __devinit mvneta_init(struct mvneta_port *pp, int phy_addr)
 	return 0;
 }
 
-static void __devexit mvneta_deinit(struct mvneta_port *pp)
+static void mvneta_deinit(struct mvneta_port *pp)
 {
 	kfree(pp->txqs);
 	kfree(pp->rxqs);
