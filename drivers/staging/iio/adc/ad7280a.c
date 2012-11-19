@@ -832,7 +832,7 @@ static const struct ad7280_platform_data ad7793_default_pdata = {
 	.thermistor_term_en = true,
 };
 
-static int __devinit ad7280_probe(struct spi_device *spi)
+static int ad7280_probe(struct spi_device *spi)
 {
 	const struct ad7280_platform_data *pdata = spi->dev.platform_data;
 	struct ad7280_state *st;

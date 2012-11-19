@@ -89,7 +89,7 @@ static int adt7316_spi_write(void *client, u8 reg, u8 val)
  * device probe and remove
  */
 
-static int __devinit adt7316_spi_probe(struct spi_device *spi_dev)
+static int adt7316_spi_probe(struct spi_device *spi_dev)
 {
 	struct adt7316_bus bus = {
 		.client = spi_dev,

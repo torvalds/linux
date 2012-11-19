@@ -180,7 +180,7 @@ static const struct iio_trigger_ops iio_bfin_tmr_trigger_ops = {
 	.set_trigger_state = iio_bfin_tmr_set_state,
 };
 
-static int __devinit iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
+static int iio_bfin_tmr_trigger_probe(struct platform_device *pdev)
 {
 	struct iio_bfin_timer_trigger_pdata *pdata = pdev->dev.platform_data;
 	struct bfin_tmr_state *st;

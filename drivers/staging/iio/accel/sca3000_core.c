@@ -1139,7 +1139,7 @@ static const struct iio_info sca3000_info_with_temp = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit sca3000_probe(struct spi_device *spi)
+static int sca3000_probe(struct spi_device *spi)
 {
 	int ret;
 	struct sca3000_state *st;

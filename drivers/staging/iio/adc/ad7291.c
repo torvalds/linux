@@ -580,7 +580,7 @@ static const struct iio_info ad7291_info = {
 	.event_attrs = &ad7291_event_attribute_group,
 };
 
-static int __devinit ad7291_probe(struct i2c_client *client,
+static int ad7291_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct ad7291_chip_info *chip;

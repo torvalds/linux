@@ -365,7 +365,7 @@ static const struct iio_info adxrs450_info = {
 	.write_raw = &adxrs450_write_raw,
 };
 
-static int __devinit adxrs450_probe(struct spi_device *spi)
+static int adxrs450_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adxrs450_state *st;

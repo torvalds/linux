@@ -705,7 +705,7 @@ static const struct iio_info tsl2563_info = {
 	.write_event_config = &tsl2563_write_interrupt_config,
 };
 
-static int __devinit tsl2563_probe(struct i2c_client *client,
+static int tsl2563_probe(struct i2c_client *client,
 				const struct i2c_device_id *device_id)
 {
 	struct iio_dev *indio_dev;

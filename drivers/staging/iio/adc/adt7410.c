@@ -695,7 +695,7 @@ static const struct iio_info adt7410_info = {
  * device probe and remove
  */
 
-static int __devinit adt7410_probe(struct device *dev, int irq,
+static int adt7410_probe(struct device *dev, int irq,
 	const char *name, const struct adt7410_ops *ops)
 {
 	unsigned long *adt7410_platform_data = dev->platform_data;
@@ -876,7 +876,7 @@ static const struct adt7410_ops adt7410_i2c_ops = {
 	.write_byte = adt7410_i2c_write_byte,
 };
 
-static int __devinit adt7410_i2c_probe(struct i2c_client *client,
+static int adt7410_i2c_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	return adt7410_probe(&client->dev, client->irq, id->name,
@@ -1030,7 +1030,7 @@ static const struct adt7410_ops adt7310_spi_ops = {
 	.write_byte = adt7310_spi_write_byte,
 };
 
-static int __devinit adt7310_spi_probe(struct spi_device *spi)
+static int adt7310_spi_probe(struct spi_device *spi)
 {
 	return adt7410_probe(&spi->dev, spi->irq,
 		spi_get_device_id(spi)->name, &adt7310_spi_ops);

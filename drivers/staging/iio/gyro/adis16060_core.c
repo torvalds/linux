@@ -145,7 +145,7 @@ static const struct iio_chan_spec adis16060_channels[] = {
 	}
 };
 
-static int __devinit adis16060_r_probe(struct spi_device *spi)
+static int adis16060_r_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis16060_state *st;
@@ -192,7 +192,7 @@ static int __devexit adis16060_r_remove(struct spi_device *spi)
 	return 0;
 }
 
-static int __devinit adis16060_w_probe(struct spi_device *spi)
+static int adis16060_w_probe(struct spi_device *spi)
 {
 	int ret;
 	struct iio_dev *indio_dev = adis16060_iio_dev;

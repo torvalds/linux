@@ -101,7 +101,7 @@ static const struct iio_trigger_ops iio_prtc_trigger_ops = {
 	.set_trigger_state = &iio_trig_periodic_rtc_set_state,
 };
 
-static int __devinit iio_trig_periodic_rtc_probe(struct platform_device *dev)
+static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 {
 	char **pdata = dev->dev.platform_data;
 	struct iio_prtc_trigger_info *trig_info;

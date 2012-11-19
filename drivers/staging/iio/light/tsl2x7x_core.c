@@ -1897,7 +1897,7 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 	},
 };
 
-static int __devinit tsl2x7x_probe(struct i2c_client *clientp,
+static int tsl2x7x_probe(struct i2c_client *clientp,
 	const struct i2c_device_id *id)
 {
 	int ret;

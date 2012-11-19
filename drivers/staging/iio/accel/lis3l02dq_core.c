@@ -675,7 +675,7 @@ static const struct iio_info lis3l02dq_info = {
 	.attrs = &lis3l02dq_attribute_group,
 };
 
-static int __devinit lis3l02dq_probe(struct spi_device *spi)
+static int lis3l02dq_probe(struct spi_device *spi)
 {
 	int ret;
 	struct lis3l02dq_state *st;

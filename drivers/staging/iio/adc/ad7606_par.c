@@ -47,7 +47,7 @@ static const struct ad7606_bus_ops ad7606_par8_bops = {
 	.read_block	= ad7606_par8_read_block,
 };
 
-static int __devinit ad7606_par_probe(struct platform_device *pdev)
+static int ad7606_par_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct iio_dev *indio_dev;

@@ -300,7 +300,7 @@ error_ret:
 	return ret;
 }
 
-static int __devinit ade7854_spi_probe(struct spi_device *spi)
+static int ade7854_spi_probe(struct spi_device *spi)
 {
 	int ret;
 	struct ade7854_state *st;

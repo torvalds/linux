@@ -799,7 +799,7 @@ static const struct iio_info tsl2583_info = {
  * Client probe function - When a valid device is found, the driver's device
  * data structure is updated, and initialization completes successfully.
  */
-static int __devinit taos_probe(struct i2c_client *clientp,
+static int taos_probe(struct i2c_client *clientp,
 		      const struct i2c_device_id *idp)
 {
 	int i, ret;

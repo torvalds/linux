@@ -314,7 +314,7 @@ static const struct iio_info ad9833_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad9834_probe(struct spi_device *spi)
+static int ad9834_probe(struct spi_device *spi)
 {
 	struct ad9834_platform_data *pdata = spi->dev.platform_data;
 	struct ad9834_state *st;

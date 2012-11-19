@@ -341,7 +341,7 @@ static const struct iio_info ad7816_info = {
  * device probe and remove
  */
 
-static int __devinit ad7816_probe(struct spi_device *spi_dev)
+static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;

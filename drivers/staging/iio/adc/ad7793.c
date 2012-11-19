@@ -441,7 +441,7 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 	},
 };
 
-static int __devinit ad7793_probe(struct spi_device *spi)
+static int ad7793_probe(struct spi_device *spi)
 {
 	const struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct ad7793_state *st;

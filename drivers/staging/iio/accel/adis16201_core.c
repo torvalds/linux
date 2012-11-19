@@ -175,7 +175,7 @@ static const struct adis_data adis16201_data = {
 		BIT(ADIS16201_DIAG_STAT_POWER_LOW_BIT),
 };
 
-static int __devinit adis16201_probe(struct spi_device *spi)
+static int adis16201_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis *st;

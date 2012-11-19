@@ -51,7 +51,7 @@ static const struct iio_trigger_ops iio_gpio_trigger_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit iio_gpio_trigger_probe(struct platform_device *pdev)
+static int iio_gpio_trigger_probe(struct platform_device *pdev)
 {
 	struct iio_gpio_trigger_info *trig_info;
 	struct iio_trigger *trig, *trig2;

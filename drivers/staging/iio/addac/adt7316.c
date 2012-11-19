@@ -2125,7 +2125,7 @@ static const struct iio_info adt7516_info = {
 /*
  * device probe and remove
  */
-int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
+int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		const char *name)
 {
 	struct adt7316_chip_info *chip;

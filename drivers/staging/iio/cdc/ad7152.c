@@ -474,7 +474,7 @@ static const struct iio_chan_spec ad7152_channels[] = {
  * device probe and remove
  */
 
-static int __devinit ad7152_probe(struct i2c_client *client,
+static int ad7152_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	int ret = 0;

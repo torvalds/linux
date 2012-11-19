@@ -1206,7 +1206,7 @@ static const struct iio_info adis16400_info = {
 	.attrs = &adis16400_attribute_group,
 };
 
-static int __devinit adis16400_probe(struct spi_device *spi)
+static int adis16400_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis16400_state *st;

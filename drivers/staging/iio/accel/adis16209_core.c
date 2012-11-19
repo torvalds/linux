@@ -176,7 +176,7 @@ static const struct adis_data adis16209_data = {
 };
 
 
-static int __devinit adis16209_probe(struct spi_device *spi)
+static int adis16209_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis *st;

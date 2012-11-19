@@ -58,7 +58,7 @@ static const struct iio_chan_spec ad2s90_chan = {
 	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 };
 
-static int __devinit ad2s90_probe(struct spi_device *spi)
+static int ad2s90_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct ad2s90_state *st;

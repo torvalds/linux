@@ -466,7 +466,7 @@ static void mxs_lradc_hw_stop(struct mxs_lradc *lradc)
 		writel(0, lradc->base + LRADC_DELAY(i));
 }
 
-static int __devinit mxs_lradc_probe(struct platform_device *pdev)
+static int mxs_lradc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxs_lradc *lradc;

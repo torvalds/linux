@@ -77,7 +77,7 @@ static const struct iio_info ad9850_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit ad9850_probe(struct spi_device *spi)
+static int ad9850_probe(struct spi_device *spi)
 {
 	struct ad9850_state *st;
 	struct iio_dev *idev;
