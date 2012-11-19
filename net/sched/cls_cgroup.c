@@ -34,7 +34,7 @@ static inline struct cgroup_cls_state *task_cls_state(struct task_struct *p)
 			    struct cgroup_cls_state, css);
 }
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
+static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 {
 	struct cgroup_cls_state *cs;
 
@@ -48,7 +48,7 @@ static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp)
 	return &cs->css;
 }
 
-static void cgrp_destroy(struct cgroup *cgrp)
+static void cgrp_css_free(struct cgroup *cgrp)
 {
 	kfree(cgrp_cls_state(cgrp));
 }
@@ -75,8 +75,8 @@ static struct cftype ss_files[] = {
 
 struct cgroup_subsys net_cls_subsys = {
 	.name		= "net_cls",
-	.create		= cgrp_create,
-	.destroy	= cgrp_destroy,
+	.css_alloc	= cgrp_css_alloc,
+	.css_free	= cgrp_css_free,
 	.subsys_id	= net_cls_subsys_id,
 	.base_cftypes	= ss_files,
 	.module		= THIS_MODULE,

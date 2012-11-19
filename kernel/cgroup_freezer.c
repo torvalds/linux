@@ -92,7 +92,7 @@ static const char *freezer_state_strs(unsigned int state)
 
 struct cgroup_subsys freezer_subsys;
 
-static struct cgroup_subsys_state *freezer_create(struct cgroup *cgroup)
+static struct cgroup_subsys_state *freezer_css_alloc(struct cgroup *cgroup)
 {
 	struct freezer *freezer;
 
@@ -105,14 +105,14 @@ static struct cgroup_subsys_state *freezer_create(struct cgroup *cgroup)
 }
 
 /**
- * freezer_post_create - commit creation of a freezer cgroup
+ * freezer_css_online - commit creation of a freezer cgroup
  * @cgroup: cgroup being created
  *
  * We're committing to creation of @cgroup.  Mark it online and inherit
  * parent's freezing state while holding both parent's and our
  * freezer->lock.
  */
-static int freezer_post_create(struct cgroup *cgroup)
+static int freezer_css_online(struct cgroup *cgroup)
 {
 	struct freezer *freezer = cgroup_freezer(cgroup);
 	struct freezer *parent = parent_freezer(freezer);
@@ -141,13 +141,13 @@ static int freezer_post_create(struct cgroup *cgroup)
 }
 
 /**
- * freezer_pre_destroy - initiate destruction of @cgroup
+ * freezer_css_offline - initiate destruction of @cgroup
  * @cgroup: cgroup being destroyed
  *
  * @cgroup is going away.  Mark it dead and decrement system_freezing_count
  * if it was holding one.
  */
-static void freezer_pre_destroy(struct cgroup *cgroup)
+static void freezer_css_offline(struct cgroup *cgroup)
 {
 	struct freezer *freezer = cgroup_freezer(cgroup);
 
@@ -161,7 +161,7 @@ static void freezer_pre_destroy(struct cgroup *cgroup)
 	spin_unlock_irq(&freezer->lock);
 }
 
-static void freezer_destroy(struct cgroup *cgroup)
+static void freezer_css_free(struct cgroup *cgroup)
 {
 	kfree(cgroup_freezer(cgroup));
 }
@@ -477,10 +477,10 @@ static struct cftype files[] = {
 
 struct cgroup_subsys freezer_subsys = {
 	.name		= "freezer",
-	.create		= freezer_create,
-	.post_create	= freezer_post_create,
-	.pre_destroy	= freezer_pre_destroy,
-	.destroy	= freezer_destroy,
+	.css_alloc	= freezer_css_alloc,
+	.css_online	= freezer_css_online,
+	.css_offline	= freezer_css_offline,
+	.css_free	= freezer_css_free,
 	.subsys_id	= freezer_subsys_id,
 	.attach		= freezer_attach,
 	.fork		= freezer_fork,

@@ -876,7 +876,7 @@ static void cgroup_diput(struct dentry *dentry, struct inode *inode)
 		 * Release the subsystem state objects.
 		 */
 		for_each_subsys(cgrp->root, ss)
-			ss->destroy(cgrp);
+			ss->css_free(cgrp);
 
 		cgrp->root->number_of_cgroups--;
 		mutex_unlock(&cgroup_mutex);
@@ -4048,8 +4048,8 @@ static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 
 	lockdep_assert_held(&cgroup_mutex);
 
-	if (ss->post_create)
-		ret = ss->post_create(cgrp);
+	if (ss->css_online)
+		ret = ss->css_online(cgrp);
 	if (!ret)
 		cgrp->subsys[ss->subsys_id]->flags |= CSS_ONLINE;
 	return ret;
@@ -4067,14 +4067,14 @@ static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 		return;
 
 	/*
-	 * pre_destroy() should be called with cgroup_mutex unlocked.  See
+	 * css_offline() should be called with cgroup_mutex unlocked.  See
 	 * 3fa59dfbc3 ("cgroup: fix potential deadlock in pre_destroy") for
 	 * details.  This temporary unlocking should go away once
 	 * cgroup_mutex is unexported from controllers.
 	 */
-	if (ss->pre_destroy) {
+	if (ss->css_offline) {
 		mutex_unlock(&cgroup_mutex);
-		ss->pre_destroy(cgrp);
+		ss->css_offline(cgrp);
 		mutex_lock(&cgroup_mutex);
 	}
 
@@ -4136,7 +4136,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	for_each_subsys(root, ss) {
 		struct cgroup_subsys_state *css;
 
-		css = ss->create(cgrp);
+		css = ss->css_alloc(cgrp);
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
 			goto err_free_all;
@@ -4147,7 +4147,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			if (err)
 				goto err_free_all;
 		}
-		/* At error, ->destroy() callback has to free assigned ID. */
+		/* At error, ->css_free() callback has to free assigned ID. */
 		if (clone_children(parent) && ss->post_clone)
 			ss->post_clone(cgrp);
 
@@ -4201,7 +4201,7 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 err_free_all:
 	for_each_subsys(root, ss) {
 		if (cgrp->subsys[ss->subsys_id])
-			ss->destroy(cgrp);
+			ss->css_free(cgrp);
 	}
 	mutex_unlock(&cgroup_mutex);
 	/* Release the reference count that we took on the superblock */
@@ -4381,7 +4381,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	/* Create the top cgroup state for this subsystem */
 	list_add(&ss->sibling, &rootnode.subsys_list);
 	ss->root = &rootnode;
-	css = ss->create(dummytop);
+	css = ss->css_alloc(dummytop);
 	/* We don't handle early failures gracefully */
 	BUG_ON(IS_ERR(css));
 	init_cgroup_css(css, ss, dummytop);
@@ -4425,7 +4425,7 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 
 	/* check name and function validity */
 	if (ss->name == NULL || strlen(ss->name) > MAX_CGROUP_TYPE_NAMELEN ||
-	    ss->create == NULL || ss->destroy == NULL)
+	    ss->css_alloc == NULL || ss->css_free == NULL)
 		return -EINVAL;
 
 	/*
@@ -4454,10 +4454,11 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	subsys[ss->subsys_id] = ss;
 
 	/*
-	 * no ss->create seems to need anything important in the ss struct, so
-	 * this can happen first (i.e. before the rootnode attachment).
+	 * no ss->css_alloc seems to need anything important in the ss
+	 * struct, so this can happen first (i.e. before the rootnode
+	 * attachment).
 	 */
-	css = ss->create(dummytop);
+	css = ss->css_alloc(dummytop);
 	if (IS_ERR(css)) {
 		/* failure case - need to deassign the subsys[] slot. */
 		subsys[ss->subsys_id] = NULL;
@@ -4577,12 +4578,12 @@ void cgroup_unload_subsys(struct cgroup_subsys *ss)
 	write_unlock(&css_set_lock);
 
 	/*
-	 * remove subsystem's css from the dummytop and free it - need to free
-	 * before marking as null because ss->destroy needs the cgrp->subsys
-	 * pointer to find their state. note that this also takes care of
-	 * freeing the css_id.
+	 * remove subsystem's css from the dummytop and free it - need to
+	 * free before marking as null because ss->css_free needs the
+	 * cgrp->subsys pointer to find their state. note that this also
+	 * takes care of freeing the css_id.
 	 */
-	ss->destroy(dummytop);
+	ss->css_free(dummytop);
 	dummytop->subsys[ss->subsys_id] = NULL;
 
 	mutex_unlock(&cgroup_mutex);
@@ -4626,8 +4627,8 @@ int __init cgroup_init_early(void)
 
 		BUG_ON(!ss->name);
 		BUG_ON(strlen(ss->name) > MAX_CGROUP_TYPE_NAMELEN);
-		BUG_ON(!ss->create);
-		BUG_ON(!ss->destroy);
+		BUG_ON(!ss->css_alloc);
+		BUG_ON(!ss->css_free);
 		if (ss->subsys_id != i) {
 			printk(KERN_ERR "cgroup: Subsys %s id == %d\n",
 			       ss->name, ss->subsys_id);
@@ -5439,7 +5440,7 @@ struct cgroup_subsys_state *cgroup_css_from_dir(struct file *f, int id)
 }
 
 #ifdef CONFIG_CGROUP_DEBUG
-static struct cgroup_subsys_state *debug_create(struct cgroup *cont)
+static struct cgroup_subsys_state *debug_css_alloc(struct cgroup *cont)
 {
 	struct cgroup_subsys_state *css = kzalloc(sizeof(*css), GFP_KERNEL);
 
@@ -5449,7 +5450,7 @@ static struct cgroup_subsys_state *debug_create(struct cgroup *cont)
 	return css;
 }
 
-static void debug_destroy(struct cgroup *cont)
+static void debug_css_free(struct cgroup *cont)
 {
 	kfree(cont->subsys[debug_subsys_id]);
 }
@@ -5578,8 +5579,8 @@ static struct cftype debug_files[] =  {
 
 struct cgroup_subsys debug_subsys = {
 	.name = "debug",
-	.create = debug_create,
-	.destroy = debug_destroy,
+	.css_alloc = debug_css_alloc,
+	.css_free = debug_css_free,
 	.subsys_id = debug_subsys_id,
 	.base_cftypes = debug_files,
 };

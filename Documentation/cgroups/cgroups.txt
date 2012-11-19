@@ -553,16 +553,16 @@ call to cgroup_unload_subsys(). It should also set its_subsys.module =
 THIS_MODULE in its .c file.
 
 Each subsystem may export the following methods. The only mandatory
-methods are create/destroy. Any others that are null are presumed to
+methods are css_alloc/free. Any others that are null are presumed to
 be successful no-ops.
 
-struct cgroup_subsys_state *create(struct cgroup *cgrp)
+struct cgroup_subsys_state *css_alloc(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
-Called to create a subsystem state object for a cgroup. The
+Called to allocate a subsystem state object for a cgroup. The
 subsystem should allocate its subsystem state object for the passed
 cgroup, returning a pointer to the new object on success or a
-negative error code. On success, the subsystem pointer should point to
+ERR_PTR() value. On success, the subsystem pointer should point to
 a structure of type cgroup_subsys_state (typically embedded in a
 larger subsystem-specific object), which will be initialized by the
 cgroup system. Note that this will be called at initialization to
@@ -571,24 +571,33 @@ identified by the passed cgroup object having a NULL parent (since
 it's the root of the hierarchy) and may be an appropriate place for
 initialization code.
 
-void destroy(struct cgroup *cgrp)
+int css_online(struct cgroup *cgrp)
 (cgroup_mutex held by caller)
 
-The cgroup system is about to destroy the passed cgroup; the subsystem
-should do any necessary cleanup and free its subsystem state
-object. By the time this method is called, the cgroup has already been
-unlinked from the file system and from the child list of its parent;
-cgroup->parent is still valid. (Note - can also be called for a
-newly-created cgroup if an error occurs after this subsystem's
-create() method has been called for the new cgroup).
+Called after @cgrp successfully completed all allocations and made
+visible to cgroup_for_each_child/descendant_*() iterators. The
+subsystem may choose to fail creation by returning -errno. This
+callback can be used to implement reliable state sharing and
+propagation along the hierarchy. See the comment on
+cgroup_for_each_descendant_pre() for details.
 
-int pre_destroy(struct cgroup *cgrp);
+void css_offline(struct cgroup *cgrp);
 
-Called before checking the reference count on each subsystem. This may
-be useful for subsystems which have some extra references even if
-there are not tasks in the cgroup. If pre_destroy() returns error code,
-rmdir() will fail with it. From this behavior, pre_destroy() can be
-called multiple times against a cgroup.
+This is the counterpart of css_online() and called iff css_online()
+has succeeded on @cgrp. This signifies the beginning of the end of
+@cgrp. @cgrp is being removed and the subsystem should start dropping
+all references it's holding on @cgrp. When all references are dropped,
+cgroup removal will proceed to the next step - css_free(). After this
+callback, @cgrp should be considered dead to the subsystem.
+
+void css_free(struct cgroup *cgrp)
+(cgroup_mutex held by caller)
+
+The cgroup system is about to free @cgrp; the subsystem should free
+its subsystem state object. By the time this method is called, @cgrp
+is completely unused; @cgrp->parent is still valid. (Note - can also
+be called for a newly-created cgroup if an error occurs after this
+subsystem's create() method has been called for the new cgroup).
 
 int can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 (cgroup_mutex held by caller)

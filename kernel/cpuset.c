@@ -1821,11 +1821,11 @@ static void cpuset_post_clone(struct cgroup *cgroup)
 }
 
 /*
- *	cpuset_create - create a cpuset
+ *	cpuset_css_alloc - allocate a cpuset css
  *	cont:	control group that the new cpuset will be part of
  */
 
-static struct cgroup_subsys_state *cpuset_create(struct cgroup *cont)
+static struct cgroup_subsys_state *cpuset_css_alloc(struct cgroup *cont)
 {
 	struct cpuset *cs;
 	struct cpuset *parent;
@@ -1864,7 +1864,7 @@ static struct cgroup_subsys_state *cpuset_create(struct cgroup *cont)
  * will call async_rebuild_sched_domains().
  */
 
-static void cpuset_destroy(struct cgroup *cont)
+static void cpuset_css_free(struct cgroup *cont)
 {
 	struct cpuset *cs = cgroup_cs(cont);
 
@@ -1878,8 +1878,8 @@ static void cpuset_destroy(struct cgroup *cont)
 
 struct cgroup_subsys cpuset_subsys = {
 	.name = "cpuset",
-	.create = cpuset_create,
-	.destroy = cpuset_destroy,
+	.css_alloc = cpuset_css_alloc,
+	.css_free = cpuset_css_free,
 	.can_attach = cpuset_can_attach,
 	.attach = cpuset_attach,
 	.post_clone = cpuset_post_clone,
