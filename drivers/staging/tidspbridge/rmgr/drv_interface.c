@@ -471,7 +471,7 @@ err1:
 	return err;
 }
 
-static int __devinit omap34_xx_bridge_probe(struct platform_device *pdev)
+static int omap34_xx_bridge_probe(struct platform_device *pdev)
 {
 	int err;
 	dev_t dev = 0;
