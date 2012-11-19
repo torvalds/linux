@@ -1863,14 +1863,8 @@ nvd0_display_init(struct drm_device *dev)
 	if (push) {
 		evo_mthd(push, 0x0088, 1);
 		evo_data(push, NvEvoSync);
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x00000000);
-		evo_mthd(push, 0x0084, 1);
-		evo_data(push, 0x80000000);
-		evo_mthd(push, 0x008c, 1);
-		evo_data(push, 0x00000000);
 		evo_kick(push, nvd0_mast(dev));
-		return 0;
+		return evo_sync(dev);
 	}
 
 	return -EBUSY;
