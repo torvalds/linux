@@ -410,7 +410,7 @@ int migrate_huge_page_move_mapping(struct address_space *mapping,
  */
 void migrate_page_copy(struct page *newpage, struct page *page)
 {
-	if (PageHuge(page))
+	if (PageHuge(page) || PageTransHuge(page))
 		copy_huge_page(newpage, page);
 	else
 		copy_highpage(newpage, page);
@@ -1491,6 +1491,68 @@ bool migrate_ratelimited(int node)
 	return true;
 }
 
+/* Returns true if the node is migrate rate-limited after the update */
+bool numamigrate_update_ratelimit(pg_data_t *pgdat)
+{
+	bool rate_limited = false;
+
+	/*
+	 * Rate-limit the amount of data that is being migrated to a node.
+	 * Optimal placement is no good if the memory bus is saturated and
+	 * all the time is being spent migrating!
+	 */
+	spin_lock(&pgdat->numabalancing_migrate_lock);
+	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window)) {
+		pgdat->numabalancing_migrate_nr_pages = 0;
+		pgdat->numabalancing_migrate_next_window = jiffies +
+			msecs_to_jiffies(migrate_interval_millisecs);
+	}
+	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages)
+		rate_limited = true;
+	else
+		pgdat->numabalancing_migrate_nr_pages++;
+	spin_unlock(&pgdat->numabalancing_migrate_lock);
+	
+	return rate_limited;
+}
+
+int numamigrate_isolate_page(pg_data_t *pgdat, struct page *page)
+{
+	int ret = 0;
+
+	/* Avoid migrating to a node that is nearly full */
+	if (migrate_balanced_pgdat(pgdat, 1)) {
+		int page_lru;
+
+		if (isolate_lru_page(page)) {
+			put_page(page);
+			return 0;
+		}
+
+		/* Page is isolated */
+		ret = 1;
+		page_lru = page_is_file_cache(page);
+		if (!PageTransHuge(page))
+			inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
+		else
+			mod_zone_page_state(page_zone(page),
+					NR_ISOLATED_ANON + page_lru,
+					HPAGE_PMD_NR);
+	}
+
+	/*
+	 * Page is either isolated or there is not enough space on the target
+	 * node. If isolated, then it has taken a reference count and the
+	 * callers reference can be safely dropped without the page
+	 * disappearing underneath us during migration. Otherwise the page is
+	 * not to be migrated but the callers reference should still be
+	 * dropped so it does not leak.
+	 */
+	put_page(page);
+
+	return ret;
+}
+
 /*
  * Attempt to migrate a misplaced page to the specified destination
  * node. Caller is expected to have an elevated reference count on
@@ -1500,6 +1562,7 @@ int migrate_misplaced_page(struct page *page, int node)
 {
 	pg_data_t *pgdat = NODE_DATA(node);
 	int isolated = 0;
+	int nr_remaining;
 	LIST_HEAD(migratepages);
 
 	/*
@@ -1516,61 +1579,147 @@ int migrate_misplaced_page(struct page *page, int node)
 	 * Optimal placement is no good if the memory bus is saturated and
 	 * all the time is being spent migrating!
 	 */
-	spin_lock(&pgdat->numabalancing_migrate_lock);
-	if (time_after(jiffies, pgdat->numabalancing_migrate_next_window)) {
-		pgdat->numabalancing_migrate_nr_pages = 0;
-		pgdat->numabalancing_migrate_next_window = jiffies +
-			msecs_to_jiffies(migrate_interval_millisecs);
-	}
-	if (pgdat->numabalancing_migrate_nr_pages > ratelimit_pages) {
-		spin_unlock(&pgdat->numabalancing_migrate_lock);
+	if (numamigrate_update_ratelimit(pgdat)) {
 		put_page(page);
 		goto out;
 	}
-	pgdat->numabalancing_migrate_nr_pages++;
-	spin_unlock(&pgdat->numabalancing_migrate_lock);
 
-	/* Avoid migrating to a node that is nearly full */
-	if (migrate_balanced_pgdat(pgdat, 1)) {
-		int page_lru;
+	isolated = numamigrate_isolate_page(pgdat, page);
+	if (!isolated)
+		goto out;
 
-		if (isolate_lru_page(page)) {
-			put_page(page);
-			goto out;
-		}
-		isolated = 1;
-
-		page_lru = page_is_file_cache(page);
-		inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
-		list_add(&page->lru, &migratepages);
-	}
-
-	/*
-	 * Page is either isolated or there is not enough space on the target
-	 * node. If isolated, then it has taken a reference count and the
-	 * callers reference can be safely dropped without the page
-	 * disappearing underneath us during migration. Otherwise the page is
-	 * not to be migrated but the callers reference should still be
-	 * dropped so it does not leak.
-	 */
-	put_page(page);
-
-	if (isolated) {
-		int nr_remaining;
-
-		nr_remaining = migrate_pages(&migratepages,
-				alloc_misplaced_dst_page,
-				node, false, MIGRATE_ASYNC,
-				MR_NUMA_MISPLACED);
-		if (nr_remaining) {
-			putback_lru_pages(&migratepages);
-			isolated = 0;
-		} else
-			count_vm_numa_event(NUMA_PAGE_MIGRATE);
-	}
+	list_add(&page->lru, &migratepages);
+	nr_remaining = migrate_pages(&migratepages,
+			alloc_misplaced_dst_page,
+			node, false, MIGRATE_ASYNC,
+			MR_NUMA_MISPLACED);
+	if (nr_remaining) {
+		putback_lru_pages(&migratepages);
+		isolated = 0;
+	} else
+		count_vm_numa_event(NUMA_PAGE_MIGRATE);
 	BUG_ON(!list_empty(&migratepages));
 out:
 	return isolated;
+}
+
+int migrate_misplaced_transhuge_page(struct mm_struct *mm,
+				struct vm_area_struct *vma,
+				pmd_t *pmd, pmd_t entry,
+				unsigned long address,
+				struct page *page, int node)
+{
+	unsigned long haddr = address & HPAGE_PMD_MASK;
+	pg_data_t *pgdat = NODE_DATA(node);
+	int isolated = 0;
+	struct page *new_page = NULL;
+	struct mem_cgroup *memcg = NULL;
+	int page_lru = page_is_file_cache(page);
+
+	/*
+	 * Don't migrate pages that are mapped in multiple processes.
+	 * TODO: Handle false sharing detection instead of this hammer
+	 */
+	if (page_mapcount(page) != 1)
+		goto out_dropref;
+
+	/*
+	 * Rate-limit the amount of data that is being migrated to a node.
+	 * Optimal placement is no good if the memory bus is saturated and
+	 * all the time is being spent migrating!
+	 */
+	if (numamigrate_update_ratelimit(pgdat))
+		goto out_dropref;
+
+	new_page = alloc_pages_node(node,
+		(GFP_TRANSHUGE | GFP_THISNODE) & ~__GFP_WAIT, HPAGE_PMD_ORDER);
+	if (!new_page)
+		goto out_dropref;
+	page_xchg_last_nid(new_page, page_last_nid(page));
+
+	isolated = numamigrate_isolate_page(pgdat, page);
+	if (!isolated) {
+		put_page(new_page);
+		goto out_keep_locked;
+	}
+
+	/* Prepare a page as a migration target */
+	__set_page_locked(new_page);
+	SetPageSwapBacked(new_page);
+
+	/* anon mapping, we can simply copy page->mapping to the new page: */
+	new_page->mapping = page->mapping;
+	new_page->index = page->index;
+	migrate_page_copy(new_page, page);
+	WARN_ON(PageLRU(new_page));
+
+	/* Recheck the target PMD */
+	spin_lock(&mm->page_table_lock);
+	if (unlikely(!pmd_same(*pmd, entry))) {
+		spin_unlock(&mm->page_table_lock);
+
+		/* Reverse changes made by migrate_page_copy() */
+		if (TestClearPageActive(new_page))
+			SetPageActive(page);
+		if (TestClearPageUnevictable(new_page))
+			SetPageUnevictable(page);
+		mlock_migrate_page(page, new_page);
+
+		unlock_page(new_page);
+		put_page(new_page);		/* Free it */
+
+		unlock_page(page);
+		putback_lru_page(page);
+
+		count_vm_events(PGMIGRATE_FAIL, HPAGE_PMD_NR);
+		goto out;
+	}
+
+	/*
+	 * Traditional migration needs to prepare the memcg charge
+	 * transaction early to prevent the old page from being
+	 * uncharged when installing migration entries.  Here we can
+	 * save the potential rollback and start the charge transfer
+	 * only when migration is already known to end successfully.
+	 */
+	mem_cgroup_prepare_migration(page, new_page, &memcg);
+
+	entry = mk_pmd(new_page, vma->vm_page_prot);
+	entry = pmd_mknonnuma(entry);
+	entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
+	entry = pmd_mkhuge(entry);
+
+	page_add_new_anon_rmap(new_page, vma, haddr);
+
+	set_pmd_at(mm, haddr, pmd, entry);
+	update_mmu_cache_pmd(vma, address, entry);
+	page_remove_rmap(page);
+	/*
+	 * Finish the charge transaction under the page table lock to
+	 * prevent split_huge_page() from dividing up the charge
+	 * before it's fully transferred to the new page.
+	 */
+	mem_cgroup_end_migration(memcg, page, new_page, true);
+	spin_unlock(&mm->page_table_lock);
+
+	unlock_page(new_page);
+	unlock_page(page);
+	put_page(page);			/* Drop the rmap reference */
+	put_page(page);			/* Drop the LRU isolation reference */
+
+	count_vm_events(PGMIGRATE_SUCCESS, HPAGE_PMD_NR);
+	count_vm_numa_events(NUMA_PAGE_MIGRATE, HPAGE_PMD_NR);
+
+out:
+	mod_zone_page_state(page_zone(page),
+			NR_ISOLATED_ANON + page_lru,
+			-HPAGE_PMD_NR);
+	return isolated;
+
+out_dropref:
+	put_page(page);
+out_keep_locked:
+	return 0;
 }
 #endif /* CONFIG_NUMA_BALANCING */
 
