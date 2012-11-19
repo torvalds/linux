@@ -877,7 +877,7 @@ out:
 	return 0;
 }
 
-static void __devexit
+static void
 dt3155_free_coherent(struct device *dev)
 {
 	struct dma_coherent_mem *mem = dev->dma_mem;
@@ -956,7 +956,7 @@ err_video_device_alloc:
 	return err;
 }
 
-static void __devexit
+static void
 dt3155_remove(struct pci_dev *pdev)
 {
 	struct dt3155_priv *pd = pci_get_drvdata(pdev);
