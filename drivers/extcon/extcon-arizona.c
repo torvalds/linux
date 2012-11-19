@@ -517,7 +517,7 @@ err:
 	return ret;
 }
 
-static int __devexit arizona_extcon_remove(struct platform_device *pdev)
+static int arizona_extcon_remove(struct platform_device *pdev)
 {
 	struct arizona_extcon_info *info = platform_get_drvdata(pdev);
 	struct arizona *arizona = info->arizona;

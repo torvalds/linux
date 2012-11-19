@@ -137,7 +137,7 @@ err:
 	return ret;
 }
 
-static int __devexit gpio_extcon_remove(struct platform_device *pdev)
+static int gpio_extcon_remove(struct platform_device *pdev)
 {
 	struct gpio_extcon_data *extcon_data = platform_get_drvdata(pdev);
 

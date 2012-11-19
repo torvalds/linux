@@ -508,7 +508,7 @@ err_kfree:
 	return ret;
 }
 
-static int __devexit max8997_muic_remove(struct platform_device *pdev)
+static int max8997_muic_remove(struct platform_device *pdev)
 {
 	struct max8997_muic_info *info = platform_get_drvdata(pdev);
 	int i;

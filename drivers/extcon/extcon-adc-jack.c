@@ -175,7 +175,7 @@ out:
 	return err;
 }
 
-static int __devexit adc_jack_remove(struct platform_device *pdev)
+static int adc_jack_remove(struct platform_device *pdev)
 {
 	struct adc_jack_data *data = platform_get_drvdata(pdev);
 
