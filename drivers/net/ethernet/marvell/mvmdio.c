@@ -42,8 +42,7 @@ struct orion_mdio_dev {
 	void __iomem *smireg;
 };
 
-/*
- * Wait for the SMI unit to be ready for another operation
+/* Wait for the SMI unit to be ready for another operation
  */
 static int orion_mdio_wait_ready(struct mii_bus *bus)
 {
