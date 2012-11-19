@@ -99,7 +99,7 @@ static const struct backlight_ops pcf50633_bl_ops = {
 	.options	= BL_CORE_SUSPENDRESUME,
 };
 
-static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
+static int pcf50633_bl_probe(struct platform_device *pdev)
 {
 	struct pcf50633_bl *pcf_bl;
 	struct device *parent = pdev->dev.parent;

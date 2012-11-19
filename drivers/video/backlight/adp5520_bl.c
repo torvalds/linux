@@ -282,7 +282,7 @@ static const struct attribute_group adp5520_bl_attr_group = {
 	.attrs = adp5520_bl_attributes,
 };
 
-static int __devinit adp5520_bl_probe(struct platform_device *pdev)
+static int adp5520_bl_probe(struct platform_device *pdev)
 {
 	struct backlight_properties props;
 	struct backlight_device *bl;

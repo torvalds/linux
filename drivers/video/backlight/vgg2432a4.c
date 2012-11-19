@@ -227,7 +227,7 @@ static struct ili9320_client vgg2432a4_client = {
 
 /* Device probe */
 
-static int __devinit vgg2432a4_probe(struct spi_device *spi)
+static int vgg2432a4_probe(struct spi_device *spi)
 {
 	int ret;
 

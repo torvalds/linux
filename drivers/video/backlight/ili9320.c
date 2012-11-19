@@ -171,7 +171,7 @@ static struct lcd_ops ili9320_ops = {
 	.set_power	= ili9320_set_power,
 };
 
-static void __devinit ili9320_setup_spi(struct ili9320 *ili,
+static void ili9320_setup_spi(struct ili9320 *ili,
 					struct spi_device *dev)
 {
 	struct ili9320_spi *spi = &ili->access.spi;
@@ -197,7 +197,7 @@ static void __devinit ili9320_setup_spi(struct ili9320 *ili,
 	spi_message_add_tail(&spi->xfer[1], &spi->message);
 }
 
-int __devinit ili9320_probe_spi(struct spi_device *spi,
+int ili9320_probe_spi(struct spi_device *spi,
 				struct ili9320_client *client)
 {
 	struct ili9320_platdata *cfg = spi->dev.platform_data;

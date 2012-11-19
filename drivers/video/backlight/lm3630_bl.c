@@ -55,7 +55,7 @@ struct lm3630_chip_data {
 };
 
 /* initialize chip */
-static int __devinit lm3630_chip_init(struct lm3630_chip_data *pchip)
+static int lm3630_chip_init(struct lm3630_chip_data *pchip)
 {
 	int ret;
 	unsigned int reg_val;
@@ -349,7 +349,7 @@ static const struct regmap_config lm3630_regmap = {
 	.max_register = REG_MAX,
 };
 
-static int __devinit lm3630_probe(struct i2c_client *client,
+static int lm3630_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm3630_platform_data *pdata = client->dev.platform_data;

@@ -150,7 +150,7 @@ static struct lcd_ops l4f_ops = {
 	.get_power	= l4f00242t03_lcd_power_get,
 };
 
-static int __devinit l4f00242t03_probe(struct spi_device *spi)
+static int l4f00242t03_probe(struct spi_device *spi)
 {
 	struct l4f00242t03_priv *priv;
 	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;

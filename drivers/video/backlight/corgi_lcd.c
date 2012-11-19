@@ -529,7 +529,7 @@ static int setup_gpio_backlight(struct corgi_lcd *lcd,
 	return 0;
 }
 
-static int __devinit corgi_lcd_probe(struct spi_device *spi)
+static int corgi_lcd_probe(struct spi_device *spi)
 {
 	struct backlight_properties props;
 	struct corgi_lcd_platform_data *pdata = spi->dev.platform_data;

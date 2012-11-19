@@ -78,7 +78,7 @@ static const struct backlight_ops bl_ops = {
 	.update_status		= tosa_bl_update_status,
 };
 
-static int __devinit tosa_bl_probe(struct i2c_client *client,
+static int tosa_bl_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct backlight_properties props;

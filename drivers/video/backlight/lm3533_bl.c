@@ -257,7 +257,7 @@ static struct attribute_group lm3533_bl_attribute_group = {
 	.attrs		= lm3533_bl_attributes
 };
 
-static int __devinit lm3533_bl_setup(struct lm3533_bl *bl,
+static int lm3533_bl_setup(struct lm3533_bl *bl,
 					struct lm3533_bl_platform_data *pdata)
 {
 	int ret;
@@ -269,7 +269,7 @@ static int __devinit lm3533_bl_setup(struct lm3533_bl *bl,
 	return lm3533_ctrlbank_set_pwm(&bl->cb, pdata->pwm);
 }
 
-static int __devinit lm3533_bl_probe(struct platform_device *pdev)
+static int lm3533_bl_probe(struct platform_device *pdev)
 {
 	struct lm3533 *lm3533;
 	struct lm3533_bl_platform_data *pdata;

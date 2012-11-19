@@ -169,7 +169,7 @@ static struct lcd_ops tosa_lcd_ops = {
 	.set_mode = tosa_lcd_set_mode,
 };
 
-static int __devinit tosa_lcd_probe(struct spi_device *spi)
+static int tosa_lcd_probe(struct spi_device *spi)
 {
 	int ret;
 	struct tosa_lcd_data *data;

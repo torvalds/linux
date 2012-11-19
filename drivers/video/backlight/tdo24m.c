@@ -328,7 +328,7 @@ static struct lcd_ops tdo24m_ops = {
 	.set_mode	= tdo24m_set_mode,
 };
 
-static int __devinit tdo24m_probe(struct spi_device *spi)
+static int tdo24m_probe(struct spi_device *spi)
 {
 	struct tdo24m *lcd;
 	struct spi_message *m;

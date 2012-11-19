@@ -150,7 +150,7 @@ static struct lcd_ops lms_ops = {
 	.get_power	= NULL,
 };
 
-static int __devinit lms283gf05_probe(struct spi_device *spi)
+static int lms283gf05_probe(struct spi_device *spi)
 {
 	struct lms283gf05_state *st;
 	struct lms283gf05_pdata *pdata = spi->dev.platform_data;
