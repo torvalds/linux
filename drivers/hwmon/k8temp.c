@@ -304,7 +304,7 @@ exit_remove:
 	return err;
 }
 
-static void __devexit k8temp_remove(struct pci_dev *pdev)
+static void k8temp_remove(struct pci_dev *pdev)
 {
 	struct k8temp_data *data = pci_get_drvdata(pdev);
 

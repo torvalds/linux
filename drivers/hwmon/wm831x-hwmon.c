@@ -189,7 +189,7 @@ err_sysfs:
 	return ret;
 }
 
-static int __devexit wm831x_hwmon_remove(struct platform_device *pdev)
+static int wm831x_hwmon_remove(struct platform_device *pdev)
 {
 	struct wm831x_hwmon *hwmon = platform_get_drvdata(pdev);
 

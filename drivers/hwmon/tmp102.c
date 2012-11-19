@@ -216,7 +216,7 @@ fail_restore_config:
 	return status;
 }
 
-static int __devexit tmp102_remove(struct i2c_client *client)
+static int tmp102_remove(struct i2c_client *client)
 {
 	struct tmp102 *tmp102 = i2c_get_clientdata(client);
 

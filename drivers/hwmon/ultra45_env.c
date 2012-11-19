@@ -291,7 +291,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit env_remove(struct platform_device *op)
+static int env_remove(struct platform_device *op)
 {
 	struct env *p = platform_get_drvdata(op);
 

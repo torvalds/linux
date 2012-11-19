@@ -135,7 +135,7 @@ error_remove_group:
 	return ret;
 }
 
-static int __devexit ad7314_remove(struct spi_device *spi_dev)
+static int ad7314_remove(struct spi_device *spi_dev)
 {
 	struct ad7314_data *chip = dev_get_drvdata(&spi_dev->dev);
 

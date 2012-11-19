@@ -339,7 +339,7 @@ struct via686a_data {
 static struct pci_dev *s_bridge;	/* pointer to the (only) via686a */
 
 static int via686a_probe(struct platform_device *pdev);
-static int __devexit via686a_remove(struct platform_device *pdev);
+static int via686a_remove(struct platform_device *pdev);
 
 static inline int via686a_read_value(struct via686a_data *data, u8 reg)
 {
@@ -728,7 +728,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit via686a_remove(struct platform_device *pdev)
+static int via686a_remove(struct platform_device *pdev)
 {
 	struct via686a_data *data = platform_get_drvdata(pdev);
 

@@ -1141,7 +1141,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit pc87427_remove(struct platform_device *pdev)
+static int pc87427_remove(struct platform_device *pdev)
 {
 	struct pc87427_data *data = platform_get_drvdata(pdev);
 

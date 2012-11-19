@@ -192,7 +192,7 @@ exit:
 	return err;
 }
 
-static void __devexit k10temp_remove(struct pci_dev *pdev)
+static void k10temp_remove(struct pci_dev *pdev)
 {
 	hwmon_device_unregister(pci_get_drvdata(pdev));
 	device_remove_file(&pdev->dev, &dev_attr_name);

@@ -393,7 +393,7 @@ err_after_sysfs:
 	return ret;
 }
 
-static int __devexit ntc_thermistor_remove(struct platform_device *pdev)
+static int ntc_thermistor_remove(struct platform_device *pdev)
 {
 	struct ntc_data *data = platform_get_drvdata(pdev);
 

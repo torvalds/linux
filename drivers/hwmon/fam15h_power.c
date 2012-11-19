@@ -235,7 +235,7 @@ exit_remove_group:
 	return err;
 }
 
-static void __devexit fam15h_power_remove(struct pci_dev *pdev)
+static void fam15h_power_remove(struct pci_dev *pdev)
 {
 	struct device *dev;
 	struct fam15h_power_data *data;

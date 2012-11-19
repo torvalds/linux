@@ -886,7 +886,7 @@ static int lm78_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit lm78_isa_remove(struct platform_device *pdev)
+static int lm78_isa_remove(struct platform_device *pdev)
 {
 	struct lm78_data *data = platform_get_drvdata(pdev);
 

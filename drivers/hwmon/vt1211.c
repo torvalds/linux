@@ -1217,7 +1217,7 @@ EXIT_DEV_REMOVE_SILENT:
 	return err;
 }
 
-static int __devexit vt1211_remove(struct platform_device *pdev)
+static int vt1211_remove(struct platform_device *pdev)
 {
 	struct vt1211_data *data = platform_get_drvdata(pdev);
 

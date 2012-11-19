@@ -256,7 +256,7 @@ err_remove:
 	return err;
 }
 
-static int __devexit max1111_remove(struct spi_device *spi)
+static int max1111_remove(struct spi_device *spi)
 {
 	struct max1111_data *data = spi_get_drvdata(spi);
 

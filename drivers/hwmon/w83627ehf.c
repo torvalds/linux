@@ -2596,7 +2596,7 @@ exit:
 	return err;
 }
 
-static int __devexit w83627ehf_remove(struct platform_device *pdev)
+static int w83627ehf_remove(struct platform_device *pdev)
 {
 	struct w83627ehf_data *data = platform_get_drvdata(pdev);
 

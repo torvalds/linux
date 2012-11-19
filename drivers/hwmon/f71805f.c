@@ -1490,7 +1490,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit f71805f_remove(struct platform_device *pdev)
+static int f71805f_remove(struct platform_device *pdev)
 {
 	struct f71805f_data *data = platform_get_drvdata(pdev);
 	int i;

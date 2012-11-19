@@ -1824,7 +1824,7 @@ w83781d_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit
+static int
 w83781d_isa_remove(struct platform_device *pdev)
 {
 	struct w83781d_data *data = platform_get_drvdata(pdev);

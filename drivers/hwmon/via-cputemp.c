@@ -192,7 +192,7 @@ exit_remove:
 	return err;
 }
 
-static int __devexit via_cputemp_remove(struct platform_device *pdev)
+static int via_cputemp_remove(struct platform_device *pdev)
 {
 	struct via_cputemp_data *data = platform_get_drvdata(pdev);
 

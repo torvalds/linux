@@ -2718,7 +2718,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit dme1737_isa_remove(struct platform_device *pdev)
+static int dme1737_isa_remove(struct platform_device *pdev)
 {
 	struct dme1737_data *data = platform_get_drvdata(pdev);
 

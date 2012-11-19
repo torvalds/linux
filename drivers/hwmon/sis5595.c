@@ -204,7 +204,7 @@ struct sis5595_data {
 static struct pci_dev *s_bridge;	/* pointer to the (only) sis5595 */
 
 static int sis5595_probe(struct platform_device *pdev);
-static int __devexit sis5595_remove(struct platform_device *pdev);
+static int sis5595_remove(struct platform_device *pdev);
 
 static int sis5595_read_value(struct sis5595_data *data, u8 reg);
 static void sis5595_write_value(struct sis5595_data *data, u8 reg, u8 value);
@@ -659,7 +659,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit sis5595_remove(struct platform_device *pdev)
+static int sis5595_remove(struct platform_device *pdev)
 {
 	struct sis5595_data *data = platform_get_drvdata(pdev);
 

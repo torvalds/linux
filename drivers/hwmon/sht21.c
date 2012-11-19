@@ -233,7 +233,7 @@ fail_remove_sysfs:
  * sht21_remove() - remove device
  * @client: I2C client device
  */
-static int __devexit sht21_remove(struct i2c_client *client)
+static int sht21_remove(struct i2c_client *client)
 {
 	struct sht21 *sht21 = i2c_get_clientdata(client);
 

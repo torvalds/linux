@@ -364,7 +364,7 @@ static int s3c_hwmon_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit s3c_hwmon_remove(struct platform_device *dev)
+static int s3c_hwmon_remove(struct platform_device *dev)
 {
 	struct s3c_hwmon *hwmon = platform_get_drvdata(dev);
 	int i;

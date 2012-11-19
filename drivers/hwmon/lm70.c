@@ -178,7 +178,7 @@ out_dev_create_temp_file_failed:
 	return status;
 }
 
-static int __devexit lm70_remove(struct spi_device *spi)
+static int lm70_remove(struct spi_device *spi)
 {
 	struct lm70 *p_lm70 = spi_get_drvdata(spi);
 

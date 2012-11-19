@@ -317,7 +317,7 @@ static int adt7411_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int __devexit adt7411_remove(struct i2c_client *client)
+static int adt7411_remove(struct i2c_client *client)
 {
 	struct adt7411_data *data = i2c_get_clientdata(client);
 

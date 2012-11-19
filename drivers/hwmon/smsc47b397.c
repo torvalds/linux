@@ -228,7 +228,7 @@ static const struct attribute_group smsc47b397_group = {
 	.attrs = smsc47b397_attributes,
 };
 
-static int __devexit smsc47b397_remove(struct platform_device *pdev)
+static int smsc47b397_remove(struct platform_device *pdev)
 {
 	struct smsc47b397_data *data = platform_get_drvdata(pdev);
 

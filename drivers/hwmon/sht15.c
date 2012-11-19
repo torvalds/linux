@@ -1002,7 +1002,7 @@ err_release_reg:
 	return ret;
 }
 
-static int __devexit sht15_remove(struct platform_device *pdev)
+static int sht15_remove(struct platform_device *pdev)
 {
 	struct sht15_data *data = platform_get_drvdata(pdev);
 

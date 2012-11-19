@@ -228,7 +228,7 @@ struct pc87360_data {
  */
 
 static int pc87360_probe(struct platform_device *pdev);
-static int __devexit pc87360_remove(struct platform_device *pdev);
+static int pc87360_remove(struct platform_device *pdev);
 
 static int pc87360_read_value(struct pc87360_data *data, u8 ldi, u8 bank,
 			      u8 reg);
@@ -1375,7 +1375,7 @@ error:
 	return err;
 }
 
-static int __devexit pc87360_remove(struct platform_device *pdev)
+static int pc87360_remove(struct platform_device *pdev)
 {
 	struct pc87360_data *data = platform_get_drvdata(pdev);
 

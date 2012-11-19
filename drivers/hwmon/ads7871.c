@@ -225,7 +225,7 @@ error_remove:
 	return err;
 }
 
-static int __devexit ads7871_remove(struct spi_device *spi)
+static int ads7871_remove(struct spi_device *spi)
 {
 	struct ads7871_data *pdata = spi_get_drvdata(spi);
 

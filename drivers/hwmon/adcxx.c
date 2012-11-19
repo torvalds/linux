@@ -208,7 +208,7 @@ out_err:
 	return status;
 }
 
-static int __devexit adcxx_remove(struct spi_device *spi)
+static int adcxx_remove(struct spi_device *spi)
 {
 	struct adcxx *adc = spi_get_drvdata(spi);
 	int i;

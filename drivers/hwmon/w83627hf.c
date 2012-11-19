@@ -393,7 +393,7 @@ struct w83627hf_data {
 
 
 static int w83627hf_probe(struct platform_device *pdev);
-static int __devexit w83627hf_remove(struct platform_device *pdev);
+static int w83627hf_remove(struct platform_device *pdev);
 
 static int w83627hf_read_value(struct w83627hf_data *data, u16 reg);
 static int w83627hf_write_value(struct w83627hf_data *data, u16 reg, u16 value);
@@ -1508,7 +1508,7 @@ static int w83627hf_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit w83627hf_remove(struct platform_device *pdev)
+static int w83627hf_remove(struct platform_device *pdev)
 {
 	struct w83627hf_data *data = platform_get_drvdata(pdev);
 

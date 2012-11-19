@@ -581,7 +581,7 @@ err_free_alarm:
 	return err;
 }
 
-static int __devexit gpio_fan_remove(struct platform_device *pdev)
+static int gpio_fan_remove(struct platform_device *pdev)
 {
 	struct gpio_fan_data *fan_data = platform_get_drvdata(pdev);
 

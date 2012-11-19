@@ -1072,7 +1072,7 @@ abituguru3_probe_error:
 	return res;
 }
 
-static int __devexit abituguru3_remove(struct platform_device *pdev)
+static int abituguru3_remove(struct platform_device *pdev)
 {
 	int i;
 	struct abituguru3_data *data = platform_get_drvdata(pdev);

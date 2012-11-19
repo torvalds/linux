@@ -564,7 +564,7 @@ err:
 	return res;
 }
 
-static int __devexit i5k_amb_remove(struct platform_device *pdev)
+static int i5k_amb_remove(struct platform_device *pdev)
 {
 	int i;
 	struct i5k_amb_data *data = platform_get_drvdata(pdev);

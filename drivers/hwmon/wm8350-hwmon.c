@@ -114,7 +114,7 @@ err:
 	return ret;
 }
 
-static int __devexit wm8350_hwmon_remove(struct platform_device *pdev)
+static int wm8350_hwmon_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 

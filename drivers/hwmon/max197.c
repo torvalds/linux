@@ -316,7 +316,7 @@ error:
 	return ret;
 }
 
-static int __devexit max197_remove(struct platform_device *pdev)
+static int max197_remove(struct platform_device *pdev)
 {
 	struct max197_data *data = platform_get_drvdata(pdev);
 

@@ -316,7 +316,7 @@ err_mem:
 	return ret;
 }
 
-static int __devexit da9052_hwmon_remove(struct platform_device *pdev)
+static int da9052_hwmon_remove(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon = platform_get_drvdata(pdev);
 

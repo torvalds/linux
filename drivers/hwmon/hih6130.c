@@ -263,7 +263,7 @@ fail_remove_sysfs:
  * hih6130_remove() - remove device
  * @client: I2C client device
  */
-static int __devexit hih6130_remove(struct i2c_client *client)
+static int hih6130_remove(struct i2c_client *client)
 {
 	struct hih6130 *hih6130 = i2c_get_clientdata(client);
 

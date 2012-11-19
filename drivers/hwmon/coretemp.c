@@ -586,7 +586,7 @@ exit_free:
 	return err;
 }
 
-static int __devexit coretemp_remove(struct platform_device *pdev)
+static int coretemp_remove(struct platform_device *pdev)
 {
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	int i;
