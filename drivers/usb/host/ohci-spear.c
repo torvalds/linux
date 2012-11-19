@@ -216,7 +216,7 @@ static int spear_ohci_hcd_drv_resume(struct platform_device *dev)
 }
 #endif
 
-static struct of_device_id spear_ohci_id_table[] __devinitdata = {
+static struct of_device_id spear_ohci_id_table[] = {
 	{ .compatible = "st,spear600-ohci", },
 	{ },
 };

@@ -24,7 +24,7 @@ struct fsl_usb2_dev_data {
 	enum fsl_usb2_operating_modes op_mode;	/* operating mode */
 };
 
-struct fsl_usb2_dev_data dr_mode_data[] __devinitdata = {
+struct fsl_usb2_dev_data dr_mode_data[] = {
 	{
 		.dr_mode = "host",
 		.drivers = { "fsl-ehci", NULL, NULL, },
