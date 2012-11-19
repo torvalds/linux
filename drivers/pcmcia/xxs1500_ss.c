@@ -317,7 +317,7 @@ static struct platform_driver xxs1500_pcmcia_socket_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= xxs1500_pcmcia_probe,
-	.remove		= __devexit_p(xxs1500_pcmcia_remove),
+	.remove		= xxs1500_pcmcia_remove,
 };
 
 module_platform_driver(xxs1500_pcmcia_socket_driver);

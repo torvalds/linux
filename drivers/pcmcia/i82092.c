@@ -35,7 +35,7 @@ static struct pci_driver i82092aa_pci_driver = {
 	.name           = "i82092aa",
 	.id_table       = i82092aa_pci_ids,
 	.probe          = i82092aa_pci_probe,
-	.remove         = __devexit_p(i82092aa_pci_remove),
+	.remove         = i82092aa_pci_remove,
 };
 
 

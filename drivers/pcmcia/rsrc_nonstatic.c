@@ -1222,7 +1222,7 @@ static void __devexit pccard_sysfs_remove_rsrc(struct device *dev,
 static struct class_interface pccard_rsrc_interface __refdata = {
 	.class = &pcmcia_socket_class,
 	.add_dev = &pccard_sysfs_add_rsrc,
-	.remove_dev = __devexit_p(&pccard_sysfs_remove_rsrc),
+	.remove_dev = &pccard_sysfs_remove_rsrc,
 };
 
 static int __init nonstatic_sysfs_init(void)

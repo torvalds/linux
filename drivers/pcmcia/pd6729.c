@@ -772,7 +772,7 @@ static struct pci_driver pd6729_pci_driver = {
 	.name		= "pd6729",
 	.id_table	= pd6729_pci_ids,
 	.probe		= pd6729_pci_probe,
-	.remove		= __devexit_p(pd6729_pci_remove),
+	.remove		= pd6729_pci_remove,
 };
 
 static int pd6729_module_init(void)

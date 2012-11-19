@@ -453,7 +453,7 @@ static int __devexit bcm63xx_drv_pcmcia_remove(struct platform_device *pdev)
 
 struct platform_driver bcm63xx_pcmcia_driver = {
 	.probe	= bcm63xx_drv_pcmcia_probe,
-	.remove	= __devexit_p(bcm63xx_drv_pcmcia_remove),
+	.remove	= bcm63xx_drv_pcmcia_remove,
 	.driver	= {
 		.name	= "bcm63xx_pcmcia",
 		.owner  = THIS_MODULE,
@@ -503,7 +503,7 @@ static struct pci_driver bcm63xx_cardbus_driver = {
 	.name		= "bcm63xx_cardbus",
 	.id_table	= bcm63xx_cb_table,
 	.probe		= bcm63xx_cb_probe,
-	.remove		= __devexit_p(bcm63xx_cb_exit),
+	.remove		= bcm63xx_cb_exit,
 };
 #endif
 

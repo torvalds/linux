@@ -307,7 +307,7 @@ static struct platform_driver bfin_cf_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = bfin_cf_probe,
-	.remove = __devexit_p(bfin_cf_remove),
+	.remove = bfin_cf_remove,
 };
 
 module_platform_driver(bfin_cf_driver);

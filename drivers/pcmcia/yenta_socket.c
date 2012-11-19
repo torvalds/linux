@@ -1435,7 +1435,7 @@ static struct pci_driver yenta_cardbus_driver = {
 	.name		= "yenta_cardbus",
 	.id_table	= yenta_table,
 	.probe		= yenta_probe,
-	.remove		= __devexit_p(yenta_close),
+	.remove		= yenta_close,
 	.driver.pm	= YENTA_PM_OPS,
 };
 
