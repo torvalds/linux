@@ -42,13 +42,6 @@ typedef enum {
 } de_inter_fbfmt_e;
 
 typedef enum {
-	DE_H32_V32_8BPP,
-	DE_H64_V64_2BPP,
-	DE_H64_V32_4BPP,
-	DE_H32_V64_4BPP
-} de_hwc_mode_e;
-
-typedef enum {
 	DE_N32PIXELS = 0,
 	DE_N64PIXELS
 } de_pixels_num_t;
@@ -73,14 +66,6 @@ typedef enum __SCAL_PS {
 	DE_SCAL_VYUY = 2,
 	DE_SCAL_YVYU = 3,
 } __scal_ps_t;
-
-typedef enum __SCAL_INMODE {
-	DE_SCAL_PLANNAR = 0,
-	DE_SCAL_INTER_LEAVED,
-	DE_SCAL_UVCOMBINED,
-	DE_SCAL_PLANNARMB = 4,
-	DE_SCAL_UVCOMBINEDMB = 6
-} __scal_inmode_t;
 
 typedef enum __SCAL_INFMT {
 	DE_SCAL_INYUV444 = 0,
@@ -140,11 +125,6 @@ typedef struct layer_input_src {
 	__bool yuv_ch;
 } layer_src_t;
 
-typedef struct hwc_src {
-	__u8 mode;
-	__u32 paddr;
-} de_hwc_src_t;
-
 typedef struct yuv_ch_src {
 	__u8 format;
 	__disp_pixel_mod_t mode;
@@ -162,7 +142,7 @@ typedef struct yuv_ch_src {
 	 * 2: DISP_YCC
 	 * 3: DISP_VXYCC
 	 */
-	__u8 cs_mode;
+	__disp_cs_mode_t cs_mode;
 } de_yuv_ch_src_t;
 
 typedef struct __SCAL_SRC_TYPE {
@@ -185,7 +165,7 @@ typedef struct __SCAL_SRC_TYPE {
 	 * 4: planar mb
 	 * 6: uv combined mb
 	 */
-	__u8 mod;
+	__disp_pixel_mod_t mod;
 
 	/*
 	 * 0: yuv444
@@ -196,7 +176,7 @@ typedef struct __SCAL_SRC_TYPE {
 	 * 5: rgb888
 	 */
 	__scal_infmt_t fmt;
-	__u8 ps;
+	__scal_ps_t ps;
 } __scal_src_type_t;
 
 typedef struct __SCAL_OUT_TYPE {
@@ -374,7 +354,7 @@ __s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t *pos);
 __s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t *pos);
 __s32 DE_BE_HWC_Set_Palette(__u32 sel, __u32 address, __u32 offset, __u32 size);
 __s32 DE_BE_HWC_Get_Format(void);
-__s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t *hwc_pat);
+__s32 DE_BE_HWC_Set_Src(__u32 sel, __disp_hwc_pattern_t *hwc_pat);
 
 __s32 DE_BE_Sprite_Enable(__u32 sel, __bool enable);
 __s32 DE_BE_Sprite_Set_Format(__u32 sel, __u8 pixel_seq, __u8 format);
