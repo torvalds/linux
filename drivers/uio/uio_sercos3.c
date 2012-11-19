@@ -197,7 +197,7 @@ static void sercos3_pci_remove(struct pci_dev *dev)
 	kfree(info);
 }
 
-static struct pci_device_id sercos3_pci_ids[] __devinitdata = {
+static struct pci_device_id sercos3_pci_ids[] = {
 	{
 		.vendor =       PCI_VENDOR_ID_PLX,
 		.device =       PCI_DEVICE_ID_PLX_9030,
