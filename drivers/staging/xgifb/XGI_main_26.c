@@ -2103,7 +2103,7 @@ error:
 /*                PCI DEVICE HANDLING                */
 /*****************************************************/
 
-static void __devexit xgifb_remove(struct pci_dev *pdev)
+static void xgifb_remove(struct pci_dev *pdev)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	struct fb_info *fb_info = xgifb_info->fb_info;
