@@ -112,7 +112,7 @@ static struct cgroup_subsys_state *freezer_create(struct cgroup *cgroup)
  * parent's freezing state while holding both parent's and our
  * freezer->lock.
  */
-static void freezer_post_create(struct cgroup *cgroup)
+static int freezer_post_create(struct cgroup *cgroup)
 {
 	struct freezer *freezer = cgroup_freezer(cgroup);
 	struct freezer *parent = parent_freezer(freezer);
@@ -136,6 +136,8 @@ static void freezer_post_create(struct cgroup *cgroup)
 	spin_unlock(&freezer->lock);
 	if (parent)
 		spin_unlock_irq(&parent->lock);
+
+	return 0;
 }
 
 /**

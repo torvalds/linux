@@ -4041,14 +4041,18 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 	INIT_WORK(&css->dput_work, css_dput_fn);
 }
 
-/* invoke ->post_create() on a new CSS and mark it online */
-static void online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
+/* invoke ->post_create() on a new CSS and mark it online if successful */
+static int online_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
+	int ret = 0;
+
 	lockdep_assert_held(&cgroup_mutex);
 
 	if (ss->post_create)
-		ss->post_create(cgrp);
-	cgrp->subsys[ss->subsys_id]->flags |= CSS_ONLINE;
+		ret = ss->post_create(cgrp);
+	if (!ret)
+		cgrp->subsys[ss->subsys_id]->flags |= CSS_ONLINE;
+	return ret;
 }
 
 /* if the CSS is online, invoke ->pre_destory() on it and mark it offline */
@@ -4174,12 +4178,15 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	list_add_tail_rcu(&cgrp->sibling, &cgrp->parent->children);
 	root->number_of_cgroups++;
 
-	for_each_subsys(root, ss) {
-		/* each css holds a ref to the cgroup's dentry */
+	/* each css holds a ref to the cgroup's dentry */
+	for_each_subsys(root, ss)
 		dget(dentry);
 
-		/* creation succeeded, notify subsystems */
-		online_css(ss, cgrp);
+	/* creation succeeded, notify subsystems */
+	for_each_subsys(root, ss) {
+		err = online_css(ss, cgrp);
+		if (err)
+			goto err_destroy;
 	}
 
 	err = cgroup_populate_dir(cgrp, true, root->subsys_mask);
@@ -4393,7 +4400,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 	BUG_ON(!list_empty(&init_task.tasks));
 
 	ss->active = 1;
-	online_css(ss, dummytop);
+	BUG_ON(online_css(ss, dummytop));
 
 	mutex_unlock(&cgroup_mutex);
 
@@ -4500,7 +4507,9 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 	write_unlock(&css_set_lock);
 
 	ss->active = 1;
-	online_css(ss, dummytop);
+	ret = online_css(ss, dummytop);
+	if (ret)
+		goto err_unload;
 
 	/* success! */
 	mutex_unlock(&cgroup_mutex);
