@@ -123,7 +123,7 @@ static int nvec_mouse_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit nvec_mouse_remove(struct platform_device *pdev)
+static int nvec_mouse_remove(struct platform_device *pdev)
 {
 	serio_unregister_port(ps2_dev.ser_dev);
 

@@ -407,7 +407,7 @@ static int nvec_power_probe(struct platform_device *pdev)
 	return power_supply_register(&pdev->dev, psy);
 }
 
-static int __devexit nvec_power_remove(struct platform_device *pdev)
+static int nvec_power_remove(struct platform_device *pdev)
 {
 	struct nvec_power *power = platform_get_drvdata(pdev);
 

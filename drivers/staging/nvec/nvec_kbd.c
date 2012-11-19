@@ -159,7 +159,7 @@ fail:
 	return err;
 }
 
-static int __devexit nvec_kbd_remove(struct platform_device *pdev)
+static int nvec_kbd_remove(struct platform_device *pdev)
 {
 	input_unregister_device(keys_dev.input);
 	input_free_device(keys_dev.input);

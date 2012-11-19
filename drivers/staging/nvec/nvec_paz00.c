@@ -72,7 +72,7 @@ static int nvec_paz00_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit nvec_paz00_remove(struct platform_device *pdev)
+static int nvec_paz00_remove(struct platform_device *pdev)
 {
 	struct nvec_led *led = platform_get_drvdata(pdev);
 

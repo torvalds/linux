@@ -853,7 +853,7 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit tegra_nvec_remove(struct platform_device *pdev)
+static int tegra_nvec_remove(struct platform_device *pdev)
 {
 	struct nvec_chip *nvec = platform_get_drvdata(pdev);
 
