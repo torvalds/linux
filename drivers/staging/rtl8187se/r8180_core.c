@@ -74,7 +74,7 @@ module_param(hwwep, int, S_IRUGO|S_IWUSR);
 
 MODULE_PARM_DESC(hwwep, " Try to use hardware WEP support. Still broken and not available on all cards");
 
-static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
+static int rtl8180_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id);
 
 static void __devexit rtl8180_pci_remove(struct pci_dev *pdev);
@@ -3175,7 +3175,7 @@ static const struct net_device_ops rtl8180_netdev_ops = {
 	.ndo_start_xmit		= ieee80211_rtl_xmit,
 };
 
-static int __devinit rtl8180_pci_probe(struct pci_dev *pdev,
+static int rtl8180_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
 	unsigned long ioaddr = 0;
