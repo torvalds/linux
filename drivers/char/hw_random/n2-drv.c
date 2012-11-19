@@ -719,7 +719,7 @@ out:
 	return err;
 }
 
-static int __devexit n2rng_remove(struct platform_device *op)
+static int n2rng_remove(struct platform_device *op)
 {
 	struct n2rng *np = dev_get_drvdata(&op->dev);
 

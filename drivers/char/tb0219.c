@@ -318,7 +318,7 @@ static int tb0219_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit tb0219_remove(struct platform_device *dev)
+static int tb0219_remove(struct platform_device *dev)
 {
 	_machine_restart = old_machine_restart;
 

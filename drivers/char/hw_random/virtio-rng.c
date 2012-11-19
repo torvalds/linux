@@ -119,7 +119,7 @@ static int virtrng_probe(struct virtio_device *vdev)
 	return probe_common(vdev);
 }
 
-static void __devexit virtrng_remove(struct virtio_device *vdev)
+static void virtrng_remove(struct virtio_device *vdev)
 {
 	remove_common(vdev);
 }

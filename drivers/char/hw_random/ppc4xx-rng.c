@@ -111,7 +111,7 @@ static int __devinit ppc4xx_rng_probe(struct platform_device *dev)
 	return err;
 }
 
-static int __devexit ppc4xx_rng_remove(struct platform_device *dev)
+static int ppc4xx_rng_remove(struct platform_device *dev)
 {
 	void __iomem *rng_regs = (void __iomem *) ppc4xx_rng.priv;
 

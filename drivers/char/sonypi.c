@@ -1428,7 +1428,7 @@ static int sonypi_probe(struct platform_device *dev)
 	return error;
 }
 
-static int __devexit sonypi_remove(struct platform_device *dev)
+static int sonypi_remove(struct platform_device *dev)
 {
 	sonypi_disable();
 

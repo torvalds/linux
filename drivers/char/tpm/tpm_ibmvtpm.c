@@ -267,7 +267,7 @@ static int ibmvtpm_crq_send_init(struct ibmvtpm_dev *ibmvtpm)
  * Return value:
  *	0
  */
-static int __devexit tpm_ibmvtpm_remove(struct vio_dev *vdev)
+static int tpm_ibmvtpm_remove(struct vio_dev *vdev)
 {
 	struct ibmvtpm_dev *ibmvtpm = ibmvtpm_get_data(&vdev->dev);
 	int rc = 0;

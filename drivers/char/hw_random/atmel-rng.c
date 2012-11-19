@@ -98,7 +98,7 @@ err_enable:
 	return ret;
 }
 
-static int __devexit atmel_trng_remove(struct platform_device *pdev)
+static int atmel_trng_remove(struct platform_device *pdev)
 {
 	struct atmel_trng *trng = platform_get_drvdata(pdev);
 

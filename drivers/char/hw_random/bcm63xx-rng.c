@@ -145,7 +145,7 @@ out:
 	return ret;
 }
 
-static int __devexit bcm63xx_rng_remove(struct platform_device *pdev)
+static int bcm63xx_rng_remove(struct platform_device *pdev)
 {
 	struct hwrng *rng = platform_get_drvdata(pdev);
 	struct bcm63xx_rng_priv *priv = to_rng_priv(rng);

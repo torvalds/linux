@@ -819,7 +819,7 @@ found_gmch:
 	return err;
 }
 
-static void __devexit agp_intel_remove(struct pci_dev *pdev)
+static void agp_intel_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

@@ -594,7 +594,7 @@ err_last:
 	return rc;
 }
 
-static __devexit void tpm_inf_pnp_remove(struct pnp_dev *dev)
+static void tpm_inf_pnp_remove(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
 

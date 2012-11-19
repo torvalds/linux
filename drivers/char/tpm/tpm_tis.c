@@ -783,7 +783,7 @@ static struct pnp_device_id tpm_pnp_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pnp, tpm_pnp_tbl);
 
-static __devexit void tpm_tis_pnp_remove(struct pnp_dev *dev)
+static void tpm_tis_pnp_remove(struct pnp_dev *dev)
 {
 	struct tpm_chip *chip = pnp_get_drvdata(dev);
 

@@ -656,7 +656,7 @@ static int __devinit tpm_tis_i2c_probe(struct i2c_client *client,
 	return rc;
 }
 
-static int __devexit tpm_tis_i2c_remove(struct i2c_client *client)
+static int tpm_tis_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = tpm_dev.chip;
 	release_locality(chip, chip->vendor.locality, 1);

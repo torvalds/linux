@@ -211,7 +211,7 @@ static int __devinit agp_sis_probe(struct pci_dev *pdev,
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_sis_remove(struct pci_dev *pdev)
+static void agp_sis_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

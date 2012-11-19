@@ -134,7 +134,7 @@ static int __devinit exynos_rng_probe(struct platform_device *pdev)
 	return hwrng_register(&exynos_rng->rng);
 }
 
-static int __devexit exynos_rng_remove(struct platform_device *pdev)
+static int exynos_rng_remove(struct platform_device *pdev)
 {
 	struct exynos_rng *exynos_rng = platform_get_drvdata(pdev);
 
