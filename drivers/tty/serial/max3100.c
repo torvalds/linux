@@ -818,7 +818,7 @@ static int max3100_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit max3100_remove(struct spi_device *spi)
+static int max3100_remove(struct spi_device *spi)
 {
 	struct max3100_port *s = dev_get_drvdata(&spi->dev);
 	int i;

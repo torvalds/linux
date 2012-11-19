@@ -598,7 +598,7 @@ static int altera_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit altera_uart_remove(struct platform_device *pdev)
+static int altera_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 

@@ -3931,7 +3931,7 @@ err:
 	return retval;
 }
 
-static void __devexit cy_pci_remove(struct pci_dev *pdev)
+static void cy_pci_remove(struct pci_dev *pdev)
 {
 	struct cyclades_card *cinfo = pci_get_drvdata(pdev);
 	unsigned int i, channel;

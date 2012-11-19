@@ -148,7 +148,7 @@
 #endif
 
 static int isicom_probe(struct pci_dev *, const struct pci_device_id *);
-static void __devexit isicom_remove(struct pci_dev *);
+static void isicom_remove(struct pci_dev *);
 
 static struct pci_device_id isicom_pci_tbl[] = {
 	{ PCI_DEVICE(VENDOR_ID, 0x2028) },
@@ -1635,7 +1635,7 @@ err:
 	return retval;
 }
 
-static void __devexit isicom_remove(struct pci_dev *pdev)
+static void isicom_remove(struct pci_dev *pdev)
 {
 	struct isi_board *board = pci_get_drvdata(pdev);
 	unsigned int i;

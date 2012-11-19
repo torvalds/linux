@@ -1202,7 +1202,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit max310x_remove(struct spi_device *spi)
+static int max310x_remove(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	struct max310x_port *s = dev_get_drvdata(dev);

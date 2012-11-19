@@ -740,7 +740,7 @@ static int serial_hs_lpc32xx_probe(struct platform_device *pdev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int __devexit serial_hs_lpc32xx_remove(struct platform_device *pdev)
+static int serial_hs_lpc32xx_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_hsuart_port *p = platform_get_drvdata(pdev);
 

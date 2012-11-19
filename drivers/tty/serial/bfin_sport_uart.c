@@ -850,7 +850,7 @@ out_error_free_mem:
 	return ret;
 }
 
-static int __devexit sport_uart_remove(struct platform_device *pdev)
+static int sport_uart_remove(struct platform_device *pdev)
 {
 	struct sport_uart_port *sport = platform_get_drvdata(pdev);
 

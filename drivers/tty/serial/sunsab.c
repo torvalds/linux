@@ -1063,7 +1063,7 @@ out:
 	return err;
 }
 
-static int __devexit sab_remove(struct platform_device *op)
+static int sab_remove(struct platform_device *op)
 {
 	struct uart_sunsab_port *up = dev_get_drvdata(&op->dev);
 

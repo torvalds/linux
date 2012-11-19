@@ -8117,7 +8117,7 @@ static int synclink_init_one (struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit synclink_remove_one (struct pci_dev *dev)
+static void synclink_remove_one (struct pci_dev *dev)
 {
 }
 

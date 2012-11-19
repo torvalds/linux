@@ -542,7 +542,7 @@ static int ulite_assign(struct device *dev, int id, u32 base, int irq)
  *
  * @dev: pointer to device structure
  */
-static int __devexit ulite_release(struct device *dev)
+static int ulite_release(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	int rc = 0;
@@ -593,7 +593,7 @@ static int ulite_probe(struct platform_device *pdev)
 	return ulite_assign(&pdev->dev, id, res->start, res2->start);
 }
 
-static int __devexit ulite_remove(struct platform_device *pdev)
+static int ulite_remove(struct platform_device *pdev)
 {
 	return ulite_release(&pdev->dev);
 }

@@ -5606,6 +5606,6 @@ static int synclinkmp_init_one (struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit synclinkmp_remove_one (struct pci_dev *dev)
+static void synclinkmp_remove_one (struct pci_dev *dev)
 {
 }

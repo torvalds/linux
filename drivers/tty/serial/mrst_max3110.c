@@ -855,7 +855,7 @@ err_get_page:
 	return ret;
 }
 
-static int __devexit serial_m3110_remove(struct spi_device *dev)
+static int serial_m3110_remove(struct spi_device *dev)
 {
 	struct uart_max3110 *max = spi_get_drvdata(dev);
 

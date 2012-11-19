@@ -1441,7 +1441,7 @@ err_port_line:
 	return ret;
 }
 
-static int __devexit serial_omap_remove(struct platform_device *dev)
+static int serial_omap_remove(struct platform_device *dev)
 {
 	struct uart_omap_port *up = platform_get_drvdata(dev);
 

@@ -332,7 +332,7 @@ static void hvcs_hangup(struct tty_struct * tty);
 
 static int hvcs_probe(struct vio_dev *dev,
 		const struct vio_device_id *id);
-static int __devexit hvcs_remove(struct vio_dev *dev);
+static int hvcs_remove(struct vio_dev *dev);
 static int __init hvcs_module_init(void);
 static void __exit hvcs_module_exit(void);
 static int hvcs_initialize(void);
@@ -835,7 +835,7 @@ static int hvcs_probe(
 	return 0;
 }
 
-static int __devexit hvcs_remove(struct vio_dev *dev)
+static int hvcs_remove(struct vio_dev *dev)
 {
 	struct hvcs_struct *hvcsd = dev_get_drvdata(&dev->dev);
 	unsigned long flags;

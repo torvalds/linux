@@ -1507,7 +1507,7 @@ err:
 	return ret;
 }
 
-static void __devexit tty_exit(struct nozomi *dc)
+static void tty_exit(struct nozomi *dc)
 {
 	unsigned int i;
 
@@ -1530,7 +1530,7 @@ static void __devexit tty_exit(struct nozomi *dc)
 }
 
 /* Deallocate memory for one device */
-static void __devexit nozomi_card_exit(struct pci_dev *pdev)
+static void nozomi_card_exit(struct pci_dev *pdev)
 {
 	int i;
 	struct ctrl_ul ctrl;

@@ -1851,7 +1851,7 @@ err:
 	return ret;
 }
 
-static int __devexit atmel_serial_remove(struct platform_device *pdev)
+static int atmel_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);

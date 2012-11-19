@@ -901,7 +901,7 @@ static int siu_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit siu_remove(struct platform_device *dev)
+static int siu_remove(struct platform_device *dev)
 {
 	struct uart_port *port;
 	int i;

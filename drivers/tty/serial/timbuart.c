@@ -492,7 +492,7 @@ err_mem:
 	return err;
 }
 
-static int __devexit timbuart_remove(struct platform_device *dev)
+static int timbuart_remove(struct platform_device *dev)
 {
 	struct timbuart_port *uart = platform_get_drvdata(dev);
 

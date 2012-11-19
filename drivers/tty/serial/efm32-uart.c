@@ -764,7 +764,7 @@ err_get_base:
 	return ret;
 }
 
-static int __devexit efm32_uart_remove(struct platform_device *pdev)
+static int efm32_uart_remove(struct platform_device *pdev)
 {
 	struct efm32_uart_port *efm_port = platform_get_drvdata(pdev);
 

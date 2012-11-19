@@ -1503,7 +1503,7 @@ out_unmap:
 	return err;
 }
 
-static int __devexit su_remove(struct platform_device *op)
+static int su_remove(struct platform_device *op)
 {
 	struct uart_sunsu_port *up = dev_get_drvdata(&op->dev);
 	bool kbdms = false;

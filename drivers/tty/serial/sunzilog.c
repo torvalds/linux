@@ -1507,7 +1507,7 @@ static int zs_probe(struct platform_device *op)
 	return 0;
 }
 
-static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
+static void zs_remove_one(struct uart_sunzilog_port *up)
 {
 	if (ZS_IS_KEYB(up) || ZS_IS_MOUSE(up)) {
 #ifdef CONFIG_SERIO
@@ -1517,7 +1517,7 @@ static void __devexit zs_remove_one(struct uart_sunzilog_port *up)
 		uart_remove_one_port(&sunzilog_reg, &up->port);
 }
 
-static int __devexit zs_remove(struct platform_device *op)
+static int zs_remove(struct platform_device *op)
 {
 	struct uart_sunzilog_port *up = dev_get_drvdata(&op->dev);
 	struct zilog_layout __iomem *regs;

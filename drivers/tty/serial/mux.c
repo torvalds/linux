@@ -520,7 +520,7 @@ static int __init mux_probe(struct parisc_device *dev)
 	return 0;
 }
 
-static int __devexit mux_remove(struct parisc_device *dev)
+static int mux_remove(struct parisc_device *dev)
 {
 	int i, j;
 	int port_count = (long)dev_get_drvdata(&dev->dev);

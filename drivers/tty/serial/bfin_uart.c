@@ -1389,7 +1389,7 @@ out_error_free_mem:
 	return ret;
 }
 
-static int __devexit bfin_serial_remove(struct platform_device *pdev)
+static int bfin_serial_remove(struct platform_device *pdev)
 {
 	struct bfin_serial_port *uart = platform_get_drvdata(pdev);
 

@@ -1078,7 +1078,7 @@ static int serial_txx9_register_port(struct uart_port *port)
  *	Remove one serial port.  This may not be called from interrupt
  *	context.  We hand the port back to the our control.
  */
-static void __devexit serial_txx9_unregister_port(int line)
+static void serial_txx9_unregister_port(int line)
 {
 	struct uart_txx9_port *uart = &serial_txx9_ports[line];
 
@@ -1126,7 +1126,7 @@ static int serial_txx9_probe(struct platform_device *dev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int __devexit serial_txx9_remove(struct platform_device *dev)
+static int serial_txx9_remove(struct platform_device *dev)
 {
 	int i;
 
@@ -1217,7 +1217,7 @@ pciserial_txx9_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	return 0;
 }
 
-static void __devexit pciserial_txx9_remove_one(struct pci_dev *dev)
+static void pciserial_txx9_remove_one(struct pci_dev *dev)
 {
 	struct uart_txx9_port *up = pci_get_drvdata(dev);
 

@@ -598,7 +598,7 @@ out_free_port:
 	return err;
 }
 
-static int __devexit hv_remove(struct platform_device *dev)
+static int hv_remove(struct platform_device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(&dev->dev);
 

@@ -152,7 +152,7 @@ static int serial8250_em_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit serial8250_em_remove(struct platform_device *pdev)
+static int serial8250_em_remove(struct platform_device *pdev)
 {
 	struct serial8250_em_priv *priv = platform_get_drvdata(pdev);
 

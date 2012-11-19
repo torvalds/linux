@@ -401,7 +401,7 @@ static int msm_hs_request_port(struct uart_port *port)
 	return 0;
 }
 
-static int __devexit msm_hs_remove(struct platform_device *pdev)
+static int msm_hs_remove(struct platform_device *pdev)
 {
 
 	struct msm_hs_port *msm_uport;

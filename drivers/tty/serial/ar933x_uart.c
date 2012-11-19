@@ -707,7 +707,7 @@ err_free_up:
 	return ret;
 }
 
-static int __devexit ar933x_uart_remove(struct platform_device *pdev)
+static int ar933x_uart_remove(struct platform_device *pdev)
 {
 	struct ar933x_uart_port *up;
 

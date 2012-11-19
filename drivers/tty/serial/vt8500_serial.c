@@ -634,7 +634,7 @@ err:
 	return ret;
 }
 
-static int __devexit vt8500_serial_remove(struct platform_device *pdev)
+static int vt8500_serial_remove(struct platform_device *pdev)
 {
 	struct vt8500_port *vt8500_port = platform_get_drvdata(pdev);
 

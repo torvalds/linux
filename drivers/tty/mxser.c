@@ -2658,7 +2658,7 @@ err:
 #endif
 }
 
-static void __devexit mxser_remove(struct pci_dev *pdev)
+static void mxser_remove(struct pci_dev *pdev)
 {
 #ifdef CONFIG_PCI
 	struct mxser_board *brd = pci_get_drvdata(pdev);

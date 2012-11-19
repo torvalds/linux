@@ -288,7 +288,7 @@ static int pci_plx9050_init(struct pci_dev *dev)
 	return 0;
 }
 
-static void __devexit pci_plx9050_exit(struct pci_dev *dev)
+static void pci_plx9050_exit(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
@@ -313,7 +313,7 @@ static void __devexit pci_plx9050_exit(struct pci_dev *dev)
 #define NI8420_INT_ENABLE_REG	0x38
 #define NI8420_INT_ENABLE_BIT	0x2000
 
-static void __devexit pci_ni8420_exit(struct pci_dev *dev)
+static void pci_ni8420_exit(struct pci_dev *dev)
 {
 	void __iomem *p;
 	unsigned long base, len;
@@ -345,7 +345,7 @@ static void __devexit pci_ni8420_exit(struct pci_dev *dev)
 
 #define MITE_LCIMR2_CLR_CPU_IE	(1 << 30)
 
-static void __devexit pci_ni8430_exit(struct pci_dev *dev)
+static void pci_ni8430_exit(struct pci_dev *dev)
 {
 	void __iomem *p;
 	unsigned long base, len;
@@ -422,7 +422,7 @@ static int sbs_init(struct pci_dev *dev)
  * Disables the global interrupt of PMC-OctalPro
  */
 
-static void __devexit sbs_exit(struct pci_dev *dev)
+static void sbs_exit(struct pci_dev *dev)
 {
 	u8 __iomem *p;
 
@@ -991,7 +991,7 @@ static int pci_ite887x_init(struct pci_dev *dev)
 	return ret;
 }
 
-static void __devexit pci_ite887x_exit(struct pci_dev *dev)
+static void pci_ite887x_exit(struct pci_dev *dev)
 {
 	u32 ioport;
 	/* the ioport is bit 0-15 in POSIO0R */
@@ -2988,7 +2988,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	return rc;
 }
 
-static void __devexit pciserial_remove_one(struct pci_dev *dev)
+static void pciserial_remove_one(struct pci_dev *dev)
 {
 	struct serial_private *priv = pci_get_drvdata(dev);
 

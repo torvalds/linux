@@ -222,7 +222,7 @@ static int hvc_opal_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit hvc_opal_remove(struct platform_device *dev)
+static int hvc_opal_remove(struct platform_device *dev)
 {
 	struct hvc_struct *hp = dev_get_drvdata(&dev->dev);
 	int rc, termno;

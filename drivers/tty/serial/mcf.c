@@ -599,7 +599,7 @@ static int mcf_probe(struct platform_device *pdev)
 
 /****************************************************************************/
 
-static int __devexit mcf_remove(struct platform_device *pdev)
+static int mcf_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i;

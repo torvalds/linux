@@ -997,7 +997,7 @@ static int xuartps_probe(struct platform_device *pdev)
  *
  * Returns 0 on success, negative error otherwise
  **/
-static int __devexit xuartps_remove(struct platform_device *pdev)
+static int xuartps_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = dev_get_drvdata(&pdev->dev);
 	int rc = 0;

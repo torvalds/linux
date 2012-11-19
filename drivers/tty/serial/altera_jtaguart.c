@@ -453,7 +453,7 @@ static int altera_jtaguart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit altera_jtaguart_remove(struct platform_device *pdev)
+static int altera_jtaguart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 	int i = pdev->id;

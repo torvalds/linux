@@ -80,7 +80,7 @@ serial_card_probe(struct expansion_card *ec, const struct ecard_id *id)
 	return 0;
 }
 
-static void __devexit serial_card_remove(struct expansion_card *ec)
+static void serial_card_remove(struct expansion_card *ec)
 {
 	struct serial_card_info *info = ecard_get_drvdata(ec);
 	int i;

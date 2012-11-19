@@ -1256,7 +1256,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit s3c24xx_serial_remove(struct platform_device *dev)
+static int s3c24xx_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 

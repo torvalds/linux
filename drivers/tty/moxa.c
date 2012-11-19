@@ -1020,7 +1020,7 @@ err:
 	return retval;
 }
 
-static void __devexit moxa_pci_remove(struct pci_dev *pdev)
+static void moxa_pci_remove(struct pci_dev *pdev)
 {
 	struct moxa_board_conf *brd = pci_get_drvdata(pdev);
 

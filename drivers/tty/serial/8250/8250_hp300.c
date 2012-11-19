@@ -38,7 +38,7 @@ static struct hp300_port *hp300_ports;
 
 static int hpdca_init_one(struct dio_dev *d,
 					const struct dio_device_id *ent);
-static void __devexit hpdca_remove_one(struct dio_dev *d);
+static void hpdca_remove_one(struct dio_dev *d);
 
 static struct dio_device_id hpdca_dio_tbl[] = {
 	{ DIO_ID_DCA0 },
@@ -288,7 +288,7 @@ static int __init hp300_8250_init(void)
 }
 
 #ifdef CONFIG_HPDCA
-static void __devexit hpdca_remove_one(struct dio_dev *d)
+static void hpdca_remove_one(struct dio_dev *d)
 {
 	int line;
 

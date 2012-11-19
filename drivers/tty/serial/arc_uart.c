@@ -689,7 +689,7 @@ static int arc_serial_probe(struct platform_device *pdev)
 	return uart_add_one_port(&arc_uart_driver, &uart->port);
 }
 
-static int __devexit arc_serial_remove(struct platform_device *pdev)
+static int arc_serial_remove(struct platform_device *pdev)
 {
 	/* This will never be called */
 	return 0;

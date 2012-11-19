@@ -1137,7 +1137,7 @@ out:
 	return ret;
 }
 
-static int __devexit mxs_auart_remove(struct platform_device *pdev)
+static int mxs_auart_remove(struct platform_device *pdev)
 {
 	struct mxs_auart_port *s = platform_get_drvdata(pdev);
 

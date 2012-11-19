@@ -476,7 +476,7 @@ serial_pnp_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
 	return 0;
 }
 
-static void __devexit serial_pnp_remove(struct pnp_dev *dev)
+static void serial_pnp_remove(struct pnp_dev *dev)
 {
 	long line = (long)pnp_get_drvdata(dev);
 	if (line)

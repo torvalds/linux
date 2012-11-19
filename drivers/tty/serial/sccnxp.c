@@ -943,7 +943,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit sccnxp_remove(struct platform_device *pdev)
+static int sccnxp_remove(struct platform_device *pdev)
 {
 	int i;
 	struct sccnxp_port *s = platform_get_drvdata(pdev);

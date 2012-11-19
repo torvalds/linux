@@ -152,7 +152,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit dw8250_remove(struct platform_device *pdev)
+static int dw8250_remove(struct platform_device *pdev)
 {
 	struct dw8250_data *data = platform_get_drvdata(pdev);
 

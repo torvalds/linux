@@ -3710,7 +3710,7 @@ static int init_one(struct pci_dev *dev,
 	return 0;
 }
 
-static void __devexit remove_one(struct pci_dev *dev)
+static void remove_one(struct pci_dev *dev)
 {
 }
 

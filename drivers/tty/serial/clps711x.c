@@ -491,7 +491,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit uart_clps711x_remove(struct platform_device *pdev)
+static int uart_clps711x_remove(struct platform_device *pdev)
 {
 	struct clps711x_port *s = platform_get_drvdata(pdev);
 	int i;

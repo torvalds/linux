@@ -362,7 +362,7 @@ static int hvc_vio_probe(struct vio_dev *vdev,
 	return 0;
 }
 
-static int __devexit hvc_vio_remove(struct vio_dev *vdev)
+static int hvc_vio_remove(struct vio_dev *vdev)
 {
 	struct hvc_struct *hp = dev_get_drvdata(&vdev->dev);
 	int rc, termno;

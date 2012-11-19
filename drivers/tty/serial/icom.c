@@ -1596,7 +1596,7 @@ probe_exit0:
 	return retval;
 }
 
-static void __devexit icom_remove(struct pci_dev *dev)
+static void icom_remove(struct pci_dev *dev)
 {
 	struct icom_adapter *icom_adapter;
 	struct list_head *tmp;
