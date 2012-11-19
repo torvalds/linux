@@ -248,6 +248,7 @@ struct kvm_arch {
 	atomic_t vcpus_running;
 	unsigned long hpt_npte;
 	unsigned long hpt_mask;
+	atomic_t hpte_mod_interest;
 	spinlock_t slot_phys_lock;
 	unsigned short last_vcpu[NR_CPUS];
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];

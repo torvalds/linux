@@ -50,6 +50,15 @@ extern int kvm_hpt_order;		/* order of preallocated HPTs */
 #define HPTE_V_HVLOCK	0x40UL
 #define HPTE_V_ABSENT	0x20UL
 
+/*
+ * We use this bit in the guest_rpte field of the revmap entry
+ * to indicate a modified HPTE.
+ */
+#define HPTE_GR_MODIFIED	(1ul << 62)
+
+/* These bits are reserved in the guest view of the HPTE */
+#define HPTE_GR_RESERVED	HPTE_GR_MODIFIED
+
 static inline long try_lock_hpte(unsigned long *hpte, unsigned long bits)
 {
 	unsigned long tmp, old;

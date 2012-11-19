@@ -66,6 +66,17 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
+/*
+ * Note modification of an HPTE; set the HPTE modified bit
+ * if anyone is interested.
+ */
+static inline void note_hpte_modification(struct kvm *kvm,
+					  struct revmap_entry *rev)
+{
+	if (atomic_read(&kvm->arch.hpte_mod_interest))
+		rev->guest_rpte |= HPTE_GR_MODIFIED;
+}
+
 /* Remove this HPTE from the chain for a real page */
 static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 				struct revmap_entry *rev,
@@ -138,7 +149,7 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	unsigned long slot_fn, hva;
 	unsigned long *hpte;
 	struct revmap_entry *rev;
-	unsigned long g_ptel = ptel;
+	unsigned long g_ptel;
 	struct kvm_memory_slot *memslot;
 	unsigned long *physp, pte_size;
 	unsigned long is_io;
@@ -153,6 +164,8 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 		return H_PARAMETER;
 	writing = hpte_is_writable(ptel);
 	pteh &= ~(HPTE_V_HVLOCK | HPTE_V_ABSENT | HPTE_V_VALID);
+	ptel &= ~HPTE_GR_RESERVED;
+	g_ptel = ptel;
 
 	/* used later to detect if we might have been invalidated */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -287,8 +300,10 @@ long kvmppc_do_h_enter(struct kvm *kvm, unsigned long flags,
 	rev = &kvm->arch.revmap[pte_index];
 	if (realmode)
 		rev = real_vmalloc_addr(rev);
-	if (rev)
+	if (rev) {
 		rev->guest_rpte = g_ptel;
+		note_hpte_modification(kvm, rev);
+	}
 
 	/* Link HPTE into reverse-map chain */
 	if (pteh & HPTE_V_VALID) {
@@ -392,7 +407,8 @@ long kvmppc_h_remove(struct kvm_vcpu *vcpu, unsigned long flags,
 		/* Read PTE low word after tlbie to get final R/C values */
 		remove_revmap_chain(kvm, pte_index, rev, v, hpte[1]);
 	}
-	r = rev->guest_rpte;
+	r = rev->guest_rpte & ~HPTE_GR_RESERVED;
+	note_hpte_modification(kvm, rev);
 	unlock_hpte(hpte, 0);
 
 	vcpu->arch.gpr[4] = v;
@@ -466,6 +482,7 @@ long kvmppc_h_bulk_remove(struct kvm_vcpu *vcpu)
 
 			args[j] = ((0x80 | flags) << 56) + pte_index;
 			rev = real_vmalloc_addr(&kvm->arch.revmap[pte_index]);
+			note_hpte_modification(kvm, rev);
 
 			if (!(hp[0] & HPTE_V_VALID)) {
 				/* insert R and C bits from PTE */
@@ -555,6 +572,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (rev) {
 		r = (rev->guest_rpte & ~mask) | bits;
 		rev->guest_rpte = r;
+		note_hpte_modification(kvm, rev);
 	}
 	r = (hpte[1] & ~mask) | bits;
 
@@ -606,8 +624,10 @@ long kvmppc_h_read(struct kvm_vcpu *vcpu, unsigned long flags,
 			v &= ~HPTE_V_ABSENT;
 			v |= HPTE_V_VALID;
 		}
-		if (v & HPTE_V_VALID)
+		if (v & HPTE_V_VALID) {
 			r = rev[i].guest_rpte | (r & (HPTE_R_R | HPTE_R_C));
+			r &= ~HPTE_GR_RESERVED;
+		}
 		vcpu->arch.gpr[4 + i * 2] = v;
 		vcpu->arch.gpr[5 + i * 2] = r;
 	}
