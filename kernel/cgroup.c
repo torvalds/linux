@@ -4020,7 +4020,7 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 	css->flags = 0;
 	css->id = NULL;
 	if (cgrp == dummytop)
-		set_bit(CSS_ROOT, &css->flags);
+		css->flags |= CSS_ROOT;
 	BUG_ON(cgrp->subsys[ss->subsys_id]);
 	cgrp->subsys[ss->subsys_id] = css;
 

@@ -81,7 +81,7 @@ struct cgroup_subsys_state {
 
 /* bits in struct cgroup_subsys_state flags field */
 enum {
-	CSS_ROOT, /* This CSS is the root of the subsystem */
+	CSS_ROOT	= (1 << 0), /* this CSS is the root of the subsystem */
 };
 
 /* Caller must verify that the css is not for root cgroup */
@@ -100,7 +100,7 @@ static inline void __css_get(struct cgroup_subsys_state *css, int count)
 static inline void css_get(struct cgroup_subsys_state *css)
 {
 	/* We don't need to reference count the root state */
-	if (!test_bit(CSS_ROOT, &css->flags))
+	if (!(css->flags & CSS_ROOT))
 		__css_get(css, 1);
 }
 
@@ -113,7 +113,7 @@ static inline void css_get(struct cgroup_subsys_state *css)
 extern bool __css_tryget(struct cgroup_subsys_state *css);
 static inline bool css_tryget(struct cgroup_subsys_state *css)
 {
-	if (test_bit(CSS_ROOT, &css->flags))
+	if (css->flags & CSS_ROOT)
 		return true;
 	return __css_tryget(css);
 }
@@ -126,7 +126,7 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
 extern void __css_put(struct cgroup_subsys_state *css);
 static inline void css_put(struct cgroup_subsys_state *css)
 {
-	if (!test_bit(CSS_ROOT, &css->flags))
+	if (!(css->flags & CSS_ROOT))
 		__css_put(css);
 }
 
