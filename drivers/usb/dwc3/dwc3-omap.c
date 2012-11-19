@@ -441,7 +441,7 @@ MODULE_DEVICE_TABLE(of, of_dwc3_matach);
 
 static struct platform_driver dwc3_omap_driver = {
 	.probe		= dwc3_omap_probe,
-	.remove		= __devexit_p(dwc3_omap_remove),
+	.remove		= dwc3_omap_remove,
 	.driver		= {
 		.name	= "omap-dwc3",
 		.of_match_table	= of_dwc3_matach,

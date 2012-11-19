@@ -636,7 +636,7 @@ static struct platform_driver renesas_usbhs_driver = {
 		.pm	= &usbhsc_pm_ops,
 	},
 	.probe		= usbhs_probe,
-	.remove		= __devexit_p(usbhs_remove),
+	.remove		= usbhs_remove,
 };
 
 module_platform_driver(renesas_usbhs_driver);

@@ -196,7 +196,7 @@ MODULE_DEVICE_TABLE(of, exynos_dwc3_match);
 
 static struct platform_driver dwc3_exynos_driver = {
 	.probe		= dwc3_exynos_probe,
-	.remove		= __devexit_p(dwc3_exynos_remove),
+	.remove		= dwc3_exynos_remove,
 	.driver		= {
 		.name	= "exynos-dwc3",
 		.of_match_table = of_match_ptr(exynos_dwc3_match),

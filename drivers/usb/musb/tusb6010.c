@@ -1227,7 +1227,7 @@ static int __devexit tusb_remove(struct platform_device *pdev)
 
 static struct platform_driver tusb_driver = {
 	.probe		= tusb_probe,
-	.remove		= __devexit_p(tusb_remove),
+	.remove		= tusb_remove,
 	.driver		= {
 		.name	= "musb-tusb",
 	},

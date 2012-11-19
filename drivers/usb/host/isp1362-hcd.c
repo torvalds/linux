@@ -2856,7 +2856,7 @@ static int isp1362_resume(struct platform_device *pdev)
 
 static struct platform_driver isp1362_driver = {
 	.probe = isp1362_probe,
-	.remove = __devexit_p(isp1362_remove),
+	.remove = isp1362_remove,
 
 	.suspend = isp1362_suspend,
 	.resume = isp1362_resume,

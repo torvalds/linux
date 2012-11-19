@@ -2288,7 +2288,7 @@ static struct platform_driver musb_driver = {
 		.pm		= MUSB_DEV_PM_OPS,
 	},
 	.probe		= musb_probe,
-	.remove		= __devexit_p(musb_remove),
+	.remove		= musb_remove,
 	.shutdown	= musb_shutdown,
 };
 

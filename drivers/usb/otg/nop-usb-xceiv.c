@@ -156,7 +156,7 @@ static int __devexit nop_usb_xceiv_remove(struct platform_device *pdev)
 
 static struct platform_driver nop_usb_xceiv_driver = {
 	.probe		= nop_usb_xceiv_probe,
-	.remove		= __devexit_p(nop_usb_xceiv_remove),
+	.remove		= nop_usb_xceiv_remove,
 	.driver		= {
 		.name	= "nop_usb_xceiv",
 		.owner	= THIS_MODULE,

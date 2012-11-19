@@ -274,7 +274,7 @@ MODULE_DEVICE_TABLE(of, exynos_ehci_match);
 
 static struct platform_driver s5p_ehci_driver = {
 	.probe		= s5p_ehci_probe,
-	.remove		= __devexit_p(s5p_ehci_remove),
+	.remove		= s5p_ehci_remove,
 	.shutdown	= s5p_ehci_shutdown,
 	.driver = {
 		.name	= "s5p-ehci",

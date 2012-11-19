@@ -571,7 +571,7 @@ static int __devexit ab8500_usb_remove(struct platform_device *pdev)
 
 static struct platform_driver ab8500_usb_driver = {
 	.probe		= ab8500_usb_probe,
-	.remove		= __devexit_p(ab8500_usb_remove),
+	.remove		= ab8500_usb_remove,
 	.driver		= {
 		.name	= "ab8500-usb",
 		.owner	= THIS_MODULE,

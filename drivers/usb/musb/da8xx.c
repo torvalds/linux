@@ -569,7 +569,7 @@ static int __devexit da8xx_remove(struct platform_device *pdev)
 
 static struct platform_driver da8xx_driver = {
 	.probe		= da8xx_probe,
-	.remove		= __devexit_p(da8xx_remove),
+	.remove		= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
 	},

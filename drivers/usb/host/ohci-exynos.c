@@ -275,7 +275,7 @@ MODULE_DEVICE_TABLE(of, exynos_ohci_match);
 
 static struct platform_driver exynos_ohci_driver = {
 	.probe		= exynos_ohci_probe,
-	.remove		= __devexit_p(exynos_ohci_remove),
+	.remove		= exynos_ohci_remove,
 	.shutdown	= exynos_ohci_shutdown,
 	.driver = {
 		.name	= "exynos-ohci",

@@ -3212,7 +3212,7 @@ static int u132_resume(struct platform_device *pdev)
 */
 static struct platform_driver u132_platform_driver = {
 	.probe = u132_probe,
-	.remove = __devexit_p(u132_remove),
+	.remove = u132_remove,
 	.suspend = u132_suspend,
 	.resume = u132_resume,
 	.driver = {

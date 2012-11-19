@@ -629,7 +629,7 @@ static struct dev_pm_ops am35x_pm_ops = {
 
 static struct platform_driver am35x_driver = {
 	.probe		= am35x_probe,
-	.remove		= __devexit_p(am35x_remove),
+	.remove		= am35x_remove,
 	.driver		= {
 		.name	= "musb-am35x",
 		.pm	= DEV_PM_OPS,

@@ -1746,7 +1746,7 @@ static const struct dev_pm_ops msm_otg_dev_pm_ops = {
 #endif
 
 static struct platform_driver msm_otg_driver = {
-	.remove = __devexit_p(msm_otg_remove),
+	.remove = msm_otg_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,

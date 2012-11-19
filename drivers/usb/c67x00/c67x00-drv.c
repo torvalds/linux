@@ -219,7 +219,7 @@ static int __devexit c67x00_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver c67x00_driver = {
 	.probe	= c67x00_drv_probe,
-	.remove	= __devexit_p(c67x00_drv_remove),
+	.remove	= c67x00_drv_remove,
 	.driver	= {
 		.owner = THIS_MODULE,
 		.name = "c67x00",

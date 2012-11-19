@@ -136,7 +136,7 @@ static int __devexit usbmisc_imx6q_remove(struct platform_device *pdev)
 
 static struct platform_driver usbmisc_imx6q_driver = {
 	.probe = usbmisc_imx6q_probe,
-	.remove = __devexit_p(usbmisc_imx6q_remove),
+	.remove = usbmisc_imx6q_remove,
 	.driver = {
 		.name = "usbmisc_imx6q",
 		.owner = THIS_MODULE,

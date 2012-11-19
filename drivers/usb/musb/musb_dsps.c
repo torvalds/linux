@@ -767,7 +767,7 @@ MODULE_DEVICE_TABLE(of, musb_dsps_of_match);
 
 static struct platform_driver dsps_usbss_driver = {
 	.probe		= dsps_probe,
-	.remove         = __devexit_p(dsps_remove),
+	.remove         = dsps_remove,
 	.driver         = {
 		.name   = "musb-dsps",
 		.pm	= &dsps_pm_ops,

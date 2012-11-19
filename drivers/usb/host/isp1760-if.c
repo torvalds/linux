@@ -432,7 +432,7 @@ static int __devexit isp1760_plat_remove(struct platform_device *pdev)
 
 static struct platform_driver isp1760_plat_driver = {
 	.probe	= isp1760_plat_probe,
-	.remove	= __devexit_p(isp1760_plat_remove),
+	.remove	= isp1760_plat_remove,
 	.driver	= {
 		.name	= "isp1760",
 	},

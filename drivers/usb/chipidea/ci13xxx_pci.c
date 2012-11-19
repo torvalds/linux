@@ -147,7 +147,7 @@ static struct pci_driver ci13xxx_pci_driver = {
 	.name         =	UDC_DRIVER_NAME,
 	.id_table     =	ci13xxx_pci_id_table,
 	.probe        =	ci13xxx_pci_probe,
-	.remove       =	__devexit_p(ci13xxx_pci_remove),
+	.remove       =	ci13xxx_pci_remove,
 };
 
 module_pci_driver(ci13xxx_pci_driver);

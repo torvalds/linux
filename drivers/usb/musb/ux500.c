@@ -216,7 +216,7 @@ static const struct dev_pm_ops ux500_pm_ops = {
 
 static struct platform_driver ux500_driver = {
 	.probe		= ux500_probe,
-	.remove		= __devexit_p(ux500_remove),
+	.remove		= ux500_remove,
 	.driver		= {
 		.name	= "musb-ux500",
 		.pm	= DEV_PM_OPS,

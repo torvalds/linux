@@ -229,7 +229,7 @@ static __refdata struct usb_composite_driver hidg_driver = {
 };
 
 static struct platform_driver hidg_plat_driver = {
-	.remove		= __devexit_p(hidg_plat_driver_remove),
+	.remove		= hidg_plat_driver_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "hidg",

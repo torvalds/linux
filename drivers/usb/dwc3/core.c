@@ -583,7 +583,7 @@ static int __devexit dwc3_remove(struct platform_device *pdev)
 
 static struct platform_driver dwc3_driver = {
 	.probe		= dwc3_probe,
-	.remove		= __devexit_p(dwc3_remove),
+	.remove		= dwc3_remove,
 	.driver		= {
 		.name	= "dwc3",
 	},

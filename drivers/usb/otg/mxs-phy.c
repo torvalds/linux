@@ -164,7 +164,7 @@ MODULE_DEVICE_TABLE(of, mxs_phy_dt_ids);
 
 static struct platform_driver mxs_phy_driver = {
 	.probe = mxs_phy_probe,
-	.remove = __devexit_p(mxs_phy_remove),
+	.remove = mxs_phy_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner	= THIS_MODULE,

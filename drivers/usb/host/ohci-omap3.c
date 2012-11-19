@@ -232,7 +232,7 @@ static void ohci_hcd_omap3_shutdown(struct platform_device *pdev)
 
 static struct platform_driver ohci_hcd_omap3_driver = {
 	.probe		= ohci_hcd_omap3_probe,
-	.remove		= __devexit_p(ohci_hcd_omap3_remove),
+	.remove		= ohci_hcd_omap3_remove,
 	.shutdown	= ohci_hcd_omap3_shutdown,
 	.driver		= {
 		.name	= "ohci-omap3",

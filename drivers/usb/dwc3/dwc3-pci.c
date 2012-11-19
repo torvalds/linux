@@ -218,7 +218,7 @@ static struct pci_driver dwc3_pci_driver = {
 	.name		= "dwc3-pci",
 	.id_table	= dwc3_pci_id_table,
 	.probe		= dwc3_pci_probe,
-	.remove		= __devexit_p(dwc3_pci_remove),
+	.remove		= dwc3_pci_remove,
 };
 
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");

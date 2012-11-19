@@ -210,7 +210,7 @@ static struct platform_driver rcar_usb_phy_driver = {
 		.name	= "rcar_usb_phy",
 	},
 	.probe		= rcar_usb_phy_probe,
-	.remove		= __devexit_p(rcar_usb_phy_remove),
+	.remove		= rcar_usb_phy_remove,
 };
 
 module_platform_driver(rcar_usb_phy_driver);

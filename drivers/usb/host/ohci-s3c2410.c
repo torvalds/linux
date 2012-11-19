@@ -524,7 +524,7 @@ static const struct dev_pm_ops ohci_hcd_s3c2410_pm_ops = {
 
 static struct platform_driver ohci_hcd_s3c2410_driver = {
 	.probe		= ohci_hcd_s3c2410_drv_probe,
-	.remove		= __devexit_p(ohci_hcd_s3c2410_drv_remove),
+	.remove		= ohci_hcd_s3c2410_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

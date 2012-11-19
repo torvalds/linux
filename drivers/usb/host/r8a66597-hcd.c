@@ -2532,7 +2532,7 @@ clean_up:
 
 static struct platform_driver r8a66597_driver = {
 	.probe =	r8a66597_probe,
-	.remove =	__devexit_p(r8a66597_remove),
+	.remove =	r8a66597_remove,
 	.driver		= {
 		.name = (char *) hcd_name,
 		.owner	= THIS_MODULE,

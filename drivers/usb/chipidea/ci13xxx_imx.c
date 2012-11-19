@@ -252,7 +252,7 @@ MODULE_DEVICE_TABLE(of, ci13xxx_imx_dt_ids);
 
 static struct platform_driver ci13xxx_imx_driver = {
 	.probe = ci13xxx_imx_probe,
-	.remove = __devexit_p(ci13xxx_imx_remove),
+	.remove = ci13xxx_imx_remove,
 	.driver = {
 		.name = "imx_usb",
 		.owner = THIS_MODULE,

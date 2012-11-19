@@ -166,7 +166,7 @@ static int __devexit ehci_w90x900_remove(struct platform_device *pdev)
 
 static struct platform_driver ehci_hcd_w90x900_driver = {
 	.probe  = ehci_w90x900_probe,
-	.remove = __devexit_p(ehci_w90x900_remove),
+	.remove = ehci_w90x900_remove,
 	.driver = {
 		.name = "w90x900-ehci",
 		.owner = THIS_MODULE,

@@ -1169,7 +1169,7 @@ static int __devexit fsl_otg_remove(struct platform_device *pdev)
 
 struct platform_driver fsl_otg_driver = {
 	.probe = fsl_otg_probe,
-	.remove = __devexit_p(fsl_otg_remove),
+	.remove = fsl_otg_remove,
 	.driver = {
 		.name = driver_name,
 		.owner = THIS_MODULE,

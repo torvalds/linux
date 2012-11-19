@@ -89,7 +89,7 @@ static int __devexit ci13xxx_msm_remove(struct platform_device *pdev)
 
 static struct platform_driver ci13xxx_msm_driver = {
 	.probe = ci13xxx_msm_probe,
-	.remove = __devexit_p(ci13xxx_msm_remove),
+	.remove = ci13xxx_msm_remove,
 	.driver = { .name = "msm_hsusb", },
 };
 

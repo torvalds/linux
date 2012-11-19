@@ -2575,7 +2575,7 @@ static struct pci_driver net2272_pci_driver = {
 	.id_table = pci_ids,
 
 	.probe    = net2272_pci_probe,
-	.remove   = __devexit_p(net2272_pci_remove),
+	.remove   = net2272_pci_remove,
 };
 
 static int net2272_pci_register(void)
@@ -2678,7 +2678,7 @@ net2272_plat_remove(struct platform_device *pdev)
 
 static struct platform_driver net2272_plat_driver = {
 	.probe   = net2272_plat_probe,
-	.remove  = __devexit_p(net2272_plat_remove),
+	.remove  = net2272_plat_remove,
 	.driver  = {
 		.name  = driver_name,
 		.owner = THIS_MODULE,

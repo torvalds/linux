@@ -266,7 +266,7 @@ static __devexit int jz4740_ohci_remove(struct platform_device *pdev)
 
 static struct platform_driver ohci_hcd_jz4740_driver = {
 	.probe = jz4740_ohci_probe,
-	.remove = __devexit_p(jz4740_ohci_remove),
+	.remove = jz4740_ohci_remove,
 	.driver = {
 		.name = "jz4740-ohci",
 		.owner = THIS_MODULE,

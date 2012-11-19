@@ -3708,7 +3708,7 @@ static struct platform_driver s3c_hsotg_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= s3c_hsotg_probe,
-	.remove		= __devexit_p(s3c_hsotg_remove),
+	.remove		= s3c_hsotg_remove,
 	.suspend	= s3c_hsotg_suspend,
 	.resume		= s3c_hsotg_resume,
 };

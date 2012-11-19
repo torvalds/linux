@@ -601,7 +601,7 @@ static int __devexit davinci_remove(struct platform_device *pdev)
 
 static struct platform_driver davinci_driver = {
 	.probe		= davinci_probe,
-	.remove		= __devexit_p(davinci_remove),
+	.remove		= davinci_remove,
 	.driver		= {
 		.name	= "musb-davinci",
 	},

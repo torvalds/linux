@@ -717,7 +717,7 @@ MODULE_ALIAS("platform:at91_ohci");
 
 static struct platform_driver ohci_hcd_at91_driver = {
 	.probe		= ohci_hcd_at91_drv_probe,
-	.remove		= __devexit_p(ohci_hcd_at91_drv_remove),
+	.remove		= ohci_hcd_at91_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.suspend	= ohci_hcd_at91_drv_suspend,
 	.resume		= ohci_hcd_at91_drv_resume,

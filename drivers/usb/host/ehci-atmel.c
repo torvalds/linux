@@ -207,7 +207,7 @@ MODULE_DEVICE_TABLE(of, atmel_ehci_dt_ids);
 
 static struct platform_driver ehci_atmel_driver = {
 	.probe		= ehci_atmel_drv_probe,
-	.remove		= __devexit_p(ehci_atmel_drv_remove),
+	.remove		= ehci_atmel_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name	= "atmel-ehci",
