@@ -492,7 +492,7 @@ static struct pci_driver synclinkmp_pci_driver = {
 	.name		= "synclinkmp",
 	.id_table	= synclinkmp_pci_tbl,
 	.probe		= synclinkmp_init_one,
-	.remove		= __devexit_p(synclinkmp_remove_one),
+	.remove		= synclinkmp_remove_one,
 };
 
 

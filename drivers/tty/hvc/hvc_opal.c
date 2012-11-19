@@ -239,7 +239,7 @@ static int __devexit hvc_opal_remove(struct platform_device *dev)
 
 static struct platform_driver hvc_opal_driver = {
 	.probe		= hvc_opal_probe,
-	.remove		= __devexit_p(hvc_opal_remove),
+	.remove		= hvc_opal_remove,
 	.driver		= {
 		.name	= hvc_opal_name,
 		.owner	= THIS_MODULE,

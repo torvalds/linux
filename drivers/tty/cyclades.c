@@ -3973,7 +3973,7 @@ static struct pci_driver cy_pci_driver = {
 	.name = "cyclades",
 	.id_table = cy_pci_dev_id,
 	.probe = cy_pci_probe,
-	.remove = __devexit_p(cy_pci_remove)
+	.remove = cy_pci_remove
 };
 #endif
 

@@ -110,7 +110,7 @@ static struct pci_driver pci_driver = {
 	.name		= "synclink_gt",
 	.id_table	= pci_table,
 	.probe		= init_one,
-	.remove		= __devexit_p(remove_one),
+	.remove		= remove_one,
 };
 
 static bool pci_registered;

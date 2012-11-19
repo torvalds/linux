@@ -168,7 +168,7 @@ static struct pci_driver isicom_driver = {
 	.name		= "isicom",
 	.id_table	= isicom_pci_tbl,
 	.probe		= isicom_probe,
-	.remove		= __devexit_p(isicom_remove)
+	.remove		= isicom_remove
 };
 
 static int prev_card = 3;	/*	start servicing isi_card[0]	*/

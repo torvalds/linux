@@ -1033,7 +1033,7 @@ static struct pci_driver moxa_pci_driver = {
 	.name = "moxa",
 	.id_table = moxa_pcibrds,
 	.probe = moxa_pci_probe,
-	.remove = __devexit_p(moxa_pci_remove)
+	.remove = moxa_pci_remove
 };
 #endif /* CONFIG_PCI */
 

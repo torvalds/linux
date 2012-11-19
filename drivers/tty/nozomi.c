@@ -1908,7 +1908,7 @@ static struct pci_driver nozomi_driver = {
 	.name = NOZOMI_NAME,
 	.id_table = nozomi_pci_tbl,
 	.probe = nozomi_card_init,
-	.remove = __devexit_p(nozomi_card_exit),
+	.remove = nozomi_card_exit,
 };
 
 static __init int nozomi_init(void)

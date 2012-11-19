@@ -2677,7 +2677,7 @@ static struct pci_driver mxser_driver = {
 	.name = "mxser",
 	.id_table = mxser_pcibrds,
 	.probe = mxser_probe,
-	.remove = __devexit_p(mxser_remove)
+	.remove = mxser_remove
 };
 
 static int __init mxser_module_init(void)
