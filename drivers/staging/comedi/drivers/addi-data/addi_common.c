@@ -93,7 +93,7 @@ static const void *addi_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit addi_auto_attach(struct comedi_device *dev,
+static int addi_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);

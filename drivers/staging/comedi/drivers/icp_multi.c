@@ -494,7 +494,7 @@ static int icp_multi_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int __devinit icp_multi_auto_attach(struct comedi_device *dev,
+static int icp_multi_auto_attach(struct comedi_device *dev,
 					   unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -617,7 +617,7 @@ static struct comedi_driver icp_multi_driver = {
 	.detach		= icp_multi_detach,
 };
 
-static int __devinit icp_multi_pci_probe(struct pci_dev *dev,
+static int icp_multi_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &icp_multi_driver);

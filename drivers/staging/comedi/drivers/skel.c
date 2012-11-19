@@ -541,16 +541,12 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * comedi_usb_auto_config(), etc.) to handle devices that can be attached
  * to the Comedi core automatically without the COMEDI_DEVCONFIG ioctl.
  *
- * For PCI devices, comedi_pci_auto_config() is usually called directly from
- * the struct pci_driver probe() function, so this _auto_attach() function
- * can be tagged __devinit.
- *
  * The context parameter is usually unused, but if the driver called
  * comedi_auto_config() directly instead of the comedi_pci_auto_config()
  * wrapper function, this will be a copy of the context passed to
  * comedi_auto_config().
  */
-static int __devinit skel_auto_attach(struct comedi_device *dev,
+static int skel_auto_attach(struct comedi_device *dev,
 				      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -705,7 +701,7 @@ static DEFINE_PCI_DEVICE_TABLE(skel_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
-static int __devinit skel_pci_probe(struct pci_dev *dev,
+static int skel_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &skel_driver);

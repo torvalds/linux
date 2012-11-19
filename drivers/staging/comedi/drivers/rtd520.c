@@ -1272,7 +1272,7 @@ static const void *rtd_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit rtd_auto_attach(struct comedi_device *dev,
+static int rtd_auto_attach(struct comedi_device *dev,
 				     unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -1414,7 +1414,7 @@ static struct comedi_driver rtd520_driver = {
 	.detach		= rtd_detach,
 };
 
-static int __devinit rtd520_pci_probe(struct pci_dev *dev,
+static int rtd520_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &rtd520_driver);

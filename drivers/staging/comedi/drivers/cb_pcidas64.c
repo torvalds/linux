@@ -4043,7 +4043,7 @@ static const struct pcidas64_board
 	return NULL;
 }
 
-static int __devinit auto_attach(struct comedi_device *dev,
+static int auto_attach(struct comedi_device *dev,
 				 unsigned long context_unused)
 {
 	const struct pcidas64_board *thisboard;
@@ -4214,7 +4214,7 @@ static struct comedi_driver cb_pcidas64_driver = {
 	.detach		= detach,
 };
 
-static int __devinit cb_pcidas64_pci_probe(struct pci_dev *dev,
+static int cb_pcidas64_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &cb_pcidas64_driver);

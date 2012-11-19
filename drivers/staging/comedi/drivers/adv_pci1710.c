@@ -1233,7 +1233,7 @@ static const void *pci1710_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit pci1710_auto_attach(struct comedi_device *dev,
+static int pci1710_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -1396,7 +1396,7 @@ static struct comedi_driver adv_pci1710_driver = {
 	.detach		= pci1710_detach,
 };
 
-static int __devinit adv_pci1710_pci_probe(struct pci_dev *dev,
+static int adv_pci1710_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adv_pci1710_driver);

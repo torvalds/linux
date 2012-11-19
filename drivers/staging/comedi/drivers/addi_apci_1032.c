@@ -285,7 +285,7 @@ static int apci1032_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int __devinit apci1032_auto_attach(struct comedi_device *dev,
+static int apci1032_auto_attach(struct comedi_device *dev,
 					  unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -369,7 +369,7 @@ static struct comedi_driver apci1032_driver = {
 	.detach		= apci1032_detach,
 };
 
-static int __devinit apci1032_pci_probe(struct pci_dev *dev,
+static int apci1032_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &apci1032_driver);

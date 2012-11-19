@@ -47,7 +47,7 @@ static struct comedi_driver apci1500_driver = {
 	.offset		= sizeof(struct addi_board),
 };
 
-static int __devinit apci1500_pci_probe(struct pci_dev *dev,
+static int apci1500_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &apci1500_driver);

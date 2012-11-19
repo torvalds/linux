@@ -296,7 +296,7 @@ static int pc263_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
  * There should be a board entry matching the supplied PCI device.
  */
-static int __devinit pc263_auto_attach(struct comedi_device *dev,
+static int pc263_auto_attach(struct comedi_device *dev,
 				       unsigned long context_unused)
 {
 	struct pci_dev *pci_dev;
@@ -365,7 +365,7 @@ static DEFINE_PCI_DEVICE_TABLE(pc263_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, pc263_pci_table);
 
-static int __devinit amplc_pc263_pci_probe(struct pci_dev *dev,
+static int amplc_pc263_pci_probe(struct pci_dev *dev,
 						  const struct pci_device_id
 						  *ent)
 {

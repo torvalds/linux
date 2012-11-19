@@ -657,7 +657,7 @@ static void jr3_pci_poll_dev(unsigned long data)
 	add_timer(&devpriv->timer);
 }
 
-static int __devinit jr3_pci_auto_attach(struct comedi_device *dev,
+static int jr3_pci_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	int result;
@@ -838,7 +838,7 @@ static struct comedi_driver jr3_pci_driver = {
 	.detach		= jr3_pci_detach,
 };
 
-static int __devinit jr3_pci_pci_probe(struct pci_dev *dev,
+static int jr3_pci_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &jr3_pci_driver);

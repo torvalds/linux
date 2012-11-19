@@ -500,7 +500,7 @@ static const void *me_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit me_auto_attach(struct comedi_device *dev,
+static int me_auto_attach(struct comedi_device *dev,
 				    unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -613,7 +613,7 @@ static struct comedi_driver me_daq_driver = {
 	.detach		= me_detach,
 };
 
-static int __devinit me_daq_pci_probe(struct pci_dev *dev,
+static int me_daq_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &me_daq_driver);

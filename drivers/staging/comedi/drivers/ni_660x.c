@@ -1166,7 +1166,7 @@ static int ni_660x_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int __devinit ni_660x_auto_attach(struct comedi_device *dev,
+static int ni_660x_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -1321,7 +1321,7 @@ static struct comedi_driver ni_660x_driver = {
 	.detach		= ni_660x_detach,
 };
 
-static int __devinit ni_660x_pci_probe(struct pci_dev *dev,
+static int ni_660x_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &ni_660x_driver);

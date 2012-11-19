@@ -174,7 +174,7 @@ static const void *pci6208_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit pci6208_auto_attach(struct comedi_device *dev,
+static int pci6208_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -264,7 +264,7 @@ static struct comedi_driver adl_pci6208_driver = {
 	.detach		= pci6208_detach,
 };
 
-static int __devinit adl_pci6208_pci_probe(struct pci_dev *dev,
+static int adl_pci6208_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci6208_driver);

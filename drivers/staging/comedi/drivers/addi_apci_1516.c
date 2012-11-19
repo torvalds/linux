@@ -225,7 +225,7 @@ static const void *apci1516_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit apci1516_auto_attach(struct comedi_device *dev,
+static int apci1516_auto_attach(struct comedi_device *dev,
 					  unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -317,7 +317,7 @@ static struct comedi_driver apci1516_driver = {
 	.detach		= apci1516_detach,
 };
 
-static int __devinit apci1516_pci_probe(struct pci_dev *dev,
+static int apci1516_pci_probe(struct pci_dev *dev,
 					const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &apci1516_driver);

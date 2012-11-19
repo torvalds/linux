@@ -774,7 +774,7 @@ das08_find_pci_board(struct pci_dev *pdev)
 }
 
 /* only called in the PCI probe path, via comedi_pci_auto_config() */
-static int __devinit __maybe_unused
+static int __maybe_unused
 das08_auto_attach(struct comedi_device *dev, unsigned long context_unused)
 {
 	struct pci_dev *pdev;
@@ -885,7 +885,7 @@ static DEFINE_PCI_DEVICE_TABLE(das08_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, das08_pci_table);
 
-static int __devinit das08_pci_probe(struct pci_dev *dev,
+static int das08_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &das08_driver);

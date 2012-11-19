@@ -177,7 +177,7 @@ static int dyna_pci10xx_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int __devinit dyna_pci10xx_auto_attach(struct comedi_device *dev,
+static int dyna_pci10xx_auto_attach(struct comedi_device *dev,
 					      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -270,7 +270,7 @@ static struct comedi_driver dyna_pci10xx_driver = {
 	.detach		= dyna_pci10xx_detach,
 };
 
-static int __devinit dyna_pci10xx_pci_probe(struct pci_dev *dev,
+static int dyna_pci10xx_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &dyna_pci10xx_driver);

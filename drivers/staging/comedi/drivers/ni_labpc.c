@@ -696,7 +696,7 @@ labpc_pci_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit labpc_auto_attach(struct comedi_device *dev,
+static int labpc_auto_attach(struct comedi_device *dev,
 				       unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -2110,7 +2110,7 @@ static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
 
-static int __devinit labpc_pci_probe(struct pci_dev *dev,
+static int labpc_pci_probe(struct pci_dev *dev,
 				     const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &labpc_driver);

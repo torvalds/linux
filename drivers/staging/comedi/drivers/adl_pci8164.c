@@ -212,7 +212,7 @@ static int adl_pci8164_insn_write_buf1(struct comedi_device *dev,
 	return 2;
 }
 
-static int __devinit adl_pci8164_auto_attach(struct comedi_device *dev,
+static int adl_pci8164_auto_attach(struct comedi_device *dev,
 					     unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -292,7 +292,7 @@ static struct comedi_driver adl_pci8164_driver = {
 	.detach		= adl_pci8164_detach,
 };
 
-static int __devinit adl_pci8164_pci_probe(struct pci_dev *dev,
+static int adl_pci8164_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci8164_driver);

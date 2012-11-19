@@ -2801,7 +2801,7 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	return pci230_attach_common(dev, pci_dev);
 }
 
-static int __devinit pci230_auto_attach(struct comedi_device *dev,
+static int pci230_auto_attach(struct comedi_device *dev,
 					unsigned long context_unused)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
@@ -2857,7 +2857,7 @@ static struct comedi_driver amplc_pci230_driver = {
 	.num_names	= ARRAY_SIZE(pci230_boards),
 };
 
-static int __devinit amplc_pci230_pci_probe(struct pci_dev *dev,
+static int amplc_pci230_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &amplc_pci230_driver);

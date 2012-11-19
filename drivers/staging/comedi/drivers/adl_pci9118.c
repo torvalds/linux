@@ -2155,7 +2155,7 @@ static int pci9118_attach(struct comedi_device *dev,
 				     softsshdelay, hw_err_mask);
 }
 
-static int __devinit pci9118_auto_attach(struct comedi_device *dev,
+static int pci9118_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -2219,7 +2219,7 @@ static struct comedi_driver adl_pci9118_driver = {
 	.offset		= sizeof(struct boardtype),
 };
 
-static int __devinit adl_pci9118_pci_probe(struct pci_dev *dev,
+static int adl_pci9118_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci9118_driver);

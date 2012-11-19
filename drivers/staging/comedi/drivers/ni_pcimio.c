@@ -1620,7 +1620,7 @@ pcimio_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit pcimio_auto_attach(struct comedi_device *dev,
+static int pcimio_auto_attach(struct comedi_device *dev,
 					unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -1785,7 +1785,7 @@ static struct comedi_driver ni_pcimio_driver = {
 	.detach		= pcimio_detach,
 };
 
-static int __devinit ni_pcimio_pci_probe(struct pci_dev *dev,
+static int ni_pcimio_pci_probe(struct pci_dev *dev,
 					 const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &ni_pcimio_driver);

@@ -349,7 +349,7 @@ static const void *cb_pcidda_find_boardinfo(struct comedi_device *dev,
 	return NULL;
 }
 
-static int __devinit cb_pcidda_auto_attach(struct comedi_device *dev,
+static int cb_pcidda_auto_attach(struct comedi_device *dev,
 					   unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -432,7 +432,7 @@ static struct comedi_driver cb_pcidda_driver = {
 	.detach		= cb_pcidda_detach,
 };
 
-static int __devinit cb_pcidda_pci_probe(struct pci_dev *dev,
+static int cb_pcidda_pci_probe(struct pci_dev *dev,
 					 const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &cb_pcidda_driver);

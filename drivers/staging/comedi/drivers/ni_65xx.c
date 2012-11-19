@@ -611,7 +611,7 @@ ni_65xx_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit ni_65xx_auto_attach(struct comedi_device *dev,
+static int ni_65xx_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -782,7 +782,7 @@ static struct comedi_driver ni_65xx_driver = {
 	.detach = ni_65xx_detach,
 };
 
-static int __devinit ni_65xx_pci_probe(struct pci_dev *dev,
+static int ni_65xx_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &ni_65xx_driver);

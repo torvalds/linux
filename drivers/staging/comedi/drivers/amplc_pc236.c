@@ -526,7 +526,7 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  * comedi_pci_auto_config().  dev->board_ptr is NULL on entry.
  * There should be a board entry matching the supplied PCI device.
  */
-static int __devinit pc236_auto_attach(struct comedi_device *dev,
+static int pc236_auto_attach(struct comedi_device *dev,
 				       unsigned long context_unused)
 {
 	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
@@ -608,7 +608,7 @@ static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
 
 MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 
-static int __devinit amplc_pc236_pci_probe(struct pci_dev *dev,
+static int amplc_pc236_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &amplc_pc236_driver);

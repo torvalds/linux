@@ -856,7 +856,7 @@ static int pci9111_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int __devinit pci9111_auto_attach(struct comedi_device *dev,
+static int pci9111_auto_attach(struct comedi_device *dev,
 					 unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
@@ -957,7 +957,7 @@ static struct comedi_driver adl_pci9111_driver = {
 	.detach		= pci9111_detach,
 };
 
-static int __devinit pci9111_pci_probe(struct pci_dev *dev,
+static int pci9111_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
