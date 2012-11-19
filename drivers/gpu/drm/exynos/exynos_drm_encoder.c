@@ -513,6 +513,6 @@ void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 	 * because the setting for disabling the overlay will be updated
 	 * at vsync.
 	 */
-	if (overlay_ops->wait_for_vblank)
+	if (overlay_ops && overlay_ops->wait_for_vblank)
 		overlay_ops->wait_for_vblank(manager->dev);
 }
