@@ -711,7 +711,7 @@ static const struct net_device_ops device_netdev_ops = {
     .ndo_set_rx_mode	    = device_set_multi,
 };
 
-static int __devinit
+static int
 vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	u8 fake_mac[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
