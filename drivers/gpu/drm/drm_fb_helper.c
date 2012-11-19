@@ -1251,6 +1251,11 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 			sizeof(struct drm_display_mode *), GFP_KERNEL);
 	enabled = kcalloc(dev->mode_config.num_connector,
 			  sizeof(bool), GFP_KERNEL);
+	if (!crtcs || !modes || !enabled) {
+		DRM_ERROR("Memory allocation failed\n");
+		goto out;
+	}
+
 
 	drm_enable_connectors(fb_helper, enabled);
 
@@ -1289,6 +1294,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 		}
 	}
 
+out:
 	kfree(crtcs);
 	kfree(modes);
 	kfree(enabled);
