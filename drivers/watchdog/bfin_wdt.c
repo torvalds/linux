@@ -379,7 +379,7 @@ static int bfin_wdt_probe(struct platform_device *pdev)
  *	Unregisters the misc device.  Actual device
  *	deinitialization is handled by bfin_wdt_close().
  */
-static int __devexit bfin_wdt_remove(struct platform_device *pdev)
+static int bfin_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&bfin_wdt_miscdev);
 	return 0;

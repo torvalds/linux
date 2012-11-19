@@ -705,7 +705,7 @@ out_pci:
 }
 
 
-static void __devexit wdtpci_remove_one(struct pci_dev *pdev)
+static void wdtpci_remove_one(struct pci_dev *pdev)
 {
 	/* here we assume only one device will ever have
 	 * been picked up and registered by probe function */

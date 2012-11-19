@@ -209,7 +209,7 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 	return watchdog_register_device(&max63xx_wdt_dev);
 }
 
-static int __devexit max63xx_wdt_remove(struct platform_device *pdev)
+static int max63xx_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&max63xx_wdt_dev);
 	return 0;

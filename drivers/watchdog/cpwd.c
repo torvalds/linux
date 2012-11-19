@@ -640,7 +640,7 @@ out_free:
 	goto out;
 }
 
-static int __devexit cpwd_remove(struct platform_device *op)
+static int cpwd_remove(struct platform_device *op)
 {
 	struct cpwd *p = dev_get_drvdata(&op->dev);
 	int i;

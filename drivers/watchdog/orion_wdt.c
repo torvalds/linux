@@ -181,7 +181,7 @@ static int orion_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit orion_wdt_remove(struct platform_device *pdev)
+static int orion_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&orion_wdt);
 	clk_disable_unprepare(clk);

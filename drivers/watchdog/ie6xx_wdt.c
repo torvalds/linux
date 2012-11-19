@@ -295,7 +295,7 @@ misc_register_error:
 	return ret;
 }
 
-static int __devexit ie6xx_wdt_remove(struct platform_device *pdev)
+static int ie6xx_wdt_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 

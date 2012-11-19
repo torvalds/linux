@@ -333,7 +333,7 @@ out_put_clk:
 	return ret;
 }
 
-static int __devexit dw_wdt_drv_remove(struct platform_device *pdev)
+static int dw_wdt_drv_remove(struct platform_device *pdev)
 {
 	misc_deregister(&dw_wdt_miscdev);
 

@@ -220,7 +220,7 @@ ltq_wdt_probe(struct platform_device *pdev)
 	return misc_register(&ltq_wdt_miscdev);
 }
 
-static int __devexit
+static int
 ltq_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ltq_wdt_miscdev);

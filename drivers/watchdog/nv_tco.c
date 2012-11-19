@@ -423,7 +423,7 @@ unreg_region:
 	return ret;
 }
 
-static void __devexit nv_tco_cleanup(void)
+static void nv_tco_cleanup(void)
 {
 	u32 val;
 
@@ -445,7 +445,7 @@ static void __devexit nv_tco_cleanup(void)
 	release_region(tcobase, 0x10);
 }
 
-static int __devexit nv_tco_remove(struct platform_device *dev)
+static int nv_tco_remove(struct platform_device *dev)
 {
 	if (tcobase)
 		nv_tco_cleanup();

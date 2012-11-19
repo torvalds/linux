@@ -298,7 +298,7 @@ err:
 	return rc;
 }
 
-static int __devexit sh_wdt_remove(struct platform_device *pdev)
+static int sh_wdt_remove(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt = platform_get_drvdata(pdev);
 

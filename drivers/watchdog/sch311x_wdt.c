@@ -429,7 +429,7 @@ exit:
 	return err;
 }
 
-static int __devexit sch311x_wdt_remove(struct platform_device *pdev)
+static int sch311x_wdt_remove(struct platform_device *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)

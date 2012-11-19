@@ -383,7 +383,7 @@ err_out:
 	return rc;
 }
 
-static int __devexit xwdt_remove(struct platform_device *dev)
+static int xwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&xwdt_miscdev);
 	iounmap(xdev.base);

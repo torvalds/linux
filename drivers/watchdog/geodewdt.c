@@ -243,7 +243,7 @@ static int geodewdt_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int __devexit geodewdt_remove(struct platform_device *dev)
+static int geodewdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&geodewdt_miscdev);
 	return 0;

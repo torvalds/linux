@@ -220,7 +220,7 @@ out:
 	return err;
 }
 
-static int __devexit riowd_remove(struct platform_device *op)
+static int riowd_remove(struct platform_device *op)
 {
 	struct riowd *p = dev_get_drvdata(&op->dev);
 

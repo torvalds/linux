@@ -252,7 +252,7 @@ static int ks8695wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ks8695wdt_remove(struct platform_device *pdev)
+static int ks8695wdt_remove(struct platform_device *pdev)
 {
 	int res;
 

@@ -248,7 +248,7 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit davinci_wdt_remove(struct platform_device *pdev)
+static int davinci_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&davinci_wdt_miscdev);
 	if (wdt_mem) {

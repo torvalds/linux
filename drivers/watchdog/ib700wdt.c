@@ -319,7 +319,7 @@ out_nostopreg:
 	return res;
 }
 
-static int __devexit ibwdt_remove(struct platform_device *dev)
+static int ibwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&ibwdt_miscdev);
 	release_region(WDT_START, 1);

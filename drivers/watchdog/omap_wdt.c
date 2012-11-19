@@ -359,7 +359,7 @@ static void omap_wdt_shutdown(struct platform_device *pdev)
 	}
 }
 
-static int __devexit omap_wdt_remove(struct platform_device *pdev)
+static int omap_wdt_remove(struct platform_device *pdev)
 {
 	struct omap_wdt_dev *wdev = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

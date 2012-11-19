@@ -949,7 +949,7 @@ error_request_region:
 	return ret;
 }
 
-static int __devexit pcwd_isa_remove(struct device *dev, unsigned int id)
+static int pcwd_isa_remove(struct device *dev, unsigned int id)
 {
 	if (debug >= DEBUG)
 		pr_debug("pcwd_isa_remove id=%d\n", id);

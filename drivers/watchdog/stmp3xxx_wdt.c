@@ -229,7 +229,7 @@ static int stmp3xxx_wdt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit stmp3xxx_wdt_remove(struct platform_device *pdev)
+static int stmp3xxx_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&stmp3xxx_wdt_miscdev);
 	return 0;

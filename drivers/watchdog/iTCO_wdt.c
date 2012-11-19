@@ -364,7 +364,7 @@ static struct watchdog_device iTCO_wdt_watchdog_dev = {
  *	Init & exit routines
  */
 
-static void __devexit iTCO_wdt_cleanup(void)
+static void iTCO_wdt_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -533,7 +533,7 @@ out:
 	return ret;
 }
 
-static int __devexit iTCO_wdt_remove(struct platform_device *dev)
+static int iTCO_wdt_remove(struct platform_device *dev)
 {
 	if (iTCO_wdt_private.tco_res || iTCO_wdt_private.smi_res)
 		iTCO_wdt_cleanup();

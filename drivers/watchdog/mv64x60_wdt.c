@@ -287,7 +287,7 @@ static int mv64x60_wdt_probe(struct platform_device *dev)
 	return misc_register(&mv64x60_wdt_miscdev);
 }
 
-static int __devexit mv64x60_wdt_remove(struct platform_device *dev)
+static int mv64x60_wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&mv64x60_wdt_miscdev);
 

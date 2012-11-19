@@ -204,7 +204,7 @@ static int twl4030_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit twl4030_wdt_remove(struct platform_device *pdev)
+static int twl4030_wdt_remove(struct platform_device *pdev)
 {
 	struct twl4030_wdt *wdt = platform_get_drvdata(pdev);
 

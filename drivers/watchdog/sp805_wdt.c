@@ -272,7 +272,7 @@ err:
 	return ret;
 }
 
-static int __devexit sp805_wdt_remove(struct amba_device *adev)
+static int sp805_wdt_remove(struct amba_device *adev)
 {
 	struct sp805_wdt *wdt = amba_get_drvdata(adev);
 

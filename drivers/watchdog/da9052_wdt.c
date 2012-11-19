@@ -224,7 +224,7 @@ err:
 	return ret;
 }
 
-static int __devexit da9052_wdt_remove(struct platform_device *pdev)
+static int da9052_wdt_remove(struct platform_device *pdev)
 {
 	struct da9052_wdt_data *driver_data = dev_get_drvdata(&pdev->dev);
 

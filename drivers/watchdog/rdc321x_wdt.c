@@ -272,7 +272,7 @@ static int rdc321x_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rdc321x_wdt_remove(struct platform_device *pdev)
+static int rdc321x_wdt_remove(struct platform_device *pdev)
 {
 	if (rdc321x_wdt_device.queue) {
 		rdc321x_wdt_device.queue = 0;

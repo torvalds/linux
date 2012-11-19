@@ -158,7 +158,7 @@ static int wm8350_wdt_probe(struct platform_device *pdev)
 	return watchdog_register_device(&wm8350_wdt);
 }
 
-static int __devexit wm8350_wdt_remove(struct platform_device *pdev)
+static int wm8350_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&wm8350_wdt);
 	return 0;

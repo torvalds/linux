@@ -848,7 +848,7 @@ error_pci_iomap:
 	return retval;
 }
 
-static void __devexit hpwdt_exit(struct pci_dev *dev)
+static void hpwdt_exit(struct pci_dev *dev)
 {
 	if (!nowayout)
 		hpwdt_stop();

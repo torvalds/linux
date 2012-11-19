@@ -412,7 +412,7 @@ exit:
 	return ret;
 }
 
-static void __devexit sp5100_tco_cleanup(void)
+static void sp5100_tco_cleanup(void)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)
@@ -425,7 +425,7 @@ static void __devexit sp5100_tco_cleanup(void)
 	release_region(pm_iobase, SP5100_PM_IOPORTS_SIZE);
 }
 
-static int __devexit sp5100_tco_remove(struct platform_device *dev)
+static int sp5100_tco_remove(struct platform_device *dev)
 {
 	if (tcobase)
 		sp5100_tco_cleanup();

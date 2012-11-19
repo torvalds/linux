@@ -465,7 +465,7 @@ err_unmap:
 	return ret;
 }
 
-static void __devexit esb_remove(struct pci_dev *pdev)
+static void esb_remove(struct pci_dev *pdev)
 {
 	/* Stop the timer before we leave */
 	if (!nowayout)

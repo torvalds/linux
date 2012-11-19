@@ -216,7 +216,7 @@ static int at91wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit at91wdt_remove(struct platform_device *pdev)
+static int at91wdt_remove(struct platform_device *pdev)
 {
 	int res;
 

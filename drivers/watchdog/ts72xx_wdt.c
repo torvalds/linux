@@ -476,7 +476,7 @@ fail:
 	return error;
 }
 
-static __devexit int ts72xx_wdt_remove(struct platform_device *pdev)
+static int ts72xx_wdt_remove(struct platform_device *pdev)
 {
 	struct ts72xx_wdt *wdt = platform_get_drvdata(pdev);
 	struct resource *res;

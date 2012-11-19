@@ -378,7 +378,7 @@ static int mpcore_wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit mpcore_wdt_remove(struct platform_device *pdev)
+static int mpcore_wdt_remove(struct platform_device *pdev)
 {
 	platform_set_drvdata(pdev, NULL);
 

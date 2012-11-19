@@ -314,7 +314,7 @@ out:
 	return rc;
 }
 
-static int __devexit ar7_wdt_remove(struct platform_device *pdev)
+static int ar7_wdt_remove(struct platform_device *pdev)
 {
 	misc_deregister(&ar7_wdt_miscdev);
 	clk_put(vbus_clk);
