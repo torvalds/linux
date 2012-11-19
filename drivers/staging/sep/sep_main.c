@@ -4112,7 +4112,7 @@ static int sep_register_driver_with_fs(struct sep_device *sep)
  *Attempt to set up and configure a SEP device that has been
  *discovered by the PCI layer. Allocates all required resources.
  */
-static int __devinit sep_probe(struct pci_dev *pdev,
+static int sep_probe(struct pci_dev *pdev,
 	const struct pci_device_id *ent)
 {
 	int error = 0;
