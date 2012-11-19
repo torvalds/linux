@@ -656,7 +656,7 @@ err_out:
 	return err;
 }
 
-static int __devexit at24_remove(struct i2c_client *client)
+static int at24_remove(struct i2c_client *client)
 {
 	struct at24_data *at24;
 	int i;

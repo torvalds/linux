@@ -191,7 +191,7 @@ fail:
 	return ret;
 }
 
-static int __devexit lis3lv02d_i2c_remove(struct i2c_client *client)
+static int lis3lv02d_i2c_remove(struct i2c_client *client)
 {
 	struct lis3lv02d *lis3 = i2c_get_clientdata(client);
 	struct lis3lv02d_platform_data *pdata = client->dev.platform_data;

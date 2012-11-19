@@ -185,7 +185,7 @@ err_op_failed:
 	return ret;
 }
 
-static int __devexit bh1780_remove(struct i2c_client *client)
+static int bh1780_remove(struct i2c_client *client)
 {
 	struct bh1780_data *ddata;
 

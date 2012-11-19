@@ -462,7 +462,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit fsa9480_remove(struct i2c_client *client)
+static int fsa9480_remove(struct i2c_client *client)
 {
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
 	if (client->irq)

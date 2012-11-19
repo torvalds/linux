@@ -137,7 +137,7 @@ out:
 	return retval;
 }
 
-static int __devexit ssc_remove(struct platform_device *pdev)
+static int ssc_remove(struct platform_device *pdev)
 {
 	struct ssc_device *ssc = platform_get_drvdata(pdev);
 

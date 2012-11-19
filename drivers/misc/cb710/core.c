@@ -305,7 +305,7 @@ unreg_mmc:
 	return err;
 }
 
-static void __devexit cb710_remove_one(struct pci_dev *pdev)
+static void cb710_remove_one(struct pci_dev *pdev)
 {
 	struct cb710_chip *chip = pci_get_drvdata(pdev);
 	unsigned long flags;

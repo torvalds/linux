@@ -370,7 +370,7 @@ fail:
 	return err;
 }
 
-static int __devexit eeprom_93xx46_remove(struct spi_device *spi)
+static int eeprom_93xx46_remove(struct spi_device *spi)
 {
 	struct eeprom_93xx46_dev *edev = dev_get_drvdata(&spi->dev);
 

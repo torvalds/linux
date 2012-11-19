@@ -853,7 +853,7 @@ err_rel_res0:
 	return status;
 }
 
-static int __devexit spear_pcie_gadget_remove(struct platform_device *pdev)
+static int spear_pcie_gadget_remove(struct platform_device *pdev)
 {
 	struct resource *res0, *res1;
 	static struct pcie_gadget_target *target;

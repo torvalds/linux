@@ -254,7 +254,7 @@ als_error1:
 	return res;
 }
 
-static int __devexit apds9802als_remove(struct i2c_client *client)
+static int apds9802als_remove(struct i2c_client *client)
 {
 	struct als_data *data = i2c_get_clientdata(client);
 

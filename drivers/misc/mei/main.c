@@ -882,7 +882,7 @@ end:
  * mei_remove is called by the PCI subsystem to alert the driver
  * that it should release a PCI device.
  */
-static void __devexit mei_remove(struct pci_dev *pdev)
+static void mei_remove(struct pci_dev *pdev)
 {
 	struct mei_device *dev;
 

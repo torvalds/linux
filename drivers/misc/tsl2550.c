@@ -405,7 +405,7 @@ exit:
 	return err;
 }
 
-static int __devexit tsl2550_remove(struct i2c_client *client)
+static int tsl2550_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &tsl2550_attr_group);
 

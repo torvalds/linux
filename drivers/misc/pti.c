@@ -879,7 +879,7 @@ err:
  *		   PCI bus.
  * @pdev: variable containing pci info of PTI.
  */
-static void __devexit pti_pci_remove(struct pci_dev *pdev)
+static void pti_pci_remove(struct pci_dev *pdev)
 {
 	struct pti_dev *drv_data = pci_get_drvdata(pdev);
 

@@ -435,7 +435,7 @@ err:
 	return retval;
 }
 
-static void __devexit phantom_remove(struct pci_dev *pdev)
+static void phantom_remove(struct pci_dev *pdev)
 {
 	struct phantom_device *pht = pci_get_drvdata(pdev);
 	unsigned int minor = MINOR(pht->cdev.dev);

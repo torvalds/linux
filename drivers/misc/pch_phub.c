@@ -819,7 +819,7 @@ err_pci_enable_dev:
 	return ret;
 }
 
-static void __devexit pch_phub_remove(struct pci_dev *pdev)
+static void pch_phub_remove(struct pci_dev *pdev)
 {
 	struct pch_phub_reg *chip = pci_get_drvdata(pdev);
 

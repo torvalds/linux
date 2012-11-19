@@ -163,7 +163,7 @@ error_resources:
 	return result;
 }
 
-static void __devexit ibmasm_remove_one(struct pci_dev *pdev)
+static void ibmasm_remove_one(struct pci_dev *pdev)
 {
 	struct service_processor *sp = (struct service_processor *)pci_get_drvdata(pdev);
 

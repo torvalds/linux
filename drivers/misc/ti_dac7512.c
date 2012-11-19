@@ -67,7 +67,7 @@ static int dac7512_probe(struct spi_device *spi)
 	return sysfs_create_group(&spi->dev.kobj, &dac7512_attr_group);
 }
 
-static int __devexit dac7512_remove(struct spi_device *spi)
+static int dac7512_remove(struct spi_device *spi)
 {
 	sysfs_remove_group(&spi->dev.kobj, &dac7512_attr_group);
 	return 0;

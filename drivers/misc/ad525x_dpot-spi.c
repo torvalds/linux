@@ -87,7 +87,7 @@ static int ad_dpot_spi_probe(struct spi_device *spi)
 			     spi_get_device_id(spi)->name);
 }
 
-static int __devexit ad_dpot_spi_remove(struct spi_device *spi)
+static int ad_dpot_spi_remove(struct spi_device *spi)
 {
 	return ad_dpot_remove(&spi->dev);
 }

@@ -415,7 +415,7 @@ out:
 }
 
 /* Removes a particular instance of an IOC4 card. */
-static void __devexit
+static void
 ioc4_remove(struct pci_dev *pdev)
 {
 	struct ioc4_submodule *is;

@@ -401,7 +401,7 @@ exit_kfree:
 	return err;
 }
 
-static int __devexit isl29003_remove(struct i2c_client *client)
+static int isl29003_remove(struct i2c_client *client)
 {
 	sysfs_remove_group(&client->dev.kobj, &isl29003_attr_group);
 	isl29003_set_power_state(client, 0);

@@ -459,7 +459,7 @@ fail:
 	return err;
 }
 
-static int __devexit at25_remove(struct spi_device *spi)
+static int at25_remove(struct spi_device *spi)
 {
 	struct at25_data	*at25;
 

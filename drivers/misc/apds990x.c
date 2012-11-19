@@ -1181,7 +1181,7 @@ fail1:
 	return err;
 }
 
-static int __devexit apds990x_remove(struct i2c_client *client)
+static int apds990x_remove(struct i2c_client *client)
 {
 	struct apds990x_chip *chip = i2c_get_clientdata(client);
 

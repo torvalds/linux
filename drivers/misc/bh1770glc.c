@@ -1285,7 +1285,7 @@ fail1:
 	return err;
 }
 
-static int __devexit bh1770_remove(struct i2c_client *client)
+static int bh1770_remove(struct i2c_client *client)
 {
 	struct bh1770_chip *chip = i2c_get_clientdata(client);
 
