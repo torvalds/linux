@@ -54,6 +54,15 @@
 			#interrupt-cells = <1>;
 		};
 
+		uart0: uart@01c28000 {
+			compatible = "ns8250";
+			reg = <0x01c28000 0x400>;
+			interrupts = <1>;
+			reg-shift = <2>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+
 		uart1: uart@01c28400 {
 			compatible = "ns8250";
 			reg = <0x01c28400 0x400>;

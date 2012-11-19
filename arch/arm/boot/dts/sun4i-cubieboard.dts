@@ -1,0 +1,38 @@
+/*
+ * Copyright 2012 Stefan Roese
+ * Stefan Roese <sr@denx.de>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "sun4i.dtsi"
+
+/ {
+	model = "Cubietech Cubieboard";
+	compatible = "cubietech,cubieboard", "allwinner,sun4i";
+
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+	};
+
+	chosen {
+		bootargs = "earlyprintk console=ttyS0,115200";
+	};
+
+	soc {
+		uart0: uart@01c28000 {
+			status = "okay";
+		};
+
+		uart1: uart@01c28400 {
+			status = "okay";
+		};
+	};
+};

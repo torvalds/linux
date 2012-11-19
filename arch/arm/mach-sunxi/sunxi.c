@@ -46,6 +46,7 @@ static void __init sunxi_dt_init(void)
 }
 
 static const char * const sunxi_board_dt_compat[] = {
+	"allwinner,sun4i",
 	"allwinner,sun5i",
 	NULL,
 };
