@@ -55,7 +55,6 @@ typedef enum {
 
 __u32 Layer_Get_Prio(__u32 sel, __u32 hid);
 __disp_pixel_type_t get_fb_type(__disp_pixel_fmt_t format);
-__s32 de_format_to_bpp(__disp_pixel_fmt_t fmt);
 __s32 img_sw_para_to_reg(__u8 type, __u8 mode, __u8 value);
 __s32 Yuv_Channel_Set_framebuffer(__u32 sel, __disp_fb_t *pfb, __u32 xoffset,
 				  __u32 yoffset);
