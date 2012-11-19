@@ -529,7 +529,7 @@ remove_card(struct pci_dev *dev)
 
 #define RCV_BUFFER_SIZE (16 * 1024)
 
-static int __devinit
+static int
 add_card(struct pci_dev *dev, const struct pci_device_id *unused)
 {
 	struct pcilynx *lynx;
