@@ -618,7 +618,7 @@ static struct pci_driver tpci200_pci_drv = {
 	.name = "tpci200",
 	.id_table = tpci200_idtable,
 	.probe = tpci200_pci_probe,
-	.remove = __devexit_p(tpci200_pci_remove),
+	.remove = tpci200_pci_remove,
 };
 
 module_pci_driver(tpci200_pci_drv);
