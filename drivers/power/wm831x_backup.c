@@ -161,7 +161,7 @@ static enum power_supply_property wm831x_backup_props[] = {
  *		Initialisation
  *********************************************************************/
 
-static __devinit int wm831x_backup_probe(struct platform_device *pdev)
+static int wm831x_backup_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *wm831x_pdata = wm831x->dev->platform_data;

@@ -180,7 +180,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 	return 0;
 }
 
-static int __devinit z2_batt_probe(struct i2c_client *client,
+static int z2_batt_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	int ret = 0;

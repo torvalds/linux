@@ -366,7 +366,7 @@ static const u8 mbc_irq_handlers[] = {
 	PCF50633_IRQ_LOWBAT,
 };
 
-static int __devinit pcf50633_mbc_probe(struct platform_device *pdev)
+static int pcf50633_mbc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc;
 	int ret;

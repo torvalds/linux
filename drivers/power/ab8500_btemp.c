@@ -960,7 +960,7 @@ static int __devexit ab8500_btemp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
+static int ab8500_btemp_probe(struct platform_device *pdev)
 {
 	int irq, i, ret = 0;
 	u8 val;

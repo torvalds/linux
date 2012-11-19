@@ -750,7 +750,7 @@ static const struct attribute_group ds2781_attr_group = {
 	.attrs = ds2781_attributes,
 };
 
-static int __devinit ds2781_battery_probe(struct platform_device *pdev)
+static int ds2781_battery_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct ds2781_device_info *dev_info;

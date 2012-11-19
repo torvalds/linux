@@ -1800,7 +1800,7 @@ static int __devexit abx500_chargalg_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit abx500_chargalg_probe(struct platform_device *pdev)
+static int abx500_chargalg_probe(struct platform_device *pdev)
 {
 	struct abx500_bm_plat_data *plat_data;
 	int ret = 0;

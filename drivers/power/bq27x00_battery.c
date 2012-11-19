@@ -926,7 +926,7 @@ static int bq27000_read_platform(struct bq27x00_device_info *di, u8 reg,
 	return pdata->read(dev, reg);
 }
 
-static int __devinit bq27000_battery_probe(struct platform_device *pdev)
+static int bq27000_battery_probe(struct platform_device *pdev)
 {
 	struct bq27x00_device_info *di;
 	struct bq27000_platform_data *pdata = pdev->dev.platform_data;

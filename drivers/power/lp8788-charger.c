@@ -729,7 +729,7 @@ static const struct attribute_group lp8788_attr_group = {
 	.attrs = lp8788_charger_attr,
 };
 
-static __devinit int lp8788_charger_probe(struct platform_device *pdev)
+static int lp8788_charger_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	struct lp8788_charger *pchg;

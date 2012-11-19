@@ -305,7 +305,7 @@ static int collie_bat_resume(struct ucb1x00_dev *dev)
 #define collie_bat_resume NULL
 #endif
 
-static int __devinit collie_bat_probe(struct ucb1x00_dev *dev)
+static int collie_bat_probe(struct ucb1x00_dev *dev)
 {
 	int ret;
 

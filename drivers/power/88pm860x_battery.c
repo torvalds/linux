@@ -901,7 +901,7 @@ static enum power_supply_property pm860x_batt_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
-static __devinit int pm860x_battery_probe(struct platform_device *pdev)
+static int pm860x_battery_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_battery_info *info;

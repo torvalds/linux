@@ -179,7 +179,7 @@ static irqreturn_t max8903_fault(int irq, void *_data)
 	return IRQ_HANDLED;
 }
 
-static __devinit int max8903_probe(struct platform_device *pdev)
+static int max8903_probe(struct platform_device *pdev)
 {
 	struct max8903_data *data;
 	struct device *dev = &pdev->dev;

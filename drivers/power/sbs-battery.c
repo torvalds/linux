@@ -675,7 +675,7 @@ static struct sbs_platform_data *sbs_of_populate_pdata(
 }
 #endif
 
-static int __devinit sbs_probe(struct i2c_client *client,
+static int sbs_probe(struct i2c_client *client,
 	const struct i2c_device_id *id)
 {
 	struct sbs_info *chip;

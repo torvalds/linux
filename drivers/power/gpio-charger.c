@@ -68,7 +68,7 @@ static enum power_supply_property gpio_charger_properties[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
 
-static int __devinit gpio_charger_probe(struct platform_device *pdev)
+static int gpio_charger_probe(struct platform_device *pdev)
 {
 	const struct gpio_charger_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_charger *gpio_charger;

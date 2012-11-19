@@ -645,7 +645,7 @@ static struct pm860x_irq_desc {
 	{ "vchg", pm860x_vchg_handler },
 };
 
-static __devinit int pm860x_charger_probe(struct platform_device *pdev)
+static int pm860x_charger_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_charger_info *info;

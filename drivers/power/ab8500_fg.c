@@ -2442,7 +2442,7 @@ static struct ab8500_fg_interrupts ab8500_fg_irq[] = {
 	{"CCEOC", ab8500_fg_cc_data_end_handler},
 };
 
-static int __devinit ab8500_fg_probe(struct platform_device *pdev)
+static int ab8500_fg_probe(struct platform_device *pdev)
 {
 	int i, irq;
 	int ret = 0;

@@ -406,7 +406,7 @@ static inline int isp1704_test_ulpi(struct isp1704_charger *isp)
 	return -ENODEV;
 }
 
-static int __devinit isp1704_charger_probe(struct platform_device *pdev)
+static int isp1704_charger_probe(struct platform_device *pdev)
 {
 	struct isp1704_charger	*isp;
 	int			ret = -ENODEV;

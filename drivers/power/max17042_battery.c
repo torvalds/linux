@@ -681,7 +681,7 @@ max17042_get_pdata(struct device *dev)
 }
 #endif
 
-static int __devinit max17042_probe(struct i2c_client *client,
+static int max17042_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);

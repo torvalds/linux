@@ -2531,7 +2531,7 @@ static int __devexit ab8500_charger_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit ab8500_charger_probe(struct platform_device *pdev)
+static int ab8500_charger_probe(struct platform_device *pdev)
 {
 	int irq, i, charger_status, ret = 0;
 	struct abx500_bm_plat_data *plat_data = pdev->dev.platform_data;

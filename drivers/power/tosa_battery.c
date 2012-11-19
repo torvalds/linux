@@ -342,7 +342,7 @@ static int tosa_bat_resume(struct platform_device *dev)
 #define tosa_bat_resume NULL
 #endif
 
-static int __devinit tosa_bat_probe(struct platform_device *dev)
+static int tosa_bat_probe(struct platform_device *dev)
 {
 	int ret;
 

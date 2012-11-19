@@ -576,7 +576,7 @@ static const char *const da9052_bat_irqs[] = {
 	"CHG END",
 };
 
-static s32 __devinit da9052_bat_probe(struct platform_device *pdev)
+static s32 da9052_bat_probe(struct platform_device *pdev)
 {
 	struct da9052_pdata *pdata;
 	struct da9052_battery *bat;

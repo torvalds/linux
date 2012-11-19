@@ -598,7 +598,7 @@ static int olpc_battery_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit olpc_battery_probe(struct platform_device *pdev)
+static int olpc_battery_probe(struct platform_device *pdev)
 {
 	int ret;
 	uint8_t status;

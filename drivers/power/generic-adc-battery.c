@@ -236,7 +236,7 @@ static irqreturn_t gab_charged(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit gab_probe(struct platform_device *pdev)
+static int gab_probe(struct platform_device *pdev)
 {
 	struct gab *adc_bat;
 	struct power_supply *psy;

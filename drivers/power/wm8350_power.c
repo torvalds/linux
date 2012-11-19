@@ -442,7 +442,7 @@ static void free_charger_irq(struct wm8350 *wm8350)
 	wm8350_free_irq(wm8350, WM8350_IRQ_EXT_BAT_FB, wm8350);
 }
 
-static __devinit int wm8350_power_probe(struct platform_device *pdev)
+static int wm8350_power_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
 	struct wm8350_power *power = &wm8350->power;

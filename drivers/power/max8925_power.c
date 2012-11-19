@@ -356,7 +356,7 @@ do {									\
 			_irq, ret);					\
 } while (0)
 
-static __devinit int max8925_init_charger(struct max8925_chip *chip,
+static int max8925_init_charger(struct max8925_chip *chip,
 					  struct max8925_power_info *info)
 {
 	int ret;
@@ -426,7 +426,7 @@ static __devexit int max8925_deinit_charger(struct max8925_power_info *info)
 	return 0;
 }
 
-static __devinit int max8925_power_probe(struct platform_device *pdev)
+static int max8925_power_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_power_pdata *pdata = NULL;

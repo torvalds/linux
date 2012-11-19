@@ -197,7 +197,7 @@ static enum power_supply_property max17040_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
-static int __devinit max17040_probe(struct i2c_client *client,
+static int max17040_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
