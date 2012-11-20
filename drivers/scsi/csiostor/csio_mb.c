@@ -1119,13 +1119,11 @@ csio_fcoe_read_portparams_init_mb(struct csio_hw *hw, struct csio_mb *mbp,
 } /* csio_fcoe_read_portparams_init_mb */
 
 void
-csio_mb_process_portparams_rsp(
-				struct csio_hw *hw,
+csio_mb_process_portparams_rsp(struct csio_hw *hw,
 				struct csio_mb *mbp,
 				enum fw_retval *retval,
 				struct fw_fcoe_port_cmd_params *portparams,
-				struct fw_fcoe_port_stats  *portstats
-			     )
+				struct fw_fcoe_port_stats *portstats)
 {
 	struct fw_fcoe_stats_cmd *rsp = (struct fw_fcoe_stats_cmd *)(mbp->mb);
 	struct fw_fcoe_port_stats stats;
@@ -1142,50 +1140,32 @@ csio_mb_process_portparams_rsp(
 		memcpy(dst, src, (portparams->nstats * 8));
 		if (portparams->idx == 1) {
 			/* Get the first 6 flits from the Mailbox */
-			portstats->tx_bcast_bytes	=
-					be64_to_cpu(stats.tx_bcast_bytes);
-			portstats->tx_bcast_frames	=
-					be64_to_cpu(stats.tx_bcast_frames);
-			portstats->tx_mcast_bytes	=
-					be64_to_cpu(stats.tx_mcast_bytes);
-			portstats->tx_mcast_frames	=
-					be64_to_cpu(stats.tx_mcast_frames);
-			portstats->tx_ucast_bytes	=
-					be64_to_cpu(stats.tx_ucast_bytes);
-			portstats->tx_ucast_frames	=
-					be64_to_cpu(stats.tx_ucast_frames);
+			portstats->tx_bcast_bytes = stats.tx_bcast_bytes;
+			portstats->tx_bcast_frames = stats.tx_bcast_frames;
+			portstats->tx_mcast_bytes = stats.tx_mcast_bytes;
+			portstats->tx_mcast_frames = stats.tx_mcast_frames;
+			portstats->tx_ucast_bytes = stats.tx_ucast_bytes;
+			portstats->tx_ucast_frames = stats.tx_ucast_frames;
 		}
 		if (portparams->idx == 7) {
 			/* Get the second 6 flits from the Mailbox */
-			portstats->tx_drop_frames	=
-				be64_to_cpu(stats.tx_drop_frames);
-			portstats->tx_offload_bytes	=
-				be64_to_cpu(stats.tx_offload_bytes);
-			portstats->tx_offload_frames	=
-				be64_to_cpu(stats.tx_offload_frames);
+			portstats->tx_drop_frames = stats.tx_drop_frames;
+			portstats->tx_offload_bytes = stats.tx_offload_bytes;
+			portstats->tx_offload_frames = stats.tx_offload_frames;
 #if 0
-			portstats->rx_pf_bytes		=
-					be64_to_cpu(stats.rx_pf_bytes);
-			portstats->rx_pf_frames		=
-					be64_to_cpu(stats.rx_pf_frames);
+			portstats->rx_pf_bytes = stats.rx_pf_bytes;
+			portstats->rx_pf_frames	= stats.rx_pf_frames;
 #endif
-			portstats->rx_bcast_bytes	=
-					be64_to_cpu(stats.rx_bcast_bytes);
-			portstats->rx_bcast_frames	=
-					be64_to_cpu(stats.rx_bcast_frames);
-			portstats->rx_mcast_bytes	=
-					be64_to_cpu(stats.rx_mcast_bytes);
+			portstats->rx_bcast_bytes = stats.rx_bcast_bytes;
+			portstats->rx_bcast_frames = stats.rx_bcast_frames;
+			portstats->rx_mcast_bytes = stats.rx_mcast_bytes;
 		}
 		if (portparams->idx == 13) {
 			/* Get the last 4 flits from the Mailbox */
-			portstats->rx_mcast_frames	=
-					be64_to_cpu(stats.rx_mcast_frames);
-			portstats->rx_ucast_bytes	=
-					be64_to_cpu(stats.rx_ucast_bytes);
-			portstats->rx_ucast_frames	=
-					be64_to_cpu(stats.rx_ucast_frames);
-			portstats->rx_err_frames	=
-					be64_to_cpu(stats.rx_err_frames);
+			portstats->rx_mcast_frames = stats.rx_mcast_frames;
+			portstats->rx_ucast_bytes = stats.rx_ucast_bytes;
+			portstats->rx_ucast_frames = stats.rx_ucast_frames;
+			portstats->rx_err_frames = stats.rx_err_frames;
 		}
 	}
 }
@@ -1414,7 +1394,7 @@ csio_mb_issue(struct csio_hw *hw, struct csio_mb *mbp)
 							  (hw, data_reg + i));
 			csio_wr_reg32(hw, 0, ctl_reg);
 
-			if (FW_CMD_RETVAL_GET(*(mbp->mb)))
+			if (csio_mb_fw_retval(mbp) != FW_SUCCESS)
 				CSIO_INC_STATS(mbm, n_err);
 
 			CSIO_INC_STATS(mbm, n_rsp);

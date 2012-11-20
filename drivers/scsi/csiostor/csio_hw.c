@@ -169,7 +169,7 @@ csio_set_reg_field(struct csio_hw *hw, uint32_t reg, uint32_t mask,
  *	is assigned the 64-bit ECC word for the read data.
  */
 int
-csio_hw_mc_read(struct csio_hw *hw, uint32_t addr, uint32_t *data,
+csio_hw_mc_read(struct csio_hw *hw, uint32_t addr, __be32 *data,
 		uint64_t *ecc)
 {
 	int i;
@@ -209,7 +209,7 @@ csio_hw_mc_read(struct csio_hw *hw, uint32_t addr, uint32_t *data,
  *	is assigned the 64-bit ECC word for the read data.
  */
 int
-csio_hw_edc_read(struct csio_hw *hw, int idx, uint32_t addr, uint32_t *data,
+csio_hw_edc_read(struct csio_hw *hw, int idx, uint32_t addr, __be32 *data,
 		uint64_t *ecc)
 {
 	int i;
@@ -249,7 +249,7 @@ csio_hw_edc_read(struct csio_hw *hw, int idx, uint32_t addr, uint32_t *data,
  *      address @addr.
  */
 static int
-csio_mem_win_rw(struct csio_hw *hw, u32 addr, __be32 *data, int dir)
+csio_mem_win_rw(struct csio_hw *hw, u32 addr, u32 *data, int dir)
 {
 	int i;
 
@@ -296,7 +296,7 @@ csio_memory_rw(struct csio_hw *hw, int mtype, u32 addr, u32 len,
 {
 	uint32_t pos, start, end, offset, memoffset;
 	int ret;
-	__be32 *data;
+	uint32_t *data;
 
 	/*
 	 * Argument sanity checks ...
@@ -379,7 +379,7 @@ csio_memory_rw(struct csio_hw *hw, int mtype, u32 addr, u32 len,
 }
 
 static int
-csio_memory_write(struct csio_hw *hw, int mtype, u32 addr, u32 len, __be32 *buf)
+csio_memory_write(struct csio_hw *hw, int mtype, u32 addr, u32 len, u32 *buf)
 {
 	return csio_memory_rw(hw, mtype, addr, len, buf, 0);
 }
@@ -429,6 +429,7 @@ csio_hw_seeprom_read(struct csio_hw *hw, uint32_t addr, uint32_t *data)
 
 	pci_read_config_dword(hw->pdev, base + PCI_VPD_DATA, data);
 	*data = le32_to_cpu(*data);
+
 	return 0;
 }
 
@@ -926,7 +927,7 @@ csio_hw_fw_dload(struct csio_hw *hw, uint8_t *fw_data, uint32_t size)
 	int ret;
 	uint32_t i;
 	uint8_t first_page[SF_PAGE_SIZE];
-	const uint32_t *p = (const uint32_t *)fw_data;
+	const __be32 *p = (const __be32 *)fw_data;
 	struct fw_hdr *hdr = (struct fw_hdr *)fw_data;
 	uint32_t sf_sec_size;
 
@@ -2116,7 +2117,6 @@ csio_hw_flash_config(struct csio_hw *hw, u32 *fw_cfg_param, char *path)
 	const struct firmware *cf;
 	struct pci_dev *pci_dev = hw->pdev;
 	struct device *dev = &pci_dev->dev;
-
 	unsigned int mtype = 0, maddr = 0;
 	uint32_t *cfg_data;
 	int value_to_add = 0;

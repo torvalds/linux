@@ -658,10 +658,8 @@ void csio_intr_disable(struct csio_hw *, bool);
 struct csio_lnode *csio_lnode_alloc(struct csio_hw *);
 int csio_config_queues(struct csio_hw *);
 
-int csio_hw_mc_read(struct csio_hw *, uint32_t,
-			      uint32_t *, uint64_t *);
-int csio_hw_edc_read(struct csio_hw *, int, uint32_t, uint32_t *,
-			       uint64_t *);
+int csio_hw_mc_read(struct csio_hw *, uint32_t, __be32 *, uint64_t *);
+int csio_hw_edc_read(struct csio_hw *, int, uint32_t, __be32 *, uint64_t *);
 int csio_hw_init(struct csio_hw *);
 void csio_hw_exit(struct csio_hw *);
 #endif /* ifndef __CSIO_HW_H__ */

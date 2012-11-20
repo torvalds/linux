@@ -221,7 +221,7 @@ struct fw_rdev_wr {
 struct fw_fcoe_els_ct_wr {
 	__be32 op_immdlen;
 	__be32 flowid_len16;
-	__be64 cookie;
+	u64    cookie;
 	__be16 iqid;
 	u8     tmo_val;
 	u8     els_ct_type;
@@ -246,7 +246,7 @@ struct fw_fcoe_els_ct_wr {
 struct fw_scsi_write_wr {
 	__be32 op_immdlen;
 	__be32 flowid_len16;
-	__be64 cookie;
+	u64    cookie;
 	__be16 iqid;
 	u8     tmo_val;
 	u8     use_xfer_cnt;
@@ -272,7 +272,7 @@ struct fw_scsi_write_wr {
 struct fw_scsi_read_wr {
 	__be32 op_immdlen;
 	__be32 flowid_len16;
-	__be64 cookie;
+	u64    cookie;
 	__be16 iqid;
 	u8     tmo_val;
 	u8     use_xfer_cnt;
@@ -298,7 +298,7 @@ struct fw_scsi_read_wr {
 struct fw_scsi_cmd_wr {
 	__be32 op_immdlen;
 	__be32 flowid_len16;
-	__be64 cookie;
+	u64    cookie;
 	__be16 iqid;
 	u8     tmo_val;
 	u8     r3;
@@ -326,12 +326,12 @@ struct fw_scsi_cmd_wr {
 struct fw_scsi_abrt_cls_wr {
 	__be32 op_immdlen;
 	__be32 flowid_len16;
-	__be64 cookie;
+	u64    cookie;
 	__be16 iqid;
 	u8     tmo_val;
 	u8     sub_opcode_to_chk_all_io;
 	u8     r3[4];
-	__be64 t_cookie;
+	u64    t_cookie;
 };
 
 #define FW_SCSI_ABRT_CLS_WR_SUB_OPCODE(x)	((x) << 2)

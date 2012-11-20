@@ -89,7 +89,7 @@ csio_reg_rnode(struct csio_rnode *rn)
 	spin_unlock_irq(shost->host_lock);
 
 	sp = &rn->rn_sparm;
-	rport->maxframe_size		= sp->csp.sp_bb_data;
+	rport->maxframe_size = ntohs(sp->csp.sp_bb_data);
 	if (ntohs(sp->clsp[2].cp_class) & FC_CPC_VALID)
 		rport->supported_classes = FC_COS_CLASS3;
 	else
@@ -192,7 +192,7 @@ csio_fchost_attr_init(struct csio_lnode *ln)
 	fc_host_supported_speeds(shost) = FC_PORTSPEED_10GBIT |
 		FC_PORTSPEED_1GBIT;
 
-	fc_host_maxframe_size(shost) = ln->ln_sparm.csp.sp_bb_data;
+	fc_host_maxframe_size(shost) = ntohs(ln->ln_sparm.csp.sp_bb_data);
 	memset(fc_host_supported_fc4s(shost), 0,
 		sizeof(fc_host_supported_fc4s(shost)));
 	fc_host_supported_fc4s(shost)[7] = 1;
@@ -325,23 +325,23 @@ csio_get_stats(struct Scsi_Host *shost)
 	memset(&fcoe_port_stats, 0, sizeof(struct fw_fcoe_port_stats));
 	csio_get_phy_port_stats(hw, ln->portid, &fcoe_port_stats);
 
-	fhs->tx_frames  += (fcoe_port_stats.tx_bcast_frames +
-				fcoe_port_stats.tx_mcast_frames +
-				fcoe_port_stats.tx_ucast_frames +
-				fcoe_port_stats.tx_offload_frames);
-	fhs->tx_words  += (fcoe_port_stats.tx_bcast_bytes +
-			   fcoe_port_stats.tx_mcast_bytes +
-			   fcoe_port_stats.tx_ucast_bytes +
-			   fcoe_port_stats.tx_offload_bytes) /
+	fhs->tx_frames  += (be64_to_cpu(fcoe_port_stats.tx_bcast_frames) +
+			    be64_to_cpu(fcoe_port_stats.tx_mcast_frames) +
+			    be64_to_cpu(fcoe_port_stats.tx_ucast_frames) +
+			    be64_to_cpu(fcoe_port_stats.tx_offload_frames));
+	fhs->tx_words  += (be64_to_cpu(fcoe_port_stats.tx_bcast_bytes) +
+			   be64_to_cpu(fcoe_port_stats.tx_mcast_bytes) +
+			   be64_to_cpu(fcoe_port_stats.tx_ucast_bytes) +
+			   be64_to_cpu(fcoe_port_stats.tx_offload_bytes)) /
 							CSIO_WORD_TO_BYTE;
-	fhs->rx_frames += (fcoe_port_stats.rx_bcast_frames +
-				fcoe_port_stats.rx_mcast_frames +
-				fcoe_port_stats.rx_ucast_frames);
-	fhs->rx_words += (fcoe_port_stats.rx_bcast_bytes +
-				fcoe_port_stats.rx_mcast_bytes +
-				fcoe_port_stats.rx_ucast_bytes) /
+	fhs->rx_frames += (be64_to_cpu(fcoe_port_stats.rx_bcast_frames) +
+			   be64_to_cpu(fcoe_port_stats.rx_mcast_frames) +
+			   be64_to_cpu(fcoe_port_stats.rx_ucast_frames));
+	fhs->rx_words += (be64_to_cpu(fcoe_port_stats.rx_bcast_bytes) +
+			  be64_to_cpu(fcoe_port_stats.rx_mcast_bytes) +
+			  be64_to_cpu(fcoe_port_stats.rx_ucast_bytes)) /
 							CSIO_WORD_TO_BYTE;
-	fhs->error_frames += fcoe_port_stats.rx_err_frames;
+	fhs->error_frames += be64_to_cpu(fcoe_port_stats.rx_err_frames);
 	fhs->fcp_input_requests +=  ln->stats.n_input_requests;
 	fhs->fcp_output_requests +=  ln->stats.n_output_requests;
 	fhs->fcp_control_requests +=  ln->stats.n_control_requests;

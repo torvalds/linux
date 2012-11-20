@@ -303,9 +303,9 @@ csio_confirm_rnode(struct csio_lnode *ln, uint32_t rdev_flowid,
 	uint8_t rport_type;
 	struct csio_rnode *rn, *match_rn;
 	uint32_t vnp_flowid;
-	uint32_t *port_id;
+	__be32 *port_id;
 
-	port_id = (uint32_t *)&rdevp->r_id[0];
+	port_id = (__be32 *)&rdevp->r_id[0];
 	rport_type =
 		FW_RDEV_WR_RPORT_TYPE_GET(rdevp->rd_xfer_rdy_to_rport_type);
 
@@ -439,9 +439,9 @@ csio_rn_verify_rparams(struct csio_lnode *ln, struct csio_rnode *rn,
 	uint8_t null[8];
 	uint8_t rport_type;
 	uint8_t fc_class;
-	uint32_t *did;
+	__be32 *did;
 
-	did = (uint32_t *) &rdevp->r_id[0];
+	did = (__be32 *) &rdevp->r_id[0];
 	rport_type =
 		FW_RDEV_WR_RPORT_TYPE_GET(rdevp->rd_xfer_rdy_to_rport_type);
 	switch (rport_type) {
@@ -529,9 +529,10 @@ csio_rn_verify_rparams(struct csio_lnode *ln, struct csio_rnode *rn,
 	rn->nport_id = (ntohl(*did) >> 8) & CSIO_DID_MASK;
 	memcpy(csio_rn_wwnn(rn), rdevp->wwnn, 8);
 	memcpy(csio_rn_wwpn(rn), rdevp->wwpn, 8);
-	rn->rn_sparm.csp.sp_bb_data = ntohs(rdevp->rcv_fr_sz);
+	rn->rn_sparm.csp.sp_bb_data = rdevp->rcv_fr_sz;
 	fc_class = FW_RDEV_WR_CLASS_GET(rdevp->vft_to_qos);
 	rn->rn_sparm.clsp[fc_class - 1].cp_class = htons(FC_CPC_VALID);
+
 	return 0;
 }
 

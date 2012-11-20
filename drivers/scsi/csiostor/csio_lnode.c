@@ -214,7 +214,7 @@ csio_fill_ct_iu(void *buf, uint8_t type, uint8_t sub_type, uint16_t op)
 	cmd->ct_rev = FC_CT_REV;
 	cmd->ct_fs_type = type;
 	cmd->ct_fs_subtype = sub_type;
-	cmd->ct_cmd = op;
+	cmd->ct_cmd = htons(op);
 }
 
 static int
@@ -285,11 +285,13 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	void *cmd;
 	uint8_t *pld;
 	uint32_t len = 0;
+	__be32 val;
+	__be16 mfs;
+	uint32_t numattrs = 0;
 	struct csio_lnode *ln = fdmi_req->lnode;
 	struct fs_fdmi_attrs *attrib_blk;
 	struct fc_fdmi_port_name *port_name;
 	uint8_t buf[64];
-	uint32_t val;
 	uint8_t *fc4_type;
 
 	if (fdmi_req->wr_status != FW_SUCCESS) {
@@ -311,7 +313,7 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 	/* Prepare CT hdr for RPA cmd */
 	memset(cmd, 0, FC_CT_HDR_LEN);
-	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, htons(FC_FDMI_RPA));
+	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, FC_FDMI_RPA);
 
 	/* Prepare RPA payload */
 	pld = (uint8_t *)csio_ct_get_pld(cmd);
@@ -331,12 +333,12 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	fc4_type[7] = 1;
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_FC4TYPES,
 			   fc4_type, FC_FDMI_PORT_ATTR_FC4TYPES_LEN);
-	attrib_blk->numattrs++;
+	numattrs++;
 	val = htonl(FC_PORTSPEED_1GBIT | FC_PORTSPEED_10GBIT);
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_SUPPORTEDSPEED,
 			   (uint8_t *)&val,
 			   FC_FDMI_PORT_ATTR_SUPPORTEDSPEED_LEN);
-	attrib_blk->numattrs++;
+	numattrs++;
 
 	if (hw->pport[ln->portid].link_speed == FW_PORT_CAP_SPEED_1G)
 		val = htonl(FC_PORTSPEED_1GBIT);
@@ -347,24 +349,24 @@ csio_ln_fdmi_rhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_CURRENTPORTSPEED,
 			   (uint8_t *)&val,
 			   FC_FDMI_PORT_ATTR_CURRENTPORTSPEED_LEN);
-	attrib_blk->numattrs++;
+	numattrs++;
 
-	val = htonl(ln->ln_sparm.csp.sp_bb_data);
+	mfs = ln->ln_sparm.csp.sp_bb_data;
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_MAXFRAMESIZE,
-			   (uint8_t *)&val, FC_FDMI_PORT_ATTR_MAXFRAMESIZE_LEN);
-	attrib_blk->numattrs++;
+			   (uint8_t *)&mfs, FC_FDMI_PORT_ATTR_MAXFRAMESIZE_LEN);
+	numattrs++;
 
 	strcpy(buf, "csiostor");
 	csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_OSDEVICENAME, buf,
 			   (uint16_t)strlen(buf));
-	attrib_blk->numattrs++;
+	numattrs++;
 
 	if (!csio_hostname(buf, sizeof(buf))) {
 		csio_append_attrib(&pld, FC_FDMI_PORT_ATTR_HOSTNAME,
 				   buf, (uint16_t)strlen(buf));
-		attrib_blk->numattrs++;
+		numattrs++;
 	}
-	attrib_blk->numattrs = ntohl(attrib_blk->numattrs);
+	attrib_blk->numattrs = htonl(numattrs);
 	len = (uint32_t)(pld - (uint8_t *)cmd);
 
 	/* Submit FDMI RPA request */
@@ -388,7 +390,8 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 	void *cmd;
 	uint8_t *pld;
 	uint32_t len = 0;
-	uint32_t maxpayload = htonl(65536);
+	uint32_t numattrs = 0;
+	__be32  maxpayload = htonl(65536);
 	struct fc_fdmi_hba_identifier *hbaid;
 	struct csio_lnode *ln = fdmi_req->lnode;
 	struct fc_fdmi_rpl *reg_pl;
@@ -413,7 +416,7 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 	/* Prepare CT hdr for RHBA cmd */
 	memset(cmd, 0, FC_CT_HDR_LEN);
-	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, htons(FC_FDMI_RHBA));
+	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, FC_FDMI_RHBA);
 	len = FC_CT_HDR_LEN;
 
 	/* Prepare RHBA payload */
@@ -424,7 +427,7 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 	/* Register one port per hba */
 	reg_pl = (struct fc_fdmi_rpl *)pld;
-	reg_pl->numport = ntohl(1);
+	reg_pl->numport = htonl(1);
 	memcpy(&reg_pl->port[0].portname, csio_ln_wwpn(ln), 8);
 	pld += sizeof(*reg_pl);
 
@@ -436,42 +439,42 @@ csio_ln_fdmi_dprt_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_NODENAME, csio_ln_wwnn(ln),
 			   FC_FDMI_HBA_ATTR_NODENAME_LEN);
-	attrib_blk->numattrs++;
+	numattrs++;
 
 	memset(buf, 0, sizeof(buf));
 
 	strcpy(buf, "Chelsio Communications");
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MANUFACTURER, buf,
 			   (uint16_t)strlen(buf));
-	attrib_blk->numattrs++;
+	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_SERIALNUMBER,
 			   hw->vpd.sn, (uint16_t)sizeof(hw->vpd.sn));
-	attrib_blk->numattrs++;
+	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MODEL, hw->vpd.id,
 			   (uint16_t)sizeof(hw->vpd.id));
-	attrib_blk->numattrs++;
+	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MODELDESCRIPTION,
 			   hw->model_desc, (uint16_t)strlen(hw->model_desc));
-	attrib_blk->numattrs++;
+	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_HARDWAREVERSION,
 			   hw->hw_ver, (uint16_t)sizeof(hw->hw_ver));
-	attrib_blk->numattrs++;
+	numattrs++;
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_FIRMWAREVERSION,
 			   hw->fwrev_str, (uint16_t)strlen(hw->fwrev_str));
-	attrib_blk->numattrs++;
+	numattrs++;
 
 	if (!csio_osname(buf, sizeof(buf))) {
 		csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_OSNAMEVERSION,
 				   buf, (uint16_t)strlen(buf));
-		attrib_blk->numattrs++;
+		numattrs++;
 	}
 
 	csio_append_attrib(&pld, FC_FDMI_HBA_ATTR_MAXCTPAYLOAD,
 			   (uint8_t *)&maxpayload,
 			   FC_FDMI_HBA_ATTR_MAXCTPAYLOAD_LEN);
 	len = (uint32_t)(pld - (uint8_t *)cmd);
-	attrib_blk->numattrs++;
-	attrib_blk->numattrs = ntohl(attrib_blk->numattrs);
+	numattrs++;
+	attrib_blk->numattrs = htonl(numattrs);
 
 	/* Submit FDMI RHBA request */
 	spin_lock_irq(&hw->lock);
@@ -518,7 +521,7 @@ csio_ln_fdmi_dhba_cbfn(struct csio_hw *hw, struct csio_ioreq *fdmi_req)
 
 	/* Prepare FDMI DPRT cmd */
 	memset(cmd, 0, FC_CT_HDR_LEN);
-	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, htons(FC_FDMI_DPRT));
+	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, FC_FDMI_DPRT);
 	len = FC_CT_HDR_LEN;
 	port_name = (struct fc_fdmi_port_name *)csio_ct_get_pld(cmd);
 	memcpy(&port_name->portname, csio_ln_wwpn(ln), 8);
@@ -567,7 +570,7 @@ csio_ln_fdmi_start(struct csio_lnode *ln, void *context)
 	/* Prepare FDMI DHBA cmd */
 	cmd = fdmi_req->dma_buf.vaddr;
 	memset(cmd, 0, FC_CT_HDR_LEN);
-	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, htons(FC_FDMI_DHBA));
+	csio_fill_ct_iu(cmd, FC_FST_MGMT, FC_FDMI_SUBTYPE, FC_FDMI_DHBA);
 	len = FC_CT_HDR_LEN;
 
 	hbaid = (struct fc_fdmi_hba_identifier *)csio_ct_get_pld(cmd);
@@ -599,6 +602,7 @@ csio_ln_vnp_read_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 	struct fc_els_csp *csp;
 	struct fc_els_cssp *clsp;
 	enum fw_retval retval;
+	__be32 nport_id;
 
 	retval = FW_CMD_RETVAL_GET(ntohl(rsp->alloc_to_len16));
 	if (retval != FW_SUCCESS) {
@@ -610,10 +614,9 @@ csio_ln_vnp_read_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 	spin_lock_irq(&hw->lock);
 
 	memcpy(ln->mac, rsp->vnport_mac, sizeof(ln->mac));
-	memcpy(&ln->nport_id, &rsp->vnport_mac[3],
-			sizeof(uint8_t)*3);
-	ln->nport_id = ntohl(ln->nport_id);
-	ln->nport_id = ln->nport_id>>8;
+	memcpy(&nport_id, &rsp->vnport_mac[3], sizeof(uint8_t)*3);
+	ln->nport_id = ntohl(nport_id);
+	ln->nport_id = ln->nport_id >> 8;
 
 	/* Update WWNs */
 	/*
@@ -628,18 +631,18 @@ csio_ln_vnp_read_cbfn(struct csio_hw *hw, struct csio_mb *mbp)
 	csp = (struct fc_els_csp *)rsp->cmn_srv_parms;
 	ln->ln_sparm.csp.sp_hi_ver = csp->sp_hi_ver;
 	ln->ln_sparm.csp.sp_lo_ver = csp->sp_lo_ver;
-	ln->ln_sparm.csp.sp_bb_cred = ntohs(csp->sp_bb_cred);
-	ln->ln_sparm.csp.sp_features = ntohs(csp->sp_features);
-	ln->ln_sparm.csp.sp_bb_data = ntohs(csp->sp_bb_data);
-	ln->ln_sparm.csp.sp_r_a_tov = ntohl(csp->sp_r_a_tov);
-	ln->ln_sparm.csp.sp_e_d_tov = ntohl(csp->sp_e_d_tov);
+	ln->ln_sparm.csp.sp_bb_cred = csp->sp_bb_cred;
+	ln->ln_sparm.csp.sp_features = csp->sp_features;
+	ln->ln_sparm.csp.sp_bb_data = csp->sp_bb_data;
+	ln->ln_sparm.csp.sp_r_a_tov = csp->sp_r_a_tov;
+	ln->ln_sparm.csp.sp_e_d_tov = csp->sp_e_d_tov;
 
 	/* Copy word 0 & word 1 of class sparam */
 	clsp = (struct fc_els_cssp *)rsp->clsp_word_0_1;
-	ln->ln_sparm.clsp[2].cp_class = ntohs(clsp->cp_class);
-	ln->ln_sparm.clsp[2].cp_init = ntohs(clsp->cp_init);
-	ln->ln_sparm.clsp[2].cp_recip = ntohs(clsp->cp_recip);
-	ln->ln_sparm.clsp[2].cp_rdfs = ntohs(clsp->cp_rdfs);
+	ln->ln_sparm.clsp[2].cp_class = clsp->cp_class;
+	ln->ln_sparm.clsp[2].cp_init = clsp->cp_init;
+	ln->ln_sparm.clsp[2].cp_recip = clsp->cp_recip;
+	ln->ln_sparm.clsp[2].cp_rdfs = clsp->cp_rdfs;
 
 	spin_unlock_irq(&hw->lock);
 
@@ -1499,7 +1502,7 @@ csio_fcoe_fwevt_handler(struct csio_hw *hw, __u8 cpl_op, __be64 *cmd)
 			/* HW un lock here */
 		} else {
 			csio_warn(hw, "Unexpected FCOE LINK status:0x%x\n",
-				    ntohl(lcmd->lstatus));
+				  lcmd->lstatus);
 			CSIO_INC_STATS(hw, n_cpl_unexp);
 		}
 	} else if (cpl_op == CPL_FW6_PLD) {
@@ -1663,7 +1666,7 @@ csio_ln_prep_ecwr(struct csio_ioreq *io_req, uint32_t wr_len,
 		      uint32_t did, uint32_t flow_id, uint8_t *fw_wr)
 {
 	struct fw_fcoe_els_ct_wr *wr;
-	uint32_t port_id;
+	__be32 port_id;
 
 	wr  = (struct fw_fcoe_els_ct_wr *)fw_wr;
 	wr->op_immdlen = cpu_to_be32(FW_WR_OP(FW_FCOE_ELS_CT_WR) |
@@ -1676,8 +1679,8 @@ csio_ln_prep_ecwr(struct csio_ioreq *io_req, uint32_t wr_len,
 	wr->ctl_pri = 0;
 	wr->cp_en_class = 0;
 	wr->cookie = io_req->fw_handle;
-	wr->iqid = (uint16_t)cpu_to_be16(csio_q_physiqid(
-			io_req->lnode->hwp, io_req->iq_idx));
+	wr->iqid = cpu_to_be16(csio_q_physiqid(
+					io_req->lnode->hwp, io_req->iq_idx));
 	wr->fl_to_sp =  FW_FCOE_ELS_CT_WR_SP(1);
 	wr->tmo_val = (uint8_t) io_req->tmo;
 	port_id = htonl(sid);

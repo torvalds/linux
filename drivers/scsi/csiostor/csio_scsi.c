@@ -237,7 +237,7 @@ csio_scsi_init_cmd_wr(struct csio_ioreq *req, void *addr, uint32_t size)
 						DIV_ROUND_UP(size, 16)));
 
 	wr->cookie = (uintptr_t) req;
-	wr->iqid = (uint16_t)cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
+	wr->iqid = cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
 	wr->tmo_val = (uint8_t) req->tmo;
 	wr->r3 = 0;
 	memset(&wr->r5, 0, 8);
@@ -396,7 +396,7 @@ csio_scsi_init_read_wr(struct csio_ioreq *req, void *wrp, uint32_t size)
 	wr->flowid_len16 = cpu_to_be32(FW_WR_FLOWID(rn->flowid) |
 				       FW_WR_LEN16(DIV_ROUND_UP(size, 16)));
 	wr->cookie = (uintptr_t)req;
-	wr->iqid = (uint16_t)cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
+	wr->iqid = cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
 	wr->tmo_val = (uint8_t)(req->tmo);
 	wr->use_xfer_cnt = 1;
 	wr->xfer_cnt = cpu_to_be32(scsi_bufflen(scmnd));
@@ -449,7 +449,7 @@ csio_scsi_init_write_wr(struct csio_ioreq *req, void *wrp, uint32_t size)
 	wr->flowid_len16 = cpu_to_be32(FW_WR_FLOWID(rn->flowid) |
 				       FW_WR_LEN16(DIV_ROUND_UP(size, 16)));
 	wr->cookie = (uintptr_t)req;
-	wr->iqid = (uint16_t)cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
+	wr->iqid = cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
 	wr->tmo_val = (uint8_t)(req->tmo);
 	wr->use_xfer_cnt = 1;
 	wr->xfer_cnt = cpu_to_be32(scsi_bufflen(scmnd));
@@ -680,7 +680,7 @@ csio_scsi_init_abrt_cls_wr(struct csio_ioreq *req, void *addr, uint32_t size,
 						DIV_ROUND_UP(size, 16)));
 
 	wr->cookie = (uintptr_t) req;
-	wr->iqid = (uint16_t)cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
+	wr->iqid = cpu_to_be16(csio_q_physiqid(hw, req->iq_idx));
 	wr->tmo_val = (uint8_t) req->tmo;
 	/* 0 for CHK_ALL_IO tells FW to look up t_cookie */
 	wr->sub_opcode_to_chk_all_io =
