@@ -1367,7 +1367,6 @@ static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 				  struct cfg80211_scan_request *req)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
-	int i;
 
 	mutex_lock(&hwsim->mutex);
 	if (WARN_ON(hwsim->tmp_chan || hwsim->hw_scan_request)) {
@@ -1380,11 +1379,6 @@ static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 	mutex_unlock(&hwsim->mutex);
 
 	wiphy_debug(hw->wiphy, "hwsim hw_scan request\n");
-	for (i = 0; i < req->n_channels; i++)
-		printk(KERN_DEBUG "hwsim hw_scan freq %d\n",
-			req->channels[i]->center_freq);
-	print_hex_dump(KERN_DEBUG, "scan IEs: ", DUMP_PREFIX_OFFSET,
-			16, 1, req->ie, req->ie_len, 1);
 
 	ieee80211_queue_delayed_work(hwsim->hw, &hwsim->hw_scan, 0);
 
