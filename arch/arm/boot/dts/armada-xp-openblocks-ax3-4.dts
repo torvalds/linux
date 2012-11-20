@@ -1,11 +1,8 @@
 /*
- * Device Tree file for Marvell Armada XP evaluation board
- * (DB-78460-BP)
+ * Device Tree file for OpenBlocks AX3-4 board
  *
  * Copyright (C) 2012 Marvell
  *
- * Lior Amsalem <alior@marvell.com>
- * Gregory CLEMENT <gregory.clement@free-electrons.com>
  * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
  *
  * This file is licensed under the terms of the GNU General Public
@@ -14,11 +11,11 @@
  */
 
 /dts-v1/;
-/include/ "armada-xp-mv78460.dtsi"
+/include/ "armada-xp-mv78260.dtsi"
 
 / {
-	model = "Marvell Armada XP Evaluation Board";
-	compatible = "marvell,axp-db", "marvell,armadaxp-mv78460", "marvell,armadaxp", "marvell,armada-370-xp";
+	model = "PlatHome OpenBlocks AX3-4 board";
+	compatible = "plathome,openblocks-ax3-4", "marvell,armadaxp-mv78260", "marvell,armadaxp", "marvell,armada-370-xp";
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
@@ -26,7 +23,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = <0x00000000 0x80000000>; /* 2 GB */
+		reg = <0x00000000 0xC0000000>; /* 3 GB */
 	};
 
 	soc {
@@ -38,18 +35,35 @@
 			clock-frequency = <250000000>;
 			status = "okay";
 		};
-		serial@d0012200 {
-			clock-frequency = <250000000>;
-			status = "okay";
+		pinctrl {
+			led_pins: led-pins-0 {
+				marvell,pins = "mpp49", "mpp51", "mpp53";
+				marvell,function = "gpio";
+			};
 		};
-		serial@d0012300 {
-			clock-frequency = <250000000>;
-			status = "okay";
-		};
+		leds {
+			compatible = "gpio-leds";
+			pinctrl-names = "default";
+			pinctrl-0 = <&led_pins>;
 
-		sata@d00a0000 {
-			nr-ports = <2>;
-			status = "okay";
+			red_led {
+				label = "red_led";
+				gpios = <&gpio1 17 1>;
+				default-state = "off";
+			};
+
+			yellow_led {
+				label = "yellow_led";
+				gpios = <&gpio1 19 1>;
+				default-state = "off";
+			};
+
+			green_led {
+				label = "green_led";
+				gpios = <&gpio1 21 1>;
+				default-state = "off";
+				linux,default-trigger = "heartbeat";
+			};
 		};
 
 		mdio {
@@ -62,11 +76,11 @@
 			};
 
 			phy2: ethernet-phy@2 {
-				reg = <25>;
+				reg = <2>;
 			};
 
 			phy3: ethernet-phy@3 {
-				reg = <27>;
+				reg = <3>;
 			};
 		};
 
@@ -74,13 +88,13 @@
 			clock-frequency = <250000000>;
 			status = "okay";
 			phy = <&phy0>;
-			phy-mode = "rgmii-id";
+			phy-mode = "sgmii";
 		};
 		ethernet@d0074000 {
 			clock-frequency = <250000000>;
 			status = "okay";
 			phy = <&phy1>;
-			phy-mode = "rgmii-id";
+			phy-mode = "sgmii";
 		};
 		ethernet@d0030000 {
 			clock-frequency = <250000000>;
