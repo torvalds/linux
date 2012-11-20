@@ -467,10 +467,7 @@ int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		else
 			put_user_ex(0, &frame->uc.uc_flags);
 		put_user_ex(0, &frame->uc.uc_link);
-		put_user_ex(current->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
-		put_user_ex(sas_ss_flags(regs->sp),
-			    &frame->uc.uc_stack.ss_flags);
-		put_user_ex(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+		err |= __compat_save_altstack(&frame->uc.uc_stack, regs->sp);
 
 		if (ka->sa.sa_flags & SA_RESTORER)
 			restorer = ka->sa.sa_restorer;
