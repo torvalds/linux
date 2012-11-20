@@ -95,7 +95,7 @@ static inline void kirkwood_set_dco(void __iomem *io, unsigned long rate)
 	do {
 		cpu_relax();
 		value = readl(io + KIRKWOOD_DCO_SPCR_STATUS);
-		value &= KIRKWOOD_DCO_SPCR_STATUS;
+		value &= KIRKWOOD_DCO_SPCR_STATUS_DCO_LOCK;
 	} while (value == 0);
 }
 
