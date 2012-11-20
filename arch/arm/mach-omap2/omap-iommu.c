@@ -31,7 +31,6 @@ static int __init omap_iommu_dev_init(struct omap_hwmod *oh, void *unused)
 		return -ENOMEM;
 
 	pdata->name = oh->name;
-	pdata->clk_name = oh->main_clk;
 	pdata->nr_tlb_entries = a->nr_tlb_entries;
 	pdata->da_start = a->da_start;
 	pdata->da_end = a->da_end;

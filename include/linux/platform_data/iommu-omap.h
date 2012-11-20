@@ -44,7 +44,6 @@ struct omap_mmu_dev_attr {
 
 struct iommu_platform_data {
 	const char *name;
-	const char *clk_name;
 	const char *reset_name;
 	int nr_tlb_entries;
 	u32 da_start;
