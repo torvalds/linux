@@ -911,9 +911,9 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 * found at offset 0x09. Instead check the Deice ID (DVID)
 	 * register for a 2, 4 or 8 port UART.
 	 */
-	status1 = serial_in(up, UART_EXAR_DVID);
-	if (status1 == 0x82 || status1 == 0x84 || status1 == 0x88) {
-		if (up->port.flags & UPF_EXAR_EFR) {
+	if (up->port.flags & UPF_EXAR_EFR) {
+		status1 = serial_in(up, UART_EXAR_DVID);
+		if (status1 == 0x82 || status1 == 0x84 || status1 == 0x88) {
 			DEBUG_AUTOCONF("Exar XR17V35x ");
 			up->port.type = PORT_XR17V35X;
 			up->capabilities |= UART_CAP_AFE | UART_CAP_EFR |
