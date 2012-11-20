@@ -121,7 +121,7 @@
 
 static const struct pinctrl_map eva_pinctrl_map[] = {
 	/* SCIFA1 */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.1", "pfc-r8a7740",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.1", "e6050000.pfc",
 				  "scifa1_data", "scifa1"),
 };
 
@@ -170,15 +170,8 @@ static void __init eva_init(void)
 	eva_clock_init();
 
 	pinctrl_register_mappings(eva_pinctrl_map, ARRAY_SIZE(eva_pinctrl_map));
-	r8a7740_pinmux_init();
 
 	r8a7740_meram_workaround();
-
-	/*
-	 * Touchscreen
-	 * TODO: Move reset GPIO over to .dts when we can reference it
-	 */
-	gpio_request_one(166, GPIOF_OUT_INIT_HIGH, NULL); /* TP_RST_B */
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
@@ -186,6 +179,13 @@ static void __init eva_init(void)
 #endif
 
 	r8a7740_add_standard_devices_dt();
+
+	/*
+	 * Touchscreen
+	 * TODO: Move reset GPIO over to .dts when we can reference it
+	 */
+	gpio_request_one(166, GPIOF_OUT_INIT_HIGH, NULL); /* TP_RST_B */
+
 	r8a7740_pm_init();
 }
 
