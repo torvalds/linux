@@ -486,48 +486,6 @@ static int me_reset(struct comedi_device *dev)
 	return 0;
 }
 
-static int me_plx_bug_check(struct comedi_device *dev,
-			    struct pci_dev *pcidev)
-{
-	resource_size_t plx_regbase_tmp = pci_resource_start(pcidev, 0);
-	resource_size_t swap_regbase_tmp = pci_resource_start(pcidev, 5);
-	resource_size_t regbase_tmp;
-	int ret;
-
-	if (!swap_regbase_tmp)
-		dev_err(dev->class_dev, "Swap not present\n");
-
-	if (plx_regbase_tmp & 0x0080) {
-		dev_err(dev->class_dev, "PLX-Bug detected\n");
-
-		if (swap_regbase_tmp) {
-			regbase_tmp = plx_regbase_tmp;
-			plx_regbase_tmp = swap_regbase_tmp;
-			swap_regbase_tmp = regbase_tmp;
-
-			ret = pci_write_config_dword(pcidev,
-						     PCI_BASE_ADDRESS_0,
-						     plx_regbase_tmp);
-			if (ret != PCIBIOS_SUCCESSFUL)
-				return -EIO;
-
-			ret = pci_write_config_dword(pcidev,
-						     PCI_BASE_ADDRESS_5,
-						     swap_regbase_tmp);
-			if (ret != PCIBIOS_SUCCESSFUL)
-				return -EIO;
-		} else {
-			plx_regbase_tmp -= 0x80;
-			ret = pci_write_config_dword(pcidev,
-						     PCI_BASE_ADDRESS_0,
-						     plx_regbase_tmp);
-			if (ret != PCIBIOS_SUCCESSFUL)
-				return -EIO;
-		}
-	}
-	return 0;
-}
-
 static const void *me_find_boardinfo(struct comedi_device *dev,
 				     struct pci_dev *pcidev)
 {
@@ -571,10 +529,6 @@ static int __devinit me_auto_attach(struct comedi_device *dev,
 					   pci_resource_len(pcidev, 0));
 	if (!dev_private->plx_regbase)
 		return -ENOMEM;
-
-	ret = me_plx_bug_check(dev, pcidev);
-	if (ret)
-		return ret;
 
 	dev_private->me_regbase = ioremap(pci_resource_start(pcidev, 2),
 					  pci_resource_len(pcidev, 2));
