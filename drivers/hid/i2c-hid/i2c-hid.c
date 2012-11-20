@@ -892,6 +892,7 @@ err:
 	if (ihid->irq)
 		free_irq(ihid->irq, ihid);
 
+	i2c_hid_free_buffers(ihid);
 	kfree(ihid);
 	return ret;
 }
