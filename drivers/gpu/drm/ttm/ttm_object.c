@@ -174,7 +174,9 @@ int ttm_base_object_init(struct ttm_object_file *tfile,
 
 	return 0;
 out_err1:
+	spin_lock(&tdev->object_lock);
 	(void)drm_ht_remove_item(&tdev->object_hash, &base->hash);
+	spin_unlock(&tdev->object_lock);
 out_err0:
 	return ret;
 }
