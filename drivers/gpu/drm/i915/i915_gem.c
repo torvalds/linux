@@ -1345,30 +1345,17 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	trace_i915_gem_object_fault(obj, page_offset, true, write);
 
 	/* Now bind it into the GTT if needed */
-	if (!obj->map_and_fenceable) {
-		ret = i915_gem_object_unbind(obj);
-		if (ret)
-			goto unlock;
-	}
-	if (!obj->gtt_space) {
-		ret = i915_gem_object_bind_to_gtt(obj, 0, true, false);
-		if (ret)
-			goto unlock;
-
-		ret = i915_gem_object_set_to_gtt_domain(obj, write);
-		if (ret)
-			goto unlock;
-	}
-
-	if (!obj->has_global_gtt_mapping)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
-
-	ret = i915_gem_object_get_fence(obj);
+	ret = i915_gem_object_pin(obj, 0, true, false);
 	if (ret)
 		goto unlock;
 
-	if (i915_gem_object_is_inactive(obj))
-		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+	ret = i915_gem_object_set_to_gtt_domain(obj, write);
+	if (ret)
+		goto unpin;
+
+	ret = i915_gem_object_get_fence(obj);
+	if (ret)
+		goto unpin;
 
 	obj->fault_mappable = true;
 
@@ -1377,6 +1364,8 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	/* Finally, remap it using the new GTT offset */
 	ret = vm_insert_pfn(vma, (unsigned long)vmf->virtual_address, pfn);
+unpin:
+	i915_gem_object_unpin(obj);
 unlock:
 	mutex_unlock(&dev->struct_mutex);
 out:
