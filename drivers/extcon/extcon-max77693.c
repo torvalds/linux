@@ -657,11 +657,11 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	int ret, i;
 	u8 id;
 
-	info = kzalloc(sizeof(struct max77693_muic_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max77693_muic_info),
+				   GFP_KERNEL);
 	if (!info) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		ret = -ENOMEM;
-		goto err_kfree;
+		return -ENOMEM;
 	}
 	info->dev = &pdev->dev;
 	info->max77693 = max77693;
@@ -672,10 +672,9 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 						info->max77693->muic,
 						&max77693_muic_regmap_config);
 		if (IS_ERR(info->max77693->regmap_muic)) {
-			ret = PTR_ERR(info->max77693->regmap_muic);
 			dev_err(max77693->dev,
 				"failed to allocate register map: %d\n", ret);
-			goto err_regmap;
+			return PTR_ERR(info->max77693->regmap_muic);
 		}
 	}
 	platform_set_drvdata(pdev, info);
@@ -709,7 +708,8 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize extcon device */
-	info->edev = kzalloc(sizeof(struct extcon_dev), GFP_KERNEL);
+	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
+				  GFP_KERNEL);
 	if (!info->edev) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
@@ -720,7 +720,7 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	ret = extcon_dev_register(info->edev, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
-		goto err_extcon;
+		goto err_irq;
 	}
 
 	/* Initialize MUIC register by using platform data */
@@ -753,7 +753,7 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 			MAX77693_MUIC_REG_ID, &id);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to read revision number\n");
-		goto err_extcon;
+		goto err_irq;
 	}
 	dev_info(info->dev, "device ID : 0x%x\n", id);
 
@@ -765,14 +765,9 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_extcon:
-	kfree(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(muic_irqs[i].virq, info);
-err_regmap:
-	kfree(info);
-err_kfree:
 	return ret;
 }
 
@@ -785,8 +780,6 @@ static int __devexit max77693_muic_remove(struct platform_device *pdev)
 		free_irq(muic_irqs[i].virq, info);
 	cancel_work_sync(&info->irq_work);
 	extcon_dev_unregister(info->edev);
-	kfree(info->edev);
-	kfree(info);
 
 	return 0;
 }
