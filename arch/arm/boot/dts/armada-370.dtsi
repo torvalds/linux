@@ -89,6 +89,42 @@
 			#clock-cells = <1>;
 		};
 
+		xor@d0060800 {
+			compatible = "marvell,orion-xor";
+			reg = <0xd0060800 0x100
+			       0xd0060A00 0x100>;
+			status = "okay";
 
+			xor00 {
+				interrupts = <51>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+			xor01 {
+				interrupts = <52>;
+				dmacap,memcpy;
+				dmacap,xor;
+				dmacap,memset;
+			};
+		};
+
+		xor@d0060900 {
+			compatible = "marvell,orion-xor";
+			reg = <0xd0060900 0x100
+			       0xd0060b00 0x100>;
+			status = "okay";
+
+			xor10 {
+				interrupts = <94>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+			xor11 {
+				interrupts = <95>;
+				dmacap,memcpy;
+				dmacap,xor;
+				dmacap,memset;
+			};
+		};
 	};
 };
