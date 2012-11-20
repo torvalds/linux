@@ -116,7 +116,7 @@
 107	i386	lstat			sys_newlstat			compat_sys_newlstat
 108	i386	fstat			sys_newfstat			compat_sys_newfstat
 109	i386	olduname		sys_uname
-110	i386	iopl			ptregs_iopl			stub32_iopl
+110	i386	iopl			sys_iopl
 111	i386	vhangup			sys_vhangup
 112	i386	idle
 113	i386	vm86old			ptregs_vm86old			sys32_vm86_warning

@@ -738,7 +738,6 @@ ENTRY(ptregs_##name) ; \
 	CFI_ENDPROC; \
 ENDPROC(ptregs_##name)
 
-PTREGSCALL1(iopl)
 PTREGSCALL0(sigreturn)
 PTREGSCALL0(rt_sigreturn)
 PTREGSCALL2(vm86)

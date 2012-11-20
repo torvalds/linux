@@ -24,7 +24,6 @@
 
 #define old_mmap sys_old_mmap
 
-#define ptregs_iopl sys_iopl
 #define ptregs_vm86old sys_vm86old
 #define ptregs_vm86 sys_vm86
 

@@ -18,7 +18,7 @@
 /* Common in X86_32 and X86_64 */
 /* kernel/ioport.c */
 asmlinkage long sys_ioperm(unsigned long, unsigned long, int);
-long sys_iopl(unsigned int, struct pt_regs *);
+asmlinkage long sys_iopl(unsigned int);
 
 /* kernel/ldt.c */
 asmlinkage int sys_modify_ldt(int, void __user *, unsigned long);

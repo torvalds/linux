@@ -467,7 +467,6 @@ GLOBAL(\label)
 	PTREGSCALL stub32_execve, compat_sys_execve, %rcx
 	PTREGSCALL stub32_fork, sys_fork, %rdi
 	PTREGSCALL stub32_vfork, sys_vfork, %rdi
-	PTREGSCALL stub32_iopl, sys_iopl, %rsi
 
 	ALIGN
 GLOBAL(stub32_clone)
