@@ -1316,16 +1316,6 @@ static struct clk dmic_fck = {
 	.clkdm_name	= "abe_clkdm",
 };
 
-static struct clk dsp_fck = {
-	.name		= "dsp_fck",
-	.ops		= &clkops_omap2_dflt,
-	.enable_reg	= OMAP4430_CM_TESLA_TESLA_CLKCTRL,
-	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
-	.clkdm_name	= "tesla_clkdm",
-	.parent		= &dpll_iva_m4x2_ck,
-	.recalc		= &followparent_recalc,
-};
-
 static struct clk dss_sys_clk = {
 	.name		= "dss_sys_clk",
 	.ops		= &clkops_omap2_dflt,
@@ -1693,16 +1683,6 @@ static struct clk i2c4_fck = {
 	.enable_bit	= OMAP4430_MODULEMODE_SWCTRL,
 	.clkdm_name	= "l4_per_clkdm",
 	.parent		= &func_96m_fclk,
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk ipu_fck = {
-	.name		= "ipu_fck",
-	.ops		= &clkops_omap2_dflt,
-	.enable_reg	= OMAP4430_CM_DUCATI_DUCATI_CLKCTRL,
-	.enable_bit	= OMAP4430_MODULEMODE_HWCTRL,
-	.clkdm_name	= "ducati_clkdm",
-	.parent		= &ducati_clk_mux_ck,
 	.recalc		= &followparent_recalc,
 };
 
@@ -3151,7 +3131,6 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"div_ts_ck",			&div_ts_ck,	CK_446X),
 	CLK(NULL,	"dmic_sync_mux_ck",		&dmic_sync_mux_ck,	CK_443X),
 	CLK(NULL,	"dmic_fck",			&dmic_fck,	CK_443X),
-	CLK(NULL,	"dsp_fck",			&dsp_fck,	CK_443X),
 	CLK(NULL,	"dss_sys_clk",			&dss_sys_clk,	CK_443X),
 	CLK(NULL,	"dss_tv_clk",			&dss_tv_clk,	CK_443X),
 	CLK(NULL,	"dss_48mhz_clk",		&dss_48mhz_clk,	CK_443X),
@@ -3183,7 +3162,6 @@ static struct omap_clk omap44xx_clks[] = {
 	CLK(NULL,	"i2c2_fck",			&i2c2_fck,	CK_443X),
 	CLK(NULL,	"i2c3_fck",			&i2c3_fck,	CK_443X),
 	CLK(NULL,	"i2c4_fck",			&i2c4_fck,	CK_443X),
-	CLK(NULL,	"ipu_fck",			&ipu_fck,	CK_443X),
 	CLK(NULL,	"iss_ctrlclk",			&iss_ctrlclk,	CK_443X),
 	CLK(NULL,	"iss_fck",			&iss_fck,	CK_443X),
 	CLK(NULL,	"iva_fck",			&iva_fck,	CK_443X),
