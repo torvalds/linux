@@ -205,10 +205,6 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		/* stop audio, enable interrupts */
-		ctl |= KIRKWOOD_PLAYCTL_PAUSE;
-		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
-
 		value = readl(priv->io + KIRKWOOD_INT_MASK);
 		value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
 		writel(value, priv->io + KIRKWOOD_INT_MASK);
@@ -269,11 +265,6 @@ static int kirkwood_i2s_rec_trigger(struct snd_pcm_substream *substream,
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		/* stop audio, enable interrupts */
-		value = readl(priv->io + KIRKWOOD_RECCTL);
-		value |= KIRKWOOD_RECCTL_PAUSE;
-		writel(value, priv->io + KIRKWOOD_RECCTL);
-
 		value = readl(priv->io + KIRKWOOD_INT_MASK);
 		value |= KIRKWOOD_INT_CAUSE_REC_BYTES;
 		writel(value, priv->io + KIRKWOOD_INT_MASK);
