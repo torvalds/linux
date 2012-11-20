@@ -111,7 +111,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 
 	/* It is more difficult to avoid calling this function than to
 	 call it and ignore errors. */
-	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1))
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL, regs->r1) == -EFAULT)
 		goto badframe;
 
 	return rval;
