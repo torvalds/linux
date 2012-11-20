@@ -134,12 +134,12 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	char physical_node_name[sizeof(PHYSICAL_NODE_STRING) + 2];
 	int retval = -EINVAL;
 
-	if (dev->acpi_handle) {
+	if (ACPI_HANDLE(dev)) {
 		if (handle) {
 			dev_warn(dev, "ACPI handle is already set\n");
 			return -EINVAL;
 		} else {
-			handle = dev->acpi_handle;
+			handle = ACPI_HANDLE(dev);
 		}
 	}
 	if (!handle)
@@ -181,8 +181,8 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
-	if (!dev->acpi_handle)
-		dev->acpi_handle = handle;
+	if (!ACPI_HANDLE(dev))
+		ACPI_HANDLE_SET(dev, acpi_dev->handle);
 
 	if (!physical_node->node_id)
 		strcpy(physical_node_name, PHYSICAL_NODE_STRING);
@@ -200,7 +200,7 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	return 0;
 
  err:
-	dev->acpi_handle = NULL;
+	ACPI_HANDLE_SET(dev, NULL);
 	put_device(dev);
 	return retval;
 
@@ -217,10 +217,10 @@ static int acpi_unbind_one(struct device *dev)
 	acpi_status status;
 	struct list_head *node, *next;
 
-	if (!dev->acpi_handle)
+	if (!ACPI_HANDLE(dev))
 		return 0;
 
-	status = acpi_bus_get_device(dev->acpi_handle, &acpi_dev);
+	status = acpi_bus_get_device(ACPI_HANDLE(dev), &acpi_dev);
 	if (ACPI_FAILURE(status))
 		goto err;
 
@@ -246,7 +246,7 @@ static int acpi_unbind_one(struct device *dev)
 
 		sysfs_remove_link(&acpi_dev->dev.kobj, physical_node_name);
 		sysfs_remove_link(&dev->kobj, "firmware_node");
-		dev->acpi_handle = NULL;
+		ACPI_HANDLE_SET(dev, NULL);
 		/* acpi_bind_one increase refcnt by one */
 		put_device(dev);
 		kfree(entry);
