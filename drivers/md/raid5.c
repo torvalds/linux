@@ -3224,10 +3224,7 @@ static void handle_stripe_expansion(struct r5conf *conf, struct stripe_head *sh)
 
 		}
 	/* done submitting copies, wait for them to complete */
-	if (tx) {
-		async_tx_ack(tx);
-		dma_wait_for_async_tx(tx);
-	}
+	async_tx_quiesce(&tx);
 }
 
 /*
