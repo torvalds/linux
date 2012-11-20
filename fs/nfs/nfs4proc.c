@@ -5656,7 +5656,7 @@ int nfs4_proc_get_lease_time(struct nfs_client *clp, struct nfs_fsinfo *fsinfo)
 	return status;
 }
 
-static struct nfs4_slot *nfs4_alloc_slots(u32 max_slots, gfp_t gfp_flags)
+struct nfs4_slot *nfs4_alloc_slots(u32 max_slots, gfp_t gfp_flags)
 {
 	return kmalloc_array(max_slots, sizeof(struct nfs4_slot), gfp_flags);
 }
