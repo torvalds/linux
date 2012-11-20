@@ -412,16 +412,18 @@ static void renew_lease(const struct nfs_server *server, unsigned long timestamp
  * Must be called while holding tbl->slot_tbl_lock
  */
 static void
-nfs4_free_slot(struct nfs4_slot_table *tbl, u32 slotid)
+nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
 {
+	u32 slotid = slot->slot_nr;
+
 	/* clear used bit in bitmap */
 	__clear_bit(slotid, tbl->used_slots);
 
 	/* update highest_used_slotid when it is freed */
 	if (slotid == tbl->highest_used_slotid) {
-		slotid = find_last_bit(tbl->used_slots, tbl->max_slots);
-		if (slotid < tbl->max_slots)
-			tbl->highest_used_slotid = slotid;
+		u32 new_max = find_last_bit(tbl->used_slots, slotid);
+		if (new_max < slotid)
+			tbl->highest_used_slotid = new_max;
 		else
 			tbl->highest_used_slotid = NFS4_NO_SLOT;
 	}
@@ -480,7 +482,7 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	session = tbl->session;
 
 	spin_lock(&tbl->slot_tbl_lock);
-	nfs4_free_slot(tbl, res->sr_slot - tbl->slots);
+	nfs4_free_slot(tbl, res->sr_slot);
 	nfs4_check_drain_fc_complete(session);
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slot = NULL;
