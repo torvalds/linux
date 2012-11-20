@@ -48,8 +48,8 @@
 #define INT_QUEUE_SIZE    MUSYCC_NIQD
 
 /* RAM image of MUSYCC registers laid out as a C structure */
-    struct musycc_groupr
-    {
+struct musycc_groupr
+{
 	VINT32      thp[32];    /* Transmit Head Pointer [5-29]           */
 	VINT32      tmp[32];    /* Transmit Message Pointer [5-30]        */
 	VINT32      rhp[32];    /* Receive Head Pointer [5-29]            */
@@ -67,11 +67,11 @@
 	VINT32      mpd;        /* Memory Protection Descriptor [5-18]    */
 	VINT32      mld;        /* Message Length Descriptor [5-20]       */
 	VINT32      pcd;        /* Port Configuration Descriptor [5-19]   */
-    };
+};
 
 /* hardware MUSYCC registers laid out as a C structure */
-    struct musycc_globalr
-    {
+struct musycc_globalr
+{
 	VINT32      gbp;        /* Group Base Pointer                     */
 	VINT32      dacbp;      /* Dual Address Cycle Base Pointer        */
 	VINT32      srd;        /* Service Request Descriptor             */
@@ -100,7 +100,7 @@
 	VINT32      pcd;        /* Port Configuration Descriptor [5-19]   */
 	VINT32      rbist;      /* Receive BIST status [5-4]              */
 	VINT32      tbist;      /* Receive BIST status [5-4]              */
-    };
+};
 
 /* Global Config Descriptor bit macros */
 #define MUSYCC_GCD_ECLK_ENABLE  0x00000800      /* EBUS clock enable */
