@@ -590,6 +590,7 @@ struct ssb_chipcommon {
 	u32 status;
 	/* Fast Powerup Delay constant */
 	u16 fast_pwrup_delay;
+	spinlock_t gpio_lock;
 	struct ssb_chipcommon_pmu pmu;
 };
 

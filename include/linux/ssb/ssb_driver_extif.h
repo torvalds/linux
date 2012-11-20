@@ -158,6 +158,7 @@
 
 struct ssb_extif {
 	struct ssb_device *dev;
+	spinlock_t gpio_lock;
 };
 
 static inline bool ssb_extif_available(struct ssb_extif *extif)

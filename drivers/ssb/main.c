@@ -796,6 +796,7 @@ static int __devinit ssb_bus_register(struct ssb_bus *bus,
 	if (err)
 		goto err_pcmcia_exit;
 	ssb_chipcommon_init(&bus->chipco);
+	ssb_extif_init(&bus->extif);
 	ssb_mipscore_init(&bus->mipscore);
 	err = ssb_fetch_invariants(bus, get_invariants);
 	if (err) {
