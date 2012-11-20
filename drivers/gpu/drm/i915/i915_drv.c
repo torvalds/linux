@@ -396,13 +396,6 @@ static const struct pci_device_id pciidlist[] = {		/* aka */
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
-#define INTEL_PCH_DEVICE_ID_MASK	0xff00
-#define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
-#define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
-#define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
-#define INTEL_PCH_LPT_DEVICE_ID_TYPE	0x8c00
-#define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE	0x9c00
-
 void intel_detect_pch(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -417,8 +410,9 @@ void intel_detect_pch(struct drm_device *dev)
 	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
 	if (pch) {
 		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
-			int id;
+			unsigned short id;
 			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+			dev_priv->pch_id = id;
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;

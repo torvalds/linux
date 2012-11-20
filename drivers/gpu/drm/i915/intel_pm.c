@@ -3549,6 +3549,20 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN7_FF_THREAD_MODE, reg);
 }
 
+static void lpt_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/*
+	 * TODO: this bit should only be enabled when really needed, then
+	 * disabled when not needed anymore in order to save power.
+	 */
+	if (dev_priv->pch_id == INTEL_PCH_LPT_LP_DEVICE_ID_TYPE)
+		I915_WRITE(SOUTH_DSPCLK_GATE_D,
+			   I915_READ(SOUTH_DSPCLK_GATE_D) |
+			   PCH_LP_PARTITION_LEVEL_DISABLE);
+}
+
 static void haswell_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -3600,6 +3614,7 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 			WM_DBG_DISALLOW_SPRITE |
 			WM_DBG_DISALLOW_MAXFIFO);
 
+	lpt_init_clock_gating(dev);
 }
 
 static void ivybridge_init_clock_gating(struct drm_device *dev)

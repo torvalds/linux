@@ -737,6 +737,7 @@ typedef struct drm_i915_private {
 
 	/* PCH chipset type */
 	enum intel_pch pch_type;
+	unsigned short pch_id;
 
 	unsigned long quirks;
 
@@ -1204,6 +1205,13 @@ struct drm_i915_file_private {
 #define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
 
 #define HAS_PIPE_CONTROL(dev) (INTEL_INFO(dev)->gen >= 5)
+
+#define INTEL_PCH_DEVICE_ID_MASK		0xff00
+#define INTEL_PCH_IBX_DEVICE_ID_TYPE		0x3b00
+#define INTEL_PCH_CPT_DEVICE_ID_TYPE		0x1c00
+#define INTEL_PCH_PPT_DEVICE_ID_TYPE		0x1e00
+#define INTEL_PCH_LPT_DEVICE_ID_TYPE		0x8c00
+#define INTEL_PCH_LPT_LP_DEVICE_ID_TYPE		0x9c00
 
 #define INTEL_PCH_TYPE(dev) (((struct drm_i915_private *)(dev)->dev_private)->pch_type)
 #define HAS_PCH_LPT(dev) (INTEL_PCH_TYPE(dev) == PCH_LPT)
