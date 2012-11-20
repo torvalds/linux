@@ -11,6 +11,9 @@ Required properties:
   using the standard binding for regulators found at
   Documentation/devicetree/bindings/regulator/regulator.txt.
 
+Optional properties:
+- ti,pmic-shutdown-controller: Telling the PMIC to shutdown on PWR_EN toggle.
+
   The valid names for regulators are:
   tps65217: dcdc1, dcdc2, dcdc3, ldo1, ldo2, ldo3 and ldo4
 
@@ -20,6 +23,7 @@ Example:
 
 	tps: tps@24 {
 		compatible = "ti,tps65217";
+		ti,pmic-shutdown-controller;
 
 		regulators {
 			dcdc1_reg: dcdc1 {
