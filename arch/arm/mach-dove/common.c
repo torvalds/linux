@@ -33,6 +33,7 @@
 #include <linux/irq.h>
 #include <plat/time.h>
 #include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/platform_data/dma-mv_xor.h>
 #include <plat/irq.h>
 #include <plat/common.h>
 #include <plat/addr-map.h>
@@ -124,8 +125,8 @@ static void __init dove_clk_init(void)
 	orion_clkdev_add(NULL, "mv_crypto", crypto);
 	orion_clkdev_add(NULL, "dove-ac97", ac97);
 	orion_clkdev_add(NULL, "dove-pdma", pdma);
-	orion_clkdev_add(NULL, "mv_xor_shared.0", xor0);
-	orion_clkdev_add(NULL, "mv_xor_shared.1", xor1);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".0", xor0);
+	orion_clkdev_add(NULL, MV_XOR_NAME ".1", xor1);
 }
 
 /*****************************************************************************
@@ -410,11 +411,11 @@ static void __init dove_legacy_clk_init(void)
 			 of_clk_get_from_provider(&clkspec));
 
 	clkspec.args[0] = CLOCK_GATING_BIT_XOR0;
-	orion_clkdev_add(NULL, "mv_xor_shared.0",
+	orion_clkdev_add(NULL, MV_XOR_NAME ".0",
 			 of_clk_get_from_provider(&clkspec));
 
 	clkspec.args[0] = CLOCK_GATING_BIT_XOR1;
-	orion_clkdev_add(NULL, "mv_xor_shared.1",
+	orion_clkdev_add(NULL, MV_XOR_NAME ".1",
 			 of_clk_get_from_provider(&clkspec));
 }
 
