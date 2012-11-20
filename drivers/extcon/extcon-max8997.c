@@ -1,7 +1,7 @@
 /*
  * extcon-max8997.c - MAX8997 extcon driver to support MAX8997 MUIC
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electronics
  *  Donggeun Kim <dg77.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
