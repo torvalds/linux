@@ -10,6 +10,7 @@
  */
 
 #include <linux/errno.h>
+#include <linux/module.h>
 #include <linux/devfreq.h>
 #include <linux/math64.h>
 #include "governor.h"
@@ -120,8 +121,27 @@ static int devfreq_simple_ondemand_handler(struct devfreq *devfreq,
 	return 0;
 }
 
-const struct devfreq_governor devfreq_simple_ondemand = {
+static struct devfreq_governor devfreq_simple_ondemand = {
 	.name = "simple_ondemand",
 	.get_target_freq = devfreq_simple_ondemand_func,
 	.event_handler = devfreq_simple_ondemand_handler,
 };
+
+static int __init devfreq_simple_ondemand_init(void)
+{
+	return devfreq_add_governor(&devfreq_simple_ondemand);
+}
+subsys_initcall(devfreq_simple_ondemand_init);
+
+static void __exit devfreq_simple_ondemand_exit(void)
+{
+	int ret;
+
+	ret = devfreq_remove_governor(&devfreq_simple_ondemand);
+	if (ret)
+		pr_err("%s: failed remove governor %d\n", __func__, ret);
+
+	return;
+}
+module_exit(devfreq_simple_ondemand_exit);
+MODULE_LICENSE("GPL");
