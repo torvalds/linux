@@ -594,27 +594,35 @@ const struct of_device_id *of_match_node(const struct of_device_id *matches,
 EXPORT_SYMBOL(of_match_node);
 
 /**
- *	of_find_matching_node - Find a node based on an of_device_id match
- *				table.
+ *	of_find_matching_node_and_match - Find a node based on an of_device_id
+ *					  match table.
  *	@from:		The node to start searching from or NULL, the node
  *			you pass will not be searched, only the next one
  *			will; typically, you pass what the previous call
  *			returned. of_node_put() will be called on it
  *	@matches:	array of of device match structures to search in
+ *	@match		Updated to point at the matches entry which matched
  *
  *	Returns a node pointer with refcount incremented, use
  *	of_node_put() on it when done.
  */
-struct device_node *of_find_matching_node(struct device_node *from,
-					  const struct of_device_id *matches)
+struct device_node *of_find_matching_node_and_match(struct device_node *from,
+					const struct of_device_id *matches,
+					const struct of_device_id **match)
 {
 	struct device_node *np;
+
+	if (match)
+		*match = NULL;
 
 	read_lock(&devtree_lock);
 	np = from ? from->allnext : allnodes;
 	for (; np; np = np->allnext) {
-		if (of_match_node(matches, np) && of_node_get(np))
+		if (of_match_node(matches, np) && of_node_get(np)) {
+			if (match)
+				*match = matches;
 			break;
+		}
 	}
 	of_node_put(from);
 	read_unlock(&devtree_lock);
