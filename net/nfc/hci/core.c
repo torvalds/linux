@@ -33,17 +33,20 @@
 /* Largest headroom needed for outgoing HCI commands */
 #define HCI_CMDS_HEADROOM 1
 
-static int nfc_hci_result_to_errno(u8 result)
+int nfc_hci_result_to_errno(u8 result)
 {
 	switch (result) {
 	case NFC_HCI_ANY_OK:
 		return 0;
+	case NFC_HCI_ANY_E_REG_PAR_UNKNOWN:
+		return -EOPNOTSUPP;
 	case NFC_HCI_ANY_E_TIMEOUT:
 		return -ETIME;
 	default:
 		return -1;
 	}
 }
+EXPORT_SYMBOL(nfc_hci_result_to_errno);
 
 static void nfc_hci_msg_tx_work(struct work_struct *work)
 {
@@ -167,7 +170,7 @@ void nfc_hci_cmd_received(struct nfc_hci_dev *hdev, u8 pipe, u8 cmd,
 	kfree_skb(skb);
 }
 
-static u32 nfc_hci_sak_to_protocol(u8 sak)
+u32 nfc_hci_sak_to_protocol(u8 sak)
 {
 	switch (NFC_HCI_TYPE_A_SEL_PROT(sak)) {
 	case NFC_HCI_TYPE_A_SEL_PROT_MIFARE:
@@ -182,6 +185,7 @@ static u32 nfc_hci_sak_to_protocol(u8 sak)
 		return 0xffffffff;
 	}
 }
+EXPORT_SYMBOL(nfc_hci_sak_to_protocol);
 
 int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 {
@@ -284,6 +288,12 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			    struct sk_buff *skb)
 {
 	int r = 0;
+	u8 gate = nfc_hci_pipe2gate(hdev, pipe);
+
+	if (gate == 0xff) {
+		pr_err("Discarded event %x to unopened pipe %x\n", event, pipe);
+		goto exit;
+	}
 
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
@@ -307,14 +317,11 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 			goto exit;
 		}
 
-		r = nfc_hci_target_discovered(hdev,
-					      nfc_hci_pipe2gate(hdev, pipe));
+		r = nfc_hci_target_discovered(hdev, gate);
 		break;
 	default:
 		if (hdev->ops->event_received) {
-			hdev->ops->event_received(hdev,
-						nfc_hci_pipe2gate(hdev, pipe),
-						event, skb);
+			hdev->ops->event_received(hdev, gate, event, skb);
 			return;
 		}
 
@@ -419,6 +426,10 @@ static int hci_dev_version(struct nfc_hci_dev *hdev)
 
 	r = nfc_hci_get_param(hdev, NFC_HCI_ID_MGMT_GATE,
 			      NFC_HCI_ID_MGMT_VERSION_SW, &skb);
+	if (r == -EOPNOTSUPP) {
+		pr_info("Software/Hardware info not available\n");
+		return 0;
+	}
 	if (r < 0)
 		return r;
 

@@ -26,7 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 
-#include <linux/nfc/pn544.h>
+#include <linux/platform_data/pn544.h>
 
 #include <net/nfc/hci.h>
 #include <net/nfc/llc.h>
