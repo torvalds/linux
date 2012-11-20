@@ -523,7 +523,7 @@ static int deactivate_urbs(struct snd_usb_endpoint *ep, int force, int can_sleep
 	if (!force && ep->chip->shutdown) /* to be sure... */
 		return -EBADFD;
 
-	async = !can_sleep && ep->chip->async_unlink;
+	async = !can_sleep;
 
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
 
