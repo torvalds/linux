@@ -1812,8 +1812,14 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 {
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
+	enum transcoder pch_transcoder;
 	int reg;
 	u32 val;
+
+	if (IS_HASWELL(dev_priv->dev))
+		pch_transcoder = TRANSCODER_A;
+	else
+		pch_transcoder = pipe;
 
 	/*
 	 * A pipe without a PLL won't actually be able to drive bits from
@@ -1825,8 +1831,8 @@ static void intel_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 	else {
 		if (pch_port) {
 			/* if driving the PCH, we need FDI enabled */
-			assert_fdi_rx_pll_enabled(dev_priv, pipe);
-			assert_fdi_tx_pll_enabled(dev_priv, pipe);
+			assert_fdi_rx_pll_enabled(dev_priv, pch_transcoder);
+			assert_fdi_tx_pll_enabled(dev_priv, cpu_transcoder);
 		}
 		/* FIXME: assert CPU port conditions for SNB+ */
 	}
