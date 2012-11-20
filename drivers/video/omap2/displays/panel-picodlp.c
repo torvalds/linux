@@ -423,11 +423,11 @@ static int picodlp_panel_probe(struct omap_dss_device *dssdev)
 	struct picodlp_panel_data *picodlp_pdata = get_panel_data(dssdev);
 	struct i2c_adapter *adapter;
 	struct i2c_client *picodlp_i2c_client;
-	int r = 0, picodlp_adapter_id;
+	int picodlp_adapter_id;
 
 	dssdev->panel.timings = pico_ls_timings;
 
-	picod =  kzalloc(sizeof(struct picodlp_data), GFP_KERNEL);
+	picod = devm_kzalloc(&dssdev->dev, sizeof(*picod), GFP_KERNEL);
 	if (!picod)
 		return -ENOMEM;
 
@@ -438,25 +438,21 @@ static int picodlp_panel_probe(struct omap_dss_device *dssdev)
 	adapter = i2c_get_adapter(picodlp_adapter_id);
 	if (!adapter) {
 		dev_err(&dssdev->dev, "can't get i2c adapter\n");
-		r = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 
 	picodlp_i2c_client = i2c_new_device(adapter, &picodlp_i2c_board_info);
 	if (!picodlp_i2c_client) {
 		dev_err(&dssdev->dev, "can't add i2c device::"
 					 " picodlp_i2c_client is NULL\n");
-		r = -ENODEV;
-		goto err;
+		return -ENODEV;
 	}
 
 	picod->picodlp_i2c_client = picodlp_i2c_client;
 
 	dev_set_drvdata(&dssdev->dev, picod);
-	return r;
-err:
-	kfree(picod);
-	return r;
+
+	return 0;
 }
 
 static void picodlp_panel_remove(struct omap_dss_device *dssdev)
