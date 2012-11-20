@@ -242,6 +242,9 @@ struct nfs4_session {
 	struct nfs4_channel_attrs	bc_attrs;
 	struct nfs4_slot_table		bc_slot_table;
 	struct nfs_client		*clp;
+	/* Create session arguments */
+	unsigned int			fc_target_max_rqst_sz;
+	unsigned int			fc_target_max_resp_sz;
 };
 
 #endif /* CONFIG_NFS_V4 */
