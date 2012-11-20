@@ -98,6 +98,15 @@
 		};
 	};
 
+	i2c@13890000 {
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-slave-addr = <0x10>;
+		samsung,i2c-max-bus-freq = <400000>;
+		pinctrl-0 = <&i2c3_bus>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+
 	i2c@138B0000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-slave-addr = <0x10>;
