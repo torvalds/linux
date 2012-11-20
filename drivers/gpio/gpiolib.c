@@ -1218,10 +1218,11 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 	pin_range->range.npins = npins;
 	pin_range->pctldev = pinctrl_find_and_add_gpio_range(pinctl_name,
 			&pin_range->range);
-	if (!pin_range->pctldev) {
+	if (IS_ERR(pin_range->pctldev)) {
 		pr_err("%s: GPIO chip: could not create pin range\n",
 		       chip->label);
 		kfree(pin_range);
+		return PTR_ERR(pin_range->pctldev);
 	}
 	pr_debug("%s: GPIO chip: created GPIO range %d->%d ==> PIN %d->%d\n",
 		 chip->label, offset, offset + npins - 1,
