@@ -884,7 +884,7 @@ i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct intel_device_info *intel_info =
 		(struct intel_device_info *) ent->driver_data;
 
-	if (intel_info->is_haswell || intel_info->is_valleyview)
+	if (intel_info->is_valleyview)
 		if(!i915_preliminary_hw_support) {
 			DRM_ERROR("Preliminary hardware support disabled\n");
 			return -ENODEV;
