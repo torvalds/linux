@@ -114,6 +114,17 @@
 		pinctrl-0 = <&i2c3_bus>;
 		pinctrl-names = "default";
 		status = "okay";
+
+		mms114-touchscreen@48 {
+			compatible = "melfas,mms114";
+			reg = <0x48>;
+			interrupt-parent = <&gpx0>;
+			interrupts = <4 2>;
+			x-size = <720>;
+			y-size = <1280>;
+			avdd-supply = <&tsp_reg>;
+			vdd-supply = <&tsp_reg>;
+		};
 	};
 
 	i2c@138B0000 {
