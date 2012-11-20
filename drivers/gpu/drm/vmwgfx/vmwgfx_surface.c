@@ -28,6 +28,7 @@
 #include "vmwgfx_drv.h"
 #include "vmwgfx_resource_priv.h"
 #include <ttm/ttm_placement.h>
+#include "svga3d_surfacedefs.h"
 
 /**
  * struct vmw_user_surface - User-space visible surface resource
@@ -91,85 +92,6 @@ static const struct vmw_res_func vmw_legacy_surface_func = {
 	.bind = &vmw_legacy_srf_bind,
 	.unbind = &vmw_legacy_srf_unbind
 };
-
-/**
- * struct vmw_bpp - Bits per pixel info for surface storage size computation.
- *
- * @bpp:         Bits per pixel.
- * @s_bpp:       Stride bits per pixel. See definition below.
- *
- */
-struct vmw_bpp {
-	uint8_t bpp;
-	uint8_t s_bpp;
-};
-
-/*
- * Size table for the supported SVGA3D surface formats. It consists of
- * two values. The bpp value and the s_bpp value which is short for
- * "stride bits per pixel" The values are given in such a way that the
- * minimum stride for the image is calculated using
- *
- * min_stride = w*s_bpp
- *
- * and the total memory requirement for the image is
- *
- * h*min_stride*bpp/s_bpp
- *
- */
-static const struct vmw_bpp vmw_sf_bpp[] = {
-	[SVGA3D_FORMAT_INVALID] = {0, 0},
-	[SVGA3D_X8R8G8B8] = {32, 32},
-	[SVGA3D_A8R8G8B8] = {32, 32},
-	[SVGA3D_R5G6B5] = {16, 16},
-	[SVGA3D_X1R5G5B5] = {16, 16},
-	[SVGA3D_A1R5G5B5] = {16, 16},
-	[SVGA3D_A4R4G4B4] = {16, 16},
-	[SVGA3D_Z_D32] = {32, 32},
-	[SVGA3D_Z_D16] = {16, 16},
-	[SVGA3D_Z_D24S8] = {32, 32},
-	[SVGA3D_Z_D15S1] = {16, 16},
-	[SVGA3D_LUMINANCE8] = {8, 8},
-	[SVGA3D_LUMINANCE4_ALPHA4] = {8, 8},
-	[SVGA3D_LUMINANCE16] = {16, 16},
-	[SVGA3D_LUMINANCE8_ALPHA8] = {16, 16},
-	[SVGA3D_DXT1] = {4, 16},
-	[SVGA3D_DXT2] = {8, 32},
-	[SVGA3D_DXT3] = {8, 32},
-	[SVGA3D_DXT4] = {8, 32},
-	[SVGA3D_DXT5] = {8, 32},
-	[SVGA3D_BUMPU8V8] = {16, 16},
-	[SVGA3D_BUMPL6V5U5] = {16, 16},
-	[SVGA3D_BUMPX8L8V8U8] = {32, 32},
-	[SVGA3D_ARGB_S10E5] = {16, 16},
-	[SVGA3D_ARGB_S23E8] = {32, 32},
-	[SVGA3D_A2R10G10B10] = {32, 32},
-	[SVGA3D_V8U8] = {16, 16},
-	[SVGA3D_Q8W8V8U8] = {32, 32},
-	[SVGA3D_CxV8U8] = {16, 16},
-	[SVGA3D_X8L8V8U8] = {32, 32},
-	[SVGA3D_A2W10V10U10] = {32, 32},
-	[SVGA3D_ALPHA8] = {8, 8},
-	[SVGA3D_R_S10E5] = {16, 16},
-	[SVGA3D_R_S23E8] = {32, 32},
-	[SVGA3D_RG_S10E5] = {16, 16},
-	[SVGA3D_RG_S23E8] = {32, 32},
-	[SVGA3D_BUFFER] = {8, 8},
-	[SVGA3D_Z_D24X8] = {32, 32},
-	[SVGA3D_V16U16] = {32, 32},
-	[SVGA3D_G16R16] = {32, 32},
-	[SVGA3D_A16B16G16R16] = {64,  64},
-	[SVGA3D_UYVY] = {12, 12},
-	[SVGA3D_YUY2] = {12, 12},
-	[SVGA3D_NV12] = {12, 8},
-	[SVGA3D_AYUV] = {32, 32},
-	[SVGA3D_BC4_UNORM] = {4,  16},
-	[SVGA3D_BC5_UNORM] = {8,  32},
-	[SVGA3D_Z_DF16] = {16,  16},
-	[SVGA3D_Z_DF24] = {24,  24},
-	[SVGA3D_Z_D24S8_INT] = {32,  32}
-};
-
 
 /**
  * struct vmw_surface_dma - SVGA3D DMA command
@@ -307,9 +229,9 @@ static void vmw_surface_dma_encode(struct vmw_surface *srf,
 				   bool to_surface)
 {
 	uint32_t i;
-	uint32_t bpp = vmw_sf_bpp[srf->format].bpp;
-	uint32_t stride_bpp = vmw_sf_bpp[srf->format].s_bpp;
 	struct vmw_surface_dma *cmd = (struct vmw_surface_dma *)cmd_space;
+	const struct svga3d_surface_desc *desc =
+		svga3dsurface_get_desc(srf->format);
 
 	for (i = 0; i < srf->num_sizes; ++i) {
 		SVGA3dCmdHeader *header = &cmd->header;
@@ -324,7 +246,8 @@ static void vmw_surface_dma_encode(struct vmw_surface *srf,
 
 		body->guest.ptr = *ptr;
 		body->guest.ptr.offset += cur_offset->bo_offset;
-		body->guest.pitch = (cur_size->width * stride_bpp + 7) >> 3;
+		body->guest.pitch = svga3dsurface_calculate_pitch(desc,
+								  cur_size);
 		body->host.sid = srf->res.id;
 		body->host.face = cur_offset->face;
 		body->host.mipmap = cur_offset->mip;
@@ -341,8 +264,9 @@ static void vmw_surface_dma_encode(struct vmw_surface *srf,
 		cb->d = cur_size->depth;
 
 		suffix->suffixSize = sizeof(*suffix);
-		suffix->maximumOffset = body->guest.pitch*cur_size->height*
-			cur_size->depth*bpp / stride_bpp;
+		suffix->maximumOffset =
+			svga3dsurface_get_image_buffer_size(desc, cur_size,
+							    body->guest.pitch);
 		suffix->flags.discard = 0;
 		suffix->flags.unsynchronized = 0;
 		suffix->flags.reserved = 0;
@@ -743,11 +667,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	uint32_t cur_bo_offset;
 	struct drm_vmw_size *cur_size;
 	struct vmw_surface_offset *cur_offset;
-	uint32_t stride_bpp;
-	uint32_t bpp;
 	uint32_t num_sizes;
 	uint32_t size;
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
+	const struct svga3d_surface_desc *desc;
 
 	if (unlikely(vmw_user_surface_size == 0))
 		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
@@ -765,6 +688,12 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		ttm_round_pot(num_sizes * sizeof(struct drm_vmw_size)) +
 		ttm_round_pot(num_sizes * sizeof(struct vmw_surface_offset));
 
+
+	desc = svga3dsurface_get_desc(req->format);
+	if (unlikely(desc->block_desc == SVGA3DBLOCKDESC_NONE)) {
+		DRM_ERROR("Invalid surface format for surface creation.\n");
+		return -EINVAL;
+	}
 
 	ret = ttm_read_lock(&vmaster->lock, true);
 	if (unlikely(ret != 0))
@@ -826,25 +755,21 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	cur_offset = srf->offsets;
 	cur_size = srf->sizes;
 
-	bpp = vmw_sf_bpp[srf->format].bpp;
-	stride_bpp = vmw_sf_bpp[srf->format].s_bpp;
-
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i) {
 		for (j = 0; j < srf->mip_levels[i]; ++j) {
-			uint32_t stride =
-				(cur_size->width * stride_bpp + 7) >> 3;
+			uint32_t stride = svga3dsurface_calculate_pitch
+				(desc, cur_size);
 
 			cur_offset->face = i;
 			cur_offset->mip = j;
 			cur_offset->bo_offset = cur_bo_offset;
-			cur_bo_offset += stride * cur_size->height *
-				cur_size->depth * bpp / stride_bpp;
+			cur_bo_offset += svga3dsurface_get_image_buffer_size
+				(desc, cur_size, stride);
 			++cur_offset;
 			++cur_size;
 		}
 	}
 	res->backup_size = cur_bo_offset;
-
 	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
 	    srf->sizes[0].width == 64 &&
