@@ -193,7 +193,7 @@ EXPORT_SYMBOL(rcu_is_cpu_idle);
  * interrupts don't count, we must be running at the first interrupt
  * level.
  */
-int rcu_is_cpu_rrupt_from_idle(void)
+static int rcu_is_cpu_rrupt_from_idle(void)
 {
 	return rcu_dynticks_nesting <= 1;
 }

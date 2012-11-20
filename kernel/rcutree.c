@@ -727,7 +727,7 @@ EXPORT_SYMBOL_GPL(rcu_lockdep_current_cpu_online);
  * interrupt from idle, return true.  The caller must have at least
  * disabled preemption.
  */
-int rcu_is_cpu_rrupt_from_idle(void)
+static int rcu_is_cpu_rrupt_from_idle(void)
 {
 	return __get_cpu_var(rcu_dynticks).dynticks_nesting <= 1;
 }
