@@ -64,7 +64,7 @@ void ieee80211_ccmp_aes_encrypt(struct crypto_tfm *tfm,
 	crypto_cipher_encrypt_one((void *)tfm, ct, pt);
 }
 
-static void * ieee80211_ccmp_init(int key_idx)
+static void *ieee80211_ccmp_init(int key_idx)
 {
 	struct ieee80211_ccmp_data *priv;
 
@@ -415,7 +415,7 @@ static int ieee80211_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char * ieee80211_ccmp_print_stats(char *p, void *priv)
+static char *ieee80211_ccmp_print_stats(char *p, void *priv)
 {
 	struct ieee80211_ccmp_data *ccmp = priv;
 	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "
