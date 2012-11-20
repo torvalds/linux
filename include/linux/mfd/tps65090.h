@@ -23,6 +23,7 @@
 #define __LINUX_MFD_TPS65090_H
 
 #include <linux/irq.h>
+#include <linux/regmap.h>
 
 struct tps65090 {
 	struct device		*dev;
@@ -40,9 +41,39 @@ struct tps65090_platform_data {
  * NOTE: the functions below are not intended for use outside
  * of the TPS65090 sub-device drivers
  */
-extern int tps65090_write(struct device *dev, int reg, uint8_t val);
-extern int tps65090_read(struct device *dev, int reg, uint8_t *val);
-extern int tps65090_set_bits(struct device *dev, int reg, uint8_t bit_num);
-extern int tps65090_clr_bits(struct device *dev, int reg, uint8_t bit_num);
+static inline int tps65090_write(struct device *dev, int reg, uint8_t val)
+{
+	struct tps65090 *tps = dev_get_drvdata(dev);
+
+	return regmap_write(tps->rmap, reg, val);
+}
+
+static inline int tps65090_read(struct device *dev, int reg, uint8_t *val)
+{
+	struct tps65090 *tps = dev_get_drvdata(dev);
+	unsigned int temp_val;
+	int ret;
+
+	ret = regmap_read(tps->rmap, reg, &temp_val);
+	if (!ret)
+		*val = temp_val;
+	return ret;
+}
+
+static inline int tps65090_set_bits(struct device *dev, int reg,
+		uint8_t bit_num)
+{
+	struct tps65090 *tps = dev_get_drvdata(dev);
+
+	return regmap_update_bits(tps->rmap, reg, BIT(bit_num), ~0u);
+}
+
+static inline int tps65090_clr_bits(struct device *dev, int reg,
+		uint8_t bit_num)
+{
+	struct tps65090 *tps = dev_get_drvdata(dev);
+
+	return regmap_update_bits(tps->rmap, reg, BIT(bit_num), 0u);
+}
 
 #endif /*__LINUX_MFD_TPS65090_H */
