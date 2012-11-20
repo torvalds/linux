@@ -33,7 +33,7 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 {
 	struct platform_device *pdev = NULL;
 	struct acpi_device *acpi_parent;
-	struct device *parent = NULL;
+	struct platform_device_info pdevinfo;
 	struct resource_list_entry *rentry;
 	struct list_head resource_list;
 	struct resource *resources;
@@ -60,11 +60,13 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 
 	acpi_dev_free_resource_list(&resource_list);
 
+	memset(&pdevinfo, 0, sizeof(pdevinfo));
 	/*
 	 * If the ACPI node has a parent and that parent has a physical device
 	 * attached to it, that physical device should be the parent of the
 	 * platform device we are about to create.
 	 */
+	pdevinfo.parent = NULL;
 	acpi_parent = adev->parent;
 	if (acpi_parent) {
 		struct acpi_device_physical_node *entry;
@@ -76,12 +78,16 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 			entry = list_first_entry(list,
 					struct acpi_device_physical_node,
 					node);
-			parent = entry->dev;
+			pdevinfo.parent = entry->dev;
 		}
 		mutex_unlock(&acpi_parent->physical_node_lock);
 	}
-	pdev = platform_device_register_resndata(parent, dev_name(&adev->dev),
-						 -1, resources, count, NULL, 0);
+	pdevinfo.name = dev_name(&adev->dev);
+	pdevinfo.id = -1;
+	pdevinfo.res = resources;
+	pdevinfo.num_res = count;
+	pdevinfo.acpi_node.handle = adev->handle;
+	pdev = platform_device_register_full(&pdevinfo);
 	if (IS_ERR(pdev)) {
 		dev_err(&adev->dev, "platform device creation failed: %ld\n",
 			PTR_ERR(pdev));
@@ -94,65 +100,3 @@ struct platform_device *acpi_create_platform_device(struct acpi_device *adev)
 	kfree(resources);
 	return pdev;
 }
-
-static acpi_status acpi_platform_match(acpi_handle handle, u32 depth,
-				       void *data, void **return_value)
-{
-	struct platform_device *pdev = data;
-	struct acpi_device *adev;
-	acpi_status status;
-
-	status = acpi_bus_get_device(handle, &adev);
-	if (ACPI_FAILURE(status))
-		return status;
-
-	/* Skip ACPI devices that have physical device attached */
-	if (adev->physical_node_count)
-		return AE_OK;
-
-	if (!strcmp(dev_name(&pdev->dev), dev_name(&adev->dev))) {
-		*(acpi_handle *)return_value = handle;
-		return AE_CTRL_TERMINATE;
-	}
-
-	return AE_OK;
-}
-
-static int acpi_platform_find_device(struct device *dev, acpi_handle *handle)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	char *name, *tmp, *hid;
-
-	/*
-	 * The platform device is named using the ACPI device name
-	 * _HID:INSTANCE so we strip the INSTANCE out in order to find the
-	 * correct device using its _HID.
-	 */
-	name = kstrdup(dev_name(dev), GFP_KERNEL);
-	if (!name)
-		return -ENOMEM;
-
-	tmp = name;
-	hid = strsep(&tmp, ":");
-	if (!hid) {
-		kfree(name);
-		return -ENODEV;
-	}
-
-	*handle = NULL;
-	acpi_get_devices(hid, acpi_platform_match, pdev, handle);
-
-	kfree(name);
-	return *handle ? 0 : -ENODEV;
-}
-
-static struct acpi_bus_type acpi_platform_bus = {
-	.bus = &platform_bus_type,
-	.find_device = acpi_platform_find_device,
-};
-
-static int __init acpi_platform_init(void)
-{
-	return register_acpi_bus_type(&acpi_platform_bus);
-}
-arch_initcall(acpi_platform_init);
