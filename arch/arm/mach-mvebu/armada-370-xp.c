@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/time-armada-370-xp.h>
 #include <linux/clk/mvebu.h>
+#include <linux/dma-mapping.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -44,6 +45,16 @@ void __init armada_370_xp_timer_and_clk_init(void)
 	armada_370_xp_timer_init();
 }
 
+void __init armada_370_xp_init_early(void)
+{
+	/*
+	 * Some Armada 370/XP devices allocate their coherent buffers
+	 * from atomic context. Increase size of atomic coherent pool
+	 * to make sure such the allocations won't fail.
+	 */
+	init_dma_coherent_pool_size(SZ_1M);
+}
+
 struct sys_timer armada_370_xp_timer = {
 	.init		= armada_370_xp_timer_and_clk_init,
 };
@@ -62,6 +73,7 @@ static const char * const armada_370_xp_dt_board_dt_compat[] = {
 DT_MACHINE_START(ARMADA_XP_DT, "Marvell Aramada 370/XP (Device Tree)")
 	.init_machine	= armada_370_xp_dt_init,
 	.map_io		= armada_370_xp_map_io,
+	.init_early	= armada_370_xp_init_early,
 	.init_irq	= armada_370_xp_init_irq,
 	.handle_irq     = armada_370_xp_handle_irq,
 	.timer		= &armada_370_xp_timer,
