@@ -911,6 +911,7 @@ config ARCH_DAVINCI
 	select GENERIC_IRQ_CHIP
 	select HAVE_IDE
 	select NEED_MACH_GPIO_H
+	select USE_OF
 	select ZONE_DMA
 	help
 	  Support for TI's DaVinci platform.
