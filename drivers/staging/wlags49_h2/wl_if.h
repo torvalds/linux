@@ -71,7 +71,7 @@
 #define MAX_LTV_BUF_SIZE            (512 - (sizeof(hcf_16) * 2))
 
 #define HCF_TALLIES_SIZE            (sizeof(CFG_HERMES_TALLIES_STRCT) + \
-                                     (sizeof(hcf_16) * 2))
+				    (sizeof(hcf_16) * 2))
 
 #define HCF_MAX_MULTICAST           16
 #define HCF_MAX_NAME_LEN            32
@@ -176,57 +176,57 @@ UIL_FUN_PUT_INFO
  ******************************************************************************/
 typedef struct
 {
-    __u16   length;
-    __u8    name[HCF_MAX_NAME_LEN];
+	__u16   length;
+	__u8    name[HCF_MAX_NAME_LEN];
 }
 wvName_t;
 
 
 typedef struct
 {
-    hcf_16      len;
-    hcf_16      typ;
-    union
-    {
-        hcf_8       u8[MAX_LTV_BUF_SIZE / sizeof(hcf_8)];
-        hcf_16      u16[MAX_LTV_BUF_SIZE / sizeof(hcf_16)];
-        hcf_32      u32[MAX_LTV_BUF_SIZE / sizeof(hcf_32)];
-    } u;
+	hcf_16      len;
+	hcf_16      typ;
+	union
+	{
+		hcf_8       u8[MAX_LTV_BUF_SIZE / sizeof(hcf_8)];
+		hcf_16      u16[MAX_LTV_BUF_SIZE / sizeof(hcf_16)];
+		hcf_32      u32[MAX_LTV_BUF_SIZE / sizeof(hcf_32)];
+	} u;
 }
 ltv_t;
 
 
 struct uilreq
 {
-    union
-    {
-        char    ifrn_name[IFNAMSIZ];
-    } ifr_ifrn;
+	union
+	{
+		char    ifrn_name[IFNAMSIZ];
+	} ifr_ifrn;
 
-    IFBP        hcfCtx;
-    __u8        command;
-    __u8        result;
+	IFBP        hcfCtx;
+	__u8        command;
+	__u8        result;
 
-    /* The data field in this structure is typically an LTV of some type. The
-       len field is the size of the buffer in bytes, as opposed to words (like
-       the L-field in the LTV */
-    __u16       len;
-    void       *data;
+	/* The data field in this structure is typically an LTV of some type. The
+	   len field is the size of the buffer in bytes, as opposed to words (like
+	   the L-field in the LTV */
+	__u16       len;
+	void       *data;
 };
 
 
 struct rtsreq
 {
-    union
-    {
-        char    ifrn_name[IFNAMSIZ];
-    }
-    ifr_ifrn;
+	union
+	{
+		char    ifrn_name[IFNAMSIZ];
+	}
+	ifr_ifrn;
 
-    __u16   typ;
-    __u16   reg;
-    __u16   len;
-    __u16   *data;
+	__u16   typ;
+	__u16   reg;
+	__u16   len;
+	__u16   *data;
 };
 
 
