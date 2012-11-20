@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/clk-provider.h>
+#include <linux/clk/mvebu.h>
 #include <linux/ata_platform.h>
 #include <linux/gpio.h>
 #include <linux/of.h>
@@ -376,19 +377,52 @@ void dove_restart(char mode, const char *cmd)
 
 #if defined(CONFIG_MACH_DOVE_DT)
 /*
- * Auxdata required until real OF clock provider
+ * There are still devices that doesn't even know about DT,
+ * get clock gates here and add a clock lookup.
  */
-struct of_dev_auxdata dove_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
-	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1014600, "orion_spi.1", NULL),
-	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
-	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
-		       NULL),
-	OF_DEV_AUXDATA("marvell,orion-sata", 0xf10a0000, "sata_mv.0", NULL),
-	OF_DEV_AUXDATA("marvell,dove-sdhci", 0xf1092000, "sdhci-dove.0", NULL),
-	OF_DEV_AUXDATA("marvell,dove-sdhci", 0xf1090000, "sdhci-dove.1", NULL),
-	{},
-};
+static void __init dove_legacy_clk_init(void)
+{
+	struct device_node *np = of_find_compatible_node(NULL, NULL,
+					 "marvell,dove-gating-clock");
+	struct of_phandle_args clkspec;
+
+	clkspec.np = np;
+	clkspec.args_count = 1;
+
+	clkspec.args[0] = CLOCK_GATING_BIT_USB0;
+	orion_clkdev_add(NULL, "orion-ehci.0",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CLOCK_GATING_BIT_USB1;
+	orion_clkdev_add(NULL, "orion-ehci.1",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CLOCK_GATING_BIT_GBE;
+	orion_clkdev_add(NULL, "mv643xx_eth_port.0",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CLOCK_GATING_BIT_PCIE0;
+	orion_clkdev_add("0", "pcie",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CLOCK_GATING_BIT_PCIE1;
+	orion_clkdev_add("1", "pcie",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CLOCK_GATING_BIT_XOR0;
+	orion_clkdev_add(NULL, "mv_xor_shared.0",
+			 of_clk_get_from_provider(&clkspec));
+
+	clkspec.args[0] = CLOCK_GATING_BIT_XOR1;
+	orion_clkdev_add(NULL, "mv_xor_shared.1",
+			 of_clk_get_from_provider(&clkspec));
+}
+
+static void __init dove_of_clk_init(void)
+{
+	mvebu_clocks_init();
+	dove_legacy_clk_init();
+}
 
 static struct mv643xx_eth_platform_data dove_dt_ge00_data = {
 	.phy_addr = MV643XX_ETH_PHY_ADDR_DEFAULT,
@@ -405,7 +439,7 @@ static void __init dove_dt_init(void)
 	dove_setup_cpu_mbus();
 
 	/* Setup root of clk tree */
-	dove_clk_init();
+	dove_of_clk_init();
 
 	/* Internal devices not ported to DT yet */
 	dove_rtc_init();
@@ -417,8 +451,7 @@ static void __init dove_dt_init(void)
 	dove_ehci1_init();
 	dove_pcie_init(1, 1);
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			     dove_auxdata_lookup, NULL);
+	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
 static const char * const dove_dt_board_compat[] = {

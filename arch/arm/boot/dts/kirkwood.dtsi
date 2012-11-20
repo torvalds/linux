@@ -19,6 +19,12 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		core_clk: core-clocks@10030 {
+			compatible = "marvell,kirkwood-core-clock";
+			reg = <0x10030 0x4>;
+	        	#clock-cells = <1>;
+		};
+
 		gpio0: gpio@10100 {
 			compatible = "marvell,orion-gpio";
 			#gpio-cells = <2>;
@@ -42,6 +48,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <33>;
+			clocks = <&gate_clk 7>;
 			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
@@ -51,6 +58,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <34>;
+			clocks = <&gate_clk 7>;
 			/* set clock-frequency in board dts */
 			status = "disabled";
 		};
@@ -68,12 +76,21 @@
 			cell-index = <0>;
 			interrupts = <23>;
 			reg = <0x10600 0x28>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
+		};
+
+		gate_clk: clock-gating-control@2011c {
+			compatible = "marvell,kirkwood-gating-clock";
+			reg = <0x2011c 0x4>;
+			clocks = <&core_clk 0>;
+			#clock-cells = <1>;
 		};
 
 		wdt@20300 {
 			compatible = "marvell,orion-wdt";
 			reg = <0x20300 0x28>;
+			clocks = <&gate_clk 7>;
 			status = "okay";
 		};
 
@@ -81,6 +98,8 @@
 			compatible = "marvell,orion-sata";
 			reg = <0x80000 0x5000>;
 			interrupts = <21>;
+			clocks = <&gate_clk 14>, <&gate_clk 15>;
+			clock-names = "0", "1";
 			status = "disabled";
 		};
 
@@ -94,6 +113,7 @@
 			reg = <0x3000000 0x400>;
 			chip-delay = <25>;
 			/* set partition map and/or chip-delay in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -104,6 +124,7 @@
 			#size-cells = <0>;
 			interrupts = <29>;
 			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -113,6 +134,7 @@
 			      <0xf5000000 0x800>;
 			reg-names = "regs", "sram";
 			interrupts = <22>;
+			clocks = <&gate_clk 17>;
 			status = "okay";
 		};
 	};

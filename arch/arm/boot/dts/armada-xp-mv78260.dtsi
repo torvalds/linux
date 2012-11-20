@@ -25,6 +25,25 @@
 		gpio2 = &gpio2;
 	};
 
+	cpus {
+	    #address-cells = <1>;
+	    #size-cells = <0>;
+
+	    cpu@0 {
+		device_type = "cpu";
+		compatible = "marvell,sheeva-v7";
+		reg = <0>;
+		clocks = <&cpuclk 0>;
+	    };
+
+	    cpu@1 {
+		device_type = "cpu";
+		compatible = "marvell,sheeva-v7";
+		reg = <1>;
+		clocks = <&cpuclk 1>;
+	    };
+	};
+
 	soc {
 		pinctrl {
 			compatible = "marvell,mv78260-pinctrl";
