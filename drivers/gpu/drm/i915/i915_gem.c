@@ -2925,6 +2925,8 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 	if (ret)
 		return ret;
 
+	i915_gem_object_pin_pages(obj);
+
  search_free:
 	if (map_and_fenceable)
 		free_space =
@@ -2955,14 +2957,17 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 					       obj->cache_level,
 					       map_and_fenceable,
 					       nonblocking);
-		if (ret)
+		if (ret) {
+			i915_gem_object_unpin_pages(obj);
 			return ret;
+		}
 
 		goto search_free;
 	}
 	if (WARN_ON(!i915_gem_valid_gtt_space(dev,
 					      obj->gtt_space,
 					      obj->cache_level))) {
+		i915_gem_object_unpin_pages(obj);
 		drm_mm_put_block(obj->gtt_space);
 		obj->gtt_space = NULL;
 		return -EINVAL;
@@ -2971,6 +2976,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
+		i915_gem_object_unpin_pages(obj);
 		drm_mm_put_block(obj->gtt_space);
 		obj->gtt_space = NULL;
 		return ret;
@@ -2993,6 +2999,7 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	obj->map_and_fenceable = mappable && fenceable;
 
+	i915_gem_object_unpin_pages(obj);
 	trace_i915_gem_object_bind(obj, map_and_fenceable);
 	i915_gem_verify_gtt(dev);
 	return 0;
