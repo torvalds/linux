@@ -17,6 +17,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/module.h>
 #include <linux/slab.h>
 
 #include <asm/bfin_ppi.h>
@@ -263,9 +264,15 @@ struct ppi_if *ppi_create_instance(const struct ppi_info *info)
 	pr_info("ppi probe success\n");
 	return ppi;
 }
+EXPORT_SYMBOL(ppi_create_instance);
 
 void ppi_delete_instance(struct ppi_if *ppi)
 {
 	peripheral_free_list(ppi->info->pin_req);
 	kfree(ppi);
 }
+EXPORT_SYMBOL(ppi_delete_instance);
+
+MODULE_DESCRIPTION("Analog Devices PPI driver");
+MODULE_AUTHOR("Scott Jiang <Scott.Jiang.Linux@gmail.com>");
+MODULE_LICENSE("GPL v2");
