@@ -9,6 +9,8 @@
  * more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 //#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -50,15 +52,13 @@ static void *prism2_wep_init(int keyidx)
 	priv->key_idx = keyidx;
 	priv->tx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->tx_tfm)) {
-		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
+		pr_debug("could not allocate crypto API arc4\n");
 		priv->tx_tfm = NULL;
 		goto fail;
 	}
 	priv->rx_tfm = crypto_alloc_blkcipher("ecb(arc4)", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(priv->rx_tfm)) {
-		printk(KERN_DEBUG "ieee80211_crypt_wep: could not allocate "
-		       "crypto API arc4\n");
+		pr_debug("could not allocate crypto API arc4\n");
 		priv->rx_tfm = NULL;
 		goto fail;
 	}
