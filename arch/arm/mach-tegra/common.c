@@ -102,7 +102,7 @@ static __initdata struct tegra_clk_init_table tegra20_clk_init_table[] = {
 static __initdata struct tegra_clk_init_table tegra30_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "clk_m",	NULL,		0,		true },
-	{ "pll_p",	"clk_m",	408000000,	true },
+	{ "pll_p",	"pll_ref",	408000000,	true },
 	{ "pll_p_out1",	"pll_p",	9600000,	true },
 	{ NULL,		NULL,		0,		0},
 };
