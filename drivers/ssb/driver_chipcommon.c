@@ -442,6 +442,22 @@ u32 ssb_chipco_gpio_polarity(struct ssb_chipcommon *cc, u32 mask, u32 value)
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOPOL, mask, value);
 }
 
+u32 ssb_chipco_gpio_pullup(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	if (cc->dev->id.revision < 20)
+		return 0xffffffff;
+
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOPULLUP, mask, value);
+}
+
+u32 ssb_chipco_gpio_pulldown(struct ssb_chipcommon *cc, u32 mask, u32 value)
+{
+	if (cc->dev->id.revision < 20)
+		return 0xffffffff;
+
+	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOPULLDOWN, mask, value);
+}
+
 #ifdef CONFIG_SSB_SERIAL
 int ssb_chipco_serial_init(struct ssb_chipcommon *cc,
 			   struct ssb_serial_port *ports)
