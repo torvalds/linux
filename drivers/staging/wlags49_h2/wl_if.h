@@ -80,24 +80,17 @@
 #define TX_TIMEOUT                  ((800 * HZ) / 1000)
 
 
-//#define HCF_MIN_COMM_QUALITY        0
-//#define HCF_MAX_COMM_QUALITY        92
-//#define HCF_MIN_SIGNAL_LEVEL        47
-//#define HCF_MAX_SIGNAL_LEVEL        138
-//#define HCF_MIN_NOISE_LEVEL         47
-//#define HCF_MAX_NOISE_LEVEL         138
-//#define HCF_0DBM_OFFSET             149
-
-// PE1DNN
-// Better data from the real world. Not scientific but empirical data gathered
-// from a Thomson Speedtouch 110 which is identified as:
-// PCMCIA Info: "Agere Systems" "Wireless PC Card Model 0110"
-//              Manufacture ID: 0156,0003
-// Lowest measurment for noise floor seen is value 54
-// Highest signal strength in close proximity to the AP seen is value 118
-// Very good must be around 100 (otherwise its never "full scale"
-// All other constants are derrived from these. This makes the signal gauge
-// work for me...
+/* PE1DNN
+ * Better data from the real world. Not scientific but empirical data gathered
+ * from a Thomson Speedtouch 110 which is identified as:
+ * PCMCIA Info: "Agere Systems" "Wireless PC Card Model 0110"
+ *              Manufacture ID: 0156,0003
+ * Lowest measurment for noise floor seen is value 54
+ * Highest signal strength in close proximity to the AP seen is value 118
+ * Very good must be around 100 (otherwise its never "full scale"
+ * All other constants are derrived from these. This makes the signal gauge
+ * work for me...
+ */
 #define HCF_MIN_SIGNAL_LEVEL        54
 #define HCF_MAX_SIGNAL_LEVEL        100
 #define HCF_MIN_NOISE_LEVEL         HCF_MIN_SIGNAL_LEVEL
@@ -109,8 +102,8 @@
 
 
 /* For encryption (WEP) */
-#define MIN_KEY_SIZE                5       // 40 bits RC4 - WEP
-#define MAX_KEY_SIZE                13      // 104 bits
+#define MIN_KEY_SIZE                5       /* 40 bits RC4 - WEP */
+#define MAX_KEY_SIZE                13      /* 104 bits */
 #define MAX_KEYS                    4
 
 #define RADIO_CHANNELS              14
@@ -126,8 +119,8 @@
 
 #define HCF_FAILURE                 0xFF
 #define UIL_FAILURE		            0xFF
-#define CFG_UIL_CONNECT             0xA123          // Define differently?
-#define CFG_UIL_CONNECT_ACK_CODE    0x5653435A      // VSCZ
+#define CFG_UIL_CONNECT             0xA123          /* Define differently? */
+#define CFG_UIL_CONNECT_ACK_CODE    0x5653435A      /* VSCZ */
 #define WVLAN2_UIL_CONNECTED        (0x01L << 0)
 #define WVLAN2_UIL_BUSY             (0x01L << 1)
 
@@ -224,5 +217,5 @@ struct rtsreq {
 };
 
 
-#endif  // __WAVELAN2_IF_H__
+#endif  /* __WAVELAN2_IF_H__ */
 
