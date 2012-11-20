@@ -201,7 +201,6 @@ config MFD_TPS6586X
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	select REGMAP_I2C
-	depends on REGULATOR
 	help
 	  If you say yes here you get support for the TPS6586X series of
 	  Power Management chips.
