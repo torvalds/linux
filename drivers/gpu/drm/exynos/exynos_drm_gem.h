@@ -41,8 +41,6 @@
  *	device address with IOMMU.
  * @write: whether pages will be written to by the caller.
  * @sgt: sg table to transfer page data.
- * @pages: contain all pages to allocated memory region.
- * @page_size: could be 4K, 64K or 1MB.
  * @size: size of allocated memory region.
  * @pfnmap: indicate whether memory region from userptr is mmaped with
  *	VM_PFNMAP or not.
@@ -54,8 +52,6 @@ struct exynos_drm_gem_buf {
 	struct dma_attrs	dma_attrs;
 	unsigned int		write;
 	struct sg_table		*sgt;
-	struct page		**pages;
-	unsigned long		page_size;
 	unsigned long		size;
 	bool			pfnmap;
 };

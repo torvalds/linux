@@ -34,8 +34,6 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		unsigned int flags, struct exynos_drm_gem_buf *buf)
 {
 	int ret = 0;
-	unsigned int npages, i = 0;
-	struct scatterlist *sgl;
 	enum dma_attr attr = DMA_ATTR_FORCE_CONTIGUOUS;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -73,22 +71,6 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 		goto err_free_sgt;
 	}
 
-	npages = buf->sgt->nents;
-
-	buf->pages = kzalloc(sizeof(struct page) * npages, GFP_KERNEL);
-	if (!buf->pages) {
-		DRM_ERROR("failed to allocate pages.\n");
-		ret = -ENOMEM;
-		goto err_free_table;
-	}
-
-	sgl = buf->sgt->sgl;
-	while (i < npages) {
-		buf->pages[i] = sg_page(sgl);
-		sgl = sg_next(sgl);
-		i++;
-	}
-
 	DRM_DEBUG_KMS("vaddr(0x%lx), dma_addr(0x%lx), size(0x%lx)\n",
 			(unsigned long)buf->kvaddr,
 			(unsigned long)buf->dma_addr,
@@ -96,8 +78,6 @@ static int lowlevel_buffer_allocate(struct drm_device *dev,
 
 	return ret;
 
-err_free_table:
-	sg_free_table(buf->sgt);
 err_free_sgt:
 	kfree(buf->sgt);
 	buf->sgt = NULL;

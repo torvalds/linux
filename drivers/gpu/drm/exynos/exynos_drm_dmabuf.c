@@ -87,8 +87,7 @@ static struct sg_table *
 		goto err_unlock;
 	}
 
-	DRM_DEBUG_PRIME("buffer size = 0x%lx page_size = 0x%lx\n",
-			buf->size, buf->page_size);
+	DRM_DEBUG_PRIME("buffer size = 0x%lx\n", buf->size);
 
 err_unlock:
 	mutex_unlock(&dev->struct_mutex);
