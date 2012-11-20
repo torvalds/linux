@@ -358,6 +358,10 @@ static inline void regulator_set_drvdata(struct regulator *regulator,
 {
 }
 
+static inline int regulator_count_voltages(struct regulator *regulator)
+{
+	return 0;
+}
 #endif
 
 static inline int regulator_set_voltage_tol(struct regulator *regulator,
