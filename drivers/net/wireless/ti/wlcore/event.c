@@ -250,6 +250,13 @@ static int wl1271_event_process(struct wl1271 *wl)
 		disconnect_sta = true;
 	}
 
+	if (vector & REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT,
+			     "REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID");
+		if (wl->roc_vif)
+			ieee80211_ready_on_channel(wl->hw);
+	}
+
 	if (disconnect_sta) {
 		u32 num_packets = wl->conf.tx.max_tx_retries;
 		struct ieee80211_sta *sta;

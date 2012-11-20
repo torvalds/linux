@@ -286,6 +286,9 @@ struct wl1271 {
 	/* Connection loss work */
 	struct delayed_work connection_loss_work;
 
+	struct ieee80211_vif *roc_vif;
+	struct delayed_work roc_complete_work;
+
 	bool sched_scanning;
 
 	/* The current band */
