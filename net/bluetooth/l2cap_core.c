@@ -4286,6 +4286,7 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 
 		mgr->bredr_chan = chan;
 		chan->hs_hcon = hs_hcon;
+		chan->fcs = L2CAP_FCS_NONE;
 		conn->mtu = hdev->block_mtu;
 	}
 
