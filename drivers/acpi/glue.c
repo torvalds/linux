@@ -130,46 +130,59 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 {
 	struct acpi_device *acpi_dev;
 	acpi_status status;
-	struct acpi_device_physical_node *physical_node;
+	struct acpi_device_physical_node *physical_node, *pn;
 	char physical_node_name[sizeof(PHYSICAL_NODE_STRING) + 2];
 	int retval = -EINVAL;
 
 	if (dev->acpi_handle) {
-		dev_warn(dev, "Drivers changed 'acpi_handle'\n");
-		return -EINVAL;
+		if (handle) {
+			dev_warn(dev, "ACPI handle is already set\n");
+			return -EINVAL;
+		} else {
+			handle = dev->acpi_handle;
+		}
 	}
+	if (!handle)
+		return -EINVAL;
 
 	get_device(dev);
 	status = acpi_bus_get_device(handle, &acpi_dev);
 	if (ACPI_FAILURE(status))
 		goto err;
 
-	physical_node = kzalloc(sizeof(struct acpi_device_physical_node),
-		GFP_KERNEL);
+	physical_node = kzalloc(sizeof(*physical_node), GFP_KERNEL);
 	if (!physical_node) {
 		retval = -ENOMEM;
 		goto err;
 	}
 
 	mutex_lock(&acpi_dev->physical_node_lock);
+
+	/* Sanity check. */
+	list_for_each_entry(pn, &acpi_dev->physical_node_list, node)
+		if (pn->dev == dev) {
+			dev_warn(dev, "Already associated with ACPI node\n");
+			goto err_free;
+		}
+
 	/* allocate physical node id according to physical_node_id_bitmap */
 	physical_node->node_id =
 		find_first_zero_bit(acpi_dev->physical_node_id_bitmap,
 		ACPI_MAX_PHYSICAL_NODE);
 	if (physical_node->node_id >= ACPI_MAX_PHYSICAL_NODE) {
 		retval = -ENOSPC;
-		mutex_unlock(&acpi_dev->physical_node_lock);
-		kfree(physical_node);
-		goto err;
+		goto err_free;
 	}
 
 	set_bit(physical_node->node_id, acpi_dev->physical_node_id_bitmap);
 	physical_node->dev = dev;
 	list_add_tail(&physical_node->node, &acpi_dev->physical_node_list);
 	acpi_dev->physical_node_count++;
+
 	mutex_unlock(&acpi_dev->physical_node_lock);
 
-	dev->acpi_handle = handle;
+	if (!dev->acpi_handle)
+		dev->acpi_handle = handle;
 
 	if (!physical_node->node_id)
 		strcpy(physical_node_name, PHYSICAL_NODE_STRING);
@@ -187,8 +200,14 @@ static int acpi_bind_one(struct device *dev, acpi_handle handle)
 	return 0;
 
  err:
+	dev->acpi_handle = NULL;
 	put_device(dev);
 	return retval;
+
+ err_free:
+	mutex_unlock(&acpi_dev->physical_node_lock);
+	kfree(physical_node);
+	goto err;
 }
 
 static int acpi_unbind_one(struct device *dev)
@@ -247,6 +266,10 @@ static int acpi_platform_notify(struct device *dev)
 	acpi_handle handle;
 	int ret = -EINVAL;
 
+	ret = acpi_bind_one(dev, NULL);
+	if (!ret)
+		goto out;
+
 	if (!dev->bus || !dev->parent) {
 		/* bridge devices genernally haven't bus or parent */
 		ret = acpi_find_bridge_device(dev, &handle);
@@ -260,10 +283,11 @@ static int acpi_platform_notify(struct device *dev)
 	}
 	if ((ret = type->find_device(dev, &handle)) != 0)
 		DBG("Can't get handler for %s\n", dev_name(dev));
-      end:
+ end:
 	if (!ret)
 		acpi_bind_one(dev, handle);
 
+ out:
 #if ACPI_GLUE_DEBUG
 	if (!ret) {
 		struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
