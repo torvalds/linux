@@ -415,11 +415,11 @@ struct conf_rx_settings {
 #define CONF_TX_RATE_MASK_BASIC_P2P    CONF_HW_BIT_RATE_6MBPS
 
 /*
- * Rates supported for data packets when operating as AP. Note the absence
+ * Rates supported for data packets when operating as STA/AP. Note the absence
  * of the 22Mbps rate. There is a FW limitation on 12 rates so we must drop
  * one. The rate dropped is not mandatory under any operating mode.
  */
-#define CONF_TX_AP_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS | \
+#define CONF_TX_ENABLED_RATES       (CONF_HW_BIT_RATE_1MBPS |    \
 	CONF_HW_BIT_RATE_2MBPS | CONF_HW_BIT_RATE_5_5MBPS |      \
 	CONF_HW_BIT_RATE_6MBPS | CONF_HW_BIT_RATE_9MBPS |        \
 	CONF_HW_BIT_RATE_11MBPS | CONF_HW_BIT_RATE_12MBPS |      \

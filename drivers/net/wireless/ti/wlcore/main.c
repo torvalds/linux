@@ -2035,15 +2035,15 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 		for (i = 0; i < CONF_TX_MAX_AC_COUNT; i++)
 			wl12xx_allocate_rate_policy(wl,
 						&wlvif->ap.ucast_rate_idx[i]);
-		wlvif->basic_rate_set = CONF_TX_AP_ENABLED_RATES;
+		wlvif->basic_rate_set = CONF_TX_ENABLED_RATES;
 		/*
 		 * TODO: check if basic_rate shouldn't be
 		 * wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
 		 * instead (the same thing for STA above).
 		*/
-		wlvif->basic_rate = CONF_TX_AP_ENABLED_RATES;
+		wlvif->basic_rate = CONF_TX_ENABLED_RATES;
 		/* TODO: this seems to be used only for STA, check it */
-		wlvif->rate_set = CONF_TX_AP_ENABLED_RATES;
+		wlvif->rate_set = CONF_TX_ENABLED_RATES;
 	}
 
 	wlvif->bitrate_masks[IEEE80211_BAND_2GHZ] = wl->conf.tx.basic_rate;

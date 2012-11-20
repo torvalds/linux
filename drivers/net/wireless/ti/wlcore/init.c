@@ -463,7 +463,7 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if ((wlvif->basic_rate_set & CONF_TX_OFDM_RATES))
 		supported_rates = CONF_TX_OFDM_RATES;
 	else
-		supported_rates = CONF_TX_AP_ENABLED_RATES;
+		supported_rates = CONF_TX_ENABLED_RATES;
 
 	/* unconditionally enable HT rates */
 	supported_rates |= CONF_TX_MCS_RATES;
