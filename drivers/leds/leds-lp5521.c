@@ -152,7 +152,7 @@ static int lp5521_read(struct i2c_client *client, u8 reg, u8 *buf)
 
 	ret = i2c_smbus_read_byte_data(client, reg);
 	if (ret < 0)
-		return -EIO;
+		return ret;
 
 	*buf = ret;
 	return 0;
