@@ -29,6 +29,8 @@
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/hash.h>
+#include <net/arp.h>
+#include <net/ndisc.h>
 #include <net/ip.h>
 #include <net/icmp.h>
 #include <net/udp.h>
@@ -110,7 +112,7 @@ struct vxlan_dev {
 	__u16		  port_max;
 	__u8		  tos;		/* TOS override */
 	__u8		  ttl;
-	bool		  learn;
+	u32		  flags;	/* VXLAN_F_* below */
 
 	unsigned long	  age_interval;
 	struct timer_list age_timer;
@@ -120,6 +122,12 @@ struct vxlan_dev {
 
 	struct hlist_head fdb_head[FDB_HASH_SIZE];
 };
+
+#define VXLAN_F_LEARN	0x01
+#define VXLAN_F_PROXY	0x02
+#define VXLAN_F_RSC	0x04
+#define VXLAN_F_L2MISS	0x08
+#define VXLAN_F_L3MISS	0x10
 
 /* salt for hash table */
 static u32 vxlan_salt __read_mostly;
@@ -154,6 +162,7 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 	struct nda_cacheinfo ci;
 	struct nlmsghdr *nlh;
 	struct ndmsg *ndm;
+	bool send_ip, send_eth;
 
 	nlh = nlmsg_put(skb, portid, seq, type, sizeof(*ndm), flags);
 	if (nlh == NULL)
@@ -161,16 +170,24 @@ static int vxlan_fdb_info(struct sk_buff *skb, struct vxlan_dev *vxlan,
 
 	ndm = nlmsg_data(nlh);
 	memset(ndm, 0, sizeof(*ndm));
-	ndm->ndm_family	= AF_BRIDGE;
+
+	send_eth = send_ip = true;
+
+	if (type == RTM_GETNEIGH) {
+		ndm->ndm_family	= AF_INET;
+		send_ip = fdb->remote_ip != 0;
+		send_eth = !is_zero_ether_addr(fdb->eth_addr);
+	} else
+		ndm->ndm_family	= AF_BRIDGE;
 	ndm->ndm_state = fdb->state;
 	ndm->ndm_ifindex = vxlan->dev->ifindex;
 	ndm->ndm_flags = NTF_SELF;
 	ndm->ndm_type = NDA_DST;
 
-	if (nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
+	if (send_eth && nla_put(skb, NDA_LLADDR, ETH_ALEN, &fdb->eth_addr))
 		goto nla_put_failure;
 
-	if (nla_put_be32(skb, NDA_DST, fdb->remote_ip))
+	if (send_ip && nla_put_be32(skb, NDA_DST, fdb->remote_ip))
 		goto nla_put_failure;
 
 	ci.ndm_used	 = jiffies_to_clock_t(now - fdb->used);
@@ -220,6 +237,29 @@ static void vxlan_fdb_notify(struct vxlan_dev *vxlan,
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
+}
+
+static void vxlan_ip_miss(struct net_device *dev, __be32 ipa)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb f;
+
+	memset(&f, 0, sizeof f);
+	f.state = NUD_STALE;
+	f.remote_ip = ipa; /* goes to NDA_DST */
+
+	vxlan_fdb_notify(vxlan, &f, RTM_GETNEIGH);
+}
+
+static void vxlan_fdb_miss(struct vxlan_dev *vxlan, const u8 eth_addr[ETH_ALEN])
+{
+	struct vxlan_fdb	f;
+
+	memset(&f, 0, sizeof f);
+	f.state = NUD_STALE;
+	memcpy(f.eth_addr, eth_addr, ETH_ALEN);
+
+	vxlan_fdb_notify(vxlan, &f, RTM_GETNEIGH);
 }
 
 /* Hash Ethernet address */
@@ -551,6 +591,8 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 		goto drop;
 	}
 
+	skb_reset_mac_header(skb);
+
 	/* Re-examine inner Ethernet packet */
 	oip = ip_hdr(skb);
 	skb->protocol = eth_type_trans(skb, vxlan->dev);
@@ -560,7 +602,7 @@ static int vxlan_udp_encap_recv(struct sock *sk, struct sk_buff *skb)
 			       vxlan->dev->dev_addr) == 0)
 		goto drop;
 
-	if (vxlan->learn)
+	if (vxlan->flags & VXLAN_F_LEARN)
 		vxlan_snoop(skb->dev, oip->saddr, eth_hdr(skb)->h_source);
 
 	__skb_tunnel_rx(skb, vxlan->dev);
@@ -599,6 +641,117 @@ drop:
 	return 0;
 }
 
+static int arp_reduce(struct net_device *dev, struct sk_buff *skb)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct arphdr *parp;
+	u8 *arpptr, *sha;
+	__be32 sip, tip;
+	struct neighbour *n;
+
+	if (dev->flags & IFF_NOARP)
+		goto out;
+
+	if (!pskb_may_pull(skb, arp_hdr_len(dev))) {
+		dev->stats.tx_dropped++;
+		goto out;
+	}
+	parp = arp_hdr(skb);
+
+	if ((parp->ar_hrd != htons(ARPHRD_ETHER) &&
+	     parp->ar_hrd != htons(ARPHRD_IEEE802)) ||
+	    parp->ar_pro != htons(ETH_P_IP) ||
+	    parp->ar_op != htons(ARPOP_REQUEST) ||
+	    parp->ar_hln != dev->addr_len ||
+	    parp->ar_pln != 4)
+		goto out;
+	arpptr = (u8 *)parp + sizeof(struct arphdr);
+	sha = arpptr;
+	arpptr += dev->addr_len;	/* sha */
+	memcpy(&sip, arpptr, sizeof(sip));
+	arpptr += sizeof(sip);
+	arpptr += dev->addr_len;	/* tha */
+	memcpy(&tip, arpptr, sizeof(tip));
+
+	if (ipv4_is_loopback(tip) ||
+	    ipv4_is_multicast(tip))
+		goto out;
+
+	n = neigh_lookup(&arp_tbl, &tip, dev);
+
+	if (n) {
+		struct vxlan_dev *vxlan = netdev_priv(dev);
+		struct vxlan_fdb *f;
+		struct sk_buff	*reply;
+
+		if (!(n->nud_state & NUD_CONNECTED)) {
+			neigh_release(n);
+			goto out;
+		}
+
+		f = vxlan_find_mac(vxlan, n->ha);
+		if (f && f->remote_ip == 0) {
+			/* bridge-local neighbor */
+			neigh_release(n);
+			goto out;
+		}
+
+		reply = arp_create(ARPOP_REPLY, ETH_P_ARP, sip, dev, tip, sha,
+				n->ha, sha);
+
+		neigh_release(n);
+
+		skb_reset_mac_header(reply);
+		__skb_pull(reply, skb_network_offset(reply));
+		reply->ip_summed = CHECKSUM_UNNECESSARY;
+		reply->pkt_type = PACKET_HOST;
+
+		if (netif_rx_ni(reply) == NET_RX_DROP)
+			dev->stats.rx_dropped++;
+	} else if (vxlan->flags & VXLAN_F_L3MISS)
+		vxlan_ip_miss(dev, tip);
+out:
+	consume_skb(skb);
+	return NETDEV_TX_OK;
+}
+
+static bool route_shortcircuit(struct net_device *dev, struct sk_buff *skb)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct neighbour *n;
+	struct iphdr *pip;
+
+	if (is_multicast_ether_addr(eth_hdr(skb)->h_dest))
+		return false;
+
+	n = NULL;
+	switch (ntohs(eth_hdr(skb)->h_proto)) {
+	case ETH_P_IP:
+		if (!pskb_may_pull(skb, sizeof(struct iphdr)))
+			return false;
+		pip = ip_hdr(skb);
+		n = neigh_lookup(&arp_tbl, &pip->daddr, dev);
+		break;
+	default:
+		return false;
+	}
+
+	if (n) {
+		bool diff;
+
+		diff = compare_ether_addr(eth_hdr(skb)->h_dest, n->ha) != 0;
+		if (diff) {
+			memcpy(eth_hdr(skb)->h_source, eth_hdr(skb)->h_dest,
+				dev->addr_len);
+			memcpy(eth_hdr(skb)->h_dest, n->ha, dev->addr_len);
+		}
+		neigh_release(n);
+		return diff;
+	} else if (vxlan->flags & VXLAN_F_L3MISS)
+		vxlan_ip_miss(dev, pip->daddr);
+	return false;
+}
+
 /* Extract dsfield from inner protocol */
 static inline u8 vxlan_get_dsfield(const struct iphdr *iph,
 				   const struct sk_buff *skb)
@@ -619,22 +772,6 @@ static inline u8 vxlan_ecn_encap(u8 tos,
 	u8 inner = vxlan_get_dsfield(iph, skb);
 
 	return INET_ECN_encapsulate(tos, inner);
-}
-
-static __be32 vxlan_find_dst(struct vxlan_dev *vxlan, struct sk_buff *skb)
-{
-	const struct ethhdr *eth = (struct ethhdr *) skb->data;
-	const struct vxlan_fdb *f;
-
-	if (is_multicast_ether_addr(eth->h_dest))
-		return vxlan->gaddr;
-
-	f = vxlan_find_mac(vxlan, eth->h_dest);
-	if (f)
-		return f->remote_ip;
-	else
-		return vxlan->gaddr;
-
 }
 
 static void vxlan_sock_free(struct sk_buff *skb)
@@ -683,6 +820,7 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct vxlan_dev *vxlan = netdev_priv(dev);
 	struct rtable *rt;
 	const struct iphdr *old_iph;
+	struct ethhdr *eth;
 	struct iphdr *iph;
 	struct vxlanhdr *vxh;
 	struct udphdr *uh;
@@ -693,10 +831,50 @@ static netdev_tx_t vxlan_xmit(struct sk_buff *skb, struct net_device *dev)
 	__be16 df = 0;
 	__u8 tos, ttl;
 	int err;
+	bool did_rsc = false;
+	const struct vxlan_fdb *f;
 
-	dst = vxlan_find_dst(vxlan, skb);
-	if (!dst)
+	skb_reset_mac_header(skb);
+	eth = eth_hdr(skb);
+
+	if ((vxlan->flags & VXLAN_F_PROXY) && ntohs(eth->h_proto) == ETH_P_ARP)
+		return arp_reduce(dev, skb);
+	else if ((vxlan->flags&VXLAN_F_RSC) && ntohs(eth->h_proto) == ETH_P_IP)
+		did_rsc = route_shortcircuit(dev, skb);
+
+	f = vxlan_find_mac(vxlan, eth->h_dest);
+	if (f == NULL) {
+		did_rsc = false;
+		dst = vxlan->gaddr;
+		if (!dst && (vxlan->flags & VXLAN_F_L2MISS) &&
+		    !is_multicast_ether_addr(eth->h_dest))
+			vxlan_fdb_miss(vxlan, eth->h_dest);
+	} else
+		dst = f->remote_ip;
+
+	if (!dst) {
+		if (did_rsc) {
+			__skb_pull(skb, skb_network_offset(skb));
+			skb->ip_summed = CHECKSUM_NONE;
+			skb->pkt_type = PACKET_HOST;
+
+			/* short-circuited back to local bridge */
+			if (netif_rx(skb) == NET_RX_SUCCESS) {
+				struct vxlan_stats *stats =
+						this_cpu_ptr(vxlan->stats);
+
+				u64_stats_update_begin(&stats->syncp);
+				stats->tx_packets++;
+				stats->tx_bytes += pkt_len;
+				u64_stats_update_end(&stats->syncp);
+			} else {
+				dev->stats.tx_errors++;
+				dev->stats.tx_aborted_errors++;
+			}
+			return NETDEV_TX_OK;
+		}
 		goto drop;
+	}
 
 	/* Need space for new headers (invalidates iph ptr) */
 	if (skb_cow_head(skb, VXLAN_HEADROOM))
@@ -1019,6 +1197,10 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_AGEING]	= { .type = NLA_U32 },
 	[IFLA_VXLAN_LIMIT]	= { .type = NLA_U32 },
 	[IFLA_VXLAN_PORT_RANGE] = { .len  = sizeof(struct ifla_vxlan_port_range) },
+	[IFLA_VXLAN_PROXY]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_RSC]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_L2MISS]	= { .type = NLA_U8 },
+	[IFLA_VXLAN_L3MISS]	= { .type = NLA_U8 },
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[])
@@ -1114,12 +1296,24 @@ static int vxlan_newlink(struct net *net, struct net_device *dev,
 		vxlan->ttl = nla_get_u8(data[IFLA_VXLAN_TTL]);
 
 	if (!data[IFLA_VXLAN_LEARNING] || nla_get_u8(data[IFLA_VXLAN_LEARNING]))
-		vxlan->learn = true;
+		vxlan->flags |= VXLAN_F_LEARN;
 
 	if (data[IFLA_VXLAN_AGEING])
 		vxlan->age_interval = nla_get_u32(data[IFLA_VXLAN_AGEING]);
 	else
 		vxlan->age_interval = FDB_AGE_DEFAULT;
+
+	if (data[IFLA_VXLAN_PROXY] && nla_get_u8(data[IFLA_VXLAN_PROXY]))
+		vxlan->flags |= VXLAN_F_PROXY;
+
+	if (data[IFLA_VXLAN_RSC] && nla_get_u8(data[IFLA_VXLAN_RSC]))
+		vxlan->flags |= VXLAN_F_RSC;
+
+	if (data[IFLA_VXLAN_L2MISS] && nla_get_u8(data[IFLA_VXLAN_L2MISS]))
+		vxlan->flags |= VXLAN_F_L2MISS;
+
+	if (data[IFLA_VXLAN_L3MISS] && nla_get_u8(data[IFLA_VXLAN_L3MISS]))
+		vxlan->flags |= VXLAN_F_L3MISS;
 
 	if (data[IFLA_VXLAN_LIMIT])
 		vxlan->addrmax = nla_get_u32(data[IFLA_VXLAN_LIMIT]);
@@ -1157,6 +1351,10 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_TTL */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_TOS */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_LEARNING */
+		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_PROXY */
+		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_RSC */
+		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_L2MISS */
+		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_L3MISS */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_AGEING */
 		nla_total_size(sizeof(__u32)) +	/* IFLA_VXLAN_LIMIT */
 		nla_total_size(sizeof(struct ifla_vxlan_port_range)) +
@@ -1185,7 +1383,15 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 
 	if (nla_put_u8(skb, IFLA_VXLAN_TTL, vxlan->ttl) ||
 	    nla_put_u8(skb, IFLA_VXLAN_TOS, vxlan->tos) ||
-	    nla_put_u8(skb, IFLA_VXLAN_LEARNING, vxlan->learn) ||
+	    nla_put_u8(skb, IFLA_VXLAN_LEARNING,
+			!!(vxlan->flags & VXLAN_F_LEARN)) ||
+	    nla_put_u8(skb, IFLA_VXLAN_PROXY,
+			!!(vxlan->flags & VXLAN_F_PROXY)) ||
+	    nla_put_u8(skb, IFLA_VXLAN_RSC, !!(vxlan->flags & VXLAN_F_RSC)) ||
+	    nla_put_u8(skb, IFLA_VXLAN_L2MISS,
+			!!(vxlan->flags & VXLAN_F_L2MISS)) ||
+	    nla_put_u8(skb, IFLA_VXLAN_L3MISS,
+			!!(vxlan->flags & VXLAN_F_L3MISS)) ||
 	    nla_put_u32(skb, IFLA_VXLAN_AGEING, vxlan->age_interval) ||
 	    nla_put_u32(skb, IFLA_VXLAN_LIMIT, vxlan->addrmax))
 		goto nla_put_failure;
