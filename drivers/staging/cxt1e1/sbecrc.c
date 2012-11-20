@@ -44,7 +44,7 @@ static u_int32_t CRCTable[CRC_TABLE_ENTRIES];
 ***************************************************************************/
 
 static void
-genCrcTable (u_int32_t *CRCTable)
+genCrcTable(u_int32_t *CRCTable)
 {
 	int         ii, jj;
 	u_int32_t      crc;
@@ -83,7 +83,7 @@ genCrcTable (u_int32_t *CRCTable)
 */
 
 void
-sbeCrc (u_int8_t *buffer,          /* data buffer to crc */
+sbeCrc(u_int8_t *buffer,          /* data buffer to crc */
 	u_int32_t count,           /* length of block in bytes */
 	u_int32_t initialCrc,      /* starting CRC */
 	u_int32_t *result)
@@ -99,15 +99,15 @@ sbeCrc (u_int8_t *buffer,          /* data buffer to crc */
 	if (!crcTableInit) {
 #ifdef STATIC_CRC_TABLE
 		tbl = &CRCTable;
-		genCrcTable (tbl);
+		genCrcTable(tbl);
 #else
-		tbl = (u_int32_t *) OS_kmalloc (CRC_TABLE_ENTRIES * sizeof (u_int32_t));
+		tbl = (u_int32_t *) OS_kmalloc(CRC_TABLE_ENTRIES * sizeof(u_int32_t));
 		if (tbl == 0) {
 			*result = 0;   /* dummy up return value due to malloc
 					* failure */
 			return;
 		}
-		genCrcTable (tbl);
+		genCrcTable(tbl);
 #endif
 	}
 	/* inverting bits makes ZMODEM & PKZIP compatible */
@@ -125,7 +125,7 @@ sbeCrc (u_int8_t *buffer,          /* data buffer to crc */
 
 #ifndef STATIC_CRC_TABLE
 	crcTableInit = 0;
-	OS_kfree (tbl);
+	OS_kfree(tbl);
 #endif
 }
 
