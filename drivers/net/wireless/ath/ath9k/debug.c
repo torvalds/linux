@@ -837,6 +837,9 @@ static ssize_t read_file_reset(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"%17s: %2d\n", "PLL RX Hang",
 			sc->debug.stats.reset[RESET_TYPE_PLL_HANG]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%17s: %2d\n", "MCI Reset",
+			sc->debug.stats.reset[RESET_TYPE_MCI]);
 
 	if (len > sizeof(buf))
 		len = sizeof(buf);

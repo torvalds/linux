@@ -207,23 +207,6 @@ skip_tuning:
 	ath9k_btcoex_timer_resume(sc);
 }
 
-static void ath_mci_wait_btcal_done(struct ath_softc *sc)
-{
-	struct ath_hw *ah = sc->sc_ah;
-
-	/* Stop tx & rx */
-	ieee80211_stop_queues(sc->hw);
-	ath_stoprecv(sc);
-	ath_drain_all_txq(sc, false);
-
-	/* Wait for cal done */
-	ar9003_mci_start_reset(ah, ah->curchan);
-
-	/* Resume tx & rx */
-	ath_startrecv(sc);
-	ieee80211_wake_queues(sc->hw);
-}
-
 static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 {
 	struct ath_hw *ah = sc->sc_ah;
@@ -235,7 +218,7 @@ static void ath_mci_cal_msg(struct ath_softc *sc, u8 opcode, u8 *rx_payload)
 	case MCI_GPM_BT_CAL_REQ:
 		if (mci_hw->bt_state == MCI_BT_AWAKE) {
 			mci_hw->bt_state = MCI_BT_CAL_START;
-			ath_mci_wait_btcal_done(sc);
+			ath9k_queue_reset(sc, RESET_TYPE_MCI);
 		}
 		ath_dbg(common, MCI, "MCI State : %d\n", mci_hw->bt_state);
 		break;
@@ -578,6 +561,8 @@ void ath_mci_intr(struct ath_softc *sc)
 		mci_int_rxmsg &= ~AR_MCI_INTERRUPT_RX_MSG_GPM;
 
 		while (more_data == MCI_GPM_MORE) {
+			if (test_bit(SC_OP_HW_RESET, &sc->sc_flags))
+				return;
 
 			pgpm = mci->gpm_buf.bf_addr;
 			offset = ar9003_mci_get_next_gpm_offset(ah, false,
