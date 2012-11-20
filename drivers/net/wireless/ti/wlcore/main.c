@@ -3929,19 +3929,19 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		       BSS_CHANGED_ASSOC)) {
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
-		if (!sta)
-			goto sta_not_found;
+		if (sta) {
+			u8 *rx_mask = sta->ht_cap.mcs.rx_mask;
 
-		/* save the supp_rates of the ap */
-		sta_rate_set = sta->supp_rates[wlvif->band];
-		if (sta->ht_cap.ht_supported)
-			sta_rate_set |=
-			  (sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
-			  (sta->ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
-		sta_ht_cap = sta->ht_cap;
-		sta_exists = true;
+			/* save the supp_rates of the ap */
+			sta_rate_set = sta->supp_rates[wlvif->band];
+			if (sta->ht_cap.ht_supported)
+				sta_rate_set |=
+					(rx_mask[0] << HW_HT_RATES_OFFSET) |
+					(rx_mask[1] << HW_MIMO_RATES_OFFSET);
+			sta_ht_cap = sta->ht_cap;
+			sta_exists = true;
+		}
 
-sta_not_found:
 		rcu_read_unlock();
 	}
 
