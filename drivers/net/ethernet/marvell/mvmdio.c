@@ -27,8 +27,7 @@
 #include <linux/of_address.h>
 #include <linux/of_mdio.h>
 #include <linux/platform_device.h>
-
-#include <asm/delay.h>
+#include <linux/delay.h>
 
 #define MVMDIO_SMI_DATA_SHIFT              0
 #define MVMDIO_SMI_PHY_ADDR_SHIFT          16
@@ -43,8 +42,7 @@ struct orion_mdio_dev {
 	void __iomem *smireg;
 };
 
-/*
- * Wait for the SMI unit to be ready for another operation
+/* Wait for the SMI unit to be ready for another operation
  */
 static int orion_mdio_wait_ready(struct mii_bus *bus)
 {
