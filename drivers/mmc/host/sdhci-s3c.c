@@ -456,12 +456,12 @@ static int __devinit sdhci_s3c_parse_dt(struct device *dev,
 		return -ENOMEM;
 
 	/* get the card detection method */
-	if (of_get_property(node, "broken-cd", 0)) {
+	if (of_get_property(node, "broken-cd", NULL)) {
 		pdata->cd_type = S3C_SDHCI_CD_NONE;
 		goto setup_bus;
 	}
 
-	if (of_get_property(node, "non-removable", 0)) {
+	if (of_get_property(node, "non-removable", NULL)) {
 		pdata->cd_type = S3C_SDHCI_CD_PERMANENT;
 		goto setup_bus;
 	}
