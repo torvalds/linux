@@ -1011,51 +1011,11 @@ static struct pinmux_ops u300_pmx_ops = {
 	.disable = u300_pmx_disable,
 };
 
-/*
- * GPIO ranges handled by the application-side COH901XXX GPIO controller
- * Very many pins can be converted into GPIO pins, but we only list those
- * that are useful in practice to cut down on tables.
- */
-#define U300_GPIO_RANGE(a, b, c) { .name = "COH901XXX", .id = a, .base= a, \
-			.pin_base = b, .npins = c }
-
-static struct pinctrl_gpio_range u300_gpio_ranges[] = {
-	U300_GPIO_RANGE(10, 426, 1),
-	U300_GPIO_RANGE(11, 180, 1),
-	U300_GPIO_RANGE(12, 165, 1), /* MS/MMC card insertion */
-	U300_GPIO_RANGE(13, 179, 1),
-	U300_GPIO_RANGE(14, 178, 1),
-	U300_GPIO_RANGE(16, 194, 1),
-	U300_GPIO_RANGE(17, 193, 1),
-	U300_GPIO_RANGE(18, 192, 1),
-	U300_GPIO_RANGE(19, 191, 1),
-	U300_GPIO_RANGE(20, 186, 1),
-	U300_GPIO_RANGE(21, 185, 1),
-	U300_GPIO_RANGE(22, 184, 1),
-	U300_GPIO_RANGE(23, 183, 1),
-	U300_GPIO_RANGE(24, 182, 1),
-	U300_GPIO_RANGE(25, 181, 1),
-};
-
-static struct pinctrl_gpio_range *u300_match_gpio_range(unsigned pin)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(u300_gpio_ranges); i++) {
-		struct pinctrl_gpio_range *range;
-
-		range = &u300_gpio_ranges[i];
-		if (pin >= range->pin_base &&
-		    pin <= (range->pin_base + range->npins - 1))
-			return range;
-	}
-	return NULL;
-}
-
 static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 			       unsigned long *config)
 {
-	struct pinctrl_gpio_range *range = u300_match_gpio_range(pin);
+	struct pinctrl_gpio_range *range =
+		pinctrl_find_gpio_range_from_pin(pctldev, pin);
 
 	/* We get config for those pins we CAN get it for and that's it */
 	if (!range)
@@ -1069,7 +1029,8 @@ static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 static int u300_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 			       unsigned long config)
 {
-	struct pinctrl_gpio_range *range = u300_match_gpio_range(pin);
+	struct pinctrl_gpio_range *range =
+		pinctrl_find_gpio_range_from_pin(pctldev, pin);
 	int ret;
 
 	if (!range)
@@ -1105,8 +1066,6 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 {
 	struct u300_pmx *upmx;
 	struct resource *res;
-	struct gpio_chip *gpio_chip = dev_get_platdata(&pdev->dev);
-	int i;
 
 	/* Create state holders etc for this driver */
 	upmx = devm_kzalloc(&pdev->dev, sizeof(*upmx), GFP_KERNEL);
@@ -1127,12 +1086,6 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	if (!upmx->pctl) {
 		dev_err(&pdev->dev, "could not register U300 pinmux driver\n");
 		return -EINVAL;
-	}
-
-	/* We will handle a range of GPIO pins */
-	for (i = 0; i < ARRAY_SIZE(u300_gpio_ranges); i++) {
-		u300_gpio_ranges[i].gc = gpio_chip;
-		pinctrl_add_gpio_range(upmx->pctl, &u300_gpio_ranges[i]);
 	}
 
 	platform_set_drvdata(pdev, upmx);
