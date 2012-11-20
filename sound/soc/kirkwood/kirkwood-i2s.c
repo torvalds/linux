@@ -406,57 +406,47 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	struct kirkwood_dma_data *priv;
 	int err;
 
-	priv = kzalloc(sizeof(struct kirkwood_dma_data), GFP_KERNEL);
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&pdev->dev, "allocation failed\n");
-		err = -ENOMEM;
-		goto error;
+		return -ENOMEM;
 	}
 	dev_set_drvdata(&pdev->dev, priv);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "platform_get_resource failed\n");
-		err = -ENXIO;
-		goto err_alloc;
+		return -ENXIO;
 	}
 
-	priv->mem = request_mem_region(mem->start, SZ_16K, DRV_NAME);
-	if (!priv->mem) {
-		dev_err(&pdev->dev, "request_mem_region failed\n");
-		err = -EBUSY;
-		goto err_alloc;
-	}
-
-	priv->io = ioremap(priv->mem->start, SZ_16K);
+	priv->io = devm_request_and_ioremap(&pdev->dev, mem);
 	if (!priv->io) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		err = -ENOMEM;
-		goto err_iomem;
+		dev_err(&pdev->dev, "devm_request_and_ioremap failed\n");
+		return -ENOMEM;
 	}
 
 	priv->irq = platform_get_irq(pdev, 0);
 	if (priv->irq <= 0) {
 		dev_err(&pdev->dev, "platform_get_irq failed\n");
-		err = -ENXIO;
-		goto err_ioremap;
+		return -ENXIO;
 	}
 
 	if (!data) {
 		dev_err(&pdev->dev, "no platform data ?!\n");
-		err = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
 
 	priv->burst = data->burst;
 
-	priv->clk = clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		dev_err(&pdev->dev, "no clock\n");
-		err = PTR_ERR(priv->clk);
-		goto err_ioremap;
+		return PTR_ERR(priv->clk);
 	}
-	clk_prepare_enable(priv->clk);
+
+	err = clk_prepare_enable(priv->clk);
+	if (err < 0)
+		return err;
 
 	err = snd_soc_register_dai(&pdev->dev, &kirkwood_i2s_dai);
 	if (!err)
@@ -464,15 +454,7 @@ static __devinit int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	dev_err(&pdev->dev, "snd_soc_register_dai failed\n");
 
 	clk_disable_unprepare(priv->clk);
-	clk_put(priv->clk);
 
-err_ioremap:
-	iounmap(priv->io);
-err_iomem:
-	release_mem_region(priv->mem->start, SZ_16K);
-err_alloc:
-	kfree(priv);
-error:
 	return err;
 }
 
@@ -483,11 +465,6 @@ static __devexit int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 	snd_soc_unregister_dai(&pdev->dev);
 
 	clk_disable_unprepare(priv->clk);
-	clk_put(priv->clk);
-
-	iounmap(priv->io);
-	release_mem_region(priv->mem->start, SZ_16K);
-	kfree(priv);
 
 	return 0;
 }

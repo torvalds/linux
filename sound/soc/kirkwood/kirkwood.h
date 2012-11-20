@@ -119,7 +119,6 @@
 #define KIRKWOOD_SND_MAX_PERIOD_BYTES		0x4000
 
 struct kirkwood_dma_data {
-	struct resource *mem;
 	void __iomem *io;
 	int irq;
 	int burst;
