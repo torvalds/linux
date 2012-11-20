@@ -379,7 +379,7 @@ static void __init davinci_timer_init(void)
 
 	timer_clk = clk_get(NULL, "timer0");
 	BUG_ON(IS_ERR(timer_clk));
-	clk_enable(timer_clk);
+	clk_prepare_enable(timer_clk);
 
 	/* init timer hw */
 	timer_init();
@@ -429,7 +429,7 @@ void davinci_watchdog_reset(struct platform_device *pdev)
 	wd_clk = clk_get(&pdev->dev, NULL);
 	if (WARN_ON(IS_ERR(wd_clk)))
 		return;
-	clk_enable(wd_clk);
+	clk_prepare_enable(wd_clk);
 
 	/* disable, internal clock source */
 	__raw_writel(0, base + TCR);
