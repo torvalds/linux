@@ -2682,49 +2682,7 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			     struct ieee80211_conf *conf, u32 changed)
 {
 	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
-	int channel, ret;
-
-	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
-
-	/* if the channel changes while joined, join again */
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL &&
-	    ((wlvif->band != conf->channel->band) ||
-	     (wlvif->channel != channel) ||
-	     (wlvif->channel_type != conf->channel_type))) {
-		/* send all pending packets */
-		ret = wlcore_tx_work_locked(wl);
-		if (ret < 0)
-			return ret;
-
-		wlvif->band = conf->channel->band;
-		wlvif->channel = channel;
-		wlvif->channel_type = conf->channel_type;
-
-		if (is_ap) {
-			wl1271_set_band_rate(wl, wlvif);
-			ret = wl1271_init_ap_rates(wl, wlvif);
-			if (ret < 0)
-				wl1271_error("AP rate policy change failed %d",
-					     ret);
-		} else {
-			/*
-			 * FIXME: the mac80211 should really provide a fixed
-			 * rate to use here. for now, just use the smallest
-			 * possible rate for the band as a fixed rate for
-			 * association frames and other control messages.
-			 */
-			if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
-				wl1271_set_band_rate(wl, wlvif);
-
-			wlvif->basic_rate =
-				wl1271_tx_min_rate_get(wl,
-						       wlvif->basic_rate_set);
-			ret = wl1271_acx_sta_rate_policies(wl, wlvif);
-			if (ret < 0)
-				wl1271_warning("rate policy for channel "
-					       "failed %d", ret);
-		}
-	}
+	int ret;
 
 	if ((changed & IEEE80211_CONF_CHANGE_PS) && !is_ap) {
 
@@ -2779,36 +2737,16 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct wl1271 *wl = hw->priv;
 	struct wl12xx_vif *wlvif;
 	struct ieee80211_conf *conf = &hw->conf;
-	int channel, ret = 0;
+	int ret = 0;
 
-	channel = ieee80211_frequency_to_channel(conf->channel->center_freq);
-
-	wl1271_debug(DEBUG_MAC80211, "mac80211 config ch %d psm %s power %d %s"
+	wl1271_debug(DEBUG_MAC80211, "mac80211 config psm %s power %d %s"
 		     " changed 0x%x",
-		     channel,
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
 		     conf->power_level,
 		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use",
 			 changed);
 
-	/*
-	 * mac80211 will go to idle nearly immediately after transmitting some
-	 * frames, such as the deauth. To make sure those frames reach the air,
-	 * wait here until the TX queue is fully flushed.
-	 */
-	if ((changed & IEEE80211_CONF_CHANGE_CHANNEL) ||
-	    ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
-	     (conf->flags & IEEE80211_CONF_IDLE)))
-		wl1271_tx_flush(wl);
-
 	mutex_lock(&wl->mutex);
-
-	/* we support configuring the channel and band even while off */
-	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		wl->band = conf->channel->band;
-		wl->channel = channel;
-		wl->channel_type = conf->channel_type;
-	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
 		wl->power_level = conf->power_level;
@@ -3758,7 +3696,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret = 0;
 
-	if ((changed & BSS_CHANGED_BASIC_RATES)) {
+	if (changed & BSS_CHANGED_BASIC_RATES) {
 		u32 rates = bss_conf->basic_rates;
 
 		wlvif->basic_rate_set = wl1271_tx_enabled_rates_get(wl, rates,
@@ -4182,6 +4120,76 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 
 out:
 	mutex_unlock(&wl->mutex);
+}
+
+static int wlcore_op_add_chanctx(struct ieee80211_hw *hw,
+				 struct ieee80211_chanctx_conf *ctx)
+{
+	wl1271_debug(DEBUG_MAC80211, "mac80211 add chanctx %d (type %d)",
+		     ieee80211_frequency_to_channel(ctx->channel->center_freq),
+		     ctx->channel_type);
+	return 0;
+}
+
+static void wlcore_op_remove_chanctx(struct ieee80211_hw *hw,
+				     struct ieee80211_chanctx_conf *ctx)
+{
+	wl1271_debug(DEBUG_MAC80211, "mac80211 remove chanctx %d (type %d)",
+		     ieee80211_frequency_to_channel(ctx->channel->center_freq),
+		     ctx->channel_type);
+}
+
+static void wlcore_op_change_chanctx(struct ieee80211_hw *hw,
+				     struct ieee80211_chanctx_conf *ctx,
+				     u32 changed)
+{
+	wl1271_debug(DEBUG_MAC80211,
+		     "mac80211 change chanctx %d (type %d) changed 0x%x",
+		     ieee80211_frequency_to_channel(ctx->channel->center_freq),
+		     ctx->channel_type, changed);
+}
+
+static int wlcore_op_assign_vif_chanctx(struct ieee80211_hw *hw,
+					struct ieee80211_vif *vif,
+					struct ieee80211_chanctx_conf *ctx)
+{
+	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	int channel = ieee80211_frequency_to_channel(
+		ctx->channel->center_freq);
+
+	wl1271_debug(DEBUG_MAC80211,
+		     "mac80211 assign chanctx (role %d) %d (type %d)",
+		     wlvif->role_id, channel, ctx->channel_type);
+
+	mutex_lock(&wl->mutex);
+
+	wlvif->band = ctx->channel->band;
+	wlvif->channel = channel;
+	wlvif->channel_type = ctx->channel_type;
+
+	/* update default rates according to the band */
+	wl1271_set_band_rate(wl, wlvif);
+
+	mutex_unlock(&wl->mutex);
+
+	return 0;
+}
+
+static void wlcore_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_chanctx_conf *ctx)
+{
+	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+
+	wl1271_debug(DEBUG_MAC80211,
+		     "mac80211 unassign chanctx (role %d) %d (type %d)",
+		     wlvif->role_id,
+		     ieee80211_frequency_to_channel(ctx->channel->center_freq),
+		     ctx->channel_type);
+
+	wl1271_tx_flush(wl);
 }
 
 static int wl1271_op_conf_tx(struct ieee80211_hw *hw,
@@ -4996,6 +5004,11 @@ static const struct ieee80211_ops wl1271_ops = {
 	.flush = wlcore_op_flush,
 	.remain_on_channel = wlcore_op_remain_on_channel,
 	.cancel_remain_on_channel = wlcore_op_cancel_remain_on_channel,
+	.add_chanctx = wlcore_op_add_chanctx,
+	.remove_chanctx = wlcore_op_remove_chanctx,
+	.change_chanctx = wlcore_op_change_chanctx,
+	.assign_vif_chanctx = wlcore_op_assign_vif_chanctx,
+	.unassign_vif_chanctx = wlcore_op_unassign_vif_chanctx,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
