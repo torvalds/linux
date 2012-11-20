@@ -223,9 +223,10 @@ static bool HwHSSIThreeWire(struct net_device *dev,
 		udelay(10);
 	}
 	if (TryCnt == TC_3W_POLL_MAX_TRY_CNT) {
-		printk(KERN_ERR "rtl8187se: HwThreeWire(): CmdReg:"
-		       " %#X RE|WE bits are not clear!!\n", u1bTmp);
-		return false;
+		netdev_err(dev,
+			   "HwThreeWire(): CmdReg: %#X RE|WE bits are not clear!!\n",
+			   u1bTmp);
+	return false;
 	}
 
 	/* RTL8187S HSSI Read/Write Function */
@@ -419,7 +420,7 @@ void ZEBRA_Config_85BASIC_HardCode(struct net_device *dev)
 
 	if (u4bRF23 == 0x818 && u4bRF24 == 0x70C) {
 		d_cut = 1;
-		printk(KERN_INFO "rtl8187se: card type changed from C- to D-cut\n");
+		netdev_info(dev, "card type changed from C- to D-cut\n");
 	}
 
 	/* Page0 : reg0-reg15 */
