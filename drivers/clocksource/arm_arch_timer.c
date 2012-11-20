@@ -338,6 +338,7 @@ out:
 
 static const struct of_device_id arch_timer_of_match[] __initconst = {
 	{ .compatible	= "arm,armv7-timer",	},
+	{ .compatible	= "arm,armv8-timer",	},
 	{},
 };
 
