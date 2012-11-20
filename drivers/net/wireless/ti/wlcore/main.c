@@ -3977,7 +3977,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			goto sta_not_found;
 
 		/* save the supp_rates of the ap */
-		sta_rate_set = sta->supp_rates[wl->hw->conf.channel->band];
+		sta_rate_set = sta->supp_rates[wlvif->band];
 		if (sta->ht_cap.ht_supported)
 			sta_rate_set |=
 			  (sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
