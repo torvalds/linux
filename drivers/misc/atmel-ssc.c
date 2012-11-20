@@ -157,6 +157,8 @@ static int ssc_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	ssc->phybase = regs->start;
+
 	ssc->clk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(ssc->clk)) {
 		dev_dbg(&pdev->dev, "no pclk clock defined\n");
