@@ -8267,7 +8267,9 @@ static void intel_setup_outputs(struct drm_device *dev)
 		I915_WRITE(PFIT_CONTROL, 0);
 	}
 
-	intel_crt_init(dev);
+	if (!(IS_HASWELL(dev) &&
+	      (I915_READ(DDI_BUF_CTL(PORT_A)) & DDI_A_4_LANES)))
+		intel_crt_init(dev);
 
 	if (IS_HASWELL(dev)) {
 		int found;
