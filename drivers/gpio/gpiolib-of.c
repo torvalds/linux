@@ -238,8 +238,20 @@ static void of_gpiochip_add_pin_range(struct gpio_chip *chip)
 		if (!pctldev)
 			break;
 
+		/*
+		 * This assumes that the n GPIO pins are consecutive in the
+		 * GPIO number space, and that the pins are also consecutive
+		 * in their local number space. Currently it is not possible
+		 * to add different ranges for one and the same GPIO chip,
+		 * as the code assumes that we have one consecutive range
+		 * on both, mapping 1-to-1.
+		 *
+		 * TODO: make the OF bindings handle multiple sparse ranges
+		 * on the same GPIO chip.
+		 */
 		ret = gpiochip_add_pin_range(chip,
 					     pinctrl_dev_get_name(pctldev),
+					     0, /* offset in gpiochip */
 					     pinspec.args[0],
 					     pinspec.args[1]);
 

@@ -233,7 +233,8 @@ static inline int irq_to_gpio(unsigned irq)
 
 static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
-		       unsigned int pin_base, unsigned int npins)
+		       unsigned int offset, unsigned int pin_base,
+		       unsigned int npins)
 {
 	WARN_ON(1);
 	return -EINVAL;

@@ -1187,24 +1187,45 @@ EXPORT_SYMBOL_GPL(gpiochip_find);
 
 #ifdef CONFIG_PINCTRL
 
+/**
+ * gpiochip_add_pin_range() - add a range for GPIO <-> pin mapping
+ * @chip: the gpiochip to add the range for
+ * @pinctrl_name: the dev_name() of the pin controller to map to
+ * @offset: the start offset in the current gpio_chip number space
+ * @pin_base: the start offset in the pin controller number space
+ * @npins: the number of pins from the offset of each pin space (GPIO and
+ *	pin controller) to accumulate in this range
+ */
 int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
-			   unsigned int pin_base, unsigned int npins)
+			   unsigned int offset, unsigned int pin_base,
+			   unsigned int npins)
 {
 	struct gpio_pin_range *pin_range;
 
-	pin_range = devm_kzalloc(chip->dev, sizeof(*pin_range), GFP_KERNEL);
+	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
 	if (!pin_range) {
 		pr_err("%s: GPIO chip: failed to allocate pin ranges\n",
 				chip->label);
 		return -ENOMEM;
 	}
 
+	/* Use local offset as range ID */
+	pin_range->range.id = offset;
+	pin_range->range.gc = chip;
 	pin_range->range.name = chip->label;
-	pin_range->range.base = chip->base;
+	pin_range->range.base = chip->base + offset;
 	pin_range->range.pin_base = pin_base;
 	pin_range->range.npins = npins;
 	pin_range->pctldev = find_pinctrl_and_add_gpio_range(pinctl_name,
 			&pin_range->range);
+	if (!pin_range->pctldev) {
+		pr_err("%s: GPIO chip: could not create pin range\n",
+		       chip->label);
+		kfree(pin_range);
+	}
+	pr_debug("%s: GPIO chip: created GPIO range %d->%d ==> PIN %d->%d\n",
+		 chip->label, offset, offset + npins - 1,
+		 pin_base, pin_base + npins - 1);
 
 	list_add_tail(&pin_range->node, &chip->pin_ranges);
 
@@ -1212,6 +1233,10 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 }
 EXPORT_SYMBOL_GPL(gpiochip_add_pin_range);
 
+/**
+ * gpiochip_remove_pin_ranges() - remove all the GPIO <-> pin mappings
+ * @chip: the chip to remove all the mappings for
+ */
 void gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 {
 	struct gpio_pin_range *pin_range, *tmp;
@@ -1220,6 +1245,7 @@ void gpiochip_remove_pin_ranges(struct gpio_chip *chip)
 		list_del(&pin_range->node);
 		pinctrl_remove_gpio_range(pin_range->pctldev,
 				&pin_range->range);
+		kfree(pin_range);
 	}
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
