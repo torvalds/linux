@@ -1216,7 +1216,7 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 	pin_range->range.base = chip->base + offset;
 	pin_range->range.pin_base = pin_base;
 	pin_range->range.npins = npins;
-	pin_range->pctldev = find_pinctrl_and_add_gpio_range(pinctl_name,
+	pin_range->pctldev = pinctrl_find_and_add_gpio_range(pinctl_name,
 			&pin_range->range);
 	if (!pin_range->pctldev) {
 		pr_err("%s: GPIO chip: could not create pin range\n",
