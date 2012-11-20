@@ -278,8 +278,7 @@ static void oz_free_urb_link(struct oz_urb_link *urbl)
 			g_link_pool_size++;
 		}
 		spin_unlock_irqrestore(&g_link_lock, irq_state);
-		if (urbl)
-			kfree(urbl);
+		kfree(urbl);
 	}
 }
 /*------------------------------------------------------------------------------
