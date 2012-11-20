@@ -49,8 +49,6 @@
 #include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
 
-#include "nouveau_ttm.h"
-
 MODULE_PARM_DESC(config, "option string to pass to driver core");
 static char *nouveau_config;
 module_param_named(config, nouveau_config, charp, 0400);
