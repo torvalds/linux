@@ -798,6 +798,12 @@ static int __devinit ssb_bus_register(struct ssb_bus *bus,
 	ssb_chipcommon_init(&bus->chipco);
 	ssb_extif_init(&bus->extif);
 	ssb_mipscore_init(&bus->mipscore);
+	err = ssb_gpio_init(bus);
+	if (err == -ENOTSUPP)
+		ssb_dprintk(KERN_DEBUG PFX "GPIO driver not activated\n");
+	else if (err)
+		ssb_dprintk(KERN_ERR PFX
+			   "Error registering GPIO driver: %i\n", err);
 	err = ssb_fetch_invariants(bus, get_invariants);
 	if (err) {
 		ssb_bus_may_powerdown(bus);
