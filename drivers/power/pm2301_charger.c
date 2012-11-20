@@ -706,10 +706,6 @@ static int pm2xxx_charging_init(struct pm2xxx_charger *pm2)
 	ret = pm2xxx_reg_write(pm2, PM2XXX_BATT_LOW_LEV_COMP_REG,
 		PM2XXX_VBAT_LOW_MONITORING_ENA);
 
-	/* Disable LED */
-	ret = pm2xxx_reg_write(pm2, PM2XXX_LED_CTRL_REG,
-		PM2XXX_LED_SELECT_DIS);
-
 	return ret;
 }
 
