@@ -434,6 +434,8 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
+	hci_remove_remote_oob_data(hdev, &data->bdaddr);
+
 	if (ssp)
 		*ssp = data->ssp_mode;
 
