@@ -28,9 +28,12 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 struct gpio_regulator_data {
 	struct regulator_desc desc;
@@ -129,6 +132,89 @@ static struct regulator_ops gpio_regulator_voltage_ops = {
 	.list_voltage = gpio_regulator_list_voltage,
 };
 
+struct gpio_regulator_config *
+of_get_gpio_regulator_config(struct device *dev, struct device_node *np)
+{
+	struct gpio_regulator_config *config;
+	struct property *prop;
+	const char *regtype;
+	int proplen, gpio, i;
+
+	config = devm_kzalloc(dev,
+			sizeof(struct gpio_regulator_config),
+			GFP_KERNEL);
+	if (!config)
+		return ERR_PTR(-ENOMEM);
+
+	config->init_data = of_get_regulator_init_data(dev, np);
+	if (!config->init_data)
+		return ERR_PTR(-EINVAL);
+
+	config->supply_name = config->init_data->constraints.name;
+
+	if (of_property_read_bool(np, "enable-active-high"))
+		config->enable_high = true;
+
+	if (of_property_read_bool(np, "enable-at-boot"))
+		config->enabled_at_boot = true;
+
+	of_property_read_u32(np, "startup-delay-us", &config->startup_delay);
+
+	config->enable_gpio = of_get_named_gpio(np, "enable-gpio", 0);
+
+	/* Fetch GPIOs. */
+	for (i = 0; ; i++)
+		if (of_get_named_gpio(np, "gpios", i) < 0)
+			break;
+	config->nr_gpios = i;
+
+	config->gpios = devm_kzalloc(dev,
+				sizeof(struct gpio) * config->nr_gpios,
+				GFP_KERNEL);
+	if (!config->gpios)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; config->nr_gpios; i++) {
+		gpio = of_get_named_gpio(np, "gpios", i);
+		if (gpio < 0)
+			break;
+		config->gpios[i].gpio = gpio;
+	}
+
+	/* Fetch states. */
+	prop = of_find_property(np, "states", NULL);
+	if (!prop) {
+		dev_err(dev, "No 'states' property found\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	proplen = prop->length / sizeof(int);
+
+	config->states = devm_kzalloc(dev,
+				sizeof(struct gpio_regulator_state)
+				* (proplen / 2),
+				GFP_KERNEL);
+	if (!config->states)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < proplen / 2; i++) {
+		config->states[i].value =
+			be32_to_cpup((int *)prop->value + (i * 2));
+		config->states[i].gpios =
+			be32_to_cpup((int *)prop->value + (i * 2 + 1));
+	}
+	config->nr_states = i;
+
+	of_property_read_string(np, "regulator-type", &regtype);
+
+	if (!strncmp("voltage", regtype, 7))
+		config->type = REGULATOR_VOLTAGE;
+	else if (!strncmp("current", regtype, 7))
+		config->type = REGULATOR_CURRENT;
+
+	return config;
+}
+
 static struct regulator_ops gpio_regulator_current_ops = {
 	.get_current_limit = gpio_regulator_get_value,
 	.set_current_limit = gpio_regulator_set_current_limit,
@@ -137,9 +223,16 @@ static struct regulator_ops gpio_regulator_current_ops = {
 static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 {
 	struct gpio_regulator_config *config = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	struct gpio_regulator_data *drvdata;
 	struct regulator_config cfg = { };
 	int ptr, ret, state;
+
+	if (np) {
+		config = of_get_gpio_regulator_config(&pdev->dev, np);
+		if (IS_ERR(config))
+			return PTR_ERR(config);
+	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
 			       GFP_KERNEL);
@@ -215,6 +308,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	cfg.dev = &pdev->dev;
 	cfg.init_data = config->init_data;
 	cfg.driver_data = drvdata;
+	cfg.of_node = np;
 
 	if (config->enable_gpio >= 0)
 		cfg.ena_gpio = config->enable_gpio;
@@ -270,12 +364,18 @@ static int __devexit gpio_regulator_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id regulator_gpio_of_match[] __devinitconst = {
+	{ .compatible = "regulator-gpio", },
+	{},
+};
+
 static struct platform_driver gpio_regulator_driver = {
 	.probe		= gpio_regulator_probe,
 	.remove		= __devexit_p(gpio_regulator_remove),
 	.driver		= {
 		.name		= "gpio-regulator",
 		.owner		= THIS_MODULE,
+		.of_match_table = regulator_gpio_of_match,
 	},
 };
 

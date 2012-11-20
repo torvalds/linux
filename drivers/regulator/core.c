@@ -1985,6 +1985,11 @@ int regulator_is_supported_voltage(struct regulator *regulator,
 			return ret;
 	}
 
+	/* Any voltage within constrains range is fine? */
+	if (rdev->desc->continuous_voltage_range)
+		return min_uV >= rdev->constraints->min_uV &&
+				max_uV <= rdev->constraints->max_uV;
+
 	ret = regulator_count_voltages(regulator);
 	if (ret < 0)
 		return ret;
