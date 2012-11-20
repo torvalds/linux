@@ -71,7 +71,6 @@ static irqreturn_t kirkwood_dma_irq(int irq, void *dev_id)
 		printk(KERN_WARNING "%s: got err interrupt 0x%lx\n",
 				__func__, cause);
 		writel(cause, priv->io + KIRKWOOD_ERR_CAUSE);
-		return IRQ_HANDLED;
 	}
 
 	/* we've enabled only bytes interrupts ... */
