@@ -1156,13 +1156,6 @@ static int rbd_do_request(struct request *rq,
 	osd_req->r_oid_len = strlen(osd_req->r_oid);
 
 	osd_req->r_file_layout = rbd_dev->layout;	/* struct */
-
-	if (op->op == CEPH_OSD_OP_READ || op->op == CEPH_OSD_OP_WRITE) {
-		op->extent.offset = ofs;
-		op->extent.length = len;
-		if (op->op == CEPH_OSD_OP_WRITE)
-			op->payload_len = len;
-	}
 	osd_req->r_num_pages = calc_pages_for(ofs, len);
 	osd_req->r_page_alignment = ofs & ~PAGE_MASK;
 
@@ -1269,6 +1262,13 @@ static int rbd_req_sync_op(struct rbd_device *rbd_dev,
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
+	if (op->op == CEPH_OSD_OP_READ || op->op == CEPH_OSD_OP_WRITE) {
+		op->extent.offset = ofs;
+		op->extent.length = inbound_size;
+		if (op->op == CEPH_OSD_OP_WRITE)
+			op->payload_len = inbound_size;
+	}
+
 	ret = rbd_do_request(NULL, rbd_dev, NULL, CEPH_NOSNAP,
 			  object_name, ofs, inbound_size, NULL,
 			  pages, num_pages,
@@ -1332,6 +1332,9 @@ static int rbd_do_op(struct request *rq,
 	op = rbd_create_rw_op(opcode, payload_len);
 	if (!op)
 		goto done;
+	op->extent.offset = seg_ofs;
+	op->extent.length = seg_len;
+	op->payload_len = payload_len;
 
 	/* we've taken care of segment sizes earlier when we
 	   cloned the bios. We should never have a segment
