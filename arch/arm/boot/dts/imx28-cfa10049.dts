@@ -23,7 +23,8 @@
 		apbh@80000000 {
 			pinctrl@80018000 {
 				pinctrl-names = "default", "default";
-				pinctrl-1 = <&hog_pins_cfa10049>;
+				pinctrl-1 = <&hog_pins_cfa10049
+					&hog_pins_cfa10049_pullup>;
 
 				hog_pins_cfa10049: hog-10049@0 {
 					reg = <0>;
@@ -36,6 +37,16 @@
 					fsl,drive-strength = <0>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
+				};
+
+				hog_pins_cfa10049_pullup: hog-10049-pullup@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x2133 /* MX28_PAD_SSP2_D3__GPIO_2_19 */
+					>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
 				};
 
 				spi3_pins_cfa10049: spi3-cfa10049@0 {
@@ -113,6 +124,19 @@
 
 				i2c@3 {
 					reg = <3>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					pca9555: pca9555@20 {
+						compatible = "nxp,pca9555";
+						interrupt-parent = <&gpio2>;
+						interrupts = <19 0x2>;
+						gpio-controller;
+						#gpio-cells = <2>;
+						interrupt-controller;
+						#interrupt-cells = <2>;
+						reg = <0x20>;
+					};
 				};
 			};
 
