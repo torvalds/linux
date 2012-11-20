@@ -22,8 +22,10 @@
 #include "kirkwood.h"
 
 #define KIRKWOOD_RATES \
-	(SNDRV_PCM_RATE_44100 | \
-	 SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000)
+	(SNDRV_PCM_RATE_8000_192000 |		\
+	 SNDRV_PCM_RATE_CONTINUOUS |		\
+	 SNDRV_PCM_RATE_KNOT)
+
 #define KIRKWOOD_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE | \
@@ -43,8 +45,8 @@ static struct snd_pcm_hardware kirkwood_dma_snd_hw = {
 		 SNDRV_PCM_INFO_PAUSE),
 	.formats		= KIRKWOOD_FORMATS,
 	.rates			= KIRKWOOD_RATES,
-	.rate_min		= 44100,
-	.rate_max		= 96000,
+	.rate_min		= 8000,
+	.rate_max		= 384000,
 	.channels_min		= 1,
 	.channels_max		= 2,
 	.buffer_bytes_max	= KIRKWOOD_SND_MAX_PERIOD_BYTES * KIRKWOOD_SND_MAX_PERIODS,
