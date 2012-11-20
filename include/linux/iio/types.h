@@ -28,6 +28,7 @@ enum iio_chan_type {
 	IIO_CAPACITANCE,
 	IIO_ALTVOLTAGE,
 	IIO_CCT,
+	IIO_PRESSURE,
 };
 
 enum iio_modifier {
