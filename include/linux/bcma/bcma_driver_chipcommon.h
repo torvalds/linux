@@ -567,6 +567,9 @@ struct bcma_drv_cc {
 	int nr_serial_ports;
 	struct bcma_serial_port serial_ports[4];
 #endif /* CONFIG_BCMA_DRIVER_MIPS */
+
+	/* Lock for GPIO register access. */
+	spinlock_t gpio_lock;
 };
 
 /* Register access */
