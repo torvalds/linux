@@ -86,7 +86,7 @@ static int lp3944_reg_read(struct i2c_client *client, u8 reg, u8 *value)
 
 	tmp = i2c_smbus_read_byte_data(client, reg);
 	if (tmp < 0)
-		return -EINVAL;
+		return tmp;
 
 	*value = tmp;
 
