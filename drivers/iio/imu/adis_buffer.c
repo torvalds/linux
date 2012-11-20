@@ -64,6 +64,8 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 	for (i = 0; i < indio_dev->num_channels; i++, chan++) {
 		if (!test_bit(chan->scan_index, scan_mask))
 			continue;
+		if (chan->scan_type.storagebits == 32)
+			*tx++ = cpu_to_be16((chan->address + 2) << 8);
 		*tx++ = cpu_to_be16(chan->address << 8);
 	}
 

@@ -27,36 +27,10 @@
 #define ADIS_MSC_CTRL_DATA_RDY_DIO2	BIT(0)
 #define ADIS_GLOB_CMD_SW_RESET		BIT(7)
 
-/**
- * adis_write_reg_8() - Write single byte to a register
- * @adis: The adis device
- * @reg: The address of the register to be written
- * @val: The value to write
- */
-int adis_write_reg_8(struct adis *adis, unsigned int reg, uint8_t val)
+int adis_write_reg(struct adis *adis, unsigned int reg,
+	unsigned int value, unsigned int size)
 {
-	int ret;
-
-	mutex_lock(&adis->txrx_lock);
-	adis->tx[0] = ADIS_WRITE_REG(reg);
-	adis->tx[1] = val;
-
-	ret = spi_write(adis->spi, adis->tx, 2);
-	mutex_unlock(&adis->txrx_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(adis_write_reg_8);
-
-/**
- * adis_write_reg_16() - Write 2 bytes to a pair of registers
- * @adis: The adis device
- * @reg: The address of the lower of the two registers
- * @val: Value to be written
- */
-int adis_write_reg_16(struct adis *adis, unsigned int reg, uint16_t value)
-{
-	int ret;
+	int ret, i;
 	struct spi_message msg;
 	struct spi_transfer xfers[] = {
 		{
@@ -69,33 +43,69 @@ int adis_write_reg_16(struct adis *adis, unsigned int reg, uint16_t value)
 			.tx_buf = adis->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
+			.cs_change = 1,
+			.delay_usecs = adis->data->write_delay,
+		}, {
+			.tx_buf = adis->tx + 4,
+			.bits_per_word = 8,
+			.len = 2,
+			.cs_change = 1,
+			.delay_usecs = adis->data->write_delay,
+		}, {
+			.tx_buf = adis->tx + 6,
+			.bits_per_word = 8,
+			.len = 2,
 			.delay_usecs = adis->data->write_delay,
 		},
 	};
 
 	mutex_lock(&adis->txrx_lock);
-	adis->tx[0] = ADIS_WRITE_REG(reg);
-	adis->tx[1] = value & 0xff;
-	adis->tx[2] = ADIS_WRITE_REG(reg + 1);
-	adis->tx[3] = (value >> 8) & 0xff;
 
 	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
+	switch (size) {
+	case 4:
+		adis->tx[6] = ADIS_WRITE_REG(reg + 3);
+		adis->tx[7] = (value >> 24) & 0xff;
+		adis->tx[4] = ADIS_WRITE_REG(reg + 2);
+		adis->tx[5] = (value >> 16) & 0xff;
+	case 2:
+		adis->tx[2] = ADIS_WRITE_REG(reg + 1);
+		adis->tx[3] = (value >> 8) & 0xff;
+	case 1:
+		adis->tx[0] = ADIS_WRITE_REG(reg);
+		adis->tx[1] = value & 0xff;
+		break;
+	default:
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
+	xfers[size - 1].cs_change = 0;
+
+	for (i = 0; i < size; i++)
+		spi_message_add_tail(&xfers[i], &msg);
+
 	ret = spi_sync(adis->spi, &msg);
+	if (ret) {
+		dev_err(&adis->spi->dev, "Failed to write register 0x%02X: %d\n",
+				reg, ret);
+	}
+
+out_unlock:
 	mutex_unlock(&adis->txrx_lock);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_write_reg_16);
+EXPORT_SYMBOL_GPL(adis_write_reg);
 
 /**
- * adis_read_reg_16() - read 2 bytes from a 16-bit register
+ * adis_read_reg() - read 2 bytes from a 16-bit register
  * @adis: The adis device
  * @reg: The address of the lower of the two registers
  * @val: The value read back from the device
  */
-int adis_read_reg_16(struct adis *adis, unsigned int reg, uint16_t *val)
+int adis_read_reg(struct adis *adis, unsigned int reg,
+	unsigned int *val, unsigned int size)
 {
 	struct spi_message msg;
 	int ret;
@@ -107,7 +117,14 @@ int adis_read_reg_16(struct adis *adis, unsigned int reg, uint16_t *val)
 			.cs_change = 1,
 			.delay_usecs = adis->data->read_delay,
 		}, {
+			.tx_buf = adis->tx + 2,
 			.rx_buf = adis->rx,
+			.bits_per_word = 8,
+			.len = 2,
+			.cs_change = 1,
+			.delay_usecs = adis->data->read_delay,
+		}, {
+			.rx_buf = adis->rx + 2,
 			.bits_per_word = 8,
 			.len = 2,
 			.delay_usecs = adis->data->read_delay,
@@ -115,25 +132,46 @@ int adis_read_reg_16(struct adis *adis, unsigned int reg, uint16_t *val)
 	};
 
 	mutex_lock(&adis->txrx_lock);
-	adis->tx[0] = ADIS_READ_REG(reg);
-	adis->tx[1] = 0;
-
 	spi_message_init(&msg);
-	spi_message_add_tail(&xfers[0], &msg);
-	spi_message_add_tail(&xfers[1], &msg);
+
+	switch (size) {
+	case 4:
+		adis->tx[0] = ADIS_READ_REG(reg + 2);
+		adis->tx[1] = 0;
+		spi_message_add_tail(&xfers[0], &msg);
+	case 2:
+		adis->tx[2] = ADIS_READ_REG(reg);
+		adis->tx[3] = 0;
+		spi_message_add_tail(&xfers[1], &msg);
+		spi_message_add_tail(&xfers[2], &msg);
+		break;
+	default:
+		ret = -EINVAL;
+		goto out_unlock;
+	}
+
 	ret = spi_sync(adis->spi, &msg);
 	if (ret) {
-		dev_err(&adis->spi->dev, "Failed to read 16 bit register 0x%02X: %d\n",
+		dev_err(&adis->spi->dev, "Failed to read register 0x%02X: %d\n",
 				reg, ret);
-		goto error_ret;
+		goto out_unlock;
 	}
-	*val = get_unaligned_be16(adis->rx);
 
-error_ret:
+	switch (size) {
+	case 4:
+		*val = get_unaligned_be32(adis->rx);
+		break;
+	case 2:
+		*val = get_unaligned_be16(adis->rx + 2);
+		break;
+	}
+
+out_unlock:
 	mutex_unlock(&adis->txrx_lock);
+
 	return ret;
 }
-EXPORT_SYMBOL_GPL(adis_read_reg_16);
+EXPORT_SYMBOL_GPL(adis_read_reg);
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -304,25 +342,26 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 	const struct iio_chan_spec *chan, unsigned int error_mask, int *val)
 {
 	struct adis *adis = iio_device_get_drvdata(indio_dev);
-	uint16_t val16;
+	unsigned int uval;
 	int ret;
 
 	mutex_lock(&indio_dev->mlock);
 
-	ret = adis_read_reg_16(adis, chan->address, &val16);
+	ret = adis_read_reg(adis, chan->address, &uval,
+			chan->scan_type.storagebits / 8);
 	if (ret)
 		goto err_unlock;
 
-	if (val16 & error_mask) {
+	if (uval & error_mask) {
 		ret = adis_check_status(adis);
 		if (ret)
 			goto err_unlock;
 	}
 
 	if (chan->scan_type.sign == 's')
-		*val = sign_extend32(val16, chan->scan_type.realbits - 1);
+		*val = sign_extend32(uval, chan->scan_type.realbits - 1);
 	else
-		*val = val16 & ((1 << chan->scan_type.realbits) - 1);
+		*val = uval & ((1 << chan->scan_type.realbits) - 1);
 
 	ret = IIO_VAL_INT;
 err_unlock:
