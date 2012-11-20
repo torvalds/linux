@@ -43,6 +43,7 @@ struct davinci_uart_config {
 };
 
 extern int davinci_serial_init(struct davinci_uart_config *);
+extern int davinci_serial_setup_clk(unsigned instance, unsigned int *rate);
 #endif
 
 #endif /* __ASM_ARCH_SERIAL_H */
