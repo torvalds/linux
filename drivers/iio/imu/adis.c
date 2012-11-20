@@ -135,6 +135,29 @@ error_ret:
 }
 EXPORT_SYMBOL_GPL(adis_read_reg_16);
 
+#ifdef CONFIG_DEBUG_FS
+
+int adis_debugfs_reg_access(struct iio_dev *indio_dev,
+	unsigned int reg, unsigned int writeval, unsigned int *readval)
+{
+	struct adis *adis = iio_device_get_drvdata(indio_dev);
+
+	if (readval) {
+		uint16_t val16;
+		int ret;
+
+		ret = adis_read_reg_16(adis, reg, &val16);
+		*readval = val16;
+
+		return ret;
+	} else {
+		return adis_write_reg_16(adis, reg, writeval);
+	}
+}
+EXPORT_SYMBOL(adis_debugfs_reg_access);
+
+#endif
+
 /**
  * adis_enable_irq() - Enable or disable data ready IRQ
  * @adis: The adis device
