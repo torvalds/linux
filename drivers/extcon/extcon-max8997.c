@@ -433,11 +433,11 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 	struct max8997_muic_info *info;
 	int ret, i;
 
-	info = kzalloc(sizeof(struct max8997_muic_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
+			    GFP_KERNEL);
 	if (!info) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		ret = -ENOMEM;
-		goto err_kfree;
+		return -ENOMEM;
 	}
 
 	info->dev = &pdev->dev;
@@ -471,7 +471,8 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 	}
 
 	/* External connector */
-	info->edev = kzalloc(sizeof(struct extcon_dev), GFP_KERNEL);
+	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
+				  GFP_KERNEL);
 	if (!info->edev) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
@@ -482,7 +483,7 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 	ret = extcon_dev_register(info->edev, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
-		goto err_extcon;
+		goto err_irq;
 	}
 
 	/* Initialize registers according to platform data */
@@ -500,13 +501,9 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_extcon:
-	kfree(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(muic_irqs[i].virq, info);
-	kfree(info);
-err_kfree:
 	return ret;
 }
 
@@ -520,9 +517,6 @@ static int __devexit max8997_muic_remove(struct platform_device *pdev)
 	cancel_work_sync(&info->irq_work);
 
 	extcon_dev_unregister(info->edev);
-
-	kfree(info->edev);
-	kfree(info);
 
 	return 0;
 }
