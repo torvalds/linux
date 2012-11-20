@@ -178,7 +178,7 @@ static int kirkwood_dma_open(struct snd_pcm_substream *substream)
 	}
 
 	dram = mv_mbus_dram_info();
-	addr = virt_to_phys(substream->dma_buffer.area);
+	addr = substream->dma_buffer.addr;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		prdata->play_stream = substream;
 		kirkwood_dma_conf_mbus_windows(priv->io,
