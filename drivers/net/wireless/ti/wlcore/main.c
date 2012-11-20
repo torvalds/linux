@@ -4009,41 +4009,29 @@ sta_not_found:
 	}
 
 	/* Handle new association with HT. Do this after join. */
-	if (sta_exists) {
-		if ((changed & BSS_CHANGED_HT) &&
-		    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
-			ret = wl1271_acx_set_ht_capabilities(wl,
-							     &sta_ht_cap,
-							     true,
-							     wlvif->sta.hlid);
-			if (ret < 0) {
-				wl1271_warning("Set ht cap true failed %d",
-					       ret);
-				goto out;
-			}
-		}
-		/* handle new association without HT and disassociation */
-		else if (changed & BSS_CHANGED_ASSOC) {
-			ret = wl1271_acx_set_ht_capabilities(wl,
-							     &sta_ht_cap,
-							     false,
-							     wlvif->sta.hlid);
-			if (ret < 0) {
-				wl1271_warning("Set ht cap false failed %d",
-					       ret);
-				goto out;
-			}
-		}
-	}
+	if (sta_exists &&
+	    (changed & BSS_CHANGED_HT)) {
+		bool enabled =
+			bss_conf->channel_type != NL80211_CHAN_NO_HT;
 
-	/* Handle HT information change. Done after join. */
-	if ((changed & BSS_CHANGED_HT) &&
-	    (bss_conf->channel_type != NL80211_CHAN_NO_HT)) {
-		ret = wl1271_acx_set_ht_information(wl, wlvif,
-					bss_conf->ht_operation_mode);
+		ret = wl1271_acx_set_ht_capabilities(wl,
+						     &sta_ht_cap,
+						     enabled,
+						     wlvif->sta.hlid);
 		if (ret < 0) {
-			wl1271_warning("Set ht information failed %d", ret);
+			wl1271_warning("Set ht cap failed %d", ret);
 			goto out;
+
+		}
+
+		if (enabled) {
+			ret = wl1271_acx_set_ht_information(wl, wlvif,
+						bss_conf->ht_operation_mode);
+			if (ret < 0) {
+				wl1271_warning("Set ht information failed %d",
+					       ret);
+				goto out;
+			}
 		}
 	}
 
