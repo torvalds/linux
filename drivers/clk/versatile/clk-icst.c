@@ -17,25 +17,66 @@
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/clk-provider.h>
+#include <linux/io.h>
 
 #include "clk-icst.h"
 
 /**
  * struct clk_icst - ICST VCO clock wrapper
  * @hw: corresponding clock hardware entry
+ * @vcoreg: VCO register address
+ * @lockreg: VCO lock register address
  * @params: parameters for this ICST instance
  * @rate: current rate
- * @setvco: function to commit ICST settings to hardware
  */
 struct clk_icst {
 	struct clk_hw hw;
+	void __iomem *vcoreg;
+	void __iomem *lockreg;
 	const struct icst_params *params;
 	unsigned long rate;
-	struct icst_vco (*getvco)(void);
-	void (*setvco)(struct icst_vco);
 };
 
 #define to_icst(_hw) container_of(_hw, struct clk_icst, hw)
+
+/**
+ * vco_get() - get ICST VCO settings from a certain register
+ * @vcoreg: register containing the VCO settings
+ */
+static struct icst_vco vco_get(void __iomem *vcoreg)
+{
+	u32 val;
+	struct icst_vco vco;
+
+	val = readl(vcoreg);
+	vco.v = val & 0x1ff;
+	vco.r = (val >> 9) & 0x7f;
+	vco.s = (val >> 16) & 03;
+	return vco;
+}
+
+/**
+ * vco_set() - commit changes to an ICST VCO
+ * @locreg: register to poke to unlock the VCO for writing
+ * @vcoreg: register containing the VCO settings
+ * @vco: ICST VCO parameters to commit
+ */
+static void vco_set(void __iomem *lockreg,
+			void __iomem *vcoreg,
+			struct icst_vco vco)
+{
+	u32 val;
+
+	val = readl(vcoreg) & ~0x7ffff;
+	val |= vco.v | (vco.r << 9) | (vco.s << 16);
+
+	/* This magic unlocks the VCO so it can be controlled */
+	writel(0xa05f, lockreg);
+	writel(val, vcoreg);
+	/* This locks the VCO again */
+	writel(0, lockreg);
+}
+
 
 static unsigned long icst_recalc_rate(struct clk_hw *hw,
 				      unsigned long parent_rate)
@@ -43,7 +84,7 @@ static unsigned long icst_recalc_rate(struct clk_hw *hw,
 	struct clk_icst *icst = to_icst(hw);
 	struct icst_vco vco;
 
-	vco = icst->getvco();
+	vco = vco_get(icst->vcoreg);
 	icst->rate = icst_hz(icst->params, vco);
 	return icst->rate;
 }
@@ -66,7 +107,7 @@ static int icst_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	vco = icst_hz_to_vco(icst->params, rate);
 	icst->rate = icst_hz(icst->params, vco);
-	icst->setvco(vco);
+	vco_set(icst->vcoreg, icst->lockreg, vco);
 	return 0;
 }
 
@@ -76,8 +117,9 @@ static const struct clk_ops icst_ops = {
 	.set_rate = icst_set_rate,
 };
 
-struct clk * __init icst_clk_register(struct device *dev,
-				      const struct clk_icst_desc *desc)
+struct clk *icst_clk_register(struct device *dev,
+			const struct clk_icst_desc *desc,
+			void __iomem *base)
 {
 	struct clk *clk;
 	struct clk_icst *icst;
@@ -95,8 +137,8 @@ struct clk * __init icst_clk_register(struct device *dev,
 	init.num_parents = 0;
 	icst->hw.init = &init;
 	icst->params = desc->params;
-	icst->getvco = desc->getvco;
-	icst->setvco = desc->setvco;
+	icst->vcoreg = base + desc->vco_offset;
+	icst->lockreg = base + desc->lock_offset;
 
 	clk = clk_register(dev, &icst->hw);
 	if (IS_ERR(clk))

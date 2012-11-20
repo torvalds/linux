@@ -21,38 +21,6 @@
  * Implementation of the ARM RealView clock trees.
  */
 
-static void __iomem *sys_lock;
-static void __iomem *sys_vcoreg;
-
-/**
- * realview_oscvco_get() - get ICST OSC settings for the RealView
- */
-static struct icst_vco realview_oscvco_get(void)
-{
-	u32 val;
-	struct icst_vco vco;
-
-	val = readl(sys_vcoreg);
-	vco.v = val & 0x1ff;
-	vco.r = (val >> 9) & 0x7f;
-	vco.s = (val >> 16) & 03;
-	return vco;
-}
-
-static void realview_oscvco_set(struct icst_vco vco)
-{
-	u32 val;
-
-	val = readl(sys_vcoreg) & ~0x7ffff;
-	val |= vco.v | (vco.r << 9) | (vco.s << 16);
-
-	/* This magic unlocks the CM VCO so it can be controlled */
-	writel(0xa05f, sys_lock);
-	writel(val, sys_vcoreg);
-	/* This locks the CM again */
-	writel(0, sys_lock);
-}
-
 static const struct icst_params realview_oscvco_params = {
 	.ref		= 24000000,
 	.vco_max	= ICST307_VCO_MAX,
@@ -65,10 +33,16 @@ static const struct icst_params realview_oscvco_params = {
 	.idx2s		= icst307_idx2s,
 };
 
-static const struct clk_icst_desc __initdata realview_icst_desc = {
+static const struct clk_icst_desc __initdata realview_osc0_desc = {
 	.params = &realview_oscvco_params,
-	.getvco = realview_oscvco_get,
-	.setvco = realview_oscvco_set,
+	.vco_offset = REALVIEW_SYS_OSC0_OFFSET,
+	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
+};
+
+static const struct clk_icst_desc __initdata realview_osc4_desc = {
+	.params = &realview_oscvco_params,
+	.vco_offset = REALVIEW_SYS_OSC4_OFFSET,
+	.lock_offset = REALVIEW_SYS_LOCK_OFFSET,
 };
 
 /*
@@ -77,13 +51,6 @@ static const struct clk_icst_desc __initdata realview_icst_desc = {
 void __init realview_clk_init(void __iomem *sysbase, bool is_pb1176)
 {
 	struct clk *clk;
-
-	sys_lock = sysbase + REALVIEW_SYS_LOCK_OFFSET;
-	if (is_pb1176)
-		sys_vcoreg = sysbase + REALVIEW_SYS_OSC0_OFFSET;
-	else
-		sys_vcoreg = sysbase + REALVIEW_SYS_OSC4_OFFSET;
-
 
 	/* APB clock dummy */
 	clk = clk_register_fixed_rate(NULL, "apb_pclk", NULL, CLK_IS_ROOT, 0);
@@ -116,7 +83,11 @@ void __init realview_clk_init(void __iomem *sysbase, bool is_pb1176)
 	clk_register_clkdev(clk, NULL, "sp804");
 
 	/* ICST VCO clock */
-	clk = icst_clk_register(NULL, &realview_icst_desc);
+	if (is_pb1176)
+		clk = icst_clk_register(NULL, &realview_osc0_desc, sysbase);
+	else
+		clk = icst_clk_register(NULL, &realview_osc4_desc, sysbase);
+
 	clk_register_clkdev(clk, NULL, "dev:clcd");
 	clk_register_clkdev(clk, NULL, "issp:clcd");
 }

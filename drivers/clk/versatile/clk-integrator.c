@@ -10,7 +10,7 @@
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
-#include <linux/io.h>
+#include <linux/platform_data/clk-integrator.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -22,42 +22,6 @@
  * Inspired by portions of:
  * plat-versatile/clock.c and plat-versatile/include/plat/clock.h
  */
-#define CM_LOCK		(__io_address(INTEGRATOR_HDR_BASE)+INTEGRATOR_HDR_LOCK_OFFSET)
-#define CM_AUXOSC	(__io_address(INTEGRATOR_HDR_BASE)+0x1c)
-
-/**
- * cp_auxvco_get() - get ICST VCO settings for the Integrator/CP
- * @vco: ICST VCO parameters to update with hardware status
- */
-static struct icst_vco cp_auxvco_get(void)
-{
-	u32 val;
-	struct icst_vco vco;
-
-	val = readl(CM_AUXOSC);
-	vco.v = val & 0x1ff;
-	vco.r = (val >> 9) & 0x7f;
-	vco.s = (val >> 16) & 03;
-	return vco;
-}
-
-/**
- * cp_auxvco_set() - commit changes to Integrator/CP ICST VCO
- * @vco: ICST VCO parameters to commit
- */
-static void cp_auxvco_set(struct icst_vco vco)
-{
-	u32 val;
-
-	val = readl(CM_AUXOSC) & ~0x7ffff;
-	val |= vco.v | (vco.r << 9) | (vco.s << 16);
-
-	/* This magic unlocks the CM VCO so it can be controlled */
-	writel(0xa05f, CM_LOCK);
-	writel(val, CM_AUXOSC);
-	/* This locks the CM again */
-	writel(0, CM_LOCK);
-}
 
 static const struct icst_params cp_auxvco_params = {
 	.ref		= 24000000,
@@ -73,8 +37,8 @@ static const struct icst_params cp_auxvco_params = {
 
 static const struct clk_icst_desc __initdata cp_icst_desc = {
 	.params = &cp_auxvco_params,
-	.getvco = cp_auxvco_get,
-	.setvco = cp_auxvco_set,
+	.vco_offset = 0x1c,
+	.lock_offset = INTEGRATOR_HDR_LOCK_OFFSET,
 };
 
 /*
@@ -114,6 +78,7 @@ void __init integrator_clk_init(bool is_cp)
 	clk_register_clkdev(clk, NULL, "sp804");
 
 	/* ICST VCO clock used on the Integrator/CP CLCD */
-	clk = icst_clk_register(NULL, &cp_icst_desc);
+	clk = icst_clk_register(NULL, &cp_icst_desc,
+				__io_address(INTEGRATOR_HDR_BASE));
 	clk_register_clkdev(clk, NULL, "clcd");
 }
