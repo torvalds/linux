@@ -1056,13 +1056,13 @@ void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 	ieee->mode = (WIRELESS_MODE)btWirelessMode;
 
 	/* 3. Change related setting. */
-	if( ieee->mode == WIRELESS_MODE_A ) {
+	if (ieee->mode == WIRELESS_MODE_A)
 		DMESG("WIRELESS_MODE_A\n");
-	} else if( ieee->mode == WIRELESS_MODE_B ) {
+	else if (ieee->mode == WIRELESS_MODE_B)
 		DMESG("WIRELESS_MODE_B\n");
-	} else if( ieee->mode == WIRELESS_MODE_G ) {
+	else if (ieee->mode == WIRELESS_MODE_G)
 		DMESG("WIRELESS_MODE_G\n");
-	}
+
 	ActUpdateChannelAccessSetting( dev, ieee->mode, &priv->ChannelAccessSetting);
 }
 
