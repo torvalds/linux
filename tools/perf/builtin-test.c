@@ -15,7 +15,7 @@
 #include "util/thread_map.h"
 #include "util/pmu.h"
 #include "event-parse.h"
-#include "../../include/linux/hw_breakpoint.h"
+#include <linux/hw_breakpoint.h>
 
 #include <sys/mman.h>
 
