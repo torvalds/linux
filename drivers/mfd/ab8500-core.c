@@ -1189,6 +1189,10 @@ static struct mfd_cell ab9540_devs[] = {
 		.name = "ab8500-regulator",
 	},
 	{
+		.name = "abx500-clk",
+		.of_compatible = "stericsson,abx500-clk",
+	},
+	{
 		.name = "ab8500-gpadc",
 		.of_compatible = "stericsson,ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
@@ -1256,6 +1260,10 @@ static struct mfd_cell ab8505_devs[] = {
 		.name = "ab8500-regulator",
 	},
 	{
+		.name = "abx500-clk",
+		.of_compatible = "stericsson,abx500-clk",
+	},
+	{
 		.name = "ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8505_gpadc_resources),
 		.resources = ab8505_gpadc_resources,
@@ -1313,6 +1321,10 @@ static struct mfd_cell ab8540_devs[] = {
 	},
 	{
 		.name = "ab8500-regulator",
+	},
+	{
+		.name = "abx500-clk",
+		.of_compatible = "stericsson,abx500-clk",
 	},
 	{
 		.name = "ab8500-gpadc",
