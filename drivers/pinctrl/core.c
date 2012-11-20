@@ -350,8 +350,13 @@ struct pinctrl_dev *pinctrl_find_and_add_gpio_range(const char *devname,
 {
 	struct pinctrl_dev *pctldev = get_pinctrl_dev_from_devname(devname);
 
+	/*
+	 * If we can't find this device, let's assume that is because
+	 * it has not probed yet, so the driver trying to register this
+	 * range need to defer probing.
+	 */
 	if (!pctldev)
-		return NULL;
+		return ERR_PTR(-EPROBE_DEFER);
 
 	pinctrl_add_gpio_range(pctldev, range);
 	return pctldev;
