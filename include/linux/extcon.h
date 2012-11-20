@@ -76,12 +76,12 @@ struct extcon_cable;
 
 /**
  * struct extcon_dev - An extcon device represents one external connector.
- * @name	The name of this extcon device. Parent device name is used
+ * @name:	The name of this extcon device. Parent device name is used
  *		if NULL.
- * @supported_cable	Array of supported cable names ending with NULL.
+ * @supported_cable:	Array of supported cable names ending with NULL.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
- * @mutually_exclusive	Array of mutually exclusive set of cables that cannot
+ * @mutually_exclusive:	Array of mutually exclusive set of cables that cannot
  *			be attached simultaneously. The array should be
  *			ending with NULL or be NULL (no mutually exclusive
  *			cables). For example, if it is { 0x7, 0x30, 0}, then,
@@ -89,21 +89,21 @@ struct extcon_cable;
  *			be attached simulataneously. {0x7, 0} is equivalent to
  *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
  *			can be no simultaneous connections.
- * @print_name	An optional callback to override the method to print the
+ * @print_name:	An optional callback to override the method to print the
  *		name of the extcon device.
- * @print_state	An optional callback to override the method to print the
+ * @print_state:	An optional callback to override the method to print the
  *		status of the extcon device.
- * @dev		Device of this extcon. Do not provide at register-time.
- * @state	Attach/detach state of this extcon. Do not provide at
+ * @dev:	Device of this extcon. Do not provide at register-time.
+ * @state:	Attach/detach state of this extcon. Do not provide at
  *		register-time
- * @nh	Notifier for the state change events from this extcon
- * @entry	To support list of extcon devices so that users can search
+ * @nh:	Notifier for the state change events from this extcon
+ * @entry:	To support list of extcon devices so that users can search
  *		for extcon devices based on the extcon name.
- * @lock
- * @max_supported	Internal value to store the number of cables.
- * @extcon_dev_type	Device_type struct to provide attribute_groups
+ * @lock:
+ * @max_supported:	Internal value to store the number of cables.
+ * @extcon_dev_type:	Device_type struct to provide attribute_groups
  *			customized for each extcon device.
- * @cables	Sysfs subdirectories. Each represents one cable.
+ * @cables:	Sysfs subdirectories. Each represents one cable.
  *
  * In most cases, users only need to provide "User initializing data" of
  * this struct when registering an extcon. In some exceptional cases,
@@ -139,12 +139,12 @@ struct extcon_dev {
 
 /**
  * struct extcon_cable	- An internal data for each cable of extcon device.
- * @edev	The extcon device
- * @cable_index	Index of this cable in the edev
- * @attr_g	Attribute group for the cable
- * @attr_name	"name" sysfs entry
- * @attr_state	"state" sysfs entry
- * @attrs	Array pointing to attr_name and attr_state for attr_g
+ * @edev:	The extcon device
+ * @cable_index:	Index of this cable in the edev
+ * @attr_g:	Attribute group for the cable
+ * @attr_name:	"name" sysfs entry
+ * @attr_state:	"state" sysfs entry
+ * @attrs:	Array pointing to attr_name and attr_state for attr_g
  */
 struct extcon_cable {
 	struct extcon_dev *edev;
@@ -160,11 +160,11 @@ struct extcon_cable {
 /**
  * struct extcon_specific_cable_nb - An internal data for
  *				extcon_register_interest().
- * @internal_nb	a notifier block bridging extcon notifier and cable notifier.
- * @user_nb	user provided notifier block for events from a specific cable.
- * @cable_index	the target cable.
- * @edev	the target extcon device.
- * @previous_value	the saved previous event value.
+ * @internal_nb:	a notifier block bridging extcon notifier and cable notifier.
+ * @user_nb:	user provided notifier block for events from a specific cable.
+ * @cable_index:	the target cable.
+ * @edev:	the target extcon device.
+ * @previous_value:	the saved previous event value.
  */
 struct extcon_specific_cable_nb {
 	struct notifier_block internal_nb;
