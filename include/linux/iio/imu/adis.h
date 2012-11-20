@@ -14,8 +14,11 @@
 #include <linux/interrupt.h>
 #include <linux/iio/types.h>
 
-#define ADIS_WRITE_REG(reg) (0x80 | (reg))
-#define ADIS_READ_REG(reg) (reg)
+#define ADIS_WRITE_REG(reg) ((0x80 | (reg)))
+#define ADIS_READ_REG(reg) ((reg) & 0x7f)
+
+#define ADIS_PAGE_SIZE 0x80
+#define ADIS_REG_PAGE_ID 0x00
 
 /**
  * struct adis_data - ADIS chip variant specific data
@@ -40,6 +43,8 @@ struct adis_data {
 
 	const char * const *status_error_msgs;
 	unsigned int status_error_mask;
+
+	bool has_paging;
 };
 
 struct adis {
@@ -51,6 +56,7 @@ struct adis {
 	struct mutex		txrx_lock;
 	struct spi_message	msg;
 	struct spi_transfer	*xfer;
+	unsigned int		current_page;
 	void			*buffer;
 
 	uint8_t			tx[10] ____cacheline_aligned;

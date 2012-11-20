@@ -30,6 +30,7 @@
 int adis_write_reg(struct adis *adis, unsigned int reg,
 	unsigned int value, unsigned int size)
 {
+	unsigned int page = reg / ADIS_PAGE_SIZE;
 	int ret, i;
 	struct spi_message msg;
 	struct spi_transfer xfers[] = {
@@ -56,39 +57,53 @@ int adis_write_reg(struct adis *adis, unsigned int reg,
 			.bits_per_word = 8,
 			.len = 2,
 			.delay_usecs = adis->data->write_delay,
+		}, {
+			.tx_buf = adis->tx + 8,
+			.bits_per_word = 8,
+			.len = 2,
+			.delay_usecs = adis->data->write_delay,
 		},
 	};
 
 	mutex_lock(&adis->txrx_lock);
 
 	spi_message_init(&msg);
+
+	if (adis->current_page != page) {
+		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
+		adis->tx[1] = page;
+		spi_message_add_tail(&xfers[0], &msg);
+	}
+
 	switch (size) {
 	case 4:
-		adis->tx[6] = ADIS_WRITE_REG(reg + 3);
-		adis->tx[7] = (value >> 24) & 0xff;
-		adis->tx[4] = ADIS_WRITE_REG(reg + 2);
-		adis->tx[5] = (value >> 16) & 0xff;
+		adis->tx[8] = ADIS_WRITE_REG(reg + 3);
+		adis->tx[9] = (value >> 24) & 0xff;
+		adis->tx[6] = ADIS_WRITE_REG(reg + 2);
+		adis->tx[7] = (value >> 16) & 0xff;
 	case 2:
-		adis->tx[2] = ADIS_WRITE_REG(reg + 1);
-		adis->tx[3] = (value >> 8) & 0xff;
+		adis->tx[4] = ADIS_WRITE_REG(reg + 1);
+		adis->tx[5] = (value >> 8) & 0xff;
 	case 1:
-		adis->tx[0] = ADIS_WRITE_REG(reg);
-		adis->tx[1] = value & 0xff;
+		adis->tx[2] = ADIS_WRITE_REG(reg);
+		adis->tx[3] = value & 0xff;
 		break;
 	default:
 		ret = -EINVAL;
 		goto out_unlock;
 	}
 
-	xfers[size - 1].cs_change = 0;
+	xfers[size].cs_change = 0;
 
-	for (i = 0; i < size; i++)
+	for (i = 1; i <= size; i++)
 		spi_message_add_tail(&xfers[i], &msg);
 
 	ret = spi_sync(adis->spi, &msg);
 	if (ret) {
 		dev_err(&adis->spi->dev, "Failed to write register 0x%02X: %d\n",
 				reg, ret);
+	} else {
+		adis->current_page = page;
 	}
 
 out_unlock:
@@ -107,6 +122,7 @@ EXPORT_SYMBOL_GPL(adis_write_reg);
 int adis_read_reg(struct adis *adis, unsigned int reg,
 	unsigned int *val, unsigned int size)
 {
+	unsigned int page = reg / ADIS_PAGE_SIZE;
 	struct spi_message msg;
 	int ret;
 	struct spi_transfer xfers[] = {
@@ -115,9 +131,15 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = adis->data->read_delay,
+			.delay_usecs = adis->data->write_delay,
 		}, {
 			.tx_buf = adis->tx + 2,
+			.bits_per_word = 8,
+			.len = 2,
+			.cs_change = 1,
+			.delay_usecs = adis->data->read_delay,
+		}, {
+			.tx_buf = adis->tx + 4,
 			.rx_buf = adis->rx,
 			.bits_per_word = 8,
 			.len = 2,
@@ -134,16 +156,22 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 	mutex_lock(&adis->txrx_lock);
 	spi_message_init(&msg);
 
+	if (adis->current_page != page) {
+		adis->tx[0] = ADIS_WRITE_REG(ADIS_REG_PAGE_ID);
+		adis->tx[1] = page;
+		spi_message_add_tail(&xfers[0], &msg);
+	}
+
 	switch (size) {
 	case 4:
-		adis->tx[0] = ADIS_READ_REG(reg + 2);
-		adis->tx[1] = 0;
-		spi_message_add_tail(&xfers[0], &msg);
-	case 2:
-		adis->tx[2] = ADIS_READ_REG(reg);
+		adis->tx[2] = ADIS_READ_REG(reg + 2);
 		adis->tx[3] = 0;
 		spi_message_add_tail(&xfers[1], &msg);
+	case 2:
+		adis->tx[4] = ADIS_READ_REG(reg);
+		adis->tx[5] = 0;
 		spi_message_add_tail(&xfers[2], &msg);
+		spi_message_add_tail(&xfers[3], &msg);
 		break;
 	default:
 		ret = -EINVAL;
@@ -155,6 +183,8 @@ int adis_read_reg(struct adis *adis, unsigned int reg,
 		dev_err(&adis->spi->dev, "Failed to read register 0x%02X: %d\n",
 				reg, ret);
 		goto out_unlock;
+	} else {
+		adis->current_page = page;
 	}
 
 	switch (size) {
@@ -389,6 +419,14 @@ int adis_init(struct adis *adis, struct iio_dev *indio_dev,
 	adis->spi = spi;
 	adis->data = data;
 	iio_device_set_drvdata(indio_dev, adis);
+
+	if (data->has_paging) {
+		/* Need to set the page before first read/write */
+		adis->current_page = -1;
+	} else {
+		/* Page will always be 0 */
+		adis->current_page = 0;
+	}
 
 	return adis_enable_irq(adis, false);
 }
