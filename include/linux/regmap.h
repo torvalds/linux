@@ -54,6 +54,9 @@ enum regmap_endian {
 	REGMAP_ENDIAN_NATIVE,
 };
 
+typedef void (*regmap_lock)(void *);
+typedef void (*regmap_unlock)(void *);
+
 /**
  * Configuration for the register map of a device.
  *
@@ -76,6 +79,12 @@ enum regmap_endian {
  * @precious_reg: Optional callback returning true if the rgister
  *                should not be read outside of a call from the driver
  *                (eg, a clear on read interrupt status register).
+ * @lock:         Optional lock callback (overrides regmap's default lock
+ *                function, based on spinlock or mutex).
+ * @unlock:       As above for unlocking.
+ * @lock_arg:     this field is passed as the only argument of lock/unlock
+ *                functions (ignored in case regular lock/unlock functions
+ *                are not overridden).
  *
  * @max_register: Optional, specifies the maximum valid register index.
  * @reg_defaults: Power on reset values for registers (for use with
@@ -117,6 +126,9 @@ struct regmap_config {
 	bool (*readable_reg)(struct device *dev, unsigned int reg);
 	bool (*volatile_reg)(struct device *dev, unsigned int reg);
 	bool (*precious_reg)(struct device *dev, unsigned int reg);
+	regmap_lock lock;
+	regmap_unlock unlock;
+	void *lock_arg;
 
 	unsigned int max_register;
 	const struct reg_default *reg_defaults;
@@ -182,7 +194,9 @@ typedef void (*regmap_hw_free_context)(void *context);
  * Description of a hardware bus for the register map infrastructure.
  *
  * @fast_io: Register IO is fast. Use a spinlock instead of a mutex
- *           to perform locking.
+ *	     to perform locking. This field is ignored if custom lock/unlock
+ *	     functions are used (see fields lock/unlock of
+ *	     struct regmap_config).
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.

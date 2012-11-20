@@ -31,14 +31,12 @@ struct regmap_format {
 	unsigned int (*parse_val)(void *buf);
 };
 
-typedef void (*regmap_lock)(struct regmap *map);
-typedef void (*regmap_unlock)(struct regmap *map);
-
 struct regmap {
 	struct mutex mutex;
 	spinlock_t spinlock;
 	regmap_lock lock;
 	regmap_unlock unlock;
+	void *lock_arg; /* This is passed to lock/unlock functions */
 
 	struct device *dev; /* Device we do I/O on */
 	void *work_buf;     /* Scratch buffer used to format I/O */
