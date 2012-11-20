@@ -77,6 +77,11 @@
 #define KIRKWOOD_DCO_SPCR_STATUS		0x120c
 #define KIRKWOOD_DCO_SPCR_STATUS_DCO_LOCK	(1<<16)
 
+#define KIRKWOOD_CLOCKS_CTRL			0x1230
+#define KIRKWOOD_MCLK_SOURCE_MASK		(3<<0)
+#define KIRKWOOD_MCLK_SOURCE_DCO		(0<<0)
+#define KIRKWOOD_MCLK_SOURCE_EXTCLK		(3<<0)
+
 #define KIRKWOOD_ERR_CAUSE			0x1300
 #define KIRKWOOD_ERR_MASK			0x1304
 
@@ -120,11 +125,12 @@
 
 struct kirkwood_dma_data {
 	void __iomem *io;
+	struct clk *clk;
+	struct clk *extclk;
 	uint32_t ctl_play;
 	uint32_t ctl_rec;
 	int irq;
 	int burst;
-	struct clk *clk;
 };
 
 #endif
