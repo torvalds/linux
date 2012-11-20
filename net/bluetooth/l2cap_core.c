@@ -6091,7 +6091,7 @@ static int l2cap_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 		       control->super);
 
 		if (len != 0) {
-			BT_ERR("%d", len);
+			BT_ERR("Trailing bytes: %d in sframe", len);
 			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
 			goto drop;
 		}
