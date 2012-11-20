@@ -114,6 +114,9 @@ config LCD_HSD07PFW1
 
 config LCD_I30_800X480
         bool "lcd I30"
+config LCD_TL5001_MIPI
+	bool "TL5001 720X1280"
+
 endchoice
 
 

@@ -4,3 +4,8 @@ config RK610_LVDS
 	default y if MFD_RK610
 	help
 		Support Jetta(RK610) to output LCD1 and LVDS.
+		
+config TC358768_RGB2MIPI
+	bool "toshiba RGB to MIPI DSI"
+	help
+		"a chip that change RGB interface parallel signal into DSI serial signal"
