@@ -49,11 +49,9 @@ genCrcTable (u_int32_t *CRCTable)
 	int         ii, jj;
 	u_int32_t      crc;
 
-	for (ii = 0; ii < CRC_TABLE_ENTRIES; ii++)
-	{
+	for (ii = 0; ii < CRC_TABLE_ENTRIES; ii++) {
 		crc = ii;
-		for (jj = 8; jj > 0; jj--)
-		{
+		for (jj = 8; jj > 0; jj--) {
 			if (crc & 1)
 				crc = (crc >> 1) ^ CRC32_POLYNOMIAL;
 			else
@@ -98,15 +96,13 @@ sbeCrc (u_int8_t *buffer,          /* data buffer to crc */
 	* checking this every time sbeCrc() is called, since CRC calculations
 	* are already time consuming
 	*/
-	if (!crcTableInit)
-	{
+	if (!crcTableInit) {
 #ifdef STATIC_CRC_TABLE
 		tbl = &CRCTable;
 		genCrcTable (tbl);
 #else
 		tbl = (u_int32_t *) OS_kmalloc (CRC_TABLE_ENTRIES * sizeof (u_int32_t));
-		if (tbl == 0)
-		{
+		if (tbl == 0) {
 			*result = 0;   /* dummy up return value due to malloc
 					* failure */
 			return;
@@ -117,8 +113,7 @@ sbeCrc (u_int8_t *buffer,          /* data buffer to crc */
 	/* inverting bits makes ZMODEM & PKZIP compatible */
 	crc = initialCrc ^ 0xFFFFFFFFL;
 
-	while (count-- != 0)
-	{
+	while (count-- != 0) {
 		temp1 = (crc >> 8) & 0x00FFFFFFL;
 		temp2 = tbl[((int) crc ^ *buffer++) & 0xff];
 		crc = temp1 ^ temp2;
