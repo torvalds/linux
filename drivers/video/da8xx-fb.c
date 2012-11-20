@@ -1248,7 +1248,7 @@ static int __devinit fb_probe(struct platform_device *device)
 		goto err_request_mem;
 	}
 
-	fb_clk = clk_get(&device->dev, NULL);
+	fb_clk = clk_get(&device->dev, "fck");
 	if (IS_ERR(fb_clk)) {
 		dev_err(&device->dev, "Can not get device clock\n");
 		ret = -ENODEV;
