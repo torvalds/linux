@@ -25,26 +25,15 @@
 #include <linux/irq.h>
 
 struct tps65090 {
-	struct mutex		lock;
 	struct device		*dev;
-	struct i2c_client	*client;
 	struct regmap		*rmap;
 	struct irq_chip		irq_chip;
 	struct mutex		irq_lock;
 	int			irq_base;
-	unsigned int		id;
-};
-
-struct tps65090_subdev_info {
-	int		id;
-	const char	*name;
-	void		*platform_data;
 };
 
 struct tps65090_platform_data {
 	int irq_base;
-	int num_subdevs;
-	struct tps65090_subdev_info *subdevs;
 };
 
 /*
