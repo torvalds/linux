@@ -143,12 +143,22 @@ EXPORT_SYMBOL_GPL(omap_iommu_arch_version);
 static int iommu_enable(struct omap_iommu *obj)
 {
 	int err;
+	struct platform_device *pdev = to_platform_device(obj->dev);
+	struct iommu_platform_data *pdata = pdev->dev.platform_data;
 
-	if (!obj)
+	if (!obj || !pdata)
 		return -EINVAL;
 
 	if (!arch_iommu)
 		return -ENODEV;
+
+	if (pdata->deassert_reset) {
+		err = pdata->deassert_reset(pdev, pdata->reset_name);
+		if (err) {
+			dev_err(obj->dev, "deassert_reset failed: %d\n", err);
+			return err;
+		}
+	}
 
 	clk_enable(obj->clk);
 
@@ -159,12 +169,18 @@ static int iommu_enable(struct omap_iommu *obj)
 
 static void iommu_disable(struct omap_iommu *obj)
 {
-	if (!obj)
+	struct platform_device *pdev = to_platform_device(obj->dev);
+	struct iommu_platform_data *pdata = pdev->dev.platform_data;
+
+	if (!obj || !pdata)
 		return;
 
 	arch_iommu->disable(obj);
 
 	clk_disable(obj->clk);
+
+	if (pdata->assert_reset)
+		pdata->assert_reset(pdev, pdata->reset_name);
 }
 
 /*
@@ -925,9 +941,6 @@ static int __devinit omap_iommu_probe(struct platform_device *pdev)
 	struct omap_iommu *obj;
 	struct resource *res;
 	struct iommu_platform_data *pdata = pdev->dev.platform_data;
-
-	if (pdev->num_resources != 2)
-		return -EINVAL;
 
 	obj = kzalloc(sizeof(*obj) + MMU_REG_SIZE, GFP_KERNEL);
 	if (!obj)
