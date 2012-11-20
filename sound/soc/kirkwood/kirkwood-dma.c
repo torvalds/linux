@@ -29,7 +29,9 @@
 #define KIRKWOOD_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | \
 	 SNDRV_PCM_FMTBIT_S24_LE | \
-	 SNDRV_PCM_FMTBIT_S32_LE)
+	 SNDRV_PCM_FMTBIT_S32_LE | \
+	 SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE | \
+	 SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_BE)
 
 struct kirkwood_dma_priv {
 	struct snd_pcm_substream *play_stream;
@@ -48,7 +50,7 @@ static struct snd_pcm_hardware kirkwood_dma_snd_hw = {
 	.rate_min		= 8000,
 	.rate_max		= 384000,
 	.channels_min		= 1,
-	.channels_max		= 2,
+	.channels_max		= 8,
 	.buffer_bytes_max	= KIRKWOOD_SND_MAX_PERIOD_BYTES * KIRKWOOD_SND_MAX_PERIODS,
 	.period_bytes_min	= KIRKWOOD_SND_MIN_PERIOD_BYTES,
 	.period_bytes_max	= KIRKWOOD_SND_MAX_PERIOD_BYTES,
