@@ -14,6 +14,7 @@
 #include "debugfs.h"
 #include "debugfs_sta.h"
 #include "sta_info.h"
+#include "driver-ops.h"
 
 /* sta attributtes */
 
@@ -334,6 +335,8 @@ STA_OPS(ht_capa);
 
 void ieee80211_sta_debugfs_add(struct sta_info *sta)
 {
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct dentry *stations_dir = sta->sdata->debugfs.subdir_stations;
 	u8 mac[3*ETH_ALEN];
 
@@ -379,10 +382,16 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD_COUNTER(tx_retry_failed, tx_retry_failed);
 	DEBUGFS_ADD_COUNTER(tx_retry_count, tx_retry_count);
 	DEBUGFS_ADD_COUNTER(wep_weak_iv_count, wep_weak_iv_count);
+
+	drv_sta_add_debugfs(local, sdata, &sta->sta, sta->debugfs.dir);
 }
 
 void ieee80211_sta_debugfs_remove(struct sta_info *sta)
 {
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+
+	drv_sta_remove_debugfs(local, sdata, &sta->sta, sta->debugfs.dir);
 	debugfs_remove_recursive(sta->debugfs.dir);
 	sta->debugfs.dir = NULL;
 }
