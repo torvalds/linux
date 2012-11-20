@@ -121,7 +121,7 @@
 #define MAX_RTS_BYTES               2347
 
 #define MAX_RATES                   8
-#define MEGABIT                     1024*1024
+#define MEGABIT                     (1024 * 1024)
 
 #define HCF_FAILURE                 0xFF
 #define UIL_FAILURE		            0xFF
@@ -154,15 +154,15 @@ UIL_FUN_GET_INFO
 UIL_FUN_PUT_INFO
 */
 
-#define SIOCSIWNETNAME              SIOCDEVPRIVATE+1
-#define SIOCGIWNETNAME              SIOCDEVPRIVATE+2
-#define SIOCSIWSTANAME              SIOCDEVPRIVATE+3
-#define SIOCGIWSTANAME              SIOCDEVPRIVATE+4
-#define SIOCSIWPORTTYPE             SIOCDEVPRIVATE+5
-#define SIOCGIWPORTTYPE             SIOCDEVPRIVATE+6
+#define SIOCSIWNETNAME              (SIOCDEVPRIVATE + 1)
+#define SIOCGIWNETNAME              (SIOCDEVPRIVATE + 2)
+#define SIOCSIWSTANAME              (SIOCDEVPRIVATE + 3)
+#define SIOCGIWSTANAME              (SIOCDEVPRIVATE + 4)
+#define SIOCSIWPORTTYPE             (SIOCDEVPRIVATE + 5)
+#define SIOCGIWPORTTYPE             (SIOCDEVPRIVATE + 6)
 
 /* IOCTL code for the RTS interface */
-#define WL_IOCTL_RTS                SIOCDEVPRIVATE+7
+#define WL_IOCTL_RTS                (SIOCDEVPRIVATE + 7)
 
 /* IOCTL subcodes for WL_IOCTL_RTS */
 #define WL_IOCTL_RTS_READ           1
