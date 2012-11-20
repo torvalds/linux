@@ -217,7 +217,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	memmove(skb->data + 4, skb->data, hdr_len);
 	skb_pull(skb, 4);
 	skb_trim(skb, skb->len - 4);
-        return 0;
+	return 0;
 }
 
 
@@ -289,5 +289,5 @@ void ieee80211_crypto_wep_exit(void)
 void ieee80211_wep_null(void)
 {
 //	printk("============>%s()\n", __func__);
-        return;
+	return;
 }
