@@ -131,6 +131,7 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	struct drm_vmw_rect *clips = NULL;
 	struct drm_mode_object *obj;
 	struct vmw_framebuffer *vfb;
+	struct vmw_resource *res;
 	uint32_t num_clips;
 	int ret;
 
@@ -178,11 +179,13 @@ int vmw_present_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		goto out_no_ttm_lock;
 
-	ret = vmw_user_surface_lookup_handle(dev_priv, tfile, arg->sid,
-					     &surface);
+	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, arg->sid,
+					      user_surface_converter,
+					      &res);
 	if (ret)
 		goto out_no_surface;
 
+	surface = vmw_res_to_srf(res);
 	ret = vmw_kms_present(dev_priv, file_priv,
 			      vfb, surface, arg->sid,
 			      arg->dest_x, arg->dest_y,

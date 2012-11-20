@@ -31,15 +31,47 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/drmP.h>
 
-struct vmw_user_context {
-	struct ttm_base_object base;
-	struct vmw_resource res;
+/**
+ * struct vmw_user_resource_conv - Identify a derived user-exported resource
+ * type and provide a function to convert its ttm_base_object pointer to
+ * a struct vmw_resource
+ */
+struct vmw_user_resource_conv {
+	enum ttm_object_type object_type;
+	struct vmw_resource *(*base_obj_to_res)(struct ttm_base_object *base);
+	void (*res_free) (struct vmw_resource *res);
 };
 
-struct vmw_user_surface {
-	struct ttm_base_object base;
-	struct vmw_surface srf;
-	uint32_t size;
+/**
+ * struct vmw_res_func - members and functions common for a resource type
+ *
+ * @res_type:          Enum that identifies the lru list to use for eviction.
+ * @needs_backup:      Whether the resource is guest-backed and needs
+ *                     persistent buffer storage.
+ * @type_name:         String that identifies the resource type.
+ * @backup_placement:  TTM placement for backup buffers.
+ * @may_evict          Whether the resource may be evicted.
+ * @create:            Create a hardware resource.
+ * @destroy:           Destroy a hardware resource.
+ * @bind:              Bind a hardware resource to persistent buffer storage.
+ * @unbind:            Unbind a hardware resource from persistent
+ *                     buffer storage.
+ */
+
+struct vmw_res_func {
+	enum vmw_res_type res_type;
+	bool needs_backup;
+	const char *type_name;
+	struct ttm_placement *backup_placement;
+	bool may_evict;
+
+	int (*create) (struct vmw_resource *res);
+	int (*destroy) (struct vmw_resource *res);
+	int (*bind) (struct vmw_resource *res,
+		     struct ttm_validate_buffer *val_buf);
+	int (*unbind) (struct vmw_resource *res,
+		       bool readback,
+		       struct ttm_validate_buffer *val_buf);
 };
 
 struct vmw_user_dma_buffer {
@@ -62,16 +94,118 @@ struct vmw_user_stream {
 	struct vmw_stream stream;
 };
 
+
+static uint64_t vmw_user_stream_size;
+
+static const struct vmw_res_func vmw_stream_func = {
+	.res_type = vmw_res_stream,
+	.needs_backup = false,
+	.may_evict = false,
+	.type_name = "video streams",
+	.backup_placement = NULL,
+	.create = NULL,
+	.destroy = NULL,
+	.bind = NULL,
+	.unbind = NULL
+};
+
+struct vmw_user_context {
+	struct ttm_base_object base;
+	struct vmw_resource res;
+};
+
+static void vmw_user_context_free(struct vmw_resource *res);
+static struct vmw_resource *
+vmw_user_context_base_to_res(struct ttm_base_object *base);
+
+static uint64_t vmw_user_context_size;
+
+static const struct vmw_user_resource_conv user_context_conv = {
+	.object_type = VMW_RES_CONTEXT,
+	.base_obj_to_res = vmw_user_context_base_to_res,
+	.res_free = vmw_user_context_free
+};
+
+const struct vmw_user_resource_conv *user_context_converter =
+	&user_context_conv;
+
+
+static const struct vmw_res_func vmw_legacy_context_func = {
+	.res_type = vmw_res_context,
+	.needs_backup = false,
+	.may_evict = false,
+	.type_name = "legacy contexts",
+	.backup_placement = NULL,
+	.create = NULL,
+	.destroy = NULL,
+	.bind = NULL,
+	.unbind = NULL
+};
+
+
+/**
+ * struct vmw_user_surface - User-space visible surface resource
+ *
+ * @base:           The TTM base object handling user-space visibility.
+ * @srf:            The surface metadata.
+ * @size:           TTM accounting size for the surface.
+ */
+struct vmw_user_surface {
+	struct ttm_base_object base;
+	struct vmw_surface srf;
+	uint32_t size;
+	uint32_t backup_handle;
+};
+
+/**
+ * struct vmw_surface_offset - Backing store mip level offset info
+ *
+ * @face:           Surface face.
+ * @mip:            Mip level.
+ * @bo_offset:      Offset into backing store of this mip level.
+ *
+ */
 struct vmw_surface_offset {
 	uint32_t face;
 	uint32_t mip;
 	uint32_t bo_offset;
 };
 
+static void vmw_user_surface_free(struct vmw_resource *res);
+static struct vmw_resource *
+vmw_user_surface_base_to_res(struct ttm_base_object *base);
+static int vmw_legacy_srf_bind(struct vmw_resource *res,
+			       struct ttm_validate_buffer *val_buf);
+static int vmw_legacy_srf_unbind(struct vmw_resource *res,
+				 bool readback,
+				 struct ttm_validate_buffer *val_buf);
+static int vmw_legacy_srf_create(struct vmw_resource *res);
+static int vmw_legacy_srf_destroy(struct vmw_resource *res);
 
-static uint64_t vmw_user_context_size;
+static const struct vmw_user_resource_conv user_surface_conv = {
+	.object_type = VMW_RES_SURFACE,
+	.base_obj_to_res = vmw_user_surface_base_to_res,
+	.res_free = vmw_user_surface_free
+};
+
+const struct vmw_user_resource_conv *user_surface_converter =
+	&user_surface_conv;
+
+
 static uint64_t vmw_user_surface_size;
-static uint64_t vmw_user_stream_size;
+
+static const struct vmw_res_func vmw_legacy_surface_func = {
+	.res_type = vmw_res_surface,
+	.needs_backup = false,
+	.may_evict = true,
+	.type_name = "legacy surfaces",
+	.backup_placement = &vmw_srf_placement,
+	.create = &vmw_legacy_srf_create,
+	.destroy = &vmw_legacy_srf_destroy,
+	.bind = &vmw_legacy_srf_bind,
+	.unbind = &vmw_legacy_srf_unbind
+};
+
 
 static inline struct vmw_dma_buffer *
 vmw_dma_buffer(struct ttm_buffer_object *bo)
@@ -103,10 +237,11 @@ struct vmw_resource *vmw_resource_reference(struct vmw_resource *res)
 static void vmw_resource_release_id(struct vmw_resource *res)
 {
 	struct vmw_private *dev_priv = res->dev_priv;
+	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
 	write_lock(&dev_priv->resource_lock);
 	if (res->id != -1)
-		idr_remove(res->idr, res->id);
+		idr_remove(idr, res->id);
 	res->id = -1;
 	write_unlock(&dev_priv->resource_lock);
 }
@@ -116,17 +251,33 @@ static void vmw_resource_release(struct kref *kref)
 	struct vmw_resource *res =
 	    container_of(kref, struct vmw_resource, kref);
 	struct vmw_private *dev_priv = res->dev_priv;
-	int id = res->id;
-	struct idr *idr = res->idr;
+	int id;
+	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
 	res->avail = false;
-	if (res->remove_from_lists != NULL)
-		res->remove_from_lists(res);
+	list_del_init(&res->lru_head);
 	write_unlock(&dev_priv->resource_lock);
+	if (res->backup) {
+		struct ttm_buffer_object *bo = &res->backup->base;
+
+		ttm_bo_reserve(bo, false, false, false, 0);
+		if (!list_empty(&res->mob_head) &&
+		    res->func->unbind != NULL) {
+			struct ttm_validate_buffer val_buf;
+
+			val_buf.bo = bo;
+			res->func->unbind(res, false, &val_buf);
+		}
+		res->backup_dirty = false;
+		list_del_init(&res->mob_head);
+		ttm_bo_unreserve(bo);
+		vmw_dmabuf_unreference(&res->backup);
+	}
 
 	if (likely(res->hw_destroy != NULL))
 		res->hw_destroy(res);
 
+	id = res->id;
 	if (res->res_free != NULL)
 		res->res_free(res);
 	else
@@ -153,25 +304,25 @@ void vmw_resource_unreference(struct vmw_resource **p_res)
 /**
  * vmw_resource_alloc_id - release a resource id to the id manager.
  *
- * @dev_priv: Pointer to the device private structure.
  * @res: Pointer to the resource.
  *
  * Allocate the lowest free resource from the resource manager, and set
  * @res->id to that id. Returns 0 on success and -ENOMEM on failure.
  */
-static int vmw_resource_alloc_id(struct vmw_private *dev_priv,
-				 struct vmw_resource *res)
+static int vmw_resource_alloc_id(struct vmw_resource *res)
 {
+	struct vmw_private *dev_priv = res->dev_priv;
 	int ret;
+	struct idr *idr = &dev_priv->res_idr[res->func->res_type];
 
 	BUG_ON(res->id != -1);
 
 	do {
-		if (unlikely(idr_pre_get(res->idr, GFP_KERNEL) == 0))
+		if (unlikely(idr_pre_get(idr, GFP_KERNEL) == 0))
 			return -ENOMEM;
 
 		write_lock(&dev_priv->resource_lock);
-		ret = idr_get_new_above(res->idr, res, 1, &res->id);
+		ret = idr_get_new_above(idr, res, 1, &res->id);
 		write_unlock(&dev_priv->resource_lock);
 
 	} while (ret == -EAGAIN);
@@ -179,31 +330,40 @@ static int vmw_resource_alloc_id(struct vmw_private *dev_priv,
 	return ret;
 }
 
-
+/**
+ * vmw_resource_init - initialize a struct vmw_resource
+ *
+ * @dev_priv:       Pointer to a device private struct.
+ * @res:            The struct vmw_resource to initialize.
+ * @obj_type:       Resource object type.
+ * @delay_id:       Boolean whether to defer device id allocation until
+ *                  the first validation.
+ * @res_free:       Resource destructor.
+ * @func:           Resource function table.
+ */
 static int vmw_resource_init(struct vmw_private *dev_priv,
 			     struct vmw_resource *res,
-			     struct idr *idr,
-			     enum ttm_object_type obj_type,
 			     bool delay_id,
 			     void (*res_free) (struct vmw_resource *res),
-			     void (*remove_from_lists)
-			     (struct vmw_resource *res))
+			     const struct vmw_res_func *func)
 {
 	kref_init(&res->kref);
 	res->hw_destroy = NULL;
 	res->res_free = res_free;
-	res->remove_from_lists = remove_from_lists;
-	res->res_type = obj_type;
-	res->idr = idr;
 	res->avail = false;
 	res->dev_priv = dev_priv;
-	INIT_LIST_HEAD(&res->query_head);
-	INIT_LIST_HEAD(&res->validate_head);
+	res->func = func;
+	INIT_LIST_HEAD(&res->lru_head);
+	INIT_LIST_HEAD(&res->mob_head);
 	res->id = -1;
+	res->backup = NULL;
+	res->backup_offset = 0;
+	res->backup_dirty = false;
+	res->res_dirty = false;
 	if (delay_id)
 		return 0;
 	else
-		return vmw_resource_alloc_id(dev_priv, res);
+		return vmw_resource_alloc_id(res);
 }
 
 /**
@@ -218,7 +378,6 @@ static int vmw_resource_init(struct vmw_private *dev_priv,
  * Activate basically means that the function vmw_resource_lookup will
  * find it.
  */
-
 static void vmw_resource_activate(struct vmw_resource *res,
 				  void (*hw_destroy) (struct vmw_resource *))
 {
@@ -263,8 +422,7 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	} *cmd;
 
 
-	vmw_execbuf_release_pinned_bo(dev_priv, true, res->id);
-
+	vmw_execbuf_release_pinned_bo(dev_priv);
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
@@ -291,8 +449,8 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 		SVGA3dCmdDefineContext body;
 	} *cmd;
 
-	ret = vmw_resource_init(dev_priv, res, &dev_priv->context_idr,
-				VMW_RES_CONTEXT, false, res_free, NULL);
+	ret = vmw_resource_init(dev_priv, res, false,
+				res_free, &vmw_legacy_context_func);
 
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a resource id.\n");
@@ -338,12 +496,19 @@ struct vmw_resource *vmw_context_alloc(struct vmw_private *dev_priv)
 		return NULL;
 
 	ret = vmw_context_init(dev_priv, res, NULL);
+
 	return (ret == 0) ? res : NULL;
 }
 
 /**
  * User-space context management:
  */
+
+static struct vmw_resource *
+vmw_user_context_base_to_res(struct ttm_base_object *base)
+{
+	return &(container_of(base, struct vmw_user_context, base)->res);
+}
 
 static void vmw_user_context_free(struct vmw_resource *res)
 {
@@ -375,32 +540,10 @@ static void vmw_user_context_base_release(struct ttm_base_object **p_base)
 int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_resource *res;
-	struct vmw_user_context *ctx;
 	struct drm_vmw_context_arg *arg = (struct drm_vmw_context_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	int ret = 0;
 
-	res = vmw_resource_lookup(dev_priv, &dev_priv->context_idr, arg->cid);
-	if (unlikely(res == NULL))
-		return -EINVAL;
-
-	if (res->res_free != &vmw_user_context_free) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	ctx = container_of(res, struct vmw_user_context, res);
-	if (ctx->base.tfile != tfile && !ctx->base.shareable) {
-		ret = -EPERM;
-		goto out;
-	}
-
-	ttm_ref_object_base_unref(tfile, ctx->base.hash.key, TTM_REF_USAGE);
-out:
-	vmw_resource_unreference(&res);
-	return ret;
+	return ttm_ref_object_base_unref(tfile, arg->cid, TTM_REF_USAGE);
 }
 
 int vmw_context_define_ioctl(struct drm_device *dev, void *data,
@@ -438,7 +581,7 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (unlikely(ctx == NULL)) {
 		ttm_mem_global_free(vmw_mem_glob(dev_priv),
 				    vmw_user_context_size);
@@ -467,7 +610,7 @@ int vmw_context_define_ioctl(struct drm_device *dev, void *data,
 		goto out_err;
 	}
 
-	arg->cid = res->id;
+	arg->cid = ctx->base.hash.key;
 out_err:
 	vmw_resource_unreference(&res);
 out_unlock:
@@ -476,30 +619,13 @@ out_unlock:
 
 }
 
-int vmw_context_check(struct vmw_private *dev_priv,
-		      struct ttm_object_file *tfile,
-		      int id,
-		      struct vmw_resource **p_res)
-{
-	struct vmw_resource *res;
-	int ret = 0;
-
-	read_lock(&dev_priv->resource_lock);
-	res = idr_find(&dev_priv->context_idr, id);
-	if (res && res->avail) {
-		struct vmw_user_context *ctx =
-			container_of(res, struct vmw_user_context, res);
-		if (ctx->base.tfile != tfile && !ctx->base.shareable)
-			ret = -EPERM;
-		if (p_res)
-			*p_res = vmw_resource_reference(res);
-	} else
-		ret = -EINVAL;
-	read_unlock(&dev_priv->resource_lock);
-
-	return ret;
-}
-
+/**
+ * struct vmw_bpp - Bits per pixel info for surface storage size computation.
+ *
+ * @bpp:         Bits per pixel.
+ * @s_bpp:       Stride bits per pixel. See definition below.
+ *
+ */
 struct vmw_bpp {
 	uint8_t bpp;
 	uint8_t s_bpp;
@@ -573,9 +699,8 @@ static const struct vmw_bpp vmw_sf_bpp[] = {
 
 
 /**
- * Surface management.
+ * struct vmw_surface_dma - SVGA3D DMA command
  */
-
 struct vmw_surface_dma {
 	SVGA3dCmdHeader header;
 	SVGA3dCmdSurfaceDMA body;
@@ -583,11 +708,17 @@ struct vmw_surface_dma {
 	SVGA3dCmdSurfaceDMASuffix suffix;
 };
 
+/**
+ * struct vmw_surface_define - SVGA3D Surface Define command
+ */
 struct vmw_surface_define {
 	SVGA3dCmdHeader header;
 	SVGA3dCmdDefineSurface body;
 };
 
+/**
+ * struct vmw_surface_destroy - SVGA3D Surface Destroy command
+ */
 struct vmw_surface_destroy {
 	SVGA3dCmdHeader header;
 	SVGA3dCmdDestroySurface body;
@@ -688,7 +819,6 @@ static void vmw_surface_define_encode(const struct vmw_surface *srf,
 	}
 }
 
-
 /**
  * vmw_surface_dma_encode - Encode a surface_dma command.
  *
@@ -748,6 +878,15 @@ static void vmw_surface_dma_encode(struct vmw_surface *srf,
 };
 
 
+/**
+ * vmw_hw_surface_destroy - destroy a Device surface
+ *
+ * @res:        Pointer to a struct vmw_resource embedded in a struct
+ *              vmw_surface.
+ *
+ * Destroys a the device surface associated with a struct vmw_surface if
+ * any, and adjusts accounting and resource count accordingly.
+ */
 static void vmw_hw_surface_destroy(struct vmw_resource *res)
 {
 
@@ -774,47 +913,30 @@ static void vmw_hw_surface_destroy(struct vmw_resource *res)
 		 */
 
 		mutex_lock(&dev_priv->cmdbuf_mutex);
-		srf = container_of(res, struct vmw_surface, res);
-		dev_priv->used_memory_size -= srf->backup_size;
+		srf = vmw_res_to_srf(res);
+		dev_priv->used_memory_size -= res->backup_size;
 		mutex_unlock(&dev_priv->cmdbuf_mutex);
-
 	}
 	vmw_3d_resource_dec(dev_priv, false);
 }
 
-void vmw_surface_res_free(struct vmw_resource *res)
-{
-	struct vmw_surface *srf = container_of(res, struct vmw_surface, res);
-
-	if (srf->backup)
-		ttm_bo_unref(&srf->backup);
-	kfree(srf->offsets);
-	kfree(srf->sizes);
-	kfree(srf->snooper.image);
-	kfree(srf);
-}
-
-
 /**
- * vmw_surface_do_validate - make a surface available to the device.
+ * vmw_legacy_srf_create - Create a device surface as part of the
+ * resource validation process.
  *
- * @dev_priv: Pointer to a device private struct.
- * @srf: Pointer to a struct vmw_surface.
+ * @res: Pointer to a struct vmw_surface.
  *
- * If the surface doesn't have a hw id, allocate one, and optionally
- * DMA the backed up surface contents to the device.
+ * If the surface doesn't have a hw id.
  *
  * Returns -EBUSY if there wasn't sufficient device resources to
  * complete the validation. Retry after freeing up resources.
  *
  * May return other errors if the kernel is out of guest resources.
  */
-int vmw_surface_do_validate(struct vmw_private *dev_priv,
-			    struct vmw_surface *srf)
+static int vmw_legacy_srf_create(struct vmw_resource *res)
 {
-	struct vmw_resource *res = &srf->res;
-	struct list_head val_list;
-	struct ttm_validate_buffer val_buf;
+	struct vmw_private *dev_priv = res->dev_priv;
+	struct vmw_surface *srf;
 	uint32_t submit_size;
 	uint8_t *cmd;
 	int ret;
@@ -822,67 +944,92 @@ int vmw_surface_do_validate(struct vmw_private *dev_priv,
 	if (likely(res->id != -1))
 		return 0;
 
-	if (unlikely(dev_priv->used_memory_size + srf->backup_size >=
+	srf = vmw_res_to_srf(res);
+	if (unlikely(dev_priv->used_memory_size + res->backup_size >=
 		     dev_priv->memory_size))
 		return -EBUSY;
-
-	/*
-	 * Reserve- and validate the backup DMA bo.
-	 */
-
-	if (srf->backup) {
-		INIT_LIST_HEAD(&val_list);
-		val_buf.bo = ttm_bo_reference(srf->backup);
-		list_add_tail(&val_buf.head, &val_list);
-		ret = ttm_eu_reserve_buffers(&val_list);
-		if (unlikely(ret != 0))
-			goto out_no_reserve;
-
-		ret = ttm_bo_validate(srf->backup, &vmw_srf_placement,
-				      true, false, false);
-		if (unlikely(ret != 0))
-			goto out_no_validate;
-	}
 
 	/*
 	 * Alloc id for the resource.
 	 */
 
-	ret = vmw_resource_alloc_id(dev_priv, res);
+	ret = vmw_resource_alloc_id(res);
 	if (unlikely(ret != 0)) {
 		DRM_ERROR("Failed to allocate a surface id.\n");
 		goto out_no_id;
 	}
+
 	if (unlikely(res->id >= SVGA3D_MAX_SURFACE_IDS)) {
 		ret = -EBUSY;
 		goto out_no_fifo;
 	}
 
-
 	/*
-	 * Encode surface define- and dma commands.
+	 * Encode surface define- commands.
 	 */
 
 	submit_size = vmw_surface_define_size(srf);
-	if (srf->backup)
-		submit_size += vmw_surface_dma_size(srf);
-
 	cmd = vmw_fifo_reserve(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
-			  "validation.\n");
+			  "creation.\n");
 		ret = -ENOMEM;
 		goto out_no_fifo;
 	}
 
 	vmw_surface_define_encode(srf, cmd);
-	if (srf->backup) {
-		SVGAGuestPtr ptr;
+	vmw_fifo_commit(dev_priv, submit_size);
+	/*
+	 * Surface memory usage accounting.
+	 */
 
-		cmd += vmw_surface_define_size(srf);
-		vmw_bo_get_guest_ptr(srf->backup, &ptr);
-		vmw_surface_dma_encode(srf, cmd, &ptr, true);
+	dev_priv->used_memory_size += res->backup_size;
+	return 0;
+
+out_no_fifo:
+	vmw_resource_release_id(res);
+out_no_id:
+	return ret;
+}
+
+/**
+ * vmw_legacy_srf_dma - Copy backup data to or from a legacy surface.
+ *
+ * @res:            Pointer to a struct vmw_res embedded in a struct
+ *                  vmw_surface.
+ * @val_buf:        Pointer to a struct ttm_validate_buffer containing
+ *                  information about the backup buffer.
+ * @bind:           Boolean wether to DMA to the surface.
+ *
+ * Transfer backup data to or from a legacy surface as part of the
+ * validation process.
+ * May return other errors if the kernel is out of guest resources.
+ * The backup buffer will be fenced or idle upon successful completion,
+ * and if the surface needs persistent backup storage, the backup buffer
+ * will also be returned reserved iff @bind is true.
+ */
+static int vmw_legacy_srf_dma(struct vmw_resource *res,
+			      struct ttm_validate_buffer *val_buf,
+			      bool bind)
+{
+	SVGAGuestPtr ptr;
+	struct vmw_fence_obj *fence;
+	uint32_t submit_size;
+	struct vmw_surface *srf = vmw_res_to_srf(res);
+	uint8_t *cmd;
+	struct vmw_private *dev_priv = res->dev_priv;
+
+	BUG_ON(val_buf->bo == NULL);
+
+	submit_size = vmw_surface_dma_size(srf);
+	cmd = vmw_fifo_reserve(dev_priv, submit_size);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for surface "
+			  "DMA.\n");
+		return -ENOMEM;
 	}
+	vmw_bo_get_guest_ptr(val_buf->bo, &ptr);
+	vmw_surface_dma_encode(srf, cmd, &ptr, bind);
 
 	vmw_fifo_commit(dev_priv, submit_size);
 
@@ -890,107 +1037,86 @@ int vmw_surface_do_validate(struct vmw_private *dev_priv,
 	 * Create a fence object and fence the backup buffer.
 	 */
 
-	if (srf->backup) {
-		struct vmw_fence_obj *fence;
+	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
+					  &fence, NULL);
 
-		(void) vmw_execbuf_fence_commands(NULL, dev_priv,
-						  &fence, NULL);
-		ttm_eu_fence_buffer_objects(&val_list, fence);
-		if (likely(fence != NULL))
-			vmw_fence_obj_unreference(&fence);
-		ttm_bo_unref(&val_buf.bo);
-		ttm_bo_unref(&srf->backup);
-	}
+	vmw_fence_single_bo(val_buf->bo, fence);
 
-	/*
-	 * Surface memory usage accounting.
-	 */
-
-	dev_priv->used_memory_size += srf->backup_size;
+	if (likely(fence != NULL))
+		vmw_fence_obj_unreference(&fence);
 
 	return 0;
-
-out_no_fifo:
-	vmw_resource_release_id(res);
-out_no_id:
-out_no_validate:
-	if (srf->backup)
-		ttm_eu_backoff_reservation(&val_list);
-out_no_reserve:
-	if (srf->backup)
-		ttm_bo_unref(&val_buf.bo);
-	return ret;
 }
 
 /**
- * vmw_surface_evict - Evict a hw surface.
+ * vmw_legacy_srf_bind - Perform a legacy surface bind as part of the
+ *                       surface validation process.
  *
- * @dev_priv: Pointer to a device private struct.
- * @srf: Pointer to a struct vmw_surface
+ * @res:            Pointer to a struct vmw_res embedded in a struct
+ *                  vmw_surface.
+ * @val_buf:        Pointer to a struct ttm_validate_buffer containing
+ *                  information about the backup buffer.
  *
- * DMA the contents of a hw surface to a backup guest buffer object,
- * and destroy the hw surface, releasing its id.
+ * This function will copy backup data to the surface if the
+ * backup buffer is dirty.
  */
-int vmw_surface_evict(struct vmw_private *dev_priv,
-		      struct vmw_surface *srf)
+static int vmw_legacy_srf_bind(struct vmw_resource *res,
+			       struct ttm_validate_buffer *val_buf)
 {
-	struct vmw_resource *res = &srf->res;
-	struct list_head val_list;
-	struct ttm_validate_buffer val_buf;
+	if (!res->backup_dirty)
+		return 0;
+
+	return vmw_legacy_srf_dma(res, val_buf, true);
+}
+
+
+/**
+ * vmw_legacy_srf_unbind - Perform a legacy surface unbind as part of the
+ *                         surface eviction process.
+ *
+ * @res:            Pointer to a struct vmw_res embedded in a struct
+ *                  vmw_surface.
+ * @val_buf:        Pointer to a struct ttm_validate_buffer containing
+ *                  information about the backup buffer.
+ *
+ * This function will copy backup data from the surface.
+ */
+static int vmw_legacy_srf_unbind(struct vmw_resource *res,
+				 bool readback,
+				 struct ttm_validate_buffer *val_buf)
+{
+	if (unlikely(readback))
+		return vmw_legacy_srf_dma(res, val_buf, false);
+	return 0;
+}
+
+/**
+ * vmw_legacy_srf_destroy - Destroy a device surface as part of a
+ *                          resource eviction process.
+ *
+ * @res:            Pointer to a struct vmw_res embedded in a struct
+ *                  vmw_surface.
+ */
+static int vmw_legacy_srf_destroy(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
 	uint32_t submit_size;
 	uint8_t *cmd;
-	int ret;
-	struct vmw_fence_obj *fence;
-	SVGAGuestPtr ptr;
 
 	BUG_ON(res->id == -1);
-
-	/*
-	 * Create a surface backup buffer object.
-	 */
-
-	if (!srf->backup) {
-		ret = ttm_bo_create(&dev_priv->bdev, srf->backup_size,
-				    ttm_bo_type_device,
-				    &vmw_srf_placement, 0, true,
-				    NULL, &srf->backup);
-		if (unlikely(ret != 0))
-			return ret;
-	}
-
-	/*
-	 * Reserve- and validate the backup DMA bo.
-	 */
-
-	INIT_LIST_HEAD(&val_list);
-	val_buf.bo = ttm_bo_reference(srf->backup);
-	list_add_tail(&val_buf.head, &val_list);
-	ret = ttm_eu_reserve_buffers(&val_list);
-	if (unlikely(ret != 0))
-		goto out_no_reserve;
-
-	ret = ttm_bo_validate(srf->backup, &vmw_srf_placement,
-			      true, false, false);
-	if (unlikely(ret != 0))
-		goto out_no_validate;
-
 
 	/*
 	 * Encode the dma- and surface destroy commands.
 	 */
 
-	submit_size = vmw_surface_dma_size(srf) + vmw_surface_destroy_size();
+	submit_size = vmw_surface_destroy_size();
 	cmd = vmw_fifo_reserve(dev_priv, submit_size);
 	if (unlikely(cmd == NULL)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
 			  "eviction.\n");
-		ret = -ENOMEM;
-		goto out_no_fifo;
+		return -ENOMEM;
 	}
 
-	vmw_bo_get_guest_ptr(srf->backup, &ptr);
-	vmw_surface_dma_encode(srf, cmd, &ptr, false);
-	cmd += vmw_surface_dma_size(srf);
 	vmw_surface_destroy_encode(res->id, cmd);
 	vmw_fifo_commit(dev_priv, submit_size);
 
@@ -998,18 +1124,7 @@ int vmw_surface_evict(struct vmw_private *dev_priv,
 	 * Surface memory usage accounting.
 	 */
 
-	dev_priv->used_memory_size -= srf->backup_size;
-
-	/*
-	 * Create a fence object and fence the DMA buffer.
-	 */
-
-	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
-					  &fence, NULL);
-	ttm_eu_fence_buffer_objects(&val_list, fence);
-	if (likely(fence != NULL))
-		vmw_fence_obj_unreference(&fence);
-	ttm_bo_unref(&val_buf.bo);
+	dev_priv->used_memory_size -= res->backup_size;
 
 	/*
 	 * Release the surface ID.
@@ -1018,128 +1133,72 @@ int vmw_surface_evict(struct vmw_private *dev_priv,
 	vmw_resource_release_id(res);
 
 	return 0;
-
-out_no_fifo:
-out_no_validate:
-	if (srf->backup)
-		ttm_eu_backoff_reservation(&val_list);
-out_no_reserve:
-	ttm_bo_unref(&val_buf.bo);
-	ttm_bo_unref(&srf->backup);
-	return ret;
 }
 
 
 /**
- * vmw_surface_validate - make a surface available to the device, evicting
- * other surfaces if needed.
+ * vmw_surface_init - initialize a struct vmw_surface
  *
- * @dev_priv: Pointer to a device private struct.
- * @srf: Pointer to a struct vmw_surface.
- *
- * Try to validate a surface and if it fails due to limited device resources,
- * repeatedly try to evict other surfaces until the request can be
- * acommodated.
- *
- * May return errors if out of resources.
+ * @dev_priv:       Pointer to a device private struct.
+ * @srf:            Pointer to the struct vmw_surface to initialize.
+ * @res_free:       Pointer to a resource destructor used to free
+ *                  the object.
  */
-int vmw_surface_validate(struct vmw_private *dev_priv,
-			 struct vmw_surface *srf)
-{
-	int ret;
-	struct vmw_surface *evict_srf;
-
-	do {
-		write_lock(&dev_priv->resource_lock);
-		list_del_init(&srf->lru_head);
-		write_unlock(&dev_priv->resource_lock);
-
-		ret = vmw_surface_do_validate(dev_priv, srf);
-		if (likely(ret != -EBUSY))
-			break;
-
-		write_lock(&dev_priv->resource_lock);
-		if (list_empty(&dev_priv->surface_lru)) {
-			DRM_ERROR("Out of device memory for surfaces.\n");
-			ret = -EBUSY;
-			write_unlock(&dev_priv->resource_lock);
-			break;
-		}
-
-		evict_srf = vmw_surface_reference
-			(list_first_entry(&dev_priv->surface_lru,
-					  struct vmw_surface,
-					  lru_head));
-		list_del_init(&evict_srf->lru_head);
-
-		write_unlock(&dev_priv->resource_lock);
-		(void) vmw_surface_evict(dev_priv, evict_srf);
-
-		vmw_surface_unreference(&evict_srf);
-
-	} while (1);
-
-	if (unlikely(ret != 0 && srf->res.id != -1)) {
-		write_lock(&dev_priv->resource_lock);
-		list_add_tail(&srf->lru_head, &dev_priv->surface_lru);
-		write_unlock(&dev_priv->resource_lock);
-	}
-
-	return ret;
-}
-
-
-/**
- * vmw_surface_remove_from_lists - Remove surface resources from lookup lists
- *
- * @res: Pointer to a struct vmw_resource embedded in a struct vmw_surface
- *
- * As part of the resource destruction, remove the surface from any
- * lookup lists.
- */
-static void vmw_surface_remove_from_lists(struct vmw_resource *res)
-{
-	struct vmw_surface *srf = container_of(res, struct vmw_surface, res);
-
-	list_del_init(&srf->lru_head);
-}
-
-int vmw_surface_init(struct vmw_private *dev_priv,
-		     struct vmw_surface *srf,
-		     void (*res_free) (struct vmw_resource *res))
+static int vmw_surface_init(struct vmw_private *dev_priv,
+			    struct vmw_surface *srf,
+			    void (*res_free) (struct vmw_resource *res))
 {
 	int ret;
 	struct vmw_resource *res = &srf->res;
 
 	BUG_ON(res_free == NULL);
-	INIT_LIST_HEAD(&srf->lru_head);
-	ret = vmw_resource_init(dev_priv, res, &dev_priv->surface_idr,
-				VMW_RES_SURFACE, true, res_free,
-				vmw_surface_remove_from_lists);
+	(void) vmw_3d_resource_inc(dev_priv, false);
+	ret = vmw_resource_init(dev_priv, res, true, res_free,
+				&vmw_legacy_surface_func);
 
-	if (unlikely(ret != 0))
+	if (unlikely(ret != 0)) {
+		vmw_3d_resource_dec(dev_priv, false);
 		res_free(res);
+		return ret;
+	}
 
 	/*
 	 * The surface won't be visible to hardware until a
 	 * surface validate.
 	 */
 
-	(void) vmw_3d_resource_inc(dev_priv, false);
 	vmw_resource_activate(res, vmw_hw_surface_destroy);
 	return ret;
 }
 
+/**
+ * vmw_user_surface_base_to_res - TTM base object to resource converter for
+ *                                user visible surfaces
+ *
+ * @base:           Pointer to a TTM base object
+ *
+ * Returns the struct vmw_resource embedded in a struct vmw_surface
+ * for the user-visible object identified by the TTM base object @base.
+ */
+static struct vmw_resource *
+vmw_user_surface_base_to_res(struct ttm_base_object *base)
+{
+	return &(container_of(base, struct vmw_user_surface, base)->srf.res);
+}
+
+/**
+ * vmw_user_surface_free - User visible surface resource destructor
+ *
+ * @res:            A struct vmw_resource embedded in a struct vmw_surface.
+ */
 static void vmw_user_surface_free(struct vmw_resource *res)
 {
-	struct vmw_surface *srf = container_of(res, struct vmw_surface, res);
+	struct vmw_surface *srf = vmw_res_to_srf(res);
 	struct vmw_user_surface *user_srf =
 	    container_of(srf, struct vmw_user_surface, srf);
 	struct vmw_private *dev_priv = srf->res.dev_priv;
 	uint32_t size = user_srf->size;
 
-	if (srf->backup)
-		ttm_bo_unref(&srf->backup);
 	kfree(srf->offsets);
 	kfree(srf->sizes);
 	kfree(srf->snooper.image);
@@ -1148,108 +1207,14 @@ static void vmw_user_surface_free(struct vmw_resource *res)
 }
 
 /**
- * vmw_resource_unreserve - unreserve resources previously reserved for
- * command submission.
+ * vmw_user_surface_free - User visible surface TTM base object destructor
  *
- * @list_head: list of resources to unreserve.
+ * @p_base:         Pointer to a pointer to a TTM base object
+ *                  embedded in a struct vmw_user_surface.
  *
- * Currently only surfaces are considered, and unreserving a surface
- * means putting it back on the device's surface lru list,
- * so that it can be evicted if necessary.
- * This function traverses the resource list and
- * checks whether resources are surfaces, and in that case puts them back
- * on the device's surface LRU list.
+ * Drops the base object's reference on its resource, and the
+ * pointer pointed to by *p_base is set to NULL.
  */
-void vmw_resource_unreserve(struct list_head *list)
-{
-	struct vmw_resource *res;
-	struct vmw_surface *srf;
-	rwlock_t *lock = NULL;
-
-	list_for_each_entry(res, list, validate_head) {
-
-		if (res->res_free != &vmw_surface_res_free &&
-		    res->res_free != &vmw_user_surface_free)
-			continue;
-
-		if (unlikely(lock == NULL)) {
-			lock = &res->dev_priv->resource_lock;
-			write_lock(lock);
-		}
-
-		srf = container_of(res, struct vmw_surface, res);
-		list_del_init(&srf->lru_head);
-		list_add_tail(&srf->lru_head, &res->dev_priv->surface_lru);
-	}
-
-	if (lock != NULL)
-		write_unlock(lock);
-}
-
-/**
- * Helper function that looks either a surface or dmabuf.
- *
- * The pointer this pointed at by out_surf and out_buf needs to be null.
- */
-int vmw_user_lookup_handle(struct vmw_private *dev_priv,
-			   struct ttm_object_file *tfile,
-			   uint32_t handle,
-			   struct vmw_surface **out_surf,
-			   struct vmw_dma_buffer **out_buf)
-{
-	int ret;
-
-	BUG_ON(*out_surf || *out_buf);
-
-	ret = vmw_user_surface_lookup_handle(dev_priv, tfile, handle, out_surf);
-	if (!ret)
-		return 0;
-
-	ret = vmw_user_dmabuf_lookup(tfile, handle, out_buf);
-	return ret;
-}
-
-
-int vmw_user_surface_lookup_handle(struct vmw_private *dev_priv,
-				   struct ttm_object_file *tfile,
-				   uint32_t handle, struct vmw_surface **out)
-{
-	struct vmw_resource *res;
-	struct vmw_surface *srf;
-	struct vmw_user_surface *user_srf;
-	struct ttm_base_object *base;
-	int ret = -EINVAL;
-
-	base = ttm_base_object_lookup(tfile, handle);
-	if (unlikely(base == NULL))
-		return -EINVAL;
-
-	if (unlikely(base->object_type != VMW_RES_SURFACE))
-		goto out_bad_resource;
-
-	user_srf = container_of(base, struct vmw_user_surface, base);
-	srf = &user_srf->srf;
-	res = &srf->res;
-
-	read_lock(&dev_priv->resource_lock);
-
-	if (!res->avail || res->res_free != &vmw_user_surface_free) {
-		read_unlock(&dev_priv->resource_lock);
-		goto out_bad_resource;
-	}
-
-	kref_get(&res->kref);
-	read_unlock(&dev_priv->resource_lock);
-
-	*out = srf;
-	ret = 0;
-
-out_bad_resource:
-	ttm_base_object_unref(&base);
-
-	return ret;
-}
-
 static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 {
 	struct ttm_base_object *base = *p_base;
@@ -1261,6 +1226,14 @@ static void vmw_user_surface_base_release(struct ttm_base_object **p_base)
 	vmw_resource_unreference(&res);
 }
 
+/**
+ * vmw_user_surface_destroy_ioctl - Ioctl function implementing
+ *                                  the user surface destroy functionality.
+ *
+ * @dev:            Pointer to a struct drm_device.
+ * @data:           Pointer to data copied from / to user-space.
+ * @file_priv:      Pointer to a drm file private structure.
+ */
 int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {
@@ -1270,6 +1243,14 @@ int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
 	return ttm_ref_object_base_unref(tfile, arg->sid, TTM_REF_USAGE);
 }
 
+/**
+ * vmw_user_surface_define_ioctl - Ioctl function implementing
+ *                                  the user surface define functionality.
+ *
+ * @dev:            Pointer to a struct drm_device.
+ * @data:           Pointer to data copied from / to user-space.
+ * @file_priv:      Pointer to a drm file private structure.
+ */
 int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv)
 {
@@ -1325,7 +1306,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_unlock;
 	}
 
-	user_srf = kmalloc(sizeof(*user_srf), GFP_KERNEL);
+	user_srf = kzalloc(sizeof(*user_srf), GFP_KERNEL);
 	if (unlikely(user_srf == NULL)) {
 		ret = -ENOMEM;
 		goto out_no_user_srf;
@@ -1337,7 +1318,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	srf->flags = req->flags;
 	srf->format = req->format;
 	srf->scanout = req->scanout;
-	srf->backup = NULL;
 
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = num_sizes;
@@ -1365,6 +1345,10 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 		goto out_no_copy;
 	}
 
+	srf->base_size = *srf->sizes;
+	srf->autogen_filter = SVGA3D_TEX_FILTER_NONE;
+	srf->multisample_count = 1;
+
 	cur_bo_offset = 0;
 	cur_offset = srf->offsets;
 	cur_size = srf->sizes;
@@ -1386,7 +1370,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 			++cur_size;
 		}
 	}
-	srf->backup_size = cur_bo_offset;
+	res->backup_size = cur_bo_offset;
 
 	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
@@ -1430,9 +1414,6 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	}
 
 	rep->sid = user_srf->base.hash.key;
-	if (rep->sid == SVGA3D_INVALID_ID)
-		DRM_ERROR("Created bad Surface ID.\n");
-
 	vmw_resource_unreference(&res);
 
 	ttm_read_unlock(&vmaster->lock);
@@ -1450,6 +1431,14 @@ out_unlock:
 	return ret;
 }
 
+/**
+ * vmw_user_surface_define_ioctl - Ioctl function implementing
+ *                                  the user surface reference functionality.
+ *
+ * @dev:            Pointer to a struct drm_device.
+ * @data:           Pointer to data copied from / to user-space.
+ * @file_priv:      Pointer to a drm file private structure.
+ */
 int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
@@ -1503,33 +1492,84 @@ out_no_reference:
 	return ret;
 }
 
-int vmw_surface_check(struct vmw_private *dev_priv,
-		      struct ttm_object_file *tfile,
-		      uint32_t handle, int *id)
+/**
+ * vmw_user_resource_lookup_handle - lookup a struct resource from a
+ * TTM user-space handle and perform basic type checks
+ *
+ * @dev_priv:     Pointer to a device private struct
+ * @tfile:        Pointer to a struct ttm_object_file identifying the caller
+ * @handle:       The TTM user-space handle
+ * @converter:    Pointer to an object describing the resource type
+ * @p_res:        On successful return the location pointed to will contain
+ *                a pointer to a refcounted struct vmw_resource.
+ *
+ * If the handle can't be found or is associated with an incorrect resource
+ * type, -EINVAL will be returned.
+ */
+int vmw_user_resource_lookup_handle(struct vmw_private *dev_priv,
+				    struct ttm_object_file *tfile,
+				    uint32_t handle,
+				    const struct vmw_user_resource_conv
+				    *converter,
+				    struct vmw_resource **p_res)
 {
 	struct ttm_base_object *base;
-	struct vmw_user_surface *user_srf;
-
-	int ret = -EPERM;
+	struct vmw_resource *res;
+	int ret = -EINVAL;
 
 	base = ttm_base_object_lookup(tfile, handle);
 	if (unlikely(base == NULL))
 		return -EINVAL;
 
-	if (unlikely(base->object_type != VMW_RES_SURFACE))
-		goto out_bad_surface;
+	if (unlikely(base->object_type != converter->object_type))
+		goto out_bad_resource;
 
-	user_srf = container_of(base, struct vmw_user_surface, base);
-	*id = user_srf->srf.res.id;
+	res = converter->base_obj_to_res(base);
+
+	read_lock(&dev_priv->resource_lock);
+	if (!res->avail || res->res_free != converter->res_free) {
+		read_unlock(&dev_priv->resource_lock);
+		goto out_bad_resource;
+	}
+
+	kref_get(&res->kref);
+	read_unlock(&dev_priv->resource_lock);
+
+	*p_res = res;
 	ret = 0;
 
-out_bad_surface:
-	/**
-	 * FIXME: May deadlock here when called from the
-	 * command parsing code.
-	 */
-
+out_bad_resource:
 	ttm_base_object_unref(&base);
+
+	return ret;
+}
+
+/**
+ * Helper function that looks either a surface or dmabuf.
+ *
+ * The pointer this pointed at by out_surf and out_buf needs to be null.
+ */
+int vmw_user_lookup_handle(struct vmw_private *dev_priv,
+			   struct ttm_object_file *tfile,
+			   uint32_t handle,
+			   struct vmw_surface **out_surf,
+			   struct vmw_dma_buffer **out_buf)
+{
+	struct vmw_resource *res;
+	int ret;
+
+	BUG_ON(*out_surf || *out_buf);
+
+	ret = vmw_user_resource_lookup_handle(dev_priv, tfile, handle,
+					      user_surface_converter,
+					      &res);
+	if (!ret) {
+		*out_surf = vmw_res_to_srf(res);
+		return 0;
+	}
+
+	*out_surf = NULL;
+	ret = vmw_user_dmabuf_lookup(tfile, handle, out_buf);
 	return ret;
 }
 
@@ -1558,7 +1598,7 @@ int vmw_dmabuf_init(struct vmw_private *dev_priv,
 	acc_size = ttm_bo_acc_size(bdev, size, sizeof(struct vmw_dma_buffer));
 	memset(vmw_bo, 0, sizeof(*vmw_bo));
 
-	INIT_LIST_HEAD(&vmw_bo->validate_list);
+	INIT_LIST_HEAD(&vmw_bo->res_list);
 
 	ret = ttm_bo_init(bdev, &vmw_bo->base, size,
 			  ttm_bo_type_device, placement,
@@ -1590,6 +1630,59 @@ static void vmw_user_dmabuf_release(struct ttm_base_object **p_base)
 	ttm_bo_unref(&bo);
 }
 
+/**
+ * vmw_user_dmabuf_alloc - Allocate a user dma buffer
+ *
+ * @dev_priv: Pointer to a struct device private.
+ * @tfile: Pointer to a struct ttm_object_file on which to register the user
+ * object.
+ * @size: Size of the dma buffer.
+ * @shareable: Boolean whether the buffer is shareable with other open files.
+ * @handle: Pointer to where the handle value should be assigned.
+ * @p_dma_buf: Pointer to where the refcounted struct vmw_dma_buffer pointer
+ * should be assigned.
+ */
+int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
+			  struct ttm_object_file *tfile,
+			  uint32_t size,
+			  bool shareable,
+			  uint32_t *handle,
+			  struct vmw_dma_buffer **p_dma_buf)
+{
+	struct vmw_user_dma_buffer *user_bo;
+	struct ttm_buffer_object *tmp;
+	int ret;
+
+	user_bo = kzalloc(sizeof(*user_bo), GFP_KERNEL);
+	if (unlikely(user_bo == NULL)) {
+		DRM_ERROR("Failed to allocate a buffer.\n");
+		return -ENOMEM;
+	}
+
+	ret = vmw_dmabuf_init(dev_priv, &user_bo->dma, size,
+			      &vmw_vram_sys_placement, true,
+			      &vmw_user_dmabuf_destroy);
+	if (unlikely(ret != 0))
+		return ret;
+
+	tmp = ttm_bo_reference(&user_bo->dma.base);
+	ret = ttm_base_object_init(tfile,
+				   &user_bo->base,
+				   shareable,
+				   ttm_buffer_type,
+				   &vmw_user_dmabuf_release, NULL);
+	if (unlikely(ret != 0)) {
+		ttm_bo_unref(&tmp);
+		goto out_no_base_object;
+	}
+
+	*p_dma_buf = &user_bo->dma;
+	*handle = user_bo->base.hash.key;
+
+out_no_base_object:
+	return ret;
+}
+
 int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
@@ -1598,44 +1691,27 @@ int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 	    (union drm_vmw_alloc_dmabuf_arg *)data;
 	struct drm_vmw_alloc_dmabuf_req *req = &arg->req;
 	struct drm_vmw_dmabuf_rep *rep = &arg->rep;
-	struct vmw_user_dma_buffer *vmw_user_bo;
-	struct ttm_buffer_object *tmp;
+	struct vmw_dma_buffer *dma_buf;
+	uint32_t handle;
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
 
-	vmw_user_bo = kzalloc(sizeof(*vmw_user_bo), GFP_KERNEL);
-	if (unlikely(vmw_user_bo == NULL))
-		return -ENOMEM;
-
 	ret = ttm_read_lock(&vmaster->lock, true);
-	if (unlikely(ret != 0)) {
-		kfree(vmw_user_bo);
+	if (unlikely(ret != 0))
 		return ret;
-	}
 
-	ret = vmw_dmabuf_init(dev_priv, &vmw_user_bo->dma, req->size,
-			      &vmw_vram_sys_placement, true,
-			      &vmw_user_dmabuf_destroy);
+	ret = vmw_user_dmabuf_alloc(dev_priv, vmw_fpriv(file_priv)->tfile,
+				    req->size, false, &handle, &dma_buf);
 	if (unlikely(ret != 0))
 		goto out_no_dmabuf;
 
-	tmp = ttm_bo_reference(&vmw_user_bo->dma.base);
-	ret = ttm_base_object_init(vmw_fpriv(file_priv)->tfile,
-				   &vmw_user_bo->base,
-				   false,
-				   ttm_buffer_type,
-				   &vmw_user_dmabuf_release, NULL);
-	if (unlikely(ret != 0))
-		goto out_no_base_object;
-	else {
-		rep->handle = vmw_user_bo->base.hash.key;
-		rep->map_handle = vmw_user_bo->dma.base.addr_space_offset;
-		rep->cur_gmr_id = vmw_user_bo->base.hash.key;
-		rep->cur_gmr_offset = 0;
-	}
+	rep->handle = handle;
+	rep->map_handle = dma_buf->base.addr_space_offset;
+	rep->cur_gmr_id = handle;
+	rep->cur_gmr_offset = 0;
 
-out_no_base_object:
-	ttm_bo_unref(&tmp);
+	vmw_dmabuf_unreference(&dma_buf);
+
 out_no_dmabuf:
 	ttm_read_unlock(&vmaster->lock);
 
@@ -1651,27 +1727,6 @@ int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,
 	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
 					 arg->handle,
 					 TTM_REF_USAGE);
-}
-
-uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
-				  uint32_t cur_validate_node)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-
-	if (likely(vmw_bo->on_validate_list))
-		return vmw_bo->cur_validate_node;
-
-	vmw_bo->cur_validate_node = cur_validate_node;
-	vmw_bo->on_validate_list = true;
-
-	return cur_validate_node;
-}
-
-void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo)
-{
-	struct vmw_dma_buffer *vmw_bo = vmw_dma_buffer(bo);
-
-	vmw_bo->on_validate_list = false;
 }
 
 int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
@@ -1702,6 +1757,18 @@ int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 	return 0;
 }
 
+int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
+			      struct vmw_dma_buffer *dma_buf)
+{
+	struct vmw_user_dma_buffer *user_bo;
+
+	if (dma_buf->base.destroy != vmw_user_dmabuf_destroy)
+		return -EINVAL;
+
+	user_bo = container_of(dma_buf, struct vmw_user_dma_buffer, dma);
+	return ttm_ref_object_add(tfile, &user_bo->base, TTM_REF_USAGE, NULL);
+}
+
 /*
  * Stream management
  */
@@ -1726,8 +1793,8 @@ static int vmw_stream_init(struct vmw_private *dev_priv,
 	struct vmw_resource *res = &stream->res;
 	int ret;
 
-	ret = vmw_resource_init(dev_priv, res, &dev_priv->stream_idr,
-				VMW_RES_STREAM, false, res_free, NULL);
+	ret = vmw_resource_init(dev_priv, res, false, res_free,
+				&vmw_stream_func);
 
 	if (unlikely(ret != 0)) {
 		if (res_free == NULL)
@@ -1748,10 +1815,6 @@ static int vmw_stream_init(struct vmw_private *dev_priv,
 	vmw_resource_activate(&stream->res, vmw_stream_destroy);
 	return 0;
 }
-
-/**
- * User-space context management:
- */
 
 static void vmw_user_stream_free(struct vmw_resource *res)
 {
@@ -1788,9 +1851,11 @@ int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
 	struct vmw_user_stream *stream;
 	struct drm_vmw_stream_arg *arg = (struct drm_vmw_stream_arg *)data;
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct idr *idr = &dev_priv->res_idr[vmw_res_stream];
 	int ret = 0;
 
-	res = vmw_resource_lookup(dev_priv, &dev_priv->stream_idr, arg->stream_id);
+
+	res = vmw_resource_lookup(dev_priv, idr, arg->stream_id);
 	if (unlikely(res == NULL))
 		return -EINVAL;
 
@@ -1891,7 +1956,8 @@ int vmw_user_stream_lookup(struct vmw_private *dev_priv,
 	struct vmw_resource *res;
 	int ret;
 
-	res = vmw_resource_lookup(dev_priv, &dev_priv->stream_idr, *inout_id);
+	res = vmw_resource_lookup(dev_priv, &dev_priv->res_idr[vmw_res_stream],
+				  *inout_id);
 	if (unlikely(res == NULL))
 		return -EINVAL;
 
@@ -1985,4 +2051,454 @@ int vmw_dumb_destroy(struct drm_file *file_priv,
 {
 	return ttm_ref_object_base_unref(vmw_fpriv(file_priv)->tfile,
 					 handle, TTM_REF_USAGE);
+}
+
+/**
+ * vmw_resource_buf_alloc - Allocate a backup buffer for a resource.
+ *
+ * @res:            The resource for which to allocate a backup buffer.
+ * @interruptible:  Whether any sleeps during allocation should be
+ *                  performed while interruptible.
+ */
+static int vmw_resource_buf_alloc(struct vmw_resource *res,
+				  bool interruptible)
+{
+	unsigned long size =
+		(res->backup_size + PAGE_SIZE - 1) & PAGE_MASK;
+	struct vmw_dma_buffer *backup;
+	int ret;
+
+	if (likely(res->backup)) {
+		BUG_ON(res->backup->base.num_pages * PAGE_SIZE < size);
+		return 0;
+	}
+
+	backup = kzalloc(sizeof(*backup), GFP_KERNEL);
+	if (unlikely(backup == NULL))
+		return -ENOMEM;
+
+	ret = vmw_dmabuf_init(res->dev_priv, backup, res->backup_size,
+			      res->func->backup_placement,
+			      interruptible,
+			      &vmw_dmabuf_bo_free);
+	if (unlikely(ret != 0))
+		goto out_no_dmabuf;
+
+	res->backup = backup;
+
+out_no_dmabuf:
+	return ret;
+}
+
+/**
+ * vmw_resource_do_validate - Make a resource up-to-date and visible
+ *                            to the device.
+ *
+ * @res:            The resource to make visible to the device.
+ * @val_buf:        Information about a buffer possibly
+ *                  containing backup data if a bind operation is needed.
+ *
+ * On hardware resource shortage, this function returns -EBUSY and
+ * should be retried once resources have been freed up.
+ */
+static int vmw_resource_do_validate(struct vmw_resource *res,
+				    struct ttm_validate_buffer *val_buf)
+{
+	int ret = 0;
+	const struct vmw_res_func *func = res->func;
+
+	if (unlikely(res->id == -1)) {
+		ret = func->create(res);
+		if (unlikely(ret != 0))
+			return ret;
+	}
+
+	if (func->bind &&
+	    ((func->needs_backup && list_empty(&res->mob_head) &&
+	      val_buf->bo != NULL) ||
+	     (!func->needs_backup && val_buf->bo != NULL))) {
+		ret = func->bind(res, val_buf);
+		if (unlikely(ret != 0))
+			goto out_bind_failed;
+		if (func->needs_backup)
+			list_add_tail(&res->mob_head, &res->backup->res_list);
+	}
+
+	/*
+	 * Only do this on write operations, and move to
+	 * vmw_resource_unreserve if it can be called after
+	 * backup buffers have been unreserved. Otherwise
+	 * sort out locking.
+	 */
+	res->res_dirty = true;
+
+	return 0;
+
+out_bind_failed:
+	func->destroy(res);
+
+	return ret;
+}
+
+/**
+ * vmw_resource_unreserve - Unreserve a resource previously reserved for
+ * command submission.
+ *
+ * @res:               Pointer to the struct vmw_resource to unreserve.
+ * @new_backup:        Pointer to new backup buffer if command submission
+ *                     switched.
+ * @new_backup_offset: New backup offset if @new_backup is !NULL.
+ *
+ * Currently unreserving a resource means putting it back on the device's
+ * resource lru list, so that it can be evicted if necessary.
+ */
+void vmw_resource_unreserve(struct vmw_resource *res,
+			    struct vmw_dma_buffer *new_backup,
+			    unsigned long new_backup_offset)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+
+	if (!list_empty(&res->lru_head))
+		return;
+
+	if (new_backup && new_backup != res->backup) {
+
+		if (res->backup) {
+			BUG_ON(atomic_read(&res->backup->base.reserved) == 0);
+			list_del_init(&res->mob_head);
+			vmw_dmabuf_unreference(&res->backup);
+		}
+
+		res->backup = vmw_dmabuf_reference(new_backup);
+		BUG_ON(atomic_read(&new_backup->base.reserved) == 0);
+		list_add_tail(&res->mob_head, &new_backup->res_list);
+	}
+	if (new_backup)
+		res->backup_offset = new_backup_offset;
+
+	if (!res->func->may_evict)
+		return;
+
+	write_lock(&dev_priv->resource_lock);
+	list_add_tail(&res->lru_head,
+		      &res->dev_priv->res_lru[res->func->res_type]);
+	write_unlock(&dev_priv->resource_lock);
+}
+
+/**
+ * vmw_resource_check_buffer - Check whether a backup buffer is needed
+ *                             for a resource and in that case, allocate
+ *                             one, reserve and validate it.
+ *
+ * @res:            The resource for which to allocate a backup buffer.
+ * @interruptible:  Whether any sleeps during allocation should be
+ *                  performed while interruptible.
+ * @val_buf:        On successful return contains data about the
+ *                  reserved and validated backup buffer.
+ */
+int vmw_resource_check_buffer(struct vmw_resource *res,
+			      bool interruptible,
+			      struct ttm_validate_buffer *val_buf)
+{
+	struct list_head val_list;
+	bool backup_dirty = false;
+	int ret;
+
+	if (unlikely(res->backup == NULL)) {
+		ret = vmw_resource_buf_alloc(res, interruptible);
+		if (unlikely(ret != 0))
+			return ret;
+	}
+
+	INIT_LIST_HEAD(&val_list);
+	val_buf->bo = ttm_bo_reference(&res->backup->base);
+	list_add_tail(&val_buf->head, &val_list);
+	ret = ttm_eu_reserve_buffers(&val_list);
+	if (unlikely(ret != 0))
+		goto out_no_reserve;
+
+	if (res->func->needs_backup && list_empty(&res->mob_head))
+		return 0;
+
+	backup_dirty = res->backup_dirty;
+	ret = ttm_bo_validate(&res->backup->base,
+			      res->func->backup_placement,
+			      true, false, false);
+
+	if (unlikely(ret != 0))
+		goto out_no_validate;
+
+	return 0;
+
+out_no_validate:
+	ttm_eu_backoff_reservation(&val_list);
+out_no_reserve:
+	ttm_bo_unref(&val_buf->bo);
+	if (backup_dirty)
+		vmw_dmabuf_unreference(&res->backup);
+
+	return ret;
+}
+
+/**
+ * vmw_resource_reserve - Reserve a resource for command submission
+ *
+ * @res:            The resource to reserve.
+ *
+ * This function takes the resource off the LRU list and make sure
+ * a backup buffer is present for guest-backed resources. However,
+ * the buffer may not be bound to the resource at this point.
+ *
+ */
+int vmw_resource_reserve(struct vmw_resource *res, bool no_backup)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	int ret;
+
+	write_lock(&dev_priv->resource_lock);
+	list_del_init(&res->lru_head);
+	write_unlock(&dev_priv->resource_lock);
+
+	if (res->func->needs_backup && res->backup == NULL &&
+	    !no_backup) {
+		ret = vmw_resource_buf_alloc(res, true);
+		if (unlikely(ret != 0))
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * vmw_resource_backoff_reservation - Unreserve and unreference a
+ *                                    backup buffer
+ *.
+ * @val_buf:        Backup buffer information.
+ */
+void vmw_resource_backoff_reservation(struct ttm_validate_buffer *val_buf)
+{
+	struct list_head val_list;
+
+	if (likely(val_buf->bo == NULL))
+		return;
+
+	INIT_LIST_HEAD(&val_list);
+	list_add_tail(&val_buf->head, &val_list);
+	ttm_eu_backoff_reservation(&val_list);
+	ttm_bo_unref(&val_buf->bo);
+}
+
+/**
+ * vmw_resource_do_evict - Evict a resource, and transfer its data
+ *                         to a backup buffer.
+ *
+ * @res:            The resource to evict.
+ */
+int vmw_resource_do_evict(struct vmw_resource *res)
+{
+	struct ttm_validate_buffer val_buf;
+	const struct vmw_res_func *func = res->func;
+	int ret;
+
+	BUG_ON(!func->may_evict);
+
+	val_buf.bo = NULL;
+	ret = vmw_resource_check_buffer(res, true, &val_buf);
+	if (unlikely(ret != 0))
+		return ret;
+
+	if (unlikely(func->unbind != NULL &&
+		     (!func->needs_backup || !list_empty(&res->mob_head)))) {
+		ret = func->unbind(res, res->res_dirty, &val_buf);
+		if (unlikely(ret != 0))
+			goto out_no_unbind;
+		list_del_init(&res->mob_head);
+	}
+	ret = func->destroy(res);
+	res->backup_dirty = true;
+	res->res_dirty = false;
+out_no_unbind:
+	vmw_resource_backoff_reservation(&val_buf);
+
+	return ret;
+}
+
+
+/**
+ * vmw_resource_validate - Make a resource up-to-date and visible
+ *                         to the device.
+ *
+ * @res:            The resource to make visible to the device.
+ *
+ * On succesful return, any backup DMA buffer pointed to by @res->backup will
+ * be reserved and validated.
+ * On hardware resource shortage, this function will repeatedly evict
+ * resources of the same type until the validation succeeds.
+ */
+int vmw_resource_validate(struct vmw_resource *res)
+{
+	int ret;
+	struct vmw_resource *evict_res;
+	struct vmw_private *dev_priv = res->dev_priv;
+	struct list_head *lru_list = &dev_priv->res_lru[res->func->res_type];
+	struct ttm_validate_buffer val_buf;
+
+	if (likely(!res->func->may_evict))
+		return 0;
+
+	val_buf.bo = NULL;
+	if (res->backup)
+		val_buf.bo = &res->backup->base;
+	do {
+		ret = vmw_resource_do_validate(res, &val_buf);
+		if (likely(ret != -EBUSY))
+			break;
+
+		write_lock(&dev_priv->resource_lock);
+		if (list_empty(lru_list) || !res->func->may_evict) {
+			DRM_ERROR("Out of device device id entries "
+				  "for %s.\n", res->func->type_name);
+			ret = -EBUSY;
+			write_unlock(&dev_priv->resource_lock);
+			break;
+		}
+
+		evict_res = vmw_resource_reference
+			(list_first_entry(lru_list, struct vmw_resource,
+					  lru_head));
+		list_del_init(&evict_res->lru_head);
+
+		write_unlock(&dev_priv->resource_lock);
+		vmw_resource_do_evict(evict_res);
+		vmw_resource_unreference(&evict_res);
+	} while (1);
+
+	if (unlikely(ret != 0))
+		goto out_no_validate;
+	else if (!res->func->needs_backup && res->backup) {
+		list_del_init(&res->mob_head);
+		vmw_dmabuf_unreference(&res->backup);
+	}
+
+	return 0;
+
+out_no_validate:
+	return ret;
+}
+
+/**
+ * vmw_fence_single_bo - Utility function to fence a single TTM buffer
+ *                       object without unreserving it.
+ *
+ * @bo:             Pointer to the struct ttm_buffer_object to fence.
+ * @fence:          Pointer to the fence. If NULL, this function will
+ *                  insert a fence into the command stream..
+ *
+ * Contrary to the ttm_eu version of this function, it takes only
+ * a single buffer object instead of a list, and it also doesn't
+ * unreserve the buffer object, which needs to be done separately.
+ */
+void vmw_fence_single_bo(struct ttm_buffer_object *bo,
+			 struct vmw_fence_obj *fence)
+{
+	struct ttm_bo_device *bdev = bo->bdev;
+	struct ttm_bo_driver *driver = bdev->driver;
+	struct vmw_fence_obj *old_fence_obj;
+	struct vmw_private *dev_priv =
+		container_of(bdev, struct vmw_private, bdev);
+
+	if (fence == NULL)
+		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
+	else
+		driver->sync_obj_ref(fence);
+
+	spin_lock(&bdev->fence_lock);
+
+	old_fence_obj = bo->sync_obj;
+	bo->sync_obj = fence;
+
+	spin_unlock(&bdev->fence_lock);
+
+	if (old_fence_obj)
+		vmw_fence_obj_unreference(&old_fence_obj);
+}
+
+/**
+ * vmw_resource_move_notify - TTM move_notify_callback
+ *
+ * @bo:             The TTM buffer object about to move.
+ * @mem:            The truct ttm_mem_reg indicating to what memory
+ *                  region the move is taking place.
+ *
+ * For now does nothing.
+ */
+void vmw_resource_move_notify(struct ttm_buffer_object *bo,
+			      struct ttm_mem_reg *mem)
+{
+}
+
+/**
+ * vmw_resource_needs_backup - Return whether a resource needs a backup buffer.
+ *
+ * @res:            The resource being queried.
+ */
+bool vmw_resource_needs_backup(const struct vmw_resource *res)
+{
+	return res->func->needs_backup;
+}
+
+/**
+ * vmw_resource_evict_type - Evict all resources of a specific type
+ *
+ * @dev_priv:       Pointer to a device private struct
+ * @type:           The resource type to evict
+ *
+ * To avoid thrashing starvation or as part of the hibernation sequence,
+ * evict all evictable resources of a specific type.
+ */
+static void vmw_resource_evict_type(struct vmw_private *dev_priv,
+				    enum vmw_res_type type)
+{
+	struct list_head *lru_list = &dev_priv->res_lru[type];
+	struct vmw_resource *evict_res;
+
+	do {
+		write_lock(&dev_priv->resource_lock);
+
+		if (list_empty(lru_list))
+			goto out_unlock;
+
+		evict_res = vmw_resource_reference(
+			list_first_entry(lru_list, struct vmw_resource,
+					 lru_head));
+		list_del_init(&evict_res->lru_head);
+		write_unlock(&dev_priv->resource_lock);
+		vmw_resource_do_evict(evict_res);
+		vmw_resource_unreference(&evict_res);
+	} while (1);
+
+out_unlock:
+	write_unlock(&dev_priv->resource_lock);
+}
+
+/**
+ * vmw_resource_evict_all - Evict all evictable resources
+ *
+ * @dev_priv:       Pointer to a device private struct
+ *
+ * To avoid thrashing starvation or as part of the hibernation sequence,
+ * evict all evictable resources. In particular this means that all
+ * guest-backed resources that are registered with the device are
+ * evicted and the OTable becomes clean.
+ */
+void vmw_resource_evict_all(struct vmw_private *dev_priv)
+{
+	enum vmw_res_type type;
+
+	mutex_lock(&dev_priv->cmdbuf_mutex);
+
+	for (type = 0; type < vmw_res_max; ++type)
+		vmw_resource_evict_type(dev_priv, type);
+
+	mutex_unlock(&dev_priv->cmdbuf_mutex);
 }
