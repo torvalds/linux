@@ -163,19 +163,10 @@ struct platform_device;
 
 /* core */
 struct platform_device *dss_get_core_pdev(void);
-struct bus_type *dss_get_bus(void);
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
 void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
-
-struct omap_dss_device *dss_alloc_and_init_device(struct device *parent);
-int dss_add_device(struct omap_dss_device *dssdev);
-void dss_unregister_device(struct omap_dss_device *dssdev);
-void dss_unregister_child_devices(struct device *parent);
-void dss_put_device(struct omap_dss_device *dssdev);
-void dss_copy_device_pdata(struct omap_dss_device *dst,
-		const struct omap_dss_device *src);
 
 /* display */
 int dss_suspend_all_devices(void);

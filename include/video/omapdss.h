@@ -703,10 +703,6 @@ struct omapdss_dsi_ops {
 };
 
 struct omap_dss_device {
-	/* old device, to be removed */
-	struct device old_dev;
-
-	/* new device, pointer to panel device */
 	struct device *dev;
 
 	struct module *owner;
@@ -808,8 +804,6 @@ struct omap_dss_hdmi_data
 };
 
 struct omap_dss_driver {
-	struct device_driver driver;
-
 	int (*probe)(struct omap_dss_device *);
 	void (*remove)(struct omap_dss_device *);
 
