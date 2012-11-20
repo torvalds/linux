@@ -254,15 +254,14 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 {
 	struct nfs4_session *ses = clp->cl_session;
 	struct nfs4_slot_table *tbl;
-	int max_slots;
+	unsigned int i;
 
 	if (ses == NULL)
 		return;
 	tbl = &ses->fc_slot_table;
 	if (test_and_clear_bit(NFS4_SESSION_DRAINING, &ses->session_state)) {
 		spin_lock(&tbl->slot_tbl_lock);
-		max_slots = tbl->max_slots;
-		while (max_slots--) {
+		for (i = 0; i <= tbl->max_slotid; i++) {
 			if (rpc_wake_up_first(&tbl->slot_tbl_waitq,
 						nfs4_set_task_privileged,
 						NULL) == NULL)
@@ -2043,6 +2042,7 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 	old = fc_tbl->slots;
 	fc_tbl->slots = new;
 	fc_tbl->max_slots = fc_tbl->target_highest_slotid + 1;
+	fc_tbl->max_slotid = fc_tbl->target_highest_slotid;
 	clp->cl_session->fc_attrs.max_reqs = fc_tbl->max_slots;
 	spin_unlock(&fc_tbl->slot_tbl_lock);
 

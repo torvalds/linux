@@ -215,6 +215,7 @@ struct nfs4_slot_table {
 	spinlock_t	slot_tbl_lock;
 	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
 	u32		max_slots;		/* # slots in table */
+	u32		max_slotid;		/* Max allowed slotid value */
 	u32		highest_used_slotid;	/* sent to server on each SEQ.
 						 * op for dynamic resizing */
 	u32		target_highest_slotid;	/* Server max_slot target */
