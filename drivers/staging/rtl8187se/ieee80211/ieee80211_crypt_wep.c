@@ -15,7 +15,7 @@
 #include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/skbuff.h>
-#include <asm/string.h>
+#include <linux/string.h>
 
 #include "ieee80211.h"
 
