@@ -120,6 +120,8 @@
 
 struct kirkwood_dma_data {
 	void __iomem *io;
+	uint32_t ctl_play;
+	uint32_t ctl_rec;
 	int irq;
 	int burst;
 	struct clk *clk;
