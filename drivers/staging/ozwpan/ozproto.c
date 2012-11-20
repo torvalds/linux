@@ -566,8 +566,7 @@ static void oz_protocol_timer(unsigned long arg)
 		}
 		spin_unlock_bh(&g_polling_lock);
 		oz_pd_put(pd);
-		if (t)
-			kfree(t);
+		kfree(t);
 		t = t2;
 	} while (t);
 	g_timer_state = OZ_TIMER_IDLE;
