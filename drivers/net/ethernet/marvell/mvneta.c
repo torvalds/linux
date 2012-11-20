@@ -29,6 +29,7 @@
 #include <linux/of_net.h>
 #include <linux/of_address.h>
 #include <linux/phy.h>
+#include <linux/clk.h>
 
 /* Registers */
 #define MVNETA_RXQ_CONFIG_REG(q)                (0x1400 + ((q) << 2))
@@ -242,7 +243,7 @@ struct mvneta_port {
 	int weight;
 
 	/* Core clock */
-	unsigned int clk_rate_hz;
+	struct clk *clk;
 	u8 mcast_count[256];
 	u16 tx_ring_size;
 	u16 rx_ring_size;
@@ -1029,7 +1030,11 @@ static void mvneta_rx_pkts_coal_set(struct mvneta_port *pp,
 static void mvneta_rx_time_coal_set(struct mvneta_port *pp,
 				    struct mvneta_rx_queue *rxq, u32 value)
 {
-	u32 val = (pp->clk_rate_hz / 1000000) * value;
+	u32 val;
+	unsigned long clk_rate;
+
+	clk_rate = clk_get_rate(pp->clk);
+	val = (clk_rate / 1000000) * value;
 
 	mvreg_write(pp, MVNETA_RXQ_TIME_COAL_REG(rxq->id), val);
 	rxq->time_coal = value;
@@ -2601,7 +2606,7 @@ static int __devinit mvneta_init(struct mvneta_port *pp, int phy_addr)
 	return 0;
 }
 
-static void __devexit mvneta_deinit(struct mvneta_port *pp)
+static void mvneta_deinit(struct mvneta_port *pp)
 {
 	kfree(pp->txqs);
 	kfree(pp->rxqs);
@@ -2671,7 +2676,7 @@ static int __devinit mvneta_probe(struct platform_device *pdev)
 	const struct mbus_dram_target_info *dram_target_info;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *phy_node;
-	u32 phy_addr, clk_rate_hz;
+	u32 phy_addr;
 	struct mvneta_port *pp;
 	struct net_device *dev;
 	const char *mac_addr;
@@ -2710,12 +2715,6 @@ static int __devinit mvneta_probe(struct platform_device *pdev)
 		goto err_free_irq;
 	}
 
-	if (of_property_read_u32(dn, "clock-frequency", &clk_rate_hz) != 0) {
-		dev_err(&pdev->dev, "could not read clock-frequency\n");
-		err = -EINVAL;
-		goto err_free_irq;
-	}
-
 	mac_addr = of_get_mac_address(dn);
 
 	if (!mac_addr || !is_valid_ether_addr(mac_addr))
@@ -2736,7 +2735,6 @@ static int __devinit mvneta_probe(struct platform_device *pdev)
 	clear_bit(MVNETA_F_TX_DONE_TIMER_BIT, &pp->flags);
 
 	pp->weight = MVNETA_RX_POLL_WEIGHT;
-	pp->clk_rate_hz = clk_rate_hz;
 	pp->phy_node = phy_node;
 	pp->phy_interface = phy_mode;
 
@@ -2745,6 +2743,14 @@ static int __devinit mvneta_probe(struct platform_device *pdev)
 		err = -ENOMEM;
 		goto err_free_irq;
 	}
+
+	pp->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pp->clk)) {
+		err = PTR_ERR(pp->clk);
+		goto err_unmap;
+	}
+
+	clk_prepare_enable(pp->clk);
 
 	pp->tx_done_timer.data = (unsigned long)dev;
 
@@ -2757,7 +2763,7 @@ static int __devinit mvneta_probe(struct platform_device *pdev)
 	err = mvneta_init(pp, phy_addr);
 	if (err < 0) {
 		dev_err(&pdev->dev, "can't init eth hal\n");
-		goto err_unmap;
+		goto err_clk;
 	}
 	mvneta_port_power_up(pp, phy_mode);
 
@@ -2785,6 +2791,8 @@ static int __devinit mvneta_probe(struct platform_device *pdev)
 
 err_deinit:
 	mvneta_deinit(pp);
+err_clk:
+	clk_disable_unprepare(pp->clk);
 err_unmap:
 	iounmap(pp->base);
 err_free_irq:
@@ -2802,6 +2810,7 @@ static int __devexit mvneta_remove(struct platform_device *pdev)
 
 	unregister_netdev(dev);
 	mvneta_deinit(pp);
+	clk_disable_unprepare(pp->clk);
 	iounmap(pp->base);
 	irq_dispose_mapping(dev->irq);
 	free_netdev(dev);
