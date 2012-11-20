@@ -459,7 +459,7 @@ void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *r
  *
  * @ring: radeon_ring structure holding ring information
  *
- * Reset the driver's copy of the wtpr (all asics).
+ * Reset the driver's copy of the wptr (all asics).
  */
 void radeon_ring_undo(struct radeon_ring *ring)
 {
@@ -503,7 +503,7 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
 }
 
 /**
- * radeon_ring_force_activity - update lockup variables
+ * radeon_ring_lockup_update - update lockup variables
  *
  * @ring: radeon_ring structure holding ring information
  *
