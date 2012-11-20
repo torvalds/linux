@@ -3679,7 +3679,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 	bool is_ap = (wlvif->bss_type == BSS_TYPE_AP_BSS);
 	int ret = 0;
 
-	if ((changed & BSS_CHANGED_BEACON_INT)) {
+	if (changed & BSS_CHANGED_BEACON_INT) {
 		wl1271_debug(DEBUG_MASTER, "beacon interval updated: %d",
 			bss_conf->beacon_int);
 
@@ -3692,7 +3692,7 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 		wl1271_ap_set_probe_resp_tmpl(wl, rate, vif);
 	}
 
-	if ((changed & BSS_CHANGED_BEACON)) {
+	if (changed & BSS_CHANGED_BEACON) {
 		ret = wlcore_set_beacon_template(wl, vif, is_ap);
 		if (ret < 0)
 			goto out;
@@ -3744,7 +3744,7 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 	if (ret < 0)
 		goto out;
 
-	if ((changed & BSS_CHANGED_BEACON_ENABLED)) {
+	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		if (bss_conf->enable_beacon) {
 			if (!test_bit(WLVIF_FLAG_AP_STARTED, &wlvif->flags)) {
 				ret = wl12xx_cmd_role_start_ap(wl, wlvif);
@@ -3913,7 +3913,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		do_join = true;
 	}
 
-	if ((changed & BSS_CHANGED_CQM)) {
+	if (changed & BSS_CHANGED_CQM) {
 		bool enable = false;
 		if (bss_conf->cqm_rssi_thold)
 			enable = true;
