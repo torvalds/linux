@@ -15,6 +15,7 @@
 #include <mach/map.h>
 
 #define S5P_PMUREG(x)				(S5P_VA_PMU + (x))
+#define S5P_SYSREG(x)				(S3C_VA_SYS + (x))
 
 #define S5P_CENTRAL_SEQ_CONFIGURATION		S5P_PMUREG(0x0200)
 
@@ -230,6 +231,7 @@
 
 /* For EXYNOS5 */
 
+#define EXYNOS5_SYS_I2C_CFG					S5P_SYSREG(0x0234)
 #define EXYNOS5_USB_CFG						S5P_PMUREG(0x0230)
 
 #define EXYNOS5_AUTO_WDTRESET_DISABLE				S5P_PMUREG(0x0408)
