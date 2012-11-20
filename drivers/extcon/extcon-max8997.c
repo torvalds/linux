@@ -450,11 +450,13 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
 		struct max8997_muic_irq *muic_irq = &muic_irqs[i];
-		int virq = 0;
+		unsigned int virq = 0;
 
 		virq = irq_create_mapping(max8997->irq_domain, muic_irq->irq);
-		if (!virq)
+		if (!virq) {
+			ret = -EINVAL;
 			goto err_irq;
+		}
 		muic_irq->virq = virq;
 
 		ret = request_threaded_irq(virq, NULL,max8997_muic_irq_handler,
