@@ -2553,7 +2553,8 @@ static int wlcore_set_ssid(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 }
 
 static int wlcore_set_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			    struct ieee80211_bss_conf *bss_conf)
+			    struct ieee80211_bss_conf *bss_conf,
+			    u32 sta_rate_set)
 {
 	int ieoffset;
 	int ret;
@@ -2619,6 +2620,18 @@ static int wlcore_set_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	 * setting is off (ACTIVE), so sync the fw with the correct value.
 	 */
 	ret = wl1271_ps_set_mode(wl, wlvif, STATION_ACTIVE_MODE);
+	if (ret < 0)
+		return ret;
+
+	if (sta_rate_set) {
+		wlvif->rate_set =
+			wl1271_tx_enabled_rates_get(wl,
+						    sta_rate_set,
+						    wlvif->band);
+		ret = wl1271_acx_sta_rate_policies(wl, wlvif);
+		if (ret < 0)
+			return ret;
+	}
 
 	return ret;
 }
@@ -3912,7 +3925,8 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		wlvif->rssi_thold = bss_conf->cqm_rssi_thold;
 	}
 
-	if (changed & (BSS_CHANGED_BSSID | BSS_CHANGED_HT)) {
+	if (changed & (BSS_CHANGED_BSSID | BSS_CHANGED_HT |
+		       BSS_CHANGED_ASSOC)) {
 		rcu_read_lock();
 		sta = ieee80211_find_sta(vif, bss_conf->bssid);
 		if (!sta)
@@ -3982,7 +3996,8 @@ sta_not_found:
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		if (bss_conf->assoc) {
-			ret = wlcore_set_assoc(wl, wlvif, bss_conf);
+			ret = wlcore_set_assoc(wl, wlvif, bss_conf,
+					       sta_rate_set);
 			if (ret < 0)
 				goto out;
 
