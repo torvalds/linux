@@ -1,8 +1,16 @@
+/*
+ * Clock driver for the ARM Integrator/AP and Integrator/CP boards
+ * Copyright (C) 2012 Linus Walleij
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+#include <linux/clk-provider.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
 #include <linux/io.h>
-#include <linux/clk-provider.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
