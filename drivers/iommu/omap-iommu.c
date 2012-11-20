@@ -154,7 +154,6 @@ static int iommu_enable(struct omap_iommu *obj)
 
 	err = arch_iommu->enable(obj);
 
-	clk_disable(obj->clk);
 	return err;
 }
 
@@ -162,8 +161,6 @@ static void iommu_disable(struct omap_iommu *obj)
 {
 	if (!obj)
 		return;
-
-	clk_enable(obj->clk);
 
 	arch_iommu->disable(obj);
 
