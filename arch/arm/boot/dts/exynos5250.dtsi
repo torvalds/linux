@@ -104,6 +104,17 @@
 		interrupts = <0 54 0>;
 	};
 
+	sata@122F0000 {
+		compatible = "samsung,exynos5-sata-ahci";
+		reg = <0x122F0000 0x1ff>;
+		interrupts = <0 115 0>;
+	};
+
+	sata-phy@12170000 {
+		compatible = "samsung,exynos5-sata-phy";
+		reg = <0x12170000 0x1ff>;
+	};
+
 	i2c@12C60000 {
 		compatible = "samsung,s3c2440-i2c";
 		reg = <0x12C60000 0x100>;
@@ -166,6 +177,13 @@
 		interrupts = <0 63 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	i2c@121D0000 {
+                compatible = "samsung,exynos5-sata-phy-i2c";
+                reg = <0x121D0000 0x100>;
+                #address-cells = <1>;
+                #size-cells = <0>;
 	};
 
 	spi_0: spi@12d20000 {
