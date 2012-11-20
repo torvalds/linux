@@ -437,9 +437,6 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 	ptr = raw_data;
 	ptr++; /*Skip report id*/
 
-	if (!report)
-		goto err_report;
-
 	spin_lock_irqsave(&pdata->lock, flags);
 
 	for (i = 0; i < report->maxfield; ++i) {
@@ -485,7 +482,6 @@ static int sensor_hub_raw_event(struct hid_device *hdev,
 				callback->pdev);
 	spin_unlock_irqrestore(&pdata->lock, flags);
 
-err_report:
 	return 1;
 }
 
