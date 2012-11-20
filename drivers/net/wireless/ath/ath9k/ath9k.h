@@ -488,6 +488,7 @@ struct ath_btcoex {
 	int rssi_count;
 	struct ath_gen_timer *no_stomp_timer; /* Timer for no BT stomping */
 	struct ath_mci_profile mci;
+	u8 stomp_audio;
 };
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
