@@ -260,6 +260,8 @@ extern int nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data,
 
 extern struct nfs4_slot *nfs4_alloc_slots(struct nfs4_slot_table *table,
 		u32 max_slots, gfp_t gfp_flags);
+extern void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
+		u32 target_highest_slotid);
 
 static inline bool
 is_ds_only_client(struct nfs_client *clp)

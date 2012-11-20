@@ -498,6 +498,14 @@ static void nfs41_set_target_slotid_locked(struct nfs4_slot_table *tbl,
 	tbl->generation++;
 }
 
+void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
+		u32 target_highest_slotid)
+{
+	spin_lock(&tbl->slot_tbl_lock);
+	nfs41_set_target_slotid_locked(tbl, target_highest_slotid);
+	spin_unlock(&tbl->slot_tbl_lock);
+}
+
 static void nfs41_set_server_slotid_locked(struct nfs4_slot_table *tbl,
 		u32 highest_slotid)
 {
