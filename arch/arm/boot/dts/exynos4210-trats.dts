@@ -42,7 +42,6 @@
 	sdhci_emmc: sdhci@12510000 {
 		bus-width = <8>;
 		non-removable;
-		broken-voltage;
 		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 		pinctrl-names = "default";
 		vmmc-supply = <&vemmc_reg>;
