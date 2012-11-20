@@ -816,11 +816,6 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		goto err_no_chip;
 	}
 
-	/* Spawn pin controller device as child of the GPIO */
-	err = platform_device_register(plat->pinctrl_device);
-	if (err)
-		goto err_no_pinctrl;
-
 	/*
 	 * Add pinctrl pin ranges, the pin controller must be registered
 	 * at this point
@@ -839,7 +834,6 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_no_range:
-err_no_pinctrl:
 	err = gpiochip_remove(&gpio->chip);
 err_no_chip:
 err_no_domain:

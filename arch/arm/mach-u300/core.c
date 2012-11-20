@@ -1445,7 +1445,6 @@ static struct platform_device pinctrl_device = {
 static struct u300_gpio_platform u300_gpio_plat = {
 	.ports = 7,
 	.gpio_base = 0,
-	.pinctrl_device = &pinctrl_device,
 };
 
 static struct platform_device gpio_device = {
@@ -1589,6 +1588,7 @@ static struct platform_device *platform_devs[] __initdata = {
 	&i2c1_device,
 	&keypad_device,
 	&rtc_device,
+	&pinctrl_device,
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
