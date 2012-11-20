@@ -66,7 +66,7 @@ struct cgroup_subsys_state {
 	/*
 	 * State maintained by the cgroup system to allow subsystems
 	 * to be "busy". Should be accessed via css_get(),
-	 * css_tryget() and and css_put().
+	 * css_tryget() and css_put().
 	 */
 
 	atomic_t refcnt;
@@ -276,7 +276,7 @@ struct cgroup_map_cb {
 
 /* cftype->flags */
 #define CFTYPE_ONLY_ON_ROOT	(1U << 0)	/* only create on root cg */
-#define CFTYPE_NOT_ON_ROOT	(1U << 1)	/* don't create onp root cg */
+#define CFTYPE_NOT_ON_ROOT	(1U << 1)	/* don't create on root cg */
 
 #define MAX_CFTYPE_NAME		64
 

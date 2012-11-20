@@ -782,12 +782,12 @@ static struct cgroup *task_cgroup_from_root(struct task_struct *task,
  *	The task_lock() exception
  *
  * The need for this exception arises from the action of
- * cgroup_attach_task(), which overwrites one tasks cgroup pointer with
+ * cgroup_attach_task(), which overwrites one task's cgroup pointer with
  * another.  It does so using cgroup_mutex, however there are
  * several performance critical places that need to reference
  * task->cgroup without the expense of grabbing a system global
  * mutex.  Therefore except as noted below, when dereferencing or, as
- * in cgroup_attach_task(), modifying a task'ss cgroup pointer we use
+ * in cgroup_attach_task(), modifying a task's cgroup pointer we use
  * task_lock(), which acts on a spinlock (task->alloc_lock) already in
  * the task_struct routinely used for such matters.
  *
@@ -1882,9 +1882,7 @@ EXPORT_SYMBOL_GPL(cgroup_taskset_size);
 /*
  * cgroup_task_migrate - move a task from one cgroup to another.
  *
- * 'guarantee' is set if the caller promises that a new css_set for the task
- * will already exist. If not set, this function might sleep, and can fail with
- * -ENOMEM. Must be called with cgroup_mutex and threadgroup locked.
+ * Must be called with cgroup_mutex and threadgroup locked.
  */
 static void cgroup_task_migrate(struct cgroup *cgrp, struct cgroup *oldcgrp,
 				struct task_struct *tsk, struct css_set *newcg)
