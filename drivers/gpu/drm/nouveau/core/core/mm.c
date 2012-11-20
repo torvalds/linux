@@ -236,7 +236,7 @@ nouveau_mm_fini(struct nouveau_mm *mm)
 	int nodes = 0;
 
 	list_for_each_entry(node, &mm->nodes, nl_entry) {
-		if (nodes++ == mm->heap_nodes)
+		if (WARN_ON(nodes++ == mm->heap_nodes))
 			return -EBUSY;
 	}
 

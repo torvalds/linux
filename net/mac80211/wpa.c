@@ -106,7 +106,8 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		if (status->flag & RX_FLAG_MMIC_ERROR)
 			goto mic_fail;
 
-		if (!(status->flag & RX_FLAG_IV_STRIPPED) && rx->key)
+		if (!(status->flag & RX_FLAG_IV_STRIPPED) && rx->key &&
+		    rx->key->conf.cipher == WLAN_CIPHER_SUITE_TKIP)
 			goto update_iv;
 
 		return RX_CONTINUE;
@@ -545,14 +546,19 @@ ieee80211_crypto_ccmp_decrypt(struct ieee80211_rx_data *rx)
 
 static void bip_aad(struct sk_buff *skb, u8 *aad)
 {
+	__le16 mask_fc;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+
 	/* BIP AAD: FC(masked) || A1 || A2 || A3 */
 
 	/* FC type/subtype */
-	aad[0] = skb->data[0];
 	/* Mask FC Retry, PwrMgt, MoreData flags to zero */
-	aad[1] = skb->data[1] & ~(BIT(4) | BIT(5) | BIT(6));
+	mask_fc = hdr->frame_control;
+	mask_fc &= ~cpu_to_le16(IEEE80211_FCTL_RETRY | IEEE80211_FCTL_PM |
+				IEEE80211_FCTL_MOREDATA);
+	put_unaligned(mask_fc, (__le16 *) &aad[0]);
 	/* A1 || A2 || A3 */
-	memcpy(aad + 2, skb->data + 4, 3 * ETH_ALEN);
+	memcpy(aad + 2, &hdr->addr1, 3 * ETH_ALEN);
 }
 
 

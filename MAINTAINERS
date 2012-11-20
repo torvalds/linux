@@ -637,6 +637,13 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/
 
+ARM SUB-ARCHITECTURES
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	MAINTAINED
+F:	arch/arm/mach-*/
+F:	arch/arm/plat-*/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
+
 ARM PRIMECELL AACI PL041 DRIVER
 M:	Russell King <linux@arm.linux.org.uk>
 S:	Maintained
@@ -2802,6 +2809,7 @@ F:	sound/usb/misc/ua101.c
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
 M:	Matt Fleming <matt.fleming@intel.com>
 L:	linux-efi@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 S:	Maintained
 F:	Documentation/x86/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
@@ -5061,7 +5069,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
 S:	Odd Fixes
 F:	drivers/net/
 F:	include/linux/if_*
-F:	include/linux/*device.h
+F:	include/linux/netdevice.h
+F:	include/linux/arcdevice.h
+F:	include/linux/etherdevice.h
+F:	include/linux/fcdevice.h
+F:	include/linux/fddidevice.h
+F:	include/linux/hippidevice.h
+F:	include/linux/inetdevice.h
 
 NETXEN (1/10) GbE SUPPORT
 M:	Sony Chacko <sony.chacko@qlogic.com>

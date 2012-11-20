@@ -373,30 +373,31 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			*val = 0;
-			if (chan->channel == 0)
-				*val2 = 4880;
-			else
+			if (chan->channel == 0) {
+				*val = 4;
+				*val2 = 880000; /* 4.88 mV */
+				return IIO_VAL_INT_PLUS_MICRO;
+			} else {
 				return -EINVAL;
-			return IIO_VAL_INT_PLUS_MICRO;
+			}
 		case IIO_TEMP:
-			*val = 0;
-			*val2 = 244000;
+			*val = 244; /* 0.244 C */
+			*val2 = 0;
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
 			*val = 0;
-			*val2 = 504062;
+			*val2 = IIO_G_TO_M_S_2(51400); /* 51.4 mg */
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
 		break;
 	case IIO_CHAN_INFO_PEAK_SCALE:
-		*val = 6;
-		*val2 = 629295;
+		*val = 0;
+		*val2 = IIO_G_TO_M_S_2(51400); /* 51.4 mg */
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 25;
+		*val = 25000 / 244 - 0x133; /* 25 C = 0x133 */
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		bits = 10;
