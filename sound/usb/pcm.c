@@ -211,7 +211,7 @@ int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 	}
 }
 
-static int start_endpoints(struct snd_usb_substream *subs, int can_sleep)
+static int start_endpoints(struct snd_usb_substream *subs, bool can_sleep)
 {
 	int err;
 
@@ -263,16 +263,13 @@ static int start_endpoints(struct snd_usb_substream *subs, int can_sleep)
 	return 0;
 }
 
-static void stop_endpoints(struct snd_usb_substream *subs,
-			   int force, int can_sleep, int wait)
+static void stop_endpoints(struct snd_usb_substream *subs, bool wait)
 {
 	if (test_and_clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags))
-		snd_usb_endpoint_stop(subs->sync_endpoint,
-				      force, can_sleep, wait);
+		snd_usb_endpoint_stop(subs->sync_endpoint, wait);
 
 	if (test_and_clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags))
-		snd_usb_endpoint_stop(subs->data_endpoint,
-				      force, can_sleep, wait);
+		snd_usb_endpoint_stop(subs->data_endpoint, wait);
 }
 
 static int deactivate_endpoints(struct snd_usb_substream *subs)
@@ -444,7 +441,7 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 	int ret;
 
 	/* format changed */
-	stop_endpoints(subs, 0, 0, 0);
+	stop_endpoints(subs, false);
 	ret = snd_usb_endpoint_set_params(subs->data_endpoint,
 					  subs->pcm_format,
 					  subs->channels,
@@ -530,7 +527,7 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->period_bytes = 0;
 	down_read(&subs->stream->chip->shutdown_rwsem);
 	if (!subs->stream->chip->shutdown) {
-		stop_endpoints(subs, 0, 1, 1);
+		stop_endpoints(subs, true);
 		deactivate_endpoints(subs);
 	}
 	up_read(&subs->stream->chip->shutdown_rwsem);
@@ -605,7 +602,7 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	/* for playback, submit the URBs now; otherwise, the first hwptr_done
 	 * updates for all URBs would happen at the same time when starting */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		ret = start_endpoints(subs, 1);
+		ret = start_endpoints(subs, true);
 
  unlock:
 	up_read(&subs->stream->chip->shutdown_rwsem);
@@ -1010,7 +1007,7 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream, int direction)
 	struct snd_usb_stream *as = snd_pcm_substream_chip(substream);
 	struct snd_usb_substream *subs = &as->substream[direction];
 
-	stop_endpoints(subs, 0, 0, 0);
+	stop_endpoints(subs, false);
 
 	if (!as->chip->shutdown && subs->interface >= 0) {
 		usb_set_interface(subs->dev, subs->interface, 0);
@@ -1245,7 +1242,7 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		stop_endpoints(subs, 0, 0, 0);
+		stop_endpoints(subs, false);
 		subs->running = 0;
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -1266,7 +1263,7 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
-		err = start_endpoints(subs, 0);
+		err = start_endpoints(subs, false);
 		if (err < 0)
 			return err;
 
@@ -1274,7 +1271,7 @@ static int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream
 		subs->running = 1;
 		return 0;
 	case SNDRV_PCM_TRIGGER_STOP:
-		stop_endpoints(subs, 0, 0, 0);
+		stop_endpoints(subs, false);
 		subs->running = 0;
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
