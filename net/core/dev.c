@@ -1153,10 +1153,8 @@ int dev_set_alias(struct net_device *dev, const char *alias, size_t len)
 		return -EINVAL;
 
 	if (!len) {
-		if (dev->ifalias) {
-			kfree(dev->ifalias);
-			dev->ifalias = NULL;
-		}
+		kfree(dev->ifalias);
+		dev->ifalias = NULL;
 		return 0;
 	}
 
