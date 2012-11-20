@@ -234,6 +234,8 @@ struct sctp_chunk *sctp_make_abort_violation(const struct sctp_association *,
 struct sctp_chunk *sctp_make_violation_paramlen(const struct sctp_association *,
 				   const struct sctp_chunk *,
 				   struct sctp_paramhdr *);
+struct sctp_chunk *sctp_make_violation_max_retrans(const struct sctp_association *,
+						   const struct sctp_chunk *);
 struct sctp_chunk *sctp_make_heartbeat(const struct sctp_association *,
 				  const struct sctp_transport *);
 struct sctp_chunk *sctp_make_heartbeat_ack(const struct sctp_association *,

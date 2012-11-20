@@ -577,7 +577,7 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 				  unsigned int error)
 {
 	struct sctp_ulpevent *event;
-
+	struct sctp_chunk *abort;
 	/* Cancel any partial delivery in progress. */
 	sctp_ulpq_abort_pd(&asoc->ulpq, GFP_ATOMIC);
 
@@ -592,6 +592,13 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 	if (event)
 		sctp_add_cmd_sf(commands, SCTP_CMD_EVENT_ULP,
 				SCTP_ULPEVENT(event));
+
+	if (asoc->overall_error_count >= asoc->max_retrans) {
+		abort = sctp_make_violation_max_retrans(asoc, chunk);
+		if (abort)
+			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
+					SCTP_CHUNK(abort));
+	}
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_CLOSED));
