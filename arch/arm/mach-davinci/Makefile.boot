@@ -11,5 +11,3 @@ else
 params_phys-y	:= 0x80000100
 initrd_phys-y	:= 0x80800000
 endif
-
-dtb-$(CONFIG_MACH_DA8XX_DT)	+= da850-enbw-cmc.dtb da850-evm.dtb
