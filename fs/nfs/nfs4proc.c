@@ -498,6 +498,22 @@ static void nfs41_set_target_slotid_locked(struct nfs4_slot_table *tbl,
 	tbl->generation++;
 }
 
+static void nfs41_set_server_slotid_locked(struct nfs4_slot_table *tbl,
+		u32 highest_slotid)
+{
+	unsigned int max_slotid, i;
+
+	if (tbl->server_highest_slotid == highest_slotid)
+		return;
+	if (tbl->highest_used_slotid > highest_slotid)
+		return;
+	max_slotid = min(tbl->max_slots - 1, highest_slotid);
+	/* Reset the seq_nr for deallocated slots */
+	for (i = tbl->server_highest_slotid + 1; i <= max_slotid; i++)
+		tbl->slots[i].seq_nr = 1;
+	tbl->server_highest_slotid = highest_slotid;
+}
+
 static void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 		struct nfs4_slot *slot,
 		struct nfs4_sequence_res *res)
@@ -505,6 +521,7 @@ static void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
 	spin_lock(&tbl->slot_tbl_lock);
 	if (tbl->generation != slot->generation)
 		goto out;
+	nfs41_set_server_slotid_locked(tbl, res->sr_highest_slotid);
 	nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
 out:
 	spin_unlock(&tbl->slot_tbl_lock);
@@ -5718,6 +5735,7 @@ static void nfs4_add_and_init_slots(struct nfs4_slot_table *tbl,
 	}
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
 	tbl->target_highest_slotid = max_slots - 1;
+	tbl->server_highest_slotid = max_slots - 1;
 	for (i = 0; i < tbl->max_slots; i++)
 		tbl->slots[i].seq_nr = ivalue;
 	spin_unlock(&tbl->slot_tbl_lock);

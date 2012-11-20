@@ -5550,8 +5550,8 @@ static int decode_sequence(struct xdr_stream *xdr,
 		dprintk("%s Invalid slot id\n", __func__);
 		goto out_err;
 	}
-	/* highest slot id - currently not processed */
-	dummy = be32_to_cpup(p++);
+	/* highest slot id */
+	res->sr_highest_slotid = be32_to_cpup(p++);
 	/* target highest slot id */
 	res->sr_target_highest_slotid = be32_to_cpup(p++);
 	/* result flags */
