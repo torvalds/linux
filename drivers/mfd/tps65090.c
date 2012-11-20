@@ -263,10 +263,11 @@ static int __devinit tps65090_i2c_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	tps65090 = devm_kzalloc(&client->dev, sizeof(struct tps65090),
-		GFP_KERNEL);
-	if (tps65090 == NULL)
+	tps65090 = devm_kzalloc(&client->dev, sizeof(*tps65090), GFP_KERNEL);
+	if (!tps65090) {
+		dev_err(&client->dev, "mem alloc for tps65090 failed\n");
 		return -ENOMEM;
+	}
 
 	tps65090->client = client;
 	tps65090->dev = &client->dev;
