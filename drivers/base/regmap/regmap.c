@@ -34,6 +34,36 @@ static int _regmap_update_bits(struct regmap *map, unsigned int reg,
 			       unsigned int mask, unsigned int val,
 			       bool *change);
 
+bool regmap_reg_in_ranges(unsigned int reg,
+			  const struct regmap_range *ranges,
+			  unsigned int nranges)
+{
+	const struct regmap_range *r;
+	int i;
+
+	for (i = 0, r = ranges; i < nranges; i++, r++)
+		if (regmap_reg_in_range(reg, r))
+			return true;
+	return false;
+}
+EXPORT_SYMBOL_GPL(regmap_reg_in_ranges);
+
+static bool _regmap_check_range_table(struct regmap *map,
+				      unsigned int reg,
+				      const struct regmap_access_table *table)
+{
+	/* Check "no ranges" first */
+	if (regmap_reg_in_ranges(reg, table->no_ranges, table->n_no_ranges))
+		return false;
+
+	/* In case zero "yes ranges" are supplied, any reg is OK */
+	if (!table->n_yes_ranges)
+		return true;
+
+	return regmap_reg_in_ranges(reg, table->yes_ranges,
+				    table->n_yes_ranges);
+}
+
 bool regmap_writeable(struct regmap *map, unsigned int reg)
 {
 	if (map->max_register && reg > map->max_register)
@@ -41,6 +71,9 @@ bool regmap_writeable(struct regmap *map, unsigned int reg)
 
 	if (map->writeable_reg)
 		return map->writeable_reg(map->dev, reg);
+
+	if (map->wr_table)
+		return _regmap_check_range_table(map, reg, map->wr_table);
 
 	return true;
 }
@@ -56,6 +89,9 @@ bool regmap_readable(struct regmap *map, unsigned int reg)
 	if (map->readable_reg)
 		return map->readable_reg(map->dev, reg);
 
+	if (map->rd_table)
+		return _regmap_check_range_table(map, reg, map->rd_table);
+
 	return true;
 }
 
@@ -67,6 +103,9 @@ bool regmap_volatile(struct regmap *map, unsigned int reg)
 	if (map->volatile_reg)
 		return map->volatile_reg(map->dev, reg);
 
+	if (map->volatile_table)
+		return _regmap_check_range_table(map, reg, map->volatile_table);
+
 	return true;
 }
 
@@ -77,6 +116,9 @@ bool regmap_precious(struct regmap *map, unsigned int reg)
 
 	if (map->precious_reg)
 		return map->precious_reg(map->dev, reg);
+
+	if (map->precious_table)
+		return _regmap_check_range_table(map, reg, map->precious_table);
 
 	return false;
 }
@@ -370,6 +412,10 @@ struct regmap *regmap_init(struct device *dev,
 	map->bus = bus;
 	map->bus_context = bus_context;
 	map->max_register = config->max_register;
+	map->wr_table = config->wr_table;
+	map->rd_table = config->rd_table;
+	map->volatile_table = config->volatile_table;
+	map->precious_table = config->precious_table;
 	map->writeable_reg = config->writeable_reg;
 	map->readable_reg = config->readable_reg;
 	map->volatile_reg = config->volatile_reg;

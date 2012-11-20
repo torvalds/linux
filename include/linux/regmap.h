@@ -53,6 +53,36 @@ enum regmap_endian {
 	REGMAP_ENDIAN_NATIVE,
 };
 
+/**
+ * A register range, used for access related checks
+ * (readable/writeable/volatile/precious checks)
+ *
+ * @range_min: address of first register
+ * @range_max: address of last register
+ */
+struct regmap_range {
+	unsigned int range_min;
+	unsigned int range_max;
+};
+
+/*
+ * A table of ranges including some yes ranges and some no ranges.
+ * If a register belongs to a no_range, the corresponding check function
+ * will return false. If a register belongs to a yes range, the corresponding
+ * check function will return true. "no_ranges" are searched first.
+ *
+ * @yes_ranges : pointer to an array of regmap ranges used as "yes ranges"
+ * @n_yes_ranges: size of the above array
+ * @no_ranges: pointer to an array of regmap ranges used as "no ranges"
+ * @n_no_ranges: size of the above array
+ */
+struct regmap_access_table {
+	const struct regmap_range *yes_ranges;
+	unsigned int n_yes_ranges;
+	const struct regmap_range *no_ranges;
+	unsigned int n_no_ranges;
+};
+
 typedef void (*regmap_lock)(void *);
 typedef void (*regmap_unlock)(void *);
 
@@ -70,22 +100,39 @@ typedef void (*regmap_unlock)(void *);
  * @val_bits: Number of bits in a register value, mandatory.
  *
  * @writeable_reg: Optional callback returning true if the register
- *                 can be written to.
+ *		   can be written to. If this field is NULL but wr_table
+ *		   (see below) is not, the check is performed on such table
+ *                 (a register is writeable if it belongs to one of the ranges
+ *                  specified by wr_table).
  * @readable_reg: Optional callback returning true if the register
- *                can be read from.
+ *		  can be read from. If this field is NULL but rd_table
+ *		   (see below) is not, the check is performed on such table
+ *                 (a register is readable if it belongs to one of the ranges
+ *                  specified by rd_table).
  * @volatile_reg: Optional callback returning true if the register
- *                value can't be cached.
+ *		  value can't be cached. If this field is NULL but
+ *		  volatile_table (see below) is not, the check is performed on
+ *                such table (a register is volatile if it belongs to one of
+ *                the ranges specified by volatile_table).
  * @precious_reg: Optional callback returning true if the rgister
- *                should not be read outside of a call from the driver
- *                (eg, a clear on read interrupt status register).
- * @lock:         Optional lock callback (overrides regmap's default lock
- *                function, based on spinlock or mutex).
- * @unlock:       As above for unlocking.
- * @lock_arg:     this field is passed as the only argument of lock/unlock
- *                functions (ignored in case regular lock/unlock functions
- *                are not overridden).
+ *		  should not be read outside of a call from the driver
+ *		  (eg, a clear on read interrupt status register). If this
+ *                field is NULL but precious_table (see below) is not, the
+ *                check is performed on such table (a register is precious if
+ *                it belongs to one of the ranges specified by precious_table).
+ * @lock:	  Optional lock callback (overrides regmap's default lock
+ *		  function, based on spinlock or mutex).
+ * @unlock:	  As above for unlocking.
+ * @lock_arg:	  this field is passed as the only argument of lock/unlock
+ *		  functions (ignored in case regular lock/unlock functions
+ *		  are not overridden).
  *
  * @max_register: Optional, specifies the maximum valid register index.
+ * @wr_table:     Optional, points to a struct regmap_access_table specifying
+ *                valid ranges for write access.
+ * @rd_table:     As above, for read access.
+ * @volatile_table: As above, for volatile registers.
+ * @precious_table: As above, for precious registers.
  * @reg_defaults: Power on reset values for registers (for use with
  *                register cache support).
  * @num_reg_defaults: Number of elements in reg_defaults.
@@ -130,6 +177,10 @@ struct regmap_config {
 	void *lock_arg;
 
 	unsigned int max_register;
+	const struct regmap_access_table *wr_table;
+	const struct regmap_access_table *rd_table;
+	const struct regmap_access_table *volatile_table;
+	const struct regmap_access_table *precious_table;
 	const struct reg_default *reg_defaults;
 	unsigned int num_reg_defaults;
 	enum regcache_type cache_type;
@@ -279,6 +330,16 @@ void regcache_mark_dirty(struct regmap *map);
 
 int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
 			  int num_regs);
+
+static inline bool regmap_reg_in_range(unsigned int reg,
+				       const struct regmap_range *range)
+{
+	return reg >= range->range_min && reg <= range->range_max;
+}
+
+bool regmap_reg_in_ranges(unsigned int reg,
+			  const struct regmap_range *ranges,
+			  unsigned int nranges);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.
