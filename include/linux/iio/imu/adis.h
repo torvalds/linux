@@ -20,6 +20,8 @@
 #define ADIS_PAGE_SIZE 0x80
 #define ADIS_REG_PAGE_ID 0x00
 
+struct adis;
+
 /**
  * struct adis_data - ADIS chip variant specific data
  * @read_delay: SPI delay for read operations in us
@@ -43,6 +45,8 @@ struct adis_data {
 
 	const char * const *status_error_msgs;
 	unsigned int status_error_mask;
+
+	int (*enable_irq)(struct adis *adis, bool enable);
 
 	bool has_paging;
 };

@@ -238,6 +238,9 @@ int adis_enable_irq(struct adis *adis, bool enable)
 	int ret = 0;
 	uint16_t msc;
 
+	if (adis->data->enable_irq)
+		return adis->data->enable_irq(adis, enable);
+
 	ret = adis_read_reg_16(adis, adis->data->msc_ctrl_reg, &msc);
 	if (ret)
 		goto error_ret;
