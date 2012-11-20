@@ -25,7 +25,6 @@
 #include <core/object.h>
 #include <core/device.h>
 #include <core/client.h>
-#include <core/device.h>
 #include <core/option.h>
 
 #include <core/class.h>
