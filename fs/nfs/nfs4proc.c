@@ -6037,8 +6037,21 @@ int nfs4_init_session(struct nfs_server *server)
 		session->fc_attrs.max_rqst_sz = target_max_rqst_sz;
 		session->fc_target_max_resp_sz = target_max_resp_sz;
 		session->fc_attrs.max_resp_sz = target_max_resp_sz;
+	} else {
+		/* Just adjust the targets */
+		if (target_max_rqst_sz > session->fc_target_max_rqst_sz) {
+			session->fc_target_max_rqst_sz = target_max_rqst_sz;
+			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+		}
+		if (target_max_resp_sz > session->fc_target_max_resp_sz) {
+			session->fc_target_max_resp_sz = target_max_resp_sz;
+			set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
+		}
 	}
 	spin_unlock(&clp->cl_lock);
+
+	if (test_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state))
+		nfs4_schedule_lease_recovery(clp);
 
 	return nfs41_check_session_ready(clp);
 }
