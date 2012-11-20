@@ -249,7 +249,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 		goto exit;
 	}
 
-	iprop = of_get_property(law_node, "fsl,num-laws", 0);
+	iprop = of_get_property(law_node, "fsl,num-laws", NULL);
 	if (!iprop) {
 		pr_err("p1022ds: LAW node is missing fsl,num-laws property\n");
 		goto exit;
