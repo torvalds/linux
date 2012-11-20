@@ -1821,30 +1821,19 @@ static void __init rk30_i2c_register_board_info(void)
 }
 //end of i2c
 
-#define POWEROFF_CHARGING_ANIMATION		(1)
-#define POWER_ON_PIN RK30_PIN0_PA0   //power_hold
+#define POWER_ON_PIN    RK30_PIN0_PA0   //power_hold
+#define DC_DET_PIN      RK30_PIN0_PB2
+#define DC_DET_LEVEL    GPIO_LOW
+
+extern void machine_restart(char *cmd);
+
 static void rk30_pm_power_off(void)
 {
-#if POWEROFF_CHARGING_ANIMATION
-	int pwr_cnt = 0;
-	struct rk30_adc_battery_platform_data *batt_plat_data = &rk30_adc_battery_platdata;
-	if (gpio_get_value (batt_plat_data->dc_det_pin)  ==
-		batt_plat_data->dc_det_level) {
+#if !(defined(CONFIG_MFD_TPS65910))
+	if (gpio_get_value(DC_DET_PIN) == DC_DET_LEVEL) {
 		printk("AC Charging, try to restart...\n");
-		while (1) {
-			 if (gpio_get_value (batt_plat_data->dc_det_pin) !=
-				batt_plat_data->dc_det_level ) {
-				pwr_cnt = 0;
-				break;
-			 }
-			 if (pwr_cnt++ > 40)
-				break;
-			 mdelay(50);
-		}
-		if (pwr_cnt > 40)  {
-			printk("AC Charging, will restart system...\n");
-			arm_pm_restart(0, NULL);
-		}
+		machine_restart(NULL);
+		return ;
 	}
 #endif
 
