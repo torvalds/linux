@@ -180,67 +180,76 @@ static int kirkwood_i2s_play_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
 	struct kirkwood_dma_data *priv = snd_soc_dai_get_drvdata(dai);
-	unsigned long value;
+	uint32_t ctl, value;
 
-	/*
-	 * specs says KIRKWOOD_PLAYCTL must be read 2 times before
-	 * changing it. So read 1 time here and 1 later.
-	 */
-	value = readl(priv->io + KIRKWOOD_PLAYCTL);
+	ctl = readl(priv->io + KIRKWOOD_PLAYCTL);
+	if (ctl & KIRKWOOD_PLAYCTL_PAUSE) {
+		unsigned timeout = 5000;
+		/*
+		 * The Armada510 spec says that if we enter pause mode, the
+		 * busy bit must be read back as clear _twice_.  Make sure
+		 * we respect that otherwise we get DMA underruns.
+		 */
+		do {
+			value = ctl;
+			ctl = readl(priv->io + KIRKWOOD_PLAYCTL);
+			if (!((ctl | value) & KIRKWOOD_PLAYCTL_PLAY_BUSY))
+				break;
+			udelay(1);
+		} while (timeout--);
+
+		if ((ctl | value) & KIRKWOOD_PLAYCTL_PLAY_BUSY)
+			dev_notice(dai->dev, "timed out waiting for busy to deassert: %08x\n",
+				   ctl);
+	}
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
 		/* stop audio, enable interrupts */
-		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value |= KIRKWOOD_PLAYCTL_PAUSE;
-		writel(value, priv->io + KIRKWOOD_PLAYCTL);
+		ctl |= KIRKWOOD_PLAYCTL_PAUSE;
+		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 
 		value = readl(priv->io + KIRKWOOD_INT_MASK);
 		value |= KIRKWOOD_INT_CAUSE_PLAY_BYTES;
 		writel(value, priv->io + KIRKWOOD_INT_MASK);
 
 		/* configure audio & enable i2s playback */
-		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value &= ~KIRKWOOD_PLAYCTL_BURST_MASK;
-		value &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE
+		ctl &= ~KIRKWOOD_PLAYCTL_BURST_MASK;
+		ctl &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE
 				| KIRKWOOD_PLAYCTL_SPDIF_EN);
 
 		if (priv->burst == 32)
-			value |= KIRKWOOD_PLAYCTL_BURST_32;
+			ctl |= KIRKWOOD_PLAYCTL_BURST_32;
 		else
-			value |= KIRKWOOD_PLAYCTL_BURST_128;
-		value |= KIRKWOOD_PLAYCTL_I2S_EN;
-		writel(value, priv->io + KIRKWOOD_PLAYCTL);
+			ctl |= KIRKWOOD_PLAYCTL_BURST_128;
+		ctl |= KIRKWOOD_PLAYCTL_I2S_EN;
+		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 		/* stop audio, disable interrupts */
-		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value |= KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE;
-		writel(value, priv->io + KIRKWOOD_PLAYCTL);
+		ctl |= KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE;
+		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 
 		value = readl(priv->io + KIRKWOOD_INT_MASK);
 		value &= ~KIRKWOOD_INT_CAUSE_PLAY_BYTES;
 		writel(value, priv->io + KIRKWOOD_INT_MASK);
 
 		/* disable all playbacks */
-		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value &= ~(KIRKWOOD_PLAYCTL_I2S_EN | KIRKWOOD_PLAYCTL_SPDIF_EN);
-		writel(value, priv->io + KIRKWOOD_PLAYCTL);
+		ctl &= ~(KIRKWOOD_PLAYCTL_I2S_EN | KIRKWOOD_PLAYCTL_SPDIF_EN);
+		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value |= KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE;
-		writel(value, priv->io + KIRKWOOD_PLAYCTL);
+		ctl |= KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE;
+		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		value = readl(priv->io + KIRKWOOD_PLAYCTL);
-		value &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE);
-		writel(value, priv->io + KIRKWOOD_PLAYCTL);
+		ctl &= ~(KIRKWOOD_PLAYCTL_PAUSE | KIRKWOOD_PLAYCTL_I2S_MUTE);
+		writel(ctl, priv->io + KIRKWOOD_PLAYCTL);
 		break;
 
 	default:
