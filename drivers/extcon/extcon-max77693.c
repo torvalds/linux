@@ -686,11 +686,13 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	/* Support irq domain for MAX77693 MUIC device */
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
 		struct max77693_muic_irq *muic_irq = &muic_irqs[i];
-		int virq = 0;
+		unsigned int virq = 0;
 
 		virq = irq_create_mapping(max77693->irq_domain, muic_irq->irq);
-		if (!virq)
+		if (!virq) {
+			ret = -EINVAL;
 			goto err_irq;
+		}
 		muic_irq->virq = virq;
 
 		ret = request_threaded_irq(virq, NULL,
@@ -702,8 +704,6 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 				" error :%d)\n",
 				muic_irq->irq, ret);
 
-			for (i = i - 1; i >= 0; i--)
-				free_irq(muic_irq->virq, info);
 			goto err_irq;
 		}
 	}
@@ -768,6 +768,8 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 err_extcon:
 	kfree(info->edev);
 err_irq:
+	while (--i >= 0)
+		free_irq(muic_irqs[i].virq, info);
 err_regmap:
 	kfree(info);
 err_kfree:
