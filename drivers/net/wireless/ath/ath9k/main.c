@@ -494,17 +494,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (status & SCHED_INTR)
 		sched = true;
 
-#ifdef CONFIG_PM_SLEEP
-	if (status & ATH9K_INT_BMISS) {
-		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
-			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
-			atomic_inc(&sc->wow_got_bmiss_intr);
-			atomic_dec(&sc->wow_sleep_proc_intr);
-		}
-	ath_dbg(common, INTERRUPT, "beacon miss interrupt\n");
-	}
-#endif
-
 	/*
 	 * If a FATAL or RXORN interrupt is received, we have to reset the
 	 * chip immediately.
@@ -523,7 +512,15 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 		goto chip_reset;
 	}
-
+#ifdef CONFIG_PM_SLEEP
+	if (status & ATH9K_INT_BMISS) {
+		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
+			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
+			atomic_inc(&sc->wow_got_bmiss_intr);
+			atomic_dec(&sc->wow_sleep_proc_intr);
+		}
+	}
+#endif
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
 
