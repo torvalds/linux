@@ -152,6 +152,11 @@ static int bcma_register_cores(struct bcma_bus *bus)
 			bcma_err(bus, "Error registering NAND flash\n");
 	}
 #endif
+	err = bcma_gpio_init(&bus->drv_cc);
+	if (err == -ENOTSUPP)
+		bcma_debug(bus, "GPIO driver not activated\n");
+	else if (err)
+		bcma_err(bus, "Error registering GPIO driver: %i\n", err);
 
 	return 0;
 }

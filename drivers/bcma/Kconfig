@@ -65,6 +65,15 @@ config BCMA_DRIVER_GMAC_CMN
 
 	  If unsure, say N
 
+config BCMA_DRIVER_GPIO
+	bool "BCMA GPIO driver"
+	depends on BCMA
+	select GPIOLIB
+	help
+	  Driver to provide access to the GPIO pins of the bcma bus.
+
+	  If unsure, say N
+
 config BCMA_DEBUG
 	bool "BCMA debugging"
 	depends on BCMA
