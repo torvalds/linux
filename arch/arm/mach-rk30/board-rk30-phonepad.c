@@ -1170,8 +1170,8 @@ enum {
 };
 
 enum {
-	NORMAL,
-	SWAP,
+	LR_NORMAL,
+	LR_SWAP,
 	LEFT_COPY_TO_RIGHT,
 	RIGHT_COPY_LEFT,
 };
@@ -1192,8 +1192,8 @@ static struct rt3261_platform_data rt3261_info = {
 	.modem_input_mode		= DIFFERENTIAL,
 	.lout_to_modem_mode		= DIFFERENTIAL,
 	.spk_amplify			= SPK_AMPLIFY_ZERO_POINT_SIX_WATT,
-	.playback_if1_data_control	= NORMAL,
-	.playback_if2_data_control	= NORMAL,
+	.playback_if1_data_control	= LR_NORMAL,
+	.playback_if2_data_control	= LR_NORMAL,
 };
 #endif
 
