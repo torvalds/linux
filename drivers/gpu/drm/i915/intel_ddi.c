@@ -1309,6 +1309,8 @@ int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 	else if ((I915_READ(LCPLL_CTL) & LCPLL_CLK_FREQ_MASK) ==
 		 LCPLL_CLK_FREQ_450)
 		return 450;
+	else if (IS_ULT(dev_priv->dev))
+		return 338;
 	else
 		return 540;
 }
