@@ -98,9 +98,9 @@ static irqreturn_t arizona_underclocked(int irq, void *data)
 
 	if (val & ARIZONA_AIF3_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "AIF3 underclocked\n");
-	if (val & ARIZONA_AIF3_UNDERCLOCKED_STS)
-		dev_err(arizona->dev, "AIF3 underclocked\n");
 	if (val & ARIZONA_AIF2_UNDERCLOCKED_STS)
+		dev_err(arizona->dev, "AIF2 underclocked\n");
+	if (val & ARIZONA_AIF1_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "AIF1 underclocked\n");
 	if (val & ARIZONA_ISRC2_UNDERCLOCKED_STS)
 		dev_err(arizona->dev, "ISRC2 underclocked\n");
