@@ -104,7 +104,8 @@
 #define HCF_MAX_NOISE_LEVEL         HCF_MAX_SIGNAL_LEVEL
 #define HCF_0DBM_OFFSET             (HCF_MAX_SIGNAL_LEVEL + 1)
 #define HCF_MIN_COMM_QUALITY        0
-#define HCF_MAX_COMM_QUALITY        (HCF_MAX_SIGNAL_LEVEL - HCF_MIN_NOISE_LEVEL + 1)
+#define HCF_MAX_COMM_QUALITY        (HCF_MAX_SIGNAL_LEVEL - \
+					HCF_MIN_NOISE_LEVEL + 1)
 
 
 /* For encryption (WEP) */
@@ -207,9 +208,9 @@ struct uilreq
 	__u8        command;
 	__u8        result;
 
-	/* The data field in this structure is typically an LTV of some type. The
-	   len field is the size of the buffer in bytes, as opposed to words (like
-	   the L-field in the LTV */
+	/* The data field in this structure is typically an LTV of some type.
+	   The len field is the size of the buffer in bytes, as opposed to words
+	   (like the L-field in the LTV */
 	__u16       len;
 	void       *data;
 };
