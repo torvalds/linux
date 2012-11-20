@@ -25,12 +25,29 @@
 #include <linux/irq.h>
 #include <linux/regmap.h>
 
+/* TPS65090 IRQs */
+enum {
+	TPS65090_IRQ_VAC_STATUS_CHANGE,
+	TPS65090_IRQ_VSYS_STATUS_CHANGE,
+	TPS65090_IRQ_BAT_STATUS_CHANGE,
+	TPS65090_IRQ_CHARGING_STATUS_CHANGE,
+	TPS65090_IRQ_CHARGING_COMPLETE,
+	TPS65090_IRQ_OVERLOAD_DCDC1,
+	TPS65090_IRQ_OVERLOAD_DCDC2,
+	TPS65090_IRQ_OVERLOAD_DCDC3,
+	TPS65090_IRQ_OVERLOAD_FET1,
+	TPS65090_IRQ_OVERLOAD_FET2,
+	TPS65090_IRQ_OVERLOAD_FET3,
+	TPS65090_IRQ_OVERLOAD_FET4,
+	TPS65090_IRQ_OVERLOAD_FET5,
+	TPS65090_IRQ_OVERLOAD_FET6,
+	TPS65090_IRQ_OVERLOAD_FET7,
+};
+
 struct tps65090 {
 	struct device		*dev;
 	struct regmap		*rmap;
-	struct irq_chip		irq_chip;
-	struct mutex		irq_lock;
-	int			irq_base;
+	struct regmap_irq_chip_data *irq_data;
 };
 
 struct tps65090_platform_data {
