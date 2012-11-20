@@ -75,7 +75,7 @@
 
 #define HCF_MAX_MULTICAST           16
 #define HCF_MAX_NAME_LEN            32
-#define MAX_LINE_SIZE   			256
+#define MAX_LINE_SIZE               256
 #define HCF_NUM_IO_PORTS            0x80
 #define TX_TIMEOUT                  ((800 * HZ) / 1000)
 
