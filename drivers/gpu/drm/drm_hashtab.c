@@ -67,12 +67,31 @@ void drm_ht_verbose_list(struct drm_open_hash *ht, unsigned long key)
 	hashed_key = hash_long(key, ht->order);
 	DRM_DEBUG("Key is 0x%08lx, Hashed key is 0x%08x\n", key, hashed_key);
 	h_list = &ht->table[hashed_key];
-	hlist_for_each_entry_rcu(entry, list, h_list, head)
+	hlist_for_each_entry(entry, list, h_list, head)
 		DRM_DEBUG("count %d, key: 0x%08lx\n", count++, entry->key);
 }
 
 static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
 					  unsigned long key)
+{
+	struct drm_hash_item *entry;
+	struct hlist_head *h_list;
+	struct hlist_node *list;
+	unsigned int hashed_key;
+
+	hashed_key = hash_long(key, ht->order);
+	h_list = &ht->table[hashed_key];
+	hlist_for_each_entry(entry, list, h_list, head) {
+		if (entry->key == key)
+			return list;
+		if (entry->key > key)
+			break;
+	}
+	return NULL;
+}
+
+static struct hlist_node *drm_ht_find_key_rcu(struct drm_open_hash *ht,
+					      unsigned long key)
 {
 	struct drm_hash_item *entry;
 	struct hlist_head *h_list;
@@ -90,7 +109,6 @@ static struct hlist_node *drm_ht_find_key(struct drm_open_hash *ht,
 	return NULL;
 }
 
-
 int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 {
 	struct drm_hash_item *entry;
@@ -102,7 +120,7 @@ int drm_ht_insert_item(struct drm_open_hash *ht, struct drm_hash_item *item)
 	hashed_key = hash_long(key, ht->order);
 	h_list = &ht->table[hashed_key];
 	parent = NULL;
-	hlist_for_each_entry_rcu(entry, list, h_list, head) {
+	hlist_for_each_entry(entry, list, h_list, head) {
 		if (entry->key == key)
 			return -EINVAL;
 		if (entry->key > key)
@@ -152,7 +170,7 @@ int drm_ht_find_item(struct drm_open_hash *ht, unsigned long key,
 {
 	struct hlist_node *list;
 
-	list = drm_ht_find_key(ht, key);
+	list = drm_ht_find_key_rcu(ht, key);
 	if (!list)
 		return -EINVAL;
 

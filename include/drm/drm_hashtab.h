@@ -61,5 +61,19 @@ extern int drm_ht_remove_key(struct drm_open_hash *ht, unsigned long key);
 extern int drm_ht_remove_item(struct drm_open_hash *ht, struct drm_hash_item *item);
 extern void drm_ht_remove(struct drm_open_hash *ht);
 
+/*
+ * RCU-safe interface
+ *
+ * The user of this API needs to make sure that two or more instances of the
+ * hash table manipulation functions are never run simultaneously.
+ * The lookup function drm_ht_find_item_rcu may, however, run simultaneously
+ * with any of the manipulation functions as long as it's called from within
+ * an RCU read-locked section.
+ */
+#define drm_ht_insert_item_rcu drm_ht_insert_item
+#define drm_ht_just_insert_please_rcu drm_ht_just_insert_please
+#define drm_ht_remove_key_rcu drm_ht_remove_key
+#define drm_ht_remove_item_rcu drm_ht_remove_item
+#define drm_ht_find_item_rcu drm_ht_find_item
 
 #endif
