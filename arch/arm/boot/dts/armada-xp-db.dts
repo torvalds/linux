@@ -71,25 +71,21 @@
 		};
 
 		ethernet@d0070000 {
-			clock-frequency = <250000000>;
 			status = "okay";
 			phy = <&phy0>;
 			phy-mode = "rgmii-id";
 		};
 		ethernet@d0074000 {
-			clock-frequency = <250000000>;
 			status = "okay";
 			phy = <&phy1>;
 			phy-mode = "rgmii-id";
 		};
 		ethernet@d0030000 {
-			clock-frequency = <250000000>;
 			status = "okay";
 			phy = <&phy2>;
 			phy-mode = "sgmii";
 		};
 		ethernet@d0034000 {
-			clock-frequency = <250000000>;
 			status = "okay";
 			phy = <&phy3>;
 			phy-mode = "sgmii";

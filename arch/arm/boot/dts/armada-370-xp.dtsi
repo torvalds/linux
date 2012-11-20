@@ -90,6 +90,7 @@
 				compatible = "marvell,armada-370-neta";
 				reg = <0xd0070000 0x2500>;
 				interrupts = <8>;
+				clocks = <&gateclk 4>;
 				status = "disabled";
 		};
 
@@ -97,6 +98,7 @@
 				compatible = "marvell,armada-370-neta";
 				reg = <0xd0074000 0x2500>;
 				interrupts = <10>;
+				clocks = <&gateclk 3>;
 				status = "disabled";
 		};
 	};
