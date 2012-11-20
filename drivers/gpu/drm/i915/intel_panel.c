@@ -275,7 +275,7 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 	}
 
 	tmp = I915_READ(BLC_PWM_CTL);
-	if (INTEL_INFO(dev)->gen < 4) 
+	if (INTEL_INFO(dev)->gen < 4)
 		level <<= 1;
 	tmp &= ~BACKLIGHT_DUTY_CYCLE_MASK;
 	I915_WRITE(BLC_PWM_CTL, tmp | level);
@@ -374,26 +374,23 @@ static void intel_panel_init_backlight(struct drm_device *dev)
 enum drm_connector_status
 intel_panel_detect(struct drm_device *dev)
 {
-#if 0
 	struct drm_i915_private *dev_priv = dev->dev_private;
-#endif
 
-	if (i915_panel_ignore_lid)
-		return i915_panel_ignore_lid > 0 ?
-			connector_status_connected :
-			connector_status_disconnected;
-
-	/* opregion lid state on HP 2540p is wrong at boot up,
-	 * appears to be either the BIOS or Linux ACPI fault */
-#if 0
 	/* Assume that the BIOS does not lie through the OpRegion... */
-	if (dev_priv->opregion.lid_state)
+	if (!i915_panel_ignore_lid && dev_priv->opregion.lid_state) {
 		return ioread32(dev_priv->opregion.lid_state) & 0x1 ?
 			connector_status_connected :
 			connector_status_disconnected;
-#endif
+	}
 
-	return connector_status_unknown;
+	switch (i915_panel_ignore_lid) {
+	case -2:
+		return connector_status_connected;
+	case -1:
+		return connector_status_disconnected;
+	default:
+		return connector_status_unknown;
+	}
 }
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE

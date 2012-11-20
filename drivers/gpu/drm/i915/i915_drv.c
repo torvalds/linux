@@ -47,11 +47,11 @@ MODULE_PARM_DESC(modeset,
 unsigned int i915_fbpercrtc __always_unused = 0;
 module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 
-int i915_panel_ignore_lid __read_mostly = 0;
+int i915_panel_ignore_lid __read_mostly = 1;
 module_param_named(panel_ignore_lid, i915_panel_ignore_lid, int, 0600);
 MODULE_PARM_DESC(panel_ignore_lid,
-		"Override lid status (0=autodetect [default], 1=lid open, "
-		"-1=lid closed)");
+		"Override lid status (0=autodetect, 1=autodetect disabled [default], "
+		"-1=force lid closed, -2=force lid open)");
 
 unsigned int i915_powersave __read_mostly = 1;
 module_param_named(powersave, i915_powersave, int, 0600);
