@@ -108,6 +108,10 @@ u32 bcma_chipco_gpio_outen(struct bcma_drv_cc *cc, u32 mask, u32 value)
 	return res;
 }
 
+/*
+ * If the bit is set to 0, chipcommon controlls this GPIO,
+ * if the bit is set to 1, it is used by some part of the chip and not our code.
+ */
 u32 bcma_chipco_gpio_control(struct bcma_drv_cc *cc, u32 mask, u32 value)
 {
 	unsigned long flags;
