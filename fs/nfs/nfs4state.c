@@ -2033,17 +2033,16 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 		return 0;
 	nfs4_begin_drain_session(clp);
 	fc_tbl = &clp->cl_session->fc_slot_table;
-	new = nfs4_alloc_slots(fc_tbl, fc_tbl->target_max_slots, GFP_NOFS);
+	new = nfs4_alloc_slots(fc_tbl, fc_tbl->target_highest_slotid + 1, GFP_NOFS);
         if (!new)
 		return -ENOMEM;
 
 	spin_lock(&fc_tbl->slot_tbl_lock);
-	for (i = 0; i < fc_tbl->target_max_slots; i++)
+	for (i = 0; i <= fc_tbl->target_highest_slotid; i++)
 		new[i].seq_nr = fc_tbl->slots[i].seq_nr;
 	old = fc_tbl->slots;
 	fc_tbl->slots = new;
-	fc_tbl->max_slots = fc_tbl->target_max_slots;
-	fc_tbl->target_max_slots = 0;
+	fc_tbl->max_slots = fc_tbl->target_highest_slotid + 1;
 	clp->cl_session->fc_attrs.max_reqs = fc_tbl->max_slots;
 	spin_unlock(&fc_tbl->slot_tbl_lock);
 

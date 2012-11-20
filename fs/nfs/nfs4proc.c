@@ -488,6 +488,28 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	res->sr_slot = NULL;
 }
 
+/* Update the client's idea of target_highest_slotid */
+static void nfs41_set_target_slotid_locked(struct nfs4_slot_table *tbl,
+		u32 target_highest_slotid)
+{
+	if (tbl->target_highest_slotid == target_highest_slotid)
+		return;
+	tbl->target_highest_slotid = target_highest_slotid;
+	tbl->generation++;
+}
+
+static void nfs41_update_target_slotid(struct nfs4_slot_table *tbl,
+		struct nfs4_slot *slot,
+		struct nfs4_sequence_res *res)
+{
+	spin_lock(&tbl->slot_tbl_lock);
+	if (tbl->generation != slot->generation)
+		goto out;
+	nfs41_set_target_slotid_locked(tbl, res->sr_target_highest_slotid);
+out:
+	spin_unlock(&tbl->slot_tbl_lock);
+}
+
 static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
@@ -522,6 +544,7 @@ static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *
 		/* Check sequence flags */
 		if (res->sr_status_flags != 0)
 			nfs4_schedule_lease_recovery(clp);
+		nfs41_update_target_slotid(slot->table, slot, res);
 		break;
 	case -NFS4ERR_DELAY:
 		/* The server detected a resend of the RPC call and
@@ -583,6 +606,7 @@ static struct nfs4_slot *nfs4_alloc_slot(struct nfs4_slot_table *tbl)
 		tbl->highest_used_slotid = slotid;
 	ret = &tbl->slots[slotid];
 	ret->renewal_time = jiffies;
+	ret->generation = tbl->generation;
 
 out:
 	dprintk("<-- %s used_slots=%04lx highest_used=%d slotid=%d \n",
@@ -5693,6 +5717,7 @@ static void nfs4_add_and_init_slots(struct nfs4_slot_table *tbl,
 		tbl->max_slots = max_slots;
 	}
 	tbl->highest_used_slotid = NFS4_NO_SLOT;
+	tbl->target_highest_slotid = max_slots - 1;
 	for (i = 0; i < tbl->max_slots; i++)
 		tbl->slots[i].seq_nr = ivalue;
 	spin_unlock(&tbl->slot_tbl_lock);

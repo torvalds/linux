@@ -576,7 +576,7 @@ __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
 	if (args->crsa_target_max_slots == fc_tbl->max_slots)
 		goto out;
 
-	fc_tbl->target_max_slots = args->crsa_target_max_slots;
+	fc_tbl->target_highest_slotid = args->crsa_target_max_slots;
 	nfs41_handle_recall_slot(cps->clp);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));

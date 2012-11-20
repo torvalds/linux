@@ -217,8 +217,9 @@ struct nfs4_slot_table {
 	u32		max_slots;		/* # slots in table */
 	u32		highest_used_slotid;	/* sent to server on each SEQ.
 						 * op for dynamic resizing */
-	u32		target_max_slots;	/* Set by CB_RECALL_SLOT as
-						 * the new max_slots */
+	u32		target_highest_slotid;	/* Server max_slot target */
+	unsigned long	generation;		/* Generation counter for
+						   target_highest_slotid */
 	struct completion complete;
 };
 
