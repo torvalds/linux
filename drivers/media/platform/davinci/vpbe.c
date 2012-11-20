@@ -558,9 +558,9 @@ static int platform_device_get(struct device *dev, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct vpbe_device *vpbe_dev = data;
 
-	if (strcmp("vpbe-osd", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-osd") != NULL)
 		vpbe_dev->osd_device = platform_get_drvdata(pdev);
-	if (strcmp("vpbe-venc", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-venc") != NULL)
 		vpbe_dev->venc_device = dev_get_platdata(&pdev->dev);
 
 	return 0;

@@ -1656,7 +1656,7 @@ static int vpbe_device_get(struct device *dev, void *data)
 	if (strcmp("vpbe_controller", pdev->name) == 0)
 		vpbe_disp->vpbe_dev = platform_get_drvdata(pdev);
 
-	if (strcmp("vpbe-osd", pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-osd") != NULL)
 		vpbe_disp->osd_device = platform_get_drvdata(pdev);
 
 	return 0;

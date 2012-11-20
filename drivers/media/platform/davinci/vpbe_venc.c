@@ -38,7 +38,22 @@
 
 #include "vpbe_venc_regs.h"
 
-#define MODULE_NAME	VPBE_VENC_SUBDEV_NAME
+#define MODULE_NAME	"davinci-vpbe-venc"
+
+static struct platform_device_id vpbe_venc_devtype[] = {
+	{
+		.name = DM644X_VPBE_VENC_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_1,
+	}, {
+		.name = DM365_VPBE_VENC_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_2,
+	}, {
+		.name = DM355_VPBE_VENC_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_3,
+	},
+};
+
+MODULE_DEVICE_TABLE(platform, vpbe_venc_devtype);
 
 static int debug = 2;
 module_param(debug, int, 0644);
@@ -54,6 +69,7 @@ struct venc_state {
 	spinlock_t lock;
 	void __iomem *venc_base;
 	void __iomem *vdaccfg_reg;
+	enum vpbe_version venc_type;
 };
 
 static inline struct venc_state *to_state(struct v4l2_subdev *sd)
@@ -127,7 +143,7 @@ static int venc_set_dac(struct v4l2_subdev *sd, u32 out_index)
 static void venc_enabledigitaloutput(struct v4l2_subdev *sd, int benable)
 {
 	struct venc_state *venc = to_state(sd);
-	struct venc_platform_data *pdata = venc->pdata;
+
 	v4l2_dbg(debug, 2, sd, "venc_enabledigitaloutput\n");
 
 	if (benable) {
@@ -159,7 +175,7 @@ static void venc_enabledigitaloutput(struct v4l2_subdev *sd, int benable)
 
 		/* Disable LCD output control (accepting default polarity) */
 		venc_write(sd, VENC_LCDOUT, 0);
-		if (pdata->venc_type != VPBE_VERSION_3)
+		if (venc->venc_type != VPBE_VERSION_3)
 			venc_write(sd, VENC_CMPNT, 0x100);
 		venc_write(sd, VENC_HSPLS, 0);
 		venc_write(sd, VENC_HINT, 0);
@@ -203,11 +219,11 @@ static int venc_set_ntsc(struct v4l2_subdev *sd)
 
 	venc_enabledigitaloutput(sd, 0);
 
-	if (pdata->venc_type == VPBE_VERSION_3) {
+	if (venc->venc_type == VPBE_VERSION_3) {
 		venc_write(sd, VENC_CLKCTL, 0x01);
 		venc_write(sd, VENC_VIDCTL, 0);
 		val = vdaccfg_write(sd, VDAC_CONFIG_SD_V3);
-	} else if (pdata->venc_type == VPBE_VERSION_2) {
+	} else if (venc->venc_type == VPBE_VERSION_2) {
 		venc_write(sd, VENC_CLKCTL, 0x01);
 		venc_write(sd, VENC_VIDCTL, 0);
 		vdaccfg_write(sd, VDAC_CONFIG_SD_V2);
@@ -238,7 +254,6 @@ static int venc_set_ntsc(struct v4l2_subdev *sd)
 static int venc_set_pal(struct v4l2_subdev *sd)
 {
 	struct venc_state *venc = to_state(sd);
-	struct venc_platform_data *pdata = venc->pdata;
 
 	v4l2_dbg(debug, 2, sd, "venc_set_pal\n");
 
@@ -249,11 +264,11 @@ static int venc_set_pal(struct v4l2_subdev *sd)
 
 	venc_enabledigitaloutput(sd, 0);
 
-	if (pdata->venc_type == VPBE_VERSION_3) {
+	if (venc->venc_type == VPBE_VERSION_3) {
 		venc_write(sd, VENC_CLKCTL, 0x1);
 		venc_write(sd, VENC_VIDCTL, 0);
 		vdaccfg_write(sd, VDAC_CONFIG_SD_V3);
-	} else if (pdata->venc_type == VPBE_VERSION_2) {
+	} else if (venc->venc_type == VPBE_VERSION_2) {
 		venc_write(sd, VENC_CLKCTL, 0x1);
 		venc_write(sd, VENC_VIDCTL, 0);
 		vdaccfg_write(sd, VDAC_CONFIG_SD_V2);
@@ -293,8 +308,8 @@ static int venc_set_480p59_94(struct v4l2_subdev *sd)
 	struct venc_platform_data *pdata = venc->pdata;
 
 	v4l2_dbg(debug, 2, sd, "venc_set_480p59_94\n");
-	if ((pdata->venc_type != VPBE_VERSION_1) &&
-	    (pdata->venc_type != VPBE_VERSION_2))
+	if (venc->venc_type != VPBE_VERSION_1 &&
+	    venc->venc_type != VPBE_VERSION_2)
 		return -EINVAL;
 
 	/* Setup clock at VPSS & VENC for SD */
@@ -303,12 +318,12 @@ static int venc_set_480p59_94(struct v4l2_subdev *sd)
 
 	venc_enabledigitaloutput(sd, 0);
 
-	if (pdata->venc_type == VPBE_VERSION_2)
+	if (venc->venc_type == VPBE_VERSION_2)
 		vdaccfg_write(sd, VDAC_CONFIG_HD_V2);
 	venc_write(sd, VENC_OSDCLK0, 0);
 	venc_write(sd, VENC_OSDCLK1, 1);
 
-	if (pdata->venc_type == VPBE_VERSION_1) {
+	if (venc->venc_type == VPBE_VERSION_1) {
 		venc_modify(sd, VENC_VDPRO, VENC_VDPRO_DAFRQ,
 			    VENC_VDPRO_DAFRQ);
 		venc_modify(sd, VENC_VDPRO, VENC_VDPRO_DAUPS,
@@ -341,8 +356,8 @@ static int venc_set_576p50(struct v4l2_subdev *sd)
 
 	v4l2_dbg(debug, 2, sd, "venc_set_576p50\n");
 
-	if ((pdata->venc_type != VPBE_VERSION_1) &&
-	  (pdata->venc_type != VPBE_VERSION_2))
+	if (venc->venc_type != VPBE_VERSION_1 &&
+	    venc->venc_type != VPBE_VERSION_2)
 		return -EINVAL;
 	/* Setup clock at VPSS & VENC for SD */
 	if (pdata->setup_clock(VPBE_ENC_CUSTOM_TIMINGS, 27000000) < 0)
@@ -350,13 +365,13 @@ static int venc_set_576p50(struct v4l2_subdev *sd)
 
 	venc_enabledigitaloutput(sd, 0);
 
-	if (pdata->venc_type == VPBE_VERSION_2)
+	if (venc->venc_type == VPBE_VERSION_2)
 		vdaccfg_write(sd, VDAC_CONFIG_HD_V2);
 
 	venc_write(sd, VENC_OSDCLK0, 0);
 	venc_write(sd, VENC_OSDCLK1, 1);
 
-	if (pdata->venc_type == VPBE_VERSION_1) {
+	if (venc->venc_type == VPBE_VERSION_1) {
 		venc_modify(sd, VENC_VDPRO, VENC_VDPRO_DAFRQ,
 			    VENC_VDPRO_DAFRQ);
 		venc_modify(sd, VENC_VDPRO, VENC_VDPRO_DAUPS,
@@ -460,14 +475,14 @@ static int venc_s_dv_timings(struct v4l2_subdev *sd,
 	else if (height == 480)
 		return venc_set_480p59_94(sd);
 	else if ((height == 720) &&
-			(venc->pdata->venc_type == VPBE_VERSION_2)) {
+			(venc->venc_type == VPBE_VERSION_2)) {
 		/* TBD setup internal 720p mode here */
 		ret = venc_set_720p60_internal(sd);
 		/* for DM365 VPBE, there is DAC inside */
 		vdaccfg_write(sd, VDAC_CONFIG_HD_V2);
 		return ret;
 	} else if ((height == 1080) &&
-		(venc->pdata->venc_type == VPBE_VERSION_2)) {
+		(venc->venc_type == VPBE_VERSION_2)) {
 		/* TBD setup internal 1080i mode here */
 		ret = venc_set_1080i30_internal(sd);
 		/* for DM365 VPBE, there is DAC inside */
@@ -556,7 +571,7 @@ static int venc_device_get(struct device *dev, void *data)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct venc_state **venc = data;
 
-	if (strcmp(MODULE_NAME, pdev->name) == 0)
+	if (strstr(pdev->name, "vpbe-venc") != NULL)
 		*venc = platform_get_drvdata(pdev);
 
 	return 0;
@@ -593,6 +608,7 @@ EXPORT_SYMBOL(venc_sub_dev_init);
 
 static int venc_probe(struct platform_device *pdev)
 {
+	const struct platform_device_id *pdev_id;
 	struct venc_state *venc;
 	struct resource *res;
 	int ret;
@@ -601,6 +617,12 @@ static int venc_probe(struct platform_device *pdev)
 	if (venc == NULL)
 		return -ENOMEM;
 
+	pdev_id = platform_get_device_id(pdev);
+	if (!pdev_id) {
+		ret = -EINVAL;
+		goto free_mem;
+	}
+	venc->venc_type = pdev_id->driver_data;
 	venc->pdev = &pdev->dev;
 	venc->pdata = pdev->dev.platform_data;
 	if (NULL == venc->pdata) {
@@ -630,7 +652,7 @@ static int venc_probe(struct platform_device *pdev)
 		goto release_venc_mem_region;
 	}
 
-	if (venc->pdata->venc_type != VPBE_VERSION_1) {
+	if (venc->venc_type != VPBE_VERSION_1) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		if (!res) {
 			dev_err(venc->pdev,
@@ -681,7 +703,7 @@ static int venc_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iounmap((void *)venc->venc_base);
 	release_mem_region(res->start, resource_size(res));
-	if (venc->pdata->venc_type != VPBE_VERSION_1) {
+	if (venc->venc_type != VPBE_VERSION_1) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 		iounmap((void *)venc->vdaccfg_reg);
 		release_mem_region(res->start, resource_size(res));
@@ -698,6 +720,7 @@ static struct platform_driver venc_driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
 	},
+	.id_table	= vpbe_venc_devtype
 };
 
 module_platform_driver(venc_driver);
