@@ -48,8 +48,7 @@
 #define INT_QUEUE_SIZE    MUSYCC_NIQD
 
 /* RAM image of MUSYCC registers laid out as a C structure */
-struct musycc_groupr
-{
+struct musycc_groupr {
 	VINT32      thp[32];    /* Transmit Head Pointer [5-29]           */
 	VINT32      tmp[32];    /* Transmit Message Pointer [5-30]        */
 	VINT32      rhp[32];    /* Receive Head Pointer [5-29]            */
@@ -70,8 +69,7 @@ struct musycc_groupr
 };
 
 /* hardware MUSYCC registers laid out as a C structure */
-struct musycc_globalr
-{
+struct musycc_globalr {
 	VINT32      gbp;        /* Group Base Pointer                     */
 	VINT32      dacbp;      /* Dual Address Cycle Base Pointer        */
 	VINT32      srd;        /* Service Request Descriptor             */
