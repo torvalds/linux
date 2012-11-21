@@ -206,8 +206,10 @@ int get_msr(int cpu, off_t offset, unsigned long long *msr)
 	retval = pread(fd, msr, sizeof *msr, offset);
 	close(fd);
 
-	if (retval != sizeof *msr)
+	if (retval != sizeof *msr) {
+		fprintf(stderr, "%s offset 0x%zx read failed\n", pathname, offset);
 		return -1;
+	}
 
 	return 0;
 }
@@ -1101,7 +1103,9 @@ void turbostat_loop()
 
 restart:
 	retval = for_all_cpus(get_counters, EVEN_COUNTERS);
-	if (retval) {
+	if (retval < -1) {
+		exit(retval);
+	} else if (retval == -1) {
 		re_initialize();
 		goto restart;
 	}
@@ -1114,7 +1118,9 @@ restart:
 		}
 		sleep(interval_sec);
 		retval = for_all_cpus(get_counters, ODD_COUNTERS);
-		if (retval) {
+		if (retval < -1) {
+			exit(retval);
+		} else if (retval == -1) {
 			re_initialize();
 			goto restart;
 		}
@@ -1126,7 +1132,9 @@ restart:
 		flush_stdout();
 		sleep(interval_sec);
 		retval = for_all_cpus(get_counters, EVEN_COUNTERS);
-		if (retval) {
+		if (retval < -1) {
+			exit(retval);
+		} else if (retval == -1) {
 			re_initialize();
 			goto restart;
 		}
@@ -1545,8 +1553,11 @@ void turbostat_init()
 int fork_it(char **argv)
 {
 	pid_t child_pid;
+	int status;
 
-	for_all_cpus(get_counters, EVEN_COUNTERS);
+	status = for_all_cpus(get_counters, EVEN_COUNTERS);
+	if (status)
+		exit(status);
 	/* clear affinity side-effect of get_counters() */
 	sched_setaffinity(0, cpu_present_setsize, cpu_present_set);
 	gettimeofday(&tv_even, (struct timezone *)NULL);
@@ -1556,7 +1567,6 @@ int fork_it(char **argv)
 		/* child */
 		execvp(argv[0], argv);
 	} else {
-		int status;
 
 		/* parent */
 		if (child_pid == -1) {
@@ -1568,7 +1578,7 @@ int fork_it(char **argv)
 		signal(SIGQUIT, SIG_IGN);
 		if (waitpid(child_pid, &status, 0) == -1) {
 			perror("wait");
-			exit(1);
+			exit(status);
 		}
 	}
 	/*
@@ -1585,7 +1595,7 @@ int fork_it(char **argv)
 
 	fprintf(stderr, "%.6f sec\n", tv_delta.tv_sec + tv_delta.tv_usec/1000000.0);
 
-	return 0;
+	return status;
 }
 
 void cmdline(int argc, char **argv)
@@ -1594,7 +1604,7 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt(argc, argv, "+pPSvisc:sC:m:M:")) != -1) {
+	while ((opt = getopt(argc, argv, "+pPSvi:sc:sC:m:M:")) != -1) {
 		switch (opt) {
 		case 'p':
 			show_core_only++;
