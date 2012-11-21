@@ -10,3 +10,18 @@
 		reg = <0 0x10000000>;
 	};
 };
+
+&gpio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&alt0 &alt3>;
+
+	alt0: alt0 {
+		brcm,pins = <0 1 2 3 4 5 6 7 8 9 10 11 14 15 40 45>;
+		brcm,function = <4>; /* alt0 */
+	};
+
+	alt3: alt3 {
+		brcm,pins = <48 49 50 51 52 53>;
+		brcm,function = <7>; /* alt3 */
+	};
+};
