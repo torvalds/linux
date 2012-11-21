@@ -1,0 +1,41 @@
+/*
+ * Device Tree Source for the KZM-A9-GT board
+ *
+ * Copyright (C) 2012 Horms Solutions Ltd.
+ *
+ * Based on sh73a0-kzm9g.dts
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/dts-v1/;
+/include/ "sh73a0-reference.dtsi"
+
+/ {
+	model = "KZM-A9-GT";
+	compatible = "renesas,kzm9g-reference", "renesas,sh73a0";
+
+	chosen {
+		bootargs = "console=tty0 console=ttySC4,115200 root=/dev/nfs ip=dhcp ignore_loglevel earlyprintk=sh-sci.4,115200";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x41000000 0x1e800000>;
+	};
+
+	fixedregulator1v8: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
+&mmcif {
+	vmmc-supply = <&fixedregulator1v8>;
+	vqmmc-supply = <&fixedregulator1v8>;
+};
