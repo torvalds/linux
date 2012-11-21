@@ -957,7 +957,35 @@ static void cp_reset_hw (struct cp_private *cp)
 
 static inline void cp_start_hw (struct cp_private *cp)
 {
+	dma_addr_t ring_dma;
+
 	cpw16(CpCmd, cp->cpcmd);
+
+	/*
+	 * These (at least TxRingAddr) need to be configured after the
+	 * corresponding bits in CpCmd are enabled. Datasheet v1.6 §6.33
+	 * (C+ Command Register) recommends that these and more be configured
+	 * *after* the [RT]xEnable bits in CpCmd are set. And on some hardware
+	 * it's been observed that the TxRingAddr is actually reset to garbage
+	 * when C+ mode Tx is enabled in CpCmd.
+	 */
+	cpw32_f(HiTxRingAddr, 0);
+	cpw32_f(HiTxRingAddr + 4, 0);
+
+	ring_dma = cp->ring_dma;
+	cpw32_f(RxRingAddr, ring_dma & 0xffffffff);
+	cpw32_f(RxRingAddr + 4, (ring_dma >> 16) >> 16);
+
+	ring_dma += sizeof(struct cp_desc) * CP_RX_RING_SIZE;
+	cpw32_f(TxRingAddr, ring_dma & 0xffffffff);
+	cpw32_f(TxRingAddr + 4, (ring_dma >> 16) >> 16);
+
+	/*
+	 * Strictly speaking, the datasheet says this should be enabled
+	 * *before* setting the descriptor addresses. But what, then, would
+	 * prevent it from doing DMA to random unconfigured addresses?
+	 * This variant appears to work fine.
+	 */
 	cpw8(Cmd, RxOn | TxOn);
 }
 
@@ -969,7 +997,6 @@ static void cp_enable_irq(struct cp_private *cp)
 static void cp_init_hw (struct cp_private *cp)
 {
 	struct net_device *dev = cp->dev;
-	dma_addr_t ring_dma;
 
 	cp_reset_hw(cp);
 
@@ -978,17 +1005,6 @@ static void cp_init_hw (struct cp_private *cp)
 	/* Restore our idea of the MAC address. */
 	cpw32_f (MAC0 + 0, le32_to_cpu (*(__le32 *) (dev->dev_addr + 0)));
 	cpw32_f (MAC0 + 4, le32_to_cpu (*(__le32 *) (dev->dev_addr + 4)));
-
-	cpw32_f(HiTxRingAddr, 0);
-	cpw32_f(HiTxRingAddr + 4, 0);
-
-	ring_dma = cp->ring_dma;
-	cpw32_f(RxRingAddr, ring_dma & 0xffffffff);
-	cpw32_f(RxRingAddr + 4, (ring_dma >> 16) >> 16);
-
-	ring_dma += sizeof(struct cp_desc) * CP_RX_RING_SIZE;
-	cpw32_f(TxRingAddr, ring_dma & 0xffffffff);
-	cpw32_f(TxRingAddr + 4, (ring_dma >> 16) >> 16);
 
 	cp_start_hw(cp);
 	cpw8(TxThresh, 0x06); /* XXX convert magic num to a constant */
