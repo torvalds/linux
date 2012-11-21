@@ -558,6 +558,50 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	return retval;
 }
 
+static ssize_t read_file_queues(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_txq *txq;
+	char *buf;
+	unsigned int len = 0, size = 1024;
+	ssize_t retval = 0;
+	int i;
+	char *qname[4] = {"VO", "VI", "BE", "BK"};
+
+	buf = kzalloc(size, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		txq = sc->tx.txq_map[i];
+		len += snprintf(buf + len, size - len, "(%s): ", qname[i]);
+
+		ath_txq_lock(sc, txq);
+
+		len += snprintf(buf + len, size - len, "%s: %d ",
+				"qnum", txq->axq_qnum);
+		len += snprintf(buf + len, size - len, "%s: %2d ",
+				"qdepth", txq->axq_depth);
+		len += snprintf(buf + len, size - len, "%s: %2d ",
+				"ampdu-depth", txq->axq_ampdu_depth);
+		len += snprintf(buf + len, size - len, "%s: %3d ",
+				"pending", txq->pending_frames);
+		len += snprintf(buf + len, size - len, "%s: %d\n",
+				"stopped", txq->stopped);
+
+		ath_txq_unlock(sc, txq);
+	}
+
+	if (len > size)
+		len = size;
+
+	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+
+	return retval;
+}
+
 static ssize_t read_file_stations(struct file *file, char __user *user_buf,
 				  size_t count, loff_t *ppos)
 {
@@ -823,6 +867,13 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static const struct file_operations fops_queues = {
+	.read = read_file_queues,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -1553,6 +1604,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_interrupt);
 	debugfs_create_file("xmit", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_xmit);
+	debugfs_create_file("queues", S_IRUSR, sc->debug.debugfs_phy, sc,
+			    &fops_queues);
 	debugfs_create_u32("qlen_bk", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			   &sc->tx.txq_max_pending[IEEE80211_AC_BK]);
 	debugfs_create_u32("qlen_be", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
