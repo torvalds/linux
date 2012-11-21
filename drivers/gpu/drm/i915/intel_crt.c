@@ -143,7 +143,7 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 	int old_dpms;
 
 	/* PCH platforms and VLV only support on/off. */
-	if (INTEL_INFO(dev)->gen < 5 && mode != DRM_MODE_DPMS_ON)
+	if (INTEL_INFO(dev)->gen >= 5 && mode != DRM_MODE_DPMS_ON)
 		mode = DRM_MODE_DPMS_OFF;
 
 	if (mode == connector->dpms)
@@ -729,7 +729,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = true;
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
 		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);

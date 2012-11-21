@@ -44,6 +44,12 @@ _sclp_wait_int:
 #endif
 	mvc	.LoldpswS1-.LbaseS1(16,%r13),0(%r8)
 	mvc	0(16,%r8),0(%r9)
+#ifdef CONFIG_64BIT
+	epsw	%r6,%r7				# set current addressing mode
+	nill	%r6,0x1				# in new psw (31 or 64 bit mode)
+	nilh	%r7,0x8000
+	stm	%r6,%r7,0(%r8)
+#endif
 	lhi	%r6,0x0200			# cr mask for ext int (cr0.54)
 	ltr	%r2,%r2
 	jz	.LsetctS1
@@ -87,7 +93,7 @@ _sclp_wait_int:
 	.long	0x00080000, 0x80000000+.LwaitS1	# PSW to handle ext int
 #ifdef CONFIG_64BIT
 .LextpswS1_64:
-	.quad	0x0000000180000000, .LwaitS1	# PSW to handle ext int, 64 bit
+	.quad	0, .LwaitS1			# PSW to handle ext int, 64 bit
 #endif
 .LwaitpswS1:
 	.long	0x010a0000, 0x00000000+.LloopS1	# PSW to wait for ext int

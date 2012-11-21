@@ -184,7 +184,7 @@ static int smsc95xx_mdio_read(struct net_device *netdev, int phy_id, int idx)
 	/* set the address, index & direction (read from PHY) */
 	phy_id &= dev->mii.phy_id_mask;
 	idx &= dev->mii.reg_num_mask;
-	addr = (phy_id << 11) | (idx << 6) | MII_READ_;
+	addr = (phy_id << 11) | (idx << 6) | MII_READ_ | MII_BUSY_;
 	ret = smsc95xx_write_reg(dev, MII_ADDR, addr);
 	check_warn_goto_done(ret, "Error writing MII_ADDR");
 
@@ -221,7 +221,7 @@ static void smsc95xx_mdio_write(struct net_device *netdev, int phy_id, int idx,
 	/* set the address, index & direction (write to PHY) */
 	phy_id &= dev->mii.phy_id_mask;
 	idx &= dev->mii.reg_num_mask;
-	addr = (phy_id << 11) | (idx << 6) | MII_WRITE_;
+	addr = (phy_id << 11) | (idx << 6) | MII_WRITE_ | MII_BUSY_;
 	ret = smsc95xx_write_reg(dev, MII_ADDR, addr);
 	check_warn_goto_done(ret, "Error writing MII_ADDR");
 
@@ -1344,6 +1344,7 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 		} else {
 			u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
 			skb_push(skb, 4);
+			cpu_to_le32s(&csum_preamble);
 			memcpy(skb->data, &csum_preamble, 4);
 		}
 	}

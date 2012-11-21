@@ -1702,7 +1702,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 				      SHMEM_EEE_ADV_STATUS_SHIFT);
 	if ((advertised != (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK))) {
 		DP(BNX2X_MSG_ETHTOOL,
-		   "Direct manipulation of EEE advertisment is not supported\n");
+		   "Direct manipulation of EEE advertisement is not supported\n");
 		return -EINVAL;
 	}
 

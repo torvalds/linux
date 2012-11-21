@@ -464,9 +464,9 @@ static __devinit int asoc_dmic_probe(struct platform_device *pdev)
 
 	mutex_init(&dmic->mutex);
 
-	dmic->fclk = clk_get(dmic->dev, "dmic_fck");
+	dmic->fclk = clk_get(dmic->dev, "fck");
 	if (IS_ERR(dmic->fclk)) {
-		dev_err(dmic->dev, "cant get dmic_fck\n");
+		dev_err(dmic->dev, "cant get fck\n");
 		return -ENODEV;
 	}
 

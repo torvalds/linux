@@ -116,8 +116,6 @@ static unsigned long __init __free_memory_core(phys_addr_t start,
 		return 0;
 
 	__free_pages_memory(start_pfn, end_pfn);
-	fixup_zone_present_pages(pfn_to_nid(start >> PAGE_SHIFT),
-			start_pfn, end_pfn);
 
 	return end_pfn - start_pfn;
 }
@@ -128,7 +126,6 @@ unsigned long __init free_low_memory_core_early(int nodeid)
 	phys_addr_t start, end, size;
 	u64 i;
 
-	reset_zone_present_pages();
 	for_each_free_mem_range(i, MAX_NUMNODES, &start, &end, NULL)
 		count += __free_memory_core(start, end);
 
