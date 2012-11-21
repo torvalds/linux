@@ -52,6 +52,9 @@ config OF_VIDEOMODE
 	help
 	  helper to get videomodes from the devicetree
 
+config HDMI
+	bool
+
 menuconfig FB
 	tristate "Support for frame buffer devices"
 	---help---
