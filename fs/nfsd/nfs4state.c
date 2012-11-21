@@ -4930,9 +4930,7 @@ nfs4_state_shutdown(void)
 	cancel_delayed_work_sync(&nn->laundromat_work);
 	destroy_workqueue(laundry_wq);
 	locks_end_grace(&nn->nfsd4_manager);
-	nfs4_lock_state();
 	__nfs4_state_shutdown(net);
-	nfs4_unlock_state();
 	nfsd4_destroy_callback_queue();
 }
 
