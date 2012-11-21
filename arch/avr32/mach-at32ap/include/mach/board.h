@@ -26,7 +26,6 @@ static inline void __deprecated at32_add_system_devices(void)
 
 }
 
-#define ATMEL_MAX_UART	4
 extern struct platform_device *atmel_default_console_device;
 
 /* Flags for selecting USART extra pins */
