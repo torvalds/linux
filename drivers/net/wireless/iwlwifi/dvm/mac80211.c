@@ -168,8 +168,13 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
-	/* enable 11w if the uCode advertise */
-	if (capa->flags & IWL_UCODE_TLV_FLAGS_MFP)
+	/*
+	 * Enable 11w if advertised by firmware and software crypto
+	 * is not enabled (as the firmware will interpret some mgmt
+	 * packets, so enabling it with software crypto isn't safe)
+	 */
+	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
+	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
