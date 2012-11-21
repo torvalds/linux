@@ -283,7 +283,7 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 		if (!duration)
 			duration = 10;
 
-		ret = drv_remain_on_channel(local, roc->chan,
+		ret = drv_remain_on_channel(local, roc->sdata, roc->chan,
 					    roc->chan_type,
 					    duration);
 

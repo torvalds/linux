@@ -448,7 +448,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	if (WARN_ON(!local->ops->ampdu_action))
 		return -EINVAL;
 
-	if ((tid >= STA_TID_NUM) ||
+	if ((tid >= IEEE80211_NUM_TIDS) ||
 	    !(local->hw.flags & IEEE80211_HW_AMPDU_AGGREGATION) ||
 	    (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW))
 		return -EINVAL;
@@ -605,9 +605,9 @@ void ieee80211_start_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u16 tid)
 
 	trace_api_start_tx_ba_cb(sdata, ra, tid);
 
-	if (tid >= STA_TID_NUM) {
+	if (tid >= IEEE80211_NUM_TIDS) {
 		ht_dbg(sdata, "Bad TID value: tid = %d (>= %d)\n",
-		       tid, STA_TID_NUM);
+		       tid, IEEE80211_NUM_TIDS);
 		return;
 	}
 
@@ -687,7 +687,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid)
 	if (!local->ops->ampdu_action)
 		return -EINVAL;
 
-	if (tid >= STA_TID_NUM)
+	if (tid >= IEEE80211_NUM_TIDS)
 		return -EINVAL;
 
 	spin_lock_bh(&sta->lock);
@@ -722,9 +722,9 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_vif *vif, u8 *ra, u8 tid)
 
 	trace_api_stop_tx_ba_cb(sdata, ra, tid);
 
-	if (tid >= STA_TID_NUM) {
+	if (tid >= IEEE80211_NUM_TIDS) {
 		ht_dbg(sdata, "Bad TID value: tid = %d (>= %d)\n",
-		       tid, STA_TID_NUM);
+		       tid, IEEE80211_NUM_TIDS);
 		return;
 	}
 

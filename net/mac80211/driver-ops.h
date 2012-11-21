@@ -490,6 +490,38 @@ static inline void drv_sta_remove(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+static inline void drv_sta_add_debugfs(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_sta *sta,
+				       struct dentry *dir)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	check_sdata_in_driver(sdata);
+
+	if (local->ops->sta_add_debugfs)
+		local->ops->sta_add_debugfs(&local->hw, &sdata->vif,
+					    sta, dir);
+}
+
+static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata,
+					  struct ieee80211_sta *sta,
+					  struct dentry *dir)
+{
+	might_sleep();
+
+	sdata = get_bss_sdata(sdata);
+	check_sdata_in_driver(sdata);
+
+	if (local->ops->sta_remove_debugfs)
+		local->ops->sta_remove_debugfs(&local->hw, &sdata->vif,
+					       sta, dir);
+}
+#endif
+
 static inline __must_check
 int drv_sta_state(struct ieee80211_local *local,
 		  struct ieee80211_sub_if_data *sdata,
@@ -704,6 +736,7 @@ static inline int drv_get_antenna(struct ieee80211_local *local,
 }
 
 static inline int drv_remain_on_channel(struct ieee80211_local *local,
+					struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_channel *chan,
 					enum nl80211_channel_type chantype,
 					unsigned int duration)
@@ -712,9 +745,9 @@ static inline int drv_remain_on_channel(struct ieee80211_local *local,
 
 	might_sleep();
 
-	trace_drv_remain_on_channel(local, chan, chantype, duration);
-	ret = local->ops->remain_on_channel(&local->hw, chan, chantype,
-					    duration);
+	trace_drv_remain_on_channel(local, sdata, chan, chantype, duration);
+	ret = local->ops->remain_on_channel(&local->hw, &sdata->vif,
+					    chan, chantype, duration);
 	trace_drv_return_int(local, ret);
 
 	return ret;

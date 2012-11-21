@@ -1035,6 +1035,7 @@ done:
 }
 
 static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
 				     struct ieee80211_channel *channel,
 				     enum nl80211_channel_type channel_type,
 				     int duration)

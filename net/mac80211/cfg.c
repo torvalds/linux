@@ -2287,7 +2287,8 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 	if (!duration)
 		duration = 10;
 
-	ret = drv_remain_on_channel(local, channel, channel_type, duration);
+	ret = drv_remain_on_channel(local, sdata, channel, channel_type,
+				    duration);
 	if (ret) {
 		kfree(roc);
 		return ret;
@@ -2298,7 +2299,8 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 
  out_check_combine:
 	list_for_each_entry(tmp, &local->roc_list, list) {
-		if (tmp->chan != channel || tmp->chan_type != channel_type)
+		if (tmp->chan != channel || tmp->chan_type != channel_type ||
+		    tmp->sdata != sdata)
 			continue;
 
 		/*

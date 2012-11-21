@@ -1349,7 +1349,7 @@ ath5k_receive_frame(struct ath5k_hw *ah, struct sk_buff *skb,
 	 * right now, so it's not too bad...
 	 */
 	rxs->mactime = ath5k_extend_tsf(ah, rs->rs_tstamp);
-	rxs->flag |= RX_FLAG_MACTIME_MPDU;
+	rxs->flag |= RX_FLAG_MACTIME_START;
 
 	rxs->freq = ah->curchan->center_freq;
 	rxs->band = ah->curchan->band;

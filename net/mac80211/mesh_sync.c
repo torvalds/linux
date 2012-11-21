@@ -116,43 +116,13 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		goto no_sync;
 	}
 
-	if (rx_status->flag & RX_FLAG_MACTIME_MPDU && rx_status->mactime) {
-		/*
-		 * The mactime is defined as the time the first data symbol
-		 * of the frame hits the PHY, and the timestamp of the beacon
-		 * is defined as "the time that the data symbol containing the
-		 * first bit of the timestamp is transmitted to the PHY plus
-		 * the transmitting STA's delays through its local PHY from the
-		 * MAC-PHY interface to its interface with the WM" (802.11
-		 * 11.1.2)
-		 *
-		 * T_r, in 13.13.2.2.2, is just defined as "the frame reception
-		 * time" but we unless we interpret that time to be the same
-		 * time of the beacon timestamp, the offset calculation will be
-		 * off.  Below we adjust t_r to be "the time at which the first
-		 * symbol of the timestamp element in the beacon is received".
-		 * This correction depends on the rate.
-		 *
-		 * Based on similar code in ibss.c
-		 */
-		int rate;
-
-		if (rx_status->flag & RX_FLAG_HT) {
-			/* TODO:
-			 * In principle there could be HT-beacons (Dual Beacon
-			 * HT Operation options), but for now ignore them and
-			 * just use the primary (i.e. non-HT) beacons for
-			 * synchronization.
-			 * */
-			goto no_sync;
-		} else
-			rate = local->hw.wiphy->bands[rx_status->band]->
-				bitrates[rx_status->rate_idx].bitrate;
-
-		/* 24 bytes of header * 8 bits/byte *
-		 * 10*(100 Kbps)/Mbps / rate (100 Kbps)*/
-		t_r = rx_status->mactime + (24 * 8 * 10 / rate);
-	}
+	if (ieee80211_have_rx_timestamp(rx_status))
+		/* time when timestamp field was received */
+		t_r = ieee80211_calculate_rx_timestamp(local, rx_status,
+						       24 + 12 +
+						       elems->total_len +
+						       FCS_LEN,
+						       24);
 
 	/* Timing offset calculation (see 13.13.2.2.2) */
 	t_t = le64_to_cpu(mgmt->u.beacon.timestamp);

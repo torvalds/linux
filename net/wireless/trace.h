@@ -2157,6 +2157,29 @@ TRACE_EVENT(cfg80211_report_obss_beacon,
 		  WIPHY_PR_ARG, __entry->freq, __entry->sig_dbm)
 );
 
+TRACE_EVENT(cfg80211_tdls_oper_request,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev, const u8 *peer,
+		 enum nl80211_tdls_operation oper, u16 reason_code),
+	TP_ARGS(wiphy, netdev, peer, oper, reason_code),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(peer)
+		__field(enum nl80211_tdls_operation, oper)
+		__field(u16, reason_code)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(peer, peer);
+		__entry->oper = oper;
+		__entry->reason_code = reason_code;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT ", oper: %d, reason_code %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer), __entry->oper,
+		  __entry->reason_code)
+	);
+
 TRACE_EVENT(cfg80211_scan_done,
 	TP_PROTO(struct cfg80211_scan_request *request, bool aborted),
 	TP_ARGS(request, aborted),
