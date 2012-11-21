@@ -554,6 +554,7 @@ static void s3c24xx_i2c_wait_idle(struct s3c24xx_i2c *i2c)
 	unsigned long iicstat;
 	ktime_t start, now;
 	unsigned long delay;
+	int spins;
 
 	/* ensure the stop has been through the bus */
 
@@ -566,12 +567,23 @@ static void s3c24xx_i2c_wait_idle(struct s3c24xx_i2c *i2c)
 	 * end of a transaction.  However, really slow i2c devices can stretch
 	 * the clock, delaying STOP generation.
 	 *
-	 * As a compromise between idle detection latency for the normal, fast
-	 * case, and system load in the slow device case, use an exponential
-	 * back off in the polling loop, up to 1/10th of the total timeout,
-	 * then continue to poll at a constant rate up to the timeout.
+	 * On slower SoCs this typically happens within a very small number of
+	 * instructions so busy wait briefly to avoid scheduling overhead.
 	 */
+	spins = 3;
 	iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	while ((iicstat & S3C2410_IICSTAT_START) && --spins) {
+		cpu_relax();
+		iicstat = readl(i2c->regs + S3C2410_IICSTAT);
+	}
+
+	/*
+	 * If we do get an appreciable delay as a compromise between idle
+	 * detection latency for the normal, fast case, and system load in the
+	 * slow device case, use an exponential back off in the polling loop,
+	 * up to 1/10th of the total timeout, then continue to poll at a
+	 * constant rate up to the timeout.
+	 */
 	delay = 1;
 	while ((iicstat & S3C2410_IICSTAT_START) &&
 	       ktime_us_delta(now, start) < S3C2410_IDLE_TIMEOUT) {
