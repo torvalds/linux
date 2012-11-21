@@ -54,8 +54,8 @@ struct ad7298_state {
 	 * DMA (thus cache coherency maintenance) requires the
 	 * transfer buffers to live in their own cache lines.
 	 */
-	unsigned short			rx_buf[12] ____cacheline_aligned;
-	unsigned short			tx_buf[2];
+	__be16				rx_buf[12] ____cacheline_aligned;
+	__be16				tx_buf[2];
 };
 
 #define AD7298_V_CHAN(index)						\
