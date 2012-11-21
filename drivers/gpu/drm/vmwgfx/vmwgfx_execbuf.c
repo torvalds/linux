@@ -224,6 +224,7 @@ static int vmw_cmd_ok(struct vmw_private *dev_priv,
  *
  * @sw_context: The software context used for this command submission batch.
  * @bo: The buffer object to add.
+ * @validate_as_mob: Validate this buffer as a MOB.
  * @p_val_node: If non-NULL Will be updated with the validate node number
  * on return.
  *
@@ -232,6 +233,7 @@ static int vmw_cmd_ok(struct vmw_private *dev_priv,
  */
 static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 				   struct ttm_buffer_object *bo,
+				   bool validate_as_mob,
 				   uint32_t *p_val_node)
 {
 	uint32_t val_node;
@@ -244,6 +246,10 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 				    &hash) == 0)) {
 		vval_buf = container_of(hash, struct vmw_validate_buffer,
 					hash);
+		if (unlikely(vval_buf->validate_as_mob != validate_as_mob)) {
+			DRM_ERROR("Inconsistent buffer usage.\n");
+			return -EINVAL;
+		}
 		val_buf = &vval_buf->base;
 		val_node = vval_buf - sw_context->val_bufs;
 	} else {
@@ -266,6 +272,7 @@ static int vmw_bo_to_validate_list(struct vmw_sw_context *sw_context,
 		val_buf->bo = ttm_bo_reference(bo);
 		val_buf->reserved = false;
 		list_add_tail(&val_buf->head, &sw_context->validate_nodes);
+		vval_buf->validate_as_mob = validate_as_mob;
 	}
 
 	sw_context->fence_flags |= DRM_VMW_FENCE_FLAG_EXEC;
@@ -302,7 +309,8 @@ static int vmw_resources_reserve(struct vmw_sw_context *sw_context)
 			struct ttm_buffer_object *bo = &res->backup->base;
 
 			ret = vmw_bo_to_validate_list
-				(sw_context, bo, NULL);
+				(sw_context, bo,
+				 vmw_resource_needs_backup(res), NULL);
 
 			if (unlikely(ret != 0))
 				return ret;
@@ -586,7 +594,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 			sw_context->needs_post_query_barrier = true;
 			ret = vmw_bo_to_validate_list(sw_context,
 						      sw_context->cur_query_bo,
-						      NULL);
+						      dev_priv->has_mob, NULL);
 			if (unlikely(ret != 0))
 				return ret;
 		}
@@ -594,7 +602,7 @@ static int vmw_query_bo_switch_prepare(struct vmw_private *dev_priv,
 
 		ret = vmw_bo_to_validate_list(sw_context,
 					      dev_priv->dummy_query_bo,
-					      NULL);
+					      dev_priv->has_mob, NULL);
 		if (unlikely(ret != 0))
 			return ret;
 
@@ -718,7 +726,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	reloc = &sw_context->relocs[sw_context->cur_reloc++];
 	reloc->location = ptr;
 
-	ret = vmw_bo_to_validate_list(sw_context, bo, &reloc->index);
+	ret = vmw_bo_to_validate_list(sw_context, bo, false, &reloc->index);
 	if (unlikely(ret != 0))
 		goto out_no_reloc;
 
@@ -1224,7 +1232,8 @@ static void vmw_clear_validations(struct vmw_sw_context *sw_context)
 }
 
 static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
-				      struct ttm_buffer_object *bo)
+				      struct ttm_buffer_object *bo,
+				      bool validate_as_mob)
 {
 	int ret;
 
@@ -1237,6 +1246,9 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	    (bo == dev_priv->dummy_query_bo &&
 	     dev_priv->dummy_query_bo_pinned))
 		return 0;
+
+	if (validate_as_mob)
+		return ttm_bo_validate(bo, &vmw_mob_placement, true, false);
 
 	/**
 	 * Put BO in VRAM if there is space, otherwise as a GMR.
@@ -1259,7 +1271,6 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	return ret;
 }
 
-
 static int vmw_validate_buffers(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context)
 {
@@ -1267,7 +1278,8 @@ static int vmw_validate_buffers(struct vmw_private *dev_priv,
 	int ret;
 
 	list_for_each_entry(entry, &sw_context->validate_nodes, base.head) {
-		ret = vmw_validate_single_buffer(dev_priv, entry->base.bo);
+		ret = vmw_validate_single_buffer(dev_priv, entry->base.bo,
+						 entry->validate_as_mob);
 		if (unlikely(ret != 0))
 			return ret;
 	}

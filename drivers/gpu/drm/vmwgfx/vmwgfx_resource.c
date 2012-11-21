@@ -471,6 +471,8 @@ int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
 	}
 
 	ret = vmw_dmabuf_init(dev_priv, &user_bo->dma, size,
+			      (dev_priv->has_mob) ?
+			      &vmw_sys_placement :
 			      &vmw_vram_sys_placement, true,
 			      &vmw_user_dmabuf_destroy);
 	if (unlikely(ret != 0))

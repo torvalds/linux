@@ -94,6 +94,7 @@ struct vmw_dma_buffer {
 struct vmw_validate_buffer {
 	struct ttm_validate_buffer base;
 	struct drm_hash_item hash;
+	bool validate_as_mob;
 };
 
 struct vmw_res_func;
@@ -645,6 +646,7 @@ extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_placement vmw_sys_ne_placement;
 extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
+extern struct ttm_placement vmw_mob_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);
 extern void vmw_piter_start(struct vmw_piter *viter,
