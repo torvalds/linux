@@ -35,6 +35,23 @@ bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
 	uint32_t fifo_min, hwversion;
 	const struct vmw_fifo_state *fifo = &dev_priv->fifo;
 
+	if (!(dev_priv->capabilities & SVGA_CAP_3D))
+		return false;
+
+	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
+		uint32_t result;
+
+		if (!dev_priv->has_mob)
+			return false;
+
+		mutex_lock(&dev_priv->hw_mutex);
+		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_3D);
+		result = vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+		mutex_unlock(&dev_priv->hw_mutex);
+
+		return (result != 0);
+	}
+
 	if (!(dev_priv->capabilities & SVGA_CAP_EXTENDED_FIFO))
 		return false;
 
