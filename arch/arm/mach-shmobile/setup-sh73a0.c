@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 #include <linux/delay.h>
 #include <linux/input.h>
 #include <linux/io.h>
@@ -754,7 +755,7 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
-static struct platform_device *sh73a0_early_devices[] __initdata = {
+static struct platform_device *sh73a0_early_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -765,6 +766,9 @@ static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&scif7_device,
 	&scif8_device,
 	&cmt10_device,
+};
+
+static struct platform_device *sh73a0_early_devices[] __initdata = {
 	&tmu00_device,
 	&tmu01_device,
 };
@@ -787,6 +791,8 @@ void __init sh73a0_add_standard_devices(void)
 	/* Clear software reset bit on SY-DMAC module */
 	__raw_writel(__raw_readl(SRCR2) & ~(1 << 18), SRCR2);
 
+	platform_add_devices(sh73a0_early_devices_dt,
+			    ARRAY_SIZE(sh73a0_early_devices_dt));
 	platform_add_devices(sh73a0_early_devices,
 			    ARRAY_SIZE(sh73a0_early_devices));
 	platform_add_devices(sh73a0_late_devices,
@@ -805,9 +811,63 @@ void __init sh73a0_earlytimer_init(void)
 
 void __init sh73a0_add_early_devices(void)
 {
+	early_platform_add_devices(sh73a0_early_devices_dt,
+				   ARRAY_SIZE(sh73a0_early_devices_dt));
 	early_platform_add_devices(sh73a0_early_devices,
 				   ARRAY_SIZE(sh73a0_early_devices));
 
 	/* setup early console here as well */
 	shmobile_setup_console();
 }
+
+#ifdef CONFIG_USE_OF
+
+/* Please note that the clock initialisation shcheme used in
+ * sh73a0_add_early_devices_dt() and sh73a0_add_standard_devices_dt()
+ * does not work with SMP as there is a yet to be resolved lock-up in
+ * workqueue initialisation.
+ *
+ * CONFIG_SMP should be disabled when using this code.
+ */
+
+void __init sh73a0_add_early_devices_dt(void)
+{
+	shmobile_setup_delay(1196, 44, 46); /* Cortex-A9 @ 1196MHz */
+
+	early_platform_add_devices(sh73a0_early_devices_dt,
+				   ARRAY_SIZE(sh73a0_early_devices_dt));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+}
+
+static const struct of_dev_auxdata sh73a0_auxdata_lookup[] __initconst = {
+	{},
+};
+
+void __init sh73a0_add_standard_devices_dt(void)
+{
+	/* clocks are setup late during boot in the case of DT */
+	sh73a0_clock_init();
+
+	platform_add_devices(sh73a0_early_devices_dt,
+			     ARRAY_SIZE(sh73a0_early_devices_dt));
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     sh73a0_auxdata_lookup, NULL);
+}
+
+static const char *sh73a0_boards_compat_dt[] __initdata = {
+	"renesas,sh73a0",
+	NULL,
+};
+
+DT_MACHINE_START(SH73A0_DT, "Generic SH73A0 (Flattened Device Tree)")
+	.map_io		= sh73a0_map_io,
+	.init_early	= sh73a0_add_early_devices_dt,
+	.nr_irqs	= NR_IRQS_LEGACY,
+	.init_irq	= sh73a0_init_irq_dt,
+	.init_machine	= sh73a0_add_standard_devices_dt,
+	.init_time	= shmobile_timer_init,
+	.dt_compat	= sh73a0_boards_compat_dt,
+MACHINE_END
+#endif /* CONFIG_USE_OF */
