@@ -818,6 +818,7 @@ static int tegra_dc_remove(struct platform_device *pdev)
 }
 
 static struct of_device_id tegra_dc_of_match[] = {
+	{ .compatible = "nvidia,tegra30-dc", },
 	{ .compatible = "nvidia,tegra20-dc", },
 	{ },
 };

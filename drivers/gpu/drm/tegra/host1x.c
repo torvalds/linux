@@ -68,6 +68,8 @@ static int host1x_parse_dt(struct host1x *host1x)
 	static const char * const compat[] = {
 		"nvidia,tegra20-dc",
 		"nvidia,tegra20-hdmi",
+		"nvidia,tegra30-dc",
+		"nvidia,tegra30-hdmi",
 	};
 	unsigned int i;
 	int err;
@@ -268,6 +270,7 @@ int host1x_unregister_client(struct host1x *host1x,
 }
 
 static struct of_device_id tegra_host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra30-host1x", },
 	{ .compatible = "nvidia,tegra20-host1x", },
 	{ },
 };

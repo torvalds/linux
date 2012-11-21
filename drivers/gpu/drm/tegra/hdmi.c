@@ -1318,8 +1318,8 @@ static int tegra_hdmi_remove(struct platform_device *pdev)
 }
 
 static struct of_device_id tegra_hdmi_of_match[] = {
-	{ .compatible = "nvidia,tegra20-hdmi", },
 	{ .compatible = "nvidia,tegra30-hdmi", },
+	{ .compatible = "nvidia,tegra20-hdmi", },
 	{ },
 };
 
