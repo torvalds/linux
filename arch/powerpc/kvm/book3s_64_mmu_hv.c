@@ -46,6 +46,7 @@
 static long kvmppc_virtmode_do_h_enter(struct kvm *kvm, unsigned long flags,
 				long pte_index, unsigned long pteh,
 				unsigned long ptel, unsigned long *pte_idx_ret);
+static void kvmppc_rmap_reset(struct kvm *kvm);
 
 long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
 {
@@ -143,6 +144,10 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 		order = kvm->arch.hpt_order;
 		/* Set the entire HPT to 0, i.e. invalid HPTEs */
 		memset((void *)kvm->arch.hpt_virt, 0, 1ul << order);
+		/*
+		 * Reset all the reverse-mapping chains for all memslots
+		 */
+		kvmppc_rmap_reset(kvm);
 		/*
 		 * Set the whole last_vcpu array to an invalid vcpu number.
 		 * This ensures that each vcpu will flush its TLB on next entry.
@@ -770,6 +775,25 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	hptep[0] &= ~HPTE_V_HVLOCK;
 	preempt_enable();
 	goto out_put;
+}
+
+static void kvmppc_rmap_reset(struct kvm *kvm)
+{
+	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
+	int srcu_idx;
+
+	srcu_idx = srcu_read_lock(&kvm->srcu);
+	slots = kvm->memslots;
+	kvm_for_each_memslot(memslot, slots) {
+		/*
+		 * This assumes it is acceptable to lose reference and
+		 * change bits across a reset.
+		 */
+		memset(memslot->arch.rmap, 0,
+		       memslot->npages * sizeof(*memslot->arch.rmap));
+	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 }
 
 static int kvm_handle_hva_range(struct kvm *kvm,
