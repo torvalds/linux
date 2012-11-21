@@ -118,6 +118,12 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	unsigned long long scale_uv;
 	u32 id;
 
+	if ((pdata->current_source_direction == AD7793_IEXEC1_IEXEC2_IOUT1 ||
+		pdata->current_source_direction == AD7793_IEXEC1_IEXEC2_IOUT2) &&
+		((pdata->exitation_current != AD7793_IX_10uA) &&
+		(pdata->exitation_current != AD7793_IX_210uA)))
+		return -EINVAL;
+
 	/* reset the serial interface */
 	ret = spi_write(st->sd.spi, (u8 *)&ret, sizeof(ret));
 	if (ret < 0)
@@ -136,8 +142,18 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 		goto out;
 	}
 
-	st->mode = pdata->mode;
-	st->conf = pdata->conf;
+	st->mode = AD7793_MODE_RATE(1);
+	st->mode |= AD7793_MODE_CLKSRC(pdata->clock_src);
+	st->conf = AD7793_CONF_REFSEL(pdata->refsel);
+	st->conf |= AD7793_CONF_VBIAS(pdata->bias_voltage);
+	if (pdata->buffered)
+		st->conf |= AD7793_CONF_BUF;
+	if (pdata->boost_enable)
+		st->conf |= AD7793_CONF_BOOST;
+	if (pdata->burnout_current)
+		st->conf |= AD7793_CONF_BO_EN;
+	if (pdata->unipolar)
+		st->conf |= AD7793_CONF_UNIPOLAR;
 
 	ret = ad7793_set_mode(&st->sd, AD_SD_MODE_IDLE);
 	if (ret)
@@ -147,8 +163,9 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	if (ret)
 		goto out;
 
-	ret = ad_sd_write_reg(&st->sd, AD7793_REG_IO,
-			       sizeof(pdata->io), pdata->io);
+	ret = ad_sd_write_reg(&st->sd, AD7793_REG_IO, 1,
+				   pdata->exitation_current |
+			       (pdata->current_source_direction << 2));
 	if (ret)
 		goto out;
 
