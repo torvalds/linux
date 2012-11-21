@@ -36,11 +36,12 @@
 
 			usart0: serial@fffb0000 {
 				pinctrl-0 =
-					<&pinctrl_uart0
-					 &pinctrl_uart0_rts_cts
-					 &pinctrl_uart0_dtr_dsr
-					 &pinctrl_uart0_dcd
-					 &pinctrl_uart0_ri>;
+					<&pinctrl_usart0
+					 &pinctrl_usart0_rts
+					 &pinctrl_usart0_cts
+					 &pinctrl_usart0_dtr_dsr
+					 &pinctrl_usart0_dcd
+					 &pinctrl_usart0_ri>;
 				status = "okay";
 			};
 
@@ -56,6 +57,29 @@
 			usb1: gadget@fffa4000 {
 				atmel,vbus-gpio = <&pioC 5 0>;
 				status = "okay";
+			};
+
+			mmc0: mmc@fffa8000 {
+				pinctrl-0 = <
+					&pinctrl_board_mmc0_slot1
+					&pinctrl_mmc0_clk
+					&pinctrl_mmc0_slot1_cmd_dat0
+					&pinctrl_mmc0_slot1_dat1_3>;
+				status = "okay";
+				slot@1 {
+					reg = <1>;
+					bus-width = <4>;
+					cd-gpios = <&pioC 9 0>;
+				};
+			};
+
+			pinctrl@fffff400 {
+				mmc0_slot1 {
+					pinctrl_board_mmc0_slot1: mmc0_slot1-board {
+						atmel,pins =
+							<2 9 0x0 0x5>;	/* PC9 gpio CD pin pull up and deglitch */
+					};
+				};
 			};
 		};
 

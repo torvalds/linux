@@ -84,8 +84,13 @@ Required properties for pin configuration node:
   The PERIPH 0 means gpio.
 
 Bits used for CONFIG:
-PULL_UP(1 << 0): indicate this pin need a pull up.
-MULTIDRIVE(1 << 1): indicate this pin need to be configured as multidrive.
+PULL_UP		(1 << 0): indicate this pin need a pull up.
+MULTIDRIVE	(1 << 1): indicate this pin need to be configured as multidrive.
+DEGLITCH	(1 << 2): indicate this pin need deglitch.
+PULL_DOWN	(1 << 3): indicate this pin need a pull down.
+DIS_SCHMIT	(1 << 4): indicate this pin need to disable schmit trigger.
+DEBOUNCE	(1 << 16): indicate this pin need debounce.
+DEBOUNCE_VAL	(0x3fff << 17): debounce val.
 
 NOTE:
 Some requirements for using atmel,at91rm9200-pinctrl binding:
