@@ -4575,8 +4575,6 @@ static void stac92xx_free(struct hda_codec *codec)
 	if (! spec)
 		return;
 
-	stac92xx_shutup(codec);
-
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }

@@ -636,7 +636,6 @@ static void ad198x_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
-	ad198x_shutup(codec);
 	ad198x_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);

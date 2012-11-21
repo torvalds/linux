@@ -2404,7 +2404,6 @@ static void alc_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
-	alc_shutup(codec);
 	alc_free_kctls(codec);
 	alc_free_bind_ctls(codec);
 	snd_hda_gen_free(&spec->gen);
