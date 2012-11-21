@@ -869,11 +869,6 @@ ret_from_kernel_thread:
 	call		schedule_tail
 	calll.p		@(gr21,gr0)
 	or		gr20,gr20,gr8
-	bra		sys_exit
-
-	.globl		ret_from_kernel_execve
-ret_from_kernel_execve:
-	ori		gr28,0,sp
 	bra		__syscall_exit
 
 ###################################################################################################
@@ -1080,27 +1075,10 @@ __entry_return_from_kernel_interrupt:
 	subicc		gr5,#0,gr0,icc0
 	beq		icc0,#0,__entry_return_direct
 
-__entry_preempt_need_resched:
-	ldi		@(gr15,#TI_FLAGS),gr4
-	andicc		gr4,#_TIF_NEED_RESCHED,gr0,icc0
-	beq		icc0,#1,__entry_return_direct
-
-	setlos		#PREEMPT_ACTIVE,gr5
-	sti		gr5,@(gr15,#TI_FLAGS)
-
-	andi		gr23,#~PSR_PIL,gr23
-	movgs		gr23,psr
-
-	call		schedule
-	sti		gr0,@(gr15,#TI_PRE_COUNT)
-
-	movsg		psr,gr23
-	ori		gr23,#PSR_PIL_14,gr23
-	movgs		gr23,psr
-	bra		__entry_preempt_need_resched
-#else
-	bra		__entry_return_direct
+	subcc		gr0,gr0,gr0,icc2		/* set Z and clear C */
+	call		preempt_schedule_irq
 #endif
+	bra		__entry_return_direct
 
 
 ###############################################################################

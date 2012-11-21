@@ -815,7 +815,7 @@ static struct platform_device_id exynos_tmu_driver_ids[] = {
 	},
 	{ },
 };
-MODULE_DEVICE_TABLE(platform, exynos4_tmu_driver_ids);
+MODULE_DEVICE_TABLE(platform, exynos_tmu_driver_ids);
 
 static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
 			struct platform_device *pdev)

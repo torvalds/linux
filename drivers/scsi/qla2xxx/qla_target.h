@@ -648,6 +648,7 @@ struct qla_tgt_func_tmpl {
 
 	int (*check_initiator_node_acl)(struct scsi_qla_host *, unsigned char *,
 					void *, uint8_t *, uint16_t);
+	void (*update_sess)(struct qla_tgt_sess *, port_id_t, uint16_t, bool);
 	struct qla_tgt_sess *(*find_sess_by_loop_id)(struct scsi_qla_host *,
 						const uint16_t);
 	struct qla_tgt_sess *(*find_sess_by_s_id)(struct scsi_qla_host *,

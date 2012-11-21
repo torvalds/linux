@@ -442,9 +442,11 @@ void __init __weak smp_setup_processor_id(void)
 {
 }
 
+# if THREAD_SIZE >= PAGE_SIZE
 void __init __weak thread_info_cache_init(void)
 {
 }
+#endif
 
 /*
  * Set up kernel memory allocators

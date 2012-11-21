@@ -729,7 +729,7 @@ void intel_crt_init(struct drm_device *dev)
 
 	crt->base.type = INTEL_OUTPUT_ANALOG;
 	crt->base.cloneable = true;
-	if (IS_HASWELL(dev))
+	if (IS_HASWELL(dev) || IS_I830(dev))
 		crt->base.crtc_mask = (1 << 0);
 	else
 		crt->base.crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
