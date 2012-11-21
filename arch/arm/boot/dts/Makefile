@@ -1,7 +1,10 @@
 ifeq ($(CONFIG_OF),y)
 
 # Keep at91 dtb files sorted alphabetically for each SoC
+# rm9200
+dtb-$(CONFIG_ARCH_AT91) += at91rm9200ek.dtb
 # sam9260
+dtb-$(CONFIG_ARCH_AT91) += animeo_ip.dtb
 dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb
 dtb-$(CONFIG_ARCH_AT91) += ethernut5.dtb
 dtb-$(CONFIG_ARCH_AT91) += evk-pro3.dtb
@@ -19,6 +22,7 @@ dtb-$(CONFIG_ARCH_AT91) += tny_a9g20.dtb
 dtb-$(CONFIG_ARCH_AT91) += usb_a9g20.dtb
 # sam9g45
 dtb-$(CONFIG_ARCH_AT91) += at91sam9m10g45ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += pm9g45.dtb
 # sam9n12
 dtb-$(CONFIG_ARCH_AT91) += at91sam9n12ek.dtb
 # sam9x5

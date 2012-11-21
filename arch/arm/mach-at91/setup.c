@@ -339,6 +339,7 @@ static void at91_dt_rstc(void)
 }
 
 static struct of_device_id ramc_ids[] = {
+	{ .compatible = "atmel,at91rm9200-sdramc" },
 	{ .compatible = "atmel,at91sam9260-sdramc" },
 	{ .compatible = "atmel,at91sam9g45-ddramc" },
 	{ /*sentinel*/ }
@@ -435,6 +436,19 @@ end:
 	pm_power_off = at91sam9_poweroff;
 
 	of_node_put(np);
+}
+
+void __init at91rm9200_dt_initialize(void)
+{
+	at91_dt_ramc();
+
+	/* Init clock subsystem */
+	at91_dt_clock_init();
+
+	/* Register the processor-specific clocks */
+	at91_boot_soc.register_clocks();
+
+	at91_boot_soc.init();
 }
 
 void __init at91_dt_initialize(void)
