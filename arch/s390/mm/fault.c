@@ -277,10 +277,16 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	unsigned int flags;
 	int fault;
 
+	tsk = current;
+	/*
+	 * The instruction that caused the program check has
+	 * been nullified. Don't signal single step via SIGTRAP.
+	 */
+	clear_tsk_thread_flag(tsk, TIF_PER_TRAP);
+
 	if (notify_page_fault(regs))
 		return 0;
 
-	tsk = current;
 	mm = tsk->mm;
 	trans_exc_code = regs->int_parm_long;
 
@@ -376,11 +382,6 @@ retry:
 			goto retry;
 		}
 	}
-	/*
-	 * The instruction that caused the program check will
-	 * be repeated. Don't signal single step via SIGTRAP.
-	 */
-	clear_tsk_thread_flag(tsk, TIF_PER_TRAP);
 	fault = 0;
 out_up:
 	up_read(&mm->mmap_sem);
@@ -426,6 +427,12 @@ void __kprobes do_asce_exception(struct pt_regs *regs)
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
 	unsigned long trans_exc_code;
+
+	/*
+	 * The instruction that caused the program check has
+	 * been nullified. Don't signal single step via SIGTRAP.
+	 */
+	clear_tsk_thread_flag(current, TIF_PER_TRAP);
 
 	trans_exc_code = regs->int_parm_long;
 	if (unlikely(!user_space_fault(trans_exc_code) || in_atomic() || !mm))

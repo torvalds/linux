@@ -461,6 +461,8 @@ void do_signal(struct pt_regs *regs)
 			/* Restart system call with magic TIF bit. */
 			regs->gprs[2] = regs->orig_gpr2;
 			set_thread_flag(TIF_SYSCALL);
+			if (test_thread_flag(TIF_SINGLE_STEP))
+				set_thread_flag(TIF_PER_TRAP);
 			break;
 		}
 	}
