@@ -34,5 +34,9 @@
 			clock-frequency = <200000000>;
 			status = "okay";
 		};
+		sata@d00a0000 {
+			nr-ports = <2>;
+			status = "okay";
+		};
 	};
 };
