@@ -3614,7 +3614,7 @@ int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 				continue;
 			}
 
-			kfree(head->extent_op);
+			btrfs_free_delayed_extent_op(head->extent_op);
 			delayed_refs->num_heads--;
 			if (list_empty(&head->cluster))
 				delayed_refs->num_heads_ready--;

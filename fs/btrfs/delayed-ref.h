@@ -141,12 +141,47 @@ struct btrfs_delayed_ref_root {
 	u64 run_delayed_start;
 };
 
+extern struct kmem_cache *btrfs_delayed_ref_head_cachep;
+extern struct kmem_cache *btrfs_delayed_tree_ref_cachep;
+extern struct kmem_cache *btrfs_delayed_data_ref_cachep;
+extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
+
+int btrfs_delayed_ref_init(void);
+void btrfs_delayed_ref_exit(void);
+
+static inline struct btrfs_delayed_extent_op *
+btrfs_alloc_delayed_extent_op(void)
+{
+	return kmem_cache_alloc(btrfs_delayed_extent_op_cachep, GFP_NOFS);
+}
+
+static inline void
+btrfs_free_delayed_extent_op(struct btrfs_delayed_extent_op *op)
+{
+	if (op)
+		kmem_cache_free(btrfs_delayed_extent_op_cachep, op);
+}
+
 static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 {
 	WARN_ON(atomic_read(&ref->refs) == 0);
 	if (atomic_dec_and_test(&ref->refs)) {
 		WARN_ON(ref->in_tree);
-		kfree(ref);
+		switch (ref->type) {
+		case BTRFS_TREE_BLOCK_REF_KEY:
+		case BTRFS_SHARED_BLOCK_REF_KEY:
+			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+			break;
+		case BTRFS_EXTENT_DATA_REF_KEY:
+		case BTRFS_SHARED_DATA_REF_KEY:
+			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
+			break;
+		case 0:
+			kmem_cache_free(btrfs_delayed_ref_head_cachep, ref);
+			break;
+		default:
+			BUG();
+		}
 	}
 }
 

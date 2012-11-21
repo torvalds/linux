@@ -2285,7 +2285,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 			ref = &locked_ref->node;
 
 			if (extent_op && must_insert_reserved) {
-				kfree(extent_op);
+				btrfs_free_delayed_extent_op(extent_op);
 				extent_op = NULL;
 			}
 
@@ -2294,7 +2294,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 
 				ret = run_delayed_extent_op(trans, root,
 							    ref, extent_op);
-				kfree(extent_op);
+				btrfs_free_delayed_extent_op(extent_op);
 
 				if (ret) {
 					list_del_init(&locked_ref->cluster);
@@ -2338,7 +2338,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 					  must_insert_reserved);
 
 		btrfs_put_delayed_ref(ref);
-		kfree(extent_op);
+		btrfs_free_delayed_extent_op(extent_op);
 		count++;
 
 		if (ret) {
@@ -2586,7 +2586,7 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_extent_op *extent_op;
 	int ret;
 
-	extent_op = kmalloc(sizeof(*extent_op), GFP_NOFS);
+	extent_op = btrfs_alloc_delayed_extent_op();
 	if (!extent_op)
 		return -ENOMEM;
 
@@ -2598,7 +2598,7 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 	ret = btrfs_add_delayed_extent_op(root->fs_info, trans, bytenr,
 					  num_bytes, extent_op);
 	if (ret)
-		kfree(extent_op);
+		btrfs_free_delayed_extent_op(extent_op);
 	return ret;
 }
 
@@ -5330,7 +5330,7 @@ static noinline int check_ref_cleanup(struct btrfs_trans_handle *trans,
 	if (head->extent_op) {
 		if (!head->must_insert_reserved)
 			goto out;
-		kfree(head->extent_op);
+		btrfs_free_delayed_extent_op(head->extent_op);
 		head->extent_op = NULL;
 	}
 
@@ -6400,7 +6400,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 
 	if (root_objectid != BTRFS_TREE_LOG_OBJECTID) {
 		struct btrfs_delayed_extent_op *extent_op;
-		extent_op = kmalloc(sizeof(*extent_op), GFP_NOFS);
+		extent_op = btrfs_alloc_delayed_extent_op();
 		BUG_ON(!extent_op); /* -ENOMEM */
 		if (key)
 			memcpy(&extent_op->key, key, sizeof(extent_op->key));
