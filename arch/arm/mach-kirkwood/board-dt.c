@@ -21,6 +21,7 @@
 #include <asm/mach/map.h>
 #include <mach/bridge-regs.h>
 #include <linux/platform_data/usb-ehci-orion.h>
+#include <linux/platform_data/dma-mv_xor.h>
 #include <plat/irq.h>
 #include <plat/common.h>
 #include "common.h"
@@ -60,11 +61,11 @@ static void __init kirkwood_legacy_clk_init(void)
 			 of_clk_get_from_provider(&clkspec));
 
 	clkspec.args[0] = CGC_BIT_XOR0;
-	orion_clkdev_add(NULL, "mv_xor_shared.0",
+	orion_clkdev_add(NULL, MV_XOR_NAME ".0",
 			 of_clk_get_from_provider(&clkspec));
 
 	clkspec.args[0] = CGC_BIT_XOR1;
-	orion_clkdev_add(NULL, "mv_xor_shared.1",
+	orion_clkdev_add(NULL, MV_XOR_NAME ".1",
 			 of_clk_get_from_provider(&clkspec));
 
 	clkspec.args[0] = CGC_BIT_PEX1;
