@@ -515,7 +515,6 @@ enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
 bool prcmu_has_arm_maxopp(void);
 struct prcmu_fw_version *prcmu_get_fw_version(void);
-int prcmu_request_ape_opp_100_voltage(bool enable);
 int prcmu_release_usb_wakeup_state(void);
 void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	struct prcmu_auto_pm_config *idle);
@@ -564,6 +563,7 @@ int db8500_prcmu_set_arm_opp(u8 opp);
 int db8500_prcmu_get_arm_opp(void);
 int db8500_prcmu_set_ape_opp(u8 opp);
 int db8500_prcmu_get_ape_opp(void);
+int db8500_prcmu_request_ape_opp_100_voltage(bool enable);
 int db8500_prcmu_set_ddr_opp(u8 opp);
 int db8500_prcmu_get_ddr_opp(void);
 
@@ -610,7 +610,7 @@ static inline int db8500_prcmu_get_ape_opp(void)
 	return APE_100_OPP;
 }
 
-static inline int prcmu_request_ape_opp_100_voltage(bool enable)
+static inline int db8500_prcmu_request_ape_opp_100_voltage(bool enable)
 {
 	return 0;
 }
