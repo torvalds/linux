@@ -570,7 +570,7 @@ brcms_ops_configure_filter(struct ieee80211_hw *hw,
 	if (changed_flags & FIF_ALLMULTI)
 		brcms_dbg_info(core, "FIF_ALLMULTI\n");
 	if (changed_flags & FIF_FCSFAIL)
-		brcms_dbg_info(core, 0, "FIF_FCSFAIL\n");
+		brcms_dbg_info(core, "FIF_FCSFAIL\n");
 	if (changed_flags & FIF_CONTROL)
 		brcms_dbg_info(core, "FIF_CONTROL\n");
 	if (changed_flags & FIF_OTHER_BSS)
