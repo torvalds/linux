@@ -1888,10 +1888,6 @@ qla2x00_init_rings(scsi_qla_host_t *vha)
 		qla2x00_init_response_q_entries(rsp);
 	}
 
-	spin_lock(&ha->vport_slock);
-
-	spin_unlock(&ha->vport_slock);
-
 	ha->tgt.atio_ring_ptr = ha->tgt.atio_ring;
 	ha->tgt.atio_ring_index = 0;
 	/* Initialize ATIO queue entries */
