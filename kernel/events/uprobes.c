@@ -430,9 +430,6 @@ static struct uprobe *insert_uprobe(struct uprobe *uprobe)
 	u = __insert_uprobe(uprobe);
 	spin_unlock(&uprobes_treelock);
 
-	/* For now assume that the instruction need not be single-stepped */
-	__set_bit(UPROBE_SKIP_SSTEP, &uprobe->flags);
-
 	return u;
 }
 
@@ -454,6 +451,8 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
 	uprobe->offset = offset;
 	init_rwsem(&uprobe->consumer_rwsem);
 	mutex_init(&uprobe->copy_mutex);
+	/* For now assume that the instruction need not be single-stepped */
+	__set_bit(UPROBE_SKIP_SSTEP, &uprobe->flags);
 
 	/* add to uprobes_tree, sorted on inode:offset */
 	cur_uprobe = insert_uprobe(uprobe);
