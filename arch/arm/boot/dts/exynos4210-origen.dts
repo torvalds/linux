@@ -22,7 +22,10 @@
 	compatible = "insignal,origen", "samsung,exynos4210";
 
 	memory {
-		reg = <0x40000000 0x40000000>;
+		reg = <0x40000000 0x10000000
+		       0x50000000 0x10000000
+		       0x60000000 0x10000000
+		       0x70000000 0x10000000>;
 	};
 
 	chosen {
