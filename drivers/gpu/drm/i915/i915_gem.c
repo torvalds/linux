@@ -4342,6 +4342,19 @@ void i915_gem_release(struct drm_device *dev, struct drm_file *file)
 	spin_unlock(&file_priv->mm.lock);
 }
 
+static bool mutex_is_locked_by(struct mutex *mutex, struct task_struct *task)
+{
+	if (!mutex_is_locked(mutex))
+		return false;
+
+#if defined(CONFIG_SMP) || defined(CONFIG_DEBUG_MUTEXES)
+	return mutex->owner == task;
+#else
+	/* Since UP may be pre-empted, we cannot assume that we own the lock */
+	return false;
+#endif
+}
+
 static int
 i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 {
@@ -4352,10 +4365,15 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 	struct drm_device *dev = dev_priv->dev;
 	struct drm_i915_gem_object *obj;
 	int nr_to_scan = sc->nr_to_scan;
+	bool unlock = true;
 	int cnt;
 
-	if (!mutex_trylock(&dev->struct_mutex))
-		return 0;
+	if (!mutex_trylock(&dev->struct_mutex)) {
+		if (!mutex_is_locked_by(&dev->struct_mutex, current))
+			return 0;
+
+		unlock = false;
+	}
 
 	if (nr_to_scan) {
 		nr_to_scan -= i915_gem_purge(dev_priv, nr_to_scan);
@@ -4371,6 +4389,7 @@ i915_gem_inactive_shrink(struct shrinker *shrinker, struct shrink_control *sc)
 		if (obj->pin_count == 0 && obj->pages_pin_count == 0)
 			cnt += obj->base.size >> PAGE_SHIFT;
 
-	mutex_unlock(&dev->struct_mutex);
+	if (unlock)
+		mutex_unlock(&dev->struct_mutex);
 	return cnt;
 }
