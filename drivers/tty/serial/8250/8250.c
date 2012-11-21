@@ -280,7 +280,8 @@ static const struct serial8250_config uart_config[] = {
 		.fifo_size	= 64,
 		.tx_loadsz	= 64,
 		.fcr		= UART_FCR_ENABLE_FIFO | UART_FCR_R_TRIG_10,
-		.flags		= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR,
+		.flags		= UART_CAP_FIFO | UART_CAP_AFE | UART_CAP_EFR |
+				  UART_CAP_SLEEP,
 	},
 	[PORT_XR17V35X] = {
 		.name		= "XR17V35X",
@@ -591,7 +592,8 @@ static void serial8250_set_sleep(struct uart_8250_port *p, int sleep)
 	 * offset but the UART channel may only write to the corresponding
 	 * bit.
 	 */
-	if (p->port.type == PORT_XR17V35X) {
+	if ((p->port.type == PORT_XR17V35X) ||
+	   (p->port.type == PORT_XR17D15X)) {
 		serial_out(p, UART_EXAR_SLEEP, 0xff);
 		return;
 	}
@@ -1056,8 +1058,12 @@ static void autoconfig_16550a(struct uart_8250_port *up)
 	 * Exar uarts have EFR in a weird location
 	 */
 	if (up->port.flags & UPF_EXAR_EFR) {
+		DEBUG_AUTOCONF("Exar XR17D15x ");
 		up->port.type = PORT_XR17D15X;
-		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR;
+		up->capabilities |= UART_CAP_AFE | UART_CAP_EFR |
+				    UART_CAP_SLEEP;
+
+		return;
 	}
 
 	/*
