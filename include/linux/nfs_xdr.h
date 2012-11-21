@@ -188,6 +188,7 @@ struct nfs4_channel_attrs {
 /* nfs41 sessions slot seqid */
 struct nfs4_slot {
 	struct nfs4_slot_table	*table;
+	struct nfs4_slot	*next;
 	unsigned long		generation;
 	unsigned long		renewal_time;
 	u32			slot_nr;
