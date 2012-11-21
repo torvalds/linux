@@ -225,22 +225,6 @@ static void __devinit rc_pci_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
 
-static struct pci_bus __init *
-kirkwood_pcie_scan_bus(int nr, struct pci_sys_data *sys)
-{
-	struct pci_bus *bus;
-
-	if (nr < num_pcie_ports) {
-		bus = pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
-					&sys->resources);
-	} else {
-		bus = NULL;
-		BUG();
-	}
-
-	return bus;
-}
-
 static int __init kirkwood_pcie_map_irq(const struct pci_dev *dev, u8 slot,
 	u8 pin)
 {
@@ -252,8 +236,8 @@ static int __init kirkwood_pcie_map_irq(const struct pci_dev *dev, u8 slot,
 
 static struct hw_pci kirkwood_pci __initdata = {
 	.setup		= kirkwood_pcie_setup,
-	.scan		= kirkwood_pcie_scan_bus,
 	.map_irq	= kirkwood_pcie_map_irq,
+	.ops            = &pcie_ops,
 };
 
 static void __init add_pcie_port(int index, void __iomem *base)
