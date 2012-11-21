@@ -1193,12 +1193,11 @@ static int hdmi_add_pin(struct hda_codec *codec, hda_nid_t pin_nid)
 	struct hdmi_spec_per_pin *per_pin;
 	int err;
 
-	caps = snd_hda_param_read(codec, pin_nid, AC_PAR_PIN_CAP);
+	caps = snd_hda_query_pin_caps(codec, pin_nid);
 	if (!(caps & (AC_PINCAP_HDMI | AC_PINCAP_DP)))
 		return 0;
 
-	config = snd_hda_codec_read(codec, pin_nid, 0,
-				AC_VERB_GET_CONFIG_DEFAULT, 0);
+	config = snd_hda_codec_get_pincfg(codec, pin_nid);
 	if (get_defcfg_connect(config) == AC_JACK_PORT_NONE)
 		return 0;
 
@@ -1272,7 +1271,7 @@ static int hdmi_parse_codec(struct hda_codec *codec)
 		unsigned int caps;
 		unsigned int type;
 
-		caps = snd_hda_param_read(codec, nid, AC_PAR_AUDIO_WIDGET_CAP);
+		caps = get_wcaps(codec, nid);
 		type = get_wcaps_type(caps);
 
 		if (!(caps & AC_WCAP_DIGITAL))
