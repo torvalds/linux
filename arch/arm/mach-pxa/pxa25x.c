@@ -338,6 +338,10 @@ void __init pxa25x_map_io(void)
 	pxa25x_get_clk_frequency_khz(1);
 }
 
+static struct pxa_gpio_platform_data pxa25x_gpio_info __initdata = {
+	.gpio_set_wake = gpio_set_wake,
+};
+
 static struct platform_device *pxa25x_devices[] __initdata = {
 	&pxa25x_device_udc,
 	&pxa_device_pmu,
@@ -370,6 +374,7 @@ static int __init pxa25x_init(void)
 		register_syscore_ops(&pxa2xx_mfp_syscore_ops);
 		register_syscore_ops(&pxa2xx_clock_syscore_ops);
 
+		pxa_register_device(&pxa_device_gpio, &pxa25x_gpio_info);
 		ret = platform_add_devices(pxa25x_devices,
 					   ARRAY_SIZE(pxa25x_devices));
 		if (ret)

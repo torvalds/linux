@@ -2192,7 +2192,8 @@ static int nlmsg_populate_fdb(struct sk_buff *skb,
 			goto skip;
 
 		err = nlmsg_populate_fdb_fill(skb, dev, ha->addr,
-					      portid, seq, 0, NTF_SELF);
+					      portid, seq,
+					      RTM_NEWNEIGH, NTF_SELF);
 		if (err < 0)
 			return err;
 skip:

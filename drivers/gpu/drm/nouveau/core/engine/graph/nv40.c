@@ -156,8 +156,8 @@ nv40_graph_context_ctor(struct nouveau_object *parent,
 static int
 nv40_graph_context_fini(struct nouveau_object *object, bool suspend)
 {
-	struct nv04_graph_priv *priv = (void *)object->engine;
-	struct nv04_graph_chan *chan = (void *)object;
+	struct nv40_graph_priv *priv = (void *)object->engine;
+	struct nv40_graph_chan *chan = (void *)object;
 	u32 inst = 0x01000000 | nv_gpuobj(chan)->addr >> 4;
 	int ret = 0;
 

@@ -751,3 +751,8 @@ int kernel_execve(const char *filename,
 		      : "cc");
 	return __res;
 }
+
+asmlinkage long sys_kern_features(void)
+{
+	return KERN_FEATURE_MIXED_MODE_STACK;
+}
