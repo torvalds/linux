@@ -1461,6 +1461,38 @@ static int vmw_cmd_bind_gb_shader(struct vmw_private *dev_priv,
 				     cmd->body.offsetInBytes);
 }
 
+/**
+ * vmw_cmd_bind_gb_shader_consts - Validate an SVGA_3D_CMD_BIND_SHADER_CONSTS
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_bind_gb_shader_consts(struct vmw_private *dev_priv,
+					 struct vmw_sw_context *sw_context,
+					 SVGA3dCmdHeader *header)
+{
+	struct vmw_bind_gb_sc_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdBindGBShaderConsts body;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_bind_gb_sc_cmd,
+			   header);
+
+	ret = vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
+				user_context_converter,
+				&cmd->body.cid, NULL);
+	if (unlikely(ret != 0))
+		return ret;
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.sid, NULL);
+}
+
 static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 				struct vmw_sw_context *sw_context,
 				void *buf, uint32_t *size)
@@ -1571,9 +1603,12 @@ static vmw_cmd_func vmw_cmd_funcs[SVGA_3D_CMD_MAX] = {
 	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SHADER, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SHADER, &vmw_cmd_bind_gb_shader),
 	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SHADER, &vmw_cmd_invalid),
+	VMW_CMD_DEF(SVGA_3D_CMD_BIND_SHADERCONSTS,
+		    &vmw_cmd_bind_gb_shader_consts),
 	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_GB_QUERY, &vmw_cmd_begin_gb_query),
 	VMW_CMD_DEF(SVGA_3D_CMD_END_GB_QUERY, &vmw_cmd_end_gb_query),
 	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_GB_QUERY, &vmw_cmd_wait_gb_query),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE, &vmw_cmd_cid_check)
 };
 
 static int vmw_cmd_check(struct vmw_private *dev_priv,
