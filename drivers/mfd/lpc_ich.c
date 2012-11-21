@@ -830,7 +830,10 @@ static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
 	 * we have to read RCBA from PCI Config space 0xf0 and use
 	 * it as base. GCS = RCBA + ICH6_GCS(0x3410).
 	 */
-	if (lpc_chipset_info[id->driver_data].iTCO_version == 2) {
+	if (lpc_chipset_info[id->driver_data].iTCO_version == 1) {
+		/* Don't register iomem for TCO ver 1 */
+		lpc_ich_cells[LPC_WDT].num_resources--;
+	} else {
 		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
 		base_addr = base_addr_cfg & 0xffffc000;
 		if (!(base_addr_cfg & 1)) {
