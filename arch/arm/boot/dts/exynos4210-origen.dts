@@ -36,13 +36,8 @@
 		samsung,sdhci-bus-width = <4>;
 		linux,mmc_cap_4_bit_data;
 		samsung,sdhci-cd-internal;
-		gpio-cd = <&gpk2 2 2 3 3>;
-		gpios = <&gpk2 0 2 0 3>,
-			<&gpk2 1 2 0 3>,
-			<&gpk2 3 2 3 3>,
-			<&gpk2 4 2 3 3>,
-			<&gpk2 5 2 3 3>,
-			<&gpk2 6 2 3 3>;
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4 &sd2_cd>;
+		pinctrl-names = "default";
 		status = "okay";
 	};
 
@@ -50,13 +45,8 @@
 		samsung,sdhci-bus-width = <4>;
 		linux,mmc_cap_4_bit_data;
 		samsung,sdhci-cd-internal;
-		gpio-cd = <&gpk0 2 2 3 3>;
-		gpios = <&gpk0 0 2 0 3>,
-			<&gpk0 1 2 0 3>,
-			<&gpk0 3 2 3 3>,
-			<&gpk0 4 2 3 3>,
-			<&gpk0 5 2 3 3>,
-			<&gpk0 6 2 3 3>;
+		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_cd>;
+		pinctrl-names = "default";
 		status = "okay";
 	};
 
@@ -83,35 +73,35 @@
 
 		up {
 			label = "Up";
-			gpios = <&gpx2 0 0 0x10000 2>;
+			gpios = <&gpx2 0 1>;
 			linux,code = <103>;
 			gpio-key,wakeup;
 		};
 
 		down {
 			label = "Down";
-			gpios = <&gpx2 1 0 0x10000 2>;
+			gpios = <&gpx2 1 1>;
 			linux,code = <108>;
 			gpio-key,wakeup;
 		};
 
 		back {
 			label = "Back";
-			gpios = <&gpx1 7 0 0x10000 2>;
+			gpios = <&gpx1 7 1>;
 			linux,code = <158>;
 			gpio-key,wakeup;
 		};
 
 		home {
 			label = "Home";
-			gpios = <&gpx1 6 0 0x10000 2>;
+			gpios = <&gpx1 6 1>;
 			linux,code = <102>;
 			gpio-key,wakeup;
 		};
 
 		menu {
 			label = "Menu";
-			gpios = <&gpx1 5 0 0x10000 2>;
+			gpios = <&gpx1 5 1>;
 			linux,code = <139>;
 			gpio-key,wakeup;
 		};
@@ -120,7 +110,7 @@
 	leds {
 		compatible = "gpio-leds";
 		status {
-			gpios = <&gpx1 3 0 0x10000 2>;
+			gpios = <&gpx1 3 1>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
