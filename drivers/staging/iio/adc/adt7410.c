@@ -181,7 +181,7 @@ static ssize_t adt7410_store_mode(struct device *dev,
 
 	chip->config = config;
 
-	return ret;
+	return len;
 }
 
 static IIO_DEVICE_ATTR(mode, S_IRUGO | S_IWUSR,

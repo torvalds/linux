@@ -15,12 +15,48 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/interrupt.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
-#include "ad7298.h"
+#include <linux/platform_data/ad7298.h>
+
+#define AD7298_WRITE	(1 << 15) /* write to the control register */
+#define AD7298_REPEAT	(1 << 14) /* repeated conversion enable */
+#define AD7298_CH(x)	(1 << (13 - (x))) /* channel select */
+#define AD7298_TSENSE	(1 << 5) /* temperature conversion enable */
+#define AD7298_EXTREF	(1 << 2) /* external reference enable */
+#define AD7298_TAVG	(1 << 1) /* temperature sensor averaging enable */
+#define AD7298_PDD	(1 << 0) /* partial power down enable */
+
+#define AD7298_MAX_CHAN		8
+#define AD7298_BITS		12
+#define AD7298_STORAGE_BITS	16
+#define AD7298_INTREF_mV	2500
+
+#define AD7298_CH_TEMP		9
+
+#define RES_MASK(bits)	((1 << (bits)) - 1)
+
+struct ad7298_state {
+	struct spi_device		*spi;
+	struct regulator		*reg;
+	unsigned			ext_ref;
+	struct spi_transfer		ring_xfer[10];
+	struct spi_transfer		scan_single_xfer[3];
+	struct spi_message		ring_msg;
+	struct spi_message		scan_single_msg;
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	__be16				rx_buf[12] ____cacheline_aligned;
+	__be16				tx_buf[2];
+};
 
 #define AD7298_V_CHAN(index)						\
 	{								\
@@ -35,6 +71,7 @@
 			.sign = 'u',					\
 			.realbits = 12,					\
 			.storagebits = 16,				\
+			.endianness = IIO_BE,				\
 		},							\
 	}
 
@@ -44,7 +81,8 @@ static const struct iio_chan_spec ad7298_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		.address = AD7298_CH_TEMP,
 		.scan_index = -1,
 		.scan_type = {
@@ -64,6 +102,84 @@ static const struct iio_chan_spec ad7298_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8),
 };
 
+/**
+ * ad7298_update_scan_mode() setup the spi transfer buffer for the new scan mask
+ **/
+static int ad7298_update_scan_mode(struct iio_dev *indio_dev,
+	const unsigned long *active_scan_mask)
+{
+	struct ad7298_state *st = iio_priv(indio_dev);
+	int i, m;
+	unsigned short command;
+	int scan_count;
+
+	/* Now compute overall size */
+	scan_count = bitmap_weight(active_scan_mask, indio_dev->masklength);
+
+	command = AD7298_WRITE | st->ext_ref;
+
+	for (i = 0, m = AD7298_CH(0); i < AD7298_MAX_CHAN; i++, m >>= 1)
+		if (test_bit(i, active_scan_mask))
+			command |= m;
+
+	st->tx_buf[0] = cpu_to_be16(command);
+
+	/* build spi ring message */
+	st->ring_xfer[0].tx_buf = &st->tx_buf[0];
+	st->ring_xfer[0].len = 2;
+	st->ring_xfer[0].cs_change = 1;
+	st->ring_xfer[1].tx_buf = &st->tx_buf[1];
+	st->ring_xfer[1].len = 2;
+	st->ring_xfer[1].cs_change = 1;
+
+	spi_message_init(&st->ring_msg);
+	spi_message_add_tail(&st->ring_xfer[0], &st->ring_msg);
+	spi_message_add_tail(&st->ring_xfer[1], &st->ring_msg);
+
+	for (i = 0; i < scan_count; i++) {
+		st->ring_xfer[i + 2].rx_buf = &st->rx_buf[i];
+		st->ring_xfer[i + 2].len = 2;
+		st->ring_xfer[i + 2].cs_change = 1;
+		spi_message_add_tail(&st->ring_xfer[i + 2], &st->ring_msg);
+	}
+	/* make sure last transfer cs_change is not set */
+	st->ring_xfer[i + 1].cs_change = 0;
+
+	return 0;
+}
+
+/**
+ * ad7298_trigger_handler() bh of trigger launched polling to ring buffer
+ *
+ * Currently there is no option in this driver to disable the saving of
+ * timestamps within the ring.
+ **/
+static irqreturn_t ad7298_trigger_handler(int irq, void *p)
+{
+	struct iio_poll_func *pf = p;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad7298_state *st = iio_priv(indio_dev);
+	s64 time_ns = 0;
+	int b_sent;
+
+	b_sent = spi_sync(st->spi, &st->ring_msg);
+	if (b_sent)
+		goto done;
+
+	if (indio_dev->scan_timestamp) {
+		time_ns = iio_get_time_ns();
+		memcpy((u8 *)st->rx_buf + indio_dev->scan_bytes - sizeof(s64),
+			&time_ns, sizeof(time_ns));
+	}
+
+	iio_push_to_buffers(indio_dev, (u8 *)st->rx_buf);
+
+done:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 static int ad7298_scan_direct(struct ad7298_state *st, unsigned ch)
 {
 	int ret;
@@ -79,7 +195,7 @@ static int ad7298_scan_direct(struct ad7298_state *st, unsigned ch)
 
 static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 {
-	int tmp, ret;
+	int ret;
 	__be16 buf;
 
 	buf = cpu_to_be16(AD7298_WRITE | AD7298_TSENSE |
@@ -101,24 +217,24 @@ static int ad7298_scan_temp(struct ad7298_state *st, int *val)
 	if (ret)
 		return ret;
 
-	tmp = be16_to_cpu(buf) & RES_MASK(AD7298_BITS);
-
-	/*
-	 * One LSB of the ADC corresponds to 0.25 deg C.
-	 * The temperature reading is in 12-bit twos complement format
-	 */
-
-	if (tmp & (1 << (AD7298_BITS - 1))) {
-		tmp = (4096 - tmp) * 250;
-		tmp -= (2 * tmp);
-
-	} else {
-		tmp *= 250; /* temperature in milli degrees Celsius */
-	}
-
-	*val = tmp;
+	*val = sign_extend32(be16_to_cpu(buf), 11);
 
 	return 0;
+}
+
+static int ad7298_get_ref_voltage(struct ad7298_state *st)
+{
+	int vref;
+
+	if (st->ext_ref) {
+		vref = regulator_get_voltage(st->reg);
+		if (vref < 0)
+			return vref;
+
+		return vref / 1000;
+	} else {
+		return AD7298_INTREF_mV;
+	}
 }
 
 static int ad7298_read_raw(struct iio_dev *indio_dev,
@@ -129,7 +245,6 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 {
 	int ret;
 	struct ad7298_state *st = iio_priv(indio_dev);
-	unsigned int scale_uv;
 
 	switch (m) {
 	case IIO_CHAN_INFO_RAW:
@@ -154,17 +269,19 @@ static int ad7298_read_raw(struct iio_dev *indio_dev,
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
-			scale_uv = (st->int_vref_mv * 1000) >> AD7298_BITS;
-			*val =  scale_uv / 1000;
-			*val2 = (scale_uv % 1000) * 1000;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = ad7298_get_ref_voltage(st);
+			*val2 = chan->scan_type.realbits;
+			return IIO_VAL_FRACTIONAL_LOG2;
 		case IIO_TEMP:
-			*val =  1;
-			*val2 = 0;
-			return IIO_VAL_INT_PLUS_MICRO;
+			*val = ad7298_get_ref_voltage(st);
+			*val2 = 10;
+			return IIO_VAL_FRACTIONAL;
 		default:
 			return -EINVAL;
 		}
+	case IIO_CHAN_INFO_OFFSET:
+		*val = 1093 - 2732500 / ad7298_get_ref_voltage(st);
+		return IIO_VAL_INT;
 	}
 	return -EINVAL;
 }
@@ -179,16 +296,23 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 {
 	struct ad7298_platform_data *pdata = spi->dev.platform_data;
 	struct ad7298_state *st;
-	int ret;
 	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
+	int ret;
 
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
+	if (pdata && pdata->ext_ref)
+		st->ext_ref = AD7298_EXTREF;
+
+	if (st->ext_ref) {
+		st->reg = regulator_get(&spi->dev, "vref");
+		if (IS_ERR(st->reg)) {
+			ret = PTR_ERR(st->reg);
+			goto error_free;
+		}
 		ret = regulator_enable(st->reg);
 		if (ret)
 			goto error_put_reg;
@@ -221,14 +345,8 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	spi_message_add_tail(&st->scan_single_xfer[1], &st->scan_single_msg);
 	spi_message_add_tail(&st->scan_single_xfer[2], &st->scan_single_msg);
 
-	if (pdata && pdata->vref_mv) {
-		st->int_vref_mv = pdata->vref_mv;
-		st->ext_ref = AD7298_EXTREF;
-	} else {
-		st->int_vref_mv = AD7298_INTREF_mV;
-	}
-
-	ret = ad7298_register_ring_funcs_and_init(indio_dev);
+	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+			&ad7298_trigger_handler, NULL);
 	if (ret)
 		goto error_disable_reg;
 
@@ -239,13 +357,14 @@ static int __devinit ad7298_probe(struct spi_device *spi)
 	return 0;
 
 error_cleanup_ring:
-	ad7298_ring_cleanup(indio_dev);
+	iio_triggered_buffer_cleanup(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
+	if (st->ext_ref)
 		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
+	if (st->ext_ref)
 		regulator_put(st->reg);
+error_free:
 	iio_device_free(indio_dev);
 
 	return ret;
@@ -257,8 +376,8 @@ static int __devexit ad7298_remove(struct spi_device *spi)
 	struct ad7298_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
-	ad7298_ring_cleanup(indio_dev);
-	if (!IS_ERR(st->reg)) {
+	iio_triggered_buffer_cleanup(indio_dev);
+	if (st->ext_ref) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}

@@ -15,7 +15,7 @@ config HID_SENSOR_IIO_COMMON
 	  attributes.
 
 config HID_SENSOR_ENUM_BASE_QUIRKS
-	tristate "ENUM base quirks for HID Sensor IIO drivers"
+	bool "ENUM base quirks for HID Sensor IIO drivers"
 	depends on HID_SENSOR_IIO_COMMON
 	help
 	  Say yes here to build support for sensor hub FW using

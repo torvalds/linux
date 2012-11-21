@@ -272,10 +272,9 @@ static int __devinit hid_als_probe(struct platform_device *pdev)
 		goto error_free_dev;
 	}
 
-	channels = kmemdup(als_channels,
-					sizeof(als_channels),
-					GFP_KERNEL);
+	channels = kmemdup(als_channels, sizeof(als_channels), GFP_KERNEL);
 	if (!channels) {
+		ret = -ENOMEM;
 		dev_err(&pdev->dev, "failed to duplicate channels\n");
 		goto error_free_dev;
 	}

@@ -620,6 +620,9 @@ static inline struct dentry *iio_get_debugfs_dentry(struct iio_dev *indio_dev)
 };
 #endif
 
+int iio_str_to_fixpoint(const char *str, int fract_mult, int *integer,
+	int *fract);
+
 /**
  * IIO_DEGREE_TO_RAD() - Convert degree to rad
  * @deg: A value in degree

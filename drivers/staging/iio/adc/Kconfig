@@ -10,17 +10,6 @@ config AD7291
 	  Say yes here to build support for Analog Devices AD7291
 	  8 Channel ADC with temperature sensor.
 
-config AD7298
-	tristate "Analog Devices AD7298 ADC driver"
-	depends on SPI
-	select IIO_TRIGGERED_BUFFER if IIO_BUFFER
-	help
-	  Say yes here to build support for Analog Devices AD7298
-	  8 Channel ADC with temperature sensor.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7298.
-
 config AD7606
 	tristate "Analog Devices AD7606 ADC driver"
 	depends on GPIOLIB
