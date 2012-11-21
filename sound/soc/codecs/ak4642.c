@@ -194,12 +194,6 @@ static const struct snd_soc_dapm_route ak4642_intercon[] = {
 	{"LINEOUT Mixer", "DACL", "DAC"},
 };
 
-/* codec private data */
-struct ak4642_priv {
-	unsigned int sysclk;
-	enum snd_soc_control_type control_type;
-};
-
 /*
  * ak4642 register cache
  */
@@ -468,10 +462,9 @@ static int ak4642_resume(struct snd_soc_codec *codec)
 
 static int ak4642_probe(struct snd_soc_codec *codec)
 {
-	struct ak4642_priv *ak4642 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, ak4642->control_type);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -523,21 +516,9 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4648 = {
 static __devinit int ak4642_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
-	struct ak4642_priv *ak4642;
-	int ret;
-
-	ak4642 = devm_kzalloc(&i2c->dev, sizeof(struct ak4642_priv),
-			      GFP_KERNEL);
-	if (!ak4642)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, ak4642);
-	ak4642->control_type = SND_SOC_I2C;
-
-	ret =  snd_soc_register_codec(&i2c->dev,
+	return snd_soc_register_codec(&i2c->dev,
 				(struct snd_soc_codec_driver *)id->driver_data,
 				&ak4642_dai, 1);
-	return ret;
 }
 
 static __devexit int ak4642_i2c_remove(struct i2c_client *client)
