@@ -324,7 +324,7 @@ nouveau_display_create(struct drm_device *dev)
 	disp->underscan_vborder_property =
 		drm_property_create_range(dev, 0, "underscan vborder", 0, 128);
 
-	if (gen == 1) {
+	if (gen >= 1) {
 		disp->vibrant_hue_property =
 			drm_property_create(dev, DRM_MODE_PROP_RANGE,
 					    "vibrant hue", 2);
