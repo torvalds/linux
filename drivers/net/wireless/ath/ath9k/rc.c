@@ -982,16 +982,6 @@ static void ath_rc_update_per(struct ath_softc *sc,
 	}
 }
 
-static void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
-				   int xretries, int retries, u8 per)
-{
-	struct ath_rc_stats *stats = &rc->rcstats[rix];
-
-	stats->xretries += xretries;
-	stats->retries += retries;
-	stats->per = per;
-}
-
 static void ath_rc_update_ht(struct ath_softc *sc,
 			     struct ath_rate_priv *ath_rc_priv,
 			     struct ieee80211_tx_info *tx_info,
@@ -1063,14 +1053,6 @@ static void ath_rc_update_ht(struct ath_softc *sc,
 	ath_debug_stat_retries(ath_rc_priv, tx_rate, xretries, retries,
 			       ath_rc_priv->per[tx_rate]);
 
-}
-
-static void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
-{
-	struct ath_rc_stats *stats;
-
-	stats = &rc->rcstats[final_rate];
-	stats->success++;
 }
 
 static void ath_rc_tx_status(struct ath_softc *sc,
@@ -1351,6 +1333,24 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 }
 
 #if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+
+void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
+{
+	struct ath_rc_stats *stats;
+
+	stats = &rc->rcstats[final_rate];
+	stats->success++;
+}
+
+void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
+			    int xretries, int retries, u8 per)
+{
+	struct ath_rc_stats *stats = &rc->rcstats[rix];
+
+	stats->xretries += xretries;
+	stats->retries += retries;
+	stats->per = per;
+}
 
 static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)

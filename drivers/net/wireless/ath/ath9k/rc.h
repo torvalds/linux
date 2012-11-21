@@ -213,9 +213,23 @@ struct ath_rate_priv {
 
 #if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
 	struct dentry *debugfs_rcstats;
-#endif
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
+#endif
 };
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate);
+void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
+			    int xretries, int retries, u8 per);
+#else
+static inline void ath_debug_stat_rc(struct ath_rate_priv *rc, int final_rate)
+{
+}
+static inline void ath_debug_stat_retries(struct ath_rate_priv *rc, int rix,
+					  int xretries, int retries, u8 per)
+{
+}
+#endif
 
 #ifdef CONFIG_ATH9K_RATE_CONTROL
 int ath_rate_control_register(void);
