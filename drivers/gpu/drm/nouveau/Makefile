@@ -201,7 +201,7 @@ nouveau-y += nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o
 nouveau-y += nv04_crtc.o nv04_display.o nv04_cursor.o
 
 # drm/kms/nv50-
-nouveau-y += nvd0_display.o
+nouveau-y += nv50_display.o
 
 # drm/pm
 nouveau-y += nouveau_pm.o nouveau_volt.o nouveau_perf.o

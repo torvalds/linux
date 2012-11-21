@@ -366,7 +366,7 @@ nouveau_display_create(struct drm_device *dev)
 		if (nv_device(drm->device)->card_type < NV_50)
 			ret = nv04_display_create(dev);
 		else
-			ret = nvd0_display_create(dev);
+			ret = nv50_display_create(dev);
 		if (ret)
 			goto disp_create_err;
 
@@ -657,7 +657,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 
 	/* Emit a page flip */
 	if (nv_device(drm->device)->card_type >= NV_50) {
-		ret = nvd0_display_flip_next(crtc, fb, chan, 0);
+		ret = nv50_display_flip_next(crtc, fb, chan, 0);
 		if (ret) {
 			mutex_unlock(&chan->cli->mutex);
 			goto fail_unreserve;

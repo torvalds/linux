@@ -115,7 +115,7 @@ nvc0_fence_context_del(struct nouveau_channel *chan)
 	int i;
 
 	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo = nvd0_display_crtc_sema(dev, i);
+		struct nouveau_bo *bo = nv50_display_crtc_sema(dev, i);
 		nouveau_bo_vma_del(bo, &fctx->dispc_vma[i]);
 	}
 
@@ -146,7 +146,7 @@ nvc0_fence_context_new(struct nouveau_channel *chan)
 
 	/* map display semaphore buffers into channel's vm */
 	for (i = 0; !ret && i < chan->drm->dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo = nvd0_display_crtc_sema(chan->drm->dev, i);
+		struct nouveau_bo *bo = nv50_display_crtc_sema(chan->drm->dev, i);
 		ret = nouveau_bo_vma_add(bo, client->vm, &fctx->dispc_vma[i]);
 	}
 

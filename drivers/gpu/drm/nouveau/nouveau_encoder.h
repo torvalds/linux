@@ -97,9 +97,5 @@ void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
 
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
-int nv50_sor_create(struct drm_connector *, struct dcb_output *);
-void nv50_sor_dp_calc_tu(struct drm_device *, int, int, u32, u32);
-int nv50_dac_create(struct drm_connector *, struct dcb_output *);
-
 
 #endif /* __NOUVEAU_ENCODER_H__ */
