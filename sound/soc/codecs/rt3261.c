@@ -3138,6 +3138,9 @@ static int rt3261_set_bias_level(struct snd_soc_codec *codec,
 				RT3261_PWR_FV1 | RT3261_PWR_FV2,
 				RT3261_PWR_FV1 | RT3261_PWR_FV2);
 			snd_soc_write(codec, RT3261_GEN_CTRL1, 0x3701);
+			snd_soc_update_bits(codec, RT3261_PWR_ANLG2,
+				RT3261_PWR_MB1 | RT3261_PWR_MB2,
+				RT3261_PWR_MB1 | RT3261_PWR_MB2);
 			codec->cache_only = false;
 			codec->cache_sync = 1;
 			snd_soc_cache_sync(codec);
