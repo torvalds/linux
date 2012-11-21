@@ -9,10 +9,6 @@ Required Properties:
 - reg: physical base address of the controller and length of memory mapped
     region.
 
-Optional Properties:
-- samsung,exynos4210-pd-off: Specifies that the power domain is in turned-off
-    state during boot and remains to be turned-off until explicitly turned-on.
-
 Example:
 
 	lcd0: power-domain-lcd0 {

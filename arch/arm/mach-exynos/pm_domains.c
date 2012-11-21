@@ -89,6 +89,7 @@ static __init int exynos_pm_dt_parse_domains(void)
 
 	for_each_compatible_node(np, NULL, "samsung,exynos4210-pd") {
 		struct exynos_pm_domain *pd;
+		int on;
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
@@ -97,14 +98,15 @@ static __init int exynos_pm_dt_parse_domains(void)
 			return -ENOMEM;
 		}
 
-		if (of_get_property(np, "samsung,exynos4210-pd-off", NULL))
-			pd->is_off = true;
 		pd->name = np->name;
 		pd->base = of_iomap(np, 0);
 		pd->pd.power_off = exynos_pd_power_off;
 		pd->pd.power_on = exynos_pd_power_on;
 		pd->pd.of_node = np;
-		pm_genpd_init(&pd->pd, NULL, false);
+
+		on = __raw_readl(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN;
+
+		pm_genpd_init(&pd->pd, NULL, !on);
 	}
 	return 0;
 }
