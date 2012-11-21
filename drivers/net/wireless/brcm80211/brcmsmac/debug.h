@@ -8,17 +8,23 @@
 #include "main.h"
 #include "mac80211_if.h"
 
+__printf(2, 3)
 void __brcms_info(struct device *dev, const char *fmt, ...);
+__printf(2, 3)
 void __brcms_warn(struct device *dev, const char *fmt, ...);
+__printf(2, 3)
 void __brcms_err(struct device *dev, const char *fmt, ...);
+__printf(2, 3)
 void __brcms_crit(struct device *dev, const char *fmt, ...);
 
 #if defined(CONFIG_BRCMDBG) || defined(CONFIG_BRCM_TRACING)
+__printf(4, 5)
 void __brcms_dbg(struct device *dev, u32 level, const char *func,
 		 const char *fmt, ...);
 #else
-static inline void __brcms_dbg(struct device *dev, u32 level,
-			       const char *func, const char *fmt, ...)
+static inline __printf(4, 5)
+void __brcms_dbg(struct device *dev, u32 level, const char *func,
+		 const char *fmt, ...)
 {
 }
 #endif
