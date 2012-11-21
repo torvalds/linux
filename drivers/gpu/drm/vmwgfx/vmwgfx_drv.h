@@ -461,6 +461,8 @@ extern int vmw_dmabuf_init(struct vmw_private *dev_priv,
 			   size_t size, struct ttm_placement *placement,
 			   bool interuptable,
 			   void (*bo_free) (struct ttm_buffer_object *bo));
+extern int vmw_user_dmabuf_verify_access(struct ttm_buffer_object *bo,
+				  struct ttm_object_file *tfile);
 extern int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,

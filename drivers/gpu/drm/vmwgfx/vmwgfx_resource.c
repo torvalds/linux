@@ -458,6 +458,26 @@ out_no_base_object:
 	return ret;
 }
 
+/**
+ * vmw_user_dmabuf_verify_access - verify access permissions on this
+ * buffer object.
+ *
+ * @bo: Pointer to the buffer object being accessed
+ * @tfile: Identifying the caller.
+ */
+int vmw_user_dmabuf_verify_access(struct ttm_buffer_object *bo,
+				  struct ttm_object_file *tfile)
+{
+	struct vmw_user_dma_buffer *vmw_user_bo;
+
+	if (unlikely(bo->destroy != vmw_user_dmabuf_destroy))
+		return -EPERM;
+
+	vmw_user_bo = vmw_user_dma_buffer(bo);
+	return (vmw_user_bo->base.tfile == tfile ||
+	vmw_user_bo->base.shareable) ? 0 : -EPERM;
+}
+
 int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 			   struct drm_file *file_priv)
 {
