@@ -4,14 +4,25 @@ Exynos processors include support for multiple power domains which are used
 to gate power to one or more peripherals on the processor.
 
 Required Properties:
-- compatiable: should be one of the following.
+- compatible: should be one of the following.
     * samsung,exynos4210-pd - for exynos4210 type power domain.
 - reg: physical base address of the controller and length of memory mapped
     region.
+
+Node of a device using power domains must have a samsung,power-domain property
+defined with a phandle to respective power domain.
 
 Example:
 
 	lcd0: power-domain-lcd0 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C00 0x10>;
+	};
+
+Example of the node using power domain:
+
+	node {
+		/* ... */
+		samsung,power-domain = <&lcd0>;
+		/* ... */
 	};

@@ -19,6 +19,8 @@
 #include <linux/pm_domain.h>
 #include <linux/delay.h>
 #include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/sched.h>
 
 #include <mach/regs-pmu.h>
 #include <plat/devs.h>
@@ -83,13 +85,88 @@ static struct exynos_pm_domain PD = {			\
 }
 
 #ifdef CONFIG_OF
+static void exynos_add_device_to_domain(struct exynos_pm_domain *pd,
+					 struct device *dev)
+{
+	int ret;
+
+	dev_dbg(dev, "adding to power domain %s\n", pd->pd.name);
+
+	while (1) {
+		ret = pm_genpd_add_device(&pd->pd, dev);
+		if (ret != -EAGAIN)
+			break;
+		cond_resched();
+	}
+
+	pm_genpd_dev_need_restore(dev, true);
+}
+
+static void exynos_remove_device_from_domain(struct device *dev)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+	int ret;
+
+	dev_dbg(dev, "removing from power domain %s\n", genpd->name);
+
+	while (1) {
+		ret = pm_genpd_remove_device(genpd, dev);
+		if (ret != -EAGAIN)
+			break;
+		cond_resched();
+	}
+}
+
+static void exynos_read_domain_from_dt(struct device *dev)
+{
+	struct platform_device *pd_pdev;
+	struct exynos_pm_domain *pd;
+	struct device_node *node;
+
+	node = of_parse_phandle(dev->of_node, "samsung,power-domain", 0);
+	if (!node)
+		return;
+	pd_pdev = of_find_device_by_node(node);
+	if (!pd_pdev)
+		return;
+	pd = platform_get_drvdata(pd_pdev);
+	exynos_add_device_to_domain(pd, dev);
+}
+
+static int exynos_pm_notifier_call(struct notifier_block *nb,
+				    unsigned long event, void *data)
+{
+	struct device *dev = data;
+
+	switch (event) {
+	case BUS_NOTIFY_BIND_DRIVER:
+		if (dev->of_node)
+			exynos_read_domain_from_dt(dev);
+
+		break;
+
+	case BUS_NOTIFY_UNBOUND_DRIVER:
+		exynos_remove_device_from_domain(dev);
+
+		break;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block platform_nb = {
+	.notifier_call = exynos_pm_notifier_call,
+};
+
 static __init int exynos_pm_dt_parse_domains(void)
 {
+	struct platform_device *pdev;
 	struct device_node *np;
 
 	for_each_compatible_node(np, NULL, "samsung,exynos4210-pd") {
 		struct exynos_pm_domain *pd;
 		int on;
+
+		pdev = of_find_device_by_node(np);
 
 		pd = kzalloc(sizeof(*pd), GFP_KERNEL);
 		if (!pd) {
@@ -105,10 +182,15 @@ static __init int exynos_pm_dt_parse_domains(void)
 		pd->pd.power_on = exynos_pd_power_on;
 		pd->pd.of_node = np;
 
+		platform_set_drvdata(pdev, pd);
+
 		on = __raw_readl(pd->base + 0x4) & S5P_INT_LOCAL_PWR_EN;
 
 		pm_genpd_init(&pd->pd, NULL, !on);
 	}
+
+	bus_register_notifier(&platform_bus_type, &platform_nb);
+
 	return 0;
 }
 #else
