@@ -515,15 +515,12 @@ void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
 /*
  * unlink active urbs.
  */
-static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force, bool can_sleep)
+static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force)
 {
 	unsigned int i;
-	int async;
 
 	if (!force && ep->chip->shutdown) /* to be sure... */
 		return -EBADFD;
-
-	async = !can_sleep;
 
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
 
@@ -531,17 +528,11 @@ static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force, bool can_sle
 	ep->next_packet_read_pos = 0;
 	ep->next_packet_write_pos = 0;
 
-	if (!async && in_interrupt())
-		return 0;
-
 	for (i = 0; i < ep->nurbs; i++) {
 		if (test_bit(i, &ep->active_mask)) {
 			if (!test_and_set_bit(i, &ep->unlink_mask)) {
 				struct urb *u = ep->urb[i].urb;
-				if (async)
-					usb_unlink_urb(u);
-				else
-					usb_kill_urb(u);
+				usb_unlink_urb(u);
 			}
 		}
 	}
@@ -561,7 +552,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 	ep->prepare_data_urb = NULL;
 
 	/* stop urbs */
-	deactivate_urbs(ep, force, true);
+	deactivate_urbs(ep, force);
 	wait_clear_urbs(ep);
 
 	for (i = 0; i < ep->nurbs; i++)
@@ -837,7 +828,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
 		return 0;
 
 	/* just to be sure */
-	deactivate_urbs(ep, false, can_sleep);
+	deactivate_urbs(ep, false);
 	if (can_sleep)
 		wait_clear_urbs(ep);
 
@@ -891,7 +882,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
 __error:
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
 	ep->use_count--;
-	deactivate_urbs(ep, false, false);
+	deactivate_urbs(ep, false);
 	return -EPIPE;
 }
 
@@ -915,7 +906,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep, bool wait)
 		return;
 
 	if (--ep->use_count == 0) {
-		deactivate_urbs(ep, false, wait);
+		deactivate_urbs(ep, false);
 		ep->data_subs = NULL;
 		ep->sync_slave = NULL;
 		ep->retire_data_urb = NULL;
@@ -946,7 +937,7 @@ int snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 	if (!ep)
 		return -EINVAL;
 
-	deactivate_urbs(ep, true, true);
+	deactivate_urbs(ep, true);
 	wait_clear_urbs(ep);
 
 	if (ep->use_count != 0)
