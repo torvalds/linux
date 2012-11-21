@@ -38,6 +38,14 @@ static void vmw_user_context_free(struct vmw_resource *res);
 static struct vmw_resource *
 vmw_user_context_base_to_res(struct ttm_base_object *base);
 
+static int vmw_gb_context_create(struct vmw_resource *res);
+static int vmw_gb_context_bind(struct vmw_resource *res,
+			       struct ttm_validate_buffer *val_buf);
+static int vmw_gb_context_unbind(struct vmw_resource *res,
+				 bool readback,
+				 struct ttm_validate_buffer *val_buf);
+static int vmw_gb_context_destroy(struct vmw_resource *res);
+
 static uint64_t vmw_user_context_size;
 
 static const struct vmw_user_resource_conv user_context_conv = {
@@ -62,6 +70,18 @@ static const struct vmw_res_func vmw_legacy_context_func = {
 	.unbind = NULL
 };
 
+static const struct vmw_res_func vmw_gb_context_func = {
+	.res_type = vmw_res_context,
+	.needs_backup = true,
+	.may_evict = true,
+	.type_name = "guest backed contexts",
+	.backup_placement = &vmw_mob_placement,
+	.create = vmw_gb_context_create,
+	.destroy = vmw_gb_context_destroy,
+	.bind = vmw_gb_context_bind,
+	.unbind = vmw_gb_context_unbind
+};
+
 /**
  * Context management:
  */
@@ -75,6 +95,16 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 		SVGA3dCmdDestroyContext body;
 	} *cmd;
 
+
+	if (res->func->destroy == vmw_gb_context_destroy) {
+		mutex_lock(&dev_priv->cmdbuf_mutex);
+		(void) vmw_gb_context_destroy(res);
+		if (dev_priv->pinned_bo != NULL &&
+		    !dev_priv->query_cid_valid)
+			__vmw_execbuf_release_pinned_bo(dev_priv, NULL);
+		mutex_unlock(&dev_priv->cmdbuf_mutex);
+		return;
+	}
 
 	vmw_execbuf_release_pinned_bo(dev_priv);
 	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
@@ -92,6 +122,28 @@ static void vmw_hw_context_destroy(struct vmw_resource *res)
 	vmw_3d_resource_dec(dev_priv, false);
 }
 
+static int vmw_gb_context_init(struct vmw_private *dev_priv,
+			       struct vmw_resource *res,
+			       void (*res_free) (struct vmw_resource *res))
+{
+	int ret;
+
+	ret = vmw_resource_init(dev_priv, res, true,
+				res_free, &vmw_gb_context_func);
+	res->backup_size = SVGA3D_CONTEXT_DATA_SIZE;
+
+	if (unlikely(ret != 0)) {
+		if (res_free)
+			res_free(res);
+		else
+			kfree(res);
+		return ret;
+	}
+
+	vmw_resource_activate(res, vmw_hw_context_destroy);
+	return 0;
+}
+
 static int vmw_context_init(struct vmw_private *dev_priv,
 			    struct vmw_resource *res,
 			    void (*res_free) (struct vmw_resource *res))
@@ -102,6 +154,9 @@ static int vmw_context_init(struct vmw_private *dev_priv,
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineContext body;
 	} *cmd;
+
+	if (dev_priv->has_mob)
+		return vmw_gb_context_init(dev_priv, res, res_free);
 
 	ret = vmw_resource_init(dev_priv, res, false,
 				res_free, &vmw_legacy_context_func);
@@ -152,6 +207,173 @@ struct vmw_resource *vmw_context_alloc(struct vmw_private *dev_priv)
 	ret = vmw_context_init(dev_priv, res, NULL);
 
 	return (ret == 0) ? res : NULL;
+}
+
+
+static int vmw_gb_context_create(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	int ret;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDefineGBContext body;
+	} *cmd;
+
+	if (likely(res->id != -1))
+		return 0;
+
+	ret = vmw_resource_alloc_id(res);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Failed to allocate a context id.\n");
+		goto out_no_id;
+	}
+
+	if (unlikely(res->id >= VMWGFX_NUM_GB_CONTEXT)) {
+		ret = -EBUSY;
+		goto out_no_fifo;
+	}
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for context "
+			  "creation.\n");
+		ret = -ENOMEM;
+		goto out_no_fifo;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_DEFINE_GB_CONTEXT;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = res->id;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	(void) vmw_3d_resource_inc(dev_priv, false);
+
+	return 0;
+
+out_no_fifo:
+	vmw_resource_release_id(res);
+out_no_id:
+	return ret;
+}
+
+static int vmw_gb_context_bind(struct vmw_resource *res,
+			       struct ttm_validate_buffer *val_buf)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdBindGBContext body;
+	} *cmd;
+	struct ttm_buffer_object *bo = val_buf->bo;
+
+	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for context "
+			  "binding.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_BIND_GB_CONTEXT;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = res->id;
+	cmd->body.mobid = bo->mem.start;
+	cmd->body.validContents = res->backup_dirty;
+	res->backup_dirty = false;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+static int vmw_gb_context_unbind(struct vmw_resource *res,
+				 bool readback,
+				 struct ttm_validate_buffer *val_buf)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	struct ttm_buffer_object *bo = val_buf->bo;
+	struct vmw_fence_obj *fence;
+
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdReadbackGBContext body;
+	} *cmd1;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdBindGBContext body;
+	} *cmd2;
+	uint32_t submit_size;
+	uint8_t *cmd;
+
+
+	BUG_ON(bo->mem.mem_type != VMW_PL_MOB);
+
+	submit_size = sizeof(*cmd2) + (readback ? sizeof(*cmd1) : 0);
+
+	cmd = vmw_fifo_reserve(dev_priv, submit_size);
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for context "
+			  "unbinding.\n");
+		return -ENOMEM;
+	}
+
+	cmd2 = (void *) cmd;
+	if (readback) {
+		cmd1 = (void *) cmd;
+		cmd1->header.id = SVGA_3D_CMD_READBACK_GB_CONTEXT;
+		cmd1->header.size = sizeof(cmd1->body);
+		cmd1->body.cid = res->id;
+		cmd2 = (void *) (&cmd1[1]);
+	}
+	cmd2->header.id = SVGA_3D_CMD_BIND_GB_CONTEXT;
+	cmd2->header.size = sizeof(cmd2->body);
+	cmd2->body.cid = res->id;
+	cmd2->body.mobid = SVGA3D_INVALID_ID;
+
+	vmw_fifo_commit(dev_priv, submit_size);
+
+	/*
+	 * Create a fence object and fence the backup buffer.
+	 */
+
+	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
+					  &fence, NULL);
+
+	vmw_fence_single_bo(bo, fence);
+
+	if (likely(fence != NULL))
+		vmw_fence_obj_unreference(&fence);
+
+	return 0;
+}
+
+static int vmw_gb_context_destroy(struct vmw_resource *res)
+{
+	struct vmw_private *dev_priv = res->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDestroyGBContext body;
+	} *cmd;
+
+	if (likely(res->id == -1))
+		return 0;
+
+	cmd = vmw_fifo_reserve(dev_priv, sizeof(*cmd));
+	if (unlikely(cmd == NULL)) {
+		DRM_ERROR("Failed reserving FIFO space for context "
+			  "destruction.\n");
+		return -ENOMEM;
+	}
+
+	cmd->header.id = SVGA_3D_CMD_DESTROY_GB_CONTEXT;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.cid = res->id;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+	if (dev_priv->query_cid == res->id)
+		dev_priv->query_cid_valid = false;
+	vmw_resource_release_id(res);
+	vmw_3d_resource_dec(dev_priv, false);
+
+	return 0;
 }
 
 /**
