@@ -25,7 +25,10 @@
 #include <linux/mmc/host.h>
 #include <linux/fb.h>
 #include <linux/pwm_backlight.h>
+#include <linux/platform_data/i2c-s3c2410.h>
+#include <linux/platform_data/mipi-csis.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/platform_data/usb-ehci-s5p.h>
 #include <drm/exynos_drm.h>
 
 #include <video/platform_lcd.h>
@@ -45,14 +48,11 @@
 #include <plat/devs.h>
 #include <plat/fb.h>
 #include <plat/sdhci.h>
-#include <linux/platform_data/usb-ehci-s5p.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
-#include <linux/platform_data/i2c-s3c2410.h>
 #include <plat/mfc.h>
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
-#include <linux/platform_data/mipi-csis.h>
 
 #include <mach/map.h>
 
@@ -113,7 +113,6 @@ static struct s3c_sdhci_platdata nuri_hsmmc0_data __initdata = {
 	.host_caps		= (MMC_CAP_8_BIT_DATA | MMC_CAP_4_BIT_DATA |
 				MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 				MMC_CAP_ERASE),
-	.host_caps2		= MMC_CAP2_BROKEN_VOLTAGE,
 	.cd_type		= S3C_SDHCI_CD_PERMANENT,
 };
 
