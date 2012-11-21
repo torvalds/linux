@@ -1178,6 +1178,7 @@ static int max310x_probe(struct spi_device *spi)
 		s->gpio.set		= max310x_gpio_set;
 		s->gpio.base		= pdata->gpio_base;
 		s->gpio.ngpio		= s->nr_gpio;
+		s->gpio.can_sleep	= 1;
 		if (gpiochip_add(&s->gpio)) {
 			/* Indicate that we should not call gpiochip_remove */
 			s->gpio.base = 0;
