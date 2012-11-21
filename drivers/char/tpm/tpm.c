@@ -451,7 +451,7 @@ static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
 		return -EFAULT;
 
 	err = be32_to_cpu(cmd->header.out.return_code);
-	if (err != 0)
+	if (err != 0 && desc)
 		dev_err(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
 
 	return err;
@@ -511,6 +511,25 @@ void tpm_gen_interrupt(struct tpm_chip *chip)
 }
 EXPORT_SYMBOL_GPL(tpm_gen_interrupt);
 
+#define TPM_ORD_STARTUP cpu_to_be32(153)
+#define TPM_ST_CLEAR cpu_to_be16(1)
+#define TPM_ST_STATE cpu_to_be16(2)
+#define TPM_ST_DEACTIVATED cpu_to_be16(3)
+static const struct tpm_input_header tpm_startup_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(12),
+	.ordinal = TPM_ORD_STARTUP
+};
+
+static int tpm_startup(struct tpm_chip *chip, __be16 startup_type)
+{
+	struct tpm_cmd_t start_cmd;
+	start_cmd.header.in = tpm_startup_header;
+	start_cmd.params.startup_in.startup_type = startup_type;
+	return transmit_cmd(chip, &start_cmd, TPM_INTERNAL_RESULT_SIZE,
+			    "attempting to start the TPM");
+}
+
 int tpm_get_timeouts(struct tpm_chip *chip)
 {
 	struct tpm_cmd_t tpm_cmd;
@@ -524,11 +543,28 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
 	tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
 	tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_TIMEOUT;
+	rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE, NULL);
 
-	rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
-			"attempting to determine the timeouts");
-	if (rc)
+	if (rc == TPM_ERR_INVALID_POSTINIT) {
+		/* The TPM is not started, we are the first to talk to it.
+		   Execute a startup command. */
+		dev_info(chip->dev, "Issuing TPM_STARTUP");
+		if (tpm_startup(chip, TPM_ST_CLEAR))
+			return rc;
+
+		tpm_cmd.header.in = tpm_getcap_header;
+		tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
+		tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
+		tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_TIMEOUT;
+		rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
+				  NULL);
+	}
+	if (rc) {
+		dev_err(chip->dev,
+			"A TPM error (%zd) occurred attempting to determine the timeouts\n",
+			rc);
 		goto duration;
+	}
 
 	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
 	    be32_to_cpu(tpm_cmd.header.out.length)
