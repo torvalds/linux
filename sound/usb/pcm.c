@@ -446,7 +446,7 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 	int ret;
 
 	/* format changed */
-	stop_endpoints(subs, false);
+	stop_endpoints(subs, true);
 	ret = snd_usb_endpoint_set_params(subs->data_endpoint,
 					  subs->pcm_format,
 					  subs->channels,
@@ -1012,7 +1012,7 @@ static int snd_usb_pcm_close(struct snd_pcm_substream *substream, int direction)
 	struct snd_usb_stream *as = snd_pcm_substream_chip(substream);
 	struct snd_usb_substream *subs = &as->substream[direction];
 
-	stop_endpoints(subs, false);
+	stop_endpoints(subs, true);
 
 	if (!as->chip->shutdown && subs->interface >= 0) {
 		usb_set_interface(subs->dev, subs->interface, 0);
