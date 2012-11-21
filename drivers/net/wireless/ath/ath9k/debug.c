@@ -602,71 +602,6 @@ static ssize_t read_file_queues(struct file *file, char __user *user_buf,
 	return retval;
 }
 
-static ssize_t read_file_stations(struct file *file, char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct ath_softc *sc = file->private_data;
-	char *buf;
-	unsigned int len = 0, size = 64000;
-	struct ath_node *an = NULL;
-	ssize_t retval = 0;
-	int q;
-
-	buf = kzalloc(size, GFP_KERNEL);
-	if (buf == NULL)
-		return -ENOMEM;
-
-	len += snprintf(buf + len, size - len,
-			"Stations:\n"
-			" tid: addr sched paused buf_q-empty an ac baw\n"
-			" ac: addr sched tid_q-empty txq\n");
-
-	spin_lock(&sc->nodes_lock);
-	list_for_each_entry(an, &sc->nodes, list) {
-		unsigned short ma = an->maxampdu;
-		if (ma == 0)
-			ma = 65535; /* see ath_lookup_rate */
-		len += snprintf(buf + len, size - len,
-				"iface: %pM  sta: %pM max-ampdu: %hu mpdu-density: %uus\n",
-				an->vif->addr, an->sta->addr, ma,
-				(unsigned int)(an->mpdudensity));
-		if (len >= size)
-			goto done;
-
-		for (q = 0; q < WME_NUM_TID; q++) {
-			struct ath_atx_tid *tid = &(an->tid[q]);
-			len += snprintf(buf + len, size - len,
-					" tid: %p %s %s %i %p %p %hu\n",
-					tid, tid->sched ? "sched" : "idle",
-					tid->paused ? "paused" : "running",
-					skb_queue_empty(&tid->buf_q),
-					tid->an, tid->ac, tid->baw_size);
-			if (len >= size)
-				goto done;
-		}
-
-		for (q = 0; q < IEEE80211_NUM_ACS; q++) {
-			struct ath_atx_ac *ac = &(an->ac[q]);
-			len += snprintf(buf + len, size - len,
-					" ac: %p %s %i %p\n",
-					ac, ac->sched ? "sched" : "idle",
-					list_empty(&ac->tid_q), ac->txq);
-			if (len >= size)
-				goto done;
-		}
-	}
-
-done:
-	spin_unlock(&sc->nodes_lock);
-	if (len > size)
-		len = size;
-
-	retval = simple_read_from_buffer(user_buf, count, ppos, buf, len);
-	kfree(buf);
-
-	return retval;
-}
-
 static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
@@ -874,13 +809,6 @@ static const struct file_operations fops_xmit = {
 
 static const struct file_operations fops_queues = {
 	.read = read_file_queues,
-	.open = simple_open,
-	.owner = THIS_MODULE,
-	.llseek = default_llseek,
-};
-
-static const struct file_operations fops_stations = {
-	.read = read_file_stations,
 	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
@@ -1614,8 +1542,6 @@ int ath9k_init_debug(struct ath_hw *ah)
 			   &sc->tx.txq_max_pending[IEEE80211_AC_VI]);
 	debugfs_create_u32("qlen_vo", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			   &sc->tx.txq_max_pending[IEEE80211_AC_VO]);
-	debugfs_create_file("stations", S_IRUSR, sc->debug.debugfs_phy, sc,
-			    &fops_stations);
 	debugfs_create_file("misc", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_misc);
 	debugfs_create_file("reset", S_IRUSR, sc->debug.debugfs_phy, sc,
