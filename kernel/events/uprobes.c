@@ -844,9 +844,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	struct uprobe *uprobe;
 	int ret;
 
-	if (!inode || !uc || uc->next)
-		return -EINVAL;
-
+	/* Racy, just to catch the obvious mistakes */
 	if (offset > i_size_read(inode))
 		return -EINVAL;
 
@@ -882,9 +880,6 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {
 	struct uprobe *uprobe;
-
-	if (!inode || !uc)
-		return;
 
 	uprobe = find_uprobe(inode, offset);
 	if (!uprobe)
