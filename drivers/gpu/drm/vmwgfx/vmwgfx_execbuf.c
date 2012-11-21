@@ -1186,6 +1186,222 @@ static int vmw_cmd_check_define_gmrfb(struct vmw_private *dev_priv,
 }
 
 /**
+ * vmw_cmd_switch_backup - Utility function to handle backup buffer switching
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @res_type: The resource type.
+ * @converter: Information about user-space binding for this resource type.
+ * @res_id: Pointer to the user-space resource handle in the command stream.
+ * @buf_id: Pointer to the user-space backup buffer handle in the command
+ * stream.
+ * @backup_offset: Offset of backup into MOB.
+ *
+ * This function prepares for registering a switch of backup buffers
+ * in the resource metadata just prior to unreserving.
+ */
+static int vmw_cmd_switch_backup(struct vmw_private *dev_priv,
+				 struct vmw_sw_context *sw_context,
+				 enum vmw_res_type res_type,
+				 const struct vmw_user_resource_conv
+				 *converter,
+				 uint32_t *res_id,
+				 uint32_t *buf_id,
+				 unsigned long backup_offset)
+{
+	int ret;
+	struct vmw_dma_buffer *dma_buf;
+	struct vmw_resource_val_node *val_node;
+
+	ret = vmw_cmd_res_check(dev_priv, sw_context, res_type,
+				converter, res_id, &val_node);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_translate_mob_ptr(dev_priv, sw_context, buf_id, &dma_buf);
+	if (unlikely(ret != 0))
+		return ret;
+
+	if (val_node->first_usage)
+		val_node->no_buffer_needed = true;
+
+	vmw_dmabuf_unreference(&val_node->new_backup);
+	val_node->new_backup = dma_buf;
+	val_node->new_backup_offset = backup_offset;
+
+	return 0;
+}
+
+/**
+ * vmw_cmd_bind_gb_surface - Validate an SVGA_3D_CMD_BIND_GB_SURFACE
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_bind_gb_surface(struct vmw_private *dev_priv,
+				   struct vmw_sw_context *sw_context,
+				   SVGA3dCmdHeader *header)
+{
+	struct vmw_bind_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdBindGBSurface body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_bind_gb_surface_cmd, header);
+
+	return vmw_cmd_switch_backup(dev_priv, sw_context, vmw_res_surface,
+				     user_surface_converter,
+				     &cmd->body.sid, &cmd->body.mobid,
+				     0);
+}
+
+/**
+ * vmw_cmd_update_gb_image - Validate an SVGA_3D_CMD_UPDATE_GB_IMAGE
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_update_gb_image(struct vmw_private *dev_priv,
+				   struct vmw_sw_context *sw_context,
+				   SVGA3dCmdHeader *header)
+{
+	struct vmw_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdUpdateGBImage body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.image.sid, NULL);
+}
+
+/**
+ * vmw_cmd_update_gb_surface - Validate an SVGA_3D_CMD_UPDATE_GB_SURFACE
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_update_gb_surface(struct vmw_private *dev_priv,
+				     struct vmw_sw_context *sw_context,
+				     SVGA3dCmdHeader *header)
+{
+	struct vmw_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdUpdateGBSurface body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.sid, NULL);
+}
+
+/**
+ * vmw_cmd_readback_gb_image - Validate an SVGA_3D_CMD_READBACK_GB_IMAGE
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_readback_gb_image(struct vmw_private *dev_priv,
+				     struct vmw_sw_context *sw_context,
+				     SVGA3dCmdHeader *header)
+{
+	struct vmw_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdReadbackGBImage body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.image.sid, NULL);
+}
+
+/**
+ * vmw_cmd_readback_gb_surface - Validate an SVGA_3D_CMD_READBACK_GB_SURFACE
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_readback_gb_surface(struct vmw_private *dev_priv,
+				       struct vmw_sw_context *sw_context,
+				       SVGA3dCmdHeader *header)
+{
+	struct vmw_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdReadbackGBSurface body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.sid, NULL);
+}
+
+/**
+ * vmw_cmd_invalidate_gb_image - Validate an SVGA_3D_CMD_INVALIDATE_GB_IMAGE
+ * command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_invalidate_gb_image(struct vmw_private *dev_priv,
+				       struct vmw_sw_context *sw_context,
+				       SVGA3dCmdHeader *header)
+{
+	struct vmw_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdInvalidateGBImage body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.image.sid, NULL);
+}
+
+/**
+ * vmw_cmd_invalidate_gb_surface - Validate an
+ * SVGA_3D_CMD_INVALIDATE_GB_SURFACE command
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context being used for this batch.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_invalidate_gb_surface(struct vmw_private *dev_priv,
+					 struct vmw_sw_context *sw_context,
+					 SVGA3dCmdHeader *header)
+{
+	struct vmw_gb_surface_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdInvalidateGBSurface body;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_gb_surface_cmd, header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
+				 user_surface_converter,
+				 &cmd->body.sid, NULL);
+}
+
+/**
  * vmw_cmd_set_shader - Validate an SVGA_3D_CMD_SET_SHADER
  * command
  *
@@ -1300,6 +1516,21 @@ static vmw_cmd_func vmw_cmd_funcs[SVGA_3D_CMD_MAX] = {
 	VMW_CMD_DEF(SVGA_3D_CMD_GENERATE_MIPMAPS, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_ACTIVATE_SURFACE, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_DEACTIVATE_SURFACE, &vmw_cmd_invalid),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SURFACE, &vmw_cmd_invalid),
+	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SURFACE, &vmw_cmd_invalid),
+	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SURFACE, &vmw_cmd_bind_gb_surface),
+	VMW_CMD_DEF(SVGA_3D_CMD_COND_BIND_GB_SURFACE, &vmw_cmd_invalid),
+	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_IMAGE, &vmw_cmd_update_gb_image),
+	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_SURFACE,
+		    &vmw_cmd_update_gb_surface),
+	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_IMAGE,
+		    &vmw_cmd_readback_gb_image),
+	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_SURFACE,
+		    &vmw_cmd_readback_gb_surface),
+	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_IMAGE,
+		    &vmw_cmd_invalidate_gb_image),
+	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_SURFACE,
+		    &vmw_cmd_invalidate_gb_surface),
 	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_CONTEXT, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_CONTEXT, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_CONTEXT, &vmw_cmd_invalid),

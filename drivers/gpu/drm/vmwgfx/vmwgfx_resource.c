@@ -593,7 +593,8 @@ int vmw_user_dmabuf_lookup(struct ttm_object_file *tfile,
 }
 
 int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
-			      struct vmw_dma_buffer *dma_buf)
+			      struct vmw_dma_buffer *dma_buf,
+			      uint32_t *handle)
 {
 	struct vmw_user_dma_buffer *user_bo;
 
@@ -601,6 +602,8 @@ int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
 		return -EINVAL;
 
 	user_bo = container_of(dma_buf, struct vmw_user_dma_buffer, dma);
+
+	*handle = user_bo->prime.base.hash.key;
 	return ttm_ref_object_add(tfile, &user_bo->prime.base,
 				  TTM_REF_USAGE, NULL);
 }

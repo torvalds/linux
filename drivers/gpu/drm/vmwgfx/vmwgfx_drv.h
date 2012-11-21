@@ -528,6 +528,10 @@ extern int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv);
 extern int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 				       struct drm_file *file_priv);
+extern int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *file_priv);
+extern int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
+					  struct drm_file *file_priv);
 extern int vmw_surface_check(struct vmw_private *dev_priv,
 			     struct ttm_object_file *tfile,
 			     uint32_t handle, int *id);
@@ -541,6 +545,15 @@ extern int vmw_dmabuf_init(struct vmw_private *dev_priv,
 			   void (*bo_free) (struct ttm_buffer_object *bo));
 extern int vmw_user_dmabuf_verify_access(struct ttm_buffer_object *bo,
 				  struct ttm_object_file *tfile);
+extern int vmw_user_dmabuf_alloc(struct vmw_private *dev_priv,
+				 struct ttm_object_file *tfile,
+				 uint32_t size,
+				 bool shareable,
+				 uint32_t *handle,
+				 struct vmw_dma_buffer **p_dma_buf);
+extern int vmw_user_dmabuf_reference(struct ttm_object_file *tfile,
+				     struct vmw_dma_buffer *dma_buf,
+				     uint32_t *handle);
 extern int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,
