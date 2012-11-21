@@ -87,6 +87,8 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70004000 0x4000>;
 					interrupts = <1>;
+					clocks = <&clks 44>, <&clks 0>, <&clks 71>;
+					clock-names = "ipg", "ahb", "per";
 					status = "disabled";
 				};
 
@@ -94,6 +96,8 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70008000 0x4000>;
 					interrupts = <2>;
+					clocks = <&clks 45>, <&clks 0>, <&clks 72>;
+					clock-names = "ipg", "ahb", "per";
 					status = "disabled";
 				};
 
@@ -101,6 +105,8 @@
 					compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 					reg = <0x7000c000 0x4000>;
 					interrupts = <33>;
+					clocks = <&clks 32>, <&clks 33>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -110,6 +116,8 @@
 					compatible = "fsl,imx51-ecspi";
 					reg = <0x70010000 0x4000>;
 					interrupts = <36>;
+					clocks = <&clks 51>, <&clks 52>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -117,6 +125,7 @@
 					compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 					reg = <0x70014000 0x4000>;
 					interrupts = <30>;
+					clocks = <&clks 49>;
 					fsl,fifo-depth = <15>;
 					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
@@ -126,6 +135,8 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70020000 0x4000>;
 					interrupts = <3>;
+					clocks = <&clks 46>, <&clks 0>, <&clks 73>;
+					clock-names = "ipg", "ahb", "per";
 					status = "disabled";
 				};
 
@@ -133,6 +144,8 @@
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70024000 0x4000>;
 					interrupts = <4>;
+					clocks = <&clks 47>, <&clks 0>, <&clks 74>;
+					clock-names = "ipg", "ahb", "per";
 					status = "disabled";
 				};
 			};
@@ -209,12 +222,14 @@
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f98000 0x4000>;
 				interrupts = <58>;
+				clocks = <&clks 0>;
 			};
 
 			wdog@73f9c000 { /* WDOG2 */
 				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
 				reg = <0x73f9c000 0x4000>;
 				interrupts = <59>;
+				clocks = <&clks 0>;
 				status = "disabled";
 			};
 
@@ -398,6 +413,8 @@
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fbc000 0x4000>;
 				interrupts = <31>;
+				clocks = <&clks 28>, <&clks 29>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -405,7 +422,16 @@
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fc0000 0x4000>;
 				interrupts = <32>;
+				clocks = <&clks 30>, <&clks 31>;
+				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			clks: ccm@73fd4000{
+				compatible = "fsl,imx51-ccm";
+				reg = <0x73fd4000 0x4000>;
+				interrupts = <0 71 0x04 0 72 0x04>;
+				#clock-cells = <1>;
 			};
 		};
 
@@ -422,6 +448,8 @@
 				compatible = "fsl,imx51-ecspi";
 				reg = <0x83fac000 0x4000>;
 				interrupts = <37>;
+				clocks = <&clks 53>, <&clks 54>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -429,6 +457,8 @@
 				compatible = "fsl,imx51-sdma", "fsl,imx35-sdma";
 				reg = <0x83fb0000 0x4000>;
 				interrupts = <6>;
+				clocks = <&clks 56>, <&clks 56>;
+				clock-names = "ipg", "ahb";
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
 			};
 
@@ -438,6 +468,8 @@
 				compatible = "fsl,imx51-cspi", "fsl,imx35-cspi";
 				reg = <0x83fc0000 0x4000>;
 				interrupts = <38>;
+				clocks = <&clks 55>, <&clks 0>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -447,6 +479,7 @@
 				compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 				reg = <0x83fc4000 0x4000>;
 				interrupts = <63>;
+				clocks = <&clks 35>;
 				status = "disabled";
 			};
 
@@ -456,6 +489,7 @@
 				compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 				reg = <0x83fc8000 0x4000>;
 				interrupts = <62>;
+				clocks = <&clks 34>;
 				status = "disabled";
 			};
 
@@ -463,6 +497,7 @@
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fcc000 0x4000>;
 				interrupts = <29>;
+				clocks = <&clks 48>;
 				fsl,fifo-depth = <15>;
 				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
@@ -478,6 +513,7 @@
 				compatible = "fsl,imx51-nand";
 				reg = <0x83fdb000 0x1000 0xcfff0000 0x10000>;
 				interrupts = <8>;
+				clocks = <&clks 60>;
 				status = "disabled";
 			};
 
@@ -485,6 +521,7 @@
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fe8000 0x4000>;
 				interrupts = <96>;
+				clocks = <&clks 50>;
 				fsl,fifo-depth = <15>;
 				fsl,ssi-dma-events = <47 46 37 35>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
@@ -494,6 +531,8 @@
 				compatible = "fsl,imx51-fec", "fsl,imx27-fec";
 				reg = <0x83fec000 0x4000>;
 				interrupts = <87>;
+				clocks = <&clks 42>, <&clks 42>, <&clks 42>;
+				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
 		};
