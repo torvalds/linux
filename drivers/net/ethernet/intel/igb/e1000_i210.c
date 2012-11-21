@@ -35,11 +35,42 @@
 #include "e1000_hw.h"
 #include "e1000_i210.h"
 
-static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw);
-static void igb_put_hw_semaphore_i210(struct e1000_hw *hw);
-static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
-				u16 *data);
-static s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw);
+/**
+ * igb_get_hw_semaphore_i210 - Acquire hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Acquire the HW semaphore to access the PHY or NVM
+ */
+static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
+{
+	u32 swsm;
+	s32 ret_val = E1000_SUCCESS;
+	s32 timeout = hw->nvm.word_size + 1;
+	s32 i = 0;
+
+	/* Get the FW semaphore. */
+	for (i = 0; i < timeout; i++) {
+		swsm = rd32(E1000_SWSM);
+		wr32(E1000_SWSM, swsm | E1000_SWSM_SWESMBI);
+
+		/* Semaphore acquired if bit latched */
+		if (rd32(E1000_SWSM) & E1000_SWSM_SWESMBI)
+			break;
+
+		udelay(50);
+	}
+
+	if (i == timeout) {
+		/* Release semaphores */
+		igb_put_hw_semaphore(hw);
+		hw_dbg("Driver can't access the NVM\n");
+		ret_val = -E1000_ERR_NVM;
+		goto out;
+	}
+
+out:
+	return ret_val;
+}
 
 /**
  *  igb_acquire_nvm_i210 - Request for access to EEPROM
@@ -65,6 +96,23 @@ s32 igb_acquire_nvm_i210(struct e1000_hw *hw)
 void igb_release_nvm_i210(struct e1000_hw *hw)
 {
 	igb_release_swfw_sync_i210(hw, E1000_SWFW_EEP_SM);
+}
+
+/**
+ *  igb_put_hw_semaphore_i210 - Release hardware semaphore
+ *  @hw: pointer to the HW structure
+ *
+ *  Release hardware semaphore used to access the PHY or NVM
+ */
+static void igb_put_hw_semaphore_i210(struct e1000_hw *hw)
+{
+	u32 swsm;
+
+	swsm = rd32(E1000_SWSM);
+
+	swsm &= ~E1000_SWSM_SWESMBI;
+
+	wr32(E1000_SWSM, swsm);
 }
 
 /**
@@ -138,60 +186,6 @@ void igb_release_swfw_sync_i210(struct e1000_hw *hw, u16 mask)
 }
 
 /**
- *  igb_get_hw_semaphore_i210 - Acquire hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Acquire the HW semaphore to access the PHY or NVM
- **/
-static s32 igb_get_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-	s32 ret_val = E1000_SUCCESS;
-	s32 timeout = hw->nvm.word_size + 1;
-	s32 i = 0;
-
-	/* Get the FW semaphore. */
-	for (i = 0; i < timeout; i++) {
-		swsm = rd32(E1000_SWSM);
-		wr32(E1000_SWSM, swsm | E1000_SWSM_SWESMBI);
-
-		/* Semaphore acquired if bit latched */
-		if (rd32(E1000_SWSM) & E1000_SWSM_SWESMBI)
-			break;
-
-		udelay(50);
-	}
-
-	if (i == timeout) {
-		/* Release semaphores */
-		igb_put_hw_semaphore(hw);
-		hw_dbg("Driver can't access the NVM\n");
-		ret_val = -E1000_ERR_NVM;
-		goto out;
-	}
-
-out:
-	return ret_val;
-}
-
-/**
- *  igb_put_hw_semaphore_i210 - Release hardware semaphore
- *  @hw: pointer to the HW structure
- *
- *  Release hardware semaphore used to access the PHY or NVM
- **/
-static void igb_put_hw_semaphore_i210(struct e1000_hw *hw)
-{
-	u32 swsm;
-
-	swsm = rd32(E1000_SWSM);
-
-	swsm &= ~E1000_SWSM_SWESMBI;
-
-	wr32(E1000_SWSM, swsm);
-}
-
-/**
  *  igb_read_nvm_srrd_i210 - Reads Shadow Ram using EERD register
  *  @hw: pointer to the HW structure
  *  @offset: offset of word in the Shadow Ram to read
@@ -216,49 +210,6 @@ s32 igb_read_nvm_srrd_i210(struct e1000_hw *hw, u16 offset, u16 words,
 		if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
 			status = igb_read_nvm_eerd(hw, offset, count,
 						     data + i);
-			hw->nvm.ops.release(hw);
-		} else {
-			status = E1000_ERR_SWFW_SYNC;
-		}
-
-		if (status != E1000_SUCCESS)
-			break;
-	}
-
-	return status;
-}
-
-/**
- *  igb_write_nvm_srwr_i210 - Write to Shadow RAM using EEWR
- *  @hw: pointer to the HW structure
- *  @offset: offset within the Shadow RAM to be written to
- *  @words: number of words to write
- *  @data: 16 bit word(s) to be written to the Shadow RAM
- *
- *  Writes data to Shadow RAM at offset using EEWR register.
- *
- *  If e1000_update_nvm_checksum is not called after this function , the
- *  data will not be committed to FLASH and also Shadow RAM will most likely
- *  contain an invalid checksum.
- *
- *  If error code is returned, data and Shadow RAM may be inconsistent - buffer
- *  partially written.
- **/
-s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
-			      u16 *data)
-{
-	s32 status = E1000_SUCCESS;
-	u16 i, count;
-
-	/* We cannot hold synchronization semaphores for too long,
-	 * because of forceful takeover procedure. However it is more efficient
-	 * to write in bursts than synchronizing access for each word. */
-	for (i = 0; i < words; i += E1000_EERD_EEWR_MAX_COUNT) {
-		count = (words - i) / E1000_EERD_EEWR_MAX_COUNT > 0 ?
-			E1000_EERD_EEWR_MAX_COUNT : (words - i);
-		if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
-			status = igb_write_nvm_srwr(hw, offset, count,
-						      data + i);
 			hw->nvm.ops.release(hw);
 		} else {
 			status = E1000_ERR_SWFW_SYNC;
@@ -326,6 +277,50 @@ static s32 igb_write_nvm_srwr(struct e1000_hw *hw, u16 offset, u16 words,
 
 out:
 	return ret_val;
+}
+
+/**
+ *  igb_write_nvm_srwr_i210 - Write to Shadow RAM using EEWR
+ *  @hw: pointer to the HW structure
+ *  @offset: offset within the Shadow RAM to be written to
+ *  @words: number of words to write
+ *  @data: 16 bit word(s) to be written to the Shadow RAM
+ *
+ *  Writes data to Shadow RAM at offset using EEWR register.
+ *
+ *  If e1000_update_nvm_checksum is not called after this function , the
+ *  data will not be committed to FLASH and also Shadow RAM will most likely
+ *  contain an invalid checksum.
+ *
+ *  If error code is returned, data and Shadow RAM may be inconsistent - buffer
+ *  partially written.
+ */
+s32 igb_write_nvm_srwr_i210(struct e1000_hw *hw, u16 offset, u16 words,
+			      u16 *data)
+{
+	s32 status = E1000_SUCCESS;
+	u16 i, count;
+
+	/* We cannot hold synchronization semaphores for too long,
+	 * because of forceful takeover procedure. However it is more efficient
+	 * to write in bursts than synchronizing access for each word.
+	 */
+	for (i = 0; i < words; i += E1000_EERD_EEWR_MAX_COUNT) {
+		count = (words - i) / E1000_EERD_EEWR_MAX_COUNT > 0 ?
+			E1000_EERD_EEWR_MAX_COUNT : (words - i);
+		if (hw->nvm.ops.acquire(hw) == E1000_SUCCESS) {
+			status = igb_write_nvm_srwr(hw, offset, count,
+						      data + i);
+			hw->nvm.ops.release(hw);
+		} else {
+			status = E1000_ERR_SWFW_SYNC;
+		}
+
+		if (status != E1000_SUCCESS)
+			break;
+	}
+
+	return status;
 }
 
 /**
@@ -637,6 +632,28 @@ out:
 }
 
 /**
+ *  igb_pool_flash_update_done_i210 - Pool FLUDONE status.
+ *  @hw: pointer to the HW structure
+ *
+ */
+static s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw)
+{
+	s32 ret_val = -E1000_ERR_NVM;
+	u32 i, reg;
+
+	for (i = 0; i < E1000_FLUDONE_ATTEMPTS; i++) {
+		reg = rd32(E1000_EECD);
+		if (reg & E1000_EECD_FLUDONE_I210) {
+			ret_val = E1000_SUCCESS;
+			break;
+		}
+		udelay(5);
+	}
+
+	return ret_val;
+}
+
+/**
  *  igb_update_flash_i210 - Commit EEPROM to the flash
  *  @hw: pointer to the HW structure
  *
@@ -662,28 +679,6 @@ s32 igb_update_flash_i210(struct e1000_hw *hw)
 		hw_dbg("Flash update time out\n");
 
 out:
-	return ret_val;
-}
-
-/**
- *  igb_pool_flash_update_done_i210 - Pool FLUDONE status.
- *  @hw: pointer to the HW structure
- *
- **/
-s32 igb_pool_flash_update_done_i210(struct e1000_hw *hw)
-{
-	s32 ret_val = -E1000_ERR_NVM;
-	u32 i, reg;
-
-	for (i = 0; i < E1000_FLUDONE_ATTEMPTS; i++) {
-		reg = rd32(E1000_EECD);
-		if (reg & E1000_EECD_FLUDONE_I210) {
-			ret_val = E1000_SUCCESS;
-			break;
-		}
-		udelay(5);
-	}
-
 	return ret_val;
 }
 
