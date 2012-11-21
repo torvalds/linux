@@ -79,6 +79,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 					SVGA_FIFO_3D_CAPS + 1);
 		param->value *= sizeof(uint32_t);
 		break;
+	case DRM_VMW_PARAM_MAX_MOB_MEMORY:
+		param->value = dev_priv->max_mob_pages * PAGE_SIZE;
+		break;
 	default:
 		DRM_ERROR("Illegal vmwgfx get param request: %d\n",
 			  param->param);
