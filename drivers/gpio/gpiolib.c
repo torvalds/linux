@@ -1201,6 +1201,7 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 			   unsigned int npins)
 {
 	struct gpio_pin_range *pin_range;
+	int ret;
 
 	pin_range = kzalloc(sizeof(*pin_range), GFP_KERNEL);
 	if (!pin_range) {
@@ -1219,10 +1220,11 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 	pin_range->pctldev = pinctrl_find_and_add_gpio_range(pinctl_name,
 			&pin_range->range);
 	if (IS_ERR(pin_range->pctldev)) {
+		ret = PTR_ERR(pin_range->pctldev);
 		pr_err("%s: GPIO chip: could not create pin range\n",
 		       chip->label);
 		kfree(pin_range);
-		return PTR_ERR(pin_range->pctldev);
+		return ret;
 	}
 	pr_debug("GPIO chip %s: created GPIO range %d->%d ==> %s PIN %d->%d\n",
 		 chip->label, gpio_offset, gpio_offset + npins - 1,
