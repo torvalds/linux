@@ -2114,15 +2114,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			continue;
 		}
 
-		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
-			section = "check lease";
-			status = nfs4_check_lease(clp);
-			if (status < 0)
-				goto out_error;
-			if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
-				continue;
-		}
-
 		/* Initialize or reset the session */
 		if (test_and_clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state)) {
 			section = "reset session";
@@ -2138,6 +2129,14 @@ static void nfs4_state_manager(struct nfs_client *clp)
 				&clp->cl_state)) {
 			section = "bind conn to session";
 			status = nfs4_bind_conn_to_session(clp);
+			if (status < 0)
+				goto out_error;
+			continue;
+		}
+
+		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
+			section = "check lease";
+			status = nfs4_check_lease(clp);
 			if (status < 0)
 				goto out_error;
 			continue;
