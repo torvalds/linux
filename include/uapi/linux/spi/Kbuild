@@ -1,1 +1,2 @@
 # UAPI Header export list
+header-y += spidev.h

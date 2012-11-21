@@ -741,6 +741,7 @@ struct ath_hw {
 	u32 rfkill_polarity;
 	u32 ah_flags;
 
+	bool reset_power_on;
 	bool htc_reset_init;
 
 	enum nl80211_iftype opmode;

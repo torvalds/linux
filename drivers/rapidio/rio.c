@@ -1275,49 +1275,68 @@ static void __devinit disc_work_handler(struct work_struct *_work)
 	pr_debug("RIO: discovery work for mport %d %s\n",
 		 work->mport->id, work->mport->name);
 	rio_disc_mport(work->mport);
-
-	kfree(work);
 }
 
 int __devinit rio_init_mports(void)
 {
 	struct rio_mport *port;
 	struct rio_disc_work *work;
-	int no_disc = 0;
+	int n = 0;
 
+	if (!next_portid)
+		return -ENODEV;
+
+	/*
+	 * First, run enumerations and check if we need to perform discovery
+	 * on any of the registered mports.
+	 */
 	list_for_each_entry(port, &rio_mports, node) {
 		if (port->host_deviceid >= 0)
 			rio_enum_mport(port);
-		else if (!no_disc) {
-			if (!rio_wq) {
-				rio_wq = alloc_workqueue("riodisc", 0, 0);
-				if (!rio_wq) {
-					pr_err("RIO: unable allocate rio_wq\n");
-					no_disc = 1;
-					continue;
-				}
-			}
+		else
+			n++;
+	}
 
-			work = kzalloc(sizeof *work, GFP_KERNEL);
-			if (!work) {
-				pr_err("RIO: no memory for work struct\n");
-				no_disc = 1;
-				continue;
-			}
+	if (!n)
+		goto no_disc;
 
-			work->mport = port;
-			INIT_WORK(&work->work, disc_work_handler);
-			queue_work(rio_wq, &work->work);
+	/*
+	 * If we have mports that require discovery schedule a discovery work
+	 * for each of them. If the code below fails to allocate needed
+	 * resources, exit without error to keep results of enumeration
+	 * process (if any).
+	 * TODO: Implement restart of dicovery process for all or
+	 * individual discovering mports.
+	 */
+	rio_wq = alloc_workqueue("riodisc", 0, 0);
+	if (!rio_wq) {
+		pr_err("RIO: unable allocate rio_wq\n");
+		goto no_disc;
+	}
+
+	work = kcalloc(n, sizeof *work, GFP_KERNEL);
+	if (!work) {
+		pr_err("RIO: no memory for work struct\n");
+		destroy_workqueue(rio_wq);
+		goto no_disc;
+	}
+
+	n = 0;
+	list_for_each_entry(port, &rio_mports, node) {
+		if (port->host_deviceid < 0) {
+			work[n].mport = port;
+			INIT_WORK(&work[n].work, disc_work_handler);
+			queue_work(rio_wq, &work[n].work);
+			n++;
 		}
 	}
 
-	if (rio_wq) {
-		pr_debug("RIO: flush discovery workqueue\n");
-		flush_workqueue(rio_wq);
-		pr_debug("RIO: flush discovery workqueue finished\n");
-		destroy_workqueue(rio_wq);
-	}
+	flush_workqueue(rio_wq);
+	pr_debug("RIO: destroy discovery workqueue\n");
+	destroy_workqueue(rio_wq);
+	kfree(work);
 
+no_disc:
 	rio_init();
 
 	return 0;

@@ -37,7 +37,7 @@
 /* Multi-queue arrangement for FCP EQ/CQ/WQ tuples */
 #define LPFC_FCP_IO_CHAN_DEF       4
 #define LPFC_FCP_IO_CHAN_MIN       1
-#define LPFC_FCP_IO_CHAN_MAX       8
+#define LPFC_FCP_IO_CHAN_MAX       16
 
 /*
  * Provide the default FCF Record attributes used by the driver
@@ -168,7 +168,7 @@ struct lpfc_queue {
 };
 
 struct lpfc_sli4_link {
-	uint8_t speed;
+	uint16_t speed;
 	uint8_t duplex;
 	uint8_t status;
 	uint8_t type;
@@ -490,8 +490,6 @@ struct lpfc_sli4_hba {
 	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
 	uint8_t handler_name[LPFC_FCP_IO_CHAN_MAX][LPFC_SLI4_HANDLER_NAME_SZ];
-	uint32_t cfg_eqn;
-	uint32_t msix_vec_nr;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
 
 	/* Pointers to the constructed SLI4 queues */
@@ -626,7 +624,7 @@ void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
 			uint32_t);
 void lpfc_sli4_queue_free(struct lpfc_queue *);
-uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint16_t);
+uint32_t lpfc_eq_create(struct lpfc_hba *, struct lpfc_queue *, uint32_t);
 uint32_t lpfc_modify_fcp_eq_delay(struct lpfc_hba *, uint16_t);
 uint32_t lpfc_cq_create(struct lpfc_hba *, struct lpfc_queue *,
 			struct lpfc_queue *, uint32_t, uint32_t);

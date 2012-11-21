@@ -14,6 +14,7 @@ config M32R
 	select GENERIC_IRQ_SHOW
 	select GENERIC_ATOMIC64
 	select ARCH_USES_GETTIMEOFFSET
+	select MODULES_USE_ELF_RELA
 
 config SBUS
 	bool

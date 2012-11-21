@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
 #include <linux/slab.h>
+#include <linux/platform_data/leds-pca9633.h>
 
 /* LED select registers determine the source that drives LED outputs */
 #define PCA9633_LED_OFF		0x0	/* LED driver off */
@@ -96,13 +97,13 @@ static int __devinit pca9633_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct pca9633_led *pca9633;
-	struct led_platform_data *pdata;
+	struct pca9633_platform_data *pdata;
 	int i, err;
 
 	pdata = client->dev.platform_data;
 
 	if (pdata) {
-		if (pdata->num_leds <= 0 || pdata->num_leds > 4) {
+		if (pdata->leds.num_leds <= 0 || pdata->leds.num_leds > 4) {
 			dev_err(&client->dev, "board info must claim at most 4 LEDs");
 			return -EINVAL;
 		}
@@ -119,14 +120,14 @@ static int __devinit pca9633_probe(struct i2c_client *client,
 		pca9633[i].led_num = i;
 
 		/* Platform data can specify LED names and default triggers */
-		if (pdata && i < pdata->num_leds) {
-			if (pdata->leds[i].name)
+		if (pdata && i < pdata->leds.num_leds) {
+			if (pdata->leds.leds[i].name)
 				snprintf(pca9633[i].name,
 					 sizeof(pca9633[i].name), "pca9633:%s",
-					 pdata->leds[i].name);
-			if (pdata->leds[i].default_trigger)
+					 pdata->leds.leds[i].name);
+			if (pdata->leds.leds[i].default_trigger)
 				pca9633[i].led_cdev.default_trigger =
-					pdata->leds[i].default_trigger;
+					pdata->leds.leds[i].default_trigger;
 		} else {
 			snprintf(pca9633[i].name, sizeof(pca9633[i].name),
 				 "pca9633:%d", i);
@@ -144,6 +145,10 @@ static int __devinit pca9633_probe(struct i2c_client *client,
 
 	/* Disable LED all-call address and set normal mode */
 	i2c_smbus_write_byte_data(client, PCA9633_MODE1, 0x00);
+
+	/* Configure output: open-drain or totem pole (push-pull) */
+	if (pdata && pdata->outdrv == PCA9633_OPEN_DRAIN)
+		i2c_smbus_write_byte_data(client, PCA9633_MODE2, 0x01);
 
 	/* Turn off LEDs */
 	i2c_smbus_write_byte_data(client, PCA9633_LEDOUT, 0x00);

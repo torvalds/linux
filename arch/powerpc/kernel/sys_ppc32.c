@@ -156,28 +156,6 @@ asmlinkage long compat_sys_sendfile64_wrapper(u32 out_fd, u32 in_fd,
 			    (off_t __user *)offset, count);
 }
 
-long compat_sys_execve(unsigned long a0, unsigned long a1, unsigned long a2,
-		  unsigned long a3, unsigned long a4, unsigned long a5,
-		  struct pt_regs *regs)
-{
-	int error;
-	char * filename;
-	
-	filename = getname((char __user *) a0);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-	flush_fp_to_thread(current);
-	flush_altivec_to_thread(current);
-
-	error = compat_do_execve(filename, compat_ptr(a1), compat_ptr(a2), regs);
-
-	putname(filename);
-
-out:
-	return error;
-}
-
 /* Note: it is necessary to treat option as an unsigned int, 
  * with the corresponding cast to a signed int to insure that the 
  * proper conversion (sign extension) between the register representation of a signed int (msr in 32-bit mode)

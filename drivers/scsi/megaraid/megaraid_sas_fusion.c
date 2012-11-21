@@ -1,7 +1,7 @@
 /*
  *  Linux MegaRAID driver for SAS based RAID controllers
  *
- *  Copyright (c) 2009-2011  LSI Corporation.
+ *  Copyright (c) 2009-2012  LSI Corporation.
  *
  *  This program is free software; you can redistribute it and/or
  *  modify it under the terms of the GNU General Public License
@@ -1184,8 +1184,6 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 		io_request->CDB.EEDP32.PrimaryReferenceTag =
 			cpu_to_be32(ref_tag);
 		io_request->CDB.EEDP32.PrimaryApplicationTagMask = 0xffff;
-
-		io_request->DataLength = num_blocks * 512;
 		io_request->IoFlags = 32; /* Specify 32-byte cdb */
 
 		/* Transfer length */
@@ -1329,7 +1327,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 			  struct megasas_cmd_fusion *cmd)
 {
 	u8 fp_possible;
-	u32 start_lba_lo, start_lba_hi, device_id;
+	u32 start_lba_lo, start_lba_hi, device_id, datalength = 0;
 	struct MPI2_RAID_SCSI_IO_REQUEST *io_request;
 	union MEGASAS_REQUEST_DESCRIPTOR_UNION *req_desc;
 	struct IO_REQUEST_INFO io_info;
@@ -1355,7 +1353,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	 * 6-byte READ(0x08) or WRITE(0x0A) cdb
 	 */
 	if (scp->cmd_len == 6) {
-		io_request->DataLength = (u32) scp->cmnd[4];
+		datalength = (u32) scp->cmnd[4];
 		start_lba_lo = ((u32) scp->cmnd[1] << 16) |
 			((u32) scp->cmnd[2] << 8) | (u32) scp->cmnd[3];
 
@@ -1366,7 +1364,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	 * 10-byte READ(0x28) or WRITE(0x2A) cdb
 	 */
 	else if (scp->cmd_len == 10) {
-		io_request->DataLength = (u32) scp->cmnd[8] |
+		datalength = (u32) scp->cmnd[8] |
 			((u32) scp->cmnd[7] << 8);
 		start_lba_lo = ((u32) scp->cmnd[2] << 24) |
 			((u32) scp->cmnd[3] << 16) |
@@ -1377,7 +1375,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	 * 12-byte READ(0xA8) or WRITE(0xAA) cdb
 	 */
 	else if (scp->cmd_len == 12) {
-		io_request->DataLength = ((u32) scp->cmnd[6] << 24) |
+		datalength = ((u32) scp->cmnd[6] << 24) |
 			((u32) scp->cmnd[7] << 16) |
 			((u32) scp->cmnd[8] << 8) | (u32) scp->cmnd[9];
 		start_lba_lo = ((u32) scp->cmnd[2] << 24) |
@@ -1389,7 +1387,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	 * 16-byte READ(0x88) or WRITE(0x8A) cdb
 	 */
 	else if (scp->cmd_len == 16) {
-		io_request->DataLength = ((u32) scp->cmnd[10] << 24) |
+		datalength = ((u32) scp->cmnd[10] << 24) |
 			((u32) scp->cmnd[11] << 16) |
 			((u32) scp->cmnd[12] << 8) | (u32) scp->cmnd[13];
 		start_lba_lo = ((u32) scp->cmnd[6] << 24) |
@@ -1403,8 +1401,9 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 
 	memset(&io_info, 0, sizeof(struct IO_REQUEST_INFO));
 	io_info.ldStartBlock = ((u64)start_lba_hi << 32) | start_lba_lo;
-	io_info.numBlocks = io_request->DataLength;
+	io_info.numBlocks = datalength;
 	io_info.ldTgtId = device_id;
+	io_request->DataLength = scsi_bufflen(scp);
 
 	if (scp->sc_data_direction == PCI_DMA_FROMDEVICE)
 		io_info.isRead = 1;
@@ -1431,7 +1430,6 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 	if (fp_possible) {
 		megasas_set_pd_lba(io_request, scp->cmd_len, &io_info, scp,
 				   local_map_ptr, start_lba_lo);
-		io_request->DataLength = scsi_bufflen(scp);
 		io_request->Function = MPI2_FUNCTION_SCSI_IO_REQUEST;
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY
@@ -1510,7 +1508,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	local_map_ptr = fusion->ld_map[(instance->map_id & 1)];
 
 	/* Check if this is a system PD I/O */
-	if (instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
+	if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS &&
+	    instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
 		io_request->Function = 0;
 		io_request->DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
@@ -1525,6 +1524,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
+		cmd->request_desc->SCSIIO.DevHandle =
+			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
 	} else {
 		io_request->Function  = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
@@ -1732,8 +1733,6 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 	if (reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
 		return IRQ_NONE;
 
-	d_val.word = desc->Words;
-
 	num_completed = 0;
 
 	while ((d_val.u.low != UINT_MAX) && (d_val.u.high != UINT_MAX)) {
@@ -1855,10 +1854,8 @@ megasas_complete_cmd_dpc_fusion(unsigned long instance_addr)
 	}
 	spin_unlock_irqrestore(&instance->hba_lock, flags);
 
-	spin_lock_irqsave(&instance->completion_lock, flags);
 	for (MSIxIndex = 0 ; MSIxIndex < count; MSIxIndex++)
 		complete_cmd_fusion(instance, MSIxIndex);
-	spin_unlock_irqrestore(&instance->completion_lock, flags);
 }
 
 /**

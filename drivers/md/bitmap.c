@@ -163,20 +163,17 @@ static struct md_rdev *next_active_rdev(struct md_rdev *rdev, struct mddev *mdde
 	 * As devices are only added or removed when raid_disk is < 0 and
 	 * nr_pending is 0 and In_sync is clear, the entries we return will
 	 * still be in the same position on the list when we re-enter
-	 * list_for_each_continue_rcu.
+	 * list_for_each_entry_continue_rcu.
 	 */
-	struct list_head *pos;
 	rcu_read_lock();
 	if (rdev == NULL)
 		/* start at the beginning */
-		pos = &mddev->disks;
+		rdev = list_entry_rcu(&mddev->disks, struct md_rdev, same_set);
 	else {
 		/* release the previous rdev and start from there. */
 		rdev_dec_pending(rdev, mddev);
-		pos = &rdev->same_set;
 	}
-	list_for_each_continue_rcu(pos, &mddev->disks) {
-		rdev = list_entry(pos, struct md_rdev, same_set);
+	list_for_each_entry_continue_rcu(rdev, &mddev->disks, same_set) {
 		if (rdev->raid_disk >= 0 &&
 		    !test_bit(Faulty, &rdev->flags)) {
 			/* this is a usable devices */
@@ -473,14 +470,10 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 {
 	bitmap_super_t *sb;
 	unsigned long chunksize, daemon_sleep, write_behind;
-	int err = -EINVAL;
 
 	bitmap->storage.sb_page = alloc_page(GFP_KERNEL);
-	if (IS_ERR(bitmap->storage.sb_page)) {
-		err = PTR_ERR(bitmap->storage.sb_page);
-		bitmap->storage.sb_page = NULL;
-		return err;
-	}
+	if (bitmap->storage.sb_page == NULL)
+		return -ENOMEM;
 	bitmap->storage.sb_page->index = 0;
 
 	sb = kmap_atomic(bitmap->storage.sb_page);

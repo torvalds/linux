@@ -41,7 +41,7 @@
  *      - Sends a disconnect event to upper layers/applications.
  */
 void
-mwifiex_reset_connect_state(struct mwifiex_private *priv)
+mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
@@ -117,10 +117,10 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 	priv->media_connected = false;
 	dev_dbg(adapter->dev,
 		"info: successfully disconnected from %pM: reason code %d\n",
-		priv->cfg_bssid, WLAN_REASON_DEAUTH_LEAVING);
+		priv->cfg_bssid, reason_code);
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
-		cfg80211_disconnected(priv->netdev, WLAN_REASON_DEAUTH_LEAVING,
-				      NULL, 0, GFP_KERNEL);
+		cfg80211_disconnected(priv->netdev, reason_code, NULL, 0,
+				      GFP_KERNEL);
 	}
 	memset(priv->cfg_bssid, 0, ETH_ALEN);
 
@@ -186,7 +186,7 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret = 0;
 	u32 eventcause = adapter->event_cause;
-	u16 ctrl;
+	u16 ctrl, reason_code;
 
 	switch (eventcause) {
 	case EVENT_DUMMY_HOST_WAKEUP_SIGNAL:
@@ -204,22 +204,31 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 	case EVENT_DEAUTHENTICATED:
 		dev_dbg(adapter->dev, "event: Deauthenticated\n");
 		adapter->dbg.num_event_deauth++;
-		if (priv->media_connected)
-			mwifiex_reset_connect_state(priv);
+		if (priv->media_connected) {
+			reason_code =
+				le16_to_cpu(*(__le16 *)adapter->event_body);
+			mwifiex_reset_connect_state(priv, reason_code);
+		}
 		break;
 
 	case EVENT_DISASSOCIATED:
 		dev_dbg(adapter->dev, "event: Disassociated\n");
 		adapter->dbg.num_event_disassoc++;
-		if (priv->media_connected)
-			mwifiex_reset_connect_state(priv);
+		if (priv->media_connected) {
+			reason_code =
+				le16_to_cpu(*(__le16 *)adapter->event_body);
+			mwifiex_reset_connect_state(priv, reason_code);
+		}
 		break;
 
 	case EVENT_LINK_LOST:
 		dev_dbg(adapter->dev, "event: Link lost\n");
 		adapter->dbg.num_event_link_lost++;
-		if (priv->media_connected)
-			mwifiex_reset_connect_state(priv);
+		if (priv->media_connected) {
+			reason_code =
+				le16_to_cpu(*(__le16 *)adapter->event_body);
+			mwifiex_reset_connect_state(priv, reason_code);
+		}
 		break;
 
 	case EVENT_PS_SLEEP:

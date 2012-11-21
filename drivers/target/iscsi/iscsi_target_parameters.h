@@ -36,7 +36,7 @@ extern void iscsi_release_param_list(struct iscsi_param_list *);
 extern struct iscsi_param *iscsi_find_param_from_key(char *, struct iscsi_param_list *);
 extern int iscsi_extract_key_value(char *, char **, char **);
 extern int iscsi_update_param_value(struct iscsi_param *, char *);
-extern int iscsi_decode_text_input(u8, u8, char *, u32, struct iscsi_param_list *);
+extern int iscsi_decode_text_input(u8, u8, char *, u32, struct iscsi_conn *);
 extern int iscsi_encode_text_output(u8, u8, char *, u32 *,
 			struct iscsi_param_list *);
 extern int iscsi_check_negotiated_keys(struct iscsi_param_list *);
@@ -70,6 +70,7 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIALR2T			"InitialR2T"
 #define IMMEDIATEDATA			"ImmediateData"
 #define MAXRECVDATASEGMENTLENGTH	"MaxRecvDataSegmentLength"
+#define MAXXMITDATASEGMENTLENGTH	"MaxXmitDataSegmentLength"
 #define MAXBURSTLENGTH			"MaxBurstLength"
 #define FIRSTBURSTLENGTH		"FirstBurstLength"
 #define DEFAULTTIME2WAIT		"DefaultTime2Wait"
@@ -113,6 +114,10 @@ extern void iscsi_set_session_parameters(struct iscsi_sess_ops *,
 #define INITIAL_INITIALR2T			YES
 #define INITIAL_IMMEDIATEDATA			YES
 #define INITIAL_MAXRECVDATASEGMENTLENGTH	"8192"
+/*
+ * Match outgoing MXDSL default to incoming Open-iSCSI default
+ */
+#define INITIAL_MAXXMITDATASEGMENTLENGTH	"262144"
 #define INITIAL_MAXBURSTLENGTH			"262144"
 #define INITIAL_FIRSTBURSTLENGTH		"65536"
 #define INITIAL_DEFAULTTIME2WAIT		"2"

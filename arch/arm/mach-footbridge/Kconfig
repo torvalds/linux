@@ -91,7 +91,7 @@ config FOOTBRIDGE_ADDIN
 
 # EBSA285 board in either host or addin mode
 config ARCH_EBSA285
-	select ARCH_MAY_HAVE_PC_FDC
 	bool
+	select ARCH_MAY_HAVE_PC_FDC
 
 endif

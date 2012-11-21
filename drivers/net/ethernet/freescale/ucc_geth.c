@@ -209,14 +209,12 @@ static struct list_head *dequeue(struct list_head *lh)
 static struct sk_buff *get_new_skb(struct ucc_geth_private *ugeth,
 		u8 __iomem *bd)
 {
-	struct sk_buff *skb = NULL;
+	struct sk_buff *skb;
 
-	skb = __skb_dequeue(&ugeth->rx_recycle);
+	skb = netdev_alloc_skb(ugeth->ndev,
+			       ugeth->ug_info->uf_info.max_rx_buf_length +
+			       UCC_GETH_RX_DATA_BUF_ALIGNMENT);
 	if (!skb)
-		skb = netdev_alloc_skb(ugeth->ndev,
-				      ugeth->ug_info->uf_info.max_rx_buf_length +
-				      UCC_GETH_RX_DATA_BUF_ALIGNMENT);
-	if (skb == NULL)
 		return NULL;
 
 	/* We need the data buffer to be aligned properly.  We will reserve
@@ -2020,8 +2018,6 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 		iounmap(ugeth->ug_regs);
 		ugeth->ug_regs = NULL;
 	}
-
-	skb_queue_purge(&ugeth->rx_recycle);
 }
 
 static void ucc_geth_set_multi(struct net_device *dev)
@@ -2229,8 +2225,6 @@ static int ucc_struct_init(struct ucc_geth_private *ugeth)
 			ugeth_err("%s: Failed to ioremap regs.", __func__);
 		return -ENOMEM;
 	}
-
-	skb_queue_head_init(&ugeth->rx_recycle);
 
 	return 0;
 }
@@ -3274,12 +3268,7 @@ static int ucc_geth_rx(struct ucc_geth_private *ugeth, u8 rxQ, int rx_work_limit
 			if (netif_msg_rx_err(ugeth))
 				ugeth_err("%s, %d: ERROR!!! skb - 0x%08x",
 					   __func__, __LINE__, (u32) skb);
-			if (skb) {
-				skb->data = skb->head + NET_SKB_PAD;
-				skb->len = 0;
-				skb_reset_tail_pointer(skb);
-				__skb_queue_head(&ugeth->rx_recycle, skb);
-			}
+			dev_kfree_skb(skb);
 
 			ugeth->rx_skbuff[rxQ][ugeth->skb_currx[rxQ]] = NULL;
 			dev->stats.rx_dropped++;
@@ -3349,13 +3338,7 @@ static int ucc_geth_tx(struct net_device *dev, u8 txQ)
 
 		dev->stats.tx_packets++;
 
-		if (skb_queue_len(&ugeth->rx_recycle) < RX_BD_RING_LEN &&
-			     skb_recycle_check(skb,
-				    ugeth->ug_info->uf_info.max_rx_buf_length +
-				    UCC_GETH_RX_DATA_BUF_ALIGNMENT))
-			__skb_queue_head(&ugeth->rx_recycle, skb);
-		else
-			dev_kfree_skb(skb);
+		dev_kfree_skb(skb);
 
 		ugeth->tx_skbuff[txQ][ugeth->skb_dirtytx[txQ]] = NULL;
 		ugeth->skb_dirtytx[txQ] =

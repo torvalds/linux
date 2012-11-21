@@ -438,7 +438,7 @@ static void verity_prefetch_io(struct dm_verity *v, struct dm_verity_io *io)
 		verity_hash_at_level(v, io->block, i, &hash_block_start, NULL);
 		verity_hash_at_level(v, io->block + io->n_blocks - 1, i, &hash_block_end, NULL);
 		if (!i) {
-			unsigned cluster = *(volatile unsigned *)&dm_verity_prefetch_cluster;
+			unsigned cluster = ACCESS_ONCE(dm_verity_prefetch_cluster);
 
 			cluster >>= v->data_dev_block_bits;
 			if (unlikely(!cluster))

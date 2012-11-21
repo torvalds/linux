@@ -106,7 +106,8 @@ static void dump_video_chains(void)
 	for (i = 0; i < omap_dss_get_num_overlays(); i++) {
 		struct omap_overlay *ovl = omap_dss_get_overlay(i);
 		struct omap_overlay_manager *mgr = ovl->manager;
-		struct omap_dss_device *dssdev = mgr ? mgr->device : NULL;
+		struct omap_dss_device *dssdev = mgr ?
+					mgr->get_device(mgr) : NULL;
 		if (dssdev) {
 			DBG("%d: %s -> %s -> %s", i, ovl->name, mgr->name,
 						dssdev->name);
@@ -185,7 +186,7 @@ static int create_connector(struct drm_device *dev,
 	for (j = 0; j < priv->num_encoders; j++) {
 		struct omap_overlay_manager *mgr =
 			omap_encoder_get_manager(priv->encoders[j]);
-		if (mgr->device == dssdev) {
+		if (mgr->get_device(mgr) == dssdev) {
 			drm_mode_connector_attach_encoder(connector,
 					priv->encoders[j]);
 		}

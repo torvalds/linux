@@ -7,7 +7,7 @@ free running counter values, and generates an interrupt.
 
 Required properties:
 
-- compatible : should be "brcm,bcm2835-system-timer.txt"
+- compatible : should be "brcm,bcm2835-system-timer"
 - reg : Specifies base physical address and size of the registers.
 - interrupts : A list of 4 interrupt sinks; one per timer channel.
 - clock-frequency : The frequency of the clock that drives the counter, in Hz.

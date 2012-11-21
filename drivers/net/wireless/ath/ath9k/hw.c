@@ -1450,9 +1450,14 @@ static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 	REG_WRITE(ah, AR_RTC_FORCE_WAKE,
 		  AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
 
+	if (!ah->reset_power_on)
+		type = ATH9K_RESET_POWER_ON;
+
 	switch (type) {
 	case ATH9K_RESET_POWER_ON:
 		ret = ath9k_hw_set_reset_power_on(ah);
+		if (!ret)
+			ah->reset_power_on = true;
 		break;
 	case ATH9K_RESET_WARM:
 	case ATH9K_RESET_COLD:

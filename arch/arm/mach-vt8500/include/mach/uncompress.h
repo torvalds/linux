@@ -15,15 +15,15 @@
  *
  */
 
-#define UART0_PHYS 0xd8200000
-#include <asm/io.h>
+#define UART0_PHYS	0xd8200000
+#define UART0_ADDR(x)	*(volatile unsigned char *)(UART0_PHYS + x)
 
 static void putc(const char c)
 {
-	while (readb(UART0_PHYS + 0x1c) & 0x2)
+	while (UART0_ADDR(0x1c) & 0x2)
 		/* Tx busy, wait and poll */;
 
-	writeb(c, UART0_PHYS);
+	UART0_ADDR(0) = c;
 }
 
 static void flush(void)

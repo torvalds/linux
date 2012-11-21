@@ -57,6 +57,7 @@
 #include <asm/switch_to.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
+asmlinkage void ret_from_kernel_thread(void) __asm__("ret_from_kernel_thread");
 
 /*
  * Return saved PC of a blocked thread.
@@ -127,23 +128,39 @@ void release_thread(struct task_struct *dead_task)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-	unsigned long unused,
+	unsigned long arg,
 	struct task_struct *p, struct pt_regs *regs)
 {
-	struct pt_regs *childregs;
+	struct pt_regs *childregs = task_pt_regs(p);
 	struct task_struct *tsk;
 	int err;
-
-	childregs = task_pt_regs(p);
-	*childregs = *regs;
-	childregs->ax = 0;
-	childregs->sp = sp;
 
 	p->thread.sp = (unsigned long) childregs;
 	p->thread.sp0 = (unsigned long) (childregs+1);
 
-	p->thread.ip = (unsigned long) ret_from_fork;
+	if (unlikely(!regs)) {
+		/* kernel thread */
+		memset(childregs, 0, sizeof(struct pt_regs));
+		p->thread.ip = (unsigned long) ret_from_kernel_thread;
+		task_user_gs(p) = __KERNEL_STACK_CANARY;
+		childregs->ds = __USER_DS;
+		childregs->es = __USER_DS;
+		childregs->fs = __KERNEL_PERCPU;
+		childregs->bx = sp;	/* function */
+		childregs->bp = arg;
+		childregs->orig_ax = -1;
+		childregs->cs = __KERNEL_CS | get_kernel_rpl();
+		childregs->flags = X86_EFLAGS_IF | X86_EFLAGS_BIT1;
+		p->fpu_counter = 0;
+		p->thread.io_bitmap_ptr = NULL;
+		memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
+		return 0;
+	}
+	*childregs = *regs;
+	childregs->ax = 0;
+	childregs->sp = sp;
 
+	p->thread.ip = (unsigned long) ret_from_fork;
 	task_user_gs(p) = get_user_gs(regs);
 
 	p->fpu_counter = 0;
@@ -190,6 +207,12 @@ start_thread(struct pt_regs *regs, unsigned long new_ip, unsigned long new_sp)
 	regs->cs		= __USER_CS;
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
+	regs->flags		= X86_EFLAGS_IF;
+	/*
+	 * force it to the iret return path by making it look as if there was
+	 * some work pending.
+	 */
+	set_thread_flag(TIF_NOTIFY_RESUME);
 }
 EXPORT_SYMBOL_GPL(start_thread);
 

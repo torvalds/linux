@@ -673,9 +673,9 @@ static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (inode->i_ino == MSDOS_FSINFO_INO) {
 		struct super_block *sb = inode->i_sb;
 
-		lock_super(sb);
+		mutex_lock(&MSDOS_SB(sb)->s_lock);
 		err = fat_clusters_flush(sb);
-		unlock_super(sb);
+		mutex_unlock(&MSDOS_SB(sb)->s_lock);
 	} else
 		err = __fat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 
@@ -1268,6 +1268,7 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 		b = (struct fat_boot_sector *) bh->b_data;
 	}
 
+	mutex_init(&sbi->s_lock);
 	sbi->cluster_size = sb->s_blocksize * sbi->sec_per_clus;
 	sbi->cluster_bits = ffs(sbi->cluster_size) - 1;
 	sbi->fats = b->fats;

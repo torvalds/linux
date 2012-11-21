@@ -7,7 +7,7 @@ as "armctrl" in the SoC documentation, hence naming of this binding.
 
 Required properties:
 
-- compatible : should be "brcm,bcm2835-armctrl-ic.txt"
+- compatible : should be "brcm,bcm2835-armctrl-ic"
 - reg : Specifies base physical address and size of the registers.
 - interrupt-controller : Identifies the node as an interrupt controller
 - #interrupt-cells : Specifies the number of cells needed to encode an

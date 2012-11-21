@@ -158,7 +158,7 @@ static struct regulator_init_data omap3_vpll2_idata = {
 };
 
 static struct regulator_consumer_supply omap3_vdd1_supply[] = {
-	REGULATOR_SUPPLY("vcc", "mpu.0"),
+	REGULATOR_SUPPLY("vcc", "cpu0"),
 };
 
 static struct regulator_consumer_supply omap3_vdd2_supply[] = {
@@ -239,6 +239,10 @@ void __init omap3_pmic_get_config(struct twl4030_platform_data *pmic_data,
 static struct twl4030_usb_data omap4_usb_pdata = {
 };
 
+static struct regulator_consumer_supply omap4_vdda_hdmi_dac_supplies[] = {
+	REGULATOR_SUPPLY("vdda_hdmi_dac", "omapdss_hdmi"),
+};
+
 static struct regulator_init_data omap4_vdac_idata = {
 	.constraints = {
 		.min_uV			= 1800000,
@@ -248,6 +252,8 @@ static struct regulator_init_data omap4_vdac_idata = {
 		.valid_ops_mask		= REGULATOR_CHANGE_MODE
 					| REGULATOR_CHANGE_STATUS,
 	},
+	.num_consumer_supplies	= ARRAY_SIZE(omap4_vdda_hdmi_dac_supplies),
+	.consumer_supplies	= omap4_vdda_hdmi_dac_supplies,
 	.supply_regulator	= "V2V1",
 };
 

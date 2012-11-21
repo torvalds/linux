@@ -175,7 +175,7 @@ static void tda8083_wait_diseqc_fifo (struct tda8083_state* state, int timeout)
 	       !(tda8083_readreg(state, 0x02) & 0x80))
 	{
 		msleep(50);
-	};
+	}
 }
 
 static int tda8083_set_tone (struct tda8083_state* state, fe_sec_tone_mode_t tone)
@@ -215,7 +215,7 @@ static int tda8083_send_diseqc_burst (struct tda8083_state* state, fe_sec_mini_c
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	tda8083_wait_diseqc_fifo (state, 100);
 

@@ -950,11 +950,11 @@ static int soc_camera_s_selection(struct file *file, void *fh,
 
 	/* In all these cases cropping emulation will not help */
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE ||
-	    (s->target != V4L2_SEL_TGT_COMPOSE_ACTIVE &&
-	     s->target != V4L2_SEL_TGT_CROP_ACTIVE))
+	    (s->target != V4L2_SEL_TGT_COMPOSE &&
+	     s->target != V4L2_SEL_TGT_CROP))
 		return -EINVAL;
 
-	if (s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	if (s->target == V4L2_SEL_TGT_COMPOSE) {
 		/* No output size change during a running capture! */
 		if (is_streaming(ici, icd) &&
 		    (icd->user_width != s->r.width ||
@@ -974,7 +974,7 @@ static int soc_camera_s_selection(struct file *file, void *fh,
 
 	ret = ici->ops->set_selection(icd, s);
 	if (!ret &&
-	    s->target == V4L2_SEL_TGT_COMPOSE_ACTIVE) {
+	    s->target == V4L2_SEL_TGT_COMPOSE) {
 		icd->user_width = s->r.width;
 		icd->user_height = s->r.height;
 		if (!icd->streamer)
@@ -1184,7 +1184,8 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	sd->grp_id = soc_camera_grp_id(icd);
 	v4l2_set_subdev_hostdata(sd, icd);
 
-	if (v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler, NULL))
+	ret = v4l2_ctrl_add_handler(&icd->ctrl_handler, sd->ctrl_handler, NULL);
+	if (ret < 0)
 		goto ectrl;
 
 	/* At this point client .probe() should have run already */
@@ -1529,12 +1530,11 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 {
 	struct soc_camera_link *icl = pdev->dev.platform_data;
 	struct soc_camera_device *icd;
-	int ret;
 
 	if (!icl)
 		return -EINVAL;
 
-	icd = kzalloc(sizeof(*icd), GFP_KERNEL);
+	icd = devm_kzalloc(&pdev->dev, sizeof(*icd), GFP_KERNEL);
 	if (!icd)
 		return -ENOMEM;
 
@@ -1543,19 +1543,10 @@ static int __devinit soc_camera_pdrv_probe(struct platform_device *pdev)
 	icd->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, icd);
 
-	ret = soc_camera_device_register(icd);
-	if (ret < 0)
-		goto escdevreg;
-
 	icd->user_width		= DEFAULT_WIDTH;
 	icd->user_height	= DEFAULT_HEIGHT;
 
-	return 0;
-
-escdevreg:
-	kfree(icd);
-
-	return ret;
+	return soc_camera_device_register(icd);
 }
 
 /*
@@ -1572,8 +1563,6 @@ static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 
 	list_del(&icd->list);
 
-	kfree(icd);
-
 	return 0;
 }
 
@@ -1586,18 +1575,7 @@ static struct platform_driver __refdata soc_camera_pdrv = {
 	},
 };
 
-static int __init soc_camera_init(void)
-{
-	return platform_driver_register(&soc_camera_pdrv);
-}
-
-static void __exit soc_camera_exit(void)
-{
-	platform_driver_unregister(&soc_camera_pdrv);
-}
-
-module_init(soc_camera_init);
-module_exit(soc_camera_exit);
+module_platform_driver(soc_camera_pdrv);
 
 MODULE_DESCRIPTION("Image capture bus driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");

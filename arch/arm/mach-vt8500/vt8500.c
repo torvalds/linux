@@ -77,8 +77,11 @@ static void vt8500_power_off(void)
 
 void __init vt8500_init(void)
 {
-	struct device_node *np, *fb;
+	struct device_node *np;
+#if defined(CONFIG_FB_VT8500) || defined(CONFIG_FB_WM8505)
+	struct device_node *fb;
 	void __iomem *gpio_base;
+#endif
 
 #ifdef CONFIG_FB_VT8500
 	fb = of_find_compatible_node(NULL, NULL, "via,vt8500-fb");

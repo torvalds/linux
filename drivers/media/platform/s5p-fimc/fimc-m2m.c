@@ -551,30 +551,31 @@ static int fimc_m2m_try_crop(struct fimc_ctx *ctx, struct v4l2_crop *cr)
 	return 0;
 }
 
-static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *cr)
+static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *crop)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
 	struct fimc_dev *fimc = ctx->fimc_dev;
+	struct v4l2_crop cr = *crop;
 	struct fimc_frame *f;
 	int ret;
 
-	ret = fimc_m2m_try_crop(ctx, cr);
+	ret = fimc_m2m_try_crop(ctx, &cr);
 	if (ret)
 		return ret;
 
-	f = (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
+	f = (cr.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) ?
 		&ctx->s_frame : &ctx->d_frame;
 
 	/* Check to see if scaling ratio is within supported range */
 	if (fimc_ctx_state_is_set(FIMC_DST_FMT | FIMC_SRC_FMT, ctx)) {
-		if (cr->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
-			ret = fimc_check_scaler_ratio(ctx, cr->c.width,
-					cr->c.height, ctx->d_frame.width,
+		if (cr.type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+			ret = fimc_check_scaler_ratio(ctx, cr.c.width,
+					cr.c.height, ctx->d_frame.width,
 					ctx->d_frame.height, ctx->rotation);
 		} else {
 			ret = fimc_check_scaler_ratio(ctx, ctx->s_frame.width,
-					ctx->s_frame.height, cr->c.width,
-					cr->c.height, ctx->rotation);
+					ctx->s_frame.height, cr.c.width,
+					cr.c.height, ctx->rotation);
 		}
 		if (ret) {
 			v4l2_err(&fimc->m2m.vfd, "Out of scaler range\n");
@@ -582,10 +583,10 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, const struct v4l2_crop *
 		}
 	}
 
-	f->offs_h = cr->c.left;
-	f->offs_v = cr->c.top;
-	f->width  = cr->c.width;
-	f->height = cr->c.height;
+	f->offs_h = cr.c.left;
+	f->offs_v = cr.c.top;
+	f->width  = cr.c.width;
+	f->height = cr.c.height;
 
 	fimc_ctx_state_set(FIMC_PARAMS, ctx);
 

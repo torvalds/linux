@@ -2132,18 +2132,14 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 		return;
 
 	devnull = dentry_open(&selinux_null, O_RDWR, cred);
-	if (!IS_ERR(devnull)) {
-		/* replace all the matching ones with this */
-		do {
-			replace_fd(n - 1, get_file(devnull), 0);
-		} while ((n = iterate_fd(files, n, match_file, cred)) != 0);
+	if (IS_ERR(devnull))
+		devnull = NULL;
+	/* replace all the matching ones with this */
+	do {
+		replace_fd(n - 1, devnull, 0);
+	} while ((n = iterate_fd(files, n, match_file, cred)) != 0);
+	if (devnull)
 		fput(devnull);
-	} else {
-		/* just close all the matching ones */
-		do {
-			replace_fd(n - 1, NULL, 0);
-		} while ((n = iterate_fd(files, n, match_file, cred)) != 0);
-	}
 }
 
 /*
@@ -2452,9 +2448,9 @@ static int selinux_sb_statfs(struct dentry *dentry)
 	return superblock_has_perm(cred, dentry->d_sb, FILESYSTEM__GETATTR, &ad);
 }
 
-static int selinux_mount(char *dev_name,
+static int selinux_mount(const char *dev_name,
 			 struct path *path,
-			 char *type,
+			 const char *type,
 			 unsigned long flags,
 			 void *data)
 {

@@ -1305,6 +1305,11 @@ struct lpfc_mbx_mq_create_ext {
 #define lpfc_mbx_mq_create_ext_async_evt_link_SHIFT	LPFC_TRAILER_CODE_LINK
 #define lpfc_mbx_mq_create_ext_async_evt_link_MASK	0x00000001
 #define lpfc_mbx_mq_create_ext_async_evt_link_WORD	async_evt_bmap
+#define LPFC_EVT_CODE_LINK_NO_LINK	0x0
+#define LPFC_EVT_CODE_LINK_10_MBIT	0x1
+#define LPFC_EVT_CODE_LINK_100_MBIT	0x2
+#define LPFC_EVT_CODE_LINK_1_GBIT	0x3
+#define LPFC_EVT_CODE_LINK_10_GBIT	0x4
 #define lpfc_mbx_mq_create_ext_async_evt_fip_SHIFT	LPFC_TRAILER_CODE_FCOE
 #define lpfc_mbx_mq_create_ext_async_evt_fip_MASK	0x00000001
 #define lpfc_mbx_mq_create_ext_async_evt_fip_WORD	async_evt_bmap
@@ -1314,6 +1319,13 @@ struct lpfc_mbx_mq_create_ext {
 #define lpfc_mbx_mq_create_ext_async_evt_fc_SHIFT	LPFC_TRAILER_CODE_FC
 #define lpfc_mbx_mq_create_ext_async_evt_fc_MASK	0x00000001
 #define lpfc_mbx_mq_create_ext_async_evt_fc_WORD	async_evt_bmap
+#define LPFC_EVT_CODE_FC_NO_LINK	0x0
+#define LPFC_EVT_CODE_FC_1_GBAUD	0x1
+#define LPFC_EVT_CODE_FC_2_GBAUD	0x2
+#define LPFC_EVT_CODE_FC_4_GBAUD	0x4
+#define LPFC_EVT_CODE_FC_8_GBAUD	0x8
+#define LPFC_EVT_CODE_FC_10_GBAUD	0xA
+#define LPFC_EVT_CODE_FC_16_GBAUD	0x10
 #define lpfc_mbx_mq_create_ext_async_evt_sli_SHIFT	LPFC_TRAILER_CODE_SLI
 #define lpfc_mbx_mq_create_ext_async_evt_sli_MASK	0x00000001
 #define lpfc_mbx_mq_create_ext_async_evt_sli_WORD	async_evt_bmap
@@ -1695,8 +1707,14 @@ struct fcf_record {
 #define lpfc_fcf_record_fc_map_2_MASK		0x000000FF
 #define lpfc_fcf_record_fc_map_2_WORD		word7
 #define lpfc_fcf_record_fcf_valid_SHIFT		24
-#define lpfc_fcf_record_fcf_valid_MASK		0x000000FF
+#define lpfc_fcf_record_fcf_valid_MASK		0x00000001
 #define lpfc_fcf_record_fcf_valid_WORD		word7
+#define lpfc_fcf_record_fcf_fc_SHIFT		25
+#define lpfc_fcf_record_fcf_fc_MASK		0x00000001
+#define lpfc_fcf_record_fcf_fc_WORD		word7
+#define lpfc_fcf_record_fcf_sol_SHIFT		31
+#define lpfc_fcf_record_fcf_sol_MASK		0x00000001
+#define lpfc_fcf_record_fcf_sol_WORD		word7
 	uint32_t word8;
 #define lpfc_fcf_record_fcf_index_SHIFT		0
 #define lpfc_fcf_record_fcf_index_MASK		0x0000FFFF

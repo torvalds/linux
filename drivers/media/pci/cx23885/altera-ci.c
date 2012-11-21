@@ -416,7 +416,7 @@ static void netup_read_ci_status(struct work_struct *work)
 				DVB_CA_EN50221_POLL_CAM_READY : 0);
 		ci_dbg_print("%s: setting CI[1] status = 0x%x\n",
 				__func__, inter->state[1]->status);
-	};
+	}
 
 	if (inter->state[0] != NULL) {
 		inter->state[0]->status =
@@ -425,7 +425,7 @@ static void netup_read_ci_status(struct work_struct *work)
 				DVB_CA_EN50221_POLL_CAM_READY : 0);
 		ci_dbg_print("%s: setting CI[0] status = 0x%x\n",
 				__func__, inter->state[0]->status);
-	};
+	}
 }
 
 /* CI irq handler */

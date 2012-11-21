@@ -443,7 +443,10 @@ int dbfifo_int_thresh = 10; /* 10 == 640 entry threshold */
 module_param(dbfifo_int_thresh, int, 0644);
 MODULE_PARM_DESC(dbfifo_int_thresh, "doorbell fifo interrupt threshold");
 
-int dbfifo_drain_delay = 1000; /* usecs to sleep while draining the dbfifo */
+/*
+ * usecs to sleep while draining the dbfifo
+ */
+static int dbfifo_drain_delay = 1000;
 module_param(dbfifo_drain_delay, int, 0644);
 MODULE_PARM_DESC(dbfifo_drain_delay,
 		 "usecs to sleep while draining the dbfifo");
@@ -636,7 +639,7 @@ static void name_msix_vecs(struct adapter *adap)
 static int request_msix_queue_irqs(struct adapter *adap)
 {
 	struct sge *s = &adap->sge;
-	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, msi = 2;
+	int err, ethqidx, ofldqidx = 0, rdmaqidx = 0, msi_index = 2;
 
 	err = request_irq(adap->msix_info[1].vec, t4_sge_intr_msix, 0,
 			  adap->msix_info[1].desc, &s->fw_evtq);
@@ -644,56 +647,60 @@ static int request_msix_queue_irqs(struct adapter *adap)
 		return err;
 
 	for_each_ethrxq(s, ethqidx) {
-		err = request_irq(adap->msix_info[msi].vec, t4_sge_intr_msix, 0,
-				  adap->msix_info[msi].desc,
+		err = request_irq(adap->msix_info[msi_index].vec,
+				  t4_sge_intr_msix, 0,
+				  adap->msix_info[msi_index].desc,
 				  &s->ethrxq[ethqidx].rspq);
 		if (err)
 			goto unwind;
-		msi++;
+		msi_index++;
 	}
 	for_each_ofldrxq(s, ofldqidx) {
-		err = request_irq(adap->msix_info[msi].vec, t4_sge_intr_msix, 0,
-				  adap->msix_info[msi].desc,
+		err = request_irq(adap->msix_info[msi_index].vec,
+				  t4_sge_intr_msix, 0,
+				  adap->msix_info[msi_index].desc,
 				  &s->ofldrxq[ofldqidx].rspq);
 		if (err)
 			goto unwind;
-		msi++;
+		msi_index++;
 	}
 	for_each_rdmarxq(s, rdmaqidx) {
-		err = request_irq(adap->msix_info[msi].vec, t4_sge_intr_msix, 0,
-				  adap->msix_info[msi].desc,
+		err = request_irq(adap->msix_info[msi_index].vec,
+				  t4_sge_intr_msix, 0,
+				  adap->msix_info[msi_index].desc,
 				  &s->rdmarxq[rdmaqidx].rspq);
 		if (err)
 			goto unwind;
-		msi++;
+		msi_index++;
 	}
 	return 0;
 
 unwind:
 	while (--rdmaqidx >= 0)
-		free_irq(adap->msix_info[--msi].vec,
+		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->rdmarxq[rdmaqidx].rspq);
 	while (--ofldqidx >= 0)
-		free_irq(adap->msix_info[--msi].vec,
+		free_irq(adap->msix_info[--msi_index].vec,
 			 &s->ofldrxq[ofldqidx].rspq);
 	while (--ethqidx >= 0)
-		free_irq(adap->msix_info[--msi].vec, &s->ethrxq[ethqidx].rspq);
+		free_irq(adap->msix_info[--msi_index].vec,
+			 &s->ethrxq[ethqidx].rspq);
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	return err;
 }
 
 static void free_msix_queue_irqs(struct adapter *adap)
 {
-	int i, msi = 2;
+	int i, msi_index = 2;
 	struct sge *s = &adap->sge;
 
 	free_irq(adap->msix_info[1].vec, &s->fw_evtq);
 	for_each_ethrxq(s, i)
-		free_irq(adap->msix_info[msi++].vec, &s->ethrxq[i].rspq);
+		free_irq(adap->msix_info[msi_index++].vec, &s->ethrxq[i].rspq);
 	for_each_ofldrxq(s, i)
-		free_irq(adap->msix_info[msi++].vec, &s->ofldrxq[i].rspq);
+		free_irq(adap->msix_info[msi_index++].vec, &s->ofldrxq[i].rspq);
 	for_each_rdmarxq(s, i)
-		free_irq(adap->msix_info[msi++].vec, &s->rdmarxq[i].rspq);
+		free_irq(adap->msix_info[msi_index++].vec, &s->rdmarxq[i].rspq);
 }
 
 /**
@@ -2535,9 +2542,8 @@ static int read_eq_indices(struct adapter *adap, u16 qid, u16 *pidx, u16 *cidx)
 
 	ret = t4_mem_win_read_len(adap, addr, (__be32 *)&indices, 8);
 	if (!ret) {
-		indices = be64_to_cpu(indices);
-		*cidx = (indices >> 25) & 0xffff;
-		*pidx = (indices >> 9) & 0xffff;
+		*cidx = (be64_to_cpu(indices) >> 25) & 0xffff;
+		*pidx = (be64_to_cpu(indices) >> 9) & 0xffff;
 	}
 	return ret;
 }
@@ -3410,16 +3416,6 @@ static int adap_init0_config(struct adapter *adapter, int reset)
 			 finicsum, cfcsum);
 
 	/*
-	 * If we're a pure NIC driver then disable all offloading facilities.
-	 * This will allow the firmware to optimize aspects of the hardware
-	 * configuration which will result in improved performance.
-	 */
-	caps_cmd.ofldcaps = 0;
-	caps_cmd.iscsicaps = 0;
-	caps_cmd.rdmacaps = 0;
-	caps_cmd.fcoecaps = 0;
-
-	/*
 	 * And now tell the firmware to use the configuration we just loaded.
 	 */
 	caps_cmd.op_to_write =
@@ -3506,18 +3502,6 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 			 &caps_cmd);
 	if (ret < 0)
 		goto bye;
-
-#ifndef CONFIG_CHELSIO_T4_OFFLOAD
-	/*
-	 * If we're a pure NIC driver then disable all offloading facilities.
-	 * This will allow the firmware to optimize aspects of the hardware
-	 * configuration which will result in improved performance.
-	 */
-	caps_cmd.ofldcaps = 0;
-	caps_cmd.iscsicaps = 0;
-	caps_cmd.rdmacaps = 0;
-	caps_cmd.fcoecaps = 0;
-#endif
 
 	if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_VM)) {
 		if (!vf_acls)
@@ -3634,10 +3618,10 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	 * field selections will fit in the 36-bit budget.
 	 */
 	if (tp_vlan_pri_map != TP_VLAN_PRI_MAP_DEFAULT) {
-		int i, bits = 0;
+		int j, bits = 0;
 
-		for (i = TP_VLAN_PRI_MAP_FIRST; i <= TP_VLAN_PRI_MAP_LAST; i++)
-			switch (tp_vlan_pri_map & (1 << i)) {
+		for (j = TP_VLAN_PRI_MAP_FIRST; j <= TP_VLAN_PRI_MAP_LAST; j++)
+			switch (tp_vlan_pri_map & (1 << j)) {
 			case 0:
 				/* compressed filter field not enabled */
 				break;
@@ -3739,6 +3723,7 @@ static int adap_init0(struct adapter *adap)
 	u32 v, port_vec;
 	enum dev_state state;
 	u32 params[7], val[7];
+	struct fw_caps_config_cmd caps_cmd;
 	int reset = 1, j;
 
 	/*
@@ -3892,6 +3877,9 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 	}
 
+	if (is_bypass_device(adap->pdev->device))
+		adap->params.bypass = 1;
+
 	/*
 	 * Grab some of our basic fundamental operating parameters.
 	 */
@@ -3934,13 +3922,12 @@ static int adap_init0(struct adapter *adap)
 		adap->tids.aftid_end = val[1];
 	}
 
-#ifdef CONFIG_CHELSIO_T4_OFFLOAD
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write = htonl(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 				     FW_CMD_REQUEST | FW_CMD_READ);
 	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
@@ -3984,15 +3971,6 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.ddp.start = val[3];
 		adap->vres.ddp.size = val[4] - val[3] + 1;
 		adap->params.ofldq_wr_cred = val[5];
-
-		params[0] = FW_PARAM_PFVF(ETHOFLD_START);
-		params[1] = FW_PARAM_PFVF(ETHOFLD_END);
-		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
-				      params, val);
-		if ((val[0] != val[1]) && (ret >= 0)) {
-			adap->tids.uotid_base = val[0];
-			adap->tids.nuotids = val[1] - val[0] + 1;
-		}
 
 		adap->params.offload = 1;
 	}
@@ -4042,7 +4020,6 @@ static int adap_init0(struct adapter *adap)
 	}
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
-#endif /* CONFIG_CHELSIO_T4_OFFLOAD */
 
 	/*
 	 * These are finalized by FW initialization, load their values now.

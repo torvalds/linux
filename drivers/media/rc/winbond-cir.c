@@ -184,7 +184,7 @@ enum wbcir_txstate {
 };
 
 /* Misc */
-#define WBCIR_NAME	"Winbond CIR"
+#define WBCIR_NAME	"winbond-cir"
 #define WBCIR_ID_FAMILY          0xF1 /* Family ID for the WPCD376I	*/
 #define	WBCIR_ID_CHIP            0x04 /* Chip ID for the WPCD376I	*/
 #define INVALID_SCANCODE   0x7FFFFFFF /* Invalid with all protos	*/

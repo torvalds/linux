@@ -1,5 +1,5 @@
 /*
- * DBAu1000/1500/1100 board support
+ * DBAu1000/1500/1100 PBAu1100/1500 board support
  *
  * Copyright 2000, 2008 MontaVista Software Inc.
  * Author: MontaVista Software, Inc. <source@mvista.com>
@@ -52,6 +52,11 @@ static const char *board_type_str(void)
 		return "DB1500";
 	case BCSR_WHOAMI_DB1100:
 		return "DB1100";
+	case BCSR_WHOAMI_PB1500:
+	case BCSR_WHOAMI_PB1500R2:
+		return "PB1500";
+	case BCSR_WHOAMI_PB1100:
+		return "PB1100";
 	default:
 		return "(unknown)";
 	}
@@ -111,7 +116,9 @@ static struct platform_device db1500_pci_host_dev = {
 
 static int __init db1500_pci_init(void)
 {
-	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1500)
+	int id = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
+	if ((id == BCSR_WHOAMI_DB1500) || (id == BCSR_WHOAMI_PB1500) ||
+	    (id == BCSR_WHOAMI_PB1500R2))
 		return platform_device_register(&db1500_pci_host_dev);
 	return 0;
 }
@@ -199,27 +206,37 @@ static irqreturn_t db1100_mmc_cd(int irq, void *ptr)
 
 static int db1100_mmc_cd_setup(void *mmc_host, int en)
 {
-	int ret = 0;
+	int ret = 0, irq;
+
+	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1100)
+		irq = AU1100_GPIO19_INT;
+	else
+		irq = AU1100_GPIO14_INT;	/* PB1100 SD0 CD# */
 
 	if (en) {
-		irq_set_irq_type(AU1100_GPIO19_INT, IRQ_TYPE_EDGE_BOTH);
-		ret = request_irq(AU1100_GPIO19_INT, db1100_mmc_cd, 0,
+		irq_set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
+		ret = request_irq(irq, db1100_mmc_cd, 0,
 				  "sd0_cd", mmc_host);
 	} else
-		free_irq(AU1100_GPIO19_INT, mmc_host);
+		free_irq(irq, mmc_host);
 	return ret;
 }
 
 static int db1100_mmc1_cd_setup(void *mmc_host, int en)
 {
-	int ret = 0;
+	int ret = 0, irq;
+
+	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1100)
+		irq = AU1100_GPIO20_INT;
+	else
+		irq = AU1100_GPIO15_INT;	/* PB1100 SD1 CD# */
 
 	if (en) {
-		irq_set_irq_type(AU1100_GPIO20_INT, IRQ_TYPE_EDGE_BOTH);
-		ret = request_irq(AU1100_GPIO20_INT, db1100_mmc_cd, 0,
+		irq_set_irq_type(irq, IRQ_TYPE_EDGE_BOTH);
+		ret = request_irq(irq, db1100_mmc_cd, 0,
 				  "sd1_cd", mmc_host);
 	} else
-		free_irq(AU1100_GPIO20_INT, mmc_host);
+		free_irq(irq, mmc_host);
 	return ret;
 }
 
@@ -236,11 +253,18 @@ static int db1100_mmc_card_inserted(void *mmc_host)
 
 static void db1100_mmc_set_power(void *mmc_host, int state)
 {
+	int bit;
+
+	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1100)
+		bit = BCSR_BOARD_SD0PWR;
+	else
+		bit = BCSR_BOARD_PB1100_SD0PWR;
+
 	if (state) {
-		bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_SD0PWR);
+		bcsr_mod(BCSR_BOARD, 0, bit);
 		msleep(400);	/* stabilization time */
 	} else
-		bcsr_mod(BCSR_BOARD, BCSR_BOARD_SD0PWR, 0);
+		bcsr_mod(BCSR_BOARD, bit, 0);
 }
 
 static void db1100_mmcled_set(struct led_classdev *led, enum led_brightness b)
@@ -267,11 +291,18 @@ static int db1100_mmc1_card_inserted(void *mmc_host)
 
 static void db1100_mmc1_set_power(void *mmc_host, int state)
 {
+	int bit;
+
+	if (BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI)) == BCSR_WHOAMI_DB1100)
+		bit = BCSR_BOARD_SD1PWR;
+	else
+		bit = BCSR_BOARD_PB1100_SD1PWR;
+
 	if (state) {
-		bcsr_mod(BCSR_BOARD, 0, BCSR_BOARD_SD1PWR);
+		bcsr_mod(BCSR_BOARD, 0, bit);
 		msleep(400);	/* stabilization time */
 	} else
-		bcsr_mod(BCSR_BOARD, BCSR_BOARD_SD1PWR, 0);
+		bcsr_mod(BCSR_BOARD, bit, 0);
 }
 
 static void db1100_mmc1led_set(struct led_classdev *led, enum led_brightness b)
@@ -480,13 +511,12 @@ static struct platform_device *db1100_devs[] = {
 	&db1100_mmc0_dev,
 	&db1100_mmc1_dev,
 	&db1000_irda_dev,
-	&db1100_spi_dev,
 };
 
 static int __init db1000_dev_init(void)
 {
 	int board = BCSR_WHOAMI_BOARD(bcsr_read(BCSR_WHOAMI));
-	int c0, c1, d0, d1, s0, s1;
+	int c0, c1, d0, d1, s0, s1, flashsize = 32,  twosocks = 1;
 	unsigned long pfc;
 
 	if (board == BCSR_WHOAMI_DB1500) {
@@ -522,6 +552,7 @@ static int __init db1000_dev_init(void)
 					ARRAY_SIZE(db1100_spi_info));
 
 		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
+		platform_device_register(&db1100_spi_dev);
 	} else if (board == BCSR_WHOAMI_DB1000) {
 		c0 = AU1000_GPIO2_INT;
 		c1 = AU1000_GPIO5_INT;
@@ -530,15 +561,42 @@ static int __init db1000_dev_init(void)
 		s0 = AU1000_GPIO1_INT;
 		s1 = AU1000_GPIO4_INT;
 		platform_add_devices(db1000_devs, ARRAY_SIZE(db1000_devs));
+	} else if ((board == BCSR_WHOAMI_PB1500) ||
+		   (board == BCSR_WHOAMI_PB1500R2)) {
+		c0 = AU1500_GPIO203_INT;
+		d0 = AU1500_GPIO201_INT;
+		s0 = AU1500_GPIO202_INT;
+		twosocks = 0;
+		flashsize = 64;
+		/* RTC and daughtercard irqs */
+		irq_set_irq_type(AU1500_GPIO204_INT, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(AU1500_GPIO205_INT, IRQ_TYPE_LEVEL_LOW);
+		/* EPSON S1D13806 0x1b000000
+		 * SRAM 1MB/2MB   0x1a000000
+		 * DS1693 RTC	  0x0c000000
+		 */
+	} else if (board == BCSR_WHOAMI_PB1100) {
+		c0 = AU1100_GPIO11_INT;
+		d0 = AU1100_GPIO9_INT;
+		s0 = AU1100_GPIO10_INT;
+		twosocks = 0;
+		flashsize = 64;
+		/* pendown, rtc, daughtercard irqs */
+		irq_set_irq_type(AU1100_GPIO8_INT, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(AU1100_GPIO12_INT, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(AU1100_GPIO13_INT, IRQ_TYPE_LEVEL_LOW);
+		/* EPSON S1D13806 0x1b000000
+		 * SRAM 1MB/2MB   0x1a000000
+		 * DiskOnChip	  0x0d000000
+		 * DS1693 RTC	  0x0c000000
+		 */
+		platform_add_devices(db1100_devs, ARRAY_SIZE(db1100_devs));
 	} else
 		return 0; /* unknown board, no further dev setup to do */
 
 	irq_set_irq_type(d0, IRQ_TYPE_EDGE_BOTH);
-	irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
 	irq_set_irq_type(c0, IRQ_TYPE_LEVEL_LOW);
-	irq_set_irq_type(c1, IRQ_TYPE_LEVEL_LOW);
 	irq_set_irq_type(s0, IRQ_TYPE_LEVEL_LOW);
-	irq_set_irq_type(s1, IRQ_TYPE_LEVEL_LOW);
 
 	db1x_register_pcmcia_socket(
 		AU1000_PCMCIA_ATTR_PHYS_ADDR,
@@ -549,17 +607,23 @@ static int __init db1000_dev_init(void)
 		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x000010000 - 1,
 		c0, d0,	/*s0*/0, 0, 0);
 
-	db1x_register_pcmcia_socket(
-		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
-		AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004400000 - 1,
-		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004000000,
-		AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
-		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
-		AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
-		c1, d1,	/*s1*/0, 0, 1);
+	if (twosocks) {
+		irq_set_irq_type(d1, IRQ_TYPE_EDGE_BOTH);
+		irq_set_irq_type(c1, IRQ_TYPE_LEVEL_LOW);
+		irq_set_irq_type(s1, IRQ_TYPE_LEVEL_LOW);
+
+		db1x_register_pcmcia_socket(
+			AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004000000,
+			AU1000_PCMCIA_ATTR_PHYS_ADDR + 0x004400000 - 1,
+			AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004000000,
+			AU1000_PCMCIA_MEM_PHYS_ADDR  + 0x004400000 - 1,
+			AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004000000,
+			AU1000_PCMCIA_IO_PHYS_ADDR   + 0x004010000 - 1,
+			c1, d1,	/*s1*/0, 0, 1);
+	}
 
 	platform_add_devices(db1x00_devs, ARRAY_SIZE(db1x00_devs));
-	db1x_register_norflash(32 << 20, 4 /* 32bit */, F_SWAPPED);
+	db1x_register_norflash(flashsize << 20, 4 /* 32bit */, F_SWAPPED);
 	return 0;
 }
 device_initcall(db1000_dev_init);

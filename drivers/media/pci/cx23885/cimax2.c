@@ -193,7 +193,7 @@ int netup_ci_op_cam(struct dvb_ca_en50221 *en50221, int slot,
 				0, &store, 1);
 		if (ret != 0)
 			return ret;
-	};
+	}
 	state->current_ci_flag = flag;
 
 	mutex_lock(&dev->gpio_lock);

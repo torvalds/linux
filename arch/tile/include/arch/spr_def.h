@@ -11,15 +11,11 @@
  *   NON INFRINGEMENT.  See the GNU General Public License for
  *   more details.
  */
+#ifndef __ARCH_SPR_DEF_H__
+#define __ARCH_SPR_DEF_H__
 
-/* Include the proper base SPR definition file. */
-#ifdef __tilegx__
-#include <arch/spr_def_64.h>
-#else
-#include <arch/spr_def_32.h>
-#endif
+#include <uapi/arch/spr_def.h>
 
-#ifdef __KERNEL__
 
 /*
  * In addition to including the proper base SPR definition file, depending
@@ -110,4 +106,4 @@
 #define INT_INTCTRL_K \
 	_concat4(INT_INTCTRL_, CONFIG_KERNEL_PL,,)
 
-#endif /* __KERNEL__ */
+#endif /* __ARCH_SPR_DEF_H__ */

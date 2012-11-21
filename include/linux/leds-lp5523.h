@@ -26,6 +26,7 @@
 /* See Documentation/leds/leds-lp5523.txt */
 
 struct lp5523_led_config {
+	const char	*name;
 	u8		chan_nr;
 	u8		led_current; /* mA x10, 0 if led is not connected */
 	u8		max_current;

@@ -251,6 +251,8 @@ struct adapter_params {
 	unsigned char rev;                /* chip revision */
 	unsigned char offload;
 
+	unsigned char bypass;
+
 	unsigned int ofldq_wr_cred;
 };
 
@@ -642,6 +644,23 @@ extern int dbfifo_int_thresh;
 #define for_each_port(adapter, iter) \
 	for (iter = 0; iter < (adapter)->params.nports; ++iter)
 
+static inline int is_bypass(struct adapter *adap)
+{
+	return adap->params.bypass;
+}
+
+static inline int is_bypass_device(int device)
+{
+	/* this should be set based upon device capabilities */
+	switch (device) {
+	case 0x440b:
+	case 0x440c:
+		return 1;
+	default:
+		return 0;
+	}
+}
+
 static inline unsigned int core_ticks_per_usec(const struct adapter *adap)
 {
 	return adap->params.vpd.cclk / 1000;
@@ -696,6 +715,7 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable);
 int get_vpd_params(struct adapter *adapter, struct vpd_params *p);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
+int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_check_fw_version(struct adapter *adapter);
 int t4_prep_adapter(struct adapter *adapter);
 int t4_port_init(struct adapter *adap, int mbox, int pf, int vf);

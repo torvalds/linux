@@ -231,7 +231,7 @@ static void itd1000_set_lo(struct itd1000_state *state, u32 freq_khz)
 	state->frequency = ((plln * 1000) + (pllf * 1000)/1048576) * 2*FREF;
 	itd_dbg("frequency: %dkHz (wanted) %dkHz (set), PLLF = %d, PLLN = %d\n", freq_khz, state->frequency, pllf, plln);
 
-	itd1000_write_reg(state, PLLNH, 0x80); /* PLLNH */;
+	itd1000_write_reg(state, PLLNH, 0x80); /* PLLNH */
 	itd1000_write_reg(state, PLLNL, plln & 0xff);
 	itd1000_write_reg(state, PLLFH, (itd1000_read_reg(state, PLLFH) & 0xf0) | ((pllf >> 16) & 0x0f));
 	itd1000_write_reg(state, PLLFM, (pllf >> 8) & 0xff);

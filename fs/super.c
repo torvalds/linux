@@ -186,14 +186,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags)
 		spin_lock_init(&s->s_inode_lru_lock);
 		INIT_LIST_HEAD(&s->s_mounts);
 		init_rwsem(&s->s_umount);
-		mutex_init(&s->s_lock);
 		lockdep_set_class(&s->s_umount, &type->s_umount_key);
-		/*
-		 * The locking rules for s_lock are up to the
-		 * filesystem. For example ext3fs has different
-		 * lock ordering than usbfs:
-		 */
-		lockdep_set_class(&s->s_lock, &type->s_lock_key);
 		/*
 		 * sget() can have s_umount recursion.
 		 *
@@ -393,22 +386,6 @@ bool grab_super_passive(struct super_block *sb)
 	put_super(sb);
 	return false;
 }
-
-/*
- * Superblock locking.  We really ought to get rid of these two.
- */
-void lock_super(struct super_block * sb)
-{
-	mutex_lock(&sb->s_lock);
-}
-
-void unlock_super(struct super_block * sb)
-{
-	mutex_unlock(&sb->s_lock);
-}
-
-EXPORT_SYMBOL(lock_super);
-EXPORT_SYMBOL(unlock_super);
 
 /**
  *	generic_shutdown_super	-	common helper for ->kill_sb()

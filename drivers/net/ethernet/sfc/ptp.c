@@ -640,8 +640,7 @@ static void efx_ptp_drop_time_expired_events(struct efx_nic *efx)
 			evt = list_entry(cursor, struct efx_ptp_event_rx,
 					 link);
 			if (time_after(jiffies, evt->expiry)) {
-				list_del(&evt->link);
-				list_add(&evt->link, &ptp->evt_free_list);
+				list_move(&evt->link, &ptp->evt_free_list);
 				netif_warn(efx, hw, efx->net_dev,
 					   "PTP rx event dropped\n");
 			}
@@ -684,8 +683,7 @@ static enum ptp_packet_state efx_ptp_match_rx(struct efx_nic *efx,
 
 			match->state = PTP_PACKET_STATE_MATCHED;
 			rc = PTP_PACKET_STATE_MATCHED;
-			list_del(&evt->link);
-			list_add(&evt->link, &ptp->evt_free_list);
+			list_move(&evt->link, &ptp->evt_free_list);
 			break;
 		}
 	}
@@ -820,8 +818,7 @@ static int efx_ptp_stop(struct efx_nic *efx)
 	/* Drop any pending receive events */
 	spin_lock_bh(&efx->ptp_data->evt_lock);
 	list_for_each_safe(cursor, next, &efx->ptp_data->evt_list) {
-		list_del(cursor);
-		list_add(cursor, &efx->ptp_data->evt_free_list);
+		list_move(cursor, &efx->ptp_data->evt_free_list);
 	}
 	spin_unlock_bh(&efx->ptp_data->evt_lock);
 

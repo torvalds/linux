@@ -343,7 +343,7 @@ static int si21xx_wait_diseqc_idle(struct si21xx_state *state, int timeout)
 			return -ETIMEDOUT;
 		}
 		msleep(10);
-	};
+	}
 
 	return 0;
 }
@@ -472,7 +472,7 @@ static int si21xx_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t volt)
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int si21xx_init(struct dvb_frontend *fe)

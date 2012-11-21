@@ -1,7 +1,7 @@
 #ifndef __UM_FS_HOSTFS
 #define __UM_FS_HOSTFS
 
-#include "os.h"
+#include <os.h>
 
 /*
  * These are exactly the same definitions as in fs.h, but the names are

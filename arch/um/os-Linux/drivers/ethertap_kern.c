@@ -9,7 +9,7 @@
 #include <linux/init.h>
 #include <linux/netdevice.h>
 #include "etap.h"
-#include "net_kern.h"
+#include <net_kern.h>
 
 struct ethertap_init {
 	char *dev_name;

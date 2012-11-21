@@ -1,16 +1,12 @@
 #ifndef _LINUX_STRING_H_
 #define _LINUX_STRING_H_
 
-/* We don't want strings.h stuff being used by user stuff by accident */
-
-#ifndef __KERNEL__
-#include <string.h>
-#else
 
 #include <linux/compiler.h>	/* for inline */
 #include <linux/types.h>	/* for size_t */
 #include <linux/stddef.h>	/* for NULL */
 #include <stdarg.h>
+#include <uapi/linux/string.h>
 
 extern char *strndup_user(const char __user *, long);
 extern void *memdup_user(const void __user *, size_t);
@@ -147,5 +143,4 @@ static inline bool strstarts(const char *str, const char *prefix)
 
 extern size_t memweight(const void *ptr, size_t bytes);
 
-#endif /* __KERNEL__ */
 #endif /* _LINUX_STRING_H_ */

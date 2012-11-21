@@ -62,13 +62,6 @@ struct video_obj {
 	v4l2_std_id stdid;		/* Currently selected or default
 					 * standard */
 	struct v4l2_dv_timings dv_timings;
-	u32 output_id;			/* Current output id */
-};
-
-struct vbi_obj {
-	int num_services;
-	struct vpif_vbi_params vbiparams;	/* vpif parameters for the raw
-						 * vbi data */
 };
 
 struct vpif_disp_buffer {
@@ -131,12 +124,13 @@ struct channel_obj {
 					 * which is being displayed */
 	u8 initialized;			/* flag to indicate whether
 					 * encoder is initialized */
+	u32 output_idx;			/* Current output index */
+	struct v4l2_subdev *sd;		/* Current output subdev(may be NULL) */
 
 	enum vpif_channel_id channel_id;/* Identifies channel */
 	struct vpif_params vpifparams;
 	struct common_obj common[VPIF_NUMOBJECTS];
 	struct video_obj video;
-	struct vbi_obj vbi;
 };
 
 /* File handle structure */
@@ -166,14 +160,6 @@ struct vpif_config_params {
 	u8 numbuffers[VPIF_DISPLAY_NUM_CHANNELS];
 	u32 video_limit[VPIF_DISPLAY_NUM_CHANNELS];
 	u8 min_numbuffers;
-};
-
-/* Struct which keeps track of the line numbers for the sliced vbi service */
-struct vpif_service_line {
-	u16 service_id;
-	u16 service_line[2];
-	u16 enc_service_id;
-	u8 bytestowrite;
 };
 
 #endif				/* DAVINCIHD_DISPLAY_H */

@@ -131,15 +131,6 @@ static void omapfb_rqueue_unlock(struct omapfb_device *fbdev)
  * LCD controller and LCD DMA
  * ---------------------------------------------------------------------------
  */
-/* Lookup table to map elem size to elem type. */
-static const int dma_elem_type[] = {
-	0,
-	OMAP_DMA_DATA_TYPE_S8,
-	OMAP_DMA_DATA_TYPE_S16,
-	0,
-	OMAP_DMA_DATA_TYPE_S32,
-};
-
 /*
  * Allocate resources needed for LCD controller and LCD DMA operations. Video
  * memory is allocated from system memory according to the virtual display

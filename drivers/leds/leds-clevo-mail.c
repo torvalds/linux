@@ -31,7 +31,7 @@ static int __init clevo_mail_led_dmi_callback(const struct dmi_system_id *id)
 }
 
 /*
- * struct mail_led_whitelist - List of known good models
+ * struct clevo_mail_led_dmi_table - List of known good models
  *
  * Contains the known good models this driver is compatible with.
  * When adding a new model try to be as strict as possible. This
@@ -39,7 +39,7 @@ static int __init clevo_mail_led_dmi_callback(const struct dmi_system_id *id)
  * detected as working, but in reality it is not) as low as
  * possible.
  */
-static struct dmi_system_id __initdata mail_led_whitelist[] = {
+static struct dmi_system_id __initdata clevo_mail_led_dmi_table[] = {
 	{
 		.callback = clevo_mail_led_dmi_callback,
 		.ident = "Clevo D410J",
@@ -59,11 +59,10 @@ static struct dmi_system_id __initdata mail_led_whitelist[] = {
 	},
 	{
 		.callback = clevo_mail_led_dmi_callback,
-		.ident = "Positivo Mobile",
+		.ident = "Clevo M5x0V",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "CLEVO Co. "),
 			DMI_MATCH(DMI_BOARD_NAME, "M5X0V "),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Positivo Mobile"),
 			DMI_MATCH(DMI_PRODUCT_VERSION, "VT6198")
 		}
 	},
@@ -89,6 +88,7 @@ static struct dmi_system_id __initdata mail_led_whitelist[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, clevo_mail_led_dmi_table);
 
 static void clevo_mail_led_set(struct led_classdev *led_cdev,
 				enum led_brightness value)
@@ -180,7 +180,7 @@ static int __init clevo_mail_led_init(void)
 
 	/* Check with the help of DMI if we are running on supported hardware */
 	if (!nodetect) {
-		count = dmi_check_system(mail_led_whitelist);
+		count = dmi_check_system(clevo_mail_led_dmi_table);
 	} else {
 		count = 1;
 		printk(KERN_ERR KBUILD_MODNAME ": Skipping DMI detection. "

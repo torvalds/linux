@@ -10,8 +10,22 @@ Contact: Samu Onkalo (samu.p.onkalo-at-nokia.com)
 Description
 -----------
 LP5523 can drive up to 9 channels. Leds can be controlled directly via
-the led class control interface. Channels have generic names:
-lp5523:channelx where x is 0...8
+the led class control interface.
+The name of each channel is configurable in the platform data - name and label.
+There are three options to make the channel name.
+
+a) Define the 'name' in the platform data
+To make specific channel name, then use 'name' platform data.
+/sys/class/leds/R1               (name: 'R1')
+/sys/class/leds/B1               (name: 'B1')
+
+b) Use the 'label' with no 'name' field
+For one device name with channel number, then use 'label'.
+/sys/class/leds/RGB:channelN     (label: 'RGB', N: 0 ~ 8)
+
+c) Default
+If both fields are NULL, 'lp5523' is used by default.
+/sys/class/leds/lp5523:channelN  (N: 0 ~ 8)
 
 The chip provides 3 engines. Each engine can control channels without
 interaction from the main CPU. Details of the micro engine code can be found
@@ -46,12 +60,13 @@ Note - chan_nr can have values between 0 and 8.
 
 static struct lp5523_led_config lp5523_led_config[] = {
         {
+		.name		= "D1",
                 .chan_nr        = 0,
                 .led_current    = 50,
 		.max_current    = 130,
         },
 ...
-        }, {
+        {
                 .chan_nr        = 8,
                 .led_current    = 50,
 		.max_current    = 130,

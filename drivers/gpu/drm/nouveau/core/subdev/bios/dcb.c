@@ -43,7 +43,7 @@ dcb_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	*ver = nv_ro08(bios, dcb);
 
 	if (*ver >= 0x41) {
-		nv_warn(bios, "DCB *ver 0x%02x unknown\n", *ver);
+		nv_warn(bios, "DCB version 0x%02x unknown\n", *ver);
 		return 0x0000;
 	} else
 	if (*ver >= 0x30) {

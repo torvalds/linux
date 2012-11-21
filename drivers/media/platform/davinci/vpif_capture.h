@@ -54,8 +54,6 @@ struct video_obj {
 	/* Currently selected or default standard */
 	v4l2_std_id stdid;
 	struct v4l2_dv_timings dv_timings;
-	/* This is to track the last input that is passed to application */
-	u32 input_idx;
 };
 
 struct vpif_cap_buffer {
@@ -119,10 +117,10 @@ struct channel_obj {
 	u8 initialized;
 	/* Identifies channel */
 	enum vpif_channel_id channel_id;
-	/* index into sd table */
-	int curr_sd_index;
-	/* ptr to current sub device information */
-	struct vpif_subdev_info *curr_subdev_info;
+	/* Current input */
+	u32 input_idx;
+	/* subdev corresponding to the current input, may be NULL */
+	struct v4l2_subdev *sd;
 	/* vpif configuration params */
 	struct vpif_params vpifparams;
 	/* common object array */
@@ -159,10 +157,6 @@ struct vpif_config_params {
 	u32 video_limit[VPIF_CAPTURE_NUM_CHANNELS];
 	u8 max_device_type;
 };
-/* Struct which keeps track of the line numbers for the sliced vbi service */
-struct vpif_service_line {
-	u16 service_id;
-	u16 service_line[2];
-};
+
 #endif				/* End of __KERNEL__ */
 #endif				/* VPIF_CAPTURE_H */

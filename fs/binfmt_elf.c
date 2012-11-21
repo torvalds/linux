@@ -36,7 +36,6 @@
 #include <asm/uaccess.h>
 #include <asm/param.h>
 #include <asm/page.h>
-#include <asm/exec.h>
 
 #ifndef user_long_t
 #define user_long_t long

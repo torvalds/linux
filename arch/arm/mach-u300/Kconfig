@@ -7,8 +7,8 @@ comment "ST-Ericsson Mobile Platform Products"
 config MACH_U300
 	bool "U300"
 	select PINCTRL
-	select PINCTRL_U300
 	select PINCTRL_COH901
+	select PINCTRL_U300
 
 comment "ST-Ericsson U300/U335 Feature Selections"
 

@@ -2203,7 +2203,7 @@ EXPORT_SYMBOL_GPL(em28xx_tuner_callback);
 
 static inline void em28xx_set_model(struct em28xx *dev)
 {
-	memcpy(&dev->board, &em28xx_boards[dev->model], sizeof(dev->board));
+	dev->board = em28xx_boards[dev->model];
 
 	/* Those are the default values for the majority of boards
 	   Use those values if not specified otherwise at boards entry

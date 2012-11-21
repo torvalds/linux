@@ -222,7 +222,7 @@ static struct irq_chip s3c2443_irq_cam = {
 
 /* IRQ initialisation code */
 
-static int __init s3c2443_add_sub(unsigned int base,
+static int s3c2443_add_sub(unsigned int base,
 				   void (*demux)(unsigned int,
 						 struct irq_desc *),
 				   struct irq_chip *chip,
@@ -241,7 +241,7 @@ static int __init s3c2443_add_sub(unsigned int base,
 	return 0;
 }
 
-static int __init s3c2443_irq_add(struct device *dev,
+static int s3c2443_irq_add(struct device *dev,
 				  struct subsys_interface *sif)
 {
 	printk("S3C2443: IRQ Support\n");

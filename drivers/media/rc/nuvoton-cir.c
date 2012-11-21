@@ -517,6 +517,9 @@ static int nvt_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 	struct nvt_dev *nvt = dev->priv;
 	u16 val;
 
+	if (carrier == 0)
+		return -EINVAL;
+
 	nvt_cir_reg_write(nvt, 1, CIR_CP);
 	val = 3000000 / (carrier) - 1;
 	nvt_cir_reg_write(nvt, val & 0xff, CIR_CC);

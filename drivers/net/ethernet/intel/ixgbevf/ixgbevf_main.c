@@ -1747,6 +1747,7 @@ err_tx_ring_allocation:
  **/
 static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 {
+	struct net_device *netdev = adapter->netdev;
 	int err = 0;
 	int vector, v_budget;
 
@@ -1774,6 +1775,12 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 		adapter->msix_entries[vector].entry = vector;
 
 	ixgbevf_acquire_msix_vectors(adapter, v_budget);
+
+	err = netif_set_real_num_tx_queues(netdev, adapter->num_tx_queues);
+	if (err)
+		goto out;
+
+	err = netif_set_real_num_rx_queues(netdev, adapter->num_rx_queues);
 
 out:
 	return err;

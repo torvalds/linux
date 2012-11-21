@@ -17,7 +17,7 @@
 8	i386	creat			sys_creat
 9	i386	link			sys_link
 10	i386	unlink			sys_unlink
-11	i386	execve			ptregs_execve			stub32_execve
+11	i386	execve			sys_execve			stub32_execve
 12	i386	chdir			sys_chdir
 13	i386	time			sys_time			compat_sys_time
 14	i386	mknod			sys_mknod

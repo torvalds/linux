@@ -761,7 +761,7 @@ int cx25821_vidupstream_init_ch2(struct cx25821_dev *dev, int channel_select,
 	}
 
 	/* Default if filename is empty string */
-	if (strcmp(dev->input_filename_ch2, "") == 0) {
+	if (strcmp(dev->_filename_ch2, "") == 0) {
 		if (dev->_isNTSC_ch2) {
 			dev->_filename_ch2 = (dev->_pixel_format_ch2 ==
 				PIXEL_FRMT_411) ? "/root/vid411.yuv" :

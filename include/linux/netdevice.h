@@ -25,12 +25,6 @@
 #ifndef _LINUX_NETDEVICE_H
 #define _LINUX_NETDEVICE_H
 
-#include <linux/if.h>
-#include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/if_link.h>
-
-#ifdef __KERNEL__
 #include <linux/pm_qos.h>
 #include <linux/timer.h>
 #include <linux/bug.h>
@@ -55,6 +49,7 @@
 
 #include <linux/netdev_features.h>
 #include <linux/neighbour.h>
+#include <uapi/linux/netdevice.h>
 
 struct netpoll_info;
 struct device;
@@ -133,14 +128,6 @@ static inline bool dev_xmit_complete(int rc)
 	return false;
 }
 
-#endif
-
-#define MAX_ADDR_LEN	32		/* Largest hardware address length */
-
-/* Initial net device group. All devices belong to group 0 by default. */
-#define INIT_NETDEV_GROUP	0
-
-#ifdef  __KERNEL__
 /*
  *	Compute the worst case header length according to the protocols
  *	used.
@@ -196,21 +183,6 @@ struct net_device_stats {
 	unsigned long	tx_compressed;
 };
 
-#endif  /*  __KERNEL__  */
-
-
-/* Media selection options. */
-enum {
-        IF_PORT_UNKNOWN = 0,
-        IF_PORT_10BASE2,
-        IF_PORT_10BASET,
-        IF_PORT_AUI,
-        IF_PORT_100BASET,
-        IF_PORT_100BASETX,
-        IF_PORT_100BASEFX
-};
-
-#ifdef __KERNEL__
 
 #include <linux/cache.h>
 #include <linux/skbuff.h>
@@ -1497,19 +1469,25 @@ struct napi_gro_cb {
 	/* This indicates where we are processing relative to skb->data. */
 	int data_offset;
 
-	/* This is non-zero if the packet may be of the same flow. */
-	int same_flow;
-
 	/* This is non-zero if the packet cannot be merged with the new skb. */
 	int flush;
 
 	/* Number of segments aggregated. */
-	int count;
+	u16	count;
+
+	/* This is non-zero if the packet may be of the same flow. */
+	u8	same_flow;
 
 	/* Free the skb? */
-	int free;
+	u8	free;
 #define NAPI_GRO_FREE		  1
 #define NAPI_GRO_FREE_STOLEN_HEAD 2
+
+	/* jiffies when first packet was created/queued */
+	unsigned long age;
+
+	/* Used in ipv6_gro_receive() */
+	int	proto;
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
@@ -1663,7 +1641,6 @@ extern int		netpoll_trap(void);
 #endif
 extern int	       skb_gro_receive(struct sk_buff **head,
 				       struct sk_buff *skb);
-extern void	       skb_gro_reset_offset(struct sk_buff *skb);
 
 static inline unsigned int skb_gro_offset(const struct sk_buff *skb)
 {
@@ -2157,7 +2134,7 @@ extern gro_result_t	dev_gro_receive(struct napi_struct *napi,
 extern gro_result_t	napi_skb_finish(gro_result_t ret, struct sk_buff *skb);
 extern gro_result_t	napi_gro_receive(struct napi_struct *napi,
 					 struct sk_buff *skb);
-extern void		napi_gro_flush(struct napi_struct *napi);
+extern void		napi_gro_flush(struct napi_struct *napi, bool flush_old);
 extern struct sk_buff *	napi_get_frags(struct napi_struct *napi);
 extern gro_result_t	napi_frags_finish(struct napi_struct *napi,
 					  struct sk_buff *skb,
@@ -2838,7 +2815,5 @@ do {								\
 	0;							\
 })
 #endif
-
-#endif /* __KERNEL__ */
 
 #endif	/* _LINUX_NETDEVICE_H */

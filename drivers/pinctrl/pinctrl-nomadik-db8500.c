@@ -725,10 +725,10 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(spi0_c_1, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(usbsim_c_2, NMK_GPIO_ALT_C),
 	DB8500_PIN_GROUP(i2c3_c_2, NMK_GPIO_ALT_C),
-	/* Other alt C1 column, these are still configured as alt C */
-	DB8500_PIN_GROUP(kp_oc1_1, NMK_GPIO_ALT_C),
-	DB8500_PIN_GROUP(spi2_oc1_1, NMK_GPIO_ALT_C),
-	DB8500_PIN_GROUP(spi2_oc1_2, NMK_GPIO_ALT_C),
+	/* Other alt C1 column */
+	DB8500_PIN_GROUP(kp_oc1_1, NMK_GPIO_ALT_C1),
+	DB8500_PIN_GROUP(spi2_oc1_1, NMK_GPIO_ALT_C1),
+	DB8500_PIN_GROUP(spi2_oc1_2, NMK_GPIO_ALT_C1),
 };
 
 /* We use this macro to define the groups applicable to a function */
@@ -860,6 +860,284 @@ static const struct nmk_function nmk_db8500_functions[] = {
 	FUNCTION(spi2),
 };
 
+static const struct prcm_gpiocr_altcx_pin_desc db8500_altcx_pins[] = {
+	PRCM_GPIOCR_ALTCX(23,	true, PRCM_IDX_GPIOCR1, 9,	/* STMAPE_CLK_a */
+				true, PRCM_IDX_GPIOCR1, 7,	/* SBAG_CLK_a */
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(24,	true, PRCM_IDX_GPIOCR1, 9,	/* STMAPE or U2_RXD ??? */
+				true, PRCM_IDX_GPIOCR1, 7,	/* SBAG_VAL_a */
+				true, PRCM_IDX_GPIOCR1, 10,	/* STM_MOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(25,	true, PRCM_IDX_GPIOCR1, 9,	/* STMAPE_DAT_a[0] */
+				true, PRCM_IDX_GPIOCR1, 7,	/* SBAG_D_a[0] */
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(26,	true, PRCM_IDX_GPIOCR1, 9,	/* STMAPE_DAT_a[1] */
+				true, PRCM_IDX_GPIOCR1, 7,	/* SBAG_D_a[1] */
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(27,	true, PRCM_IDX_GPIOCR1, 9,	/* STMAPE_DAT_a[2] */
+				true, PRCM_IDX_GPIOCR1, 7,	/* SBAG_D_a[2] */
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(28,	true, PRCM_IDX_GPIOCR1, 9,	/* STMAPE_DAT_a[3] */
+				true, PRCM_IDX_GPIOCR1, 7,	/* SBAG_D_a[3] */
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(29,	false, 0, 0,
+				false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 10,	/* STM_MOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(30,	false, 0, 0,
+				false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 10,	/* STM_MOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(31,	false, 0, 0,
+				false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 10,	/* STM_MOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(32,	false, 0, 0,
+				false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 10,	/* STM_MOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(68,	true, PRCM_IDX_GPIOCR1, 18,	/* REMAP_SELECT_ON */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(69,	true, PRCM_IDX_GPIOCR1, 18,	/* REMAP_SELECT_ON */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(70,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D23 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 11,	/* STM_MOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 8	/* SBAG_CLK */
+	),
+	PRCM_GPIOCR_ALTCX(71,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D22 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 11,	/* STM_MOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 8	/* SBAG_D3 */
+	),
+	PRCM_GPIOCR_ALTCX(72,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D21 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 11,	/* STM_MOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 8	/* SBAG_D2 */
+	),
+	PRCM_GPIOCR_ALTCX(73,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D20 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 11,	/* STM_MOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 8	/* SBAG_D1 */
+	),
+	PRCM_GPIOCR_ALTCX(74,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D19 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 11,	/* STM_MOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 8	/* SBAG_D0 */
+	),
+	PRCM_GPIOCR_ALTCX(75,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D18 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 0,	/* DBG_UARTMOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(76,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D17 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				true, PRCM_IDX_GPIOCR1, 0,	/* DBG_UARTMOD_CMD0 */
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(77,	true, PRCM_IDX_GPIOCR1, 5,	/* PTM_A9_D16 */
+				true, PRCM_IDX_GPIOCR2, 2,	/* DBG_ETM_R4_CMD0 */
+				false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 8	/* SBAG_VAL */
+	),
+	PRCM_GPIOCR_ALTCX(86,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_O3 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(87,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_O2 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(88,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_I3 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(89,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_I2 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(90,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_O1 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(91,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_O0 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(92,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_I1 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(93,	true, PRCM_IDX_GPIOCR1, 12,	/* KP_I0 */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(96,	true, PRCM_IDX_GPIOCR2, 3,	/* RF_INT */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(97,	true, PRCM_IDX_GPIOCR2, 1,	/* RF_CTRL */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(151,	false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_CTL */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS17 */
+	),
+	PRCM_GPIOCR_ALTCX(152,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_CLK */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_CLK */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS16 */
+	),
+	PRCM_GPIOCR_ALTCX(153,	true, PRCM_IDX_GPIOCR1, 1,	/* UARTMOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D15 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS15 */
+	),
+	PRCM_GPIOCR_ALTCX(154,	true, PRCM_IDX_GPIOCR1, 1,	/* UARTMOD_CMD1 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D14 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS14 */
+	),
+	PRCM_GPIOCR_ALTCX(155,	true, PRCM_IDX_GPIOCR1, 13,	/* STM_MOD_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D13 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS13 */
+	),
+	PRCM_GPIOCR_ALTCX(156,	true, PRCM_IDX_GPIOCR1, 13,	/* STM_MOD_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D12 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS12 */
+	),
+	PRCM_GPIOCR_ALTCX(157,	true, PRCM_IDX_GPIOCR1, 13,	/* STM_MOD_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D11 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS11 */
+	),
+	PRCM_GPIOCR_ALTCX(158,	true, PRCM_IDX_GPIOCR1, 13,	/* STM_MOD_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D10 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS10 */
+	),
+	PRCM_GPIOCR_ALTCX(159,	true, PRCM_IDX_GPIOCR1, 13,	/* STM_MOD_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D9 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS9 */
+	),
+	PRCM_GPIOCR_ALTCX(160,	false, 0, 0,
+				true, PRCM_IDX_GPIOCR1, 14,	/* PTM_A9_D8 */
+				true, PRCM_IDX_GPIOCR1, 19,	/* DBG_ETM_R4_CMD2 */
+				true, PRCM_IDX_GPIOCR1, 25	/* HW_OBS8 */
+	),
+	PRCM_GPIOCR_ALTCX(161,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO7 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D7 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS7 */
+	),
+	PRCM_GPIOCR_ALTCX(162,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO6 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D6 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS6 */
+	),
+	PRCM_GPIOCR_ALTCX(163,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO5 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D5 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS5 */
+	),
+	PRCM_GPIOCR_ALTCX(164,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO4 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D4 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS4 */
+	),
+	PRCM_GPIOCR_ALTCX(165,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO3 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D3 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS3 */
+	),
+	PRCM_GPIOCR_ALTCX(166,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO2 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D2 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS2 */
+	),
+	PRCM_GPIOCR_ALTCX(167,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO1 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D1 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS1 */
+	),
+	PRCM_GPIOCR_ALTCX(168,	true, PRCM_IDX_GPIOCR1, 4,	/* Hx_GPIO0 */
+				true, PRCM_IDX_GPIOCR1, 6,	/* PTM_A9_D0 */
+				true, PRCM_IDX_GPIOCR1, 15,	/* DBG_ETM_R4_CMD1*/
+				true, PRCM_IDX_GPIOCR1, 24	/* HW_OBS0 */
+	),
+	PRCM_GPIOCR_ALTCX(170,	true, PRCM_IDX_GPIOCR2, 2,	/* RF_INT */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(171,	true, PRCM_IDX_GPIOCR2, 0,	/* RF_CTRL */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(215,	true, PRCM_IDX_GPIOCR1, 23,	/* SPI2_TXD */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(216,	true, PRCM_IDX_GPIOCR1, 23,	/* SPI2_FRM */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(217,	true, PRCM_IDX_GPIOCR1, 23,	/* SPI2_CLK */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+	PRCM_GPIOCR_ALTCX(218,	true, PRCM_IDX_GPIOCR1, 23,	/* SPI2_RXD */
+				false, 0, 0,
+				false, 0, 0,
+				false, 0, 0
+	),
+};
+
+static const u16 db8500_prcm_gpiocr_regs[] = {
+	[PRCM_IDX_GPIOCR1] = 0x138,
+	[PRCM_IDX_GPIOCR2] = 0x574,
+};
+
 static const struct nmk_pinctrl_soc_data nmk_db8500_soc = {
 	.gpio_ranges = nmk_db8500_ranges,
 	.gpio_num_ranges = ARRAY_SIZE(nmk_db8500_ranges),
@@ -869,6 +1147,9 @@ static const struct nmk_pinctrl_soc_data nmk_db8500_soc = {
 	.nfunctions = ARRAY_SIZE(nmk_db8500_functions),
 	.groups = nmk_db8500_groups,
 	.ngroups = ARRAY_SIZE(nmk_db8500_groups),
+	.altcx_pins = db8500_altcx_pins,
+	.npins_altcx = ARRAY_SIZE(db8500_altcx_pins),
+	.prcm_gpiocr_registers = db8500_prcm_gpiocr_regs,
 };
 
 void __devinit

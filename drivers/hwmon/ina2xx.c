@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/jiffies.h>
 
 #include <linux/platform_data/ina2xx.h>
 

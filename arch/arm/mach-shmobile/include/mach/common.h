@@ -100,7 +100,7 @@ static inline int shmobile_cpu_is_dead(unsigned int cpu) { return 1; }
 
 extern void shmobile_smp_init_cpus(unsigned int ncores);
 
-static inline void shmobile_init_late(void)
+static inline void __init shmobile_init_late(void)
 {
 	shmobile_suspend_init();
 	shmobile_cpuidle_init();

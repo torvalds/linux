@@ -60,14 +60,14 @@
 asmlinkage int sys32_execve(struct pt_regs *regs)
 {
 	int error;
-	char *filename;
+	struct filename *filename;
 
 	DBG(("sys32_execve(%p) r26 = 0x%lx\n", regs, regs->gr[26]));
 	filename = getname((const char __user *) regs->gr[26]);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, compat_ptr(regs->gr[25]),
+	error = compat_do_execve(filename->name, compat_ptr(regs->gr[25]),
 				 compat_ptr(regs->gr[24]), regs);
 	putname(filename);
 out:

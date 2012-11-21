@@ -949,7 +949,6 @@ static int round_down_bpp = 1;	/* for mode probing */
 
 
 static int amifb_ilbm = 0;	/* interleaved or normal bitplanes */
-static int amifb_inverse = 0;
 
 static u32 amifb_hfmin __initdata;	/* monitor hfreq lower limit (Hz) */
 static u32 amifb_hfmax __initdata;	/* monitor hfreq upper limit (Hz) */
@@ -2355,7 +2354,6 @@ static int __init amifb_setup(char *options)
 		if (!*this_opt)
 			continue;
 		if (!strcmp(this_opt, "inverse")) {
-			amifb_inverse = 1;
 			fb_invert_cmaps();
 		} else if (!strcmp(this_opt, "ilbm"))
 			amifb_ilbm = 1;

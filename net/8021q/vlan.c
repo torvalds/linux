@@ -463,7 +463,9 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 
 	case NETDEV_PRE_TYPE_CHANGE:
 		/* Forbid underlaying device to change its type. */
-		return NOTIFY_BAD;
+		if (vlan_uses_dev(dev))
+			return NOTIFY_BAD;
+		break;
 
 	case NETDEV_NOTIFY_PEERS:
 	case NETDEV_BONDING_FAILOVER:

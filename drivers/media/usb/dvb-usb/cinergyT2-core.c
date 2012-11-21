@@ -172,8 +172,7 @@ static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 		if (*event != d->last_event)
 			st->rc_counter = 0;
 
-		deb_rc("key: %x %x %x %x %x\n",
-		       key[0], key[1], key[2], key[3], key[4]);
+		deb_rc("key: %*ph\n", 5, key);
 	}
 	return 0;
 }

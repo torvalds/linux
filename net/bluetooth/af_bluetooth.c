@@ -591,7 +591,7 @@ static int bt_seq_show(struct seq_file *seq, void *v)
 			   atomic_read(&sk->sk_refcnt),
 			   sk_rmem_alloc_get(sk),
 			   sk_wmem_alloc_get(sk),
-			   sock_i_uid(sk),
+			   from_kuid(seq_user_ns(seq), sock_i_uid(sk)),
 			   sock_i_ino(sk),
 			   &src_baswapped,
 			   &dst_baswapped,

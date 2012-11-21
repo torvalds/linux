@@ -940,8 +940,10 @@ static int sa1100_irda_probe(struct platform_device *pdev)
 		goto err_mem_3;
 
 	dev = alloc_irdadev(sizeof(struct sa1100_irda));
-	if (!dev)
+	if (!dev) {
+		err = -ENOMEM;
 		goto err_mem_4;
+	}
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 

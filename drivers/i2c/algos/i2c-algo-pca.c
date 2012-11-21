@@ -46,14 +46,19 @@ static int i2c_debug;
 #define pca_set_con(adap, val) pca_outw(adap, I2C_PCA_CON, val)
 #define pca_get_con(adap) pca_inw(adap, I2C_PCA_CON)
 #define pca_wait(adap) adap->wait_for_completion(adap->data)
-#define pca_reset(adap) adap->reset_chip(adap->data)
 
-static void pca9665_reset(void *pd)
+static void pca_reset(struct i2c_algo_pca_data *adap)
 {
-	struct i2c_algo_pca_data *adap = pd;
-	pca_outw(adap, I2C_PCA_INDPTR, I2C_PCA_IPRESET);
-	pca_outw(adap, I2C_PCA_IND, 0xA5);
-	pca_outw(adap, I2C_PCA_IND, 0x5A);
+	if (adap->chip == I2C_PCA_CHIP_9665) {
+		/* Ignore the reset function from the module,
+		 * we can use the parallel bus reset.
+		 */
+		pca_outw(adap, I2C_PCA_INDPTR, I2C_PCA_IPRESET);
+		pca_outw(adap, I2C_PCA_IND, 0xA5);
+		pca_outw(adap, I2C_PCA_IND, 0x5A);
+	} else {
+		adap->reset_chip(adap->data);
+	}
 }
 
 /*
@@ -378,11 +383,12 @@ static unsigned int pca_probe_chip(struct i2c_adapter *adap)
 	pca_outw(pca_data, I2C_PCA_INDPTR, I2C_PCA_IADR);
 	if (pca_inw(pca_data, I2C_PCA_IND) == 0xAA) {
 		printk(KERN_INFO "%s: PCA9665 detected.\n", adap->name);
-		return I2C_PCA_CHIP_9665;
+		pca_data->chip = I2C_PCA_CHIP_9665;
 	} else {
 		printk(KERN_INFO "%s: PCA9564 detected.\n", adap->name);
-		return I2C_PCA_CHIP_9564;
+		pca_data->chip = I2C_PCA_CHIP_9564;
 	}
+	return pca_data->chip;
 }
 
 static int pca_init(struct i2c_adapter *adap)
@@ -455,11 +461,6 @@ static int pca_init(struct i2c_adapter *adap)
 		 * maximum clock rate for each mode
 		 */
 		int raise_fall_time;
-
-		/* Ignore the reset function from the module,
-		 * we can use the parallel bus reset
-		 */
-		pca_data->reset_chip = pca9665_reset;
 
 		if (pca_data->i2c_clock > 1265800) {
 			printk(KERN_WARNING "%s: I2C clock speed too high."

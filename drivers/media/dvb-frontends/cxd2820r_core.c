@@ -688,7 +688,7 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 {
 	struct cxd2820r_priv *priv;
 	int ret;
-	u8 tmp, gpio[GPIO_COUNT];
+	u8 tmp;
 
 	priv = kzalloc(sizeof(struct cxd2820r_priv), GFP_KERNEL);
 	if (!priv) {
@@ -735,6 +735,7 @@ struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
 		 * Use static GPIO configuration if GPIOLIB is undefined.
 		 * This is fallback condition.
 		 */
+		u8 gpio[GPIO_COUNT];
 		gpio[0] = (*gpio_chip_base >> 0) & 0x07;
 		gpio[1] = (*gpio_chip_base >> 3) & 0x07;
 		gpio[2] = 0;

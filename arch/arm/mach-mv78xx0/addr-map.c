@@ -54,7 +54,7 @@ static void __init __iomem *win_cfg_base(const struct orion_addr_map_cfg *cfg, i
 /*
  * Description of the windows needed by the platform code
  */
-static struct __initdata orion_addr_map_cfg addr_map_cfg = {
+static struct orion_addr_map_cfg addr_map_cfg __initdata = {
 	.num_wins = 14,
 	.remappable_wins = 8,
 	.win_cfg_base = win_cfg_base,

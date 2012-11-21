@@ -261,6 +261,8 @@ static void __init intcp_init_early(void)
 #endif
 }
 
+#ifdef CONFIG_OF
+
 static void __init intcp_timer_init_of(void)
 {
 	struct device_node *node;
@@ -296,8 +298,6 @@ static void __init intcp_timer_init_of(void)
 static struct sys_timer cp_of_timer = {
 	.init		= intcp_timer_init_of,
 };
-
-#ifdef CONFIG_OF
 
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
 	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },

@@ -683,8 +683,7 @@ encode_pnfs_block_layoutupdate(struct pnfs_block_layout *bl,
 		p = xdr_encode_hyper(p, lce->bse_length << SECTOR_SHIFT);
 		p = xdr_encode_hyper(p, 0LL);
 		*p++ = cpu_to_be32(PNFS_BLOCK_READWRITE_DATA);
-		list_del(&lce->bse_node);
-		list_add_tail(&lce->bse_node, &bl->bl_committing);
+		list_move_tail(&lce->bse_node, &bl->bl_committing);
 		bl->bl_count--;
 		count++;
 	}

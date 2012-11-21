@@ -966,6 +966,8 @@ static int dvb_frontend_clear_cache(struct dvb_frontend *fe)
 		break;
 	}
 
+	c->lna = LNA_AUTO;
+
 	return 0;
 }
 
@@ -1054,6 +1056,8 @@ static struct dtv_cmds_h dtv_cmds[DTV_MAX_COMMAND + 1] = {
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_B, 0, 0),
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_C, 0, 0),
 	_DTV_CMD(DTV_ATSCMH_SCCC_CODE_MODE_D, 0, 0),
+
+	_DTV_CMD(DTV_LNA, 0, 0),
 };
 
 static void dtv_property_dump(struct dvb_frontend *fe, struct dtv_property *tvp)
@@ -1440,6 +1444,10 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 		tvp->u.data = fe->dtv_property_cache.atscmh_sccc_code_mode_d;
 		break;
 
+	case DTV_LNA:
+		tvp->u.data = c->lna;
+		break;
+
 	default:
 		return -EINVAL;
 	}
@@ -1731,10 +1739,6 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 	case DTV_INTERLEAVING:
 		c->interleaving = tvp->u.data;
 		break;
-	case DTV_LNA:
-		if (fe->ops.set_lna)
-			r = fe->ops.set_lna(fe, tvp->u.data);
-		break;
 
 	/* ISDB-T Support here */
 	case DTV_ISDBT_PARTIAL_RECEPTION:
@@ -1804,6 +1808,12 @@ static int dtv_property_process_set(struct dvb_frontend *fe,
 		break;
 	case DTV_ATSCMH_RS_FRAME_ENSEMBLE:
 		fe->dtv_property_cache.atscmh_rs_frame_ensemble = tvp->u.data;
+		break;
+
+	case DTV_LNA:
+		c->lna = tvp->u.data;
+		if (fe->ops.set_lna)
+			r = fe->ops.set_lna(fe);
 		break;
 
 	default:
@@ -2309,7 +2319,7 @@ static int dvb_frontend_ioctl_legacy(struct file *file,
 		fepriv->tune_mode_flags = (unsigned long) parg;
 		err = 0;
 		break;
-	};
+	}
 
 	return err;
 }

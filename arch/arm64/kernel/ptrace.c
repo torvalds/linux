@@ -234,28 +234,33 @@ static int ptrace_hbp_fill_attr_ctrl(unsigned int note_type,
 				     struct arch_hw_breakpoint_ctrl ctrl,
 				     struct perf_event_attr *attr)
 {
-	int err, len, type;
+	int err, len, type, disabled = !ctrl.enabled;
 
-	err = arch_bp_generic_fields(ctrl, &len, &type);
-	if (err)
-		return err;
+	if (disabled) {
+		len = 0;
+		type = HW_BREAKPOINT_EMPTY;
+	} else {
+		err = arch_bp_generic_fields(ctrl, &len, &type);
+		if (err)
+			return err;
 
-	switch (note_type) {
-	case NT_ARM_HW_BREAK:
-		if ((type & HW_BREAKPOINT_X) != type)
+		switch (note_type) {
+		case NT_ARM_HW_BREAK:
+			if ((type & HW_BREAKPOINT_X) != type)
+				return -EINVAL;
+			break;
+		case NT_ARM_HW_WATCH:
+			if ((type & HW_BREAKPOINT_RW) != type)
+				return -EINVAL;
+			break;
+		default:
 			return -EINVAL;
-		break;
-	case NT_ARM_HW_WATCH:
-		if ((type & HW_BREAKPOINT_RW) != type)
-			return -EINVAL;
-		break;
-	default:
-		return -EINVAL;
+		}
 	}
 
 	attr->bp_len	= len;
 	attr->bp_type	= type;
-	attr->disabled	= !ctrl.enabled;
+	attr->disabled	= disabled;
 
 	return 0;
 }
@@ -372,7 +377,7 @@ static int ptrace_hbp_set_addr(unsigned int note_type,
 
 #define PTRACE_HBP_ADDR_SZ	sizeof(u64)
 #define PTRACE_HBP_CTRL_SZ	sizeof(u32)
-#define PTRACE_HBP_REG_OFF	sizeof(u32)
+#define PTRACE_HBP_PAD_SZ	sizeof(u32)
 
 static int hw_break_get(struct task_struct *target,
 			const struct user_regset *regset,
@@ -380,7 +385,7 @@ static int hw_break_get(struct task_struct *target,
 			void *kbuf, void __user *ubuf)
 {
 	unsigned int note_type = regset->core_note_type;
-	int ret, idx = 0, offset = PTRACE_HBP_REG_OFF, limit;
+	int ret, idx = 0, offset, limit;
 	u32 info, ctrl;
 	u64 addr;
 
@@ -389,11 +394,20 @@ static int hw_break_get(struct task_struct *target,
 	if (ret)
 		return ret;
 
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &info, 0, 4);
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &info, 0,
+				  sizeof(info));
+	if (ret)
+		return ret;
+
+	/* Pad */
+	offset = offsetof(struct user_hwdebug_state, pad);
+	ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf, offset,
+				       offset + PTRACE_HBP_PAD_SZ);
 	if (ret)
 		return ret;
 
 	/* (address, ctrl) registers */
+	offset = offsetof(struct user_hwdebug_state, dbg_regs);
 	limit = regset->n * regset->size;
 	while (count && offset < limit) {
 		ret = ptrace_hbp_get_addr(note_type, target, idx, &addr);
@@ -413,6 +427,13 @@ static int hw_break_get(struct task_struct *target,
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
+
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					       offset,
+					       offset + PTRACE_HBP_PAD_SZ);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_PAD_SZ;
 		idx++;
 	}
 
@@ -425,12 +446,13 @@ static int hw_break_set(struct task_struct *target,
 			const void *kbuf, const void __user *ubuf)
 {
 	unsigned int note_type = regset->core_note_type;
-	int ret, idx = 0, offset = PTRACE_HBP_REG_OFF, limit;
+	int ret, idx = 0, offset, limit;
 	u32 ctrl;
 	u64 addr;
 
-	/* Resource info */
-	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, 4);
+	/* Resource info and pad */
+	offset = offsetof(struct user_hwdebug_state, dbg_regs);
+	ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf, 0, offset);
 	if (ret)
 		return ret;
 
@@ -454,6 +476,13 @@ static int hw_break_set(struct task_struct *target,
 		if (ret)
 			return ret;
 		offset += PTRACE_HBP_CTRL_SZ;
+
+		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+						offset,
+						offset + PTRACE_HBP_PAD_SZ);
+		if (ret)
+			return ret;
+		offset += PTRACE_HBP_PAD_SZ;
 		idx++;
 	}
 
@@ -823,11 +852,11 @@ static int compat_ptrace_read_user(struct task_struct *tsk, compat_ulong_t off,
 	if (off & 3)
 		return -EIO;
 
-	if (off == PT_TEXT_ADDR)
+	if (off == COMPAT_PT_TEXT_ADDR)
 		tmp = tsk->mm->start_code;
-	else if (off == PT_DATA_ADDR)
+	else if (off == COMPAT_PT_DATA_ADDR)
 		tmp = tsk->mm->start_data;
-	else if (off == PT_TEXT_END_ADDR)
+	else if (off == COMPAT_PT_TEXT_END_ADDR)
 		tmp = tsk->mm->end_code;
 	else if (off < sizeof(compat_elf_gregset_t))
 		return copy_regset_to_user(tsk, &user_aarch32_view,

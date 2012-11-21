@@ -12,11 +12,10 @@
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
-#include "as-layout.h"
-#include "mem_user.h"
-#include "skas.h"
-#include "os.h"
-#include "internal.h"
+#include <as-layout.h>
+#include <mem_user.h>
+#include <skas.h>
+#include <os.h>
 
 void flush_thread(void)
 {
@@ -48,28 +47,3 @@ void start_thread(struct pt_regs *regs, unsigned long eip, unsigned long esp)
 #endif
 }
 EXPORT_SYMBOL(start_thread);
-
-long um_execve(const char *file, const char __user *const __user *argv, const char __user *const __user *env)
-{
-	long err;
-
-	err = do_execve(file, argv, env, &current->thread.regs);
-	if (!err)
-		UML_LONGJMP(current->thread.exec_buf, 1);
-	return err;
-}
-
-long sys_execve(const char __user *file, const char __user *const __user *argv,
-		const char __user *const __user *env)
-{
-	long error;
-	char *filename;
-
-	filename = getname(file);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename)) goto out;
-	error = do_execve(filename, argv, env, &current->thread.regs);
-	putname(filename);
- out:
-	return error;
-}

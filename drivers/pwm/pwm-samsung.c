@@ -126,9 +126,6 @@ static int s3c_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (period_ns > NS_IN_HZ || duty_ns > NS_IN_HZ)
 		return -ERANGE;
 
-	if (duty_ns > period_ns)
-		return -EINVAL;
-
 	if (period_ns == s3c->period_ns &&
 	    duty_ns == s3c->duty_ns)
 		return 0;

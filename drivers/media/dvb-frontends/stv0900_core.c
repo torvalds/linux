@@ -1552,8 +1552,8 @@ static int stv0900_status(struct stv0900_internal *intp,
 		bitrate = (stv0900_get_mclk_freq(intp, intp->quartz)/1000000)
 			* (tsbitrate1_val << 8 | tsbitrate0_val);
 		bitrate /= 16384;
-		dprintk("TS bitrate = %d Mbit/sec \n", bitrate);
-	};
+		dprintk("TS bitrate = %d Mbit/sec\n", bitrate);
+	}
 
 	return locked;
 }

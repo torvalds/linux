@@ -527,7 +527,7 @@ static int bcm3510_set_frontend(struct dvb_frontend *fe)
 			cmd.ACQUIRE1.IF_FREQ = 0x0;
 		default:
 			return -EINVAL;
-	};
+	}
 	cmd.ACQUIRE0.OFFSET = 0;
 	cmd.ACQUIRE0.NTSCSWEEP = 1;
 	cmd.ACQUIRE0.FA = 1;

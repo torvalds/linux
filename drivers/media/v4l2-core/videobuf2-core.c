@@ -276,6 +276,9 @@ static void __vb2_queue_free(struct vb2_queue *q, unsigned int buffers)
  */
 static int __verify_planes_array(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 {
+	if (!V4L2_TYPE_IS_MULTIPLANAR(b->type))
+		return 0;
+
 	/* Is memory for copying plane information present? */
 	if (NULL == b->m.planes) {
 		dprintk(1, "Multi-planar buffer passed but "
@@ -331,10 +334,9 @@ static bool __buffers_in_use(struct vb2_queue *q)
  * __fill_v4l2_buffer() - fill in a struct v4l2_buffer with information to be
  * returned to userspace
  */
-static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
+static void __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 {
 	struct vb2_queue *q = vb->vb2_queue;
-	int ret;
 
 	/* Copy back data such as timestamp, flags, etc. */
 	memcpy(b, &vb->v4l2_buf, offsetof(struct v4l2_buffer, m));
@@ -342,14 +344,11 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	b->reserved = vb->v4l2_buf.reserved;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(q->type)) {
-		ret = __verify_planes_array(vb, b);
-		if (ret)
-			return ret;
-
 		/*
 		 * Fill in plane-related data if userspace provided an array
-		 * for it. The memory and size is verified above.
+		 * for it. The caller has already verified memory and size.
 		 */
+		b->length = vb->num_planes;
 		memcpy(b->m.planes, vb->v4l2_planes,
 			b->length * sizeof(struct v4l2_plane));
 	} else {
@@ -391,8 +390,6 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 
 	if (__buffer_in_use(q, vb))
 		b->flags |= V4L2_BUF_FLAG_MAPPED;
-
-	return 0;
 }
 
 /**
@@ -411,6 +408,7 @@ static int __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 {
 	struct vb2_buffer *vb;
+	int ret;
 
 	if (b->type != q->type) {
 		dprintk(1, "querybuf: wrong buffer type\n");
@@ -422,8 +420,10 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		return -EINVAL;
 	}
 	vb = q->bufs[b->index];
-
-	return __fill_v4l2_buffer(vb, b);
+	ret = __verify_planes_array(vb, b);
+	if (!ret)
+		__fill_v4l2_buffer(vb, b);
+	return ret;
 }
 EXPORT_SYMBOL(vb2_querybuf);
 
@@ -813,24 +813,16 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 EXPORT_SYMBOL_GPL(vb2_buffer_done);
 
 /**
- * __fill_vb2_buffer() - fill a vb2_buffer with information provided in
- * a v4l2_buffer by the userspace
+ * __fill_vb2_buffer() - fill a vb2_buffer with information provided in a
+ * v4l2_buffer by the userspace. The caller has already verified that struct
+ * v4l2_buffer has a valid number of planes.
  */
-static int __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b,
+static void __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b,
 				struct v4l2_plane *v4l2_planes)
 {
 	unsigned int plane;
-	int ret;
 
 	if (V4L2_TYPE_IS_MULTIPLANAR(b->type)) {
-		/*
-		 * Verify that the userspace gave us a valid array for
-		 * plane information.
-		 */
-		ret = __verify_planes_array(vb, b);
-		if (ret)
-			return ret;
-
 		/* Fill in driver-provided information for OUTPUT types */
 		if (V4L2_TYPE_IS_OUTPUT(b->type)) {
 			/*
@@ -872,8 +864,6 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, const struct v4l2_buffer *b,
 	vb->v4l2_buf.field = b->field;
 	vb->v4l2_buf.timestamp = b->timestamp;
 	vb->v4l2_buf.flags = b->flags & ~V4L2_BUFFER_STATE_FLAGS;
-
-	return 0;
 }
 
 /**
@@ -888,10 +878,8 @@ static int __qbuf_userptr(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 	int ret;
 	int write = !V4L2_TYPE_IS_OUTPUT(q->type);
 
-	/* Verify and copy relevant information provided by the userspace */
-	ret = __fill_vb2_buffer(vb, b, planes);
-	if (ret)
-		return ret;
+	/* Copy relevant information provided by the userspace */
+	__fill_vb2_buffer(vb, b, planes);
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
 		/* Skip the plane if already verified */
@@ -966,7 +954,8 @@ err:
  */
 static int __qbuf_mmap(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 {
-	return __fill_vb2_buffer(vb, b, vb->v4l2_planes);
+	__fill_vb2_buffer(vb, b, vb->v4l2_planes);
+	return 0;
 }
 
 /**
@@ -1059,7 +1048,9 @@ int vb2_prepare_buf(struct vb2_queue *q, struct v4l2_buffer *b)
 		dprintk(1, "%s(): invalid buffer state %d\n", __func__, vb->state);
 		return -EINVAL;
 	}
-
+	ret = __verify_planes_array(vb, b);
+	if (ret < 0)
+		return ret;
 	ret = __buf_prepare(vb, b);
 	if (ret < 0)
 		return ret;
@@ -1147,6 +1138,9 @@ int vb2_qbuf(struct vb2_queue *q, struct v4l2_buffer *b)
 		ret = -EINVAL;
 		goto unlock;
 	}
+	ret = __verify_planes_array(vb, b);
+	if (ret)
+		goto unlock;
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_DEQUEUED:
@@ -1243,8 +1237,10 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
 		 * the locks or return an error if one occurred.
 		 */
 		call_qop(q, wait_finish, q);
-		if (ret)
+		if (ret) {
+			dprintk(1, "Sleep was interrupted\n");
 			return ret;
+		}
 	}
 	return 0;
 }
@@ -1255,7 +1251,7 @@ static int __vb2_wait_for_done_vb(struct vb2_queue *q, int nonblocking)
  * Will sleep if required for nonblocking == false.
  */
 static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
-				int nonblocking)
+				struct v4l2_buffer *b, int nonblocking)
 {
 	unsigned long flags;
 	int ret;
@@ -1273,10 +1269,16 @@ static int __vb2_get_done_vb(struct vb2_queue *q, struct vb2_buffer **vb,
 	 */
 	spin_lock_irqsave(&q->done_lock, flags);
 	*vb = list_first_entry(&q->done_list, struct vb2_buffer, done_entry);
-	list_del(&(*vb)->done_entry);
+	/*
+	 * Only remove the buffer from done_list if v4l2_buffer can handle all
+	 * the planes.
+	 */
+	ret = __verify_planes_array(*vb, b);
+	if (!ret)
+		list_del(&(*vb)->done_entry);
 	spin_unlock_irqrestore(&q->done_lock, flags);
 
-	return 0;
+	return ret;
 }
 
 /**
@@ -1335,12 +1337,9 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 		dprintk(1, "dqbuf: invalid buffer type\n");
 		return -EINVAL;
 	}
-
-	ret = __vb2_get_done_vb(q, &vb, nonblocking);
-	if (ret < 0) {
-		dprintk(1, "dqbuf: error getting next done buffer\n");
+	ret = __vb2_get_done_vb(q, &vb, b, nonblocking);
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = call_qop(q, buf_finish, vb);
 	if (ret) {

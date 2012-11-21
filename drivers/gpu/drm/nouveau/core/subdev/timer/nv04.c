@@ -85,7 +85,7 @@ nv04_timer_alarm_trigger(struct nouveau_timer *ptimer)
 }
 
 static void
-nv04_timer_alarm(struct nouveau_timer *ptimer, u32 time,
+nv04_timer_alarm(struct nouveau_timer *ptimer, u64 time,
 		 struct nouveau_alarm *alarm)
 {
 	struct nv04_timer_priv *priv = (void *)ptimer;

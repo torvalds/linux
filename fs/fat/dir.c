@@ -571,7 +571,7 @@ static int __fat_readdir(struct inode *inode, struct file *filp, void *dirent,
 	int short_len = 0, fill_len = 0;
 	int ret = 0;
 
-	lock_super(sb);
+	mutex_lock(&sbi->s_lock);
 
 	cpos = filp->f_pos;
 	/* Fake . and .. for the root directory. */
@@ -693,7 +693,7 @@ fill_failed:
 	if (unicode)
 		__putname(unicode);
 out:
-	unlock_super(sb);
+	mutex_unlock(&sbi->s_lock);
 	return ret;
 }
 

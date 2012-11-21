@@ -1,9 +1,6 @@
 #ifndef _LINUX_POLL_H
 #define _LINUX_POLL_H
 
-#include <asm/poll.h>
-
-#ifdef __KERNEL__
 
 #include <linux/compiler.h>
 #include <linux/ktime.h>
@@ -12,6 +9,7 @@
 #include <linux/fs.h>
 #include <linux/sysctl.h>
 #include <asm/uaccess.h>
+#include <uapi/linux/poll.h>
 
 extern struct ctl_table epoll_table[]; /* for sysctl */
 /* ~832 bytes of stack space used max in sys_select/sys_poll before allocating
@@ -162,7 +160,5 @@ extern int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			   fd_set __user *exp, struct timespec *end_time);
 
 extern int poll_select_set_timeout(struct timespec *to, long sec, long nsec);
-
-#endif /* KERNEL */
 
 #endif /* _LINUX_POLL_H */

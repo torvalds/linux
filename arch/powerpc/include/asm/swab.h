@@ -1,23 +1,17 @@
-#ifndef _ASM_POWERPC_SWAB_H
-#define _ASM_POWERPC_SWAB_H
-
 /*
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#ifndef _ASM_POWERPC_SWAB_H
+#define _ASM_POWERPC_SWAB_H
 
-#include <linux/types.h>
-#include <linux/compiler.h>
+#include <uapi/asm/swab.h>
 
 #ifdef __GNUC__
-
 #ifndef __powerpc64__
-#define __SWAB_64_THRU_32__
 #endif /* __powerpc64__ */
-
-#ifdef __KERNEL__
 
 static __inline__ __u16 ld_le16(const volatile __u16 *addr)
 {
@@ -83,8 +77,5 @@ static inline __attribute_const__ __u32 __arch_swab32(__u32 value)
 }
 #define __arch_swab32 __arch_swab32
 
-#endif /* __KERNEL__ */
-
 #endif /* __GNUC__ */
-
 #endif /* _ASM_POWERPC_SWAB_H */

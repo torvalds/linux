@@ -1698,6 +1698,29 @@ static bool _are_all_hardreset_lines_asserted(struct omap_hwmod *oh)
 }
 
 /**
+ * _are_any_hardreset_lines_asserted - return true if any part of @oh is
+ * hard-reset
+ * @oh: struct omap_hwmod *
+ *
+ * If any hardreset lines associated with @oh are asserted, then
+ * return true.  Otherwise, if no hardreset lines associated with @oh
+ * are asserted, or if @oh has no hardreset lines, then return false.
+ * This function is used to avoid executing some parts of the IP block
+ * enable/disable sequence if any hardreset line is set.
+ */
+static bool _are_any_hardreset_lines_asserted(struct omap_hwmod *oh)
+{
+	int rst_cnt = 0;
+	int i;
+
+	for (i = 0; i < oh->rst_lines_cnt && rst_cnt == 0; i++)
+		if (_read_hardreset(oh, oh->rst_lines[i].name) > 0)
+			rst_cnt++;
+
+	return (rst_cnt) ? true : false;
+}
+
+/**
  * _omap4_disable_module - enable CLKCTRL modulemode on OMAP4
  * @oh: struct omap_hwmod *
  *
@@ -1715,7 +1738,7 @@ static int _omap4_disable_module(struct omap_hwmod *oh)
 	 * Since integration code might still be doing something, only
 	 * disable if all lines are under hardreset.
 	 */
-	if (!_are_all_hardreset_lines_asserted(oh))
+	if (_are_any_hardreset_lines_asserted(oh))
 		return 0;
 
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
@@ -1749,11 +1772,11 @@ static int _am33xx_disable_module(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: %s\n", oh->name, __func__);
 
+	if (_are_any_hardreset_lines_asserted(oh))
+		return 0;
+
 	am33xx_cm_module_disable(oh->clkdm->cm_inst, oh->clkdm->clkdm_offs,
 				 oh->prcm.omap4.clkctrl_offs);
-
-	if (_are_all_hardreset_lines_asserted(oh))
-		return 0;
 
 	v = _am33xx_wait_target_disable(oh);
 	if (v)

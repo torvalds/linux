@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include "os.h"
+#include <os.h>
 
 static void early_console_write(struct console *con, const char *s, unsigned int n)
 {

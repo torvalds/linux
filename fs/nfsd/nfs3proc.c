@@ -247,7 +247,7 @@ nfsd3_proc_create(struct svc_rqst *rqstp, struct nfsd3_createargs *argp,
 	/* Now create the file and set attributes */
 	nfserr = do_nfsd_create(rqstp, dirfhp, argp->name, argp->len,
 				attr, newfhp,
-				argp->createmode, argp->verf, NULL, NULL);
+				argp->createmode, (u32 *)argp->verf, NULL, NULL);
 
 	RETURN_STATUS(nfserr);
 }

@@ -1376,6 +1376,7 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 	__u32 pixfmt = pix->pixelformat;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
+	struct mx2_fmt_cfg *emma_prp;
 	unsigned int width_limit;
 	int ret;
 
@@ -1438,12 +1439,11 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 		__func__, pcdev->s_width, pcdev->s_height);
 
 	/* If the sensor does not support image size try PrP resizing */
-	pcdev->emma_prp = mx27_emma_prp_get_format(xlate->code,
+	emma_prp = mx27_emma_prp_get_format(xlate->code,
 						   xlate->host_fmt->fourcc);
 
-	memset(pcdev->resizing, 0, sizeof(pcdev->resizing));
 	if ((mf.width != pix->width || mf.height != pix->height) &&
-		pcdev->emma_prp->cfg.in_fmt == PRP_CNTL_DATA_IN_YUV422) {
+		emma_prp->cfg.in_fmt == PRP_CNTL_DATA_IN_YUV422) {
 		if (mx2_emmaprp_resize(pcdev, &mf, pix, false) < 0)
 			dev_dbg(icd->parent, "%s: can't resize\n", __func__);
 	}
@@ -1655,6 +1655,7 @@ static int __devinit mx27_camera_emma_init(struct platform_device *pdev)
 	irq_emma = platform_get_irq(pdev, 1);
 	if (!res_emma || !irq_emma) {
 		dev_err(pcdev->dev, "no EMMA resources\n");
+		err = -ENODEV;
 		goto out;
 	}
 

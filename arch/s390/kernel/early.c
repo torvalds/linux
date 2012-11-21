@@ -283,14 +283,6 @@ static noinline __init void setup_facility_list(void)
 	      ARRAY_SIZE(S390_lowcore.stfle_fac_list));
 }
 
-static noinline __init void setup_hpage(void)
-{
-	if (!test_facility(2) || !test_facility(8))
-		return;
-	S390_lowcore.machine_flags |= MACHINE_FLAG_HPAGE;
-	__ctl_set_bit(0, 23);
-}
-
 static __init void detect_mvpg(void)
 {
 #ifndef CONFIG_64BIT
@@ -378,10 +370,14 @@ static __init void detect_diag44(void)
 static __init void detect_machine_facilities(void)
 {
 #ifdef CONFIG_64BIT
+	if (test_facility(8)) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT1;
+		__ctl_set_bit(0, 23);
+	}
+	if (test_facility(78))
+		S390_lowcore.machine_flags |= MACHINE_FLAG_EDAT2;
 	if (test_facility(3))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_IDTE;
-	if (test_facility(8))
-		S390_lowcore.machine_flags |= MACHINE_FLAG_PFMF;
 	if (test_facility(27))
 		S390_lowcore.machine_flags |= MACHINE_FLAG_MVCOS;
 	if (test_facility(40))
@@ -484,7 +480,6 @@ void __init startup_init(void)
 	detect_diag9c();
 	detect_diag44();
 	detect_machine_facilities();
-	setup_hpage();
 	setup_topology();
 	sclp_facilities_detect();
 	detect_memory_layout(memory_chunk);

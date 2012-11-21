@@ -157,8 +157,7 @@ static const char *v4l2_memory_names[] = {
 	[V4L2_MEMORY_OVERLAY] = "overlay",
 };
 
-#define prt_names(a, arr) ((((a) >= 0) && ((a) < ARRAY_SIZE(arr))) ? \
-			   arr[a] : "unknown")
+#define prt_names(a, arr) (((unsigned)(a)) < ARRAY_SIZE(arr) ? arr[a] : "unknown")
 
 /* ------------------------------------------------------------------ */
 /* debug help functions                                               */
@@ -2188,6 +2187,7 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 	int ret = 0;
 
 	switch (cmd) {
+	case VIDIOC_PREPARE_BUF:
 	case VIDIOC_QUERYBUF:
 	case VIDIOC_QBUF:
 	case VIDIOC_DQBUF: {
@@ -2211,6 +2211,10 @@ static int check_array_args(unsigned int cmd, void *parg, size_t *array_size,
 		struct v4l2_subdev_edid *edid = parg;
 
 		if (edid->blocks) {
+			if (edid->blocks > 256) {
+				ret = -EINVAL;
+				break;
+			}
 			*user_ptr = (void __user *)edid->edid;
 			*kernel_ptr = (void *)&edid->edid;
 			*array_size = edid->blocks * 128;

@@ -39,7 +39,6 @@
 #include <asm/uaccess.h>
 #include <asm/param.h>
 #include <asm/pgalloc.h>
-#include <asm/exec.h>
 
 typedef char *elf_caddr_t;
 

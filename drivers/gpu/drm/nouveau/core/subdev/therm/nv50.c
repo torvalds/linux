@@ -92,7 +92,7 @@ nv50_fan_pwm_clock(struct nouveau_therm *therm)
 		if (nv_rd32(therm, 0xc040) & 0x800000) {
 			/* Use the HOST clock (100 MHz)
 			* Where does this constant(2.4) comes from? */
-			pwm_clock = (100000000 >> pwm_div) / 10 / 24;
+			pwm_clock = (100000000 >> pwm_div) * 10 / 24;
 		} else {
 			/* Where does this constant(20) comes from? */
 			pwm_clock = (crystal * 1000) >> pwm_div;

@@ -41,17 +41,34 @@ static struct {
 
 static int hdmi_panel_probe(struct omap_dss_device *dssdev)
 {
+	/* Initialize default timings to VGA in DVI mode */
+	const struct omap_video_timings default_timings = {
+		.x_res		= 640,
+		.y_res		= 480,
+		.pixel_clock	= 25175,
+		.hsw		= 96,
+		.hfp		= 16,
+		.hbp		= 48,
+		.vsw		= 2,
+		.vfp		= 11,
+		.vbp		= 31,
+
+		.vsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+		.hsync_level	= OMAPDSS_SIG_ACTIVE_LOW,
+
+		.interlace	= false,
+	};
+
 	DSSDBG("ENTER hdmi_panel_probe\n");
 
-	dssdev->panel.timings = (struct omap_video_timings)
-			{ 640, 480, 25175, 96, 16, 48, 2, 11, 31,
-				OMAPDSS_SIG_ACTIVE_LOW, OMAPDSS_SIG_ACTIVE_LOW,
-				false,
-			};
+	dssdev->panel.timings = default_timings;
 
 	DSSDBG("hdmi_panel_probe x_res= %d y_res = %d\n",
 		dssdev->panel.timings.x_res,
 		dssdev->panel.timings.y_res);
+
+	omapdss_hdmi_display_set_timing(dssdev, &dssdev->panel.timings);
+
 	return 0;
 }
 
@@ -228,6 +245,8 @@ static int hdmi_panel_enable(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
+	omapdss_hdmi_display_set_timing(dssdev, &dssdev->panel.timings);
+
 	r = omapdss_hdmi_display_enable(dssdev);
 	if (r) {
 		DSSERR("failed to power on\n");
@@ -336,8 +355,8 @@ static void hdmi_set_timings(struct omap_dss_device *dssdev,
 	 */
 	hdmi_panel_audio_disable(dssdev);
 
+	omapdss_hdmi_display_set_timing(dssdev, timings);
 	dssdev->panel.timings = *timings;
-	omapdss_hdmi_display_set_timing(dssdev);
 
 	mutex_unlock(&hdmi.lock);
 }

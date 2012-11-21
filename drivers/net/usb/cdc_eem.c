@@ -244,8 +244,12 @@ static int eem_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 			 *  - suspend: peripheral ready to suspend
 			 *  - response: suggest N millisec polling
 			 *  - response complete: suggest N sec polling
+			 *
+			 * Suspend is reported and maybe heeded.
 			 */
 			case 2:		/* Suspend hint */
+				usbnet_device_suggests_idle(dev);
+				continue;
 			case 3:		/* Response hint */
 			case 4:		/* Response complete hint */
 				continue;

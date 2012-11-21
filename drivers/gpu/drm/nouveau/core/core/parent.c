@@ -101,23 +101,6 @@ nouveau_parent_create_(struct nouveau_object *parent,
 	return 0;
 }
 
-int
-_nouveau_parent_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
-{
-	struct nouveau_parent *object;
-	int ret;
-
-	ret = nouveau_parent_create(parent, engine, oclass, 0, NULL, 0, &object);
-	*pobject = nv_object(object);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 void
 nouveau_parent_destroy(struct nouveau_parent *parent)
 {

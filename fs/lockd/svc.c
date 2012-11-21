@@ -126,7 +126,7 @@ static void restart_grace(void)
 static int
 lockd(void *vrqstp)
 {
-	int		err = 0, preverr = 0;
+	int		err = 0;
 	struct svc_rqst *rqstp = vrqstp;
 
 	/* try_to_freeze() is called from svc_recv() */
@@ -165,21 +165,8 @@ lockd(void *vrqstp)
 		 * recvfrom routine.
 		 */
 		err = svc_recv(rqstp, timeout);
-		if (err == -EAGAIN || err == -EINTR) {
-			preverr = err;
+		if (err == -EAGAIN || err == -EINTR)
 			continue;
-		}
-		if (err < 0) {
-			if (err != preverr) {
-				printk(KERN_WARNING "%s: unexpected error "
-					"from svc_recv (%d)\n", __func__, err);
-				preverr = err;
-			}
-			schedule_timeout_interruptible(HZ);
-			continue;
-		}
-		preverr = err;
-
 		dprintk("lockd: request from %s\n",
 				svc_print_addr(rqstp, buf, sizeof(buf)));
 
@@ -596,6 +583,7 @@ static int lockd_init_net(struct net *net)
 
 	INIT_DELAYED_WORK(&ln->grace_period_end, grace_ender);
 	INIT_LIST_HEAD(&ln->grace_list);
+	spin_lock_init(&ln->nsm_clnt_lock);
 	return 0;
 }
 

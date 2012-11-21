@@ -32,11 +32,6 @@ enum vpbe_enc_timings_type {
 	VPBE_ENC_TIMINGS_INVALID = 0x8,
 };
 
-union vpbe_timings {
-	v4l2_std_id std_id;
-	unsigned int dv_preset;
-};
-
 /*
  * struct vpbe_enc_mode_info
  * @name: ptr to name string of the standard, "NTSC", "PAL" etc
@@ -73,7 +68,8 @@ union vpbe_timings {
 struct vpbe_enc_mode_info {
 	unsigned char *name;
 	enum vpbe_enc_timings_type timings_type;
-	union vpbe_timings timings;
+	v4l2_std_id std_id;
+	struct v4l2_dv_timings dv_timings;
 	unsigned int interlaced;
 	unsigned int xres;
 	unsigned int yres;

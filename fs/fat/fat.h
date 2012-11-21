@@ -71,8 +71,9 @@ struct msdos_sb_info {
 	unsigned long root_cluster;   /* first cluster of the root directory */
 	unsigned long fsinfo_sector;  /* sector number of FAT32 fsinfo */
 	struct mutex fat_lock;
-	unsigned int prev_free;       /* previously allocated cluster number */
-	unsigned int free_clusters;   /* -1 if undefined */
+	struct mutex s_lock;
+	unsigned int prev_free;      /* previously allocated cluster number */
+	unsigned int free_clusters;  /* -1 if undefined */
 	unsigned int free_clus_valid; /* is free_clusters valid? */
 	struct fat_mount_options options;
 	struct nls_table *nls_disk;   /* Codepage used on disk */

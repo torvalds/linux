@@ -358,7 +358,7 @@ static int m920x_firmware_download(struct usb_device *udev, const struct firmwar
 
 	if ((ret = m920x_read(udev, M9206_FILTER, 0x0, 0x8000, read, 4)) != 0)
 		goto done;
-	deb("%x %x %x %x\n", read[0], read[1], read[2], read[3]);
+	deb("%*ph\n", 4, read);
 
 	if ((ret = m920x_read(udev, M9206_FW, 0x0, 0x0, read, 1)) != 0)
 		goto done;

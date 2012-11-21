@@ -8,10 +8,10 @@
 #include <linux/sched.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
-#include "as-layout.h"
-#include "mem_user.h"
-#include "os.h"
-#include "skas.h"
+#include <as-layout.h>
+#include <mem_user.h>
+#include <os.h>
+#include <skas.h>
 
 struct host_vm_change {
 	struct host_vm_op {

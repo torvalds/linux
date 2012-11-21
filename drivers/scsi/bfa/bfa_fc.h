@@ -24,6 +24,7 @@ typedef u64 wwn_t;
 
 #define WWN_NULL	(0)
 #define FC_SYMNAME_MAX	256	/*  max name server symbolic name size */
+#define FC_ALPA_MAX	128
 
 #pragma pack(1)
 
@@ -1013,6 +1014,10 @@ enum fc_cos {
  */
 struct fc_symname_s {
 	u8         symname[FC_SYMNAME_MAX];
+};
+
+struct fc_alpabm_s {
+	u8	alpa_bm[FC_ALPA_MAX / 8];
 };
 
 /*

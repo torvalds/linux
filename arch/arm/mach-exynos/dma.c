@@ -303,10 +303,12 @@ static int __init exynos_dma_init(void)
 
 	dma_cap_set(DMA_SLAVE, exynos_pdma0_pdata.cap_mask);
 	dma_cap_set(DMA_CYCLIC, exynos_pdma0_pdata.cap_mask);
+	dma_cap_set(DMA_PRIVATE, exynos_pdma0_pdata.cap_mask);
 	amba_device_register(&exynos_pdma0_device, &iomem_resource);
 
 	dma_cap_set(DMA_SLAVE, exynos_pdma1_pdata.cap_mask);
 	dma_cap_set(DMA_CYCLIC, exynos_pdma1_pdata.cap_mask);
+	dma_cap_set(DMA_PRIVATE, exynos_pdma1_pdata.cap_mask);
 	amba_device_register(&exynos_pdma1_device, &iomem_resource);
 
 	dma_cap_set(DMA_MEMCPY, exynos_mdma1_pdata.cap_mask);

@@ -6,8 +6,8 @@ config ARCH_PRIMA2
 	bool "CSR SiRFSoC PRIMA2 ARM Cortex A9 Platform"
 	default y
 	select CPU_V7
-	select ZONE_DMA
 	select SIRF_IRQ
+	select ZONE_DMA
 	help
           Support for CSR SiRFSoC ARM Cortex A9 Platform
 

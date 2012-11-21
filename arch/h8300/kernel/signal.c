@@ -38,7 +38,6 @@
 #include <linux/personality.h>
 #include <linux/tty.h>
 #include <linux/binfmts.h>
-#include <linux/freezer.h>
 #include <linux/tracehook.h>
 
 #include <asm/setup.h>

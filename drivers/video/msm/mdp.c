@@ -25,7 +25,6 @@
 #include <linux/major.h>
 #include <linux/slab.h>
 
-#include <mach/msm_iomap.h>
 #include <linux/platform_data/video-msm_fb.h>
 #include <linux/platform_device.h>
 #include <linux/export.h>

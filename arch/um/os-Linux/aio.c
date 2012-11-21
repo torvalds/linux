@@ -9,10 +9,10 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <asm/unistd.h>
-#include "aio.h"
-#include "init.h"
-#include "kern_util.h"
-#include "os.h"
+#include <aio.h>
+#include <init.h>
+#include <kern_util.h>
+#include <os.h>
 
 struct aio_thread_req {
 	enum aio_type type;

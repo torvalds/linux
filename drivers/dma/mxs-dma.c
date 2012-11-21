@@ -101,7 +101,8 @@ struct mxs_dma_ccw {
 	u32		pio_words[MXS_PIO_WORDS];
 };
 
-#define NUM_CCW	(int)(PAGE_SIZE / sizeof(struct mxs_dma_ccw))
+#define CCW_BLOCK_SIZE	(4 * PAGE_SIZE)
+#define NUM_CCW	(int)(CCW_BLOCK_SIZE / sizeof(struct mxs_dma_ccw))
 
 struct mxs_dma_chan {
 	struct mxs_dma_engine		*mxs_dma;
@@ -354,14 +355,15 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 
 	mxs_chan->chan_irq = data->chan_irq;
 
-	mxs_chan->ccw = dma_alloc_coherent(mxs_dma->dma_device.dev, PAGE_SIZE,
-				&mxs_chan->ccw_phys, GFP_KERNEL);
+	mxs_chan->ccw = dma_alloc_coherent(mxs_dma->dma_device.dev,
+				CCW_BLOCK_SIZE, &mxs_chan->ccw_phys,
+				GFP_KERNEL);
 	if (!mxs_chan->ccw) {
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
 
-	memset(mxs_chan->ccw, 0, PAGE_SIZE);
+	memset(mxs_chan->ccw, 0, CCW_BLOCK_SIZE);
 
 	if (mxs_chan->chan_irq != NO_IRQ) {
 		ret = request_irq(mxs_chan->chan_irq, mxs_dma_int_handler,
@@ -387,7 +389,7 @@ static int mxs_dma_alloc_chan_resources(struct dma_chan *chan)
 err_clk:
 	free_irq(mxs_chan->chan_irq, mxs_dma);
 err_irq:
-	dma_free_coherent(mxs_dma->dma_device.dev, PAGE_SIZE,
+	dma_free_coherent(mxs_dma->dma_device.dev, CCW_BLOCK_SIZE,
 			mxs_chan->ccw, mxs_chan->ccw_phys);
 err_alloc:
 	return ret;
@@ -402,7 +404,7 @@ static void mxs_dma_free_chan_resources(struct dma_chan *chan)
 
 	free_irq(mxs_chan->chan_irq, mxs_dma);
 
-	dma_free_coherent(mxs_dma->dma_device.dev, PAGE_SIZE,
+	dma_free_coherent(mxs_dma->dma_device.dev, CCW_BLOCK_SIZE,
 			mxs_chan->ccw, mxs_chan->ccw_phys);
 
 	clk_disable_unprepare(mxs_dma->clk);

@@ -1,18 +1,11 @@
 #ifndef __INCLUDE_LINUX_OOM_H
 #define __INCLUDE_LINUX_OOM_H
 
-/*
- * /proc/<pid>/oom_score_adj set to OOM_SCORE_ADJ_MIN disables oom killing for
- * pid.
- */
-#define OOM_SCORE_ADJ_MIN	(-1000)
-#define OOM_SCORE_ADJ_MAX	1000
-
-#ifdef __KERNEL__
 
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/nodemask.h>
+#include <uapi/linux/oom.h>
 
 struct zonelist;
 struct notifier_block;
@@ -82,5 +75,4 @@ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 extern int sysctl_oom_dump_tasks;
 extern int sysctl_oom_kill_allocating_task;
 extern int sysctl_panic_on_oom;
-#endif /* __KERNEL__*/
 #endif /* _INCLUDE_LINUX_OOM_H */

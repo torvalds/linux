@@ -450,7 +450,7 @@ static irqreturn_t cx8802_irq(int irq, void *dev_id)
 			cx88_core_irq(core,status);
 		if (status & PCI_INT_TSINT)
 			cx8802_mpeg_irq(dev);
-	};
+	}
 	if (MAX_IRQ_LOOP == loop) {
 		dprintk( 0, "clearing mask\n" );
 		printk(KERN_WARNING "%s/0: irq loop -- clearing mask\n",

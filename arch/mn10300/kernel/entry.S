@@ -55,6 +55,20 @@ ENTRY(ret_from_fork)
 	mov	d0,(REG_D0,fp)
 	jmp	syscall_exit
 
+ENTRY(ret_from_kernel_thread)
+	call	schedule_tail[],0
+	mov	(REG_D0,fp),d0
+	mov	(REG_A0,fp),a0
+	calls	(a0)
+	jmp	sys_exit
+
+ENTRY(ret_from_kernel_execve)
+	add	-12,d0	/* pt_regs -> frame */
+	mov	d0,sp
+	GET_THREAD_INFO a2
+	clr	d0
+	jmp	syscall_exit
+
 ###############################################################################
 #
 # system call handler
@@ -94,6 +108,10 @@ restore_all:
 ###############################################################################
 	ALIGN
 syscall_exit_work:
+	mov	(REG_EPSW,fp),d0
+	and	EPSW_nSL,d0
+	beq	resume_kernel		# returning to supervisor mode
+
 	btst	_TIF_SYSCALL_TRACE,d2
 	beq	work_pending
 	LOCAL_IRQ_ENABLE		# could let syscall_trace_exit() call

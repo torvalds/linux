@@ -30,6 +30,7 @@
 #include "ds3000.h"
 
 static int debug;
+static int force_fw_upload;
 
 #define dprintk(args...) \
 	do { \
@@ -392,11 +393,13 @@ static int ds3000_firmware_ondemand(struct dvb_frontend *fe)
 
 	dprintk("%s()\n", __func__);
 
-	if (ds3000_readreg(state, 0xb2) <= 0)
+	ret = ds3000_readreg(state, 0xb2);
+	if (ret < 0)
 		return ret;
 
-	if (state->skip_fw_load)
-		return 0;
+	if (state->skip_fw_load || !force_fw_upload)
+		return 0;	/* Firmware already uploaded, skipping */
+
 	/* Load firmware */
 	/* request the firmware, this will block until someone uploads it */
 	printk(KERN_INFO "%s: Waiting for firmware upload (%s)...\n", __func__,
@@ -1305,6 +1308,9 @@ static struct dvb_frontend_ops ds3000_ops = {
 
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Activates frontend debugging (default:0)");
+
+module_param(force_fw_upload, int, 0644);
+MODULE_PARM_DESC(force_fw_upload, "Force firmware upload (default:0)");
 
 MODULE_DESCRIPTION("DVB Frontend module for Montage Technology "
 			"DS3000/TS2020 hardware");

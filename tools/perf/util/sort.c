@@ -260,6 +260,12 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 	if (path != NULL)
 		goto out_path;
 
+	if (!self->ms.map)
+		goto out_ip;
+
+	if (!strncmp(self->ms.map->dso->long_name, "/tmp/perf-", 10))
+		goto out_ip;
+
 	snprintf(cmd, sizeof(cmd), "addr2line -e %s %016" PRIx64,
 		 self->ms.map->dso->long_name, self->ip);
 	fp = popen(cmd, "r");

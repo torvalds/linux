@@ -557,6 +557,7 @@ static bool qlt_check_fcport_exist(struct scsi_qla_host *vha,
 	int pmap_len;
 	fc_port_t *fcport;
 	int global_resets;
+	unsigned long flags;
 
 retry:
 	global_resets = atomic_read(&ha->tgt.qla_tgt->tgt_global_resets_count);
@@ -625,10 +626,10 @@ retry:
 	    sess->s_id.b.area, sess->loop_id, fcport->d_id.b.domain,
 	    fcport->d_id.b.al_pa, fcport->d_id.b.area, fcport->loop_id);
 
-	sess->s_id = fcport->d_id;
-	sess->loop_id = fcport->loop_id;
-	sess->conf_compl_supported = !!(fcport->flags &
-	    FCF_CONF_COMP_SUPPORTED);
+	spin_lock_irqsave(&ha->hardware_lock, flags);
+	ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
+				(fcport->flags & FCF_CONF_COMP_SUPPORTED));
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	res = true;
 
@@ -740,10 +741,9 @@ static struct qla_tgt_sess *qlt_create_sess(
 				qlt_undelete_sess(sess);
 
 			kref_get(&sess->se_sess->sess_kref);
-			sess->s_id = fcport->d_id;
-			sess->loop_id = fcport->loop_id;
-			sess->conf_compl_supported = !!(fcport->flags &
-			    FCF_CONF_COMP_SUPPORTED);
+			ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
+						(fcport->flags & FCF_CONF_COMP_SUPPORTED));
+
 			if (sess->local && !local)
 				sess->local = 0;
 			spin_unlock_irqrestore(&ha->hardware_lock, flags);
@@ -796,8 +796,7 @@ static struct qla_tgt_sess *qlt_create_sess(
 	 */
 	kref_get(&sess->se_sess->sess_kref);
 
-	sess->conf_compl_supported = !!(fcport->flags &
-	    FCF_CONF_COMP_SUPPORTED);
+	sess->conf_compl_supported = (fcport->flags & FCF_CONF_COMP_SUPPORTED);
 	BUILD_BUG_ON(sizeof(sess->port_name) != sizeof(fcport->port_name));
 	memcpy(sess->port_name, fcport->port_name, sizeof(sess->port_name));
 
@@ -869,10 +868,8 @@ void qlt_fc_port_added(struct scsi_qla_host *vha, fc_port_t *fcport)
 			ql_dbg(ql_dbg_tgt_mgt, vha, 0xf007,
 			    "Reappeared sess %p\n", sess);
 		}
-		sess->s_id = fcport->d_id;
-		sess->loop_id = fcport->loop_id;
-		sess->conf_compl_supported = !!(fcport->flags &
-		    FCF_CONF_COMP_SUPPORTED);
+		ha->tgt.tgt_ops->update_sess(sess, fcport->d_id, fcport->loop_id,
+					(fcport->flags & FCF_CONF_COMP_SUPPORTED));
 	}
 
 	if (sess && sess->local) {
@@ -1403,7 +1400,7 @@ static void qlt_24xx_send_task_mgmt_ctio(struct scsi_qla_host *ha,
 	ctio->u.status1.scsi_status =
 	    __constant_cpu_to_le16(SS_RESPONSE_INFO_LEN_VALID);
 	ctio->u.status1.response_len = __constant_cpu_to_le16(8);
-	((uint32_t *)ctio->u.status1.sense_data)[0] = cpu_to_be32(resp_code);
+	ctio->u.status1.sense_data[0] = resp_code;
 
 	qla2x00_start_iocbs(ha, ha->req);
 }

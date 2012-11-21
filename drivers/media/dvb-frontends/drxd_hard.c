@@ -991,7 +991,7 @@ static int HI_Command(struct drxd_state *state, u16 cmd, u16 * pResult)
 		if (nrRetries > DRXD_MAX_RETRIES) {
 			status = -1;
 			break;
-		};
+		}
 		status = Read16(state, HI_RA_RAM_SRV_CMD__A, &waitCmd, 0);
 	} while (waitCmd != 0);
 

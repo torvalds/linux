@@ -48,9 +48,9 @@ void iscsit_set_dataout_sequence_values(
 	if (cmd->unsolicited_data) {
 		cmd->seq_start_offset = cmd->write_data_done;
 		cmd->seq_end_offset = (cmd->write_data_done +
-			(cmd->se_cmd.data_length >
-			 conn->sess->sess_ops->FirstBurstLength) ?
-			conn->sess->sess_ops->FirstBurstLength : cmd->se_cmd.data_length);
+			((cmd->se_cmd.data_length >
+			  conn->sess->sess_ops->FirstBurstLength) ?
+			 conn->sess->sess_ops->FirstBurstLength : cmd->se_cmd.data_length));
 		return;
 	}
 
@@ -95,14 +95,15 @@ static int iscsit_dataout_within_command_recovery_check(
 	 */
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
 		if ((cmd->cmd_flags & ICF_WITHIN_COMMAND_RECOVERY) &&
-		    (cmd->write_data_done != hdr->offset))
+		    cmd->write_data_done != be32_to_cpu(hdr->offset))
 			goto dump;
 
 		cmd->cmd_flags &= ~ICF_WITHIN_COMMAND_RECOVERY;
 	} else {
 		struct iscsi_seq *seq;
 
-		seq = iscsit_get_seq_holder(cmd, hdr->offset, payload_length);
+		seq = iscsit_get_seq_holder(cmd, be32_to_cpu(hdr->offset),
+					    payload_length);
 		if (!seq)
 			return DATAOUT_CANNOT_RECOVER;
 		/*
@@ -111,15 +112,15 @@ static int iscsit_dataout_within_command_recovery_check(
 		cmd->seq_ptr = seq;
 
 		if (conn->sess->sess_ops->DataPDUInOrder) {
-			if ((seq->status ==
-			     DATAOUT_SEQUENCE_WITHIN_COMMAND_RECOVERY) &&
-			   ((seq->offset != hdr->offset) ||
-			    (seq->data_sn != hdr->datasn)))
+			if (seq->status ==
+			    DATAOUT_SEQUENCE_WITHIN_COMMAND_RECOVERY &&
+			   (seq->offset != be32_to_cpu(hdr->offset) ||
+			    seq->data_sn != be32_to_cpu(hdr->datasn)))
 				goto dump;
 		} else {
-			if ((seq->status ==
-			     DATAOUT_SEQUENCE_WITHIN_COMMAND_RECOVERY) &&
-			    (seq->data_sn != hdr->datasn))
+			if (seq->status ==
+			     DATAOUT_SEQUENCE_WITHIN_COMMAND_RECOVERY &&
+			    seq->data_sn != be32_to_cpu(hdr->datasn))
 				goto dump;
 		}
 
@@ -148,12 +149,12 @@ static int iscsit_dataout_check_unsolicited_sequence(
 	u32 payload_length = ntoh24(hdr->dlength);
 
 
-	if ((hdr->offset < cmd->seq_start_offset) ||
-	   ((hdr->offset + payload_length) > cmd->seq_end_offset)) {
+	if ((be32_to_cpu(hdr->offset) < cmd->seq_start_offset) ||
+	   ((be32_to_cpu(hdr->offset) + payload_length) > cmd->seq_end_offset)) {
 		pr_err("Command ITT: 0x%08x with Offset: %u,"
 		" Length: %u outside of Unsolicited Sequence %u:%u while"
 		" DataSequenceInOrder=Yes.\n", cmd->init_task_tag,
-		hdr->offset, payload_length, cmd->seq_start_offset,
+		be32_to_cpu(hdr->offset), payload_length, cmd->seq_start_offset,
 			cmd->seq_end_offset);
 		return DATAOUT_CANNOT_RECOVER;
 	}
@@ -236,12 +237,12 @@ static int iscsit_dataout_check_sequence(
 		 * fullfilling an Recovery R2T, it's best to just dump the
 		 * payload here, instead of erroring out.
 		 */
-		if ((hdr->offset < cmd->seq_start_offset) ||
-		   ((hdr->offset + payload_length) > cmd->seq_end_offset)) {
+		if ((be32_to_cpu(hdr->offset) < cmd->seq_start_offset) ||
+		   ((be32_to_cpu(hdr->offset) + payload_length) > cmd->seq_end_offset)) {
 			pr_err("Command ITT: 0x%08x with Offset: %u,"
 			" Length: %u outside of Sequence %u:%u while"
 			" DataSequenceInOrder=Yes.\n", cmd->init_task_tag,
-			hdr->offset, payload_length, cmd->seq_start_offset,
+			be32_to_cpu(hdr->offset), payload_length, cmd->seq_start_offset,
 				cmd->seq_end_offset);
 
 			if (iscsit_dump_data_payload(conn, payload_length, 1) < 0)
@@ -251,7 +252,8 @@ static int iscsit_dataout_check_sequence(
 
 		next_burst_len = (cmd->next_burst_len + payload_length);
 	} else {
-		seq = iscsit_get_seq_holder(cmd, hdr->offset, payload_length);
+		seq = iscsit_get_seq_holder(cmd, be32_to_cpu(hdr->offset),
+					    payload_length);
 		if (!seq)
 			return DATAOUT_CANNOT_RECOVER;
 		/*
@@ -366,16 +368,16 @@ static int iscsit_dataout_check_datasn(
 		data_sn = seq->data_sn;
 	}
 
-	if (hdr->datasn > data_sn) {
+	if (be32_to_cpu(hdr->datasn) > data_sn) {
 		pr_err("Command ITT: 0x%08x, received DataSN: 0x%08x"
 			" higher than expected 0x%08x.\n", cmd->init_task_tag,
-				hdr->datasn, data_sn);
+				be32_to_cpu(hdr->datasn), data_sn);
 		recovery = 1;
 		goto recover;
-	} else if (hdr->datasn < data_sn) {
+	} else if (be32_to_cpu(hdr->datasn) < data_sn) {
 		pr_err("Command ITT: 0x%08x, received DataSN: 0x%08x"
 			" lower than expected 0x%08x, discarding payload.\n",
-			cmd->init_task_tag, hdr->datasn, data_sn);
+			cmd->init_task_tag, be32_to_cpu(hdr->datasn), data_sn);
 		dump = 1;
 		goto dump;
 	}
@@ -415,26 +417,27 @@ static int iscsit_dataout_pre_datapduinorder_yes(
 	 * error has occured and fail the connection.
 	 */
 	if (conn->sess->sess_ops->DataSequenceInOrder) {
-		if (hdr->offset != cmd->write_data_done) {
+		if (be32_to_cpu(hdr->offset) != cmd->write_data_done) {
 			pr_err("Command ITT: 0x%08x, received offset"
 			" %u different than expected %u.\n", cmd->init_task_tag,
-				hdr->offset, cmd->write_data_done);
+				be32_to_cpu(hdr->offset), cmd->write_data_done);
 			recovery = 1;
 			goto recover;
 		}
 	} else {
 		struct iscsi_seq *seq = cmd->seq_ptr;
 
-		if (hdr->offset > seq->offset) {
+		if (be32_to_cpu(hdr->offset) > seq->offset) {
 			pr_err("Command ITT: 0x%08x, received offset"
 			" %u greater than expected %u.\n", cmd->init_task_tag,
-				hdr->offset, seq->offset);
+				be32_to_cpu(hdr->offset), seq->offset);
 			recovery = 1;
 			goto recover;
-		} else if (hdr->offset < seq->offset) {
+		} else if (be32_to_cpu(hdr->offset) < seq->offset) {
 			pr_err("Command ITT: 0x%08x, received offset"
 			" %u less than expected %u, discarding payload.\n",
-				cmd->init_task_tag, hdr->offset, seq->offset);
+				cmd->init_task_tag, be32_to_cpu(hdr->offset),
+				seq->offset);
 			dump = 1;
 			goto dump;
 		}
@@ -453,7 +456,7 @@ dump:
 		return DATAOUT_CANNOT_RECOVER;
 
 	return (recovery) ? iscsit_recover_dataout_sequence(cmd,
-		hdr->offset, payload_length) :
+		be32_to_cpu(hdr->offset), payload_length) :
 	       (dump) ? DATAOUT_WITHIN_COMMAND_RECOVERY : DATAOUT_NORMAL;
 }
 
@@ -465,7 +468,8 @@ static int iscsit_dataout_pre_datapduinorder_no(
 	struct iscsi_data *hdr = (struct iscsi_data *) buf;
 	u32 payload_length = ntoh24(hdr->dlength);
 
-	pdu = iscsit_get_pdu_holder(cmd, hdr->offset, payload_length);
+	pdu = iscsit_get_pdu_holder(cmd, be32_to_cpu(hdr->offset),
+				    payload_length);
 	if (!pdu)
 		return DATAOUT_CANNOT_RECOVER;
 
@@ -479,7 +483,7 @@ static int iscsit_dataout_pre_datapduinorder_no(
 	case ISCSI_PDU_RECEIVED_OK:
 		pr_err("Command ITT: 0x%08x received already gotten"
 			" Offset: %u, Length: %u\n", cmd->init_task_tag,
-				hdr->offset, payload_length);
+				be32_to_cpu(hdr->offset), payload_length);
 		return iscsit_dump_data_payload(cmd->conn, payload_length, 1);
 	default:
 		return DATAOUT_CANNOT_RECOVER;
@@ -553,7 +557,7 @@ static int iscsit_dataout_post_crc_passed(
 	if (cmd->unsolicited_data) {
 		if ((cmd->first_burst_len + payload_length) ==
 		     conn->sess->sess_ops->FirstBurstLength) {
-			if (iscsit_dataout_update_r2t(cmd, hdr->offset,
+			if (iscsit_dataout_update_r2t(cmd, be32_to_cpu(hdr->offset),
 					payload_length) < 0)
 				return DATAOUT_CANNOT_RECOVER;
 			send_r2t = 1;
@@ -561,7 +565,8 @@ static int iscsit_dataout_post_crc_passed(
 
 		if (!conn->sess->sess_ops->DataPDUInOrder) {
 			ret = iscsit_dataout_update_datapduinorder_no(cmd,
-				hdr->datasn, (hdr->flags & ISCSI_FLAG_CMD_FINAL));
+				be32_to_cpu(hdr->datasn),
+				(hdr->flags & ISCSI_FLAG_CMD_FINAL));
 			if (ret == DATAOUT_CANNOT_RECOVER)
 				return ret;
 		}
@@ -586,7 +591,8 @@ static int iscsit_dataout_post_crc_passed(
 		if (conn->sess->sess_ops->DataSequenceInOrder) {
 			if ((cmd->next_burst_len + payload_length) ==
 			     conn->sess->sess_ops->MaxBurstLength) {
-				if (iscsit_dataout_update_r2t(cmd, hdr->offset,
+				if (iscsit_dataout_update_r2t(cmd,
+						be32_to_cpu(hdr->offset),
 						payload_length) < 0)
 					return DATAOUT_CANNOT_RECOVER;
 				send_r2t = 1;
@@ -594,7 +600,7 @@ static int iscsit_dataout_post_crc_passed(
 
 			if (!conn->sess->sess_ops->DataPDUInOrder) {
 				ret = iscsit_dataout_update_datapduinorder_no(
-						cmd, hdr->datasn,
+						cmd, be32_to_cpu(hdr->datasn),
 						(hdr->flags & ISCSI_FLAG_CMD_FINAL));
 				if (ret == DATAOUT_CANNOT_RECOVER)
 					return ret;
@@ -610,7 +616,8 @@ static int iscsit_dataout_post_crc_passed(
 
 			if ((seq->next_burst_len + payload_length) ==
 			     seq->xfer_len) {
-				if (iscsit_dataout_update_r2t(cmd, hdr->offset,
+				if (iscsit_dataout_update_r2t(cmd,
+						be32_to_cpu(hdr->offset),
 						payload_length) < 0)
 					return DATAOUT_CANNOT_RECOVER;
 				send_r2t = 1;
@@ -618,7 +625,7 @@ static int iscsit_dataout_post_crc_passed(
 
 			if (!conn->sess->sess_ops->DataPDUInOrder) {
 				ret = iscsit_dataout_update_datapduinorder_no(
-						cmd, hdr->datasn,
+						cmd, be32_to_cpu(hdr->datasn),
 						(hdr->flags & ISCSI_FLAG_CMD_FINAL));
 				if (ret == DATAOUT_CANNOT_RECOVER)
 					return ret;
@@ -678,14 +685,15 @@ static int iscsit_dataout_post_crc_failed(
 	}
 
 recover:
-	return iscsit_recover_dataout_sequence(cmd, hdr->offset, payload_length);
+	return iscsit_recover_dataout_sequence(cmd, be32_to_cpu(hdr->offset),
+						payload_length);
 }
 
 /*
  *	Called from iscsit_handle_data_out() before DataOUT Payload is received
  *	and CRC computed.
  */
-extern int iscsit_check_pre_dataout(
+int iscsit_check_pre_dataout(
 	struct iscsi_cmd *cmd,
 	unsigned char *buf)
 {
@@ -789,7 +797,7 @@ static void iscsit_handle_time2retain_timeout(unsigned long data)
 	target_put_session(sess->se_sess);
 }
 
-extern void iscsit_start_time2retain_handler(struct iscsi_session *sess)
+void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 {
 	int tpg_active;
 	/*
@@ -822,7 +830,7 @@ extern void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 /*
  *	Called with spin_lock_bh(&struct se_portal_group->session_lock) held
  */
-extern int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
+int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
 {
 	struct iscsi_portal_group *tpg = ISCSI_TPG_S(sess);
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
@@ -926,7 +934,7 @@ static void iscsit_handle_connection_cleanup(struct iscsi_conn *conn)
 	}
 }
 
-extern void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn)
+void iscsit_take_action_for_connection_exit(struct iscsi_conn *conn)
 {
 	spin_lock_bh(&conn->state_lock);
 	if (atomic_read(&conn->connection_exit)) {

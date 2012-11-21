@@ -1804,8 +1804,10 @@ cyberpro_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	cfb->irq = dev->irq;
 	cfb->region = pci_ioremap_bar(dev, 0);
-	if (!cfb->region)
+	if (!cfb->region) {
+		err = -ENOMEM;
 		goto failed_ioremap;
+	}
 
 	cfb->regs = cfb->region + MMIO_OFFSET;
 	cfb->fb.device = &dev->dev;

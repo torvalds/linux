@@ -37,6 +37,14 @@
 			dbgu: serial@fffff200 {
 				status = "okay";
 			};
+
+			i2c0: i2c@f8010000 {
+				status = "okay";
+			};
+
+			i2c1: i2c@f8014000 {
+				status = "okay";
+			};
 		};
 
 		nand0: nand@40000000 {

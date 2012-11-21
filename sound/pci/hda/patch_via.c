@@ -118,6 +118,8 @@ enum {
 };
 
 struct via_spec {
+	struct hda_gen_spec gen;
+
 	/* codec parameterization */
 	const struct snd_kcontrol_new *mixers[6];
 	unsigned int num_mixers;
@@ -246,6 +248,7 @@ static struct via_spec * via_new_spec(struct hda_codec *codec)
 	/* VT1708BCE & VT1708S are almost same */
 	if (spec->codec_type == VT1708BCE)
 		spec->codec_type = VT1708S;
+	snd_hda_gen_init(&spec->gen);
 	return spec;
 }
 
@@ -299,7 +302,6 @@ static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 
 #define VIA_JACK_EVENT		0x20
 #define VIA_HP_EVENT		0x01
-#define VIA_GPIO_EVENT		0x02
 #define VIA_LINE_EVENT		0x03
 
 enum {
@@ -1628,6 +1630,7 @@ static void via_free(struct hda_codec *codec)
 	vt1708_stop_hp_work(spec);
 	kfree(spec->bind_cap_vol);
 	kfree(spec->bind_cap_sw);
+	snd_hda_gen_free(&spec->gen);
 	kfree(spec);
 }
 
@@ -1685,69 +1688,6 @@ static void via_hp_automute(struct hda_codec *codec)
 	via_line_automute(codec, present);
 }
 
-static void via_gpio_control(struct hda_codec *codec)
-{
-	unsigned int gpio_data;
-	unsigned int vol_counter;
-	unsigned int vol;
-	unsigned int master_vol;
-
-	struct via_spec *spec = codec->spec;
-
-	gpio_data = snd_hda_codec_read(codec, codec->afg, 0,
-				       AC_VERB_GET_GPIO_DATA, 0) & 0x03;
-
-	vol_counter = (snd_hda_codec_read(codec, codec->afg, 0,
-					  0xF84, 0) & 0x3F0000) >> 16;
-
-	vol = vol_counter & 0x1F;
-	master_vol = snd_hda_codec_read(codec, 0x1A, 0,
-					AC_VERB_GET_AMP_GAIN_MUTE,
-					AC_AMP_GET_INPUT);
-
-	if (gpio_data == 0x02) {
-		/* unmute line out */
-		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0],
-				    PIN_OUT);
-		if (vol_counter & 0x20) {
-			/* decrease volume */
-			if (vol > master_vol)
-				vol = master_vol;
-			snd_hda_codec_amp_stereo(codec, 0x1A, HDA_INPUT,
-						 0, HDA_AMP_VOLMASK,
-						 master_vol-vol);
-		} else {
-			/* increase volume */
-			snd_hda_codec_amp_stereo(codec, 0x1A, HDA_INPUT, 0,
-					 HDA_AMP_VOLMASK,
-					 ((master_vol+vol) > 0x2A) ? 0x2A :
-					  (master_vol+vol));
-		}
-	} else if (!(gpio_data & 0x02)) {
-		/* mute line out */
-		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0], 0);
-	}
-}
-
-/* unsolicited event for jack sensing */
-static void via_unsol_event(struct hda_codec *codec,
-				  unsigned int res)
-{
-	res >>= 26;
-	res = snd_hda_jack_get_action(codec, res);
-
-	if (res & VIA_JACK_EVENT)
-		set_widgets_power_state(codec);
-
-	res &= ~VIA_JACK_EVENT;
-
-	if (res == VIA_HP_EVENT || res == VIA_LINE_EVENT)
-		via_hp_automute(codec);
-	else if (res == VIA_GPIO_EVENT)
-		via_gpio_control(codec);
-	snd_hda_jack_report_sync(codec);
-}
-
 #ifdef CONFIG_PM
 static int via_suspend(struct hda_codec *codec)
 {
@@ -1783,7 +1723,7 @@ static const struct hda_codec_ops via_patch_ops = {
 	.build_pcms = via_build_pcms,
 	.init = via_init,
 	.free = via_free,
-	.unsol_event = via_unsol_event,
+	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
 	.suspend = via_suspend,
 	.check_power_status = via_check_power_status,
@@ -2761,6 +2701,17 @@ static void via_auto_init_dig_in(struct hda_codec *codec)
 	snd_hda_set_pin_ctl(codec, spec->autocfg.dig_in_pin, PIN_IN);
 }
 
+static void via_jack_output_event(struct hda_codec *codec, struct hda_jack_tbl *tbl)
+{
+	set_widgets_power_state(codec);
+	via_hp_automute(codec);
+}
+
+static void via_jack_powerstate_event(struct hda_codec *codec, struct hda_jack_tbl *tbl)
+{
+	set_widgets_power_state(codec);
+}
+
 /* initialize the unsolicited events */
 static void via_auto_init_unsol_event(struct hda_codec *codec)
 {
@@ -2768,26 +2719,31 @@ static void via_auto_init_unsol_event(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 	unsigned int ev;
 	int i;
+	hda_jack_callback cb;
 
 	if (cfg->hp_pins[0] && is_jack_detectable(codec, cfg->hp_pins[0]))
-		snd_hda_jack_detect_enable(codec, cfg->hp_pins[0],
-					   VIA_HP_EVENT | VIA_JACK_EVENT);
+		snd_hda_jack_detect_enable_callback(codec, cfg->hp_pins[0],
+						    VIA_HP_EVENT | VIA_JACK_EVENT,
+						    via_jack_output_event);
 
 	if (cfg->speaker_pins[0])
 		ev = VIA_LINE_EVENT;
 	else
 		ev = 0;
+	cb = ev ? via_jack_output_event : via_jack_powerstate_event;
+
 	for (i = 0; i < cfg->line_outs; i++) {
 		if (cfg->line_out_pins[i] &&
 		    is_jack_detectable(codec, cfg->line_out_pins[i]))
-			snd_hda_jack_detect_enable(codec, cfg->line_out_pins[i],
-						   ev | VIA_JACK_EVENT);
+			snd_hda_jack_detect_enable_callback(codec, cfg->line_out_pins[i],
+							    ev | VIA_JACK_EVENT, cb);
 	}
 
 	for (i = 0; i < cfg->num_inputs; i++) {
 		if (is_jack_detectable(codec, cfg->inputs[i].pin))
-			snd_hda_jack_detect_enable(codec, cfg->inputs[i].pin,
-						   VIA_JACK_EVENT);
+			snd_hda_jack_detect_enable_callback(codec, cfg->inputs[i].pin,
+							    VIA_JACK_EVENT,
+							    via_jack_powerstate_event);
 	}
 }
 

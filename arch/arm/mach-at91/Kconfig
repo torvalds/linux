@@ -19,75 +19,69 @@ config AT91_SAM9G45_RESET
 
 config SOC_AT91SAM9
 	bool
-	select GENERIC_CLOCKEVENTS
 	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 
 menu "Atmel AT91 System-on-Chip"
 
 comment "Atmel AT91 Processor"
 
-config SOC_AT91SAM9
-	bool
-	select CPU_ARM926T
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
-	select AT91_SAM9_TIME
-	select AT91_SAM9_SMC
-
 config SOC_AT91RM9200
 	bool "AT91RM9200"
 	select CPU_ARM920T
-	select MULTI_IRQ_HANDLER
-	select SPARSE_IRQ
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_DBGU0
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
 
 config SOC_AT91SAM9260
 	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU0
 	select HAVE_NET_MACB
+	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
 	  or AT91SAM9G20 SoC.
 
 config SOC_AT91SAM9261
 	bool "AT91SAM9261 or AT91SAM9G10"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
+	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9261 or AT91SAM9G10 SoC.
 
 config SOC_AT91SAM9263
 	bool "AT91SAM9263"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
+	select SOC_AT91SAM9
 
 config SOC_AT91SAM9RL
 	bool "AT91SAM9RL"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
+	select SOC_AT91SAM9
 
 config SOC_AT91SAM9G45
 	bool "AT91SAM9G45 or AT91SAM9M10 families"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
+	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
 	  This support covers AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
 
 config SOC_AT91SAM9X5
 	bool "AT91SAM9x5 family"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
+	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
 	  This means that your SAM9 name finishes with a '5' (except if it is
@@ -97,9 +91,9 @@ config SOC_AT91SAM9X5
 
 config SOC_AT91SAM9N12
 	bool "AT91SAM9N12 family"
-	select SOC_AT91SAM9
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
+	select SOC_AT91SAM9
 	help
 	  Select this if you are using Atmel's AT91SAM9N12 SoC.
 
@@ -144,9 +138,9 @@ config ARCH_AT91SAM9G45
 config ARCH_AT91X40
 	bool "AT91x40"
 	depends on !MMU
+	select ARCH_USES_GETTIMEOFFSET
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
-	select ARCH_USES_GETTIMEOFFSET
 
 endchoice
 

@@ -35,7 +35,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 struct cpu_task {
 	int pid;

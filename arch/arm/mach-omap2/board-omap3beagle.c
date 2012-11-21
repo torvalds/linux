@@ -24,6 +24,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/opp.h>
+#include <linux/cpu.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -444,27 +445,31 @@ static struct omap_board_mux board_mux[] __initdata = {
 };
 #endif
 
-static void __init beagle_opp_init(void)
+static int __init beagle_opp_init(void)
 {
 	int r = 0;
 
-	/* Initialize the omap3 opp table */
-	if (omap3_opp_init()) {
+	if (!machine_is_omap3_beagle())
+		return 0;
+
+	/* Initialize the omap3 opp table if not already created. */
+	r = omap3_opp_init();
+	if (IS_ERR_VALUE(r) && (r != -EEXIST)) {
 		pr_err("%s: opp default init failed\n", __func__);
-		return;
+		return r;
 	}
 
 	/* Custom OPP enabled for all xM versions */
 	if (cpu_is_omap3630()) {
 		struct device *mpu_dev, *iva_dev;
 
-		mpu_dev = omap_device_get_by_hwmod_name("mpu");
+		mpu_dev = get_cpu_device(0);
 		iva_dev = omap_device_get_by_hwmod_name("iva");
 
-		if (!mpu_dev || !iva_dev) {
+		if (IS_ERR(mpu_dev) || IS_ERR(iva_dev)) {
 			pr_err("%s: Aiee.. no mpu/dsp devices? %p %p\n",
 				__func__, mpu_dev, iva_dev);
-			return;
+			return -ENODEV;
 		}
 		/* Enable MPU 1GHz and lower opps */
 		r = opp_enable(mpu_dev, 800000000);
@@ -484,8 +489,9 @@ static void __init beagle_opp_init(void)
 			opp_disable(iva_dev, 660000000);
 		}
 	}
-	return;
+	return 0;
 }
+device_initcall(beagle_opp_init);
 
 static void __init omap3_beagle_init(void)
 {
@@ -522,8 +528,6 @@ static void __init omap3_beagle_init(void)
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
-
-	beagle_opp_init();
 }
 
 MACHINE_START(OMAP3_BEAGLE, "OMAP3 Beagle Board")

@@ -32,6 +32,8 @@ static inline int led_get_brightness(struct led_classdev *led_cdev)
 	return led_cdev->brightness;
 }
 
+void led_stop_software_blink(struct led_classdev *led_cdev);
+
 extern struct rw_semaphore leds_list_lock;
 extern struct list_head leds_list;
 

@@ -12,6 +12,9 @@
 #ifndef _REGS_FIMV_H
 #define _REGS_FIMV_H
 
+#include <linux/kernel.h>
+#include <linux/sizes.h>
+
 #define S5P_FIMV_REG_SIZE	(S5P_FIMV_END_ADDR - S5P_FIMV_START_ADDR)
 #define S5P_FIMV_REG_COUNT	((S5P_FIMV_END_ADDR - S5P_FIMV_START_ADDR) / 4)
 
@@ -144,6 +147,7 @@
 #define S5P_FIMV_ENC_PROFILE_H264_MAIN			0
 #define S5P_FIMV_ENC_PROFILE_H264_HIGH			1
 #define S5P_FIMV_ENC_PROFILE_H264_BASELINE		2
+#define S5P_FIMV_ENC_PROFILE_H264_CONSTRAINED_BASELINE	3
 #define S5P_FIMV_ENC_PROFILE_MPEG4_SIMPLE		0
 #define S5P_FIMV_ENC_PROFILE_MPEG4_ADVANCED_SIMPLE	1
 #define S5P_FIMV_ENC_PIC_STRUCT		0x083c /* picture field/frame flag */
@@ -213,6 +217,7 @@
 #define S5P_FIMV_DEC_STATUS_RESOLUTION_MASK		(3<<4)
 #define S5P_FIMV_DEC_STATUS_RESOLUTION_INC		(1<<4)
 #define S5P_FIMV_DEC_STATUS_RESOLUTION_DEC		(2<<4)
+#define S5P_FIMV_DEC_STATUS_RESOLUTION_SHIFT		4
 
 /* Decode frame address */
 #define S5P_FIMV_DECODE_Y_ADR			0x2024
@@ -377,6 +382,16 @@
 #define S5P_FIMV_R2H_CMD_EDFU_INIT_RET		16
 #define S5P_FIMV_R2H_CMD_ERR_RET		32
 
+/* Dummy definition for MFCv6 compatibilty */
+#define S5P_FIMV_CODEC_H264_MVC_DEC		-1
+#define S5P_FIMV_R2H_CMD_FIELD_DONE_RET		-1
+#define S5P_FIMV_MFC_RESET			-1
+#define S5P_FIMV_RISC_ON			-1
+#define S5P_FIMV_RISC_BASE_ADDRESS		-1
+#define S5P_FIMV_CODEC_VP8_DEC			-1
+#define S5P_FIMV_REG_CLEAR_BEGIN		0
+#define S5P_FIMV_REG_CLEAR_COUNT		0
+
 /* Error handling defines */
 #define S5P_FIMV_ERR_WARNINGS_START		145
 #define S5P_FIMV_ERR_DEC_MASK			0xFFFF
@@ -414,5 +429,31 @@
 #define S5P_FIMV_SHARED_EXTENDED_SAR		0x0078
 #define S5P_FIMV_SHARED_H264_I_PERIOD		0x009C
 #define S5P_FIMV_SHARED_RC_CONTROL_CONFIG	0x00A0
+#define S5P_FIMV_SHARED_DISP_FRAME_TYPE_SHIFT	2
+
+/* Offset used by the hardware to store addresses */
+#define MFC_OFFSET_SHIFT	11
+
+#define FIRMWARE_ALIGN		(128 * SZ_1K)	/* 128KB */
+#define MFC_H264_CTX_BUF_SIZE	(600 * SZ_1K)	/* 600KB per H264 instance */
+#define MFC_CTX_BUF_SIZE	(10 * SZ_1K)	/* 10KB per instance */
+#define DESC_BUF_SIZE		(128 * SZ_1K)	/* 128KB for DESC buffer */
+#define SHARED_BUF_SIZE		(8 * SZ_1K)	/* 8KB for shared buffer */
+
+#define DEF_CPB_SIZE		(256 * SZ_1K)	/* 256KB */
+#define MAX_CPB_SIZE		(4 * SZ_1M)	/* 4MB */
+#define MAX_FW_SIZE		(384 * SZ_1K)
+
+#define MFC_VERSION		0x51
+#define MFC_NUM_PORTS		2
+
+#define S5P_FIMV_SHARED_FRAME_PACK_SEI_AVAIL    0x16C
+#define S5P_FIMV_SHARED_FRAME_PACK_ARRGMENT_ID  0x170
+#define S5P_FIMV_SHARED_FRAME_PACK_SEI_INFO     0x174
+#define S5P_FIMV_SHARED_FRAME_PACK_GRID_POS     0x178
+
+/* Values for resolution change in display status */
+#define S5P_FIMV_RES_INCREASE	1
+#define S5P_FIMV_RES_DECREASE	2
 
 #endif /* _REGS_FIMV_H */

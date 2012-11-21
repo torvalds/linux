@@ -81,7 +81,8 @@ static char *nfs_path_component(const char *nfspath, const char *end)
 static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
 {
 	char *limit;
-	char *path = nfs_path(&limit, dentry, buffer, buflen);
+	char *path = nfs_path(&limit, dentry, buffer, buflen,
+			      NFS_PATH_CANONICAL);
 	if (!IS_ERR(path)) {
 		char *path_component = nfs_path_component(path, limit);
 		if (path_component)
@@ -192,25 +193,13 @@ out:
 struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *clnt, struct inode *inode,
 					struct qstr *name)
 {
-	struct rpc_clnt *clone;
-	struct rpc_auth *auth;
 	rpc_authflavor_t flavor;
 
 	flavor = nfs4_negotiate_security(inode, name);
 	if ((int)flavor < 0)
-		return ERR_PTR(flavor);
+		return ERR_PTR((int)flavor);
 
-	clone = rpc_clone_client(clnt);
-	if (IS_ERR(clone))
-		return clone;
-
-	auth = rpcauth_create(flavor, clone);
-	if (!auth) {
-		rpc_shutdown_client(clone);
-		clone = ERR_PTR(-EIO);
-	}
-
-	return clone;
+	return rpc_clone_client_set_auth(clnt, flavor);
 }
 
 static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,

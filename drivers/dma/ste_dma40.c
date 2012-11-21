@@ -2921,19 +2921,23 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	struct d40_base *base = NULL;
 	int num_log_chans = 0;
 	int num_phy_chans;
+	int clk_ret = -EINVAL;
 	int i;
 	u32 pid;
 	u32 cid;
 	u8 rev;
 
 	clk = clk_get(&pdev->dev, NULL);
-
 	if (IS_ERR(clk)) {
 		d40_err(&pdev->dev, "No matching clock found\n");
 		goto failure;
 	}
 
-	clk_enable(clk);
+	clk_ret = clk_prepare_enable(clk);
+	if (clk_ret) {
+		d40_err(&pdev->dev, "Failed to prepare/enable clock\n");
+		goto failure;
+	}
 
 	/* Get IO for DMAC base address */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "base");
@@ -3063,10 +3067,10 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	return base;
 
 failure:
-	if (!IS_ERR(clk)) {
-		clk_disable(clk);
+	if (!clk_ret)
+		clk_disable_unprepare(clk);
+	if (!IS_ERR(clk))
 		clk_put(clk);
-	}
 	if (virtbase)
 		iounmap(virtbase);
 	if (res)

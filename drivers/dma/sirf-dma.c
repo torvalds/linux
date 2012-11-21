@@ -109,7 +109,7 @@ static void sirfsoc_dma_execute(struct sirfsoc_dma_chan *schan)
 	sdesc = list_first_entry(&schan->queued, struct sirfsoc_dma_desc,
 		node);
 	/* Move the first queued descriptor to active list */
-	list_move_tail(&schan->queued, &schan->active);
+	list_move_tail(&sdesc->node, &schan->active);
 
 	/* Start the DMA transfer */
 	writel_relaxed(sdesc->width, sdma->base + SIRFSOC_DMA_WIDTH_0 +
@@ -428,7 +428,7 @@ static struct dma_async_tx_descriptor *sirfsoc_dma_prep_interleaved(
 	unsigned long iflags;
 	int ret;
 
-	if ((xt->dir != DMA_MEM_TO_DEV) || (xt->dir != DMA_DEV_TO_MEM)) {
+	if ((xt->dir != DMA_MEM_TO_DEV) && (xt->dir != DMA_DEV_TO_MEM)) {
 		ret = -EINVAL;
 		goto err_dir;
 	}
@@ -570,21 +570,19 @@ static int __devinit sirfsoc_dma_probe(struct platform_device *op)
 
 	if (of_property_read_u32(dn, "cell-index", &id)) {
 		dev_err(dev, "Fail to get DMAC index\n");
-		ret = -ENODEV;
-		goto free_mem;
+		return -ENODEV;
 	}
 
 	sdma->irq = irq_of_parse_and_map(dn, 0);
 	if (sdma->irq == NO_IRQ) {
 		dev_err(dev, "Error mapping IRQ!\n");
-		ret = -EINVAL;
-		goto free_mem;
+		return -EINVAL;
 	}
 
 	ret = of_address_to_resource(dn, 0, &res);
 	if (ret) {
 		dev_err(dev, "Error parsing memory region!\n");
-		goto free_mem;
+		goto irq_dispose;
 	}
 
 	regs_start = res.start;
@@ -597,12 +595,11 @@ static int __devinit sirfsoc_dma_probe(struct platform_device *op)
 		goto irq_dispose;
 	}
 
-	ret = devm_request_irq(dev, sdma->irq, &sirfsoc_dma_irq, 0, DRV_NAME,
-		sdma);
+	ret = request_irq(sdma->irq, &sirfsoc_dma_irq, 0, DRV_NAME, sdma);
 	if (ret) {
 		dev_err(dev, "Error requesting IRQ!\n");
 		ret = -EINVAL;
-		goto unmap_mem;
+		goto irq_dispose;
 	}
 
 	dma = &sdma->dma;
@@ -652,13 +649,9 @@ static int __devinit sirfsoc_dma_probe(struct platform_device *op)
 	return 0;
 
 free_irq:
-	devm_free_irq(dev, sdma->irq, sdma);
+	free_irq(sdma->irq, sdma);
 irq_dispose:
 	irq_dispose_mapping(sdma->irq);
-unmap_mem:
-	iounmap(sdma->base);
-free_mem:
-	devm_kfree(dev, sdma);
 	return ret;
 }
 
@@ -668,10 +661,8 @@ static int __devexit sirfsoc_dma_remove(struct platform_device *op)
 	struct sirfsoc_dma *sdma = dev_get_drvdata(dev);
 
 	dma_async_device_unregister(&sdma->dma);
-	devm_free_irq(dev, sdma->irq, sdma);
+	free_irq(sdma->irq, sdma);
 	irq_dispose_mapping(sdma->irq);
-	iounmap(sdma->base);
-	devm_kfree(dev, sdma);
 	return 0;
 }
 

@@ -26,7 +26,7 @@ void nouveau_timer_alarm(void *, u32 nsec, struct nouveau_alarm *);
 struct nouveau_timer {
 	struct nouveau_subdev base;
 	u64  (*read)(struct nouveau_timer *);
-	void (*alarm)(struct nouveau_timer *, u32 time, struct nouveau_alarm *);
+	void (*alarm)(struct nouveau_timer *, u64 time, struct nouveau_alarm *);
 };
 
 static inline struct nouveau_timer *

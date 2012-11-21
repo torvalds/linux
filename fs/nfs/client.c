@@ -93,10 +93,10 @@ static struct nfs_subversion *find_nfs_version(unsigned int version)
 			spin_unlock(&nfs_version_lock);
 			return nfs;
 		}
-	};
+	}
 
 	spin_unlock(&nfs_version_lock);
-	return ERR_PTR(-EPROTONOSUPPORT);;
+	return ERR_PTR(-EPROTONOSUPPORT);
 }
 
 struct nfs_subversion *get_nfs_version(unsigned int version)
@@ -498,7 +498,8 @@ nfs_get_client(const struct nfs_client_initdata *cl_init,
 			return nfs_found_client(cl_init, clp);
 		}
 		if (new) {
-			list_add(&new->cl_share_link, &nn->nfs_client_list);
+			list_add_tail(&new->cl_share_link,
+					&nn->nfs_client_list);
 			spin_unlock(&nn->nfs_client_lock);
 			new->cl_flags = cl_init->init_flags;
 			return rpc_ops->init_client(new, timeparms, ip_addr,
@@ -668,7 +669,8 @@ int nfs_init_server_rpcclient(struct nfs_server *server,
 {
 	struct nfs_client *clp = server->nfs_client;
 
-	server->client = rpc_clone_client(clp->cl_rpcclient);
+	server->client = rpc_clone_client_set_auth(clp->cl_rpcclient,
+							pseudoflavour);
 	if (IS_ERR(server->client)) {
 		dprintk("%s: couldn't create rpc_client!\n", __func__);
 		return PTR_ERR(server->client);
@@ -678,16 +680,6 @@ int nfs_init_server_rpcclient(struct nfs_server *server,
 			timeo,
 			sizeof(server->client->cl_timeout_default));
 	server->client->cl_timeout = &server->client->cl_timeout_default;
-
-	if (pseudoflavour != clp->cl_rpcclient->cl_auth->au_flavor) {
-		struct rpc_auth *auth;
-
-		auth = rpcauth_create(pseudoflavour, server->client);
-		if (IS_ERR(auth)) {
-			dprintk("%s: couldn't create credcache!\n", __func__);
-			return PTR_ERR(auth);
-		}
-	}
 	server->client->cl_softrtry = 0;
 	if (server->flags & NFS_MOUNT_SOFT)
 		server->client->cl_softrtry = 1;
@@ -761,6 +753,8 @@ static int nfs_init_server(struct nfs_server *server,
 			data->timeo, data->retrans);
 	if (data->flags & NFS_MOUNT_NORESVPORT)
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
+	if (server->options & NFS_OPTION_MIGRATION)
+		set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init, &timeparms, NULL, RPC_AUTH_UNIX);
@@ -855,7 +849,6 @@ static void nfs_server_set_fsinfo(struct nfs_server *server,
 	if (server->wsize > NFS_MAX_FILE_IO_SIZE)
 		server->wsize = NFS_MAX_FILE_IO_SIZE;
 	server->wpages = (server->wsize + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
-	server->pnfs_blksize = fsinfo->blksize;
 
 	server->wtmult = nfs_block_bits(fsinfo->wtmult, NULL);
 

@@ -303,7 +303,7 @@ struct se_node_acl *core_tpg_check_initiator_node_acl(
 	}
 	/*
 	 * Here we only create demo-mode MappedLUNs from the active
-	 * TPG LUNs if the fabric is not explictly asking for
+	 * TPG LUNs if the fabric is not explicitly asking for
 	 * tpg_check_demo_mode_login_only() == 1.
 	 */
 	if ((tpg->se_tpg_tfo->tpg_check_demo_mode_login_only == NULL) ||

@@ -253,7 +253,7 @@ static int digitv_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	}
 
 	if (key[0] != 0)
-		deb_rc("key: %x %x %x %x %x\n",key[0],key[1],key[2],key[3],key[4]);
+		deb_rc("key: %*ph\n", 5, key);
 	return 0;
 }
 

@@ -578,10 +578,6 @@ static void handle_connect_req(struct rdma_cm_id *new_cma_id, size_t client_ird)
 	list_add_tail(&newxprt->sc_accept_q, &listen_xprt->sc_accept_q);
 	spin_unlock_bh(&listen_xprt->sc_lock);
 
-	/*
-	 * Can't use svc_xprt_received here because we are not on a
-	 * rqstp thread
-	*/
 	set_bit(XPT_CONN, &listen_xprt->sc_xprt.xpt_flags);
 	svc_xprt_enqueue(&listen_xprt->sc_xprt);
 }

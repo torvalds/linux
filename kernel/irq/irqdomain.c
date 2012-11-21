@@ -148,7 +148,8 @@ static unsigned int irq_domain_legacy_revmap(struct irq_domain *domain,
  * @host_data: Controller private data pointer
  *
  * Allocates a legacy irq_domain if irq_base is positive or a linear
- * domain otherwise.
+ * domain otherwise. For the legacy domain, IRQ descriptors will also
+ * be allocated.
  *
  * This is intended to implement the expected behaviour for most
  * interrupt controllers which is that a linear mapping should
@@ -162,11 +163,33 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
-	if (first_irq > 0)
-		return irq_domain_add_legacy(of_node, size, first_irq, 0,
+	if (first_irq > 0) {
+		int irq_base;
+
+		if (IS_ENABLED(CONFIG_SPARSE_IRQ)) {
+			/*
+			 * Set the descriptor allocator to search for a
+			 * 1-to-1 mapping, such as irq_alloc_desc_at().
+			 * Use of_node_to_nid() which is defined to
+			 * numa_node_id() on platforms that have no custom
+			 * implementation.
+			 */
+			irq_base = irq_alloc_descs(first_irq, first_irq, size,
+						   of_node_to_nid(of_node));
+			if (irq_base < 0) {
+				WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
+				     first_irq);
+				irq_base = first_irq;
+			}
+		} else
+			irq_base = first_irq;
+
+		return irq_domain_add_legacy(of_node, size, irq_base, 0,
 					     ops, host_data);
-	else
-		return irq_domain_add_linear(of_node, size, ops, host_data);
+	}
+
+	/* A linear domain is the default */
+	return irq_domain_add_linear(of_node, size, ops, host_data);
 }
 
 /**

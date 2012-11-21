@@ -77,8 +77,9 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 {
 	unsigned long start, start_pfn;
 	struct zone *zone;
-	int i, ret;
-	int sections_to_remove;
+	int ret;
+	unsigned long section;
+	unsigned long sections_to_remove;
 
 	start_pfn = base >> PAGE_SHIFT;
 
@@ -99,9 +100,9 @@ static int pseries_remove_memblock(unsigned long base, unsigned int memblock_siz
 	 * while writing to it. So we have to defer it to here.
 	 */
 	sections_to_remove = (memblock_size >> PAGE_SHIFT) / PAGES_PER_SECTION;
-	for (i = 0; i < sections_to_remove; i++) {
-		unsigned long pfn = start_pfn + i * PAGES_PER_SECTION;
-		ret = __remove_pages(zone, start_pfn,  PAGES_PER_SECTION);
+	for (section = 0; section < sections_to_remove; section++) {
+		unsigned long pfn = start_pfn + section * PAGES_PER_SECTION;
+		ret = __remove_pages(zone, pfn, PAGES_PER_SECTION);
 		if (ret)
 			return ret;
 	}

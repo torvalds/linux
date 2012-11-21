@@ -27,13 +27,13 @@
 #include <asm/uaccess.h>
 #include <asm/switch_to.h>
 
-#include "init.h"
-#include "irq_kern.h"
-#include "irq_user.h"
-#include "kern_util.h"
+#include <init.h>
+#include <irq_kern.h>
+#include <irq_user.h>
+#include <kern_util.h>
 #include "mconsole.h"
 #include "mconsole_kern.h"
-#include "os.h"
+#include <os.h>
 
 static int do_unlink_socket(struct notifier_block *notifier,
 			    unsigned long what, void *data)

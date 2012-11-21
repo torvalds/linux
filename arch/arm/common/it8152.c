@@ -284,11 +284,17 @@ int dma_set_coherent_mask(struct device *dev, u64 mask)
 
 int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 {
-	it8152_io.start = IT8152_IO_BASE + 0x12000;
-	it8152_io.end	= IT8152_IO_BASE + 0x12000 + 0x100000;
+	/*
+	 * FIXME: use pci_ioremap_io to remap the IO space here and
+	 * move over to the generic io.h implementation.
+	 * This requires solving the same problem for PXA PCMCIA
+	 * support.
+	 */
+	it8152_io.start = (unsigned long)IT8152_IO_BASE + 0x12000;
+	it8152_io.end	= (unsigned long)IT8152_IO_BASE + 0x12000 + 0x100000;
 
 	sys->mem_offset = 0x10000000;
-	sys->io_offset  = IT8152_IO_BASE;
+	sys->io_offset  = (unsigned long)IT8152_IO_BASE;
 
 	if (request_resource(&ioport_resource, &it8152_io)) {
 		printk(KERN_ERR "PCI: unable to allocate IO region\n");

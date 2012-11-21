@@ -100,12 +100,21 @@ int stk1160_write_reg(struct stk1160 *dev, u16 reg, u16 value)
 
 void stk1160_select_input(struct stk1160 *dev)
 {
+	int route;
 	static const u8 gctrl[] = {
-		0x98, 0x90, 0x88, 0x80
+		0x98, 0x90, 0x88, 0x80, 0x98
 	};
 
-	if (dev->ctl_input < ARRAY_SIZE(gctrl))
+	if (dev->ctl_input == STK1160_SVIDEO_INPUT)
+		route = SAA7115_SVIDEO3;
+	else
+		route = SAA7115_COMPOSITE0;
+
+	if (dev->ctl_input < ARRAY_SIZE(gctrl)) {
+		v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
+				route, 0, 0);
 		stk1160_write_reg(dev, STK1160_GCTRL, gctrl[dev->ctl_input]);
+	}
 }
 
 /* TODO: We should break this into pieces */
@@ -351,8 +360,6 @@ static int stk1160_probe(struct usb_interface *interface,
 
 	/* i2c reset saa711x */
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, reset, 0);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_routing,
-				0, 0, 0);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, s_stream, 0);
 
 	/* reset stk1160 to default values */

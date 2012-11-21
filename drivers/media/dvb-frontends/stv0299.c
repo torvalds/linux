@@ -199,7 +199,7 @@ static int stv0299_wait_diseqc_fifo (struct stv0299_state* state, int timeout)
 			return -ETIMEDOUT;
 		}
 		msleep(10);
-	};
+	}
 
 	return 0;
 }
@@ -216,7 +216,7 @@ static int stv0299_wait_diseqc_idle (struct stv0299_state* state, int timeout)
 			return -ETIMEDOUT;
 		}
 		msleep(10);
-	};
+	}
 
 	return 0;
 }
@@ -387,7 +387,7 @@ static int stv0299_set_voltage (struct dvb_frontend* fe, fe_sec_voltage_t voltag
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	if (state->config->op0_off)
 		reg0x0c &= ~0x10;

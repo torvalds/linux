@@ -27,12 +27,12 @@
 #ifndef OMAP3_ISP_REG_H
 #define OMAP3_ISP_REG_H
 
-#include <plat/omap34xx.h>
-
-
 #define CM_CAM_MCLK_HZ			172800000	/* Hz */
 
 /* ISP Submodules offset */
+
+#define L4_34XX_BASE			0x48000000
+#define OMAP3430_ISP_BASE		(L4_34XX_BASE + 0xBC000)
 
 #define OMAP3ISP_REG_BASE		OMAP3430_ISP_BASE
 #define OMAP3ISP_REG(offset)		(OMAP3ISP_REG_BASE + (offset))

@@ -10,16 +10,16 @@ choice
 
 config ARCH_IMX_V4_V5
 	bool "i.MX1, i.MX21, i.MX25, i.MX27"
-	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR if !ZBOOT_ROM
 	help
 	  This enables support for systems based on the Freescale i.MX ARMv4
 	  and ARMv5 SoCs
 
 config ARCH_IMX_V6_V7
 	bool "i.MX3, i.MX5, i.MX6"
-	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select ARM_PATCH_PHYS_VIRT
+	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select MIGHT_HAVE_CACHE_L2X0
 	help
 	  This enables support for systems based on the Freescale i.MX3, i.MX5

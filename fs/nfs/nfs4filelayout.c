@@ -122,12 +122,21 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 	}
 }
 
+static void filelayout_fenceme(struct inode *inode, struct pnfs_layout_hdr *lo)
+{
+	if (!test_and_clear_bit(NFS_LAYOUT_RETURN, &lo->plh_flags))
+		return;
+	clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
+	pnfs_return_layout(inode);
+}
+
 static int filelayout_async_handle_error(struct rpc_task *task,
 					 struct nfs4_state *state,
 					 struct nfs_client *clp,
 					 struct pnfs_layout_segment *lseg)
 {
-	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct pnfs_layout_hdr *lo = lseg->pls_layout;
+	struct inode *inode = lo->plh_inode;
 	struct nfs_server *mds_server = NFS_SERVER(inode);
 	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
 	struct nfs_client *mds_client = mds_server->nfs_client;
@@ -190,8 +199,6 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		 * i/o and all i/o waiting on the slot table to the MDS until
 		 * layout is destroyed and a new valid layout is obtained.
 		 */
-		set_bit(NFS_LAYOUT_INVALID,
-				&NFS_I(inode)->layout->plh_flags);
 		pnfs_destroy_layout(NFS_I(inode));
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		goto reset;
@@ -205,11 +212,9 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -EPIPE:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		filelayout_mark_devid_invalid(devid);
-		clear_bit(NFS_INO_LAYOUTCOMMIT, &NFS_I(inode)->flags);
-		_pnfs_return_layout(inode);
+		nfs4_mark_deviceid_unavailable(devid);
+		set_bit(NFS_LAYOUT_RETURN, &lo->plh_flags);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
-		nfs4_ds_disconnect(clp);
 		/* fall through */
 	default:
 reset:
@@ -269,6 +274,21 @@ filelayout_set_layoutcommit(struct nfs_write_data *wdata)
 		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
 
+bool
+filelayout_test_devid_unavailable(struct nfs4_deviceid_node *node)
+{
+	return filelayout_test_devid_invalid(node) ||
+		nfs4_test_deviceid_unavailable(node);
+}
+
+static bool
+filelayout_reset_to_mds(struct pnfs_layout_segment *lseg)
+{
+	struct nfs4_deviceid_node *node = FILELAYOUT_DEVID_NODE(lseg);
+
+	return filelayout_test_devid_unavailable(node);
+}
+
 /*
  * Call ops for the async read/write cases
  * In the case of dense layouts, the offset needs to be reset to its
@@ -318,7 +338,9 @@ static void filelayout_read_count_stats(struct rpc_task *task, void *data)
 static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = data;
+	struct pnfs_layout_hdr *lo = rdata->header->lseg->pls_layout;
 
+	filelayout_fenceme(lo->plh_inode, lo);
 	nfs_put_client(rdata->ds_clp);
 	rdata->header->mds_ops->rpc_release(data);
 }
@@ -416,7 +438,9 @@ static void filelayout_write_count_stats(struct rpc_task *task, void *data)
 static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
+	struct pnfs_layout_hdr *lo = wdata->header->lseg->pls_layout;
 
+	filelayout_fenceme(lo->plh_inode, lo);
 	nfs_put_client(wdata->ds_clp);
 	wdata->header->mds_ops->rpc_release(data);
 }
@@ -453,7 +477,7 @@ static void filelayout_commit_release(void *calldata)
 	struct nfs_commit_data *data = calldata;
 
 	data->completion_ops->completion(data);
-	put_lseg(data->lseg);
+	pnfs_put_lseg(data->lseg);
 	nfs_put_client(data->ds_clp);
 	nfs_commitdata_release(data);
 }
@@ -608,13 +632,13 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 	d = nfs4_find_get_deviceid(NFS_SERVER(lo->plh_inode)->pnfs_curr_ld,
 				   NFS_SERVER(lo->plh_inode)->nfs_client, id);
 	if (d == NULL) {
-		dsaddr = get_device_info(lo->plh_inode, id, gfp_flags);
+		dsaddr = filelayout_get_device_info(lo->plh_inode, id, gfp_flags);
 		if (dsaddr == NULL)
 			goto out;
 	} else
 		dsaddr = container_of(d, struct nfs4_file_layout_dsaddr, id_node);
-	/* Found deviceid is being reaped */
-	if (test_bit(NFS_DEVICEID_INVALID, &dsaddr->id_node.flags))
+	/* Found deviceid is unavailable */
+	if (filelayout_test_devid_unavailable(&dsaddr->id_node))
 			goto out_put;
 
 	fl->dsaddr = dsaddr;
@@ -726,7 +750,7 @@ filelayout_decode_layout(struct pnfs_layout_hdr *flo,
 		goto out_err;
 
 	if (fl->num_fh > 0) {
-		fl->fh_array = kzalloc(fl->num_fh * sizeof(struct nfs_fh *),
+		fl->fh_array = kcalloc(fl->num_fh, sizeof(fl->fh_array[0]),
 				       gfp_flags);
 		if (!fl->fh_array)
 			goto out_err;
@@ -931,7 +955,7 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	nfs_init_cinfo(&cinfo, pgio->pg_inode, pgio->pg_dreq);
 	status = filelayout_alloc_commit_info(pgio->pg_lseg, &cinfo, GFP_NOFS);
 	if (status < 0) {
-		put_lseg(pgio->pg_lseg);
+		pnfs_put_lseg(pgio->pg_lseg);
 		pgio->pg_lseg = NULL;
 		goto out_mds;
 	}
@@ -985,7 +1009,7 @@ filelayout_clear_request_commit(struct nfs_page *req,
 out:
 	nfs_request_remove_commit_list(req, cinfo);
 	spin_unlock(cinfo->lock);
-	put_lseg(freeme);
+	pnfs_put_lseg(freeme);
 }
 
 static struct list_head *
@@ -1018,7 +1042,7 @@ filelayout_choose_commit_list(struct nfs_page *req,
 		 * off due to a rewrite, in which case it will be done in
 		 * filelayout_clear_request_commit
 		 */
-		buckets[i].wlseg = get_lseg(lseg);
+		buckets[i].wlseg = pnfs_get_lseg(lseg);
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 	cinfo->ds->nwritten++;
@@ -1128,7 +1152,7 @@ filelayout_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 		if (list_empty(src))
 			bucket->wlseg = NULL;
 		else
-			get_lseg(bucket->clseg);
+			pnfs_get_lseg(bucket->clseg);
 	}
 	return ret;
 }
@@ -1159,12 +1183,12 @@ static void filelayout_recover_commit_reqs(struct list_head *dst,
 
 	/* NOTE cinfo->lock is NOT held, relying on fact that this is
 	 * only called on single thread per dreq.
-	 * Can't take the lock because need to do put_lseg
+	 * Can't take the lock because need to do pnfs_put_lseg
 	 */
 	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
 		if (transfer_commit_list(&b->written, dst, cinfo, 0)) {
 			BUG_ON(!list_empty(&b->written));
-			put_lseg(b->wlseg);
+			pnfs_put_lseg(b->wlseg);
 			b->wlseg = NULL;
 		}
 	}
@@ -1200,7 +1224,7 @@ alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 		if (list_empty(&bucket->committing))
 			continue;
 		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
-		put_lseg(bucket->clseg);
+		pnfs_put_lseg(bucket->clseg);
 		bucket->clseg = NULL;
 	}
 	/* Caller will clean up entries put on list */

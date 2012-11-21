@@ -303,6 +303,7 @@ struct ar9170 {
 	unsigned long queue_stop_timeout[__AR9170_NUM_TXQ];
 	unsigned long max_queue_stop_timeout[__AR9170_NUM_TXQ];
 	bool needs_full_reset;
+	bool force_usb_reset;
 	atomic_t pending_restarts;
 
 	/* interface mode settings */

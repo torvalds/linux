@@ -127,6 +127,9 @@ struct fcp_txrdy {
  *
  * All response frames will always contain the fcp_resp template.  Some
  * will also include the fcp_resp_len template.
+ *
+ * From Table 23, the FCP_RSP_INFO can either be 4 bytes or 8 bytes, both
+ * are valid length.
  */
 struct fcp_resp {
 	__u8		_fr_resvd[8];	/* reserved */
@@ -155,6 +158,9 @@ struct fcp_resp_rsp_info {
     __u8      rsp_code;           /* Response Info Code */
     __u8      _fr_resvd2[4];      /* reserved */
 };
+
+#define FCP_RESP_RSP_INFO_LEN4    4 /* without reserved field */
+#define FCP_RESP_RSP_INFO_LEN8    8 /* with reserved field */
 
 struct fcp_resp_with_ext {
 	struct fcp_resp resp;

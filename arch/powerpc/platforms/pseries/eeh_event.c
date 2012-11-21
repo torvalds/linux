@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/kthread.h>
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
 
@@ -58,8 +59,6 @@ static int eeh_event_handler(void * dummy)
 	unsigned long flags;
 	struct eeh_event *event;
 	struct eeh_pe *pe;
-
-	set_task_comm(current, "eehd");
 
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
 	event = NULL;
@@ -108,7 +107,7 @@ static int eeh_event_handler(void * dummy)
  */
 static void eeh_thread_launcher(struct work_struct *dummy)
 {
-	if (kernel_thread(eeh_event_handler, NULL, CLONE_KERNEL) < 0)
+	if (IS_ERR(kthread_run(eeh_event_handler, NULL, "eehd")))
 		printk(KERN_ERR "Failed to start EEH daemon\n");
 }
 

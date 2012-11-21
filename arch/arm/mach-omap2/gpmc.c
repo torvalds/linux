@@ -838,7 +838,7 @@ static int gpmc_setup_irq(void)
 	return request_irq(gpmc_irq, gpmc_handle_irq, 0, "gpmc", NULL);
 }
 
-static __exit int gpmc_free_irq(void)
+static __devexit int gpmc_free_irq(void)
 {
 	int i;
 
@@ -868,9 +868,9 @@ static void __devexit gpmc_mem_exit(void)
 
 }
 
-static void __devinit gpmc_mem_init(void)
+static int __devinit gpmc_mem_init(void)
 {
-	int cs;
+	int cs, rc;
 	unsigned long boot_rom_space = 0;
 
 	/* never allocate the first page, to facilitate bug detection;
@@ -890,13 +890,21 @@ static void __devinit gpmc_mem_init(void)
 		if (!gpmc_cs_mem_enabled(cs))
 			continue;
 		gpmc_cs_get_memconf(cs, &base, &size);
-		if (gpmc_cs_insert_mem(cs, base, size) < 0)
-			BUG();
+		rc = gpmc_cs_insert_mem(cs, base, size);
+		if (IS_ERR_VALUE(rc)) {
+			while (--cs >= 0)
+				if (gpmc_cs_mem_enabled(cs))
+					gpmc_cs_delete_mem(cs);
+			return rc;
+		}
 	}
+
+	return 0;
 }
 
 static __devinit int gpmc_probe(struct platform_device *pdev)
 {
+	int rc;
 	u32 l;
 	struct resource *res;
 
@@ -936,7 +944,13 @@ static __devinit int gpmc_probe(struct platform_device *pdev)
 	dev_info(gpmc_dev, "GPMC revision %d.%d\n", GPMC_REVISION_MAJOR(l),
 		 GPMC_REVISION_MINOR(l));
 
-	gpmc_mem_init();
+	rc = gpmc_mem_init();
+	if (IS_ERR_VALUE(rc)) {
+		clk_disable_unprepare(gpmc_l3_clk);
+		clk_put(gpmc_l3_clk);
+		dev_err(gpmc_dev, "failed to reserve memory\n");
+		return rc;
+	}
 
 	if (IS_ERR_VALUE(gpmc_setup_irq()))
 		dev_warn(gpmc_dev, "gpmc_setup_irq failed\n");
@@ -944,7 +958,7 @@ static __devinit int gpmc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static __exit int gpmc_remove(struct platform_device *pdev)
+static __devexit int gpmc_remove(struct platform_device *pdev)
 {
 	gpmc_free_irq();
 	gpmc_mem_exit();

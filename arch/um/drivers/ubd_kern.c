@@ -33,12 +33,12 @@
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
 #include <asm/tlbflush.h>
-#include "kern_util.h"
+#include <kern_util.h>
 #include "mconsole_kern.h"
-#include "init.h"
-#include "irq_kern.h"
+#include <init.h>
+#include <irq_kern.h>
 #include "ubd.h"
-#include "os.h"
+#include <os.h>
 #include "cow.h"
 
 enum ubd_req { UBD_READ, UBD_WRITE };

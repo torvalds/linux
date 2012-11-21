@@ -50,7 +50,6 @@ struct stmmac_priv {
 	unsigned int dirty_rx;
 	struct sk_buff **rx_skbuff;
 	dma_addr_t *rx_skbuff_dma;
-	struct sk_buff_head rx_recycle;
 
 	struct net_device *dev;
 	dma_addr_t dma_rx_phy;

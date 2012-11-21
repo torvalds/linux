@@ -16,11 +16,7 @@
 #ifndef __ASM_HWCAP_H
 #define __ASM_HWCAP_H
 
-/*
- * HWCAP flags - for elf_hwcap (in kernel) and AT_HWCAP
- */
-#define HWCAP_FP		(1 << 0)
-#define HWCAP_ASIMD		(1 << 1)
+#include <uapi/asm/hwcap.h>
 
 #define COMPAT_HWCAP_HALF	(1 << 1)
 #define COMPAT_HWCAP_THUMB	(1 << 2)
@@ -35,7 +31,6 @@
 #define COMPAT_HWCAP_IDIVT	(1 << 18)
 #define COMPAT_HWCAP_IDIV	(COMPAT_HWCAP_IDIVA|COMPAT_HWCAP_IDIVT)
 
-#ifdef __KERNEL__
 #ifndef __ASSEMBLY__
 /*
  * This yields a mask that user programs can use to figure out what
@@ -50,6 +45,4 @@
 
 extern unsigned int elf_hwcap;
 #endif
-#endif
-
 #endif

@@ -1080,8 +1080,6 @@ struct gfar_private {
 
 	u32 cur_filer_idx;
 
-	struct sk_buff_head rx_recycle;
-
 	/* RX queue filer rule set*/
 	struct ethtool_rx_list rx_list;
 	struct mutex rx_queue_access;

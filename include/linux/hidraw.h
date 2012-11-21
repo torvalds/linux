@@ -1,10 +1,6 @@
-#ifndef _HIDRAW_H
-#define _HIDRAW_H
-
 /*
  *  Copyright (c) 2007 Jiri Kosina
  */
-
 /*
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -14,39 +10,11 @@
  * this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
+#ifndef _HIDRAW_H
+#define _HIDRAW_H
 
-#include <linux/hid.h>
-#include <linux/types.h>
+#include <uapi/linux/hidraw.h>
 
-struct hidraw_report_descriptor {
-	__u32 size;
-	__u8 value[HID_MAX_DESCRIPTOR_SIZE];
-};
-
-struct hidraw_devinfo {
-	__u32 bustype;
-	__s16 vendor;
-	__s16 product;
-};
-
-/* ioctl interface */
-#define HIDIOCGRDESCSIZE	_IOR('H', 0x01, int)
-#define HIDIOCGRDESC		_IOR('H', 0x02, struct hidraw_report_descriptor)
-#define HIDIOCGRAWINFO		_IOR('H', 0x03, struct hidraw_devinfo)
-#define HIDIOCGRAWNAME(len)     _IOC(_IOC_READ, 'H', 0x04, len)
-#define HIDIOCGRAWPHYS(len)     _IOC(_IOC_READ, 'H', 0x05, len)
-/* The first byte of SFEATURE and GFEATURE is the report number */
-#define HIDIOCSFEATURE(len)    _IOC(_IOC_WRITE|_IOC_READ, 'H', 0x06, len)
-#define HIDIOCGFEATURE(len)    _IOC(_IOC_WRITE|_IOC_READ, 'H', 0x07, len)
-
-#define HIDRAW_FIRST_MINOR 0
-#define HIDRAW_MAX_DEVICES 64
-/* number of reports to buffer */
-#define HIDRAW_BUFFER_SIZE 64
-
-
-/* kernel-only API declarations */
-#ifdef __KERNEL__
 
 struct hidraw {
 	unsigned int minor;
@@ -85,8 +53,6 @@ static inline void hidraw_exit(void) { }
 static inline int hidraw_report_event(struct hid_device *hid, u8 *data, int len) { return 0; }
 static inline int hidraw_connect(struct hid_device *hid) { return -1; }
 static inline void hidraw_disconnect(struct hid_device *hid) { }
-#endif
-
 #endif
 
 #endif

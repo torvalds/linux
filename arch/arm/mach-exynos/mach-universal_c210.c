@@ -30,6 +30,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
 
+#include <video/samsung_fimd.h>
 #include <plat/regs-serial.h>
 #include <plat/clock.h>
 #include <plat/cpu.h>
@@ -39,7 +40,6 @@
 #include <plat/fb.h>
 #include <plat/mfc.h>
 #include <plat/sdhci.h>
-#include <plat/regs-fb-v4.h>
 #include <plat/fimc-core.h>
 #include <plat/s5p-time.h>
 #include <plat/camport.h>
@@ -209,7 +209,7 @@ static struct regulator_consumer_supply lp3974_ldo3_consumer[] = {
 	REGULATOR_SUPPLY("vusb_a", "s3c-hsotg"),
 	REGULATOR_SUPPLY("vdd", "exynos4-hdmi"),
 	REGULATOR_SUPPLY("vdd_pll", "exynos4-hdmi"),
-	REGULATOR_SUPPLY("vdd11", "s5p-mipi-csis.0"),
+	REGULATOR_SUPPLY("vddcore", "s5p-mipi-csis.0"),
 };
 
 static struct regulator_init_data lp3974_ldo3_data = {
@@ -273,7 +273,7 @@ static struct regulator_init_data lp3974_ldo6_data = {
 };
 
 static struct regulator_consumer_supply lp3974_ldo7_consumer[] = {
-	REGULATOR_SUPPLY("vdd18", "s5p-mipi-csis.0"),
+	REGULATOR_SUPPLY("vddio", "s5p-mipi-csis.0"),
 };
 
 static struct regulator_init_data lp3974_ldo7_data = {
@@ -942,9 +942,7 @@ static struct platform_device cam_s_if_fixed_reg_dev = {
 static struct s5p_platform_mipi_csis mipi_csis_platdata = {
 	.clk_rate	= 166000000UL,
 	.lanes		= 2,
-	.alignment	= 32,
 	.hs_settle	= 12,
-	.phy_enable	= s5p_csis_phy_enable,
 };
 
 #define GPIO_CAM_LEVEL_EN(n)	EXYNOS4_GPE4(n + 3)
@@ -1008,7 +1006,6 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 		.board_info	= &m5mols_board_info,
 		.i2c_bus_num	= 0,
 		.clk_frequency	= 24000000UL,
-		.csi_data_align	= 32,
 	},
 };
 

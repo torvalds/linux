@@ -83,6 +83,8 @@ static int  whiteheat_firmware_attach(struct usb_serial *serial);
 /* function prototypes for the Connect Tech WhiteHEAT serial converter */
 static int  whiteheat_attach(struct usb_serial *serial);
 static void whiteheat_release(struct usb_serial *serial);
+static int  whiteheat_port_probe(struct usb_serial_port *port);
+static int  whiteheat_port_remove(struct usb_serial_port *port);
 static int  whiteheat_open(struct tty_struct *tty,
 			struct usb_serial_port *port);
 static void whiteheat_close(struct usb_serial_port *port);
@@ -117,6 +119,8 @@ static struct usb_serial_driver whiteheat_device = {
 	.num_ports =		4,
 	.attach =		whiteheat_attach,
 	.release =		whiteheat_release,
+	.port_probe =		whiteheat_port_probe,
+	.port_remove =		whiteheat_port_remove,
 	.open =			whiteheat_open,
 	.close =		whiteheat_close,
 	.ioctl =		whiteheat_ioctl,
@@ -218,15 +222,12 @@ static int whiteheat_attach(struct usb_serial *serial)
 {
 	struct usb_serial_port *command_port;
 	struct whiteheat_command_private *command_info;
-	struct usb_serial_port *port;
-	struct whiteheat_private *info;
 	struct whiteheat_hw_info *hw_info;
 	int pipe;
 	int ret;
 	int alen;
 	__u8 *command;
 	__u8 *result;
-	int i;
 
 	command_port = serial->port[COMMAND_PORT];
 
@@ -285,22 +286,6 @@ static int whiteheat_attach(struct usb_serial *serial)
 		 serial->type->description,
 		 hw_info->sw_major_rev, hw_info->sw_minor_rev);
 
-	for (i = 0; i < serial->num_ports; i++) {
-		port = serial->port[i];
-
-		info = kmalloc(sizeof(struct whiteheat_private), GFP_KERNEL);
-		if (info == NULL) {
-			dev_err(&port->dev,
-				"%s: Out of memory for port structures\n",
-				serial->type->description);
-			goto no_private;
-		}
-
-		info->mcr = 0;
-
-		usb_set_serial_port_data(port, info);
-	}
-
 	command_info = kmalloc(sizeof(struct whiteheat_command_private),
 								GFP_KERNEL);
 	if (command_info == NULL) {
@@ -333,16 +318,10 @@ no_firmware:
 		"%s: please contact support@connecttech.com\n",
 		serial->type->description);
 	kfree(result);
+	kfree(command);
 	return -ENODEV;
 
 no_command_private:
-	for (i = serial->num_ports - 1; i >= 0; i--) {
-		port = serial->port[i];
-		info = usb_get_serial_port_data(port);
-		kfree(info);
-no_private:
-		;
-	}
 	kfree(result);
 no_result_buffer:
 	kfree(command);
@@ -350,21 +329,36 @@ no_command_buffer:
 	return -ENOMEM;
 }
 
-
 static void whiteheat_release(struct usb_serial *serial)
 {
 	struct usb_serial_port *command_port;
-	struct whiteheat_private *info;
-	int i;
 
 	/* free up our private data for our command port */
 	command_port = serial->port[COMMAND_PORT];
 	kfree(usb_get_serial_port_data(command_port));
+}
 
-	for (i = 0; i < serial->num_ports; i++) {
-		info = usb_get_serial_port_data(serial->port[i]);
-		kfree(info);
-	}
+static int whiteheat_port_probe(struct usb_serial_port *port)
+{
+	struct whiteheat_private *info;
+
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	usb_set_serial_port_data(port, info);
+
+	return 0;
+}
+
+static int whiteheat_port_remove(struct usb_serial_port *port)
+{
+	struct whiteheat_private *info;
+
+	info = usb_get_serial_port_data(port);
+	kfree(info);
+
+	return 0;
 }
 
 static int whiteheat_open(struct tty_struct *tty, struct usb_serial_port *port)

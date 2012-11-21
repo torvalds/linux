@@ -77,7 +77,7 @@ static int isl6405_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage
 			break;
 		default:
 			return -EINVAL;
-		};
+		}
 	}
 	isl6405->config |= isl6405->override_or;
 	isl6405->config &= isl6405->override_and;

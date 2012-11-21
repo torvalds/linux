@@ -419,7 +419,12 @@ static int vidioc_enum_input(struct file *file, void *priv,
 	if (i->index > STK1160_MAX_INPUT)
 		return -EINVAL;
 
-	sprintf(i->name, "Composite%d", i->index);
+	/* S-Video special handling */
+	if (i->index == STK1160_SVIDEO_INPUT)
+		sprintf(i->name, "S-Video");
+	else
+		sprintf(i->name, "Composite%d", i->index);
+
 	i->type = V4L2_INPUT_TYPE_CAMERA;
 	i->std = dev->vdev.tvnorms;
 	return 0;

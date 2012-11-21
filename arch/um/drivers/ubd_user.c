@@ -19,7 +19,7 @@
 #include <byteswap.h>
 
 #include "ubd.h"
-#include "os.h"
+#include <os.h>
 
 void ignore_sigwinch_sig(void)
 {

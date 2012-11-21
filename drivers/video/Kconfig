@@ -2139,21 +2139,6 @@ config FB_UDL
 	  mplayer -vo fbdev. Supports all USB 2.0 era DisplayLink devices.
 	  To compile as a module, choose M here: the module name is udlfb.
 
-config FB_PNX4008_DUM
-	tristate "Display Update Module support on Philips PNX4008 board"
-	depends on FB && ARCH_PNX4008
-	---help---
-	  Say Y here to enable support for PNX4008 Display Update Module (DUM)
-
-config FB_PNX4008_DUM_RGB
-	tristate "RGB Framebuffer support on Philips PNX4008 board"
-	depends on FB_PNX4008_DUM
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	---help---
-	  Say Y here to enable support for PNX4008 RGB Framebuffer
-
 config FB_IBM_GXT4500
 	tristate "Framebuffer support for IBM GXT4500P adaptor"
 	depends on FB && PPC

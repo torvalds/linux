@@ -4,7 +4,7 @@ Required properties:
 - compatible: should be "fsl,imx23-pwm"
 - reg: physical base address and length of the controller's registers
 - #pwm-cells: should be 2.  The first cell specifies the per-chip index
-  of the PWM to use and the second cell is the duty cycle in nanoseconds.
+  of the PWM to use and the second cell is the period in nanoseconds.
 - fsl,pwm-number: the number of PWM devices
 
 Example:

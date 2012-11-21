@@ -1,10 +1,5 @@
-include include/asm-generic/Kbuild.asm
 
 header-y += ../arch/
-
-header-y += cachectl.h
-header-y += ucontext.h
-header-y += hardwall.h
 
 generic-y += bug.h
 generic-y += bugs.h
@@ -13,6 +8,7 @@ generic-y += cputime.h
 generic-y += div64.h
 generic-y += emergency-restart.h
 generic-y += errno.h
+generic-y += exec.h
 generic-y += fb.h
 generic-y += fcntl.h
 generic-y += ioctl.h
@@ -39,5 +35,4 @@ generic-y += statfs.h
 generic-y += termbits.h
 generic-y += termios.h
 generic-y += types.h
-generic-y += ucontext.h
 generic-y += xor.h

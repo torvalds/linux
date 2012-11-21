@@ -20,6 +20,7 @@ config TILE
 	select SYS_HYPERVISOR
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CLOCKEVENTS
+	select MODULES_USE_ELF_RELA
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT

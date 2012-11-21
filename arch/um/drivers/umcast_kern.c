@@ -11,10 +11,10 @@
  * Licensed under the GPL.
  */
 
-#include "linux/init.h"
+#include <linux/init.h>
 #include <linux/netdevice.h>
 #include "umcast.h"
-#include "net_kern.h"
+#include <net_kern.h>
 
 struct umcast_init {
 	char *addr;

@@ -38,7 +38,7 @@ int omap_pm_set_max_mpu_wakeup_lat(struct device *dev, long t)
 	if (!dev || t < -1) {
 		WARN(1, "OMAP PM: %s: invalid parameter(s)", __func__);
 		return -EINVAL;
-	};
+	}
 
 	if (t == -1)
 		pr_debug("OMAP PM: remove max MPU wakeup latency constraint: dev %s\n",
@@ -67,7 +67,7 @@ int omap_pm_set_min_bus_tput(struct device *dev, u8 agent_id, unsigned long r)
 	    agent_id != OCP_TARGET_AGENT)) {
 		WARN(1, "OMAP PM: %s: invalid parameter(s)", __func__);
 		return -EINVAL;
-	};
+	}
 
 	if (r == 0)
 		pr_debug("OMAP PM: remove min bus tput constraint: dev %s for agent_id %d\n",
@@ -93,7 +93,7 @@ int omap_pm_set_max_dev_wakeup_lat(struct device *req_dev, struct device *dev,
 	if (!req_dev || !dev || t < -1) {
 		WARN(1, "OMAP PM: %s: invalid parameter(s)", __func__);
 		return -EINVAL;
-	};
+	}
 
 	if (t == -1)
 		pr_debug("OMAP PM: remove max device latency constraint: dev %s\n",
@@ -123,7 +123,7 @@ int omap_pm_set_max_sdma_lat(struct device *dev, long t)
 	if (!dev || t < -1) {
 		WARN(1, "OMAP PM: %s: invalid parameter(s)", __func__);
 		return -EINVAL;
-	};
+	}
 
 	if (t == -1)
 		pr_debug("OMAP PM: remove max DMA latency constraint: dev %s\n",

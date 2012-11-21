@@ -50,9 +50,6 @@ int  nouveau_parent_create_(struct nouveau_object *, struct nouveau_object *,
 			    int size, void **);
 void nouveau_parent_destroy(struct nouveau_parent *);
 
-int  _nouveau_parent_ctor(struct nouveau_object *, struct nouveau_object *,
-			  struct nouveau_oclass *, void *, u32,
-			  struct nouveau_object **);
 void _nouveau_parent_dtor(struct nouveau_object *);
 #define _nouveau_parent_init _nouveau_object_init
 #define _nouveau_parent_fini _nouveau_object_fini

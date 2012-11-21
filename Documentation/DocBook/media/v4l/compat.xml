@@ -2582,6 +2582,10 @@ ioctls.</para>
         <listitem>
 	  <para>Support for frequency band enumeration: &VIDIOC-ENUM-FREQ-BANDS; ioctl.</para>
         </listitem>
+        <listitem>
+	  <para>Vendor and device specific media bus pixel formats.
+	    <xref linkend="v4l2-mbus-vendor-spec-fmts" />.</para>
+        </listitem>
       </itemizedlist>
     </section>
 

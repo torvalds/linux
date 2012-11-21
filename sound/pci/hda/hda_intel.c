@@ -501,6 +501,7 @@ struct azx {
 
 	/* VGA-switcheroo setup */
 	unsigned int use_vga_switcheroo:1;
+	unsigned int vga_switcheroo_registered:1;
 	unsigned int init_failed:1; /* delayed init failed */
 	unsigned int disabled:1; /* disabled by VGA-switcher */
 
@@ -554,7 +555,6 @@ enum {
 #define AZX_DCAPS_BUFSIZE	(1 << 21)	/* no buffer size alignment */
 #define AZX_DCAPS_ALIGN_BUFSIZE	(1 << 22)	/* buffer size alignment */
 #define AZX_DCAPS_4K_BDLE_BOUNDARY (1 << 23)	/* BDLE in 4k boundary */
-#define AZX_DCAPS_POSFIX_COMBO  (1 << 24)	/* Use COMBO as default */
 #define AZX_DCAPS_COUNT_LPIB_DELAY  (1 << 25)	/* Take LPIB as delay */
 
 /* quirks for ATI SB / AMD Hudson */
@@ -2158,9 +2158,12 @@ static unsigned int azx_get_position(struct azx *chip,
 		if (delay < 0)
 			delay += azx_dev->bufsize;
 		if (delay >= azx_dev->period_bytes) {
-			snd_printdd("delay %d > period_bytes %d\n",
-				delay, azx_dev->period_bytes);
-			delay = 0; /* something is wrong */
+			snd_printk(KERN_WARNING SFX
+				   "Unstable LPIB (%d >= %d); "
+				   "disabling LPIB delay counting\n",
+				   delay, azx_dev->period_bytes);
+			delay = 0;
+			chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
 		}
 		azx_dev->substream->runtime->delay =
 			bytes_to_frames(azx_dev->substream->runtime, delay);
@@ -2641,7 +2644,9 @@ static void azx_vs_set_state(struct pci_dev *pci,
 		if (disabled) {
 			azx_suspend(&pci->dev);
 			chip->disabled = true;
-			snd_hda_lock_devices(chip->bus);
+			if (snd_hda_lock_devices(chip->bus))
+				snd_printk(KERN_WARNING SFX
+					   "Cannot lock devices!\n");
 		} else {
 			snd_hda_unlock_devices(chip->bus);
 			chip->disabled = false;
@@ -2684,14 +2689,20 @@ static const struct vga_switcheroo_client_ops azx_vs_ops = {
 
 static int __devinit register_vga_switcheroo(struct azx *chip)
 {
+	int err;
+
 	if (!chip->use_vga_switcheroo)
 		return 0;
 	/* FIXME: currently only handling DIS controller
 	 * is there any machine with two switchable HDMI audio controllers?
 	 */
-	return vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
+	err = vga_switcheroo_register_audio_client(chip->pci, &azx_vs_ops,
 						    VGA_SWITCHEROO_DIS,
 						    chip->bus != NULL);
+	if (err < 0)
+		return err;
+	chip->vga_switcheroo_registered = 1;
+	return 0;
 }
 #else
 #define init_vga_switcheroo(chip)		/* NOP */
@@ -2713,7 +2724,8 @@ static int azx_free(struct azx *chip)
 	if (use_vga_switcheroo(chip)) {
 		if (chip->disabled && chip->bus)
 			snd_hda_unlock_devices(chip->bus);
-		vga_switcheroo_unregister_client(chip->pci);
+		if (chip->vga_switcheroo_registered)
+			vga_switcheroo_unregister_client(chip->pci);
 	}
 
 	if (chip->initialized) {
@@ -2814,8 +2826,6 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81b3, "ASUS", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x81e7, "ASUS M2V", POS_FIX_LPIB),
-	SND_PCI_QUIRK(0x1043, 0x1ac3, "ASUS X53S", POS_FIX_POSBUF),
-	SND_PCI_QUIRK(0x1043, 0x1b43, "ASUS K53E", POS_FIX_POSBUF),
 	SND_PCI_QUIRK(0x104d, 0x9069, "Sony VPCS11V9E", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x10de, 0xcb89, "Macbook Pro 7,1", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1297, 0x3166, "Shuttle", POS_FIX_LPIB),
@@ -2857,10 +2867,6 @@ static int __devinit check_position_fix(struct azx *chip, int fix)
 	if (chip->driver_caps & AZX_DCAPS_POSFIX_LPIB) {
 		snd_printd(SFX "Using LPIB position fix\n");
 		return POS_FIX_LPIB;
-	}
-	if (chip->driver_caps & AZX_DCAPS_POSFIX_COMBO) {
-		snd_printd(SFX "Using COMBO position fix\n");
-		return POS_FIX_COMBO;
 	}
 	return POS_FIX_AUTO;
 }
@@ -3067,14 +3073,6 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	}
 
  ok:
-	err = register_vga_switcheroo(chip);
-	if (err < 0) {
-		snd_printk(KERN_ERR SFX
-			   "Error registering VGA-switcheroo client\n");
-		azx_free(chip);
-		return err;
-	}
-
 	err = snd_device_new(card, SNDRV_DEV_LOWLEVEL, chip, &ops);
 	if (err < 0) {
 		snd_printk(KERN_ERR SFX "Error creating device [card]!\n");
@@ -3344,6 +3342,13 @@ static int __devinit azx_probe(struct pci_dev *pci,
 
 	if (pci_dev_run_wake(pci))
 		pm_runtime_put_noidle(&pci->dev);
+
+	err = register_vga_switcheroo(chip);
+	if (err < 0) {
+		snd_printk(KERN_ERR SFX
+			   "Error registering VGA-switcheroo client\n");
+		goto out_free;
+	}
 
 	dev++;
 	return 0;

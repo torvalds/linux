@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/err.h>
 
 #define DRV_MODULE_VERSION	"0.1"
 

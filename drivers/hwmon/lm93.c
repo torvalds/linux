@@ -47,6 +47,7 @@
 #include <linux/hwmon-vid.h>
 #include <linux/err.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 
 /* LM93 REGISTER ADDRESSES */
 

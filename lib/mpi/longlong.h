@@ -19,6 +19,8 @@
  * the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
  * MA 02111-1307, USA. */
 
+#include <asm-generic/bitops/count_zeros.h>
+
 /* You have to define the following before including this file:
  *
  * UWtype -- An unsigned type, default type for operations (typically a "word")
@@ -146,12 +148,6 @@ do { \
 	: "1" ((USItype)(n1)), \
 		"r" ((USItype)(n0)), \
 		"r" ((USItype)(d)))
-
-#define count_leading_zeros(count, x) \
-	__asm__ ("clz %0,%1" \
-	: "=r" ((USItype)(count)) \
-	: "r" ((USItype)(x)))
-#define COUNT_LEADING_ZEROS_0 32
 #endif /* __a29k__ */
 
 #if defined(__alpha) && W_TYPE_SIZE == 64
@@ -298,11 +294,6 @@ extern UDItype __udiv_qrnnd();
 	: "1" ((USItype)(nh)), \
 		"0" ((USItype)(nl)), \
 		"g" ((USItype)(d)))
-#define count_leading_zeros(count, x) \
-	__asm__ ("bsch/1 %1,%0" \
-	: "=g" (count) \
-	: "g" ((USItype)(x)), \
-	     "0" ((USItype)0))
 #endif
 
 /***************************************
@@ -354,27 +345,6 @@ do { USItype __r; \
 } while (0)
 extern USItype __udiv_qrnnd();
 #endif /* LONGLONG_STANDALONE */
-#define count_leading_zeros(count, x) \
-do { \
-	USItype __tmp; \
-	__asm__ ( \
-	"ldi             1,%0\n" \
-	"extru,=	%1,15,16,%%r0  ; Bits 31..16 zero?\n" \
-	"extru,tr	%1,15,16,%1    ; No.  Shift down, skip add.\n" \
-	"ldo		16(%0),%0      ; Yes.	Perform add.\n" \
-	"extru,=	%1,23,8,%%r0   ; Bits 15..8 zero?\n" \
-	"extru,tr	%1,23,8,%1     ; No.  Shift down, skip add.\n" \
-	"ldo		8(%0),%0       ; Yes.	Perform add.\n" \
-	"extru,=	%1,27,4,%%r0   ; Bits 7..4 zero?\n" \
-	"extru,tr	%1,27,4,%1     ; No.  Shift down, skip add.\n" \
-	"ldo		4(%0),%0       ; Yes.	Perform add.\n" \
-	"extru,=	%1,29,2,%%r0   ; Bits 3..2 zero?\n" \
-	"extru,tr	%1,29,2,%1     ; No.  Shift down, skip add.\n" \
-	"ldo		2(%0),%0       ; Yes.	Perform add.\n" \
-	"extru		%1,30,1,%1     ; Extract bit 1.\n" \
-	"sub		%0,%1,%0       ; Subtract it.              " \
-	: "=r" (count), "=r" (__tmp) : "1" (x)); \
-} while (0)
 #endif /* hppa */
 
 /***************************************
@@ -457,15 +427,6 @@ do { \
 	: "0" ((USItype)(n0)), \
 	     "1" ((USItype)(n1)), \
 	     "rm" ((USItype)(d)))
-#define count_leading_zeros(count, x) \
-do { \
-	USItype __cbtmp; \
-	__asm__ ("bsrl %1,%0" \
-	: "=r" (__cbtmp) : "rm" ((USItype)(x))); \
-	(count) = __cbtmp ^ 31; \
-} while (0)
-#define count_trailing_zeros(count, x) \
-	__asm__ ("bsfl %1,%0" : "=r" (count) : "rm" ((USItype)(x)))
 #ifndef UMUL_TIME
 #define UMUL_TIME 40
 #endif
@@ -536,15 +497,6 @@ do { \
 	     "dI" ((USItype)(d))); \
 	(r) = __rq.__i.__l; (q) = __rq.__i.__h; \
 } while (0)
-#define count_leading_zeros(count, x) \
-do { \
-	USItype __cbtmp; \
-	__asm__ ("scanbit %1,%0" \
-	: "=r" (__cbtmp) \
-	: "r" ((USItype)(x))); \
-	(count) = __cbtmp ^ 31; \
-} while (0)
-#define COUNT_LEADING_ZEROS_0 (-32)	/* sic */
 #if defined(__i960mx)		/* what is the proper symbol to test??? */
 #define rshift_rhlc(r, h, l, c) \
 do { \
@@ -603,11 +555,6 @@ do { \
 	: "0" ((USItype)(n0)), \
 	     "1" ((USItype)(n1)), \
 	     "dmi" ((USItype)(d)))
-#define count_leading_zeros(count, x) \
-	__asm__ ("bfffo %1{%b2:%b2},%0" \
-	: "=d" ((USItype)(count)) \
-	: "od" ((USItype)(x)), "n" (0))
-#define COUNT_LEADING_ZEROS_0 32
 #else /* not mc68020 */
 #define umul_ppmm(xh, xl, a, b) \
 do { USItype __umul_tmp1, __umul_tmp2; \
@@ -664,15 +611,6 @@ do { USItype __umul_tmp1, __umul_tmp2; \
 	     "rJ" ((USItype)(bh)), \
 	     "rJ" ((USItype)(al)), \
 	     "rJ" ((USItype)(bl)))
-#define count_leading_zeros(count, x) \
-do { \
-	USItype __cbtmp; \
-	__asm__ ("ff1 %0,%1" \
-	: "=r" (__cbtmp) \
-	: "r" ((USItype)(x))); \
-	(count) = __cbtmp ^ 31; \
-} while (0)
-#define COUNT_LEADING_ZEROS_0 63	/* sic */
 #if defined(__m88110__)
 #define umul_ppmm(wh, wl, u, v) \
 do { \
@@ -779,12 +717,6 @@ do { \
 	: "0" (__xx.__ll), \
 	     "g" ((USItype)(d))); \
 	(r) = __xx.__i.__l; (q) = __xx.__i.__h; })
-#define count_trailing_zeros(count, x) \
-do { \
-	__asm__("ffsd      %2,%0" \
-	: "=r"((USItype) (count)) \
-	: "0"((USItype) 0), "r"((USItype) (x))); \
-	} while (0)
 #endif /* __ns32000__ */
 
 /***************************************
@@ -855,11 +787,6 @@ do { \
 		"rI" ((USItype)(al)), \
 		"r" ((USItype)(bl))); \
 } while (0)
-#define count_leading_zeros(count, x) \
-	__asm__ ("{cntlz|cntlzw} %0,%1" \
-	: "=r" ((USItype)(count)) \
-	: "r" ((USItype)(x)))
-#define COUNT_LEADING_ZEROS_0 32
 #if defined(_ARCH_PPC)
 #define umul_ppmm(ph, pl, m0, m1) \
 do { \
@@ -1001,19 +928,6 @@ do { \
 } while (0)
 #define UMUL_TIME 20
 #define UDIV_TIME 200
-#define count_leading_zeros(count, x) \
-do { \
-	if ((x) >= 0x10000) \
-		__asm__ ("clz     %0,%1" \
-		: "=r" ((USItype)(count)) \
-		: "r" ((USItype)(x) >> 16)); \
-	else { \
-		__asm__ ("clz   %0,%1" \
-		: "=r" ((USItype)(count)) \
-		: "r" ((USItype)(x))); \
-		(count) += 16; \
-	} \
-} while (0)
 #endif /* RT/ROMP */
 
 /***************************************
@@ -1142,13 +1056,6 @@ do { \
 	"rI" ((USItype)(d)) \
 	: "%g1" __AND_CLOBBER_CC)
 #define UDIV_TIME 37
-#define count_leading_zeros(count, x) \
-	__asm__ ("scan %1,0,%0" \
-	: "=r" ((USItype)(x)) \
-	: "r" ((USItype)(count)))
-/* Early sparclites return 63 for an argument of 0, but they warn that future
-	implementations might change this.  Therefore, leave COUNT_LEADING_ZEROS_0
-	undefined.  */
 #endif /* __sparclite__ */
 #endif /* __sparc_v8__ */
 	/* Default to sparc v7 versions of umul_ppmm and udiv_qrnnd.  */
@@ -1452,47 +1359,6 @@ do { \
 #if !defined(udiv_qrnnd)
 #define UDIV_NEEDS_NORMALIZATION 1
 #define udiv_qrnnd __udiv_qrnnd_c
-#endif
-
-#undef count_leading_zeros
-#if !defined(count_leading_zeros)
-	extern
-#ifdef __STDC__
-			const
-#endif
-			unsigned char __clz_tab[];
-#define count_leading_zeros(count, x) \
-do { \
-	UWtype __xr = (x); \
-	UWtype __a; \
-	\
-	if (W_TYPE_SIZE <= 32) { \
-		__a = __xr < ((UWtype) 1 << 2*__BITS4) \
-		? (__xr < ((UWtype) 1 << __BITS4) ? 0 : __BITS4) \
-		: (__xr < ((UWtype) 1 << 3*__BITS4) ?  2*__BITS4 : 3*__BITS4); \
-	} \
-	else { \
-		for (__a = W_TYPE_SIZE - 8; __a > 0; __a -= 8) \
-			if (((__xr >> __a) & 0xff) != 0) \
-				break; \
-	} \
-	\
-	(count) = W_TYPE_SIZE - (__clz_tab[__xr >> __a] + __a); \
-} while (0)
-	/* This version gives a well-defined value for zero. */
-#define COUNT_LEADING_ZEROS_0 W_TYPE_SIZE
-#endif
-
-#if !defined(count_trailing_zeros)
-/* Define count_trailing_zeros using count_leading_zeros.  The latter might be
-	defined in asm, but if it is not, the C version above is good enough.  */
-#define count_trailing_zeros(count, x) \
-do { \
-	UWtype __ctz_x = (x); \
-	UWtype __ctz_c; \
-	count_leading_zeros(__ctz_c, __ctz_x & -__ctz_x); \
-	(count) = W_TYPE_SIZE - 1 - __ctz_c; \
-} while (0)
 #endif
 
 #ifndef UDIV_NEEDS_NORMALIZATION

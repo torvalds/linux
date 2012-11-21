@@ -1532,20 +1532,7 @@ static struct spi_driver mmc_spi_driver = {
 	.remove =	__devexit_p(mmc_spi_remove),
 };
 
-
-static int __init mmc_spi_init(void)
-{
-	return spi_register_driver(&mmc_spi_driver);
-}
-module_init(mmc_spi_init);
-
-
-static void __exit mmc_spi_exit(void)
-{
-	spi_unregister_driver(&mmc_spi_driver);
-}
-module_exit(mmc_spi_exit);
-
+module_spi_driver(mmc_spi_driver);
 
 MODULE_AUTHOR("Mike Lavender, David Brownell, "
 		"Hans-Peter Nilsson, Jan Nikitenko");

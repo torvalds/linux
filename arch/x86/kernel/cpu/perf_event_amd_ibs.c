@@ -41,17 +41,22 @@ struct cpu_perf_ibs {
 };
 
 struct perf_ibs {
-	struct pmu	pmu;
-	unsigned int	msr;
-	u64		config_mask;
-	u64		cnt_mask;
-	u64		enable_mask;
-	u64		valid_mask;
-	u64		max_period;
-	unsigned long	offset_mask[1];
-	int		offset_max;
-	struct cpu_perf_ibs __percpu *pcpu;
-	u64		(*get_count)(u64 config);
+	struct pmu			pmu;
+	unsigned int			msr;
+	u64				config_mask;
+	u64				cnt_mask;
+	u64				enable_mask;
+	u64				valid_mask;
+	u64				max_period;
+	unsigned long			offset_mask[1];
+	int				offset_max;
+	struct cpu_perf_ibs __percpu	*pcpu;
+
+	struct attribute		**format_attrs;
+	struct attribute_group		format_group;
+	const struct attribute_group	*attr_groups[2];
+
+	u64				(*get_count)(u64 config);
 };
 
 struct perf_ibs_data {
@@ -446,6 +451,19 @@ static void perf_ibs_del(struct perf_event *event, int flags)
 
 static void perf_ibs_read(struct perf_event *event) { }
 
+PMU_FORMAT_ATTR(rand_en,	"config:57");
+PMU_FORMAT_ATTR(cnt_ctl,	"config:19");
+
+static struct attribute *ibs_fetch_format_attrs[] = {
+	&format_attr_rand_en.attr,
+	NULL,
+};
+
+static struct attribute *ibs_op_format_attrs[] = {
+	NULL,	/* &format_attr_cnt_ctl.attr if IBS_CAPS_OPCNT */
+	NULL,
+};
+
 static struct perf_ibs perf_ibs_fetch = {
 	.pmu = {
 		.task_ctx_nr	= perf_invalid_context,
@@ -465,6 +483,7 @@ static struct perf_ibs perf_ibs_fetch = {
 	.max_period		= IBS_FETCH_MAX_CNT << 4,
 	.offset_mask		= { MSR_AMD64_IBSFETCH_REG_MASK },
 	.offset_max		= MSR_AMD64_IBSFETCH_REG_COUNT,
+	.format_attrs		= ibs_fetch_format_attrs,
 
 	.get_count		= get_ibs_fetch_count,
 };
@@ -488,6 +507,7 @@ static struct perf_ibs perf_ibs_op = {
 	.max_period		= IBS_OP_MAX_CNT << 4,
 	.offset_mask		= { MSR_AMD64_IBSOP_REG_MASK },
 	.offset_max		= MSR_AMD64_IBSOP_REG_COUNT,
+	.format_attrs		= ibs_op_format_attrs,
 
 	.get_count		= get_ibs_op_count,
 };
@@ -597,6 +617,17 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 
 	perf_ibs->pcpu = pcpu;
 
+	/* register attributes */
+	if (perf_ibs->format_attrs[0]) {
+		memset(&perf_ibs->format_group, 0, sizeof(perf_ibs->format_group));
+		perf_ibs->format_group.name	= "format";
+		perf_ibs->format_group.attrs	= perf_ibs->format_attrs;
+
+		memset(&perf_ibs->attr_groups, 0, sizeof(perf_ibs->attr_groups));
+		perf_ibs->attr_groups[0]	= &perf_ibs->format_group;
+		perf_ibs->pmu.attr_groups	= perf_ibs->attr_groups;
+	}
+
 	ret = perf_pmu_register(&perf_ibs->pmu, name, -1);
 	if (ret) {
 		perf_ibs->pcpu = NULL;
@@ -608,13 +639,19 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 
 static __init int perf_event_ibs_init(void)
 {
+	struct attribute **attr = ibs_op_format_attrs;
+
 	if (!ibs_caps)
 		return -ENODEV;	/* ibs not supported by the cpu */
 
 	perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
-	if (ibs_caps & IBS_CAPS_OPCNT)
+
+	if (ibs_caps & IBS_CAPS_OPCNT) {
 		perf_ibs_op.config_mask |= IBS_OP_CNT_CTL;
+		*attr++ = &format_attr_cnt_ctl.attr;
+	}
 	perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
+
 	register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
 	printk(KERN_INFO "perf: AMD IBS detected (0x%08x)\n", ibs_caps);
 

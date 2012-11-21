@@ -574,18 +574,19 @@ static void pctv_520e_init(struct em28xx *dev)
 		i2c_master_send(&dev->i2c_client, regs[i].r, regs[i].len);
 };
 
-static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe, int val)
+static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct em28xx *dev = fe->dvb->priv;
 #ifdef CONFIG_GPIOLIB
 	struct em28xx_dvb *dvb = dev->dvb;
 	int ret;
 	unsigned long flags;
 
-	if (val)
-		flags = GPIOF_OUT_INIT_LOW;
+	if (c->lna == 1)
+		flags = GPIOF_OUT_INIT_HIGH; /* enable LNA */
 	else
-		flags = GPIOF_OUT_INIT_HIGH;
+		flags = GPIOF_OUT_INIT_LOW; /* disable LNA */
 
 	ret = gpio_request_one(dvb->lna_gpio, flags, NULL);
 	if (ret)
@@ -595,8 +596,8 @@ static int em28xx_pctv_290e_set_lna(struct dvb_frontend *fe, int val)
 
 	return ret;
 #else
-	dev_warn(&dev->udev->dev, "%s: LNA control is disabled\n",
-			KBUILD_MODNAME);
+	dev_warn(&dev->udev->dev, "%s: LNA control is disabled (lna=%u)\n",
+			KBUILD_MODNAME, c->lna);
 	return 0;
 #endif
 }

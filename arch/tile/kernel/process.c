@@ -548,6 +548,9 @@ int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 	if (!user_mode(regs))
 		return 0;
 
+	/* Enable interrupts; they are disabled again on return to caller. */
+	local_irq_enable();
+
 	if (thread_info_flags & _TIF_NEED_RESCHED) {
 		schedule();
 		return 1;
@@ -594,13 +597,13 @@ SYSCALL_DEFINE4(execve, const char __user *, path,
 		struct pt_regs *, regs)
 {
 	long error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(path);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename, argv, envp, regs);
+	error = do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 	if (error == 0)
 		single_step_execve();
@@ -615,13 +618,13 @@ long compat_sys_execve(const char __user *path,
 		       struct pt_regs *regs)
 {
 	long error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(path);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, argv, envp, regs);
+	error = compat_do_execve(filename->name, argv, envp, regs);
 	putname(filename);
 	if (error == 0)
 		single_step_execve();

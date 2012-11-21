@@ -46,6 +46,7 @@
 #include <linux/kref.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
+#include <linux/jiffies.h>
 
 /* Default values */
 #define WATCHDOG_TIMEOUT 2	/* 2 minute default timeout */

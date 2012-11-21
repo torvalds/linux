@@ -50,6 +50,7 @@
 # define __ARCH_WANT_SYS_TIME
 # define __ARCH_WANT_SYS_UTIME
 # define __ARCH_WANT_SYS_WAITPID
+# define __ARCH_WANT_SYS_EXECVE
 
 /*
  * "Conditional" syscalls

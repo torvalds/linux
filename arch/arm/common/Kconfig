@@ -1,15 +1,15 @@
 config ARM_GIC
+	bool
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
-	bool
 
 config GIC_NON_BANKED
 	bool
 
 config ARM_VIC
+	bool
 	select IRQ_DOMAIN
 	select MULTI_IRQ_HANDLER
-	bool
 
 config ARM_VIC_NR
 	int

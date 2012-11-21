@@ -2,15 +2,11 @@
  *  S390 version
  *    Copyright IBM Corp. 1999, 2010
  */
-
 #ifndef _ASM_S390_SETUP_H
 #define _ASM_S390_SETUP_H
 
-#define COMMAND_LINE_SIZE	4096
+#include <uapi/asm/setup.h>
 
-#define ARCH_COMMAND_LINE_SIZE	896
-
-#ifdef __KERNEL__
 
 #define PARMAREA		0x10400
 #define MEMORY_CHUNKS		256
@@ -75,8 +71,8 @@ extern unsigned int s390_user_mode;
 #define MACHINE_FLAG_DIAG9C	(1UL << 7)
 #define MACHINE_FLAG_MVCOS	(1UL << 8)
 #define MACHINE_FLAG_KVM	(1UL << 9)
-#define MACHINE_FLAG_HPAGE	(1UL << 10)
-#define MACHINE_FLAG_PFMF	(1UL << 11)
+#define MACHINE_FLAG_EDAT1	(1UL << 10)
+#define MACHINE_FLAG_EDAT2	(1UL << 11)
 #define MACHINE_FLAG_LPAR	(1UL << 12)
 #define MACHINE_FLAG_SPP	(1UL << 13)
 #define MACHINE_FLAG_TOPOLOGY	(1UL << 14)
@@ -88,6 +84,8 @@ extern unsigned int s390_user_mode;
 #define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
 
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
+#define MACHINE_HAS_PFMF	MACHINE_HAS_EDAT1
+#define MACHINE_HAS_HPAGE	MACHINE_HAS_EDAT1
 
 #ifndef CONFIG_64BIT
 #define MACHINE_HAS_IEEE	(S390_lowcore.machine_flags & MACHINE_FLAG_IEEE)
@@ -96,8 +94,8 @@ extern unsigned int s390_user_mode;
 #define MACHINE_HAS_DIAG44	(1)
 #define MACHINE_HAS_MVPG	(S390_lowcore.machine_flags & MACHINE_FLAG_MVPG)
 #define MACHINE_HAS_MVCOS	(0)
-#define MACHINE_HAS_HPAGE	(0)
-#define MACHINE_HAS_PFMF	(0)
+#define MACHINE_HAS_EDAT1	(0)
+#define MACHINE_HAS_EDAT2	(0)
 #define MACHINE_HAS_SPP		(0)
 #define MACHINE_HAS_TOPOLOGY	(0)
 #define MACHINE_HAS_TE		(0)
@@ -109,8 +107,8 @@ extern unsigned int s390_user_mode;
 #define MACHINE_HAS_DIAG44	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG44)
 #define MACHINE_HAS_MVPG	(1)
 #define MACHINE_HAS_MVCOS	(S390_lowcore.machine_flags & MACHINE_FLAG_MVCOS)
-#define MACHINE_HAS_HPAGE	(S390_lowcore.machine_flags & MACHINE_FLAG_HPAGE)
-#define MACHINE_HAS_PFMF	(S390_lowcore.machine_flags & MACHINE_FLAG_PFMF)
+#define MACHINE_HAS_EDAT1	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT1)
+#define MACHINE_HAS_EDAT2	(S390_lowcore.machine_flags & MACHINE_FLAG_EDAT2)
 #define MACHINE_HAS_SPP		(S390_lowcore.machine_flags & MACHINE_FLAG_SPP)
 #define MACHINE_HAS_TOPOLOGY	(S390_lowcore.machine_flags & MACHINE_FLAG_TOPOLOGY)
 #define MACHINE_HAS_TE		(S390_lowcore.machine_flags & MACHINE_FLAG_TE)
@@ -173,5 +171,4 @@ extern void (*_machine_power_off)(void);
 #define COMMAND_LINE      0x10480
 
 #endif /* __ASSEMBLY__ */
-#endif /* __KERNEL__ */
 #endif /* _ASM_S390_SETUP_H */

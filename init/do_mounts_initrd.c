@@ -16,13 +16,13 @@
 #include <linux/initrd.h>
 #include <linux/sched.h>
 #include <linux/freezer.h>
+#include <linux/kmod.h>
 
 #include "do_mounts.h"
 
 unsigned long initrd_start, initrd_end;
 int initrd_below_start_ok;
 unsigned int real_root_dev;	/* do_proc_dointvec cannot handle kdev_t */
-static int __initdata old_fd, root_fd;
 static int __initdata mount_initrd = 1;
 
 static int __init no_initrd(char *str)
@@ -33,33 +33,29 @@ static int __init no_initrd(char *str)
 
 __setup("noinitrd", no_initrd);
 
-static int __init do_linuxrc(void *_shell)
+static int init_linuxrc(struct subprocess_info *info, struct cred *new)
 {
-	static const char *argv[] = { "linuxrc", NULL, };
-	extern const char *envp_init[];
-	const char *shell = _shell;
-
-	sys_close(old_fd);sys_close(root_fd);
+	sys_unshare(CLONE_FS | CLONE_FILES);
+	/* move initrd over / and chdir/chroot in initrd root */
+	sys_chdir("/root");
+	sys_mount(".", "/", NULL, MS_MOVE, NULL);
+	sys_chroot(".");
 	sys_setsid();
-	return kernel_execve(shell, argv, envp_init);
+	return 0;
 }
 
 static void __init handle_initrd(void)
 {
+	static char *argv[] = { "linuxrc", NULL, };
+	extern char *envp_init[];
 	int error;
-	int pid;
 
 	real_root_dev = new_encode_dev(ROOT_DEV);
 	create_dev("/dev/root.old", Root_RAM0);
 	/* mount initrd on rootfs' /root */
 	mount_block_root("/dev/root.old", root_mountflags & ~MS_RDONLY);
 	sys_mkdir("/old", 0700);
-	root_fd = sys_open("/", 0, 0);
-	old_fd = sys_open("/old", 0, 0);
-	/* move initrd over / and chdir/chroot in initrd root */
-	sys_chdir("/root");
-	sys_mount(".", "/", NULL, MS_MOVE, NULL);
-	sys_chroot(".");
+	sys_chdir("/old");
 
 	/*
 	 * In case that a resume from disk is carried out by linuxrc or one of
@@ -67,27 +63,22 @@ static void __init handle_initrd(void)
 	 */
 	current->flags |= PF_FREEZER_SKIP;
 
-	pid = kernel_thread(do_linuxrc, "/linuxrc", SIGCHLD);
-	if (pid > 0)
-		while (pid != sys_wait4(-1, NULL, 0, NULL))
-			yield();
+	call_usermodehelper_fns("/linuxrc", argv, envp_init, UMH_WAIT_PROC,
+			init_linuxrc, NULL, NULL);
 
 	current->flags &= ~PF_FREEZER_SKIP;
 
 	/* move initrd to rootfs' /old */
-	sys_fchdir(old_fd);
-	sys_mount("/", ".", NULL, MS_MOVE, NULL);
+	sys_mount("..", ".", NULL, MS_MOVE, NULL);
 	/* switch root and cwd back to / of rootfs */
-	sys_fchdir(root_fd);
-	sys_chroot(".");
-	sys_close(old_fd);
-	sys_close(root_fd);
+	sys_chroot("..");
 
 	if (new_decode_dev(real_root_dev) == Root_RAM0) {
 		sys_chdir("/old");
 		return;
 	}
 
+	sys_chdir("/");
 	ROOT_DEV = new_decode_dev(real_root_dev);
 	mount_root();
 

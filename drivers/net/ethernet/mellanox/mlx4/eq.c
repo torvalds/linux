@@ -329,9 +329,6 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 	ctx = &priv->mfunc.master.slave_state[slave];
 	spin_lock_irqsave(&ctx->lock, flags);
 
-	mlx4_dbg(dev, "%s: slave: %d, current state: %d new event :%d\n",
-		 __func__, slave, cur_state, event);
-
 	switch (cur_state) {
 	case SLAVE_PORT_DOWN:
 		if (MLX4_PORT_STATE_DEV_EVENT_PORT_UP == event)
@@ -366,9 +363,6 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave,
 			goto out;
 	}
 	ret = mlx4_get_slave_port_state(dev, slave, port);
-	mlx4_dbg(dev, "%s: slave: %d, current state: %d new event"
-		 " :%d gen_event: %d\n",
-		 __func__, slave, cur_state, event, *gen_event);
 
 out:
 	spin_unlock_irqrestore(&ctx->lock, flags);
@@ -843,6 +837,18 @@ static void __iomem *mlx4_get_eq_uar(struct mlx4_dev *dev, struct mlx4_eq *eq)
 	return priv->eq_table.uar_map[index] + 0x800 + 8 * (eq->eqn % 4);
 }
 
+static void mlx4_unmap_uar(struct mlx4_dev *dev)
+{
+	struct mlx4_priv *priv = mlx4_priv(dev);
+	int i;
+
+	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
+		if (priv->eq_table.uar_map[i]) {
+			iounmap(priv->eq_table.uar_map[i]);
+			priv->eq_table.uar_map[i] = NULL;
+		}
+}
+
 static int mlx4_create_eq(struct mlx4_dev *dev, int nent,
 			  u8 intr, struct mlx4_eq *eq)
 {
@@ -1207,6 +1213,7 @@ err_out_unmap:
 	mlx4_free_irqs(dev);
 
 err_out_bitmap:
+	mlx4_unmap_uar(dev);
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
 
 err_out_free:
@@ -1231,10 +1238,7 @@ void mlx4_cleanup_eq_table(struct mlx4_dev *dev)
 	if (!mlx4_is_slave(dev))
 		mlx4_unmap_clr_int(dev);
 
-	for (i = 0; i < mlx4_num_eq_uar(dev); ++i)
-		if (priv->eq_table.uar_map[i])
-			iounmap(priv->eq_table.uar_map[i]);
-
+	mlx4_unmap_uar(dev);
 	mlx4_bitmap_cleanup(&priv->eq_table.bitmap);
 
 	kfree(priv->eq_table.uar_map);

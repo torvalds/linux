@@ -823,12 +823,6 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	return 0;
 }
 
-static struct perf_tool eops = {
-	.sample			= process_sample_event,
-	.comm			= perf_event__process_comm,
-	.ordered_samples	= true,
-};
-
 static const struct perf_evsel_str_handler lock_tracepoints[] = {
 	{ "lock:lock_acquire",	 perf_evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
 	{ "lock:lock_acquired",	 perf_evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
@@ -838,6 +832,11 @@ static const struct perf_evsel_str_handler lock_tracepoints[] = {
 
 static int read_events(void)
 {
+	struct perf_tool eops = {
+		.sample		 = process_sample_event,
+		.comm		 = perf_event__process_comm,
+		.ordered_samples = true,
+	};
 	session = perf_session__new(input_name, O_RDONLY, 0, false, &eops);
 	if (!session) {
 		pr_err("Initializing perf session failed\n");
@@ -878,53 +877,11 @@ static int __cmd_report(void)
 	return 0;
 }
 
-static const char * const report_usage[] = {
-	"perf lock report [<options>]",
-	NULL
-};
-
-static const struct option report_options[] = {
-	OPT_STRING('k', "key", &sort_key, "acquired",
-		    "key for sorting (acquired / contended / wait_total / wait_max / wait_min)"),
-	/* TODO: type */
-	OPT_END()
-};
-
-static const char * const info_usage[] = {
-	"perf lock info [<options>]",
-	NULL
-};
-
-static const struct option info_options[] = {
-	OPT_BOOLEAN('t', "threads", &info_threads,
-		    "dump thread list in perf.data"),
-	OPT_BOOLEAN('m', "map", &info_map,
-		    "map of lock instances (address:name table)"),
-	OPT_END()
-};
-
-static const char * const lock_usage[] = {
-	"perf lock [<options>] {record|report|script|info}",
-	NULL
-};
-
-static const struct option lock_options[] = {
-	OPT_STRING('i', "input", &input_name, "file", "input file name"),
-	OPT_INCR('v', "verbose", &verbose, "be more verbose (show symbol address, etc)"),
-	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace, "dump raw trace in ASCII"),
-	OPT_END()
-};
-
-static const char *record_args[] = {
-	"record",
-	"-R",
-	"-f",
-	"-m", "1024",
-	"-c", "1",
-};
-
 static int __cmd_record(int argc, const char **argv)
 {
+	const char *record_args[] = {
+		"record", "-R", "-f", "-m", "1024", "-c", "1",
+	};
 	unsigned int rec_argc, i, j;
 	const char **rec_argv;
 
@@ -963,6 +920,37 @@ static int __cmd_record(int argc, const char **argv)
 
 int cmd_lock(int argc, const char **argv, const char *prefix __maybe_unused)
 {
+	const struct option info_options[] = {
+	OPT_BOOLEAN('t', "threads", &info_threads,
+		    "dump thread list in perf.data"),
+	OPT_BOOLEAN('m', "map", &info_map,
+		    "map of lock instances (address:name table)"),
+	OPT_END()
+	};
+	const struct option lock_options[] = {
+	OPT_STRING('i', "input", &input_name, "file", "input file name"),
+	OPT_INCR('v', "verbose", &verbose, "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace, "dump raw trace in ASCII"),
+	OPT_END()
+	};
+	const struct option report_options[] = {
+	OPT_STRING('k', "key", &sort_key, "acquired",
+		    "key for sorting (acquired / contended / wait_total / wait_max / wait_min)"),
+	/* TODO: type */
+	OPT_END()
+	};
+	const char * const info_usage[] = {
+		"perf lock info [<options>]",
+		NULL
+	};
+	const char * const lock_usage[] = {
+		"perf lock [<options>] {record|report|script|info}",
+		NULL
+	};
+	const char * const report_usage[] = {
+		"perf lock report [<options>]",
+		NULL
+	};
 	unsigned int i;
 	int rc = 0;
 

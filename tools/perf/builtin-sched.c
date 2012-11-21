@@ -1426,7 +1426,7 @@ static int perf_sched__process_tracepoint_sample(struct perf_tool *tool __maybe_
 						 struct perf_evsel *evsel,
 						 struct machine *machine)
 {
-	struct thread *thread = machine__findnew_thread(machine, sample->pid);
+	struct thread *thread = machine__findnew_thread(machine, sample->tid);
 	int err = 0;
 
 	if (thread == NULL) {

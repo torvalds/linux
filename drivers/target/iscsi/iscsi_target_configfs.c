@@ -135,7 +135,7 @@ static struct configfs_attribute *lio_target_portal_attrs[] = {
 
 #define MAX_PORTAL_LEN		256
 
-struct se_tpg_np *lio_target_call_addnptotpg(
+static struct se_tpg_np *lio_target_call_addnptotpg(
 	struct se_portal_group *se_tpg,
 	struct config_group *group,
 	const char *name)
@@ -1034,6 +1034,9 @@ TPG_PARAM_ATTR(ImmediateData, S_IRUGO | S_IWUSR);
 DEF_TPG_PARAM(MaxRecvDataSegmentLength);
 TPG_PARAM_ATTR(MaxRecvDataSegmentLength, S_IRUGO | S_IWUSR);
 
+DEF_TPG_PARAM(MaxXmitDataSegmentLength);
+TPG_PARAM_ATTR(MaxXmitDataSegmentLength, S_IRUGO | S_IWUSR);
+
 DEF_TPG_PARAM(MaxBurstLength);
 TPG_PARAM_ATTR(MaxBurstLength, S_IRUGO | S_IWUSR);
 
@@ -1079,6 +1082,7 @@ static struct configfs_attribute *lio_target_tpg_param_attrs[] = {
 	&iscsi_tpg_param_InitialR2T.attr,
 	&iscsi_tpg_param_ImmediateData.attr,
 	&iscsi_tpg_param_MaxRecvDataSegmentLength.attr,
+	&iscsi_tpg_param_MaxXmitDataSegmentLength.attr,
 	&iscsi_tpg_param_MaxBurstLength.attr,
 	&iscsi_tpg_param_FirstBurstLength.attr,
 	&iscsi_tpg_param_DefaultTime2Wait.attr,
@@ -1166,7 +1170,7 @@ static struct configfs_attribute *lio_target_tpg_attrs[] = {
 
 /* Start items for lio_target_tiqn_cit */
 
-struct se_portal_group *lio_target_tiqn_addtpg(
+static struct se_portal_group *lio_target_tiqn_addtpg(
 	struct se_wwn *wwn,
 	struct config_group *group,
 	const char *name)
@@ -1216,7 +1220,7 @@ out:
 	return NULL;
 }
 
-void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
+static void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg;
 	struct iscsi_tiqn *tiqn;
@@ -1248,7 +1252,7 @@ static struct configfs_attribute *lio_target_wwn_attrs[] = {
 	NULL,
 };
 
-struct se_wwn *lio_target_call_coreaddtiqn(
+static struct se_wwn *lio_target_call_coreaddtiqn(
 	struct target_fabric_configfs *tf,
 	struct config_group *group,
 	const char *name)
@@ -1296,7 +1300,7 @@ struct se_wwn *lio_target_call_coreaddtiqn(
 	return &tiqn->tiqn_wwn;
 }
 
-void lio_target_call_coredeltiqn(
+static void lio_target_call_coredeltiqn(
 	struct se_wwn *wwn)
 {
 	struct iscsi_tiqn *tiqn = container_of(wwn, struct iscsi_tiqn, tiqn_wwn);
@@ -1471,7 +1475,8 @@ static u32 iscsi_get_task_tag(struct se_cmd *se_cmd)
 {
 	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
 
-	return cmd->init_task_tag;
+	/* only used for printks or comparism with ->ref_task_tag */
+	return (__force u32)cmd->init_task_tag;
 }
 
 static int iscsi_get_cmd_state(struct se_cmd *se_cmd)
@@ -1540,29 +1545,6 @@ static int lio_queue_status(struct se_cmd *se_cmd)
 	cmd->i_state = ISTATE_SEND_STATUS;
 	iscsit_add_cmd_to_response_queue(cmd, cmd->conn, cmd->i_state);
 	return 0;
-}
-
-static u16 lio_set_fabric_sense_len(struct se_cmd *se_cmd, u32 sense_length)
-{
-	unsigned char *buffer = se_cmd->sense_buffer;
-	/*
-	 * From RFC-3720 10.4.7.  Data Segment - Sense and Response Data Segment
-	 * 16-bit SenseLength.
-	 */
-	buffer[0] = ((sense_length >> 8) & 0xff);
-	buffer[1] = (sense_length & 0xff);
-	/*
-	 * Return two byte offset into allocated sense_buffer.
-	 */
-	return 2;
-}
-
-static u16 lio_get_fabric_sense_len(void)
-{
-	/*
-	 * Return two byte offset into allocated sense_buffer.
-	 */
-	return 2;
 }
 
 static int lio_queue_tm_rsp(struct se_cmd *se_cmd)
@@ -1748,8 +1730,6 @@ int iscsi_target_register_configfs(void)
 	fabric->tf_ops.queue_data_in = &lio_queue_data_in;
 	fabric->tf_ops.queue_status = &lio_queue_status;
 	fabric->tf_ops.queue_tm_rsp = &lio_queue_tm_rsp;
-	fabric->tf_ops.set_fabric_sense_len = &lio_set_fabric_sense_len;
-	fabric->tf_ops.get_fabric_sense_len = &lio_get_fabric_sense_len;
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
 	 */

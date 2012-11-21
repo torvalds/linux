@@ -118,9 +118,9 @@ struct bfa_fcs_lport_fab_s {
 #define	MAX_ALPA_COUNT	127
 
 struct bfa_fcs_lport_loop_s {
-	u8         num_alpa;	/*  Num of ALPA entries in the map */
-	u8         alpa_pos_map[MAX_ALPA_COUNT];	/*  ALPA Positional
-							 *Map */
+	u8	num_alpa;	/*  Num of ALPA entries in the map */
+	u8	alpabm_valid;	/* alpa bitmap valid or not (1 or 0) */
+	u8	alpa_pos_map[MAX_ALPA_COUNT]; /*  ALPA Positional Map */
 	struct bfa_fcs_lport_s *port;	/*  parent port */
 };
 
@@ -175,6 +175,7 @@ enum bfa_fcs_fabric_type {
 	BFA_FCS_FABRIC_UNKNOWN = 0,
 	BFA_FCS_FABRIC_SWITCHED = 1,
 	BFA_FCS_FABRIC_N2N = 2,
+	BFA_FCS_FABRIC_LOOP = 3,
 };
 
 
@@ -350,9 +351,10 @@ void		bfa_fcs_lport_ns_util_send_rspn_id(void *cbarg,
 				struct bfa_fcxp_s *fcxp_alloced);
 void            bfa_fcs_lport_scn_init(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_scn_offline(struct bfa_fcs_lport_s *vport);
-void            bfa_fcs_lport_scn_online(struct bfa_fcs_lport_s *vport);
+void            bfa_fcs_lport_fab_scn_online(struct bfa_fcs_lport_s *vport);
 void            bfa_fcs_lport_scn_process_rscn(struct bfa_fcs_lport_s *port,
 					      struct fchs_s *rx_frame, u32 len);
+void		bfa_fcs_lport_lip_scn_online(bfa_fcs_lport_t *port);
 
 struct bfa_fcs_vport_s {
 	struct list_head		qe;		/*  queue elem	*/
@@ -453,6 +455,7 @@ struct bfa_fcs_rport_s {
 	struct bfa_rport_stats_s stats;	/*  rport stats */
 	enum bfa_rport_function	scsi_function;  /*  Initiator/Target */
 	struct bfa_fcs_rpf_s rpf;	/* Rport features module */
+	bfa_boolean_t   scn_online;	/* SCN online flag */
 };
 
 static inline struct bfa_rport_s *
@@ -639,9 +642,9 @@ struct bfa_fcs_fdmi_hba_attr_s {
 	u8         model[16];
 	u8         model_desc[256];
 	u8         hw_version[8];
-	u8         driver_version[8];
+	u8         driver_version[BFA_VERSION_LEN];
 	u8         option_rom_ver[BFA_VERSION_LEN];
-	u8         fw_version[8];
+	u8         fw_version[BFA_VERSION_LEN];
 	u8         os_name[256];
 	__be32        max_ct_pyld;
 };
@@ -733,7 +736,7 @@ enum rport_event {
 	RPSM_EVENT_LOGO_IMP     = 5,    /*  implicit logo for SLER      */
 	RPSM_EVENT_FCXP_SENT    = 6,    /*  Frame from has been sent    */
 	RPSM_EVENT_DELETE       = 7,    /*  RPORT delete request        */
-	RPSM_EVENT_SCN          = 8,    /*  state change notification   */
+	RPSM_EVENT_FAB_SCN	= 8,    /*  state change notification   */
 	RPSM_EVENT_ACCEPTED     = 9,    /*  Good response from remote device */
 	RPSM_EVENT_FAILED       = 10,   /*  Request to rport failed.    */
 	RPSM_EVENT_TIMEOUT      = 11,   /*  Rport SM timeout event      */
@@ -744,7 +747,9 @@ enum rport_event {
 	RPSM_EVENT_ADDRESS_DISC = 16,   /*  Need to Discover rport's PID */
 	RPSM_EVENT_PRLO_RCVD   = 17,    /*  PRLO from remote device     */
 	RPSM_EVENT_PLOGI_RETRY = 18,    /*  Retry PLOGI continuously */
-	RPSM_EVENT_FC4_FCS_ONLINE = 19, /*!< FC-4 FCS online complete */
+	RPSM_EVENT_SCN_OFFLINE = 19,	/* loop scn offline		*/
+	RPSM_EVENT_SCN_ONLINE   = 20,	/* loop scn online		*/
+	RPSM_EVENT_FC4_FCS_ONLINE = 21, /* FC-4 FCS online complete */
 };
 
 /*
@@ -763,7 +768,7 @@ enum bfa_fcs_itnim_event {
 	BFA_FCS_ITNIM_SM_DELETE = 10,   /*  delete event from rport */
 	BFA_FCS_ITNIM_SM_PRLO = 11,     /*  delete event from rport */
 	BFA_FCS_ITNIM_SM_RSP_NOT_SUPP = 12, /* cmd not supported rsp */
-	BFA_FCS_ITNIM_SM_HAL_ONLINE = 13, /*!< bfa rport online event */
+	BFA_FCS_ITNIM_SM_HAL_ONLINE = 13, /* bfa rport online event */
 };
 
 /*

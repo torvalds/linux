@@ -90,7 +90,7 @@ static int a8293_set_voltage(struct dvb_frontend *fe,
 	default:
 		ret = -EINVAL;
 		goto err;
-	};
+	}
 
 	ret = a8293_wr(priv, &priv->reg[0], 1);
 	if (ret)

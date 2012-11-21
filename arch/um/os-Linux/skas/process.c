@@ -11,17 +11,17 @@
 #include <sys/mman.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
-#include "as-layout.h"
-#include "init.h"
-#include "kern_util.h"
-#include "mem.h"
-#include "os.h"
-#include "proc_mm.h"
-#include "ptrace_user.h"
-#include "registers.h"
-#include "skas.h"
-#include "skas_ptrace.h"
-#include "sysdep/stub.h"
+#include <as-layout.h>
+#include <init.h>
+#include <kern_util.h>
+#include <mem.h>
+#include <os.h>
+#include <proc_mm.h>
+#include <ptrace_user.h>
+#include <registers.h>
+#include <skas.h>
+#include <skas_ptrace.h>
+#include <sysdep/stub.h>
 
 int is_skas_winch(int pid, int fd, void *data)
 {

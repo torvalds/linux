@@ -1501,8 +1501,8 @@ static int __devinit fsl_diu_probe(struct platform_device *pdev)
 	unsigned int i;
 	int ret;
 
-	data = dma_alloc_coherent(&pdev->dev, sizeof(struct fsl_diu_data),
-				  &dma_addr, GFP_DMA | __GFP_ZERO);
+	data = dmam_alloc_coherent(&pdev->dev, sizeof(struct fsl_diu_data),
+				   &dma_addr, GFP_DMA | __GFP_ZERO);
 	if (!data)
 		return -ENOMEM;
 	data->dma_addr = dma_addr;
@@ -1628,9 +1628,6 @@ error:
 
 	iounmap(data->diu_reg);
 
-	dma_free_coherent(&pdev->dev, sizeof(struct fsl_diu_data), data,
-			  data->dma_addr);
-
 	return ret;
 }
 
@@ -1647,9 +1644,6 @@ static int fsl_diu_remove(struct platform_device *pdev)
 		uninstall_fb(&data->fsl_diu_info[i]);
 
 	iounmap(data->diu_reg);
-
-	dma_free_coherent(&pdev->dev, sizeof(struct fsl_diu_data), data,
-			  data->dma_addr);
 
 	return 0;
 }

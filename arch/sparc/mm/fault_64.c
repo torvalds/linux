@@ -151,8 +151,6 @@ show_signal_msg(struct pt_regs *regs, int sig, int code,
 	printk(KERN_CONT "\n");
 }
 
-extern unsigned long compute_effective_address(struct pt_regs *, unsigned int, unsigned int);
-
 static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 			     unsigned int insn, int fault_code)
 {

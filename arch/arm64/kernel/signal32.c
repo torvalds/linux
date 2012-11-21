@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define __SYSCALL_COMPAT
-
 #include <linux/compat.h>
 #include <linux/signal.h>
 #include <linux/syscalls.h>
@@ -28,7 +26,7 @@
 #include <asm/fpsimd.h>
 #include <asm/signal32.h>
 #include <asm/uaccess.h>
-#include <asm/unistd.h>
+#include <asm/unistd32.h>
 
 struct compat_sigaction {
 	compat_uptr_t			sa_handler;
@@ -126,19 +124,19 @@ struct compat_rt_sigframe {
  * For ARM syscalls, the syscall number has to be loaded into r7.
  * We do not support an OABI userspace.
  */
-#define MOV_R7_NR_SIGRETURN	(0xe3a07000 | __NR_sigreturn)
-#define SVC_SYS_SIGRETURN	(0xef000000 | __NR_sigreturn)
-#define MOV_R7_NR_RT_SIGRETURN	(0xe3a07000 | __NR_rt_sigreturn)
-#define SVC_SYS_RT_SIGRETURN	(0xef000000 | __NR_rt_sigreturn)
+#define MOV_R7_NR_SIGRETURN	(0xe3a07000 | __NR_compat_sigreturn)
+#define SVC_SYS_SIGRETURN	(0xef000000 | __NR_compat_sigreturn)
+#define MOV_R7_NR_RT_SIGRETURN	(0xe3a07000 | __NR_compat_rt_sigreturn)
+#define SVC_SYS_RT_SIGRETURN	(0xef000000 | __NR_compat_rt_sigreturn)
 
 /*
  * For Thumb syscalls, we also pass the syscall number via r7. We therefore
  * need two 16-bit instructions.
  */
-#define SVC_THUMB_SIGRETURN	(((0xdf00 | __NR_sigreturn) << 16) | \
-				   0x2700 | __NR_sigreturn)
-#define SVC_THUMB_RT_SIGRETURN	(((0xdf00 | __NR_rt_sigreturn) << 16) | \
-				   0x2700 | __NR_rt_sigreturn)
+#define SVC_THUMB_SIGRETURN	(((0xdf00 | __NR_compat_sigreturn) << 16) | \
+				   0x2700 | __NR_compat_sigreturn)
+#define SVC_THUMB_RT_SIGRETURN	(((0xdf00 | __NR_compat_rt_sigreturn) << 16) | \
+				   0x2700 | __NR_compat_rt_sigreturn)
 
 const compat_ulong_t aarch32_sigret_code[6] = {
 	/*
@@ -819,5 +817,5 @@ asmlinkage int compat_sys_rt_sigqueueinfo(int pid, int sig,
 
 void compat_setup_restart_syscall(struct pt_regs *regs)
 {
-       regs->regs[7] = __NR_restart_syscall;
+       regs->regs[7] = __NR_compat_restart_syscall;
 }

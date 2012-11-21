@@ -298,14 +298,14 @@ asmlinkage int sys_execve(const char __user *ufilename,
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	int error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname(ufilename);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 
-	error = do_execve(filename, uargv, uenvp, regs);
+	error = do_execve(filename->name, uargv, uenvp, regs);
 	putname(filename);
 out:
 	return error;

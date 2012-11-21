@@ -41,7 +41,7 @@ static struct hw_pci shark_pci __initdata = {
 static int __init shark_pci_init(void)
 {
 	if (!machine_is_shark())
-		return;
+		return -ENODEV;
 
 	pcibios_min_io = 0x6000;
 	pcibios_min_mem = 0x50000000;

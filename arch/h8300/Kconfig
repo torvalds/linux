@@ -7,6 +7,7 @@ config H8300
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
+	select MODULES_USE_ELF_RELA
 
 config SYMBOL_PREFIX
 	string

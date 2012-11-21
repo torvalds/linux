@@ -491,14 +491,14 @@ asmlinkage int sys_execve(const char *ufilename, char **uargv,
 			  struct pt_regs *pregs)
 {
 	int error;
-	char *filename;
+	struct filename *filename;
 
 	filename = getname((char __user *)ufilename);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
 
-	error = do_execve(filename,
+	error = do_execve(filename->name,
 			  (const char __user *const __user *)uargv,
 			  (const char __user *const __user *)uenvp,
 			  pregs);

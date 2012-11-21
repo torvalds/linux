@@ -307,7 +307,8 @@ void fimc_hw_clear_irq(struct fimc_dev *dev);
 void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on);
 void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on);
 void fimc_hw_dis_capture(struct fimc_dev *dev);
-u32 fimc_hw_get_frame_index(struct fimc_dev *dev);
+s32 fimc_hw_get_frame_index(struct fimc_dev *dev);
+s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev);
 void fimc_activate_capture(struct fimc_ctx *ctx);
 void fimc_deactivate_capture(struct fimc_dev *fimc);
 

@@ -373,7 +373,7 @@ static void set_audio_standard_NICAM(struct cx88_core *core, u32 mode)
 		set_audio_registers(core, nicam_bgdki_common);
 		set_audio_registers(core, nicam_default);
 		break;
-	};
+	}
 
 	mode |= EN_DMTRX_LR | EN_DMTRX_BYPASS;
 	set_audio_finish(core, mode);
@@ -639,7 +639,7 @@ static void set_audio_standard_A2(struct cx88_core *core, u32 mode)
 		dprintk("%s Warning: wrong value\n", __func__);
 		return;
 		break;
-	};
+	}
 
 	mode |= EN_FMRADIO_EN_RDS | EN_DMTRX_SUMDIFF;
 	set_audio_finish(core, mode);

@@ -23,9 +23,9 @@
 				   pte_present gives true */
 
 #ifdef CONFIG_3_LEVEL_PGTABLES
-#include "asm/pgtable-3level.h"
+#include <asm/pgtable-3level.h>
 #else
-#include "asm/pgtable-2level.h"
+#include <asm/pgtable-2level.h>
 #endif
 
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];

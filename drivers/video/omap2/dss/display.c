@@ -142,7 +142,11 @@ static ssize_t display_timings_store(struct device *dev,
 	if (r)
 		return r;
 
+	dssdev->driver->disable(dssdev);
 	dssdev->driver->set_timings(dssdev, &t);
+	r = dssdev->driver->enable(dssdev);
+	if (r)
+		return r;
 
 	return size;
 }
@@ -316,26 +320,117 @@ void omapdss_default_get_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_default_get_timings);
 
-void dss_init_device(struct platform_device *pdev,
+/*
+ * Connect dssdev to a manager if the manager is free or if force is specified.
+ * Connect all overlays to that manager if they are free or if force is
+ * specified.
+ */
+static int dss_init_connections(struct omap_dss_device *dssdev, bool force)
+{
+	struct omap_dss_output *out;
+	struct omap_overlay_manager *mgr;
+	int i, r;
+
+	out = omapdss_get_output_from_dssdev(dssdev);
+
+	WARN_ON(dssdev->output);
+	WARN_ON(out->device);
+
+	r = omapdss_output_set_device(out, dssdev);
+	if (r) {
+		DSSERR("failed to connect output to new device\n");
+		return r;
+	}
+
+	mgr = omap_dss_get_overlay_manager(dssdev->channel);
+
+	if (mgr->output && !force)
+		return 0;
+
+	if (mgr->output)
+		mgr->unset_output(mgr);
+
+	r = mgr->set_output(mgr, out);
+	if (r) {
+		DSSERR("failed to connect manager to output of new device\n");
+
+		/* remove the output-device connection we just made */
+		omapdss_output_unset_device(out);
+		return r;
+	}
+
+	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
+		struct omap_overlay *ovl = omap_dss_get_overlay(i);
+
+		if (!ovl->manager || force) {
+			if (ovl->manager)
+				ovl->unset_manager(ovl);
+
+			r = ovl->set_manager(ovl, mgr);
+			if (r) {
+				DSSERR("failed to set initial overlay\n");
+				return r;
+			}
+		}
+	}
+
+	return 0;
+}
+
+static void dss_uninit_connections(struct omap_dss_device *dssdev)
+{
+	if (dssdev->output) {
+		struct omap_overlay_manager *mgr = dssdev->output->manager;
+
+		if (mgr)
+			mgr->unset_output(mgr);
+
+		omapdss_output_unset_device(dssdev->output);
+	}
+}
+
+int dss_init_device(struct platform_device *pdev,
 		struct omap_dss_device *dssdev)
 {
 	struct device_attribute *attr;
-	int i;
-	int r;
+	int i, r;
+	const char *def_disp_name = dss_get_default_display_name();
+	bool force;
+
+	force = def_disp_name && strcmp(def_disp_name, dssdev->name) == 0;
+	dss_init_connections(dssdev, force);
 
 	/* create device sysfs files */
 	i = 0;
 	while ((attr = display_sysfs_attrs[i++]) != NULL) {
 		r = device_create_file(&dssdev->dev, attr);
-		if (r)
+		if (r) {
+			for (i = i - 2; i >= 0; i--) {
+				attr = display_sysfs_attrs[i];
+				device_remove_file(&dssdev->dev, attr);
+			}
+
+			dss_uninit_connections(dssdev);
+
 			DSSERR("failed to create sysfs file\n");
+			return r;
+		}
 	}
 
 	/* create display? sysfs links */
 	r = sysfs_create_link(&pdev->dev.kobj, &dssdev->dev.kobj,
 			dev_name(&dssdev->dev));
-	if (r)
+	if (r) {
+		while ((attr = display_sysfs_attrs[i++]) != NULL)
+			device_remove_file(&dssdev->dev, attr);
+
+		dss_uninit_connections(dssdev);
+
 		DSSERR("failed to create sysfs display link\n");
+		return r;
+	}
+
+	return 0;
 }
 
 void dss_uninit_device(struct platform_device *pdev,
@@ -349,8 +444,7 @@ void dss_uninit_device(struct platform_device *pdev,
 	while ((attr = display_sysfs_attrs[i++]) != NULL)
 		device_remove_file(&dssdev->dev, attr);
 
-	if (dssdev->manager)
-		dssdev->manager->unset_device(dssdev->manager);
+	dss_uninit_connections(dssdev);
 }
 
 static int dss_suspend_device(struct device *dev, void *data)

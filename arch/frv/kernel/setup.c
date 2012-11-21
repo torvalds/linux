@@ -112,9 +112,11 @@ char __initdata redboot_command_line[COMMAND_LINE_SIZE];
 #ifdef CONFIG_PM
 #define __pminit
 #define __pminitdata
+#define __pminitconst
 #else
 #define __pminit __init
 #define __pminitdata __initdata
+#define __pminitconst __initconst
 #endif
 
 struct clock_cmode {

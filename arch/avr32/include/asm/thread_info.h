@@ -77,8 +77,6 @@ static inline struct thread_info *current_thread_info(void)
 #define TIF_SYSCALL_TRACE       0       /* syscall trace active */
 #define TIF_SIGPENDING          1       /* signal pending */
 #define TIF_NEED_RESCHED        2       /* rescheduling necessary */
-#define TIF_POLLING_NRFLAG      3       /* true if poll_idle() is polling
-					   TIF_NEED_RESCHED */
 #define TIF_BREAKPOINT		4	/* enter monitor mode on return */
 #define TIF_SINGLE_STEP		5	/* single step in progress */
 #define TIF_MEMDIE		6	/* is terminating due to OOM killer */
@@ -91,10 +89,9 @@ static inline struct thread_info *current_thread_info(void)
 #define _TIF_SYSCALL_TRACE	(1 << TIF_SYSCALL_TRACE)
 #define _TIF_SIGPENDING		(1 << TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1 << TIF_NEED_RESCHED)
-#define _TIF_POLLING_NRFLAG	(1 << TIF_POLLING_NRFLAG)
+#define _TIF_BREAKPOINT		(1 << TIF_BREAKPOINT)
 #define _TIF_SINGLE_STEP	(1 << TIF_SINGLE_STEP)
 #define _TIF_MEMDIE		(1 << TIF_MEMDIE)
-#define _TIF_RESTORE_SIGMASK	(1 << TIF_RESTORE_SIGMASK)
 #define _TIF_CPU_GOING_TO_SLEEP (1 << TIF_CPU_GOING_TO_SLEEP)
 #define _TIF_NOTIFY_RESUME	(1 << TIF_NOTIFY_RESUME)
 
@@ -102,17 +99,14 @@ static inline struct thread_info *current_thread_info(void)
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK				\
-	((1 << TIF_SIGPENDING)			\
+	(_TIF_SIGPENDING			\
 	 | _TIF_NOTIFY_RESUME			\
-	 | (1 << TIF_NEED_RESCHED)		\
-	 | (1 << TIF_POLLING_NRFLAG)		\
-	 | (1 << TIF_BREAKPOINT)		\
-	 | (1 << TIF_RESTORE_SIGMASK))
+	 | _TIF_NEED_RESCHED			\
+	 | _TIF_BREAKPOINT)
 
 /* work to do on any return to userspace */
-#define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK | (1 << TIF_SYSCALL_TRACE) | \
-				 _TIF_NOTIFY_RESUME)
+#define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK | _TIF_SYSCALL_TRACE)
 /* work to do on return from debug mode */
-#define _TIF_DBGWORK_MASK	(_TIF_WORK_MASK & ~(1 << TIF_BREAKPOINT))
+#define _TIF_DBGWORK_MASK	(_TIF_WORK_MASK & ~_TIF_BREAKPOINT)
 
 #endif /* __ASM_AVR32_THREAD_INFO_H */

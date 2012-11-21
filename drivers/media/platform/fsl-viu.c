@@ -864,7 +864,7 @@ int vidioc_s_fbuf(struct file *file, void *priv, const struct v4l2_framebuffer *
 {
 	struct viu_fh  *fh = priv;
 	struct viu_dev *dev = fh->dev;
-	struct v4l2_framebuffer *fb = arg;
+	const struct v4l2_framebuffer *fb = arg;
 	struct viu_fmt *fmt;
 
 	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))

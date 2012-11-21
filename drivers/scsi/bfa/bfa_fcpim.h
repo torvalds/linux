@@ -42,7 +42,7 @@ void bfa_itn_create(struct bfa_s *bfa, struct bfa_rport_s *rport,
 		void (*isr)(struct bfa_s *bfa, struct bfi_msg_s *m));
 void bfa_itn_isr(struct bfa_s *bfa, struct bfi_msg_s *m);
 void bfa_iotag_attach(struct bfa_fcp_mod_s *fcp);
-void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw);
+void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw, u16 max_ioim_fw);
 
 #define BFA_FCP_MOD(_hal)	(&(_hal)->modules.fcp_mod)
 #define BFA_MEM_FCP_KVA(__bfa)	(&(BFA_FCP_MOD(__bfa)->kva_seg))
@@ -51,7 +51,9 @@ void bfa_fcp_res_recfg(struct bfa_s *bfa, u16 num_ioim_fw);
 #define BFA_ITN_FROM_TAG(_fcp, _tag)	\
 	((_fcp)->itn_arr + ((_tag) & ((_fcp)->num_itns - 1)))
 #define BFA_SNSINFO_FROM_TAG(_fcp, _tag) \
-	bfa_mem_get_dmabuf_kva(_fcp, _tag, BFI_IOIM_SNSLEN)
+	bfa_mem_get_dmabuf_kva(_fcp, (_tag & BFA_IOIM_IOTAG_MASK),	\
+	BFI_IOIM_SNSLEN)
+
 
 #define BFA_ITNIM_MIN   32
 #define BFA_ITNIM_MAX   1024
@@ -148,6 +150,7 @@ struct bfa_fcp_mod_s {
 	struct list_head	iotag_unused_q;	/* unused IO resources*/
 	struct bfa_iotag_s	*iotag_arr;
 	struct bfa_itn_s	*itn_arr;
+	int			max_ioim_reqs;
 	int			num_ioim_reqs;
 	int			num_fwtio_reqs;
 	int			num_itns;
@@ -155,6 +158,7 @@ struct bfa_fcp_mod_s {
 	struct bfa_fcpim_s	fcpim;
 	struct bfa_mem_dma_s	dma_seg[BFA_FCP_DMA_SEGS];
 	struct bfa_mem_kva_s	kva_seg;
+	int			throttle_update_required;
 };
 
 /*
@@ -416,5 +420,10 @@ bfa_status_t	bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id,
 bfa_status_t	bfa_fcpim_lunmask_add(struct bfa_s *bfa, u16 vf_id,
 				wwn_t *pwwn, wwn_t rpwwn, struct scsi_lun lun);
 bfa_status_t	bfa_fcpim_lunmask_clear(struct bfa_s *bfa);
+u16		bfa_fcpim_read_throttle(struct bfa_s *bfa);
+bfa_status_t	bfa_fcpim_write_throttle(struct bfa_s *bfa, u16 value);
+bfa_status_t	bfa_fcpim_throttle_set(struct bfa_s *bfa, u16 value);
+bfa_status_t	bfa_fcpim_throttle_get(struct bfa_s *bfa, void *buf);
+u16     bfa_fcpim_get_throttle_cfg(struct bfa_s *bfa, u16 drv_cfg_param);
 
 #endif /* __BFA_FCPIM_H__ */

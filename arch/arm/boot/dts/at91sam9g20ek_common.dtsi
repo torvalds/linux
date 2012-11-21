@@ -126,14 +126,14 @@
 		#size-cells = <0>;
 
 		btn3 {
-			label = "Buttin 3";
+			label = "Button 3";
 			gpios = <&pioA 30 1>;
 			linux,code = <0x103>;
 			gpio-key,wakeup;
 		};
 
 		btn4 {
-			label = "Buttin 4";
+			label = "Button 4";
 			gpios = <&pioA 31 1>;
 			linux,code = <0x104>;
 			gpio-key,wakeup;

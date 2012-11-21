@@ -80,8 +80,7 @@
 		};
 
 		sdhci@70000000 {
-			int-gpio = <&gpio1 0 0>;
-			power-gpio = <&gpio1 2 1>;
+			cd-gpios = <&gpio1 0 0>;
 			status = "okay";
 		};
 

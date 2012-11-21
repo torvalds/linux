@@ -1440,6 +1440,8 @@ void audit_log_link_denied(const char *operation, struct path *link)
 
 	ab = audit_log_start(current->audit_context, GFP_KERNEL,
 			     AUDIT_ANOM_LINK);
+	if (!ab)
+		return;
 	audit_log_format(ab, "op=%s action=denied", operation);
 	audit_log_format(ab, " pid=%d comm=", current->pid);
 	audit_log_untrustedstring(ab, current->comm);

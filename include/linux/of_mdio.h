@@ -26,32 +26,32 @@ extern struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
 extern struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
 
 #else /* CONFIG_OF */
-int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
+static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
 	return -ENOSYS;
 }
 
-struct phy_device *of_phy_find_device(struct device_node *phy_np)
+static inline struct phy_device *of_phy_find_device(struct device_node *phy_np)
 {
 	return NULL;
 }
 
-struct phy_device *of_phy_connect(struct net_device *dev,
-					 struct device_node *phy_np,
-					 void (*hndlr)(struct net_device *),
-					 u32 flags, phy_interface_t iface)
+static inline struct phy_device *of_phy_connect(struct net_device *dev,
+						struct device_node *phy_np,
+						void (*hndlr)(struct net_device *),
+						u32 flags, phy_interface_t iface)
 {
 	return NULL;
 }
 
-struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
-					 void (*hndlr)(struct net_device *),
-					 phy_interface_t iface)
+static inline struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
+							   void (*hndlr)(struct net_device *),
+							   phy_interface_t iface)
 {
 	return NULL;
 }
 
-struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np)
+static inline struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np)
 {
 	return NULL;
 }

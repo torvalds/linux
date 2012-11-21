@@ -2,3 +2,4 @@ include include/asm-generic/Kbuild.asm
 
 header-y  += elf.h
 generic-y += clkdev.h
+generic-y += exec.h

@@ -336,7 +336,7 @@ void __init mv78xx0_init_early(void)
 	orion_time_set_base(TIMER_VIRT_BASE);
 }
 
-static void mv78xx0_timer_init(void)
+static void __init_refok mv78xx0_timer_init(void)
 {
 	orion_time_init(BRIDGE_VIRT_BASE, BRIDGE_INT_TIMER1_CLR,
 			IRQ_MV78XX0_TIMER_1, get_tclk());

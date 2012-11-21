@@ -520,7 +520,7 @@ static int af9035_read_config(struct dvb_usb_device *d)
 			dev_warn(&d->udev->dev, "%s: tuner id=%02x not " \
 					"supported, please report!",
 					KBUILD_MODNAME, tmp);
-		};
+		}
 
 		/* tuner IF frequency */
 		ret = af9035_rd_reg(d, EEPROM_1_IFFREQ_L + eeprom_shift, &tmp);

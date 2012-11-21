@@ -547,8 +547,8 @@ EXPORT_SYMBOL_GPL(nfs_getattr);
 static void nfs_init_lock_context(struct nfs_lock_context *l_ctx)
 {
 	atomic_set(&l_ctx->count, 1);
-	l_ctx->lockowner = current->files;
-	l_ctx->pid = current->tgid;
+	l_ctx->lockowner.l_owner = current->files;
+	l_ctx->lockowner.l_pid = current->tgid;
 	INIT_LIST_HEAD(&l_ctx->list);
 }
 
@@ -557,9 +557,9 @@ static struct nfs_lock_context *__nfs_find_lock_context(struct nfs_open_context 
 	struct nfs_lock_context *pos;
 
 	list_for_each_entry(pos, &ctx->lock_context.list, list) {
-		if (pos->lockowner != current->files)
+		if (pos->lockowner.l_owner != current->files)
 			continue;
-		if (pos->pid != current->tgid)
+		if (pos->lockowner.l_pid != current->tgid)
 			continue;
 		atomic_inc(&pos->count);
 		return pos;
@@ -578,7 +578,7 @@ struct nfs_lock_context *nfs_get_lock_context(struct nfs_open_context *ctx)
 		spin_unlock(&inode->i_lock);
 		new = kmalloc(sizeof(*new), GFP_KERNEL);
 		if (new == NULL)
-			return NULL;
+			return ERR_PTR(-ENOMEM);
 		nfs_init_lock_context(new);
 		spin_lock(&inode->i_lock);
 		res = __nfs_find_lock_context(ctx);
@@ -685,7 +685,10 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	if (ctx->cred != NULL)
 		put_rpccred(ctx->cred);
 	dput(ctx->dentry);
-	nfs_sb_deactive(sb);
+	if (is_sync)
+		nfs_sb_deactive(sb);
+	else
+		nfs_sb_deactive_async(sb);
 	kfree(ctx->mdsthreshold);
 	kfree(ctx);
 }

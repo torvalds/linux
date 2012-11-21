@@ -9,7 +9,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace-abi.h>
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 struct pt_regs {
 	struct uml_pt_regs regs;

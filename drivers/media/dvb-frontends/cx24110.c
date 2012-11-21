@@ -218,7 +218,7 @@ static int cx24110_set_fec (struct cx24110_state* state, fe_code_rate_t fec)
 	   } else
 		   return -EOPNOTSUPP;
 /* fixme (low): which is the correct return code? */
-	};
+	}
 	return 0;
 }
 
@@ -275,7 +275,7 @@ static int cx24110_set_symbolrate (struct cx24110_state* state, u32 srate)
 		cx24110_writereg(state,0x07,tmp|0x3);
 		cx24110_writereg(state,0x06,0x78);
 		fclk=90999000UL;
-	};
+	}
 	dprintk("cx24110 debug: fclk %d Hz\n",fclk);
 	/* we need to divide two integers with approx. 27 bits in 32 bit
 	   arithmetic giving a 25 bit result */
@@ -362,7 +362,7 @@ static int cx24110_initfe(struct dvb_frontend* fe)
 
 	for(i = 0; i < ARRAY_SIZE(cx24110_regdata); i++) {
 		cx24110_writereg(state, cx24110_regdata[i].reg, cx24110_regdata[i].data);
-	};
+	}
 
 	return 0;
 }

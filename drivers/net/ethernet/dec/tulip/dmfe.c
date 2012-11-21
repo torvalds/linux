@@ -446,13 +446,17 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	/* Allocate Tx/Rx descriptor memory */
 	db->desc_pool_ptr = pci_alloc_consistent(pdev, sizeof(struct tx_desc) *
 			DESC_ALL_CNT + 0x20, &db->desc_pool_dma_ptr);
-	if (!db->desc_pool_ptr)
+	if (!db->desc_pool_ptr) {
+		err = -ENOMEM;
 		goto err_out_res;
+	}
 
 	db->buf_pool_ptr = pci_alloc_consistent(pdev, TX_BUF_ALLOC *
 			TX_DESC_CNT + 4, &db->buf_pool_dma_ptr);
-	if (!db->buf_pool_ptr)
+	if (!db->buf_pool_ptr) {
+		err = -ENOMEM;
 		goto err_out_free_desc;
+	}
 
 	db->first_tx_desc = (struct tx_desc *) db->desc_pool_ptr;
 	db->first_tx_desc_dma = db->desc_pool_dma_ptr;
@@ -462,8 +466,10 @@ static int __devinit dmfe_init_one (struct pci_dev *pdev,
 	db->chip_id = ent->driver_data;
 	/* IO type range. */
 	db->ioaddr = pci_iomap(pdev, 0, 0);
-	if (!db->ioaddr)
+	if (!db->ioaddr) {
+		err = -ENOMEM;
 		goto err_out_free_buf;
+	}
 
 	db->chip_revision = pdev->revision;
 	db->wol_mode = 0;

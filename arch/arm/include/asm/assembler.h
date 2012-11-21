@@ -22,6 +22,7 @@
 
 #include <asm/ptrace.h>
 #include <asm/domain.h>
+#include <asm/opcodes-virt.h>
 
 #define IOMEM(x)	(x)
 
@@ -238,6 +239,34 @@
 	msr	cpsr_c, #\mode
 	.endm
 #endif
+
+/*
+ * Helper macro to enter SVC mode cleanly and mask interrupts. reg is
+ * a scratch register for the macro to overwrite.
+ *
+ * This macro is intended for forcing the CPU into SVC mode at boot time.
+ * you cannot return to the original mode.
+ *
+ * Beware, it also clobers LR.
+ */
+.macro safe_svcmode_maskall reg:req
+	mrs	\reg , cpsr
+	mov	lr , \reg
+	and	lr , lr , #MODE_MASK
+	cmp	lr , #HYP_MODE
+	orr	\reg , \reg , #PSR_I_BIT | PSR_F_BIT
+	bic	\reg , \reg , #MODE_MASK
+	orr	\reg , \reg , #SVC_MODE
+THUMB(	orr	\reg , \reg , #PSR_T_BIT	)
+	bne	1f
+	orr	\reg, \reg, #PSR_A_BIT
+	adr	lr, BSYM(2f)
+	msr	spsr_cxsf, \reg
+	__MSR_ELR_HYP(14)
+	__ERET
+1:	msr	cpsr_c, \reg
+2:
+.endm
 
 /*
  * STRT/LDRT access macros with ARM and Thumb-2 variants

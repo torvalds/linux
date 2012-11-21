@@ -1596,8 +1596,9 @@ done:
 		}
 	}
 
-	if (mwifiex_bss_start(priv, bss, &req_ssid))
-		return -EFAULT;
+	ret = mwifiex_bss_start(priv, bss, &req_ssid);
+	if (ret)
+		return ret;
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
 		/* Inform the BSS information to kernel, otherwise
@@ -1652,9 +1653,19 @@ done:
 			"info: association to bssid %pM failed\n",
 			priv->cfg_bssid);
 		memset(priv->cfg_bssid, 0, ETH_ALEN);
+
+		if (ret > 0)
+			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
+						NULL, 0, NULL, 0, ret,
+						GFP_KERNEL);
+		else
+			cfg80211_connect_result(priv->netdev, priv->cfg_bssid,
+						NULL, 0, NULL, 0,
+						WLAN_STATUS_UNSPECIFIED_FAILURE,
+						GFP_KERNEL);
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -1802,7 +1813,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 {
 	struct net_device *dev = request->wdev->netdev;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
-	int i, offset;
+	int i, offset, ret;
 	struct ieee80211_channel *chan;
 	struct ieee_types_header *ie;
 
@@ -1814,14 +1825,14 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
-	priv->scan_request = request;
-
 	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
 				      GFP_KERNEL);
 	if (!priv->user_scan_cfg) {
 		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
 		return -ENOMEM;
 	}
+
+	priv->scan_request = request;
 
 	priv->user_scan_cfg->num_ssids = request->n_ssids;
 	priv->user_scan_cfg->ssid_list = request->ssids;
@@ -1855,8 +1866,15 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 
 		priv->user_scan_cfg->chan_list[i].scan_time = 0;
 	}
-	if (mwifiex_scan_networks(priv, priv->user_scan_cfg))
-		return -EFAULT;
+
+	ret = mwifiex_scan_networks(priv, priv->user_scan_cfg);
+	if (ret) {
+		dev_err(priv->adapter->dev, "scan failed: %d\n", ret);
+		priv->scan_request = NULL;
+		kfree(priv->user_scan_cfg);
+		priv->user_scan_cfg = NULL;
+		return ret;
+	}
 
 	if (request->ie && request->ie_len) {
 		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {

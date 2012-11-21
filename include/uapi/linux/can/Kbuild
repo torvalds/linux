@@ -1,1 +1,6 @@
 # UAPI Header export list
+header-y += bcm.h
+header-y += error.h
+header-y += gw.h
+header-y += netlink.h
+header-y += raw.h

@@ -8,15 +8,15 @@ comment "OMAP Core Type"
 config ARCH_OMAP730
 	depends on ARCH_OMAP1
 	bool "OMAP730 Based System"
+	select ARCH_OMAP_OTG
 	select CPU_ARM926T
 	select OMAP_MPU_TIMER
-	select ARCH_OMAP_OTG
 
 config ARCH_OMAP850
 	depends on ARCH_OMAP1
 	bool "OMAP850 Based System"
-	select CPU_ARM926T
 	select ARCH_OMAP_OTG
+	select CPU_ARM926T
 
 config ARCH_OMAP15XX
 	depends on ARCH_OMAP1
@@ -28,8 +28,8 @@ config ARCH_OMAP15XX
 config ARCH_OMAP16XX
 	depends on ARCH_OMAP1
 	bool "OMAP16xx Based System"
-	select CPU_ARM926T
 	select ARCH_OMAP_OTG
+	select CPU_ARM926T
 
 comment "OMAP Board Type"
 	depends on ARCH_OMAP1
@@ -132,8 +132,8 @@ config MACH_OMAP_PALMTT
 
 config MACH_SX1
 	bool "Siemens SX1"
-	select I2C
 	depends on ARCH_OMAP1 && ARCH_OMAP15XX
+	select I2C
 	help
 	  Support for the Siemens SX1 phone. To boot the kernel,
 	  you'll need a SX1 compatible bootloader; check out

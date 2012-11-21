@@ -13,8 +13,8 @@
 #include <linux/miscdevice.h>
 #include <linux/delay.h>
 #include <asm/uaccess.h>
-#include "irq_kern.h"
-#include "os.h"
+#include <irq_kern.h>
+#include <os.h>
 
 /*
  * core module and version information

@@ -320,7 +320,8 @@ enum cpu_type_enum {
 #define MIPS_CPU_VINT		0x00080000 /* CPU supports MIPSR2 vectored interrupts */
 #define MIPS_CPU_VEIC		0x00100000 /* CPU supports MIPSR2 external interrupt controller mode */
 #define MIPS_CPU_ULRI		0x00200000 /* CPU has ULRI feature */
-#define MIPS_CPU_RIXI		0x00400000 /* CPU has TLB Read/eXec Inhibit */
+#define MIPS_CPU_PCI		0x00400000 /* CPU has Perf Ctr Int indicator */
+#define MIPS_CPU_RIXI		0x00800000 /* CPU has TLB Read/eXec Inhibit */
 
 /*
  * CPU ASE encodings
@@ -331,6 +332,7 @@ enum cpu_type_enum {
 #define MIPS_ASE_SMARTMIPS	0x00000008 /* SmartMIPS */
 #define MIPS_ASE_DSP		0x00000010 /* Signal Processing ASE */
 #define MIPS_ASE_MIPSMT		0x00000020 /* CPU supports MIPS MT */
+#define MIPS_ASE_DSP2P		0x00000040 /* Signal Processing ASE Rev 2 */
 
 
 #endif /* _ASM_CPU_H */

@@ -39,7 +39,6 @@
 #include "zcrypt_msgtype6.h"
 #include "zcrypt_pcixcc.h"
 #include "zcrypt_cca_key.h"
-#include "zcrypt_msgtype6.h"
 
 #define PCIXCC_MIN_MOD_SIZE	 16	/*  128 bits	*/
 #define PCIXCC_MIN_MOD_SIZE_OLD	 64	/*  512 bits	*/

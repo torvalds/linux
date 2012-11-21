@@ -168,7 +168,7 @@ static int pm_dbg_open(struct inode *inode, struct file *file)
 	default:
 		return single_open(file, pm_dbg_show_timers,
 			&inode->i_private);
-	};
+	}
 }
 
 static const struct file_operations debug_fops = {

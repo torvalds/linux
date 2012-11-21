@@ -56,11 +56,11 @@ xor_blocks(unsigned int src_count, unsigned int bytes, void *dest, void **srcs)
 EXPORT_SYMBOL(xor_blocks);
 
 /* Set of all registered templates.  */
-static struct xor_block_template *template_list;
+static struct xor_block_template *__initdata template_list;
 
 #define BENCH_SIZE (PAGE_SIZE)
 
-static void
+static void __init
 do_xor_speed(struct xor_block_template *tmpl, void *b1, void *b2)
 {
 	int speed;

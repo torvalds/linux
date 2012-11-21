@@ -18,8 +18,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#define __SYSCALL_COMPAT
-
 #include <linux/compat.h>
 #include <linux/personality.h>
 #include <linux/sched.h>
@@ -28,7 +26,7 @@
 #include <linux/uaccess.h>
 
 #include <asm/cacheflush.h>
-#include <asm/unistd.h>
+#include <asm/unistd32.h>
 
 asmlinkage int compat_sys_fork(struct pt_regs *regs)
 {
@@ -56,14 +54,14 @@ asmlinkage int compat_sys_execve(const char __user *filenamei,
 				 struct pt_regs *regs)
 {
 	int error;
-	char * filename;
+	struct filename *filename;
 
 	filename = getname(filenamei);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, compat_ptr(argv), compat_ptr(envp),
-				 regs);
+	error = compat_do_execve(filename->name, compat_ptr(argv),
+					compat_ptr(envp), regs);
 	putname(filename);
 out:
 	return error;

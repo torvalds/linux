@@ -228,8 +228,8 @@ struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 	struct dvb_tuner_info *info;
 
 	state = kzalloc(sizeof(struct tda665x_state), GFP_KERNEL);
-	if (state == NULL)
-		goto exit;
+	if (!state)
+		return NULL;
 
 	state->config		= config;
 	state->i2c		= i2c;
@@ -246,10 +246,6 @@ struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 	printk(KERN_DEBUG "%s: Attaching TDA665x (%s) tuner\n", __func__, info->name);
 
 	return fe;
-
-exit:
-	kfree(state);
-	return NULL;
 }
 EXPORT_SYMBOL(tda665x_attach);
 

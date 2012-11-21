@@ -335,21 +335,35 @@ unsigned int xen_netbk_count_skb_slots(struct xenvif *vif, struct sk_buff *skb)
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 		unsigned long size = skb_frag_size(&skb_shinfo(skb)->frags[i]);
+		unsigned long offset = skb_shinfo(skb)->frags[i].page_offset;
 		unsigned long bytes;
+
+		offset &= ~PAGE_MASK;
+
 		while (size > 0) {
+			BUG_ON(offset >= PAGE_SIZE);
 			BUG_ON(copy_off > MAX_BUFFER_OFFSET);
 
-			if (start_new_rx_buffer(copy_off, size, 0)) {
+			bytes = PAGE_SIZE - offset;
+
+			if (bytes > size)
+				bytes = size;
+
+			if (start_new_rx_buffer(copy_off, bytes, 0)) {
 				count++;
 				copy_off = 0;
 			}
 
-			bytes = size;
 			if (copy_off + bytes > MAX_BUFFER_OFFSET)
 				bytes = MAX_BUFFER_OFFSET - copy_off;
 
 			copy_off += bytes;
+
+			offset += bytes;
 			size -= bytes;
+
+			if (offset == PAGE_SIZE)
+				offset = 0;
 		}
 	}
 	return count;
@@ -403,14 +417,24 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 	unsigned long bytes;
 
 	/* Data must not cross a page boundary. */
-	BUG_ON(size + offset > PAGE_SIZE);
+	BUG_ON(size + offset > PAGE_SIZE<<compound_order(page));
 
 	meta = npo->meta + npo->meta_prod - 1;
 
+	/* Skip unused frames from start of page */
+	page += offset >> PAGE_SHIFT;
+	offset &= ~PAGE_MASK;
+
 	while (size > 0) {
+		BUG_ON(offset >= PAGE_SIZE);
 		BUG_ON(npo->copy_off > MAX_BUFFER_OFFSET);
 
-		if (start_new_rx_buffer(npo->copy_off, size, *head)) {
+		bytes = PAGE_SIZE - offset;
+
+		if (bytes > size)
+			bytes = size;
+
+		if (start_new_rx_buffer(npo->copy_off, bytes, *head)) {
 			/*
 			 * Netfront requires there to be some data in the head
 			 * buffer.
@@ -420,7 +444,6 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 			meta = get_next_rx_buffer(vif, npo);
 		}
 
-		bytes = size;
 		if (npo->copy_off + bytes > MAX_BUFFER_OFFSET)
 			bytes = MAX_BUFFER_OFFSET - npo->copy_off;
 
@@ -452,6 +475,13 @@ static void netbk_gop_frag_copy(struct xenvif *vif, struct sk_buff *skb,
 
 		offset += bytes;
 		size -= bytes;
+
+		/* Next frame */
+		if (offset == PAGE_SIZE && size) {
+			BUG_ON(!PageCompound(page));
+			page++;
+			offset = 0;
+		}
 
 		/* Leave a gap for the GSO descriptor. */
 		if (*head && skb_shinfo(skb)->gso_size && !vif->gso_prefix)

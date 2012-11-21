@@ -50,6 +50,7 @@ enum {
 				      * local
 				      */
 	IP_VS_RT_MODE_CONNECT	= 8, /* Always bind route to saddr */
+	IP_VS_RT_MODE_KNOWN_NH	= 16,/* Route via remote addr */
 };
 
 /*
@@ -113,6 +114,8 @@ static struct rtable *do_output_route4(struct net *net, __be32 daddr,
 	fl4.daddr = daddr;
 	fl4.saddr = (rt_mode & IP_VS_RT_MODE_CONNECT) ? *saddr : 0;
 	fl4.flowi4_tos = rtos;
+	fl4.flowi4_flags = (rt_mode & IP_VS_RT_MODE_KNOWN_NH) ?
+			   FLOWI_FLAG_KNOWN_NH : 0;
 
 retry:
 	rt = ip_route_output_key(net, &fl4);
@@ -1061,7 +1064,8 @@ ip_vs_dr_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (!(rt = __ip_vs_get_out_rt(skb, cp->dest, cp->daddr.ip,
 				      RT_TOS(iph->tos),
 				      IP_VS_RT_MODE_LOCAL |
-					IP_VS_RT_MODE_NON_LOCAL, NULL)))
+				      IP_VS_RT_MODE_NON_LOCAL |
+				      IP_VS_RT_MODE_KNOWN_NH, NULL)))
 		goto tx_error_icmp;
 	if (rt->rt_flags & RTCF_LOCAL) {
 		ip_rt_put(rt);

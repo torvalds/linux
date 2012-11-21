@@ -36,7 +36,7 @@
  */
 void iscsit_create_conn_recovery_datain_values(
 	struct iscsi_cmd *cmd,
-	u32 exp_data_sn)
+	__be32 exp_data_sn)
 {
 	u32 data_sn = 0;
 	struct iscsi_conn *conn = cmd->conn;
@@ -44,7 +44,7 @@ void iscsit_create_conn_recovery_datain_values(
 	cmd->next_burst_len = 0;
 	cmd->read_data_done = 0;
 
-	while (exp_data_sn > data_sn) {
+	while (be32_to_cpu(exp_data_sn) > data_sn) {
 		if ((cmd->next_burst_len +
 		     conn->conn_ops->MaxRecvDataSegmentLength) <
 		     conn->sess->sess_ops->MaxBurstLength) {
@@ -193,15 +193,13 @@ int iscsit_remove_active_connection_recovery_entry(
 	return 0;
 }
 
-int iscsit_remove_inactive_connection_recovery_entry(
+static void iscsit_remove_inactive_connection_recovery_entry(
 	struct iscsi_conn_recovery *cr,
 	struct iscsi_session *sess)
 {
 	spin_lock(&sess->cr_i_lock);
 	list_del(&cr->cr_list);
 	spin_unlock(&sess->cr_i_lock);
-
-	return 0;
 }
 
 /*
@@ -421,6 +419,7 @@ int iscsit_prepare_cmds_for_realligance(struct iscsi_conn *conn)
 	cr->cid = conn->cid;
 	cr->cmd_count = cmd_count;
 	cr->maxrecvdatasegmentlength = conn->conn_ops->MaxRecvDataSegmentLength;
+	cr->maxxmitdatasegmentlength = conn->conn_ops->MaxXmitDataSegmentLength;
 	cr->sess = conn->sess;
 
 	iscsit_attach_inactive_connection_recovery_entry(conn->sess, cr);

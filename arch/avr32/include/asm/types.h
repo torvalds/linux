@@ -8,16 +8,12 @@
 #ifndef __ASM_AVR32_TYPES_H
 #define __ASM_AVR32_TYPES_H
 
-#include <asm-generic/int-ll64.h>
+#include <uapi/asm/types.h>
 
 /*
  * These aren't exported outside the kernel to avoid name space clashes
  */
-#ifdef __KERNEL__
 
 #define BITS_PER_LONG 32
-
-#endif /* __KERNEL__ */
-
 
 #endif /* __ASM_AVR32_TYPES_H */

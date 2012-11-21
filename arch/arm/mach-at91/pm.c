@@ -153,7 +153,9 @@ static int at91_pm_verify_clocks(void)
 		}
 	}
 
-#ifdef CONFIG_AT91_PROGRAMMABLE_CLOCKS
+	if (!IS_ENABLED(CONFIG_AT91_PROGRAMMABLE_CLOCKS))
+		return 1;
+
 	/* PCK0..PCK3 must be disabled, or configured to use clk32k */
 	for (i = 0; i < 4; i++) {
 		u32 css;
@@ -167,7 +169,6 @@ static int at91_pm_verify_clocks(void)
 			return 0;
 		}
 	}
-#endif
 
 	return 1;
 }

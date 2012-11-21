@@ -3,16 +3,16 @@
  * Licensed under the GPL
  */
 
-#include "linux/completion.h"
-#include "linux/interrupt.h"
-#include "linux/list.h"
-#include "linux/mutex.h"
-#include "linux/slab.h"
-#include "linux/workqueue.h"
-#include "asm/atomic.h"
-#include "init.h"
-#include "irq_kern.h"
-#include "os.h"
+#include <linux/completion.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/workqueue.h>
+#include <asm/atomic.h>
+#include <init.h>
+#include <irq_kern.h>
+#include <os.h>
 #include "port.h"
 
 struct port_list {

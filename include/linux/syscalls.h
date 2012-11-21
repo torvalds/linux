@@ -827,7 +827,15 @@ asmlinkage long sys_fanotify_mark(int fanotify_fd, unsigned int flags,
 				  const char  __user *pathname);
 asmlinkage long sys_syncfs(int fd);
 
+#ifndef CONFIG_GENERIC_KERNEL_EXECVE
 int kernel_execve(const char *filename, const char *const argv[], const char *const envp[]);
+#else
+#define kernel_execve(filename, argv, envp) \
+	do_execve(filename, \
+		(const char __user *const __user *)argv, \
+		(const char __user *const __user *)envp, \
+		current_pt_regs())
+#endif
 
 
 asmlinkage long sys_perf_event_open(

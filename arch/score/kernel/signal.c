@@ -174,6 +174,7 @@ score_rt_sigreturn(struct pt_regs *regs)
 	/* It is more difficult to avoid calling this function than to
 	   call it and ignore errors.  */
 	do_sigaltstack((stack_t __user *)&st, NULL, regs->regs[0]);
+	regs->is_syscall = 0;
 
 	__asm__ __volatile__(
 		"mv\tr0, %0\n\t"

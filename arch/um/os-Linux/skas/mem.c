@@ -8,16 +8,16 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/mman.h>
-#include "init.h"
-#include "as-layout.h"
-#include "mm_id.h"
-#include "os.h"
-#include "proc_mm.h"
-#include "ptrace_user.h"
-#include "registers.h"
-#include "skas.h"
-#include "sysdep/ptrace.h"
-#include "sysdep/stub.h"
+#include <init.h>
+#include <as-layout.h>
+#include <mm_id.h>
+#include <os.h>
+#include <proc_mm.h>
+#include <ptrace_user.h>
+#include <registers.h>
+#include <skas.h>
+#include <sysdep/ptrace.h>
+#include <sysdep/stub.h>
 
 extern unsigned long batch_syscall_stub, __syscall_stub_start;
 

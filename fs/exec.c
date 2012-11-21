@@ -59,7 +59,6 @@
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/tlb.h>
-#include <asm/exec.h>
 
 #include <trace/events/task.h>
 #include "internal.h"
@@ -106,7 +105,7 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
 SYSCALL_DEFINE1(uselib, const char __user *, library)
 {
 	struct file *file;
-	char *tmp = getname(library);
+	struct filename *tmp = getname(library);
 	int error = PTR_ERR(tmp);
 	static const struct open_flags uselib_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
@@ -392,7 +391,7 @@ struct user_arg_ptr {
 	union {
 		const char __user *const __user *native;
 #ifdef CONFIG_COMPAT
-		compat_uptr_t __user *compat;
+		const compat_uptr_t __user *compat;
 #endif
 	} ptr;
 };
@@ -752,13 +751,14 @@ struct file *open_exec(const char *name)
 {
 	struct file *file;
 	int err;
+	struct filename tmp = { .name = name };
 	static const struct open_flags open_exec_flags = {
 		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
 		.acc_mode = MAY_EXEC | MAY_OPEN,
 		.intent = LOOKUP_OPEN
 	};
 
-	file = do_filp_open(AT_FDCWD, name, &open_exec_flags, LOOKUP_FOLLOW);
+	file = do_filp_open(AT_FDCWD, &tmp, &open_exec_flags, LOOKUP_FOLLOW);
 	if (IS_ERR(file))
 		goto out;
 
@@ -1083,7 +1083,8 @@ int flush_old_exec(struct linux_binprm * bprm)
 	bprm->mm = NULL;		/* We're using it now */
 
 	set_fs(USER_DS);
-	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD);
+	current->flags &=
+		~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD | PF_NOFREEZE);
 	flush_thread();
 	current->personality &= ~bprm->per_clear;
 
@@ -1574,9 +1575,9 @@ int do_execve(const char *filename,
 }
 
 #ifdef CONFIG_COMPAT
-int compat_do_execve(char *filename,
-	compat_uptr_t __user *__argv,
-	compat_uptr_t __user *__envp,
+int compat_do_execve(const char *filename,
+	const compat_uptr_t __user *__argv,
+	const compat_uptr_t __user *__envp,
 	struct pt_regs *regs)
 {
 	struct user_arg_ptr argv = {
@@ -1658,3 +1659,56 @@ int get_dumpable(struct mm_struct *mm)
 {
 	return __get_dumpable(mm->flags);
 }
+
+#ifdef __ARCH_WANT_SYS_EXECVE
+SYSCALL_DEFINE3(execve,
+		const char __user *, filename,
+		const char __user *const __user *, argv,
+		const char __user *const __user *, envp)
+{
+	struct filename *path = getname(filename);
+	int error = PTR_ERR(path);
+	if (!IS_ERR(path)) {
+		error = do_execve(path->name, argv, envp, current_pt_regs());
+		putname(path);
+	}
+	return error;
+}
+#ifdef CONFIG_COMPAT
+asmlinkage long compat_sys_execve(const char __user * filename,
+	const compat_uptr_t __user * argv,
+	const compat_uptr_t __user * envp)
+{
+	struct filename *path = getname(filename);
+	int error = PTR_ERR(path);
+	if (!IS_ERR(path)) {
+		error = compat_do_execve(path->name, argv, envp,
+							current_pt_regs());
+		putname(path);
+	}
+	return error;
+}
+#endif
+#endif
+
+#ifdef __ARCH_WANT_KERNEL_EXECVE
+int kernel_execve(const char *filename,
+		  const char *const argv[],
+		  const char *const envp[])
+{
+	struct pt_regs *p = current_pt_regs();
+	int ret;
+
+	ret = do_execve(filename,
+			(const char __user *const __user *)argv,
+			(const char __user *const __user *)envp, p);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * We were successful.  We won't be returning to our caller, but
+	 * instead to user space by manipulating the kernel stack.
+	 */
+	ret_from_kernel_execve(p);
+}
+#endif

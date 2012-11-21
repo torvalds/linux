@@ -13,9 +13,9 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include "etap.h"
-#include "os.h"
-#include "net_user.h"
-#include "um_malloc.h"
+#include <os.h>
+#include <net_user.h>
+#include <um_malloc.h>
 
 #define MAX_PACKET ETH_MAX_PACKET
 

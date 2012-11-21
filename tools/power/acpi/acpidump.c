@@ -62,7 +62,6 @@ typedef long long			s64;
 #include <unistd.h>
 #include <getopt.h>
 
-#include <sys/types.h>
 #include <dirent.h>
 
 #include <acpi/acconfig.h>

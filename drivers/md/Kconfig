@@ -216,6 +216,13 @@ config DM_BUFIO
 	 as a cache, holding recently-read blocks in memory and performing
 	 delayed writes.
 
+config DM_BIO_PRISON
+       tristate
+       depends on BLK_DEV_DM && EXPERIMENTAL
+       ---help---
+	 Some bio locking schemes used by other device-mapper targets
+	 including thin provisioning.
+
 source "drivers/md/persistent-data/Kconfig"
 
 config DM_CRYPT
@@ -247,6 +254,7 @@ config DM_THIN_PROVISIONING
        tristate "Thin provisioning target (EXPERIMENTAL)"
        depends on BLK_DEV_DM && EXPERIMENTAL
        select DM_PERSISTENT_DATA
+       select DM_BIO_PRISON
        ---help---
          Provides thin provisioning and snapshots that share a data store.
 

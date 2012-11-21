@@ -14,13 +14,13 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
-#include "as-layout.h"
-#include "arch.h"
-#include "init.h"
-#include "kern.h"
-#include "kern_util.h"
-#include "mem_user.h"
-#include "os.h"
+#include <as-layout.h>
+#include <arch.h>
+#include <init.h>
+#include <kern.h>
+#include <kern_util.h>
+#include <mem_user.h>
+#include <os.h>
 
 #define DEFAULT_COMMAND_LINE "root=98:0"
 

@@ -18,12 +18,12 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include "init.h"
-#include "irq_kern.h"
-#include "irq_user.h"
+#include <init.h>
+#include <irq_kern.h>
+#include <irq_user.h>
 #include "mconsole_kern.h"
-#include "net_kern.h"
-#include "net_user.h"
+#include <net_kern.h>
+#include <net_user.h>
 
 #define DRIVER_NAME "uml-netdev"
 

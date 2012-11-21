@@ -3,9 +3,9 @@ menu "Versatile platform type"
 
 config ARCH_VERSATILE_PB
 	bool "Support Versatile Platform Baseboard for ARM926EJ-S"
+	default y
 	select CPU_ARM926T
 	select MIGHT_HAVE_PCI
-	default y
 	help
 	  Include support for the ARM(R) Versatile Platform Baseboard
 	  for the ARM926EJ-S.
@@ -19,8 +19,8 @@ config MACH_VERSATILE_AB
 
 config MACH_VERSATILE_DT
 	bool "Support Versatile platform from device tree"
-	select USE_OF
 	select CPU_ARM926T
+	select USE_OF
 	help
 	  Include support for the ARM(R) Versatile/PB platform,
 	  using the device tree for discovery

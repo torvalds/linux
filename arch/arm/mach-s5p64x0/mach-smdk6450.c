@@ -27,6 +27,7 @@
 #include <linux/mmc/host.h>
 
 #include <video/platform_lcd.h>
+#include <video/samsung_fimd.h>
 
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
@@ -52,7 +53,6 @@
 #include <plat/s5p-time.h>
 #include <plat/backlight.h>
 #include <plat/fb.h>
-#include <plat/regs-fb.h>
 #include <plat/sdhci.h>
 
 #include "common.h"

@@ -432,32 +432,6 @@ sys32_rt_sigqueueinfo(int pid, int sig, compat_siginfo_t __user *uinfo)
 	return ret;
 }
 
-/*
- * sys32_execve() executes a new program after the asm stub has set
- * things up for us.  This should basically do what I want it to.
- */
-asmlinkage long sys32_execve(const char __user *name, compat_uptr_t __user *argv,
-			     compat_uptr_t __user *envp)
-{
-	struct pt_regs *regs = task_pt_regs(current);
-	char *filename;
-	long rc;
-
-	filename = getname(name);
-	rc = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return rc;
-	rc = compat_do_execve(filename, argv, envp, regs);
-	if (rc)
-		goto out;
-	current->thread.fp_regs.fpc=0;
-	asm volatile("sfpc %0,0" : : "d" (0));
-	rc = regs->gprs[2];
-out:
-	putname(filename);
-	return rc;
-}
-
 asmlinkage long sys32_pread64(unsigned int fd, char __user *ubuf,
 				size_t count, u32 poshi, u32 poslo)
 {

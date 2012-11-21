@@ -299,6 +299,21 @@ ENTRY(ret_from_fork)
 	CFI_ENDPROC
 END(ret_from_fork)
 
+ENTRY(ret_from_kernel_thread)
+	CFI_STARTPROC
+	pushl_cfi %eax
+	call schedule_tail
+	GET_THREAD_INFO(%ebp)
+	popl_cfi %eax
+	pushl_cfi $0x0202		# Reset kernel eflags
+	popfl_cfi
+	movl PT_EBP(%esp),%eax
+	call *PT_EBX(%esp)
+	movl $0,PT_EAX(%esp)
+	jmp syscall_exit
+	CFI_ENDPROC
+ENDPROC(ret_from_kernel_thread)
+
 /*
  * Interrupt exit functions should be protected against kprobes
  */
@@ -323,8 +338,7 @@ ret_from_intr:
 	andl $(X86_EFLAGS_VM | SEGMENT_RPL_MASK), %eax
 #else
 	/*
-	 * We can be coming here from a syscall done in the kernel space,
-	 * e.g. a failed kernel_execve().
+	 * We can be coming here from child spawned by kernel_thread().
 	 */
 	movl PT_CS(%esp), %eax
 	andl $SEGMENT_RPL_MASK, %eax
@@ -616,22 +630,7 @@ work_notifysig:				# deal with pending signals and
 	movl %esp, %eax
 	jne work_notifysig_v86		# returning to kernel-space or
 					# vm86-space
-	TRACE_IRQS_ON
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	movb PT_CS(%esp), %bl
-	andb $SEGMENT_RPL_MASK, %bl
-	cmpb $USER_RPL, %bl
-	jb resume_kernel
-	xorl %edx, %edx
-	call do_notify_resume
-	jmp resume_userspace
-
-	ALIGN
-work_notifysig_v86:
-	pushl_cfi %ecx			# save ti_flags for do_notify_resume
-	call save_v86_state		# %eax contains pt_regs pointer
-	popl_cfi %ecx
-	movl %eax, %esp
+1:
 #else
 	movl %esp, %eax
 #endif
@@ -644,6 +643,16 @@ work_notifysig_v86:
 	xorl %edx, %edx
 	call do_notify_resume
 	jmp resume_userspace
+
+#ifdef CONFIG_VM86
+	ALIGN
+work_notifysig_v86:
+	pushl_cfi %ecx			# save ti_flags for do_notify_resume
+	call save_v86_state		# %eax contains pt_regs pointer
+	popl_cfi %ecx
+	movl %eax, %esp
+	jmp 1b
+#endif
 END(work_pending)
 
 	# perform syscall exit tracing
@@ -732,7 +741,6 @@ ENDPROC(ptregs_##name)
 PTREGSCALL1(iopl)
 PTREGSCALL0(fork)
 PTREGSCALL0(vfork)
-PTREGSCALL3(execve)
 PTREGSCALL2(sigaltstack)
 PTREGSCALL0(sigreturn)
 PTREGSCALL0(rt_sigreturn)
@@ -1015,16 +1023,6 @@ END(spurious_interrupt_bug)
  */
 	.popsection
 
-ENTRY(kernel_thread_helper)
-	pushl $0		# fake return address for unwinder
-	CFI_STARTPROC
-	movl %edi,%eax
-	call *%esi
-	call do_exit
-	ud2			# padding for call trace
-	CFI_ENDPROC
-ENDPROC(kernel_thread_helper)
-
 #ifdef CONFIG_XEN
 /* Xen doesn't set %esp to be precisely what the normal sysenter
    entrypoint expects, so fix it up before using the normal path. */
@@ -1037,7 +1035,7 @@ ENTRY(xen_sysenter_target)
 
 ENTRY(xen_hypervisor_callback)
 	CFI_STARTPROC
-	pushl_cfi $0
+	pushl_cfi $-1 /* orig_ax = -1 => not a system call */
 	SAVE_ALL
 	TRACE_IRQS_OFF
 
@@ -1079,14 +1077,16 @@ ENTRY(xen_failsafe_callback)
 2:	mov 8(%esp),%es
 3:	mov 12(%esp),%fs
 4:	mov 16(%esp),%gs
+	/* EAX == 0 => Category 1 (Bad segment)
+	   EAX != 0 => Category 2 (Bad IRET) */
 	testl %eax,%eax
 	popl_cfi %eax
 	lea 16(%esp),%esp
 	CFI_ADJUST_CFA_OFFSET -16
 	jz 5f
 	addl $16,%esp
-	jmp iret_exc		# EAX != 0 => Category 2 (Bad IRET)
-5:	pushl_cfi $0		# EAX == 0 => Category 1 (Bad segment)
+	jmp iret_exc
+5:	pushl_cfi $-1 /* orig_ax = -1 => not a system call */
 	SAVE_ALL
 	jmp ret_from_exception
 	CFI_ENDPROC

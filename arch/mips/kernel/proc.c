@@ -64,14 +64,17 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 				cpu_data[n].watch_reg_masks[i]);
 		seq_printf(m, "]\n");
 	}
-	seq_printf(m, "ASEs implemented\t:%s%s%s%s%s%s\n",
-		      cpu_has_mips16 ? " mips16" : "",
-		      cpu_has_mdmx ? " mdmx" : "",
-		      cpu_has_mips3d ? " mips3d" : "",
-		      cpu_has_smartmips ? " smartmips" : "",
-		      cpu_has_dsp ? " dsp" : "",
-		      cpu_has_mipsmt ? " mt" : ""
-		);
+
+	seq_printf(m, "ASEs implemented\t:");
+	if (cpu_has_mips16)	seq_printf(m, "%s", " mips16");
+	if (cpu_has_mdmx)	seq_printf(m, "%s", " mdmx");
+	if (cpu_has_mips3d)	seq_printf(m, "%s", " mips3d");
+	if (cpu_has_smartmips)	seq_printf(m, "%s", " smartmips");
+	if (cpu_has_dsp)	seq_printf(m, "%s", " dsp");
+	if (cpu_has_dsp2)	seq_printf(m, "%s", " dsp2");
+	if (cpu_has_mipsmt)	seq_printf(m, "%s", " mt");
+	seq_printf(m, "\n");
+
 	seq_printf(m, "shadow register sets\t: %d\n",
 		      cpu_data[n].srsets);
 	seq_printf(m, "kscratch registers\t: %d\n",

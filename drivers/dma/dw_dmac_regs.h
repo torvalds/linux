@@ -82,8 +82,46 @@ struct dw_dma_regs {
 	DW_REG(ID);
 	DW_REG(TEST);
 
+	/* reserved */
+	DW_REG(__reserved0);
+	DW_REG(__reserved1);
+
 	/* optional encoded params, 0x3c8..0x3f7 */
+	u32	__reserved;
+
+	/* per-channel configuration registers */
+	u32	DWC_PARAMS[DW_DMA_MAX_NR_CHANNELS];
+	u32	MULTI_BLK_TYPE;
+	u32	MAX_BLK_SIZE;
+
+	/* top-level parameters */
+	u32	DW_PARAMS;
 };
+
+#ifdef CONFIG_DW_DMAC_BIG_ENDIAN_IO
+#define dma_readl_native ioread32be
+#define dma_writel_native iowrite32be
+#else
+#define dma_readl_native readl
+#define dma_writel_native writel
+#endif
+
+/* To access the registers in early stage of probe */
+#define dma_read_byaddr(addr, name) \
+	dma_readl_native((addr) + offsetof(struct dw_dma_regs, name))
+
+/* Bitfields in DW_PARAMS */
+#define DW_PARAMS_NR_CHAN	8		/* number of channels */
+#define DW_PARAMS_NR_MASTER	11		/* number of AHB masters */
+#define DW_PARAMS_DATA_WIDTH(n)	(15 + 2 * (n))
+#define DW_PARAMS_DATA_WIDTH1	15		/* master 1 data width */
+#define DW_PARAMS_DATA_WIDTH2	17		/* master 2 data width */
+#define DW_PARAMS_DATA_WIDTH3	19		/* master 3 data width */
+#define DW_PARAMS_DATA_WIDTH4	21		/* master 4 data width */
+#define DW_PARAMS_EN		28		/* encoded parameters */
+
+/* Bitfields in DWC_PARAMS */
+#define DWC_PARAMS_MBLK_EN	11		/* multi block transfer */
 
 /* Bitfields in CTL_LO */
 #define DWC_CTLL_INT_EN		(1 << 0)	/* irqs enabled? */
@@ -140,10 +178,9 @@ struct dw_dma_regs {
 /* Bitfields in CFG */
 #define DW_CFG_DMA_EN		(1 << 0)
 
-#define DW_REGLEN		0x400
-
 enum dw_dmac_flags {
 	DW_DMA_IS_CYCLIC = 0,
+	DW_DMA_IS_SOFT_LLP = 1,
 };
 
 struct dw_dma_chan {
@@ -153,6 +190,10 @@ struct dw_dma_chan {
 	u8			priority;
 	bool			paused;
 	bool			initialized;
+
+	/* software emulation of the LLP transfers */
+	struct list_head	*tx_list;
+	struct list_head	*tx_node_active;
 
 	spinlock_t		lock;
 
@@ -165,8 +206,15 @@ struct dw_dma_chan {
 
 	unsigned int		descs_allocated;
 
+	/* hardware configuration */
+	unsigned int		block_size;
+	bool			nollp;
+
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
+
+	/* backlink to dw_dma */
+	struct dw_dma		*dw;
 };
 
 static inline struct dw_dma_chan_regs __iomem *
@@ -176,9 +224,9 @@ __dwc_regs(struct dw_dma_chan *dwc)
 }
 
 #define channel_readl(dwc, name) \
-	readl(&(__dwc_regs(dwc)->name))
+	dma_readl_native(&(__dwc_regs(dwc)->name))
 #define channel_writel(dwc, name, val) \
-	writel((val), &(__dwc_regs(dwc)->name))
+	dma_writel_native((val), &(__dwc_regs(dwc)->name))
 
 static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 {
@@ -193,6 +241,10 @@ struct dw_dma {
 
 	u8			all_chan_mask;
 
+	/* hardware configuration */
+	unsigned char		nr_masters;
+	unsigned char		data_width[4];
+
 	struct dw_dma_chan	chan[0];
 };
 
@@ -202,9 +254,9 @@ static inline struct dw_dma_regs __iomem *__dw_regs(struct dw_dma *dw)
 }
 
 #define dma_readl(dw, name) \
-	readl(&(__dw_regs(dw)->name))
+	dma_readl_native(&(__dw_regs(dw)->name))
 #define dma_writel(dw, name, val) \
-	writel((val), &(__dw_regs(dw)->name))
+	dma_writel_native((val), &(__dw_regs(dw)->name))
 
 #define channel_set_bit(dw, reg, mask) \
 	dma_writel(dw, reg, ((mask) << 8) | (mask))

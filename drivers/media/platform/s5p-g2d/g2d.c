@@ -507,7 +507,7 @@ static int vidioc_g_crop(struct file *file, void *prv, struct v4l2_crop *cr)
 	return 0;
 }
 
-static int vidioc_try_crop(struct file *file, void *prv, struct v4l2_crop *cr)
+static int vidioc_try_crop(struct file *file, void *prv, const struct v4l2_crop *cr)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;

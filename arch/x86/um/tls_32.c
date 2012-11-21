@@ -3,12 +3,12 @@
  * Licensed under the GPL
  */
 
-#include "linux/percpu.h"
-#include "linux/sched.h"
-#include "asm/uaccess.h"
-#include "os.h"
-#include "skas.h"
-#include "sysdep/tls.h"
+#include <linux/percpu.h>
+#include <linux/sched.h>
+#include <asm/uaccess.h>
+#include <os.h>
+#include <skas.h>
+#include <sysdep/tls.h>
 
 /*
  * If needed we can detect when it's uninitialized.

@@ -531,7 +531,7 @@ static struct se_port *core_alloc_port(struct se_device *dev)
 	}
 again:
 	/*
-	 * Allocate the next RELATIVE TARGET PORT IDENTIFER for this struct se_device
+	 * Allocate the next RELATIVE TARGET PORT IDENTIFIER for this struct se_device
 	 * Here is the table from spc4r17 section 7.7.3.8.
 	 *
 	 *    Table 473 -- RELATIVE TARGET PORT IDENTIFIER field
@@ -548,7 +548,7 @@ again:
 
 	list_for_each_entry(port_tmp, &dev->dev_sep_list, sep_list) {
 		/*
-		 * Make sure RELATIVE TARGET PORT IDENTIFER is unique
+		 * Make sure RELATIVE TARGET PORT IDENTIFIER is unique
 		 * for 16-bit wrap..
 		 */
 		if (port->sep_rtpi == port_tmp->sep_rtpi)
@@ -595,7 +595,7 @@ static void core_export_port(
 	}
 
 	dev->dev_port_count++;
-	port->sep_index = port->sep_rtpi; /* RELATIVE TARGET PORT IDENTIFER */
+	port->sep_index = port->sep_rtpi; /* RELATIVE TARGET PORT IDENTIFIER */
 }
 
 /*
@@ -850,20 +850,20 @@ int se_dev_check_shutdown(struct se_device *dev)
 
 static u32 se_dev_align_max_sectors(u32 max_sectors, u32 block_size)
 {
-	u32 tmp, aligned_max_sectors;
+	u32 aligned_max_sectors;
+	u32 alignment;
 	/*
 	 * Limit max_sectors to a PAGE_SIZE aligned value for modern
 	 * transport_allocate_data_tasks() operation.
 	 */
-	tmp = rounddown((max_sectors * block_size), PAGE_SIZE);
-	aligned_max_sectors = (tmp / block_size);
-	if (max_sectors != aligned_max_sectors) {
-		printk(KERN_INFO "Rounding down aligned max_sectors from %u"
-				" to %u\n", max_sectors, aligned_max_sectors);
-		return aligned_max_sectors;
-	}
+	alignment = max(1ul, PAGE_SIZE / block_size);
+	aligned_max_sectors = rounddown(max_sectors, alignment);
 
-	return max_sectors;
+	if (max_sectors != aligned_max_sectors)
+		pr_info("Rounding down aligned max_sectors from %u to %u\n",
+			max_sectors, aligned_max_sectors);
+
+	return aligned_max_sectors;
 }
 
 void se_dev_set_default_attribs(
@@ -988,8 +988,9 @@ int se_dev_set_emulate_fua_write(struct se_device *dev, int flag)
 		return -EINVAL;
 	}
 
-	if (flag && dev->transport->fua_write_emulated == 0) {
-		pr_err("fua_write_emulated not supported\n");
+	if (flag &&
+	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+		pr_err("emulate_fua_write not supported for pSCSI\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_fua_write = flag;
@@ -1019,8 +1020,9 @@ int se_dev_set_emulate_write_cache(struct se_device *dev, int flag)
 		pr_err("Illegal value %d\n", flag);
 		return -EINVAL;
 	}
-	if (flag && dev->transport->write_cache_emulated == 0) {
-		pr_err("write_cache_emulated not supported\n");
+	if (flag &&
+	    dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+		pr_err("emulate_write_cache not supported for pSCSI\n");
 		return -EINVAL;
 	}
 	dev->se_sub_dev->se_dev_attrib.emulate_write_cache = flag;

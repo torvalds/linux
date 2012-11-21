@@ -65,7 +65,7 @@ static int lnbp21_set_voltage(struct dvb_frontend *fe,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	lnbp21->config |= lnbp21->override_or;
 	lnbp21->config &= lnbp21->override_and;
@@ -108,7 +108,7 @@ static int lnbp21_set_tone(struct dvb_frontend *fe,
 		break;
 	default:
 		return -EINVAL;
-	};
+	}
 
 	lnbp21->config |= lnbp21->override_or;
 	lnbp21->config &= lnbp21->override_and;

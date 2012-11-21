@@ -5,6 +5,7 @@
 #ifndef __NFS_NETNS_H__
 #define __NFS_NETNS_H__
 
+#include <linux/nfs4.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -22,6 +23,9 @@ struct nfs_net {
 	struct list_head nfs_volume_list;
 #if IS_ENABLED(CONFIG_NFS_V4)
 	struct idr cb_ident_idr; /* Protected by nfs_client_lock */
+	unsigned short nfs_callback_tcpport;
+	unsigned short nfs_callback_tcpport6;
+	int cb_users[NFS4_MAX_MINOR_VERSION + 1];
 #endif
 	spinlock_t nfs_client_lock;
 	struct timespec boot_time;

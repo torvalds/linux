@@ -308,7 +308,7 @@ static irqreturn_t si470x_i2c_interrupt(int irq, void *dev_id)
 					READCHAN_BLERD) >> 10;
 			rds = radio->registers[RDSD];
 			break;
-		};
+		}
 
 		/* Fill the V4L2 RDS buffer */
 		put_unaligned_le16(rds, &tmpbuf);

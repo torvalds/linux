@@ -30,6 +30,13 @@ expression ptr;
 - if (IS_ERR(ptr)) return PTR_ERR(ptr); return 0;
 + return PTR_RET(ptr);
 
+@depends on patch@
+expression ptr;
+@@
+
+- (IS_ERR(ptr) ? PTR_ERR(ptr) : 0)
++ PTR_RET(ptr)
+
 @r1 depends on !patch@
 expression ptr;
 position p1;
@@ -44,6 +51,13 @@ position p2;
 
 * if@p2 (IS_ERR(ptr)) return PTR_ERR(ptr); return 0;
 
+@r3 depends on !patch@
+expression ptr;
+position p3;
+@@
+
+* IS_ERR@p3(ptr) ? PTR_ERR(ptr) : 0
+
 @script:python depends on org@
 p << r1.p1;
 @@
@@ -53,6 +67,12 @@ coccilib.org.print_todo(p[0], "WARNING: PTR_RET can be used")
 
 @script:python depends on org@
 p << r2.p2;
+@@
+
+coccilib.org.print_todo(p[0], "WARNING: PTR_RET can be used")
+
+@script:python depends on org@
+p << r3.p3;
 @@
 
 coccilib.org.print_todo(p[0], "WARNING: PTR_RET can be used")
@@ -65,6 +85,12 @@ coccilib.report.print_report(p[0], "WARNING: PTR_RET can be used")
 
 @script:python depends on report@
 p << r2.p2;
+@@
+
+coccilib.report.print_report(p[0], "WARNING: PTR_RET can be used")
+
+@script:python depends on report@
+p << r3.p3;
 @@
 
 coccilib.report.print_report(p[0], "WARNING: PTR_RET can be used")

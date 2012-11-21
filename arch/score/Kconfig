@@ -11,6 +11,8 @@ config SCORE
        select ARCH_DISCARD_MEMBLOCK
        select GENERIC_CPU_DEVICES
        select GENERIC_CLOCKEVENTS
+       select HAVE_MOD_ARCH_SPECIFIC
+	select MODULES_USE_ELF_REL
 
 choice
 	prompt "System type"

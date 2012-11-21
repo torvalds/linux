@@ -487,9 +487,9 @@ struct dvb_frontend *s921_attach(const struct s921_config *config,
 		kzalloc(sizeof(struct s921_state), GFP_KERNEL);
 
 	dprintk("\n");
-	if (state == NULL) {
+	if (!state) {
 		rc("Unable to kzalloc\n");
-		goto rcor;
+		return NULL;
 	}
 
 	/* setup the state */
@@ -502,11 +502,6 @@ struct dvb_frontend *s921_attach(const struct s921_config *config,
 	state->frontend.demodulator_priv = state;
 
 	return &state->frontend;
-
-rcor:
-	kfree(state);
-
-	return NULL;
 }
 EXPORT_SYMBOL(s921_attach);
 

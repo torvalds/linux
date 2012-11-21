@@ -107,6 +107,18 @@ static inline int xdigit2bin(char c, int delim)
 	return IN6PTON_UNKNOWN;
 }
 
+/**
+ * in4_pton - convert an IPv4 address from literal to binary representation
+ * @src: the start of the IPv4 address string
+ * @srclen: the length of the string, -1 means strlen(src)
+ * @dst: the binary (u8[4] array) representation of the IPv4 address
+ * @delim: the delimiter of the IPv4 address in @src, -1 means no delimiter
+ * @end: A pointer to the end of the parsed string will be placed here
+ *
+ * Return one on success, return zero when any error occurs
+ * and @end will point to the end of the parsed string.
+ *
+ */
 int in4_pton(const char *src, int srclen,
 	     u8 *dst,
 	     int delim, const char **end)
@@ -161,6 +173,18 @@ out:
 }
 EXPORT_SYMBOL(in4_pton);
 
+/**
+ * in6_pton - convert an IPv6 address from literal to binary representation
+ * @src: the start of the IPv6 address string
+ * @srclen: the length of the string, -1 means strlen(src)
+ * @dst: the binary (u8[16] array) representation of the IPv6 address
+ * @delim: the delimiter of the IPv6 address in @src, -1 means no delimiter
+ * @end: A pointer to the end of the parsed string will be placed here
+ *
+ * Return one on success, return zero when any error occurs
+ * and @end will point to the end of the parsed string.
+ *
+ */
 int in6_pton(const char *src, int srclen,
 	     u8 *dst,
 	     int delim, const char **end)

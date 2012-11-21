@@ -701,7 +701,7 @@ static struct resource dm644x_venc_resources[] = {
 #define DM644X_VPSS_DACCLKEN                  BIT(4)
 
 static int dm644x_venc_setup_clock(enum vpbe_enc_timings_type type,
-				   unsigned int mode)
+				   unsigned int pclock)
 {
 	int ret = 0;
 	u32 v = DM644X_VPSS_VENCLKEN;
@@ -711,27 +711,18 @@ static int dm644x_venc_setup_clock(enum vpbe_enc_timings_type type,
 		v |= DM644X_VPSS_DACCLKEN;
 		writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
 		break;
-	case VPBE_ENC_DV_PRESET:
-		switch (mode) {
-		case V4L2_DV_480P59_94:
-		case V4L2_DV_576P50:
+	case VPBE_ENC_CUSTOM_TIMINGS:
+		if (pclock <= 27000000) {
 			v |= DM644X_VPSS_MUXSEL_PLL2_MODE |
 			     DM644X_VPSS_DACCLKEN;
 			writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
-			break;
-		case V4L2_DV_720P60:
-		case V4L2_DV_1080I60:
-		case V4L2_DV_1080P30:
+		} else {
 			/*
 			 * For HD, use external clock source since
 			 * HD requires higher clock rate
 			 */
 			v |= DM644X_VPSS_MUXSEL_VPBECLK_MODE;
 			writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
-			break;
-		default:
-			ret = -EINVAL;
-			break;
 		}
 		break;
 	default:

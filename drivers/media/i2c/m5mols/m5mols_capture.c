@@ -105,6 +105,7 @@ static int m5mols_capture_info(struct m5mols_info *info)
 
 int m5mols_start_capture(struct m5mols_info *info)
 {
+	unsigned int framesize = info->cap.buf_size - M5MOLS_JPEG_TAGS_SIZE;
 	struct v4l2_subdev *sd = &info->sd;
 	int ret;
 
@@ -120,6 +121,8 @@ int m5mols_start_capture(struct m5mols_info *info)
 		ret = m5mols_write(sd, CAPP_YUVOUT_MAIN, REG_JPEG);
 	if (!ret)
 		ret = m5mols_write(sd, CAPP_MAIN_IMAGE_SIZE, info->resolution);
+	if (!ret)
+		ret = m5mols_write(sd, CAPP_JPEG_SIZE_MAX, framesize);
 	if (!ret)
 		ret = m5mols_set_mode(info, REG_CAPTURE);
 	if (!ret)

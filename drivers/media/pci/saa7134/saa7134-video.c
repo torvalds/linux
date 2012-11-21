@@ -1204,7 +1204,7 @@ int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, str
 		break;
 	default:
 		/* nothing */;
-	};
+	}
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
 		dev->ctl_bright = c->value;

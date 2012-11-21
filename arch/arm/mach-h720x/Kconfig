@@ -12,9 +12,9 @@ config ARCH_H7201
 
 config ARCH_H7202
 	bool "hms30c7202"
+	depends on ARCH_H720X
 	select CPU_H7202
 	select ZONE_DMA
-	depends on ARCH_H720X
 	help
 	  Say Y here if you are using the Hynix HMS30C7202 Reference Board
 

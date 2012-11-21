@@ -725,7 +725,7 @@ struct platform_device __init *omap_device_build_ss(const char *pdev_name, int p
 		dev_set_name(&pdev->dev, "%s", pdev->name);
 
 	od = omap_device_alloc(pdev, ohs, oh_cnt, pm_lats, pm_lats_cnt);
-	if (!od)
+	if (IS_ERR(od))
 		goto odbs_exit1;
 
 	ret = platform_device_add_data(pdev, pdata, pdata_len);

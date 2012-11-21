@@ -49,6 +49,7 @@ struct sdhci_pxa_platdata {
 	bool		ext_cd_gpio_invert;
 	unsigned int	max_speed;
 	unsigned int	host_caps;
+	unsigned int	host_caps2;
 	unsigned int	quirks;
 	unsigned int	pm_caps;
 };

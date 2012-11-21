@@ -48,6 +48,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 /*
  * The LM92 and MAX6635 have 2 two-state pins for address selection,

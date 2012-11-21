@@ -3,24 +3,24 @@
  * Licensed under the GPL
  */
 
-#include "linux/percpu.h"
-#include "asm/pgalloc.h"
-#include "asm/tlb.h"
+#include <linux/percpu.h>
+#include <asm/pgalloc.h>
+#include <asm/tlb.h>
 
 #ifdef CONFIG_SMP
 
-#include "linux/sched.h"
-#include "linux/module.h"
-#include "linux/threads.h"
-#include "linux/interrupt.h"
-#include "linux/err.h"
-#include "linux/hardirq.h"
-#include "asm/smp.h"
-#include "asm/processor.h"
-#include "asm/spinlock.h"
-#include "kern.h"
-#include "irq_user.h"
-#include "os.h"
+#include <linux/sched.h>
+#include <linux/module.h>
+#include <linux/threads.h>
+#include <linux/interrupt.h>
+#include <linux/err.h>
+#include <linux/hardirq.h>
+#include <asm/smp.h>
+#include <asm/processor.h>
+#include <asm/spinlock.h>
+#include <kern.h>
+#include <irq_user.h>
+#include <os.h>
 
 /* Per CPU bogomips and other parameters
  * The only piece used here is the ipi pipe, which is set before SMP is

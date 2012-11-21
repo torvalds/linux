@@ -25,7 +25,6 @@
 #define old_mmap sys_old_mmap
 
 #define ptregs_fork sys_fork
-#define ptregs_execve sys_execve
 #define ptregs_iopl sys_iopl
 #define ptregs_vm86old sys_vm86old
 #define ptregs_clone i386_clone

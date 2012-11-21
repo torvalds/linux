@@ -20,7 +20,7 @@
 		CALL(sys_creat)
 		CALL(sys_link)
 /* 10 */	CALL(sys_unlink)
-		CALL(sys_execve_wrapper)
+		CALL(sys_execve)
 		CALL(sys_chdir)
 		CALL(OBSOLETE(sys_time))	/* used by libc4 */
 		CALL(sys_mknod)

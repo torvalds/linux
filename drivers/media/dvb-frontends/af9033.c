@@ -408,7 +408,7 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 {
 	struct af9033_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i, spec_inv;
+	int ret, i, spec_inv, sampling_freq;
 	u8 tmp, buf[3], bandwidth_reg_val;
 	u32 if_frequency, freq_cw, adc_freq;
 
@@ -465,18 +465,20 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 		else
 			if_frequency = 0;
 
-		while (if_frequency > (adc_freq / 2))
-			if_frequency -= adc_freq;
+		sampling_freq = if_frequency;
 
-		if (if_frequency >= 0)
+		while (sampling_freq > (adc_freq / 2))
+			sampling_freq -= adc_freq;
+
+		if (sampling_freq >= 0)
 			spec_inv *= -1;
 		else
-			if_frequency *= -1;
+			sampling_freq *= -1;
 
-		freq_cw = af9033_div(state, if_frequency, adc_freq, 23ul);
+		freq_cw = af9033_div(state, sampling_freq, adc_freq, 23ul);
 
 		if (spec_inv == -1)
-			freq_cw *= -1;
+			freq_cw = 0x800000 - freq_cw;
 
 		/* get adc multiplies */
 		ret = af9033_rd_reg(state, 0x800045, &tmp);

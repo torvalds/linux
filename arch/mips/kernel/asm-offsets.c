@@ -12,7 +12,6 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/interrupt.h>
 #include <linux/kbuild.h>
 #include <linux/suspend.h>
 #include <asm/ptrace.h>
@@ -289,15 +288,6 @@ void output_signal_defined(void)
 	DEFINE(_SIGPROF, SIGPROF);
 	DEFINE(_SIGXCPU, SIGXCPU);
 	DEFINE(_SIGXFSZ, SIGXFSZ);
-	BLANK();
-}
-
-void output_irq_cpustat_t_defines(void)
-{
-	COMMENT("Linux irq_cpustat_t offsets.");
-	DEFINE(IC_SOFTIRQ_PENDING,
-			offsetof(irq_cpustat_t, __softirq_pending));
-	DEFINE(IC_IRQ_CPUSTAT_T, sizeof(irq_cpustat_t));
 	BLANK();
 }
 

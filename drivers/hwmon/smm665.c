@@ -24,6 +24,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/delay.h>
+#include <linux/jiffies.h>
 
 /* Internal reference voltage (VREF, x 1000 */
 #define SMM665_VREF_ADC_X1000	1250

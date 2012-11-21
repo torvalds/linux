@@ -83,13 +83,13 @@ out:
 asmlinkage int sys32_execve(nabi_no_regargs struct pt_regs regs)
 {
 	int error;
-	char * filename;
+	struct filename *filename;
 
 	filename = getname(compat_ptr(regs.regs[4]));
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = compat_do_execve(filename, compat_ptr(regs.regs[5]),
+	error = compat_do_execve(filename->name, compat_ptr(regs.regs[5]),
 				 compat_ptr(regs.regs[6]), &regs);
 	putname(filename);
 

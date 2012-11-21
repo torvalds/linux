@@ -154,8 +154,8 @@ error:
 	return -ENOMEM;
 }
 
-int perf_evlist__add_attrs(struct perf_evlist *evlist,
-			   struct perf_event_attr *attrs, size_t nr_attrs)
+static int perf_evlist__add_attrs(struct perf_evlist *evlist,
+				  struct perf_event_attr *attrs, size_t nr_attrs)
 {
 	struct perf_evsel *evsel, *n;
 	LIST_HEAD(head);
@@ -189,60 +189,6 @@ int __perf_evlist__add_default_attrs(struct perf_evlist *evlist,
 	return perf_evlist__add_attrs(evlist, attrs, nr_attrs);
 }
 
-static int trace_event__id(const char *evname)
-{
-	char *filename, *colon;
-	int err = -1, fd;
-
-	if (asprintf(&filename, "%s/%s/id", tracing_events_path, evname) < 0)
-		return -1;
-
-	colon = strrchr(filename, ':');
-	if (colon != NULL)
-		*colon = '/';
-
-	fd = open(filename, O_RDONLY);
-	if (fd >= 0) {
-		char id[16];
-		if (read(fd, id, sizeof(id)) > 0)
-			err = atoi(id);
-		close(fd);
-	}
-
-	free(filename);
-	return err;
-}
-
-int perf_evlist__add_tracepoints(struct perf_evlist *evlist,
-				 const char *tracepoints[],
-				 size_t nr_tracepoints)
-{
-	int err;
-	size_t i;
-	struct perf_event_attr *attrs = zalloc(nr_tracepoints * sizeof(*attrs));
-
-	if (attrs == NULL)
-		return -1;
-
-	for (i = 0; i < nr_tracepoints; i++) {
-		err = trace_event__id(tracepoints[i]);
-
-		if (err < 0)
-			goto out_free_attrs;
-
-		attrs[i].type	       = PERF_TYPE_TRACEPOINT;
-		attrs[i].config	       = err;
-	        attrs[i].sample_type   = (PERF_SAMPLE_RAW | PERF_SAMPLE_TIME |
-					  PERF_SAMPLE_CPU | PERF_SAMPLE_PERIOD);
-		attrs[i].sample_period = 1;
-	}
-
-	err = perf_evlist__add_attrs(evlist, attrs, nr_tracepoints);
-out_free_attrs:
-	free(attrs);
-	return err;
-}
-
 struct perf_evsel *
 perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 {
@@ -257,32 +203,18 @@ perf_evlist__find_tracepoint_by_id(struct perf_evlist *evlist, int id)
 	return NULL;
 }
 
-int perf_evlist__set_tracepoints_handlers(struct perf_evlist *evlist,
-					  const struct perf_evsel_str_handler *assocs,
-					  size_t nr_assocs)
+int perf_evlist__add_newtp(struct perf_evlist *evlist,
+			   const char *sys, const char *name, void *handler)
 {
 	struct perf_evsel *evsel;
-	int err;
-	size_t i;
 
-	for (i = 0; i < nr_assocs; i++) {
-		err = trace_event__id(assocs[i].name);
-		if (err < 0)
-			goto out;
+	evsel = perf_evsel__newtp(sys, name, evlist->nr_entries);
+	if (evsel == NULL)
+		return -1;
 
-		evsel = perf_evlist__find_tracepoint_by_id(evlist, err);
-		if (evsel == NULL)
-			continue;
-
-		err = -EEXIST;
-		if (evsel->handler.func != NULL)
-			goto out;
-		evsel->handler.func = assocs[i].handler;
-	}
-
-	err = 0;
-out:
-	return err;
+	evsel->handler.func = handler;
+	perf_evlist__add(evlist, evsel);
+	return 0;
 }
 
 void perf_evlist__disable(struct perf_evlist *evlist)

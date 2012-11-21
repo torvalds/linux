@@ -808,7 +808,7 @@ int cx25821_vidupstream_init_ch1(struct cx25821_dev *dev, int channel_select,
 	}
 
 	/* Default if filename is empty string */
-	if (strcmp(dev->input_filename, "") == 0) {
+	if (strcmp(dev->_filename, "") == 0) {
 		if (dev->_isNTSC) {
 			dev->_filename =
 				(dev->_pixel_format == PIXEL_FRMT_411) ?

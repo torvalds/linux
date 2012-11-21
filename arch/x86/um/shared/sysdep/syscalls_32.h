@@ -3,8 +3,8 @@
  * Licensed under the GPL
  */
 
-#include "asm/unistd.h"
-#include "sysdep/ptrace.h"
+#include <asm/unistd.h>
+#include <sysdep/ptrace.h>
 
 typedef long syscall_handler_t(struct pt_regs);
 

@@ -1,6 +1,6 @@
 #include <errno.h>
 #include <asm/ptrace.h>
-#include "sysdep/ptrace.h"
+#include <sysdep/ptrace.h>
 
 int ptrace_getregs(long pid, unsigned long *regs_out)
 {

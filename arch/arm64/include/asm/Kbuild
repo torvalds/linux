@@ -1,6 +1,4 @@
-include include/asm-generic/Kbuild.asm
 
-header-y += hwcap.h
 
 generic-y += bug.h
 generic-y += bugs.h
@@ -20,7 +18,6 @@ generic-y += ipcbuf.h
 generic-y += irq_regs.h
 generic-y += kdebug.h
 generic-y += kmap_types.h
-generic-y += linkage.h
 generic-y += local.h
 generic-y += local64.h
 generic-y += mman.h

@@ -183,17 +183,6 @@ static int omap2_clkdm_clk_enable(struct clockdomain *clkdm)
 	if (!clkdm->clktrctrl_mask)
 		return 0;
 
-	/*
-	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
-	 * more details on the unpleasant problem this is working
-	 * around
-	 */
-	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING &&
-	    !(clkdm->flags & CLKDM_CAN_FORCE_SLEEP)) {
-		_enable_hwsup(clkdm);
-		return 0;
-	}
-
 	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				clkdm->clktrctrl_mask);
 
@@ -216,17 +205,6 @@ static int omap2_clkdm_clk_disable(struct clockdomain *clkdm)
 
 	if (!clkdm->clktrctrl_mask)
 		return 0;
-
-	/*
-	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
-	 * more details on the unpleasant problem this is working
-	 * around
-	 */
-	if ((clkdm->flags & CLKDM_MISSING_IDLE_REPORTING) &&
-	    (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)) {
-		omap3_clkdm_wakeup(clkdm);
-		return 0;
-	}
 
 	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				clkdm->clktrctrl_mask);
@@ -269,6 +247,17 @@ static int omap3xxx_clkdm_clk_enable(struct clockdomain *clkdm)
 	if (!clkdm->clktrctrl_mask)
 		return 0;
 
+	/*
+	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
+	 * more details on the unpleasant problem this is working
+	 * around
+	 */
+	if ((clkdm->flags & CLKDM_MISSING_IDLE_REPORTING) &&
+	    (clkdm->flags & CLKDM_CAN_FORCE_WAKEUP)) {
+		omap3_clkdm_wakeup(clkdm);
+		return 0;
+	}
+
 	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				clkdm->clktrctrl_mask);
 
@@ -291,6 +280,17 @@ static int omap3xxx_clkdm_clk_disable(struct clockdomain *clkdm)
 
 	if (!clkdm->clktrctrl_mask)
 		return 0;
+
+	/*
+	 * The CLKDM_MISSING_IDLE_REPORTING flag documentation has
+	 * more details on the unpleasant problem this is working
+	 * around
+	 */
+	if (clkdm->flags & CLKDM_MISSING_IDLE_REPORTING &&
+	    !(clkdm->flags & CLKDM_CAN_FORCE_SLEEP)) {
+		_enable_hwsup(clkdm);
+		return 0;
+	}
 
 	hwsup = omap2_cm_is_clkdm_in_hwsup(clkdm->pwrdm.ptr->prcm_offs,
 				clkdm->clktrctrl_mask);

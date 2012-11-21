@@ -141,6 +141,10 @@ struct mt9v032 {
 	u16 chip_control;
 	u16 aec_agc;
 	u16 hblank;
+	struct {
+		struct v4l2_ctrl *test_pattern;
+		struct v4l2_ctrl *test_pattern_color;
+	};
 };
 
 static struct mt9v032 *to_mt9v032(struct v4l2_subdev *sd)
@@ -500,7 +504,7 @@ static int mt9v032_set_crop(struct v4l2_subdev *subdev,
  * V4L2 subdev control operations
  */
 
-#define V4L2_CID_TEST_PATTERN		(V4L2_CID_USER_BASE | 0x1001)
+#define V4L2_CID_TEST_PATTERN_COLOR	(V4L2_CID_USER_BASE | 0x1001)
 
 static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 {
@@ -545,7 +549,7 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 
 	case V4L2_CID_TEST_PATTERN:
-		switch (ctrl->val) {
+		switch (mt9v032->test_pattern->val) {
 		case 0:
 			data = 0;
 			break;
@@ -562,13 +566,13 @@ static int mt9v032_s_ctrl(struct v4l2_ctrl *ctrl)
 			     | MT9V032_TEST_PATTERN_ENABLE;
 			break;
 		default:
-			data = (ctrl->val << MT9V032_TEST_PATTERN_DATA_SHIFT)
+			data = (mt9v032->test_pattern_color->val <<
+				MT9V032_TEST_PATTERN_DATA_SHIFT)
 			     | MT9V032_TEST_PATTERN_USE_DATA
 			     | MT9V032_TEST_PATTERN_ENABLE
 			     | MT9V032_TEST_PATTERN_FLIP;
 			break;
 		}
-
 		return mt9v032_write(client, MT9V032_TEST_PATTERN, data);
 	}
 
@@ -579,18 +583,24 @@ static struct v4l2_ctrl_ops mt9v032_ctrl_ops = {
 	.s_ctrl = mt9v032_s_ctrl,
 };
 
-static const struct v4l2_ctrl_config mt9v032_ctrls[] = {
-	{
-		.ops		= &mt9v032_ctrl_ops,
-		.id		= V4L2_CID_TEST_PATTERN,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.name		= "Test pattern",
-		.min		= 0,
-		.max		= 1023,
-		.step		= 1,
-		.def		= 0,
-		.flags		= 0,
-	}
+static const char * const mt9v032_test_pattern_menu[] = {
+	"Disabled",
+	"Gray Vertical Shade",
+	"Gray Horizontal Shade",
+	"Gray Diagonal Shade",
+	"Plain",
+};
+
+static const struct v4l2_ctrl_config mt9v032_test_pattern_color = {
+	.ops		= &mt9v032_ctrl_ops,
+	.id		= V4L2_CID_TEST_PATTERN_COLOR,
+	.type		= V4L2_CTRL_TYPE_INTEGER,
+	.name		= "Test Pattern Color",
+	.min		= 0,
+	.max		= 1023,
+	.step		= 1,
+	.def		= 0,
+	.flags		= 0,
 };
 
 /* -----------------------------------------------------------------------------
@@ -741,7 +751,7 @@ static int mt9v032_probe(struct i2c_client *client,
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = pdata;
 
-	v4l2_ctrl_handler_init(&mt9v032->ctrls, ARRAY_SIZE(mt9v032_ctrls) + 8);
+	v4l2_ctrl_handler_init(&mt9v032->ctrls, 10);
 
 	v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
 			  V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
@@ -763,6 +773,14 @@ static int mt9v032_probe(struct i2c_client *client,
 			  V4L2_CID_VBLANK, MT9V032_VERTICAL_BLANKING_MIN,
 			  MT9V032_VERTICAL_BLANKING_MAX, 1,
 			  MT9V032_VERTICAL_BLANKING_DEF);
+	mt9v032->test_pattern = v4l2_ctrl_new_std_menu_items(&mt9v032->ctrls,
+				&mt9v032_ctrl_ops, V4L2_CID_TEST_PATTERN,
+				ARRAY_SIZE(mt9v032_test_pattern_menu) - 1, 0, 0,
+				mt9v032_test_pattern_menu);
+	mt9v032->test_pattern_color = v4l2_ctrl_new_custom(&mt9v032->ctrls,
+				      &mt9v032_test_pattern_color, NULL);
+
+	v4l2_ctrl_cluster(2, &mt9v032->test_pattern);
 
 	mt9v032->pixel_rate =
 		v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
@@ -784,8 +802,6 @@ static int mt9v032_probe(struct i2c_client *client,
 		v4l2_ctrl_cluster(2, &mt9v032->link_freq);
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mt9v032_ctrls); ++i)
-		v4l2_ctrl_new_custom(&mt9v032->ctrls, &mt9v032_ctrls[i], NULL);
 
 	mt9v032->subdev.ctrl_handler = &mt9v032->ctrls;
 

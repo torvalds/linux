@@ -17,11 +17,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include "timer.h"
-
 #include <asm/mach-jz4740/base.h>
+#include <asm/mach-jz4740/timer.h>
 
 void __iomem *jz4740_timer_base;
+EXPORT_SYMBOL_GPL(jz4740_timer_base);
 
 void jz4740_timer_enable_watchdog(void)
 {

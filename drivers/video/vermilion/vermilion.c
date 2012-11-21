@@ -1167,8 +1167,7 @@ void vmlfb_unregister_subsys(struct vml_sys *sys)
 	list_for_each_entry_safe(entry, next, &global_has_mode, head) {
 		printk(KERN_DEBUG MODULE_NAME ": subsys disable pipe\n");
 		vmlfb_disable_pipe(entry);
-		list_del(&entry->head);
-		list_add_tail(&entry->head, &global_no_mode);
+		list_move_tail(&entry->head, &global_no_mode);
 	}
 	mutex_unlock(&vml_mutex);
 }

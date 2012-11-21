@@ -311,12 +311,13 @@ static int vpif_start_streaming(struct vb2_queue *vq, unsigned int count)
 	}
 
 	/* configure 1 or 2 channel mode */
-	ret = vpif_config_data->setup_input_channel_mode
-					(vpif->std_info.ycmux_mode);
-
-	if (ret < 0) {
-		vpif_dbg(1, debug, "can't set vpif channel mode\n");
-		return ret;
+	if (vpif_config_data->setup_input_channel_mode) {
+		ret = vpif_config_data->
+			setup_input_channel_mode(vpif->std_info.ycmux_mode);
+		if (ret < 0) {
+			vpif_dbg(1, debug, "can't set vpif channel mode\n");
+			return ret;
+		}
 	}
 
 	/* Call vpif_set_params function to set the parameters and addresses */
@@ -863,13 +864,11 @@ static unsigned int vpif_poll(struct file *filep, poll_table * wait)
  */
 static int vpif_open(struct file *filep)
 {
-	struct vpif_capture_config *config = vpif_dev->platform_data;
 	struct video_device *vdev = video_devdata(filep);
 	struct common_obj *common;
 	struct video_obj *vid_ch;
 	struct channel_obj *ch;
 	struct vpif_fh *fh;
-	int i;
 
 	vpif_dbg(2, debug, "vpif_open\n");
 
@@ -877,26 +876,6 @@ static int vpif_open(struct file *filep)
 
 	vid_ch = &ch->video;
 	common = &ch->common[VPIF_VIDEO_INDEX];
-
-	if (NULL == ch->curr_subdev_info) {
-		/**
-		 * search through the sub device to see a registered
-		 * sub device and make it as current sub device
-		 */
-		for (i = 0; i < config->subdev_count; i++) {
-			if (vpif_obj.sd[i]) {
-				/* the sub device is registered */
-				ch->curr_subdev_info = &config->subdev_info[i];
-				/* make first input as the current input */
-				vid_ch->input_idx = 0;
-				break;
-			}
-		}
-		if (i == config->subdev_count) {
-			vpif_err("No sub device registered\n");
-			return -ENOENT;
-		}
-	}
 
 	/* Allocate memory for the file handle object */
 	fh = kzalloc(sizeof(struct vpif_fh), GFP_KERNEL);
@@ -997,6 +976,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	struct common_obj *common;
 	u8 index = 0;
 	struct vb2_queue *q;
+	int ret;
 
 	vpif_dbg(2, debug, "vpif_reqbufs\n");
 
@@ -1036,8 +1016,12 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpif_cap_buffer);
 
-	vb2_queue_init(q);
-
+	ret = vb2_queue_init(q);
+	if (ret) {
+		vpif_err("vpif_capture: vb2_queue_init() failed\n");
+		vb2_dma_contig_cleanup_ctx(common->alloc_ctx);
+		return ret;
+	}
 	/* Set io allowed member of file handle to TRUE */
 	fh->io_allowed[index] = 1;
 	/* Increment io usrs member of channel object to 1 */
@@ -1175,10 +1159,9 @@ static int vpif_streamon(struct file *file, void *priv,
 		return ret;
 
 	/* Enable streamon on the sub device */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
-				s_stream, 1);
+	ret = v4l2_subdev_call(ch->sd, video, s_stream, 1);
 
-	if (ret && (ret != -ENOIOCTLCMD)) {
+	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV) {
 		vpif_dbg(1, debug, "stream on failed in subdev\n");
 		return ret;
 	}
@@ -1238,73 +1221,105 @@ static int vpif_streamoff(struct file *file, void *priv,
 
 	common->started = 0;
 
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
-				s_stream, 0);
+	ret = v4l2_subdev_call(ch->sd, video, s_stream, 0);
 
-	if (ret && (ret != -ENOIOCTLCMD))
+	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV)
 		vpif_dbg(1, debug, "stream off failed in subdev\n");
 
 	return vb2_streamoff(&common->buffer_queue, buftype);
 }
 
 /**
- * vpif_map_sub_device_to_input() - Maps sub device to input
- * @ch - ptr to channel
- * @config - ptr to capture configuration
+ * vpif_input_to_subdev() - Maps input to sub device
+ * @vpif_cfg - global config ptr
+ * @chan_cfg - channel config ptr
  * @input_index - Given input index from application
- * @sub_device_index - index into sd table
  *
  * lookup the sub device information for a given input index.
  * we report all the inputs to application. inputs table also
  * has sub device name for the each input
  */
-static struct vpif_subdev_info *vpif_map_sub_device_to_input(
-				struct channel_obj *ch,
-				struct vpif_capture_config *vpif_cfg,
-				int input_index,
-				int *sub_device_index)
+static int vpif_input_to_subdev(
+		struct vpif_capture_config *vpif_cfg,
+		struct vpif_capture_chan_config *chan_cfg,
+		int input_index)
 {
-	struct vpif_capture_chan_config *chan_cfg;
-	struct vpif_subdev_info *subdev_info = NULL;
-	const char *subdev_name = NULL;
+	struct vpif_subdev_info *subdev_info;
+	const char *subdev_name;
 	int i;
 
-	vpif_dbg(2, debug, "vpif_map_sub_device_to_input\n");
+	vpif_dbg(2, debug, "vpif_input_to_subdev\n");
 
-	chan_cfg = &vpif_cfg->chan_config[ch->channel_id];
-
-	/**
-	 * search through the inputs to find the sub device supporting
-	 * the input
-	 */
-	for (i = 0; i < chan_cfg->input_count; i++) {
-		/* For each sub device, loop through input */
-		if (i == input_index) {
-			subdev_name = chan_cfg->inputs[i].subdev_name;
-			break;
-		}
-	}
-
-	/* if reached maximum. return null */
-	if (i == chan_cfg->input_count || (NULL == subdev_name))
-		return subdev_info;
+	subdev_name = chan_cfg->inputs[input_index].subdev_name;
+	if (subdev_name == NULL)
+		return -1;
 
 	/* loop through the sub device list to get the sub device info */
 	for (i = 0; i < vpif_cfg->subdev_count; i++) {
 		subdev_info = &vpif_cfg->subdev_info[i];
 		if (!strcmp(subdev_info->name, subdev_name))
-			break;
+			return i;
+	}
+	return -1;
+}
+
+/**
+ * vpif_set_input() - Select an input
+ * @vpif_cfg - global config ptr
+ * @ch - channel
+ * @_index - Given input index from application
+ *
+ * Select the given input.
+ */
+static int vpif_set_input(
+		struct vpif_capture_config *vpif_cfg,
+		struct channel_obj *ch,
+		int index)
+{
+	struct vpif_capture_chan_config *chan_cfg =
+			&vpif_cfg->chan_config[ch->channel_id];
+	struct vpif_subdev_info *subdev_info = NULL;
+	struct v4l2_subdev *sd = NULL;
+	u32 input = 0, output = 0;
+	int sd_index;
+	int ret;
+
+	sd_index = vpif_input_to_subdev(vpif_cfg, chan_cfg, index);
+	if (sd_index >= 0) {
+		sd = vpif_obj.sd[sd_index];
+		subdev_info = &vpif_cfg->subdev_info[sd_index];
 	}
 
-	if (i == vpif_cfg->subdev_count)
-		return subdev_info;
+	/* first setup input path from sub device to vpif */
+	if (sd && vpif_cfg->setup_input_path) {
+		ret = vpif_cfg->setup_input_path(ch->channel_id,
+				       subdev_info->name);
+		if (ret < 0) {
+			vpif_dbg(1, debug, "couldn't setup input path for the" \
+			" sub device %s, for input index %d\n",
+			subdev_info->name, index);
+			return ret;
+		}
+	}
 
-	/* check if the sub device is registered */
-	if (NULL == vpif_obj.sd[i])
-		return NULL;
+	if (sd) {
+		input = chan_cfg->inputs[index].input_route;
+		output = chan_cfg->inputs[index].output_route;
+		ret = v4l2_subdev_call(sd, video, s_routing,
+				input, output, 0);
+		if (ret < 0 && ret != -ENOIOCTLCMD) {
+			vpif_dbg(1, debug, "Failed to set input\n");
+			return ret;
+		}
+	}
+	ch->input_idx = index;
+	ch->sd = sd;
+	/* copy interface parameters to vpif */
+	ch->vpifparams.iface = chan_cfg->vpif_if;
 
-	*sub_device_index = i;
-	return subdev_info;
+	/* update tvnorms from the sub device input info */
+	ch->video_dev->tvnorms = chan_cfg->inputs[index].input.std;
+	return 0;
 }
 
 /**
@@ -1324,12 +1339,16 @@ static int vpif_querystd(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_dbg(2, debug, "vpif_querystd\n");
 
 	/* Call querystd function of decoder device */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], video,
-				querystd, std_id);
-	if (ret < 0)
-		vpif_dbg(1, debug, "Failed to set standard for sub devices\n");
+	ret = v4l2_subdev_call(ch->sd, video, querystd, std_id);
 
-	return ret;
+	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
+		return -ENODATA;
+	if (ret) {
+		vpif_dbg(1, debug, "Failed to query standard for sub devices\n");
+		return ret;
+	}
+
+	return 0;
 }
 
 /**
@@ -1397,11 +1416,12 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_config_format(ch);
 
 	/* set standard in the sub device */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
-				s_std, *std_id);
-	if (ret < 0)
+	ret = v4l2_subdev_call(ch->sd, core, s_std, *std_id);
+	if (ret && ret != -ENOIOCTLCMD && ret != -ENODEV) {
 		vpif_dbg(1, debug, "Failed to set standard for sub devices\n");
-	return ret;
+		return ret;
+	}
+	return 0;
 }
 
 /**
@@ -1441,10 +1461,8 @@ static int vpif_g_input(struct file *file, void *priv, unsigned int *index)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
-	struct video_obj *vid_ch = &ch->video;
 
-	*index = vid_ch->input_idx;
-
+	*index = ch->input_idx;
 	return 0;
 }
 
@@ -1461,12 +1479,12 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
-	struct video_obj *vid_ch = &ch->video;
-	struct vpif_subdev_info *subdev_info;
-	int ret = 0, sd_index = 0;
-	u32 input = 0, output = 0;
+	int ret;
 
 	chan_cfg = &config->chan_config[ch->channel_id];
+
+	if (index >= chan_cfg->input_count)
+		return -EINVAL;
 
 	if (common->started) {
 		vpif_err("Streaming in progress\n");
@@ -1486,45 +1504,7 @@ static int vpif_s_input(struct file *file, void *priv, unsigned int index)
 		return ret;
 
 	fh->initialized = 1;
-	subdev_info = vpif_map_sub_device_to_input(ch, config, index,
-						   &sd_index);
-	if (NULL == subdev_info) {
-		vpif_dbg(1, debug,
-			"couldn't lookup sub device for the input index\n");
-		return -EINVAL;
-	}
-
-	/* first setup input path from sub device to vpif */
-	if (config->setup_input_path) {
-		ret = config->setup_input_path(ch->channel_id,
-					       subdev_info->name);
-		if (ret < 0) {
-			vpif_dbg(1, debug, "couldn't setup input path for the"
-				" sub device %s, for input index %d\n",
-				subdev_info->name, index);
-			return ret;
-		}
-	}
-
-	if (subdev_info->can_route) {
-		input = subdev_info->input;
-		output = subdev_info->output;
-		ret = v4l2_subdev_call(vpif_obj.sd[sd_index], video, s_routing,
-					input, output, 0);
-		if (ret < 0) {
-			vpif_dbg(1, debug, "Failed to set input\n");
-			return ret;
-		}
-	}
-	vid_ch->input_idx = index;
-	ch->curr_subdev_info = subdev_info;
-	ch->curr_sd_index = sd_index;
-	/* copy interface parameters to vpif */
-	ch->vpifparams.iface = subdev_info->vpif_if;
-
-	/* update tvnorms from the sub device input info */
-	ch->video_dev->tvnorms = chan_cfg->inputs[index].input.std;
-	return ret;
+	return vpif_set_input(config, ch, index);
 }
 
 /**
@@ -1655,9 +1635,11 @@ static int vpif_querycap(struct file *file, void  *priv,
 {
 	struct vpif_capture_config *config = vpif_dev->platform_data;
 
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
-	strlcpy(cap->driver, "vpif capture", sizeof(cap->driver));
-	strlcpy(cap->bus_info, "VPIF Platform", sizeof(cap->bus_info));
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+	snprintf(cap->driver, sizeof(cap->driver), "%s", dev_name(vpif_dev));
+	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
+		 dev_name(vpif_dev));
 	strlcpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;
@@ -1730,9 +1712,12 @@ vpif_enum_dv_timings(struct file *file, void *priv,
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
+	int ret;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-				video, enum_dv_timings, timings);
+	ret = v4l2_subdev_call(ch->sd, video, enum_dv_timings, timings);
+	if (ret == -ENOIOCTLCMD && ret == -ENODEV)
+		return -EINVAL;
+	return ret;
 }
 
 /**
@@ -1747,9 +1732,12 @@ vpif_query_dv_timings(struct file *file, void *priv,
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
+	int ret;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-				video, query_dv_timings, timings);
+	ret = v4l2_subdev_call(ch->sd, video, query_dv_timings, timings);
+	if (ret == -ENOIOCTLCMD && ret == -ENODEV)
+		return -ENODATA;
+	return ret;
 }
 
 /**
@@ -1775,13 +1763,9 @@ static int vpif_s_dv_timings(struct file *file, void *priv,
 	}
 
 	/* Configure subdevice timings, if any */
-	ret = v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index],
-			video, s_dv_timings, timings);
-	if (ret == -ENOIOCTLCMD) {
-		vpif_dbg(2, debug, "Custom DV timings not supported by "
-				"subdevice\n");
-		return -EINVAL;
-	}
+	ret = v4l2_subdev_call(ch->sd, video, s_dv_timings, timings);
+	if (ret == -ENOIOCTLCMD || ret == -ENODEV)
+		ret = 0;
 	if (ret < 0) {
 		vpif_dbg(2, debug, "Error setting custom DV timings\n");
 		return ret;
@@ -1906,8 +1890,7 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
-			g_register, reg);
+	return v4l2_subdev_call(ch->sd, core, g_register, reg);
 }
 
 /*
@@ -1924,8 +1907,7 @@ static int vpif_dbg_s_register(struct file *file, void *priv,
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 
-	return v4l2_subdev_call(vpif_obj.sd[ch->curr_sd_index], core,
-			s_register, reg);
+	return v4l2_subdev_call(ch->sd, core, s_register, reg);
 }
 #endif
 
@@ -2063,7 +2045,8 @@ static __init int vpif_probe(struct platform_device *pdev)
 {
 	struct vpif_subdev_info *subdevdata;
 	struct vpif_capture_config *config;
-	int i, j, k, m, q, err;
+	int i, j, k, err;
+	int res_idx = 0;
 	struct i2c_adapter *i2c_adap;
 	struct channel_obj *ch;
 	struct common_obj *common;
@@ -2086,18 +2069,19 @@ static __init int vpif_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	k = 0;
-	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
+	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, res_idx))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, vpif_channel_isr, IRQF_SHARED,
-					"VPIF_Capture",
-				(void *)(&vpif_obj.dev[k]->channel_id))) {
+					"VPIF_Capture", (void *)
+					(&vpif_obj.dev[res_idx]->channel_id))) {
 				err = -EBUSY;
-				i--;
+				for (j = 0; j < i; j++)
+					free_irq(j, (void *)
+					(&vpif_obj.dev[res_idx]->channel_id));
 				goto vpif_int_err;
 			}
 		}
-		k++;
+		res_idx++;
 	}
 
 	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
@@ -2111,7 +2095,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 				video_device_release(ch->video_dev);
 			}
 			err = -ENOMEM;
-			goto vpif_dev_alloc_err;
+			goto vpif_int_err;
 		}
 
 		/* Initialize field of video device */
@@ -2142,24 +2126,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 	}
 
-	for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
-		ch = vpif_obj.dev[j];
-		ch->channel_id = j;
-		common = &(ch->common[VPIF_VIDEO_INDEX]);
-		spin_lock_init(&common->irqlock);
-		mutex_init(&common->lock);
-		ch->video_dev->lock = &common->lock;
-		/* Initialize prio member of channel object */
-		v4l2_prio_init(&ch->prio);
-		err = video_register_device(ch->video_dev,
-					    VFL_TYPE_GRABBER, (j ? 1 : 0));
-		if (err)
-			goto probe_out;
-
-		video_set_drvdata(ch->video_dev, ch);
-
-	}
-
 	i2c_adap = i2c_get_adapter(1);
 	config = pdev->dev.platform_data;
 
@@ -2169,7 +2135,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	if (vpif_obj.sd == NULL) {
 		vpif_err("unable to allocate memory for subdevice pointers\n");
 		err = -ENOMEM;
-		goto probe_out;
+		goto vpif_sd_error;
 	}
 
 	for (i = 0; i < subdev_count; i++) {
@@ -2186,19 +2152,32 @@ static __init int vpif_probe(struct platform_device *pdev)
 		}
 		v4l2_info(&vpif_obj.v4l2_dev, "registered sub device %s\n",
 			  subdevdata->name);
-
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 
+	for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
+		ch = vpif_obj.dev[j];
+		ch->channel_id = j;
+		common = &(ch->common[VPIF_VIDEO_INDEX]);
+		spin_lock_init(&common->irqlock);
+		mutex_init(&common->lock);
+		ch->video_dev->lock = &common->lock;
+		/* Initialize prio member of channel object */
+		v4l2_prio_init(&ch->prio);
+		video_set_drvdata(ch->video_dev, ch);
+
+		/* select input 0 */
+		err = vpif_set_input(config, ch, 0);
+		if (err)
+			goto probe_out;
+
+		err = video_register_device(ch->video_dev,
+					    VFL_TYPE_GRABBER, (j ? 1 : 0));
+		if (err)
+			goto probe_out;
+	}
 	v4l2_info(&vpif_obj.v4l2_dev, "VPIF capture driver initialized\n");
 	return 0;
 
-probe_subdev_out:
-	/* free sub devices memory */
-	kfree(vpif_obj.sd);
-
-	j = VPIF_CAPTURE_MAX_DEVICES;
 probe_out:
 	for (k = 0; k < j; k++) {
 		/* Get the pointer to the channel object */
@@ -2206,22 +2185,23 @@ probe_out:
 		/* Unregister video device */
 		video_unregister_device(ch->video_dev);
 	}
+probe_subdev_out:
+	/* free sub devices memory */
+	kfree(vpif_obj.sd);
 
-vpif_dev_alloc_err:
-	k = VPIF_CAPTURE_MAX_DEVICES-1;
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, k);
-	i = res->end;
-
-vpif_int_err:
-	for (q = k; q >= 0; q--) {
-		for (m = i; m >= (int)res->start; m--)
-			free_irq(m, (void *)(&vpif_obj.dev[q]->channel_id));
-
-		res = platform_get_resource(pdev, IORESOURCE_IRQ, q-1);
-		if (res)
-			i = res->end;
+vpif_sd_error:
+	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
+		ch = vpif_obj.dev[i];
+		/* Note: does nothing if ch->video_dev == NULL */
+		video_device_release(ch->video_dev);
 	}
+vpif_int_err:
 	v4l2_device_unregister(&vpif_obj.v4l2_dev);
+	for (i = 0; i < res_idx; i++) {
+		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
+		for (j = res->start; j <= res->end; j++)
+			free_irq(j, (void *)(&vpif_obj.dev[i]->channel_id));
+	}
 	return err;
 }
 

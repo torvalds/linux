@@ -12,10 +12,10 @@
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 #include <asm/unistd.h>
-#include "init.h"
-#include "longjmp.h"
-#include "os.h"
-#include "skas_ptrace.h"
+#include <init.h>
+#include <longjmp.h>
+#include <os.h>
+#include <skas_ptrace.h>
 
 #define ARBITRARY_ADDR -1
 #define FAILURE_PID    -1
@@ -243,17 +243,4 @@ void init_new_thread_signals(void)
 	set_handler(SIGIO);
 	signal(SIGWINCH, SIG_IGN);
 	signal(SIGTERM, SIG_DFL);
-}
-
-int run_kernel_thread(int (*fn)(void *), void *arg, jmp_buf **jmp_ptr)
-{
-	jmp_buf buf;
-	int n;
-
-	*jmp_ptr = &buf;
-	n = UML_SETJMP(&buf);
-	if (n != 0)
-		return n;
-	(*fn)(arg);
-	return 0;
 }

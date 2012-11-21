@@ -133,13 +133,13 @@ _sys_clone(nabi_no_regargs struct pt_regs regs)
 asmlinkage int sys_execve(nabi_no_regargs struct pt_regs regs)
 {
 	int error;
-	char * filename;
+	struct filename *filename;
 
 	filename = getname((const char __user *) (long)regs.regs[4]);
 	error = PTR_ERR(filename);
 	if (IS_ERR(filename))
 		goto out;
-	error = do_execve(filename,
+	error = do_execve(filename->name,
 			  (const char __user *const __user *) (long)regs.regs[5],
 	                  (const char __user *const __user *) (long)regs.regs[6],
 			  &regs);

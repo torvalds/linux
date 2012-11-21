@@ -36,6 +36,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/jiffies.h>
 
 /* chip registers */
 #define LTC4151_SENSE_H	0x00

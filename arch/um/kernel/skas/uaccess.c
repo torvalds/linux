@@ -11,8 +11,8 @@
 #include <asm/current.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include "kern_util.h"
-#include "os.h"
+#include <kern_util.h>
+#include <os.h>
 
 pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr)
 {

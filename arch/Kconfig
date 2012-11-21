@@ -271,6 +271,12 @@ config ARCH_WANT_OLD_COMPAT_IPC
 	select ARCH_WANT_COMPAT_IPC_PARSE_VERSION
 	bool
 
+config GENERIC_KERNEL_THREAD
+	bool
+
+config GENERIC_KERNEL_EXECVE
+	bool
+
 config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help
@@ -315,5 +321,24 @@ config HAVE_IRQ_TIME_ACCOUNTING
 
 config HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	bool
+
+config HAVE_MOD_ARCH_SPECIFIC
+	bool
+	help
+	  The arch uses struct mod_arch_specific to store data.  Many arches
+	  just need a simple module loader without arch specific data - those
+	  should not enable this.
+
+config MODULES_USE_ELF_RELA
+	bool
+	help
+	  Modules only use ELF RELA relocations.  Modules with ELF REL
+	  relocations will give an error.
+
+config MODULES_USE_ELF_REL
+	bool
+	help
+	  Modules only use ELF REL relocations.  Modules with ELF RELA
+	  relocations will give an error.
 
 source "kernel/gcov/Kconfig"

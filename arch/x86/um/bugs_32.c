@@ -4,9 +4,9 @@
  */
 
 #include <signal.h>
-#include "kern_util.h"
-#include "longjmp.h"
-#include "sysdep/ptrace.h"
+#include <kern_util.h>
+#include <longjmp.h>
+#include <sysdep/ptrace.h>
 #include <generated/asm-offsets.h>
 
 /* Set during early boot */

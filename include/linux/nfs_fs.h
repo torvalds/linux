@@ -5,38 +5,11 @@
  *
  *  OS-specific nfs filesystem definitions and declarations
  */
-
 #ifndef _LINUX_NFS_FS_H
 #define _LINUX_NFS_FS_H
 
-#include <linux/magic.h>
+#include <uapi/linux/nfs_fs.h>
 
-/* Default timeout values */
-#define NFS_DEF_UDP_TIMEO	(11)
-#define NFS_DEF_UDP_RETRANS	(3)
-#define NFS_DEF_TCP_TIMEO	(600)
-#define NFS_DEF_TCP_RETRANS	(2)
-
-#define NFS_MAX_UDP_TIMEOUT	(60*HZ)
-#define NFS_MAX_TCP_TIMEOUT	(600*HZ)
-
-#define NFS_DEF_ACREGMIN	(3)
-#define NFS_DEF_ACREGMAX	(60)
-#define NFS_DEF_ACDIRMIN	(30)
-#define NFS_DEF_ACDIRMAX	(60)
-
-/*
- * When flushing a cluster of dirty pages, there can be different
- * strategies:
- */
-#define FLUSH_SYNC		1	/* file being synced, or contention */
-#define FLUSH_STABLE		4	/* commit to stable storage */
-#define FLUSH_LOWPRI		8	/* low priority background flush */
-#define FLUSH_HIGHPRI		16	/* high priority memory reclaim flush */
-#define FLUSH_COND_STABLE	32	/* conditional stable write - only stable
-					 * if everything fits in one RPC */
-
-#ifdef __KERNEL__
 
 /*
  * Enable dprintk() debugging support for nfs client.
@@ -81,12 +54,16 @@ struct nfs_access_entry {
 	int			mask;
 };
 
+struct nfs_lockowner {
+	fl_owner_t l_owner;
+	pid_t l_pid;
+};
+
 struct nfs_lock_context {
 	atomic_t count;
 	struct list_head list;
 	struct nfs_open_context *open_context;
-	fl_owner_t lockowner;
-	pid_t pid;
+	struct nfs_lockowner lockowner;
 };
 
 struct nfs4_state;
@@ -99,6 +76,7 @@ struct nfs_open_context {
 
 	unsigned long flags;
 #define NFS_CONTEXT_ERROR_WRITE		(0)
+#define NFS_CONTEXT_RESEND_WRITES	(1)
 	int error;
 
 	struct list_head list;
@@ -355,6 +333,8 @@ extern int nfs_refresh_inode(struct inode *, struct nfs_fattr *);
 extern int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_post_op_update_inode_force_wcc(struct inode *inode, struct nfs_fattr *fattr);
 extern int nfs_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern void nfs_access_add_cache(struct inode *, struct nfs_access_entry *);
+extern void nfs_access_set_mask(struct nfs_access_entry *, u32);
 extern int nfs_permission(struct inode *, int);
 extern int nfs_open(struct inode *, struct file *);
 extern int nfs_release(struct inode *, struct file *);
@@ -606,29 +586,6 @@ nfs_fileid_to_ino_t(u64 fileid)
 
 #define NFS_JUKEBOX_RETRY_TIME (5 * HZ)
 
-#endif /* __KERNEL__ */
-
-/*
- * NFS debug flags
- */
-#define NFSDBG_VFS		0x0001
-#define NFSDBG_DIRCACHE		0x0002
-#define NFSDBG_LOOKUPCACHE	0x0004
-#define NFSDBG_PAGECACHE	0x0008
-#define NFSDBG_PROC		0x0010
-#define NFSDBG_XDR		0x0020
-#define NFSDBG_FILE		0x0040
-#define NFSDBG_ROOT		0x0080
-#define NFSDBG_CALLBACK		0x0100
-#define NFSDBG_CLIENT		0x0200
-#define NFSDBG_MOUNT		0x0400
-#define NFSDBG_FSCACHE		0x0800
-#define NFSDBG_PNFS		0x1000
-#define NFSDBG_PNFS_LD		0x2000
-#define NFSDBG_STATE		0x4000
-#define NFSDBG_ALL		0xFFFF
-
-#ifdef __KERNEL__
 
 # undef ifdebug
 # ifdef NFS_DEBUG
@@ -638,6 +595,4 @@ nfs_fileid_to_ino_t(u64 fileid)
 #  define ifdebug(fac)		if (0)
 #  define NFS_IFDEBUG(x)
 # endif
-#endif /* __KERNEL */
-
 #endif

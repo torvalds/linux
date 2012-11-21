@@ -181,8 +181,10 @@ static int __devinit s3d_pci_register(struct pci_dev *pdev,
 	sp->fb_size = info->fix.line_length * sp->height;
 
 	sp->fb_base = ioremap(sp->fb_base_phys, sp->fb_size);
-	if (!sp->fb_base)
+	if (!sp->fb_base) {
+		err = -ENOMEM;
 		goto err_release_pci;
+	}
 
 	err = s3d_set_fbinfo(sp);
 	if (err)

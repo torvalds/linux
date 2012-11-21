@@ -1,12 +1,8 @@
-#ifndef __HID_H
-#define __HID_H
-
 /*
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2001 Vojtech Pavlik
  *  Copyright (c) 2006-2007 Jiri Kosina
  */
-
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,43 +22,9 @@
  * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
+#ifndef __HID_H
+#define __HID_H
 
-/*
- * USB HID (Human Interface Device) interface class code
- */
-
-#define USB_INTERFACE_CLASS_HID		3
-
-/*
- * USB HID interface subclass and protocol codes
- */
-
-#define USB_INTERFACE_SUBCLASS_BOOT	1
-#define USB_INTERFACE_PROTOCOL_KEYBOARD	1
-#define USB_INTERFACE_PROTOCOL_MOUSE	2
-
-/*
- * HID class requests
- */
-
-#define HID_REQ_GET_REPORT		0x01
-#define HID_REQ_GET_IDLE		0x02
-#define HID_REQ_GET_PROTOCOL		0x03
-#define HID_REQ_SET_REPORT		0x09
-#define HID_REQ_SET_IDLE		0x0A
-#define HID_REQ_SET_PROTOCOL		0x0B
-
-/*
- * HID class descriptor types
- */
-
-#define HID_DT_HID			(USB_TYPE_CLASS | 0x01)
-#define HID_DT_REPORT			(USB_TYPE_CLASS | 0x02)
-#define HID_DT_PHYSICAL			(USB_TYPE_CLASS | 0x03)
-
-#define HID_MAX_DESCRIPTOR_SIZE		4096
-
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -73,6 +35,7 @@
 #include <linux/input.h>
 #include <linux/semaphore.h>
 #include <linux/power_supply.h>
+#include <uapi/linux/hid.h>
 
 /*
  * We parse each description item into this structure. Short items data
@@ -943,7 +906,4 @@ do {									\
 #define hid_dbg(hid, fmt, arg...)			\
 	dev_dbg(&(hid)->dev, fmt, ##arg)
 
-#endif /* __KERNEL__ */
-
 #endif
-

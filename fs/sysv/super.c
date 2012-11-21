@@ -368,6 +368,7 @@ static int sysv_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi->s_sb = sb;
 	sbi->s_block_base = 0;
+	mutex_init(&sbi->s_lock);
 	sb->s_fs_info = sbi;
 
 	sb_set_blocksize(sb, BLOCK_SIZE);
