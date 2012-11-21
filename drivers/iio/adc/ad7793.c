@@ -106,6 +106,8 @@
 #define AD7793_ID		0xB
 #define AD7794_ID		0xF
 #define AD7795_ID		0xF
+#define AD7798_ID		0x8
+#define AD7799_ID		0x9
 #define AD7793_ID_MASK		0xF
 
 /* IO (Excitation Current Sources) Register Bit Designations (AD7793_REG_IO) */
@@ -130,10 +132,16 @@
  * The DOUT/RDY output must also be wired to an interrupt capable GPIO.
  */
 
+#define AD7793_FLAG_HAS_CLKSEL		BIT(0)
+#define AD7793_FLAG_HAS_REFSEL		BIT(1)
+#define AD7793_FLAG_HAS_VBIAS		BIT(2)
+#define AD7793_HAS_EXITATION_CURRENT	BIT(3)
+
 struct ad7793_chip_info {
 	unsigned int id;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
+	unsigned int flags;
 };
 
 struct ad7793_state {
@@ -154,6 +162,8 @@ enum ad7793_supported_device_ids {
 	ID_AD7793,
 	ID_AD7794,
 	ID_AD7795,
+	ID_AD7798,
+	ID_AD7799,
 };
 
 static struct ad7793_state *ad_sigma_delta_to_ad7793(struct ad_sigma_delta *sd)
@@ -205,6 +215,34 @@ static int ad7793_calibrate_all(struct ad7793_state *st)
 				   ARRAY_SIZE(ad7793_calib_arr));
 }
 
+static int ad7793_check_platform_data(struct ad7793_state *st,
+	const struct ad7793_platform_data *pdata)
+{
+	if ((pdata->current_source_direction == AD7793_IEXEC1_IEXEC2_IOUT1 ||
+		pdata->current_source_direction == AD7793_IEXEC1_IEXEC2_IOUT2) &&
+		((pdata->exitation_current != AD7793_IX_10uA) &&
+		(pdata->exitation_current != AD7793_IX_210uA)))
+		return -EINVAL;
+
+	if (!(st->chip_info->flags & AD7793_FLAG_HAS_CLKSEL) &&
+		pdata->clock_src != AD7793_CLK_SRC_INT)
+		return -EINVAL;
+
+	if (!(st->chip_info->flags & AD7793_FLAG_HAS_REFSEL) &&
+		pdata->refsel != AD7793_REFSEL_REFIN1)
+		return -EINVAL;
+
+	if (!(st->chip_info->flags & AD7793_FLAG_HAS_VBIAS) &&
+		pdata->bias_voltage != AD7793_BIAS_VOLTAGE_DISABLED)
+		return -EINVAL;
+
+	if (!(st->chip_info->flags & AD7793_HAS_EXITATION_CURRENT) &&
+		pdata->exitation_current != AD7793_IX_DISABLED)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int ad7793_setup(struct iio_dev *indio_dev,
 	const struct ad7793_platform_data *pdata,
 	unsigned int vref_mv)
@@ -214,11 +252,9 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	unsigned long long scale_uv;
 	u32 id;
 
-	if ((pdata->current_source_direction == AD7793_IEXEC1_IEXEC2_IOUT1 ||
-		pdata->current_source_direction == AD7793_IEXEC1_IEXEC2_IOUT2) &&
-		((pdata->exitation_current != AD7793_IX_10uA) &&
-		(pdata->exitation_current != AD7793_IX_210uA)))
-		return -EINVAL;
+	ret = ad7793_check_platform_data(st, pdata);
+	if (ret)
+		return ret;
 
 	/* reset the serial interface */
 	ret = spi_write(st->sd.spi, (u8 *)&ret, sizeof(ret));
@@ -239,12 +275,18 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	}
 
 	st->mode = AD7793_MODE_RATE(1);
-	st->mode |= AD7793_MODE_CLKSRC(pdata->clock_src);
-	st->conf = AD7793_CONF_REFSEL(pdata->refsel);
-	st->conf |= AD7793_CONF_VBIAS(pdata->bias_voltage);
+	st->conf = 0;
+
+	if (st->chip_info->flags & AD7793_FLAG_HAS_CLKSEL)
+		st->mode |= AD7793_MODE_CLKSRC(pdata->clock_src);
+	if (st->chip_info->flags & AD7793_FLAG_HAS_REFSEL)
+		st->conf |= AD7793_CONF_REFSEL(pdata->refsel);
+	if (st->chip_info->flags & AD7793_FLAG_HAS_VBIAS)
+		st->conf |= AD7793_CONF_VBIAS(pdata->bias_voltage);
 	if (pdata->buffered)
 		st->conf |= AD7793_CONF_BUF;
-	if (pdata->boost_enable)
+	if (pdata->boost_enable &&
+		(st->chip_info->flags & AD7793_FLAG_HAS_VBIAS))
 		st->conf |= AD7793_CONF_BOOST;
 	if (pdata->burnout_current)
 		st->conf |= AD7793_CONF_BO_EN;
@@ -259,11 +301,13 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	if (ret)
 		goto out;
 
-	ret = ad_sd_write_reg(&st->sd, AD7793_REG_IO, 1,
-				   pdata->exitation_current |
-			       (pdata->current_source_direction << 2));
-	if (ret)
-		goto out;
+	if (st->chip_info->flags & AD7793_HAS_EXITATION_CURRENT) {
+		ret = ad_sd_write_reg(&st->sd, AD7793_REG_IO, 1,
+				pdata->exitation_current |
+				(pdata->current_source_direction << 2));
+		if (ret)
+			goto out;
+	}
 
 	ret = ad7793_calibrate_all(st);
 	if (ret)
@@ -525,37 +569,79 @@ const struct iio_chan_spec _name##_channels[] = { \
 	IIO_CHAN_SOFT_TIMESTAMP(9), \
 }
 
+#define DECLARE_AD7799_CHANNELS(_name, _b, _sb) \
+const struct iio_chan_spec _name##_channels[] = { \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(1, 1, 1, AD7793_CH_AIN2P_AIN2M, (_b), (_sb), 0), \
+	AD_SD_DIFF_CHANNEL(2, 2, 2, AD7793_CH_AIN3P_AIN3M, (_b), (_sb), 0), \
+	AD_SD_SHORTED_CHANNEL(3, 0, AD7793_CH_AIN1M_AIN1M, (_b), (_sb), 0), \
+	AD_SD_SUPPLY_CHANNEL(4, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), 0), \
+	IIO_CHAN_SOFT_TIMESTAMP(5), \
+}
+
 static DECLARE_AD7793_CHANNELS(ad7785, 20, 32, 4);
 static DECLARE_AD7793_CHANNELS(ad7792, 16, 32, 0);
 static DECLARE_AD7793_CHANNELS(ad7793, 24, 32, 0);
 static DECLARE_AD7795_CHANNELS(ad7794, 16, 32);
 static DECLARE_AD7795_CHANNELS(ad7795, 24, 32);
+static DECLARE_AD7799_CHANNELS(ad7798, 16, 16);
+static DECLARE_AD7799_CHANNELS(ad7799, 24, 32);
 
 static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 	[ID_AD7785] = {
 		.id = AD7785_ID,
 		.channels = ad7785_channels,
 		.num_channels = ARRAY_SIZE(ad7785_channels),
+		.flags = AD7793_FLAG_HAS_CLKSEL |
+			AD7793_FLAG_HAS_REFSEL |
+			AD7793_FLAG_HAS_VBIAS |
+			AD7793_HAS_EXITATION_CURRENT,
 	},
 	[ID_AD7792] = {
 		.id = AD7792_ID,
 		.channels = ad7792_channels,
 		.num_channels = ARRAY_SIZE(ad7792_channels),
+		.flags = AD7793_FLAG_HAS_CLKSEL |
+			AD7793_FLAG_HAS_REFSEL |
+			AD7793_FLAG_HAS_VBIAS |
+			AD7793_HAS_EXITATION_CURRENT,
 	},
 	[ID_AD7793] = {
 		.id = AD7793_ID,
 		.channels = ad7793_channels,
 		.num_channels = ARRAY_SIZE(ad7793_channels),
+		.flags = AD7793_FLAG_HAS_CLKSEL |
+			AD7793_FLAG_HAS_REFSEL |
+			AD7793_FLAG_HAS_VBIAS |
+			AD7793_HAS_EXITATION_CURRENT,
 	},
 	[ID_AD7794] = {
 		.id = AD7794_ID,
 		.channels = ad7794_channels,
 		.num_channels = ARRAY_SIZE(ad7794_channels),
+		.flags = AD7793_FLAG_HAS_CLKSEL |
+			AD7793_FLAG_HAS_REFSEL |
+			AD7793_FLAG_HAS_VBIAS |
+			AD7793_HAS_EXITATION_CURRENT,
 	},
 	[ID_AD7795] = {
 		.id = AD7795_ID,
 		.channels = ad7795_channels,
 		.num_channels = ARRAY_SIZE(ad7795_channels),
+		.flags = AD7793_FLAG_HAS_CLKSEL |
+			AD7793_FLAG_HAS_REFSEL |
+			AD7793_FLAG_HAS_VBIAS |
+			AD7793_HAS_EXITATION_CURRENT,
+	},
+	[ID_AD7798] = {
+		.id = AD7798_ID,
+		.channels = ad7798_channels,
+		.num_channels = ARRAY_SIZE(ad7798_channels),
+	},
+	[ID_AD7799] = {
+		.id = AD7799_ID,
+		.channels = ad7799_channels,
+		.num_channels = ARRAY_SIZE(ad7799_channels),
 	},
 };
 
@@ -671,6 +757,8 @@ static const struct spi_device_id ad7793_id[] = {
 	{"ad7793", ID_AD7793},
 	{"ad7794", ID_AD7794},
 	{"ad7795", ID_AD7795},
+	{"ad7798", ID_AD7798},
+	{"ad7799", ID_AD7799},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad7793_id);
