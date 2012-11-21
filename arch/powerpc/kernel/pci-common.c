@@ -1428,8 +1428,6 @@ void __init pcibios_resource_survey(void)
 		ppc_md.pcibios_fixup();
 }
 
-#ifdef CONFIG_HOTPLUG
-
 /* This is used by the PCI hotplug driver to allocate resource
  * of newly plugged busses. We can try to consolidate with the
  * rest of the code later, for now, keep it as-is as our main
@@ -1487,8 +1485,6 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	eeh_add_device_tree_late(bus);
 }
 EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
-
-#endif /* CONFIG_HOTPLUG */
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)
 {
