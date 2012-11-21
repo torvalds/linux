@@ -3,6 +3,7 @@
 generic-y += bug.h
 generic-y += bugs.h
 generic-y += checksum.h
+generic-y += clkdev.h
 generic-y += cputime.h
 generic-y += current.h
 generic-y += delay.h
