@@ -77,8 +77,15 @@ static int batadv_compare_backbone_gw(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_backbone_gw,
 					 hash_entry);
+	const struct batadv_backbone_gw *gw1 = data1, *gw2 = data2;
 
-	return (memcmp(data1, data2, ETH_ALEN + sizeof(short)) == 0 ? 1 : 0);
+	if (!batadv_compare_eth(gw1->orig, gw2->orig))
+		return 0;
+
+	if (gw1->vid != gw2->vid)
+		return 0;
+
+	return 1;
 }
 
 /* compares address and vid of two claims */
@@ -87,8 +94,15 @@ static int batadv_compare_claim(const struct hlist_node *node,
 {
 	const void *data1 = container_of(node, struct batadv_claim,
 					 hash_entry);
+	const struct batadv_claim *cl1 = data1, *cl2 = data2;
 
-	return (memcmp(data1, data2, ETH_ALEN + sizeof(short)) == 0 ? 1 : 0);
+	if (!batadv_compare_eth(cl1->addr, cl2->addr))
+		return 0;
+
+	if (cl1->vid != cl2->vid)
+		return 0;
+
+	return 1;
 }
 
 /* free a backbone gw */
@@ -1235,8 +1249,7 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
 /**
  * batadv_bla_check_bcast_duplist
  * @bat_priv: the bat priv with all the soft interface information
- * @bcast_packet: encapsulated broadcast frame plus batman header
- * @bcast_packet_len: length of encapsulated broadcast frame plus batman header
+ * @skb: contains the bcast_packet to be checked
  *
  * check if it is on our broadcast list. Another gateway might
  * have sent the same packet because it is connected to the same backbone,
@@ -1248,20 +1261,17 @@ int batadv_bla_init(struct batadv_priv *bat_priv)
  * the same host however as this might be intended.
  */
 int batadv_bla_check_bcast_duplist(struct batadv_priv *bat_priv,
-				   struct batadv_bcast_packet *bcast_packet,
-				   int bcast_packet_len)
+				   struct sk_buff *skb)
 {
-	int i, length, curr, ret = 0;
-	uint8_t *content;
-	uint16_t crc;
+	int i, curr, ret = 0;
+	__be32 crc;
+	struct batadv_bcast_packet *bcast_packet;
 	struct batadv_bcast_duplist_entry *entry;
 
-	length = bcast_packet_len - sizeof(*bcast_packet);
-	content = (uint8_t *)bcast_packet;
-	content += sizeof(*bcast_packet);
+	bcast_packet = (struct batadv_bcast_packet *)skb->data;
 
 	/* calculate the crc ... */
-	crc = crc16(0, content, length);
+	crc = batadv_skb_crc32(skb, (u8 *)(bcast_packet + 1));
 
 	spin_lock_bh(&bat_priv->bla.bcast_duplist_lock);
 

@@ -78,6 +78,39 @@ send_skb_err:
 	return NET_XMIT_DROP;
 }
 
+/**
+ * batadv_send_skb_to_orig - Lookup next-hop and transmit skb.
+ * @skb: Packet to be transmitted.
+ * @orig_node: Final destination of the packet.
+ * @recv_if: Interface used when receiving the packet (can be NULL).
+ *
+ * Looks up the best next-hop towards the passed originator and passes the
+ * skb on for preparation of MAC header. If the packet originated from this
+ * host, NULL can be passed as recv_if and no interface alternating is
+ * attempted.
+ *
+ * Returns TRUE on success; FALSE otherwise.
+ */
+bool batadv_send_skb_to_orig(struct sk_buff *skb,
+			     struct batadv_orig_node *orig_node,
+			     struct batadv_hard_iface *recv_if)
+{
+	struct batadv_priv *bat_priv = orig_node->bat_priv;
+	struct batadv_neigh_node *neigh_node;
+
+	/* batadv_find_router() increases neigh_nodes refcount if found. */
+	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
+	if (!neigh_node)
+		return false;
+
+	/* route it */
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+
+	batadv_neigh_node_free_ref(neigh_node);
+
+	return true;
+}
+
 void batadv_schedule_bat_ogm(struct batadv_hard_iface *hard_iface)
 {
 	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);

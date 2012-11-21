@@ -911,8 +911,44 @@ out:
 	return ret;
 }
 
-/* print all orig nodes who announce the address for this global entry.
- * it is assumed that the caller holds rcu_read_lock();
+/* batadv_transtable_best_orig - Get best originator list entry from tt entry
+ * @tt_global_entry: global translation table entry to be analyzed
+ *
+ * This functon assumes the caller holds rcu_read_lock().
+ * Returns best originator list entry or NULL on errors.
+ */
+static struct batadv_tt_orig_list_entry *
+batadv_transtable_best_orig(struct batadv_tt_global_entry *tt_global_entry)
+{
+	struct batadv_neigh_node *router = NULL;
+	struct hlist_head *head;
+	struct hlist_node *node;
+	struct batadv_tt_orig_list_entry *orig_entry, *best_entry = NULL;
+	int best_tq = 0;
+
+	head = &tt_global_entry->orig_list;
+	hlist_for_each_entry_rcu(orig_entry, node, head, list) {
+		router = batadv_orig_node_get_router(orig_entry->orig_node);
+		if (!router)
+			continue;
+
+		if (router->tq_avg > best_tq) {
+			best_entry = orig_entry;
+			best_tq = router->tq_avg;
+		}
+
+		batadv_neigh_node_free_ref(router);
+	}
+
+	return best_entry;
+}
+
+/* batadv_tt_global_print_entry - print all orig nodes who announce the address
+ * for this global entry
+ * @tt_global_entry: global translation table entry to be printed
+ * @seq: debugfs table seq_file struct
+ *
+ * This functon assumes the caller holds rcu_read_lock().
  */
 static void
 batadv_tt_global_print_entry(struct batadv_tt_global_entry *tt_global_entry,
@@ -920,21 +956,37 @@ batadv_tt_global_print_entry(struct batadv_tt_global_entry *tt_global_entry,
 {
 	struct hlist_head *head;
 	struct hlist_node *node;
-	struct batadv_tt_orig_list_entry *orig_entry;
+	struct batadv_tt_orig_list_entry *orig_entry, *best_entry;
 	struct batadv_tt_common_entry *tt_common_entry;
 	uint16_t flags;
 	uint8_t last_ttvn;
 
 	tt_common_entry = &tt_global_entry->common;
+	flags = tt_common_entry->flags;
+
+	best_entry = batadv_transtable_best_orig(tt_global_entry);
+	if (best_entry) {
+		last_ttvn = atomic_read(&best_entry->orig_node->last_ttvn);
+		seq_printf(seq,	" %c %pM  (%3u) via %pM     (%3u)   [%c%c%c]\n",
+			   '*', tt_global_entry->common.addr,
+			   best_entry->ttvn, best_entry->orig_node->orig,
+			   last_ttvn,
+			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
+			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
+			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
+	}
 
 	head = &tt_global_entry->orig_list;
 
 	hlist_for_each_entry_rcu(orig_entry, node, head, list) {
-		flags = tt_common_entry->flags;
+		if (best_entry == orig_entry)
+			continue;
+
 		last_ttvn = atomic_read(&orig_entry->orig_node->last_ttvn);
-		seq_printf(seq,	" * %pM  (%3u) via %pM     (%3u)   [%c%c%c]\n",
-			   tt_global_entry->common.addr, orig_entry->ttvn,
-			   orig_entry->orig_node->orig, last_ttvn,
+		seq_printf(seq,	" %c %pM  (%3u) via %pM     (%3u)   [%c%c%c]\n",
+			   '+', tt_global_entry->common.addr,
+			   orig_entry->ttvn, orig_entry->orig_node->orig,
+			   last_ttvn,
 			   (flags & BATADV_TT_CLIENT_ROAM ? 'R' : '.'),
 			   (flags & BATADV_TT_CLIENT_WIFI ? 'W' : '.'),
 			   (flags & BATADV_TT_CLIENT_TEMP ? 'T' : '.'));
@@ -1280,11 +1332,7 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	struct batadv_tt_local_entry *tt_local_entry = NULL;
 	struct batadv_tt_global_entry *tt_global_entry = NULL;
 	struct batadv_orig_node *orig_node = NULL;
-	struct batadv_neigh_node *router = NULL;
-	struct hlist_head *head;
-	struct hlist_node *node;
-	struct batadv_tt_orig_list_entry *orig_entry;
-	int best_tq;
+	struct batadv_tt_orig_list_entry *best_entry;
 
 	if (src && atomic_read(&bat_priv->ap_isolation)) {
 		tt_local_entry = batadv_tt_local_hash_find(bat_priv, src);
@@ -1304,25 +1352,15 @@ struct batadv_orig_node *batadv_transtable_search(struct batadv_priv *bat_priv,
 	    _batadv_is_ap_isolated(tt_local_entry, tt_global_entry))
 		goto out;
 
-	best_tq = 0;
-
 	rcu_read_lock();
-	head = &tt_global_entry->orig_list;
-	hlist_for_each_entry_rcu(orig_entry, node, head, list) {
-		router = batadv_orig_node_get_router(orig_entry->orig_node);
-		if (!router)
-			continue;
-
-		if (router->tq_avg > best_tq) {
-			orig_node = orig_entry->orig_node;
-			best_tq = router->tq_avg;
-		}
-		batadv_neigh_node_free_ref(router);
-	}
+	best_entry = batadv_transtable_best_orig(tt_global_entry);
 	/* found anything? */
+	if (best_entry)
+		orig_node = best_entry->orig_node;
 	if (orig_node && !atomic_inc_not_zero(&orig_node->refcount))
 		orig_node = NULL;
 	rcu_read_unlock();
+
 out:
 	if (tt_global_entry)
 		batadv_tt_global_entry_free_ref(tt_global_entry);
@@ -1604,7 +1642,6 @@ static int batadv_send_tt_request(struct batadv_priv *bat_priv,
 {
 	struct sk_buff *skb = NULL;
 	struct batadv_tt_query_packet *tt_request;
-	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_hard_iface *primary_if;
 	struct batadv_tt_req_node *tt_req_node = NULL;
 	int ret = 1;
@@ -1642,23 +1679,15 @@ static int batadv_send_tt_request(struct batadv_priv *bat_priv,
 	if (full_table)
 		tt_request->flags |= BATADV_TT_FULL_TABLE;
 
-	neigh_node = batadv_orig_node_get_router(dst_orig_node);
-	if (!neigh_node)
-		goto out;
-
-	batadv_dbg(BATADV_DBG_TT, bat_priv,
-		   "Sending TT_REQUEST to %pM via %pM [%c]\n",
-		   dst_orig_node->orig, neigh_node->addr,
-		   (full_table ? 'F' : '.'));
+	batadv_dbg(BATADV_DBG_TT, bat_priv, "Sending TT_REQUEST to %pM [%c]\n",
+		   dst_orig_node->orig, (full_table ? 'F' : '.'));
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_REQUEST_TX);
 
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
-	ret = 0;
+	if (batadv_send_skb_to_orig(skb, dst_orig_node, NULL))
+		ret = 0;
 
 out:
-	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	if (ret)
@@ -1678,7 +1707,6 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 {
 	struct batadv_orig_node *req_dst_orig_node;
 	struct batadv_orig_node *res_dst_orig_node = NULL;
-	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_hard_iface *primary_if = NULL;
 	uint8_t orig_ttvn, req_ttvn, ttvn;
 	int ret = false;
@@ -1702,10 +1730,6 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 
 	res_dst_orig_node = batadv_orig_hash_find(bat_priv, tt_request->src);
 	if (!res_dst_orig_node)
-		goto out;
-
-	neigh_node = batadv_orig_node_get_router(res_dst_orig_node);
-	if (!neigh_node)
 		goto out;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -1779,14 +1803,13 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 		tt_response->flags |= BATADV_TT_FULL_TABLE;
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
-		   "Sending TT_RESPONSE %pM via %pM for %pM (ttvn: %u)\n",
-		   res_dst_orig_node->orig, neigh_node->addr,
-		   req_dst_orig_node->orig, req_ttvn);
+		   "Sending TT_RESPONSE %pM for %pM (ttvn: %u)\n",
+		   res_dst_orig_node->orig, req_dst_orig_node->orig, req_ttvn);
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_TX);
 
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
-	ret = true;
+	if (batadv_send_skb_to_orig(skb, res_dst_orig_node, NULL))
+		ret = true;
 	goto out;
 
 unlock:
@@ -1797,8 +1820,6 @@ out:
 		batadv_orig_node_free_ref(res_dst_orig_node);
 	if (req_dst_orig_node)
 		batadv_orig_node_free_ref(req_dst_orig_node);
-	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	if (!ret)
@@ -1812,7 +1833,6 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 			   struct batadv_tt_query_packet *tt_request)
 {
 	struct batadv_orig_node *orig_node;
-	struct batadv_neigh_node *neigh_node = NULL;
 	struct batadv_hard_iface *primary_if = NULL;
 	uint8_t my_ttvn, req_ttvn, ttvn;
 	int ret = false;
@@ -1835,10 +1855,6 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 
 	orig_node = batadv_orig_hash_find(bat_priv, tt_request->src);
 	if (!orig_node)
-		goto out;
-
-	neigh_node = batadv_orig_node_get_router(orig_node);
-	if (!neigh_node)
 		goto out;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
@@ -1904,14 +1920,14 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 		tt_response->flags |= BATADV_TT_FULL_TABLE;
 
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
-		   "Sending TT_RESPONSE to %pM via %pM [%c]\n",
-		   orig_node->orig, neigh_node->addr,
+		   "Sending TT_RESPONSE to %pM [%c]\n",
+		   orig_node->orig,
 		   (tt_response->flags & BATADV_TT_FULL_TABLE ? 'F' : '.'));
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_RESPONSE_TX);
 
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
-	ret = true;
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+		ret = true;
 	goto out;
 
 unlock:
@@ -1919,8 +1935,6 @@ unlock:
 out:
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
-	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
 		batadv_hardif_free_ref(primary_if);
 	if (!ret)
@@ -2185,7 +2199,6 @@ unlock:
 static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 				 struct batadv_orig_node *orig_node)
 {
-	struct batadv_neigh_node *neigh_node = NULL;
 	struct sk_buff *skb = NULL;
 	struct batadv_roam_adv_packet *roam_adv_packet;
 	int ret = 1;
@@ -2218,23 +2231,17 @@ static void batadv_send_roam_adv(struct batadv_priv *bat_priv, uint8_t *client,
 	memcpy(roam_adv_packet->dst, orig_node->orig, ETH_ALEN);
 	memcpy(roam_adv_packet->client, client, ETH_ALEN);
 
-	neigh_node = batadv_orig_node_get_router(orig_node);
-	if (!neigh_node)
-		goto out;
-
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
-		   "Sending ROAMING_ADV to %pM (client %pM) via %pM\n",
-		   orig_node->orig, client, neigh_node->addr);
+		   "Sending ROAMING_ADV to %pM (client %pM)\n",
+		   orig_node->orig, client);
 
 	batadv_inc_counter(bat_priv, BATADV_CNT_TT_ROAM_ADV_TX);
 
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
-	ret = 0;
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL))
+		ret = 0;
 
 out:
-	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
-	if (ret)
+	if (ret && skb)
 		kfree_skb(skb);
 	return;
 }

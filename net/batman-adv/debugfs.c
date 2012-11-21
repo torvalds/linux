@@ -323,7 +323,17 @@ struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 		}					\
 };
 
+/* the following attributes are general and therefore they will be directly
+ * placed in the BATADV_DEBUGFS_SUBDIR subdirectory of debugfs
+ */
 static BATADV_DEBUGINFO(routing_algos, S_IRUGO, batadv_algorithms_open);
+
+static struct batadv_debuginfo *batadv_general_debuginfos[] = {
+	&batadv_debuginfo_routing_algos,
+	NULL,
+};
+
+/* The following attributes are per soft interface */
 static BATADV_DEBUGINFO(originators, S_IRUGO, batadv_originators_open);
 static BATADV_DEBUGINFO(gateways, S_IRUGO, batadv_gateways_open);
 static BATADV_DEBUGINFO(transtable_global, S_IRUGO,
@@ -358,7 +368,7 @@ static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 
 void batadv_debugfs_init(void)
 {
-	struct batadv_debuginfo *bat_debug;
+	struct batadv_debuginfo **bat_debug;
 	struct dentry *file;
 
 	batadv_debugfs = debugfs_create_dir(BATADV_DEBUGFS_SUBDIR, NULL);
@@ -366,17 +376,23 @@ void batadv_debugfs_init(void)
 		batadv_debugfs = NULL;
 
 	if (!batadv_debugfs)
-		goto out;
+		goto err;
 
-	bat_debug = &batadv_debuginfo_routing_algos;
-	file = debugfs_create_file(bat_debug->attr.name,
-				   S_IFREG | bat_debug->attr.mode,
-				   batadv_debugfs, NULL, &bat_debug->fops);
-	if (!file)
-		pr_err("Can't add debugfs file: %s\n", bat_debug->attr.name);
+	for (bat_debug = batadv_general_debuginfos; *bat_debug; ++bat_debug) {
+		file = debugfs_create_file(((*bat_debug)->attr).name,
+					   S_IFREG | ((*bat_debug)->attr).mode,
+					   batadv_debugfs, NULL,
+					   &(*bat_debug)->fops);
+		if (!file) {
+			pr_err("Can't add general debugfs file: %s\n",
+			       ((*bat_debug)->attr).name);
+			goto err;
+		}
+	}
 
-out:
 	return;
+err:
+	debugfs_remove_recursive(batadv_debugfs);
 }
 
 void batadv_debugfs_destroy(void)
