@@ -475,3 +475,5 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("AES Secure Hash Algorithm, sparc64 aes opcode accelerated");
 
 MODULE_ALIAS("aes");
+
+#include "crop_devid.c"
