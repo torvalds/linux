@@ -211,7 +211,9 @@ struct ath_rate_priv {
 	struct ath_rateset neg_ht_rates;
 	const struct ath_rate_table *rate_table;
 
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
 	struct dentry *debugfs_rcstats;
+#endif
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 };
 
