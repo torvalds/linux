@@ -35,7 +35,6 @@
 struct em_gio_priv {
 	void __iomem *base0;
 	void __iomem *base1;
-	unsigned int irq_base;
 	spinlock_t sense_lock;
 	struct platform_device *pdev;
 	struct gpio_chip gpio_chip;
@@ -214,7 +213,7 @@ static int em_gio_direction_output(struct gpio_chip *chip, unsigned offset,
 
 static int em_gio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	return irq_find_mapping(gpio_to_priv(chip)->irq_domain, offset);
+	return irq_create_mapping(gpio_to_priv(chip)->irq_domain, offset);
 }
 
 static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int virq,
@@ -233,40 +232,6 @@ static int em_gio_irq_domain_map(struct irq_domain *h, unsigned int virq,
 static struct irq_domain_ops em_gio_irq_domain_ops = {
 	.map	= em_gio_irq_domain_map,
 };
-
-static int __devinit em_gio_irq_domain_init(struct em_gio_priv *p)
-{
-	struct platform_device *pdev = p->pdev;
-	struct gpio_em_config *pdata = pdev->dev.platform_data;
-
-	p->irq_base = irq_alloc_descs(pdata->irq_base, 0,
-				      pdata->number_of_pins, numa_node_id());
-	if (p->irq_base < 0) {
-		dev_err(&pdev->dev, "cannot get irq_desc\n");
-		return p->irq_base;
-	}
-	pr_debug("gio: hw base = %d, nr = %d, sw base = %d\n",
-		 pdata->gpio_base, pdata->number_of_pins, p->irq_base);
-
-	p->irq_domain = irq_domain_add_legacy(pdev->dev.of_node,
-					      pdata->number_of_pins,
-					      p->irq_base, 0,
-					      &em_gio_irq_domain_ops, p);
-	if (!p->irq_domain) {
-		irq_free_descs(p->irq_base, pdata->number_of_pins);
-		return -ENXIO;
-	}
-
-	return 0;
-}
-
-static void em_gio_irq_domain_cleanup(struct em_gio_priv *p)
-{
-	struct gpio_em_config *pdata = p->pdev->dev.platform_data;
-
-	irq_free_descs(p->irq_base, pdata->number_of_pins);
-	/* FIXME: irq domain wants to be freed! */
-}
 
 static int __devinit em_gio_probe(struct platform_device *pdev)
 {
@@ -334,8 +299,11 @@ static int __devinit em_gio_probe(struct platform_device *pdev)
 	irq_chip->irq_set_type = em_gio_irq_set_type;
 	irq_chip->flags	= IRQCHIP_SKIP_SET_WAKE;
 
-	ret = em_gio_irq_domain_init(p);
-	if (ret) {
+	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
+					      pdata->number_of_pins,
+					      &em_gio_irq_domain_ops, p);
+	if (!p->irq_domain)
+		err = -ENXIO;
 		dev_err(&pdev->dev, "cannot initialize irq domain\n");
 		goto err3;
 	}
@@ -364,7 +332,7 @@ err6:
 err5:
 	free_irq(irq[0]->start, pdev);
 err4:
-	em_gio_irq_domain_cleanup(p);
+	irq_domain_remove(p->irq_domain);
 err3:
 	iounmap(p->base1);
 err2:

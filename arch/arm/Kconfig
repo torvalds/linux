@@ -367,6 +367,8 @@ config ARCH_CNS3XXX
 
 config ARCH_CLPS711X
 	bool "Cirrus Logic CLPS711x/EP721x/EP731x-based"
+	select ARCH_REQUIRE_GPIOLIB
+	select ARCH_USES_GETTIMEOFFSET
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_ARM720T

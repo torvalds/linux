@@ -380,7 +380,6 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct tegra_gpio_soc_config *config;
-	int irq_base;
 	struct resource *res;
 	struct tegra_gpio_bank *bank;
 	int gpio;
@@ -417,14 +416,11 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	irq_base = irq_alloc_descs(-1, 0, tegra_gpio_chip.ngpio, 0);
-	if (irq_base < 0) {
-		dev_err(&pdev->dev, "Couldn't allocate IRQ numbers\n");
-		return -ENODEV;
-	}
-	irq_domain = irq_domain_add_legacy(pdev->dev.of_node,
-					   tegra_gpio_chip.ngpio, irq_base, 0,
+	irq_domain = irq_domain_add_linear(pdev->dev.of_node,
+					   tegra_gpio_chip.ngpio,
 					   &irq_domain_simple_ops, NULL);
+	if (!irq_domain)
+		return -ENODEV;
 
 	for (i = 0; i < tegra_gpio_bank_count; i++) {
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
@@ -464,7 +460,7 @@ static int __devinit tegra_gpio_probe(struct platform_device *pdev)
 	gpiochip_add(&tegra_gpio_chip);
 
 	for (gpio = 0; gpio < tegra_gpio_chip.ngpio; gpio++) {
-		int irq = irq_find_mapping(irq_domain, gpio);
+		int irq = irq_create_mapping(irq_domain, gpio);
 		/* No validity check; all Tegra GPIOs are valid IRQs */
 
 		bank = &tegra_gpio_banks[GPIO_BANK(gpio)];

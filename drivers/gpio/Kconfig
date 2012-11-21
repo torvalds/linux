@@ -86,10 +86,25 @@ config GPIO_DA9052
 	help
 	  Say yes here to enable the GPIO driver for the DA9052 chip.
 
+config GPIO_DA9055
+	tristate "Dialog Semiconductor DA9055 GPIO"
+	depends on MFD_DA9055
+	help
+	  Say yes here to enable the GPIO driver for the DA9055 chip.
+
+	  The Dialog DA9055 PMIC chip has 3 GPIO pins that can be
+	  be controller by this driver.
+
+	  If driver is built as a module it will be called gpio-da9055.
+
 config GPIO_MAX730X
 	tristate
 
 comment "Memory mapped GPIO drivers:"
+
+config GPIO_CLPS711X
+	def_bool y
+	depends on ARCH_CLPS711X
 
 config GPIO_GENERIC_PLATFORM
 	tristate "Generic memory-mapped GPIO controller support (MMIO platform device)"
