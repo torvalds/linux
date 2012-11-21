@@ -973,7 +973,6 @@ nv50_disp_intr_unk20_dp(struct nv50_disp_priv *priv,
 	const u32 soff = (  or * 0x800);
 	const u32 loff = (link * 0x080) + soff;
 	const u32 ctrl = nv_rd32(priv, 0x610794 + (or * 8));
-	const u32 bits = ((ctrl & 0x000f0000) == 0x00020000) ? 18 : 24;
 	const u32 symbol = 100000;
 	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x0000f0000;
 	u32 clksor = nv_rd32(priv, 0x614300 + soff);
@@ -981,7 +980,7 @@ nv50_disp_intr_unk20_dp(struct nv50_disp_priv *priv,
 	int TU, VTUi, VTUf, VTUa;
 	u64 link_data_rate, link_ratio, unk;
 	u32 best_diff = 64 * symbol;
-	u32 link_nr, link_bw, r;
+	u32 link_nr, link_bw, bits, r;
 
 	/* calculate packed data rate for each lane */
 	if      (dpctrl > 0x00030000) link_nr = 4;
@@ -992,6 +991,10 @@ nv50_disp_intr_unk20_dp(struct nv50_disp_priv *priv,
 		link_bw = 270000;
 	else
 		link_bw = 162000;
+
+	if      ((ctrl & 0xf0000) == 0x60000) bits = 30;
+	else if ((ctrl & 0xf0000) == 0x50000) bits = 24;
+	else                                  bits = 18;
 
 	link_data_rate = (pclk * bits / 8) / link_nr;
 

@@ -1791,9 +1791,13 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		if (nv_connector->base.display_info.bpc == 6) {
 			nv_encoder->dp.datarate = mode->clock * 18 / 8;
 			depth = 0x2;
-		} else {
+		} else
+		if (nv_connector->base.display_info.bpc == 8) {
 			nv_encoder->dp.datarate = mode->clock * 24 / 8;
 			depth = 0x5;
+		} else {
+			nv_encoder->dp.datarate = mode->clock * 30 / 8;
+			depth = 0x6;
 		}
 
 		if (nv_encoder->dcb->sorconf.link & 1)

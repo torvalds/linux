@@ -711,7 +711,6 @@ nvd0_display_unk2_calc_tu(struct nv50_disp_priv *priv, int head, int or)
 	const u32 ctrl = nv_rd32(priv, 0x660200 + (or   * 0x020));
 	const u32 conf = nv_rd32(priv, 0x660404 + (head * 0x300));
 	const u32 pclk = nv_rd32(priv, 0x660450 + (head * 0x300)) / 1000;
-	const u32 bits = ((conf & 0x3c0) == 0x080) ? 18 : 24;
 	const u32 link = ((ctrl & 0xf00) == 0x800) ? 0 : 1;
 	const u32 hoff = (head * 0x800);
 	const u32 soff = (  or * 0x800);
@@ -720,9 +719,13 @@ nvd0_display_unk2_calc_tu(struct nv50_disp_priv *priv, int head, int or)
 	const u32 TU = 64;
 	u32 dpctrl = nv_rd32(priv, 0x61c10c + loff) & 0x000f0000;
 	u32 clksor = nv_rd32(priv, 0x612300 + soff);
-	u32 datarate = (pclk * bits) / 8;
-	u32 link_nr, link_bw;
+	u32 datarate, link_nr, link_bw, bits;
 	u64 ratio, value;
+
+	if      ((conf & 0x3c0) == 0x180) bits = 30;
+	else if ((conf & 0x3c0) == 0x140) bits = 24;
+	else                              bits = 18;
+	datarate = (pclk * bits) / 8;
 
 	if      (dpctrl > 0x00030000) link_nr = 4;
 	else if (dpctrl > 0x00010000) link_nr = 2;
