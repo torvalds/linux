@@ -459,19 +459,19 @@ int acpi_pci_irq_enable(struct pci_dev *dev)
 	 */
 	if (gsi < 0) {
 		u32 dev_gsi;
-		dev_warn(&dev->dev, "PCI INT %c: no GSI", pin_name(pin));
 		/* Interrupt Line values above 0xF are forbidden */
 		if (dev->irq > 0 && (dev->irq <= 0xF) &&
 		    (acpi_isa_irq_to_gsi(dev->irq, &dev_gsi) == 0)) {
-			printk(" - using ISA IRQ %d\n", dev->irq);
+			dev_warn(&dev->dev, "PCI INT %c: no GSI - using ISA IRQ %d\n",
+				 pin_name(pin), dev->irq);
 			acpi_register_gsi(&dev->dev, dev_gsi,
 					  ACPI_LEVEL_SENSITIVE,
 					  ACPI_ACTIVE_LOW);
-			return 0;
 		} else {
-			printk("\n");
-			return 0;
+			dev_warn(&dev->dev, "PCI INT %c: no GSI\n",
+				 pin_name(pin));
 		}
+		return 0;
 	}
 
 	rc = acpi_register_gsi(&dev->dev, gsi, triggering, polarity);
