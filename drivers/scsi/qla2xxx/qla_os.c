@@ -2367,7 +2367,7 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Configure PCI I/O space */
 	ret = ha->isp_ops->iospace_config(ha);
 	if (ret)
-		goto probe_hw_failed;
+		goto iospace_config_failed;
 
 	ql_log_pci(ql_log_info, pdev, 0x001d,
 	    "Found an ISP%04X irq %d iobase 0x%p.\n",
@@ -2678,7 +2678,11 @@ probe_hw_failed:
 		qla82xx_idc_lock(ha);
 		qla82xx_clear_drv_active(ha);
 		qla82xx_idc_unlock(ha);
-		iounmap((device_reg_t __iomem *)ha->nx_pcibase);
+	}
+iospace_config_failed:
+	if (IS_QLA82XX(ha)) {
+		if (!ha->nx_pcibase)
+			iounmap((device_reg_t __iomem *)ha->nx_pcibase);
 		if (!ql2xdbwr)
 			iounmap((device_reg_t __iomem *)ha->nxdb_wr_ptr);
 	} else {
