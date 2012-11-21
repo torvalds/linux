@@ -665,9 +665,9 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 	}
 	info->dev = &pdev->dev;
 	info->max77693 = max77693;
-	if (info->max77693->regmap_muic)
+	if (info->max77693->regmap_muic) {
 		dev_dbg(&pdev->dev, "allocate register map\n");
-	else {
+	} else {
 		info->max77693->regmap_muic = devm_regmap_init_i2c(
 						info->max77693->muic,
 						&max77693_muic_regmap_config);
