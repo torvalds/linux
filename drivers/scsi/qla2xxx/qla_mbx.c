@@ -3122,7 +3122,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *vha,
 		if (vp_idx == 0 && (MSB(stat) != 1))
 			goto reg_needed;
 
-		if (MSB(stat) != 0) {
+		if (MSB(stat) != 0 && MSB(stat) != 2) {
 			ql_dbg(ql_dbg_mbx, vha, 0x10ba,
 			    "Could not acquire ID for VP[%d].\n", vp_idx);
 			return;
