@@ -495,24 +495,12 @@ extern void vmw_gmr_unbind(struct vmw_private *dev_priv, int gmr_id);
  * Resource utilities - vmwgfx_resource.c
  */
 struct vmw_user_resource_conv;
-extern const struct vmw_user_resource_conv *user_surface_converter;
-extern const struct vmw_user_resource_conv *user_context_converter;
-extern const struct vmw_user_resource_conv *user_shader_converter;
 
-extern struct vmw_resource *vmw_context_alloc(struct vmw_private *dev_priv);
 extern void vmw_resource_unreference(struct vmw_resource **p_res);
 extern struct vmw_resource *vmw_resource_reference(struct vmw_resource *res);
 extern int vmw_resource_validate(struct vmw_resource *res);
 extern int vmw_resource_reserve(struct vmw_resource *res, bool no_backup);
 extern bool vmw_resource_needs_backup(const struct vmw_resource *res);
-extern int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv);
-extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-extern int vmw_context_check(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     int id,
-			     struct vmw_resource **p_res);
 extern int vmw_user_lookup_handle(struct vmw_private *dev_priv,
 				  struct ttm_object_file *tfile,
 				  uint32_t handle,
@@ -524,22 +512,6 @@ extern int vmw_user_resource_lookup_handle(
 	uint32_t handle,
 	const struct vmw_user_resource_conv *converter,
 	struct vmw_resource **p_res);
-extern void vmw_surface_res_free(struct vmw_resource *res);
-extern int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
-				     struct drm_file *file_priv);
-extern int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
-				    struct drm_file *file_priv);
-extern int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file_priv);
-extern int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
-				       struct drm_file *file_priv);
-extern int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
-					  struct drm_file *file_priv);
-extern int vmw_surface_check(struct vmw_private *dev_priv,
-			     struct ttm_object_file *tfile,
-			     uint32_t handle, int *id);
-extern int vmw_surface_validate(struct vmw_private *dev_priv,
-				struct vmw_surface *srf);
 extern void vmw_dmabuf_bo_free(struct ttm_buffer_object *bo);
 extern int vmw_dmabuf_init(struct vmw_private *dev_priv,
 			   struct vmw_dma_buffer *vmw_bo,
@@ -887,8 +859,50 @@ extern int vmw_otables_setup(struct vmw_private *dev_priv);
 extern void vmw_otables_takedown(struct vmw_private *dev_priv);
 
 /*
+ * Context management - vmwgfx_context.c
+ */
+
+extern const struct vmw_user_resource_conv *user_context_converter;
+
+extern struct vmw_resource *vmw_context_alloc(struct vmw_private *dev_priv);
+
+extern int vmw_context_check(struct vmw_private *dev_priv,
+			     struct ttm_object_file *tfile,
+			     int id,
+			     struct vmw_resource **p_res);
+extern int vmw_context_define_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
+extern int vmw_context_destroy_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv);
+
+/*
+ * Surface management - vmwgfx_surface.c
+ */
+
+extern const struct vmw_user_resource_conv *user_surface_converter;
+
+extern void vmw_surface_res_free(struct vmw_resource *res);
+extern int vmw_surface_destroy_ioctl(struct drm_device *dev, void *data,
+				     struct drm_file *file_priv);
+extern int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
+extern int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *file_priv);
+extern int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
+				       struct drm_file *file_priv);
+extern int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
+					  struct drm_file *file_priv);
+extern int vmw_surface_check(struct vmw_private *dev_priv,
+			     struct ttm_object_file *tfile,
+			     uint32_t handle, int *id);
+extern int vmw_surface_validate(struct vmw_private *dev_priv,
+				struct vmw_surface *srf);
+
+/*
  * Shader management - vmwgfx_shader.c
  */
+
+extern const struct vmw_user_resource_conv *user_shader_converter;
 
 extern int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv);
