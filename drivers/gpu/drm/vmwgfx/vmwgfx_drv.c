@@ -243,6 +243,12 @@ static void vmw_print_capabilities(uint32_t capabilities)
 		DRM_INFO("  GMR2.\n");
 	if (capabilities & SVGA_CAP_SCREEN_OBJECT_2)
 		DRM_INFO("  Screen Object 2.\n");
+	if (capabilities & SVGA_CAP_COMMAND_BUFFERS)
+		DRM_INFO("  Command Buffers.\n");
+	if (capabilities & SVGA_CAP_CMD_BUFFERS_2)
+		DRM_INFO("  Command Buffers 2.\n");
+	if (capabilities & SVGA_CAP_GBOBJECTS)
+		DRM_INFO("  Guest Backed Resources.\n");
 }
 
 
