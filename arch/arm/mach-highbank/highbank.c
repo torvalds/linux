@@ -35,6 +35,7 @@
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/map.h>
 #include <asm/mach/time.h>
 
 #include "core.h"
@@ -51,11 +52,6 @@ static void __init highbank_scu_map_io(void)
 	asm("mrc p15, 4, %0, c15, c0, 0" : "=r" (base));
 
 	scu_base_addr = ioremap(base, SZ_4K);
-}
-
-static void __init highbank_map_io(void)
-{
-	highbank_lluart_map_io();
 }
 
 #define HB_JUMP_TABLE_PHYS(cpu)		(0x40 + (0x10 * (cpu)))
@@ -211,7 +207,7 @@ static const char *highbank_match[] __initconst = {
 
 DT_MACHINE_START(HIGHBANK, "Highbank")
 	.smp		= smp_ops(highbank_smp_ops),
-	.map_io		= highbank_map_io,
+	.map_io		= debug_ll_io_init,
 	.init_irq	= highbank_init_irq,
 	.timer		= &highbank_timer,
 	.handle_irq	= gic_handle_irq,
