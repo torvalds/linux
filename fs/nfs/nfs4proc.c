@@ -5830,23 +5830,6 @@ out:
 	return ret;
 }
 
-int nfs4_resize_slot_table(struct nfs4_slot_table *tbl,
-		 u32 max_reqs, u32 ivalue)
-{
-	int ret;
-
-	if (max_reqs > NFS4_MAX_SLOT_TABLE)
-		max_reqs = NFS4_MAX_SLOT_TABLE;
-	ret = nfs4_grow_slot_table(tbl, max_reqs, ivalue);
-	if (ret)
-		return ret;
-	spin_lock(&tbl->slot_tbl_lock);
-	nfs4_shrink_slot_table(tbl, max_reqs);
-	tbl->max_slotid = max_reqs - 1;
-	spin_unlock(&tbl->slot_tbl_lock);
-	return 0;
-}
-
 /* Destroy the slot table */
 static void nfs4_destroy_slot_tables(struct nfs4_session *session)
 {

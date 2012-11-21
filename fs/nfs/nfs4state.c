@@ -302,7 +302,6 @@ static void nfs41_finish_session_reset(struct nfs_client *clp)
 	clear_bit(NFS4CLNT_LEASE_CONFIRM, &clp->cl_state);
 	clear_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state);
 	/* create_session negotiated new slot table */
-	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
 	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
 	nfs41_setup_state_renewal(clp);
 }
@@ -1905,14 +1904,6 @@ void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_session_recovery);
 
-void nfs41_handle_recall_slot(struct nfs_client *clp)
-{
-	set_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
-	dprintk("%s: scheduling slot recall for server %s\n", __func__,
-			clp->cl_hostname);
-	nfs4_schedule_state_manager(clp);
-}
-
 static void nfs4_reset_all_state(struct nfs_client *clp)
 {
 	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
@@ -2022,20 +2013,6 @@ out:
 	return status;
 }
 
-static int nfs4_recall_slot(struct nfs_client *clp)
-{
-	struct nfs4_slot_table *fc_tbl;
-	u32 new_size;
-
-	if (!nfs4_has_session(clp))
-		return 0;
-	nfs4_begin_drain_session(clp);
-
-	fc_tbl = &clp->cl_session->fc_slot_table;
-	new_size = fc_tbl->server_highest_slotid + 1;
-	return nfs4_resize_slot_table(fc_tbl, new_size, 1);
-}
-
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
@@ -2066,7 +2043,6 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
 static int nfs4_end_drain_session(struct nfs_client *clp) { return 0; }
-static int nfs4_recall_slot(struct nfs_client *clp) { return 0; }
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
@@ -2121,15 +2097,6 @@ static void nfs4_state_manager(struct nfs_client *clp)
 		if (test_and_clear_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state)) {
 			section = "check lease";
 			status = nfs4_check_lease(clp);
-			if (status < 0)
-				goto out_error;
-			continue;
-		}
-
-		/* Recall session slots */
-		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)) {
-			section = "recall slot";
-			status = nfs4_recall_slot(clp);
 			if (status < 0)
 				goto out_error;
 			continue;
