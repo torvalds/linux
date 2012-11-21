@@ -643,7 +643,7 @@ int devfreq_remove_governor(struct devfreq_governor *governor)
 	g = find_devfreq_governor(governor->name);
 	if (IS_ERR(g)) {
 		pr_err("%s: governor %s not registered\n", __func__,
-		       g->name);
+		       governor->name);
 		err = -EINVAL;
 		goto err_out;
 	}
