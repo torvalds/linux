@@ -1904,6 +1904,18 @@ void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_session_recovery);
 
+static void nfs41_ping_server(struct nfs_client *clp)
+{
+	/* Use CHECK_LEASE to ping the server with a SEQUENCE */
+	set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
+	nfs4_schedule_state_manager(clp);
+}
+
+void nfs41_server_notify_target_slotid_update(struct nfs_client *clp)
+{
+	nfs41_ping_server(clp);
+}
+
 static void nfs4_reset_all_state(struct nfs_client *clp)
 {
 	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
