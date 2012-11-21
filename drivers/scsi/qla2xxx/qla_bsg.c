@@ -743,7 +743,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 				ql_log(ql_log_warn, vha, 0x701f,
 				    "Get port config failed.\n");
 				rval = -EPERM;
-				goto done_free_dma_req;
+				goto done_free_dma_rsp;
 			}
 
 			ql_dbg(ql_dbg_user, vha, 0x70c0,
@@ -762,7 +762,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 			if (rval) {
 				rval = -EPERM;
-				goto done_free_dma_req;
+				goto done_free_dma_rsp;
 			}
 
 			type = "FC_BSG_HST_VENDOR_LOOPBACK";
@@ -795,7 +795,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 				}
 
 				rval = -EIO;
-				goto done_free_dma_req;
+				goto done_free_dma_rsp;
 			}
 		} else {
 			type = "FC_BSG_HST_VENDOR_LOOPBACK";
@@ -830,6 +830,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	fw_sts_ptr += sizeof(response);
 	*fw_sts_ptr = command_sent;
 
+done_free_dma_rsp:
 	dma_free_coherent(&ha->pdev->dev, rsp_data_len,
 		rsp_data, rsp_data_dma);
 done_free_dma_req:
