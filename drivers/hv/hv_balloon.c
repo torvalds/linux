@@ -545,7 +545,7 @@ static void post_status(struct hv_dynmem_device *dm)
 
 
 
-void free_balloon_pages(struct hv_dynmem_device *dm,
+static void free_balloon_pages(struct hv_dynmem_device *dm,
 			 union dm_mem_page_range *range_array)
 {
 	int num_pages = range_array->finfo.page_cnt;
