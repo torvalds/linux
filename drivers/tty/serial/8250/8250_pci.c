@@ -1172,6 +1172,8 @@ pci_xr17v35x_setup(struct serial_private *priv,
 	u8 __iomem *p;
 
 	p = pci_ioremap_bar(priv->dev, 0);
+	if (p == NULL)
+		return -ENOMEM;
 
 	port->port.flags |= UPF_EXAR_EFR;
 
