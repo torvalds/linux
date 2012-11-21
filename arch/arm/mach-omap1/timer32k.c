@@ -51,7 +51,6 @@
 #include <asm/mach/time.h>
 
 #include <plat/counter-32k.h>
-#include <plat/dmtimer.h>
 
 #include <mach/hardware.h>
 

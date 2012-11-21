@@ -79,8 +79,6 @@ struct omap_timer_capability_dev_attr {
 	u32 timer_capability;
 };
 
-struct omap_dm_timer;
-
 struct timer_regs {
 	u32 tidr;
 	u32 tier;
@@ -101,12 +99,29 @@ struct timer_regs {
 	u32 towr;
 };
 
-struct dmtimer_platform_data {
-	/* set_timer_src - Only used for OMAP1 devices */
-	int (*set_timer_src)(struct platform_device *pdev, int source);
-	u32 timer_errata;
-	u32 timer_capability;
+struct omap_dm_timer {
+	int id;
+	int irq;
+	struct clk *fclk;
+
+	void __iomem	*io_base;
+	void __iomem	*irq_stat;	/* TISR/IRQSTATUS interrupt status */
+	void __iomem	*irq_ena;	/* irq enable */
+	void __iomem	*irq_dis;	/* irq disable, only on v2 ip */
+	void __iomem	*pend;		/* write pending */
+	void __iomem	*func_base;	/* function register base */
+
+	unsigned long rate;
+	unsigned reserved:1;
+	unsigned posted:1;
+	struct timer_regs context;
 	int (*get_context_loss_count)(struct device *);
+	int ctx_loss_count;
+	int revision;
+	u32 capability;
+	u32 errata;
+	struct platform_device *pdev;
+	struct list_head node;
 };
 
 int omap_dm_timer_reserve_systimer(int id);
@@ -260,35 +275,6 @@ int omap_dm_timers_active(void);
 #define OMAP_TIMER_TICK_INT_MASK_COUNT_REG				\
 		(_OMAP_TIMER_TICK_INT_MASK_COUNT_OFFSET | (WP_TOWR << WPSHIFT))
 
-struct omap_dm_timer {
-	unsigned long phys_base;
-	int id;
-	int irq;
-	struct clk *fclk;
-
-	void __iomem	*io_base;
-	void __iomem	*sys_stat;	/* TISTAT timer status */
-	void __iomem	*irq_stat;	/* TISR/IRQSTATUS interrupt status */
-	void __iomem	*irq_ena;	/* irq enable */
-	void __iomem	*irq_dis;	/* irq disable, only on v2 ip */
-	void __iomem	*pend;		/* write pending */
-	void __iomem	*func_base;	/* function register base */
-
-	unsigned long rate;
-	unsigned reserved:1;
-	unsigned posted:1;
-	struct timer_regs context;
-	int (*get_context_loss_count)(struct device *);
-	int ctx_loss_count;
-	int revision;
-	u32 capability;
-	u32 errata;
-	struct platform_device *pdev;
-	struct list_head node;
-};
-
-int omap_dm_timer_prepare(struct omap_dm_timer *timer);
-
 static inline u32 __omap_dm_timer_read(struct omap_dm_timer *timer, u32 reg,
 						int posted)
 {
@@ -317,8 +303,6 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 	tidr = __raw_readl(timer->io_base);
 	if (!(tidr >> 16)) {
 		timer->revision = 1;
-		timer->sys_stat = timer->io_base +
-				OMAP_TIMER_V1_SYS_STAT_OFFSET;
 		timer->irq_stat = timer->io_base + OMAP_TIMER_V1_STAT_OFFSET;
 		timer->irq_ena = timer->io_base + OMAP_TIMER_V1_INT_EN_OFFSET;
 		timer->irq_dis = timer->io_base + OMAP_TIMER_V1_INT_EN_OFFSET;
@@ -326,7 +310,6 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 		timer->func_base = timer->io_base;
 	} else {
 		timer->revision = 2;
-		timer->sys_stat = NULL;
 		timer->irq_stat = timer->io_base + OMAP_TIMER_V2_IRQSTATUS;
 		timer->irq_ena = timer->io_base + OMAP_TIMER_V2_IRQENABLE_SET;
 		timer->irq_dis = timer->io_base + OMAP_TIMER_V2_IRQENABLE_CLR;
@@ -335,25 +318,6 @@ static inline void __omap_dm_timer_init_regs(struct omap_dm_timer *timer)
 				OMAP_TIMER_V2_FUNC_OFFSET;
 		timer->func_base = timer->io_base + OMAP_TIMER_V2_FUNC_OFFSET;
 	}
-}
-
-/* Assumes the source clock has been set by caller */
-static inline void __omap_dm_timer_reset(struct omap_dm_timer *timer,
-					int autoidle, int wakeup)
-{
-	u32 l;
-
-	l = __raw_readl(timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
-	l |= 0x02 << 3;  /* Set to smart-idle mode */
-	l |= 0x2 << 8;   /* Set clock activity to perserve f-clock on idle */
-
-	if (autoidle)
-		l |= 0x1 << 0;
-
-	if (wakeup)
-		l |= 1 << 2;
-
-	__raw_writel(l, timer->io_base + OMAP_TIMER_OCP_CFG_OFFSET);
 }
 
 /*

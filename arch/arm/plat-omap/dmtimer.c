@@ -43,6 +43,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/platform_data/dmtimer-omap.h>
 
 #include <plat/dmtimer.h>
 
@@ -99,32 +101,39 @@ static void omap_timer_restore_context(struct omap_dm_timer *timer)
 				timer->context.tclr);
 }
 
-static void omap_dm_timer_wait_for_reset(struct omap_dm_timer *timer)
+static int omap_dm_timer_reset(struct omap_dm_timer *timer)
 {
-	int c;
+	u32 l, timeout = 100000;
 
-	if (!timer->sys_stat)
-		return;
+	if (timer->revision != 1)
+		return -EINVAL;
 
-	c = 0;
-	while (!(__raw_readl(timer->sys_stat) & 1)) {
-		c++;
-		if (c > 100000) {
-			printk(KERN_ERR "Timer failed to reset\n");
-			return;
-		}
-	}
-}
-
-static void omap_dm_timer_reset(struct omap_dm_timer *timer)
-{
 	omap_dm_timer_write_reg(timer, OMAP_TIMER_IF_CTRL_REG, 0x06);
-	omap_dm_timer_wait_for_reset(timer);
-	__omap_dm_timer_reset(timer, 0, 0);
+
+	do {
+		l = __omap_dm_timer_read(timer,
+					 OMAP_TIMER_V1_SYS_STAT_OFFSET, 0);
+	} while (!l && timeout--);
+
+	if (!timeout) {
+		dev_err(&timer->pdev->dev, "Timer failed to reset\n");
+		return -ETIMEDOUT;
+	}
+
+	/* Configure timer for smart-idle mode */
+	l = __omap_dm_timer_read(timer, OMAP_TIMER_OCP_CFG_OFFSET, 0);
+	l |= 0x2 << 0x3;
+	__omap_dm_timer_write(timer, OMAP_TIMER_OCP_CFG_OFFSET, l, 0);
+
+	timer->posted = 0;
+
+	return 0;
 }
 
-int omap_dm_timer_prepare(struct omap_dm_timer *timer)
+static int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 {
+	int rc;
+
 	/*
 	 * FIXME: OMAP1 devices do not use the clock framework for dmtimers so
 	 * do not call clk_get() for these devices.
@@ -140,8 +149,13 @@ int omap_dm_timer_prepare(struct omap_dm_timer *timer)
 
 	omap_dm_timer_enable(timer);
 
-	if (timer->capability & OMAP_TIMER_NEEDS_RESET)
-		omap_dm_timer_reset(timer);
+	if (timer->capability & OMAP_TIMER_NEEDS_RESET) {
+		rc = omap_dm_timer_reset(timer);
+		if (rc) {
+			omap_dm_timer_disable(timer);
+			return rc;
+		}
+	}
 
 	__omap_dm_timer_enable_posted(timer);
 	omap_dm_timer_disable(timer);
