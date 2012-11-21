@@ -615,22 +615,24 @@ static struct prm_ll_data omap44xx_prm_ll_data = {
 	.read_reset_sources = &omap44xx_prm_read_reset_sources,
 };
 
-static int __init omap44xx_prm_init(void)
+int __init omap44xx_prm_init(void)
 {
-	int ret;
-
 	if (!cpu_is_omap44xx())
 		return 0;
 
-	ret = prm_register(&omap44xx_prm_ll_data);
-	if (ret)
-		return ret;
+	return prm_register(&omap44xx_prm_ll_data);
+}
+
+static int __init omap44xx_prm_late_init(void)
+{
+	if (!cpu_is_omap44xx())
+		return 0;
 
 	omap44xx_prm_enable_io_wakeup();
 
 	return omap_prcm_register_chain_handler(&omap4_prcm_irq_setup);
 }
-subsys_initcall(omap44xx_prm_init);
+subsys_initcall(omap44xx_prm_late_init);
 
 static void __exit omap44xx_prm_exit(void)
 {

@@ -118,14 +118,13 @@ static struct prm_ll_data omap2xxx_prm_ll_data = {
 	.read_reset_sources = &omap2xxx_prm_read_reset_sources,
 };
 
-static int __init omap2xxx_prm_init(void)
+int __init omap2xxx_prm_init(void)
 {
 	if (!cpu_is_omap24xx())
 		return 0;
 
 	return prm_register(&omap2xxx_prm_ll_data);
 }
-subsys_initcall(omap2xxx_prm_init);
 
 static void __exit omap2xxx_prm_exit(void)
 {
