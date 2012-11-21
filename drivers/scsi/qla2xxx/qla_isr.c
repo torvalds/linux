@@ -2940,7 +2940,9 @@ skip_msi:
 		    "Failed to reserve interrupt %d already in use.\n",
 		    ha->pdev->irq);
 		goto fail;
-	}
+	} else if (!ha->flags.msi_enabled)
+		ql_dbg(ql_dbg_init, vha, 0x0125,
+		    "INTa mode: Enabled.\n");
 
 clear_risc_ints:
 
