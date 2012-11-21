@@ -304,9 +304,11 @@ void vmw_bo_pin(struct ttm_buffer_object *bo, bool pin)
 
 	lockdep_assert_held(&bo->resv->lock.base);
 	BUG_ON(old_mem_type != TTM_PL_VRAM &&
-	       old_mem_type != VMW_PL_GMR);
+	       old_mem_type != VMW_PL_GMR &&
+	       old_mem_type != VMW_PL_MOB);
 
-	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED;
+	pl_flags = TTM_PL_FLAG_VRAM | VMW_PL_FLAG_GMR | VMW_PL_FLAG_MOB
+		| TTM_PL_FLAG_CACHED;
 	if (pin)
 		pl_flags |= TTM_PL_FLAG_NO_EVICT;
 

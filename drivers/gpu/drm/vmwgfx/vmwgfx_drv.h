@@ -63,6 +63,8 @@
 
 #define VMW_PL_GMR TTM_PL_PRIV0
 #define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
+#define VMW_PL_MOB TTM_PL_PRIV1
+#define VMW_PL_FLAG_MOB TTM_PL_FLAG_PRIV1
 
 #define VMW_RES_CONTEXT ttm_driver_type0
 #define VMW_RES_SURFACE ttm_driver_type1
@@ -303,6 +305,7 @@ struct vmw_private {
 	uint32_t capabilities;
 	uint32_t max_gmr_ids;
 	uint32_t max_gmr_pages;
+	uint32_t max_mob_pages;
 	uint32_t memory_size;
 	bool has_gmr;
 	bool has_mob;

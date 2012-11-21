@@ -643,6 +643,14 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		 */
 		dev_priv->memory_size = 512*1024*1024;
 	}
+	dev_priv->max_mob_pages = 0;
+	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
+		uint64_t mem_size =
+			vmw_read(dev_priv,
+				 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
+
+		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
+	}
 
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))
@@ -698,14 +706,21 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->has_gmr = true;
 	if (((dev_priv->capabilities & (SVGA_CAP_GMR | SVGA_CAP_GMR2)) == 0) ||
 	    refuse_dma || ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_GMR,
-					 dev_priv->max_gmr_ids) != 0) {
+					 VMW_PL_GMR) != 0) {
 		DRM_INFO("No GMR memory available. "
 			 "Graphics memory resources are very limited.\n");
 		dev_priv->has_gmr = false;
 	}
 
-	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS)
+	if (dev_priv->capabilities & SVGA_CAP_GBOBJECTS) {
 		dev_priv->has_mob = true;
+		if (ttm_bo_init_mm(&dev_priv->bdev, VMW_PL_MOB,
+				   VMW_PL_MOB) != 0) {
+			DRM_INFO("No MOB memory available. "
+				 "3D will be disabled.\n");
+			dev_priv->has_mob = false;
+		}
+	}
 
 	dev_priv->mmio_mtrr = arch_phys_wc_add(dev_priv->mmio_start,
 					       dev_priv->mmio_size);
@@ -809,6 +824,8 @@ out_err4:
 	iounmap(dev_priv->mmio_virt);
 out_err3:
 	arch_phys_wc_del(dev_priv->mmio_mtrr);
+	if (dev_priv->has_mob)
+		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -853,6 +870,8 @@ static int vmw_driver_unload(struct drm_device *dev)
 	ttm_object_device_release(&dev_priv->tdev);
 	iounmap(dev_priv->mmio_virt);
 	arch_phys_wc_del(dev_priv->mmio_mtrr);
+	if (dev_priv->has_mob)
+		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_MOB);
 	if (dev_priv->has_gmr)
 		(void)ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
