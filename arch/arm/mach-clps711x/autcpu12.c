@@ -39,19 +39,10 @@
 
 #include "common.h"
 
-/*
- * The on-chip registers are given a size of 1MB so that a section can
- * be used to map them; this saves a page table.  This is the place to
- * add mappings for ROM, expansion memory, PCMCIA, etc.  (if static
- * mappings are chosen for those areas).
- *
-*/
-
 static struct map_desc autcpu12_io_desc[] __initdata = {
-	/* memory-mapped extra io and CS8900A Ethernet chip */
- 	/* ethernet chip */
- 	{
-		.virtual	= AUTCPU12_VIRT_CS8900A,
+	/* Memory-mapped extra io and CS8900A Ethernet chip */
+	{
+		.virtual	= IO_ADDRESS(AUTCPU12_PHYS_CS8900A),
 		.pfn		= __phys_to_pfn(AUTCPU12_PHYS_CS8900A),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE

@@ -34,8 +34,6 @@
 #define IRQ_UMSINT			14
 #define IRQ_SSEOTI			15
 
-#define INT1_IRQS			(0x0000fff0)
-
 /*
  * Interrupts from INTSR2
  */
@@ -44,7 +42,5 @@
 #define IRQ_SS2TX			(16+2)	/* bit 2 */
 #define IRQ_UTXINT2			(16+12)	/* bit 12 */
 #define IRQ_URXINT2			(16+13)	/* bit 13 */
-
-#define INT2_IRQS			(0x30070000)
 
 #define NR_IRQS				30

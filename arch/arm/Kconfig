@@ -369,6 +369,7 @@ config ARCH_CLPS711X
 	select CLKDEV_LOOKUP
 	select COMMON_CLK
 	select CPU_ARM720T
+	select GENERIC_CLOCKEVENTS
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for Cirrus Logic 711x/721x/731x based boards.

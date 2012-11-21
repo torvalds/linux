@@ -257,6 +257,9 @@
 #define MEMCFG_BUS_WIDTH_16	(0)
 #define MEMCFG_BUS_WIDTH_8	(3)
 
+#define MEMCFG_SQAEN		(1 << 6)
+#define MEMCFG_CLKENB		(1 << 7)
+
 #define MEMCFG_WAITSTATE_8_3	(0 << 2)
 #define MEMCFG_WAITSTATE_7_3	(1 << 2)
 #define MEMCFG_WAITSTATE_6_3	(2 << 2)

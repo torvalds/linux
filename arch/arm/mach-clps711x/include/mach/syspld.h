@@ -23,14 +23,9 @@
 #define __ASM_ARCH_SYSPLD_H
 
 #define SYSPLD_PHYS_BASE	(0x10000000)
+#define SYSPLD_VIRT_BASE	IO_ADDRESS(SYSPLD_PHYS_BASE)
 
-#ifndef __ASSEMBLY__
-#include <asm/types.h>
-
-#define SYSPLD_REG(type,off)	(*(volatile type *)(SYSPLD_BASE + off))
-#else
-#define SYSPLD_REG(type,off)	(off)
-#endif
+#define SYSPLD_REG(type, off)	(*(volatile type *)(SYSPLD_VIRT_BASE + (off)))
 
 #define PLD_INT		SYSPLD_REG(u32, 0x000000)
 #define PLD_INT_PENIRQ		(1 << 5)
