@@ -110,7 +110,6 @@ nouveau_connector_destroy(struct drm_connector *connector)
 	dev  = nv_connector->base.dev;
 	drm  = nouveau_drm(dev);
 	gpio = nouveau_gpio(drm->device);
-	NV_DEBUG(drm, "\n");
 
 	if (gpio && nv_connector->hpd != DCB_GPIO_UNUSED) {
 		gpio->isr_del(gpio, 0, nv_connector->hpd, 0xff,
@@ -928,8 +927,6 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	struct drm_connector *connector;
 	int type, ret = 0;
 	bool dummy;
-
-	NV_DEBUG(drm, "\n");
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		nv_connector = nouveau_connector(connector);

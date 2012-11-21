@@ -42,12 +42,9 @@
 static void
 nv50_crtc_lut_load(struct drm_crtc *crtc)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
 	int i;
-
-	NV_DEBUG(drm, "\n");
 
 	for (i = 0; i < 256; i++) {
 		writew(nv_crtc->lut.r[i] >> 2, lut + 8*i + 0);
@@ -239,8 +236,6 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, bool update)
 	int scaling_mode, ret;
 	u32 ctrl = 0, oX, oY;
 
-	NV_DEBUG(drm, "\n");
-
 	nv_connector = nouveau_crtc_connector_get(nv_crtc);
 	if (!nv_connector || !nv_connector->native_mode) {
 		NV_ERROR(drm, "no native mode, forcing panel scaling\n");
@@ -343,9 +338,6 @@ static void
 nv50_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
-
-	NV_DEBUG(drm, "\n");
 
 	nouveau_bo_unmap(nv_crtc->lut.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
@@ -702,11 +694,8 @@ static const struct drm_crtc_helper_funcs nv50_crtc_helper_funcs = {
 int
 nv50_crtc_create(struct drm_device *dev, int index)
 {
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_crtc *nv_crtc = NULL;
 	int ret, i;
-
-	NV_DEBUG(drm, "\n");
 
 	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
 	if (!nv_crtc)

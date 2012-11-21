@@ -279,12 +279,9 @@ static void
 nv50_dac_destroy(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 
 	if (!encoder)
 		return;
-
-	NV_DEBUG(drm, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);

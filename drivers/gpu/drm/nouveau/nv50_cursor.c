@@ -39,8 +39,6 @@ nv50_cursor_show(struct nouveau_crtc *nv_crtc, bool update)
 	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int ret;
 
-	NV_DEBUG(drm, "\n");
-
 	if (update && nv_crtc->cursor.visible)
 		return;
 
@@ -73,8 +71,6 @@ nv50_cursor_hide(struct nouveau_crtc *nv_crtc, bool update)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_channel *evo = nv50_display(dev)->master;
 	int ret;
-
-	NV_DEBUG(drm, "\n");
 
 	if (update && !nv_crtc->cursor.visible)
 		return;

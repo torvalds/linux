@@ -122,8 +122,6 @@ nv50_display_init(struct drm_device *dev)
 	int ret, i;
 	u32 val;
 
-	NV_DEBUG(drm, "\n");
-
 	nv_wr32(device, 0x00610184, nv_rd32(device, 0x00614004));
 
 	/*
@@ -239,8 +237,6 @@ nv50_display_fini(struct drm_device *dev)
 	struct drm_crtc *drm_crtc;
 	int ret, i;
 
-	NV_DEBUG(drm, "\n");
-
 	list_for_each_entry(drm_crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_crtc *crtc = nouveau_crtc(drm_crtc);
 
@@ -306,8 +302,6 @@ nv50_display_create(struct drm_device *dev)
 	struct drm_connector *connector, *ct;
 	struct nv50_display *priv;
 	int ret, i;
-
-	NV_DEBUG(drm, "\n");
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)

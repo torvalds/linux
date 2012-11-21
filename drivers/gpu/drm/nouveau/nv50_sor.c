@@ -474,12 +474,8 @@ static void
 nv50_sor_destroy(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
-
-	NV_DEBUG(drm, "\n");
 
 	drm_encoder_cleanup(encoder);
-
 	kfree(nv_encoder);
 }
 
@@ -492,11 +488,8 @@ nv50_sor_create(struct drm_connector *connector, struct dcb_output *entry)
 {
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct drm_device *dev = connector->dev;
-	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct drm_encoder *encoder;
 	int type;
-
-	NV_DEBUG(drm, "\n");
 
 	switch (entry->type) {
 	case DCB_OUTPUT_TMDS:
