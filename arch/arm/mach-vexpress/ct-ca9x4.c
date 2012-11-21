@@ -9,6 +9,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/clkdev.h>
+#include <linux/vexpress.h>
 
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -64,19 +65,6 @@ static void __init ct_ca9x4_init_irq(void)
 	ca9x4_twd_init();
 }
 
-static void ct_ca9x4_clcd_enable(struct clcd_fb *fb)
-{
-	u32 site = v2m_get_master_site();
-
-	/*
-	 * Old firmware was using the "site" component of the command
-	 * to control the DVI muxer (while it should be always 0 ie. MB).
-	 * Newer firmware uses the data register. Keep both for compatibility.
-	 */
-	v2m_cfg_write(SYS_CFG_MUXFPGA | SYS_CFG_SITE(site), site);
-	v2m_cfg_write(SYS_CFG_DVIMODE | SYS_CFG_SITE(SYS_CFG_SITE_MB), 2);
-}
-
 static int ct_ca9x4_clcd_setup(struct clcd_fb *fb)
 {
 	unsigned long framesize = 1024 * 768 * 2;
@@ -93,7 +81,6 @@ static struct clcd_board ct_ca9x4_clcd_data = {
 	.caps		= CLCD_CAP_5551 | CLCD_CAP_565,
 	.check		= clcdfb_check,
 	.decode		= clcdfb_decode,
-	.enable		= ct_ca9x4_clcd_enable,
 	.setup		= ct_ca9x4_clcd_setup,
 	.mmap		= versatile_clcd_mmap_dma,
 	.remove		= versatile_clcd_remove_dma,
@@ -109,14 +96,6 @@ static struct amba_device *ct_ca9x4_amba_devs[] __initdata = {
 	&dmc_device,
 	&smc_device,
 	&gpio_device,
-};
-
-
-static struct v2m_osc ct_osc1 = {
-	.osc = 1,
-	.rate_min = 10000000,
-	.rate_max = 80000000,
-	.rate_default = 23750000,
 };
 
 static struct resource pmu_resources[] = {
@@ -149,10 +128,18 @@ static struct platform_device pmu_device = {
 	.resource	= pmu_resources,
 };
 
+static struct platform_device osc1_device = {
+	.name		= "vexpress-osc",
+	.id		= 1,
+	.num_resources	= 1,
+	.resource	= (struct resource []) {
+		VEXPRESS_RES_FUNC(0xf, 1),
+	},
+};
+
 static void __init ct_ca9x4_init(void)
 {
 	int i;
-	struct clk *clk;
 
 #ifdef CONFIG_CACHE_L2X0
 	void __iomem *l2x0_base = ioremap(CT_CA9X4_L2CC, SZ_4K);
@@ -164,14 +151,14 @@ static void __init ct_ca9x4_init(void)
 	l2x0_init(l2x0_base, 0x00400000, 0xfe0fffff);
 #endif
 
-	ct_osc1.site = v2m_get_master_site();
-	clk = v2m_osc_register("ct:osc1", &ct_osc1);
-	clk_register_clkdev(clk, NULL, "ct:clcd");
-
 	for (i = 0; i < ARRAY_SIZE(ct_ca9x4_amba_devs); i++)
 		amba_device_register(ct_ca9x4_amba_devs[i], &iomem_resource);
 
 	platform_device_register(&pmu_device);
+	platform_device_register(&osc1_device);
+
+	WARN_ON(clk_register_clkdev(vexpress_osc_setup(&osc1_device.dev),
+			NULL, "ct:clcd"));
 }
 
 #ifdef CONFIG_SMP

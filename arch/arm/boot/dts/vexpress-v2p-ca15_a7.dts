@@ -12,6 +12,7 @@
 / {
 	model = "V2P-CA15_CA7";
 	arm,hbi = <0x249>;
+	arm,vexpress,site = <0xf>;
 	compatible = "arm,vexpress,v2p-ca15_a7", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <2>;
@@ -74,17 +75,23 @@
 		compatible = "arm,sp805", "arm,primecell";
 		reg = <0 0x2a490000 0 0x1000>;
 		interrupts = <98>;
+		clocks = <&oscclk6a>, <&oscclk6a>;
+		clock-names = "wdogclk", "apb_pclk";
 	};
 
 	hdlcd@2b000000 {
 		compatible = "arm,hdlcd";
 		reg = <0 0x2b000000 0 0x1000>;
 		interrupts = <0 85 4>;
+		clocks = <&oscclk5>;
+		clock-names = "pxlclk";
 	};
 
 	memory-controller@2b0a0000 {
 		compatible = "arm,pl341", "arm,primecell";
 		reg = <0 0x2b0a0000 0 0x1000>;
+		clocks = <&oscclk6a>;
+		clock-names = "apb_pclk";
 	};
 
 	gic: interrupt-controller@2c001000 {
@@ -104,6 +111,8 @@
 		reg = <0 0x7ffd0000 0 0x1000>;
 		interrupts = <0 86 4>,
 			     <0 87 4>;
+		clocks = <&oscclk6a>;
+		clock-names = "apb_pclk";
 	};
 
 	dma@7ff00000 {
@@ -114,6 +123,8 @@
 			     <0 89 4>,
 			     <0 90 4>,
 			     <0 91 4>;
+		clocks = <&oscclk6a>;
+		clock-names = "apb_pclk";
 	};
 
 	timer {
@@ -130,7 +141,175 @@
 			     <0 69 4>;
 	};
 
-	motherboard {
+	oscclk6a: oscclk6a {
+		/* Reference 24MHz clock */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+		clock-output-names = "oscclk6a";
+	};
+
+	dcc {
+		compatible = "arm,vexpress,config-bus";
+		arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+		osc@0 {
+			/* A15 PLL 0 reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 0>;
+			freq-range = <17000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk0";
+		};
+
+		osc@1 {
+			/* A15 PLL 1 reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 1>;
+			freq-range = <17000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk1";
+		};
+
+		osc@2 {
+			/* A7 PLL 0 reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 2>;
+			freq-range = <17000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk2";
+		};
+
+		osc@3 {
+			/* A7 PLL 1 reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 3>;
+			freq-range = <17000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk3";
+		};
+
+		osc@4 {
+			/* External AXI master clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 4>;
+			freq-range = <20000000 40000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk4";
+		};
+
+		oscclk5: osc@5 {
+			/* HDLCD PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 5>;
+			freq-range = <23750000 165000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk5";
+		};
+
+		smbclk: osc@6 {
+			/* Static memory controller clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 6>;
+			freq-range = <20000000 40000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk6";
+		};
+
+		osc@7 {
+			/* SYS PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 7>;
+			freq-range = <17000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk7";
+		};
+
+		osc@8 {
+			/* DDR2 PLL reference clock */
+			compatible = "arm,vexpress-osc";
+			arm,vexpress-sysreg,func = <1 8>;
+			freq-range = <20000000 50000000>;
+			#clock-cells = <0>;
+			clock-output-names = "oscclk8";
+		};
+
+		volt@0 {
+			/* A15 CPU core voltage */
+			compatible = "arm,vexpress-volt";
+			arm,vexpress-sysreg,func = <2 0>;
+			regulator-name = "A15 Vcore";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-always-on;
+			label = "A15 Vcore";
+		};
+
+		volt@1 {
+			/* A7 CPU core voltage */
+			compatible = "arm,vexpress-volt";
+			arm,vexpress-sysreg,func = <2 1>;
+			regulator-name = "A7 Vcore";
+			regulator-min-microvolt = <800000>;
+			regulator-max-microvolt = <1050000>;
+			regulator-always-on;
+			label = "A7 Vcore";
+		};
+
+		amp@0 {
+			/* Total current for the two A15 cores */
+			compatible = "arm,vexpress-amp";
+			arm,vexpress-sysreg,func = <3 0>;
+			label = "A15 Icore";
+		};
+
+		amp@1 {
+			/* Total current for the three A7 cores */
+			compatible = "arm,vexpress-amp";
+			arm,vexpress-sysreg,func = <3 1>;
+			label = "A7 Icore";
+		};
+
+		temp@0 {
+			/* DCC internal temperature */
+			compatible = "arm,vexpress-temp";
+			arm,vexpress-sysreg,func = <4 0>;
+			label = "DCC";
+		};
+
+		power@0 {
+			/* Total power for the two A15 cores */
+			compatible = "arm,vexpress-power";
+			arm,vexpress-sysreg,func = <12 0>;
+			label = "A15 Pcore";
+		};
+		power@1 {
+			/* Total power for the three A7 cores */
+			compatible = "arm,vexpress-power";
+			arm,vexpress-sysreg,func = <12 1>;
+			label = "A7 Pcore";
+		};
+
+		energy@0 {
+			/* Total energy for the two A15 cores */
+			compatible = "arm,vexpress-energy";
+			arm,vexpress-sysreg,func = <13 0>;
+			label = "A15 Jcore";
+		};
+
+		energy@2 {
+			/* Total energy for the three A7 cores */
+			compatible = "arm,vexpress-energy";
+			arm,vexpress-sysreg,func = <13 2>;
+			label = "A7 Jcore";
+		};
+	};
+
+	smb {
+		compatible = "simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <1>;
 		ranges = <0 0 0 0x08000000 0x04000000>,
 			 <1 0 0 0x14000000 0x04000000>,
 			 <2 0 0 0x18000000 0x04000000>,
@@ -138,6 +317,7 @@
 			 <4 0 0 0x0c000000 0x04000000>,
 			 <5 0 0 0x10000000 0x04000000>;
 
+		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		interrupt-map = <0 0  0 &gic 0  0 4>,
 				<0 0  1 &gic 0  1 4>,
@@ -182,7 +362,7 @@
 				<0 0 40 &gic 0 40 4>,
 				<0 0 41 &gic 0 41 4>,
 				<0 0 42 &gic 0 42 4>;
+
+		/include/ "vexpress-v2m-rs1.dtsi"
 	};
 };
-
-/include/ "vexpress-v2m-rs1.dtsi"

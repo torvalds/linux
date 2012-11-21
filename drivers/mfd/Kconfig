@@ -1070,3 +1070,9 @@ config MCP_UCB1200_TS
 	depends on MCP_UCB1200 && INPUT
 
 endmenu
+
+config VEXPRESS_CONFIG
+	bool
+	help
+	  Platform configuration infrastructure for the ARM Ltd.
+	  Versatile Express.
