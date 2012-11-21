@@ -777,7 +777,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	srf->base_size = *srf->sizes;
 	srf->autogen_filter = SVGA3D_TEX_FILTER_NONE;
-	srf->multisample_count = 1;
+	srf->multisample_count = 0;
 
 	cur_bo_offset = 0;
 	cur_offset = srf->offsets;

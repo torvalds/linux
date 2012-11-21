@@ -886,7 +886,7 @@ enum drm_vmw_surface_flags {
  * @format:           SVGA3d format.
  * @mip_level:        Number of mip levels for all faces.
  * @drm_surface_flags Flags as described above.
- * @multisample_count Future use. Set to 1.
+ * @multisample_count Future use. Set to 0.
  * @autogen_filter    Future use. Set to 0.
  * @buffer_handle     Buffer handle of backup buffer. SVGA3D_INVALID_ID
  *                    if none.
