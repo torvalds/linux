@@ -657,8 +657,7 @@ static int gsc_m2m_release(struct file *file)
 	pr_debug("pid: %d, state: 0x%lx, refcnt= %d",
 		task_pid_nr(current), gsc->state, gsc->m2m.refcnt);
 
-	if (mutex_lock_interruptible(&gsc->lock))
-		return -ERESTARTSYS;
+	mutex_lock(&gsc->lock);
 
 	v4l2_m2m_ctx_release(ctx->m2m_ctx);
 	gsc_ctrls_delete(ctx);
