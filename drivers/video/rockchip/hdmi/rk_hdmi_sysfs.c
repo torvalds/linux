@@ -73,12 +73,12 @@ static int hdmi_set_mode(struct rk_display_device *device, struct fb_videomode *
 	struct hdmi *hdmi = device->priv_data;
 	int vic = hdmi_videomode_to_vic(mode);
 	
-	if(!hdmi->hotplug)
-		return -1;
 	hdmi->autoconfig = HDMI_DISABLE;
 	if(vic && hdmi->vic != vic)
 	{
 		hdmi->vic = vic;
+		if(!hdmi->hotplug)
+			return 0;
 		hdmi->command = HDMI_CONFIG_VIDEO;
 		init_completion(&hdmi->complete);
 		hdmi->wait = 1;
