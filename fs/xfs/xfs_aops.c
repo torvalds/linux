@@ -481,11 +481,17 @@ static inline int bio_add_buffer(struct bio *bio, struct buffer_head *bh)
  *
  * The fix is two passes across the ioend list - one to start writeback on the
  * buffer_heads, and then submit them for I/O on the second pass.
+ *
+ * If @fail is non-zero, it means that we have a situation where some part of
+ * the submission process has failed after we have marked paged for writeback
+ * and unlocked them. In this situation, we need to fail the ioend chain rather
+ * than submit it to IO. This typically only happens on a filesystem shutdown.
  */
 STATIC void
 xfs_submit_ioend(
 	struct writeback_control *wbc,
-	xfs_ioend_t		*ioend)
+	xfs_ioend_t		*ioend,
+	int			fail)
 {
 	xfs_ioend_t		*head = ioend;
 	xfs_ioend_t		*next;
@@ -505,6 +511,18 @@ xfs_submit_ioend(
 	do {
 		next = ioend->io_list;
 		bio = NULL;
+
+		/*
+		 * If we are failing the IO now, just mark the ioend with an
+		 * error and finish it. This will run IO completion immediately
+		 * as there is only one reference to the ioend at this point in
+		 * time.
+		 */
+		if (fail) {
+			ioend->io_error = -fail;
+			xfs_finish_ioend(ioend);
+			continue;
+		}
 
 		for (bh = ioend->io_buffer_head; bh; bh = bh->b_private) {
 
@@ -1060,7 +1078,18 @@ xfs_vm_writepage(
 
 	xfs_start_page_writeback(page, 1, count);
 
-	if (ioend && imap_valid) {
+	/* if there is no IO to be submitted for this page, we are done */
+	if (!ioend)
+		return 0;
+
+	ASSERT(iohead);
+
+	/*
+	 * Any errors from this point onwards need tobe reported through the IO
+	 * completion path as we have marked the initial page as under writeback
+	 * and unlocked it.
+	 */
+	if (imap_valid) {
 		xfs_off_t		end_index;
 
 		end_index = imap.br_startoff + imap.br_blockcount;
@@ -1079,20 +1108,15 @@ xfs_vm_writepage(
 				  wbc, end_index);
 	}
 
-	if (iohead) {
-		/*
-		 * Reserve log space if we might write beyond the on-disk
-		 * inode size.
-		 */
-		if (ioend->io_type != XFS_IO_UNWRITTEN &&
-		    xfs_ioend_is_append(ioend)) {
-			err = xfs_setfilesize_trans_alloc(ioend);
-			if (err)
-				goto error;
-		}
 
-		xfs_submit_ioend(wbc, iohead);
-	}
+	/*
+	 * Reserve log space if we might write beyond the on-disk inode size.
+	 */
+	err = 0;
+	if (ioend->io_type != XFS_IO_UNWRITTEN && xfs_ioend_is_append(ioend))
+		err = xfs_setfilesize_trans_alloc(ioend);
+
+	xfs_submit_ioend(wbc, iohead, err);
 
 	return 0;
 
