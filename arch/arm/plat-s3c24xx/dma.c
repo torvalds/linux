@@ -473,12 +473,13 @@ int s3c2410_dma_enqueue(enum dma_ch channel, void *id,
 		pr_debug("dma%d: %s: buffer %p queued onto non-empty channel\n",
 			 chan->number, __func__, buf);
 
-		if (chan->end == NULL)
+		if (chan->end == NULL) {
 			pr_debug("dma%d: %s: %p not empty, and chan->end==NULL?\n",
 				 chan->number, __func__, chan);
-
-		chan->end->next = buf;
-		chan->end = buf;
+		} else {
+			chan->end->next = buf;
+			chan->end = buf;
+		}
 	}
 
 	/* if necessary, update the next buffer field */
