@@ -4,6 +4,15 @@
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&intc>;
 
+	cache-controller@50043000 {
+		compatible = "arm,pl310-cache";
+		reg = <0x50043000 0x1000>;
+		arm,data-latency = <5 5 2>;
+		arm,tag-latency = <4 4 2>;
+		cache-unified;
+		cache-level = <2>;
+	};
+
 	intc: interrupt-controller {
 		compatible = "arm,cortex-a9-gic";
 		reg = <0x50041000 0x1000

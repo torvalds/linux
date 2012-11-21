@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/include/mach/iomap.h
- *
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:

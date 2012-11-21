@@ -31,11 +31,11 @@
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
 
-#include <mach/iomap.h>
 #include <mach/irqs.h>
 
 #include "board.h"
 #include "clock.h"
+#include "iomap.h"
 
 #define RTC_SECONDS            0x08
 #define RTC_SHADOW_SECONDS     0x0c

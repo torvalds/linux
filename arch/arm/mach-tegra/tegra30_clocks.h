@@ -34,6 +34,7 @@ extern struct clk_ops tegra_clk_out_ops;
 extern struct clk_ops tegra30_super_ops;
 extern struct clk_ops tegra30_blink_clk_ops;
 extern struct clk_ops tegra30_twd_ops;
+extern struct clk_ops tegra30_bus_ops;
 extern struct clk_ops tegra30_periph_clk_ops;
 extern struct clk_ops tegra30_dsib_clk_ops;
 extern struct clk_ops tegra_nand_clk_ops;
