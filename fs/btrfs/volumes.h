@@ -180,6 +180,15 @@ struct btrfs_device_info {
 	u64 total_avail;
 };
 
+struct btrfs_raid_attr {
+	int sub_stripes;	/* sub_stripes info for map */
+	int dev_stripes;	/* stripes per dev */
+	int devs_max;		/* max devs to use */
+	int devs_min;		/* min devs needed */
+	int devs_increment;	/* ndevs has to be a multiple of this */
+	int ncopies;		/* how many copies to data has */
+};
+
 struct map_lookup {
 	u64 type;
 	int io_align;

@@ -3491,6 +3491,14 @@ static int btrfs_cmp_device_info(const void *a, const void *b)
 	return 0;
 }
 
+struct btrfs_raid_attr btrfs_raid_array[BTRFS_NR_RAID_TYPES] = {
+	{ 2, 1, 0, 4, 2, 2 /* raid10 */ },
+	{ 1, 1, 2, 2, 2, 2 /* raid1 */ },
+	{ 1, 2, 1, 1, 1, 2 /* dup */ },
+	{ 1, 1, 0, 2, 1, 1 /* raid0 */ },
+	{ 1, 1, 0, 1, 1, 1 /* single */ },
+};
+
 static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *extent_root,
 			       struct map_lookup **map_ret,
@@ -3520,43 +3528,21 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int ndevs;
 	int i;
 	int j;
+	int index;
 
 	BUG_ON(!alloc_profile_is_valid(type, 0));
 
 	if (list_empty(&fs_devices->alloc_list))
 		return -ENOSPC;
 
-	sub_stripes = 1;
-	dev_stripes = 1;
-	devs_increment = 1;
-	ncopies = 1;
-	devs_max = 0;	/* 0 == as many as possible */
-	devs_min = 1;
+	index = __get_raid_index(type);
 
-	/*
-	 * define the properties of each RAID type.
-	 * FIXME: move this to a global table and use it in all RAID
-	 * calculation code
-	 */
-	if (type & (BTRFS_BLOCK_GROUP_DUP)) {
-		dev_stripes = 2;
-		ncopies = 2;
-		devs_max = 1;
-	} else if (type & (BTRFS_BLOCK_GROUP_RAID0)) {
-		devs_min = 2;
-	} else if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
-		devs_increment = 2;
-		ncopies = 2;
-		devs_max = 2;
-		devs_min = 2;
-	} else if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
-		sub_stripes = 2;
-		devs_increment = 2;
-		ncopies = 2;
-		devs_min = 4;
-	} else {
-		devs_max = 1;
-	}
+	sub_stripes = btrfs_raid_array[index].sub_stripes;
+	dev_stripes = btrfs_raid_array[index].dev_stripes;
+	devs_max = btrfs_raid_array[index].devs_max;
+	devs_min = btrfs_raid_array[index].devs_min;
+	devs_increment = btrfs_raid_array[index].devs_increment;
+	ncopies = btrfs_raid_array[index].ncopies;
 
 	if (type & BTRFS_BLOCK_GROUP_DATA) {
 		max_stripe_size = 1024 * 1024 * 1024;

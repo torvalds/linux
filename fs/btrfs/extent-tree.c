@@ -5479,7 +5479,7 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 	return 0;
 }
 
-static int __get_block_group_index(u64 flags)
+int __get_raid_index(u64 flags)
 {
 	int index;
 
@@ -5499,7 +5499,7 @@ static int __get_block_group_index(u64 flags)
 
 static int get_block_group_index(struct btrfs_block_group_cache *cache)
 {
-	return __get_block_group_index(cache->flags);
+	return __get_raid_index(cache->flags);
 }
 
 enum btrfs_loop_type {
@@ -7441,7 +7441,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	 */
 	target = get_restripe_target(root->fs_info, block_group->flags);
 	if (target) {
-		index = __get_block_group_index(extended_to_chunk(target));
+		index = __get_raid_index(extended_to_chunk(target));
 	} else {
 		/*
 		 * this is just a balance, so if we were marked as full
