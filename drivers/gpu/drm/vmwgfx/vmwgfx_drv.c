@@ -628,6 +628,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (unlikely(ret != 0))
 		goto out_err0;
 
+	dev_priv->prim_bb_mem = dev_priv->vram_size;
+
 	mutex_unlock(&dev_priv->hw_mutex);
 
 	vmw_print_capabilities(dev_priv->capabilities);
@@ -640,6 +642,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		DRM_INFO("Max dedicated hypervisor surface memory is %u kiB\n",
 			 (unsigned)dev_priv->memory_size / 1024);
 	}
+	DRM_INFO("Maximum display memory size is %u kiB\n",
+		 dev_priv->prim_bb_mem / 1024);
 	DRM_INFO("VRAM at 0x%08x size is %u kiB\n",
 		 dev_priv->vram_start, dev_priv->vram_size / 1024);
 	DRM_INFO("MMIO at 0x%08x size is %u kiB\n",

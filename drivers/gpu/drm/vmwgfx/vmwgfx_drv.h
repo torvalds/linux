@@ -281,6 +281,7 @@ struct vmw_private {
 	unsigned int io_start;
 	uint32_t vram_start;
 	uint32_t vram_size;
+	uint32_t prim_bb_mem;
 	uint32_t mmio_start;
 	uint32_t mmio_size;
 	uint32_t fb_max_width;
