@@ -614,7 +614,7 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 	}
 
 	if (!wait_for_completion_timeout(&wm0010->boot_completion,
-					 msecs_to_jiffies(10)))
+					 msecs_to_jiffies(20)))
 		dev_err(codec->dev, "Failed to get interrupt from DSP\n");
 
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
@@ -626,7 +626,7 @@ static int wm0010_boot(struct snd_soc_codec *codec)
 		goto abort;
 
 	if (!wait_for_completion_timeout(&wm0010->boot_completion,
-					 msecs_to_jiffies(10)))
+					 msecs_to_jiffies(20)))
 		dev_err(codec->dev, "Failed to get interrupt from DSP loader.\n");
 
 	spin_lock_irqsave(&wm0010->irq_lock, flags);
