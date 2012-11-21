@@ -896,8 +896,11 @@ __error:
  * actually be deactivated.
  *
  * Must be balanced to calls of snd_usb_endpoint_start().
+ *
+ * The caller needs to synchronize the pending stop operation via
+ * snd_usb_endpoint_sync_pending_stop().
  */
-void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep, bool wait)
+void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 {
 	if (!ep)
 		return;
@@ -911,11 +914,7 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep, bool wait)
 		ep->sync_slave = NULL;
 		ep->retire_data_urb = NULL;
 		ep->prepare_data_urb = NULL;
-
-		if (wait)
-			wait_clear_urbs(ep);
-		else
-			set_bit(EP_FLAG_STOPPING, &ep->flags);
+		set_bit(EP_FLAG_STOPPING, &ep->flags);
 	}
 }
 

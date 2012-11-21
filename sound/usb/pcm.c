@@ -266,10 +266,15 @@ static int start_endpoints(struct snd_usb_substream *subs, bool can_sleep)
 static void stop_endpoints(struct snd_usb_substream *subs, bool wait)
 {
 	if (test_and_clear_bit(SUBSTREAM_FLAG_SYNC_EP_STARTED, &subs->flags))
-		snd_usb_endpoint_stop(subs->sync_endpoint, wait);
+		snd_usb_endpoint_stop(subs->sync_endpoint);
 
 	if (test_and_clear_bit(SUBSTREAM_FLAG_DATA_EP_STARTED, &subs->flags))
-		snd_usb_endpoint_stop(subs->data_endpoint, wait);
+		snd_usb_endpoint_stop(subs->data_endpoint);
+
+	if (wait) {
+		snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
+		snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
+	}
 }
 
 static int deactivate_endpoints(struct snd_usb_substream *subs)
