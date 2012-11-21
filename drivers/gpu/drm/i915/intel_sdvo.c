@@ -1228,6 +1228,30 @@ static void intel_disable_sdvo(struct intel_encoder *encoder)
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
 	if ((temp & SDVO_ENABLE) != 0) {
+		/* HW workaround for IBX, we need to move the port to
+		 * transcoder A before disabling it. */
+		if (HAS_PCH_IBX(encoder->base.dev)) {
+			struct drm_crtc *crtc = encoder->base.crtc;
+			int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
+
+			if (temp & SDVO_PIPE_B_SELECT) {
+				temp &= ~SDVO_PIPE_B_SELECT;
+				I915_WRITE(intel_sdvo->sdvo_reg, temp);
+				POSTING_READ(intel_sdvo->sdvo_reg);
+
+				/* Again we need to write this twice. */
+				I915_WRITE(intel_sdvo->sdvo_reg, temp);
+				POSTING_READ(intel_sdvo->sdvo_reg);
+
+				/* Transcoder selection bits only update
+				 * effectively on vblank. */
+				if (crtc)
+					intel_wait_for_vblank(encoder->base.dev, pipe);
+				else
+					msleep(50);
+			}
+		}
+
 		intel_sdvo_write_sdvox(intel_sdvo, temp & ~SDVO_ENABLE);
 	}
 }
@@ -1244,8 +1268,20 @@ static void intel_enable_sdvo(struct intel_encoder *encoder)
 	u8 status;
 
 	temp = I915_READ(intel_sdvo->sdvo_reg);
-	if ((temp & SDVO_ENABLE) == 0)
+	if ((temp & SDVO_ENABLE) == 0) {
+		/* HW workaround for IBX, we need to move the port
+		 * to transcoder A before disabling it. */
+		if (HAS_PCH_IBX(dev)) {
+			struct drm_crtc *crtc = encoder->base.crtc;
+			int pipe = crtc ? to_intel_crtc(crtc)->pipe : -1;
+
+			/* Restore the transcoder select bit. */
+			if (pipe == PIPE_B)
+				temp |= SDVO_PIPE_B_SELECT;
+		}
+
 		intel_sdvo_write_sdvox(intel_sdvo, temp | SDVO_ENABLE);
+	}
 	for (i = 0; i < 2; i++)
 		intel_wait_for_vblank(dev, intel_crtc->pipe);
 
