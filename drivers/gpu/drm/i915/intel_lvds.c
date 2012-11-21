@@ -1056,14 +1056,23 @@ bool intel_lvds_init(struct drm_device *dev)
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
+			DRM_DEBUG_KMS("using preferred mode from EDID: ");
+			drm_mode_debug_printmodeline(scan);
+
 			fixed_mode = drm_mode_duplicate(dev, scan);
-			intel_find_lvds_downclock(dev, fixed_mode, connector);
-			goto out;
+			if (fixed_mode) {
+				intel_find_lvds_downclock(dev, fixed_mode,
+							  connector);
+				goto out;
+			}
 		}
 	}
 
 	/* Failed to get EDID, what about VBT? */
 	if (dev_priv->lfp_lvds_vbt_mode) {
+		DRM_DEBUG_KMS("using mode from VBT: ");
+		drm_mode_debug_printmodeline(dev_priv->lfp_lvds_vbt_mode);
+
 		fixed_mode = drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
 		if (fixed_mode) {
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
@@ -1088,6 +1097,8 @@ bool intel_lvds_init(struct drm_device *dev)
 	if (crtc && (lvds & LVDS_PORT_EN)) {
 		fixed_mode = intel_crtc_mode_get(dev, crtc);
 		if (fixed_mode) {
+			DRM_DEBUG_KMS("using current (BIOS) mode: ");
+			drm_mode_debug_printmodeline(fixed_mode);
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 			goto out;
 		}
