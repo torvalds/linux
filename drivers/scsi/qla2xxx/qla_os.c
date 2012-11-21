@@ -3720,10 +3720,9 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 						if (fcport->flags &
 						    FCF_FCP2_DEVICE)
 							opts |= BIT_1;
-							status2 =
-							    qla2x00_get_port_database(
-								vha, fcport,
-								opts);
+						status2 =
+						    qla2x00_get_port_database(
+							vha, fcport, opts);
 						if (status2 != QLA_SUCCESS)
 							status = 1;
 					}
