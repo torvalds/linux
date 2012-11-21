@@ -30,12 +30,12 @@ static struct map_desc io_map __initdata = {
 	.type = MT_DEVICE
 };
 
-void __init bcm2835_map_io(void)
+static void __init bcm2835_map_io(void)
 {
 	iotable_init(&io_map, 1);
 }
 
-void __init bcm2835_init(void)
+static void __init bcm2835_init(void)
 {
 	int ret;
 
