@@ -561,22 +561,20 @@ __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
 	if (!cps->clp) /* set in cb_sequence */
 		goto out;
 
-	dprintk_rcu("NFS: CB_RECALL_SLOT request from %s target max slots %d\n",
+	dprintk_rcu("NFS: CB_RECALL_SLOT request from %s target highest slotid %d\n",
 		rpc_peeraddr2str(cps->clp->cl_rpcclient, RPC_DISPLAY_ADDR),
-		args->crsa_target_max_slots);
+		args->crsa_target_highest_slotid);
 
 	fc_tbl = &cps->clp->cl_session->fc_slot_table;
 
 	status = htonl(NFS4ERR_BAD_HIGH_SLOT);
-	if (args->crsa_target_max_slots > fc_tbl->max_slots ||
-	    args->crsa_target_max_slots < 1)
+	if (args->crsa_target_highest_slotid >= fc_tbl->max_slots ||
+	    args->crsa_target_highest_slotid < 1)
 		goto out;
 
 	status = htonl(NFS4_OK);
-	if (args->crsa_target_max_slots == fc_tbl->max_slots)
-		goto out;
 
-	nfs41_set_target_slotid(fc_tbl, args->crsa_target_max_slots);
+	nfs41_set_target_slotid(fc_tbl, args->crsa_target_highest_slotid);
 	nfs41_handle_recall_slot(cps->clp);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));

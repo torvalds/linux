@@ -142,7 +142,7 @@ extern __be32 nfs4_callback_recallany(struct cb_recallanyargs *args,
 
 struct cb_recallslotargs {
 	struct sockaddr	*crsa_addr;
-	uint32_t	crsa_target_max_slots;
+	uint32_t	crsa_target_highest_slotid;
 };
 extern __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args,
 					 void *dummy,
