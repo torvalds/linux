@@ -297,11 +297,86 @@ int bL_switch_request(unsigned int cpu, unsigned int new_cluster_id)
 
 EXPORT_SYMBOL_GPL(bL_switch_request);
 
+/*
+ * Activation and configuration code.
+ */
+
+static cpumask_t bL_switcher_removed_logical_cpus;
+
+static void __init bL_switcher_restore_cpus(void)
+{
+	int i;
+
+	for_each_cpu(i, &bL_switcher_removed_logical_cpus)
+		cpu_up(i);
+}
+
+static int __init bL_switcher_halve_cpus(void)
+{
+	int cpu, cluster, i, ret;
+	cpumask_t cluster_mask[2], common_mask;
+
+	cpumask_clear(&bL_switcher_removed_logical_cpus);
+	cpumask_clear(&cluster_mask[0]);
+	cpumask_clear(&cluster_mask[1]);
+
+	for_each_online_cpu(i) {
+		cpu = cpu_logical_map(i) & 0xff;
+		cluster = (cpu_logical_map(i) >> 8) & 0xff;
+		if (cluster >= 2) {
+			pr_err("%s: only dual cluster systems are supported\n", __func__);
+			return -EINVAL;
+		}
+		cpumask_set_cpu(cpu, &cluster_mask[cluster]);
+	}
+
+	if (!cpumask_and(&common_mask, &cluster_mask[0], &cluster_mask[1])) {
+		pr_err("%s: no common set of CPUs\n", __func__);
+		return -EINVAL;
+	}
+
+	for_each_online_cpu(i) {
+		cpu = cpu_logical_map(i) & 0xff;
+		cluster = (cpu_logical_map(i) >> 8) & 0xff;
+
+		if (cpumask_test_cpu(cpu, &common_mask)) {
+			/*
+			 * We keep only those logical CPUs which number
+			 * is equal to their physical CPU number. This is
+			 * not perfect but good enough in most cases.
+			 */
+			if (cpu == i)
+				continue;
+		}
+
+		ret = cpu_down(i);
+		if (ret) {
+			bL_switcher_restore_cpus();
+			return ret;
+		}
+		cpumask_set_cpu(i, &bL_switcher_removed_logical_cpus);
+	}
+
+	return 0;
+}
+
 static int __init bL_switcher_init(void)
 {
-	int cpu;
+	int cpu, ret;
 
 	pr_info("big.LITTLE switcher initializing\n");
+
+	if (MAX_NR_CLUSTERS != 2) {
+		pr_err("%s: only dual cluster systems are supported\n", __func__);
+		return -EINVAL;
+	}
+
+	cpu_hotplug_driver_lock();
+	ret = bL_switcher_halve_cpus();
+	if (ret) {
+		cpu_hotplug_driver_unlock();
+		return ret;
+	}
 
 	for_each_online_cpu(cpu) {
 		struct bL_thread *t = &bL_threads[cpu];
@@ -309,6 +384,7 @@ static int __init bL_switcher_init(void)
 		t->wanted_cluster = -1;
 		t->task = bL_switcher_thread_create(cpu, t);
 	}
+	cpu_hotplug_driver_unlock();
 
 	pr_info("big.LITTLE switcher initialized\n");
 	return 0;
