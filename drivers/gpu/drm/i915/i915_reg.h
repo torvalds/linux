@@ -142,6 +142,7 @@
 #define   VGA_MSR_CGA_MODE (1<<0)
 
 #define VGA_SR_INDEX 0x3c4
+#define SR01			1
 #define VGA_SR_DATA 0x3c5
 
 #define VGA_AR_INDEX 0x3c0
@@ -938,23 +939,6 @@
 #define   DPLL_LOCK_VLV			(1<<15)
 #define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
 
-#define SRX_INDEX		0x3c4
-#define SRX_DATA		0x3c5
-#define SR01			1
-#define SR01_SCREEN_OFF		(1<<5)
-
-#define PPCR			0x61204
-#define PPCR_ON			(1<<0)
-
-#define DVOB			0x61140
-#define DVOB_ON			(1<<31)
-#define DVOC			0x61160
-#define DVOC_ON			(1<<31)
-#define LVDS			0x61180
-#define LVDS_ON			(1<<31)
-
-/* Scratch pad debug 0 reg:
- */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_I830	0x001f0000
 /*
  * The i830 generation, in LVDS mode, defines P1 as the bit number set within
