@@ -680,6 +680,66 @@ static void vmw_query_bo_switch_commit(struct vmw_private *dev_priv,
 }
 
 /**
+ * vmw_translate_mob_pointer - Prepare to translate a user-space buffer
+ * handle to a MOB id.
+ *
+ * @dev_priv: Pointer to a device private structure.
+ * @sw_context: The software context used for this command batch validation.
+ * @id: Pointer to the user-space handle to be translated.
+ * @vmw_bo_p: Points to a location that, on successful return will carry
+ * a reference-counted pointer to the DMA buffer identified by the
+ * user-space handle in @id.
+ *
+ * This function saves information needed to translate a user-space buffer
+ * handle to a MOB id. The translation does not take place immediately, but
+ * during a call to vmw_apply_relocations(). This function builds a relocation
+ * list and a list of buffers to validate. The former needs to be freed using
+ * either vmw_apply_relocations() or vmw_free_relocations(). The latter
+ * needs to be freed using vmw_clear_validations.
+ */
+static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
+				 struct vmw_sw_context *sw_context,
+				 SVGAMobId *id,
+				 struct vmw_dma_buffer **vmw_bo_p)
+{
+	struct vmw_dma_buffer *vmw_bo = NULL;
+	struct ttm_buffer_object *bo;
+	uint32_t handle = *id;
+	struct vmw_relocation *reloc;
+	int ret;
+
+	ret = vmw_user_dmabuf_lookup(sw_context->tfile, handle, &vmw_bo);
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Could not find or use MOB buffer.\n");
+		return -EINVAL;
+	}
+	bo = &vmw_bo->base;
+
+	if (unlikely(sw_context->cur_reloc >= VMWGFX_MAX_RELOCATIONS)) {
+		DRM_ERROR("Max number relocations per submission"
+			  " exceeded\n");
+		ret = -EINVAL;
+		goto out_no_reloc;
+	}
+
+	reloc = &sw_context->relocs[sw_context->cur_reloc++];
+	reloc->mob_loc = id;
+	reloc->location = NULL;
+
+	ret = vmw_bo_to_validate_list(sw_context, bo, true, &reloc->index);
+	if (unlikely(ret != 0))
+		goto out_no_reloc;
+
+	*vmw_bo_p = vmw_bo;
+	return 0;
+
+out_no_reloc:
+	vmw_dmabuf_unreference(&vmw_bo);
+	vmw_bo_p = NULL;
+	return ret;
+}
+
+/**
  * vmw_translate_guest_pointer - Prepare to translate a user-space buffer
  * handle to a valid SVGAGuestPtr
  *
@@ -740,6 +800,30 @@ out_no_reloc:
 }
 
 /**
+ * vmw_cmd_begin_gb_query - validate a  SVGA_3D_CMD_BEGIN_GB_QUERY command.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context used for this command submission.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_begin_gb_query(struct vmw_private *dev_priv,
+				  struct vmw_sw_context *sw_context,
+				  SVGA3dCmdHeader *header)
+{
+	struct vmw_begin_gb_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdBeginGBQuery q;
+	} *cmd;
+
+	cmd = container_of(header, struct vmw_begin_gb_query_cmd,
+			   header);
+
+	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
+				 user_context_converter, &cmd->q.cid,
+				 NULL);
+}
+
+/**
  * vmw_cmd_begin_query - validate a  SVGA_3D_CMD_BEGIN_QUERY command.
  *
  * @dev_priv: Pointer to a device private struct.
@@ -758,9 +842,61 @@ static int vmw_cmd_begin_query(struct vmw_private *dev_priv,
 	cmd = container_of(header, struct vmw_begin_query_cmd,
 			   header);
 
+	if (unlikely(dev_priv->has_mob)) {
+		struct {
+			SVGA3dCmdHeader header;
+			SVGA3dCmdBeginGBQuery q;
+		} gb_cmd;
+
+		BUG_ON(sizeof(gb_cmd) != sizeof(*cmd));
+
+		gb_cmd.header.id = SVGA_3D_CMD_BEGIN_GB_QUERY;
+		gb_cmd.header.size = cmd->header.size;
+		gb_cmd.q.cid = cmd->q.cid;
+		gb_cmd.q.type = cmd->q.type;
+
+		memcpy(cmd, &gb_cmd, sizeof(*cmd));
+		return vmw_cmd_begin_gb_query(dev_priv, sw_context, header);
+	}
+
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_context,
 				 user_context_converter, &cmd->q.cid,
 				 NULL);
+}
+
+/**
+ * vmw_cmd_end_gb_query - validate a  SVGA_3D_CMD_END_GB_QUERY command.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context used for this command submission.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_end_gb_query(struct vmw_private *dev_priv,
+				struct vmw_sw_context *sw_context,
+				SVGA3dCmdHeader *header)
+{
+	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdEndGBQuery q;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_query_cmd, header);
+	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_translate_mob_ptr(dev_priv, sw_context,
+				    &cmd->q.mobid,
+				    &vmw_bo);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_query_bo_switch_prepare(dev_priv, &vmw_bo->base, sw_context);
+
+	vmw_dmabuf_unreference(&vmw_bo);
+	return ret;
 }
 
 /**
@@ -782,6 +918,25 @@ static int vmw_cmd_end_query(struct vmw_private *dev_priv,
 	int ret;
 
 	cmd = container_of(header, struct vmw_query_cmd, header);
+	if (dev_priv->has_mob) {
+		struct {
+			SVGA3dCmdHeader header;
+			SVGA3dCmdEndGBQuery q;
+		} gb_cmd;
+
+		BUG_ON(sizeof(gb_cmd) != sizeof(*cmd));
+
+		gb_cmd.header.id = SVGA_3D_CMD_END_GB_QUERY;
+		gb_cmd.header.size = cmd->header.size;
+		gb_cmd.q.cid = cmd->q.cid;
+		gb_cmd.q.type = cmd->q.type;
+		gb_cmd.q.mobid = cmd->q.guestResult.gmrId;
+		gb_cmd.q.offset = cmd->q.guestResult.offset;
+
+		memcpy(cmd, &gb_cmd, sizeof(*cmd));
+		return vmw_cmd_end_gb_query(dev_priv, sw_context, header);
+	}
+
 	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
 	if (unlikely(ret != 0))
 		return ret;
@@ -798,7 +953,40 @@ static int vmw_cmd_end_query(struct vmw_private *dev_priv,
 	return ret;
 }
 
-/*
+/**
+ * vmw_cmd_wait_gb_query - validate a  SVGA_3D_CMD_WAIT_GB_QUERY command.
+ *
+ * @dev_priv: Pointer to a device private struct.
+ * @sw_context: The software context used for this command submission.
+ * @header: Pointer to the command header in the command stream.
+ */
+static int vmw_cmd_wait_gb_query(struct vmw_private *dev_priv,
+				 struct vmw_sw_context *sw_context,
+				 SVGA3dCmdHeader *header)
+{
+	struct vmw_dma_buffer *vmw_bo;
+	struct vmw_query_cmd {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdWaitForGBQuery q;
+	} *cmd;
+	int ret;
+
+	cmd = container_of(header, struct vmw_query_cmd, header);
+	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
+	if (unlikely(ret != 0))
+		return ret;
+
+	ret = vmw_translate_mob_ptr(dev_priv, sw_context,
+				    &cmd->q.mobid,
+				    &vmw_bo);
+	if (unlikely(ret != 0))
+		return ret;
+
+	vmw_dmabuf_unreference(&vmw_bo);
+	return 0;
+}
+
+/**
  * vmw_cmd_wait_query - validate a  SVGA_3D_CMD_WAIT_QUERY command.
  *
  * @dev_priv: Pointer to a device private struct.
@@ -817,6 +1005,25 @@ static int vmw_cmd_wait_query(struct vmw_private *dev_priv,
 	int ret;
 
 	cmd = container_of(header, struct vmw_query_cmd, header);
+	if (dev_priv->has_mob) {
+		struct {
+			SVGA3dCmdHeader header;
+			SVGA3dCmdWaitForGBQuery q;
+		} gb_cmd;
+
+		BUG_ON(sizeof(gb_cmd) != sizeof(*cmd));
+
+		gb_cmd.header.id = SVGA_3D_CMD_WAIT_FOR_GB_QUERY;
+		gb_cmd.header.size = cmd->header.size;
+		gb_cmd.q.cid = cmd->q.cid;
+		gb_cmd.q.type = cmd->q.type;
+		gb_cmd.q.mobid = cmd->q.guestResult.gmrId;
+		gb_cmd.q.offset = cmd->q.guestResult.offset;
+
+		memcpy(cmd, &gb_cmd, sizeof(*cmd));
+		return vmw_cmd_wait_gb_query(dev_priv, sw_context, header);
+	}
+
 	ret = vmw_cmd_cid_check(dev_priv, sw_context, header);
 	if (unlikely(ret != 0))
 		return ret;
@@ -1093,6 +1300,9 @@ static vmw_cmd_func vmw_cmd_funcs[SVGA_3D_CMD_MAX] = {
 	VMW_CMD_DEF(SVGA_3D_CMD_GENERATE_MIPMAPS, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_ACTIVATE_SURFACE, &vmw_cmd_invalid),
 	VMW_CMD_DEF(SVGA_3D_CMD_DEACTIVATE_SURFACE, &vmw_cmd_invalid),
+	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_GB_QUERY, &vmw_cmd_begin_gb_query),
+	VMW_CMD_DEF(SVGA_3D_CMD_END_GB_QUERY, &vmw_cmd_end_gb_query),
+	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_GB_QUERY, &vmw_cmd_wait_gb_query),
 };
 
 static int vmw_cmd_check(struct vmw_private *dev_priv,
@@ -1181,6 +1391,9 @@ static void vmw_apply_relocations(struct vmw_sw_context *sw_context)
 			break;
 		case VMW_PL_GMR:
 			reloc->location->gmrId = bo->mem.start;
+			break;
+		case VMW_PL_MOB:
+			*reloc->mob_loc = bo->mem.start;
 			break;
 		default:
 			BUG();

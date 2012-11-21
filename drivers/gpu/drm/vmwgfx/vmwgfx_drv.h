@@ -167,6 +167,7 @@ struct vmw_fifo_state {
 };
 
 struct vmw_relocation {
+	SVGAMobId *mob_loc;
 	SVGAGuestPtr *location;
 	uint32_t index;
 };
