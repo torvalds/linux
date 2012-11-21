@@ -467,9 +467,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom)
 	/* general pen packet */
 	if ((data[1] & 0xb8) == 0xa0) {
 		t = (data[6] << 2) | ((data[7] >> 6) & 3);
-		if ((features->type >= INTUOS4S && features->type <= INTUOS4L) ||
-                    (features->type >= INTUOS5S && features->type <= INTUOS5L) ||
-		    (features->type >= WACOM_21UX2 && features->type <= WACOM_24HD)) {
+		if (features->type >= INTUOS4S && features->type <= WACOM_24HD) {
 			t = (t << 1) | (data[1] & 1);
 		}
 		input_report_abs(input, ABS_PRESSURE, t);
