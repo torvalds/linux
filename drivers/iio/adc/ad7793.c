@@ -106,6 +106,8 @@
 #define AD7793_ID		0xB
 #define AD7794_ID		0xF
 #define AD7795_ID		0xF
+#define AD7796_ID		0xA
+#define AD7797_ID		0xB
 #define AD7798_ID		0x8
 #define AD7799_ID		0x9
 #define AD7793_ID_MASK		0xF
@@ -136,12 +138,17 @@
 #define AD7793_FLAG_HAS_REFSEL		BIT(1)
 #define AD7793_FLAG_HAS_VBIAS		BIT(2)
 #define AD7793_HAS_EXITATION_CURRENT	BIT(3)
+#define AD7793_FLAG_HAS_GAIN		BIT(4)
+#define AD7793_FLAG_HAS_BUFFER		BIT(5)
 
 struct ad7793_chip_info {
 	unsigned int id;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
 	unsigned int flags;
+
+	const struct iio_info *iio_info;
+	const u16 *sample_freq_avail;
 };
 
 struct ad7793_state {
@@ -162,6 +169,8 @@ enum ad7793_supported_device_ids {
 	ID_AD7793,
 	ID_AD7794,
 	ID_AD7795,
+	ID_AD7796,
+	ID_AD7797,
 	ID_AD7798,
 	ID_AD7799,
 };
@@ -283,7 +292,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 		st->conf |= AD7793_CONF_REFSEL(pdata->refsel);
 	if (st->chip_info->flags & AD7793_FLAG_HAS_VBIAS)
 		st->conf |= AD7793_CONF_VBIAS(pdata->bias_voltage);
-	if (pdata->buffered)
+	if (pdata->buffered || !(st->chip_info->flags & AD7793_FLAG_HAS_BUFFER))
 		st->conf |= AD7793_CONF_BUF;
 	if (pdata->boost_enable &&
 		(st->chip_info->flags & AD7793_FLAG_HAS_VBIAS))
@@ -292,6 +301,9 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 		st->conf |= AD7793_CONF_BO_EN;
 	if (pdata->unipolar)
 		st->conf |= AD7793_CONF_UNIPOLAR;
+
+	if (!(st->chip_info->flags & AD7793_FLAG_HAS_GAIN))
+		st->conf |= AD7793_CONF_GAIN(7);
 
 	ret = ad7793_set_mode(&st->sd, AD_SD_MODE_IDLE);
 	if (ret)
@@ -330,8 +342,11 @@ out:
 	return ret;
 }
 
-static const u16 sample_freq_avail[16] = {0, 470, 242, 123, 62, 50, 39, 33, 19,
-					  17, 16, 12, 10, 8, 6, 4};
+static const u16 ad7793_sample_freq_avail[16] = {0, 470, 242, 123, 62, 50, 39,
+					33, 19, 17, 16, 12, 10, 8, 6, 4};
+
+static const u16 ad7797_sample_freq_avail[16] = {0, 0, 0, 123, 62, 50, 0,
+					33, 0, 17, 16, 12, 10, 8, 6, 4};
 
 static ssize_t ad7793_read_frequency(struct device *dev,
 		struct device_attribute *attr,
@@ -341,7 +356,7 @@ static ssize_t ad7793_read_frequency(struct device *dev,
 	struct ad7793_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n",
-		       sample_freq_avail[AD7793_MODE_RATE(st->mode)]);
+	       st->chip_info->sample_freq_avail[AD7793_MODE_RATE(st->mode)]);
 }
 
 static ssize_t ad7793_write_frequency(struct device *dev,
@@ -365,10 +380,13 @@ static ssize_t ad7793_write_frequency(struct device *dev,
 	if (ret)
 		return ret;
 
+	if (lval == 0)
+		return -EINVAL;
+
 	ret = -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(sample_freq_avail); i++)
-		if (lval == sample_freq_avail[i]) {
+	for (i = 0; i < 16; i++)
+		if (lval == st->chip_info->sample_freq_avail[i]) {
 			mutex_lock(&indio_dev->mlock);
 			st->mode &= ~AD7793_MODE_RATE(-1);
 			st->mode |= AD7793_MODE_RATE(i);
@@ -387,6 +405,9 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
 	"470 242 123 62 50 39 33 19 17 16 12 10 8 6 4");
+
+static IIO_CONST_ATTR_NAMED(sampling_frequency_available_ad7797,
+	sampling_frequency_available, "123 62 50 33 17 16 12 10 8 6 4");
 
 static ssize_t ad7793_show_scale_available(struct device *dev,
 			struct device_attribute *attr, char *buf)
@@ -417,6 +438,16 @@ static struct attribute *ad7793_attributes[] = {
 
 static const struct attribute_group ad7793_attribute_group = {
 	.attrs = ad7793_attributes,
+};
+
+static struct attribute *ad7797_attributes[] = {
+	&iio_dev_attr_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available_ad7797.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group ad7797_attribute_group = {
+	.attrs = ad7797_attributes,
 };
 
 static int ad7793_read_raw(struct iio_dev *indio_dev,
@@ -544,6 +575,15 @@ static const struct iio_info ad7793_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static const struct iio_info ad7797_info = {
+	.read_raw = &ad7793_read_raw,
+	.write_raw = &ad7793_write_raw,
+	.write_raw_get_fmt = &ad7793_write_raw_get_fmt,
+	.attrs = &ad7793_attribute_group,
+	.validate_trigger = ad_sd_validate_trigger,
+	.driver_module = THIS_MODULE,
+};
+
 #define DECLARE_AD7793_CHANNELS(_name, _b, _sb, _s) \
 const struct iio_chan_spec _name##_channels[] = { \
 	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), (_s)), \
@@ -569,6 +609,15 @@ const struct iio_chan_spec _name##_channels[] = { \
 	IIO_CHAN_SOFT_TIMESTAMP(9), \
 }
 
+#define DECLARE_AD7797_CHANNELS(_name, _b, _sb) \
+const struct iio_chan_spec _name##_channels[] = { \
+	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
+	AD_SD_SHORTED_CHANNEL(1, 0, AD7793_CH_AIN1M_AIN1M, (_b), (_sb), 0), \
+	AD_SD_TEMP_CHANNEL(2, AD7793_CH_TEMP, (_b), (_sb), 0), \
+	AD_SD_SUPPLY_CHANNEL(3, 3, AD7793_CH_AVDD_MONITOR, (_b), (_sb), 0), \
+	IIO_CHAN_SOFT_TIMESTAMP(4), \
+}
+
 #define DECLARE_AD7799_CHANNELS(_name, _b, _sb) \
 const struct iio_chan_spec _name##_channels[] = { \
 	AD_SD_DIFF_CHANNEL(0, 0, 0, AD7793_CH_AIN1P_AIN1M, (_b), (_sb), 0), \
@@ -584,6 +633,8 @@ static DECLARE_AD7793_CHANNELS(ad7792, 16, 32, 0);
 static DECLARE_AD7793_CHANNELS(ad7793, 24, 32, 0);
 static DECLARE_AD7795_CHANNELS(ad7794, 16, 32);
 static DECLARE_AD7795_CHANNELS(ad7795, 24, 32);
+static DECLARE_AD7797_CHANNELS(ad7796, 16, 16);
+static DECLARE_AD7797_CHANNELS(ad7797, 24, 32);
 static DECLARE_AD7799_CHANNELS(ad7798, 16, 16);
 static DECLARE_AD7799_CHANNELS(ad7799, 24, 32);
 
@@ -592,56 +643,100 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 		.id = AD7785_ID,
 		.channels = ad7785_channels,
 		.num_channels = ARRAY_SIZE(ad7785_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
 		.flags = AD7793_FLAG_HAS_CLKSEL |
 			AD7793_FLAG_HAS_REFSEL |
 			AD7793_FLAG_HAS_VBIAS |
-			AD7793_HAS_EXITATION_CURRENT,
+			AD7793_HAS_EXITATION_CURRENT |
+			AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
 	},
 	[ID_AD7792] = {
 		.id = AD7792_ID,
 		.channels = ad7792_channels,
 		.num_channels = ARRAY_SIZE(ad7792_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
 		.flags = AD7793_FLAG_HAS_CLKSEL |
 			AD7793_FLAG_HAS_REFSEL |
 			AD7793_FLAG_HAS_VBIAS |
-			AD7793_HAS_EXITATION_CURRENT,
+			AD7793_HAS_EXITATION_CURRENT |
+			AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
 	},
 	[ID_AD7793] = {
 		.id = AD7793_ID,
 		.channels = ad7793_channels,
 		.num_channels = ARRAY_SIZE(ad7793_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
 		.flags = AD7793_FLAG_HAS_CLKSEL |
 			AD7793_FLAG_HAS_REFSEL |
 			AD7793_FLAG_HAS_VBIAS |
-			AD7793_HAS_EXITATION_CURRENT,
+			AD7793_HAS_EXITATION_CURRENT |
+			AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
 	},
 	[ID_AD7794] = {
 		.id = AD7794_ID,
 		.channels = ad7794_channels,
 		.num_channels = ARRAY_SIZE(ad7794_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
 		.flags = AD7793_FLAG_HAS_CLKSEL |
 			AD7793_FLAG_HAS_REFSEL |
 			AD7793_FLAG_HAS_VBIAS |
-			AD7793_HAS_EXITATION_CURRENT,
+			AD7793_HAS_EXITATION_CURRENT |
+			AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
 	},
 	[ID_AD7795] = {
 		.id = AD7795_ID,
 		.channels = ad7795_channels,
 		.num_channels = ARRAY_SIZE(ad7795_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
 		.flags = AD7793_FLAG_HAS_CLKSEL |
 			AD7793_FLAG_HAS_REFSEL |
 			AD7793_FLAG_HAS_VBIAS |
-			AD7793_HAS_EXITATION_CURRENT,
+			AD7793_HAS_EXITATION_CURRENT |
+			AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
+	},
+	[ID_AD7796] = {
+		.id = AD7796_ID,
+		.channels = ad7796_channels,
+		.num_channels = ARRAY_SIZE(ad7796_channels),
+		.iio_info = &ad7797_info,
+		.sample_freq_avail = ad7797_sample_freq_avail,
+		.flags = AD7793_FLAG_HAS_CLKSEL,
+	},
+	[ID_AD7797] = {
+		.id = AD7797_ID,
+		.channels = ad7797_channels,
+		.num_channels = ARRAY_SIZE(ad7797_channels),
+		.iio_info = &ad7797_info,
+		.sample_freq_avail = ad7797_sample_freq_avail,
+		.flags = AD7793_FLAG_HAS_CLKSEL,
 	},
 	[ID_AD7798] = {
 		.id = AD7798_ID,
 		.channels = ad7798_channels,
 		.num_channels = ARRAY_SIZE(ad7798_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
+		.flags = AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
 	},
 	[ID_AD7799] = {
 		.id = AD7799_ID,
 		.channels = ad7799_channels,
 		.num_channels = ARRAY_SIZE(ad7799_channels),
+		.iio_info = &ad7793_info,
+		.sample_freq_avail = ad7793_sample_freq_avail,
+		.flags = AD7793_FLAG_HAS_GAIN |
+			AD7793_FLAG_HAS_BUFFER,
 	},
 };
 
@@ -702,7 +797,7 @@ static int ad7793_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
-	indio_dev->info = &ad7793_info;
+	indio_dev->info = st->chip_info->iio_info;
 
 	ret = ad_sd_setup_buffer_and_trigger(indio_dev);
 	if (ret)
@@ -757,6 +852,8 @@ static const struct spi_device_id ad7793_id[] = {
 	{"ad7793", ID_AD7793},
 	{"ad7794", ID_AD7794},
 	{"ad7795", ID_AD7795},
+	{"ad7796", ID_AD7796},
+	{"ad7797", ID_AD7797},
 	{"ad7798", ID_AD7798},
 	{"ad7799", ID_AD7799},
 	{}
