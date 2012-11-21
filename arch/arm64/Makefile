@@ -58,7 +58,7 @@ zinstall install: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
 
 dtbs: scripts
-	$(Q)$(MAKE) $(build)=$(boot)/dts $(boot)/dts/$@
+	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
 
 # We use MRPROPER_FILES and CLEAN_FILES now
 archclean:
