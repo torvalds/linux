@@ -1578,7 +1578,8 @@ static int exar_handle_irq(struct uart_port *port)
 
 	ret = serial8250_handle_irq(port, iir);
 
-	if (port->type == PORT_XR17V35X) {
+	if ((port->type == PORT_XR17V35X) ||
+	   (port->type == PORT_XR17D15X)) {
 		int0 = serial_port_in(port, 0x80);
 		int1 = serial_port_in(port, 0x81);
 		int2 = serial_port_in(port, 0x82);
@@ -2689,7 +2690,8 @@ static void serial8250_config_port(struct uart_port *port, int flags)
 		serial8250_release_std_resource(up);
 
 	/* Fixme: probably not the best place for this */
-	if (port->type == PORT_XR17V35X)
+	if ((port->type == PORT_XR17V35X) ||
+	   (port->type == PORT_XR17D15X))
 		port->handle_irq = exar_handle_irq;
 }
 
