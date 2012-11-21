@@ -89,6 +89,8 @@ MODULE_PARM_DESC(ql2xextended_error_logging,
 		"\t\t0x00200000 - AER/EEH.       0x00100000 - Multi Q.\n"
 		"\t\t0x00080000 - P3P Specific.  0x00040000 - Virtual Port.\n"
 		"\t\t0x00020000 - Buffer Dump.   0x00010000 - Misc.\n"
+		"\t\t0x00008000 - Verbose.       0x00004000 - Target.\n"
+		"\t\t0x00002000 - Target Mgmt.   0x00001000 - Target TMF.\n"
 		"\t\t0x7fffffff - For enabling all logs, can be too many logs.\n"
 		"\t\t0x1e400000 - Preferred value for capturing essential "
 		"debug information (equivalent to old "
