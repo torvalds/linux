@@ -36,7 +36,7 @@ struct ps2dev {
 	wait_queue_head_t wait;
 
 	unsigned long flags;
-	unsigned char cmdbuf[6];
+	unsigned char cmdbuf[8];
 	unsigned char cmdcnt;
 	unsigned char nak;
 };
