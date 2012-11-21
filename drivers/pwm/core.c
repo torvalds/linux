@@ -32,6 +32,9 @@
 
 #define MAX_PWMS 1024
 
+/* flags in the third cell of the DT PWM specifier */
+#define PWM_SPEC_POLARITY	(1 << 0)
+
 static DEFINE_MUTEX(pwm_lookup_lock);
 static LIST_HEAD(pwm_lookup_list);
 static DEFINE_MUTEX(pwm_lock);
@@ -127,6 +130,31 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 	pwm->label = label;
 
 	return 0;
+}
+
+struct pwm_device *
+of_pwm_xlate_with_flags(struct pwm_chip *pc, const struct of_phandle_args *args)
+{
+	struct pwm_device *pwm;
+
+	if (pc->of_pwm_n_cells < 3)
+		return ERR_PTR(-EINVAL);
+
+	if (args->args[0] >= pc->npwm)
+		return ERR_PTR(-EINVAL);
+
+	pwm = pwm_request_from_chip(pc, args->args[0], NULL);
+	if (IS_ERR(pwm))
+		return pwm;
+
+	pwm_set_period(pwm, args->args[1]);
+
+	if (args->args[2] & PWM_SPEC_POLARITY)
+		pwm_set_polarity(pwm, PWM_POLARITY_INVERSED);
+	else
+		pwm_set_polarity(pwm, PWM_POLARITY_NORMAL);
+
+	return pwm;
 }
 
 static struct pwm_device *
