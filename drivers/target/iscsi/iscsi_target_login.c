@@ -1118,10 +1118,8 @@ new_sess_out:
 		idr_remove(&sess_idr, conn->sess->session_index);
 		spin_unlock_bh(&sess_idr_lock);
 	}
-	if (conn->sess->sess_ops)
-		kfree(conn->sess->sess_ops);
-	if (conn->sess)
-		kfree(conn->sess);
+	kfree(conn->sess->sess_ops);
+	kfree(conn->sess);
 old_sess_out:
 	iscsi_stop_login_thread_timer(np);
 	/*
