@@ -204,7 +204,7 @@ static ssize_t ad7793_write_frequency(struct device *dev,
 	}
 	mutex_unlock(&indio_dev->mlock);
 
-	ret = strict_strtol(buf, 10, &lval);
+	ret = kstrtol(buf, 10, &lval);
 	if (ret)
 		return ret;
 
