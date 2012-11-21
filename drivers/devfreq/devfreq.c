@@ -644,7 +644,7 @@ int devfreq_remove_governor(struct devfreq_governor *governor)
 	if (IS_ERR(g)) {
 		pr_err("%s: governor %s not registered\n", __func__,
 		       governor->name);
-		err = -EINVAL;
+		err = PTR_ERR(g);
 		goto err_out;
 	}
 	list_for_each_entry(devfreq, &devfreq_list, node) {
