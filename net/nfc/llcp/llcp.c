@@ -1397,7 +1397,7 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 	local->remote_miu = LLCP_DEFAULT_MIU;
 	local->remote_lto = LLCP_DEFAULT_LTO;
 
-	list_add(&llcp_devices, &local->list);
+	list_add(&local->list, &llcp_devices);
 
 	return 0;
 }

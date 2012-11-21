@@ -2107,7 +2107,7 @@ static void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 
 	info = IEEE80211_SKB_CB(skb);
 	iwl_trans_free_tx_cmd(priv->trans, info->driver_data[1]);
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(priv->hw, skb);
 }
 
 static void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
