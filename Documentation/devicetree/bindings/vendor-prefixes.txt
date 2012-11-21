@@ -51,4 +51,5 @@ ti	Texas Instruments
 via	VIA Technologies, Inc.
 wlf	Wolfson Microelectronics
 wm	Wondermedia Technologies, Inc.
+winbond Winbond Electronics corp.
 xlnx	Xilinx

@@ -395,37 +395,26 @@
 			vinldo9-supply = <&sm2_reg>;
 
 			regulators {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				sys_reg: regulator@0 {
-					reg = <0>;
-					regulator-compatible = "sys";
+				sys_reg: sys {
 					regulator-name = "vdd_sys";
 					regulator-always-on;
 				};
 
-				regulator@1 {
-					reg = <1>;
-					regulator-compatible = "sm0";
+				sm0 {
 					regulator-name = "vdd_sm0,vdd_core";
 					regulator-min-microvolt = <1300000>;
 					regulator-max-microvolt = <1300000>;
 					regulator-always-on;
 				};
 
-				regulator@2 {
-					reg = <2>;
-					regulator-compatible = "sm1";
+				sm1 {
 					regulator-name = "vdd_sm1,vdd_cpu";
 					regulator-min-microvolt = <1125000>;
 					regulator-max-microvolt = <1125000>;
 					regulator-always-on;
 				};
 
-				sm2_reg: regulator@3 {
-					reg = <3>;
-					regulator-compatible = "sm2";
+				sm2_reg: sm2 {
 					regulator-name = "vdd_sm2,vin_ldo*";
 					regulator-min-microvolt = <3700000>;
 					regulator-max-microvolt = <3700000>;
@@ -434,86 +423,66 @@
 
 				/* LDO0 is not connected to anything */
 
-				regulator@5 {
-					reg = <5>;
-					regulator-compatible = "ldo1";
+				ldo1 {
 					regulator-name = "vdd_ldo1,avdd_pll*";
 					regulator-min-microvolt = <1100000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-always-on;
 				};
 
-				regulator@6 {
-					reg = <6>;
-					regulator-compatible = "ldo2";
+				ldo2 {
 					regulator-name = "vdd_ldo2,vdd_rtc";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 				};
 
-				regulator@7 {
-					reg = <7>;
-					regulator-compatible = "ldo3";
+				ldo3 {
 					regulator-name = "vdd_ldo3,avdd_usb*";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 				};
 
-				regulator@8 {
-					reg = <8>;
-					regulator-compatible = "ldo4";
+				ldo4 {
 					regulator-name = "vdd_ldo4,avdd_osc,vddio_sys";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
 				};
 
-				regulator@9 {
-					reg = <9>;
-					regulator-compatible = "ldo5";
+				ldo5 {
 					regulator-name = "vdd_ldo5,vcore_mmc";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 					regulator-always-on;
 				};
 
-				regulator@10 {
-					reg = <10>;
-					regulator-compatible = "ldo6";
+				ldo6 {
 					regulator-name = "vdd_ldo6,avdd_vdac,vddio_vi,vddio_cam";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
-				regulator@11 {
-					reg = <11>;
-					regulator-compatible = "ldo7";
+				ldo7 {
 					regulator-name = "vdd_ldo7,avdd_hdmi,vdd_fuse";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
 
-				regulator@12 {
-					reg = <12>;
-					regulator-compatible = "ldo8";
+				ldo8 {
 					regulator-name = "vdd_ldo8,avdd_hdmi_pll";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
-				regulator@13 {
-					reg = <13>;
-					regulator-compatible = "ldo9";
+				ldo9 {
 					regulator-name = "vdd_ldo9,avdd_2v85,vdd_ddr_rx";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 					regulator-always-on;
 				};
 
-				regulator@14 {
-					reg = <14>;
-					regulator-compatible = "ldo_rtc";
+				ldo_rtc {
 					regulator-name = "vdd_rtc_out,vdd_cell";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
@@ -590,6 +559,12 @@
 
 	usb@c5008000 {
 		status = "okay";
+	};
+
+	sdhci@c8000000 {
+		status = "okay";
+		power-gpios = <&gpio 86 0>; /* gpio PK6 */
+		bus-width = <4>;
 	};
 
 	sdhci@c8000400 {

@@ -3,9 +3,8 @@
 
 #include <asm/cache.h>
 
-#include <mach/iomap.h>
-
 #include "flowctrl.h"
+#include "iomap.h"
 #include "reset.h"
 #include "sleep.h"
 

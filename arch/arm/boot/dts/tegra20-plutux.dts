@@ -6,6 +6,12 @@
 	model = "Avionic Design Plutux board";
 	compatible = "ad,plutux", "ad,tamonten", "nvidia,tegra20";
 
+	host1x {
+		hdmi {
+			status = "okay";
+		};
+	};
+
 	i2c@7000c000 {
 		wm8903: wm8903@1a {
 			compatible = "wlf,wm8903";

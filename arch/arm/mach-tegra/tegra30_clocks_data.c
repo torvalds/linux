@@ -711,6 +711,50 @@ static struct clk tegra_clk_sclk = {
 	.num_parents = ARRAY_SIZE(mux_sclk),
 };
 
+static const char *tegra_hclk_parent_names[] = {
+	"tegra_sclk",
+};
+
+static struct clk *tegra_hclk_parents[] = {
+	&tegra_clk_sclk,
+};
+
+static struct clk tegra_hclk;
+static struct clk_tegra tegra_hclk_hw = {
+	.hw = {
+		.clk = &tegra_hclk,
+	},
+	.flags = DIV_BUS,
+	.reg = 0x30,
+	.reg_shift = 4,
+	.max_rate = 378000000,
+	.min_rate = 12000000,
+};
+DEFINE_CLK_TEGRA(hclk, 0, &tegra30_bus_ops, 0, tegra_hclk_parent_names,
+		tegra_hclk_parents, &tegra_clk_sclk);
+
+static const char *tegra_pclk_parent_names[] = {
+	"tegra_hclk",
+};
+
+static struct clk *tegra_pclk_parents[] = {
+	&tegra_hclk,
+};
+
+static struct clk tegra_pclk;
+static struct clk_tegra tegra_pclk_hw = {
+	.hw = {
+		.clk = &tegra_pclk,
+	},
+	.flags = DIV_BUS,
+	.reg = 0x30,
+	.reg_shift = 0,
+	.max_rate = 167000000,
+	.min_rate = 12000000,
+};
+DEFINE_CLK_TEGRA(pclk, 0, &tegra30_bus_ops, 0, tegra_pclk_parent_names,
+		tegra_pclk_parents, &tegra_hclk);
+
 static const char *mux_blink[] = {
 	"clk_32k",
 };
@@ -1254,8 +1298,6 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("usbd", "utmip-pad", NULL),
 	CLK_DUPLICATE("usbd", "tegra-ehci.0", NULL),
 	CLK_DUPLICATE("usbd", "tegra-otg", NULL),
-	CLK_DUPLICATE("hdmi", "tegradc.0", "hdmi"),
-	CLK_DUPLICATE("hdmi", "tegradc.1", "hdmi"),
 	CLK_DUPLICATE("dsib", "tegradc.0", "dsib"),
 	CLK_DUPLICATE("dsia", "tegradc.1", "dsia"),
 	CLK_DUPLICATE("bsev", "tegra-avp", "bsev"),
@@ -1293,6 +1335,9 @@ struct clk_duplicate tegra_clk_duplicates[] = {
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.2", "fast-clk"),
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.3", "fast-clk"),
 	CLK_DUPLICATE("pll_p_out3", "tegra-i2c.4", "fast-clk"),
+	CLK_DUPLICATE("pll_p", "tegradc.0", "parent"),
+	CLK_DUPLICATE("pll_p", "tegradc.1", "parent"),
+	CLK_DUPLICATE("pll_d2_out0", "hdmi", "parent"),
 };
 
 struct clk *tegra_ptr_clks[] = {
@@ -1325,6 +1370,8 @@ struct clk *tegra_ptr_clks[] = {
 	&tegra_cml1,
 	&tegra_pciex,
 	&tegra_clk_sclk,
+	&tegra_hclk,
+	&tegra_pclk,
 	&tegra_clk_blink,
 	&tegra30_clk_twd,
 };

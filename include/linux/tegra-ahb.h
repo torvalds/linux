@@ -11,9 +11,9 @@
  * more details.
  */
 
-#ifndef __MACH_TEGRA_AHB_H__
-#define __MACH_TEGRA_AHB_H__
+#ifndef __LINUX_AHB_H__
+#define __LINUX_AHB_H__
 
 extern int tegra_ahb_enable_smmu(struct device_node *ahb);
 
-#endif	/* __MACH_TEGRA_AHB_H__ */
+#endif	/* __LINUX_AHB_H__ */

@@ -29,8 +29,6 @@
 
 #include <asm/proc-fns.h>
 
-#include <mach/iomap.h>
-
 static int tegra_idle_enter_lp3(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv, int index);
 

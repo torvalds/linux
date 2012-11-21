@@ -39,7 +39,6 @@
 #include <linux/workqueue.h>
 
 #include <mach/clk.h>
-#include <mach/iomap.h>
 
 #include "nvec.h"
 
