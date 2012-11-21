@@ -28,6 +28,14 @@
 		spi0 = &spi_0;
 		spi1 = &spi_1;
 		spi2 = &spi_2;
+		i2c0 = &i2c_0;
+		i2c1 = &i2c_1;
+		i2c2 = &i2c_2;
+		i2c3 = &i2c_3;
+		i2c4 = &i2c_4;
+		i2c5 = &i2c_5;
+		i2c6 = &i2c_6;
+		i2c7 = &i2c_7;
 	};
 
 	gic:interrupt-controller@10490000 {
@@ -121,7 +129,7 @@
 		status = "disabled";
 	};
 
-	i2c@13860000 {
+	i2c_0: i2c@13860000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -130,7 +138,7 @@
 		status = "disabled";
 	};
 
-	i2c@13870000 {
+	i2c_1: i2c@13870000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -139,7 +147,7 @@
 		status = "disabled";
 	};
 
-	i2c@13880000 {
+	i2c_2: i2c@13880000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -148,7 +156,7 @@
 		status = "disabled";
 	};
 
-	i2c@13890000 {
+	i2c_3: i2c@13890000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -157,7 +165,7 @@
 		status = "disabled";
 	};
 
-	i2c@138A0000 {
+	i2c_4: i2c@138A0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -166,7 +174,7 @@
 		status = "disabled";
 	};
 
-	i2c@138B0000 {
+	i2c_5: i2c@138B0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -175,7 +183,7 @@
 		status = "disabled";
 	};
 
-	i2c@138C0000 {
+	i2c_6: i2c@138C0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
@@ -184,7 +192,7 @@
 		status = "disabled";
 	};
 
-	i2c@138D0000 {
+	i2c_7: i2c@138D0000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "samsung,s3c2440-i2c";
