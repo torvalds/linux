@@ -567,11 +567,6 @@ __be32 nfs4_callback_recallslot(struct cb_recallslotargs *args, void *dummy,
 
 	fc_tbl = &cps->clp->cl_session->fc_slot_table;
 
-	status = htonl(NFS4ERR_BAD_HIGH_SLOT);
-	if (args->crsa_target_highest_slotid >= fc_tbl->max_slots ||
-	    args->crsa_target_highest_slotid < 1)
-		goto out;
-
 	status = htonl(NFS4_OK);
 
 	nfs41_set_target_slotid(fc_tbl, args->crsa_target_highest_slotid);
