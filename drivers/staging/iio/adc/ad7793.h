@@ -182,7 +182,6 @@ enum ad7793_excitation_current {
 
 /**
  * struct ad7793_platform_data - AD7793 platform data
- * @vref_mv: Reference voltage in milli-Volt
  * @clock_src: Clock source selection
  * @burnout_current: If set to true the 100nA burnout current is enabled.
  * @boost_enable: Enable boost for the bias voltage generator.
@@ -195,8 +194,6 @@ enum ad7793_excitation_current {
  * @current_source_direction: Excitation current direction selection
  */
 struct ad7793_platform_data {
-	u16 vref_mv;
-
 	enum ad7793_clock_source clock_src;
 	bool burnout_current;
 	bool boost_enable;

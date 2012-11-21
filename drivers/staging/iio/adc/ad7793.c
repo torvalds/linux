@@ -111,7 +111,8 @@ static int ad7793_calibrate_all(struct ad7793_state *st)
 }
 
 static int ad7793_setup(struct iio_dev *indio_dev,
-	const struct ad7793_platform_data *pdata)
+	const struct ad7793_platform_data *pdata,
+	unsigned int vref_mv)
 {
 	struct ad7793_state *st = iio_priv(indio_dev);
 	int i, ret = -1;
@@ -175,7 +176,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 
 	/* Populate available ADC input ranges */
 	for (i = 0; i < ARRAY_SIZE(st->scale_avail); i++) {
-		scale_uv = ((u64)st->int_vref_mv * 100000000)
+		scale_uv = ((u64)vref_mv * 100000000)
 			>> (st->chip_info->channels[0].scan_type.realbits -
 			(!!(st->conf & AD7793_CONF_UNIPOLAR) ? 0 : 1));
 		scale_uv >>= i;
@@ -463,7 +464,7 @@ static int ad7793_probe(struct spi_device *spi)
 	const struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct ad7793_state *st;
 	struct iio_dev *indio_dev;
-	int ret, voltage_uv = 0;
+	int ret, vref_mv = 0;
 
 	if (!pdata) {
 		dev_err(&spi->dev, "no platform data?\n");
@@ -483,24 +484,30 @@ static int ad7793_probe(struct spi_device *spi)
 
 	ad_sd_init(&st->sd, indio_dev, spi, &ad7793_sigma_delta_info);
 
-	st->reg = regulator_get(&spi->dev, "vcc");
-	if (!IS_ERR(st->reg)) {
+	if (pdata->refsel != AD7793_REFSEL_INTERNAL) {
+		st->reg = regulator_get(&spi->dev, "refin");
+		if (IS_ERR(st->reg)) {
+			ret = PTR_ERR(st->reg);
+			goto error_device_free;
+		}
+
 		ret = regulator_enable(st->reg);
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(st->reg);
+		vref_mv = regulator_get_voltage(st->reg);
+		if (vref_mv < 0) {
+			ret = vref_mv;
+			goto error_disable_reg;
+		}
+
+		vref_mv /= 1000;
+	} else {
+		vref_mv = 1170; /* Build-in ref */
 	}
 
 	st->chip_info =
 		&ad7793_chip_info_tbl[spi_get_device_id(spi)->driver_data];
-
-	if (pdata && pdata->vref_mv)
-		st->int_vref_mv = pdata->vref_mv;
-	else if (voltage_uv)
-		st->int_vref_mv = voltage_uv / 1000;
-	else
-		st->int_vref_mv = 1170; /* Build-in ref */
 
 	spi_set_drvdata(spi, indio_dev);
 
@@ -515,7 +522,7 @@ static int ad7793_probe(struct spi_device *spi)
 	if (ret)
 		goto error_disable_reg;
 
-	ret = ad7793_setup(indio_dev, pdata);
+	ret = ad7793_setup(indio_dev, pdata, vref_mv);
 	if (ret)
 		goto error_remove_trigger;
 
@@ -528,12 +535,12 @@ static int ad7793_probe(struct spi_device *spi)
 error_remove_trigger:
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 error_disable_reg:
-	if (!IS_ERR(st->reg))
+	if (pdata->refsel != AD7793_REFSEL_INTERNAL)
 		regulator_disable(st->reg);
 error_put_reg:
-	if (!IS_ERR(st->reg))
+	if (pdata->refsel != AD7793_REFSEL_INTERNAL)
 		regulator_put(st->reg);
-
+error_device_free:
 	iio_device_free(indio_dev);
 
 	return ret;
@@ -541,13 +548,14 @@ error_put_reg:
 
 static int ad7793_remove(struct spi_device *spi)
 {
+	const struct ad7793_platform_data *pdata = spi->dev.platform_data;
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7793_state *st = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
 	ad_sd_cleanup_buffer_and_trigger(indio_dev);
 
-	if (!IS_ERR(st->reg)) {
+	if (pdata->refsel != AD7793_REFSEL_INTERNAL) {
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
