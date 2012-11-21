@@ -17,6 +17,7 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
+#include <asm/asm-offsets.h>
 
 #include "sleep.h"
 #include "flowctrl.h"
@@ -80,6 +81,7 @@ delay_1:
 	ldr	r3, [r1]			@ read CSR
 	str	r3, [r1]			@ clear CSR
 	tst	r0, #TEGRA30_POWER_HOTPLUG_SHUTDOWN
+	moveq   r3, #FLOW_CTRL_WAIT_FOR_INTERRUPT	@ For LP2
 	movne	r3, #FLOW_CTRL_WAITEVENT		@ For hotplug
 	str	r3, [r2]
 	ldr	r0, [r2]
@@ -102,4 +104,68 @@ wfe_war:
 	b	.				@ should never get here
 
 ENDPROC(tegra30_cpu_shutdown)
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+/*
+ * tegra30_sleep_cpu_secondary_finish(unsigned long v2p)
+ *
+ * Enters LP2 on secondary CPU by exiting coherency and powergating the CPU.
+ */
+ENTRY(tegra30_sleep_cpu_secondary_finish)
+	mov	r7, lr
+
+	/* Flush and disable the L1 data cache */
+	bl	tegra_disable_clean_inv_dcache
+
+	/* Powergate this CPU. */
+	mov	r0, #0                          @ power mode flags (!hotplug)
+	bl	tegra30_cpu_shutdown
+	mov	r0, #1                          @ never return here
+	mov	pc, r7
+ENDPROC(tegra30_sleep_cpu_secondary_finish)
+
+/*
+ * tegra30_tear_down_cpu
+ *
+ * Switches the CPU to enter sleep.
+ */
+ENTRY(tegra30_tear_down_cpu)
+	mov32	r6, TEGRA_FLOW_CTRL_BASE
+
+	b	tegra30_enter_sleep
+ENDPROC(tegra30_tear_down_cpu)
+
+/*
+ * tegra30_enter_sleep
+ *
+ * uses flow controller to enter sleep state
+ * executes from IRAM with SDRAM in selfrefresh when target state is LP0 or LP1
+ * executes from SDRAM with target state is LP2
+ * r6 = TEGRA_FLOW_CTRL_BASE
+ */
+tegra30_enter_sleep:
+	cpu_id	r1
+
+	cpu_to_csr_reg	r2, r1
+	ldr	r0, [r6, r2]
+	orr	r0, r0, #FLOW_CTRL_CSR_INTR_FLAG | FLOW_CTRL_CSR_EVENT_FLAG
+	orr	r0, r0, #FLOW_CTRL_CSR_ENABLE
+	str	r0, [r6, r2]
+
+	mov	r0, #FLOW_CTRL_WAIT_FOR_INTERRUPT
+	orr	r0, r0, #FLOW_CTRL_HALT_CPU_IRQ | FLOW_CTRL_HALT_CPU_FIQ
+	cpu_to_halt_reg r2, r1
+	str	r0, [r6, r2]
+	dsb
+	ldr	r0, [r6, r2] /* memory barrier */
+
+halted:
+	isb
+	dsb
+	wfi	/* CPU should be power gated here */
+
+	/* !!!FIXME!!! Implement halt failure handler */
+	b	halted
+
 #endif
