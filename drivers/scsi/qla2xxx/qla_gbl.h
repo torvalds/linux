@@ -598,7 +598,6 @@ extern void qla82xx_init_flags(struct qla_hw_data *);
 
 /* ISP 8021 hardware related */
 extern void qla82xx_set_drv_active(scsi_qla_host_t *);
-extern void qla82xx_crb_win_unlock(struct qla_hw_data *);
 extern int qla82xx_wr_32(struct qla_hw_data *, ulong, u32);
 extern int qla82xx_rd_32(struct qla_hw_data *, ulong);
 extern int qla82xx_rdmem(struct qla_hw_data *, u64, void *, int);

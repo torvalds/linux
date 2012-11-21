@@ -1029,7 +1029,7 @@ void qlt_stop_phase2(struct qla_tgt *tgt)
 EXPORT_SYMBOL(qlt_stop_phase2);
 
 /* Called from qlt_remove_target() -> qla2x00_remove_one() */
-void qlt_release(struct qla_tgt *tgt)
+static void qlt_release(struct qla_tgt *tgt)
 {
 	struct qla_hw_data *ha = tgt->ha;
 

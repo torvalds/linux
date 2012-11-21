@@ -337,7 +337,7 @@ qla2x00_get_link_speed_str(struct qla_hw_data *ha)
 	return link_speed;
 }
 
-void
+static void
 qla83xx_handle_8200_aen(scsi_qla_host_t *vha, uint16_t *mb)
 {
 	struct qla_hw_data *ha = vha->hw;

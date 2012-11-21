@@ -429,7 +429,7 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 /*                QLogic ISP2x00 Hardware Support Functions.                */
 /****************************************************************************/
 
-int
+static int
 qla83xx_nic_core_fw_load(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -997,7 +997,7 @@ qla2x00_reset_chip(scsi_qla_host_t *vha)
  *
  * Returns 0 on success.
  */
-int
+static int
 qla81xx_reset_mpi(scsi_qla_host_t *vha)
 {
 	uint16_t mb[4] = {0x1010, 0, 1, 0};
@@ -3865,7 +3865,7 @@ qla83xx_reset_ownership(scsi_qla_host_t *vha)
 	}
 }
 
-int
+static int
 __qla83xx_set_drv_ack(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -3881,19 +3881,7 @@ __qla83xx_set_drv_ack(scsi_qla_host_t *vha)
 	return rval;
 }
 
-int
-qla83xx_set_drv_ack(scsi_qla_host_t *vha)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_set_drv_ack(vha);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-int
+static int
 __qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
 {
 	int rval = QLA_SUCCESS;
@@ -3909,19 +3897,7 @@ __qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
 	return rval;
 }
 
-int
-qla83xx_clear_drv_ack(scsi_qla_host_t *vha)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_clear_drv_ack(vha);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-const char *
+static const char *
 qla83xx_dev_state_to_string(uint32_t dev_state)
 {
 	switch (dev_state) {
@@ -3975,7 +3951,7 @@ qla83xx_idc_audit(scsi_qla_host_t *vha, int audit_type)
 }
 
 /* Assumes idc_lock always held on entry */
-int
+static int
 qla83xx_initiating_reset(scsi_qla_host_t *vha)
 {
 	struct qla_hw_data *ha = vha->hw;
@@ -4023,36 +3999,12 @@ __qla83xx_set_idc_control(scsi_qla_host_t *vha, uint32_t idc_control)
 }
 
 int
-qla83xx_set_idc_control(scsi_qla_host_t *vha, uint32_t idc_control)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_set_idc_control(vha, idc_control);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-int
 __qla83xx_get_idc_control(scsi_qla_host_t *vha, uint32_t *idc_control)
 {
 	return qla83xx_rd_reg(vha, QLA83XX_IDC_CONTROL, idc_control);
 }
 
-int
-qla83xx_get_idc_control(scsi_qla_host_t *vha, uint32_t *idc_control)
-{
-	int rval = QLA_SUCCESS;
-
-	qla83xx_idc_lock(vha, 0);
-	rval = __qla83xx_get_idc_control(vha, idc_control);
-	qla83xx_idc_unlock(vha, 0);
-
-	return rval;
-}
-
-int
+static int
 qla83xx_check_driver_presence(scsi_qla_host_t *vha)
 {
 	uint32_t drv_presence = 0;

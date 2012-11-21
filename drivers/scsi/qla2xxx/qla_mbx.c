@@ -3536,7 +3536,7 @@ qla25xx_init_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	if (IS_QLA83XX(ha))
 		mcp->mb[15] = 0;
 
-	reg = (struct device_reg_25xxmq *)((void *)(ha->mqiobase) +
+	reg = (struct device_reg_25xxmq __iomem *)((ha->mqiobase) +
 		QLA_QUE_PAGE * req->id);
 
 	mcp->mb[4] = req->id;
@@ -3605,7 +3605,7 @@ qla25xx_init_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 	if (IS_QLA83XX(ha))
 		mcp->mb[15] = 0;
 
-	reg = (struct device_reg_25xxmq *)((void *)(ha->mqiobase) +
+	reg = (struct device_reg_25xxmq __iomem *)((ha->mqiobase) +
 		QLA_QUE_PAGE * rsp->id);
 
 	mcp->mb[4] = rsp->id;

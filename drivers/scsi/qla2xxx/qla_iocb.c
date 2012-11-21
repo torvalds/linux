@@ -520,7 +520,7 @@ __qla2x00_marker(struct scsi_qla_host *vha, struct req_que *req,
 
 	mrk24 = NULL;
 	req = ha->req_q_map[0];
-	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, 0);
+	mrk = (mrk_entry_t *)qla2x00_alloc_iocbs(vha, NULL);
 	if (mrk == NULL) {
 		ql_log(ql_log_warn, base_vha, 0x3026,
 		    "Failed to allocate Marker IOCB.\n");
@@ -2551,7 +2551,7 @@ sufficient_dsds:
 			(unsigned long __iomem *)ha->nxdb_wr_ptr,
 			dbval);
 		wmb();
-		while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
+		while (RD_REG_DWORD((void __iomem *)ha->nxdb_rd_ptr) != dbval) {
 			WRT_REG_DWORD(
 				(unsigned long __iomem *)ha->nxdb_wr_ptr,
 				dbval);

@@ -526,8 +526,8 @@ qla25xx_copy_mq(struct qla_hw_data *ha, void *ptr, uint32_t **last_chain)
 		ha->max_req_queues : ha->max_rsp_queues;
 	mq->count = htonl(que_cnt);
 	for (cnt = 0; cnt < que_cnt; cnt++) {
-		reg = (struct device_reg_25xxmq *) ((void *)
-			ha->mqiobase + cnt * QLA_QUE_PAGE);
+		reg = (struct device_reg_25xxmq __iomem *)
+			(ha->mqiobase + cnt * QLA_QUE_PAGE);
 		que_idx = cnt * 4;
 		mq->qregs[que_idx] = htonl(RD_REG_DWORD(&reg->req_q_in));
 		mq->qregs[que_idx+1] = htonl(RD_REG_DWORD(&reg->req_q_out));
