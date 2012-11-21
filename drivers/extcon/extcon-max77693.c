@@ -672,9 +672,10 @@ static int __devinit max77693_muic_probe(struct platform_device *pdev)
 						info->max77693->muic,
 						&max77693_muic_regmap_config);
 		if (IS_ERR(info->max77693->regmap_muic)) {
+			ret = PTR_ERR(info->max77693->regmap_muic);
 			dev_err(max77693->dev,
 				"failed to allocate register map: %d\n", ret);
-			return PTR_ERR(info->max77693->regmap_muic);
+			return ret;
 		}
 	}
 	platform_set_drvdata(pdev, info);
