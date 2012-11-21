@@ -151,9 +151,9 @@ static int rt3261_voice_hw_params(struct snd_pcm_substream *substream,
 	DBG("Enter:%s, %d, rate=%d\n", __FUNCTION__, __LINE__, params_rate(params));
 
 	/*Set the system clk for codec*/
-	snd_soc_dai_set_pll(codec_dai, 0, RT3261_PLL1_S_MCLK, pll_out, 256 * 8000);
+	snd_soc_dai_set_pll(codec_dai, 0, RT3261_PLL1_S_MCLK, pll_out, 24576000);
 
- 	ret = snd_soc_dai_set_sysclk(codec_dai, RT3261_SCLK_S_PLL1, 256 * 8000, SND_SOC_CLOCK_IN);
+ 	ret = snd_soc_dai_set_sysclk(codec_dai, RT3261_SCLK_S_PLL1, 24576000, SND_SOC_CLOCK_IN);
 
 
 	if (ret < 0) {
