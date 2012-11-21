@@ -71,6 +71,25 @@ struct vmw_resource_val_node {
 };
 
 /**
+ * struct vmw_cmd_entry - Describe a command for the verifier
+ *
+ * @user_allow: Whether allowed from the execbuf ioctl.
+ * @gb_disable: Whether disabled if guest-backed objects are available.
+ * @gb_enable: Whether enabled iff guest-backed objects are available.
+ */
+struct vmw_cmd_entry {
+	int (*func) (struct vmw_private *, struct vmw_sw_context *,
+		     SVGA3dCmdHeader *);
+	bool user_allow;
+	bool gb_disable;
+	bool gb_enable;
+};
+
+#define VMW_CMD_DEF(_cmd, _func, _user_allow, _gb_disable, _gb_enable)	\
+	[(_cmd) - SVGA_3D_CMD_BASE] = {(_func), (_user_allow),\
+				       (_gb_disable), (_gb_enable)}
+
+/**
  * vmw_resource_unreserve - unreserve resources previously reserved for
  * command submission.
  *
@@ -527,11 +546,6 @@ static int vmw_cmd_blt_surf_screen_check(struct vmw_private *dev_priv,
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
 
-	if (unlikely(!sw_context->kernel)) {
-		DRM_ERROR("Kernel only SVGA3d command: %u.\n", cmd->header.id);
-		return -EPERM;
-	}
-
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				 user_surface_converter,
 				 &cmd->body.srcImage.sid, NULL);
@@ -548,11 +562,6 @@ static int vmw_cmd_present_check(struct vmw_private *dev_priv,
 
 
 	cmd = container_of(header, struct vmw_sid_cmd, header);
-
-	if (unlikely(!sw_context->kernel)) {
-		DRM_ERROR("Kernel only SVGA3d command: %u.\n", cmd->header.id);
-		return -EPERM;
-	}
 
 	return vmw_cmd_res_check(dev_priv, sw_context, vmw_res_surface,
 				 user_surface_converter, &cmd->body.sid,
@@ -1536,105 +1545,173 @@ static int vmw_cmd_check_not_3d(struct vmw_private *dev_priv,
 	return 0;
 }
 
-typedef int (*vmw_cmd_func) (struct vmw_private *,
-			     struct vmw_sw_context *,
-			     SVGA3dCmdHeader *);
-
-#define VMW_CMD_DEF(cmd, func) \
-	[cmd - SVGA_3D_CMD_BASE] = func
-
-static vmw_cmd_func vmw_cmd_funcs[SVGA_3D_CMD_MAX] = {
-	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DEFINE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DESTROY, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_COPY, &vmw_cmd_surface_copy_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_STRETCHBLT, &vmw_cmd_stretch_blt_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DMA, &vmw_cmd_dma),
-	VMW_CMD_DEF(SVGA_3D_CMD_CONTEXT_DEFINE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_CONTEXT_DESTROY, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETTRANSFORM, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETZRANGE, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETRENDERSTATE, &vmw_cmd_cid_check),
+static const struct vmw_cmd_entry const vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
+	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DEFINE, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DESTROY, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_COPY, &vmw_cmd_surface_copy_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_STRETCHBLT, &vmw_cmd_stretch_blt_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DMA, &vmw_cmd_dma,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_CONTEXT_DEFINE, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_CONTEXT_DESTROY, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETTRANSFORM, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETZRANGE, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETRENDERSTATE, &vmw_cmd_cid_check,
+		    true, false, false),
 	VMW_CMD_DEF(SVGA_3D_CMD_SETRENDERTARGET,
-		    &vmw_cmd_set_render_target_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETTEXTURESTATE, &vmw_cmd_tex_state),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETMATERIAL, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETLIGHTDATA, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETLIGHTENABLED, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETVIEWPORT, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETCLIPPLANE, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_CLEAR, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_PRESENT, &vmw_cmd_present_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SHADER_DEFINE, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SHADER_DESTROY, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER, &vmw_cmd_set_shader),
-	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER_CONST, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_DRAW_PRIMITIVES, &vmw_cmd_draw),
-	VMW_CMD_DEF(SVGA_3D_CMD_SETSCISSORRECT, &vmw_cmd_cid_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_QUERY, &vmw_cmd_begin_query),
-	VMW_CMD_DEF(SVGA_3D_CMD_END_QUERY, &vmw_cmd_end_query),
-	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_QUERY, &vmw_cmd_wait_query),
-	VMW_CMD_DEF(SVGA_3D_CMD_PRESENT_READBACK, &vmw_cmd_ok),
+		    &vmw_cmd_set_render_target_check, true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETTEXTURESTATE, &vmw_cmd_tex_state,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETMATERIAL, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETLIGHTDATA, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETLIGHTENABLED, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETVIEWPORT, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETCLIPPLANE, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_CLEAR, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_PRESENT, &vmw_cmd_present_check,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SHADER_DEFINE, &vmw_cmd_cid_check,
+		    true, true, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SHADER_DESTROY, &vmw_cmd_cid_check,
+		    true, true, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER, &vmw_cmd_set_shader,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_SHADER_CONST, &vmw_cmd_cid_check,
+		    true, true, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_DRAW_PRIMITIVES, &vmw_cmd_draw,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SETSCISSORRECT, &vmw_cmd_cid_check,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_QUERY, &vmw_cmd_begin_query,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_END_QUERY, &vmw_cmd_end_query,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_QUERY, &vmw_cmd_wait_query,
+		    true, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_PRESENT_READBACK, &vmw_cmd_ok,
+		    true, false, false),
 	VMW_CMD_DEF(SVGA_3D_CMD_BLIT_SURFACE_TO_SCREEN,
-		    &vmw_cmd_blt_surf_screen_check),
-	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DEFINE_V2, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_GENERATE_MIPMAPS, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_ACTIVATE_SURFACE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DEACTIVATE_SURFACE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SCREEN_DMA, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SET_UNITY_SURFACE_COOKIE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_OPEN_CONTEXT_SURFACE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_BITBLT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_TRANSBLT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_STRETCHBLT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_COLORFILL, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_ALPHABLEND, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_CLEARTYPEBLEND, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SET_OTABLE_BASE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_OTABLE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_MOB, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_MOB, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_REDEFINE_GB_MOB, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SURFACE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SURFACE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SURFACE, &vmw_cmd_bind_gb_surface),
-	VMW_CMD_DEF(SVGA_3D_CMD_COND_BIND_GB_SURFACE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_IMAGE, &vmw_cmd_update_gb_image),
+		    &vmw_cmd_blt_surf_screen_check, false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SURFACE_DEFINE_V2, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_GENERATE_MIPMAPS, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_ACTIVATE_SURFACE, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEACTIVATE_SURFACE, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SCREEN_DMA, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_UNITY_SURFACE_COOKIE, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_OPEN_CONTEXT_SURFACE, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_BITBLT, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_TRANSBLT, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_STRETCHBLT, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_COLORFILL, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_ALPHABLEND, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_LOGICOPS_CLEARTYPEBLEND, &vmw_cmd_invalid,
+		    false, false, false),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_OTABLE_BASE, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_OTABLE, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_MOB, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_MOB, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_REDEFINE_GB_MOB, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_MOB_MAPPING, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SURFACE, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SURFACE, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SURFACE, &vmw_cmd_bind_gb_surface,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_COND_BIND_GB_SURFACE, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_IMAGE, &vmw_cmd_update_gb_image,
+		    true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_SURFACE,
-		    &vmw_cmd_update_gb_surface),
+		    &vmw_cmd_update_gb_surface, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_IMAGE,
-		    &vmw_cmd_readback_gb_image),
+		    &vmw_cmd_readback_gb_image, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_SURFACE,
-		    &vmw_cmd_readback_gb_surface),
+		    &vmw_cmd_readback_gb_surface, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_IMAGE,
-		    &vmw_cmd_invalidate_gb_image),
+		    &vmw_cmd_invalidate_gb_image, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_SURFACE,
-		    &vmw_cmd_invalidate_gb_surface),
-	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_CONTEXT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_CONTEXT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_CONTEXT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_CONTEXT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_CONTEXT, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SHADER, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SHADER, &vmw_cmd_bind_gb_shader),
-	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SHADER, &vmw_cmd_invalid),
+		    &vmw_cmd_invalidate_gb_surface, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_CONTEXT, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_CONTEXT, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_CONTEXT, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_CONTEXT, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_CONTEXT, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SHADER, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SHADER, &vmw_cmd_bind_gb_shader,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SHADER, &vmw_cmd_invalid,
+		    false, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_BIND_SHADERCONSTS,
-		    &vmw_cmd_bind_gb_shader_consts),
-	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_GB_QUERY, &vmw_cmd_begin_gb_query),
-	VMW_CMD_DEF(SVGA_3D_CMD_END_GB_QUERY, &vmw_cmd_end_gb_query),
-	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_GB_QUERY, &vmw_cmd_wait_gb_query),
-	VMW_CMD_DEF(SVGA_3D_CMD_NOP, &vmw_cmd_ok),
-	VMW_CMD_DEF(SVGA_3D_CMD_ENABLE_GART, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DISABLE_GART, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_MAP_MOB_INTO_GART, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_UNMAP_GART_RANGE, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SCREENTARGET, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SCREENTARGET, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SCREENTARGET, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_SCREENTARGET, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_IMAGE_PARTIAL, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL, &vmw_cmd_invalid),
-	VMW_CMD_DEF(SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE, &vmw_cmd_cid_check)
+		    &vmw_cmd_bind_gb_shader_consts, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_BEGIN_GB_QUERY, &vmw_cmd_begin_gb_query,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_END_GB_QUERY, &vmw_cmd_end_gb_query,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_WAIT_FOR_GB_QUERY, &vmw_cmd_wait_gb_query,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_NOP, &vmw_cmd_ok,
+		    true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_ENABLE_GART, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DISABLE_GART, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_MAP_MOB_INTO_GART, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_UNMAP_GART_RANGE, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DEFINE_GB_SCREENTARGET, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DESTROY_GB_SCREENTARGET, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_BIND_GB_SCREENTARGET, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_UPDATE_GB_SCREENTARGET, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_READBACK_GB_IMAGE_PARTIAL, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_INVALIDATE_GB_IMAGE_PARTIAL, &vmw_cmd_invalid,
+		    false, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_SET_GB_SHADERCONSTS_INLINE, &vmw_cmd_cid_check,
+		    true, false, true)
 };
 
 static int vmw_cmd_check(struct vmw_private *dev_priv,
@@ -1645,6 +1722,8 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 	uint32_t size_remaining = *size;
 	SVGA3dCmdHeader *header = (SVGA3dCmdHeader *) buf;
 	int ret;
+	const struct vmw_cmd_entry *entry;
+	bool gb = dev_priv->capabilities & SVGA_CAP_GBOBJECTS;
 
 	cmd_id = le32_to_cpu(((uint32_t *)buf)[0]);
 	/* Handle any none 3D commands */
@@ -1657,18 +1736,40 @@ static int vmw_cmd_check(struct vmw_private *dev_priv,
 
 	cmd_id -= SVGA_3D_CMD_BASE;
 	if (unlikely(*size > size_remaining))
-		goto out_err;
+		goto out_invalid;
 
 	if (unlikely(cmd_id >= SVGA_3D_CMD_MAX - SVGA_3D_CMD_BASE))
-		goto out_err;
+		goto out_invalid;
 
-	ret = vmw_cmd_funcs[cmd_id](dev_priv, sw_context, header);
+	entry = &vmw_cmd_entries[cmd_id];
+	if (unlikely(!entry->user_allow && !sw_context->kernel))
+		goto out_privileged;
+
+	if (unlikely(entry->gb_disable && gb))
+		goto out_old;
+
+	if (unlikely(entry->gb_enable && !gb))
+		goto out_new;
+
+	ret = entry->func(dev_priv, sw_context, header);
 	if (unlikely(ret != 0))
-		goto out_err;
+		goto out_invalid;
 
 	return 0;
-out_err:
-	DRM_ERROR("Illegal / Invalid SVGA3D command: %d\n",
+out_invalid:
+	DRM_ERROR("Invalid SVGA3D command: %d\n",
+		  cmd_id + SVGA_3D_CMD_BASE);
+	return -EINVAL;
+out_privileged:
+	DRM_ERROR("Privileged SVGA3D command: %d\n",
+		  cmd_id + SVGA_3D_CMD_BASE);
+	return -EPERM;
+out_old:
+	DRM_ERROR("Deprecated (disallowed) SVGA3D command: %d\n",
+		  cmd_id + SVGA_3D_CMD_BASE);
+	return -EINVAL;
+out_new:
+	DRM_ERROR("SVGA3D command: %d not supported by virtual hardware.\n",
 		  cmd_id + SVGA_3D_CMD_BASE);
 	return -EINVAL;
 }
