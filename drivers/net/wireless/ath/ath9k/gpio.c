@@ -474,7 +474,7 @@ int ath9k_init_btcoex(struct ath_softc *sc)
 		r = ath_init_btcoex_timer(sc);
 		if (r)
 			return -1;
-		txq = sc->tx.txq_map[WME_AC_BE];
+		txq = sc->tx.txq_map[IEEE80211_AC_BE];
 		ath9k_hw_init_btcoex_hw(sc->sc_ah, txq->axq_qnum);
 		sc->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		if (ath9k_hw_mci_is_enabled(ah)) {

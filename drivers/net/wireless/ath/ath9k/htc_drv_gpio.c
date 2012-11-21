@@ -207,7 +207,7 @@ void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
 		priv->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
 		ath9k_hw_btcoex_init_3wire(priv->ah);
 		ath_htc_init_btcoex_work(priv);
-		qnum = priv->hwq_map[WME_AC_BE];
+		qnum = priv->hwq_map[IEEE80211_AC_BE];
 		ath9k_hw_init_btcoex_hw(priv->ah, qnum);
 		break;
 	default:

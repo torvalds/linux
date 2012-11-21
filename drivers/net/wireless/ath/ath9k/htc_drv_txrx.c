@@ -21,10 +21,10 @@
 /******/
 
 static const int subtype_txq_to_hwq[] = {
-	[WME_AC_BE] = ATH_TXQ_AC_BE,
-	[WME_AC_BK] = ATH_TXQ_AC_BK,
-	[WME_AC_VI] = ATH_TXQ_AC_VI,
-	[WME_AC_VO] = ATH_TXQ_AC_VO,
+	[IEEE80211_AC_BE] = ATH_TXQ_AC_BE,
+	[IEEE80211_AC_BK] = ATH_TXQ_AC_BK,
+	[IEEE80211_AC_VI] = ATH_TXQ_AC_VI,
+	[IEEE80211_AC_VO] = ATH_TXQ_AC_VO,
 };
 
 #define ATH9K_HTC_INIT_TXQ(subtype) do {			\
@@ -41,15 +41,15 @@ int get_hw_qnum(u16 queue, int *hwq_map)
 {
 	switch (queue) {
 	case 0:
-		return hwq_map[WME_AC_VO];
+		return hwq_map[IEEE80211_AC_VO];
 	case 1:
-		return hwq_map[WME_AC_VI];
+		return hwq_map[IEEE80211_AC_VI];
 	case 2:
-		return hwq_map[WME_AC_BE];
+		return hwq_map[IEEE80211_AC_BE];
 	case 3:
-		return hwq_map[WME_AC_BK];
+		return hwq_map[IEEE80211_AC_BK];
 	default:
-		return hwq_map[WME_AC_BE];
+		return hwq_map[IEEE80211_AC_BE];
 	}
 }
 
@@ -106,20 +106,20 @@ static inline enum htc_endpoint_id get_htc_epid(struct ath9k_htc_priv *priv,
 
 	switch (qnum) {
 	case 0:
-		TX_QSTAT_INC(WME_AC_VO);
+		TX_QSTAT_INC(IEEE80211_AC_VO);
 		epid = priv->data_vo_ep;
 		break;
 	case 1:
-		TX_QSTAT_INC(WME_AC_VI);
+		TX_QSTAT_INC(IEEE80211_AC_VI);
 		epid = priv->data_vi_ep;
 		break;
 	case 2:
-		TX_QSTAT_INC(WME_AC_BE);
+		TX_QSTAT_INC(IEEE80211_AC_BE);
 		epid = priv->data_be_ep;
 		break;
 	case 3:
 	default:
-		TX_QSTAT_INC(WME_AC_BK);
+		TX_QSTAT_INC(IEEE80211_AC_BK);
 		epid = priv->data_bk_ep;
 		break;
 	}

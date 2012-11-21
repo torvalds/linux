@@ -211,7 +211,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	int time_left;
 
 	memset(&txctl, 0, sizeof(txctl));
-	txctl.txq = sc->tx.txq_map[WME_AC_BE];
+	txctl.txq = sc->tx.txq_map[IEEE80211_AC_BE];
 
 	memset(tx_info, 0, sizeof(*tx_info));
 	tx_info->band = hw->conf.channel->band;

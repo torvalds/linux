@@ -517,10 +517,10 @@ static const struct file_operations fops_interrupt = {
 	do {								\
 		len += snprintf(buf + len, size - len,			\
 				"%s%13u%11u%10u%10u\n", str,		\
-		sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].elem, \
-		sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].elem, \
-		sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].elem, \
-		sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].elem); \
+		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem, \
+		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].elem, \
+		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].elem, \
+		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].elem); \
 		if (len >= size)			  \
 			goto done;			  \
 } while(0)
@@ -529,10 +529,10 @@ static const struct file_operations fops_interrupt = {
 do {									\
 	len += snprintf(buf + len, size - len,				\
 			"%s%13u%11u%10u%10u\n", str,			\
-			(unsigned int)(sc->tx.txq_map[WME_AC_BE]->elem),	\
-			(unsigned int)(sc->tx.txq_map[WME_AC_BK]->elem),	\
-			(unsigned int)(sc->tx.txq_map[WME_AC_VI]->elem),	\
-			(unsigned int)(sc->tx.txq_map[WME_AC_VO]->elem));	\
+			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_BE]->elem),	\
+			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_BK]->elem),	\
+			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_VI]->elem),	\
+			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_VO]->elem));	\
 	if (len >= size)						\
 		goto done;						\
 } while(0)
@@ -541,10 +541,10 @@ do {									\
 do {									\
 	len += snprintf(buf + len, size - len,				\
 			"%s%13i%11i%10i%10i\n", str,			\
-			list_empty(&sc->tx.txq_map[WME_AC_BE]->elem),	\
-			list_empty(&sc->tx.txq_map[WME_AC_BK]->elem),	\
-			list_empty(&sc->tx.txq_map[WME_AC_VI]->elem),	\
-			list_empty(&sc->tx.txq_map[WME_AC_VO]->elem));	\
+			list_empty(&sc->tx.txq_map[IEEE80211_AC_BE]->elem),	\
+			list_empty(&sc->tx.txq_map[IEEE80211_AC_BK]->elem),	\
+			list_empty(&sc->tx.txq_map[IEEE80211_AC_VI]->elem),	\
+			list_empty(&sc->tx.txq_map[IEEE80211_AC_VO]->elem));	\
 	if (len >= size)						\
 		goto done;						\
 } while (0)
@@ -593,10 +593,10 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("TX-Failed:       ", txfailed);
 	len += snprintf(buf + len, size - len,
 			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
-			sc->tx.txq_map[WME_AC_BE],
-			sc->tx.txq_map[WME_AC_BK],
-			sc->tx.txq_map[WME_AC_VI],
-			sc->tx.txq_map[WME_AC_VO]);
+			sc->tx.txq_map[IEEE80211_AC_BE],
+			sc->tx.txq_map[IEEE80211_AC_BK],
+			sc->tx.txq_map[IEEE80211_AC_VI],
+			sc->tx.txq_map[IEEE80211_AC_VO]);
 	if (len >= size)
 		goto done;
 
@@ -617,7 +617,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	}
 
 	/* Print out more detailed queue-info */
-	for (i = 0; i <= WME_AC_BK; i++) {
+	for (i = 0; i <= IEEE80211_AC_BK; i++) {
 		struct ath_txq *txq = &(sc->tx.txq[i]);
 		struct ath_atx_ac *ac;
 		struct ath_atx_tid *tid;
@@ -695,7 +695,7 @@ static ssize_t read_file_stations(struct file *file, char __user *user_buf,
 				goto done;
 		}
 
-		for (q = 0; q < WME_NUM_AC; q++) {
+		for (q = 0; q < IEEE80211_NUM_ACS; q++) {
 			struct ath_atx_ac *ac = &(an->ac[q]);
 			len += snprintf(buf + len, size - len,
 					" ac: %p %s %i %p\n",
@@ -1648,13 +1648,13 @@ int ath9k_init_debug(struct ath_hw *ah)
 	debugfs_create_file("xmit", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_xmit);
 	debugfs_create_u32("qlen_bk", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[WME_AC_BK]);
+			   &sc->tx.txq_max_pending[IEEE80211_AC_BK]);
 	debugfs_create_u32("qlen_be", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[WME_AC_BE]);
+			   &sc->tx.txq_max_pending[IEEE80211_AC_BE]);
 	debugfs_create_u32("qlen_vi", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[WME_AC_VI]);
+			   &sc->tx.txq_max_pending[IEEE80211_AC_VI]);
 	debugfs_create_u32("qlen_vo", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
-			   &sc->tx.txq_max_pending[WME_AC_VO]);
+			   &sc->tx.txq_max_pending[IEEE80211_AC_VO]);
 	debugfs_create_file("stations", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_stations);
 	debugfs_create_file("misc", S_IRUSR, sc->debug.debugfs_phy, sc,

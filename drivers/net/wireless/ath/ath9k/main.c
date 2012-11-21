@@ -1325,7 +1325,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	txq = sc->tx.txq_map[queue];
@@ -1956,10 +1956,10 @@ static int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
 #define PR_QNUM(_n) (sc->tx.txq_map[_n]->axq_qnum)
 #define AWDATA(elem)							\
 	do {								\
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].elem; \
 	} while (0)
 
 #define AWDATA_RX(elem)						\
@@ -1974,14 +1974,14 @@ static void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	int i = 0;
 
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].tx_pkts_all);
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].tx_bytes_all);
+	data[i++] = (sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_pkts_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_pkts_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_pkts_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_pkts_all);
+	data[i++] = (sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_bytes_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_bytes_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_bytes_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_bytes_all);
 	AWDATA_RX(rx_pkts_all);
 	AWDATA_RX(rx_bytes_all);
 

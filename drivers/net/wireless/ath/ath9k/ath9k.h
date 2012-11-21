@@ -129,10 +129,10 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define ATH_TXMAXTRY            13
 
 #define TID_TO_WME_AC(_tid)				\
-	((((_tid) == 0) || ((_tid) == 3)) ? WME_AC_BE :	\
-	 (((_tid) == 1) || ((_tid) == 2)) ? WME_AC_BK :	\
-	 (((_tid) == 4) || ((_tid) == 5)) ? WME_AC_VI :	\
-	 WME_AC_VO)
+	((((_tid) == 0) || ((_tid) == 3)) ? IEEE80211_AC_BE :	\
+	 (((_tid) == 1) || ((_tid) == 2)) ? IEEE80211_AC_BK :	\
+	 (((_tid) == 4) || ((_tid) == 5)) ? IEEE80211_AC_VI :	\
+	 IEEE80211_AC_VO)
 
 #define ATH_AGGR_DELIM_SZ          4
 #define ATH_AGGR_MINPLEN           256 /* in bytes, minimum packet length */
@@ -265,7 +265,7 @@ struct ath_node {
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
 	struct ath_atx_tid tid[WME_NUM_TID];
-	struct ath_atx_ac ac[WME_NUM_AC];
+	struct ath_atx_ac ac[IEEE80211_NUM_ACS];
 	int ps_key;
 
 	u16 maxampdu;
@@ -299,9 +299,9 @@ struct ath_tx {
 	struct list_head txbuf;
 	struct ath_txq txq[ATH9K_NUM_TX_QUEUES];
 	struct ath_descdma txdma;
-	struct ath_txq *txq_map[WME_NUM_AC];
-	u32 txq_max_pending[WME_NUM_AC];
-	u16 max_aggr_framelen[WME_NUM_AC][4][32];
+	struct ath_txq *txq_map[IEEE80211_NUM_ACS];
+	u32 txq_max_pending[IEEE80211_NUM_ACS];
+	u16 max_aggr_framelen[IEEE80211_NUM_ACS][4][32];
 };
 
 struct ath_rx_edma {

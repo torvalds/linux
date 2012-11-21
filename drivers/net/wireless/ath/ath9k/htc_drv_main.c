@@ -1349,7 +1349,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	mutex_lock(&priv->mutex);
@@ -1376,7 +1376,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	}
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
-	    (qnum == priv->hwq_map[WME_AC_BE]))
+	    (qnum == priv->hwq_map[IEEE80211_AC_BE]))
 		    ath9k_htc_beaconq_config(priv);
 out:
 	ath9k_htc_ps_restore(priv);
