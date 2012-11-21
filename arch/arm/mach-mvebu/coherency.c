@@ -22,6 +22,8 @@
 #include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/smp.h>
+#include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 #include <asm/smp_plat.h>
 #include "armada-370-xp.h"
 
@@ -33,9 +35,12 @@
  * value matching its virtual mapping
  */
 static void __iomem *coherency_base = ARMADA_370_XP_REGS_VIRT_BASE + 0x20200;
+static void __iomem *coherency_cpu_base;
 
 /* Coherency fabric registers */
 #define COHERENCY_FABRIC_CFG_OFFSET		   0x4
+
+#define IO_SYNC_BARRIER_CTL_OFFSET		   0x0
 
 static struct of_device_id of_coherency_table[] = {
 	{.compatible = "marvell,coherency-fabric"},
@@ -68,6 +73,70 @@ int set_cpu_coherent(unsigned int hw_cpu_id, int smp_group_id)
 	return ll_set_cpu_coherent(coherency_base, hw_cpu_id);
 }
 
+static inline void mvebu_hwcc_sync_io_barrier(void)
+{
+	writel(0x1, coherency_cpu_base + IO_SYNC_BARRIER_CTL_OFFSET);
+	while (readl(coherency_cpu_base + IO_SYNC_BARRIER_CTL_OFFSET) & 0x1);
+}
+
+static dma_addr_t mvebu_hwcc_dma_map_page(struct device *dev, struct page *page,
+				  unsigned long offset, size_t size,
+				  enum dma_data_direction dir,
+				  struct dma_attrs *attrs)
+{
+	if (dir != DMA_TO_DEVICE)
+		mvebu_hwcc_sync_io_barrier();
+	return pfn_to_dma(dev, page_to_pfn(page)) + offset;
+}
+
+
+static void mvebu_hwcc_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
+			      size_t size, enum dma_data_direction dir,
+			      struct dma_attrs *attrs)
+{
+	if (dir != DMA_TO_DEVICE)
+		mvebu_hwcc_sync_io_barrier();
+}
+
+static void mvebu_hwcc_dma_sync(struct device *dev, dma_addr_t dma_handle,
+			size_t size, enum dma_data_direction dir)
+{
+	if (dir != DMA_TO_DEVICE)
+		mvebu_hwcc_sync_io_barrier();
+}
+
+static struct dma_map_ops mvebu_hwcc_dma_ops = {
+	.alloc			= arm_dma_alloc,
+	.free			= arm_dma_free,
+	.mmap			= arm_dma_mmap,
+	.map_page		= mvebu_hwcc_dma_map_page,
+	.unmap_page		= mvebu_hwcc_dma_unmap_page,
+	.get_sgtable		= arm_dma_get_sgtable,
+	.map_sg			= arm_dma_map_sg,
+	.unmap_sg		= arm_dma_unmap_sg,
+	.sync_single_for_cpu	= mvebu_hwcc_dma_sync,
+	.sync_single_for_device	= mvebu_hwcc_dma_sync,
+	.sync_sg_for_cpu	= arm_dma_sync_sg_for_cpu,
+	.sync_sg_for_device	= arm_dma_sync_sg_for_device,
+	.set_dma_mask		= arm_dma_set_mask,
+};
+
+static int mvebu_hwcc_platform_notifier(struct notifier_block *nb,
+				       unsigned long event, void *__dev)
+{
+	struct device *dev = __dev;
+
+	if (event != BUS_NOTIFY_ADD_DEVICE)
+		return NOTIFY_DONE;
+	set_dma_ops(dev, &mvebu_hwcc_dma_ops);
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block mvebu_hwcc_platform_nb = {
+	.notifier_call = mvebu_hwcc_platform_notifier,
+};
+
 int __init coherency_init(void)
 {
 	struct device_node *np;
@@ -76,6 +145,10 @@ int __init coherency_init(void)
 	if (np) {
 		pr_info("Initializing Coherency fabric\n");
 		coherency_base = of_iomap(np, 0);
+		coherency_cpu_base = of_iomap(np, 1);
+		set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
+		bus_register_notifier(&platform_bus_type,
+					&mvebu_hwcc_platform_nb);
 	}
 
 	return 0;
