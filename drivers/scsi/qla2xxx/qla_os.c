@@ -4230,7 +4230,7 @@ qla83xx_need_reset_handler(scsi_qla_host_t *vha)
 	while (1) {
 		qla83xx_rd_reg(vha, QLA83XX_IDC_DRIVER_ACK, &drv_ack);
 		qla83xx_rd_reg(vha, QLA83XX_IDC_DRV_PRESENCE, &drv_presence);
-		if (drv_ack == drv_presence)
+		if ((drv_ack & drv_presence) == drv_presence)
 			break;
 
 		if (time_after_eq(jiffies, ack_timeout)) {
