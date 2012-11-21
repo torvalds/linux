@@ -550,7 +550,6 @@ static int probe_event_enable(struct trace_uprobe *tu, int flag)
 		return -EINTR;
 
 	utc->cons.handler = uprobe_dispatcher;
-	utc->cons.filter = NULL;
 	ret = uprobe_register(tu->inode, tu->offset, &utc->cons);
 	if (ret) {
 		kfree(utc);

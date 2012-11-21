@@ -477,10 +477,8 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 		return;
 
 	down_read(&uprobe->consumer_rwsem);
-	for (uc = uprobe->consumers; uc; uc = uc->next) {
-		if (!uc->filter || uc->filter(uc, current))
-			uc->handler(uc, regs);
-	}
+	for (uc = uprobe->consumers; uc; uc = uc->next)
+		uc->handler(uc, regs);
 	up_read(&uprobe->consumer_rwsem);
 }
 
