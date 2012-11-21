@@ -2918,11 +2918,10 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
  search_free:
 	if (map_and_fenceable)
-		free_space =
-			drm_mm_search_free_in_range_color(&dev_priv->mm.gtt_space,
-							  size, alignment, obj->cache_level,
-							  0, dev_priv->mm.gtt_mappable_end,
-							  false);
+		free_space = drm_mm_search_free_in_range_color(&dev_priv->mm.gtt_space,
+							       size, alignment, obj->cache_level,
+							       0, dev_priv->mm.gtt_mappable_end,
+							       false);
 	else
 		free_space = drm_mm_search_free_color(&dev_priv->mm.gtt_space,
 						      size, alignment, obj->cache_level,
@@ -2930,18 +2929,18 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 
 	if (free_space != NULL) {
 		if (map_and_fenceable)
-			obj->gtt_space =
+			free_space =
 				drm_mm_get_block_range_generic(free_space,
 							       size, alignment, obj->cache_level,
 							       0, dev_priv->mm.gtt_mappable_end,
 							       false);
 		else
-			obj->gtt_space =
+			free_space =
 				drm_mm_get_block_generic(free_space,
 							 size, alignment, obj->cache_level,
 							 false);
 	}
-	if (obj->gtt_space == NULL) {
+	if (free_space == NULL) {
 		ret = i915_gem_evict_something(dev, size, alignment,
 					       obj->cache_level,
 					       map_and_fenceable,
@@ -2954,34 +2953,29 @@ i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 		goto search_free;
 	}
 	if (WARN_ON(!i915_gem_valid_gtt_space(dev,
-					      obj->gtt_space,
+					      free_space,
 					      obj->cache_level))) {
 		i915_gem_object_unpin_pages(obj);
-		drm_mm_put_block(obj->gtt_space);
-		obj->gtt_space = NULL;
+		drm_mm_put_block(free_space);
 		return -EINVAL;
 	}
-
 
 	ret = i915_gem_gtt_prepare_object(obj);
 	if (ret) {
 		i915_gem_object_unpin_pages(obj);
-		drm_mm_put_block(obj->gtt_space);
-		obj->gtt_space = NULL;
+		drm_mm_put_block(free_space);
 		return ret;
 	}
-
-	if (!dev_priv->mm.aliasing_ppgtt)
-		i915_gem_gtt_bind_object(obj, obj->cache_level);
 
 	list_move_tail(&obj->gtt_list, &dev_priv->mm.bound_list);
 	list_add_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
-	obj->gtt_offset = obj->gtt_space->start;
+	obj->gtt_space = free_space;
+	obj->gtt_offset = free_space->start;
 
 	fenceable =
-		obj->gtt_space->size == fence_size &&
-		(obj->gtt_space->start & (fence_alignment - 1)) == 0;
+		free_space->size == fence_size &&
+		(free_space->start & (fence_alignment - 1)) == 0;
 
 	mappable =
 		obj->gtt_offset + obj->base.size <= dev_priv->mm.gtt_mappable_end;
@@ -3452,11 +3446,16 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	}
 
 	if (obj->gtt_space == NULL) {
+		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+
 		ret = i915_gem_object_bind_to_gtt(obj, alignment,
 						  map_and_fenceable,
 						  nonblocking);
 		if (ret)
 			return ret;
+
+		if (!dev_priv->mm.aliasing_ppgtt)
+			i915_gem_gtt_bind_object(obj, obj->cache_level);
 	}
 
 	if (!obj->has_global_gtt_mapping && map_and_fenceable)
