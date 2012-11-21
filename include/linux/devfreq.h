@@ -192,7 +192,7 @@ extern int devfreq_register_opp_notifier(struct device *dev,
 extern int devfreq_unregister_opp_notifier(struct device *dev,
 					   struct devfreq *devfreq);
 
-#ifdef CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND
+#if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 /**
  * struct devfreq_simple_ondemand_data - void *data fed to struct devfreq
  *	and devfreq_add_device
