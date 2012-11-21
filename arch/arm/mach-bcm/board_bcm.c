@@ -53,5 +53,4 @@ DT_MACHINE_START(BCM11351_DT, "Broadcom Application Processor")
 	.timer = &timer,
 	.init_machine = board_init,
 	.dt_compat = bcm11351_dt_compat,
-	.handle_irq = gic_handle_irq,
 MACHINE_END

@@ -46,5 +46,4 @@ DT_MACHINE_START(MSM8960_DT, "Qualcomm MSM (Flattened Device Tree)")
 	.timer = &msm_dt_timer,
 	.init_machine = msm_dt_init,
 	.dt_compat = msm8960_dt_match,
-	.handle_irq = gic_handle_irq,
 MACHINE_END

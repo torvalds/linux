@@ -16,7 +16,6 @@
 #include <linux/vexpress.h>
 
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 
 #include <mach/motherboard.h>

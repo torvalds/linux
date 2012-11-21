@@ -377,7 +377,6 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_early	= v2m_init_early,
 	.init_irq	= v2m_init_irq,
 	.timer		= &v2m_timer,
-	.handle_irq	= gic_handle_irq,
 	.init_machine	= v2m_init,
 	.restart	= vexpress_restart,
 MACHINE_END
@@ -500,6 +499,5 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.init_irq	= v2m_dt_init_irq,
 	.timer		= &v2m_dt_timer,
 	.init_machine	= v2m_dt_init,
-	.handle_irq	= gic_handle_irq,
 	.restart	= vexpress_restart,
 MACHINE_END

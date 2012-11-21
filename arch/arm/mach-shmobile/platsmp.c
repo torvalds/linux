@@ -12,7 +12,6 @@
  */
 #include <linux/init.h>
 #include <linux/smp.h>
-#include <asm/hardware/gic.h>
 
 void __init shmobile_smp_init_cpus(unsigned int ncores)
 {
