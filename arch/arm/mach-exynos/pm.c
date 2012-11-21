@@ -62,6 +62,10 @@ static struct sleep_save exynos4_vpll_save[] = {
 	SAVE_ITEM(EXYNOS4_VPLL_CON1),
 };
 
+static struct sleep_save exynos5_sys_save[] = {
+	SAVE_ITEM(EXYNOS5_SYS_I2C_CFG),
+};
+
 static struct sleep_save exynos_core_save[] = {
 	/* SROM side */
 	SAVE_ITEM(S5P_SROM_BW),
@@ -98,6 +102,7 @@ static void exynos_pm_prepare(void)
 		s3c_pm_do_save(exynos4_epll_save, ARRAY_SIZE(exynos4_epll_save));
 		s3c_pm_do_save(exynos4_vpll_save, ARRAY_SIZE(exynos4_vpll_save));
 	} else {
+		s3c_pm_do_save(exynos5_sys_save, ARRAY_SIZE(exynos5_sys_save));
 		/* Disable USE_RETENTION of JPEG_MEM_OPTION */
 		tmp = __raw_readl(EXYNOS5_JPEG_MEM_OPTION);
 		tmp &= ~EXYNOS5_OPTION_USE_RETENTION;
@@ -300,6 +305,10 @@ static void exynos_pm_resume(void)
 	__raw_writel((1 << 28), S5P_PAD_RET_MMCB_OPTION);
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIA_OPTION);
 	__raw_writel((1 << 28), S5P_PAD_RET_EBIB_OPTION);
+
+	if (soc_is_exynos5250())
+		s3c_pm_do_restore(exynos5_sys_save,
+			ARRAY_SIZE(exynos5_sys_save));
 
 	s3c_pm_do_restore_core(exynos_core_save, ARRAY_SIZE(exynos_core_save));
 
