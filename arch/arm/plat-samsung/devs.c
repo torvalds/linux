@@ -933,6 +933,7 @@ struct platform_device s5p_device_mfc_r = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+
 #endif /* CONFIG_S5P_DEV_MFC */
 
 /* MIPI CSIS */

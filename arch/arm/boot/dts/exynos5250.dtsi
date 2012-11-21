@@ -62,10 +62,22 @@
 		interrupts = <0 42 0>;
 	};
 
+	codec@11000000 {
+		compatible = "samsung,mfc-v6";
+		reg = <0x11000000 0x10000>;
+		interrupts = <0 96 0>;
+	};
+
 	rtc {
 		compatible = "samsung,s3c6410-rtc";
 		reg = <0x101E0000 0x100>;
 		interrupts = <0 43 0>, <0 44 0>;
+	};
+
+	tmu@10060000 {
+		compatible = "samsung,exynos5250-tmu";
+		reg = <0x10060000 0x100>;
+		interrupts = <0 65 0>;
 	};
 
 	serial@12C00000 {
@@ -90,6 +102,17 @@
 		compatible = "samsung,exynos4210-uart";
 		reg = <0x12C30000 0x100>;
 		interrupts = <0 54 0>;
+	};
+
+	sata@122F0000 {
+		compatible = "samsung,exynos5-sata-ahci";
+		reg = <0x122F0000 0x1ff>;
+		interrupts = <0 115 0>;
+	};
+
+	sata-phy@12170000 {
+		compatible = "samsung,exynos5-sata-phy";
+		reg = <0x12170000 0x1ff>;
 	};
 
 	i2c@12C60000 {
@@ -162,6 +185,13 @@
 		interrupts = <0 64 0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+	};
+
+	i2c@121D0000 {
+                compatible = "samsung,exynos5-sata-phy-i2c";
+                reg = <0x121D0000 0x100>;
+                #address-cells = <1>;
+                #size-cells = <0>;
 	};
 
 	spi_0: spi@12d20000 {

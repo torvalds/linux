@@ -63,6 +63,7 @@ config SOC_EXYNOS5250
 	depends on ARCH_EXYNOS5
 	select S5P_PM if PM
 	select S5P_SLEEP if PM
+	select S5P_DEV_MFC
 	select SAMSUNG_DMADEV
 	help
 	  Enable EXYNOS5250 SoC support

@@ -1,0 +1,14 @@
+* Samsung SATA PHY Controller
+
+SATA PHY nodes are defined to describe on-chip SATA Physical layer controllers.
+Each SATA PHY controller should have its own node.
+
+Required properties:
+- compatible        : compatible list, contains "samsung,exynos5-sata-phy"
+- reg               : <registers mapping>
+
+Example:
+        sata@ffe07000 {
+                compatible = "samsung,exynos5-sata-phy";
+                reg = <0xffe07000 0x1000>;
+        };
