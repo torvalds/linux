@@ -40,6 +40,10 @@ static uint32_t vram_ne_placement_flags = TTM_PL_FLAG_VRAM |
 static uint32_t sys_placement_flags = TTM_PL_FLAG_SYSTEM |
 	TTM_PL_FLAG_CACHED;
 
+static uint32_t sys_ne_placement_flags = TTM_PL_FLAG_SYSTEM |
+	TTM_PL_FLAG_CACHED |
+	TTM_PL_FLAG_NO_EVICT;
+
 static uint32_t gmr_placement_flags = VMW_PL_FLAG_GMR |
 	TTM_PL_FLAG_CACHED;
 
@@ -114,6 +118,15 @@ struct ttm_placement vmw_sys_placement = {
 	.placement = &sys_placement_flags,
 	.num_busy_placement = 1,
 	.busy_placement = &sys_placement_flags
+};
+
+struct ttm_placement vmw_sys_ne_placement = {
+	.fpfn = 0,
+	.lpfn = 0,
+	.num_placement = 1,
+	.placement = &sys_ne_placement_flags,
+	.num_busy_placement = 1,
+	.busy_placement = &sys_ne_placement_flags
 };
 
 static uint32_t evictable_placement_flags[] = {

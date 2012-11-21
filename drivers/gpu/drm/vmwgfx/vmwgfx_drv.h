@@ -51,6 +51,16 @@
 #define VMWGFX_MAX_DISPLAYS 16
 #define VMWGFX_CMD_BOUNCE_INIT_SIZE 32768
 
+/*
+ * Perhaps we should have sysfs entries for these.
+ */
+#define VMWGFX_NUM_GB_CONTEXT 256
+#define VMWGFX_NUM_GB_SHADER 20000
+#define VMWGFX_NUM_GB_SURFACE 32768
+#define VMWGFX_NUM_MOB (VMWGFX_NUM_GB_CONTEXT +\
+			VMWGFX_NUM_GB_SHADER +\
+			VMWGFX_NUM_GB_SURFACE)
+
 #define VMW_PL_GMR TTM_PL_PRIV0
 #define VMW_PL_FLAG_GMR TTM_PL_FLAG_PRIV0
 
@@ -295,6 +305,7 @@ struct vmw_private {
 	uint32_t max_gmr_pages;
 	uint32_t memory_size;
 	bool has_gmr;
+	bool has_mob;
 	struct mutex hw_mutex;
 
 	/*
@@ -415,6 +426,12 @@ struct vmw_private {
 	 * DMA mapping stuff.
 	 */
 	enum vmw_dma_map_mode map_mode;
+
+	/*
+	 * Guest Backed stuff
+	 */
+	struct ttm_buffer_object *otable_bo;
+	struct vmw_otable *otables;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -622,6 +639,7 @@ extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_vram_gmr_placement;
 extern struct ttm_placement vmw_vram_gmr_ne_placement;
 extern struct ttm_placement vmw_sys_placement;
+extern struct ttm_placement vmw_sys_ne_placement;
 extern struct ttm_placement vmw_evictable_placement;
 extern struct ttm_placement vmw_srf_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
@@ -832,6 +850,19 @@ extern int vmw_prime_handle_to_fd(struct drm_device *dev,
 				  uint32_t handle, uint32_t flags,
 				  int *prime_fd);
 
+/*
+ * MemoryOBject management -  vmwgfx_mob.c
+ */
+struct vmw_mob;
+extern int vmw_mob_bind(struct vmw_private *dev_priv, struct vmw_mob *mob,
+			struct page **data_pages, unsigned long num_data_pages,
+			int32_t mob_id);
+extern void vmw_mob_unbind(struct vmw_private *dev_priv,
+			   struct vmw_mob *mob);
+extern void vmw_mob_destroy(struct vmw_mob *mob);
+extern struct vmw_mob *vmw_mob_create(unsigned long data_pages);
+extern int vmw_otables_setup(struct vmw_private *dev_priv);
+extern void vmw_otables_takedown(struct vmw_private *dev_priv);
 
 /**
  * Inline helper functions
