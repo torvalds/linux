@@ -1971,6 +1971,7 @@ qla2x00_fw_ready(scsi_qla_host_t *vha)
 		    "Waiting for LIP to complete.\n");
 
 	do {
+		memset(state, -1, sizeof(state));
 		rval = qla2x00_get_firmware_state(vha, state);
 		if (rval == QLA_SUCCESS) {
 			if (state[0] < FSTATE_LOSS_OF_SYNC) {
