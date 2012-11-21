@@ -1095,6 +1095,83 @@ qla24xx_reset_risc(scsi_qla_host_t *vha)
 		ha->isp_ops->enable_intrs(ha);
 }
 
+static void
+qla25xx_read_risc_sema_reg(scsi_qla_host_t *vha, uint32_t *data)
+{
+	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
+
+	WRT_REG_DWORD(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
+	*data = RD_REG_DWORD(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFET);
+
+}
+
+static void
+qla25xx_write_risc_sema_reg(scsi_qla_host_t *vha, uint32_t data)
+{
+	struct device_reg_24xx __iomem *reg = &vha->hw->iobase->isp24;
+
+	WRT_REG_DWORD(&reg->iobase_addr, RISC_REGISTER_BASE_OFFSET);
+	WRT_REG_DWORD(&reg->iobase_window + RISC_REGISTER_WINDOW_OFFET, data);
+}
+
+static void
+qla25xx_manipulate_risc_semaphore(scsi_qla_host_t *vha)
+{
+	struct qla_hw_data *ha = vha->hw;
+	uint32_t wd32 = 0;
+	uint delta_msec = 100;
+	uint elapsed_msec = 0;
+	uint timeout_msec;
+	ulong n;
+
+	if (!IS_QLA25XX(ha) && !IS_QLA2031(ha))
+		return;
+
+attempt:
+	timeout_msec = TIMEOUT_SEMAPHORE;
+	n = timeout_msec / delta_msec;
+	while (n--) {
+		qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_SET);
+		qla25xx_read_risc_sema_reg(vha, &wd32);
+		if (wd32 & RISC_SEMAPHORE)
+			break;
+		msleep(delta_msec);
+		elapsed_msec += delta_msec;
+		if (elapsed_msec > TIMEOUT_TOTAL_ELAPSED)
+			goto force;
+	}
+
+	if (!(wd32 & RISC_SEMAPHORE))
+		goto force;
+
+	if (!(wd32 & RISC_SEMAPHORE_FORCE))
+		goto acquired;
+
+	qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_CLR);
+	timeout_msec = TIMEOUT_SEMAPHORE_FORCE;
+	n = timeout_msec / delta_msec;
+	while (n--) {
+		qla25xx_read_risc_sema_reg(vha, &wd32);
+		if (!(wd32 & RISC_SEMAPHORE_FORCE))
+			break;
+		msleep(delta_msec);
+		elapsed_msec += delta_msec;
+		if (elapsed_msec > TIMEOUT_TOTAL_ELAPSED)
+			goto force;
+	}
+
+	if (wd32 & RISC_SEMAPHORE_FORCE)
+		qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_FORCE_CLR);
+
+	goto attempt;
+
+force:
+	qla25xx_write_risc_sema_reg(vha, RISC_SEMAPHORE_FORCE_SET);
+
+acquired:
+	return;
+}
+
 /**
  * qla24xx_reset_chip() - Reset ISP24xx chip.
  * @ha: HA context
@@ -1112,6 +1189,8 @@ qla24xx_reset_chip(scsi_qla_host_t *vha)
 	}
 
 	ha->isp_ops->disable_intrs(ha);
+
+	qla25xx_manipulate_risc_semaphore(vha);
 
 	/* Perform RISC reset. */
 	qla24xx_reset_risc(vha);
