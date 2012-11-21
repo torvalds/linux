@@ -713,6 +713,12 @@ S:	Maintained
 F:	arch/arm/mach-cns3xxx/
 T:	git git://git.infradead.org/users/cbou/linux-cns3xxx.git
 
+ARM/CIRRUS LOGIC CLPS711X ARM ARCHITECTURE
+M:	Alexander Shiyan <shc_work@mail.ru>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Odd Fixes
+F:	arch/arm/mach-clps711x/
+
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 M:	Ryan Mallon <rmallon@gmail.com>

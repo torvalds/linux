@@ -29,6 +29,8 @@
 #include <linux/clockchips.h>
 #include <linux/clk-provider.h>
 
+#include <asm/exception.h>
+#include <asm/mach/irq.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
@@ -64,10 +66,6 @@ static void int1_mask(struct irq_data *d)
 	clps_writel(intmr1, INTMR1);
 }
 
-static void int1_ack(struct irq_data *d)
-{
-}
-
 static void int1_eoi(struct irq_data *d)
 {
 	switch (d->irq) {
@@ -90,8 +88,7 @@ static void int1_unmask(struct irq_data *d)
 }
 
 static struct irq_chip int1_chip = {
-	.name		= "Interrupt Vector 1  ",
-	.irq_ack	= int1_ack,
+	.name		= "Interrupt Vector 1",
 	.irq_eoi	= int1_eoi,
 	.irq_mask	= int1_mask,
 	.irq_unmask	= int1_unmask,
@@ -104,10 +101,6 @@ static void int2_mask(struct irq_data *d)
 	intmr2 = clps_readl(INTMR2);
 	intmr2 &= ~(1 << (d->irq - 16));
 	clps_writel(intmr2, INTMR2);
-}
-
-static void int2_ack(struct irq_data *d)
-{
 }
 
 static void int2_eoi(struct irq_data *d)
@@ -127,20 +120,41 @@ static void int2_unmask(struct irq_data *d)
 }
 
 static struct irq_chip int2_chip = {
-	.name		= "Interrupt Vector 2  ",
-	.irq_ack	= int2_ack,
+	.name		= "Interrupt Vector 2",
 	.irq_eoi	= int2_eoi,
 	.irq_mask	= int2_mask,
 	.irq_unmask	= int2_unmask,
 };
 
-struct clps711x_irqdesc {
+static void int3_mask(struct irq_data *d)
+{
+	u32 intmr3;
+
+	intmr3 = clps_readl(INTMR3);
+	intmr3 &= ~(1 << (d->irq - 32));
+	clps_writel(intmr3, INTMR3);
+}
+
+static void int3_unmask(struct irq_data *d)
+{
+	u32 intmr3;
+
+	intmr3 = clps_readl(INTMR3);
+	intmr3 |= 1 << (d->irq - 32);
+	clps_writel(intmr3, INTMR3);
+}
+
+static struct irq_chip int3_chip = {
+	.name		= "Interrupt Vector 3",
+	.irq_mask	= int3_mask,
+	.irq_unmask	= int3_unmask,
+};
+
+static struct {
 	int			nr;
 	struct irq_chip		*chip;
 	irq_flow_handler_t	handle;
-};
-
-static struct clps711x_irqdesc clps711x_irqdescs[] __initdata = {
+} clps711x_irqdescs[] __initdata = {
 	{ IRQ_CSINT,	&int1_chip,	handle_fasteoi_irq,	},
 	{ IRQ_EINT1,	&int1_chip,	handle_level_irq,	},
 	{ IRQ_EINT2,	&int1_chip,	handle_level_irq,	},
@@ -189,6 +203,52 @@ void __init clps711x_init_irq(void)
 		set_irq_flags(clps711x_irqdescs[i].nr,
 			      IRQF_VALID | IRQF_PROBE);
 	}
+
+	if (IS_ENABLED(CONFIG_FIQ)) {
+		init_FIQ(0);
+		irq_set_chip_and_handler(IRQ_DAIINT, &int3_chip,
+					 handle_bad_irq);
+		set_irq_flags(IRQ_DAIINT,
+			      IRQF_VALID | IRQF_PROBE | IRQF_NOAUTOEN);
+	}
+}
+
+inline u32 fls16(u32 x)
+{
+	u32 r = 15;
+
+	if (!(x & 0xff00)) {
+		x <<= 8;
+		r -= 8;
+	}
+	if (!(x & 0xf000)) {
+		x <<= 4;
+		r -= 4;
+	}
+	if (!(x & 0xc000)) {
+		x <<= 2;
+		r -= 2;
+	}
+	if (!(x & 0x8000))
+		r--;
+
+	return r;
+}
+
+asmlinkage void __exception_irq_entry clps711x_handle_irq(struct pt_regs *regs)
+{
+	u32 irqstat;
+	void __iomem *base = CLPS711X_VIRT_BASE;
+
+	irqstat = readl_relaxed(base + INTSR1) & readl_relaxed(base + INTMR1);
+	if (irqstat) {
+		handle_IRQ(fls16(irqstat), regs);
+		return;
+	}
+
+	irqstat = readl_relaxed(base + INTSR2) & readl_relaxed(base + INTMR2);
+	if (likely(irqstat))
+		handle_IRQ(fls16(irqstat) + 16, regs);
 }
 
 static void clps711x_clockevent_set_mode(enum clock_event_mode mode,

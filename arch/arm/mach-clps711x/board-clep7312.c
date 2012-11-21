@@ -1,7 +1,5 @@
 /*
- *  arch/arm/mach-clps711x/include/mach/irqs.h
- *
- *  Copyright (C) 2000 Deep Blue Solutions Ltd.
+ *  linux/arch/arm/mach-clps711x/clep7312.c
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,30 +15,32 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <linux/init.h>
+#include <linux/types.h>
+#include <linux/string.h>
 
-/*
- * Interrupts from INTSR1
- */
-#define IRQ_CSINT			4
-#define IRQ_EINT1			5
-#define IRQ_EINT2			6
-#define IRQ_EINT3			7
-#define IRQ_TC1OI			8
-#define IRQ_TC2OI			9
-#define IRQ_RTCMI			10
-#define IRQ_TINT			11
-#define IRQ_UTXINT1			12
-#define IRQ_URXINT1			13
-#define IRQ_UMSINT			14
-#define IRQ_SSEOTI			15
+#include <asm/setup.h>
+#include <asm/mach-types.h>
+#include <asm/mach/arch.h>
 
-/*
- * Interrupts from INTSR2
- */
-#define IRQ_KBDINT			(16+0)	/* bit 0 */
-#define IRQ_SS2RX			(16+1)	/* bit 1 */
-#define IRQ_SS2TX			(16+2)	/* bit 2 */
-#define IRQ_UTXINT2			(16+12)	/* bit 12 */
-#define IRQ_URXINT2			(16+13)	/* bit 13 */
+#include "common.h"
 
-#define NR_IRQS				30
+static void __init
+fixup_clep7312(struct tag *tags, char **cmdline, struct meminfo *mi)
+{
+	mi->nr_banks=1;
+	mi->bank[0].start = 0xc0000000;
+	mi->bank[0].size = 0x01000000;
+}
+
+MACHINE_START(CLEP7212, "Cirrus Logic 7212/7312")
+	/* Maintainer: Nobody */
+	.atag_offset	= 0x0100,
+	.nr_irqs	= CLPS711X_NR_IRQS,
+	.fixup		= fixup_clep7312,
+	.map_io		= clps711x_map_io,
+	.init_irq	= clps711x_init_irq,
+	.timer		= &clps711x_timer,
+	.handle_irq	= clps711x_handle_irq,
+	.restart	= clps711x_restart,
+MACHINE_END

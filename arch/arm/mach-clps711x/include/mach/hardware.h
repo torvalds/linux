@@ -64,34 +64,17 @@
 #define CS7_PHYS_BASE		(0x00000000)
 #endif
 
-#if defined (CONFIG_ARCH_CDB89712)
+#define CLPS711X_SRAM_BASE	CS6_PHYS_BASE
+#define CLPS711X_SRAM_SIZE	(48 * 1024)
 
-#define ETHER_PHYS_BASE		CS2_PHYS_BASE
-#define ETHER_SIZE		0x1000
-
-#endif
-
+#define CLPS711X_SDRAM0_BASE	(0xc0000000)
+#define CLPS711X_SDRAM1_BASE	(0xd0000000)
 
 #if defined (CONFIG_ARCH_EDB7211)
 
 /* The extra 8 lines of the keyboard matrix are wired to chip select 3 */
 #define EP7211_PHYS_EXTKBD	CS3_PHYS_BASE
 
-/* The CS8900A ethernet chip has its I/O registers wired to chip select 2 */
-#define EP7211_PHYS_CS8900A	CS2_PHYS_BASE
-
-/* The two flash banks are wired to chip selects 0 and 1 */
-#define EP7211_PHYS_FLASH1	CS0_PHYS_BASE
-#define EP7211_PHYS_FLASH2	CS1_PHYS_BASE
-
 #endif /* CONFIG_ARCH_EDB7211 */
-
-/*
- * Relevant bits in port D, which controls power to the various parts of
- * the LCD on the EDB7211.
- */
-#define EDB_PD1_LCD_DC_DC_EN	(1<<1)
-#define EDB_PD2_LCDEN		(1<<2)
-#define EDB_PD3_LCDBL		(1<<3)
 
 #endif
