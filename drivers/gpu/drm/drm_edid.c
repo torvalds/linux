@@ -29,6 +29,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
+#include <linux/hdmi.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
@@ -2856,3 +2857,35 @@ int drm_add_modes_noedid(struct drm_connector *connector,
 	return num_modes;
 }
 EXPORT_SYMBOL(drm_add_modes_noedid);
+
+/**
+ * drm_hdmi_avi_infoframe_from_display_mode() - fill an HDMI AVI infoframe with
+ *                                              data from a DRM display mode
+ * @frame: HDMI AVI infoframe
+ * @mode: DRM display mode
+ *
+ * Returns 0 on success or a negative error code on failure.
+ */
+int
+drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
+					 const struct drm_display_mode *mode)
+{
+	int err;
+
+	if (!frame || !mode)
+		return -EINVAL;
+
+	err = hdmi_avi_infoframe_init(frame);
+	if (err < 0)
+		return err;
+
+	frame->video_code = drm_match_cea_mode(mode);
+	if (!frame->video_code)
+		return 0;
+
+	frame->picture_aspect = HDMI_PICTURE_ASPECT_NONE;
+	frame->active_aspect = HDMI_ACTIVE_ASPECT_PICTURE;
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_hdmi_avi_infoframe_from_display_mode);
