@@ -235,6 +235,7 @@ static void __init vic_register(void __iomem *base, unsigned int irq,
 	v->valid_sources = valid_sources;
 	v->resume_sources = resume_sources;
 	v->irq = irq;
+	set_handle_irq(vic_handle_irq);
 	vic_id++;
 	v->domain = irq_domain_add_simple(node, fls(valid_sources), irq,
 					  &vic_irqdomain_ops, v);
