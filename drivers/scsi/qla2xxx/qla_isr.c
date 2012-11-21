@@ -316,25 +316,21 @@ qla81xx_idc_event(scsi_qla_host_t *vha, uint16_t aen, uint16_t descr)
 }
 
 #define LS_UNKNOWN	2
-char *
-qla2x00_get_link_speed_str(struct qla_hw_data *ha)
+const char *
+qla2x00_get_link_speed_str(struct qla_hw_data *ha, uint16_t speed)
 {
-	static char *link_speeds[] = {"1", "2", "?", "4", "8", "16", "10"};
-	char *link_speed;
-	int fw_speed = ha->link_data_rate;
+	static const char * const link_speeds[] = {
+		"1", "2", "?", "4", "8", "16", "10"
+	};
 
 	if (IS_QLA2100(ha) || IS_QLA2200(ha))
-		link_speed = link_speeds[0];
-	else if (fw_speed == 0x13)
-		link_speed = link_speeds[6];
-	else {
-		link_speed = link_speeds[LS_UNKNOWN];
-		if (fw_speed < 6)
-			link_speed =
-			    link_speeds[fw_speed];
-	}
-
-	return link_speed;
+		return link_speeds[0];
+	else if (speed == 0x13)
+		return link_speeds[6];
+	else if (speed < 6)
+		return link_speeds[speed];
+	else
+		return link_speeds[LS_UNKNOWN];
 }
 
 static void
@@ -671,7 +667,7 @@ skip_rio:
 
 		ql_dbg(ql_dbg_async, vha, 0x500a,
 		    "LOOP UP detected (%s Gbps).\n",
-		    qla2x00_get_link_speed_str(ha));
+		    qla2x00_get_link_speed_str(ha, ha->link_data_rate));
 
 		vha->flags.management_server_logged_in = 0;
 		qla2x00_post_aen_work(vha, FCH_EVT_LINKUP, ha->link_data_rate);
@@ -860,7 +856,7 @@ skip_rio:
 		    mb[1], mb[2], mb[3]);
 		ql_log(ql_log_warn, vha, 0x505f,
 		    "Link is operational (%s Gbps).\n",
-		    qla2x00_get_link_speed_str(ha));
+		    qla2x00_get_link_speed_str(ha, ha->link_data_rate));
 
 		/*
 		 * Mark all devices as missing so we will login again.

@@ -2983,7 +2983,6 @@ cleanup_allocation:
 static void
 qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 {
-	char *link_speed;
 	int rval;
 	uint16_t mb[4];
 	struct qla_hw_data *ha = vha->hw;
@@ -3010,10 +3009,10 @@ qla2x00_iidma_fcport(scsi_qla_host_t *vha, fc_port_t *fcport)
 		    fcport->port_name[6], fcport->port_name[7], rval,
 		    fcport->fp_speed, mb[0], mb[1]);
 	} else {
-		link_speed = qla2x00_get_link_speed_str(ha);
 		ql_dbg(ql_dbg_disc, vha, 0x2005,
 		    "iIDMA adjusted to %s GB/s "
-		    "on %02x%02x%02x%02x%02x%02x%02x%02x.\n", link_speed,
+		    "on %02x%02x%02x%02x%02x%02x%02x%02x.\n",
+		    qla2x00_get_link_speed_str(ha, fcport->fp_speed),
 		    fcport->port_name[0], fcport->port_name[1],
 		    fcport->port_name[2], fcport->port_name[3],
 		    fcport->port_name[4], fcport->port_name[5],
