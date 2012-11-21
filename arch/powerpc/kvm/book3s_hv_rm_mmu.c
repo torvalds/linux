@@ -35,6 +35,37 @@ static void *real_vmalloc_addr(void *x)
 	return __va(addr);
 }
 
+/* Return 1 if we need to do a global tlbie, 0 if we can use tlbiel */
+static int global_invalidates(struct kvm *kvm, unsigned long flags)
+{
+	int global;
+
+	/*
+	 * If there is only one vcore, and it's currently running,
+	 * we can use tlbiel as long as we mark all other physical
+	 * cores as potentially having stale TLB entries for this lpid.
+	 * If we're not using MMU notifiers, we never take pages away
+	 * from the guest, so we can use tlbiel if requested.
+	 * Otherwise, don't use tlbiel.
+	 */
+	if (kvm->arch.online_vcores == 1 && local_paca->kvm_hstate.kvm_vcore)
+		global = 0;
+	else if (kvm->arch.using_mmu_notifiers)
+		global = 1;
+	else
+		global = !(flags & H_LOCAL);
+
+	if (!global) {
+		/* any other core might now have stale TLB entries... */
+		smp_wmb();
+		cpumask_setall(&kvm->arch.need_tlb_flush);
+		cpumask_clear_cpu(local_paca->kvm_hstate.kvm_vcore->pcpu,
+				  &kvm->arch.need_tlb_flush);
+	}
+
+	return global;
+}
+
 /*
  * Add this HPTE into the chain for the real page.
  * Must be called with the chain locked; it unlocks the chain.
@@ -390,7 +421,7 @@ long kvmppc_do_h_remove(struct kvm *kvm, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		hpte[0] &= ~HPTE_V_VALID;
 		rb = compute_tlbie_rb(v, hpte[1], pte_index);
-		if (!(flags & H_LOCAL) && atomic_read(&kvm->online_vcpus) > 1) {
+		if (global_invalidates(kvm, flags)) {
 			while (!try_lock_tlbie(&kvm->arch.tlbie_lock))
 				cpu_relax();
 			asm volatile("ptesync" : : : "memory");
@@ -565,8 +596,6 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 		return H_NOT_FOUND;
 	}
 
-	if (atomic_read(&kvm->online_vcpus) == 1)
-		flags |= H_LOCAL;
 	v = hpte[0];
 	bits = (flags << 55) & HPTE_R_PP0;
 	bits |= (flags << 48) & HPTE_R_KEY_HI;
@@ -587,7 +616,7 @@ long kvmppc_h_protect(struct kvm_vcpu *vcpu, unsigned long flags,
 	if (v & HPTE_V_VALID) {
 		rb = compute_tlbie_rb(v, r, pte_index);
 		hpte[0] = v & ~HPTE_V_VALID;
-		if (!(flags & H_LOCAL)) {
+		if (global_invalidates(kvm, flags)) {
 			while(!try_lock_tlbie(&kvm->arch.tlbie_lock))
 				cpu_relax();
 			asm volatile("ptesync" : : : "memory");

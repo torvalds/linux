@@ -148,11 +148,8 @@ long kvmppc_alloc_reset_hpt(struct kvm *kvm, u32 *htab_orderp)
 		 * Reset all the reverse-mapping chains for all memslots
 		 */
 		kvmppc_rmap_reset(kvm);
-		/*
-		 * Set the whole last_vcpu array to an invalid vcpu number.
-		 * This ensures that each vcpu will flush its TLB on next entry.
-		 */
-		memset(kvm->arch.last_vcpu, 0xff, sizeof(kvm->arch.last_vcpu));
+		/* Ensure that each vcpu will flush its TLB on next entry. */
+		cpumask_setall(&kvm->arch.need_tlb_flush);
 		*htab_orderp = order;
 		err = 0;
 	} else {

@@ -246,11 +246,12 @@ struct kvm_arch {
 	int using_mmu_notifiers;
 	u32 hpt_order;
 	atomic_t vcpus_running;
+	u32 online_vcores;
 	unsigned long hpt_npte;
 	unsigned long hpt_mask;
 	atomic_t hpte_mod_interest;
 	spinlock_t slot_phys_lock;
-	unsigned short last_vcpu[NR_CPUS];
+	cpumask_t need_tlb_flush;
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	struct kvmppc_linear_info *hpt_li;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
@@ -275,6 +276,7 @@ struct kvmppc_vcore {
 	int nap_count;
 	int napping_threads;
 	u16 pcpu;
+	u16 last_cpu;
 	u8 vcore_state;
 	u8 in_guest;
 	struct list_head runnable_threads;
@@ -523,7 +525,6 @@ struct kvm_vcpu_arch {
 	u64 dec_jiffies;
 	u64 dec_expires;
 	unsigned long pending_exceptions;
-	u16 last_cpu;
 	u8 ceded;
 	u8 prodded;
 	u32 last_inst;

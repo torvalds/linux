@@ -313,7 +313,33 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_SDR1,r6		/* switch to partition page table */
 	mtspr	SPRN_LPID,r7
 	isync
+
+	/* See if we need to flush the TLB */
+	lhz	r6,PACAPACAINDEX(r13)	/* test_bit(cpu, need_tlb_flush) */
+	clrldi	r7,r6,64-6		/* extract bit number (6 bits) */
+	srdi	r6,r6,6			/* doubleword number */
+	sldi	r6,r6,3			/* address offset */
+	add	r6,r6,r9
+	addi	r6,r6,KVM_NEED_FLUSH	/* dword in kvm->arch.need_tlb_flush */
 	li	r0,1
+	sld	r0,r0,r7
+	ld	r7,0(r6)
+	and.	r7,r7,r0
+	beq	22f
+23:	ldarx	r7,0,r6			/* if set, clear the bit */
+	andc	r7,r7,r0
+	stdcx.	r7,0,r6
+	bne	23b
+	li	r6,128			/* and flush the TLB */
+	mtctr	r6
+	li	r7,0x800		/* IS field = 0b10 */
+	ptesync
+28:	tlbiel	r7
+	addi	r7,r7,0x1000
+	bdnz	28b
+	ptesync
+
+22:	li	r0,1
 	stb	r0,VCORE_IN_GUEST(r5)	/* signal secondaries to continue */
 	b	10f
 
@@ -335,36 +361,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	li	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	mr	r9,r4
 	blt	hdec_soon
-
-	/*
-	 * Invalidate the TLB if we could possibly have stale TLB
-	 * entries for this partition on this core due to the use
-	 * of tlbiel.
-	 * XXX maybe only need this on primary thread?
-	 */
-	ld	r9,VCPU_KVM(r4)		/* pointer to struct kvm */
-	lwz	r5,VCPU_VCPUID(r4)
-	lhz	r6,PACAPACAINDEX(r13)
-	rldimi	r6,r5,0,62		/* XXX map as if threads 1:1 p:v */
-	lhz	r8,VCPU_LAST_CPU(r4)
-	sldi	r7,r6,1			/* see if this is the same vcpu */
-	add	r7,r7,r9		/* as last ran on this pcpu */
-	lhz	r0,KVM_LAST_VCPU(r7)
-	cmpw	r6,r8			/* on the same cpu core as last time? */
-	bne	3f
-	cmpw	r0,r5			/* same vcpu as this core last ran? */
-	beq	1f
-3:	sth	r6,VCPU_LAST_CPU(r4)	/* if not, invalidate partition TLB */
-	sth	r5,KVM_LAST_VCPU(r7)
-	li	r6,128
-	mtctr	r6
-	li	r7,0x800		/* IS field = 0b10 */
-	ptesync
-2:	tlbiel	r7
-	addi	r7,r7,0x1000
-	bdnz	2b
-	ptesync
-1:
 
 	/* Save purr/spurr */
 	mfspr	r5,SPRN_PURR

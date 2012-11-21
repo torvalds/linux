@@ -853,7 +853,6 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 		goto free_vcpu;
 
 	vcpu->arch.shared = &vcpu->arch.shregs;
-	vcpu->arch.last_cpu = -1;
 	vcpu->arch.mmcr[0] = MMCR0_FC;
 	vcpu->arch.ctrl = CTRL_RUNLATCH;
 	/* default to host PVR, since we can't spoof it */
@@ -880,6 +879,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 			vcore->preempt_tb = TB_NIL;
 		}
 		kvm->arch.vcores[core] = vcore;
+		kvm->arch.online_vcores++;
 	}
 	mutex_unlock(&kvm->lock);
 
@@ -1801,6 +1801,13 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 	if (lpid < 0)
 		return -ENOMEM;
 	kvm->arch.lpid = lpid;
+
+	/*
+	 * Since we don't flush the TLB when tearing down a VM,
+	 * and this lpid might have previously been used,
+	 * make sure we flush on each core before running the new VM.
+	 */
+	cpumask_setall(&kvm->arch.need_tlb_flush);
 
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
 
