@@ -38,6 +38,8 @@
 
 #include "c_can.h"
 
+#define CAN_RAMINIT_START_MASK(i)	(1 << (i))
+
 /*
  * 16-bit c_can registers can be arranged differently in the memory
  * architecture of different implementations. For example: 16-bit
@@ -66,6 +68,18 @@ static void c_can_plat_write_reg_aligned_to_32bit(struct c_can_priv *priv,
 						enum reg index, u16 val)
 {
 	writew(val, priv->base + 2 * priv->regs[index]);
+}
+
+static void c_can_hw_raminit(const struct c_can_priv *priv, bool enable)
+{
+	u32 val;
+
+	val = readl(priv->raminit_ctrlreg);
+	if (enable)
+		val |= CAN_RAMINIT_START_MASK(priv->instance);
+	else
+		val &= ~CAN_RAMINIT_START_MASK(priv->instance);
+	writel(val, priv->raminit_ctrlreg);
 }
 
 static struct platform_device_id c_can_id_table[] = {
@@ -99,7 +113,7 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	const struct platform_device_id *id;
 	struct pinctrl *pinctrl;
-	struct resource *mem;
+	struct resource *mem, *res;
 	int irq;
 	struct clk *clk;
 
@@ -178,6 +192,18 @@ static int __devinit c_can_plat_probe(struct platform_device *pdev)
 		priv->can.ctrlmode_supported |= CAN_CTRLMODE_3_SAMPLES;
 		priv->read_reg = c_can_plat_read_reg_aligned_to_16bit;
 		priv->write_reg = c_can_plat_write_reg_aligned_to_16bit;
+
+		if (pdev->dev.of_node)
+			priv->instance = of_alias_get_id(pdev->dev.of_node, "d_can");
+		else
+			priv->instance = pdev->id;
+
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		priv->raminit_ctrlreg =	devm_request_and_ioremap(&pdev->dev, res);
+		if (!priv->raminit_ctrlreg || priv->instance < 0)
+			dev_info(&pdev->dev, "control memory is not used for raminit\n");
+		else
+			priv->raminit = c_can_hw_raminit;
 		break;
 	default:
 		ret = -EINVAL;
