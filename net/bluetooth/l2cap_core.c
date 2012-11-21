@@ -4284,9 +4284,9 @@ static int l2cap_create_channel_req(struct l2cap_conn *conn,
 
 		BT_DBG("mgr %p bredr_chan %p hs_hcon %p", mgr, chan, hs_hcon);
 
-		chan->local_amp_id = req->amp_id;
 		mgr->bredr_chan = chan;
 		chan->hs_hcon = hs_hcon;
+		chan->fcs = L2CAP_FCS_NONE;
 		conn->mtu = hdev->block_mtu;
 	}
 
@@ -4518,21 +4518,39 @@ void l2cap_move_start(struct l2cap_chan *chan)
 static void l2cap_do_create(struct l2cap_chan *chan, int result,
 			    u8 local_amp_id, u8 remote_amp_id)
 {
-	if (!test_bit(CONF_CONNECT_PEND, &chan->conf_state)) {
+	BT_DBG("chan %p state %s %u -> %u", chan, state_to_string(chan->state),
+	       local_amp_id, remote_amp_id);
+
+	chan->fcs = L2CAP_FCS_NONE;
+
+	/* Outgoing channel on AMP */
+	if (chan->state == BT_CONNECT) {
+		if (result == L2CAP_CR_SUCCESS) {
+			chan->local_amp_id = local_amp_id;
+			l2cap_send_create_chan_req(chan, remote_amp_id);
+		} else {
+			/* Revert to BR/EDR connect */
+			l2cap_send_conn_req(chan);
+		}
+
+		return;
+	}
+
+	/* Incoming channel on AMP */
+	if (__l2cap_no_conn_pending(chan)) {
 		struct l2cap_conn_rsp rsp;
 		char buf[128];
 		rsp.scid = cpu_to_le16(chan->dcid);
 		rsp.dcid = cpu_to_le16(chan->scid);
 
-		/* Incoming channel on AMP */
 		if (result == L2CAP_CR_SUCCESS) {
 			/* Send successful response */
-			rsp.result = cpu_to_le16(L2CAP_CR_SUCCESS);
-			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+			rsp.result = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
+			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
 		} else {
 			/* Send negative response */
-			rsp.result = cpu_to_le16(L2CAP_CR_NO_MEM);
-			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
+			rsp.result = __constant_cpu_to_le16(L2CAP_CR_NO_MEM);
+			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
 		}
 
 		l2cap_send_cmd(chan->conn, chan->ident, L2CAP_CREATE_CHAN_RSP,
@@ -4545,15 +4563,6 @@ static void l2cap_do_create(struct l2cap_chan *chan, int result,
 				       L2CAP_CONF_REQ,
 				       l2cap_build_conf_req(chan, buf), buf);
 			chan->num_conf_req++;
-		}
-	} else {
-		/* Outgoing channel on AMP */
-		if (result == L2CAP_CR_SUCCESS) {
-			chan->local_amp_id = local_amp_id;
-			l2cap_send_create_chan_req(chan, remote_amp_id);
-		} else {
-			/* Revert to BR/EDR connect */
-			l2cap_send_conn_req(chan);
 		}
 	}
 }
@@ -4612,15 +4621,14 @@ static void l2cap_do_move_cancel(struct l2cap_chan *chan, int result)
 	l2cap_ertm_send(chan);
 }
 
-void l2cap_physical_cfm(struct l2cap_chan *chan, int result)
+/* Invoke with locked chan */
+void __l2cap_physical_cfm(struct l2cap_chan *chan, int result)
 {
 	u8 local_amp_id = chan->local_amp_id;
 	u8 remote_amp_id = chan->remote_amp_id;
 
 	BT_DBG("chan %p, result %d, local_amp_id %d, remote_amp_id %d",
 	       chan, result, local_amp_id, remote_amp_id);
-
-	l2cap_chan_lock(chan);
 
 	if (chan->state == BT_DISCONN || chan->state == BT_CLOSED) {
 		l2cap_chan_unlock(chan);
@@ -4645,8 +4653,6 @@ void l2cap_physical_cfm(struct l2cap_chan *chan, int result)
 			break;
 		}
 	}
-
-	l2cap_chan_unlock(chan);
 }
 
 static inline int l2cap_move_channel_req(struct l2cap_conn *conn,
@@ -6086,7 +6092,7 @@ static int l2cap_data_rcv(struct l2cap_chan *chan, struct sk_buff *skb)
 		       control->super);
 
 		if (len != 0) {
-			BT_ERR("%d", len);
+			BT_ERR("Trailing bytes: %d in sframe", len);
 			l2cap_send_disconn_req(chan->conn, chan, ECONNRESET);
 			goto drop;
 		}
@@ -6380,7 +6386,7 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			continue;
 		}
 
-		if (test_bit(CONF_CONNECT_PEND, &chan->conf_state)) {
+		if (!__l2cap_no_conn_pending(chan)) {
 			l2cap_chan_unlock(chan);
 			continue;
 		}

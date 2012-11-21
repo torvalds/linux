@@ -202,6 +202,11 @@ static void hci_cc_reset(struct hci_dev *hdev, struct sk_buff *skb)
 			     BIT(HCI_PERIODIC_INQ));
 
 	hdev->discovery.state = DISCOVERY_STOPPED;
+	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
+	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
+
+	memset(hdev->adv_data, 0, sizeof(hdev->adv_data));
+	hdev->adv_data_len = 0;
 }
 
 static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
@@ -223,6 +228,9 @@ static void hci_cc_write_local_name(struct hci_dev *hdev, struct sk_buff *skb)
 		memcpy(hdev->dev_name, sent, HCI_MAX_NAME_LENGTH);
 
 	hci_dev_unlock(hdev);
+
+	if (!status && !test_bit(HCI_INIT, &hdev->flags))
+		hci_update_ad(hdev);
 
 	hci_req_complete(hdev, HCI_OP_WRITE_LOCAL_NAME, status);
 }
@@ -1089,8 +1097,11 @@ static void hci_cc_le_read_adv_tx_power(struct hci_dev *hdev,
 
 	BT_DBG("%s status 0x%2.2x", hdev->name, rp->status);
 
-	if (!rp->status)
+	if (!rp->status) {
 		hdev->adv_tx_power = rp->tx_power;
+		if (!test_bit(HCI_INIT, &hdev->flags))
+			hci_update_ad(hdev);
+	}
 
 	hci_req_complete(hdev, HCI_OP_LE_READ_ADV_TX_POWER, rp->status);
 }
@@ -1177,6 +1188,33 @@ static void hci_cc_read_local_oob_data_reply(struct hci_dev *hdev,
 	mgmt_read_local_oob_data_reply_complete(hdev, rp->hash,
 						rp->randomizer, rp->status);
 	hci_dev_unlock(hdev);
+}
+
+static void hci_cc_le_set_adv_enable(struct hci_dev *hdev, struct sk_buff *skb)
+{
+	__u8 *sent, status = *((__u8 *) skb->data);
+
+	BT_DBG("%s status 0x%2.2x", hdev->name, status);
+
+	sent = hci_sent_cmd_data(hdev, HCI_OP_LE_SET_ADV_ENABLE);
+	if (!sent)
+		return;
+
+	hci_dev_lock(hdev);
+
+	if (!status) {
+		if (*sent)
+			set_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+		else
+			clear_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags);
+	}
+
+	hci_dev_unlock(hdev);
+
+	if (!test_bit(HCI_INIT, &hdev->flags))
+		hci_update_ad(hdev);
+
+	hci_req_complete(hdev, HCI_OP_LE_SET_ADV_ENABLE, status);
 }
 
 static void hci_cc_le_set_scan_param(struct hci_dev *hdev, struct sk_buff *skb)
@@ -2572,6 +2610,10 @@ static void hci_cmd_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 
 	case HCI_OP_LE_SET_SCAN_PARAM:
 		hci_cc_le_set_scan_param(hdev, skb);
+		break;
+
+	case HCI_OP_LE_SET_ADV_ENABLE:
+		hci_cc_le_set_adv_enable(hdev, skb);
 		break;
 
 	case HCI_OP_LE_SET_SCAN_ENABLE:
