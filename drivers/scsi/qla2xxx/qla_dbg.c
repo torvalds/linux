@@ -2268,7 +2268,7 @@ qla83xx_fw_dump(scsi_qla_host_t *vha, int hardware_locked)
 
 		if (!cnt) {
 			nxt = fw->code_ram;
-			nxt += sizeof(fw->code_ram),
+			nxt += sizeof(fw->code_ram);
 			nxt += (ha->fw_memory_size - 0x100000 + 1);
 			goto copy_queue;
 		} else
