@@ -26,13 +26,13 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 
-#include <mach/iomap.h>
 #include <mach/powergate.h>
 
 #include "board.h"
 #include "clock.h"
 #include "common.h"
 #include "fuse.h"
+#include "iomap.h"
 #include "pmc.h"
 #include "apbio.h"
 #include "sleep.h"
@@ -44,14 +44,15 @@
  * kernel is loaded. The data is declared here rather than debug-macro.S so
  * that multiple inclusions of debug-macro.S point at the same data.
  */
-#define TEGRA_DEBUG_UART_OFFSET (TEGRA_DEBUG_UART_BASE & 0xFFFF)
-u32 tegra_uart_config[3] = {
+u32 tegra_uart_config[4] = {
 	/* Debug UART initialization required */
 	1,
 	/* Debug UART physical address */
-	(u32)(IO_APB_PHYS + TEGRA_DEBUG_UART_OFFSET),
+	0,
 	/* Debug UART virtual address */
-	(u32)(IO_APB_VIRT + TEGRA_DEBUG_UART_OFFSET),
+	0,
+	/* Scratch space for debug macro */
+	0,
 };
 
 #ifdef CONFIG_OF
@@ -104,25 +105,26 @@ static __initdata struct tegra_clk_init_table tegra30_clk_init_table[] = {
 	{ "clk_m",	NULL,		0,		true },
 	{ "pll_p",	"clk_m",	408000000,	true },
 	{ "pll_p_out1",	"pll_p",	9600000,	true },
+	{ "pll_p_out4",	"pll_p",	102000000,	true },
+	{ "sclk",	"pll_p_out4",	102000000,	true },
+	{ "hclk",	"sclk",		102000000,	true },
+	{ "pclk",	"hclk",		51000000,	true },
 	{ NULL,		NULL,		0,		0},
 };
 #endif
 
 
-static void __init tegra_init_cache(u32 tag_latency, u32 data_latency)
+static void __init tegra_init_cache(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	void __iomem *p = IO_ADDRESS(TEGRA_ARM_PERIF_BASE) + 0x3000;
 	u32 aux_ctrl, cache_type;
 
-	writel_relaxed(tag_latency, p + L2X0_TAG_LATENCY_CTRL);
-	writel_relaxed(data_latency, p + L2X0_DATA_LATENCY_CTRL);
-
 	cache_type = readl(p + L2X0_CACHE_TYPE);
 	aux_ctrl = (cache_type & 0x700) << (17-8);
-	aux_ctrl |= 0x6C000001;
+	aux_ctrl |= 0x7C400001;
 
-	l2x0_init(p, aux_ctrl, 0x8200c3fe);
+	l2x0_of_init(aux_ctrl, 0x8200c3fe);
 #endif
 
 }
@@ -134,7 +136,7 @@ void __init tegra20_init_early(void)
 	tegra_init_fuse();
 	tegra2_init_clocks();
 	tegra_clk_init_from_table(tegra20_clk_init_table);
-	tegra_init_cache(0x331, 0x441);
+	tegra_init_cache();
 	tegra_pmc_init();
 	tegra_powergate_init();
 	tegra20_hotplug_init();
@@ -147,7 +149,7 @@ void __init tegra30_init_early(void)
 	tegra_init_fuse();
 	tegra30_init_clocks();
 	tegra_clk_init_from_table(tegra30_clk_init_table);
-	tegra_init_cache(0x441, 0x551);
+	tegra_init_cache();
 	tegra_pmc_init();
 	tegra_powergate_init();
 	tegra30_hotplug_init();

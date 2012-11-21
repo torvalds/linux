@@ -8,6 +8,16 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	host1x {
+		hdmi {
+			vdd-supply = <&hdmi_vdd_reg>;
+			pll-supply = <&hdmi_pll_reg>;
+
+			nvidia,ddc-i2c-bus = <&hdmi_ddc>;
+			nvidia,hpd-gpio = <&gpio 111 0>; /* PN7 */
+		};
+	};
+
 	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
@@ -62,10 +72,6 @@
 				nvidia,pins = "dap4";
 				nvidia,function = "dap4";
 			};
-			ddc {
-				nvidia,pins = "ddc";
-				nvidia,function = "i2c2";
-			};
 			dta {
 				nvidia,pins = "dta", "dtd";
 				nvidia,function = "sdio2";
@@ -91,7 +97,7 @@
 				nvidia,function = "pcie";
 			};
 			hdint {
-				nvidia,pins = "hdint", "pta";
+				nvidia,pins = "hdint";
 				nvidia,function = "hdmi";
 			};
 			i2cp {
@@ -230,6 +236,39 @@
 				nvidia,pull = <1>;
 			};
 		};
+
+		state_i2cmux_ddc: pinmux_i2cmux_ddc {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "i2c2";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_pta: pinmux_i2cmux_pta {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
+			};
+		};
+
+		state_i2cmux_idle: pinmux_i2cmux_idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
 	};
 
 	i2s@70002800 {
@@ -244,6 +283,36 @@
 	i2c@7000c000 {
 		clock-frequency = <400000>;
 		status = "okay";
+	};
+
+	i2c@7000c400 {
+		clock-frequency = <100000>;
+		status = "okay";
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&{/i2c@7000c400}>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		hdmi_ddc: i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
 	};
 
 	i2c@7000d000 {
@@ -271,97 +340,72 @@
 			vinldo9-supply = <&sm2_reg>;
 
 			regulators {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				sys_reg: regulator@0 {
-					reg = <0>;
-					regulator-compatible = "sys";
+				sys_reg: sys {
 					regulator-name = "vdd_sys";
 					regulator-always-on;
 				};
 
-				regulator@1 {
-					reg = <1>;
-					regulator-compatible = "sm0";
+				sm0 {
 					regulator-name = "vdd_sys_sm0,vdd_core";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 					regulator-always-on;
 				};
 
-				regulator@2 {
-					reg = <2>;
-					regulator-compatible = "sm1";
+				sm1 {
 					regulator-name = "vdd_sys_sm1,vdd_cpu";
 					regulator-min-microvolt = <1000000>;
 					regulator-max-microvolt = <1000000>;
 					regulator-always-on;
 				};
 
-				sm2_reg: regulator@3 {
-					reg = <3>;
-					regulator-compatible = "sm2";
+				sm2_reg: sm2 {
 					regulator-name = "vdd_sys_sm2,vin_ldo*";
 					regulator-min-microvolt = <3700000>;
 					regulator-max-microvolt = <3700000>;
 					regulator-always-on;
 				};
 
-				regulator@4 {
-					reg = <4>;
-					regulator-compatible = "ldo0";
+				ldo0 {
 					regulator-name = "vdd_ldo0,vddio_pex_clk";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
 
-				regulator@5 {
-					reg = <5>;
-					regulator-compatible = "ldo1";
+				ldo1 {
 					regulator-name = "vdd_ldo1,avdd_pll*";
 					regulator-min-microvolt = <1100000>;
 					regulator-max-microvolt = <1100000>;
 					regulator-always-on;
 				};
 
-				regulator@6 {
-					reg = <6>;
-					regulator-compatible = "ldo2";
+				ldo2 {
 					regulator-name = "vdd_ldo2,vdd_rtc";
 					regulator-min-microvolt = <1200000>;
 					regulator-max-microvolt = <1200000>;
 				};
 
-				regulator@7 {
-					reg = <7>;
-					regulator-compatible = "ldo3";
+				ldo3 {
 					regulator-name = "vdd_ldo3,avdd_usb*";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 				};
 
-				regulator@8 {
-					reg = <8>;
-					regulator-compatible = "ldo4";
+				ldo4 {
 					regulator-name = "vdd_ldo4,avdd_osc,vddio_sys";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 					regulator-always-on;
 				};
 
-				regulator@9 {
-					reg = <9>;
-					regulator-compatible = "ldo5";
+				ldo5 {
 					regulator-name = "vdd_ldo5,vcore_mmc";
 					regulator-min-microvolt = <2850000>;
 					regulator-max-microvolt = <2850000>;
 				};
 
-				regulator@10 {
-					reg = <10>;
-					regulator-compatible = "ldo6";
+				ldo6 {
 					regulator-name = "vdd_ldo6,avdd_vdac";
 					/*
 					 * According to the Tegra 2 Automotive
@@ -373,25 +417,19 @@
 					regulator-max-microvolt = <2850000>;
 				};
 
-				regulator@11 {
-					reg = <11>;
-					regulator-compatible = "ldo7";
+				hdmi_vdd_reg: ldo7 {
 					regulator-name = "vdd_ldo7,avdd_hdmi";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 				};
 
-				regulator@12 {
-					reg = <12>;
-					regulator-compatible = "ldo8";
+				hdmi_pll_reg: ldo8 {
 					regulator-name = "vdd_ldo8,avdd_hdmi_pll";
 					regulator-min-microvolt = <1800000>;
 					regulator-max-microvolt = <1800000>;
 				};
 
-				regulator@13 {
-					reg = <13>;
-					regulator-compatible = "ldo9";
+				ldo9 {
 					regulator-name = "vdd_ldo9,vdd_ddr_rx,avdd_cam";
 					/*
 					 * According to the Tegra 2 Automotive
@@ -404,15 +442,18 @@
 					regulator-always-on;
 				};
 
-				regulator@14 {
-					reg = <14>;
-					regulator-compatible = "ldo_rtc";
+				ldo_rtc {
 					regulator-name = "vdd_rtc_out";
 					regulator-min-microvolt = <3300000>;
 					regulator-max-microvolt = <3300000>;
 					regulator-always-on;
 				};
 			};
+		};
+
+		temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
 		};
 	};
 

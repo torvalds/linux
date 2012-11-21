@@ -644,6 +644,7 @@ config ARCH_TEGRA
 	select HAVE_CLK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,

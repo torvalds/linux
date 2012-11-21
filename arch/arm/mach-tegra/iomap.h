@@ -1,6 +1,4 @@
 /*
- * arch/arm/mach-tegra/include/mach/iomap.h
- *
  * Copyright (C) 2010 Google, Inc.
  *
  * Author:
@@ -262,20 +260,6 @@
 
 #define TEGRA_SDMMC4_BASE		0xC8000600
 #define TEGRA_SDMMC4_SIZE		SZ_512
-
-#if defined(CONFIG_TEGRA_DEBUG_UART_NONE)
-# define TEGRA_DEBUG_UART_BASE 0
-#elif defined(CONFIG_TEGRA_DEBUG_UARTA)
-# define TEGRA_DEBUG_UART_BASE TEGRA_UARTA_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTB)
-# define TEGRA_DEBUG_UART_BASE TEGRA_UARTB_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTC)
-# define TEGRA_DEBUG_UART_BASE TEGRA_UARTC_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTD)
-# define TEGRA_DEBUG_UART_BASE TEGRA_UARTD_BASE
-#elif defined(CONFIG_TEGRA_DEBUG_UARTE)
-# define TEGRA_DEBUG_UART_BASE TEGRA_UARTE_BASE
-#endif
 
 /* On TEGRA, many peripherals are very closely packed in
  * two 256MB io windows (that actually only use about 64KB

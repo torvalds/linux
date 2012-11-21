@@ -31,10 +31,9 @@
 
 #include <asm/clkdev.h>
 
-#include <mach/iomap.h>
-
 #include "clock.h"
 #include "fuse.h"
+#include "iomap.h"
 #include "tegra_cpu_car.h"
 
 #define USE_PLL_LOCK_BITS 0
@@ -790,6 +789,112 @@ static unsigned long tegra30_twd_clk_recalc_rate(struct clk_hw *hw,
 
 struct clk_ops tegra30_twd_ops = {
 	.recalc_rate = tegra30_twd_clk_recalc_rate,
+};
+
+/* bus clock functions */
+static int tegra30_bus_clk_is_enabled(struct clk_hw *hw)
+{
+	struct clk_tegra *c = to_clk_tegra(hw);
+	u32 val = clk_readl(c->reg);
+
+	c->state = ((val >> c->reg_shift) & BUS_CLK_DISABLE) ? OFF : ON;
+	return c->state;
+}
+
+static int tegra30_bus_clk_enable(struct clk_hw *hw)
+{
+	struct clk_tegra *c = to_clk_tegra(hw);
+	u32 val;
+
+	val = clk_readl(c->reg);
+	val &= ~(BUS_CLK_DISABLE << c->reg_shift);
+	clk_writel(val, c->reg);
+
+	return 0;
+}
+
+static void tegra30_bus_clk_disable(struct clk_hw *hw)
+{
+	struct clk_tegra *c = to_clk_tegra(hw);
+	u32 val;
+
+	val = clk_readl(c->reg);
+	val |= BUS_CLK_DISABLE << c->reg_shift;
+	clk_writel(val, c->reg);
+}
+
+static unsigned long tegra30_bus_clk_recalc_rate(struct clk_hw *hw,
+			unsigned long prate)
+{
+	struct clk_tegra *c = to_clk_tegra(hw);
+	u32 val = clk_readl(c->reg);
+	u64 rate = prate;
+
+	c->div = ((val >> c->reg_shift) & BUS_CLK_DIV_MASK) + 1;
+	c->mul = 1;
+
+	if (c->mul != 0 && c->div != 0) {
+		rate *= c->mul;
+		rate += c->div - 1; /* round up */
+		do_div(rate, c->div);
+	}
+	return rate;
+}
+
+static int tegra30_bus_clk_set_rate(struct clk_hw *hw, unsigned long rate,
+		unsigned long parent_rate)
+{
+	struct clk_tegra *c = to_clk_tegra(hw);
+	int ret = -EINVAL;
+	u32 val;
+	int i;
+
+	val = clk_readl(c->reg);
+	for (i = 1; i <= 4; i++) {
+		if (rate == parent_rate / i) {
+			val &= ~(BUS_CLK_DIV_MASK << c->reg_shift);
+			val |= (i - 1) << c->reg_shift;
+			clk_writel(val, c->reg);
+			c->div = i;
+			c->mul = 1;
+			ret = 0;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static long tegra30_bus_clk_round_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long *prate)
+{
+	unsigned long parent_rate = *prate;
+	s64 divider;
+
+	if (rate >= parent_rate)
+		return parent_rate;
+
+	divider = parent_rate;
+	divider += rate - 1;
+	do_div(divider, rate);
+
+	if (divider < 0)
+		return divider;
+
+	if (divider > 4)
+		divider = 4;
+	do_div(parent_rate, divider);
+
+	return parent_rate;
+}
+
+struct clk_ops tegra30_bus_ops = {
+	.is_enabled = tegra30_bus_clk_is_enabled,
+	.enable = tegra30_bus_clk_enable,
+	.disable = tegra30_bus_clk_disable,
+	.set_rate = tegra30_bus_clk_set_rate,
+	.round_rate = tegra30_bus_clk_round_rate,
+	.recalc_rate = tegra30_bus_clk_recalc_rate,
 };
 
 /* Blink output functions */

@@ -17,7 +17,7 @@
 #ifndef __MACH_TEGRA_SLEEP_H
 #define __MACH_TEGRA_SLEEP_H
 
-#include <mach/iomap.h>
+#include "iomap.h"
 
 #define TEGRA_ARM_PERIF_VIRT (TEGRA_ARM_PERIF_BASE - IO_CPU_PHYS \
 					+ IO_CPU_VIRT)
