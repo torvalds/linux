@@ -1191,13 +1191,13 @@ EXPORT_SYMBOL_GPL(gpiochip_find);
  * gpiochip_add_pin_range() - add a range for GPIO <-> pin mapping
  * @chip: the gpiochip to add the range for
  * @pinctrl_name: the dev_name() of the pin controller to map to
- * @offset: the start offset in the current gpio_chip number space
- * @pin_base: the start offset in the pin controller number space
+ * @gpio_offset: the start offset in the current gpio_chip number space
+ * @pin_offset: the start offset in the pin controller number space
  * @npins: the number of pins from the offset of each pin space (GPIO and
  *	pin controller) to accumulate in this range
  */
 int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
-			   unsigned int offset, unsigned int pin_base,
+			   unsigned int gpio_offset, unsigned int pin_offset,
 			   unsigned int npins)
 {
 	struct gpio_pin_range *pin_range;
@@ -1210,11 +1210,11 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 	}
 
 	/* Use local offset as range ID */
-	pin_range->range.id = offset;
+	pin_range->range.id = gpio_offset;
 	pin_range->range.gc = chip;
 	pin_range->range.name = chip->label;
-	pin_range->range.base = chip->base + offset;
-	pin_range->range.pin_base = pin_base;
+	pin_range->range.base = chip->base + gpio_offset;
+	pin_range->range.pin_base = pin_offset;
 	pin_range->range.npins = npins;
 	pin_range->pctldev = pinctrl_find_and_add_gpio_range(pinctl_name,
 			&pin_range->range);
@@ -1224,9 +1224,10 @@ int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
 		kfree(pin_range);
 		return PTR_ERR(pin_range->pctldev);
 	}
-	pr_debug("%s: GPIO chip: created GPIO range %d->%d ==> PIN %d->%d\n",
-		 chip->label, offset, offset + npins - 1,
-		 pin_base, pin_base + npins - 1);
+	pr_debug("GPIO chip %s: created GPIO range %d->%d ==> %s PIN %d->%d\n",
+		 chip->label, gpio_offset, gpio_offset + npins - 1,
+		 pinctl_name,
+		 pin_offset, pin_offset + npins - 1);
 
 	list_add_tail(&pin_range->node, &chip->pin_ranges);
 

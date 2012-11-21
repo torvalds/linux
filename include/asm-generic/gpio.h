@@ -283,7 +283,7 @@ struct gpio_pin_range {
 };
 
 int gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
-			   unsigned int offset, unsigned int pin_base,
+			   unsigned int gpio_offset, unsigned int pin_offset,
 			   unsigned int npins);
 void gpiochip_remove_pin_ranges(struct gpio_chip *chip);
 
@@ -291,7 +291,7 @@ void gpiochip_remove_pin_ranges(struct gpio_chip *chip);
 
 static inline int
 gpiochip_add_pin_range(struct gpio_chip *chip, const char *pinctl_name,
-		       unsigned int offset, unsigned int pin_base,
+		       unsigned int gpio_offset, unsigned int pin_offset,
 		       unsigned int npins)
 {
 	return 0;
