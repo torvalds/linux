@@ -1293,11 +1293,54 @@ void vmw_fence_single_bo(struct ttm_buffer_object *bo,
  * @mem:            The truct ttm_mem_reg indicating to what memory
  *                  region the move is taking place.
  *
- * For now does nothing.
+ * Evicts the Guest Backed hardware resource if the backup
+ * buffer is being moved out of MOB memory.
+ * Note that this function should not race with the resource
+ * validation code as long as it accesses only members of struct
+ * resource that remain static while bo::res is !NULL and
+ * while we have @bo reserved. struct resource::backup is *not* a
+ * static member. The resource validation code will take care
+ * to set @bo::res to NULL, while having @bo reserved when the
+ * buffer is no longer bound to the resource, so @bo:res can be
+ * used to determine whether there is a need to unbind and whether
+ * it is safe to unbind.
  */
 void vmw_resource_move_notify(struct ttm_buffer_object *bo,
 			      struct ttm_mem_reg *mem)
 {
+	struct vmw_dma_buffer *dma_buf;
+
+	if (mem == NULL)
+		return;
+
+	if (bo->destroy != vmw_dmabuf_bo_free &&
+	    bo->destroy != vmw_user_dmabuf_destroy)
+		return;
+
+	dma_buf = container_of(bo, struct vmw_dma_buffer, base);
+
+	if (mem->mem_type != VMW_PL_MOB) {
+		struct vmw_resource *res, *n;
+		struct ttm_bo_device *bdev = bo->bdev;
+		struct ttm_validate_buffer val_buf;
+
+		val_buf.bo = bo;
+
+		list_for_each_entry_safe(res, n, &dma_buf->res_list, mob_head) {
+
+			if (unlikely(res->func->unbind == NULL))
+				continue;
+
+			(void) res->func->unbind(res, true, &val_buf);
+			res->backup_dirty = true;
+			res->res_dirty = false;
+			list_del_init(&res->mob_head);
+		}
+
+		spin_lock(&bdev->fence_lock);
+		(void) ttm_bo_wait(bo, false, false, false);
+		spin_unlock(&bdev->fence_lock);
+	}
 }
 
 /**
