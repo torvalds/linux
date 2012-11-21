@@ -1615,8 +1615,7 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 	 * At this point all fcport's software-states are cleared.  Perform any
 	 * final cleanup of firmware resources (PCBs and XCBs).
 	 */
-	if (fcport->loop_id != FC_NO_LOOP_ID &&
-	    !test_bit(UNLOADING, &fcport->vha->dpc_flags)) {
+	if (fcport->loop_id != FC_NO_LOOP_ID) {
 		if (IS_FWI2_CAPABLE(fcport->vha->hw))
 			fcport->vha->hw->isp_ops->fabric_logout(fcport->vha,
 			    fcport->loop_id, fcport->d_id.b.domain,
