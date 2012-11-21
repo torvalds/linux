@@ -185,7 +185,7 @@ int __init s5p_register_gpio_interrupt(int pin)
 
 	/* check if the group has been already registered */
 	if (my_chip->irq_base)
-		return my_chip->irq_base + offset;
+		goto success;
 
 	/* register gpio group */
 	ret = s5p_gpioint_add(my_chip);
@@ -193,9 +193,13 @@ int __init s5p_register_gpio_interrupt(int pin)
 		my_chip->chip.to_irq = samsung_gpiolib_to_irq;
 		printk(KERN_INFO "Registered interrupt support for gpio group %d.\n",
 		       group);
-		return my_chip->irq_base + offset;
+		goto success;
 	}
 	return ret;
+success:
+	my_chip->bitmap_gpio_int |= BIT(offset);
+
+	return my_chip->irq_base + offset;
 }
 
 int __init s5p_register_gpioint_bank(int chain_irq, int start, int nr_groups)
