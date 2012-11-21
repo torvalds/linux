@@ -268,23 +268,39 @@
 			};
 
 			pwm@02080000 { /* PWM1 */
+				#pwm-cells = <2>;
+				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x02080000 0x4000>;
 				interrupts = <0 83 0x04>;
+				clocks = <&clks 62>, <&clks 145>;
+				clock-names = "ipg", "per";
 			};
 
 			pwm@02084000 { /* PWM2 */
+				#pwm-cells = <2>;
+				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x02084000 0x4000>;
 				interrupts = <0 84 0x04>;
+				clocks = <&clks 62>, <&clks 146>;
+				clock-names = "ipg", "per";
 			};
 
 			pwm@02088000 { /* PWM3 */
+				#pwm-cells = <2>;
+				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x02088000 0x4000>;
 				interrupts = <0 85 0x04>;
+				clocks = <&clks 62>, <&clks 147>;
+				clock-names = "ipg", "per";
 			};
 
 			pwm@0208c000 { /* PWM4 */
+				#pwm-cells = <2>;
+				compatible = "fsl,imx6q-pwm", "fsl,imx27-pwm";
 				reg = <0x0208c000 0x4000>;
 				interrupts = <0 86 0x04>;
+				clocks = <&clks 62>, <&clks 148>;
+				clock-names = "ipg", "per";
 			};
 
 			flexcan@02090000 { /* CAN1 */
