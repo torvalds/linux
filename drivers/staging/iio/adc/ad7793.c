@@ -297,7 +297,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 			break;
 		case IIO_TEMP:
 				/* 1170mV / 0.81 mV/C / 2^23 */
-				scale_uv = 1444444444444ULL;
+				scale_uv = 1444444444444444ULL;
 			break;
 		default:
 			return -EINVAL;
