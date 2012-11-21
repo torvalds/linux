@@ -174,5 +174,47 @@
 			clocks = <&gate_clk 15>;
 			status = "okay";
 		};
+
+		xor0: dma-engine@60800 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60800 0x100
+			       0x60a00 0x100>;
+			clocks = <&gate_clk 23>;
+			status = "okay";
+
+			channel0 {
+				interrupts = <39>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+
+			channel1 {
+				interrupts = <40>;
+				dmacap,memset;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+		};
+
+		xor1: dma-engine@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0x60b00 0x100>;
+			clocks = <&gate_clk 24>;
+			status = "okay";
+
+			channel0 {
+				interrupts = <42>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+
+			channel1 {
+				interrupts = <43>;
+				dmacap,memset;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+		};
 	};
 };

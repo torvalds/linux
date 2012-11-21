@@ -87,5 +87,45 @@
 				clocks = <&gateclk 1>;
 				status = "disabled";
 		};
+
+		xor@d0060900 {
+			compatible = "marvell,orion-xor";
+			reg = <0xd0060900 0x100
+			       0xd0060b00 0x100>;
+			clocks = <&gateclk 22>;
+			status = "okay";
+
+			xor10 {
+				interrupts = <51>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+			xor11 {
+				interrupts = <52>;
+				dmacap,memcpy;
+				dmacap,xor;
+				dmacap,memset;
+			};
+		};
+
+		xor@d00f0900 {
+			compatible = "marvell,orion-xor";
+			reg = <0xd00F0900 0x100
+			       0xd00F0B00 0x100>;
+			clocks = <&gateclk 28>;
+			status = "okay";
+
+			xor00 {
+				interrupts = <94>;
+				dmacap,memcpy;
+				dmacap,xor;
+			};
+			xor01 {
+				interrupts = <95>;
+				dmacap,memcpy;
+				dmacap,xor;
+				dmacap,memset;
+			};
+		};
 	};
 };

@@ -409,14 +409,6 @@ static void __init dove_legacy_clk_init(void)
 	clkspec.args[0] = CLOCK_GATING_BIT_PCIE1;
 	orion_clkdev_add("1", "pcie",
 			 of_clk_get_from_provider(&clkspec));
-
-	clkspec.args[0] = CLOCK_GATING_BIT_XOR0;
-	orion_clkdev_add(NULL, MV_XOR_NAME ".0",
-			 of_clk_get_from_provider(&clkspec));
-
-	clkspec.args[0] = CLOCK_GATING_BIT_XOR1;
-	orion_clkdev_add(NULL, MV_XOR_NAME ".1",
-			 of_clk_get_from_provider(&clkspec));
 }
 
 static void __init dove_of_clk_init(void)
@@ -444,8 +436,6 @@ static void __init dove_dt_init(void)
 
 	/* Internal devices not ported to DT yet */
 	dove_rtc_init();
-	dove_xor0_init();
-	dove_xor1_init();
 
 	dove_ge00_init(&dove_dt_ge00_data);
 	dove_ehci0_init();
