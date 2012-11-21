@@ -441,19 +441,21 @@ int omap_device_get_context_loss_count(struct platform_device *pdev)
 /**
  * omap_device_count_resources - count number of struct resource entries needed
  * @od: struct omap_device *
+ * @flags: Type of resources to include when counting (IRQ/DMA/MEM)
  *
  * Count the number of struct resource entries needed for this
  * omap_device @od.  Used by omap_device_build_ss() to determine how
  * much memory to allocate before calling
  * omap_device_fill_resources().  Returns the count.
  */
-static int omap_device_count_resources(struct omap_device *od)
+static int omap_device_count_resources(struct omap_device *od,
+				       unsigned long flags)
 {
 	int c = 0;
 	int i;
 
 	for (i = 0; i < od->hwmods_cnt; i++)
-		c += omap_hwmod_count_resources(od->hwmods[i]);
+		c += omap_hwmod_count_resources(od->hwmods[i], flags);
 
 	pr_debug("omap_device: %s: counted %d total resources across %d hwmods\n",
 		 od->pdev->name, c, od->hwmods_cnt);
@@ -557,7 +559,10 @@ struct omap_device *omap_device_alloc(struct platform_device *pdev,
 	od->hwmods = hwmods;
 	od->pdev = pdev;
 
-	res_count = omap_device_count_resources(od);
+	/* Count all resources for the device */
+	res_count = omap_device_count_resources(od, IORESOURCE_IRQ |
+						    IORESOURCE_DMA |
+						    IORESOURCE_MEM);
 	/*
 	 * DT Boot:
 	 *   OF framework will construct the resource structure (currently

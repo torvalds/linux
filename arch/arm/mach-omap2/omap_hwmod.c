@@ -3427,7 +3427,7 @@ int omap_hwmod_reset(struct omap_hwmod *oh)
 /**
  * omap_hwmod_count_resources - count number of struct resources needed by hwmod
  * @oh: struct omap_hwmod *
- * @res: pointer to the first element of an array of struct resource to fill
+ * @flags: Type of resources to include when counting (IRQ/DMA/MEM)
  *
  * Count the number of struct resource array elements necessary to
  * contain omap_hwmod @oh resources.  Intended to be called by code
@@ -3440,20 +3440,25 @@ int omap_hwmod_reset(struct omap_hwmod *oh)
  * resource IDs.
  *
  */
-int omap_hwmod_count_resources(struct omap_hwmod *oh)
+int omap_hwmod_count_resources(struct omap_hwmod *oh, unsigned long flags)
 {
-	struct omap_hwmod_ocp_if *os;
-	struct list_head *p;
-	int ret;
-	int i = 0;
+	int ret = 0;
 
-	ret = _count_mpu_irqs(oh) + _count_sdma_reqs(oh);
+	if (flags & IORESOURCE_IRQ)
+		ret += _count_mpu_irqs(oh);
 
-	p = oh->slave_ports.next;
+	if (flags & IORESOURCE_DMA)
+		ret += _count_sdma_reqs(oh);
 
-	while (i < oh->slaves_cnt) {
-		os = _fetch_next_ocp_if(&p, &i);
-		ret += _count_ocp_if_addr_spaces(os);
+	if (flags & IORESOURCE_MEM) {
+		int i = 0;
+		struct omap_hwmod_ocp_if *os;
+		struct list_head *p = oh->slave_ports.next;
+
+		while (i < oh->slaves_cnt) {
+			os = _fetch_next_ocp_if(&p, &i);
+			ret += _count_ocp_if_addr_spaces(os);
+		}
 	}
 
 	return ret;
