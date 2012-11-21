@@ -533,6 +533,8 @@ extern int vmw_dmabuf_alloc_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_dmabuf_unref_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
+extern int vmw_user_dmabuf_synccpu_ioctl(struct drm_device *dev, void *data,
+					 struct drm_file *file_priv);
 extern uint32_t vmw_dmabuf_validate_node(struct ttm_buffer_object *bo,
 					 uint32_t cur_validate_node);
 extern void vmw_dmabuf_validate_clear(struct ttm_buffer_object *bo);

@@ -28,6 +28,10 @@
 #ifndef __VMWGFX_DRM_H__
 #define __VMWGFX_DRM_H__
 
+#ifndef __KERNEL__
+#include <drm.h>
+#endif
+
 #define DRM_VMW_MAX_SURFACE_FACES 6
 #define DRM_VMW_MAX_MIP_LEVELS 24
 
@@ -59,7 +63,7 @@
 #define DRM_VMW_UNREF_SHADER         22
 #define DRM_VMW_GB_SURFACE_CREATE    23
 #define DRM_VMW_GB_SURFACE_REF       24
-
+#define DRM_VMW_SYNCCPU              25
 
 /*************************************************************************/
 /**
@@ -985,5 +989,62 @@ union drm_vmw_gb_surface_reference_arg {
 };
 
 
+/*************************************************************************/
+/**
+ * DRM_VMW_SYNCCPU - Sync a DMA buffer / MOB for CPU access.
+ *
+ * Idles any previously submitted GPU operations on the buffer and
+ * by default blocks command submissions that reference the buffer.
+ * If the file descriptor used to grab a blocking CPU sync is closed, the
+ * cpu sync is released.
+ * The flags argument indicates how the grab / release operation should be
+ * performed:
+ */
+
+/**
+ * enum drm_vmw_synccpu_flags - Synccpu flags:
+ *
+ * @drm_vmw_synccpu_read: Sync for read. If sync is done for read only, it's a
+ * hint to the kernel to allow command submissions that references the buffer
+ * for read-only.
+ * @drm_vmw_synccpu_write: Sync for write. Block all command submissions
+ * referencing this buffer.
+ * @drm_vmw_synccpu_dontblock: Dont wait for GPU idle, but rather return
+ * -EBUSY should the buffer be busy.
+ * @drm_vmw_synccpu_allow_cs: Allow command submission that touches the buffer
+ * while the buffer is synced for CPU. This is similar to the GEM bo idle
+ * behavior.
+ */
+enum drm_vmw_synccpu_flags {
+	drm_vmw_synccpu_read = (1 << 0),
+	drm_vmw_synccpu_write = (1 << 1),
+	drm_vmw_synccpu_dontblock = (1 << 2),
+	drm_vmw_synccpu_allow_cs = (1 << 3)
+};
+
+/**
+ * enum drm_vmw_synccpu_op - Synccpu operations:
+ *
+ * @drm_vmw_synccpu_grab:    Grab the buffer for CPU operations
+ * @drm_vmw_synccpu_release: Release a previous grab.
+ */
+enum drm_vmw_synccpu_op {
+	drm_vmw_synccpu_grab,
+	drm_vmw_synccpu_release
+};
+
+/**
+ * struct drm_vmw_synccpu_arg
+ *
+ * @op:			     The synccpu operation as described above.
+ * @handle:		     Handle identifying the buffer object.
+ * @flags:		     Flags as described above.
+ */
+struct drm_vmw_synccpu_arg {
+	enum drm_vmw_synccpu_op op;
+	enum drm_vmw_synccpu_flags flags;
+	uint32_t handle;
+	uint32_t pad64;
+};
 
 #endif
