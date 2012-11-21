@@ -1,5 +1,4 @@
 /*
- * @ubi: UBI device description object
  * Copyright (c) International Business Machines Corp., 2006
  *
  * This program is free software; you can redistribute it and/or modify
