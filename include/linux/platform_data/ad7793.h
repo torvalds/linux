@@ -5,12 +5,8 @@
  *
  * Licensed under the GPL-2.
  */
-#ifndef IIO_ADC_AD7793_H_
-#define IIO_ADC_AD7793_H_
-
-/*
- * TODO: struct ad7793_platform_data needs to go into include/linux/iio
- */
+#ifndef __LINUX_PLATFORM_DATA_AD7793_H__
+#define __LINUX_PLATFORM_DATA_AD7793_H__
 
 /**
  * enum ad7793_clock_source - AD7793 clock source selection

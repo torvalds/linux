@@ -25,8 +25,7 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/adc/ad_sigma_delta.h>
-
-#include "ad7793.h"
+#include <linux/platform_data/ad7793.h>
 
 /* Registers */
 #define AD7793_REG_COMM		0 /* Communications Register (WO, 8-bit) */
