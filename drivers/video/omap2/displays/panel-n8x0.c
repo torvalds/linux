@@ -652,18 +652,25 @@ static struct omap_dss_driver n8x0_panel_driver = {
 
 static int mipid_spi_probe(struct spi_device *spi)
 {
+	int r;
+
 	dev_dbg(&spi->dev, "mipid_spi_probe\n");
 
 	spi->mode = SPI_MODE_0;
 
 	s_drv_data.spidev = spi;
 
-	return 0;
+	r = omap_dss_register_driver(&n8x0_panel_driver);
+	if (r)
+		pr_err("n8x0_panel: dss driver registration failed\n");
+
+	return r;
 }
 
 static int mipid_spi_remove(struct spi_device *spi)
 {
 	dev_dbg(&spi->dev, "mipid_spi_remove\n");
+	omap_dss_unregister_driver(&n8x0_panel_driver);
 	return 0;
 }
 
@@ -675,34 +682,6 @@ static struct spi_driver mipid_spi_driver = {
 	.probe	= mipid_spi_probe,
 	.remove	= __devexit_p(mipid_spi_remove),
 };
+module_spi_driver(mipid_spi_driver);
 
-static int __init n8x0_panel_drv_init(void)
-{
-	int r;
-
-	r = spi_register_driver(&mipid_spi_driver);
-	if (r) {
-		pr_err("n8x0_panel: spi driver registration failed\n");
-		return r;
-	}
-
-	r = omap_dss_register_driver(&n8x0_panel_driver);
-	if (r) {
-		pr_err("n8x0_panel: dss driver registration failed\n");
-		spi_unregister_driver(&mipid_spi_driver);
-		return r;
-	}
-
-	return 0;
-}
-
-static void __exit n8x0_panel_drv_exit(void)
-{
-	spi_unregister_driver(&mipid_spi_driver);
-
-	omap_dss_unregister_driver(&n8x0_panel_driver);
-}
-
-module_init(n8x0_panel_drv_init);
-module_exit(n8x0_panel_drv_exit);
 MODULE_LICENSE("GPL");
