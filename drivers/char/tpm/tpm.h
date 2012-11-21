@@ -155,13 +155,13 @@ struct tpm_input_header {
 	__be16	tag;
 	__be32	length;
 	__be32	ordinal;
-}__attribute__((packed));
+} __packed;
 
 struct tpm_output_header {
 	__be16	tag;
 	__be32	length;
 	__be32	return_code;
-}__attribute__((packed));
+} __packed;
 
 struct	stclear_flags_t {
 	__be16	tag;
@@ -170,14 +170,14 @@ struct	stclear_flags_t {
 	u8	physicalPresence;
 	u8	physicalPresenceLock;
 	u8	bGlobalLock;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_version_t {
 	u8	Major;
 	u8	Minor;
 	u8	revMajor;
 	u8	revMinor;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_version_1_2_t {
 	__be16	tag;
@@ -185,20 +185,20 @@ struct	tpm_version_1_2_t {
 	u8	Minor;
 	u8	revMajor;
 	u8	revMinor;
-}__attribute__((packed));
+} __packed;
 
 struct	timeout_t {
 	__be32	a;
 	__be32	b;
 	__be32	c;
 	__be32	d;
-}__attribute__((packed));
+} __packed;
 
 struct duration_t {
 	__be32	tpm_short;
 	__be32	tpm_medium;
 	__be32	tpm_long;
-}__attribute__((packed));
+} __packed;
 
 struct permanent_flags_t {
 	__be16	tag;
@@ -222,7 +222,7 @@ struct permanent_flags_t {
 	u8	tpmEstablished;
 	u8	maintenanceDone;
 	u8	disableFullDALogicInfo;
-}__attribute__((packed));
+} __packed;
 
 typedef union {
 	struct	permanent_flags_t perm_flags;
@@ -240,12 +240,12 @@ struct	tpm_getcap_params_in {
 	__be32	cap;
 	__be32	subcap_size;
 	__be32	subcap;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_getcap_params_out {
 	__be32	cap_size;
 	cap_t	cap;
-}__attribute__((packed));
+} __packed;
 
 struct	tpm_readpubek_params_out {
 	u8	algorithm[4];
@@ -256,7 +256,7 @@ struct	tpm_readpubek_params_out {
 	__be32	keysize;
 	u8	modulus[256];
 	u8	checksum[20];
-}__attribute__((packed));
+} __packed;
 
 typedef union {
 	struct	tpm_input_header in;
@@ -266,16 +266,16 @@ typedef union {
 #define TPM_DIGEST_SIZE 20
 struct tpm_pcrread_out {
 	u8	pcr_result[TPM_DIGEST_SIZE];
-}__attribute__((packed));
+} __packed;
 
 struct tpm_pcrread_in {
 	__be32	pcr_idx;
-}__attribute__((packed));
+} __packed;
 
 struct tpm_pcrextend_in {
 	__be32	pcr_idx;
 	u8	hash[TPM_DIGEST_SIZE];
-}__attribute__((packed));
+} __packed;
 
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and
@@ -286,11 +286,11 @@ struct tpm_pcrextend_in {
 struct tpm_getrandom_out {
 	__be32 rng_data_len;
 	u8     rng_data[TPM_MAX_RNG_DATA];
-}__attribute__((packed));
+} __packed;
 
 struct tpm_getrandom_in {
 	__be32 num_bytes;
-}__attribute__((packed));
+} __packed;
 
 struct tpm_startup_in {
 	__be16	startup_type;
@@ -312,7 +312,7 @@ typedef union {
 struct tpm_cmd_t {
 	tpm_cmd_header	header;
 	tpm_cmd_params	params;
-}__attribute__((packed));
+} __packed;
 
 ssize_t	tpm_getcap(struct device *, __be32, cap_t *, const char *);
 

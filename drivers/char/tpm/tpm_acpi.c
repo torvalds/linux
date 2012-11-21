@@ -33,13 +33,13 @@ struct acpi_tcpa {
 	u16 platform_class;
 	union {
 		struct client_hdr {
-			u32 log_max_len __attribute__ ((packed));
-			u64 log_start_addr __attribute__ ((packed));
+			u32 log_max_len __packed;
+			u64 log_start_addr __packed;
 		} client;
 		struct server_hdr {
 			u16 reserved;
-			u64 log_max_len __attribute__ ((packed));
-			u64 log_start_addr __attribute__ ((packed));
+			u64 log_max_len __packed;
+			u64 log_start_addr __packed;
 		} server;
 	};
 };
