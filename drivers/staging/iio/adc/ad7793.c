@@ -122,7 +122,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 	ret = spi_write(st->sd.spi, (u8 *)&ret, sizeof(ret));
 	if (ret < 0)
 		goto out;
-	msleep(1); /* Wait for at least 500us */
+	usleep_range(500, 2000); /* Wait for at least 500us */
 
 	/* write/read test for device presence */
 	ret = ad_sd_read_reg(&st->sd, AD7793_REG_ID, 1, &id);
