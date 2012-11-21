@@ -727,7 +727,7 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	}
 
 	if (!machine) {
-		pr_err("%u unprocessable samples recorded.",
+		pr_err("%u unprocessable samples recorded.\n",
 		       top->session->hists.stats.nr_unprocessable_samples++);
 		return;
 	}
