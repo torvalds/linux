@@ -1913,9 +1913,7 @@ struct clk_ops tegra30_periph_clk_ops = {
 static int tegra30_dsib_clk_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk *d = clk_get_sys(NULL, "pll_d");
-	/* The DSIB parent selection bit is in PLLD base
-	   register - can not do direct r-m-w, must be
-	   protected by PLLD lock */
+	/* The DSIB parent selection bit is in PLLD base register */
 	tegra_clk_cfg_ex(
 		d, TEGRA_CLK_PLLD_MIPI_MUX_SEL, index);
 
