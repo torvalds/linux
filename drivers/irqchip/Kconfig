@@ -2,6 +2,14 @@ config IRQCHIP
 	def_bool y
 	depends on OF_IRQ
 
+config ARM_GIC
+	bool
+	select IRQ_DOMAIN
+	select MULTI_IRQ_HANDLER
+
+config GIC_NON_BANKED
+	bool
+
 config VERSATILE_FPGA_IRQ
 	bool
 	select IRQ_DOMAIN
