@@ -494,12 +494,20 @@ qla24xx_pci_info_str(struct scsi_qla_host *vha, char *str)
 		    (BIT_4 | BIT_5 | BIT_6 | BIT_7 | BIT_8 | BIT_9)) >> 4;
 
 		strcpy(str, "PCIe (");
-		if (lspeed == 1)
+		switch (lspeed) {
+		case 1:
 			strcat(str, "2.5GT/s ");
-		else if (lspeed == 2)
+			break;
+		case 2:
 			strcat(str, "5.0GT/s ");
-		else
+			break;
+		case 3:
+			strcat(str, "8.0GT/s ");
+			break;
+		default:
 			strcat(str, "<unknown> ");
+			break;
+		}
 		snprintf(lwstr, sizeof(lwstr), "x%d)", lwidth);
 		strcat(str, lwstr);
 
