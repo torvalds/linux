@@ -1282,7 +1282,6 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 	while (nb + sizeof(hdr) + HPTE_SIZE < count) {
 		/* Initialize header */
 		hptr = (struct kvm_get_htab_header __user *)buf;
-		hdr.index = i;
 		hdr.n_valid = 0;
 		hdr.n_invalid = 0;
 		nw = nb;
@@ -1298,6 +1297,7 @@ static ssize_t kvm_htab_read(struct file *file, char __user *buf,
 				++revp;
 			}
 		}
+		hdr.index = i;
 
 		/* Grab a series of valid entries */
 		while (i < kvm->arch.hpt_npte &&
