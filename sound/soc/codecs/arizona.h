@@ -191,6 +191,8 @@ struct arizona_fll {
 	unsigned int vco_mult;
 	struct completion lock;
 	struct completion ok;
+	unsigned int fref;
+	unsigned int fout;
 
 	char lock_name[ARIZONA_FLL_NAME_LEN];
 	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
