@@ -40,12 +40,10 @@
 #include <asm/mach/time.h>
 #include <asm/setup.h>
 
-#include <mach/iomap.h>
-#include <mach/irqs.h>
-
 #include "board.h"
 #include "clock.h"
 #include "common.h"
+#include "iomap.h"
 
 struct tegra_ehci_platform_data tegra_ehci1_pdata = {
 	.operating_mode = TEGRA_USB_OTG,

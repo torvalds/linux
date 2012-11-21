@@ -28,7 +28,10 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/usb/tegra_usb_phy.h>
-#include <mach/iomap.h>
+
+#define TEGRA_USB_BASE			0xC5000000
+#define TEGRA_USB2_BASE			0xC5004000
+#define TEGRA_USB3_BASE			0xC5008000
 
 #define TEGRA_USB_DMA_ALIGN 32
 
