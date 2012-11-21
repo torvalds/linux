@@ -34,9 +34,5 @@
 			clock-frequency = <200000000>;
 			status = "okay";
 		};
-		timer@d0020300 {
-			clock-frequency = <600000000>;
-			status = "okay";
-		};
 	};
 };

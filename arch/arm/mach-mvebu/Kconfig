@@ -9,6 +9,10 @@ config ARCH_MVEBU
 	select PINCTRL
 	select PLAT_ORION
 	select SPARSE_IRQ
+	select CLKDEV_LOOKUP
+	select MVEBU_CLK_CORE
+	select MVEBU_CLK_CPU
+	select MVEBU_CLK_GATING
 
 if ARCH_MVEBU
 
