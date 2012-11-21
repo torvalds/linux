@@ -117,5 +117,9 @@
 				reg = <0x30>;
 			};
 		};
+		sata@d00a0000 {
+			nr-ports = <2>;
+			status = "okay";
+		};
 	};
 };
