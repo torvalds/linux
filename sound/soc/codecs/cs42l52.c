@@ -763,7 +763,7 @@ static int cs42l52_set_sysclk(struct snd_soc_dai *codec_dai,
 	if ((freq >= CS42L52_MIN_CLK) && (freq <= CS42L52_MAX_CLK)) {
 		cs42l52->sysclk = freq;
 	} else {
-		dev_err(codec->dev, "Invalid freq paramter\n");
+		dev_err(codec->dev, "Invalid freq parameter\n");
 		return -EINVAL;
 	}
 	return 0;

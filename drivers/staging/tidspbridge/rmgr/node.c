@@ -304,8 +304,7 @@ int node_allocate(struct proc_object *hprocessor,
 	u32 pul_value;
 	u32 dynext_base;
 	u32 off_set = 0;
-	u32 ul_stack_seg_addr, ul_stack_seg_val;
-	u32 ul_gpp_mem_base;
+	u32 ul_stack_seg_val;
 	struct cfg_hostres *host_res;
 	struct bridge_dev_context *pbridge_context;
 	u32 mapped_addr = 0;
@@ -581,6 +580,9 @@ func_cont:
 		if (strcmp((char *)
 			   pnode->dcd_props.obj_data.node_obj.ndb_props.
 			   stack_seg_name, STACKSEGLABEL) == 0) {
+			void __iomem *stack_seg;
+			u32 stack_seg_pa;
+
 			status =
 			    hnode_mgr->nldr_fxns.
 			    get_fxn_addr(pnode->nldr_node_obj, "DYNEXT_BEG",
@@ -608,14 +610,21 @@ func_cont:
 				goto func_end;
 			}
 
-			ul_gpp_mem_base = (u32) host_res->mem_base[1];
 			off_set = pul_value - dynext_base;
-			ul_stack_seg_addr = ul_gpp_mem_base + off_set;
-			ul_stack_seg_val = readl(ul_stack_seg_addr);
+			stack_seg_pa = host_res->mem_phys[1] + off_set;
+			stack_seg = ioremap(stack_seg_pa, SZ_32);
+			if (!stack_seg) {
+				status = -ENOMEM;
+				goto func_end;
+			}
+
+			ul_stack_seg_val = readl(stack_seg);
+
+			iounmap(stack_seg);
 
 			dev_dbg(bridge, "%s: StackSegVal = 0x%x, StackSegAddr ="
 				" 0x%x\n", __func__, ul_stack_seg_val,
-				ul_stack_seg_addr);
+				host_res->mem_base[1] + off_set);
 
 			pnode->create_args.asa.task_arg_obj.stack_seg =
 			    ul_stack_seg_val;

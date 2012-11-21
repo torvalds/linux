@@ -205,8 +205,6 @@ static int drm_gem_one_name_info(int id, void *ptr, void *data)
 	struct drm_gem_object *obj = ptr;
 	struct seq_file *m = data;
 
-	seq_printf(m, "name %d size %zd\n", obj->name, obj->size);
-
 	seq_printf(m, "%6d %8zd %7d %8d\n",
 		   obj->name, obj->size,
 		   atomic_read(&obj->handle_count),

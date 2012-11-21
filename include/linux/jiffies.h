@@ -70,11 +70,12 @@ extern int register_refined_jiffies(long clock_tick_rate);
 
 /*
  * The 64-bit value is not atomic - you MUST NOT read it
- * without sampling the sequence number in xtime_lock.
+ * without sampling the sequence number in jiffies_lock.
  * get_jiffies_64() will do this for you as appropriate.
  */
 extern u64 __jiffy_data jiffies_64;
 extern unsigned long volatile __jiffy_data jiffies;
+extern seqlock_t jiffies_lock;
 
 #if (BITS_PER_LONG < 64)
 u64 get_jiffies_64(void);

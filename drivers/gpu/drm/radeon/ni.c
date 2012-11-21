@@ -1538,26 +1538,31 @@ void cayman_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 {
 	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
-	int i;
 
-	radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, 1 + count * 2));
-	radeon_ring_write(ring, pe);
-	radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
-	for (i = 0; i < count; ++i) {
-		uint64_t value = 0;
-		if (flags & RADEON_VM_PAGE_SYSTEM) {
-			value = radeon_vm_map_gart(rdev, addr);
-			value &= 0xFFFFFFFFFFFFF000ULL;
-			addr += incr;
+	while (count) {
+		unsigned ndw = 1 + count * 2;
+		if (ndw > 0x3FFF)
+			ndw = 0x3FFF;
 
-		} else if (flags & RADEON_VM_PAGE_VALID) {
-			value = addr;
-			addr += incr;
+		radeon_ring_write(ring, PACKET3(PACKET3_ME_WRITE, ndw));
+		radeon_ring_write(ring, pe);
+		radeon_ring_write(ring, upper_32_bits(pe) & 0xff);
+		for (; ndw > 1; ndw -= 2, --count, pe += 8) {
+			uint64_t value = 0;
+			if (flags & RADEON_VM_PAGE_SYSTEM) {
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
+				addr += incr;
+
+			} else if (flags & RADEON_VM_PAGE_VALID) {
+				value = addr;
+				addr += incr;
+			}
+
+			value |= r600_flags;
+			radeon_ring_write(ring, value);
+			radeon_ring_write(ring, upper_32_bits(value));
 		}
-
-		value |= r600_flags;
-		radeon_ring_write(ring, value);
-		radeon_ring_write(ring, upper_32_bits(value));
 	}
 }
 
@@ -1586,4 +1591,8 @@ void cayman_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	/* bits 0-7 are the VM contexts0-7 */
 	radeon_ring_write(ring, PACKET0(VM_INVALIDATE_REQUEST, 0));
 	radeon_ring_write(ring, 1 << vm->id);
+
+	/* sync PFP to ME, otherwise we might get invalid PFP reads */
+	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+	radeon_ring_write(ring, 0x0);
 }

@@ -85,29 +85,38 @@ static struct rpc_clnt *nsm_create(struct net *net)
 	return rpc_create(&args);
 }
 
+static struct rpc_clnt *nsm_client_set(struct lockd_net *ln,
+		struct rpc_clnt *clnt)
+{
+	spin_lock(&ln->nsm_clnt_lock);
+	if (ln->nsm_users == 0) {
+		if (clnt == NULL)
+			goto out;
+		ln->nsm_clnt = clnt;
+	}
+	clnt = ln->nsm_clnt;
+	ln->nsm_users++;
+out:
+	spin_unlock(&ln->nsm_clnt_lock);
+	return clnt;
+}
+
 static struct rpc_clnt *nsm_client_get(struct net *net)
 {
-	static DEFINE_MUTEX(nsm_create_mutex);
-	struct rpc_clnt	*clnt;
+	struct rpc_clnt	*clnt, *new;
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
-	spin_lock(&ln->nsm_clnt_lock);
-	if (ln->nsm_users) {
-		ln->nsm_users++;
-		clnt = ln->nsm_clnt;
-		spin_unlock(&ln->nsm_clnt_lock);
+	clnt = nsm_client_set(ln, NULL);
+	if (clnt != NULL)
 		goto out;
-	}
-	spin_unlock(&ln->nsm_clnt_lock);
 
-	mutex_lock(&nsm_create_mutex);
-	clnt = nsm_create(net);
-	if (!IS_ERR(clnt)) {
-		ln->nsm_clnt = clnt;
-		smp_wmb();
-		ln->nsm_users = 1;
-	}
-	mutex_unlock(&nsm_create_mutex);
+	clnt = new = nsm_create(net);
+	if (IS_ERR(clnt))
+		goto out;
+
+	clnt = nsm_client_set(ln, new);
+	if (clnt != new)
+		rpc_shutdown_client(new);
 out:
 	return clnt;
 }
@@ -115,18 +124,16 @@ out:
 static void nsm_client_put(struct net *net)
 {
 	struct lockd_net *ln = net_generic(net, lockd_net_id);
-	struct rpc_clnt	*clnt = ln->nsm_clnt;
-	int shutdown = 0;
+	struct rpc_clnt	*clnt = NULL;
 
 	spin_lock(&ln->nsm_clnt_lock);
-	if (ln->nsm_users) {
-		if (--ln->nsm_users)
-			ln->nsm_clnt = NULL;
-		shutdown = !ln->nsm_users;
+	ln->nsm_users--;
+	if (ln->nsm_users == 0) {
+		clnt = ln->nsm_clnt;
+		ln->nsm_clnt = NULL;
 	}
 	spin_unlock(&ln->nsm_clnt_lock);
-
-	if (shutdown)
+	if (clnt != NULL)
 		rpc_shutdown_client(clnt);
 }
 
