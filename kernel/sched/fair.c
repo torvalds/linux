@@ -784,7 +784,8 @@ update_stats_curr_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * numa task sample period in ms
  */
 unsigned int sysctl_numa_balancing_scan_period_min = 100;
-unsigned int sysctl_numa_balancing_scan_period_max = 100*16;
+unsigned int sysctl_numa_balancing_scan_period_max = 100*50;
+unsigned int sysctl_numa_balancing_scan_period_reset = 100*600;
 
 /* Portion of address space to scan in MB */
 unsigned int sysctl_numa_balancing_scan_size = 256;
@@ -806,20 +807,19 @@ static void task_numa_placement(struct task_struct *p)
 /*
  * Got a PROT_NONE fault for a page on @node.
  */
-void task_numa_fault(int node, int pages)
+void task_numa_fault(int node, int pages, bool migrated)
 {
 	struct task_struct *p = current;
 
 	/* FIXME: Allocate task-specific structure for placement policy here */
 
 	/*
-	 * Assume that as faults occur that pages are getting properly placed
-	 * and fewer NUMA hints are required. Note that this is a big
-	 * assumption, it assumes processes reach a steady steady with no
-	 * further phase changes.
+	 * If pages are properly placed (did not migrate) then scan slower.
+	 * This is reset periodically in case of phase changes
 	 */
-	p->numa_scan_period = min(sysctl_numa_balancing_scan_period_max,
-				p->numa_scan_period + jiffies_to_msecs(2));
+        if (!migrated)
+		p->numa_scan_period = min(sysctl_numa_balancing_scan_period_max,
+			p->numa_scan_period + jiffies_to_msecs(10));
 
 	task_numa_placement(p);
 }
@@ -856,6 +856,19 @@ void task_numa_work(struct callback_head *work)
 	 */
 	if (p->flags & PF_EXITING)
 		return;
+
+	/*
+	 * Reset the scan period if enough time has gone by. Objective is that
+	 * scanning will be reduced if pages are properly placed. As tasks
+	 * can enter different phases this needs to be re-examined. Lacking
+	 * proper tracking of reference behaviour, this blunt hammer is used.
+	 */
+	migrate = mm->numa_next_reset;
+	if (time_after(now, migrate)) {
+		p->numa_scan_period = sysctl_numa_balancing_scan_period_min;
+		next_scan = now + msecs_to_jiffies(sysctl_numa_balancing_scan_period_reset);
+		xchg(&mm->numa_next_reset, next_scan);
+	}
 
 	/*
 	 * Enforce maximal scan/migration frequency..

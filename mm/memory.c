@@ -3468,6 +3468,7 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	spinlock_t *ptl;
 	int current_nid = -1;
 	int target_nid;
+	bool migrated = false;
 
 	/*
 	* The "pte" at this point cannot be used safely without
@@ -3509,12 +3510,13 @@ int do_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	}
 
 	/* Migrate to the requested node */
-	if (migrate_misplaced_page(page, target_nid))
+	migrated = migrate_misplaced_page(page, target_nid);
+	if (migrated)
 		current_nid = target_nid;
 
 out:
 	if (current_nid != -1)
-		task_numa_fault(current_nid, 1);
+		task_numa_fault(current_nid, 1, migrated);
 	return 0;
 }
 
@@ -3554,6 +3556,7 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		struct page *page;
 		int curr_nid = local_nid;
 		int target_nid;
+		bool migrated;
 		if (!pte_present(pteval))
 			continue;
 		if (!pte_numa(pteval))
@@ -3590,9 +3593,10 @@ static int do_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
 
 		/* Migrate to the requested node */
 		pte_unmap_unlock(pte, ptl);
-		if (migrate_misplaced_page(page, target_nid))
+		migrated = migrate_misplaced_page(page, target_nid);
+		if (migrated)
 			curr_nid = target_nid;
-		task_numa_fault(curr_nid, 1);
+		task_numa_fault(curr_nid, 1, migrated);
 
 		pte = pte_offset_map_lock(mm, pmdp, addr, &ptl);
 	}
