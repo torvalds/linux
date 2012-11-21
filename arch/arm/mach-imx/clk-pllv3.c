@@ -287,66 +287,7 @@ static const struct clk_ops clk_pllv3_av_ops = {
 static unsigned long clk_pllv3_enet_recalc_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 div = readl_relaxed(pll->base) & pll->div_mask;
-
-	switch (div) {
-	case 0:
-		return 25000000;
-	case 1:
-		return 50000000;
-	case 2:
-		return 100000000;
-	case 3:
-		return 125000000;
-	}
-
-	return 0;
-}
-
-static long clk_pllv3_enet_round_rate(struct clk_hw *hw, unsigned long rate,
-				      unsigned long *prate)
-{
-	if (rate >= 125000000)
-		rate = 125000000;
-	else if (rate >= 100000000)
-		rate = 100000000;
-	else if (rate >= 50000000)
-		rate = 50000000;
-	else
-		rate = 25000000;
-	return rate;
-}
-
-static int clk_pllv3_enet_set_rate(struct clk_hw *hw, unsigned long rate,
-		unsigned long parent_rate)
-{
-	struct clk_pllv3 *pll = to_clk_pllv3(hw);
-	u32 val, div;
-
-	switch (rate) {
-	case 25000000:
-		div = 0;
-		break;
-	case 50000000:
-		div = 1;
-		break;
-	case 100000000:
-		div = 2;
-		break;
-	case 125000000:
-		div = 3;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	val = readl_relaxed(pll->base);
-	val &= ~pll->div_mask;
-	val |= div;
-	writel_relaxed(val, pll->base);
-
-	return 0;
+	return 500000000;
 }
 
 static const struct clk_ops clk_pllv3_enet_ops = {
@@ -355,8 +296,6 @@ static const struct clk_ops clk_pllv3_enet_ops = {
 	.enable		= clk_pllv3_enable,
 	.disable	= clk_pllv3_disable,
 	.recalc_rate	= clk_pllv3_enet_recalc_rate,
-	.round_rate	= clk_pllv3_enet_round_rate,
-	.set_rate	= clk_pllv3_enet_set_rate,
 };
 
 static const struct clk_ops clk_pllv3_mlb_ops = {

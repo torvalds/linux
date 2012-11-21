@@ -198,6 +198,11 @@ clocks and IDs.
 	usbphy2			183
 	ldb_di0_div_3_5		184
 	ldb_di1_div_3_5		185
+	sata_ref		186
+	sata_ref_100m		187
+	pcie_ref		188
+	pcie_ref_125m		189
+	enet_ref		190
 
 Examples:
 
