@@ -1102,6 +1102,8 @@ source "arch/arm/mach-exynos/Kconfig"
 
 source "arch/arm/mach-shmobile/Kconfig"
 
+source "arch/arm/mach-sunxi/Kconfig"
+
 source "arch/arm/mach-prima2/Kconfig"
 
 source "arch/arm/mach-tegra/Kconfig"

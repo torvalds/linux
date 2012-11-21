@@ -1,0 +1,74 @@
+/*
+ * Copyright 2012 Maxime Ripard
+ *
+ * Maxime Ripard <maxime.ripard@free-electrons.com>
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&intc>;
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a8";
+		};
+	};
+
+	chosen {
+		bootargs = "earlyprintk console=ttyS0,115200";
+	};
+
+	memory {
+		reg = <0x40000000 0x20000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		osc: oscillator {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x01c20000 0x300000>;
+		ranges;
+
+		timer@01c20c00 {
+			compatible = "allwinner,sunxi-timer";
+			reg = <0x01c20c00 0x400>;
+			interrupts = <22>;
+			clocks = <&osc>;
+		};
+
+		intc: interrupt-controller@01c20400 {
+			compatible = "allwinner,sunxi-ic";
+			reg = <0x01c20400 0x400>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+		};
+
+		uart1: uart@01c28400 {
+			compatible = "ns8250";
+			reg = <0x01c28400 0x400>;
+			interrupts = <2>;
+			reg-shift = <2>;
+			clock-frequency = <24000000>;
+			status = "disabled";
+		};
+	};
+};

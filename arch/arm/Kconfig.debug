@@ -345,6 +345,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on SOCFPGA based platforms.
 
+	config DEBUG_SUNXI_UART1
+		bool "Kernel low-level debugging messages via sunXi UART1"
+		depends on ARCH_SUNXI
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Allwinner A1X based platforms on the UART1.
+
 	config DEBUG_VEXPRESS_UART0_DETECT
 		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
 		depends on ARCH_VEXPRESS && CPU_CP15_MMU
@@ -424,6 +431,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
+	default "debug/sunxi.S" if DEBUG_SUNXI_UART1
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
 	default "mach/debug-macro.S"

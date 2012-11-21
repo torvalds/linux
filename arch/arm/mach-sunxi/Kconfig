@@ -1,0 +1,9 @@
+config ARCH_SUNXI
+	bool "Allwinner A1X SOCs" if ARCH_MULTI_V7
+	select CLKSRC_MMIO
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_IRQ_CHIP
+	select PINCTRL
+	select SPARSE_IRQ
+	select SUNXI_TIMER
