@@ -112,6 +112,12 @@
 #define DRM_IOCTL_VMW_UPDATE_LAYOUT				\
 	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_UPDATE_LAYOUT,	\
 		 struct drm_vmw_update_layout_arg)
+#define DRM_IOCTL_VMW_CREATE_SHADER				\
+	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_CREATE_SHADER,	\
+		 struct drm_vmw_shader_create_arg)
+#define DRM_IOCTL_VMW_UNREF_SHADER				\
+	DRM_IOW(DRM_COMMAND_BASE + DRM_VMW_UNREF_SHADER,	\
+		 struct drm_vmw_shader_arg)
 #define DRM_IOCTL_VMW_GB_SURFACE_CREATE				\
 	DRM_IOWR(DRM_COMMAND_BASE + DRM_VMW_GB_SURFACE_CREATE,	\
 		 union drm_vmw_gb_surface_create_arg)
@@ -183,6 +189,12 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 	VMW_IOCTL_DEF(VMW_UPDATE_LAYOUT,
 		      vmw_kms_update_layout_ioctl,
 		      DRM_MASTER | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_CREATE_SHADER,
+		      vmw_shader_define_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
+	VMW_IOCTL_DEF(VMW_UNREF_SHADER,
+		      vmw_shader_destroy_ioctl,
+		      DRM_AUTH | DRM_UNLOCKED),
 	VMW_IOCTL_DEF(VMW_GB_SURFACE_CREATE,
 		      vmw_gb_surface_define_ioctl,
 		      DRM_AUTH | DRM_UNLOCKED),

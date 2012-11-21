@@ -70,6 +70,7 @@
 #define VMW_RES_SURFACE ttm_driver_type1
 #define VMW_RES_STREAM ttm_driver_type2
 #define VMW_RES_FENCE ttm_driver_type3
+#define VMW_RES_SHADER ttm_driver_type4
 
 struct vmw_fpriv {
 	struct drm_master *locked_master;
@@ -119,6 +120,7 @@ enum vmw_res_type {
 	vmw_res_context,
 	vmw_res_surface,
 	vmw_res_stream,
+	vmw_res_shader,
 	vmw_res_max
 };
 
@@ -495,6 +497,7 @@ extern void vmw_gmr_unbind(struct vmw_private *dev_priv, int gmr_id);
 struct vmw_user_resource_conv;
 extern const struct vmw_user_resource_conv *user_surface_converter;
 extern const struct vmw_user_resource_conv *user_context_converter;
+extern const struct vmw_user_resource_conv *user_shader_converter;
 
 extern struct vmw_resource *vmw_context_alloc(struct vmw_private *dev_priv);
 extern void vmw_resource_unreference(struct vmw_resource **p_res);
@@ -882,6 +885,15 @@ extern void vmw_mob_destroy(struct vmw_mob *mob);
 extern struct vmw_mob *vmw_mob_create(unsigned long data_pages);
 extern int vmw_otables_setup(struct vmw_private *dev_priv);
 extern void vmw_otables_takedown(struct vmw_private *dev_priv);
+
+/*
+ * Shader management - vmwgfx_shader.c
+ */
+
+extern int vmw_shader_define_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file_priv);
+extern int vmw_shader_destroy_ioctl(struct drm_device *dev, void *data,
+				    struct drm_file *file_priv);
 
 /**
  * Inline helper functions
