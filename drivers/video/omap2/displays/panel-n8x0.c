@@ -426,6 +426,7 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 {
 	struct panel_n8x0_data *bdata = get_board_data(dssdev);
 	struct panel_drv_data *ddata;
+	int r;
 
 	dev_dbg(&dssdev->dev, "probe\n");
 
@@ -443,6 +444,20 @@ static int n8x0_panel_probe(struct omap_dss_device *dssdev)
 	dssdev->ctrl.pixel_size = 16;
 	dssdev->ctrl.rfbi_timings = n8x0_panel_timings;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
+
+	if (gpio_is_valid(bdata->panel_reset)) {
+		r = devm_gpio_request_one(&dssdev->dev, bdata->panel_reset,
+				GPIOF_OUT_INIT_LOW, "PANEL RESET");
+		if (r)
+			return r;
+	}
+
+	if (gpio_is_valid(bdata->ctrl_pwrdown)) {
+		r = devm_gpio_request_one(&dssdev->dev, bdata->ctrl_pwrdown,
+				GPIOF_OUT_INIT_LOW, "PANEL PWRDOWN");
+		if (r)
+			return r;
+	}
 
 	return 0;
 }
