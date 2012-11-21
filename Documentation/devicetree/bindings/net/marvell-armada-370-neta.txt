@@ -8,7 +8,7 @@ Required properties:
   property, a single integer).
 - phy-mode: The interface between the SoC and the PHY (a string that
   of_get_phy_mode() can understand)
-- clock-frequency: frequency of the peripheral clock of the SoC.
+- clocks: a pointer to the reference clock for this device.
 
 Example:
 
@@ -16,7 +16,7 @@ ethernet@d0070000 {
 	compatible = "marvell,armada-370-neta";
 	reg = <0xd0070000 0x2500>;
 	interrupts = <8>;
-	clock-frequency = <250000000>;
+	clocks = <&gate_clk 4>;
 	status = "okay";
 	phy = <&phy0>;
 	phy-mode = "rgmii-id";
