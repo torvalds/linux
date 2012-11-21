@@ -512,62 +512,19 @@ static const struct file_operations fops_interrupt = {
 	.llseek = default_llseek,
 };
 
-#define PR_QNUM(_n) sc->tx.txq_map[_n]->axq_qnum
-#define PR(str, elem)							\
-	do {								\
-		len += snprintf(buf + len, size - len,			\
-				"%s%13u%11u%10u%10u\n", str,		\
-		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem, \
-		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].elem, \
-		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].elem, \
-		sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].elem); \
-		if (len >= size)			  \
-			goto done;			  \
-} while(0)
-
-#define PRX(str, elem)							\
-do {									\
-	len += snprintf(buf + len, size - len,				\
-			"%s%13u%11u%10u%10u\n", str,			\
-			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_BE]->elem),	\
-			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_BK]->elem),	\
-			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_VI]->elem),	\
-			(unsigned int)(sc->tx.txq_map[IEEE80211_AC_VO]->elem));	\
-	if (len >= size)						\
-		goto done;						\
-} while(0)
-
-#define PRQLE(str, elem)						\
-do {									\
-	len += snprintf(buf + len, size - len,				\
-			"%s%13i%11i%10i%10i\n", str,			\
-			list_empty(&sc->tx.txq_map[IEEE80211_AC_BE]->elem),	\
-			list_empty(&sc->tx.txq_map[IEEE80211_AC_BK]->elem),	\
-			list_empty(&sc->tx.txq_map[IEEE80211_AC_VI]->elem),	\
-			list_empty(&sc->tx.txq_map[IEEE80211_AC_VO]->elem));	\
-	if (len >= size)						\
-		goto done;						\
-} while (0)
-
 static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 			      size_t count, loff_t *ppos)
 {
 	struct ath_softc *sc = file->private_data;
 	char *buf;
-	unsigned int len = 0, size = 8000;
-	int i;
+	unsigned int len = 0, size = 2048;
 	ssize_t retval = 0;
-	char tmp[32];
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
-	len += sprintf(buf, "Num-Tx-Queues: %i  tx-queues-setup: 0x%x"
-		       " poll-work-seen: %u\n"
-		       "%30s %10s%10s%10s\n\n",
-		       ATH9K_NUM_TX_QUEUES, sc->tx.txqsetup,
-		       sc->tx_complete_poll_work_seen,
+	len += sprintf(buf, "%30s %10s%10s%10s\n\n",
 		       "BE", "BK", "VI", "VO");
 
 	PR("MPDUs Queued:    ", queued);
@@ -587,62 +544,11 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("DELIM Underrun:  ", delim_underrun);
 	PR("TX-Pkts-All:     ", tx_pkts_all);
 	PR("TX-Bytes-All:    ", tx_bytes_all);
-	PR("hw-put-tx-buf:   ", puttxbuf);
-	PR("hw-tx-start:     ", txstart);
-	PR("hw-tx-proc-desc: ", txprocdesc);
+	PR("HW-put-tx-buf:   ", puttxbuf);
+	PR("HW-tx-start:     ", txstart);
+	PR("HW-tx-proc-desc: ", txprocdesc);
 	PR("TX-Failed:       ", txfailed);
-	len += snprintf(buf + len, size - len,
-			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
-			sc->tx.txq_map[IEEE80211_AC_BE],
-			sc->tx.txq_map[IEEE80211_AC_BK],
-			sc->tx.txq_map[IEEE80211_AC_VI],
-			sc->tx.txq_map[IEEE80211_AC_VO]);
-	if (len >= size)
-		goto done;
 
-	PRX("axq-qnum:        ", axq_qnum);
-	PRX("axq-depth:       ", axq_depth);
-	PRX("axq-ampdu_depth: ", axq_ampdu_depth);
-	PRX("axq-stopped      ", stopped);
-	PRX("tx-in-progress   ", axq_tx_inprogress);
-	PRX("pending-frames   ", pending_frames);
-	PRX("txq_headidx:     ", txq_headidx);
-	PRX("txq_tailidx:     ", txq_headidx);
-
-	PRQLE("axq_q empty:       ", axq_q);
-	PRQLE("axq_acq empty:     ", axq_acq);
-	for (i = 0; i < ATH_TXFIFO_DEPTH; i++) {
-		snprintf(tmp, sizeof(tmp) - 1, "txq_fifo[%i] empty: ", i);
-		PRQLE(tmp, txq_fifo[i]);
-	}
-
-	/* Print out more detailed queue-info */
-	for (i = 0; i <= IEEE80211_AC_BK; i++) {
-		struct ath_txq *txq = &(sc->tx.txq[i]);
-		struct ath_atx_ac *ac;
-		struct ath_atx_tid *tid;
-		if (len >= size)
-			goto done;
-		spin_lock_bh(&txq->axq_lock);
-		if (!list_empty(&txq->axq_acq)) {
-			ac = list_first_entry(&txq->axq_acq, struct ath_atx_ac,
-					      list);
-			len += snprintf(buf + len, size - len,
-					"txq[%i] first-ac: %p sched: %i\n",
-					i, ac, ac->sched);
-			if (list_empty(&ac->tid_q) || (len >= size))
-				goto done_for;
-			tid = list_first_entry(&ac->tid_q, struct ath_atx_tid,
-					       list);
-			len += snprintf(buf + len, size - len,
-					" first-tid: %p sched: %i paused: %i\n",
-					tid, tid->sched, tid->paused);
-		}
-	done_for:
-		spin_unlock_bh(&txq->axq_lock);
-	}
-
-done:
 	if (len > size)
 		len = size;
 

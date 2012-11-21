@@ -725,7 +725,6 @@ struct ath_softc {
 	struct ath9k_debug debug;
 	spinlock_t nodes_lock;
 	struct list_head nodes; /* basically, stations */
-	unsigned int tx_complete_poll_work_seen;
 #endif
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;

@@ -27,9 +27,6 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 	struct ath_txq *txq;
 	int i;
 	bool needreset = false;
-#ifdef CONFIG_ATH9K_DEBUGFS
-	sc->tx_complete_poll_work_seen++;
-#endif
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i)) {

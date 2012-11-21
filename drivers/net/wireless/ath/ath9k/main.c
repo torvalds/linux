@@ -1953,7 +1953,6 @@ static int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
 	return 0;
 }
 
-#define PR_QNUM(_n) (sc->tx.txq_map[_n]->axq_qnum)
 #define AWDATA(elem)							\
 	do {								\
 		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem; \

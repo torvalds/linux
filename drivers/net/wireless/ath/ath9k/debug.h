@@ -179,6 +179,21 @@ struct ath_tx_stats {
 	u32 txfailed;
 };
 
+/*
+ * Various utility macros to print TX/Queue counters.
+ */
+#define PR_QNUM(_n) sc->tx.txq_map[_n]->axq_qnum
+#define TXSTATS sc->debug.stats.txstats
+#define PR(str, elem)							\
+	do {								\
+		len += snprintf(buf + len, size - len,			\
+				"%s%13u%11u%10u%10u\n", str,		\
+				TXSTATS[PR_QNUM(IEEE80211_AC_BE)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_BK)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_VI)].elem,	\
+				TXSTATS[PR_QNUM(IEEE80211_AC_VO)].elem); \
+	} while(0)
+
 #define RX_STAT_INC(c) (sc->debug.stats.rxstats.c++)
 
 /**
@@ -227,7 +242,7 @@ struct ath_rx_stats {
 
 struct ath_stats {
 	struct ath_interrupt_stats istats;
-	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
+	struct ath_tx_stats txstats[IEEE80211_NUM_ACS];
 	struct ath_rx_stats rxstats;
 	struct ath_dfs_stats dfs_stats;
 	u32 reset[__RESET_TYPE_MAX];

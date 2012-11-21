@@ -2319,6 +2319,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		ath_txq_lock(sc, txq);
 
+		TX_STAT_INC(txq->axq_qnum, txprocdesc);
+
 		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
 			ath_txq_unlock(sc, txq);
 			return;
