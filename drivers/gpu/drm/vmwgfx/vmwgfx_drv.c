@@ -650,13 +650,18 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 				 SVGA_REG_SUGGESTED_GBOBJECT_MEM_SIZE_KB);
 
 		dev_priv->max_mob_pages = mem_size * 1024 / PAGE_SIZE;
-	}
+		dev_priv->prim_bb_mem =
+			vmw_read(dev_priv,
+				 SVGA_REG_MAX_PRIMARY_BOUNDING_BOX_MEM);
+	} else
+		dev_priv->prim_bb_mem = dev_priv->vram_size;
 
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_err0;
 
-	dev_priv->prim_bb_mem = dev_priv->vram_size;
+	if (unlikely(dev_priv->prim_bb_mem < dev_priv->vram_size))
+		dev_priv->prim_bb_mem = dev_priv->vram_size;
 
 	mutex_unlock(&dev_priv->hw_mutex);
 
