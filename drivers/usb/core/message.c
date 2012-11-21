@@ -1786,7 +1786,8 @@ free_interfaces:
 	if (dev->actconfig && usb_disable_lpm(dev)) {
 		dev_err(&dev->dev, "%s Failed to disable LPM\n.", __func__);
 		mutex_unlock(hcd->bandwidth_mutex);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_interfaces;
 	}
 	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
 	if (ret < 0) {
