@@ -460,13 +460,8 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_display_mode *mode;
 
 	/* use cached edid if we have one */
-	if (lvds_connector->base.edid) {
-		/* invalid edid */
-		if (IS_ERR(lvds_connector->base.edid))
-			return 0;
-
+	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
 		return drm_add_edid_modes(connector, lvds_connector->base.edid);
-	}
 
 	mode = drm_mode_duplicate(dev, lvds_connector->base.panel.fixed_mode);
 	if (mode == NULL)
