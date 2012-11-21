@@ -182,7 +182,7 @@ static const struct pci_device_id port_runtime_pm_black_list[] = {
  * this port device.
  *
  */
-static int __devinit pcie_portdrv_probe(struct pci_dev *dev,
+static int pcie_portdrv_probe(struct pci_dev *dev,
 					const struct pci_device_id *id)
 {
 	int status;

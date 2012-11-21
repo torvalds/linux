@@ -412,7 +412,7 @@ static int pcifront_claim_resource(struct pci_dev *dev, void *data)
 	return 0;
 }
 
-static int __devinit pcifront_scan_bus(struct pcifront_device *pdev,
+static int pcifront_scan_bus(struct pcifront_device *pdev,
 				unsigned int domain, unsigned int bus,
 				struct pci_bus *b)
 {
@@ -441,7 +441,7 @@ static int __devinit pcifront_scan_bus(struct pcifront_device *pdev,
 	return 0;
 }
 
-static int __devinit pcifront_scan_root(struct pcifront_device *pdev,
+static int pcifront_scan_root(struct pcifront_device *pdev,
 				 unsigned int domain, unsigned int bus)
 {
 	struct pci_bus *b;
@@ -503,7 +503,7 @@ err_out:
 	return err;
 }
 
-static int __devinit pcifront_rescan_root(struct pcifront_device *pdev,
+static int pcifront_rescan_root(struct pcifront_device *pdev,
 				   unsigned int domain, unsigned int bus)
 {
 	int err;
@@ -834,7 +834,7 @@ out:
 	return err;
 }
 
-static int __devinit pcifront_try_connect(struct pcifront_device *pdev)
+static int pcifront_try_connect(struct pcifront_device *pdev)
 {
 	int err = -EFAULT;
 	int i, num_roots, len;
@@ -924,7 +924,7 @@ out:
 	return err;
 }
 
-static int __devinit pcifront_attach_devices(struct pcifront_device *pdev)
+static int pcifront_attach_devices(struct pcifront_device *pdev)
 {
 	int err = -EFAULT;
 	int i, num_roots, len;
