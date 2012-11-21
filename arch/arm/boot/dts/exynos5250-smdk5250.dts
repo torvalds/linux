@@ -17,10 +17,6 @@
 	compatible = "samsung,smdk5250", "samsung,exynos5250";
 
 	aliases {
-		mshc0 = &dwmmc_0;
-		mshc1 = &dwmmc_1;
-		mshc2 = &dwmmc_2;
-		mshc3 = &dwmmc_3;
 	};
 
 	memory {
@@ -94,7 +90,7 @@
 		status = "disabled";
 	};
 
-	dwmmc_0: dwmmc0@12200000 {
+	dwmmc0@12200000 {
 		num-slots = <1>;
 		supports-highspeed;
 		broken-cd;
@@ -115,11 +111,11 @@
 		};
 	};
 
-	dwmmc_1: dwmmc1@12210000 {
+	dwmmc1@12210000 {
 		status = "disabled";
 	};
 
-	dwmmc_2: dwmmc2@12220000 {
+	dwmmc2@12220000 {
 		num-slots = <1>;
 		supports-highspeed;
 		fifo-depth = <0x80>;
@@ -140,7 +136,7 @@
 		};
 	};
 
-	dwmmc_3: dwmmc3@12230000 {
+	dwmmc3@12230000 {
 		status = "disabled";
 	};
 
