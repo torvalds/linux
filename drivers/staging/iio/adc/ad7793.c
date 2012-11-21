@@ -102,8 +102,10 @@
 #define AD7795_CH_AIN1M_AIN1M	8 /* AIN1(-) - AIN1(-) */
 
 /* ID Register Bit Designations (AD7793_REG_ID) */
+#define AD7785_ID		0xB
 #define AD7792_ID		0xA
 #define AD7793_ID		0xB
+#define AD7794_ID		0xF
 #define AD7795_ID		0xF
 #define AD7793_ID_MASK		0xF
 
@@ -130,6 +132,7 @@
  */
 
 struct ad7793_chip_info {
+	unsigned int id;
 	const struct iio_chan_spec *channels;
 	unsigned int num_channels;
 };
@@ -231,7 +234,7 @@ static int ad7793_setup(struct iio_dev *indio_dev,
 
 	id &= AD7793_ID_MASK;
 
-	if (!((id == AD7792_ID) || (id == AD7793_ID) || (id == AD7795_ID))) {
+	if (id != st->chip_info->id) {
 		dev_err(&st->sd.spi->dev, "device ID query failed\n");
 		goto out;
 	}
@@ -531,22 +534,27 @@ static DECLARE_AD7795_CHANNELS(ad7795, 24, 32);
 
 static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 	[ID_AD7785] = {
+		.id = AD7785_ID,
 		.channels = ad7785_channels,
 		.num_channels = ARRAY_SIZE(ad7785_channels),
 	},
 	[ID_AD7792] = {
+		.id = AD7792_ID,
 		.channels = ad7792_channels,
 		.num_channels = ARRAY_SIZE(ad7792_channels),
 	},
 	[ID_AD7793] = {
+		.id = AD7793_ID,
 		.channels = ad7793_channels,
 		.num_channels = ARRAY_SIZE(ad7793_channels),
 	},
 	[ID_AD7794] = {
+		.id = AD7794_ID,
 		.channels = ad7794_channels,
 		.num_channels = ARRAY_SIZE(ad7794_channels),
 	},
 	[ID_AD7795] = {
+		.id = AD7795_ID,
 		.channels = ad7795_channels,
 		.num_channels = ARRAY_SIZE(ad7795_channels),
 	},
