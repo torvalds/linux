@@ -1699,7 +1699,7 @@ void rtl8180_prepare_beacon(struct net_device *dev)
  * descriptor in the ring buffer, copyes the frame in a TX buffer
  * and kicks the NIC to ensure it does the DMA transfer.
  */
-short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
+short rtl8180_tx(struct net_device *dev, u8 *txbuf, int len, int priority,
 		 short morefrag, short descfrag, int rate)
 {
 	struct r8180_priv *priv = ieee80211_priv(dev);
@@ -2211,7 +2211,7 @@ void rtl8180_watch_dog(struct net_device *dev);
 
 void watch_dog_adaptive(unsigned long data)
 {
-	struct r8180_priv* priv = ieee80211_priv((struct net_device *)data);
+	struct r8180_priv *priv = ieee80211_priv((struct net_device *)data);
 
 	if (!priv->up) {
 		DMESG("<----watch_dog_adaptive():driver is not up!\n");
@@ -3463,7 +3463,7 @@ void rtl8180_tx_isr(struct net_device *dev, int pri, short error)
 		return ;
 	}
 
-	nicv = (u32 *)((nic - nicbegin) + (u8*)begin);
+	nicv = (u32 *)((nic - nicbegin) + (u8 *)begin);
 	if ((head <= tail && (nicv > tail || nicv < head)) ||
 		(head > tail && (nicv > tail && nicv < head))) {
 			DMESGW("nic has lost pointer");
