@@ -695,7 +695,8 @@ static void mxs_auart_settermios(struct uart_port *u,
 		!test_and_set_bit(MXS_AUART_DMA_RX_READY, &s->flags)) {
 		if (!mxs_auart_dma_prep_rx(s)) {
 			/* Disable the normal RX interrupt. */
-			writel(AUART_INTR_RXIEN, u->membase + AUART_INTR_CLR);
+			writel(AUART_INTR_RXIEN | AUART_INTR_RTIEN,
+					u->membase + AUART_INTR_CLR);
 		} else {
 			mxs_auart_dma_exit(s);
 			dev_err(s->dev, "We can not start up the DMA.\n");
@@ -719,7 +720,8 @@ static irqreturn_t mxs_auart_irq_handle(int irq, void *context)
 	}
 
 	if (istat & (AUART_INTR_RTIS | AUART_INTR_RXIS)) {
-		mxs_auart_rx_chars(s);
+		if (!auart_dma_enabled(s))
+			mxs_auart_rx_chars(s);
 		istat &= ~(AUART_INTR_RTIS | AUART_INTR_RXIS);
 	}
 
