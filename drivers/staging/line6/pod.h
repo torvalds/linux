@@ -89,11 +89,6 @@ struct usb_line6_pod {
 	struct line6_dump_request dumpreq;
 
 	/**
-		Current program number.
-	*/
-	unsigned char channel_num;
-
-	/**
 		Current program settings.
 	*/
 	struct pod_program prog_data;

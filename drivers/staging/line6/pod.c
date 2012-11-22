@@ -223,7 +223,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST:
-		pod->channel_num = buf[1];
 		pod->dirty = 0;
 		set_bit(POD_CHANNEL_DIRTY, &pod->atomic_flags);
 		line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
@@ -388,19 +387,6 @@ void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data,
 }
 
 /*
-	Send channel number (i.e., switch to a different sound).
-*/
-static void pod_send_channel(struct usb_line6_pod *pod, u8 value)
-{
-	line6_invalidate_current(&pod->dumpreq);
-
-	if (line6_send_program(&pod->line6, value) == 0)
-		pod->channel_num = value;
-	else
-		line6_dump_finished(&pod->dumpreq);
-}
-
-/*
 	Transmit PODxt Pro control parameter.
 */
 void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
@@ -523,37 +509,6 @@ static ssize_t get_name_generic(struct usb_line6_pod *pod, const char *str,
 
 	*(last_non_space + 1) = '\n';
 	return last_non_space - buf + 2;
-}
-
-/*
-	"read" request on "channel" special file.
-*/
-static ssize_t pod_get_channel(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return sprintf(buf, "%d\n", pod->channel_num);
-}
-
-/*
-	"write" request on "channel" special file.
-*/
-static ssize_t pod_set_channel(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	u8 value;
-	int ret;
-
-	ret = kstrtou8(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	pod_send_channel(pod, value);
-	return count;
 }
 
 /*
@@ -1036,8 +991,6 @@ POD_GET_SYSTEM_PARAM(tuner_pitch, 1);
 #undef GET_SYSTEM_PARAM
 
 /* POD special files: */
-static DEVICE_ATTR(channel, S_IWUSR | S_IRUGO, pod_get_channel,
-		   pod_set_channel);
 static DEVICE_ATTR(clip, S_IRUGO, pod_wait_for_clip, line6_nop_write);
 static DEVICE_ATTR(device_id, S_IRUGO, pod_get_device_id, line6_nop_write);
 static DEVICE_ATTR(dirty, S_IRUGO, pod_get_dirty, line6_nop_write);
@@ -1153,7 +1106,6 @@ static int pod_create_files2(struct device *dev)
 {
 	int err;
 
-	CHECK_RETURN(device_create_file(dev, &dev_attr_channel));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_clip));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_device_id));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_dirty));
@@ -1199,8 +1151,6 @@ static int pod_try_init(struct usb_interface *interface,
 
 	if ((interface == NULL) || (pod == NULL))
 		return -ENODEV;
-
-	pod->channel_num = 255;
 
 	/* initialize wait queues: */
 	init_waitqueue_head(&pod->monitor_level.wait);
@@ -1300,7 +1250,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 					       pod->line6.
 					       properties->device_bit, dev);
 
-			device_remove_file(dev, &dev_attr_channel);
 			device_remove_file(dev, &dev_attr_clip);
 			device_remove_file(dev, &dev_attr_device_id);
 			device_remove_file(dev, &dev_attr_dirty);
