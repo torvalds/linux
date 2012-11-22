@@ -93,11 +93,6 @@ struct usb_line6_variax {
 	unsigned char bank[18];
 
 	/**
-		Position of volume dial.
-	*/
-	int volume;
-
-	/**
 		Position of tone control dial.
 	*/
 	int tone;

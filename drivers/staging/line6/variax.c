@@ -200,10 +200,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 	switch (buf[0]) {
 	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST:
 		switch (buf[1]) {
-		case VARIAXMIDI_volume:
-			variax->volume = buf[2];
-			break;
-
 		case VARIAXMIDI_tone:
 			variax->tone = buf[2];
 		}
@@ -296,40 +292,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 		dev_dbg(variax->line6.ifcdev,
 			"Variax: unknown message %02X\n", buf[0]);
 	}
-}
-
-/*
-	"read" request on "volume" special file.
-*/
-static ssize_t variax_get_volume(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct usb_line6_variax *variax =
-	    usb_get_intfdata(to_usb_interface(dev));
-	return sprintf(buf, "%d\n", variax->volume);
-}
-
-/*
-	"write" request on "volume" special file.
-*/
-static ssize_t variax_set_volume(struct device *dev,
-				 struct device_attribute *attr,
-				 const char *buf, size_t count)
-{
-	struct usb_line6_variax *variax =
-	    usb_get_intfdata(to_usb_interface(dev));
-	u8 value;
-	int ret;
-
-	ret = kstrtou8(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	if (line6_transmit_parameter(&variax->line6, VARIAXMIDI_volume,
-				     value) == 0)
-		variax->volume = value;
-
-	return count;
 }
 
 /*
@@ -515,8 +477,6 @@ static ssize_t variax_set_raw2(struct device *dev,
 #endif
 
 /* Variax workbench special files: */
-static DEVICE_ATTR(volume, S_IWUSR | S_IRUGO, variax_get_volume,
-		   variax_set_volume);
 static DEVICE_ATTR(tone, S_IWUSR | S_IRUGO, variax_get_tone, variax_set_tone);
 static DEVICE_ATTR(name, S_IRUGO, variax_get_name, line6_nop_write);
 static DEVICE_ATTR(bank, S_IRUGO, variax_get_bank, line6_nop_write);
@@ -559,7 +519,6 @@ static void variax_destruct(struct usb_interface *interface)
 static int variax_create_files2(struct device *dev)
 {
 	int err;
-	CHECK_RETURN(device_create_file(dev, &dev_attr_volume));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tone));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_name));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_bank));
@@ -664,7 +623,6 @@ void line6_variax_disconnect(struct usb_interface *interface)
 	if (dev != NULL) {
 		/* remove sysfs entries: */
 		line6_variax_remove_files(0, 0, dev);
-		device_remove_file(dev, &dev_attr_volume);
 		device_remove_file(dev, &dev_attr_tone);
 		device_remove_file(dev, &dev_attr_name);
 		device_remove_file(dev, &dev_attr_bank);
