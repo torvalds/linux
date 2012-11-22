@@ -344,27 +344,28 @@ void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 	}
 }
 
-void fimc_hw_en_capture(struct fimc_ctx *ctx)
+void fimc_hw_enable_capture(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
+	u32 cfg;
 
-	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
-
-	if (ctx->out_path == FIMC_IO_DMA) {
-		/* one shot mode */
-		cfg |= FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
-			FIMC_REG_CIIMGCPT_IMGCPTEN;
-	} else {
-		/* Continuous frame capture mode (freerun). */
-		cfg &= ~(FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
-			 FIMC_REG_CIIMGCPT_CPT_FRMOD_CNT);
-		cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN;
-	}
+	cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
+	cfg |= FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE;
 
 	if (ctx->scaler.enabled)
 		cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN_SC;
+	else
+		cfg &= FIMC_REG_CIIMGCPT_IMGCPTEN_SC;
 
 	cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN;
+	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
+}
+
+void fimc_hw_disable_capture(struct fimc_dev *dev)
+{
+	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
+	cfg &= ~(FIMC_REG_CIIMGCPT_IMGCPTEN |
+		 FIMC_REG_CIIMGCPT_IMGCPTEN_SC);
 	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
 }
 
@@ -737,13 +738,6 @@ void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on)
 	writel(cfg, dev->regs + FIMC_REG_MSCTRL);
 }
 
-void fimc_hw_dis_capture(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
-	cfg &= ~(FIMC_REG_CIIMGCPT_IMGCPTEN | FIMC_REG_CIIMGCPT_IMGCPTEN_SC);
-	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
-}
-
 /* Return an index to the buffer actually being written. */
 s32 fimc_hw_get_frame_index(struct fimc_dev *dev)
 {
@@ -776,13 +770,13 @@ s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev)
 void fimc_activate_capture(struct fimc_ctx *ctx)
 {
 	fimc_hw_enable_scaler(ctx->fimc_dev, ctx->scaler.enabled);
-	fimc_hw_en_capture(ctx);
+	fimc_hw_enable_capture(ctx);
 }
 
 void fimc_deactivate_capture(struct fimc_dev *fimc)
 {
 	fimc_hw_en_lastirq(fimc, true);
-	fimc_hw_dis_capture(fimc);
+	fimc_hw_disable_capture(fimc);
 	fimc_hw_enable_scaler(fimc, false);
 	fimc_hw_en_lastirq(fimc, false);
 }

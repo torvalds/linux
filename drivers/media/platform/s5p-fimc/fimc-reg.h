@@ -287,7 +287,7 @@ void fimc_hw_en_lastirq(struct fimc_dev *fimc, int enable);
 void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
 void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
-void fimc_hw_en_capture(struct fimc_ctx *ctx);
+void fimc_hw_enable_capture(struct fimc_ctx *ctx);
 void fimc_hw_set_effect(struct fimc_ctx *ctx);
 void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx);
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
@@ -306,7 +306,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 void fimc_hw_clear_irq(struct fimc_dev *dev);
 void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on);
 void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on);
-void fimc_hw_dis_capture(struct fimc_dev *dev);
+void fimc_hw_disable_capture(struct fimc_dev *dev);
 s32 fimc_hw_get_frame_index(struct fimc_dev *dev);
 s32 fimc_hw_get_prev_frame_index(struct fimc_dev *dev);
 void fimc_activate_capture(struct fimc_ctx *ctx);
