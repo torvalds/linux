@@ -93,22 +93,32 @@ static int __devinit sdhci_dove_probe(struct platform_device *pdev)
 	}
 
 	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(priv->clk))
-		clk_prepare_enable(priv->clk);
 
-	ret = sdhci_pltfm_register(pdev, &sdhci_dove_pdata);
-	if (ret)
-		goto sdhci_dove_register_fail;
+	host = sdhci_pltfm_init(pdev, &sdhci_dove_pdata);
+	if (IS_ERR(host)) {
+		ret = PTR_ERR(host);
+		goto err_sdhci_pltfm_init;
+	}
 
-	host = platform_get_drvdata(pdev);
 	pltfm_host = sdhci_priv(host);
 	pltfm_host->priv = priv;
 
+	if (!IS_ERR(priv->clk))
+		clk_prepare_enable(priv->clk);
+
+	sdhci_get_of_property(pdev);
+
+	ret = sdhci_add_host(host);
+	if (ret)
+		goto err_sdhci_add;
+
 	return 0;
 
-sdhci_dove_register_fail:
+err_sdhci_add:
 	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
+	sdhci_pltfm_free(pdev);
+err_sdhci_pltfm_init:
 	return ret;
 }
 
