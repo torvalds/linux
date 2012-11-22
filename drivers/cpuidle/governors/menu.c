@@ -407,8 +407,9 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 		perfect_us = perfect_cstate_ms * 1000;
 
 		if (repeat && (4 * timer_us < data->expected_us)) {
-			hrtimer_start(hrtmr, ns_to_ktime(1000 * timer_us),
-				HRTIMER_MODE_REL_PINNED);
+			RCU_NONIDLE(hrtimer_start(hrtmr,
+				ns_to_ktime(1000 * timer_us),
+				HRTIMER_MODE_REL_PINNED));
 			/* In repeat case, menu hrtimer is started */
 			per_cpu(hrtimer_status, cpu) = MENU_HRTIMER_REPEAT;
 		} else if (perfect_us < data->expected_us) {
@@ -418,8 +419,9 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 			 * In that case, it makes sense to re-enter
 			 * into a deeper C-state after some time.
 			 */
-			hrtimer_start(hrtmr, ns_to_ktime(1000 * timer_us),
-				HRTIMER_MODE_REL_PINNED);
+			RCU_NONIDLE(hrtimer_start(hrtmr,
+				ns_to_ktime(1000 * timer_us),
+				HRTIMER_MODE_REL_PINNED));
 			/* In general case, menu hrtimer is started */
 			per_cpu(hrtimer_status, cpu) = MENU_HRTIMER_GENERAL;
 		}
