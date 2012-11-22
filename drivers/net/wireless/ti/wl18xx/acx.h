@@ -26,7 +26,13 @@
 #include "../wlcore/acx.h"
 
 enum {
-	ACX_CLEAR_STATISTICS		 = 0x0047,
+	ACX_NS_IPV6_FILTER		 = 0x0050,
+	ACX_PEER_HT_OPERATION_MODE_CFG	 = 0x0051,
+	ACX_CSUM_CONFIG			 = 0x0052,
+	ACX_SIM_CONFIG			 = 0x0053,
+	ACX_CLEAR_STATISTICS		 = 0x0054,
+	ACX_AUTO_RX_STREAMING		 = 0x0055,
+	ACX_PEER_CAP			 = 0x0056
 };
 
 /* numbers of bits the length field takes (add 1 for the actual number) */

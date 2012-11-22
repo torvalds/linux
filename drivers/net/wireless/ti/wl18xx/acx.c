@@ -75,7 +75,7 @@ int wl18xx_acx_set_checksum_state(struct wl1271 *wl)
 
 	acx->checksum_state = CHECKSUM_OFFLOAD_ENABLED;
 
-	ret = wl1271_cmd_configure(wl, ACX_CHECKSUM_CONFIG, acx, sizeof(*acx));
+	ret = wl1271_cmd_configure(wl, ACX_CSUM_CONFIG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("failed to set Tx checksum state: %d", ret);
 		goto out;
