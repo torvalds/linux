@@ -545,16 +545,6 @@ static ssize_t pod_set_finish(struct device *dev,
 }
 
 /*
-	"write" request on "store_channel" special file.
-*/
-static ssize_t pod_set_store_channel(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	return pod_send_store_command(dev, buf, count, 0x0000, 0x00c0);
-}
-
-/*
 	"write" request on "store_effects_setup" special file.
 */
 static ssize_t pod_set_store_effects_setup(struct device *dev,
@@ -741,8 +731,6 @@ static DEVICE_ATTR(routing, S_IWUSR | S_IRUGO, pod_get_routing,
 		   pod_set_routing);
 static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
 		   line6_nop_write);
-static DEVICE_ATTR(store_channel, S_IWUSR, line6_nop_read,
-		   pod_set_store_channel);
 static DEVICE_ATTR(store_effects_setup, S_IWUSR, line6_nop_read,
 		   pod_set_store_effects_setup);
 static DEVICE_ATTR(tuner_freq, S_IWUSR | S_IRUGO, pod_get_tuner_freq,
@@ -835,7 +823,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_routing));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_store_channel));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_store_effects_setup));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_freq));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_mute));
@@ -964,7 +951,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_midi_postprocess);
 			device_remove_file(dev, &dev_attr_routing);
 			device_remove_file(dev, &dev_attr_serial_number);
-			device_remove_file(dev, &dev_attr_store_channel);
 			device_remove_file(dev, &dev_attr_store_effects_setup);
 			device_remove_file(dev, &dev_attr_tuner_freq);
 			device_remove_file(dev, &dev_attr_tuner_mute);
