@@ -978,8 +978,8 @@ EXPORT_SYMBOL_GPL(of_property_count_strings);
  * Returns the device_node pointer with refcount incremented.  Use
  * of_node_put() on it when done.
  */
-struct device_node *
-of_parse_phandle(struct device_node *np, const char *phandle_name, int index)
+struct device_node *of_parse_phandle(const struct device_node *np,
+				     const char *phandle_name, int index)
 {
 	const __be32 *phandle;
 	int size;
