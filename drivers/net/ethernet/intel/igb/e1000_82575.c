@@ -1927,6 +1927,12 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	hw->dev_spec._82575.global_device_reset = false;
 
+	/* due to hw errata, global device reset doesn't always
+	 * work on 82580
+	 */
+	if (hw->mac.type == e1000_82580)
+		global_device_reset = false;
+
 	/* Get current control state. */
 	ctrl = rd32(E1000_CTRL);
 
