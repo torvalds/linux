@@ -130,17 +130,6 @@ static void pod_startup2(unsigned long data);
 static void pod_startup3(struct usb_line6_pod *pod);
 static void pod_startup4(struct usb_line6_pod *pod);
 
-/*
-	Mark all parameters as dirty and notify waiting processes.
-*/
-static void pod_mark_batch_all_dirty(struct usb_line6_pod *pod)
-{
-	int i;
-
-	for (i = 0; i < POD_CONTROL_SIZE; i++)
-		set_bit(i, pod->param_dirty);
-}
-
 static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 				    int size)
 {
@@ -163,7 +152,6 @@ static void pod_dump(struct usb_line6_pod *pod, const unsigned char *data)
 	memcpy(sysex + SYSEX_DATA_OFS + 1, data, sizeof(pod->prog_data));
 	line6_send_sysex_message(&pod->line6, sysex, size);
 	memcpy(&pod->prog_data, data, sizeof(pod->prog_data));
-	pod_mark_batch_all_dirty(pod);
 	kfree(sysex);
 }
 
@@ -173,7 +161,6 @@ static void pod_dump(struct usb_line6_pod *pod, const unsigned char *data)
 static void pod_store_parameter(struct usb_line6_pod *pod, int param, int value)
 {
 	pod->prog_data.control[param] = value;
-	set_bit(param, pod->param_dirty);
 	pod->dirty = 1;
 }
 
@@ -239,7 +226,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 					case LINE6_DUMP_CURRENT:
 						memcpy(&pod->prog_data, buf + 7,
 						       sizeof(pod->prog_data));
-						pod_mark_batch_all_dirty(pod);
 						break;
 
 					case POD_DUMP_MEMORY:
@@ -1138,8 +1124,6 @@ static int pod_try_init(struct usb_interface *interface,
 	init_waitqueue_head(&pod->tuner_freq.wait);
 	init_waitqueue_head(&pod->tuner_note.wait);
 	init_waitqueue_head(&pod->tuner_pitch.wait);
-
-	memset(pod->param_dirty, 0xff, sizeof(pod->param_dirty));
 
 	/* initialize USB buffers: */
 	err = line6_dumpreq_init(&pod->dumpreq, pod_request_channel,

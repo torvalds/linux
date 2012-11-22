@@ -148,11 +148,6 @@ struct usb_line6_pod {
 	int startup_progress;
 
 	/**
-		Dirty flags for access to parameter data.
-	*/
-	unsigned long param_dirty[POD_CONTROL_SIZE / sizeof(unsigned long)];
-
-	/**
 		Some atomic flags.
 	*/
 	unsigned long atomic_flags;
