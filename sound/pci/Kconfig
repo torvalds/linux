@@ -572,6 +572,7 @@ source "sound/pci/hda/Kconfig"
 
 config SND_HDSP
 	tristate "RME Hammerfall DSP Audio"
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_RAWMIDI
 	select SND_PCM
