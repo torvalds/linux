@@ -18,7 +18,6 @@
 #include <sound/core.h>
 
 #include "driver.h"
-#include "dumprequest.h"
 
 #define VARIAX_STARTUP_DELAY1 1000
 #define VARIAX_STARTUP_DELAY3 100
@@ -32,16 +31,9 @@ enum {
 	VARIAX_STARTUP_VERSIONREQ,
 	VARIAX_STARTUP_WAIT,
 	VARIAX_STARTUP_ACTIVATE,
-	VARIAX_STARTUP_DUMPREQ,
 	VARIAX_STARTUP_WORKQUEUE,
 	VARIAX_STARTUP_SETUP,
 	VARIAX_STARTUP_LAST = VARIAX_STARTUP_SETUP - 1
-};
-
-enum {
-	VARIAX_DUMP_PASS1 = LINE6_DUMP_CURRENT,
-	VARIAX_DUMP_PASS2,
-	VARIAX_DUMP_PASS3
 };
 
 struct usb_line6_variax {
@@ -49,13 +41,6 @@ struct usb_line6_variax {
 		Generic Line6 USB data.
 	*/
 	struct usb_line6 line6;
-
-	/**
-		Dump request structure.
-		Append two extra buffers for 3-pass data query.
-	*/
-	struct line6_dump_request dumpreq;
-	struct line6_dump_reqbuf extrabuf[2];
 
 	/**
 		Buffer for activation code.
