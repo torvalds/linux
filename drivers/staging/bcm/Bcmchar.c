@@ -1644,7 +1644,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_SET_ACTIVE_SECTION: {
-		FLASH2X_SECTION_VAL eFlash2xSectionVal = 0;
+		enum bcm_flash2x_section_val eFlash2xSectionVal = 0;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SET_ACTIVE_SECTION Called");
 
 		if (IsFlash2x(Adapter) != TRUE) {
@@ -1799,7 +1799,7 @@ cntrlEnd:
 
 	case IOCTL_BCM_SELECT_DSD: {
 		UINT SectOfset = 0;
-		FLASH2X_SECTION_VAL eFlash2xSectionVal;
+		enum bcm_flash2x_section_val eFlash2xSectionVal;
 		eFlash2xSectionVal = NO_SECTION_VAL;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_SELECT_DSD Called");
 

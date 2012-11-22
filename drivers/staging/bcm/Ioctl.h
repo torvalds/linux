@@ -129,7 +129,7 @@ struct bcm_bulk_wrm_buffer {
 	unsigned long Values[1];
 };
 
-typedef enum _FLASH2X_SECTION_VAL {
+enum bcm_flash2x_section_val {
 	NO_SECTION_VAL = 0, /* no section is chosen when absolute offset is given for RD/WR */
 	ISO_IMAGE1,
 	ISO_IMAGE2,
@@ -146,13 +146,13 @@ typedef enum _FLASH2X_SECTION_VAL {
 	ISO_IMAGE2_PART2,
 	ISO_IMAGE2_PART3,
 	TOTAL_SECTIONS
-} FLASH2X_SECTION_VAL;
+};
 
 /*
  * Structure used for READ/WRITE Flash Map2.x
  */
 struct bcm_flash2x_readwrite {
-	FLASH2X_SECTION_VAL Section; /* which section has to be read/written */
+	enum bcm_flash2x_section_val Section; /* which section has to be read/written */
 	u32 offset;	     /* Offset within Section. */
 	u32 numOfBytes;	     /* NOB from the offset */
 	u32 bVerify;
@@ -167,8 +167,8 @@ struct bcm_flash2x_readwrite {
  */
 
 struct bcm_flash2x_copy_section {
-	FLASH2X_SECTION_VAL SrcSection;
-	FLASH2X_SECTION_VAL DstSection;
+	enum bcm_flash2x_section_val SrcSection;
+	enum bcm_flash2x_section_val DstSection;
 	u32 offset;
 	u32 numOfBytes;
 };

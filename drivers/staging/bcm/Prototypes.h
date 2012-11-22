@@ -161,14 +161,14 @@ INT BeceemNVMWrite(
 INT BcmInitNVM(struct bcm_mini_adapter *Adapter);
 
 INT BcmUpdateSectorSize(struct bcm_mini_adapter *Adapter,UINT uiSectorSize);
-BOOLEAN IsSectionExistInFlash(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL section);
+BOOLEAN IsSectionExistInFlash(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val section);
 
 INT BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_bitmap *psFlash2xBitMap);
 
 INT BcmFlash2xBulkWrite(
 	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
-	FLASH2X_SECTION_VAL eFlashSectionVal,
+	enum bcm_flash2x_section_val eFlashSectionVal,
 	UINT uiOffset,
 	UINT uiNumBytes,
 	UINT bVerify);
@@ -176,24 +176,24 @@ INT BcmFlash2xBulkWrite(
 INT BcmFlash2xBulkRead(
 	struct bcm_mini_adapter *Adapter,
 	PUINT pBuffer,
-	FLASH2X_SECTION_VAL eFlashSectionVal,
+	enum bcm_flash2x_section_val eFlashSectionVal,
 	UINT uiOffsetWithinSectionVal,
 	UINT uiNumBytes);
 
-INT BcmGetSectionValStartOffset(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlashSectionVal);
+INT BcmGetSectionValStartOffset(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlashSectionVal);
 
-INT BcmSetActiveSection(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectVal);
+INT BcmSetActiveSection(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlash2xSectVal);
 INT BcmAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter);
 INT BcmDeAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter);
 
 INT BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section sCopySectStrut);
-INT BcmFlash2xCorruptSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
-INT BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlashSectionVal);
+INT BcmFlash2xCorruptSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlash2xSectionVal);
+INT BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, enum bcm_flash2x_section_val eFlashSectionVal);
 INT	validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_readwrite *psFlash2xReadWrite);
 INT IsFlash2x(struct bcm_mini_adapter *Adapter);
 INT	BcmCopySection(struct bcm_mini_adapter *Adapter,
-						FLASH2X_SECTION_VAL SrcSection,
-						FLASH2X_SECTION_VAL DstSection,
+						enum bcm_flash2x_section_val SrcSection,
+						enum bcm_flash2x_section_val DstSection,
 						UINT offset,
 						UINT numOfBytes);
 
