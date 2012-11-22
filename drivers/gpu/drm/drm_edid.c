@@ -1639,7 +1639,7 @@ parse_hdmi_vsdb(struct drm_connector *connector, const u8 *db)
 	if (len >= 12)
 		connector->audio_latency[1] = db[12];
 
-	DRM_LOG_KMS("HDMI: DVI dual %d, "
+	DRM_DEBUG_KMS("HDMI: DVI dual %d, "
 		    "max TMDS clock %d, "
 		    "latency present %d %d, "
 		    "video latency %d %d, "
