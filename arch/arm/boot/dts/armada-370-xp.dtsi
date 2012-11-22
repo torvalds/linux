@@ -20,7 +20,7 @@
 
 / {
 	model = "Marvell Armada 370 and XP SoC";
-	compatible = "marvell,armada_370_xp";
+	compatible = "marvell,armada-370-xp";
 
 	cpus {
 		cpu@0 {

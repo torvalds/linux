@@ -64,13 +64,12 @@ static void __init armada_370_xp_dt_init(void)
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
-static const char * const armada_370_xp_dt_board_dt_compat[] = {
-	"marvell,a370-db",
-	"marvell,axp-db",
+static const char * const armada_370_xp_dt_compat[] = {
+	"marvell,armada-370-xp",
 	NULL,
 };
 
-DT_MACHINE_START(ARMADA_XP_DT, "Marvell Aramada 370/XP (Device Tree)")
+DT_MACHINE_START(ARMADA_XP_DT, "Marvell Armada 370/XP (Device Tree)")
 	.init_machine	= armada_370_xp_dt_init,
 	.map_io		= armada_370_xp_map_io,
 	.init_early	= armada_370_xp_init_early,
@@ -78,5 +77,5 @@ DT_MACHINE_START(ARMADA_XP_DT, "Marvell Aramada 370/XP (Device Tree)")
 	.handle_irq     = armada_370_xp_handle_irq,
 	.timer		= &armada_370_xp_timer,
 	.restart	= mvebu_restart,
-	.dt_compat	= armada_370_xp_dt_board_dt_compat,
+	.dt_compat	= armada_370_xp_dt_compat,
 MACHINE_END
