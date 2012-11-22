@@ -2,21 +2,21 @@
 #define _IOCTL_H_
 
 typedef struct rdmbuffer {
-	ULONG Register;
-	ULONG Length;
+	unsigned long Register;
+	unsigned long Length;
 } __packed RDM_BUFFER, *PRDM_BUFFER;
 
 typedef struct wrmbuffer {
-	ULONG Register;
-	ULONG Length;
+	unsigned long Register;
+	unsigned long Length;
 	unsigned char Data[4];
 } __packed WRM_BUFFER, *PWRM_BUFFER;
 
 typedef struct ioctlbuffer {
 	void __user *InputBuffer;
-	ULONG InputLength;
+	unsigned long InputLength;
 	void __user *OutputBuffer;
-	ULONG OutputLength;
+	unsigned long OutputLength;
 } __packed IOCTL_BUFFER, *PIOCTL_BUFFER;
 
 typedef struct stGPIOInfo {
@@ -124,9 +124,9 @@ typedef  struct _NVM_READWRITE {
 } NVM_READWRITE, *PNVM_READWRITE;
 
 typedef struct bulkwrmbuffer {
-	ULONG Register;
-	ULONG SwapEndian;
-	ULONG Values[1];
+	unsigned long Register;
+	unsigned long SwapEndian;
+	unsigned long Values[1];
 
 } BULKWRM_BUFFER, *PBULKWRM_BUFFER;
 
