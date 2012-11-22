@@ -505,16 +505,36 @@ out:
 	return rc;
 }
 
+static int cifs_push_posix_locks(struct cifsFileInfo *cfile);
+
 /*
  * Try to reacquire byte range locks that were released when session
- * to server was lost
+ * to server was lost.
  */
-static int cifs_relock_file(struct cifsFileInfo *cifsFile)
+static int
+cifs_relock_file(struct cifsFileInfo *cfile)
 {
+	struct cifs_sb_info *cifs_sb = CIFS_SB(cfile->dentry->d_sb);
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	int rc = 0;
 
-	/* BB list all locks open on this file and relock */
+	/* we are going to update can_cache_brlcks here - need a write access */
+	down_write(&cinode->lock_sem);
+	if (cinode->can_cache_brlcks) {
+		/* can cache locks - no need to push them */
+		up_write(&cinode->lock_sem);
+		return rc;
+	}
 
+	if (cap_unix(tcon->ses) &&
+	    (CIFS_UNIX_FCNTL_CAP & le64_to_cpu(tcon->fsUnixInfo.Capability)) &&
+	    ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NOPOSIXBRL) == 0))
+		rc = cifs_push_posix_locks(cfile);
+	else
+		rc = tcon->ses->server->ops->push_mand_locks(cfile);
+
+	up_write(&cinode->lock_sem);
 	return rc;
 }
 
