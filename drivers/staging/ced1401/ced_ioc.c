@@ -341,7 +341,7 @@ bool Is1401(DEVICE_EXTENSION * pdx)
 		}
 
 		if (iReturn == 0)	// if all is OK...
-			iReturn = state == 0;	// then sucess is that the state is 0
+			iReturn = state == 0;	// then success is that the state is 0
 	} else
 		iReturn = 0;	// we failed
 	pdx->bForceReset = false;	// Clear forced reset flag now
@@ -565,7 +565,7 @@ int LineCount(DEVICE_EXTENSION * pdx)
 			if (dwIndex >= INBUF_SZ)	// see if we fall off buff
 				dwIndex = 0;
 		}
-		while (dwIndex != dwEnd);	// go to last avaliable
+		while (dwIndex != dwEnd);	// go to last available
 	}
 
 	spin_unlock_irq(&pdx->charInLock);

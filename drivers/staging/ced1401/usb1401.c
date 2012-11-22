@@ -911,9 +911,9 @@ static bool ReadWord(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
 ** ReadHuff
 **
 ** Reads a coded number in and returns it, Code is:
-** If data is in range 0..127 we recieve 1 byte. If data in range 128-16383
-** we recieve two bytes, top bit of first indicates another on its way. If
-** data in range 16383-4194303 we get three bytes, top two bits of first set
+** If data is in range 0..127 we receive 1 byte. If data in range 128-16383
+** we receive two bytes, top bit of first indicates another on its way. If
+** data in range 16384-4194303 we get three bytes, top two bits of first set
 ** to indicate three byte total.
 **
 *****************************************************************************/
