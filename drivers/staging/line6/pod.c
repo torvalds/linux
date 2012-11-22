@@ -360,60 +360,6 @@ void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 }
 
 /*
-	Resolve value to memory location.
-*/
-static int pod_resolve(const char *buf, short block0, short block1,
-		       unsigned char *location)
-{
-	u8 value;
-	short block;
-	int ret;
-
-	ret = kstrtou8(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	block = (value < 0x40) ? block0 : block1;
-	value &= 0x3f;
-	location[0] = block >> 7;
-	location[1] = value | (block & 0x7f);
-	return 0;
-}
-
-/*
-	Send command to retrieve channel/effects setup/amp setup to PODxt Pro.
-*/
-static ssize_t pod_send_retrieve_command(struct device *dev, const char *buf,
-					 size_t count, short block0,
-					 short block1)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	int ret;
-	int size = 4;
-	char *sysex = pod_alloc_sysex_buffer(pod, POD_SYSEX_DUMPMEM, size);
-
-	if (!sysex)
-		return 0;
-
-	ret = pod_resolve(buf, block0, block1, sysex + SYSEX_DATA_OFS);
-	if (ret) {
-		kfree(sysex);
-		return ret;
-	}
-	sysex[SYSEX_DATA_OFS + 2] = 0;
-	sysex[SYSEX_DATA_OFS + 3] = 0;
-	line6_dump_started(&pod->dumpreq, POD_DUMP_MEMORY);
-
-	if (line6_send_sysex_message(&pod->line6, sysex, size) < size)
-		line6_dump_finished(&pod->dumpreq);
-
-	kfree(sysex);
-	/* needs some delay here on AMD64 platform */
-	return count;
-}
-
-/*
 	Identify system parameters related to the tuner.
 */
 static bool pod_is_tuner(int code)
@@ -542,16 +488,6 @@ static ssize_t pod_set_finish(struct device *dev,
 	line6_send_sysex_message(&pod->line6, sysex, size);
 	kfree(sysex);
 	return count;
-}
-
-/*
-	"write" request on "store_effects_setup" special file.
-*/
-static ssize_t pod_set_store_effects_setup(struct device *dev,
-					   struct device_attribute *attr,
-					   const char *buf, size_t count)
-{
-	return pod_send_store_command(dev, buf, count, 0x0080, 0x0080);
 }
 
 /*
@@ -731,8 +667,6 @@ static DEVICE_ATTR(routing, S_IWUSR | S_IRUGO, pod_get_routing,
 		   pod_set_routing);
 static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
 		   line6_nop_write);
-static DEVICE_ATTR(store_effects_setup, S_IWUSR, line6_nop_read,
-		   pod_set_store_effects_setup);
 static DEVICE_ATTR(tuner_freq, S_IWUSR | S_IRUGO, pod_get_tuner_freq,
 		   pod_set_tuner_freq);
 static DEVICE_ATTR(tuner_mute, S_IWUSR | S_IRUGO, pod_get_tuner_mute,
@@ -823,7 +757,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_routing));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_store_effects_setup));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_freq));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_mute));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_note));
@@ -951,7 +884,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_midi_postprocess);
 			device_remove_file(dev, &dev_attr_routing);
 			device_remove_file(dev, &dev_attr_serial_number);
-			device_remove_file(dev, &dev_attr_store_effects_setup);
 			device_remove_file(dev, &dev_attr_tuner_freq);
 			device_remove_file(dev, &dev_attr_tuner_mute);
 			device_remove_file(dev, &dev_attr_tuner_note);
