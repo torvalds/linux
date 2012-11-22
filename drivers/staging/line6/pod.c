@@ -476,18 +476,6 @@ static ssize_t get_name_generic(struct usb_line6_pod *pod, const char *str,
 /*
 	"read" request on "name" special file.
 */
-static ssize_t pod_get_name(struct device *dev, struct device_attribute *attr,
-			    char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return get_name_generic(pod, pod->prog_data.header + POD_NAME_OFFSET,
-				buf);
-}
-
-/*
-	"read" request on "name" special file.
-*/
 static ssize_t pod_get_name_buf(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -862,7 +850,6 @@ static DEVICE_ATTR(firmware_version, S_IRUGO, pod_get_firmware_version,
 		   line6_nop_write);
 static DEVICE_ATTR(midi_postprocess, S_IWUSR | S_IRUGO,
 		   pod_get_midi_postprocess, pod_set_midi_postprocess);
-static DEVICE_ATTR(name, S_IRUGO, pod_get_name, line6_nop_write);
 static DEVICE_ATTR(name_buf, S_IRUGO, pod_get_name_buf, line6_nop_write);
 static DEVICE_ATTR(retrieve_amp_setup, S_IWUSR, line6_nop_read,
 		   pod_set_retrieve_amp_setup);
@@ -968,7 +955,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_finish));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_name));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_name_buf));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_retrieve_amp_setup));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_retrieve_channel));
@@ -1103,7 +1089,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_finish);
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_midi_postprocess);
-			device_remove_file(dev, &dev_attr_name);
 			device_remove_file(dev, &dev_attr_name_buf);
 			device_remove_file(dev, &dev_attr_retrieve_amp_setup);
 			device_remove_file(dev, &dev_attr_retrieve_channel);
