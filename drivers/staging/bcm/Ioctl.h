@@ -225,9 +225,9 @@ typedef struct stGPIOMultiInfo {
 	unsigned int uiGPIOValue;   /* 0 or 1; value to be set when command is 1. */
 } __packed GPIO_MULTI_INFO, *PGPIO_MULTI_INFO;
 
-typedef struct stGPIOMultiMode {
+struct bcm_gpio_multi_mode {
 	unsigned int uiGPIOMode;    /* 1 for OUT mode, 0 for IN mode */
 	unsigned int uiGPIOMask;    /* GPIO mask to set mode */
-} __packed GPIO_MULTI_MODE, *PGPIO_MULTI_MODE;
+} __packed;
 
 #endif
