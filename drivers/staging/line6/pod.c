@@ -447,10 +447,6 @@ static DEVICE_ATTR(firmware_version, S_IRUGO, pod_get_firmware_version,
 static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
 		   line6_nop_write);
 
-#ifdef CONFIG_LINE6_USB_RAW
-static DEVICE_ATTR(raw, S_IWUSR, line6_nop_read, line6_set_raw);
-#endif
-
 /* control info callback */
 static int snd_pod_control_monitor_info(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_info *uinfo)
@@ -527,11 +523,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_device_id));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
-
-#ifdef CONFIG_LINE6_USB_RAW
-	CHECK_RETURN(device_create_file(dev, &dev_attr_raw));
-#endif
-
 	return 0;
 }
 
@@ -640,10 +631,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_device_id);
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_serial_number);
-
-#ifdef CONFIG_LINE6_USB_RAW
-			device_remove_file(dev, &dev_attr_raw);
-#endif
 		}
 	}
 
