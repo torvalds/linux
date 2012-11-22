@@ -1263,10 +1263,12 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 		return ret;
 
 	video_set_drvdata(vfd, fimc);
+	fimc->pipeline_ops = v4l2_get_subdev_hostdata(sd);
 
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		media_entity_cleanup(&vfd->entity);
+		fimc->pipeline_ops = NULL;
 		return ret;
 	}
 
@@ -1285,6 +1287,7 @@ static void fimc_lite_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(&fimc->vfd)) {
 		video_unregister_device(&fimc->vfd);
 		media_entity_cleanup(&fimc->vfd.entity);
+		fimc->pipeline_ops = NULL;
 	}
 }
 

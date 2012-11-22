@@ -1774,9 +1774,13 @@ static int fimc_capture_subdev_registered(struct v4l2_subdev *sd)
 	if (ret)
 		return ret;
 
+	fimc->pipeline_ops = v4l2_get_subdev_hostdata(sd);
+
 	ret = fimc_register_capture_device(fimc, sd->v4l2_dev);
-	if (ret)
+	if (ret) {
 		fimc_unregister_m2m_device(fimc);
+		fimc->pipeline_ops = NULL;
+	}
 
 	return ret;
 }
@@ -1793,6 +1797,7 @@ static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
 	if (video_is_registered(&fimc->vid_cap.vfd)) {
 		video_unregister_device(&fimc->vid_cap.vfd);
 		media_entity_cleanup(&fimc->vid_cap.vfd.entity);
+		fimc->pipeline_ops = NULL;
 	}
 	kfree(fimc->vid_cap.ctx);
 	fimc->vid_cap.ctx = NULL;
