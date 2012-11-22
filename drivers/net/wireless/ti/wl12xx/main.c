@@ -1632,6 +1632,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.sched_scan_stop	= wl12xx_scan_sched_scan_stop,
 	.get_spare_blocks	= wl12xx_get_spare_blocks,
 	.set_key		= wl12xx_set_key,
+	.channel_switch		= wl12xx_cmd_channel_switch,
 	.pre_pkt_send		= NULL,
 };
 

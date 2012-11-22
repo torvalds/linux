@@ -34,6 +34,7 @@
 
 #include "reg.h"
 #include "conf.h"
+#include "cmd.h"
 #include "acx.h"
 #include "tx.h"
 #include "wl18xx.h"
@@ -1335,6 +1336,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.handle_static_data	= wl18xx_handle_static_data,
 	.get_spare_blocks = wl18xx_get_spare_blocks,
 	.set_key	= wl18xx_set_key,
+	.channel_switch	= wl18xx_cmd_channel_switch,
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 };
 

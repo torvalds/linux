@@ -2673,7 +2673,7 @@ static int wlcore_unset_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	if (test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS, &wlvif->flags)) {
 		struct ieee80211_vif *vif = wl12xx_wlvif_to_vif(wlvif);
 
-		wl12xx_cmd_stop_channel_switch(wl);
+		wl12xx_cmd_stop_channel_switch(wl, wlvif);
 		ieee80211_chswitch_done(vif, false);
 	}
 
@@ -4680,8 +4680,7 @@ static void wl12xx_op_channel_switch(struct ieee80211_hw *hw,
 
 	/* TODO: change mac80211 to pass vif as param */
 	wl12xx_for_each_wlvif_sta(wl, wlvif) {
-		ret = wl12xx_cmd_channel_switch(wl, wlvif, ch_switch);
-
+		ret = wl->ops->channel_switch(wl, wlvif, ch_switch);
 		if (!ret)
 			set_bit(WLVIF_FLAG_CS_PROGRESS, &wlvif->flags);
 	}

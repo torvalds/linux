@@ -95,6 +95,9 @@ struct wlcore_ops {
 		       struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta,
 		       struct ieee80211_key_conf *key_conf);
+	int (*channel_switch)(struct wl1271 *wl,
+			      struct wl12xx_vif *wlvif,
+			      struct ieee80211_channel_switch *ch_switch);
 	u32 (*pre_pkt_send)(struct wl1271 *wl, u32 buf_offset, u32 last_len);
 };
 

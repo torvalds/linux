@@ -1722,43 +1722,7 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_channel_switch(struct wl1271 *wl,
-			      struct wl12xx_vif *wlvif,
-			      struct ieee80211_channel_switch *ch_switch)
-{
-	struct wl12xx_cmd_channel_switch *cmd;
-	int ret;
-
-	wl1271_debug(DEBUG_ACX, "cmd channel switch");
-
-	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
-	if (!cmd) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	cmd->role_id = wlvif->role_id;
-	cmd->channel = ch_switch->channel->hw_value;
-	cmd->switch_time = ch_switch->count;
-	cmd->stop_tx = ch_switch->block_tx;
-
-	/* FIXME: control from mac80211 in the future */
-	cmd->post_switch_tx_disable = 0;  /* Enable TX on the target channel */
-
-	ret = wl1271_cmd_send(wl, CMD_CHANNEL_SWITCH, cmd, sizeof(*cmd), 0);
-	if (ret < 0) {
-		wl1271_error("failed to send channel switch command");
-		goto out_free;
-	}
-
-out_free:
-	kfree(cmd);
-
-out:
-	return ret;
-}
-
-int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl)
+int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	struct wl12xx_cmd_stop_channel_switch *cmd;
 	int ret;
@@ -1770,6 +1734,8 @@ int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl)
 		ret = -ENOMEM;
 		goto out;
 	}
+
+	cmd->role_id = wlvif->role_id;
 
 	ret = wl1271_cmd_send(wl, CMD_STOP_CHANNEL_SWICTH, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
