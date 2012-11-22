@@ -792,7 +792,6 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 		nv_error(priv, "ch %d [0x%010llx] subc %d class 0x%04x "
 			       "mthd 0x%04x data 0x%08x\n",
 			 chid, (u64)inst << 12, subc, class, mthd, data);
-		nv50_fb_trap(nouveau_fb(priv), 1);
 	}
 
 	if (nv_rd32(priv, 0x400824) & (1 << 31))

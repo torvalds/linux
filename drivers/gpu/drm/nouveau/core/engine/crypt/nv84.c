@@ -157,7 +157,6 @@ nv84_crypt_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x102130, stat);
 	nv_wr32(priv, 0x10200c, 0x10);
 
-	nv50_fb_trap(nouveau_fb(priv), 1);
 	nouveau_engctx_put(engctx);
 }
 

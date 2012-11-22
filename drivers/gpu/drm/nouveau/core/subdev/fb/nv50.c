@@ -235,103 +235,6 @@ nv50_fb_vram_del(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
 	kfree(mem);
 }
 
-static int
-nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
-	     struct nouveau_oclass *oclass, void *data, u32 size,
-	     struct nouveau_object **pobject)
-{
-	struct nouveau_device *device = nv_device(parent);
-	struct nv50_fb_priv *priv;
-	int ret;
-
-	ret = nouveau_fb_create(parent, engine, oclass, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (priv->r100c08_page) {
-		priv->r100c08 = pci_map_page(device->pdev, priv->r100c08_page,
-					     0, PAGE_SIZE,
-					     PCI_DMA_BIDIRECTIONAL);
-		if (pci_dma_mapping_error(device->pdev, priv->r100c08))
-			nv_warn(priv, "failed 0x100c08 page map\n");
-	} else {
-		nv_warn(priv, "failed 0x100c08 page alloc\n");
-	}
-
-	priv->base.memtype_valid = nv50_fb_memtype_valid;
-	priv->base.ram.init = nv50_fb_vram_init;
-	priv->base.ram.get = nv50_fb_vram_new;
-	priv->base.ram.put = nv50_fb_vram_del;
-	return nouveau_fb_preinit(&priv->base);
-}
-
-static void
-nv50_fb_dtor(struct nouveau_object *object)
-{
-	struct nouveau_device *device = nv_device(object);
-	struct nv50_fb_priv *priv = (void *)object;
-
-	if (priv->r100c08_page) {
-		pci_unmap_page(device->pdev, priv->r100c08, PAGE_SIZE,
-			       PCI_DMA_BIDIRECTIONAL);
-		__free_page(priv->r100c08_page);
-	}
-
-	nouveau_fb_destroy(&priv->base);
-}
-
-static int
-nv50_fb_init(struct nouveau_object *object)
-{
-	struct nouveau_device *device = nv_device(object);
-	struct nv50_fb_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_fb_init(&priv->base);
-	if (ret)
-		return ret;
-
-	/* Not a clue what this is exactly.  Without pointing it at a
-	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
-	 * cause IOMMU "read from address 0" errors (rh#561267)
-	 */
-	nv_wr32(priv, 0x100c08, priv->r100c08 >> 8);
-
-	/* This is needed to get meaningful information from 100c90
-	 * on traps. No idea what these values mean exactly. */
-	switch (device->chipset) {
-	case 0x50:
-		nv_wr32(priv, 0x100c90, 0x000707ff);
-		break;
-	case 0xa3:
-	case 0xa5:
-	case 0xa8:
-		nv_wr32(priv, 0x100c90, 0x000d0fff);
-		break;
-	case 0xaf:
-		nv_wr32(priv, 0x100c90, 0x089d1fff);
-		break;
-	default:
-		nv_wr32(priv, 0x100c90, 0x001d07ff);
-		break;
-	}
-
-	return 0;
-}
-
-struct nouveau_oclass
-nv50_fb_oclass = {
-	.handle = NV_SUBDEV(FB, 0x50),
-	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv50_fb_ctor,
-		.dtor = nv50_fb_dtor,
-		.init = nv50_fb_init,
-		.fini = _nouveau_fb_fini,
-	},
-};
-
 static const struct nouveau_enum vm_dispatch_subclients[] = {
 	{ 0x00000000, "GRCTX", NULL },
 	{ 0x00000001, "NOTIFY", NULL },
@@ -427,11 +330,11 @@ static const struct nouveau_enum vm_fault[] = {
 	{}
 };
 
-void
-nv50_fb_trap(struct nouveau_fb *pfb, int display)
+static void
+nv50_fb_intr(struct nouveau_subdev *subdev)
 {
-	struct nouveau_device *device = nv_device(pfb);
-	struct nv50_fb_priv *priv = (void *)pfb;
+	struct nouveau_device *device = nv_device(subdev);
+	struct nv50_fb_priv *priv = (void *)subdev;
 	const struct nouveau_enum *en, *cl;
 	u32 trap[6], idx, chan;
 	u8 st0, st1, st2, st3;
@@ -447,9 +350,6 @@ nv50_fb_trap(struct nouveau_fb *pfb, int display)
 		trap[i] = nv_rd32(priv, 0x100c94);
 	}
 	nv_wr32(priv, 0x100c90, idx | 0x80000000);
-
-	if (!display)
-		return;
 
 	/* decode status bits into something more useful */
 	if (device->chipset  < 0xa3 ||
@@ -497,3 +397,101 @@ nv50_fb_trap(struct nouveau_fb *pfb, int display)
 	else
 		printk("0x%08x\n", st1);
 }
+
+static int
+nv50_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
+	     struct nouveau_oclass *oclass, void *data, u32 size,
+	     struct nouveau_object **pobject)
+{
+	struct nouveau_device *device = nv_device(parent);
+	struct nv50_fb_priv *priv;
+	int ret;
+
+	ret = nouveau_fb_create(parent, engine, oclass, &priv);
+	*pobject = nv_object(priv);
+	if (ret)
+		return ret;
+
+	priv->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (priv->r100c08_page) {
+		priv->r100c08 = pci_map_page(device->pdev, priv->r100c08_page,
+					     0, PAGE_SIZE,
+					     PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(device->pdev, priv->r100c08))
+			nv_warn(priv, "failed 0x100c08 page map\n");
+	} else {
+		nv_warn(priv, "failed 0x100c08 page alloc\n");
+	}
+
+	priv->base.memtype_valid = nv50_fb_memtype_valid;
+	priv->base.ram.init = nv50_fb_vram_init;
+	priv->base.ram.get = nv50_fb_vram_new;
+	priv->base.ram.put = nv50_fb_vram_del;
+	nv_subdev(priv)->intr = nv50_fb_intr;
+	return nouveau_fb_preinit(&priv->base);
+}
+
+static void
+nv50_fb_dtor(struct nouveau_object *object)
+{
+	struct nouveau_device *device = nv_device(object);
+	struct nv50_fb_priv *priv = (void *)object;
+
+	if (priv->r100c08_page) {
+		pci_unmap_page(device->pdev, priv->r100c08, PAGE_SIZE,
+			       PCI_DMA_BIDIRECTIONAL);
+		__free_page(priv->r100c08_page);
+	}
+
+	nouveau_fb_destroy(&priv->base);
+}
+
+static int
+nv50_fb_init(struct nouveau_object *object)
+{
+	struct nouveau_device *device = nv_device(object);
+	struct nv50_fb_priv *priv = (void *)object;
+	int ret;
+
+	ret = nouveau_fb_init(&priv->base);
+	if (ret)
+		return ret;
+
+	/* Not a clue what this is exactly.  Without pointing it at a
+	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
+	 * cause IOMMU "read from address 0" errors (rh#561267)
+	 */
+	nv_wr32(priv, 0x100c08, priv->r100c08 >> 8);
+
+	/* This is needed to get meaningful information from 100c90
+	 * on traps. No idea what these values mean exactly. */
+	switch (device->chipset) {
+	case 0x50:
+		nv_wr32(priv, 0x100c90, 0x000707ff);
+		break;
+	case 0xa3:
+	case 0xa5:
+	case 0xa8:
+		nv_wr32(priv, 0x100c90, 0x000d0fff);
+		break;
+	case 0xaf:
+		nv_wr32(priv, 0x100c90, 0x089d1fff);
+		break;
+	default:
+		nv_wr32(priv, 0x100c90, 0x001d07ff);
+		break;
+	}
+
+	return 0;
+}
+
+struct nouveau_oclass
+nv50_fb_oclass = {
+	.handle = NV_SUBDEV(FB, 0x50),
+	.ofuncs = &(struct nouveau_ofuncs) {
+		.ctor = nv50_fb_ctor,
+		.dtor = nv50_fb_dtor,
+		.init = nv50_fb_init,
+		.fini = _nouveau_fb_fini,
+	},
+};

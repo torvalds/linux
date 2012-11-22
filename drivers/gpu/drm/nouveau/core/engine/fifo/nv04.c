@@ -525,7 +525,6 @@ nv04_fifo_intr(struct nouveau_subdev *subdev)
 
 		if (device->card_type == NV_50) {
 			if (status & 0x00000010) {
-				nv50_fb_trap(nouveau_fb(priv), 1);
 				status &= ~0x00000010;
 				nv_wr32(priv, 0x002100, 0x00000010);
 			}
