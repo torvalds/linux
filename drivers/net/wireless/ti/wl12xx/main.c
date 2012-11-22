@@ -38,6 +38,7 @@
 #include "reg.h"
 #include "cmd.h"
 #include "acx.h"
+#include "scan.h"
 #include "debugfs.h"
 
 static char *fref_param;
@@ -698,6 +699,11 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 		goto out;
 	}
 
+	/* common settings */
+	wl->scan_templ_id_2_4 = CMD_TEMPL_APP_PROBE_REQ_2_4_LEGACY;
+	wl->scan_templ_id_5 = CMD_TEMPL_APP_PROBE_REQ_5_LEGACY;
+	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
+	wl->sched_scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
 out:
 	return ret;
 }
@@ -1618,6 +1624,11 @@ static struct wlcore_ops wl12xx_ops = {
 	.set_rx_csum		= NULL,
 	.ap_get_mimo_wide_rate_mask = NULL,
 	.debugfs_init		= wl12xx_debugfs_add_files,
+	.scan_start		= wl12xx_scan_start,
+	.scan_stop		= wl12xx_scan_stop,
+	.scan_completed		= wl12xx_scan_completed,
+	.sched_scan_start	= wl12xx_sched_scan_start,
+	.sched_scan_stop	= wl12xx_scan_sched_scan_stop,
 	.get_spare_blocks	= wl12xx_get_spare_blocks,
 	.set_key		= wl12xx_set_key,
 	.pre_pkt_send		= NULL,

@@ -41,14 +41,14 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 
 	/* send empty templates for fw memory reservation */
 	ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-				      CMD_TEMPL_CFG_PROBE_REQ_2_4, NULL,
+				      wl->scan_templ_id_2_4, NULL,
 				      WL1271_CMD_TEMPL_MAX_SIZE,
 				      0, WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
 		return ret;
 
 	ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-				      CMD_TEMPL_CFG_PROBE_REQ_5,
+				      wl->scan_templ_id_5,
 				      NULL, WL1271_CMD_TEMPL_MAX_SIZE, 0,
 				      WL1271_RATE_AUTOMATIC);
 	if (ret < 0)
@@ -56,14 +56,16 @@ int wl1271_init_templates_config(struct wl1271 *wl)
 
 	if (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL) {
 		ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-					      CMD_TEMPL_APP_PROBE_REQ_2_4, NULL,
+					      wl->sched_scan_templ_id_2_4,
+					      NULL,
 					      WL1271_CMD_TEMPL_MAX_SIZE,
 					      0, WL1271_RATE_AUTOMATIC);
 		if (ret < 0)
 			return ret;
 
 		ret = wl1271_cmd_template_set(wl, WL12XX_INVALID_ROLE_ID,
-					      CMD_TEMPL_APP_PROBE_REQ_5, NULL,
+					      wl->sched_scan_templ_id_5,
+					      NULL,
 					      WL1271_CMD_TEMPL_MAX_SIZE,
 					      0, WL1271_RATE_AUTOMATIC);
 		if (ret < 0)

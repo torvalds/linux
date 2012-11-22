@@ -82,6 +82,14 @@ struct wlcore_ops {
 	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
 	int (*handle_static_data)(struct wl1271 *wl,
 				  struct wl1271_static_data *static_data);
+	int (*scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			  struct cfg80211_scan_request *req);
+	int (*scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
+	void (*scan_completed)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
+	int (*sched_scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				struct cfg80211_sched_scan_request *req,
+				struct ieee80211_sched_scan_ies *ies);
+	void (*sched_scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	int (*get_spare_blocks)(struct wl1271 *wl, bool is_gem);
 	int (*set_key)(struct wl1271 *wl, enum set_key_cmd cmd,
 		       struct ieee80211_vif *vif,
@@ -369,6 +377,11 @@ struct wl1271 {
 	const char *plt_fw_name;
 	const char *sr_fw_name;
 	const char *mr_fw_name;
+
+	u8 scan_templ_id_2_4;
+	u8 scan_templ_id_5;
+	u8 sched_scan_templ_id_2_4;
+	u8 sched_scan_templ_id_5;
 
 	/* per-chip-family private structure */
 	void *priv;

@@ -3252,7 +3252,7 @@ static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 		goto out_sleep;
 	}
 
-	ret = wl1271_scan(hw->priv, vif, ssid, len, req);
+	ret = wlcore_scan(hw->priv, vif, ssid, len, req);
 out_sleep:
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -3265,6 +3265,7 @@ static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
 	struct wl1271 *wl = hw->priv;
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
 	int ret;
 
 	wl1271_debug(DEBUG_MAC80211, "mac80211 cancel hw scan");
@@ -3282,7 +3283,7 @@ static void wl1271_op_cancel_hw_scan(struct ieee80211_hw *hw,
 		goto out;
 
 	if (wl->scan.state != WL1271_SCAN_STATE_DONE) {
-		ret = wl1271_scan_stop(wl);
+		ret = wl->ops->scan_stop(wl, wlvif);
 		if (ret < 0)
 			goto out_sleep;
 	}
@@ -3329,11 +3330,7 @@ static int wl1271_op_sched_scan_start(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_scan_sched_scan_config(wl, wlvif, req, ies);
-	if (ret < 0)
-		goto out_sleep;
-
-	ret = wl1271_scan_sched_scan_start(wl, wlvif);
+	ret = wl->ops->sched_scan_start(wl, wlvif, req, ies);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -3364,7 +3361,7 @@ static void wl1271_op_sched_scan_stop(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
-	wl1271_scan_sched_scan_stop(wl, wlvif);
+	wl->ops->sched_scan_stop(wl, wlvif);
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -3821,7 +3818,7 @@ static int wlcore_set_bssid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	/* we only support sched_scan while not connected */
 	if (wl->sched_scanning)
-		wl1271_scan_sched_scan_stop(wl, wlvif);
+		wl->ops->sched_scan_stop(wl, wlvif);
 
 	ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 	if (ret < 0)

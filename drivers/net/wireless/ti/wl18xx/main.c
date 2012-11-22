@@ -38,6 +38,7 @@
 #include "tx.h"
 #include "wl18xx.h"
 #include "io.h"
+#include "scan.h"
 #include "debugfs.h"
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
@@ -612,7 +613,8 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN |
 			      WLCORE_QUIRK_NO_SCHED_SCAN_WHILE_CONN |
-			      WLCORE_QUIRK_TX_PAD_LAST_FRAME;
+			      WLCORE_QUIRK_TX_PAD_LAST_FRAME |
+			      WLCORE_QUIRK_DUAL_PROBE_TMPL;
 
 		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER, WL18XX_IFTYPE_VER,
 				      WL18XX_MAJOR_VER, WL18XX_SUBTYPE_VER,
@@ -630,6 +632,10 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		goto out;
 	}
 
+	wl->scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
+	wl->scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
+	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_PROBE_REQ_2_4_PERIODIC;
+	wl->sched_scan_templ_id_5 = CMD_TEMPL_PROBE_REQ_5_PERIODIC;
 out:
 	return ret;
 }
@@ -1320,6 +1326,11 @@ static struct wlcore_ops wl18xx_ops = {
 	.ap_get_mimo_wide_rate_mask = wl18xx_ap_get_mimo_wide_rate_mask,
 	.get_mac	= wl18xx_get_mac,
 	.debugfs_init	= wl18xx_debugfs_add_files,
+	.scan_start	= wl18xx_scan_start,
+	.scan_stop	= wl18xx_scan_stop,
+	.scan_completed	= wl18xx_scan_completed,
+	.sched_scan_start	= wl18xx_sched_scan_start,
+	.sched_scan_stop	= wl18xx_scan_sched_scan_stop,
 	.handle_static_data	= wl18xx_handle_static_data,
 	.get_spare_blocks = wl18xx_get_spare_blocks,
 	.set_key	= wl18xx_set_key,

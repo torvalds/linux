@@ -131,6 +131,7 @@ fail:
 	wl12xx_queue_recovery_work(wl);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_cmd_send);
 
 /*
  * Poll the mailbox event field until any of the bits in the mask is set or a
@@ -1049,8 +1050,8 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	struct sk_buff *skb;
 	int ret;
 	u32 rate;
-	u16 template_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
-	u16 template_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
+	u16 template_id_2_4 = wl->scan_templ_id_2_4;
+	u16 template_id_5 = wl->scan_templ_id_5;
 
 	skb = ieee80211_probereq_get(wl->hw, vif, ssid, ssid_len,
 				     ie, ie_len);
@@ -1061,10 +1062,10 @@ int wl12xx_cmd_build_probe_req(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	wl1271_dump(DEBUG_SCAN, "PROBE REQ: ", skb->data, skb->len);
 
-	if (!sched_scan &&
+	if (sched_scan &&
 	    (wl->quirks & WLCORE_QUIRK_DUAL_PROBE_TMPL)) {
-		template_id_2_4 = CMD_TEMPL_APP_PROBE_REQ_2_4;
-		template_id_5 = CMD_TEMPL_APP_PROBE_REQ_5;
+		template_id_2_4 = wl->sched_scan_templ_id_2_4;
+		template_id_5 = wl->sched_scan_templ_id_5;
 	}
 
 	rate = wl1271_tx_min_rate_get(wl, wlvif->bitrate_masks[band]);
@@ -1081,6 +1082,7 @@ out:
 	dev_kfree_skb(skb);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl12xx_cmd_build_probe_req);
 
 struct sk_buff *wl1271_cmd_build_ap_probe_req(struct wl1271 *wl,
 					      struct wl12xx_vif *wlvif,

@@ -1135,6 +1135,7 @@ u32 wl1271_tx_min_rate_get(struct wl1271 *wl, u32 rate_set)
 
 	return BIT(__ffs(rate_set));
 }
+EXPORT_SYMBOL_GPL(wl1271_tx_min_rate_get);
 
 void wlcore_stop_queue_locked(struct wl1271 *wl, u8 queue,
 			      enum wlcore_queue_stop_reason reason)
