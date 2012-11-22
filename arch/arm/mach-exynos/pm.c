@@ -81,6 +81,9 @@ static int exynos_cpu_suspend(unsigned long arg)
 	outer_flush_all();
 #endif
 
+	if (soc_is_exynos5250())
+		flush_cache_all();
+
 	/* issue the standby signal into the pm unit. */
 	cpu_do_idle();
 
