@@ -195,11 +195,24 @@ void update_inode(struct inode *inode, struct page *node_page)
 	set_page_dirty(node_page);
 }
 
-int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
+int update_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *node_page;
-	bool need_lock = false;
+
+	node_page = get_node_page(sbi, inode->i_ino);
+	if (IS_ERR(node_page))
+		return PTR_ERR(node_page);
+
+	update_inode(inode, node_page);
+	f2fs_put_page(node_page, 1);
+	return 0;
+}
+
+int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	int ret, ilock;
 
 	if (inode->i_ino == F2FS_NODE_INO(sbi) ||
 			inode->i_ino == F2FS_META_INO(sbi))
@@ -208,25 +221,14 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	if (wbc)
 		f2fs_balance_fs(sbi);
 
-	node_page = get_node_page(sbi, inode->i_ino);
-	if (IS_ERR(node_page))
-		return PTR_ERR(node_page);
-
-	if (!PageDirty(node_page)) {
-		need_lock = true;
-		f2fs_put_page(node_page, 1);
-		mutex_lock(&sbi->write_inode);
-		node_page = get_node_page(sbi, inode->i_ino);
-		if (IS_ERR(node_page)) {
-			mutex_unlock(&sbi->write_inode);
-			return PTR_ERR(node_page);
-		}
-	}
-	update_inode(inode, node_page);
-	f2fs_put_page(node_page, 1);
-	if (need_lock)
-		mutex_unlock(&sbi->write_inode);
-	return 0;
+	/*
+	 * We need to lock here to prevent from producing dirty node pages
+	 * during the urgent cleaning time when runing out of free sections.
+	 */
+	ilock = mutex_lock_op(sbi);
+	ret = update_inode_page(inode);
+	mutex_unlock_op(sbi, ilock);
+	return ret;
 }
 
 /*
@@ -235,6 +237,7 @@ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc)
 void f2fs_evict_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+	int ilock;
 
 	truncate_inode_pages(&inode->i_data, 0);
 
@@ -255,7 +258,10 @@ void f2fs_evict_inode(struct inode *inode)
 	if (F2FS_HAS_BLOCKS(inode))
 		f2fs_truncate(inode);
 
+	ilock = mutex_lock_op(sbi);
 	remove_inode_page(inode);
+	mutex_unlock_op(sbi, ilock);
+
 	sb_end_intwrite(inode->i_sb);
 no_delete:
 	clear_inode(inode);

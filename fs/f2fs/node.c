@@ -385,6 +385,9 @@ got:
 
 /*
  * Caller should call f2fs_put_dnode(dn).
+ * Also, it should grab and release a mutex by calling mutex_lock_op() and
+ * mutex_unlock_op() only if ro is not set RDONLY_NODE.
+ * In the case of RDONLY_NODE, we don't need to care about mutex.
  */
 int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 {
@@ -415,11 +418,8 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 		bool done = false;
 
 		if (!nids[i] && mode == ALLOC_NODE) {
-			mutex_lock_op(sbi, NODE_NEW);
-
 			/* alloc new node */
 			if (!alloc_nid(sbi, &(nids[i]))) {
-				mutex_unlock_op(sbi, NODE_NEW);
 				err = -ENOSPC;
 				goto release_pages;
 			}
@@ -428,14 +428,12 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 			npage[i] = new_node_page(dn, noffset[i]);
 			if (IS_ERR(npage[i])) {
 				alloc_nid_failed(sbi, nids[i]);
-				mutex_unlock_op(sbi, NODE_NEW);
 				err = PTR_ERR(npage[i]);
 				goto release_pages;
 			}
 
 			set_nid(parent, offset[i - 1], nids[i], i == 1);
 			alloc_nid_done(sbi, nids[i]);
-			mutex_unlock_op(sbi, NODE_NEW);
 			done = true;
 		} else if (mode == LOOKUP_NODE_RA && i == level && level > 1) {
 			npage[i] = get_node_page_ra(parent, offset[i - 1]);
@@ -745,6 +743,10 @@ fail:
 	return err > 0 ? 0 : err;
 }
 
+/*
+ * Caller should grab and release a mutex by calling mutex_lock_op() and
+ * mutex_unlock_op().
+ */
 int remove_inode_page(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
@@ -752,21 +754,16 @@ int remove_inode_page(struct inode *inode)
 	nid_t ino = inode->i_ino;
 	struct dnode_of_data dn;
 
-	mutex_lock_op(sbi, NODE_TRUNC);
 	page = get_node_page(sbi, ino);
-	if (IS_ERR(page)) {
-		mutex_unlock_op(sbi, NODE_TRUNC);
+	if (IS_ERR(page))
 		return PTR_ERR(page);
-	}
 
 	if (F2FS_I(inode)->i_xattr_nid) {
 		nid_t nid = F2FS_I(inode)->i_xattr_nid;
 		struct page *npage = get_node_page(sbi, nid);
 
-		if (IS_ERR(npage)) {
-			mutex_unlock_op(sbi, NODE_TRUNC);
+		if (IS_ERR(npage))
 			return PTR_ERR(npage);
-		}
 
 		F2FS_I(inode)->i_xattr_nid = 0;
 		set_new_dnode(&dn, inode, page, npage, nid);
@@ -778,23 +775,18 @@ int remove_inode_page(struct inode *inode)
 	BUG_ON(inode->i_blocks != 0 && inode->i_blocks != 1);
 	set_new_dnode(&dn, inode, page, page, ino);
 	truncate_node(&dn);
-
-	mutex_unlock_op(sbi, NODE_TRUNC);
 	return 0;
 }
 
 int new_inode_page(struct inode *inode, const struct qstr *name)
 {
-	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
 	struct dnode_of_data dn;
 
 	/* allocate inode page for new inode */
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
-	mutex_lock_op(sbi, NODE_NEW);
 	page = new_node_page(&dn, 0);
 	init_dent_inode(name, page);
-	mutex_unlock_op(sbi, NODE_NEW);
 	if (IS_ERR(page))
 		return PTR_ERR(page);
 	f2fs_put_page(page, 1);
@@ -985,7 +977,7 @@ void sync_inode_page(struct dnode_of_data *dn)
 		if (!dn->inode_page_locked)
 			unlock_page(dn->inode_page);
 	} else {
-		f2fs_write_inode(dn->inode, NULL);
+		update_inode_page(dn->inode);
 	}
 }
 
@@ -1102,8 +1094,6 @@ static int f2fs_write_node_page(struct page *page,
 
 	wait_on_page_writeback(page);
 
-	mutex_lock_op(sbi, NODE_WRITE);
-
 	/* get old block addr of this node page */
 	nid = nid_of_node(page);
 	BUG_ON(page->index != nid);
@@ -1111,25 +1101,25 @@ static int f2fs_write_node_page(struct page *page,
 	get_node_info(sbi, nid, &ni);
 
 	/* This page is already truncated */
-	if (ni.blk_addr == NULL_ADDR)
-		goto out;
+	if (ni.blk_addr == NULL_ADDR) {
+		dec_page_count(sbi, F2FS_DIRTY_NODES);
+		unlock_page(page);
+		return 0;
+	}
 
 	if (wbc->for_reclaim) {
 		dec_page_count(sbi, F2FS_DIRTY_NODES);
 		wbc->pages_skipped++;
 		set_page_dirty(page);
-		mutex_unlock_op(sbi, NODE_WRITE);
 		return AOP_WRITEPAGE_ACTIVATE;
 	}
 
+	mutex_lock(&sbi->node_write);
 	set_page_writeback(page);
-
-	/* insert node offset */
 	write_node_page(sbi, page, nid, ni.blk_addr, &new_addr);
 	set_node_addr(sbi, &ni, new_addr);
-out:
 	dec_page_count(sbi, F2FS_DIRTY_NODES);
-	mutex_unlock_op(sbi, NODE_WRITE);
+	mutex_unlock(&sbi->node_write);
 	unlock_page(page);
 	return 0;
 }

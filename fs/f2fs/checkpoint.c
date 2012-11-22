@@ -543,54 +543,39 @@ retry:
  */
 static void block_operations(struct f2fs_sb_info *sbi)
 {
-	int t;
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = LONG_MAX,
 		.for_reclaim = 0,
 	};
+retry_flush_dents:
+	mutex_lock_all(sbi);
 
-	/* Stop renaming operation */
-	mutex_lock_op(sbi, RENAME);
-	mutex_lock_op(sbi, DENTRY_OPS);
-
-retry_dents:
 	/* write all the dirty dentry pages */
-	sync_dirty_dir_inodes(sbi);
-
-	mutex_lock_op(sbi, DATA_WRITE);
 	if (get_pages(sbi, F2FS_DIRTY_DENTS)) {
-		mutex_unlock_op(sbi, DATA_WRITE);
-		goto retry_dents;
+		mutex_unlock_all(sbi);
+		sync_dirty_dir_inodes(sbi);
+		goto retry_flush_dents;
 	}
-
-	/* block all the operations */
-	for (t = DATA_NEW; t <= NODE_TRUNC; t++)
-		mutex_lock_op(sbi, t);
-
-	mutex_lock(&sbi->write_inode);
 
 	/*
 	 * POR: we should ensure that there is no dirty node pages
 	 * until finishing nat/sit flush.
 	 */
-retry:
-	sync_node_pages(sbi, 0, &wbc);
-
-	mutex_lock_op(sbi, NODE_WRITE);
+retry_flush_nodes:
+	mutex_lock(&sbi->node_write);
 
 	if (get_pages(sbi, F2FS_DIRTY_NODES)) {
-		mutex_unlock_op(sbi, NODE_WRITE);
-		goto retry;
+		mutex_unlock(&sbi->node_write);
+		sync_node_pages(sbi, 0, &wbc);
+		goto retry_flush_nodes;
 	}
-	mutex_unlock(&sbi->write_inode);
 }
 
 static void unblock_operations(struct f2fs_sb_info *sbi)
 {
-	int t;
-	for (t = NODE_WRITE; t >= RENAME; t--)
-		mutex_unlock_op(sbi, t);
+	mutex_unlock(&sbi->node_write);
+	mutex_unlock_all(sbi);
 }
 
 static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)

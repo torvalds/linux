@@ -309,23 +309,12 @@ enum count_type {
 };
 
 /*
- * FS_LOCK nesting subclasses for the lock validator:
- *
- * The locking order between these classes is
- * RENAME -> DENTRY_OPS -> DATA_WRITE -> DATA_NEW
- *    -> DATA_TRUNC -> NODE_WRITE -> NODE_NEW -> NODE_TRUNC
+ * Uses as sbi->fs_lock[NR_GLOBAL_LOCKS].
+ * The checkpoint procedure blocks all the locks in this fs_lock array.
+ * Some FS operations grab free locks, and if there is no free lock,
+ * then wait to grab a lock in a round-robin manner.
  */
-enum lock_type {
-	RENAME,		/* for renaming operations */
-	DENTRY_OPS,	/* for directory operations */
-	DATA_WRITE,	/* for data write */
-	DATA_NEW,	/* for data allocation */
-	DATA_TRUNC,	/* for data truncate */
-	NODE_NEW,	/* for node allocation */
-	NODE_TRUNC,	/* for node truncate */
-	NODE_WRITE,	/* for node write */
-	NR_LOCK_TYPE,
-};
+#define NR_GLOBAL_LOCKS	8
 
 /*
  * The below are the page types of bios used in submti_bio().
@@ -365,10 +354,11 @@ struct f2fs_sb_info {
 	/* for checkpoint */
 	struct f2fs_checkpoint *ckpt;		/* raw checkpoint pointer */
 	struct inode *meta_inode;		/* cache meta blocks */
-	struct mutex cp_mutex;			/* for checkpoint procedure */
-	struct mutex fs_lock[NR_LOCK_TYPE];	/* for blocking FS operations */
-	struct mutex write_inode;		/* mutex for write inode */
+	struct mutex cp_mutex;			/* checkpoint procedure lock */
+	struct mutex fs_lock[NR_GLOBAL_LOCKS];	/* blocking FS operations */
+	struct mutex node_write;		/* locking node writes */
 	struct mutex writepages;		/* mutex for writepages() */
+	unsigned char next_lock_num;		/* round-robin global locks */
 	int por_doing;				/* recovery is doing or not */
 
 	/* for orphan inode management */
@@ -503,14 +493,40 @@ static inline void clear_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
 	cp->ckpt_flags = cpu_to_le32(ckpt_flags);
 }
 
-static inline void mutex_lock_op(struct f2fs_sb_info *sbi, enum lock_type t)
+static inline void mutex_lock_all(struct f2fs_sb_info *sbi)
 {
-	mutex_lock_nested(&sbi->fs_lock[t], t);
+	int i = 0;
+	for (; i < NR_GLOBAL_LOCKS; i++)
+		mutex_lock(&sbi->fs_lock[i]);
 }
 
-static inline void mutex_unlock_op(struct f2fs_sb_info *sbi, enum lock_type t)
+static inline void mutex_unlock_all(struct f2fs_sb_info *sbi)
 {
-	mutex_unlock(&sbi->fs_lock[t]);
+	int i = 0;
+	for (; i < NR_GLOBAL_LOCKS; i++)
+		mutex_unlock(&sbi->fs_lock[i]);
+}
+
+static inline int mutex_lock_op(struct f2fs_sb_info *sbi)
+{
+	unsigned char next_lock = sbi->next_lock_num % NR_GLOBAL_LOCKS;
+	int i = 0;
+
+	for (; i < NR_GLOBAL_LOCKS; i++)
+		if (mutex_trylock(&sbi->fs_lock[i]))
+			return i;
+
+	mutex_lock(&sbi->fs_lock[next_lock]);
+	sbi->next_lock_num++;
+	return next_lock;
+}
+
+static inline void mutex_unlock_op(struct f2fs_sb_info *sbi, int ilock)
+{
+	if (ilock < 0)
+		return;
+	BUG_ON(ilock >= NR_GLOBAL_LOCKS);
+	mutex_unlock(&sbi->fs_lock[ilock]);
 }
 
 /*
@@ -879,6 +895,7 @@ long f2fs_compat_ioctl(struct file *, unsigned int, unsigned long);
 void f2fs_set_inode_flags(struct inode *);
 struct inode *f2fs_iget(struct super_block *, unsigned long);
 void update_inode(struct inode *, struct page *);
+int update_inode_page(struct inode *);
 int f2fs_write_inode(struct inode *, struct writeback_control *);
 void f2fs_evict_inode(struct inode *);
 

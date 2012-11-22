@@ -307,6 +307,7 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 	int error, found, free, newsize;
 	size_t name_len;
 	char *pval;
+	int ilock;
 
 	if (name == NULL)
 		return -EINVAL;
@@ -321,7 +322,8 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 
 	f2fs_balance_fs(sbi);
 
-	mutex_lock_op(sbi, NODE_NEW);
+	ilock = mutex_lock_op(sbi);
+
 	if (!fi->i_xattr_nid) {
 		/* Allocate new attribute block */
 		struct dnode_of_data dn;
@@ -433,13 +435,13 @@ int f2fs_setxattr(struct inode *inode, int name_index, const char *name,
 		inode->i_ctime = CURRENT_TIME;
 		clear_inode_flag(fi, FI_ACL_MODE);
 	}
-	f2fs_write_inode(inode, NULL);
-	mutex_unlock_op(sbi, NODE_NEW);
+	update_inode_page(inode);
+	mutex_unlock_op(sbi, ilock);
 
 	return 0;
 cleanup:
 	f2fs_put_page(page, 1);
 exit:
-	mutex_unlock_op(sbi, NODE_NEW);
+	mutex_unlock_op(sbi, ilock);
 	return error;
 }

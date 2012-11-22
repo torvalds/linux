@@ -34,19 +34,18 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	block_t old_blk_addr;
 	struct dnode_of_data dn;
-	int err;
+	int err, ilock;
 
 	f2fs_balance_fs(sbi);
 
 	sb_start_pagefault(inode->i_sb);
 
-	mutex_lock_op(sbi, DATA_NEW);
-
 	/* block allocation */
+	ilock = mutex_lock_op(sbi);
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, page->index, ALLOC_NODE);
 	if (err) {
-		mutex_unlock_op(sbi, DATA_NEW);
+		mutex_unlock_op(sbi, ilock);
 		goto out;
 	}
 
@@ -56,13 +55,12 @@ static int f2fs_vm_page_mkwrite(struct vm_area_struct *vma,
 		err = reserve_new_block(&dn);
 		if (err) {
 			f2fs_put_dnode(&dn);
-			mutex_unlock_op(sbi, DATA_NEW);
+			mutex_unlock_op(sbi, ilock);
 			goto out;
 		}
 	}
 	f2fs_put_dnode(&dn);
-
-	mutex_unlock_op(sbi, DATA_NEW);
+	mutex_unlock_op(sbi, ilock);
 
 	lock_page(page);
 	if (page->mapping != inode->i_mapping ||
@@ -223,20 +221,19 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	unsigned int blocksize = inode->i_sb->s_blocksize;
 	struct dnode_of_data dn;
 	pgoff_t free_from;
-	int count = 0;
+	int count = 0, ilock = -1;
 	int err;
 
 	free_from = (pgoff_t)
 			((from + blocksize - 1) >> (sbi->log_blocksize));
 
-	mutex_lock_op(sbi, DATA_TRUNC);
-
+	ilock = mutex_lock_op(sbi);
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, free_from, LOOKUP_NODE);
 	if (err) {
 		if (err == -ENOENT)
 			goto free_next;
-		mutex_unlock_op(sbi, DATA_TRUNC);
+		mutex_unlock_op(sbi, ilock);
 		return err;
 	}
 
@@ -247,6 +244,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 
 	count -= dn.ofs_in_node;
 	BUG_ON(count < 0);
+
 	if (dn.ofs_in_node || IS_INODE(dn.node_page)) {
 		truncate_data_blocks_range(&dn, count);
 		free_from += count;
@@ -255,7 +253,7 @@ static int truncate_blocks(struct inode *inode, u64 from)
 	f2fs_put_dnode(&dn);
 free_next:
 	err = truncate_inode_blocks(inode, free_from);
-	mutex_unlock_op(sbi, DATA_TRUNC);
+	mutex_unlock_op(sbi, ilock);
 
 	/* lastly zero out the first data page */
 	truncate_partial_data_page(inode, from);
@@ -363,15 +361,16 @@ static void fill_zero(struct inode *inode, pgoff_t index,
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 	struct page *page;
+	int ilock;
 
 	if (!len)
 		return;
 
 	f2fs_balance_fs(sbi);
 
-	mutex_lock_op(sbi, DATA_NEW);
+	ilock = mutex_lock_op(sbi);
 	page = get_new_data_page(inode, index, false);
-	mutex_unlock_op(sbi, DATA_NEW);
+	mutex_unlock_op(sbi, ilock);
 
 	if (!IS_ERR(page)) {
 		wait_on_page_writeback(page);
@@ -388,13 +387,10 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 
 	for (index = pg_start; index < pg_end; index++) {
 		struct dnode_of_data dn;
-		struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
 
-		mutex_lock_op(sbi, DATA_TRUNC);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		err = get_dnode_of_data(&dn, index, LOOKUP_NODE);
 		if (err) {
-			mutex_unlock_op(sbi, DATA_TRUNC);
 			if (err == -ENOENT)
 				continue;
 			return err;
@@ -403,7 +399,6 @@ int truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
 		if (dn.data_blkaddr != NULL_ADDR)
 			truncate_data_blocks_range(&dn, 1);
 		f2fs_put_dnode(&dn);
-		mutex_unlock_op(sbi, DATA_TRUNC);
 	}
 	return 0;
 }
@@ -434,6 +429,7 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len, int mode)
 			struct address_space *mapping = inode->i_mapping;
 			loff_t blk_start, blk_end;
 			struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+			int ilock;
 
 			f2fs_balance_fs(sbi);
 
@@ -441,7 +437,10 @@ static int punch_hole(struct inode *inode, loff_t offset, loff_t len, int mode)
 			blk_end = pg_end << PAGE_CACHE_SHIFT;
 			truncate_inode_pages_range(mapping, blk_start,
 					blk_end - 1);
+
+			ilock = mutex_lock_op(sbi);
 			ret = truncate_hole(inode, pg_start, pg_end);
+			mutex_unlock_op(sbi, ilock);
 		}
 	}
 
@@ -475,13 +474,13 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 
 	for (index = pg_start; index <= pg_end; index++) {
 		struct dnode_of_data dn;
+		int ilock;
 
-		mutex_lock_op(sbi, DATA_NEW);
-
+		ilock = mutex_lock_op(sbi);
 		set_new_dnode(&dn, inode, NULL, NULL, 0);
 		ret = get_dnode_of_data(&dn, index, ALLOC_NODE);
 		if (ret) {
-			mutex_unlock_op(sbi, DATA_NEW);
+			mutex_unlock_op(sbi, ilock);
 			break;
 		}
 
@@ -489,13 +488,12 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 			ret = reserve_new_block(&dn);
 			if (ret) {
 				f2fs_put_dnode(&dn);
-				mutex_unlock_op(sbi, DATA_NEW);
+				mutex_unlock_op(sbi, ilock);
 				break;
 			}
 		}
 		f2fs_put_dnode(&dn);
-
-		mutex_unlock_op(sbi, DATA_NEW);
+		mutex_unlock_op(sbi, ilock);
 
 		if (pg_start == pg_end)
 			new_size = offset + len;

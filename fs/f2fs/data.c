@@ -260,6 +260,9 @@ struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 /*
  * Caller ensures that this data page is never allocated.
  * A new zero-filled data page is allocated in the page cache.
+ *
+ * Also, caller should grab and release a mutex by calling mutex_lock_op() and
+ * mutex_unlock_op().
  */
 struct page *get_new_data_page(struct inode *inode, pgoff_t index,
 						bool new_i_size)
@@ -479,10 +482,11 @@ static int f2fs_write_data_page(struct page *page,
 	const pgoff_t end_index = ((unsigned long long) i_size)
 							>> PAGE_CACHE_SHIFT;
 	unsigned offset;
+	bool need_balance_fs = false;
 	int err = 0;
 
 	if (page->index < end_index)
-		goto out;
+		goto write;
 
 	/*
 	 * If the offset is out-of-range of file size,
@@ -494,50 +498,46 @@ static int f2fs_write_data_page(struct page *page,
 			dec_page_count(sbi, F2FS_DIRTY_DENTS);
 			inode_dec_dirty_dents(inode);
 		}
-		goto unlock_out;
+		goto out;
 	}
 
 	zero_user_segment(page, offset, PAGE_CACHE_SIZE);
-out:
-	if (sbi->por_doing)
+write:
+	if (sbi->por_doing) {
+		err = AOP_WRITEPAGE_ACTIVATE;
 		goto redirty_out;
+	}
 
-	if (wbc->for_reclaim && !S_ISDIR(inode->i_mode) && !is_cold_data(page))
-		goto redirty_out;
-
-	mutex_lock_op(sbi, DATA_WRITE);
+	/* Dentry blocks are controlled by checkpoint */
 	if (S_ISDIR(inode->i_mode)) {
 		dec_page_count(sbi, F2FS_DIRTY_DENTS);
 		inode_dec_dirty_dents(inode);
+		err = do_write_data_page(page);
+	} else {
+		int ilock = mutex_lock_op(sbi);
+		err = do_write_data_page(page);
+		mutex_unlock_op(sbi, ilock);
+		need_balance_fs = true;
 	}
-	err = do_write_data_page(page);
-	if (err && err != -ENOENT) {
-		wbc->pages_skipped++;
-		set_page_dirty(page);
-	}
-	mutex_unlock_op(sbi, DATA_WRITE);
+	if (err == -ENOENT)
+		goto out;
+	else if (err)
+		goto redirty_out;
 
 	if (wbc->for_reclaim)
 		f2fs_submit_bio(sbi, DATA, true);
 
-	if (err == -ENOENT)
-		goto unlock_out;
-
 	clear_cold_data(page);
+out:
 	unlock_page(page);
-
-	if (!wbc->for_reclaim && !S_ISDIR(inode->i_mode))
+	if (need_balance_fs)
 		f2fs_balance_fs(sbi);
 	return 0;
-
-unlock_out:
-	unlock_page(page);
-	return (err == -ENOENT) ? 0 : err;
 
 redirty_out:
 	wbc->pages_skipped++;
 	set_page_dirty(page);
-	return AOP_WRITEPAGE_ACTIVATE;
+	return err;
 }
 
 #define MAX_DESIRED_PAGES_WP	4096
@@ -592,6 +592,7 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	pgoff_t index = ((unsigned long long) pos) >> PAGE_CACHE_SHIFT;
 	struct dnode_of_data dn;
 	int err = 0;
+	int ilock;
 
 	/* for nobh_write_end */
 	*fsdata = NULL;
@@ -603,28 +604,21 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 		return -ENOMEM;
 	*pagep = page;
 
-	mutex_lock_op(sbi, DATA_NEW);
+	ilock = mutex_lock_op(sbi);
 
 	set_new_dnode(&dn, inode, NULL, NULL, 0);
 	err = get_dnode_of_data(&dn, index, ALLOC_NODE);
-	if (err) {
-		mutex_unlock_op(sbi, DATA_NEW);
-		f2fs_put_page(page, 1);
-		return err;
-	}
+	if (err)
+		goto err;
 
-	if (dn.data_blkaddr == NULL_ADDR) {
+	if (dn.data_blkaddr == NULL_ADDR)
 		err = reserve_new_block(&dn);
-		if (err) {
-			f2fs_put_dnode(&dn);
-			mutex_unlock_op(sbi, DATA_NEW);
-			f2fs_put_page(page, 1);
-			return err;
-		}
-	}
-	f2fs_put_dnode(&dn);
 
-	mutex_unlock_op(sbi, DATA_NEW);
+	f2fs_put_dnode(&dn);
+	if (err)
+		goto err;
+
+	mutex_unlock_op(sbi, ilock);
 
 	if ((len == PAGE_CACHE_SIZE) || PageUptodate(page))
 		return 0;
@@ -654,6 +648,11 @@ out:
 	SetPageUptodate(page);
 	clear_cold_data(page);
 	return 0;
+
+err:
+	mutex_unlock_op(sbi, ilock);
+	f2fs_put_page(page, 1);
+	return err;
 }
 
 static ssize_t f2fs_direct_IO(int rw, struct kiocb *iocb,
