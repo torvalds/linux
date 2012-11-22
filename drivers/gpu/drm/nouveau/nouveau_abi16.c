@@ -242,13 +242,25 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (unlikely(!abi16))
 		return -ENOMEM;
 	client = nv_client(abi16->client);
-
-	if (init->fb_ctxdma_handle == ~0 || init->tt_ctxdma_handle == ~0)
-		return nouveau_abi16_put(abi16, -EINVAL);
-
 	device = nv_device(abi16->device);
 	imem   = nouveau_instmem(device);
 	pfb    = nouveau_fb(device);
+
+	/* hack to allow channel engine type specification on kepler */
+	if (device->card_type >= NV_E0) {
+		if (init->fb_ctxdma_handle != ~0)
+			init->fb_ctxdma_handle = NVE0_CHANNEL_IND_ENGINE_GR;
+		else
+			init->fb_ctxdma_handle = init->tt_ctxdma_handle;
+
+		/* allow flips to be executed if this is a graphics channel */
+		init->tt_ctxdma_handle = 0;
+		if (init->fb_ctxdma_handle == NVE0_CHANNEL_IND_ENGINE_GR)
+			init->tt_ctxdma_handle = 1;
+	}
+
+	if (init->fb_ctxdma_handle == ~0 || init->tt_ctxdma_handle == ~0)
+		return nouveau_abi16_put(abi16, -EINVAL);
 
 	/* allocate "abi16 channel" data and make up a handle for it */
 	init->channel = ffsll(~abi16->handles);
@@ -264,11 +276,6 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	abi16->handles |= (1 << init->channel);
 
 	/* create channel object and initialise dma and fence management */
-	if (device->card_type >= NV_E0) {
-		init->fb_ctxdma_handle = NVE0_CHANNEL_IND_ENGINE_GR;
-		init->tt_ctxdma_handle = 0;
-	}
-
 	ret = nouveau_channel_new(drm, cli, NVDRM_DEVICE, NVDRM_CHAN |
 				  init->channel, init->fb_ctxdma_handle,
 				  init->tt_ctxdma_handle, &chan->chan);
