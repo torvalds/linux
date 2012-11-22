@@ -491,7 +491,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
+	wl->mbox_ptr[1] = wl->mbox_ptr[0] + wl->mbox_size;
 
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
@@ -508,23 +508,6 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	 */
 
 	/* unmask required mbox events  */
-	wl->event_mask = BSS_LOSE_EVENT_ID |
-		REGAINED_BSS_EVENT_ID |
-		SCAN_COMPLETE_EVENT_ID |
-		ROLE_STOP_COMPLETE_EVENT_ID |
-		RSSI_SNR_TRIGGER_0_EVENT_ID |
-		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
-		SOFT_GEMINI_SENSE_EVENT_ID |
-		PERIODIC_SCAN_REPORT_EVENT_ID |
-		PERIODIC_SCAN_COMPLETE_EVENT_ID |
-		DUMMY_PACKET_EVENT_ID |
-		PEER_REMOVE_COMPLETE_EVENT_ID |
-		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
-		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
-		INACTIVE_STA_EVENT_ID |
-		MAX_TX_RETRY_EVENT_ID |
-		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
-
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
 		wl1271_error("EVENT mask setting failed");

@@ -35,7 +35,6 @@ void wl1271_scan_complete_work(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 	struct wl1271 *wl;
-	struct ieee80211_vif *vif;
 	struct wl12xx_vif *wlvif;
 	int ret;
 
@@ -52,8 +51,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	if (wl->scan.state == WL1271_SCAN_STATE_IDLE)
 		goto out;
 
-	vif = wl->scan_vif;
-	wlvif = wl12xx_vif_to_data(vif);
+	wlvif = wl->scan_wlvif;
 
 	/*
 	 * Rearm the tx watchdog just before idling scan. This
@@ -64,7 +62,7 @@ void wl1271_scan_complete_work(struct work_struct *work)
 	wl->scan.state = WL1271_SCAN_STATE_IDLE;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 	wl->scan.req = NULL;
-	wl->scan_vif = NULL;
+	wl->scan_wlvif = NULL;
 
 	ret = wl1271_ps_elp_wakeup(wl);
 	if (ret < 0)
@@ -295,7 +293,7 @@ int wlcore_scan(struct wl1271 *wl, struct ieee80211_vif *vif,
 		wl->scan.ssid_len = 0;
 	}
 
-	wl->scan_vif = vif;
+	wl->scan_wlvif = wlvif;
 	wl->scan.req = req;
 	memset(wl->scan.scanned_ch, 0, sizeof(wl->scan.scanned_ch));
 

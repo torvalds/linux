@@ -40,6 +40,7 @@
 #include "wl18xx.h"
 #include "io.h"
 #include "scan.h"
+#include "event.h"
 #include "debugfs.h"
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
@@ -851,6 +852,18 @@ static int wl18xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
+	wl->event_mask = BSS_LOSS_EVENT_ID |
+		SCAN_COMPLETE_EVENT_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID |
+		PERIODIC_SCAN_COMPLETE_EVENT_ID |
+		DUMMY_PACKET_EVENT_ID |
+		PEER_REMOVE_COMPLETE_EVENT_ID |
+		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
+		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
+		INACTIVE_STA_EVENT_ID |
+		MAX_TX_FAILURE_EVENT_ID |
+		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
+
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
@@ -1313,6 +1326,8 @@ static struct wlcore_ops wl18xx_ops = {
 	.plt_init	= wl18xx_plt_init,
 	.trigger_cmd	= wl18xx_trigger_cmd,
 	.ack_event	= wl18xx_ack_event,
+	.wait_for_event	= wl18xx_wait_for_event,
+	.process_mailbox_events = wl18xx_process_mailbox_events,
 	.calc_tx_blocks = wl18xx_calc_tx_blocks,
 	.set_tx_desc_blocks = wl18xx_set_tx_desc_blocks,
 	.set_tx_desc_data_len = wl18xx_set_tx_desc_data_len,
@@ -1330,7 +1345,6 @@ static struct wlcore_ops wl18xx_ops = {
 	.debugfs_init	= wl18xx_debugfs_add_files,
 	.scan_start	= wl18xx_scan_start,
 	.scan_stop	= wl18xx_scan_stop,
-	.scan_completed	= wl18xx_scan_completed,
 	.sched_scan_start	= wl18xx_sched_scan_start,
 	.sched_scan_stop	= wl18xx_scan_sched_scan_stop,
 	.handle_static_data	= wl18xx_handle_static_data,
@@ -1524,7 +1538,8 @@ static int __devinit wl18xx_probe(struct platform_device *pdev)
 	int ret;
 
 	hw = wlcore_alloc_hw(sizeof(struct wl18xx_priv),
-			     WL18XX_AGGR_BUFFER_SIZE);
+			     WL18XX_AGGR_BUFFER_SIZE,
+			     sizeof(struct wl18xx_event_mailbox));
 	if (IS_ERR(hw)) {
 		wl1271_error("can't allocate hw");
 		ret = PTR_ERR(hw);

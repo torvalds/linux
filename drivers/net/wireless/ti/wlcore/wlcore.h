@@ -51,6 +51,9 @@ struct wlcore_ops {
 	int (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
 			   void *buf, size_t len);
 	int (*ack_event)(struct wl1271 *wl);
+	int (*wait_for_event)(struct wl1271 *wl, enum wlcore_wait_event event,
+			      bool *timeout);
+	int (*process_mailbox_events)(struct wl1271 *wl);
 	u32 (*calc_tx_blocks)(struct wl1271 *wl, u32 len, u32 spare_blks);
 	void (*set_tx_desc_blocks)(struct wl1271 *wl,
 				   struct wl1271_tx_hw_descr *desc,
@@ -85,7 +88,6 @@ struct wlcore_ops {
 	int (*scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  struct cfg80211_scan_request *req);
 	int (*scan_stop)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
-	void (*scan_completed)(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 	int (*sched_scan_start)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 				struct cfg80211_sched_scan_request *req,
 				struct ieee80211_sched_scan_ies *ies);
@@ -281,21 +283,19 @@ struct wl1271 {
 	bool watchdog_recovery;
 
 	/* Pointer that holds DMA-friendly block for the mailbox */
-	struct event_mailbox *mbox;
+	void *mbox;
 
 	/* The mbox event mask */
 	u32 event_mask;
 
 	/* Mailbox pointers */
+	u32 mbox_size;
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
-	struct ieee80211_vif *scan_vif;
+	struct wl12xx_vif *scan_wlvif;
 	struct wl1271_scan scan;
 	struct delayed_work scan_complete_work;
-
-	/* Connection loss work */
-	struct delayed_work connection_loss_work;
 
 	struct ieee80211_vif *roc_vif;
 	struct delayed_work roc_complete_work;
@@ -436,7 +436,8 @@ struct wl1271 {
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);
 int __devexit wlcore_remove(struct platform_device *pdev);
-struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size);
+struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
+				     u32 mbox_size);
 int wlcore_free_hw(struct wl1271 *wl);
 int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 		   struct ieee80211_vif *vif,

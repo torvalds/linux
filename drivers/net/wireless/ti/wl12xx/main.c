@@ -39,6 +39,7 @@
 #include "cmd.h"
 #include "acx.h"
 #include "scan.h"
+#include "event.h"
 #include "debugfs.h"
 
 static char *fref_param;
@@ -1229,6 +1230,23 @@ static int wl12xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
+	wl->event_mask = BSS_LOSE_EVENT_ID |
+		REGAINED_BSS_EVENT_ID |
+		SCAN_COMPLETE_EVENT_ID |
+		ROLE_STOP_COMPLETE_EVENT_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID |
+		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
+		SOFT_GEMINI_SENSE_EVENT_ID |
+		PERIODIC_SCAN_REPORT_EVENT_ID |
+		PERIODIC_SCAN_COMPLETE_EVENT_ID |
+		DUMMY_PACKET_EVENT_ID |
+		PEER_REMOVE_COMPLETE_EVENT_ID |
+		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
+		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
+		INACTIVE_STA_EVENT_ID |
+		MAX_TX_RETRY_EVENT_ID |
+		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
+
 	ret = wlcore_boot_run_firmware(wl);
 	if (ret < 0)
 		goto out;
@@ -1609,6 +1627,8 @@ static struct wlcore_ops wl12xx_ops = {
 	.plt_init		= wl12xx_plt_init,
 	.trigger_cmd		= wl12xx_trigger_cmd,
 	.ack_event		= wl12xx_ack_event,
+	.wait_for_event		= wl12xx_wait_for_event,
+	.process_mailbox_events	= wl12xx_process_mailbox_events,
 	.calc_tx_blocks		= wl12xx_calc_tx_blocks,
 	.set_tx_desc_blocks	= wl12xx_set_tx_desc_blocks,
 	.set_tx_desc_data_len	= wl12xx_set_tx_desc_data_len,
@@ -1627,7 +1647,6 @@ static struct wlcore_ops wl12xx_ops = {
 	.debugfs_init		= wl12xx_debugfs_add_files,
 	.scan_start		= wl12xx_scan_start,
 	.scan_stop		= wl12xx_scan_stop,
-	.scan_completed		= wl12xx_scan_completed,
 	.sched_scan_start	= wl12xx_sched_scan_start,
 	.sched_scan_stop	= wl12xx_scan_sched_scan_stop,
 	.get_spare_blocks	= wl12xx_get_spare_blocks,
@@ -1719,7 +1738,8 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	int ret;
 
 	hw = wlcore_alloc_hw(sizeof(struct wl12xx_priv),
-			     WL12XX_AGGR_BUFFER_SIZE);
+			     WL12XX_AGGR_BUFFER_SIZE,
+			     sizeof(struct wl12xx_event_mailbox));
 	if (IS_ERR(hw)) {
 		wl1271_error("can't allocate hw");
 		ret = PTR_ERR(hw);
