@@ -855,16 +855,16 @@ err_queue_init:
 		s5p_mfc_deinit_hw(dev);
 err_init_hw:
 err_load_fw:
-	dev->ctx[ctx->num] = NULL;
-	del_timer_sync(&dev->watchdog_timer);
 err_pwr_enable:
 	if (dev->num_inst == 1) {
 		if (s5p_mfc_power_off() < 0)
 			mfc_err("power off failed\n");
+		del_timer_sync(&dev->watchdog_timer);
 	}
 err_ctrls_setup:
 	s5p_mfc_dec_ctrls_delete(ctx);
 err_bad_node:
+	dev->ctx[ctx->num] = NULL;
 err_no_ctx:
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
