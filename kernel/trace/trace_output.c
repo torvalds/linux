@@ -1064,6 +1064,168 @@ static struct trace_event trace_fn_event = {
 	.funcs		= &trace_fn_funcs,
 };
 
+/* TRACE_GRAPH_ENT */
+static enum print_line_t trace_graph_ent_trace(struct trace_iterator *iter, int flags,
+					struct trace_event *event)
+{
+	struct trace_seq *s = &iter->seq;
+	struct ftrace_graph_ent_entry *field;
+
+	trace_assign_type(field, iter->ent);
+
+	if (!trace_seq_puts(s, "graph_ent: func="))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (!seq_print_ip_sym(s, field->graph_ent.func, flags))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (!trace_seq_puts(s, "\n"))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t trace_graph_ent_raw(struct trace_iterator *iter, int flags,
+				      struct trace_event *event)
+{
+	struct ftrace_graph_ent_entry *field;
+
+	trace_assign_type(field, iter->ent);
+
+	if (!trace_seq_printf(&iter->seq, "%lx %d\n",
+			      field->graph_ent.func,
+			      field->graph_ent.depth))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t trace_graph_ent_hex(struct trace_iterator *iter, int flags,
+				      struct trace_event *event)
+{
+	struct ftrace_graph_ent_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	SEQ_PUT_HEX_FIELD_RET(s, field->graph_ent.func);
+	SEQ_PUT_HEX_FIELD_RET(s, field->graph_ent.depth);
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t trace_graph_ent_bin(struct trace_iterator *iter, int flags,
+				      struct trace_event *event)
+{
+	struct ftrace_graph_ent_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	SEQ_PUT_FIELD_RET(s, field->graph_ent.func);
+	SEQ_PUT_FIELD_RET(s, field->graph_ent.depth);
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static struct trace_event_functions trace_graph_ent_funcs = {
+	.trace		= trace_graph_ent_trace,
+	.raw		= trace_graph_ent_raw,
+	.hex		= trace_graph_ent_hex,
+	.binary		= trace_graph_ent_bin,
+};
+
+static struct trace_event trace_graph_ent_event = {
+	.type		= TRACE_GRAPH_ENT,
+	.funcs		= &trace_graph_ent_funcs,
+};
+
+/* TRACE_GRAPH_RET */
+static enum print_line_t trace_graph_ret_trace(struct trace_iterator *iter, int flags,
+					struct trace_event *event)
+{
+	struct trace_seq *s = &iter->seq;
+	struct trace_entry *entry = iter->ent;
+	struct ftrace_graph_ret_entry *field;
+
+	trace_assign_type(field, entry);
+
+	if (!trace_seq_puts(s, "graph_ret: func="))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (!seq_print_ip_sym(s, field->ret.func, flags))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	if (!trace_seq_puts(s, "\n"))
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t trace_graph_ret_raw(struct trace_iterator *iter, int flags,
+				      struct trace_event *event)
+{
+	struct ftrace_graph_ret_entry *field;
+
+	trace_assign_type(field, iter->ent);
+
+	if (!trace_seq_printf(&iter->seq, "%lx %lld %lld %ld %d\n",
+			      field->ret.func,
+			      field->ret.calltime,
+			      field->ret.rettime,
+			      field->ret.overrun,
+			      field->ret.depth));
+		return TRACE_TYPE_PARTIAL_LINE;
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t trace_graph_ret_hex(struct trace_iterator *iter, int flags,
+				      struct trace_event *event)
+{
+	struct ftrace_graph_ret_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	SEQ_PUT_HEX_FIELD_RET(s, field->ret.func);
+	SEQ_PUT_HEX_FIELD_RET(s, field->ret.calltime);
+	SEQ_PUT_HEX_FIELD_RET(s, field->ret.rettime);
+	SEQ_PUT_HEX_FIELD_RET(s, field->ret.overrun);
+	SEQ_PUT_HEX_FIELD_RET(s, field->ret.depth);
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static enum print_line_t trace_graph_ret_bin(struct trace_iterator *iter, int flags,
+				      struct trace_event *event)
+{
+	struct ftrace_graph_ret_entry *field;
+	struct trace_seq *s = &iter->seq;
+
+	trace_assign_type(field, iter->ent);
+
+	SEQ_PUT_FIELD_RET(s, field->ret.func);
+	SEQ_PUT_FIELD_RET(s, field->ret.calltime);
+	SEQ_PUT_FIELD_RET(s, field->ret.rettime);
+	SEQ_PUT_FIELD_RET(s, field->ret.overrun);
+	SEQ_PUT_FIELD_RET(s, field->ret.depth);
+
+	return TRACE_TYPE_HANDLED;
+}
+
+static struct trace_event_functions trace_graph_ret_funcs = {
+	.trace		= trace_graph_ret_trace,
+	.raw		= trace_graph_ret_raw,
+	.hex		= trace_graph_ret_hex,
+	.binary		= trace_graph_ret_bin,
+};
+
+static struct trace_event trace_graph_ret_event = {
+	.type		= TRACE_GRAPH_RET,
+	.funcs		= &trace_graph_ret_funcs,
+};
+
 /* TRACE_CTX an TRACE_WAKE */
 static enum print_line_t trace_ctxwake_print(struct trace_iterator *iter,
 					     char *delim)
@@ -1454,6 +1616,8 @@ static struct trace_event trace_print_event = {
 
 static struct trace_event *events[] __initdata = {
 	&trace_fn_event,
+	&trace_graph_ent_event,
+	&trace_graph_ret_event,
 	&trace_ctx_event,
 	&trace_wake_event,
 	&trace_stack_event,
