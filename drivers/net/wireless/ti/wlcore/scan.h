@@ -71,8 +71,16 @@ struct wl1271_cmd_trigger_scan_to {
 } __packed;
 
 #define MAX_CHANNELS_2GHZ	14
-#define MAX_CHANNELS_5GHZ	23
 #define MAX_CHANNELS_4GHZ	4
+
+/*
+ * This max value here is used only for the struct definition of
+ * wlcore_scan_channels. This struct is used by both 12xx
+ * and 18xx (which have different max 5ghz channels value).
+ * In order to make sure this is large enough, just use the
+ * max possible 5ghz channels.
+ */
+#define MAX_CHANNELS_5GHZ	42
 
 #define SCAN_MAX_CYCLE_INTERVALS 16
 #define SCAN_MAX_BANDS 3

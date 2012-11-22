@@ -26,6 +26,8 @@
 #include "../wlcore/cmd.h"
 #include "../wlcore/scan.h"
 
+#define WL12XX_MAX_CHANNELS_5GHZ 23
+
 struct basic_scan_params {
 	/* Scan option flags (WL1271_SCAN_OPT_*) */
 	__le16 scan_options;
@@ -107,7 +109,7 @@ struct wl1271_cmd_sched_scan_config {
 	u8 role_id;
 	u8 padding[1];
 	struct conn_scan_ch_params channels_2[MAX_CHANNELS_2GHZ];
-	struct conn_scan_ch_params channels_5[MAX_CHANNELS_5GHZ];
+	struct conn_scan_ch_params channels_5[WL12XX_MAX_CHANNELS_5GHZ];
 	struct conn_scan_ch_params channels_4[MAX_CHANNELS_4GHZ];
 } __packed;
 

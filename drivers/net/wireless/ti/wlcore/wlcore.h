@@ -382,6 +382,7 @@ struct wl1271 {
 	u8 scan_templ_id_5;
 	u8 sched_scan_templ_id_2_4;
 	u8 sched_scan_templ_id_5;
+	u8 max_channels_5;
 
 	/* per-chip-family private structure */
 	void *priv;

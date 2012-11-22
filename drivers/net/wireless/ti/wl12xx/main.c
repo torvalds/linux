@@ -704,6 +704,7 @@ static int wl12xx_identify_chip(struct wl1271 *wl)
 	wl->scan_templ_id_5 = CMD_TEMPL_APP_PROBE_REQ_5_LEGACY;
 	wl->sched_scan_templ_id_2_4 = CMD_TEMPL_CFG_PROBE_REQ_2_4;
 	wl->sched_scan_templ_id_5 = CMD_TEMPL_CFG_PROBE_REQ_5;
+	wl->max_channels_5 = WL12XX_MAX_CHANNELS_5GHZ;
 out:
 	return ret;
 }

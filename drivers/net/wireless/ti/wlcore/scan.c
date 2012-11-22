@@ -228,7 +228,7 @@ wlcore_set_scan_chan_params(struct wl1271 *wl,
 					 cfg->channels_5,
 					 IEEE80211_BAND_5GHZ,
 					 false, true, 0,
-					 MAX_CHANNELS_5GHZ,
+					 wl->max_channels_5,
 					 &n_pactive_ch);
 	cfg->dfs =
 		wlcore_scan_get_channels(wl,
@@ -239,7 +239,7 @@ wlcore_set_scan_chan_params(struct wl1271 *wl,
 					 IEEE80211_BAND_5GHZ,
 					 true, true,
 					 cfg->passive[1],
-					 MAX_CHANNELS_5GHZ,
+					 wl->max_channels_5,
 					 &n_pactive_ch);
 	cfg->active[1] =
 		wlcore_scan_get_channels(wl,
@@ -250,7 +250,7 @@ wlcore_set_scan_chan_params(struct wl1271 *wl,
 					 IEEE80211_BAND_5GHZ,
 					 false, false,
 					 cfg->passive[1] + cfg->dfs,
-					 MAX_CHANNELS_5GHZ,
+					 wl->max_channels_5,
 					 &n_pactive_ch);
 
 	/* 802.11j channels are not supported yet */

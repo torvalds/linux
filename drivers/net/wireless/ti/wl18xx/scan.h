@@ -50,6 +50,8 @@ enum
 	WL18XX_SCAN_RATE_6	= 2,
 };
 
+#define WL18XX_MAX_CHANNELS_5GHZ 32
+
 struct wl18xx_cmd_scan_params {
 	struct wl1271_cmd_header header;
 
@@ -89,7 +91,7 @@ struct wl18xx_cmd_scan_params {
 	union {
 		struct {
 			struct conn_scan_ch_params channels_2[MAX_CHANNELS_2GHZ];
-			struct conn_scan_ch_params channels_5[MAX_CHANNELS_5GHZ];
+			struct conn_scan_ch_params channels_5[WL18XX_MAX_CHANNELS_5GHZ];
 			struct conn_scan_ch_params channels_4[MAX_CHANNELS_4GHZ];
 		};
 		struct tracking_ch_params channels_tracking[WL1271_SCAN_MAX_CHANNELS];
