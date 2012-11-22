@@ -4,31 +4,31 @@
 typedef struct rdmbuffer {
 	ULONG Register;
 	ULONG Length;
-} __attribute__((packed)) RDM_BUFFER, *PRDM_BUFFER;
+} __packed RDM_BUFFER, *PRDM_BUFFER;
 
 typedef struct wrmbuffer {
 	ULONG Register;
 	ULONG Length;
 	UCHAR Data[4];
-} __attribute__((packed)) WRM_BUFFER, *PWRM_BUFFER;
+} __packed WRM_BUFFER, *PWRM_BUFFER;
 
 typedef struct ioctlbuffer {
 	void __user *InputBuffer;
 	ULONG InputLength;
 	void __user *OutputBuffer;
 	ULONG OutputLength;
-} __attribute__((packed)) IOCTL_BUFFER, *PIOCTL_BUFFER;
+} __packed IOCTL_BUFFER, *PIOCTL_BUFFER;
 
 typedef struct stGPIOInfo {
 	UINT uiGpioNumber; /* valid numbers 0-15 */
 	UINT uiGpioValue; /* 1 set ; 0 not  set */
-} __attribute__((packed))GPIO_INFO, *PGPIO_INFO;
+} __packed GPIO_INFO, *PGPIO_INFO;
 
 typedef struct stUserThreadReq {
 	/* 0->Inactivate LED thread. */
 	/* 1->Activate the LED thread */
 	UINT ThreadState;
-} __attribute__((packed))USER_THREAD_REQ, *PUSER_THREAD_REQ;
+} __packed USER_THREAD_REQ, *PUSER_THREAD_REQ;
 
 #define LED_THREAD_ACTIVATION_REQ  1
 #define BCM_IOCTL				'k'
@@ -223,11 +223,11 @@ typedef struct stGPIOMultiInfo {
 	UINT uiGPIOCommand; /* 1 for set and 0 for get */
 	UINT uiGPIOMask;    /* set the correspondig bit to 1 to access GPIO */
 	UINT uiGPIOValue;   /* 0 or 1; value to be set when command is 1. */
-} __attribute__((packed))GPIO_MULTI_INFO, *PGPIO_MULTI_INFO;
+} __packed GPIO_MULTI_INFO, *PGPIO_MULTI_INFO;
 
 typedef struct stGPIOMultiMode {
 	UINT uiGPIOMode;    /* 1 for OUT mode, 0 for IN mode */
 	UINT uiGPIOMask;    /* GPIO mask to set mode */
-} __attribute__((packed))GPIO_MULTI_MODE, *PGPIO_MULTI_MODE;
+} __packed GPIO_MULTI_MODE, *PGPIO_MULTI_MODE;
 
 #endif
