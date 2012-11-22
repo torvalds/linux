@@ -2265,9 +2265,7 @@ static int get_modem_info(struct ch_struct *ch, unsigned int *value)
 		| ((mlast & DM_RI)  ? TIOCM_RNG : 0)
 		| ((mlast & DM_DSR) ? TIOCM_DSR : 0)
 		| ((mlast & DM_CTS) ? TIOCM_CTS : 0);
-	put_user(mlast, (unsigned int __user *) value);
-
-	return 0;
+	return put_user(mlast, (unsigned int __user *) value);
 }
 
 /*
@@ -2285,7 +2283,8 @@ static int set_modem_info(struct ch_struct *ch, unsigned int command,
 	if (error == 0)
 		return -EFAULT;
 
-	get_user(arg, (unsigned int __user *) value);
+	if (get_user(arg, (unsigned int __user *) value))
+		return -EFAULT;
 	mval |= ((arg & TIOCM_RTS) ? DM_RTS : 0)
 		| ((arg & TIOCM_DTR) ? DM_DTR : 0);
 
@@ -2616,12 +2615,8 @@ static int dgrp_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		return 0;
 
 	case TIOCGSOFTCAR:
-		rc = access_ok(VERIFY_WRITE, (void __user *) arg,
-			       sizeof(long));
-		if (rc == 0)
-			return -EFAULT;
-		put_user(C_CLOCAL(tty) ? 1 : 0, (unsigned long __user *) arg);
-		return 0;
+		return put_user(C_CLOCAL(tty) ? 1 : 0,
+				(unsigned long __user *) arg);
 
 	case TIOCMGET:
 		rc = access_ok(VERIFY_WRITE, (void __user *) arg,
@@ -2844,17 +2839,16 @@ static int dgrp_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		break;
 
 	case DIGI_GETCUSTOMBAUD:
-		rc = access_ok(VERIFY_WRITE, (void __user *) arg, sizeof(int));
-		if (rc == 0)
+		if (put_user(ch->ch_custom_speed, (unsigned int __user *) arg))
 			return -EFAULT;
-		put_user(ch->ch_custom_speed, (unsigned int __user *) arg);
 		break;
 
 	case DIGI_SETCUSTOMBAUD:
 	{
 		int new_rate;
 
-		get_user(new_rate, (unsigned int __user *) arg);
+		if (get_user(new_rate, (unsigned int __user *) arg))
+			return -EFAULT;
 		dgrp_set_custom_speed(ch, new_rate);
 
 		break;
