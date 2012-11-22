@@ -22,18 +22,13 @@
  * Authors: Ben Skeggs
  */
 
-#include <core/os.h>
-#include <core/class.h>
 #include <core/engctx.h>
+#include <core/class.h>
 
 #include <engine/vp.h>
 
 struct nv84_vp_priv {
-	struct nouveau_vp base;
-};
-
-struct nv84_vp_chan {
-	struct nouveau_vp_chan base;
+	struct nouveau_engine base;
 };
 
 /*******************************************************************************
@@ -49,72 +44,22 @@ nv84_vp_sclass[] = {
  * PVP context
  ******************************************************************************/
 
-static int
-nv84_vp_context_ctor(struct nouveau_object *parent,
-		     struct nouveau_object *engine,
-		     struct nouveau_oclass *oclass, void *data, u32 size,
-		     struct nouveau_object **pobject)
-{
-	struct nv84_vp_chan *priv;
-	int ret;
-
-	ret = nouveau_vp_context_create(parent, engine, oclass, NULL,
-					0, 0, 0, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void
-nv84_vp_context_dtor(struct nouveau_object *object)
-{
-	struct nv84_vp_chan *priv = (void *)object;
-	nouveau_vp_context_destroy(&priv->base);
-}
-
-static int
-nv84_vp_context_init(struct nouveau_object *object)
-{
-	struct nv84_vp_chan *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_vp_context_init(&priv->base);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int
-nv84_vp_context_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nv84_vp_chan *priv = (void *)object;
-	return nouveau_vp_context_fini(&priv->base, suspend);
-}
-
 static struct nouveau_oclass
 nv84_vp_cclass = {
 	.handle = NV_ENGCTX(VP, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_vp_context_ctor,
-		.dtor = nv84_vp_context_dtor,
-		.init = nv84_vp_context_init,
-		.fini = nv84_vp_context_fini,
-		.rd32 = _nouveau_vp_context_rd32,
-		.wr32 = _nouveau_vp_context_wr32,
+		.ctor = _nouveau_engctx_ctor,
+		.dtor = _nouveau_engctx_dtor,
+		.init = _nouveau_engctx_init,
+		.fini = _nouveau_engctx_fini,
+		.rd32 = _nouveau_engctx_rd32,
+		.wr32 = _nouveau_engctx_wr32,
 	},
 };
 
 /*******************************************************************************
  * PVP engine/subdev functions
  ******************************************************************************/
-
-static void
-nv84_vp_intr(struct nouveau_subdev *subdev)
-{
-}
 
 static int
 nv84_vp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
@@ -124,43 +69,16 @@ nv84_vp_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv84_vp_priv *priv;
 	int ret;
 
-	ret = nouveau_vp_create(parent, engine, oclass, &priv);
+	ret = nouveau_engine_create(parent, engine, oclass, true,
+				    "PVP", "vp", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	nv_subdev(priv)->unit = 0x01020000;
-	nv_subdev(priv)->intr = nv84_vp_intr;
 	nv_engine(priv)->cclass = &nv84_vp_cclass;
 	nv_engine(priv)->sclass = nv84_vp_sclass;
 	return 0;
-}
-
-static void
-nv84_vp_dtor(struct nouveau_object *object)
-{
-	struct nv84_vp_priv *priv = (void *)object;
-	nouveau_vp_destroy(&priv->base);
-}
-
-static int
-nv84_vp_init(struct nouveau_object *object)
-{
-	struct nv84_vp_priv *priv = (void *)object;
-	int ret;
-
-	ret = nouveau_vp_init(&priv->base);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int
-nv84_vp_fini(struct nouveau_object *object, bool suspend)
-{
-	struct nv84_vp_priv *priv = (void *)object;
-	return nouveau_vp_fini(&priv->base, suspend);
 }
 
 struct nouveau_oclass
@@ -168,8 +86,8 @@ nv84_vp_oclass = {
 	.handle = NV_ENGINE(VP, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nv84_vp_ctor,
-		.dtor = nv84_vp_dtor,
-		.init = nv84_vp_init,
-		.fini = nv84_vp_fini,
+		.dtor = _nouveau_engine_dtor,
+		.init = _nouveau_engine_init,
+		.fini = _nouveau_engine_fini,
 	},
 };
