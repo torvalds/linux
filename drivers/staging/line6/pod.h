@@ -52,21 +52,6 @@ enum {
 	POD_STARTUP_LAST = POD_STARTUP_SETUP - 1
 };
 
-/**
-	Binary PODxt Pro program dump
-*/
-struct pod_program {
-	/**
-		Header information (including program name).
-	*/
-	unsigned char header[0x20];
-
-	/**
-		Program parameters.
-	*/
-	unsigned char control[POD_CONTROL_SIZE];
-};
-
 struct usb_line6_pod {
 	/**
 		Generic Line6 USB data.
@@ -77,16 +62,6 @@ struct usb_line6_pod {
 		Dump request structure.
 	*/
 	struct line6_dump_request dumpreq;
-
-	/**
-		Current program settings.
-	*/
-	struct pod_program prog_data;
-
-	/**
-		Buffer for data retrieved from or to be stored on PODxt Pro.
-	*/
-	struct pod_program prog_data_buf;
 
 	/**
 		Instrument monitor level.

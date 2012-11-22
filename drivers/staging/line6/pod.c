@@ -132,14 +132,6 @@ static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 }
 
 /*
-	Store parameter value in driver memory.
-*/
-static void pod_store_parameter(struct usb_line6_pod *pod, int param, int value)
-{
-	pod->prog_data.control[param] = value;
-}
-
-/*
 	Handle SAVE button.
 */
 static void pod_save_button_pressed(struct usb_line6_pod *pod, int type,
@@ -169,9 +161,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 	/* process all remaining messages */
 	switch (buf[0]) {
 	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_DEVICE:
-		pod_store_parameter(pod, buf[1], buf[2]);
-		/* intentionally no break here! */
-
 	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST:
 		break;
 
@@ -187,36 +176,8 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) == 0) {
 			switch (buf[5]) {
 			case POD_SYSEX_DUMP:
-				if (pod->line6.message_length ==
-				    sizeof(pod->prog_data) + 7) {
-					switch (pod->dumpreq.in_progress) {
-					case LINE6_DUMP_CURRENT:
-						memcpy(&pod->prog_data, buf + 7,
-						       sizeof(pod->prog_data));
-						break;
-
-					case POD_DUMP_MEMORY:
-						memcpy(&pod->prog_data_buf,
-						       buf + 7,
-						       sizeof
-						       (pod->prog_data_buf));
-						break;
-
-					default:
-						dev_dbg(pod->line6.ifcdev,
-							"unknown dump code %02X\n",
-							pod->dumpreq.in_progress);
-					}
-
-					line6_dump_finished(&pod->dumpreq);
-					pod_startup3(pod);
-				} else
-					dev_dbg(pod->line6.ifcdev,
-						"wrong size of channel dump message (%d instead of %d)\n",
-						pod->line6.message_length,
-						(int)sizeof(pod->prog_data) +
-						7);
-
+				line6_dump_finished(&pod->dumpreq);
+				pod_startup3(pod);
 				break;
 
 			case POD_SYSEX_SYSTEM:{
@@ -279,8 +240,7 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 				  u8 value)
 {
-	if (line6_transmit_parameter(&pod->line6, param, value) == 0)
-		pod_store_parameter(pod, param, value);
+	line6_transmit_parameter(&pod->line6, param, value);
 }
 
 /*
