@@ -1052,17 +1052,17 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 	int ret;
 
 	if (!pdata) {
-		if (np) {
-			pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
-			if (!pdata)
-				return -ENOMEM;
-
-			stmpe_of_probe(pdata, np);
-		} else
+		if (!np)
 			return -EINVAL;
+
+		pdata = devm_kzalloc(ci->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		stmpe_of_probe(pdata, np);
 	}
 
-	stmpe = kzalloc(sizeof(struct stmpe), GFP_KERNEL);
+	stmpe = devm_kzalloc(ci->dev, sizeof(struct stmpe), GFP_KERNEL);
 	if (!stmpe)
 		return -ENOMEM;
 
@@ -1084,11 +1084,12 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 		ci->init(stmpe);
 
 	if (pdata->irq_over_gpio) {
-		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "stmpe");
+		ret = devm_gpio_request_one(ci->dev, pdata->irq_gpio,
+				GPIOF_DIR_IN, "stmpe");
 		if (ret) {
 			dev_err(stmpe->dev, "failed to request IRQ GPIO: %d\n",
 					ret);
-			goto out_free;
+			return ret;
 		}
 
 		stmpe->irq = gpio_to_irq(pdata->irq_gpio);
@@ -1105,62 +1106,43 @@ int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 			dev_err(stmpe->dev,
 				"%s does not support no-irq mode!\n",
 				stmpe->variant->name);
-			ret = -ENODEV;
-			goto free_gpio;
+			return -ENODEV;
 		}
 		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
 	}
 
 	ret = stmpe_chip_init(stmpe);
 	if (ret)
-		goto free_gpio;
+		return ret;
 
 	if (stmpe->irq >= 0) {
 		ret = stmpe_irq_init(stmpe, np);
 		if (ret)
-			goto free_gpio;
+			return ret;
 
-		ret = request_threaded_irq(stmpe->irq, NULL, stmpe_irq,
-				pdata->irq_trigger | IRQF_ONESHOT,
+		ret = devm_request_threaded_irq(ci->dev, stmpe->irq, NULL,
+				stmpe_irq, pdata->irq_trigger | IRQF_ONESHOT,
 				"stmpe", stmpe);
 		if (ret) {
 			dev_err(stmpe->dev, "failed to request IRQ: %d\n",
 					ret);
-			goto free_gpio;
+			return ret;
 		}
 	}
 
 	ret = stmpe_devices_init(stmpe);
-	if (ret) {
-		dev_err(stmpe->dev, "failed to add children\n");
-		goto out_removedevs;
-	}
+	if (!ret)
+		return 0;
 
-	return 0;
-
-out_removedevs:
+	dev_err(stmpe->dev, "failed to add children\n");
 	mfd_remove_devices(stmpe->dev);
-	if (stmpe->irq >= 0)
-		free_irq(stmpe->irq, stmpe);
-free_gpio:
-	if (pdata->irq_over_gpio)
-		gpio_free(pdata->irq_gpio);
-out_free:
-	kfree(stmpe);
+
 	return ret;
 }
 
 int stmpe_remove(struct stmpe *stmpe)
 {
 	mfd_remove_devices(stmpe->dev);
-
-	if (stmpe->irq >= 0)
-		free_irq(stmpe->irq, stmpe);
-
-	if (stmpe->pdata->irq_over_gpio)
-		gpio_free(stmpe->pdata->irq_gpio);
-
-	kfree(stmpe);
 
 	return 0;
 }
