@@ -27,11 +27,11 @@
 
 #include <linux/fdtable.h>
 
+#define PRIOMAP_MIN_SZ		128
 #define PRIOIDX_SZ 128
 
 static unsigned long prioidx_map[PRIOIDX_SZ];
 static DEFINE_SPINLOCK(prioidx_map_lock);
-static atomic_t max_prioidx = ATOMIC_INIT(0);
 
 static inline struct cgroup_netprio_state *cgrp_netprio_state(struct cgroup *cgrp)
 {
@@ -51,8 +51,6 @@ static int get_prioidx(u32 *prio)
 		return -ENOSPC;
 	}
 	set_bit(prioidx, prioidx_map);
-	if (atomic_read(&max_prioidx) < prioidx)
-		atomic_set(&max_prioidx, prioidx);
 	spin_unlock_irqrestore(&prioidx_map_lock, flags);
 	*prio = prioidx;
 	return 0;
@@ -67,15 +65,40 @@ static void put_prioidx(u32 idx)
 	spin_unlock_irqrestore(&prioidx_map_lock, flags);
 }
 
-static int extend_netdev_table(struct net_device *dev, u32 new_len)
+/*
+ * Extend @dev->priomap so that it's large enough to accomodate
+ * @target_idx.  @dev->priomap.priomap_len > @target_idx after successful
+ * return.  Must be called under rtnl lock.
+ */
+static int extend_netdev_table(struct net_device *dev, u32 target_idx)
 {
-	size_t new_size = sizeof(struct netprio_map) +
-			   ((sizeof(u32) * new_len));
-	struct netprio_map *new = kzalloc(new_size, GFP_KERNEL);
-	struct netprio_map *old;
+	struct netprio_map *old, *new;
+	size_t new_sz, new_len;
 
+	/* is the existing priomap large enough? */
 	old = rtnl_dereference(dev->priomap);
+	if (old && old->priomap_len > target_idx)
+		return 0;
 
+	/*
+	 * Determine the new size.  Let's keep it power-of-two.  We start
+	 * from PRIOMAP_MIN_SZ and double it until it's large enough to
+	 * accommodate @target_idx.
+	 */
+	new_sz = PRIOMAP_MIN_SZ;
+	while (true) {
+		new_len = (new_sz - offsetof(struct netprio_map, priomap)) /
+			sizeof(new->priomap[0]);
+		if (new_len > target_idx)
+			break;
+		new_sz *= 2;
+		/* overflowed? */
+		if (WARN_ON(new_sz < PRIOMAP_MIN_SZ))
+			return -ENOSPC;
+	}
+
+	/* allocate & copy */
+	new = kzalloc(new_sz, GFP_KERNEL);
 	if (!new) {
 		pr_warn("Unable to alloc new priomap!\n");
 		return -ENOMEM;
@@ -87,24 +110,11 @@ static int extend_netdev_table(struct net_device *dev, u32 new_len)
 
 	new->priomap_len = new_len;
 
+	/* install the new priomap */
 	rcu_assign_pointer(dev->priomap, new);
 	if (old)
 		kfree_rcu(old, rcu);
 	return 0;
-}
-
-static int write_update_netdev_table(struct net_device *dev)
-{
-	int ret = 0;
-	u32 max_len;
-	struct netprio_map *map;
-
-	max_len = atomic_read(&max_prioidx) + 1;
-	map = rtnl_dereference(dev->priomap);
-	if (!map || map->priomap_len < max_len)
-		ret = extend_netdev_table(dev, max_len);
-
-	return ret;
 }
 
 static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
@@ -191,7 +201,7 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 
 	rtnl_lock();
 
-	ret = write_update_netdev_table(dev);
+	ret = extend_netdev_table(dev, prioidx);
 	if (ret)
 		goto out_unlock;
 
