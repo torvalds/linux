@@ -132,15 +132,6 @@ static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 }
 
 /*
-	Handle SAVE button.
-*/
-static void pod_save_button_pressed(struct usb_line6_pod *pod, int type,
-				    int index)
-{
-	set_bit(POD_SAVE_PRESSED, &pod->atomic_flags);
-}
-
-/*
 	Process a completely received message.
 */
 void line6_pod_process_message(struct usb_line6_pod *pod)
@@ -166,7 +157,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST:
-		set_bit(POD_CHANNEL_DIRTY, &pod->atomic_flags);
 		line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
 					 LINE6_DUMP_CURRENT);
 		break;
@@ -196,7 +186,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 				break;
 
 			case POD_SYSEX_SAVE:
-				pod_save_button_pressed(pod, buf[6], buf[7]);
 				break;
 
 			case POD_SYSEX_STORE:

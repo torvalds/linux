@@ -84,11 +84,6 @@ struct usb_line6_pod {
 	int startup_progress;
 
 	/**
-		Some atomic flags.
-	*/
-	unsigned long atomic_flags;
-
-	/**
 		Serial number of device.
 	*/
 	int serial_number;
