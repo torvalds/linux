@@ -14,6 +14,7 @@ config SND_OPL4_LIB
 
 config SND_VX_LIB
 	tristate
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_PCM
 
