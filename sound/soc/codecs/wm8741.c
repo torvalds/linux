@@ -522,7 +522,7 @@ static int wm8741_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	wm8741->regmap = regmap_init_i2c(i2c, &wm8741_regmap);
+	wm8741->regmap = devm_regmap_init_i2c(i2c, &wm8741_regmap);
 	if (IS_ERR(wm8741->regmap)) {
 		ret = PTR_ERR(wm8741->regmap);
 		dev_err(&i2c->dev, "Failed to init regmap: %d\n", ret);
@@ -582,7 +582,7 @@ static int __devinit wm8741_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	wm8741->regmap = regmap_init_spi(spi, &wm8741_regmap);
+	wm8741->regmap = devm_regmap_init_spi(spi, &wm8741_regmap);
 	if (IS_ERR(wm8741->regmap)) {
 		ret = PTR_ERR(wm8741->regmap);
 		dev_err(&spi->dev, "Failed to init regmap: %d\n", ret);
