@@ -83,11 +83,6 @@ struct usb_line6_variax {
 	struct variax_model model_data;
 
 	/**
-		Name of connected guitar.
-	*/
-	unsigned char guitar[18];
-
-	/**
 		Handler for device initializaton.
 	*/
 	struct work_struct startup_work;

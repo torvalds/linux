@@ -250,11 +250,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 				  sizeof(variax_request_bank) - 2) == 0) {
 			line6_dump_finished(&variax->dumpreq);
 			variax_startup6(variax);
-		} else if (memcmp(buf + 1, variax_init_model + 1,
-				  sizeof(variax_init_model) - 1) == 0) {
-			memcpy(variax->guitar,
-			       buf + sizeof(variax_init_model),
-			       sizeof(variax->guitar));
 		} else if (memcmp(buf + 1, variax_init_version + 1,
 				  sizeof(variax_init_version) - 1) == 0) {
 			variax_startup3(variax);
@@ -273,17 +268,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 		dev_dbg(variax->line6.ifcdev,
 			"Variax: unknown message %02X\n", buf[0]);
 	}
-}
-
-/*
-	"read" request on "guitar" special file.
-*/
-static ssize_t variax_get_guitar(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct usb_line6_variax *variax =
-	    usb_get_intfdata(to_usb_interface(dev));
-	return sprintf(buf, "%s\n", variax->guitar);
 }
 
 #ifdef CONFIG_LINE6_USB_RAW
@@ -333,9 +317,6 @@ static ssize_t variax_set_raw2(struct device *dev,
 
 #endif
 
-/* Variax workbench special files: */
-static DEVICE_ATTR(guitar, S_IRUGO, variax_get_guitar, line6_nop_write);
-
 #ifdef CONFIG_LINE6_USB_RAW
 static DEVICE_ATTR(raw, S_IWUSR, line6_nop_read, line6_set_raw);
 static DEVICE_ATTR(raw2, S_IWUSR, line6_nop_read, variax_set_raw2);
@@ -369,8 +350,6 @@ static void variax_destruct(struct usb_interface *interface)
 */
 static int variax_create_files2(struct device *dev)
 {
-	int err;
-	CHECK_RETURN(device_create_file(dev, &dev_attr_guitar));
 #ifdef CONFIG_LINE6_USB_RAW
 	CHECK_RETURN(device_create_file(dev, &dev_attr_raw));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_raw2));
@@ -469,7 +448,6 @@ void line6_variax_disconnect(struct usb_interface *interface)
 	if (dev != NULL) {
 		/* remove sysfs entries: */
 		line6_variax_remove_files(0, 0, dev);
-		device_remove_file(dev, &dev_attr_guitar);
 #ifdef CONFIG_LINE6_USB_RAW
 		device_remove_file(dev, &dev_attr_raw);
 		device_remove_file(dev, &dev_attr_raw2);
