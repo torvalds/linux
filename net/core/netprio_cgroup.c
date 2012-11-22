@@ -136,9 +136,6 @@ static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
 
-	if (cgrp->parent && cgrp->parent->id)
-		return ERR_PTR(-EINVAL);
-
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
@@ -146,16 +143,34 @@ static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 	return &cs->css;
 }
 
-static void cgrp_css_free(struct cgroup *cgrp)
+static int cgrp_css_online(struct cgroup *cgrp)
 {
-	struct cgroup_netprio_state *cs = cgrp_netprio_state(cgrp);
+	struct cgroup *parent = cgrp->parent;
 	struct net_device *dev;
+	int ret = 0;
+
+	if (!parent)
+		return 0;
 
 	rtnl_lock();
-	for_each_netdev(&init_net, dev)
-		WARN_ON_ONCE(netprio_set_prio(cgrp, dev, 0));
+	/*
+	 * Inherit prios from the parent.  As all prios are set during
+	 * onlining, there is no need to clear them on offline.
+	 */
+	for_each_netdev(&init_net, dev) {
+		u32 prio = netprio_prio(parent, dev);
+
+		ret = netprio_set_prio(cgrp, dev, prio);
+		if (ret)
+			break;
+	}
 	rtnl_unlock();
-	kfree(cs);
+	return ret;
+}
+
+static void cgrp_css_free(struct cgroup *cgrp)
+{
+	kfree(cgrp_netprio_state(cgrp));
 }
 
 static u64 read_prioidx(struct cgroup *cgrp, struct cftype *cft)
@@ -237,21 +252,12 @@ static struct cftype ss_files[] = {
 struct cgroup_subsys net_prio_subsys = {
 	.name		= "net_prio",
 	.css_alloc	= cgrp_css_alloc,
+	.css_online	= cgrp_css_online,
 	.css_free	= cgrp_css_free,
 	.attach		= net_prio_attach,
 	.subsys_id	= net_prio_subsys_id,
 	.base_cftypes	= ss_files,
 	.module		= THIS_MODULE,
-
-	/*
-	 * net_prio has artificial limit on the number of cgroups and
-	 * disallows nesting making it impossible to co-mount it with other
-	 * hierarchical subsystems.  Remove the artificially low PRIOIDX_SZ
-	 * limit and properly nest configuration such that children follow
-	 * their parents' configurations by default and are allowed to
-	 * override and remove the following.
-	 */
-	.broken_hierarchy = true,
 };
 
 static int netprio_device_event(struct notifier_block *unused,
