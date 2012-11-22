@@ -3507,8 +3507,10 @@ static int DELAYED_INIT_MARK azx_probe_continue(struct azx *chip)
 					 chip->fw->data);
 		if (err < 0)
 			goto out_free;
+#ifndef CONFIG_PM
 		release_firmware(chip->fw); /* no longer needed */
 		chip->fw = NULL;
+#endif
 	}
 #endif
 	if ((probe_only[dev] & 1) == 0) {
