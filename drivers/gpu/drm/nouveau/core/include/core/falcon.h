@@ -18,6 +18,7 @@ struct nouveau_falcon_chan {
 #define nouveau_falcon_context_fini(d,s)                                       \
 	nouveau_engctx_fini(&(d)->base, (s))
 
+#define _nouveau_falcon_context_ctor _nouveau_engctx_ctor
 #define _nouveau_falcon_context_dtor _nouveau_engctx_dtor
 #define _nouveau_falcon_context_init _nouveau_engctx_init
 #define _nouveau_falcon_context_fini _nouveau_engctx_fini

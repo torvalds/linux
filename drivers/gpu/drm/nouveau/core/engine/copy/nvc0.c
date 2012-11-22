@@ -35,10 +35,6 @@ struct nvc0_copy_priv {
 	struct nouveau_falcon base;
 };
 
-struct nvc0_copy_chan {
-	struct nouveau_falcon_chan base;
-};
-
 /*******************************************************************************
  * Copy object classes
  ******************************************************************************/
@@ -59,27 +55,9 @@ nvc0_copy1_sclass[] = {
  * PCOPY context
  ******************************************************************************/
 
-static int
-nvc0_copy_context_ctor(struct nouveau_object *parent,
-		       struct nouveau_object *engine,
-		       struct nouveau_oclass *oclass, void *data, u32 size,
-		       struct nouveau_object **pobject)
-{
-	struct nvc0_copy_chan *priv;
-	int ret;
-
-	ret = nouveau_falcon_context_create(parent, engine, oclass, NULL, 256,
-					    256, NVOBJ_FLAG_ZERO_ALLOC, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct nouveau_ofuncs
 nvc0_copy_context_ofuncs = {
-	.ctor = nvc0_copy_context_ctor,
+	.ctor = _nouveau_falcon_context_ctor,
 	.dtor = _nouveau_falcon_context_dtor,
 	.init = _nouveau_falcon_context_init,
 	.fini = _nouveau_falcon_context_fini,

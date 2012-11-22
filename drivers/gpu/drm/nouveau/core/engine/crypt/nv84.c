@@ -37,10 +37,6 @@ struct nv84_crypt_priv {
 	struct nouveau_engine base;
 };
 
-struct nv84_crypt_chan {
-	struct nouveau_engctx base;
-};
-
 /*******************************************************************************
  * Crypt object classes
  ******************************************************************************/
@@ -87,29 +83,11 @@ nv84_crypt_sclass[] = {
  * PCRYPT context
  ******************************************************************************/
 
-static int
-nv84_crypt_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
-{
-	struct nv84_crypt_chan *priv;
-	int ret;
-
-	ret = nouveau_engctx_create(parent, engine, oclass, NULL, 256,
-				    0, NVOBJ_FLAG_ZERO_ALLOC, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct nouveau_oclass
 nv84_crypt_cclass = {
 	.handle = NV_ENGCTX(CRYPT, 0x84),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv84_crypt_context_ctor,
+		.ctor = _nouveau_engctx_ctor,
 		.dtor = _nouveau_engctx_dtor,
 		.init = _nouveau_engctx_init,
 		.fini = _nouveau_engctx_fini,

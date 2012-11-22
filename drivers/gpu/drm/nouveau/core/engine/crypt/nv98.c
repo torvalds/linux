@@ -40,10 +40,6 @@ struct nv98_crypt_priv {
 	struct nouveau_falcon base;
 };
 
-struct nv98_crypt_chan {
-	struct nouveau_falcon_chan base;
-};
-
 /*******************************************************************************
  * Crypt object classes
  ******************************************************************************/
@@ -58,29 +54,11 @@ nv98_crypt_sclass[] = {
  * PCRYPT context
  ******************************************************************************/
 
-static int
-nv98_crypt_context_ctor(struct nouveau_object *parent,
-			struct nouveau_object *engine,
-			struct nouveau_oclass *oclass, void *data, u32 size,
-			struct nouveau_object **pobject)
-{
-	struct nv98_crypt_chan *priv;
-	int ret;
-
-	ret = nouveau_falcon_context_create(parent, engine, oclass, NULL, 256,
-					    256, NVOBJ_FLAG_ZERO_ALLOC, &priv);
-	*pobject = nv_object(priv);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct nouveau_oclass
 nv98_crypt_cclass = {
 	.handle = NV_ENGCTX(CRYPT, 0x98),
 	.ofuncs = &(struct nouveau_ofuncs) {
-		.ctor = nv98_crypt_context_ctor,
+		.ctor = _nouveau_falcon_context_ctor,
 		.dtor = _nouveau_falcon_context_dtor,
 		.init = _nouveau_falcon_context_init,
 		.fini = _nouveau_falcon_context_fini,
