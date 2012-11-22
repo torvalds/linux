@@ -168,11 +168,6 @@ struct usb_line6_pod {
 	int device_id;
 
 	/**
-		Flag to indicate modification of current program settings.
-	*/
-	char dirty;
-
-	/**
 		Flag to enable MIDI postprocessing.
 	*/
 	char midi_postprocess;
