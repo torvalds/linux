@@ -3477,12 +3477,11 @@ static void s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 /**
  * s3c_hsotg_release - release callback for hsotg device
  * @dev: Device to for which release is called
+ *
+ * Nothing to do as the resource is allocated using devm_ API.
  */
 static void s3c_hsotg_release(struct device *dev)
 {
-	struct s3c_hsotg *hsotg = dev_get_drvdata(dev);
-
-	kfree(hsotg);
 }
 
 /**
