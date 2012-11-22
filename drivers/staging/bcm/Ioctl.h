@@ -219,11 +219,11 @@ enum {
 	MAX_IDX
 };
 
-typedef struct stGPIOMultiInfo {
+struct bcm_gpio_multi_info {
 	unsigned int uiGPIOCommand; /* 1 for set and 0 for get */
 	unsigned int uiGPIOMask;    /* set the correspondig bit to 1 to access GPIO */
 	unsigned int uiGPIOValue;   /* 0 or 1; value to be set when command is 1. */
-} __packed GPIO_MULTI_INFO, *PGPIO_MULTI_INFO;
+} __packed;
 
 struct bcm_gpio_multi_mode {
 	unsigned int uiGPIOMode;    /* 1 for OUT mode, 0 for IN mode */
