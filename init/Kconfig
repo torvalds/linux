@@ -720,6 +720,14 @@ config ARCH_USES_NUMA_PROT_NONE
 	depends on ARCH_WANTS_PROT_NUMA_PROT_NONE
 	depends on NUMA_BALANCING
 
+config NUMA_BALANCING_DEFAULT_ENABLED
+	bool "Automatically enable NUMA aware memory/task placement"
+	default y
+	depends on NUMA_BALANCING
+	help
+	  If set, autonumic NUMA balancing will be enabled if running on a NUMA
+	  machine.
+
 config NUMA_BALANCING
 	bool "Memory placement aware NUMA scheduler"
 	default y

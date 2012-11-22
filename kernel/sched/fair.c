@@ -811,6 +811,9 @@ void task_numa_fault(int node, int pages, bool migrated)
 {
 	struct task_struct *p = current;
 
+	if (!sched_feat_numa(NUMA))
+		return;
+
 	/* FIXME: Allocate task-specific structure for placement policy here */
 
 	/*

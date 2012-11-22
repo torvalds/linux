@@ -192,23 +192,10 @@ static void sched_feat_disable(int i) { };
 static void sched_feat_enable(int i) { };
 #endif /* HAVE_JUMP_LABEL */
 
-static ssize_t
-sched_feat_write(struct file *filp, const char __user *ubuf,
-		size_t cnt, loff_t *ppos)
+static int sched_feat_set(char *cmp)
 {
-	char buf[64];
-	char *cmp;
-	int neg = 0;
 	int i;
-
-	if (cnt > 63)
-		cnt = 63;
-
-	if (copy_from_user(&buf, ubuf, cnt))
-		return -EFAULT;
-
-	buf[cnt] = 0;
-	cmp = strstrip(buf);
+	int neg = 0;
 
 	if (strncmp(cmp, "NO_", 3) == 0) {
 		neg = 1;
@@ -228,6 +215,27 @@ sched_feat_write(struct file *filp, const char __user *ubuf,
 		}
 	}
 
+	return i;
+}
+
+static ssize_t
+sched_feat_write(struct file *filp, const char __user *ubuf,
+		size_t cnt, loff_t *ppos)
+{
+	char buf[64];
+	char *cmp;
+	int i;
+
+	if (cnt > 63)
+		cnt = 63;
+
+	if (copy_from_user(&buf, ubuf, cnt))
+		return -EFAULT;
+
+	buf[cnt] = 0;
+	cmp = strstrip(buf);
+
+	i = sched_feat_set(cmp);
 	if (i == __SCHED_FEAT_NR)
 		return -EINVAL;
 
@@ -1548,6 +1556,16 @@ static void __sched_fork(struct task_struct *p)
 	p->numa_work.next = &p->numa_work;
 #endif /* CONFIG_NUMA_BALANCING */
 }
+
+#ifdef CONFIG_NUMA_BALANCING
+void set_numabalancing_state(bool enabled)
+{
+	if (enabled)
+		sched_feat_set("NUMA");
+	else
+		sched_feat_set("NO_NUMA");
+}
+#endif /* CONFIG_NUMA_BALANCING */
 
 /*
  * fork()/clone()-time setup:

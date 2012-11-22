@@ -1996,6 +1996,9 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
+	numa_balancing=	[KNL,X86] Enable or disable automatic NUMA balancing.
+			Allowed values are enable and disable
+
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
 			one of ['zone', 'node', 'default'] can be specified
 			This can be set from sysctl after boot.
