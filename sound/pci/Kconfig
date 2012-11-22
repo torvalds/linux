@@ -707,6 +707,7 @@ config SND_MAESTRO3_INPUT
 
 config SND_MIXART
 	tristate "Digigram miXart"
+	select FW_LOADER
 	select SND_HWDEP
 	select SND_PCM
 	help
