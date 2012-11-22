@@ -2987,6 +2987,11 @@ int tcp_connect(struct sock *sk)
 
 	tcp_connect_init(sk);
 
+	if (unlikely(tp->repair)) {
+		tcp_finish_connect(sk, NULL);
+		return 0;
+	}
+
 	buff = alloc_skb_fclone(MAX_TCP_HEADER + 15, sk->sk_allocation);
 	if (unlikely(buff == NULL))
 		return -ENOBUFS;

@@ -138,14 +138,6 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_unique);
 
-static int tcp_repair_connect(struct sock *sk)
-{
-	tcp_connect_init(sk);
-	tcp_finish_connect(sk, NULL);
-
-	return 0;
-}
-
 /* This will initiate an outgoing connection. */
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -250,10 +242,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	inet->inet_id = tp->write_seq ^ jiffies;
 
-	if (likely(!tp->repair))
-		err = tcp_connect(sk);
-	else
-		err = tcp_repair_connect(sk);
+	err = tcp_connect(sk);
 
 	rt = NULL;
 	if (err)
