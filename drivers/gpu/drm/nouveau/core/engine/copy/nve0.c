@@ -30,11 +30,11 @@
 #include <engine/copy.h>
 
 struct nve0_copy_priv {
-	struct nouveau_copy base;
+	struct nouveau_engine base;
 };
 
 struct nve0_copy_chan {
-	struct nouveau_copy_chan base;
+	struct nouveau_engctx base;
 };
 
 /*******************************************************************************
@@ -60,8 +60,8 @@ nve0_copy_context_ctor(struct nouveau_object *parent,
 	struct nve0_copy_chan *priv;
 	int ret;
 
-	ret = nouveau_copy_context_create(parent, engine, oclass, NULL, 256,
-					  256, NVOBJ_FLAG_ZERO_ALLOC, &priv);
+	ret = nouveau_engctx_create(parent, engine, oclass, NULL, 256,
+				    256, NVOBJ_FLAG_ZERO_ALLOC, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -72,11 +72,11 @@ nve0_copy_context_ctor(struct nouveau_object *parent,
 static struct nouveau_ofuncs
 nve0_copy_context_ofuncs = {
 	.ctor = nve0_copy_context_ctor,
-	.dtor = _nouveau_copy_context_dtor,
-	.init = _nouveau_copy_context_init,
-	.fini = _nouveau_copy_context_fini,
-	.rd32 = _nouveau_copy_context_rd32,
-	.wr32 = _nouveau_copy_context_wr32,
+	.dtor = _nouveau_engctx_dtor,
+	.init = _nouveau_engctx_init,
+	.fini = _nouveau_engctx_fini,
+	.rd32 = _nouveau_engctx_rd32,
+	.wr32 = _nouveau_engctx_wr32,
 };
 
 static struct nouveau_oclass
@@ -100,7 +100,8 @@ nve0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (nv_rd32(parent, 0x022500) & 0x00000100)
 		return -ENODEV;
 
-	ret = nouveau_copy_create(parent, engine, oclass, true, 0, &priv);
+	ret = nouveau_engine_create(parent, engine, oclass, true,
+				    "PCE0", "copy0", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -122,7 +123,8 @@ nve0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (nv_rd32(parent, 0x022500) & 0x00000200)
 		return -ENODEV;
 
-	ret = nouveau_copy_create(parent, engine, oclass, true, 1, &priv);
+	ret = nouveau_engine_create(parent, engine, oclass, true,
+				    "PCE1", "copy1", &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
@@ -138,9 +140,9 @@ nve0_copy0_oclass = {
 	.handle = NV_ENGINE(COPY0, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_copy0_ctor,
-		.dtor = _nouveau_copy_dtor,
-		.init = _nouveau_copy_init,
-		.fini = _nouveau_copy_fini,
+		.dtor = _nouveau_engine_dtor,
+		.init = _nouveau_engine_init,
+		.fini = _nouveau_engine_fini,
 	},
 };
 
@@ -149,8 +151,8 @@ nve0_copy1_oclass = {
 	.handle = NV_ENGINE(COPY1, 0xe0),
 	.ofuncs = &(struct nouveau_ofuncs) {
 		.ctor = nve0_copy1_ctor,
-		.dtor = _nouveau_copy_dtor,
-		.init = _nouveau_copy_init,
-		.fini = _nouveau_copy_fini,
+		.dtor = _nouveau_engine_dtor,
+		.init = _nouveau_engine_init,
+		.fini = _nouveau_engine_fini,
 	},
 };
