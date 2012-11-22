@@ -1624,6 +1624,20 @@ static int igb_setup_loopback_test(struct igb_adapter *adapter)
 		reg &= ~E1000_CONNSW_ENRGSRC;
 		wr32(E1000_CONNSW, reg);
 
+		/* Unset sigdetect for SERDES loopback on
+		 * 82580 and i350 devices.
+		 */
+		switch (hw->mac.type) {
+		case e1000_82580:
+		case e1000_i350:
+			reg = rd32(E1000_PCS_CFG0);
+			reg |= E1000_PCS_CFG_IGN_SD;
+			wr32(E1000_PCS_CFG0, reg);
+			break;
+		default:
+			break;
+		}
+
 		/* Set PCS register for forced speed */
 		reg = rd32(E1000_PCS_LCTL);
 		reg &= ~E1000_PCS_LCTL_AN_ENABLE;     /* Disable Autoneg*/
