@@ -1977,19 +1977,19 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_TIME_SINCE_NET_ENTRY: {
-		ST_TIME_ELAPSED stTimeElapsedSinceNetEntry = {0};
+		struct bcm_time_elapsed stTimeElapsedSinceNetEntry = {0};
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_TIME_SINCE_NET_ENTRY called");
 
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength < sizeof(ST_TIME_ELAPSED))
+		if (IoBuffer.OutputLength < sizeof(struct bcm_time_elapsed))
 			return -EINVAL;
 
 		stTimeElapsedSinceNetEntry.ul64TimeElapsedSinceNetEntry = get_seconds() - Adapter->liTimeSinceLastNetEntry;
 
-		if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry, sizeof(ST_TIME_ELAPSED)))
+		if (copy_to_user(IoBuffer.OutputBuffer, &stTimeElapsedSinceNetEntry, sizeof(struct bcm_time_elapsed)))
 			return -EFAULT;
 	}
 	break;

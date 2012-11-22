@@ -208,10 +208,10 @@ typedef struct _FLASH2X_BITMAP {
 	unsigned char Reserved2;
 } FLASH2X_BITMAP, *PFLASH2X_BITMAP;
 
-typedef struct _ST_TIME_ELAPSED_ {
+struct bcm_time_elapsed {
 	unsigned long long ul64TimeElapsedSinceNetEntry;
 	u32  uiReserved[4];
-} ST_TIME_ELAPSED, *PST_TIME_ELAPSED;
+};
 
 enum {
 	WIMAX_IDX = 0,  /* To access WiMAX chip GPIO's for GPIO_MULTI_INFO or GPIO_MULTI_MODE */
