@@ -19,7 +19,6 @@
 #include <sound/core.h>
 
 #include "driver.h"
-#include "dumprequest.h"
 
 /*
 	PODxt Live interfaces
@@ -45,7 +44,6 @@
 */
 enum {
 	POD_STARTUP_INIT = 1,
-	POD_STARTUP_DUMPREQ,
 	POD_STARTUP_VERSIONREQ,
 	POD_STARTUP_WORKQUEUE,
 	POD_STARTUP_SETUP,
@@ -57,11 +55,6 @@ struct usb_line6_pod {
 		Generic Line6 USB data.
 	*/
 	struct usb_line6 line6;
-
-	/**
-		Dump request structure.
-	*/
-	struct line6_dump_request dumpreq;
 
 	/**
 		Instrument monitor level.

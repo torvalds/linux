@@ -111,10 +111,6 @@ static struct line6_pcm_properties pod_pcm_properties = {
 	.bytes_per_frame = POD_BYTES_PER_FRAME
 };
 
-static const char pod_request_channel[] = {
-	0xf0, 0x00, 0x01, 0x0c, 0x03, 0x75, 0xf7
-};
-
 static const char pod_version_header[] = {
 	0xf2, 0x7e, 0x7f, 0x06, 0x02
 };
@@ -122,7 +118,6 @@ static const char pod_version_header[] = {
 /* forward declarations: */
 static void pod_startup2(unsigned long data);
 static void pod_startup3(struct usb_line6_pod *pod);
-static void pod_startup4(struct usb_line6_pod *pod);
 
 static char *pod_alloc_sysex_buffer(struct usb_line6_pod *pod, int code,
 				    int size)
@@ -157,8 +152,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST:
-		line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
-					 LINE6_DUMP_CURRENT);
 		break;
 
 	case LINE6_SYSEX_BEGIN | LINE6_CHANNEL_DEVICE:
@@ -166,8 +159,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		if (memcmp(buf + 1, line6_midi_id, sizeof(line6_midi_id)) == 0) {
 			switch (buf[5]) {
 			case POD_SYSEX_DUMP:
-				line6_dump_finished(&pod->dumpreq);
-				pod_startup3(pod);
 				break;
 
 			case POD_SYSEX_SYSTEM:{
@@ -208,7 +199,7 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 			pod->device_id =
 			    ((int)buf[8] << 16) | ((int)buf[9] << 8) | (int)
 			    buf[10];
-			pod_startup4(pod);
+			pod_startup3(pod);
 		} else
 			dev_dbg(pod->line6.ifcdev, "unknown sysex header\n");
 
@@ -308,22 +299,6 @@ static void pod_startup1(struct usb_line6_pod *pod)
 static void pod_startup2(unsigned long data)
 {
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)data;
-
-	/* schedule another startup procedure until startup is complete: */
-	if (pod->startup_progress >= POD_STARTUP_LAST)
-		return;
-
-	pod->startup_progress = POD_STARTUP_DUMPREQ;
-	line6_start_timer(&pod->startup_timer, POD_STARTUP_DELAY, pod_startup2,
-			  (unsigned long)pod);
-
-	/* current channel dump: */
-	line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
-				 LINE6_DUMP_CURRENT);
-}
-
-static void pod_startup3(struct usb_line6_pod *pod)
-{
 	struct usb_line6 *line6 = &pod->line6;
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_VERSIONREQ);
 
@@ -331,7 +306,7 @@ static void pod_startup3(struct usb_line6_pod *pod)
 	line6_version_request_async(line6);
 }
 
-static void pod_startup4(struct usb_line6_pod *pod)
+static void pod_startup3(struct usb_line6_pod *pod)
 {
 	CHECK_STARTUP_PROGRESS(pod->startup_progress, POD_STARTUP_WORKQUEUE);
 
@@ -339,7 +314,7 @@ static void pod_startup4(struct usb_line6_pod *pod)
 	schedule_work(&pod->startup_work);
 }
 
-static void pod_startup5(struct work_struct *work)
+static void pod_startup4(struct work_struct *work)
 {
 	struct usb_line6_pod *pod =
 	    container_of(work, struct usb_line6_pod, startup_work);
@@ -422,9 +397,6 @@ static void pod_destruct(struct usb_interface *interface)
 
 	del_timer(&pod->startup_timer);
 	cancel_work_sync(&pod->startup_work);
-
-	/* free dump request data: */
-	line6_dumpreq_destruct(&pod->dumpreq);
 }
 
 /*
@@ -450,18 +422,10 @@ static int pod_try_init(struct usb_interface *interface,
 	struct usb_line6 *line6 = &pod->line6;
 
 	init_timer(&pod->startup_timer);
-	INIT_WORK(&pod->startup_work, pod_startup5);
+	INIT_WORK(&pod->startup_work, pod_startup4);
 
 	if ((interface == NULL) || (pod == NULL))
 		return -ENODEV;
-
-	/* initialize USB buffers: */
-	err = line6_dumpreq_init(&pod->dumpreq, pod_request_channel,
-				 sizeof(pod_request_channel));
-	if (err < 0) {
-		dev_err(&interface->dev, "Out of memory\n");
-		return -ENOMEM;
-	}
 
 	/* create sysfs entries: */
 	err = pod_create_files2(&interface->dev);
