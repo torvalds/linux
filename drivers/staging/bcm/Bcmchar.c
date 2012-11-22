@@ -1262,7 +1262,7 @@ cntrlEnd:
 
 	case IOCTL_BCM_NVM_READ:
 	case IOCTL_BCM_NVM_WRITE: {
-		NVM_READWRITE  stNVMReadWrite;
+		struct bcm_nvm_readwrite stNVMReadWrite;
 		PUCHAR pReadData = NULL;
 		ULONG ulDSDMagicNumInUsrBuff = 0;
 		struct timeval tv0, tv1;
@@ -1289,7 +1289,7 @@ cntrlEnd:
 
 		if (copy_from_user(&stNVMReadWrite,
 					(IOCTL_BCM_NVM_READ == cmd) ? IoBuffer.OutputBuffer : IoBuffer.InputBuffer,
-					sizeof(NVM_READWRITE)))
+					sizeof(struct bcm_nvm_readwrite)))
 			return -EFAULT;
 
 		/*
@@ -1842,7 +1842,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_NVM_RAW_READ: {
-		NVM_READWRITE stNVMRead;
+		struct bcm_nvm_readwrite stNVMRead;
 		INT NOB ;
 		INT BuffSize ;
 		INT ReadOffset = 0;
@@ -1861,7 +1861,7 @@ cntrlEnd:
 			return -EFAULT;
 		}
 
-		if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(NVM_READWRITE)))
+		if (copy_from_user(&stNVMRead, IoBuffer.OutputBuffer, sizeof(struct bcm_nvm_readwrite)))
 			return -EFAULT;
 
 		NOB = stNVMRead.uiNumBytes;

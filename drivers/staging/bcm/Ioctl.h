@@ -116,12 +116,12 @@ typedef struct _DEVICE_DRIVER_INFO {
 	unsigned int		u32Reserved[10];
 } DEVICE_DRIVER_INFO;
 
-typedef  struct _NVM_READWRITE {
+struct bcm_nvm_readwrite {
 	void __user *pBuffer;
 	uint32_t  uiOffset;
 	uint32_t uiNumBytes;
 	bool bVerify;
-} NVM_READWRITE, *PNVM_READWRITE;
+};
 
 struct bcm_bulk_wrm_buffer {
 	unsigned long Register;
