@@ -26,10 +26,10 @@
 
 /* minimum FW required for driver */
 #define WL18XX_CHIP_VER		8
-#define WL18XX_IFTYPE_VER	2
+#define WL18XX_IFTYPE_VER	5
 #define WL18XX_MAJOR_VER	0
 #define WL18XX_SUBTYPE_VER	0
-#define WL18XX_MINOR_VER	100
+#define WL18XX_MINOR_VER	28
 
 #define WL18XX_CMD_MAX_SIZE          740
 
