@@ -40,7 +40,6 @@ enum {
 
 enum {
 	POD_monitor_level  = 0x04,
-	POD_routing        = 0x05,
 	POD_tuner_mute     = 0x13,
 	POD_tuner_freq     = 0x15,
 	POD_tuner_note     = 0x16,
@@ -248,7 +247,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 						pod->monitor_level = value;
 						break;
 
-						PROCESS_SYSTEM_PARAM(routing);
 						PROCESS_SYSTEM_PARAM
 						    (tuner_mute);
 						PROCESS_SYSTEM_PARAM
@@ -647,7 +645,6 @@ static ssize_t pod_set_ ## code(struct device *dev, \
 	return pod_set_system_param_string(pod, buf, count, POD_ ## code, mask); \
 }
 
-POD_GET_SET_SYSTEM_PARAM(routing, 0x0003, 0);
 POD_GET_SET_SYSTEM_PARAM(tuner_mute, 0x0001, 0);
 POD_GET_SET_SYSTEM_PARAM(tuner_freq, 0xffff, 0);
 POD_GET_SYSTEM_PARAM(tuner_note, 1);
@@ -663,8 +660,6 @@ static DEVICE_ATTR(firmware_version, S_IRUGO, pod_get_firmware_version,
 		   line6_nop_write);
 static DEVICE_ATTR(midi_postprocess, S_IWUSR | S_IRUGO,
 		   pod_get_midi_postprocess, pod_set_midi_postprocess);
-static DEVICE_ATTR(routing, S_IWUSR | S_IRUGO, pod_get_routing,
-		   pod_set_routing);
 static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
 		   line6_nop_write);
 static DEVICE_ATTR(tuner_freq, S_IWUSR | S_IRUGO, pod_get_tuner_freq,
@@ -755,7 +750,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_finish));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_routing));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_freq));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_mute));
@@ -785,7 +779,6 @@ static int pod_try_init(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* initialize wait queues: */
-	init_waitqueue_head(&pod->routing.wait);
 	init_waitqueue_head(&pod->tuner_mute.wait);
 	init_waitqueue_head(&pod->tuner_freq.wait);
 	init_waitqueue_head(&pod->tuner_note.wait);
@@ -882,7 +875,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_finish);
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_midi_postprocess);
-			device_remove_file(dev, &dev_attr_routing);
 			device_remove_file(dev, &dev_attr_serial_number);
 			device_remove_file(dev, &dev_attr_tuner_freq);
 			device_remove_file(dev, &dev_attr_tuner_mute);

@@ -124,15 +124,6 @@ struct usb_line6_pod {
 	int monitor_level;
 
 	/**
-		Audio routing mode.
-		0: send processed guitar
-		1: send clean guitar
-		2: send clean guitar re-amp playback
-		3: send re-amp playback
-	*/
-	struct ValueWait routing;
-
-	/**
 		Timer for device initializaton.
 	*/
 	struct timer_list startup_timer;
