@@ -450,5 +450,12 @@ config REGULATOR_WM8994
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
 
+config REGULATOR_AS3711
+	tristate "AS3711 PMIC"
+	depends on MFD_AS3711
+	help
+	  This driver provides support for the voltage regulators on the
+	  AS3711 PMIC
+
 endif
 
