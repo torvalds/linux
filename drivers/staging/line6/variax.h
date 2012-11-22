@@ -88,11 +88,6 @@ struct usb_line6_variax {
 	unsigned char guitar[18];
 
 	/**
-		Name of current model bank.
-	*/
-	unsigned char bank[18];
-
-	/**
 		Handler for device initializaton.
 	*/
 	struct work_struct startup_work;

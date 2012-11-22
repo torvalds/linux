@@ -248,9 +248,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 			}
 		} else if (memcmp(buf + 1, variax_request_bank + 1,
 				  sizeof(variax_request_bank) - 2) == 0) {
-			memcpy(variax->bank,
-			       buf + sizeof(variax_request_bank) - 1,
-			       sizeof(variax->bank));
 			line6_dump_finished(&variax->dumpreq);
 			variax_startup6(variax);
 		} else if (memcmp(buf + 1, variax_init_model + 1,
@@ -308,34 +305,6 @@ static ssize_t variax_set_active(struct device *dev,
 
 	variax_activate_async(variax, value ? 1 : 0);
 	return count;
-}
-
-static ssize_t get_string(char *buf, const char *data, int length)
-{
-	int i;
-	memcpy(buf, data, length);
-
-	for (i = length; i--;) {
-		char c = buf[i];
-
-		if ((c != 0) && (c != ' '))
-			break;
-	}
-
-	buf[i + 1] = '\n';
-	return i + 2;
-}
-
-/*
-	"read" request on "bank" special file.
-*/
-static ssize_t variax_get_bank(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct usb_line6_variax *variax =
-	    usb_get_intfdata(to_usb_interface(dev));
-	line6_dump_wait_interruptible(&variax->dumpreq);
-	return get_string(buf, variax->bank, sizeof(variax->bank));
 }
 
 /*
@@ -414,7 +383,6 @@ static ssize_t variax_set_raw2(struct device *dev,
 #endif
 
 /* Variax workbench special files: */
-static DEVICE_ATTR(bank, S_IRUGO, variax_get_bank, line6_nop_write);
 static DEVICE_ATTR(dump, S_IRUGO, variax_get_dump, line6_nop_write);
 static DEVICE_ATTR(active, S_IWUSR | S_IRUGO, variax_get_active,
 		   variax_set_active);
@@ -454,7 +422,6 @@ static void variax_destruct(struct usb_interface *interface)
 static int variax_create_files2(struct device *dev)
 {
 	int err;
-	CHECK_RETURN(device_create_file(dev, &dev_attr_bank));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_dump));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_active));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_guitar));
@@ -556,7 +523,6 @@ void line6_variax_disconnect(struct usb_interface *interface)
 	if (dev != NULL) {
 		/* remove sysfs entries: */
 		line6_variax_remove_files(0, 0, dev);
-		device_remove_file(dev, &dev_attr_bank);
 		device_remove_file(dev, &dev_attr_dump);
 		device_remove_file(dev, &dev_attr_active);
 		device_remove_file(dev, &dev_attr_guitar);
