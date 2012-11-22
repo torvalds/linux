@@ -183,7 +183,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 
 	msg = sctp_datamsg_new(GFP_KERNEL);
 	if (!msg)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	/* Note: Calculate this outside of the loop, so that all fragments
 	 * have the same expiration.
@@ -280,8 +280,11 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 
 		chunk = sctp_make_datafrag_empty(asoc, sinfo, len, frag, 0);
 
-		if (!chunk)
+		if (!chunk) {
+			err = -ENOMEM;
 			goto errout;
+		}
+
 		err = sctp_user_addto_chunk(chunk, offset, len, msgh->msg_iov);
 		if (err < 0)
 			goto errout_chunk_free;
@@ -315,8 +318,10 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 
 		chunk = sctp_make_datafrag_empty(asoc, sinfo, over, frag, 0);
 
-		if (!chunk)
+		if (!chunk) {
+			err = -ENOMEM;
 			goto errout;
+		}
 
 		err = sctp_user_addto_chunk(chunk, offset, over,msgh->msg_iov);
 
@@ -342,7 +347,7 @@ errout:
 		sctp_chunk_free(chunk);
 	}
 	sctp_datamsg_put(msg);
-	return NULL;
+	return ERR_PTR(err);
 }
 
 /* Check whether this message has expired. */
