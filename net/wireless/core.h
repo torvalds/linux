@@ -483,12 +483,6 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num);
 
-bool cfg80211_chan_def_valid(const struct cfg80211_chan_def *chandef);
-
-bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
-				 u32 center_freq, u32 bandwidth,
-				 u32 prohibited_flags);
-
 #define CFG80211_MAX_NUM_DIFFERENT_CHANNELS 10
 
 #ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS

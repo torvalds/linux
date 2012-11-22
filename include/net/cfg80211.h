@@ -58,6 +58,8 @@
  * structures here describe these capabilities in detail.
  */
 
+struct wiphy;
+
 /*
  * wireless hardware capability structures
  */
@@ -386,6 +388,22 @@ cfg80211_chandef_identical(const struct cfg80211_chan_def *chandef1,
 const struct cfg80211_chan_def *
 cfg80211_chandef_compatible(const struct cfg80211_chan_def *chandef1,
 			    const struct cfg80211_chan_def *chandef2);
+
+/**
+ * cfg80211_chandef_valid - check if a channel definition is valid
+ * @chandef: the channel definition to check
+ */
+bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef);
+
+/**
+ * cfg80211_chandef_usable - check if secondary channels can be used
+ * @wiphy: the wiphy to validate against
+ * @chandef: the channel definition to check
+ * @prohibited_flags: the regulatory chanenl flags that must not be set
+ */
+bool cfg80211_chandef_usable(struct wiphy *wiphy,
+			     const struct cfg80211_chan_def *chandef,
+			     u32 prohibited_flags);
 
 /**
  * enum survey_info_flags - survey information flags
@@ -1044,9 +1062,6 @@ struct ieee80211_txq_params {
 	u16 cwmax;
 	u8 aifs;
 };
-
-/* from net/wireless.h */
-struct wiphy;
 
 /**
  * DOC: Scanning and BSS list handling

@@ -44,7 +44,7 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 }
 EXPORT_SYMBOL(cfg80211_chandef_create);
 
-bool cfg80211_chan_def_valid(const struct cfg80211_chan_def *chandef)
+bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 {
 	u32 control_freq;
 
@@ -105,6 +105,7 @@ bool cfg80211_chan_def_valid(const struct cfg80211_chan_def *chandef)
 
 	return true;
 }
+EXPORT_SYMBOL(cfg80211_chandef_valid);
 
 static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
 				  int *pri40, int *pri80)
@@ -187,9 +188,9 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
 }
 EXPORT_SYMBOL(cfg80211_chandef_compatible);
 
-bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
-				 u32 center_freq, u32 bandwidth,
-				 u32 prohibited_flags)
+static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
+					u32 center_freq, u32 bandwidth,
+					u32 prohibited_flags)
 {
 	struct ieee80211_channel *c;
 	u32 freq;
@@ -205,55 +206,88 @@ bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 	return true;
 }
 
-static bool cfg80211_check_beacon_chans(struct wiphy *wiphy,
-					u32 center_freq, u32 bw)
+bool cfg80211_chandef_usable(struct wiphy *wiphy,
+			     const struct cfg80211_chan_def *chandef,
+			     u32 prohibited_flags)
 {
-	return cfg80211_secondary_chans_ok(wiphy, center_freq, bw,
-					   IEEE80211_CHAN_DISABLED |
-					   IEEE80211_CHAN_PASSIVE_SCAN |
-					   IEEE80211_CHAN_NO_IBSS |
-					   IEEE80211_CHAN_RADAR);
-}
+	struct ieee80211_sta_ht_cap *ht_cap;
+	struct ieee80211_sta_vht_cap *vht_cap;
+	u32 width, control_freq;
 
-bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
-			     struct cfg80211_chan_def *chandef)
-{
-	u32 width;
-	bool res;
-
-	trace_cfg80211_reg_can_beacon(wiphy, chandef);
-
-	if (WARN_ON(!cfg80211_chan_def_valid(chandef))) {
-		trace_cfg80211_return_bool(false);
+	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return false;
-	}
+
+	ht_cap = &wiphy->bands[chandef->chan->band]->ht_cap;
+	vht_cap = &wiphy->bands[chandef->chan->band]->vht_cap;
+
+	control_freq = chandef->chan->center_freq;
 
 	switch (chandef->width) {
-	case NL80211_CHAN_WIDTH_20_NOHT:
 	case NL80211_CHAN_WIDTH_20:
+		if (!ht_cap->ht_supported)
+			return false;
+	case NL80211_CHAN_WIDTH_20_NOHT:
 		width = 20;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		width = 40;
+		if (!ht_cap->ht_supported)
+			return false;
+		if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
+		    ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT)
+			return false;
+		if (chandef->center_freq1 < control_freq &&
+		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+			return false;
+		if (chandef->center_freq1 > control_freq &&
+		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
+			return false;
 		break;
-	case NL80211_CHAN_WIDTH_80:
 	case NL80211_CHAN_WIDTH_80P80:
+		if (!(vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ))
+			return false;
+	case NL80211_CHAN_WIDTH_80:
+		if (!vht_cap->vht_supported)
+			return false;
 		width = 80;
 		break;
 	case NL80211_CHAN_WIDTH_160:
+		if (!vht_cap->vht_supported)
+			return false;
+		if (!(vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ))
+			return false;
 		width = 160;
 		break;
 	default:
 		WARN_ON_ONCE(1);
-		trace_cfg80211_return_bool(false);
 		return false;
 	}
 
-	res = cfg80211_check_beacon_chans(wiphy, chandef->center_freq1, width);
+	/* TODO: missing regulatory check on 80/160 bandwidth */
 
-	if (res && chandef->center_freq2)
-		res = cfg80211_check_beacon_chans(wiphy, chandef->center_freq2,
-						  width);
+	if (!cfg80211_secondary_chans_ok(wiphy, chandef->center_freq1,
+					 width, prohibited_flags))
+		return false;
+
+	if (!chandef->center_freq2)
+		return true;
+	return cfg80211_secondary_chans_ok(wiphy, chandef->center_freq2,
+					   width, prohibited_flags);
+}
+EXPORT_SYMBOL(cfg80211_chandef_usable);
+
+bool cfg80211_reg_can_beacon(struct wiphy *wiphy,
+			     struct cfg80211_chan_def *chandef)
+{
+	bool res;
+
+	trace_cfg80211_reg_can_beacon(wiphy, chandef);
+
+	res = cfg80211_chandef_usable(wiphy, chandef,
+				      IEEE80211_CHAN_DISABLED |
+				      IEEE80211_CHAN_PASSIVE_SCAN |
+				      IEEE80211_CHAN_NO_IBSS |
+				      IEEE80211_CHAN_RADAR);
 
 	trace_cfg80211_return_bool(res);
 	return res;

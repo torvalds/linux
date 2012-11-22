@@ -1420,63 +1420,33 @@ static int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 	ht_cap = &rdev->wiphy.bands[chandef->chan->band]->ht_cap;
 	vht_cap = &rdev->wiphy.bands[chandef->chan->band]->vht_cap;
 
-	if (!cfg80211_chan_def_valid(chandef))
+	if (!cfg80211_chandef_valid(chandef))
 		return -EINVAL;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20:
-		if (!ht_cap->ht_supported)
-			return -EINVAL;
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		width = 20;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		width = 40;
-		/* quick early regulatory check */
-		if (chandef->center_freq1 < control_freq &&
-		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
-			return -EINVAL;
-		if (chandef->center_freq1 > control_freq &&
-		    chandef->chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
-			return -EINVAL;
-		if (!ht_cap->ht_supported)
-			return -EINVAL;
-		if (!(ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) ||
-		    ht_cap->cap & IEEE80211_HT_CAP_40MHZ_INTOLERANT)
-			return -EINVAL;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		width = 80;
-		if (!vht_cap->vht_supported)
-			return -EINVAL;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		width = 80;
-		if (!vht_cap->vht_supported)
-			return -EINVAL;
-		if (!(vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ))
-			return -EINVAL;
 		break;
 	case NL80211_CHAN_WIDTH_160:
 		width = 160;
-		if (!vht_cap->vht_supported)
-			return -EINVAL;
-		if (!(vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ))
-			return -EINVAL;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	if (!cfg80211_secondary_chans_ok(&rdev->wiphy, chandef->center_freq1,
-					 width, IEEE80211_CHAN_DISABLED))
+	if (!cfg80211_chandef_usable(&rdev->wiphy, chandef,
+				     IEEE80211_CHAN_DISABLED))
 		return -EINVAL;
-	if (chandef->center_freq2 &&
-	    !cfg80211_secondary_chans_ok(&rdev->wiphy, chandef->center_freq2,
-					 width, IEEE80211_CHAN_DISABLED))
-		return -EINVAL;
-
-	/* TODO: missing regulatory check on bandwidth */
 
 	return 0;
 }
@@ -1841,7 +1811,7 @@ static inline u64 wdev_id(struct wireless_dev *wdev)
 static int nl80211_send_chandef(struct sk_buff *msg,
 				 struct cfg80211_chan_def *chandef)
 {
-	WARN_ON(!cfg80211_chan_def_valid(chandef));
+	WARN_ON(!cfg80211_chandef_valid(chandef));
 
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ,
 			chandef->chan->center_freq))
