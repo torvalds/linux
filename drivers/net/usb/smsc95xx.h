@@ -55,6 +55,9 @@
 #define ID_REV_CHIP_ID_9500_		(0x9500)
 #define ID_REV_CHIP_ID_9500A_		(0x9E00)
 #define ID_REV_CHIP_ID_9512_		(0xEC00)
+#define ID_REV_CHIP_ID_9530_		(0x9530)
+#define ID_REV_CHIP_ID_89530_		(0x9E08)
+#define ID_REV_CHIP_ID_9730_		(0x9730)
 
 #define INT_STS				(0x08)
 #define INT_STS_TX_STOP_		(0x00020000)
