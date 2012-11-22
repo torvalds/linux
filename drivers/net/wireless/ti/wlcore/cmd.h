@@ -151,8 +151,11 @@ enum wl1271_commands {
 	CMD_WFD_START_DISCOVERY	= 45,
 	CMD_WFD_STOP_DISCOVERY	= 46,
 	CMD_WFD_ATTRIBUTE_CONFIG	= 47,
-	CMD_NOP			= 48,
-	CMD_LAST_COMMAND,
+	CMD_GENERIC_CFG			= 48,
+	CMD_NOP				= 49,
+
+	/* start of 18xx specific commands */
+	CMD_DFS_CHANNEL_CONFIG		= 60,
 
 	MAX_COMMAND_ID = 0xFFFF,
 };
