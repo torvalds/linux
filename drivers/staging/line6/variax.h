@@ -93,11 +93,6 @@ struct usb_line6_variax {
 	unsigned char bank[18];
 
 	/**
-		Position of tone control dial.
-	*/
-	int tone;
-
-	/**
 		Handler for device initializaton.
 	*/
 	struct work_struct startup_work;
