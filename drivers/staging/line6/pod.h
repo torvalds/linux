@@ -99,11 +99,6 @@ struct usb_line6_pod {
 	struct pod_program prog_data_buf;
 
 	/**
-		Tuner mute mode.
-	*/
-	struct ValueWait tuner_mute;
-
-	/**
 		Pitch value received from tuner.
 	*/
 	struct ValueWait tuner_pitch;

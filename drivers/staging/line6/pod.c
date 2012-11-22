@@ -248,8 +248,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 						break;
 
 						PROCESS_SYSTEM_PARAM
-						    (tuner_mute);
-						PROCESS_SYSTEM_PARAM
 						    (tuner_pitch);
 
 #undef PROCESS_SYSTEM_PARAM
@@ -453,20 +451,6 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
 }
 
 /*
-	Send system parameter (from string).
-	@param tuner non-zero, if code refers to a tuner parameter
-*/
-static ssize_t pod_set_system_param_string(struct usb_line6_pod *pod,
-					   const char *buf, int count, int code,
-					   unsigned short mask)
-{
-	int retval;
-	unsigned short value = simple_strtoul(buf, NULL, 10) & mask;
-	retval = pod_set_system_param_int(pod, value, code);
-	return (retval < 0) ? retval : count;
-}
-
-/*
 	"write" request on "finish" special file.
 */
 static ssize_t pod_set_finish(struct device *dev,
@@ -630,21 +614,8 @@ static ssize_t pod_get_ ## code(struct device *dev, \
 					   &pod->code, sign);		\
 }
 
-#define POD_GET_SET_SYSTEM_PARAM(code, mask, sign) \
-POD_GET_SYSTEM_PARAM(code, sign) \
-static ssize_t pod_set_ ## code(struct device *dev, \
-				struct device_attribute *attr, \
-				const char *buf, size_t count) \
-{ \
-	struct usb_interface *interface = to_usb_interface(dev); \
-	struct usb_line6_pod *pod = usb_get_intfdata(interface); \
-	return pod_set_system_param_string(pod, buf, count, POD_ ## code, mask); \
-}
-
-POD_GET_SET_SYSTEM_PARAM(tuner_mute, 0x0001, 0);
 POD_GET_SYSTEM_PARAM(tuner_pitch, 1);
 
-#undef GET_SET_SYSTEM_PARAM
 #undef GET_SYSTEM_PARAM
 
 /* POD special files: */
@@ -656,8 +627,6 @@ static DEVICE_ATTR(midi_postprocess, S_IWUSR | S_IRUGO,
 		   pod_get_midi_postprocess, pod_set_midi_postprocess);
 static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
 		   line6_nop_write);
-static DEVICE_ATTR(tuner_mute, S_IWUSR | S_IRUGO, pod_get_tuner_mute,
-		   pod_set_tuner_mute);
 static DEVICE_ATTR(tuner_pitch, S_IRUGO, pod_get_tuner_pitch, line6_nop_write);
 
 #ifdef CONFIG_LINE6_USB_RAW
@@ -742,7 +711,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_mute));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_pitch));
 
 #ifdef CONFIG_LINE6_USB_RAW
@@ -768,7 +736,6 @@ static int pod_try_init(struct usb_interface *interface,
 		return -ENODEV;
 
 	/* initialize wait queues: */
-	init_waitqueue_head(&pod->tuner_mute.wait);
 	init_waitqueue_head(&pod->tuner_pitch.wait);
 
 	/* initialize USB buffers: */
@@ -863,7 +830,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_midi_postprocess);
 			device_remove_file(dev, &dev_attr_serial_number);
-			device_remove_file(dev, &dev_attr_tuner_mute);
 			device_remove_file(dev, &dev_attr_tuner_pitch);
 
 #ifdef CONFIG_LINE6_USB_RAW
