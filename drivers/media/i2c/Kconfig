@@ -523,6 +523,13 @@ config VIDEO_S5K4ECGX
 
 source "drivers/media/i2c/smiapp/Kconfig"
 
+config VIDEO_S5C73M3
+	tristate "Samsung S5C73M3 sensor support"
+	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	---help---
+	This is a V4L2 sensor-level driver for Samsung S5C73M3
+	8 Mpixel camera.
+
 comment "Flash devices"
 
 config VIDEO_ADP1653
