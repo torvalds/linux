@@ -28,41 +28,11 @@
 #include <linux/fdtable.h>
 
 #define PRIOMAP_MIN_SZ		128
-#define PRIOIDX_SZ 128
-
-static unsigned long prioidx_map[PRIOIDX_SZ];
-static DEFINE_SPINLOCK(prioidx_map_lock);
 
 static inline struct cgroup_netprio_state *cgrp_netprio_state(struct cgroup *cgrp)
 {
 	return container_of(cgroup_subsys_state(cgrp, net_prio_subsys_id),
 			    struct cgroup_netprio_state, css);
-}
-
-static int get_prioidx(u32 *prio)
-{
-	unsigned long flags;
-	u32 prioidx;
-
-	spin_lock_irqsave(&prioidx_map_lock, flags);
-	prioidx = find_first_zero_bit(prioidx_map, sizeof(unsigned long) * PRIOIDX_SZ);
-	if (prioidx == sizeof(unsigned long) * PRIOIDX_SZ) {
-		spin_unlock_irqrestore(&prioidx_map_lock, flags);
-		return -ENOSPC;
-	}
-	set_bit(prioidx, prioidx_map);
-	spin_unlock_irqrestore(&prioidx_map_lock, flags);
-	*prio = prioidx;
-	return 0;
-}
-
-static void put_prioidx(u32 idx)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&prioidx_map_lock, flags);
-	clear_bit(idx, prioidx_map);
-	spin_unlock_irqrestore(&prioidx_map_lock, flags);
 }
 
 /*
@@ -120,62 +90,50 @@ static int extend_netdev_table(struct net_device *dev, u32 target_idx)
 static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
-	int ret = -EINVAL;
+
+	if (cgrp->parent && cgrp->parent->id)
+		return ERR_PTR(-EINVAL);
 
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
 
-	if (cgrp->parent && cgrp_netprio_state(cgrp->parent)->prioidx)
-		goto out;
-
-	ret = get_prioidx(&cs->prioidx);
-	if (ret < 0) {
-		pr_warn("No space in priority index array\n");
-		goto out;
-	}
-
 	return &cs->css;
-out:
-	kfree(cs);
-	return ERR_PTR(ret);
 }
 
 static void cgrp_css_free(struct cgroup *cgrp)
 {
-	struct cgroup_netprio_state *cs;
+	struct cgroup_netprio_state *cs = cgrp_netprio_state(cgrp);
 	struct net_device *dev;
 	struct netprio_map *map;
 
-	cs = cgrp_netprio_state(cgrp);
 	rtnl_lock();
 	for_each_netdev(&init_net, dev) {
 		map = rtnl_dereference(dev->priomap);
-		if (map && cs->prioidx < map->priomap_len)
-			map->priomap[cs->prioidx] = 0;
+		if (map && cgrp->id < map->priomap_len)
+			map->priomap[cgrp->id] = 0;
 	}
 	rtnl_unlock();
-	put_prioidx(cs->prioidx);
 	kfree(cs);
 }
 
 static u64 read_prioidx(struct cgroup *cgrp, struct cftype *cft)
 {
-	return (u64)cgrp_netprio_state(cgrp)->prioidx;
+	return cgrp->id;
 }
 
 static int read_priomap(struct cgroup *cont, struct cftype *cft,
 			struct cgroup_map_cb *cb)
 {
 	struct net_device *dev;
-	u32 prioidx = cgrp_netprio_state(cont)->prioidx;
+	u32 id = cont->id;
 	u32 priority;
 	struct netprio_map *map;
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
 		map = rcu_dereference(dev->priomap);
-		priority = (map && prioidx < map->priomap_len) ? map->priomap[prioidx] : 0;
+		priority = (map && id < map->priomap_len) ? map->priomap[id] : 0;
 		cb->fill(cb, dev->name, priority);
 	}
 	rcu_read_unlock();
@@ -185,7 +143,6 @@ static int read_priomap(struct cgroup *cont, struct cftype *cft,
 static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 			 const char *buffer)
 {
-	u32 prioidx = cgrp_netprio_state(cgrp)->prioidx;
 	char devname[IFNAMSIZ + 1];
 	struct net_device *dev;
 	struct netprio_map *map;
@@ -201,13 +158,13 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 
 	rtnl_lock();
 
-	ret = extend_netdev_table(dev, prioidx);
+	ret = extend_netdev_table(dev, cgrp->id);
 	if (ret)
 		goto out_unlock;
 
 	map = rtnl_dereference(dev->priomap);
 	if (map)
-		map->priomap[prioidx] = prio;
+		map->priomap[cgrp->id] = prio;
 out_unlock:
 	rtnl_unlock();
 	dev_put(dev);
