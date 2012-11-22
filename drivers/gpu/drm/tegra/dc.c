@@ -218,7 +218,7 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	bpp = crtc->fb->bits_per_pixel / 8;
-	win.stride = win.outw * bpp;
+	win.stride = crtc->fb->pitches[0];
 
 	/* program window registers */
 	value = tegra_dc_readl(dc, DC_CMD_DISPLAY_WINDOW_HEADER);
