@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6282.dtsi"
 
 / {
 	model = "Plat'Home OpenBlocksA6";
@@ -34,6 +35,15 @@
 		sata@80000 {
 			nr-ports = <1>;
 			status = "okay";
+		};
+
+		i2c@11100 {
+			status = "okay";
+
+			s35390a: s35390a@30 {
+				compatible = "s35390a";
+				reg = <0x30>;
+			};
 		};
 	};
 };
