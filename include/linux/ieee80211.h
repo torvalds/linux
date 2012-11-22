@@ -668,6 +668,21 @@ struct ieee80211_meshconf_ie {
 } __attribute__ ((packed));
 
 /**
+ * enum mesh_config_capab_flags - Mesh Configuration IE capability field flags
+ *
+ * @IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS: STA is willing to establish
+ *	additional mesh peerings with other mesh STAs
+ * @IEEE80211_MESHCONF_CAPAB_FORWARDING: the STA forwards MSDUs
+ * @IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING: TBTT adjustment procedure
+ *	is ongoing
+ */
+enum mesh_config_capab_flags {
+	IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS		= 0x01,
+	IEEE80211_MESHCONF_CAPAB_FORWARDING		= 0x08,
+	IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING		= 0x20,
+};
+
+/**
  * struct ieee80211_rann_ie
  *
  * This structure refers to "Root Announcement information element"

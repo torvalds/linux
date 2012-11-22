@@ -19,20 +19,6 @@
 /* Data structures */
 
 /**
- * enum mesh_config_capab_flags - mesh config IE capability flags
- *
- * @MESHCONF_CAPAB_ACCEPT_PLINKS: STA is willing to establish
- * additional mesh peerings with other mesh STAs
- * @MESHCONF_CAPAB_FORWARDING: the STA forwards MSDUs
- * @MESHCONF_CAPAB_TBTT_ADJUSTING: TBTT adjustment procedure is ongoing
- */
-enum mesh_config_capab_flags {
-	MESHCONF_CAPAB_ACCEPT_PLINKS = BIT(0),
-	MESHCONF_CAPAB_FORWARDING = BIT(3),
-	MESHCONF_CAPAB_TBTT_ADJUSTING = BIT(5),
-};
-
-/**
  * enum mesh_path_flags - mac80211 mesh path flags
  *
  *

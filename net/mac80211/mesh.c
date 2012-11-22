@@ -129,7 +129,7 @@ mismatch:
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
 	return (ie->mesh_config->meshconf_cap &
-	    MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
+	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS) != 0;
 }
 
 /**
@@ -269,11 +269,11 @@ mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	neighbors = (neighbors > 15) ? 15 : neighbors;
 	*pos++ = neighbors << 1;
 	/* Mesh capability */
-	*pos = MESHCONF_CAPAB_FORWARDING;
+	*pos = IEEE80211_MESHCONF_CAPAB_FORWARDING;
 	*pos |= ifmsh->accepting_plinks ?
-	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
+	    IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ |= ifmsh->adjusting_tbtt ?
-	    MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
+	    IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
 	*pos++ = 0x00;
 
 	return 0;
