@@ -1312,8 +1312,8 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 				dma_cap_set(DMA_INTERRUPT, cap_mask);
 
 			irq = irq_of_parse_and_map(np, 0);
-			if (irq < 0) {
-				ret = irq;
+			if (!irq) {
+				ret = -ENODEV;
 				goto err_channel_add;
 			}
 
