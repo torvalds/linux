@@ -40,10 +40,6 @@ enum {
 
 enum {
 	POD_monitor_level  = 0x04,
-	POD_tuner_mute     = 0x13,
-	POD_tuner_freq     = 0x15,
-	POD_tuner_note     = 0x16,
-	POD_tuner_pitch    = 0x17,
 	POD_system_invalid = 0x10000
 };
 
@@ -298,19 +294,7 @@ void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 }
 
 /*
-	Identify system parameters related to the tuner.
-*/
-static bool pod_is_tuner(int code)
-{
-	return
-	    (code == POD_tuner_mute) ||
-	    (code == POD_tuner_freq) ||
-	    (code == POD_tuner_note) || (code == POD_tuner_pitch);
-}
-
-/*
 	Send system parameter (from integer).
-	@param tuner non-zero, if code refers to a tuner parameter
 */
 static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
 				    int code)
@@ -318,11 +302,6 @@ static int pod_set_system_param_int(struct usb_line6_pod *pod, int value,
 	char *sysex;
 	static const int size = 5;
 
-	if (((pod->prog_data.control[POD_tuner] & 0x40) == 0)
-	    && pod_is_tuner(code))
-		return -EINVAL;
-
-	/* send value to tuner: */
 	sysex = pod_alloc_sysex_buffer(pod, POD_SYSEX_SYSTEM, size);
 	if (!sysex)
 		return -ENOMEM;
