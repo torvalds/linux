@@ -146,3 +146,4 @@ obj-$(CONFIG_MFD_SEC_CORE)	+= sec-core.o sec-irq.o
 obj-$(CONFIG_MFD_SYSCON)	+= syscon.o
 obj-$(CONFIG_MFD_LM3533)	+= lm3533-core.o lm3533-ctrlbank.o
 obj-$(CONFIG_MFD_RETU)		+= retu-mfd.o
+obj-$(CONFIG_MFD_AS3711)	+= as3711.o

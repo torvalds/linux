@@ -1103,6 +1103,15 @@ config MFD_RETU
 	  Retu is a multi-function device found on Nokia Internet Tablets
 	  (770, N800 and N810).
 
+config MFD_AS3711
+	bool "Support for AS3711"
+	select MFD_CORE
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	depends on I2C=y
+	help
+	  Support for the AS3711 PMIC from AMS
+
 endmenu
 endif
 
