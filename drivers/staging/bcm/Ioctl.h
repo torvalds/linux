@@ -24,11 +24,11 @@ typedef struct stGPIOInfo {
 	unsigned int uiGpioValue; /* 1 set ; 0 not  set */
 } __packed GPIO_INFO, *PGPIO_INFO;
 
-typedef struct stUserThreadReq {
+struct bcm_user_thread_req {
 	/* 0->Inactivate LED thread. */
 	/* 1->Activate the LED thread */
 	unsigned int ThreadState;
-} __packed USER_THREAD_REQ, *PUSER_THREAD_REQ;
+} __packed;
 
 #define LED_THREAD_ACTIVATION_REQ  1
 #define BCM_IOCTL				'k'

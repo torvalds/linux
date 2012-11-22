@@ -478,7 +478,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	break;
 
 	case BCM_LED_THREAD_STATE_CHANGE_REQ: {
-		USER_THREAD_REQ threadReq = {0};
+		struct bcm_user_thread_req threadReq = {0};
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "User made LED thread InActive");
 
 		if ((Adapter->IdleMode == TRUE) ||
