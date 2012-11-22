@@ -151,13 +151,13 @@ typedef enum _FLASH2X_SECTION_VAL {
 /*
  * Structure used for READ/WRITE Flash Map2.x
  */
-typedef struct _FLASH2X_READWRITE {
+struct bcm_flash2x_readwrite {
 	FLASH2X_SECTION_VAL Section; /* which section has to be read/written */
 	u32 offset;	     /* Offset within Section. */
 	u32 numOfBytes;	     /* NOB from the offset */
 	u32 bVerify;
 	void __user *pDataBuff;	     /* Buffer for reading/writing */
-} FLASH2X_READWRITE, *PFLASH2X_READWRITE;
+};
 
 /*
  * This structure is used for coping one section to other.

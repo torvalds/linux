@@ -1404,7 +1404,7 @@ cntrlEnd:
 	}
 
 	case IOCTL_BCM_FLASH2X_SECTION_READ: {
-		FLASH2X_READWRITE sFlash2xRead = {0};
+		struct bcm_flash2x_readwrite sFlash2xRead = {0};
 		PUCHAR pReadBuff = NULL ;
 		UINT NOB = 0;
 		UINT BuffSize = 0;
@@ -1422,7 +1422,7 @@ cntrlEnd:
 			return -EFAULT;
 
 		/* Reading FLASH 2.x READ structure */
-		if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
+		if (copy_from_user(&sFlash2xRead, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_readwrite)))
 			return -EFAULT;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xRead.Section);
@@ -1495,7 +1495,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_FLASH2X_SECTION_WRITE: {
-		FLASH2X_READWRITE sFlash2xWrite = {0};
+		struct bcm_flash2x_readwrite sFlash2xWrite = {0};
 		PUCHAR pWriteBuff;
 		void __user *InputAddr;
 		UINT NOB = 0;
@@ -1517,7 +1517,7 @@ cntrlEnd:
 			return -EFAULT;
 
 		/* Reading FLASH 2.x READ structure */
-		if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer, sizeof(FLASH2X_READWRITE)))
+		if (copy_from_user(&sFlash2xWrite, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_readwrite)))
 			return -EFAULT;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "\nsFlash2xRead.Section :%x", sFlash2xWrite.Section);

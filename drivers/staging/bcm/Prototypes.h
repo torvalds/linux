@@ -189,7 +189,7 @@ INT BcmDeAllocFlashCSStructure(struct bcm_mini_adapter *psAdapter);
 INT BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section sCopySectStrut);
 INT BcmFlash2xCorruptSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlash2xSectionVal);
 INT BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFlashSectionVal);
-INT	validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, PFLASH2X_READWRITE psFlash2xReadWrite);
+INT	validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_readwrite *psFlash2xReadWrite);
 INT IsFlash2x(struct bcm_mini_adapter *Adapter);
 INT	BcmCopySection(struct bcm_mini_adapter *Adapter,
 						FLASH2X_SECTION_VAL SrcSection,

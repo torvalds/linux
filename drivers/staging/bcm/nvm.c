@@ -3901,7 +3901,7 @@ int BcmFlash2xWriteSig(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eFl
  * Return values:-Return TRUE is request is valid else FALSE.
  */
 
-int validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, PFLASH2X_READWRITE psFlash2xReadWrite)
+int validateFlash2xReadWrite(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_readwrite *psFlash2xReadWrite)
 {
 	unsigned int uiNumOfBytes = 0;
 	unsigned int uiSectStartOffset = 0;
