@@ -41,11 +41,15 @@ static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 	cs = kzalloc(sizeof(*cs), GFP_KERNEL);
 	if (!cs)
 		return ERR_PTR(-ENOMEM);
-
-	if (cgrp->parent)
-		cs->classid = cgrp_cls_state(cgrp->parent)->classid;
-
 	return &cs->css;
+}
+
+static int cgrp_css_online(struct cgroup *cgrp)
+{
+	if (cgrp->parent)
+		cgrp_cls_state(cgrp)->classid =
+			cgrp_cls_state(cgrp->parent)->classid;
+	return 0;
 }
 
 static void cgrp_css_free(struct cgroup *cgrp)
@@ -76,19 +80,11 @@ static struct cftype ss_files[] = {
 struct cgroup_subsys net_cls_subsys = {
 	.name		= "net_cls",
 	.css_alloc	= cgrp_css_alloc,
+	.css_online	= cgrp_css_online,
 	.css_free	= cgrp_css_free,
 	.subsys_id	= net_cls_subsys_id,
 	.base_cftypes	= ss_files,
 	.module		= THIS_MODULE,
-
-	/*
-	 * While net_cls cgroup has the rudimentary hierarchy support of
-	 * inheriting the parent's classid on cgroup creation, it doesn't
-	 * properly propagates config changes in ancestors to their
-	 * descendents.  A child should follow the parent's configuration
-	 * but be allowed to override it.  Fix it and remove the following.
-	 */
-	.broken_hierarchy = true,
 };
 
 struct cls_cgroup_head {
