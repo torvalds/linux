@@ -1041,9 +1041,8 @@ struct lock_to_push {
 };
 
 static int
-cifs_push_posix_locks(struct cifsFileInfo *cfile)
+cifs_push_posix_locks_locked(struct cifsFileInfo *cfile)
 {
-	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct file_lock *flock, **before;
 	unsigned int count = 0, i = 0;
@@ -1053,14 +1052,6 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 	__u64 length;
 
 	xid = get_xid();
-
-	/* we are going to update can_cache_brlcks here - need a write access */
-	down_write(&cinode->lock_sem);
-	if (!cinode->can_cache_brlcks) {
-		up_write(&cinode->lock_sem);
-		free_xid(xid);
-		return rc;
-	}
 
 	lock_flocks();
 	cifs_for_each_lock(cfile->dentry->d_inode, before) {
@@ -1127,9 +1118,6 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 	}
 
 out:
-	cinode->can_cache_brlcks = false;
-	up_write(&cinode->lock_sem);
-
 	free_xid(xid);
 	return rc;
 err_out:
@@ -1138,6 +1126,24 @@ err_out:
 		kfree(lck);
 	}
 	goto out;
+}
+
+static int
+cifs_push_posix_locks(struct cifsFileInfo *cfile)
+{
+	struct cifsInodeInfo *cinode = CIFS_I(cfile->dentry->d_inode);
+	int rc = 0;
+
+	/* we are going to update can_cache_brlcks here - need a write access */
+	down_write(&cinode->lock_sem);
+	if (!cinode->can_cache_brlcks) {
+		up_write(&cinode->lock_sem);
+		return rc;
+	}
+	rc = cifs_push_posix_locks_locked(cfile);
+	cinode->can_cache_brlcks = false;
+	up_write(&cinode->lock_sem);
+	return rc;
 }
 
 static int
