@@ -148,28 +148,6 @@ static int send_midi_async(struct usb_line6 *line6, unsigned char *data,
 	}
 
 	++line6->line6midi->num_active_send_urbs;
-
-	switch (line6->usbdev->descriptor.idProduct) {
-	case LINE6_DEVID_BASSPODXT:
-	case LINE6_DEVID_BASSPODXTLIVE:
-	case LINE6_DEVID_BASSPODXTPRO:
-	case LINE6_DEVID_PODXT:
-	case LINE6_DEVID_PODXTLIVE:
-	case LINE6_DEVID_PODXTPRO:
-	case LINE6_DEVID_POCKETPOD:
-		line6_pod_midi_postprocess((struct usb_line6_pod *)line6, data,
-					   length);
-		break;
-
-	case LINE6_DEVID_VARIAX:
-	case LINE6_DEVID_PODHD300:
-	case LINE6_DEVID_PODHD500:
-		break;
-
-	default:
-		MISSING_CASE;
-	}
-
 	return 0;
 }
 

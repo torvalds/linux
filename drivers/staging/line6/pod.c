@@ -285,40 +285,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 }
 
 /*
-	Detect some cases that require a channel dump after sending a command to the
-	device. Important notes:
-	*) The actual dump request can not be sent here since we are not allowed to
-	wait for the completion of the first message in this context, and sending
-	the dump request before completion of the previous message leaves the POD
-	in an undefined state. The dump request will be sent when the echoed
-	commands are received.
-	*) This method fails if a param change message is "chopped" after the first
-	byte.
-*/
-void line6_pod_midi_postprocess(struct usb_line6_pod *pod, unsigned char *data,
-				int length)
-{
-	int i;
-
-	if (!pod->midi_postprocess)
-		return;
-
-	for (i = 0; i < length; ++i) {
-		if (data[i] == (LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_HOST)) {
-			line6_invalidate_current(&pod->dumpreq);
-			break;
-		} else
-		    if ((data[i] == (LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST))
-			&& (i < length - 1))
-			if ((data[i + 1] == POD_amp_model_setup)
-			    || (data[i + 1] == POD_effect_setup)) {
-				line6_invalidate_current(&pod->dumpreq);
-				break;
-			}
-	}
-}
-
-/*
 	Transmit PODxt Pro control parameter.
 */
 void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,

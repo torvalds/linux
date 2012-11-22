@@ -127,18 +127,11 @@ struct usb_line6_pod {
 		Device ID.
 	*/
 	int device_id;
-
-	/**
-		Flag to enable MIDI postprocessing.
-	*/
-	char midi_postprocess;
 };
 
 extern void line6_pod_disconnect(struct usb_interface *interface);
 extern int line6_pod_init(struct usb_interface *interface,
 			  struct usb_line6_pod *pod);
-extern void line6_pod_midi_postprocess(struct usb_line6_pod *pod,
-				       unsigned char *data, int length);
 extern void line6_pod_process_message(struct usb_line6_pod *pod);
 extern void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 					 u8 value);
