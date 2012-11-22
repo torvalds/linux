@@ -99,18 +99,18 @@ typedef struct stUserThreadReq {
 #define IOCTL_BCM_GPIO_MULTI_REQUEST		_IOW(BCM_IOCTL, 0x82D, IOCTL_BUFFER)
 #define IOCTL_BCM_GPIO_MODE_REQUEST		_IOW(BCM_IOCTL, 0x82E, IOCTL_BUFFER)
 
-typedef enum _BCM_INTERFACE_TYPE {
+enum bcm_interface_type {
 	BCM_MII,
 	BCM_CARDBUS,
 	BCM_USB,
 	BCM_SDIO,
 	BCM_PCMCIA
-} BCM_INTERFACE_TYPE;
+};
 
 struct bcm_driver_info {
 	NVM_TYPE	u32NVMType;
 	unsigned int		MaxRDMBufferSize;
-	BCM_INTERFACE_TYPE	u32InterfaceType;
+	enum bcm_interface_type	u32InterfaceType;
 	unsigned int		u32DSDStartOffset;
 	unsigned int		u32RxAlignmentCorrection;
 	unsigned int		u32Reserved[10];
