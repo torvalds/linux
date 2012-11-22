@@ -25,7 +25,6 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/vmalloc.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
 
@@ -2261,7 +2260,7 @@ static int snd_ymfpci_free(struct snd_ymfpci *chip)
 #endif
 
 #ifdef CONFIG_PM_SLEEP
-	vfree(chip->saved_regs);
+	kfree(chip->saved_regs);
 #endif
 	if (chip->irq >= 0)
 		free_irq(chip->irq, chip);
@@ -2471,7 +2470,8 @@ int __devinit snd_ymfpci_create(struct snd_card *card,
 	}
 
 #ifdef CONFIG_PM_SLEEP
-	chip->saved_regs = vmalloc(YDSXGR_NUM_SAVED_REGS * sizeof(u32));
+	chip->saved_regs = kmalloc(YDSXGR_NUM_SAVED_REGS * sizeof(u32),
+				   GFP_KERNEL);
 	if (chip->saved_regs == NULL) {
 		snd_ymfpci_free(chip);
 		return -ENOMEM;
