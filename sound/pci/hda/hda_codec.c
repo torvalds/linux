@@ -991,19 +991,6 @@ static struct hda_pincfg *look_up_pincfg(struct hda_codec *codec,
 	return NULL;
 }
 
-/* write a config value for the given NID */
-static void set_pincfg(struct hda_codec *codec, hda_nid_t nid,
-		       unsigned int cfg)
-{
-	int i;
-	for (i = 0; i < 4; i++) {
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_CONFIG_DEFAULT_BYTES_0 + i,
-				    cfg & 0xff);
-		cfg >>= 8;
-	}
-}
-
 /* set the current pin config value for the given NID.
  * the value is cached, and read via snd_hda_codec_get_pincfg()
  */
@@ -1011,12 +998,10 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		       hda_nid_t nid, unsigned int cfg)
 {
 	struct hda_pincfg *pin;
-	unsigned int oldcfg;
 
 	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 		return -EINVAL;
 
-	oldcfg = snd_hda_codec_get_pincfg(codec, nid);
 	pin = look_up_pincfg(codec, list, nid);
 	if (!pin) {
 		pin = snd_array_new(list);
@@ -1025,13 +1010,6 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		pin->nid = nid;
 	}
 	pin->cfg = cfg;
-
-	/* change only when needed; e.g. if the pincfg is already present
-	 * in user_pins[], don't write it
-	 */
-	cfg = snd_hda_codec_get_pincfg(codec, nid);
-	if (oldcfg != cfg)
-		set_pincfg(codec, nid, cfg);
 	return 0;
 }
 
@@ -1079,17 +1057,6 @@ unsigned int snd_hda_codec_get_pincfg(struct hda_codec *codec, hda_nid_t nid)
 	return 0;
 }
 EXPORT_SYMBOL_HDA(snd_hda_codec_get_pincfg);
-
-/* restore all current pin configs */
-static void restore_pincfgs(struct hda_codec *codec)
-{
-	int i;
-	for (i = 0; i < codec->init_pins.used; i++) {
-		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
-		set_pincfg(codec, pin->nid,
-			   snd_hda_codec_get_pincfg(codec, pin->nid));
-	}
-}
 
 /**
  * snd_hda_shutup_pins - Shut up all pins
@@ -1152,17 +1119,13 @@ static void init_hda_cache(struct hda_cache_rec *cache,
 			   unsigned int record_size);
 static void free_hda_cache(struct hda_cache_rec *cache);
 
-/* restore the initial pin cfgs and release all pincfg lists */
-static void restore_init_pincfgs(struct hda_codec *codec)
+/* release all pincfg lists */
+static void free_init_pincfgs(struct hda_codec *codec)
 {
-	/* first free driver_pins and user_pins, then call restore_pincfg
-	 * so that only the values in init_pins are restored
-	 */
 	snd_array_free(&codec->driver_pins);
 #ifdef CONFIG_SND_HDA_HWDEP
 	snd_array_free(&codec->user_pins);
 #endif
-	restore_pincfgs(codec);
 	snd_array_free(&codec->init_pins);
 }
 
@@ -1205,7 +1168,7 @@ static void snd_hda_codec_free(struct hda_codec *codec)
 		return;
 	cancel_delayed_work_sync(&codec->jackpoll_work);
 	snd_hda_jack_tbl_clear(codec);
-	restore_init_pincfgs(codec);
+	free_init_pincfgs(codec);
 #ifdef CONFIG_PM
 	cancel_delayed_work(&codec->power_work);
 	flush_workqueue(codec->bus->workq);
@@ -2394,7 +2357,6 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	init_hda_cache(&codec->cmd_cache, sizeof(struct hda_cache_head));
 	/* free only driver_pins so that init_pins + user_pins are restored */
 	snd_array_free(&codec->driver_pins);
-	restore_pincfgs(codec);
 	snd_array_free(&codec->cvt_setups);
 	snd_array_free(&codec->spdif_out);
 	codec->num_pcms = 0;
@@ -3687,7 +3649,6 @@ static void hda_call_codec_resume(struct hda_codec *codec)
 	 */
 	hda_keep_power_on(codec);
 	hda_set_power_state(codec, AC_PWRST_D0);
-	restore_pincfgs(codec); /* restore all current pin configs */
 	restore_shutup_pins(codec);
 	hda_exec_init_verbs(codec);
 	if (codec->patch_ops.resume)
