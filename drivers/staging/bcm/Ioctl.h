@@ -20,14 +20,14 @@ typedef struct ioctlbuffer {
 } __packed IOCTL_BUFFER, *PIOCTL_BUFFER;
 
 typedef struct stGPIOInfo {
-	UINT uiGpioNumber; /* valid numbers 0-15 */
-	UINT uiGpioValue; /* 1 set ; 0 not  set */
+	unsigned int uiGpioNumber; /* valid numbers 0-15 */
+	unsigned int uiGpioValue; /* 1 set ; 0 not  set */
 } __packed GPIO_INFO, *PGPIO_INFO;
 
 typedef struct stUserThreadReq {
 	/* 0->Inactivate LED thread. */
 	/* 1->Activate the LED thread */
-	UINT ThreadState;
+	unsigned int ThreadState;
 } __packed USER_THREAD_REQ, *PUSER_THREAD_REQ;
 
 #define LED_THREAD_ACTIVATION_REQ  1
@@ -109,11 +109,11 @@ typedef enum _BCM_INTERFACE_TYPE {
 
 typedef struct _DEVICE_DRIVER_INFO {
 	NVM_TYPE	u32NVMType;
-	UINT		MaxRDMBufferSize;
+	unsigned int		MaxRDMBufferSize;
 	BCM_INTERFACE_TYPE	u32InterfaceType;
-	UINT		u32DSDStartOffset;
-	UINT		u32RxAlignmentCorrection;
-	UINT		u32Reserved[10];
+	unsigned int		u32DSDStartOffset;
+	unsigned int		u32RxAlignmentCorrection;
+	unsigned int		u32Reserved[10];
 } DEVICE_DRIVER_INFO;
 
 typedef  struct _NVM_READWRITE {
@@ -220,14 +220,14 @@ enum {
 };
 
 typedef struct stGPIOMultiInfo {
-	UINT uiGPIOCommand; /* 1 for set and 0 for get */
-	UINT uiGPIOMask;    /* set the correspondig bit to 1 to access GPIO */
-	UINT uiGPIOValue;   /* 0 or 1; value to be set when command is 1. */
+	unsigned int uiGPIOCommand; /* 1 for set and 0 for get */
+	unsigned int uiGPIOMask;    /* set the correspondig bit to 1 to access GPIO */
+	unsigned int uiGPIOValue;   /* 0 or 1; value to be set when command is 1. */
 } __packed GPIO_MULTI_INFO, *PGPIO_MULTI_INFO;
 
 typedef struct stGPIOMultiMode {
-	UINT uiGPIOMode;    /* 1 for OUT mode, 0 for IN mode */
-	UINT uiGPIOMask;    /* GPIO mask to set mode */
+	unsigned int uiGPIOMode;    /* 1 for OUT mode, 0 for IN mode */
+	unsigned int uiGPIOMask;    /* GPIO mask to set mode */
 } __packed GPIO_MULTI_MODE, *PGPIO_MULTI_MODE;
 
 #endif
