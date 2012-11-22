@@ -1213,6 +1213,21 @@ struct ieee80211_vht_cap {
 } __packed;
 
 /**
+ * enum ieee80211_vht_chanwidth - VHT channel width
+ * @IEEE80211_VHT_CHANWIDTH_USE_HT: use the HT operation IE to
+ *	determine the channel width (20 or 40 MHz)
+ * @IEEE80211_VHT_CHANWIDTH_80MHZ: 80 MHz bandwidth
+ * @IEEE80211_VHT_CHANWIDTH_160MHZ: 160 MHz bandwidth
+ * @IEEE80211_VHT_CHANWIDTH_80P80MHZ: 80+80 MHz bandwidth
+ */
+enum ieee80211_vht_chanwidth {
+	IEEE80211_VHT_CHANWIDTH_USE_HT		= 0,
+	IEEE80211_VHT_CHANWIDTH_80MHZ		= 1,
+	IEEE80211_VHT_CHANWIDTH_160MHZ		= 2,
+	IEEE80211_VHT_CHANWIDTH_80P80MHZ	= 3,
+};
+
+/**
  * struct ieee80211_vht_operation - VHT operation IE
  *
  * This structure is the "VHT operation element" as
