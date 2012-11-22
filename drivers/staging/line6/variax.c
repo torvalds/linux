@@ -308,23 +308,6 @@ static ssize_t variax_set_active(struct device *dev,
 }
 
 /*
-	"read" request on "dump" special file.
-*/
-static ssize_t variax_get_dump(struct device *dev,
-			       struct device_attribute *attr, char *buf)
-{
-	struct usb_line6_variax *variax =
-	    usb_get_intfdata(to_usb_interface(dev));
-	int retval;
-	retval = line6_dump_wait_interruptible(&variax->dumpreq);
-	if (retval < 0)
-		return retval;
-	memcpy(buf, &variax->model_data.control,
-	       sizeof(variax->model_data.control));
-	return sizeof(variax->model_data.control);
-}
-
-/*
 	"read" request on "guitar" special file.
 */
 static ssize_t variax_get_guitar(struct device *dev,
@@ -383,7 +366,6 @@ static ssize_t variax_set_raw2(struct device *dev,
 #endif
 
 /* Variax workbench special files: */
-static DEVICE_ATTR(dump, S_IRUGO, variax_get_dump, line6_nop_write);
 static DEVICE_ATTR(active, S_IWUSR | S_IRUGO, variax_get_active,
 		   variax_set_active);
 static DEVICE_ATTR(guitar, S_IRUGO, variax_get_guitar, line6_nop_write);
@@ -422,7 +404,6 @@ static void variax_destruct(struct usb_interface *interface)
 static int variax_create_files2(struct device *dev)
 {
 	int err;
-	CHECK_RETURN(device_create_file(dev, &dev_attr_dump));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_active));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_guitar));
 #ifdef CONFIG_LINE6_USB_RAW
@@ -523,7 +504,6 @@ void line6_variax_disconnect(struct usb_interface *interface)
 	if (dev != NULL) {
 		/* remove sysfs entries: */
 		line6_variax_remove_files(0, 0, dev);
-		device_remove_file(dev, &dev_attr_dump);
 		device_remove_file(dev, &dev_attr_active);
 		device_remove_file(dev, &dev_attr_guitar);
 #ifdef CONFIG_LINE6_USB_RAW
