@@ -26,6 +26,7 @@
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/moduleparam.h>
 
 #include <asm/smp_plat.h>
 #include <asm/cacheflush.h>
@@ -529,6 +530,9 @@ static int __init bL_switcher_sysfs_init(void)
 
 #endif  /* CONFIG_SYSFS */
 
+static bool no_bL_switcher;
+core_param(no_bL_switcher, no_bL_switcher, bool, 0644);
+
 static int __init bL_switcher_init(void)
 {
 	int ret;
@@ -538,9 +542,11 @@ static int __init bL_switcher_init(void)
 		return -EINVAL;
 	}
 
-	ret = bL_switcher_enable();
-	if (ret)
-		return ret;
+	if (!no_bL_switcher) {
+		ret = bL_switcher_enable();
+		if (ret)
+			return ret;
+	}
 
 #ifdef CONFIG_SYSFS
 	ret = bL_switcher_sysfs_init();
