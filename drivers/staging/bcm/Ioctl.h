@@ -1,35 +1,30 @@
 #ifndef _IOCTL_H_
 #define _IOCTL_H_
 
-typedef struct rdmbuffer
-{
+typedef struct rdmbuffer {
 	ULONG Register;
 	ULONG Length;
 } __attribute__((packed)) RDM_BUFFER, *PRDM_BUFFER;
 
-typedef struct wrmbuffer
-{
+typedef struct wrmbuffer {
 	ULONG Register;
 	ULONG Length;
 	UCHAR Data[4];
 } __attribute__((packed)) WRM_BUFFER, *PWRM_BUFFER;
 
-typedef struct ioctlbuffer
-{
+typedef struct ioctlbuffer {
 	void __user *InputBuffer;
 	ULONG InputLength;
 	void __user *OutputBuffer;
 	ULONG OutputLength;
 } __attribute__((packed)) IOCTL_BUFFER, *PIOCTL_BUFFER;
 
-typedef struct stGPIOInfo
-{
+typedef struct stGPIOInfo {
 	UINT uiGpioNumber; /* valid numbers 0-15 */
 	UINT uiGpioValue; /* 1 set ; 0 not  set */
 } __attribute__((packed))GPIO_INFO, *PGPIO_INFO;
 
-typedef struct stUserThreadReq
-{
+typedef struct stUserThreadReq {
 	/* 0->Inactivate LED thread. */
 	/* 1->Activate the LED thread */
 	UINT ThreadState;
@@ -104,8 +99,7 @@ typedef struct stUserThreadReq
 #define IOCTL_BCM_GPIO_MULTI_REQUEST		_IOW(BCM_IOCTL, 0x82D, IOCTL_BUFFER)
 #define IOCTL_BCM_GPIO_MODE_REQUEST		_IOW(BCM_IOCTL, 0x82E, IOCTL_BUFFER)
 
-typedef enum _BCM_INTERFACE_TYPE
-{
+typedef enum _BCM_INTERFACE_TYPE {
 	BCM_MII,
 	BCM_CARDBUS,
 	BCM_USB,
@@ -113,8 +107,7 @@ typedef enum _BCM_INTERFACE_TYPE
 	BCM_PCMCIA
 } BCM_INTERFACE_TYPE;
 
-typedef struct _DEVICE_DRIVER_INFO
-{
+typedef struct _DEVICE_DRIVER_INFO {
 	NVM_TYPE	u32NVMType;
 	UINT		MaxRDMBufferSize;
 	BCM_INTERFACE_TYPE	u32InterfaceType;
@@ -123,24 +116,21 @@ typedef struct _DEVICE_DRIVER_INFO
 	UINT		u32Reserved[10];
 } DEVICE_DRIVER_INFO;
 
-typedef  struct _NVM_READWRITE
-{
+typedef  struct _NVM_READWRITE {
 	void __user *pBuffer;
 	uint32_t  uiOffset;
 	uint32_t uiNumBytes;
 	bool bVerify;
 } NVM_READWRITE, *PNVM_READWRITE;
 
-typedef struct bulkwrmbuffer
-{
+typedef struct bulkwrmbuffer {
 	ULONG Register;
 	ULONG SwapEndian;
 	ULONG Values[1];
 
 } BULKWRM_BUFFER, *PBULKWRM_BUFFER;
 
-typedef enum _FLASH2X_SECTION_VAL
-{
+typedef enum _FLASH2X_SECTION_VAL {
 	NO_SECTION_VAL = 0, /* no section is chosen when absolute offset is given for RD/WR */
 	ISO_IMAGE1,
 	ISO_IMAGE2,
@@ -162,8 +152,7 @@ typedef enum _FLASH2X_SECTION_VAL
 /*
  * Structure used for READ/WRITE Flash Map2.x
  */
-typedef struct _FLASH2X_READWRITE
-{
+typedef struct _FLASH2X_READWRITE {
 	FLASH2X_SECTION_VAL Section; /* which section has to be read/written */
 	B_UINT32 offset;	     /* Offset within Section. */
 	B_UINT32 numOfBytes;	     /* NOB from the offset */
@@ -178,16 +167,14 @@ typedef struct _FLASH2X_READWRITE
  * if NOB !=0, only NOB will be copied from the given offset.
  */
 
-typedef struct _FLASH2X_COPY_SECTION
-{
+typedef struct _FLASH2X_COPY_SECTION {
 	FLASH2X_SECTION_VAL SrcSection;
 	FLASH2X_SECTION_VAL DstSection;
 	B_UINT32 offset;
 	B_UINT32 numOfBytes;
 } FLASH2X_COPY_SECTION, *PFLASH2X_COPY_SECTION;
 
-typedef enum _SECTION_TYPE
-{
+typedef enum _SECTION_TYPE {
 	ISO = 0,
 	VSA = 1,
 	DSD = 2
@@ -204,8 +191,7 @@ typedef enum _SECTION_TYPE
  * Bit [7...3] = Reserved
  */
 
-typedef struct _FLASH2X_BITMAP
-{
+typedef struct _FLASH2X_BITMAP {
 	UCHAR ISO_IMAGE1;
 	UCHAR ISO_IMAGE2;
 	UCHAR DSD0;
@@ -222,8 +208,7 @@ typedef struct _FLASH2X_BITMAP
 	UCHAR Reserved2;
 } FLASH2X_BITMAP, *PFLASH2X_BITMAP;
 
-typedef struct _ST_TIME_ELAPSED_
-{
+typedef struct _ST_TIME_ELAPSED_ {
 	ULONG64	ul64TimeElapsedSinceNetEntry;
 	UINT32  uiReserved[4];
 } ST_TIME_ELAPSED, *PST_TIME_ELAPSED;
@@ -234,15 +219,13 @@ enum {
 	MAX_IDX
 };
 
-typedef struct stGPIOMultiInfo
-{
+typedef struct stGPIOMultiInfo {
 	UINT uiGPIOCommand; /* 1 for set and 0 for get */
 	UINT uiGPIOMask;    /* set the correspondig bit to 1 to access GPIO */
 	UINT uiGPIOValue;   /* 0 or 1; value to be set when command is 1. */
 } __attribute__((packed))GPIO_MULTI_INFO, *PGPIO_MULTI_INFO;
 
-typedef struct stGPIOMultiMode
-{
+typedef struct stGPIOMultiMode {
 	UINT uiGPIOMode;    /* 1 for OUT mode, 0 for IN mode */
 	UINT uiGPIOMask;    /* GPIO mask to set mode */
 } __attribute__((packed))GPIO_MULTI_MODE, *PGPIO_MULTI_MODE;
