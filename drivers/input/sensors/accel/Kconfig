@@ -33,6 +33,12 @@ config GS_MMA7660
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config GS_MXC6225
+	bool "gsensor mxc6225"
+	help
+	To have support for your sepcific gsensor you will have to
+	select het proper drivers which depend on this option.
+
 config GS_BMA023
   bool "gsensor bma023"
   help
