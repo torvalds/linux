@@ -99,52 +99,14 @@ static void update_passive_instance(struct thermal_zone_device *tz,
 		tz->passive += value;
 }
 
-static void update_instance_for_throttle(struct thermal_zone_device *tz,
-				int trip, enum thermal_trip_type trip_type,
-				enum thermal_trend trend)
-{
-	struct thermal_instance *instance;
-
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip)
-			continue;
-
-		instance->target = get_target_state(instance, trend, true);
-
-		/* Activate a passive thermal instance */
-		if (instance->target == THERMAL_NO_TARGET)
-			update_passive_instance(tz, trip_type, 1);
-
-		instance->cdev->updated = false; /* cdev needs update */
-	}
-}
-
-static void update_instance_for_dethrottle(struct thermal_zone_device *tz,
-				int trip, enum thermal_trip_type trip_type,
-				enum thermal_trend trend)
-{
-	struct thermal_instance *instance;
-
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip ||
-			instance->target == THERMAL_NO_TARGET)
-			continue;
-
-		instance->target = get_target_state(instance, trend, false);
-
-		/* Deactivate a passive thermal instance */
-		if (instance->target == THERMAL_NO_TARGET)
-			update_passive_instance(tz, trip_type, -1);
-
-		instance->cdev->updated = false; /* cdev needs update */
-	}
-}
-
 static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 {
 	long trip_temp;
 	enum thermal_trip_type trip_type;
 	enum thermal_trend trend;
+	struct thermal_instance *instance;
+	bool throttle = false;
+	int old_target;
 
 	if (trip == THERMAL_TRIPS_NONE) {
 		trip_temp = tz->forced_passive;
@@ -156,12 +118,30 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz, int trip)
 
 	trend = get_tz_trend(tz, trip);
 
+	if (tz->temperature >= trip_temp)
+		throttle = true;
+
 	mutex_lock(&tz->lock);
 
-	if (tz->temperature >= trip_temp)
-		update_instance_for_throttle(tz, trip, trip_type, trend);
-	else
-		update_instance_for_dethrottle(tz, trip, trip_type, trend);
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (instance->trip != trip)
+			continue;
+
+		old_target = instance->target;
+		instance->target = get_target_state(instance, trend, throttle);
+
+		/* Activate a passive thermal instance */
+		if (old_target == THERMAL_NO_TARGET &&
+			instance->target != THERMAL_NO_TARGET)
+			update_passive_instance(tz, trip_type, 1);
+		/* Deactivate a passive thermal instance */
+		else if (old_target != THERMAL_NO_TARGET &&
+			instance->target == THERMAL_NO_TARGET)
+			update_passive_instance(tz, trip_type, -1);
+
+
+		instance->cdev->updated = false; /* cdev needs update */
+	}
 
 	mutex_unlock(&tz->lock);
 }
