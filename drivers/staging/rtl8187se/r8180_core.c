@@ -62,7 +62,7 @@ static struct pci_device_id rtl8180_pci_id_tbl[] = {
 };
 
 static char ifname[IFNAMSIZ] = "wlan%d";
-static int hwwep = 0;
+static int hwwep;
 
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, rtl8180_pci_id_tbl);
@@ -201,7 +201,7 @@ static struct net_device_stats *rtl8180_stats(struct net_device *dev);
 void rtl8180_commit(struct net_device *dev);
 void rtl8180_start_tx_beacon(struct net_device *dev);
 
-static struct proc_dir_entry *rtl8180_proc = NULL;
+static struct proc_dir_entry *rtl8180_proc;
 
 static int proc_get_registers(char *page, char **start,
 			  off_t offset, int count,
@@ -3726,7 +3726,7 @@ void GPIOChangeRFWorkItemCallBack(struct work_struct *work)
 	char *argv[3];
 	static char *RadioPowerPath = "/etc/acpi/events/RadioPower.sh";
 	static char *envp[] = {"HOME=/", "TERM=linux", "PATH=/usr/bin:/bin", NULL};
-	static int readf_count = 0;
+	static int readf_count;
 
 	readf_count = (readf_count+1)%0xffff;
 	/* We should turn off LED before polling FF51[4]. */
