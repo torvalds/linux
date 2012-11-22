@@ -46,11 +46,13 @@ enum mx31_clks {
 };
 
 static struct clk *clk[clk_max];
+static struct clk_onecell_data clk_data;
 
 int __init mx31_clocks_init(unsigned long fref)
 {
 	void __iomem *base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
 	int i;
+	struct device_node *np;
 
 	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
@@ -116,6 +118,14 @@ int __init mx31_clocks_init(unsigned long fref)
 		if (IS_ERR(clk[i]))
 			pr_err("imx31 clk %d: register failed with %ld\n",
 				i, PTR_ERR(clk[i]));
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx31-ccm");
+
+	if (np) {
+		clk_data.clks = clk;
+		clk_data.clk_num = ARRAY_SIZE(clk);
+		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
+	}
 
 	clk_register_clkdev(clk[gpt_gate], "per", "imx-gpt.0");
 	clk_register_clkdev(clk[ipg], "ipg", "imx-gpt.0");
