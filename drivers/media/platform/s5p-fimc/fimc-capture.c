@@ -884,14 +884,16 @@ static int fimc_get_sensor_frame_desc(struct v4l2_subdev *sensor,
 {
 	struct v4l2_mbus_frame_desc fd;
 	int i, ret;
+	int pad;
 
 	for (i = 0; i < num_planes; i++)
 		fd.entry[i].length = plane_fmt[i].sizeimage;
 
+	pad = sensor->entity.num_pads - 1;
 	if (try)
-		ret = v4l2_subdev_call(sensor, pad, set_frame_desc, 0, &fd);
+		ret = v4l2_subdev_call(sensor, pad, set_frame_desc, pad, &fd);
 	else
-		ret = v4l2_subdev_call(sensor, pad, get_frame_desc, 0, &fd);
+		ret = v4l2_subdev_call(sensor, pad, get_frame_desc, pad, &fd);
 
 	if (ret < 0)
 		return ret;

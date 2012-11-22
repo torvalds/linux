@@ -659,7 +659,8 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 				 "but s5p-csis module is not loaded!\n"))
 				return -EINVAL;
 
-			ret = media_entity_create_link(&sensor->entity, 0,
+			pad = sensor->entity.num_pads - 1;
+			ret = media_entity_create_link(&sensor->entity, pad,
 					      &csis->entity, CSIS_PAD_SINK,
 					      MEDIA_LNK_FL_IMMUTABLE |
 					      MEDIA_LNK_FL_ENABLED);
