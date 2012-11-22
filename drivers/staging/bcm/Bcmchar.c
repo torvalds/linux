@@ -1955,7 +1955,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_GET_DEVICE_DRIVER_INFO: {
-		DEVICE_DRIVER_INFO DevInfo;
+		struct bcm_driver_info DevInfo;
 
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "Called IOCTL_BCM_GET_DEVICE_DRIVER_INFO\n");
 

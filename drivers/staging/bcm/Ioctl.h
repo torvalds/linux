@@ -107,14 +107,14 @@ typedef enum _BCM_INTERFACE_TYPE {
 	BCM_PCMCIA
 } BCM_INTERFACE_TYPE;
 
-typedef struct _DEVICE_DRIVER_INFO {
+struct bcm_driver_info {
 	NVM_TYPE	u32NVMType;
 	unsigned int		MaxRDMBufferSize;
 	BCM_INTERFACE_TYPE	u32InterfaceType;
 	unsigned int		u32DSDStartOffset;
 	unsigned int		u32RxAlignmentCorrection;
 	unsigned int		u32Reserved[10];
-} DEVICE_DRIVER_INFO;
+};
 
 struct bcm_nvm_readwrite {
 	void __user *pBuffer;
