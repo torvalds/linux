@@ -112,8 +112,8 @@ static void ck804xrom_cleanup(struct ck804xrom_window *window)
 }
 
 
-static int ck804xrom_init_one (struct pci_dev *pdev,
-					 const struct pci_device_id *ent)
+static int ck804xrom_init_one(struct pci_dev *pdev,
+			      const struct pci_device_id *ent)
 {
 	static char *rom_probe_types[] = { "cfi_probe", "jedec_probe", NULL };
 	u8 byte;
@@ -320,7 +320,7 @@ static int ck804xrom_init_one (struct pci_dev *pdev,
 }
 
 
-static void ck804xrom_remove_one (struct pci_dev *pdev)
+static void ck804xrom_remove_one(struct pci_dev *pdev)
 {
 	struct ck804xrom_window *window = &ck804xrom_window;
 

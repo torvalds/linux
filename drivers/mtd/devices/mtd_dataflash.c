@@ -705,7 +705,7 @@ struct flash_info {
 #define IS_POW2PS	0x0001		/* uses 2^N byte pages */
 };
 
-static struct flash_info dataflash_data [] = {
+static struct flash_info dataflash_data[] = {
 
 	/*
 	 * NOTE:  chips with SUP_POW2PS (rev D and up) need two entries,

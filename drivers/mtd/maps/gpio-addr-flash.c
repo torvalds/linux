@@ -26,7 +26,8 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#define pr_devinit(fmt, args...) ({ static const char __fmt[] = fmt; printk(__fmt, ## args); })
+#define pr_devinit(fmt, args...) \
+	({ static const char __fmt[] = fmt; printk(__fmt, ## args); })
 
 #define DRIVER_NAME "gpio-addr-flash"
 #define PFX DRIVER_NAME ": "
@@ -142,7 +143,8 @@ static void gf_write(struct map_info *map, map_word d1, unsigned long ofs)
  *
  * See gf_copy_from() caveat.
  */
-static void gf_copy_to(struct map_info *map, unsigned long to, const void *from, ssize_t len)
+static void gf_copy_to(struct map_info *map, unsigned long to,
+		       const void *from, ssize_t len)
 {
 	struct async_state *state = gf_map_info_to_state(map);
 

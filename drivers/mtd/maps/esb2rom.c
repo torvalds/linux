@@ -378,7 +378,7 @@ static int esb2rom_init_one(struct pci_dev *pdev,
 	return 0;
 }
 
-static void esb2rom_remove_one (struct pci_dev *pdev)
+static void esb2rom_remove_one(struct pci_dev *pdev)
 {
 	struct esb2rom_window *window = &esb2rom_window;
 	esb2rom_cleanup(window);
