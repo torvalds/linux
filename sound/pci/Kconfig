@@ -728,6 +728,7 @@ config SND_NM256
 
 config SND_PCXHR
 	tristate "Digigram PCXHR"
+	select FW_LOADER
 	select SND_PCM
 	select SND_HWDEP
 	help
