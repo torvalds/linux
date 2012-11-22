@@ -952,6 +952,10 @@ static struct mfd_cell __devinitdata abx500_common_devs[] = {
 		.of_compatible = "stericsson,ab8500-regulator",
 	},
 	{
+		.name = "abx500-clk",
+		.of_compatible = "stericsson,abx500-clk",
+	},
+	{
 		.name = "ab8500-gpadc",
 		.of_compatible = "stericsson,ab8500-gpadc",
 		.num_resources = ARRAY_SIZE(ab8500_gpadc_resources),
