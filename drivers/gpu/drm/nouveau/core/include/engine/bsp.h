@@ -41,5 +41,6 @@ struct nouveau_bsp {
 #define _nouveau_bsp_fini _nouveau_engine_fini
 
 extern struct nouveau_oclass nv84_bsp_oclass;
+extern struct nouveau_oclass nve0_bsp_oclass;
 
 #endif
