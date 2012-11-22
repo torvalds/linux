@@ -401,7 +401,7 @@ static int __devinit max8973_probe(struct i2c_client *client,
 	if (pdata->enable_ext_control) {
 		max->desc.enable_reg = MAX8973_VOUT;
 		max->desc.enable_mask = MAX8973_VOUT_ENABLE;
-		max8973_dcdc_ops.enable = regulator_is_enabled_regmap;
+		max8973_dcdc_ops.enable = regulator_enable_regmap;
 		max8973_dcdc_ops.disable = regulator_disable_regmap;
 		max8973_dcdc_ops.is_enabled = regulator_is_enabled_regmap;
 	}
