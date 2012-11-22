@@ -4,7 +4,6 @@ line6usb-y := 		\
 		audio.o		\
 		capture.o	\
 		driver.o	\
-		dumprequest.o	\
 		midi.o		\
 		midibuf.o	\
 		pcm.o		\
