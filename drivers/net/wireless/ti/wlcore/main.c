@@ -3820,10 +3820,8 @@ static int wlcore_set_bssid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 						wlvif->band);
 
 	/* we only support sched_scan while not connected */
-	if (wl->sched_scanning) {
+	if (wl->sched_scanning)
 		wl1271_scan_sched_scan_stop(wl, wlvif);
-		ieee80211_sched_scan_stopped(wl->hw);
-	}
 
 	ret = wl1271_acx_sta_rate_policies(wl, wlvif);
 	if (ret < 0)
