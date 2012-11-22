@@ -203,7 +203,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	switch (cmd) {
 	/* Rdms for Swin Idle... */
 	case IOCTL_BCM_REGISTER_READ_PRIVATE: {
-		RDM_BUFFER  sRdmBuffer = {0};
+		struct bcm_rdm_buffer sRdmBuffer = {0};
 		PCHAR temp_buff;
 		UINT Bufflen;
 		u16 temp_value;
@@ -287,7 +287,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 
 	case IOCTL_BCM_REGISTER_READ:
 	case IOCTL_BCM_EEPROM_REGISTER_READ: {
-		RDM_BUFFER  sRdmBuffer = {0};
+		struct bcm_rdm_buffer sRdmBuffer = {0};
 		PCHAR temp_buff = NULL;
 		UINT uiTempVar = 0;
 		if ((Adapter->IdleMode == TRUE) ||

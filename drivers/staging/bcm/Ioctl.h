@@ -1,10 +1,10 @@
 #ifndef _IOCTL_H_
 #define _IOCTL_H_
 
-typedef struct rdmbuffer {
+struct bcm_rdm_buffer {
 	unsigned long Register;
 	unsigned long Length;
-} __packed RDM_BUFFER, *PRDM_BUFFER;
+} __packed;
 
 struct bcm_wrm_buffer {
 	unsigned long Register;
