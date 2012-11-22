@@ -713,8 +713,8 @@ void rtl8180_rtx_disable(struct net_device *dev)
 	struct r8180_priv *priv = ieee80211_priv(dev);
 
 	cmd = read_nic_byte(dev, CMD);
-	write_nic_byte(dev, CMD, cmd & ~\
-		       ((1<<CMD_RX_ENABLE_SHIFT)|(1<<CMD_TX_ENABLE_SHIFT)));
+	write_nic_byte(dev, CMD, cmd &
+		       ~((1<<CMD_RX_ENABLE_SHIFT)|(1<<CMD_TX_ENABLE_SHIFT)));
 	force_pci_posting(dev);
 	mdelay(10);
 
@@ -1258,8 +1258,7 @@ void rtl8180_rx(struct net_device *dev)
 
 		pci_dma_sync_single_for_cpu(priv->pdev,
 				    priv->rxbuffer->dma,
-				    priv->rxbuffersize * \
-				    sizeof(u8),
+				    priv->rxbuffersize * sizeof(u8),
 				    PCI_DMA_FROMDEVICE);
 
 		first = *(priv->rxringtail) & (1<<29) ? 1 : 0;
@@ -1490,8 +1489,7 @@ void rtl8180_rx(struct net_device *dev)
 
 		pci_dma_sync_single_for_device(priv->pdev,
 				    priv->rxbuffer->dma,
-				    priv->rxbuffersize * \
-				    sizeof(u8),
+				    priv->rxbuffersize * sizeof(u8),
 				    PCI_DMA_FROMDEVICE);
 
 drop: /* this is used when we have not enough mem */
