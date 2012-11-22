@@ -1889,8 +1889,11 @@ static void switched_from_rt(struct rq *rq, struct task_struct *p)
 	 * we may need to handle the pulling of RT tasks
 	 * now.
 	 */
-	if (p->on_rq && !rq->rt.rt_nr_running)
-		pull_rt_task(rq);
+	if (!p->on_rq || rq->rt.rt_nr_running)
+		return;
+
+	if (pull_rt_task(rq))
+		resched_task(rq->curr);
 }
 
 void init_sched_rt_class(void)
