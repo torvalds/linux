@@ -1709,6 +1709,16 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_serial_driver_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c24xx_uart_dt_match[] = {
+	{ .compatible = "samsung,s3c2410-uart",
+		.data = (void *)S3C2410_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s3c2412-uart",
+		.data = (void *)S3C2412_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s3c2440-uart",
+		.data = (void *)S3C2440_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s3c6400-uart",
+		.data = (void *)S3C6400_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s5pv210-uart",
+		.data = (void *)S5PV210_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos4210-uart",
 		.data = (void *)EXYNOS4210_SERIAL_DRV_DATA },
 	{},
