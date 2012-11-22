@@ -92,7 +92,7 @@ static int __devinit sdhci_dove_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	priv->clk = clk_get(&pdev->dev, NULL);
+	priv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (!IS_ERR(priv->clk))
 		clk_prepare_enable(priv->clk);
 
@@ -107,10 +107,8 @@ static int __devinit sdhci_dove_probe(struct platform_device *pdev)
 	return 0;
 
 sdhci_dove_register_fail:
-	if (!IS_ERR(priv->clk)) {
+	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
-		clk_put(priv->clk);
-	}
 	return ret;
 }
 
@@ -122,10 +120,9 @@ static int __devexit sdhci_dove_remove(struct platform_device *pdev)
 
 	sdhci_pltfm_unregister(pdev);
 
-	if (!IS_ERR(priv->clk)) {
+	if (!IS_ERR(priv->clk))
 		clk_disable_unprepare(priv->clk);
-		clk_put(priv->clk);
-	}
+
 	return 0;
 }
 
