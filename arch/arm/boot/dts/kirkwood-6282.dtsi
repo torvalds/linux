@@ -31,5 +31,15 @@
 				marvell,function = "uart1";
 			};
 		};
+
+		i2c@11100 {
+			compatible = "marvell,mv64xxx-i2c";
+			reg = <0x11100 0x20>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <32>;
+			clock-frequency = <100000>;
+			status = "disabled";
+		};
 	};
 };
