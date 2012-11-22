@@ -1604,16 +1604,16 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP: {
-		PFLASH2X_BITMAP psFlash2xBitMap;
+		struct bcm_flash2x_bitmap *psFlash2xBitMap;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_GET_FLASH2X_SECTION_BITMAP Called");
 
 		if (copy_from_user(&IoBuffer, argp, sizeof(IOCTL_BUFFER)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength != sizeof(FLASH2X_BITMAP))
+		if (IoBuffer.OutputLength != sizeof(struct bcm_flash2x_bitmap))
 			return -EINVAL;
 
-		psFlash2xBitMap = kzalloc(sizeof(FLASH2X_BITMAP), GFP_KERNEL);
+		psFlash2xBitMap = kzalloc(sizeof(struct bcm_flash2x_bitmap), GFP_KERNEL);
 		if (psFlash2xBitMap == NULL) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Memory is not available");
 			return -ENOMEM;
@@ -1634,7 +1634,7 @@ cntrlEnd:
 
 		BcmGetFlash2xSectionalBitMap(Adapter, psFlash2xBitMap);
 		up(&Adapter->NVMRdmWrmLock);
-		if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap, sizeof(FLASH2X_BITMAP))) {
+		if (copy_to_user(IoBuffer.OutputBuffer, psFlash2xBitMap, sizeof(struct bcm_flash2x_bitmap))) {
 			kfree(psFlash2xBitMap);
 			return -EFAULT;
 		}

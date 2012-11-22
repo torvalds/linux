@@ -191,7 +191,7 @@ typedef enum _SECTION_TYPE {
  * Bit [7...3] = Reserved
  */
 
-typedef struct _FLASH2X_BITMAP {
+struct bcm_flash2x_bitmap {
 	unsigned char ISO_IMAGE1;
 	unsigned char ISO_IMAGE2;
 	unsigned char DSD0;
@@ -206,7 +206,7 @@ typedef struct _FLASH2X_BITMAP {
 	unsigned char Reserved0;
 	unsigned char Reserved1;
 	unsigned char Reserved2;
-} FLASH2X_BITMAP, *PFLASH2X_BITMAP;
+};
 
 struct bcm_time_elapsed {
 	unsigned long long ul64TimeElapsedSinceNetEntry;

@@ -3064,7 +3064,7 @@ B_UINT8 IsOffsetWritable(struct bcm_mini_adapter *Adapter, unsigned int uiOffset
 		return FALSE;
 }
 
-static int BcmDumpFlash2xSectionBitMap(PFLASH2X_BITMAP psFlash2xBitMap)
+static int BcmDumpFlash2xSectionBitMap(struct bcm_flash2x_bitmap *psFlash2xBitMap)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
@@ -3099,7 +3099,7 @@ static int BcmDumpFlash2xSectionBitMap(PFLASH2X_BITMAP psFlash2xBitMap)
  * Failure:- negative error code
  */
 
-int BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, PFLASH2X_BITMAP psFlash2xBitMap)
+int BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_bitmap *psFlash2xBitMap)
 {
 	PFLASH2X_CS_INFO psFlash2xCSInfo = Adapter->psFlash2xCSInfo;
 	FLASH2X_SECTION_VAL uiHighestPriDSD = 0;

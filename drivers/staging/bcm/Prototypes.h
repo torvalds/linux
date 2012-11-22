@@ -163,7 +163,7 @@ INT BcmInitNVM(struct bcm_mini_adapter *Adapter);
 INT BcmUpdateSectorSize(struct bcm_mini_adapter *Adapter,UINT uiSectorSize);
 BOOLEAN IsSectionExistInFlash(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL section);
 
-INT BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, PFLASH2X_BITMAP psFlash2xBitMap);
+INT BcmGetFlash2xSectionalBitMap(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_bitmap *psFlash2xBitMap);
 
 INT BcmFlash2xBulkWrite(
 	struct bcm_mini_adapter *Adapter,
