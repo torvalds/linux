@@ -28,6 +28,7 @@
 #include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/math64.h>
+#include <linux/vmalloc.h>
 
 #include <sound/core.h>
 #include <sound/control.h>
