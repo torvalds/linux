@@ -1304,7 +1304,7 @@ static int smsc95xx_resume(struct usb_interface *intf)
 		check_warn_return(ret, "Error writing PM_CTRL");
 	}
 
-	return usbnet_resume(intf);
+	ret = usbnet_resume(intf);
 	check_warn_return(ret, "usbnet_resume error");
 
 	return 0;
