@@ -1415,10 +1415,6 @@ static int wl18xx_setup(struct wl1271 *wl)
 	struct wl18xx_priv *priv = wl->priv;
 	int ret;
 
-	wl1271_error("driver is in transitional commit (due to fw api"
-		     "change) and can't be booted!");
-	return -EINVAL;
-
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;
 	wl->num_rx_desc = WL18XX_NUM_TX_DESCRIPTORS;
