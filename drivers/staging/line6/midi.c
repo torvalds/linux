@@ -313,42 +313,8 @@ static ssize_t midi_set_midi_mask_transmit(struct device *dev,
 	return count;
 }
 
-/*
-	"read" request on "midi_mask_receive" special file.
-*/
-static ssize_t midi_get_midi_mask_receive(struct device *dev,
-					  struct device_attribute *attr,
-					  char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	return sprintf(buf, "%d\n", line6->line6midi->midi_mask_receive);
-}
-
-/*
-	"write" request on "midi_mask" special file.
-*/
-static ssize_t midi_set_midi_mask_receive(struct device *dev,
-					  struct device_attribute *attr,
-					  const char *buf, size_t count)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	unsigned short value;
-	int ret;
-
-	ret = kstrtou16(buf, 10, &value);
-	if (ret)
-		return ret;
-
-	line6->line6midi->midi_mask_receive = value;
-	return count;
-}
-
 static DEVICE_ATTR(midi_mask_transmit, S_IWUSR | S_IRUGO,
 		   midi_get_midi_mask_transmit, midi_set_midi_mask_transmit);
-static DEVICE_ATTR(midi_mask_receive, S_IWUSR | S_IRUGO,
-		   midi_get_midi_mask_receive, midi_set_midi_mask_receive);
 
 /* MIDI device destructor */
 static int snd_line6_midi_free(struct snd_device *device)
@@ -356,8 +322,6 @@ static int snd_line6_midi_free(struct snd_device *device)
 	struct snd_line6_midi *line6midi = device->device_data;
 	device_remove_file(line6midi->line6->ifcdev,
 			   &dev_attr_midi_mask_transmit);
-	device_remove_file(line6midi->line6->ifcdev,
-			   &dev_attr_midi_mask_receive);
 	line6_midibuf_destroy(&line6midi->midibuf_in);
 	line6_midibuf_destroy(&line6midi->midibuf_out);
 	return 0;
@@ -404,12 +368,10 @@ int line6_init_midi(struct usb_line6 *line6)
 	case LINE6_DEVID_PODHD300:
 	case LINE6_DEVID_PODHD500:
 		line6midi->midi_mask_transmit = 1;
-		line6midi->midi_mask_receive = 1;
 		break;
 
 	default:
 		line6midi->midi_mask_transmit = 1;
-		line6midi->midi_mask_receive = 4;
 	}
 
 	line6->line6midi = line6midi;
@@ -426,10 +388,6 @@ int line6_init_midi(struct usb_line6 *line6)
 		return err;
 
 	err = device_create_file(line6->ifcdev, &dev_attr_midi_mask_transmit);
-	if (err < 0)
-		return err;
-
-	err = device_create_file(line6->ifcdev, &dev_attr_midi_mask_receive);
 	if (err < 0)
 		return err;
 

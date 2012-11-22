@@ -396,11 +396,6 @@ static void line6_data_received(struct urb *urb)
 		if (done == 0)
 			break;
 
-		/* MIDI input filter */
-		if (line6_midibuf_skip_message
-		    (mb, line6->line6midi->midi_mask_receive))
-			continue;
-
 		line6->message_length = done;
 		line6_midi_receive(line6, line6->buffer_message, done);
 

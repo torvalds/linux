@@ -60,11 +60,6 @@ struct snd_line6_midi {
 	unsigned short midi_mask_transmit;
 
 	/**
-		 Bit mask for input MIDI channels.
-	*/
-	unsigned short midi_mask_receive;
-
-	/**
 		 Buffer for incoming MIDI stream.
 	*/
 	struct MidiBuffer midibuf_in;
