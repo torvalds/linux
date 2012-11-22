@@ -447,46 +447,6 @@ static ssize_t pod_send_retrieve_command(struct device *dev, const char *buf,
 }
 
 /*
-	Generic get name function.
-*/
-static ssize_t get_name_generic(struct usb_line6_pod *pod, const char *str,
-				char *buf)
-{
-	int length = 0;
-	const char *p1;
-	char *p2;
-	char *last_non_space = buf;
-
-	int retval = line6_dump_wait_interruptible(&pod->dumpreq);
-	if (retval < 0)
-		return retval;
-
-	for (p1 = str, p2 = buf; *p1; ++p1, ++p2) {
-		*p2 = *p1;
-		if (*p2 != ' ')
-			last_non_space = p2;
-		if (++length == POD_NAME_LENGTH)
-			break;
-	}
-
-	*(last_non_space + 1) = '\n';
-	return last_non_space - buf + 2;
-}
-
-/*
-	"read" request on "name" special file.
-*/
-static ssize_t pod_get_name_buf(struct device *dev,
-				struct device_attribute *attr, char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return get_name_generic(pod,
-				pod->prog_data_buf.header + POD_NAME_OFFSET,
-				buf);
-}
-
-/*
 	Identify system parameters related to the tuner.
 */
 static bool pod_is_tuner(int code)
@@ -850,7 +810,6 @@ static DEVICE_ATTR(firmware_version, S_IRUGO, pod_get_firmware_version,
 		   line6_nop_write);
 static DEVICE_ATTR(midi_postprocess, S_IWUSR | S_IRUGO,
 		   pod_get_midi_postprocess, pod_set_midi_postprocess);
-static DEVICE_ATTR(name_buf, S_IRUGO, pod_get_name_buf, line6_nop_write);
 static DEVICE_ATTR(retrieve_amp_setup, S_IWUSR, line6_nop_read,
 		   pod_set_retrieve_amp_setup);
 static DEVICE_ATTR(retrieve_channel, S_IWUSR, line6_nop_read,
@@ -955,7 +914,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_finish));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_name_buf));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_retrieve_amp_setup));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_retrieve_channel));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_retrieve_effects_setup));
@@ -1089,7 +1047,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_finish);
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_midi_postprocess);
-			device_remove_file(dev, &dev_attr_name_buf);
 			device_remove_file(dev, &dev_attr_retrieve_amp_setup);
 			device_remove_file(dev, &dev_attr_retrieve_channel);
 			device_remove_file(dev,
