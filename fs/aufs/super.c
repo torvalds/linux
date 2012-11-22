@@ -417,6 +417,36 @@ static int aufs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 /* ---------------------------------------------------------------------- */
 
+static int aufs_sync_fs(struct super_block *sb, int wait)
+{
+	int err, e;
+	aufs_bindex_t bend, bindex;
+	struct au_branch *br;
+	struct super_block *h_sb;
+
+	err = 0;
+	si_noflush_read_lock(sb);
+	bend = au_sbend(sb);
+	for (bindex = 0; bindex <= bend; bindex++) {
+		br = au_sbr(sb, bindex);
+		if (!au_br_writable(br->br_perm))
+			continue;
+
+		h_sb = au_sbr_sb(sb, bindex);
+		if (h_sb->s_op->sync_fs) {
+			e = h_sb->s_op->sync_fs(h_sb, wait);
+			if (unlikely(e && !err))
+				err = e;
+			/* go on even if an error happens */
+		}
+	}
+	si_read_unlock(sb);
+
+	return err;
+}
+
+/* ---------------------------------------------------------------------- */
+
 /* final actions when unmounting a file system */
 static void aufs_put_super(struct super_block *sb)
 {
@@ -780,6 +810,7 @@ static const struct super_operations aufs_sop = {
 	.show_options	= aufs_show_options,
 	.statfs		= aufs_statfs,
 	.put_super	= aufs_put_super,
+	.sync_fs	= aufs_sync_fs,
 	.remount_fs	= aufs_remount_fs
 };
 
