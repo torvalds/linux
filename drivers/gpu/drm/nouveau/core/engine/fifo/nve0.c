@@ -140,6 +140,7 @@ nve0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -176,6 +177,7 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_COPY1: addr = 0x0210; break;
 	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
 	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
