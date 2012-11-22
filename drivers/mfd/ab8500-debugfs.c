@@ -91,6 +91,9 @@
 #include <linux/ctype.h>
 #endif
 
+/* TODO: this file should not reference IRQ_DB8500_AB8500! */
+#include <mach/irqs.h>
+
 static u32 debug_bank;
 static u32 debug_address;
 
