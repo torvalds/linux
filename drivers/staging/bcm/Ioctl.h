@@ -12,12 +12,12 @@ typedef struct wrmbuffer {
 	unsigned char Data[4];
 } __packed WRM_BUFFER, *PWRM_BUFFER;
 
-typedef struct ioctlbuffer {
+struct bcm_ioctl_buffer {
 	void __user *InputBuffer;
 	unsigned long InputLength;
 	void __user *OutputBuffer;
 	unsigned long OutputLength;
-} __packed IOCTL_BUFFER, *PIOCTL_BUFFER;
+} __packed;
 
 typedef struct stGPIOInfo {
 	unsigned int uiGpioNumber; /* valid numbers 0-15 */
@@ -53,7 +53,7 @@ struct bcm_user_thread_req {
 #define IOCTL_CLASSIFICATION_RULE		_IOW(BCM_IOCTL, 0x813, char)
 #define IOCTL_CLOSE_NOTIFICATION		_IO(BCM_IOCTL, 0x814)
 #define IOCTL_LINK_UP				_IO(BCM_IOCTL, 0x815)
-#define IOCTL_LINK_DOWN				_IO(BCM_IOCTL, 0x816, IOCTL_BUFFER)
+#define IOCTL_LINK_DOWN				_IO(BCM_IOCTL, 0x816, struct bcm_ioctl_buffer)
 #define IOCTL_CHIP_RESET			_IO(BCM_IOCTL, 0x816)
 #define IOCTL_CINR_LEVEL_REQ			_IOW(BCM_IOCTL, 0x817, char)
 #define IOCTL_WTM_CONTROL_REQ			_IOW(BCM_IOCTL, 0x817, char)
@@ -72,7 +72,7 @@ struct bcm_user_thread_req {
 #define IOCTL_BCM_BUFFER_DOWNLOAD_STOP		_IOW(BCM_IOCTL, 0x857, int)
 #define IOCTL_BCM_REGISTER_WRITE_PRIVATE	_IOW(BCM_IOCTL, 0x826, char)
 #define IOCTL_BCM_REGISTER_READ_PRIVATE		_IOW(BCM_IOCTL, 0x827, char)
-#define IOCTL_BCM_SET_DEBUG			_IOW(BCM_IOCTL, 0x824, IOCTL_BUFFER)
+#define IOCTL_BCM_SET_DEBUG			_IOW(BCM_IOCTL, 0x824, struct bcm_ioctl_buffer)
 #define IOCTL_BCM_EEPROM_REGISTER_WRITE		_IOW(BCM_IOCTL, 0x858, int)
 #define IOCTL_BCM_EEPROM_REGISTER_READ		_IOR(BCM_IOCTL, 0x859, int)
 #define IOCTL_BCM_WAKE_UP_DEVICE_FROM_IDLE	_IOR(BCM_IOCTL, 0x860, int)
@@ -96,8 +96,8 @@ struct bcm_user_thread_req {
 #define IOCTL_BCM_GET_DEVICE_DRIVER_INFO	_IOR(BCM_IOCTL, 0x877, int)
 #define IOCTL_BCM_TIME_SINCE_NET_ENTRY		_IOR(BCM_IOCTL, 0x876, int)
 #define BCM_LED_THREAD_STATE_CHANGE_REQ		_IOW(BCM_IOCTL, 0x878, int)
-#define IOCTL_BCM_GPIO_MULTI_REQUEST		_IOW(BCM_IOCTL, 0x82D, IOCTL_BUFFER)
-#define IOCTL_BCM_GPIO_MODE_REQUEST		_IOW(BCM_IOCTL, 0x82E, IOCTL_BUFFER)
+#define IOCTL_BCM_GPIO_MULTI_REQUEST		_IOW(BCM_IOCTL, 0x82D, struct bcm_ioctl_buffer)
+#define IOCTL_BCM_GPIO_MODE_REQUEST		_IOW(BCM_IOCTL, 0x82E, struct bcm_ioctl_buffer)
 
 enum bcm_interface_type {
 	BCM_MII,
