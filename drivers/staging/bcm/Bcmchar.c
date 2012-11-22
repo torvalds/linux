@@ -401,8 +401,8 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 		UINT value = 0;
 		UINT uiBit = 0;
 		UINT uiOperation = 0;
+		struct bcm_gpio_info gpio_info = {0};
 
-		GPIO_INFO   gpio_info = {0};
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE)) {
@@ -518,7 +518,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	case IOCTL_BCM_GPIO_STATUS_REQUEST: {
 		ULONG uiBit = 0;
 		UCHAR ucRead[4];
-		GPIO_INFO   gpio_info = {0};
+		struct bcm_gpio_info gpio_info = {0};
 
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||

@@ -19,10 +19,10 @@ struct bcm_ioctl_buffer {
 	unsigned long OutputLength;
 } __packed;
 
-typedef struct stGPIOInfo {
+struct bcm_gpio_info {
 	unsigned int uiGpioNumber; /* valid numbers 0-15 */
 	unsigned int uiGpioValue; /* 1 set ; 0 not  set */
-} __packed GPIO_INFO, *PGPIO_INFO;
+} __packed;
 
 struct bcm_user_thread_req {
 	/* 0->Inactivate LED thread. */
