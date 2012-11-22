@@ -70,21 +70,6 @@ static void variax_startup2(unsigned long data);
 static void variax_startup4(unsigned long data);
 static void variax_startup5(unsigned long data);
 
-/*
-	Decode data transmitted by workbench.
-*/
-static void variax_decode(const unsigned char *raw_data, unsigned char *data,
-			  int raw_size)
-{
-	for (; raw_size > 0; raw_size -= 6) {
-		data[2] = raw_data[0] | (raw_data[1] << 4);
-		data[1] = raw_data[2] | (raw_data[3] << 4);
-		data[0] = raw_data[4] | (raw_data[5] << 4);
-		raw_data += 6;
-		data += 3;
-	}
-}
-
 static void variax_activate_async(struct usb_line6_variax *variax, int a)
 {
 	variax->buffer_activate[VARIAX_OFFSET_ACTIVATE] = a;
@@ -214,18 +199,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 					break;
 
 				case VARIAX_DUMP_PASS2:
-					/* model name is transmitted twice, so skip it here: */
-					variax_decode(buf +
-						      VARIAX_MODEL_HEADER_LENGTH,
-						      (unsigned char *)
-						      &variax->
-						      model_data.control +
-						      sizeof(variax->model_data.
-							     control)
-						      / 2,
-						      sizeof(variax->model_data.
-							     control)
-						      / 2 * 2);
 					line6_dump_request_async
 					    (&variax->dumpreq, &variax->line6,
 					     2, VARIAX_DUMP_PASS3);

@@ -44,21 +44,6 @@ enum {
 	VARIAX_DUMP_PASS3
 };
 
-/**
-	Binary Variax model dump
-*/
-struct variax_model {
-	/**
-		Header information (including program name).
-	*/
-	unsigned char name[18];
-
-	/**
-		Model parameters.
-	*/
-	unsigned char control[78 * 2];
-};
-
 struct usb_line6_variax {
 	/**
 		Generic Line6 USB data.
@@ -76,11 +61,6 @@ struct usb_line6_variax {
 		Buffer for activation code.
 	*/
 	unsigned char *buffer_activate;
-
-	/**
-		Current model settings.
-	*/
-	struct variax_model model_data;
 
 	/**
 		Handler for device initializaton.
