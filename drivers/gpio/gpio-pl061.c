@@ -48,12 +48,7 @@ struct pl061_context_save_regs {
 #endif
 
 struct pl061_gpio {
-	/* Each of the two spinlocks protects a different set of hardware
-	 * regiters and data structurs. This decouples the code of the IRQ from
-	 * the GPIO code. This also makes the case of a GPIO routine call from
-	 * the IRQ code simpler.
-	 */
-	spinlock_t		lock;		/* GPIO registers */
+	spinlock_t		lock;
 
 	void __iomem		*base;
 	int			irq_base;
