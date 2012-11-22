@@ -167,12 +167,12 @@ typedef struct _FLASH2X_READWRITE {
  * if NOB !=0, only NOB will be copied from the given offset.
  */
 
-typedef struct _FLASH2X_COPY_SECTION {
+struct bcm_flash2x_copy_section {
 	FLASH2X_SECTION_VAL SrcSection;
 	FLASH2X_SECTION_VAL DstSection;
 	u32 offset;
 	u32 numOfBytes;
-} FLASH2X_COPY_SECTION, *PFLASH2X_COPY_SECTION;
+};
 
 /*
  * This section provide the complete bitmap of the Flash.

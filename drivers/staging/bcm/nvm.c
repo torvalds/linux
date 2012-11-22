@@ -3529,7 +3529,7 @@ int BcmSetActiveSection(struct bcm_mini_adapter *Adapter, FLASH2X_SECTION_VAL eF
  *
  */
 
-int BcmCopyISO(struct bcm_mini_adapter *Adapter, FLASH2X_COPY_SECTION sCopySectStrut)
+int BcmCopyISO(struct bcm_mini_adapter *Adapter, struct bcm_flash2x_copy_section sCopySectStrut)
 {
 	PCHAR Buff = NULL;
 	FLASH2X_SECTION_VAL eISOReadPart = 0, eISOWritePart = 0;

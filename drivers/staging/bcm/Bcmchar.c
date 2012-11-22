@@ -1692,7 +1692,7 @@ cntrlEnd:
 	break;
 
 	case IOCTL_BCM_COPY_SECTION: {
-		FLASH2X_COPY_SECTION sCopySectStrut = {0};
+		struct bcm_flash2x_copy_section sCopySectStrut = {0};
 		Status = STATUS_SUCCESS;
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, OSAL_DBG, DBG_LVL_ALL, "IOCTL_BCM_COPY_SECTION  Called");
 
@@ -1708,7 +1708,7 @@ cntrlEnd:
 			return -EFAULT;
 		}
 
-		Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer, sizeof(FLASH2X_COPY_SECTION));
+		Status = copy_from_user(&sCopySectStrut, IoBuffer.InputBuffer, sizeof(struct bcm_flash2x_copy_section));
 		if (Status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "Copy of Copy_Section_Struct failed with Status :%d", Status);
 			return -EFAULT;
