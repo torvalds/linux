@@ -9,7 +9,7 @@ typedef struct rdmbuffer {
 typedef struct wrmbuffer {
 	ULONG Register;
 	ULONG Length;
-	UCHAR Data[4];
+	unsigned char Data[4];
 } __packed WRM_BUFFER, *PWRM_BUFFER;
 
 typedef struct ioctlbuffer {
@@ -192,20 +192,20 @@ typedef enum _SECTION_TYPE {
  */
 
 typedef struct _FLASH2X_BITMAP {
-	UCHAR ISO_IMAGE1;
-	UCHAR ISO_IMAGE2;
-	UCHAR DSD0;
-	UCHAR DSD1;
-	UCHAR DSD2;
-	UCHAR VSA0;
-	UCHAR VSA1;
-	UCHAR VSA2;
-	UCHAR SCSI;
-	UCHAR CONTROL_SECTION;
+	unsigned char ISO_IMAGE1;
+	unsigned char ISO_IMAGE2;
+	unsigned char DSD0;
+	unsigned char DSD1;
+	unsigned char DSD2;
+	unsigned char VSA0;
+	unsigned char VSA1;
+	unsigned char VSA2;
+	unsigned char SCSI;
+	unsigned char CONTROL_SECTION;
 	/* Reserved for future use */
-	UCHAR Reserved0;
-	UCHAR Reserved1;
-	UCHAR Reserved2;
+	unsigned char Reserved0;
+	unsigned char Reserved1;
+	unsigned char Reserved2;
 } FLASH2X_BITMAP, *PFLASH2X_BITMAP;
 
 typedef struct _ST_TIME_ELAPSED_ {
