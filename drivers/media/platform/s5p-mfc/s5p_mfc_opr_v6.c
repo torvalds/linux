@@ -1253,12 +1253,14 @@ int s5p_mfc_init_decode_v6(struct s5p_mfc_ctx *ctx)
 static inline void s5p_mfc_set_flush(struct s5p_mfc_ctx *ctx, int flush)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	unsigned int dpb;
-	if (flush)
-		dpb = READL(S5P_FIMV_SI_CH0_DPB_CONF_CTRL) | (1 << 14);
-	else
-		dpb = READL(S5P_FIMV_SI_CH0_DPB_CONF_CTRL) & ~(1 << 14);
-	WRITEL(dpb, S5P_FIMV_SI_CH0_DPB_CONF_CTRL);
+
+	if (flush) {
+		dev->curr_ctx = ctx->num;
+		s5p_mfc_clean_ctx_int_flags(ctx);
+		WRITEL(ctx->inst_no, S5P_FIMV_INSTANCE_ID_V6);
+		s5p_mfc_hw_call(dev->mfc_cmds, cmd_host2risc, dev,
+				S5P_FIMV_H2R_CMD_FLUSH_V6, NULL);
+	}
 }
 
 /* Decode a single frame */
@@ -1649,6 +1651,9 @@ void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 			break;
 		case MFCINST_HEAD_PARSED:
 			ret = s5p_mfc_run_init_dec_buffers(ctx);
+			break;
+		case MFCINST_FLUSH:
+			s5p_mfc_set_flush(ctx, ctx->dpb_flush_flag);
 			break;
 		case MFCINST_RES_CHANGE_INIT:
 			s5p_mfc_run_dec_last_frames(ctx);

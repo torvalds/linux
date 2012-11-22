@@ -686,6 +686,12 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 		s5p_mfc_handle_stream_complete(ctx, reason, err);
 		break;
 
+	case S5P_MFC_R2H_CMD_DPB_FLUSH_RET:
+		clear_work_bit(ctx);
+		ctx->state = MFCINST_RUNNING;
+		wake_up(&ctx->queue);
+		goto irq_cleanup_hw;
+
 	default:
 		mfc_debug(2, "Unknown int reason\n");
 		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
