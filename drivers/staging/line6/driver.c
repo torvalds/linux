@@ -642,20 +642,6 @@ ssize_t line6_nop_write(struct device *dev, struct device_attribute *attr,
 }
 
 /*
-	"write" request on "raw" special file.
-*/
-#ifdef CONFIG_LINE6_USB_RAW
-ssize_t line6_set_raw(struct device *dev, struct device_attribute *attr,
-		      const char *buf, size_t count)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6 *line6 = usb_get_intfdata(interface);
-	line6_send_raw_message(line6, buf, count);
-	return count;
-}
-#endif
-
-/*
 	Generic destructor.
 */
 static void line6_destruct(struct usb_interface *interface)

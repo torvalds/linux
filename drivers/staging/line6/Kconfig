@@ -33,17 +33,6 @@ config LINE6_USB_DUMP_PCM
 
 	  If unsure, say N.
 
-config LINE6_USB_RAW
-	bool "raw data communication"
-	default n
-	help
-	  Say Y here to create special files which allow to send raw data
-	  to the device. This bypasses any sanity checks, so if you discover
-	  the code to erase the firmware, feel free to render your device
-	  useless, but only after reading the GPL section "NO WARRANTY".
-
-	  If unsure, say N.
-
 config LINE6_USB_IMPULSE_RESPONSE
 	bool "measure impulse response"
 	default n
