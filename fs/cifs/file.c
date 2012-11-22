@@ -1443,16 +1443,18 @@ cifs_setlk(struct file *file, struct file_lock *flock, __u32 type,
 			return -ENOMEM;
 
 		rc = cifs_lock_add_if(cfile, lock, wait_flag);
-		if (rc < 0)
+		if (rc < 0) {
 			kfree(lock);
-		if (rc <= 0)
+			return rc;
+		}
+		if (!rc)
 			goto out;
 
 		rc = server->ops->mand_lock(xid, cfile, flock->fl_start, length,
 					    type, 1, 0, wait_flag);
 		if (rc) {
 			kfree(lock);
-			goto out;
+			return rc;
 		}
 
 		cifs_lock_add(cfile, lock);
