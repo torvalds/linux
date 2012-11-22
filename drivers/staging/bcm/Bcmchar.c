@@ -1118,7 +1118,7 @@ cntrlEnd:
 		break;
 
 	case IOCTL_BCM_BULK_WRM: {
-		PBULKWRM_BUFFER pBulkBuffer;
+		struct bcm_bulk_wrm_buffer *pBulkBuffer;
 		UINT uiTempVar = 0;
 		PCHAR pvBuffer = NULL;
 
@@ -1143,7 +1143,7 @@ cntrlEnd:
 		if (IS_ERR(pvBuffer))
 			return PTR_ERR(pvBuffer);
 
-		pBulkBuffer = (PBULKWRM_BUFFER)pvBuffer;
+		pBulkBuffer = (struct bcm_bulk_wrm_buffer *)pvBuffer;
 
 		if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
 			((ULONG)pBulkBuffer->Register & 0x3)) {

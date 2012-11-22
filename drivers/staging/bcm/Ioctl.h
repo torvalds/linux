@@ -123,12 +123,11 @@ typedef  struct _NVM_READWRITE {
 	bool bVerify;
 } NVM_READWRITE, *PNVM_READWRITE;
 
-typedef struct bulkwrmbuffer {
+struct bcm_bulk_wrm_buffer {
 	unsigned long Register;
 	unsigned long SwapEndian;
 	unsigned long Values[1];
-
-} BULKWRM_BUFFER, *PBULKWRM_BUFFER;
+};
 
 typedef enum _FLASH2X_SECTION_VAL {
 	NO_SECTION_VAL = 0, /* no section is chosen when absolute offset is given for RD/WR */
