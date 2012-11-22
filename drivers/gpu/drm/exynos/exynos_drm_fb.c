@@ -36,6 +36,7 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_iommu.h"
+#include "exynos_drm_encoder.h"
 
 #define to_exynos_fb(x)	container_of(x, struct exynos_drm_fb, fb)
 
@@ -84,6 +85,9 @@ static void exynos_drm_fb_destroy(struct drm_framebuffer *fb)
 	unsigned int i;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	/* make sure that overlay data are updated before relesing fb. */
+	exynos_drm_encoder_complete_scanout(fb);
 
 	drm_framebuffer_cleanup(fb);
 
