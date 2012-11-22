@@ -174,12 +174,6 @@ typedef struct _FLASH2X_COPY_SECTION {
 	u32 numOfBytes;
 } FLASH2X_COPY_SECTION, *PFLASH2X_COPY_SECTION;
 
-typedef enum _SECTION_TYPE {
-	ISO = 0,
-	VSA = 1,
-	DSD = 2
-} SECTION_TYPE, *PSECTION_TYPE;
-
 /*
  * This section provide the complete bitmap of the Flash.
  * using this map lib/APP will isssue read/write command.
