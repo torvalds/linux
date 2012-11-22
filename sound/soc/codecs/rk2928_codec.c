@@ -135,14 +135,22 @@ void codec_set_spk(bool on)
 	if(on == 0) {
 		DBG("%s speaker is disabled\n", __FUNCTION__);
 		rk2928_data.hdmi_enable = 1;
-		if(rk2928_data.mute == 0)
+		if(rk2928_data.mute == 0) {
 			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(1));
+			if(rk2928_data.spkctl != INVALID_GPIO) {
+				gpio_direction_output(rk2928_data.spkctl, GPIO_LOW);
+			}
+		}
 	}
 	else {
 		DBG("%s speaker is enabled\n", __FUNCTION__);
 		rk2928_data.hdmi_enable = 0;
-		if(rk2928_data.mute == 0)
+		if(rk2928_data.mute == 0) {
 			rk2928_write(NULL, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+			if(rk2928_data.spkctl != INVALID_GPIO && rk2928_data.headset_status == HP_OUT) {
+				gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
+			}
+		}
 	}
 }
 #ifdef CONFIG_MODEM_SOUND
@@ -266,11 +274,11 @@ static int rk2928_audio_trigger(struct snd_pcm_substream *substream, int cmd,
 					}
 					
 					rk2928_write(codec, CODEC_REG_DAC_MUTE, v_MUTE_DAC(0));
+					if(rk2928_data.spkctl != INVALID_GPIO && rk2928_data.headset_status == HP_OUT) {
+						gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
+					}
 				}
 				rk2928_data.mute = 0;
-				if(rk2928_data.spkctl != INVALID_GPIO && rk2928_data.headset_status == HP_OUT) {
-					gpio_direction_output(rk2928_data.spkctl, GPIO_HIGH);
-				}
 			}
 			else {
 				rk2928_write(codec, CODEC_REG_ADC_PGA_GAIN, 0xFF);
