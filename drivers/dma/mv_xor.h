@@ -53,6 +53,7 @@
 #define WINDOW_SIZE(w)		(0x270 + ((w) << 2))
 #define WINDOW_REMAP_HIGH(w)	(0x290 + ((w) << 2))
 #define WINDOW_BAR_ENABLE(chan)	(0x240 + ((chan) << 2))
+#define WINDOW_OVERRIDE_CTRL(chan)	(0x2A0 + ((chan) << 2))
 
 struct mv_xor_device {
 	void __iomem	     *xor_base;

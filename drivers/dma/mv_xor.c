@@ -1240,6 +1240,8 @@ mv_xor_conf_mbus_windows(struct mv_xor_device *xordev,
 
 	writel(win_enable, base + WINDOW_BAR_ENABLE(0));
 	writel(win_enable, base + WINDOW_BAR_ENABLE(1));
+	writel(0, base + WINDOW_OVERRIDE_CTRL(0));
+	writel(0, base + WINDOW_OVERRIDE_CTRL(1));
 }
 
 static int __devinit mv_xor_probe(struct platform_device *pdev)
