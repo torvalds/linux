@@ -1162,9 +1162,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	/* clear errors before enabling interrupts */
 	mv_xor_device_clear_err_status(mv_chan);
 
-	ret = devm_request_irq(&pdev->dev, mv_chan->irq,
-			       mv_xor_interrupt_handler,
-			       0, dev_name(&pdev->dev), mv_chan);
+	ret = request_irq(mv_chan->irq, mv_xor_interrupt_handler,
+			  0, dev_name(&pdev->dev), mv_chan);
 	if (ret)
 		goto err_free_dma;
 
@@ -1185,14 +1184,14 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 		ret = mv_xor_memcpy_self_test(mv_chan);
 		dev_dbg(&pdev->dev, "memcpy self test returned %d\n", ret);
 		if (ret)
-			goto err_free_dma;
+			goto err_free_irq;
 	}
 
 	if (dma_has_cap(DMA_XOR, dma_dev->cap_mask)) {
 		ret = mv_xor_xor_self_test(mv_chan);
 		dev_dbg(&pdev->dev, "xor self test returned %d\n", ret);
 		if (ret)
-			goto err_free_dma;
+			goto err_free_irq;
 	}
 
 	dev_info(&pdev->dev, "Marvell XOR: "
@@ -1205,6 +1204,8 @@ mv_xor_channel_add(struct mv_xor_device *xordev,
 	dma_async_device_register(dma_dev);
 	return mv_chan;
 
+err_free_irq:
+	free_irq(mv_chan->irq, mv_chan);
  err_free_dma:
 	dma_free_coherent(&pdev->dev, MV_XOR_POOL_SIZE,
 			  mv_chan->dma_desc_pool_virt, mv_chan->dma_desc_pool);
