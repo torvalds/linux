@@ -26,7 +26,6 @@
 /* *INDENT-OFF* */
 
 enum {
-	POD_SYSEX_CLIP      = 0x0f,
 	POD_SYSEX_SAVE      = 0x24,
 	POD_SYSEX_SYSTEM    = 0x56,
 	POD_SYSEX_SYSTEMREQ = 0x57,
@@ -309,12 +308,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 
 			case POD_SYSEX_SAVE:
 				pod_save_button_pressed(pod, buf[6], buf[7]);
-				break;
-
-			case POD_SYSEX_CLIP:
-				dev_dbg(pod->line6.ifcdev, "audio clipped\n");
-				pod->clipping.value = 1;
-				wake_up(&pod->clipping.wait);
 				break;
 
 			case POD_SYSEX_STORE:
@@ -879,18 +872,6 @@ static ssize_t pod_get_device_id(struct device *dev,
 }
 
 /*
-	"read" request on "clip" special file.
-*/
-static ssize_t pod_wait_for_clip(struct device *dev,
-				 struct device_attribute *attr, char *buf)
-{
-	struct usb_interface *interface = to_usb_interface(dev);
-	struct usb_line6_pod *pod = usb_get_intfdata(interface);
-	return wait_event_interruptible(pod->clipping.wait,
-					pod->clipping.value != 0);
-}
-
-/*
 	POD startup procedure.
 	This is a sequence of functions with special requirements (e.g., must
 	not run immediately after initialization, must not run in interrupt
@@ -991,7 +972,6 @@ POD_GET_SYSTEM_PARAM(tuner_pitch, 1);
 #undef GET_SYSTEM_PARAM
 
 /* POD special files: */
-static DEVICE_ATTR(clip, S_IRUGO, pod_wait_for_clip, line6_nop_write);
 static DEVICE_ATTR(device_id, S_IRUGO, pod_get_device_id, line6_nop_write);
 static DEVICE_ATTR(dirty, S_IRUGO, pod_get_dirty, line6_nop_write);
 static DEVICE_ATTR(dump, S_IWUSR | S_IRUGO, pod_get_dump, pod_set_dump);
@@ -1106,7 +1086,6 @@ static int pod_create_files2(struct device *dev)
 {
 	int err;
 
-	CHECK_RETURN(device_create_file(dev, &dev_attr_clip));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_device_id));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_dirty));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_dump));
@@ -1159,7 +1138,6 @@ static int pod_try_init(struct usb_interface *interface,
 	init_waitqueue_head(&pod->tuner_freq.wait);
 	init_waitqueue_head(&pod->tuner_note.wait);
 	init_waitqueue_head(&pod->tuner_pitch.wait);
-	init_waitqueue_head(&pod->clipping.wait);
 
 	memset(pod->param_dirty, 0xff, sizeof(pod->param_dirty));
 
@@ -1250,7 +1228,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 					       pod->line6.
 					       properties->device_bit, dev);
 
-			device_remove_file(dev, &dev_attr_clip);
 			device_remove_file(dev, &dev_attr_device_id);
 			device_remove_file(dev, &dev_attr_dirty);
 			device_remove_file(dev, &dev_attr_dump);

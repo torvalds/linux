@@ -133,11 +133,6 @@ struct usb_line6_pod {
 	struct ValueWait routing;
 
 	/**
-		Wait for audio clipping event.
-	*/
-	struct ValueWait clipping;
-
-	/**
 		Timer for device initializaton.
 	*/
 	struct timer_list startup_timer;
