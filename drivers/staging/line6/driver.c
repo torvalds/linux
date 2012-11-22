@@ -16,7 +16,6 @@
 
 #include "audio.h"
 #include "capture.h"
-#include "control.h"
 #include "driver.h"
 #include "midi.h"
 #include "playback.h"

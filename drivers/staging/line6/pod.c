@@ -15,7 +15,6 @@
 
 #include "audio.h"
 #include "capture.h"
-#include "control.h"
 #include "driver.h"
 #include "playback.h"
 #include "pod.h"
@@ -404,10 +403,6 @@ static void pod_startup5(struct work_struct *work)
 
 	/* ALSA audio interface: */
 	line6_register_audio(line6);
-
-	/* device files: */
-	line6_pod_create_files(pod->firmware_version,
-			       line6->properties->device_bit, line6->ifcdev);
 }
 
 /* POD special files: */
@@ -594,10 +589,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 
 		if (dev != NULL) {
 			/* remove sysfs entries: */
-			line6_pod_remove_files(pod->firmware_version,
-					       pod->line6.
-					       properties->device_bit, dev);
-
 			device_remove_file(dev, &dev_attr_device_id);
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_serial_number);

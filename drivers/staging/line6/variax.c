@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 
 #include "audio.h"
-#include "control.h"
 #include "driver.h"
 #include "variax.h"
 
@@ -174,15 +173,11 @@ static void variax_startup7(struct work_struct *work)
 {
 	struct usb_line6_variax *variax =
 	    container_of(work, struct usb_line6_variax, startup_work);
-	struct usb_line6 *line6 = &variax->line6;
 
 	CHECK_STARTUP_PROGRESS(variax->startup_progress, VARIAX_STARTUP_SETUP);
 
 	/* ALSA audio interface: */
 	line6_register_audio(&variax->line6);
-
-	/* device files: */
-	line6_variax_create_files(0, 0, line6->ifcdev);
 }
 
 /*
@@ -370,16 +365,8 @@ int line6_variax_init(struct usb_interface *interface,
 */
 void line6_variax_disconnect(struct usb_interface *interface)
 {
-	struct device *dev;
-
 	if (interface == NULL)
 		return;
-	dev = &interface->dev;
-
-	if (dev != NULL) {
-		/* remove sysfs entries: */
-		line6_variax_remove_files(0, 0, dev);
-	}
 
 	variax_destruct(interface);
 }
