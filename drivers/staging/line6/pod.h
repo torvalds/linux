@@ -104,11 +104,6 @@ struct usb_line6_pod {
 	struct ValueWait tuner_mute;
 
 	/**
-		Tuner base frequency (typically 440Hz).
-	*/
-	struct ValueWait tuner_freq;
-
-	/**
 		Note received from tuner.
 	*/
 	struct ValueWait tuner_note;

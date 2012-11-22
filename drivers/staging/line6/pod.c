@@ -250,8 +250,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 						PROCESS_SYSTEM_PARAM
 						    (tuner_mute);
 						PROCESS_SYSTEM_PARAM
-						    (tuner_freq);
-						PROCESS_SYSTEM_PARAM
 						    (tuner_note);
 						PROCESS_SYSTEM_PARAM
 						    (tuner_pitch);
@@ -646,7 +644,6 @@ static ssize_t pod_set_ ## code(struct device *dev, \
 }
 
 POD_GET_SET_SYSTEM_PARAM(tuner_mute, 0x0001, 0);
-POD_GET_SET_SYSTEM_PARAM(tuner_freq, 0xffff, 0);
 POD_GET_SYSTEM_PARAM(tuner_note, 1);
 POD_GET_SYSTEM_PARAM(tuner_pitch, 1);
 
@@ -662,8 +659,6 @@ static DEVICE_ATTR(midi_postprocess, S_IWUSR | S_IRUGO,
 		   pod_get_midi_postprocess, pod_set_midi_postprocess);
 static DEVICE_ATTR(serial_number, S_IRUGO, pod_get_serial_number,
 		   line6_nop_write);
-static DEVICE_ATTR(tuner_freq, S_IWUSR | S_IRUGO, pod_get_tuner_freq,
-		   pod_set_tuner_freq);
 static DEVICE_ATTR(tuner_mute, S_IWUSR | S_IRUGO, pod_get_tuner_mute,
 		   pod_set_tuner_mute);
 static DEVICE_ATTR(tuner_note, S_IRUGO, pod_get_tuner_note, line6_nop_write);
@@ -751,7 +746,6 @@ static int pod_create_files2(struct device *dev)
 	CHECK_RETURN(device_create_file(dev, &dev_attr_firmware_version));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_midi_postprocess));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_serial_number));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_freq));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_mute));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_note));
 	CHECK_RETURN(device_create_file(dev, &dev_attr_tuner_pitch));
@@ -780,7 +774,6 @@ static int pod_try_init(struct usb_interface *interface,
 
 	/* initialize wait queues: */
 	init_waitqueue_head(&pod->tuner_mute.wait);
-	init_waitqueue_head(&pod->tuner_freq.wait);
 	init_waitqueue_head(&pod->tuner_note.wait);
 	init_waitqueue_head(&pod->tuner_pitch.wait);
 
@@ -876,7 +869,6 @@ void line6_pod_disconnect(struct usb_interface *interface)
 			device_remove_file(dev, &dev_attr_firmware_version);
 			device_remove_file(dev, &dev_attr_midi_postprocess);
 			device_remove_file(dev, &dev_attr_serial_number);
-			device_remove_file(dev, &dev_attr_tuner_freq);
 			device_remove_file(dev, &dev_attr_tuner_mute);
 			device_remove_file(dev, &dev_attr_tuner_note);
 			device_remove_file(dev, &dev_attr_tuner_pitch);
