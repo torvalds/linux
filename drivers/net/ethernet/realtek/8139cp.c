@@ -648,6 +648,7 @@ static void cp_tx (struct cp_private *cp)
 {
 	unsigned tx_head = cp->tx_head;
 	unsigned tx_tail = cp->tx_tail;
+	unsigned bytes_compl = 0, pkts_compl = 0;
 
 	while (tx_tail != tx_head) {
 		struct cp_desc *txd = cp->tx_ring + tx_tail;
@@ -665,6 +666,9 @@ static void cp_tx (struct cp_private *cp)
 		dma_unmap_single(&cp->pdev->dev, le64_to_cpu(txd->addr),
 				 le32_to_cpu(txd->opts1) & 0xffff,
 				 PCI_DMA_TODEVICE);
+
+		bytes_compl += skb->len;
+		pkts_compl++;
 
 		if (status & LastFrag) {
 			if (status & (TxError | TxFIFOUnder)) {
@@ -697,6 +701,7 @@ static void cp_tx (struct cp_private *cp)
 
 	cp->tx_tail = tx_tail;
 
+	netdev_completed_queue(cp->dev, pkts_compl, bytes_compl);
 	if (TX_BUFFS_AVAIL(cp) > (MAX_SKB_FRAGS + 1))
 		netif_wake_queue(cp->dev);
 }
@@ -843,6 +848,8 @@ static netdev_tx_t cp_start_xmit (struct sk_buff *skb,
 		wmb();
 	}
 	cp->tx_head = entry;
+
+	netdev_sent_queue(dev, skb->len);
 	netif_dbg(cp, tx_queued, cp->dev, "tx queued, slot %d, skblen %d\n",
 		  entry, skb->len);
 	if (TX_BUFFS_AVAIL(cp) <= (MAX_SKB_FRAGS + 1))
@@ -937,6 +944,8 @@ static void cp_stop_hw (struct cp_private *cp)
 
 	cp->rx_tail = 0;
 	cp->tx_head = cp->tx_tail = 0;
+
+	netdev_reset_queue(cp->dev);
 }
 
 static void cp_reset_hw (struct cp_private *cp)
@@ -987,6 +996,8 @@ static inline void cp_start_hw (struct cp_private *cp)
 	 * This variant appears to work fine.
 	 */
 	cpw8(Cmd, RxOn | TxOn);
+
+	netdev_reset_queue(cp->dev);
 }
 
 static void cp_enable_irq(struct cp_private *cp)
