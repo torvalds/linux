@@ -30,6 +30,36 @@
 		nand@3000000 {
 			chip-delay = <25>;
 			status = "okay";
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x0 0x90000>;
+			};
+
+			partition@90000 {
+				label = "env";
+				reg = <0x90000 0x44000>;
+			};
+
+			partition@d4000 {
+				label = "test";
+				reg = <0xd4000 0x24000>;
+			};
+
+			partition@f4000 {
+				label = "conf";
+				reg = <0xf4000 0x400000>;
+			};
+
+			partition@4f4000 {
+				label = "linux";
+				reg = <0x4f4000 0x1d20000>;
+			};
+
+			partition@2214000 {
+				label = "user";
+				reg = <0x2214000 0x1dec000>;
+			};
 		};
 
 		sata@80000 {
