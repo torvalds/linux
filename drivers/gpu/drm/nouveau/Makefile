@@ -184,6 +184,7 @@ nouveau-y += core/engine/software/nv10.o
 nouveau-y += core/engine/software/nv50.o
 nouveau-y += core/engine/software/nvc0.o
 nouveau-y += core/engine/vp/nv84.o
+nouveau-y += core/engine/vp/nve0.o
 
 # drm/core
 nouveau-y += nouveau_drm.o nouveau_chan.o nouveau_dma.o nouveau_fence.o

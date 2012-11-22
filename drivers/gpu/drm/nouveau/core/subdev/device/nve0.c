@@ -46,6 +46,7 @@
 #include <engine/disp.h>
 #include <engine/copy.h>
 #include <engine/bsp.h>
+#include <engine/vp.h>
 
 int
 nve0_identify(struct nouveau_device *device)
@@ -76,6 +77,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		break;
 	case 0xe7:
 		device->cname = "GK107";
@@ -102,6 +104,7 @@ nve0_identify(struct nouveau_device *device)
 		device->oclass[NVDEV_ENGINE_COPY0  ] = &nve0_copy0_oclass;
 		device->oclass[NVDEV_ENGINE_COPY1  ] = &nve0_copy1_oclass;
 		device->oclass[NVDEV_ENGINE_BSP    ] = &nve0_bsp_oclass;
+		device->oclass[NVDEV_ENGINE_VP     ] = &nve0_vp_oclass;
 		break;
 	default:
 		nv_fatal(device, "unknown Kepler chipset\n");

@@ -41,5 +41,6 @@ struct nouveau_vp {
 #define _nouveau_vp_fini _nouveau_engine_fini
 
 extern struct nouveau_oclass nv84_vp_oclass;
+extern struct nouveau_oclass nve0_vp_oclass;
 
 #endif
