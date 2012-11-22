@@ -111,6 +111,11 @@ ieee80211_rx_radiotap_space(struct ieee80211_local *local,
 		len += 8;
 	}
 
+	if (status->flag & RX_FLAG_VHT) {
+		len = ALIGN(len, 2);
+		len += 12;
+	}
+
 	if (status->vendor_radiotap_len) {
 		if (WARN_ON_ONCE(status->vendor_radiotap_align == 0))
 			status->vendor_radiotap_align = 1;
@@ -295,6 +300,41 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		else
 			*pos++ = 0;
 		*pos++ = 0;
+	}
+
+	if (status->flag & RX_FLAG_VHT) {
+		u16 known = local->hw.radiotap_vht_details;
+
+		rthdr->it_present |= cpu_to_le32(1 << IEEE80211_RADIOTAP_VHT);
+		/* known field - how to handle 80+80? */
+		if (status->flag & RX_FLAG_80P80MHZ)
+			known &= ~IEEE80211_RADIOTAP_VHT_KNOWN_BANDWIDTH;
+		put_unaligned_le16(known, pos);
+		pos += 2;
+		/* flags */
+		if (status->flag & RX_FLAG_SHORT_GI)
+			*pos |= IEEE80211_RADIOTAP_VHT_FLAG_SGI;
+		pos++;
+		/* bandwidth */
+		if (status->flag & RX_FLAG_80MHZ)
+			*pos++ = 4;
+		else if (status->flag & RX_FLAG_80P80MHZ)
+			*pos++ = 0; /* marked not known above */
+		else if (status->flag & RX_FLAG_160MHZ)
+			*pos++ = 11;
+		else if (status->flag & RX_FLAG_40MHZ)
+			*pos++ = 1;
+		else /* 20 MHz */
+			*pos++ = 0;
+		/* MCS/NSS */
+		*pos = (status->rate_idx << 4) | status->vht_nss;
+		pos += 4;
+		/* coding field */
+		pos++;
+		/* group ID */
+		pos++;
+		/* partial_aid */
+		pos += 2;
 	}
 
 	if (status->vendor_radiotap_len) {

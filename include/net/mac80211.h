@@ -1473,6 +1473,10 @@ enum ieee80211_hw_flags {
  *	include _FMT. Use %IEEE80211_RADIOTAP_MCS_HAVE_* values, only
  *	adding _BW is supported today.
  *
+ * @radiotap_vht_details: lists which VHT MCS information the HW reports,
+ *	the default is _GI | _BANDWIDTH.
+ *	Use the %IEEE80211_RADIOTAP_VHT_KNOWN_* values.
+ *
  * @netdev_features: netdev features to be set in each netdev created
  *	from this HW. Note only HW checksum features are currently
  *	compatible with mac80211. Other feature bits will be rejected.
@@ -1499,6 +1503,7 @@ struct ieee80211_hw {
 	u8 max_tx_aggregation_subframes;
 	u8 offchannel_tx_hw_queue;
 	u8 radiotap_mcs_details;
+	u16 radiotap_vht_details;
 	netdev_features_t netdev_features;
 };
 
