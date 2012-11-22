@@ -6,11 +6,11 @@ typedef struct rdmbuffer {
 	unsigned long Length;
 } __packed RDM_BUFFER, *PRDM_BUFFER;
 
-typedef struct wrmbuffer {
+struct bcm_wrm_buffer {
 	unsigned long Register;
 	unsigned long Length;
 	unsigned char Data[4];
-} __packed WRM_BUFFER, *PWRM_BUFFER;
+} __packed;
 
 struct bcm_ioctl_buffer {
 	void __user *InputBuffer;

@@ -248,7 +248,7 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	}
 
 	case IOCTL_BCM_REGISTER_WRITE_PRIVATE: {
-		WRM_BUFFER  sWrmBuffer = {0};
+		struct bcm_wrm_buffer sWrmBuffer = {0};
 		UINT uiTempVar = 0;
 		/* Copy Ioctl Buffer structure */
 
@@ -345,8 +345,9 @@ static long bcm_char_ioctl(struct file *filp, UINT cmd, ULONG arg)
 	}
 	case IOCTL_BCM_REGISTER_WRITE:
 	case IOCTL_BCM_EEPROM_REGISTER_WRITE: {
-		WRM_BUFFER  sWrmBuffer = {0};
+		struct bcm_wrm_buffer sWrmBuffer = {0};
 		UINT uiTempVar = 0;
+
 		if ((Adapter->IdleMode == TRUE) ||
 			(Adapter->bShutStatus == TRUE) ||
 			(Adapter->bPreparingForLowPowerMode == TRUE)) {
