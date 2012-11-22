@@ -458,7 +458,7 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 		return ret;
 
 	if (subs->sync_endpoint)
-		ret = snd_usb_endpoint_set_params(subs->data_endpoint,
+		ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
 						  subs->pcm_format,
 						  subs->channels,
 						  subs->period_bytes,
