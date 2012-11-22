@@ -34,8 +34,8 @@ static const char *csi_sel[] = { "upll", "spll", };
 static const char *fir_sel[] = { "mcu_main", "upll", "spll" };
 
 enum mx31_clks {
-	ckih, ckil, mpll, spll, upll, mcu_main, hsp, ahb, nfc, ipg, per_div,
-	per, csi, fir, csi_div, usb_div_pre, usb_div_post, fir_div_pre,
+	dummy, ckih, ckil, mpll, spll, upll, mcu_main, hsp, ahb, nfc, ipg,
+	per_div, per, csi, fir, csi_div, usb_div_pre, usb_div_post, fir_div_pre,
 	fir_div_post, sdhc1_gate, sdhc2_gate, gpt_gate, epit1_gate, epit2_gate,
 	iim_gate, ata_gate, sdma_gate, cspi3_gate, rng_gate, uart1_gate,
 	uart2_gate, ssi1_gate, i2c1_gate, i2c2_gate, i2c3_gate, hantro_gate,
@@ -52,6 +52,7 @@ int __init mx31_clocks_init(unsigned long fref)
 	void __iomem *base = MX31_IO_ADDRESS(MX31_CCM_BASE_ADDR);
 	int i;
 
+	clk[dummy] = imx_clk_fixed("dummy", 0);
 	clk[ckih] = imx_clk_fixed("ckih", fref);
 	clk[ckil] = imx_clk_fixed("ckil", 32768);
 	clk[mpll] = imx_clk_pllv1("mpll", "ckih", base + MXC_CCM_MPCTL);
