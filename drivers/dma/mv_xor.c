@@ -1322,6 +1322,7 @@ static int __devinit mv_xor_probe(struct platform_device *pdev)
 						   cap_mask, irq);
 			if (IS_ERR(xordev->channels[i])) {
 				ret = PTR_ERR(xordev->channels[i]);
+				xordev->channels[i] = NULL;
 				irq_dispose_mapping(irq);
 				goto err_channel_add;
 			}
