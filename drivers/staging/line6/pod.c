@@ -174,12 +174,6 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 		/* intentionally no break here! */
 
 	case LINE6_PARAM_CHANGE | LINE6_CHANNEL_HOST:
-		if ((buf[1] == POD_amp_model_setup) ||
-		    (buf[1] == POD_effect_setup))
-			/* these also affect other settings */
-			line6_dump_request_async(&pod->dumpreq, &pod->line6, 0,
-						 LINE6_DUMP_CURRENT);
-
 		break;
 
 	case LINE6_PROGRAM_CHANGE | LINE6_CHANNEL_DEVICE:
@@ -288,9 +282,6 @@ void line6_pod_transmit_parameter(struct usb_line6_pod *pod, int param,
 {
 	if (line6_transmit_parameter(&pod->line6, param, value) == 0)
 		pod_store_parameter(pod, param, value);
-
-	if ((param == POD_amp_model_setup) || (param == POD_effect_setup))	/* these also affect other settings */
-		line6_invalidate_current(&pod->dumpreq);
 }
 
 /*
