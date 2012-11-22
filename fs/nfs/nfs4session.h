@@ -9,7 +9,7 @@
 
 /* maximum number of slots to use */
 #define NFS4_DEF_SLOT_TABLE_SIZE (16U)
-#define NFS4_MAX_SLOT_TABLE (256U)
+#define NFS4_MAX_SLOT_TABLE (1024U)
 #define NFS4_NO_SLOT ((u32)-1)
 
 #if IS_ENABLED(CONFIG_NFS_V4)
