@@ -52,9 +52,13 @@ static int vv6410_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
+		if (!gspca_dev->streaming)
+			return 0;
 		err = vv6410_set_hflip(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_VFLIP:
+		if (!gspca_dev->streaming)
+			return 0;
 		err = vv6410_set_vflip(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_GAIN:
