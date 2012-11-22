@@ -3504,15 +3504,20 @@ static void wm1811_mic_work(struct work_struct *work)
 
 	dev_dbg(codec->dev, "Starting mic detection\n");
 
-	/*
-	 * Start off measument of microphone impedence to find out
-	 * what's actually there.
-	 */
-	wm8994->mic_detecting = true;
-	wm1811_jackdet_set_mode(codec, WM1811_JACKDET_MODE_MIC);
+	/* Use a user-supplied callback if we have one */
+	if (wm8994->micd_cb) {
+		wm8994->micd_cb(wm8994->micd_cb_data);
+	} else {
+		/*
+		 * Start off measument of microphone impedence to find out
+		 * what's actually there.
+		 */
+		wm8994->mic_detecting = true;
+		wm1811_jackdet_set_mode(codec, WM1811_JACKDET_MODE_MIC);
 
-	snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
-			    WM8958_MICD_ENA, WM8958_MICD_ENA);
+		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
+				    WM8958_MICD_ENA, WM8958_MICD_ENA);
+	}
 
 	mutex_unlock(&wm8994->accdet_lock);
 
@@ -3624,7 +3629,7 @@ static void wm1811_jackdet_bootstrap(struct work_struct *work)
  * detection algorithm.
  */
 int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
-		      wm8958_micdet_cb cb, void *cb_data)
+		      wm1811_micdet_cb cb, void *cb_data)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
@@ -3639,17 +3644,18 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 	}
 
 	if (jack) {
-		/* No longer supported */
-		if (cb)
-			return -EINVAL;
-
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "CLK_SYS");
 		snd_soc_dapm_sync(&codec->dapm);
 
 		wm8994->micdet[0].jack = jack;
 
-		wm8994->mic_detecting = true;
-		wm8994->jack_mic = false;
+		if (cb) {
+			wm8994->micd_cb = cb;
+			wm8994->micd_cb_data = cb_data;
+		} else {
+			wm8994->mic_detecting = true;
+			wm8994->jack_mic = false;
+		}
 
 		wm8958_micd_set_rate(codec);
 
