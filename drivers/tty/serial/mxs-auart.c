@@ -461,6 +461,8 @@ static void dma_rx_callback(void *arg)
 	int count;
 	u32 stat;
 
+	dma_unmap_sg(s->dev, &s->rx_sgl, 1, DMA_FROM_DEVICE);
+
 	stat = readl(s->port.membase + AUART_STAT);
 	stat &= ~(AUART_STAT_OERR | AUART_STAT_BERR |
 			AUART_STAT_PERR | AUART_STAT_FERR);
