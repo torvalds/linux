@@ -1838,7 +1838,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		 * anyway (it holds no special properties of the bond device),
 		 * so we can change it without calling change_active_interface()
 		 */
-		if (!bond->curr_active_slave)
+		if (!bond->curr_active_slave && new_slave->link == BOND_LINK_UP)
 			bond->curr_active_slave = new_slave;
 
 		break;
