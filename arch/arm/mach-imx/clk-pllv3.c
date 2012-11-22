@@ -31,7 +31,6 @@
  * @clk_hw:	 clock source
  * @base:	 base address of PLL registers
  * @powerup_set: set POWER bit to power up the PLL
- * @gate_mask:	 mask of gate bits
  * @div_mask:	 mask of divider bits
  *
  * IMX PLL clock version 3, found on i.MX6 series.  Divider for pllv3
@@ -41,7 +40,6 @@ struct clk_pllv3 {
 	struct clk_hw	hw;
 	void __iomem	*base;
 	bool		powerup_set;
-	u32		gate_mask;
 	u32		div_mask;
 };
 
@@ -89,7 +87,7 @@ static int clk_pllv3_enable(struct clk_hw *hw)
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	val |= pll->gate_mask;
+	val |= BM_PLL_ENABLE;
 	writel_relaxed(val, pll->base);
 
 	return 0;
@@ -101,7 +99,7 @@ static void clk_pllv3_disable(struct clk_hw *hw)
 	u32 val;
 
 	val = readl_relaxed(pll->base);
-	val &= ~pll->gate_mask;
+	val &= ~BM_PLL_ENABLE;
 	writel_relaxed(val, pll->base);
 }
 
@@ -307,7 +305,7 @@ static const struct clk_ops clk_pllv3_mlb_ops = {
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 			  const char *parent_name, void __iomem *base,
-			  u32 gate_mask, u32 div_mask)
+			  u32 div_mask)
 {
 	struct clk_pllv3 *pll;
 	const struct clk_ops *ops;
@@ -339,7 +337,6 @@ struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
 		ops = &clk_pllv3_ops;
 	}
 	pll->base = base;
-	pll->gate_mask = gate_mask;
 	pll->div_mask = div_mask;
 
 	init.name = name;
