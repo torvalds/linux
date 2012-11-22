@@ -215,6 +215,8 @@ static int snd_emu10k1_suspend(struct device *dev)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 
+	emu->suspend = 1;
+
 	snd_pcm_suspend_all(emu->pcm);
 	snd_pcm_suspend_all(emu->pcm_mic);
 	snd_pcm_suspend_all(emu->pcm_efx);
@@ -259,6 +261,8 @@ static int snd_emu10k1_resume(struct device *dev)
 
 	if (emu->card_capabilities->ca0151_chip)
 		snd_p16v_resume(emu);
+
+	emu->suspend = 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 	return 0;

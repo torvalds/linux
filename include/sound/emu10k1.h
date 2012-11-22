@@ -1796,6 +1796,7 @@ struct snd_emu10k1 {
 	unsigned int *saved_icode;
 	unsigned int *p16v_saved;
 	unsigned int saved_a_iocfg, saved_hcfg;
+	bool suspend;
 #endif
 
 };
