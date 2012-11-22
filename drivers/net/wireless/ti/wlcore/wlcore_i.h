@@ -416,6 +416,8 @@ struct wl12xx_vif {
 	bool ba_support;
 	bool ba_allowed;
 
+	bool wmm_enabled;
+
 	/* Rx Streaming */
 	struct work_struct rx_streaming_enable_work;
 	struct work_struct rx_streaming_disable_work;

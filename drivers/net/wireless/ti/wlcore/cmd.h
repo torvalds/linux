@@ -76,7 +76,8 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  u16 action, u8 id, u8 key_type,
 			  u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
 			  u16 tx_seq_16);
-int wl12xx_cmd_set_peer_state(struct wl1271 *wl, u8 hlid);
+int wl12xx_cmd_set_peer_state(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      u8 hlid);
 int wl12xx_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 role_id,
 	       enum ieee80211_band band, u8 channel);
 int wl12xx_croc(struct wl1271 *wl, u8 role_id);
@@ -355,7 +356,13 @@ struct wl12xx_cmd_role_start {
 
 			u8 reset_tsf;
 
-			u8 padding_1[4];
+			/*
+			 * ap supports wmm (note that there is additional
+			 * per-sta wmm configuration)
+			 */
+			u8 wmm;
+
+			u8 padding_1[3];
 		} __packed ap;
 	};
 } __packed;
@@ -525,7 +532,14 @@ struct wl12xx_cmd_set_peer_state {
 
 	u8 hlid;
 	u8 state;
-	u8 padding[2];
+
+	/*
+	 * wmm is relevant for sta role only.
+	 * ap role configures the per-sta wmm params in
+	 * the add_peer command.
+	 */
+	u8 wmm;
+	u8 padding[1];
 } __packed;
 
 struct wl12xx_cmd_roc {

@@ -570,6 +570,7 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->ap.beacon_expiry = WL1271_AP_DEF_BEACON_EXP;
 	/* FIXME: Change when adding DFS */
 	cmd->ap.reset_tsf = 1;  /* By default reset AP TSF */
+	cmd->ap.wmm = wlvif->wmm_enabled;
 	cmd->channel = wlvif->channel;
 	cmd->channel_type = wlcore_get_native_channel_type(wlvif->channel_type);
 
@@ -1363,7 +1364,8 @@ out:
 	return ret;
 }
 
-int wl12xx_cmd_set_peer_state(struct wl1271 *wl, u8 hlid)
+int wl12xx_cmd_set_peer_state(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      u8 hlid)
 {
 	struct wl12xx_cmd_set_peer_state *cmd;
 	int ret = 0;
@@ -1378,6 +1380,10 @@ int wl12xx_cmd_set_peer_state(struct wl1271 *wl, u8 hlid)
 
 	cmd->hlid = hlid;
 	cmd->state = WL1271_CMD_STA_STATE_CONNECTED;
+
+	/* wmm param is valid only for station role */
+	if (wlvif->bss_type == BSS_TYPE_STA_BSS)
+		cmd->wmm = wlvif->wmm_enabled;
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PEER_STATE, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {

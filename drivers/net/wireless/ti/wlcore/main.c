@@ -79,7 +79,7 @@ static int wl12xx_set_authorized(struct wl1271 *wl,
 	if (test_and_set_bit(WLVIF_FLAG_STA_STATE_SENT, &wlvif->flags))
 		return 0;
 
-	ret = wl12xx_cmd_set_peer_state(wl, wlvif->sta.hlid);
+	ret = wl12xx_cmd_set_peer_state(wl, wlvif, wlvif->sta.hlid);
 	if (ret < 0)
 		return ret;
 
@@ -2630,6 +2630,7 @@ static int wlcore_set_assoc(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	wlvif->aid = bss_conf->aid;
 	wlvif->channel_type = bss_conf->channel_type;
 	wlvif->beacon_int = bss_conf->beacon_int;
+	wlvif->wmm_enabled = bss_conf->qos;
 
 	set_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags);
 
@@ -3692,6 +3693,12 @@ static int wlcore_set_beacon_template(struct wl1271 *wl,
 		goto out;
 	}
 
+	wlvif->wmm_enabled =
+		cfg80211_find_vendor_ie(WLAN_OUI_MICROSOFT,
+					WLAN_OUI_TYPE_MICROSOFT_WMM,
+					beacon->data + ieoffset,
+					beacon->len - ieoffset);
+
 	/*
 	 * In case we already have a probe-resp beacon set explicitly
 	 * by usermode, don't use the beacon data.
@@ -4478,7 +4485,7 @@ static int wl12xx_update_sta_state(struct wl1271 *wl,
 	/* Authorize station (AP mode) */
 	if (is_ap &&
 	    new_state == IEEE80211_STA_AUTHORIZED) {
-		ret = wl12xx_cmd_set_peer_state(wl, hlid);
+		ret = wl12xx_cmd_set_peer_state(wl, wlvif, hlid);
 		if (ret < 0)
 			return ret;
 
