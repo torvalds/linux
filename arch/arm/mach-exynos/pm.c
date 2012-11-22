@@ -312,6 +312,10 @@ static void exynos_pm_resume(void)
 	}
 
 early_wakeup:
+
+	/* Clear SLEEP mode set in INFORM1 */
+	__raw_writel(0x0, S5P_INFORM1);
+
 	return;
 }
 
