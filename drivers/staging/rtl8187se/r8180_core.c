@@ -27,6 +27,8 @@
    Written by Mariusz Matuszek.
 */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #undef RX_DONT_PASS_UL
 #undef DUMMY_RX
 
@@ -116,8 +118,7 @@ static int rtl8180_resume(struct pci_dev *pdev)
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s: pci_enable_device failed on resume\n",
-				dev->name);
+		dev_err(&pdev->dev, "pci_enable_device failed on resume\n");
 
 		return err;
 	}
@@ -2154,7 +2155,8 @@ void rtl8180_wmm_param_update(struct work_struct *work)
 					write_nic_dword(dev, AC_VO_PARAM, u4bAcParam);
 					break;
 				default:
-					printk(KERN_WARNING "SetHwReg8185():invalid ACI: %d!\n", eACI);
+					pr_warn("SetHwReg8185():invalid ACI: %d!\n",
+						eACI);
 					break;
 				}
 			}
@@ -2193,7 +2195,8 @@ void rtl8180_wmm_param_update(struct work_struct *work)
 				write_nic_dword(dev, AC_VO_PARAM, u4bAcParam);
 				break;
 			default:
-				printk(KERN_WARNING "SetHwReg8185(): invalid ACI: %d !\n", eACI);
+				pr_warn("SetHwReg8185(): invalid ACI: %d !\n",
+					eACI);
 				break;
 			}
 		}
@@ -3340,27 +3343,27 @@ static int __init rtl8180_pci_module_init(void)
 
 	ret = ieee80211_crypto_init();
 	if (ret) {
-		printk(KERN_ERR "ieee80211_crypto_init() failed %d\n", ret);
+		pr_err("ieee80211_crypto_init() failed %d\n", ret);
 		return ret;
 	}
 	ret = ieee80211_crypto_tkip_init();
 	if (ret) {
-		printk(KERN_ERR "ieee80211_crypto_tkip_init() failed %d\n", ret);
+		pr_err("ieee80211_crypto_tkip_init() failed %d\n", ret);
 		return ret;
 	}
 	ret = ieee80211_crypto_ccmp_init();
 	if (ret) {
-		printk(KERN_ERR "ieee80211_crypto_ccmp_init() failed %d\n", ret);
+		pr_err("ieee80211_crypto_ccmp_init() failed %d\n", ret);
 		return ret;
 	}
 	ret = ieee80211_crypto_wep_init();
 	if (ret) {
-		printk(KERN_ERR "ieee80211_crypto_wep_init() failed %d\n", ret);
+		pr_err("ieee80211_crypto_wep_init() failed %d\n", ret);
 		return ret;
 	}
 
-	printk(KERN_INFO "\nLinux kernel driver for RTL8180 / RTL8185 based WLAN cards\n");
-	printk(KERN_INFO "Copyright (c) 2004-2005, Andrea Merello\n");
+	pr_info("\nLinux kernel driver for RTL8180 / RTL8185 based WLAN cards\n");
+	pr_info("Copyright (c) 2004-2005, Andrea Merello\n");
 	DMESG("Initializing module");
 	DMESG("Wireless extensions version %d", WIRELESS_EXT);
 	rtl8180_proc_module_init();
