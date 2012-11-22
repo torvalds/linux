@@ -103,51 +103,6 @@ nvc0_copy1_cclass = {
  * PCOPY engine/subdev functions
  ******************************************************************************/
 
-static const struct nouveau_enum nvc0_copy_isr_error_name[] = {
-	{ 0x0001, "ILLEGAL_MTHD" },
-	{ 0x0002, "INVALID_ENUM" },
-	{ 0x0003, "INVALID_BITFIELD" },
-	{}
-};
-
-static void
-nvc0_copy_intr(struct nouveau_subdev *subdev)
-{
-	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
-	struct nouveau_engine *engine = nv_engine(subdev);
-	struct nouveau_object *engctx;
-	struct nvc0_copy_priv *priv = (void *)subdev;
-	u32 disp = nv_ro32(priv, 0x01c);
-	u32 intr = nv_ro32(priv, 0x008);
-	u32 stat = intr & disp & ~(disp >> 16);
-	u64 inst = nv_ro32(priv, 0x050) & 0x0fffffff;
-	u32 ssta = nv_ro32(priv, 0x040) & 0x0000ffff;
-	u32 addr = nv_ro32(priv, 0x040) >> 16;
-	u32 mthd = (addr & 0x07ff) << 2;
-	u32 subc = (addr & 0x3800) >> 11;
-	u32 data = nv_ro32(priv, 0x044);
-	int chid;
-
-	engctx = nouveau_engctx_get(engine, inst);
-	chid   = pfifo->chid(pfifo, engctx);
-
-	if (stat & 0x00000040) {
-		nv_error(priv, "DISPATCH_ERROR [");
-		nouveau_enum_print(nvc0_copy_isr_error_name, ssta);
-		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
-		       chid, (u64)inst << 12, subc, mthd, data);
-		nv_wo32(priv, 0x004, 0x00000040);
-		stat &= ~0x00000040;
-	}
-
-	if (stat) {
-		nv_error(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wo32(priv, 0x004, stat);
-	}
-
-	nouveau_engctx_put(engctx);
-}
-
 static int
 nvc0_copy_init(struct nouveau_object *object)
 {
@@ -180,7 +135,7 @@ nvc0_copy0_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000040;
-	nv_subdev(priv)->intr = nvc0_copy_intr;
+	nv_subdev(priv)->intr = nva3_copy_intr;
 	nv_engine(priv)->cclass = &nvc0_copy0_cclass;
 	nv_engine(priv)->sclass = nvc0_copy0_sclass;
 	nv_falcon(priv)->code.data = nvc0_pcopy_code;
@@ -208,7 +163,7 @@ nvc0_copy1_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	nv_subdev(priv)->unit = 0x00000080;
-	nv_subdev(priv)->intr = nvc0_copy_intr;
+	nv_subdev(priv)->intr = nva3_copy_intr;
 	nv_engine(priv)->cclass = &nvc0_copy1_cclass;
 	nv_engine(priv)->sclass = nvc0_copy1_sclass;
 	nv_falcon(priv)->code.data = nvc0_pcopy_code;

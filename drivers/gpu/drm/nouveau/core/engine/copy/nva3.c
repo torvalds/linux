@@ -99,38 +99,38 @@ static const struct nouveau_enum nva3_copy_isr_error_name[] = {
 	{}
 };
 
-static void
+void
 nva3_copy_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_fifo *pfifo = nouveau_fifo(subdev);
 	struct nouveau_engine *engine = nv_engine(subdev);
+	struct nouveau_falcon *falcon = (void *)subdev;
 	struct nouveau_object *engctx;
-	struct nva3_copy_priv *priv = (void *)subdev;
-	u32 dispatch = nv_rd32(priv, 0x10401c);
-	u32 stat = nv_rd32(priv, 0x104008) & dispatch & ~(dispatch >> 16);
-	u64 inst = nv_rd32(priv, 0x104050) & 0x3fffffff;
-	u32 ssta = nv_rd32(priv, 0x104040) & 0x0000ffff;
-	u32 addr = nv_rd32(priv, 0x104040) >> 16;
+	u32 dispatch = nv_ro32(falcon, 0x01c);
+	u32 stat = nv_ro32(falcon, 0x008) & dispatch & ~(dispatch >> 16);
+	u64 inst = nv_ro32(falcon, 0x050) & 0x3fffffff;
+	u32 ssta = nv_ro32(falcon, 0x040) & 0x0000ffff;
+	u32 addr = nv_ro32(falcon, 0x040) >> 16;
 	u32 mthd = (addr & 0x07ff) << 2;
 	u32 subc = (addr & 0x3800) >> 11;
-	u32 data = nv_rd32(priv, 0x104044);
+	u32 data = nv_ro32(falcon, 0x044);
 	int chid;
 
 	engctx = nouveau_engctx_get(engine, inst);
 	chid   = pfifo->chid(pfifo, engctx);
 
 	if (stat & 0x00000040) {
-		nv_error(priv, "DISPATCH_ERROR [");
+		nv_error(falcon, "DISPATCH_ERROR [");
 		nouveau_enum_print(nva3_copy_isr_error_name, ssta);
 		printk("] ch %d [0x%010llx] subc %d mthd 0x%04x data 0x%08x\n",
 		       chid, inst << 12, subc, mthd, data);
-		nv_wr32(priv, 0x104004, 0x00000040);
+		nv_wo32(falcon, 0x004, 0x00000040);
 		stat &= ~0x00000040;
 	}
 
 	if (stat) {
-		nv_error(priv, "unhandled intr 0x%08x\n", stat);
-		nv_wr32(priv, 0x104004, stat);
+		nv_error(falcon, "unhandled intr 0x%08x\n", stat);
+		nv_wo32(falcon, 0x004, stat);
 	}
 
 	nouveau_engctx_put(engctx);
