@@ -91,8 +91,6 @@ static int wm8994_retune_mobile_base[] = {
 	WM8994_AIF2_EQ_GAINS_1,
 };
 
-static void wm8958_default_micdet(u16 status, void *data);
-
 static const struct wm8958_micd_rate micdet_rates[] = {
 	{ 32768,       true,  1, 4 },
 	{ 32768,       false, 1, 1 },
@@ -115,9 +113,6 @@ static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
 	bool idle;
 	const struct wm8958_micd_rate *rates;
 	int num_rates;
-
-	if (wm8994->jack_cb != wm8958_default_micdet)
-		return;
 
 	idle = !wm8994->jack_mic;
 
@@ -740,7 +735,7 @@ static void wm1811_jackdet_set_mode(struct snd_soc_codec *codec, u16 mode)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
-	if (!wm8994->jackdet || !wm8994->jack_cb)
+	if (!wm8994->jackdet || !wm8994->micdet[0].jack)
 		return;
 
 	if (wm8994->active_refcount)
@@ -3409,16 +3404,37 @@ static void wm1811_micd_stop(struct snd_soc_codec *codec)
 					 "MICBIAS2");
 }
 
-/* Default microphone detection handler for WM8958 - the user can
- * override this if they wish.
- */
-static void wm8958_default_micdet(u16 status, void *data)
+static void wm8958_button_det(struct snd_soc_codec *codec, u16 status)
 {
-	struct snd_soc_codec *codec = data;
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	int report;
 
-	dev_dbg(codec->dev, "MICDET %x\n", status);
+	report = 0;
+	if (status & 0x4)
+		report |= SND_JACK_BTN_0;
+
+	if (status & 0x8)
+		report |= SND_JACK_BTN_1;
+
+	if (status & 0x10)
+		report |= SND_JACK_BTN_2;
+
+	if (status & 0x20)
+		report |= SND_JACK_BTN_3;
+
+	if (status & 0x40)
+		report |= SND_JACK_BTN_4;
+
+	if (status & 0x80)
+		report |= SND_JACK_BTN_5;
+
+	snd_soc_jack_report(wm8994->micdet[0].jack, report,
+			    wm8994->btn_mask);
+}
+
+static void wm8958_mic_id(struct snd_soc_codec *codec, u16 status)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
 	/* Either nothing present or just starting detection */
 	if (!(status & WM8958_MICD_STS)) {
@@ -3440,7 +3456,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 	/* If the measurement is showing a high impedence we've got a
 	 * microphone.
 	 */
-	if (wm8994->mic_detecting && (status & 0x600)) {
+	if (status & 0x600) {
 		dev_dbg(codec->dev, "Detected microphone\n");
 
 		wm8994->mic_detecting = false;
@@ -3453,7 +3469,7 @@ static void wm8958_default_micdet(u16 status, void *data)
 	}
 
 
-	if (wm8994->mic_detecting && status & 0xfc) {
+	if (status & 0xfc) {
 		dev_dbg(codec->dev, "Detected headphone\n");
 		wm8994->mic_detecting = false;
 
@@ -3464,31 +3480,6 @@ static void wm8958_default_micdet(u16 status, void *data)
 
 		snd_soc_jack_report(wm8994->micdet[0].jack, SND_JACK_HEADPHONE,
 				    SND_JACK_HEADSET);
-	}
-
-	/* Report short circuit as a button */
-	if (wm8994->jack_mic) {
-		report = 0;
-		if (status & 0x4)
-			report |= SND_JACK_BTN_0;
-
-		if (status & 0x8)
-			report |= SND_JACK_BTN_1;
-
-		if (status & 0x10)
-			report |= SND_JACK_BTN_2;
-
-		if (status & 0x20)
-			report |= SND_JACK_BTN_3;
-
-		if (status & 0x40)
-			report |= SND_JACK_BTN_4;
-
-		if (status & 0x80)
-			report |= SND_JACK_BTN_5;
-
-		snd_soc_jack_report(wm8994->micdet[0].jack, report,
-				    wm8994->btn_mask);
 	}
 }
 
@@ -3648,18 +3639,14 @@ int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 	}
 
 	if (jack) {
-		if (!cb) {
-			dev_dbg(codec->dev, "Using default micdet callback\n");
-			cb = wm8958_default_micdet;
-			cb_data = codec;
-		}
+		/* No longer supported */
+		if (cb)
+			return -EINVAL;
 
 		snd_soc_dapm_force_enable_pin(&codec->dapm, "CLK_SYS");
 		snd_soc_dapm_sync(&codec->dapm);
 
 		wm8994->micdet[0].jack = jack;
-		wm8994->jack_cb = cb;
-		wm8994->jack_cb_data = cb_data;
 
 		wm8994->mic_detecting = true;
 		wm8994->jack_mic = false;
@@ -3762,10 +3749,10 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	trace_snd_soc_jack_irq(dev_name(codec->dev));
 #endif
 
-	if (wm8994->jack_cb)
-		wm8994->jack_cb(reg, wm8994->jack_cb_data);
+	if (wm8994->mic_detecting)
+		wm8958_mic_id(codec, reg);
 	else
-		dev_warn(codec->dev, "Accessory detection with no callback\n");
+		wm8958_button_det(codec, reg);
 
 out:
 	pm_runtime_put(codec->dev);
@@ -4296,7 +4283,7 @@ static int wm8994_resume(struct device *dev)
 {
 	struct wm8994_priv *wm8994 = dev_get_drvdata(dev);
 
-	if (wm8994->jackdet && wm8994->jack_cb)
+	if (wm8994->jackdet && wm8994->jackdet_mode)
 		regmap_update_bits(wm8994->wm8994->regmap, WM8994_ANTIPOP_2,
 				   WM1811_JACKDET_MODE_MASK,
 				   WM1811_JACKDET_MODE_AUDIO);

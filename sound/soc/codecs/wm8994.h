@@ -137,8 +137,6 @@ struct wm8994_priv {
 	int jackdet_mode;
 	struct delayed_work jackdet_bootstrap;
 
-	wm8958_micdet_cb jack_cb;
-	void *jack_cb_data;
 	int micdet_irq;
 
 	int revision;
