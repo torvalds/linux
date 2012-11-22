@@ -121,7 +121,7 @@ struct usb_line6_pod {
 	/**
 		Instrument monitor level.
 	*/
-	struct ValueWait monitor_level;
+	int monitor_level;
 
 	/**
 		Audio routing mode.

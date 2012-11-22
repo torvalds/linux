@@ -245,7 +245,7 @@ void line6_pod_process_message(struct usb_line6_pod *pod)
 
 					switch (buf[6]) {
 					case POD_monitor_level:
-						pod->monitor_level.value = value;
+						pod->monitor_level = value;
 						break;
 
 						PROCESS_SYSTEM_PARAM(routing);
@@ -908,7 +908,7 @@ static int snd_pod_control_monitor_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6pcm->line6;
-	ucontrol->value.integer.value[0] = pod->monitor_level.value;
+	ucontrol->value.integer.value[0] = pod->monitor_level;
 	return 0;
 }
 
@@ -919,10 +919,10 @@ static int snd_pod_control_monitor_put(struct snd_kcontrol *kcontrol,
 	struct snd_line6_pcm *line6pcm = snd_kcontrol_chip(kcontrol);
 	struct usb_line6_pod *pod = (struct usb_line6_pod *)line6pcm->line6;
 
-	if (ucontrol->value.integer.value[0] == pod->monitor_level.value)
+	if (ucontrol->value.integer.value[0] == pod->monitor_level)
 		return 0;
 
-	pod->monitor_level.value = ucontrol->value.integer.value[0];
+	pod->monitor_level = ucontrol->value.integer.value[0];
 	pod_set_system_param_int(pod, ucontrol->value.integer.value[0],
 				 POD_monitor_level);
 	return 1;
@@ -1053,7 +1053,7 @@ static int pod_try_init(struct usb_interface *interface,
 	 */
 
 	if (pod->line6.properties->capabilities & LINE6_BIT_CONTROL) {
-		pod->monitor_level.value = POD_system_invalid;
+		pod->monitor_level = POD_system_invalid;
 
 		/* initiate startup procedure: */
 		pod_startup1(pod);
