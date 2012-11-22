@@ -23,7 +23,11 @@
  */
 #ifdef CONFIG_32BIT
 
-#define __UA_LIMIT	0x80000000UL
+#ifdef CONFIG_KVM_GUEST
+#define __UA_LIMIT 0x40000000UL
+#else
+#define __UA_LIMIT 0x80000000UL
+#endif
 
 #define __UA_ADDR	".word"
 #define __UA_LA		"la"
@@ -55,8 +59,13 @@ extern u64 __ua_limit;
  * address in this range it's the process's problem, not ours :-)
  */
 
+#ifdef CONFIG_KVM_GUEST
+#define KERNEL_DS	((mm_segment_t) { 0x80000000UL })
+#define USER_DS		((mm_segment_t) { 0xC0000000UL })
+#else
 #define KERNEL_DS	((mm_segment_t) { 0UL })
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
+#endif
 
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
