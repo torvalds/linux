@@ -1330,6 +1330,8 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 					break;
 				udelay(1);
 			}
+		} else {
+			save->crtc_enabled[i] = false;
 		}
 	}
 
