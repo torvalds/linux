@@ -87,6 +87,51 @@ static int extend_netdev_table(struct net_device *dev, u32 target_idx)
 	return 0;
 }
 
+/**
+ * netprio_prio - return the effective netprio of a cgroup-net_device pair
+ * @cgrp: cgroup part of the target pair
+ * @dev: net_device part of the target pair
+ *
+ * Should be called under RCU read or rtnl lock.
+ */
+static u32 netprio_prio(struct cgroup *cgrp, struct net_device *dev)
+{
+	struct netprio_map *map = rcu_dereference_rtnl(dev->priomap);
+
+	if (map && cgrp->id < map->priomap_len)
+		return map->priomap[cgrp->id];
+	return 0;
+}
+
+/**
+ * netprio_set_prio - set netprio on a cgroup-net_device pair
+ * @cgrp: cgroup part of the target pair
+ * @dev: net_device part of the target pair
+ * @prio: prio to set
+ *
+ * Set netprio to @prio on @cgrp-@dev pair.  Should be called under rtnl
+ * lock and may fail under memory pressure for non-zero @prio.
+ */
+static int netprio_set_prio(struct cgroup *cgrp, struct net_device *dev,
+			    u32 prio)
+{
+	struct netprio_map *map;
+	int ret;
+
+	/* avoid extending priomap for zero writes */
+	map = rtnl_dereference(dev->priomap);
+	if (!prio && (!map || map->priomap_len <= cgrp->id))
+		return 0;
+
+	ret = extend_netdev_table(dev, cgrp->id);
+	if (ret)
+		return ret;
+
+	map = rtnl_dereference(dev->priomap);
+	map->priomap[cgrp->id] = prio;
+	return 0;
+}
+
 static struct cgroup_subsys_state *cgrp_css_alloc(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs;
@@ -105,14 +150,10 @@ static void cgrp_css_free(struct cgroup *cgrp)
 {
 	struct cgroup_netprio_state *cs = cgrp_netprio_state(cgrp);
 	struct net_device *dev;
-	struct netprio_map *map;
 
 	rtnl_lock();
-	for_each_netdev(&init_net, dev) {
-		map = rtnl_dereference(dev->priomap);
-		if (map && cgrp->id < map->priomap_len)
-			map->priomap[cgrp->id] = 0;
-	}
+	for_each_netdev(&init_net, dev)
+		WARN_ON_ONCE(netprio_set_prio(cgrp, dev, 0));
 	rtnl_unlock();
 	kfree(cs);
 }
@@ -126,16 +167,10 @@ static int read_priomap(struct cgroup *cont, struct cftype *cft,
 			struct cgroup_map_cb *cb)
 {
 	struct net_device *dev;
-	u32 id = cont->id;
-	u32 priority;
-	struct netprio_map *map;
 
 	rcu_read_lock();
-	for_each_netdev_rcu(&init_net, dev) {
-		map = rcu_dereference(dev->priomap);
-		priority = (map && id < map->priomap_len) ? map->priomap[id] : 0;
-		cb->fill(cb, dev->name, priority);
-	}
+	for_each_netdev_rcu(&init_net, dev)
+		cb->fill(cb, dev->name, netprio_prio(cont, dev));
 	rcu_read_unlock();
 	return 0;
 }
@@ -145,7 +180,6 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 {
 	char devname[IFNAMSIZ + 1];
 	struct net_device *dev;
-	struct netprio_map *map;
 	u32 prio;
 	int ret;
 
@@ -158,14 +192,8 @@ static int write_priomap(struct cgroup *cgrp, struct cftype *cft,
 
 	rtnl_lock();
 
-	ret = extend_netdev_table(dev, cgrp->id);
-	if (ret)
-		goto out_unlock;
+	ret = netprio_set_prio(cgrp, dev, prio);
 
-	map = rtnl_dereference(dev->priomap);
-	if (map)
-		map->priomap[cgrp->id] = prio;
-out_unlock:
 	rtnl_unlock();
 	dev_put(dev);
 	return ret;
