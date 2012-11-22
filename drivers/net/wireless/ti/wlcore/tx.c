@@ -294,7 +294,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		tx_attr |= TX_HW_ATTR_TX_DUMMY_REQ;
 	} else if (wlvif) {
 		/* configure the tx attributes */
-		tx_attr = wlvif->session_counter <<
+		tx_attr = wl->session_ids[hlid] <<
 			  TX_HW_ATTR_OFST_SESSION_COUNTER;
 	}
 

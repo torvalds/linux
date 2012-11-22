@@ -215,6 +215,8 @@ struct wl1271 {
 	unsigned long klv_templates_map[
 			BITS_TO_LONGS(WLCORE_MAX_KLV_TEMPLATES)];
 
+	u8 session_ids[WL12XX_MAX_LINKS];
+
 	struct list_head wlvif_list;
 
 	u8 sta_count;

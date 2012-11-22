@@ -362,7 +362,9 @@ struct wl12xx_cmd_role_start {
 			 */
 			u8 wmm;
 
-			u8 padding_1[3];
+			u8 bcast_session_id;
+			u8 global_session_id;
+			u8 padding_1[1];
 		} __packed ap;
 	};
 } __packed;
@@ -582,7 +584,7 @@ struct wl12xx_cmd_add_peer {
 	u8 bss_index;
 	u8 sp_len;
 	u8 wmm;
-	u8 padding1;
+	u8 session_id;
 } __packed;
 
 struct wl12xx_cmd_remove_peer {

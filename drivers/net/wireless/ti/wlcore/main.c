@@ -1871,6 +1871,7 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	memset(wl->roles_map, 0, sizeof(wl->roles_map));
 	memset(wl->links_map, 0, sizeof(wl->links_map));
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
+	memset(wl->session_ids, 0, sizeof(wl->session_ids));
 	wl->active_sta_count = 0;
 
 	/* The system link is always allocated */

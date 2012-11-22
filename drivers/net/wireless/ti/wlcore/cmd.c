@@ -266,12 +266,24 @@ out:
 	return ret;
 }
 
+static int wlcore_get_new_session_id(struct wl1271 *wl, u8 hlid)
+{
+	if (wl->session_ids[hlid] >= SESSION_COUNTER_MAX)
+		wl->session_ids[hlid] = 0;
+
+	wl->session_ids[hlid]++;
+
+	return wl->session_ids[hlid];
+}
+
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
 	unsigned long flags;
 	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
 	if (link >= WL12XX_MAX_LINKS)
 		return -EBUSY;
+
+	wl->session_ids[link] = wlcore_get_new_session_id(wl, link);
 
 	/* these bits are used by op_tx */
 	spin_lock_irqsave(&wl->wl_lock, flags);
@@ -302,17 +314,6 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	wl1271_tx_reset_link_queues(wl, *hlid);
 
 	*hlid = WL12XX_INVALID_LINK_ID;
-}
-
-static int wl12xx_get_new_session_id(struct wl1271 *wl,
-				     struct wl12xx_vif *wlvif)
-{
-	if (wlvif->session_counter >= SESSION_COUNTER_MAX)
-		wlvif->session_counter = 0;
-
-	wlvif->session_counter++;
-
-	return wlvif->session_counter;
 }
 
 static u8 wlcore_get_native_channel_type(u8 nl_channel_type)
@@ -359,7 +360,7 @@ static int wl12xx_cmd_role_start_dev(struct wl1271 *wl,
 			goto out_free;
 	}
 	cmd->device.hlid = wlvif->dev_hlid;
-	cmd->device.session = wl12xx_get_new_session_id(wl, wlvif);
+	cmd->device.session = wl->session_ids[wlvif->dev_hlid];
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d",
 		     cmd->role_id, cmd->device.hlid, cmd->device.session);
@@ -460,7 +461,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 			goto out_free;
 	}
 	cmd->sta.hlid = wlvif->sta.hlid;
-	cmd->sta.session = wl12xx_get_new_session_id(wl, wlvif);
+	cmd->sta.session = wl->session_ids[wlvif->sta.hlid];
 	/*
 	 * We don't have the correct remote rates in this stage, and there
 	 * is no way to update them later, so use our supported rates instead.
@@ -564,6 +565,8 @@ int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->ap.bss_index = WL1271_AP_BSS_INDEX;
 	cmd->ap.global_hlid = wlvif->ap.global_hlid;
 	cmd->ap.broadcast_hlid = wlvif->ap.bcast_hlid;
+	cmd->ap.global_session_id = wl->session_ids[wlvif->ap.global_hlid];
+	cmd->ap.bcast_session_id = wl->session_ids[wlvif->ap.bcast_hlid];
 	cmd->ap.basic_rate_set = cpu_to_le32(wlvif->basic_rate_set);
 	cmd->ap.beacon_interval = cpu_to_le16(wlvif->beacon_int);
 	cmd->ap.dtim_interval = bss_conf->dtim_period;
@@ -1419,6 +1422,7 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	cmd->hlid = hlid;
 	cmd->sp_len = sta->max_sp;
 	cmd->wmm = sta->wme ? 1 : 0;
+	cmd->session_id = wl->session_ids[hlid];
 
 	for (i = 0; i < NUM_ACCESS_CATEGORIES_COPY; i++)
 		if (sta->wme && (sta->uapsd_queues & BIT(i)))

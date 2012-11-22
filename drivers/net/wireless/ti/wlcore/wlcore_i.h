@@ -396,9 +396,6 @@ struct wl12xx_vif {
 	/* Our association ID */
 	u16 aid;
 
-	/* Session counter for the chipset */
-	int session_counter;
-
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
 
