@@ -154,9 +154,9 @@ typedef enum _FLASH2X_SECTION_VAL {
  */
 typedef struct _FLASH2X_READWRITE {
 	FLASH2X_SECTION_VAL Section; /* which section has to be read/written */
-	B_UINT32 offset;	     /* Offset within Section. */
-	B_UINT32 numOfBytes;	     /* NOB from the offset */
-	B_UINT32  bVerify;
+	u32 offset;	     /* Offset within Section. */
+	u32 numOfBytes;	     /* NOB from the offset */
+	u32 bVerify;
 	void __user *pDataBuff;	     /* Buffer for reading/writing */
 } FLASH2X_READWRITE, *PFLASH2X_READWRITE;
 
@@ -170,8 +170,8 @@ typedef struct _FLASH2X_READWRITE {
 typedef struct _FLASH2X_COPY_SECTION {
 	FLASH2X_SECTION_VAL SrcSection;
 	FLASH2X_SECTION_VAL DstSection;
-	B_UINT32 offset;
-	B_UINT32 numOfBytes;
+	u32 offset;
+	u32 numOfBytes;
 } FLASH2X_COPY_SECTION, *PFLASH2X_COPY_SECTION;
 
 typedef enum _SECTION_TYPE {
