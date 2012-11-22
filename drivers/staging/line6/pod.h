@@ -15,7 +15,6 @@
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/usb.h>
-#include <linux/wait.h>
 
 #include <sound/core.h>
 
@@ -54,15 +53,6 @@ enum {
 };
 
 /**
-	Data structure for values that need to be requested explicitly.
-	This is the case for system and tuner settings.
-*/
-struct ValueWait {
-	int value;
-	wait_queue_head_t wait;
-};
-
-/**
 	Binary PODxt Pro program dump
 */
 struct pod_program {
@@ -97,11 +87,6 @@ struct usb_line6_pod {
 		Buffer for data retrieved from or to be stored on PODxt Pro.
 	*/
 	struct pod_program prog_data_buf;
-
-	/**
-		Pitch value received from tuner.
-	*/
-	struct ValueWait tuner_pitch;
 
 	/**
 		Instrument monitor level.
