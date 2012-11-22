@@ -187,9 +187,9 @@ clocks and IDs.
 	pll3_usb_otg		172
 	pll4_audio		173
 	pll5_video		174
-	pll6_mlb		175
+	pll8_mlb		175
 	pll7_usb_host		176
-	pll8_enet		177
+	pll6_enet		177
 	ssi1_ipg		178
 	ssi2_ipg		179
 	ssi3_ipg		180
