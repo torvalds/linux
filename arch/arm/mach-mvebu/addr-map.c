@@ -78,7 +78,7 @@ armada_cfg_base(const struct orion_addr_map_cfg *cfg, int win)
 	if (win < 8)
 		offset = (win << 4);
 	else
-		offset = ARMADA_WINDOW_8_PLUS_OFFSET + (win << 3);
+		offset = ARMADA_WINDOW_8_PLUS_OFFSET + ((win - 8) << 3);
 
 	return cfg->bridge_virt_base + offset;
 }
