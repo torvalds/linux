@@ -210,7 +210,7 @@ typedef struct _FLASH2X_BITMAP {
 
 typedef struct _ST_TIME_ELAPSED_ {
 	unsigned long long ul64TimeElapsedSinceNetEntry;
-	UINT32  uiReserved[4];
+	u32  uiReserved[4];
 } ST_TIME_ELAPSED, *PST_TIME_ELAPSED;
 
 enum {
