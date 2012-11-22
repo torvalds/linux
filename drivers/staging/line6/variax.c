@@ -16,9 +16,6 @@
 #include "driver.h"
 #include "variax.h"
 
-#define VARIAX_SYSEX_CODE 7
-#define VARIAX_SYSEX_PARAM 0x3b
-#define VARIAX_SYSEX_ACTIVATE 0x2a
 #define VARIAX_MODEL_HEADER_LENGTH 7
 #define VARIAX_MODEL_MESSAGE_LENGTH 199
 #define VARIAX_OFFSET_ACTIVATE 7
@@ -70,7 +67,6 @@ static const char variax_request_model2[] = {
 };
 
 /* forward declarations: */
-static int variax_create_files2(struct device *dev);
 static void variax_startup2(unsigned long data);
 static void variax_startup4(unsigned long data);
 static void variax_startup5(unsigned long data);
@@ -187,7 +183,6 @@ static void variax_startup7(struct work_struct *work)
 
 	/* device files: */
 	line6_variax_create_files(0, 0, line6->ifcdev);
-	variax_create_files2(line6->ifcdev);
 }
 
 /*
@@ -270,58 +265,6 @@ void line6_variax_process_message(struct usb_line6_variax *variax)
 	}
 }
 
-#ifdef CONFIG_LINE6_USB_RAW
-
-static char *variax_alloc_sysex_buffer(struct usb_line6_variax *variax,
-				       int code, int size)
-{
-	return line6_alloc_sysex_buffer(&variax->line6, VARIAX_SYSEX_CODE, code,
-					size);
-}
-
-/*
-	"write" request on "raw" special file.
-*/
-static ssize_t variax_set_raw2(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	struct usb_line6_variax *variax =
-	    usb_get_intfdata(to_usb_interface(dev));
-	int size;
-	int i;
-	char *sysex;
-
-	count -= count % 3;
-	size = count * 2;
-	sysex = variax_alloc_sysex_buffer(variax, VARIAX_SYSEX_PARAM, size);
-
-	if (!sysex)
-		return 0;
-
-	for (i = 0; i < count; i += 3) {
-		const unsigned char *p1 = buf + i;
-		char *p2 = sysex + SYSEX_DATA_OFS + i * 2;
-		p2[0] = p1[2] & 0x0f;
-		p2[1] = p1[2] >> 4;
-		p2[2] = p1[1] & 0x0f;
-		p2[3] = p1[1] >> 4;
-		p2[4] = p1[0] & 0x0f;
-		p2[5] = p1[0] >> 4;
-	}
-
-	line6_send_sysex_message(&variax->line6, sysex, size);
-	kfree(sysex);
-	return count;
-}
-
-#endif
-
-#ifdef CONFIG_LINE6_USB_RAW
-static DEVICE_ATTR(raw, S_IWUSR, line6_nop_read, line6_set_raw);
-static DEVICE_ATTR(raw2, S_IWUSR, line6_nop_read, variax_set_raw2);
-#endif
-
 /*
 	Variax destructor.
 */
@@ -343,18 +286,6 @@ static void variax_destruct(struct usb_interface *interface)
 	line6_dumpreq_destruct(&variax->dumpreq);
 
 	kfree(variax->buffer_activate);
-}
-
-/*
-	Create sysfs entries.
-*/
-static int variax_create_files2(struct device *dev)
-{
-#ifdef CONFIG_LINE6_USB_RAW
-	CHECK_RETURN(device_create_file(dev, &dev_attr_raw));
-	CHECK_RETURN(device_create_file(dev, &dev_attr_raw2));
-#endif
-	return 0;
 }
 
 /*
@@ -448,10 +379,6 @@ void line6_variax_disconnect(struct usb_interface *interface)
 	if (dev != NULL) {
 		/* remove sysfs entries: */
 		line6_variax_remove_files(0, 0, dev);
-#ifdef CONFIG_LINE6_USB_RAW
-		device_remove_file(dev, &dev_attr_raw);
-		device_remove_file(dev, &dev_attr_raw2);
-#endif
 	}
 
 	variax_destruct(interface);
