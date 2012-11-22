@@ -1591,7 +1591,6 @@ static int __devexit wm8753_spi_remove(struct spi_device *spi)
 
 	snd_soc_unregister_codec(&spi->dev);
 	regmap_exit(wm8753->regmap);
-	kfree(wm8753);
 	return 0;
 }
 
