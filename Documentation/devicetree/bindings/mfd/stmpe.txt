@@ -8,7 +8,7 @@ Optional properties:
  - interrupts                   : The interrupt outputs from the controller
  - interrupt-controller         : Marks the device node as an interrupt controller
  - interrupt-parent             : Specifies which IRQ controller we're connected to
- - i2c-client-wake              : Marks the input device as wakable
+ - wakeup-source                : Marks the input device as wakable
  - st,autosleep-timeout         : Valid entries (ms); 4, 16, 32, 64, 128, 256, 512 and 1024
 
 Example:
@@ -20,6 +20,6 @@ Example:
 		interrupt-parent = <&gpio6>;
 		interrupt-controller;
 
-		i2c-client-wake;
+		wakeup-source;
 		st,autosleep-timeout = <1024>;
 	};
