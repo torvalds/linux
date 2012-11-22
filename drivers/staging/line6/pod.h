@@ -104,11 +104,6 @@ struct usb_line6_pod {
 	struct ValueWait tuner_mute;
 
 	/**
-		Note received from tuner.
-	*/
-	struct ValueWait tuner_note;
-
-	/**
 		Pitch value received from tuner.
 	*/
 	struct ValueWait tuner_pitch;
