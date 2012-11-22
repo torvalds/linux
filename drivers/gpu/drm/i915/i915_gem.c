@@ -2462,10 +2462,29 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 
 static int i915_ring_idle(struct intel_ring_buffer *ring)
 {
-	if (list_empty(&ring->active_list))
+	u32 seqno;
+	int ret;
+
+	/* We need to add any requests required to flush the objects */
+	if (!list_empty(&ring->active_list)) {
+		seqno = list_entry(ring->active_list.prev,
+				   struct drm_i915_gem_object,
+				   ring_list)->last_read_seqno;
+
+		ret = i915_gem_check_olr(ring, seqno);
+		if (ret)
+			return ret;
+	}
+
+	/* Wait upon the last request to be completed */
+	if (list_empty(&ring->request_list))
 		return 0;
 
-	return i915_wait_seqno(ring, i915_gem_next_request_seqno(ring));
+	seqno = list_entry(ring->request_list.prev,
+			   struct drm_i915_gem_request,
+			   list)->seqno;
+
+	return i915_wait_seqno(ring, seqno);
 }
 
 int i915_gpu_idle(struct drm_device *dev)
