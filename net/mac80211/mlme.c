@@ -3267,6 +3267,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		sdata->needed_rx_chains = min(chains, local->rx_chains);
 	} else {
 		sdata->needed_rx_chains = 1;
+		sdata->u.mgd.flags |= IEEE80211_STA_DISABLE_HT;
 	}
 
 	/* will change later if needed */
