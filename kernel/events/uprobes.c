@@ -614,6 +614,18 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	return ret;
 }
 
+static bool filter_chain(struct uprobe *uprobe)
+{
+	/*
+	 * TODO:
+	 *	for_each_consumer(uc)
+	 *		if (uc->filter(...))
+	 *			return true;
+	 *	return false;
+	 */
+	return uprobe->consumers != NULL;
+}
+
 static int
 install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 			struct vm_area_struct *vma, unsigned long vaddr)
@@ -624,11 +636,10 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 	/*
 	 * If probe is being deleted, unregister thread could be done with
 	 * the vma-rmap-walk through. Adding a probe now can be fatal since
-	 * nobody will be able to cleanup. Also we could be from fork or
-	 * mremap path, where the probe might have already been inserted.
-	 * Hence behave as if probe already existed.
+	 * nobody will be able to cleanup. But in this case filter_chain()
+	 * must return false, all consumers have gone away.
 	 */
-	if (!uprobe->consumers)
+	if (!filter_chain(uprobe))
 		return 0;
 
 	ret = prepare_uprobe(uprobe, vma->vm_file, mm, vaddr);
@@ -655,8 +666,10 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 static int
 remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, unsigned long vaddr)
 {
-	/* can happen if uprobe_register() fails */
 	if (!test_bit(MMF_HAS_UPROBES, &mm->flags))
+		return 0;
+
+	if (filter_chain(uprobe))
 		return 0;
 
 	set_bit(MMF_RECALC_UPROBES, &mm->flags);
@@ -1382,6 +1395,7 @@ static void mmf_recalc_uprobes(struct mm_struct *mm)
 		 * This is not strictly accurate, we can race with
 		 * uprobe_unregister() and see the already removed
 		 * uprobe if delete_uprobe() was not yet called.
+		 * Or this uprobe can be filtered out.
 		 */
 		if (vma_has_uprobes(vma, vma->vm_start, vma->vm_end))
 			return;
