@@ -78,11 +78,6 @@ struct usb_line6_variax {
 	unsigned char *buffer_activate;
 
 	/**
-		Model number.
-	*/
-	int model;
-
-	/**
 		Current model settings.
 	*/
 	struct variax_model model_data;
