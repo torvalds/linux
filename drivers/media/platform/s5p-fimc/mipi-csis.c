@@ -401,12 +401,12 @@ static void s5pcsis_log_counters(struct csis_state *state, bool non_errors)
 
 	spin_lock_irqsave(&state->slock, flags);
 
-	for (i--; i >= 0; i--)
-		if (state->events[i].counter >= 0)
+	for (i--; i >= 0; i--) {
+		if (state->events[i].counter > 0 || debug)
 			v4l2_info(&state->sd, "%s events: %d\n",
 				  state->events[i].name,
 				  state->events[i].counter);
-
+	}
 	spin_unlock_irqrestore(&state->slock, flags);
 }
 
