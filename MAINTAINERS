@@ -6527,10 +6527,9 @@ F:	Documentation/video4linux/saa7134/
 F:	drivers/media/pci/saa7134/
 
 SAA7146 VIDEO4LINUX-2 DRIVER
-M:	Michael Hunold <michael@mihu.de>
+M:	Hans Verkuil <hverkuil@xs4all.nl>
 L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
-W:	http://www.mihu.de/linux/saa7146
 S:	Maintained
 F:	drivers/media/common/saa7146/
 F:	drivers/media/pci/saa7146/
