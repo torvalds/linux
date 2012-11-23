@@ -55,8 +55,8 @@ static unsigned int openblocks_a6_mpp_config[] __initdata = {
 	MPP38_GPIO, /* INIT */
 	MPP39_GPIO, /* USB OC */
 	MPP41_GPIO, /* LED: Red */
-	MPP42_GPIO, /* LED: Yellow */
-	MPP43_GPIO, /* LED: Green */
+	MPP42_GPIO, /* LED: Green */
+	MPP43_GPIO, /* LED: Yellow */
 	0,
 };
 
