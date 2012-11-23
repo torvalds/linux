@@ -156,6 +156,7 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 {
 	struct nand_chip *nand_chip = (struct nand_chip *)mtd->priv;
 	struct bcm47xxnflash *b47n = (struct bcm47xxnflash *)nand_chip->priv;
+	struct bcma_drv_cc *cc = b47n->cc;
 	u32 ctlcode;
 	int i;
 
@@ -196,6 +197,11 @@ static void bcm47xxnflash_ops_bcm4706_cmdfunc(struct mtd_info *mtd,
 		}
 
 		break;
+	case NAND_CMD_STATUS:
+		ctlcode = NCTL_CSA | NCTL_CMD0 | NAND_CMD_STATUS;
+		if (bcm47xxnflash_ops_bcm4706_ctl_cmd(cc, ctlcode))
+			pr_err("STATUS command error\n");
+		break;
 	case NAND_CMD_READ0:
 		break;
 	case NAND_CMD_READOOB:
@@ -213,6 +219,7 @@ static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct mtd_info *mtd)
 {
 	struct nand_chip *nand_chip = (struct nand_chip *)mtd->priv;
 	struct bcm47xxnflash *b47n = (struct bcm47xxnflash *)nand_chip->priv;
+	struct bcma_drv_cc *cc = b47n->cc;
 	u32 tmp = 0;
 
 	switch (b47n->curr_command) {
@@ -223,6 +230,10 @@ static u8 bcm47xxnflash_ops_bcm4706_read_byte(struct mtd_info *mtd)
 			return 0;
 		}
 		return b47n->id_data[b47n->curr_column++];
+	case NAND_CMD_STATUS:
+		if (bcm47xxnflash_ops_bcm4706_ctl_cmd(cc, NCTL_READ))
+			return 0;
+		return bcma_cc_read32(cc, BCMA_CC_NFLASH_DATA) & 0xff;
 	case NAND_CMD_READOOB:
 		bcm47xxnflash_ops_bcm4706_read(mtd, (u8 *)&tmp, 4);
 		return tmp & 0xFF;
