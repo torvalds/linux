@@ -984,57 +984,45 @@ static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 
 	spin_lock_init(&mixer_res->reg_slock);
 
-	mixer_res->mixer = clk_get(dev, "mixer");
+	mixer_res->mixer = devm_clk_get(dev, "mixer");
 	if (IS_ERR_OR_NULL(mixer_res->mixer)) {
 		dev_err(dev, "failed to get clock 'mixer'\n");
-		ret = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 
-	mixer_res->sclk_hdmi = clk_get(dev, "sclk_hdmi");
+	mixer_res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
 	if (IS_ERR_OR_NULL(mixer_res->sclk_hdmi)) {
 		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
-		ret = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(dev, "get memory resource failed.\n");
-		ret = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
 
 	mixer_res->mixer_regs = devm_ioremap(&pdev->dev, res->start,
 							resource_size(res));
 	if (mixer_res->mixer_regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
-		ret = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(dev, "get interrupt resource failed.\n");
-		ret = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
 
 	ret = devm_request_irq(&pdev->dev, res->start, mixer_irq_handler,
 							0, "drm_mixer", ctx);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
-		goto fail;
+		return ret;
 	}
 	mixer_res->irq = res->start;
 
 	return 0;
-
-fail:
-	if (!IS_ERR_OR_NULL(mixer_res->sclk_hdmi))
-		clk_put(mixer_res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(mixer_res->mixer))
-		clk_put(mixer_res->mixer);
-	return ret;
 }
 
 static int __devinit vp_resources_init(struct exynos_drm_hdmi_context *ctx,
@@ -1044,25 +1032,21 @@ static int __devinit vp_resources_init(struct exynos_drm_hdmi_context *ctx,
 	struct device *dev = &pdev->dev;
 	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
 	struct resource *res;
-	int ret;
 
-	mixer_res->vp = clk_get(dev, "vp");
+	mixer_res->vp = devm_clk_get(dev, "vp");
 	if (IS_ERR_OR_NULL(mixer_res->vp)) {
 		dev_err(dev, "failed to get clock 'vp'\n");
-		ret = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
-	mixer_res->sclk_mixer = clk_get(dev, "sclk_mixer");
+	mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
 	if (IS_ERR_OR_NULL(mixer_res->sclk_mixer)) {
 		dev_err(dev, "failed to get clock 'sclk_mixer'\n");
-		ret = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
-	mixer_res->sclk_dac = clk_get(dev, "sclk_dac");
+	mixer_res->sclk_dac = devm_clk_get(dev, "sclk_dac");
 	if (IS_ERR_OR_NULL(mixer_res->sclk_dac)) {
 		dev_err(dev, "failed to get clock 'sclk_dac'\n");
-		ret = -ENODEV;
-		goto fail;
+		return -ENODEV;
 	}
 
 	if (mixer_res->sclk_hdmi)
@@ -1071,28 +1055,17 @@ static int __devinit vp_resources_init(struct exynos_drm_hdmi_context *ctx,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (res == NULL) {
 		dev_err(dev, "get memory resource failed.\n");
-		ret = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
 
 	mixer_res->vp_regs = devm_ioremap(&pdev->dev, res->start,
 							resource_size(res));
 	if (mixer_res->vp_regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
-		ret = -ENXIO;
-		goto fail;
+		return -ENXIO;
 	}
 
 	return 0;
-
-fail:
-	if (!IS_ERR_OR_NULL(mixer_res->sclk_dac))
-		clk_put(mixer_res->sclk_dac);
-	if (!IS_ERR_OR_NULL(mixer_res->sclk_mixer))
-		clk_put(mixer_res->sclk_mixer);
-	if (!IS_ERR_OR_NULL(mixer_res->vp))
-		clk_put(mixer_res->vp);
-	return ret;
 }
 
 static struct mixer_drv_data exynos5_mxr_drv_data = {
