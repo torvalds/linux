@@ -1437,11 +1437,6 @@ static int __devexit ab8500_remove(struct platform_device *pdev)
 		sysfs_remove_group(&ab8500->dev->kobj, &ab8500_attr_group);
 
 	mfd_remove_devices(ab8500->dev);
-	free_irq(ab8500->irq, ab8500);
-
-	kfree(ab8500->oldmask);
-	kfree(ab8500->mask);
-	kfree(ab8500);
 
 	return 0;
 }
