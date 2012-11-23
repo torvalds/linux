@@ -482,16 +482,12 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 	up_read(&uprobe->consumer_rwsem);
 }
 
-/* Returns the previous consumer */
-static struct uprobe_consumer *
-consumer_add(struct uprobe *uprobe, struct uprobe_consumer *uc)
+static void consumer_add(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
 	down_write(&uprobe->consumer_rwsem);
 	uc->next = uprobe->consumers;
 	uprobe->consumers = uc;
 	up_write(&uprobe->consumer_rwsem);
-
-	return uc->next;
 }
 
 /*
@@ -820,9 +816,15 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 	return err;
 }
 
-static int __uprobe_register(struct uprobe *uprobe)
+static int __uprobe_register(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
-	return register_for_each_vma(uprobe, true);
+	int err;
+
+	consumer_add(uprobe, uc);
+	err = register_for_each_vma(uprobe, true);
+	if (!err) /* TODO: pointless unless the first consumer */
+		set_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
+	return err;
 }
 
 static void __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *uc)
@@ -867,21 +869,14 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	if (offset > i_size_read(inode))
 		return -EINVAL;
 
-	ret = 0;
+	ret = -ENOMEM;
 	mutex_lock(uprobes_hash(inode));
 	uprobe = alloc_uprobe(inode, offset);
-
-	if (!uprobe) {
-		ret = -ENOMEM;
-	} else if (!consumer_add(uprobe, uc)) {
-		ret = __uprobe_register(uprobe);
-		if (ret) {
+	if (uprobe) {
+		ret = __uprobe_register(uprobe, uc);
+		if (ret)
 			__uprobe_unregister(uprobe, uc);
-		} else {
-			set_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
-		}
 	}
-
 	mutex_unlock(uprobes_hash(inode));
 	if (uprobe)
 		put_uprobe(uprobe);
