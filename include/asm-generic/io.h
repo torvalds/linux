@@ -332,6 +332,7 @@ extern void ioport_unmap(void __iomem *p);
 #define xlate_dev_kmem_ptr(p)	p
 #define xlate_dev_mem_ptr(p)	__va(p)
 
+#ifdef CONFIG_VIRT_TO_BUS
 #ifndef virt_to_bus
 static inline unsigned long virt_to_bus(volatile void *address)
 {
@@ -342,6 +343,7 @@ static inline void *bus_to_virt(unsigned long address)
 {
 	return (void *) address;
 }
+#endif
 #endif
 
 #ifndef memset_io
