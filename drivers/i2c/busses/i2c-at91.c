@@ -66,24 +66,24 @@
 #define	AT91_TWI_THR		0x0034	/* Transmit Holding Register */
 
 struct at91_twi_pdata {
-	unsigned	clk_max_div;
-	unsigned	clk_offset;
-	bool		has_unre_flag;
+	unsigned clk_max_div;
+	unsigned clk_offset;
+	bool has_unre_flag;
 };
 
 struct at91_twi_dev {
-	struct device		*dev;
-	void __iomem		*base;
-	struct completion	cmd_complete;
-	struct clk		*clk;
-	u8			*buf;
-	size_t			buf_len;
-	struct i2c_msg		*msg;
-	int			irq;
-	unsigned		transfer_status;
-	struct i2c_adapter	adapter;
-	unsigned		twi_cwgr_reg;
-	struct at91_twi_pdata	*pdata;
+	struct device *dev;
+	void __iomem *base;
+	struct completion cmd_complete;
+	struct clk *clk;
+	u8 *buf;
+	size_t buf_len;
+	struct i2c_msg *msg;
+	int irq;
+	unsigned transfer_status;
+	struct i2c_adapter adapter;
+	unsigned twi_cwgr_reg;
+	struct at91_twi_pdata *pdata;
 };
 
 static unsigned at91_twi_read(struct at91_twi_dev *dev, unsigned reg)
