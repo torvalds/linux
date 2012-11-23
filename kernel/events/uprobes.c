@@ -825,12 +825,20 @@ static int __uprobe_register(struct uprobe *uprobe)
 	return register_for_each_vma(uprobe, true);
 }
 
-static void __uprobe_unregister(struct uprobe *uprobe)
+static void __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
-	if (!register_for_each_vma(uprobe, false))
-		delete_uprobe(uprobe);
+	int err;
 
-	/* TODO : cant unregister? schedule a worker thread */
+	if (!consumer_del(uprobe, uc))	/* WARN? */
+		return;
+
+	err = register_for_each_vma(uprobe, false);
+	if (!uprobe->consumers) {
+		clear_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
+		/* TODO : cant unregister? schedule a worker thread */
+		if (!err)
+			delete_uprobe(uprobe);
+	}
 }
 
 /*
@@ -868,8 +876,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	} else if (!consumer_add(uprobe, uc)) {
 		ret = __uprobe_register(uprobe);
 		if (ret) {
-			uprobe->consumers = NULL;
-			__uprobe_unregister(uprobe);
+			__uprobe_unregister(uprobe, uc);
 		} else {
 			set_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
 		}
@@ -897,14 +904,7 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 		return;
 
 	mutex_lock(uprobes_hash(inode));
-
-	if (consumer_del(uprobe, uc)) {
-		if (!uprobe->consumers) {
-			__uprobe_unregister(uprobe);
-			clear_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
-		}
-	}
-
+	__uprobe_unregister(uprobe, uc);
 	mutex_unlock(uprobes_hash(inode));
 	put_uprobe(uprobe);
 }
