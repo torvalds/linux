@@ -69,17 +69,14 @@ static int as3711_list_voltage_dldo(struct regulator_dev *rdev,
 static int as3711_bound_check(struct regulator_dev *rdev,
 			      int *min_uV, int *max_uV)
 {
-	struct as3711_regulator_info *info = container_of(rdev->desc,
-					struct as3711_regulator_info, desc);
-	struct as3711_regulator *reg = rdev->reg_data;
-
-	WARN_ON(reg->reg_info != info);
+	struct as3711_regulator *reg = rdev_get_drvdata(rdev);
+	struct as3711_regulator_info *info = reg->reg_info;
 
 	dev_dbg(&rdev->dev, "%s(), %d, %d, %d\n", __func__,
 		*min_uV, rdev->desc->min_uV, info->max_uV);
 
 	if (*max_uV < *min_uV ||
-	    *min_uV >= info->max_uV || rdev->desc->min_uV >= *max_uV)
+	    *min_uV > info->max_uV || rdev->desc->min_uV > *max_uV)
 		return -EINVAL;
 
 	if (rdev->desc->n_voltages == 1)
