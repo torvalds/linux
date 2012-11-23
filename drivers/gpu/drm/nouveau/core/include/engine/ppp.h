@@ -41,5 +41,6 @@ struct nouveau_ppp {
 #define _nouveau_ppp_fini _nouveau_engine_fini
 
 extern struct nouveau_oclass nv98_ppp_oclass;
+extern struct nouveau_oclass nvc0_ppp_oclass;
 
 #endif

@@ -180,6 +180,7 @@ nouveau-y += core/engine/mpeg/nv40.o
 nouveau-y += core/engine/mpeg/nv50.o
 nouveau-y += core/engine/mpeg/nv84.o
 nouveau-y += core/engine/ppp/nv98.o
+nouveau-y += core/engine/ppp/nvc0.o
 nouveau-y += core/engine/software/nv04.o
 nouveau-y += core/engine/software/nv10.o
 nouveau-y += core/engine/software/nv50.o
