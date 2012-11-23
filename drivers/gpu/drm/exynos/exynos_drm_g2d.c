@@ -319,8 +319,8 @@ out:
 	g2d_userptr->sgt = NULL;
 
 	kfree(g2d_userptr->pages);
-	kfree(g2d_userptr);
 	g2d_userptr->pages = NULL;
+	kfree(g2d_userptr);
 	g2d_userptr = NULL;
 }
 
