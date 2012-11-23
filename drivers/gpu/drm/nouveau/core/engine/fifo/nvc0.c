@@ -103,6 +103,9 @@ nvc0_fifo_context_attach(struct nouveau_object *parent,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x0230; break;
 	case NVDEV_ENGINE_COPY1: addr = 0x0240; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -137,6 +140,9 @@ nvc0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 	case NVDEV_ENGINE_GR   : addr = 0x0210; break;
 	case NVDEV_ENGINE_COPY0: addr = 0x0230; break;
 	case NVDEV_ENGINE_COPY1: addr = 0x0240; break;
+	case NVDEV_ENGINE_BSP  : addr = 0x0270; break;
+	case NVDEV_ENGINE_VP   : addr = 0x0250; break;
+	case NVDEV_ENGINE_PPP  : addr = 0x0260; break;
 	default:
 		return -EINVAL;
 	}
@@ -178,7 +184,10 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 					  (1 << NVDEV_ENGINE_SW) |
 					  (1 << NVDEV_ENGINE_GR) |
 					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_COPY1), &chan);
+					  (1 << NVDEV_ENGINE_COPY1) |
+					  (1 << NVDEV_ENGINE_BSP) |
+					  (1 << NVDEV_ENGINE_VP) |
+					  (1 << NVDEV_ENGINE_PPP), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
