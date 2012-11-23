@@ -51,7 +51,7 @@ static int read_eraseblock_by_page(int ebnum)
 	void *oobbuf = iobuf1;
 
 	for (i = 0; i < pgcnt; i++) {
-		memset(buf, 0 , pgcnt);
+		memset(buf, 0 , pgsize);
 		ret = mtd_read(mtd, addr, pgsize, &read, buf);
 		if (ret == -EUCLEAN)
 			ret = 0;
