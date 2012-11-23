@@ -78,7 +78,7 @@ struct stk1160_buffer *stk1160_next_buffer(struct stk1160 *dev)
 	unsigned long flags = 0;
 
 	/* Current buffer must be NULL when this functions gets called */
-	BUG_ON(dev->isoc_ctl.buf);
+	WARN_ON(dev->isoc_ctl.buf);
 
 	spin_lock_irqsave(&dev->buf_lock, flags);
 	if (!list_empty(&dev->avail_bufs)) {
