@@ -42,10 +42,12 @@ static inline struct device_node *of_find_matching_node_by_address(
 {
 	return NULL;
 }
+#ifndef of_iomap
 static inline void __iomem *of_iomap(struct device_node *device, int index)
 {
 	return NULL;
 }
+#endif
 static inline const __be32 *of_get_address(struct device_node *dev, int index,
 					u64 *size, unsigned int *flags)
 {
