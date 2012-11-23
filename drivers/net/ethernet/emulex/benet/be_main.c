@@ -2029,7 +2029,8 @@ static irqreturn_t be_msix(int irq, void *dev)
 {
 	struct be_eq_obj *eqo = dev;
 
-	event_handle(eqo);
+	be_eq_notify(eqo->adapter, eqo->q.id, false, true, 0);
+	napi_schedule(&eqo->napi);
 	return IRQ_HANDLED;
 }
 
@@ -2125,8 +2126,10 @@ int be_poll(struct napi_struct *napi, int budget)
 {
 	struct be_eq_obj *eqo = container_of(napi, struct be_eq_obj, napi);
 	struct be_adapter *adapter = eqo->adapter;
-	int max_work = 0, work, i;
+	int max_work = 0, work, i, num_evts;
 	bool tx_done;
+
+	num_evts = events_get(eqo);
 
 	/* Process all TXQs serviced by this EQ */
 	for (i = eqo->idx; i < adapter->num_tx_qs; i += adapter->num_evt_qs) {
@@ -2150,10 +2153,10 @@ int be_poll(struct napi_struct *napi, int budget)
 
 	if (max_work < budget) {
 		napi_complete(napi);
-		be_eq_notify(adapter, eqo->q.id, true, false, 0);
+		be_eq_notify(adapter, eqo->q.id, true, false, num_evts);
 	} else {
 		/* As we'll continue in polling mode, count and clear events */
-		be_eq_notify(adapter, eqo->q.id, false, false, events_get(eqo));
+		be_eq_notify(adapter, eqo->q.id, false, false, num_evts);
 	}
 	return max_work;
 }
