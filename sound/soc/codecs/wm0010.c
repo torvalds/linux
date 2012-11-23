@@ -31,6 +31,9 @@
 
 #define DEVICE_ID_WM0010	10
 
+/* We only support v1 of the .dfw INFO record */
+#define INFO_VERSION		1
+
 enum dfw_cmd {
 	DFW_CMD_FUSE = 0x01,
 	DFW_CMD_CODE_HDR,
@@ -45,6 +48,13 @@ struct dfw_binrec {
 	u32 address;
 	uint8_t data[0];
 } __packed;
+
+struct dfw_inforec {
+	u8 info_version;
+	u8 tool_major_version;
+	u8 tool_minor_version;
+	u8 dsp_target;
+};
 
 struct dfw_pllrec {
 	u8 command;
@@ -342,6 +352,7 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 	struct completion done;
 	const struct firmware *fw;
 	const struct dfw_binrec *rec;
+	const struct dfw_inforec *inforec;
 	u64 *img;
 	u8 *out, dsp;
 	u32 len, offset;
@@ -356,8 +367,9 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 	}
 
 	rec = (const struct dfw_binrec *)fw->data;
+	inforec = (const struct dfw_inforec *)rec->data;
 	offset = 0;
-	dsp = rec->data[0];
+	dsp = inforec->dsp_target;
 	wm0010->boot_failed = false;
 	BUG_ON(!list_empty(&xfer_list));
 	init_completion(&done);
@@ -368,6 +380,17 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 		ret = -EINVAL;
 		goto abort;
 	}
+
+	if (inforec->info_version != INFO_VERSION) {
+		dev_err(codec->dev,
+			"Unsupported version (%02d) of INFO record\r\n",
+			inforec->info_version);
+		ret = -EINVAL;
+		goto abort;
+	}
+
+	dev_dbg(codec->dev, "Version v%02d INFO record found\r\n",
+		inforec->info_version);
 
 	/* Check it's a DSP file */
 	if (dsp != DEVICE_ID_WM0010) {
