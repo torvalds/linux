@@ -1662,7 +1662,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	return err;
 }
 
-static int tun_get_iff(struct net *net, struct tun_struct *tun,
+static void tun_get_iff(struct net *net, struct tun_struct *tun,
 		       struct ifreq *ifr)
 {
 	tun_debug(KERN_INFO, tun, "tun_get_iff\n");
@@ -1671,7 +1671,6 @@ static int tun_get_iff(struct net *net, struct tun_struct *tun,
 
 	ifr->ifr_flags = tun_flags(tun);
 
-	return 0;
 }
 
 /* This is like a cut-down ethtool ops, except done via tun fd so no
@@ -1847,9 +1846,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	ret = 0;
 	switch (cmd) {
 	case TUNGETIFF:
-		ret = tun_get_iff(current->nsproxy->net_ns, tun, &ifr);
-		if (ret)
-			break;
+		tun_get_iff(current->nsproxy->net_ns, tun, &ifr);
 
 		if (copy_to_user(argp, &ifr, ifreq_len))
 			ret = -EFAULT;
