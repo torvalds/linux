@@ -899,7 +899,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 			    struct iwl_device_cmd *cmd)
 {
 	struct ieee80211_hdr *header;
-	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status rx_status = {};
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
