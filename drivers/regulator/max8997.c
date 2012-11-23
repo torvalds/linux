@@ -941,7 +941,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	struct regulator_dev **rdev;
 	struct max8997_data *max8997;
 	struct i2c_client *i2c;
-	int i, ret, size;
+	int i, ret, size, nr_dvs;
 	u8 max_buck1 = 0, max_buck2 = 0, max_buck5 = 0;
 
 	if (!pdata) {
@@ -973,7 +973,10 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	memcpy(max8997->buck125_gpios, pdata->buck125_gpios, sizeof(int) * 3);
 	max8997->ignore_gpiodvs_side_effect = pdata->ignore_gpiodvs_side_effect;
 
-	for (i = 0; i < 8; i++) {
+	nr_dvs = (pdata->buck1_gpiodvs || pdata->buck2_gpiodvs ||
+			pdata->buck5_gpiodvs) ? 8 : 1;
+
+	for (i = 0; i < nr_dvs; i++) {
 		max8997->buck1_vol[i] = ret =
 			max8997_get_voltage_proper_val(
 					&buck1245_voltage_map_desc,
@@ -1020,7 +1023,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize all the DVS related BUCK registers */
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < nr_dvs; i++) {
 		max8997_update_reg(i2c, MAX8997_REG_BUCK1DVS1 + i,
 				max8997->buck1_vol[i],
 				0x3f);
