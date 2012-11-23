@@ -411,6 +411,7 @@ static struct resource stmpe_ts_resources[] = {
 
 static struct mfd_cell stmpe_ts_cell = {
 	.name		= "stmpe-ts",
+	.of_compatible	= "st,stmpe-ts",
 	.resources	= stmpe_ts_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_ts_resources),
 };

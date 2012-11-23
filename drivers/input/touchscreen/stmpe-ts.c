@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
 #include <linux/slab.h>
@@ -262,11 +263,53 @@ static void stmpe_ts_close(struct input_dev *dev)
 			STMPE_TSC_CTRL_TSC_EN, 0);
 }
 
-static int __devinit stmpe_input_probe(struct platform_device *pdev)
+static void stmpe_ts_get_platform_info(struct platform_device *pdev,
+					struct stmpe_touch *ts)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
-	const struct stmpe_platform_data *pdata = stmpe->pdata;
-	const struct stmpe_ts_platform_data *ts_pdata = NULL;
+	struct device_node *np = pdev->dev.of_node;
+	struct stmpe_ts_platform_data *ts_pdata = NULL;
+
+	ts->stmpe = stmpe;
+
+	if (stmpe->pdata && stmpe->pdata->ts) {
+		ts_pdata = stmpe->pdata->ts;
+
+		ts->sample_time = ts_pdata->sample_time;
+		ts->mod_12b = ts_pdata->mod_12b;
+		ts->ref_sel = ts_pdata->ref_sel;
+		ts->adc_freq = ts_pdata->adc_freq;
+		ts->ave_ctrl = ts_pdata->ave_ctrl;
+		ts->touch_det_delay = ts_pdata->touch_det_delay;
+		ts->settling = ts_pdata->settling;
+		ts->fraction_z = ts_pdata->fraction_z;
+		ts->i_drive = ts_pdata->i_drive;
+	} else if (np) {
+		u32 val;
+
+		if (!of_property_read_u32(np, "st,sample-time", &val))
+			ts->sample_time = val;
+		if (!of_property_read_u32(np, "st,mod-12b", &val))
+			ts->mod_12b = val;
+		if (!of_property_read_u32(np, "st,ref-sel", &val))
+			ts->ref_sel = val;
+		if (!of_property_read_u32(np, "st,adc-freq", &val))
+			ts->adc_freq = val;
+		if (!of_property_read_u32(np, "st,ave-ctrl", &val))
+			ts->ave_ctrl = val;
+		if (!of_property_read_u32(np, "st,touch-det-delay", &val))
+			ts->touch_det_delay = val;
+		if (!of_property_read_u32(np, "st,settling", &val))
+			ts->settling = val;
+		if (!of_property_read_u32(np, "st,fraction-z", &val))
+			ts->fraction_z = val;
+		if (!of_property_read_u32(np, "st,i-drive", &val))
+			ts->i_drive = val;
+	}
+}
+
+static int __devinit stmpe_input_probe(struct platform_device *pdev)
+{
 	struct stmpe_touch *ts;
 	struct input_dev *idev;
 	int error;
@@ -285,24 +328,10 @@ static int __devinit stmpe_input_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ts);
-	ts->stmpe = stmpe;
 	ts->idev = idev;
 	ts->dev = &pdev->dev;
 
-	if (pdata)
-		ts_pdata = pdata->ts;
-
-	if (ts_pdata) {
-		ts->sample_time = ts_pdata->sample_time;
-		ts->mod_12b = ts_pdata->mod_12b;
-		ts->ref_sel = ts_pdata->ref_sel;
-		ts->adc_freq = ts_pdata->adc_freq;
-		ts->ave_ctrl = ts_pdata->ave_ctrl;
-		ts->touch_det_delay = ts_pdata->touch_det_delay;
-		ts->settling = ts_pdata->settling;
-		ts->fraction_z = ts_pdata->fraction_z;
-		ts->i_drive = ts_pdata->i_drive;
-	}
+	stmpe_ts_get_platform_info(pdev, ts);
 
 	INIT_DELAYED_WORK(&ts->work, stmpe_work);
 
