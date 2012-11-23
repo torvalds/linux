@@ -271,6 +271,16 @@ static void nfs4_end_drain_session(struct nfs_client *clp)
 	}
 }
 
+/*
+ * Signal state manager thread if session fore channel is drained
+ */
+void nfs4_session_drain_complete(struct nfs4_session *session,
+		struct nfs4_slot_table *tbl)
+{
+	if (nfs4_session_draining(session))
+		complete(&tbl->complete);
+}
+
 static int nfs4_wait_on_slot_tbl(struct nfs4_slot_table *tbl)
 {
 	spin_lock(&tbl->slot_tbl_lock);

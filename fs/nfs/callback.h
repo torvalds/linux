@@ -167,8 +167,6 @@ extern __be32 nfs4_callback_layoutrecall(
 	struct cb_layoutrecallargs *args,
 	void *dummy, struct cb_process_state *cps);
 
-extern void nfs4_check_drain_bc_complete(struct nfs4_session *ses);
-
 struct cb_devicenotifyitem {
 	uint32_t		cbd_notify_type;
 	uint32_t		cbd_layout_type;

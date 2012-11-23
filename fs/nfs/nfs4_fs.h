@@ -335,6 +335,14 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **, struct rpc_cred *);
 extern void nfs4_schedule_session_recovery(struct nfs4_session *, int);
 extern void nfs41_server_notify_target_slotid_update(struct nfs_client *clp);
+
+extern void nfs4_session_drain_complete(struct nfs4_session *session,
+		struct nfs4_slot_table *tbl);
+
+static inline bool nfs4_session_draining(struct nfs4_session *session)
+{
+	return !!test_bit(NFS4_SESSION_DRAINING, &session->session_state);
+}
 #else
 static inline void nfs4_schedule_session_recovery(struct nfs4_session *session, int err)
 {
