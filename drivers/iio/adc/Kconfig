@@ -115,4 +115,14 @@ config MAX1363
 	  max11646, max11647) Provides direct access via sysfs and buffered
 	  data via the iio dev interface.
 
+config TI_ADC081C
+	tristate "Texas Instruments ADC081C021/027"
+	depends on I2C
+	help
+	  If you say yes here you get support for Texas Instruments ADC081C021
+	  and ADC081C027 ADC chips.
+
+	  This driver can also be built as a module. If so, the module will be
+	  called ti-adc081c.
+
 endmenu
