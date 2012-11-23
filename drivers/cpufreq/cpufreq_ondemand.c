@@ -234,7 +234,8 @@ static void od_dbs_timer(struct work_struct *work)
 			dbs_info->sample_type = OD_SUB_SAMPLE;
 			delay = dbs_info->freq_hi_jiffies;
 		} else {
-			delay = delay_for_sampling_rate(dbs_info->rate_mult);
+			delay = delay_for_sampling_rate(od_tuners.sampling_rate
+						* dbs_info->rate_mult);
 		}
 	}
 
