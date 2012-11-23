@@ -532,7 +532,7 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	dev_priv->modeset_on_lid = 0;
 
 	mutex_lock(&dev->mode_config.mutex);
-	intel_modeset_check_state(dev);
+	intel_modeset_setup_hw_state(dev, true);
 	mutex_unlock(&dev->mode_config.mutex);
 
 	return NOTIFY_OK;

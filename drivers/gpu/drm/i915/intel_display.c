@@ -8988,7 +8988,8 @@ static void intel_sanitize_encoder(struct intel_encoder *encoder)
 
 /* Scan out the current hw modeset state, sanitizes it and maps it into the drm
  * and i915 state tracking structures. */
-void intel_modeset_setup_hw_state(struct drm_device *dev)
+void intel_modeset_setup_hw_state(struct drm_device *dev,
+				  bool force_restore)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
@@ -9087,7 +9088,15 @@ void intel_modeset_setup_hw_state(struct drm_device *dev)
 		intel_sanitize_crtc(crtc);
 	}
 
-	intel_modeset_update_staged_output_state(dev);
+	if (force_restore) {
+		for_each_pipe(pipe) {
+			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+			intel_set_mode(&crtc->base, &crtc->base.mode,
+				       crtc->base.x, crtc->base.y, crtc->base.fb);
+		}
+	} else {
+		intel_modeset_update_staged_output_state(dev);
+	}
 
 	intel_modeset_check_state(dev);
 
@@ -9100,7 +9109,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 
 	intel_setup_overlay(dev);
 
-	intel_modeset_setup_hw_state(dev);
+	intel_modeset_setup_hw_state(dev, false);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
