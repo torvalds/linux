@@ -4980,6 +4980,14 @@ F:	include/uapi/linux/meye.h
 F:	include/uapi/linux/ivtv*
 F:	include/uapi/linux/uvcvideo.h
 
+MEDIAVISION PRO MOVIE STUDIO DRIVER
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	http://linuxtv.org
+S:	Odd Fixes
+F:	drivers/media/parport/pms*
+
 MEGARAID SCSI DRIVERS
 M:	Neela Syam Kolli <megaraidlinux@lsi.com>
 L:	linux-scsi@vger.kernel.org
