@@ -584,7 +584,6 @@ static void reg_copy_to_hw(vpu_reg *reg)
 
 		dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
-		printk("dec\n");
 	} break;
 	case VPU_PP : {
 		u32 *dst = (u32 *)dec_dev.hwregs + PP_INTERRUPT_REGISTER;
@@ -598,7 +597,6 @@ static void reg_copy_to_hw(vpu_reg *reg)
 		dsb();
 
 		dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
-		printk("pp\n");
 	} break;
 	case VPU_DEC_PP : {
 		u32 *dst = (u32 *)dec_dev.hwregs;
@@ -614,7 +612,6 @@ static void reg_copy_to_hw(vpu_reg *reg)
 		dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 		dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]    | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]	 = src[VPU_REG_EN_DEC];
-		printk("dec_pp\n");
 	} break;
 	default : {
 		pr_err("error: unsupport session type %d", reg->type);
