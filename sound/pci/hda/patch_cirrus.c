@@ -466,6 +466,7 @@ static int parse_output(struct hda_codec *codec)
 		memcpy(cfg->speaker_pins, cfg->line_out_pins,
 		       sizeof(cfg->speaker_pins));
 		cfg->line_outs = 0;
+		memset(cfg->line_out_pins, 0, sizeof(cfg->line_out_pins));
 	}
 
 	return 0;
