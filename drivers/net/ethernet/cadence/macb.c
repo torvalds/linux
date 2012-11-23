@@ -1033,8 +1033,12 @@ static u32 macb_dbw(struct macb *bp)
 }
 
 /*
- * Configure the receive DMA engine to use the correct receive buffer size.
- * This is a configurable parameter for GEM.
+ * Configure the receive DMA engine
+ * - use the correct receive buffer size
+ * - set the possibility to use INCR16 bursts
+ *   (if not supported by FIFO, it will fallback to default)
+ * - set both rx/tx packet buffers to full memory size
+ * These are configurable parameters for GEM.
  */
 static void macb_configure_dma(struct macb *bp)
 {
@@ -1043,6 +1047,8 @@ static void macb_configure_dma(struct macb *bp)
 	if (macb_is_gem(bp)) {
 		dmacfg = gem_readl(bp, DMACFG) & ~GEM_BF(RXBS, -1L);
 		dmacfg |= GEM_BF(RXBS, RX_BUFFER_SIZE / 64);
+		dmacfg |= GEM_BF(FBLDO, 16);
+		dmacfg |= GEM_BIT(TXPBMS) | GEM_BF(RXBMS, -1L);
 		gem_writel(bp, DMACFG, dmacfg);
 	}
 }
