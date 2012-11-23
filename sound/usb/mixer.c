@@ -1136,6 +1136,32 @@ static size_t append_ctl_name(struct snd_kcontrol *kctl, const char *str)
 	return strlcat(kctl->id.name, str, sizeof(kctl->id.name));
 }
 
+/* A lot of headsets/headphones have a "Speaker" mixer. Make sure we
+   rename it to "Headphone". We determine if something is a headphone
+   similar to how udev determines form factor. */
+static void check_no_speaker_on_headset(struct snd_kcontrol *kctl,
+					struct snd_card *card)
+{
+	const char *names_to_check[] = {
+		"Headset", "headset", "Headphone", "headphone", NULL};
+	const char **s;
+	bool found = 0;
+
+	if (strcmp("Speaker", kctl->id.name))
+		return;
+
+	for (s = names_to_check; *s; s++)
+		if (strstr(card->shortname, *s)) {
+			found = 1;
+			break;
+		}
+
+	if (!found)
+		return;
+
+	strlcpy(kctl->id.name, "Headphone", sizeof(kctl->id.name));
+}
+
 static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 			      unsigned int ctl_mask, int control,
 			      struct usb_audio_term *iterm, int unitid,
@@ -1222,6 +1248,10 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 				len = snprintf(kctl->id.name, sizeof(kctl->id.name),
 					       "Feature %d", unitid);
 		}
+
+		if (!mapped_name)
+			check_no_speaker_on_headset(kctl, state->mixer->chip->card);
+
 		/* determine the stream direction:
 		 * if the connected output is USB stream, then it's likely a
 		 * capture stream.  otherwise it should be playback (hopefully :)
