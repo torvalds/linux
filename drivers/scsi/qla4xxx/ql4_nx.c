@@ -3463,7 +3463,7 @@ exit_validate_mac82:
 
 /* Interrupt handling helpers. */
 
-int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha)
+int qla4_8xxx_intr_enable(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -3484,7 +3484,7 @@ int qla4_8xxx_mbx_intr_enable(struct scsi_qla_host *ha)
 	return QLA_SUCCESS;
 }
 
-int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha)
+int qla4_8xxx_intr_disable(struct scsi_qla_host *ha)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -3509,7 +3509,7 @@ int qla4_8xxx_mbx_intr_disable(struct scsi_qla_host *ha)
 void
 qla4_82xx_enable_intrs(struct scsi_qla_host *ha)
 {
-	qla4_8xxx_mbx_intr_enable(ha);
+	qla4_8xxx_intr_enable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - reset */
@@ -3522,7 +3522,7 @@ void
 qla4_82xx_disable_intrs(struct scsi_qla_host *ha)
 {
 	if (test_and_clear_bit(AF_INTERRUPTS_ON, &ha->flags))
-		qla4_8xxx_mbx_intr_disable(ha);
+		qla4_8xxx_intr_disable(ha);
 
 	spin_lock_irq(&ha->hardware_lock);
 	/* BIT 10 - set */

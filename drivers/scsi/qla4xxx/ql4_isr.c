@@ -1437,11 +1437,14 @@ irq_not_attached:
 
 void qla4xxx_free_irqs(struct scsi_qla_host *ha)
 {
-	if (test_bit(AF_MSIX_ENABLED, &ha->flags))
-		qla4_8xxx_disable_msix(ha);
-	else if (test_and_clear_bit(AF_MSI_ENABLED, &ha->flags)) {
-		free_irq(ha->pdev->irq, ha);
-		pci_disable_msi(ha->pdev);
-	} else if (test_and_clear_bit(AF_INTx_ENABLED, &ha->flags))
-		free_irq(ha->pdev->irq, ha);
+	if (test_and_clear_bit(AF_IRQ_ATTACHED, &ha->flags)) {
+		if (test_bit(AF_MSIX_ENABLED, &ha->flags)) {
+			qla4_8xxx_disable_msix(ha);
+		} else if (test_and_clear_bit(AF_MSI_ENABLED, &ha->flags)) {
+			free_irq(ha->pdev->irq, ha);
+			pci_disable_msi(ha->pdev);
+		} else if (test_and_clear_bit(AF_INTx_ENABLED, &ha->flags)) {
+			free_irq(ha->pdev->irq, ha);
+		}
+	}
 }

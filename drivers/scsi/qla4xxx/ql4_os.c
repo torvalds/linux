@@ -2978,6 +2978,7 @@ static int qla4xxx_recover_adapter(struct scsi_qla_host *ha)
 		if (status == QLA_SUCCESS) {
 			if (!test_bit(AF_FW_RECOVERY, &ha->flags))
 				qla4xxx_cmd_wait(ha);
+
 			ha->isp_ops->disable_intrs(ha);
 			qla4xxx_process_aen(ha, FLUSH_DDB_CHANGED_AENS);
 			qla4xxx_abort_active_cmds(ha, DID_RESET << 16);
@@ -3508,10 +3509,8 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 {
 	qla4xxx_abort_active_cmds(ha, DID_NO_CONNECT << 16);
 
-	if (test_bit(AF_INTERRUPTS_ON, &ha->flags)) {
-		/* Turn-off interrupts on the card. */
-		ha->isp_ops->disable_intrs(ha);
-	}
+	/* Turn-off interrupts on the card. */
+	ha->isp_ops->disable_intrs(ha);
 
 	if (is_qla40XX(ha)) {
 		writel(set_rmask(CSR_SCSI_PROCESSOR_INTR),
@@ -3547,8 +3546,7 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 	}
 
 	/* Detach interrupts */
-	if (test_and_clear_bit(AF_IRQ_ATTACHED, &ha->flags))
-		qla4xxx_free_irqs(ha);
+	qla4xxx_free_irqs(ha);
 
 	/* free extra memory */
 	qla4xxx_mem_free(ha);
