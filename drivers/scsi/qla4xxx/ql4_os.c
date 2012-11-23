@@ -6006,14 +6006,6 @@ static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type)
 		goto exit_host_reset;
 	}
 
-	rval = qla4xxx_wait_for_hba_online(ha);
-	if (rval != QLA_SUCCESS) {
-		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: Unable to reset host "
-				  "adapter\n", __func__));
-		rval = -EIO;
-		goto exit_host_reset;
-	}
-
 	if (test_bit(DPC_RESET_HA, &ha->dpc_flags))
 		goto recover_adapter;
 
