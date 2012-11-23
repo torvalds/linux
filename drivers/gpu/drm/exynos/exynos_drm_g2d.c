@@ -1125,7 +1125,7 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 	mutex_init(&g2d->cmdlist_mutex);
 	mutex_init(&g2d->runqueue_mutex);
 
-	g2d->gate_clk = clk_get(dev, "fimg2d");
+	g2d->gate_clk = devm_clk_get(dev, "fimg2d");
 	if (IS_ERR(g2d->gate_clk)) {
 		dev_err(dev, "failed to get gate clock\n");
 		ret = PTR_ERR(g2d->gate_clk);
@@ -1181,7 +1181,6 @@ static int __devinit g2d_probe(struct platform_device *pdev)
 
 err_put_clk:
 	pm_runtime_disable(dev);
-	clk_put(g2d->gate_clk);
 err_destroy_workqueue:
 	destroy_workqueue(g2d->g2d_workq);
 err_destroy_slab:
@@ -1202,7 +1201,6 @@ static int __devexit g2d_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(&pdev->dev);
-	clk_put(g2d->gate_clk);
 
 	g2d_fini_cmdlist(g2d);
 	destroy_workqueue(g2d->g2d_workq);
