@@ -46,6 +46,9 @@ snd_pcm_uframes_t snd_usb_pcm_delay(struct snd_usb_substream *subs,
 	int frame_diff;
 	int est_delay;
 
+	if (!subs->last_delay)
+		return 0; /* short path */
+
 	current_frame_number = usb_get_current_frame_number(subs->dev);
 	/*
 	 * HCD implementations use different widths, use lower 8 bits.
@@ -1195,6 +1198,9 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 		return;
 
 	spin_lock_irqsave(&subs->lock, flags);
+	if (!subs->last_delay)
+		goto out; /* short path */
+
 	est_delay = snd_usb_pcm_delay(subs, runtime->rate);
 	/* update delay with exact number of samples played */
 	if (processed > subs->last_delay)
@@ -1212,6 +1218,15 @@ static void retire_playback_urb(struct snd_usb_substream *subs,
 		snd_printk(KERN_DEBUG "delay: estimated %d, actual %d\n",
 			est_delay, subs->last_delay);
 
+	if (!subs->running) {
+		/* update last_frame_number for delay counting here since
+		 * prepare_playback_urb won't be called during pause
+		 */
+		subs->last_frame_number =
+			usb_get_current_frame_number(subs->dev) & 0xff;
+	}
+
+ out:
 	spin_unlock_irqrestore(&subs->lock, flags);
 }
 
@@ -1253,7 +1268,8 @@ static int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substrea
 		return 0;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		subs->data_endpoint->prepare_data_urb = NULL;
-		subs->data_endpoint->retire_data_urb = NULL;
+		/* keep retire_data_urb for delay calculation */
+		subs->data_endpoint->retire_data_urb = retire_playback_urb;
 		subs->running = 0;
 		return 0;
 	}
