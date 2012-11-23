@@ -85,7 +85,6 @@ enum {
 	CS420X_GPIO_13,
 	CS420X_GPIO_23,
 	CS420X_MBP101,
-	CS420X_MBP101_COEF,
 	CS420X_AUTO,
 	/* aliases */
 	CS420X_IMAC27_122 = CS420X_GPIO_23,
@@ -1177,14 +1176,6 @@ static const struct hda_verb cs_errata_init_verbs[] = {
 	{} /* terminator */
 };
 
-static const struct hda_verb mbp101_init_verbs[] = {
-	{0x11, AC_VERB_SET_COEF_INDEX, 0x0002},
-	{0x11, AC_VERB_SET_PROC_COEF, 0x100a},
-	{0x11, AC_VERB_SET_COEF_INDEX, 0x0004},
-	{0x11, AC_VERB_SET_PROC_COEF, 0x000f},
-	{}
-};
-
 /* SPDIF setup */
 static void init_digital(struct hda_codec *codec)
 {
@@ -1208,6 +1199,8 @@ static int cs_init(struct hda_codec *codec)
 	snd_hda_sequence_write(codec, cs_errata_init_verbs);
 
 	snd_hda_sequence_write(codec, cs_coef_init_verbs);
+
+	snd_hda_gen_apply_verbs(codec);
 
 	if (spec->gpio_mask) {
 		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_MASK,
@@ -1422,12 +1415,6 @@ static const struct hda_fixup cs420x_fixups[] = {
 	[CS420X_MBP101] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = mbp101_pincfgs,
-		.chained = true,
-		.chain_id = CS420X_MBP101_COEF,
-	},
-	[CS420X_MBP101_COEF] = {
-		.type = HDA_FIXUP_VERBS,
-		.v.verbs = mbp101_init_verbs,
 		.chained = true,
 		.chain_id = CS420X_GPIO_13,
 	},
