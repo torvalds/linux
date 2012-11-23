@@ -12,6 +12,7 @@ config ARCH_SPEAR13XX
 	bool "ST SPEAr13xx with Device Tree"
 	select ARM_GIC
 	select CPU_V7
+	select GPIO_SPEAR_SPICS
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	select PINCTRL

@@ -27,6 +27,7 @@
 #include <linux/module.h>
 #include <linux/irqdomain.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/pm.h>
 
 #include <asm/mach/irq.h>
 
@@ -64,7 +65,7 @@ struct tegra_gpio_bank {
 	int bank;
 	int irq;
 	spinlock_t lvl_lock[4];
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	u32 cnf[4];
 	u32 out[4];
 	u32 oe[4];
@@ -109,20 +110,18 @@ static void tegra_gpio_enable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 1);
 }
-EXPORT_SYMBOL_GPL(tegra_gpio_enable);
 
 static void tegra_gpio_disable(int gpio)
 {
 	tegra_gpio_mask_write(GPIO_MSK_CNF(gpio), gpio, 0);
 }
-EXPORT_SYMBOL_GPL(tegra_gpio_disable);
 
-int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int tegra_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	return pinctrl_request_gpio(offset);
 }
 
-void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void tegra_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	pinctrl_free_gpio(offset);
 	tegra_gpio_disable(offset);
@@ -135,6 +134,11 @@ static void tegra_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 
 static int tegra_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
+	/* If gpio is in output mode then read from the out value */
+	if ((tegra_gpio_readl(GPIO_OE(offset)) >> GPIO_BIT(offset)) & 1)
+		return (tegra_gpio_readl(GPIO_OUT(offset)) >>
+				GPIO_BIT(offset)) & 0x1;
+
 	return (tegra_gpio_readl(GPIO_IN(offset)) >> GPIO_BIT(offset)) & 0x1;
 }
 
@@ -285,8 +289,8 @@ static void tegra_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 }
 
-#ifdef CONFIG_PM
-void tegra_gpio_resume(void)
+#ifdef CONFIG_PM_SLEEP
+static int tegra_gpio_resume(struct device *dev)
 {
 	unsigned long flags;
 	int b;
@@ -308,9 +312,10 @@ void tegra_gpio_resume(void)
 	}
 
 	local_irq_restore(flags);
+	return 0;
 }
 
-void tegra_gpio_suspend(void)
+static int tegra_gpio_suspend(struct device *dev)
 {
 	unsigned long flags;
 	int b;
@@ -330,6 +335,7 @@ void tegra_gpio_suspend(void)
 		}
 	}
 	local_irq_restore(flags);
+	return 0;
 }
 
 static int tegra_gpio_wake_enable(struct irq_data *d, unsigned int enable)
@@ -345,9 +351,13 @@ static struct irq_chip tegra_gpio_irq_chip = {
 	.irq_mask	= tegra_gpio_irq_mask,
 	.irq_unmask	= tegra_gpio_irq_unmask,
 	.irq_set_type	= tegra_gpio_irq_set_type,
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.irq_set_wake	= tegra_gpio_wake_enable,
 #endif
+};
+
+static const struct dev_pm_ops tegra_gpio_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_gpio_suspend, tegra_gpio_resume)
 };
 
 struct tegra_gpio_soc_config {
@@ -489,6 +499,7 @@ static struct platform_driver tegra_gpio_driver = {
 	.driver		= {
 		.name	= "tegra-gpio",
 		.owner	= THIS_MODULE,
+		.pm	= &tegra_gpio_pm_ops,
 		.of_match_table = tegra_gpio_of_match,
 	},
 	.probe		= tegra_gpio_probe,

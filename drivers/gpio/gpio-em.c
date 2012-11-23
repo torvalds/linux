@@ -302,8 +302,8 @@ static int __devinit em_gio_probe(struct platform_device *pdev)
 	p->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
 					      pdata->number_of_pins,
 					      &em_gio_irq_domain_ops, p);
-	if (!p->irq_domain)
-		err = -ENXIO;
+	if (!p->irq_domain) {
+		ret = -ENXIO;
 		dev_err(&pdev->dev, "cannot initialize irq domain\n");
 		goto err3;
 	}
@@ -358,7 +358,7 @@ static int __devexit em_gio_remove(struct platform_device *pdev)
 
 	free_irq(irq[1]->start, pdev);
 	free_irq(irq[0]->start, pdev);
-	em_gio_irq_domain_cleanup(p);
+	irq_domain_remove(p->irq_domain);
 	iounmap(p->base1);
 	iounmap(p->base0);
 	kfree(p);
