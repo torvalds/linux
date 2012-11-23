@@ -387,7 +387,11 @@ static struct platform_device device_ion = {
 /*ft5x0x touchpad*/
 #if defined (CONFIG_TOUCHSCREEN_FT5X0X)
 
+#if defined(V86_VERSION_1_0) || defined(V86_VERSION_1_1)
+#define TOUCH_RESET_PIN INVALID_GPIO
+#else
 #define TOUCH_RESET_PIN RK2928_PIN0_PD3
+#endif
 #define TOUCH_EN_PIN NULL
 #define TOUCH_INT_PIN RK2928_PIN1_PB0
 

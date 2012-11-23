@@ -18,6 +18,7 @@
 #include <linux/regulator/rk29-pwm-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
+#include <linux/regulator/machine.h>
 
 //#define FT5X0X_DEBUG
 #ifdef FT5X0X_DEBUG
@@ -230,6 +231,29 @@ static void ft5x0x_power_en(struct ft5x0x_data *tsdata, int on)
 		mdelay(10);
 	}
 #endif
+       if( tsdata->reset_gpio <= 0 ){
+               struct regulator *vcc_tp;
+               vcc_tp = regulator_get(NULL, "vaux33");   // vcc28_cif
+               if (vcc_tp == NULL || IS_ERR(vcc_tp) ){
+                    printk(">>>> get cif vaux33 ldo failed!\n");
+                    return;
+                }
+
+                 if( on ){ //turn on
+                        regulator_set_voltage(vcc_tp, 3300000, 3300000);
+                          regulator_enable(vcc_tp);
+                          printk(" %s set  vpll vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(vcc_tp));
+                          regulator_put(vcc_tp);
+                 }else{   //turn off
+                        while(regulator_is_enabled(vcc_tp)>0){
+                                       regulator_disable(vcc_tp);
+                          }
+                          printk(" %s regulator disable vcc tp \n",__func__);
+                          regulator_put(vcc_tp);
+                 }
+         }
+
+
 }
 
 static void ft5x0x_chip_reset(struct ft5x0x_data *tsdata)
@@ -277,12 +301,14 @@ static int ft5x0x_chip_init(struct i2c_client * client)
 	int i = 0, flag = 1;
 	struct ft5x0x_data *tsdata = i2c_get_clientdata(client);
 
-	gpio_free(tsdata->reset_gpio);
-	err = gpio_request(tsdata->reset_gpio, "ft5x0x rst");
-	if (err) {
-		DBG( "failed to request ft5x0x reset GPIO%d\n", tsdata->reset_gpio);
-		goto exit_alloc_gpio_rst_failed;
-	}
+       if( tsdata->reset_gpio > 0 ){
+        	gpio_free(tsdata->reset_gpio);
+        	err = gpio_request(tsdata->reset_gpio, "ft5x0x rst");
+        	if (err) {
+        		printk( "failed to request ft5x0x reset GPIO%d\n", tsdata->reset_gpio);
+        		goto exit_alloc_gpio_rst_failed;
+        	}
+       }
 	
 #if defined (TOUCH_POWER_PIN)
 #if defined (TOUCH_POWER_MUX_NAME)
@@ -507,8 +533,10 @@ static void ft5x0x_suspend(struct early_suspend *h)
 		printk("ft5x0x enter sleep mode failed\n");
 	}
 #endif
-	disable_irq(g_client->irq);		
-	//ft5x0x_power_en(ft5x0x, 0);
+	disable_irq(g_client->irq);	
+	if( ft5x0x->reset_gpio <= 0 ){
+	    ft5x0x_power_en(ft5x0x, 0);
+	}
 }
 
 static void ft5x0x_resume(struct early_suspend *h)
@@ -518,8 +546,11 @@ static void ft5x0x_resume(struct early_suspend *h)
 	key_led_ctrl(0);
 
 	printk("==ft5x0x_ts_resume=\n");
-	//ft5x0x_power_en(ft5x0x, 1);
-	ft5x0x_chip_reset(ft5x0x);
+	if( ft5x0x->reset_gpio > 0 ){
+	    ft5x0x_chip_reset(ft5x0x);
+	}else{
+	    ft5x0x_power_en(ft5x0x, 1);
+	}
 
 	mdelay(100);
 
