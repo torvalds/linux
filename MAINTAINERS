@@ -2195,6 +2195,15 @@ F:	Documentation/video4linux/cx18.txt
 F:	drivers/media/pci/cx18/
 F:	include/uapi/linux/ivtv*
 
+CX2341X MPEG ENCODER HELPER MODULE
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	http://linuxtv.org
+S:	Maintained
+F:	drivers/media/i2c/cx2341x*
+F:	include/media/cx2341x*
+
 CX88 VIDEO4LINUX DRIVER
 M:	Mauro Carvalho Chehab <mchehab@redhat.com>
 L:	linux-media@vger.kernel.org
