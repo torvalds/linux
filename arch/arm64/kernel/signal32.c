@@ -605,9 +605,9 @@ static inline void __user *compat_get_sigframe(struct k_sigaction *ka,
 	return frame;
 }
 
-static int compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
-			       compat_ulong_t __user *rc, void __user *frame,
-			       int usig)
+static void compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
+				compat_ulong_t __user *rc, void __user *frame,
+				int usig)
 {
 	compat_ulong_t handler = ptr_to_compat(ka->sa.sa_handler);
 	compat_ulong_t retcode;
@@ -643,8 +643,6 @@ static int compat_setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 	regs->compat_lr	= retcode;
 	regs->pc	= handler;
 	regs->pstate	= spsr;
-
-	return 0;
 }
 
 static int compat_setup_sigframe(struct compat_sigframe __user *sf,
@@ -714,11 +712,9 @@ int compat_setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __copy_to_user(&frame->sig.uc.uc_stack, &stack, sizeof(stack));
 
 	err |= compat_setup_sigframe(&frame->sig, regs, set);
-	if (err == 0)
-		err = compat_setup_return(regs, ka, frame->sig.retcode, frame,
-					  usig);
 
 	if (err == 0) {
+		compat_setup_return(regs, ka, frame->sig.retcode, frame, usig);
 		regs->regs[1] = (compat_ulong_t)(unsigned long)&frame->info;
 		regs->regs[2] = (compat_ulong_t)(unsigned long)&frame->sig.uc;
 	}
@@ -741,7 +737,7 @@ int compat_setup_frame(int usig, struct k_sigaction *ka, sigset_t *set,
 
 	err |= compat_setup_sigframe(frame, regs, set);
 	if (err == 0)
-		err = compat_setup_return(regs, ka, frame->retcode, frame, usig);
+		compat_setup_return(regs, ka, frame->retcode, frame, usig);
 
 	return err;
 }
