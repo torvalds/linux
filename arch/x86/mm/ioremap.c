@@ -332,18 +332,20 @@ EXPORT_SYMBOL(iounmap);
  */
 void *xlate_dev_mem_ptr(phys_addr_t phys)
 {
-	void *addr;
-	unsigned long start = phys & PAGE_MASK;
+	unsigned long start  = phys &  PAGE_MASK;
+	unsigned long offset = phys & ~PAGE_MASK;
+	unsigned long vaddr;
 
 	/* If page is RAM, we can use __va. Otherwise ioremap and unmap. */
 	if (page_is_ram(start >> PAGE_SHIFT))
 		return __va(phys);
 
-	addr = (void __force *)ioremap_cache(start, PAGE_SIZE);
-	if (addr)
-		addr = (void *)((unsigned long)addr | (phys & ~PAGE_MASK));
+	vaddr = (unsigned long)ioremap_cache(start, PAGE_SIZE);
+	/* Only add the offset on success and return NULL if the ioremap() failed: */
+	if (vaddr)
+		vaddr += offset;
 
-	return addr;
+	return (void *)vaddr;
 }
 
 void unxlate_dev_mem_ptr(phys_addr_t phys, void *addr)
