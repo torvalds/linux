@@ -603,7 +603,7 @@ static int gsc_m2m_open(struct file *file)
 	if (mutex_lock_interruptible(&gsc->lock))
 		return -ERESTARTSYS;
 
-	ctx = kzalloc(sizeof (*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		ret = -ENOMEM;
 		goto unlock;
