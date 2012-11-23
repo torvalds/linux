@@ -1247,7 +1247,8 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 			void *buffer)
 {
 	int i, copy_sz;
-	u32 *hdr_ptr, *data;
+	u32 *hdr_ptr;
+	__le32 *data;
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 

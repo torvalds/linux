@@ -103,7 +103,7 @@ qlcnic_issue_cmd(struct qlcnic_adapter *adapter, struct qlcnic_cmd_args *cmd)
 
 }
 
-static uint32_t qlcnic_temp_checksum(uint32_t *temp_buffer, u16 temp_size)
+static uint32_t qlcnic_temp_checksum(uint32_t *temp_buffer, u32 temp_size)
 {
 	uint64_t sum = 0;
 	int count = temp_size / sizeof(uint32_t);
@@ -117,9 +117,9 @@ static uint32_t qlcnic_temp_checksum(uint32_t *temp_buffer, u16 temp_size)
 int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 {
 	int err, i;
-	u16 temp_size;
 	void *tmp_addr;
-	u32 version, csum, *template, *tmp_buf;
+	u32 temp_size, version, csum, *template;
+	__le32 *tmp_buf;
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_hardware_context *ahw;
 	struct qlcnic_dump_template_hdr *tmpl_hdr, *tmp_tmpl;
@@ -163,13 +163,6 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 		goto error;
 	}
 	tmp_tmpl = tmp_addr;
-	csum = qlcnic_temp_checksum((uint32_t *) tmp_addr, temp_size);
-	if (csum) {
-		dev_err(&adapter->pdev->dev,
-			"Template header checksum validation failed\n");
-		err = -EIO;
-		goto error;
-	}
 	ahw->fw_dump.tmpl_hdr = vzalloc(temp_size);
 	if (!ahw->fw_dump.tmpl_hdr) {
 		err = -EIO;
@@ -179,6 +172,14 @@ int qlcnic_fw_cmd_get_minidump_temp(struct qlcnic_adapter *adapter)
 	template = (u32 *) ahw->fw_dump.tmpl_hdr;
 	for (i = 0; i < temp_size/sizeof(u32); i++)
 		*template++ = __le32_to_cpu(*tmp_buf++);
+
+	csum = qlcnic_temp_checksum((u32 *)ahw->fw_dump.tmpl_hdr, temp_size);
+	if (csum) {
+		dev_err(&adapter->pdev->dev,
+			"Template header checksum validation failed\n");
+		err = -EIO;
+		goto error;
+	}
 
 	tmpl_hdr = ahw->fw_dump.tmpl_hdr;
 	tmpl_hdr->drv_cap_mask = QLCNIC_DUMP_MASK_DEF;
@@ -231,6 +232,7 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	size_t rq_size, rsp_size;
 	u32 cap, reg, val, reg2;
 	int err;
+	u16 temp;
 
 	struct qlcnic_recv_context *recv_ctx = adapter->recv_ctx;
 
@@ -267,8 +269,8 @@ qlcnic_fw_cmd_create_rx_ctx(struct qlcnic_adapter *adapter)
 	if (adapter->flags & QLCNIC_FW_LRO_MSS_CAP)
 		cap |= QLCNIC_CAP0_LRO_MSS;
 
-	prq->valid_field_offset = offsetof(struct qlcnic_hostrq_rx_ctx,
-							 msix_handler);
+	temp = offsetof(struct qlcnic_hostrq_rx_ctx, msix_handler);
+	prq->valid_field_offset = cpu_to_le16(temp);
 	prq->txrx_sds_binding = nsds_rings - 1;
 
 	prq->capabilities[0] = cpu_to_le32(cap);
@@ -687,10 +689,10 @@ int qlcnic_get_nic_info(struct qlcnic_adapter *adapter,
 {
 	int	err;
 	dma_addr_t nic_dma_t;
-	struct qlcnic_info *nic_info;
+	struct qlcnic_info_le *nic_info;
 	void *nic_info_addr;
 	struct qlcnic_cmd_args cmd;
-	size_t	nic_size = sizeof(struct qlcnic_info);
+	size_t	nic_size = sizeof(struct qlcnic_info_le);
 
 	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
 				&nic_dma_t, GFP_KERNEL);
@@ -745,8 +747,8 @@ int qlcnic_set_nic_info(struct qlcnic_adapter *adapter, struct qlcnic_info *nic)
 	dma_addr_t nic_dma_t;
 	void *nic_info_addr;
 	struct qlcnic_cmd_args cmd;
-	struct qlcnic_info *nic_info;
-	size_t nic_size = sizeof(struct qlcnic_info);
+	struct qlcnic_info_le *nic_info;
+	size_t nic_size = sizeof(struct qlcnic_info_le);
 
 	if (adapter->op_mode != QLCNIC_MGMT_FUNC)
 		return err;
@@ -796,9 +798,9 @@ int qlcnic_get_pci_info(struct qlcnic_adapter *adapter,
 	int err = 0, i;
 	struct qlcnic_cmd_args cmd;
 	dma_addr_t pci_info_dma_t;
-	struct qlcnic_pci_info *npar;
+	struct qlcnic_pci_info_le *npar;
 	void *pci_info_addr;
-	size_t npar_size = sizeof(struct qlcnic_pci_info);
+	size_t npar_size = sizeof(struct qlcnic_pci_info_le);
 	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
 
 	pci_info_addr = dma_alloc_coherent(&adapter->pdev->dev, pci_size,
@@ -877,8 +879,8 @@ int qlcnic_config_port_mirroring(struct qlcnic_adapter *adapter, u8 id,
 int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 		const u8 rx_tx, struct __qlcnic_esw_statistics *esw_stats) {
 
-	size_t stats_size = sizeof(struct __qlcnic_esw_statistics);
-	struct __qlcnic_esw_statistics *stats;
+	size_t stats_size = sizeof(struct qlcnic_esw_stats_le);
+	struct qlcnic_esw_stats_le *stats;
 	dma_addr_t stats_dma_t;
 	void *stats_addr;
 	u32 arg1;
@@ -939,9 +941,9 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
 		struct qlcnic_mac_statistics *mac_stats)
 {
-	struct qlcnic_mac_statistics *stats;
+	struct qlcnic_mac_statistics_le *stats;
 	struct qlcnic_cmd_args cmd;
-	size_t stats_size = sizeof(struct qlcnic_mac_statistics);
+	size_t stats_size = sizeof(struct qlcnic_mac_statistics_le);
 	dma_addr_t stats_dma_t;
 	void *stats_addr;
 	int err;

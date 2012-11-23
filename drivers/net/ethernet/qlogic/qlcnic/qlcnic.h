@@ -280,16 +280,16 @@ struct status_desc {
 #define QLCNIC_UNI_FIRMWARE_IDX_OFF 	29
 
 struct uni_table_desc{
-	u32	findex;
-	u32	num_entries;
-	u32	entry_size;
-	u32	reserved[5];
+	__le32	findex;
+	__le32	num_entries;
+	__le32	entry_size;
+	__le32	reserved[5];
 };
 
 struct uni_data_desc{
-	u32	findex;
-	u32	size;
-	u32	reserved[5];
+	__le32	findex;
+	__le32	size;
+	__le32	reserved[5];
 };
 
 /* Flash Defines and Structures */
@@ -416,19 +416,19 @@ struct qlcnic_nic_intr_coalesce {
 };
 
 struct qlcnic_dump_template_hdr {
-	__le32	type;
-	__le32	offset;
-	__le32	size;
-	__le32	cap_mask;
-	__le32	num_entries;
-	__le32	version;
-	__le32	timestamp;
-	__le32	checksum;
-	__le32	drv_cap_mask;
-	__le32	sys_info[3];
-	__le32	saved_state[16];
-	__le32	cap_sizes[8];
-	__le32	rsvd[0];
+	u32	type;
+	u32	offset;
+	u32	size;
+	u32	cap_mask;
+	u32	num_entries;
+	u32	version;
+	u32	timestamp;
+	u32	checksum;
+	u32	drv_cap_mask;
+	u32	sys_info[3];
+	u32	saved_state[16];
+	u32	cap_sizes[8];
+	u32	rsvd[0];
 };
 
 struct qlcnic_fw_dump {
@@ -1065,16 +1065,16 @@ struct qlcnic_adapter {
 
 	spinlock_t tx_clean_lock;
 	spinlock_t mac_learn_lock;
-	__le32 file_prd_off;	/*File fw product offset*/
+	u32 file_prd_off;	/*File fw product offset*/
 	u32 fw_version;
 	const struct firmware *fw;
 };
 
-struct qlcnic_info {
+struct qlcnic_info_le {
 	__le16	pci_func;
-	__le16	op_mode; /* 1 = Priv, 2 = NP, 3 = NP passthru */
+	__le16	op_mode;	/* 1 = Priv, 2 = NP, 3 = NP passthru */
 	__le16	phys_port;
-	__le16	switch_mode; /* 0 = disabled, 1 = int, 2 = ext */
+	__le16	switch_mode;	/* 0 = disabled, 1 = int, 2 = ext */
 
 	__le32	capabilities;
 	u8	max_mac_filters;
@@ -1088,19 +1088,44 @@ struct qlcnic_info {
 	u8	reserved2[104];
 } __packed;
 
-struct qlcnic_pci_info {
-	__le16	id; /* pci function id */
-	__le16	active; /* 1 = Enabled */
-	__le16	type; /* 1 = NIC, 2 = FCoE, 3 = iSCSI */
-	__le16	default_port; /* default port number */
+struct qlcnic_info {
+	u16	pci_func;
+	u16	op_mode;
+	u16	phys_port;
+	u16	switch_mode;
+	u32	capabilities;
+	u8	max_mac_filters;
+	u8	reserved1;
+	u16	max_mtu;
+	u16	max_tx_ques;
+	u16	max_rx_ques;
+	u16	min_tx_bw;
+	u16	max_tx_bw;
+};
 
-	__le16	tx_min_bw; /* Multiple of 100mbpc */
+struct qlcnic_pci_info_le {
+	__le16	id;		/* pci function id */
+	__le16	active;		/* 1 = Enabled */
+	__le16	type;		/* 1 = NIC, 2 = FCoE, 3 = iSCSI */
+	__le16	default_port;	/* default port number */
+
+	__le16	tx_min_bw;	/* Multiple of 100mbpc */
 	__le16	tx_max_bw;
 	__le16	reserved1[2];
 
 	u8	mac[ETH_ALEN];
 	u8	reserved2[106];
 } __packed;
+
+struct qlcnic_pci_info {
+	u16	id;
+	u16	active;
+	u16	type;
+	u16	default_port;
+	u16	tx_min_bw;
+	u16	tx_max_bw;
+	u8	mac[ETH_ALEN];
+};
 
 struct qlcnic_npar_info {
 	u16	pvid;
@@ -1208,7 +1233,7 @@ do {	\
 			(VAL1) += (VAL2); \
 } while (0)
 
-struct qlcnic_mac_statistics{
+struct qlcnic_mac_statistics_le {
 	__le64	mac_tx_frames;
 	__le64	mac_tx_bytes;
 	__le64	mac_tx_mcast_pkts;
@@ -1248,7 +1273,45 @@ struct qlcnic_mac_statistics{
 	__le64	mac_align_error;
 } __packed;
 
-struct __qlcnic_esw_statistics {
+struct qlcnic_mac_statistics {
+	u64	mac_tx_frames;
+	u64	mac_tx_bytes;
+	u64	mac_tx_mcast_pkts;
+	u64	mac_tx_bcast_pkts;
+	u64	mac_tx_pause_cnt;
+	u64	mac_tx_ctrl_pkt;
+	u64	mac_tx_lt_64b_pkts;
+	u64	mac_tx_lt_127b_pkts;
+	u64	mac_tx_lt_255b_pkts;
+	u64	mac_tx_lt_511b_pkts;
+	u64	mac_tx_lt_1023b_pkts;
+	u64	mac_tx_lt_1518b_pkts;
+	u64	mac_tx_gt_1518b_pkts;
+	u64	rsvd1[3];
+	u64	mac_rx_frames;
+	u64	mac_rx_bytes;
+	u64	mac_rx_mcast_pkts;
+	u64	mac_rx_bcast_pkts;
+	u64	mac_rx_pause_cnt;
+	u64	mac_rx_ctrl_pkt;
+	u64	mac_rx_lt_64b_pkts;
+	u64	mac_rx_lt_127b_pkts;
+	u64	mac_rx_lt_255b_pkts;
+	u64	mac_rx_lt_511b_pkts;
+	u64	mac_rx_lt_1023b_pkts;
+	u64	mac_rx_lt_1518b_pkts;
+	u64	mac_rx_gt_1518b_pkts;
+	u64	rsvd2[3];
+	u64	mac_rx_length_error;
+	u64	mac_rx_length_small;
+	u64	mac_rx_length_large;
+	u64	mac_rx_jabber;
+	u64	mac_rx_dropped;
+	u64	mac_rx_crc_error;
+	u64	mac_align_error;
+};
+
+struct qlcnic_esw_stats_le {
 	__le16 context_id;
 	__le16 version;
 	__le16 size;
@@ -1263,54 +1326,69 @@ struct __qlcnic_esw_statistics {
 	__le64 rsvd[3];
 } __packed;
 
+struct __qlcnic_esw_statistics {
+	u16	context_id;
+	u16	version;
+	u16	size;
+	u16	unused;
+	u64	unicast_frames;
+	u64	multicast_frames;
+	u64	broadcast_frames;
+	u64	dropped_frames;
+	u64	errors;
+	u64	local_frames;
+	u64	numbytes;
+	u64	rsvd[3];
+};
+
 struct qlcnic_esw_statistics {
 	struct __qlcnic_esw_statistics rx;
 	struct __qlcnic_esw_statistics tx;
 };
 
 struct qlcnic_common_entry_hdr {
-	__le32	type;
-	__le32	offset;
-	__le32	cap_size;
+	u32	type;
+	u32	offset;
+	u32	cap_size;
 	u8	mask;
 	u8	rsvd[2];
 	u8	flags;
 } __packed;
 
 struct __crb {
-	__le32	addr;
+	u32	addr;
 	u8	stride;
 	u8	rsvd1[3];
-	__le32	data_size;
-	__le32	no_ops;
-	__le32	rsvd2[4];
+	u32	data_size;
+	u32	no_ops;
+	u32	rsvd2[4];
 } __packed;
 
 struct __ctrl {
-	__le32	addr;
+	u32	addr;
 	u8	stride;
 	u8	index_a;
-	__le16	timeout;
-	__le32	data_size;
-	__le32	no_ops;
+	u16	timeout;
+	u32	data_size;
+	u32	no_ops;
 	u8	opcode;
 	u8	index_v;
 	u8	shl_val;
 	u8	shr_val;
-	__le32	val1;
-	__le32	val2;
-	__le32	val3;
+	u32	val1;
+	u32	val2;
+	u32	val3;
 } __packed;
 
 struct __cache {
-	__le32	addr;
-	__le16	stride;
-	__le16	init_tag_val;
-	__le32	size;
-	__le32	no_ops;
-	__le32	ctrl_addr;
-	__le32	ctrl_val;
-	__le32	read_addr;
+	u32	addr;
+	u16	stride;
+	u16	init_tag_val;
+	u32	size;
+	u32	no_ops;
+	u32	ctrl_addr;
+	u32	ctrl_val;
+	u32	read_addr;
 	u8	read_addr_stride;
 	u8	read_addr_num;
 	u8	rsvd1[2];
@@ -1318,38 +1396,38 @@ struct __cache {
 
 struct __ocm {
 	u8	rsvd[8];
-	__le32	size;
-	__le32	no_ops;
+	u32	size;
+	u32	no_ops;
 	u8	rsvd1[8];
-	__le32	read_addr;
-	__le32	read_addr_stride;
+	u32	read_addr;
+	u32	read_addr_stride;
 } __packed;
 
 struct __mem {
 	u8	rsvd[24];
-	__le32	addr;
-	__le32	size;
+	u32	addr;
+	u32	size;
 } __packed;
 
 struct __mux {
-	__le32	addr;
+	u32	addr;
 	u8	rsvd[4];
-	__le32	size;
-	__le32	no_ops;
-	__le32	val;
-	__le32	val_stride;
-	__le32	read_addr;
+	u32	size;
+	u32	no_ops;
+	u32	val;
+	u32	val_stride;
+	u32	read_addr;
 	u8	rsvd2[4];
 } __packed;
 
 struct __queue {
-	__le32	sel_addr;
-	__le16	stride;
+	u32	sel_addr;
+	u16	stride;
 	u8	rsvd[2];
-	__le32	size;
-	__le32	no_ops;
+	u32	size;
+	u32	no_ops;
 	u8	rsvd2[8];
-	__le32	read_addr;
+	u32	read_addr;
 	u8	read_addr_stride;
 	u8	read_addr_cnt;
 	u8	rsvd3[2];
@@ -1413,8 +1491,8 @@ enum op_codes {
 
 struct qlcnic_dump_operations {
 	enum op_codes opcode;
-	u32 (*handler)(struct qlcnic_adapter *,
-			struct qlcnic_dump_entry *, u32 *);
+	u32 (*handler)(struct qlcnic_adapter *, struct qlcnic_dump_entry *,
+		       __le32 *);
 };
 
 struct _cdrp_cmd {

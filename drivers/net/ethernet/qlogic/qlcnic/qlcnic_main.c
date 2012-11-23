@@ -2030,7 +2030,7 @@ qlcnic_tx_pkt(struct qlcnic_adapter *adapter,
 	if (protocol == ETH_P_8021Q) {
 		vh = (struct vlan_ethhdr *)skb->data;
 		flags = FLAGS_VLAN_TAGGED;
-		vlan_tci = vh->h_vlan_TCI;
+		vlan_tci = ntohs(vh->h_vlan_TCI);
 		protocol = ntohs(vh->h_vlan_encapsulated_proto);
 	} else if (vlan_tx_tag_present(skb)) {
 		flags = FLAGS_VLAN_OOB;
@@ -4520,7 +4520,7 @@ static void
 qlcnic_restore_indev_addr(struct net_device *dev, unsigned long event)
 { }
 #endif
-static const struct pci_error_handlers qlcnic_err_handler = {
+static struct pci_error_handlers qlcnic_err_handler = {
 	.error_detected = qlcnic_io_error_detected,
 	.slot_reset = qlcnic_io_slot_reset,
 	.resume = qlcnic_io_resume,
