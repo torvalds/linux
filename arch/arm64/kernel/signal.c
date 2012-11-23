@@ -202,11 +202,11 @@ static int setup_sigframe(struct rt_sigframe __user *sf,
 	return err;
 }
 
-static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
-				 int framesize)
+static struct rt_sigframe __user *get_sigframe(struct k_sigaction *ka,
+					       struct pt_regs *regs)
 {
 	unsigned long sp, sp_top;
-	void __user *frame;
+	struct rt_sigframe __user *frame;
 
 	sp = sp_top = regs->sp;
 
@@ -216,8 +216,8 @@ static void __user *get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 	if ((ka->sa.sa_flags & SA_ONSTACK) && !sas_ss_flags(sp))
 		sp = sp_top = current->sas_ss_sp + current->sas_ss_size;
 
-	sp = (sp - framesize) & ~15;
-	frame = (void __user *)sp;
+	sp = (sp - sizeof(struct rt_sigframe)) & ~15;
+	frame = (struct rt_sigframe __user *)sp;
 
 	/*
 	 * Check that we can actually write to the signal frame.
@@ -253,7 +253,7 @@ static int setup_rt_frame(int usig, struct k_sigaction *ka, siginfo_t *info,
 	stack_t stack;
 	int err = 0;
 
-	frame = get_sigframe(ka, regs, sizeof(*frame));
+	frame = get_sigframe(ka, regs);
 	if (!frame)
 		return 1;
 
