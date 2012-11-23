@@ -115,16 +115,17 @@ void intel_prepare_ddi(struct drm_device *dev)
 {
 	int port;
 
-	if (HAS_DDI(dev)) {
-		for (port = PORT_A; port < PORT_E; port++)
-			intel_prepare_ddi_buffers(dev, port, false);
+	if (!HAS_DDI(dev))
+		return;
 
-		/* DDI E is the suggested one to work in FDI mode, so program is as such by
-		 * default. It will have to be re-programmed in case a digital DP output
-		 * will be detected on it
-		 */
-		intel_prepare_ddi_buffers(dev, PORT_E, true);
-	}
+	for (port = PORT_A; port < PORT_E; port++)
+		intel_prepare_ddi_buffers(dev, port, false);
+
+	/* DDI E is the suggested one to work in FDI mode, so program is as such
+	 * by default. It will have to be re-programmed in case a digital DP
+	 * output will be detected on it
+	 */
+	intel_prepare_ddi_buffers(dev, PORT_E, true);
 }
 
 static const long hsw_ddi_buf_ctl_values[] = {
