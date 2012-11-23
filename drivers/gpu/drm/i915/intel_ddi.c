@@ -115,7 +115,7 @@ void intel_prepare_ddi(struct drm_device *dev)
 {
 	int port;
 
-	if (IS_HASWELL(dev)) {
+	if (HAS_DDI(dev)) {
 		for (port = PORT_A; port < PORT_E; port++)
 			intel_prepare_ddi_buffers(dev, port, false);
 
