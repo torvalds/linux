@@ -60,6 +60,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/spi/ifx_modem.h>
 #include <linux/delay.h>
+#include <linux/reboot.h>
 
 #include "ifx6x60.h"
 
@@ -72,14 +73,43 @@
 #define IFX_SPI_HEADER_0		(-1)
 #define IFX_SPI_HEADER_F		(-2)
 
+#define PO_POST_DELAY		200
+#define IFX_MDM_RST_PMU	4
+
 /* forward reference */
 static void ifx_spi_handle_srdy(struct ifx_spi_device *ifx_dev);
+static int ifx_modem_reboot_callback(struct notifier_block *nfb,
+				unsigned long event, void *data);
+static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev);
 
 /* local variables */
 static int spi_bpw = 16;		/* 8, 16 or 32 bit word length */
 static struct tty_driver *tty_drv;
 static struct ifx_spi_device *saved_ifx_dev;
 static struct lock_class_key ifx_spi_key;
+
+static struct notifier_block ifx_modem_reboot_notifier_block = {
+	.notifier_call = ifx_modem_reboot_callback,
+};
+
+static int ifx_modem_power_off(struct ifx_spi_device *ifx_dev)
+{
+	gpio_set_value(IFX_MDM_RST_PMU, 1);
+	msleep(PO_POST_DELAY);
+
+	return 0;
+}
+
+static int ifx_modem_reboot_callback(struct notifier_block *nfb,
+				 unsigned long event, void *data)
+{
+	if (saved_ifx_dev)
+		ifx_modem_power_off(saved_ifx_dev);
+	else
+		pr_warn("no ifx modem active;\n");
+
+	return NOTIFY_OK;
+}
 
 /* GPIO/GPE settings */
 
@@ -1287,6 +1317,9 @@ static int ifx_spi_spi_remove(struct spi_device *spi)
 
 static void ifx_spi_spi_shutdown(struct spi_device *spi)
 {
+	struct ifx_spi_device *ifx_dev = spi_get_drvdata(spi);
+
+	ifx_modem_power_off(ifx_dev);
 }
 
 /*
@@ -1422,7 +1455,9 @@ static void __exit ifx_spi_exit(void)
 {
 	/* unregister */
 	tty_unregister_driver(tty_drv);
+	put_tty_driver(tty_drv);
 	spi_unregister_driver((void *)&ifx_spi_driver);
+	unregister_reboot_notifier(&ifx_modem_reboot_notifier_block);
 }
 
 /**
@@ -1457,16 +1492,31 @@ static int __init ifx_spi_init(void)
 	if (result) {
 		pr_err("%s: tty_register_driver failed(%d)",
 			DRVNAME, result);
-		put_tty_driver(tty_drv);
-		return result;
+		goto err_free_tty;
 	}
 
 	result = spi_register_driver((void *)&ifx_spi_driver);
 	if (result) {
 		pr_err("%s: spi_register_driver failed(%d)",
 			DRVNAME, result);
-		tty_unregister_driver(tty_drv);
+		goto err_unreg_tty;
 	}
+
+	result = register_reboot_notifier(&ifx_modem_reboot_notifier_block);
+	if (result) {
+		pr_err("%s: register ifx modem reboot notifier failed(%d)",
+			DRVNAME, result);
+		goto err_unreg_spi;
+	}
+
+	return 0;
+err_unreg_spi:
+	spi_unregister_driver((void *)&ifx_spi_driver);
+err_unreg_tty:
+	tty_unregister_driver(tty_drv);
+err_free_tty:
+	put_tty_driver(tty_drv);
+
 	return result;
 }
 
