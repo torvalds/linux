@@ -888,18 +888,14 @@ static struct irq_domain_ops stmpe_irq_ops = {
 static int __devinit stmpe_irq_init(struct stmpe *stmpe,
 				struct device_node *np)
 {
-	int base = stmpe->irq_base;
+	int base = 0;
 	int num_irqs = stmpe->variant->num_irqs;
 
-	if (base) {
-		stmpe->domain = irq_domain_add_legacy(
-			np, num_irqs, base, 0, &stmpe_irq_ops, stmpe);
-	}
-	else {
-		stmpe->domain = irq_domain_add_linear(
-			np, num_irqs, &stmpe_irq_ops, stmpe);
-	}
+	if (!np)
+		base = stmpe->irq_base;
 
+	stmpe->domain = irq_domain_add_simple(np, num_irqs, base,
+					      &stmpe_irq_ops, stmpe);
 	if (!stmpe->domain) {
 		dev_err(stmpe->dev, "Failed to create irqdomain\n");
 		return -ENOSYS;
