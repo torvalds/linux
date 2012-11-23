@@ -93,24 +93,17 @@ static int as3711_bound_check(struct regulator_dev *rdev,
 
 static int as3711_sel_check(int min, int max, int bottom, int step)
 {
-	int ret, voltage;
+	int sel, voltage;
 
 	/* Round up min, when dividing: keeps us within the range */
-	ret = (min - bottom + step - 1) / step;
-	voltage = ret * step + bottom;
+	sel = DIV_ROUND_UP(min - bottom, step);
+	voltage = sel * step + bottom;
 	pr_debug("%s(): select %d..%d in %d+N*%d: %d\n", __func__,
-	       min, max, bottom, step, ret);
-	if (voltage > max) {
-		/*
-		 * Try 1 down. It will take us below min, but as long we stay
-		 * above bottom, we're fine.
-		 */
-		ret--;
-		voltage = ret * step + bottom;
-		if (voltage < bottom)
-			return -EINVAL;
-	}
-	return ret;
+	       min, max, bottom, step, sel);
+	if (voltage > max)
+		return -EINVAL;
+
+	return sel;
 }
 
 static int as3711_map_voltage_sd(struct regulator_dev *rdev,
