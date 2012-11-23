@@ -340,6 +340,8 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		avi_if.body.avi.YQ_CN_PR |= DIP_AVI_PR_2;
 
+	avi_if.body.avi.VIC = drm_mode_cea_vic(adjusted_mode);
+
 	intel_set_infoframe(encoder, &avi_if);
 }
 
