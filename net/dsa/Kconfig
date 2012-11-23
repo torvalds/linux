@@ -1,5 +1,5 @@
 config NET_DSA
-	tristate "Distributed Switch Architecture support"
+	tristate
 	default n
 	depends on EXPERIMENTAL && NETDEVICES && !S390
 	select PHYLIB
@@ -8,19 +8,21 @@ config NET_DSA
 	  the Distributed Switch Architecture.
 
 
-if NET_DSA
+menu "Distributed Switch Architecture support"
 
 # tagging formats
 config NET_DSA_TAG_DSA
-	bool
+	bool "Original DSA packet tagging format"
+	select NET_DSA
 	default n
 
 config NET_DSA_TAG_EDSA
-	bool
+	bool "Ethertype DSA packet tagging format"
+	select NET_DSA
 	default n
 
 config NET_DSA_TAG_TRAILER
-	bool
+	bool "Trailer DSA packet tagging format"
+	select NET_DSA
 	default n
-
-endif
+endmenu

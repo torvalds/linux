@@ -1,5 +1,4 @@
 menu "Distributed Switch Architecture drivers"
-	depends on NET_DSA
 
 config NET_DSA_MV88E6XXX
 	tristate
