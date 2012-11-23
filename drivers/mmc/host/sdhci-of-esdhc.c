@@ -177,6 +177,9 @@ static void esdhc_of_platform_init(struct sdhci_host *host)
 	vvn = (vvn & SDHCI_VENDOR_VER_MASK) >> SDHCI_VENDOR_VER_SHIFT;
 	if (vvn == VENDOR_V_22)
 		host->quirks2 |= SDHCI_QUIRK2_HOST_NO_CMD23;
+
+	if (vvn > VENDOR_V_22)
+		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 }
 
 static struct sdhci_ops sdhci_esdhc_ops = {
