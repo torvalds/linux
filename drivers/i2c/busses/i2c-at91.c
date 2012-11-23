@@ -413,7 +413,7 @@ static struct at91_twi_pdata * __devinit at91_twi_get_driver_data(
 		match = of_match_node(atmel_twi_dt_ids, pdev->dev.of_node);
 		if (!match)
 			return NULL;
-		return match->data;
+		return (struct at91_twi_pdata *)match->data;
 	}
 	return (struct at91_twi_pdata *) platform_get_device_id(pdev)->driver_data;
 }
