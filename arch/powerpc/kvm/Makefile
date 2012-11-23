@@ -73,6 +73,7 @@ kvm-book3s_64-builtin-objs-$(CONFIG_KVM_BOOK3S_64_HV) := \
 	book3s_hv_rmhandlers.o \
 	book3s_hv_rm_mmu.o \
 	book3s_64_vio_hv.o \
+	book3s_hv_ras.o \
 	book3s_hv_builtin.o
 
 kvm-book3s_64-module-objs := \

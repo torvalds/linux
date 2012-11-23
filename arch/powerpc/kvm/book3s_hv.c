@@ -545,6 +545,17 @@ static int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case BOOK3S_INTERRUPT_PERFMON:
 		r = RESUME_GUEST;
 		break;
+	case BOOK3S_INTERRUPT_MACHINE_CHECK:
+		/*
+		 * Deliver a machine check interrupt to the guest.
+		 * We have to do this, even if the host has handled the
+		 * machine check, because machine checks use SRR0/1 and
+		 * the interrupt might have trashed guest state in them.
+		 */
+		kvmppc_book3s_queue_irqprio(vcpu,
+					    BOOK3S_INTERRUPT_MACHINE_CHECK);
+		r = RESUME_GUEST;
+		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
 	{
 		ulong flags;
