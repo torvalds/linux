@@ -925,7 +925,6 @@ int usb_stor_probe1(struct us_data **pus,
 	host->max_cmd_len = 16;
 	host->sg_tablesize = usb_stor_sg_tablesize(intf);
 	*pus = us = host_to_us(host);
-	memset(us, 0, sizeof(struct us_data));
 	mutex_init(&(us->dev_mutex));
 	us_set_lock_class(&us->dev_mutex, intf);
 	init_completion(&us->cmnd_ready);
