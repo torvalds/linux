@@ -407,15 +407,18 @@ static struct regulator_ops tps80031_ldo_ops = {
 };
 
 static struct regulator_ops tps80031_vbus_sw_ops = {
+	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_vbus_enable,
 	.disable	= tps80031_vbus_disable,
 	.is_enabled	= tps80031_vbus_is_enabled,
 };
 
 static struct regulator_ops tps80031_vbus_hw_ops = {
+	.list_voltage	= regulator_list_voltage_linear,
 };
 
 static struct regulator_ops tps80031_ext_reg_ops = {
+	.list_voltage	= regulator_list_voltage_linear,
 	.enable		= tps80031_reg_enable,
 	.disable	= tps80031_reg_disable,
 	.is_enabled	= tps80031_reg_is_enabled,
@@ -477,7 +480,8 @@ static struct regulator_ops tps80031_ext_reg_ops = {
 	.desc = {						\
 		.name = "tps80031_"#_id,			\
 		.id = TPS80031_REGULATOR_##_id,			\
-		.n_voltages = 2,				\
+		.min_uV = max_mV * 1000,			\
+		.n_voltages = 1,				\
 		.ops = &_ops,					\
 		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\
