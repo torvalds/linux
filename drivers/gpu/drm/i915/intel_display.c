@@ -2787,18 +2787,14 @@ static void ironlake_fdi_pll_enable(struct intel_crtc *intel_crtc)
 	POSTING_READ(reg);
 	udelay(200);
 
-	/* On Haswell, the PLL configuration for ports and pipes is handled
-	 * separately, as part of DDI setup */
-	if (!IS_HASWELL(dev)) {
-		/* Enable CPU FDI TX PLL, always on for Ironlake */
-		reg = FDI_TX_CTL(pipe);
-		temp = I915_READ(reg);
-		if ((temp & FDI_TX_PLL_ENABLE) == 0) {
-			I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
+	/* Enable CPU FDI TX PLL, always on for Ironlake */
+	reg = FDI_TX_CTL(pipe);
+	temp = I915_READ(reg);
+	if ((temp & FDI_TX_PLL_ENABLE) == 0) {
+		I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
 
-			POSTING_READ(reg);
-			udelay(100);
-		}
+		POSTING_READ(reg);
+		udelay(100);
 	}
 }
 
