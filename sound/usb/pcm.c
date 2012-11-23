@@ -75,7 +75,8 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream
 		return SNDRV_PCM_POS_XRUN;
 	spin_lock(&subs->lock);
 	hwptr_done = subs->hwptr_done;
-	substream->runtime->delay = snd_usb_pcm_delay(subs,
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		substream->runtime->delay = snd_usb_pcm_delay(subs,
 						substream->runtime->rate);
 	spin_unlock(&subs->lock);
 	return hwptr_done / (substream->runtime->frame_bits >> 3);
