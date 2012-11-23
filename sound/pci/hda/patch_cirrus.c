@@ -1089,9 +1089,6 @@ static void init_input(struct hda_codec *codec)
 		if (spec->mic_detect)
 			cs_automic(codec, NULL);
 
-		coef = 0x000a; /* ADC1/2 - Digital and Analog Soft Ramp */
-		cs_vendor_coef_set(codec, IDX_ADC_CFG, coef);
-
 		coef = cs_vendor_coef_get(codec, IDX_BEEP_CFG);
 		if (is_active_pin(codec, CS_DMIC2_PIN_NID))
 			coef |= 1 << 4; /* DMIC2 2 chan on, GPIO1 off */
@@ -1121,6 +1118,9 @@ static const struct hda_verb cs_coef_init_verbs[] = {
 	  | 0x1000 /* Enable DACs High Pass Filter */
 	  | 0x0400 /* Disable Coefficient Auto increment */
 	  )},
+	/* ADC1/2 - Digital and Analog Soft Ramp */
+	{0x11, AC_VERB_SET_COEF_INDEX, IDX_ADC_CFG},
+	{0x11, AC_VERB_SET_PROC_COEF, 0x000a},
 	/* Beep */
 	{0x11, AC_VERB_SET_COEF_INDEX, IDX_BEEP_CFG},
 	{0x11, AC_VERB_SET_PROC_COEF, 0x0007}, /* Enable Beep thru DAC1/2/3 */
