@@ -4685,7 +4685,8 @@ static struct iscsi_endpoint *qla4xxx_get_ep_fwdb(struct scsi_qla_host *ha,
 	struct iscsi_endpoint *ep;
 	struct sockaddr_in *addr;
 	struct sockaddr_in6 *addr6;
-	struct sockaddr *dst_addr;
+	struct sockaddr *t_addr;
+	struct sockaddr_storage *dst_addr;
 	char *ip;
 
 	/* TODO: need to destroy on unload iscsi_endpoint*/
@@ -4694,21 +4695,23 @@ static struct iscsi_endpoint *qla4xxx_get_ep_fwdb(struct scsi_qla_host *ha,
 		return NULL;
 
 	if (fw_ddb_entry->options & DDB_OPT_IPV6_DEVICE) {
-		dst_addr->sa_family = AF_INET6;
+		t_addr = (struct sockaddr *)dst_addr;
+		t_addr->sa_family = AF_INET6;
 		addr6 = (struct sockaddr_in6 *)dst_addr;
 		ip = (char *)&addr6->sin6_addr;
 		memcpy(ip, fw_ddb_entry->ip_addr, IPv6_ADDR_LEN);
 		addr6->sin6_port = htons(le16_to_cpu(fw_ddb_entry->port));
 
 	} else {
-		dst_addr->sa_family = AF_INET;
+		t_addr = (struct sockaddr *)dst_addr;
+		t_addr->sa_family = AF_INET;
 		addr = (struct sockaddr_in *)dst_addr;
 		ip = (char *)&addr->sin_addr;
 		memcpy(ip, fw_ddb_entry->ip_addr, IP_ADDR_LEN);
 		addr->sin_port = htons(le16_to_cpu(fw_ddb_entry->port));
 	}
 
-	ep = qla4xxx_ep_connect(ha->host, dst_addr, 0);
+	ep = qla4xxx_ep_connect(ha->host, (struct sockaddr *)dst_addr, 0);
 	vfree(dst_addr);
 	return ep;
 }
