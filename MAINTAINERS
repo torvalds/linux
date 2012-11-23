@@ -464,6 +464,14 @@ S:	Maintained
 F:	drivers/scsi/aic7xxx/
 F:	drivers/scsi/aic7xxx_old/
 
+AIMSLAB FM RADIO RECEIVER DRIVER
+M:	Hans Verkuil <hverkuil@xs4all.nl>
+L:	linux-media@vger.kernel.org
+T:	git git://linuxtv.org/media_tree.git
+W:	http://linuxtv.org
+S:	Maintained
+F:	drivers/media/radio/radio-aimslab*
+
 AIO
 M:	Benjamin LaHaise <bcrl@kvack.org>
 L:	linux-aio@kvack.org
