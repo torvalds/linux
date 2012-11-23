@@ -72,6 +72,7 @@ static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 static inline int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
+	debug_dma_mapping_error(dev, dma_addr);
 	return get_dma_ops(dev)->mapping_error(dev, dma_addr);
 }
 
