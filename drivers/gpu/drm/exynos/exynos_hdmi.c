@@ -2176,27 +2176,27 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 	memset(res, 0, sizeof(*res));
 
 	/* get clocks, power */
-	res->hdmi = clk_get(dev, "hdmi");
+	res->hdmi = devm_clk_get(dev, "hdmi");
 	if (IS_ERR_OR_NULL(res->hdmi)) {
 		DRM_ERROR("failed to get clock 'hdmi'\n");
 		goto fail;
 	}
-	res->sclk_hdmi = clk_get(dev, "sclk_hdmi");
+	res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
 	if (IS_ERR_OR_NULL(res->sclk_hdmi)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmi'\n");
 		goto fail;
 	}
-	res->sclk_pixel = clk_get(dev, "sclk_pixel");
+	res->sclk_pixel = devm_clk_get(dev, "sclk_pixel");
 	if (IS_ERR_OR_NULL(res->sclk_pixel)) {
 		DRM_ERROR("failed to get clock 'sclk_pixel'\n");
 		goto fail;
 	}
-	res->sclk_hdmiphy = clk_get(dev, "sclk_hdmiphy");
+	res->sclk_hdmiphy = devm_clk_get(dev, "sclk_hdmiphy");
 	if (IS_ERR_OR_NULL(res->sclk_hdmiphy)) {
 		DRM_ERROR("failed to get clock 'sclk_hdmiphy'\n");
 		goto fail;
 	}
-	res->hdmiphy = clk_get(dev, "hdmiphy");
+	res->hdmiphy = devm_clk_get(dev, "hdmiphy");
 	if (IS_ERR_OR_NULL(res->hdmiphy)) {
 		DRM_ERROR("failed to get clock 'hdmiphy'\n");
 		goto fail;
@@ -2204,7 +2204,7 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 
-	res->regul_bulk = kzalloc(ARRAY_SIZE(supply) *
+	res->regul_bulk = devm_kzalloc(dev, ARRAY_SIZE(supply) *
 		sizeof(res->regul_bulk[0]), GFP_KERNEL);
 	if (!res->regul_bulk) {
 		DRM_ERROR("failed to get memory for regulators\n");
@@ -2214,7 +2214,7 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 		res->regul_bulk[i].supply = supply[i];
 		res->regul_bulk[i].consumer = NULL;
 	}
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(supply), res->regul_bulk);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(supply), res->regul_bulk);
 	if (ret) {
 		DRM_ERROR("failed to get regulators\n");
 		goto fail;
@@ -2225,28 +2225,6 @@ static int __devinit hdmi_resources_init(struct hdmi_context *hdata)
 fail:
 	DRM_ERROR("HDMI resource init - failed\n");
 	return -ENODEV;
-}
-
-static int hdmi_resources_cleanup(struct hdmi_context *hdata)
-{
-	struct hdmi_resources *res = &hdata->res;
-
-	regulator_bulk_free(res->regul_count, res->regul_bulk);
-	/* kfree is NULL-safe */
-	kfree(res->regul_bulk);
-	if (!IS_ERR_OR_NULL(res->hdmiphy))
-		clk_put(res->hdmiphy);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmiphy))
-		clk_put(res->sclk_hdmiphy);
-	if (!IS_ERR_OR_NULL(res->sclk_pixel))
-		clk_put(res->sclk_pixel);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmi))
-		clk_put(res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(res->hdmi))
-		clk_put(res->hdmi);
-	memset(res, 0, sizeof(*res));
-
-	return 0;
 }
 
 static struct i2c_client *hdmi_ddc, *hdmi_hdmiphy;
@@ -2388,36 +2366,32 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	ret = hdmi_resources_init(hdata);
 
 	if (ret) {
-		ret = -EINVAL;
 		DRM_ERROR("hdmi_resources_init failed\n");
-		goto err_data;
+		return -EINVAL;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		DRM_ERROR("failed to find registers\n");
-		ret = -ENOENT;
-		goto err_resource;
+		return -ENOENT;
 	}
 
 	hdata->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!hdata->regs) {
 		DRM_ERROR("failed to map registers\n");
-		ret = -ENXIO;
-		goto err_resource;
+		return -ENXIO;
 	}
 
-	ret = gpio_request(hdata->hpd_gpio, "HPD");
+	ret = devm_gpio_request(&pdev->dev, hdata->hpd_gpio, "HPD");
 	if (ret) {
 		DRM_ERROR("failed to request HPD gpio\n");
-		goto err_resource;
+		return ret;
 	}
 
 	/* DDC i2c driver */
 	if (i2c_add_driver(&ddc_driver)) {
 		DRM_ERROR("failed to register ddc i2c driver\n");
-		ret = -ENOENT;
-		goto err_gpio;
+		return -ENOENT;
 	}
 
 	hdata->ddc_port = hdmi_ddc;
@@ -2480,11 +2454,6 @@ err_hdmiphy:
 	i2c_del_driver(&hdmiphy_driver);
 err_ddc:
 	i2c_del_driver(&ddc_driver);
-err_gpio:
-	gpio_free(hdata->hpd_gpio);
-err_resource:
-	hdmi_resources_cleanup(hdata);
-err_data:
 	return ret;
 }
 
@@ -2501,9 +2470,6 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 	free_irq(hdata->internal_irq, hdata);
 	free_irq(hdata->external_irq, hdata);
 
-	gpio_free(hdata->hpd_gpio);
-
-	hdmi_resources_cleanup(hdata);
 
 	/* hdmiphy i2c driver */
 	i2c_del_driver(&hdmiphy_driver);
