@@ -85,6 +85,7 @@ enum {
 	CS420X_GPIO_13,
 	CS420X_GPIO_23,
 	CS420X_MBP101,
+	CS420X_MBP81,
 	CS420X_AUTO,
 	/* aliases */
 	CS420X_IMAC27_122 = CS420X_GPIO_23,
@@ -1294,6 +1295,7 @@ static const struct hda_model_fixup cs420x_models[] = {
 	{ .id = CS420X_IMAC27_122, .name = "imac27_122" },
 	{ .id = CS420X_APPLE, .name = "apple" },
 	{ .id = CS420X_MBP101, .name = "mbp101" },
+	{ .id = CS420X_MBP81, .name = "mbp81" },
 	{}
 };
 
@@ -1306,6 +1308,7 @@ static const struct snd_pci_quirk cs420x_fixup_tbl[] = {
 	/*SND_PCI_QUIRK(0x8086, 0x7270, "IMac 27 Inch", CS420X_IMAC27),*/
 
 	/* codec SSID */
+	SND_PCI_QUIRK(0x106b, 0x1c00, "MacBookPro 8,1", CS420X_MBP81),
 	SND_PCI_QUIRK(0x106b, 0x2000, "iMac 12,2", CS420X_IMAC27_122),
 	SND_PCI_QUIRK(0x106b, 0x2800, "MacBookPro 10,1", CS420X_MBP101),
 	SND_PCI_QUIRK_VENDOR(0x106b, "Apple", CS420X_APPLE),
@@ -1415,6 +1418,17 @@ static const struct hda_fixup cs420x_fixups[] = {
 	[CS420X_MBP101] = {
 		.type = HDA_FIXUP_PINS,
 		.v.pins = mbp101_pincfgs,
+		.chained = true,
+		.chain_id = CS420X_GPIO_13,
+	},
+	[CS420X_MBP81] = {
+		.type = HDA_FIXUP_VERBS,
+		.v.verbs = (const struct hda_verb[]) {
+			/* internal mic ADC2: right only, single ended */
+			{0x11, AC_VERB_SET_COEF_INDEX, IDX_ADC_CFG},
+			{0x11, AC_VERB_SET_PROC_COEF, 0x102a},
+			{}
+		},
 		.chained = true,
 		.chain_id = CS420X_GPIO_13,
 	},
