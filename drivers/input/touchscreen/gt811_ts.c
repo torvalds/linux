@@ -725,12 +725,25 @@ static int goodix_ts_power(struct gt811_ts_data * ts, int on)
 			return ret;
 			
 		case 1:
-			gpio_direction_output(reset_pin,0);
-			msleep(1);
-	    gpio_set_value(reset_pin,0);
-	    msleep(100);
-	    gpio_set_value(reset_pin,1);
-	    msleep(100);
+                        printk("++++ reset_pin: %d \n",reset_pin);
+			if(reset_pin > 0 ){
+				gpio_direction_output(reset_pin,0);
+				msleep(1);
+	    			gpio_set_value(reset_pin,0);
+	    			msleep(100);
+	    			gpio_set_value(reset_pin,1);
+	    			msleep(100);
+                       }else{
+ 				msleep(1);
+                  		gpio_direction_output(irq_to_gpio(ts->client->irq), 0);
+                  		msleep(100);
+                  		gpio_direction_output(irq_to_gpio(ts->client->irq), 1);
+                  		msleep(100);
+
+                   		unsigned int  gpio = irq_to_gpio(ts->client->irq);
+                   		gpio_set_value(gpio, 0);
+                   		gpio_direction_input(gpio);
+                       }
 			ret = 0;
 			return ret;
 				
@@ -1098,7 +1111,11 @@ static int goodix_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	struct gt811_ts_data *ts = i2c_get_clientdata(client);
 	disable_irq(gpio_to_irq(client->irq));
 	if (ts->power) 
-	{	
+	{
+ 	       ret = ts->power(ts, 0);
+               printk("goodix_ts suspend >>>>>>>>>ret=%d \n",ret);
+               if (ret < 0)
+                       printk(KERN_ERR "goodix_ts_suspend power on failed\n");	
 	}
         return 0;
 }
