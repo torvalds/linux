@@ -578,9 +578,9 @@ badframe:
 	return 0;
 }
 
-static inline void __user *compat_get_sigframe(struct k_sigaction *ka,
-					       struct pt_regs *regs,
-					       int framesize)
+static void __user *compat_get_sigframe(struct k_sigaction *ka,
+					struct pt_regs *regs,
+					int framesize)
 {
 	compat_ulong_t sp = regs->compat_sp;
 	void __user *frame;
