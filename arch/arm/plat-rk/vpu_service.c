@@ -37,14 +37,16 @@
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/timer.h>
+#include <linux/wakelock.h>
 
 #include <asm/uaccess.h>
 
 #include <mach/irqs.h>
-#include <plat/vpu_service.h>
 #include <mach/pmu.h>
 #include <mach/cru.h>
+
+#include <plat/vpu_service.h>
+#include <plat/cpu.h>
 
 typedef enum {
 	VPU_DEC_ID_9190		= 0x6731,
@@ -58,6 +60,14 @@ typedef enum {
 	VPU_ENC_TYPE_4831	,
 } VPU_HW_TYPE_E;
 
+typedef enum VPU_FREQ {
+	VPU_FREQ_200M,
+	VPU_FREQ_266M,
+	VPU_FREQ_300M,
+	VPU_FREQ_400M,
+	VPU_FREQ_DEFAULT,
+} VPU_FREQ;
+
 typedef struct {
 	VPU_HW_ID		hw_id;
 	unsigned long		hw_addr;
@@ -68,6 +78,8 @@ typedef struct {
 	unsigned long		dec_reg_num;
 	unsigned long		dec_io_size;
 } VPU_HW_INFO_E;
+
+#define MHZ					(1000*1000)
 
 #define VCODEC_PHYS				(0x10104000)
 
@@ -130,7 +142,6 @@ VPU_HW_INFO_E vpu_hw_set[] = {
 #define VPU_REG_DEC_PP_GATE 			61
 #define VPU_REG_DEC_PP_GATE_BIT 		(1<<8)
 
-
 /**
  * struct for process session which connect to vpu
  *
@@ -158,6 +169,7 @@ typedef struct vpu_session {
  */
 typedef struct vpu_reg {
 	VPU_CLIENT_TYPE		type;
+	VPU_FREQ		freq;
 	vpu_session 		*session;
 	struct list_head	session_link;		/* link to vpu service session */
 	struct list_head	status_link;		/* link to register set list */
@@ -166,15 +178,17 @@ typedef struct vpu_reg {
 } vpu_reg;
 
 typedef struct vpu_device {
+	atomic_t		irq_count_codec;
+	atomic_t		irq_count_pp;
 	unsigned long		iobaseaddr;
 	unsigned int		iosize;
 	volatile u32		*hwregs;
 } vpu_device;
 
 typedef struct vpu_service_info {
-	spinlock_t		lock;
-	spinlock_t		lock_power;
-	struct timer_list	timer;			/* timer for power off */
+	struct wake_lock	wake_lock;
+	struct delayed_work	power_off_work;
+	struct mutex		lock;
 	struct list_head	waiting;		/* link to link_reg in struct vpu_reg */
 	struct list_head	running;		/* link to link_reg in struct vpu_reg */
 	struct list_head	done;			/* link to link_reg in struct vpu_reg */
@@ -188,6 +202,7 @@ typedef struct vpu_service_info {
 	VPUHwEncConfig_t	enc_config;
 	VPU_HW_INFO_E		*hw_info;
 	unsigned long		reg_size;
+	bool			auto_freq;
 } vpu_service_info;
 
 typedef struct vpu_request
@@ -197,7 +212,6 @@ typedef struct vpu_request
 } vpu_request;
 
 static struct clk *pd_video;
-static struct clk *clk_vpu; /* for power on notify */
 static struct clk *aclk_vepu;
 static struct clk *hclk_vepu;
 static struct clk *aclk_ddr_vepu;
@@ -206,13 +220,12 @@ static vpu_service_info service;
 static vpu_device 	dec_dev;
 static vpu_device 	enc_dev;
 
-#define POWER_OFF_DELAY	4*HZ /* 4s */
-#define TIMEOUT_DELAY	2*HZ /* 2s */
+#define VPU_POWER_OFF_DELAY		4*HZ /* 4s */
+#define VPU_TIMEOUT_DELAY		2*HZ /* 2s */
 
 static void vpu_get_clk(void)
 {
 	pd_video	= clk_get(NULL, "pd_video");
-	clk_vpu		= clk_get(NULL, "vpu");
 	aclk_vepu 	= clk_get(NULL, "aclk_vepu");
 	hclk_vepu 	= clk_get(NULL, "hclk_vepu");
 	aclk_ddr_vepu 	= clk_get(NULL, "aclk_ddr_vepu");
@@ -222,7 +235,6 @@ static void vpu_get_clk(void)
 static void vpu_put_clk(void)
 {
 	clk_put(pd_video);
-	clk_put(clk_vpu);
 	clk_put(aclk_vepu);
 	clk_put(hclk_vepu);
 	clk_put(aclk_ddr_vepu);
@@ -308,10 +320,7 @@ static void vpu_service_dump(void)
 static void vpu_service_power_off(void)
 {
 	int total_running;
-
-	spin_lock_bh(&service.lock_power);
 	if (!service.enabled) {
-		spin_unlock_bh(&service.lock_power);
 		return;
 	}
 
@@ -335,60 +344,69 @@ static void vpu_service_power_off(void)
 	clk_disable(aclk_ddr_vepu);
 	clk_disable(hclk_vepu);
 	clk_disable(aclk_vepu);
-	clk_disable(clk_vpu);
+	wake_unlock(&service.wake_lock);
 	printk("done\n");
-	spin_unlock_bh(&service.lock_power);
 }
 
-static void vpu_service_power_off_work_func(unsigned long data)
+static inline void vpu_queue_power_off_work(void)
 {
-	printk("delayed ");
-	vpu_service_power_off();
+	queue_delayed_work(system_nrt_wq, &service.power_off_work, VPU_POWER_OFF_DELAY);
 }
 
-static void vpu_service_power_maintain(void)
+static void vpu_power_off_work(struct work_struct *work)
 {
-	if (service.enabled) {
-		mod_timer(&service.timer, jiffies + POWER_OFF_DELAY);
+	if (mutex_trylock(&service.lock)) {
+		vpu_service_power_off();
+		mutex_unlock(&service.lock);
 	} else {
-		pr_err("error: maintain power when power is off!\n");
+		/* Come back later if the device is busy... */
+		vpu_queue_power_off_work();
 	}
 }
 
 static void vpu_service_power_on(void)
 {
-	clk_enable(clk_vpu); /* notify vpu on without lock. */
-
-	spin_lock_bh(&service.lock_power);
-	if (!service.enabled) {
-		service.enabled = true;
-		printk("vpu: power on\n");
-
-		clk_enable(clk_vpu);
-		clk_enable(aclk_vepu);
-		clk_enable(hclk_vepu);
-		clk_enable(hclk_cpu_vcodec);
-		udelay(10);
-#ifdef CONFIG_ARCH_RK29
-		pmu_set_power_domain(PD_VCODEC, true);
-#else
-		clk_enable(pd_video);
-#endif
-		udelay(10);
-		clk_enable(aclk_ddr_vepu);
-		mod_timer(&service.timer, jiffies + POWER_OFF_DELAY);
-		spin_unlock_bh(&service.lock_power);
-	} else {
-		spin_unlock_bh(&service.lock_power);
-		vpu_service_power_maintain();
+	static ktime_t last;
+	ktime_t now = ktime_get();
+	if (ktime_to_ns(ktime_sub(now, last)) > NSEC_PER_SEC) {
+		cancel_delayed_work_sync(&service.power_off_work);
+		vpu_queue_power_off_work();
+		last = now;
 	}
+	if (service.enabled)
+		return ;
 
-	clk_disable(clk_vpu);
+	service.enabled = true;
+	printk("vpu: power on\n");
+
+	clk_enable(aclk_vepu);
+	clk_enable(hclk_vepu);
+	clk_enable(hclk_cpu_vcodec);
+	udelay(10);
+#ifdef CONFIG_ARCH_RK29
+	pmu_set_power_domain(PD_VCODEC, true);
+#else
+	clk_enable(pd_video);
+#endif
+	udelay(10);
+	clk_enable(aclk_ddr_vepu);
+	wake_lock(&service.wake_lock);
+}
+
+static inline bool reg_check_rmvb_wmv(vpu_reg *reg)
+{
+	unsigned long type = (reg->reg[3] & 0xF0000000) >> 28;
+	return ((type == 8) || (type == 4));
+}
+
+static inline bool reg_check_interlace(vpu_reg *reg)
+{
+	unsigned long type = (reg->reg[3] & (1 << 23));
+	return (type > 0);
 }
 
 static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long size)
 {
-	unsigned long flag;
 	vpu_reg *reg = kmalloc(sizeof(vpu_reg)+service.reg_size, GFP_KERNEL);
 	if (NULL == reg) {
 		pr_err("error: kmalloc fail in reg_init\n");
@@ -398,6 +416,7 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 	reg->session = session;
 	reg->type = session->type;
 	reg->size = size;
+	reg->freq = VPU_FREQ_DEFAULT;
 	reg->reg = (unsigned long *)&reg[1];
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
@@ -408,10 +427,25 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 		return NULL;
 	}
 
-	spin_lock_irqsave(&service.lock, flag);
+	mutex_lock(&service.lock);
 	list_add_tail(&reg->status_link, &service.waiting);
 	list_add_tail(&reg->session_link, &session->waiting);
-	spin_unlock_irqrestore(&service.lock, flag);
+	mutex_unlock(&service.lock);
+
+	if (service.auto_freq) {
+		if (reg->type == VPU_DEC || reg->type == VPU_DEC_PP) {
+			if (reg_check_rmvb_wmv(reg)) {
+				reg->freq = VPU_FREQ_266M;
+			} else {
+				if (reg_check_interlace(reg)) {
+					reg->freq = VPU_FREQ_400M;
+				}
+			}
+		}
+		if (reg->type == VPU_PP) {
+			reg->freq = VPU_FREQ_400M;
+		}
+	}
 
 	return reg;
 }
@@ -484,12 +518,36 @@ static void reg_from_run_to_done(vpu_reg *reg)
 	wake_up_interruptible_sync(&reg->session->wait);
 }
 
-void reg_copy_to_hw(vpu_reg *reg)
+static void vpu_service_set_freq(vpu_reg *reg)
+{
+	switch (reg->freq) {
+	case VPU_FREQ_200M : {
+		clk_set_rate(aclk_vepu, 200*MHZ);
+	} break;
+	case VPU_FREQ_266M : {
+		clk_set_rate(aclk_vepu, 266*MHZ);
+	} break;
+	case VPU_FREQ_300M : {
+		clk_set_rate(aclk_vepu, 300*MHZ);
+	} break;
+	case VPU_FREQ_400M : {
+		clk_set_rate(aclk_vepu, 400*MHZ);
+	} break;
+	default : {
+		clk_set_rate(aclk_vepu, 300*MHZ);
+	} break;
+	}
+}
+
+static void reg_copy_to_hw(vpu_reg *reg)
 {
 	int i;
 	u32 *src = (u32 *)&reg->reg[0];
 	atomic_add(1, &service.total_running);
 	atomic_add(1, &reg->session->task_running);
+	if (service.auto_freq) {
+		vpu_service_set_freq(reg);
+	}
 	switch (reg->type) {
 	case VPU_ENC : {
 		int enc_count = service.hw_info->enc_reg_num;
@@ -526,6 +584,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 
 		dst[VPU_REG_DEC_GATE] = src[VPU_REG_DEC_GATE] | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]   = src[VPU_REG_EN_DEC];
+		printk("dec\n");
 	} break;
 	case VPU_PP : {
 		u32 *dst = (u32 *)dec_dev.hwregs + PP_INTERRUPT_REGISTER;
@@ -539,6 +598,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 		dsb();
 
 		dst[VPU_REG_EN_PP] = src[VPU_REG_EN_PP];
+		printk("pp\n");
 	} break;
 	case VPU_DEC_PP : {
 		u32 *dst = (u32 *)dec_dev.hwregs;
@@ -554,6 +614,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 		dst[VPU_REG_DEC_PP_GATE] = src[VPU_REG_DEC_PP_GATE] | VPU_REG_PP_GATE_BIT;
 		dst[VPU_REG_DEC_GATE]	 = src[VPU_REG_DEC_GATE]    | VPU_REG_DEC_GATE_BIT;
 		dst[VPU_REG_EN_DEC]	 = src[VPU_REG_EN_DEC];
+		printk("dec_pp\n");
 	} break;
 	default : {
 		pr_err("error: unsupport session type %d", reg->type);
@@ -566,22 +627,24 @@ void reg_copy_to_hw(vpu_reg *reg)
 
 static void try_set_reg(void)
 {
-	unsigned long flag;
 	// first get reg from reg list
-	spin_lock_irqsave(&service.lock, flag);
 	if (!list_empty(&service.waiting)) {
 		int can_set = 0;
 		vpu_reg *reg = list_entry(service.waiting.next, vpu_reg, status_link);
 
-		vpu_service_power_maintain();
+		vpu_service_power_on();
+
 		switch (reg->type) {
 		case VPU_ENC : {
 			if ((NULL == service.reg_codec) &&  (NULL == service.reg_pproc))
-			can_set = 1;
+				can_set = 1;
 		} break;
 		case VPU_DEC : {
 			if (NULL == service.reg_codec)
 				can_set = 1;
+			if (service.auto_freq && (NULL != service.reg_pproc)) {
+				can_set = 0;
+			}
 		} break;
 		case VPU_PP : {
 			if (NULL == service.reg_codec) {
@@ -590,6 +653,10 @@ static void try_set_reg(void)
 			} else {
 				if ((VPU_DEC == service.reg_codec->type) && (NULL == service.reg_pproc))
 					can_set = 1;
+				// can not charge frequency when vpu is working
+				if (service.auto_freq) {
+					can_set = 0;
+				}
 			}
 		} break;
 		case VPU_DEC_PP : {
@@ -605,7 +672,6 @@ static void try_set_reg(void)
 			reg_copy_to_hw(reg);
 		}
 	}
-	spin_unlock_irqrestore(&service.lock, flag);
 }
 
 static int return_reg(vpu_reg *reg, u32 __user *dst)
@@ -687,8 +753,9 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		if (NULL == reg) {
 			return -EFAULT;
 		} else {
-			vpu_service_power_on();
+			mutex_lock(&service.lock);
 			try_set_reg();
+			mutex_unlock(&service.lock);
 		}
 
 		break;
@@ -696,12 +763,11 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	case VPU_IOC_GET_REG : {
 		vpu_request req;
 		vpu_reg *reg;
-		unsigned long flag;
 		if (copy_from_user(&req, (void __user *)arg, sizeof(vpu_request))) {
 			pr_err("error: VPU_IOC_GET_REG copy_from_user failed\n");
 			return -EFAULT;
 		} else {
-			int ret = wait_event_interruptible_timeout(session->wait, !list_empty(&session->done), TIMEOUT_DELAY);
+			int ret = wait_event_interruptible_timeout(session->wait, !list_empty(&session->done), VPU_TIMEOUT_DELAY);
 			if (!list_empty(&session->done)) {
 				if (ret < 0) {
 					pr_err("warning: pid %d wait task sucess but wait_evernt ret %d\n", session->pid, ret);
@@ -715,9 +781,9 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 					ret = -ETIMEDOUT;
 				}
 			}
-			spin_lock_irqsave(&service.lock, flag);
 			if (ret < 0) {
 				int task_running = atomic_read(&session->task_running);
+				mutex_lock(&service.lock);
 				vpu_service_dump();
 				if (task_running) {
 					atomic_set(&session->task_running, 0);
@@ -727,15 +793,14 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 					printk("done\n");
 				}
 				vpu_service_session_clear(session);
-				spin_unlock_irqrestore(&service.lock, flag);
+				mutex_unlock(&service.lock);
 				return ret;
 			}
-			spin_unlock_irqrestore(&service.lock, flag);
 		}
-		spin_lock_irqsave(&service.lock, flag);
+		mutex_lock(&service.lock);
 		reg = list_entry(session->done.next, vpu_reg, session_link);
 		return_reg(reg, (u32 __user *)req.req);
-		spin_unlock_irqrestore(&service.lock, flag);
+		mutex_unlock(&service.lock);
 		break;
 	}
 	default : {
@@ -832,7 +897,6 @@ err:
 
 static int vpu_service_open(struct inode *inode, struct file *filp)
 {
-	unsigned long flag;
 	vpu_session *session = (vpu_session *)kmalloc(sizeof(vpu_session), GFP_KERNEL);
 	if (NULL == session) {
 		pr_err("error: unable to allocate memory for vpu_session.");
@@ -847,10 +911,10 @@ static int vpu_service_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&session->list_session);
 	init_waitqueue_head(&session->wait);
 	atomic_set(&session->task_running, 0);
-	spin_lock_irqsave(&service.lock, flag);
+	mutex_lock(&service.lock);
 	list_add_tail(&session->list_session, &service.session);
 	filp->private_data = (void *)session;
-	spin_unlock_irqrestore(&service.lock, flag);
+	mutex_unlock(&service.lock);
 
 	pr_debug("dev opened\n");
 	return nonseekable_open(inode, filp);
@@ -859,7 +923,6 @@ static int vpu_service_open(struct inode *inode, struct file *filp)
 static int vpu_service_release(struct inode *inode, struct file *filp)
 {
 	int task_running;
-	unsigned long flag;
 	vpu_session *session = (vpu_session *)filp->private_data;
 	if (NULL == session)
 		return -EINVAL;
@@ -871,14 +934,13 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	}
 	wake_up_interruptible_sync(&session->wait);
 
-	spin_lock_irqsave(&service.lock, flag);
+	mutex_lock(&service.lock);
 	/* remove this filp from the asynchronusly notified filp's */
-	//vpu_service_fasync(-1, filp, 0);
 	list_del_init(&session->list_session);
 	vpu_service_session_clear(session);
 	kfree(session);
 	filp->private_data = NULL;
-	spin_unlock_irqrestore(&service.lock, flag);
+	mutex_unlock(&service.lock);
 
 	pr_debug("dev closed\n");
 	return 0;
@@ -897,36 +959,6 @@ static struct miscdevice vpu_service_misc_device = {
 	.fops		= &vpu_service_fops,
 };
 
-static void vpu_service_shutdown(struct platform_device *pdev)
-{
-	pr_cont("shutdown...");
-	del_timer(&service.timer);
-	vpu_service_power_off();
-	pr_cont("done\n");
-}
-
-static int vpu_service_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	bool enabled;
-	pr_info("suspend...");
-	del_timer(&service.timer);
-	enabled = service.enabled;
-	vpu_service_power_off();
-	service.enabled = enabled;
-	return 0;
-}
-
-static int vpu_service_resume(struct platform_device *pdev)
-{
-	pr_info("resume...");
-	if (service.enabled) {
-		service.enabled = false;
-		vpu_service_power_on();
-		try_set_reg();
-	}
-	return 0;
-}
-
 static struct platform_device vpu_service_device = {
 	.name		   = "vpu_service",
 	.id 		   = -1,
@@ -937,9 +969,6 @@ static struct platform_driver vpu_service_driver = {
 		.name  = "vpu_service",
 		.owner = THIS_MODULE,
 	},
-	.shutdown  = vpu_service_shutdown,
-	.suspend   = vpu_service_suspend,
-	.resume    = vpu_service_resume,
 };
 
 static void get_hw_info(void)
@@ -1117,72 +1146,102 @@ static void get_hw_info(void)
 	//enc->busWidth = (configReg >> 12) & 15;
 	enc->reg_size = service.reg_size;
 	enc->reserv[0] = enc->reserv[1] = 0;
+
+	service.auto_freq = soc_is_rk2928g() || soc_is_rk2928l() || soc_is_rk2926();
+	if (service.auto_freq) {
+		printk("vpu_service set to auto frequency mode\n");
+	}
+}
+
+static irqreturn_t vdpu_irq(int irq, void *dev_id)
+{
+	vpu_device *dev = (vpu_device *) dev_id;
+	u32 irq_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
+
+	pr_debug("vdpu_irq\n");
+
+	if (irq_status & DEC_INTERRUPT_BIT) {
+		pr_debug("vdpu_isr dec %x\n", irq_status);
+		if ((irq_status & 0x40001) == 0x40001)
+		{
+			do {
+				irq_status = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
+			} while ((irq_status & 0x40001) == 0x40001);
+		}
+		/* clear dec IRQ */
+		writel(irq_status & (~DEC_INTERRUPT_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
+		atomic_add(1, &dev->irq_count_codec);
+	}
+
+	irq_status  = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
+	if (irq_status & PP_INTERRUPT_BIT) {
+		pr_debug("vdpu_isr pp  %x\n", irq_status);
+		/* clear pp IRQ */
+		writel(irq_status & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
+		atomic_add(1, &dev->irq_count_pp);
+	}
+
+	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t vdpu_isr(int irq, void *dev_id)
 {
 	vpu_device *dev = (vpu_device *) dev_id;
-	u32 irq_status_dec = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
-	u32 irq_status_pp  = readl(dev->hwregs + PP_INTERRUPT_REGISTER);
 
-	pr_debug("vdpu_isr dec %x pp %x\n", irq_status_dec, irq_status_pp);
-
-	if (irq_status_dec & DEC_INTERRUPT_BIT) {
-		irq_status_dec = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
-		if ((irq_status_dec & 0x40001) == 0x40001)
-		{
-			do {
-				irq_status_dec = readl(dev->hwregs + DEC_INTERRUPT_REGISTER);
-			} while ((irq_status_dec & 0x40001) == 0x40001);
-		}
-		/* clear dec IRQ */
-		writel(irq_status_dec & (~DEC_INTERRUPT_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
-		pr_debug("DEC IRQ received!\n");
-		spin_lock(&service.lock);
+	mutex_lock(&service.lock);
+	if (atomic_read(&dev->irq_count_codec)) {
+		atomic_sub(1, &dev->irq_count_codec);
 		if (NULL == service.reg_codec) {
 			pr_err("error: dec isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_codec);
 		}
-		spin_unlock(&service.lock);
 	}
 
-	if (irq_status_pp & PP_INTERRUPT_BIT) {
-		/* clear pp IRQ */
-		writel(irq_status_pp & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
-		pr_debug("PP IRQ received!\n");
-		spin_lock(&service.lock);
+	if (atomic_read(&dev->irq_count_pp)) {
+		atomic_sub(1, &dev->irq_count_pp);
 		if (NULL == service.reg_pproc) {
 			pr_err("error: pp isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_pproc);
 		}
-		spin_unlock(&service.lock);
 	}
 	try_set_reg();
+	mutex_unlock(&service.lock);
 	return IRQ_HANDLED;
+}
+
+static irqreturn_t vepu_irq(int irq, void *dev_id)
+{
+	struct vpu_device *dev = (struct vpu_device *) dev_id;
+	u32 irq_status = readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
+
+	pr_debug("vepu_irq irq status %x\n", irq_status);
+
+	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
+		/* clear enc IRQ */
+		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
+		atomic_add(1, &dev->irq_count_codec);
+	}
+
+	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t vepu_isr(int irq, void *dev_id)
 {
 	struct vpu_device *dev = (struct vpu_device *) dev_id;
-	u32 irq_status = readl(dev->hwregs + ENC_INTERRUPT_REGISTER);
 
-	pr_debug("enc_isr\n");
-
-	if (likely(irq_status & ENC_INTERRUPT_BIT)) {
-		/* clear enc IRQ */
-		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
-		pr_debug("ENC IRQ received!\n");
-		spin_lock(&service.lock);
+	mutex_lock(&service.lock);
+	if (atomic_read(&dev->irq_count_codec)) {
+		atomic_sub(1, &dev->irq_count_codec);
 		if (NULL == service.reg_codec) {
 			pr_err("error: enc isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_codec);
 		}
-		spin_unlock(&service.lock);
 	}
 	try_set_reg();
+	mutex_unlock(&service.lock);
 	return IRQ_HANDLED;
 }
 
@@ -1193,21 +1252,21 @@ static int __init vpu_service_init(void)
 
 	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
 
+	wake_lock_init(&service.wake_lock, WAKE_LOCK_SUSPEND, "vpu");
 	INIT_LIST_HEAD(&service.waiting);
 	INIT_LIST_HEAD(&service.running);
 	INIT_LIST_HEAD(&service.done);
 	INIT_LIST_HEAD(&service.session);
-	spin_lock_init(&service.lock);
-	spin_lock_init(&service.lock_power);
+	mutex_init(&service.lock);
 	service.reg_codec	= NULL;
 	service.reg_pproc	= NULL;
 	atomic_set(&service.total_running, 0);
 	service.enabled		= false;
 
 	vpu_get_clk();
-	init_timer(&service.timer);
-	service.timer.expires = jiffies + POWER_OFF_DELAY;
-	service.timer.function = vpu_service_power_off_work_func;
+
+	INIT_DELAYED_WORK(&service.power_off_work, vpu_power_off_work);
+
 	vpu_service_power_on();
 	ret = vpu_service_check_hw(&service, VCODEC_PHYS);
 	if (ret < 0) {
@@ -1215,8 +1274,12 @@ static int __init vpu_service_init(void)
 		goto err_hw_id_check;
 	}
 
+	atomic_set(&dec_dev.irq_count_codec, 0);
+	atomic_set(&dec_dev.irq_count_pp, 0);
 	dec_dev.iobaseaddr 	= service.hw_info->hw_addr + service.hw_info->dec_offset;
 	dec_dev.iosize		= service.hw_info->dec_io_size;
+	atomic_set(&enc_dev.irq_count_codec, 0);
+	atomic_set(&enc_dev.irq_count_pp, 0);
 	enc_dev.iobaseaddr 	= service.hw_info->hw_addr + service.hw_info->enc_offset;
 	enc_dev.iosize		= service.hw_info->enc_io_size;;
 	service.reg_size	= max(dec_dev.iosize, enc_dev.iosize);
@@ -1228,13 +1291,13 @@ static int __init vpu_service_init(void)
 	}
 
 	/* get the IRQ line */
-	ret = request_irq(IRQ_VDPU, vdpu_isr, IRQF_SHARED, "vdpu", (void *)&dec_dev);
+	ret = request_threaded_irq(IRQ_VDPU, vdpu_irq, vdpu_isr, IRQF_SHARED, "vdpu", (void *)&dec_dev);
 	if (ret) {
 		pr_err("error: can't request vdpu irq %d\n", IRQ_VDPU);
 		goto err_req_vdpu_irq;
 	}
 
-	ret = request_irq(IRQ_VEPU, vepu_isr, IRQF_SHARED, "vepu", (void *)&enc_dev);
+	ret = request_threaded_irq(IRQ_VEPU, vepu_irq, vepu_isr, IRQF_SHARED, "vepu", (void *)&enc_dev);
 	if (ret) {
 		pr_err("error: can't request vepu irq %d\n", IRQ_VEPU);
 		goto err_req_vepu_irq;
@@ -1249,7 +1312,6 @@ static int __init vpu_service_init(void)
 	platform_device_register(&vpu_service_device);
 	platform_driver_probe(&vpu_service_driver, NULL);
 	get_hw_info();
-	del_timer(&service.timer);
 	vpu_service_power_off();
 	pr_info("init success\n");
 
@@ -1267,6 +1329,7 @@ err_reserve_io:
 err_hw_id_check:
 	vpu_service_power_off();
 	vpu_put_clk();
+	wake_lock_destroy(&service.wake_lock);
 	pr_info("init failed\n");
 	return ret;
 }
@@ -1275,7 +1338,6 @@ static void __exit vpu_service_proc_release(void);
 static void __exit vpu_service_exit(void)
 {
 	vpu_service_proc_release();
-	del_timer(&service.timer);
 	vpu_service_power_off();
 	platform_device_unregister(&vpu_service_device);
 	platform_driver_unregister(&vpu_service_driver);
@@ -1284,6 +1346,7 @@ static void __exit vpu_service_exit(void)
 	free_irq(IRQ_VDPU, (void *)&dec_dev);
 	vpu_service_release_io();
 	vpu_put_clk();
+	wake_lock_destroy(&service.wake_lock);
 }
 
 module_init(vpu_service_init);
@@ -1296,10 +1359,10 @@ module_exit(vpu_service_exit);
 static int proc_vpu_service_show(struct seq_file *s, void *v)
 {
 	unsigned int i, n;
-	unsigned long flag;
 	vpu_reg *reg, *reg_tmp;
 	vpu_session *session, *session_tmp;
 
+	mutex_lock(&service.lock);
 	vpu_service_power_on();
 	seq_printf(s, "\nENC Registers:\n");
 	n = enc_dev.iosize >> 2;
@@ -1313,7 +1376,6 @@ static int proc_vpu_service_show(struct seq_file *s, void *v)
 	}
 
 	seq_printf(s, "\nvpu service status:\n");
-	spin_lock_irqsave(&service.lock, flag);
 	list_for_each_entry_safe(session, session_tmp, &service.session, list_session) {
 		seq_printf(s, "session pid %d type %d:\n", session->pid, session->type);
 		//seq_printf(s, "waiting reg set %d\n");
@@ -1327,7 +1389,7 @@ static int proc_vpu_service_show(struct seq_file *s, void *v)
 			seq_printf(s, "done    register set\n");
 		}
 	}
-	spin_unlock_irqrestore(&service.lock, flag);
+	mutex_unlock(&service.lock);
 
 	return 0;
 }
