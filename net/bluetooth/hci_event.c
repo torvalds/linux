@@ -794,10 +794,10 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 1;
-		cp.simul = !!lmp_le_br_capable(hdev);
+		cp.simul = lmp_le_br_capable(hdev);
 	}
 
-	if (cp.le != !!lmp_host_le_capable(hdev))
+	if (cp.le != lmp_host_le_capable(hdev))
 		hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(cp),
 			     &cp);
 }

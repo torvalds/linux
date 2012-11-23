@@ -767,7 +767,7 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
 #define lmp_pause_enc_capable(dev) ((dev)->features[5] & LMP_PAUSE_ENC)
 #define lmp_ext_inq_capable(dev)   ((dev)->features[6] & LMP_EXT_INQ)
-#define lmp_le_br_capable(dev)     ((dev)->features[6] & LMP_SIMUL_LE_BR)
+#define lmp_le_br_capable(dev)     !!((dev)->features[6] & LMP_SIMUL_LE_BR)
 #define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
 #define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
 #define lmp_lsto_capable(dev)      ((dev)->features[7] & LMP_LSTO)
@@ -776,8 +776,8 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 
 /* ----- Extended LMP capabilities ----- */
 #define lmp_host_ssp_capable(dev)  ((dev)->host_features[0] & LMP_HOST_SSP)
-#define lmp_host_le_capable(dev)   ((dev)->host_features[0] & LMP_HOST_LE)
-#define lmp_host_le_br_capable(dev) ((dev)->host_features[0] & LMP_HOST_LE_BREDR)
+#define lmp_host_le_capable(dev)   !!((dev)->host_features[0] & LMP_HOST_LE)
+#define lmp_host_le_br_capable(dev) !!((dev)->host_features[0] & LMP_HOST_LE_BREDR)
 
 /* ----- HCI protocols ----- */
 #define HCI_PROTO_DEFER             0x01
