@@ -614,14 +614,19 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 
 static bool filter_chain(struct uprobe *uprobe)
 {
-	/*
-	 * TODO:
-	 *	for_each_consumer(uc)
-	 *		if (uc->filter(...))
-	 *			return true;
-	 *	return false;
-	 */
-	return uprobe->consumers != NULL;
+	struct uprobe_consumer *uc;
+	bool ret = false;
+
+	down_read(&uprobe->consumer_rwsem);
+	for (uc = uprobe->consumers; uc; uc = uc->next) {
+		/* TODO: ret = uc->filter(...) */
+		ret = true;
+		if (ret)
+			break;
+	}
+	up_read(&uprobe->consumer_rwsem);
+
+	return ret;
 }
 
 static int
