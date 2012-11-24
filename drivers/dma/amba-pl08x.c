@@ -83,7 +83,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <asm/hardware/pl080.h>
+#include <linux/amba/pl080.h>
 
 #include "dmaengine.h"
 #include "virt-dma.h"

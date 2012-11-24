@@ -18,7 +18,6 @@
 #include <linux/irqchip/spear-shirq.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
-#include <asm/hardware/pl080.h>
 #include <asm/hardware/vic.h>
 #include <plat/pl080.h>
 #include <mach/generic.h>
