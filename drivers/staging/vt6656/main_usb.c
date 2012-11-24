@@ -1188,9 +1188,9 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (device->dev) {
 		unregister_netdev(device->dev);
-		wpa_set_wpadev(device, 0);
 		free_netdev(device->dev);
 	}
+
 }
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev)
@@ -1577,18 +1577,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 		}
 
 		rc = vt6656_hostap_ioctl(pDevice, &wrq->u.data);
-        break;
-
-    case IOCTL_CMD_WPA:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
-
-		rc = wpa_ioctl(pDevice, &wrq->u.data);
         break;
 
 	case SIOCETHTOOL:

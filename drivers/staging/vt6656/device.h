@@ -793,7 +793,6 @@ typedef struct __device_info {
     //WPA supplicant daemon
 	struct net_device       *wpadev;
 	BOOL                    bWPADEVUp;
-    struct sk_buff          *skb;
     //--
 
         BOOL                 bwextstep0;
