@@ -3343,10 +3343,10 @@ static const struct tegra_function tegra30_functions[] = {
 	FUNCTION(vi_alt3),
 };
 
-#define MUXCTL_REG_A	0x3000
-#define PINGROUP_REG_A	0x868
+#define DRV_PINGROUP_REG_A	0x868	/* bank 0 */
+#define PINGROUP_REG_A		0x3000	/* bank 1 */
 
-#define PINGROUP_REG_Y(r) ((r) - MUXCTL_REG_A)
+#define PINGROUP_REG_Y(r) ((r) - PINGROUP_REG_A)
 #define PINGROUP_REG_N(r) -1
 
 #define PINGROUP(pg_name, f0, f1, f2, f3, f_safe, r, od, ior)	\
@@ -3362,25 +3362,25 @@ static const struct tegra_function tegra30_functions[] = {
 		},						\
 		.func_safe = TEGRA_MUX_ ## f_safe,		\
 		.mux_reg = PINGROUP_REG_Y(r),			\
-		.mux_bank = 0,					\
+		.mux_bank = 1,					\
 		.mux_bit = 0,					\
 		.pupd_reg = PINGROUP_REG_Y(r),			\
-		.pupd_bank = 0,					\
+		.pupd_bank = 1,					\
 		.pupd_bit = 2,					\
 		.tri_reg = PINGROUP_REG_Y(r),			\
-		.tri_bank = 0,					\
+		.tri_bank = 1,					\
 		.tri_bit = 4,					\
 		.einput_reg = PINGROUP_REG_Y(r),		\
-		.einput_bank = 0,				\
+		.einput_bank = 1,				\
 		.einput_bit = 5,				\
 		.odrain_reg = PINGROUP_REG_##od(r),		\
-		.odrain_bank = 0,				\
+		.odrain_bank = 1,				\
 		.odrain_bit = 6,				\
 		.lock_reg = PINGROUP_REG_Y(r),			\
-		.lock_bank = 0,					\
+		.lock_bank = 1,					\
 		.lock_bit = 7,					\
 		.ioreset_reg = PINGROUP_REG_##ior(r),		\
-		.ioreset_bank = 0,				\
+		.ioreset_bank = 1,				\
 		.ioreset_bit = 8,				\
 		.drv_reg = -1,					\
 	}
@@ -3399,8 +3399,8 @@ static const struct tegra_function tegra30_functions[] = {
 		.odrain_reg = -1,				\
 		.lock_reg = -1,					\
 		.ioreset_reg = -1,				\
-		.drv_reg = ((r) - PINGROUP_REG_A),		\
-		.drv_bank = 1,					\
+		.drv_reg = ((r) - DRV_PINGROUP_REG_A),		\
+		.drv_bank = 0,					\
 		.hsm_bit = hsm_b,				\
 		.schmitt_bit = schmitt_b,			\
 		.lpmd_bit = lpmd_b,				\
