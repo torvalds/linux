@@ -397,7 +397,7 @@ err:
 	return error;
 }
 
-static int __devexit ucb1400_ts_remove(struct platform_device *pdev)
+static int ucb1400_ts_remove(struct platform_device *pdev)
 {
 	struct ucb1400_ts *ucb = pdev->dev.platform_data;
 

@@ -595,7 +595,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
+static int pxa27x_keypad_remove(struct platform_device *pdev)
 {
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;

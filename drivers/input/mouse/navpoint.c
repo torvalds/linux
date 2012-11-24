@@ -299,7 +299,7 @@ err_free_gpio:
 	return error;
 }
 
-static int __devexit navpoint_remove(struct platform_device *pdev)
+static int navpoint_remove(struct platform_device *pdev)
 {
 	const struct navpoint_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);

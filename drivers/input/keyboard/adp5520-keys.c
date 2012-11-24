@@ -182,7 +182,7 @@ err:
 	return ret;
 }
 
-static int __devexit adp5520_keys_remove(struct platform_device *pdev)
+static int adp5520_keys_remove(struct platform_device *pdev)
 {
 	struct adp5520_keys *dev = platform_get_drvdata(pdev);
 

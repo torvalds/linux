@@ -81,7 +81,7 @@ static int rb532_button_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rb532_button_remove(struct platform_device *pdev)
+static int rb532_button_remove(struct platform_device *pdev)
 {
 	struct input_polled_dev *poll_dev = dev_get_drvdata(&pdev->dev);
 

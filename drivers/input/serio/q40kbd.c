@@ -168,7 +168,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit q40kbd_remove(struct platform_device *pdev)
+static int q40kbd_remove(struct platform_device *pdev)
 {
 	struct q40kbd *q40kbd = platform_get_drvdata(pdev);
 

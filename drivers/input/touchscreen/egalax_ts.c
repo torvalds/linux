@@ -246,7 +246,7 @@ err_free_ts:
 	return error;
 }
 
-static __devexit int egalax_ts_remove(struct i2c_client *client)
+static int egalax_ts_remove(struct i2c_client *client)
 {
 	struct egalax_ts *ts = i2c_get_clientdata(client);
 

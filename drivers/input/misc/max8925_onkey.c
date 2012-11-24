@@ -141,7 +141,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit max8925_onkey_remove(struct platform_device *pdev)
+static int max8925_onkey_remove(struct platform_device *pdev)
 {
 	struct max8925_onkey_info *info = platform_get_drvdata(pdev);
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);

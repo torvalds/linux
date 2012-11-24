@@ -303,7 +303,7 @@ fail1:
 	return error;
 }
 
-static int __devexit davinci_ks_remove(struct platform_device *pdev)
+static int davinci_ks_remove(struct platform_device *pdev)
 {
 	struct davinci_ks *davinci_ks = platform_get_drvdata(pdev);
 

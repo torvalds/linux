@@ -129,7 +129,7 @@ static int fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	return error;
 }
 
-static void __devexit fm801_gp_remove(struct pci_dev *pci)
+static void fm801_gp_remove(struct pci_dev *pci)
 {
 	struct fm801_gp *gp = pci_get_drvdata(pci);
 

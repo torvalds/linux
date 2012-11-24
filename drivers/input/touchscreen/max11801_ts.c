@@ -228,7 +228,7 @@ err_free_mem:
 	return error;
 }
 
-static __devexit int max11801_ts_remove(struct i2c_client *client)
+static int max11801_ts_remove(struct i2c_client *client)
 {
 	struct max11801_data *data = i2c_get_clientdata(client);
 

@@ -508,7 +508,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit mms114_remove(struct i2c_client *client)
+static int mms114_remove(struct i2c_client *client)
 {
 	struct mms114_data *data = i2c_get_clientdata(client);
 

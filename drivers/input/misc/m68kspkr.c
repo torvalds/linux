@@ -80,7 +80,7 @@ static int m68kspkr_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit m68kspkr_remove(struct platform_device *dev)
+static int m68kspkr_remove(struct platform_device *dev)
 {
 	struct input_dev *input_dev = platform_get_drvdata(dev);
 

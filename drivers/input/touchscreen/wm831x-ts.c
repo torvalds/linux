@@ -381,7 +381,7 @@ err_alloc:
 	return error;
 }
 
-static __devexit int wm831x_ts_remove(struct platform_device *pdev)
+static int wm831x_ts_remove(struct platform_device *pdev)
 {
 	struct wm831x_ts *wm831x_ts = platform_get_drvdata(pdev);
 

@@ -202,7 +202,7 @@ fail:
 	return err;
 }
 
-static int __devexit pcap_ts_remove(struct platform_device *pdev)
+static int pcap_ts_remove(struct platform_device *pdev)
 {
 	struct pcap_ts *pcap_ts = platform_get_drvdata(pdev);
 

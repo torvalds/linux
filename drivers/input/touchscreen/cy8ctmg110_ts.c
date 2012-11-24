@@ -323,7 +323,7 @@ static int cy8ctmg110_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(cy8ctmg110_pm, cy8ctmg110_suspend, cy8ctmg110_resume);
 #endif
 
-static int __devexit cy8ctmg110_remove(struct i2c_client *client)
+static int cy8ctmg110_remove(struct i2c_client *client)
 {
 	struct cy8ctmg110 *ts = i2c_get_clientdata(client);
 

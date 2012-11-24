@@ -151,7 +151,7 @@ static int jornada720_ts_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit jornada720_ts_remove(struct platform_device *pdev)
+static int jornada720_ts_remove(struct platform_device *pdev)
 {
 	struct jornada_ts *jornada_ts = platform_get_drvdata(pdev);
 

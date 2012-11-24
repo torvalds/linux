@@ -157,7 +157,7 @@ fail:
 	return error;
 }
 
-static int __devexit remove_maple_controller(struct device *dev)
+static int remove_maple_controller(struct device *dev)
 {
 	struct maple_device *mdev = to_maple_dev(dev);
 	struct dc_pad *pad = maple_get_drvdata(mdev);

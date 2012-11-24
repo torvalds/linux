@@ -418,7 +418,7 @@ err_kzalloc:
 	return ret;
 }
 
-static int __devexit twl6040_vibra_remove(struct platform_device *pdev)
+static int twl6040_vibra_remove(struct platform_device *pdev)
 {
 	struct vibra_info *info = platform_get_drvdata(pdev);
 

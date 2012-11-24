@@ -550,7 +550,7 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 	return 0;
 }
 
-static void __devexit adp5589_gpio_remove(struct adp5589_kpad *kpad)
+static void adp5589_gpio_remove(struct adp5589_kpad *kpad)
 {
 	struct device *dev = &kpad->client->dev;
 	const struct adp5589_kpad_platform_data *pdata = dev->platform_data;
@@ -1044,7 +1044,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit adp5589_remove(struct i2c_client *client)
+static int adp5589_remove(struct i2c_client *client)
 {
 	struct adp5589_kpad *kpad = i2c_get_clientdata(client);
 

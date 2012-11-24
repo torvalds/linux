@@ -172,7 +172,7 @@ static int cyttsp_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit cyttsp_spi_remove(struct spi_device *spi)
+static int cyttsp_spi_remove(struct spi_device *spi)
 {
 	struct cyttsp *ts = spi_get_drvdata(spi);
 

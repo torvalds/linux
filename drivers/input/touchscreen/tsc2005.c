@@ -686,7 +686,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit tsc2005_remove(struct spi_device *spi)
+static int tsc2005_remove(struct spi_device *spi)
 {
 	struct tsc2005 *ts = spi_get_drvdata(spi);
 

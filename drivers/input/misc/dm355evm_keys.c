@@ -239,7 +239,7 @@ fail1:
 	return status;
 }
 
-static int __devexit dm355evm_keys_remove(struct platform_device *pdev)
+static int dm355evm_keys_remove(struct platform_device *pdev)
 {
 	struct dm355evm_keys	*keys = platform_get_drvdata(pdev);
 

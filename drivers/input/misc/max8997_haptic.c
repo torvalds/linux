@@ -354,7 +354,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit max8997_haptic_remove(struct platform_device *pdev)
+static int max8997_haptic_remove(struct platform_device *pdev)
 {
 	struct max8997_haptic *chip = platform_get_drvdata(pdev);
 

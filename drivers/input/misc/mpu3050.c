@@ -402,7 +402,7 @@ err_free_mem:
  *
  *	Our sensor is going away, clean up the resources.
  */
-static int __devexit mpu3050_remove(struct i2c_client *client)
+static int mpu3050_remove(struct i2c_client *client)
 {
 	struct mpu3050_sensor *sensor = i2c_get_clientdata(client);
 

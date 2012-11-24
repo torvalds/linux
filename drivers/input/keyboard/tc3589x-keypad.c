@@ -382,7 +382,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit tc3589x_keypad_remove(struct platform_device *pdev)
+static int tc3589x_keypad_remove(struct platform_device *pdev)
 {
 	struct tc_keypad *keypad = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);

@@ -301,7 +301,7 @@ exit_free_mem:
 	return err;
 }
 
-static int __devexit rotary_encoder_remove(struct platform_device *pdev)
+static int rotary_encoder_remove(struct platform_device *pdev)
 {
 	struct rotary_encoder *encoder = platform_get_drvdata(pdev);
 	const struct rotary_encoder_platform_data *pdata = encoder->pdata;

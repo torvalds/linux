@@ -328,7 +328,7 @@ err_free_pdata:
 	return error;
 }
 
-static int __devexit gpio_keys_polled_remove(struct platform_device *pdev)
+static int gpio_keys_polled_remove(struct platform_device *pdev)
 {
 	struct gpio_keys_polled_dev *bdev = platform_get_drvdata(pdev);
 	const struct gpio_keys_platform_data *pdata = bdev->pdata;

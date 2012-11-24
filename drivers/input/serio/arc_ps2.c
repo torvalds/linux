@@ -242,7 +242,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit arc_ps2_remove(struct platform_device *pdev)
+static int arc_ps2_remove(struct platform_device *pdev)
 {
 	struct arc_ps2_data *arc_ps2 = platform_get_drvdata(pdev);
 	int i;

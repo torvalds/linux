@@ -141,7 +141,7 @@ err_free_input:
 	return err;
 }
 
-static int __devexit da9055_onkey_remove(struct platform_device *pdev)
+static int da9055_onkey_remove(struct platform_device *pdev)
 {
 	struct da9055_onkey *onkey = platform_get_drvdata(pdev);
 	int irq = platform_get_irq_byname(pdev, "ONKEY");

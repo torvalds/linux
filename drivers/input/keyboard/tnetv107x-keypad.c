@@ -301,7 +301,7 @@ error_res:
 	return error;
 }
 
-static int __devexit keypad_remove(struct platform_device *pdev)
+static int keypad_remove(struct platform_device *pdev)
 {
 	struct keypad_data *kp = platform_get_drvdata(pdev);
 

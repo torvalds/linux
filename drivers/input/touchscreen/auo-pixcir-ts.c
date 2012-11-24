@@ -599,7 +599,7 @@ err_gpio_int:
 	return ret;
 }
 
-static int __devexit auo_pixcir_remove(struct i2c_client *client)
+static int auo_pixcir_remove(struct i2c_client *client)
 {
 	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
 	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;

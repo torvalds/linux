@@ -139,7 +139,7 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit opencores_kbd_remove(struct platform_device *pdev)
+static int opencores_kbd_remove(struct platform_device *pdev)
 {
 	struct opencores_kbd *opencores_kbd = platform_get_drvdata(pdev);
 

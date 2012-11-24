@@ -156,7 +156,7 @@ static int pcf8574_kp_probe(struct i2c_client *client, const struct i2c_device_i
 	return ret;
 }
 
-static int __devexit pcf8574_kp_remove(struct i2c_client *client)
+static int pcf8574_kp_remove(struct i2c_client *client)
 {
 	struct kp_data *lp = i2c_get_clientdata(client);
 

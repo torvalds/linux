@@ -139,7 +139,7 @@ out:
 	return err;
 }
 
-static int __devexit pm80x_onkey_remove(struct platform_device *pdev)
+static int pm80x_onkey_remove(struct platform_device *pdev)
 {
 	struct pm80x_onkey_info *info = platform_get_drvdata(pdev);
 

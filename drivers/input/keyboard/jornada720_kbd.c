@@ -152,7 +152,7 @@ static int jornada720_kbd_probe(struct platform_device *pdev)
 	return err;
 };
 
-static int __devexit jornada720_kbd_remove(struct platform_device *pdev)
+static int jornada720_kbd_remove(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
 

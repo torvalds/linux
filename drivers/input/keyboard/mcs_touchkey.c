@@ -200,7 +200,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit mcs_touchkey_remove(struct i2c_client *client)
+static int mcs_touchkey_remove(struct i2c_client *client)
 {
 	struct mcs_touchkey_data *data = i2c_get_clientdata(client);
 

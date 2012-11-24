@@ -196,7 +196,7 @@ out1:
 	return error;
 }
 
-static int __devexit bfin_rotary_remove(struct platform_device *pdev)
+static int bfin_rotary_remove(struct platform_device *pdev)
 {
 	struct bfin_rot *rotary = platform_get_drvdata(pdev);
 

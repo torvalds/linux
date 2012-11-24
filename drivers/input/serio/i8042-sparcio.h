@@ -80,7 +80,7 @@ static int sparc_i8042_probe(struct platform_device *op)
 	return 0;
 }
 
-static int __devexit sparc_i8042_remove(struct platform_device *op)
+static int sparc_i8042_remove(struct platform_device *op)
 {
 	of_iounmap(kbd_res, kbd_iobase, 8);
 

@@ -523,7 +523,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit samsung_keypad_remove(struct platform_device *pdev)
+static int samsung_keypad_remove(struct platform_device *pdev)
 {
 	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
 

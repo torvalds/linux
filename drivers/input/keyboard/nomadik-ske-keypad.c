@@ -366,7 +366,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit ske_keypad_remove(struct platform_device *pdev)
+static int ske_keypad_remove(struct platform_device *pdev)
 {
 	struct ske_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

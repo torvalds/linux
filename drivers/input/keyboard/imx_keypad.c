@@ -554,7 +554,7 @@ failed_rel_mem:
 	return error;
 }
 
-static int __devexit imx_keypad_remove(struct platform_device *pdev)
+static int imx_keypad_remove(struct platform_device *pdev)
 {
 	struct imx_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;

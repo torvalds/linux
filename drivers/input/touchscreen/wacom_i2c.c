@@ -225,7 +225,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit wacom_i2c_remove(struct i2c_client *client)
+static int wacom_i2c_remove(struct i2c_client *client)
 {
 	struct wacom_i2c *wac_i2c = i2c_get_clientdata(client);
 

@@ -174,7 +174,7 @@ failed_free:
 	return err;
 }
 
-static int __devexit pxa930_rotary_remove(struct platform_device *pdev)
+static int pxa930_rotary_remove(struct platform_device *pdev)
 {
 	struct pxa930_rotary *r = platform_get_drvdata(pdev);
 

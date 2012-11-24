@@ -234,7 +234,7 @@ failed_free:
 	return error;
 }
 
-static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
+static int w90p910_keypad_remove(struct platform_device *pdev)
 {
 	struct w90p910_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;

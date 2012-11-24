@@ -323,7 +323,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
+static int atmel_tsadcc_remove(struct platform_device *pdev)
 {
 	struct atmel_tsadcc *ts_dev = dev_get_drvdata(&pdev->dev);
 	struct resource *res;

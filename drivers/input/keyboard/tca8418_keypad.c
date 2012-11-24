@@ -388,7 +388,7 @@ fail1:
 	return error;
 }
 
-static int __devexit tca8418_keypad_remove(struct i2c_client *client)
+static int tca8418_keypad_remove(struct i2c_client *client)
 {
 	struct tca8418_keypad *keypad_data = i2c_get_clientdata(client);
 

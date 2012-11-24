@@ -150,7 +150,7 @@ static int gpio_mouse_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit gpio_mouse_remove(struct platform_device *pdev)
+static int gpio_mouse_remove(struct platform_device *pdev)
 {
 	struct input_polled_dev *input = platform_get_drvdata(pdev);
 	struct gpio_mouse_platform_data *pdata = input->private;

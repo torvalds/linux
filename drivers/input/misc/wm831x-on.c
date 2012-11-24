@@ -124,7 +124,7 @@ err:
 	return ret;
 }
 
-static int __devexit wm831x_on_remove(struct platform_device *pdev)
+static int wm831x_on_remove(struct platform_device *pdev)
 {
 	struct wm831x_on *wm831x_on = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);

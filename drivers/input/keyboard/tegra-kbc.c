@@ -838,7 +838,7 @@ err_free_pdata:
 	return err;
 }
 
-static int __devexit tegra_kbc_remove(struct platform_device *pdev)
+static int tegra_kbc_remove(struct platform_device *pdev)
 {
 	struct tegra_kbc *kbc = platform_get_drvdata(pdev);
 	struct resource *res;

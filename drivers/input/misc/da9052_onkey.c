@@ -141,7 +141,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit da9052_onkey_remove(struct platform_device *pdev)
+static int da9052_onkey_remove(struct platform_device *pdev)
 {
 	struct da9052_onkey *onkey = platform_get_drvdata(pdev);
 

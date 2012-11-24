@@ -189,7 +189,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit pixcir_i2c_ts_remove(struct i2c_client *client)
+static int pixcir_i2c_ts_remove(struct i2c_client *client)
 {
 	struct pixcir_i2c_ts_data *tsdata = i2c_get_clientdata(client);
 

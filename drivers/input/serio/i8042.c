@@ -1284,7 +1284,7 @@ static void __init i8042_register_ports(void)
 	}
 }
 
-static void __devexit i8042_unregister_ports(void)
+static void i8042_unregister_ports(void)
 {
 	int i;
 
@@ -1437,7 +1437,7 @@ static int __init i8042_probe(struct platform_device *dev)
 	return error;
 }
 
-static int __devexit i8042_remove(struct platform_device *dev)
+static int i8042_remove(struct platform_device *dev)
 {
 	i8042_unregister_ports();
 	i8042_free_irqs();

@@ -1077,7 +1077,7 @@ static void wistron_led_init(struct device *parent)
 	}
 }
 
-static void __devexit wistron_led_remove(void)
+static void wistron_led_remove(void)
 {
 	if (leds_present & FE_MAIL_LED)
 		led_classdev_unregister(&wistron_mail_led);
@@ -1277,7 +1277,7 @@ static int wistron_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit wistron_remove(struct platform_device *dev)
+static int wistron_remove(struct platform_device *dev)
 {
 	wistron_led_remove();
 	input_unregister_polled_device(wistron_idev);

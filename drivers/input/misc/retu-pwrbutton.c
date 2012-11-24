@@ -76,7 +76,7 @@ static int retu_pwrbutton_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit retu_pwrbutton_remove(struct platform_device *pdev)
+static int retu_pwrbutton_remove(struct platform_device *pdev)
 {
 	return 0;
 }

@@ -309,7 +309,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit lpc32xx_ts_remove(struct platform_device *pdev)
+static int lpc32xx_ts_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_tsc *tsc = platform_get_drvdata(pdev);
 	struct resource *res;

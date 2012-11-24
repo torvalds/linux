@@ -179,7 +179,7 @@ err_free_tdev:
 	return error;
 }
 
-static int __devexit gpio_tilt_polled_remove(struct platform_device *pdev)
+static int gpio_tilt_polled_remove(struct platform_device *pdev)
 {
 	struct gpio_tilt_polled_dev *tdev = platform_get_drvdata(pdev);
 	const struct gpio_tilt_platform_data *pdata = tdev->pdata;

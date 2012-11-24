@@ -230,7 +230,7 @@ free_input_dev:
 	return err;
 }
 
-static int __devexit mc13783_pwrbutton_remove(struct platform_device *pdev)
+static int mc13783_pwrbutton_remove(struct platform_device *pdev)
 {
 	struct mc13783_pwrb *priv = platform_get_drvdata(pdev);
 	const struct mc13xxx_buttons_platform_data *pdata;

@@ -176,7 +176,7 @@ static int pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return ret;
 }
 
-static void __devexit pcips2_remove(struct pci_dev *dev)
+static void pcips2_remove(struct pci_dev *dev)
 {
 	struct pcips2_data *ps2if = pci_get_drvdata(dev);
 

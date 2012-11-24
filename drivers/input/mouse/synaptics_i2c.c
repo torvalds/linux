@@ -601,7 +601,7 @@ err_mem_free:
 	return ret;
 }
 
-static int __devexit synaptics_i2c_remove(struct i2c_client *client)
+static int synaptics_i2c_remove(struct i2c_client *client)
 {
 	struct synaptics_i2c *touch = i2c_get_clientdata(client);
 

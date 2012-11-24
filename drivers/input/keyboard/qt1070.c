@@ -230,7 +230,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit qt1070_remove(struct i2c_client *client)
+static int qt1070_remove(struct i2c_client *client)
 {
 	struct qt1070_data *data = i2c_get_clientdata(client);
 

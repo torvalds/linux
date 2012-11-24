@@ -406,7 +406,7 @@ err_free_keypad:
 	return error;
 }
 
-static int __devexit omap4_keypad_remove(struct platform_device *pdev)
+static int omap4_keypad_remove(struct platform_device *pdev)
 {
 	struct omap4_keypad *keypad_data = platform_get_drvdata(pdev);
 	struct resource *res;

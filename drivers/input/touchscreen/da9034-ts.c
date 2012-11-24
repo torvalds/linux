@@ -361,7 +361,7 @@ err_free_touch:
 	return ret;
 }
 
-static int __devexit da9034_touch_remove(struct platform_device *pdev)
+static int da9034_touch_remove(struct platform_device *pdev)
 {
 	struct da9034_touch *touch = platform_get_drvdata(pdev);
 

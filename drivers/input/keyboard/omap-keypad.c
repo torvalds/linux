@@ -357,7 +357,7 @@ err2:
 	return -EINVAL;
 }
 
-static int __devexit omap_kp_remove(struct platform_device *pdev)
+static int omap_kp_remove(struct platform_device *pdev)
 {
 	struct omap_kp *omap_kp = platform_get_drvdata(pdev);
 

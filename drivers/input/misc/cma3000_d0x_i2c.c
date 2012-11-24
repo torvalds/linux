@@ -69,7 +69,7 @@ static int cma3000_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit cma3000_i2c_remove(struct i2c_client *client)
+static int cma3000_i2c_remove(struct i2c_client *client)
 {
 	struct cma3000_accl_data *data = i2c_get_clientdata(client);
 

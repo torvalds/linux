@@ -249,7 +249,7 @@ err_free_mem:
 	return ret;
 }
 
-static int __devexit mcs5000_ts_remove(struct i2c_client *client)
+static int mcs5000_ts_remove(struct i2c_client *client)
 {
 	struct mcs5000_ts_data *data = i2c_get_clientdata(client);
 

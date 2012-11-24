@@ -613,7 +613,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit bma150_remove(struct i2c_client *client)
+static int bma150_remove(struct i2c_client *client)
 {
 	struct bma150_data *bma150 = i2c_get_clientdata(client);
 

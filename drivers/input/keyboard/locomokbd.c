@@ -321,7 +321,7 @@ static int locomokbd_probe(struct locomo_dev *dev)
 	return err;
 }
 
-static int __devexit locomokbd_remove(struct locomo_dev *dev)
+static int locomokbd_remove(struct locomo_dev *dev)
 {
 	struct locomokbd *locomokbd = locomo_get_drvdata(dev);
 

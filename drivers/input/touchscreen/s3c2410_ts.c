@@ -365,7 +365,7 @@ static int s3c2410ts_probe(struct platform_device *pdev)
  *
  * Free up our state ready to be removed.
  */
-static int __devexit s3c2410ts_remove(struct platform_device *pdev)
+static int s3c2410ts_remove(struct platform_device *pdev)
 {
 	free_irq(ts.irq_tc, ts.input);
 	del_timer_sync(&touch_timer);

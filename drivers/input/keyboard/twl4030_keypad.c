@@ -432,7 +432,7 @@ err1:
 	return error;
 }
 
-static int __devexit twl4030_kp_remove(struct platform_device *pdev)
+static int twl4030_kp_remove(struct platform_device *pdev)
 {
 	struct twl4030_keypad *kp = platform_get_drvdata(pdev);
 

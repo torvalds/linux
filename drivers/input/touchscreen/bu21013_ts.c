@@ -549,7 +549,7 @@ err_free_mem:
  * This function uses to remove the i2c-client
  * touchscreen driver and returns integer.
  */
-static int __devexit bu21013_remove(struct i2c_client *client)
+static int bu21013_remove(struct i2c_client *client)
 {
 	struct bu21013_ts_data *bu21013_data = i2c_get_clientdata(client);
 

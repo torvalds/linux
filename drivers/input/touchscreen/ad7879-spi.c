@@ -137,7 +137,7 @@ static int ad7879_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit ad7879_spi_remove(struct spi_device *spi)
+static int ad7879_spi_remove(struct spi_device *spi)
 {
 	struct ad7879 *ts = spi_get_drvdata(spi);
 

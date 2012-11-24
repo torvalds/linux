@@ -87,7 +87,7 @@ static int adxl34x_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit adxl34x_spi_remove(struct spi_device *spi)
+static int adxl34x_spi_remove(struct spi_device *spi)
 {
 	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
 

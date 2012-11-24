@@ -357,7 +357,7 @@ error_res:
 	return error;
 }
 
-static int __devexit tsc_remove(struct platform_device *pdev)
+static int tsc_remove(struct platform_device *pdev)
 {
 	struct tsc_data *ts = platform_get_drvdata(pdev);
 

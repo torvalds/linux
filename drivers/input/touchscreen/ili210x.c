@@ -298,7 +298,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit ili210x_i2c_remove(struct i2c_client *client)
+static int ili210x_i2c_remove(struct i2c_client *client)
 {
 	struct ili210x *priv = i2c_get_clientdata(client);
 

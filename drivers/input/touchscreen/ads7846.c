@@ -1390,7 +1390,7 @@ static int ads7846_probe(struct spi_device *spi)
 	return err;
 }
 
-static int __devexit ads7846_remove(struct spi_device *spi)
+static int ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
 

@@ -335,7 +335,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit qt2160_remove(struct i2c_client *client)
+static int qt2160_remove(struct i2c_client *client)
 {
 	struct qt2160_data *qt2160 = i2c_get_clientdata(client);
 

@@ -205,7 +205,7 @@ err_hw_shutdown:
 	return error;
 }
 
-static int __devexit gp2a_remove(struct i2c_client *client)
+static int gp2a_remove(struct i2c_client *client)
 {
 	struct gp2a_data *dt = i2c_get_clientdata(client);
 	const struct gp2a_platform_data *pdata = dt->pdata;

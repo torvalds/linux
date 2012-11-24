@@ -712,7 +712,7 @@ err_alloc_device:
 	return rc;
 }
 
-static int __devexit pmic8xxx_kp_remove(struct platform_device *pdev)
+static int pmic8xxx_kp_remove(struct platform_device *pdev)
 {
 	struct pmic8xxx_kp *kp = platform_get_drvdata(pdev);
 

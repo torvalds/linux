@@ -75,7 +75,7 @@ static int ad7879_i2c_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit ad7879_i2c_remove(struct i2c_client *client)
+static int ad7879_i2c_remove(struct i2c_client *client)
 {
 	struct ad7879 *ts = i2c_get_clientdata(client);
 

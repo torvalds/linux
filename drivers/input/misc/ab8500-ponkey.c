@@ -118,7 +118,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit ab8500_ponkey_remove(struct platform_device *pdev)
+static int ab8500_ponkey_remove(struct platform_device *pdev)
 {
 	struct ab8500_ponkey *ponkey = platform_get_drvdata(pdev);
 

@@ -539,7 +539,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit matrix_keypad_remove(struct platform_device *pdev)
+static int matrix_keypad_remove(struct platform_device *pdev)
 {
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
 

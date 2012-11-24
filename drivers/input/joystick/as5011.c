@@ -341,7 +341,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit as5011_remove(struct i2c_client *client)
+static int as5011_remove(struct i2c_client *client)
 {
 	struct as5011_device *as5011 = i2c_get_clientdata(client);
 

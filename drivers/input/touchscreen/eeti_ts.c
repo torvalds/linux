@@ -248,7 +248,7 @@ err0:
 	return err;
 }
 
-static int __devexit eeti_ts_remove(struct i2c_client *client)
+static int eeti_ts_remove(struct i2c_client *client)
 {
 	struct eeti_ts_priv *priv = i2c_get_clientdata(client);
 

@@ -206,7 +206,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit st1232_ts_remove(struct i2c_client *client)
+static int st1232_ts_remove(struct i2c_client *client)
 {
 	struct st1232_ts_data *ts = i2c_get_clientdata(client);
 

@@ -230,7 +230,7 @@ failed:
 	return error;
 }
 
-static int __devexit pxa930_trkball_remove(struct platform_device *pdev)
+static int pxa930_trkball_remove(struct platform_device *pdev)
 {
 	struct pxa930_trkball *trkball = platform_get_drvdata(pdev);
 	int irq = platform_get_irq(pdev, 0);

@@ -93,7 +93,7 @@ static int pcf50633_input_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit pcf50633_input_remove(struct platform_device *pdev)
+static int pcf50633_input_remove(struct platform_device *pdev)
 {
 	struct pcf50633_input *input  = platform_get_drvdata(pdev);
 

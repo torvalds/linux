@@ -151,7 +151,7 @@ static int maceps2_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit maceps2_remove(struct platform_device *dev)
+static int maceps2_remove(struct platform_device *dev)
 {
 	serio_unregister_port(maceps2_port[0]);
 	serio_unregister_port(maceps2_port[1]);

@@ -129,7 +129,7 @@ err_free:
 	return error;
 }
 
-static int __devexit pwm_beeper_remove(struct platform_device *pdev)
+static int pwm_beeper_remove(struct platform_device *pdev)
 {
 	struct pwm_beeper *beeper = platform_get_drvdata(pdev);
 

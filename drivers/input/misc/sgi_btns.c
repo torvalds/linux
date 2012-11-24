@@ -143,7 +143,7 @@ static int sgi_buttons_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit sgi_buttons_remove(struct platform_device *pdev)
+static int sgi_buttons_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct buttons_dev *bdev = dev_get_drvdata(dev);

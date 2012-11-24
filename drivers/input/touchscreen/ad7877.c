@@ -810,7 +810,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit ad7877_remove(struct spi_device *spi)
+static int ad7877_remove(struct spi_device *spi)
 {
 	struct ad7877 *ts = dev_get_drvdata(&spi->dev);
 

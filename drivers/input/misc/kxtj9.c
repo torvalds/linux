@@ -466,7 +466,7 @@ static int kxtj9_setup_polled_device(struct kxtj9_data *tj9)
 	return 0;
 }
 
-static void __devexit kxtj9_teardown_polled_device(struct kxtj9_data *tj9)
+static void kxtj9_teardown_polled_device(struct kxtj9_data *tj9)
 {
 	input_unregister_polled_device(tj9->poll_dev);
 	input_free_polled_device(tj9->poll_dev);
@@ -594,7 +594,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit kxtj9_remove(struct i2c_client *client)
+static int kxtj9_remove(struct i2c_client *client)
 {
 	struct kxtj9_data *tj9 = i2c_get_clientdata(client);
 

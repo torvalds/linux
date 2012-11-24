@@ -335,7 +335,7 @@ static int stmpe_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit stmpe_keypad_remove(struct platform_device *pdev)
+static int stmpe_keypad_remove(struct platform_device *pdev)
 {
 	struct stmpe_keypad *keypad = platform_get_drvdata(pdev);
 

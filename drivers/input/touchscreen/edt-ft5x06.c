@@ -592,7 +592,7 @@ edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 			    tsdata->debug_dir, tsdata, &debugfs_raw_data_fops);
 }
 
-static void __devexit
+static void
 edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 {
 	if (tsdata->debug_dir)
@@ -822,7 +822,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit edt_ft5x06_ts_remove(struct i2c_client *client)
+static int edt_ft5x06_ts_remove(struct i2c_client *client)
 {
 	const struct edt_ft5x06_platform_data *pdata =
 						dev_get_platdata(&client->dev);

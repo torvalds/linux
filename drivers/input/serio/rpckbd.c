@@ -153,7 +153,7 @@ static int rpckbd_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int __devexit rpckbd_remove(struct platform_device *dev)
+static int rpckbd_remove(struct platform_device *dev)
 {
 	struct serio *serio = platform_get_drvdata(dev);
 	struct rpckbd_data *rpckbd = serio->port_data;

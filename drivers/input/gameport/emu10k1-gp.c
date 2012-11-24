@@ -107,7 +107,7 @@ static int emu_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return error;
 }
 
-static void __devexit emu_remove(struct pci_dev *pdev)
+static void emu_remove(struct pci_dev *pdev)
 {
 	struct emu *emu = pci_get_drvdata(pdev);
 

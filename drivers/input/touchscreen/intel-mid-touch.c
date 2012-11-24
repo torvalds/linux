@@ -643,7 +643,7 @@ err_free_mem:
 	return err;
 }
 
-static int __devexit mrstouch_remove(struct platform_device *pdev)
+static int mrstouch_remove(struct platform_device *pdev)
 {
 	struct mrstouch_dev *tsdev = platform_get_drvdata(pdev);
 

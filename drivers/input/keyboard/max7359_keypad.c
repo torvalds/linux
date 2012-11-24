@@ -260,7 +260,7 @@ failed_free_mem:
 	return error;
 }
 
-static int __devexit max7359_remove(struct i2c_client *client)
+static int max7359_remove(struct i2c_client *client)
 {
 	struct max7359_keypad *keypad = i2c_get_clientdata(client);
 

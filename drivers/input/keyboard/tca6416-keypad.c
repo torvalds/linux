@@ -313,7 +313,7 @@ fail1:
 	return error;
 }
 
-static int __devexit tca6416_keypad_remove(struct i2c_client *client)
+static int tca6416_keypad_remove(struct i2c_client *client)
 {
 	struct tca6416_keypad_chip *chip = i2c_get_clientdata(client);
 

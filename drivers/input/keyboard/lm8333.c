@@ -202,7 +202,7 @@ static int lm8333_probe(struct i2c_client *client,
 	return err;
 }
 
-static int __devexit lm8333_remove(struct i2c_client *client)
+static int lm8333_remove(struct i2c_client *client)
 {
 	struct lm8333 *lm8333 = i2c_get_clientdata(client);
 

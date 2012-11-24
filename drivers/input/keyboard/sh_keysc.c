@@ -272,7 +272,7 @@ static int sh_keysc_probe(struct platform_device *pdev)
 	return error;
 }
 
-static int __devexit sh_keysc_remove(struct platform_device *pdev)
+static int sh_keysc_remove(struct platform_device *pdev)
 {
 	struct sh_keysc_priv *priv = platform_get_drvdata(pdev);
 

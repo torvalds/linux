@@ -414,7 +414,7 @@ fail_nomem:
  * @return: success/error report
  */
 
-static int __devexit gscps2_remove(struct parisc_device *dev)
+static int gscps2_remove(struct parisc_device *dev)
 {
 	struct gscps2port *ps2port = dev_get_drvdata(&dev->dev);
 

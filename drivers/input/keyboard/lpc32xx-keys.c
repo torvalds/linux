@@ -310,7 +310,7 @@ err_free_mem:
 	return error;
 }
 
-static int __devexit lpc32xx_kscan_remove(struct platform_device *pdev)
+static int lpc32xx_kscan_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_kscan_drv *kscandat = platform_get_drvdata(pdev);
 
