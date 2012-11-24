@@ -342,6 +342,7 @@ void vRunCommand(void *hDeviceContext)
     BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     struct sk_buff  *skb;
     BYTE            byData;
+	union iwreq_data wrqu;
 
 
     if (pDevice->dwDiagRefCount != 0)
@@ -503,14 +504,11 @@ void vRunCommand(void *hDeviceContext)
             pMgmt->eScanState = WMAC_NO_SCANNING;
             pDevice->bStopDataPkt = FALSE;
 
-	if(pMgmt->eScanType == WMAC_SCAN_PASSIVE)
-		{
-			//send scan event to wpa_Supplicant
-				union iwreq_data wrqu;
-				PRINT_K("wireless_send_event--->SIOCGIWSCAN(scan done)\n");
-				memset(&wrqu, 0, sizeof(wrqu));
-				wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
-			}
+		/*send scan event to wpa_Supplicant*/
+		PRINT_K("wireless_send_event--->SIOCGIWSCAN(scan done)\n");
+		memset(&wrqu, 0, sizeof(wrqu));
+		wireless_send_event(pDevice->dev, SIOCGIWSCAN, &wrqu, NULL);
+
             s_bCommandComplete(pDevice);
             break;
 
