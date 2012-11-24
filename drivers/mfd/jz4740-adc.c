@@ -211,7 +211,7 @@ static int __devinit jz4740_adc_probe(struct platform_device *pdev)
 	int ret;
 	int irq_base;
 
-	adc = kmalloc(sizeof(*adc), GFP_KERNEL);
+	adc = devm_kzalloc(&pdev->dev, sizeof(*adc), GFP_KERNEL);
 	if (!adc) {
 		dev_err(&pdev->dev, "Failed to allocate driver structure\n");
 		return -ENOMEM;
@@ -221,30 +221,27 @@ static int __devinit jz4740_adc_probe(struct platform_device *pdev)
 	if (adc->irq < 0) {
 		ret = adc->irq;
 		dev_err(&pdev->dev, "Failed to get platform irq: %d\n", ret);
-		goto err_free;
+		return ret;
 	}
 
 	irq_base = platform_get_irq(pdev, 1);
 	if (irq_base < 0) {
-		ret = irq_base;
-		dev_err(&pdev->dev, "Failed to get irq base: %d\n", ret);
-		goto err_free;
+		dev_err(&pdev->dev, "Failed to get irq base: %d\n", irq_base);
+		return irq_base;
 	}
 
 	mem_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem_base) {
-		ret = -ENOENT;
 		dev_err(&pdev->dev, "Failed to get platform mmio resource\n");
-		goto err_free;
+		return -ENOENT;
 	}
 
 	/* Only request the shared registers for the MFD driver */
 	adc->mem = request_mem_region(mem_base->start, JZ_REG_ADC_STATUS,
 					pdev->name);
 	if (!adc->mem) {
-		ret = -EBUSY;
 		dev_err(&pdev->dev, "Failed to request mmio memory region\n");
-		goto err_free;
+		return -EBUSY;
 	}
 
 	adc->base = ioremap_nocache(adc->mem->start, resource_size(adc->mem));
@@ -301,9 +298,6 @@ err_iounmap:
 	iounmap(adc->base);
 err_release_mem_region:
 	release_mem_region(adc->mem->start, resource_size(adc->mem));
-err_free:
-	kfree(adc);
-
 	return ret;
 }
 
@@ -324,8 +318,6 @@ static int __devexit jz4740_adc_remove(struct platform_device *pdev)
 	clk_put(adc->clk);
 
 	platform_set_drvdata(pdev, NULL);
-
-	kfree(adc);
 
 	return 0;
 }
