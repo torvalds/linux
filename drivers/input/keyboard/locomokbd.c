@@ -46,7 +46,7 @@ MODULE_LICENSE("GPL");
 #define KEY_CENTER		KEY_F15
 
 static const unsigned char
-locomokbd_keycode[LOCOMOKBD_NUMKEYS] __devinitconst = {
+locomokbd_keycode[LOCOMOKBD_NUMKEYS] = {
 	0, KEY_ESC, KEY_ACTIVITY, 0, 0, 0, 0, 0, 0, 0,				/* 0 - 9 */
 	0, 0, 0, 0, 0, 0, 0, KEY_MENU, KEY_HOME, KEY_CONTACT,			/* 10 - 19 */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,						/* 20 - 29 */

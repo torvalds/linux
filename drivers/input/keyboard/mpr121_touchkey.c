@@ -71,7 +71,7 @@ struct mpr121_init_register {
 	u8 val;
 };
 
-static const struct mpr121_init_register init_reg_table[] __devinitconst = {
+static const struct mpr121_init_register init_reg_table[] = {
 	{ MHD_RISING_ADDR,	0x1 },
 	{ NHD_RISING_ADDR,	0x1 },
 	{ MHD_FALLING_ADDR,	0x1 },

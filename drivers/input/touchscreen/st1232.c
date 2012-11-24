@@ -255,7 +255,7 @@ static const struct i2c_device_id st1232_ts_id[] = {
 MODULE_DEVICE_TABLE(i2c, st1232_ts_id);
 
 #ifdef CONFIG_OF
-static const struct of_device_id st1232_ts_dt_ids[] __devinitconst = {
+static const struct of_device_id st1232_ts_dt_ids[] = {
 	{ .compatible = "sitronix,st1232", },
 	{ }
 };

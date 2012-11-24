@@ -355,7 +355,7 @@ static int __devexit xps2_of_remove(struct platform_device *of_dev)
 }
 
 /* Match table for of_platform binding */
-static const struct of_device_id xps2_of_match[] __devinitconst = {
+static const struct of_device_id xps2_of_match[] = {
 	{ .compatible = "xlnx,xps-ps2-1.00.a", },
 	{ /* end of list */ },
 };
