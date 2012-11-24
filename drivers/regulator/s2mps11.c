@@ -269,16 +269,16 @@ static __devinit int s2mps11_pmic_probe(struct platform_device *pdev)
 
 	if (ramp_enable) {
 		if (s2mps11->buck2_ramp)
-			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay2) >> 6;
+			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay2) << 6;
 		if (s2mps11->buck3_ramp || s2mps11->buck4_ramp)
-			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay34) >> 4;
+			ramp_reg |= get_ramp_delay(s2mps11->ramp_delay34) << 4;
 		sec_reg_write(iodev, S2MPS11_REG_RAMP, ramp_reg | ramp_enable);
 	}
 
 	ramp_reg &= 0x00;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay5) >> 6;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay16) >> 4;
-	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay7810) >> 2;
+	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay5) << 6;
+	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay16) << 4;
+	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay7810) << 2;
 	ramp_reg |= get_ramp_delay(s2mps11->ramp_delay9);
 	sec_reg_write(iodev, S2MPS11_REG_RAMP_BUCK, ramp_reg);
 
