@@ -244,7 +244,6 @@ static int Config_FileGetParameter(unsigned char *string,
 				   unsigned char *dest,
 				   unsigned char *source);
 
-static BOOL device_release_WPADEV(PSDevice pDevice);
 
 static void usb_device_reset(PSDevice pDevice);
 
@@ -631,40 +630,6 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
     spin_unlock_irq(&pDevice->lock);
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"<----INIbInitAdapter Exit\n");
-    return TRUE;
-}
-
-static BOOL device_release_WPADEV(PSDevice pDevice)
-{
-  viawget_wpa_header *wpahdr;
-  int ii=0;
- // wait_queue_head_t	Set_wait;
-  //send device close to wpa_supplicant layer
-    if (pDevice->bWPADEVUp==TRUE) {
-                 wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-                 wpahdr->type = VIAWGET_DEVICECLOSE_MSG;
-                 wpahdr->resp_ie_len = 0;
-                 wpahdr->req_ie_len = 0;
-                 skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-                 pDevice->skb->dev = pDevice->wpadev;
-		 skb_reset_mac_header(pDevice->skb);
-                 pDevice->skb->pkt_type = PACKET_HOST;
-                 pDevice->skb->protocol = htons(ETH_P_802_2);
-                 memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-                 netif_rx(pDevice->skb);
-                 pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-
- //wait release WPADEV
-              //    init_waitqueue_head(&Set_wait);
-              //    wait_event_timeout(Set_wait, ((pDevice->wpadev==NULL)&&(pDevice->skb == NULL)),5*HZ);    //1s wait
-              while(pDevice->bWPADEVUp==TRUE) {
-	        set_current_state(TASK_UNINTERRUPTIBLE);
-                 schedule_timeout (HZ/20);          //wait 50ms
-                 ii++;
-	        if(ii>20)
-		  break;
-              }
-           }
     return TRUE;
 }
 
@@ -1143,7 +1108,6 @@ static int  device_close(struct net_device *dev) {
         mdelay(30);
     }
 
-device_release_WPADEV(pDevice);
 
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
         pMgmt->bShareKeyAlgorithm = FALSE;
@@ -1216,7 +1180,6 @@ static void vt6656_disconnect(struct usb_interface *intf)
 		wireless_send_event(device->dev, IWEVCUSTOM, &req, NULL);
 	}
 
-	device_release_WPADEV(device);
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));

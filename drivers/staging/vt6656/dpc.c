@@ -818,7 +818,6 @@ RXbBulkInProcessData (
             DWORD           dwMICKey0 = 0, dwMICKey1 = 0;
             DWORD           dwLocalMIC_L = 0;
             DWORD           dwLocalMIC_R = 0;
-            viawget_wpa_header *wpahdr;
 
 
             if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
@@ -888,30 +887,6 @@ RXbBulkInProcessData (
 					wireless_send_event(pDevice->dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 
 				}
-
-
-                if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-                     wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-                     if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) &&
-                         (pMgmt->eCurrState == WMAC_STATE_ASSOC) &&
-                         (*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI)) == 0) {
-                         //s802_11_Status.Flags = NDIS_802_11_AUTH_REQUEST_PAIRWISE_ERROR;
-                         wpahdr->type = VIAWGET_PTK_MIC_MSG;
-                     } else {
-                         //s802_11_Status.Flags = NDIS_802_11_AUTH_REQUEST_GROUP_ERROR;
-                         wpahdr->type = VIAWGET_GTK_MIC_MSG;
-                     }
-                     wpahdr->resp_ie_len = 0;
-                     wpahdr->req_ie_len = 0;
-                     skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-                     pDevice->skb->dev = pDevice->wpadev;
-		     skb_reset_mac_header(pDevice->skb);
-                     pDevice->skb->pkt_type = PACKET_HOST;
-                     pDevice->skb->protocol = htons(ETH_P_802_2);
-                     memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-                     netif_rx(pDevice->skb);
-			return TRUE;
-                 }
 
                 return FALSE;
 

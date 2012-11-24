@@ -882,7 +882,6 @@ void BSSvSecondCallBack(void *hDeviceContext)
     unsigned int            uSleepySTACnt = 0;
     unsigned int            uNonShortSlotSTACnt = 0;
     unsigned int            uLongPreambleSTACnt = 0;
-    viawget_wpa_header *wpahdr;
 
     spin_lock_irq(&pDevice->lock);
 
@@ -1100,20 +1099,6 @@ if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
 
                 DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost AP beacon [%d] sec, disconnected !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
 		/* let wpa supplicant know AP may disconnect */
-        if ((pDevice->bWPADEVUp) && (pDevice->skb != NULL)) {
-             wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-             wpahdr->type = VIAWGET_DISASSOC_MSG;
-             wpahdr->resp_ie_len = 0;
-             wpahdr->req_ie_len = 0;
-             skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-             pDevice->skb->dev = pDevice->wpadev;
-	     skb_reset_mac_header(pDevice->skb);
-             pDevice->skb->pkt_type = PACKET_HOST;
-             pDevice->skb->protocol = htons(ETH_P_802_2);
-             memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-             netif_rx(pDevice->skb);
-             pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-         }
       {
 	union iwreq_data  wrqu;
 	memset(&wrqu, 0, sizeof (wrqu));
@@ -1140,20 +1125,6 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "bIsRoaming %d, !\n", pDevice->bIsRoaming );
                 pDevice->uAutoReConnectTime = 0;
                 pDevice->uIsroamingTime = 0;
                 pDevice->bRoaming = FALSE;
-
-             wpahdr = (viawget_wpa_header *)pDevice->skb->data;
-             wpahdr->type = VIAWGET_CCKM_ROAM_MSG;
-             wpahdr->resp_ie_len = 0;
-             wpahdr->req_ie_len = 0;
-             skb_put(pDevice->skb, sizeof(viawget_wpa_header));
-             pDevice->skb->dev = pDevice->wpadev;
-	     skb_reset_mac_header(pDevice->skb);
-             pDevice->skb->pkt_type = PACKET_HOST;
-             pDevice->skb->protocol = htons(ETH_P_802_2);
-             memset(pDevice->skb->cb, 0, sizeof(pDevice->skb->cb));
-             netif_rx(pDevice->skb);
-            pDevice->skb = dev_alloc_skb((int)pDevice->rx_buf_sz);
-
           }
       else if ((pDevice->bRoaming == FALSE)&&(pDevice->bIsRoaming == TRUE)) {
                             pDevice->uIsroamingTime++;
