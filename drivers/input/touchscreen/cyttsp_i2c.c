@@ -81,7 +81,7 @@ static const struct cyttsp_bus_ops cyttsp_i2c_bus_ops = {
 	.read           = cyttsp_i2c_read_block_data,
 };
 
-static int __devinit cyttsp_i2c_probe(struct i2c_client *client,
+static int cyttsp_i2c_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	struct cyttsp *ts;

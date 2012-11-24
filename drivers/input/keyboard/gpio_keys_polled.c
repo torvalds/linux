@@ -103,8 +103,7 @@ static void gpio_keys_polled_close(struct input_polled_dev *dev)
 }
 
 #ifdef CONFIG_OF
-static struct gpio_keys_platform_data * __devinit
-gpio_keys_polled_get_devtree_pdata(struct device *dev)
+static struct gpio_keys_platform_data *gpio_keys_polled_get_devtree_pdata(struct device *dev)
 {
 	struct device_node *node, *pp;
 	struct gpio_keys_platform_data *pdata;
@@ -196,7 +195,7 @@ gpio_keys_polled_get_devtree_pdata(struct device *dev)
 }
 #endif
 
-static int __devinit gpio_keys_polled_probe(struct platform_device *pdev)
+static int gpio_keys_polled_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);

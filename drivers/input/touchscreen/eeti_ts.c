@@ -154,7 +154,7 @@ static void eeti_ts_close(struct input_dev *dev)
 	eeti_ts_stop(priv);
 }
 
-static int __devinit eeti_ts_probe(struct i2c_client *client,
+static int eeti_ts_probe(struct i2c_client *client,
 				   const struct i2c_device_id *idp)
 {
 	struct eeti_ts_platform_data *pdata = client->dev.platform_data;

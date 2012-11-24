@@ -55,7 +55,7 @@ static const struct cma3000_bus_ops cma3000_i2c_bops = {
 	.write		= cma3000_i2c_set,
 };
 
-static int __devinit cma3000_i2c_probe(struct i2c_client *client,
+static int cma3000_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct cma3000_accl_data *data;

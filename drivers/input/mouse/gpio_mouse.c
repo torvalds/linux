@@ -46,7 +46,7 @@ static void gpio_mouse_scan(struct input_polled_dev *dev)
 	input_sync(input);
 }
 
-static int __devinit gpio_mouse_probe(struct platform_device *pdev)
+static int gpio_mouse_probe(struct platform_device *pdev)
 {
 	struct gpio_mouse_platform_data *pdata = pdev->dev.platform_data;
 	struct input_polled_dev *input_poll;

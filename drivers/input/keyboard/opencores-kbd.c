@@ -37,7 +37,7 @@ static irqreturn_t opencores_kbd_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit opencores_kbd_probe(struct platform_device *pdev)
+static int opencores_kbd_probe(struct platform_device *pdev)
 {
 	struct input_dev *input;
 	struct opencores_kbd *opencores_kbd;

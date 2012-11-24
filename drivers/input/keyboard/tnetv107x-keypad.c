@@ -153,7 +153,7 @@ static void keypad_stop(struct input_dev *dev)
 	clk_disable(kp->clk);
 }
 
-static int __devinit keypad_probe(struct platform_device *pdev)
+static int keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keypad_platform_data *pdata;
 	const struct matrix_keymap_data *keymap_data;

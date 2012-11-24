@@ -96,7 +96,7 @@ static void gpio_tilt_polled_close(struct input_polled_dev *dev)
 		pdata->disable(tdev->dev);
 }
 
-static int __devinit gpio_tilt_polled_probe(struct platform_device *pdev)
+static int gpio_tilt_polled_probe(struct platform_device *pdev)
 {
 	const struct gpio_tilt_platform_data *pdata = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;

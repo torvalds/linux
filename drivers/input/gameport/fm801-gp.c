@@ -78,7 +78,7 @@ static int fm801_gp_open(struct gameport *gameport, int mode)
 	return 0;
 }
 
-static int __devinit fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
+static int fm801_gp_probe(struct pci_dev *pci, const struct pci_device_id *id)
 {
 	struct fm801_gp *gp;
 	struct gameport *port;

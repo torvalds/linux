@@ -78,7 +78,7 @@ static void dc_pad_close(struct input_dev *dev)
 }
 
 /* allow the controller to be used */
-static int __devinit probe_maple_controller(struct device *dev)
+static int probe_maple_controller(struct device *dev)
 {
 	static const short btn_bit[32] = {
 		BTN_C, BTN_B, BTN_A, BTN_START, -1, -1, -1, -1,

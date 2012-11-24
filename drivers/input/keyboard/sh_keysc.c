@@ -162,7 +162,7 @@ static irqreturn_t sh_keysc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit sh_keysc_probe(struct platform_device *pdev)
+static int sh_keysc_probe(struct platform_device *pdev)
 {
 	struct sh_keysc_priv *priv;
 	struct sh_keysc_info *pdata;

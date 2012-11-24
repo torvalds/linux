@@ -286,7 +286,7 @@ static int auo_pixcir_power_mode(struct auo_pixcir_ts *ts, int mode)
 	return 0;
 }
 
-static __devinit int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
+static int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
 					   int int_setting)
 {
 	struct i2c_client *client = ts->client;
@@ -482,7 +482,7 @@ unlock:
 static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops, auo_pixcir_suspend,
 			 auo_pixcir_resume);
 
-static int __devinit auo_pixcir_probe(struct i2c_client *client,
+static int auo_pixcir_probe(struct i2c_client *client,
 				      const struct i2c_device_id *id)
 {
 	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;

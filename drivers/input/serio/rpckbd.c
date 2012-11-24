@@ -114,7 +114,7 @@ static void rpckbd_close(struct serio *port)
  * Allocate and initialize serio structure for subsequent registration
  * with serio core.
  */
-static int __devinit rpckbd_probe(struct platform_device *dev)
+static int rpckbd_probe(struct platform_device *dev)
 {
 	struct rpckbd_data *rpckbd;
 	struct serio *serio;

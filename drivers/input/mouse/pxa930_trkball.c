@@ -143,7 +143,7 @@ static void pxa930_trkball_close(struct input_dev *dev)
 	pxa930_trkball_disable(trkball);
 }
 
-static int __devinit pxa930_trkball_probe(struct platform_device *pdev)
+static int pxa930_trkball_probe(struct platform_device *pdev)
 {
 	struct pxa930_trkball *trkball;
 	struct input_dev *input;

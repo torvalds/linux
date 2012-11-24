@@ -110,7 +110,7 @@ static const struct ad7879_bus_ops ad7879_spi_bus_ops = {
 	.write		= ad7879_spi_write,
 };
 
-static int __devinit ad7879_spi_probe(struct spi_device *spi)
+static int ad7879_spi_probe(struct spi_device *spi)
 {
 	struct ad7879 *ts;
 	int err;

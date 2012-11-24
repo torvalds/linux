@@ -187,7 +187,7 @@ static void mcs5000_ts_phys_init(struct mcs5000_ts_data *data)
 			OP_MODE_ACTIVE | REPORT_RATE_80);
 }
 
-static int __devinit mcs5000_ts_probe(struct i2c_client *client,
+static int mcs5000_ts_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	struct mcs5000_ts_data *data;

@@ -362,7 +362,7 @@ static void mms114_input_close(struct input_dev *dev)
 }
 
 #ifdef CONFIG_OF
-static struct mms114_platform_data * __devinit mms114_parse_dt(struct device *dev)
+static struct mms114_platform_data *mms114_parse_dt(struct device *dev)
 {
 	struct mms114_platform_data *pdata;
 	struct device_node *np = dev->of_node;
@@ -405,7 +405,7 @@ static inline struct mms114_platform_data *mms114_parse_dt(struct device *dev)
 }
 #endif
 
-static int __devinit mms114_probe(struct i2c_client *client,
+static int mms114_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	const struct mms114_platform_data *pdata;

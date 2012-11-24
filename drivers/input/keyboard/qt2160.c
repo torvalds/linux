@@ -183,7 +183,7 @@ static void qt2160_worker(struct work_struct *work)
 	qt2160_schedule_read(qt2160);
 }
 
-static int __devinit qt2160_read(struct i2c_client *client, u8 reg)
+static int qt2160_read(struct i2c_client *client, u8 reg)
 {
 	int ret;
 
@@ -204,7 +204,7 @@ static int __devinit qt2160_read(struct i2c_client *client, u8 reg)
 	return ret;
 }
 
-static int __devinit qt2160_write(struct i2c_client *client, u8 reg, u8 data)
+static int qt2160_write(struct i2c_client *client, u8 reg, u8 data)
 {
 	int ret;
 
@@ -217,7 +217,7 @@ static int __devinit qt2160_write(struct i2c_client *client, u8 reg, u8 data)
 }
 
 
-static bool __devinit qt2160_identify(struct i2c_client *client)
+static bool qt2160_identify(struct i2c_client *client)
 {
 	int id, ver, rev;
 
@@ -248,7 +248,7 @@ static bool __devinit qt2160_identify(struct i2c_client *client)
 	return true;
 }
 
-static int __devinit qt2160_probe(struct i2c_client *client,
+static int qt2160_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct qt2160_data *qt2160;

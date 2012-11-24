@@ -125,7 +125,7 @@ static int pixcir_i2c_ts_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pixcir_dev_pm_ops,
 			 pixcir_i2c_ts_suspend, pixcir_i2c_ts_resume);
 
-static int __devinit pixcir_i2c_ts_probe(struct i2c_client *client,
+static int pixcir_i2c_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
 	const struct pixcir_ts_platform_data *pdata = client->dev.platform_data;

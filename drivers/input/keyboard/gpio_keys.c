@@ -423,10 +423,10 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
-					 struct input_dev *input,
-					 struct gpio_button_data *bdata,
-					 const struct gpio_keys_button *button)
+static int gpio_keys_setup_key(struct platform_device *pdev,
+				struct input_dev *input,
+				struct gpio_button_data *bdata,
+				const struct gpio_keys_button *button)
 {
 	const char *desc = button->desc ? button->desc : "gpio_keys";
 	struct device *dev = &pdev->dev;
@@ -551,7 +551,7 @@ static void gpio_keys_close(struct input_dev *input)
 /*
  * Translate OpenFirmware node properties into platform_data
  */
-static struct gpio_keys_platform_data * __devinit
+static struct gpio_keys_platform_data *
 gpio_keys_get_devtree_pdata(struct device *dev)
 {
 	struct device_node *node, *pp;
@@ -658,7 +658,7 @@ static void gpio_remove_key(struct gpio_button_data *bdata)
 		gpio_free(bdata->button->gpio);
 }
 
-static int __devinit gpio_keys_probe(struct platform_device *pdev)
+static int gpio_keys_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct gpio_keys_platform_data *pdata = dev_get_platdata(dev);

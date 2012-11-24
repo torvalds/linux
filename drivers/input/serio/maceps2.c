@@ -116,7 +116,7 @@ static void maceps2_close(struct serio *dev)
 }
 
 
-static struct serio * __devinit maceps2_allocate_port(int idx)
+static struct serio *maceps2_allocate_port(int idx)
 {
 	struct serio *serio;
 
@@ -135,7 +135,7 @@ static struct serio * __devinit maceps2_allocate_port(int idx)
 	return serio;
 }
 
-static int __devinit maceps2_probe(struct platform_device *dev)
+static int maceps2_probe(struct platform_device *dev)
 {
 	maceps2_port[0] = maceps2_allocate_port(0);
 	maceps2_port[1] = maceps2_allocate_port(1);

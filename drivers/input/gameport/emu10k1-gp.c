@@ -57,7 +57,7 @@ static const struct pci_device_id emu_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, emu_tbl);
 
-static int __devinit emu_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int emu_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct emu *emu;
 	struct gameport *port;

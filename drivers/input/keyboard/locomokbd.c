@@ -236,7 +236,7 @@ static void locomokbd_close(struct input_dev *dev)
 	locomo_writel(r, locomokbd->base + LOCOMO_KIC);
 }
 
-static int __devinit locomokbd_probe(struct locomo_dev *dev)
+static int locomokbd_probe(struct locomo_dev *dev)
 {
 	struct locomokbd *locomokbd;
 	struct input_dev *input_dev;

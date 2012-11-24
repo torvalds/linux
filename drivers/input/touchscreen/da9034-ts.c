@@ -297,7 +297,7 @@ static void da9034_touch_close(struct input_dev *dev)
 }
 
 
-static int __devinit da9034_touch_probe(struct platform_device *pdev)
+static int da9034_touch_probe(struct platform_device *pdev)
 {
 	struct da9034_touch_pdata *pdata = pdev->dev.platform_data;
 	struct da9034_touch *touch;

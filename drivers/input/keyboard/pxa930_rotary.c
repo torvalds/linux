@@ -82,7 +82,7 @@ static void pxa930_rotary_close(struct input_dev *dev)
 	clear_sbcr(r);
 }
 
-static int __devinit pxa930_rotary_probe(struct platform_device *pdev)
+static int pxa930_rotary_probe(struct platform_device *pdev)
 {
 	struct pxa930_rotary_platform_data *pdata = pdev->dev.platform_data;
 	struct pxa930_rotary *r;

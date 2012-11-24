@@ -238,7 +238,7 @@ static void s3c24xx_ts_select(struct s3c_adc_client *client, unsigned select)
  * Initialise, find and allocate any resources we need to run and then
  * register with the ADC and input systems.
  */
-static int __devinit s3c2410ts_probe(struct platform_device *pdev)
+static int s3c2410ts_probe(struct platform_device *pdev)
 {
 	struct s3c2410_ts_mach_info *info;
 	struct device *dev = &pdev->dev;

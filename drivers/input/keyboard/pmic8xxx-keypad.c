@@ -397,7 +397,7 @@ static irqreturn_t pmic8xxx_kp_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
+static int pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
 {
 	int bits, rc, cycles;
 	u8 scan_val = 0, ctrl_val = 0;
@@ -447,7 +447,7 @@ static int __devinit pmic8xxx_kpd_init(struct pmic8xxx_kp *kp)
 
 }
 
-static int  __devinit pmic8xxx_kp_config_gpio(int gpio_start, int num_gpios,
+static int  pmic8xxx_kp_config_gpio(int gpio_start, int num_gpios,
 			struct pmic8xxx_kp *kp, struct pm_gpio *gpio_config)
 {
 	int	rc, i;
@@ -518,7 +518,7 @@ static void pmic8xxx_kp_close(struct input_dev *dev)
  * - set irq edge type.
  * - enable the keypad controller.
  */
-static int __devinit pmic8xxx_kp_probe(struct platform_device *pdev)
+static int pmic8xxx_kp_probe(struct platform_device *pdev)
 {
 	const struct pm8xxx_keypad_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);

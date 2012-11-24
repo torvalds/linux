@@ -206,7 +206,7 @@ static void navpoint_close(struct input_dev *input)
 	navpoint_down(navpoint);
 }
 
-static int __devinit navpoint_probe(struct platform_device *pdev)
+static int navpoint_probe(struct platform_device *pdev)
 {
 	const struct navpoint_platform_data *pdata =
 					dev_get_platdata(&pdev->dev);

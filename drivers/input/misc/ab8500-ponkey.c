@@ -45,7 +45,7 @@ static irqreturn_t ab8500_ponkey_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ab8500_ponkey_probe(struct platform_device *pdev)
+static int ab8500_ponkey_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_ponkey *ponkey;

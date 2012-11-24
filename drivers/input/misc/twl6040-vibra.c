@@ -255,7 +255,7 @@ static int twl6040_vibra_suspend(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(twl6040_vibra_pm_ops, twl6040_vibra_suspend, NULL);
 
-static int __devinit twl6040_vibra_probe(struct platform_device *pdev)
+static int twl6040_vibra_probe(struct platform_device *pdev)
 {
 	struct twl6040_vibra_data *pdata = pdev->dev.platform_data;
 	struct device *twl6040_core_dev = pdev->dev.parent;

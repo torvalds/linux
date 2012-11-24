@@ -170,7 +170,7 @@ static u16 bios_pop_queue(void)
 	return regs.eax;
 }
 
-static void __devinit bios_attach(void)
+static void bios_attach(void)
 {
 	struct regs regs;
 
@@ -190,7 +190,7 @@ static void bios_detach(void)
 	call_bios(&regs);
 }
 
-static u8 __devinit bios_get_cmos_address(void)
+static u8 bios_get_cmos_address(void)
 {
 	struct regs regs;
 
@@ -202,7 +202,7 @@ static u8 __devinit bios_get_cmos_address(void)
 	return regs.ecx;
 }
 
-static u16 __devinit bios_get_default_setting(u8 subsys)
+static u16 bios_get_default_setting(u8 subsys)
 {
 	struct regs regs;
 
@@ -1052,7 +1052,7 @@ static struct led_classdev wistron_wifi_led = {
 	.brightness_set		= wistron_wifi_led_set,
 };
 
-static void __devinit wistron_led_init(struct device *parent)
+static void wistron_led_init(struct device *parent)
 {
 	if (leds_present & FE_WIFI_LED) {
 		u16 wifi = bios_get_default_setting(WIFI);
@@ -1168,7 +1168,7 @@ static void wistron_poll(struct input_polled_dev *dev)
 		dev->poll_interval = POLL_INTERVAL_DEFAULT;
 }
 
-static int __devinit wistron_setup_keymap(struct input_dev *dev,
+static int wistron_setup_keymap(struct input_dev *dev,
 					  struct key_entry *entry)
 {
 	switch (entry->type) {
@@ -1199,7 +1199,7 @@ static int __devinit wistron_setup_keymap(struct input_dev *dev,
 	return 0;
 }
 
-static int __devinit setup_input_dev(void)
+static int setup_input_dev(void)
 {
 	struct input_dev *input_dev;
 	int error;
@@ -1237,7 +1237,7 @@ static int __devinit setup_input_dev(void)
 
 /* Driver core */
 
-static int __devinit wistron_probe(struct platform_device *dev)
+static int wistron_probe(struct platform_device *dev)
 {
 	int err;
 

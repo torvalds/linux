@@ -177,7 +177,7 @@ static irqreturn_t atmel_tsadcc_interrupt(int irq, void *dev)
  * The functions for inserting/removing us as a module.
  */
 
-static int __devinit atmel_tsadcc_probe(struct platform_device *pdev)
+static int atmel_tsadcc_probe(struct platform_device *pdev)
 {
 	struct atmel_tsadcc	*ts_dev;
 	struct input_dev	*input_dev;

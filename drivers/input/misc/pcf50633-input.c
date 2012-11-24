@@ -53,7 +53,7 @@ pcf50633_input_irq(int irq, void *data)
 	input_sync(input->input_dev);
 }
 
-static int __devinit pcf50633_input_probe(struct platform_device *pdev)
+static int pcf50633_input_probe(struct platform_device *pdev)
 {
 	struct pcf50633_input *input;
 	struct input_dev *input_dev;

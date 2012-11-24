@@ -81,7 +81,7 @@ static void altera_ps2_close(struct serio *io)
 /*
  * Add one device to this driver.
  */
-static int __devinit altera_ps2_probe(struct platform_device *pdev)
+static int altera_ps2_probe(struct platform_device *pdev)
 {
 	struct ps2if *ps2if;
 	struct serio *serio;

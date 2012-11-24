@@ -274,7 +274,7 @@ static void ucb1400_ts_close(struct input_dev *idev)
  * Try to probe our interrupt, rather than relying on lots of
  * hard-coded machine dependencies.
  */
-static int __devinit ucb1400_ts_detect_irq(struct ucb1400_ts *ucb,
+static int ucb1400_ts_detect_irq(struct ucb1400_ts *ucb,
 					   struct platform_device *pdev)
 {
 	unsigned long mask, timeout;
@@ -318,7 +318,7 @@ static int __devinit ucb1400_ts_detect_irq(struct ucb1400_ts *ucb,
 	return 0;
 }
 
-static int __devinit ucb1400_ts_probe(struct platform_device *pdev)
+static int ucb1400_ts_probe(struct platform_device *pdev)
 {
 	struct ucb1400_ts *ucb = pdev->dev.platform_data;
 	int error, x_res, y_res;

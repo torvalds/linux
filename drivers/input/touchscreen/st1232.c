@@ -139,7 +139,7 @@ end:
 	return IRQ_HANDLED;
 }
 
-static int __devinit st1232_ts_probe(struct i2c_client *client,
+static int st1232_ts_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct st1232_ts_data *ts;

@@ -139,7 +139,7 @@ static void lpc32xx_kscan_close(struct input_dev *dev)
 	clk_disable_unprepare(kscandat->clk);
 }
 
-static int __devinit lpc32xx_parse_dt(struct device *dev,
+static int lpc32xx_parse_dt(struct device *dev,
 				      struct lpc32xx_kscan_drv *kscandat)
 {
 	struct device_node *np = dev->of_node;
@@ -166,7 +166,7 @@ static int __devinit lpc32xx_parse_dt(struct device *dev,
 	return 0;
 }
 
-static int __devinit lpc32xx_kscan_probe(struct platform_device *pdev)
+static int lpc32xx_kscan_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_kscan_drv *kscandat;
 	struct input_dev *input;

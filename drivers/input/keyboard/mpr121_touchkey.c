@@ -123,7 +123,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int __devinit mpr121_phys_init(const struct mpr121_platform_data *pdata,
+static int mpr121_phys_init(const struct mpr121_platform_data *pdata,
 				      struct mpr121_touchkey *mpr121,
 				      struct i2c_client *client)
 {
@@ -185,8 +185,8 @@ err_i2c_write:
 	return ret;
 }
 
-static int __devinit mpr_touchkey_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int mpr_touchkey_probe(struct i2c_client *client,
+			      const struct i2c_device_id *id)
 {
 	const struct mpr121_platform_data *pdata = client->dev.platform_data;
 	struct mpr121_touchkey *mpr121;

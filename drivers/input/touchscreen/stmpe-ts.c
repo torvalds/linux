@@ -168,7 +168,7 @@ static irqreturn_t stmpe_ts_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit stmpe_init_hw(struct stmpe_touch *ts)
+static int stmpe_init_hw(struct stmpe_touch *ts)
 {
 	int ret;
 	u8 adc_ctrl1, adc_ctrl1_mask, tsc_cfg, tsc_cfg_mask;
@@ -308,7 +308,7 @@ static void stmpe_ts_get_platform_info(struct platform_device *pdev,
 	}
 }
 
-static int __devinit stmpe_input_probe(struct platform_device *pdev)
+static int stmpe_input_probe(struct platform_device *pdev)
 {
 	struct stmpe_touch *ts;
 	struct input_dev *idev;

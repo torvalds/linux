@@ -413,7 +413,7 @@ open_err:
 	return -EIO;
 }
 
-static int __devinit imx_keypad_probe(struct platform_device *pdev)
+static int imx_keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keymap_data *keymap_data = pdev->dev.platform_data;
 	struct imx_keypad *keypad;

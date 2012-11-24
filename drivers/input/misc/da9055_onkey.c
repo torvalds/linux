@@ -73,7 +73,7 @@ static irqreturn_t da9055_onkey_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit da9055_onkey_probe(struct platform_device *pdev)
+static int da9055_onkey_probe(struct platform_device *pdev)
 {
 	struct da9055 *da9055 = dev_get_drvdata(pdev->dev.parent);
 	struct da9055_onkey *onkey;

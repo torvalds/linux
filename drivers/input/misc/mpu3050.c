@@ -257,7 +257,7 @@ static irqreturn_t mpu3050_interrupt_thread(int irq, void *data)
  *
  *	Called during device probe; configures the sampling method.
  */
-static int __devinit mpu3050_hw_init(struct mpu3050_sensor *sensor)
+static int mpu3050_hw_init(struct mpu3050_sensor *sensor)
 {
 	struct i2c_client *client = sensor->client;
 	int ret;
@@ -306,7 +306,7 @@ static int __devinit mpu3050_hw_init(struct mpu3050_sensor *sensor)
  *
  *	If present install the relevant sysfs interfaces and input device.
  */
-static int __devinit mpu3050_probe(struct i2c_client *client,
+static int mpu3050_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
 	struct mpu3050_sensor *sensor;

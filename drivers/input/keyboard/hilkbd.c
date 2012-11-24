@@ -200,7 +200,7 @@ static void hil_do(unsigned char cmd, unsigned char *data, unsigned int len)
 
 
 /* initialize HIL */
-static int __devinit hil_keyb_init(void)
+static int hil_keyb_init(void)
 {
 	unsigned char c;
 	unsigned int i, kbid;
@@ -299,7 +299,7 @@ static void __devexit hil_keyb_exit(void)
 }
 
 #if defined(CONFIG_PARISC)
-static int __devinit hil_probe_chip(struct parisc_device *dev)
+static int hil_probe_chip(struct parisc_device *dev)
 {
 	/* Only allow one HIL keyboard */
 	if (hil_dev.dev)

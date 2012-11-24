@@ -429,7 +429,7 @@ static void bu21013_free_irq(struct bu21013_ts_data *bu21013_data)
  * This function used to initializes the i2c-client touchscreen
  * driver and returns integer.
  */
-static int __devinit bu21013_probe(struct i2c_client *client,
+static int bu21013_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct bu21013_ts_data *bu21013_data;

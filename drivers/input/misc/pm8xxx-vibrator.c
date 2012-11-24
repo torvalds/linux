@@ -178,7 +178,7 @@ static int pm8xxx_vib_play_effect(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int __devinit pm8xxx_vib_probe(struct platform_device *pdev)
+static int pm8xxx_vib_probe(struct platform_device *pdev)
 
 {
 	struct pm8xxx_vib *vib;

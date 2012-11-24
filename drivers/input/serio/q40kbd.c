@@ -122,7 +122,7 @@ static void q40kbd_close(struct serio *port)
 	q40kbd_flush(q40kbd);
 }
 
-static int __devinit q40kbd_probe(struct platform_device *pdev)
+static int q40kbd_probe(struct platform_device *pdev)
 {
 	struct q40kbd *q40kbd;
 	struct serio *port;

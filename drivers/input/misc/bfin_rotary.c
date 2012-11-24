@@ -90,7 +90,7 @@ static irqreturn_t bfin_rotary_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit bfin_rotary_probe(struct platform_device *pdev)
+static int bfin_rotary_probe(struct platform_device *pdev)
 {
 	struct bfin_rotary_platform_data *pdata = pdev->dev.platform_data;
 	struct bfin_rot *rotary;

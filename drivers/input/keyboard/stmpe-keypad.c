@@ -166,7 +166,7 @@ static irqreturn_t stmpe_keypad_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int __devinit stmpe_keypad_altfunc_init(struct stmpe_keypad *keypad)
+static int stmpe_keypad_altfunc_init(struct stmpe_keypad *keypad)
 {
 	const struct stmpe_keypad_variant *variant = keypad->variant;
 	unsigned int col_gpios = variant->col_gpios;
@@ -207,7 +207,7 @@ static int __devinit stmpe_keypad_altfunc_init(struct stmpe_keypad *keypad)
 	return stmpe_set_altfunc(stmpe, pins, STMPE_BLOCK_KEYPAD);
 }
 
-static int __devinit stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
+static int stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 {
 	const struct stmpe_keypad_platform_data *plat = keypad->plat;
 	const struct stmpe_keypad_variant *variant = keypad->variant;
@@ -257,7 +257,7 @@ static int __devinit stmpe_keypad_chip_init(struct stmpe_keypad *keypad)
 			      (plat->debounce_ms << 1));
 }
 
-static int __devinit stmpe_keypad_probe(struct platform_device *pdev)
+static int stmpe_keypad_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
 	const struct stmpe_keypad_platform_data *plat;

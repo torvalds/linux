@@ -51,7 +51,7 @@ static void rb532_button_poll(struct input_polled_dev *poll_dev)
 	input_sync(poll_dev->input);
 }
 
-static int __devinit rb532_button_probe(struct platform_device *pdev)
+static int rb532_button_probe(struct platform_device *pdev)
 {
 	struct input_polled_dev *poll_dev;
 	int error;

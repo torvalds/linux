@@ -555,7 +555,7 @@ static void tsc2005_close(struct input_dev *input)
 	mutex_unlock(&ts->mutex);
 }
 
-static void __devinit tsc2005_setup_spi_xfer(struct tsc2005 *ts)
+static void tsc2005_setup_spi_xfer(struct tsc2005 *ts)
 {
 	tsc2005_setup_read(&ts->spi_x, TSC2005_REG_X, false);
 	tsc2005_setup_read(&ts->spi_y, TSC2005_REG_Y, false);
@@ -569,7 +569,7 @@ static void __devinit tsc2005_setup_spi_xfer(struct tsc2005 *ts)
 	spi_message_add_tail(&ts->spi_z2.spi_xfer, &ts->spi_read_msg);
 }
 
-static int __devinit tsc2005_probe(struct spi_device *spi)
+static int tsc2005_probe(struct spi_device *spi)
 {
 	const struct tsc2005_platform_data *pdata = spi->dev.platform_data;
 	struct tsc2005 *ts;

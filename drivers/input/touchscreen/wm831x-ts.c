@@ -233,7 +233,7 @@ static void wm831x_ts_input_close(struct input_dev *idev)
 	}
 }
 
-static __devinit int wm831x_ts_probe(struct platform_device *pdev)
+static int wm831x_ts_probe(struct platform_device *pdev)
 {
 	struct wm831x_ts *wm831x_ts;
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);

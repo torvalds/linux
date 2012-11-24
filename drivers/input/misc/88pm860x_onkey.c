@@ -56,7 +56,7 @@ static irqreturn_t pm860x_onkey_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit pm860x_onkey_probe(struct platform_device *pdev)
+static int pm860x_onkey_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_onkey_info *info;

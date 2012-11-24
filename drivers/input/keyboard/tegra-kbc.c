@@ -573,7 +573,7 @@ static void tegra_kbc_close(struct input_dev *dev)
 	return tegra_kbc_stop(kbc);
 }
 
-static bool __devinit
+static bool
 tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 			struct device *dev, unsigned int *num_rows)
 {
@@ -619,7 +619,7 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 }
 
 #ifdef CONFIG_OF
-static struct tegra_kbc_platform_data * __devinit tegra_kbc_dt_parse_pdata(
+static struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 	struct platform_device *pdev)
 {
 	struct tegra_kbc_platform_data *pdata;
@@ -670,7 +670,7 @@ static inline struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 }
 #endif
 
-static int __devinit tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
+static int tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
 {
 	const struct tegra_kbc_platform_data *pdata = kbc->pdata;
 	const struct matrix_keymap_data *keymap_data = pdata->keymap_data;
@@ -697,7 +697,7 @@ static int __devinit tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
 	return retval;
 }
 
-static int __devinit tegra_kbc_probe(struct platform_device *pdev)
+static int tegra_kbc_probe(struct platform_device *pdev)
 {
 	const struct tegra_kbc_platform_data *pdata = pdev->dev.platform_data;
 	struct tegra_kbc *kbc;

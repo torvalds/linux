@@ -301,8 +301,8 @@ static int matrix_keypad_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
 			 matrix_keypad_suspend, matrix_keypad_resume);
 
-static int __devinit matrix_keypad_init_gpio(struct platform_device *pdev,
-					     struct matrix_keypad *keypad)
+static int matrix_keypad_init_gpio(struct platform_device *pdev,
+				   struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i, err;
@@ -397,7 +397,7 @@ static void matrix_keypad_free_gpio(struct matrix_keypad *keypad)
 }
 
 #ifdef CONFIG_OF
-static struct matrix_keypad_platform_data * __devinit
+static struct matrix_keypad_platform_data *
 matrix_keypad_parse_dt(struct device *dev)
 {
 	struct matrix_keypad_platform_data *pdata;
@@ -465,7 +465,7 @@ matrix_keypad_parse_dt(struct device *dev)
 }
 #endif
 
-static int __devinit matrix_keypad_probe(struct platform_device *pdev)
+static int matrix_keypad_probe(struct platform_device *pdev)
 {
 	const struct matrix_keypad_platform_data *pdata;
 	struct matrix_keypad *keypad;

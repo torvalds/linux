@@ -42,7 +42,7 @@ static irqreturn_t retu_pwrbutton_irq(int irq, void *_pwr)
 	return IRQ_HANDLED;
 }
 
-static int __devinit retu_pwrbutton_probe(struct platform_device *pdev)
+static int retu_pwrbutton_probe(struct platform_device *pdev)
 {
 	struct retu_dev *rdev = dev_get_drvdata(pdev->dev.parent);
 	struct input_dev *idev;

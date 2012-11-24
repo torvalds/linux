@@ -118,7 +118,7 @@ static void w90p910_keypad_close(struct input_dev *dev)
 	clk_disable(keypad->clk);
 }
 
-static int __devinit w90p910_keypad_probe(struct platform_device *pdev)
+static int w90p910_keypad_probe(struct platform_device *pdev)
 {
 	const struct w90p910_keypad_platform_data *pdata =
 						pdev->dev.platform_data;

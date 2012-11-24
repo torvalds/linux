@@ -464,7 +464,7 @@ static int adp5589_gpio_direction_output(struct gpio_chip *chip,
 	return ret;
 }
 
-static int __devinit adp5589_build_gpiomap(struct adp5589_kpad *kpad,
+static int adp5589_build_gpiomap(struct adp5589_kpad *kpad,
 				const struct adp5589_kpad_platform_data *pdata)
 {
 	bool pin_used[ADP5589_MAXGPIO];
@@ -496,7 +496,7 @@ static int __devinit adp5589_build_gpiomap(struct adp5589_kpad *kpad,
 	return n_unused;
 }
 
-static int __devinit adp5589_gpio_add(struct adp5589_kpad *kpad)
+static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 {
 	struct device *dev = &kpad->client->dev;
 	const struct adp5589_kpad_platform_data *pdata = dev->platform_data;
@@ -641,8 +641,7 @@ static irqreturn_t adp5589_irq(int irq, void *handle)
 	return IRQ_HANDLED;
 }
 
-static int __devinit adp5589_get_evcode(struct adp5589_kpad *kpad,
-					unsigned short key)
+static int adp5589_get_evcode(struct adp5589_kpad *kpad, unsigned short key)
 {
 	int i;
 
@@ -655,7 +654,7 @@ static int __devinit adp5589_get_evcode(struct adp5589_kpad *kpad,
 	return -EINVAL;
 }
 
-static int __devinit adp5589_setup(struct adp5589_kpad *kpad)
+static int adp5589_setup(struct adp5589_kpad *kpad)
 {
 	struct i2c_client *client = kpad->client;
 	const struct adp5589_kpad_platform_data *pdata =
@@ -820,7 +819,7 @@ static int __devinit adp5589_setup(struct adp5589_kpad *kpad)
 	return 0;
 }
 
-static void __devinit adp5589_report_switch_state(struct adp5589_kpad *kpad)
+static void adp5589_report_switch_state(struct adp5589_kpad *kpad)
 {
 	int gpi_stat_tmp, pin_loc;
 	int i;
@@ -860,8 +859,8 @@ static void __devinit adp5589_report_switch_state(struct adp5589_kpad *kpad)
 	input_sync(kpad->input);
 }
 
-static int __devinit adp5589_probe(struct i2c_client *client,
-				   const struct i2c_device_id *id)
+static int adp5589_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct adp5589_kpad *kpad;
 	const struct adp5589_kpad_platform_data *pdata =

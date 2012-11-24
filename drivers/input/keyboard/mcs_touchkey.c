@@ -97,7 +97,7 @@ static irqreturn_t mcs_touchkey_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit mcs_touchkey_probe(struct i2c_client *client,
+static int mcs_touchkey_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
 	const struct mcs_platform_data *pdata;

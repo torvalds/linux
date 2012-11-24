@@ -232,7 +232,7 @@ static int ep93xx_keypad_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ep93xx_keypad_pm_ops,
 			 ep93xx_keypad_suspend, ep93xx_keypad_resume);
 
-static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
+static int ep93xx_keypad_probe(struct platform_device *pdev)
 {
 	struct ep93xx_keypad *keypad;
 	const struct matrix_keymap_data *keymap_data;

@@ -175,7 +175,7 @@ static irqreturn_t cy8ctmg110_irq_thread(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit cy8ctmg110_probe(struct i2c_client *client,
+static int cy8ctmg110_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	const struct cy8ctmg110_pdata *pdata = client->dev.platform_data;

@@ -211,8 +211,8 @@ static void omap4_keypad_close(struct input_dev *input)
 }
 
 #ifdef CONFIG_OF
-static int __devinit omap4_keypad_parse_dt(struct device *dev,
-					   struct omap4_keypad *keypad_data)
+static int omap4_keypad_parse_dt(struct device *dev,
+				 struct omap4_keypad *keypad_data)
 {
 	struct device_node *np = dev->of_node;
 
@@ -241,7 +241,7 @@ static inline int omap4_keypad_parse_dt(struct device *dev,
 }
 #endif
 
-static int __devinit omap4_keypad_probe(struct platform_device *pdev)
+static int omap4_keypad_probe(struct platform_device *pdev)
 {
 	const struct omap4_keypad_platform_data *pdata =
 				dev_get_platdata(&pdev->dev);

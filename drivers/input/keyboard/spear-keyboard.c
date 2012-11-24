@@ -146,7 +146,7 @@ static void spear_kbd_close(struct input_dev *dev)
 }
 
 #ifdef CONFIG_OF
-static int __devinit spear_kbd_parse_dt(struct platform_device *pdev,
+static int spear_kbd_parse_dt(struct platform_device *pdev,
                                         struct spear_kbd *kbd)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -181,7 +181,7 @@ static inline int spear_kbd_parse_dt(struct platform_device *pdev,
 }
 #endif
 
-static int __devinit spear_kbd_probe(struct platform_device *pdev)
+static int spear_kbd_probe(struct platform_device *pdev)
 {
 	struct kbd_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	const struct matrix_keymap_data *keymap = pdata ? pdata->keymap : NULL;

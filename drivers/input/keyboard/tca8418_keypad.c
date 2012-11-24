@@ -241,7 +241,7 @@ exit:
 /*
  * Configure the TCA8418 for keypad operation
  */
-static int __devinit tca8418_configure(struct tca8418_keypad *keypad_data)
+static int tca8418_configure(struct tca8418_keypad *keypad_data)
 {
 	int reg, error;
 
@@ -270,7 +270,7 @@ static int __devinit tca8418_configure(struct tca8418_keypad *keypad_data)
 	return error;
 }
 
-static int __devinit tca8418_keypad_probe(struct i2c_client *client,
+static int tca8418_keypad_probe(struct i2c_client *client,
 					  const struct i2c_device_id *id)
 {
 	const struct tca8418_keypad_platform_data *pdata =

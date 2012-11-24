@@ -127,7 +127,7 @@ static void pcips2_close(struct serio *io)
 	free_irq(ps2if->dev->irq, ps2if);
 }
 
-static int __devinit pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
+static int pcips2_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	struct pcips2_data *ps2if;
 	struct serio *serio;

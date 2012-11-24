@@ -87,7 +87,7 @@ static irqreturn_t ixp4xx_spkr_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ixp4xx_spkr_probe(struct platform_device *dev)
+static int ixp4xx_spkr_probe(struct platform_device *dev)
 {
 	struct input_dev *input_dev;
 	int err;

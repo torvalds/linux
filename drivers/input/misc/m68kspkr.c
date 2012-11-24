@@ -48,7 +48,7 @@ static int m68kspkr_event(struct input_dev *dev, unsigned int type, unsigned int
 	return 0;
 }
 
-static int __devinit m68kspkr_probe(struct platform_device *dev)
+static int m68kspkr_probe(struct platform_device *dev)
 {
 	struct input_dev *input_dev;
 	int err;

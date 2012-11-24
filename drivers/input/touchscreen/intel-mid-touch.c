@@ -427,7 +427,7 @@ out:
 }
 
 /* Utility to read PMIC ID */
-static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
+static int mrstouch_read_pmic_id(uint *vendor, uint *rev)
 {
 	int err;
 	u8 r;
@@ -446,7 +446,7 @@ static int __devinit mrstouch_read_pmic_id(uint *vendor, uint *rev)
  * Parse ADC channels to find end of the channel configured by other ADC user
  * NEC and MAXIM requires 4 channels and FreeScale needs 18 channels
  */
-static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
+static int mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 {
 	int found = 0;
 	int err, i;
@@ -478,7 +478,7 @@ static int __devinit mrstouch_chan_parse(struct mrstouch_dev *tsdev)
 /*
  * Writes touch screen channels to ADC address selection registers
  */
-static int __devinit mrstouch_ts_chan_set(uint offset)
+static int mrstouch_ts_chan_set(uint offset)
 {
 	u16 chan;
 
@@ -494,7 +494,7 @@ static int __devinit mrstouch_ts_chan_set(uint offset)
 }
 
 /* Initialize ADC */
-static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
+static int mrstouch_adc_init(struct mrstouch_dev *tsdev)
 {
 	int err, start;
 	u8 ra, rm;
@@ -568,7 +568,7 @@ static int __devinit mrstouch_adc_init(struct mrstouch_dev *tsdev)
 
 
 /* Probe function for touch screen driver */
-static int __devinit mrstouch_probe(struct platform_device *pdev)
+static int mrstouch_probe(struct platform_device *pdev)
 {
 	struct mrstouch_dev *tsdev;
 	struct input_dev *input;

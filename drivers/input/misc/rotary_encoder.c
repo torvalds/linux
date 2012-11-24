@@ -149,8 +149,7 @@ static struct of_device_id rotary_encoder_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rotary_encoder_of_match);
 
-static struct rotary_encoder_platform_data * __devinit
-rotary_encoder_parse_dt(struct device *dev)
+static struct rotary_encoder_platform_data *rotary_encoder_parse_dt(struct device *dev)
 {
 	const struct of_device_id *of_id =
 				of_match_device(rotary_encoder_of_match, dev);
@@ -192,7 +191,7 @@ rotary_encoder_parse_dt(struct device *dev)
 }
 #endif
 
-static int __devinit rotary_encoder_probe(struct platform_device *pdev)
+static int rotary_encoder_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct rotary_encoder_platform_data *pdata = dev_get_platdata(dev);

@@ -49,7 +49,7 @@ static inline void i8042_write_command(int val)
 #define OBP_PS2MS_NAME1		"kdmouse"
 #define OBP_PS2MS_NAME2		"mouse"
 
-static int __devinit sparc_i8042_probe(struct platform_device *op)
+static int sparc_i8042_probe(struct platform_device *op)
 {
 	struct device_node *dp = op->dev.of_node;
 

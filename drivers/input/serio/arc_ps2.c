@@ -123,7 +123,7 @@ static void arc_ps2_close(struct serio *io)
 		  port->status_addr);
 }
 
-static void __iomem * __devinit arc_ps2_calc_addr(struct arc_ps2_data *arc_ps2,
+static void __iomem *arc_ps2_calc_addr(struct arc_ps2_data *arc_ps2,
 						  int index, bool status)
 {
 	void __iomem *addr;
@@ -135,7 +135,7 @@ static void __iomem * __devinit arc_ps2_calc_addr(struct arc_ps2_data *arc_ps2,
 	return addr;
 }
 
-static void __devinit arc_ps2_inhibit_ports(struct arc_ps2_data *arc_ps2)
+static void arc_ps2_inhibit_ports(struct arc_ps2_data *arc_ps2)
 {
 	void __iomem *addr;
 	u32 val;
@@ -149,7 +149,7 @@ static void __devinit arc_ps2_inhibit_ports(struct arc_ps2_data *arc_ps2)
 	}
 }
 
-static int __devinit arc_ps2_create_port(struct platform_device *pdev,
+static int arc_ps2_create_port(struct platform_device *pdev,
 					 struct arc_ps2_data *arc_ps2,
 					 int index)
 {
@@ -180,7 +180,7 @@ static int __devinit arc_ps2_create_port(struct platform_device *pdev,
 	return 0;
 }
 
-static int __devinit arc_ps2_probe(struct platform_device *pdev)
+static int arc_ps2_probe(struct platform_device *pdev)
 {
 	struct arc_ps2_data *arc_ps2;
 	struct resource *res;

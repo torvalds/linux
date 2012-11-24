@@ -203,7 +203,7 @@ static void lpc32xx_ts_close(struct input_dev *dev)
 	lpc32xx_stop_tsc(tsc);
 }
 
-static int __devinit lpc32xx_ts_probe(struct platform_device *pdev)
+static int lpc32xx_ts_probe(struct platform_device *pdev)
 {
 	struct lpc32xx_tsc *tsc;
 	struct input_dev *input;

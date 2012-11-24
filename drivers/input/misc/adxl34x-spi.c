@@ -65,7 +65,7 @@ static const struct adxl34x_bus_ops adxl34x_spi_bops = {
 	.read_block	= adxl34x_spi_read_block,
 };
 
-static int __devinit adxl34x_spi_probe(struct spi_device *spi)
+static int adxl34x_spi_probe(struct spi_device *spi)
 {
 	struct adxl34x *ac;
 

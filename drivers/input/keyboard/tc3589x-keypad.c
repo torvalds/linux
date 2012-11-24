@@ -299,7 +299,7 @@ static void tc3589x_keypad_close(struct input_dev *input)
 	tc3589x_keypad_disable(keypad);
 }
 
-static int __devinit tc3589x_keypad_probe(struct platform_device *pdev)
+static int tc3589x_keypad_probe(struct platform_device *pdev)
 {
 	struct tc3589x *tc3589x = dev_get_drvdata(pdev->dev.parent);
 	struct tc_keypad *keypad;

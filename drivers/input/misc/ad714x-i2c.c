@@ -72,7 +72,7 @@ static int ad714x_i2c_read(struct ad714x_chip *chip,
 	return 0;
 }
 
-static int __devinit ad714x_i2c_probe(struct i2c_client *client,
+static int ad714x_i2c_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct ad714x_chip *chip;

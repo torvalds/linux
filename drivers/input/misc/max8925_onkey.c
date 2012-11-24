@@ -62,7 +62,7 @@ static irqreturn_t max8925_onkey_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit max8925_onkey_probe(struct platform_device *pdev)
+static int max8925_onkey_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_onkey_info *info;

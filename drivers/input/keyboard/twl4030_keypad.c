@@ -271,7 +271,7 @@ static irqreturn_t do_kp_irq(int irq, void *_kp)
 	return IRQ_HANDLED;
 }
 
-static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
+static int twl4030_kp_program(struct twl4030_keypad *kp)
 {
 	u8 reg;
 	int i;
@@ -328,7 +328,7 @@ static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
  * Registers keypad device with input subsystem
  * and configures TWL4030 keypad registers
  */
-static int __devinit twl4030_kp_probe(struct platform_device *pdev)
+static int twl4030_kp_probe(struct platform_device *pdev)
 {
 	struct twl4030_keypad_data *pdata = pdev->dev.platform_data;
 	const struct matrix_keymap_data *keymap_data;

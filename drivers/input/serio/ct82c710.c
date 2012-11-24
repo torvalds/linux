@@ -175,7 +175,7 @@ static int __init ct82c710_detect(void)
 	return 0;
 }
 
-static int __devinit ct82c710_probe(struct platform_device *dev)
+static int ct82c710_probe(struct platform_device *dev)
 {
 	ct82c710_port = kzalloc(sizeof(struct serio), GFP_KERNEL);
 	if (!ct82c710_port)

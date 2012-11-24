@@ -173,7 +173,7 @@ static irqreturn_t dm355evm_keys_irq(int irq, void *_keys)
 
 /*----------------------------------------------------------------------*/
 
-static int __devinit dm355evm_keys_probe(struct platform_device *pdev)
+static int dm355evm_keys_probe(struct platform_device *pdev)
 {
 	struct dm355evm_keys	*keys;
 	struct input_dev	*input;

@@ -624,7 +624,7 @@ static ssize_t lm8323_set_disable(struct device *dev,
 }
 static DEVICE_ATTR(disable_kp, 0644, lm8323_show_disable, lm8323_set_disable);
 
-static int __devinit lm8323_probe(struct i2c_client *client,
+static int lm8323_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm8323_platform_data *pdata = client->dev.platform_data;

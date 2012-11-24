@@ -48,7 +48,7 @@ static irqreturn_t pcap_keys_handler(int irq, void *_pcap_keys)
 	return IRQ_HANDLED;
 }
 
-static int __devinit pcap_keys_probe(struct platform_device *pdev)
+static int pcap_keys_probe(struct platform_device *pdev)
 {
 	int err = -ENOMEM;
 	struct pcap_keys *pcap_keys;

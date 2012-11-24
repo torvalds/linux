@@ -73,7 +73,7 @@ static void handle_buttons(struct input_polled_dev *dev)
 	}
 }
 
-static int __devinit cobalt_buttons_probe(struct platform_device *pdev)
+static int cobalt_buttons_probe(struct platform_device *pdev)
 {
 	struct buttons_dev *bdev;
 	struct input_polled_dev *poll_dev;

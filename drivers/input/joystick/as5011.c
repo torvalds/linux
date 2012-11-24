@@ -157,7 +157,7 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int __devinit as5011_configure_chip(struct as5011_device *as5011,
+static int as5011_configure_chip(struct as5011_device *as5011,
 				const struct as5011_platform_data *plat_dat)
 {
 	struct i2c_client *client = as5011->i2c_client;
@@ -225,8 +225,8 @@ static int __devinit as5011_configure_chip(struct as5011_device *as5011,
 	return 0;
 }
 
-static int __devinit as5011_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int as5011_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	const struct as5011_platform_data *plat_data;
 	struct as5011_device *as5011;

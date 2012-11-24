@@ -65,7 +65,7 @@ static int pwm_beeper_event(struct input_dev *input,
 	return 0;
 }
 
-static int __devinit pwm_beeper_probe(struct platform_device *pdev)
+static int pwm_beeper_probe(struct platform_device *pdev)
 {
 	unsigned long pwm_id = (unsigned long)pdev->dev.platform_data;
 	struct pwm_beeper *beeper;

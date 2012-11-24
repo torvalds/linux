@@ -535,7 +535,7 @@ static struct synaptics_i2c *synaptics_i2c_touch_create(struct i2c_client *clien
 	return touch;
 }
 
-static int __devinit synaptics_i2c_probe(struct i2c_client *client,
+static int synaptics_i2c_probe(struct i2c_client *client,
 			       const struct i2c_device_id *dev_id)
 {
 	int ret;

@@ -224,7 +224,7 @@ static int bma150_set_mode(struct bma150_data *bma150, u8 mode)
 	return 0;
 }
 
-static int __devinit bma150_soft_reset(struct bma150_data *bma150)
+static int bma150_soft_reset(struct bma150_data *bma150)
 {
 	int error;
 
@@ -237,19 +237,19 @@ static int __devinit bma150_soft_reset(struct bma150_data *bma150)
 	return 0;
 }
 
-static int __devinit bma150_set_range(struct bma150_data *bma150, u8 range)
+static int bma150_set_range(struct bma150_data *bma150, u8 range)
 {
 	return bma150_set_reg_bits(bma150->client, range, BMA150_RANGE_POS,
 				BMA150_RANGE_MSK, BMA150_RANGE_REG);
 }
 
-static int __devinit bma150_set_bandwidth(struct bma150_data *bma150, u8 bw)
+static int bma150_set_bandwidth(struct bma150_data *bma150, u8 bw)
 {
 	return bma150_set_reg_bits(bma150->client, bw, BMA150_BANDWIDTH_POS,
 				BMA150_BANDWIDTH_MSK, BMA150_BANDWIDTH_REG);
 }
 
-static int __devinit bma150_set_low_g_interrupt(struct bma150_data *bma150,
+static int bma150_set_low_g_interrupt(struct bma150_data *bma150,
 					u8 enable, u8 hyst, u8 dur, u8 thres)
 {
 	int error;
@@ -273,7 +273,7 @@ static int __devinit bma150_set_low_g_interrupt(struct bma150_data *bma150,
 				BMA150_LOW_G_EN_REG);
 }
 
-static int __devinit bma150_set_high_g_interrupt(struct bma150_data *bma150,
+static int bma150_set_high_g_interrupt(struct bma150_data *bma150,
 					u8 enable, u8 hyst, u8 dur, u8 thres)
 {
 	int error;
@@ -300,7 +300,7 @@ static int __devinit bma150_set_high_g_interrupt(struct bma150_data *bma150,
 }
 
 
-static int __devinit bma150_set_any_motion_interrupt(struct bma150_data *bma150,
+static int bma150_set_any_motion_interrupt(struct bma150_data *bma150,
 						u8 enable, u8 dur, u8 thres)
 {
 	int error;
@@ -424,7 +424,7 @@ static void bma150_poll_close(struct input_polled_dev *ipoll_dev)
 	bma150_close(bma150);
 }
 
-static int __devinit bma150_initialize(struct bma150_data *bma150,
+static int bma150_initialize(struct bma150_data *bma150,
 				       const struct bma150_cfg *cfg)
 {
 	int error;
@@ -465,7 +465,7 @@ static int __devinit bma150_initialize(struct bma150_data *bma150,
 	return bma150_set_mode(bma150, BMA150_MODE_SLEEP);
 }
 
-static void __devinit bma150_init_input_device(struct bma150_data *bma150,
+static void bma150_init_input_device(struct bma150_data *bma150,
 						struct input_dev *idev)
 {
 	idev->name = BMA150_DRIVER;
@@ -479,7 +479,7 @@ static void __devinit bma150_init_input_device(struct bma150_data *bma150,
 	input_set_abs_params(idev, ABS_Z, ABSMIN_ACC_VAL, ABSMAX_ACC_VAL, 0, 0);
 }
 
-static int __devinit bma150_register_input_device(struct bma150_data *bma150)
+static int bma150_register_input_device(struct bma150_data *bma150)
 {
 	struct input_dev *idev;
 	int error;
@@ -504,7 +504,7 @@ static int __devinit bma150_register_input_device(struct bma150_data *bma150)
 	return 0;
 }
 
-static int __devinit bma150_register_polled_device(struct bma150_data *bma150)
+static int bma150_register_polled_device(struct bma150_data *bma150)
 {
 	struct input_polled_dev *ipoll_dev;
 	int error;
@@ -535,7 +535,7 @@ static int __devinit bma150_register_polled_device(struct bma150_data *bma150)
 	return 0;
 }
 
-static int __devinit bma150_probe(struct i2c_client *client,
+static int bma150_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	const struct bma150_platform_data *pdata = client->dev.platform_data;

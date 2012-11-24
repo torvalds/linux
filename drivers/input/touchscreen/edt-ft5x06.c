@@ -575,7 +575,7 @@ static const struct file_operations debugfs_raw_data_fops = {
 	.read = edt_ft5x06_debugfs_raw_data_read,
 };
 
-static void __devinit
+static void
 edt_ft5x06_ts_prepare_debugfs(struct edt_ft5x06_ts_data *tsdata,
 			      const char *debugfs_name)
 {
@@ -617,7 +617,7 @@ edt_ft5x06_ts_teardown_debugfs(struct edt_ft5x06_ts_data *tsdata)
 
 
 
-static int __devinit edt_ft5x06_ts_reset(struct i2c_client *client,
+static int edt_ft5x06_ts_reset(struct i2c_client *client,
 					 int reset_pin)
 {
 	int error;
@@ -641,7 +641,7 @@ static int __devinit edt_ft5x06_ts_reset(struct i2c_client *client,
 	return 0;
 }
 
-static int __devinit edt_ft5x06_ts_identify(struct i2c_client *client,
+static int edt_ft5x06_ts_identify(struct i2c_client *client,
 					    char *model_name,
 					    char *fw_version)
 {
@@ -675,7 +675,7 @@ static int __devinit edt_ft5x06_ts_identify(struct i2c_client *client,
 	    pdata->name <= edt_ft5x06_attr_##name.limit_high)		\
 		edt_ft5x06_register_write(tsdata, reg, pdata->name)
 
-static void __devinit
+static void
 edt_ft5x06_ts_get_defaults(struct edt_ft5x06_ts_data *tsdata,
 			   const struct edt_ft5x06_platform_data *pdata)
 {
@@ -689,7 +689,7 @@ edt_ft5x06_ts_get_defaults(struct edt_ft5x06_ts_data *tsdata,
 	EDT_ATTR_CHECKSET(report_rate, WORK_REGISTER_REPORT_RATE);
 }
 
-static void __devinit
+static void
 edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 {
 	tsdata->threshold = edt_ft5x06_register_read(tsdata,
@@ -702,7 +702,7 @@ edt_ft5x06_ts_get_parameters(struct edt_ft5x06_ts_data *tsdata)
 	tsdata->num_y = edt_ft5x06_register_read(tsdata, WORK_REGISTER_NUM_Y);
 }
 
-static int __devinit edt_ft5x06_ts_probe(struct i2c_client *client,
+static int edt_ft5x06_ts_probe(struct i2c_client *client,
 					 const struct i2c_device_id *id)
 {
 	const struct edt_ft5x06_platform_data *pdata =
