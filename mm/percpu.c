@@ -1380,6 +1380,9 @@ enum pcpu_fc pcpu_chosen_fc __initdata = PCPU_FC_AUTO;
 
 static int __init percpu_alloc_setup(char *str)
 {
+	if (!str)
+		return -EINVAL;
+
 	if (0)
 		/* nada */;
 #ifdef CONFIG_NEED_PER_CPU_EMBED_FIRST_CHUNK
