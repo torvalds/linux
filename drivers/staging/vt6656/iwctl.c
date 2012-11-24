@@ -32,7 +32,6 @@
 
 #include "device.h"
 #include "iwctl.h"
-#include "iocmd.h"
 #include "mac.h"
 #include "card.h"
 #include "hostap.h"
@@ -1824,10 +1823,6 @@ static const iw_handler iwctl_handler[] = {
 
 static const iw_handler iwctl_private_handler[] = {
 	NULL, // SIOCIWFIRSTPRIV
-};
-
-const struct iw_priv_args iwctl_private_args[] = {
-	{ IOCTL_CMD_SET, IW_PRIV_TYPE_CHAR | 1024, 0, "set" },
 };
 
 const struct iw_handler_def iwctl_handler_def = {

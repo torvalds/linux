@@ -61,7 +61,6 @@
 #include "bssdb.h"
 #include "hostap.h"
 #include "wpactl.h"
-#include "ioctl.h"
 #include "iwctl.h"
 #include "dpc.h"
 #include "datarate.h"
@@ -956,12 +955,6 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 static int  device_open(struct net_device *dev) {
     PSDevice    pDevice=(PSDevice) netdev_priv(dev);
 
-     extern SWPAResult wpa_Result;
-     memset(wpa_Result.ifname,0,sizeof(wpa_Result.ifname));
-     wpa_Result.proto = 0;
-     wpa_Result.key_mgmt = 0;
-     wpa_Result.eap_type = 0;
-     wpa_Result.authenticated = FALSE;
      pDevice->fWPA_Authened = FALSE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
@@ -1548,23 +1541,6 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
    //20080130-02,<Remark> by Mike Liu
       //  else
       //	 pReq->wResult = MAGIC_CODE+1;    //disconnect status:0x3143
-        break;
-
-    case IOCTL_CMD_SET:
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED) &&
-		       (((PSCmdRequest)rq)->wCmdCode !=WLAN_CMD_SET_WPA))
-		{
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
-
-	    if (test_and_set_bit( 0, (void*)&(pMgmt->uCmdBusy))) {
-		    return -EBUSY;
-	    }
-        rc = private_ioctl(pDevice, rq);
-        clear_bit( 0, (void*)&(pMgmt->uCmdBusy));
         break;
 
     case IOCTL_CMD_HOSTAPD:
