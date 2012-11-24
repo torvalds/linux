@@ -4116,6 +4116,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 				nfs_restart_rpc(task,
 						 calldata->server->nfs_client);
 	}
+	nfs_release_seqid(calldata->arg.seqid);
 }
 
 static void nfs4_locku_prepare(struct rpc_task *task, void *data)
