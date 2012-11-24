@@ -1356,7 +1356,7 @@ static inline void ip_vs_notrack(struct sk_buff *skb)
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
 	if (!ct || !nf_ct_is_untracked(ct)) {
-		nf_reset(skb);
+		nf_conntrack_put(skb->nfct);
 		skb->nfct = &nf_ct_untracked_get()->ct_general;
 		skb->nfctinfo = IP_CT_NEW;
 		nf_conntrack_get(skb->nfct);

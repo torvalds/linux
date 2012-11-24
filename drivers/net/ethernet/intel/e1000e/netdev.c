@@ -2806,7 +2806,7 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 		 * set up some performance related parameters to encourage the
 		 * hardware to use the bus more efficiently in bursts, depends
 		 * on the tx_int_delay to be enabled,
-		 * wthresh = 5 ==> burst write a cacheline (64 bytes) at a time
+		 * wthresh = 1 ==> burst write is disabled to avoid Tx stalls
 		 * hthresh = 1 ==> prefetch when one or more available
 		 * pthresh = 0x1f ==> prefetch if internal cache 31 or less
 		 * BEWARE: this seems to work but should be considered first if

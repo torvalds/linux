@@ -1478,9 +1478,11 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 	data->timestamp = jiffies;
 	if (nfs4_setup_sequence(data->o_arg.server,
 				&data->o_arg.seq_args,
-				&data->o_res.seq_res, task))
-		return;
-	rpc_call_start(task);
+				&data->o_res.seq_res,
+				task) != 0)
+		nfs_release_seqid(data->o_arg.seqid);
+	else
+		rpc_call_start(task);
 	return;
 unlock_no_action:
 	rcu_read_unlock();
@@ -2097,9 +2099,10 @@ static void nfs4_close_prepare(struct rpc_task *task, void *data)
 	if (nfs4_setup_sequence(NFS_SERVER(calldata->inode),
 				&calldata->arg.seq_args,
 				&calldata->res.seq_res,
-				task))
-		goto out;
-	rpc_call_start(task);
+				task) != 0)
+		nfs_release_seqid(calldata->arg.seqid);
+	else
+		rpc_call_start(task);
 out:
 	dprintk("%s: done!\n", __func__);
 }
@@ -4306,6 +4309,7 @@ static void nfs4_locku_done(struct rpc_task *task, void *data)
 			if (nfs4_async_handle_error(task, calldata->server, NULL) == -EAGAIN)
 				rpc_restart_call_prepare(task);
 	}
+	nfs_release_seqid(calldata->arg.seqid);
 }
 
 static void nfs4_locku_prepare(struct rpc_task *task, void *data)
@@ -4322,9 +4326,11 @@ static void nfs4_locku_prepare(struct rpc_task *task, void *data)
 	calldata->timestamp = jiffies;
 	if (nfs4_setup_sequence(calldata->server,
 				&calldata->arg.seq_args,
-				&calldata->res.seq_res, task))
-		return;
-	rpc_call_start(task);
+				&calldata->res.seq_res,
+				task) != 0)
+		nfs_release_seqid(calldata->arg.seqid);
+	else
+		rpc_call_start(task);
 }
 
 static const struct rpc_call_ops nfs4_locku_ops = {
@@ -4469,7 +4475,7 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	/* Do we need to do an open_to_lock_owner? */
 	if (!(data->arg.lock_seqid->sequence->flags & NFS_SEQID_CONFIRMED)) {
 		if (nfs_wait_on_sequence(data->arg.open_seqid, task) != 0)
-			return;
+			goto out_release_lock_seqid;
 		data->arg.open_stateid = &state->stateid;
 		data->arg.new_lock_owner = 1;
 		data->res.open_seqid = data->arg.open_seqid;
@@ -4478,10 +4484,15 @@ static void nfs4_lock_prepare(struct rpc_task *task, void *calldata)
 	data->timestamp = jiffies;
 	if (nfs4_setup_sequence(data->server,
 				&data->arg.seq_args,
-				&data->res.seq_res, task))
+				&data->res.seq_res,
+				task) == 0) {
+		rpc_call_start(task);
 		return;
-	rpc_call_start(task);
-	dprintk("%s: done!, ret = %d\n", __func__, data->rpc_status);
+	}
+	nfs_release_seqid(data->arg.open_seqid);
+out_release_lock_seqid:
+	nfs_release_seqid(data->arg.lock_seqid);
+	dprintk("%s: done!, ret = %d\n", __func__, task->tk_status);
 }
 
 static void nfs4_recover_lock_prepare(struct rpc_task *task, void *calldata)

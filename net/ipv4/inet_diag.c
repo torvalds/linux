@@ -875,13 +875,16 @@ static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 		struct inet_diag_req_v2 *r, struct nlattr *bc)
 {
 	const struct inet_diag_handler *handler;
+	int err = 0;
 
 	handler = inet_diag_lock_handler(r->sdiag_protocol);
 	if (!IS_ERR(handler))
 		handler->dump(skb, cb, r, bc);
+	else
+		err = PTR_ERR(handler);
 	inet_diag_unlock_handler(handler);
 
-	return skb->len;
+	return err ? : skb->len;
 }
 
 static int inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)

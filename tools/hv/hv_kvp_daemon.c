@@ -106,7 +106,7 @@ static void kvp_acquire_lock(int pool)
 
 	if (fcntl(kvp_file_info[pool].fd, F_SETLKW, &fl) == -1) {
 		syslog(LOG_ERR, "Failed to acquire the lock pool: %d", pool);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 }
 
@@ -118,7 +118,7 @@ static void kvp_release_lock(int pool)
 	if (fcntl(kvp_file_info[pool].fd, F_SETLK, &fl) == -1) {
 		perror("fcntl");
 		syslog(LOG_ERR, "Failed to release the lock pool: %d", pool);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 }
 
@@ -137,14 +137,19 @@ static void kvp_update_file(int pool)
 	if (!filep) {
 		kvp_release_lock(pool);
 		syslog(LOG_ERR, "Failed to open file, pool: %d", pool);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	bytes_written = fwrite(kvp_file_info[pool].records,
 				sizeof(struct kvp_record),
 				kvp_file_info[pool].num_records, filep);
 
-	fflush(filep);
+	if (ferror(filep) || fclose(filep)) {
+		kvp_release_lock(pool);
+		syslog(LOG_ERR, "Failed to write file, pool: %d", pool);
+		exit(EXIT_FAILURE);
+	}
+
 	kvp_release_lock(pool);
 }
 
@@ -163,13 +168,18 @@ static void kvp_update_mem_state(int pool)
 	if (!filep) {
 		kvp_release_lock(pool);
 		syslog(LOG_ERR, "Failed to open file, pool: %d", pool);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
-	while (!feof(filep)) {
+	for (;;) {
 		readp = &record[records_read];
 		records_read += fread(readp, sizeof(struct kvp_record),
 					ENTRIES_PER_BLOCK * num_blocks,
 					filep);
+
+		if (ferror(filep)) {
+			syslog(LOG_ERR, "Failed to read file, pool: %d", pool);
+			exit(EXIT_FAILURE);
+		}
 
 		if (!feof(filep)) {
 			/*
@@ -180,7 +190,7 @@ static void kvp_update_mem_state(int pool)
 
 			if (record == NULL) {
 				syslog(LOG_ERR, "malloc failed");
-				exit(-1);
+				exit(EXIT_FAILURE);
 			}
 			continue;
 		}
@@ -191,6 +201,7 @@ static void kvp_update_mem_state(int pool)
 	kvp_file_info[pool].records = record;
 	kvp_file_info[pool].num_records = records_read;
 
+	fclose(filep);
 	kvp_release_lock(pool);
 }
 static int kvp_file_init(void)
@@ -208,7 +219,7 @@ static int kvp_file_init(void)
 	if (access("/var/opt/hyperv", F_OK)) {
 		if (mkdir("/var/opt/hyperv", S_IRUSR | S_IWUSR | S_IROTH)) {
 			syslog(LOG_ERR, " Failed to create /var/opt/hyperv");
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 	}
 
@@ -232,11 +243,17 @@ static int kvp_file_init(void)
 			fclose(filep);
 			return 1;
 		}
-		while (!feof(filep)) {
+		for (;;) {
 			readp = &record[records_read];
 			records_read += fread(readp, sizeof(struct kvp_record),
 					ENTRIES_PER_BLOCK,
 					filep);
+
+			if (ferror(filep)) {
+				syslog(LOG_ERR, "Failed to read file, pool: %d",
+				       i);
+				exit(EXIT_FAILURE);
+			}
 
 			if (!feof(filep)) {
 				/*
@@ -657,13 +674,13 @@ int main(void)
 
 	if (kvp_file_init()) {
 		syslog(LOG_ERR, "Failed to initialize the pools");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
 	if (fd < 0) {
 		syslog(LOG_ERR, "netlink socket creation failed; error:%d", fd);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	addr.nl_family = AF_NETLINK;
 	addr.nl_pad = 0;
@@ -675,7 +692,7 @@ int main(void)
 	if (error < 0) {
 		syslog(LOG_ERR, "bind failed; error:%d", error);
 		close(fd);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	sock_opt = addr.nl_groups;
 	setsockopt(fd, 270, 1, &sock_opt, sizeof(sock_opt));
@@ -695,7 +712,7 @@ int main(void)
 	if (len < 0) {
 		syslog(LOG_ERR, "netlink_send failed; error:%d", len);
 		close(fd);
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 
 	pfd.fd = fd;
@@ -863,7 +880,7 @@ kvp_done:
 		len = netlink_send(fd, incoming_cn_msg);
 		if (len < 0) {
 			syslog(LOG_ERR, "net_link send failed; error:%d", len);
-			exit(-1);
+			exit(EXIT_FAILURE);
 		}
 	}
 

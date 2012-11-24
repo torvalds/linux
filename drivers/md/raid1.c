@@ -2564,7 +2564,7 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 		    || disk_idx < 0)
 			continue;
 		if (test_bit(Replacement, &rdev->flags))
-			disk = conf->mirrors + conf->raid_disks + disk_idx;
+			disk = conf->mirrors + mddev->raid_disks + disk_idx;
 		else
 			disk = conf->mirrors + disk_idx;
 

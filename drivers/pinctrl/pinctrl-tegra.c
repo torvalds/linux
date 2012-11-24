@@ -259,7 +259,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 		*bank = g->drv_bank;
 		*reg = g->drv_reg;
 		*bit = g->lpmd_bit;
-		*width = 1;
+		*width = 2;
 		break;
 	case TEGRA_PINCONF_PARAM_DRIVE_DOWN_STRENGTH:
 		*bank = g->drv_bank;

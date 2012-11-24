@@ -3892,6 +3892,8 @@ static void b43legacy_remove(struct ssb_device *dev)
 	cancel_work_sync(&wl->firmware_load);
 
 	B43legacy_WARN_ON(!wl);
+	if (!wldev->fw.ucode)
+		return;			/* NULL if fw never loaded */
 	if (wl->current_dev == wldev)
 		ieee80211_unregister_hw(wl->hw);
 

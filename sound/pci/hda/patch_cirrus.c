@@ -1427,7 +1427,7 @@ static int patch_cs420x(struct hda_codec *codec)
 	return 0;
 
  error:
-	kfree(codec->spec);
+	cs_free(codec);
 	codec->spec = NULL;
 	return err;
 }
@@ -1984,7 +1984,7 @@ static int patch_cs4210(struct hda_codec *codec)
 	return 0;
 
  error:
-	kfree(codec->spec);
+	cs_free(codec);
 	codec->spec = NULL;
 	return err;
 }
@@ -2009,7 +2009,7 @@ static int patch_cs4213(struct hda_codec *codec)
 	return 0;
 
  error:
-	kfree(codec->spec);
+	cs_free(codec);
 	codec->spec = NULL;
 	return err;
 }

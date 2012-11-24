@@ -1643,7 +1643,7 @@ static inline int deliver_skb(struct sk_buff *skb,
 
 static inline bool skb_loop_sk(struct packet_type *ptype, struct sk_buff *skb)
 {
-	if (ptype->af_packet_priv == NULL)
+	if (!ptype->af_packet_priv || !skb->sk)
 		return false;
 
 	if (ptype->id_match)
@@ -2121,7 +2121,8 @@ static bool can_checksum_protocol(netdev_features_t features, __be16 protocol)
 static netdev_features_t harmonize_features(struct sk_buff *skb,
 	__be16 protocol, netdev_features_t features)
 {
-	if (!can_checksum_protocol(features, protocol)) {
+	if (skb->ip_summed != CHECKSUM_NONE &&
+	    !can_checksum_protocol(features, protocol)) {
 		features &= ~NETIF_F_ALL_CSUM;
 		features &= ~NETIF_F_SG;
 	} else if (illegal_highdma(skb->dev, skb)) {
@@ -2617,15 +2618,16 @@ void __skb_get_rxhash(struct sk_buff *skb)
 	if (!skb_flow_dissect(skb, &keys))
 		return;
 
-	if (keys.ports) {
-		if ((__force u16)keys.port16[1] < (__force u16)keys.port16[0])
-			swap(keys.port16[0], keys.port16[1]);
+	if (keys.ports)
 		skb->l4_rxhash = 1;
-	}
 
 	/* get a consistent hash (same value on both flow directions) */
-	if ((__force u32)keys.dst < (__force u32)keys.src)
+	if (((__force u32)keys.dst < (__force u32)keys.src) ||
+	    (((__force u32)keys.dst == (__force u32)keys.src) &&
+	     ((__force u16)keys.port16[1] < (__force u16)keys.port16[0]))) {
 		swap(keys.dst, keys.src);
+		swap(keys.port16[0], keys.port16[1]);
+	}
 
 	hash = jhash_3words((__force u32)keys.dst,
 			    (__force u32)keys.src,
@@ -3207,18 +3209,18 @@ another_round:
 ncls:
 #endif
 
-	rx_handler = rcu_dereference(skb->dev->rx_handler);
 	if (vlan_tx_tag_present(skb)) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
 			pt_prev = NULL;
 		}
-		if (vlan_do_receive(&skb, !rx_handler))
+		if (vlan_do_receive(&skb))
 			goto another_round;
 		else if (unlikely(!skb))
 			goto out;
 	}
 
+	rx_handler = rcu_dereference(skb->dev->rx_handler);
 	if (rx_handler) {
 		if (pt_prev) {
 			ret = deliver_skb(skb, pt_prev, orig_dev);
@@ -3237,6 +3239,9 @@ ncls:
 			BUG();
 		}
 	}
+
+	if (vlan_tx_nonzero_tag_present(skb))
+		skb->pkt_type = PACKET_OTHERHOST;
 
 	/* deliver only exact match when indicated */
 	null_or_dev = deliver_exact ? skb->dev : NULL;
