@@ -346,7 +346,7 @@ static int __devexit atmel_tsadcc_remove(struct platform_device *pdev)
 
 static struct platform_driver atmel_tsadcc_driver = {
 	.probe		= atmel_tsadcc_probe,
-	.remove		= __devexit_p(atmel_tsadcc_remove),
+	.remove		= atmel_tsadcc_remove,
 	.driver		= {
 		.name	= "atmel_tsadcc",
 	},

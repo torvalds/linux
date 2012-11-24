@@ -442,7 +442,7 @@ static SIMPLE_DEV_PM_OPS(ucb1400_ts_pm_ops,
 
 static struct platform_driver ucb1400_ts_driver = {
 	.probe	= ucb1400_ts_probe,
-	.remove	= __devexit_p(ucb1400_ts_remove),
+	.remove	= ucb1400_ts_remove,
 	.driver	= {
 		.name	= "ucb1400_ts",
 		.owner	= THIS_MODULE,

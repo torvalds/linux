@@ -212,7 +212,7 @@ static struct pci_driver pcips2_driver = {
 	.name			= "pcips2",
 	.id_table		= pcips2_ids,
 	.probe			= pcips2_probe,
-	.remove			= __devexit_p(pcips2_remove),
+	.remove			= pcips2_remove,
 };
 
 module_pci_driver(pcips2_driver);

@@ -165,7 +165,7 @@ static struct platform_driver maceps2_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= maceps2_probe,
-	.remove		= __devexit_p(maceps2_remove),
+	.remove		= maceps2_remove,
 };
 
 static int __init maceps2_init(void)

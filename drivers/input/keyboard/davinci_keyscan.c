@@ -326,7 +326,7 @@ static struct platform_driver davinci_ks_driver = {
 		.name = "davinci_keyscan",
 		.owner = THIS_MODULE,
 	},
-	.remove	= __devexit_p(davinci_ks_remove),
+	.remove	= davinci_ks_remove,
 };
 
 static int __init davinci_ks_init(void)

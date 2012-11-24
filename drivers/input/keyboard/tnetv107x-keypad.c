@@ -319,7 +319,7 @@ static int __devexit keypad_remove(struct platform_device *pdev)
 
 static struct platform_driver keypad_driver = {
 	.probe		= keypad_probe,
-	.remove		= __devexit_p(keypad_remove),
+	.remove		= keypad_remove,
 	.driver.name	= "tnetv107x-keypad",
 	.driver.owner	= THIS_MODULE,
 };

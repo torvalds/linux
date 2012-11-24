@@ -243,7 +243,7 @@ static struct i2c_driver mma8450_driver = {
 		.of_match_table = mma8450_dt_ids,
 	},
 	.probe		= mma8450_probe,
-	.remove		= __devexit_p(mma8450_remove),
+	.remove		= mma8450_remove,
 	.id_table	= mma8450_id,
 };
 

@@ -662,7 +662,7 @@ static struct i2c_driver synaptics_i2c_driver = {
 	},
 
 	.probe		= synaptics_i2c_probe,
-	.remove		= __devexit_p(synaptics_i2c_remove),
+	.remove		= synaptics_i2c_remove,
 
 	.id_table	= synaptics_i2c_id_table,
 };

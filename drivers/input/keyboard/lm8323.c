@@ -846,7 +846,7 @@ static struct i2c_driver lm8323_i2c_driver = {
 		.pm	= &lm8323_pm_ops,
 	},
 	.probe		= lm8323_probe,
-	.remove		= __devexit_p(lm8323_remove),
+	.remove		= lm8323_remove,
 	.id_table	= lm8323_id,
 };
 MODULE_DEVICE_TABLE(i2c, lm8323_id);

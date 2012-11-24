@@ -204,7 +204,7 @@ static struct amba_driver ambakmi_driver = {
 	},
 	.id_table	= amba_kmi_idtable,
 	.probe		= amba_kmi_probe,
-	.remove		= __devexit_p(amba_kmi_remove),
+	.remove		= amba_kmi_remove,
 	.resume		= amba_kmi_resume,
 };
 

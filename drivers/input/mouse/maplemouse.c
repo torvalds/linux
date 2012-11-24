@@ -132,7 +132,7 @@ static struct maple_driver dc_mouse_driver = {
 	.drv = {
 		.name = "Dreamcast_mouse",
 		.probe = probe_maple_mouse,
-		.remove = __devexit_p(remove_maple_mouse),
+		.remove = remove_maple_mouse,
 	},
 };
 

@@ -331,7 +331,7 @@ static SIMPLE_DEV_PM_OPS(sh_keysc_dev_pm_ops,
 
 static struct platform_driver sh_keysc_device_driver = {
 	.probe		= sh_keysc_probe,
-	.remove		= __devexit_p(sh_keysc_remove),
+	.remove		= sh_keysc_remove,
 	.driver		= {
 		.name	= "sh_keysc",
 		.pm	= &sh_keysc_dev_pm_ops,

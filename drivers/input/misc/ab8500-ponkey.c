@@ -146,7 +146,7 @@ static struct platform_driver ab8500_ponkey_driver = {
 		.of_match_table = of_match_ptr(ab8500_ponkey_match),
 	},
 	.probe		= ab8500_ponkey_probe,
-	.remove		= __devexit_p(ab8500_ponkey_remove),
+	.remove		= ab8500_ponkey_remove,
 };
 module_platform_driver(ab8500_ponkey_driver);
 

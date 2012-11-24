@@ -193,7 +193,7 @@ static struct platform_driver pxa930_rotary_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa930_rotary_probe,
-	.remove		= __devexit_p(pxa930_rotary_remove),
+	.remove		= pxa930_rotary_remove,
 };
 module_platform_driver(pxa930_rotary_driver);
 

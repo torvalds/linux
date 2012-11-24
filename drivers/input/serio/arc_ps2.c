@@ -264,7 +264,7 @@ static struct platform_driver arc_ps2_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= arc_ps2_probe,
-	.remove	= __devexit_p(arc_ps2_remove),
+	.remove	= arc_ps2_remove,
 };
 
 module_platform_driver(arc_ps2_driver);

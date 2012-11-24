@@ -272,7 +272,7 @@ static struct i2c_driver wacom_i2c_driver = {
 	},
 
 	.probe		= wacom_i2c_probe,
-	.remove		= __devexit_p(wacom_i2c_remove),
+	.remove		= wacom_i2c_remove,
 	.id_table	= wacom_i2c_id,
 };
 module_i2c_driver(wacom_i2c_driver);

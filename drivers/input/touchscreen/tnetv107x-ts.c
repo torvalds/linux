@@ -374,7 +374,7 @@ static int __devexit tsc_remove(struct platform_device *pdev)
 
 static struct platform_driver tsc_driver = {
 	.probe		= tsc_probe,
-	.remove		= __devexit_p(tsc_remove),
+	.remove		= tsc_remove,
 	.driver.name	= "tnetv107x-ts",
 	.driver.owner	= THIS_MODULE,
 };

@@ -124,7 +124,7 @@ static struct i2c_driver cyttsp_i2c_driver = {
 		.pm	= &cyttsp_pm_ops,
 	},
 	.probe		= cyttsp_i2c_probe,
-	.remove		= __devexit_p(cyttsp_i2c_remove),
+	.remove		= cyttsp_i2c_remove,
 	.id_table	= cyttsp_i2c_id,
 };
 

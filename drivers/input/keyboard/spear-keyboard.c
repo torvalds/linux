@@ -381,7 +381,7 @@ MODULE_DEVICE_TABLE(of, spear_kbd_id_table);
 
 static struct platform_driver spear_kbd_driver = {
 	.probe		= spear_kbd_probe,
-	.remove		= __devexit_p(spear_kbd_remove),
+	.remove		= spear_kbd_remove,
 	.driver		= {
 		.name	= "keyboard",
 		.owner	= THIS_MODULE,

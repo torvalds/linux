@@ -663,7 +663,7 @@ static struct i2c_driver kxtj9_driver = {
 		.pm	= &kxtj9_pm_ops,
 	},
 	.probe		= kxtj9_probe,
-	.remove		= __devexit_p(kxtj9_remove),
+	.remove		= kxtj9_remove,
 	.id_table	= kxtj9_id,
 };
 

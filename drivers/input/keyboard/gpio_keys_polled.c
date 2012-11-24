@@ -357,7 +357,7 @@ static int __devexit gpio_keys_polled_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_keys_polled_driver = {
 	.probe	= gpio_keys_polled_probe,
-	.remove	= __devexit_p(gpio_keys_polled_remove),
+	.remove	= gpio_keys_polled_remove,
 	.driver	= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

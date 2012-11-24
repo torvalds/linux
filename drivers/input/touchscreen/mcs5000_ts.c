@@ -292,7 +292,7 @@ MODULE_DEVICE_TABLE(i2c, mcs5000_ts_id);
 
 static struct i2c_driver mcs5000_ts_driver = {
 	.probe		= mcs5000_ts_probe,
-	.remove		= __devexit_p(mcs5000_ts_remove),
+	.remove		= mcs5000_ts_remove,
 	.driver = {
 		.name = "mcs5000_ts",
 #ifdef CONFIG_PM

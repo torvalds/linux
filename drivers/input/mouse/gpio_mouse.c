@@ -172,7 +172,7 @@ static int __devexit gpio_mouse_remove(struct platform_device *pdev)
 
 static struct platform_driver gpio_mouse_device_driver = {
 	.probe		= gpio_mouse_probe,
-	.remove		= __devexit_p(gpio_mouse_remove),
+	.remove		= gpio_mouse_remove,
 	.driver		= {
 		.name	= "gpio_mouse",
 		.owner	= THIS_MODULE,

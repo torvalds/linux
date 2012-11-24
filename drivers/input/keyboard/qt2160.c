@@ -366,7 +366,7 @@ static struct i2c_driver qt2160_driver = {
 
 	.id_table	= qt2160_idtable,
 	.probe		= qt2160_probe,
-	.remove		= __devexit_p(qt2160_remove),
+	.remove		= qt2160_remove,
 };
 
 module_i2c_driver(qt2160_driver);

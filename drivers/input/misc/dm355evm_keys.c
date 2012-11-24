@@ -262,7 +262,7 @@ static int __devexit dm355evm_keys_remove(struct platform_device *pdev)
  */
 static struct platform_driver dm355evm_keys_driver = {
 	.probe		= dm355evm_keys_probe,
-	.remove		= __devexit_p(dm355evm_keys_remove),
+	.remove		= dm355evm_keys_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "dm355evm_keys",

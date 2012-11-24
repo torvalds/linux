@@ -150,7 +150,7 @@ static struct pci_driver fm801_gp_driver = {
 	.name =		"FM801_gameport",
 	.id_table =	fm801_gp_id_table,
 	.probe =	fm801_gp_probe,
-	.remove =	__devexit_p(fm801_gp_remove),
+	.remove =	fm801_gp_remove,
 };
 
 module_pci_driver(fm801_gp_driver);

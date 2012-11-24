@@ -256,7 +256,7 @@ static struct i2c_driver qt1070_driver = {
 	},
 	.id_table	= qt1070_id,
 	.probe		= qt1070_probe,
-	.remove		= __devexit_p(qt1070_remove),
+	.remove		= qt1070_remove,
 };
 
 module_i2c_driver(qt1070_driver);

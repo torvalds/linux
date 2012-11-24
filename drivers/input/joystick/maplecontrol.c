@@ -175,7 +175,7 @@ static struct maple_driver dc_pad_driver = {
 	.drv = {
 		.name	= "Dreamcast_controller",
 		.probe	= probe_maple_controller,
-		.remove	= __devexit_p(remove_maple_controller),
+		.remove	= remove_maple_controller,
 	},
 };
 

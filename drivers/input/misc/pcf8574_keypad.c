@@ -212,7 +212,7 @@ static struct i2c_driver pcf8574_kp_driver = {
 #endif
 	},
 	.probe    = pcf8574_kp_probe,
-	.remove   = __devexit_p(pcf8574_kp_remove),
+	.remove   = pcf8574_kp_remove,
 	.id_table = pcf8574_kp_id,
 };
 

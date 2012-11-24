@@ -188,7 +188,7 @@ static struct spi_driver cyttsp_spi_driver = {
 		.pm	= &cyttsp_pm_ops,
 	},
 	.probe  = cyttsp_spi_probe,
-	.remove = __devexit_p(cyttsp_spi_remove),
+	.remove = cyttsp_spi_remove,
 };
 
 module_spi_driver(cyttsp_spi_driver);

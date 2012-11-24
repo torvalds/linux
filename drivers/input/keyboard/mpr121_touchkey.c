@@ -327,7 +327,7 @@ static struct i2c_driver mpr_touchkey_driver = {
 	},
 	.id_table	= mpr121_id,
 	.probe		= mpr_touchkey_probe,
-	.remove		= __devexit_p(mpr_touchkey_remove),
+	.remove		= mpr_touchkey_remove,
 };
 
 module_i2c_driver(mpr_touchkey_driver);

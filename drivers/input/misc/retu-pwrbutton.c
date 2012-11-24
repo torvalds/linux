@@ -83,7 +83,7 @@ static int __devexit retu_pwrbutton_remove(struct platform_device *pdev)
 
 static struct platform_driver retu_pwrbutton_driver = {
 	.probe		= retu_pwrbutton_probe,
-	.remove		= __devexit_p(retu_pwrbutton_remove),
+	.remove		= retu_pwrbutton_remove,
 	.driver		= {
 		.name	= "retu-pwrbutton",
 		.owner	= THIS_MODULE,

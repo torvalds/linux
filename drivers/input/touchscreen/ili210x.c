@@ -350,7 +350,7 @@ static struct i2c_driver ili210x_ts_driver = {
 	},
 	.id_table = ili210x_i2c_id,
 	.probe = ili210x_i2c_probe,
-	.remove = __devexit_p(ili210x_i2c_remove),
+	.remove = ili210x_i2c_remove,
 };
 
 module_i2c_driver(ili210x_ts_driver);

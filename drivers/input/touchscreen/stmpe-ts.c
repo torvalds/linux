@@ -386,7 +386,7 @@ static struct platform_driver stmpe_ts_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = stmpe_input_probe,
-	.remove = __devexit_p(stmpe_ts_remove),
+	.remove = stmpe_ts_remove,
 };
 module_platform_driver(stmpe_ts_driver);
 

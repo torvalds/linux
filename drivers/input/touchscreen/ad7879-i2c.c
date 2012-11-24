@@ -98,7 +98,7 @@ static struct i2c_driver ad7879_i2c_driver = {
 		.pm	= &ad7879_pm_ops,
 	},
 	.probe		= ad7879_i2c_probe,
-	.remove		= __devexit_p(ad7879_i2c_remove),
+	.remove		= ad7879_i2c_remove,
 	.id_table	= ad7879_id,
 };
 

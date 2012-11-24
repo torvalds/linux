@@ -255,7 +255,7 @@ static const struct dev_pm_ops bfin_rotary_pm_ops = {
 
 static struct platform_driver bfin_rotary_device_driver = {
 	.probe		= bfin_rotary_probe,
-	.remove		= __devexit_p(bfin_rotary_remove),
+	.remove		= bfin_rotary_remove,
 	.driver		= {
 		.name	= "bfin-rotary",
 		.owner	= THIS_MODULE,

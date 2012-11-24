@@ -119,7 +119,7 @@ static int __devexit pcap_keys_remove(struct platform_device *pdev)
 
 static struct platform_driver pcap_keys_device_driver = {
 	.probe		= pcap_keys_probe,
-	.remove		= __devexit_p(pcap_keys_remove),
+	.remove		= pcap_keys_remove,
 	.driver		= {
 		.name	= "pcap-keys",
 		.owner	= THIS_MODULE,

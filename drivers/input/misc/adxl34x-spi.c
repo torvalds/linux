@@ -126,7 +126,7 @@ static struct spi_driver adxl34x_driver = {
 		.pm = &adxl34x_spi_pm,
 	},
 	.probe   = adxl34x_spi_probe,
-	.remove  = __devexit_p(adxl34x_spi_remove),
+	.remove  = adxl34x_spi_remove,
 };
 
 module_spi_driver(adxl34x_driver);

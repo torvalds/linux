@@ -670,7 +670,7 @@ static struct i2c_driver bma150_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.id_table	= bma150_id,
 	.probe		= bma150_probe,
-	.remove		= __devexit_p(bma150_remove),
+	.remove		= bma150_remove,
 };
 
 module_i2c_driver(bma150_driver);

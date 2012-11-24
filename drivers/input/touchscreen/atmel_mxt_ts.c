@@ -1270,7 +1270,7 @@ static struct i2c_driver mxt_driver = {
 		.pm	= &mxt_pm_ops,
 	},
 	.probe		= mxt_probe,
-	.remove		= __devexit_p(mxt_remove),
+	.remove		= mxt_remove,
 	.id_table	= mxt_id,
 };
 

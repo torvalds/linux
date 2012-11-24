@@ -325,7 +325,7 @@ static int __devexit rotary_encoder_remove(struct platform_device *pdev)
 
 static struct platform_driver rotary_encoder_driver = {
 	.probe		= rotary_encoder_probe,
-	.remove		= __devexit_p(rotary_encoder_remove),
+	.remove		= rotary_encoder_remove,
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,

@@ -138,7 +138,7 @@ static int __devexit wm831x_on_remove(struct platform_device *pdev)
 
 static struct platform_driver wm831x_on_driver = {
 	.probe		= wm831x_on_probe,
-	.remove		= __devexit_p(wm831x_on_remove),
+	.remove		= wm831x_on_remove,
 	.driver		= {
 		.name	= "wm831x-on",
 		.owner	= THIS_MODULE,

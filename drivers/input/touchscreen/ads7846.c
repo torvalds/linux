@@ -1434,7 +1434,7 @@ static struct spi_driver ads7846_driver = {
 		.pm	= &ads7846_pm,
 	},
 	.probe		= ads7846_probe,
-	.remove		= __devexit_p(ads7846_remove),
+	.remove		= ads7846_remove,
 };
 
 module_spi_driver(ads7846_driver);

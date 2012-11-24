@@ -471,7 +471,7 @@ static struct i2c_driver mpu3050_i2c_driver = {
 		.of_match_table = mpu3050_of_match,
 	},
 	.probe		= mpu3050_probe,
-	.remove		= __devexit_p(mpu3050_remove),
+	.remove		= mpu3050_remove,
 	.id_table	= mpu3050_ids,
 };
 

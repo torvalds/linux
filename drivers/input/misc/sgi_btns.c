@@ -158,7 +158,7 @@ static int __devexit sgi_buttons_remove(struct platform_device *pdev)
 
 static struct platform_driver sgi_buttons_driver = {
 	.probe	= sgi_buttons_probe,
-	.remove	= __devexit_p(sgi_buttons_remove),
+	.remove	= sgi_buttons_remove,
 	.driver	= {
 		.name	= "sgibtns",
 		.owner	= THIS_MODULE,

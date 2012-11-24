@@ -398,7 +398,7 @@ static struct platform_driver wm831x_ts_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = wm831x_ts_probe,
-	.remove = __devexit_p(wm831x_ts_remove),
+	.remove = wm831x_ts_remove,
 };
 module_platform_driver(wm831x_ts_driver);
 

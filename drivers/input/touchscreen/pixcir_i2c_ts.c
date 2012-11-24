@@ -218,7 +218,7 @@ static struct i2c_driver pixcir_i2c_ts_driver = {
 		.pm	= &pixcir_dev_pm_ops,
 	},
 	.probe		= pixcir_i2c_ts_probe,
-	.remove		= __devexit_p(pixcir_i2c_ts_remove),
+	.remove		= pixcir_i2c_ts_remove,
 	.id_table	= pixcir_i2c_ts_id,
 };
 

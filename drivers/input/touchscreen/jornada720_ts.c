@@ -168,7 +168,7 @@ MODULE_ALIAS("platform:jornada_ts");
 
 static struct platform_driver jornada720_ts_driver = {
 	.probe		= jornada720_ts_probe,
-	.remove		= __devexit_p(jornada720_ts_remove),
+	.remove		= jornada720_ts_remove,
 	.driver		= {
 		.name	= "jornada_ts",
 		.owner	= THIS_MODULE,

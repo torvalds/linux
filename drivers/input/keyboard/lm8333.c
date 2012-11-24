@@ -225,7 +225,7 @@ static struct i2c_driver lm8333_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= lm8333_probe,
-	.remove		= __devexit_p(lm8333_remove),
+	.remove		= lm8333_remove,
 	.id_table	= lm8333_id,
 };
 module_i2c_driver(lm8333_driver);

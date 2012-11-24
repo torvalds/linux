@@ -773,7 +773,7 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_kp_pm_ops,
 
 static struct platform_driver pmic8xxx_kp_driver = {
 	.probe		= pmic8xxx_kp_probe,
-	.remove		= __devexit_p(pmic8xxx_kp_remove),
+	.remove		= pmic8xxx_kp_remove,
 	.driver		= {
 		.name = PM8XXX_KEYPAD_DEV_NAME,
 		.owner = THIS_MODULE,

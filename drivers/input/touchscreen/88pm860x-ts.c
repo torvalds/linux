@@ -310,7 +310,7 @@ static struct platform_driver pm860x_touch_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= pm860x_touch_probe,
-	.remove	= __devexit_p(pm860x_touch_remove),
+	.remove	= pm860x_touch_remove,
 };
 module_platform_driver(pm860x_touch_driver);
 

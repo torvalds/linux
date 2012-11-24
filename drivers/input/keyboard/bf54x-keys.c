@@ -390,7 +390,7 @@ static struct platform_driver bfin_kpad_device_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= bfin_kpad_probe,
-	.remove		= __devexit_p(bfin_kpad_remove),
+	.remove		= bfin_kpad_remove,
 	.suspend	= bfin_kpad_suspend,
 	.resume		= bfin_kpad_resume,
 };

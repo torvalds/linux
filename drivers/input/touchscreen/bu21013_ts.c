@@ -649,7 +649,7 @@ static struct i2c_driver bu21013_driver = {
 #endif
 	},
 	.probe		=	bu21013_probe,
-	.remove		=	__devexit_p(bu21013_remove),
+	.remove		=	bu21013_remove,
 	.id_table	=	bu21013_id,
 };
 

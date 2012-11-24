@@ -366,7 +366,7 @@ static struct i2c_driver as5011_driver = {
 		.name = "as5011",
 	},
 	.probe		= as5011_probe,
-	.remove		= __devexit_p(as5011_remove),
+	.remove		= as5011_remove,
 	.id_table	= as5011_id,
 };
 

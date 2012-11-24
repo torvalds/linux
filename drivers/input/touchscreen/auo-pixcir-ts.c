@@ -631,7 +631,7 @@ static struct i2c_driver auo_pixcir_driver = {
 		.pm	= &auo_pixcir_pm_ops,
 	},
 	.probe		= auo_pixcir_probe,
-	.remove		= __devexit_p(auo_pixcir_remove),
+	.remove		= auo_pixcir_remove,
 	.id_table	= auo_pixcir_idtable,
 };
 

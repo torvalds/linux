@@ -380,7 +380,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 		.pm	= &ep93xx_keypad_pm_ops,
 	},
 	.probe		= ep93xx_keypad_probe,
-	.remove		= __devexit_p(ep93xx_keypad_remove),
+	.remove		= ep93xx_keypad_remove,
 };
 module_platform_driver(ep93xx_keypad_driver);
 

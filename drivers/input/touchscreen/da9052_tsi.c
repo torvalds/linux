@@ -355,7 +355,7 @@ static int  __devexit da9052_ts_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_tsi_driver = {
 	.probe	= da9052_ts_probe,
-	.remove	= __devexit_p(da9052_ts_remove),
+	.remove	= da9052_ts_remove,
 	.driver	= {
 		.name	= "da9052-tsi",
 		.owner	= THIS_MODULE,

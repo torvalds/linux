@@ -321,7 +321,7 @@ static struct i2c_driver eeti_ts_driver = {
 #endif
 	},
 	.probe = eeti_ts_probe,
-	.remove = __devexit_p(eeti_ts_remove),
+	.remove = eeti_ts_remove,
 	.id_table = eeti_ts_id,
 };
 

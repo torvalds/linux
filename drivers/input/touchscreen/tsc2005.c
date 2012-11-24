@@ -745,7 +745,7 @@ static struct spi_driver tsc2005_driver = {
 		.pm	= &tsc2005_pm_ops,
 	},
 	.probe	= tsc2005_probe,
-	.remove	= __devexit_p(tsc2005_remove),
+	.remove	= tsc2005_remove,
 };
 
 module_spi_driver(tsc2005_driver);

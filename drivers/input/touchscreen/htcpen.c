@@ -210,7 +210,7 @@ static int htcpen_isa_resume(struct device *dev, unsigned int n)
 
 static struct isa_driver htcpen_isa_driver = {
 	.probe		= htcpen_isa_probe,
-	.remove		= __devexit_p(htcpen_isa_remove),
+	.remove		= htcpen_isa_remove,
 #ifdef CONFIG_PM
 	.suspend	= htcpen_isa_suspend,
 	.resume		= htcpen_isa_resume,

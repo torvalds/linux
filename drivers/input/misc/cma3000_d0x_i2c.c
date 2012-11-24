@@ -114,7 +114,7 @@ MODULE_DEVICE_TABLE(i2c, cma3000_i2c_id);
 
 static struct i2c_driver cma3000_i2c_driver = {
 	.probe		= cma3000_i2c_probe,
-	.remove		= __devexit_p(cma3000_i2c_remove),
+	.remove		= cma3000_i2c_remove,
 	.id_table	= cma3000_i2c_id,
 	.driver = {
 		.name	= "cma3000_i2c_accl",

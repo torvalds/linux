@@ -427,7 +427,7 @@ static struct platform_driver ske_keypad_driver = {
 		.owner  = THIS_MODULE,
 		.pm = &ske_keypad_dev_pm_ops,
 	},
-	.remove = __devexit_p(ske_keypad_remove),
+	.remove = ske_keypad_remove,
 };
 
 static int __init ske_keypad_init(void)

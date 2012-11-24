@@ -173,6 +173,6 @@ static struct platform_driver jornada720_kbd_driver = {
 		.owner	= THIS_MODULE,
 	 },
 	.probe   = jornada720_kbd_probe,
-	.remove  = __devexit_p(jornada720_kbd_remove),
+	.remove  = jornada720_kbd_remove,
 };
 module_platform_driver(jornada720_kbd_driver);

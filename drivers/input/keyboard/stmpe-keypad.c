@@ -348,7 +348,7 @@ static struct platform_driver stmpe_keypad_driver = {
 	.driver.name	= "stmpe-keypad",
 	.driver.owner	= THIS_MODULE,
 	.probe		= stmpe_keypad_probe,
-	.remove		= __devexit_p(stmpe_keypad_remove),
+	.remove		= stmpe_keypad_remove,
 };
 module_platform_driver(stmpe_keypad_driver);
 

@@ -452,7 +452,7 @@ static int __devexit twl4030_kp_remove(struct platform_device *pdev)
 
 static struct platform_driver twl4030_kp_driver = {
 	.probe		= twl4030_kp_probe,
-	.remove		= __devexit_p(twl4030_kp_remove),
+	.remove		= twl4030_kp_remove,
 	.driver		= {
 		.name	= "twl4030_keypad",
 		.owner	= THIS_MODULE,

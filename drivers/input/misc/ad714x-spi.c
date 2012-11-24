@@ -120,7 +120,7 @@ static struct spi_driver ad714x_spi_driver = {
 		.pm	= &ad714x_spi_pm,
 	},
 	.probe		= ad714x_spi_probe,
-	.remove		= __devexit_p(ad714x_spi_remove),
+	.remove		= ad714x_spi_remove,
 };
 
 module_spi_driver(ad714x_spi_driver);

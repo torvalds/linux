@@ -353,7 +353,7 @@ static SIMPLE_DEV_PM_OPS(navpoint_pm_ops, navpoint_suspend, navpoint_resume);
 
 static struct platform_driver navpoint_driver = {
 	.probe		= navpoint_probe,
-	.remove		= __devexit_p(navpoint_remove),
+	.remove		= navpoint_remove,
 	.driver = {
 		.name	= "navpoint",
 		.owner	= THIS_MODULE,

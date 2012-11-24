@@ -396,7 +396,7 @@ static struct i2c_driver tsc2007_driver = {
 	},
 	.id_table	= tsc2007_idtable,
 	.probe		= tsc2007_probe,
-	.remove		= __devexit_p(tsc2007_remove),
+	.remove		= tsc2007_remove,
 };
 
 module_i2c_driver(tsc2007_driver);

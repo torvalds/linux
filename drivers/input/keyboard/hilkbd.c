@@ -341,7 +341,7 @@ static struct parisc_driver hil_driver = {
 	.name		= "hil",
 	.id_table	= hil_tbl,
 	.probe		= hil_probe_chip,
-	.remove		= __devexit_p(hil_remove_chip),
+	.remove		= hil_remove_chip,
 };
 
 static int __init hil_init(void)

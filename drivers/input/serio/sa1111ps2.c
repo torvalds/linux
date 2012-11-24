@@ -357,7 +357,7 @@ static struct sa1111_driver ps2_driver = {
 	},
 	.devid		= SA1111_DEVID_PS2,
 	.probe		= ps2_probe,
-	.remove		= __devexit_p(ps2_remove),
+	.remove		= ps2_remove,
 };
 
 static int __init ps2_init(void)

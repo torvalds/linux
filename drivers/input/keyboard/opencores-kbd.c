@@ -158,7 +158,7 @@ static int __devexit opencores_kbd_remove(struct platform_device *pdev)
 
 static struct platform_driver opencores_kbd_device_driver = {
 	.probe    = opencores_kbd_probe,
-	.remove   = __devexit_p(opencores_kbd_remove),
+	.remove   = opencores_kbd_remove,
 	.driver   = {
 		.name = "opencores-kbd",
 	},

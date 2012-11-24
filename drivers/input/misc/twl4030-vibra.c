@@ -283,7 +283,7 @@ static int __devexit twl4030_vibra_remove(struct platform_device *pdev)
 
 static struct platform_driver twl4030_vibra_driver = {
 	.probe		= twl4030_vibra_probe,
-	.remove		= __devexit_p(twl4030_vibra_remove),
+	.remove		= twl4030_vibra_remove,
 	.driver		= {
 		.name	= "twl4030-vibra",
 		.owner	= THIS_MODULE,

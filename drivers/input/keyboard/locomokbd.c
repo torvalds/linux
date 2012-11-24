@@ -345,7 +345,7 @@ static struct locomo_driver keyboard_driver = {
 	},
 	.devid	= LOCOMO_DEVID_KEYBOARD,
 	.probe	= locomokbd_probe,
-	.remove	= __devexit_p(locomokbd_remove),
+	.remove	= locomokbd_remove,
 };
 
 static int __init locomokbd_init(void)

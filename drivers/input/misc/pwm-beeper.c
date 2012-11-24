@@ -184,7 +184,7 @@ static const struct of_device_id pwm_beeper_match[] = {
 
 static struct platform_driver pwm_beeper_driver = {
 	.probe	= pwm_beeper_probe,
-	.remove = __devexit_p(pwm_beeper_remove),
+	.remove = pwm_beeper_remove,
 	.driver = {
 		.name	= "pwm-beeper",
 		.owner	= THIS_MODULE,

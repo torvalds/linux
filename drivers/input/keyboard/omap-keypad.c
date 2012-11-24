@@ -379,7 +379,7 @@ static int __devexit omap_kp_remove(struct platform_device *pdev)
 
 static struct platform_driver omap_kp_driver = {
 	.probe		= omap_kp_probe,
-	.remove		= __devexit_p(omap_kp_remove),
+	.remove		= omap_kp_remove,
 	.suspend	= omap_kp_suspend,
 	.resume		= omap_kp_resume,
 	.driver		= {

@@ -1334,7 +1334,7 @@ static struct platform_driver wistron_driver = {
 #endif
 	},
 	.probe		= wistron_probe,
-	.remove		= __devexit_p(wistron_remove),
+	.remove		= wistron_remove,
 };
 
 static int __init wb_module_init(void)

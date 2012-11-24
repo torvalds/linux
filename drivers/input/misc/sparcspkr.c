@@ -263,7 +263,7 @@ static struct platform_driver bbc_beep_driver = {
 		.of_match_table = bbc_beep_match,
 	},
 	.probe		= bbc_beep_probe,
-	.remove		= __devexit_p(bbc_remove),
+	.remove		= bbc_remove,
 	.shutdown	= sparcspkr_shutdown,
 };
 
@@ -345,7 +345,7 @@ static struct platform_driver grover_beep_driver = {
 		.of_match_table = grover_beep_match,
 	},
 	.probe		= grover_beep_probe,
-	.remove		= __devexit_p(grover_remove),
+	.remove		= grover_remove,
 	.shutdown	= sparcspkr_shutdown,
 };
 

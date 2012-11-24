@@ -408,7 +408,7 @@ static struct i2c_driver tca8418_keypad_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= tca8418_keypad_probe,
-	.remove		= __devexit_p(tca8418_keypad_remove),
+	.remove		= tca8418_keypad_remove,
 	.id_table	= tca8418_id,
 };
 

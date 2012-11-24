@@ -325,7 +325,7 @@ static int __devexit w90x900ts_remove(struct platform_device *pdev)
 
 static struct platform_driver w90x900ts_driver = {
 	.probe		= w90x900ts_probe,
-	.remove		= __devexit_p(w90x900ts_remove),
+	.remove		= w90x900ts_remove,
 	.driver		= {
 		.name	= "nuc900-ts",
 		.owner	= THIS_MODULE,

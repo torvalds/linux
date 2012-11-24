@@ -448,7 +448,7 @@ static struct platform_driver tc3589x_keypad_driver = {
 		.pm	= &tc3589x_keypad_dev_pm_ops,
 	},
 	.probe	= tc3589x_keypad_probe,
-	.remove	= __devexit_p(tc3589x_keypad_remove),
+	.remove	= tc3589x_keypad_remove,
 };
 module_platform_driver(tc3589x_keypad_driver);
 

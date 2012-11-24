@@ -94,7 +94,7 @@ static int __devexit rb532_button_remove(struct platform_device *pdev)
 
 static struct platform_driver rb532_button_driver = {
 	.probe = rb532_button_probe,
-	.remove = __devexit_p(rb532_button_remove),
+	.remove = rb532_button_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

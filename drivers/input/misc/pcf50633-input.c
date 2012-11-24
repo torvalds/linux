@@ -111,7 +111,7 @@ static struct platform_driver pcf50633_input_driver = {
 		.name = "pcf50633-input",
 	},
 	.probe = pcf50633_input_probe,
-	.remove = __devexit_p(pcf50633_input_remove),
+	.remove = pcf50633_input_remove,
 };
 module_platform_driver(pcf50633_input_driver);
 

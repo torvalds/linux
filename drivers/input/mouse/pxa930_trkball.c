@@ -248,7 +248,7 @@ static struct platform_driver pxa930_trkball_driver = {
 		.name	= "pxa930-trkball",
 	},
 	.probe		= pxa930_trkball_probe,
-	.remove		= __devexit_p(pxa930_trkball_remove),
+	.remove		= pxa930_trkball_remove,
 };
 module_platform_driver(pxa930_trkball_driver);
 

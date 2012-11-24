@@ -104,7 +104,7 @@ static struct platform_driver m68kspkr_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= m68kspkr_probe,
-	.remove		= __devexit_p(m68kspkr_remove),
+	.remove		= m68kspkr_remove,
 	.shutdown	= m68kspkr_shutdown,
 };
 

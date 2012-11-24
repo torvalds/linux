@@ -662,7 +662,7 @@ static struct platform_driver mrstouch_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= mrstouch_probe,
-	.remove		= __devexit_p(mrstouch_remove),
+	.remove		= mrstouch_remove,
 };
 module_platform_driver(mrstouch_driver);
 

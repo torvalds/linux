@@ -377,7 +377,7 @@ static struct platform_driver da9034_touch_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da9034_touch_probe,
-	.remove		= __devexit_p(da9034_touch_remove),
+	.remove		= da9034_touch_remove,
 };
 module_platform_driver(da9034_touch_driver);
 

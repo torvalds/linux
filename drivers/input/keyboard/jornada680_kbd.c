@@ -258,7 +258,7 @@ static struct platform_driver jornada680kbd_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= jornada680kbd_probe,
-	.remove	= __devexit_p(jornada680kbd_remove),
+	.remove	= jornada680kbd_remove,
 };
 module_platform_driver(jornada680kbd_driver);
 

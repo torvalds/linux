@@ -590,7 +590,7 @@ static struct i2c_driver mms114_driver = {
 		.of_match_table = of_match_ptr(mms114_dt_match),
 	},
 	.probe		= mms114_probe,
-	.remove		= __devexit_p(mms114_remove),
+	.remove		= mms114_remove,
 	.id_table	= mms114_id,
 };
 

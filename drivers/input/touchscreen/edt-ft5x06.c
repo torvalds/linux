@@ -883,7 +883,7 @@ static struct i2c_driver edt_ft5x06_ts_driver = {
 	},
 	.id_table = edt_ft5x06_ts_id,
 	.probe    = edt_ft5x06_ts_probe,
-	.remove   = __devexit_p(edt_ft5x06_ts_remove),
+	.remove   = edt_ft5x06_ts_remove,
 };
 
 module_i2c_driver(edt_ft5x06_ts_driver);

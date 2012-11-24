@@ -156,7 +156,7 @@ static int __devexit da9052_onkey_remove(struct platform_device *pdev)
 
 static struct platform_driver da9052_onkey_driver = {
 	.probe	= da9052_onkey_probe,
-	.remove	= __devexit_p(da9052_onkey_remove),
+	.remove	= da9052_onkey_remove,
 	.driver = {
 		.name	= "da9052-onkey",
 		.owner	= THIS_MODULE,

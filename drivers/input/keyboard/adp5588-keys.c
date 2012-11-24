@@ -650,7 +650,7 @@ static struct i2c_driver adp5588_driver = {
 #endif
 	},
 	.probe    = adp5588_probe,
-	.remove   = __devexit_p(adp5588_remove),
+	.remove   = adp5588_remove,
 	.id_table = adp5588_id,
 };
 

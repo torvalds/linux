@@ -954,7 +954,7 @@ MODULE_DEVICE_TABLE(of, tegra_kbc_of_match);
 
 static struct platform_driver tegra_kbc_driver = {
 	.probe		= tegra_kbc_probe,
-	.remove		= __devexit_p(tegra_kbc_remove),
+	.remove		= tegra_kbc_remove,
 	.driver	= {
 		.name	= "tegra-kbc",
 		.owner  = THIS_MODULE,

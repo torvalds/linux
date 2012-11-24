@@ -252,7 +252,7 @@ static struct i2c_driver max11801_ts_driver = {
 	},
 	.id_table	= max11801_ts_id,
 	.probe		= max11801_ts_probe,
-	.remove		= __devexit_p(max11801_ts_remove),
+	.remove		= max11801_ts_remove,
 };
 
 module_i2c_driver(max11801_ts_driver);

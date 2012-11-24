@@ -212,7 +212,7 @@ static struct platform_driver ct82c710_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ct82c710_probe,
-	.remove		= __devexit_p(ct82c710_remove),
+	.remove		= ct82c710_remove,
 };
 
 

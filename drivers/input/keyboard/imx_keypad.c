@@ -632,7 +632,7 @@ static struct platform_driver imx_keypad_driver = {
 		.pm	= &imx_kbd_pm_ops,
 	},
 	.probe		= imx_keypad_probe,
-	.remove		= __devexit_p(imx_keypad_remove),
+	.remove		= imx_keypad_remove,
 };
 module_platform_driver(imx_keypad_driver);
 

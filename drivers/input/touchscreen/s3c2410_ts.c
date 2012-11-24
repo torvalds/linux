@@ -430,7 +430,7 @@ static struct platform_driver s3c_ts_driver = {
 	},
 	.id_table	= s3cts_driver_ids,
 	.probe		= s3c2410ts_probe,
-	.remove		= __devexit_p(s3c2410ts_remove),
+	.remove		= s3c2410ts_remove,
 };
 module_platform_driver(s3c_ts_driver);
 

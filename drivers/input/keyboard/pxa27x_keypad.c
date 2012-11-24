@@ -620,7 +620,7 @@ MODULE_ALIAS("platform:pxa27x-keypad");
 
 static struct platform_driver pxa27x_keypad_driver = {
 	.probe		= pxa27x_keypad_probe,
-	.remove		= __devexit_p(pxa27x_keypad_remove),
+	.remove		= pxa27x_keypad_remove,
 	.driver		= {
 		.name	= "pxa27x-keypad",
 		.owner	= THIS_MODULE,

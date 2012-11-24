@@ -564,7 +564,7 @@ MODULE_DEVICE_TABLE(of, matrix_keypad_dt_match);
 
 static struct platform_driver matrix_keypad_driver = {
 	.probe		= matrix_keypad_probe,
-	.remove		= __devexit_p(matrix_keypad_remove),
+	.remove		= matrix_keypad_remove,
 	.driver		= {
 		.name	= "matrix-keypad",
 		.owner	= THIS_MODULE,

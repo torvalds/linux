@@ -102,7 +102,7 @@ static struct platform_driver sparc_i8042_driver = {
 		.of_match_table = sparc_i8042_match,
 	},
 	.probe		= sparc_i8042_probe,
-	.remove		= __devexit_p(sparc_i8042_remove),
+	.remove		= sparc_i8042_remove,
 };
 
 static int __init i8042_platform_init(void)

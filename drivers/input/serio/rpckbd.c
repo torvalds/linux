@@ -166,7 +166,7 @@ static int __devexit rpckbd_remove(struct platform_device *dev)
 
 static struct platform_driver rpckbd_driver = {
 	.probe		= rpckbd_probe,
-	.remove		= __devexit_p(rpckbd_remove),
+	.remove		= rpckbd_remove,
 	.driver		= {
 		.name	= "kart",
 		.owner	= THIS_MODULE,

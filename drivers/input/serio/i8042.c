@@ -1455,7 +1455,7 @@ static struct platform_driver i8042_driver = {
 		.pm	= &i8042_pm_ops,
 #endif
 	},
-	.remove		= __devexit_p(i8042_remove),
+	.remove		= i8042_remove,
 	.shutdown	= i8042_shutdown,
 };
 

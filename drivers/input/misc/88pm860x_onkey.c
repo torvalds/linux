@@ -161,7 +161,7 @@ static struct platform_driver pm860x_onkey_driver = {
 		.pm	= &pm860x_onkey_pm_ops,
 	},
 	.probe		= pm860x_onkey_probe,
-	.remove		= __devexit_p(pm860x_onkey_remove),
+	.remove		= pm860x_onkey_remove,
 };
 module_platform_driver(pm860x_onkey_driver);
 

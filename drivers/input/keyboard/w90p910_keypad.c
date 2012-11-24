@@ -257,7 +257,7 @@ static int __devexit w90p910_keypad_remove(struct platform_device *pdev)
 
 static struct platform_driver w90p910_keypad_driver = {
 	.probe		= w90p910_keypad_probe,
-	.remove		= __devexit_p(w90p910_keypad_remove),
+	.remove		= w90p910_keypad_remove,
 	.driver		= {
 		.name	= "nuc900-kpi",
 		.owner	= THIS_MODULE,

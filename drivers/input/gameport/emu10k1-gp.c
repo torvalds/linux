@@ -122,7 +122,7 @@ static struct pci_driver emu_driver = {
         .name =         "Emu10k1_gameport",
         .id_table =     emu_tbl,
         .probe =        emu_probe,
-        .remove =       __devexit_p(emu_remove),
+	.remove =	emu_remove,
 };
 
 module_pci_driver(emu_driver);

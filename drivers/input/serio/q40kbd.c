@@ -190,7 +190,7 @@ static struct platform_driver q40kbd_driver = {
 		.name	= "q40kbd",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __devexit_p(q40kbd_remove),
+	.remove		= q40kbd_remove,
 };
 
 static int __init q40kbd_init(void)
