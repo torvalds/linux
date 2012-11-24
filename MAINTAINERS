@@ -7572,12 +7572,6 @@ L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/usb/storage/uas.c
 
-USB BLOCK DRIVER (UB ub)
-M:	Pete Zaitcev <zaitcev@redhat.com>
-L:	linux-usb@vger.kernel.org
-S:	Supported
-F:	drivers/block/ub.c
-
 USB CDC ETHERNET DRIVER
 M:	Oliver Neukum <oliver@neukum.org>
 L:	linux-usb@vger.kernel.org
