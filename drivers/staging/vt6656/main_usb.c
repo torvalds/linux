@@ -722,17 +722,6 @@ vt6656_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	usb_device_reset(pDevice);
 
-	{
-		union iwreq_data wrqu;
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.flags = RT_INSMOD_EVENT_FLAG;
-		wrqu.data.length = IFNAMSIZ;
-		wireless_send_event(pDevice->dev,
-				    IWEVCUSTOM,
-				    &wrqu,
-				    pDevice->dev->name);
-	}
-
 	return 0;
 
 err_netdev:
@@ -1052,15 +1041,8 @@ static int  device_open(struct net_device *dev) {
     netif_stop_queue(pDevice->dev);
     pDevice->flags |= DEVICE_FLAGS_OPENED;
 
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_UPDEV_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
-
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success.. \n");
-    return 0;
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_open success..\n");
+	return 0;
 
 free_all:
     device_free_frag_bufs(pDevice);
@@ -1088,13 +1070,6 @@ static int  device_close(struct net_device *dev) {
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_close1 \n");
     if (pDevice == NULL)
         return -ENODEV;
-
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_DOWNDEV_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
 
     if (pDevice->bLinkPass) {
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
@@ -1165,13 +1140,6 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (!device)
 		return;
-
-	{
-		union iwreq_data req;
-		memset(&req, 0, sizeof(req));
-		req.data.flags = RT_RMMOD_EVENT_FLAG;
-		wireless_send_event(device->dev, IWEVCUSTOM, &req, NULL);
-	}
 
 
 	usb_set_intfdata(intf, NULL);

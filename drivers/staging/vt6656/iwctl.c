@@ -181,7 +181,6 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 	char *current_val = NULL;
 	struct iw_event iwe;
 	long ldBm;
-	char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " SIOCGIWSCAN\n");
 
@@ -285,12 +284,6 @@ int iwctl_giwscan(struct net_device *dev, struct iw_request_info *info,
 
 			if ((current_val - current_ev) > IW_EV_LCP_LEN)
 				current_ev = current_val;
-
-			memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "bcn_int=%d", pBSS->wBeaconInterval);
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev, end_buf, &iwe, buf);
 
 			if ((pBSS->wWPALen > 0) && (pBSS->wWPALen <= MAX_WPA_IE_LEN)) {
 				memset(&iwe, 0, sizeof(iwe));

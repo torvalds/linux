@@ -925,14 +925,6 @@ if(pDevice->byReAssocCount > 0) {
    	pDevice->byReAssocCount = 0;
 }
 
-if((pMgmt->eCurrState!=WMAC_STATE_ASSOC) &&
-     (pMgmt->eLastState==WMAC_STATE_ASSOC))
-{
-  union iwreq_data      wrqu;
-  memset(&wrqu, 0, sizeof(wrqu));
-  wrqu.data.flags = RT_DISCONNECTED_EVENT_FLAG;
-  wireless_send_event(pDevice->dev, IWEVCUSTOM, &wrqu, NULL);
-}
  pMgmt->eLastState = pMgmt->eCurrState ;
 
    s_uCalculateLinkQual((void *)pDevice);
