@@ -470,7 +470,7 @@ static int pc236_detach(struct comedi_device *dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
 	       PC236_DRIVER_NAME);
-	if (devpriv)
+	if (dev->iobase)
 		pc236_intr_disable(dev);
 
 	if (dev->irq)

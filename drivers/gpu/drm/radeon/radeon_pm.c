@@ -535,7 +535,9 @@ void radeon_pm_suspend(struct radeon_device *rdev)
 void radeon_pm_resume(struct radeon_device *rdev)
 {
 	/* set up the default clocks if the MC ucode is loaded */
-	if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+	if ((rdev->family >= CHIP_BARTS) &&
+	    (rdev->family <= CHIP_CAYMAN) &&
+	    rdev->mc_fw) {
 		if (rdev->pm.default_vddc)
 			radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
 						SET_VOLTAGE_TYPE_ASIC_VDDC);
@@ -590,7 +592,9 @@ int radeon_pm_init(struct radeon_device *rdev)
 		radeon_pm_print_states(rdev);
 		radeon_pm_init_profile(rdev);
 		/* set up the default clocks if the MC ucode is loaded */
-		if (ASIC_IS_DCE5(rdev) && rdev->mc_fw) {
+		if ((rdev->family >= CHIP_BARTS) &&
+		    (rdev->family <= CHIP_CAYMAN) &&
+		    rdev->mc_fw) {
 			if (rdev->pm.default_vddc)
 				radeon_atom_set_voltage(rdev, rdev->pm.default_vddc,
 							SET_VOLTAGE_TYPE_ASIC_VDDC);

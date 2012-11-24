@@ -543,6 +543,20 @@ static resource_size_t calculate_memsize(resource_size_t size,
 	return size;
 }
 
+static resource_size_t get_res_add_size(struct resource_list_x *add_head,
+					struct resource *res)
+{
+	struct resource_list_x *list;
+
+	/* check if it is in add_head list */
+	for (list = add_head->next; list && list->res != res;
+			list = list->next);
+	if (list)
+		return list->add_size;
+
+	return 0;
+}
+
 /**
  * pbus_size_io() - size the io window of a given bus
  *
@@ -562,6 +576,7 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 	struct pci_dev *dev;
 	struct resource *b_res = find_free_bus_resource(bus, IORESOURCE_IO);
 	unsigned long size = 0, size0 = 0, size1 = 0;
+	resource_size_t children_add_size = 0;
 
 	if (!b_res)
  		return;
@@ -582,10 +597,15 @@ static void pbus_size_io(struct pci_bus *bus, resource_size_t min_size,
 				size += r_size;
 			else
 				size1 += r_size;
+
+			if (add_head)
+				children_add_size += get_res_add_size(add_head, r);
 		}
 	}
 	size0 = calculate_iosize(size, min_size, size1,
 			resource_size(b_res), 4096);
+	if (children_add_size > add_size)
+		add_size = children_add_size;
 	size1 = (!add_head || (add_head && !add_size)) ? size0 :
 		calculate_iosize(size, min_size+add_size, size1,
 			resource_size(b_res), 4096);
@@ -627,6 +647,7 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 	int order, max_order;
 	struct resource *b_res = find_free_bus_resource(bus, type);
 	unsigned int mem64_mask = 0;
+	resource_size_t children_add_size = 0;
 
 	if (!b_res)
 		return 0;
@@ -668,6 +689,9 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 			if (order > max_order)
 				max_order = order;
 			mem64_mask &= r->flags & IORESOURCE_MEM_64;
+
+			if (add_head)
+				children_add_size += get_res_add_size(add_head, r);
 		}
 	}
 	align = 0;
@@ -684,6 +708,8 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask,
 		align += aligns[order];
 	}
 	size0 = calculate_memsize(size, min_size, 0, resource_size(b_res), min_align);
+	if (children_add_size > add_size)
+		add_size = children_add_size;
 	size1 = (!add_head || (add_head && !add_size)) ? size0 :
 		calculate_memsize(size, min_size+add_size, 0,
 				resource_size(b_res), min_align);

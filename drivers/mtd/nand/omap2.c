@@ -1139,7 +1139,8 @@ static int omap_nand_remove(struct platform_device *pdev)
 	/* Release NAND device, its internal structures and partitions */
 	nand_release(&info->mtd);
 	iounmap(info->nand.IO_ADDR_R);
-	kfree(&info->mtd);
+	release_mem_region(info->phys_base, NAND_IO_SIZE);
+	kfree(info);
 	return 0;
 }
 
