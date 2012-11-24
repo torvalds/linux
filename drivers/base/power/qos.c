@@ -223,12 +223,14 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	struct dev_pm_qos *qos;
 	struct dev_pm_qos_request *req, *tmp;
 	struct pm_qos_constraints *c;
+	struct pm_qos_flags *f;
 
 	/*
-	 * If the device's PM QoS resume latency limit has been exposed to user
-	 * space, it has to be hidden at this point.
+	 * If the device's PM QoS resume latency limit or PM QoS flags have been
+	 * exposed to user space, they have to be hidden at this point.
 	 */
 	dev_pm_qos_hide_latency_limit(dev);
+	dev_pm_qos_hide_flags(dev);
 
 	mutex_lock(&dev_pm_qos_mtx);
 
@@ -237,13 +239,18 @@ void dev_pm_qos_constraints_destroy(struct device *dev)
 	if (!qos)
 		goto out;
 
+	/* Flush the constraints lists for the device. */
 	c = &qos->latency;
-	/* Flush the constraints list for the device */
 	plist_for_each_entry_safe(req, tmp, &c->list, data.pnode) {
 		/*
 		 * Update constraints list and call the notification
 		 * callbacks if needed
 		 */
+		apply_constraint(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
+		memset(req, 0, sizeof(*req));
+	}
+	f = &qos->flags;
+	list_for_each_entry_safe(req, tmp, &f->list, data.flr.node) {
 		apply_constraint(req, PM_QOS_REMOVE_REQ, PM_QOS_DEFAULT_VALUE);
 		memset(req, 0, sizeof(*req));
 	}
