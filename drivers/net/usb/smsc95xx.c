@@ -95,8 +95,8 @@ static int __must_check __smsc95xx_read_reg(struct usbnet *dev, u32 index,
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
 	if (unlikely(ret < 0))
-		netdev_warn(dev->net,
-			"Failed to read reg index 0x%08x: %d", index, ret);
+		netdev_warn(dev->net, "Failed to read reg index 0x%08x: %d\n",
+			    index, ret);
 
 	le32_to_cpus(&buf);
 	*data = buf;
@@ -125,8 +125,8 @@ static int __must_check __smsc95xx_write_reg(struct usbnet *dev, u32 index,
 		 | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 		 0, index, &buf, 4);
 	if (unlikely(ret < 0))
-		netdev_warn(dev->net,
-			"Failed to write reg index 0x%08x: %d", index, ret);
+		netdev_warn(dev->net, "Failed to write reg index 0x%08x: %d\n",
+			    index, ret);
 
 	return ret;
 }
@@ -185,7 +185,7 @@ static int __must_check __smsc95xx_phy_wait_not_busy(struct usbnet *dev,
 
 	do {
 		ret = __smsc95xx_read_reg(dev, MII_ADDR, &val, in_pm);
-		check_warn_return(ret, "Error reading MII_ACCESS");
+		check_warn_return(ret, "Error reading MII_ACCESS\n");
 		if (!(val & MII_BUSY_))
 			return 0;
 	} while (!time_after(jiffies, start_time + HZ));
@@ -204,20 +204,20 @@ static int __smsc95xx_mdio_read(struct net_device *netdev, int phy_id, int idx,
 
 	/* confirm MII not busy */
 	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	check_warn_goto_done(ret, "MII is busy in smsc95xx_mdio_read");
+	check_warn_goto_done(ret, "MII is busy in smsc95xx_mdio_read\n");
 
 	/* set the address, index & direction (read from PHY) */
 	phy_id &= dev->mii.phy_id_mask;
 	idx &= dev->mii.reg_num_mask;
 	addr = (phy_id << 11) | (idx << 6) | MII_READ_ | MII_BUSY_;
 	ret = __smsc95xx_write_reg(dev, MII_ADDR, addr, in_pm);
-	check_warn_goto_done(ret, "Error writing MII_ADDR");
+	check_warn_goto_done(ret, "Error writing MII_ADDR\n");
 
 	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	check_warn_goto_done(ret, "Timed out reading MII reg %02X", idx);
+	check_warn_goto_done(ret, "Timed out reading MII reg %02X\n", idx);
 
 	ret = __smsc95xx_read_reg(dev, MII_DATA, &val, in_pm);
-	check_warn_goto_done(ret, "Error reading MII_DATA");
+	check_warn_goto_done(ret, "Error reading MII_DATA\n");
 
 	ret = (u16)(val & 0xFFFF);
 
@@ -237,21 +237,21 @@ static void __smsc95xx_mdio_write(struct net_device *netdev, int phy_id,
 
 	/* confirm MII not busy */
 	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	check_warn_goto_done(ret, "MII is busy in smsc95xx_mdio_write");
+	check_warn_goto_done(ret, "MII is busy in smsc95xx_mdio_write\n");
 
 	val = regval;
 	ret = __smsc95xx_write_reg(dev, MII_DATA, val, in_pm);
-	check_warn_goto_done(ret, "Error writing MII_DATA");
+	check_warn_goto_done(ret, "Error writing MII_DATA\n");
 
 	/* set the address, index & direction (write to PHY) */
 	phy_id &= dev->mii.phy_id_mask;
 	idx &= dev->mii.reg_num_mask;
 	addr = (phy_id << 11) | (idx << 6) | MII_WRITE_ | MII_BUSY_;
 	ret = __smsc95xx_write_reg(dev, MII_ADDR, addr, in_pm);
-	check_warn_goto_done(ret, "Error writing MII_ADDR");
+	check_warn_goto_done(ret, "Error writing MII_ADDR\n");
 
 	ret = __smsc95xx_phy_wait_not_busy(dev, in_pm);
-	check_warn_goto_done(ret, "Timed out writing MII reg %02X", idx);
+	check_warn_goto_done(ret, "Timed out writing MII reg %02X\n", idx);
 
 done:
 	mutex_unlock(&dev->phy_mutex);
@@ -288,7 +288,7 @@ static int __must_check smsc95xx_wait_eeprom(struct usbnet *dev)
 
 	do {
 		ret = smsc95xx_read_reg(dev, E2P_CMD, &val);
-		check_warn_return(ret, "Error reading E2P_CMD");
+		check_warn_return(ret, "Error reading E2P_CMD\n");
 		if (!(val & E2P_CMD_BUSY_) || (val & E2P_CMD_TIMEOUT_))
 			break;
 		udelay(40);
@@ -310,7 +310,7 @@ static int __must_check smsc95xx_eeprom_confirm_not_busy(struct usbnet *dev)
 
 	do {
 		ret = smsc95xx_read_reg(dev, E2P_CMD, &val);
-		check_warn_return(ret, "Error reading E2P_CMD");
+		check_warn_return(ret, "Error reading E2P_CMD\n");
 
 		if (!(val & E2P_CMD_BUSY_))
 			return 0;
@@ -338,14 +338,14 @@ static int smsc95xx_read_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	for (i = 0; i < length; i++) {
 		val = E2P_CMD_BUSY_ | E2P_CMD_READ_ | (offset & E2P_CMD_ADDR_);
 		ret = smsc95xx_write_reg(dev, E2P_CMD, val);
-		check_warn_return(ret, "Error writing E2P_CMD");
+		check_warn_return(ret, "Error writing E2P_CMD\n");
 
 		ret = smsc95xx_wait_eeprom(dev);
 		if (ret < 0)
 			return ret;
 
 		ret = smsc95xx_read_reg(dev, E2P_DATA, &val);
-		check_warn_return(ret, "Error reading E2P_DATA");
+		check_warn_return(ret, "Error reading E2P_DATA\n");
 
 		data[i] = val & 0xFF;
 		offset++;
@@ -370,7 +370,7 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 	/* Issue write/erase enable command */
 	val = E2P_CMD_BUSY_ | E2P_CMD_EWEN_;
 	ret = smsc95xx_write_reg(dev, E2P_CMD, val);
-	check_warn_return(ret, "Error writing E2P_DATA");
+	check_warn_return(ret, "Error writing E2P_DATA\n");
 
 	ret = smsc95xx_wait_eeprom(dev);
 	if (ret < 0)
@@ -381,12 +381,12 @@ static int smsc95xx_write_eeprom(struct usbnet *dev, u32 offset, u32 length,
 		/* Fill data register */
 		val = data[i];
 		ret = smsc95xx_write_reg(dev, E2P_DATA, val);
-		check_warn_return(ret, "Error writing E2P_DATA");
+		check_warn_return(ret, "Error writing E2P_DATA\n");
 
 		/* Send "write" command */
 		val = E2P_CMD_BUSY_ | E2P_CMD_WRITE_ | (offset & E2P_CMD_ADDR_);
 		ret = smsc95xx_write_reg(dev, E2P_CMD, val);
-		check_warn_return(ret, "Error writing E2P_CMD");
+		check_warn_return(ret, "Error writing E2P_CMD\n");
 
 		ret = smsc95xx_wait_eeprom(dev);
 		if (ret < 0)
@@ -469,13 +469,13 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 
 	/* Initiate async writes, as we can't wait for completion here */
 	ret = smsc95xx_write_reg_async(dev, HASHH, &pdata->hash_hi);
-	check_warn(ret, "failed to initiate async write to HASHH");
+	check_warn(ret, "failed to initiate async write to HASHH\n");
 
 	ret = smsc95xx_write_reg_async(dev, HASHL, &pdata->hash_lo);
-	check_warn(ret, "failed to initiate async write to HASHL");
+	check_warn(ret, "failed to initiate async write to HASHL\n");
 
 	ret = smsc95xx_write_reg_async(dev, MAC_CR, &pdata->mac_cr);
-	check_warn(ret, "failed to initiate async write to MAC_CR");
+	check_warn(ret, "failed to initiate async write to MAC_CR\n");
 }
 
 static int smsc95xx_phy_update_flowcontrol(struct usbnet *dev, u8 duplex,
@@ -484,7 +484,7 @@ static int smsc95xx_phy_update_flowcontrol(struct usbnet *dev, u8 duplex,
 	u32 flow, afc_cfg = 0;
 
 	int ret = smsc95xx_read_reg(dev, AFC_CFG, &afc_cfg);
-	check_warn_return(ret, "Error reading AFC_CFG");
+	check_warn_return(ret, "Error reading AFC_CFG\n");
 
 	if (duplex == DUPLEX_FULL) {
 		u8 cap = mii_resolve_flowctrl_fdx(lcladv, rmtadv);
@@ -509,10 +509,10 @@ static int smsc95xx_phy_update_flowcontrol(struct usbnet *dev, u8 duplex,
 	}
 
 	ret = smsc95xx_write_reg(dev, FLOW, flow);
-	check_warn_return(ret, "Error writing FLOW");
+	check_warn_return(ret, "Error writing FLOW\n");
 
 	ret = smsc95xx_write_reg(dev, AFC_CFG, afc_cfg);
-	check_warn_return(ret, "Error writing AFC_CFG");
+	check_warn_return(ret, "Error writing AFC_CFG\n");
 
 	return 0;
 }
@@ -528,10 +528,10 @@ static int smsc95xx_link_reset(struct usbnet *dev)
 
 	/* clear interrupt status */
 	ret = smsc95xx_mdio_read(dev->net, mii->phy_id, PHY_INT_SRC);
-	check_warn_return(ret, "Error reading PHY_INT_SRC");
+	check_warn_return(ret, "Error reading PHY_INT_SRC\n");
 
 	ret = smsc95xx_write_reg(dev, INT_STS, INT_STS_CLEAR_ALL_);
-	check_warn_return(ret, "Error writing INT_STS");
+	check_warn_return(ret, "Error writing INT_STS\n");
 
 	mii_check_media(mii, 1, 1);
 	mii_ethtool_gset(&dev->mii, &ecmd);
@@ -553,10 +553,10 @@ static int smsc95xx_link_reset(struct usbnet *dev)
 	spin_unlock_irqrestore(&pdata->mac_cr_lock, flags);
 
 	ret = smsc95xx_write_reg(dev, MAC_CR, pdata->mac_cr);
-	check_warn_return(ret, "Error writing MAC_CR");
+	check_warn_return(ret, "Error writing MAC_CR\n");
 
 	ret = smsc95xx_phy_update_flowcontrol(dev, ecmd.duplex, lcladv, rmtadv);
-	check_warn_return(ret, "Error updating PHY flow control");
+	check_warn_return(ret, "Error updating PHY flow control\n");
 
 	return 0;
 }
@@ -821,7 +821,7 @@ static int smsc95xx_phy_initialize(struct usbnet *dev)
 
 	/* read to clear */
 	ret = smsc95xx_mdio_read(dev->net, dev->mii.phy_id, PHY_INT_SRC);
-	check_warn_return(ret, "Failed to read PHY_INT_SRC during init");
+	check_warn_return(ret, "Failed to read PHY_INT_SRC during init\n");
 
 	smsc95xx_mdio_write(dev->net, dev->mii.phy_id, PHY_INT_MASK,
 		PHY_INT_MASK_DEFAULT_);
@@ -875,14 +875,14 @@ static int smsc95xx_reset(struct usbnet *dev)
 	if (ret < 0)
 		return ret;
 
-	netif_dbg(dev, ifup, dev->net,
-		  "MAC Address: %pM\n", dev->net->dev_addr);
+	netif_dbg(dev, ifup, dev->net, "MAC Address: %pM\n",
+		  dev->net->dev_addr);
 
 	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
 	check_warn_return(ret, "Failed to read HW_CFG: %d\n", ret);
 
-	netif_dbg(dev, ifup, dev->net,
-		  "Read Value from HW_CFG : 0x%08x\n", read_buf);
+	netif_dbg(dev, ifup, dev->net, "Read Value from HW_CFG : 0x%08x\n",
+		  read_buf);
 
 	read_buf |= HW_CFG_BIR_;
 
@@ -906,8 +906,8 @@ static int smsc95xx_reset(struct usbnet *dev)
 		dev->rx_urb_size = DEFAULT_FS_BURST_CAP_SIZE;
 	}
 
-	netif_dbg(dev, ifup, dev->net,
-		  "rx_urb_size=%ld\n", (ulong)dev->rx_urb_size);
+	netif_dbg(dev, ifup, dev->net, "rx_urb_size=%ld\n",
+		  (ulong)dev->rx_urb_size);
 
 	ret = smsc95xx_write_reg(dev, BURST_CAP, burst_cap);
 	check_warn_return(ret, "Failed to write BURST_CAP: %d\n", ret);
@@ -932,8 +932,8 @@ static int smsc95xx_reset(struct usbnet *dev)
 	ret = smsc95xx_read_reg(dev, HW_CFG, &read_buf);
 	check_warn_return(ret, "Failed to read HW_CFG: %d\n", ret);
 
-	netif_dbg(dev, ifup, dev->net,
-		  "Read Value from HW_CFG: 0x%08x\n", read_buf);
+	netif_dbg(dev, ifup, dev->net, "Read Value from HW_CFG: 0x%08x\n",
+		  read_buf);
 
 	if (turbo_mode)
 		read_buf |= (HW_CFG_MEF_ | HW_CFG_BCE_);
@@ -983,12 +983,12 @@ static int smsc95xx_reset(struct usbnet *dev)
 
 	/* Enable or disable checksum offload engines */
 	ret = smsc95xx_set_features(dev->net, dev->net->features);
-	check_warn_return(ret, "Failed to set checksum offload features");
+	check_warn_return(ret, "Failed to set checksum offload features\n");
 
 	smsc95xx_set_multicast(dev->net);
 
 	ret = smsc95xx_phy_initialize(dev);
-	check_warn_return(ret, "Failed to init PHY");
+	check_warn_return(ret, "Failed to init PHY\n");
 
 	ret = smsc95xx_read_reg(dev, INT_EP_CTL, &read_buf);
 	check_warn_return(ret, "Failed to read INT_EP_CTL: %d\n", ret);
@@ -1000,10 +1000,10 @@ static int smsc95xx_reset(struct usbnet *dev)
 	check_warn_return(ret, "Failed to write INT_EP_CTL: %d\n", ret);
 
 	ret = smsc95xx_start_tx_path(dev);
-	check_warn_return(ret, "Failed to start TX path");
+	check_warn_return(ret, "Failed to start TX path\n");
 
 	ret = smsc95xx_start_rx_path(dev, 0);
-	check_warn_return(ret, "Failed to start RX path");
+	check_warn_return(ret, "Failed to start RX path\n");
 
 	netif_dbg(dev, ifup, dev->net, "smsc95xx_reset, return 0\n");
 	return 0;
@@ -1098,15 +1098,15 @@ static int smsc95xx_enable_phy_wakeup_interrupts(struct usbnet *dev, u16 mask)
 	struct mii_if_info *mii = &dev->mii;
 	int ret;
 
-	netdev_dbg(dev->net, "enabling PHY wakeup interrupts");
+	netdev_dbg(dev->net, "enabling PHY wakeup interrupts\n");
 
 	/* read to clear */
 	ret = smsc95xx_mdio_read_nopm(dev->net, mii->phy_id, PHY_INT_SRC);
-	check_warn_return(ret, "Error reading PHY_INT_SRC");
+	check_warn_return(ret, "Error reading PHY_INT_SRC\n");
 
 	/* enable interrupt source */
 	ret = smsc95xx_mdio_read_nopm(dev->net, mii->phy_id, PHY_INT_MASK);
-	check_warn_return(ret, "Error reading PHY_INT_MASK");
+	check_warn_return(ret, "Error reading PHY_INT_MASK\n");
 
 	ret |= mask;
 
@@ -1122,10 +1122,10 @@ static int smsc95xx_link_ok_nopm(struct usbnet *dev)
 
 	/* first, a dummy read, needed to latch some MII phys */
 	ret = smsc95xx_mdio_read_nopm(dev->net, mii->phy_id, MII_BMSR);
-	check_warn_return(ret, "Error reading MII_BMSR");
+	check_warn_return(ret, "Error reading MII_BMSR\n");
 
 	ret = smsc95xx_mdio_read_nopm(dev->net, mii->phy_id, MII_BMSR);
-	check_warn_return(ret, "Error reading MII_BMSR");
+	check_warn_return(ret, "Error reading MII_BMSR\n");
 
 	return !!(ret & BMSR_LSTATUS);
 }
@@ -1137,13 +1137,13 @@ static int smsc95xx_enter_suspend0(struct usbnet *dev)
 	int ret;
 
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-	check_warn_return(ret, "Error reading PM_CTRL");
+	check_warn_return(ret, "Error reading PM_CTRL\n");
 
 	val &= (~(PM_CTL_SUS_MODE_ | PM_CTL_WUPS_ | PM_CTL_PHY_RST_));
 	val |= PM_CTL_SUS_MODE_0;
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-	check_warn_return(ret, "Error writing PM_CTRL");
+	check_warn_return(ret, "Error writing PM_CTRL\n");
 
 	/* clear wol status */
 	val &= ~PM_CTL_WUPS_;
@@ -1154,11 +1154,11 @@ static int smsc95xx_enter_suspend0(struct usbnet *dev)
 		val |= PM_CTL_WUPS_ED_;
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-	check_warn_return(ret, "Error writing PM_CTRL");
+	check_warn_return(ret, "Error writing PM_CTRL\n");
 
 	/* read back PM_CTRL */
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-	check_warn_return(ret, "Error reading PM_CTRL");
+	check_warn_return(ret, "Error reading PM_CTRL\n");
 
 	smsc95xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
 
@@ -1181,7 +1181,7 @@ static int smsc95xx_enter_suspend1(struct usbnet *dev)
 
 	/* enable energy detect power-down mode */
 	ret = smsc95xx_mdio_read_nopm(dev->net, mii->phy_id, PHY_MODE_CTRL_STS);
-	check_warn_return(ret, "Error reading PHY_MODE_CTRL_STS");
+	check_warn_return(ret, "Error reading PHY_MODE_CTRL_STS\n");
 
 	ret |= MODE_CTRL_STS_EDPWRDOWN_;
 
@@ -1189,20 +1189,20 @@ static int smsc95xx_enter_suspend1(struct usbnet *dev)
 
 	/* enter SUSPEND1 mode */
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-	check_warn_return(ret, "Error reading PM_CTRL");
+	check_warn_return(ret, "Error reading PM_CTRL\n");
 
 	val &= ~(PM_CTL_SUS_MODE_ | PM_CTL_WUPS_ | PM_CTL_PHY_RST_);
 	val |= PM_CTL_SUS_MODE_1;
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-	check_warn_return(ret, "Error writing PM_CTRL");
+	check_warn_return(ret, "Error writing PM_CTRL\n");
 
 	/* clear wol status, enable energy detection */
 	val &= ~PM_CTL_WUPS_;
 	val |= (PM_CTL_WUPS_ED_ | PM_CTL_ED_EN_);
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-	check_warn_return(ret, "Error writing PM_CTRL");
+	check_warn_return(ret, "Error writing PM_CTRL\n");
 
 	smsc95xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
 
@@ -1215,13 +1215,13 @@ static int smsc95xx_enter_suspend2(struct usbnet *dev)
 	int ret;
 
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-	check_warn_return(ret, "Error reading PM_CTRL");
+	check_warn_return(ret, "Error reading PM_CTRL\n");
 
 	val &= ~(PM_CTL_SUS_MODE_ | PM_CTL_WUPS_ | PM_CTL_PHY_RST_);
 	val |= PM_CTL_SUS_MODE_2;
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-	check_warn_return(ret, "Error writing PM_CTRL");
+	check_warn_return(ret, "Error writing PM_CTRL\n");
 
 	return 0;
 }
@@ -1234,7 +1234,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	int ret;
 
 	ret = usbnet_suspend(intf, message);
-	check_warn_return(ret, "usbnet_suspend error");
+	check_warn_return(ret, "usbnet_suspend error\n");
 
 	/* determine if link is up using only _nopm functions */
 	link_up = smsc95xx_link_ok_nopm(dev);
@@ -1244,24 +1244,24 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	 */
 	if (!(pdata->wolopts & SUPPORTED_WAKE) ||
 		!(link_up || (pdata->wolopts & WAKE_PHY))) {
-		netdev_info(dev->net, "entering SUSPEND2 mode");
+		netdev_info(dev->net, "entering SUSPEND2 mode\n");
 
 		/* disable energy detect (link up) & wake up events */
 		ret = smsc95xx_read_reg_nopm(dev, WUCSR, &val);
-		check_warn_return(ret, "Error reading WUCSR");
+		check_warn_return(ret, "Error reading WUCSR\n");
 
 		val &= ~(WUCSR_MPEN_ | WUCSR_WAKE_EN_);
 
 		ret = smsc95xx_write_reg_nopm(dev, WUCSR, val);
-		check_warn_return(ret, "Error writing WUCSR");
+		check_warn_return(ret, "Error writing WUCSR\n");
 
 		ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-		check_warn_return(ret, "Error reading PM_CTRL");
+		check_warn_return(ret, "Error reading PM_CTRL\n");
 
 		val &= ~(PM_CTL_ED_EN_ | PM_CTL_WOL_EN_);
 
 		ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-		check_warn_return(ret, "Error writing PM_CTRL");
+		check_warn_return(ret, "Error writing PM_CTRL\n");
 
 		return smsc95xx_enter_suspend2(dev);
 	}
@@ -1269,13 +1269,13 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 	if (pdata->wolopts & WAKE_PHY) {
 		ret = smsc95xx_enable_phy_wakeup_interrupts(dev,
 			(PHY_INT_MASK_ANEG_COMP_ | PHY_INT_MASK_LINK_DOWN_));
-		check_warn_return(ret, "error enabling PHY wakeup ints");
+		check_warn_return(ret, "error enabling PHY wakeup ints\n");
 
 		/* if link is down then configure EDPD and enter SUSPEND1,
 		 * otherwise enter SUSPEND0 below
 		 */
 		if (!link_up) {
-			netdev_info(dev->net, "entering SUSPEND1 mode");
+			netdev_info(dev->net, "entering SUSPEND1 mode\n");
 			return smsc95xx_enter_suspend1(dev);
 		}
 	}
@@ -1296,7 +1296,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 		if (pdata->wolopts & WAKE_BCAST) {
 			const u8 bcast[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
-			netdev_info(dev->net, "enabling broadcast detection");
+			netdev_info(dev->net, "enabling broadcast detection\n");
 			filter_mask[filter * 4] = 0x003F;
 			filter_mask[filter * 4 + 1] = 0x00;
 			filter_mask[filter * 4 + 2] = 0x00;
@@ -1309,7 +1309,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 		if (pdata->wolopts & WAKE_MCAST) {
 			const u8 mcast[] = {0x01, 0x00, 0x5E};
-			netdev_info(dev->net, "enabling multicast detection");
+			netdev_info(dev->net, "enabling multicast detection\n");
 			filter_mask[filter * 4] = 0x0007;
 			filter_mask[filter * 4 + 1] = 0x00;
 			filter_mask[filter * 4 + 2] = 0x00;
@@ -1322,7 +1322,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 
 		if (pdata->wolopts & WAKE_ARP) {
 			const u8 arp[] = {0x08, 0x06};
-			netdev_info(dev->net, "enabling ARP detection");
+			netdev_info(dev->net, "enabling ARP detection\n");
 			filter_mask[filter * 4] = 0x0003;
 			filter_mask[filter * 4 + 1] = 0x00;
 			filter_mask[filter * 4 + 2] = 0x00;
@@ -1334,7 +1334,7 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 		}
 
 		if (pdata->wolopts & WAKE_UCAST) {
-			netdev_info(dev->net, "enabling unicast detection");
+			netdev_info(dev->net, "enabling unicast detection\n");
 			filter_mask[filter * 4] = 0x003F;
 			filter_mask[filter * 4 + 1] = 0x00;
 			filter_mask[filter * 4 + 2] = 0x00;
@@ -1349,72 +1349,72 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 			ret = smsc95xx_write_reg_nopm(dev, WUFF, filter_mask[i]);
 			if (ret < 0)
 				kfree(filter_mask);
-			check_warn_return(ret, "Error writing WUFF");
+			check_warn_return(ret, "Error writing WUFF\n");
 		}
 		kfree(filter_mask);
 
 		for (i = 0; i < (wuff_filter_count / 4); i++) {
 			ret = smsc95xx_write_reg_nopm(dev, WUFF, command[i]);
-			check_warn_return(ret, "Error writing WUFF");
+			check_warn_return(ret, "Error writing WUFF\n");
 		}
 
 		for (i = 0; i < (wuff_filter_count / 4); i++) {
 			ret = smsc95xx_write_reg_nopm(dev, WUFF, offset[i]);
-			check_warn_return(ret, "Error writing WUFF");
+			check_warn_return(ret, "Error writing WUFF\n");
 		}
 
 		for (i = 0; i < (wuff_filter_count / 2); i++) {
 			ret = smsc95xx_write_reg_nopm(dev, WUFF, crc[i]);
-			check_warn_return(ret, "Error writing WUFF");
+			check_warn_return(ret, "Error writing WUFF\n");
 		}
 
 		/* clear any pending pattern match packet status */
 		ret = smsc95xx_read_reg_nopm(dev, WUCSR, &val);
-		check_warn_return(ret, "Error reading WUCSR");
+		check_warn_return(ret, "Error reading WUCSR\n");
 
 		val |= WUCSR_WUFR_;
 
 		ret = smsc95xx_write_reg_nopm(dev, WUCSR, val);
-		check_warn_return(ret, "Error writing WUCSR");
+		check_warn_return(ret, "Error writing WUCSR\n");
 	}
 
 	if (pdata->wolopts & WAKE_MAGIC) {
 		/* clear any pending magic packet status */
 		ret = smsc95xx_read_reg_nopm(dev, WUCSR, &val);
-		check_warn_return(ret, "Error reading WUCSR");
+		check_warn_return(ret, "Error reading WUCSR\n");
 
 		val |= WUCSR_MPR_;
 
 		ret = smsc95xx_write_reg_nopm(dev, WUCSR, val);
-		check_warn_return(ret, "Error writing WUCSR");
+		check_warn_return(ret, "Error writing WUCSR\n");
 	}
 
 	/* enable/disable wakeup sources */
 	ret = smsc95xx_read_reg_nopm(dev, WUCSR, &val);
-	check_warn_return(ret, "Error reading WUCSR");
+	check_warn_return(ret, "Error reading WUCSR\n");
 
 	if (pdata->wolopts & (WAKE_BCAST | WAKE_MCAST | WAKE_ARP | WAKE_UCAST)) {
-		netdev_info(dev->net, "enabling pattern match wakeup");
+		netdev_info(dev->net, "enabling pattern match wakeup\n");
 		val |= WUCSR_WAKE_EN_;
 	} else {
-		netdev_info(dev->net, "disabling pattern match wakeup");
+		netdev_info(dev->net, "disabling pattern match wakeup\n");
 		val &= ~WUCSR_WAKE_EN_;
 	}
 
 	if (pdata->wolopts & WAKE_MAGIC) {
-		netdev_info(dev->net, "enabling magic packet wakeup");
+		netdev_info(dev->net, "enabling magic packet wakeup\n");
 		val |= WUCSR_MPEN_;
 	} else {
-		netdev_info(dev->net, "disabling magic packet wakeup");
+		netdev_info(dev->net, "disabling magic packet wakeup\n");
 		val &= ~WUCSR_MPEN_;
 	}
 
 	ret = smsc95xx_write_reg_nopm(dev, WUCSR, val);
-	check_warn_return(ret, "Error writing WUCSR");
+	check_warn_return(ret, "Error writing WUCSR\n");
 
 	/* enable wol wakeup source */
 	ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-	check_warn_return(ret, "Error reading PM_CTRL");
+	check_warn_return(ret, "Error reading PM_CTRL\n");
 
 	val |= PM_CTL_WOL_EN_;
 
@@ -1423,13 +1423,13 @@ static int smsc95xx_suspend(struct usb_interface *intf, pm_message_t message)
 		val |= PM_CTL_ED_EN_;
 
 	ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-	check_warn_return(ret, "Error writing PM_CTRL");
+	check_warn_return(ret, "Error writing PM_CTRL\n");
 
 	/* enable receiver to enable frame reception */
 	smsc95xx_start_rx_path(dev, 1);
 
 	/* some wol options are enabled, so enter SUSPEND0 */
-	netdev_info(dev->net, "entering SUSPEND0 mode");
+	netdev_info(dev->net, "entering SUSPEND0 mode\n");
 	return smsc95xx_enter_suspend0(dev);
 }
 
@@ -1447,26 +1447,26 @@ static int smsc95xx_resume(struct usb_interface *intf)
 
 		/* clear wake-up sources */
 		ret = smsc95xx_read_reg_nopm(dev, WUCSR, &val);
-		check_warn_return(ret, "Error reading WUCSR");
+		check_warn_return(ret, "Error reading WUCSR\n");
 
 		val &= ~(WUCSR_WAKE_EN_ | WUCSR_MPEN_);
 
 		ret = smsc95xx_write_reg_nopm(dev, WUCSR, val);
-		check_warn_return(ret, "Error writing WUCSR");
+		check_warn_return(ret, "Error writing WUCSR\n");
 
 		/* clear wake-up status */
 		ret = smsc95xx_read_reg_nopm(dev, PM_CTRL, &val);
-		check_warn_return(ret, "Error reading PM_CTRL");
+		check_warn_return(ret, "Error reading PM_CTRL\n");
 
 		val &= ~PM_CTL_WOL_EN_;
 		val |= PM_CTL_WUPS_;
 
 		ret = smsc95xx_write_reg_nopm(dev, PM_CTRL, val);
-		check_warn_return(ret, "Error writing PM_CTRL");
+		check_warn_return(ret, "Error writing PM_CTRL\n");
 	}
 
 	ret = usbnet_resume(intf);
-	check_warn_return(ret, "usbnet_resume error");
+	check_warn_return(ret, "usbnet_resume error\n");
 
 	return 0;
 }
