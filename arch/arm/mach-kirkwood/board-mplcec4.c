@@ -34,7 +34,6 @@ void __init mplcec4_init(void)
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_ehci_init();
 	kirkwood_ge00_init(&mplcec4_ge00_data);
 	kirkwood_ge01_init(&mplcec4_ge01_data);
 	kirkwood_sdio_init(&mplcec4_mvsdio_data);

@@ -85,10 +85,6 @@ void __init nsa310_init(void)
 
 	nsa310_gpio_init();
 
-	/* this can be removed once the mainline kirkwood.dtsi gets
-	 * the ehci configuration by default */
-	kirkwood_ehci_init();
-
 	kirkwood_pcie_id(&dev, &rev);
 
 	i2c_register_board_info(0, ARRAY_AND_SIZE(nsa310_i2c_info));
