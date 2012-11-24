@@ -91,7 +91,6 @@ struct uprobe {
 	atomic_t		ref;
 	struct rw_semaphore	register_rwsem;
 	struct rw_semaphore	consumer_rwsem;
-	struct mutex		copy_mutex;	/* TODO: kill me and UPROBE_COPY_INSN */
 	struct list_head	pending_list;
 	struct uprobe_consumer	*consumers;
 	struct inode		*inode;		/* Also hold a ref to inode */
@@ -450,7 +449,6 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
 	uprobe->offset = offset;
 	init_rwsem(&uprobe->register_rwsem);
 	init_rwsem(&uprobe->consumer_rwsem);
-	mutex_init(&uprobe->copy_mutex);
 	/* For now assume that the instruction need not be single-stepped */
 	__set_bit(UPROBE_SKIP_SSTEP, &uprobe->flags);
 
@@ -578,7 +576,8 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	if (test_bit(UPROBE_COPY_INSN, &uprobe->flags))
 		return ret;
 
-	mutex_lock(&uprobe->copy_mutex);
+	/* TODO: move this into _register, until then we abuse this sem. */
+	down_write(&uprobe->consumer_rwsem);
 	if (test_bit(UPROBE_COPY_INSN, &uprobe->flags))
 		goto out;
 
@@ -602,7 +601,7 @@ static int prepare_uprobe(struct uprobe *uprobe, struct file *file,
 	set_bit(UPROBE_COPY_INSN, &uprobe->flags);
 
  out:
-	mutex_unlock(&uprobe->copy_mutex);
+	up_write(&uprobe->consumer_rwsem);
 
 	return ret;
 }
