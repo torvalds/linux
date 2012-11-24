@@ -47,7 +47,7 @@ struct pin_config {
 	{ "samsung,pin-pud-pdn", PINCFG_TYPE_PUD_PDN },
 };
 
-static unsigned int pin_base = 0;
+static unsigned int pin_base;
 
 static inline struct samsung_pin_bank *gc_to_pin_bank(struct gpio_chip *gc)
 {
