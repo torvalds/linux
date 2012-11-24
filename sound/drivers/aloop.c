@@ -119,6 +119,7 @@ struct loopback_pcm {
 	unsigned int period_size_frac;
 	unsigned long last_jiffies;
 	struct timer_list timer;
+	spinlock_t timer_lock;
 };
 
 static struct platform_device *devices[SNDRV_CARDS];
@@ -169,6 +170,7 @@ static void loopback_timer_start(struct loopback_pcm *dpcm)
 	unsigned long tick;
 	unsigned int rate_shift = get_rate_shift(dpcm);
 
+	spin_lock(&dpcm->timer_lock);
 	if (rate_shift != dpcm->pcm_rate_shift) {
 		dpcm->pcm_rate_shift = rate_shift;
 		dpcm->period_size_frac = frac_pos(dpcm, dpcm->pcm_period_size);
@@ -181,12 +183,15 @@ static void loopback_timer_start(struct loopback_pcm *dpcm)
 	tick = (tick + dpcm->pcm_bps - 1) / dpcm->pcm_bps;
 	dpcm->timer.expires = jiffies + tick;
 	add_timer(&dpcm->timer);
+	spin_unlock(&dpcm->timer_lock);
 }
 
 static inline void loopback_timer_stop(struct loopback_pcm *dpcm)
 {
+	spin_lock(&dpcm->timer_lock);
 	del_timer(&dpcm->timer);
 	dpcm->timer.expires = 0;
+	spin_unlock(&dpcm->timer_lock);
 }
 
 #define CABLE_VALID_PLAYBACK	(1 << SNDRV_PCM_STREAM_PLAYBACK)
@@ -658,6 +663,7 @@ static int loopback_open(struct snd_pcm_substream *substream)
 	dpcm->substream = substream;
 	setup_timer(&dpcm->timer, loopback_timer_function,
 		    (unsigned long)dpcm);
+	spin_lock_init(&dpcm->timer_lock);
 
 	cable = loopback->cables[substream->number][dev];
 	if (!cable) {
