@@ -83,10 +83,8 @@ static atomic_t uprobe_events = ATOMIC_INIT(0);
 
 /* Have a copy of original instruction */
 #define UPROBE_COPY_INSN	0
-/* Dont run handlers when first register/ last unregister in progress*/
-#define UPROBE_RUN_HANDLER	1
 /* Can skip singlestep */
-#define UPROBE_SKIP_SSTEP	2
+#define UPROBE_SKIP_SSTEP	1
 
 struct uprobe {
 	struct rb_node		rb_node;	/* node in the rb tree */
@@ -475,9 +473,6 @@ static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
 {
 	struct uprobe_consumer *uc;
 
-	if (!test_bit(UPROBE_RUN_HANDLER, &uprobe->flags))
-		return;
-
 	down_read(&uprobe->register_rwsem);
 	for (uc = uprobe->consumers; uc; uc = uc->next)
 		uc->handler(uc, regs);
@@ -825,13 +820,8 @@ static int register_for_each_vma(struct uprobe *uprobe, bool is_register)
 
 static int __uprobe_register(struct uprobe *uprobe, struct uprobe_consumer *uc)
 {
-	int err;
-
 	consumer_add(uprobe, uc);
-	err = register_for_each_vma(uprobe, true);
-	if (!err) /* TODO: pointless unless the first consumer */
-		set_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
-	return err;
+	return register_for_each_vma(uprobe, true);
 }
 
 static void __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *uc)
@@ -842,12 +832,9 @@ static void __uprobe_unregister(struct uprobe *uprobe, struct uprobe_consumer *u
 		return;
 
 	err = register_for_each_vma(uprobe, false);
-	if (!uprobe->consumers) {
-		clear_bit(UPROBE_RUN_HANDLER, &uprobe->flags);
-		/* TODO : cant unregister? schedule a worker thread */
-		if (!err)
-			delete_uprobe(uprobe);
-	}
+	/* TODO : cant unregister? schedule a worker thread */
+	if (!uprobe->consumers && !err)
+		delete_uprobe(uprobe);
 }
 
 /*
