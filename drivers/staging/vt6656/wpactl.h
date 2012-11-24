@@ -52,6 +52,6 @@ typedef unsigned long long NDIS_802_11_KEY_RSC;
 
 /*---------------------  Export Functions  --------------------------*/
 
-int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel);
+int wpa_set_keys(PSDevice pDevice, void *ctx);
 
 #endif /* __WPACL_H__ */

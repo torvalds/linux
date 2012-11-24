@@ -1724,7 +1724,7 @@ int iwctl_siwencodeext(struct net_device *dev, struct iw_request_info *info,
 	}
 /*******/
 	spin_lock_irq(&pDevice->lock);
-	ret = wpa_set_keys(pDevice, param, TRUE);
+	ret = wpa_set_keys(pDevice, param);
 	spin_unlock_irq(&pDevice->lock);
 
 error:

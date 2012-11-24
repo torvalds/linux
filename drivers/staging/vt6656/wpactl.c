@@ -67,7 +67,7 @@ static int msglevel = MSG_LEVEL_INFO;
  * Return Value:
  *
  */
- int wpa_set_keys(PSDevice pDevice, void *ctx, BOOL  fcpfkernel)
+int wpa_set_keys(PSDevice pDevice, void *ctx)
 {
 	struct viawget_wpa_param *param = ctx;
 	PSMgmtObject pMgmt = &pDevice->sMgmtObj;
@@ -99,18 +99,7 @@ static int msglevel = MSG_LEVEL_INFO;
 	if (param->u.wpa_key.key && param->u.wpa_key.key_len > sizeof(abyKey))
 		return -EINVAL;
 
-	spin_unlock_irq(&pDevice->lock);
-	if (param->u.wpa_key.key && fcpfkernel) {
-		memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
-	} else {
-		if (param->u.wpa_key.key &&
-			copy_from_user(&abyKey[0], param->u.wpa_key.key,
-				param->u.wpa_key.key_len)) {
-			spin_lock_irq(&pDevice->lock);
-			return -EINVAL;
-		}
-	}
-	spin_lock_irq(&pDevice->lock);
+	memcpy(&abyKey[0], param->u.wpa_key.key, param->u.wpa_key.key_len);
 
 	dwKeyIndex = (DWORD)(param->u.wpa_key.key_index);
 
@@ -142,18 +131,7 @@ static int msglevel = MSG_LEVEL_INFO;
 	if (param->u.wpa_key.seq && param->u.wpa_key.seq_len > sizeof(abySeq))
 		return -EINVAL;
 
-	spin_unlock_irq(&pDevice->lock);
-        if (param->u.wpa_key.seq && fcpfkernel) {
-		memcpy(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len);
-	} else {
-		if (param->u.wpa_key.seq &&
-			copy_from_user(&abySeq[0], param->u.wpa_key.seq,
-				param->u.wpa_key.seq_len)) {
-			spin_lock_irq(&pDevice->lock);
-			return -EINVAL;
-		}
-	}
-	spin_lock_irq(&pDevice->lock);
+	memcpy(&abySeq[0], param->u.wpa_key.seq, param->u.wpa_key.seq_len);
 
 	if (param->u.wpa_key.seq_len > 0) {
 		for (ii = 0 ; ii < param->u.wpa_key.seq_len ; ii++) {
