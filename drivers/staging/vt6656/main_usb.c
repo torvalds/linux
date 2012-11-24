@@ -1502,66 +1502,35 @@ static void device_set_multi(struct net_device *dev) {
 
 }
 
-
-static struct net_device_stats *device_get_stats(struct net_device *dev) {
+static struct net_device_stats *device_get_stats(struct net_device *dev)
+{
     PSDevice pDevice=(PSDevice) netdev_priv(dev);
 
     return &pDevice->stats;
 }
 
-
-static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
+static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
 	PSDevice pDevice = (PSDevice)netdev_priv(dev);
-	PSMgmtObject pMgmt = &pDevice->sMgmtObj;
-	PSCmdRequest pReq;
 	struct iwreq *wrq = (struct iwreq *) rq;
 	int rc = 0;
 
-    if (pMgmt == NULL) {
-        rc = -EFAULT;
-        return rc;
-    }
+	switch (cmd) {
 
-    switch(cmd) {
+	case IOCTL_CMD_HOSTAPD:
 
-
-    case IOCTL_CMD_TEST:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
-        pReq = (PSCmdRequest)rq;
-
-   //20080130-01,<Remark> by Mike Liu
-      // if(pDevice->bLinkPass==TRUE)
-          pReq->wResult = MAGIC_CODE;         //Linking status:0x3142
-   //20080130-02,<Remark> by Mike Liu
-      //  else
-      //	 pReq->wResult = MAGIC_CODE+1;    //disconnect status:0x3143
-        break;
-
-    case IOCTL_CMD_HOSTAPD:
-
-		if (!(pDevice->flags & DEVICE_FLAGS_OPENED)) {
-		    rc = -EFAULT;
-		    break;
-		} else {
-		    rc = 0;
-		}
+		if (!(pDevice->flags & DEVICE_FLAGS_OPENED))
+			rc = -EFAULT;
 
 		rc = vt6656_hostap_ioctl(pDevice, &wrq->u.data);
-        break;
+		break;
 
 	case SIOCETHTOOL:
-        return ethtool_ioctl(dev, (void *) rq->ifr_data);
+		return ethtool_ioctl(dev, (void *) rq->ifr_data);
 
-    }
+	}
 
-
-    return rc;
+	return rc;
 }
 
 
