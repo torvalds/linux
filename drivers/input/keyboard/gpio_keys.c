@@ -803,6 +803,7 @@ static int gpio_keys_remove(struct platform_device *pdev)
 static int gpio_keys_suspend(struct device *dev)
 {
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
+	struct input_dev *input = ddata->input;
 	int i;
 
 	if (device_may_wakeup(dev)) {
@@ -811,6 +812,11 @@ static int gpio_keys_suspend(struct device *dev)
 			if (bdata->button->wakeup)
 				enable_irq_wake(bdata->irq);
 		}
+	} else {
+		mutex_lock(&input->mutex);
+		if (input->users)
+			gpio_keys_close(input);
+		mutex_unlock(&input->mutex);
 	}
 
 	return 0;
@@ -819,16 +825,27 @@ static int gpio_keys_suspend(struct device *dev)
 static int gpio_keys_resume(struct device *dev)
 {
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
+	struct input_dev *input = ddata->input;
+	int error = 0;
 	int i;
 
-	for (i = 0; i < ddata->pdata->nbuttons; i++) {
-		struct gpio_button_data *bdata = &ddata->data[i];
-		if (bdata->button->wakeup && device_may_wakeup(dev))
-			disable_irq_wake(bdata->irq);
+	if (device_may_wakeup(dev)) {
+		for (i = 0; i < ddata->pdata->nbuttons; i++) {
+			struct gpio_button_data *bdata = &ddata->data[i];
+			if (bdata->button->wakeup)
+				disable_irq_wake(bdata->irq);
+		}
+	} else {
+		mutex_lock(&input->mutex);
+		if (input->users)
+			error = gpio_keys_open(input);
+		mutex_unlock(&input->mutex);
 	}
 
-	gpio_keys_report_state(ddata);
+	if (error)
+		return error;
 
+	gpio_keys_report_state(ddata);
 	return 0;
 }
 #endif
