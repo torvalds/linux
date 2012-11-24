@@ -36,9 +36,9 @@
  *
  */
 
+#include "mac.h"
 #include "tmacro.h"
 #include "key.h"
-#include "mac.h"
 #include "rndis.h"
 #include "control.h"
 

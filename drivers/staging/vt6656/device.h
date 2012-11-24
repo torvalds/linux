@@ -30,43 +30,28 @@
 #define __DEVICE_H__
 
 #include <linux/module.h>
-#include <linux/types.h>
-#include <linux/init.h>
-#include <linux/mm.h>
-#include <linux/errno.h>
-#include <linux/ioport.h>
-#include <linux/pci.h>
 #include <linux/kernel.h>
-#include <linux/netdevice.h>
-#include <linux/etherdevice.h>
-#include <linux/skbuff.h>
-#include <linux/delay.h>
-#include <linux/timer.h>
 #include <linux/slab.h>
-#include <linux/interrupt.h>
-#include <linux/string.h>
-#include <linux/wait.h>
-#include <linux/if_arp.h>
-#include <linux/sched.h>
-#include <linux/if.h>
-#include <linux/rtnetlink.h>//James
-#include <linux/proc_fs.h>
-#include <linux/inetdevice.h>
-#include <linux/reboot.h>
-#include <linux/usb.h>
-#include <linux/signal.h>
+#include <linux/init.h>
+#include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/firmware.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/etherdevice.h>
+#include <linux/suspend.h>
+#include <linux/if_arp.h>
+#include <linux/wireless.h>
+#include <net/iw_handler.h>
+#include <net/cfg80211.h>
+#include <linux/timer.h>
+#include <linux/usb.h>
+
+
 #ifdef SIOCETHTOOL
 #define DEVICE_ETHTOOL_IOCTL_SUPPORT
 #include <linux/ethtool.h>
 #else
 #undef DEVICE_ETHTOOL_IOCTL_SUPPORT
 #endif
-/* Include Wireless Extension definition and check version - Jean II */
-#include <linux/wireless.h>
-#include <net/iw_handler.h>	// New driver API
 
 //please copy below macro to driver_event.c for API
 #define RT_INSMOD_EVENT_FLAG                             0x0101

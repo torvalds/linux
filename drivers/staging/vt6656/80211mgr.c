@@ -52,11 +52,11 @@
  *
  */
 
+#include "device.h"
 #include "tmacro.h"
 #include "tether.h"
 #include "80211mgr.h"
 #include "80211hdr.h"
-#include "device.h"
 #include "wpa.h"
 
 /*---------------------  Static Definitions -------------------------*/
