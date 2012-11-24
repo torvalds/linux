@@ -87,7 +87,7 @@ struct tegra_kbc {
 	struct clk *clk;
 };
 
-static const u32 tegra_kbc_default_keymap[] __devinitdata = {
+static const u32 tegra_kbc_default_keymap[] = {
 	KEY(0, 2, KEY_W),
 	KEY(0, 3, KEY_S),
 	KEY(0, 4, KEY_A),
@@ -223,7 +223,7 @@ static const u32 tegra_kbc_default_keymap[] __devinitdata = {
 };
 
 static const
-struct matrix_keymap_data tegra_kbc_default_keymap_data __devinitdata = {
+struct matrix_keymap_data tegra_kbc_default_keymap_data = {
 	.keymap		= tegra_kbc_default_keymap,
 	.keymap_size	= ARRAY_SIZE(tegra_kbc_default_keymap),
 };
