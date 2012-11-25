@@ -42,7 +42,7 @@ static const struct cifs_sid sid_authusers = {
 /* group users */
 static const struct cifs_sid sid_user = {1, 2 , {0, 0, 0, 0, 0, 5}, {} };
 
-const struct cred *root_cred;
+static const struct cred *root_cred;
 
 static void
 shrink_idmap_tree(struct rb_root *root, int nr_to_scan, int *nr_rem,
@@ -187,7 +187,7 @@ cifs_idmap_key_destroy(struct key *key)
 	kfree(key->payload.data);
 }
 
-struct key_type cifs_idmap_key_type = {
+static struct key_type cifs_idmap_key_type = {
 	.name        = "cifs.idmap",
 	.instantiate = cifs_idmap_key_instantiate,
 	.destroy     = cifs_idmap_key_destroy,
