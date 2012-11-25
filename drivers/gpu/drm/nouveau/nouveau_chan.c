@@ -76,6 +76,8 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nouveau_object_del(client, NVDRM_DEVICE, chan->push.handle);
 		nouveau_bo_vma_del(chan->push.buffer, &chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
+		if (chan->push.buffer && chan->push.buffer->pin_refcnt)
+			nouveau_bo_unpin(chan->push.buffer);
 		nouveau_bo_ref(NULL, &chan->push.buffer);
 		kfree(chan);
 	}
