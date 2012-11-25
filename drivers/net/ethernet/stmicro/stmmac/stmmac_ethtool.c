@@ -524,6 +524,87 @@ static int stmmac_ethtool_op_set_eee(struct net_device *dev,
 	return phy_ethtool_set_eee(priv->phydev, edata);
 }
 
+static u32 stmmac_usec2riwt(u32 usec, struct stmmac_priv *priv)
+{
+	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+
+	if (!clk)
+		return 0;
+
+	return (usec * (clk / 1000000)) / 256;
+}
+
+static u32 stmmac_riwt2usec(u32 riwt, struct stmmac_priv *priv)
+{
+	unsigned long clk = clk_get_rate(priv->stmmac_clk);
+
+	if (!clk)
+		return 0;
+
+	return (riwt * 256) / (clk / 1000000);
+}
+
+static int stmmac_get_coalesce(struct net_device *dev,
+			       struct ethtool_coalesce *ec)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+
+	ec->tx_coalesce_usecs = priv->tx_coal_timer;
+	ec->tx_max_coalesced_frames = priv->tx_coal_frames;
+
+	if (priv->use_riwt)
+		ec->rx_coalesce_usecs = stmmac_riwt2usec(priv->rx_riwt, priv);
+
+	return 0;
+}
+
+static int stmmac_set_coalesce(struct net_device *dev,
+			       struct ethtool_coalesce *ec)
+{
+	struct stmmac_priv *priv = netdev_priv(dev);
+	unsigned int rx_riwt;
+
+	/* Check not supported parameters  */
+	if ((ec->rx_max_coalesced_frames) || (ec->rx_coalesce_usecs_irq) ||
+	    (ec->rx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
+	    (ec->use_adaptive_rx_coalesce) || (ec->use_adaptive_tx_coalesce) ||
+	    (ec->pkt_rate_low) || (ec->rx_coalesce_usecs_low) ||
+	    (ec->rx_max_coalesced_frames_low) || (ec->tx_coalesce_usecs_high) ||
+	    (ec->tx_max_coalesced_frames_low) || (ec->pkt_rate_high) ||
+	    (ec->tx_coalesce_usecs_low) || (ec->rx_coalesce_usecs_high) ||
+	    (ec->rx_max_coalesced_frames_high) ||
+	    (ec->tx_max_coalesced_frames_irq) ||
+	    (ec->stats_block_coalesce_usecs) ||
+	    (ec->tx_max_coalesced_frames_high) || (ec->rate_sample_interval))
+		return -EOPNOTSUPP;
+
+	if (ec->rx_coalesce_usecs == 0)
+		return -EINVAL;
+
+	if ((ec->tx_coalesce_usecs == 0) &&
+	    (ec->tx_max_coalesced_frames == 0))
+		return -EINVAL;
+
+	if ((ec->tx_coalesce_usecs > STMMAC_COAL_TX_TIMER) ||
+	    (ec->tx_max_coalesced_frames > STMMAC_TX_MAX_FRAMES))
+		return -EINVAL;
+
+	rx_riwt = stmmac_usec2riwt(ec->rx_coalesce_usecs, priv);
+
+	if ((rx_riwt > MAX_DMA_RIWT) || (rx_riwt < MIN_DMA_RIWT))
+		return -EINVAL;
+	else if (!priv->use_riwt)
+		return -EOPNOTSUPP;
+
+	/* Only copy relevant parameters, ignore all others. */
+	priv->tx_coal_frames = ec->tx_max_coalesced_frames;
+	priv->tx_coal_timer = ec->tx_coalesce_usecs;
+	priv->rx_riwt = rx_riwt;
+	priv->hw->dma->rx_watchdog(priv->ioaddr, priv->rx_riwt);
+
+	return 0;
+}
+
 static const struct ethtool_ops stmmac_ethtool_ops = {
 	.begin = stmmac_check_if_running,
 	.get_drvinfo = stmmac_ethtool_getdrvinfo,
@@ -544,6 +625,8 @@ static const struct ethtool_ops stmmac_ethtool_ops = {
 	.set_eee = stmmac_ethtool_op_set_eee,
 	.get_sset_count	= stmmac_get_sset_count,
 	.get_ts_info = ethtool_op_get_ts_info,
+	.get_coalesce = stmmac_get_coalesce,
+	.set_coalesce = stmmac_set_coalesce,
 };
 
 void stmmac_set_ethtool_ops(struct net_device *netdev)
