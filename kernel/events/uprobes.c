@@ -41,6 +41,11 @@
 #define MAX_UPROBE_XOL_SLOTS		UINSNS_PER_PAGE
 
 static struct rb_root uprobes_tree = RB_ROOT;
+/*
+ * allows us to skip the uprobe_mmap if there are no uprobe events active
+ * at this time.  Probably a fine grained per inode count is better?
+ */
+#define no_uprobe_events()	RB_EMPTY_ROOT(&uprobes_tree)
 
 static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
 
@@ -73,13 +78,6 @@ static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
 #define uprobes_mmap_hash(v)	(&uprobes_mmap_mutex[((unsigned long)(v)) % UPROBES_HASH_SZ])
 
 static struct percpu_rw_semaphore dup_mmap_sem;
-
-/*
- * uprobe_events allows us to skip the uprobe_mmap if there are no uprobe
- * events active at this time.  Probably a fine grained per inode count is
- * better?
- */
-static atomic_t uprobe_events = ATOMIC_INIT(0);
 
 /* Have a copy of original instruction */
 #define UPROBE_COPY_INSN	0
@@ -460,8 +458,6 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
 		kfree(uprobe);
 		uprobe = cur_uprobe;
 		iput(inode);
-	} else {
-		atomic_inc(&uprobe_events);
 	}
 
 	return uprobe;
@@ -685,7 +681,6 @@ static void delete_uprobe(struct uprobe *uprobe)
 	spin_unlock(&uprobes_treelock);
 	iput(uprobe->inode);
 	put_uprobe(uprobe);
-	atomic_dec(&uprobe_events);
 }
 
 struct map_info {
@@ -975,7 +970,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	struct uprobe *uprobe, *u;
 	struct inode *inode;
 
-	if (!atomic_read(&uprobe_events) || !valid_vma(vma, true))
+	if (no_uprobe_events() || !valid_vma(vma, true))
 		return 0;
 
 	inode = vma->vm_file->f_mapping->host;
@@ -1021,7 +1016,7 @@ vma_has_uprobes(struct vm_area_struct *vma, unsigned long start, unsigned long e
  */
 void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
-	if (!atomic_read(&uprobe_events) || !valid_vma(vma, false))
+	if (no_uprobe_events() || !valid_vma(vma, false))
 		return;
 
 	if (!atomic_read(&vma->vm_mm->mm_users)) /* called by mmput() ? */
