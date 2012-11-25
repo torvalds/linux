@@ -190,6 +190,8 @@ nvc0_fence_destroy(struct nouveau_drm *drm)
 {
 	struct nvc0_fence_priv *priv = drm->fence;
 	nouveau_bo_unmap(priv->bo);
+	if (priv->bo)
+		nouveau_bo_unpin(priv->bo);
 	nouveau_bo_ref(NULL, &priv->bo);
 	drm->fence = NULL;
 	kfree(priv);
@@ -219,8 +221,11 @@ nvc0_fence_create(struct nouveau_drm *drm)
 			     TTM_PL_FLAG_VRAM, 0, 0, NULL, &priv->bo);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(priv->bo, TTM_PL_FLAG_VRAM);
-		if (ret == 0)
+		if (ret == 0) {
 			ret = nouveau_bo_map(priv->bo);
+			if (ret)
+				nouveau_bo_unpin(priv->bo);
+		}
 		if (ret)
 			nouveau_bo_ref(NULL, &priv->bo);
 	}

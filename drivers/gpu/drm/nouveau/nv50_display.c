@@ -1228,8 +1228,12 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	nv50_dmac_destroy(disp->core, &head->sync.base);
 	nv50_pioc_destroy(disp->core, &head->curs.base);
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
+	if (nv_crtc->cursor.nvbo)
+		nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	nouveau_bo_unmap(nv_crtc->lut.nvbo);
+	if (nv_crtc->lut.nvbo)
+		nouveau_bo_unpin(nv_crtc->lut.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
 	drm_crtc_cleanup(crtc);
 	kfree(crtc);
@@ -1300,8 +1304,11 @@ nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 			     0, 0x0000, NULL, &head->base.lut.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(head->base.lut.nvbo, TTM_PL_FLAG_VRAM);
-		if (!ret)
+		if (!ret) {
 			ret = nouveau_bo_map(head->base.lut.nvbo);
+			if (ret)
+				nouveau_bo_unpin(head->base.lut.nvbo);
+		}
 		if (ret)
 			nouveau_bo_ref(NULL, &head->base.lut.nvbo);
 	}
@@ -1324,8 +1331,11 @@ nv50_crtc_create(struct drm_device *dev, struct nouveau_object *core, int index)
 			     0, 0x0000, NULL, &head->base.cursor.nvbo);
 	if (!ret) {
 		ret = nouveau_bo_pin(head->base.cursor.nvbo, TTM_PL_FLAG_VRAM);
-		if (!ret)
+		if (!ret) {
 			ret = nouveau_bo_map(head->base.cursor.nvbo);
+			if (ret)
+				nouveau_bo_unpin(head->base.lut.nvbo);
+		}
 		if (ret)
 			nouveau_bo_ref(NULL, &head->base.cursor.nvbo);
 	}
@@ -1917,6 +1927,8 @@ nv50_display_destroy(struct drm_device *dev)
 	nv50_dmac_destroy(disp->core, &disp->mast.base);
 
 	nouveau_bo_unmap(disp->sync);
+	if (disp->sync)
+		nouveau_bo_unpin(disp->sync);
 	nouveau_bo_ref(NULL, &disp->sync);
 
 	nouveau_display(dev)->priv = NULL;
@@ -1957,8 +1969,11 @@ nv50_display_create(struct drm_device *dev)
 			     0, 0x0000, NULL, &disp->sync);
 	if (!ret) {
 		ret = nouveau_bo_pin(disp->sync, TTM_PL_FLAG_VRAM);
-		if (!ret)
+		if (!ret) {
 			ret = nouveau_bo_map(disp->sync);
+			if (ret)
+				nouveau_bo_unpin(disp->sync);
+		}
 		if (ret)
 			nouveau_bo_ref(NULL, &disp->sync);
 	}
