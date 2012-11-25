@@ -1646,6 +1646,9 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	case MRT6_ASSERT:
 	{
 		int v;
+
+		if (optlen != sizeof(v))
+			return -EINVAL;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
 		mrt->mroute_do_assert = v;
@@ -1656,6 +1659,9 @@ int ip6_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, uns
 	case MRT6_PIM:
 	{
 		int v;
+
+		if (optlen != sizeof(v))
+			return -EINVAL;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
 		v = !!v;
