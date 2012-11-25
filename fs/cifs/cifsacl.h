@@ -98,6 +98,4 @@ extern struct key_type cifs_idmap_key_type;
 extern const struct cred *root_cred;
 #endif /* KERNEL */
 
-extern int compare_sids(const struct cifs_sid *, const struct cifs_sid *);
-
 #endif /* _CIFSACL_H */
