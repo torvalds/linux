@@ -121,11 +121,11 @@ struct tap_filter {
  * also contains all socket related strctures (except sock_fprog and tap_filter)
  * to serve as one transmit queue for tuntap device. The sock_fprog and
  * tap_filter were kept in tun_struct since they were used for filtering for the
- * netdevice not for a specific queue (at least I didn't see the reqirement for
+ * netdevice not for a specific queue (at least I didn't see the requirement for
  * this).
  *
  * RCU usage:
- * The tun_file and tun_struct are loosely coupled, the pointer from on to the
+ * The tun_file and tun_struct are loosely coupled, the pointer from one to the
  * other can only be read while rcu_read_lock or rtnl_lock is held.
  */
 struct tun_file {
@@ -153,7 +153,7 @@ struct tun_flow_entry {
 #define TUN_NUM_FLOW_ENTRIES 1024
 
 /* Since the socket were moved to tun_file, to preserve the behavior of persist
- * device, socket fileter, sndbuf and vnet header size were restore when the
+ * device, socket filter, sndbuf and vnet header size were restore when the
  * file were attached to a persist device.
  */
 struct tun_struct {
@@ -689,7 +689,7 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 	    sk_filter(tfile->socket.sk, skb))
 		goto drop;
 
-	/* Limit the number of packets queued by divining txq length with the
+	/* Limit the number of packets queued by dividing txq length with the
 	 * number of queues.
 	 */
 	if (skb_queue_len(&tfile->socket.sk->sk_receive_queue)
