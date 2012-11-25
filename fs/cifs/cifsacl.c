@@ -280,7 +280,7 @@ cifs_copy_sid(struct cifs_sid *dst, const struct cifs_sid *src)
 	int i;
 
 	dst->revision = src->revision;
-	dst->num_subauth = min_t(u8, src->num_subauth, NUM_SUBAUTHS);
+	dst->num_subauth = min_t(u8, src->num_subauth, SID_MAX_SUB_AUTHORITIES);
 	for (i = 0; i < NUM_AUTHS; ++i)
 		dst->authority[i] = src->authority[i];
 	for (i = 0; i < dst->num_subauth; ++i)
@@ -383,7 +383,7 @@ id_to_sid(unsigned long cid, uint sidtype, struct cifs_sid *ssid)
 		if (!npsidid)
 			return -ENOMEM;
 
-		npsidid->sidstr = kmalloc(SIDLEN, GFP_KERNEL);
+		npsidid->sidstr = kmalloc(SID_STRING_MAX, GFP_KERNEL);
 		if (!npsidid->sidstr) {
 			kfree(npsidid);
 			return -ENOMEM;
@@ -500,7 +500,7 @@ sid_to_id(struct cifs_sb_info *cifs_sb, struct cifs_sid *psid,
 		if (!npsidid)
 			return -ENOMEM;
 
-		npsidid->sidstr = kmalloc(SIDLEN, GFP_KERNEL);
+		npsidid->sidstr = kmalloc(SID_STRING_MAX, GFP_KERNEL);
 		if (!npsidid->sidstr) {
 			kfree(npsidid);
 			return -ENOMEM;

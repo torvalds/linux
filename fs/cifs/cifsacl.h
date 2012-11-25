@@ -24,7 +24,7 @@
 
 
 #define NUM_AUTHS 6 /* number of authority fields */
-#define NUM_SUBAUTHS 5 /* number of sub authority fields */
+#define SID_MAX_SUB_AUTHORITIES (15) /* max number of sub authority fields */
 #define NUM_WK_SIDS 7 /* number of well known sids */
 #define SIDNAMELENGTH 20 /* long enough for the ones we care about */
 #define DEFSECDESCLEN 192 /* sec desc len contaiting a dacl with three aces */
@@ -41,7 +41,20 @@
 
 #define SIDOWNER 1
 #define SIDGROUP 2
-#define SIDLEN 150 /* S- 1 revision- 6 authorities- max 5 sub authorities */
+
+/*
+ * Maximum size of a string representation of a SID:
+ *
+ * The fields are unsigned values in decimal. So:
+ *
+ * u8:  max 3 bytes in decimal
+ * u32: max 10 bytes in decimal
+ *
+ * "S-" + 3 bytes for version field + 4 bytes for each authority field (3 bytes
+ * per number + 1 for '-') + 11 bytes for each subauthority field (10 bytes
+ * per number + 1 for '-') + NULL terminator.
+ */
+#define SID_STRING_MAX (195)
 
 #define SID_ID_MAPPED 0
 #define SID_ID_PENDING 1
@@ -61,7 +74,7 @@ struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
 	__u8 authority[NUM_AUTHS];
-	__le32 sub_auth[NUM_SUBAUTHS]; /* sub_auth[num_subauth] */
+	__le32 sub_auth[SID_MAX_SUB_AUTHORITIES]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
 /* size of a struct cifs_sid, sans sub_auth array */
