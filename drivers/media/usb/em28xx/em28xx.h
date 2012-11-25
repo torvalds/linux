@@ -560,10 +560,10 @@ struct em28xx {
 	/* states */
 	enum em28xx_dev_state state;
 
-	/* vbi related state tracking */
+	/* capture state tracking */
 	int capture_type;
-	int vbi_read;
 	unsigned char top_field:1;
+	int vbi_read;
 	unsigned int vbi_width;
 	unsigned int vbi_height; /* lines per field */
 
