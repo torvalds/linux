@@ -126,7 +126,7 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_request_one(template->gpio,
+	ret = devm_gpio_request_one(parent, template->gpio,
 			GPIOF_DIR_OUT | (led_dat->active_low ^ state),
 			template->name);
 	if (ret < 0)
@@ -136,12 +136,9 @@ static int __devinit create_gpio_led(const struct gpio_led *template,
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	return 0;
-err:
-	gpio_free(led_dat->gpio);
-	return ret;
 }
 
 static void delete_gpio_led(struct gpio_led_data *led)
@@ -150,7 +147,6 @@ static void delete_gpio_led(struct gpio_led_data *led)
 		return;
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
-	gpio_free(led->gpio);
 }
 
 struct gpio_leds_priv {
