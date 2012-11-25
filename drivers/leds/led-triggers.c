@@ -313,13 +313,13 @@ void led_trigger_register_simple(const char *name, struct led_trigger **tp)
 		if (err < 0) {
 			kfree(trig);
 			trig = NULL;
-			printk(KERN_WARNING "LED trigger %s failed to register"
-				" (%d)\n", name, err);
+			pr_warn("LED trigger %s failed to register (%d)\n",
+				name, err);
 		}
-	} else
-		printk(KERN_WARNING "LED trigger %s failed to register"
-			" (no memory)\n", name);
-
+	} else {
+		pr_warn("LED trigger %s failed to register (no memory)\n",
+			name);
+	}
 	*tp = trig;
 }
 EXPORT_SYMBOL_GPL(led_trigger_register_simple);
