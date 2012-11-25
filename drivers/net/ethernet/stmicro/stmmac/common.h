@@ -48,6 +48,10 @@
 #define CHIP_DBG(fmt, args...)  do { } while (0)
 #endif
 
+/* Synopsys Core versions */
+#define	DWMAC_CORE_3_40	0x34
+#define	DWMAC_CORE_3_50	0x35
+
 #undef FRAME_FILTER_DEBUG
 /* #define FRAME_FILTER_DEBUG */
 
@@ -81,7 +85,7 @@ struct stmmac_extra_stats {
 	unsigned long rx_missed_cntr;
 	unsigned long rx_overflow_cntr;
 	unsigned long rx_vlan;
-	/* Tx/Rx IRQ errors */
+	/* Tx/Rx IRQ error info */
 	unsigned long tx_undeflow_irq;
 	unsigned long tx_process_stopped_irq;
 	unsigned long tx_jabber_irq;
@@ -91,7 +95,8 @@ struct stmmac_extra_stats {
 	unsigned long rx_watchdog_irq;
 	unsigned long tx_early_irq;
 	unsigned long fatal_bus_error_irq;
-	/* Extra info */
+	/* Tx/Rx IRQ Events */
+	unsigned long rx_early_irq;
 	unsigned long threshold;
 	unsigned long tx_pkt_n;
 	unsigned long rx_pkt_n;
@@ -101,11 +106,12 @@ struct stmmac_extra_stats {
 	unsigned long tx_normal_irq_n;
 	unsigned long tx_clean;
 	unsigned long tx_reset_ic_bit;
+	unsigned long irq_receive_pmt_irq_n;
+	/* MMC info */
 	unsigned long mmc_tx_irq_n;
 	unsigned long mmc_rx_irq_n;
 	unsigned long mmc_rx_csum_offload_irq_n;
 	/* EEE */
-	unsigned long irq_receive_pmt_irq_n;
 	unsigned long irq_tx_path_in_lpi_mode_n;
 	unsigned long irq_tx_path_exit_lpi_mode_n;
 	unsigned long irq_rx_path_in_lpi_mode_n;
@@ -165,6 +171,9 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000 /* Active/selected PHY interface */
 #define DEFAULT_DMA_PBL		8
 
+/* Max/Min RI Watchdog Timer count value */
+#define MAX_DMA_RIWT		0xff
+#define MIN_DMA_RIWT		0x20
 /* Tx coalesce parameters */
 #define STMMAC_COAL_TX_TIMER	40000
 #define STMMAC_MAX_COAL_TX_TICK	100000
@@ -306,6 +315,8 @@ struct stmmac_dma_ops {
 			      struct stmmac_extra_stats *x);
 	/* If supported then get the optional core features */
 	unsigned int (*get_hw_feature) (void __iomem *ioaddr);
+	/* Program the HW RX Watchdog */
+	void (*rx_watchdog) (void __iomem *ioaddr, u32 riwt);
 };
 
 struct stmmac_ops {

@@ -174,6 +174,11 @@ static unsigned int dwmac1000_get_hw_feature(void __iomem *ioaddr)
 	return readl(ioaddr + DMA_HW_FEATURE);
 }
 
+static void dwmac1000_rx_watchdog(void __iomem *ioaddr, u32 riwt)
+{
+	writel(riwt, ioaddr + DMA_RX_WATCHDOG);
+}
+
 const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.init = dwmac1000_dma_init,
 	.dump_regs = dwmac1000_dump_dma_regs,
@@ -187,4 +192,5 @@ const struct stmmac_dma_ops dwmac1000_dma_ops = {
 	.stop_rx = dwmac_dma_stop_rx,
 	.dma_interrupt = dwmac_dma_interrupt,
 	.get_hw_feature = dwmac1000_get_hw_feature,
+	.rx_watchdog = dwmac1000_rx_watchdog,
 };

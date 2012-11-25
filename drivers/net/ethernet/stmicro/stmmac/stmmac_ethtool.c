@@ -76,7 +76,7 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(rx_missed_cntr),
 	STMMAC_STAT(rx_overflow_cntr),
 	STMMAC_STAT(rx_vlan),
-	/* Tx/Rx IRQ errors */
+	/* Tx/Rx IRQ error info */
 	STMMAC_STAT(tx_undeflow_irq),
 	STMMAC_STAT(tx_process_stopped_irq),
 	STMMAC_STAT(tx_jabber_irq),
@@ -86,7 +86,8 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(rx_watchdog_irq),
 	STMMAC_STAT(tx_early_irq),
 	STMMAC_STAT(fatal_bus_error_irq),
-	/* Extra info */
+	/* Tx/Rx IRQ Events */
+	STMMAC_STAT(rx_early_irq),
 	STMMAC_STAT(threshold),
 	STMMAC_STAT(tx_pkt_n),
 	STMMAC_STAT(rx_pkt_n),
@@ -96,10 +97,12 @@ static const struct stmmac_stats stmmac_gstrings_stats[] = {
 	STMMAC_STAT(tx_normal_irq_n),
 	STMMAC_STAT(tx_clean),
 	STMMAC_STAT(tx_reset_ic_bit),
+	STMMAC_STAT(irq_receive_pmt_irq_n),
+	/* MMC info */
 	STMMAC_STAT(mmc_tx_irq_n),
 	STMMAC_STAT(mmc_rx_irq_n),
 	STMMAC_STAT(mmc_rx_csum_offload_irq_n),
-	STMMAC_STAT(irq_receive_pmt_irq_n),
+	/* EEE */
 	STMMAC_STAT(irq_tx_path_in_lpi_mode_n),
 	STMMAC_STAT(irq_tx_path_exit_lpi_mode_n),
 	STMMAC_STAT(irq_rx_path_in_lpi_mode_n),
