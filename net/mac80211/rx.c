@@ -1341,13 +1341,17 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 	/*
 	 * Update last_rx only for IBSS packets which are for the current
-	 * BSSID to avoid keeping the current IBSS network alive in cases
-	 * where other STAs start using different BSSID.
+	 * BSSID and for station already AUTHORIZED to avoid keeping the
+	 * current IBSS network alive in cases where other STAs start
+	 * using different BSSID. This will also give the station another
+	 * chance to restart the authentication/authorization in case
+	 * something went wrong the first time.
 	 */
 	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						NL80211_IFTYPE_ADHOC);
-		if (ether_addr_equal(bssid, rx->sdata->u.ibss.bssid)) {
+		if (ether_addr_equal(bssid, rx->sdata->u.ibss.bssid) &&
+		    test_sta_flag(sta, WLAN_STA_AUTHORIZED)) {
 			sta->last_rx = jiffies;
 			if (ieee80211_is_data(hdr->frame_control)) {
 				sta->last_rx_rate_idx = status->rate_idx;
