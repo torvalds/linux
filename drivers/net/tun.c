@@ -1296,7 +1296,7 @@ static ssize_t tun_do_read(struct tun_struct *tun, struct tun_file *tfile,
 	struct sk_buff *skb;
 	ssize_t ret = 0;
 
-	tun_debug(KERN_INFO, tun, "tun_chr_read\n");
+	tun_debug(KERN_INFO, tun, "tun_do_read\n");
 
 	if (unlikely(!noblock))
 		add_wait_queue(&tfile->wq.wait, &wait);
