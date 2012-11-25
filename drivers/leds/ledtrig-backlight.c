@@ -40,7 +40,7 @@ static int fb_notifier_callback(struct notifier_block *p,
 	int new_status = *blank ? BLANK : UNBLANK;
 
 	switch (event) {
-	case FB_EVENT_BLANK :
+	case FB_EVENT_BLANK:
 		if (new_status == n->old_status)
 			break;
 
