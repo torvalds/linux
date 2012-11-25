@@ -232,7 +232,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_32_rt_sigpending		/* 6125 */
 	PTR	compat_sys_rt_sigtimedwait
 	PTR	sys_32_rt_sigqueueinfo
-	PTR	sysn32_rt_sigsuspend
+	PTR	compat_sys_rt_sigsuspend
 	PTR	compat_sys_sigaltstack
 	PTR	compat_sys_utime		/* 6130 */
 	PTR	sys_mknod

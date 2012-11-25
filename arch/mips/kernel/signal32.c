@@ -284,23 +284,6 @@ asmlinkage int sys32_sigsuspend(nabi_no_regargs struct pt_regs regs)
 	return sigsuspend(&newset);
 }
 
-asmlinkage int sys32_rt_sigsuspend(nabi_no_regargs struct pt_regs regs)
-{
-	compat_sigset_t __user *uset;
-	sigset_t newset;
-	size_t sigsetsize;
-
-	/* XXX Don't preclude handling different sized sigset_t's.  */
-	sigsetsize = regs.regs[5];
-	if (sigsetsize != sizeof(compat_sigset_t))
-		return -EINVAL;
-
-	uset = (compat_sigset_t __user *) regs.regs[4];
-	if (get_sigset(&newset, uset))
-		return -EFAULT;
-	return sigsuspend(&newset);
-}
-
 SYSCALL_DEFINE3(32_sigaction, long, sig, const struct sigaction32 __user *, act,
 	struct sigaction32 __user *, oact)
 {

@@ -391,7 +391,7 @@ sys_call_table:
 	PTR	sys_32_rt_sigpending
 	PTR	compat_sys_rt_sigtimedwait
 	PTR	sys_32_rt_sigqueueinfo
-	PTR	sys32_rt_sigsuspend
+	PTR	compat_sys_rt_sigsuspend
 	PTR	sys_32_pread			/* 4200 */
 	PTR	sys_32_pwrite
 	PTR	sys_chown
