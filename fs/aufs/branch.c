@@ -56,7 +56,10 @@ static void au_br_do_free(struct au_branch *br)
 		else
 			break;
 
+	/* recursive lock, s_umount of branch's */
+	lockdep_off();
 	mntput(br->br_mnt);
+	lockdep_on();
 	kfree(wbr);
 	kfree(br);
 }
