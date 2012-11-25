@@ -57,7 +57,6 @@
 
 #ifdef CONFIG_PPC64
 #define sys_sigsuspend	compat_sys_sigsuspend
-#define sys_rt_sigsuspend	compat_sys_rt_sigsuspend
 #define sys_rt_sigreturn	compat_sys_rt_sigreturn
 #define sys_sigaction	compat_sys_sigaction
 #define sys_swapcontext	compat_sys_swapcontext

@@ -32,8 +32,4 @@ asmlinkage long sys_sigaltstack(const stack_t __user *, stack_t __user *,
 asmlinkage long sys_rt_sigreturn(struct pt_regs *regs);
 #endif
 
-#ifndef sys_rt_sigsuspend
-asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);
-#endif
-
 #endif /* __ASM_GENERIC_SYSCALLS_H */

@@ -26,4 +26,3 @@ asmlinkage long sys_ppoll(struct pollfd __user *ufds, unsigned int nfds,
 			  struct timespec __user *tsp,
 			  const sigset_t __user *sigmask,
 			  size_t sigsetsize);
-asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);
