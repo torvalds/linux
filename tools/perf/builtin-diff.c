@@ -64,7 +64,7 @@ static bool force;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
-static bool sort_compute;
+static unsigned int sort_compute;
 
 static s64 compute_wdiff_w1;
 static s64 compute_wdiff_w2;
@@ -186,13 +186,6 @@ static int setup_compute(const struct option *opt, const char *str,
 	if (!str) {
 		*cp = COMPUTE_DELTA;
 		return 0;
-	}
-
-	if (*str == '+') {
-		sort_compute = true;
-		cstr = (char *) ++str;
-		if (!*str)
-			return 0;
 	}
 
 	option = strchr(str, ':');
@@ -378,6 +371,29 @@ static void perf_evlist__collapse_resort(struct perf_evlist *evlist)
 	}
 }
 
+static struct hist_entry*
+get_pair_data(struct hist_entry *he, struct data__file *d)
+{
+	if (hist_entry__has_pairs(he)) {
+		struct hist_entry *pair;
+
+		list_for_each_entry(pair, &he->pairs.head, pairs.node)
+			if (pair->hists == d->hists)
+				return pair;
+	}
+
+	return NULL;
+}
+
+static struct hist_entry*
+get_pair_fmt(struct hist_entry *he, struct diff_hpp_fmt *dfmt)
+{
+	void *ptr = dfmt - dfmt->idx;
+	struct data__file *d = container_of(ptr, struct data__file, fmt);
+
+	return get_pair_data(he, d);
+}
+
 static void hists__baseline_only(struct hists *hists)
 {
 	struct rb_root *root;
@@ -412,10 +428,12 @@ static void hists__precompute(struct hists *hists)
 
 	next = rb_first(root);
 	while (next != NULL) {
-		struct hist_entry *he = rb_entry(next, struct hist_entry, rb_node_in);
-		struct hist_entry *pair = hist_entry__next_pair(he);
+		struct hist_entry *he, *pair;
 
+		he   = rb_entry(next, struct hist_entry, rb_node_in);
 		next = rb_next(&he->rb_node_in);
+
+		pair = get_pair_data(he, &data__files[sort_compute]);
 		if (!pair)
 			continue;
 
@@ -446,7 +464,7 @@ static int64_t cmp_doubles(double l, double r)
 }
 
 static int64_t
-hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
+__hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 			int c)
 {
 	switch (c) {
@@ -476,6 +494,36 @@ hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
 	}
 
 	return 0;
+}
+
+static int64_t
+hist_entry__cmp_compute(struct hist_entry *left, struct hist_entry *right,
+			int c)
+{
+	bool pairs_left  = hist_entry__has_pairs(left);
+	bool pairs_right = hist_entry__has_pairs(right);
+	struct hist_entry *p_right, *p_left;
+
+	if (!pairs_left && !pairs_right)
+		return 0;
+
+	if (!pairs_left || !pairs_right)
+		return pairs_left ? -1 : 1;
+
+	p_left  = get_pair_data(left,  &data__files[sort_compute]);
+	p_right = get_pair_data(right, &data__files[sort_compute]);
+
+	if (!p_left && !p_right)
+		return 0;
+
+	if (!p_left || !p_right)
+		return p_left ? -1 : 1;
+
+	/*
+	 * We have 2 entries of same kind, let's
+	 * make the data comparison.
+	 */
+	return __hist_entry__cmp_compute(p_left, p_right, c);
 }
 
 static void insert_hist_entry_by_compute(struct rb_root *root,
@@ -680,6 +728,7 @@ static const struct option options[] = {
 		   "columns '.' is reserved."),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		    "Look for files with symbols relative to this directory"),
+	OPT_UINTEGER('o', "order", &sort_compute, "Specify compute sorting."),
 	OPT_END()
 };
 
@@ -791,28 +840,11 @@ hpp__entry_pair(struct hist_entry *he, struct hist_entry *pair,
 	};
 }
 
-static struct hist_entry *get_pair(struct hist_entry *he,
-				   struct diff_hpp_fmt *dfmt)
-{
-	void *ptr = dfmt - dfmt->idx;
-	struct data__file *d = container_of(ptr, struct data__file, fmt);
-
-	if (hist_entry__has_pairs(he)) {
-		struct hist_entry *pair;
-
-		list_for_each_entry(pair, &he->pairs.head, pairs.node)
-			if (pair->hists == d->hists)
-				return pair;
-	}
-
-	return NULL;
-}
-
 static void
 __hpp__entry_global(struct hist_entry *he, struct diff_hpp_fmt *dfmt,
 		    char *buf, size_t size)
 {
-	struct hist_entry *pair = get_pair(he, dfmt);
+	struct hist_entry *pair = get_pair_fmt(he, dfmt);
 	int idx = dfmt->idx;
 
 	/* baseline is special */
@@ -970,6 +1002,11 @@ static int data_init(int argc, const char **argv)
 		   symbol_conf.default_guest_kallsyms) {
 		defaults[0] = "perf.data.host";
 		defaults[1] = "perf.data.guest";
+	}
+
+	if (sort_compute >= (unsigned int) data__files_cnt) {
+		pr_err("Order option out of limit.\n");
+		return -EINVAL;
 	}
 
 	data__files = zalloc(sizeof(*data__files) * data__files_cnt);
