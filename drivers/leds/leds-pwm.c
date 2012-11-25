@@ -26,7 +26,7 @@
 struct led_pwm_data {
 	struct led_classdev	cdev;
 	struct pwm_device	*pwm;
-	unsigned int 		active_low;
+	unsigned int		active_low;
 	unsigned int		period;
 };
 
