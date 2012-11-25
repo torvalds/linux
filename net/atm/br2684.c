@@ -74,6 +74,7 @@ struct br2684_vcc {
 	struct br2684_filter filter;
 #endif /* CONFIG_ATM_BR2684_IPFILTER */
 	unsigned int copies_needed, copies_failed;
+	atomic_t qspace;
 };
 
 struct br2684_dev {
@@ -181,18 +182,15 @@ static struct notifier_block atm_dev_notifier = {
 static void br2684_pop(struct atm_vcc *vcc, struct sk_buff *skb)
 {
 	struct br2684_vcc *brvcc = BR2684_VCC(vcc);
-	struct net_device *net_dev = skb->dev;
 
-	pr_debug("(vcc %p ; net_dev %p )\n", vcc, net_dev);
+	pr_debug("(vcc %p ; net_dev %p )\n", vcc, brvcc->device);
 	brvcc->old_pop(vcc, skb);
 
-	if (!net_dev)
-		return;
-
-	if (atm_may_send(vcc, 0))
-		netif_wake_queue(net_dev);
-
+	/* If the queue space just went up from zero, wake */
+	if (atomic_inc_return(&brvcc->qspace) == 1)
+		netif_wake_queue(brvcc->device);
 }
+
 /*
  * Send a packet out a particular vcc.  Not to useful right now, but paves
  * the way for multiple vcc's per itf.  Returns true if we can send,
@@ -256,16 +254,19 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 	ATM_SKB(skb)->atm_options = atmvcc->atm_options;
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
-	atmvcc->send(atmvcc, skb);
 
-	if (!atm_may_send(atmvcc, 0)) {
+	if (atomic_dec_return(&brvcc->qspace) < 1) {
+		/* No more please! */
 		netif_stop_queue(brvcc->device);
-		/*check for race with br2684_pop*/
-		if (atm_may_send(atmvcc, 0))
-			netif_start_queue(brvcc->device);
+		/* We might have raced with br2684_pop() */
+		if (unlikely(atomic_read(&brvcc->qspace) > 0))
+			netif_wake_queue(brvcc->device);
 	}
 
-	return 1;
+	/* If this fails immediately, the skb will be freed and br2684_pop()
+	   will wake the queue if appropriate. Just return an error so that
+	   the stats are updated correctly */
+	return !atmvcc->send(atmvcc, skb);
 }
 
 static inline struct br2684_vcc *pick_outgoing_vcc(const struct sk_buff *skb,
@@ -504,6 +505,13 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	brvcc = kzalloc(sizeof(struct br2684_vcc), GFP_KERNEL);
 	if (!brvcc)
 		return -ENOMEM;
+	/*
+	 * Allow two packets in the ATM queue. One actually being sent, and one
+	 * for the ATM 'TX done' handler to send. It shouldn't take long to get
+	 * the next one from the netdev queue, when we need it. More than that
+	 * would be bufferbloat.
+	 */
+	atomic_set(&brvcc->qspace, 2);
 	write_lock_irq(&devs_lock);
 	net_dev = br2684_find_dev(&be.ifspec);
 	if (net_dev == NULL) {
