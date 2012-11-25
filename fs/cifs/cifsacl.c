@@ -199,27 +199,24 @@ static void
 sid_to_str(struct cifs_sid *sidptr, char *sidstr)
 {
 	int i;
-	unsigned long saval;
+	unsigned int saval;
 	char *strptr;
 
 	strptr = sidstr;
 
-	sprintf(strptr, "%s", "S");
-	strptr = sidstr + strlen(sidstr);
-
-	sprintf(strptr, "-%d", sidptr->revision);
+	sprintf(strptr, "S-%hhu", sidptr->revision);
 	strptr = sidstr + strlen(sidstr);
 
 	for (i = 0; i < NUM_AUTHS; ++i) {
 		if (sidptr->authority[i]) {
-			sprintf(strptr, "-%d", sidptr->authority[i]);
+			sprintf(strptr, "-%hhu", sidptr->authority[i]);
 			strptr = sidstr + strlen(sidstr);
 		}
 	}
 
 	for (i = 0; i < sidptr->num_subauth; ++i) {
 		saval = le32_to_cpu(sidptr->sub_auth[i]);
-		sprintf(strptr, "-%ld", saval);
+		sprintf(strptr, "-%u", saval);
 		strptr = sidstr + strlen(sidstr);
 	}
 }
