@@ -354,4 +354,5 @@
 /include/ "qoriq-sata2-0.dtsi"
 /include/ "qoriq-sata2-1.dtsi"
 /include/ "qoriq-sec4.2-0.dtsi"
+/include/ "qoriq-raid1.0-0.dtsi"
 };
