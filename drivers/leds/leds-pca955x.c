@@ -277,7 +277,7 @@ static int __devinit pca955x_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	printk(KERN_INFO "leds-pca955x: Using %s %d-bit LED driver at "
+	dev_info(&client->dev, "leds-pca955x: Using %s %d-bit LED driver at "
 			"slave address 0x%02x\n",
 			id->name, chip->bits, client->addr);
 
