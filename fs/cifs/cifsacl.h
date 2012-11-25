@@ -60,8 +60,8 @@ struct cifs_ntsd {
 struct cifs_sid {
 	__u8 revision; /* revision level */
 	__u8 num_subauth;
-	__u8 authority[6];
-	__le32 sub_auth[5]; /* sub_auth[num_subauth] */
+	__u8 authority[NUM_AUTHS];
+	__le32 sub_auth[NUM_SUBAUTHS]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
 struct cifs_acl {

@@ -210,7 +210,7 @@ sid_to_str(struct cifs_sid *sidptr, char *sidstr)
 	sprintf(strptr, "-%d", sidptr->revision);
 	strptr = sidstr + strlen(sidstr);
 
-	for (i = 0; i < 6; ++i) {
+	for (i = 0; i < NUM_AUTHS; ++i) {
 		if (sidptr->authority[i]) {
 			sprintf(strptr, "-%d", sidptr->authority[i]);
 			strptr = sidstr + strlen(sidstr);
@@ -649,7 +649,7 @@ int compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
 	}
 
 	/* compare all of the six auth values */
-	for (i = 0; i < 6; ++i) {
+	for (i = 0; i < NUM_AUTHS; ++i) {
 		if (ctsid->authority[i] != cwsid->authority[i]) {
 			if (ctsid->authority[i] > cwsid->authority[i])
 				return 1;
@@ -811,7 +811,7 @@ static __u16 fill_ace_for_sid(struct cifs_ace *pntace,
 
 	pntace->sid.revision = psid->revision;
 	pntace->sid.num_subauth = psid->num_subauth;
-	for (i = 0; i < 6; i++)
+	for (i = 0; i < NUM_AUTHS; i++)
 		pntace->sid.authority[i] = psid->authority[i];
 	for (i = 0; i < psid->num_subauth; i++)
 		pntace->sid.sub_auth[i] = psid->sub_auth[i];
