@@ -1307,42 +1307,39 @@ id_mode_to_cifs_acl(struct inode *inode, const char *path, __u64 nmode,
 
 	/* Get the security descriptor */
 	pntsd = get_cifs_acl(CIFS_SB(inode->i_sb), inode, path, &secdesclen);
-
-	/* Add three ACEs for owner, group, everyone getting rid of
-	   other ACEs as chmod disables ACEs and set the security descriptor */
-
 	if (IS_ERR(pntsd)) {
 		rc = PTR_ERR(pntsd);
 		cERROR(1, "%s: error %d getting sec desc", __func__, rc);
-	} else {
-		/* allocate memory for the smb header,
-		   set security descriptor request security descriptor
-		   parameters, and secuirty descriptor itself */
-
-		secdesclen = secdesclen < DEFSECDESCLEN ?
-					DEFSECDESCLEN : secdesclen;
-		pnntsd = kmalloc(secdesclen, GFP_KERNEL);
-		if (!pnntsd) {
-			cERROR(1, "Unable to allocate security descriptor");
-			kfree(pntsd);
-			return -ENOMEM;
-		}
-
-		rc = build_sec_desc(pntsd, pnntsd, secdesclen, nmode, uid, gid,
-					&aclflag);
-
-		cFYI(DBG2, "build_sec_desc rc: %d", rc);
-
-		if (!rc) {
-			/* Set the security descriptor */
-			rc = set_cifs_acl(pnntsd, secdesclen, inode,
-						path, aclflag);
-			cFYI(DBG2, "set_cifs_acl rc: %d", rc);
-		}
-
-		kfree(pnntsd);
-		kfree(pntsd);
+		goto out;
 	}
 
+	/*
+	 * Add three ACEs for owner, group, everyone getting rid of other ACEs
+	 * as chmod disables ACEs and set the security descriptor. Allocate
+	 * memory for the smb header, set security descriptor request security
+	 * descriptor parameters, and secuirty descriptor itself
+	 */
+	secdesclen = max_t(u32, secdesclen, DEFSECDESCLEN);
+	pnntsd = kmalloc(secdesclen, GFP_KERNEL);
+	if (!pnntsd) {
+		cERROR(1, "Unable to allocate security descriptor");
+		kfree(pntsd);
+		return -ENOMEM;
+	}
+
+	rc = build_sec_desc(pntsd, pnntsd, secdesclen, nmode, uid, gid,
+				&aclflag);
+
+	cFYI(DBG2, "build_sec_desc rc: %d", rc);
+
+	if (!rc) {
+		/* Set the security descriptor */
+		rc = set_cifs_acl(pnntsd, secdesclen, inode, path, aclflag);
+		cFYI(DBG2, "set_cifs_acl rc: %d", rc);
+	}
+
+	kfree(pnntsd);
+	kfree(pntsd);
+out:
 	return rc;
 }
