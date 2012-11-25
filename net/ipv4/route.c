@@ -1785,6 +1785,7 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	if (dev_out->flags & IFF_LOOPBACK)
 		flags |= RTCF_LOCAL;
 
+	do_cache = true;
 	if (type == RTN_BROADCAST) {
 		flags |= RTCF_BROADCAST | RTCF_LOCAL;
 		fi = NULL;
@@ -1793,6 +1794,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 		if (!ip_check_mc_rcu(in_dev, fl4->daddr, fl4->saddr,
 				     fl4->flowi4_proto))
 			flags &= ~RTCF_LOCAL;
+		else
+			do_cache = false;
 		/* If multicast route do not exist use
 		 * default one, but do not gateway in this case.
 		 * Yes, it is hack.
@@ -1802,8 +1805,8 @@ static struct rtable *__mkroute_output(const struct fib_result *res,
 	}
 
 	fnhe = NULL;
-	do_cache = fi != NULL;
-	if (fi) {
+	do_cache &= fi != NULL;
+	if (do_cache) {
 		struct rtable __rcu **prth;
 		struct fib_nh *nh = &FIB_RES_NH(*res);
 
@@ -2601,7 +2604,7 @@ int __init ip_rt_init(void)
 		pr_err("Unable to create route proc files\n");
 #ifdef CONFIG_XFRM
 	xfrm_init();
-	xfrm4_init(ip_rt_max_size);
+	xfrm4_init();
 #endif
 	rtnl_register(PF_INET, RTM_GETROUTE, inet_rtm_getroute, NULL, NULL);
 

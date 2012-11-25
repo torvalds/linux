@@ -15,7 +15,7 @@ nv44_graph_class(void *priv)
 	return !(0x0baf & (1 << (device->chipset & 0x0f)));
 }
 
-void nv40_grctx_init(struct nouveau_device *, u32 *size);
+int  nv40_grctx_init(struct nouveau_device *, u32 *size);
 void nv40_grctx_fill(struct nouveau_device *, struct nouveau_gpuobj *);
 
 #endif

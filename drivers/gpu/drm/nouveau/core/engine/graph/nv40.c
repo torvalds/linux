@@ -346,7 +346,9 @@ nv40_graph_init(struct nouveau_object *object)
 		return ret;
 
 	/* generate and upload context program */
-	nv40_grctx_init(nv_device(priv), &priv->size);
+	ret = nv40_grctx_init(nv_device(priv), &priv->size);
+	if (ret)
+		return ret;
 
 	/* No context present currently */
 	nv_wr32(priv, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);

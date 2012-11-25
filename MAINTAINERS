@@ -526,17 +526,17 @@ F:	drivers/video/geode/
 F:	arch/x86/include/asm/geode.h
 
 AMD IOMMU (AMD-VI)
-M:	Joerg Roedel <joerg.roedel@amd.com>
+M:	Joerg Roedel <joro@8bytes.org>
 L:	iommu@lists.linux-foundation.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
-S:	Supported
+S:	Maintained
 F:	drivers/iommu/amd_iommu*.[ch]
 F:	include/linux/amd-iommu.h
 
 AMD MICROCODE UPDATE SUPPORT
-M:	Andreas Herrmann <andreas.herrmann3@amd.com>
+M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
 L:	amd64-microcode@amd64.org
-S:	Supported
+S:	Maintained
 F:	arch/x86/kernel/microcode_amd.c
 
 AMS (Apple Motion Sensor) DRIVER
@@ -840,6 +840,14 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kristoffer/linux-hpc.git
 F:	arch/arm/mach-sa1100/jornada720.c
 F:	arch/arm/mach-sa1100/include/mach/jornada720.h
+
+ARM/IGEP MACHINE SUPPORT
+M:	Enric Balletbo i Serra <eballetbo@gmail.com>
+M:	Javier Martinez Canillas <javier@dowhile0.org>
+L:	linux-omap@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-omap2/board-igep0020.c
 
 ARM/INCOME PXA270 SUPPORT
 M:	Marek Vasut <marek.vasut@gmail.com>
@@ -2708,10 +2716,10 @@ F:	include/linux/edac.h
 
 EDAC-AMD64
 M:	Doug Thompson <dougthompson@xmission.com>
-M:	Borislav Petkov <borislav.petkov@amd.com>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
-S:	Supported
+S:	Maintained
 F:	drivers/edac/amd64_edac*
 
 EDAC-E752X
@@ -3753,7 +3761,7 @@ S:	Maintained
 F:	drivers/platform/x86/ideapad-laptop.c
 
 IDE/ATAPI DRIVERS
-M:	Borislav Petkov <petkovbb@gmail.com>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	Documentation/cdrom/ide-cd
@@ -4282,8 +4290,8 @@ F:	include/linux/lockd/
 F:	include/linux/sunrpc/
 
 KERNEL VIRTUAL MACHINE (KVM)
-M:	Avi Kivity <avi@redhat.com>
 M:	Marcelo Tosatti <mtosatti@redhat.com>
+M:	Gleb Natapov <gleb@redhat.com>
 L:	kvm@vger.kernel.org
 W:	http://kvm.qumranet.com
 S:	Supported
@@ -5415,7 +5423,7 @@ S:	Maintained
 F:	sound/drivers/opl4/
 
 OPROFILE
-M:	Robert Richter <robert.richter@amd.com>
+M:	Robert Richter <rric@kernel.org>
 L:	oprofile-list@lists.sf.net
 S:	Maintained
 F:	arch/*/include/asm/oprofile*.h
@@ -8207,7 +8215,7 @@ F:	drivers/platform/x86
 
 X86 MCE INFRASTRUCTURE
 M:	Tony Luck <tony.luck@intel.com>
-M:	Borislav Petkov <bp@amd64.org>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/mcheck/*

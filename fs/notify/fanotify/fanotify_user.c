@@ -258,7 +258,8 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 	if (ret)
 		goto out_close_fd;
 
-	fd_install(fd, f);
+	if (fd != FAN_NOFD)
+		fd_install(fd, f);
 	return fanotify_event_metadata.event_len;
 
 out_close_fd:

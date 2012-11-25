@@ -1546,6 +1546,8 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 	struct sbp2_logical_unit *lu = sdev->hostdata;
 
 	sdev->use_10_for_rw = 1;
+	sdev->no_report_opcodes = 1;
+	sdev->no_write_same = 1;
 
 	if (sbp2_param_exclusive_login)
 		sdev->manage_start_stop = 1;

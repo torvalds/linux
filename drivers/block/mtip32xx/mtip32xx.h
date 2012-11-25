@@ -34,7 +34,7 @@
 #define PCIE_CONFIG_EXT_DEVICE_CONTROL_OFFSET	0x48
 
 /* check for erase mode support during secure erase */
-#define MTIP_SEC_ERASE_MODE     0x3
+#define MTIP_SEC_ERASE_MODE     0x2
 
 /* # of times to retry timed out/failed IOs */
 #define MTIP_MAX_RETRIES	2
@@ -155,14 +155,14 @@ enum {
 	MTIP_DDF_REBUILD_FAILED_BIT = 8,
 };
 
-__packed struct smart_attr{
+struct smart_attr {
 	u8 attr_id;
 	u16 flags;
 	u8 cur;
 	u8 worst;
 	u32 data;
 	u8 res[3];
-};
+} __packed;
 
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {

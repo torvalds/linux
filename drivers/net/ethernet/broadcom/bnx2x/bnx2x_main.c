@@ -9706,10 +9706,13 @@ static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
  */
 static void __devinit bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
 {
-	u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
-	if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
-		BNX2X_ERR("was error bit was found to be set in pglueb upon startup. Clearing");
-		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR, 1 << BP_FUNC(bp));
+	if (!CHIP_IS_E1x(bp)) {
+		u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
+		if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
+			BNX2X_ERR("was error bit was found to be set in pglueb upon startup. Clearing");
+			REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
+			       1 << BP_FUNC(bp));
+		}
 	}
 }
 

@@ -900,11 +900,23 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 				action = ACTION_FAIL;
 				error = -EILSEQ;
 			/* INVALID COMMAND OPCODE or INVALID FIELD IN CDB */
-			} else if ((sshdr.asc == 0x20 || sshdr.asc == 0x24) &&
-				   (cmd->cmnd[0] == UNMAP ||
-				    cmd->cmnd[0] == WRITE_SAME_16 ||
-				    cmd->cmnd[0] == WRITE_SAME)) {
-				description = "Discard failure";
+			} else if (sshdr.asc == 0x20 || sshdr.asc == 0x24) {
+				switch (cmd->cmnd[0]) {
+				case UNMAP:
+					description = "Discard failure";
+					break;
+				case WRITE_SAME:
+				case WRITE_SAME_16:
+					if (cmd->cmnd[1] & 0x8)
+						description = "Discard failure";
+					else
+						description =
+							"Write same failure";
+					break;
+				default:
+					description = "Invalid command failure";
+					break;
+				}
 				action = ACTION_FAIL;
 				error = -EREMOTEIO;
 			} else
