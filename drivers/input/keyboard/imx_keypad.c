@@ -362,7 +362,8 @@ static void imx_keypad_inhibit(struct imx_keypad *keypad)
 	writew(reg_val, keypad->mmio_base + KPSR);
 
 	/* Colums as open drain and disable all rows */
-	writew(0xff00, keypad->mmio_base + KPCR);
+	reg_val = (keypad->cols_en_mask & 0xff) << 8;
+	writew(reg_val, keypad->mmio_base + KPCR);
 }
 
 static void imx_keypad_close(struct input_dev *dev)
