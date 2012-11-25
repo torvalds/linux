@@ -26,8 +26,8 @@
 #define BD2802_LED_OFFSET		0xa
 #define BD2802_COLOR_OFFSET		0x3
 
-#define BD2802_REG_CLKSETUP 		0x00
-#define BD2802_REG_CONTROL 		0x01
+#define BD2802_REG_CLKSETUP		0x00
+#define BD2802_REG_CONTROL		0x01
 #define BD2802_REG_HOURSETUP		0x02
 #define BD2802_REG_CURRENT1SETUP	0x03
 #define BD2802_REG_CURRENT2SETUP	0x04
@@ -93,7 +93,7 @@ struct bd2802_led {
 	 * In ADF mode, user can set registers of BD2802GU directly,
 	 * therefore BD2802GU doesn't enter reset state.
 	 */
-	int 				adf_on;
+	int				adf_on;
 
 	enum led_ids			led_id;
 	enum led_colors			color;
