@@ -1207,6 +1207,10 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
 
+	if (sk->sk_type != SOCK_RAW ||
+	    inet_sk(sk)->inet_num != IPPROTO_IGMP)
+		return -EOPNOTSUPP;
+
 	mrt = ipmr_get_table(net, raw_sk(sk)->ipmr_table ? : RT_TABLE_DEFAULT);
 	if (mrt == NULL)
 		return -ENOENT;
@@ -1219,11 +1223,8 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 
 	switch (optname) {
 	case MRT_INIT:
-		if (sk->sk_type != SOCK_RAW ||
-		    inet_sk(sk)->inet_num != IPPROTO_IGMP)
-			return -EOPNOTSUPP;
 		if (optlen != sizeof(int))
-			return -ENOPROTOOPT;
+			return -EINVAL;
 
 		rtnl_lock();
 		if (rtnl_dereference(mrt->mroute_sk)) {
@@ -1284,9 +1285,11 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 	case MRT_ASSERT:
 	{
 		int v;
+		if (optlen != sizeof(v))
+			return -EINVAL;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
-		mrt->mroute_do_assert = (v) ? 1 : 0;
+		mrt->mroute_do_assert = !!v;
 		return 0;
 	}
 #ifdef CONFIG_IP_PIMSM
@@ -1294,9 +1297,11 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 	{
 		int v;
 
+		if (optlen != sizeof(v))
+			return -EINVAL;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
-		v = (v) ? 1 : 0;
+		v = !!v;
 
 		rtnl_lock();
 		ret = 0;
@@ -1325,7 +1330,8 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 		} else {
 			if (!ipmr_new_table(net, v))
 				ret = -ENOMEM;
-			raw_sk(sk)->ipmr_table = v;
+			else
+				raw_sk(sk)->ipmr_table = v;
 		}
 		rtnl_unlock();
 		return ret;
@@ -1350,6 +1356,10 @@ int ip_mroute_getsockopt(struct sock *sk, int optname, char __user *optval, int 
 	int val;
 	struct net *net = sock_net(sk);
 	struct mr_table *mrt;
+
+	if (sk->sk_type != SOCK_RAW ||
+	    inet_sk(sk)->inet_num != IPPROTO_IGMP)
+		return -EOPNOTSUPP;
 
 	mrt = ipmr_get_table(net, raw_sk(sk)->ipmr_table ? : RT_TABLE_DEFAULT);
 	if (mrt == NULL)
