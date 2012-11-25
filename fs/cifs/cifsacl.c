@@ -987,8 +987,8 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 		return -EINVAL;
 	}
 
-	if (psid->num_subauth) {
 #ifdef CONFIG_CIFS_DEBUG2
+	if (psid->num_subauth) {
 		int i;
 		cFYI(1, "SID revision %d num_auth %d",
 			psid->revision, psid->num_subauth);
@@ -1002,8 +1002,8 @@ static int parse_sid(struct cifs_sid *psid, char *end_of_acl)
 			num auths and therefore go off the end */
 		cFYI(1, "RID 0x%x",
 			le32_to_cpu(psid->sub_auth[psid->num_subauth-1]));
-#endif
 	}
+#endif
 
 	return 0;
 }
