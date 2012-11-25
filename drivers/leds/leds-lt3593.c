@@ -106,8 +106,8 @@ static int __devinit create_lt3593_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = gpio_request_one(template->gpio, GPIOF_DIR_OUT | state,
-				template->name);
+	ret = devm_gpio_request_one(parent, template->gpio,
+				    GPIOF_DIR_OUT | state, template->name);
 	if (ret < 0)
 		return ret;
 
@@ -115,16 +115,12 @@ static int __devinit create_lt3593_led(const struct gpio_led *template,
 
 	ret = led_classdev_register(parent, &led_dat->cdev);
 	if (ret < 0)
-		goto err;
+		return ret;
 
 	printk(KERN_INFO "%s: registered LT3593 LED '%s' at GPIO %d\n",
 		KBUILD_MODNAME, template->name, template->gpio);
 
 	return 0;
-
-err:
-	gpio_free(led_dat->gpio);
-	return ret;
 }
 
 static void delete_lt3593_led(struct lt3593_led_data *led)
@@ -134,7 +130,6 @@ static void delete_lt3593_led(struct lt3593_led_data *led)
 
 	led_classdev_unregister(&led->cdev);
 	cancel_work_sync(&led->work);
-	gpio_free(led->gpio);
 }
 
 static int __devinit lt3593_led_probe(struct platform_device *pdev)
