@@ -1503,6 +1503,131 @@ out:
 	return ret;
 }
 
+static int wlcore_get_reg_conf_ch_idx(enum ieee80211_band band, u16 ch)
+{
+	int idx = -1;
+
+	switch (band) {
+	case IEEE80211_BAND_5GHZ:
+		if (ch >= 8 && ch <= 16)
+			idx = ((ch-8)/4 + 18);
+		else if (ch >= 34 && ch <= 64)
+			idx = ((ch-34)/2 + 3 + 18);
+		else if (ch >= 100 && ch <= 140)
+			idx = ((ch-100)/4 + 15 + 18);
+		else if (ch >= 149 && ch <= 165)
+			idx = ((ch-149)/4 + 26 + 18);
+		else
+			idx = -1;
+		break;
+	case IEEE80211_BAND_2GHZ:
+		if (ch >= 1 && ch <= 14)
+			idx = ch - 1;
+		else
+			idx = -1;
+		break;
+	default:
+		wl1271_error("get reg conf ch idx - unknown band: %d",
+			     (int)band);
+	}
+
+	return idx;
+}
+
+void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
+				     enum ieee80211_band band)
+{
+	int ch_bit_idx = 0;
+
+	if (!(wl->quirks & WLCORE_QUIRK_REGDOMAIN_CONF))
+		return;
+
+	ch_bit_idx = wlcore_get_reg_conf_ch_idx(band, channel);
+
+	if (ch_bit_idx > 0 && ch_bit_idx <= WL1271_MAX_CHANNELS)
+		set_bit(ch_bit_idx, (long *)wl->reg_ch_conf_pending);
+}
+
+int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl)
+{
+	struct wl12xx_cmd_regdomain_dfs_config *cmd = NULL;
+	int ret = 0, i, b, ch_bit_idx;
+	struct ieee80211_channel *channel;
+	u32 tmp_ch_bitmap[2];
+	u16 ch;
+	struct wiphy *wiphy = wl->hw->wiphy;
+	struct ieee80211_supported_band *band;
+	bool timeout = false;
+
+	if (!(wl->quirks & WLCORE_QUIRK_REGDOMAIN_CONF))
+		return 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd reg domain config");
+
+	memset(tmp_ch_bitmap, 0, sizeof(tmp_ch_bitmap));
+
+	for (b = IEEE80211_BAND_2GHZ; b <= IEEE80211_BAND_5GHZ; b++) {
+		band = wiphy->bands[b];
+		for (i = 0; i < band->n_channels; i++) {
+			channel = &band->channels[i];
+			ch = channel->hw_value;
+
+			if (channel->flags & (IEEE80211_CHAN_DISABLED |
+					      IEEE80211_CHAN_RADAR |
+					      IEEE80211_CHAN_PASSIVE_SCAN))
+				continue;
+
+			ch_bit_idx = wlcore_get_reg_conf_ch_idx(b, ch);
+			if (ch_bit_idx < 0)
+				continue;
+
+			set_bit(ch_bit_idx, (long *)tmp_ch_bitmap);
+		}
+	}
+
+	tmp_ch_bitmap[0] |= wl->reg_ch_conf_pending[0];
+	tmp_ch_bitmap[1] |= wl->reg_ch_conf_pending[1];
+
+	if (!memcmp(tmp_ch_bitmap, wl->reg_ch_conf_last, sizeof(tmp_ch_bitmap)))
+		goto out;
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->ch_bit_map1 = cpu_to_le32(tmp_ch_bitmap[0]);
+	cmd->ch_bit_map2 = cpu_to_le32(tmp_ch_bitmap[1]);
+
+	wl1271_debug(DEBUG_CMD,
+		     "cmd reg domain bitmap1: 0x%08x, bitmap2: 0x%08x",
+		     cmd->ch_bit_map1, cmd->ch_bit_map2);
+
+	ret = wl1271_cmd_send(wl, CMD_DFS_CHANNEL_CONFIG, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send reg domain dfs config");
+		goto out;
+	}
+
+	ret = wl->ops->wait_for_event(wl,
+				      WLCORE_EVENT_DFS_CONFIG_COMPLETE,
+				      &timeout);
+	if (ret < 0 || timeout) {
+		wl1271_error("reg domain conf %serror",
+			     timeout ? "completion " : "");
+		ret = timeout ? -ETIMEDOUT : ret;
+		goto out;
+	}
+
+	memcpy(wl->reg_ch_conf_last, tmp_ch_bitmap, sizeof(tmp_ch_bitmap));
+	memset(wl->reg_ch_conf_pending, 0, sizeof(wl->reg_ch_conf_pending));
+
+out:
+	kfree(cmd);
+	return ret;
+}
+
 int wl12xx_cmd_config_fwlog(struct wl1271 *wl)
 {
 	struct wl12xx_cmd_config_fwlog *cmd;

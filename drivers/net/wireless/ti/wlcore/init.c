@@ -681,6 +681,10 @@ int wl1271_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	ret = wlcore_cmd_regdomain_config_locked(wl);
+	if (ret < 0)
+		return ret;
+
 	/* Bluetooth WLAN coexistence */
 	ret = wl1271_init_pta(wl);
 	if (ret < 0)

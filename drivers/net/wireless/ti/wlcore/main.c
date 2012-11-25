@@ -93,6 +93,8 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 	struct ieee80211_supported_band *band;
 	struct ieee80211_channel *ch;
 	int i;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct wl1271 *wl = hw->priv;
 
 	band = wiphy->bands[IEEE80211_BAND_5GHZ];
 	for (i = 0; i < band->n_channels; i++) {
@@ -105,6 +107,9 @@ static int wl1271_reg_notify(struct wiphy *wiphy,
 				     IEEE80211_CHAN_PASSIVE_SCAN;
 
 	}
+
+	if (likely(wl->state == WLCORE_STATE_ON))
+		wlcore_regdomain_config(wl);
 
 	return 0;
 }
@@ -1900,6 +1905,12 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	wl->tx_res_if = NULL;
 	kfree(wl->target_mem_map);
 	wl->target_mem_map = NULL;
+
+	/*
+	 * FW channels must be re-calibrated after recovery,
+	 * clear the last Reg-Domain channel configuration.
+	 */
+	memset(wl->reg_ch_conf_last, 0, sizeof(wl->reg_ch_conf_last));
 }
 
 static void wlcore_op_stop(struct ieee80211_hw *hw)
@@ -3283,6 +3294,29 @@ int wlcore_set_key(struct wl1271 *wl, enum set_key_cmd cmd,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wlcore_set_key);
+
+void wlcore_regdomain_config(struct wl1271 *wl)
+{
+	int ret;
+
+	if (!(wl->quirks & WLCORE_QUIRK_REGDOMAIN_CONF))
+		return;
+
+	mutex_lock(&wl->mutex);
+	ret = wl1271_ps_elp_wakeup(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wlcore_cmd_regdomain_config_locked(wl);
+	if (ret < 0) {
+		wl12xx_queue_recovery_work(wl);
+		goto out;
+	}
+
+	wl1271_ps_elp_sleep(wl);
+out:
+	mutex_unlock(&wl->mutex);
+}
 
 static int wl1271_op_hw_scan(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,

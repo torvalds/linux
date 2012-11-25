@@ -84,6 +84,9 @@ int wl12xx_croc(struct wl1271 *wl, u8 role_id);
 int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			struct ieee80211_sta *sta, u8 hlid);
 int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid);
+void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
+				     enum ieee80211_band band);
+int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl);
 int wl12xx_cmd_config_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_start_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl);
@@ -622,6 +625,13 @@ enum wl12xx_fwlogger_output {
 	WL12XX_FWLOG_OUTPUT_DBG_PINS,
 	WL12XX_FWLOG_OUTPUT_HOST,
 };
+
+struct wl12xx_cmd_regdomain_dfs_config {
+	struct wl1271_cmd_header header;
+
+	__le32 ch_bit_map1;
+	__le32 ch_bit_map2;
+} __packed;
 
 struct wl12xx_cmd_config_fwlog {
 	struct wl1271_cmd_header header;

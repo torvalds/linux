@@ -34,6 +34,10 @@ int wl18xx_wait_for_event(struct wl1271 *wl, enum wlcore_wait_event event,
 		local_event = PEER_REMOVE_COMPLETE_EVENT_ID;
 		break;
 
+	case WLCORE_EVENT_DFS_CONFIG_COMPLETE:
+		local_event = DFS_CHANNELS_CONFIG_COMPLETE_EVENT;
+		break;
+
 	default:
 		/* event not implemented */
 		return 0;
