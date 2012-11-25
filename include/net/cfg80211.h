@@ -3652,8 +3652,9 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev);
  * the data is malformed or the attribute can't be found (respectively),
  * or the length of the found attribute (which can be zero).
  */
-unsigned int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
-				   u8 attr, u8 *buf, unsigned int bufsize);
+int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
+			  enum ieee80211_p2p_attr_id attr,
+			  u8 *buf, unsigned int bufsize);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

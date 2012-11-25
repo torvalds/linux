@@ -980,8 +980,9 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 }
 EXPORT_SYMBOL(cfg80211_calculate_bitrate);
 
-unsigned int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
-				   u8 attr, u8 *buf, unsigned int bufsize)
+int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
+			  enum ieee80211_p2p_attr_id attr,
+			  u8 *buf, unsigned int bufsize)
 {
 	u8 *out = buf;
 	u16 attr_remaining = 0;
