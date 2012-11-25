@@ -20,7 +20,7 @@
 #include <asm/proc-fns.h>
 #include <asm-generic/mm_hooks.h>
 
-void __check_kvm_seq(struct mm_struct *mm);
+void __check_vmalloc_seq(struct mm_struct *mm);
 
 #ifdef CONFIG_CPU_HAS_ASID
 
@@ -34,8 +34,8 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk);
 static inline void check_and_switch_context(struct mm_struct *mm,
 					    struct task_struct *tsk)
 {
-	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
-		__check_kvm_seq(mm);
+	if (unlikely(mm->context.vmalloc_seq != init_mm.context.vmalloc_seq))
+		__check_vmalloc_seq(mm);
 
 	if (irqs_disabled())
 		/*

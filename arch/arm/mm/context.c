@@ -186,8 +186,8 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
 	unsigned long flags;
 	unsigned int cpu = smp_processor_id();
 
-	if (unlikely(mm->context.kvm_seq != init_mm.context.kvm_seq))
-		__check_kvm_seq(mm);
+	if (unlikely(mm->context.vmalloc_seq != init_mm.context.vmalloc_seq))
+		__check_vmalloc_seq(mm);
 
 	/*
 	 * Required during context switch to avoid speculative page table
