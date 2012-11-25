@@ -34,6 +34,7 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/if_ether.h>
 #include "unicast.h"
 #include "bridge_loop_avoidance.h"
 
@@ -146,7 +147,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
-	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
+	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
 	static const uint8_t stp_addr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00,
 						   0x00, 0x00};
 	static const uint8_t ectp_addr[ETH_ALEN] = {0xCF, 0x00, 0x00, 0x00,
@@ -172,7 +173,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 			break;
 
 		/* fall through */
-	case BATADV_ETH_P_BATMAN:
+	case ETH_P_BATMAN:
 		goto dropped;
 	}
 
@@ -302,7 +303,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 	struct vlan_ethhdr *vhdr;
 	struct batadv_header *batadv_header = (struct batadv_header *)skb->data;
 	short vid __maybe_unused = -1;
-	__be16 ethertype = __constant_htons(BATADV_ETH_P_BATMAN);
+	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
 	bool is_bcast;
 
 	is_bcast = (batadv_header->packet_type == BATADV_BCAST);
@@ -325,7 +326,7 @@ void batadv_interface_rx(struct net_device *soft_iface,
 			break;
 
 		/* fall through */
-	case BATADV_ETH_P_BATMAN:
+	case ETH_P_BATMAN:
 		goto dropped;
 	}
 
