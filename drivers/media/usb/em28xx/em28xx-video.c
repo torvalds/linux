@@ -576,7 +576,7 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 			    urb->iso_frame_desc[i].offset;
 		}
 
-		if (actual_length <= 0) {
+		if (actual_length == 0) {
 			/* NOTE: happens very often with isoc transfers */
 			/* em28xx_usbdbg("packet %d is empty",i); - spammy */
 			continue;
@@ -585,27 +585,30 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 		/* capture type 0 = vbi start
 		   capture type 1 = video start
 		   capture type 2 = video in progress */
-		if (p[0] == 0x33 && p[1] == 0x95) {
-			dev->capture_type = 0;
-			dev->vbi_read = 0;
-			em28xx_isocdbg("VBI START HEADER!!!\n");
-			dev->cur_field = p[2];
-			p += 4;
-			len = actual_length - 4;
-		} else if (p[0] == 0x88 && p[1] == 0x88 &&
-			   p[2] == 0x88 && p[3] == 0x88) {
-			/* continuation */
-			p += 4;
-			len = actual_length - 4;
-		} else if (p[0] == 0x22 && p[1] == 0x5a) {
-			/* start video */
-			p += 4;
-			len = actual_length - 4;
-		} else {
-			/* NOTE: With bulk transfers, intermediate data packets
-			 * have no continuation header */
-			len = actual_length;
+		len = actual_length;
+		if (len >= 4) {
+			/* NOTE: headers are always 4 bytes and
+			 * never split across packets */
+			if (p[0] == 0x33 && p[1] == 0x95) {
+				dev->capture_type = 0;
+				dev->vbi_read = 0;
+				em28xx_isocdbg("VBI START HEADER!!!\n");
+				dev->cur_field = p[2];
+				p += 4;
+				len -= 4;
+			} else if (p[0] == 0x88 && p[1] == 0x88 &&
+				   p[2] == 0x88 && p[3] == 0x88) {
+				/* continuation */
+				p += 4;
+				len -= 4;
+			} else if (p[0] == 0x22 && p[1] == 0x5a) {
+				/* start video */
+				p += 4;
+				len -= 4;
+			}
 		}
+		/* NOTE: with bulk transfers, intermediate data packets
+		 * have no continuation header */
 
 		vbi_size = dev->vbi_width * dev->vbi_height;
 
