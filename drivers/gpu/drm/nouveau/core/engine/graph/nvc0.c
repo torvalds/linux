@@ -814,7 +814,7 @@ nvc0_graph_init_ctxctl(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x41a100, 0x00000002);
 		nv_wr32(priv, 0x409100, 0x00000002);
 		if (!nv_wait(priv, 0x409800, 0x00000001, 0x00000001))
-			nv_info(priv, "0x409800 wait failed\n");
+			nv_warn(priv, "0x409800 wait failed\n");
 
 		nv_wr32(priv, 0x409840, 0xffffffff);
 		nv_wr32(priv, 0x409500, 0x7fffffff);

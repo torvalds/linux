@@ -521,13 +521,13 @@ nv50_priv_tp_trap(struct nv50_graph_priv *priv, int type, u32 ustatus_old,
 		}
 		if (ustatus) {
 			if (display)
-				nv_info(priv, "%s - TP%d: Unhandled ustatus 0x%08x\n", name, i, ustatus);
+				nv_error(priv, "%s - TP%d: Unhandled ustatus 0x%08x\n", name, i, ustatus);
 		}
 		nv_wr32(priv, ustatus_addr, 0xc0000000);
 	}
 
 	if (!tps && display)
-		nv_info(priv, "%s - No TPs claiming errors?\n", name);
+		nv_warn(priv, "%s - No TPs claiming errors?\n", name);
 }
 
 static int
@@ -786,7 +786,7 @@ nv50_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, 0x400500, 0x00010001);
 
 	if (show) {
-		nv_info(priv, "");
+		nv_error(priv, "");
 		nouveau_bitfield_print(nv50_graph_intr_name, show);
 		printk("\n");
 		nv_error(priv, "ch %d [0x%010llx] subc %d class 0x%04x "

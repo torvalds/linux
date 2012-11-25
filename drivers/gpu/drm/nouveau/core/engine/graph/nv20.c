@@ -224,14 +224,14 @@ nv20_graph_intr(struct nouveau_subdev *subdev)
 	nv_wr32(priv, NV04_PGRAPH_FIFO, 0x00000001);
 
 	if (show) {
-		nv_info(priv, "");
+		nv_error(priv, "");
 		nouveau_bitfield_print(nv10_graph_intr_name, show);
 		printk(" nsource:");
 		nouveau_bitfield_print(nv04_graph_nsource, nsource);
 		printk(" nstatus:");
 		nouveau_bitfield_print(nv10_graph_nstatus, nstatus);
 		printk("\n");
-		nv_info(priv, "ch %d/%d class 0x%04x mthd 0x%04x data 0x%08x\n",
+		nv_error(priv, "ch %d/%d class 0x%04x mthd 0x%04x data 0x%08x\n",
 			chid, subc, class, mthd, data);
 	}
 

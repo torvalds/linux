@@ -503,7 +503,7 @@ nvc0_fifo_intr(struct nouveau_subdev *subdev)
 	u32 stat = nv_rd32(priv, 0x002100) & mask;
 
 	if (stat & 0x00000100) {
-		nv_info(priv, "unknown status 0x00000100\n");
+		nv_warn(priv, "unknown status 0x00000100\n");
 		nv_wr32(priv, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
 	}
