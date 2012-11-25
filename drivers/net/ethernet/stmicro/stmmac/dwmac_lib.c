@@ -206,9 +206,10 @@ int dwmac_dma_interrupt(void __iomem *ioaddr,
 	/* TX/RX NORMAL interrupts */
 	if (intr_status & DMA_STATUS_NIS) {
 		x->normal_irq_n++;
-		if (likely((intr_status & DMA_STATUS_RI) ||
-			 (intr_status & (DMA_STATUS_TI))))
-				ret = handle_tx_rx;
+		if (likely(intr_status & DMA_STATUS_RI))
+			ret |= handle_rx;
+		if (intr_status & (DMA_STATUS_TI))
+			ret |= handle_tx;
 	}
 	/* Optional hardware blocks, interrupts should be disabled */
 	if (unlikely(intr_status &

@@ -95,9 +95,12 @@ struct stmmac_extra_stats {
 	unsigned long threshold;
 	unsigned long tx_pkt_n;
 	unsigned long rx_pkt_n;
-	unsigned long poll_n;
-	unsigned long sched_timer_n;
 	unsigned long normal_irq_n;
+	unsigned long rx_normal_irq_n;
+	unsigned long napi_poll;
+	unsigned long tx_normal_irq_n;
+	unsigned long tx_clean;
+	unsigned long tx_reset_ic_bit;
 	unsigned long mmc_tx_irq_n;
 	unsigned long mmc_rx_irq_n;
 	unsigned long mmc_rx_csum_offload_irq_n;
@@ -162,6 +165,12 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000 /* Active/selected PHY interface */
 #define DEFAULT_DMA_PBL		8
 
+/* Tx coalesce parameters */
+#define STMMAC_COAL_TX_TIMER	40000
+#define STMMAC_MAX_COAL_TX_TICK	100000
+#define STMMAC_TX_MAX_FRAMES	256
+#define STMMAC_TX_FRAMES	64
+
 enum rx_frame_status { /* IPC status */
 	good_frame = 0,
 	discard_frame = 1,
@@ -169,10 +178,11 @@ enum rx_frame_status { /* IPC status */
 	llc_snap = 4,
 };
 
-enum tx_dma_irq_status {
-	tx_hard_error = 1,
-	tx_hard_error_bump_tc = 2,
-	handle_tx_rx = 3,
+enum dma_irq_status {
+	tx_hard_error = 0x1,
+	tx_hard_error_bump_tc = 0x2,
+	handle_rx = 0x4,
+	handle_tx = 0x8,
 };
 
 enum core_specific_irq_mask {
