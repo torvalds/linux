@@ -593,7 +593,7 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 				dev->capture_type = 0;
 				dev->vbi_read = 0;
 				em28xx_isocdbg("VBI START HEADER!!!\n");
-				dev->cur_field = p[2];
+				dev->top_field = !(p[2] & 1);
 				p += 4;
 				len -= 4;
 			} else if (p[0] == 0x88 && p[1] == 0x88 &&
@@ -603,6 +603,8 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 				len -= 4;
 			} else if (p[0] == 0x22 && p[1] == 0x5a) {
 				/* start video */
+				dev->capture_type = 1;
+				dev->top_field = !(p[2] & 1);
 				p += 4;
 				len -= 4;
 			}
@@ -619,8 +621,7 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 				em28xx_isocdbg("dev->vbi_read > vbi_size\n");
 			} else if ((dev->vbi_read + len) < vbi_size) {
 				/* This entire frame is VBI data */
-				if (dev->vbi_read == 0 &&
-				    (!(dev->cur_field & 1))) {
+				if (dev->vbi_read == 0 && dev->top_field) {
 					/* Brand new frame */
 					if (vbi_buf != NULL)
 						vbi_buffer_filled(dev,
@@ -636,12 +637,8 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 
 				if (dev->vbi_read == 0) {
 					vbi_dma_q->pos = 0;
-					if (vbi_buf != NULL) {
-						if (dev->cur_field & 1)
-							vbi_buf->top_field = 0;
-						else
-							vbi_buf->top_field = 1;
-					}
+					if (vbi_buf != NULL)
+						vbi_buf->top_field = dev->top_field;
 				}
 
 				dev->vbi_read += len;
@@ -662,7 +659,7 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 
 		if (dev->capture_type == 1) {
 			dev->capture_type = 2;
-			if (dev->progressive || !(dev->cur_field & 1)) {
+			if (dev->progressive || dev->top_field) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
 				get_next_buf(dma_q, &buf);
@@ -671,12 +668,8 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 				else
 					outp = videobuf_to_vmalloc(&buf->vb);
 			}
-			if (buf != NULL) {
-				if (dev->cur_field & 1)
-					buf->top_field = 0;
-				else
-					buf->top_field = 1;
-			}
+			if (buf != NULL)
+				buf->top_field = dev->top_field;
 
 			dma_q->pos = 0;
 		}
@@ -774,6 +767,7 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 		urb_init = 1;
 
 	if (urb_init) {
+		dev->capture_type = -1;
 		if (em28xx_vbi_supported(dev) == 1)
 			rc = em28xx_init_usb_xfer(dev, EM28XX_ANALOG_MODE,
 						  dev->analog_xfer_bulk,

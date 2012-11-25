@@ -563,7 +563,7 @@ struct em28xx {
 	/* vbi related state tracking */
 	int capture_type;
 	int vbi_read;
-	unsigned char cur_field;
+	unsigned char top_field:1;
 	unsigned int vbi_width;
 	unsigned int vbi_height; /* lines per field */
 
