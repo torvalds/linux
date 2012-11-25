@@ -525,7 +525,7 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 	struct em28xx_buffer    *buf, *vbi_buf;
 	struct em28xx_dmaqueue  *dma_q = &dev->vidq;
 	struct em28xx_dmaqueue  *vbi_dma_q = &dev->vbiq;
-	int xfer_bulk, vbi_size, num_packets, i, rc = 1;
+	int xfer_bulk, num_packets, i, rc = 1;
 	unsigned int actual_length, len = 0;
 	unsigned char *p, *outp = NULL, *vbioutp = NULL;
 
@@ -612,9 +612,8 @@ static inline int em28xx_urb_data_copy_vbi(struct em28xx *dev, struct urb *urb)
 		/* NOTE: with bulk transfers, intermediate data packets
 		 * have no continuation header */
 
-		vbi_size = dev->vbi_width * dev->vbi_height;
-
 		if (dev->capture_type == 0) {
+			int vbi_size = dev->vbi_width * dev->vbi_height;
 			if (dev->vbi_read >= vbi_size) {
 				/* We've already read all the VBI data, so
 				   treat the rest as video */
