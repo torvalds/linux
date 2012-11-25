@@ -241,7 +241,7 @@ static int nfs_callback_start_svc(int minorversion, struct rpc_xprt *xprt,
 		svc_exit_thread(cb_info->rqst);
 		cb_info->rqst = NULL;
 		cb_info->task = NULL;
-		return PTR_ERR(cb_info->task);
+		return ret;
 	}
 	dprintk("nfs_callback_up: service started\n");
 	return 0;

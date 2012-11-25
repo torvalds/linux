@@ -1778,17 +1778,6 @@ static inline int usb_translate_errors(int error_code)
 extern void usb_register_notify(struct notifier_block *nb);
 extern void usb_unregister_notify(struct notifier_block *nb);
 
-#ifdef DEBUG
-#define dbg(format, arg...)						\
-	printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg)
-#else
-#define dbg(format, arg...)						\
-do {									\
-	if (0)								\
-		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg); \
-} while (0)
-#endif
-
 /* debugfs stuff */
 extern struct dentry *usb_debug_root;
 

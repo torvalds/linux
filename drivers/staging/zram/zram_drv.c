@@ -223,8 +223,13 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
 	cmem = zs_map_object(zram->mem_pool, zram->table[index].handle,
 				ZS_MM_RO);
 
-	ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
+	if (zram->table[index].size == PAGE_SIZE) {
+		memcpy(uncmem, cmem, PAGE_SIZE);
+		ret = LZO_E_OK;
+	} else {
+		ret = lzo1x_decompress_safe(cmem, zram->table[index].size,
 				    uncmem, &clen);
+	}
 
 	if (is_partial_io(bvec)) {
 		memcpy(user_mem + bvec->bv_offset, uncmem + offset,
@@ -342,8 +347,11 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
 		goto out;
 	}
 
-	if (unlikely(clen > max_zpage_size))
+	if (unlikely(clen > max_zpage_size)) {
 		zram_stat_inc(&zram->stats.bad_compress);
+		src = uncmem;
+		clen = PAGE_SIZE;
+	}
 
 	handle = zs_malloc(zram->mem_pool, clen);
 	if (!handle) {

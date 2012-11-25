@@ -468,7 +468,7 @@ struct ib_mr *c4iw_register_phys_mem(struct ib_pd *pd,
 	ret = alloc_pbl(mhp, npages);
 	if (ret) {
 		kfree(page_list);
-		goto err_pbl;
+		goto err;
 	}
 
 	ret = write_pbl(&mhp->rhp->rdev, page_list, mhp->attr.pbl_addr,

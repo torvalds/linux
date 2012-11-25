@@ -372,10 +372,11 @@ static int mpc52xx_irqhost_map(struct irq_domain *h, unsigned int virq,
 	case MPC52xx_IRQ_L1_MAIN: irqchip = &mpc52xx_main_irqchip; break;
 	case MPC52xx_IRQ_L1_PERP: irqchip = &mpc52xx_periph_irqchip; break;
 	case MPC52xx_IRQ_L1_SDMA: irqchip = &mpc52xx_sdma_irqchip; break;
-	default:
-		pr_err("%s: invalid irq: virq=%i, l1=%i, l2=%i\n",
-		       __func__, virq, l1irq, l2irq);
-		return -EINVAL;
+	case MPC52xx_IRQ_L1_CRIT:
+		pr_warn("%s: Critical IRQ #%d is unsupported! Nopping it.\n",
+			__func__, l2irq);
+		irq_set_chip(virq, &no_irq_chip);
+		return 0;
 	}
 
 	irq_set_chip_and_handler(virq, irqchip, handle_level_irq);

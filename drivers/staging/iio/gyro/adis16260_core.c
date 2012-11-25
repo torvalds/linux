@@ -498,28 +498,33 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
 			*val = 0;
-			if (spi_get_device_id(st->us)->driver_data)
-				*val2 = 320;
-			else
-				*val2 = 1278;
+			if (spi_get_device_id(st->us)->driver_data) {
+				/* 0.01832 degree / sec */
+				*val2 = IIO_DEGREE_TO_RAD(18320);
+			} else {
+				/* 0.07326 degree / sec */
+				*val2 = IIO_DEGREE_TO_RAD(73260);
+			}
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_VOLTAGE:
-			*val = 0;
-			if (chan->channel == 0)
-				*val2 = 18315;
-			else
-				*val2 = 610500;
+			if (chan->channel == 0) {
+				*val = 1;
+				*val2 = 831500; /* 1.8315 mV */
+			} else {
+				*val = 0;
+				*val2 = 610500; /* 610.5 uV */
+			}
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
-			*val = 0;
-			*val2 = 145300;
+			*val = 145;
+			*val2 = 300000; /* 0.1453 C */
 			return IIO_VAL_INT_PLUS_MICRO;
 		default:
 			return -EINVAL;
 		}
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		*val = 25;
+		*val = 250000 / 1453; /* 25 C = 0x00 */
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {

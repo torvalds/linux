@@ -739,12 +739,15 @@ static void hub_tt_work(struct work_struct *work)
 	int			limit = 100;
 
 	spin_lock_irqsave (&hub->tt.lock, flags);
-	while (--limit && !list_empty (&hub->tt.clear_list)) {
+	while (!list_empty(&hub->tt.clear_list)) {
 		struct list_head	*next;
 		struct usb_tt_clear	*clear;
 		struct usb_device	*hdev = hub->hdev;
 		const struct hc_driver	*drv;
 		int			status;
+
+		if (!hub->quiescing && --limit < 0)
+			break;
 
 		next = hub->tt.clear_list.next;
 		clear = list_entry (next, struct usb_tt_clear, clear_list);
@@ -1210,7 +1213,7 @@ static void hub_quiesce(struct usb_hub *hub, enum hub_quiescing_type type)
 	if (hub->has_indicators)
 		cancel_delayed_work_sync(&hub->leds);
 	if (hub->tt.hub)
-		cancel_work_sync(&hub->tt.clear_work);
+		flush_work(&hub->tt.clear_work);
 }
 
 /* caller has locked the hub device */
@@ -3241,8 +3244,7 @@ static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
 			(state == USB3_LPM_U2 &&
 			 (u2_sel > USB3_LPM_MAX_U2_SEL_PEL ||
 			  u2_pel > USB3_LPM_MAX_U2_SEL_PEL))) {
-		dev_dbg(&udev->dev, "Device-initiated %s disabled due "
-				"to long SEL %llu ms or PEL %llu ms\n",
+		dev_dbg(&udev->dev, "Device-initiated %s disabled due to long SEL %llu us or PEL %llu us\n",
 				usb3_lpm_names[state], u1_sel, u1_pel);
 		return -EINVAL;
 	}
@@ -3319,16 +3321,6 @@ static int usb_set_device_initiated_lpm(struct usb_device *udev,
 	}
 
 	if (enable) {
-		/*
-		 * First, let the device know about the exit latencies
-		 * associated with the link state we're about to enable.
-		 */
-		ret = usb_req_set_sel(udev, state);
-		if (ret < 0) {
-			dev_warn(&udev->dev, "Set SEL for device-initiated "
-					"%s failed.\n", usb3_lpm_names[state]);
-			return -EBUSY;
-		}
 		/*
 		 * Now send the control transfer to enable device-initiated LPM
 		 * for either U1 or U2.
@@ -3414,7 +3406,28 @@ static int usb_set_lpm_timeout(struct usb_device *udev,
 static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
 		enum usb3_link_state state)
 {
-	int timeout;
+	int timeout, ret;
+	__u8 u1_mel = udev->bos->ss_cap->bU1devExitLat;
+	__le16 u2_mel = udev->bos->ss_cap->bU2DevExitLat;
+
+	/* If the device says it doesn't have *any* exit latency to come out of
+	 * U1 or U2, it's probably lying.  Assume it doesn't implement that link
+	 * state.
+	 */
+	if ((state == USB3_LPM_U1 && u1_mel == 0) ||
+			(state == USB3_LPM_U2 && u2_mel == 0))
+		return;
+
+	/*
+	 * First, let the device know about the exit latencies
+	 * associated with the link state we're about to enable.
+	 */
+	ret = usb_req_set_sel(udev, state);
+	if (ret < 0) {
+		dev_warn(&udev->dev, "Set SEL for device-initiated %s failed.\n",
+				usb3_lpm_names[state]);
+		return;
+	}
 
 	/* We allow the host controller to set the U1/U2 timeout internally
 	 * first, so that it can change its schedule to account for the

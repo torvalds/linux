@@ -165,7 +165,7 @@ extern void copy_from_user_page(struct vm_area_struct*, struct page*,
 static inline u32 xtensa_get_cacheattr(void)
 {
 	u32 r;
-	asm volatile("	rsr %0, CACHEATTR" : "=a"(r));
+	asm volatile("	rsr %0, cacheattr" : "=a"(r));
 	return r;
 }
 

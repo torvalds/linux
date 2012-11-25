@@ -212,7 +212,7 @@ static struct snd_soc_dai_link bells_dai_wm5102[] = {
 	{
 		.name = "Sub",
 		.stream_name = "Sub",
-		.cpu_dai_name = "wm5102-aif3",
+		.cpu_dai_name = "wm5110-aif3",
 		.codec_dai_name = "wm9081-hifi",
 		.codec_name = "wm9081.1-006c",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF
@@ -247,7 +247,7 @@ static struct snd_soc_dai_link bells_dai_wm5110[] = {
 	{
 		.name = "Sub",
 		.stream_name = "Sub",
-		.cpu_dai_name = "wm5102-aif3",
+		.cpu_dai_name = "wm5110-aif3",
 		.codec_dai_name = "wm9081-hifi",
 		.codec_name = "wm9081.1-006c",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF

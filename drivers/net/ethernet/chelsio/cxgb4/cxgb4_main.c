@@ -3513,18 +3513,6 @@ static int adap_init0_no_config(struct adapter *adapter, int reset)
 	if (ret < 0)
 		goto bye;
 
-#ifndef CONFIG_CHELSIO_T4_OFFLOAD
-	/*
-	 * If we're a pure NIC driver then disable all offloading facilities.
-	 * This will allow the firmware to optimize aspects of the hardware
-	 * configuration which will result in improved performance.
-	 */
-	caps_cmd.ofldcaps = 0;
-	caps_cmd.iscsicaps = 0;
-	caps_cmd.rdmacaps = 0;
-	caps_cmd.fcoecaps = 0;
-#endif
-
 	if (caps_cmd.niccaps & htons(FW_CAPS_CONFIG_NIC_VM)) {
 		if (!vf_acls)
 			caps_cmd.niccaps ^= htons(FW_CAPS_CONFIG_NIC_VM);
@@ -3745,6 +3733,7 @@ static int adap_init0(struct adapter *adap)
 	u32 v, port_vec;
 	enum dev_state state;
 	u32 params[7], val[7];
+	struct fw_caps_config_cmd caps_cmd;
 	int reset = 1, j;
 
 	/*
@@ -3898,6 +3887,9 @@ static int adap_init0(struct adapter *adap)
 			goto bye;
 	}
 
+	if (is_bypass_device(adap->pdev->device))
+		adap->params.bypass = 1;
+
 	/*
 	 * Grab some of our basic fundamental operating parameters.
 	 */
@@ -3940,13 +3932,12 @@ static int adap_init0(struct adapter *adap)
 		adap->tids.aftid_end = val[1];
 	}
 
-#ifdef CONFIG_CHELSIO_T4_OFFLOAD
 	/*
 	 * Get device capabilities so we can determine what resources we need
 	 * to manage.
 	 */
 	memset(&caps_cmd, 0, sizeof(caps_cmd));
-	caps_cmd.op_to_write = htonl(V_FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
+	caps_cmd.op_to_write = htonl(FW_CMD_OP(FW_CAPS_CONFIG_CMD) |
 				     FW_CMD_REQUEST | FW_CMD_READ);
 	caps_cmd.retval_len16 = htonl(FW_LEN16(caps_cmd));
 	ret = t4_wr_mbox(adap, adap->mbox, &caps_cmd, sizeof(caps_cmd),
@@ -3990,15 +3981,6 @@ static int adap_init0(struct adapter *adap)
 		adap->vres.ddp.start = val[3];
 		adap->vres.ddp.size = val[4] - val[3] + 1;
 		adap->params.ofldq_wr_cred = val[5];
-
-		params[0] = FW_PARAM_PFVF(ETHOFLD_START);
-		params[1] = FW_PARAM_PFVF(ETHOFLD_END);
-		ret = t4_query_params(adap, adap->mbox, adap->fn, 0, 2,
-				      params, val);
-		if ((val[0] != val[1]) && (ret >= 0)) {
-			adap->tids.uotid_base = val[0];
-			adap->tids.nuotids = val[1] - val[0] + 1;
-		}
 
 		adap->params.offload = 1;
 	}
@@ -4048,7 +4030,6 @@ static int adap_init0(struct adapter *adap)
 	}
 #undef FW_PARAM_PFVF
 #undef FW_PARAM_DEV
-#endif /* CONFIG_CHELSIO_T4_OFFLOAD */
 
 	/*
 	 * These are finalized by FW initialization, load their values now.

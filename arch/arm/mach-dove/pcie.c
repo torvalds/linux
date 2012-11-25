@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/pci.h>
+#include <linux/clk.h>
 #include <video/vga.h>
 #include <asm/mach/pci.h>
 #include <asm/mach/arch.h>
@@ -188,6 +189,10 @@ static void __init add_pcie_port(int index, void __iomem *base)
 
 	if (orion_pcie_link_up(base)) {
 		struct pcie_port *pp = &pcie_port[num_pcie_ports++];
+		struct clk *clk = clk_get_sys("pcie", (index ? "1" : "0"));
+
+		if (!IS_ERR(clk))
+			clk_prepare_enable(clk);
 
 		printk(KERN_INFO "link up\n");
 
