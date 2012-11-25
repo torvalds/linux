@@ -115,16 +115,6 @@ static int tc = TC_DEFAULT;
 module_param(tc, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(tc, "DMA threshold control value");
 
-/* Pay attention to tune this parameter; take care of both
- * hardware capability and network stabitily/performance impact.
- * Many tests showed that ~4ms latency seems to be good enough. */
-#ifdef CONFIG_STMMAC_TIMER
-#define DEFAULT_PERIODIC_RATE	256
-static int tmrate = DEFAULT_PERIODIC_RATE;
-module_param(tmrate, int, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(tmrate, "External timer freq. (default: 256Hz)");
-#endif
-
 #define DMA_BUFFER_SIZE	BUF_SIZE_2KiB
 static int buf_sz = DMA_BUFFER_SIZE;
 module_param(buf_sz, int, S_IRUGO | S_IWUSR);
@@ -536,12 +526,6 @@ static void init_dma_desc_rings(struct net_device *dev)
 	else
 		bfsize = stmmac_set_bfsize(dev->mtu, priv->dma_buf_sz);
 
-#ifdef CONFIG_STMMAC_TIMER
-	/* Disable interrupts on completion for the reception if timer is on */
-	if (likely(priv->tm->enable))
-		dis_ic = 1;
-#endif
-
 	DBG(probe, INFO, "stmmac: txsize %d, rxsize %d, bfsize %d\n",
 	    txsize, rxsize, bfsize);
 
@@ -775,22 +759,12 @@ static void stmmac_tx(struct stmmac_priv *priv)
 
 static inline void stmmac_enable_irq(struct stmmac_priv *priv)
 {
-#ifdef CONFIG_STMMAC_TIMER
-	if (likely(priv->tm->enable))
-		priv->tm->timer_start(tmrate);
-	else
-#endif
-		priv->hw->dma->enable_dma_irq(priv->ioaddr);
+	priv->hw->dma->enable_dma_irq(priv->ioaddr);
 }
 
 static inline void stmmac_disable_irq(struct stmmac_priv *priv)
 {
-#ifdef CONFIG_STMMAC_TIMER
-	if (likely(priv->tm->enable))
-		priv->tm->timer_stop();
-	else
-#endif
-		priv->hw->dma->disable_dma_irq(priv->ioaddr);
+	priv->hw->dma->disable_dma_irq(priv->ioaddr);
 }
 
 static int stmmac_has_work(struct stmmac_priv *priv)
@@ -817,25 +791,6 @@ static inline void _stmmac_schedule(struct stmmac_priv *priv)
 		napi_schedule(&priv->napi);
 	}
 }
-
-#ifdef CONFIG_STMMAC_TIMER
-void stmmac_schedule(struct net_device *dev)
-{
-	struct stmmac_priv *priv = netdev_priv(dev);
-
-	priv->xstats.sched_timer_n++;
-
-	_stmmac_schedule(priv);
-}
-
-static void stmmac_no_timer_started(unsigned int x)
-{;
-};
-
-static void stmmac_no_timer_stopped(void)
-{;
-};
-#endif
 
 /**
  * stmmac_tx_err:
@@ -1038,23 +993,6 @@ static int stmmac_open(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
 
-#ifdef CONFIG_STMMAC_TIMER
-	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
-	if (unlikely(priv->tm == NULL))
-		return -ENOMEM;
-
-	priv->tm->freq = tmrate;
-
-	/* Test if the external timer can be actually used.
-	 * In case of failure continue without timer. */
-	if (unlikely((stmmac_open_ext_timer(dev, priv->tm)) < 0)) {
-		pr_warning("stmmaceth: cannot attach the external timer.\n");
-		priv->tm->freq = 0;
-		priv->tm->timer_start = stmmac_no_timer_started;
-		priv->tm->timer_stop = stmmac_no_timer_stopped;
-	} else
-		priv->tm->enable = 1;
-#endif
 	clk_prepare_enable(priv->stmmac_clk);
 
 	stmmac_check_ether_addr(priv);
@@ -1141,10 +1079,6 @@ static int stmmac_open(struct net_device *dev)
 	priv->hw->dma->start_tx(priv->ioaddr);
 	priv->hw->dma->start_rx(priv->ioaddr);
 
-#ifdef CONFIG_STMMAC_TIMER
-	priv->tm->timer_start(tmrate);
-#endif
-
 	/* Dump DMA/MAC registers */
 	if (netif_msg_hw(priv)) {
 		priv->hw->mac->dump_regs(priv->ioaddr);
@@ -1170,9 +1104,6 @@ open_error_wolirq:
 	free_irq(dev->irq, dev);
 
 open_error:
-#ifdef CONFIG_STMMAC_TIMER
-	kfree(priv->tm);
-#endif
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
@@ -1203,12 +1134,6 @@ static int stmmac_release(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-#ifdef CONFIG_STMMAC_TIMER
-	/* Stop and release the timer */
-	stmmac_close_ext_timer();
-	if (priv->tm != NULL)
-		kfree(priv->tm);
-#endif
 	napi_disable(&priv->napi);
 
 	/* Free the IRQ lines */
@@ -1322,12 +1247,6 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* Interrupt on completition only for the latest segment */
 	priv->hw->desc->close_tx_desc(desc);
-
-#ifdef CONFIG_STMMAC_TIMER
-	/* Clean IC while using timer */
-	if (likely(priv->tm->enable))
-		priv->hw->desc->clear_tx_ic(desc);
-#endif
 
 	wmb();
 
@@ -1523,7 +1442,7 @@ static int stmmac_poll(struct napi_struct *napi, int budget)
  *  stmmac_tx_timeout
  *  @dev : Pointer to net device structure
  *  Description: this function is called when a packet transmission fails to
- *   complete within a reasonable tmrate. The driver will mark the error in the
+ *   complete within a reasonable time. The driver will mark the error in the
  *   netdev structure and arrange for the device to be reset to a sane state
  *   in order to transmit a new packet.
  */
@@ -2141,11 +2060,6 @@ int stmmac_suspend(struct net_device *ndev)
 	netif_device_detach(ndev);
 	netif_stop_queue(ndev);
 
-#ifdef CONFIG_STMMAC_TIMER
-	priv->tm->timer_stop();
-	if (likely(priv->tm->enable))
-		dis_ic = 1;
-#endif
 	napi_disable(&priv->napi);
 
 	/* Stop TX/RX DMA */
@@ -2196,10 +2110,6 @@ int stmmac_resume(struct net_device *ndev)
 	priv->hw->dma->start_tx(priv->ioaddr);
 	priv->hw->dma->start_rx(priv->ioaddr);
 
-#ifdef CONFIG_STMMAC_TIMER
-	if (likely(priv->tm->enable))
-		priv->tm->timer_start(tmrate);
-#endif
 	napi_enable(&priv->napi);
 
 	netif_start_queue(ndev);
@@ -2295,11 +2205,6 @@ static int __init stmmac_cmdline_opt(char *str)
 		} else if (!strncmp(opt, "eee_timer:", 6)) {
 			if (kstrtoint(opt + 10, 0, &eee_timer))
 				goto err;
-#ifdef CONFIG_STMMAC_TIMER
-		} else if (!strncmp(opt, "tmrate:", 7)) {
-			if (kstrtoint(opt + 7, 0, &tmrate))
-				goto err;
-#endif
 		}
 	}
 	return 0;
