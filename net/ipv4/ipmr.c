@@ -83,8 +83,8 @@ struct mr_table {
 	struct vif_device	vif_table[MAXVIFS];
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
-	int			mroute_do_assert;
-	int			mroute_do_pim;
+	bool			mroute_do_assert;
+	bool			mroute_do_pim;
 #if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
 	int			mroute_reg_vif_num;
 #endif
@@ -1289,7 +1289,7 @@ int ip_mroute_setsockopt(struct sock *sk, int optname, char __user *optval, unsi
 			return -EINVAL;
 		if (get_user(v, (int __user *)optval))
 			return -EFAULT;
-		mrt->mroute_do_assert = !!v;
+		mrt->mroute_do_assert = v;
 		return 0;
 	}
 #ifdef CONFIG_IP_PIMSM
