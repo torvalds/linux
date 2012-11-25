@@ -64,6 +64,9 @@ struct cifs_sid {
 	__le32 sub_auth[NUM_SUBAUTHS]; /* sub_auth[num_subauth] */
 } __attribute__((packed));
 
+/* size of a struct cifs_sid, sans sub_auth array */
+#define CIFS_SID_BASE_SIZE (1 + 1 + NUM_AUTHS)
+
 struct cifs_acl {
 	__le16 revision; /* revision level */
 	__le16 size;

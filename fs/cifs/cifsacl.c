@@ -277,8 +277,14 @@ compare_sids(const struct cifs_sid *ctsid, const struct cifs_sid *cwsid)
 static void
 cifs_copy_sid(struct cifs_sid *dst, const struct cifs_sid *src)
 {
-	memcpy(dst, src, sizeof(*dst));
+	int i;
+
+	dst->revision = src->revision;
 	dst->num_subauth = min_t(u8, src->num_subauth, NUM_SUBAUTHS);
+	for (i = 0; i < NUM_AUTHS; ++i)
+		dst->authority[i] = src->authority[i];
+	for (i = 0; i < dst->num_subauth; ++i)
+		dst->sub_auth[i] = src->sub_auth[i];
 }
 
 static void
@@ -427,7 +433,7 @@ id_to_sid(unsigned long cid, uint sidtype, struct cifs_sid *ssid)
 		if (IS_ERR(sidkey)) {
 			rc = -EINVAL;
 			cFYI(1, "%s: Can't map and id to a SID", __func__);
-		} else if (sidkey->datalen < sizeof(struct cifs_sid)) {
+		} else if (sidkey->datalen < CIFS_SID_BASE_SIZE) {
 			rc = -EIO;
 			cFYI(1, "%s: Downcall contained malformed key "
 				"(datalen=%hu)", __func__, sidkey->datalen);
