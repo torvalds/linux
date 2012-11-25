@@ -191,7 +191,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	int ret;
 	enum ns2_led_modes mode;
 
-	ret = gpio_request_one(template->cmd,
+	ret = devm_gpio_request_one(&pdev->dev, template->cmd,
 			GPIOF_DIR_OUT | gpio_get_value(template->cmd),
 			template->name);
 	if (ret) {
@@ -200,13 +200,13 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 		return ret;
 	}
 
-	ret = gpio_request_one(template->slow,
+	ret = devm_gpio_request_one(&pdev->dev, template->slow,
 			GPIOF_DIR_OUT | gpio_get_value(template->slow),
 			template->name);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: failed to setup slow GPIO\n",
 			template->name);
-		goto err_free_cmd;
+		return ret;
 	}
 
 	rwlock_init(&led_dat->rw_lock);
@@ -221,7 +221,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 
 	ret = ns2_led_get_mode(led_dat, &mode);
 	if (ret < 0)
-		goto err_free_slow;
+		return ret;
 
 	/* Set LED initial state. */
 	led_dat->sata = (mode == NS_V2_LED_SATA) ? 1 : 0;
@@ -230,7 +230,7 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 
 	ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 	if (ret < 0)
-		goto err_free_slow;
+		return ret;
 
 	ret = device_create_file(led_dat->cdev.dev, &dev_attr_sata);
 	if (ret < 0)
@@ -240,11 +240,6 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 
 err_free_cdev:
 	led_classdev_unregister(&led_dat->cdev);
-err_free_slow:
-	gpio_free(led_dat->slow);
-err_free_cmd:
-	gpio_free(led_dat->cmd);
-
 	return ret;
 }
 
@@ -252,8 +247,6 @@ static void delete_ns2_led(struct ns2_led_data *led_dat)
 {
 	device_remove_file(led_dat->cdev.dev, &dev_attr_sata);
 	led_classdev_unregister(&led_dat->cdev);
-	gpio_free(led_dat->cmd);
-	gpio_free(led_dat->slow);
 }
 
 static int __devinit ns2_led_probe(struct platform_device *pdev)
