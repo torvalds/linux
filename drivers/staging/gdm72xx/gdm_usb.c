@@ -186,6 +186,7 @@ static int init_usb(struct usbwm_dev *udev)
 	struct rx_cxt	*rx = &udev->rx;
 	struct usb_tx	*t;
 	struct usb_rx	*r;
+	unsigned long flags;
 
 	INIT_LIST_HEAD(&tx->free_list);
 	INIT_LIST_HEAD(&tx->sdu_list);
@@ -200,6 +201,7 @@ static int init_usb(struct usbwm_dev *udev)
 	spin_lock_init(&tx->lock);
 	spin_lock_init(&rx->lock);
 
+	spin_lock_irqsave(&tx->lock, flags);
 	for (i = 0; i < MAX_NR_SDU_BUF; i++) {
 		t = alloc_tx_struct(tx);
 		if (t == NULL) {
@@ -208,6 +210,7 @@ static int init_usb(struct usbwm_dev *udev)
 		}
 		list_add(&t->list, &tx->free_list);
 	}
+	spin_unlock_irqrestore(&tx->lock, flags);
 
 	r = alloc_rx_struct(rx);
 	if (r == NULL) {
@@ -215,7 +218,9 @@ static int init_usb(struct usbwm_dev *udev)
 		goto fail;
 	}
 
+	spin_lock_irqsave(&rx->lock, flags);
 	list_add(&r->list, &rx->free_list);
+	spin_unlock_irqrestore(&rx->lock, flags);
 	return ret;
 
 fail:
@@ -229,6 +234,9 @@ static void release_usb(struct usbwm_dev *udev)
 	struct rx_cxt	*rx = &udev->rx;
 	struct usb_tx	*t, *t_next;
 	struct usb_rx	*r, *r_next;
+	unsigned long flags;
+
+	spin_lock_irqsave(&tx->lock, flags);
 
 	list_for_each_entry_safe(t, t_next, &tx->sdu_list, list) {
 		list_del(&t->list);
@@ -245,6 +253,10 @@ static void release_usb(struct usbwm_dev *udev)
 		free_tx_struct(t);
 	}
 
+	spin_unlock_irqrestore(&tx->lock, flags);
+
+	spin_lock_irqsave(&rx->lock, flags);
+
 	list_for_each_entry_safe(r, r_next, &rx->free_list, list) {
 		list_del(&r->list);
 		free_rx_struct(r);
@@ -254,6 +266,8 @@ static void release_usb(struct usbwm_dev *udev)
 		list_del(&r->list);
 		free_rx_struct(r);
 	}
+
+	spin_unlock_irqrestore(&rx->lock, flags);
 }
 
 static void __gdm_usb_send_complete(struct urb *urb)
@@ -302,7 +316,7 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	int no_spc = 0, ret;
 	u8 *pkt = data;
 	u16 cmd_evt;
-	unsigned long flags;
+	unsigned long flags, flags2;
 
 	if (!udev->usbdev) {
 		dev_err(&usbdev->dev, "%s: No such device\n", __func__);
@@ -371,13 +385,16 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 
 		rx = &udev->rx;
 
+		spin_lock_irqsave(&rx->lock, flags2);
 		list_for_each_entry(r, &rx->used_list, list)
 			usb_unlink_urb(r->urb);
+		spin_unlock_irqrestore(&rx->lock, flags2);
+
 		udev->bw_switch = 1;
 
-		spin_lock(&k_lock);
+		spin_lock_irqsave(&k_lock, flags2);
 		list_add_tail(&udev->list, &k_list);
-		spin_unlock(&k_lock);
+		spin_unlock_irqrestore(&k_lock, flags2);
 
 		wake_up(&k_wait);
 	}
@@ -416,7 +433,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	struct tx_cxt *tx = &udev->tx;
 	struct usb_tx *t;
 	u16 cmd_evt;
-	unsigned long flags;
+	unsigned long flags, flags2;
 
 #ifdef CONFIG_WIMAX_GDM72XX_USB_PM
 	struct usb_device *dev = urb->dev;
@@ -462,9 +479,9 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	if (!urb->status && r->callback)
 		r->callback(r->cb_data, r->buf, urb->actual_length);
 
-	spin_lock(&rx->lock);
+	spin_lock_irqsave(&rx->lock, flags2);
 	put_rx_struct(rx, r);
-	spin_unlock(&rx->lock);
+	spin_unlock_irqrestore(&rx->lock, flags2);
 
 	spin_unlock_irqrestore(&tx->lock, flags);
 
@@ -619,8 +636,9 @@ out:
 	if (ret) {
 		kfree(phy_dev);
 		kfree(udev);
+	} else {
+		usb_set_intfdata(intf, phy_dev);
 	}
-	usb_set_intfdata(intf, phy_dev);
 	return ret;
 }
 
@@ -660,13 +678,21 @@ static int gdm_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	struct usbwm_dev *udev;
 	struct rx_cxt *rx;
 	struct usb_rx *r;
+	unsigned long flags;
 
 	phy_dev = usb_get_intfdata(intf);
+	if (!phy_dev)
+		return 0;
+
 	udev = phy_dev->priv_dev;
 	rx = &udev->rx;
 
+	spin_lock_irqsave(&rx->lock, flags);
+
 	list_for_each_entry(r, &rx->used_list, list)
 		usb_unlink_urb(r->urb);
+
+	spin_unlock_irqrestore(&rx->lock, flags);
 
 	return 0;
 }
@@ -677,13 +703,21 @@ static int gdm_resume(struct usb_interface *intf)
 	struct usbwm_dev *udev;
 	struct rx_cxt *rx;
 	struct usb_rx *r;
+	unsigned long flags;
 
 	phy_dev = usb_get_intfdata(intf);
+	if (!phy_dev)
+		return 0;
+
 	udev = phy_dev->priv_dev;
 	rx = &udev->rx;
 
+	spin_lock_irqsave(&rx->lock, flags);
+
 	list_for_each_entry(r, &rx->used_list, list)
 		usb_submit_urb(r->urb, GFP_ATOMIC);
+
+	spin_unlock_irqrestore(&rx->lock, flags);
 
 	return 0;
 }
@@ -719,8 +753,12 @@ static int k_mode_thread(void *arg)
 			while (jiffies < expire)
 				schedule_timeout(K_WAIT_TIME);
 
+			spin_lock_irqsave(&rx->lock, flags);
+
 			list_for_each_entry(r, &rx->used_list, list)
 				usb_submit_urb(r->urb, GFP_ATOMIC);
+
+			spin_unlock_irqrestore(&rx->lock, flags);
 
 			spin_lock_irqsave(&tx->lock, flags);
 
