@@ -50,29 +50,6 @@ static struct rb_root uprobes_tree = RB_ROOT;
 static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
 
 #define UPROBES_HASH_SZ	13
-
-/*
- * We need separate register/unregister and mmap/munmap lock hashes because
- * of mmap_sem nesting.
- *
- * uprobe_register() needs to install probes on (potentially) all processes
- * and thus needs to acquire multiple mmap_sems (consequtively, not
- * concurrently), whereas uprobe_mmap() is called while holding mmap_sem
- * for the particular process doing the mmap.
- *
- * uprobe_register()->register_for_each_vma() needs to drop/acquire mmap_sem
- * because of lock order against i_mmap_mutex. This means there's a hole in
- * the register vma iteration where a mmap() can happen.
- *
- * Thus uprobe_register() can race with uprobe_mmap() and we can try and
- * install a probe where one is already installed.
- */
-
-/* serialize (un)register */
-static struct mutex uprobes_mutex[UPROBES_HASH_SZ];
-
-#define uprobes_hash(v)		(&uprobes_mutex[((unsigned long)(v)) % UPROBES_HASH_SZ])
-
 /* serialize uprobe->pending_list */
 static struct mutex uprobes_mmap_mutex[UPROBES_HASH_SZ];
 #define uprobes_mmap_hash(v)	(&uprobes_mmap_mutex[((unsigned long)(v)) % UPROBES_HASH_SZ])
@@ -865,20 +842,26 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 	if (offset > i_size_read(inode))
 		return -EINVAL;
 
-	ret = -ENOMEM;
-	mutex_lock(uprobes_hash(inode));
+ retry:
 	uprobe = alloc_uprobe(inode, offset);
-	if (uprobe) {
-		down_write(&uprobe->register_rwsem);
+	if (!uprobe)
+		return -ENOMEM;
+	/*
+	 * We can race with uprobe_unregister()->delete_uprobe().
+	 * Check uprobe_is_active() and retry if it is false.
+	 */
+	down_write(&uprobe->register_rwsem);
+	ret = -EAGAIN;
+	if (likely(uprobe_is_active(uprobe))) {
 		ret = __uprobe_register(uprobe, uc);
 		if (ret)
 			__uprobe_unregister(uprobe, uc);
-		up_write(&uprobe->register_rwsem);
 	}
-	mutex_unlock(uprobes_hash(inode));
-	if (uprobe)
-		put_uprobe(uprobe);
+	up_write(&uprobe->register_rwsem);
+	put_uprobe(uprobe);
 
+	if (unlikely(ret == -EAGAIN))
+		goto retry;
 	return ret;
 }
 
@@ -896,11 +879,9 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 	if (!uprobe)
 		return;
 
-	mutex_lock(uprobes_hash(inode));
 	down_write(&uprobe->register_rwsem);
 	__uprobe_unregister(uprobe, uc);
 	up_write(&uprobe->register_rwsem);
-	mutex_unlock(uprobes_hash(inode));
 	put_uprobe(uprobe);
 }
 
@@ -1609,10 +1590,8 @@ static int __init init_uprobes(void)
 {
 	int i;
 
-	for (i = 0; i < UPROBES_HASH_SZ; i++) {
-		mutex_init(&uprobes_mutex[i]);
+	for (i = 0; i < UPROBES_HASH_SZ; i++)
 		mutex_init(&uprobes_mmap_mutex[i]);
-	}
 
 	if (percpu_init_rwsem(&dup_mmap_sem))
 		return -ENOMEM;
