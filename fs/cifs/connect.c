@@ -1799,6 +1799,11 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 		goto cifs_parse_mount_err;
 	}
 #endif
+	if (!vol->UNC) {
+		cERROR(1, "CIFS mount error: No UNC path (e.g. -o "
+			"unc=\\\\192.168.1.100\\public) specified");
+		goto cifs_parse_mount_err;
+	}
 
 	if (vol->UNCip == NULL)
 		vol->UNCip = &vol->UNC[2];
@@ -2070,17 +2075,6 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 			rc = -EINVAL;
 			goto out_err;
 		}
-	} else if (volume_info->UNCip) {
-		/* BB using ip addr as tcp_ses name to connect to the
-		   DFS root below */
-		cERROR(1, "Connecting to DFS root not implemented yet");
-		rc = -EINVAL;
-		goto out_err;
-	} else /* which tcp_sess DFS root would we conect to */ {
-		cERROR(1, "CIFS mount error: No UNC path (e.g. -o "
-			"unc=//192.168.1.100/public) specified");
-		rc = -EINVAL;
-		goto out_err;
 	}
 
 	/* see if we already have a matching tcp_ses */
@@ -2725,9 +2719,6 @@ cifs_match_super(struct super_block *sb, void *data)
 	tcp_srv = ses->server;
 
 	volume_info = mnt_data->vol;
-
-	if (!volume_info->UNCip || !volume_info->UNC)
-		goto out;
 
 	rc = cifs_fill_sockaddr((struct sockaddr *)&addr,
 				volume_info->UNCip,
