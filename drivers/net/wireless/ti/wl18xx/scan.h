@@ -35,13 +35,6 @@ struct tracking_ch_params {
 	u8 padding[2];
 } __packed;
 
-enum
-{
-	SCAN_TYPE_SEARCH	= 0,
-	SCAN_TYPE_PERIODIC	= 1,
-	SCAN_TYPE_TRACKING	= 2,
-};
-
 /* probe request rate */
 enum
 {

@@ -150,12 +150,19 @@ struct wlcore_scan_channels {
 	struct conn_scan_ch_params channels_4[MAX_CHANNELS_4GHZ];
 };
 
+enum {
+	SCAN_TYPE_SEARCH	= 0,
+	SCAN_TYPE_PERIODIC	= 1,
+	SCAN_TYPE_TRACKING	= 2,
+};
+
 bool
 wlcore_set_scan_chan_params(struct wl1271 *wl,
 			    struct wlcore_scan_channels *cfg,
 			    struct ieee80211_channel *channels[],
 			    u32 n_channels,
-			    u32 n_ssids);
+			    u32 n_ssids,
+			    int scan_type);
 
 int
 wlcore_scan_sched_scan_ssid_list(struct wl1271 *wl,

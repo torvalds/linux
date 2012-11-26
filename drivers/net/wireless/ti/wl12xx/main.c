@@ -267,8 +267,8 @@ static struct wlcore_conf wl12xx_conf = {
 	.scan = {
 		.min_dwell_time_active        = 7500,
 		.max_dwell_time_active        = 30000,
-		.min_dwell_time_passive       = 100000,
-		.max_dwell_time_passive       = 100000,
+		.dwell_time_passive           = 100000,
+		.dwell_time_dfs               = 150000,
 		.num_probe_reqs               = 2,
 		.split_scan_timeout           = 50000,
 	},

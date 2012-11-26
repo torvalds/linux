@@ -84,7 +84,8 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	}
 
 	wlcore_set_scan_chan_params(wl, cmd_channels, req->channels,
-				    req->n_channels, req->n_ssids);
+				    req->n_channels, req->n_ssids,
+				    SCAN_TYPE_SEARCH);
 	wl18xx_adjust_channels(cmd, cmd_channels);
 
 	/*
@@ -214,7 +215,8 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 
 	/* configure channels */
 	wlcore_set_scan_chan_params(wl, cmd_channels, req->channels,
-				    req->n_channels, req->n_ssids);
+				    req->n_channels, req->n_ssids,
+				    SCAN_TYPE_PERIODIC);
 	wl18xx_adjust_channels(cmd, cmd_channels);
 
 	cmd->short_cycles_sec = 0;

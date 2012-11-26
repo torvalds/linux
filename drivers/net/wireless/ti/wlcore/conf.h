@@ -1059,19 +1059,11 @@ struct conf_scan_settings {
 	 */
 	u32 max_dwell_time_active;
 
-	/*
-	 * The minimum time to wait on each channel for passive scans
-	 *
-	 * Range: u32 tu/1000
-	 */
-	u32 min_dwell_time_passive;
+	/* time to wait on the channel for passive scans (in TU/1000) */
+	u32 dwell_time_passive;
 
-	/*
-	 * The maximum time to wait on each channel for passive scans
-	 *
-	 * Range: u32 tu/1000
-	 */
-	u32 max_dwell_time_passive;
+	/* time to wait on the channel for DFS scans (in TU/1000) */
+	u32 dwell_time_dfs;
 
 	/*
 	 * Number of probe requests to transmit on each active scan channel
@@ -1281,7 +1273,7 @@ struct conf_hangover_settings {
  * version, the two LSB are the lower driver's private conf
  * version.
  */
-#define WLCORE_CONF_VERSION	(0x0002 << 16)
+#define WLCORE_CONF_VERSION	(0x0003 << 16)
 #define WLCORE_CONF_MASK	0xffff0000
 #define WLCORE_CONF_SIZE	(sizeof(struct wlcore_conf_header) +	\
 				 sizeof(struct wlcore_conf))

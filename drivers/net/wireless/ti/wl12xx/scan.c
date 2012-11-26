@@ -68,9 +68,9 @@ static int wl1271_get_scan_channels(struct wl1271 *wl,
 					cpu_to_le32(c->max_dwell_time_active);
 			} else {
 				channels[j].min_duration =
-					cpu_to_le32(c->min_dwell_time_passive);
+					cpu_to_le32(c->dwell_time_passive);
 				channels[j].max_duration =
-					cpu_to_le32(c->max_dwell_time_passive);
+					cpu_to_le32(c->dwell_time_passive);
 			}
 			channels[j].early_termination = 0;
 			channels[j].tx_power_att = req->channels[i]->max_power;
@@ -364,7 +364,8 @@ int wl1271_scan_sched_scan_config(struct wl1271 *wl,
 	}
 
 	if (!wlcore_set_scan_chan_params(wl, cfg_channels, req->channels,
-					 req->n_channels, req->n_ssids)) {
+					 req->n_channels, req->n_ssids,
+					 SCAN_TYPE_PERIODIC)) {
 		wl1271_error("scan channel list is empty");
 		ret = -EINVAL;
 		goto out;
