@@ -265,7 +265,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		if (verify_dir_item(root, leaf, di))
-			continue;
+			goto next;
 
 		name_len = btrfs_dir_name_len(leaf, di);
 		total_size += name_len + 1;
