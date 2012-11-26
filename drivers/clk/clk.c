@@ -259,32 +259,32 @@ late_initcall(clk_disable_unused);
 
 /***    helper functions   ***/
 
-inline const char *__clk_get_name(struct clk *clk)
+const char *__clk_get_name(struct clk *clk)
 {
 	return !clk ? NULL : clk->name;
 }
 
-inline struct clk_hw *__clk_get_hw(struct clk *clk)
+struct clk_hw *__clk_get_hw(struct clk *clk)
 {
 	return !clk ? NULL : clk->hw;
 }
 
-inline u8 __clk_get_num_parents(struct clk *clk)
+u8 __clk_get_num_parents(struct clk *clk)
 {
 	return !clk ? 0 : clk->num_parents;
 }
 
-inline struct clk *__clk_get_parent(struct clk *clk)
+struct clk *__clk_get_parent(struct clk *clk)
 {
 	return !clk ? NULL : clk->parent;
 }
 
-inline unsigned int __clk_get_enable_count(struct clk *clk)
+unsigned int __clk_get_enable_count(struct clk *clk)
 {
 	return !clk ? 0 : clk->enable_count;
 }
 
-inline unsigned int __clk_get_prepare_count(struct clk *clk)
+unsigned int __clk_get_prepare_count(struct clk *clk)
 {
 	return !clk ? 0 : clk->prepare_count;
 }
@@ -310,7 +310,7 @@ out:
 	return ret;
 }
 
-inline unsigned long __clk_get_flags(struct clk *clk)
+unsigned long __clk_get_flags(struct clk *clk)
 {
 	return !clk ? 0 : clk->flags;
 }
