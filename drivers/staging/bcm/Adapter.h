@@ -151,7 +151,7 @@ struct bcm_packet_info {
 	UINT		NumOfPacketsSent;
 	UCHAR		ucDirection;
 	USHORT		usCID;
-	S_MIBS_EXTSERVICEFLOW_PARAMETERS	stMibsExtServiceFlowTable;
+	struct bcm_mibs_parameters stMibsExtServiceFlowTable;
 	UINT		uiCurrentRxRate;
 	UINT		uiThisPeriodRxBytes;
 	UINT		uiTotalRxBytes;

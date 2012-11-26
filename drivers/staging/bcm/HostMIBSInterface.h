@@ -113,7 +113,7 @@ typedef struct _S_MIBS_PHS_RULE {
 	unsigned long	PHSErrorNumPackets;
 } S_MIBS_PHS_RULE;
 
-typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
+struct bcm_mibs_parameters {
 	u32 wmanIfSfid;
 	u32 wmanIfCmnCpsSfState;
 	u32 wmanIfCmnCpsMaxSustainedRate;
@@ -135,7 +135,7 @@ typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
 	u32 wmanIfCmnCpsReqTxPolicy;
 	u32 wmanIfCmnSfCsSpecification;
 	u32 wmanIfCmnCpsTargetSaid;
-} S_MIBS_EXTSERVICEFLOW_PARAMETERS;
+};
 
 struct bcm_mibs_table {
 	unsigned long	ulSFID;
@@ -163,7 +163,7 @@ struct bcm_mibs_table {
 	unsigned int	NumOfPacketsSent;
 	unsigned char ucDirection;
 	unsigned short	usCID;
-	S_MIBS_EXTSERVICEFLOW_PARAMETERS stMibsExtServiceFlowTable;
+	struct bcm_mibs_parameters stMibsExtServiceFlowTable;
 	unsigned int	uiCurrentRxRate;
 	unsigned int	uiThisPeriodRxBytes;
 	unsigned int	uiTotalRxBytes;

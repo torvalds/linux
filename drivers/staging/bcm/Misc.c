@@ -1575,6 +1575,6 @@ static void beceem_protocol_reset(struct bcm_mini_adapter *Adapter)
 	for (i = 0; i < HiPriority; i++) {
 		/* resetting only the first size (S_MIBS_SERVICEFLOW_TABLE) for the SF. */
 		/* It is same between MIBs and SF. */
-		memset(&Adapter->PackInfo[i].stMibsExtServiceFlowTable, 0, sizeof(S_MIBS_EXTSERVICEFLOW_PARAMETERS));
+		memset(&Adapter->PackInfo[i].stMibsExtServiceFlowTable, 0, sizeof(struct bcm_mibs_parameters));
 	}
 }
