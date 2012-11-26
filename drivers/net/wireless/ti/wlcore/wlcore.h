@@ -337,6 +337,8 @@ struct wl1271 {
 
 	bool enable_11a;
 
+	int recovery_count;
+
 	/* Most recently reported noise in dBm */
 	s8 noise;
 

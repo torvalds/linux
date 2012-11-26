@@ -879,7 +879,8 @@ static void wlcore_print_recovery(struct wl1271 *wl)
 	if (ret < 0)
 		return;
 
-	wl1271_info("pc: 0x%x, hint_sts: 0x%08x", pc, hint_sts);
+	wl1271_info("pc: 0x%x, hint_sts: 0x%08x count: %d",
+				pc, hint_sts, ++wl->recovery_count);
 
 	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
 }
@@ -5685,6 +5686,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 	wl->flags = 0;
 	wl->sg_enabled = true;
 	wl->sleep_auth = WL1271_PSM_ILLEGAL;
+	wl->recovery_count = 0;
 	wl->hw_pg_ver = -1;
 	wl->ap_ps_map = 0;
 	wl->ap_fw_ps_map = 0;
