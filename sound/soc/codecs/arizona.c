@@ -380,6 +380,18 @@ int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id,
 	case 49152000:
 		val |= 3 << ARIZONA_SYSCLK_FREQ_SHIFT;
 		break;
+	case 67737600:
+	case 73728000:
+		val |= 4 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		break;
+	case 90316800:
+	case 98304000:
+		val |= 5 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		break;
+	case 135475200:
+	case 147456000:
+		val |= 6 << ARIZONA_SYSCLK_FREQ_SHIFT;
+		break;
 	default:
 		return -EINVAL;
 	}
