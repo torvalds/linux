@@ -1114,7 +1114,7 @@ void fib_select_default(struct fib_result *res)
 		order++;
 	}
 
-	if (order <= 0 || fi == NULL) {
+	if (order <= 0 || fi == NULL || fi->fib_dev == NULL) {
 		tb->tb_default = -1;
 		goto out;
 	}
