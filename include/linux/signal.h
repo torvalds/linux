@@ -249,6 +249,20 @@ extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 extern int sigsuspend(sigset_t *);
 
+struct sigaction {
+#ifndef __ARCH_HAS_ODD_SIGACTION
+	__sighandler_t	sa_handler;
+	unsigned long	sa_flags;
+#else
+	unsigned long	sa_flags;
+	__sighandler_t	sa_handler;
+#endif
+#ifdef __ARCH_HAS_SA_RESTORER
+	__sigrestore_t sa_restorer;
+#endif
+	sigset_t	sa_mask;	/* mask last for extensibility */
+};
+
 struct k_sigaction {
 	struct sigaction sa;
 #ifdef __ARCH_HAS_KA_RESTORER

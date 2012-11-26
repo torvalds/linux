@@ -23,12 +23,7 @@ struct old_sigaction {
 	void (*sa_restorer)(void);
 };
 
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
+#define __ARCH_HAS_SA_RESTORER
 
 #include <asm/sigcontext.h>
 #undef __HAVE_ARCH_SIG_BITOPS

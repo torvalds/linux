@@ -97,12 +97,14 @@ struct old_sigaction {
 	__sigrestore_t sa_restorer;
 };
 
+#ifndef __KERNEL__
 struct sigaction {
 	__sighandler_t sa_handler;
 	unsigned long sa_flags;
 	__sigrestore_t sa_restorer;
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
+#endif
 
 typedef struct sigaltstack {
 	void __user *ss_sp;

@@ -93,6 +93,11 @@ typedef unsigned long old_sigset_t;
 
 #include <asm-generic/signal-defs.h>
 
+#ifdef SA_RESTORER
+#define __ARCH_HAS_SA_RESTORER
+#endif
+
+#ifndef __KERNEL__
 struct sigaction {
 	__sighandler_t sa_handler;
 	unsigned long sa_flags;
@@ -101,6 +106,7 @@ struct sigaction {
 #endif
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
+#endif
 
 typedef struct sigaltstack {
 	void __user *ss_sp;

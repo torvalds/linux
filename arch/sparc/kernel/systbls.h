@@ -3,8 +3,8 @@
 
 #include <linux/kernel.h>
 #include <linux/types.h>
+#include <linux/signal.h>
 #include <asm/utrap.h>
-#include <asm/signal.h>
 
 extern asmlinkage unsigned long sys_getpagesize(void);
 extern asmlinkage long sparc_pipe(struct pt_regs *regs);

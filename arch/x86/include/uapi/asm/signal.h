@@ -95,9 +95,9 @@ typedef unsigned long sigset_t;
 #ifndef __ASSEMBLY__
 
 
-#ifdef __i386__
 # ifndef __KERNEL__
 /* Here we must cater to libcs that poke about in kernel headers.  */
+#ifdef __i386__
 
 struct sigaction {
 	union {
@@ -112,7 +112,6 @@ struct sigaction {
 #define sa_handler	_u._sa_handler
 #define sa_sigaction	_u._sa_sigaction
 
-# endif /* ! __KERNEL__ */
 #else /* __i386__ */
 
 struct sigaction {
@@ -123,6 +122,7 @@ struct sigaction {
 };
 
 #endif /* !__i386__ */
+# endif /* ! __KERNEL__ */
 
 typedef struct sigaltstack {
 	void __user *ss_sp;

@@ -9,7 +9,6 @@
 
 struct pt_regs;
 struct rtas_args;
-struct sigaction;
 
 asmlinkage unsigned long sys_mmap(unsigned long addr, size_t len,
 		unsigned long prot, unsigned long flags,

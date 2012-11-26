@@ -47,7 +47,6 @@ asmlinkage unsigned long sys_mmap2(
 				int prot, int flags,
 				int fd, long pgoff);
 struct pt_regs;
-struct sigaction;
 asmlinkage long sys_ia64_pipe(void);
 
 /*

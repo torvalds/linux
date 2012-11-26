@@ -31,19 +31,15 @@ typedef sigset_t compat_sigset_t;
 #include <uapi/asm/signal.h>
 #ifndef __ASSEMBLY__
 extern void do_notify_resume(struct pt_regs *, void *, __u32);
+
+#define __ARCH_HAS_SA_RESTORER
+
 #ifdef __i386__
 struct old_sigaction {
 	__sighandler_t sa_handler;
 	old_sigset_t sa_mask;
 	unsigned long sa_flags;
 	__sigrestore_t sa_restorer;
-};
-
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	__sigrestore_t sa_restorer;
-	sigset_t sa_mask;		/* mask last for extensibility */
 };
 
 #endif /* !__i386__ */

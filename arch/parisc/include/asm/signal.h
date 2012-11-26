@@ -24,11 +24,13 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
+#ifndef __KERNEL__
 struct sigaction {
 	__sighandler_t sa_handler;
 	unsigned long sa_flags;
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
+#endif
 
 #include <asm/sigcontext.h>
 

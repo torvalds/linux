@@ -15,12 +15,7 @@
 #include <uapi/asm/signal.h>
 
 #ifndef __ASSEMBLY__
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
+#define __ARCH_HAS_SA_RESTORER
 
 #include <asm/sigcontext.h>
 

@@ -22,12 +22,6 @@ struct osf_sigaction {
 	int		sa_flags;
 };
 
-struct sigaction {
-	__sighandler_t	sa_handler;
-	unsigned long	sa_flags;
-	sigset_t	sa_mask;	/* mask last for extensibility */
-};
-
 #define __ARCH_HAS_KA_RESTORER
 #include <asm/sigcontext.h>
 #endif
