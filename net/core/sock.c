@@ -505,7 +505,8 @@ struct dst_entry *sk_dst_check(struct sock *sk, u32 cookie)
 }
 EXPORT_SYMBOL(sk_dst_check);
 
-static int sock_bindtodevice(struct sock *sk, char __user *optval, int optlen)
+static int sock_setbindtodevice(struct sock *sk, char __user *optval,
+				int optlen)
 {
 	int ret = -ENOPROTOOPT;
 #ifdef CONFIG_NETDEVICES
@@ -562,6 +563,59 @@ out:
 	return ret;
 }
 
+static int sock_getbindtodevice(struct sock *sk, char __user *optval,
+				int __user *optlen, int len)
+{
+	int ret = -ENOPROTOOPT;
+#ifdef CONFIG_NETDEVICES
+	struct net *net = sock_net(sk);
+	struct net_device *dev;
+	char devname[IFNAMSIZ];
+	unsigned seq;
+
+	if (sk->sk_bound_dev_if == 0) {
+		len = 0;
+		goto zero;
+	}
+
+	ret = -EINVAL;
+	if (len < IFNAMSIZ)
+		goto out;
+
+retry:
+	seq = read_seqbegin(&devnet_rename_seq);
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(net, sk->sk_bound_dev_if);
+	ret = -ENODEV;
+	if (!dev) {
+		rcu_read_unlock();
+		goto out;
+	}
+
+	strcpy(devname, dev->name);
+	rcu_read_unlock();
+	if (read_seqretry(&devnet_rename_seq, seq))
+		goto retry;
+
+	len = strlen(devname) + 1;
+
+	ret = -EFAULT;
+	if (copy_to_user(optval, devname, len))
+		goto out;
+
+zero:
+	ret = -EFAULT;
+	if (put_user(len, optlen))
+		goto out;
+
+	ret = 0;
+
+out:
+#endif
+
+	return ret;
+}
+
 static inline void sock_valbool_flag(struct sock *sk, int bit, int valbool)
 {
 	if (valbool)
@@ -589,7 +643,7 @@ int sock_setsockopt(struct socket *sock, int level, int optname,
 	 */
 
 	if (optname == SO_BINDTODEVICE)
-		return sock_bindtodevice(sk, optval, optlen);
+		return sock_setbindtodevice(sk, optval, optlen);
 
 	if (optlen < sizeof(int))
 		return -EINVAL;
@@ -1075,15 +1129,17 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 	case SO_NOFCS:
 		v.val = sock_flag(sk, SOCK_NOFCS);
 		break;
+
 	case SO_BINDTODEVICE:
-		v.val = sk->sk_bound_dev_if;
-		break;
+		return sock_getbindtodevice(sk, optval, optlen, len);
+
 	case SO_GET_FILTER:
 		len = sk_get_filter(sk, (struct sock_filter __user *)optval, len);
 		if (len < 0)
 			return len;
 
 		goto lenout;
+
 	default:
 		return -ENOPROTOOPT;
 	}
