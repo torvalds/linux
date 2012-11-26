@@ -690,13 +690,11 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	intel_clock_t clock;
 	int err = target;
 
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
-	    (I915_READ(LVDS)) != 0) {
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
 		/*
-		 * For LVDS, if the panel is on, just rely on its current
-		 * settings for dual-channel.  We haven't figured out how to
-		 * reliably set up different single/dual channel state, if we
-		 * even can.
+		 * For LVDS just rely on its current settings for dual-channel.
+		 * We haven't figured out how to reliably set up different
+		 * single/dual channel state, if we even can.
 		 */
 		if (is_dual_link_lvds(dev_priv, LVDS))
 			clock.p2 = limit->p2.p2_fast;
@@ -766,8 +764,7 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			lvds_reg = PCH_LVDS;
 		else
 			lvds_reg = LVDS;
-		if ((I915_READ(lvds_reg) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
+		if (is_dual_link_lvds(dev_priv, lvds_reg))
 			clock.p2 = limit->p2.p2_fast;
 		else
 			clock.p2 = limit->p2.p2_slow;
@@ -5359,7 +5356,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	if (is_lvds) {
 		if ((intel_panel_use_ssc(dev_priv) &&
 		     dev_priv->lvds_ssc_freq == 100) ||
-		    (I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP)
+		    is_dual_link_lvds(dev_priv, PCH_LVDS))
 			factor = 25;
 	} else if (is_sdvo && is_tv)
 		factor = 20;
