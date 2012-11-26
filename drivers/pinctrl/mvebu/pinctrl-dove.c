@@ -595,8 +595,11 @@ static int __devinit dove_pinctrl_probe(struct platform_device *pdev)
 	 * grab clk to make sure it is ticking.
 	 */
 	clk = devm_clk_get(&pdev->dev, NULL);
-	if (!IS_ERR(clk))
-		clk_prepare_enable(clk);
+	if (IS_ERR(clk)) {
+		dev_err(&pdev->dev, "Unable to get pdma clock");
+		return PTR_RET(clk);
+	}
+	clk_prepare_enable(clk);
 
 	return mvebu_pinctrl_probe(pdev);
 }
