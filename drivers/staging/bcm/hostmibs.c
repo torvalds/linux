@@ -9,7 +9,7 @@
 
 #include "headers.h"
 
-INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS *pstHostMibs)
+INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_mibs *pstHostMibs)
 {
 	S_SERVICEFLOW_ENTRY *pstServiceFlowEntry = NULL;
 	S_PHS_RULE *pstPhsRule = NULL;
@@ -94,7 +94,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, S_MIBS_HOST_STATS_MIBS 
 	return STATUS_SUCCESS;
 }
 
-VOID GetDroppedAppCntrlPktMibs(S_MIBS_HOST_STATS_MIBS *pstHostMibs, struct bcm_tarang_data *pTarang)
+VOID GetDroppedAppCntrlPktMibs(struct bcm_host_stats_mibs *pstHostMibs, struct bcm_tarang_data *pTarang)
 {
 	memcpy(&(pstHostMibs->stDroppedAppCntrlMsgs),
 	       &(pTarang->stDroppedAppCntrlMsgs),

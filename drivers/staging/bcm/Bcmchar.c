@@ -1083,15 +1083,15 @@ cntrlEnd:
 		if (copy_from_user(&IoBuffer, argp, sizeof(struct bcm_ioctl_buffer)))
 			return -EFAULT;
 
-		if (IoBuffer.OutputLength != sizeof(S_MIBS_HOST_STATS_MIBS)) {
+		if (IoBuffer.OutputLength != sizeof(struct bcm_host_stats_mibs)) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,
 					"Length Check failed %lu %zd\n",
-					IoBuffer.OutputLength, sizeof(S_MIBS_HOST_STATS_MIBS));
+					IoBuffer.OutputLength, sizeof(struct bcm_host_stats_mibs));
 			return -EINVAL;
 		}
 
 		/* FIXME: HOST_STATS are too big for kmalloc (122048)! */
-		temp_buff = kzalloc(sizeof(S_MIBS_HOST_STATS_MIBS), GFP_KERNEL);
+		temp_buff = kzalloc(sizeof(struct bcm_host_stats_mibs), GFP_KERNEL);
 		if (!temp_buff)
 			return STATUS_FAILURE;
 
@@ -1099,7 +1099,7 @@ cntrlEnd:
 		GetDroppedAppCntrlPktMibs(temp_buff, pTarang);
 
 		if (Status != STATUS_FAILURE)
-			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(S_MIBS_HOST_STATS_MIBS))) {
+			if (copy_to_user(IoBuffer.OutputBuffer, temp_buff, sizeof(struct bcm_host_stats_mibs))) {
 				kfree(temp_buff);
 				return -EFAULT;
 			}

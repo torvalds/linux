@@ -181,12 +181,12 @@ typedef struct _S_MIBS_DROPPED_APP_CNTRL_MESSAGES {
 	unsigned long low_priority_message;
 } S_MIBS_DROPPED_APP_CNTRL_MESSAGES;
 
-typedef struct _S_MIBS_HOST_STATS_MIBS {
+struct bcm_host_stats_mibs {
 	S_MIBS_HOST_INFO	stHostInfo;
 	S_MIBS_CLASSIFIER_RULE	astClassifierTable[MIBS_MAX_CLASSIFIERS];
 	S_MIBS_SERVICEFLOW_TABLE astSFtable[MIBS_MAX_SERVICEFLOWS];
 	S_MIBS_PHS_RULE		astPhsRulesTable[MIBS_MAX_PHSRULES];
 	S_MIBS_DROPPED_APP_CNTRL_MESSAGES stDroppedAppCntrlMsgs;
-} S_MIBS_HOST_STATS_MIBS;
+};
 
 #endif
