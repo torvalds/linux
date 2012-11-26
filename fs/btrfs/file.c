@@ -318,8 +318,11 @@ static int __btrfs_run_defrag_inode(struct btrfs_fs_info *fs_info,
 	memset(&range, 0, sizeof(range));
 	range.len = (u64)-1;
 	range.start = defrag->last_offset;
+
+	sb_start_write(fs_info->sb);
 	num_defrag = btrfs_defrag_file(inode, NULL, &range, defrag->transid,
 				       BTRFS_DEFRAG_BATCH);
+	sb_end_write(fs_info->sb);
 	/*
 	 * if we filled the whole defrag batch, there
 	 * must be more work to do.  Queue this defrag
