@@ -43,6 +43,8 @@ struct rcar_thermal_priv {
 	u32 comp;
 };
 
+#define MCELSIUS(temp)			((temp) * 1000)
+
 /*
  *		basic functions
  */
@@ -169,7 +171,7 @@ static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
 		}
 	}
 
-	*temp = tmp;
+	*temp = MCELSIUS(tmp);
 	return 0;
 }
 
