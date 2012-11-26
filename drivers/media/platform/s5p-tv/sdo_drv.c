@@ -301,7 +301,7 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	struct clk *sclk_vpll;
 
 	dev_info(dev, "probe start\n");
-	sdev = devm_kzalloc(&pdev->dev, sizeof *sdev, GFP_KERNEL);
+	sdev = devm_kzalloc(&pdev->dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
@@ -397,7 +397,7 @@ static int __devinit sdo_probe(struct platform_device *pdev)
 	/* configuration of interface subdevice */
 	v4l2_subdev_init(&sdev->sd, &sdo_sd_ops);
 	sdev->sd.owner = THIS_MODULE;
-	strlcpy(sdev->sd.name, "s5p-sdo", sizeof sdev->sd.name);
+	strlcpy(sdev->sd.name, "s5p-sdo", sizeof(sdev->sd.name));
 
 	/* set default format */
 	sdev->fmt = sdo_find_format(SDO_DEFAULT_STD);
