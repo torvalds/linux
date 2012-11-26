@@ -41,11 +41,6 @@
 #define SONY_VENDOR_ID         0x054c
 #define PASORI_PRODUCT_ID      0x02e1
 
-#define PN533_QUIRKS_TYPE_A          BIT(0)
-#define PN533_QUIRKS_TYPE_F          BIT(1)
-#define PN533_QUIRKS_DEP             BIT(2)
-#define PN533_QUIRKS_RAW_EXCHANGE    BIT(3)
-
 #define PN533_DEVICE_STD    0x1
 #define PN533_DEVICE_PASORI 0x2
 
@@ -127,9 +122,6 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_CMD_RET_MASK 0x3F
 #define PN533_CMD_MI_MASK 0x40
 #define PN533_CMD_RET_SUCCESS 0x00
-
-/* PN533 status codes */
-#define PN533_STATUS_TARGET_RELEASED 0x29
 
 struct pn533;
 
