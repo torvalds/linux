@@ -17,8 +17,8 @@
 #else
 		mov	\rp, #0
 #endif
-                orr     \rv, \rp, #0xff000000	@ virtual
-		orr	\rv, \rv, #0x00b00000
+		orr	\rv, \rp, #0xfe000000	@ virtual
+		orr	\rv, \rv, #0x00f00000
                 orr     \rp, \rp, #0xc8000000	@ physical
                 .endm
 
