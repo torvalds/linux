@@ -56,7 +56,6 @@ static int vprbrd_probe(struct usb_interface *interface,
 
 	u16 version = 0;
 	int pipe, ret;
-	unsigned char buf[1];
 
 	/* allocate memory for our device state and initialize it */
 	vb = kzalloc(sizeof(*vb), GFP_KERNEL);
@@ -76,17 +75,17 @@ static int vprbrd_probe(struct usb_interface *interface,
 	/* get version information, major first, minor then */
 	pipe = usb_rcvctrlpipe(vb->usb_dev, 0);
 	ret = usb_control_msg(vb->usb_dev, pipe, VPRBRD_USB_REQUEST_MAJOR,
-		VPRBRD_USB_TYPE_IN, 0x0000, 0x0000, buf, 1,
+		VPRBRD_USB_TYPE_IN, 0x0000, 0x0000, vb->buf, 1,
 		VPRBRD_USB_TIMEOUT_MS);
 	if (ret == 1)
-		version = buf[0];
+		version = vb->buf[0];
 
 	ret = usb_control_msg(vb->usb_dev, pipe, VPRBRD_USB_REQUEST_MINOR,
-		VPRBRD_USB_TYPE_IN, 0x0000, 0x0000, buf, 1,
+		VPRBRD_USB_TYPE_IN, 0x0000, 0x0000, vb->buf, 1,
 		VPRBRD_USB_TIMEOUT_MS);
 	if (ret == 1) {
 		version <<= 8;
-		version = version | buf[0];
+		version = version | vb->buf[0];
 	}
 
 	dev_info(&interface->dev,
