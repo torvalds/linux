@@ -846,18 +846,16 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	if (!ctx)
 		return -ENOMEM;
 
-	ctx->bus_clk = clk_get(dev, "fimd");
+	ctx->bus_clk = devm_clk_get(dev, "fimd");
 	if (IS_ERR(ctx->bus_clk)) {
 		dev_err(dev, "failed to get bus clock\n");
-		ret = PTR_ERR(ctx->bus_clk);
-		goto err_clk_get;
+		return PTR_ERR(ctx->bus_clk);
 	}
 
-	ctx->lcd_clk = clk_get(dev, "sclk_fimd");
+	ctx->lcd_clk = devm_clk_get(dev, "sclk_fimd");
 	if (IS_ERR(ctx->lcd_clk)) {
 		dev_err(dev, "failed to get lcd clock\n");
-		ret = PTR_ERR(ctx->lcd_clk);
-		goto err_bus_clk;
+		return PTR_ERR(ctx->lcd_clk);
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -865,14 +863,13 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	ctx->regs = devm_request_and_ioremap(&pdev->dev, res);
 	if (!ctx->regs) {
 		dev_err(dev, "failed to map registers\n");
-		ret = -ENXIO;
-		goto err_clk;
+		return -ENXIO;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_clk;
+		return -ENXIO;
 	}
 
 	ctx->irq = res->start;
@@ -881,7 +878,7 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 							0, "drm_fimd", ctx);
 	if (ret) {
 		dev_err(dev, "irq request failed.\n");
-		goto err_clk;
+		return ret;
 	}
 
 	ctx->vidcon0 = pdata->vidcon0;
@@ -915,17 +912,6 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 	exynos_drm_subdrv_register(subdrv);
 
 	return 0;
-
-err_clk:
-	clk_disable(ctx->lcd_clk);
-	clk_put(ctx->lcd_clk);
-
-err_bus_clk:
-	clk_disable(ctx->bus_clk);
-	clk_put(ctx->bus_clk);
-
-err_clk_get:
-	return ret;
 }
 
 static int __devexit fimd_remove(struct platform_device *pdev)
@@ -948,9 +934,6 @@ static int __devexit fimd_remove(struct platform_device *pdev)
 
 out:
 	pm_runtime_disable(dev);
-
-	clk_put(ctx->lcd_clk);
-	clk_put(ctx->bus_clk);
 
 	return 0;
 }
