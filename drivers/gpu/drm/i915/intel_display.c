@@ -4257,51 +4257,6 @@ static void i9xx_update_pll_dividers(struct drm_crtc *crtc,
 	}
 }
 
-static void intel_update_lvds(struct drm_crtc *crtc, intel_clock_t *clock,
-			      struct drm_display_mode *adjusted_mode)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	u32 temp;
-
-	temp = I915_READ(LVDS);
-	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-	if (pipe == 1) {
-		temp |= LVDS_PIPEB_SELECT;
-	} else {
-		temp &= ~LVDS_PIPEB_SELECT;
-	}
-	/* set the corresponsding LVDS_BORDER bit */
-	temp |= dev_priv->lvds_border_bits;
-	/* Set the B0-B3 data pairs corresponding to whether we're going to
-	 * set the DPLLs for dual-channel mode or not.
-	 */
-	if (clock->p2 == 7)
-		temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
-	else
-		temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
-
-	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
-	 * appropriately here, but we need to look more thoroughly into how
-	 * panels behave in the two modes.
-	 */
-	/* set the dithering flag on LVDS as needed */
-	if (INTEL_INFO(dev)->gen >= 4) {
-		if (dev_priv->lvds_dither)
-			temp |= LVDS_ENABLE_DITHER;
-		else
-			temp &= ~LVDS_ENABLE_DITHER;
-	}
-	temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-		temp |= LVDS_HSYNC_POLARITY;
-	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-		temp |= LVDS_VSYNC_POLARITY;
-	I915_WRITE(LVDS, temp);
-}
-
 static void vlv_update_pll(struct drm_crtc *crtc,
 			   struct drm_display_mode *mode,
 			   struct drm_display_mode *adjusted_mode,
@@ -4484,13 +4439,6 @@ static void i9xx_update_pll(struct drm_crtc *crtc,
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
 
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		intel_update_lvds(crtc, clock, adjusted_mode);
-
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 
@@ -4565,13 +4513,6 @@ static void i8xx_update_pll(struct drm_crtc *crtc,
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->pre_pll_enable)
 			encoder->pre_pll_enable(encoder);
-
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		intel_update_lvds(crtc, clock, adjusted_mode);
 
 	I915_WRITE(DPLL(pipe), dpll);
 

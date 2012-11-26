@@ -89,6 +89,62 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+ * This is an exception to the general rule that mode_set doesn't turn
+ * things on.
+ */
+static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
+{
+	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(&encoder->base);
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	struct drm_display_mode *fixed_mode =
+		lvds_encoder->attached_connector->base.panel.fixed_mode;
+	int pipe = intel_crtc->pipe;
+	u32 temp;
+
+	/* pch split platforms are not yet converted. */
+	if (HAS_PCH_SPLIT(dev))
+		return;
+
+	temp = I915_READ(lvds_encoder->reg);
+	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
+	if (pipe == 1) {
+		temp |= LVDS_PIPEB_SELECT;
+	} else {
+		temp &= ~LVDS_PIPEB_SELECT;
+	}
+	/* set the corresponsding LVDS_BORDER bit */
+	temp |= dev_priv->lvds_border_bits;
+	/* Set the B0-B3 data pairs corresponding to whether we're going to
+	 * set the DPLLs for dual-channel mode or not.
+	 */
+	if (lvds_encoder->is_dual_link)
+		temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
+	else
+		temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
+
+	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
+	 * appropriately here, but we need to look more thoroughly into how
+	 * panels behave in the two modes.
+	 */
+	/* set the dithering flag on LVDS as needed */
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (dev_priv->lvds_dither)
+			temp |= LVDS_ENABLE_DITHER;
+		else
+			temp &= ~LVDS_ENABLE_DITHER;
+	}
+	temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
+	if (fixed_mode->flags & DRM_MODE_FLAG_NHSYNC)
+		temp |= LVDS_HSYNC_POLARITY;
+	if (fixed_mode->flags & DRM_MODE_FLAG_NVSYNC)
+		temp |= LVDS_VSYNC_POLARITY;
+
+	I915_WRITE(lvds_encoder->reg, temp);
+}
+
 /**
  * Sets the power state for the panel.
  */
@@ -1041,6 +1097,7 @@ bool intel_lvds_init(struct drm_device *dev)
 			 DRM_MODE_ENCODER_LVDS);
 
 	intel_encoder->enable = intel_enable_lvds;
+	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
