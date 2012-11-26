@@ -787,7 +787,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 
 	case OMAPFB_WAITFORVSYNC:
 		DBG("ioctl WAITFORVSYNC\n");
-		if (!display && !display->output && !display->output->manager) {
+		if (!display || !display->output || !display->output->manager) {
 			r = -EINVAL;
 			break;
 		}

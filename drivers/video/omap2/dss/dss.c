@@ -753,11 +753,15 @@ static int dss_get_clocks(void)
 
 	dss.dss_clk = clk;
 
-	clk = clk_get(NULL, dss.feat->clk_name);
-	if (IS_ERR(clk)) {
-		DSSERR("Failed to get %s\n", dss.feat->clk_name);
-		r = PTR_ERR(clk);
-		goto err;
+	if (dss.feat->clk_name) {
+		clk = clk_get(NULL, dss.feat->clk_name);
+		if (IS_ERR(clk)) {
+			DSSERR("Failed to get %s\n", dss.feat->clk_name);
+			r = PTR_ERR(clk);
+			goto err;
+		}
+	} else {
+		clk = NULL;
 	}
 
 	dss.dpll4_m4_ck = clk;
