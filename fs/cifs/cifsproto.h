@@ -110,9 +110,7 @@ extern unsigned int smbCalcSize(void *buf);
 extern int decode_negTokenInit(unsigned char *security_blob, int length,
 			struct TCP_Server_Info *server);
 extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
-extern int cifs_set_port(struct sockaddr *addr, const unsigned short int port);
-extern int cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
-				const unsigned short int port);
+extern void cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 extern int map_smb_to_linux_error(char *buf, bool logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifs_tcon *, int /* length of

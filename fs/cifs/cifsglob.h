@@ -394,7 +394,6 @@ struct smb_vol {
 	char *password;
 	char *domainname;
 	char *UNC;
-	char *UNCip;
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
@@ -442,11 +441,11 @@ struct smb_vol {
 	unsigned int rsize;
 	unsigned int wsize;
 	bool sockopt_tcp_nodelay:1;
-	unsigned short int port;
 	unsigned long actimeo; /* attribute cache timeout (jiffies) */
 	struct smb_version_operations *ops;
 	struct smb_version_values *vals;
 	char *prepath;
+	struct sockaddr_storage dstaddr; /* destination address */
 	struct sockaddr_storage srcaddr; /* allow binding to a local IP */
 	struct nls_table *local_nls;
 };
