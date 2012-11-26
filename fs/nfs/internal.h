@@ -18,27 +18,6 @@ struct nfs_string;
  */
 #define NFS_MAX_READAHEAD	(RPC_DEF_SLOT_TABLE - 1)
 
-/*
- * Determine if sessions are in use.
- */
-static inline int nfs4_has_session(const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (clp->cl_session)
-		return 1;
-#endif /* CONFIG_NFS_V4_1 */
-	return 0;
-}
-
-static inline int nfs4_has_persistent_session(const struct nfs_client *clp)
-{
-#ifdef CONFIG_NFS_V4_1
-	if (nfs4_has_session(clp))
-		return (clp->cl_session->flags & SESSION4_PERSIST);
-#endif /* CONFIG_NFS_V4_1 */
-	return 0;
-}
-
 static inline void nfs_attr_check_mountpoint(struct super_block *parent, struct nfs_fattr *fattr)
 {
 	if (!nfs_fsid_equal(&NFS_SB(parent)->fsid, &fattr->fsid))

@@ -40,6 +40,7 @@
 #include <linux/pagevec.h>
 
 #include "../pnfs.h"
+#include "../nfs4session.h"
 #include "../internal.h"
 #include "blocklayout.h"
 

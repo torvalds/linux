@@ -64,6 +64,7 @@
 #include "iostat.h"
 #include "internal.h"
 #include "fscache.h"
+#include "nfs4session.h"
 #include "pnfs.h"
 #include "nfs.h"
 

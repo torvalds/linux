@@ -185,16 +185,7 @@ struct nfs4_channel_attrs {
 	u32			max_reqs;
 };
 
-/* nfs41 sessions slot seqid */
-struct nfs4_slot {
-	struct nfs4_slot_table	*table;
-	struct nfs4_slot	*next;
-	unsigned long		generation;
-	unsigned long		renewal_time;
-	u32			slot_nr;
-	u32		 	seq_nr;
-};
-
+struct nfs4_slot;
 struct nfs4_sequence_args {
 	struct nfs4_slot	*sa_slot;
 	u8			sa_cache_this;
