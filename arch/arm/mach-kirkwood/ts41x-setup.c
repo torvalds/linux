@@ -170,8 +170,7 @@ static int __init ts41x_pci_init(void)
 		else
 			kirkwood_pcie_init(KW_PCIE0);
 	}
-
-   return 0;
+	return 0;
 }
 subsys_initcall(ts41x_pci_init);
 
