@@ -805,11 +805,13 @@ static void wl12xx_read_fwlog_panic(struct wl1271 *wl)
 
 	/*
 	 * Make sure the chip is awake and the logger isn't active.
-	 * Do not send a stop fwlog command if the fw is hanged.
+	 * Do not send a stop fwlog command if the fw is hanged or if
+	 * dbgpins are used (due to some fw bug).
 	 */
 	if (wl1271_ps_elp_wakeup(wl))
 		goto out;
-	if (!wl->watchdog_recovery)
+	if (!wl->watchdog_recovery &&
+	    wl->conf.fwlog.output != WL12XX_FWLOG_OUTPUT_DBG_PINS)
 		wl12xx_cmd_stop_fwlog(wl);
 
 	/* Read the first memory block address */
