@@ -3230,6 +3230,8 @@ nfs4_laundromat(struct nfsd_net *nn)
 	spin_lock(&recall_lock);
 	list_for_each_safe(pos, next, &del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
+		if (net_generic(dp->dl_stid.sc_client->net, nfsd_net_id) != nn)
+			continue;
 		if (time_after((unsigned long)dp->dl_time, (unsigned long)cutoff)) {
 			u = dp->dl_time - cutoff;
 			if (test_val > u)
@@ -4922,6 +4924,8 @@ __nfs4_state_shutdown(struct net *net)
 	spin_lock(&recall_lock);
 	list_for_each_safe(pos, next, &del_recall_lru) {
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
+		if (dp->dl_stid.sc_client->net != net)
+			continue;
 		list_move(&dp->dl_recall_lru, &reaplist);
 	}
 	spin_unlock(&recall_lock);
