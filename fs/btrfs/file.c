@@ -41,6 +41,7 @@
 #include "compat.h"
 #include "volumes.h"
 
+static struct kmem_cache *btrfs_inode_defrag_cachep;
 /*
  * when auto defrag is enabled we
  * queue up these defrag structs to remember which
@@ -127,7 +128,7 @@ static void __btrfs_add_inode_defrag(struct inode *inode,
 	return;
 
 exists:
-	kfree(defrag);
+	kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 	return;
 
 }
@@ -157,7 +158,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	else
 		transid = BTRFS_I(inode)->root->last_trans;
 
-	defrag = kzalloc(sizeof(*defrag), GFP_NOFS);
+	defrag = kmem_cache_zalloc(btrfs_inode_defrag_cachep, GFP_NOFS);
 	if (!defrag)
 		return -ENOMEM;
 
@@ -169,7 +170,7 @@ int btrfs_add_inode_defrag(struct btrfs_trans_handle *trans,
 	if (!test_bit(BTRFS_INODE_IN_DEFRAG, &BTRFS_I(inode)->runtime_flags))
 		__btrfs_add_inode_defrag(inode, defrag);
 	else
-		kfree(defrag);
+		kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 	spin_unlock(&root->fs_info->defrag_inodes_lock);
 	return 0;
 }
@@ -315,7 +316,8 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 next:
 		spin_lock(&fs_info->defrag_inodes_lock);
 next_free:
-		kfree(defrag);
+		if (defrag)
+			kmem_cache_free(btrfs_inode_defrag_cachep, defrag);
 	}
 	spin_unlock(&fs_info->defrag_inodes_lock);
 
@@ -2293,3 +2295,21 @@ const struct file_operations btrfs_file_operations = {
 	.compat_ioctl	= btrfs_ioctl,
 #endif
 };
+
+void btrfs_auto_defrag_exit(void)
+{
+	if (btrfs_inode_defrag_cachep)
+		kmem_cache_destroy(btrfs_inode_defrag_cachep);
+}
+
+int btrfs_auto_defrag_init(void)
+{
+	btrfs_inode_defrag_cachep = kmem_cache_create("btrfs_inode_defrag",
+					sizeof(struct inode_defrag), 0,
+					SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
+					NULL);
+	if (!btrfs_inode_defrag_cachep)
+		return -ENOMEM;
+
+	return 0;
+}
