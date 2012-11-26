@@ -1,4 +1,4 @@
-ccflags-y			+= -mno-minimal-toc
+ccflags-y			+= $(NO_MINIMAL_TOC)
 
 obj-y				+= setup.o ics.o wsp.o
 obj-$(CONFIG_PPC_PSR2)		+= psr2.o

@@ -169,6 +169,7 @@ _GLOBAL(generic_secondary_thread_init)
 
 	/* get a valid TOC pointer, wherever we're mapped at */
 	bl	.relative_toc
+	tovirt(r2,r2)
 
 #ifdef CONFIG_PPC_BOOK3E
 	/* Book3E initialization */
@@ -195,6 +196,7 @@ _GLOBAL(generic_secondary_smp_init)
 
 	/* get a valid TOC pointer, wherever we're mapped at */
 	bl	.relative_toc
+	tovirt(r2,r2)
 
 #ifdef CONFIG_PPC_BOOK3E
 	/* Book3E initialization */
@@ -531,6 +533,7 @@ _GLOBAL(pmac_secondary_start)
 
 	/* get TOC pointer (real address) */
 	bl	.relative_toc
+	tovirt(r2,r2)
 
 	/* Copy some CPU settings from CPU 0 */
 	bl	.__restore_cpu_ppc970
@@ -665,6 +668,13 @@ _GLOBAL(enable_64b_mode)
  * This puts the TOC pointer into r2, offset by 0x8000 (as expected
  * by the toolchain).  It computes the correct value for wherever we
  * are running at the moment, using position-independent code.
+ *
+ * Note: The compiler constructs pointers using offsets from the
+ * TOC in -mcmodel=medium mode. After we relocate to 0 but before
+ * the MMU is on we need our TOC to be a virtual address otherwise
+ * these pointers will be real addresses which may get stored and
+ * accessed later with the MMU on. We use tovirt() at the call
+ * sites to handle this.
  */
 _GLOBAL(relative_toc)
 	mflr	r0
@@ -681,8 +691,9 @@ p_toc:	.llong	__toc_start + 0x8000 - 0b
  * This is where the main kernel code starts.
  */
 _INIT_STATIC(start_here_multiplatform)
-	/* set up the TOC (real address) */
-	bl	.relative_toc
+	/* set up the TOC */
+	bl      .relative_toc
+	tovirt(r2,r2)
 
 	/* Clear out the BSS. It may have been done in prom_init,
 	 * already but that's irrelevant since prom_init will soon
