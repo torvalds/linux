@@ -82,10 +82,12 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 #define PN533_NORMAL_FRAME_MAX_LEN 262  /* 6   (PREAMBLE, SOF, LEN, LCS, TFI)
 					   254 (DATA)
 					   2   (DCS, postamble) */
+#define PN533_FRAME_HEADER_LEN (sizeof(struct pn533_frame) \
+					+ 2) /* data[0] TFI, data[1] CC */
+#define PN533_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
 
-#define PN533_FRAME_TAIL_SIZE 2
 #define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
-				PN533_FRAME_TAIL_SIZE)
+				PN533_FRAME_TAIL_LEN)
 #define PN533_FRAME_ACK_SIZE (sizeof(struct pn533_frame) + 1)
 #define PN533_FRAME_CHECKSUM(f) (f->data[f->datalen])
 #define PN533_FRAME_POSTAMBLE(f) (f->data[f->datalen + 1])
@@ -1233,7 +1235,7 @@ static int pn533_init_target_frame(struct pn533_frame *frame,
 	return 0;
 }
 
-#define PN533_CMD_DATAEXCH_HEAD_LEN (sizeof(struct pn533_frame) + 3)
+#define PN533_CMD_DATAEXCH_HEAD_LEN 1
 #define PN533_CMD_DATAEXCH_DATA_MAXLEN 262
 static int pn533_tm_get_data_complete(struct pn533 *dev, void *arg,
 				      u8 *params, int params_len)
@@ -1261,8 +1263,9 @@ static int pn533_tm_get_data_complete(struct pn533 *dev, void *arg,
 	}
 
 	skb_put(skb_resp, PN533_FRAME_SIZE(in_frame));
-	skb_pull(skb_resp, PN533_CMD_DATAEXCH_HEAD_LEN);
-	skb_trim(skb_resp, skb_resp->len - PN533_FRAME_TAIL_SIZE);
+	skb_pull(skb_resp,
+		 PN533_FRAME_HEADER_LEN + PN533_CMD_DATAEXCH_HEAD_LEN);
+	skb_trim(skb_resp, skb_resp->len - PN533_FRAME_TAIL_LEN);
 
 	return nfc_tm_data_received(dev->nfc_dev, skb_resp);
 }
@@ -1276,9 +1279,10 @@ static void pn533_wq_tg_get_data(struct work_struct *work)
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
-	skb_resp_len = PN533_CMD_DATAEXCH_HEAD_LEN +
-		PN533_CMD_DATAEXCH_DATA_MAXLEN +
-		PN533_FRAME_TAIL_SIZE;
+	skb_resp_len = PN533_FRAME_HEADER_LEN +
+		       PN533_CMD_DATAEXCH_HEAD_LEN +
+		       PN533_CMD_DATAEXCH_DATA_MAXLEN +
+		       PN533_FRAME_TAIL_LEN;
 
 	skb_resp = nfc_alloc_recv_skb(skb_resp_len, GFP_KERNEL);
 	if (!skb_resp)
@@ -1859,11 +1863,12 @@ static int pn533_build_tx_frame(struct pn533 *dev, struct sk_buff *skb,
 		return -ENOSYS;
 	}
 
+	skb_push(skb, PN533_FRAME_HEADER_LEN);
+
 	if (target == true) {
 		switch (dev->device_type) {
 		case PN533_DEVICE_PASORI:
 			if (dev->tgt_active_prot == NFC_PROTO_FELICA) {
-				skb_push(skb, PN533_CMD_DATAEXCH_HEAD_LEN - 1);
 				out_frame = (struct pn533_frame *) skb->data;
 				pn533_tx_frame_init(out_frame,
 						    PN533_CMD_IN_COMM_THRU);
@@ -1895,7 +1900,7 @@ static int pn533_build_tx_frame(struct pn533 *dev, struct sk_buff *skb,
 	out_frame->datalen += payload_len;
 
 	pn533_tx_frame_finish(out_frame);
-	skb_put(skb, PN533_FRAME_TAIL_SIZE);
+	skb_put(skb, PN533_FRAME_TAIL_LEN);
 
 	return 0;
 }
@@ -1975,8 +1980,9 @@ static int pn533_data_exchange_complete(struct pn533 *dev, void *_arg,
 	}
 
 	skb_put(skb_resp, PN533_FRAME_SIZE(in_frame));
+	skb_pull(skb_resp, PN533_FRAME_HEADER_LEN);
 	skb_pull(skb_resp, PN533_CMD_DATAEXCH_HEAD_LEN);
-	skb_trim(skb_resp, skb_resp->len - PN533_FRAME_TAIL_SIZE);
+	skb_trim(skb_resp, skb_resp->len - PN533_FRAME_TAIL_LEN);
 	skb_queue_tail(&dev->resp_q, skb_resp);
 
 	if (status & PN533_CMD_MI_MASK) {
@@ -2024,9 +2030,10 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 	if (rc)
 		goto error;
 
-	skb_resp_len = PN533_CMD_DATAEXCH_HEAD_LEN +
-			PN533_CMD_DATAEXCH_DATA_MAXLEN +
-			PN533_FRAME_TAIL_SIZE;
+	skb_resp_len = PN533_FRAME_HEADER_LEN +
+		       PN533_CMD_DATAEXCH_HEAD_LEN +
+		       PN533_CMD_DATAEXCH_DATA_MAXLEN +
+		       PN533_FRAME_TAIL_LEN;
 
 	skb_resp = nfc_alloc_recv_skb(skb_resp_len, GFP_KERNEL);
 	if (!skb_resp) {
@@ -2143,20 +2150,25 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
 	/* This is a zero payload size skb */
-	skb_cmd = alloc_skb(PN533_CMD_DATAEXCH_HEAD_LEN + PN533_FRAME_TAIL_SIZE,
+	skb_cmd = alloc_skb(PN533_FRAME_HEADER_LEN +
+			    PN533_CMD_DATAEXCH_HEAD_LEN +
+			    PN533_FRAME_TAIL_LEN,
 			    GFP_KERNEL);
 	if (skb_cmd == NULL)
 		goto error_cmd;
 
-	skb_reserve(skb_cmd, PN533_CMD_DATAEXCH_HEAD_LEN);
+	skb_reserve(skb_cmd,
+		    PN533_FRAME_HEADER_LEN + PN533_CMD_DATAEXCH_HEAD_LEN);
 
 	rc = pn533_build_tx_frame(dev, skb_cmd, true);
 	if (rc)
 		goto error_frame;
 
-	skb_resp_len = PN533_CMD_DATAEXCH_HEAD_LEN +
-			PN533_CMD_DATAEXCH_DATA_MAXLEN +
-			PN533_FRAME_TAIL_SIZE;
+	skb_resp_len = PN533_FRAME_HEADER_LEN +
+		       PN533_CMD_DATAEXCH_HEAD_LEN +
+		       PN533_CMD_DATAEXCH_DATA_MAXLEN +
+		       PN533_FRAME_TAIL_LEN;
+
 	skb_resp = alloc_skb(skb_resp_len, GFP_KERNEL);
 	if (!skb_resp) {
 		rc = -ENOMEM;
@@ -2433,8 +2445,9 @@ static int pn533_probe(struct usb_interface *interface,
 	}
 
 	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
+					   PN533_FRAME_HEADER_LEN +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
-					   PN533_FRAME_TAIL_SIZE);
+					   PN533_FRAME_TAIL_LEN);
 	if (!dev->nfc_dev)
 		goto destroy_wq;
 
