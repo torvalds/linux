@@ -187,21 +187,18 @@ static int da9055_buck_set_current_limit(struct regulator_dev *rdev, int min_uA,
 {
 	struct da9055_regulator *regulator = rdev_get_drvdata(rdev);
 	struct da9055_regulator_info *info = regulator->info;
-	int i, val = 0;
+	int i;
 
-	if (min_uA > da9055_current_limits[DA9055_MAX_UA] ||
-	    max_uA < da9055_current_limits[DA9055_MIN_UA])
-		return -EINVAL;
-
-	for (i = 0; i < ARRAY_SIZE(da9055_current_limits); i++) {
-		if (min_uA <= da9055_current_limits[i]) {
-			val = i;
-			break;
-		}
+	for (i = ARRAY_SIZE(da9055_current_limits) - 1; i >= 0; i--) {
+		if ((min_uA <= da9055_current_limits[i]) &&
+		    (da9055_current_limits[i] <= max_uA))
+			return da9055_reg_update(regulator->da9055,
+						 DA9055_REG_BUCK_LIM,
+						 info->mode.mask,
+						 i << info->mode.shift);
 	}
 
-	return da9055_reg_update(regulator->da9055, DA9055_REG_BUCK_LIM,
-				info->mode.mask, val << info->mode.shift);
+	return -EINVAL;
 }
 
 static int da9055_list_voltage(struct regulator_dev *rdev, unsigned selector)
