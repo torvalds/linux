@@ -57,8 +57,8 @@ typedef struct _S_MIBS_HOST_INFO {
 	unsigned long	BEBucketSize;
 	unsigned long	rtPSBucketSize;
 	unsigned long	LastTxQueueIndex;
-	BOOLEAN	TxOutofDescriptors;
-	BOOLEAN	TimerActive;
+	bool	TxOutofDescriptors;
+	bool	TimerActive;
 	u32	u32TotalDSD;
 	u32	aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 	u32	aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
@@ -68,7 +68,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	unsigned long	ulSFID;
 	unsigned char	ucReserved[2];
 	u16	uiClassifierRuleIndex;
-	BOOLEAN	bUsed;
+	bool	bUsed;
 	unsigned short	usVCID_Value;
 	u8	u8ClassifierRulePriority;
 	U_MIBS_IP_ADDRESS stSrcIpAddress;
@@ -89,12 +89,12 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	unsigned short	usDestPortRangeLo[MIBS_MAX_PORT_RANGE];
 	unsigned short	usDestPortRangeHi[MIBS_MAX_PORT_RANGE];
 	unsigned char	ucDestPortRangeLength;
-	BOOLEAN	bProtocolValid;
-	BOOLEAN	bTOSValid;
-	BOOLEAN	bDestIpValid;
-	BOOLEAN	bSrcIpValid;
+	bool	bProtocolValid;
+	bool	bTOSValid;
+	bool	bDestIpValid;
+	bool	bSrcIpValid;
 	unsigned char	ucDirection;
-	BOOLEAN	bIpv6Protocol;
+	bool	bIpv6Protocol;
 	u32	u32PHSRuleID;
 } S_MIBS_CLASSIFIER_RULE;
 
@@ -142,9 +142,9 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	unsigned short	usVCID_Value;
 	unsigned int	uiThreshold;
 	u8	u8TrafficPriority;
-	BOOLEAN	bValid;
-	BOOLEAN	bActive;
-	BOOLEAN	bActivateRequestSent;
+	bool	bValid;
+	bool	bActive;
+	bool	bActivateRequestSent;
 	u8	u8QueueType;
 	unsigned int	uiMaxBucketSize;
 	unsigned int	uiCurrentQueueDepthOnTarget;
