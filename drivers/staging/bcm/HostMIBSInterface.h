@@ -20,36 +20,30 @@
 #define MIBS_MAX_HIST_ENTRIES		12
 #define MIBS_PKTSIZEHIST_RANGE		128
 
-typedef union _U_MIBS_IP_ADDRESS
-{
-	struct
-	{
+typedef union _U_MIBS_IP_ADDRESS {
+	struct {
 		/* Source Ip Address Range */
 		ULONG ulIpv4Addr[MIBS_MAX_IP_RANGE_LENGTH];
 		/* Source Ip Mask Address Range */
 		ULONG ulIpv4Mask[MIBS_MAX_IP_RANGE_LENGTH];
 	};
-	struct
-	{
+	struct {
 		/* Source Ip Address Range */
 		ULONG ulIpv6Addr[MIBS_MAX_IP_RANGE_LENGTH * 4];
 		/* Source Ip Mask Address Range */
 		ULONG ulIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * 4];
 	};
-	struct
-	{
+	struct {
 		UCHAR ucIpv4Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
 		UCHAR ucIpv4Mask[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
 	};
-	struct
-	{
+	struct {
 		UCHAR ucIpv6Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IPV6_ADDRESS_SIZEINBYTES];
 		UCHAR ucIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IPV6_ADDRESS_SIZEINBYTES];
 	};
 } U_MIBS_IP_ADDRESS;
 
-typedef struct _S_MIBS_HOST_INFO
-{
+typedef struct _S_MIBS_HOST_INFO {
 	ULONG64	GoodTransmits;
 	ULONG64	GoodReceives;
 	/* this to keep track of the Tx and Rx MailBox Registers. */
@@ -70,8 +64,7 @@ typedef struct _S_MIBS_HOST_INFO
 	UINT32	aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 } S_MIBS_HOST_INFO;
 
-typedef struct _S_MIBS_CLASSIFIER_RULE
-{
+typedef struct _S_MIBS_CLASSIFIER_RULE {
 	ULONG	ulSFID;
 	UCHAR	ucReserved[2];
 	B_UINT16 uiClassifierRuleIndex;
@@ -105,8 +98,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE
 	UINT32	u32PHSRuleID;
 } S_MIBS_CLASSIFIER_RULE;
 
-typedef struct _S_MIBS_PHS_RULE
-{
+typedef struct _S_MIBS_PHS_RULE {
 	ULONG	ulSFID;
 	B_UINT8	u8PHSI;
 	B_UINT8	u8PHSFLength;
@@ -121,8 +113,7 @@ typedef struct _S_MIBS_PHS_RULE
 	ULONG	PHSErrorNumPackets;
 } S_MIBS_PHS_RULE;
 
-typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS
-{
+typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
 	UINT32	wmanIfSfid;
 	UINT32	wmanIfCmnCpsSfState;
 	UINT32	wmanIfCmnCpsMaxSustainedRate;
@@ -146,8 +137,7 @@ typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS
 	UINT32	wmanIfCmnCpsTargetSaid;
 } S_MIBS_EXTSERVICEFLOW_PARAMETERS;
 
-typedef struct _S_MIBS_SERVICEFLOW_TABLE
-{
+typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	ULONG	ulSFID;
 	USHORT	usVCID_Value;
 	UINT	uiThreshold;
@@ -180,8 +170,7 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE
 	UINT	uiTotalTxBytes;
 } S_MIBS_SERVICEFLOW_TABLE;
 
-typedef struct _S_MIBS_DROPPED_APP_CNTRL_MESSAGES
-{
+typedef struct _S_MIBS_DROPPED_APP_CNTRL_MESSAGES {
 	ULONG cm_responses;
 	ULONG cm_control_newdsx_multiclassifier_resp;
 	ULONG link_control_resp;
@@ -192,8 +181,7 @@ typedef struct _S_MIBS_DROPPED_APP_CNTRL_MESSAGES
 	ULONG low_priority_message;
 } S_MIBS_DROPPED_APP_CNTRL_MESSAGES;
 
-typedef struct _S_MIBS_HOST_STATS_MIBS
-{
+typedef struct _S_MIBS_HOST_STATS_MIBS {
 	S_MIBS_HOST_INFO	stHostInfo;
 	S_MIBS_CLASSIFIER_RULE	astClassifierTable[MIBS_MAX_CLASSIFIERS];
 	S_MIBS_SERVICEFLOW_TABLE astSFtable[MIBS_MAX_SERVICEFLOWS];
