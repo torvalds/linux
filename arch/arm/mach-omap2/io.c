@@ -51,6 +51,10 @@
 #include "prcm_mpu44xx.h"
 #include "prminst44xx.h"
 #include "cminst44xx.h"
+#include "prm2xxx.h"
+#include "prm3xxx.h"
+#include "prm44xx.h"
+
 /*
  * The machine specific code may provide the extra mapping besides the
  * default mapping provided here.
@@ -392,6 +396,7 @@ void __init omap2420_init_early(void)
 	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(OMAP2420_PRM_BASE));
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP2420_CM_BASE), NULL);
 	omap2xxx_check_revision();
+	omap2xxx_prm_init();
 	omap2xxx_cm_init();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
@@ -422,6 +427,7 @@ void __init omap2430_init_early(void)
 	omap2_set_globals_prm(OMAP2_L4_IO_ADDRESS(OMAP2430_PRM_BASE));
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP2430_CM_BASE), NULL);
 	omap2xxx_check_revision();
+	omap2xxx_prm_init();
 	omap2xxx_cm_init();
 	omap_common_init_early();
 	omap2xxx_voltagedomains_init();
@@ -457,6 +463,7 @@ void __init omap3_init_early(void)
 	omap2_set_globals_cm(OMAP2_L4_IO_ADDRESS(OMAP3430_CM_BASE), NULL);
 	omap3xxx_check_revision();
 	omap3xxx_check_features();
+	omap3xxx_prm_init();
 	omap3xxx_cm_init();
 	omap_common_init_early();
 	omap3xxx_voltagedomains_init();
@@ -591,6 +598,7 @@ void __init omap4430_init_early(void)
 	omap_cm_base_init();
 	omap4xxx_check_revision();
 	omap4xxx_check_features();
+	omap44xx_prm_init();
 	omap_common_init_early();
 	omap44xx_voltagedomains_init();
 	omap44xx_powerdomains_init();

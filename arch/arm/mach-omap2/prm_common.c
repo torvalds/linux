@@ -367,6 +367,51 @@ u32 prm_read_reset_sources(void)
 }
 
 /**
+ * prm_was_any_context_lost_old - was device context lost? (old API)
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Return 1 if any bits were set in the *_CONTEXT_* register
+ * identified by (@part, @inst, @idx), which means that some context
+ * was lost for that module; otherwise, return 0.  XXX Deprecated;
+ * callers need to use a less-SoC-dependent way to identify hardware
+ * IP blocks.
+ */
+bool prm_was_any_context_lost_old(u8 part, s16 inst, u16 idx)
+{
+	bool ret = true;
+
+	if (prm_ll_data->was_any_context_lost_old)
+		ret = prm_ll_data->was_any_context_lost_old(part, inst, idx);
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+
+	return ret;
+}
+
+/**
+ * prm_clear_context_lost_flags_old - clear context loss flags (old API)
+ * @part: PRM partition ID (e.g., OMAP4430_PRM_PARTITION)
+ * @inst: PRM instance offset (e.g., OMAP4430_PRM_MPU_INST)
+ * @idx: CONTEXT register offset
+ *
+ * Clear hardware context loss bits for the module identified by
+ * (@part, @inst, @idx).  No return value.  XXX Deprecated; callers
+ * need to use a less-SoC-dependent way to identify hardware IP
+ * blocks.
+ */
+void prm_clear_context_loss_flags_old(u8 part, s16 inst, u16 idx)
+{
+	if (prm_ll_data->clear_context_loss_flags_old)
+		prm_ll_data->clear_context_loss_flags_old(part, inst, idx);
+	else
+		WARN_ONCE(1, "prm: %s: no mapping function defined\n",
+			  __func__);
+}
+
+/**
  * prm_register - register per-SoC low-level data with the PRM
  * @pld: low-level per-SoC OMAP PRM data & function pointers to register
  *
