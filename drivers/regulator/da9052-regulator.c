@@ -129,16 +129,16 @@ static int da9052_dcdc_set_current_limit(struct regulator_dev *rdev, int min_uA,
 	else if (offset == 0)
 		row = 1;
 
-	if (min_uA > da9052_current_limits[row][DA9052_MAX_UA] ||
-	    max_uA < da9052_current_limits[row][DA9052_MIN_UA])
-		return -EINVAL;
-
 	for (i = DA9052_CURRENT_RANGE - 1; i >= 0; i--) {
-		if (da9052_current_limits[row][i] <= max_uA) {
+		if ((min_uA <= da9052_current_limits[row][i]) &&
+		    (da9052_current_limits[row][i] <= max_uA)) {
 			reg_val = i;
 			break;
 		}
 	}
+
+	if (i < 0)
+		return -EINVAL;
 
 	/* Determine the even or odd position of the buck current limit
 	 * register field
