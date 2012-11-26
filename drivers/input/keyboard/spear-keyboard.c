@@ -267,9 +267,14 @@ static int spear_kbd_probe(struct platform_device *pdev)
 		return error;
 	}
 
+	error = clk_prepare(kbd->clk);
+	if (error)
+		return error;
+
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "Unable to register keyboard device\n");
+		clk_unprepare(kbd->clk);
 		return error;
 	}
 
@@ -281,6 +286,11 @@ static int spear_kbd_probe(struct platform_device *pdev)
 
 static int spear_kbd_remove(struct platform_device *pdev)
 {
+	struct spear_kbd *kbd = platform_get_drvdata(pdev);
+
+	input_unregister_device(kbd->input);
+	clk_unprepare(kbd->clk);
+
 	device_init_wakeup(&pdev->dev, 0);
 	platform_set_drvdata(pdev, NULL);
 
