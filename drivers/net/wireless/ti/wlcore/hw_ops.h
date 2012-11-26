@@ -201,4 +201,12 @@ wlcore_hw_pre_pkt_send(struct wl1271 *wl, u32 buf_offset, u32 last_len)
 	return buf_offset;
 }
 
+static inline void
+wlcore_hw_sta_rc_update(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			struct ieee80211_sta *sta, u32 changed)
+{
+	if (wl->ops->sta_rc_update)
+		wl->ops->sta_rc_update(wl, wlvif, sta, changed);
+}
+
 #endif

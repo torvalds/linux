@@ -284,10 +284,24 @@ struct wl18xx_acx_clear_statistics {
 	struct acx_header header;
 };
 
+enum wlcore_bandwidth {
+	WLCORE_BANDWIDTH_20MHZ,
+	WLCORE_BANDWIDTH_40MHZ,
+};
+
+struct wlcore_peer_ht_operation_mode {
+	struct acx_header header;
+
+	u8 hlid;
+	u8 bandwidth; /* enum wlcore_bandwidth */
+	u8 padding[2];
+};
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
 int wl18xx_acx_set_checksum_state(struct wl1271 *wl);
 int wl18xx_acx_clear_statistics(struct wl1271 *wl);
+int wl18xx_acx_peer_ht_operation_mode(struct wl1271 *wl, u8 hlid, bool wide);
 
 #endif /* __WL18XX_ACX_H__ */

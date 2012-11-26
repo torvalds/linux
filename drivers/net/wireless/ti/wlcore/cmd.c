@@ -480,6 +480,7 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 		goto err_hlid;
 	}
 
+	wlvif->sta.role_chan_type = wlvif->channel_type;
 	goto out_free;
 
 err_hlid:

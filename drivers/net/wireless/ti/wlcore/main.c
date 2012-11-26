@@ -4948,6 +4948,17 @@ static int wlcore_op_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	return 0;
 }
 
+static void wlcore_op_sta_rc_update(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    u32 changed)
+{
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	struct wl1271 *wl = hw->priv;
+
+	wlcore_hw_sta_rc_update(wl, wlvif, sta, changed);
+}
+
 static bool wl1271_tx_frames_pending(struct ieee80211_hw *hw)
 {
 	struct wl1271 *wl = hw->priv;
@@ -5146,6 +5157,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	.change_chanctx = wlcore_op_change_chanctx,
 	.assign_vif_chanctx = wlcore_op_assign_vif_chanctx,
 	.unassign_vif_chanctx = wlcore_op_unassign_vif_chanctx,
+	.sta_rc_update = wlcore_op_sta_rc_update,
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 

@@ -341,6 +341,8 @@ struct wl12xx_vif {
 			u8 klv_template_id;
 
 			bool qos;
+			/* channel type we started the STA role with */
+			enum nl80211_channel_type role_chan_type;
 		} sta;
 		struct {
 			u8 global_hlid;
