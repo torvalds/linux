@@ -44,9 +44,9 @@ static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
 	u32 flip = FIMC_REG_MSCTRL_FLIP_NORMAL;
 
 	if (ctx->hflip)
-		flip = FIMC_REG_MSCTRL_FLIP_X_MIRROR;
-	if (ctx->vflip)
 		flip = FIMC_REG_MSCTRL_FLIP_Y_MIRROR;
+	if (ctx->vflip)
+		flip = FIMC_REG_MSCTRL_FLIP_X_MIRROR;
 
 	if (ctx->rotation <= 90)
 		return flip;
@@ -59,9 +59,9 @@ static u32 fimc_hw_get_target_flip(struct fimc_ctx *ctx)
 	u32 flip = FIMC_REG_CITRGFMT_FLIP_NORMAL;
 
 	if (ctx->hflip)
-		flip |= FIMC_REG_CITRGFMT_FLIP_X_MIRROR;
-	if (ctx->vflip)
 		flip |= FIMC_REG_CITRGFMT_FLIP_Y_MIRROR;
+	if (ctx->vflip)
+		flip |= FIMC_REG_CITRGFMT_FLIP_X_MIRROR;
 
 	if (ctx->rotation <= 90)
 		return flip;
