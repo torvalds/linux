@@ -441,6 +441,9 @@ struct wl1271 {
 	unsigned int min_fw_ver[NUM_FW_VER];
 
 	struct completion nvs_loading_complete;
+
+	/* number of concurrent channels the HW supports */
+	u32 num_channels;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

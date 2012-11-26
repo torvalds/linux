@@ -5464,10 +5464,9 @@ static const struct ieee80211_iface_limit wlcore_iface_limits[] = {
 	},
 };
 
-static const struct ieee80211_iface_combination
+static struct ieee80211_iface_combination
 wlcore_iface_combinations[] = {
 	{
-	  .num_different_channels = 1,
 	  .max_interfaces = 3,
 	  .limits = wlcore_iface_limits,
 	  .n_limits = ARRAY_SIZE(wlcore_iface_limits),
@@ -5570,6 +5569,7 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P;
 
 	/* allowed interface combinations */
+	wlcore_iface_combinations[0].num_different_channels = wl->num_channels;
 	wl->hw->wiphy->iface_combinations = wlcore_iface_combinations;
 	wl->hw->wiphy->n_iface_combinations =
 		ARRAY_SIZE(wlcore_iface_combinations);
