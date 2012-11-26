@@ -108,7 +108,7 @@ typedef struct _S_MIBS_PHS_RULE {
 	B_UINT8	u8PHSS;
 	B_UINT8	u8PHSV;
 	B_UINT8	reserved[5];
-	LONG	PHSModifiedBytes;
+	long	PHSModifiedBytes;
 	unsigned long	PHSModifiedNumPackets;
 	unsigned long	PHSErrorNumPackets;
 } S_MIBS_PHS_RULE;
