@@ -3610,7 +3610,7 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(wm8962->supplies); i++)
 		wm8962->supplies[i].supply = wm8962_supply_names[i];
 
-	ret = regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8962->supplies),
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8962->supplies),
 				 wm8962->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
@@ -3621,7 +3621,7 @@ static __devinit int wm8962_i2c_probe(struct i2c_client *i2c,
 				    wm8962->supplies);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
-		goto err_get;
+		return ret;
 	}
 
 	wm8962->regmap = regmap_init_i2c(i2c, &wm8962_regmap);
@@ -3697,8 +3697,6 @@ err_regmap:
 	regmap_exit(wm8962->regmap);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
-err_get:
-	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 err:
 	return ret;
 }
@@ -3709,7 +3707,6 @@ static __devexit int wm8962_i2c_remove(struct i2c_client *client)
 
 	snd_soc_unregister_codec(&client->dev);
 	regmap_exit(wm8962->regmap);
-	regulator_bulk_free(ARRAY_SIZE(wm8962->supplies), wm8962->supplies);
 	return 0;
 }
 
