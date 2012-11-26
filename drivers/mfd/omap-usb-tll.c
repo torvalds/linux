@@ -98,6 +98,7 @@
 struct usbtll_omap {
 	struct clk				*usbtll_p1_fck;
 	struct clk				*usbtll_p2_fck;
+	int					nch;	/* num. of channels */
 	struct usbhs_omap_platform_data		*pdata;
 	/* secure the register updates */
 	spinlock_t				lock;
@@ -210,7 +211,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	unsigned				reg;
 	unsigned long				flags;
 	int					ret = 0;
-	int					i, ver, count;
+	int					i, ver;
 
 	dev_dbg(dev, "starting TI HSUSB TLL Controller\n");
 
@@ -262,16 +263,18 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	ver =  usbtll_read(base, OMAP_USBTLL_REVISION);
 	switch (ver) {
 	case OMAP_USBTLL_REV1:
-	case OMAP_USBTLL_REV2:
-		count = OMAP_TLL_CHANNEL_COUNT;
+		tll->nch = OMAP_TLL_CHANNEL_COUNT;
 		break;
+	case OMAP_USBTLL_REV2:
 	case OMAP_USBTLL_REV3:
-		count = OMAP_REV2_TLL_CHANNEL_COUNT;
+		tll->nch = OMAP_REV2_TLL_CHANNEL_COUNT;
 		break;
 	default:
-		dev_err(dev, "TLL version failed\n");
-		ret = -ENODEV;
-		goto err_ioremap;
+		tll->nch = OMAP_TLL_CHANNEL_COUNT;
+		dev_dbg(dev,
+		 "USB TLL Rev : 0x%x not recognized, assuming %d channels\n",
+			ver, tll->nch);
+		break;
 	}
 
 	if (is_ehci_tll_mode(pdata->port_mode[0]) ||
@@ -291,7 +294,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		usbtll_write(base, OMAP_TLL_SHARED_CONF, reg);
 
 		/* Enable channels now */
-		for (i = 0; i < count; i++) {
+		for (i = 0; i < tll->nch; i++) {
 			reg = usbtll_read(base,	OMAP_TLL_CHANNEL_CONF(i));
 
 			if (is_ohci_port(pdata->port_mode[i])) {
@@ -319,7 +322,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		}
 	}
 
-err_ioremap:
 	spin_unlock_irqrestore(&tll->lock, flags);
 	iounmap(base);
 	pm_runtime_put_sync(dev);
