@@ -39,7 +39,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_m
 		if (Adapter->PackInfo[nSfIndex].bValid) {
 			memcpy((PVOID) & pstHostMibs->astSFtable[nSfIndex],
 			       (PVOID) & Adapter->PackInfo[nSfIndex],
-			       sizeof(S_MIBS_SERVICEFLOW_TABLE));
+				sizeof(struct bcm_mibs_table));
 		} else {
 			/* If index in not valid,
 			 * don't process this for the PHS table.

@@ -137,7 +137,7 @@ typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
 	u32 wmanIfCmnCpsTargetSaid;
 } S_MIBS_EXTSERVICEFLOW_PARAMETERS;
 
-typedef struct _S_MIBS_SERVICEFLOW_TABLE {
+struct bcm_mibs_table {
 	unsigned long	ulSFID;
 	unsigned short	usVCID_Value;
 	unsigned int	uiThreshold;
@@ -168,7 +168,7 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	unsigned int	uiThisPeriodRxBytes;
 	unsigned int	uiTotalRxBytes;
 	unsigned int	uiTotalTxBytes;
-} S_MIBS_SERVICEFLOW_TABLE;
+};
 
 struct bcm_mibs_dropped_cntrl_msg {
 	unsigned long cm_responses;
@@ -184,7 +184,7 @@ struct bcm_mibs_dropped_cntrl_msg {
 struct bcm_host_stats_mibs {
 	S_MIBS_HOST_INFO	stHostInfo;
 	S_MIBS_CLASSIFIER_RULE	astClassifierTable[MIBS_MAX_CLASSIFIERS];
-	S_MIBS_SERVICEFLOW_TABLE astSFtable[MIBS_MAX_SERVICEFLOWS];
+	struct bcm_mibs_table	astSFtable[MIBS_MAX_SERVICEFLOWS];
 	S_MIBS_PHS_RULE		astPhsRulesTable[MIBS_MAX_PHSRULES];
 	struct bcm_mibs_dropped_cntrl_msg stDroppedAppCntrlMsgs;
 };
