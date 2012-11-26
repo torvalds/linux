@@ -356,21 +356,6 @@ config MODULES_USE_ELF_REL
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
 
-config GENERIC_SIGALTSTACK
-	bool
-
-config GENERIC_COMPAT_RT_SIGPROCMASK
-	bool
-
-config GENERIC_COMPAT_RT_SIGPENDING
-	bool
-
-config GENERIC_COMPAT_RT_SIGQUEUEINFO
-	bool
-
-config GENERIC_COMPAT_RT_SIGACTION
-	bool
-
 #
 # ABI hall of shame
 #
