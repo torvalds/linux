@@ -298,7 +298,7 @@ static void mxr_release_resources(struct mxr_device *mdev)
 {
 	mxr_release_clocks(mdev);
 	mxr_release_plat_resources(mdev);
-	memset(&mdev->res, 0, sizeof mdev->res);
+	memset(&mdev->res, 0, sizeof(mdev->res));
 }
 
 static void mxr_release_layers(struct mxr_device *mdev)
@@ -382,7 +382,7 @@ static int __devinit mxr_probe(struct platform_device *pdev)
 	/* mdev does not exist yet so no mxr_dbg is used */
 	dev_info(dev, "probe start\n");
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
