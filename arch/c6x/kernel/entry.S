@@ -277,6 +277,8 @@ work_rescheduled:
  [A1]	BNOP	.S1	work_resched,5
 
 work_notifysig:
+	;; enable interrupts for do_notify_resume()
+	UNMASK_INT B2
 	B	.S2	do_notify_resume
 	LDW	.D2T1	*+SP(REGS__END+8),A6 ; syscall flag
 	ADDKPC	.S2	resume_userspace,B3,1
