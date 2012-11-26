@@ -102,10 +102,6 @@ struct sigaction {
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
 
-struct k_sigaction {
-	struct sigaction sa;
-};
-
 typedef struct sigaltstack {
 	void __user *ss_sp;
 	int ss_flags;

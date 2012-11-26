@@ -30,9 +30,6 @@ struct sigaction {
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
 
-struct k_sigaction {
-	struct sigaction sa;
-};
 #include <asm/sigcontext.h>
 
 #ifndef CONFIG_CPU_HAS_NO_BITFIELDS

@@ -46,11 +46,6 @@ struct sigaction {
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
 
-struct k_sigaction {
-	struct sigaction sa;
-};
-
-#else /* __i386__ */
 #endif /* !__i386__ */
 #include <asm/sigcontext.h>
 

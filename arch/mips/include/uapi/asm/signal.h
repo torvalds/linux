@@ -102,10 +102,6 @@ struct sigaction {
 	sigset_t	sa_mask;
 };
 
-struct k_sigaction {
-	struct sigaction sa;
-};
-
 /* IRIX compatible stack_t  */
 typedef struct sigaltstack {
 	void __user *ss_sp;

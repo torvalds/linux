@@ -122,10 +122,6 @@ struct sigaction {
 	sigset_t sa_mask;		/* mask last for extensibility */
 };
 
-struct k_sigaction {
-	struct sigaction sa;
-};
-
 #endif /* !__i386__ */
 
 typedef struct sigaltstack {
