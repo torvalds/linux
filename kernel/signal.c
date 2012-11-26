@@ -3231,7 +3231,7 @@ SYSCALL_DEFINE3(sigprocmask, int, how, old_sigset_t __user *, nset,
 }
 #endif /* __ARCH_WANT_SYS_SIGPROCMASK */
 
-#ifdef __ARCH_WANT_SYS_RT_SIGACTION
+#ifndef CONFIG_ODD_RT_SIGACTION
 /**
  *  sys_rt_sigaction - alter an action taken by a process
  *  @sig: signal to be sent
@@ -3265,7 +3265,7 @@ SYSCALL_DEFINE4(rt_sigaction, int, sig,
 out:
 	return ret;
 }
-#endif /* __ARCH_WANT_SYS_RT_SIGACTION */
+#endif /* !CONFIG_ODD_RT_SIGACTION */
 
 #ifdef __ARCH_WANT_SYS_SGETMASK
 

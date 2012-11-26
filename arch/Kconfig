@@ -373,4 +373,9 @@ config CLONE_BACKWARDS2
 	help
 	  Architecture has the first two arguments of clone(2) swapped.
 
+config ODD_RT_SIGACTION
+	bool
+	help
+	  Architecture has unusual rt_sigaction(2) arguments
+
 source "kernel/gcov/Kconfig"

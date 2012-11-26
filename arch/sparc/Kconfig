@@ -41,6 +41,7 @@ config SPARC
 	select GENERIC_STRNCPY_FROM_USER
 	select GENERIC_STRNLEN_USER
 	select MODULES_USE_ELF_RELA
+	select ODD_RT_SIGACTION
 
 config SPARC32
 	def_bool !64BIT

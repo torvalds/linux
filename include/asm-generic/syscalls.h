@@ -36,9 +36,4 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs);
 asmlinkage long sys_rt_sigsuspend(sigset_t __user *unewset, size_t sigsetsize);
 #endif
 
-#ifndef sys_rt_sigaction
-asmlinkage long sys_rt_sigaction(int sig, const struct sigaction __user *act,
-			 struct sigaction __user *oact, size_t sigsetsize);
-#endif
-
 #endif /* __ASM_GENERIC_SYSCALLS_H */

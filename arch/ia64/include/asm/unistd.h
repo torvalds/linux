@@ -49,10 +49,6 @@ asmlinkage unsigned long sys_mmap2(
 struct pt_regs;
 struct sigaction;
 asmlinkage long sys_ia64_pipe(void);
-asmlinkage long sys_rt_sigaction(int sig,
-				 const struct sigaction __user *act,
-				 struct sigaction __user *oact,
-				 size_t sigsetsize);
 
 /*
  * "Conditional" syscalls

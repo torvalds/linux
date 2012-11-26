@@ -197,12 +197,11 @@ sparc_sigaction (int sig, const struct old_sigaction __user *act,
 	return ret;
 }
 
-asmlinkage long
-sys_rt_sigaction(int sig,
-		 const struct sigaction __user *act,
-		 struct sigaction __user *oact,
-		 void __user *restorer,
-		 size_t sigsetsize)
+SYSCALL_DEFINE5(rt_sigaction, int, sig,
+		 const struct sigaction __user *, act,
+		 struct sigaction __user *, oact,
+		 void __user *, restorer,
+		 size_t, sigsetsize)
 {
 	struct k_sigaction new_ka, old_ka;
 	int ret;
