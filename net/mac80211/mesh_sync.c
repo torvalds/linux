@@ -43,7 +43,7 @@ struct sync_method {
 static bool mesh_peer_tbtt_adjusting(struct ieee802_11_elems *ie)
 {
 	return (ie->mesh_config->meshconf_cap &
-	    MESHCONF_CAPAB_TBTT_ADJUSTING) != 0;
+	    IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING) != 0;
 }
 
 void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata)

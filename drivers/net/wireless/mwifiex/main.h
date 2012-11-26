@@ -371,7 +371,6 @@ struct wps {
 struct mwifiex_roc_cfg {
 	u64 cookie;
 	struct ieee80211_channel chan;
-	enum nl80211_channel_type chan_type;
 };
 
 struct mwifiex_adapter;
@@ -1018,7 +1017,6 @@ int mwifiex_get_ver_ext(struct mwifiex_private *priv);
 
 int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type *channel_type,
 			       unsigned int duration);
 
 int mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role);

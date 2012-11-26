@@ -784,6 +784,9 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
+	struct cfg80211_chan_def chandef = {
+		.width = NL80211_CHAN_WIDTH_20_NOHT,
+	};
 	int freq, err;
 
 	switch (wdev->iftype) {
@@ -797,8 +800,12 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
+		chandef.center_freq1 = freq;
+		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
+		if (!chandef.chan)
+			return -EINVAL;
 		mutex_lock(&rdev->devlist_mtx);
-		err = cfg80211_set_monitor_channel(rdev, freq, NL80211_CHAN_NO_HT);
+		err = cfg80211_set_monitor_channel(rdev, &chandef);
 		mutex_unlock(&rdev->devlist_mtx);
 		return err;
 	case NL80211_IFTYPE_MESH_POINT:
@@ -807,9 +814,12 @@ static int cfg80211_wext_siwfreq(struct net_device *dev,
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
+		chandef.center_freq1 = freq;
+		chandef.chan = ieee80211_get_channel(&rdev->wiphy, freq);
+		if (!chandef.chan)
+			return -EINVAL;
 		mutex_lock(&rdev->devlist_mtx);
-		err = cfg80211_set_mesh_freq(rdev, wdev, freq,
-					     NL80211_CHAN_NO_HT);
+		err = cfg80211_set_mesh_channel(rdev, wdev, &chandef);
 		mutex_unlock(&rdev->devlist_mtx);
 		return err;
 	default:
@@ -823,8 +833,8 @@ static int cfg80211_wext_giwfreq(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
-	struct ieee80211_channel *chan;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
+	int ret;
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -835,10 +845,10 @@ static int cfg80211_wext_giwfreq(struct net_device *dev,
 		if (!rdev->ops->get_channel)
 			return -EINVAL;
 
-		chan = rdev_get_channel(rdev, wdev, &channel_type);
-		if (!chan)
-			return -EINVAL;
-		freq->m = chan->center_freq;
+		ret = rdev_get_channel(rdev, wdev, &chandef);
+		if (ret)
+			return ret;
+		freq->m = chandef.chan->center_freq;
 		freq->e = 6;
 		return 0;
 	default:

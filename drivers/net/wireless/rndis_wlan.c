@@ -2293,7 +2293,7 @@ static int rndis_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;
-	struct ieee80211_channel *channel = params->channel;
+	struct ieee80211_channel *channel = params->chandef.chan;
 	struct ndis_80211_ssid ssid;
 	enum nl80211_auth_type auth_type;
 	int ret, alg, length, chan = -1;

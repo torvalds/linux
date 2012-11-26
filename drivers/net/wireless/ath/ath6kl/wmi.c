@@ -474,7 +474,7 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 		return -EINVAL;
 	}
 	id = vif->last_roc_id;
-	cfg80211_ready_on_channel(&vif->wdev, id, chan, NL80211_CHAN_NO_HT,
+	cfg80211_ready_on_channel(&vif->wdev, id, chan,
 				  dur, GFP_ATOMIC);
 
 	return 0;
@@ -513,8 +513,7 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	else
 		id = vif->last_roc_id; /* timeout on uncanceled r-o-c */
 	vif->last_cancel_roc_id = 0;
-	cfg80211_remain_on_channel_expired(&vif->wdev, id, chan,
-					   NL80211_CHAN_NO_HT, GFP_ATOMIC);
+	cfg80211_remain_on_channel_expired(&vif->wdev, id, chan, GFP_ATOMIC);
 
 	return 0;
 }

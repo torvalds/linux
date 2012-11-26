@@ -348,7 +348,6 @@ struct ieee80211_roc_work {
 	struct ieee80211_sub_if_data *sdata;
 
 	struct ieee80211_channel *chan;
-	enum nl80211_channel_type chan_type;
 
 	bool started, abort, hw_begun, notified;
 
@@ -364,7 +363,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_BEACON_POLL	= BIT(0),
 	IEEE80211_STA_CONNECTION_POLL	= BIT(1),
 	IEEE80211_STA_CONTROL_PORT	= BIT(2),
-	IEEE80211_STA_DISABLE_11N	= BIT(4),
+	IEEE80211_STA_DISABLE_HT	= BIT(4),
 	IEEE80211_STA_CSA_RECEIVED	= BIT(5),
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
@@ -800,7 +799,7 @@ ieee80211_get_sdata_band(struct ieee80211_sub_if_data *sdata)
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (!WARN_ON(!chanctx_conf))
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
 	return band;
@@ -1048,7 +1047,6 @@ struct ieee80211_local {
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
-	enum nl80211_channel_type tmp_channel_type;
 
 	/* channel contexts */
 	struct list_head chanctx_list;
@@ -1158,8 +1156,7 @@ struct ieee80211_local {
 
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
-	struct ieee80211_channel *monitor_channel;
-	enum nl80211_channel_type monitor_channel_type;
+	struct cfg80211_chan_def monitor_chandef;
 };
 
 static inline struct ieee80211_sub_if_data *
@@ -1518,7 +1515,7 @@ static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 	}
 
 	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
-				    chanctx_conf->channel->band);
+				    chanctx_conf->def.chan->band);
 	rcu_read_unlock();
 }
 
@@ -1607,8 +1604,7 @@ size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);
 u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			      u16 cap);
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
-			       struct ieee80211_channel *channel,
-			       enum nl80211_channel_type channel_type,
+			       const struct cfg80211_chan_def *chandef,
 			       u16 prot_mode);
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
@@ -1620,13 +1616,13 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				enum ieee80211_band band);
 
 /* channel management */
-enum nl80211_channel_type
-ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper);
+void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
+				  struct ieee80211_ht_operation *ht_oper,
+				  struct cfg80211_chan_def *chandef);
 
 int __must_check
 ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
-			  struct ieee80211_channel *channel,
-			  enum nl80211_channel_type channel_type,
+			  const struct cfg80211_chan_def *chandef,
 			  enum ieee80211_chanctx_mode mode);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 

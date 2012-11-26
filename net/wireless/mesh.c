@@ -73,8 +73,6 @@ const struct mesh_config default_mesh_config = {
 
 const struct mesh_setup default_mesh_setup = {
 	/* cfg80211_join_mesh() will pick a channel if needed */
-	.channel = NULL,
-	.channel_type = NL80211_CHAN_NO_HT,
 	.sync_method = IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET,
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
@@ -111,13 +109,12 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!rdev->ops->join_mesh)
 		return -EOPNOTSUPP;
 
-	if (!setup->channel) {
+	if (!setup->chandef.chan) {
 		/* if no channel explicitly given, use preset channel */
-		setup->channel = wdev->preset_chan;
-		setup->channel_type = wdev->preset_chantype;
+		setup->chandef = wdev->preset_chandef;
 	}
 
-	if (!setup->channel) {
+	if (!setup->chandef.chan) {
 		/* if we don't have that either, use the first usable channel */
 		enum ieee80211_band band;
 
@@ -137,26 +134,25 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 						   IEEE80211_CHAN_DISABLED |
 						   IEEE80211_CHAN_RADAR))
 					continue;
-				setup->channel = chan;
+				setup->chandef.chan = chan;
 				break;
 			}
 
-			if (setup->channel)
+			if (setup->chandef.chan)
 				break;
 		}
 
 		/* no usable channel ... */
-		if (!setup->channel)
+		if (!setup->chandef.chan)
 			return -EINVAL;
 
-		setup->channel_type = NL80211_CHAN_NO_HT;
+		setup->chandef.width = NL80211_CHAN_WIDTH_20_NOHT;;
 	}
 
-	if (!cfg80211_can_beacon_sec_chan(&rdev->wiphy, setup->channel,
-					  setup->channel_type))
+	if (!cfg80211_reg_can_beacon(&rdev->wiphy, &setup->chandef))
 		return -EINVAL;
 
-	err = cfg80211_can_use_chan(rdev, wdev, setup->channel,
+	err = cfg80211_can_use_chan(rdev, wdev, setup->chandef.chan,
 				    CHAN_MODE_SHARED);
 	if (err)
 		return err;
@@ -165,7 +161,7 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	if (!err) {
 		memcpy(wdev->ssid, setup->mesh_id, setup->mesh_id_len);
 		wdev->mesh_id_len = setup->mesh_id_len;
-		wdev->channel = setup->channel;
+		wdev->channel = setup->chandef.chan;
 	}
 
 	return err;
@@ -188,19 +184,11 @@ int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
-			   struct wireless_dev *wdev, int freq,
-			   enum nl80211_channel_type channel_type)
+int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
+			      struct wireless_dev *wdev,
+			      struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_channel *channel;
 	int err;
-
-	channel = rdev_freq_to_chan(rdev, freq, channel_type);
-	if (!channel || !cfg80211_can_beacon_sec_chan(&rdev->wiphy,
-						      channel,
-						      channel_type)) {
-		return -EINVAL;
-	}
 
 	/*
 	 * Workaround for libertas (only!), it puts the interface
@@ -210,21 +198,21 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 	 * compatible with 802.11 mesh.
 	 */
 	if (rdev->ops->libertas_set_mesh_channel) {
-		if (channel_type != NL80211_CHAN_NO_HT)
+		if (chandef->width != NL80211_CHAN_WIDTH_20_NOHT)
 			return -EINVAL;
 
 		if (!netif_running(wdev->netdev))
 			return -ENETDOWN;
 
-		err = cfg80211_can_use_chan(rdev, wdev, channel,
+		err = cfg80211_can_use_chan(rdev, wdev, chandef->chan,
 					    CHAN_MODE_SHARED);
 		if (err)
 			return err;
 
 		err = rdev_libertas_set_mesh_channel(rdev, wdev->netdev,
-						     channel);
+						     chandef->chan);
 		if (!err)
-			wdev->channel = channel;
+			wdev->channel = chandef->chan;
 
 		return err;
 	}
@@ -232,8 +220,7 @@ int cfg80211_set_mesh_freq(struct cfg80211_registered_device *rdev,
 	if (wdev->mesh_id_len)
 		return -EBUSY;
 
-	wdev->preset_chan = channel;
-	wdev->preset_chantype = channel_type;
+	wdev->preset_chandef = *chandef;
 	return 0;
 }
 

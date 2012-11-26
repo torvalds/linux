@@ -115,7 +115,7 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 			channel_type = NL80211_CHAN_NO_HT;
 	} else if (local->tmp_channel) {
 		chan = local->tmp_channel;
-		channel_type = local->tmp_channel_type;
+		channel_type = NL80211_CHAN_NO_HT;
 	} else {
 		chan = local->_oper_channel;
 		channel_type = local->_oper_channel_type;
@@ -798,10 +798,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			local->_oper_channel = &sband->channels[0];
 			local->hw.conf.channel_type = NL80211_CHAN_NO_HT;
 		}
-		if (!local->monitor_channel) {
-			local->monitor_channel = &sband->channels[0];
-			local->monitor_channel_type = NL80211_CHAN_NO_HT;
-		}
+		cfg80211_chandef_create(&local->monitor_chandef,
+					&sband->channels[0],
+					NL80211_CHAN_NO_HT);
 		channels += sband->n_channels;
 
 		if (max_bitrates < sband->n_bitrates)
@@ -884,9 +883,21 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (supp_ht)
 		local->scan_ies_len += 2 + sizeof(struct ieee80211_ht_cap);
 
-	if (supp_vht)
+	if (supp_vht) {
 		local->scan_ies_len +=
 			2 + sizeof(struct ieee80211_vht_cap);
+
+		/*
+		 * (for now at least), drivers wanting to use VHT must
+		 * support channel contexts, as they contain all the
+		 * necessary VHT information and the global hw config
+		 * doesn't (yet)
+		 */
+		if (WARN_ON(!local->use_chanctx)) {
+			result = -EINVAL;
+			goto fail_wiphy_register;
+		}
+	}
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */

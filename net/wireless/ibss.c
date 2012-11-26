@@ -100,9 +100,9 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		* 11a for maximum compatibility.
 		*/
 		struct ieee80211_supported_band *sband =
-			rdev->wiphy.bands[params->channel->band];
+			rdev->wiphy.bands[params->chandef.chan->band];
 		int j;
-		u32 flag = params->channel->band == IEEE80211_BAND_5GHZ ?
+		u32 flag = params->chandef.chan->band == IEEE80211_BAND_5GHZ ?
 			IEEE80211_RATE_MANDATORY_A :
 			IEEE80211_RATE_MANDATORY_B;
 
@@ -118,11 +118,11 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 
 	wdev->ibss_fixed = params->channel_fixed;
 #ifdef CONFIG_CFG80211_WEXT
-	wdev->wext.ibss.channel = params->channel;
+	wdev->wext.ibss.chandef = params->chandef;
 #endif
 	wdev->sme_state = CFG80211_SME_CONNECTING;
 
-	err = cfg80211_can_use_chan(rdev, wdev, params->channel,
+	err = cfg80211_can_use_chan(rdev, wdev, params->chandef.chan,
 				    params->channel_fixed
 				    ? CHAN_MODE_SHARED
 				    : CHAN_MODE_EXCLUSIVE);
@@ -251,7 +251,9 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 		wdev->wext.ibss.beacon_interval = 100;
 
 	/* try to find an IBSS channel if none requested ... */
-	if (!wdev->wext.ibss.channel) {
+	if (!wdev->wext.ibss.chandef.chan) {
+		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
+
 		for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 			struct ieee80211_supported_band *sband;
 			struct ieee80211_channel *chan;
@@ -266,15 +268,15 @@ int cfg80211_ibss_wext_join(struct cfg80211_registered_device *rdev,
 					continue;
 				if (chan->flags & IEEE80211_CHAN_DISABLED)
 					continue;
-				wdev->wext.ibss.channel = chan;
+				wdev->wext.ibss.chandef.chan = chan;
 				break;
 			}
 
-			if (wdev->wext.ibss.channel)
+			if (wdev->wext.ibss.chandef.chan)
 				break;
 		}
 
-		if (!wdev->wext.ibss.channel)
+		if (!wdev->wext.ibss.chandef.chan)
 			return -EINVAL;
 	}
 
@@ -336,7 +338,7 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 			return -EINVAL;
 	}
 
-	if (wdev->wext.ibss.channel == chan)
+	if (wdev->wext.ibss.chandef.chan == chan)
 		return 0;
 
 	wdev_lock(wdev);
@@ -349,7 +351,8 @@ int cfg80211_ibss_wext_siwfreq(struct net_device *dev,
 		return err;
 
 	if (chan) {
-		wdev->wext.ibss.channel = chan;
+		wdev->wext.ibss.chandef.chan = chan;
+		wdev->wext.ibss.chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 		wdev->wext.ibss.channel_fixed = true;
 	} else {
 		/* cfg80211_ibss_wext_join will pick one if needed */
@@ -379,8 +382,8 @@ int cfg80211_ibss_wext_giwfreq(struct net_device *dev,
 	wdev_lock(wdev);
 	if (wdev->current_bss)
 		chan = wdev->current_bss->pub.channel;
-	else if (wdev->wext.ibss.channel)
-		chan = wdev->wext.ibss.channel;
+	else if (wdev->wext.ibss.chandef.chan)
+		chan = wdev->wext.ibss.chandef.chan;
 	wdev_unlock(wdev);
 
 	if (chan) {

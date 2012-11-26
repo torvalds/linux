@@ -421,7 +421,6 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		cfg80211_remain_on_channel_expired(priv->wdev,
 						   priv->roc_cfg.cookie,
 						   &priv->roc_cfg.chan,
-						   priv->roc_cfg.chan_type,
 						   GFP_ATOMIC);
 
 		memset(&priv->roc_cfg, 0x00, sizeof(struct mwifiex_roc_cfg));

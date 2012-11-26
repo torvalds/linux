@@ -191,17 +191,19 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 		rcu_read_unlock();
 		return 0;
 	}
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
 
-	switch (sdata->vif.bss_conf.channel_type) {
-	case NL80211_CHAN_HT40PLUS:
-		if (chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
+	switch (sdata->vif.bss_conf.chandef.width) {
+	case NL80211_CHAN_WIDTH_40:
+		if (sdata->vif.bss_conf.chandef.chan->center_freq >
+				sdata->vif.bss_conf.chandef.center_freq1 &&
+		    chan->flags & IEEE80211_CHAN_NO_HT40PLUS)
 			disable_40 = true;
-		break;
-	case NL80211_CHAN_HT40MINUS:
-		if (chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
+		if (sdata->vif.bss_conf.chandef.chan->center_freq <
+				sdata->vif.bss_conf.chandef.center_freq1 &&
+		    chan->flags & IEEE80211_CHAN_NO_HT40MINUS)
 			disable_40 = true;
 		break;
 	default:
@@ -381,7 +383,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		rcu_read_unlock();
 		return;
 	}
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
 
@@ -541,7 +543,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		offset = noffset;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		ieee80211_add_ht_ie(sdata, skb, assoc_data->ap_ht_param,
 				    sband, chan, sdata->smps_mode);
 
@@ -1528,8 +1530,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
-	ieee80211_vif_release_channel(sdata);
-
 	/* disassociated - set to defaults now */
 	ieee80211_set_wmm_default(sdata, false);
 
@@ -1539,6 +1539,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.chswitch_timer);
 
 	sdata->u.mgd.timers_running = 0;
+
+	ifmgd->flags = 0;
+	ieee80211_vif_release_channel(sdata);
 }
 
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
@@ -1864,6 +1867,7 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 
 		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+		sdata->u.mgd.flags = 0;
 		ieee80211_vif_release_channel(sdata);
 	}
 
@@ -2106,6 +2110,7 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 
 		memset(sdata->u.mgd.bssid, 0, ETH_ALEN);
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+		sdata->u.mgd.flags = 0;
 		ieee80211_vif_release_channel(sdata);
 	}
 
@@ -2170,7 +2175,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[ieee80211_get_sdata_band(sdata)];
 
-	if (elems.ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
+	if (elems.ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 				elems.ht_cap_elem, &sta->sta.ht_cap);
 
@@ -2222,7 +2227,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_QOS;
 
 	if (elems.ht_operation && elems.wmm_param &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		changed |= ieee80211_config_ht_tx(sdata, elems.ht_operation,
 						  cbss->bssid, false);
 
@@ -2473,11 +2478,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (rx_status->freq != chanctx_conf->channel->center_freq) {
+	if (rx_status->freq != chanctx_conf->def.chan->center_freq) {
 		rcu_read_unlock();
 		return;
 	}
-	chan = chanctx_conf->channel;
+	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 
 	if (ifmgd->assoc_data && !ifmgd->assoc_data->have_beacon &&
@@ -2658,7 +2663,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 
 	if (elems.ht_cap_elem && elems.ht_operation && elems.wmm_param &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
+	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		changed |= ieee80211_config_ht_tx(sdata, elems.ht_operation,
 						  bssid, true);
 
@@ -3188,6 +3193,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	const u8 *ht_oper_ie;
 	const struct ieee80211_ht_operation *ht_oper = NULL;
 	struct ieee80211_supported_band *sband;
+	struct cfg80211_chan_def chandef;
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
@@ -3219,12 +3225,10 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				   ht_cfreq, ht_oper->primary_chan,
 				   cbss->channel->band);
 			ht_oper = NULL;
-		} else {
-			channel_type = NL80211_CHAN_HT20;
 		}
 	}
 
-	if (ht_oper && sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+	if (ht_oper) {
 		/*
 		 * cfg80211 already verified that the channel itself can
 		 * be used, but it didn't check that we can do the right
@@ -3237,19 +3241,26 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 		channel_type = NL80211_CHAN_HT20;
 
-		switch (ht_oper->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
-		case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-			if (cbss->channel->flags & IEEE80211_CHAN_NO_HT40PLUS)
-				ifmgd->flags |= IEEE80211_STA_DISABLE_40MHZ;
-			else
-				channel_type = NL80211_CHAN_HT40PLUS;
-			break;
-		case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-			if (cbss->channel->flags & IEEE80211_CHAN_NO_HT40MINUS)
-				ifmgd->flags |= IEEE80211_STA_DISABLE_40MHZ;
-			else
-				channel_type = NL80211_CHAN_HT40MINUS;
-			break;
+		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+			switch (ht_oper->ht_param &
+					IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				if (cbss->channel->flags &
+						IEEE80211_CHAN_NO_HT40PLUS)
+					ifmgd->flags |=
+						IEEE80211_STA_DISABLE_40MHZ;
+				else
+					channel_type = NL80211_CHAN_HT40PLUS;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				if (cbss->channel->flags &
+						IEEE80211_CHAN_NO_HT40MINUS)
+					ifmgd->flags |=
+						IEEE80211_STA_DISABLE_40MHZ;
+				else
+					channel_type = NL80211_CHAN_HT40MINUS;
+				break;
+			}
 		}
 
 		ht_cap_ie = cfg80211_find_ie(WLAN_EID_HT_CAPABILITY,
@@ -3262,13 +3273,15 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		sdata->needed_rx_chains = min(chains, local->rx_chains);
 	} else {
 		sdata->needed_rx_chains = 1;
+		sdata->u.mgd.flags |= IEEE80211_STA_DISABLE_HT;
 	}
 
 	/* will change later if needed */
 	sdata->smps_mode = IEEE80211_SMPS_OFF;
 
 	ieee80211_vif_release_channel(sdata);
-	return ieee80211_vif_use_channel(sdata, cbss->channel, channel_type,
+	cfg80211_chandef_create(&chandef, cbss->channel, channel_type);
+	return ieee80211_vif_use_channel(sdata, &chandef,
 					 IEEE80211_CHANCTX_SHARED);
 }
 
@@ -3530,13 +3543,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	/* prepare assoc data */
 	
-	/*
-	 * keep only the 40 MHz disable bit set as it might have
-	 * been set during authentication already, all other bits
-	 * should be reset for a new connection
-	 */
-	ifmgd->flags &= IEEE80211_STA_DISABLE_40MHZ;
-
 	ifmgd->beacon_crc_valid = false;
 
 	/*
@@ -3550,7 +3556,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104) {
-			ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 			netdev_info(sdata->dev,
 				    "disabling HT/VHT due to WEP/TKIP use\n");
@@ -3558,7 +3564,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (req->flags & ASSOC_REQ_DISABLE_HT) {
-		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
 	}
 
@@ -3566,7 +3572,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
 	if (!sband->ht_cap.ht_supported ||
 	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used) {
-		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 		if (!bss->wmm_used)
 			netdev_info(sdata->dev,
 				    "disabling HT as WMM/QoS is not supported by the AP\n");
@@ -3611,7 +3617,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		assoc_data->ap_ht_param =
 			((struct ieee80211_ht_operation *)(ht_ie + 2))->ht_param;
 	else
-		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
 
 	if (bss->wmm_used && bss->uapsd_supported &&
 	    (sdata->local->hw.flags & IEEE80211_HW_SUPPORTS_UAPSD)) {

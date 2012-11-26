@@ -145,11 +145,11 @@ struct ieee80211_low_level_stats {
 
 /**
  * enum ieee80211_chanctx_change - change flag for channel context
- * @IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE: The channel type was changed
+ * @IEEE80211_CHANCTX_CHANGE_WIDTH: The channel width changed
  * @IEEE80211_CHANCTX_CHANGE_RX_CHAINS: The number of RX chains changed
  */
 enum ieee80211_chanctx_change {
-	IEEE80211_CHANCTX_CHANGE_CHANNEL_TYPE	= BIT(0),
+	IEEE80211_CHANCTX_CHANGE_WIDTH		= BIT(0),
 	IEEE80211_CHANCTX_CHANGE_RX_CHAINS	= BIT(1),
 };
 
@@ -159,8 +159,7 @@ enum ieee80211_chanctx_change {
  * This is the driver-visible part. The ieee80211_chanctx
  * that contains it is visible in mac80211 only.
  *
- * @channel: the channel to tune to
- * @channel_type: the channel (HT) type
+ * @def: the channel definition
  * @rx_chains_static: The number of RX chains that must always be
  *	active on the channel to receive MIMO transmissions
  * @rx_chains_dynamic: The number of RX chains that must be enabled
@@ -170,8 +169,7 @@ enum ieee80211_chanctx_change {
  *	sizeof(void *), size is determined in hw information.
  */
 struct ieee80211_chanctx_conf {
-	struct ieee80211_channel *channel;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def def;
 
 	u8 rx_chains_static, rx_chains_dynamic;
 
@@ -288,9 +286,8 @@ enum ieee80211_rssi_event {
  * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
- * @channel_type: Channel type for this BSS -- the hardware might be
- *	configured for HT40+ while this BSS only uses no-HT, for
- *	example.
+ * @chandef: Channel definition for this BSS -- the hardware might be
+ *	configured a higher bandwidth than this BSS uses, for example.
  * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
  *	This field is only valid when the channel type is one of the HT types.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
@@ -339,7 +336,7 @@ struct ieee80211_bss_conf {
 	u16 ht_operation_mode;
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];
 	u8 arp_addr_cnt;
 	bool arp_filter_enabled;
@@ -502,9 +499,14 @@ enum mac80211_tx_control_flags {
  *	This is set if the current BSS requires ERP protection.
  * @IEEE80211_TX_RC_USE_SHORT_PREAMBLE: Use short preamble.
  * @IEEE80211_TX_RC_MCS: HT rate.
+ * @IEEE80211_TX_RC_VHT_MCS: VHT MCS rate, in this case the idx field is split
+ *	into a higher 4 bits (Nss) and lower 4 bits (MCS number)
  * @IEEE80211_TX_RC_GREEN_FIELD: Indicates whether this rate should be used in
  *	Greenfield mode.
  * @IEEE80211_TX_RC_40_MHZ_WIDTH: Indicates if the Channel Width should be 40 MHz.
+ * @IEEE80211_TX_RC_80_MHZ_WIDTH: Indicates 80 MHz transmission
+ * @IEEE80211_TX_RC_160_MHZ_WIDTH: Indicates 160 MHz transmission
+ *	(80+80 isn't supported yet)
  * @IEEE80211_TX_RC_DUP_DATA: The frame should be transmitted on both of the
  *	adjacent 20 MHz channels, if the current channel type is
  *	NL80211_CHAN_HT40MINUS or NL80211_CHAN_HT40PLUS.
@@ -515,12 +517,15 @@ enum mac80211_rate_control_flags {
 	IEEE80211_TX_RC_USE_CTS_PROTECT		= BIT(1),
 	IEEE80211_TX_RC_USE_SHORT_PREAMBLE	= BIT(2),
 
-	/* rate index is an MCS rate number instead of an index */
+	/* rate index is an HT/VHT MCS instead of an index */
 	IEEE80211_TX_RC_MCS			= BIT(3),
 	IEEE80211_TX_RC_GREEN_FIELD		= BIT(4),
 	IEEE80211_TX_RC_40_MHZ_WIDTH		= BIT(5),
 	IEEE80211_TX_RC_DUP_DATA		= BIT(6),
 	IEEE80211_TX_RC_SHORT_GI		= BIT(7),
+	IEEE80211_TX_RC_VHT_MCS			= BIT(8),
+	IEEE80211_TX_RC_80_MHZ_WIDTH		= BIT(9),
+	IEEE80211_TX_RC_160_MHZ_WIDTH		= BIT(10),
 };
 
 
@@ -563,9 +568,31 @@ enum mac80211_rate_control_flags {
  */
 struct ieee80211_tx_rate {
 	s8 idx;
-	u8 count;
-	u8 flags;
+	u16 count:5,
+	    flags:11;
 } __packed;
+
+#define IEEE80211_MAX_TX_RETRY		31
+
+static inline void ieee80211_rate_set_vht(struct ieee80211_tx_rate *rate,
+					  u8 mcs, u8 nss)
+{
+	WARN_ON(mcs & ~0xF);
+	WARN_ON(nss & ~0x7);
+	rate->idx = (nss << 4) | mcs;
+}
+
+static inline u8
+ieee80211_rate_get_vht_mcs(const struct ieee80211_tx_rate *rate)
+{
+	return rate->idx & 0xF;
+}
+
+static inline u8
+ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
+{
+	return rate->idx >> 4;
+}
 
 /**
  * struct ieee80211_tx_info - skb transmit information
@@ -720,7 +747,11 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  *	(including FCS) was received.
  * @RX_FLAG_SHORTPRE: Short preamble was used for this frame
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
+ * @RX_FLAG_VHT: VHT MCS was used and rate_index is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
+ * @RX_FLAG_80MHZ: 80 MHz was used
+ * @RX_FLAG_80P80MHZ: 80+80 MHz was used
+ * @RX_FLAG_160MHZ: 160 MHz was used
  * @RX_FLAG_SHORT_GI: Short guard interval was used
  * @RX_FLAG_NO_SIGNAL_VAL: The signal strength value is not present.
  *	Valid only for data frames (mainly A-MPDU)
@@ -763,6 +794,10 @@ enum mac80211_rx_flags {
 	RX_FLAG_AMPDU_DELIM_CRC_ERROR	= BIT(19),
 	RX_FLAG_AMPDU_DELIM_CRC_KNOWN	= BIT(20),
 	RX_FLAG_MACTIME_END		= BIT(21),
+	RX_FLAG_VHT			= BIT(22),
+	RX_FLAG_80MHZ			= BIT(23),
+	RX_FLAG_80P80MHZ		= BIT(24),
+	RX_FLAG_160MHZ			= BIT(25),
 };
 
 /**
@@ -783,7 +818,8 @@ enum mac80211_rx_flags {
  *	@IEEE80211_HW_SIGNAL_*
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
- *	HT rates are use (RX_FLAG_HT)
+ *	HT or VHT is used (%RX_FLAG_HT/%RX_FLAG_VHT)
+ * @vht_nss: number of streams (VHT only)
  * @flag: %RX_FLAG_*
  * @rx_flags: internal RX flags for mac80211
  * @ampdu_reference: A-MPDU reference number, must be a different value for
@@ -806,6 +842,7 @@ struct ieee80211_rx_status {
 	u16 vendor_radiotap_len;
 	u16 freq;
 	u8 rate_idx;
+	u8 vht_nss;
 	u8 rx_flags;
 	u8 band;
 	u8 antenna;
@@ -2550,7 +2587,6 @@ struct ieee80211_ops {
 	int (*remain_on_channel)(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_channel *chan,
-				 enum nl80211_channel_type channel_type,
 				 int duration);
 	int (*cancel_remain_on_channel)(struct ieee80211_hw *hw);
 	int (*set_ringparam)(struct ieee80211_hw *hw, u32 tx, u32 rx);

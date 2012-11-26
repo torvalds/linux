@@ -681,7 +681,7 @@ static void mac80211_hwsim_tx_iter(void *_data, u8 *addr,
 		return;
 
 	if (!hwsim_chans_compat(data->channel,
-				rcu_dereference(vif->chanctx_conf)->channel))
+				rcu_dereference(vif->chanctx_conf)->def.chan))
 		return;
 
 	data->receive = true;
@@ -832,7 +832,7 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	} else {
 		chanctx_conf = rcu_dereference(txi->control.vif->chanctx_conf);
 		if (chanctx_conf)
-			channel = chanctx_conf->channel;
+			channel = chanctx_conf->def.chan;
 		else
 			channel = NULL;
 	}
@@ -977,7 +977,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 		return;
 
 	mac80211_hwsim_tx_frame(hw, skb,
-				rcu_dereference(vif->chanctx_conf)->channel);
+				rcu_dereference(vif->chanctx_conf)->def.chan);
 }
 
 
@@ -1107,9 +1107,8 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_HT) {
-		wiphy_debug(hw->wiphy, "  HT: op_mode=0x%x, chantype=%s\n",
-			    info->ht_operation_mode,
-			    hwsim_chantypes[info->channel_type]);
+		wiphy_debug(hw->wiphy, "  HT: op_mode=0x%x\n",
+			    info->ht_operation_mode);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
@@ -1368,7 +1367,6 @@ static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 				  struct cfg80211_scan_request *req)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
-	int i;
 
 	mutex_lock(&hwsim->mutex);
 	if (WARN_ON(hwsim->tmp_chan || hwsim->hw_scan_request)) {
@@ -1381,11 +1379,6 @@ static int mac80211_hwsim_hw_scan(struct ieee80211_hw *hw,
 	mutex_unlock(&hwsim->mutex);
 
 	wiphy_debug(hw->wiphy, "hwsim hw_scan request\n");
-	for (i = 0; i < req->n_channels; i++)
-		printk(KERN_DEBUG "hwsim hw_scan freq %d\n",
-			req->channels[i]->center_freq);
-	print_hex_dump(KERN_DEBUG, "scan IEs: ", DUMP_PREFIX_OFFSET,
-			16, 1, req->ie, req->ie_len, 1);
 
 	ieee80211_queue_delayed_work(hwsim->hw, &hwsim->hw_scan, 0);
 
@@ -1455,7 +1448,6 @@ static void hw_roc_done(struct work_struct *work)
 static int mac80211_hwsim_roc(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_channel *chan,
-			      enum nl80211_channel_type channel_type,
 			      int duration)
 {
 	struct mac80211_hwsim_data *hwsim = hw->priv;
@@ -1498,16 +1490,20 @@ static int mac80211_hwsim_add_chanctx(struct ieee80211_hw *hw,
 				      struct ieee80211_chanctx_conf *ctx)
 {
 	hwsim_set_chanctx_magic(ctx);
-	wiphy_debug(hw->wiphy, "add channel context %d MHz/%d\n",
-		    ctx->channel->center_freq, ctx->channel_type);
+	wiphy_debug(hw->wiphy,
+		    "add channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
+		    ctx->def.chan->center_freq, ctx->def.width,
+		    ctx->def.center_freq1, ctx->def.center_freq2);
 	return 0;
 }
 
 static void mac80211_hwsim_remove_chanctx(struct ieee80211_hw *hw,
 					  struct ieee80211_chanctx_conf *ctx)
 {
-	wiphy_debug(hw->wiphy, "remove channel context %d MHz/%d\n",
-		    ctx->channel->center_freq, ctx->channel_type);
+	wiphy_debug(hw->wiphy,
+		    "remove channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
+		    ctx->def.chan->center_freq, ctx->def.width,
+		    ctx->def.center_freq1, ctx->def.center_freq2);
 	hwsim_check_chanctx_magic(ctx);
 	hwsim_clear_chanctx_magic(ctx);
 }
@@ -1517,8 +1513,10 @@ static void mac80211_hwsim_change_chanctx(struct ieee80211_hw *hw,
 					  u32 changed)
 {
 	hwsim_check_chanctx_magic(ctx);
-	wiphy_debug(hw->wiphy, "change channel context %#x (%d MHz/%d)\n",
-		    changed, ctx->channel->center_freq, ctx->channel_type);
+	wiphy_debug(hw->wiphy,
+		    "change channel context control: %d MHz/width: %d/cfreqs:%d/%d MHz\n",
+		    ctx->def.chan->center_freq, ctx->def.width,
+		    ctx->def.center_freq1, ctx->def.center_freq2);
 }
 
 static int mac80211_hwsim_assign_vif_chanctx(struct ieee80211_hw *hw,
@@ -1640,7 +1638,7 @@ static void hwsim_send_ps_poll(void *dat, u8 *mac, struct ieee80211_vif *vif)
 
 	rcu_read_lock();
 	mac80211_hwsim_tx_frame(data->hw, skb,
-				rcu_dereference(vif->chanctx_conf)->channel);
+				rcu_dereference(vif->chanctx_conf)->def.chan);
 	rcu_read_unlock();
 }
 
@@ -1672,7 +1670,7 @@ static void hwsim_send_nullfunc(struct mac80211_hwsim_data *data, u8 *mac,
 
 	rcu_read_lock();
 	mac80211_hwsim_tx_frame(data->hw, skb,
-				rcu_dereference(vif->chanctx_conf)->channel);
+				rcu_dereference(vif->chanctx_conf)->def.chan);
 	rcu_read_unlock();
 }
 
@@ -2204,6 +2202,34 @@ static int __init init_mac80211_hwsim(void)
 			sband->ht_cap.mcs.tx_params = IEEE80211_HT_MCS_TX_DEFINED;
 
 			hw->wiphy->bands[band] = sband;
+
+			if (channels == 1)
+				continue;
+
+			sband->vht_cap.vht_supported = true;
+			sband->vht_cap.cap =
+				IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
+				IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ |
+				IEEE80211_VHT_CAP_RXLDPC |
+				IEEE80211_VHT_CAP_SHORT_GI_80 |
+				IEEE80211_VHT_CAP_SHORT_GI_160 |
+				IEEE80211_VHT_CAP_TXSTBC |
+				IEEE80211_VHT_CAP_RXSTBC_1 |
+				IEEE80211_VHT_CAP_RXSTBC_2 |
+				IEEE80211_VHT_CAP_RXSTBC_3 |
+				IEEE80211_VHT_CAP_RXSTBC_4 |
+				IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT;
+			sband->vht_cap.vht_mcs.rx_mcs_map =
+				cpu_to_le16(IEEE80211_VHT_MCS_SUPPORT_0_8 << 0 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_8 << 2 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 4 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_8 << 6 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_8 << 8 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 10 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_9 << 12 |
+					    IEEE80211_VHT_MCS_SUPPORT_0_8 << 14);
+			sband->vht_cap.vht_mcs.tx_mcs_map =
+				sband->vht_cap.vht_mcs.rx_mcs_map;
 		}
 		/* By default all radios are belonging to the first group */
 		data->group = 1;

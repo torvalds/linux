@@ -227,6 +227,7 @@ struct sta_ampdu_mlme {
  *	"the" transmit rate
  * @last_rx_rate_idx: rx status rate index of the last data packet
  * @last_rx_rate_flag: rx status flag of the last data packet
+ * @last_rx_rate_vht_nss: rx status nss of last data packet
  * @lock: used for locking all fields that require locking, see comments
  *	in the header file.
  * @drv_unblock_wk: used for driver PS unblocking
@@ -272,7 +273,7 @@ struct sta_ampdu_mlme {
  * @t_offset: timing offset relative to this host
  * @t_offset_setpoint: reference timing offset of this sta to be used when
  * 	calculating clockdrift
- * @ch_type: peer's channel type
+ * @ch_width: peer's channel width
  * @debugfs: debug filesystem info
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
@@ -343,7 +344,8 @@ struct sta_info {
 	unsigned long tx_fragments;
 	struct ieee80211_tx_rate last_tx_rate;
 	int last_rx_rate_idx;
-	int last_rx_rate_flag;
+	u32 last_rx_rate_flag;
+	u8 last_rx_rate_vht_nss;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 
 	/*
@@ -368,7 +370,7 @@ struct sta_info {
 	struct timer_list plink_timer;
 	s64 t_offset;
 	s64 t_offset_setpoint;
-	enum nl80211_channel_type ch_type;
+	enum nl80211_chan_width ch_width;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
