@@ -29,7 +29,7 @@
 #include "common.h"
 #include "mpp.h"
 
-struct mtd_partition hp_t5325_partitions[] = {
+static struct mtd_partition hp_t5325_partitions[] = {
 	{
 		.name		= "u-boot env",
 		.size		= SZ_64K,
@@ -59,14 +59,14 @@ struct mtd_partition hp_t5325_partitions[] = {
 	},
 };
 
-const struct flash_platform_data hp_t5325_flash = {
+static const struct flash_platform_data hp_t5325_flash = {
 	.type		= "mx25l8005",
 	.name		= "spi_flash",
 	.parts		= hp_t5325_partitions,
 	.nr_parts	= ARRAY_SIZE(hp_t5325_partitions),
 };
 
-struct spi_board_info __initdata hp_t5325_spi_slave_info[] = {
+static struct spi_board_info __initdata hp_t5325_spi_slave_info[] = {
 	{
 		.modalias	= "m25p80",
 		.platform_data	= &hp_t5325_flash,

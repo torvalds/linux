@@ -14,10 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mtd/partitions.h>
-#include <linux/ata_platform.h>
-#include <linux/spi/flash.h>
-#include <linux/spi/spi.h>
 #include <linux/mv643xx_eth.h>
 #include "common.h"
 
