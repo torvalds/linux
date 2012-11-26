@@ -12,6 +12,7 @@
 #include "internal.h"
 #include "callback.h"
 #include "delegation.h"
+#include "nfs4session.h"
 #include "pnfs.h"
 #include "netns.h"
 

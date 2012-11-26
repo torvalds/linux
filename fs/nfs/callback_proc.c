@@ -14,6 +14,7 @@
 #include "delegation.h"
 #include "internal.h"
 #include "pnfs.h"
+#include "nfs4session.h"
 
 #ifdef NFS_DEBUG
 #define NFSDBG_FACILITY NFSDBG_CALLBACK

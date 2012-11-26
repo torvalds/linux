@@ -249,18 +249,12 @@ extern int nfs4_setup_sequence(const struct nfs_server *server,
 extern int nfs41_setup_sequence(struct nfs4_session *session,
 		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
 		struct rpc_task *task);
-extern void nfs4_destroy_session(struct nfs4_session *session);
-extern struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp);
 extern int nfs4_proc_create_session(struct nfs_client *, struct rpc_cred *);
 extern int nfs4_proc_destroy_session(struct nfs4_session *, struct rpc_cred *);
-extern int nfs4_init_session(struct nfs_server *server);
 extern int nfs4_proc_get_lease_time(struct nfs_client *clp,
 		struct nfs_fsinfo *fsinfo);
 extern int nfs4_proc_layoutcommit(struct nfs4_layoutcommit_data *data,
 				  bool sync);
-
-extern void nfs41_set_target_slotid(struct nfs4_slot_table *tbl,
-		u32 target_highest_slotid);
 
 static inline bool
 is_ds_only_client(struct nfs_client *clp)
@@ -283,11 +277,6 @@ static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *ser
 static inline int nfs4_setup_sequence(const struct nfs_server *server,
 		struct nfs4_sequence_args *args, struct nfs4_sequence_res *res,
 		struct rpc_task *task)
-{
-	return 0;
-}
-
-static inline int nfs4_init_session(struct nfs_server *server)
 {
 	return 0;
 }
