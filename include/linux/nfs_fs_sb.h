@@ -225,11 +225,6 @@ struct nfs4_slot_table {
 	struct completion complete;
 };
 
-static inline int slot_idx(struct nfs4_slot_table *tbl, struct nfs4_slot *sp)
-{
-	return sp - tbl->slots;
-}
-
 /*
  * Session related parameters
  */
