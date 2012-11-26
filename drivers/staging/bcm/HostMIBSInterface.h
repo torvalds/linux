@@ -98,7 +98,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	u32	u32PHSRuleID;
 } S_MIBS_CLASSIFIER_RULE;
 
-typedef struct _S_MIBS_PHS_RULE {
+struct bcm_mibs_phs_rule {
 	unsigned long	ulSFID;
 	u8	u8PHSI;
 	u8	u8PHSFLength;
@@ -111,7 +111,7 @@ typedef struct _S_MIBS_PHS_RULE {
 	long	PHSModifiedBytes;
 	unsigned long	PHSModifiedNumPackets;
 	unsigned long	PHSErrorNumPackets;
-} S_MIBS_PHS_RULE;
+};
 
 struct bcm_mibs_parameters {
 	u32 wmanIfSfid;
@@ -185,7 +185,7 @@ struct bcm_host_stats_mibs {
 	S_MIBS_HOST_INFO	stHostInfo;
 	S_MIBS_CLASSIFIER_RULE	astClassifierTable[MIBS_MAX_CLASSIFIERS];
 	struct bcm_mibs_table	astSFtable[MIBS_MAX_SERVICEFLOWS];
-	S_MIBS_PHS_RULE		astPhsRulesTable[MIBS_MAX_PHSRULES];
+	struct bcm_mibs_phs_rule astPhsRulesTable[MIBS_MAX_PHSRULES];
 	struct bcm_mibs_dropped_cntrl_msg stDroppedAppCntrlMsgs;
 };
 
