@@ -945,6 +945,7 @@ unlock:
 
 struct pn533_sync_cmd_response {
 	int rc;
+	struct sk_buff *resp;
 	struct completion done;
 };
 
@@ -963,6 +964,58 @@ static int pn533_sync_cmd_complete(struct pn533 *dev, void *_arg,
 	complete(&arg->done);
 
 	return 0;
+}
+
+static int pn533_send_sync_complete(struct pn533 *dev, void *_arg,
+				    struct sk_buff *resp)
+{
+	struct pn533_sync_cmd_response *arg = _arg;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	arg->resp = resp;
+	complete(&arg->done);
+
+	return 0;
+}
+
+/*  pn533_send_cmd_sync
+ *
+ *  Please note the req parameter is freed inside the function to
+ *  limit a number of return value interpretations by the caller.
+ *
+ *  1. negative in case of error during TX path -> req should be freed
+ *
+ *  2. negative in case of error during RX path -> req should not be freed
+ *     as it's been already freed at the begining of RX path by
+ *     async_complete_cb.
+ *
+ *  3. valid pointer in case of succesfult RX path
+ *
+ *  A caller has to check a return value with IS_ERR macro. If the test pass,
+ *  the returned pointer is valid.
+ *
+ * */
+static struct sk_buff *pn533_send_cmd_sync(struct pn533 *dev, u8 cmd_code,
+					       struct sk_buff *req)
+{
+	int rc;
+	struct pn533_sync_cmd_response arg;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	init_completion(&arg.done);
+
+	rc = pn533_send_cmd_async(dev, cmd_code, req,
+				  pn533_send_sync_complete, &arg);
+	if (rc) {
+		dev_kfree_skb(req);
+		return ERR_PTR(rc);
+	}
+
+	wait_for_completion(&arg.done);
+
+	return arg.resp;
 }
 
 static int pn533_send_cmd_frame_sync(struct pn533 *dev,
@@ -2432,7 +2485,7 @@ static int pn533_fw_reset(struct pn533 *dev)
 	rc = pn533_send_cmd_frame_sync(dev, dev->out_frame, dev->in_frame,
 				       PN533_NORMAL_FRAME_MAX_LEN);
 
-	return rc;
+	return 0;
 }
 
 static struct nfc_ops pn533_nfc_ops = {
