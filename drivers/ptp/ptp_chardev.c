@@ -21,6 +21,7 @@
 #include <linux/posix-clock.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "ptp_private.h"
 
@@ -136,20 +137,23 @@ unsigned int ptp_poll(struct posix_clock *pc, struct file *fp, poll_table *wait)
 	return queue_cnt(&ptp->tsevq) ? POLLIN : 0;
 }
 
+#define EXTTS_BUFSIZE (PTP_BUF_TIMESTAMPS * sizeof(struct ptp_extts_event))
+
 ssize_t ptp_read(struct posix_clock *pc,
 		 uint rdflags, char __user *buf, size_t cnt)
 {
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct timestamp_event_queue *queue = &ptp->tsevq;
-	struct ptp_extts_event event[PTP_BUF_TIMESTAMPS];
+	struct ptp_extts_event *event;
 	unsigned long flags;
 	size_t qcnt, i;
+	int result;
 
 	if (cnt % sizeof(struct ptp_extts_event) != 0)
 		return -EINVAL;
 
-	if (cnt > sizeof(event))
-		cnt = sizeof(event);
+	if (cnt > EXTTS_BUFSIZE)
+		cnt = EXTTS_BUFSIZE;
 
 	cnt = cnt / sizeof(struct ptp_extts_event);
 
@@ -165,6 +169,12 @@ ssize_t ptp_read(struct posix_clock *pc,
 	if (ptp->defunct) {
 		mutex_unlock(&ptp->tsevq_mux);
 		return -ENODEV;
+	}
+
+	event = kmalloc(EXTTS_BUFSIZE, GFP_KERNEL);
+	if (!event) {
+		mutex_unlock(&ptp->tsevq_mux);
+		return -ENOMEM;
 	}
 
 	spin_lock_irqsave(&queue->lock, flags);
@@ -185,8 +195,10 @@ ssize_t ptp_read(struct posix_clock *pc,
 
 	mutex_unlock(&ptp->tsevq_mux);
 
+	result = cnt;
 	if (copy_to_user(buf, event, cnt))
-		return -EFAULT;
+		result = -EFAULT;
 
-	return cnt;
+	kfree(event);
+	return result;
 }
