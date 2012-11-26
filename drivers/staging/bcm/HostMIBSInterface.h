@@ -43,7 +43,7 @@ typedef union _U_MIBS_IP_ADDRESS {
 	};
 } U_MIBS_IP_ADDRESS;
 
-typedef struct _S_MIBS_HOST_INFO {
+struct bcm_mibs_host_info {
 	u64	GoodTransmits;
 	u64	GoodReceives;
 	/* this to keep track of the Tx and Rx MailBox Registers. */
@@ -62,7 +62,7 @@ typedef struct _S_MIBS_HOST_INFO {
 	u32	u32TotalDSD;
 	u32	aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 	u32	aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
-} S_MIBS_HOST_INFO;
+};
 
 struct bcm_mibs_classifier_rule {
 	unsigned long	ulSFID;
@@ -182,7 +182,7 @@ struct bcm_mibs_dropped_cntrl_msg {
 };
 
 struct bcm_host_stats_mibs {
-	S_MIBS_HOST_INFO	stHostInfo;
+	struct bcm_mibs_host_info stHostInfo;
 	struct bcm_mibs_classifier_rule astClassifierTable[MIBS_MAX_CLASSIFIERS];
 	struct bcm_mibs_table	astSFtable[MIBS_MAX_SERVICEFLOWS];
 	struct bcm_mibs_phs_rule astPhsRulesTable[MIBS_MAX_PHSRULES];
