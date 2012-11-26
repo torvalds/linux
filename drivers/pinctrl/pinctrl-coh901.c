@@ -13,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/io.h>
+#include <linux/irqdomain.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
@@ -64,10 +65,8 @@ struct u300_gpio {
 	struct gpio_chip chip;
 	struct list_head port_list;
 	struct clk *clk;
-	struct resource *memres;
 	void __iomem *base;
 	struct device *dev;
-	int irq_base;
 	u32 stride;
 	/* Register offsets */
 	u32 pcr;
@@ -83,6 +82,7 @@ struct u300_gpio_port {
 	struct list_head node;
 	struct u300_gpio *gpio;
 	char name[8];
+	struct irq_domain *domain;
 	int irq;
 	int number;
 	u8 toggle_edge_mode;
@@ -314,10 +314,30 @@ static int u300_gpio_direction_output(struct gpio_chip *chip, unsigned offset,
 static int u300_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
 	struct u300_gpio *gpio = to_u300_gpio(chip);
-	int retirq = gpio->irq_base + offset;
+	int portno = offset >> 3;
+	struct u300_gpio_port *port = NULL;
+	struct list_head *p;
+	int retirq;
 
-	dev_dbg(gpio->dev, "request IRQ for GPIO %d, return %d\n", offset,
-		retirq);
+	list_for_each(p, &gpio->port_list) {
+		port = list_entry(p, struct u300_gpio_port, node);
+		if (port->number == portno)
+			break;
+	}
+	if (port == NULL) {
+		dev_err(gpio->dev, "could not locate port for GPIO %d IRQ\n",
+			offset);
+		return -EINVAL;
+	}
+
+	/*
+	 * The local hwirqs on the port are the lower three bits, there
+	 * are exactly 8 IRQs per port since they are 8-bit
+	 */
+	retirq = irq_find_mapping(port->domain, (offset & 0x7));
+
+	dev_dbg(gpio->dev, "request IRQ for GPIO %d, return %d from port %d\n",
+		offset, retirq, port->number);
 	return retirq;
 }
 
@@ -467,7 +487,7 @@ static int u300_gpio_irq_type(struct irq_data *d, unsigned trigger)
 {
 	struct u300_gpio_port *port = irq_data_get_irq_chip_data(d);
 	struct u300_gpio *gpio = port->gpio;
-	int offset = d->irq - gpio->irq_base;
+	int offset = (port->number << 3) + d->hwirq;
 	u32 val;
 
 	if ((trigger & IRQF_TRIGGER_RISING) &&
@@ -503,10 +523,12 @@ static void u300_gpio_irq_enable(struct irq_data *d)
 {
 	struct u300_gpio_port *port = irq_data_get_irq_chip_data(d);
 	struct u300_gpio *gpio = port->gpio;
-	int offset = d->irq - gpio->irq_base;
+	int offset = (port->number << 3) + d->hwirq;
 	u32 val;
 	unsigned long flags;
 
+	dev_dbg(gpio->dev, "enable IRQ for hwirq %lu on port %s, offset %d\n",
+		 d->hwirq, port->name, offset);
 	local_irq_save(flags);
 	val = readl(U300_PIN_REG(offset, ien));
 	writel(val | U300_PIN_BIT(offset), U300_PIN_REG(offset, ien));
@@ -517,7 +539,7 @@ static void u300_gpio_irq_disable(struct irq_data *d)
 {
 	struct u300_gpio_port *port = irq_data_get_irq_chip_data(d);
 	struct u300_gpio *gpio = port->gpio;
-	int offset = d->irq - gpio->irq_base;
+	int offset = (port->number << 3) + d->hwirq;
 	u32 val;
 	unsigned long flags;
 
@@ -555,8 +577,7 @@ static void u300_gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		int irqoffset;
 
 		for_each_set_bit(irqoffset, &val, U300_GPIO_PINS_PER_PORT) {
-			int pin_irq = gpio->irq_base + (port->number << 3)
-				+ irqoffset;
+			int pin_irq = irq_find_mapping(port->domain, irqoffset);
 			int offset = pinoffset + irqoffset;
 
 			dev_dbg(gpio->dev, "GPIO IRQ %d on pin %d\n",
@@ -631,6 +652,8 @@ static inline void u300_gpio_free_ports(struct u300_gpio *gpio)
 	list_for_each_safe(p, n, &gpio->port_list) {
 		port = list_entry(p, struct u300_gpio_port, node);
 		list_del(&port->node);
+		if (port->domain)
+			irq_domain_remove(port->domain);
 		kfree(port);
 	}
 }
@@ -639,56 +662,46 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 {
 	struct u300_gpio_platform *plat = dev_get_platdata(&pdev->dev);
 	struct u300_gpio *gpio;
+	struct resource *memres;
 	int err = 0;
 	int portno;
 	u32 val;
 	u32 ifr;
 	int i;
 
-	gpio = kzalloc(sizeof(struct u300_gpio), GFP_KERNEL);
-	if (gpio == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	gpio = devm_kzalloc(&pdev->dev, sizeof(struct u300_gpio), GFP_KERNEL);
+	if (gpio == NULL)
 		return -ENOMEM;
-	}
 
 	gpio->chip = u300_gpio_chip;
 	gpio->chip.ngpio = plat->ports * U300_GPIO_PINS_PER_PORT;
-	gpio->irq_base = plat->gpio_irq_base;
 	gpio->chip.dev = &pdev->dev;
 	gpio->chip.base = plat->gpio_base;
 	gpio->dev = &pdev->dev;
 
-	/* Get GPIO clock */
-	gpio->clk = clk_get(gpio->dev, NULL);
+	memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!memres) {
+		dev_err(gpio->dev, "could not get GPIO memory resource\n");
+		return -ENODEV;
+	}
+
+	gpio->base = devm_request_and_ioremap(&pdev->dev, memres);
+	if (!gpio->base) {
+		dev_err(gpio->dev, "could not get remap memory\n");
+		return -ENOMEM;
+	}
+
+	gpio->clk = devm_clk_get(gpio->dev, NULL);
 	if (IS_ERR(gpio->clk)) {
 		err = PTR_ERR(gpio->clk);
 		dev_err(gpio->dev, "could not get GPIO clock\n");
-		goto err_no_clk;
+		return err;
 	}
+
 	err = clk_prepare_enable(gpio->clk);
 	if (err) {
 		dev_err(gpio->dev, "could not enable GPIO clock\n");
-		goto err_no_clk_enable;
-	}
-
-	gpio->memres = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!gpio->memres) {
-		dev_err(gpio->dev, "could not get GPIO memory resource\n");
-		err = -ENODEV;
-		goto err_no_resource;
-	}
-
-	if (!request_mem_region(gpio->memres->start,
-				resource_size(gpio->memres),
-				"GPIO Controller")) {
-		err = -ENODEV;
-		goto err_no_ioregion;
-	}
-
-	gpio->base = ioremap(gpio->memres->start, resource_size(gpio->memres));
-	if (!gpio->base) {
-		err = -ENOMEM;
-		goto err_no_ioremap;
+		return err;
 	}
 
 	dev_info(gpio->dev,
@@ -732,18 +745,26 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 		port->irq = platform_get_irq_byname(pdev,
 						    port->name);
 
-		dev_dbg(gpio->dev, "register IRQ %d for %s\n", port->irq,
+		dev_dbg(gpio->dev, "register IRQ %d for port %s\n", port->irq,
 			port->name);
+
+		port->domain = irq_domain_add_linear(pdev->dev.of_node,
+						     U300_GPIO_PINS_PER_PORT,
+						     &irq_domain_simple_ops,
+						     port);
+		if (!port->domain)
+			goto err_no_domain;
 
 		irq_set_chained_handler(port->irq, u300_gpio_irq_handler);
 		irq_set_handler_data(port->irq, port);
 
 		/* For each GPIO pin set the unique IRQ handler */
 		for (i = 0; i < U300_GPIO_PINS_PER_PORT; i++) {
-			int irqno = gpio->irq_base + (portno << 3) + i;
+			int irqno = irq_create_mapping(port->domain, i);
 
-			dev_dbg(gpio->dev, "handler for IRQ %d on %s\n",
-				irqno, port->name);
+			dev_dbg(gpio->dev, "GPIO%d on port %s gets IRQ %d\n",
+				gpio->chip.base + (port->number << 3) + i,
+				port->name, irqno);
 			irq_set_chip_and_handler(irqno, &u300_gpio_irqchip,
 						 handle_simple_irq);
 			set_irq_flags(irqno, IRQF_VALID);
@@ -776,18 +797,10 @@ static int __init u300_gpio_probe(struct platform_device *pdev)
 err_no_pinctrl:
 	err = gpiochip_remove(&gpio->chip);
 err_no_chip:
+err_no_domain:
 err_no_port:
 	u300_gpio_free_ports(gpio);
-	iounmap(gpio->base);
-err_no_ioremap:
-	release_mem_region(gpio->memres->start, resource_size(gpio->memres));
-err_no_ioregion:
-err_no_resource:
 	clk_disable_unprepare(gpio->clk);
-err_no_clk_enable:
-	clk_put(gpio->clk);
-err_no_clk:
-	kfree(gpio);
 	dev_info(&pdev->dev, "module ERROR:%d\n", err);
 	return err;
 }
@@ -806,13 +819,8 @@ static int __exit u300_gpio_remove(struct platform_device *pdev)
 		return err;
 	}
 	u300_gpio_free_ports(gpio);
-	iounmap(gpio->base);
-	release_mem_region(gpio->memres->start,
-			   resource_size(gpio->memres));
 	clk_disable_unprepare(gpio->clk);
-	clk_put(gpio->clk);
 	platform_set_drvdata(pdev, NULL);
-	kfree(gpio);
 	return 0;
 }
 

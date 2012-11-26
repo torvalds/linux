@@ -134,6 +134,22 @@ extern void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 extern void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *ranges,
 				unsigned nranges);
+extern void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
+				struct pinctrl_gpio_range *range);
+
+extern struct pinctrl_dev *find_pinctrl_and_add_gpio_range(const char *devname,
+		struct pinctrl_gpio_range *range);
+
+#ifdef CONFIG_OF
+extern struct pinctrl_dev *of_pinctrl_get(struct device_node *np);
+#else
+static inline
+struct pinctrl_dev *of_pinctrl_get(struct device_node *np)
+{
+	return NULL;
+}
+#endif /* CONFIG_OF */
+
 extern const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev);
 extern void *pinctrl_dev_get_drvdata(struct pinctrl_dev *pctldev);
 #else

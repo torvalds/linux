@@ -17,101 +17,8 @@
 #include <linux/of_platform.h>
 #include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
-#include <plat/shirq.h>
 #include <mach/generic.h>
 #include <mach/spear.h>
-
-/* Base address of various IPs */
-#define SPEAR300_TELECOM_BASE		UL(0x50000000)
-
-/* Interrupt registers offsets and masks */
-#define SPEAR300_INT_ENB_MASK_REG	0x54
-#define SPEAR300_INT_STS_MASK_REG	0x58
-#define SPEAR300_IT_PERS_S_IRQ_MASK	(1 << 0)
-#define SPEAR300_IT_CHANGE_S_IRQ_MASK	(1 << 1)
-#define SPEAR300_I2S_IRQ_MASK		(1 << 2)
-#define SPEAR300_TDM_IRQ_MASK		(1 << 3)
-#define SPEAR300_CAMERA_L_IRQ_MASK	(1 << 4)
-#define SPEAR300_CAMERA_F_IRQ_MASK	(1 << 5)
-#define SPEAR300_CAMERA_V_IRQ_MASK	(1 << 6)
-#define SPEAR300_KEYBOARD_IRQ_MASK	(1 << 7)
-#define SPEAR300_GPIO1_IRQ_MASK		(1 << 8)
-
-#define SPEAR300_SHIRQ_RAS1_MASK	0x1FF
-
-#define SPEAR300_SOC_CONFIG_BASE	UL(0x99000000)
-
-
-/* SPEAr300 Virtual irq definitions */
-/* IRQs sharing IRQ_GEN_RAS_1 */
-#define SPEAR300_VIRQ_IT_PERS_S			(SPEAR3XX_VIRQ_START + 0)
-#define SPEAR300_VIRQ_IT_CHANGE_S		(SPEAR3XX_VIRQ_START + 1)
-#define SPEAR300_VIRQ_I2S			(SPEAR3XX_VIRQ_START + 2)
-#define SPEAR300_VIRQ_TDM			(SPEAR3XX_VIRQ_START + 3)
-#define SPEAR300_VIRQ_CAMERA_L			(SPEAR3XX_VIRQ_START + 4)
-#define SPEAR300_VIRQ_CAMERA_F			(SPEAR3XX_VIRQ_START + 5)
-#define SPEAR300_VIRQ_CAMERA_V			(SPEAR3XX_VIRQ_START + 6)
-#define SPEAR300_VIRQ_KEYBOARD			(SPEAR3XX_VIRQ_START + 7)
-#define SPEAR300_VIRQ_GPIO1			(SPEAR3XX_VIRQ_START + 8)
-
-/* IRQs sharing IRQ_GEN_RAS_3 */
-#define SPEAR300_IRQ_CLCD			SPEAR3XX_IRQ_GEN_RAS_3
-
-/* IRQs sharing IRQ_INTRCOMM_RAS_ARM */
-#define SPEAR300_IRQ_SDHCI			SPEAR3XX_IRQ_INTRCOMM_RAS_ARM
-
-/* spear3xx shared irq */
-static struct shirq_dev_config shirq_ras1_config[] = {
-	{
-		.virq = SPEAR300_VIRQ_IT_PERS_S,
-		.enb_mask = SPEAR300_IT_PERS_S_IRQ_MASK,
-		.status_mask = SPEAR300_IT_PERS_S_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_IT_CHANGE_S,
-		.enb_mask = SPEAR300_IT_CHANGE_S_IRQ_MASK,
-		.status_mask = SPEAR300_IT_CHANGE_S_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_I2S,
-		.enb_mask = SPEAR300_I2S_IRQ_MASK,
-		.status_mask = SPEAR300_I2S_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_TDM,
-		.enb_mask = SPEAR300_TDM_IRQ_MASK,
-		.status_mask = SPEAR300_TDM_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_CAMERA_L,
-		.enb_mask = SPEAR300_CAMERA_L_IRQ_MASK,
-		.status_mask = SPEAR300_CAMERA_L_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_CAMERA_F,
-		.enb_mask = SPEAR300_CAMERA_F_IRQ_MASK,
-		.status_mask = SPEAR300_CAMERA_F_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_CAMERA_V,
-		.enb_mask = SPEAR300_CAMERA_V_IRQ_MASK,
-		.status_mask = SPEAR300_CAMERA_V_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_KEYBOARD,
-		.enb_mask = SPEAR300_KEYBOARD_IRQ_MASK,
-		.status_mask = SPEAR300_KEYBOARD_IRQ_MASK,
-	}, {
-		.virq = SPEAR300_VIRQ_GPIO1,
-		.enb_mask = SPEAR300_GPIO1_IRQ_MASK,
-		.status_mask = SPEAR300_GPIO1_IRQ_MASK,
-	},
-};
-
-static struct spear_shirq shirq_ras1 = {
-	.irq = SPEAR3XX_IRQ_GEN_RAS_1,
-	.dev_config = shirq_ras1_config,
-	.dev_count = ARRAY_SIZE(shirq_ras1_config),
-	.regs = {
-		.enb_reg = SPEAR300_INT_ENB_MASK_REG,
-		.status_reg = SPEAR300_INT_STS_MASK_REG,
-		.status_reg_mask = SPEAR300_SHIRQ_RAS1_MASK,
-		.clear_reg = -1,
-	},
-};
 
 /* DMAC platform data's slave info */
 struct pl08x_channel_data spear300_dma_info[] = {
@@ -285,21 +192,11 @@ static struct of_dev_auxdata spear300_auxdata_lookup[] __initdata = {
 
 static void __init spear300_dt_init(void)
 {
-	int ret;
-
 	pl080_plat_data.slave_channels = spear300_dma_info;
 	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear300_dma_info);
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			spear300_auxdata_lookup, NULL);
-
-	/* shared irq registration */
-	shirq_ras1.regs.base = ioremap(SPEAR300_TELECOM_BASE, SZ_4K);
-	if (shirq_ras1.regs.base) {
-		ret = spear_shirq_register(&shirq_ras1);
-		if (ret)
-			pr_err("Error registering Shared IRQ\n");
-	}
 }
 
 static const char * const spear300_dt_board_compat[] = {

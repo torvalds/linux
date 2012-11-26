@@ -17,6 +17,18 @@
 	compatible = "st,spear1310";
 
 	ahb {
+		spics: spics@e0700000{
+			compatible = "st,spear-spics-gpio";
+			reg = <0xe0700000 0x1000>;
+			st-spics,peripcfg-reg = <0x3b0>;
+			st-spics,sw-enable-bit = <12>;
+			st-spics,cs-value-bit = <11>;
+			st-spics,cs-enable-mask = <3>;
+			st-spics,cs-enable-shift = <8>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
+
 		ahci@b1000000 {
 			compatible = "snps,spear-ahci";
 			reg = <0xb1000000 0x10000>;
@@ -43,6 +55,7 @@
 			reg = <0x5c400000 0x8000>;
 			interrupts = <0 95 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 
@@ -51,6 +64,7 @@
 			reg = <0x5c500000 0x8000>;
 			interrupts = <0 96 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "mii";
 			status = "disabled";
 		};
 
@@ -59,6 +73,7 @@
 			reg = <0x5c600000 0x8000>;
 			interrupts = <0 97 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "rmii";
 			status = "disabled";
 		};
 
@@ -67,14 +82,14 @@
 			reg = <0x5c700000 0x8000>;
 			interrupts = <0 98 0x4>;
 			interrupt-names = "macirq";
+			phy-mode = "rgmii";
 			status = "disabled";
 		};
 
-		spi1: spi@5d400000 {
-			compatible = "arm,pl022", "arm,primecell";
-			reg = <0x5d400000 0x1000>;
-			interrupts = <0 99 0x4>;
-			status = "disabled";
+		pinmux: pinmux@e0700000 {
+			compatible = "st,spear1310-pinmux";
+			reg = <0xe0700000 0x1000>;
+			#gpio-range-cells = <2>;
 		};
 
 		apb {
@@ -141,6 +156,15 @@
 				status = "disabled";
 			};
 
+			spi1: spi@5d400000 {
+				compatible = "arm,pl022", "arm,primecell";
+				reg = <0x5d400000 0x1000>;
+				interrupts = <0 99 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			serial@5c800000 {
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0x5c800000 0x1000>;
@@ -178,6 +202,27 @@
 
 			thermal@e07008c4 {
 				st,thermal-flags = <0x7000>;
+			};
+
+			gpiopinctrl: gpio@d8400000 {
+				compatible = "st,spear-plgpio";
+				reg = <0xd8400000 0x1000>;
+				interrupts = <0 100 0x4>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&pinmux 0 246>;
+				status = "disabled";
+
+				st-plgpio,ngpio = <246>;
+				st-plgpio,enb-reg = <0xd0>;
+				st-plgpio,wdata-reg = <0x90>;
+				st-plgpio,dir-reg = <0xb0>;
+				st-plgpio,ie-reg = <0x30>;
+				st-plgpio,rdata-reg = <0x70>;
+				st-plgpio,mis-reg = <0x10>;
+				st-plgpio,eit-reg = <0x50>;
 			};
 		};
 	};
