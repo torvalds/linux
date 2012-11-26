@@ -222,27 +222,29 @@ static int srp_new_cm_id(struct srp_target_port *target)
 static int srp_create_target_ib(struct srp_target_port *target)
 {
 	struct ib_qp_init_attr *init_attr;
+	struct ib_cq *recv_cq, *send_cq;
+	struct ib_qp *qp;
 	int ret;
 
 	init_attr = kzalloc(sizeof *init_attr, GFP_KERNEL);
 	if (!init_attr)
 		return -ENOMEM;
 
-	target->recv_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-				       srp_recv_completion, NULL, target, SRP_RQ_SIZE, 0);
-	if (IS_ERR(target->recv_cq)) {
-		ret = PTR_ERR(target->recv_cq);
+	recv_cq = ib_create_cq(target->srp_host->srp_dev->dev,
+			       srp_recv_completion, NULL, target, SRP_RQ_SIZE, 0);
+	if (IS_ERR(recv_cq)) {
+		ret = PTR_ERR(recv_cq);
 		goto err;
 	}
 
-	target->send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
-				       srp_send_completion, NULL, target, SRP_SQ_SIZE, 0);
-	if (IS_ERR(target->send_cq)) {
-		ret = PTR_ERR(target->send_cq);
+	send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
+			       srp_send_completion, NULL, target, SRP_SQ_SIZE, 0);
+	if (IS_ERR(send_cq)) {
+		ret = PTR_ERR(send_cq);
 		goto err_recv_cq;
 	}
 
-	ib_req_notify_cq(target->recv_cq, IB_CQ_NEXT_COMP);
+	ib_req_notify_cq(recv_cq, IB_CQ_NEXT_COMP);
 
 	init_attr->event_handler       = srp_qp_event;
 	init_attr->cap.max_send_wr     = SRP_SQ_SIZE;
@@ -251,30 +253,41 @@ static int srp_create_target_ib(struct srp_target_port *target)
 	init_attr->cap.max_send_sge    = 1;
 	init_attr->sq_sig_type         = IB_SIGNAL_ALL_WR;
 	init_attr->qp_type             = IB_QPT_RC;
-	init_attr->send_cq             = target->send_cq;
-	init_attr->recv_cq             = target->recv_cq;
+	init_attr->send_cq             = send_cq;
+	init_attr->recv_cq             = recv_cq;
 
-	target->qp = ib_create_qp(target->srp_host->srp_dev->pd, init_attr);
-	if (IS_ERR(target->qp)) {
-		ret = PTR_ERR(target->qp);
+	qp = ib_create_qp(target->srp_host->srp_dev->pd, init_attr);
+	if (IS_ERR(qp)) {
+		ret = PTR_ERR(qp);
 		goto err_send_cq;
 	}
 
-	ret = srp_init_qp(target, target->qp);
+	ret = srp_init_qp(target, qp);
 	if (ret)
 		goto err_qp;
+
+	if (target->qp)
+		ib_destroy_qp(target->qp);
+	if (target->recv_cq)
+		ib_destroy_cq(target->recv_cq);
+	if (target->send_cq)
+		ib_destroy_cq(target->send_cq);
+
+	target->qp = qp;
+	target->recv_cq = recv_cq;
+	target->send_cq = send_cq;
 
 	kfree(init_attr);
 	return 0;
 
 err_qp:
-	ib_destroy_qp(target->qp);
+	ib_destroy_qp(qp);
 
 err_send_cq:
-	ib_destroy_cq(target->send_cq);
+	ib_destroy_cq(send_cq);
 
 err_recv_cq:
-	ib_destroy_cq(target->recv_cq);
+	ib_destroy_cq(recv_cq);
 
 err:
 	kfree(init_attr);
@@ -288,6 +301,9 @@ static void srp_free_target_ib(struct srp_target_port *target)
 	ib_destroy_qp(target->qp);
 	ib_destroy_cq(target->send_cq);
 	ib_destroy_cq(target->recv_cq);
+
+	target->qp = NULL;
+	target->send_cq = target->recv_cq = NULL;
 
 	for (i = 0; i < SRP_RQ_SIZE; ++i)
 		srp_free_iu(target->srp_host, target->rx_ring[i]);
@@ -678,8 +694,6 @@ static void srp_reset_req(struct srp_target_port *target, struct srp_request *re
 static int srp_reconnect_target(struct srp_target_port *target)
 {
 	struct Scsi_Host *shost = target->scsi_host;
-	struct ib_qp_attr qp_attr;
-	struct ib_wc wc;
 	int i, ret;
 
 	if (target->state != SRP_TARGET_LIVE)
@@ -696,19 +710,9 @@ static int srp_reconnect_target(struct srp_target_port *target)
 	if (ret)
 		goto unblock;
 
-	qp_attr.qp_state = IB_QPS_RESET;
-	ret = ib_modify_qp(target->qp, &qp_attr, IB_QP_STATE);
+	ret = srp_create_target_ib(target);
 	if (ret)
 		goto unblock;
-
-	ret = srp_init_qp(target, target->qp);
-	if (ret)
-		goto unblock;
-
-	while (ib_poll_cq(target->recv_cq, 1, &wc) > 0)
-		; /* nothing */
-	while (ib_poll_cq(target->send_cq, 1, &wc) > 0)
-		; /* nothing */
 
 	for (i = 0; i < SRP_CMD_SQ_SIZE; ++i) {
 		struct srp_request *req = &target->req_ring[i];
