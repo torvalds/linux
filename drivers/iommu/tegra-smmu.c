@@ -1052,6 +1052,7 @@ static int smmu_debugfs_stats_show(struct seq_file *s, void *v)
 			stats[i], val, offs);
 	}
 	seq_printf(s, "\n");
+	dput(dent);
 
 	return 0;
 }
