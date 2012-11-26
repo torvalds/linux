@@ -198,7 +198,7 @@ struct bcm_tarang_data {
 	int			AppCtrlQueueLen;
 	BOOLEAN			MacTracingEnabled;
 	BOOLEAN			bApplicationToExit;
-	S_MIBS_DROPPED_APP_CNTRL_MESSAGES	stDroppedAppCntrlMsgs;
+	struct bcm_mibs_dropped_cntrl_msg stDroppedAppCntrlMsgs;
 	ULONG			RxCntrlMsgBitMask;
 };
 

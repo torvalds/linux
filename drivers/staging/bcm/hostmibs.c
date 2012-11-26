@@ -98,7 +98,7 @@ VOID GetDroppedAppCntrlPktMibs(struct bcm_host_stats_mibs *pstHostMibs, struct b
 {
 	memcpy(&(pstHostMibs->stDroppedAppCntrlMsgs),
 	       &(pTarang->stDroppedAppCntrlMsgs),
-	       sizeof(S_MIBS_DROPPED_APP_CNTRL_MESSAGES));
+	       sizeof(struct bcm_mibs_dropped_cntrl_msg));
 }
 
 VOID CopyMIBSExtendedSFParameters(struct bcm_mini_adapter *Adapter, struct bcm_connect_mgr_params *psfLocalSet, UINT uiSearchRuleIndex)
