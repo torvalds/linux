@@ -1002,12 +1002,11 @@ static void *gsc_get_drv_data(struct platform_device *pdev)
 
 static void gsc_clk_put(struct gsc_dev *gsc)
 {
-	if (IS_ERR_OR_NULL(gsc->clock))
-		return;
-
-	clk_unprepare(gsc->clock);
-	clk_put(gsc->clock);
-	gsc->clock = NULL;
+	if (!IS_ERR(gsc->clock)) {
+		clk_unprepare(gsc->clock);
+		clk_put(gsc->clock);
+		gsc->clock = NULL;
+	}
 }
 
 static int gsc_clk_get(struct gsc_dev *gsc)
@@ -1028,7 +1027,7 @@ static int gsc_clk_get(struct gsc_dev *gsc)
 		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
 			GSC_CLOCK_GATE_NAME);
 		clk_put(gsc->clock);
-		gsc->clock = NULL;
+		gsc->clock = ERR_PTR(-EINVAL);
 		goto err_clk_prepare;
 	}
 
@@ -1106,6 +1105,7 @@ static int gsc_probe(struct platform_device *pdev)
 	init_waitqueue_head(&gsc->irq_queue);
 	spin_lock_init(&gsc->slock);
 	mutex_init(&gsc->lock);
+	gsc->clock = ERR_PTR(-EINVAL);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	gsc->regs = devm_request_and_ioremap(dev, res);
@@ -1169,6 +1169,7 @@ static int __devexit gsc_remove(struct platform_device *pdev)
 
 	vb2_dma_contig_cleanup_ctx(gsc->alloc_ctx);
 	pm_runtime_disable(&pdev->dev);
+	gsc_clk_put(gsc);
 
 	dev_dbg(&pdev->dev, "%s driver unloaded\n", pdev->name);
 	return 0;
