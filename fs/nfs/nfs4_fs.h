@@ -11,6 +11,8 @@
 
 #if IS_ENABLED(CONFIG_NFS_V4)
 
+#define NFS4_MAX_LOOP_ON_RECOVER (10)
+
 struct idmap;
 
 enum nfs4_client_state {
@@ -360,6 +362,8 @@ extern void nfs4_state_set_mode_locked(struct nfs4_state *, fmode_t);
 extern void nfs_inode_find_state_and_recover(struct inode *inode,
 		const nfs4_stateid *stateid);
 extern void nfs4_schedule_lease_recovery(struct nfs_client *);
+extern int nfs4_wait_clnt_recover(struct nfs_client *clp);
+extern int nfs4_client_recover_expired_lease(struct nfs_client *clp);
 extern void nfs4_schedule_state_manager(struct nfs_client *);
 extern void nfs4_schedule_path_down_recovery(struct nfs_client *clp);
 extern void nfs4_schedule_stateid_recovery(const struct nfs_server *, struct nfs4_state *);
