@@ -294,12 +294,14 @@ static struct resource stmpe_gpio_resources[] = {
 
 static struct mfd_cell stmpe_gpio_cell = {
 	.name		= "stmpe-gpio",
+	.of_compatible	= "st,stmpe-gpio",
 	.resources	= stmpe_gpio_resources,
 	.num_resources	= ARRAY_SIZE(stmpe_gpio_resources),
 };
 
 static struct mfd_cell stmpe_gpio_cell_noirq = {
 	.name		= "stmpe-gpio",
+	.of_compatible	= "st,stmpe-gpio",
 	/* gpio cell resources consist of an irq only so no resources here */
 };
 

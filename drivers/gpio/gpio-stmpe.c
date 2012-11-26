@@ -12,6 +12,7 @@
 #include <linux/gpio.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/mfd/stmpe.h>
 
 /*
@@ -304,6 +305,7 @@ static void stmpe_gpio_irq_remove(struct stmpe_gpio *stmpe_gpio)
 static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 {
 	struct stmpe *stmpe = dev_get_drvdata(pdev->dev.parent);
+	struct device_node *np = pdev->dev.of_node;
 	struct stmpe_gpio_platform_data *pdata;
 	struct stmpe_gpio *stmpe_gpio;
 	int ret;
@@ -321,12 +323,16 @@ static int __devinit stmpe_gpio_probe(struct platform_device *pdev)
 
 	stmpe_gpio->dev = &pdev->dev;
 	stmpe_gpio->stmpe = stmpe;
-	stmpe_gpio->norequest_mask = pdata ? pdata->norequest_mask : 0;
-
 	stmpe_gpio->chip = template_chip;
 	stmpe_gpio->chip.ngpio = stmpe->num_gpios;
 	stmpe_gpio->chip.dev = &pdev->dev;
 	stmpe_gpio->chip.base = pdata ? pdata->gpio_base : -1;
+
+	if (pdata)
+		stmpe_gpio->norequest_mask = pdata->norequest_mask;
+	else if (np)
+		of_property_read_u32(np, "st,norequest-mask",
+				&stmpe_gpio->norequest_mask);
 
 	if (irq >= 0)
 		stmpe_gpio->irq_base = stmpe->irq_base + STMPE_INT_GPIO(0);
