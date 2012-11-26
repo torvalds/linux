@@ -163,17 +163,17 @@ nv84_fifo_chan_ctor_dma(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x2000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG) |
-					  (1 << NVDEV_ENGINE_ME) |
-					  (1 << NVDEV_ENGINE_VP) |
-					  (1 << NVDEV_ENGINE_CRYPT) |
-					  (1 << NVDEV_ENGINE_BSP) |
-					  (1 << NVDEV_ENGINE_PPP) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_UNK1C1), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG) |
+					  (1ULL << NVDEV_ENGINE_ME) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_CRYPT) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_PPP) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_UNK1C1), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;
@@ -225,17 +225,17 @@ nv84_fifo_chan_ctor_ind(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x2000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG) |
-					  (1 << NVDEV_ENGINE_ME) |
-					  (1 << NVDEV_ENGINE_VP) |
-					  (1 << NVDEV_ENGINE_CRYPT) |
-					  (1 << NVDEV_ENGINE_BSP) |
-					  (1 << NVDEV_ENGINE_PPP) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_UNK1C1), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG) |
+					  (1ULL << NVDEV_ENGINE_ME) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_CRYPT) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_PPP) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_UNK1C1), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;

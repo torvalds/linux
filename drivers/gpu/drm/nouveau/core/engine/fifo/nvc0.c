@@ -181,13 +181,13 @@ nvc0_fifo_chan_ctor(struct nouveau_object *parent,
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x1000,
 					  args->pushbuf,
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_COPY0) |
-					  (1 << NVDEV_ENGINE_COPY1) |
-					  (1 << NVDEV_ENGINE_BSP) |
-					  (1 << NVDEV_ENGINE_VP) |
-					  (1 << NVDEV_ENGINE_PPP), &chan);
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_COPY0) |
+					  (1ULL << NVDEV_ENGINE_COPY1) |
+					  (1ULL << NVDEV_ENGINE_BSP) |
+					  (1ULL << NVDEV_ENGINE_VP) |
+					  (1ULL << NVDEV_ENGINE_PPP), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;

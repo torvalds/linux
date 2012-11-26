@@ -34,7 +34,7 @@ nouveau_fifo_channel_create_(struct nouveau_object *parent,
 			     struct nouveau_object *engine,
 			     struct nouveau_oclass *oclass,
 			     int bar, u32 addr, u32 size, u32 pushbuf,
-			     u32 engmask, int len, void **ptr)
+			     u64 engmask, int len, void **ptr)
 {
 	struct nouveau_device *device = nv_device(engine);
 	struct nouveau_fifo *priv = (void *)engine;

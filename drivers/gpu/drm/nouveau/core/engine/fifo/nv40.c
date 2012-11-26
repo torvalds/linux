@@ -192,10 +192,10 @@ nv40_fifo_chan_ctor(struct nouveau_object *parent,
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 0, 0xc00000,
 					  0x1000, args->pushbuf,
-					  (1 << NVDEV_ENGINE_DMAOBJ) |
-					  (1 << NVDEV_ENGINE_SW) |
-					  (1 << NVDEV_ENGINE_GR) |
-					  (1 << NVDEV_ENGINE_MPEG), &chan);
+					  (1ULL << NVDEV_ENGINE_DMAOBJ) |
+					  (1ULL << NVDEV_ENGINE_SW) |
+					  (1ULL << NVDEV_ENGINE_GR) |
+					  (1ULL << NVDEV_ENGINE_MPEG), &chan);
 	*pobject = nv_object(chan);
 	if (ret)
 		return ret;

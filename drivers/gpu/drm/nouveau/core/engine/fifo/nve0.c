@@ -38,12 +38,12 @@
 #include <engine/dmaobj.h>
 #include <engine/fifo.h>
 
-#define _(a,b) { (a), ((1 << (a)) | (b)) }
+#define _(a,b) { (a), ((1ULL << (a)) | (b)) }
 static const struct {
-	int subdev;
-	u32 mask;
+	u64 subdev;
+	u64 mask;
 } fifo_engine[] = {
-	_(NVDEV_ENGINE_GR      , (1 << NVDEV_ENGINE_SW)),
+	_(NVDEV_ENGINE_GR      , (1ULL << NVDEV_ENGINE_SW)),
 	_(NVDEV_ENGINE_VP      , 0),
 	_(NVDEV_ENGINE_PPP     , 0),
 	_(NVDEV_ENGINE_BSP     , 0),

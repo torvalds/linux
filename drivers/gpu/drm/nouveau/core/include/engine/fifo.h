@@ -33,7 +33,7 @@ int  nouveau_fifo_channel_create_(struct nouveau_object *,
 				  struct nouveau_object *,
 				  struct nouveau_oclass *,
 				  int bar, u32 addr, u32 size, u32 push,
-				  u32 engmask, int len, void **);
+				  u64 engmask, int len, void **);
 void nouveau_fifo_channel_destroy(struct nouveau_fifo_chan *);
 
 #define _nouveau_fifo_channel_init _nouveau_namedb_init
