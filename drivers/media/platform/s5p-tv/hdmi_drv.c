@@ -656,7 +656,7 @@ static int hdmi_g_mbus_fmt(struct v4l2_subdev *sd,
 	dev_dbg(hdev->dev, "%s\n", __func__);
 	if (!hdev->cur_conf)
 		return -EINVAL;
-	memset(fmt, 0, sizeof *fmt);
+	memset(fmt, 0, sizeof(*fmt));
 	fmt->width = t->hact.end - t->hact.beg;
 	fmt->height = t->vact[0].end - t->vact[0].beg;
 	fmt->code = V4L2_MBUS_FMT_FIXED; /* means RGB888 */
@@ -760,7 +760,7 @@ static void hdmi_resources_cleanup(struct hdmi_device *hdev)
 		clk_put(res->sclk_hdmi);
 	if (!IS_ERR_OR_NULL(res->hdmi))
 		clk_put(res->hdmi);
-	memset(res, 0, sizeof *res);
+	memset(res, 0, sizeof(*res));
 }
 
 static int hdmi_resources_init(struct hdmi_device *hdev)
@@ -777,7 +777,7 @@ static int hdmi_resources_init(struct hdmi_device *hdev)
 
 	dev_dbg(dev, "HDMI resource init\n");
 
-	memset(res, 0, sizeof *res);
+	memset(res, 0, sizeof(*res));
 	/* get clocks, power */
 
 	res->hdmi = clk_get(dev, "hdmi");
@@ -955,7 +955,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	v4l2_subdev_init(sd, &hdmi_sd_ops);
 	sd->owner = THIS_MODULE;
 
-	strlcpy(sd->name, "s5p-hdmi", sizeof sd->name);
+	strlcpy(sd->name, "s5p-hdmi", sizeof(sd->name));
 	hdmi_dev->cur_preset = HDMI_DEFAULT_PRESET;
 	/* FIXME: missing fail preset is not supported */
 	hdmi_dev->cur_conf = hdmi_preset2timings(hdmi_dev->cur_preset);
