@@ -226,6 +226,8 @@ static int vb2_dc_mmap(void *buf_priv, struct vm_area_struct *vma)
 /*         DMABUF ops for exporters          */
 /*********************************************/
 
+#ifdef HAVE_GENERIC_DMA_COHERENT
+
 struct vb2_dc_attachment {
 	struct sg_table sgt;
 	enum dma_data_direction dir;
@@ -415,6 +417,8 @@ static struct dma_buf *vb2_dc_get_dmabuf(void *buf_priv)
 
 	return dbuf;
 }
+
+#endif
 
 /*********************************************/
 /*       callbacks for USERPTR buffers       */
@@ -735,7 +739,9 @@ static void *vb2_dc_attach_dmabuf(void *alloc_ctx, struct dma_buf *dbuf,
 const struct vb2_mem_ops vb2_dma_contig_memops = {
 	.alloc		= vb2_dc_alloc,
 	.put		= vb2_dc_put,
+#ifdef CONFIG_HAVE_GENERIC_DMA_COHERENT
 	.get_dmabuf	= vb2_dc_get_dmabuf,
+#endif
 	.cookie		= vb2_dc_cookie,
 	.vaddr		= vb2_dc_vaddr,
 	.mmap		= vb2_dc_mmap,
