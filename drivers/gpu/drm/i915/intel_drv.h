@@ -153,6 +153,7 @@ struct intel_encoder {
 	bool cloneable;
 	bool connectors_active;
 	void (*hot_plug)(struct intel_encoder *);
+	void (*pre_pll_enable)(struct intel_encoder *);
 	void (*pre_enable)(struct intel_encoder *);
 	void (*enable)(struct intel_encoder *);
 	void (*disable)(struct intel_encoder *);
