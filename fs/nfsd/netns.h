@@ -81,6 +81,9 @@ struct nfsd_net {
 	struct list_head close_lru;
 
 	struct delayed_work laundromat_work;
+
+	/* client_lock protects the client lru list and session hash table */
+	spinlock_t client_lock;
 };
 
 extern int nfsd_net_id;
