@@ -44,6 +44,7 @@ struct rcar_thermal_priv {
 };
 
 #define MCELSIUS(temp)			((temp) * 1000)
+#define rcar_zone_to_priv(zone)		(zone->devdata)
 
 /*
  *		basic functions
@@ -98,7 +99,7 @@ static void rcar_thermal_bset(struct rcar_thermal_priv *priv, u32 reg,
 static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
 			   unsigned long *temp)
 {
-	struct rcar_thermal_priv *priv = zone->devdata;
+	struct rcar_thermal_priv *priv = rcar_zone_to_priv(zone);
 	int val, min, max, tmp;
 
 	tmp = -200; /* default */
