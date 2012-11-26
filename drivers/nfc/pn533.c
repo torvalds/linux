@@ -1062,6 +1062,20 @@ static void pn533_send_complete(struct urb *urb)
 	}
 }
 
+static struct sk_buff *pn533_alloc_skb(unsigned int size)
+{
+	struct sk_buff *skb;
+
+	skb = alloc_skb(PN533_FRAME_HEADER_LEN +
+			size +
+			PN533_FRAME_TAIL_LEN, GFP_KERNEL);
+
+	if (skb)
+		skb_reserve(skb, PN533_FRAME_HEADER_LEN);
+
+	return skb;
+}
+
 struct pn533_target_type_a {
 	__be16 sens_res;
 	u8 sel_res;
@@ -2390,15 +2404,11 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
 
 	/* This is a zero payload size skb */
-	skb_cmd = alloc_skb(PN533_FRAME_HEADER_LEN +
-			    PN533_CMD_DATAEXCH_HEAD_LEN +
-			    PN533_FRAME_TAIL_LEN,
-			    GFP_KERNEL);
+	skb_cmd = pn533_alloc_skb(PN533_CMD_DATAEXCH_HEAD_LEN);
 	if (skb_cmd == NULL)
 		goto error_cmd;
 
-	skb_reserve(skb_cmd,
-		    PN533_FRAME_HEADER_LEN + PN533_CMD_DATAEXCH_HEAD_LEN);
+	skb_reserve(skb_cmd, PN533_CMD_DATAEXCH_HEAD_LEN);
 
 	rc = pn533_build_tx_frame(dev, skb_cmd, true);
 	if (rc)
