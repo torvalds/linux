@@ -84,6 +84,8 @@ struct nfsd_net {
 
 	/* client_lock protects the client lru list and session hash table */
 	spinlock_t client_lock;
+
+	struct file *rec_file;
 };
 
 extern int nfsd_net_id;
