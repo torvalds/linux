@@ -57,6 +57,8 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 	int r = 0;
 
 	mutex_lock(&hdev->msg_tx_mutex);
+	if (hdev->shutting_down)
+		goto exit;
 
 	if (hdev->cmd_pending_msg) {
 		if (timer_pending(&hdev->cmd_timer) == 0) {
@@ -868,6 +870,28 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 {
 	struct hci_msg *msg, *n;
 
+	mutex_lock(&hdev->msg_tx_mutex);
+
+	if (hdev->cmd_pending_msg) {
+		if (hdev->cmd_pending_msg->cb)
+			hdev->cmd_pending_msg->cb(
+					     hdev->cmd_pending_msg->cb_context,
+					     NULL, -ESHUTDOWN);
+		kfree(hdev->cmd_pending_msg);
+		hdev->cmd_pending_msg = NULL;
+	}
+
+	hdev->shutting_down = true;
+
+	mutex_unlock(&hdev->msg_tx_mutex);
+
+	del_timer_sync(&hdev->cmd_timer);
+	cancel_work_sync(&hdev->msg_tx_work);
+
+	cancel_work_sync(&hdev->msg_rx_work);
+
+	nfc_unregister_device(hdev->ndev);
+
 	skb_queue_purge(&hdev->rx_hcp_frags);
 	skb_queue_purge(&hdev->msg_rx_queue);
 
@@ -876,13 +900,6 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev)
 		skb_queue_purge(&msg->msg_frags);
 		kfree(msg);
 	}
-
-	del_timer_sync(&hdev->cmd_timer);
-
-	nfc_unregister_device(hdev->ndev);
-
-	cancel_work_sync(&hdev->msg_tx_work);
-	cancel_work_sync(&hdev->msg_rx_work);
 }
 EXPORT_SYMBOL(nfc_hci_unregister_device);
 

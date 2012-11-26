@@ -115,6 +115,8 @@ struct nfc_dev {
 	struct timer_list check_pres_timer;
 	struct work_struct check_pres_work;
 
+	bool shutting_down;
+
 	struct nfc_ops *ops;
 };
 #define to_nfc_dev(_dev) container_of(_dev, struct nfc_dev, dev)

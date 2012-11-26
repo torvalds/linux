@@ -87,6 +87,8 @@ struct nfc_hci_dev {
 
 	u32 max_data_link_payload;
 
+	bool shutting_down;
+
 	struct mutex msg_tx_mutex;
 
 	struct list_head msg_tx_queue;
