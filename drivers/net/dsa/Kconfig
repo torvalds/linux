@@ -1,4 +1,5 @@
 menu "Distributed Switch Architecture drivers"
+	depends on HAVE_NET_DSA
 
 config NET_DSA_MV88E6XXX
 	tristate
@@ -6,6 +7,7 @@ config NET_DSA_MV88E6XXX
 
 config NET_DSA_MV88E6060
 	tristate "Marvell 88E6060 ethernet switch chip support"
+	select NET_DSA
 	select NET_DSA_TAG_TRAILER
 	---help---
 	  This enables support for the Marvell 88E6060 ethernet switch
@@ -17,6 +19,7 @@ config NET_DSA_MV88E6XXX_NEED_PPU
 
 config NET_DSA_MV88E6131
 	tristate "Marvell 88E6085/6095/6095F/6131 ethernet switch chip support"
+	select NET_DSA
 	select NET_DSA_MV88E6XXX
 	select NET_DSA_MV88E6XXX_NEED_PPU
 	select NET_DSA_TAG_DSA
@@ -26,6 +29,7 @@ config NET_DSA_MV88E6131
 
 config NET_DSA_MV88E6123_61_65
 	tristate "Marvell 88E6123/6161/6165 ethernet switch chip support"
+	select NET_DSA
 	select NET_DSA_MV88E6XXX
 	select NET_DSA_TAG_EDSA
 	---help---
