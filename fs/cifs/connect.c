@@ -1122,6 +1122,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	separator[1] = 0;
 	delim = separator[0];
 
+	/* ensure we always start with zeroed-out smb_vol */
+	memset(vol, 0, sizeof(*vol));
+
 	/*
 	 * does not have to be perfect mapping since field is
 	 * informational, only used for servers that do not support
@@ -3314,7 +3317,6 @@ expand_dfs_referral(const unsigned int xid, struct cifs_ses *ses,
 			mdata = NULL;
 		} else {
 			cleanup_volume_info_contents(volume_info);
-			memset(volume_info, '\0', sizeof(*volume_info));
 			rc = cifs_setup_volume_info(volume_info, mdata,
 							fake_devname);
 		}
@@ -3335,7 +3337,6 @@ cifs_setup_volume_info(struct smb_vol *volume_info, char *mount_data,
 
 	if (cifs_parse_mount_options(mount_data, devname, volume_info))
 		return -EINVAL;
-
 
 	if (volume_info->nullauth) {
 		cFYI(1, "Anonymous login");
@@ -3373,7 +3374,7 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 	int rc;
 	struct smb_vol *volume_info;
 
-	volume_info = kzalloc(sizeof(struct smb_vol), GFP_KERNEL);
+	volume_info = kmalloc(sizeof(struct smb_vol), GFP_KERNEL);
 	if (!volume_info)
 		return ERR_PTR(-ENOMEM);
 
