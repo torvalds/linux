@@ -44,11 +44,11 @@
 #include <linux/slab.h>
 
 #ifdef CONFIG_ARCH_RK29
-#define IPP_VERSION "rk29-ipp 1.002"
+#define IPP_VERSION "rk29-ipp 1.003"
 #endif
 
 #ifdef CONFIG_ARCH_RK30
-#define IPP_VERSION "rk30-ipp 1.002"
+#define IPP_VERSION "rk30-ipp 1.003"
 #endif
 
 //#define IPP_TEST
@@ -961,11 +961,16 @@ int ipp_blit_async(const struct rk29_ipp_req *req)
 	//If IPP is busy now,wait until it becomes idle
 	mutex_lock(&drvdata->mutex);
 	{
-		dmac_inv_range((const void*)&idle_condition,(const void*)&idle_condition+4);
-		//printk("idle_condition = %d\n",idle_condition);
-		wait_event_interruptible(blit_wait_queue, idle_condition);
+		ret = wait_event_interruptible(blit_wait_queue, idle_condition);
+		
+		if(ret < 0)
+		{
+			printk("ipp_blit_async wait_event_interruptible=%d\n",ret);
+			mutex_unlock(&drvdata->mutex);
+			return ret;
+		}
+		
 		idle_condition = 0;
-		dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
 	}
 	mutex_unlock(&drvdata->mutex);
 
@@ -980,17 +985,23 @@ static int ipp_blit_sync_real(const struct rk29_ipp_req *req)
 {
 	int status;
 	int wait_ret;
-
+	
 	//printk("ipp_blit_sync -------------------\n");
 
 	//If IPP is busy now,wait until it becomes idle
 	mutex_lock(&drvdata->mutex);
 	{
-		dmac_inv_range((const void*)&idle_condition,(const void*)&idle_condition+4);
-		//printk("idle_condition = %d\n",idle_condition);
-		wait_event_interruptible(blit_wait_queue, idle_condition);
+		status = wait_event_interruptible(blit_wait_queue, idle_condition);
+		
+		if(status < 0)
+		{
+			printk("ipp_blit_sync_real wait_event_interruptible=%d\n",status);
+			mutex_unlock(&drvdata->mutex);
+			return status;
+		}
+		
 		idle_condition = 0;
-		dmac_clean_range((const void*)&idle_condition,(const void*)&idle_condition+4);
+		
 	}
 	mutex_unlock(&drvdata->mutex);
 
@@ -1047,7 +1058,6 @@ static int ipp_blit_sync_real(const struct rk29_ipp_req *req)
 		ipp_power_off(NULL);
 	}
 	drvdata->issync = false;
-
 
 	//IPP is idle, wake up the wait queue
 	//printk("ipp_blit_sync done ----------------\n");
@@ -1200,7 +1210,6 @@ static irqreturn_t rk29_ipp_irq(int irq,  void *dev_id)
 	{
 		//power off
 		schedule_delayed_work(&drvdata->power_off_work, msecs_to_jiffies(50));
-			
 		drvdata->ipp_irq_callback(drvdata->ipp_result);
 		
 		//In the case of async call ,we wake up the wait queue here
@@ -1767,7 +1776,7 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 
 #ifdef IPP_TEST
 	INIT_DELAYED_WORK(&d_work, ipp_test_work_handler);
-	schedule_delayed_work(&d_work, msecs_to_jiffies(35000));
+	schedule_delayed_work(&d_work, msecs_to_jiffies(65000));
 #endif
 
 	return 0;
