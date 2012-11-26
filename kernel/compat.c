@@ -381,9 +381,9 @@ static inline void compat_sig_setmask(sigset_t *blocked, compat_sigset_word set)
 	memcpy(blocked->sig, &set, sizeof(set));
 }
 
-asmlinkage long compat_sys_sigprocmask(int how,
-				       compat_old_sigset_t __user *nset,
-				       compat_old_sigset_t __user *oset)
+COMPAT_SYSCALL_DEFINE3(sigprocmask, int, how,
+		       compat_old_sigset_t __user *, nset,
+		       compat_old_sigset_t __user *, oset)
 {
 	old_sigset_t old_set, new_set;
 	sigset_t new_blocked;
