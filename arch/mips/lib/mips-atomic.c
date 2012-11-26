@@ -56,7 +56,7 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-void arch_local_irq_disable(void)
+notrace void arch_local_irq_disable(void)
 {
 	preempt_disable();
 	__asm__ __volatile__(
@@ -93,7 +93,7 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-unsigned long arch_local_irq_save(void)
+notrace unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
 	preempt_disable();
@@ -135,7 +135,7 @@ __asm__(
 	"	.set	pop						\n"
 	"	.endm							\n");
 
-void arch_local_irq_restore(unsigned long flags)
+notrace void arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
@@ -159,7 +159,7 @@ void arch_local_irq_restore(unsigned long flags)
 EXPORT_SYMBOL(arch_local_irq_restore);
 
 
-void __arch_local_irq_restore(unsigned long flags)
+notrace void __arch_local_irq_restore(unsigned long flags)
 {
 	unsigned long __tmp1;
 
