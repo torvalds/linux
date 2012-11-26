@@ -34,7 +34,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 {
 	struct ptp_clock_caps caps;
 	struct ptp_clock_request req;
-	struct ptp_sys_offset sysoff;
+	struct ptp_sys_offset *sysoff = NULL;
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_clock_info *ops = ptp->info;
 	struct ptp_clock_time *pct;
@@ -94,17 +94,22 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_SYS_OFFSET:
-		if (copy_from_user(&sysoff, (void __user *)arg,
-				   sizeof(sysoff))) {
+		sysoff = kmalloc(sizeof(*sysoff), GFP_KERNEL);
+		if (!sysoff) {
+			err = -ENOMEM;
+			break;
+		}
+		if (copy_from_user(sysoff, (void __user *)arg,
+				   sizeof(*sysoff))) {
 			err = -EFAULT;
 			break;
 		}
-		if (sysoff.n_samples > PTP_MAX_SAMPLES) {
+		if (sysoff->n_samples > PTP_MAX_SAMPLES) {
 			err = -EINVAL;
 			break;
 		}
-		pct = &sysoff.ts[0];
-		for (i = 0; i < sysoff.n_samples; i++) {
+		pct = &sysoff->ts[0];
+		for (i = 0; i < sysoff->n_samples; i++) {
 			getnstimeofday(&ts);
 			pct->sec = ts.tv_sec;
 			pct->nsec = ts.tv_nsec;
@@ -117,7 +122,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		getnstimeofday(&ts);
 		pct->sec = ts.tv_sec;
 		pct->nsec = ts.tv_nsec;
-		if (copy_to_user((void __user *)arg, &sysoff, sizeof(sysoff)))
+		if (copy_to_user((void __user *)arg, sysoff, sizeof(*sysoff)))
 			err = -EFAULT;
 		break;
 
@@ -125,6 +130,8 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		err = -ENOTTY;
 		break;
 	}
+
+	kfree(sysoff);
 	return err;
 }
 
