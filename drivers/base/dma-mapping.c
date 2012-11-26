@@ -218,6 +218,8 @@ void dmam_release_declared_memory(struct device *dev)
 }
 EXPORT_SYMBOL(dmam_release_declared_memory);
 
+#endif
+
 /*
  * Create scatter-list for the already allocated DMA buffer.
  */
@@ -235,8 +237,6 @@ int dma_common_get_sgtable(struct device *dev, struct sg_table *sgt,
 	return 0;
 }
 EXPORT_SYMBOL(dma_common_get_sgtable);
-
-#endif
 
 /*
  * Create userspace mapping for the DMA-coherent memory.
