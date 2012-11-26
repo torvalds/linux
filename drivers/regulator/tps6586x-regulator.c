@@ -389,7 +389,7 @@ static int __devinit tps6586x_regulator_probe(struct platform_device *pdev)
 	int id;
 	int err;
 
-	dev_dbg(&pdev->dev, "Probing regulator %d\n", id);
+	dev_dbg(&pdev->dev, "Probing regulator\n");
 
 	pdata = dev_get_platdata(pdev->dev.parent);
 	if ((!pdata) && (pdev->dev.parent->of_node))
