@@ -191,6 +191,32 @@ err:
 	return ret;
 }
 
+/* caller ensures gpio is valid and requested, chip->get_direction may sleep  */
+static int gpio_get_direction(unsigned gpio)
+{
+	struct gpio_chip	*chip;
+	struct gpio_desc	*desc = &gpio_desc[gpio];
+	int			status = -EINVAL;
+
+	chip = gpio_to_chip(gpio);
+	gpio -= chip->base;
+
+	if (!chip->get_direction)
+		return status;
+
+	status = chip->get_direction(chip, gpio);
+	if (status > 0) {
+		/* GPIOF_DIR_IN, or other positive */
+		status = 1;
+		clear_bit(FLAG_IS_OUT, &desc->flags);
+	}
+	if (status == 0) {
+		/* GPIOF_DIR_OUT */
+		set_bit(FLAG_IS_OUT, &desc->flags);
+	}
+	return status;
+}
+
 #ifdef CONFIG_GPIO_SYSFS
 
 /* lock protects against unexport_gpio() being called while
@@ -223,6 +249,7 @@ static ssize_t gpio_direction_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	const struct gpio_desc	*desc = dev_get_drvdata(dev);
+	unsigned		gpio = desc - gpio_desc;
 	ssize_t			status;
 
 	mutex_lock(&sysfs_lock);
@@ -230,6 +257,7 @@ static ssize_t gpio_direction_show(struct device *dev,
 	if (!test_bit(FLAG_EXPORT, &desc->flags))
 		status = -EIO;
 	else
+		gpio_get_direction(gpio);
 		status = sprintf(buf, "%s\n",
 			test_bit(FLAG_IS_OUT, &desc->flags)
 				? "out" : "in");
@@ -704,8 +732,9 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 {
 	unsigned long		flags;
 	struct gpio_desc	*desc;
-	int			status = -EINVAL;
+	int			status;
 	const char		*ioname = NULL;
+	struct device		*dev;
 
 	/* can't export until sysfs is available ... */
 	if (!gpio_class.p) {
@@ -713,59 +742,66 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 		return -ENOENT;
 	}
 
-	if (!gpio_is_valid(gpio))
-		goto done;
+	if (!gpio_is_valid(gpio)) {
+		pr_debug("%s: gpio %d is not valid\n", __func__, gpio);
+		return -EINVAL;
+	}
 
 	mutex_lock(&sysfs_lock);
 
 	spin_lock_irqsave(&gpio_lock, flags);
 	desc = &gpio_desc[gpio];
-	if (test_bit(FLAG_REQUESTED, &desc->flags)
-			&& !test_bit(FLAG_EXPORT, &desc->flags)) {
-		status = 0;
-		if (!desc->chip->direction_input
-				|| !desc->chip->direction_output)
-			direction_may_change = false;
+	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
+	     test_bit(FLAG_EXPORT, &desc->flags)) {
+		spin_unlock_irqrestore(&gpio_lock, flags);
+		pr_debug("%s: gpio %d unavailable (requested=%d, exported=%d)\n",
+				__func__, gpio,
+				test_bit(FLAG_REQUESTED, &desc->flags),
+				test_bit(FLAG_EXPORT, &desc->flags));
+		status = -EPERM;
+		goto fail_unlock;
 	}
+
+	if (!desc->chip->direction_input || !desc->chip->direction_output)
+		direction_may_change = false;
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	if (desc->chip->names && desc->chip->names[gpio - desc->chip->base])
 		ioname = desc->chip->names[gpio - desc->chip->base];
 
-	if (status == 0) {
-		struct device	*dev;
-
-		dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
-				desc, ioname ? ioname : "gpio%u", gpio);
-		if (!IS_ERR(dev)) {
-			status = sysfs_create_group(&dev->kobj,
-						&gpio_attr_group);
-
-			if (!status && direction_may_change)
-				status = device_create_file(dev,
-						&dev_attr_direction);
-
-			if (!status && gpio_to_irq(gpio) >= 0
-					&& (direction_may_change
-						|| !test_bit(FLAG_IS_OUT,
-							&desc->flags)))
-				status = device_create_file(dev,
-						&dev_attr_edge);
-
-			if (status != 0)
-				device_unregister(dev);
-		} else
-			status = PTR_ERR(dev);
-		if (status == 0)
-			set_bit(FLAG_EXPORT, &desc->flags);
+	dev = device_create(&gpio_class, desc->chip->dev, MKDEV(0, 0),
+			    desc, ioname ? ioname : "gpio%u", gpio);
+	if (IS_ERR(dev)) {
+		status = PTR_ERR(dev);
+		goto fail_unlock;
 	}
 
-	mutex_unlock(&sysfs_lock);
-
-done:
+	status = sysfs_create_group(&dev->kobj, &gpio_attr_group);
 	if (status)
-		pr_debug("%s: gpio%d status %d\n", __func__, gpio, status);
+		goto fail_unregister_device;
 
+	if (direction_may_change) {
+		status = device_create_file(dev, &dev_attr_direction);
+		if (status)
+			goto fail_unregister_device;
+	}
+
+	if (gpio_to_irq(gpio) >= 0 && (direction_may_change ||
+				       !test_bit(FLAG_IS_OUT, &desc->flags))) {
+		status = device_create_file(dev, &dev_attr_edge);
+		if (status)
+			goto fail_unregister_device;
+	}
+
+	set_bit(FLAG_EXPORT, &desc->flags);
+	mutex_unlock(&sysfs_lock);
+	return 0;
+
+fail_unregister_device:
+	device_unregister(dev);
+fail_unlock:
+	mutex_unlock(&sysfs_lock);
+	pr_debug("%s: gpio%d status %d\n", __func__, gpio, status);
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpio_export);
@@ -1075,6 +1111,7 @@ int gpiochip_add(struct gpio_chip *chip)
 			 * inputs (often with pullups enabled) so power
 			 * usage is minimized.  Linux code should set the
 			 * gpio direction first thing; but until it does,
+			 * and in case chip->get_direction is not set,
 			 * we may expose the wrong direction in sysfs.
 			 */
 			gpio_desc[id].flags = !chip->direction_input
@@ -1274,9 +1311,15 @@ int gpio_request(unsigned gpio, const char *label)
 			desc_set_label(desc, NULL);
 			module_put(chip->owner);
 			clear_bit(FLAG_REQUESTED, &desc->flags);
+			goto done;
 		}
 	}
-
+	if (chip->get_direction) {
+		/* chip->get_direction may sleep */
+		spin_unlock_irqrestore(&gpio_lock, flags);
+		gpio_get_direction(gpio);
+		spin_lock_irqsave(&gpio_lock, flags);
+	}
 done:
 	if (status)
 		pr_debug("gpio_request: gpio-%d (%s) status %d\n",
@@ -1812,6 +1855,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 		if (!test_bit(FLAG_REQUESTED, &gdesc->flags))
 			continue;
 
+		gpio_get_direction(gpio);
 		is_out = test_bit(FLAG_IS_OUT, &gdesc->flags);
 		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s",
 			gpio, gdesc->label,

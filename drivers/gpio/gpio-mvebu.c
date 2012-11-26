@@ -168,12 +168,12 @@ static void __iomem *mvebu_gpioreg_level_mask(struct mvebu_gpio_chip *mvchip)
  * Functions implementing the gpio_chip methods
  */
 
-int mvebu_gpio_request(struct gpio_chip *chip, unsigned pin)
+static int mvebu_gpio_request(struct gpio_chip *chip, unsigned pin)
 {
 	return pinctrl_request_gpio(chip->base + pin);
 }
 
-void mvebu_gpio_free(struct gpio_chip *chip, unsigned pin)
+static void mvebu_gpio_free(struct gpio_chip *chip, unsigned pin)
 {
 	pinctrl_free_gpio(chip->base + pin);
 }
@@ -546,6 +546,7 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 	mvchip->chip.label = dev_name(&pdev->dev);
 	mvchip->chip.dev = &pdev->dev;
 	mvchip->chip.request = mvebu_gpio_request;
+	mvchip->chip.free = mvebu_gpio_free;
 	mvchip->chip.direction_input = mvebu_gpio_direction_input;
 	mvchip->chip.get = mvebu_gpio_get;
 	mvchip->chip.direction_output = mvebu_gpio_direction_output;
@@ -673,8 +674,8 @@ static int __devinit mvebu_gpio_probe(struct platform_device *pdev)
 			       IRQ_NOREQUEST, IRQ_LEVEL | IRQ_NOPROBE);
 
 	/* Setup irq domain on top of the generic chip. */
-	mvchip->domain = irq_domain_add_legacy(np, mvchip->chip.ngpio,
-					       mvchip->irqbase, 0,
+	mvchip->domain = irq_domain_add_simple(np, mvchip->chip.ngpio,
+					       mvchip->irqbase,
 					       &irq_domain_simple_ops,
 					       mvchip);
 	if (!mvchip->domain) {

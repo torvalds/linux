@@ -292,17 +292,15 @@ static int tc3589x_gpio_irq_init(struct tc3589x_gpio *tc3589x_gpio,
 {
 	int base = tc3589x_gpio->irq_base;
 
-	if (base) {
-		tc3589x_gpio->domain = irq_domain_add_legacy(
-			NULL, tc3589x_gpio->chip.ngpio, base,
-			0, &tc3589x_irq_ops, tc3589x_gpio);
-	}
-	else {
-		tc3589x_gpio->domain = irq_domain_add_linear(
-			np, tc3589x_gpio->chip.ngpio,
-			&tc3589x_irq_ops, tc3589x_gpio);
-	}
-
+	/*
+	 * If this results in a linear domain, irq_create_mapping() will
+	 * take care of allocating IRQ descriptors at runtime. When a base
+	 * is provided, the IRQ descriptors will be allocated when the
+	 * domain is instantiated.
+	 */
+	tc3589x_gpio->domain = irq_domain_add_simple(np,
+			tc3589x_gpio->chip.ngpio, base, &tc3589x_irq_ops,
+			tc3589x_gpio);
 	if (!tc3589x_gpio->domain) {
 		dev_err(tc3589x_gpio->dev, "Failed to create irqdomain\n");
 		return -ENOSYS;

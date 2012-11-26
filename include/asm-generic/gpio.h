@@ -57,6 +57,8 @@ struct device_node;
  *	enabling module power and clock; may sleep
  * @free: optional hook for chip-specific deactivation, such as
  *	disabling module power and clock; may sleep
+ * @get_direction: returns direction for signal "offset", 0=out, 1=in,
+ *	(same as GPIOF_DIR_XXX), or negative error
  * @direction_input: configures signal "offset" as input, or returns error
  * @get: returns value for signal "offset"; for output signals this
  *	returns either the value actually sensed, or zero
@@ -101,7 +103,8 @@ struct gpio_chip {
 						unsigned offset);
 	void			(*free)(struct gpio_chip *chip,
 						unsigned offset);
-
+	int			(*get_direction)(struct gpio_chip *chip,
+						unsigned offset);
 	int			(*direction_input)(struct gpio_chip *chip,
 						unsigned offset);
 	int			(*get)(struct gpio_chip *chip,
