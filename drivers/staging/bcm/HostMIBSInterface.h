@@ -67,7 +67,7 @@ typedef struct _S_MIBS_HOST_INFO {
 typedef struct _S_MIBS_CLASSIFIER_RULE {
 	unsigned long	ulSFID;
 	unsigned char	ucReserved[2];
-	B_UINT16 uiClassifierRuleIndex;
+	u16	uiClassifierRuleIndex;
 	BOOLEAN	bUsed;
 	USHORT	usVCID_Value;
 	B_UINT8	u8ClassifierRulePriority;
