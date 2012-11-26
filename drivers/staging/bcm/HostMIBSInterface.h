@@ -44,8 +44,8 @@ typedef union _U_MIBS_IP_ADDRESS {
 } U_MIBS_IP_ADDRESS;
 
 typedef struct _S_MIBS_HOST_INFO {
-	ULONG64	GoodTransmits;
-	ULONG64	GoodReceives;
+	u64	GoodTransmits;
+	u64	GoodReceives;
 	/* this to keep track of the Tx and Rx MailBox Registers. */
 	ULONG	NumDesUsed;
 	ULONG	CurrNumFreeDesc;
