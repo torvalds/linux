@@ -34,12 +34,12 @@ typedef union _U_MIBS_IP_ADDRESS {
 		ULONG ulIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * 4];
 	};
 	struct {
-		UCHAR ucIpv4Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
-		UCHAR ucIpv4Mask[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
+		unsigned char ucIpv4Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
+		unsigned char ucIpv4Mask[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
 	};
 	struct {
-		UCHAR ucIpv6Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IPV6_ADDRESS_SIZEINBYTES];
-		UCHAR ucIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IPV6_ADDRESS_SIZEINBYTES];
+		unsigned char ucIpv6Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IPV6_ADDRESS_SIZEINBYTES];
+		unsigned char ucIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IPV6_ADDRESS_SIZEINBYTES];
 	};
 } U_MIBS_IP_ADDRESS;
 
@@ -66,34 +66,34 @@ typedef struct _S_MIBS_HOST_INFO {
 
 typedef struct _S_MIBS_CLASSIFIER_RULE {
 	ULONG	ulSFID;
-	UCHAR	ucReserved[2];
+	unsigned char	ucReserved[2];
 	B_UINT16 uiClassifierRuleIndex;
 	BOOLEAN	bUsed;
 	USHORT	usVCID_Value;
 	B_UINT8	u8ClassifierRulePriority;
 	U_MIBS_IP_ADDRESS stSrcIpAddress;
 	/* IP Source Address Length */
-	UCHAR	ucIPSourceAddressLength;
+	unsigned char	ucIPSourceAddressLength;
 	U_MIBS_IP_ADDRESS stDestIpAddress;
 	/* IP Destination Address Length */
-	UCHAR	ucIPDestinationAddressLength;
-	UCHAR	ucIPTypeOfServiceLength;
-	UCHAR	ucTosLow;
-	UCHAR	ucTosHigh;
-	UCHAR	ucTosMask;
-	UCHAR	ucProtocolLength;
-	UCHAR	ucProtocol[MIBS_MAX_PROTOCOL_LENGTH];
+	unsigned char	ucIPDestinationAddressLength;
+	unsigned char	ucIPTypeOfServiceLength;
+	unsigned char	ucTosLow;
+	unsigned char	ucTosHigh;
+	unsigned char	ucTosMask;
+	unsigned char	ucProtocolLength;
+	unsigned char	ucProtocol[MIBS_MAX_PROTOCOL_LENGTH];
 	USHORT	usSrcPortRangeLo[MIBS_MAX_PORT_RANGE];
 	USHORT	usSrcPortRangeHi[MIBS_MAX_PORT_RANGE];
-	UCHAR	ucSrcPortRangeLength;
+	unsigned char	ucSrcPortRangeLength;
 	USHORT	usDestPortRangeLo[MIBS_MAX_PORT_RANGE];
 	USHORT	usDestPortRangeHi[MIBS_MAX_PORT_RANGE];
-	UCHAR	ucDestPortRangeLength;
+	unsigned char	ucDestPortRangeLength;
 	BOOLEAN	bProtocolValid;
 	BOOLEAN	bTOSValid;
 	BOOLEAN	bDestIpValid;
 	BOOLEAN	bSrcIpValid;
-	UCHAR	ucDirection;
+	unsigned char	ucDirection;
 	BOOLEAN	bIpv6Protocol;
 	UINT32	u32PHSRuleID;
 } S_MIBS_CLASSIFIER_RULE;
@@ -161,7 +161,7 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	LARGE_INTEGER	liLastUpdateTokenAt;
 	UINT	uiMaxAllowedRate;
 	UINT	NumOfPacketsSent;
-	UCHAR	ucDirection;
+	unsigned char ucDirection;
 	USHORT	usCID;
 	S_MIBS_EXTSERVICEFLOW_PARAMETERS stMibsExtServiceFlowTable;
 	UINT	uiCurrentRxRate;
