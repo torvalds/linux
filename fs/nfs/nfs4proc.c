@@ -389,6 +389,7 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 {
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tbl;
+	bool send_new_highest_used_slotid = false;
 
 	if (!res->sr_slot) {
 		/* just wake up the next guy waiting since
@@ -400,12 +401,25 @@ static void nfs41_sequence_free_slot(struct nfs4_sequence_res *res)
 	session = tbl->session;
 
 	spin_lock(&tbl->slot_tbl_lock);
+	/* Be nice to the server: try to ensure that the last transmitted
+	 * value for highest_user_slotid <= target_highest_slotid
+	 */
+	if (tbl->highest_used_slotid > tbl->target_highest_slotid)
+		send_new_highest_used_slotid = true;
+
 	nfs4_free_slot(tbl, res->sr_slot);
-	if (!nfs4_session_draining(session))
-		rpc_wake_up_first(&tbl->slot_tbl_waitq,
-				nfs4_set_task_privileged, NULL);
+
+	if (tbl->highest_used_slotid != NFS4_NO_SLOT)
+		send_new_highest_used_slotid = false;
+	if (!nfs4_session_draining(session)) {
+		if (rpc_wake_up_first(&tbl->slot_tbl_waitq,
+				nfs4_set_task_privileged, NULL) != NULL)
+			send_new_highest_used_slotid = false;
+	}
 	spin_unlock(&tbl->slot_tbl_lock);
 	res->sr_slot = NULL;
+	if (send_new_highest_used_slotid)
+		nfs41_server_notify_highest_slotid_update(session->clp);
 }
 
 static int nfs41_sequence_done(struct rpc_task *task, struct nfs4_sequence_res *res)

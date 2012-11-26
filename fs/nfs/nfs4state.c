@@ -1961,6 +1961,11 @@ void nfs41_server_notify_target_slotid_update(struct nfs_client *clp)
 	nfs41_ping_server(clp);
 }
 
+void nfs41_server_notify_highest_slotid_update(struct nfs_client *clp)
+{
+	nfs41_ping_server(clp);
+}
+
 static void nfs4_reset_all_state(struct nfs_client *clp)
 {
 	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
