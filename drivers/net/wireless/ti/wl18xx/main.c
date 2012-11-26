@@ -492,6 +492,10 @@ static struct wlcore_conf wl18xx_conf = {
 		.increase_time              = 1,
 		.window_size                = 16,
 	},
+	.recovery = {
+		.bug_on_recovery	    = 0,
+		.no_recovery		    = 0,
+	},
 };
 
 static struct wl18xx_priv_conf wl18xx_default_priv_conf = {

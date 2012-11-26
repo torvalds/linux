@@ -370,6 +370,10 @@ static struct wlcore_conf wl12xx_conf = {
 		.increase_time              = 1,
 		.window_size                = 16,
 	},
+	.recovery = {
+		.bug_on_recovery	    = 0,
+		.no_recovery		    = 0,
+	},
 };
 
 static struct wl12xx_priv_conf wl12xx_default_priv_conf = {

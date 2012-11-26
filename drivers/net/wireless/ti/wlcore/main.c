@@ -56,8 +56,8 @@
 #define WL1271_BOOT_RETRIES 3
 
 static char *fwlog_param;
-static bool bug_on_recovery;
-static bool no_recovery;
+static int bug_on_recovery = -1;
+static int no_recovery     = -1;
 
 static void __wl1271_op_remove_interface(struct wl1271 *wl,
 					 struct ieee80211_vif *vif,
@@ -306,6 +306,7 @@ out:
 static void wlcore_adjust_conf(struct wl1271 *wl)
 {
 	/* Adjust settings according to optional module parameters */
+
 	if (fwlog_param) {
 		if (!strcmp(fwlog_param, "continuous")) {
 			wl->conf.fwlog.mode = WL12XX_FWLOG_CONTINUOUS;
@@ -321,6 +322,12 @@ static void wlcore_adjust_conf(struct wl1271 *wl)
 			wl1271_error("Unknown fwlog parameter %s", fwlog_param);
 		}
 	}
+
+	if (bug_on_recovery != -1)
+		wl->conf.recovery.bug_on_recovery = (u8) bug_on_recovery;
+
+	if (no_recovery != -1)
+		wl->conf.recovery.no_recovery = (u8) no_recovery;
 }
 
 static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
@@ -903,10 +910,10 @@ static void wl1271_recovery_work(struct work_struct *work)
 		wlcore_print_recovery(wl);
 	}
 
-	BUG_ON(bug_on_recovery &&
+	BUG_ON(wl->conf.recovery.bug_on_recovery &&
 	       !test_bit(WL1271_FLAG_INTENDED_FW_RECOVERY, &wl->flags));
 
-	if (no_recovery) {
+	if (wl->conf.recovery.no_recovery) {
 		wl1271_info("No recovery (chosen on module load). Fw will remain stuck.");
 		goto out_unlock;
 	}
@@ -6013,10 +6020,10 @@ module_param_named(fwlog, fwlog_param, charp, 0);
 MODULE_PARM_DESC(fwlog,
 		 "FW logger options: continuous, ondemand, dbgpins or disable");
 
-module_param(bug_on_recovery, bool, S_IRUSR | S_IWUSR);
+module_param(bug_on_recovery, int, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(bug_on_recovery, "BUG() on fw recovery");
 
-module_param(no_recovery, bool, S_IRUSR | S_IWUSR);
+module_param(no_recovery, int, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(no_recovery, "Prevent HW recovery. FW will remain stuck.");
 
 MODULE_LICENSE("GPL");
