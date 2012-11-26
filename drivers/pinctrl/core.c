@@ -345,6 +345,33 @@ void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
 }
 EXPORT_SYMBOL_GPL(pinctrl_add_gpio_ranges);
 
+struct pinctrl_dev *find_pinctrl_and_add_gpio_range(const char *devname,
+		struct pinctrl_gpio_range *range)
+{
+	struct pinctrl_dev *pctldev = get_pinctrl_dev_from_devname(devname);
+
+	if (!pctldev)
+		return NULL;
+
+	pinctrl_add_gpio_range(pctldev, range);
+	return pctldev;
+}
+EXPORT_SYMBOL_GPL(find_pinctrl_and_add_gpio_range);
+
+/**
+ * pinctrl_remove_gpio_range() - remove a range of GPIOs fro a pin controller
+ * @pctldev: pin controller device to remove the range from
+ * @range: the GPIO range to remove
+ */
+void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
+			       struct pinctrl_gpio_range *range)
+{
+	mutex_lock(&pinctrl_mutex);
+	list_del(&range->node);
+	mutex_unlock(&pinctrl_mutex);
+}
+EXPORT_SYMBOL_GPL(pinctrl_remove_gpio_range);
+
 /**
  * pinctrl_get_group_selector() - returns the group selector for a group
  * @pctldev: the pin controller handling the group
@@ -562,6 +589,8 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 		 */
 		return -EPROBE_DEFER;
 	}
+
+	setting->dev_name = map->dev_name;
 
 	switch (map->type) {
 	case PIN_MAP_TYPE_MUX_GROUP:

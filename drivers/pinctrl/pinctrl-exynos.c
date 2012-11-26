@@ -36,6 +36,7 @@
 /* list of external wakeup controllers supported */
 static const struct of_device_id exynos_wkup_irq_ids[] = {
 	{ .compatible = "samsung,exynos4210-wakeup-eint", },
+	{ }
 };
 
 static void exynos_gpio_irq_unmask(struct irq_data *irqd)

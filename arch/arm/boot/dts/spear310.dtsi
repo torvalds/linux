@@ -22,9 +22,10 @@
 			  0xb0000000 0xb0000000 0x10000000
 			  0xd0000000 0xd0000000 0x30000000>;
 
-		pinmux@b4000000 {
+		pinmux: pinmux@b4000000 {
 			compatible = "st,spear310-pinmux";
 			reg = <0xb4000000 0x1000>;
+			#gpio-range-cells = <2>;
 		};
 
 		fsmc: flash@44000000 {
@@ -74,6 +75,25 @@
 				compatible = "arm,pl011", "arm,primecell";
 				reg = <0xb2200000 0x1000>;
 				status = "disabled";
+			};
+
+			gpiopinctrl: gpio@b4000000 {
+				compatible = "st,spear-plgpio";
+				reg = <0xb4000000 0x1000>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				gpio-controller;
+				#gpio-cells = <2>;
+				gpio-ranges = <&pinmux 0 102>;
+				status = "disabled";
+
+				st-plgpio,ngpio = <102>;
+				st-plgpio,enb-reg = <0x10>;
+				st-plgpio,wdata-reg = <0x20>;
+				st-plgpio,dir-reg = <0x30>;
+				st-plgpio,ie-reg = <0x50>;
+				st-plgpio,rdata-reg = <0x40>;
+				st-plgpio,mis-reg = <0x60>;
 			};
 		};
 	};

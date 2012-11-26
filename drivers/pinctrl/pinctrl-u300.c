@@ -663,8 +663,6 @@ static const struct pinctrl_pin_desc u300_pads[] = {
 struct u300_pmx {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
-	u32 phybase;
-	u32 physize;
 	void __iomem *virtbase;
 };
 
@@ -1054,9 +1052,8 @@ static struct pinctrl_gpio_range *u300_match_gpio_range(unsigned pin)
 	return NULL;
 }
 
-int u300_pin_config_get(struct pinctrl_dev *pctldev,
-			unsigned pin,
-			unsigned long *config)
+static int u300_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
+			       unsigned long *config)
 {
 	struct pinctrl_gpio_range *range = u300_match_gpio_range(pin);
 
@@ -1069,9 +1066,8 @@ int u300_pin_config_get(struct pinctrl_dev *pctldev,
 				    config);
 }
 
-int u300_pin_config_set(struct pinctrl_dev *pctldev,
-			unsigned pin,
-			unsigned long config)
+static int u300_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
+			       unsigned long config)
 {
 	struct pinctrl_gpio_range *range = u300_match_gpio_range(pin);
 	int ret;
@@ -1110,7 +1106,6 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	struct u300_pmx *upmx;
 	struct resource *res;
 	struct gpio_chip *gpio_chip = dev_get_platdata(&pdev->dev);
-	int ret;
 	int i;
 
 	/* Create state holders etc for this driver */
@@ -1123,26 +1118,15 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENOENT;
-	upmx->phybase = res->start;
-	upmx->physize = resource_size(res);
 
-	if (request_mem_region(upmx->phybase, upmx->physize,
-			       DRIVER_NAME) == NULL) {
-		ret = -ENOMEM;
-		goto out_no_memregion;
-	}
-
-	upmx->virtbase = ioremap(upmx->phybase, upmx->physize);
-	if (!upmx->virtbase) {
-		ret = -ENOMEM;
-		goto out_no_remap;
-	}
+	upmx->virtbase = devm_request_and_ioremap(&pdev->dev, res);
+	if (!upmx->virtbase)
+		return -ENOMEM;
 
 	upmx->pctl = pinctrl_register(&u300_pmx_desc, &pdev->dev, upmx);
 	if (!upmx->pctl) {
 		dev_err(&pdev->dev, "could not register U300 pinmux driver\n");
-		ret = -EINVAL;
-		goto out_no_pmx;
+		return -EINVAL;
 	}
 
 	/* We will handle a range of GPIO pins */
@@ -1156,14 +1140,6 @@ static int __devinit u300_pmx_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "initialized U300 pin control driver\n");
 
 	return 0;
-
-out_no_pmx:
-	iounmap(upmx->virtbase);
-out_no_remap:
-	platform_set_drvdata(pdev, NULL);
-out_no_memregion:
-	release_mem_region(upmx->phybase, upmx->physize);
-	return ret;
 }
 
 static int __devexit u300_pmx_remove(struct platform_device *pdev)
@@ -1171,8 +1147,6 @@ static int __devexit u300_pmx_remove(struct platform_device *pdev)
 	struct u300_pmx *upmx = platform_get_drvdata(pdev);
 
 	pinctrl_unregister(upmx->pctl);
-	iounmap(upmx->virtbase);
-	release_mem_region(upmx->phybase, upmx->physize);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
