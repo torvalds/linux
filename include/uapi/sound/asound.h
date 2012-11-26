@@ -492,7 +492,17 @@ enum {
 	SNDRV_CHMAP_TRL,	/* top rear left */
 	SNDRV_CHMAP_TRR,	/* top rear right */
 	SNDRV_CHMAP_TRC,	/* top rear center */
-	SNDRV_CHMAP_LAST = SNDRV_CHMAP_TRC,
+	/* new definitions for UAC2 */
+	SNDRV_CHMAP_TFLC,	/* top front left center */
+	SNDRV_CHMAP_TFRC,	/* top front right center */
+	SNDRV_CHMAP_TSL,	/* top side left */
+	SNDRV_CHMAP_TSR,	/* top side right */
+	SNDRV_CHMAP_LLFE,	/* left LFE */
+	SNDRV_CHMAP_RLFE,	/* right LFE */
+	SNDRV_CHMAP_BC,		/* bottom center */
+	SNDRV_CHMAP_BLC,	/* bottom left center */
+	SNDRV_CHMAP_BRC,	/* bottom right center */
+	SNDRV_CHMAP_LAST = SNDRV_CHMAP_BRC,
 };
 
 #define SNDRV_CHMAP_POSITION_MASK	0xffff
