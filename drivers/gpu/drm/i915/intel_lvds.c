@@ -52,6 +52,7 @@ struct intel_lvds_encoder {
 	u32 pfit_control;
 	u32 pfit_pgm_ratios;
 	bool pfit_dirty;
+	bool is_dual_link;
 
 	struct intel_lvds_connector *attached_connector;
 };
@@ -923,6 +924,23 @@ static const struct dmi_system_id intel_dual_link_lvds[] = {
 
 bool intel_is_dual_link_lvds(struct drm_device *dev)
 {
+	struct intel_encoder *encoder;
+	struct intel_lvds_encoder *lvds_encoder;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list,
+			    base.head) {
+		if (encoder->type == INTEL_OUTPUT_LVDS) {
+			lvds_encoder = to_lvds_encoder(&encoder->base);
+
+			return lvds_encoder->is_dual_link;
+		}
+	}
+
+	return false;
+}
+
+static bool compute_is_dual_link_lvds(struct drm_device *dev)
+{
 	unsigned int val;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 lvds_reg;
@@ -940,19 +958,15 @@ bool intel_is_dual_link_lvds(struct drm_device *dev)
 	if (dmi_check_system(intel_dual_link_lvds))
 		return true;
 
-	if (dev_priv->lvds_val)
-		val = dev_priv->lvds_val;
-	else {
-		/* BIOS should set the proper LVDS register value at boot, but
-		 * in reality, it doesn't set the value when the lid is closed;
-		 * we need to check "the value to be set" in VBT when LVDS
-		 * register is uninitialized.
-		 */
-		val = I915_READ(lvds_reg);
-		if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
-			val = dev_priv->bios_lvds_val;
-		dev_priv->lvds_val = val;
-	}
+	/* BIOS should set the proper LVDS register value at boot, but
+	 * in reality, it doesn't set the value when the lid is closed;
+	 * we need to check "the value to be set" in VBT when LVDS
+	 * register is uninitialized.
+	 */
+	val = I915_READ(lvds_reg);
+	if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
+		val = dev_priv->bios_lvds_val;
+
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
 
@@ -1162,6 +1176,10 @@ bool intel_lvds_init(struct drm_device *dev)
 		goto failed;
 
 out:
+	lvds_encoder->is_dual_link = compute_is_dual_link_lvds(dev);
+	DRM_DEBUG_KMS("detected %s-link lvds configuration\n",
+		      lvds_encoder->is_dual_link ? "dual" : "single");
+
 	/*
 	 * Unlock registers and just
 	 * leave them unlocked
