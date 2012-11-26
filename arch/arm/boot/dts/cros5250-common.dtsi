@@ -1,21 +1,14 @@
 /*
- * SAMSUNG SMDK5250 board device tree source
+ * Common device tree include for all Exynos 5250 boards based off of Daisy.
  *
- * Copyright (c) 2012 Samsung Electronics Co., Ltd.
- *		http://www.samsung.com
+ * Copyright (c) 2012 Google, Inc
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
 */
 
-/dts-v1/;
-/include/ "exynos5250.dtsi"
-
 / {
-	model = "SAMSUNG SMDK5250 board based on EXYNOS5250";
-	compatible = "samsung,smdk5250", "samsung,exynos5250";
-
 	aliases {
 	};
 
@@ -24,53 +17,32 @@
 	};
 
 	chosen {
-		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M console=ttySAC2,115200 init=/linuxrc";
 	};
 
 	i2c@12C60000 {
 		samsung,i2c-sda-delay = <100>;
-		samsung,i2c-max-bus-freq = <20000>;
+		samsung,i2c-max-bus-freq = <378000>;
 		gpios = <&gpb3 0 2 3 0>,
 			<&gpb3 1 2 3 0>;
-
-		eeprom@50 {
-			compatible = "samsung,s524ad0xd1";
-			reg = <0x50>;
-		};
 	};
 
 	i2c@12C70000 {
 		samsung,i2c-sda-delay = <100>;
-		samsung,i2c-max-bus-freq = <20000>;
+		samsung,i2c-max-bus-freq = <378000>;
 		gpios = <&gpb3 2 2 3 0>,
 			<&gpb3 3 2 3 0>;
-
-		eeprom@51 {
-			compatible = "samsung,s524ad0xd1";
-			reg = <0x51>;
-		};
-	};
-
-	i2c@121D0000 {
-		samsung,i2c-sda-delay = <100>;
-		samsung,i2c-max-bus-freq = <40000>;
-		samsung,i2c-slave-addr = <0x38>;
-
-		sata-phy {
-			compatible = "samsung,sata-phy";
-			reg = <0x38>;
-		};
-	};
-
-	sata@122F0000 {
-		samsung,sata-freq = <66>;
 	};
 
 	i2c@12C80000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <66000>;
-		gpios = <&gpa0 6 3 3 0>,
-			<&gpa0 7 3 3 0>;
+
+		/*
+		 * Disabled pullups since external part has its own pullups and
+		 * double-pulling gets us out of spec in some cases.
+		 */
+		gpios = <&gpa0 6 3 0 0>,
+			<&gpa0 7 3 0 0>;
 
 		hdmiddc@50 {
 			compatible = "samsung,exynos5-hdmiddc";
@@ -79,7 +51,10 @@
 	};
 
 	i2c@12C90000 {
-		status = "disabled";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		gpios = <&gpa1 2 3 3 0>,
+			<&gpa1 3 3 3 0>;
 	};
 
 	i2c@12CA0000 {
@@ -87,7 +62,10 @@
 	};
 
 	i2c@12CB0000 {
-		status = "disabled";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		gpios = <&gpa2 2 3 3 0>,
+			<&gpa2 3 3 3 0>;
 	};
 
 	i2c@12CC0000 {
@@ -95,12 +73,15 @@
 	};
 
 	i2c@12CD0000 {
-		status = "disabled";
+		samsung,i2c-sda-delay = <100>;
+		samsung,i2c-max-bus-freq = <66000>;
+		gpios = <&gpb2 2 3 3 0>,
+			<&gpb2 3 3 3 0>;
 	};
 
 	i2c@12CE0000 {
 		samsung,i2c-sda-delay = <100>;
-		samsung,i2c-max-bus-freq = <66000>;
+		samsung,i2c-max-bus-freq = <378000>;
 
 		hdmiphy@38 {
 			compatible = "samsung,exynos5-hdmiphy";
@@ -146,16 +127,28 @@
 			reg = <0>;
 			bus-width = <4>;
 			samsung,cd-pinmux-gpio = <&gpc3 2 2 3 3>;
+			wp-gpios = <&gpc2 1 0 0 3>;
 			gpios = <&gpc3 0 2 0 3>, <&gpc3 1 2 0 3>,
 				<&gpc3 3 2 3 3>, <&gpc3 4 2 3 3>,
-				<&gpc3 5 2 3 3>, <&gpc3 6 2 3 3>,
-				<&gpc4 3 3 3 3>, <&gpc4 3 3 3 3>,
-				<&gpc4 5 3 3 3>, <&gpc4 6 3 3 3>;
+				<&gpc3 5 2 3 3>, <&gpc3 6 2 3 3>;
 		};
 	};
 
 	dwmmc3@12230000 {
-		status = "disabled";
+		num-slots = <1>;
+		supports-highspeed;
+		broken-cd;
+		fifo-depth = <0x80>;
+		card-detect-delay = <200>;
+		samsung,dw-mshc-ciu-div = <3>;
+		samsung,dw-mshc-sdr-timing = <2 3 3>;
+		samsung,dw-mshc-ddr-timing = <1 2 3>;
+
+		slot@0 {
+			reg = <0>;
+			bus-width = <4>;
+			/* See board-specific dts files for GPIOs */
+		};
 	};
 
 	spi_0: spi@12d20000 {
@@ -166,30 +159,8 @@
 		gpios = <&gpa2 4 2 3 0>,
 			<&gpa2 6 2 3 0>,
 			<&gpa2 7 2 3 0>;
-
-		w25q80bw@0 {
-			#address-cells = <1>;
-			#size-cells = <1>;
-			compatible = "w25x80";
-			reg = <0>;
-			spi-max-frequency = <1000000>;
-
-			controller-data {
-				cs-gpio = <&gpa2 5 1 0 3>;
-				samsung,spi-feedback-delay = <0>;
-			};
-
-			partition@0 {
-				label = "U-Boot";
-				reg = <0x0 0x40000>;
-				read-only;
-			};
-
-			partition@40000 {
-				label = "Kernel";
-				reg = <0x40000 0xc0000>;
-			};
-		};
+		samsung,spi-src-clk = <0>;
+		num-cs = <1>;
 	};
 
 	spi_2: spi@12d40000 {
@@ -200,8 +171,14 @@
 		hpd-gpio = <&gpx3 7 0xf 1 3>;
 	};
 
-	codec@11000000 {
-		samsung,mfc-r = <0x43000000 0x800000>;
-		samsung,mfc-l = <0x51000000 0x800000>;
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpx1 3 0 0x10000 0>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
 	};
 };

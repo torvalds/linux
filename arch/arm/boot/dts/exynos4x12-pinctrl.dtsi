@@ -586,196 +586,196 @@
 			samsung,pins = "gpk0-0";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd0_cmd: sd0-cmd {
 			samsung,pins = "gpk0-1";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd0_cd: sd0-cd {
 			samsung,pins = "gpk0-2";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd0_bus1: sd0-bus-width1 {
 			samsung,pins = "gpk0-3";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd0_bus4: sd0-bus-width4 {
 			samsung,pins = "gpk0-3", "gpk0-4", "gpk0-5", "gpk0-6";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd0_bus8: sd0-bus-width8 {
 			samsung,pins = "gpk1-3", "gpk1-4", "gpk1-5", "gpk1-6";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd4_clk: sd4-clk {
 			samsung,pins = "gpk0-0";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd4_cmd: sd4-cmd {
 			samsung,pins = "gpk0-1";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd4_cd: sd4-cd {
 			samsung,pins = "gpk0-2";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd4_bus1: sd4-bus-width1 {
 			samsung,pins = "gpk0-3";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd4_bus4: sd4-bus-width4 {
 			samsung,pins = "gpk0-3", "gpk0-4", "gpk0-5", "gpk0-6";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd4_bus8: sd4-bus-width8 {
 			samsung,pins = "gpk1-3", "gpk1-4", "gpk1-5", "gpk1-6";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <4>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd1_clk: sd1-clk {
 			samsung,pins = "gpk1-0";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd1_cmd: sd1-cmd {
 			samsung,pins = "gpk1-1";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd1_cd: sd1-cd {
 			samsung,pins = "gpk1-2";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd1_bus1: sd1-bus-width1 {
 			samsung,pins = "gpk1-3";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd1_bus4: sd1-bus-width4 {
 			samsung,pins = "gpk1-3", "gpk1-4", "gpk1-5", "gpk1-6";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd2_clk: sd2-clk {
 			samsung,pins = "gpk2-0";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd2_cmd: sd2-cmd {
 			samsung,pins = "gpk2-1";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd2_cd: sd2-cd {
 			samsung,pins = "gpk2-2";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd2_bus1: sd2-bus-width1 {
 			samsung,pins = "gpk2-3";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd2_bus4: sd2-bus-width4 {
 			samsung,pins = "gpk2-3", "gpk2-4", "gpk2-5", "gpk2-6";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd2_bus8: sd2-bus-width8 {
 			samsung,pins = "gpk3-3", "gpk3-4", "gpk3-5", "gpk3-6";
 			samsung,pin-function = <3>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd3_clk: sd3-clk {
 			samsung,pins = "gpk3-0";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd3_cmd: sd3-cmd {
 			samsung,pins = "gpk3-1";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <0>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd3_cd: sd3-cd {
 			samsung,pins = "gpk3-2";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd3_bus1: sd3-bus-width1 {
 			samsung,pins = "gpk3-3";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		sd3_bus4: sd3-bus-width4 {
 			samsung,pins = "gpk3-3", "gpk3-4", "gpk3-5", "gpk3-6";
 			samsung,pin-function = <2>;
 			samsung,pin-pud = <3>;
-			samsung,pin-drv = <0>;
+			samsung,pin-drv = <3>;
 		};
 
 		keypad_col0: keypad-col0 {
