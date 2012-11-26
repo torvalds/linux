@@ -1002,11 +1002,8 @@ static void *gsc_get_drv_data(struct platform_device *pdev)
 
 static void gsc_clk_put(struct gsc_dev *gsc)
 {
-	if (!IS_ERR(gsc->clock)) {
+	if (!IS_ERR(gsc->clock))
 		clk_unprepare(gsc->clock);
-		clk_put(gsc->clock);
-		gsc->clock = NULL;
-	}
 }
 
 static int gsc_clk_get(struct gsc_dev *gsc)
@@ -1015,28 +1012,22 @@ static int gsc_clk_get(struct gsc_dev *gsc)
 
 	dev_dbg(&gsc->pdev->dev, "gsc_clk_get Called\n");
 
-	gsc->clock = clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
+	gsc->clock = devm_clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
 	if (IS_ERR(gsc->clock)) {
 		dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
 			GSC_CLOCK_GATE_NAME);
-		goto err_clk_get;
+		return PTR_ERR(gsc->clock);
 	}
 
 	ret = clk_prepare(gsc->clock);
 	if (ret < 0) {
 		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
 			GSC_CLOCK_GATE_NAME);
-		clk_put(gsc->clock);
 		gsc->clock = ERR_PTR(-EINVAL);
-		goto err_clk_prepare;
+		return ret;
 	}
 
 	return 0;
-
-err_clk_prepare:
-	gsc_clk_put(gsc);
-err_clk_get:
-	return -ENXIO;
 }
 
 static int gsc_m2m_suspend(struct gsc_dev *gsc)
