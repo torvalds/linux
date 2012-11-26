@@ -36,6 +36,7 @@ obj-$(CONFIG_PINCTRL_U300)	+= pinctrl-u300.o
 obj-$(CONFIG_PINCTRL_COH901)	+= pinctrl-coh901.o
 obj-$(CONFIG_PINCTRL_SAMSUNG)	+= pinctrl-samsung.o
 obj-$(CONFIG_PINCTRL_EXYNOS4)	+= pinctrl-exynos.o
+obj-$(CONFIG_PINCTRL_EXYNOS5440)	+= pinctrl-exynos5440.o
 obj-$(CONFIG_PINCTRL_MVEBU)	+= pinctrl-mvebu.o
 obj-$(CONFIG_PINCTRL_DOVE)	+= pinctrl-dove.o
 obj-$(CONFIG_PINCTRL_KIRKWOOD)	+= pinctrl-kirkwood.o

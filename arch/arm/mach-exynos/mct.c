@@ -19,7 +19,9 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/percpu.h>
+#include <linux/of.h>
 
+#include <asm/arch_timer.h>
 #include <asm/hardware/gic.h>
 #include <asm/localtimer.h>
 
@@ -476,8 +478,13 @@ static void __init exynos4_timer_resources(void)
 #endif /* CONFIG_LOCAL_TIMERS */
 }
 
-static void __init exynos4_timer_init(void)
+static void __init exynos_timer_init(void)
 {
+	if (soc_is_exynos5440()) {
+		arch_timer_of_register();
+		return;
+	}
+
 	if ((soc_is_exynos4210()) || (soc_is_exynos5250()))
 		mct_int_type = MCT_INT_SPI;
 	else
@@ -489,5 +496,5 @@ static void __init exynos4_timer_init(void)
 }
 
 struct sys_timer exynos4_timer = {
-	.init		= exynos4_timer_init,
+	.init		= exynos_timer_init,
 };

@@ -67,6 +67,15 @@ config SOC_EXYNOS5250
 	help
 	  Enable EXYNOS5250 SoC support
 
+config SOC_EXYNOS5440
+	bool "SAMSUNG EXYNOS5440"
+	default y
+	depends on ARCH_EXYNOS5
+	select ARM_ARCH_TIMER
+	select AUTO_ZRELADDR
+	help
+	  Enable EXYNOS5440 SoC support
+
 config EXYNOS4_MCT
 	bool
 	default y
@@ -417,9 +426,9 @@ config MACH_EXYNOS4_DT
 
 config MACH_EXYNOS5_DT
 	bool "SAMSUNG EXYNOS5 Machine using device tree"
+	default y
 	depends on ARCH_EXYNOS5
 	select ARM_AMBA
-	select SOC_EXYNOS5250
 	select USE_OF
 	help
 	  Machine support for Samsung EXYNOS5 machine with device tree enabled.
