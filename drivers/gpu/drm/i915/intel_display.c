@@ -5322,7 +5322,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	bool ok, has_reduced_clock = false;
 	bool is_lvds = false, is_dp = false, is_cpu_edp = false;
 	struct intel_encoder *encoder;
-	u32 temp;
 	int ret;
 	bool dither, fdi_config_ok;
 
@@ -5385,45 +5384,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	} else
 		intel_put_pch_pll(intel_crtc);
-
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	if (is_lvds) {
-		temp = I915_READ(PCH_LVDS);
-		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-		if (HAS_PCH_CPT(dev)) {
-			temp &= ~PORT_TRANS_SEL_MASK;
-			temp |= PORT_TRANS_SEL_CPT(pipe);
-		} else {
-			if (pipe == 1)
-				temp |= LVDS_PIPEB_SELECT;
-			else
-				temp &= ~LVDS_PIPEB_SELECT;
-		}
-
-		/* set the corresponsding LVDS_BORDER bit */
-		temp |= dev_priv->lvds_border_bits;
-		/* Set the B0-B3 data pairs corresponding to whether we're going to
-		 * set the DPLLs for dual-channel mode or not.
-		 */
-		if (clock.p2 == 7)
-			temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
-		else
-			temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
-
-		/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
-		 * appropriately here, but we need to look more thoroughly into how
-		 * panels behave in the two modes.
-		 */
-		temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-			temp |= LVDS_HSYNC_POLARITY;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-			temp |= LVDS_VSYNC_POLARITY;
-		I915_WRITE(PCH_LVDS, temp);
-	}
 
 	if (is_dp && !is_cpu_edp) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);

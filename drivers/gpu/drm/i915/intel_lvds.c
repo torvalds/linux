@@ -104,17 +104,20 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	int pipe = intel_crtc->pipe;
 	u32 temp;
 
-	/* pch split platforms are not yet converted. */
-	if (HAS_PCH_SPLIT(dev))
-		return;
-
 	temp = I915_READ(lvds_encoder->reg);
 	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-	if (pipe == 1) {
-		temp |= LVDS_PIPEB_SELECT;
+
+	if (HAS_PCH_CPT(dev)) {
+		temp &= ~PORT_TRANS_SEL_MASK;
+		temp |= PORT_TRANS_SEL_CPT(pipe);
 	} else {
-		temp &= ~LVDS_PIPEB_SELECT;
+		if (pipe == 1) {
+			temp |= LVDS_PIPEB_SELECT;
+		} else {
+			temp &= ~LVDS_PIPEB_SELECT;
+		}
 	}
+
 	/* set the corresponsding LVDS_BORDER bit */
 	temp |= dev_priv->lvds_border_bits;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
@@ -129,8 +132,11 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	 * appropriately here, but we need to look more thoroughly into how
 	 * panels behave in the two modes.
 	 */
-	/* set the dithering flag on LVDS as needed */
-	if (INTEL_INFO(dev)->gen >= 4) {
+
+	/* Set the dithering flag on LVDS as needed, note that there is no
+	 * special lvds dither control bit on pch-split platforms, dithering is
+	 * only controlled through the PIPECONF reg. */
+	if (INTEL_INFO(dev)->gen == 4) {
 		if (dev_priv->lvds_dither)
 			temp |= LVDS_ENABLE_DITHER;
 		else
