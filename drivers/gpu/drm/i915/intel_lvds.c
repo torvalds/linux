@@ -903,6 +903,59 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	return false;
 }
 
+static int intel_dual_link_lvds_callback(const struct dmi_system_id *id)
+{
+	DRM_INFO("Forcing lvds to dual link mode on %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_dual_link_lvds[] = {
+	{
+		.callback = intel_dual_link_lvds_callback,
+		.ident = "Apple MacBook Pro (Core i5/i7 Series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro8,2"),
+		},
+	},
+	{ }	/* terminating entry */
+};
+
+bool intel_is_dual_link_lvds(struct drm_device *dev)
+{
+	unsigned int val;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 lvds_reg;
+
+	if (HAS_PCH_SPLIT(dev)) {
+		lvds_reg = PCH_LVDS;
+	} else {
+		lvds_reg = LVDS;
+	}
+
+	/* use the module option value if specified */
+	if (i915_lvds_channel_mode > 0)
+		return i915_lvds_channel_mode == 2;
+
+	if (dmi_check_system(intel_dual_link_lvds))
+		return true;
+
+	if (dev_priv->lvds_val)
+		val = dev_priv->lvds_val;
+	else {
+		/* BIOS should set the proper LVDS register value at boot, but
+		 * in reality, it doesn't set the value when the lid is closed;
+		 * we need to check "the value to be set" in VBT when LVDS
+		 * register is uninitialized.
+		 */
+		val = I915_READ(lvds_reg);
+		if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
+			val = dev_priv->bios_lvds_val;
+		dev_priv->lvds_val = val;
+	}
+	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
+}
+
 static bool intel_lvds_supported(struct drm_device *dev)
 {
 	/* With the introduction of the PCH we gained a dedicated
