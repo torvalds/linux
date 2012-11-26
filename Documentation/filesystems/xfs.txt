@@ -43,7 +43,7 @@ When mounting an XFS filesystem, the following options are accepted.
 	Issue command to let the block device reclaim space freed by the
 	filesystem.  This is useful for SSD devices, thinly provisioned
 	LUNs and virtual machine images, but may have a performance
-	impact.  This option is incompatible with the nodelaylog option.
+	impact.
 
   dmapi
 	Enable the DMAPI (Data Management API) event callouts.
