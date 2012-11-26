@@ -1017,25 +1017,26 @@ static int gsc_clk_get(struct gsc_dev *gsc)
 	dev_dbg(&gsc->pdev->dev, "gsc_clk_get Called\n");
 
 	gsc->clock = clk_get(&gsc->pdev->dev, GSC_CLOCK_GATE_NAME);
-	if (IS_ERR(gsc->clock))
-		goto err_print;
+	if (IS_ERR(gsc->clock)) {
+		dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
+			GSC_CLOCK_GATE_NAME);
+		goto err_clk_get;
+	}
 
 	ret = clk_prepare(gsc->clock);
 	if (ret < 0) {
+		dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
+			GSC_CLOCK_GATE_NAME);
 		clk_put(gsc->clock);
 		gsc->clock = NULL;
-		goto err;
+		goto err_clk_prepare;
 	}
 
 	return 0;
 
-err:
-	dev_err(&gsc->pdev->dev, "clock prepare failed for clock: %s\n",
-					GSC_CLOCK_GATE_NAME);
+err_clk_prepare:
 	gsc_clk_put(gsc);
-err_print:
-	dev_err(&gsc->pdev->dev, "failed to get clock~~~: %s\n",
-					GSC_CLOCK_GATE_NAME);
+err_clk_get:
 	return -ENXIO;
 }
 
