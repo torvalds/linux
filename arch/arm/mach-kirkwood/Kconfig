@@ -130,6 +130,63 @@ config MACH_KM_KIRKWOOD_DT
 	  Say 'Y' here if you want your kernel to support the
 	  Keymile Kirkwood Reference Desgin, using Flattened Device Tree.
 
+config MACH_INETSPACE_V2_DT
+	bool "LaCie Internet Space v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Internet Space v2 NAS, using Flattened Device Tree.
+
+config MACH_MPLCEC4_DT
+	bool "MPL CEC4 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  MPL CEC4 (Flattened Device Tree).
+
+config MACH_NETSPACE_V2_DT
+	bool "LaCie Network Space v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space v2 NAS, using Flattened Device Tree.
+
+config MACH_NETSPACE_MAX_V2_DT
+	bool "LaCie Network Space Max v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space Max v2 NAS, using Flattened Device Tree.
+
+config MACH_NETSPACE_LITE_V2_DT
+	bool "LaCie Network Space Lite v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space Lite v2 NAS, using Flattened Device Tree.
+
+config MACH_NETSPACE_MINI_V2_DT
+	bool "LaCie Network Space Mini v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space Mini v2 NAS (aka SafeBox), using Flattened
+	  Device Tree.
+
+config MACH_OPENBLOCKS_A6_DT
+	bool "Plat'Home OpenBlocks A6 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Plat'Home OpenBlocks A6 (Flattened Device Tree).
+
+config MACH_TOPKICK_DT
+	bool "USI Topkick (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  USI Topkick, using Flattened Device Tree
+
 config MACH_TS219
 	bool "QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and TS-219P+ Turbo NAS"
 	help
@@ -215,6 +272,14 @@ config MACH_T5325
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  HP t5325 Thin Client.
+
+config MACH_NSA310_DT
+	bool "ZyXEL NSA-310 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	select ARM_ATAG_DTB_COMPAT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  ZyXEL NSA-310 board (Flattened Device Tree).
 
 endmenu
 

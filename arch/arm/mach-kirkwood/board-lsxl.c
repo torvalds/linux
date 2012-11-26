@@ -20,11 +20,6 @@
 #include <linux/spi/spi.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
-#include <linux/gpio-fan.h>
-#include <linux/input.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <mach/kirkwood.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -51,51 +46,6 @@ static unsigned int lsxl_mpp_config[] __initdata = {
 	MPP43_GPIO,	/* Power Auto Switch */
 	MPP48_GPIO,	/* Function Red LED */
 	0
-};
-
-#define LSXL_GPIO_FAN_HIGH	18
-#define LSXL_GPIO_FAN_LOW	19
-#define LSXL_GPIO_FAN_LOCK	40
-
-static struct gpio_fan_alarm lsxl_alarm = {
-	.gpio = LSXL_GPIO_FAN_LOCK,
-};
-
-static struct gpio_fan_speed lsxl_speeds[] = {
-	{
-		.rpm = 0,
-		.ctrl_val = 3,
-	}, {
-		.rpm = 1500,
-		.ctrl_val = 1,
-	}, {
-		.rpm = 3250,
-		.ctrl_val = 2,
-	}, {
-		.rpm = 5000,
-		.ctrl_val = 0,
-	}
-};
-
-static int lsxl_gpio_list[] = {
-	LSXL_GPIO_FAN_HIGH, LSXL_GPIO_FAN_LOW,
-};
-
-static struct gpio_fan_platform_data lsxl_fan_data = {
-	.num_ctrl = ARRAY_SIZE(lsxl_gpio_list),
-	.ctrl = lsxl_gpio_list,
-	.alarm = &lsxl_alarm,
-	.num_speed = ARRAY_SIZE(lsxl_speeds),
-	.speed = lsxl_speeds,
-};
-
-static struct platform_device lsxl_fan_device = {
-	.name = "gpio-fan",
-	.id = -1,
-	.num_resources = 0,
-	.dev = {
-		.platform_data = &lsxl_fan_data,
-	},
 };
 
 /*
@@ -128,7 +78,6 @@ void __init lsxl_init(void)
 	kirkwood_ehci_init();
 	kirkwood_ge00_init(&lsxl_ge00_data);
 	kirkwood_ge01_init(&lsxl_ge01_data);
-	platform_device_register(&lsxl_fan_device);
 
 	/* register power-off method */
 	pm_power_off = lsxl_power_off;
