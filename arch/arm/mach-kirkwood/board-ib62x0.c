@@ -13,15 +13,9 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/platform_device.h>
-#include <linux/mtd/partitions.h>
-#include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
-#include <asm/mach-types.h>
-#include <asm/mach/arch.h>
-#include <mach/kirkwood.h>
 #include "common.h"
 #include "mpp.h"
 

@@ -19,9 +19,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/mv643xx_eth.h>
-#include <linux/ata_platform.h>
-#include <linux/gpio_keys.h>
-#include <linux/input.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <mach/kirkwood.h>
