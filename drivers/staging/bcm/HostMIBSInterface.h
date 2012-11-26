@@ -64,7 +64,7 @@ typedef struct _S_MIBS_HOST_INFO {
 	u32	aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 } S_MIBS_HOST_INFO;
 
-typedef struct _S_MIBS_CLASSIFIER_RULE {
+struct bcm_mibs_classifier_rule {
 	unsigned long	ulSFID;
 	unsigned char	ucReserved[2];
 	u16	uiClassifierRuleIndex;
@@ -96,7 +96,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	unsigned char	ucDirection;
 	bool	bIpv6Protocol;
 	u32	u32PHSRuleID;
-} S_MIBS_CLASSIFIER_RULE;
+};
 
 struct bcm_mibs_phs_rule {
 	unsigned long	ulSFID;
@@ -183,7 +183,7 @@ struct bcm_mibs_dropped_cntrl_msg {
 
 struct bcm_host_stats_mibs {
 	S_MIBS_HOST_INFO	stHostInfo;
-	S_MIBS_CLASSIFIER_RULE	astClassifierTable[MIBS_MAX_CLASSIFIERS];
+	struct bcm_mibs_classifier_rule astClassifierTable[MIBS_MAX_CLASSIFIERS];
 	struct bcm_mibs_table	astSFtable[MIBS_MAX_SERVICEFLOWS];
 	struct bcm_mibs_phs_rule astPhsRulesTable[MIBS_MAX_PHSRULES];
 	struct bcm_mibs_dropped_cntrl_msg stDroppedAppCntrlMsgs;

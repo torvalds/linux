@@ -31,7 +31,7 @@ INT ProcessGetHostMibs(struct bcm_mini_adapter *Adapter, struct bcm_host_stats_m
 			       astClassifierTable[nClassifierIndex],
 			       (PVOID) & Adapter->
 			       astClassifierTable[nClassifierIndex],
-			       sizeof(S_MIBS_CLASSIFIER_RULE));
+			       sizeof(struct bcm_mibs_classifier_rule));
 	}
 
 	/* Copy the SF Table */
