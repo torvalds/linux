@@ -315,6 +315,7 @@ struct wl12xx_rx_filter {
 
 struct wl1271_station {
 	u8 hlid;
+	bool in_connection;
 };
 
 struct wl12xx_vif {
@@ -424,6 +425,9 @@ struct wl12xx_vif {
 
 	struct delayed_work channel_switch_work;
 	struct delayed_work connection_loss_work;
+
+	/* number of in connection stations */
+	int inconn_count;
 
 	/*
 	 * This struct must be last!
