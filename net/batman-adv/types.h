@@ -273,7 +273,9 @@ struct batadv_priv {
 	atomic_t bonding;		/* boolean */
 	atomic_t fragmentation;		/* boolean */
 	atomic_t ap_isolation;		/* boolean */
+#ifdef CONFIG_BATMAN_ADV_BLA
 	atomic_t bridge_loop_avoidance;	/* boolean */
+#endif
 #ifdef CONFIG_BATMAN_ADV_DAT
 	atomic_t distributed_arp_table;	/* boolean */
 #endif
