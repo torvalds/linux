@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	model = "RaidSonic ICY BOX IB-NAS62x0 (Rev B)";
@@ -16,6 +17,39 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_nand
+				      &pmx_led_os_red &pmx_power_off
+				      &pmx_led_os_green &pmx_led_usb_transfer
+				      &pmx_button_reset &pmx_button_usb_copy >;
+			pinctrl-names = "default";
+
+			pmx_led_os_red: pmx-led-os-red {
+				marvell,pins = "mpp22";
+				marvell,function = "gpio";
+			};
+			pmx_power_off: pmx-power-off {
+				marvell,pins = "mpp24";
+				marvell,function = "gpio";
+			};
+			pmx_led_os_green: pmx-led-os-green {
+				marvell,pins = "mpp25";
+				marvell,function = "gpio";
+			};
+			pmx_led_usb_transfer: pmx-led-usb-transfer {
+				marvell,pins = "mpp27";
+				marvell,function = "gpio";
+			};
+			pmx_button_reset: pmx-button-reset {
+				marvell,pins = "mpp28";
+				marvell,function = "gpio";
+			};
+			pmx_button_usb_copy: pmx-button-usb-copy {
+				marvell,pins = "mpp29";
+				marvell,function = "gpio";
+			};
+		};
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "okay";
@@ -79,4 +113,10 @@
 			gpios = <&gpio0 27 0>;
 		};
 	};
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 24 0>;
+	};
+
+
 };

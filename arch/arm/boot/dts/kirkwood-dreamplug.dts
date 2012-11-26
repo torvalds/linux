@@ -1,6 +1,7 @@
 /dts-v1/;
 
 /include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
 
 / {
 	model = "Globalscale Technologies Dreamplug";
@@ -16,6 +17,26 @@
 	};
 
 	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+
+			pinctrl-0 = < &pmx_spi
+				      &pmx_led_bluetooth &pmx_led_wifi
+				      &pmx_led_wifi_ap >;
+			pinctrl-names = "default";
+
+			pmx_led_bluetooth: pmx-led-bluetooth {
+				marvell,pins = "mpp47";
+				marvell,function = "gpio";
+			};
+			pmx_led_wifi: pmx-led-wifi {
+				marvell,pins = "mpp48";
+				marvell,function = "gpio";
+			};
+			pmx_led_wifi_ap: pmx-led-wifi-ap {
+				marvell,pins = "mpp49";
+				marvell,function = "gpio";
+			};
+		};
 		serial@12000 {
 			clock-frequency = <200000000>;
 			status = "ok";

@@ -30,6 +30,8 @@ struct of_dev_auxdata kirkwood_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("marvell,orion-spi", 0xf1010600, "orion_spi.0", NULL),
 	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011000, "mv64xxx_i2c.0",
 		       NULL),
+	OF_DEV_AUXDATA("marvell,mv64xxx-i2c", 0xf1011100, "mv64xxx_i2c.1",
+		       NULL),
 	OF_DEV_AUXDATA("marvell,orion-wdt", 0xf1020300, "orion_wdt", NULL),
 	OF_DEV_AUXDATA("marvell,orion-sata", 0xf1080000, "sata_mv.0", NULL),
 	OF_DEV_AUXDATA("marvell,orion-nand", 0xf4000000, "orion_nand", NULL),
@@ -94,6 +96,25 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("keymile,km_kirkwood"))
 		km_kirkwood_init();
 
+	if (of_machine_is_compatible("lacie,inetspace_v2") ||
+	    of_machine_is_compatible("lacie,netspace_v2") ||
+	    of_machine_is_compatible("lacie,netspace_max_v2") ||
+	    of_machine_is_compatible("lacie,netspace_lite_v2") ||
+	    of_machine_is_compatible("lacie,netspace_mini_v2"))
+		ns2_init();
+
+	if (of_machine_is_compatible("mpl,cec4"))
+		mplcec4_init();
+
+	if (of_machine_is_compatible("plathome,openblocks-a6"))
+		openblocks_a6_init();
+
+	if (of_machine_is_compatible("usi,topkick"))
+		usi_topkick_init();
+
+	if (of_machine_is_compatible("zyxel,nsa310"))
+		nsa310_init();
+
 	of_platform_populate(NULL, kirkwood_dt_match_table,
 			     kirkwood_auxdata_lookup, NULL);
 }
@@ -110,6 +131,15 @@ static const char *kirkwood_dt_board_compat[] = {
 	"buffalo,lsxl",
 	"iom,ix2-200",
 	"keymile,km_kirkwood",
+	"lacie,inetspace_v2",
+	"lacie,netspace_max_v2",
+	"lacie,netspace_v2",
+	"lacie,netspace_lite_v2",
+	"lacie,netspace_mini_v2",
+	"mpl,cec4",
+	"plathome,openblocks-a6",
+	"usi,topkick",
+	"zyxel,nsa310",
 	NULL
 };
 

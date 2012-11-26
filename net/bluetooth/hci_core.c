@@ -1754,10 +1754,10 @@ int hci_register_dev(struct hci_dev *hdev)
 	if (hdev->dev_type != HCI_AMP)
 		set_bit(HCI_AUTO_OFF, &hdev->dev_flags);
 
-	schedule_work(&hdev->power_on);
-
 	hci_notify(hdev, HCI_DEV_REG);
 	hci_dev_hold(hdev);
+
+	schedule_work(&hdev->power_on);
 
 	return id;
 

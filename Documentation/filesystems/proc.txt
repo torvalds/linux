@@ -33,7 +33,7 @@ Table of Contents
   2	Modifying System Parameters
 
   3	Per-Process Parameters
-  3.1	/proc/<pid>/oom_score_adj - Adjust the oom-killer
+  3.1	/proc/<pid>/oom_adj & /proc/<pid>/oom_score_adj - Adjust the oom-killer
 								score
   3.2	/proc/<pid>/oom_score - Display current oom-killer score
   3.3	/proc/<pid>/io - Display the IO accounting fields
@@ -1320,10 +1320,10 @@ of the kernel.
 CHAPTER 3: PER-PROCESS PARAMETERS
 ------------------------------------------------------------------------------
 
-3.1 /proc/<pid>/oom_score_adj- Adjust the oom-killer score
+3.1 /proc/<pid>/oom_adj & /proc/<pid>/oom_score_adj- Adjust the oom-killer score
 --------------------------------------------------------------------------------
 
-This file can be used to adjust the badness heuristic used to select which
+These file can be used to adjust the badness heuristic used to select which
 process gets killed in out of memory conditions.
 
 The badness heuristic assigns a value to each candidate task ranging from 0
@@ -1361,6 +1361,12 @@ same system, cpuset, mempolicy, or memory controller resources to use at least
 equivalent to discounting 50% of the task's allowed memory from being considered
 as scoring against the task.
 
+For backwards compatibility with previous kernels, /proc/<pid>/oom_adj may also
+be used to tune the badness score.  Its acceptable values range from -16
+(OOM_ADJUST_MIN) to +15 (OOM_ADJUST_MAX) and a special value of -17
+(OOM_DISABLE) to disable oom killing entirely for that task.  Its value is
+scaled linearly with /proc/<pid>/oom_score_adj.
+
 The value of /proc/<pid>/oom_score_adj may be reduced no lower than the last
 value set by a CAP_SYS_RESOURCE process. To reduce the value any lower
 requires CAP_SYS_RESOURCE.
@@ -1375,7 +1381,9 @@ minimal amount of work.
 -------------------------------------------------------------
 
 This file can be used to check the current score used by the oom-killer is for
-any given <pid>.
+any given <pid>. Use it together with /proc/<pid>/oom_score_adj to tune which
+process should be killed in an out-of-memory situation.
+
 
 3.3  /proc/<pid>/io - Display the IO accounting fields
 -------------------------------------------------------

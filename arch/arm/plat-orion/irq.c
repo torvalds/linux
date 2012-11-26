@@ -41,7 +41,7 @@ void __init orion_irq_init(unsigned int irq_start, void __iomem *maskaddr)
 static int __init orion_add_irq_domain(struct device_node *np,
 				       struct device_node *interrupt_parent)
 {
-	int i = 0, irq_gpio;
+	int i = 0;
 	void __iomem *base;
 
 	do {
@@ -54,10 +54,6 @@ static int __init orion_add_irq_domain(struct device_node *np,
 
 	irq_domain_add_legacy(np, i * 32, 0, 0,
 			      &irq_domain_simple_ops, NULL);
-
-	irq_gpio = i * 32;
-	orion_gpio_of_init(irq_gpio);
-
 	return 0;
 }
 

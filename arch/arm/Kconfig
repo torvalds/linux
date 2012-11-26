@@ -523,6 +523,8 @@ config ARCH_DOVE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select MIGHT_HAVE_PCI
+	select PINCTRL
+	select PINCTRL_DOVE
 	select PLAT_ORION_LEGACY
 	select USB_ARCH_HAS_EHCI
 	help
@@ -534,6 +536,8 @@ config ARCH_KIRKWOOD
 	select CPU_FEROCEON
 	select GENERIC_CLOCKEVENTS
 	select PCI
+	select PINCTRL
+	select PINCTRL_KIRKWOOD
 	select PLAT_ORION_LEGACY
 	help
 	  Support for the following Marvell Kirkwood series SoCs:

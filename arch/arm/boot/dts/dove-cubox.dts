@@ -40,3 +40,13 @@
 		reg = <0>;
 	};
 };
+
+&pinctrl {
+	pinctrl-0 = <&pmx_gpio_18>;
+	pinctrl-names = "default";
+
+	pmx_gpio_18: pmx-gpio-18 {
+		marvell,pins = "mpp18";
+		marvell,function = "gpio";
+	};
+};
