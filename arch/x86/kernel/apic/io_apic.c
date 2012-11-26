@@ -234,11 +234,11 @@ int __init arch_early_irq_init(void)
 		zalloc_cpumask_var_node(&cfg[i].old_domain, GFP_KERNEL, node);
 		/*
 		 * For legacy IRQ's, start with assigning irq0 to irq15 to
-		 * IRQ0_VECTOR to IRQ15_VECTOR on cpu 0.
+		 * IRQ0_VECTOR to IRQ15_VECTOR for all cpu's.
 		 */
 		if (i < legacy_pic->nr_legacy_irqs) {
 			cfg[i].vector = IRQ0_VECTOR + i;
-			cpumask_set_cpu(0, cfg[i].domain);
+			cpumask_setall(cfg[i].domain);
 		}
 	}
 
@@ -1141,7 +1141,8 @@ __assign_irq_vector(int irq, struct irq_cfg *cfg, const struct cpumask *mask)
 			 * allocation for the members that are not used anymore.
 			 */
 			cpumask_andnot(cfg->old_domain, cfg->domain, tmp_mask);
-			cfg->move_in_progress = 1;
+			cfg->move_in_progress =
+			   cpumask_intersects(cfg->old_domain, cpu_online_mask);
 			cpumask_and(cfg->domain, cfg->domain, tmp_mask);
 			break;
 		}
@@ -1172,8 +1173,9 @@ next:
 		current_vector = vector;
 		current_offset = offset;
 		if (cfg->vector) {
-			cfg->move_in_progress = 1;
 			cpumask_copy(cfg->old_domain, cfg->domain);
+			cfg->move_in_progress =
+			   cpumask_intersects(cfg->old_domain, cpu_online_mask);
 		}
 		for_each_cpu_and(new_cpu, tmp_mask, cpu_online_mask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq;
@@ -1241,12 +1243,6 @@ void __setup_vector_irq(int cpu)
 		cfg = irq_get_chip_data(irq);
 		if (!cfg)
 			continue;
-		/*
-		 * If it is a legacy IRQ handled by the legacy PIC, this cpu
-		 * will be part of the irq_cfg's domain.
-		 */
-		if (irq < legacy_pic->nr_legacy_irqs && !IO_APIC_IRQ(irq))
-			cpumask_set_cpu(cpu, cfg->domain);
 
 		if (!cpumask_test_cpu(cpu, cfg->domain))
 			continue;
@@ -1355,16 +1351,6 @@ static void setup_ioapic_irq(unsigned int irq, struct irq_cfg *cfg,
 
 	if (!IO_APIC_IRQ(irq))
 		return;
-
-	/*
-	 * For legacy irqs, cfg->domain starts with cpu 0. Now that IO-APIC
-	 * can handle this irq and the apic driver is finialized at this point,
-	 * update the cfg->domain.
-	 */
-	if (irq < legacy_pic->nr_legacy_irqs &&
-	    cpumask_equal(cfg->domain, cpumask_of(0)))
-		apic->vector_allocation_domain(0, cfg->domain,
-					       apic->target_cpus());
 
 	if (assign_irq_vector(irq, cfg, apic->target_cpus()))
 		return;
