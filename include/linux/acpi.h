@@ -458,11 +458,14 @@ static inline int acpi_subsys_resume_early(struct device *dev) { return 0; }
 #endif
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PM)
-int acpi_dev_pm_attach(struct device *dev);
-int acpi_dev_pm_detach(struct device *dev);
+int acpi_dev_pm_attach(struct device *dev, bool power_on);
+int acpi_dev_pm_detach(struct device *dev, bool power_off);
 #else
-static inline int acpi_dev_pm_attach(struct device *dev) { return -ENODEV; }
-static inline void acpi_dev_pm_detach(struct device *dev) {}
+static inline int acpi_dev_pm_attach(struct device *dev, bool power_on)
+{
+	return -ENODEV;
+}
+static inline void acpi_dev_pm_detach(struct device *dev, bool power_off) {}
 #endif
 
 #endif	/*_LINUX_ACPI_H*/
