@@ -156,9 +156,9 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	unsigned int	uiSentPackets;
 	unsigned int	uiCurrentDrainRate;
 	unsigned int	uiThisPeriodSentBytes;
-	LARGE_INTEGER	liDrainCalculated;
+	u64	liDrainCalculated;
 	unsigned int	uiCurrentTokenCount;
-	LARGE_INTEGER	liLastUpdateTokenAt;
+	u64	liLastUpdateTokenAt;
 	unsigned int	uiMaxAllowedRate;
 	unsigned int	NumOfPacketsSent;
 	unsigned char ucDirection;
