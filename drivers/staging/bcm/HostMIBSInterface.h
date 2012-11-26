@@ -23,15 +23,15 @@
 typedef union _U_MIBS_IP_ADDRESS {
 	struct {
 		/* Source Ip Address Range */
-		ULONG ulIpv4Addr[MIBS_MAX_IP_RANGE_LENGTH];
+		unsigned long ulIpv4Addr[MIBS_MAX_IP_RANGE_LENGTH];
 		/* Source Ip Mask Address Range */
-		ULONG ulIpv4Mask[MIBS_MAX_IP_RANGE_LENGTH];
+		unsigned long ulIpv4Mask[MIBS_MAX_IP_RANGE_LENGTH];
 	};
 	struct {
 		/* Source Ip Address Range */
-		ULONG ulIpv6Addr[MIBS_MAX_IP_RANGE_LENGTH * 4];
+		unsigned long ulIpv6Addr[MIBS_MAX_IP_RANGE_LENGTH * 4];
 		/* Source Ip Mask Address Range */
-		ULONG ulIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * 4];
+		unsigned long ulIpv6Mask[MIBS_MAX_IP_RANGE_LENGTH * 4];
 	};
 	struct {
 		unsigned char ucIpv4Address[MIBS_MAX_IP_RANGE_LENGTH * MIBS_IP_LENGTH_OF_ADDRESS];
@@ -47,16 +47,16 @@ typedef struct _S_MIBS_HOST_INFO {
 	u64	GoodTransmits;
 	u64	GoodReceives;
 	/* this to keep track of the Tx and Rx MailBox Registers. */
-	ULONG	NumDesUsed;
-	ULONG	CurrNumFreeDesc;
-	ULONG	PrevNumFreeDesc;
+	unsigned long	NumDesUsed;
+	unsigned long	CurrNumFreeDesc;
+	unsigned long	PrevNumFreeDesc;
 	/* to keep track the no of byte received */
-	ULONG	PrevNumRcevBytes;
-	ULONG	CurrNumRcevBytes;
+	unsigned long	PrevNumRcevBytes;
+	unsigned long	CurrNumRcevBytes;
 	/* QOS Related */
-	ULONG	BEBucketSize;
-	ULONG	rtPSBucketSize;
-	ULONG	LastTxQueueIndex;
+	unsigned long	BEBucketSize;
+	unsigned long	rtPSBucketSize;
+	unsigned long	LastTxQueueIndex;
 	BOOLEAN	TxOutofDescriptors;
 	BOOLEAN	TimerActive;
 	UINT32	u32TotalDSD;
@@ -65,7 +65,7 @@ typedef struct _S_MIBS_HOST_INFO {
 } S_MIBS_HOST_INFO;
 
 typedef struct _S_MIBS_CLASSIFIER_RULE {
-	ULONG	ulSFID;
+	unsigned long	ulSFID;
 	unsigned char	ucReserved[2];
 	B_UINT16 uiClassifierRuleIndex;
 	BOOLEAN	bUsed;
@@ -99,7 +99,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 } S_MIBS_CLASSIFIER_RULE;
 
 typedef struct _S_MIBS_PHS_RULE {
-	ULONG	ulSFID;
+	unsigned long	ulSFID;
 	B_UINT8	u8PHSI;
 	B_UINT8	u8PHSFLength;
 	B_UINT8	u8PHSF[MIBS_MAX_PHS_LENGTHS];
@@ -109,8 +109,8 @@ typedef struct _S_MIBS_PHS_RULE {
 	B_UINT8	u8PHSV;
 	B_UINT8	reserved[5];
 	LONG	PHSModifiedBytes;
-	ULONG	PHSModifiedNumPackets;
-	ULONG	PHSErrorNumPackets;
+	unsigned long	PHSModifiedNumPackets;
+	unsigned long	PHSErrorNumPackets;
 } S_MIBS_PHS_RULE;
 
 typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
@@ -138,7 +138,7 @@ typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
 } S_MIBS_EXTSERVICEFLOW_PARAMETERS;
 
 typedef struct _S_MIBS_SERVICEFLOW_TABLE {
-	ULONG	ulSFID;
+	unsigned long	ulSFID;
 	USHORT	usVCID_Value;
 	UINT	uiThreshold;
 	B_UINT8	u8TrafficPriority;
@@ -171,14 +171,14 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 } S_MIBS_SERVICEFLOW_TABLE;
 
 typedef struct _S_MIBS_DROPPED_APP_CNTRL_MESSAGES {
-	ULONG cm_responses;
-	ULONG cm_control_newdsx_multiclassifier_resp;
-	ULONG link_control_resp;
-	ULONG status_rsp;
-	ULONG stats_pointer_resp;
-	ULONG idle_mode_status;
-	ULONG auth_ss_host_msg;
-	ULONG low_priority_message;
+	unsigned long cm_responses;
+	unsigned long cm_control_newdsx_multiclassifier_resp;
+	unsigned long link_control_resp;
+	unsigned long status_rsp;
+	unsigned long stats_pointer_resp;
+	unsigned long idle_mode_status;
+	unsigned long auth_ss_host_msg;
+	unsigned long low_priority_message;
 } S_MIBS_DROPPED_APP_CNTRL_MESSAGES;
 
 typedef struct _S_MIBS_HOST_STATS_MIBS {
