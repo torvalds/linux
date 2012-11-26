@@ -17,6 +17,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
+#include "internal.h"
+
 ACPI_MODULE_NAME("platform");
 
 /**
