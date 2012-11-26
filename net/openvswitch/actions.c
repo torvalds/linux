@@ -428,6 +428,10 @@ static int execute_set_action(struct sk_buff *skb,
 		skb->priority = nla_get_u32(nested_attr);
 		break;
 
+	case OVS_KEY_ATTR_SKB_MARK:
+		skb->mark = nla_get_u32(nested_attr);
+		break;
+
 	case OVS_KEY_ATTR_ETHERNET:
 		err = set_eth_addr(skb, nla_data(nested_attr));
 		break;

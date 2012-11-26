@@ -482,6 +482,7 @@ static int validate_set(const struct nlattr *a,
 	const struct ovs_key_ipv6 *ipv6_key;
 
 	case OVS_KEY_ATTR_PRIORITY:
+	case OVS_KEY_ATTR_SKB_MARK:
 	case OVS_KEY_ATTR_ETHERNET:
 		break;
 
@@ -695,6 +696,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 		goto err_flow_free;
 
 	err = ovs_flow_metadata_from_nlattrs(&flow->key.phy.priority,
+					     &flow->key.phy.skb_mark,
 					     &flow->key.phy.in_port,
 					     a[OVS_PACKET_ATTR_KEY]);
 	if (err)
@@ -714,6 +716,7 @@ static int ovs_packet_cmd_execute(struct sk_buff *skb, struct genl_info *info)
 
 	OVS_CB(packet)->flow = flow;
 	packet->priority = flow->key.phy.priority;
+	packet->mark = flow->key.phy.skb_mark;
 
 	rcu_read_lock();
 	dp = get_dp(sock_net(skb->sk), ovs_header->dp_ifindex);
