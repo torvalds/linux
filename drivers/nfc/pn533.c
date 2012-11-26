@@ -349,11 +349,9 @@ struct pn533 {
 	struct nfc_dev *nfc_dev;
 
 	struct urb *out_urb;
-	int out_maxlen;
 	struct pn533_frame *out_frame;
 
 	struct urb *in_urb;
-	int in_maxlen;
 	struct pn533_frame *in_frame;
 
 	struct sk_buff_head resp_q;
@@ -1454,8 +1452,9 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 	pn533_build_poll_frame(dev, dev->out_frame, cur_mod);
 
 	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
-				dev->in_maxlen,	pn533_poll_complete,
-				NULL, GFP_KERNEL);
+					PN533_NORMAL_FRAME_MAX_LEN,
+					pn533_poll_complete,
+					NULL, GFP_KERNEL);
 	if (rc)
 		nfc_dev_err(&dev->interface->dev, "Polling loop error %d", rc);
 
@@ -1567,7 +1566,7 @@ static int pn533_activate_target_nfcdep(struct pn533 *dev)
 	pn533_tx_frame_finish(dev->out_frame);
 
 	rc = pn533_send_cmd_frame_sync(dev, dev->out_frame, dev->in_frame,
-								dev->in_maxlen);
+				       PN533_NORMAL_FRAME_MAX_LEN);
 	if (rc)
 		return rc;
 
@@ -1661,7 +1660,7 @@ static void pn533_deactivate_target(struct nfc_dev *nfc_dev,
 	pn533_tx_frame_finish(dev->out_frame);
 
 	rc = pn533_send_cmd_frame_sync(dev, dev->out_frame, dev->in_frame,
-								dev->in_maxlen);
+				       PN533_NORMAL_FRAME_MAX_LEN);
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev, "Error when sending release"
 						" command to the controller");
@@ -1822,8 +1821,9 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	pn533_tx_frame_finish(dev->out_frame);
 
 	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
-				dev->in_maxlen,	pn533_in_dep_link_up_complete,
-				cmd, GFP_KERNEL);
+					PN533_NORMAL_FRAME_MAX_LEN,
+					pn533_in_dep_link_up_complete, cmd,
+					GFP_KERNEL);
 	if (rc < 0)
 		kfree(cmd);
 
@@ -2121,8 +2121,9 @@ static int pn533_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 	out_frame = (struct pn533_frame *) skb->data;
 
 	rc = pn533_send_cmd_frame_async(dev, out_frame, dev->in_frame,
-					dev->in_maxlen, pn533_tm_send_complete,
-					skb, GFP_KERNEL);
+					PN533_NORMAL_FRAME_MAX_LEN,
+					pn533_tm_send_complete, skb,
+					GFP_KERNEL);
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev,
 			    "Error %d when trying to send data", rc);
@@ -2217,7 +2218,7 @@ static int pn533_set_configuration(struct pn533 *dev, u8 cfgitem, u8 *cfgdata,
 	pn533_tx_frame_finish(dev->out_frame);
 
 	rc = pn533_send_cmd_frame_sync(dev, dev->out_frame, dev->in_frame,
-								dev->in_maxlen);
+				       PN533_NORMAL_FRAME_MAX_LEN);
 
 	return rc;
 }
@@ -2238,7 +2239,7 @@ static int pn533_fw_reset(struct pn533 *dev)
 	pn533_tx_frame_finish(dev->out_frame);
 
 	rc = pn533_send_cmd_frame_sync(dev, dev->out_frame, dev->in_frame,
-				       dev->in_maxlen);
+				       PN533_NORMAL_FRAME_MAX_LEN);
 
 	return rc;
 }
@@ -2359,16 +2360,11 @@ static int pn533_probe(struct usb_interface *interface,
 	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
 		endpoint = &iface_desc->endpoint[i].desc;
 
-		if (!in_endpoint && usb_endpoint_is_bulk_in(endpoint)) {
-			dev->in_maxlen = le16_to_cpu(endpoint->wMaxPacketSize);
+		if (!in_endpoint && usb_endpoint_is_bulk_in(endpoint))
 			in_endpoint = endpoint->bEndpointAddress;
-		}
 
-		if (!out_endpoint && usb_endpoint_is_bulk_out(endpoint)) {
-			dev->out_maxlen =
-				le16_to_cpu(endpoint->wMaxPacketSize);
+		if (!out_endpoint && usb_endpoint_is_bulk_out(endpoint))
 			out_endpoint = endpoint->bEndpointAddress;
-		}
 	}
 
 	if (!in_endpoint || !out_endpoint) {
@@ -2418,7 +2414,7 @@ static int pn533_probe(struct usb_interface *interface,
 	pn533_tx_frame_finish(dev->out_frame);
 
 	rc = pn533_send_cmd_frame_sync(dev, dev->out_frame, dev->in_frame,
-								dev->in_maxlen);
+				       PN533_NORMAL_FRAME_MAX_LEN);
 	if (rc)
 		goto destroy_wq;
 
