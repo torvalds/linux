@@ -62,6 +62,7 @@ config TI_CPSW
 
 config TI_CPTS
 	boolean "TI Common Platform Time Sync (CPTS) Support"
+	depends on TI_CPSW
 	select PTP_1588_CLOCK
 	---help---
 	  This driver supports the Common Platform Time Sync unit of
