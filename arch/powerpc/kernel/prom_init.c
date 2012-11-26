@@ -66,8 +66,8 @@
  * is running at whatever address it has been loaded at.
  * On ppc32 we compile with -mrelocatable, which means that references
  * to extern and static variables get relocated automatically.
- * On ppc64 we have to relocate the references explicitly with
- * RELOC.  (Note that strings count as static variables.)
+ * ppc64 objects are always relocatable, we just need to relocate the
+ * TOC.
  *
  * Because OF may have mapped I/O devices into the area starting at
  * KERNELBASE, particularly on CHRP machines, we can't safely call
@@ -79,13 +79,12 @@
  * On ppc64, 64 bit values are truncated to 32 bits (and
  * fortunately don't get interpreted as two arguments).
  */
+#define RELOC(x)	(x)
+#define ADDR(x)		(u32)(unsigned long)(x)
+
 #ifdef CONFIG_PPC64
-#define RELOC(x)        (*PTRRELOC(&(x)))
-#define ADDR(x)		(u32) add_reloc_offset((unsigned long)(x))
 #define OF_WORKAROUNDS	0
 #else
-#define RELOC(x)	(x)
-#define ADDR(x)		(u32) (x)
 #define OF_WORKAROUNDS	of_workarounds
 int of_workarounds;
 #endif
@@ -334,9 +333,6 @@ static void __init prom_printf(const char *format, ...)
 	struct prom_t *_prom = &RELOC(prom);
 
 	va_start(args, format);
-#ifdef CONFIG_PPC64
-	format = PTRRELOC(format);
-#endif
 	for (p = format; *p != 0; p = q) {
 		for (q = p; *q != 0 && *q != '\n' && *q != '%'; ++q)
 			;
@@ -437,9 +433,6 @@ static unsigned int __init prom_claim(unsigned long virt, unsigned long size,
 
 static void __init __attribute__((noreturn)) prom_panic(const char *reason)
 {
-#ifdef CONFIG_PPC64
-	reason = PTRRELOC(reason);
-#endif
 	prom_print(reason);
 	/* Do not call exit because it clears the screen on pmac
 	 * it also causes some sort of double-fault on early pmacs */
@@ -929,7 +922,7 @@ static void __init prom_send_capabilities(void)
 		 * (we assume this is the same for all cores) and use it to
 		 * divide NR_CPUS.
 		 */
-		cores = (u32 *)PTRRELOC(&ibm_architecture_vec[IBM_ARCH_VEC_NRCORES_OFFSET]);
+		cores = (u32 *)&ibm_architecture_vec[IBM_ARCH_VEC_NRCORES_OFFSET];
 		if (*cores != NR_CPUS) {
 			prom_printf("WARNING ! "
 				    "ibm_architecture_vec structure inconsistent: %lu!\n",
@@ -2850,6 +2843,53 @@ static void __init prom_check_initrd(unsigned long r3, unsigned long r4)
 #endif /* CONFIG_BLK_DEV_INITRD */
 }
 
+#ifdef CONFIG_PPC64
+#ifdef CONFIG_RELOCATABLE
+static void reloc_toc(void)
+{
+}
+
+static void unreloc_toc(void)
+{
+}
+#else
+static void __reloc_toc(void *tocstart, unsigned long offset,
+			unsigned long nr_entries)
+{
+	unsigned long i;
+	unsigned long *toc_entry = (unsigned long *)tocstart;
+
+	for (i = 0; i < nr_entries; i++) {
+		*toc_entry = *toc_entry + offset;
+		toc_entry++;
+	}
+}
+
+static void reloc_toc(void)
+{
+	unsigned long offset = reloc_offset();
+	unsigned long nr_entries =
+		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
+
+	/* Need to add offset to get at __prom_init_toc_start */
+	__reloc_toc(__prom_init_toc_start + offset, offset, nr_entries);
+
+	mb();
+}
+
+static void unreloc_toc(void)
+{
+	unsigned long offset = reloc_offset();
+	unsigned long nr_entries =
+		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
+
+	mb();
+
+	/* __prom_init_toc_start has been relocated, no need to add offset */
+	__reloc_toc(__prom_init_toc_start, -offset, nr_entries);
+}
+#endif
+#endif
 
 /*
  * We enter here early on, when the Open Firmware prom is still
@@ -2867,6 +2907,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 #ifdef CONFIG_PPC32
 	unsigned long offset = reloc_offset();
 	reloc_got2(offset);
+#else
+	reloc_toc();
 #endif
 
 	_prom = &RELOC(prom);
@@ -3061,6 +3103,8 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 
 #ifdef CONFIG_PPC32
 	reloc_got2(-offset);
+#else
+	unreloc_toc();
 #endif
 
 #ifdef CONFIG_PPC_EARLY_DEBUG_OPAL

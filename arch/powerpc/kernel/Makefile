@@ -91,7 +91,6 @@ obj-$(CONFIG_RELOCATABLE_PPC32)	+= reloc_32.o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o
 obj-$(CONFIG_PPC64)		+= dma-iommu.o iommu.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
-obj-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
 obj-$(CONFIG_SMP)		+= smp.o
@@ -142,6 +141,7 @@ GCOV_PROFILE_kprobes.o := n
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
 extra-$(CONFIG_ALTIVEC)		+= vector.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
+extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
 
 extra-y				+= systbl_chk.i
 $(obj)/systbl.o:		systbl_chk
