@@ -51,6 +51,10 @@
 #define OTG_PHY_CS_GPIO (GPIO_PORTF + 17)
 #define SDHC1_IRQ_GPIO IMX_GPIO_NR(2, 25)
 
+#define VERSION_MASK		0x7
+#define MOTHERBOARD_SHIFT	4
+#define EXPBOARD_SHIFT		0
+
 #define MOTHERBOARD_BIT2	(GPIO_PORTD + 31)
 #define MOTHERBOARD_BIT1	(GPIO_PORTD + 30)
 #define MOTHERBOARD_BIT0	(GPIO_PORTD + 29)
@@ -237,7 +241,7 @@ static struct mx2_camera_platform_data visstrim_camera = {
 static phys_addr_t mx2_camera_base __initdata;
 #define MX2_CAMERA_BUF_SIZE SZ_8M
 
-static void __init visstrim_camera_init(void)
+static void __init visstrim_analog_camera_init(void)
 {
 	struct platform_device *pdev;
 	int dma;
@@ -474,6 +478,27 @@ static void __init visstrim_deinterlace_init(void)
 		return;
 }
 
+/* Emma-PrP for format conversion */
+static void __init visstrim_emmaprp_init(void)
+{
+	struct platform_device *pdev;
+	int dma;
+
+	pdev = imx27_add_mx2_emmaprp();
+	if (IS_ERR(pdev))
+		return;
+
+	/*
+	 * Use the same memory area as the analog camera since both
+	 * devices are, by nature, exclusive.
+	 */
+	dma = dma_declare_coherent_memory(&pdev->dev,
+				mx2_camera_base, mx2_camera_base,
+				MX2_CAMERA_BUF_SIZE,
+				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE);
+	if (!(dma & DMA_MEMORY_MAP))
+		pr_err("Failed to declare memory for emmaprp\n");
+}
 
 /* Audio */
 static const struct snd_mx27vis_platform_data snd_mx27vis_pdata __initconst = {
@@ -507,13 +532,14 @@ static void __init visstrim_m10_revision(void)
 	mo_version |= !gpio_get_value(MOTHERBOARD_BIT0);
 
 	system_rev = 0x27000;
-	system_rev |= (mo_version << 4);
-	system_rev |= exp_version;
+	system_rev |= (mo_version << MOTHERBOARD_SHIFT);
+	system_rev |= (exp_version << EXPBOARD_SHIFT);
 }
 
 static void __init visstrim_m10_board_init(void)
 {
 	int ret;
+	int mo_version;
 
 	imx27_soc_init();
 	visstrim_m10_revision();
@@ -546,8 +572,24 @@ static void __init visstrim_m10_board_init(void)
 	platform_device_register_resndata(NULL, "soc-camera-pdrv", 0, NULL, 0,
 				      &iclink_tvp5150, sizeof(iclink_tvp5150));
 	gpio_led_register_device(0, &visstrim_m10_led_data);
-	visstrim_deinterlace_init();
-	visstrim_camera_init();
+
+	/* Use mother board version to decide what video devices we shall use */
+	mo_version = (system_rev >> MOTHERBOARD_SHIFT) & VERSION_MASK;
+	if (mo_version & 0x1) {
+		visstrim_emmaprp_init();
+
+		/*
+		 * Despite not being used, tvp5150 must be
+		 * powered on to avoid I2C problems. To minimize
+		 * power consupmtion keep reset enabled.
+		 */
+		gpio_set_value(TVP5150_PWDN, 1);
+		ndelay(1);
+		gpio_set_value(TVP5150_RSTN, 0);
+	} else {
+		visstrim_deinterlace_init();
+		visstrim_analog_camera_init();
+	}
 	visstrim_coda_init();
 }
 
