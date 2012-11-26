@@ -549,66 +549,6 @@ static irqreturn_t ab8500_hierarchical_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-/**
- * ab8500_irq_get_virq(): Map an interrupt on a chip to a virtual IRQ
- *
- * @ab8500: ab8500_irq controller to operate on.
- * @irq: index of the interrupt requested in the chip IRQs
- *
- * Useful for drivers to request their own IRQs.
- */
-static int ab8500_irq_get_virq(struct ab8500 *ab8500, int irq)
-{
-	if (!ab8500)
-		return -EINVAL;
-
-	return irq_create_mapping(ab8500->domain, irq);
-}
-
-static irqreturn_t ab8500_irq(int irq, void *dev)
-{
-	struct ab8500 *ab8500 = dev;
-	int i;
-
-	dev_vdbg(ab8500->dev, "interrupt\n");
-
-	atomic_inc(&ab8500->transfer_ongoing);
-
-	for (i = 0; i < ab8500->mask_size; i++) {
-		int regoffset = ab8500->irq_reg_offset[i];
-		int status;
-		u8 value;
-
-		/*
-		 * Interrupt register 12 doesn't exist prior to AB8500 version
-		 * 2.0
-		 */
-		if (regoffset == 11 && is_ab8500_1p1_or_earlier(ab8500))
-			continue;
-
-		if (regoffset < 0)
-			continue;
-
-		status = get_register_interruptible(ab8500, AB8500_INTERRUPT,
-			AB8500_IT_LATCH1_REG + regoffset, &value);
-		if (status < 0 || value == 0)
-			continue;
-
-		do {
-			int bit = __ffs(value);
-			int line = i * 8 + bit;
-			int virq = ab8500_irq_get_virq(ab8500, line);
-
-			handle_nested_irq(virq);
-			ab8500_debug_register_interrupt(line);
-			value &= ~(1 << bit);
-
-		} while (value);
-	}
-	atomic_dec(&ab8500->transfer_ongoing);
-	return IRQ_HANDLED;
-}
-
 static int ab8500_irq_map(struct irq_domain *d, unsigned int virq,
 				irq_hw_number_t hwirq)
 {
@@ -1737,22 +1677,12 @@ static int ab8500_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	/*  Activate this feature only in ab9540 */
-	/*  till tests are done on ab8500 1p2 or later*/
-	if (is_ab9540(ab8500) || is_ab8540(ab8500))
-		ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
-						ab8500_hierarchical_irq,
-						IRQF_ONESHOT | IRQF_NO_SUSPEND,
-						"ab8500", ab8500);
-	}
-	else {
-		ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
-						ab8500_irq,
-						IRQF_ONESHOT | IRQF_NO_SUSPEND,
-						"ab8500", ab8500);
-		if (ret)
-			return ret;
-	}
+	ret = devm_request_threaded_irq(&pdev->dev, ab8500->irq, NULL,
+			ab8500_hierarchical_irq,
+			IRQF_ONESHOT | IRQF_NO_SUSPEND,
+			"ab8500", ab8500);
+	if (ret)
+		return ret;
 
 	if (is_ab9540(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
