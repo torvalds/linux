@@ -69,7 +69,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	unsigned char	ucReserved[2];
 	u16	uiClassifierRuleIndex;
 	BOOLEAN	bUsed;
-	USHORT	usVCID_Value;
+	unsigned short	usVCID_Value;
 	u8	u8ClassifierRulePriority;
 	U_MIBS_IP_ADDRESS stSrcIpAddress;
 	/* IP Source Address Length */
@@ -83,11 +83,11 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	unsigned char	ucTosMask;
 	unsigned char	ucProtocolLength;
 	unsigned char	ucProtocol[MIBS_MAX_PROTOCOL_LENGTH];
-	USHORT	usSrcPortRangeLo[MIBS_MAX_PORT_RANGE];
-	USHORT	usSrcPortRangeHi[MIBS_MAX_PORT_RANGE];
+	unsigned short	usSrcPortRangeLo[MIBS_MAX_PORT_RANGE];
+	unsigned short	usSrcPortRangeHi[MIBS_MAX_PORT_RANGE];
 	unsigned char	ucSrcPortRangeLength;
-	USHORT	usDestPortRangeLo[MIBS_MAX_PORT_RANGE];
-	USHORT	usDestPortRangeHi[MIBS_MAX_PORT_RANGE];
+	unsigned short	usDestPortRangeLo[MIBS_MAX_PORT_RANGE];
+	unsigned short	usDestPortRangeHi[MIBS_MAX_PORT_RANGE];
 	unsigned char	ucDestPortRangeLength;
 	BOOLEAN	bProtocolValid;
 	BOOLEAN	bTOSValid;
@@ -139,7 +139,7 @@ typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
 
 typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	unsigned long	ulSFID;
-	USHORT	usVCID_Value;
+	unsigned short	usVCID_Value;
 	unsigned int	uiThreshold;
 	u8	u8TrafficPriority;
 	BOOLEAN	bValid;
@@ -162,7 +162,7 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	unsigned int	uiMaxAllowedRate;
 	unsigned int	NumOfPacketsSent;
 	unsigned char ucDirection;
-	USHORT	usCID;
+	unsigned short	usCID;
 	S_MIBS_EXTSERVICEFLOW_PARAMETERS stMibsExtServiceFlowTable;
 	unsigned int	uiCurrentRxRate;
 	unsigned int	uiThisPeriodRxBytes;
