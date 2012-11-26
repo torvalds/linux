@@ -91,7 +91,7 @@ static int __cpuinit ux500_boot_secondary(unsigned int cpu, struct task_struct *
 	 */
 	write_pen_release(cpu_logical_map(cpu));
 
-	gic_raise_softirq(cpumask_of(cpu), 0);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -155,8 +155,6 @@ static void __init ux500_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init ux500_smp_prepare_cpus(unsigned int max_cpus)

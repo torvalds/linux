@@ -79,7 +79,7 @@ int __cpuinit versatile_boot_secondary(unsigned int cpu, struct task_struct *idl
 	 * the boot monitor to read the system wide flags register,
 	 * and branch to the address found there.
 	 */
-	gic_raise_softirq(cpumask_of(cpu), 0);
+	arch_send_wakeup_ipi_mask(cpumask_of(cpu));
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
