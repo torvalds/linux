@@ -1,0 +1,23 @@
+Common leds properties.
+
+Optional properties for child nodes:
+- label : The label for this LED.  If omitted, the label is
+  taken from the node name (excluding the unit address).
+
+- linux,default-trigger :  This parameter, if present, is a
+    string defining the trigger assigned to the LED.  Current triggers are:
+     "backlight" - LED will act as a back-light, controlled by the framebuffer
+		   system
+     "default-on" - LED will turn on (but for leds-gpio see "default-state"
+		    property in Documentation/devicetree/bindings/gpio/led.txt)
+     "heartbeat" - LED "double" flashes at a load average based rate
+     "ide-disk" - LED indicates disk activity
+     "timer" - LED flashes at a fixed, configurable rate
+
+Examples:
+
+system-status {
+	label = "Status";
+	linux,default-trigger = "heartbeat";
+	...
+};
