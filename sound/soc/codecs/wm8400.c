@@ -1373,7 +1373,7 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	codec->control_data = priv->wm8400 = wm8400;
 	priv->codec = codec;
 
-	ret = regulator_bulk_get(wm8400->dev,
+	ret = devm_regulator_bulk_get(wm8400->dev,
 				 ARRAY_SIZE(power), &power[0]);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to get regulators: %d\n", ret);
@@ -1398,15 +1398,9 @@ static int wm8400_codec_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8400_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8400_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	if (!schedule_work(&priv->work)) {
-		ret = -EINVAL;
-		goto err_regulator;
-	}
+	if (!schedule_work(&priv->work))
+		return -EINVAL;
 	return 0;
-
-err_regulator:
-	regulator_bulk_free(ARRAY_SIZE(power), power);
-	return ret;
 }
 
 static int  wm8400_codec_remove(struct snd_soc_codec *codec)
@@ -1416,8 +1410,6 @@ static int  wm8400_codec_remove(struct snd_soc_codec *codec)
 	reg = snd_soc_read(codec, WM8400_POWER_MANAGEMENT_1);
 	snd_soc_write(codec, WM8400_POWER_MANAGEMENT_1,
 		     reg & (~WM8400_CODEC_ENA));
-
-	regulator_bulk_free(ARRAY_SIZE(power), power);
 
 	return 0;
 }
