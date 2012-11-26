@@ -37,6 +37,9 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/stat.h>
+#include <linux/sys_soc.h>
+#include <linux/termios.h>
 #include <video/vga.h>
 
 #include <mach/hardware.h>
@@ -60,7 +63,10 @@
 
 #include "common.h"
 
-/* 
+/* Base address to the AP system controller */
+void __iomem *ap_syscon_base;
+
+/*
  * All IO addresses are mapped onto VA 0xFFFx.xxxx, where x.xxxx
  * is the (PA >> 12).
  *
@@ -68,7 +74,6 @@
  * just for now).
  */
 #define VA_IC_BASE	__io_address(INTEGRATOR_IC_BASE)
-#define VA_SC_BASE	__io_address(INTEGRATOR_SC_BASE)
 #define VA_EBI_BASE	__io_address(INTEGRATOR_EBI_BASE)
 #define VA_CMIC_BASE	__io_address(INTEGRATOR_HDR_IC)
 
@@ -97,11 +102,6 @@ static struct map_desc ap_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_EBI_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_EBI_BASE),
 		.length		= SZ_4K,
@@ -119,11 +119,6 @@ static struct map_desc ap_io_desc[] __initdata = {
 	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_UART0_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_UART0_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_UART1_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_UART1_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
@@ -201,8 +196,6 @@ device_initcall(irq_syscore_init);
 /*
  * Flash handling.
  */
-#define SC_CTRLC (VA_SC_BASE + INTEGRATOR_SC_CTRLC_OFFSET)
-#define SC_CTRLS (VA_SC_BASE + INTEGRATOR_SC_CTRLS_OFFSET)
 #define EBI_CSR1 (VA_EBI_BASE + INTEGRATOR_EBI_CSR1_OFFSET)
 #define EBI_LOCK (VA_EBI_BASE + INTEGRATOR_EBI_LOCK_OFFSET)
 
@@ -210,7 +203,8 @@ static int ap_flash_init(struct platform_device *dev)
 {
 	u32 tmp;
 
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP, SC_CTRLC);
+	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
+	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 
 	tmp = readl(EBI_CSR1) | INTEGRATOR_EBI_WRITE_ENABLE;
 	writel(tmp, EBI_CSR1);
@@ -227,7 +221,8 @@ static void ap_flash_exit(struct platform_device *dev)
 {
 	u32 tmp;
 
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP, SC_CTRLC);
+	writel(INTEGRATOR_SC_CTRL_nFLVPPEN | INTEGRATOR_SC_CTRL_nFLWP,
+	       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 
 	tmp = readl(EBI_CSR1) & ~INTEGRATOR_EBI_WRITE_ENABLE;
 	writel(tmp, EBI_CSR1);
@@ -241,9 +236,12 @@ static void ap_flash_exit(struct platform_device *dev)
 
 static void ap_flash_set_vpp(struct platform_device *pdev, int on)
 {
-	void __iomem *reg = on ? SC_CTRLS : SC_CTRLC;
-
-	writel(INTEGRATOR_SC_CTRL_nFLVPPEN, reg);
+	if (on)
+		writel(INTEGRATOR_SC_CTRL_nFLVPPEN,
+		       ap_syscon_base + INTEGRATOR_SC_CTRLS_OFFSET);
+	else
+		writel(INTEGRATOR_SC_CTRL_nFLVPPEN,
+		       ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
 }
 
 static struct physmap_flash_data ap_flash_data = {
@@ -251,6 +249,45 @@ static struct physmap_flash_data ap_flash_data = {
 	.init		= ap_flash_init,
 	.exit		= ap_flash_exit,
 	.set_vpp	= ap_flash_set_vpp,
+};
+
+/*
+ * For the PL010 found in the Integrator/AP some of the UART control is
+ * implemented in the system controller and accessed using a callback
+ * from the driver.
+ */
+static void integrator_uart_set_mctrl(struct amba_device *dev,
+				void __iomem *base, unsigned int mctrl)
+{
+	unsigned int ctrls = 0, ctrlc = 0, rts_mask, dtr_mask;
+	u32 phybase = dev->res.start;
+
+	if (phybase == INTEGRATOR_UART0_BASE) {
+		/* UART0 */
+		rts_mask = 1 << 4;
+		dtr_mask = 1 << 5;
+	} else {
+		/* UART1 */
+		rts_mask = 1 << 6;
+		dtr_mask = 1 << 7;
+	}
+
+	if (mctrl & TIOCM_RTS)
+		ctrlc |= rts_mask;
+	else
+		ctrls |= rts_mask;
+
+	if (mctrl & TIOCM_DTR)
+		ctrlc |= dtr_mask;
+	else
+		ctrls |= dtr_mask;
+
+	__raw_writel(ctrls, ap_syscon_base + INTEGRATOR_SC_CTRLS_OFFSET);
+	__raw_writel(ctrlc, ap_syscon_base + INTEGRATOR_SC_CTRLC_OFFSET);
+}
+
+struct amba_pl010_data ap_uart_data = {
+	.set_mctrl = integrator_uart_set_mctrl,
 };
 
 /*
@@ -450,9 +487,9 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
 		"rtc", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
-		"uart0", &integrator_uart_data),
+		"uart0", &ap_uart_data),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
-		"uart1", &integrator_uart_data),
+		"uart1", &ap_uart_data),
 	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
 		"kmi0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
@@ -465,12 +502,60 @@ static struct of_dev_auxdata ap_auxdata_lookup[] __initdata = {
 static void __init ap_init_of(void)
 {
 	unsigned long sc_dec;
+	struct device_node *root;
+	struct device_node *syscon;
+	struct device *parent;
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+	u32 ap_sc_id;
+	int err;
 	int i;
 
-	of_platform_populate(NULL, of_default_bus_match_table,
-			ap_auxdata_lookup, NULL);
+	/* Here we create an SoC device for the root node */
+	root = of_find_node_by_path("/");
+	if (!root)
+		return;
+	syscon = of_find_node_by_path("/syscon");
+	if (!syscon)
+		return;
 
-	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
+	ap_syscon_base = of_iomap(syscon, 0);
+	if (!ap_syscon_base)
+		return;
+
+	ap_sc_id = readl(ap_syscon_base);
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return;
+
+	err = of_property_read_string(root, "compatible",
+				      &soc_dev_attr->soc_id);
+	if (err)
+		return;
+	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
+	if (err)
+		return;
+	soc_dev_attr->family = "Integrator";
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
+					   'A' + (ap_sc_id & 0x0f));
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR_OR_NULL(soc_dev)) {
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr);
+		return;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
+	if (!IS_ERR_OR_NULL(parent))
+		integrator_init_sysfs(parent, ap_sc_id);
+
+	of_platform_populate(root, of_default_bus_match_table,
+			ap_auxdata_lookup, parent);
+
+	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
 		struct lm_device *lmdev;
 
@@ -512,6 +597,27 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ATAGS
+
+/*
+ * For the ATAG boot some static mappings are needed. This will
+ * go away with the ATAG support down the road.
+ */
+
+static struct map_desc ap_io_desc_atag[] __initdata = {
+	{
+		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	},
+};
+
+static void __init ap_map_io_atag(void)
+{
+	iotable_init(ap_io_desc_atag, ARRAY_SIZE(ap_io_desc_atag));
+	ap_syscon_base = __io_address(INTEGRATOR_SC_BASE);
+	ap_map_io();
+}
 
 /*
  * This is where non-devicetree initialization code is collected and stashed
@@ -581,7 +687,7 @@ static void __init ap_init(void)
 
 	platform_device_register(&cfi_flash_device);
 
-	sc_dec = readl(VA_SC_BASE + INTEGRATOR_SC_DEC_OFFSET);
+	sc_dec = readl(ap_syscon_base + INTEGRATOR_SC_DEC_OFFSET);
 	for (i = 0; i < 4; i++) {
 		struct lm_device *lmdev;
 
@@ -608,7 +714,7 @@ MACHINE_START(INTEGRATOR, "ARM-Integrator")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
-	.map_io		= ap_map_io,
+	.map_io		= ap_map_io_atag,
 	.nr_irqs	= NR_IRQS_INTEGRATOR_AP,
 	.init_early	= ap_init_early,
 	.init_irq	= ap_init_irq,

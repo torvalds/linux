@@ -26,6 +26,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/sys_soc.h>
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
@@ -51,11 +52,13 @@
 
 #include "common.h"
 
+/* Base address to the CP controller */
+static void __iomem *intcp_con_base;
+
 #define INTCP_PA_FLASH_BASE		0x24000000
 
 #define INTCP_PA_CLCD_BASE		0xc0000000
 
-#define INTCP_VA_CTRL_BASE		__io_address(INTEGRATOR_CP_CTL_BASE)
 #define INTCP_FLASHPROG			0x04
 #define CINTEGRATOR_FLASHPROG_FLVPPEN	(1 << 0)
 #define CINTEGRATOR_FLASHPROG_FLWREN	(1 << 1)
@@ -82,11 +85,6 @@ static struct map_desc intcp_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_SC_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_SC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_EBI_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_EBI_BASE),
 		.length		= SZ_4K,
@@ -107,11 +105,6 @@ static struct map_desc intcp_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_UART1_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_UART1_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_DBG_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_DBG_BASE),
 		.length		= SZ_4K,
@@ -124,11 +117,6 @@ static struct map_desc intcp_io_desc[] __initdata = {
 	}, {
 		.virtual	= IO_ADDRESS(INTEGRATOR_CP_SIC_BASE),
 		.pfn		= __phys_to_pfn(INTEGRATOR_CP_SIC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= IO_ADDRESS(INTEGRATOR_CP_CTL_BASE),
-		.pfn		= __phys_to_pfn(INTEGRATOR_CP_CTL_BASE),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE
 	}
@@ -146,9 +134,9 @@ static int intcp_flash_init(struct platform_device *dev)
 {
 	u32 val;
 
-	val = readl(INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	val = readl(intcp_con_base + INTCP_FLASHPROG);
 	val |= CINTEGRATOR_FLASHPROG_FLWREN;
-	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	writel(val, intcp_con_base + INTCP_FLASHPROG);
 
 	return 0;
 }
@@ -157,21 +145,21 @@ static void intcp_flash_exit(struct platform_device *dev)
 {
 	u32 val;
 
-	val = readl(INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	val = readl(intcp_con_base + INTCP_FLASHPROG);
 	val &= ~(CINTEGRATOR_FLASHPROG_FLVPPEN|CINTEGRATOR_FLASHPROG_FLWREN);
-	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	writel(val, intcp_con_base + INTCP_FLASHPROG);
 }
 
 static void intcp_flash_set_vpp(struct platform_device *pdev, int on)
 {
 	u32 val;
 
-	val = readl(INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	val = readl(intcp_con_base + INTCP_FLASHPROG);
 	if (on)
 		val |= CINTEGRATOR_FLASHPROG_FLVPPEN;
 	else
 		val &= ~CINTEGRATOR_FLASHPROG_FLVPPEN;
-	writel(val, INTCP_VA_CTRL_BASE + INTCP_FLASHPROG);
+	writel(val, intcp_con_base + INTCP_FLASHPROG);
 }
 
 static struct physmap_flash_data intcp_flash_data = {
@@ -190,7 +178,7 @@ static struct physmap_flash_data intcp_flash_data = {
 static unsigned int mmc_status(struct device *dev)
 {
 	unsigned int status = readl(__io_address(0xca000000 + 4));
-	writel(8, __io_address(INTEGRATOR_CP_CTL_BASE + 8));
+	writel(8, intcp_con_base + 8);
 
 	return status & 8;
 }
@@ -318,9 +306,9 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_RTC_BASE,
 		"rtc", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART0_BASE,
-		"uart0", &integrator_uart_data),
+		"uart0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", INTEGRATOR_UART1_BASE,
-		"uart1", &integrator_uart_data),
+		"uart1", NULL),
 	OF_DEV_AUXDATA("arm,primecell", KMI0_BASE,
 		"kmi0", NULL),
 	OF_DEV_AUXDATA("arm,primecell", KMI1_BASE,
@@ -338,8 +326,57 @@ static struct of_dev_auxdata intcp_auxdata_lookup[] __initdata = {
 
 static void __init intcp_init_of(void)
 {
-	of_platform_populate(NULL, of_default_bus_match_table,
-			intcp_auxdata_lookup, NULL);
+	struct device_node *root;
+	struct device_node *cpcon;
+	struct device *parent;
+	struct soc_device *soc_dev;
+	struct soc_device_attribute *soc_dev_attr;
+	u32 intcp_sc_id;
+	int err;
+
+	/* Here we create an SoC device for the root node */
+	root = of_find_node_by_path("/");
+	if (!root)
+		return;
+	cpcon = of_find_node_by_path("/cpcon");
+	if (!cpcon)
+		return;
+
+	intcp_con_base = of_iomap(cpcon, 0);
+	if (!intcp_con_base)
+		return;
+
+	intcp_sc_id = readl(intcp_con_base);
+
+	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
+	if (!soc_dev_attr)
+		return;
+
+	err = of_property_read_string(root, "compatible",
+				      &soc_dev_attr->soc_id);
+	if (err)
+		return;
+	err = of_property_read_string(root, "model", &soc_dev_attr->machine);
+	if (err)
+		return;
+	soc_dev_attr->family = "Integrator";
+	soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%c",
+					   'A' + (intcp_sc_id & 0x0f));
+
+	soc_dev = soc_device_register(soc_dev_attr);
+	if (IS_ERR_OR_NULL(soc_dev)) {
+		kfree(soc_dev_attr->revision);
+		kfree(soc_dev_attr);
+		return;
+	}
+
+	parent = soc_device_to_device(soc_dev);
+
+	if (!IS_ERR_OR_NULL(parent))
+		integrator_init_sysfs(parent, intcp_sc_id);
+
+	of_platform_populate(root, of_default_bus_match_table,
+			intcp_auxdata_lookup, parent);
 }
 
 static const char * intcp_dt_board_compat[] = {
@@ -363,6 +400,28 @@ MACHINE_END
 #endif
 
 #ifdef CONFIG_ATAGS
+
+/*
+ * For the ATAG boot some static mappings are needed. This will
+ * go away with the ATAG support down the road.
+ */
+
+static struct map_desc intcp_io_desc_atag[] __initdata = {
+	{
+		.virtual	= IO_ADDRESS(INTEGRATOR_CP_CTL_BASE),
+		.pfn		= __phys_to_pfn(INTEGRATOR_CP_CTL_BASE),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE
+	},
+};
+
+static void __init intcp_map_io_atag(void)
+{
+	iotable_init(intcp_io_desc_atag, ARRAY_SIZE(intcp_io_desc_atag));
+	intcp_con_base = __io_address(INTEGRATOR_CP_CTL_BASE);
+	intcp_map_io();
+}
+
 
 /*
  * This is where non-devicetree initialization code is collected and stashed
@@ -503,7 +562,7 @@ MACHINE_START(CINTEGRATOR, "ARM-IntegratorCP")
 	/* Maintainer: ARM Ltd/Deep Blue Solutions Ltd */
 	.atag_offset	= 0x100,
 	.reserve	= integrator_reserve,
-	.map_io		= intcp_map_io,
+	.map_io		= intcp_map_io_atag,
 	.nr_irqs	= NR_IRQS_INTEGRATOR_CP,
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq,
