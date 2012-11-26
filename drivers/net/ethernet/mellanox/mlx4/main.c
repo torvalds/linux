@@ -95,8 +95,14 @@ MODULE_PARM_DESC(log_num_mgm_entry_size, "log mgm size, that defines the num"
 					 " Not in use with device managed"
 					 " flow steering");
 
+static bool enable_64b_cqe_eqe;
+module_param(enable_64b_cqe_eqe, bool, 0444);
+MODULE_PARM_DESC(enable_64b_cqe_eqe,
+		 "Enable 64 byte CQEs/EQEs when the the FW supports this");
+
 #define HCA_GLOBAL_CAP_MASK            0
-#define PF_CONTEXT_BEHAVIOUR_MASK      0
+
+#define PF_CONTEXT_BEHAVIOUR_MASK	MLX4_FUNC_CAP_64B_EQE_CQE
 
 static char mlx4_version[] __devinitdata =
 	DRV_NAME ": Mellanox ConnectX core driver v"
@@ -386,6 +392,21 @@ static int mlx4_dev_cap(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		dev->caps.reserved_qps_cnt[MLX4_QP_REGION_FC_EXCH];
 
 	dev->caps.sqp_demux = (mlx4_is_master(dev)) ? MLX4_MAX_NUM_SLAVES : 0;
+
+	if (!enable_64b_cqe_eqe) {
+		if (dev_cap->flags &
+		    (MLX4_DEV_CAP_FLAG_64B_CQE | MLX4_DEV_CAP_FLAG_64B_EQE)) {
+			mlx4_warn(dev, "64B EQEs/CQEs supported by the device but not enabled\n");
+			dev->caps.flags &= ~MLX4_DEV_CAP_FLAG_64B_CQE;
+			dev->caps.flags &= ~MLX4_DEV_CAP_FLAG_64B_EQE;
+		}
+	}
+
+	if ((dev_cap->flags &
+	    (MLX4_DEV_CAP_FLAG_64B_CQE | MLX4_DEV_CAP_FLAG_64B_EQE)) &&
+	    mlx4_is_master(dev))
+		dev->caps.function_caps |= MLX4_FUNC_CAP_64B_EQE_CQE;
+
 	return 0;
 }
 /*The function checks if there are live vf, return the num of them*/
@@ -597,6 +618,21 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 			 dev->caps.uar_page_size * dev->caps.num_uars,
 			 (unsigned long long) pci_resource_len(dev->pdev, 2));
 		goto err_mem;
+	}
+
+	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_64B_EQE_ENABLED) {
+		dev->caps.eqe_size   = 64;
+		dev->caps.eqe_factor = 1;
+	} else {
+		dev->caps.eqe_size   = 32;
+		dev->caps.eqe_factor = 0;
+	}
+
+	if (hca_param.dev_cap_enabled & MLX4_DEV_CAP_64B_CQE_ENABLED) {
+		dev->caps.cqe_size   = 64;
+		dev->caps.userspace_caps |= MLX4_USER_DEV_CAP_64B_CQE;
+	} else {
+		dev->caps.cqe_size   = 32;
 	}
 
 	return 0;
