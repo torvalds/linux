@@ -510,10 +510,11 @@ static int ifx_spi_write(struct tty_struct *tty, const unsigned char *buf,
 	unsigned char *tmp_buf = (unsigned char *)buf;
 	unsigned long flags;
 	bool is_fifo_empty;
+	int tx_count;
 
 	spin_lock_irqsave(&ifx_dev->fifo_lock, flags);
 	is_fifo_empty = kfifo_is_empty(&ifx_dev->tx_fifo);
-	int tx_count = kfifo_in(&ifx_dev->tx_fifo, tmp_buf, count);
+	tx_count = kfifo_in(&ifx_dev->tx_fifo, tmp_buf, count);
 	spin_unlock_irqrestore(&ifx_dev->fifo_lock, flags);
 	if (is_fifo_empty)
 		mrdy_assert(ifx_dev);
