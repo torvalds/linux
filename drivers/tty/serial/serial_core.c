@@ -2370,9 +2370,13 @@ static ssize_t uart_get_attr_port(struct device *dev,
 {
 	struct serial_struct tmp;
 	struct tty_port *port = dev_get_drvdata(dev);
+	unsigned long ioaddr;
 
 	uart_get_info(port, &tmp);
-	return snprintf(buf, PAGE_SIZE, "0x%lX\n", (unsigned long)(tmp.port | (((unsigned long)tmp.port_high) << HIGH_BITS_OFFSET)));
+	ioaddr = tmp.port;
+	if (HIGH_BITS_OFFSET)
+		ioaddr |= (unsigned long)tmp.port_high << HIGH_BITS_OFFSET;
+	return snprintf(buf, PAGE_SIZE, "0x%lX\n", ioaddr);
 }
 
 static ssize_t uart_get_attr_irq(struct device *dev,
