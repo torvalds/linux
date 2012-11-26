@@ -429,8 +429,7 @@ ENTRY(ret_from_kernel_execve)
 ENDPROC(ret_from_kernel_execve)
 
 	;;
-	;; These are the interrupt handlers, responsible for calling __do_IRQ()
-	;; int6 is used for syscalls (see _system_call entry)
+	;; These are the interrupt handlers, responsible for calling c6x_do_IRQ()
 	;;
 	.macro SAVE_ALL_INT
 	SAVE_ALL IRP,ITSR
