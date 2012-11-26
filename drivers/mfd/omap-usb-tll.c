@@ -103,14 +103,13 @@ struct usbtll_omap {
 	int					nch;	/* num. of channels */
 	struct usbhs_omap_platform_data		*pdata;
 	struct clk				**ch_clk;
-	/* secure the register updates */
-	spinlock_t				lock;
 };
 
 /*-------------------------------------------------------------------------*/
 
 static const char usbtll_driver_name[] = USBTLL_DRIVER_NAME;
 static struct device	*tll_dev;
+static DEFINE_SPINLOCK(tll_lock);	/* serialize access to tll_dev */
 
 /*-------------------------------------------------------------------------*/
 
@@ -212,7 +211,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	struct resource				*res;
 	struct usbtll_omap			*tll;
 	unsigned				reg;
-	unsigned long				flags;
 	int					ret = 0;
 	int					i, ver;
 	bool needs_tll;
@@ -230,8 +228,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	spin_lock_init(&tll->lock);
-
 	tll->pdata = pdata;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -245,8 +241,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tll);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
-
-	spin_lock_irqsave(&tll->lock, flags);
 
 	ver =  usbtll_read(base, OMAP_USBTLL_REVISION);
 	switch (ver) {
@@ -264,8 +258,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 			ver, tll->nch);
 		break;
 	}
-
-	spin_unlock_irqrestore(&tll->lock, flags);
 
 	tll->ch_clk = devm_kzalloc(dev, sizeof(struct clk * [tll->nch]),
 						GFP_KERNEL);
@@ -285,8 +277,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		if (IS_ERR(tll->ch_clk[i]))
 			dev_dbg(dev, "can't get clock : %s\n", clkname);
 	}
-
-	spin_lock_irqsave(&tll->lock, flags);
 
 	needs_tll = false;
 	for (i = 0; i < tll->nch; i++)
@@ -332,10 +322,11 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 		}
 	}
 
-	spin_unlock_irqrestore(&tll->lock, flags);
 	pm_runtime_put_sync(dev);
 	/* only after this can omap_tll_enable/disable work */
+	spin_lock(&tll_lock);
 	tll_dev = dev;
+	spin_unlock(&tll_lock);
 
 	return 0;
 
@@ -357,7 +348,9 @@ static int usbtll_omap_remove(struct platform_device *pdev)
 	struct usbtll_omap *tll = platform_get_drvdata(pdev);
 	int i;
 
+	spin_lock(&tll_lock);
 	tll_dev = NULL;
+	spin_unlock(&tll_lock);
 
 	for (i = 0; i < tll->nch; i++)
 		if (!IS_ERR(tll->ch_clk[i]))
@@ -371,12 +364,9 @@ static int usbtll_runtime_resume(struct device *dev)
 {
 	struct usbtll_omap			*tll = dev_get_drvdata(dev);
 	struct usbhs_omap_platform_data		*pdata = tll->pdata;
-	unsigned long				flags;
 	int i;
 
 	dev_dbg(dev, "usbtll_runtime_resume\n");
-
-	spin_lock_irqsave(&tll->lock, flags);
 
 	for (i = 0; i < tll->nch; i++) {
 		if (omap_usb_mode_needs_tll(pdata->port_mode[i])) {
@@ -393,8 +383,6 @@ static int usbtll_runtime_resume(struct device *dev)
 		}
 	}
 
-	spin_unlock_irqrestore(&tll->lock, flags);
-
 	return 0;
 }
 
@@ -402,12 +390,9 @@ static int usbtll_runtime_suspend(struct device *dev)
 {
 	struct usbtll_omap			*tll = dev_get_drvdata(dev);
 	struct usbhs_omap_platform_data		*pdata = tll->pdata;
-	unsigned long				flags;
 	int i;
 
 	dev_dbg(dev, "usbtll_runtime_suspend\n");
-
-	spin_lock_irqsave(&tll->lock, flags);
 
 	for (i = 0; i < tll->nch; i++) {
 		if (omap_usb_mode_needs_tll(pdata->port_mode[i])) {
@@ -415,8 +400,6 @@ static int usbtll_runtime_suspend(struct device *dev)
 				clk_disable(tll->ch_clk[i]);
 		}
 	}
-
-	spin_unlock_irqrestore(&tll->lock, flags);
 
 	return 0;
 }
@@ -439,21 +422,39 @@ static struct platform_driver usbtll_omap_driver = {
 
 int omap_tll_enable(void)
 {
+	int ret;
+
+	spin_lock(&tll_lock);
+
 	if (!tll_dev) {
 		pr_err("%s: OMAP USB TLL not initialized\n", __func__);
-		return  -ENODEV;
+		ret = -ENODEV;
+	} else {
+		ret = pm_runtime_get_sync(tll_dev);
 	}
-	return pm_runtime_get_sync(tll_dev);
+
+	spin_unlock(&tll_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(omap_tll_enable);
 
 int omap_tll_disable(void)
 {
+	int ret;
+
+	spin_lock(&tll_lock);
+
 	if (!tll_dev) {
 		pr_err("%s: OMAP USB TLL not initialized\n", __func__);
-		return  -ENODEV;
+		ret = -ENODEV;
+	} else {
+		ret = pm_runtime_put_sync(tll_dev);
 	}
-	return pm_runtime_put_sync(tll_dev);
+
+	spin_unlock(&tll_lock);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(omap_tll_disable);
 
