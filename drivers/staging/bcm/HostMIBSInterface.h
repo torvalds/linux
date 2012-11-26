@@ -59,9 +59,9 @@ typedef struct _S_MIBS_HOST_INFO {
 	unsigned long	LastTxQueueIndex;
 	BOOLEAN	TxOutofDescriptors;
 	BOOLEAN	TimerActive;
-	UINT32	u32TotalDSD;
-	UINT32	aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
-	UINT32	aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
+	u32	u32TotalDSD;
+	u32	aTxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
+	u32	aRxPktSizeHist[MIBS_MAX_HIST_ENTRIES];
 } S_MIBS_HOST_INFO;
 
 typedef struct _S_MIBS_CLASSIFIER_RULE {
@@ -95,7 +95,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	BOOLEAN	bSrcIpValid;
 	unsigned char	ucDirection;
 	BOOLEAN	bIpv6Protocol;
-	UINT32	u32PHSRuleID;
+	u32	u32PHSRuleID;
 } S_MIBS_CLASSIFIER_RULE;
 
 typedef struct _S_MIBS_PHS_RULE {
@@ -114,27 +114,27 @@ typedef struct _S_MIBS_PHS_RULE {
 } S_MIBS_PHS_RULE;
 
 typedef struct _S_MIBS_EXTSERVICEFLOW_PARAMETERS {
-	UINT32	wmanIfSfid;
-	UINT32	wmanIfCmnCpsSfState;
-	UINT32	wmanIfCmnCpsMaxSustainedRate;
-	UINT32	wmanIfCmnCpsMaxTrafficBurst;
-	UINT32	wmanIfCmnCpsMinReservedRate;
-	UINT32	wmanIfCmnCpsToleratedJitter;
-	UINT32	wmanIfCmnCpsMaxLatency;
-	UINT32	wmanIfCmnCpsFixedVsVariableSduInd;
-	UINT32	wmanIfCmnCpsSduSize;
-	UINT32	wmanIfCmnCpsSfSchedulingType;
-	UINT32	wmanIfCmnCpsArqEnable;
-	UINT32	wmanIfCmnCpsArqWindowSize;
-	UINT32	wmanIfCmnCpsArqBlockLifetime;
-	UINT32	wmanIfCmnCpsArqSyncLossTimeout;
-	UINT32	wmanIfCmnCpsArqDeliverInOrder;
-	UINT32	wmanIfCmnCpsArqRxPurgeTimeout;
-	UINT32	wmanIfCmnCpsArqBlockSize;
-	UINT32	wmanIfCmnCpsMinRsvdTolerableRate;
-	UINT32	wmanIfCmnCpsReqTxPolicy;
-	UINT32	wmanIfCmnSfCsSpecification;
-	UINT32	wmanIfCmnCpsTargetSaid;
+	u32 wmanIfSfid;
+	u32 wmanIfCmnCpsSfState;
+	u32 wmanIfCmnCpsMaxSustainedRate;
+	u32 wmanIfCmnCpsMaxTrafficBurst;
+	u32 wmanIfCmnCpsMinReservedRate;
+	u32 wmanIfCmnCpsToleratedJitter;
+	u32 wmanIfCmnCpsMaxLatency;
+	u32 wmanIfCmnCpsFixedVsVariableSduInd;
+	u32 wmanIfCmnCpsSduSize;
+	u32 wmanIfCmnCpsSfSchedulingType;
+	u32 wmanIfCmnCpsArqEnable;
+	u32 wmanIfCmnCpsArqWindowSize;
+	u32 wmanIfCmnCpsArqBlockLifetime;
+	u32 wmanIfCmnCpsArqSyncLossTimeout;
+	u32 wmanIfCmnCpsArqDeliverInOrder;
+	u32 wmanIfCmnCpsArqRxPurgeTimeout;
+	u32 wmanIfCmnCpsArqBlockSize;
+	u32 wmanIfCmnCpsMinRsvdTolerableRate;
+	u32 wmanIfCmnCpsReqTxPolicy;
+	u32 wmanIfCmnSfCsSpecification;
+	u32 wmanIfCmnCpsTargetSaid;
 } S_MIBS_EXTSERVICEFLOW_PARAMETERS;
 
 typedef struct _S_MIBS_SERVICEFLOW_TABLE {
