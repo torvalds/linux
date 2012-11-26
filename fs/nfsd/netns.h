@@ -86,6 +86,7 @@ struct nfsd_net {
 	spinlock_t client_lock;
 
 	struct file *rec_file;
+	bool in_grace;
 };
 
 extern int nfsd_net_id;

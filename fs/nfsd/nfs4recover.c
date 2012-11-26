@@ -64,7 +64,6 @@ struct nfsd4_client_tracking_ops {
 /* Globals */
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
 static struct nfsd4_client_tracking_ops *client_tracking_ops;
-static bool in_grace;
 
 static int
 nfs4_save_creds(const struct cred **original_creds)
@@ -221,7 +220,7 @@ out_put:
 out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	if (status == 0) {
-		if (in_grace) {
+		if (nn->in_grace) {
 			crp = nfs4_client_to_reclaim(dname, nn);
 			if (crp)
 				crp->cr_clp = clp;
@@ -358,7 +357,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	nfs4_reset_creds(original_cred);
 	if (status == 0) {
 		vfs_fsync(nn->rec_file, 0);
-		if (in_grace) {
+		if (nn->in_grace) {
 			/* remove reclaim record */
 			crp = nfsd4_find_reclaim_client(dname, nn);
 			if (crp)
@@ -394,7 +393,7 @@ nfsd4_recdir_purge_old(struct nfsd_net *nn, time_t boot_time)
 {
 	int status;
 
-	in_grace = false;
+	nn->in_grace = false;
 	if (!nn->rec_file)
 		return;
 	status = mnt_want_write_file(nn->rec_file);
@@ -473,7 +472,7 @@ nfsd4_init_recdir(struct net *net)
 
 	nfs4_reset_creds(original_cred);
 	if (!status)
-		in_grace = true;
+		nn->in_grace = true;
 	return status;
 }
 
