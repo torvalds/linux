@@ -392,7 +392,6 @@ struct pn533_cmd {
 	int in_frame_len;
 	pn533_cmd_complete_t cmd_complete;
 	void *arg;
-	gfp_t flags;
 };
 
 struct pn533_frame {
@@ -646,7 +645,7 @@ static int __pn533_send_cmd_frame_async(struct pn533 *dev,
 					struct pn533_frame *in_frame,
 					int in_frame_len,
 					pn533_cmd_complete_t cmd_complete,
-					void *arg, gfp_t flags)
+					void *arg)
 {
 	int rc;
 
@@ -664,11 +663,11 @@ static int __pn533_send_cmd_frame_async(struct pn533 *dev,
 	dev->in_urb->transfer_buffer = in_frame;
 	dev->in_urb->transfer_buffer_length = in_frame_len;
 
-	rc = usb_submit_urb(dev->out_urb, flags);
+	rc = usb_submit_urb(dev->out_urb, GFP_KERNEL);
 	if (rc)
 		return rc;
 
-	rc = pn533_submit_urb_for_ack(dev, flags);
+	rc = pn533_submit_urb_for_ack(dev, GFP_KERNEL);
 	if (rc)
 		goto error;
 
@@ -700,7 +699,7 @@ static void pn533_wq_cmd(struct work_struct *work)
 
 	__pn533_send_cmd_frame_async(dev, cmd->out_frame, cmd->in_frame,
 				     cmd->in_frame_len, cmd->cmd_complete,
-				     cmd->arg, cmd->flags);
+				     cmd->arg);
 
 	kfree(cmd);
 }
@@ -710,7 +709,7 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 					struct pn533_frame *in_frame,
 					int in_frame_len,
 					pn533_cmd_complete_t cmd_complete,
-					void *arg, gfp_t flags)
+					void *arg)
 {
 	struct pn533_cmd *cmd;
 	int rc = 0;
@@ -722,7 +721,7 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 	if (!dev->cmd_pending) {
 		rc = __pn533_send_cmd_frame_async(dev, out_frame, in_frame,
 						  in_frame_len, cmd_complete,
-						  arg, flags);
+						  arg);
 		if (!rc)
 			dev->cmd_pending = 1;
 
@@ -731,7 +730,7 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 
 	nfc_dev_dbg(&dev->interface->dev, "%s Queueing command", __func__);
 
-	cmd = kzalloc(sizeof(struct pn533_cmd), flags);
+	cmd = kzalloc(sizeof(struct pn533_cmd), GFP_KERNEL);
 	if (!cmd) {
 		rc = -ENOMEM;
 		goto unlock;
@@ -743,7 +742,6 @@ static int pn533_send_cmd_frame_async(struct pn533 *dev,
 	cmd->in_frame_len = in_frame_len;
 	cmd->cmd_complete = cmd_complete;
 	cmd->arg = arg;
-	cmd->flags = flags;
 
 	list_add_tail(&cmd->queue, &dev->cmd_queue);
 
@@ -788,7 +786,7 @@ static int pn533_send_cmd_frame_sync(struct pn533 *dev,
 	init_completion(&arg.done);
 
 	rc = pn533_send_cmd_frame_async(dev, out_frame, in_frame, in_frame_len,
-				pn533_sync_cmd_complete, &arg, GFP_KERNEL);
+					pn533_sync_cmd_complete, &arg);
 	if (rc)
 		return rc;
 
@@ -1296,7 +1294,7 @@ static void pn533_wq_tg_get_data(struct work_struct *work)
 	pn533_send_cmd_frame_async(dev, dev->out_frame, in_frame,
 				   skb_resp_len,
 				   pn533_tm_get_data_complete,
-				   skb_resp, GFP_KERNEL);
+				   skb_resp);
 
 	return;
 }
@@ -1450,7 +1448,7 @@ static int pn533_send_poll_frame(struct pn533 *dev)
 	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
 					PN533_NORMAL_FRAME_MAX_LEN,
 					pn533_poll_complete,
-					NULL, GFP_KERNEL);
+					NULL);
 	if (rc)
 		nfc_dev_err(&dev->interface->dev, "Polling loop error %d", rc);
 
@@ -1818,8 +1816,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 
 	rc = pn533_send_cmd_frame_async(dev, dev->out_frame, dev->in_frame,
 					PN533_NORMAL_FRAME_MAX_LEN,
-					pn533_in_dep_link_up_complete, cmd,
-					GFP_KERNEL);
+					pn533_in_dep_link_up_complete, cmd);
 	if (rc < 0)
 		kfree(cmd);
 
@@ -2056,8 +2053,7 @@ static int pn533_transceive(struct nfc_dev *nfc_dev,
 	arg->cb_context = cb_context;
 
 	rc = pn533_send_cmd_frame_async(dev, out_frame, in_frame, skb_resp_len,
-					pn533_data_exchange_complete, arg,
-					GFP_KERNEL);
+					pn533_data_exchange_complete, arg);
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev, "Error %d when trying to"
 						" perform data_exchange", rc);
@@ -2121,8 +2117,7 @@ static int pn533_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 
 	rc = pn533_send_cmd_frame_async(dev, out_frame, dev->in_frame,
 					PN533_NORMAL_FRAME_MAX_LEN,
-					pn533_tm_send_complete, skb,
-					GFP_KERNEL);
+					pn533_tm_send_complete, skb);
 	if (rc) {
 		nfc_dev_err(&dev->interface->dev,
 			    "Error %d when trying to send data", rc);
@@ -2184,7 +2179,7 @@ static void pn533_wq_mi_recv(struct work_struct *work)
 	rc = __pn533_send_cmd_frame_async(dev, out_frame, in_frame,
 					  skb_resp_len,
 					  pn533_data_exchange_complete,
-					  dev->cmd_complete_arg, GFP_KERNEL);
+					  dev->cmd_complete_arg);
 	if (!rc)
 		return;
 
