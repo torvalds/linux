@@ -205,10 +205,52 @@ void ssb_extif_get_clockcontrol(struct ssb_extif *extif,
 }
 
 static inline
+void ssb_extif_timing_init(struct ssb_extif *extif, unsigned long ns)
+{
+}
+
+static inline
 void ssb_extif_watchdog_timer_set(struct ssb_extif *extif,
 				  u32 ticks)
 {
 }
+
+static inline u32 ssb_extif_gpio_in(struct ssb_extif *extif, u32 mask)
+{
+	return 0;
+}
+
+static inline u32 ssb_extif_gpio_out(struct ssb_extif *extif, u32 mask,
+				     u32 value)
+{
+	return 0;
+}
+
+static inline u32 ssb_extif_gpio_outen(struct ssb_extif *extif, u32 mask,
+				       u32 value)
+{
+	return 0;
+}
+
+static inline u32 ssb_extif_gpio_polarity(struct ssb_extif *extif, u32 mask,
+					  u32 value)
+{
+	return 0;
+}
+
+static inline u32 ssb_extif_gpio_intmask(struct ssb_extif *extif, u32 mask,
+					 u32 value)
+{
+	return 0;
+}
+
+#ifdef CONFIG_SSB_SERIAL
+static inline int ssb_extif_serial_init(struct ssb_extif *extif,
+					struct ssb_serial_port *ports)
+{
+	return 0;
+}
+#endif /* CONFIG_SSB_SERIAL */
 
 #endif /* CONFIG_SSB_DRIVER_EXTIF */
 #endif /* LINUX_SSB_EXTIFCORE_H_ */
