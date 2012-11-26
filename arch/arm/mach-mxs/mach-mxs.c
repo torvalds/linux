@@ -290,6 +290,11 @@ static void __init m28evk_init(void)
 	mxsfb_pdata.ld_intf_width = STMLCDIF_18BIT;
 }
 
+static void __init sc_sps1_init(void)
+{
+	enable_clk_enet_out();
+}
+
 static int apx4devkit_phy_fixup(struct phy_device *phy)
 {
 	phy->dev_flags |= MICREL_PHY_50MHZ_CLK;
@@ -414,6 +419,8 @@ static void __init mxs_machine_init(void)
 		cfa10049_init();
 	else if (of_machine_is_compatible("armadeus,imx28-apf28"))
 		apf28_init();
+	else if (of_machine_is_compatible("schulercontrol,imx28-sps1"))
+		sc_sps1_init();
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     mxs_auxdata_lookup, NULL);
