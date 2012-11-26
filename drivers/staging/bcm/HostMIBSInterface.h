@@ -70,7 +70,7 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 	u16	uiClassifierRuleIndex;
 	BOOLEAN	bUsed;
 	USHORT	usVCID_Value;
-	B_UINT8	u8ClassifierRulePriority;
+	u8	u8ClassifierRulePriority;
 	U_MIBS_IP_ADDRESS stSrcIpAddress;
 	/* IP Source Address Length */
 	unsigned char	ucIPSourceAddressLength;
@@ -100,14 +100,14 @@ typedef struct _S_MIBS_CLASSIFIER_RULE {
 
 typedef struct _S_MIBS_PHS_RULE {
 	unsigned long	ulSFID;
-	B_UINT8	u8PHSI;
-	B_UINT8	u8PHSFLength;
-	B_UINT8	u8PHSF[MIBS_MAX_PHS_LENGTHS];
-	B_UINT8	u8PHSMLength;
-	B_UINT8	u8PHSM[MIBS_MAX_PHS_LENGTHS];
-	B_UINT8	u8PHSS;
-	B_UINT8	u8PHSV;
-	B_UINT8	reserved[5];
+	u8	u8PHSI;
+	u8	u8PHSFLength;
+	u8	u8PHSF[MIBS_MAX_PHS_LENGTHS];
+	u8	u8PHSMLength;
+	u8	u8PHSM[MIBS_MAX_PHS_LENGTHS];
+	u8	u8PHSS;
+	u8	u8PHSV;
+	u8	reserved[5];
 	long	PHSModifiedBytes;
 	unsigned long	PHSModifiedNumPackets;
 	unsigned long	PHSErrorNumPackets;
@@ -141,11 +141,11 @@ typedef struct _S_MIBS_SERVICEFLOW_TABLE {
 	unsigned long	ulSFID;
 	USHORT	usVCID_Value;
 	UINT	uiThreshold;
-	B_UINT8	u8TrafficPriority;
+	u8	u8TrafficPriority;
 	BOOLEAN	bValid;
 	BOOLEAN	bActive;
 	BOOLEAN	bActivateRequestSent;
-	B_UINT8	u8QueueType;
+	u8	u8QueueType;
 	UINT	uiMaxBucketSize;
 	UINT	uiCurrentQueueDepthOnTarget;
 	UINT	uiCurrentBytesOnHost;
