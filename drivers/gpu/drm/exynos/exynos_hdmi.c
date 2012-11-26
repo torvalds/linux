@@ -50,6 +50,29 @@
 #define MAX_HEIGHT		1080
 #define get_hdmi_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
+/* AVI header and aspect ratio */
+#define HDMI_AVI_VERSION		0x02
+#define HDMI_AVI_LENGTH		0x0D
+#define AVI_PIC_ASPECT_RATIO_16_9	(2 << 4)
+#define AVI_SAME_AS_PIC_ASPECT_RATIO	8
+
+/* AUI header info */
+#define HDMI_AUI_VERSION	0x01
+#define HDMI_AUI_LENGTH	0x0A
+
+/* HDMI infoframe to configure HDMI out packet header, AUI and AVI */
+enum HDMI_PACKET_TYPE {
+	/* refer to Table 5-8 Packet Type in HDMI specification v1.4a */
+	/* InfoFrame packet type */
+	HDMI_PACKET_TYPE_INFOFRAME = 0x80,
+	/* Vendor-Specific InfoFrame */
+	HDMI_PACKET_TYPE_VSI = HDMI_PACKET_TYPE_INFOFRAME + 1,
+	/* Auxiliary Video information InfoFrame */
+	HDMI_PACKET_TYPE_AVI = HDMI_PACKET_TYPE_INFOFRAME + 2,
+	/* Audio information InfoFrame */
+	HDMI_PACKET_TYPE_AUI = HDMI_PACKET_TYPE_INFOFRAME + 4
+};
+
 enum hdmi_type {
 	HDMI_TYPE13,
 	HDMI_TYPE14,
@@ -182,6 +205,7 @@ struct hdmi_v13_conf {
 	int height;
 	int vrefresh;
 	bool interlace;
+	int cea_video_id;
 	const u8 *hdmiphy_data;
 	const struct hdmi_v13_preset_conf *conf;
 };
@@ -353,15 +377,20 @@ static const struct hdmi_v13_preset_conf hdmi_v13_conf_1080p60 = {
 };
 
 static const struct hdmi_v13_conf hdmi_v13_confs[] = {
-	{ 1280, 720, 60, false, hdmiphy_v13_conf74_25, &hdmi_v13_conf_720p60 },
-	{ 1280, 720, 50, false, hdmiphy_v13_conf74_25, &hdmi_v13_conf_720p60 },
-	{ 720, 480, 60, false, hdmiphy_v13_conf27_027, &hdmi_v13_conf_480p },
-	{ 1920, 1080, 50, true, hdmiphy_v13_conf74_25, &hdmi_v13_conf_1080i50 },
-	{ 1920, 1080, 50, false, hdmiphy_v13_conf148_5,
-				 &hdmi_v13_conf_1080p50 },
-	{ 1920, 1080, 60, true, hdmiphy_v13_conf74_25, &hdmi_v13_conf_1080i60 },
-	{ 1920, 1080, 60, false, hdmiphy_v13_conf148_5,
-				 &hdmi_v13_conf_1080p60 },
+	{ 1280, 720, 60, false, 4, hdmiphy_v13_conf74_25,
+			&hdmi_v13_conf_720p60 },
+	{ 1280, 720, 50, false, 19, hdmiphy_v13_conf74_25,
+			&hdmi_v13_conf_720p60 },
+	{ 720, 480, 60, false, 3, hdmiphy_v13_conf27_027,
+			&hdmi_v13_conf_480p },
+	{ 1920, 1080, 50, true, 20, hdmiphy_v13_conf74_25,
+			&hdmi_v13_conf_1080i50 },
+	{ 1920, 1080, 50, false, 31, hdmiphy_v13_conf148_5,
+			&hdmi_v13_conf_1080p50 },
+	{ 1920, 1080, 60, true, 5, hdmiphy_v13_conf74_25,
+			&hdmi_v13_conf_1080i60 },
+	{ 1920, 1080, 60, false, 16, hdmiphy_v13_conf148_5,
+			&hdmi_v13_conf_1080p60 },
 };
 
 /* HDMI Version 1.4 */
@@ -479,6 +508,7 @@ struct hdmi_conf {
 	int height;
 	int vrefresh;
 	bool interlace;
+	int cea_video_id;
 	const u8 *hdmiphy_data;
 	const struct hdmi_preset_conf *conf;
 };
@@ -934,16 +964,21 @@ static const struct hdmi_preset_conf hdmi_conf_1080p60 = {
 };
 
 static const struct hdmi_conf hdmi_confs[] = {
-	{ 720, 480, 60, false, hdmiphy_conf27_027, &hdmi_conf_480p60 },
-	{ 1280, 720, 50, false, hdmiphy_conf74_25, &hdmi_conf_720p50 },
-	{ 1280, 720, 60, false, hdmiphy_conf74_25, &hdmi_conf_720p60 },
-	{ 1920, 1080, 50, true, hdmiphy_conf74_25, &hdmi_conf_1080i50 },
-	{ 1920, 1080, 60, true, hdmiphy_conf74_25, &hdmi_conf_1080i60 },
-	{ 1920, 1080, 30, false, hdmiphy_conf74_176, &hdmi_conf_1080p30 },
-	{ 1920, 1080, 50, false, hdmiphy_conf148_5, &hdmi_conf_1080p50 },
-	{ 1920, 1080, 60, false, hdmiphy_conf148_5, &hdmi_conf_1080p60 },
+	{ 720, 480, 60, false, 3, hdmiphy_conf27_027, &hdmi_conf_480p60 },
+	{ 1280, 720, 50, false, 19, hdmiphy_conf74_25, &hdmi_conf_720p50 },
+	{ 1280, 720, 60, false, 4, hdmiphy_conf74_25, &hdmi_conf_720p60 },
+	{ 1920, 1080, 50, true, 20, hdmiphy_conf74_25, &hdmi_conf_1080i50 },
+	{ 1920, 1080, 60, true, 5, hdmiphy_conf74_25, &hdmi_conf_1080i60 },
+	{ 1920, 1080, 30, false, 34, hdmiphy_conf74_176, &hdmi_conf_1080p30 },
+	{ 1920, 1080, 50, false, 31, hdmiphy_conf148_5, &hdmi_conf_1080p50 },
+	{ 1920, 1080, 60, false, 16, hdmiphy_conf148_5, &hdmi_conf_1080p60 },
 };
 
+struct hdmi_infoframe {
+	enum HDMI_PACKET_TYPE type;
+	u8 ver;
+	u8 len;
+};
 
 static inline u32 hdmi_reg_read(struct hdmi_context *hdata, u32 reg_id)
 {
@@ -1267,6 +1302,88 @@ static int hdmi_conf_index(struct hdmi_context *hdata,
 	return hdmi_v14_conf_index(mode);
 }
 
+static u8 hdmi_chksum(struct hdmi_context *hdata,
+			u32 start, u8 len, u32 hdr_sum)
+{
+	int i;
+
+	/* hdr_sum : header0 + header1 + header2
+	* start : start address of packet byte1
+	* len : packet bytes - 1 */
+	for (i = 0; i < len; ++i)
+		hdr_sum += 0xff & hdmi_reg_read(hdata, start + i * 4);
+
+	/* return 2's complement of 8 bit hdr_sum */
+	return (u8)(~(hdr_sum & 0xff) + 1);
+}
+
+static void hdmi_reg_infoframe(struct hdmi_context *hdata,
+			struct hdmi_infoframe *infoframe)
+{
+	u32 hdr_sum;
+	u8 chksum;
+	u32 aspect_ratio;
+	u32 mod;
+	u32 vic;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	mod = hdmi_reg_read(hdata, HDMI_MODE_SEL);
+	if (hdata->dvi_mode) {
+		hdmi_reg_writeb(hdata, HDMI_VSI_CON,
+				HDMI_VSI_CON_DO_NOT_TRANSMIT);
+		hdmi_reg_writeb(hdata, HDMI_AVI_CON,
+				HDMI_AVI_CON_DO_NOT_TRANSMIT);
+		hdmi_reg_writeb(hdata, HDMI_AUI_CON, HDMI_AUI_CON_NO_TRAN);
+		return;
+	}
+
+	switch (infoframe->type) {
+	case HDMI_PACKET_TYPE_AVI:
+		hdmi_reg_writeb(hdata, HDMI_AVI_CON, HDMI_AVI_CON_EVERY_VSYNC);
+		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER0, infoframe->type);
+		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER1, infoframe->ver);
+		hdmi_reg_writeb(hdata, HDMI_AVI_HEADER2, infoframe->len);
+		hdr_sum = infoframe->type + infoframe->ver + infoframe->len;
+
+		/* Output format zero hardcoded ,RGB YBCR selection */
+		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(1), 0 << 5 |
+			AVI_ACTIVE_FORMAT_VALID |
+			AVI_UNDERSCANNED_DISPLAY_VALID);
+
+		aspect_ratio = AVI_PIC_ASPECT_RATIO_16_9;
+
+		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(2), aspect_ratio |
+				AVI_SAME_AS_PIC_ASPECT_RATIO);
+
+		if (hdata->type == HDMI_TYPE13)
+			vic = hdmi_v13_confs[hdata->cur_conf].cea_video_id;
+		else
+			vic = hdmi_confs[hdata->cur_conf].cea_video_id;
+
+		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(4), vic);
+
+		chksum = hdmi_chksum(hdata, HDMI_AVI_BYTE(1),
+					infoframe->len, hdr_sum);
+		DRM_DEBUG_KMS("AVI checksum = 0x%x\n", chksum);
+		hdmi_reg_writeb(hdata, HDMI_AVI_CHECK_SUM, chksum);
+		break;
+	case HDMI_PACKET_TYPE_AUI:
+		hdmi_reg_writeb(hdata, HDMI_AUI_CON, 0x02);
+		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER0, infoframe->type);
+		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER1, infoframe->ver);
+		hdmi_reg_writeb(hdata, HDMI_AUI_HEADER2, infoframe->len);
+		hdr_sum = infoframe->type + infoframe->ver + infoframe->len;
+		chksum = hdmi_chksum(hdata, HDMI_AUI_BYTE(1),
+					infoframe->len, hdr_sum);
+		DRM_DEBUG_KMS("AUI checksum = 0x%x\n", chksum);
+		hdmi_reg_writeb(hdata, HDMI_AUI_CHECK_SUM, chksum);
+		break;
+	default:
+		break;
+	}
+}
+
 static bool hdmi_is_connected(void *ctx)
 {
 	struct hdmi_context *hdata = ctx;
@@ -1542,6 +1659,8 @@ static void hdmi_conf_reset(struct hdmi_context *hdata)
 
 static void hdmi_conf_init(struct hdmi_context *hdata)
 {
+	struct hdmi_infoframe infoframe;
+
 	/* disable HPD interrupts */
 	hdmi_reg_writemask(hdata, HDMI_INTC_CON, 0, HDMI_INTC_EN_GLOBAL |
 		HDMI_INTC_EN_HPD_PLUG | HDMI_INTC_EN_HPD_UNPLUG);
@@ -1576,9 +1695,17 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 		hdmi_reg_writeb(hdata, HDMI_V13_AUI_CON, 0x02);
 		hdmi_reg_writeb(hdata, HDMI_V13_ACR_CON, 0x04);
 	} else {
+		infoframe.type = HDMI_PACKET_TYPE_AVI;
+		infoframe.ver = HDMI_AVI_VERSION;
+		infoframe.len = HDMI_AVI_LENGTH;
+		hdmi_reg_infoframe(hdata, &infoframe);
+
+		infoframe.type = HDMI_PACKET_TYPE_AUI;
+		infoframe.ver = HDMI_AUI_VERSION;
+		infoframe.len = HDMI_AUI_LENGTH;
+		hdmi_reg_infoframe(hdata, &infoframe);
+
 		/* enable AVI packet every vsync, fixes purple line problem */
-		hdmi_reg_writeb(hdata, HDMI_AVI_CON, 0x02);
-		hdmi_reg_writeb(hdata, HDMI_AVI_BYTE(1), 2 << 5);
 		hdmi_reg_writemask(hdata, HDMI_CON_1, 2, 3 << 5);
 	}
 }
