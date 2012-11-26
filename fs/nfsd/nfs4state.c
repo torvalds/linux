@@ -4829,7 +4829,7 @@ err:
 }
 
 static void
-__nfs4_state_shutdown_net(struct net *net)
+nfs4_state_destroy_net(struct net *net)
 {
 	int i;
 	struct nfs4_client *clp = NULL;
@@ -4857,6 +4857,7 @@ __nfs4_state_shutdown_net(struct net *net)
 	kfree(nn->ownerstr_hashtbl);
 	kfree(nn->unconf_id_hashtbl);
 	kfree(nn->conf_id_hashtbl);
+	put_net(net);
 }
 
 /* initialization to perform when the nfsd service is started: */
@@ -4906,19 +4907,20 @@ out_free_laundry:
 	destroy_workqueue(laundry_wq);
 out_recovery:
 	nfsd4_client_tracking_exit(net);
-	__nfs4_state_shutdown_net(net);
-	put_net(net);
+	nfs4_state_destroy_net(net);
 	return ret;
 }
 
 /* should be called with the state lock held */
 static void
-__nfs4_state_shutdown(struct net *net)
+nfs4_state_shutdown_net(struct net *net)
 {
 	struct nfs4_delegation *dp = NULL;
 	struct list_head *pos, *next, reaplist;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	__nfs4_state_shutdown_net(net);
+	cancel_delayed_work_sync(&nn->laundromat_work);
+	locks_end_grace(&nn->nfsd4_manager);
 
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&recall_lock);
@@ -4935,19 +4937,16 @@ __nfs4_state_shutdown(struct net *net)
 	}
 
 	nfsd4_client_tracking_exit(net);
-	put_net(net);
+	nfs4_state_destroy_net(net);
 }
 
 void
 nfs4_state_shutdown(void)
 {
 	struct net *net = &init_net;
-	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	cancel_delayed_work_sync(&nn->laundromat_work);
+	nfs4_state_shutdown_net(net);
 	destroy_workqueue(laundry_wq);
-	locks_end_grace(&nn->nfsd4_manager);
-	__nfs4_state_shutdown(net);
 	nfsd4_destroy_callback_queue();
 }
 
