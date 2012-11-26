@@ -207,6 +207,7 @@ static bool nfsd_up = false;
 static int nfsd_startup(int nrservs)
 {
 	int ret;
+	struct net *net = &init_net;
 
 	if (nfsd_up)
 		return 0;
@@ -221,14 +222,21 @@ static int nfsd_startup(int nrservs)
 	ret = nfsd_init_socks();
 	if (ret)
 		goto out_racache;
-	ret = lockd_up(&init_net);
+	ret = lockd_up(net);
 	if (ret)
 		goto out_racache;
 	ret = nfs4_state_start();
 	if (ret)
 		goto out_lockd;
+
+	ret = nfs4_state_start_net(net);
+	if (ret)
+		goto out_net_state;
+
 	nfsd_up = true;
 	return 0;
+out_net_state:
+	nfs4_state_shutdown();
 out_lockd:
 	lockd_down(&init_net);
 out_racache:
@@ -238,6 +246,8 @@ out_racache:
 
 static void nfsd_shutdown(void)
 {
+	struct net *net = &init_net;
+
 	/*
 	 * write_ports can create the server without actually starting
 	 * any threads--if we get shut down before any threads are
@@ -246,8 +256,9 @@ static void nfsd_shutdown(void)
 	 */
 	if (!nfsd_up)
 		return;
+	nfs4_state_shutdown_net(net);
 	nfs4_state_shutdown();
-	lockd_down(&init_net);
+	lockd_down(net);
 	nfsd_racache_shutdown();
 	nfsd_up = false;
 }

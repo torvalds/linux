@@ -4861,11 +4861,21 @@ nfs4_state_destroy_net(struct net *net)
 	put_net(net);
 }
 
-static int
+int
 nfs4_state_start_net(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	int ret;
+
+	/*
+	 * FIXME: For now, we hang most of the pernet global stuff off of
+	 * init_net until nfsd is fully containerized. Eventually, we'll
+	 * need to pass a net pointer into this function, take a reference
+	 * to that instead and then do most of the rest of this on a per-net
+	 * basis.
+	 */
+	if (net != &init_net)
+		return -EINVAL;
 
 	ret = nfs4_state_create_net(net);
 	if (ret)
@@ -4901,21 +4911,8 @@ nfs4_state_start(void)
 
 	set_max_delegations();
 
-	/*
-	 * FIXME: For now, we hang most of the pernet global stuff off of
-	 * init_net until nfsd is fully containerized. Eventually, we'll
-	 * need to pass a net pointer into this function, take a reference
-	 * to that instead and then do most of the rest of this on a per-net
-	 * basis.
-	 */
-	ret = nfs4_state_start_net(&init_net);
-	if (ret)
-		goto out_free_callback;
-
 	return 0;
 
-out_free_callback:
-	nfsd4_destroy_callback_queue();
 out_free_laundry:
 	destroy_workqueue(laundry_wq);
 out_recovery:
@@ -4923,7 +4920,7 @@ out_recovery:
 }
 
 /* should be called with the state lock held */
-static void
+void
 nfs4_state_shutdown_net(struct net *net)
 {
 	struct nfs4_delegation *dp = NULL;
@@ -4954,9 +4951,6 @@ nfs4_state_shutdown_net(struct net *net)
 void
 nfs4_state_shutdown(void)
 {
-	struct net *net = &init_net;
-
-	nfs4_state_shutdown_net(net);
 	destroy_workqueue(laundry_wq);
 	nfsd4_destroy_callback_queue();
 }
