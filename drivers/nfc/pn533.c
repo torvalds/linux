@@ -86,6 +86,12 @@ MODULE_DEVICE_TABLE(usb, pn533_table);
 					+ 2) /* data[0] TFI, data[1] CC */
 #define PN533_FRAME_TAIL_LEN 2 /* data[len] DCS, data[len + 1] postamble*/
 
+/*
+ * Max extended frame payload len, excluding TFI and CC
+ * which are already in PN533_FRAME_HEADER_LEN.
+ */
+#define PN533_FRAME_MAX_PAYLOAD_LEN 263
+
 #define PN533_FRAME_SIZE(f) (sizeof(struct pn533_frame) + f->datalen + \
 				PN533_FRAME_TAIL_LEN)
 #define PN533_FRAME_ACK_SIZE (sizeof(struct pn533_frame) + 1)
@@ -804,6 +810,31 @@ error:
 	kfree(arg);
 unlock:
 	mutex_unlock(&dev->cmd_lock);
+	return rc;
+}
+
+static int pn533_send_data_async(struct pn533 *dev, u8 cmd_code,
+				 struct sk_buff *req,
+				 pn533_send_async_complete_t complete_cb,
+				 void *complete_cb_context)
+{
+	struct sk_buff *resp;
+	int rc;
+	int  resp_len = PN533_FRAME_HEADER_LEN +
+			PN533_FRAME_MAX_PAYLOAD_LEN +
+			PN533_FRAME_TAIL_LEN;
+
+	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
+
+	resp = nfc_alloc_recv_skb(resp_len, GFP_KERNEL);
+	if (!resp)
+		return -ENOMEM;
+
+	rc = __pn533_send_async(dev, cmd_code, req, resp, resp_len, complete_cb,
+				complete_cb_context);
+	if (rc)
+		dev_kfree_skb(resp);
+
 	return rc;
 }
 
