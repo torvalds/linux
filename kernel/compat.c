@@ -993,10 +993,9 @@ sigset_to_compat(compat_sigset_t *compat, const sigset_t *set)
 	}
 }
 
-asmlinkage long
-compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
-		struct compat_siginfo __user *uinfo,
-		struct compat_timespec __user *uts, compat_size_t sigsetsize)
+COMPAT_SYSCALL_DEFINE4(rt_sigtimedwait, compat_sigset_t __user *, uthese,
+		struct compat_siginfo __user *, uinfo,
+		struct compat_timespec __user *, uts, compat_size_t, sigsetsize)
 {
 	compat_sigset_t s32;
 	sigset_t s;
@@ -1024,7 +1023,6 @@ compat_sys_rt_sigtimedwait (compat_sigset_t __user *uthese,
 	}
 
 	return ret;
-
 }
 
 asmlinkage long
