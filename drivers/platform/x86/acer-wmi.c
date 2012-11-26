@@ -129,6 +129,7 @@ static const struct key_entry acer_wmi_keymap[] = {
 	{KE_KEY, KEY_TOUCHPAD_ON, {KEY_TOUCHPAD_ON} },
 	{KE_KEY, KEY_TOUCHPAD_OFF, {KEY_TOUCHPAD_OFF} },
 	{KE_IGNORE, 0x83, {KEY_TOUCHPAD_TOGGLE} },
+	{KE_KEY, 0x85, {KEY_TOUCHPAD_TOGGLE} },
 	{KE_END, 0}
 };
 
