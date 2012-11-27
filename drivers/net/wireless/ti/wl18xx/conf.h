@@ -23,7 +23,7 @@
 #define __WL18XX_CONF_H__
 
 #define WL18XX_CONF_MAGIC	0x10e100ca
-#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0004)
+#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0005)
 #define WL18XX_CONF_MASK	0x0000ffff
 #define WL18XX_CONF_SIZE	(WLCORE_CONF_SIZE + \
 				 sizeof(struct wl18xx_priv_conf))
@@ -78,15 +78,19 @@ struct wl18xx_mac_and_phy_params {
 	u8 board_type;
 	/* enable point saturation */
 	u8 psat;
-	/* low/medium/high Tx power in dBm */
+	/* low/medium/high Tx power in dBm for STA-HP BG */
 	s8 low_power_val;
 	s8 med_power_val;
 	s8 high_power_val;
 	s8 per_sub_band_tx_trace_loss[WL18XX_TRACE_LOSS_GAPS_TX];
 	s8 per_sub_band_rx_trace_loss[WL18XX_TRACE_LOSS_GAPS_RX];
 	u8 tx_rf_margin;
+	/* low/medium/high Tx power in dBm for other role */
+	s8 low_power_val_2nd;
+	s8 med_power_val_2nd;
+	s8 high_power_val_2nd;
 
-	u8 padding[4];
+	u8 padding[1];
 } __packed;
 
 enum wl18xx_ht_mode {
