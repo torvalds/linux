@@ -866,6 +866,7 @@ static int popen(struct atm_vcc *vcc)
 static void pclose(struct atm_vcc *vcc)
 {
 	struct solos_card *card = vcc->dev->dev_data;
+	unsigned char port = SOLOS_CHAN(vcc->dev);
 	struct sk_buff *skb;
 	struct pkt_hdr *header;
 
@@ -881,10 +882,17 @@ static void pclose(struct atm_vcc *vcc)
 	header->vci = cpu_to_le16(vcc->vci);
 	header->type = cpu_to_le16(PKT_PCLOSE);
 
-	fpga_queue(card, SOLOS_CHAN(vcc->dev), skb, NULL);
+	skb_get(skb);
+	fpga_queue(card, port, skb, NULL);
 
 	clear_bit(ATM_VF_ADDR, &vcc->flags);
 	clear_bit(ATM_VF_READY, &vcc->flags);
+
+	if (!wait_event_timeout(card->param_wq, !skb_shared(skb), 5 * HZ))
+		dev_warn(&card->dev->dev,
+			 "Timeout waiting for VCC close on port %d\n", port);
+
+	dev_kfree_skb(skb);
 
 	/* Hold up vcc_destroy_socket() (our caller) until solos_bh() in the
 	   tasklet has finished processing any incoming packets (and, more to
@@ -1011,9 +1019,10 @@ static uint32_t fpga_tx(struct solos_card *card)
 			if (vcc) {
 				atomic_inc(&vcc->stats->tx);
 				solos_pop(vcc, oldskb);
-			} else
+			} else {
 				dev_kfree_skb_irq(oldskb);
-
+				wake_up(&card->param_wq);
+			}
 		}
 	}
 	/* For non-DMA TX, write the 'TX start' bit for all four ports simultaneously */
@@ -1345,6 +1354,8 @@ static struct pci_driver fpga_driver = {
 
 static int __init solos_pci_init(void)
 {
+	BUILD_BUG_ON(sizeof(struct solos_skb_cb) > sizeof(((struct sk_buff *)0)->cb));
+
 	printk(KERN_INFO "Solos PCI Driver Version %s\n", VERSION);
 	return pci_register_driver(&fpga_driver);
 }
