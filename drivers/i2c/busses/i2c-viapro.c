@@ -320,8 +320,8 @@ static struct i2c_adapter vt596_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static int __devinit vt596_probe(struct pci_dev *pdev,
-				 const struct pci_device_id *id)
+static int vt596_probe(struct pci_dev *pdev,
+		       const struct pci_device_id *id)
 {
 	unsigned char temp;
 	int error;
