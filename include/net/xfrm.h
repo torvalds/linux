@@ -557,10 +557,6 @@ struct xfrm_migrate {
 };
 
 #define XFRM_KM_TIMEOUT                30
-/* which seqno */
-#define XFRM_REPLAY_SEQ		1
-#define XFRM_REPLAY_OSEQ	2
-#define XFRM_REPLAY_SEQ_MASK	3
 /* what happened */
 #define XFRM_REPLAY_UPDATE	XFRM_AE_CR
 #define XFRM_REPLAY_TIMEOUT	XFRM_AE_CE
