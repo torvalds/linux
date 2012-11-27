@@ -261,6 +261,13 @@ struct dsi_data {
 	struct clk *dss_clk;
 	struct clk *sys_clk;
 
+	struct dispc_clock_info user_dispc_cinfo;
+	struct dsi_clock_info user_dsi_cinfo;
+
+	enum omap_dss_clk_source user_dispc_fclk_src;
+	enum omap_dss_clk_source user_lcd_clk_src;
+	enum omap_dss_clk_source user_dsi_fclk_src;
+
 	struct dsi_clock_info current_cinfo;
 
 	bool vdds_dsi_enabled;
@@ -1200,7 +1207,7 @@ static int dsi_set_lp_clk_divisor(struct omap_dss_device *dssdev)
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
 
-	lp_clk_div = dssdev->clocks.dsi.lp_clk_div;
+	lp_clk_div = dsi->user_dsi_cinfo.lp_clk_div;
 
 	if (lp_clk_div == 0 || lp_clk_div > dsi->lpdiv_max)
 		return -EINVAL;
@@ -3910,7 +3917,7 @@ static void dsi_config_cmd_mode_interleaving(struct omap_dss_device *dssdev)
 	struct omap_video_timings *timings = &dsi->timings;
 	int bpp = dsi_get_pixel_size(dsi->pix_fmt);
 	int ndl = dsi->num_lanes_used - 1;
-	int dsi_fclk_hsdiv = dssdev->clocks.dsi.regm_dsi + 1;
+	int dsi_fclk_hsdiv = dsi->user_dsi_cinfo.regm_dsi + 1;
 	int hsa_interleave_hs = 0, hsa_interleave_lp = 0;
 	int hfp_interleave_hs = 0, hfp_interleave_lp = 0;
 	int hbp_interleave_hs = 0, hbp_interleave_lp = 0;
@@ -4302,24 +4309,24 @@ int omapdss_dsi_set_clocks(struct omap_dss_device *dssdev,
 	dsi_fclk = cinfo.dsi_pll_hsdiv_dsi_clk;
 	lp_clk_div = DIV_ROUND_UP(dsi_fclk, lp_clk * 2);
 
-	dssdev->clocks.dsi.regn = cinfo.regn;
-	dssdev->clocks.dsi.regm = cinfo.regm;
-	dssdev->clocks.dsi.regm_dispc = cinfo.regm_dispc;
-	dssdev->clocks.dsi.regm_dsi = cinfo.regm_dsi;
+	dsi->user_dsi_cinfo.regn = cinfo.regn;
+	dsi->user_dsi_cinfo.regm = cinfo.regm;
+	dsi->user_dsi_cinfo.regm_dispc = cinfo.regm_dispc;
+	dsi->user_dsi_cinfo.regm_dsi = cinfo.regm_dsi;
 
-	dssdev->clocks.dsi.lp_clk_div = lp_clk_div;
+	dsi->user_dsi_cinfo.lp_clk_div = lp_clk_div;
 
-	dssdev->clocks.dispc.channel.lck_div = dispc_cinfo.lck_div;
-	dssdev->clocks.dispc.channel.pck_div = dispc_cinfo.pck_div;
+	dsi->user_dispc_cinfo.lck_div = dispc_cinfo.lck_div;
+	dsi->user_dispc_cinfo.pck_div = dispc_cinfo.pck_div;
 
-	dssdev->clocks.dispc.dispc_fclk_src = OMAP_DSS_CLK_SRC_FCK;
+	dsi->user_dispc_fclk_src = OMAP_DSS_CLK_SRC_FCK;
 
-	dssdev->clocks.dispc.channel.lcd_clk_src =
+	dsi->user_lcd_clk_src =
 		dsi->module_id == 0 ?
 		OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DISPC :
 		OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DISPC;
 
-	dssdev->clocks.dsi.dsi_fclk_src =
+	dsi->user_dsi_fclk_src =
 		dsi->module_id == 0 ?
 		OMAP_DSS_CLK_SRC_DSI_PLL_HSDIV_DSI :
 		OMAP_DSS_CLK_SRC_DSI2_PLL_HSDIV_DSI;
@@ -4589,8 +4596,8 @@ static int dsi_configure_dispc_clocks(struct omap_dss_device *dssdev)
 
 	fck = dsi_get_pll_hsdiv_dispc_rate(dsidev);
 
-	dispc_cinfo.lck_div = dssdev->clocks.dispc.channel.lck_div;
-	dispc_cinfo.pck_div = dssdev->clocks.dispc.channel.pck_div;
+	dispc_cinfo.lck_div = dsi->user_dispc_cinfo.lck_div;
+	dispc_cinfo.pck_div = dsi->user_dispc_cinfo.pck_div;
 
 	r = dispc_calc_clock_rates(fck, &dispc_cinfo);
 	if (r) {
@@ -4679,13 +4686,12 @@ static void dsi_display_uninit_dispc(struct omap_dss_device *dssdev)
 static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 	struct dsi_clock_info cinfo;
 	int r;
 
-	cinfo.regn  = dssdev->clocks.dsi.regn;
-	cinfo.regm  = dssdev->clocks.dsi.regm;
-	cinfo.regm_dispc = dssdev->clocks.dsi.regm_dispc;
-	cinfo.regm_dsi = dssdev->clocks.dsi.regm_dsi;
+	cinfo = dsi->user_dsi_cinfo;
+
 	r = dsi_calc_clock_rates(dsidev, &cinfo);
 	if (r) {
 		DSSERR("Failed to calc dsi clocks\n");
@@ -4716,9 +4722,8 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	dss_select_dsi_clk_source(dsi->module_id, dssdev->clocks.dsi.dsi_fclk_src);
-	dss_select_lcd_clk_source(mgr->id,
-			dssdev->clocks.dispc.channel.lcd_clk_src);
+	dss_select_dsi_clk_source(dsi->module_id, dsi->user_dsi_fclk_src);
+	dss_select_lcd_clk_source(mgr->id, dsi->user_lcd_clk_src);
 
 	DSSDBG("PLL OK\n");
 
