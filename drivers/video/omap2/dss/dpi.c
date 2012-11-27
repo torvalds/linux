@@ -91,11 +91,10 @@ static enum omap_dss_clk_source dpi_get_alt_clk_src(enum omap_channel channel)
 	}
 }
 
-static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
+static int dpi_set_dsi_clk(enum omap_channel channel,
 		unsigned long pck_req, unsigned long *fck, int *lck_div,
 		int *pck_div)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	struct dsi_clock_info dsi_cinfo;
 	struct dispc_clock_info dispc_cinfo;
 	int r;
@@ -109,8 +108,8 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 	if (r)
 		return r;
 
-	dss_select_lcd_clk_source(mgr->id,
-			dpi_get_alt_clk_src(mgr->id));
+	dss_select_lcd_clk_source(channel,
+			dpi_get_alt_clk_src(channel));
 
 	dpi.mgr_config.clock_info = dispc_cinfo;
 
@@ -121,9 +120,8 @@ static int dpi_set_dsi_clk(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
-		unsigned long pck_req, unsigned long *fck, int *lck_div,
-		int *pck_div)
+static int dpi_set_dispc_clk(unsigned long pck_req, unsigned long *fck,
+		int *lck_div, int *pck_div)
 {
 	struct dss_clock_info dss_cinfo;
 	struct dispc_clock_info dispc_cinfo;
@@ -146,20 +144,19 @@ static int dpi_set_dispc_clk(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static int dpi_set_mode(struct omap_dss_device *dssdev)
+static int dpi_set_mode(struct omap_overlay_manager *mgr)
 {
 	struct omap_video_timings *t = &dpi.timings;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	unsigned long pck;
 	int r = 0;
 
 	if (dpi.dsidev)
-		r = dpi_set_dsi_clk(dssdev, t->pixel_clock * 1000, &fck,
+		r = dpi_set_dsi_clk(mgr->id, t->pixel_clock * 1000, &fck,
 				&lck_div, &pck_div);
 	else
-		r = dpi_set_dispc_clk(dssdev, t->pixel_clock * 1000, &fck,
+		r = dpi_set_dispc_clk(t->pixel_clock * 1000, &fck,
 				&lck_div, &pck_div);
 	if (r)
 		return r;
@@ -179,10 +176,8 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static void dpi_config_lcd_manager(struct omap_dss_device *dssdev)
+static void dpi_config_lcd_manager(struct omap_overlay_manager *mgr)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
-
 	dpi.mgr_config.io_pad_mode = DSS_IO_PAD_MODE_BYPASS;
 
 	dpi.mgr_config.stallmode = false;
@@ -197,7 +192,7 @@ static void dpi_config_lcd_manager(struct omap_dss_device *dssdev)
 
 int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = dssdev->output;
+	struct omap_dss_output *out = &dpi.output;
 	int r;
 
 	mutex_lock(&dpi.lock);
@@ -230,7 +225,7 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_get_dispc;
 
-	r = dss_dpi_select_source(dssdev->channel);
+	r = dss_dpi_select_source(out->manager->id);
 	if (r)
 		goto err_src_sel;
 
@@ -244,11 +239,11 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 			goto err_dsi_pll_init;
 	}
 
-	r = dpi_set_mode(dssdev);
+	r = dpi_set_mode(out->manager);
 	if (r)
 		goto err_set_mode;
 
-	dpi_config_lcd_manager(dssdev);
+	dpi_config_lcd_manager(out->manager);
 
 	mdelay(2);
 
@@ -285,7 +280,7 @@ EXPORT_SYMBOL(omapdss_dpi_display_enable);
 
 void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	struct omap_overlay_manager *mgr = dpi.output.manager;
 
 	mutex_lock(&dpi.lock);
 
@@ -325,7 +320,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
 	int r;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	struct omap_overlay_manager *mgr = dpi.output.manager;
 	int lck_div, pck_div;
 	unsigned long fck;
 	unsigned long pck;
