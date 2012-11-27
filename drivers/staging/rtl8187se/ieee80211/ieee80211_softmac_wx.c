@@ -337,7 +337,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 			      union iwreq_data *wrqu, char *extra)
 {
 
-	int ret=0, len;
+	int ret = 0, len;
 	short proto_started;
 	unsigned long flags;
 
@@ -348,12 +348,12 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 	proto_started = ieee->proto_started;
 
 	if (wrqu->essid.length > IW_ESSID_MAX_SIZE) {
-		ret= -E2BIG;
+		ret = -E2BIG;
 		goto out;
 	}
 
 	if (ieee->iw_mode == IW_MODE_MONITOR) {
-		ret= -1;
+		ret = -1;
 		goto out;
 	}
 
@@ -528,7 +528,7 @@ int ieee80211_wx_get_power(struct ieee80211_device *ieee,
 				 struct iw_request_info *info,
 				 union iwreq_data *wrqu, char *extra)
 {
-	int ret =0;
+	int ret = 0;
 
 	down(&ieee->wx_sem);
 
