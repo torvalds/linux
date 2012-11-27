@@ -10377,17 +10377,6 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 		bp->mdio.prtad =
 			XGXS_EXT_PHY_ADDR(ext_phy_config);
 
-	/*
-	 * Check if hw lock is required to access MDC/MDIO bus to the PHY(s)
-	 * In MF mode, it is set to cover self test cases
-	 */
-	if (IS_MF(bp))
-		bp->port.need_hw_lock = 1;
-	else
-		bp->port.need_hw_lock = bnx2x_hw_lock_required(bp,
-							bp->common.shmem_base,
-							bp->common.shmem2_base);
-
 	/* Configure link feature according to nvram value */
 	eee_mode = (((SHMEM_RD(bp, dev_info.
 		      port_feature_config[port].eee_power_mode)) &

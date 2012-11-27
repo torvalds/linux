@@ -2660,20 +2660,25 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 		return 1;	/* cycle on/off once per second */
 
 	case ETHTOOL_ID_ON:
+		bnx2x_acquire_phy_lock(bp);
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,
 			      LED_MODE_ON, SPEED_1000);
+		bnx2x_release_phy_lock(bp);
 		break;
 
 	case ETHTOOL_ID_OFF:
+		bnx2x_acquire_phy_lock(bp);
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,
 			      LED_MODE_FRONT_PANEL_OFF, 0);
-
+		bnx2x_release_phy_lock(bp);
 		break;
 
 	case ETHTOOL_ID_INACTIVE:
+		bnx2x_acquire_phy_lock(bp);
 		bnx2x_set_led(&bp->link_params, &bp->link_vars,
 			      LED_MODE_OPER,
 			      bp->link_vars.line_speed);
+		bnx2x_release_phy_lock(bp);
 	}
 
 	return 0;

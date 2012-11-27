@@ -139,8 +139,6 @@ struct bnx2x_phy {
 	u8 addr;
 	u8 def_md_devad;
 	u16 flags;
-	/* Require HW lock */
-#define FLAGS_HW_LOCK_REQUIRED		(1<<0)
 	/* No Over-Current detection */
 #define FLAGS_NOC			(1<<1)
 	/* Fan failure detection required */
@@ -422,10 +420,6 @@ int bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
 				 u8 byte_cnt, u8 *o_buf);
 
 void bnx2x_hw_reset_phy(struct link_params *params);
-
-/* Checks if HW lock is required for this phy/board type */
-u8 bnx2x_hw_lock_required(struct bnx2x *bp, u32 shmem_base,
-			  u32 shmem2_base);
 
 /* Check swap bit and adjust PHY order */
 u32 bnx2x_phy_selection(struct link_params *params);

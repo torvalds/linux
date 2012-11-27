@@ -11290,8 +11290,7 @@ static struct bnx2x_phy phy_warpcore = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_DIRECT,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_TX_ERROR_CHECK),
+	.flags		= FLAGS_TX_ERROR_CHECK,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -11358,7 +11357,7 @@ static struct bnx2x_phy phy_8073 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= FLAGS_HW_LOCK_REQUIRED,
+	.flags		= 0,
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.mdio_ctrl	= 0,
@@ -11447,8 +11446,7 @@ static struct bnx2x_phy phy_8726 = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8726,
 	.addr		= 0xff,
 	.def_md_devad	= 0,
-	.flags		= (FLAGS_HW_LOCK_REQUIRED |
-			   FLAGS_INIT_XGXS_FIRST |
+	.flags		= (FLAGS_INIT_XGXS_FIRST |
 			   FLAGS_TX_ERROR_CHECK),
 	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
 	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
@@ -12001,12 +11999,6 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 					    SUPPORTED_100baseT_Full);
 	}
 
-	/* In case mdc/mdio_access of the external phy is different than the
-	 * mdc/mdio access of the XGXS, a HW lock must be taken in each access
-	 * to prevent one port interfere with another port's CL45 operations.
-	 */
-	if (mdc_mdio_access != SHARED_HW_CFG_MDC_MDIO_ACCESS1_BOTH)
-		phy->flags |= FLAGS_HW_LOCK_REQUIRED;
 	DP(NETIF_MSG_LINK, "phy_type 0x%x port %d found in index %d\n",
 		   phy_type, port, phy_index);
 	DP(NETIF_MSG_LINK, "             addr=0x%x, mdio_ctl=0x%x\n",
@@ -13566,24 +13558,6 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 
 	}
 
-}
-
-u8 bnx2x_hw_lock_required(struct bnx2x *bp, u32 shmem_base, u32 shmem2_base)
-{
-	u8 phy_index;
-	struct bnx2x_phy phy;
-	for (phy_index = INT_PHY; phy_index < MAX_PHYS;
-	      phy_index++) {
-		if (bnx2x_populate_phy(bp, phy_index, shmem_base, shmem2_base,
-				       0, &phy) != 0) {
-			DP(NETIF_MSG_LINK, "populate phy failed\n");
-			return 0;
-		}
-
-		if (phy.flags & FLAGS_HW_LOCK_REQUIRED)
-			return 1;
-	}
-	return 0;
 }
 
 u8 bnx2x_fan_failure_det_req(struct bnx2x *bp,

@@ -936,7 +936,6 @@ struct bnx2x_port {
 
 	/* used to synchronize phy accesses */
 	struct mutex		phy_mutex;
-	int			need_hw_lock;
 
 	u32			port_stx;
 

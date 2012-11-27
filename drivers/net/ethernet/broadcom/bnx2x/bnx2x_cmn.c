@@ -948,14 +948,12 @@ void bnx2x_acquire_phy_lock(struct bnx2x *bp)
 {
 	mutex_lock(&bp->port.phy_mutex);
 
-	if (bp->port.need_hw_lock)
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
 }
 
 void bnx2x_release_phy_lock(struct bnx2x *bp)
 {
-	if (bp->port.need_hw_lock)
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_MDIO);
 
 	mutex_unlock(&bp->port.phy_mutex);
 }
