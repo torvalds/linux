@@ -7986,9 +7986,8 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u32 sync_offset = 0, phy_idx, media_types;
-	u8 val[2], check_limiting_mode = 0;
+	u8 gport, val[2], check_limiting_mode = 0;
 	*edc_mode = EDC_MODE_LIMITING;
-
 	phy->media_type = ETH_PHY_UNSPECIFIED;
 	/* First check for copper cable */
 	if (bnx2x_read_sfp_module_eeprom(phy,
@@ -8043,8 +8042,15 @@ static int bnx2x_get_edc_mode(struct bnx2x_phy *phy,
 			       SFP_EEPROM_COMP_CODE_LR_MASK |
 			       SFP_EEPROM_COMP_CODE_LRM_MASK)) == 0) {
 			DP(NETIF_MSG_LINK, "1G Optic module detected\n");
+			gport = params->port;
 			phy->media_type = ETH_PHY_SFP_1G_FIBER;
 			phy->req_line_speed = SPEED_1000;
+			if (!CHIP_IS_E1x(bp))
+				gport = BP_PATH(bp) + (params->port << 1);
+			netdev_err(bp->dev, "Warning: Link speed was forced to 1000Mbps."
+			      " Current SFP module in port %d is not"
+			      " compliant with 10G Ethernet\n",
+			 gport);
 		} else {
 			int idx, cfg_idx = 0;
 			DP(NETIF_MSG_LINK, "10G Optic module detected\n");
