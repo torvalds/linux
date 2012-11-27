@@ -21,8 +21,6 @@
 
 */
 
-#define _GNU_SOURCE
-
 #define __NO_VERSION__
 #include <linux/device.h>
 #include <linux/module.h>
