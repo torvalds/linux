@@ -24,6 +24,13 @@
 
 #include <scsi/fcoe_sysfs.h>
 
+/*
+ * OK to include local libfcoe.h for debug_logging, but cannot include
+ * <scsi/libfcoe.h> otherwise non-netdev based fcoe solutions would have
+ * have to include more than fcoe_sysfs.h.
+ */
+#include "libfcoe.h"
+
 static atomic_t ctlr_num;
 static atomic_t fcf_num;
 
