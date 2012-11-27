@@ -153,9 +153,10 @@ enum {
 	EXTCON_CABLE_CHARGE_DOWNSTREAM,
 	EXTCON_CABLE_MHL,
 	EXTCON_CABLE_MHL_TA,
+	EXTCON_CABLE_JIG_USB_ON,
+	EXTCON_CABLE_JIG_USB_OFF,
+	EXTCON_CABLE_JIG_UART_OFF,
 	EXTCON_CABLE_AUDIO_VIDEO_LOAD,
-	EXTCON_CABLE_AUDIO_VIDEO_NOLOAD,
-	EXTCON_CABLE_JIG,
 
 	_EXTCON_CABLE_NUM,
 };
@@ -169,9 +170,11 @@ const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
 	[EXTCON_CABLE_MHL]			= "MHL",
 	[EXTCON_CABLE_MHL_TA]			= "MHL_TA",
+	[EXTCON_CABLE_JIG_USB_ON]		= "JIG-USB-ON",
+	[EXTCON_CABLE_JIG_USB_OFF]		= "JIG-USB-OFF",
+	[EXTCON_CABLE_JIG_UART_OFF]		= "JIG-UART-OFF",
 	[EXTCON_CABLE_AUDIO_VIDEO_LOAD]		= "Audio-video-load",
-	[EXTCON_CABLE_AUDIO_VIDEO_NOLOAD]	= "Audio-video-noload",
-	[EXTCON_CABLE_JIG]			= "JIG",
+
 	NULL,
 };
 
@@ -450,6 +453,44 @@ out:
 	return ret;
 }
 
+static int max77693_muic_jig_handler(struct max77693_muic_info *info,
+		int cable_type, bool attached)
+{
+	char cable_name[32];
+	int ret = 0;
+	u8 path = CONTROL1_SW_OPEN;
+
+	dev_info(info->dev,
+		"external connector is %s (adc:0x%02x)\n",
+		attached ? "attached" : "detached", cable_type);
+
+	switch (cable_type) {
+	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_OFF:	/* ADC_JIG_USB_OFF */
+		/* PATH:AP_USB */
+		strcpy(cable_name, "JIG-USB-OFF");
+		path = CONTROL1_SW_USB;
+		break;
+	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_ON:	/* ADC_JIG_USB_ON */
+		/* PATH:AP_USB */
+		strcpy(cable_name, "JIG-USB-ON");
+		path = CONTROL1_SW_USB;
+		break;
+	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF:	/* ADC_JIG_UART_OFF */
+		/* PATH:AP_UART */
+		strcpy(cable_name, "JIG-UART-OFF");
+		path = CONTROL1_SW_UART;
+		break;
+	}
+
+	ret = max77693_muic_set_path(info, path, attached);
+	if (ret < 0)
+		goto out;
+
+	extcon_set_cable_state(info->edev, cable_name, attached);
+out:
+	return ret;
+}
+
 static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 {
 	int cable_type;
@@ -474,10 +515,9 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_ON:
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF:
 		/* JIG */
-		ret = max77693_muic_set_path(info, CONTROL1_SW_UART, attached);
+		ret = max77693_muic_jig_handler(info, cable_type, attached);
 		if (ret < 0)
 			goto out;
-		extcon_set_cable_state(info->edev, "JIG", attached);
 		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:
