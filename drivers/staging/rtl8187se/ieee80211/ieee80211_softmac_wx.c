@@ -174,7 +174,7 @@ out:
 	return ret;
 }
 
- int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,
+int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,
 			    union iwreq_data *wrqu, char *b)
 {
 	int len, ret = 0;
@@ -395,7 +395,7 @@ out:
 	return ret;
 }
 
- int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
+int ieee80211_wx_get_mode(struct ieee80211_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
 {
 
@@ -403,7 +403,7 @@ out:
 	return 0;
 }
 
- int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
+int ieee80211_wx_set_rawtx(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
