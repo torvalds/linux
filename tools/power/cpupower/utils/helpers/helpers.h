@@ -114,6 +114,7 @@ struct cpupower_topology {
 
 extern int get_cpu_topology(struct cpupower_topology *cpu_top);
 extern void cpu_topology_release(struct cpupower_topology cpu_top);
+
 /* CPU topology/hierarchy parsing ******************/
 
 /* X86 ONLY ****************************************/
