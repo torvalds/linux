@@ -1,7 +1,7 @@
 /*
  * extcon-max8997.c - MAX8997 extcon driver to support MAX8997 MUIC
  *
- *  Copyright (C) 2012 Samsung Electrnoics
+ *  Copyright (C) 2012 Samsung Electronics
  *  Donggeun Kim <dg77.kim@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -433,11 +433,11 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	struct max8997_muic_info *info;
 	int ret, i;
 
-	info = kzalloc(sizeof(struct max8997_muic_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8997_muic_info),
+			    GFP_KERNEL);
 	if (!info) {
 		dev_err(&pdev->dev, "failed to allocate memory\n");
-		ret = -ENOMEM;
-		goto err_kfree;
+		return -ENOMEM;
 	}
 
 	info->dev = &pdev->dev;
@@ -450,14 +450,16 @@ static int max8997_muic_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(muic_irqs); i++) {
 		struct max8997_muic_irq *muic_irq = &muic_irqs[i];
-		int virq = 0;
+		unsigned int virq = 0;
 
 		virq = irq_create_mapping(max8997->irq_domain, muic_irq->irq);
-		if (!virq)
+		if (!virq) {
+			ret = -EINVAL;
 			goto err_irq;
+		}
 		muic_irq->virq = virq;
 
-		ret = request_threaded_irq(virq, NULL,max8997_muic_irq_handler,
+		ret = request_threaded_irq(virq, NULL, max8997_muic_irq_handler,
 				0, muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
@@ -469,7 +471,8 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	}
 
 	/* External connector */
-	info->edev = kzalloc(sizeof(struct extcon_dev), GFP_KERNEL);
+	info->edev = devm_kzalloc(&pdev->dev, sizeof(struct extcon_dev),
+				  GFP_KERNEL);
 	if (!info->edev) {
 		dev_err(&pdev->dev, "failed to allocate memory for extcon\n");
 		ret = -ENOMEM;
@@ -480,7 +483,7 @@ static int max8997_muic_probe(struct platform_device *pdev)
 	ret = extcon_dev_register(info->edev, NULL);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register extcon device\n");
-		goto err_extcon;
+		goto err_irq;
 	}
 
 	/* Initialize registers according to platform data */
@@ -498,13 +501,9 @@ static int max8997_muic_probe(struct platform_device *pdev)
 
 	return ret;
 
-err_extcon:
-	kfree(info->edev);
 err_irq:
 	while (--i >= 0)
 		free_irq(muic_irqs[i].virq, info);
-	kfree(info);
-err_kfree:
 	return ret;
 }
 
@@ -518,9 +517,6 @@ static int max8997_muic_remove(struct platform_device *pdev)
 	cancel_work_sync(&info->irq_work);
 
 	extcon_dev_unregister(info->edev);
-
-	kfree(info->edev);
-	kfree(info);
 
 	return 0;
 }

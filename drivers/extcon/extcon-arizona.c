@@ -166,6 +166,7 @@ static irqreturn_t arizona_micdet(int irq, void *data)
 	ret = regmap_read(arizona->regmap, ARIZONA_MIC_DETECT_3, &val);
 	if (ret != 0) {
 		dev_err(arizona->dev, "Failed to read MICDET: %d\n", ret);
+		mutex_unlock(&info->lock);
 		return IRQ_NONE;
 	}
 
