@@ -530,6 +530,25 @@ static int __init bL_switcher_sysfs_init(void)
 
 #endif  /* CONFIG_SYSFS */
 
+/*
+ * Veto any CPU hotplug operation while the switcher is active.
+ * We're just not ready to deal with that given the trickery involved.
+ */
+static int bL_switcher_hotplug_callback(struct notifier_block *nfb,
+					unsigned long action, void *hcpu)
+{
+	switch (action) {
+	case CPU_UP_PREPARE:
+	case CPU_DOWN_PREPARE:
+		if (bL_switcher_active)
+			return NOTIFY_BAD;
+	}
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block bL_switcher_hotplug_notifier =
+        { &bL_switcher_hotplug_callback, NULL, 0 };
+
 static bool no_bL_switcher;
 core_param(no_bL_switcher, no_bL_switcher, bool, 0644);
 
@@ -541,6 +560,8 @@ static int __init bL_switcher_init(void)
 		pr_err("%s: only dual cluster systems are supported\n", __func__);
 		return -EINVAL;
 	}
+
+	register_cpu_notifier(&bL_switcher_hotplug_notifier);
 
 	if (!no_bL_switcher) {
 		ret = bL_switcher_enable();
