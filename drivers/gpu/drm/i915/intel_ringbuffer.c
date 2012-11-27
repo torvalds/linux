@@ -1175,7 +1175,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	/* Disable the ring buffer. The ring must be idle at this point */
 	dev_priv = ring->dev->dev_private;
-	ret = intel_wait_ring_idle(ring);
+	ret = intel_ring_idle(ring);
 	if (ret)
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  ring->name, ret);
@@ -1192,28 +1192,6 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 		ring->cleanup(ring);
 
 	cleanup_status_page(ring);
-}
-
-static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
-{
-	uint32_t __iomem *virt;
-	int rem = ring->size - ring->tail;
-
-	if (ring->space < rem) {
-		int ret = intel_wait_ring_buffer(ring, rem);
-		if (ret)
-			return ret;
-	}
-
-	virt = ring->virtual_start + ring->tail;
-	rem /= 4;
-	while (rem--)
-		iowrite32(MI_NOOP, virt++);
-
-	ring->tail = 0;
-	ring->space = ring_space(ring);
-
-	return 0;
 }
 
 static int intel_ring_wait_seqno(struct intel_ring_buffer *ring, u32 seqno)
@@ -1284,7 +1262,7 @@ static int intel_ring_wait_request(struct intel_ring_buffer *ring, int n)
 	return 0;
 }
 
-int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
+static int ring_wait_for_space(struct intel_ring_buffer *ring, int n)
 {
 	struct drm_device *dev = ring->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1327,6 +1305,51 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	return -EBUSY;
 }
 
+static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
+{
+	uint32_t __iomem *virt;
+	int rem = ring->size - ring->tail;
+
+	if (ring->space < rem) {
+		int ret = ring_wait_for_space(ring, rem);
+		if (ret)
+			return ret;
+	}
+
+	virt = ring->virtual_start + ring->tail;
+	rem /= 4;
+	while (rem--)
+		iowrite32(MI_NOOP, virt++);
+
+	ring->tail = 0;
+	ring->space = ring_space(ring);
+
+	return 0;
+}
+
+int intel_ring_idle(struct intel_ring_buffer *ring)
+{
+	u32 seqno;
+	int ret;
+
+	/* We need to add any requests required to flush the objects and ring */
+	if (ring->outstanding_lazy_request) {
+		ret = i915_add_request(ring, NULL, NULL);
+		if (ret)
+			return ret;
+	}
+
+	/* Wait upon the last request to be completed */
+	if (list_empty(&ring->request_list))
+		return 0;
+
+	seqno = list_entry(ring->request_list.prev,
+			   struct drm_i915_gem_request,
+			   list)->seqno;
+
+	return i915_wait_seqno(ring, seqno);
+}
+
 static int
 intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
 {
@@ -1359,7 +1382,7 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	}
 
 	if (unlikely(ring->space < n)) {
-		ret = intel_wait_ring_buffer(ring, n);
+		ret = ring_wait_for_space(ring, n);
 		if (unlikely(ret))
 			return ret;
 	}

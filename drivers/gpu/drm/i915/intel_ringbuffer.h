@@ -187,22 +187,15 @@ intel_read_status_page(struct intel_ring_buffer *ring,
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
-int __must_check intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n);
-static inline int intel_wait_ring_idle(struct intel_ring_buffer *ring)
-{
-	return intel_wait_ring_buffer(ring, ring->size - 8);
-}
-
 int __must_check intel_ring_begin(struct intel_ring_buffer *ring, int n);
-
 static inline void intel_ring_emit(struct intel_ring_buffer *ring,
 				   u32 data)
 {
 	iowrite32(data, ring->virtual_start + ring->tail);
 	ring->tail += 4;
 }
-
 void intel_ring_advance(struct intel_ring_buffer *ring);
+int __must_check intel_ring_idle(struct intel_ring_buffer *ring);
 
 int intel_ring_flush_all_caches(struct intel_ring_buffer *ring);
 int intel_ring_invalidate_all_caches(struct intel_ring_buffer *ring);

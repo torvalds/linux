@@ -2653,6 +2653,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
+	bool was_interruptible;
 	int ret;
 
 	/* rc6 disabled by default due to repeated reports of hanging during
@@ -2667,6 +2668,9 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	if (ret)
 		return;
 
+	was_interruptible = dev_priv->mm.interruptible;
+	dev_priv->mm.interruptible = false;
+
 	/*
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
@@ -2674,6 +2678,7 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	ret = intel_ring_begin(ring, 6);
 	if (ret) {
 		ironlake_teardown_rc6(dev);
+		dev_priv->mm.interruptible = was_interruptible;
 		return;
 	}
 
@@ -2694,7 +2699,8 @@ static void ironlake_enable_rc6(struct drm_device *dev)
 	 * does an implicit flush, combined with MI_FLUSH above, it should be
 	 * safe to assume that renderctx is valid
 	 */
-	ret = intel_wait_ring_idle(ring);
+	ret = intel_ring_idle(ring);
+	dev_priv->mm.interruptible = was_interruptible;
 	if (ret) {
 		DRM_ERROR("failed to enable ironlake power power savings\n");
 		ironlake_teardown_rc6(dev);

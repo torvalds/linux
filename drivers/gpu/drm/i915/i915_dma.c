@@ -592,10 +592,8 @@ static int i915_dispatch_flip(struct drm_device * dev)
 
 static int i915_quiescent(struct drm_device *dev)
 {
-	struct intel_ring_buffer *ring = LP_RING(dev->dev_private);
-
 	i915_kernel_lost_context(dev);
-	return intel_wait_ring_idle(ring);
+	return intel_ring_idle(LP_RING(dev->dev_private));
 }
 
 static int i915_flush_ioctl(struct drm_device *dev, void *data,
