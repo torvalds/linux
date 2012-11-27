@@ -210,25 +210,23 @@ static ssize_t show_fcoe_fcf_device_##field(struct device *dev,	\
 #define fcoe_enum_name_search(title, table_type, table)			\
 static const char *get_fcoe_##title##_name(enum table_type table_key)	\
 {									\
-	int i;								\
-	char *name = NULL;						\
-									\
-	for (i = 0; i < ARRAY_SIZE(table); i++) {			\
-		if (table[i].value == table_key) {			\
-			name = table[i].name;				\
-			break;						\
-		}							\
-	}								\
-	return name;							\
+	if (table_key < 0 || table_key >= ARRAY_SIZE(table))		\
+		return NULL;						\
+	return table[table_key];					\
 }
 
-static struct {
-	enum fcf_state value;
-	char           *name;
-} fcf_state_names[] = {
-	{ FCOE_FCF_STATE_UNKNOWN,      "Unknown" },
-	{ FCOE_FCF_STATE_DISCONNECTED, "Disconnected" },
-	{ FCOE_FCF_STATE_CONNECTED,    "Connected" },
+static char *fip_conn_type_names[] = {
+	[ FIP_CONN_TYPE_UNKNOWN ] = "Unknown",
+	[ FIP_CONN_TYPE_FABRIC ]  = "Fabric",
+	[ FIP_CONN_TYPE_VN2VN ]   = "VN2VN",
+};
+fcoe_enum_name_search(ctlr_mode, fip_conn_type, fip_conn_type_names)
+#define FCOE_CTLR_MODE_MAX_NAMELEN 50
+
+static char *fcf_state_names[] = {
+	[ FCOE_FCF_STATE_UNKNOWN ]      = "Unknown",
+	[ FCOE_FCF_STATE_DISCONNECTED ] = "Disconnected",
+	[ FCOE_FCF_STATE_CONNECTED ]    = "Connected",
 };
 fcoe_enum_name_search(fcf_state, fcf_state, fcf_state_names)
 #define FCOE_FCF_STATE_MAX_NAMELEN 50
@@ -246,17 +244,7 @@ static ssize_t show_fcf_state(struct device *dev,
 }
 static FCOE_DEVICE_ATTR(fcf, state, S_IRUGO, show_fcf_state, NULL);
 
-static struct {
-	enum fip_conn_type value;
-	char               *name;
-} fip_conn_type_names[] = {
-	{ FIP_CONN_TYPE_UNKNOWN, "Unknown" },
-	{ FIP_CONN_TYPE_FABRIC, "Fabric" },
-	{ FIP_CONN_TYPE_VN2VN, "VN2VN" },
-};
-fcoe_enum_name_search(ctlr_mode, fip_conn_type, fip_conn_type_names)
-#define FCOE_CTLR_MODE_MAX_NAMELEN 50
-
+#define FCOE_MAX_MODENAME_LEN 20
 static ssize_t show_ctlr_mode(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf)
