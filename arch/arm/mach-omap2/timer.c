@@ -392,7 +392,7 @@ static struct of_device_id omap_counter_match[] __initdata = {
 };
 
 /* Setup free-running counter for clocksource */
-static int __init omap2_sync32k_clocksource_init(void)
+static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 {
 	int ret;
 	struct device_node *np = NULL;
