@@ -2414,6 +2414,11 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 		wl->sched_vif = NULL;
 	}
 
+	if (wl->roc_vif == vif) {
+		wl->roc_vif = NULL;
+		ieee80211_remain_on_channel_expired(wl->hw);
+	}
+
 	if (!test_bit(WL1271_FLAG_RECOVERY_IN_PROGRESS, &wl->flags)) {
 		/* disable active roles */
 		ret = wl1271_ps_elp_wakeup(wl);
