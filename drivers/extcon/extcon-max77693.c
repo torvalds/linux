@@ -30,92 +30,6 @@
 
 #define	DEV_NAME			"max77693-muic"
 
-/* MAX77693 MUIC - STATUS1~3 Register */
-#define STATUS1_ADC_SHIFT		(0)
-#define STATUS1_ADCLOW_SHIFT		(5)
-#define STATUS1_ADCERR_SHIFT		(6)
-#define STATUS1_ADC1K_SHIFT		(7)
-#define STATUS1_ADC_MASK		(0x1f << STATUS1_ADC_SHIFT)
-#define STATUS1_ADCLOW_MASK		(0x1 << STATUS1_ADCLOW_SHIFT)
-#define STATUS1_ADCERR_MASK		(0x1 << STATUS1_ADCERR_SHIFT)
-#define STATUS1_ADC1K_MASK		(0x1 << STATUS1_ADC1K_SHIFT)
-
-#define STATUS2_CHGTYP_SHIFT		(0)
-#define STATUS2_CHGDETRUN_SHIFT		(3)
-#define STATUS2_DCDTMR_SHIFT		(4)
-#define STATUS2_DXOVP_SHIFT		(5)
-#define STATUS2_VBVOLT_SHIFT		(6)
-#define STATUS2_VIDRM_SHIFT		(7)
-#define STATUS2_CHGTYP_MASK		(0x7 << STATUS2_CHGTYP_SHIFT)
-#define STATUS2_CHGDETRUN_MASK		(0x1 << STATUS2_CHGDETRUN_SHIFT)
-#define STATUS2_DCDTMR_MASK		(0x1 << STATUS2_DCDTMR_SHIFT)
-#define STATUS2_DXOVP_MASK		(0x1 << STATUS2_DXOVP_SHIFT)
-#define STATUS2_VBVOLT_MASK		(0x1 << STATUS2_VBVOLT_SHIFT)
-#define STATUS2_VIDRM_MASK		(0x1 << STATUS2_VIDRM_SHIFT)
-
-#define STATUS3_OVP_SHIFT		(2)
-#define STATUS3_OVP_MASK		(0x1 << STATUS3_OVP_SHIFT)
-
-/* MAX77693 CDETCTRL1~2 register */
-#define CDETCTRL1_CHGDETEN_SHIFT	(0)
-#define CDETCTRL1_CHGTYPMAN_SHIFT	(1)
-#define CDETCTRL1_DCDEN_SHIFT		(2)
-#define CDETCTRL1_DCD2SCT_SHIFT		(3)
-#define CDETCTRL1_CDDELAY_SHIFT		(4)
-#define CDETCTRL1_DCDCPL_SHIFT		(5)
-#define CDETCTRL1_CDPDET_SHIFT		(7)
-#define CDETCTRL1_CHGDETEN_MASK		(0x1 << CDETCTRL1_CHGDETEN_SHIFT)
-#define CDETCTRL1_CHGTYPMAN_MASK	(0x1 << CDETCTRL1_CHGTYPMAN_SHIFT)
-#define CDETCTRL1_DCDEN_MASK		(0x1 << CDETCTRL1_DCDEN_SHIFT)
-#define CDETCTRL1_DCD2SCT_MASK		(0x1 << CDETCTRL1_DCD2SCT_SHIFT)
-#define CDETCTRL1_CDDELAY_MASK		(0x1 << CDETCTRL1_CDDELAY_SHIFT)
-#define CDETCTRL1_DCDCPL_MASK		(0x1 << CDETCTRL1_DCDCPL_SHIFT)
-#define CDETCTRL1_CDPDET_MASK		(0x1 << CDETCTRL1_CDPDET_SHIFT)
-
-#define CDETCTRL2_VIDRMEN_SHIFT		(1)
-#define CDETCTRL2_DXOVPEN_SHIFT		(3)
-#define CDETCTRL2_VIDRMEN_MASK		(0x1 << CDETCTRL2_VIDRMEN_SHIFT)
-#define CDETCTRL2_DXOVPEN_MASK		(0x1 << CDETCTRL2_DXOVPEN_SHIFT)
-
-/* MAX77693 MUIC - CONTROL1~3 register */
-#define COMN1SW_SHIFT			(0)
-#define COMP2SW_SHIFT			(3)
-#define COMN1SW_MASK			(0x7 << COMN1SW_SHIFT)
-#define COMP2SW_MASK			(0x7 << COMP2SW_SHIFT)
-#define COMP_SW_MASK			(COMP2SW_MASK | COMN1SW_MASK)
-#define CONTROL1_SW_USB			((1 << COMP2SW_SHIFT) \
-						| (1 << COMN1SW_SHIFT))
-#define CONTROL1_SW_AUDIO		((2 << COMP2SW_SHIFT) \
-						| (2 << COMN1SW_SHIFT))
-#define CONTROL1_SW_UART		((3 << COMP2SW_SHIFT) \
-						| (3 << COMN1SW_SHIFT))
-#define CONTROL1_SW_OPEN		((0 << COMP2SW_SHIFT) \
-						| (0 << COMN1SW_SHIFT))
-
-#define CONTROL2_LOWPWR_SHIFT		(0)
-#define CONTROL2_ADCEN_SHIFT		(1)
-#define CONTROL2_CPEN_SHIFT		(2)
-#define CONTROL2_SFOUTASRT_SHIFT	(3)
-#define CONTROL2_SFOUTORD_SHIFT		(4)
-#define CONTROL2_ACCDET_SHIFT		(5)
-#define CONTROL2_USBCPINT_SHIFT		(6)
-#define CONTROL2_RCPS_SHIFT		(7)
-#define CONTROL2_LOWPWR_MASK		(0x1 << CONTROL2_LOWPWR_SHIFT)
-#define CONTROL2_ADCEN_MASK		(0x1 << CONTROL2_ADCEN_SHIFT)
-#define CONTROL2_CPEN_MASK		(0x1 << CONTROL2_CPEN_SHIFT)
-#define CONTROL2_SFOUTASRT_MASK		(0x1 << CONTROL2_SFOUTASRT_SHIFT)
-#define CONTROL2_SFOUTORD_MASK		(0x1 << CONTROL2_SFOUTORD_SHIFT)
-#define CONTROL2_ACCDET_MASK		(0x1 << CONTROL2_ACCDET_SHIFT)
-#define CONTROL2_USBCPINT_MASK		(0x1 << CONTROL2_USBCPINT_SHIFT)
-#define CONTROL2_RCPS_MASK		(0x1 << CONTROL2_RCPS_SHIFT)
-
-#define CONTROL3_JIGSET_SHIFT		(0)
-#define CONTROL3_BTLDSET_SHIFT		(2)
-#define CONTROL3_ADCDBSET_SHIFT		(4)
-#define CONTROL3_JIGSET_MASK		(0x3 << CONTROL3_JIGSET_SHIFT)
-#define CONTROL3_BTLDSET_MASK		(0x3 << CONTROL3_BTLDSET_SHIFT)
-#define CONTROL3_ADCDBSET_MASK		(0x3 << CONTROL3_ADCDBSET_SHIFT)
-
 enum max77693_muic_adc_debounce_time {
 	ADC_DEBOUNCE_TIME_5MS = 0,
 	ADC_DEBOUNCE_TIME_10MS,
@@ -127,14 +41,21 @@ struct max77693_muic_info {
 	struct device *dev;
 	struct max77693_dev *max77693;
 	struct extcon_dev *edev;
-	int prev_adc;
-	int prev_adc_gnd;
+	int prev_cable_type;
+	int prev_cable_type_gnd;
 	int prev_chg_type;
 	u8 status[2];
 
 	int irq;
 	struct work_struct irq_work;
 	struct mutex mutex;
+};
+
+enum max77693_muic_cable_group {
+	MAX77693_CABLE_GROUP_ADC = 0,
+	MAX77693_CABLE_GROUP_ADC_GND,
+	MAX77693_CABLE_GROUP_CHG,
+	MAX77693_CABLE_GROUP_VBVOLT,
 };
 
 enum max77693_muic_charger_type {
@@ -221,21 +142,40 @@ enum max77693_muic_acc_type {
 };
 
 /* MAX77693 MUIC device support below list of accessories(external connector) */
-const char *max77693_extcon_cable[] = {
-	[0] = "USB",
-	[1] = "USB-Host",
-	[2] = "TA",
-	[3] = "Fast-charger",
-	[4] = "Slow-charger",
-	[5] = "Charge-downstream",
-	[6] = "MHL",
-	[7] = "Audio-video-load",
-	[8] = "Audio-video-noload",
-	[9] = "JIG",
+enum {
+	EXTCON_CABLE_USB = 0,
+	EXTCON_CABLE_USB_HOST,
+	EXTCON_CABLE_TA,
+	EXTCON_CABLE_FAST_CHARGER,
+	EXTCON_CABLE_SLOW_CHARGER,
+	EXTCON_CABLE_CHARGE_DOWNSTREAM,
+	EXTCON_CABLE_MHL,
+	EXTCON_CABLE_AUDIO_VIDEO_LOAD,
+	EXTCON_CABLE_AUDIO_VIDEO_NOLOAD,
+	EXTCON_CABLE_JIG,
 
+	_EXTCON_CABLE_NUM,
+};
+
+const char *max77693_extcon_cable[] = {
+	[EXTCON_CABLE_USB]			= "USB",
+	[EXTCON_CABLE_USB_HOST]			= "USB-Host",
+	[EXTCON_CABLE_TA]			= "TA",
+	[EXTCON_CABLE_FAST_CHARGER]		= "Fast-charger",
+	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
+	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
+	[EXTCON_CABLE_MHL]			= "MHL",
+	[EXTCON_CABLE_AUDIO_VIDEO_LOAD]		= "Audio-video-load",
+	[EXTCON_CABLE_AUDIO_VIDEO_NOLOAD]	= "Audio-video-noload",
+	[EXTCON_CABLE_JIG]			= "JIG",
 	NULL,
 };
 
+/*
+ * max77693_muic_set_debounce_time - Set the debounce time of ADC
+ * @info: the instance including private data of max77693 MUIC
+ * @time: the debounce time of ADC
+ */
 static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 		enum max77693_muic_adc_debounce_time time)
 {
@@ -262,6 +202,16 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 	return ret;
 };
 
+/*
+ * max77693_muic_set_path - Set hardware line according to attached cable
+ * @info: the instance including private data of max77693 MUIC
+ * @value: the path according to attached cable
+ * @attached: the state of cable (true:attached, false:detached)
+ *
+ * The max77693 MUIC device share outside H/W line among a varity of cables
+ * so, this function set internal path of H/W line according to the type of
+ * attached cable.
+ */
 static int max77693_muic_set_path(struct max77693_muic_info *info,
 		u8 val, bool attached)
 {
@@ -300,36 +250,169 @@ out:
 	return ret;
 }
 
-static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info,
-		bool attached)
+/*
+ * max77693_muic_get_cable_type - Return cable type and check cable state
+ * @info: the instance including private data of max77693 MUIC
+ * @group: the path according to attached cable
+ * @attached: store cable state and return
+ *
+ * This function check the cable state either attached or detached,
+ * and then divide precise type of cable according to cable group.
+ *	- MAX77693_CABLE_GROUP_ADC
+ *	- MAX77693_CABLE_GROUP_ADC_GND
+ *	- MAX77693_CABLE_GROUP_CHG
+ *	- MAX77693_CABLE_GROUP_VBVOLT
+ */
+static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
+		enum max77693_muic_cable_group group, bool *attached)
 {
-	int ret = 0;
-	int type;
-	int adc, adc1k, adclow;
+	int cable_type = 0;
+	int adc;
+	int adc1k;
+	int adclow;
+	int vbvolt;
+	int chg_type;
 
-	if (attached) {
-		adc = info->status[0] & STATUS1_ADC_MASK;
-		adclow = info->status[0] & STATUS1_ADCLOW_MASK;
-		adclow >>= STATUS1_ADCLOW_SHIFT;
-		adc1k = info->status[0] & STATUS1_ADC1K_MASK;
-		adc1k >>= STATUS1_ADC1K_SHIFT;
-
-		/**
-		 * [0x1][ADCLow][ADC1K]
-		 * [0x1    0       0  ]	: USB_OTG
-		 * [0x1    1       0  ] : Audio Video Cable with load
-		 * [0x1    1       1  ] : MHL
+	switch (group) {
+	case MAX77693_CABLE_GROUP_ADC:
+		/*
+		 * Read ADC value to check cable type and decide cable state
+		 * according to cable type
 		 */
-		type = ((0x1 << 8) | (adclow << 1) | adc1k);
+		adc = info->status[0] & STATUS1_ADC_MASK;
+		adc >>= STATUS1_ADC_SHIFT;
 
-		/* Store previous ADC value to handle accessory
-		   when accessory will be detached */
-		info->prev_adc = adc;
-		info->prev_adc_gnd = type;
-	} else
-		type = info->prev_adc_gnd;
+		/*
+		 * Check current cable state/cable type and store cable type
+		 * (info->prev_cable_type) for handling cable when cable is
+		 * detached.
+		 */
+		if (adc == MAX77693_MUIC_ADC_OPEN) {
+			*attached = false;
 
-	switch (type) {
+			cable_type = info->prev_cable_type;
+			info->prev_cable_type = MAX77693_MUIC_ADC_OPEN;
+		} else {
+			*attached = true;
+
+			cable_type = info->prev_cable_type = adc;
+		}
+		break;
+	case MAX77693_CABLE_GROUP_ADC_GND:
+		/*
+		 * Read ADC value to check cable type and decide cable state
+		 * according to cable type
+		 */
+		adc = info->status[0] & STATUS1_ADC_MASK;
+		adc >>= STATUS1_ADC_SHIFT;
+
+		/*
+		 * Check current cable state/cable type and store cable type
+		 * (info->prev_cable_type/_gnd) for handling cable when cable
+		 * is detached.
+		 */
+		if (adc == MAX77693_MUIC_ADC_OPEN) {
+			*attached = false;
+
+			cable_type = info->prev_cable_type_gnd;
+			info->prev_cable_type_gnd = MAX77693_MUIC_ADC_OPEN;
+		} else {
+			*attached = true;
+
+			adclow = info->status[0] & STATUS1_ADCLOW_MASK;
+			adclow >>= STATUS1_ADCLOW_SHIFT;
+			adc1k = info->status[0] & STATUS1_ADC1K_MASK;
+			adc1k >>= STATUS1_ADC1K_SHIFT;
+
+			vbvolt = info->status[1] & STATUS2_VBVOLT_MASK;
+			vbvolt >>= STATUS2_VBVOLT_SHIFT;
+
+			/**
+			 * [0x1][VBVolt][ADCLow][ADC1K]
+			 * [0x1    0	   0       0  ]	: USB_OTG
+			 * [0x1    0       1       0  ] : Audio Video Cable with load
+			 * [0x1    0       1       1  ] : MHL without charging connector
+			 * [0x1    1       1       1  ] : MHL with charging connector
+			 */
+			cable_type = ((0x1 << 8)
+					| (vbvolt << 2)
+					| (adclow << 1)
+					| adc1k);
+
+			info->prev_cable_type = adc;
+			info->prev_cable_type_gnd = cable_type;
+		}
+
+		break;
+	case MAX77693_CABLE_GROUP_CHG:
+		/*
+		 * Read charger type to check cable type and decide cable state
+		 * according to type of charger cable.
+		 */
+		chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
+		chg_type >>= STATUS2_CHGTYP_SHIFT;
+
+		if (chg_type == MAX77693_CHARGER_TYPE_NONE) {
+			*attached = false;
+
+			cable_type = info->prev_chg_type;
+			info->prev_chg_type = MAX77693_CHARGER_TYPE_NONE;
+		} else {
+			*attached = true;
+
+			/*
+			 * Check current cable state/cable type and store cable
+			 * type(info->prev_chg_type) for handling cable when
+			 * charger cable is detached.
+			 */
+			cable_type = info->prev_chg_type = chg_type;
+		}
+
+		break;
+	case MAX77693_CABLE_GROUP_VBVOLT:
+		/*
+		 * Read ADC value to check cable type and decide cable state
+		 * according to cable type
+		 */
+		adc = info->status[0] & STATUS1_ADC_MASK;
+		adc >>= STATUS1_ADC_SHIFT;
+		chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
+		chg_type >>= STATUS2_CHGTYP_SHIFT;
+
+		if (adc == MAX77693_MUIC_ADC_OPEN
+				&& chg_type == MAX77693_CHARGER_TYPE_NONE)
+			*attached = false;
+		else
+			*attached = true;
+
+		/*
+		 * Read vbvolt field, if vbvolt is 1,
+		 * this cable is used for charging.
+		 */
+		vbvolt = info->status[1] & STATUS2_VBVOLT_MASK;
+		vbvolt >>= STATUS2_VBVOLT_SHIFT;
+
+		cable_type = vbvolt;
+		break;
+	default:
+		dev_err(info->dev, "Unknown cable group (%d)\n", group);
+		cable_type = -EINVAL;
+		break;
+	}
+
+	return cable_type;
+}
+
+static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
+{
+	int cable_type_gnd;
+	int ret = 0;
+	bool attached;
+
+	cable_type_gnd = max77693_muic_get_cable_type(info,
+				MAX77693_CABLE_GROUP_ADC_GND, &attached);
+
+	switch (cable_type_gnd) {
 	case MAX77693_MUIC_GND_USB_OTG:
 		/* USB_OTG */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
@@ -352,8 +435,6 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info,
 	default:
 		dev_err(info->dev, "failed to detect %s accessory\n",
 			attached ? "attached" : "detached");
-		dev_err(info->dev, "- adc:0x%x, adclow:0x%x, adc1k:0x%x\n",
-			adc, adclow, adc1k);
 		ret = -EINVAL;
 		break;
 	}
@@ -362,45 +443,36 @@ out:
 	return ret;
 }
 
-static int max77693_muic_adc_handler(struct max77693_muic_info *info,
-		int curr_adc, bool attached)
+static int max77693_muic_adc_handler(struct max77693_muic_info *info)
 {
+	int cable_type;
+	bool attached;
 	int ret = 0;
-	int adc;
 
-	if (attached) {
-		/* Store ADC value to handle accessory
-		   when accessory will be detached */
-		info->prev_adc = curr_adc;
-		adc = curr_adc;
-	} else
-		adc = info->prev_adc;
+	/* Check accessory state which is either detached or attached */
+	cable_type = max77693_muic_get_cable_type(info,
+				MAX77693_CABLE_GROUP_ADC, &attached);
 
 	dev_info(info->dev,
 		"external connector is %s (adc:0x%02x, prev_adc:0x%x)\n",
-		attached ? "attached" : "detached", curr_adc, info->prev_adc);
+		attached ? "attached" : "detached", cable_type,
+		info->prev_cable_type);
 
-	switch (adc) {
+	switch (cable_type) {
 	case MAX77693_MUIC_ADC_GROUND:
 		/* USB_OTG/MHL/Audio */
-		max77693_muic_adc_ground_handler(info, attached);
+		max77693_muic_adc_ground_handler(info);
 		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_OFF:
 	case MAX77693_MUIC_ADC_FACTORY_MODE_USB_ON:
-		/* USB */
-		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
-		if (ret < 0)
-			goto out;
-		extcon_set_cable_state(info->edev, "USB", attached);
-		break;
 	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_OFF:
-	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:
 		/* JIG */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_UART, attached);
 		if (ret < 0)
 			goto out;
 		extcon_set_cable_state(info->edev, "JIG", attached);
 		break;
+	case MAX77693_MUIC_ADC_FACTORY_MODE_UART_ON:
 	case MAX77693_MUIC_ADC_AUDIO_MODE_REMOTE:
 		/* Audio Video cable with no-load */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
@@ -439,12 +511,12 @@ static int max77693_muic_adc_handler(struct max77693_muic_info *info,
 		   proper operation when this accessory is attached/detached. */
 		dev_info(info->dev,
 			"accessory is %s but it isn't used (adc:0x%x)\n",
-			attached ? "attached" : "detached", adc);
+			attached ? "attached" : "detached", cable_type);
 		goto out;
 	default:
 		dev_err(info->dev,
 			"failed to detect %s accessory (adc:0x%x)\n",
-			attached ? "attached" : "detached", adc);
+			attached ? "attached" : "detached", cable_type);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -453,24 +525,19 @@ out:
 	return ret;
 }
 
-static int max77693_muic_chg_handler(struct max77693_muic_info *info,
-		int curr_chg_type, bool attached)
+static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 {
-	int ret = 0;
 	int chg_type;
+	bool attached;
+	int ret = 0;
 
-	if (attached) {
-		/* Store previous charger type to control
-		   when charger accessory will be detached */
-		info->prev_chg_type = curr_chg_type;
-		chg_type = curr_chg_type;
-	} else
-		chg_type = info->prev_chg_type;
+	chg_type = max77693_muic_get_cable_type(info,
+				MAX77693_CABLE_GROUP_CHG, &attached);
 
 	dev_info(info->dev,
 		"external connector is %s(chg_type:0x%x, prev_chg_type:0x%x)\n",
 			attached ? "attached" : "detached",
-			curr_chg_type, info->prev_chg_type);
+			chg_type, info->prev_chg_type);
 
 	switch (chg_type) {
 	case MAX77693_CHARGER_TYPE_USB:
@@ -510,10 +577,8 @@ static void max77693_muic_irq_work(struct work_struct *work)
 {
 	struct max77693_muic_info *info = container_of(work,
 			struct max77693_muic_info, irq_work);
-	int curr_adc, curr_chg_type;
 	int irq_type = -1;
 	int i, ret = 0;
-	bool attached = true;
 
 	if (!info->edev)
 		return;
@@ -539,14 +604,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 	case MAX77693_MUIC_IRQ_INT1_ADC1K:
 		/* Handle all of accessory except for
 		   type of charger accessory */
-		curr_adc = info->status[0] & STATUS1_ADC_MASK;
-		curr_adc >>= STATUS1_ADC_SHIFT;
-
-		/* Check accessory state which is either detached or attached */
-		if (curr_adc == MAX77693_MUIC_ADC_OPEN)
-			attached = false;
-
-		ret = max77693_muic_adc_handler(info, curr_adc, attached);
+		ret = max77693_muic_adc_handler(info);
 		break;
 	case MAX77693_MUIC_IRQ_INT2_CHGTYP:
 	case MAX77693_MUIC_IRQ_INT2_CHGDETREUN:
@@ -555,15 +613,7 @@ static void max77693_muic_irq_work(struct work_struct *work)
 	case MAX77693_MUIC_IRQ_INT2_VBVOLT:
 	case MAX77693_MUIC_IRQ_INT2_VIDRM:
 		/* Handle charger accessory */
-		curr_chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
-		curr_chg_type >>= STATUS2_CHGTYP_SHIFT;
-
-		/* Check charger accessory state which
-		   is either detached or attached */
-		if (curr_chg_type == MAX77693_CHARGER_TYPE_NONE)
-			attached = false;
-
-		ret = max77693_muic_chg_handler(info, curr_chg_type, attached);
+		ret = max77693_muic_chg_handler(info);
 		break;
 	case MAX77693_MUIC_IRQ_INT3_EOC:
 	case MAX77693_MUIC_IRQ_INT3_CGMBC:
@@ -604,7 +654,9 @@ static struct regmap_config max77693_muic_regmap_config = {
 static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 {
 	int ret = 0;
-	int adc, chg_type;
+	int adc;
+	int chg_type;
+	bool attached;
 
 	mutex_lock(&info->mutex);
 
@@ -617,34 +669,24 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 		return -EINVAL;
 	}
 
-	adc = info->status[0] & STATUS1_ADC_MASK;
-	adc >>= STATUS1_ADC_SHIFT;
-
-	if (adc != MAX77693_MUIC_ADC_OPEN) {
-		dev_info(info->dev,
-			"external connector is attached (adc:0x%02x)\n", adc);
-
-		ret = max77693_muic_adc_handler(info, adc, true);
+	adc = max77693_muic_get_cable_type(info, MAX77693_CABLE_GROUP_ADC,
+					&attached);
+	if (attached && adc != MAX77693_MUIC_ADC_OPEN) {
+		ret = max77693_muic_adc_handler(info);
 		if (ret < 0)
-			dev_err(info->dev, "failed to detect accessory\n");
-		goto out;
+			dev_err(info->dev, "Cannot detect accessory\n");
 	}
 
-	chg_type = info->status[1] & STATUS2_CHGTYP_MASK;
-	chg_type >>= STATUS2_CHGTYP_SHIFT;
-
-	if (chg_type != MAX77693_CHARGER_TYPE_NONE) {
-		dev_info(info->dev,
-			"external connector is attached (chg_type:0x%x)\n",
-			chg_type);
-
-		max77693_muic_chg_handler(info, chg_type, true);
+	chg_type = max77693_muic_get_cable_type(info, MAX77693_CABLE_GROUP_CHG,
+					&attached);
+	if (attached && chg_type != MAX77693_CHARGER_TYPE_NONE) {
+		ret = max77693_muic_chg_handler(info);
 		if (ret < 0)
-			dev_err(info->dev, "failed to detect charger accessory\n");
+			dev_err(info->dev, "Cannot detect charger accessory\n");
 	}
 
-out:
 	mutex_unlock(&info->mutex);
+
 	return ret;
 }
 
