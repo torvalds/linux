@@ -362,8 +362,6 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 	u32 cur_fw_ps_map;
 	u8 hlid;
 
-	/* TODO: also use link_fast_bitmap here */
-
 	cur_fw_ps_map = le32_to_cpu(status->link_ps_bitmap);
 	if (wl->ap_fw_ps_map != cur_fw_ps_map) {
 		wl1271_debug(DEBUG_PSM,
@@ -478,6 +476,8 @@ static int wlcore_fw_status(struct wl1271 *wl,
 	getnstimeofday(&ts);
 	wl->time_offset = (timespec_to_ns(&ts) >> 10) -
 		(s64)le32_to_cpu(status_2->fw_localtime);
+
+	wl->fw_fast_lnk_map = le32_to_cpu(status_2->link_fast_bitmap);
 
 	return 0;
 }

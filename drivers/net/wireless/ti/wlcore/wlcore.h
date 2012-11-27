@@ -361,6 +361,9 @@ struct wl1271 {
 	 */
 	struct wl1271_link links[WL12XX_MAX_LINKS];
 
+	/* Fast/slow links bitmap according to FW */
+	u32 fw_fast_lnk_map;
+
 	/* AP-mode - a bitmap of links currently in PS mode according to FW */
 	u32 ap_fw_ps_map;
 

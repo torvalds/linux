@@ -337,6 +337,8 @@ static struct wlcore_conf wl18xx_conf = {
 		.tmpl_short_retry_limit      = 10,
 		.tmpl_long_retry_limit       = 10,
 		.tx_watchdog_timeout         = 5000,
+		.slow_link_thold             = 3,
+		.fast_link_thold             = 30,
 	},
 	.conn = {
 		.wake_up_event               = CONF_WAKE_UP_EVENT_DTIM,

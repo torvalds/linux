@@ -467,8 +467,7 @@ void wl1271_handle_tx_low_watermark(struct wl1271 *wl)
 	}
 }
 
-static struct sk_buff_head *wl1271_select_queue(struct wl1271 *wl,
-						struct sk_buff_head *queues)
+static int wlcore_select_ac(struct wl1271 *wl)
 {
 	int i, q = -1, ac;
 	u32 min_pkts = 0xffffffff;
@@ -482,33 +481,24 @@ static struct sk_buff_head *wl1271_select_queue(struct wl1271 *wl,
 	 */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		ac = wl1271_tx_get_queue(i);
-		if (!skb_queue_empty(&queues[ac]) &&
-		    (wl->tx_allocated_pkts[ac] < min_pkts)) {
+		if (wl->tx_queue_count[ac] &&
+		    wl->tx_allocated_pkts[ac] < min_pkts) {
 			q = ac;
 			min_pkts = wl->tx_allocated_pkts[q];
 		}
 	}
 
-	if (q == -1)
-		return NULL;
-
-	return &queues[q];
+	return q;
 }
 
-static struct sk_buff *wl12xx_lnk_skb_dequeue(struct wl1271 *wl,
-					      struct wl1271_link *lnk)
+static struct sk_buff *wlcore_lnk_dequeue(struct wl1271 *wl,
+					  struct wl1271_link *lnk, u8 q)
 {
 	struct sk_buff *skb;
 	unsigned long flags;
-	struct sk_buff_head *queue;
 
-	queue = wl1271_select_queue(wl, lnk->tx_queue);
-	if (!queue)
-		return NULL;
-
-	skb = skb_dequeue(queue);
+	skb = skb_dequeue(&lnk->tx_queue[q]);
 	if (skb) {
-		int q = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		spin_lock_irqsave(&wl->wl_lock, flags);
 		WARN_ON_ONCE(wl->tx_queue_count[q] <= 0);
 		wl->tx_queue_count[q]--;
@@ -522,9 +512,41 @@ static struct sk_buff *wl12xx_lnk_skb_dequeue(struct wl1271 *wl,
 	return skb;
 }
 
-static struct sk_buff *wl12xx_vif_skb_dequeue(struct wl1271 *wl,
-					      struct wl12xx_vif *wlvif,
-					      u8 *hlid)
+static bool wlcore_lnk_high_prio(struct wl1271 *wl, u8 hlid,
+				 struct wl1271_link *lnk)
+{
+	u8 thold;
+
+	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+		thold = wl->conf.tx.fast_link_thold;
+	else
+		thold = wl->conf.tx.slow_link_thold;
+
+	return lnk->allocated_pkts < thold;
+}
+
+static struct sk_buff *wlcore_lnk_dequeue_high_prio(struct wl1271 *wl,
+						    u8 hlid, u8 ac,
+						    u8 *low_prio_hlid)
+{
+	struct wl1271_link *lnk = &wl->links[hlid];
+
+	if (!wlcore_lnk_high_prio(wl, hlid, lnk)) {
+		if (*low_prio_hlid == WL12XX_INVALID_LINK_ID &&
+		    !skb_queue_empty(&lnk->tx_queue[ac]))
+			/* we found the first non-empty low priority queue */
+			*low_prio_hlid = hlid;
+
+		return NULL;
+	}
+
+	return wlcore_lnk_dequeue(wl, lnk, ac);
+}
+
+static struct sk_buff *wlcore_vif_dequeue_high_prio(struct wl1271 *wl,
+						    struct wl12xx_vif *wlvif,
+						    u8 ac, u8 *hlid,
+						    u8 *low_prio_hlid)
 {
 	struct sk_buff *skb = NULL;
 	int i, h, start_hlid;
@@ -540,7 +562,8 @@ static struct sk_buff *wl12xx_vif_skb_dequeue(struct wl1271 *wl,
 		if (!test_bit(h, wlvif->links_map))
 			continue;
 
-		skb = wl12xx_lnk_skb_dequeue(wl, &wl->links[h]);
+		skb = wlcore_lnk_dequeue_high_prio(wl, h, ac,
+						   low_prio_hlid);
 		if (!skb)
 			continue;
 
@@ -560,40 +583,72 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl, u8 *hlid)
 	unsigned long flags;
 	struct wl12xx_vif *wlvif = wl->last_wlvif;
 	struct sk_buff *skb = NULL;
+	int ac;
+	u8 low_prio_hlid = WL12XX_INVALID_LINK_ID;
+
+	ac = wlcore_select_ac(wl);
+	if (ac < 0)
+		goto out;
 
 	/* continue from last wlvif (round robin) */
 	if (wlvif) {
 		wl12xx_for_each_wlvif_continue(wl, wlvif) {
-			skb = wl12xx_vif_skb_dequeue(wl, wlvif, hlid);
-			if (skb) {
-				wl->last_wlvif = wlvif;
-				break;
-			}
+			if (!wlvif->tx_queue_count[ac])
+				continue;
+
+			skb = wlcore_vif_dequeue_high_prio(wl, wlvif, ac, hlid,
+							   &low_prio_hlid);
+			if (!skb)
+				continue;
+
+			wl->last_wlvif = wlvif;
+			break;
 		}
 	}
 
 	/* dequeue from the system HLID before the restarting wlvif list */
 	if (!skb) {
-		skb = wl12xx_lnk_skb_dequeue(wl, &wl->links[wl->system_hlid]);
-		*hlid = wl->system_hlid;
+		skb = wlcore_lnk_dequeue_high_prio(wl, wl->system_hlid,
+						   ac, &low_prio_hlid);
+		if (skb) {
+			*hlid = wl->system_hlid;
+			wl->last_wlvif = NULL;
+		}
 	}
 
-	/* do a new pass over the wlvif list */
+	/* Do a new pass over the wlvif list. But no need to continue
+	 * after last_wlvif. The previous pass should have found it. */
 	if (!skb) {
 		wl12xx_for_each_wlvif(wl, wlvif) {
-			skb = wl12xx_vif_skb_dequeue(wl, wlvif, hlid);
+			if (!wlvif->tx_queue_count[ac])
+				goto next;
+
+			skb = wlcore_vif_dequeue_high_prio(wl, wlvif, ac, hlid,
+							   &low_prio_hlid);
 			if (skb) {
 				wl->last_wlvif = wlvif;
 				break;
 			}
 
-			/*
-			 * No need to continue after last_wlvif. The previous
-			 * pass should have found it.
-			 */
+next:
 			if (wlvif == wl->last_wlvif)
 				break;
 		}
+	}
+
+	/* no high priority skbs found - but maybe a low priority one? */
+	if (!skb && low_prio_hlid != WL12XX_INVALID_LINK_ID) {
+		struct wl1271_link *lnk = &wl->links[low_prio_hlid];
+		skb = wlcore_lnk_dequeue(wl, lnk, ac);
+
+		WARN_ON(!skb); /* we checked this before */
+		*hlid = low_prio_hlid;
+
+		/* ensure proper round robin in the vif/link levels */
+		wl->last_wlvif = lnk->wlvif;
+		if (lnk->wlvif)
+			lnk->wlvif->last_tx_hlid = low_prio_hlid;
+
 	}
 
 	if (!skb &&
@@ -609,6 +664,7 @@ static struct sk_buff *wl1271_skb_dequeue(struct wl1271 *wl, u8 *hlid)
 		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
+out:
 	return skb;
 }
 

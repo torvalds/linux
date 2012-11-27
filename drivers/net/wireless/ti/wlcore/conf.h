@@ -677,6 +677,18 @@ struct conf_tx_settings {
 
 	/* Time in ms for Tx watchdog timer to expire */
 	u32 tx_watchdog_timeout;
+
+	/*
+	 * when a slow link has this much packets pending, it becomes a low
+	 * priority link, scheduling-wise
+	 */
+	u8 slow_link_thold;
+
+	/*
+	 * when a fast link has this much packets pending, it becomes a low
+	 * priority link, scheduling-wise
+	 */
+	u8 fast_link_thold;
 } __packed;
 
 enum {
@@ -1281,7 +1293,7 @@ struct conf_recovery_settings {
  * version, the two LSB are the lower driver's private conf
  * version.
  */
-#define WLCORE_CONF_VERSION	(0x0004 << 16)
+#define WLCORE_CONF_VERSION	(0x0005 << 16)
 #define WLCORE_CONF_MASK	0xffff0000
 #define WLCORE_CONF_SIZE	(sizeof(struct wlcore_conf_header) +	\
 				 sizeof(struct wlcore_conf))
