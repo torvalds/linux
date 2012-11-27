@@ -85,8 +85,9 @@ static void arizona_extcon_set_mode(struct arizona_extcon_info *info, int mode)
 {
 	struct arizona *arizona = info->arizona;
 
-	gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
-				info->micd_modes[mode].gpio);
+	if (arizona->pdata.micd_pol_gpio > 0)
+		gpio_set_value_cansleep(arizona->pdata.micd_pol_gpio,
+					info->micd_modes[mode].gpio);
 	regmap_update_bits(arizona->regmap, ARIZONA_MIC_DETECT_1,
 			   ARIZONA_MICD_BIAS_SRC_MASK,
 			   info->micd_modes[mode].bias);
