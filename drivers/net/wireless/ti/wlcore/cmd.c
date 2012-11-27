@@ -322,6 +322,10 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	__set_bit(link, wl->links_map);
 	__set_bit(link, wlvif->links_map);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	/* take the last "freed packets" value from the current FW status */
+	wl->links[link].prev_freed_pkts =
+			wl->fw_status_2->counters.tx_lnk_free_pkts[link];
 	*hlid = link;
 	return 0;
 }
