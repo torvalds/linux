@@ -226,6 +226,12 @@ static void exynos_drm_encoder_commit(struct drm_encoder *encoder)
 	 * already updated or not by exynos_drm_encoder_dpms function.
 	 */
 	exynos_encoder->updated = true;
+
+	/*
+	 * In case of setcrtc, there is no way to update encoder's dpms
+	 * so update it here.
+	 */
+	exynos_encoder->dpms = DRM_MODE_DPMS_ON;
 }
 
 static void exynos_drm_encoder_disable(struct drm_encoder *encoder)
@@ -507,6 +513,6 @@ void exynos_drm_encoder_plane_disable(struct drm_encoder *encoder, void *data)
 	 * because the setting for disabling the overlay will be updated
 	 * at vsync.
 	 */
-	if (overlay_ops->wait_for_vblank)
+	if (overlay_ops && overlay_ops->wait_for_vblank)
 		overlay_ops->wait_for_vblank(manager->dev);
 }
