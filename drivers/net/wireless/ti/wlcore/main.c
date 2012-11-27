@@ -4429,8 +4429,6 @@ void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid)
 		return;
 
 	clear_bit(hlid, wlvif->ap.sta_hlid_map);
-	memset(wl->links[hlid].addr, 0, ETH_ALEN);
-	wl->links[hlid].ba_bitmap = 0;
 	__clear_bit(hlid, &wl->ap_ps_map);
 	__clear_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
 	wl12xx_free_link(wl, wlvif, &hlid);

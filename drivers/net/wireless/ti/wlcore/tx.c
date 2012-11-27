@@ -1009,13 +1009,14 @@ void wl12xx_tx_reset_wlvif(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 
 	/* TX failure */
 	for_each_set_bit(i, wlvif->links_map, WL12XX_MAX_LINKS) {
-		if (wlvif->bss_type == BSS_TYPE_AP_BSS)
+		if (wlvif->bss_type == BSS_TYPE_AP_BSS) {
+			/* this calls wl12xx_free_link */
 			wl1271_free_sta(wl, wlvif, i);
-		else
+		} else {
+			u8 hlid = i;
 			wlvif->sta.ba_rx_bitmap = 0;
-
-		wl->links[i].allocated_pkts = 0;
-		wl->links[i].prev_freed_pkts = 0;
+			wl12xx_free_link(wl, wlvif, &hlid);
+		}
 	}
 	wlvif->last_tx_hlid = 0;
 

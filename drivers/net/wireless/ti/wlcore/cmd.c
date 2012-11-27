@@ -339,6 +339,11 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	__clear_bit(*hlid, wlvif->links_map);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
+	wl->links[*hlid].allocated_pkts = 0;
+	wl->links[*hlid].prev_freed_pkts = 0;
+	wl->links[*hlid].ba_bitmap = 0;
+	memset(wl->links[*hlid].addr, 0, ETH_ALEN);
+
 	/*
 	 * At this point op_tx() will not add more packets to the queues. We
 	 * can purge them.
