@@ -2485,13 +2485,9 @@ static int i915_ring_idle(struct intel_ring_buffer *ring)
 	u32 seqno;
 	int ret;
 
-	/* We need to add any requests required to flush the objects */
-	if (!list_empty(&ring->active_list)) {
-		seqno = list_entry(ring->active_list.prev,
-				   struct drm_i915_gem_object,
-				   ring_list)->last_read_seqno;
-
-		ret = i915_gem_check_olr(ring, seqno);
+	/* We need to add any requests required to flush the objects and ring */
+	if (ring->outstanding_lazy_request) {
+		ret = i915_add_request(ring, NULL, NULL);
 		if (ret)
 			return ret;
 	}
