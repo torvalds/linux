@@ -710,7 +710,8 @@ void solos_bh(unsigned long card_arg)
 						dev_warn(&card->dev->dev, "Received packet for unknown VPI.VCI %d.%d on port %d\n",
 							 le16_to_cpu(header->vpi), le16_to_cpu(header->vci),
 							 port);
-					continue;
+					dev_kfree_skb_any(skb);
+					break;
 				}
 				atm_charge(vcc, skb->truesize);
 				vcc->push(vcc, skb);
