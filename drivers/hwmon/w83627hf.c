@@ -25,7 +25,7 @@
 /*
  * Supports following chips:
  *
- * Chip	#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
+ * Chip		#vin	#fanin	#pwm	#temp	wchipid	vendid	i2c	ISA
  * w83627hf	9	3	2	3	0x20	0x5ca3	no	yes(LPC)
  * w83627thf	7	3	3	3	0x90	0x5ca3	no	yes(LPC)
  * w83637hf	7	3	3	3	0x80	0x5ca3	no	yes(LPC)

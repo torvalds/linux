@@ -210,8 +210,7 @@ static struct mt_class mt_classes[] = {
 	},
 	{ .name	= MT_CLS_GENERALTOUCH_PWT_TENFINGERS,
 		.quirks	= MT_QUIRK_NOT_SEEN_MEANS_UP |
-			MT_QUIRK_SLOT_IS_CONTACTNUMBER,
-		.maxcontacts = 10
+			MT_QUIRK_SLOT_IS_CONTACTNUMBER
 	},
 
 	{ .name = MT_CLS_FLATFROG,
@@ -421,11 +420,11 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			 * contact max are global to the report */
 			td->last_field_index = field->index;
 			return -1;
-		}
 		case HID_DG_TOUCH:
 			/* Legacy devices use TIPSWITCH and not TOUCH.
 			 * Let's just ignore this field. */
 			return -1;
+		}
 		/* let hid-input decide for the others */
 		return 0;
 

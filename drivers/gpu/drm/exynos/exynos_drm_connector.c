@@ -374,6 +374,7 @@ struct drm_connector *exynos_drm_connector_create(struct drm_device *dev,
 	exynos_connector->encoder_id = encoder->base.id;
 	exynos_connector->manager = manager;
 	exynos_connector->dpms = DRM_MODE_DPMS_OFF;
+	connector->dpms = DRM_MODE_DPMS_OFF;
 	connector->encoder = encoder;
 
 	err = drm_mode_connector_attach_encoder(connector, encoder);

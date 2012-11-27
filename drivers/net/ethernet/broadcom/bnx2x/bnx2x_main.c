@@ -6794,8 +6794,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 
 	bnx2x_init_block(bp, BLOCK_DORQ, init_phase);
 
+	bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
+
 	if (CHIP_IS_E1(bp) || CHIP_IS_E1H(bp)) {
-		bnx2x_init_block(bp, BLOCK_BRB1, init_phase);
 
 		if (IS_MF(bp))
 			low = ((bp->flags & ONE_PORT_FLAG) ? 160 : 246);
@@ -9544,10 +9545,13 @@ static int __devinit bnx2x_prev_unload_common(struct bnx2x *bp)
  */
 static void __devinit bnx2x_prev_interrupted_dmae(struct bnx2x *bp)
 {
-	u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
-	if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
-		BNX2X_ERR("was error bit was found to be set in pglueb upon startup. Clearing");
-		REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR, 1 << BP_FUNC(bp));
+	if (!CHIP_IS_E1x(bp)) {
+		u32 val = REG_RD(bp, PGLUE_B_REG_PGLUE_B_INT_STS);
+		if (val & PGLUE_B_PGLUE_B_INT_STS_REG_WAS_ERROR_ATTN) {
+			BNX2X_ERR("was error bit was found to be set in pglueb upon startup. Clearing");
+			REG_WR(bp, PGLUE_B_REG_WAS_ERROR_PF_7_0_CLR,
+			       1 << BP_FUNC(bp));
+		}
 	}
 }
 
@@ -11902,7 +11906,15 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	/* disable FCOE L2 queue for E1x */
 	if (CHIP_IS_E1x(bp))
 		bp->flags |= NO_FCOE_FLAG;
-
+	/* disable FCOE for 57840 device, until FW supports it */
+	switch (ent->driver_data) {
+	case BCM57840_O:
+	case BCM57840_4_10:
+	case BCM57840_2_20:
+	case BCM57840_MFO:
+	case BCM57840_MF:
+		bp->flags |= NO_FCOE_FLAG;
+	}
 #endif
 
 

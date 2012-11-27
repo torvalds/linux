@@ -414,7 +414,7 @@ static int show_html_page(const char *perf_cmd)
 int cmd_help(int argc, const char **argv, const char *prefix __maybe_unused)
 {
 	bool show_all = false;
-	enum help_format help_format = HELP_FORMAT_NONE;
+	enum help_format help_format = HELP_FORMAT_MAN;
 	struct option builtin_help_options[] = {
 	OPT_BOOLEAN('a', "all", &show_all, "print all available commands"),
 	OPT_SET_UINT('m', "man", &help_format, "show man page", HELP_FORMAT_MAN),

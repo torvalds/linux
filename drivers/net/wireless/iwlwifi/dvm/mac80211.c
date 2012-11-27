@@ -521,7 +521,7 @@ static void iwlagn_mac_tx(struct ieee80211_hw *hw,
 		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
 	if (iwlagn_tx_skb(priv, control->sta, skb))
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 }
 
 static void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
@@ -1353,6 +1353,20 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 
 	vif_priv->ctx = ctx;
 	ctx->vif = vif;
+
+	/*
+	 * In SNIFFER device type, the firmware reports the FCS to
+	 * the host, rather than snipping it off. Unfortunately,
+	 * mac80211 doesn't (yet) provide a per-packet flag for
+	 * this, so that we have to set the hardware flag based
+	 * on the interfaces added. As the monitor interface can
+	 * only be present by itself, and will be removed before
+	 * other interfaces are added, this is safe.
+	 */
+	if (vif->type == NL80211_IFTYPE_MONITOR)
+		priv->hw->flags |= IEEE80211_HW_RX_INCLUDES_FCS;
+	else
+		priv->hw->flags &= ~IEEE80211_HW_RX_INCLUDES_FCS;
 
 	err = iwl_setup_interface(priv, ctx);
 	if (!err || reset)

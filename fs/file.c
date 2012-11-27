@@ -685,7 +685,6 @@ void do_close_on_exec(struct files_struct *files)
 	struct fdtable *fdt;
 
 	/* exec unshares first */
-	BUG_ON(atomic_read(&files->count) != 1);
 	spin_lock(&files->file_lock);
 	for (i = 0; ; i++) {
 		unsigned long set;
@@ -900,7 +899,7 @@ int replace_fd(unsigned fd, struct file *file, unsigned flags)
 		return __close_fd(files, fd);
 
 	if (fd >= rlimit(RLIMIT_NOFILE))
-		return -EMFILE;
+		return -EBADF;
 
 	spin_lock(&files->file_lock);
 	err = expand_files(files, fd);
@@ -926,7 +925,7 @@ SYSCALL_DEFINE3(dup3, unsigned int, oldfd, unsigned int, newfd, int, flags)
 		return -EINVAL;
 
 	if (newfd >= rlimit(RLIMIT_NOFILE))
-		return -EMFILE;
+		return -EBADF;
 
 	spin_lock(&files->file_lock);
 	err = expand_files(files, newfd);

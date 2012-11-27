@@ -71,6 +71,8 @@ static snd_pcm_uframes_t snd_usb_pcm_pointer(struct snd_pcm_substream *substream
 	unsigned int hwptr_done;
 
 	subs = (struct snd_usb_substream *)substream->runtime->private_data;
+	if (subs->stream->chip->shutdown)
+		return SNDRV_PCM_POS_XRUN;
 	spin_lock(&subs->lock);
 	hwptr_done = subs->hwptr_done;
 	substream->runtime->delay = snd_usb_pcm_delay(subs,
@@ -444,7 +446,6 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 {
 	int ret;
 
-	mutex_lock(&subs->stream->chip->shutdown_mutex);
 	/* format changed */
 	stop_endpoints(subs, 0, 0, 0);
 	ret = snd_usb_endpoint_set_params(subs->data_endpoint,
@@ -455,19 +456,16 @@ static int configure_endpoint(struct snd_usb_substream *subs)
 					  subs->cur_audiofmt,
 					  subs->sync_endpoint);
 	if (ret < 0)
-		goto unlock;
+		return ret;
 
 	if (subs->sync_endpoint)
-		ret = snd_usb_endpoint_set_params(subs->data_endpoint,
+		ret = snd_usb_endpoint_set_params(subs->sync_endpoint,
 						  subs->pcm_format,
 						  subs->channels,
 						  subs->period_bytes,
 						  subs->cur_rate,
 						  subs->cur_audiofmt,
 						  NULL);
-
-unlock:
-	mutex_unlock(&subs->stream->chip->shutdown_mutex);
 	return ret;
 }
 
@@ -505,7 +503,13 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if ((ret = set_format(subs, fmt)) < 0)
+	down_read(&subs->stream->chip->shutdown_rwsem);
+	if (subs->stream->chip->shutdown)
+		ret = -ENODEV;
+	else
+		ret = set_format(subs, fmt);
+	up_read(&subs->stream->chip->shutdown_rwsem);
+	if (ret < 0)
 		return ret;
 
 	subs->interface = fmt->iface;
@@ -527,10 +531,12 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 	subs->cur_audiofmt = NULL;
 	subs->cur_rate = 0;
 	subs->period_bytes = 0;
-	mutex_lock(&subs->stream->chip->shutdown_mutex);
-	stop_endpoints(subs, 0, 1, 1);
-	deactivate_endpoints(subs);
-	mutex_unlock(&subs->stream->chip->shutdown_mutex);
+	down_read(&subs->stream->chip->shutdown_rwsem);
+	if (!subs->stream->chip->shutdown) {
+		stop_endpoints(subs, 0, 1, 1);
+		deactivate_endpoints(subs);
+	}
+	up_read(&subs->stream->chip->shutdown_rwsem);
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
@@ -552,12 +558,22 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 		return -ENXIO;
 	}
 
-	if (snd_BUG_ON(!subs->data_endpoint))
-		return -EIO;
+	down_read(&subs->stream->chip->shutdown_rwsem);
+	if (subs->stream->chip->shutdown) {
+		ret = -ENODEV;
+		goto unlock;
+	}
+	if (snd_BUG_ON(!subs->data_endpoint)) {
+		ret = -EIO;
+		goto unlock;
+	}
+
+	snd_usb_endpoint_sync_pending_stop(subs->sync_endpoint);
+	snd_usb_endpoint_sync_pending_stop(subs->data_endpoint);
 
 	ret = set_format(subs, subs->cur_audiofmt);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	iface = usb_ifnum_to_if(subs->dev, subs->cur_audiofmt->iface);
 	alts = &iface->altsetting[subs->cur_audiofmt->altset_idx];
@@ -567,12 +583,12 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 				       subs->cur_audiofmt,
 				       subs->cur_rate);
 	if (ret < 0)
-		return ret;
+		goto unlock;
 
 	if (subs->need_setup_ep) {
 		ret = configure_endpoint(subs);
 		if (ret < 0)
-			return ret;
+			goto unlock;
 		subs->need_setup_ep = false;
 	}
 
@@ -592,9 +608,11 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 	/* for playback, submit the URBs now; otherwise, the first hwptr_done
 	 * updates for all URBs would happen at the same time when starting */
 	if (subs->direction == SNDRV_PCM_STREAM_PLAYBACK)
-		return start_endpoints(subs, 1);
+		ret = start_endpoints(subs, 1);
 
-	return 0;
+ unlock:
+	up_read(&subs->stream->chip->shutdown_rwsem);
+	return ret;
 }
 
 static struct snd_pcm_hardware snd_usb_hardware =
@@ -647,7 +665,7 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 		return 0;
 	}
 	/* check whether the period time is >= the data packet interval */
-	if (snd_usb_get_speed(subs->dev) != USB_SPEED_FULL) {
+	if (subs->speed != USB_SPEED_FULL) {
 		ptime = 125 * (1 << fp->datainterval);
 		if (ptime > pt->max || (ptime == pt->max && pt->openmax)) {
 			hwc_debug("   > check: ptime %u > max %u\n", ptime, pt->max);
@@ -925,7 +943,7 @@ static int setup_hw_info(struct snd_pcm_runtime *runtime, struct snd_usb_substre
 		return err;
 
 	param_period_time_if_needed = SNDRV_PCM_HW_PARAM_PERIOD_TIME;
-	if (snd_usb_get_speed(subs->dev) == USB_SPEED_FULL)
+	if (subs->speed == USB_SPEED_FULL)
 		/* full speed devices have fixed data packet interval */
 		ptmin = 1000;
 	if (ptmin == 1000)

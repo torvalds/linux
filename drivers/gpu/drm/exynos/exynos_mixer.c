@@ -1142,7 +1142,7 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 		const struct of_device_id *match;
 		match = of_match_node(of_match_ptr(mixer_match_types),
 							  pdev->dev.of_node);
-		drv = match->data;
+		drv = (struct mixer_drv_data *)match->data;
 	} else {
 		drv = (struct mixer_drv_data *)
 			platform_get_device_id(pdev)->driver_data;

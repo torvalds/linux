@@ -2474,6 +2474,7 @@ static bool si_vm_reg_valid(u32 reg)
 	/* check config regs */
 	switch (reg) {
 	case GRBM_GFX_INDEX:
+	case CP_STRMOUT_CNTL:
 	case VGT_VTX_VECT_EJECT_REG:
 	case VGT_CACHE_INVALIDATION:
 	case VGT_ESGS_RING_SIZE:
@@ -2808,26 +2809,31 @@ void si_vm_set_page(struct radeon_device *rdev, uint64_t pe,
 {
 	struct radeon_ring *ring = &rdev->ring[rdev->asic->vm.pt_ring_index];
 	uint32_t r600_flags = cayman_vm_page_flags(rdev, flags);
-	int i;
-	uint64_t value;
 
-	radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 2 + count * 2));
-	radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
-				 WRITE_DATA_DST_SEL(1)));
-	radeon_ring_write(ring, pe);
-	radeon_ring_write(ring, upper_32_bits(pe));
-	for (i = 0; i < count; ++i) {
-		if (flags & RADEON_VM_PAGE_SYSTEM) {
-			value = radeon_vm_map_gart(rdev, addr);
-			value &= 0xFFFFFFFFFFFFF000ULL;
-		} else if (flags & RADEON_VM_PAGE_VALID)
-			value = addr;
-		else
-			value = 0;
-		addr += incr;
-		value |= r600_flags;
-		radeon_ring_write(ring, value);
-		radeon_ring_write(ring, upper_32_bits(value));
+	while (count) {
+		unsigned ndw = 2 + count * 2;
+		if (ndw > 0x3FFE)
+			ndw = 0x3FFE;
+
+		radeon_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, ndw));
+		radeon_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
+					 WRITE_DATA_DST_SEL(1)));
+		radeon_ring_write(ring, pe);
+		radeon_ring_write(ring, upper_32_bits(pe));
+		for (; ndw > 2; ndw -= 2, --count, pe += 8) {
+			uint64_t value;
+			if (flags & RADEON_VM_PAGE_SYSTEM) {
+				value = radeon_vm_map_gart(rdev, addr);
+				value &= 0xFFFFFFFFFFFFF000ULL;
+			} else if (flags & RADEON_VM_PAGE_VALID)
+				value = addr;
+			else
+				value = 0;
+			addr += incr;
+			value |= r600_flags;
+			radeon_ring_write(ring, value);
+			radeon_ring_write(ring, upper_32_bits(value));
+		}
 	}
 }
 
@@ -2868,6 +2874,10 @@ void si_vm_flush(struct radeon_device *rdev, int ridx, struct radeon_vm *vm)
 	radeon_ring_write(ring, VM_INVALIDATE_REQUEST >> 2);
 	radeon_ring_write(ring, 0);
 	radeon_ring_write(ring, 1 << vm->id);
+
+	/* sync PFP to ME, otherwise we might get invalid PFP reads */
+	radeon_ring_write(ring, PACKET3(PACKET3_PFP_SYNC_ME, 0));
+	radeon_ring_write(ring, 0x0);
 }
 
 /*

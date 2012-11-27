@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
+#include <linux/err.h>
 
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
@@ -284,7 +285,8 @@ static ssize_t virtual_start_show(struct hyp_sysfs_attr *attr, char *buffer)
 		ret = HYPERVISOR_xen_version(XENVER_platform_parameters,
 					     parms);
 		if (!ret)
-			ret = sprintf(buffer, "%lx\n", parms->virt_start);
+			ret = sprintf(buffer, "%"PRI_xen_ulong"\n",
+				      parms->virt_start);
 		kfree(parms);
 	}
 
