@@ -316,7 +316,10 @@ static int gdm_usb_send(void *priv_dev, void *data, int len,
 	int no_spc = 0, ret;
 	u8 *pkt = data;
 	u16 cmd_evt;
-	unsigned long flags, flags2;
+	unsigned long flags;
+#ifdef CONFIG_WIMAX_GDM72XX_K_MODE
+	unsigned long flags2;
+#endif /* CONFIG_WIMAX_GDM72XX_K_MODE */
 
 	if (!udev->usbdev) {
 		dev_err(&usbdev->dev, "%s: No such device\n", __func__);
