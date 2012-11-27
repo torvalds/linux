@@ -186,9 +186,6 @@ static struct file_operations supported_enctypes_ops = {
 };
 #endif /* CONFIG_SUNRPC_GSS or CONFIG_SUNRPC_GSS_MODULE */
 
-extern int nfsd_pool_stats_open(struct inode *inode, struct file *file);
-extern int nfsd_pool_stats_release(struct inode *inode, struct file *file);
-
 static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
