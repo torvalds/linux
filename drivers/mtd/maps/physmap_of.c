@@ -285,6 +285,7 @@ static int of_flash_probe(struct platform_device *dev)
 	}
 
 	err = 0;
+	info->cmtd = NULL;
 	if (info->list_size == 1) {
 		info->cmtd = info->list[0].mtd;
 	} else if (info->list_size > 1) {
@@ -293,9 +294,10 @@ static int of_flash_probe(struct platform_device *dev)
 		 */
 		info->cmtd = mtd_concat_create(mtd_list, info->list_size,
 					       dev_name(&dev->dev));
-		if (info->cmtd == NULL)
-			err = -ENXIO;
 	}
+	if (info->cmtd == NULL)
+		err = -ENXIO;
+
 	if (err)
 		goto err_out;
 
