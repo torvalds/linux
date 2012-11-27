@@ -64,7 +64,7 @@ static int __compare(const void *t1, const void *t2)
  */
 int get_cpu_topology(struct cpupower_topology *cpu_top)
 {
-	int cpu, cpus = sysconf(_SC_NPROCESSORS_CONF);
+	int cpu, last_pkg, cpus = sysconf(_SC_NPROCESSORS_CONF);
 
 	cpu_top->core_info = malloc(sizeof(struct cpuid_core_info) * cpus);
 	if (cpu_top->core_info == NULL)
@@ -78,19 +78,27 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 			"physical_package_id",
 			&(cpu_top->core_info[cpu].pkg)) < 0)
 			return -1;
-		if ((int)cpu_top->core_info[cpu].pkg != -1 &&
-		    cpu_top->core_info[cpu].pkg > cpu_top->pkgs)
-			cpu_top->pkgs = cpu_top->core_info[cpu].pkg;
 		if(sysfs_topology_read_file(
 			cpu,
 			"core_id",
 			&(cpu_top->core_info[cpu].core)) < 0)
 			return -1;
 	}
-	cpu_top->pkgs++;
 
 	qsort(cpu_top->core_info, cpus, sizeof(struct cpuid_core_info),
 	      __compare);
+
+	/* Count the number of distinct pkgs values. This works
+	   because the primary sort of the core_info struct was just
+	   done by pkg value. */
+	last_pkg = cpu_top->core_info[0].pkg;
+	for(cpu = 1; cpu < cpus; cpu++) {
+		if(cpu_top->core_info[cpu].pkg != last_pkg) {
+			last_pkg = cpu_top->core_info[cpu].pkg;
+			cpu_top->pkgs++;
+		}
+	}
+	cpu_top->pkgs++;
 
 	/* Intel's cores count is not consecutively numbered, there may
 	 * be a core_id of 3, but none of 2. Assume there always is 0
