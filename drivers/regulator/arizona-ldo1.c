@@ -61,6 +61,16 @@ static const struct regulator_desc arizona_ldo1 = {
 	.owner = THIS_MODULE,
 };
 
+static const struct regulator_init_data arizona_ldo1_dvfs = {
+	.constraints = {
+		.min_uV = 1200000,
+		.max_uV = 1800000,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS |
+				  REGULATOR_CHANGE_VOLTAGE,
+	},
+	.num_consumer_supplies = 1,
+};
+
 static const struct regulator_init_data arizona_ldo1_default = {
 	.constraints = {
 		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
@@ -88,7 +98,15 @@ static __devinit int arizona_ldo1_probe(struct platform_device *pdev)
 	 * default init_data for it.  This will be overridden with
 	 * platform data if provided.
 	 */
-	ldo1->init_data = arizona_ldo1_default;
+	switch (arizona->type) {
+	case WM5102:
+		ldo1->init_data = arizona_ldo1_dvfs;
+		break;
+	default:
+		ldo1->init_data = arizona_ldo1_default;
+		break;
+	}
+
 	ldo1->init_data.consumer_supplies = &ldo1->supply;
 	ldo1->supply.supply = "DCVDD";
 	ldo1->supply.dev_name = dev_name(arizona->dev);
