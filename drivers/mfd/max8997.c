@@ -21,8 +21,10 @@
  * This driver is based on max8998.c
  */
 
+#include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/module.h>
@@ -46,6 +48,13 @@ static struct mfd_cell max8997_devs[] = {
 	{ .name = "max8997-led", .id = 1 },
 	{ .name = "max8997-led", .id = 2 },
 };
+
+#ifdef CONFIG_OF
+static struct of_device_id __devinitdata max8997_pmic_dt_match[] = {
+	{ .compatible = "maxim,max8997-pmic", .data = TYPE_MAX8997 },
+	{},
+};
+#endif
 
 int max8997_read_reg(struct i2c_client *i2c, u8 reg, u8 *dest)
 {
@@ -123,6 +132,58 @@ int max8997_update_reg(struct i2c_client *i2c, u8 reg, u8 val, u8 mask)
 }
 EXPORT_SYMBOL_GPL(max8997_update_reg);
 
+#ifdef CONFIG_OF
+/*
+ * Only the common platform data elements for max8997 are parsed here from the
+ * device tree. Other sub-modules of max8997 such as pmic, rtc and others have
+ * to parse their own platform data elements from device tree.
+ *
+ * The max8997 platform data structure is instantiated here and the drivers for
+ * the sub-modules need not instantiate another instance while parsing their
+ * platform data.
+ */
+static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
+					struct device *dev)
+{
+	struct max8997_platform_data *pd;
+
+	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	if (!pd) {
+		dev_err(dev, "could not allocate memory for pdata\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pd->ono = irq_of_parse_and_map(dev->of_node, 1);
+
+	/*
+	 * ToDo: the 'wakeup' member in the platform data is more of a linux
+	 * specfic information. Hence, there is no binding for that yet and
+	 * not parsed here.
+	 */
+
+	return pd;
+}
+#else
+static struct max8997_platform_data *max8997_i2c_parse_dt_pdata(
+					struct device *dev)
+{
+	return 0;
+}
+#endif
+
+static inline int max8997_i2c_get_driver_data(struct i2c_client *i2c,
+						const struct i2c_device_id *id)
+{
+#ifdef CONFIG_OF
+	if (i2c->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(max8997_pmic_dt_match, i2c->dev.of_node);
+		return (int)match->data;
+	}
+#endif
+	return (int)id->driver_data;
+}
+
 static int max8997_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -137,12 +198,21 @@ static int max8997_i2c_probe(struct i2c_client *i2c,
 	i2c_set_clientdata(i2c, max8997);
 	max8997->dev = &i2c->dev;
 	max8997->i2c = i2c;
-	max8997->type = id->driver_data;
+	max8997->type = max8997_i2c_get_driver_data(i2c, id);
 	max8997->irq = i2c->irq;
+
+	if (max8997->dev->of_node) {
+		pdata = max8997_i2c_parse_dt_pdata(max8997->dev);
+		if (IS_ERR(pdata)) {
+			ret = PTR_ERR(pdata);
+			goto err;
+		}
+	}
 
 	if (!pdata)
 		goto err;
 
+	max8997->pdata = pdata;
 	max8997->ono = pdata->ono;
 
 	mutex_init(&max8997->iolock);
@@ -434,6 +504,7 @@ static struct i2c_driver max8997_i2c_driver = {
 		   .name = "max8997",
 		   .owner = THIS_MODULE,
 		   .pm = &max8997_pm,
+		   .of_match_table = of_match_ptr(max8997_pmic_dt_match),
 	},
 	.probe = max8997_i2c_probe,
 	.remove = max8997_i2c_remove,

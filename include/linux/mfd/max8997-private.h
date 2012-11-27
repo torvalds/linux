@@ -316,6 +316,7 @@ enum max8997_irq {
 #define MAX8997_NUM_GPIO	12
 struct max8997_dev {
 	struct device *dev;
+	struct max8997_platform_data *pdata;
 	struct i2c_client *i2c; /* 0xcc / PMIC, Battery Control, and FLASH */
 	struct i2c_client *rtc; /* slave addr 0x0c */
 	struct i2c_client *haptic; /* slave addr 0x90 */
