@@ -1028,7 +1028,7 @@ void wl12xx_tx_reset(struct wl1271 *wl)
 	struct ieee80211_tx_info *info;
 
 	/* only reset the queues if something bad happened */
-	if (WARN_ON_ONCE(wl1271_tx_total_queue_count(wl) != 0)) {
+	if (wl1271_tx_total_queue_count(wl) != 0) {
 		for (i = 0; i < WL12XX_MAX_LINKS; i++)
 			wl1271_tx_reset_link_queues(wl, i);
 
