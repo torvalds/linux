@@ -359,9 +359,8 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 					   struct wl12xx_vif *wlvif,
 					   struct wl_fw_status_2 *status)
 {
-	struct wl1271_link *lnk;
 	u32 cur_fw_ps_map;
-	u8 hlid, cnt;
+	u8 hlid;
 
 	/* TODO: also use link_fast_bitmap here */
 
@@ -375,17 +374,9 @@ static void wl12xx_irq_update_links_status(struct wl1271 *wl,
 		wl->ap_fw_ps_map = cur_fw_ps_map;
 	}
 
-	for_each_set_bit(hlid, wlvif->ap.sta_hlid_map, WL12XX_MAX_LINKS) {
-		lnk = &wl->links[hlid];
-		cnt = status->counters.tx_lnk_free_pkts[hlid] -
-			lnk->prev_freed_pkts;
-
-		lnk->prev_freed_pkts = status->counters.tx_lnk_free_pkts[hlid];
-		lnk->allocated_pkts -= cnt;
-
+	for_each_set_bit(hlid, wlvif->ap.sta_hlid_map, WL12XX_MAX_LINKS)
 		wl12xx_irq_ps_regulate_link(wl, wlvif, hlid,
-					    lnk->allocated_pkts);
-	}
+					    wl->links[hlid].allocated_pkts);
 }
 
 static int wlcore_fw_status(struct wl1271 *wl,
@@ -399,6 +390,7 @@ static int wlcore_fw_status(struct wl1271 *wl,
 	int i;
 	size_t status_len;
 	int ret;
+	struct wl1271_link *lnk;
 
 	status_len = WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc) +
 		sizeof(*status_2) + wl->fw_status_priv_len;
@@ -422,6 +414,17 @@ static int wlcore_fw_status(struct wl1271 *wl,
 				wl->tx_pkts_freed[i]) & 0xff;
 
 		wl->tx_pkts_freed[i] = status_2->counters.tx_released_pkts[i];
+	}
+
+
+	for_each_set_bit(i, wl->links_map, WL12XX_MAX_LINKS) {
+		lnk = &wl->links[i];
+		/* prevent wrap-around in freed-packets counter */
+		lnk->allocated_pkts -=
+			(status_2->counters.tx_lnk_free_pkts[i] -
+			 lnk->prev_freed_pkts) & 0xff;
+
+		lnk->prev_freed_pkts = status_2->counters.tx_lnk_free_pkts[i];
 	}
 
 	/* prevent wrap-around in total blocks counter */
@@ -1886,6 +1889,8 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	wl->active_sta_count = 0;
 
 	/* The system link is always allocated */
+	wl->links[WL12XX_SYSTEM_HLID].allocated_pkts = 0;
+	wl->links[WL12XX_SYSTEM_HLID].prev_freed_pkts = 0;
 	__set_bit(WL12XX_SYSTEM_HLID, wl->links_map);
 
 	/*

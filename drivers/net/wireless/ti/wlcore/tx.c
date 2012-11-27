@@ -224,9 +224,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
 		wl->tx_allocated_pkts[ac]++;
 
-		if (!wl12xx_is_dummy_packet(wl, skb) && wlvif &&
-		    wlvif->bss_type == BSS_TYPE_AP_BSS &&
-		    test_bit(hlid, wlvif->ap.sta_hlid_map))
+		if (test_bit(hlid, wl->links_map))
 			wl->links[hlid].allocated_pkts++;
 
 		ret = 0;
