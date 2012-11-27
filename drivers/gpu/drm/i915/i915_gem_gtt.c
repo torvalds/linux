@@ -367,8 +367,9 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	gtt_pte_t scratch_pte;
-	volatile void __iomem *gtt_base = dev_priv->mm.gtt->gtt + first_entry;
+	gtt_pte_t __iomem *gtt_base = dev_priv->mm.gtt->gtt + first_entry;
 	const int max_entries = dev_priv->mm.gtt->gtt_total_entries - first_entry;
+	int i;
 
 	if (INTEL_INFO(dev)->gen < 6) {
 		intel_gtt_clear_range(first_entry, num_entries);
@@ -381,7 +382,8 @@ static void i915_ggtt_clear_range(struct drm_device *dev,
 		num_entries = max_entries;
 
 	scratch_pte = pte_encode(dev, dev_priv->mm.gtt->scratch_page_dma, I915_CACHE_LLC);
-	memset_io(gtt_base, scratch_pte, num_entries * sizeof(scratch_pte));
+	for (i = 0; i < num_entries; i++)
+		iowrite32(scratch_pte, &gtt_base[i]);
 	readl(gtt_base);
 }
 
