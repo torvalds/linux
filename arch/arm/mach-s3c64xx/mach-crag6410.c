@@ -287,14 +287,19 @@ static struct platform_device littlemill_device = {
 	.id		= -1,
 };
 
-static struct platform_device bells_wm5102_device = {
+static struct platform_device bells_wm2200_device = {
 	.name		= "bells",
 	.id		= 0,
 };
 
-static struct platform_device bells_wm5110_device = {
+static struct platform_device bells_wm5102_device = {
 	.name		= "bells",
 	.id		= 1,
+};
+
+static struct platform_device bells_wm5110_device = {
+	.name		= "bells",
+	.id		= 2,
 };
 
 static struct regulator_consumer_supply wallvdd_consumers[] = {
@@ -376,6 +381,7 @@ static struct platform_device *crag6410_devices[] __initdata = {
 	&tobermory_device,
 	&littlemill_device,
 	&lowland_device,
+	&bells_wm2200_device,
 	&bells_wm5102_device,
 	&bells_wm5110_device,
 	&wallvdd_device,
