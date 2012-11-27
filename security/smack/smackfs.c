@@ -2035,10 +2035,8 @@ static ssize_t smk_write_revoke_subj(struct file *file, const char __user *buf,
 	}
 
 	skp = smk_find_entry(cp);
-	if (skp == NULL) {
-		rc = -EINVAL;
+	if (skp == NULL)
 		goto free_out;
-	}
 
 	rule_list = &skp->smk_rules;
 	rule_lock = &skp->smk_rules_lock;
