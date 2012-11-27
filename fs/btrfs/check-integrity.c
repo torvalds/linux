@@ -137,7 +137,7 @@ struct btrfsic_block {
 	unsigned int never_written:1;	/* block was added because it was
 					 * referenced, not because it was
 					 * written */
-	unsigned int mirror_num:2;	/* large enough to hold
+	unsigned int mirror_num;	/* large enough to hold
 					 * BTRFS_SUPER_MIRROR_MAX */
 	struct btrfsic_dev_state *dev_state;
 	u64 dev_bytenr;		/* key, physical byte num on disk */
