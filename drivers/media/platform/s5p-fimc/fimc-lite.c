@@ -1253,7 +1253,9 @@ static int fimc_lite_subdev_registered(struct v4l2_subdev *sd)
 	q->buf_struct_size = sizeof(struct flite_buffer);
 	q->drv_priv = fimc;
 
-	vb2_queue_init(q);
+	ret = vb2_queue_init(q);
+	if (ret < 0)
+		return ret;
 
 	fimc->vd_pad.flags = MEDIA_PAD_FL_SINK;
 	ret = media_entity_init(&vfd->entity, 1, &fimc->vd_pad, 0);

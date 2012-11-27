@@ -864,8 +864,10 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 
 		bytesperline = soc_mbus_bytes_per_line(icd->user_width,
 				icd->current_fmt->host_fmt);
-		if (bytesperline < 0)
+		if (bytesperline < 0) {
+			spin_unlock_irqrestore(&pcdev->lock, flags);
 			return bytesperline;
+		}
 
 		/*
 		 * I didn't manage to properly enable/disable the prp
@@ -878,8 +880,10 @@ static int mx2_start_streaming(struct vb2_queue *q, unsigned int count)
 		pcdev->discard_buffer = dma_alloc_coherent(ici->v4l2_dev.dev,
 				pcdev->discard_size, &pcdev->discard_buffer_dma,
 				GFP_KERNEL);
-		if (!pcdev->discard_buffer)
+		if (!pcdev->discard_buffer) {
+			spin_unlock_irqrestore(&pcdev->lock, flags);
 			return -ENOMEM;
+		}
 
 		pcdev->buf_discard[0].discard = true;
 		list_add_tail(&pcdev->buf_discard[0].queue,
@@ -1099,9 +1103,10 @@ static int mx2_camera_set_bus_param(struct soc_camera_device *icd)
 }
 
 static int mx2_camera_set_crop(struct soc_camera_device *icd,
-				struct v4l2_crop *a)
+				const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct v4l2_mbus_framefmt mf;
 	int ret;
