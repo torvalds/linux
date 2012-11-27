@@ -164,15 +164,6 @@ config  PWM_TIPWMSS
 	  PWM submodules require PWM config space access from submodule
 	  drivers and require common parent driver support.
 
-config PWM_TWL6030
-	tristate "TWL6030 PWM support"
-	depends on TWL4030_CORE
-	help
-	  Generic PWM framework driver for TWL6030.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-twl6030.
-
 config PWM_TWL
 	tristate "TWL4030/6030 PWM support"
 	depends on TWL4030_CORE
