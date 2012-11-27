@@ -2587,9 +2587,9 @@ static int snd_pcm_common_ioctl1(struct file *file,
 	snd_printd("unknown ioctl = 0x%x\n", cmd);
 	return -ENOTTY;
 }
-#ifdef	CONFIG_FB_WIMO
-int (*audio_data_to_wimo)(void* data,int size,int channel) = NULL;
-EXPORT_SYMBOL(audio_data_to_wimo);
+#ifdef	CONFIG_FB_MIRRORING
+int (*audio_data_to_mirroring)(void* data,int size,int channel) = NULL;
+EXPORT_SYMBOL(audio_data_to_mirroring);
 #endif
 
 static int snd_pcm_playback_ioctl1(struct file *file,
@@ -2613,10 +2613,10 @@ static int snd_pcm_playback_ioctl1(struct file *file,
 			return -EFAULT;
 		if (copy_from_user(&xferi, _xferi, sizeof(xferi)))
 			return -EFAULT;
-		#ifdef	CONFIG_FB_WIMO
+		#ifdef	CONFIG_FB_MIRRORING
 		
-		if(audio_data_to_wimo!=NULL)
-		 	audio_data_to_wimo(xferi.buf, xferi.frames*4,2);
+		if(audio_data_to_mirroring!=NULL)
+		 	audio_data_to_mirroring(xferi.buf, xferi.frames*4,2);
 		
 		#endif
 

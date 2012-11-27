@@ -36,9 +36,11 @@
 void rk29_backlight_set(bool on);
 bool rk29_get_backlight_status(void);
 
-#ifdef	FB_WIMO_FLAG
-int (*video_data_to_wimo)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
-EXPORT_SYMBOL(video_data_to_wimo);
+#ifdef	CONFIG_FB_MIRRORING
+
+
+int (*video_data_to_mirroring)(struct fb_info *info,u32 yuv_phy[2]) = NULL;
+EXPORT_SYMBOL(video_data_to_mirroring);
 
 #endif
 static struct platform_device *g_fb_pdev;
@@ -219,9 +221,9 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 		#endif
 	#endif
 	dev_drv->pan_display(dev_drv,layer_id);
-	#ifdef	FB_WIMO_FLAG
-	if(video_data_to_wimo!=NULL)
-		video_data_to_wimo(info,NULL);
+	#ifdef	CONFIG_FB_MIRRORING
+	if(video_data_to_mirroring!=NULL)
+		video_data_to_mirroring(info,NULL);
  	#endif
 	return 0;
 }

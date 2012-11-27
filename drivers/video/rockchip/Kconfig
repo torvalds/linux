@@ -7,6 +7,9 @@ menuconfig FB_ROCKCHIP
         ---help---
           Framebuffer driver for rockchip based platform
 
+config FB_MIRRORING
+	bool     "Mirroring support"
+	depends on FB_ROCKCHIP
 choice
         bool "Dual display ploy select"
 	depends on FB_ROCKCHIP
@@ -40,12 +43,6 @@ config THREE_FB_BUFFER
         help
            select y if android support three buffer,like Jelly Bean
 
-config FB_WIMO
-	bool "WiMO support"
-	depends on FB_ROCKCHIP
-	default n
-	help
-	    Support wimo
 
 config LCDC_RK2928
         tristate "rk2928 lcdc support"
