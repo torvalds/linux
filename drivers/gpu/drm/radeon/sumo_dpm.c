@@ -813,6 +813,12 @@ static void sumo_program_bootup_state(struct radeon_device *rdev)
 
 void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
 {
+/* This bit selects who handles display phy powergating.
+ * Clear the bit to let atom handle it.
+ * Set it to let the driver handle it.
+ * For now we just let atom handle it.
+ */
+#if 0
 	u32 v = RREG32(DOUT_SCRATCH3);
 
 	if (enable)
@@ -821,6 +827,7 @@ void sumo_take_smu_control(struct radeon_device *rdev, bool enable)
 		v &= 0xFFFFFFFB;
 
 	WREG32(DOUT_SCRATCH3, v);
+#endif
 }
 
 static void sumo_enable_sclk_ds(struct radeon_device *rdev, bool enable)
