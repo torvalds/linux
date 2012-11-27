@@ -24,6 +24,12 @@
 
 #include "conf.h"
 
+/* WiLink 6/7 chip IDs */
+#define CHIP_ID_127X_PG10              (0x04030101)
+#define CHIP_ID_127X_PG20              (0x04030111)
+#define CHIP_ID_128X_PG10              (0x05030101)
+#define CHIP_ID_128X_PG20              (0x05030111)
+
 /* minimum FW required for driver for wl127x */
 #define WL127X_CHIP_VER		6
 #define WL127X_IFTYPE_VER	3

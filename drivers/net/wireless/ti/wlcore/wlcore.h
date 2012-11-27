@@ -520,12 +520,6 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 #define WLCORE_QUIRK_REGDOMAIN_CONF		BIT(11)
 
 
-/* TODO: move to the lower drivers when all usages are abstracted */
-#define CHIP_ID_1271_PG10              (0x4030101)
-#define CHIP_ID_1271_PG20              (0x4030111)
-#define CHIP_ID_1283_PG10              (0x05030101)
-#define CHIP_ID_1283_PG20              (0x05030111)
-
 /* TODO: move all these common registers and values elsewhere */
 #define HW_ACCESS_ELP_CTRL_REG		0x1FFFC
 
