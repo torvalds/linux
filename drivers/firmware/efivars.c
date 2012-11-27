@@ -658,13 +658,14 @@ static int efi_pstore_close(struct pstore_info *psi)
 }
 
 static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
-			       struct timespec *timespec,
+			       int *count, struct timespec *timespec,
 			       char **buf, struct pstore_info *psi)
 {
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct efivars *efivars = psi->data;
 	char name[DUMP_NAME_LEN];
 	int i;
+	int cnt;
 	unsigned int part, size;
 	unsigned long time;
 
@@ -674,8 +675,10 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 			for (i = 0; i < DUMP_NAME_LEN; i++) {
 				name[i] = efivars->walk_entry->var.VariableName[i];
 			}
-			if (sscanf(name, "dump-type%u-%u-%lu", type, &part, &time) == 3) {
+			if (sscanf(name, "dump-type%u-%u-%d-%lu",
+				   type, &part, &cnt, &time) == 4) {
 				*id = part;
+				*count = cnt;
 				timespec->tv_sec = time;
 				timespec->tv_nsec = 0;
 				get_var_data_locked(efivars, &efivars->walk_entry->var);
@@ -698,7 +701,8 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 
 static int efi_pstore_write(enum pstore_type_id type,
 		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, size_t size, struct pstore_info *psi)
+		unsigned int part, int count, size_t size,
+		struct pstore_info *psi)
 {
 	char name[DUMP_NAME_LEN];
 	efi_char16_t efi_name[DUMP_NAME_LEN];
@@ -725,7 +729,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 		return -ENOSPC;
 	}
 
-	sprintf(name, "dump-type%u-%u-%lu", type, part,
+	sprintf(name, "dump-type%u-%u-%d-%lu", type, part, count,
 		get_seconds());
 
 	for (i = 0; i < DUMP_NAME_LEN; i++)
@@ -746,7 +750,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 	return ret;
 };
 
-static int efi_pstore_erase(enum pstore_type_id type, u64 id,
+static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 			    struct timespec time, struct pstore_info *psi)
 {
 	char name[DUMP_NAME_LEN];
@@ -756,7 +760,7 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id,
 	struct efivar_entry *entry, *found = NULL;
 	int i;
 
-	sprintf(name, "dump-type%u-%u-%lu", type, (unsigned int)id,
+	sprintf(name, "dump-type%u-%u-%d-%lu", type, (unsigned int)id, count,
 		time.tv_sec);
 
 	spin_lock(&efivars->lock);
@@ -807,7 +811,7 @@ static int efi_pstore_close(struct pstore_info *psi)
 	return 0;
 }
 
-static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
+static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type, int *count,
 			       struct timespec *timespec,
 			       char **buf, struct pstore_info *psi)
 {
@@ -816,12 +820,13 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 
 static int efi_pstore_write(enum pstore_type_id type,
 		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, size_t size, struct pstore_info *psi)
+		unsigned int part, int count, size_t size,
+		struct pstore_info *psi)
 {
 	return 0;
 }
 
-static int efi_pstore_erase(enum pstore_type_id type, u64 id,
+static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 			    struct timespec time, struct pstore_info *psi)
 {
 	return 0;
