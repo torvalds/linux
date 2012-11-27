@@ -466,6 +466,9 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
 	memcpy(&wl->ht_cap[band], ht_cap, sizeof(*ht_cap));
 }
 
+/* Tell wlcore not to care about this element when checking the version */
+#define WLCORE_FW_VER_IGNORE	-1
+
 static inline void
 wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 		      unsigned int iftype, unsigned int major,
