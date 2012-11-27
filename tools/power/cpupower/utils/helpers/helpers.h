@@ -92,6 +92,14 @@ extern int get_cpu_info(unsigned int cpu, struct cpupower_cpu_info *cpu_info);
 extern struct cpupower_cpu_info cpupower_cpu_info;
 /* cpuid and cpuinfo helpers  **************************/
 
+struct cpuid_core_info {
+	int pkg;
+	int core;
+	int cpu;
+
+	/* flags */
+	unsigned int is_online:1;
+};
 
 /* CPU topology/hierarchy parsing ******************/
 struct cpupower_topology {
@@ -101,14 +109,7 @@ struct cpupower_topology {
 	unsigned int threads; /* per core */
 
 	/* Array gets mallocated with cores entries, holding per core info */
-	struct {
-		int pkg;
-		int core;
-		int cpu;
-
-		/* flags */
-		unsigned int is_online:1;
-	} *core_info;
+	struct cpuid_core_info *core_info;
 };
 
 extern int get_cpu_topology(struct cpupower_topology *cpu_top);

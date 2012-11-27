@@ -36,14 +36,6 @@ static int sysfs_topology_read_file(unsigned int cpu, const char *fname, int *re
 	return 0;
 }
 
-struct cpuid_core_info {
-	unsigned int pkg;
-	unsigned int thread;
-	unsigned int cpu;
-	/* flags */
-	unsigned int is_online:1;
-};
-
 static int __compare(const void *t1, const void *t2)
 {
 	struct cpuid_core_info *top1 = (struct cpuid_core_info *)t1;
@@ -52,9 +44,9 @@ static int __compare(const void *t1, const void *t2)
 		return -1;
 	else if (top1->pkg > top2->pkg)
 		return 1;
-	else if (top1->thread < top2->thread)
+	else if (top1->core < top2->core)
 		return -1;
-	else if (top1->thread > top2->thread)
+	else if (top1->core > top2->core)
 		return 1;
 	else if (top1->cpu < top2->cpu)
 		return -1;
@@ -74,7 +66,7 @@ int get_cpu_topology(struct cpupower_topology *cpu_top)
 {
 	int cpu, cpus = sysconf(_SC_NPROCESSORS_CONF);
 
-	cpu_top->core_info = malloc(sizeof(struct cpupower_topology) * cpus);
+	cpu_top->core_info = malloc(sizeof(struct cpuid_core_info) * cpus);
 	if (cpu_top->core_info == NULL)
 		return -ENOMEM;
 	cpu_top->pkgs = cpu_top->cores = 0;
