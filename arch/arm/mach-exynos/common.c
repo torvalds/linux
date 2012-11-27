@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/serial_core.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/of_irq.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
@@ -121,6 +122,7 @@ static struct map_desc exynos_iodesc[] __initdata = {
 	},
 };
 
+#ifdef CONFIG_ARCH_EXYNOS5
 static struct map_desc exynos5440_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S5P_VA_CHIPID,
@@ -129,6 +131,7 @@ static struct map_desc exynos5440_iodesc[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 };
+#endif
 
 static struct map_desc exynos4_iodesc[] __initdata = {
 	{
@@ -346,11 +349,19 @@ void __init exynos_init_late(void)
 
 void __init exynos_init_io(struct map_desc *mach_desc, int size)
 {
+	struct map_desc *iodesc = exynos_iodesc;
+	int iodesc_sz = ARRAY_SIZE(exynos_iodesc);
+#if defined(CONFIG_OF) && defined(CONFIG_ARCH_EXYNOS5)
+	unsigned long root = of_get_flat_dt_root();
+
 	/* initialize the io descriptors we need for initialization */
-	if (of_machine_is_compatible("samsung,exynos5440"))
-		iotable_init(exynos5440_iodesc, ARRAY_SIZE(exynos5440_iodesc));
-	else
-		iotable_init(exynos_iodesc, ARRAY_SIZE(exynos_iodesc));
+	if (of_flat_dt_is_compatible(root, "samsung,exynos5440")) {
+		iodesc = exynos5440_iodesc;
+		iodesc_sz = ARRAY_SIZE(exynos5440_iodesc);
+	}
+#endif
+
+	iotable_init(iodesc, iodesc_sz);
 
 	if (mach_desc)
 		iotable_init(mach_desc, size);
