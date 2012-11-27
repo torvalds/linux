@@ -84,7 +84,7 @@ int fill_string_with_spaces(char *s, int n)
 void print_header(int topology_depth)
 {
 	int unsigned mon;
-	int state, need_len, pr_mon_len;
+	int state, need_len;
 	cstate_t s;
 	char buf[128] = "";
 	int percent_width = 4;
@@ -93,7 +93,6 @@ void print_header(int topology_depth)
 	printf("%s|", buf);
 
 	for (mon = 0; mon < avail_monitors; mon++) {
-		pr_mon_len = 0;
 		need_len = monitors[mon]->hw_states_num * (percent_width + 3)
 			- 1;
 		if (mon != 0) {
