@@ -9519,7 +9519,8 @@ static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 {
 	u16 val, fw_ver1, fw_ver2, cnt;
 
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
 		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD, 0x400f, &fw_ver1);
 		bnx2x_save_spirom_version(bp, port, fw_ver1 & 0xfff,
 				phy->ver_addr);
@@ -9619,7 +9620,8 @@ static void bnx2x_848xx_set_led(struct bnx2x *bp,
 			MDIO_PMA_REG_84823_CTL_SLOW_CLK_CNT_HIGH,
 			MDIO_PMA_REG_84823_BLINK_RATE_VAL_15P9HZ);
 
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834))
 		offset = MDIO_PMA_REG_84833_CTL_LED_CTL_1;
 	else
 		offset = MDIO_PMA_REG_84823_CTL_LED_CTL_1;
@@ -9643,7 +9645,8 @@ static void bnx2x_848xx_specific_func(struct bnx2x_phy *phy,
 	struct bnx2x *bp = params->bp;
 	switch (action) {
 	case PHY_INIT:
-		if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+		if ((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
+		    (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
 			/* Save spirom version */
 			bnx2x_save_848xx_spirom_version(phy, bp, params->port);
 		}
@@ -9763,10 +9766,11 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 	if (phy->req_duplex == DUPLEX_FULL)
 		autoneg_val |= (1<<8);
 
-	/* Always write this if this is not 84833.
-	 * For 84833, write it only when it's a forced speed.
+	/* Always write this if this is not 84833/4.
+	 * For 84833/4, write it only when it's a forced speed.
 	 */
-	if ((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+	if (((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
+	     (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) ||
 		((autoneg_val & (1<<12)) == 0))
 		bnx2x_cl45_write(bp, phy,
 			 MDIO_AN_DEVAD,
@@ -10049,7 +10053,8 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 
 	/* Wait for GPHY to come out of reset */
 	msleep(50);
-	if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+	if ((phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
+	    (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
 		/* BCM84823 requires that XGXS links up first @ 10G for normal
 		 * behavior.
 		 */
@@ -10105,7 +10110,8 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Multi_phy config = 0x%x, Media control = 0x%x\n",
 		   params->multi_phy_config, val);
 
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
 		bnx2x_84833_pair_swap_cfg(phy, params, vars);
 
 		/* Keep AutogrEEEn disabled. */
@@ -10169,7 +10175,8 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 		vars->eee_status &= ~SHMEM_EEE_SUPPORTED_MASK;
 	}
 
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
+	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+	    (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) {
 		/* Bring PHY out of super isolate mode as the final step. */
 		bnx2x_cl45_read(bp, phy,
 				MDIO_CTL_DEVAD,
@@ -11607,6 +11614,40 @@ static struct bnx2x_phy phy_84833 = {
 	.phy_specific_func = (phy_specific_func_t)bnx2x_848xx_specific_func
 };
 
+static const struct bnx2x_phy phy_84834 = {
+	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834,
+	.addr		= 0xff,
+	.def_md_devad	= 0,
+	.flags		= FLAGS_FAN_FAILURE_DET_REQ |
+			    FLAGS_REARM_LATCH_SIGNAL,
+	.rx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
+	.tx_preemphasis	= {0xffff, 0xffff, 0xffff, 0xffff},
+	.mdio_ctrl	= 0,
+	.supported	= (SUPPORTED_100baseT_Half |
+			   SUPPORTED_100baseT_Full |
+			   SUPPORTED_1000baseT_Full |
+			   SUPPORTED_10000baseT_Full |
+			   SUPPORTED_TP |
+			   SUPPORTED_Autoneg |
+			   SUPPORTED_Pause |
+			   SUPPORTED_Asym_Pause),
+	.media_type	= ETH_PHY_BASE_T,
+	.ver_addr	= 0,
+	.req_flow_ctrl	= 0,
+	.req_line_speed	= 0,
+	.speed_cap_mask	= 0,
+	.req_duplex	= 0,
+	.rsrv		= 0,
+	.config_init	= (config_init_t)bnx2x_848x3_config_init,
+	.read_status	= (read_status_t)bnx2x_848xx_read_status,
+	.link_reset	= (link_reset_t)bnx2x_848x3_link_reset,
+	.config_loopback = (config_loopback_t)NULL,
+	.format_fw_ver	= (format_fw_ver_t)bnx2x_848xx_format_ver,
+	.hw_reset	= (hw_reset_t)bnx2x_84833_hw_reset_phy,
+	.set_link_led	= (set_link_led_t)bnx2x_848xx_set_link_led,
+	.phy_specific_func = (phy_specific_func_t)bnx2x_848xx_specific_func
+};
+
 static struct bnx2x_phy phy_54618se = {
 	.type		= PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE,
 	.addr		= 0xff,
@@ -11888,6 +11929,9 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
 		*phy = phy_84833;
 		break;
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
+		*phy = phy_84834;
+		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54616:
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE:
 		*phy = phy_54618se;
@@ -11944,9 +11988,10 @@ static int bnx2x_populate_ext_phy(struct bnx2x *bp,
 	}
 	phy->mdio_ctrl = bnx2x_get_emac_base(bp, mdc_mdio_access, port);
 
-	if ((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) &&
+	if (((phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) ||
+	     (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834)) &&
 	    (phy->ver_addr)) {
-		/* Remove 100Mb link supported for BCM84833 when phy fw
+		/* Remove 100Mb link supported for BCM84833/4 when phy fw
 		 * version lower than or equal to 1.39
 		 */
 		u32 raw_ver = REG_RD(bp, phy->ver_addr);
@@ -13015,7 +13060,8 @@ static int bnx2x_84833_common_init_phy(struct bnx2x *bp,
 }
 
 static int bnx2x_84833_pre_init_phy(struct bnx2x *bp,
-					       struct bnx2x_phy *phy)
+				    struct bnx2x_phy *phy,
+				    u8 port)
 {
 	u16 val, cnt;
 	/* Wait for FW completing its initialization. */
@@ -13042,26 +13088,28 @@ static int bnx2x_84833_pre_init_phy(struct bnx2x *bp,
 			 MDIO_84833_TOP_CFG_XGPHY_STRAP1, val);
 
 	/* Save spirom version */
-	bnx2x_save_848xx_spirom_version(phy, bp, PORT_0);
+	bnx2x_save_848xx_spirom_version(phy, bp, port);
 	return 0;
 }
 
 int bnx2x_pre_init_phy(struct bnx2x *bp,
 				  u32 shmem_base,
 				  u32 shmem2_base,
-				  u32 chip_id)
+				  u32 chip_id,
+				  u8 port)
 {
 	int rc = 0;
 	struct bnx2x_phy phy;
 	if (bnx2x_populate_phy(bp, EXT_PHY1, shmem_base, shmem2_base,
-			       PORT_0, &phy)) {
+			       port, &phy) != 0) {
 		DP(NETIF_MSG_LINK, "populate_phy failed\n");
 		return -EINVAL;
 	}
 	bnx2x_set_mdio_clk(bp, chip_id, phy.mdio_ctrl);
 	switch (phy.type) {
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
-		rc = bnx2x_84833_pre_init_phy(bp, &phy);
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
+		rc = bnx2x_84833_pre_init_phy(bp, &phy, port);
 		break;
 	default:
 		break;
@@ -13098,6 +13146,7 @@ static int bnx2x_ext_phy_common_init(struct bnx2x *bp, u32 shmem_base_path[],
 						phy_index, chip_id);
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833:
+	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84834:
 		/* GPIO3's are linked, and so both need to be toggled
 		 * to obtain required 2us pulse.
 		 */
