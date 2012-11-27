@@ -2159,6 +2159,14 @@ struct shmem2_region {
 	#define SHMEM_EEE_TIME_OUTPUT_BIT	   0x80000000
 
 	u32 sizeof_port_stats;
+
+	/* Link Flap Avoidance */
+	u32 lfa_host_addr[PORT_MAX];
+	u32 reserved1;
+
+	u32 reserved2;				/* Offset 0x148 */
+	u32 reserved3;				/* Offset 0x14C */
+	u32 reserved4;				/* Offset 0x150 */
 };
 
 

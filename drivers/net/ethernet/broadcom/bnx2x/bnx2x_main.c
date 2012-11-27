@@ -6267,6 +6267,10 @@ void bnx2x_pf_disable(struct bnx2x *bp)
 static void bnx2x__common_init_phy(struct bnx2x *bp)
 {
 	u32 shmem_base[2], shmem2_base[2];
+	/* Avoid common init in case MFW supports LFA */
+	if (SHMEM2_RD(bp, size) >
+	    (u32)offsetof(struct shmem2_region, lfa_host_addr[BP_PORT(bp)]))
+		return;
 	shmem_base[0] =  bp->common.shmem_base;
 	shmem2_base[0] = bp->common.shmem2_base;
 	if (!CHIP_IS_E1x(bp)) {
@@ -9862,6 +9866,14 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 
 	bp->link_params.shmem_base = bp->common.shmem_base;
 	bp->link_params.shmem2_base = bp->common.shmem2_base;
+	if (SHMEM2_RD(bp, size) >
+	    (u32)offsetof(struct shmem2_region, lfa_host_addr[BP_PORT(bp)]))
+		bp->link_params.lfa_base =
+		REG_RD(bp, bp->common.shmem2_base +
+		       (u32)offsetof(struct shmem2_region,
+				     lfa_host_addr[BP_PORT(bp)]));
+	else
+		bp->link_params.lfa_base = 0;
 	BNX2X_DEV_INFO("shmem offset 0x%x  shmem2 offset 0x%x\n",
 		       bp->common.shmem_base, bp->common.shmem2_base);
 
