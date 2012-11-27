@@ -1897,6 +1897,10 @@ int regulator_list_voltage_linear(struct regulator_dev *rdev,
 {
 	if (selector >= rdev->desc->n_voltages)
 		return -EINVAL;
+	if (selector < rdev->desc->linear_min_sel)
+		return 0;
+
+	selector -= rdev->desc->linear_min_sel;
 
 	return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
 }
@@ -2119,6 +2123,8 @@ int regulator_map_voltage_linear(struct regulator_dev *rdev,
 	ret = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
 	if (ret < 0)
 		return ret;
+
+	ret += rdev->desc->linear_min_sel;
 
 	/* Map back into a voltage to verify we're still in bounds */
 	voltage = rdev->desc->ops->list_voltage(rdev, ret);
