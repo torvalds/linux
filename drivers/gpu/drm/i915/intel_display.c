@@ -6945,8 +6945,6 @@ static void do_intel_finish_page_flip(struct drm_device *dev,
 
 	obj = work->old_fb_obj;
 
-	atomic_clear_mask(1 << intel_crtc->plane,
-			  &obj->pending_flip.counter);
 	wake_up(&dev_priv->pending_flip_queue);
 
 	queue_work(dev_priv->wq, &work->work);
@@ -7292,10 +7290,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	work->enable_stall_check = true;
 
-	/* Block clients from rendering to the new back buffer until
-	 * the flip occurs and the object is no longer visible.
-	 */
-	atomic_add(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 	atomic_inc(&intel_crtc->unpin_work_count);
 
 	ret = dev_priv->display.queue_flip(dev, crtc, fb, obj);
@@ -7312,7 +7306,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 cleanup_pending:
 	atomic_dec(&intel_crtc->unpin_work_count);
-	atomic_sub(1 << intel_crtc->plane, &work->old_fb_obj->pending_flip);
 	drm_gem_object_unreference(&work->old_fb_obj->base);
 	drm_gem_object_unreference(&obj->base);
 	mutex_unlock(&dev->struct_mutex);
