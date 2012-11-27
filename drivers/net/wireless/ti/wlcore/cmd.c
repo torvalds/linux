@@ -48,14 +48,15 @@
  * @id: command id
  * @buf: buffer containing the command, must work with dma
  * @len: length of the buffer
+ * return the cmd status code on success.
  */
-int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
-		    size_t res_len)
+static int __wlcore_cmd_send(struct wl1271 *wl, u16 id, void *buf,
+			     size_t len, size_t res_len)
 {
 	struct wl1271_cmd_header *cmd;
 	unsigned long timeout;
 	u32 intr;
-	int ret = 0;
+	int ret;
 	u16 status;
 	u16 poll_count = 0;
 
@@ -71,7 +72,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 	ret = wlcore_write(wl, wl->cmd_box_addr, buf, len, false);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	/*
 	 * TODO: we just need this because one bit is in a different
@@ -79,19 +80,18 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 	 */
 	ret = wl->ops->trigger_cmd(wl, wl->cmd_box_addr, buf, len);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
 	ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	while (!(intr & WL1271_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
-			ret = -ETIMEDOUT;
-			goto fail;
+			return -ETIMEDOUT;
 		}
 
 		poll_count++;
@@ -102,7 +102,7 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 		ret = wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR, &intr);
 		if (ret < 0)
-			goto fail;
+			return ret;
 	}
 
 	/* read back the status code of the command */
@@ -111,27 +111,59 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 	ret = wlcore_read(wl, wl->cmd_box_addr, cmd, res_len, false);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	status = le16_to_cpu(cmd->status);
-	if (status != CMD_STATUS_SUCCESS) {
-		wl1271_error("command execute failure %d", status);
-		ret = -EIO;
-		goto fail;
-	}
 
 	ret = wlcore_write_reg(wl, REG_INTERRUPT_ACK,
 			       WL1271_ACX_INTR_CMD_COMPLETE);
 	if (ret < 0)
+		return ret;
+
+	return status;
+}
+
+/*
+ * send command to fw and return cmd status on success
+ * valid_rets contains a bitmap of allowed error codes
+ */
+int wlcore_cmd_send_failsafe(struct wl1271 *wl, u16 id, void *buf, size_t len,
+			     size_t res_len, unsigned long valid_rets)
+{
+	int ret = __wlcore_cmd_send(wl, id, buf, len, res_len);
+
+	if (ret < 0)
 		goto fail;
 
-	return 0;
+	/* success is always a valid status */
+	valid_rets |= BIT(CMD_STATUS_SUCCESS);
 
+	if (ret >= MAX_COMMAND_STATUS ||
+	    !test_bit(ret, &valid_rets)) {
+		wl1271_error("command execute failure %d", ret);
+		ret = -EIO;
+		goto fail;
+	}
+	return ret;
 fail:
 	wl12xx_queue_recovery_work(wl);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wl1271_cmd_send);
+
+/*
+ * wrapper for wlcore_cmd_send that accept only CMD_STATUS_SUCCESS
+ * return 0 on success.
+ */
+int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
+		    size_t res_len)
+{
+	int ret = wlcore_cmd_send_failsafe(wl, id, buf, len, res_len, 0);
+
+	if (ret < 0)
+		return ret;
+	return 0;
+}
 
 /*
  * Poll the mailbox event field until any of the bits in the mask is set or a
@@ -791,8 +823,11 @@ int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len)
  * @id: acx id
  * @buf: buffer containing acx, including all headers, must work with dma
  * @len: length of buf
+ * @valid_rets: bitmap of valid cmd status codes (i.e. return values).
+ * return the cmd status on success.
  */
-int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len)
+int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
+				  size_t len, unsigned long valid_rets)
 {
 	struct acx_header *acx = buf;
 	int ret;
@@ -804,12 +839,26 @@ int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len)
 	/* payload length, does not include any headers */
 	acx->len = cpu_to_le16(len - sizeof(*acx));
 
-	ret = wl1271_cmd_send(wl, CMD_CONFIGURE, acx, len, 0);
+	ret = wlcore_cmd_send_failsafe(wl, CMD_CONFIGURE, acx, len, 0,
+				       valid_rets);
 	if (ret < 0) {
 		wl1271_warning("CONFIGURE command NOK");
 		return ret;
 	}
 
+	return ret;
+}
+
+/*
+ * wrapper for wlcore_cmd_configure that accepts only success status.
+ * return 0 on success
+ */
+int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len)
+{
+	int ret = wlcore_cmd_configure_failsafe(wl, id, buf, len, 0);
+
+	if (ret < 0)
+		return ret;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wl1271_cmd_configure);

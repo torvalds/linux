@@ -31,6 +31,8 @@ struct acx_header;
 
 int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		    size_t res_len);
+int wlcore_cmd_send_failsafe(struct wl1271 *wl, u16 id, void *buf, size_t len,
+			     size_t res_len, unsigned long valid_rets);
 int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 *addr, u8 role_type,
 			   u8 *role_id);
 int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id);
@@ -45,6 +47,8 @@ int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
+int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
+				  size_t len, unsigned long valid_rets);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u8 ps_mode, u16 auto_ps_timeout);
@@ -234,7 +238,8 @@ enum {
 	CMD_STATUS_FW_RESET		= 22, /* Driver internal use.*/
 	CMD_STATUS_TEMPLATE_OOM		= 23,
 	CMD_STATUS_NO_RX_BA_SESSION	= 24,
-	MAX_COMMAND_STATUS		= 0xff
+
+	MAX_COMMAND_STATUS
 };
 
 #define CMDMBOX_HEADER_LEN 4
