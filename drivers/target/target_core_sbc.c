@@ -437,7 +437,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 			cmd->t_task_lba = get_unaligned_be64(&cdb[12]);
 
 			ret = sbc_setup_write_same(cmd, &cdb[10], ops);
-			if (ret < 0)
+			if (ret)
 				return ret;
 			break;
 		default:
@@ -510,7 +510,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		cmd->t_task_lba = get_unaligned_be64(&cdb[2]);
 
 		ret = sbc_setup_write_same(cmd, &cdb[1], ops);
-		if (ret < 0)
+		if (ret)
 			return ret;
 		break;
 	case WRITE_SAME:
@@ -528,7 +528,7 @@ sbc_parse_cdb(struct se_cmd *cmd, struct sbc_ops *ops)
 		 * of byte 1 bit 3 UNMAP instead of original reserved field
 		 */
 		ret = sbc_setup_write_same(cmd, &cdb[1], ops);
-		if (ret < 0)
+		if (ret)
 			return ret;
 		break;
 	case VERIFY:
