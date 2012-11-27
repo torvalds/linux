@@ -1522,7 +1522,7 @@ static int bq2415x_probe(struct i2c_client *client,
 		goto error_1;
 	}
 
-	bq = kzalloc(sizeof(*bq), GFP_KERNEL);
+	bq = devm_kzalloc(&client->dev, sizeof(*bq), GFP_KERNEL);
 	if (!bq) {
 		dev_err(&client->dev, "failed to allocate device data\n");
 		ret = -ENOMEM;
@@ -1548,19 +1548,19 @@ static int bq2415x_probe(struct i2c_client *client,
 	ret = bq2415x_power_supply_init(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to register power supply: %d\n", ret);
-		goto error_3;
+		goto error_2;
 	}
 
 	ret = bq2415x_sysfs_init(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to create sysfs entries: %d\n", ret);
-		goto error_4;
+		goto error_3;
 	}
 
 	ret = bq2415x_set_defaults(bq);
 	if (ret) {
 		dev_err(bq->dev, "failed to set default values: %d\n", ret);
-		goto error_5;
+		goto error_4;
 	}
 
 	if (bq->init_data.set_mode_hook) {
@@ -1584,12 +1584,10 @@ static int bq2415x_probe(struct i2c_client *client,
 	dev_info(bq->dev, "driver registered\n");
 	return 0;
 
-error_5:
-	bq2415x_sysfs_exit(bq);
 error_4:
-	bq2415x_power_supply_exit(bq);
+	bq2415x_sysfs_exit(bq);
 error_3:
-	kfree(bq);
+	bq2415x_power_supply_exit(bq);
 error_2:
 	kfree(name);
 error_1:
@@ -1621,7 +1619,6 @@ static int bq2415x_remove(struct i2c_client *client)
 	dev_info(bq->dev, "driver unregistered\n");
 
 	kfree(bq->name);
-	kfree(bq);
 
 	return 0;
 }
