@@ -276,6 +276,7 @@ static struct reginfo sensor_init_data[] =
 	{0x5063, 0x69},
 	{0x3004, 0x20},
 		{0x0100, 0x01},
+
 	{0x0000, 0x00}
 };
 
@@ -451,6 +452,7 @@ static struct reginfo sensor_720p[]=
 /* 1600X1200 UXGA */
 static struct reginfo sensor_uxga[] =
 {
+#if 0
     {0x3800, 0x00},
 	{0x3801, 0x00},
 	{0x3802, 0x00},
@@ -496,6 +498,84 @@ static struct reginfo sensor_uxga[] =
 	{0x5002, 0x00},
 	{0x3005, 0x24},
 	{0x3004, 0x20},
+#else
+    //{0x3a00,OV2659ReadReg(0x3a00)&0xfb}, 
+    {0x3503,0x03}, 
+    //{0x3406,OV2659ReadReg(0x3406)|0x01}, 
+
+    {0x506e,0x44},	
+    {0x5064,0x08},	
+    {0x5065,0x10},
+    {0x5066,0x18},	// zenghaihui 20110920 16
+    {0x5067,0x10},
+    {0x506c,0x08},
+    {0x506d,0x10},	
+    {0x506f,0xa6},	
+    {0x5068,0x08},
+    {0x5069,0x10},	
+    {0x506a,0x08},
+    {0x506b,0x28},
+    {0x5084,0x14},//0c
+    {0x5085,0x3c},//34	
+    {0x5005,0x80}, 
+
+
+
+    {0x5066, 0x3c},         
+    {0x5067, 0x1a}, 
+    {0x506a, 0x0e},    
+    {0x506b, 0x2e},    
+
+    {0x3800, 0x00}, 
+    {0x3801, 0x00}, 
+    {0x3802, 0x00}, 
+    {0x3803, 0x00}, 
+    {0x3804, 0x06}, 
+    {0x3805, 0x5f}, 
+    {0x3806, 0x04}, 
+    {0x3807, 0xbb}, 
+    {0x3808, 0x06}, 
+    {0x3809, 0x40}, 
+    {0x380a, 0x04}, 
+    {0x380b, 0xb0}, 
+    {0x3811, 0x10}, 
+    {0x3813, 0x06}, 
+    {0x3814, 0x11}, 
+    {0x3815, 0x11}, 
+
+    {0x3623, 0x00}, 
+    {0x3634, 0x44}, 
+    {0x3701, 0x44}, 
+    {0x3208, 0xa2}, 
+    {0x3705, 0x18},      
+    {0x3820, 0x80}, 
+    {0x3821, 0x00}, 
+
+    {0x3003, 0x80},//10fps 
+    {0x3004, 0x20}, //10         
+    {0x3005, 0x18}, 
+    {0x3006, 0x0d}, 
+
+    {0x380c, 0x07}, 
+    {0x380d, 0x9f}, 
+    {0x380e, 0x04}, 
+    {0x380f, 0xd0}, 
+
+    {0x370a, 0x12}, 
+    {0x4608, 0x00}, 
+    {0x4609, 0x80}, 
+    {0x5002, 0x00}, 
+
+    {0x3a08, 0x00}, 
+    {0x3a09, 0x3e},//7b 
+    {0x3a0e, 0x13},//0a 
+
+    {0x3a0a, 0x00}, 
+    {0x3a0b, 0x3e},//7b                 
+    {0x3a0d, 0x13},//0a         
+
+    {0x4003, 0x88}, 
+#endif
 	{0x0000, 0x00}
 };
 
@@ -512,7 +592,7 @@ static struct reginfo sensor_xga[] =
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
-		{0x0100, 0x00},    //software sleep : Sensor vsync singal may not output if haven't sleep the sensor when transfer the array,
+	{0x0100, 0x00},    //software sleep : Sensor vsync singal may not output if haven't sleep the sensor when transfer the array,
 	{0x3800, 0x00},
 	{0x3801, 0x00},
 	{0x3802, 0x00},
@@ -558,7 +638,8 @@ static struct reginfo sensor_svga[] =
 	{0x5002, 0x10},
 	{0x3005, 0x18},
 	{0x3004, 0x20},
-		{0x0100, 0x01},		//software wake
+	{0x3503,0x00},
+	{0x0100, 0x01},		//software wake
 	{0x0000, 0x00}
 };
 
@@ -1273,11 +1354,25 @@ typedef struct sensor_info_priv_s
     unsigned int funmodule_state;
 } sensor_info_priv_t;
 
+struct sensor_parameter
+{
+	unsigned int PreviewDummyPixels;
+    unsigned int CaptureDummyPixels;
+	unsigned int preview_exposure;
+	unsigned short int preview_line_width;
+	unsigned short int preview_gain;
+
+	unsigned short int PreviewPclk;
+	unsigned short int CapturePclk;
+	char awb[6];
+};
+
 struct sensor
 {
     struct v4l2_subdev subdev;
     struct i2c_client *client;
     sensor_info_priv_t info_priv;
+    struct sensor_parameter parameter;
     int model;	/* V4L2_IDENT_OV* codes from v4l2-chip-ident.h */
 #if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_t tasklock_cnt;
@@ -1467,6 +1562,165 @@ static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regar
     return 0;
 }
 #endif
+
+static int sensor_parameter_record(struct i2c_client *client)
+{
+	u8 ret_l,ret_m,ret_h;
+	int tp_l,tp_m,tp_h;
+	struct sensor *sensor = to_sensor(client);
+
+    sensor_read(client,0x3a00, &ret_l);
+    sensor_write(client,0x3a00, ret_l&0xfb);
+
+	sensor_write(client,0x3503,0x07);	//stop AE/AG
+
+	sensor_read(client,0x3500,&ret_h);
+	sensor_read(client,0x3501, &ret_m);
+	sensor_read(client,0x3502, &ret_l);
+	tp_l = ret_l;
+	tp_m = ret_m;
+	tp_h = ret_h;
+    sensor->parameter.preview_exposure = ((tp_h<<12) & 0xF000) | ((tp_m<<4) & 0x0FF0) | ((tp_l>>4) & 0x0F);
+	
+	//Read back AGC Gain for preview
+	sensor_read(client,0x350b, &ret_l);
+	sensor->parameter.preview_gain = ret_l;
+
+    sensor->parameter.CapturePclk = 24000000;
+    sensor->parameter.PreviewPclk = 24000000;
+    sensor->parameter.PreviewDummyPixels = 0;
+    sensor->parameter.CaptureDummyPixels = 0;
+	SENSOR_DG(" %s Read 0x350b=0x%02x  PreviewExposure:%d 0x3500=0x%02x  0x3501=0x%02x 0x3502=0x%02x \n",
+     SENSOR_NAME_STRING(), ret_l,sensor->parameter.preview_exposure,tp_h, tp_m, tp_l);
+	return 0;
+}
+#define OV2659_FULL_PERIOD_PIXEL_NUMS  (1940)  // default pixel#(w/o dummy pixels) in UXGA mode
+#define OV2659_FULL_PERIOD_LINE_NUMS   (1238)  // default line#(w/o dummy lines) in UXGA mode
+#define OV2659_PV_PERIOD_PIXEL_NUMS	  (970)  // default pixel#(w/o dummy pixels) in SVGA mode
+#define OV2659_PV_PERIOD_LINE_NUMS	  (618)   // default line#(w/o dummy lines) in SVGA mode
+
+/* SENSOR EXPOSURE LINE LIMITATION */
+#define OV2659_FULL_EXPOSURE_LIMITATION	  (1236)
+#define OV2659_PV_EXPOSURE_LIMITATION	  (618)
+
+// SENSOR UXGA SIZE
+#define OV2659_IMAGE_SENSOR_FULL_WIDTH	  (1600)
+#define OV2659_IMAGE_SENSOR_FULL_HEIGHT	  (1200)
+
+#define OV2659_FULL_GRAB_WIDTH				(OV2659_IMAGE_SENSOR_FULL_WIDTH - 16)
+#define OV2659_FULL_GRAB_HEIGHT				(OV2659_IMAGE_SENSOR_FULL_HEIGHT - 12)
+
+static void OV2659SetDummy(struct i2c_client *client,unsigned int dummy_pixels, unsigned int dummy_lines)
+{
+    unsigned char val;
+	unsigned int temp_reg1, temp_reg2;
+	unsigned int temp_reg, base_shutter = 0x9B;
+	
+	if (dummy_pixels > 0)
+	{
+		sensor_read(client,0x380D,&val);    // HTS[b7~b0]
+		temp_reg1 = val;
+		sensor_read(client,0x380C,&val);    // HTS[b15~b8]
+		temp_reg2 = val;
+		temp_reg = (temp_reg1 & 0xFF) | (temp_reg2 << 8);
+	
+		temp_reg += dummy_pixels;
+	
+		sensor_write(client,0x380D,(temp_reg&0xFF));         //HTS[7:0]
+		sensor_write(client,0x380C,((temp_reg&0xFF00)>>8));  //HTS[15:8]
+	}
+
+	if (dummy_lines > 0)
+	{
+		sensor_read(client,0x380F,&val);    // VTS[b7~b0]
+		temp_reg1 = val;
+		sensor_read(client,0x380E,&val);    // VTS[b15~b8]
+		temp_reg2 = val;
+		temp_reg = (temp_reg1 & 0xFF) | (temp_reg2 << 8);
+	
+		temp_reg += dummy_lines;
+	
+		sensor_write(client,0x380F,(temp_reg&0xFF));         //VTS[7:0]
+		sensor_write(client,0x380E,((temp_reg&0xFF00)>>8));  //VTS[15:8]
+	}
+}    /* OV2659_set_dummy */
+static void OV2659WriteShutter(struct i2c_client *client,bool is_preview, unsigned int shutter)
+{
+	unsigned int extra_exposure_lines = 0;
+
+    if (shutter < 1)
+	{
+		shutter = 1;
+	}
+	
+	if (is_preview) 
+	{
+		if (shutter <= OV2659_PV_EXPOSURE_LIMITATION) 
+		{
+			extra_exposure_lines = 0;
+		}
+		else 
+		{
+			extra_exposure_lines=shutter - OV2659_PV_EXPOSURE_LIMITATION;
+		}
+		
+	}
+	else 
+	{
+		if (shutter <= OV2659_FULL_EXPOSURE_LIMITATION) 
+		{
+			extra_exposure_lines = 0;
+		}
+		else 
+		{
+			extra_exposure_lines = shutter - OV2659_FULL_EXPOSURE_LIMITATION;
+		}
+		
+	}
+	
+	//AEC PK EXPOSURE
+	shutter*=16;
+	sensor_write(client,0x3502, (shutter & 0x00FF));           //AEC[7:0]
+	sensor_write(client,0x3501, ((shutter & 0x0FF00) >>8));  //AEC[15:8]
+	sensor_write(client,0x3500, ((shutter & 0xFF0000) >> 16));	
+	
+	if(extra_exposure_lines>0)
+	{
+		// set extra exposure line [aec add vts]
+		sensor_write(client,0x3507, extra_exposure_lines & 0xFF);          // EXVTS[b7~b0]
+		sensor_write(client,0x3506, (extra_exposure_lines & 0xFF00) >> 8); // EXVTS[b15~b8]
+	}
+	else
+	{
+		// set extra exposure line [aec add vts]
+		sensor_write(client,0x3507, 0x00);          // EXVTS[b7~b0]
+		sensor_write(client,0x3506, 0x00); // EXVTS[b15~b8]
+	}
+	
+}    /* OV2659_write_shutter */
+static int sensor_ae_transfer(struct i2c_client *client)
+{
+	unsigned int prev_line_len,cap_line_len,shutter;
+	struct sensor *sensor = to_sensor(client);
+
+    mdelay(100);
+    shutter = sensor->parameter.preview_exposure;
+
+    OV2659SetDummy(client,600,0);	
+	
+    prev_line_len = OV2659_PV_PERIOD_PIXEL_NUMS + sensor->parameter.PreviewDummyPixels;
+  	cap_line_len = OV2659_FULL_PERIOD_PIXEL_NUMS + sensor->parameter.CaptureDummyPixels;
+  	shutter = (shutter * sensor->parameter.CapturePclk) / sensor->parameter.PreviewPclk;
+  	shutter = (shutter * prev_line_len) / cap_line_len;
+ 	shutter*=2;
+
+    OV2659WriteShutter(client,0,shutter);
+    
+	
+	return 0;
+}
+
+
 static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
@@ -1981,6 +2235,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr) {
         #if CONFIG_SENSOR_Flash
         if (sensor_fmt_capturechk(sd,mf) == true) {      /* ddl@rock-chips.com : Capture */
+            sensor_parameter_record(client);
             if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                 sensor_ioctrl(icd, Sensor_Flash, Flash_On);
                 SENSOR_DG("%s flash on in capture!\n", SENSOR_NAME_STRING());
@@ -2009,6 +2264,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         sensor->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
 
 		if (sensor_fmt_capturechk(sd,mf) == true) {				    /* ddl@rock-chips.com : Capture */
+            sensor_ae_transfer(client);
 			qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_EFFECT);
 			sensor_set_effect(icd, qctrl,sensor->info_priv.effect);
 			if (sensor->info_priv.whiteBalance != 0) {

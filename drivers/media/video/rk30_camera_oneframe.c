@@ -484,7 +484,6 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	else
 		bytes_per_line_host = soc_mbus_bytes_per_line(pcdev->host_width,
 					   icd->current_fmt->host_fmt);
-	printk("user code = %d,packing = %d",icd->current_fmt->code,fmt.packing);
     dev_dbg(&icd->dev, "count=%d, size=%d\n", *count, *size);
 
 	if (bytes_per_line_host < 0)
@@ -1818,11 +1817,10 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
     if((read_cif_reg(pcdev->base,CIF_CIF_CTRL) & MODE_PINGPONG)
 		||(read_cif_reg(pcdev->base,CIF_CIF_CTRL) & MODE_LINELOOP)) {
 	    BUG();	
-     } else{ // this is one frame mode
-		cif_crop = (rect->left+ (rect->top<<16));
-		cif_fs	= ((rect->width ) + (rect->height<<16));
-	 }
-	RKCAMERA_TR("%s..%d.. \n",__FUNCTION__,__LINE__);
+    } else{ // this is one frame mode
+	    cif_crop = (rect->left+ (rect->top<<16));
+	    cif_fs	= ((rect->width ) + (rect->height<<16));
+	}
 
 	write_cif_reg(pcdev->base,CIF_CIF_CROP, cif_crop);
 	write_cif_reg(pcdev->base,CIF_CIF_SET_SIZE, cif_fs);
@@ -1982,7 +1980,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 
 	usr_w = pix->width;
 	usr_h = pix->height;
-    RKCAMERA_TR("%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
+    RKCAMERA_DG("%s enter width:%d  height:%d\n",__FUNCTION__,usr_w,usr_h);
     xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
     if (!xlate) {
         dev_err(dev, "Format %x not found\n", pix->pixelformat);
