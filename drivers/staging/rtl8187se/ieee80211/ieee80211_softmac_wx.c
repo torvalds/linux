@@ -174,9 +174,10 @@ out:
 	return ret;
 }
 
- int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,union iwreq_data *wrqu,char *b)
+ int ieee80211_wx_get_essid(struct ieee80211_device *ieee, struct iw_request_info *a,
+			    union iwreq_data *wrqu, char *b)
 {
-	int len,ret = 0;
+	int len, ret = 0;
 	unsigned long flags;
 
 	if (ieee->iw_mode == IW_MODE_MONITOR)
@@ -199,7 +200,7 @@ out:
 	}
 	len = ieee->current_network.ssid_len;
 	wrqu->essid.length = len;
-	strncpy(b,ieee->current_network.ssid,len);
+	strncpy(b, ieee->current_network.ssid, len);
 	wrqu->essid.flags = 1;
 
 out:
@@ -338,7 +339,7 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 			      union iwreq_data *wrqu, char *extra)
 {
 
-	int ret=0,len;
+	int ret=0, len;
 	short proto_started;
 	unsigned long flags;
 
@@ -454,9 +455,9 @@ int ieee80211_wx_get_name(struct ieee80211_device *ieee,
 
 	if ((ieee->state == IEEE80211_LINKED) ||
 		(ieee->state == IEEE80211_LINKED_SCANNING))
-		strlcat(wrqu->name,"  link", IFNAMSIZ);
+		strlcat(wrqu->name, "  link", IFNAMSIZ);
 	else if (ieee->state != IEEE80211_NOLINK)
-		strlcat(wrqu->name," .....", IFNAMSIZ);
+		strlcat(wrqu->name, " .....", IFNAMSIZ);
 
 
 	return 0;
@@ -508,7 +509,7 @@ int ieee80211_wx_set_power(struct ieee80211_device *ieee,
 	if (wrqu->power.flags & IW_POWER_TIMEOUT) {
 
 		ieee->ps_timeout = wrqu->power.value / 1000;
-		printk("Timeout %d\n",ieee->ps_timeout);
+		printk("Timeout %d\n", ieee->ps_timeout);
 	}
 
 	if (wrqu->power.flags & IW_POWER_PERIOD) {
