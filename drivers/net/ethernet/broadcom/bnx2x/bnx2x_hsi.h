@@ -2167,6 +2167,8 @@ struct shmem2_region {
 	u32 reserved2;				/* Offset 0x148 */
 	u32 reserved3;				/* Offset 0x14C */
 	u32 reserved4;				/* Offset 0x150 */
+	u32 link_attr_sync[PORT_MAX];		/* Offset 0x154 */
+	#define LINK_ATTR_SYNC_KR2_ENABLE	(1<<0)
 };
 
 

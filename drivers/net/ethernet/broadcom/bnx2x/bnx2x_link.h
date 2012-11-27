@@ -347,6 +347,8 @@ struct link_vars {
 	u8 rx_tx_asic_rst;
 	u8 turn_to_run_wc_rt;
 	u16 rsrv2;
+	/* The same definitions as the shmem2 parameter */
+	u32 link_attr_sync;
 };
 
 /***********************************************************/

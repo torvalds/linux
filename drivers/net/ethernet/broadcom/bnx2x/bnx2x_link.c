@@ -121,6 +121,7 @@
 #define	GP_STATUS_10G_XFI   MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_XFI
 #define	GP_STATUS_20G_DXGXS MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_20G_DXGXS
 #define	GP_STATUS_10G_SFI   MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_10G_SFI
+#define	GP_STATUS_20G_KR2 MDIO_GP_STATUS_TOP_AN_STATUS1_ACTUAL_SPEED_20G_KR2
 #define LINK_10THD		LINK_STATUS_SPEED_AND_DUPLEX_10THD
 #define LINK_10TFD		LINK_STATUS_SPEED_AND_DUPLEX_10TFD
 #define LINK_100TXHD		LINK_STATUS_SPEED_AND_DUPLEX_100TXHD
@@ -1664,7 +1665,10 @@ static void bnx2x_xmac_init(struct link_params *params, u32 max_speed)
 	 * ports of the path
 	 */
 
-	if ((CHIP_NUM(bp) == CHIP_NUM_57840_4_10) &&
+	if (((CHIP_NUM(bp) == CHIP_NUM_57840_4_10) ||
+	     (CHIP_NUM(bp) == CHIP_NUM_57840_2_20) ||
+	     (CHIP_NUM(bp) == CHIP_NUM_57840_OBSOLETE)) &&
+	    is_port4mode &&
 	    (REG_RD(bp, MISC_REG_RESET_REG_2) &
 	     MISC_REGISTERS_RESET_REG_2_XMAC)) {
 		DP(NETIF_MSG_LINK,
@@ -1760,6 +1764,18 @@ static int bnx2x_xmac_enable(struct link_params *params,
 	 */
 	REG_WR(bp, NIG_REG_EGRESS_EMAC0_PORT + params->port*4, 0);
 
+	/* When XMAC is in XLGMII mode, disable sending idles for fault
+	 * detection.
+	 */
+	if (!(params->phy[INT_PHY].flags & FLAGS_TX_ERROR_CHECK)) {
+		REG_WR(bp, xmac_base + XMAC_REG_RX_LSS_CTRL,
+		       (XMAC_RX_LSS_CTRL_REG_LOCAL_FAULT_DISABLE |
+			XMAC_RX_LSS_CTRL_REG_REMOTE_FAULT_DISABLE));
+		REG_WR(bp, xmac_base + XMAC_REG_CLEAR_RX_LSS_STATUS, 0);
+		REG_WR(bp, xmac_base + XMAC_REG_CLEAR_RX_LSS_STATUS,
+		       XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_LOCAL_FAULT_STATUS |
+		       XMAC_CLEAR_RX_LSS_STATUS_REG_CLEAR_REMOTE_FAULT_STATUS);
+	}
 	/* Set Max packet size */
 	REG_WR(bp, xmac_base + XMAC_REG_RX_MAX_SIZE, 0x2710);
 
@@ -1779,6 +1795,12 @@ static int bnx2x_xmac_enable(struct link_params *params,
 
 	/* Enable TX and RX */
 	val = XMAC_CTRL_REG_TX_EN | XMAC_CTRL_REG_RX_EN;
+
+	/* Set MAC in XLGMII mode for dual-mode */
+	if ((vars->line_speed == SPEED_20000) &&
+	    (params->phy[INT_PHY].supported &
+	     SUPPORTED_20000baseKR2_Full))
+		val |= XMAC_CTRL_REG_XLGMII_ALIGN_ENB;
 
 	/* Check loopback mode */
 	if (lb)
@@ -2094,6 +2116,16 @@ static void bnx2x_update_mng(struct link_params *params, u32 link_status)
 	REG_WR(bp, params->shmem_base +
 	       offsetof(struct shmem_region,
 			port_mb[params->port].link_status), link_status);
+}
+
+static void bnx2x_update_link_attr(struct link_params *params, u32 link_attr)
+{
+	struct bnx2x *bp = params->bp;
+
+	if (SHMEM2_HAS(bp, link_attr_sync))
+		REG_WR(bp, params->shmem2_base +
+		       offsetof(struct shmem2_region,
+				link_attr_sync[params->port]), link_attr);
 }
 
 static void bnx2x_update_pfc_nig(struct link_params *params,
@@ -3147,6 +3179,15 @@ static void bnx2x_cl45_read_or_write(struct bnx2x *bp, struct bnx2x_phy *phy,
 	bnx2x_cl45_write(bp, phy, devad, reg, val | or_val);
 }
 
+static void bnx2x_cl45_read_and_write(struct bnx2x *bp,
+				      struct bnx2x_phy *phy,
+				      u8 devad, u16 reg, u16 and_val)
+{
+	u16 val;
+	bnx2x_cl45_read(bp, phy, devad, reg, &val);
+	bnx2x_cl45_write(bp, phy, devad, reg, val & and_val);
+}
+
 int bnx2x_phy_read(struct link_params *params, u8 phy_addr,
 		   u8 devad, u16 reg, u16 *ret_val)
 {
@@ -3551,6 +3592,44 @@ static u8 bnx2x_ext_phy_resolve_fc(struct bnx2x_phy *phy,
  * init configuration, and set/clear SGMII flag. Internal
  * phy init is done purely in phy_init stage.
  */
+static void bnx2x_warpcore_enable_AN_KR2(struct bnx2x_phy *phy,
+					 struct link_params *params,
+					 struct link_vars *vars)
+{
+	struct bnx2x *bp = params->bp;
+	u16 i;
+	static struct bnx2x_reg_set reg_set[] = {
+		/* Step 1 - Program the TX/RX alignment markers */
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL5, 0xa157},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL7, 0xcbe2},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL6, 0x7537},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL9, 0xa157},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL11, 0xcbe2},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL10, 0x7537},
+		/* Step 2 - Configure the NP registers */
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_USERB0_CTRL, 0x000a},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL1, 0x6400},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL3, 0x0620},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CODE_FIELD, 0x0157},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI1, 0x6464},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI2, 0x3150},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI3, 0x3150},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_BAM_CODE, 0x0157},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_UD_CODE, 0x0620}
+	};
+	DP(NETIF_MSG_LINK, "Enabling 20G-KR2\n");
+
+	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_CL49_USERB0_CTRL, (3<<6));
+
+	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
+				 reg_set[i].val);
+
+	/* Start KR2 work-around timer which handles BCM8073 link-parner */
+	vars->link_attr_sync |= LINK_ATTR_SYNC_KR2_ENABLE;
+	bnx2x_update_link_attr(params, vars->link_attr_sync);
+}
 
 static void bnx2x_warpcore_set_lpi_passthrough(struct bnx2x_phy *phy,
 					       struct link_params *params)
@@ -3562,6 +3641,21 @@ static void bnx2x_warpcore_set_lpi_passthrough(struct bnx2x_phy *phy,
 			 MDIO_WC_REG_EEE_COMBO_CONTROL0, 0x7c);
 	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 				 MDIO_WC_REG_DIGITAL4_MISC5, 0xc000);
+}
+
+static void bnx2x_warpcore_restart_AN_KR(struct bnx2x_phy *phy,
+					 struct link_params *params)
+{
+	/* Restart autoneg on the leading lane only */
+	struct bnx2x *bp = params->bp;
+	u16 lane = bnx2x_get_warpcore_lane(phy, params);
+	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+			  MDIO_AER_BLOCK_AER_REG, lane);
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1200);
+
+	/* Restore AER */
+	bnx2x_set_aer_mmd(params, phy);
 }
 
 static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
@@ -3576,7 +3670,9 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 		{MDIO_WC_DEVAD, MDIO_WC_REG_RX66_CONTROL, 0x7415},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_SERDESDIGITAL_MISC2, 0x6190},
 		/* Disable Autoneg: re-enable it after adv is done. */
-		{MDIO_AN_DEVAD, MDIO_WC_REG_IEEE0BLK_MIICNTL, 0}
+		{MDIO_AN_DEVAD, MDIO_WC_REG_IEEE0BLK_MIICNTL, 0},
+		{MDIO_PMA_DEVAD, MDIO_WC_REG_PMD_KR_CONTROL, 0x2},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL72_USERB0_CL72_TX_FIR_TAP, 0},
 	};
 	DP(NETIF_MSG_LINK, "Enable Auto Negotiation for KR\n");
 	/* Set to default registers that may be overriden by 10G force */
@@ -3586,7 +3682,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 
 	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 		MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, &cl72_ctrl);
-	cl72_ctrl &= 0xf8ff;
+	cl72_ctrl &= 0x08ff;
 	cl72_ctrl |= 0x3800;
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 		MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, cl72_ctrl);
@@ -3624,6 +3720,16 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 		     ((0x02 << MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_OFFSET) |
 		      (0x06 << MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_OFFSET) |
 		      (0x09 << MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET)));
+	/* Configure the next lane if dual mode */
+	if (phy->flags & FLAGS_WC_DUAL_MODE)
+		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_TX0_TX_DRIVER + 0x10*(lane+1),
+				 ((0x02 <<
+				 MDIO_WC_REG_TX0_TX_DRIVER_POST2_COEFF_OFFSET) |
+				  (0x06 <<
+				   MDIO_WC_REG_TX0_TX_DRIVER_IDRIVER_OFFSET) |
+				  (0x09 <<
+				MDIO_WC_REG_TX0_TX_DRIVER_IPRE_DRIVER_OFFSET)));
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			 MDIO_WC_REG_CL72_USERB0_CL72_OS_DEF_CTRL,
 			 0x03f0);
@@ -3670,10 +3776,26 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 			MDIO_WC_REG_DIGITAL3_UP1, 0x1f);
 
-	/* Enable Autoneg */
-	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
-			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1200);
+	if (((phy->req_line_speed == SPEED_AUTO_NEG) &&
+	     (phy->speed_cap_mask & PORT_HW_CFG_SPEED_CAPABILITY_D0_20G)) ||
+	    (phy->req_line_speed == SPEED_20000)) {
 
+		CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+				  MDIO_AER_BLOCK_AER_REG, lane);
+
+		bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+					 MDIO_WC_REG_RX1_PCI_CTRL + (0x10*lane),
+					 (1<<11));
+
+		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_XGXS_X2_CONTROL3, 0x7);
+		bnx2x_set_aer_mmd(params, phy);
+
+		bnx2x_warpcore_enable_AN_KR2(phy, params, vars);
+	}
+
+	/* Enable Autoneg: only on the main lane */
+	bnx2x_warpcore_restart_AN_KR(phy, params);
 }
 
 static void bnx2x_warpcore_set_10G_KR(struct bnx2x_phy *phy,
@@ -3692,9 +3814,7 @@ static void bnx2x_warpcore_set_10G_KR(struct bnx2x_phy *phy,
 		{MDIO_WC_DEVAD, MDIO_WC_REG_DIGITAL3_UP1, 0x1},
 		{MDIO_WC_DEVAD, MDIO_WC_REG_DIGITAL5_MISC7, 0xa},
 		/* Leave cl72 training enable, needed for KR */
-		{MDIO_PMA_DEVAD,
-		MDIO_WC_REG_PMD_IEEE9BLK_TENGBASE_KR_PMD_CONTROL_REGISTER_150,
-		0x2}
+		{MDIO_PMA_DEVAD, MDIO_WC_REG_PMD_KR_CONTROL, 0x2}
 	};
 
 	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
@@ -3858,10 +3978,57 @@ static void bnx2x_warpcore_set_10G_XFI(struct bnx2x_phy *phy,
 			 MDIO_WC_REG_DSC2B0_DSC_MISC_CTRL0, (val & 0x7FFF));
 }
 
-static void bnx2x_warpcore_set_20G_KR2(struct bnx2x *bp,
-				       struct bnx2x_phy *phy)
+static void bnx2x_warpcore_set_20G_force_KR2(struct bnx2x_phy *phy,
+					     struct link_params *params)
 {
-	DP(NETIF_MSG_LINK, "KR2 still not supported !!!\n");
+	u16 val;
+	struct bnx2x *bp = params->bp;
+	/* Set global registers, so set AER lane to 0 */
+	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+			  MDIO_AER_BLOCK_AER_REG, 0);
+
+	/* Disable sequencer */
+	bnx2x_cl45_read_and_write(bp, phy, MDIO_WC_DEVAD,
+				  MDIO_WC_REG_XGXSBLK0_XGXSCONTROL, ~(1<<13));
+
+	bnx2x_set_aer_mmd(params, phy);
+
+	bnx2x_cl45_read_and_write(bp, phy, MDIO_PMA_DEVAD,
+				  MDIO_WC_REG_PMD_KR_CONTROL, ~(1<<1));
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+			 MDIO_AN_REG_CTRL, 0);
+	/* Turn off CL73 */
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_CL73_USERB0_CTRL, &val);
+	val &= ~(1<<5);
+	val |= (1<<6);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_CL73_USERB0_CTRL, val);
+
+	/* Set 20G KR2 force speed */
+	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_SERDESDIGITAL_MISC1, 0x1f);
+
+	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_DIGITAL4_MISC3, (1<<7));
+
+	bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, &val);
+	val &= ~(3<<14);
+	val |= (1<<15);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, val);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_CL72_USERB0_CL72_TX_FIR_TAP, 0x835A);
+
+	/* Enable sequencer (over lane 0) */
+	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+			  MDIO_AER_BLOCK_AER_REG, 0);
+
+	bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
+				 MDIO_WC_REG_XGXSBLK0_XGXSCONTROL, (1<<13));
+
+	bnx2x_set_aer_mmd(params, phy);
 }
 
 static void bnx2x_warpcore_set_20G_DXGXS(struct bnx2x *bp,
@@ -4293,16 +4460,14 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 
 			bnx2x_sfp_module_detection(phy, params);
 			break;
-
 		case PORT_HW_CFG_NET_SERDES_IF_KR2:
-			if (vars->line_speed != SPEED_20000) {
-				DP(NETIF_MSG_LINK, "Speed not supported yet\n");
-				return;
+			if (!params->loopback_mode) {
+				bnx2x_warpcore_enable_AN_KR(phy, params, vars);
+			} else {
+				DP(NETIF_MSG_LINK, "Setting KR 20G-Force\n");
+				bnx2x_warpcore_set_20G_force_KR2(phy, params);
 			}
-			DP(NETIF_MSG_LINK, "Setting 20G KR2\n");
-			bnx2x_warpcore_set_20G_KR2(bp, phy);
 			break;
-
 		default:
 			DP(NETIF_MSG_LINK,
 			   "Unsupported Serdes Net Interface 0x%x\n",
@@ -4413,8 +4578,9 @@ static void bnx2x_set_warpcore_loopback(struct bnx2x_phy *phy,
 	DP(NETIF_MSG_LINK, "Setting Warpcore loopback type %x, speed %d\n",
 		       params->loopback_mode, phy->req_line_speed);
 
-	if (phy->req_line_speed < SPEED_10000) {
-		/* 10/100/1000 */
+	if (phy->req_line_speed < SPEED_10000 ||
+	    phy->supported & SUPPORTED_20000baseKR2_Full) {
+		/* 10/100/1000/20G-KR2 */
 
 		/* Update those 1-copy registers */
 		CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
@@ -4427,18 +4593,20 @@ static void bnx2x_set_warpcore_loopback(struct bnx2x_phy *phy,
 		lane = bnx2x_get_warpcore_lane(phy, params);
 		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 				MDIO_WC_REG_XGXSBLK1_LANECTRL2, &val16);
+		val16 |= (1<<lane);
+		if (phy->flags & FLAGS_WC_DUAL_MODE)
+			val16 |= (2<<lane);
 		bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
 				MDIO_WC_REG_XGXSBLK1_LANECTRL2,
-				val16 | (1<<lane));
+				val16);
 
 		/* Switch back to 4-copy registers */
 		bnx2x_set_aer_mmd(params, phy);
 	} else {
-		/* 10G & 20G */
+		/* 10G / 20G-DXGXS */
 		bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 					 MDIO_WC_REG_COMBO_IEEE0_MIICTRL,
 					 0x4000);
-
 		bnx2x_cl45_read_or_write(bp, phy, MDIO_WC_DEVAD,
 					 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1);
 	}
@@ -4602,6 +4770,10 @@ void bnx2x_link_status_update(struct link_params *params,
 	else
 		params->feature_config_flags &=
 					~FEATURE_CONFIG_PFC_ENABLED;
+
+	if (SHMEM2_HAS(bp, link_attr_sync))
+		vars->link_attr_sync = SHMEM2_RD(bp,
+						 link_attr_sync[params->port]);
 
 	DP(NETIF_MSG_LINK, "link_status 0x%x  phy_link_up %x int_mask 0x%x\n",
 		 vars->link_status, vars->phy_link_up, vars->aeu_int_mask);
@@ -5332,6 +5504,7 @@ static int bnx2x_get_link_speed_duplex(struct bnx2x_phy *phy,
 			vars->link_status |= LINK_10GTFD;
 			break;
 		case GP_STATUS_20G_DXGXS:
+		case GP_STATUS_20G_KR2:
 			vars->line_speed = SPEED_20000;
 			vars->link_status |= LINK_20GTFD;
 			break;
@@ -5439,7 +5612,15 @@ static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 	int rc = 0;
 	lane = bnx2x_get_warpcore_lane(phy, params);
 	/* Read gp_status */
-	if (phy->req_line_speed > SPEED_10000) {
+	if ((params->loopback_mode) &&
+	    (phy->flags & FLAGS_WC_DUAL_MODE)) {
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_DIGITAL5_LINK_STATUS, &link_up);
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_DIGITAL5_LINK_STATUS, &link_up);
+		link_up &= 0x1;
+	} else if ((phy->req_line_speed > SPEED_10000) &&
+		(phy->supported & SUPPORTED_20000baseMLD2_Full)) {
 		u16 temp_link_up;
 		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
 				1, &temp_link_up);
@@ -5452,12 +5633,22 @@ static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 			bnx2x_ext_phy_resolve_fc(phy, params, vars);
 	} else {
 		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
-				MDIO_WC_REG_GP2_STATUS_GP_2_1, &gp_status1);
+				MDIO_WC_REG_GP2_STATUS_GP_2_1,
+				&gp_status1);
 		DP(NETIF_MSG_LINK, "0x81d1 = 0x%x\n", gp_status1);
-		/* Check for either KR or generic link up. */
-		gp_status1 = ((gp_status1 >> 8) & 0xf) |
-			((gp_status1 >> 12) & 0xf);
-		link_up = gp_status1 & (1 << lane);
+		/* Check for either KR, 1G, or AN up. */
+		link_up = ((gp_status1 >> 8) |
+			   (gp_status1 >> 12) |
+			   (gp_status1)) &
+			(1 << lane);
+		if (phy->supported & SUPPORTED_20000baseKR2_Full) {
+			u16 an_link;
+			bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+					MDIO_AN_REG_STATUS, &an_link);
+			bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+					MDIO_AN_REG_STATUS, &an_link);
+			link_up |= (an_link & (1<<2));
+		}
 		if (link_up && SINGLE_MEDIA_DIRECT(params)) {
 			u16 pd, gp_status4;
 			if (phy->req_line_speed == SPEED_AUTO_NEG) {
@@ -5522,7 +5713,7 @@ static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 	if ((lane & 1) == 0)
 		gp_speed <<= 8;
 	gp_speed &= 0x3f00;
-
+	link_up = !!link_up;
 
 	rc = bnx2x_get_link_speed_duplex(phy, params, vars, link_up, gp_speed,
 					 duplex);
@@ -11564,9 +11755,11 @@ static int bnx2x_populate_int_phy(struct bnx2x *bp, u32 shmem_base, u8 port,
 			phy->media_type = ETH_PHY_KR;
 			phy->flags |= FLAGS_WC_DUAL_MODE;
 			phy->supported &= (SUPPORTED_20000baseKR2_Full |
+					   SUPPORTED_Autoneg |
 					   SUPPORTED_FIBRE |
 					   SUPPORTED_Pause |
 					   SUPPORTED_Asym_Pause);
+			phy->flags &= ~FLAGS_TX_ERROR_CHECK;
 			break;
 		default:
 			DP(NETIF_MSG_LINK, "Unknown WC interface type 0x%x\n",
@@ -12018,13 +12211,17 @@ static void bnx2x_init_xgxs_loopback(struct link_params *params,
 				     struct link_vars *vars)
 {
 	struct bnx2x *bp = params->bp;
+	struct bnx2x_phy *int_phy = &params->phy[INT_PHY];
 		vars->link_up = 1;
 		vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 		vars->duplex = DUPLEX_FULL;
 	if (params->req_line_speed[0] == SPEED_1000)
 			vars->line_speed = SPEED_1000;
+	else if ((params->req_line_speed[0] == SPEED_20000) ||
+		 (int_phy->flags & FLAGS_WC_DUAL_MODE))
+		vars->line_speed = SPEED_20000;
 	else
-			vars->line_speed = SPEED_10000;
+		vars->line_speed = SPEED_10000;
 
 	if (!USES_WARPCORE(bp))
 		bnx2x_xgxs_deassert(params);
@@ -13139,6 +13336,108 @@ static void bnx2x_sfp_tx_fault_detection(struct bnx2x_phy *phy,
 		}
 	}
 }
+static void bnx2x_disable_kr2(struct link_params *params,
+			      struct link_vars *vars,
+			      struct bnx2x_phy *phy)
+{
+	struct bnx2x *bp = params->bp;
+	int i;
+	static struct bnx2x_reg_set reg_set[] = {
+		/* Step 1 - Program the TX/RX alignment markers */
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL5, 0x7690},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL7, 0xe647},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL6, 0xc4f0},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_TX_CTRL9, 0x7690},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL11, 0xe647},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL82_USERB1_RX_CTRL10, 0xc4f0},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_USERB0_CTRL, 0x000c},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL1, 0x6000},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CTRL3, 0x0000},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_CL73_BAM_CODE_FIELD, 0x0002},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI1, 0x0000},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI2, 0x0af7},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_OUI3, 0x0af7},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_BAM_CODE, 0x0002},
+		{MDIO_WC_DEVAD, MDIO_WC_REG_ETA_CL73_LD_UD_CODE, 0x0000}
+	};
+	DP(NETIF_MSG_LINK, "Disabling 20G-KR2\n");
+
+	for (i = 0; i < sizeof(reg_set)/sizeof(struct bnx2x_reg_set); i++)
+		bnx2x_cl45_write(bp, phy, reg_set[i].devad, reg_set[i].reg,
+				 reg_set[i].val);
+	vars->link_attr_sync &= ~LINK_ATTR_SYNC_KR2_ENABLE;
+	bnx2x_update_link_attr(params, vars->link_attr_sync);
+
+	/* Restart AN on leading lane */
+	bnx2x_warpcore_restart_AN_KR(phy, params);
+}
+
+static void bnx2x_kr2_recovery(struct link_params *params,
+			       struct link_vars *vars,
+			       struct bnx2x_phy *phy)
+{
+	struct bnx2x *bp = params->bp;
+	DP(NETIF_MSG_LINK, "KR2 recovery\n");
+	bnx2x_warpcore_enable_AN_KR2(phy, params, vars);
+	bnx2x_warpcore_restart_AN_KR(phy, params);
+}
+
+static void bnx2x_check_kr2_wa(struct link_params *params,
+			       struct link_vars *vars,
+			       struct bnx2x_phy *phy)
+{
+	struct bnx2x *bp = params->bp;
+	u16 base_page, next_page, not_kr2_device, lane;
+	int sigdet = bnx2x_warpcore_get_sigdet(phy, params);
+
+	if (!sigdet) {
+		if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE))
+			bnx2x_kr2_recovery(params, vars, phy);
+		return;
+	}
+
+	lane = bnx2x_get_warpcore_lane(phy, params);
+	CL22_WR_OVER_CL45(bp, phy, MDIO_REG_BANK_AER_BLOCK,
+			  MDIO_AER_BLOCK_AER_REG, lane);
+	bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+			MDIO_AN_REG_LP_AUTO_NEG, &base_page);
+	bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+			MDIO_AN_REG_LP_AUTO_NEG2, &next_page);
+	bnx2x_set_aer_mmd(params, phy);
+
+	/* CL73 has not begun yet */
+	if (base_page == 0) {
+		if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE))
+			bnx2x_kr2_recovery(params, vars, phy);
+		return;
+	}
+
+	/* In case NP bit is not set in the BasePage, or it is set,
+	 * but only KX is advertised, declare this link partner as non-KR2
+	 * device.
+	 */
+	not_kr2_device = (((base_page & 0x8000) == 0) ||
+			  (((base_page & 0x8000) &&
+			    ((next_page & 0xe0) == 0x2))));
+
+	/* In case KR2 is already disabled, check if we need to re-enable it */
+	if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
+		if (!not_kr2_device) {
+			DP(NETIF_MSG_LINK, "BP=0x%x, NP=0x%x\n", base_page,
+			   next_page);
+			bnx2x_kr2_recovery(params, vars, phy);
+		}
+		return;
+	}
+	/* KR2 is enabled, but not KR2 device */
+	if (not_kr2_device) {
+		/* Disable KR2 on both lanes */
+		DP(NETIF_MSG_LINK, "BP=0x%x, NP=0x%x\n", base_page, next_page);
+		bnx2x_disable_kr2(params, vars, phy);
+		return;
+	}
+}
+
 void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 {
 	u16 phy_idx;
@@ -13156,6 +13455,9 @@ void bnx2x_period_func(struct link_params *params, struct link_vars *vars)
 	if (CHIP_IS_E3(bp)) {
 		struct bnx2x_phy *phy = &params->phy[INT_PHY];
 		bnx2x_set_aer_mmd(params, phy);
+		if ((phy->supported & SUPPORTED_20000baseKR2_Full) &&
+		    (phy->speed_cap_mask & SPEED_20000))
+			bnx2x_check_kr2_wa(params, vars, phy);
 		bnx2x_check_over_curr(params, vars);
 		if (vars->rx_tx_asic_rst)
 			bnx2x_warpcore_config_runtime(phy, params, vars);
