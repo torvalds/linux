@@ -186,7 +186,7 @@ extern void cifs_mark_open_files_invalid(struct cifs_tcon *tcon);
 extern bool cifs_find_lock_conflict(struct cifsFileInfo *cfile, __u64 offset,
 				    __u64 length, __u8 type,
 				    struct cifsLockInfo **conf_lock,
-				    bool rw_check);
+				    int rw_check);
 extern void cifs_add_pending_open(struct cifs_fid *fid,
 				  struct tcon_link *tlink,
 				  struct cifs_pending_open *open);
