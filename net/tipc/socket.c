@@ -1,7 +1,7 @@
 /*
  * net/tipc/socket.c: TIPC socket API
  *
- * Copyright (c) 2001-2007, Ericsson AB
+ * Copyright (c) 2001-2007, 2012 Ericsson AB
  * Copyright (c) 2004-2008, 2010-2012, Wind River Systems
  * All rights reserved.
  *
@@ -43,7 +43,7 @@
 #define SS_LISTENING	-1	/* socket is listening */
 #define SS_READY	-2	/* socket is connectionless */
 
-#define OVERLOAD_LIMIT_BASE	5000
+#define OVERLOAD_LIMIT_BASE	10000
 #define CONN_TIMEOUT_DEFAULT	8000	/* default connect timeout = 8s */
 
 struct tipc_sock {
