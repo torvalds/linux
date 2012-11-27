@@ -1116,7 +1116,7 @@ static const struct of_device_id twl_of_match[] __devinitconst = {
 };
 MODULE_DEVICE_TABLE(of, twl_of_match);
 
-static int __devinit twlreg_probe(struct platform_device *pdev)
+static int twlreg_probe(struct platform_device *pdev)
 {
 	int				i, id;
 	struct twlreg_info		*info;
@@ -1241,7 +1241,7 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit twlreg_remove(struct platform_device *pdev)
+static int twlreg_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct twlreg_info *info = rdev->reg_data;
@@ -1255,7 +1255,7 @@ MODULE_ALIAS("platform:twl_reg");
 
 static struct platform_driver twlreg_driver = {
 	.probe		= twlreg_probe,
-	.remove		= __devexit_p(twlreg_remove),
+	.remove		= twlreg_remove,
 	/* NOTE: short name, to work around driver model truncation of
 	 * "twl_regulator.12" (and friends) to "twl_regulator.1".
 	 */

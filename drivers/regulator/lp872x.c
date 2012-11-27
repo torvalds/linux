@@ -893,7 +893,7 @@ err_dev:
 	return ret;
 }
 
-static int __devexit lp872x_remove(struct i2c_client *cl)
+static int lp872x_remove(struct i2c_client *cl)
 {
 	struct lp872x *lp = i2c_get_clientdata(cl);
 
@@ -914,7 +914,7 @@ static struct i2c_driver lp872x_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = lp872x_probe,
-	.remove = __devexit_p(lp872x_remove),
+	.remove = lp872x_remove,
 	.id_table = lp872x_ids,
 };
 

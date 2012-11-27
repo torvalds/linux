@@ -231,7 +231,7 @@ static struct regulator_desc regulators[] = {
 	regulator_desc_buck10,
 };
 
-static __devinit int s2mps11_pmic_probe(struct platform_device *pdev)
+static int s2mps11_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
@@ -307,7 +307,7 @@ err:
 	return ret;
 }
 
-static int __devexit s2mps11_pmic_remove(struct platform_device *pdev)
+static int s2mps11_pmic_remove(struct platform_device *pdev)
 {
 	struct s2mps11_info *s2mps11 = platform_get_drvdata(pdev);
 	int i;
@@ -330,7 +330,7 @@ static struct platform_driver s2mps11_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s2mps11_pmic_probe,
-	.remove = __devexit_p(s2mps11_pmic_remove),
+	.remove = s2mps11_pmic_remove,
 	.id_table = s2mps11_pmic_id,
 };
 

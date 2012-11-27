@@ -87,7 +87,7 @@ static struct regulator_ops anatop_rops = {
 	.map_voltage = regulator_map_voltage_linear,
 };
 
-static int __devinit anatop_regulator_probe(struct platform_device *pdev)
+static int anatop_regulator_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -186,7 +186,7 @@ anatop_probe_end:
 	return ret;
 }
 
-static int __devexit anatop_regulator_remove(struct platform_device *pdev)
+static int anatop_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct anatop_regulator *sreg = rdev_get_drvdata(rdev);
@@ -210,7 +210,7 @@ static struct platform_driver anatop_regulator_driver = {
 		.of_match_table = of_anatop_regulator_match_tbl,
 	},
 	.probe	= anatop_regulator_probe,
-	.remove	= __devexit_p(anatop_regulator_remove),
+	.remove	= anatop_regulator_remove,
 };
 
 static int __init anatop_regulator_init(void)

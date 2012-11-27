@@ -392,7 +392,7 @@ static struct regulator_ops mc13783_gpo_regulator_ops = {
 	.set_voltage = mc13xxx_fixed_regulator_set_voltage,
 };
 
-static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
+static int mc13783_regulator_probe(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv;
 	struct mc13xxx *mc13783 = dev_get_drvdata(pdev->dev.parent);
@@ -445,7 +445,7 @@ err:
 	return ret;
 }
 
-static int __devexit mc13783_regulator_remove(struct platform_device *pdev)
+static int mc13783_regulator_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_regulator_priv *priv = platform_get_drvdata(pdev);
 	struct mc13xxx_regulator_platform_data *pdata =
@@ -465,7 +465,7 @@ static struct platform_driver mc13783_regulator_driver = {
 		.name	= "mc13783-regulator",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __devexit_p(mc13783_regulator_remove),
+	.remove		= mc13783_regulator_remove,
 	.probe		= mc13783_regulator_probe,
 };
 

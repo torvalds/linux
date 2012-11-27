@@ -499,7 +499,7 @@ static struct regulator_desc regulators[] = {
 	s5m8767_regulator_desc(BUCK9),
 };
 
-static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
+static int s5m8767_pmic_probe(struct platform_device *pdev)
 {
 	struct sec_pmic_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct sec_platform_data *pdata = dev_get_platdata(iodev->dev);
@@ -773,7 +773,7 @@ err:
 	return ret;
 }
 
-static int __devexit s5m8767_pmic_remove(struct platform_device *pdev)
+static int s5m8767_pmic_remove(struct platform_device *pdev)
 {
 	struct s5m8767_info *s5m8767 = platform_get_drvdata(pdev);
 	struct regulator_dev **rdev = s5m8767->rdev;
@@ -798,7 +798,7 @@ static struct platform_driver s5m8767_pmic_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = s5m8767_pmic_probe,
-	.remove = __devexit_p(s5m8767_pmic_remove),
+	.remove = s5m8767_pmic_remove,
 	.id_table = s5m8767_pmic_id,
 };
 

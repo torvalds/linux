@@ -504,7 +504,7 @@ set_default_dvs_mode:
 				  default_dvs_mode[id]);
 }
 
-static __devinit int lp8788_buck_probe(struct platform_device *pdev)
+static int lp8788_buck_probe(struct platform_device *pdev)
 {
 	struct lp8788 *lp = dev_get_drvdata(pdev->dev.parent);
 	int id = pdev->id;
@@ -542,7 +542,7 @@ static __devinit int lp8788_buck_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit lp8788_buck_remove(struct platform_device *pdev)
+static int lp8788_buck_remove(struct platform_device *pdev)
 {
 	struct lp8788_buck *buck = platform_get_drvdata(pdev);
 
@@ -554,7 +554,7 @@ static int __devexit lp8788_buck_remove(struct platform_device *pdev)
 
 static struct platform_driver lp8788_buck_driver = {
 	.probe = lp8788_buck_probe,
-	.remove = __devexit_p(lp8788_buck_remove),
+	.remove = lp8788_buck_remove,
 	.driver = {
 		.name = LP8788_DEV_BUCK,
 		.owner = THIS_MODULE,

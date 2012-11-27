@@ -230,7 +230,7 @@ static struct regmap_config fan53555_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit fan53555_regulator_probe(struct i2c_client *client,
+static int fan53555_regulator_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct fan53555_device_info *di;
@@ -293,7 +293,7 @@ static int __devinit fan53555_regulator_probe(struct i2c_client *client,
 
 }
 
-static int __devexit fan53555_regulator_remove(struct i2c_client *client)
+static int fan53555_regulator_remove(struct i2c_client *client)
 {
 	struct fan53555_device_info *di = i2c_get_clientdata(client);
 
@@ -311,7 +311,7 @@ static struct i2c_driver fan53555_regulator_driver = {
 		.name = "fan53555-regulator",
 	},
 	.probe = fan53555_regulator_probe,
-	.remove = __devexit_p(fan53555_regulator_remove),
+	.remove = fan53555_regulator_remove,
 	.id_table = fan53555_id,
 };
 
