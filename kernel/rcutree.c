@@ -207,9 +207,6 @@ EXPORT_SYMBOL_GPL(rcu_note_context_switch);
 DEFINE_PER_CPU(struct rcu_dynticks, rcu_dynticks) = {
 	.dynticks_nesting = DYNTICK_TASK_EXIT_IDLE,
 	.dynticks = ATOMIC_INIT(1),
-#if defined(CONFIG_RCU_USER_QS) && !defined(CONFIG_RCU_USER_QS_FORCE)
-	.ignore_user_qs = true,
-#endif
 };
 
 static long blimit = 10;	/* Maximum callbacks per rcu_do_batch. */
@@ -420,29 +417,7 @@ EXPORT_SYMBOL_GPL(rcu_idle_enter);
  */
 void rcu_user_enter(void)
 {
-	unsigned long flags;
-	struct rcu_dynticks *rdtp;
-
-	/*
-	 * Some contexts may involve an exception occuring in an irq,
-	 * leading to that nesting:
-	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
-	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
-	 * helpers are enough to protect RCU uses inside the exception. So
-	 * just return immediately if we detect we are in an IRQ.
-	 */
-	if (in_interrupt())
-		return;
-
-	WARN_ON_ONCE(!current->mm);
-
-	local_irq_save(flags);
-	rdtp = &__get_cpu_var(rcu_dynticks);
-	if (!rdtp->ignore_user_qs && !rdtp->in_user) {
-		rdtp->in_user = true;
-		rcu_eqs_enter(true);
-	}
-	local_irq_restore(flags);
+	rcu_eqs_enter(1);
 }
 
 /**
@@ -579,27 +554,7 @@ EXPORT_SYMBOL_GPL(rcu_idle_exit);
  */
 void rcu_user_exit(void)
 {
-	unsigned long flags;
-	struct rcu_dynticks *rdtp;
-
-	/*
-	 * Some contexts may involve an exception occuring in an irq,
-	 * leading to that nesting:
-	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
-	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
-	 * helpers are enough to protect RCU uses inside the exception. So
-	 * just return immediately if we detect we are in an IRQ.
-	 */
-	if (in_interrupt())
-		return;
-
-	local_irq_save(flags);
-	rdtp = &__get_cpu_var(rcu_dynticks);
-	if (rdtp->in_user) {
-		rdtp->in_user = false;
-		rcu_eqs_exit(true);
-	}
-	local_irq_restore(flags);
+	rcu_eqs_exit(1);
 }
 
 /**
@@ -721,21 +676,6 @@ int rcu_is_cpu_idle(void)
 	return ret;
 }
 EXPORT_SYMBOL(rcu_is_cpu_idle);
-
-#ifdef CONFIG_RCU_USER_QS
-void rcu_user_hooks_switch(struct task_struct *prev,
-			   struct task_struct *next)
-{
-	struct rcu_dynticks *rdtp;
-
-	/* Interrupts are disabled in context switch */
-	rdtp = &__get_cpu_var(rcu_dynticks);
-	if (!rdtp->ignore_user_qs) {
-		clear_tsk_thread_flag(prev, TIF_NOHZ);
-		set_tsk_thread_flag(next, TIF_NOHZ);
-	}
-}
-#endif /* #ifdef CONFIG_RCU_USER_QS */
 
 #if defined(CONFIG_PROVE_RCU) && defined(CONFIG_HOTPLUG_CPU)
 

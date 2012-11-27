@@ -56,7 +56,7 @@
 #include <asm/ftrace.h>
 #include <asm/percpu.h>
 #include <asm/asm.h>
-#include <asm/rcu.h>
+#include <asm/context_tracking.h>
 #include <asm/smap.h>
 #include <linux/err.h>
 

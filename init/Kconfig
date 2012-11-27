@@ -486,9 +486,13 @@ config PREEMPT_RCU
 	  This option enables preemptible-RCU code that is common between
 	  the TREE_PREEMPT_RCU and TINY_PREEMPT_RCU implementations.
 
+config CONTEXT_TRACKING
+       bool
+
 config RCU_USER_QS
 	bool "Consider userspace as in RCU extended quiescent state"
-	depends on HAVE_RCU_USER_QS && SMP
+	depends on HAVE_CONTEXT_TRACKING && SMP
+	select CONTEXT_TRACKING
 	help
 	  This option sets hooks on kernel / userspace boundaries and
 	  puts RCU in extended quiescent state when the CPU runs in
@@ -497,24 +501,20 @@ config RCU_USER_QS
 	  try to keep the timer tick on for RCU.
 
 	  Unless you want to hack and help the development of the full
-	  tickless feature, you shouldn't enable this option.  It also
+	  dynticks mode, you shouldn't enable this option.  It also
 	  adds unnecessary overhead.
 
 	  If unsure say N
 
-config RCU_USER_QS_FORCE
-	bool "Force userspace extended QS by default"
-	depends on RCU_USER_QS
+config CONTEXT_TRACKING_FORCE
+	bool "Force context tracking"
+	depends on CONTEXT_TRACKING
 	help
-	  Set the hooks in user/kernel boundaries by default in order to
-	  test this feature that treats userspace as an extended quiescent
-	  state until we have a real user like a full adaptive nohz option.
-
-	  Unless you want to hack and help the development of the full
-	  tickless feature, you shouldn't enable this option. It adds
-	  unnecessary overhead.
-
-	  If unsure say N
+	  Probe on user/kernel boundaries by default in order to
+	  test the features that rely on it such as userspace RCU extended
+	  quiescent states.
+	  This test is there for debugging until we have a real user like the
+	  full dynticks mode.
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
