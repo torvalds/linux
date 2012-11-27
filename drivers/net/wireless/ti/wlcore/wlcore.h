@@ -439,8 +439,11 @@ struct wl1271 {
 	/* the number of allocated MAC addresses in this chip */
 	int num_mac_addr;
 
-	/* the minimum FW version required for the driver to work */
-	unsigned int min_fw_ver[NUM_FW_VER];
+	/* minimum FW version required for the driver to work in single-role */
+	unsigned int min_sr_fw_ver[NUM_FW_VER];
+
+	/* minimum FW version required for the driver to work in multi-role */
+	unsigned int min_mr_fw_ver[NUM_FW_VER];
 
 	struct completion nvs_loading_complete;
 
@@ -471,14 +474,22 @@ wlcore_set_ht_cap(struct wl1271 *wl, enum ieee80211_band band,
 
 static inline void
 wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
-		      unsigned int iftype, unsigned int major,
-		      unsigned int subtype, unsigned int minor)
+		      unsigned int iftype_sr, unsigned int major_sr,
+		      unsigned int subtype_sr, unsigned int minor_sr,
+		      unsigned int iftype_mr, unsigned int major_mr,
+		      unsigned int subtype_mr, unsigned int minor_mr)
 {
-	wl->min_fw_ver[FW_VER_CHIP] = chip;
-	wl->min_fw_ver[FW_VER_IF_TYPE] = iftype;
-	wl->min_fw_ver[FW_VER_MAJOR] = major;
-	wl->min_fw_ver[FW_VER_SUBTYPE] = subtype;
-	wl->min_fw_ver[FW_VER_MINOR] = minor;
+	wl->min_sr_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_sr_fw_ver[FW_VER_IF_TYPE] = iftype_sr;
+	wl->min_sr_fw_ver[FW_VER_MAJOR] = major_sr;
+	wl->min_sr_fw_ver[FW_VER_SUBTYPE] = subtype_sr;
+	wl->min_sr_fw_ver[FW_VER_MINOR] = minor_sr;
+
+	wl->min_mr_fw_ver[FW_VER_CHIP] = chip;
+	wl->min_mr_fw_ver[FW_VER_IF_TYPE] = iftype_mr;
+	wl->min_mr_fw_ver[FW_VER_MAJOR] = major_mr;
+	wl->min_mr_fw_ver[FW_VER_SUBTYPE] = subtype_mr;
+	wl->min_mr_fw_ver[FW_VER_MINOR] = minor_mr;
 }
 
 /* Firmware image load chunk size */

@@ -623,9 +623,11 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 			      WLCORE_QUIRK_REGDOMAIN_CONF |
 			      WLCORE_QUIRK_DUAL_PROBE_TMPL;
 
-		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER, WL18XX_IFTYPE_VER,
-				      WL18XX_MAJOR_VER, WL18XX_SUBTYPE_VER,
-				      WL18XX_MINOR_VER);
+		wlcore_set_min_fw_ver(wl, WL18XX_CHIP_VER,
+				      WL18XX_IFTYPE_VER,  WL18XX_MAJOR_VER,
+				      WL18XX_SUBTYPE_VER, WL18XX_MINOR_VER,
+				      /* there's no separate multi-role FW */
+				      0, 0, 0, 0);
 		break;
 	case CHIP_ID_185x_PG10:
 		wl1271_warning("chip id 0x%x (185x PG10) is deprecated",
