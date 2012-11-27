@@ -23,20 +23,21 @@
 #define __WL18XX_CONF_H__
 
 #define WL18XX_CONF_MAGIC	0x10e100ca
-#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0003)
+#define WL18XX_CONF_VERSION	(WLCORE_CONF_VERSION | 0x0004)
 #define WL18XX_CONF_MASK	0x0000ffff
 #define WL18XX_CONF_SIZE	(WLCORE_CONF_SIZE + \
 				 sizeof(struct wl18xx_priv_conf))
 
 #define NUM_OF_CHANNELS_11_ABG 150
 #define NUM_OF_CHANNELS_11_P 7
-#define WL18XX_NUM_OF_SUB_BANDS 9
 #define SRF_TABLE_LEN 16
 #define PIN_MUXING_SIZE 2
+#define WL18XX_TRACE_LOSS_GAPS_TX 10
+#define WL18XX_TRACE_LOSS_GAPS_RX 18
 
 struct wl18xx_mac_and_phy_params {
 	u8 phy_standalone;
-	u8 rdl;
+	u8 spare0;
 	u8 enable_clpc;
 	u8 enable_tx_low_pwr_on_siso_rdl;
 	u8 auto_detect;
@@ -69,8 +70,8 @@ struct wl18xx_mac_and_phy_params {
 	u8 pwr_limit_reference_11_abg;
 	u8 per_chan_pwr_limit_arr_11p[NUM_OF_CHANNELS_11_P];
 	u8 pwr_limit_reference_11p;
-	u8 per_sub_band_tx_trace_loss[WL18XX_NUM_OF_SUB_BANDS];
-	u8 per_sub_band_rx_trace_loss[WL18XX_NUM_OF_SUB_BANDS];
+	u8 spare1[9];
+	u8 spare2[9];
 	u8 primary_clock_setting_time;
 	u8 clock_valid_on_wake_up;
 	u8 secondary_clock_setting_time;
@@ -81,7 +82,11 @@ struct wl18xx_mac_and_phy_params {
 	s8 low_power_val;
 	s8 med_power_val;
 	s8 high_power_val;
-	u8 padding[1];
+	s8 per_sub_band_tx_trace_loss[WL18XX_TRACE_LOSS_GAPS_TX];
+	s8 per_sub_band_rx_trace_loss[WL18XX_TRACE_LOSS_GAPS_RX];
+	u8 tx_rf_margin;
+
+	u8 padding[4];
 } __packed;
 
 enum wl18xx_ht_mode {
