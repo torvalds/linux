@@ -98,11 +98,6 @@ config EXYNOS_DEV_SYSMMU
 	help
 	  Common setup code for SYSTEM MMU in EXYNOS platforms
 
-config EXYNOS4_DEV_DWMCI
-	bool
-	help
-	  Compile in platform device definitions for DWMCI
-
 config EXYNOS4_DEV_USB_OHCI
 	bool
 	help
