@@ -2864,22 +2864,21 @@ void fcoe_fcf_get_selected(struct fcoe_fcf_device *fcf_dev)
 }
 EXPORT_SYMBOL(fcoe_fcf_get_selected);
 
-void fcoe_ctlr_get_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
+void fcoe_ctlr_set_fip_mode(struct fcoe_ctlr_device *ctlr_dev)
 {
 	struct fcoe_ctlr *ctlr = fcoe_ctlr_device_priv(ctlr_dev);
 
 	mutex_lock(&ctlr->ctlr_mutex);
-	switch (ctlr->mode) {
-	case FIP_MODE_FABRIC:
-		ctlr_dev->mode = FIP_CONN_TYPE_FABRIC;
+	switch (ctlr_dev->mode) {
+	case FIP_CONN_TYPE_VN2VN:
+		ctlr->mode = FIP_MODE_VN2VN;
 		break;
-	case FIP_MODE_VN2VN:
-		ctlr_dev->mode = FIP_CONN_TYPE_VN2VN;
-		break;
+	case FIP_CONN_TYPE_FABRIC:
 	default:
-		ctlr_dev->mode = FIP_CONN_TYPE_UNKNOWN;
+		ctlr->mode = FIP_MODE_FABRIC;
 		break;
 	}
+
 	mutex_unlock(&ctlr->ctlr_mutex);
 }
-EXPORT_SYMBOL(fcoe_ctlr_get_fip_mode);
+EXPORT_SYMBOL(fcoe_ctlr_set_fip_mode);
