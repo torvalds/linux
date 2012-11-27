@@ -489,10 +489,6 @@ struct iwl_trans {
 static inline void iwl_trans_configure(struct iwl_trans *trans,
 				       const struct iwl_trans_config *trans_cfg)
 {
-	/*
-	 * only set the op_mode for the moment. Later on, this function will do
-	 * more
-	 */
 	trans->op_mode = trans_cfg->op_mode;
 
 	trans->ops->configure(trans, trans_cfg);
@@ -511,6 +507,9 @@ static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
 	might_sleep();
 
 	trans->ops->stop_hw(trans, op_mode_leaving);
+
+	if (op_mode_leaving)
+		trans->op_mode = NULL;
 
 	trans->state = IWL_TRANS_NO_FW;
 }
