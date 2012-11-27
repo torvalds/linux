@@ -19,7 +19,11 @@ F2FS and its tools support various parameters not only for configuring on-disk
 layout, but also for selecting allocation and cleaning algorithms.
 
 The file system formatting tool, "mkfs.f2fs", is available from the following
-download page:		http://sourceforge.net/projects/f2fs-tools/
+git tree:
+>> git://git.kernel.org/pub/scm/linux/kernel/git/jaegeuk/f2fs-tools.git
+
+For reporting bugs and sending patches, please use the following mailing list:
+>> linux-f2fs-devel@lists.sourceforge.net
 
 ================================================================================
 BACKGROUND AND DESIGN ISSUES
