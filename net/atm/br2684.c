@@ -68,6 +68,7 @@ struct br2684_vcc {
 	/* keep old push, pop functions for chaining */
 	void (*old_push)(struct atm_vcc *vcc, struct sk_buff *skb);
 	void (*old_pop)(struct atm_vcc *vcc, struct sk_buff *skb);
+	void (*old_release_cb)(struct atm_vcc *vcc);
 	enum br2684_encaps encaps;
 	struct list_head brvccs;
 #ifdef CONFIG_ATM_BR2684_IPFILTER
@@ -269,6 +270,17 @@ static int br2684_xmit_vcc(struct sk_buff *skb, struct net_device *dev,
 	return !atmvcc->send(atmvcc, skb);
 }
 
+static void br2684_release_cb(struct atm_vcc *atmvcc)
+{
+	struct br2684_vcc *brvcc = BR2684_VCC(atmvcc);
+
+	if (atomic_read(&brvcc->qspace) > 0)
+		netif_wake_queue(brvcc->device);
+
+	if (brvcc->old_release_cb)
+		brvcc->old_release_cb(atmvcc);
+}
+
 static inline struct br2684_vcc *pick_outgoing_vcc(const struct sk_buff *skb,
 						   const struct br2684_dev *brdev)
 {
@@ -280,6 +292,8 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 {
 	struct br2684_dev *brdev = BRPRIV(dev);
 	struct br2684_vcc *brvcc;
+	struct atm_vcc *atmvcc;
+	netdev_tx_t ret = NETDEV_TX_OK;
 
 	pr_debug("skb_dst(skb)=%p\n", skb_dst(skb));
 	read_lock(&devs_lock);
@@ -290,9 +304,26 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 		dev->stats.tx_carrier_errors++;
 		/* netif_stop_queue(dev); */
 		dev_kfree_skb(skb);
-		read_unlock(&devs_lock);
-		return NETDEV_TX_OK;
+		goto out_devs;
 	}
+	atmvcc = brvcc->atmvcc;
+
+	bh_lock_sock(sk_atm(atmvcc));
+
+	if (test_bit(ATM_VF_RELEASED, &atmvcc->flags) ||
+	    test_bit(ATM_VF_CLOSE, &atmvcc->flags) ||
+	    !test_bit(ATM_VF_READY, &atmvcc->flags)) {
+		dev->stats.tx_dropped++;
+		dev_kfree_skb(skb);
+		goto out;
+	}
+
+	if (sock_owned_by_user(sk_atm(atmvcc))) {
+		netif_stop_queue(brvcc->device);
+		ret = NETDEV_TX_BUSY;
+		goto out;
+	}
+
 	if (!br2684_xmit_vcc(skb, dev, brvcc)) {
 		/*
 		 * We should probably use netif_*_queue() here, but that
@@ -304,8 +335,11 @@ static netdev_tx_t br2684_start_xmit(struct sk_buff *skb,
 		dev->stats.tx_errors++;
 		dev->stats.tx_fifo_errors++;
 	}
+ out:
+	bh_unlock_sock(sk_atm(atmvcc));
+ out_devs:
 	read_unlock(&devs_lock);
-	return NETDEV_TX_OK;
+	return ret;
 }
 
 /*
@@ -378,6 +412,7 @@ static void br2684_close_vcc(struct br2684_vcc *brvcc)
 	list_del(&brvcc->brvccs);
 	write_unlock_irq(&devs_lock);
 	brvcc->atmvcc->user_back = NULL;	/* what about vcc->recvq ??? */
+	brvcc->atmvcc->release_cb = brvcc->old_release_cb;
 	brvcc->old_push(brvcc->atmvcc, NULL);	/* pass on the bad news */
 	kfree(brvcc);
 	module_put(THIS_MODULE);
@@ -554,9 +589,11 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	brvcc->encaps = (enum br2684_encaps)be.encaps;
 	brvcc->old_push = atmvcc->push;
 	brvcc->old_pop = atmvcc->pop;
+	brvcc->old_release_cb = atmvcc->release_cb;
 	barrier();
 	atmvcc->push = br2684_push;
 	atmvcc->pop = br2684_pop;
+	atmvcc->release_cb = br2684_release_cb;
 
 	/* initialize netdev carrier state */
 	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
