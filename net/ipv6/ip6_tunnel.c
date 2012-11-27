@@ -74,6 +74,10 @@ MODULE_ALIAS_NETDEV("ip6tnl0");
 #define HASH_SIZE_SHIFT  5
 #define HASH_SIZE (1 << HASH_SIZE_SHIFT)
 
+static bool log_ecn_error = true;
+module_param(log_ecn_error, bool, 0644);
+MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
+
 static u32 HASH(const struct in6_addr *addr1, const struct in6_addr *addr2)
 {
 	u32 hash = ipv6_addr_hash(addr1) ^ ipv6_addr_hash(addr2);
@@ -683,28 +687,26 @@ ip6ip6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	return 0;
 }
 
-static void ip4ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
-					const struct ipv6hdr *ipv6h,
-					struct sk_buff *skb)
+static int ip4ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
+				       const struct ipv6hdr *ipv6h,
+				       struct sk_buff *skb)
 {
 	__u8 dsfield = ipv6_get_dsfield(ipv6h) & ~INET_ECN_MASK;
 
 	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
 		ipv4_change_dsfield(ip_hdr(skb), INET_ECN_MASK, dsfield);
 
-	if (INET_ECN_is_ce(dsfield))
-		IP_ECN_set_ce(ip_hdr(skb));
+	return IP6_ECN_decapsulate(ipv6h, skb);
 }
 
-static void ip6ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
-					const struct ipv6hdr *ipv6h,
-					struct sk_buff *skb)
+static int ip6ip6_dscp_ecn_decapsulate(const struct ip6_tnl *t,
+				       const struct ipv6hdr *ipv6h,
+				       struct sk_buff *skb)
 {
 	if (t->parms.flags & IP6_TNL_F_RCV_DSCP_COPY)
 		ipv6_copy_dscp(ipv6_get_dsfield(ipv6h), ipv6_hdr(skb));
 
-	if (INET_ECN_is_ce(ipv6_get_dsfield(ipv6h)))
-		IP6_ECN_set_ce(ipv6_hdr(skb));
+	return IP6_ECN_decapsulate(ipv6h, skb);
 }
 
 __u32 ip6_tnl_get_cap(struct ip6_tnl *t,
@@ -768,12 +770,13 @@ EXPORT_SYMBOL_GPL(ip6_tnl_rcv_ctl);
 
 static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		       __u8 ipproto,
-		       void (*dscp_ecn_decapsulate)(const struct ip6_tnl *t,
-						    const struct ipv6hdr *ipv6h,
-						    struct sk_buff *skb))
+		       int (*dscp_ecn_decapsulate)(const struct ip6_tnl *t,
+						   const struct ipv6hdr *ipv6h,
+						   struct sk_buff *skb))
 {
 	struct ip6_tnl *t;
 	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+	int err;
 
 	rcu_read_lock();
 
@@ -803,13 +806,25 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		skb->pkt_type = PACKET_HOST;
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
 
+		__skb_tunnel_rx(skb, t->dev);
+
+		err = dscp_ecn_decapsulate(t, ipv6h, skb);
+		if (unlikely(err)) {
+			if (log_ecn_error)
+				net_info_ratelimited("non-ECT from %pI6 with dsfield=%#x\n",
+						     &ipv6h->saddr,
+						     ipv6_get_dsfield(ipv6h));
+			if (err > 1) {
+				++t->dev->stats.rx_frame_errors;
+				++t->dev->stats.rx_errors;
+				rcu_read_unlock();
+				goto discard;
+			}
+		}
+
 		tstats = this_cpu_ptr(t->dev->tstats);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
-
-		__skb_tunnel_rx(skb, t->dev);
-
-		dscp_ecn_decapsulate(t, ipv6h, skb);
 
 		netif_rx(skb);
 

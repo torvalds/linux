@@ -65,6 +65,10 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
+static bool log_ecn_error = true;
+module_param(log_ecn_error, bool, 0644);
+MODULE_PARM_DESC(log_ecn_error, "Log packets received with corrupted ECN");
+
 static int ipip6_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_setup(struct net_device *dev);
 static void ipip6_dev_free(struct net_device *dev);
@@ -106,6 +110,7 @@ static struct rtnl_link_stats64 *ipip6_get_stats64(struct net_device *dev,
 	}
 
 	tot->rx_errors = dev->stats.rx_errors;
+	tot->rx_frame_errors = dev->stats.rx_frame_errors;
 	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
 	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
 	tot->tx_dropped = dev->stats.tx_dropped;
@@ -585,16 +590,11 @@ out:
 	return err;
 }
 
-static inline void ipip6_ecn_decapsulate(const struct iphdr *iph, struct sk_buff *skb)
-{
-	if (INET_ECN_is_ce(iph->tos))
-		IP6_ECN_set_ce(ipv6_hdr(skb));
-}
-
 static int ipip6_rcv(struct sk_buff *skb)
 {
 	const struct iphdr *iph;
 	struct ip_tunnel *tunnel;
+	int err;
 
 	if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
 		goto out;
@@ -616,17 +616,26 @@ static int ipip6_rcv(struct sk_buff *skb)
 		if ((tunnel->dev->priv_flags & IFF_ISATAP) &&
 		    !isatap_chksrc(skb, iph, tunnel)) {
 			tunnel->dev->stats.rx_errors++;
-			kfree_skb(skb);
-			return 0;
+			goto out;
+		}
+
+		__skb_tunnel_rx(skb, tunnel->dev);
+
+		err = IP_ECN_decapsulate(iph, skb);
+		if (unlikely(err)) {
+			if (log_ecn_error)
+				net_info_ratelimited("non-ECT from %pI4 with TOS=%#x\n",
+						     &iph->saddr, iph->tos);
+			if (err > 1) {
+				++tunnel->dev->stats.rx_frame_errors;
+				++tunnel->dev->stats.rx_errors;
+				goto out;
+			}
 		}
 
 		tstats = this_cpu_ptr(tunnel->dev->tstats);
 		tstats->rx_packets++;
 		tstats->rx_bytes += skb->len;
-
-		__skb_tunnel_rx(skb, tunnel->dev);
-
-		ipip6_ecn_decapsulate(iph, skb);
 
 		netif_rx(skb);
 
