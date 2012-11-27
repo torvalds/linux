@@ -555,12 +555,11 @@ static void render_ring_cleanup(struct intel_ring_buffer *ring)
 
 static void
 update_mboxes(struct intel_ring_buffer *ring,
-	    u32 seqno,
-	    u32 mmio_offset)
+	      u32 mmio_offset)
 {
 	intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
 	intel_ring_emit(ring, mmio_offset);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 }
 
 /**
@@ -573,8 +572,7 @@ update_mboxes(struct intel_ring_buffer *ring,
  * This acts like a signal in the canonical semaphore.
  */
 static int
-gen6_add_request(struct intel_ring_buffer *ring,
-		 u32 *seqno)
+gen6_add_request(struct intel_ring_buffer *ring)
 {
 	u32 mbox1_reg;
 	u32 mbox2_reg;
@@ -587,13 +585,11 @@ gen6_add_request(struct intel_ring_buffer *ring,
 	mbox1_reg = ring->signal_mbox[0];
 	mbox2_reg = ring->signal_mbox[1];
 
-	*seqno = i915_gem_next_request_seqno(ring);
-
-	update_mboxes(ring, *seqno, mbox1_reg);
-	update_mboxes(ring, *seqno, mbox2_reg);
+	update_mboxes(ring, mbox1_reg);
+	update_mboxes(ring, mbox2_reg);
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, *seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
@@ -650,10 +646,8 @@ do {									\
 } while (0)
 
 static int
-pc_render_add_request(struct intel_ring_buffer *ring,
-		      u32 *result)
+pc_render_add_request(struct intel_ring_buffer *ring)
 {
-	u32 seqno = i915_gem_next_request_seqno(ring);
 	struct pipe_control *pc = ring->private;
 	u32 scratch_addr = pc->gtt_offset + 128;
 	int ret;
@@ -674,7 +668,7 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 			PIPE_CONTROL_WRITE_FLUSH |
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, 0);
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 128; /* write to separate cachelines */
@@ -693,11 +687,10 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, pc->gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, 0);
 	intel_ring_advance(ring);
 
-	*result = seqno;
 	return 0;
 }
 
@@ -885,25 +878,20 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
-i9xx_add_request(struct intel_ring_buffer *ring,
-		 u32 *result)
+i9xx_add_request(struct intel_ring_buffer *ring)
 {
-	u32 seqno;
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		return ret;
 
-	seqno = i915_gem_next_request_seqno(ring);
-
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, seqno);
+	intel_ring_emit(ring, ring->outstanding_lazy_request);
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	intel_ring_advance(ring);
 
-	*result = seqno;
 	return 0;
 }
 
@@ -1110,6 +1098,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	ring->size = 32 * PAGE_SIZE;
+	memset(ring->sync_seqno, 0, sizeof(ring->sync_seqno));
 
 	init_waitqueue_head(&ring->irq_queue);
 
@@ -1338,6 +1327,15 @@ int intel_wait_ring_buffer(struct intel_ring_buffer *ring, int n)
 	return -EBUSY;
 }
 
+static int
+intel_ring_alloc_seqno(struct intel_ring_buffer *ring)
+{
+	if (ring->outstanding_lazy_request)
+		return 0;
+
+	return i915_gem_get_seqno(ring->dev, &ring->outstanding_lazy_request);
+}
+
 int intel_ring_begin(struct intel_ring_buffer *ring,
 		     int num_dwords)
 {
@@ -1346,6 +1344,11 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 	int ret;
 
 	ret = i915_gem_check_wedge(dev_priv, dev_priv->mm.interruptible);
+	if (ret)
+		return ret;
+
+	/* Preallocate the olr before touching the ring */
+	ret = intel_ring_alloc_seqno(ring);
 	if (ret)
 		return ret;
 
