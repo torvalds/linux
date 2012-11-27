@@ -182,10 +182,6 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
-	nv_wo32(base, addr + 0x00, 0x00000000);
-	nv_wo32(base, addr + 0x04, 0x00000000);
-	bar->flush(bar);
-
 	nv_wr32(priv, 0x002634, chan->base.chid);
 	if (!nv_wait(priv, 0x002634, 0xffffffff, chan->base.chid)) {
 		nv_error(priv, "channel %d kick timeout\n", chan->base.chid);
@@ -193,6 +189,9 @@ nve0_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 			return -EBUSY;
 	}
 
+	nv_wo32(base, addr + 0x00, 0x00000000);
+	nv_wo32(base, addr + 0x04, 0x00000000);
+	bar->flush(bar);
 	return 0;
 }
 

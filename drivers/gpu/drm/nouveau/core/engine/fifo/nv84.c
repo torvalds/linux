@@ -95,14 +95,6 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 		return -EINVAL;
 	}
 
-	nv_wo32(base->eng, addr + 0x00, 0x00000000);
-	nv_wo32(base->eng, addr + 0x04, 0x00000000);
-	nv_wo32(base->eng, addr + 0x08, 0x00000000);
-	nv_wo32(base->eng, addr + 0x0c, 0x00000000);
-	nv_wo32(base->eng, addr + 0x10, 0x00000000);
-	nv_wo32(base->eng, addr + 0x14, 0x00000000);
-	bar->flush(bar);
-
 	save = nv_mask(priv, 0x002520, 0x0000003f, 1 << engn);
 	nv_wr32(priv, 0x0032fc, nv_gpuobj(base)->addr >> 12);
 	done = nv_wait_ne(priv, 0x0032fc, 0xffffffff, 0xffffffff);
@@ -112,6 +104,14 @@ nv84_fifo_context_detach(struct nouveau_object *parent, bool suspend,
 		if (suspend)
 			return -EBUSY;
 	}
+
+	nv_wo32(base->eng, addr + 0x00, 0x00000000);
+	nv_wo32(base->eng, addr + 0x04, 0x00000000);
+	nv_wo32(base->eng, addr + 0x08, 0x00000000);
+	nv_wo32(base->eng, addr + 0x0c, 0x00000000);
+	nv_wo32(base->eng, addr + 0x10, 0x00000000);
+	nv_wo32(base->eng, addr + 0x14, 0x00000000);
+	bar->flush(bar);
 	return 0;
 }
 
