@@ -136,12 +136,15 @@ struct rksdmmc_gpio_board {
 
 
 struct rksdmmc_gpio_wifi_moudle {
-    struct rksdmmc_gpio   power_n;    
-    struct rksdmmc_gpio   reset_n;   
-    struct rksdmmc_gpio   vddio;
+    struct rksdmmc_gpio   power_n;  //PMU_EN  
+    struct rksdmmc_gpio   reset_n;  //SYSRET_B, DAIRST 
+    struct rksdmmc_gpio   vddio;    //power source
     struct rksdmmc_gpio   bgf_int_b;
     struct rksdmmc_gpio   wifi_int_b;
     struct rksdmmc_gpio   gps_sync;
+    struct rksdmmc_gpio   ANTSEL2;  //pin5--ANTSEL2  
+    struct rksdmmc_gpio   ANTSEL3;  //pin6--ANTSEL3 
+    struct rksdmmc_gpio   GPS_LAN;  //pin33--GPS_LAN
 };
 
 
@@ -157,9 +160,13 @@ struct rk29_sdmmc_platform_data {
 	int (*register_status_notify)(void (*callback)(int card_present, void *dev_id), void *dev_id);
 	int detect_irq;
 	int insert_card_level;
+    int power_en;
+	int power_en_level;
 	int enable_sd_wakeup;
 	int write_prt;
-	unsigned int sdio_INT_gpio; //add gpio INT for sdio interrupt.Modifed by xbw at 2012-08-09
+	int write_prt_enalbe_level;
+	unsigned int sdio_INT_gpio; 
+	struct rksdmmc_gpio   det_pin_info;
 };
 
 struct gsensor_platform_data {
