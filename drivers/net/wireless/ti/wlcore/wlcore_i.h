@@ -359,6 +359,9 @@ struct wl12xx_vif {
 	/* the hlid of the last transmitted skb */
 	int last_tx_hlid;
 
+	/* counters of packets per AC, across all links in the vif */
+	int tx_queue_count[NUM_TX_QUEUES];
+
 	unsigned long links_map[BITS_TO_LONGS(WL12XX_MAX_LINKS)];
 
 	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
