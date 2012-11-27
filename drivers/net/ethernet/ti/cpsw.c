@@ -812,8 +812,9 @@ static void cpsw_hwtstamp_v2(struct cpsw_priv *priv)
 	__raw_writel(ETH_P_1588, &priv->regs->ts_ltype);
 }
 
-static int cpsw_hwtstamp_ioctl(struct cpsw_priv *priv, struct ifreq *ifr)
+static int cpsw_hwtstamp_ioctl(struct net_device *dev, struct ifreq *ifr)
 {
+	struct cpsw_priv *priv = netdev_priv(dev);
 	struct cpts *cpts = &priv->cpts;
 	struct hwtstamp_config cfg;
 
@@ -878,14 +879,12 @@ static int cpsw_hwtstamp_ioctl(struct cpsw_priv *priv, struct ifreq *ifr)
 
 static int cpsw_ndo_ioctl(struct net_device *dev, struct ifreq *req, int cmd)
 {
-	struct cpsw_priv *priv = netdev_priv(dev);
-
 	if (!netif_running(dev))
 		return -EINVAL;
 
 #ifdef CONFIG_TI_CPTS
 	if (cmd == SIOCSHWTSTAMP)
-		return cpsw_hwtstamp_ioctl(priv, req);
+		return cpsw_hwtstamp_ioctl(dev, req);
 #endif
 	return -ENOTSUPP;
 }
