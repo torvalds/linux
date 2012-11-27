@@ -655,10 +655,12 @@ static void i915_ring_error_state(struct seq_file *m,
 	if (INTEL_INFO(dev)->gen >= 6) {
 		seq_printf(m, "  RC PSMI: 0x%08x\n", error->rc_psmi[ring]);
 		seq_printf(m, "  FAULT_REG: 0x%08x\n", error->fault_reg[ring]);
-		seq_printf(m, "  SYNC_0: 0x%08x\n",
-			   error->semaphore_mboxes[ring][0]);
-		seq_printf(m, "  SYNC_1: 0x%08x\n",
-			   error->semaphore_mboxes[ring][1]);
+		seq_printf(m, "  SYNC_0: 0x%08x [last synced 0x%08x]\n",
+			   error->semaphore_mboxes[ring][0],
+			   error->semaphore_seqno[ring][0]);
+		seq_printf(m, "  SYNC_1: 0x%08x [last synced 0x%08x]\n",
+			   error->semaphore_mboxes[ring][1],
+			   error->semaphore_seqno[ring][1]);
 	}
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
 	seq_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));

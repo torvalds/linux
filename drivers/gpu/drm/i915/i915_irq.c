@@ -1120,6 +1120,8 @@ static void i915_record_ring_state(struct drm_device *dev,
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
 		error->semaphore_mboxes[ring->id][1]
 			= I915_READ(RING_SYNC_1(ring->mmio_base));
+		error->semaphore_seqno[ring->id][0] = ring->sync_seqno[0];
+		error->semaphore_seqno[ring->id][1] = ring->sync_seqno[1];
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
