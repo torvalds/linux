@@ -182,6 +182,15 @@ config PWM_TWL
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-twl.
 
+config PWM_TWL_LED
+	tristate "TWL4030/6030 PWM support for LED drivers"
+	depends on TWL4030_CORE
+	help
+	  Generic PWM framework driver for TWL4030/6030 LED terminals.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-twl-led.
+
 config PWM_VT8500
 	tristate "vt8500 pwm support"
 	depends on ARCH_VT8500
