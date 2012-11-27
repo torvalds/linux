@@ -1651,18 +1651,7 @@ static struct i2c_driver bq2415x_driver = {
 	.remove = bq2415x_remove,
 	.id_table = bq2415x_i2c_id_table,
 };
-
-static int __init bq2415x_init(void)
-{
-	return i2c_add_driver(&bq2415x_driver);
-}
-module_init(bq2415x_init);
-
-static void __exit bq2415x_exit(void)
-{
-	i2c_del_driver(&bq2415x_driver);
-}
-module_exit(bq2415x_exit);
+module_i2c_driver(bq2415x_driver);
 
 MODULE_AUTHOR("Pali Rohár <pali.rohar@gmail.com>");
 MODULE_DESCRIPTION("bq2415x charger driver");
