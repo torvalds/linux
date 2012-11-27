@@ -57,7 +57,6 @@ struct da9055_volt_reg {
 	int reg_a;
 	int reg_b;
 	int sl_shift;
-	int v_offset;
 	int v_mask;
 	int v_shift;
 };
@@ -204,41 +203,6 @@ static int da9055_buck_set_current_limit(struct regulator_dev *rdev, int min_uA,
 				info->mode.mask, val << info->mode.shift);
 }
 
-static int da9055_list_voltage(struct regulator_dev *rdev, unsigned selector)
-{
-	struct da9055_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9055_regulator_info *info = regulator->info;
-
-	if (selector >= rdev->desc->n_voltages)
-		return -EINVAL;
-
-	if (selector < info->volt.v_offset)
-		return 0;
-
-	selector -= info->volt.v_offset;
-	return rdev->desc->min_uV + (rdev->desc->uV_step * selector);
-}
-
-static int da9055_map_voltage(struct regulator_dev *rdev, int min_uV,
-			      int max_uV)
-{
-	struct da9055_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9055_regulator_info *info = regulator->info;
-	int sel, voltage;
-
-	if (min_uV < rdev->desc->min_uV)
-		min_uV = rdev->desc->min_uV;
-
-	sel = DIV_ROUND_UP(min_uV - rdev->desc->min_uV, rdev->desc->uV_step);
-	sel += info->volt.v_offset;
-
-	voltage = da9055_list_voltage(rdev, sel);
-	if (voltage < min_uV || voltage > max_uV)
-		return -EINVAL;
-
-	return sel;
-}
-
 static int da9055_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct da9055_regulator *regulator = rdev_get_drvdata(rdev);
@@ -267,10 +231,7 @@ static int da9055_regulator_get_voltage_sel(struct regulator_dev *rdev)
 		return ret;
 
 	sel = (ret & volt.v_mask);
-	if (sel <= volt.v_offset)
-		return 0;
-	else
-		return sel;
+	return sel;
 }
 
 static int da9055_regulator_set_voltage_sel(struct regulator_dev *rdev,
@@ -331,7 +292,7 @@ static int da9055_regulator_set_suspend_voltage(struct regulator_dev *rdev,
 			return ret;
 	}
 
-	ret = da9055_map_voltage(rdev, uV, uV);
+	ret = regulator_map_voltage_linear(rdev, uV, uV);
 	if (ret < 0)
 		return ret;
 
@@ -374,8 +335,8 @@ static struct regulator_ops da9055_buck_ops = {
 
 	.get_voltage_sel = da9055_regulator_get_voltage_sel,
 	.set_voltage_sel = da9055_regulator_set_voltage_sel,
-	.list_voltage = da9055_list_voltage,
-	.map_voltage = da9055_map_voltage,
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -392,8 +353,8 @@ static struct regulator_ops da9055_ldo_ops = {
 
 	.get_voltage_sel = da9055_regulator_get_voltage_sel,
 	.set_voltage_sel = da9055_regulator_set_voltage_sel,
-	.list_voltage = da9055_list_voltage,
-	.map_voltage = da9055_map_voltage,
+	.list_voltage = regulator_list_voltage_linear,
+	.map_voltage = regulator_map_voltage_linear,
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -417,6 +378,7 @@ static struct regulator_ops da9055_ldo_ops = {
 		.enable_mask = 1, \
 		.min_uV = (min) * 1000,\
 		.uV_step = (step) * 1000,\
+		.linear_min_sel = (voffset),\
 		.owner = THIS_MODULE,\
 	},\
 	.conf = {\
@@ -428,7 +390,6 @@ static struct regulator_ops da9055_ldo_ops = {
 		.reg_a = DA9055_REG_VBCORE_A + DA9055_ID_##_id, \
 		.reg_b = DA9055_REG_VBCORE_B + DA9055_ID_##_id, \
 		.sl_shift = 7,\
-		.v_offset = (voffset),\
 		.v_mask = (1 << (vbits)) - 1,\
 		.v_shift = (vbits),\
 	},\
@@ -446,6 +407,7 @@ static struct regulator_ops da9055_ldo_ops = {
 		.enable_mask = 1,\
 		.min_uV = (min) * 1000,\
 		.uV_step = (step) * 1000,\
+		.linear_min_sel = (voffset),\
 		.owner = THIS_MODULE,\
 	},\
 	.conf = {\
@@ -457,7 +419,6 @@ static struct regulator_ops da9055_ldo_ops = {
 		.reg_a = DA9055_REG_VBCORE_A + DA9055_ID_##_id, \
 		.reg_b = DA9055_REG_VBCORE_B + DA9055_ID_##_id, \
 		.sl_shift = 7,\
-		.v_offset = (voffset),\
 		.v_mask = (1 << (vbits)) - 1,\
 		.v_shift = (vbits),\
 	},\
