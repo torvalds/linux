@@ -63,6 +63,9 @@ struct xen_feature_info {
 /* arg == xen_domain_handle_t. */
 #define XENVER_guest_handle 8
 
+/* Declares the xen_domain() macros. */
+#include <xen/xen.h>
+
 /* Check if running on Xen version (major, minor) or later */
 static inline bool
 xen_running_on_version_or_later(unsigned int major, unsigned int minor)
