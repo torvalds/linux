@@ -485,7 +485,7 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 		gpio_nreset = cs4271plat->gpio_nreset;
 
 	if (gpio_nreset >= 0)
-		if (gpio_request(gpio_nreset, "CS4271 Reset"))
+		if (devm_gpio_request(codec->dev, gpio_nreset, "CS4271 Reset"))
 			gpio_nreset = -EINVAL;
 	if (gpio_nreset >= 0) {
 		/* Reset codec */
@@ -535,15 +535,10 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 static int cs4271_remove(struct snd_soc_codec *codec)
 {
 	struct cs4271_private *cs4271 = snd_soc_codec_get_drvdata(codec);
-	int gpio_nreset;
 
-	gpio_nreset = cs4271->gpio_nreset;
-
-	if (gpio_is_valid(gpio_nreset)) {
+	if (gpio_is_valid(cs4271->gpio_nreset))
 		/* Set codec to the reset state */
-		gpio_set_value(gpio_nreset, 0);
-		gpio_free(gpio_nreset);
-	}
+		gpio_set_value(cs4271->gpio_nreset, 0);
 
 	return 0;
 };

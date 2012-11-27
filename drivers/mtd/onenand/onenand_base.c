@@ -3694,7 +3694,7 @@ static int flexonenand_check_blocks_erased(struct mtd_info *mtd, int start, int 
  * flexonenand_set_boundary	- Writes the SLC boundary
  * @param mtd			- mtd info structure
  */
-int flexonenand_set_boundary(struct mtd_info *mtd, int die,
+static int flexonenand_set_boundary(struct mtd_info *mtd, int die,
 				    int boundary, int lock)
 {
 	struct onenand_chip *this = mtd->priv;

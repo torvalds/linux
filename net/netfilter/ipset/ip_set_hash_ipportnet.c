@@ -215,8 +215,8 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	const struct ip_set_hash *h = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet4_elem data = { .cidr = HOST_MASK - 1 };
-	u32 ip, ip_to = 0, p = 0, port, port_to;
-	u32 ip2_from = 0, ip2_to, ip2_last, ip2;
+	u32 ip, ip_to, p = 0, port, port_to;
+	u32 ip2_from, ip2_to, ip2_last, ip2;
 	u32 timeout = h->timeout;
 	bool with_ports = false;
 	u8 cidr;
@@ -286,6 +286,7 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		return ip_set_eexist(ret, flags) ? 0 : ret;
 	}
 
+	ip_to = ip;
 	if (tb[IPSET_ATTR_IP_TO]) {
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP_TO], &ip_to);
 		if (ret)
@@ -306,6 +307,8 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 		if (port > port_to)
 			swap(port, port_to);
 	}
+
+	ip2_to = ip2_from;
 	if (tb[IPSET_ATTR_IP2_TO]) {
 		ret = ip_set_get_hostipaddr4(tb[IPSET_ATTR_IP2_TO], &ip2_to);
 		if (ret)

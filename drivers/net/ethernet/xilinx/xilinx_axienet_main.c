@@ -894,6 +894,8 @@ out:
 	return IRQ_HANDLED;
 }
 
+static void axienet_dma_err_handler(unsigned long data);
+
 /**
  * axienet_open - Driver open routine.
  * @ndev:	Pointer to net_device structure

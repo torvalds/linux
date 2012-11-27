@@ -697,11 +697,15 @@ static int dss_get_clocks(void)
 
 	dss.dss_clk = clk;
 
-	clk = clk_get(NULL, dss.feat->clk_name);
-	if (IS_ERR(clk)) {
-		DSSERR("Failed to get %s\n", dss.feat->clk_name);
-		r = PTR_ERR(clk);
-		goto err;
+	if (dss.feat->clk_name) {
+		clk = clk_get(NULL, dss.feat->clk_name);
+		if (IS_ERR(clk)) {
+			DSSERR("Failed to get %s\n", dss.feat->clk_name);
+			r = PTR_ERR(clk);
+			goto err;
+		}
+	} else {
+		clk = NULL;
 	}
 
 	dss.dpll4_m4_ck = clk;
@@ -805,10 +809,10 @@ static int __init dss_init_features(struct device *dev)
 
 	if (cpu_is_omap24xx())
 		src = &omap24xx_dss_feats;
-	else if (cpu_is_omap34xx())
-		src = &omap34xx_dss_feats;
 	else if (cpu_is_omap3630())
 		src = &omap3630_dss_feats;
+	else if (cpu_is_omap34xx())
+		src = &omap34xx_dss_feats;
 	else if (cpu_is_omap44xx())
 		src = &omap44xx_dss_feats;
 	else if (soc_is_omap54xx())
