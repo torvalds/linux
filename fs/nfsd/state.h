@@ -496,4 +496,19 @@ extern void nfsd4_client_record_create(struct nfs4_client *clp);
 extern void nfsd4_client_record_remove(struct nfs4_client *clp);
 extern int nfsd4_client_record_check(struct nfs4_client *clp);
 extern void nfsd4_record_grace_done(struct nfsd_net *nn, time_t boot_time);
+
+/* nfs fault injection functions */
+#ifdef CONFIG_NFSD_FAULT_INJECTION
+int nfsd_fault_inject_init(void);
+void nfsd_fault_inject_cleanup(void);
+void nfsd_forget_clients(u64);
+void nfsd_forget_locks(u64);
+void nfsd_forget_openowners(u64);
+void nfsd_forget_delegations(u64);
+void nfsd_recall_delegations(u64);
+#else /* CONFIG_NFSD_FAULT_INJECTION */
+static inline int nfsd_fault_inject_init(void) { return 0; }
+static inline void nfsd_fault_inject_cleanup(void) {}
+#endif /* CONFIG_NFSD_FAULT_INJECTION */
+
 #endif   /* NFSD4_STATE_H */

@@ -44,7 +44,6 @@
 #include "xdr4.h"
 #include "vfs.h"
 #include "current_stateid.h"
-#include "fault_inject.h"
 
 #include "netns.h"
 

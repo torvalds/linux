@@ -19,7 +19,7 @@
 #include "idmap.h"
 #include "nfsd.h"
 #include "cache.h"
-#include "fault_inject.h"
+#include "state.h"
 #include "netns.h"
 
 /*

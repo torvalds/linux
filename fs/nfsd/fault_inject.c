@@ -10,7 +10,6 @@
 #include <linux/module.h>
 
 #include "state.h"
-#include "fault_inject.h"
 
 struct nfsd_fault_inject_op {
 	char *file;
