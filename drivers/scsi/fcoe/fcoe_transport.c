@@ -627,6 +627,110 @@ static int libfcoe_device_notification(struct notifier_block *notifier,
 	return NOTIFY_OK;
 }
 
+ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
+			       const char *buf, size_t count)
+{
+	struct net_device *netdev = NULL;
+	struct fcoe_transport *ft = NULL;
+	struct fcoe_ctlr_device *ctlr_dev = NULL;
+	int rc = 0;
+	int err;
+
+	mutex_lock(&ft_mutex);
+
+	netdev = fcoe_if_to_netdev(buf);
+	if (!netdev) {
+		LIBFCOE_TRANSPORT_DBG("Invalid device %s.\n", buf);
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+
+	ft = fcoe_netdev_map_lookup(netdev);
+	if (ft) {
+		LIBFCOE_TRANSPORT_DBG("transport %s already has existing "
+				      "FCoE instance on %s.\n",
+				      ft->name, netdev->name);
+		rc = -EEXIST;
+		goto out_putdev;
+	}
+
+	ft = fcoe_transport_lookup(netdev);
+	if (!ft) {
+		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+				      netdev->name);
+		rc = -ENODEV;
+		goto out_putdev;
+	}
+
+	/* pass to transport create */
+	err = ft->alloc ? ft->alloc(netdev) : -ENODEV;
+	if (err) {
+		fcoe_del_netdev_mapping(netdev);
+		rc = -ENOMEM;
+		goto out_putdev;
+	}
+
+	err = fcoe_add_netdev_mapping(netdev, ft);
+	if (err) {
+		LIBFCOE_TRANSPORT_DBG("failed to add new netdev mapping "
+				      "for FCoE transport %s for %s.\n",
+				      ft->name, netdev->name);
+		rc = -ENODEV;
+		goto out_putdev;
+	}
+
+	LIBFCOE_TRANSPORT_DBG("transport %s %s to create fcoe on %s.\n",
+			      ft->name, (ctlr_dev) ? "succeeded" : "failed",
+			      netdev->name);
+
+out_putdev:
+	dev_put(netdev);
+out_nodev:
+	mutex_unlock(&ft_mutex);
+	if (rc)
+		return rc;
+	return count;
+}
+
+ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
+				const char *buf, size_t count)
+{
+	int rc = -ENODEV;
+	struct net_device *netdev = NULL;
+	struct fcoe_transport *ft = NULL;
+
+	mutex_lock(&ft_mutex);
+
+	netdev = fcoe_if_to_netdev(buf);
+	if (!netdev) {
+		LIBFCOE_TRANSPORT_DBG("invalid device %s.\n", buf);
+		goto out_nodev;
+	}
+
+	ft = fcoe_netdev_map_lookup(netdev);
+	if (!ft) {
+		LIBFCOE_TRANSPORT_DBG("no FCoE transport found for %s.\n",
+				      netdev->name);
+		goto out_putdev;
+	}
+
+	/* pass to transport destroy */
+	rc = ft->destroy(netdev);
+	if (rc)
+		goto out_putdev;
+
+	fcoe_del_netdev_mapping(netdev);
+	LIBFCOE_TRANSPORT_DBG("transport %s %s to destroy fcoe on %s.\n",
+			      ft->name, (rc) ? "failed" : "succeeded",
+			      netdev->name);
+	rc = count; /* required for successful return */
+out_putdev:
+	dev_put(netdev);
+out_nodev:
+	mutex_unlock(&ft_mutex);
+	return rc;
+}
+EXPORT_SYMBOL(fcoe_ctlr_destroy_store);
 
 /**
  * fcoe_transport_create() - Create a fcoe interface

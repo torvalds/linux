@@ -155,7 +155,6 @@ static void fcoe_ctlr_get_lesb(struct fcoe_ctlr_device *);
 static void fcoe_fcf_get_vlan_id(struct fcoe_fcf_device *);
 
 static struct fcoe_sysfs_function_template fcoe_sysfs_templ = {
-	.get_fcoe_ctlr_mode = fcoe_ctlr_get_fip_mode,
 	.get_fcoe_ctlr_link_fail = fcoe_ctlr_get_lesb,
 	.get_fcoe_ctlr_vlink_fail = fcoe_ctlr_get_lesb,
 	.get_fcoe_ctlr_miss_fka = fcoe_ctlr_get_lesb,

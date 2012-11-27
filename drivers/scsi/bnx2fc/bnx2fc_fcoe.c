@@ -2555,7 +2555,6 @@ module_init(bnx2fc_mod_init);
 module_exit(bnx2fc_mod_exit);
 
 static struct fcoe_sysfs_function_template bnx2fc_fcoe_sysfs_templ = {
-	.get_fcoe_ctlr_mode = fcoe_ctlr_get_fip_mode,
 	.get_fcoe_ctlr_link_fail = bnx2fc_ctlr_get_lesb,
 	.get_fcoe_ctlr_vlink_fail = bnx2fc_ctlr_get_lesb,
 	.get_fcoe_ctlr_miss_fka = bnx2fc_ctlr_get_lesb,

@@ -289,8 +289,11 @@ static inline bool is_fip_mode(struct fcoe_ctlr *fip)
  * @attached:	whether this transport is already attached
  * @list:	list linkage to all attached transports
  * @match:	handler to allow the transport driver to match up a given netdev
+ * @alloc:      handler to allocate per-instance FCoE structures
+ *		(no discovery or login)
  * @create:	handler to sysfs entry of create for FCoE instances
- * @destroy:	handler to sysfs entry of destroy for FCoE instances
+ * @destroy:    handler to delete per-instance FCoE structures
+ *		(frees all memory)
  * @enable:	handler to sysfs entry of enable for FCoE instances
  * @disable:	handler to sysfs entry of disable for FCoE instances
  */
@@ -299,6 +302,7 @@ struct fcoe_transport {
 	bool attached;
 	struct list_head list;
 	bool (*match) (struct net_device *device);
+	int (*alloc) (struct net_device *device);
 	int (*create) (struct net_device *device, enum fip_state fip_mode);
 	int (*destroy) (struct net_device *device);
 	int (*enable) (struct net_device *device);
@@ -356,7 +360,7 @@ int fcoe_get_paged_crc_eof(struct sk_buff *skb, int tlen,
 
 /* FCoE Sysfs helpers */
 void fcoe_fcf_get_selected(struct fcoe_fcf_device *);
-void fcoe_ctlr_get_fip_mode(struct fcoe_ctlr_device *);
+void fcoe_ctlr_set_fip_mode(struct fcoe_ctlr_device *);
 
 /**
  * struct netdev_list
@@ -372,4 +376,12 @@ struct fcoe_netdev_mapping {
 int fcoe_transport_attach(struct fcoe_transport *ft);
 int fcoe_transport_detach(struct fcoe_transport *ft);
 
+/* sysfs store handler for ctrl_control interface */
+ssize_t fcoe_ctlr_create_store(struct bus_type *bus,
+			       const char *buf, size_t count);
+ssize_t fcoe_ctlr_destroy_store(struct bus_type *bus,
+				const char *buf, size_t count);
+
 #endif /* _LIBFCOE_H */
+
+
