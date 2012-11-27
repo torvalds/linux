@@ -33,10 +33,7 @@
 
 #define FAIL(fifo, condition, format...) ({				\
 	fifo->corrupt = !!(condition);					\
-	if (unlikely(fifo->corrupt)) {					\
-		__WARN_printf(format);					\
-	}								\
-	unlikely(fifo->corrupt);					\
+	WARN(fifo->corrupt, format);					\
 })
 
 /*
