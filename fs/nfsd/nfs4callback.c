@@ -36,6 +36,7 @@
 #include <linux/slab.h>
 #include "nfsd.h"
 #include "state.h"
+#include "netns.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
@@ -625,9 +626,10 @@ static const struct rpc_program cb_program = {
 	.pipe_dir_name		= "nfsd4_cb",
 };
 
-static int max_cb_time(void)
+static int max_cb_time(struct net *net)
 {
-	return max(nfsd4_lease/10, (time_t)1) * HZ;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	return max(nn->nfsd4_lease/10, (time_t)1) * HZ;
 }
 
 static struct rpc_cred *callback_cred;
@@ -659,7 +661,7 @@ static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc
 static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn, struct nfsd4_session *ses)
 {
 	struct rpc_timeout	timeparms = {
-		.to_initval	= max_cb_time(),
+		.to_initval	= max_cb_time(clp->net),
 		.to_retries	= 0,
 	};
 	struct rpc_create_args args = {

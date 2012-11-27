@@ -87,6 +87,8 @@ struct nfsd_net {
 
 	struct file *rec_file;
 	bool in_grace;
+
+	time_t nfsd4_lease;
 };
 
 extern int nfsd_net_id;

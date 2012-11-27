@@ -51,7 +51,6 @@
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
 /* Globals */
-time_t nfsd4_lease = 90;     /* default lease time */
 time_t nfsd4_grace = 90;
 
 #define all_ones {{~0,~0},~0}
@@ -3184,7 +3183,7 @@ nfsd4_end_grace(struct nfsd_net *nn)
 	 * to see the (possibly new, possibly shorter) lease time, we
 	 * can safely set the next grace time to the current lease time:
 	 */
-	nfsd4_grace = nfsd4_lease;
+	nfsd4_grace = nn->nfsd4_lease;
 }
 
 static time_t
@@ -3194,9 +3193,9 @@ nfs4_laundromat(struct nfsd_net *nn)
 	struct nfs4_openowner *oo;
 	struct nfs4_delegation *dp;
 	struct list_head *pos, *next, reaplist;
-	time_t cutoff = get_seconds() - nfsd4_lease;
-	time_t t, clientid_val = nfsd4_lease;
-	time_t u, test_val = nfsd4_lease;
+	time_t cutoff = get_seconds() - nn->nfsd4_lease;
+	time_t t, clientid_val = nn->nfsd4_lease;
+	time_t u, test_val = nn->nfsd4_lease;
 
 	nfs4_lock_state();
 
@@ -3245,7 +3244,7 @@ nfs4_laundromat(struct nfsd_net *nn)
 		dp = list_entry (pos, struct nfs4_delegation, dl_recall_lru);
 		unhash_delegation(dp);
 	}
-	test_val = nfsd4_lease;
+	test_val = nn->nfsd4_lease;
 	list_for_each_safe(pos, next, &nn->close_lru) {
 		oo = container_of(pos, struct nfs4_openowner, oo_close_lru);
 		if (time_after((unsigned long)oo->oo_time, (unsigned long)cutoff)) {

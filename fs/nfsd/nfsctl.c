@@ -909,7 +909,8 @@ static ssize_t nfsd4_write_time(struct file *file, char *buf, size_t size, time_
  */
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 {
-	return nfsd4_write_time(file, buf, size, &nfsd4_lease);
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	return nfsd4_write_time(file, buf, size, &nn->nfsd4_lease);
 }
 
 /**
@@ -1060,6 +1061,7 @@ int nfsd_net_id;
 static __net_init int nfsd_init_net(struct net *net)
 {
 	int retval;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	retval = nfsd_export_init(net);
 	if (retval)
@@ -1067,6 +1069,7 @@ static __net_init int nfsd_init_net(struct net *net)
 	retval = nfsd_idmap_init(net);
 	if (retval)
 		goto out_idmap_error;
+	nn->nfsd4_lease = 90;	/* default lease time */
 	return 0;
 
 out_idmap_error:

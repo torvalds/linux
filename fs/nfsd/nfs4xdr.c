@@ -53,6 +53,7 @@
 #include "vfs.h"
 #include "state.h"
 #include "cache.h"
+#include "netns.h"
 
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
@@ -2052,6 +2053,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		.mnt	= exp->ex_path.mnt,
 		.dentry	= dentry,
 	};
+	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
 
 	BUG_ON(bmval1 & NFSD_WRITEONLY_ATTRS_WORD1);
 	BUG_ON(bmval0 & ~nfsd_suppattrs0(minorversion));
@@ -2212,7 +2214,7 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	if (bmval0 & FATTR4_WORD0_LEASE_TIME) {
 		if ((buflen -= 4) < 0)
 			goto out_resource;
-		WRITE32(nfsd4_lease);
+		WRITE32(nn->nfsd4_lease);
 	}
 	if (bmval0 & FATTR4_WORD0_RDATTR_ERROR) {
 		if ((buflen -= 4) < 0)

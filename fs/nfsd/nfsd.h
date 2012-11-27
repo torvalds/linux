@@ -276,7 +276,6 @@ extern struct timeval	nfssvc_boot;
 
 #ifdef CONFIG_NFSD_V4
 
-extern time_t nfsd4_lease;
 extern time_t nfsd4_grace;
 
 /* before processing a COMPOUND operation, we have to check that there
