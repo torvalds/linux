@@ -99,7 +99,7 @@ reading the aggregated value does not require any locking mechanism.
 
 From kernel mode the use of this interface is the following:
 
-int dev_pm_qos_add_request(device, handle, value):
+int dev_pm_qos_add_request(device, handle, type, value):
 Will insert an element into the list for that identified device with the
 target value.  Upon change to this list the new target is recomputed and any
 registered notifiers are called only if the target value is now different.
