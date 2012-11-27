@@ -1433,13 +1433,22 @@ int wl12xx_acx_set_ba_receiver_session(struct wl1271 *wl, u8 tid_index,
 	acx->win_size = wl->conf.ht.rx_ba_win_size;
 	acx->ssn = ssn;
 
-	ret = wl1271_cmd_configure(wl, ACX_BA_SESSION_RX_SETUP, acx,
-				   sizeof(*acx));
+	ret = wlcore_cmd_configure_failsafe(wl, ACX_BA_SESSION_RX_SETUP, acx,
+					    sizeof(*acx),
+					    BIT(CMD_STATUS_NO_RX_BA_SESSION));
 	if (ret < 0) {
 		wl1271_warning("acx ba receiver session failed: %d", ret);
 		goto out;
 	}
 
+	/* sometimes we can't start the session */
+	if (ret == CMD_STATUS_NO_RX_BA_SESSION) {
+		wl1271_warning("no fw rx ba on tid %d", tid_index);
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = 0;
 out:
 	kfree(acx);
 	return ret;
