@@ -678,6 +678,8 @@ static int llcp_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 		return -EFAULT;
 	}
 
+	sock_recv_timestamp(msg, sk, skb);
+
 	if (sk->sk_type == SOCK_DGRAM && msg->msg_name) {
 		struct nfc_llcp_ui_cb *ui_cb = nfc_llcp_ui_skb_cb(skb);
 		struct sockaddr_nfc_llcp sockaddr;

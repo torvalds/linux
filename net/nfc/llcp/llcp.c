@@ -668,6 +668,8 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 			if (ptype == LLCP_PDU_I)
 				copy_skb = skb_copy(skb, GFP_ATOMIC);
 
+			__net_timestamp(skb);
+
 			nfc_llcp_send_to_raw_sock(local, skb,
 						  NFC_LLCP_DIRECTION_TX);
 
@@ -1244,6 +1246,8 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	if (ptype != LLCP_PDU_SYMM)
 		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
 			       16, 1, skb->data, skb->len, true);
+
+	__net_timestamp(skb);
 
 	nfc_llcp_send_to_raw_sock(local, skb, NFC_LLCP_DIRECTION_RX);
 
