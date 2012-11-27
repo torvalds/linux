@@ -1527,14 +1527,14 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			wl_event_to_host_order(&event);
 			if (!tout_ctrl)
 				tout_ctrl = DHD_PACKET_TIMEOUT_MS;
+#ifdef PNO_SUPPORT
+			if (event.event_type == WLC_E_PFN_NET_FOUND) {
+				tout_ctrl = 7 * DHD_PACKET_TIMEOUT_MS;
+			}
+#endif /* PNO_SUPPORT */
 			if (event.event_type == WLC_E_BTA_HCI_EVENT) {
 				dhd_bta_doevt(dhdp, data, event.datalen);
 			}
-#ifdef PNO_SUPPORT
-			if (event.event_type == WLC_E_PFN_NET_FOUND) {
-				tout_ctrl *= 2;
-			}
-#endif /* PNO_SUPPORT */
 		} else {
 			tout_rx = DHD_PACKET_TIMEOUT_MS;
 		}
