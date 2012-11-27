@@ -21,7 +21,6 @@
 
 */
 
-#define __NO_VERSION__
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
