@@ -49,7 +49,7 @@ static struct sk_buff *remove_monitor_info(struct ieee80211_local *local,
 			/* driver bug */
 			WARN_ON(1);
 			dev_kfree_skb(skb);
-			skb = NULL;
+			return NULL;
 		}
 	}
 
