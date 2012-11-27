@@ -136,9 +136,11 @@ enum max77693_muic_acc_type {
 
 	/* The below accessories have same ADC value so ADCLow and
 	   ADC1K bit is used to separate specific accessory */
-	MAX77693_MUIC_GND_USB_OTG = 0x100,	/* ADC:0x0, ADCLow:0, ADC1K:0 */
-	MAX77693_MUIC_GND_AV_CABLE_LOAD = 0x102,/* ADC:0x0, ADCLow:1, ADC1K:0 */
-	MAX77693_MUIC_GND_MHL_CABLE = 0x103,	/* ADC:0x0, ADCLow:1, ADC1K:1 */
+	MAX77693_MUIC_GND_USB_OTG = 0x100,	/* ADC:0x0, VBVolot:0, ADCLow:0, ADC1K:0 */
+	MAX77693_MUIC_GND_USB_OTG_VB = 0x104,	/* ADC:0x0, VBVolot:1, ADCLow:0, ADC1K:0 */
+	MAX77693_MUIC_GND_AV_CABLE_LOAD = 0x102,/* ADC:0x0, VBVolot:0, ADCLow:1, ADC1K:0 */
+	MAX77693_MUIC_GND_MHL = 0x103,		/* ADC:0x0, VBVolot:0, ADCLow:1, ADC1K:1 */
+	MAX77693_MUIC_GND_MHL_VB = 0x107,	/* ADC:0x0, VBVolot:1, ADCLow:1, ADC1K:1 */
 };
 
 /* MAX77693 MUIC device support below list of accessories(external connector) */
@@ -150,6 +152,7 @@ enum {
 	EXTCON_CABLE_SLOW_CHARGER,
 	EXTCON_CABLE_CHARGE_DOWNSTREAM,
 	EXTCON_CABLE_MHL,
+	EXTCON_CABLE_MHL_TA,
 	EXTCON_CABLE_AUDIO_VIDEO_LOAD,
 	EXTCON_CABLE_AUDIO_VIDEO_NOLOAD,
 	EXTCON_CABLE_JIG,
@@ -165,6 +168,7 @@ const char *max77693_extcon_cable[] = {
 	[EXTCON_CABLE_SLOW_CHARGER]		= "Slow-charger",
 	[EXTCON_CABLE_CHARGE_DOWNSTREAM]	= "Charge-downstream",
 	[EXTCON_CABLE_MHL]			= "MHL",
+	[EXTCON_CABLE_MHL_TA]			= "MHL_TA",
 	[EXTCON_CABLE_AUDIO_VIDEO_LOAD]		= "Audio-video-load",
 	[EXTCON_CABLE_AUDIO_VIDEO_NOLOAD]	= "Audio-video-noload",
 	[EXTCON_CABLE_JIG]			= "JIG",
@@ -330,6 +334,7 @@ static int max77693_muic_get_cable_type(struct max77693_muic_info *info,
 			/**
 			 * [0x1][VBVolt][ADCLow][ADC1K]
 			 * [0x1    0	   0       0  ]	: USB_OTG
+			 * [0x1    1	   0       0  ]	: USB_OTG_VB
 			 * [0x1    0       1       0  ] : Audio Video Cable with load
 			 * [0x1    0       1       1  ] : MHL without charging connector
 			 * [0x1    1       1       1  ] : MHL with charging connector
@@ -414,22 +419,24 @@ static int max77693_muic_adc_ground_handler(struct max77693_muic_info *info)
 
 	switch (cable_type_gnd) {
 	case MAX77693_MUIC_GND_USB_OTG:
-		/* USB_OTG */
+	case MAX77693_MUIC_GND_USB_OTG_VB:
+		/* USB_OTG, PATH: AP_USB */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
 		if (ret < 0)
 			goto out;
 		extcon_set_cable_state(info->edev, "USB-Host", attached);
 		break;
 	case MAX77693_MUIC_GND_AV_CABLE_LOAD:
-		/* Audio Video Cable with load */
+		/* Audio Video Cable with load, PATH:AUDIO */
 		ret = max77693_muic_set_path(info, CONTROL1_SW_AUDIO, attached);
 		if (ret < 0)
 			goto out;
 		extcon_set_cable_state(info->edev,
 				"Audio-video-load", attached);
 		break;
-	case MAX77693_MUIC_GND_MHL_CABLE:
-		/* MHL */
+	case MAX77693_MUIC_GND_MHL:
+	case MAX77693_MUIC_GND_MHL_VB:
+		/* MHL or MHL with USB/TA cable */
 		extcon_set_cable_state(info->edev, "MHL", attached);
 		break;
 	default:
@@ -528,7 +535,9 @@ out:
 static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 {
 	int chg_type;
+	int cable_type_gnd;
 	bool attached;
+	bool cable_attached;
 	int ret = 0;
 
 	chg_type = max77693_muic_get_cable_type(info,
@@ -541,10 +550,35 @@ static int max77693_muic_chg_handler(struct max77693_muic_info *info)
 
 	switch (chg_type) {
 	case MAX77693_CHARGER_TYPE_USB:
-		ret = max77693_muic_set_path(info, CONTROL1_SW_USB, attached);
-		if (ret < 0)
-			goto out;
-		extcon_set_cable_state(info->edev, "USB", attached);
+		cable_type_gnd = max77693_muic_get_cable_type(info,
+					MAX77693_CABLE_GROUP_ADC_GND,
+					&cable_attached);
+
+		switch (cable_type_gnd) {
+		case MAX77693_MUIC_GND_MHL:
+		case MAX77693_MUIC_GND_MHL_VB:
+			/*
+			 * USB/TA with MHL cable
+			 * - MHL cable, which connect micro USB or TA cable,
+			 * is used to charging battery. So, extcon driver check
+			 * charging type whether micro USB or TA cable is
+			 * connected to MHL cable when extcon driver detect MHL
+			 * cable.
+			 */
+			extcon_set_cable_state(info->edev, "MHL_TA", attached);
+
+			if (!cable_attached)
+				extcon_set_cable_state(info->edev,
+						"MHL", false);
+			break;
+		default:
+			/* Only USB cable, PATH:AP_USB */
+			ret = max77693_muic_set_path(info, CONTROL1_SW_USB,
+						attached);
+			if (ret < 0)
+				goto out;
+			extcon_set_cable_state(info->edev, "USB", attached);
+		}
 		break;
 	case MAX77693_CHARGER_TYPE_DOWNSTREAM_PORT:
 		extcon_set_cable_state(info->edev,
