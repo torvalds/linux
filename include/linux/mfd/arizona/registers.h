@@ -76,6 +76,7 @@
 #define ARIZONA_RATE_ESTIMATOR_3                 0x154
 #define ARIZONA_RATE_ESTIMATOR_4                 0x155
 #define ARIZONA_RATE_ESTIMATOR_5                 0x156
+#define ARIZONA_DYNAMIC_FREQUENCY_SCALING_1      0x161
 #define ARIZONA_FLL1_CONTROL_1                   0x171
 #define ARIZONA_FLL1_CONTROL_2                   0x172
 #define ARIZONA_FLL1_CONTROL_3                   0x173
@@ -110,6 +111,7 @@
 #define ARIZONA_FLL2_GPIO_CLOCK                  0x1AA
 #define ARIZONA_MIC_CHARGE_PUMP_1                0x200
 #define ARIZONA_LDO1_CONTROL_1                   0x210
+#define ARIZONA_LDO1_CONTROL_2                   0x212
 #define ARIZONA_LDO2_CONTROL_1                   0x213
 #define ARIZONA_MIC_BIAS_CTRL_1                  0x218
 #define ARIZONA_MIC_BIAS_CTRL_2                  0x219
@@ -1574,6 +1576,13 @@
 #define ARIZONA_SAMPLE_RATE_DETECT_D_WIDTH            5  /* SAMPLE_RATE_DETECT_D - [4:0] */
 
 /*
+ * R353 (0x161) - Dynamic Frequency Scaling 1
+ */
+#define ARIZONA_SUBSYS_MAX_FREQ                  0x0001  /* SUBSYS_MAX_FREQ */
+#define ARIZONA_SUBSYS_MAX_FREQ_SHIFT                 0  /* SUBSYS_MAX_FREQ */
+#define ARIZONA_SUBSYS_MAX_FREQ_WIDTH                 1  /* SUBSYS_MAX_FREQ */
+
+/*
  * R369 (0x171) - FLL1 Control 1
  */
 #define ARIZONA_FLL1_FREERUN                     0x0002  /* FLL1_FREERUN */
@@ -1887,6 +1896,13 @@
 #define ARIZONA_LDO1_ENA_MASK                    0x0001  /* LDO1_ENA */
 #define ARIZONA_LDO1_ENA_SHIFT                        0  /* LDO1_ENA */
 #define ARIZONA_LDO1_ENA_WIDTH                        1  /* LDO1_ENA */
+
+/*
+ * R530 (0x212) - LDO1 Control 2
+ */
+#define ARIZONA_LDO1_HI_PWR                      0x0001  /* LDO1_HI_PWR */
+#define ARIZONA_LDO1_HI_PWR_SHIFT                     0  /* LDO1_HI_PWR */
+#define ARIZONA_LDO1_HI_PWR_WIDTH                     1  /* LDO1_HI_PWR */
 
 /*
  * R531 (0x213) - LDO2 Control 1
