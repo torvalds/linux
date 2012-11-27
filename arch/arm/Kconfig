@@ -904,6 +904,7 @@ config ARCH_NOMADIK
 
 config PLAT_SPEAR
 	bool "ST SPEAr"
+	select ARCH_HAS_CPUFREQ
 	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select CLKDEV_LOOKUP
