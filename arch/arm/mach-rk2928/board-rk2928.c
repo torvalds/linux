@@ -353,7 +353,7 @@ static struct pwm_platform_data pwm_regulator_info[1] = {
 		.suspend_voltage = 1050000,
 		.min_uV = 950000,
 		.max_uV	= 1400000,
-		.coefficient = 455,	//45.5%
+		.coefficient = 504,	//50.4%
 		.pwm_voltage_map = pwm_voltage_map,
 		.init_data	= &pwm_regulator_init_dcdc[0],
 	},
