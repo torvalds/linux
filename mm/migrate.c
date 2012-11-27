@@ -1489,17 +1489,20 @@ int migrate_misplaced_page(struct page *page, int node)
 		}
 		isolated = 1;
 
-		/*
-		 * Page is isolated which takes a reference count so now the
-		 * callers reference can be safely dropped without the page
-		 * disappearing underneath us during migration
-		 */
-		put_page(page);
-
 		page_lru = page_is_file_cache(page);
 		inc_zone_page_state(page, NR_ISOLATED_ANON + page_lru);
 		list_add(&page->lru, &migratepages);
 	}
+
+	/*
+	 * Page is either isolated or there is not enough space on the target
+	 * node. If isolated, then it has taken a reference count and the
+	 * callers reference can be safely dropped without the page
+	 * disappearing underneath us during migration. Otherwise the page is
+	 * not to be migrated but the callers reference should still be
+	 * dropped so it does not leak.
+	 */
+	put_page(page);
 
 	if (isolated) {
 		int nr_remaining;
