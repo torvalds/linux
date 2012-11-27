@@ -10119,7 +10119,7 @@ static int bnx2x_848x3_config_init(struct bnx2x_phy *phy,
 			return rc;
 		}
 
-		if ((params->req_duplex[actual_phy_selection] == DUPLEX_FULL) &&
+		if ((phy->req_duplex == DUPLEX_FULL) &&
 		    (params->eee_mode & EEE_MODE_ADV_LPI) &&
 		    (bnx2x_eee_calc_timer(params) ||
 		     !(params->eee_mode & EEE_MODE_ENABLE_LPI)))
@@ -13451,7 +13451,7 @@ static void bnx2x_check_kr2_wa(struct link_params *params,
 	if (!(vars->link_attr_sync & LINK_ATTR_SYNC_KR2_ENABLE)) {
 		if (!not_kr2_device) {
 			DP(NETIF_MSG_LINK, "BP=0x%x, NP=0x%x\n", base_page,
-			   next_page);
+				       next_page);
 			bnx2x_kr2_recovery(params, vars, phy);
 		}
 		return;
