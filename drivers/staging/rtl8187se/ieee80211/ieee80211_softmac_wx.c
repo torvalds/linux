@@ -69,9 +69,8 @@ int ieee80211_wx_set_freq(struct ieee80211_device *ieee, struct iw_request_info 
 
 		if (ieee->iw_mode == IW_MODE_ADHOC || ieee->iw_mode == IW_MODE_MASTER)
 			if (ieee->state == IEEE80211_LINKED) {
-
-			ieee80211_stop_send_beacons(ieee);
-			ieee80211_start_send_beacons(ieee);
+				ieee80211_stop_send_beacons(ieee);
+				ieee80211_start_send_beacons(ieee);
 			}
 	}
 
@@ -219,9 +218,9 @@ int ieee80211_wx_set_rate(struct ieee80211_device *ieee,
 
 	//added by lizhaoming for auto mode
 	if (target_rate == -1) {
-	ieee->rate = 110;
+		ieee->rate = 110;
 	} else {
-	ieee->rate = target_rate/100000;
+		ieee->rate = target_rate/100000;
 	}
 	//FIXME: we might want to limit rate also in management protocols.
 	return 0;
