@@ -62,16 +62,17 @@ static void fimc_pipeline_prepare(struct fimc_pipeline *p,
 		sd = media_entity_to_v4l2_subdev(pad->entity);
 
 		switch (sd->grp_id) {
-		case SENSOR_GROUP_ID:
+		case GRP_ID_FIMC_IS_SENSOR:
+		case GRP_ID_SENSOR:
 			p->subdevs[IDX_SENSOR] = sd;
 			break;
-		case CSIS_GROUP_ID:
+		case GRP_ID_CSIS:
 			p->subdevs[IDX_CSIS] = sd;
 			break;
-		case FLITE_GROUP_ID:
+		case GRP_ID_FLITE:
 			p->subdevs[IDX_FLITE] = sd;
 			break;
-		case FIMC_GROUP_ID:
+		case GRP_ID_FIMC:
 			/* No need to control FIMC subdev through subdev ops */
 			break;
 		default:
@@ -269,7 +270,7 @@ static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
 		return ERR_PTR(-EPROBE_DEFER);
 	}
 	v4l2_set_subdev_hostdata(sd, s_info);
-	sd->grp_id = SENSOR_GROUP_ID;
+	sd->grp_id = GRP_ID_SENSOR;
 
 	v4l2_info(&fmd->v4l2_dev, "Registered sensor subdevice %s\n",
 		  s_info->pdata.board_info->type);
@@ -351,7 +352,7 @@ static int fimc_register_callback(struct device *dev, void *p)
 		return 0;
 
 	sd = &fimc->vid_cap.subdev;
-	sd->grp_id = FIMC_GROUP_ID;
+	sd->grp_id = GRP_ID_FIMC;
 	v4l2_set_subdev_hostdata(sd, (void *)&fimc_pipeline_ops);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
@@ -374,7 +375,7 @@ static int fimc_lite_register_callback(struct device *dev, void *p)
 	if (fimc == NULL || fimc->index >= FIMC_LITE_MAX_DEVS)
 		return 0;
 
-	fimc->subdev.grp_id = FLITE_GROUP_ID;
+	fimc->subdev.grp_id = GRP_ID_FLITE;
 	v4l2_set_subdev_hostdata(&fimc->subdev, (void *)&fimc_pipeline_ops);
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, &fimc->subdev);
@@ -404,7 +405,7 @@ static int csis_register_callback(struct device *dev, void *p)
 	v4l2_info(sd, "csis%d sd: %s\n", pdev->id, sd->name);
 
 	id = pdev->id < 0 ? 0 : pdev->id;
-	sd->grp_id = CSIS_GROUP_ID;
+	sd->grp_id = GRP_ID_CSIS;
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
 	if (!ret)
@@ -828,11 +829,11 @@ static int fimc_md_link_notify(struct media_pad *source,
 	sd = media_entity_to_v4l2_subdev(sink->entity);
 
 	switch (sd->grp_id) {
-	case FLITE_GROUP_ID:
+	case GRP_ID_FLITE:
 		fimc_lite = v4l2_get_subdevdata(sd);
 		pipeline = &fimc_lite->pipeline;
 		break;
-	case FIMC_GROUP_ID:
+	case GRP_ID_FIMC:
 		fimc = v4l2_get_subdevdata(sd);
 		pipeline = &fimc->pipeline;
 		break;
