@@ -374,16 +374,17 @@ static void dump_allregs(struct fiq_debugger_state *state, unsigned *regs)
 static void dump_irqs(struct fiq_debugger_state *state)
 {
 	int n;
+	struct irq_desc *desc;
 
 	debug_printf(state, "irqnr       total  since-last   status  name\n");
-	for (n = 0; n < NR_IRQS; n++) {
-		struct irqaction *act = irq_desc[n].action;
+	for_each_irq_desc(n, desc) {
+		struct irqaction *act = desc->action;
 		if (!act && !kstat_irqs(n))
 			continue;
 		debug_printf(state, "%5d: %10u %11u %8x  %s\n", n,
 			kstat_irqs(n),
 			kstat_irqs(n) - state->last_irqs[n],
-			irq_desc[n].status_use_accessors,
+			desc->status_use_accessors,
 			(act && act->name) ? act->name : "???");
 		state->last_irqs[n] = kstat_irqs(n);
 	}
