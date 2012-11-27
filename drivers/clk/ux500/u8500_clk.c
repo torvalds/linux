@@ -326,7 +326,7 @@ void u8500_clk_init(void)
 	clk_register_clkdev(clk, NULL, "gpioblock1");
 
 	clk = clk_reg_prcc_pclk("p2_pclk12", "per2clk", U8500_CLKRST2_BASE,
-				BIT(11), 0);
+				BIT(12), 0);
 
 	clk = clk_reg_prcc_pclk("p3_pclk0", "per3clk", U8500_CLKRST3_BASE,
 				BIT(0), 0);
