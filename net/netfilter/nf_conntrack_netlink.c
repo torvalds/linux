@@ -989,7 +989,7 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 					      nlmsg_report(nlh)) < 0) {
 			nf_ct_delete_from_lists(ct);
 			/* we failed to report the event, try later */
-			nf_ct_insert_dying_list(ct);
+			nf_ct_dying_timeout(ct);
 			nf_ct_put(ct);
 			return 0;
 		}
