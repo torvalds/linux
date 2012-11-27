@@ -137,6 +137,8 @@ use strict;
 # should document the "Context:" of the function, e.g. whether the functions
 # can be called form interrupts. Unlike other sections you can end it with an
 # empty line.
+# A non-void function should have a "Return:" section describing the return
+# value(s).
 # Example-sections should contain the string EXAMPLE so that they are marked
 # appropriately in DocBook.
 #
@@ -315,6 +317,7 @@ my $section_default = "Description";	# default section
 my $section_intro = "Introduction";
 my $section = $section_default;
 my $section_context = "Context";
+my $section_return = "Return";
 
 my $undescribed = "-- undescribed --";
 
@@ -2039,6 +2042,28 @@ sub check_sections($$$$$$) {
 }
 
 ##
+# Checks the section describing the return value of a function.
+sub check_return_section {
+        my $file = shift;
+        my $declaration_name = shift;
+        my $return_type = shift;
+
+        # Ignore an empty return type (It's a macro)
+        # Ignore functions with a "void" return type. (But don't ignore "void *")
+        if (($return_type eq "") || ($return_type =~ /void\s*\w*\s*$/)) {
+                return;
+        }
+
+        if (!defined($sections{$section_return}) ||
+            $sections{$section_return} eq "") {
+                print STDERR "Warning(${file}:$.): " .
+                        "No description found for return value of " .
+                        "'$declaration_name'\n";
+                ++$warnings;
+        }
+}
+
+##
 # takes a function prototype and the name of the current file being
 # processed and spits out all the details stored in the global
 # arrays/hashes.
@@ -2108,6 +2133,15 @@ sub dump_function($$) {
 
 	my $prms = join " ", @parameterlist;
 	check_sections($file, $declaration_name, "function", $sectcheck, $prms, "");
+
+        # This check emits a lot of warnings at the moment, because many
+        # functions don't have a 'Return' doc section. So until the number
+        # of warnings goes sufficiently down, the check is only performed in
+        # verbose mode.
+        # TODO: always perform the check.
+        if ($verbose) {
+                check_return_section($file, $declaration_name, $return_type);
+        }
 
     output_declaration($declaration_name,
 		       'function',
