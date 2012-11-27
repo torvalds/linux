@@ -154,7 +154,7 @@ struct bnx2x_phy {
 #define FLAGS_MDC_MDIO_WA_B0		(1<<10)
 #define FLAGS_TX_ERROR_CHECK		(1<<12)
 #define FLAGS_EEE			(1<<13)
-#define FLAGS_MDC_MDIO_WA_G	(1<<15)
+#define FLAGS_MDC_MDIO_WA_G		(1<<15)
 
 	/* preemphasis values for the rx side */
 	u16 rx_preemphasis[4];
@@ -459,9 +459,6 @@ struct bnx2x_nig_brb_pfc_port_params {
 	u32 rx_cos_priority_mask[DCBX_MAX_NUM_COS];
 	u32 llfc_high_priority_classes;
 	u32 llfc_low_priority_classes;
-	/* BRB */
-	u32 cos0_pauseable;
-	u32 cos1_pauseable;
 };
 
 
