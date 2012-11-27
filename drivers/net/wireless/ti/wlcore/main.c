@@ -2482,9 +2482,6 @@ deinit:
 		/* Configure for power according to debugfs */
 		if (sta_auth != WL1271_PSM_ILLEGAL)
 			wl1271_acx_sleep_auth(wl, sta_auth);
-		/* Configure for power always on */
-		else if (wl->quirks & WLCORE_QUIRK_NO_ELP)
-			wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
 		/* Configure for ELP power saving */
 		else
 			wl1271_acx_sleep_auth(wl, WL1271_PSM_ELP);

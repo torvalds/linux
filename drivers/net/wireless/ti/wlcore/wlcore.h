@@ -515,9 +515,6 @@ wlcore_set_min_fw_ver(struct wl1271 *wl, unsigned int chip,
 /* Older firmwares use an old NVS format */
 #define WLCORE_QUIRK_LEGACY_NVS			BIT(5)
 
-/* Some firmwares may not support ELP */
-#define WLCORE_QUIRK_NO_ELP			BIT(6)
-
 /* pad only the last frame in the aggregate buffer */
 #define WLCORE_QUIRK_TX_PAD_LAST_FRAME		BIT(7)
 
