@@ -1891,9 +1891,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	return 0;
 }
 
-static int
-mmc_blk_set_blksize(struct mmc_blk_data *md, struct mmc_card *card);
-
 static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 {
 	int ret;
@@ -1903,10 +1900,8 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 	unsigned long flags;
 
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
-	if (mmc_bus_needs_resume(card->host)) {
+	if (mmc_bus_needs_resume(card->host))
 		mmc_resume_bus(card->host);
-		mmc_blk_set_blksize(md, card);
-	}
 #endif
 
 	if (req && !mq->mqrq_prev->req)
