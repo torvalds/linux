@@ -426,7 +426,6 @@ static acpi_status acpi_dev_new_resource_entry(struct resource *r,
 		c->error = -ENOMEM;
 		return AE_NO_MEMORY;
 	}
-	INIT_LIST_HEAD(&rentry->node);
 	rentry->res = *r;
 	list_add_tail(&rentry->node, c->list);
 	c->count++;
