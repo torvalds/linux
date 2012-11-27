@@ -361,16 +361,16 @@ static ssize_t hiddev_read(struct file * file, char __user * buffer, size_t coun
 			prepare_to_wait(&list->hiddev->wait, &wait, TASK_INTERRUPTIBLE);
 
 			while (list->head == list->tail) {
-				if (file->f_flags & O_NONBLOCK) {
-					retval = -EAGAIN;
-					break;
-				}
 				if (signal_pending(current)) {
 					retval = -ERESTARTSYS;
 					break;
 				}
 				if (!list->hiddev->exist) {
 					retval = -EIO;
+					break;
+				}
+				if (file->f_flags & O_NONBLOCK) {
+					retval = -EAGAIN;
 					break;
 				}
 
