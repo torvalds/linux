@@ -2657,7 +2657,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;
-		if (atomic64_read(&dev_replace->num_write_errors) > 0) {
+		if (is_dev_replace &&
+		    atomic64_read(&dev_replace->num_write_errors) > 0) {
 			ret = -EIO;
 			break;
 		}
