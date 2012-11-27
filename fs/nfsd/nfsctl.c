@@ -925,7 +925,8 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
 {
-	return nfsd4_write_time(file, buf, size, &nfsd4_grace);
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
+	return nfsd4_write_time(file, buf, size, &nn->nfsd4_grace);
 }
 
 static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
@@ -1070,6 +1071,7 @@ static __net_init int nfsd_init_net(struct net *net)
 	if (retval)
 		goto out_idmap_error;
 	nn->nfsd4_lease = 90;	/* default lease time */
+	nn->nfsd4_grace = 90;
 	return 0;
 
 out_idmap_error:

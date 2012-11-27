@@ -89,6 +89,7 @@ struct nfsd_net {
 	bool in_grace;
 
 	time_t nfsd4_lease;
+	time_t nfsd4_grace;
 };
 
 extern int nfsd_net_id;

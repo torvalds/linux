@@ -276,8 +276,6 @@ extern struct timeval	nfssvc_boot;
 
 #ifdef CONFIG_NFSD_V4
 
-extern time_t nfsd4_grace;
-
 /* before processing a COMPOUND operation, we have to check that there
  * is enough space in the buffer for XDR encode to succeed.  otherwise,
  * we might process an operation with side effects, and be unable to

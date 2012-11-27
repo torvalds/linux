@@ -50,9 +50,6 @@
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
-/* Globals */
-time_t nfsd4_grace = 90;
-
 #define all_ones {{~0,~0},~0}
 static const stateid_t one_stateid = {
 	.si_generation = ~0,
@@ -3183,7 +3180,7 @@ nfsd4_end_grace(struct nfsd_net *nn)
 	 * to see the (possibly new, possibly shorter) lease time, we
 	 * can safely set the next grace time to the current lease time:
 	 */
-	nfsd4_grace = nn->nfsd4_lease;
+	nn->nfsd4_grace = nn->nfsd4_lease;
 }
 
 static time_t
@@ -4884,8 +4881,8 @@ nfs4_state_start_net(struct net *net)
 	locks_start_grace(net, &nn->nfsd4_manager);
 	nn->grace_ended = false;
 	printk(KERN_INFO "NFSD: starting %ld-second grace period (net %p)\n",
-	       nfsd4_grace, net);
-	queue_delayed_work(laundry_wq, &nn->laundromat_work, nfsd4_grace * HZ);
+	       nn->nfsd4_grace, net);
+	queue_delayed_work(laundry_wq, &nn->laundromat_work, nn->nfsd4_grace * HZ);
 	return 0;
 }
 
