@@ -326,6 +326,7 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	/* take the last "freed packets" value from the current FW status */
 	wl->links[link].prev_freed_pkts =
 			wl->fw_status_2->counters.tx_lnk_free_pkts[link];
+	wl->links[link].wlvif = wlvif;
 	*hlid = link;
 	return 0;
 }
@@ -353,6 +354,7 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	 * can purge them.
 	 */
 	wl1271_tx_reset_link_queues(wl, *hlid);
+	wl->links[*hlid].wlvif = NULL;
 
 	*hlid = WL12XX_INVALID_LINK_ID;
 }

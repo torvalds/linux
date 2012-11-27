@@ -249,6 +249,8 @@ enum wl12xx_vif_flags {
 	WLVIF_FLAG_IN_USE,
 };
 
+struct wl12xx_vif;
+
 struct wl1271_link {
 	/* AP-mode - TX queue per AC in link */
 	struct sk_buff_head tx_queue[NUM_TX_QUEUES];
@@ -261,6 +263,9 @@ struct wl1271_link {
 
 	/* bitmap of TIDs where RX BA sessions are active for this link */
 	u8 ba_bitmap;
+
+	/* The wlvif this link belongs to. Might be null for global links */
+	struct wl12xx_vif *wlvif;
 };
 
 #define WL1271_MAX_RX_FILTERS 5
