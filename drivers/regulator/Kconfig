@@ -109,6 +109,16 @@ config REGULATOR_DA9052
 	  This driver supports the voltage regulators of DA9052-BC and
 	  DA9053-AA/Bx PMIC.
 
+config REGULATOR_DA9055
+	tristate "Dialog Semiconductor DA9055 regulators"
+	depends on MFD_DA9055
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  Dialog Semiconductor DA9055 PMIC.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called da9055-regulator.
+
 config REGULATOR_FAN53555
 	tristate "Fairchild FAN53555 Regulator"
 	depends on I2C
@@ -334,6 +344,17 @@ config REGULATOR_PALMAS
 	  The regulators available on Palmas series chips vary depending
 	  on the muxing. This is handled automatically in the driver by
 	  reading the mux info from OTP.
+
+config REGULATOR_TPS51632
+	tristate "TI TPS51632 Power Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports TPS51632 voltage regulator chip.
+	  The TPS51632 is 3-2-1 Phase D-Cap+ Step Down Driverless Controller
+	  with Serial VID control and DVFS.
+	  The voltage output can be configure through I2C interface or PWM
+	  interface.
 
 config REGULATOR_TPS6105X
 	tristate "TI TPS6105X Power regulators"
