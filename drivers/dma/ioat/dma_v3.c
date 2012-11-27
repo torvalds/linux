@@ -1168,12 +1168,7 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	chanerr = readl(chan->reg_base + IOAT_CHANERR_OFFSET);
 	writel(chanerr, chan->reg_base + IOAT_CHANERR_OFFSET);
 
-	/* -= IOAT ver.3 workarounds =- */
-	/* Write CHANERRMSK_INT with 3E07h to mask out the errors
-	 * that can cause stability issues for IOAT ver.3, and clear any
-	 * pending errors
-	 */
-	pci_write_config_dword(pdev, IOAT_PCI_CHANERRMASK_INT_OFFSET, 0x3e07);
+	/* clear any pending errors */
 	err = pci_read_config_dword(pdev, IOAT_PCI_CHANERR_INT_OFFSET, &chanerr);
 	if (err) {
 		dev_err(&pdev->dev, "channel error register unreachable\n");
