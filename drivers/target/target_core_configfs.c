@@ -2496,7 +2496,7 @@ static struct config_group *target_core_make_subdev(
 
 	dev_cg = &dev->dev_group;
 
-	dev_cg->default_groups = kzalloc(sizeof(struct config_group) * 7,
+	dev_cg->default_groups = kzalloc(sizeof(struct config_group *) * 7,
 			GFP_KERNEL);
 	if (!dev_cg->default_groups)
 		goto out_free_device;
@@ -2528,7 +2528,7 @@ static struct config_group *target_core_make_subdev(
 	dev->t10_alua.default_tg_pt_gp = tg_pt_gp;
 
 	tg_pt_gp_cg = &dev->t10_alua.alua_tg_pt_gps_group;
-	tg_pt_gp_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
+	tg_pt_gp_cg->default_groups = kzalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!tg_pt_gp_cg->default_groups) {
 		pr_err("Unable to allocate tg_pt_gp_cg->"
@@ -2544,7 +2544,7 @@ static struct config_group *target_core_make_subdev(
 	 * Add core/$HBA/$DEV/statistics/ default groups
 	 */
 	dev_stat_grp = &dev->dev_stat_grps.stat_group;
-	dev_stat_grp->default_groups = kzalloc(sizeof(struct config_group) * 4,
+	dev_stat_grp->default_groups = kzalloc(sizeof(struct config_group *) * 4,
 				GFP_KERNEL);
 	if (!dev_stat_grp->default_groups) {
 		pr_err("Unable to allocate dev_stat_grp->default_groups\n");
@@ -2829,7 +2829,7 @@ static int __init target_core_init_configfs(void)
 	 * and ALUA Logical Unit Group and Target Port Group infrastructure.
 	 */
 	target_cg = &subsys->su_group;
-	target_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
+	target_cg->default_groups = kzalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!target_cg->default_groups) {
 		pr_err("Unable to allocate target_cg->default_groups\n");
@@ -2845,7 +2845,7 @@ static int __init target_core_init_configfs(void)
 	 * Create ALUA infrastructure under /sys/kernel/config/target/core/alua/
 	 */
 	hba_cg = &target_core_hbagroup;
-	hba_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
+	hba_cg->default_groups = kzalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!hba_cg->default_groups) {
 		pr_err("Unable to allocate hba_cg->default_groups\n");
@@ -2861,7 +2861,7 @@ static int __init target_core_init_configfs(void)
 	 * groups under /sys/kernel/config/target/core/alua/
 	 */
 	alua_cg = &alua_group;
-	alua_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
+	alua_cg->default_groups = kzalloc(sizeof(struct config_group *) * 2,
 			GFP_KERNEL);
 	if (!alua_cg->default_groups) {
 		pr_err("Unable to allocate alua_cg->default_groups\n");
@@ -2883,7 +2883,7 @@ static int __init target_core_init_configfs(void)
 	}
 
 	lu_gp_cg = &alua_lu_gps_group;
-	lu_gp_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
+	lu_gp_cg->default_groups = kzalloc(sizeof(struct config_group *) * 2,
 			GFP_KERNEL);
 	if (!lu_gp_cg->default_groups) {
 		pr_err("Unable to allocate lu_gp_cg->default_groups\n");

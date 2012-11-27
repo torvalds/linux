@@ -803,7 +803,7 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	acl = container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
 	stats_cg = &se_nacl->acl_fabric_stat_group;
 
-	stats_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
+	stats_cg->default_groups = kzalloc(sizeof(struct config_group *) * 2,
 				GFP_KERNEL);
 	if (!stats_cg->default_groups) {
 		pr_err("Unable to allocate memory for"
@@ -1268,7 +1268,7 @@ static struct se_wwn *lio_target_call_coreaddtiqn(
 	 */
 	stats_cg = &tiqn->tiqn_wwn.fabric_stat_group;
 
-	stats_cg->default_groups = kzalloc(sizeof(struct config_group) * 6,
+	stats_cg->default_groups = kzalloc(sizeof(struct config_group *) * 6,
 				GFP_KERNEL);
 	if (!stats_cg->default_groups) {
 		pr_err("Unable to allocate memory for"
