@@ -16,6 +16,7 @@
 
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/wakelock.h>
@@ -138,13 +139,15 @@ MODULE_PARM_DESC(enabled, "enable wakelock when VBUS present");
 static int __init otg_wakelock_init(void)
 {
 	int ret;
+	struct usb_phy *phy;
 
-	otgwl_xceiv = usb_get_transceiver();
+	phy = usb_get_phy(USB_PHY_TYPE_USB2);
 
-	if (!otgwl_xceiv) {
+	if (IS_ERR(phy)) {
 		pr_err("%s: No USB transceiver found\n", __func__);
-		return -ENODEV;
+		return PTR_ERR(phy);
 	}
+	otgwl_xceiv = phy;
 
 	snprintf(vbus_lock.name, sizeof(vbus_lock.name), "vbus-%s",
 		 dev_name(otgwl_xceiv->dev));
