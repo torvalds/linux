@@ -594,8 +594,8 @@ static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 		.mem3 = { .start = 0x00000000, .size  = 0x00000000 },
 	},
 	[PART_PHY_INIT] = {
-		.mem  = { .start = 0x80926000,
-			  .size = sizeof(struct wl18xx_mac_and_phy_params) },
+		.mem  = { .start = WL18XX_PHY_INIT_MEM_ADDR,
+			  .size  = WL18XX_PHY_INIT_MEM_SIZE },
 		.reg  = { .start = 0x00000000, .size = 0x00000000 },
 		.mem2 = { .start = 0x00000000, .size = 0x00000000 },
 		.mem3 = { .start = 0x00000000, .size = 0x00000000 },
@@ -799,6 +799,9 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	u32 tmp;
 	int ret;
 
+	BUILD_BUG_ON(sizeof(struct wl18xx_mac_and_phy_params) >
+		WL18XX_PHY_INIT_MEM_SIZE);
+
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
 	if (ret < 0)
 		goto out;
@@ -815,6 +818,35 @@ static int wl18xx_pre_upload(struct wl1271 *wl)
 	wl1271_debug(DEBUG_BOOT, "chip id 0x%x", tmp);
 
 	ret = wlcore_read32(wl, WL18XX_SCR_PAD2, &tmp);
+	if (ret < 0)
+		goto out;
+
+	/*
+	 * Workaround for FDSP code RAM corruption (needed for PG2.1
+	 * and newer; for older chips it's a NOP).  Change FDSP clock
+	 * settings so that it's muxed to the ATGP clock instead of
+	 * its own clock.
+	 */
+
+	ret = wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
+	if (ret < 0)
+		goto out;
+
+	/* disable FDSP clock */
+	ret = wlcore_write32(wl, WL18XX_PHY_FPGA_SPARE_1,
+			     MEM_FDSP_CLK_120_DISABLE);
+	if (ret < 0)
+		goto out;
+
+	/* set ATPG clock toward FDSP Code RAM rather than its own clock */
+	ret = wlcore_write32(wl, WL18XX_PHY_FPGA_SPARE_1,
+			     MEM_FDSP_CODERAM_FUNC_CLK_SEL);
+	if (ret < 0)
+		goto out;
+
+	/* re-enable FDSP clock */
+	ret = wlcore_write32(wl, WL18XX_PHY_FPGA_SPARE_1,
+			     MEM_FDSP_CLK_120_ENABLE);
 
 out:
 	return ret;
