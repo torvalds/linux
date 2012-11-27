@@ -1544,7 +1544,6 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 
 error_brelse:
 	brelse(bh);
-error_close:
 	if (bdev)
 		blkdev_put(bdev, FMODE_READ | FMODE_EXCL);
 out:
