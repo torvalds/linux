@@ -1048,7 +1048,9 @@ static inline u64 get_kernel_ns(void)
 	return timespec_to_ns(&ts);
 }
 
+#ifdef CONFIG_X86_64
 static atomic_t kvm_guest_has_master_clock = ATOMIC_INIT(0);
+#endif
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 unsigned long max_tsc_khz;
@@ -1190,27 +1192,194 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 
 EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
+#ifdef CONFIG_X86_64
+
+static cycle_t read_tsc(void)
+{
+	cycle_t ret;
+	u64 last;
+
+	/*
+	 * Empirically, a fence (of type that depends on the CPU)
+	 * before rdtsc is enough to ensure that rdtsc is ordered
+	 * with respect to loads.  The various CPU manuals are unclear
+	 * as to whether rdtsc can be reordered with later loads,
+	 * but no one has ever seen it happen.
+	 */
+	rdtsc_barrier();
+	ret = (cycle_t)vget_cycles();
+
+	last = pvclock_gtod_data.clock.cycle_last;
+
+	if (likely(ret >= last))
+		return ret;
+
+	/*
+	 * GCC likes to generate cmov here, but this branch is extremely
+	 * predictable (it's just a funciton of time and the likely is
+	 * very likely) and there's a data dependence, so force GCC
+	 * to generate a branch instead.  I don't barrier() because
+	 * we don't actually need a barrier, and if this function
+	 * ever gets inlined it will generate worse code.
+	 */
+	asm volatile ("");
+	return last;
+}
+
+static inline u64 vgettsc(cycle_t *cycle_now)
+{
+	long v;
+	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
+
+	*cycle_now = read_tsc();
+
+	v = (*cycle_now - gtod->clock.cycle_last) & gtod->clock.mask;
+	return v * gtod->clock.mult;
+}
+
+static int do_monotonic(struct timespec *ts, cycle_t *cycle_now)
+{
+	unsigned long seq;
+	u64 ns;
+	int mode;
+	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
+
+	ts->tv_nsec = 0;
+	do {
+		seq = read_seqcount_begin(&gtod->seq);
+		mode = gtod->clock.vclock_mode;
+		ts->tv_sec = gtod->monotonic_time_sec;
+		ns = gtod->monotonic_time_snsec;
+		ns += vgettsc(cycle_now);
+		ns >>= gtod->clock.shift;
+	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
+	timespec_add_ns(ts, ns);
+
+	return mode;
+}
+
+/* returns true if host is using tsc clocksource */
+static bool kvm_get_time_and_clockread(s64 *kernel_ns, cycle_t *cycle_now)
+{
+	struct timespec ts;
+
+	/* checked again under seqlock below */
+	if (pvclock_gtod_data.clock.vclock_mode != VCLOCK_TSC)
+		return false;
+
+	if (do_monotonic(&ts, cycle_now) != VCLOCK_TSC)
+		return false;
+
+	monotonic_to_bootbased(&ts);
+	*kernel_ns = timespec_to_ns(&ts);
+
+	return true;
+}
+#endif
+
+/*
+ *
+ * Assuming a stable TSC across physical CPUS, the following condition
+ * is possible. Each numbered line represents an event visible to both
+ * CPUs at the next numbered event.
+ *
+ * "timespecX" represents host monotonic time. "tscX" represents
+ * RDTSC value.
+ *
+ * 		VCPU0 on CPU0		|	VCPU1 on CPU1
+ *
+ * 1.  read timespec0,tsc0
+ * 2.					| timespec1 = timespec0 + N
+ * 					| tsc1 = tsc0 + M
+ * 3. transition to guest		| transition to guest
+ * 4. ret0 = timespec0 + (rdtsc - tsc0) |
+ * 5.				        | ret1 = timespec1 + (rdtsc - tsc1)
+ * 				        | ret1 = timespec0 + N + (rdtsc - (tsc0 + M))
+ *
+ * Since ret0 update is visible to VCPU1 at time 5, to obey monotonicity:
+ *
+ * 	- ret0 < ret1
+ *	- timespec0 + (rdtsc - tsc0) < timespec0 + N + (rdtsc - (tsc0 + M))
+ *		...
+ *	- 0 < N - M => M < N
+ *
+ * That is, when timespec0 != timespec1, M < N. Unfortunately that is not
+ * always the case (the difference between two distinct xtime instances
+ * might be smaller then the difference between corresponding TSC reads,
+ * when updating guest vcpus pvclock areas).
+ *
+ * To avoid that problem, do not allow visibility of distinct
+ * system_timestamp/tsc_timestamp values simultaneously: use a master
+ * copy of host monotonic time values. Update that master copy
+ * in lockstep.
+ *
+ * Rely on synchronization of host TSCs for monotonicity.
+ *
+ */
+
+static void pvclock_update_vm_gtod_copy(struct kvm *kvm)
+{
+#ifdef CONFIG_X86_64
+	struct kvm_arch *ka = &kvm->arch;
+	int vclock_mode;
+
+	/*
+	 * If the host uses TSC clock, then passthrough TSC as stable
+	 * to the guest.
+	 */
+	ka->use_master_clock = kvm_get_time_and_clockread(
+					&ka->master_kernel_ns,
+					&ka->master_cycle_now);
+
+	if (ka->use_master_clock)
+		atomic_set(&kvm_guest_has_master_clock, 1);
+
+	vclock_mode = pvclock_gtod_data.clock.vclock_mode;
+	trace_kvm_update_master_clock(ka->use_master_clock, vclock_mode);
+#endif
+}
+
 static int kvm_guest_time_update(struct kvm_vcpu *v)
 {
-	unsigned long flags;
+	unsigned long flags, this_tsc_khz;
 	struct kvm_vcpu_arch *vcpu = &v->arch;
+	struct kvm_arch *ka = &v->kvm->arch;
 	void *shared_kaddr;
-	unsigned long this_tsc_khz;
 	s64 kernel_ns, max_kernel_ns;
-	u64 tsc_timestamp;
+	u64 tsc_timestamp, host_tsc;
 	struct pvclock_vcpu_time_info *guest_hv_clock;
 	u8 pvclock_flags;
+	bool use_master_clock;
+
+	kernel_ns = 0;
+	host_tsc = 0;
 
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
-	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v, native_read_tsc());
-	kernel_ns = get_kernel_ns();
 	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
 	if (unlikely(this_tsc_khz == 0)) {
 		local_irq_restore(flags);
 		kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
 		return 1;
 	}
+
+	/*
+	 * If the host uses TSC clock, then passthrough TSC as stable
+	 * to the guest.
+	 */
+	spin_lock(&ka->pvclock_gtod_sync_lock);
+	use_master_clock = ka->use_master_clock;
+	if (use_master_clock) {
+		host_tsc = ka->master_cycle_now;
+		kernel_ns = ka->master_kernel_ns;
+	}
+	spin_unlock(&ka->pvclock_gtod_sync_lock);
+	if (!use_master_clock) {
+		host_tsc = native_read_tsc();
+		kernel_ns = get_kernel_ns();
+	}
+
+	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v, host_tsc);
 
 	/*
 	 * We may have to catch up the TSC to match elapsed wall clock
@@ -1273,9 +1442,14 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		vcpu->hw_tsc_khz = this_tsc_khz;
 	}
 
-	if (max_kernel_ns > kernel_ns)
-		kernel_ns = max_kernel_ns;
-
+	/* with a master <monotonic time, tsc value> tuple,
+	 * pvclock clock reads always increase at the (scaled) rate
+	 * of guest TSC - no need to deal with sampling errors.
+	 */
+	if (!use_master_clock) {
+		if (max_kernel_ns > kernel_ns)
+			kernel_ns = max_kernel_ns;
+	}
 	/* With all the info we got, fill in the values */
 	vcpu->hv_clock.tsc_timestamp = tsc_timestamp;
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
@@ -1300,6 +1474,10 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 		pvclock_flags |= PVCLOCK_GUEST_STOPPED;
 		vcpu->pvclock_set_guest_stopped_request = false;
 	}
+
+	/* If the host uses TSC clocksource, then it is stable */
+	if (use_master_clock)
+		pvclock_flags |= PVCLOCK_TSC_STABLE_BIT;
 
 	vcpu->hv_clock.flags = pvclock_flags;
 
@@ -4912,6 +5090,17 @@ static void kvm_set_mmio_spte_mask(void)
 #ifdef CONFIG_X86_64
 static void pvclock_gtod_update_fn(struct work_struct *work)
 {
+	struct kvm *kvm;
+
+	struct kvm_vcpu *vcpu;
+	int i;
+
+	raw_spin_lock(&kvm_lock);
+	list_for_each_entry(kvm, &vm_list, vm_list)
+		kvm_for_each_vcpu(i, vcpu, kvm)
+			set_bit(KVM_REQ_MASTERCLOCK_UPDATE, &vcpu->requests);
+	atomic_set(&kvm_guest_has_master_clock, 0);
+	raw_spin_unlock(&kvm_lock);
 }
 
 static DECLARE_WORK(pvclock_gtod_work, pvclock_gtod_update_fn);
@@ -5303,6 +5492,29 @@ static void process_nmi(struct kvm_vcpu *vcpu)
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 }
 
+static void kvm_gen_update_masterclock(struct kvm *kvm)
+{
+#ifdef CONFIG_X86_64
+	int i;
+	struct kvm_vcpu *vcpu;
+	struct kvm_arch *ka = &kvm->arch;
+
+	spin_lock(&ka->pvclock_gtod_sync_lock);
+	kvm_make_mclock_inprogress_request(kvm);
+	/* no guest entries from this point */
+	pvclock_update_vm_gtod_copy(kvm);
+
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+
+	/* guest entries allowed */
+	kvm_for_each_vcpu(i, vcpu, kvm)
+		clear_bit(KVM_REQ_MCLOCK_INPROGRESS, &vcpu->requests);
+
+	spin_unlock(&ka->pvclock_gtod_sync_lock);
+#endif
+}
+
 static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 {
 	int r;
@@ -5315,6 +5527,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 			kvm_mmu_unload(vcpu);
 		if (kvm_check_request(KVM_REQ_MIGRATE_TIMER, vcpu))
 			__kvm_migrate_timers(vcpu);
+		if (kvm_check_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu))
+			kvm_gen_update_masterclock(vcpu->kvm);
 		if (kvm_check_request(KVM_REQ_CLOCK_UPDATE, vcpu)) {
 			r = kvm_guest_time_update(vcpu);
 			if (unlikely(r))
@@ -6219,6 +6433,8 @@ int kvm_arch_hardware_enable(void *garbage)
 			kvm_for_each_vcpu(i, vcpu, kvm) {
 				vcpu->arch.tsc_offset_adjustment += delta_cyc;
 				vcpu->arch.last_host_tsc = local_tsc;
+				set_bit(KVM_REQ_MASTERCLOCK_UPDATE,
+					&vcpu->requests);
 			}
 
 			/*
@@ -6356,6 +6572,9 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 
 	raw_spin_lock_init(&kvm->arch.tsc_write_lock);
 	mutex_init(&kvm->arch.apic_map_lock);
+	spin_lock_init(&kvm->arch.pvclock_gtod_sync_lock);
+
+	pvclock_update_vm_gtod_copy(kvm);
 
 	return 0;
 }

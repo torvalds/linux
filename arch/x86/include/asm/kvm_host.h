@@ -22,6 +22,8 @@
 #include <linux/kvm_para.h>
 #include <linux/kvm_types.h>
 #include <linux/perf_event.h>
+#include <linux/pvclock_gtod.h>
+#include <linux/clocksource.h>
 
 #include <asm/pvclock-abi.h>
 #include <asm/desc.h>
@@ -559,6 +561,11 @@ struct kvm_arch {
 	u64 cur_tsc_write;
 	u64 cur_tsc_offset;
 	u8  cur_tsc_generation;
+
+	spinlock_t pvclock_gtod_sync_lock;
+	bool use_master_clock;
+	u64 master_kernel_ns;
+	cycle_t master_cycle_now;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 

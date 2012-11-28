@@ -131,6 +131,8 @@ static inline bool is_error_page(struct page *page)
 #define KVM_REQ_PMU               16
 #define KVM_REQ_PMI               17
 #define KVM_REQ_WATCHDOG          18
+#define KVM_REQ_MASTERCLOCK_UPDATE 19
+#define KVM_REQ_MCLOCK_INPROGRESS 20
 
 #define KVM_USERSPACE_IRQ_SOURCE_ID		0
 #define KVM_IRQFD_RESAMPLE_IRQ_SOURCE_ID	1
@@ -540,6 +542,7 @@ void kvm_put_guest_fpu(struct kvm_vcpu *vcpu);
 
 void kvm_flush_remote_tlbs(struct kvm *kvm);
 void kvm_reload_remote_mmus(struct kvm *kvm);
+void kvm_make_mclock_inprogress_request(struct kvm *kvm);
 
 long kvm_arch_dev_ioctl(struct file *filp,
 			unsigned int ioctl, unsigned long arg);

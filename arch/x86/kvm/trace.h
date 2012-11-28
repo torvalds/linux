@@ -4,6 +4,7 @@
 #include <linux/tracepoint.h>
 #include <asm/vmx.h>
 #include <asm/svm.h>
+#include <asm/clocksource.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM kvm
@@ -754,6 +755,35 @@ TRACE_EVENT(
 		  __entry->write ? "Write" : "Read",
 		  __entry->gpa_match ? "GPA" : "GVA")
 );
+
+#ifdef CONFIG_X86_64
+
+#define host_clocks					\
+	{VCLOCK_NONE, "none"},				\
+	{VCLOCK_TSC,  "tsc"},				\
+	{VCLOCK_HPET, "hpet"}				\
+
+TRACE_EVENT(kvm_update_master_clock,
+	TP_PROTO(bool use_master_clock, unsigned int host_clock),
+	TP_ARGS(use_master_clock, host_clock),
+
+	TP_STRUCT__entry(
+		__field(		bool,	use_master_clock	)
+		__field(	unsigned int,	host_clock		)
+	),
+
+	TP_fast_assign(
+		__entry->use_master_clock	= use_master_clock;
+		__entry->host_clock		= host_clock;
+	),
+
+	TP_printk("masterclock %d hostclock %s",
+		  __entry->use_master_clock,
+		  __print_symbolic(__entry->host_clock, host_clocks))
+);
+
+#endif /* CONFIG_X86_64 */
+
 #endif /* _TRACE_KVM_H */
 
 #undef TRACE_INCLUDE_PATH
