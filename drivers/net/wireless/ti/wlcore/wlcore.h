@@ -110,7 +110,10 @@ struct wlcore_ops {
 			    struct ieee80211_sta_ht_cap *ht_cap,
 			    bool allow_ht_operation,
 			    u32 rate_set, u8 hlid);
-
+	bool (*lnk_high_prio)(struct wl1271 *wl, u8 hlid,
+			      struct wl1271_link *lnk);
+	bool (*lnk_low_prio)(struct wl1271 *wl, u8 hlid,
+			     struct wl1271_link *lnk);
 };
 
 enum wlcore_partitions {

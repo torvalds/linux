@@ -1627,6 +1627,26 @@ static int wl12xx_set_peer_cap(struct wl1271 *wl,
 					      hlid);
 }
 
+static bool wl12xx_lnk_high_prio(struct wl1271 *wl, u8 hlid,
+				 struct wl1271_link *lnk)
+{
+	u8 thold;
+
+	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+		thold = wl->conf.tx.fast_link_thold;
+	else
+		thold = wl->conf.tx.slow_link_thold;
+
+	return lnk->allocated_pkts < thold;
+}
+
+static bool wl12xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
+				struct wl1271_link *lnk)
+{
+	/* any link is good for low priority */
+	return true;
+}
+
 static int wl12xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl12xx_ops = {
@@ -1663,6 +1683,8 @@ static struct wlcore_ops wl12xx_ops = {
 	.channel_switch		= wl12xx_cmd_channel_switch,
 	.pre_pkt_send		= NULL,
 	.set_peer_cap		= wl12xx_set_peer_cap,
+	.lnk_high_prio		= wl12xx_lnk_high_prio,
+	.lnk_low_prio		= wl12xx_lnk_low_prio,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {

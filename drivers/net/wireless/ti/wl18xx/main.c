@@ -1397,6 +1397,45 @@ static int wl18xx_set_peer_cap(struct wl1271 *wl,
 				       rate_set, hlid);
 }
 
+static bool wl18xx_lnk_high_prio(struct wl1271 *wl, u8 hlid,
+				 struct wl1271_link *lnk)
+{
+	u8 thold;
+	struct wl18xx_fw_status_priv *status_priv =
+		(struct wl18xx_fw_status_priv *)wl->fw_status_2->priv;
+	u32 suspend_bitmap = le32_to_cpu(status_priv->link_suspend_bitmap);
+
+	/* suspended links are never high priority */
+	if (test_bit(hlid, (unsigned long *)&suspend_bitmap))
+		return false;
+
+	/* the priority thresholds are taken from FW */
+	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+		thold = status_priv->tx_fast_link_prio_threshold;
+	else
+		thold = status_priv->tx_slow_link_prio_threshold;
+
+	return lnk->allocated_pkts < thold;
+}
+
+static bool wl18xx_lnk_low_prio(struct wl1271 *wl, u8 hlid,
+				struct wl1271_link *lnk)
+{
+	u8 thold;
+	struct wl18xx_fw_status_priv *status_priv =
+		(struct wl18xx_fw_status_priv *)wl->fw_status_2->priv;
+	u32 suspend_bitmap = le32_to_cpu(status_priv->link_suspend_bitmap);
+
+	if (test_bit(hlid, (unsigned long *)&suspend_bitmap))
+		thold = status_priv->tx_suspend_threshold;
+	else if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
+		thold = status_priv->tx_fast_stop_threshold;
+	else
+		thold = status_priv->tx_slow_stop_threshold;
+
+	return lnk->allocated_pkts < thold;
+}
+
 static int wl18xx_setup(struct wl1271 *wl);
 
 static struct wlcore_ops wl18xx_ops = {
@@ -1434,6 +1473,8 @@ static struct wlcore_ops wl18xx_ops = {
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 	.sta_rc_update	= wl18xx_sta_rc_update,
 	.set_peer_cap	= wl18xx_set_peer_cap,
+	.lnk_high_prio	= wl18xx_lnk_high_prio,
+	.lnk_low_prio	= wl18xx_lnk_low_prio,
 };
 
 /* HT cap appropriate for wide channels in 2Ghz */

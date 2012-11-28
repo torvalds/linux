@@ -509,28 +509,16 @@ static struct sk_buff *wlcore_lnk_dequeue(struct wl1271 *wl,
 	return skb;
 }
 
-static bool wlcore_lnk_high_prio(struct wl1271 *wl, u8 hlid,
-				 struct wl1271_link *lnk)
-{
-	u8 thold;
-
-	if (test_bit(hlid, (unsigned long *)&wl->fw_fast_lnk_map))
-		thold = wl->conf.tx.fast_link_thold;
-	else
-		thold = wl->conf.tx.slow_link_thold;
-
-	return lnk->allocated_pkts < thold;
-}
-
 static struct sk_buff *wlcore_lnk_dequeue_high_prio(struct wl1271 *wl,
 						    u8 hlid, u8 ac,
 						    u8 *low_prio_hlid)
 {
 	struct wl1271_link *lnk = &wl->links[hlid];
 
-	if (!wlcore_lnk_high_prio(wl, hlid, lnk)) {
+	if (!wlcore_hw_lnk_high_prio(wl, hlid, lnk)) {
 		if (*low_prio_hlid == WL12XX_INVALID_LINK_ID &&
-		    !skb_queue_empty(&lnk->tx_queue[ac]))
+		    !skb_queue_empty(&lnk->tx_queue[ac]) &&
+		    wlcore_hw_lnk_low_prio(wl, hlid, lnk))
 			/* we found the first non-empty low priority queue */
 			*low_prio_hlid = hlid;
 

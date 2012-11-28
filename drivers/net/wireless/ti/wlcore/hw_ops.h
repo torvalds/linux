@@ -222,4 +222,24 @@ wlcore_hw_set_peer_cap(struct wl1271 *wl,
 	return 0;
 }
 
+static inline bool
+wlcore_hw_lnk_high_prio(struct wl1271 *wl, u8 hlid,
+			struct wl1271_link *lnk)
+{
+	if (!wl->ops->lnk_high_prio)
+		BUG_ON(1);
+
+	return wl->ops->lnk_high_prio(wl, hlid, lnk);
+}
+
+static inline bool
+wlcore_hw_lnk_low_prio(struct wl1271 *wl, u8 hlid,
+		       struct wl1271_link *lnk)
+{
+	if (!wl->ops->lnk_low_prio)
+		BUG_ON(1);
+
+	return wl->ops->lnk_low_prio(wl, hlid, lnk);
+}
+
 #endif
