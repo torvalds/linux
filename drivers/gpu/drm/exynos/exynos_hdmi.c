@@ -2171,8 +2171,6 @@ static void hdmi_poweron(struct hdmi_context *hdata)
 
 	mutex_unlock(&hdata->hdmi_mutex);
 
-	pm_runtime_get_sync(hdata->dev);
-
 	regulator_bulk_enable(res->regul_count, res->regul_bulk);
 	clk_enable(res->hdmiphy);
 	clk_enable(res->hdmi);
@@ -2201,8 +2199,6 @@ static void hdmi_poweroff(struct hdmi_context *hdata)
 	clk_disable(res->hdmiphy);
 	regulator_bulk_disable(res->regul_count, res->regul_bulk);
 
-	pm_runtime_put_sync(hdata->dev);
-
 	mutex_lock(&hdata->hdmi_mutex);
 
 	hdata->powered = false;
@@ -2215,16 +2211,18 @@ static void hdmi_dpms(void *ctx, int mode)
 {
 	struct hdmi_context *hdata = ctx;
 
-	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+	DRM_DEBUG_KMS("[%d] %s mode %d\n", __LINE__, __func__, mode);
 
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
-		hdmi_poweron(hdata);
+		if (pm_runtime_suspended(hdata->dev))
+			pm_runtime_get_sync(hdata->dev);
 		break;
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		hdmi_poweroff(hdata);
+		if (!pm_runtime_suspended(hdata->dev))
+			pm_runtime_put_sync(hdata->dev);
 		break;
 	default:
 		DRM_DEBUG_KMS("unknown dpms mode: %d\n", mode);
@@ -2612,12 +2610,19 @@ static int hdmi_suspend(struct device *dev)
 	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
 	struct hdmi_context *hdata = ctx->ctx;
 
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
 	disable_irq(hdata->internal_irq);
 	disable_irq(hdata->external_irq);
 
 	hdata->hpd = false;
 	if (ctx->drm_dev)
 		drm_helper_hpd_irq_event(ctx->drm_dev);
+
+	if (pm_runtime_suspended(dev)) {
+		DRM_DEBUG_KMS("%s : Already suspended\n", __func__);
+		return 0;
+	}
 
 	hdmi_poweroff(hdata);
 
@@ -2629,13 +2634,52 @@ static int hdmi_resume(struct device *dev)
 	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
 	struct hdmi_context *hdata = ctx->ctx;
 
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
+
 	enable_irq(hdata->external_irq);
 	enable_irq(hdata->internal_irq);
+
+	if (!pm_runtime_suspended(dev)) {
+		DRM_DEBUG_KMS("%s : Already resumed\n", __func__);
+		return 0;
+	}
+
+	hdmi_poweron(hdata);
+
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(hdmi_pm_ops, hdmi_suspend, hdmi_resume);
+#ifdef CONFIG_PM_RUNTIME
+static int hdmi_runtime_suspend(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
+	struct hdmi_context *hdata = ctx->ctx;
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	hdmi_poweroff(hdata);
+
+	return 0;
+}
+
+static int hdmi_runtime_resume(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
+	struct hdmi_context *hdata = ctx->ctx;
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	hdmi_poweron(hdata);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops hdmi_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(hdmi_suspend, hdmi_resume)
+	SET_RUNTIME_PM_OPS(hdmi_runtime_suspend, hdmi_runtime_resume, NULL)
+};
 
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
