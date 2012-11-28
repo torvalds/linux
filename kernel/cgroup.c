@@ -3767,7 +3767,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 	if (flags & POLLHUP) {
 		__remove_wait_queue(event->wqh, &event->wait);
 		spin_lock(&cgrp->event_list_lock);
-		list_del(&event->list);
+		list_del_init(&event->list);
 		spin_unlock(&cgrp->event_list_lock);
 		/*
 		 * We are in atomic context, but cgroup_event_remove() may
@@ -4341,7 +4341,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	list_splice_init(&cgrp->event_list, &tmp_list);
 	spin_unlock(&cgrp->event_list_lock);
 	list_for_each_entry_safe(event, tmp, &tmp_list, list) {
-		list_del(&event->list);
+		list_del_init(&event->list);
 		remove_wait_queue(event->wqh, &event->wait);
 		eventfd_signal(event->eventfd, 1);
 		schedule_work(&event->remove);
