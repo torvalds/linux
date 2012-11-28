@@ -308,9 +308,9 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 	if (ieee->tkip_countermeasures &&
 	    strcmp(crypt->ops->name, "TKIP") == 0) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "received packet from %pM\n",
-			       ieee->dev->name, hdr->addr2);
+			netdev_dbg(ieee->dev,
+				   "TKIP countermeasures: dropped received packet from %pM\n",
+				   ieee->dev->name, hdr->addr2);
 		}
 		return -1;
 	}
@@ -353,9 +353,9 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *s
 	res = crypt->ops->decrypt_msdu(skb, keyidx, hdrlen, crypt->priv);
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
-		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
-		       " (SA=%pM keyidx=%d)\n",
-		       ieee->dev->name, hdr->addr2, keyidx);
+		netdev_dbg(ieee->dev,
+			   "MSDU decryption/MIC verification failed (SA=%pM keyidx=%d)\n",
+			   hdr->addr2, keyidx);
 		return -1;
 	}
 
@@ -409,7 +409,8 @@ static int is_duplicate_packet(struct ieee80211_device *ieee,
 		if (p == &ieee->ibss_mac_hash[index]) {
 			entry = kmalloc(sizeof(struct ieee_ibss_seq), GFP_ATOMIC);
 			if (!entry) {
-				printk(KERN_WARNING "Cannot malloc new mac entry\n");
+				netdev_warn(ieee->dev,
+					    "Cannot malloc new mac entry\n");
 				return 0;
 			}
 			memcpy(entry->mac, mac, ETH_ALEN);
@@ -491,8 +492,7 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	stats = &ieee->stats;
 
 	if (skb->len < 10) {
-		printk(KERN_INFO "%s: SKB length < 10\n",
-		       dev->name);
+		netdev_info(ieee->dev, "SKB length < 10\n");
 		goto rx_dropped;
 	}
 
@@ -646,9 +646,8 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			flen -= hdrlen;
 
 		if (frag_skb->tail + flen > frag_skb->end) {
-			printk(KERN_WARNING "%s: host decrypted and "
-			       "reassembled frame did not fit skb\n",
-			       dev->name);
+			netdev_warn(ieee->dev,
+				    "host decrypted and reassembled frame did not fit skb\n");
 			ieee80211_frag_cache_invalidate(ieee, hdr);
 			goto rx_dropped;
 		}
