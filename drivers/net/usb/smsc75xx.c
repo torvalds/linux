@@ -61,7 +61,6 @@
 #define SUSPEND_SUSPEND1		(0x02)
 #define SUSPEND_SUSPEND2		(0x04)
 #define SUSPEND_SUSPEND3		(0x08)
-#define SUSPEND_REMOTEWAKE		(0x10)
 #define SUSPEND_ALLMODES		(SUSPEND_SUSPEND0 | SUSPEND_SUSPEND1 | \
 					 SUSPEND_SUSPEND2 | SUSPEND_SUSPEND3)
 
@@ -170,26 +169,6 @@ static int __must_check smsc75xx_write_reg(struct usbnet *dev, u32 index,
 					   u32 data)
 {
 	return __smsc75xx_write_reg(dev, index, data, 0);
-}
-
-static int smsc75xx_set_feature(struct usbnet *dev, u32 feature)
-{
-	if (WARN_ON_ONCE(!dev))
-		return -EINVAL;
-
-	return usbnet_write_cmd_nopm(dev, USB_REQ_SET_FEATURE,
-				     USB_DIR_OUT | USB_RECIP_DEVICE,
-				     feature, 0, NULL, 0);
-}
-
-static int smsc75xx_clear_feature(struct usbnet *dev, u32 feature)
-{
-	if (WARN_ON_ONCE(!dev))
-		return -EINVAL;
-
-	return usbnet_write_cmd_nopm(dev, USB_REQ_CLEAR_FEATURE,
-				     USB_DIR_OUT | USB_RECIP_DEVICE,
-				     feature, 0, NULL, 0);
 }
 
 /* Loop until the read is completed with timeout
@@ -674,8 +653,13 @@ static int smsc75xx_ethtool_set_wol(struct net_device *net,
 {
 	struct usbnet *dev = netdev_priv(net);
 	struct smsc75xx_priv *pdata = (struct smsc75xx_priv *)(dev->data[0]);
+	int ret;
 
 	pdata->wolopts = wolinfo->wolopts & SUPPORTED_WAKE;
+
+	ret = device_set_wakeup_enable(&dev->udev->dev, pdata->wolopts);
+	check_warn_return(ret, "device_set_wakeup_enable error %d\n", ret);
+
 	return 0;
 }
 
@@ -1263,9 +1247,7 @@ static int smsc75xx_enter_suspend0(struct usbnet *dev)
 	ret = smsc75xx_write_reg_nopm(dev, PMT_CTL, val);
 	check_warn_return(ret, "Error writing PMT_CTL\n");
 
-	smsc75xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
-
-	pdata->suspend_flags |= SUSPEND_SUSPEND0 | SUSPEND_REMOTEWAKE;
+	pdata->suspend_flags |= SUSPEND_SUSPEND0;
 
 	return 0;
 }
@@ -1292,9 +1274,7 @@ static int smsc75xx_enter_suspend1(struct usbnet *dev)
 	ret = smsc75xx_write_reg_nopm(dev, PMT_CTL, val);
 	check_warn_return(ret, "Error writing PMT_CTL\n");
 
-	smsc75xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
-
-	pdata->suspend_flags |= SUSPEND_SUSPEND1 | SUSPEND_REMOTEWAKE;
+	pdata->suspend_flags |= SUSPEND_SUSPEND1;
 
 	return 0;
 }
@@ -1349,9 +1329,7 @@ static int smsc75xx_enter_suspend3(struct usbnet *dev)
 	ret = smsc75xx_write_reg_nopm(dev, PMT_CTL, val);
 	check_warn_return(ret, "Error writing PMT_CTL\n");
 
-	smsc75xx_set_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
-
-	pdata->suspend_flags |= SUSPEND_SUSPEND3 | SUSPEND_REMOTEWAKE;
+	pdata->suspend_flags |= SUSPEND_SUSPEND3;
 
 	return 0;
 }
@@ -1650,11 +1628,6 @@ static int smsc75xx_resume(struct usb_interface *intf)
 
 	/* do this first to ensure it's cleared even in error case */
 	pdata->suspend_flags = 0;
-
-	if (suspend_flags & SUSPEND_REMOTEWAKE) {
-		ret = smsc75xx_clear_feature(dev, USB_DEVICE_REMOTE_WAKEUP);
-		check_warn_return(ret, "Error disabling remote wakeup\n");
-	}
 
 	if (suspend_flags & SUSPEND_ALLMODES) {
 		/* Disable wakeup sources */
