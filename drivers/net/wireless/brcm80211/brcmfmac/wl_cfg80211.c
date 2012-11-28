@@ -3293,11 +3293,12 @@ brcmf_parse_vndr_ies(const u8 *vndr_ie_buf, u32 vndr_ie_len,
 		if (vndr_ies->count >= MAX_VNDR_IE_NUMBER)
 			break;
 next:
-		remaining_len -= ie->len;
-		if (remaining_len <= 2)
+		remaining_len -= (ie->len + TLV_HDR_LEN);
+		if (remaining_len <= TLV_HDR_LEN)
 			ie = NULL;
 		else
-			ie = (struct brcmf_tlv *)(((u8 *)ie) + ie->len);
+			ie = (struct brcmf_tlv *)(((u8 *)ie) + ie->len +
+				TLV_HDR_LEN);
 	}
 	return err;
 }
@@ -3396,11 +3397,11 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 		}
 	}
 
-	if (mgmt_ie_buf != NULL) {
+	if (mgmt_ie_buf && *mgmt_ie_len) {
 		if (parsed_ie_buf_len && (parsed_ie_buf_len == *mgmt_ie_len) &&
 		    (memcmp(mgmt_ie_buf, curr_ie_buf,
 			    parsed_ie_buf_len) == 0)) {
-			WL_TRACE("Previous mgmt IE is equals to current IE");
+			WL_TRACE("Previous mgmt IE equals to current IE\n");
 			goto exit;
 		}
 
@@ -3438,6 +3439,16 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 		for (i = 0; i < new_vndr_ies.count; i++) {
 			vndrie_info = &new_vndr_ies.ie_info[i];
 
+			/* verify remained buf size before copy data */
+			if (remained_buf_len < (vndrie_info->vndrie.len +
+							VNDR_IE_VSIE_OFFSET)) {
+				WL_ERR("no space in mgmt_ie_buf: len left %d",
+				       remained_buf_len);
+				break;
+			}
+			remained_buf_len -= (vndrie_info->ie_len +
+					     VNDR_IE_VSIE_OFFSET);
+
 			WL_TRACE("ADDED ID : %d, Len: %d, OUI:%02x:%02x:%02x\n",
 				 vndrie_info->vndrie.id,
 				 vndrie_info->vndrie.len,
@@ -3449,13 +3460,6 @@ s32 brcmf_vif_set_mgmt_ie(struct brcmf_cfg80211_vif *vif, s32 pktflag,
 							   vndrie_info->ie_ptr,
 							   vndrie_info->ie_len,
 							   "add");
-			/* verify remained buf size before copy data */
-			remained_buf_len -= vndrie_info->ie_len;
-			if (remained_buf_len < 0) {
-				WL_ERR("no space in mgmt_ie_buf: len left %d",
-					remained_buf_len);
-				break;
-			}
 
 			/* save the parsed IE in wl struct */
 			memcpy(ptr + (*mgmt_ie_len), vndrie_info->ie_ptr,
