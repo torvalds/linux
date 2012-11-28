@@ -204,7 +204,12 @@ extern void efx_port_dummy_op_void(struct efx_nic *efx);
 
 /* MTD */
 #ifdef CONFIG_SFC_MTD
-extern int efx_mtd_probe(struct efx_nic *efx);
+extern int efx_mtd_add(struct efx_nic *efx, struct efx_mtd_partition *parts,
+		       size_t n_parts, size_t sizeof_part);
+static inline int efx_mtd_probe(struct efx_nic *efx)
+{
+	return efx->type->mtd_probe(efx);
+}
 extern void efx_mtd_rename(struct efx_nic *efx);
 extern void efx_mtd_remove(struct efx_nic *efx);
 #else

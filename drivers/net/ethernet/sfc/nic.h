@@ -16,7 +16,6 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "mcdi.h"
-#include "spi.h"
 
 /*
  * Falcon hardware control
@@ -162,6 +161,38 @@ struct falcon_board {
 	struct i2c_algo_bit_data i2c_data;
 	struct i2c_client *hwmon_client, *ioexp_client;
 };
+
+/**
+ * struct falcon_spi_device - a Falcon SPI (Serial Peripheral Interface) device
+ * @device_id:		Controller's id for the device
+ * @size:		Size (in bytes)
+ * @addr_len:		Number of address bytes in read/write commands
+ * @munge_address:	Flag whether addresses should be munged.
+ *	Some devices with 9-bit addresses (e.g. AT25040A EEPROM)
+ *	use bit 3 of the command byte as address bit A8, rather
+ *	than having a two-byte address.  If this flag is set, then
+ *	commands should be munged in this way.
+ * @erase_command:	Erase command (or 0 if sector erase not needed).
+ * @erase_size:		Erase sector size (in bytes)
+ *	Erase commands affect sectors with this size and alignment.
+ *	This must be a power of two.
+ * @block_size:		Write block size (in bytes).
+ *	Write commands are limited to blocks with this size and alignment.
+ */
+struct falcon_spi_device {
+	int device_id;
+	unsigned int size;
+	unsigned int addr_len;
+	unsigned int munge_address:1;
+	u8 erase_command;
+	unsigned int erase_size;
+	unsigned int block_size;
+};
+
+static inline bool falcon_spi_present(const struct falcon_spi_device *spi)
+{
+	return spi->size != 0;
+}
 
 /**
  * struct falcon_nic_data - Falcon NIC state

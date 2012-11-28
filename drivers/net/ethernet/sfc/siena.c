@@ -18,7 +18,6 @@
 #include "bitfield.h"
 #include "efx.h"
 #include "nic.h"
-#include "spi.h"
 #include "farch_regs.h"
 #include "io.h"
 #include "phy.h"
@@ -674,6 +673,138 @@ static int siena_mcdi_poll_reboot(struct efx_nic *efx)
 
 /**************************************************************************
  *
+ * MTD
+ *
+ **************************************************************************
+ */
+
+#ifdef CONFIG_SFC_MTD
+
+struct siena_nvram_type_info {
+	int port;
+	const char *name;
+};
+
+static const struct siena_nvram_type_info siena_nvram_types[] = {
+	[MC_CMD_NVRAM_TYPE_DISABLED_CALLISTO]	= { 0, "sfc_dummy_phy" },
+	[MC_CMD_NVRAM_TYPE_MC_FW]		= { 0, "sfc_mcfw" },
+	[MC_CMD_NVRAM_TYPE_MC_FW_BACKUP]	= { 0, "sfc_mcfw_backup" },
+	[MC_CMD_NVRAM_TYPE_STATIC_CFG_PORT0]	= { 0, "sfc_static_cfg" },
+	[MC_CMD_NVRAM_TYPE_STATIC_CFG_PORT1]	= { 1, "sfc_static_cfg" },
+	[MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT0]	= { 0, "sfc_dynamic_cfg" },
+	[MC_CMD_NVRAM_TYPE_DYNAMIC_CFG_PORT1]	= { 1, "sfc_dynamic_cfg" },
+	[MC_CMD_NVRAM_TYPE_EXP_ROM]		= { 0, "sfc_exp_rom" },
+	[MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT0]	= { 0, "sfc_exp_rom_cfg" },
+	[MC_CMD_NVRAM_TYPE_EXP_ROM_CFG_PORT1]	= { 1, "sfc_exp_rom_cfg" },
+	[MC_CMD_NVRAM_TYPE_PHY_PORT0]		= { 0, "sfc_phy_fw" },
+	[MC_CMD_NVRAM_TYPE_PHY_PORT1]		= { 1, "sfc_phy_fw" },
+	[MC_CMD_NVRAM_TYPE_FPGA]		= { 0, "sfc_fpga" },
+};
+
+static int siena_mtd_probe_partition(struct efx_nic *efx,
+				     struct efx_mcdi_mtd_partition *part,
+				     unsigned int type)
+{
+	const struct siena_nvram_type_info *info;
+	size_t size, erase_size;
+	bool protected;
+	int rc;
+
+	if (type >= ARRAY_SIZE(siena_nvram_types) ||
+	    siena_nvram_types[type].name == NULL)
+		return -ENODEV;
+
+	info = &siena_nvram_types[type];
+
+	if (info->port != efx_port_num(efx))
+		return -ENODEV;
+
+	rc = efx_mcdi_nvram_info(efx, type, &size, &erase_size, &protected);
+	if (rc)
+		return rc;
+	if (protected)
+		return -ENODEV; /* hide it */
+
+	part->nvram_type = type;
+	part->common.dev_type_name = "Siena NVRAM manager";
+	part->common.type_name = info->name;
+
+	part->common.mtd.type = MTD_NORFLASH;
+	part->common.mtd.flags = MTD_CAP_NORFLASH;
+	part->common.mtd.size = size;
+	part->common.mtd.erasesize = erase_size;
+
+	return 0;
+}
+
+static int siena_mtd_get_fw_subtypes(struct efx_nic *efx,
+				     struct efx_mcdi_mtd_partition *parts,
+				     size_t n_parts)
+{
+	uint16_t fw_subtype_list[
+		MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MAXNUM];
+	size_t i;
+	int rc;
+
+	rc = efx_mcdi_get_board_cfg(efx, NULL, fw_subtype_list, NULL);
+	if (rc)
+		return rc;
+
+	for (i = 0; i < n_parts; i++)
+		parts[i].fw_subtype = fw_subtype_list[parts[i].nvram_type];
+
+	return 0;
+}
+
+static int siena_mtd_probe(struct efx_nic *efx)
+{
+	struct efx_mcdi_mtd_partition *parts;
+	u32 nvram_types;
+	unsigned int type;
+	size_t n_parts;
+	int rc;
+
+	ASSERT_RTNL();
+
+	rc = efx_mcdi_nvram_types(efx, &nvram_types);
+	if (rc)
+		return rc;
+
+	parts = kcalloc(hweight32(nvram_types), sizeof(*parts), GFP_KERNEL);
+	if (!parts)
+		return -ENOMEM;
+
+	type = 0;
+	n_parts = 0;
+
+	while (nvram_types != 0) {
+		if (nvram_types & 1) {
+			rc = siena_mtd_probe_partition(efx, &parts[n_parts],
+						       type);
+			if (rc == 0)
+				n_parts++;
+			else if (rc != -ENODEV)
+				goto fail;
+		}
+		type++;
+		nvram_types >>= 1;
+	}
+
+	rc = siena_mtd_get_fw_subtypes(efx, parts, n_parts);
+	if (rc)
+		goto fail;
+
+	rc = efx_mtd_add(efx, &parts[0].common, n_parts, sizeof(*parts));
+fail:
+	if (rc)
+		kfree(parts);
+	return rc;
+}
+
+#endif /* CONFIG_SFC_MTD */
+
+/**************************************************************************
+ *
  * Revision-dependent attributes used by efx.c and nic.c
  *
  **************************************************************************
@@ -752,6 +883,14 @@ const struct efx_nic_type siena_a0_nic_type = {
 #ifdef CONFIG_RFS_ACCEL
 	.filter_rfs_insert = efx_farch_filter_rfs_insert,
 	.filter_rfs_expire_one = efx_farch_filter_rfs_expire_one,
+#endif
+#ifdef CONFIG_SFC_MTD
+	.mtd_probe = siena_mtd_probe,
+	.mtd_rename = efx_mcdi_mtd_rename,
+	.mtd_read = efx_mcdi_mtd_read,
+	.mtd_erase = efx_mcdi_mtd_erase,
+	.mtd_write = efx_mcdi_mtd_write,
+	.mtd_sync = efx_mcdi_mtd_sync,
 #endif
 
 	.revision = EFX_REV_SIENA_A0,

@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/vmalloc.h>
 #include <linux/i2c.h>
+#include <linux/mtd/mtd.h>
 
 #include "enum.h"
 #include "bitfield.h"
@@ -868,7 +869,6 @@ struct efx_nic {
 	struct delayed_work selftest_work;
 
 #ifdef CONFIG_SFC_MTD
-	const struct efx_mtd_ops *mtd_ops;
 	struct list_head mtd_list;
 #endif
 
@@ -953,6 +953,14 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
 	return efx->port_num;
 }
+
+struct efx_mtd_partition {
+	struct list_head node;
+	struct mtd_info mtd;
+	const char *dev_type_name;
+	const char *type_name;
+	char name[IFNAMSIZ + 20];
+};
 
 /**
  * struct efx_nic_type - Efx device type definition
@@ -1047,6 +1055,15 @@ static inline unsigned int efx_port_num(struct efx_nic *efx)
  * @filter_rfs_expire_one: Consider expiring a filter inserted for RFS.
  *	This must check whether the specified table entry is used by RFS
  *	and that rps_may_expire_flow() returns true for it.
+ * @mtd_probe: Probe and add MTD partitions associated with this net device,
+ *	 using efx_mtd_add()
+ * @mtd_rename: Set an MTD partition name using the net device name
+ * @mtd_read: Read from an MTD partition
+ * @mtd_erase: Erase part of an MTD partition
+ * @mtd_write: Write to an MTD partition
+ * @mtd_sync: Wait for write-back to complete on MTD partition.  This
+ *	also notifies the driver that a writer has finished using this
+ *	partition.
  * @revision: Hardware architecture revision
  * @txd_ptr_tbl_base: TX descriptor ring base address
  * @rxd_ptr_tbl_base: RX descriptor ring base address
@@ -1149,6 +1166,16 @@ struct efx_nic_type {
 				 struct efx_filter_spec *spec);
 	bool (*filter_rfs_expire_one)(struct efx_nic *efx, u32 flow_id,
 				      unsigned int index);
+#endif
+#ifdef CONFIG_SFC_MTD
+	int (*mtd_probe)(struct efx_nic *efx);
+	void (*mtd_rename)(struct efx_mtd_partition *part);
+	int (*mtd_read)(struct mtd_info *mtd, loff_t start, size_t len,
+			size_t *retlen, u8 *buffer);
+	int (*mtd_erase)(struct mtd_info *mtd, loff_t start, size_t len);
+	int (*mtd_write)(struct mtd_info *mtd, loff_t start, size_t len,
+			 size_t *retlen, const u8 *buffer);
+	int (*mtd_sync)(struct mtd_info *mtd);
 #endif
 
 	int revision;
