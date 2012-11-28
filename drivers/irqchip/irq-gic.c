@@ -769,6 +769,33 @@ void gic_migrate_target(unsigned int new_cpu_id)
 		}
 	}
 }
+
+/*
+ * gic_get_sgir_physaddr - get the physical address for the SGI register
+ *
+ * REturn the physical address of the SGI register to be used
+ * by some early assembly code when the kernel is not yet available.
+ */
+static unsigned long gic_dist_physaddr;
+
+unsigned long gic_get_sgir_physaddr(void)
+{
+	if (!gic_dist_physaddr)
+		return 0;
+	return gic_dist_physaddr + GIC_DIST_SOFTINT;
+}
+
+void __init gic_init_physaddr(struct device_node *node)
+{
+	struct resource res;
+	if (of_address_to_resource(node, 0, &res) == 0) {
+		gic_dist_physaddr = res.start;
+		pr_info("GIC physical location is %#lx\n", gic_dist_physaddr);
+	}
+}
+
+#else
+#define gic_init_physaddr(node)  do { } while (0)
 #endif
 
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
@@ -952,6 +979,8 @@ int __init gic_of_init(struct device_node *node, struct device_node *parent)
 		percpu_offset = 0;
 
 	gic_init_bases(gic_cnt, -1, dist_base, cpu_base, percpu_offset, node);
+	if (!gic_cnt)
+		gic_init_physaddr(node);
 
 	if (parent) {
 		irq = irq_of_parse_and_map(node, 0);
