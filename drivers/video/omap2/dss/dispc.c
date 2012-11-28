@@ -382,7 +382,7 @@ static void dispc_save_context(void)
 	if (dss_has_feature(FEAT_CORE_CLK_DIV))
 		SR(DIVISOR);
 
-	dispc.ctx_loss_cnt = dss_get_ctx_loss_count(&dispc.pdev->dev);
+	dispc.ctx_loss_cnt = dss_get_ctx_loss_count();
 	dispc.ctx_valid = true;
 
 	DSSDBG("context saved, ctx_loss_count %d\n", dispc.ctx_loss_cnt);
@@ -397,7 +397,7 @@ static void dispc_restore_context(void)
 	if (!dispc.ctx_valid)
 		return;
 
-	ctx = dss_get_ctx_loss_count(&dispc.pdev->dev);
+	ctx = dss_get_ctx_loss_count();
 
 	if (ctx >= 0 && ctx == dispc.ctx_loss_cnt)
 		return;

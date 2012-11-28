@@ -164,7 +164,6 @@ struct platform_device *dss_get_core_pdev(void);
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
-int dss_get_ctx_loss_count(struct device *dev);
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
 void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
@@ -283,6 +282,8 @@ void dss_dump_clocks(struct seq_file *s);
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
+
+int dss_get_ctx_loss_count(void);
 
 void dss_sdi_init(int datapairs);
 int dss_sdi_enable(void);

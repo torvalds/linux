@@ -101,21 +101,6 @@ struct regulator *dss_get_vdds_sdi(void)
 	return reg;
 }
 
-int dss_get_ctx_loss_count(struct device *dev)
-{
-	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
-	int cnt;
-
-	if (!board_data->get_context_loss_count)
-		return -ENOENT;
-
-	cnt = board_data->get_context_loss_count(dev);
-
-	WARN_ONCE(cnt < 0, "get_context_loss_count failed: %d\n", cnt);
-
-	return cnt;
-}
-
 int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 {
 	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
