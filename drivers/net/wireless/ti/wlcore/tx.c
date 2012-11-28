@@ -157,9 +157,6 @@ u8 wl12xx_tx_get_hlid(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 {
 	struct ieee80211_tx_info *control;
 
-	if (!wlvif || wl12xx_is_dummy_packet(wl, skb))
-		return wl->system_hlid;
-
 	if (wlvif->bss_type == BSS_TYPE_AP_BSS)
 		return wl12xx_tx_get_hlid_ap(wl, wlvif, skb, sta);
 
@@ -764,7 +761,7 @@ int wlcore_tx_work_locked(struct wl1271 *wl)
 		bool has_data = false;
 
 		wlvif = NULL;
-		if (!wl12xx_is_dummy_packet(wl, skb) && info->control.vif)
+		if (!wl12xx_is_dummy_packet(wl, skb))
 			wlvif = wl12xx_vif_to_data(info->control.vif);
 		else
 			hlid = wl->system_hlid;

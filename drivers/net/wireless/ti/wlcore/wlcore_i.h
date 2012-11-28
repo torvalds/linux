@@ -451,6 +451,7 @@ struct wl12xx_vif {
 
 static inline struct wl12xx_vif *wl12xx_vif_to_data(struct ieee80211_vif *vif)
 {
+	WARN_ON(!vif);
 	return (struct wl12xx_vif *)vif->drv_priv;
 }
 
