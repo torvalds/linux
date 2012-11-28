@@ -555,7 +555,7 @@ extern int
 xlog_recover_finish(
 	struct xlog		*log);
 
-extern __be32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
+extern __le32	 xlog_cksum(struct xlog *log, struct xlog_rec_header *rhead,
 			    char *dp, int size);
 
 extern kmem_zone_t *xfs_log_ticket_zone;

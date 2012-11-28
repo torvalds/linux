@@ -3233,15 +3233,15 @@ xlog_unpack_data_crc(
 	xfs_caddr_t		dp,
 	struct xlog		*log)
 {
-	__be32			crc;
+	__le32			crc;
 
 	crc = xlog_cksum(log, rhead, dp, be32_to_cpu(rhead->h_len));
 	if (crc != rhead->h_crc) {
 		if (rhead->h_crc || xfs_sb_version_hascrc(&log->l_mp->m_sb)) {
 			xfs_alert(log->l_mp,
 		"log record CRC mismatch: found 0x%x, expected 0x%x.\n",
-					be32_to_cpu(rhead->h_crc),
-					be32_to_cpu(crc));
+					le32_to_cpu(rhead->h_crc),
+					le32_to_cpu(crc));
 			xfs_hex_dump(dp, 32);
 		}
 

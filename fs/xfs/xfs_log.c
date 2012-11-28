@@ -1538,7 +1538,7 @@ xlog_pack_data(
  * This is a little more complicated than it should be because the various
  * headers and the actual data are non-contiguous.
  */
-__be32
+__le32
 xlog_cksum(
 	struct xlog		*log,
 	struct xlog_rec_header	*rhead,
