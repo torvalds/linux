@@ -2512,6 +2512,15 @@ S:	Supported
 F:	drivers/gpu/drm/exynos
 F:	include/drm/exynos*
 
+DRM DRIVERS FOR NVIDIA TEGRA
+M:	Thierry Reding <thierry.reding@avionic-design.de>
+L:	dri-devel@lists.freedesktop.org
+L:	linux-tegra@vger.kernel.org
+T:	git git://gitorious.org/thierryreding/linux.git
+S:	Maintained
+F:	drivers/gpu/drm/tegra/
+F:	Documentation/devicetree/bindings/gpu/nvidia,tegra20-host1x.txt
+
 DSCC4 DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 L:	netdev@vger.kernel.org
