@@ -36,7 +36,7 @@ enum {
 #define PINMUX_FLAG_DREG            (0x3f << PINMUX_FLAG_DREG_SHIFT)
 
 struct pinmux_gpio {
-	pinmux_enum_t enum_id;
+	const pinmux_enum_t enum_id;
 	pinmux_flag_t flags;
 	const char *name;
 };
