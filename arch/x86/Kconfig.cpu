@@ -325,10 +325,6 @@ config X86_INVD_BUG
 	def_bool y
 	depends on M486
 
-config X86_POPAD_OK
-	def_bool y
-	depends on X86_32
-
 config X86_ALIGNMENT_16
 	def_bool y
 	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MELAN || MK6 || M586MMX || M586TSC || M586 || M486 || MVIAC3_2 || MGEODEGX1
