@@ -647,6 +647,25 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	return 0;
 }
 
+#if  defined(CONFIG_MACH_RK2926_V86)
+int rk2926_v86_sd_vcc_reset(){
+      struct regulator	*vcc;
+    
+      vcc = regulator_get(NULL,"vmmc");
+      if (vcc == NULL || IS_ERR(vcc) ){
+            printk("%s get cif vaux33 ldo failed!\n",__func__);
+            return -1 ;
+      }
+ 
+
+       printk("hj---->rk29_sdmmc_hw_init get vmmc regulator successfully \n\n\n");
+       regulator_disable(vcc);
+       mdelay(2000);
+       regulator_enable(vcc);
+
+}
+#endif
+
 #define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail =
@@ -683,6 +702,9 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.write_prt_enalbe_level = SDMMC0_WRITE_PROTECT_ENABLE_VALUE;
 #else
 	.write_prt = INVALID_GPIO,
+#endif
+#if defined(CONFIG_MACH_RK2926_V86)
+      .sd_vcc_reset = rk2926_v86_sd_vcc_reset ,
 #endif
 
     .det_pin_info = {

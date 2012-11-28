@@ -50,6 +50,7 @@ EXPORT_SYMBOL_GPL(__fat_fs_error);
  */
 void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 {
+        #if 0
 	struct va_format vaf;
 	va_list args;
 
@@ -58,6 +59,7 @@ void fat_msg(struct super_block *sb, const char *level, const char *fmt, ...)
 	vaf.va = &args;
 	printk("%sFAT-fs (%s): %pV\n", level, sb->s_id, &vaf);
 	va_end(args);
+        #endif
 }
 
 /* Flushes the number of free clusters on FAT32 */

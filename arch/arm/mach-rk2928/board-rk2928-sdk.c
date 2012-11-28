@@ -571,6 +571,22 @@ static int rk29_sdmmc0_cfg_gpio(void)
 	return 0;
 }
 
+int rk2928_sd_vcc_reset(){
+      struct regulator *vcc;
+
+      vcc = regulator_get(NULL,"act_ldo4");
+      if (vcc == NULL || IS_ERR(vcc) ){
+            printk("%s get cif vaux33 ldo failed!\n",__func__);
+            return -1 ;
+      }
+
+       printk("hj---->rk29_sdmmc_hw_init get vmmc regulator successfully \n\n\n");
+       regulator_disable(vcc);
+       mdelay(2000);
+       regulator_enable(vcc);
+
+}
+
 #define CONFIG_SDMMC0_USE_DMA
 struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail =
@@ -608,6 +624,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.write_prt = INVALID_GPIO,
 #endif
+      .sd_vcc_reset = rk2928_sd_vcc_reset ,
 
     .det_pin_info = {
         .io             = RK29SDK_SD_CARD_DETECT_N, //INVALID_GPIO,

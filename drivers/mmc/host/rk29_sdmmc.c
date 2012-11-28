@@ -1949,11 +1949,25 @@ SetFreq_error:
 int rk29_sdmmc_hw_init(void *data)
 {
     struct rk29_sdmmc *host = (struct rk29_sdmmc *)data;
+    struct rk29_sdmmc_platform_data *pdata = host->pdev->dev.platform_data;
 
     //set the iomux
     host->ctype = SDMMC_CTYPE_1BIT;
     host->set_iomux(host->pdev->id, host->ctype);
     
+    if( pdata && pdata->sd_vcc_reset ){
+	int cdetect = gpio_get_value(host->det_pin.io) ;
+	if(host->det_pin.enable){
+                cdetect = cdetect?1:0;
+       }else{
+                cdetect = cdetect?0:1;
+       }
+       
+	if( cdetect ){
+		pdata->sd_vcc_reset();
+	}
+    }
+  
     /* reset controller */
     rk29_sdmmc_reset_controller(host);
 
@@ -3441,6 +3455,8 @@ static void rk29_sdmmc_detect_change_work(struct work_struct *work)
 {
 	int ret;
     struct rk29_sdmmc *host =  container_of(work, struct rk29_sdmmc, work.work);
+
+    rk29_sdmmc_hw_init(host);
 
     rk28_send_wakeup_key();
 	rk29_sdmmc_detect_change(host);               	 

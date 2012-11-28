@@ -167,6 +167,7 @@ struct rk29_sdmmc_platform_data {
 	int write_prt_enalbe_level;
 	unsigned int sdio_INT_gpio; 
 	struct rksdmmc_gpio   det_pin_info;
+        int (*sd_vcc_reset)(void);
 };
 
 struct gsensor_platform_data {
