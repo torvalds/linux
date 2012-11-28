@@ -1032,6 +1032,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 
 	if (!drv->dbgfs_drv) {
 		IWL_ERR(drv, "failed to create debugfs directory\n");
+		ret = -ENOMEM;
 		goto err_free_drv;
 	}
 
@@ -1040,12 +1041,12 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 
 	if (!drv->trans->dbgfs_dir) {
 		IWL_ERR(drv, "failed to create transport debugfs directory\n");
+		ret = -ENOMEM;
 		goto err_free_dbgfs;
 	}
 #endif
 
 	ret = iwl_request_firmware(drv, true);
-
 	if (ret) {
 		IWL_ERR(trans, "Couldn't request the fw\n");
 		goto err_fw;
@@ -1060,9 +1061,8 @@ err_free_dbgfs:
 err_free_drv:
 #endif
 	kfree(drv);
-	drv = NULL;
 
-	return drv;
+	return ERR_PTR(ret);
 }
 
 void iwl_drv_stop(struct iwl_drv *drv)
