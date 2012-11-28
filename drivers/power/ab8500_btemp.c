@@ -158,7 +158,7 @@ static int ab8500_btemp_batctrl_volt_to_res(struct ab8500_btemp *di,
 	if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL) {
 		/*
 		 * If the battery has internal NTC, we use the current
-		 * source to calculate the resistance, 7uA or 20uA
+		 * source to calculate the resistance.
 		 */
 		rbs = (v_batctrl * 1000
 		       - di->bm->gnd_lift_resistance * inst_curr)
@@ -602,7 +602,7 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 
 	/*
 	 * We only have to change current source if the
-	 * detected type is Type 1, else we use the 7uA source
+	 * detected type is Type 1.
 	 */
 	if (di->bm->adc_therm == ABx500_ADC_THERM_BATCTRL &&
 	    di->bm->batt_id == 1) {

@@ -1979,7 +1979,7 @@ static void ab8500_fg_instant_work(struct work_struct *work)
 }
 
 /**
- * ab8500_fg_cc_data_end_handler() - isr to get battery avg current.
+ * ab8500_fg_cc_data_end_handler() - end of data conversion isr.
  * @irq:       interrupt number
  * @_di:       pointer to the ab8500_fg structure
  *
@@ -1999,7 +1999,7 @@ static irqreturn_t ab8500_fg_cc_data_end_handler(int irq, void *_di)
 }
 
 /**
- * ab8500_fg_cc_convend_handler() - isr to get battery avg current.
+ * ab8500_fg_cc_int_calib_handler () - end of calibration isr.
  * @irq:       interrupt number
  * @_di:       pointer to the ab8500_fg structure
  *
