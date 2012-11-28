@@ -63,11 +63,12 @@ static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
  * Since there doesn't seem to be a devices that needs a multichannel
  * version, we keep it mono for simplicity.
  */
-static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
+static int snd_create_std_mono_ctl_offset(struct usb_mixer_interface *mixer,
 				unsigned int unitid,
 				unsigned int control,
 				unsigned int cmask,
 				int val_type,
+				unsigned int idx_off,
 				const char *name,
 				snd_kcontrol_tlv_rw_t *tlv_callback)
 {
@@ -85,6 +86,7 @@ static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
 	cval->channels = 1;
 	cval->control = control;
 	cval->cmask = cmask;
+	cval->idx_off = idx_off;
 
 	/* get_min_max() is called only for integer volumes later,
 	 * so provide a short-cut for booleans */
@@ -118,6 +120,18 @@ static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
 		return err;
 
 	return 0;
+}
+
+static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
+				unsigned int unitid,
+				unsigned int control,
+				unsigned int cmask,
+				int val_type,
+				const char *name,
+				snd_kcontrol_tlv_rw_t *tlv_callback)
+{
+	return snd_create_std_mono_ctl_offset(mixer, unitid, control, cmask,
+		val_type, 0 /* Offset */, name, tlv_callback);
 }
 
 /*

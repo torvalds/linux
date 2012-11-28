@@ -382,6 +382,8 @@ error:
 
 static int get_ctl_value(struct usb_mixer_elem_info *cval, int request, int validx, int *value_ret)
 {
+	validx += cval->idx_off;
+
 	return (cval->mixer->protocol == UAC_VERSION_1) ?
 		get_ctl_value_v1(cval, request, validx, value_ret) :
 		get_ctl_value_v2(cval, request, validx, value_ret);
@@ -431,6 +433,8 @@ int snd_usb_mixer_set_ctl_value(struct usb_mixer_elem_info *cval,
 	struct snd_usb_audio *chip = cval->mixer->chip;
 	unsigned char buf[2];
 	int idx = 0, val_len, err, timeout = 10;
+
+	validx += cval->idx_off;
 
 	if (cval->mixer->protocol == UAC_VERSION_1) {
 		val_len = cval->val_type >= USB_MIXER_S16 ? 2 : 1;
