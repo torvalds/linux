@@ -46,6 +46,8 @@
 #include <linux/uaccess.h>
 #include <linux/hash.h>
 #include <linux/pci.h>
+#include <linux/timekeeper_internal.h>
+#include <linux/pvclock_gtod.h>
 #include <trace/events/kvm.h>
 
 #define CREATE_TRACE_POINTS
@@ -901,6 +903,55 @@ static int do_set_msr(struct kvm_vcpu *vcpu, unsigned index, u64 *data)
 	return kvm_set_msr(vcpu, index, *data);
 }
 
+#ifdef CONFIG_X86_64
+struct pvclock_gtod_data {
+	seqcount_t	seq;
+
+	struct { /* extract of a clocksource struct */
+		int vclock_mode;
+		cycle_t	cycle_last;
+		cycle_t	mask;
+		u32	mult;
+		u32	shift;
+	} clock;
+
+	/* open coded 'struct timespec' */
+	u64		monotonic_time_snsec;
+	time_t		monotonic_time_sec;
+};
+
+static struct pvclock_gtod_data pvclock_gtod_data;
+
+static void update_pvclock_gtod(struct timekeeper *tk)
+{
+	struct pvclock_gtod_data *vdata = &pvclock_gtod_data;
+
+	write_seqcount_begin(&vdata->seq);
+
+	/* copy pvclock gtod data */
+	vdata->clock.vclock_mode	= tk->clock->archdata.vclock_mode;
+	vdata->clock.cycle_last		= tk->clock->cycle_last;
+	vdata->clock.mask		= tk->clock->mask;
+	vdata->clock.mult		= tk->mult;
+	vdata->clock.shift		= tk->shift;
+
+	vdata->monotonic_time_sec	= tk->xtime_sec
+					+ tk->wall_to_monotonic.tv_sec;
+	vdata->monotonic_time_snsec	= tk->xtime_nsec
+					+ (tk->wall_to_monotonic.tv_nsec
+						<< tk->shift);
+	while (vdata->monotonic_time_snsec >=
+					(((u64)NSEC_PER_SEC) << tk->shift)) {
+		vdata->monotonic_time_snsec -=
+					((u64)NSEC_PER_SEC) << tk->shift;
+		vdata->monotonic_time_sec++;
+	}
+
+	write_seqcount_end(&vdata->seq);
+}
+#endif
+
+
 static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 {
 	int version;
@@ -996,6 +1047,8 @@ static inline u64 get_kernel_ns(void)
 	monotonic_to_bootbased(&ts);
 	return timespec_to_ns(&ts);
 }
+
+static atomic_t kvm_guest_has_master_clock = ATOMIC_INIT(0);
 
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 unsigned long max_tsc_khz;
@@ -1228,7 +1281,6 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	vcpu->hv_clock.system_time = kernel_ns + v->kvm->arch.kvmclock_offset;
 	vcpu->last_kernel_ns = kernel_ns;
 	vcpu->last_guest_tsc = tsc_timestamp;
-
 
 	/*
 	 * The interface expects us to write an even number signaling that the
@@ -4857,6 +4909,39 @@ static void kvm_set_mmio_spte_mask(void)
 	kvm_mmu_set_mmio_spte_mask(mask);
 }
 
+#ifdef CONFIG_X86_64
+static void pvclock_gtod_update_fn(struct work_struct *work)
+{
+}
+
+static DECLARE_WORK(pvclock_gtod_work, pvclock_gtod_update_fn);
+
+/*
+ * Notification about pvclock gtod data update.
+ */
+static int pvclock_gtod_notify(struct notifier_block *nb, unsigned long unused,
+			       void *priv)
+{
+	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
+	struct timekeeper *tk = priv;
+
+	update_pvclock_gtod(tk);
+
+	/* disable master clock if host does not trust, or does not
+	 * use, TSC clocksource
+	 */
+	if (gtod->clock.vclock_mode != VCLOCK_TSC &&
+	    atomic_read(&kvm_guest_has_master_clock) != 0)
+		queue_work(system_long_wq, &pvclock_gtod_work);
+
+	return 0;
+}
+
+static struct notifier_block pvclock_gtod_notifier = {
+	.notifier_call = pvclock_gtod_notify,
+};
+#endif
+
 int kvm_arch_init(void *opaque)
 {
 	int r;
@@ -4898,6 +4983,10 @@ int kvm_arch_init(void *opaque)
 		host_xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
 
 	kvm_lapic_init();
+#ifdef CONFIG_X86_64
+	pvclock_gtod_register_notifier(&pvclock_gtod_notifier);
+#endif
+
 	return 0;
 
 out:
@@ -4912,6 +5001,9 @@ void kvm_arch_exit(void)
 		cpufreq_unregister_notifier(&kvmclock_cpufreq_notifier_block,
 					    CPUFREQ_TRANSITION_NOTIFIER);
 	unregister_hotcpu_notifier(&kvmclock_cpu_notifier_block);
+#ifdef CONFIG_X86_64
+	pvclock_gtod_unregister_notifier(&pvclock_gtod_notifier);
+#endif
 	kvm_x86_ops = NULL;
 	kvm_mmu_module_exit();
 }
