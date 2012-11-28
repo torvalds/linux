@@ -714,8 +714,8 @@ static int pn544_hci_check_presence(struct nfc_hci_dev *hdev,
 	return 0;
 }
 
-static void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
-					u8 event, struct sk_buff *skb)
+static int pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate, u8 event,
+				    struct sk_buff *skb)
 {
 	struct sk_buff *rgb_skb = NULL;
 	int r = 0;
@@ -724,25 +724,23 @@ static void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 	switch (event) {
 	case PN544_HCI_EVT_ACTIVATED:
 		if (gate == PN544_RF_READER_NFCIP1_INITIATOR_GATE)
-			nfc_hci_target_discovered(hdev, gate);
+			r = nfc_hci_target_discovered(hdev, gate);
 		else if (gate == PN544_RF_READER_NFCIP1_TARGET_GATE) {
 			r = nfc_hci_get_param(hdev, gate, PN544_DEP_ATR_REQ,
-						&rgb_skb);
-
+					      &rgb_skb);
 			if (r < 0)
 				goto exit;
 
-			nfc_tm_activated(hdev->ndev, NFC_PROTO_NFC_DEP_MASK,
-					NFC_COMM_PASSIVE, rgb_skb->data,
-					rgb_skb->len);
+			r = nfc_tm_activated(hdev->ndev, NFC_PROTO_NFC_DEP_MASK,
+					     NFC_COMM_PASSIVE, rgb_skb->data,
+					     rgb_skb->len);
 
 			kfree_skb(rgb_skb);
 		}
-
 		break;
 	case PN544_HCI_EVT_DEACTIVATED:
-		nfc_hci_send_event(hdev, gate,
-			NFC_HCI_EVT_END_OPERATION, NULL, 0);
+		r = nfc_hci_send_event(hdev, gate, NFC_HCI_EVT_END_OPERATION,
+				       NULL, 0);
 		break;
 	case PN544_HCI_EVT_RCV_DATA:
 		if (skb->len < 2) {
@@ -757,15 +755,16 @@ static void pn544_hci_event_received(struct nfc_hci_dev *hdev, u8 gate,
 		}
 
 		skb_pull(skb, 2);
-		nfc_tm_data_received(hdev->ndev, skb);
-
-		return;
+		return nfc_tm_data_received(hdev->ndev, skb);
 	default:
+		pr_err("Discarded unknown event %x to gate %x\n", event, gate);
 		break;
 	}
 
 exit:
 	kfree_skb(skb);
+
+	return r;
 }
 
 static struct nfc_hci_ops pn544_hci_ops = {

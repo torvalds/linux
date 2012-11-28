@@ -323,16 +323,18 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 		break;
 	default:
 		if (hdev->ops->event_received) {
-			hdev->ops->event_received(hdev, gate, event, skb);
-			return;
+			r = hdev->ops->event_received(hdev, gate, event, skb);
+			goto exit_noskb;
+		} else {
+			r = -EINVAL;
 		}
-
 		break;
 	}
 
 exit:
 	kfree_skb(skb);
 
+exit_noskb:
 	if (r) {
 		/* TODO: There was an error dispatching the event,
 		 * how to propagate up to nfc core?
