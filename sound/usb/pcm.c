@@ -362,6 +362,19 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
 
 	switch (subs->stream->chip->usb_id) {
+	case USB_ID(0x0763, 0x2030): /* M-Audio Fast Track C400 */
+		if (is_playback) {
+			implicit_fb = 1;
+			ep = 0x81;
+			iface = usb_ifnum_to_if(dev, 3);
+
+			if (!iface || iface->num_altsetting == 0)
+				return -EINVAL;
+
+			alts = &iface->altsetting[1];
+			goto add_sync_ep;
+		}
+		break;
 	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
 	case USB_ID(0x0763, 0x2081):
 		if (is_playback) {
