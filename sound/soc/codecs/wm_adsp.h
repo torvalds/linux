@@ -18,6 +18,8 @@
 
 #include "wmfw.h"
 
+struct regulator;
+
 struct wm_adsp_region {
 	int type;
 	unsigned int base;
@@ -34,6 +36,8 @@ struct wm_adsp {
 
 	const struct wm_adsp_region *mem;
 	int num_mems;
+
+	struct regulator *dvfs;
 };
 
 #define WM_ADSP1(wname, num) \
@@ -46,6 +50,7 @@ struct wm_adsp {
 	.shift = num, .event = wm_adsp2_event, \
 	.event_flags = SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD }
 
+int wm_adsp2_init(struct wm_adsp *adsp, bool dvfs);
 int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
 int wm_adsp2_event(struct snd_soc_dapm_widget *w,
