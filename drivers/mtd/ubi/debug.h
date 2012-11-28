@@ -158,4 +158,13 @@ static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 	return 0;
 }
 
+static inline int ubi_dbg_chk_io(const struct ubi_device *ubi)
+{
+	return ubi->dbg->chk_io;
+}
+
+static inline int ubi_dbg_chk_gen(const struct ubi_device *ubi)
+{
+	return ubi->dbg->chk_gen;
+}
 #endif /* !__UBI_DEBUG_H__ */

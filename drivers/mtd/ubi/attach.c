@@ -1448,7 +1448,7 @@ int ubi_attach(struct ubi_device *ubi, int force_scan)
 		goto out_wl;
 
 #ifdef CONFIG_MTD_UBI_FASTMAP
-	if (ubi->fm && ubi->dbg->chk_gen) {
+	if (ubi->fm && ubi_dbg_chk_gen(ubi)) {
 		struct ubi_attach_info *scan_ai;
 
 		scan_ai = alloc_ai("ubi_ckh_aeb_slab_cache");
@@ -1498,7 +1498,7 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	struct ubi_ainf_peb *aeb, *last_aeb;
 	uint8_t *buf;
 
-	if (!ubi->dbg->chk_gen)
+	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
 	/*

@@ -847,7 +847,7 @@ static int self_check_volumes(struct ubi_device *ubi)
 {
 	int i, err = 0;
 
-	if (!ubi->dbg->chk_gen)
+	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {
