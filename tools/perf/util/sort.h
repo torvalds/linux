@@ -55,9 +55,6 @@ struct he_stat {
 struct hist_entry_diff {
 	bool	computed;
 
-	/* PERF_HPP__DISPL */
-	int	displacement;
-
 	/* PERF_HPP__DELTA */
 	double	period_ratio_delta;
 
