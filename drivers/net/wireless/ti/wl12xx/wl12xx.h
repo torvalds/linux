@@ -73,6 +73,8 @@ struct wl12xx_priv {
 
 	int ref_clock;
 	int tcxo_clock;
+
+	struct wl127x_rx_mem_pool_addr *rx_mem_addr;
 };
 
 #endif /* __WL12XX_PRIV_H__ */

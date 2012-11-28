@@ -613,7 +613,7 @@ static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 
 	if (wl->chip.id != CHIP_ID_128X_PG20) {
 		struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
-		struct wl127x_rx_mem_pool_addr rx_mem_addr;
+		struct wl12xx_priv *priv = wl->priv;
 
 		/*
 		 * Choose the block we want to read
@@ -622,13 +622,13 @@ static int wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 		 */
 		u32 mem_block = rx_desc & RX_MEM_BLOCK_MASK;
 
-		rx_mem_addr.addr = (mem_block << 8) +
+		priv->rx_mem_addr->addr = (mem_block << 8) +
 			le32_to_cpu(wl_mem_map->packet_memory_pool_start);
 
-		rx_mem_addr.addr_extra = rx_mem_addr.addr + 4;
+		priv->rx_mem_addr->addr_extra = priv->rx_mem_addr->addr + 4;
 
-		ret = wlcore_write(wl, WL1271_SLV_REG_DATA, &rx_mem_addr,
-				   sizeof(rx_mem_addr), false);
+		ret = wlcore_write(wl, WL1271_SLV_REG_DATA, priv->rx_mem_addr,
+				   sizeof(*priv->rx_mem_addr), false);
 		if (ret < 0)
 			return ret;
 	}
@@ -1761,6 +1761,10 @@ static int wl12xx_setup(struct wl1271 *wl)
 			wl1271_error("Invalid tcxo parameter %s", tcxo_param);
 	}
 
+	priv->rx_mem_addr = kmalloc(sizeof(*priv->rx_mem_addr), GFP_KERNEL);
+	if (!priv->rx_mem_addr)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -1794,6 +1798,21 @@ out:
 	return ret;
 }
 
+static int __devexit wl12xx_remove(struct platform_device *pdev)
+{
+	struct wl1271 *wl = platform_get_drvdata(pdev);
+	struct wl12xx_priv *priv;
+
+	if (!wl)
+		goto out;
+	priv = wl->priv;
+
+	kfree(priv->rx_mem_addr);
+
+out:
+	return wlcore_remove(pdev);
+}
+
 static const struct platform_device_id wl12xx_id_table[] __devinitconst = {
 	{ "wl12xx", 0 },
 	{  } /* Terminating Entry */
@@ -1802,7 +1821,7 @@ MODULE_DEVICE_TABLE(platform, wl12xx_id_table);
 
 static struct platform_driver wl12xx_driver = {
 	.probe		= wl12xx_probe,
-	.remove		= __devexit_p(wlcore_remove),
+	.remove		= __devexit_p(wl12xx_remove),
 	.id_table	= wl12xx_id_table,
 	.driver = {
 		.name	= "wl12xx_driver",
