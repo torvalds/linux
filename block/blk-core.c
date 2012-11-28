@@ -309,7 +309,16 @@ inline void __blk_run_queue_uncond(struct request_queue *q)
 	if (unlikely(blk_queue_dead(q)))
 		return;
 
+	/*
+	 * Some request_fn implementations, e.g. scsi_request_fn(), unlock
+	 * the queue lock internally. As a result multiple threads may be
+	 * running such a request function concurrently. Keep track of the
+	 * number of active request_fn invocations such that blk_drain_queue()
+	 * can wait until all these request_fn calls have finished.
+	 */
+	q->request_fn_active++;
 	q->request_fn(q);
+	q->request_fn_active--;
 }
 
 /**
@@ -408,6 +417,7 @@ static void __blk_drain_queue(struct request_queue *q, bool drain_all)
 			__blk_run_queue(q);
 
 		drain |= q->nr_rqs_elvpriv;
+		drain |= q->request_fn_active;
 
 		/*
 		 * Unfortunately, requests are queued at and tracked from
