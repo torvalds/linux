@@ -2205,7 +2205,7 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(wm2200->regmap);
 		dev_err(&i2c->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	for (i = 0; i < 2; i++) {
@@ -2238,7 +2238,7 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to request core supplies: %d\n",
 			ret);
-		goto err_regmap;
+		return ret;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(wm2200->core_supplies),
@@ -2246,7 +2246,7 @@ static __devinit int wm2200_i2c_probe(struct i2c_client *i2c,
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to enable core supplies: %d\n",
 			ret);
-		goto err_core;
+		return ret;
 	}
 
 	if (wm2200->pdata.ldo_ena) {
@@ -2382,9 +2382,6 @@ err_ldo:
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm2200->core_supplies),
 			       wm2200->core_supplies);
-err_core:
-err_regmap:
-err:
 	return ret;
 }
 
