@@ -109,6 +109,9 @@ static int ext4_split_extent_at(handle_t *handle,
 			     int split_flag,
 			     int flags);
 
+static int ext4_find_delayed_extent(struct inode *inode,
+				    struct ext4_ext_cache *newex);
+
 static int ext4_ext_truncate_extend_restart(handle_t *handle,
 					    struct inode *inode,
 					    int needed)
@@ -1959,27 +1962,33 @@ cleanup:
 	return err;
 }
 
-static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
-			       ext4_lblk_t num, ext_prepare_callback func,
-			       void *cbdata)
+static int ext4_fill_fiemap_extents(struct inode *inode,
+				    ext4_lblk_t block, ext4_lblk_t num,
+				    struct fiemap_extent_info *fieinfo)
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_ext_cache cbex;
 	struct ext4_extent *ex;
-	ext4_lblk_t next, start = 0, end = 0;
+	ext4_lblk_t next, next_del, start = 0, end = 0;
 	ext4_lblk_t last = block + num;
-	int depth, exists, err = 0;
-
-	BUG_ON(func == NULL);
-	BUG_ON(inode == NULL);
+	int exists, depth = 0, err = 0;
+	unsigned int flags = 0;
+	unsigned char blksize_bits = inode->i_sb->s_blocksize_bits;
 
 	while (block < last && block != EXT_MAX_BLOCKS) {
 		num = last - block;
 		/* find extent for this block */
 		down_read(&EXT4_I(inode)->i_data_sem);
+
+		if (path && ext_depth(inode) != depth) {
+			/* depth was changed. we have to realloc path */
+			kfree(path);
+			path = NULL;
+		}
+
 		path = ext4_ext_find_extent(inode, block, path);
-		up_read(&EXT4_I(inode)->i_data_sem);
 		if (IS_ERR(path)) {
+			up_read(&EXT4_I(inode)->i_data_sem);
 			err = PTR_ERR(path);
 			path = NULL;
 			break;
@@ -1987,13 +1996,16 @@ static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 
 		depth = ext_depth(inode);
 		if (unlikely(path[depth].p_hdr == NULL)) {
+			up_read(&EXT4_I(inode)->i_data_sem);
 			EXT4_ERROR_INODE(inode, "path[%d].p_hdr == NULL", depth);
 			err = -EIO;
 			break;
 		}
 		ex = path[depth].p_ext;
 		next = ext4_ext_next_allocated_block(path);
+		ext4_ext_drop_refs(path);
 
+		flags = 0;
 		exists = 0;
 		if (!ex) {
 			/* there is no extent yet, so try to allocate
@@ -2037,30 +2049,54 @@ static int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 			cbex.ec_block = le32_to_cpu(ex->ee_block);
 			cbex.ec_len = ext4_ext_get_actual_len(ex);
 			cbex.ec_start = ext4_ext_pblock(ex);
+			if (ext4_ext_is_uninitialized(ex))
+				flags |= FIEMAP_EXTENT_UNWRITTEN;
 		}
+
+		/*
+		 * Find delayed extent and update cbex accordingly. We call
+		 * it even in !exists case to find out whether cbex is the
+		 * last existing extent or not.
+		 */
+		next_del = ext4_find_delayed_extent(inode, &cbex);
+		if (!exists && next_del) {
+			exists = 1;
+			flags |= FIEMAP_EXTENT_DELALLOC;
+		}
+		up_read(&EXT4_I(inode)->i_data_sem);
 
 		if (unlikely(cbex.ec_len == 0)) {
 			EXT4_ERROR_INODE(inode, "cbex.ec_len == 0");
 			err = -EIO;
 			break;
 		}
-		err = func(inode, next, &cbex, ex, cbdata);
-		ext4_ext_drop_refs(path);
 
-		if (err < 0)
-			break;
-
-		if (err == EXT_REPEAT)
-			continue;
-		else if (err == EXT_BREAK) {
-			err = 0;
-			break;
+		/* This is possible iff next == next_del == EXT_MAX_BLOCKS */
+		if (next == next_del) {
+			flags |= FIEMAP_EXTENT_LAST;
+			if (unlikely(next_del != EXT_MAX_BLOCKS ||
+				     next != EXT_MAX_BLOCKS)) {
+				EXT4_ERROR_INODE(inode,
+						 "next extent == %u, next "
+						 "delalloc extent = %u",
+						 next, next_del);
+				err = -EIO;
+				break;
+			}
 		}
 
-		if (ext_depth(inode) != depth) {
-			/* depth was changed. we have to realloc path */
-			kfree(path);
-			path = NULL;
+		if (exists) {
+			err = fiemap_fill_next_extent(fieinfo,
+				(__u64)cbex.ec_block << blksize_bits,
+				(__u64)cbex.ec_start << blksize_bits,
+				(__u64)cbex.ec_len << blksize_bits,
+				flags);
+			if (err < 0)
+				break;
+			if (err == 1) {
+				err = 0;
+				break;
+			}
 		}
 
 		block = cbex.ec_block + cbex.ec_len;
@@ -4493,26 +4529,23 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 }
 
 /*
- * Callback function called for each extent to gather FIEMAP information.
+ * If newex is not existing extent (newex->ec_start equals zero) find
+ * delayed extent at start of newex and update newex accordingly and
+ * return start of the next delayed extent.
+ *
+ * If newex is existing extent (newex->ec_start is not equal zero)
+ * return start of next delayed extent or EXT_MAX_BLOCKS if no delayed
+ * extent found. Leave newex unmodified.
  */
-static int ext4_ext_fiemap_cb(struct inode *inode, ext4_lblk_t next,
-		       struct ext4_ext_cache *newex, struct ext4_extent *ex,
-		       void *data)
+static int ext4_find_delayed_extent(struct inode *inode,
+				    struct ext4_ext_cache *newex)
 {
 	struct extent_status es;
-	__u64	logical;
-	__u64	physical;
-	__u64	length;
-	__u32	flags = 0;
 	ext4_lblk_t next_del;
-	int		ret = 0;
-	struct fiemap_extent_info *fieinfo = data;
-	unsigned char blksize_bits;
 
 	es.start = newex->ec_block;
 	next_del = ext4_es_find_extent(inode, &es);
 
-	next = min(next_del, next);
 	if (newex->ec_start == 0) {
 		/*
 		 * No extent in extent-tree contains block @newex->ec_start,
@@ -4520,37 +4553,19 @@ static int ext4_ext_fiemap_cb(struct inode *inode, ext4_lblk_t next,
 		 */
 		if (es.len == 0)
 			/* A hole found. */
-			return EXT_CONTINUE;
+			return 0;
 
 		if (es.start > newex->ec_block) {
 			/* A hole found. */
 			newex->ec_len = min(es.start - newex->ec_block,
 					    newex->ec_len);
-			return EXT_CONTINUE;
+			return 0;
 		}
 
-		flags |= FIEMAP_EXTENT_DELALLOC;
 		newex->ec_len = es.start + es.len - newex->ec_block;
 	}
 
-	if (ex && ext4_ext_is_uninitialized(ex))
-		flags |= FIEMAP_EXTENT_UNWRITTEN;
-
-	if (next == EXT_MAX_BLOCKS)
-		flags |= FIEMAP_EXTENT_LAST;
-
-	blksize_bits = inode->i_sb->s_blocksize_bits;
-	logical = (__u64)newex->ec_block << blksize_bits;
-	physical = (__u64)newex->ec_start << blksize_bits;
-	length =   (__u64)newex->ec_len << blksize_bits;
-
-	ret = fiemap_fill_next_extent(fieinfo, logical, physical,
-					length, flags);
-	if (ret < 0)
-		return ret;
-	if (ret == 1)
-		return EXT_BREAK;
-	return EXT_CONTINUE;
+	return next_del;
 }
 /* fiemap flags we can handle specified here */
 #define EXT4_FIEMAP_FLAGS	(FIEMAP_FLAG_SYNC|FIEMAP_FLAG_XATTR)
@@ -4772,6 +4787,7 @@ out_mutex:
 	mutex_unlock(&inode->i_mutex);
 	return err;
 }
+
 int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		__u64 start, __u64 len)
 {
@@ -4799,11 +4815,11 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		len_blks = ((ext4_lblk_t) last_blk) - start_blk + 1;
 
 		/*
-		 * Walk the extent tree gathering extent information.
-		 * ext4_ext_fiemap_cb will push extents back to user.
+		 * Walk the extent tree gathering extent information
+		 * and pushing extents back to the user.
 		 */
-		error = ext4_ext_walk_space(inode, start_blk, len_blks,
-					  ext4_ext_fiemap_cb, fieinfo);
+		error = ext4_fill_fiemap_extents(inode, start_blk,
+						 len_blks, fieinfo);
 	}
 
 	return error;
