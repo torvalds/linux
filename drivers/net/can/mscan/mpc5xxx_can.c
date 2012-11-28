@@ -396,6 +396,7 @@ static const struct of_device_id __devinitconst mpc5xxx_can_table[] = {
 	{ .compatible = "fsl,mpc5121-mscan", .data = &mpc5121_can_data, },
 	{},
 };
+MODULE_DEVICE_TABLE(of, mpc5xxx_can_table);
 
 static struct platform_driver mpc5xxx_can_driver = {
 	.driver = {

@@ -979,11 +979,13 @@ static const struct of_device_id flexcan_of_match[] = {
 	{ .compatible = "fsl,imx6q-flexcan", .data = &fsl_imx6q_devtype_data, },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, flexcan_of_match);
 
 static const struct platform_device_id flexcan_id_table[] = {
 	{ .name = "flexcan", .driver_data = (kernel_ulong_t)&fsl_p1010_devtype_data, },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(platform, flexcan_id_table);
 
 static int __devinit flexcan_probe(struct platform_device *pdev)
 {

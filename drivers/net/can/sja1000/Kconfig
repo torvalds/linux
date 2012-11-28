@@ -21,7 +21,7 @@ config CAN_SJA1000_PLATFORM
 
 config CAN_SJA1000_OF_PLATFORM
 	tristate "Generic OF Platform Bus based SJA1000 driver"
-	depends on PPC_OF
+	depends on OF
 	---help---
 	  This driver adds support for the SJA1000 chips connected to
 	  the OpenFirmware "platform bus" found on embedded systems with

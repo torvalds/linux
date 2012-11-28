@@ -60,6 +60,7 @@
 MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 MODULE_DESCRIPTION("Socket-CAN driver for CC770 on the platform bus");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:" DRV_NAME);
 
 #define CC770_PLATFORM_CAN_CLOCK  16000000
 
@@ -258,6 +259,7 @@ static struct of_device_id __devinitdata cc770_platform_table[] = {
 	{.compatible = "intc,82527"},  /* AN82527 from Intel CP */
 	{},
 };
+MODULE_DEVICE_TABLE(of, cc770_platform_table);
 
 static struct platform_driver cc770_platform_driver = {
 	.driver = {
