@@ -971,6 +971,7 @@ static const struct platform_device_id sccnxp_id_table[] = {
 	{ "sc28202",	SCCNXP_TYPE_SC28202 },
 	{ "sc68681",	SCCNXP_TYPE_SC68681 },
 	{ "sc68692",	SCCNXP_TYPE_SC68692 },
+	{ },
 };
 MODULE_DEVICE_TABLE(platform, sccnxp_id_table);
 

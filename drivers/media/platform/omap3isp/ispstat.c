@@ -1025,7 +1025,7 @@ void omap3isp_stat_dma_isr(struct ispstat *stat)
 
 int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 				  struct v4l2_fh *fh,
-				  const struct v4l2_event_subscription *sub)
+				  struct v4l2_event_subscription *sub)
 {
 	struct ispstat *stat = v4l2_get_subdevdata(subdev);
 
@@ -1037,7 +1037,7 @@ int omap3isp_stat_subscribe_event(struct v4l2_subdev *subdev,
 
 int omap3isp_stat_unsubscribe_event(struct v4l2_subdev *subdev,
 				    struct v4l2_fh *fh,
-				    const struct v4l2_event_subscription *sub)
+				    struct v4l2_event_subscription *sub)
 {
 	return v4l2_event_unsubscribe(fh, sub);
 }

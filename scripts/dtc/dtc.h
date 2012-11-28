@@ -161,50 +161,26 @@ struct node {
 	struct label *labels;
 };
 
-static inline struct label *for_each_label_next(struct label *l)
-{
-	do {
-		l = l->next;
-	} while (l && l->deleted);
-
-	return l;
-}
-
-#define for_each_label(l0, l) \
-	for ((l) = (l0); (l); (l) = for_each_label_next(l))
-
 #define for_each_label_withdel(l0, l) \
 	for ((l) = (l0); (l); (l) = (l)->next)
 
-static inline struct property *for_each_property_next(struct property *p)
-{
-	do {
-		p = p->next;
-	} while (p && p->deleted);
-
-	return p;
-}
-
-#define for_each_property(n, p) \
-	for ((p) = (n)->proplist; (p); (p) = for_each_property_next(p))
+#define for_each_label(l0, l) \
+	for_each_label_withdel(l0, l) \
+		if (!(l)->deleted)
 
 #define for_each_property_withdel(n, p) \
 	for ((p) = (n)->proplist; (p); (p) = (p)->next)
 
-static inline struct node *for_each_child_next(struct node *c)
-{
-	do {
-		c = c->next_sibling;
-	} while (c && c->deleted);
-
-	return c;
-}
-
-#define for_each_child(n, c) \
-	for ((c) = (n)->children; (c); (c) = for_each_child_next(c))
+#define for_each_property(n, p) \
+	for_each_property_withdel(n, p) \
+		if (!(p)->deleted)
 
 #define for_each_child_withdel(n, c) \
 	for ((c) = (n)->children; (c); (c) = (c)->next_sibling)
+
+#define for_each_child(n, c) \
+	for_each_child_withdel(n, c) \
+		if (!(c)->deleted)
 
 void add_label(struct label **labels, char *label);
 void delete_labels(struct label **labels);

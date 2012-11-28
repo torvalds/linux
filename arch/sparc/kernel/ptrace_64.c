@@ -151,7 +151,7 @@ static int regwindow64_get(struct task_struct *target,
 {
 	unsigned long rw_addr = regs->u_regs[UREG_I6];
 
-	if (test_tsk_thread_flag(current, TIF_32BIT)) {
+	if (!test_thread_64bit_stack(rw_addr)) {
 		struct reg_window32 win32;
 		int i;
 
@@ -176,7 +176,7 @@ static int regwindow64_set(struct task_struct *target,
 {
 	unsigned long rw_addr = regs->u_regs[UREG_I6];
 
-	if (test_tsk_thread_flag(current, TIF_32BIT)) {
+	if (!test_thread_64bit_stack(rw_addr)) {
 		struct reg_window32 win32;
 		int i;
 

@@ -22,7 +22,7 @@
 
 /**
  * snd_soc_jack_new - Create a new jack
- * @card:  ASoC card
+ * @codec: ASoC codec
  * @id:    an identifying string for this jack
  * @type:  a bitmask of enum snd_jack_type values that can be detected by
  *         this jack
@@ -133,12 +133,13 @@ EXPORT_SYMBOL_GPL(snd_soc_jack_add_zones);
 
 /**
  * snd_soc_jack_get_type - Based on the mic bias value, this function returns
- * the type of jack from the zones delcared in the jack type
+ * the type of jack from the zones declared in the jack type
  *
+ * @jack:  ASoC jack
  * @micbias_voltage:  mic bias voltage at adc channel when jack is plugged in
  *
  * Based on the mic bias value passed, this function helps identify
- * the type of jack from the already delcared jack zones
+ * the type of jack from the already declared jack zones
  */
 int snd_soc_jack_get_type(struct snd_soc_jack *jack, int micbias_voltage)
 {

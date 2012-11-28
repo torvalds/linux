@@ -235,6 +235,7 @@ F:	drivers/platform/x86/acer-wmi.c
 
 ACPI
 M:	Len Brown <lenb@kernel.org>
+M:	Rafael J. Wysocki <rjw@sisk.pl>
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 Q:	http://patchwork.kernel.org/project/linux-acpi/list/
@@ -509,7 +510,7 @@ F:	include/linux/altera_uart.h
 F:	include/linux/altera_jtaguart.h
 
 AMD FAM15H PROCESSOR POWER MONITORING DRIVER
-M:	Andreas Herrmann <andreas.herrmann3@amd.com>
+M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/fam15h_power
@@ -532,17 +533,17 @@ F:	drivers/video/geode/
 F:	arch/x86/include/asm/geode.h
 
 AMD IOMMU (AMD-VI)
-M:	Joerg Roedel <joerg.roedel@amd.com>
+M:	Joerg Roedel <joro@8bytes.org>
 L:	iommu@lists.linux-foundation.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
-S:	Supported
+S:	Maintained
 F:	drivers/iommu/amd_iommu*.[ch]
 F:	include/linux/amd-iommu.h
 
 AMD MICROCODE UPDATE SUPPORT
-M:	Andreas Herrmann <andreas.herrmann3@amd.com>
+M:	Andreas Herrmann <herrmann.der.user@googlemail.com>
 L:	amd64-microcode@amd64.org
-S:	Supported
+S:	Maintained
 F:	arch/x86/kernel/microcode_amd.c
 
 AMS (Apple Motion Sensor) DRIVER
@@ -642,6 +643,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/
+
+ARM SUB-ARCHITECTURES
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	MAINTAINED
+F:	arch/arm/mach-*/
+F:	arch/arm/plat-*/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
 
 ARM PRIMECELL AACI PL041 DRIVER
 M:	Russell King <linux@arm.linux.org.uk>
@@ -839,6 +847,14 @@ S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kristoffer/linux-hpc.git
 F:	arch/arm/mach-sa1100/jornada720.c
 F:	arch/arm/mach-sa1100/include/mach/jornada720.h
+
+ARM/IGEP MACHINE SUPPORT
+M:	Enric Balletbo i Serra <eballetbo@gmail.com>
+M:	Javier Martinez Canillas <javier@dowhile0.org>
+L:	linux-omap@vger.kernel.org
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-omap2/board-igep0020.c
 
 ARM/INCOME PXA270 SUPPORT
 M:	Marek Vasut <marek.vasut@gmail.com>
@@ -2524,6 +2540,7 @@ M:	Joonyoung Shim <jy0922.shim@samsung.com>
 M:	Seung-Woo Kim <sw0312.kim@samsung.com>
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 L:	dri-devel@lists.freedesktop.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/daeinki/drm-exynos.git
 S:	Supported
 F:	drivers/gpu/drm/exynos
 F:	include/drm/exynos*
@@ -2724,10 +2741,10 @@ F:	include/linux/edac.h
 
 EDAC-AMD64
 M:	Doug Thompson <dougthompson@xmission.com>
-M:	Borislav Petkov <borislav.petkov@amd.com>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
-S:	Supported
+S:	Maintained
 F:	drivers/edac/amd64_edac*
 
 EDAC-E752X
@@ -2826,6 +2843,7 @@ F:	sound/usb/misc/ua101.c
 EXTENSIBLE FIRMWARE INTERFACE (EFI)
 M:	Matt Fleming <matt.fleming@intel.com>
 L:	linux-efi@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
 S:	Maintained
 F:	Documentation/x86/efi-stub.txt
 F:	arch/ia64/kernel/efi.c
@@ -3629,6 +3647,49 @@ F:	drivers/hid/hid-hyperv.c
 F:	drivers/net/hyperv/
 F:	drivers/staging/hv/
 
+I2C OVER PARALLEL PORT
+M:	Jean Delvare <khali@linux-fr.org>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/i2c/busses/i2c-parport
+F:	Documentation/i2c/busses/i2c-parport-light
+F:	drivers/i2c/busses/i2c-parport.c
+F:	drivers/i2c/busses/i2c-parport-light.c
+
+I2C/SMBUS CONTROLLER DRIVERS FOR PC
+M:	Jean Delvare <khali@linux-fr.org>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/i2c/busses/i2c-ali1535
+F:	Documentation/i2c/busses/i2c-ali1563
+F:	Documentation/i2c/busses/i2c-ali15x3
+F:	Documentation/i2c/busses/i2c-amd756
+F:	Documentation/i2c/busses/i2c-amd8111
+F:	Documentation/i2c/busses/i2c-i801
+F:	Documentation/i2c/busses/i2c-nforce2
+F:	Documentation/i2c/busses/i2c-piix4
+F:	Documentation/i2c/busses/i2c-sis5595
+F:	Documentation/i2c/busses/i2c-sis630
+F:	Documentation/i2c/busses/i2c-sis96x
+F:	Documentation/i2c/busses/i2c-via
+F:	Documentation/i2c/busses/i2c-viapro
+F:	drivers/i2c/busses/i2c-ali1535.c
+F:	drivers/i2c/busses/i2c-ali1563.c
+F:	drivers/i2c/busses/i2c-ali15x3.c
+F:	drivers/i2c/busses/i2c-amd756.c
+F:	drivers/i2c/busses/i2c-amd756-s4882.c
+F:	drivers/i2c/busses/i2c-amd8111.c
+F:	drivers/i2c/busses/i2c-i801.c
+F:	drivers/i2c/busses/i2c-isch.c
+F:	drivers/i2c/busses/i2c-nforce2.c
+F:	drivers/i2c/busses/i2c-nforce2-s4985.c
+F:	drivers/i2c/busses/i2c-piix4.c
+F:	drivers/i2c/busses/i2c-sis5595.c
+F:	drivers/i2c/busses/i2c-sis630.c
+F:	drivers/i2c/busses/i2c-sis96x.c
+F:	drivers/i2c/busses/i2c-via.c
+F:	drivers/i2c/busses/i2c-viapro.c
+
 I2C/SMBUS STUB DRIVER
 M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
 L:	linux-i2c@vger.kernel.org
@@ -3636,9 +3697,8 @@ S:	Maintained
 F:	drivers/i2c/busses/i2c-stub.c
 
 I2C SUBSYSTEM
-M:	"Jean Delvare (PC drivers, core)" <khali@linux-fr.org>
+M:	Wolfram Sang <w.sang@pengutronix.de>
 M:	"Ben Dooks (embedded platforms)" <ben-linux@fluff.org>
-M:	"Wolfram Sang (embedded platforms)" <w.sang@pengutronix.de>
 L:	linux-i2c@vger.kernel.org
 W:	http://i2c.wiki.kernel.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
@@ -3648,6 +3708,13 @@ F:	Documentation/i2c/
 F:	drivers/i2c/
 F:	include/linux/i2c.h
 F:	include/linux/i2c-*.h
+
+I2C-TAOS-EVM DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	linux-i2c@vger.kernel.org
+S:	Maintained
+F:	Documentation/i2c/busses/i2c-taos-evm
+F:	drivers/i2c/busses/i2c-taos-evm.c
 
 I2C-TINY-USB DRIVER
 M:	Till Harbaum <till@harbaum.org>
@@ -3735,7 +3802,7 @@ S:	Maintained
 F:	drivers/platform/x86/ideapad-laptop.c
 
 IDE/ATAPI DRIVERS
-M:	Borislav Petkov <petkovbb@gmail.com>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
 F:	Documentation/cdrom/ide-cd
@@ -4292,8 +4359,8 @@ F:	include/linux/lockd/
 F:	include/linux/sunrpc/
 
 KERNEL VIRTUAL MACHINE (KVM)
-M:	Avi Kivity <avi@redhat.com>
 M:	Marcelo Tosatti <mtosatti@redhat.com>
+M:	Gleb Natapov <gleb@redhat.com>
 L:	kvm@vger.kernel.org
 W:	http://kvm.qumranet.com
 S:	Supported
@@ -4443,7 +4510,7 @@ F:	Documentation/scsi/53c700.txt
 F:	drivers/scsi/53c700*
 
 LED SUBSYSTEM
-M:	Bryan Wu <bryan.wu@canonical.com>
+M:	Bryan Wu <cooloney@gmail.com>
 M:	Richard Purdie <rpurdie@rpsys.net>
 L:	linux-leds@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/cooloney/linux-leds.git
@@ -5118,6 +5185,20 @@ F:	net/ipv6/
 F:	include/net/ip*
 F:	arch/x86/net/*
 
+NETWORKING [IPSEC]
+M:	Steffen Klassert <steffen.klassert@secunet.com>
+M:	Herbert Xu <herbert@gondor.apana.org.au>
+M:	"David S. Miller" <davem@davemloft.net>
+L:	netdev@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net.git
+S:	Maintained
+F:	net/xfrm/
+F:	net/key/
+F:	net/ipv4/xfrm*
+F:	net/ipv6/xfrm*
+F:	include/uapi/linux/xfrm.h
+F:	include/net/xfrm.h
+
 NETWORKING [LABELED] (NetLabel, CIPSO, Labeled IPsec, SECMARK)
 M:	Paul Moore <paul@paul-moore.com>
 L:	netdev@vger.kernel.org
@@ -5145,7 +5226,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
 S:	Odd Fixes
 F:	drivers/net/
 F:	include/linux/if_*
-F:	include/linux/*device.h
+F:	include/linux/netdevice.h
+F:	include/linux/arcdevice.h
+F:	include/linux/etherdevice.h
+F:	include/linux/fcdevice.h
+F:	include/linux/fddidevice.h
+F:	include/linux/hippidevice.h
+F:	include/linux/inetdevice.h
 
 NETXEN (1/10) GbE SUPPORT
 M:	Sony Chacko <sony.chacko@qlogic.com>
@@ -5433,7 +5520,7 @@ S:	Maintained
 F:	sound/drivers/opl4/
 
 OPROFILE
-M:	Robert Richter <robert.richter@amd.com>
+M:	Robert Richter <rric@kernel.org>
 L:	oprofile-list@lists.sf.net
 S:	Maintained
 F:	arch/*/include/asm/oprofile*.h
@@ -5717,7 +5804,7 @@ S:	Maintained
 F:	drivers/pinctrl/spear/
 
 PKTCDVD DRIVER
-M:	Peter Osterlund <petero2@telia.com>
+M:	Jiri Kosina <jkosina@suse.cz>
 S:	Maintained
 F:	drivers/block/pktcdvd.c
 F:	include/linux/pktcdvd.h
@@ -7361,6 +7448,14 @@ L:	linux-xtensa@linux-xtensa.org
 S:	Maintained
 F:	arch/xtensa/
 
+THERMAL
+M:      Zhang Rui <rui.zhang@intel.com>
+L:      linux-pm@vger.kernel.org
+T:      git git://git.kernel.org/pub/scm/linux/kernel/git/rzhang/linux.git
+S:      Supported
+F:      drivers/thermal/
+F:      include/linux/thermal.h
+
 THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>
 L:	ibm-acpi-devel@lists.sourceforge.net
@@ -7921,6 +8016,13 @@ S:	Maintained
 F:	drivers/media/usb/uvc/
 F:	include/uapi/linux/uvcvideo.h
 
+USB WEBCAM GADGET
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/gadget/*uvc*.c
+F:	drivers/usb/gadget/webcam.c
+
 USB WIRELESS RNDIS DRIVER (rndis_wlan)
 M:	Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
 L:	linux-wireless@vger.kernel.org
@@ -8039,13 +8141,6 @@ VIA RHINE NETWORK DRIVER
 M:	Roger Luethi <rl@hellgate.ch>
 S:	Maintained
 F:	drivers/net/ethernet/via/via-rhine.c
-
-VIAPRO SMBUS DRIVER
-M:	Jean Delvare <khali@linux-fr.org>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/i2c/busses/i2c-viapro
-F:	drivers/i2c/busses/i2c-viapro.c
 
 VIA SD/MMC CARD CONTROLLER DRIVER
 M:	Bruce Chang <brucechang@via.com.tw>
@@ -8301,7 +8396,7 @@ F:	drivers/platform/x86
 
 X86 MCE INFRASTRUCTURE
 M:	Tony Luck <tony.luck@intel.com>
-M:	Borislav Petkov <bp@amd64.org>
+M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	arch/x86/kernel/cpu/mcheck/*

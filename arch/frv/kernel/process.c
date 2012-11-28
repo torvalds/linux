@@ -181,6 +181,9 @@ int copy_thread(unsigned long clone_flags,
 	childregs = (struct pt_regs *)
 		(task_stack_page(p) + THREAD_SIZE - FRV_FRAME0_SIZE);
 
+	/* set up the userspace frame (the only place that the USP is stored) */
+	*childregs = *__kernel_frame0_ptr;
+
 	p->set_child_tid = p->clear_child_tid = NULL;
 
 	p->thread.frame	 = childregs;
@@ -191,10 +194,8 @@ int copy_thread(unsigned long clone_flags,
 	p->thread.frame0 = childregs;
 
 	if (unlikely(!regs)) {
-		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->gr9 = usp; /* function */
 		childregs->gr8 = arg;
-		chilregs->psr = PSR_S;
 		p->thread.pc = (unsigned long) ret_from_kernel_thread;
 		save_user_regs(p->thread.user);
 		return 0;

@@ -79,6 +79,7 @@ nvc0_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.pll_set = nvc0_clock_pll_set;
+	priv->base.pll_calc = nva3_clock_pll_calc;
 	return 0;
 }
 

@@ -343,53 +343,50 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 static int fimc_register_callback(struct device *dev, void *p)
 {
 	struct fimc_dev *fimc = dev_get_drvdata(dev);
-	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+	struct v4l2_subdev *sd;
 	struct fimc_md *fmd = p;
-	int ret = 0;
+	int ret;
 
-	if (!fimc || !fimc->pdev)
+	if (fimc == NULL || fimc->id >= FIMC_MAX_DEVS)
 		return 0;
 
-	if (fimc->pdev->id < 0 || fimc->pdev->id >= FIMC_MAX_DEVS)
-		return 0;
-
-	fimc->pipeline_ops = &fimc_pipeline_ops;
-	fmd->fimc[fimc->pdev->id] = fimc;
+	sd = &fimc->vid_cap.subdev;
 	sd->grp_id = FIMC_GROUP_ID;
 
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
 	if (ret) {
 		v4l2_err(&fmd->v4l2_dev, "Failed to register FIMC.%d (%d)\n",
 			 fimc->id, ret);
+		return ret;
 	}
 
-	return ret;
+	fimc->pipeline_ops = &fimc_pipeline_ops;
+	fmd->fimc[fimc->id] = fimc;
+	return 0;
 }
 
 static int fimc_lite_register_callback(struct device *dev, void *p)
 {
 	struct fimc_lite *fimc = dev_get_drvdata(dev);
-	struct v4l2_subdev *sd = &fimc->subdev;
 	struct fimc_md *fmd = p;
 	int ret;
 
-	if (fimc == NULL)
+	if (fimc == NULL || fimc->index >= FIMC_LITE_MAX_DEVS)
 		return 0;
 
-	if (fimc->index >= FIMC_LITE_MAX_DEVS)
-		return 0;
+	fimc->subdev.grp_id = FLITE_GROUP_ID;
 
-	fimc->pipeline_ops = &fimc_pipeline_ops;
-	fmd->fimc_lite[fimc->index] = fimc;
-	sd->grp_id = FLITE_GROUP_ID;
-
-	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
+	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, &fimc->subdev);
 	if (ret) {
 		v4l2_err(&fmd->v4l2_dev,
 			 "Failed to register FIMC-LITE.%d (%d)\n",
 			 fimc->index, ret);
+		return ret;
 	}
-	return ret;
+
+	fimc->pipeline_ops = &fimc_pipeline_ops;
+	fmd->fimc_lite[fimc->index] = fimc;
+	return 0;
 }
 
 static int csis_register_callback(struct device *dev, void *p)
@@ -407,10 +404,12 @@ static int csis_register_callback(struct device *dev, void *p)
 	v4l2_info(sd, "csis%d sd: %s\n", pdev->id, sd->name);
 
 	id = pdev->id < 0 ? 0 : pdev->id;
-	fmd->csis[id].sd = sd;
 	sd->grp_id = CSIS_GROUP_ID;
+
 	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
-	if (ret)
+	if (!ret)
+		fmd->csis[id].sd = sd;
+	else
 		v4l2_err(&fmd->v4l2_dev,
 			 "Failed to register CSIS subdevice: %d\n", ret);
 	return ret;

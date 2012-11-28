@@ -86,26 +86,26 @@ static inline void invalidate_dtlb_entry_no_isync (unsigned entry)
 
 static inline void set_itlbcfg_register (unsigned long val)
 {
-	__asm__ __volatile__("wsr  %0, "__stringify(ITLBCFG)"\n\t" "isync\n\t"
+	__asm__ __volatile__("wsr  %0, itlbcfg\n\t" "isync\n\t"
 			     : : "a" (val));
 }
 
 static inline void set_dtlbcfg_register (unsigned long val)
 {
-	__asm__ __volatile__("wsr  %0, "__stringify(DTLBCFG)"; dsync\n\t"
+	__asm__ __volatile__("wsr  %0, dtlbcfg; dsync\n\t"
 	    		     : : "a" (val));
 }
 
 static inline void set_ptevaddr_register (unsigned long val)
 {
-	__asm__ __volatile__(" wsr  %0, "__stringify(PTEVADDR)"; isync\n"
+	__asm__ __volatile__(" wsr  %0, ptevaddr; isync\n"
 			     : : "a" (val));
 }
 
 static inline unsigned long read_ptevaddr_register (void)
 {
 	unsigned long tmp;
-	__asm__ __volatile__("rsr  %0, "__stringify(PTEVADDR)"\n\t" : "=a" (tmp));
+	__asm__ __volatile__("rsr  %0, ptevaddr\n\t" : "=a" (tmp));
 	return tmp;
 }
 

@@ -108,9 +108,8 @@ void __init imx3_init_l2x0(void)
 	}
 
 	l2x0_base = ioremap(MX3x_L2CC_BASE_ADDR, 4096);
-	if (IS_ERR(l2x0_base)) {
-		printk(KERN_ERR "remapping L2 cache area failed with %ld\n",
-				PTR_ERR(l2x0_base));
+	if (!l2x0_base) {
+		printk(KERN_ERR "remapping L2 cache area failed\n");
 		return;
 	}
 

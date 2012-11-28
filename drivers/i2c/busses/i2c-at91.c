@@ -39,6 +39,7 @@
 #define	AT91_TWI_STOP		0x0002	/* Send a Stop Condition */
 #define	AT91_TWI_MSEN		0x0004	/* Master Transfer Enable */
 #define	AT91_TWI_SVDIS		0x0020	/* Slave Transfer Disable */
+#define	AT91_TWI_QUICK		0x0040	/* SMBus quick command */
 #define	AT91_TWI_SWRST		0x0080	/* Software Reset */
 
 #define	AT91_TWI_MMR		0x0004	/* Master Mode Register */
@@ -212,7 +213,11 @@ static int at91_do_twi_transfer(struct at91_twi_dev *dev)
 
 	INIT_COMPLETION(dev->cmd_complete);
 	dev->transfer_status = 0;
-	if (dev->msg->flags & I2C_M_RD) {
+
+	if (!dev->buf_len) {
+		at91_twi_write(dev, AT91_TWI_CR, AT91_TWI_QUICK);
+		at91_twi_write(dev, AT91_TWI_IER, AT91_TWI_TXCOMP);
+	} else if (dev->msg->flags & I2C_M_RD) {
 		unsigned start_flags = AT91_TWI_START;
 
 		if (at91_twi_read(dev, AT91_TWI_SR) & AT91_TWI_RXRDY) {

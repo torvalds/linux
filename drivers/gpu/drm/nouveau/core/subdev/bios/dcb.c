@@ -43,7 +43,7 @@ dcb_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 	*ver = nv_ro08(bios, dcb);
 
 	if (*ver >= 0x41) {
-		nv_warn(bios, "DCB *ver 0x%02x unknown\n", *ver);
+		nv_warn(bios, "DCB version 0x%02x unknown\n", *ver);
 		return 0x0000;
 	} else
 	if (*ver >= 0x30) {
@@ -64,7 +64,7 @@ dcb_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *cnt, u8 *len)
 		}
 	} else
 	if (*ver >= 0x15) {
-		if (!nv_strncmp(bios, dcb - 7, 7, "DEV_REC")) {
+		if (!nv_memcmp(bios, dcb - 7, "DEV_REC", 7)) {
 			u16 i2c = nv_ro16(bios, dcb + 2);
 			*hdr = 4;
 			*cnt = (i2c - dcb) / 10;

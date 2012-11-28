@@ -66,6 +66,24 @@ nva3_clock_pll_set(struct nouveau_clock *clk, u32 type, u32 freq)
 	return ret;
 }
 
+int
+nva3_clock_pll_calc(struct nouveau_clock *clock, struct nvbios_pll *info,
+		    int clk, struct nouveau_pll_vals *pv)
+{
+	int ret, N, M, P;
+
+	ret = nva3_pll_calc(clock, info, clk, &N, NULL, &M, &P);
+
+	if (ret > 0) {
+		pv->refclk = info->refclk;
+		pv->N1 = N;
+		pv->M1 = M;
+		pv->log2P = P;
+	}
+	return ret;
+}
+
+
 static int
 nva3_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		struct nouveau_oclass *oclass, void *data, u32 size,
@@ -80,6 +98,7 @@ nva3_clock_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	priv->base.pll_set = nva3_clock_pll_set;
+	priv->base.pll_calc = nva3_clock_pll_calc;
 	return 0;
 }
 

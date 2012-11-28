@@ -330,9 +330,6 @@ static void update_pkey_index(struct mlx4_dev *dev, int slave,
 
 	new_index = priv->virt2phys_pkey[slave][port - 1][orig_index];
 	*(u8 *)(inbox->buf + 35) = new_index;
-
-	mlx4_dbg(dev, "port = %d, orig pkey index = %d, "
-		 "new pkey index = %d\n", port, orig_index, new_index);
 }
 
 static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
@@ -351,9 +348,6 @@ static void update_gid(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *inbox,
 		if (optpar & MLX4_QP_OPTPAR_ALT_ADDR_PATH)
 			qp_ctx->alt_path.mgid_index = slave & 0x7F;
 	}
-
-	mlx4_dbg(dev, "slave %d, new gid index: 0x%x ",
-		slave, qp_ctx->pri_path.mgid_index);
 }
 
 static int mpt_mask(struct mlx4_dev *dev)

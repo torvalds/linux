@@ -185,17 +185,20 @@ static int __devinit mdio_gpio_probe(struct platform_device *pdev)
 {
 	struct mdio_gpio_platform_data *pdata;
 	struct mii_bus *new_bus;
-	int ret;
+	int ret, bus_id;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_node) {
 		pdata = mdio_gpio_of_get_data(pdev);
-	else
+		bus_id = of_alias_get_id(pdev->dev.of_node, "mdio-gpio");
+	} else {
 		pdata = pdev->dev.platform_data;
+		bus_id = pdev->id;
+	}
 
 	if (!pdata)
 		return -ENODEV;
 
-	new_bus = mdio_gpio_bus_init(&pdev->dev, pdata, pdev->id);
+	new_bus = mdio_gpio_bus_init(&pdev->dev, pdata, bus_id);
 	if (!new_bus)
 		return -ENODEV;
 
