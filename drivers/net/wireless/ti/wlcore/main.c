@@ -1200,8 +1200,8 @@ static void wl1271_op_tx(struct ieee80211_hw *hw,
 	 */
 	if (hlid == WL12XX_INVALID_LINK_ID ||
 	    (!test_bit(hlid, wlvif->links_map)) ||
-	     (wlcore_is_queue_stopped(wl, wlvif, q) &&
-	      !wlcore_is_queue_stopped_by_reason(wl, wlvif, q,
+	     (wlcore_is_queue_stopped_locked(wl, wlvif, q) &&
+	      !wlcore_is_queue_stopped_by_reason_locked(wl, wlvif, q,
 			WLCORE_QUEUE_STOP_REASON_WATERMARK))) {
 		wl1271_debug(DEBUG_TX, "DROP skb hlid %d q %d", hlid, q);
 		ieee80211_free_txskb(hw, skb);
@@ -1220,7 +1220,7 @@ static void wl1271_op_tx(struct ieee80211_hw *hw,
 	 * the queue here, otherwise the queue will get too long.
 	 */
 	if (wlvif->tx_queue_count[q] >= WL1271_TX_QUEUE_HIGH_WATERMARK &&
-	    !wlcore_is_queue_stopped_by_reason(wl, wlvif, q,
+	    !wlcore_is_queue_stopped_by_reason_locked(wl, wlvif, q,
 					WLCORE_QUEUE_STOP_REASON_WATERMARK)) {
 		wl1271_debug(DEBUG_TX, "op_tx: stopping queues for q %d", q);
 		wlcore_stop_queue_locked(wl, wlvif, q,
@@ -3229,10 +3229,7 @@ static int wlcore_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		 * stop the queues and flush to ensure the next packets are
 		 * in sync with FW spare block accounting
 		 */
-		mutex_lock(&wl->mutex);
 		wlcore_stop_queues(wl, WLCORE_QUEUE_STOP_REASON_SPARE_BLK);
-		mutex_unlock(&wl->mutex);
-
 		wl1271_tx_flush(wl);
 	}
 

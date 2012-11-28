@@ -268,8 +268,13 @@ void wlcore_wake_queues(struct wl1271 *wl,
 bool wlcore_is_queue_stopped_by_reason(struct wl1271 *wl,
 				       struct wl12xx_vif *wlvif, u8 queue,
 				       enum wlcore_queue_stop_reason reason);
-bool wlcore_is_queue_stopped(struct wl1271 *wl, struct wl12xx_vif *wlvif,
-			     u8 queue);
+bool
+wlcore_is_queue_stopped_by_reason_locked(struct wl1271 *wl,
+					 struct wl12xx_vif *wlvif,
+					 u8 queue,
+					 enum wlcore_queue_stop_reason reason);
+bool wlcore_is_queue_stopped_locked(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+				    u8 queue);
 
 /* from main.c */
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid);
