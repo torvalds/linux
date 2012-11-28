@@ -1197,11 +1197,13 @@ int of_reconfig_notifier_register(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&of_reconfig_chain, nb);
 }
+EXPORT_SYMBOL_GPL(of_reconfig_notifier_register);
 
 int of_reconfig_notifier_unregister(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_unregister(&of_reconfig_chain, nb);
 }
+EXPORT_SYMBOL_GPL(of_reconfig_notifier_unregister);
 
 int of_reconfig_notify(unsigned long action, void *p)
 {
