@@ -128,7 +128,6 @@ enum wl_mode {
 
 /* dongle configuration */
 struct brcmf_cfg80211_conf {
-	u32 mode;		/* adhoc , infrastructure or ap */
 	u32 frag_threshold;
 	u32 rts_threshold;
 	u32 retry_short;
