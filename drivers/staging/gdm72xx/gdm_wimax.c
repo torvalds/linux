@@ -168,24 +168,13 @@ static void dump_eth_packet(const char *title, u8 *data, int len)
 		get_ip_protocol_name(ip_protocol),
 		get_port_name(port));
 
-	#if 1
 	if (!(data[0] == 0xff && data[1] == 0xff)) {
 		if (protocol == ETH_P_IP) {
-			printk(KERN_DEBUG "     src=%u.%u.%u.%u\n",
-				((unsigned char *)&(ih->saddr))[0],
-				((unsigned char *)&(ih->saddr))[1],
-				((unsigned char *)&(ih->saddr))[2],
-				((unsigned char *)&(ih->saddr))[3]);
+			printk(KERN_DEBUG "     src=%pI4\n", &ih->saddr);
 		} else if (protocol == ETH_P_IPV6) {
-			#ifdef NIP6
-			printk(KERN_DEBUG "     src=%x:%x:%x:%x:%x:%x:%x:%x\n",
-				NIP6(ih->saddr));
-			#else
 			printk(KERN_DEBUG "     src=%pI6\n", &ih->saddr);
-			#endif
 		}
 	}
-	#endif
 
 	#if (DUMP_PACKET & DUMP_SDU_ALL)
 	printk_hex(data, len);
