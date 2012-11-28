@@ -268,14 +268,18 @@ static int hpp__width_delta(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_delta(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%7.7s";
 	char buf[32] = " ";
-	double diff;
+	double diff = 0.0;
 
-	if (he->diff.computed)
-		diff = he->diff.period_ratio_delta;
-	else
-		diff = perf_diff__compute_delta(he);
+	if (pair) {
+		if (he->diff.computed)
+			diff = he->diff.period_ratio_delta;
+		else
+			diff = perf_diff__compute_delta(he, pair);
+	} else
+		diff = perf_diff__period_percent(he, he->stat.period);
 
 	if (fabs(diff) >= 0.01)
 		scnprintf(buf, sizeof(buf), "%+4.2F%%", diff);
@@ -297,14 +301,17 @@ static int hpp__width_ratio(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_ratio(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
 	char buf[32] = " ";
-	double ratio;
+	double ratio = 0.0;
 
-	if (he->diff.computed)
-		ratio = he->diff.period_ratio;
-	else
-		ratio = perf_diff__compute_ratio(he);
+	if (pair) {
+		if (he->diff.computed)
+			ratio = he->diff.period_ratio;
+		else
+			ratio = perf_diff__compute_ratio(he, pair);
+	}
 
 	if (ratio > 0.0)
 		scnprintf(buf, sizeof(buf), "%+14.6F", ratio);
@@ -326,14 +333,17 @@ static int hpp__width_wdiff(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_wdiff(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%14s";
 	char buf[32] = " ";
-	s64 wdiff;
+	s64 wdiff = 0;
 
-	if (he->diff.computed)
-		wdiff = he->diff.wdiff;
-	else
-		wdiff = perf_diff__compute_wdiff(he);
+	if (pair) {
+		if (he->diff.computed)
+			wdiff = he->diff.wdiff;
+		else
+			wdiff = perf_diff__compute_wdiff(he, pair);
+	}
 
 	if (wdiff != 0)
 		scnprintf(buf, sizeof(buf), "%14ld", wdiff);
