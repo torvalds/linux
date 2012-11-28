@@ -1255,154 +1255,13 @@ struct qlcnic_esw_statistics {
 	struct __qlcnic_esw_statistics tx;
 };
 
-struct qlcnic_common_entry_hdr {
-	u32	type;
-	u32	offset;
-	u32	cap_size;
-	u8	mask;
-	u8	rsvd[2];
-	u8	flags;
-} __packed;
-
-struct __crb {
-	u32	addr;
-	u8	stride;
-	u8	rsvd1[3];
-	u32	data_size;
-	u32	no_ops;
-	u32	rsvd2[4];
-} __packed;
-
-struct __ctrl {
-	u32	addr;
-	u8	stride;
-	u8	index_a;
-	u16	timeout;
-	u32	data_size;
-	u32	no_ops;
-	u8	opcode;
-	u8	index_v;
-	u8	shl_val;
-	u8	shr_val;
-	u32	val1;
-	u32	val2;
-	u32	val3;
-} __packed;
-
-struct __cache {
-	u32	addr;
-	u16	stride;
-	u16	init_tag_val;
-	u32	size;
-	u32	no_ops;
-	u32	ctrl_addr;
-	u32	ctrl_val;
-	u32	read_addr;
-	u8	read_addr_stride;
-	u8	read_addr_num;
-	u8	rsvd1[2];
-} __packed;
-
-struct __ocm {
-	u8	rsvd[8];
-	u32	size;
-	u32	no_ops;
-	u8	rsvd1[8];
-	u32	read_addr;
-	u32	read_addr_stride;
-} __packed;
-
-struct __mem {
-	u8	rsvd[24];
-	u32	addr;
-	u32	size;
-} __packed;
-
-struct __mux {
-	u32	addr;
-	u8	rsvd[4];
-	u32	size;
-	u32	no_ops;
-	u32	val;
-	u32	val_stride;
-	u32	read_addr;
-	u8	rsvd2[4];
-} __packed;
-
-struct __queue {
-	u32	sel_addr;
-	u16	stride;
-	u8	rsvd[2];
-	u32	size;
-	u32	no_ops;
-	u8	rsvd2[8];
-	u32	read_addr;
-	u8	read_addr_stride;
-	u8	read_addr_cnt;
-	u8	rsvd3[2];
-} __packed;
-
-struct qlcnic_dump_entry {
-	struct qlcnic_common_entry_hdr hdr;
-	union {
-		struct __crb	crb;
-		struct __cache	cache;
-		struct __ocm	ocm;
-		struct __mem	mem;
-		struct __mux	mux;
-		struct __queue	que;
-		struct __ctrl	ctrl;
-	} region;
-} __packed;
-
-enum op_codes {
-	QLCNIC_DUMP_NOP		= 0,
-	QLCNIC_DUMP_READ_CRB	= 1,
-	QLCNIC_DUMP_READ_MUX	= 2,
-	QLCNIC_DUMP_QUEUE	= 3,
-	QLCNIC_DUMP_BRD_CONFIG	= 4,
-	QLCNIC_DUMP_READ_OCM	= 6,
-	QLCNIC_DUMP_PEG_REG	= 7,
-	QLCNIC_DUMP_L1_DTAG	= 8,
-	QLCNIC_DUMP_L1_ITAG	= 9,
-	QLCNIC_DUMP_L1_DATA	= 11,
-	QLCNIC_DUMP_L1_INST	= 12,
-	QLCNIC_DUMP_L2_DTAG	= 21,
-	QLCNIC_DUMP_L2_ITAG	= 22,
-	QLCNIC_DUMP_L2_DATA	= 23,
-	QLCNIC_DUMP_L2_INST	= 24,
-	QLCNIC_DUMP_READ_ROM	= 71,
-	QLCNIC_DUMP_READ_MEM	= 72,
-	QLCNIC_DUMP_READ_CTRL	= 98,
-	QLCNIC_DUMP_TLHDR	= 99,
-	QLCNIC_DUMP_RDEND	= 255
-};
-
-#define QLCNIC_DUMP_WCRB	BIT_0
-#define QLCNIC_DUMP_RWCRB	BIT_1
-#define QLCNIC_DUMP_ANDCRB	BIT_2
-#define QLCNIC_DUMP_ORCRB	BIT_3
-#define QLCNIC_DUMP_POLLCRB	BIT_4
-#define QLCNIC_DUMP_RD_SAVE	BIT_5
-#define QLCNIC_DUMP_WRT_SAVED	BIT_6
-#define QLCNIC_DUMP_MOD_SAVE_ST	BIT_7
-#define QLCNIC_DUMP_SKIP	BIT_7
-
-#define QLCNIC_DUMP_MASK_MIN		3
 #define QLCNIC_DUMP_MASK_DEF		0x1f
-#define QLCNIC_DUMP_MASK_MAX		0xff
 #define QLCNIC_FORCE_FW_DUMP_KEY	0xdeadfeed
 #define QLCNIC_ENABLE_FW_DUMP		0xaddfeed
 #define QLCNIC_DISABLE_FW_DUMP		0xbadfeed
 #define QLCNIC_FORCE_FW_RESET		0xdeaddead
 #define QLCNIC_SET_QUIESCENT		0xadd00010
 #define QLCNIC_RESET_QUIESCENT		0xadd00020
-
-struct qlcnic_dump_operations {
-	enum op_codes opcode;
-	u32 (*handler)(struct qlcnic_adapter *, struct qlcnic_dump_entry *,
-		       __le32 *);
-};
 
 struct _cdrp_cmd {
 	u32 cmd;
@@ -1460,6 +1319,8 @@ void qlcnic_pcie_sem_unlock(struct qlcnic_adapter *, int);
 
 #define __QLCNIC_MAX_LED_RATE	0xf
 #define __QLCNIC_MAX_LED_STATE	0x2
+
+#define MAX_CTL_CHECK 1000
 
 int qlcnic_get_board_info(struct qlcnic_adapter *adapter);
 int qlcnic_wol_supported(struct qlcnic_adapter *adapter);
