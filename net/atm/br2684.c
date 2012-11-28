@@ -69,6 +69,7 @@ struct br2684_vcc {
 	void (*old_push)(struct atm_vcc *vcc, struct sk_buff *skb);
 	void (*old_pop)(struct atm_vcc *vcc, struct sk_buff *skb);
 	void (*old_release_cb)(struct atm_vcc *vcc);
+	struct module *old_owner;
 	enum br2684_encaps encaps;
 	struct list_head brvccs;
 #ifdef CONFIG_ATM_BR2684_IPFILTER
@@ -414,8 +415,8 @@ static void br2684_close_vcc(struct br2684_vcc *brvcc)
 	brvcc->atmvcc->user_back = NULL;	/* what about vcc->recvq ??? */
 	brvcc->atmvcc->release_cb = brvcc->old_release_cb;
 	brvcc->old_push(brvcc->atmvcc, NULL);	/* pass on the bad news */
+	module_put(brvcc->old_owner);
 	kfree(brvcc);
-	module_put(THIS_MODULE);
 }
 
 /* when AAL5 PDU comes in: */
@@ -590,10 +591,12 @@ static int br2684_regvcc(struct atm_vcc *atmvcc, void __user * arg)
 	brvcc->old_push = atmvcc->push;
 	brvcc->old_pop = atmvcc->pop;
 	brvcc->old_release_cb = atmvcc->release_cb;
+	brvcc->old_owner = atmvcc->owner;
 	barrier();
 	atmvcc->push = br2684_push;
 	atmvcc->pop = br2684_pop;
 	atmvcc->release_cb = br2684_release_cb;
+	atmvcc->owner = THIS_MODULE;
 
 	/* initialize netdev carrier state */
 	if (atmvcc->dev->signal == ATM_PHY_SIG_LOST)
