@@ -22,7 +22,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 
-#define EFX_SPI_VERIFY_BUF_LEN 16
+#define FALCON_SPI_VERIFY_BUF_LEN 16
 
 struct efx_mtd_partition {
 	struct mtd_info mtd;
@@ -50,7 +50,7 @@ struct efx_mtd_ops {
 struct efx_mtd {
 	struct list_head node;
 	struct efx_nic *efx;
-	const struct efx_spi_device *spi;
+	const struct falcon_spi_device *spi;
 	const char *name;
 	const struct efx_mtd_ops *ops;
 	size_t n_parts;
@@ -71,10 +71,10 @@ static int siena_mtd_probe(struct efx_nic *efx);
 /* SPI utilities */
 
 static int
-efx_spi_slow_wait(struct efx_mtd_partition *part, bool uninterruptible)
+falcon_spi_slow_wait(struct efx_mtd_partition *part, bool uninterruptible)
 {
 	struct efx_mtd *efx_mtd = part->mtd.priv;
-	const struct efx_spi_device *spi = efx_mtd->spi;
+	const struct falcon_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
 	u8 status;
 	int rc, i;
@@ -98,7 +98,7 @@ efx_spi_slow_wait(struct efx_mtd_partition *part, bool uninterruptible)
 }
 
 static int
-efx_spi_unlock(struct efx_nic *efx, const struct efx_spi_device *spi)
+falcon_spi_unlock(struct efx_nic *efx, const struct falcon_spi_device *spi)
 {
 	const u8 unlock_mask = (SPI_STATUS_BP2 | SPI_STATUS_BP1 |
 				SPI_STATUS_BP0);
@@ -133,14 +133,14 @@ efx_spi_unlock(struct efx_nic *efx, const struct efx_spi_device *spi)
 }
 
 static int
-efx_spi_erase(struct efx_mtd_partition *part, loff_t start, size_t len)
+falcon_spi_erase(struct efx_mtd_partition *part, loff_t start, size_t len)
 {
 	struct efx_mtd *efx_mtd = part->mtd.priv;
-	const struct efx_spi_device *spi = efx_mtd->spi;
+	const struct falcon_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
 	unsigned pos, block_len;
-	u8 empty[EFX_SPI_VERIFY_BUF_LEN];
-	u8 buffer[EFX_SPI_VERIFY_BUF_LEN];
+	u8 empty[FALCON_SPI_VERIFY_BUF_LEN];
+	u8 buffer[FALCON_SPI_VERIFY_BUF_LEN];
 	int rc;
 
 	if (len != spi->erase_size)
@@ -149,7 +149,7 @@ efx_spi_erase(struct efx_mtd_partition *part, loff_t start, size_t len)
 	if (spi->erase_command == 0)
 		return -EOPNOTSUPP;
 
-	rc = efx_spi_unlock(efx, spi);
+	rc = falcon_spi_unlock(efx, spi);
 	if (rc)
 		return rc;
 	rc = falcon_spi_cmd(efx, spi, SPI_WREN, -1, NULL, NULL, 0);
@@ -159,7 +159,7 @@ efx_spi_erase(struct efx_mtd_partition *part, loff_t start, size_t len)
 			    NULL, 0);
 	if (rc)
 		return rc;
-	rc = efx_spi_slow_wait(part, false);
+	rc = falcon_spi_slow_wait(part, false);
 
 	/* Verify the entire region has been wiped */
 	memset(empty, 0xff, sizeof(empty));
@@ -319,7 +319,7 @@ static int falcon_mtd_read(struct mtd_info *mtd, loff_t start,
 {
 	struct efx_mtd_partition *part = to_efx_mtd_partition(mtd);
 	struct efx_mtd *efx_mtd = mtd->priv;
-	const struct efx_spi_device *spi = efx_mtd->spi;
+	const struct falcon_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
@@ -344,7 +344,7 @@ static int falcon_mtd_erase(struct mtd_info *mtd, loff_t start, size_t len)
 	rc = mutex_lock_interruptible(&nic_data->spi_lock);
 	if (rc)
 		return rc;
-	rc = efx_spi_erase(part, part->offset + start, len);
+	rc = falcon_spi_erase(part, part->offset + start, len);
 	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
@@ -354,7 +354,7 @@ static int falcon_mtd_write(struct mtd_info *mtd, loff_t start,
 {
 	struct efx_mtd_partition *part = to_efx_mtd_partition(mtd);
 	struct efx_mtd *efx_mtd = mtd->priv;
-	const struct efx_spi_device *spi = efx_mtd->spi;
+	const struct falcon_spi_device *spi = efx_mtd->spi;
 	struct efx_nic *efx = efx_mtd->efx;
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	int rc;
@@ -377,7 +377,7 @@ static int falcon_mtd_sync(struct mtd_info *mtd)
 	int rc;
 
 	mutex_lock(&nic_data->spi_lock);
-	rc = efx_spi_slow_wait(part, true);
+	rc = falcon_spi_slow_wait(part, true);
 	mutex_unlock(&nic_data->spi_lock);
 	return rc;
 }
@@ -392,14 +392,14 @@ static const struct efx_mtd_ops falcon_mtd_ops = {
 static int falcon_mtd_probe(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
-	struct efx_spi_device *spi;
+	struct falcon_spi_device *spi;
 	struct efx_mtd *efx_mtd;
 	int rc = -ENODEV;
 
 	ASSERT_RTNL();
 
 	spi = &nic_data->spi_flash;
-	if (efx_spi_present(spi) && spi->size > FALCON_FLASH_BOOTCODE_START) {
+	if (falcon_spi_present(spi) && spi->size > FALCON_FLASH_BOOTCODE_START) {
 		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
 				  GFP_KERNEL);
 		if (!efx_mtd)
@@ -425,7 +425,7 @@ static int falcon_mtd_probe(struct efx_nic *efx)
 	}
 
 	spi = &nic_data->spi_eeprom;
-	if (efx_spi_present(spi) && spi->size > EFX_EEPROM_BOOTCONFIG_START) {
+	if (falcon_spi_present(spi) && spi->size > FALCON_EEPROM_BOOTCONFIG_START) {
 		efx_mtd = kzalloc(sizeof(*efx_mtd) + sizeof(efx_mtd->part[0]),
 				  GFP_KERNEL);
 		if (!efx_mtd)
@@ -439,10 +439,10 @@ static int falcon_mtd_probe(struct efx_nic *efx)
 		efx_mtd->part[0].mtd.type = MTD_RAM;
 		efx_mtd->part[0].mtd.flags = MTD_CAP_RAM;
 		efx_mtd->part[0].mtd.size =
-			min(spi->size, EFX_EEPROM_BOOTCONFIG_END) -
-			EFX_EEPROM_BOOTCONFIG_START;
+			min(spi->size, FALCON_EEPROM_BOOTCONFIG_END) -
+			FALCON_EEPROM_BOOTCONFIG_START;
 		efx_mtd->part[0].mtd.erasesize = spi->erase_size;
-		efx_mtd->part[0].offset = EFX_EEPROM_BOOTCONFIG_START;
+		efx_mtd->part[0].offset = FALCON_EEPROM_BOOTCONFIG_START;
 		efx_mtd->part[0].type_name = "sfc_bootconfig";
 
 		rc = efx_mtd_probe_device(efx, efx_mtd);

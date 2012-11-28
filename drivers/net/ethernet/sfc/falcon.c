@@ -434,7 +434,7 @@ static int falcon_spi_wait(struct efx_nic *efx)
 	}
 }
 
-int falcon_spi_cmd(struct efx_nic *efx, const struct efx_spi_device *spi,
+int falcon_spi_cmd(struct efx_nic *efx, const struct falcon_spi_device *spi,
 		   unsigned int command, int address,
 		   const void *in, void *out, size_t len)
 {
@@ -491,22 +491,22 @@ int falcon_spi_cmd(struct efx_nic *efx, const struct efx_spi_device *spi,
 }
 
 static size_t
-falcon_spi_write_limit(const struct efx_spi_device *spi, size_t start)
+falcon_spi_write_limit(const struct falcon_spi_device *spi, size_t start)
 {
 	return min(FALCON_SPI_MAX_LEN,
 		   (spi->block_size - (start & (spi->block_size - 1))));
 }
 
 static inline u8
-efx_spi_munge_command(const struct efx_spi_device *spi,
-		      const u8 command, const unsigned int address)
+falcon_spi_munge_command(const struct falcon_spi_device *spi,
+			 const u8 command, const unsigned int address)
 {
 	return command | (((address >> 8) & spi->munge_address) << 3);
 }
 
 /* Wait up to 10 ms for buffered write completion */
 int
-falcon_spi_wait_write(struct efx_nic *efx, const struct efx_spi_device *spi)
+falcon_spi_wait_write(struct efx_nic *efx, const struct falcon_spi_device *spi)
 {
 	unsigned long timeout = jiffies + 1 + DIV_ROUND_UP(HZ, 100);
 	u8 status;
@@ -530,7 +530,7 @@ falcon_spi_wait_write(struct efx_nic *efx, const struct efx_spi_device *spi)
 	}
 }
 
-int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
+int falcon_spi_read(struct efx_nic *efx, const struct falcon_spi_device *spi,
 		    loff_t start, size_t len, size_t *retlen, u8 *buffer)
 {
 	size_t block_len, pos = 0;
@@ -540,7 +540,7 @@ int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
 	while (pos < len) {
 		block_len = min(len - pos, FALCON_SPI_MAX_LEN);
 
-		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		command = falcon_spi_munge_command(spi, SPI_READ, start + pos);
 		rc = falcon_spi_cmd(efx, spi, command, start + pos, NULL,
 				    buffer + pos, block_len);
 		if (rc)
@@ -561,7 +561,7 @@ int falcon_spi_read(struct efx_nic *efx, const struct efx_spi_device *spi,
 }
 
 int
-falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
+falcon_spi_write(struct efx_nic *efx, const struct falcon_spi_device *spi,
 		 loff_t start, size_t len, size_t *retlen, const u8 *buffer)
 {
 	u8 verify_buffer[FALCON_SPI_MAX_LEN];
@@ -576,7 +576,7 @@ falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
 
 		block_len = min(len - pos,
 				falcon_spi_write_limit(spi, start + pos));
-		command = efx_spi_munge_command(spi, SPI_WRITE, start + pos);
+		command = falcon_spi_munge_command(spi, SPI_WRITE, start + pos);
 		rc = falcon_spi_cmd(efx, spi, command, start + pos,
 				    buffer + pos, NULL, block_len);
 		if (rc)
@@ -586,7 +586,7 @@ falcon_spi_write(struct efx_nic *efx, const struct efx_spi_device *spi,
 		if (rc)
 			break;
 
-		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		command = falcon_spi_munge_command(spi, SPI_READ, start + pos);
 		rc = falcon_spi_cmd(efx, spi, command, start + pos,
 				    NULL, verify_buffer, block_len);
 		if (memcmp(verify_buffer, buffer + pos, block_len)) {
@@ -1481,15 +1481,15 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct falcon_nvconfig *nvconfig;
-	struct efx_spi_device *spi;
+	struct falcon_spi_device *spi;
 	void *region;
 	int rc, magic_num, struct_ver;
 	__le16 *word, *limit;
 	u32 csum;
 
-	if (efx_spi_present(&nic_data->spi_flash))
+	if (falcon_spi_present(&nic_data->spi_flash))
 		spi = &nic_data->spi_flash;
-	else if (efx_spi_present(&nic_data->spi_eeprom))
+	else if (falcon_spi_present(&nic_data->spi_eeprom))
 		spi = &nic_data->spi_eeprom;
 	else
 		return -EINVAL;
@@ -1504,7 +1504,7 @@ falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
 	mutex_unlock(&nic_data->spi_lock);
 	if (rc) {
 		netif_err(efx, hw, efx->net_dev, "Failed to read %s\n",
-			  efx_spi_present(&nic_data->spi_flash) ?
+			  falcon_spi_present(&nic_data->spi_flash) ?
 			  "flash" : "EEPROM");
 		rc = -EIO;
 		goto out;
@@ -1849,7 +1849,7 @@ static int falcon_reset_sram(struct efx_nic *efx)
 }
 
 static void falcon_spi_device_init(struct efx_nic *efx,
-				  struct efx_spi_device *spi_device,
+				  struct falcon_spi_device *spi_device,
 				  unsigned int device_id, u32 device_type)
 {
 	if (device_type != 0) {

@@ -184,8 +184,8 @@ struct falcon_nic_data {
 	bool stats_pending;
 	struct timer_list stats_timer;
 	u32 *stats_dma_done;
-	struct efx_spi_device spi_flash;
-	struct efx_spi_device spi_eeprom;
+	struct falcon_spi_device spi_flash;
+	struct falcon_spi_device spi_eeprom;
 	struct mutex spi_lock;
 	struct mutex mdio_lock;
 	bool xmac_poll_required;
