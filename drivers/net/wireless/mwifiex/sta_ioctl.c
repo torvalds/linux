@@ -161,8 +161,9 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	int ret;
 	u8 *beacon_ie;
 	struct mwifiex_bss_priv *bss_priv = (void *)bss->priv;
+	size_t beacon_ie_len = bss->len_information_elements;
 
-	beacon_ie = kmemdup(bss->information_elements, bss->len_beacon_ies,
+	beacon_ie = kmemdup(bss->information_elements, beacon_ie_len,
 			    GFP_KERNEL);
 	if (!beacon_ie) {
 		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
@@ -172,7 +173,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	memcpy(bss_desc->mac_address, bss->bssid, ETH_ALEN);
 	bss_desc->rssi = bss->signal;
 	bss_desc->beacon_buf = beacon_ie;
-	bss_desc->beacon_buf_size = bss->len_beacon_ies;
+	bss_desc->beacon_buf_size = beacon_ie_len;
 	bss_desc->beacon_period = bss->beacon_interval;
 	bss_desc->cap_info_bitmap = bss->capability;
 	bss_desc->bss_band = bss_priv->band;
