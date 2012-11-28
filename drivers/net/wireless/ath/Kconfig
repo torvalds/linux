@@ -1,4 +1,7 @@
-menuconfig ATH_COMMON
+config ATH_COMMON
+	tristate
+
+menuconfig ATH_CARDS
 	tristate "Atheros Wireless Cards"
 	depends on CFG80211 && (!UML || BROKEN)
 	---help---
@@ -14,7 +17,7 @@ menuconfig ATH_COMMON
 
 	  http://wireless.kernel.org/en/users/Drivers/Atheros
 
-if ATH_COMMON
+if ATH_CARDS
 
 config ATH_DEBUG
 	bool "Atheros wireless debugging"
