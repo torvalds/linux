@@ -30,62 +30,106 @@
 
 #include <linux/dma-buf.h>
 
-static struct sg_table *exynos_get_sgt(struct drm_device *drm_dev,
-					struct exynos_drm_gem_buf *buf)
+struct exynos_drm_dmabuf_attachment {
+	struct sg_table sgt;
+	enum dma_data_direction dir;
+};
+
+static int exynos_gem_attach_dma_buf(struct dma_buf *dmabuf,
+					struct device *dev,
+					struct dma_buf_attachment *attach)
 {
-	struct sg_table *sgt = NULL;
-	int ret;
+	struct exynos_drm_dmabuf_attachment *exynos_attach;
 
-	sgt = kzalloc(sizeof(*sgt), GFP_KERNEL);
-	if (!sgt)
-		goto out;
+	exynos_attach = kzalloc(sizeof(*exynos_attach), GFP_KERNEL);
+	if (!exynos_attach)
+		return -ENOMEM;
 
-	ret = dma_get_sgtable(drm_dev->dev, sgt, buf->kvaddr,
-				buf->dma_addr, buf->size);
-	if (ret < 0) {
-		DRM_ERROR("failed to get sgtable.\n");
-		goto err_free_sgt;
-	}
+	exynos_attach->dir = DMA_NONE;
+	attach->priv = exynos_attach;
 
-	return sgt;
+	return 0;
+}
 
-err_free_sgt:
-	kfree(sgt);
-	sgt = NULL;
-out:
-	return NULL;
+static void exynos_gem_detach_dma_buf(struct dma_buf *dmabuf,
+					struct dma_buf_attachment *attach)
+{
+	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
+	struct sg_table *sgt;
+
+	if (!exynos_attach)
+		return;
+
+	sgt = &exynos_attach->sgt;
+
+	if (exynos_attach->dir != DMA_NONE)
+		dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents,
+				exynos_attach->dir);
+
+	sg_free_table(sgt);
+	kfree(exynos_attach);
+	attach->priv = NULL;
 }
 
 static struct sg_table *
 		exynos_gem_map_dma_buf(struct dma_buf_attachment *attach,
 					enum dma_data_direction dir)
 {
+	struct exynos_drm_dmabuf_attachment *exynos_attach = attach->priv;
 	struct exynos_drm_gem_obj *gem_obj = attach->dmabuf->priv;
 	struct drm_device *dev = gem_obj->base.dev;
 	struct exynos_drm_gem_buf *buf;
+	struct scatterlist *rd, *wr;
 	struct sg_table *sgt = NULL;
-	int nents;
+	unsigned int i;
+	int nents, ret;
 
 	DRM_DEBUG_PRIME("%s\n", __FILE__);
+
+	if (WARN_ON(dir == DMA_NONE))
+		return ERR_PTR(-EINVAL);
+
+	/* just return current sgt if already requested. */
+	if (exynos_attach->dir == dir)
+		return &exynos_attach->sgt;
+
+	/* reattaching is not allowed. */
+	if (WARN_ON(exynos_attach->dir != DMA_NONE))
+		return ERR_PTR(-EBUSY);
 
 	buf = gem_obj->buffer;
 	if (!buf) {
 		DRM_ERROR("buffer is null.\n");
-		return sgt;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	sgt = &exynos_attach->sgt;
+
+	ret = sg_alloc_table(sgt, buf->sgt->orig_nents, GFP_KERNEL);
+	if (ret) {
+		DRM_ERROR("failed to alloc sgt.\n");
+		return ERR_PTR(-ENOMEM);
 	}
 
 	mutex_lock(&dev->struct_mutex);
 
-	sgt = exynos_get_sgt(dev, buf);
-	if (!sgt)
-		goto err_unlock;
+	rd = buf->sgt->sgl;
+	wr = sgt->sgl;
+	for (i = 0; i < sgt->orig_nents; ++i) {
+		sg_set_page(wr, sg_page(rd), rd->length, rd->offset);
+		rd = sg_next(rd);
+		wr = sg_next(wr);
+	}
 
-	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->nents, dir);
+	nents = dma_map_sg(attach->dev, sgt->sgl, sgt->orig_nents, dir);
 	if (!nents) {
 		DRM_ERROR("failed to map sgl with iommu.\n");
-		sgt = NULL;
+		sgt = ERR_PTR(-EIO);
 		goto err_unlock;
 	}
+
+	exynos_attach->dir = dir;
+	attach->priv = exynos_attach;
 
 	DRM_DEBUG_PRIME("buffer size = 0x%lx\n", buf->size);
 
@@ -98,11 +142,7 @@ static void exynos_gem_unmap_dma_buf(struct dma_buf_attachment *attach,
 						struct sg_table *sgt,
 						enum dma_data_direction dir)
 {
-	dma_unmap_sg(attach->dev, sgt->sgl, sgt->nents, dir);
-
-	sg_free_table(sgt);
-	kfree(sgt);
-	sgt = NULL;
+	/* Nothing to do. */
 }
 
 static void exynos_dmabuf_release(struct dma_buf *dmabuf)
@@ -164,6 +204,8 @@ static int exynos_gem_dmabuf_mmap(struct dma_buf *dma_buf,
 }
 
 static struct dma_buf_ops exynos_dmabuf_ops = {
+	.attach			= exynos_gem_attach_dma_buf,
+	.detach			= exynos_gem_detach_dma_buf,
 	.map_dma_buf		= exynos_gem_map_dma_buf,
 	.unmap_dma_buf		= exynos_gem_unmap_dma_buf,
 	.kmap			= exynos_gem_dmabuf_kmap,
