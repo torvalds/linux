@@ -285,8 +285,8 @@ static void brcms_ops_tx(struct ieee80211_hw *hw,
 		kfree_skb(skb);
 		goto done;
 	}
-	brcms_c_sendpkt_mac80211(wl->wlc, skb, hw);
-	tx_info->rate_driver_data[0] = control->sta;
+	if (brcms_c_sendpkt_mac80211(wl->wlc, skb, hw))
+		tx_info->rate_driver_data[0] = control->sta;
  done:
 	spin_unlock_bh(&wl->lock);
 }

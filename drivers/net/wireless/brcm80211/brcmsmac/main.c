@@ -6928,17 +6928,20 @@ static int brcms_c_tx(struct brcms_c_info *wlc, struct sk_buff *skb)
 	return ret;
 }
 
-void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
+bool brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc, struct sk_buff *sdu,
 			      struct ieee80211_hw *hw)
 {
 	uint fifo;
 	struct scb *scb = &wlc->pri_scb;
 
 	fifo = brcms_ac_to_fifo(skb_get_queue_mapping(sdu));
-	if (brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0))
-		return;
-	if (brcms_c_tx(wlc, sdu))
-		dev_kfree_skb_any(sdu);
+	brcms_c_d11hdrs_mac80211(wlc, hw, sdu, scb, 0, 1, fifo, 0);
+	if (!brcms_c_tx(wlc, sdu))
+		return true;
+
+	/* packet discarded */
+	dev_kfree_skb_any(sdu);
+	return false;
 }
 
 int

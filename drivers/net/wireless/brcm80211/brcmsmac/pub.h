@@ -284,7 +284,7 @@ extern void brcms_c_intrsrestore(struct brcms_c_info *wlc, u32 macintmask);
 extern bool brcms_c_intrsupd(struct brcms_c_info *wlc);
 extern bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc);
 extern bool brcms_c_dpc(struct brcms_c_info *wlc, bool bounded);
-extern void brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
+extern bool brcms_c_sendpkt_mac80211(struct brcms_c_info *wlc,
 				     struct sk_buff *sdu,
 				     struct ieee80211_hw *hw);
 extern bool brcms_c_aggregatable(struct brcms_c_info *wlc, u8 tid);
