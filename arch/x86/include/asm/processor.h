@@ -672,7 +672,7 @@ static inline void sync_core(void)
 {
 	int tmp;
 
-#if defined(CONFIG_M386) || defined(CONFIG_M486)
+#ifdef CONFIG_M486
 	if (boot_cpu_data.x86 < 5)
 		/* There is no speculative execution.
 		 * jmp is a barrier to prefetching. */
