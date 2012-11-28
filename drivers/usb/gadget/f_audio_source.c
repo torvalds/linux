@@ -599,7 +599,7 @@ audio_bind(struct usb_configuration *c, struct usb_function *f)
 		hs_as_in_ep_desc.bEndpointAddress =
 			fs_as_in_ep_desc.bEndpointAddress;
 
-	f->descriptors = fs_audio_desc;
+	f->fs_descriptors = fs_audio_desc;
 	f->hs_descriptors = hs_audio_desc;
 
 	for (i = 0, status = 0; i < IN_EP_REQ_COUNT && status == 0; i++) {

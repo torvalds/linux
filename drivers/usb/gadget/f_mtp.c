@@ -1212,10 +1212,10 @@ static int mtp_bind_config(struct usb_configuration *c, bool ptp_config)
 	dev->function.name = "mtp";
 	dev->function.strings = mtp_strings;
 	if (ptp_config) {
-		dev->function.descriptors = fs_ptp_descs;
+		dev->function.fs_descriptors = fs_ptp_descs;
 		dev->function.hs_descriptors = hs_ptp_descs;
 	} else {
-		dev->function.descriptors = fs_mtp_descs;
+		dev->function.fs_descriptors = fs_mtp_descs;
 		dev->function.hs_descriptors = hs_mtp_descs;
 	}
 	dev->function.bind = mtp_function_bind;
