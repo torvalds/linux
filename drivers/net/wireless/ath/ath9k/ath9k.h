@@ -261,7 +261,7 @@ struct ath_atx_tid {
 struct ath_node {
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
-	struct ath_atx_tid tid[WME_NUM_TID];
+	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
 	struct ath_atx_ac ac[IEEE80211_NUM_ACS];
 	int ps_key;
 
