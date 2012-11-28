@@ -1128,6 +1128,14 @@ F:	arch/arm/mach-s5pv210/mach-goni.c
 F:	arch/arm/mach-exynos/mach-universal_c210.c
 F:	arch/arm/mach-exynos/mach-nuri.c
 
+ARM/SAMSUNG S5P SERIES 2D GRAPHICS ACCELERATION (G2D) SUPPORT
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+M:	Kamil Debski <k.debski@samsung.com>
+L:	linux-arm-kernel@lists.infradead.org
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/platform/s5p-g2d/
+
 ARM/SAMSUNG S5P SERIES FIMC SUPPORT
 M:	Kyungmin Park <kyungmin.park@samsung.com>
 M:	Sylwester Nawrocki <s.nawrocki@samsung.com>
