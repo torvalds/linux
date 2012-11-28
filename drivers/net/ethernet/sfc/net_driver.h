@@ -868,6 +868,7 @@ struct efx_nic {
 	struct delayed_work selftest_work;
 
 #ifdef CONFIG_SFC_MTD
+	const struct efx_mtd_ops *mtd_ops;
 	struct list_head mtd_list;
 #endif
 
