@@ -12,9 +12,6 @@ TODOs
 1. This driver uses the same unregistered vendor id that the firewire core does
      (0xd00d1e). Perhaps this could be exposed as a define in
      firewire-constants.h?
-2. MAX_ASYNC_PAYLOAD needs to be publicly exposed by core/ohci
-   - otherwise how will this driver know the max size of address window to
-     open for one packet write?
 3. Maybe device_max_receive() and link_speed_to_max_payload() should be
      taken up by the firewire core?
 4. To avoid dropping rx data while still limiting the maximum buffering,
