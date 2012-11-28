@@ -450,10 +450,16 @@ static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
 			       b->information_elements,
 			       b->len_information_elements);
 
-	/* Key comparator must use same algorithm in any rb-tree
+	/*
+	 * Key comparator must use same algorithm in any rb-tree
 	 * search function (order is important), otherwise ordering
 	 * of items in the tree is broken and search gives incorrect
-	 * results. This code uses same order as cmp_ies() does. */
+	 * results. This code uses same order as cmp_ies() does.
+	 *
+	 * Note that due to the differring behaviour with hidden SSIDs
+	 * this function only works when "b" is the tree element and
+	 * "a" is the key we're looking for.
+	 */
 
 	/* sort missing IE before (left of) present IE */
 	if (!ie1)
@@ -469,10 +475,14 @@ static int cmp_hidden_bss(struct cfg80211_bss *a, struct cfg80211_bss *b)
 	if (ie1[1] != ie2[1])
 		return ie2[1] - ie1[1];
 
-	/* zeroed SSID ie is another indication of a hidden bss */
+	/*
+	 * zeroed SSID ie is another indication of a hidden bss;
+	 * if it isn't zeroed just return the regular sort value
+	 * to find the next candidate
+	 */
 	for (i = 0; i < ie2[1]; i++)
 		if (ie2[i + 2])
-			return -1;
+			return memcmp(ie1 + 2, ie2 + 2, ie1[1]);
 
 	return 0;
 }
