@@ -177,7 +177,6 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 int __init fpga_irq_of_init(struct device_node *node,
 			    struct device_node *parent)
 {
-	struct fpga_irq_data *f;
 	void __iomem *base;
 	u32 clear_mask;
 	u32 valid_mask;
