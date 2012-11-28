@@ -1163,6 +1163,7 @@ static int smsc75xx_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	/* Init all registers */
 	ret = smsc75xx_reset(dev);
+	check_warn_return(ret, "smsc75xx_reset error %d\n", ret);
 
 	dev->net->netdev_ops = &smsc75xx_netdev_ops;
 	dev->net->ethtool_ops = &smsc75xx_ethtool_ops;
