@@ -506,11 +506,10 @@ int wl12xx_cmd_role_start_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	cmd->sta.hlid = wlvif->sta.hlid;
 	cmd->sta.session = wl->session_ids[wlvif->sta.hlid];
 	/*
-	 * We don't have the correct remote rates in this stage, and there
-	 * is no way to update them later, so use our supported rates instead.
-	 * The fw will take the configured rate policies into account anyway.
+	 * We don't have the correct remote rates in this stage. the rates
+	 * will be reconfigured later, after authorization.
 	 */
-	cmd->sta.remote_rates = cpu_to_le32(supported_rates);
+	cmd->sta.remote_rates = cpu_to_le32(wlvif->rate_set);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d "
 		     "basic_rate_set: 0x%x, remote_rates: 0x%x",

@@ -106,6 +106,11 @@ struct wlcore_ops {
 	u32 (*pre_pkt_send)(struct wl1271 *wl, u32 buf_offset, u32 last_len);
 	void (*sta_rc_update)(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			      struct ieee80211_sta *sta, u32 changed);
+	int (*set_peer_cap)(struct wl1271 *wl,
+			    struct ieee80211_sta_ht_cap *ht_cap,
+			    bool allow_ht_operation,
+			    u32 rate_set, u8 hlid);
+
 };
 
 enum wlcore_partitions {

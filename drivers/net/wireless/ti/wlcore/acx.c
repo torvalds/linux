@@ -1340,6 +1340,8 @@ out:
 	kfree(acx);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_set_ht_capabilities);
+
 
 int wl1271_acx_set_ht_information(struct wl1271 *wl,
 				   struct wl12xx_vif *wlvif,

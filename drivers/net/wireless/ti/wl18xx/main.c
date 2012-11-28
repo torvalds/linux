@@ -1386,6 +1386,14 @@ out:
 	mutex_unlock(&wl->mutex);
 }
 
+static int wl18xx_set_peer_cap(struct wl1271 *wl,
+			       struct ieee80211_sta_ht_cap *ht_cap,
+			       bool allow_ht_operation,
+			       u32 rate_set, u8 hlid)
+{
+	return wl18xx_acx_set_peer_cap(wl, ht_cap, allow_ht_operation,
+				       rate_set, hlid);
+}
 
 static int wl18xx_setup(struct wl1271 *wl);
 
@@ -1423,6 +1431,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.channel_switch	= wl18xx_cmd_channel_switch,
 	.pre_pkt_send	= wl18xx_pre_pkt_send,
 	.sta_rc_update	= wl18xx_sta_rc_update,
+	.set_peer_cap	= wl18xx_set_peer_cap,
 };
 
 /* HT cap appropriate for wide channels in 2Ghz */

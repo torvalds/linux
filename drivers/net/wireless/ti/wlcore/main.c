@@ -4132,10 +4132,11 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		bool enabled =
 			bss_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT;
 
-		ret = wl1271_acx_set_ht_capabilities(wl,
-						     &sta_ht_cap,
-						     enabled,
-						     wlvif->sta.hlid);
+		ret = wlcore_hw_set_peer_cap(wl,
+					     &sta_ht_cap,
+					     enabled,
+					     wlvif->rate_set,
+					     wlvif->sta.hlid);
 		if (ret < 0) {
 			wl1271_warning("Set ht cap failed %d", ret);
 			goto out;
