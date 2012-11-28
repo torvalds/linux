@@ -89,7 +89,7 @@ static void f2fs_i_callback(struct rcu_head *head)
 	kmem_cache_free(f2fs_inode_cachep, F2FS_I(inode));
 }
 
-void f2fs_destroy_inode(struct inode *inode)
+static void f2fs_destroy_inode(struct inode *inode)
 {
 	call_rcu(&inode->i_rcu, f2fs_i_callback);
 }
@@ -445,7 +445,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	if (sanity_check_raw_super(raw_super))
 		goto free_sb_buf;
 
-	sb->s_maxbytes = max_file_size(raw_super->log_blocksize);
+	sb->s_maxbytes = max_file_size(le32_to_cpu(raw_super->log_blocksize));
 	sb->s_max_links = F2FS_LINK_MAX;
 	get_random_bytes(&sbi->s_next_generation, sizeof(u32));
 
@@ -527,7 +527,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* if there are nt orphan nodes free them */
 	err = -EINVAL;
-	if (!(sbi->ckpt->ckpt_flags & CP_UMOUNT_FLAG) &&
+	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
 				recover_orphan_inodes(sbi))
 		goto free_node_inode;
 
@@ -547,7 +547,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* recover fsynced data */
-	if (!(sbi->ckpt->ckpt_flags & CP_UMOUNT_FLAG) &&
+	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_UMOUNT_FLAG) &&
 				!test_opt(sbi, DISABLE_ROLL_FORWARD))
 		recover_fsync_data(sbi);
 

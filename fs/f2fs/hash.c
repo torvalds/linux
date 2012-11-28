@@ -92,7 +92,6 @@ f2fs_hash_t f2fs_dentry_hash(const char *name, int len)
 	hash = buf[0];
 	minor_hash = buf[1];
 
-	f2fs_hash = hash;
-	f2fs_hash &= ~F2FS_HASH_COL_BIT;
+	f2fs_hash = cpu_to_le32(hash & ~F2FS_HASH_COL_BIT);
 	return f2fs_hash;
 }

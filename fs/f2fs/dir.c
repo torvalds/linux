@@ -80,7 +80,7 @@ static bool early_match_name(const char *name, int namelen,
 	if (le16_to_cpu(de->name_len) != namelen)
 		return false;
 
-	if (le32_to_cpu(de->hash_code) != namehash)
+	if (de->hash_code != namehash)
 		return false;
 
 	return true;
@@ -143,7 +143,7 @@ static struct f2fs_dir_entry *find_in_level(struct inode *dir,
 	nbucket = dir_buckets(level);
 	nblock = bucket_blocks(level);
 
-	bidx = dir_block_index(level, namehash % nbucket);
+	bidx = dir_block_index(level, le32_to_cpu(namehash) % nbucket);
 	end_block = bidx + nblock;
 
 	for (; bidx < end_block; bidx++) {
@@ -406,7 +406,7 @@ start:
 	nbucket = dir_buckets(level);
 	nblock = bucket_blocks(level);
 
-	bidx = dir_block_index(level, (dentry_hash % nbucket));
+	bidx = dir_block_index(level, (le32_to_cpu(dentry_hash) % nbucket));
 
 	for (block = bidx; block <= (bidx + nblock - 1); block++) {
 		mutex_lock_op(sbi, DENTRY_OPS);
@@ -437,7 +437,7 @@ add_dentry:
 	wait_on_page_writeback(dentry_page);
 
 	de = &dentry_blk->dentry[bit_pos];
-	de->hash_code = cpu_to_le32(dentry_hash);
+	de->hash_code = dentry_hash;
 	de->name_len = cpu_to_le16(namelen);
 	memcpy(dentry_blk->filename[bit_pos], name, namelen);
 	de->ino = cpu_to_le32(inode->i_ino);

@@ -545,7 +545,7 @@ redirty_out:
 
 #define MAX_DESIRED_PAGES_WP	4096
 
-int f2fs_write_data_pages(struct address_space *mapping,
+static int f2fs_write_data_pages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
 	struct inode *inode = mapping->host;

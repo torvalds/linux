@@ -81,7 +81,7 @@ static int recover_inode(struct inode *inode, struct page *node_page)
 	struct f2fs_node *raw_node = (struct f2fs_node *)kaddr;
 	struct f2fs_inode *raw_inode = &(raw_node->i);
 
-	inode->i_mode = le32_to_cpu(raw_inode->i_mode);
+	inode->i_mode = le16_to_cpu(raw_inode->i_mode);
 	i_size_write(inode, le64_to_cpu(raw_inode->i_size));
 	inode->i_atime.tv_sec = le64_to_cpu(raw_inode->i_mtime);
 	inode->i_ctime.tv_sec = le64_to_cpu(raw_inode->i_ctime);

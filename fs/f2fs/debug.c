@@ -27,7 +27,7 @@
 static LIST_HEAD(f2fs_stat_list);
 static struct dentry *debugfs_root;
 
-void update_general_status(struct f2fs_sb_info *sbi)
+static void update_general_status(struct f2fs_sb_info *sbi)
 {
 	struct f2fs_stat_info *si = sbi->stat_info;
 	int i;

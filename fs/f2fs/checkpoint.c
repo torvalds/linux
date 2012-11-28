@@ -268,7 +268,7 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 {
 	block_t start_blk, orphan_blkaddr, i, j;
 
-	if (!(F2FS_CKPT(sbi)->ckpt_flags & CP_ORPHAN_PRESENT_FLAG))
+	if (!is_set_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG))
 		return 0;
 
 	sbi->por_doing = 1;
@@ -287,7 +287,7 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 		f2fs_put_page(page, 1);
 	}
 	/* clear Orphan Flag */
-	F2FS_CKPT(sbi)->ckpt_flags &= (~CP_ORPHAN_PRESENT_FLAG);
+	clear_ckpt_flags(F2FS_CKPT(sbi), CP_ORPHAN_PRESENT_FLAG);
 	sbi->por_doing = 0;
 	return 0;
 }
@@ -376,7 +376,7 @@ static struct page *validate_checkpoint(struct f2fs_sb_info *sbi,
 	pre_version = le64_to_cpu(cp_block->checkpoint_ver);
 
 	/* Read the 2nd cp block in this CP pack */
-	cp_addr += le64_to_cpu(cp_block->cp_pack_total_block_count) - 1;
+	cp_addr += le32_to_cpu(cp_block->cp_pack_total_block_count) - 1;
 	cp_page_2 = get_meta_page(sbi, cp_addr);
 
 	cp_block = (struct f2fs_checkpoint *)page_address(cp_page_2);
@@ -605,8 +605,8 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	block_t start_blk;
 	struct page *cp_page;
 	unsigned int data_sum_blocks, orphan_blocks;
+	unsigned int crc32 = 0;
 	void *kaddr;
-	__u32 crc32 = 0;
 	int i;
 
 	/* Flush all the NAT/SIT pages */
@@ -646,33 +646,35 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	/* 2 cp  + n data seg summary + orphan inode blocks */
 	data_sum_blocks = npages_for_summary_flush(sbi);
 	if (data_sum_blocks < 3)
-		ckpt->ckpt_flags |= CP_COMPACT_SUM_FLAG;
+		set_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 	else
-		ckpt->ckpt_flags &= (~CP_COMPACT_SUM_FLAG);
+		clear_ckpt_flags(ckpt, CP_COMPACT_SUM_FLAG);
 
 	orphan_blocks = (sbi->n_orphans + F2FS_ORPHANS_PER_BLOCK - 1)
 					/ F2FS_ORPHANS_PER_BLOCK;
-	ckpt->cp_pack_start_sum = 1 + orphan_blocks;
-	ckpt->cp_pack_total_block_count = 2 + data_sum_blocks + orphan_blocks;
+	ckpt->cp_pack_start_sum = cpu_to_le32(1 + orphan_blocks);
 
 	if (is_umount) {
-		ckpt->ckpt_flags |= CP_UMOUNT_FLAG;
-		ckpt->cp_pack_total_block_count += NR_CURSEG_NODE_TYPE;
+		set_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+		ckpt->cp_pack_total_block_count = cpu_to_le32(2 +
+			data_sum_blocks + orphan_blocks + NR_CURSEG_NODE_TYPE);
 	} else {
-		ckpt->ckpt_flags &= (~CP_UMOUNT_FLAG);
+		clear_ckpt_flags(ckpt, CP_UMOUNT_FLAG);
+		ckpt->cp_pack_total_block_count = cpu_to_le32(2 +
+			data_sum_blocks + orphan_blocks);
 	}
 
 	if (sbi->n_orphans)
-		ckpt->ckpt_flags |= CP_ORPHAN_PRESENT_FLAG;
+		set_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
 	else
-		ckpt->ckpt_flags &= (~CP_ORPHAN_PRESENT_FLAG);
+		clear_ckpt_flags(ckpt, CP_ORPHAN_PRESENT_FLAG);
 
 	/* update SIT/NAT bitmap */
 	get_sit_bitmap(sbi, __bitmap_ptr(sbi, SIT_BITMAP));
 	get_nat_bitmap(sbi, __bitmap_ptr(sbi, NAT_BITMAP));
 
 	crc32 = f2fs_crc32(ckpt, le32_to_cpu(ckpt->checksum_offset));
-	*(__u32 *)((unsigned char *)ckpt +
+	*(__le32 *)((unsigned char *)ckpt +
 				le32_to_cpu(ckpt->checksum_offset))
 				= cpu_to_le32(crc32);
 
@@ -716,7 +718,7 @@ static void do_checkpoint(struct f2fs_sb_info *sbi, bool is_umount)
 	sbi->alloc_valid_block_count = 0;
 
 	/* Here, we only have one bio having CP pack */
-	if (sbi->ckpt->ckpt_flags & CP_ERROR_FLAG)
+	if (is_set_ckpt_flags(ckpt, CP_ERROR_FLAG))
 		sbi->sb->s_flags |= MS_RDONLY;
 	else
 		sync_meta_pages(sbi, META_FLUSH, LONG_MAX);

@@ -1445,8 +1445,8 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 
 	memcpy(dst, src, (unsigned long)&src->i.i_ext - (unsigned long)&src->i);
 	dst->i.i_size = 0;
-	dst->i.i_blocks = 1;
-	dst->i.i_links = 1;
+	dst->i.i_blocks = cpu_to_le64(1);
+	dst->i.i_links = cpu_to_le32(1);
 	dst->i.i_xattr_nid = 0;
 
 	new_ni = old_ni;

@@ -463,6 +463,26 @@ static inline void F2FS_RESET_SB_DIRT(struct f2fs_sb_info *sbi)
 	sbi->s_dirty = 0;
 }
 
+static inline bool is_set_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
+{
+	unsigned int ckpt_flags = le32_to_cpu(cp->ckpt_flags);
+	return ckpt_flags & f;
+}
+
+static inline void set_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
+{
+	unsigned int ckpt_flags = le32_to_cpu(cp->ckpt_flags);
+	ckpt_flags |= f;
+	cp->ckpt_flags = cpu_to_le32(ckpt_flags);
+}
+
+static inline void clear_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
+{
+	unsigned int ckpt_flags = le32_to_cpu(cp->ckpt_flags);
+	ckpt_flags &= (~f);
+	cp->ckpt_flags = cpu_to_le32(ckpt_flags);
+}
+
 static inline void mutex_lock_op(struct f2fs_sb_info *sbi, enum lock_type t)
 {
 	mutex_lock_nested(&sbi->fs_lock[t], t);
@@ -577,7 +597,8 @@ static inline unsigned long __bitmap_size(struct f2fs_sb_info *sbi, int flag)
 static inline void *__bitmap_ptr(struct f2fs_sb_info *sbi, int flag)
 {
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
-	int offset = (flag == NAT_BITMAP) ? ckpt->sit_ver_bitmap_bytesize : 0;
+	int offset = (flag == NAT_BITMAP) ?
+			le32_to_cpu(ckpt->sit_ver_bitmap_bytesize) : 0;
 	return &ckpt->sit_nat_version_bitmap + offset;
 }
 
@@ -587,7 +608,7 @@ static inline block_t __start_cp_addr(struct f2fs_sb_info *sbi)
 	struct f2fs_checkpoint *ckpt = F2FS_CKPT(sbi);
 	unsigned long long ckpt_version = le64_to_cpu(ckpt->checkpoint_ver);
 
-	start_addr = le64_to_cpu(F2FS_RAW_SUPER(sbi)->cp_blkaddr);
+	start_addr = le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_blkaddr);
 
 	/*
 	 * odd numbered checkpoint should at cp segment 0

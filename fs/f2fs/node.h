@@ -177,7 +177,7 @@ static inline void fill_node_footer_blkaddr(struct page *page, block_t blkaddr)
 	void *kaddr = page_address(page);
 	struct f2fs_node *rn = (struct f2fs_node *)kaddr;
 	rn->footer.cp_ver = ckpt->checkpoint_ver;
-	rn->footer.next_blkaddr = blkaddr;
+	rn->footer.next_blkaddr = cpu_to_le32(blkaddr);
 }
 
 static inline nid_t ino_of_node(struct page *node_page)
