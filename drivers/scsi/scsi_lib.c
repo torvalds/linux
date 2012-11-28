@@ -1406,7 +1406,7 @@ static int scsi_lld_busy(struct request_queue *q)
 	struct scsi_device *sdev = q->queuedata;
 	struct Scsi_Host *shost;
 
-	if (blk_queue_dead(q))
+	if (blk_queue_dying(q))
 		return 0;
 
 	shost = sdev->host;
