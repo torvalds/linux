@@ -51,8 +51,9 @@ enum {
 	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
 	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
 	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
-	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
 	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
+	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
+	INPUT_PIN_ATTR_LAST = INPUT_PIN_ATTR_FRONT,
 };
 
 int snd_hda_get_input_pin_attr(unsigned int def_conf);

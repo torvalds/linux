@@ -1913,7 +1913,7 @@ static void mangle_smart51(struct hda_codec *codec)
 	int i, j, nums, attr;
 	int pins[AUTO_CFG_MAX_INS];
 
-	for (attr = INPUT_PIN_ATTR_REAR; attr >= INPUT_PIN_ATTR_NORMAL; attr--) {
+	for (attr = INPUT_PIN_ATTR_LAST; attr >= INPUT_PIN_ATTR_NORMAL; attr--) {
 		nums = 0;
 		for (i = 0; i < cfg->num_inputs; i++) {
 			unsigned int def;

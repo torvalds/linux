@@ -363,7 +363,7 @@ static const char *hda_get_input_pin_label(struct hda_codec *codec,
 {
 	unsigned int def_conf;
 	static const char * const mic_names[] = {
-		"Internal Mic", "Dock Mic", "Mic", "Front Mic", "Rear Mic",
+		"Internal Mic", "Dock Mic", "Mic", "Rear Mic", "Front Mic"
 	};
 	int attr;
 
