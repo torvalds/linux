@@ -1006,13 +1006,13 @@ static int max77693_muic_probe(struct platform_device *pdev)
 
 		ret = request_threaded_irq(virq, NULL,
 				max77693_muic_irq_handler,
-				IRQF_ONESHOT, muic_irq->name, info);
+				IRQF_NO_SUSPEND,
+				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"failed: irq request (IRQ: %d,"
 				" error :%d)\n",
 				muic_irq->irq, ret);
-
 			goto err_irq;
 		}
 	}

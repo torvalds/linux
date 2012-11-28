@@ -459,8 +459,10 @@ static int max8997_muic_probe(struct platform_device *pdev)
 		}
 		muic_irq->virq = virq;
 
-		ret = request_threaded_irq(virq, NULL, max8997_muic_irq_handler,
-				0, muic_irq->name, info);
+		ret = request_threaded_irq(virq, NULL,
+				max8997_muic_irq_handler,
+				IRQF_NO_SUSPEND,
+				muic_irq->name, info);
 		if (ret) {
 			dev_err(&pdev->dev,
 				"failed: irq request (IRQ: %d,"
