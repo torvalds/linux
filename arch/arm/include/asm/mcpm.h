@@ -42,6 +42,14 @@ extern void mcpm_entry_point(void);
 void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr);
 
 /*
+ * This sets an early poke i.e a value to be poked into some address
+ * from very early assembly code before the CPU is ungated.  The
+ * address must be physical, and if 0 then nothing will happen.
+ */
+void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
+			 unsigned long poke_phys_addr, unsigned long poke_val);
+
+/*
  * CPU/cluster power operations API for higher subsystems to use.
  */
 

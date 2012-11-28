@@ -27,6 +27,18 @@ void mcpm_set_entry_vector(unsigned cpu, unsigned cluster, void *ptr)
 	sync_cache_w(&mcpm_entry_vectors[cluster][cpu]);
 }
 
+extern unsigned long mcpm_entry_early_pokes[MAX_NR_CLUSTERS][MAX_CPUS_PER_CLUSTER][2];
+
+void mcpm_set_early_poke(unsigned cpu, unsigned cluster,
+			 unsigned long poke_phys_addr, unsigned long poke_val)
+{
+	unsigned long *poke = &mcpm_entry_early_pokes[cluster][cpu][0];
+	poke[0] = poke_phys_addr;
+	poke[1] = poke_val;
+	__cpuc_flush_dcache_area((void *)poke, 8);
+	outer_clean_range(__pa(poke), __pa(poke + 2));
+}
+
 static const struct mcpm_platform_ops *platform_ops;
 
 int __init mcpm_platform_register(const struct mcpm_platform_ops *ops)
