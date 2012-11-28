@@ -1526,9 +1526,35 @@
 
 #define UVD_CONTEXT_ID					0xf6f4
 
+/* rs780 only */
+#define	GFX_MACRO_BYPASS_CNTL				0x30c0
+#define		SPLL_BYPASS_CNTL			(1 << 0)
+#define		UPLL_BYPASS_CNTL			(1 << 1)
+
+#define CG_UPLL_FUNC_CNTL				0x7e0
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
 #	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_FB_DIV(x)				((x) << 4)
+#	define UPLL_FB_DIV_MASK				0x0000FFF0
+#	define UPLL_REF_DIV(x)				((x) << 16)
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_REFCLK_SRC_SEL_MASK			0x20000000
 #	define UPLL_CTLACK_MASK				0x40000000
 #	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x7e4
+#	define UPLL_SW_HILEN(x)				((x) << 0)
+#	define UPLL_SW_LOLEN(x)				((x) << 4)
+#	define UPLL_SW_HILEN2(x)			((x) << 8)
+#	define UPLL_SW_LOLEN2(x)			((x) << 12)
+#	define UPLL_DIVEN_MASK				0x00010000
+#	define UPLL_DIVEN2_MASK				0x00020000
+#	define UPLL_SW_MASK				0x0003FFFF
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
 
 /*
  * PM4

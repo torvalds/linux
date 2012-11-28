@@ -122,6 +122,94 @@ u32 r600_get_xclk(struct radeon_device *rdev)
 
 int r600_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 {
+	unsigned fb_div = 0, ref_div, vclk_div = 0, dclk_div = 0;
+	int r;
+
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* assert BYPASS_EN, deassert UPLL_RESET, UPLL_SLEEP and UPLL_CTLREQ */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~(
+		 UPLL_RESET_MASK | UPLL_SLEEP_MASK | UPLL_CTLREQ_MASK));
+
+	if (rdev->family >= CHIP_RS780)
+		WREG32_P(GFX_MACRO_BYPASS_CNTL, UPLL_BYPASS_CNTL,
+			 ~UPLL_BYPASS_CNTL);
+
+	if (!vclk || !dclk) {
+		/* keep the Bypass mode, put PLL to sleep */
+		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+		return 0;
+	}
+
+	if (rdev->clock.spll.reference_freq == 10000)
+		ref_div = 34;
+	else
+		ref_div = 4;
+
+	r = radeon_uvd_calc_upll_dividers(rdev, vclk, dclk, 50000, 160000,
+					  ref_div + 1, 0xFFF, 2, 30, ~0,
+					  &fb_div, &vclk_div, &dclk_div);
+	if (r)
+		return r;
+
+	if (rdev->family >= CHIP_RV670 && rdev->family < CHIP_RS780)
+		fb_div >>= 1;
+	else
+		fb_div |= 1;
+
+	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
+        if (r)
+                return r;
+
+	/* assert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_RESET_MASK, ~UPLL_RESET_MASK);
+
+	/* For RS780 we have to choose ref clk */
+	if (rdev->family >= CHIP_RS780)
+		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_REFCLK_SRC_SEL_MASK,
+			 ~UPLL_REFCLK_SRC_SEL_MASK);
+
+	/* set the required fb, ref and post divder values */
+	WREG32_P(CG_UPLL_FUNC_CNTL,
+		 UPLL_FB_DIV(fb_div) |
+		 UPLL_REF_DIV(ref_div),
+		 ~(UPLL_FB_DIV_MASK | UPLL_REF_DIV_MASK));
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 UPLL_SW_HILEN(vclk_div >> 1) |
+		 UPLL_SW_LOLEN((vclk_div >> 1) + (vclk_div & 1)) |
+		 UPLL_SW_HILEN2(dclk_div >> 1) |
+		 UPLL_SW_LOLEN2((dclk_div >> 1) + (dclk_div & 1)) |
+		 UPLL_DIVEN_MASK | UPLL_DIVEN2_MASK,
+		 ~UPLL_SW_MASK);
+
+	/* give the PLL some time to settle */
+	mdelay(15);
+
+	/* deassert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(15);
+
+	/* deassert BYPASS EN */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
+
+	if (rdev->family >= CHIP_RS780)
+		WREG32_P(GFX_MACRO_BYPASS_CNTL, 0, ~UPLL_BYPASS_CNTL);
+
+	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
+	if (r)
+		return r;
+
+	/* switch VCLK and DCLK selection */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		 VCLK_SRC_SEL(2) | DCLK_SRC_SEL(2),
+		 ~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	mdelay(100);
+
 	return 0;
 }
 
