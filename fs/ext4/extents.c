@@ -1967,7 +1967,7 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 				    struct fiemap_extent_info *fieinfo)
 {
 	struct ext4_ext_path *path = NULL;
-	struct ext4_ext_cache cbex;
+	struct ext4_ext_cache newex;
 	struct ext4_extent *ex;
 	ext4_lblk_t next, next_del, start = 0, end = 0;
 	ext4_lblk_t last = block + num;
@@ -2042,31 +2042,31 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 		BUG_ON(end <= start);
 
 		if (!exists) {
-			cbex.ec_block = start;
-			cbex.ec_len = end - start;
-			cbex.ec_start = 0;
+			newex.ec_block = start;
+			newex.ec_len = end - start;
+			newex.ec_start = 0;
 		} else {
-			cbex.ec_block = le32_to_cpu(ex->ee_block);
-			cbex.ec_len = ext4_ext_get_actual_len(ex);
-			cbex.ec_start = ext4_ext_pblock(ex);
+			newex.ec_block = le32_to_cpu(ex->ee_block);
+			newex.ec_len = ext4_ext_get_actual_len(ex);
+			newex.ec_start = ext4_ext_pblock(ex);
 			if (ext4_ext_is_uninitialized(ex))
 				flags |= FIEMAP_EXTENT_UNWRITTEN;
 		}
 
 		/*
-		 * Find delayed extent and update cbex accordingly. We call
-		 * it even in !exists case to find out whether cbex is the
+		 * Find delayed extent and update newex accordingly. We call
+		 * it even in !exists case to find out whether newex is the
 		 * last existing extent or not.
 		 */
-		next_del = ext4_find_delayed_extent(inode, &cbex);
+		next_del = ext4_find_delayed_extent(inode, &newex);
 		if (!exists && next_del) {
 			exists = 1;
 			flags |= FIEMAP_EXTENT_DELALLOC;
 		}
 		up_read(&EXT4_I(inode)->i_data_sem);
 
-		if (unlikely(cbex.ec_len == 0)) {
-			EXT4_ERROR_INODE(inode, "cbex.ec_len == 0");
+		if (unlikely(newex.ec_len == 0)) {
+			EXT4_ERROR_INODE(inode, "newex.ec_len == 0");
 			err = -EIO;
 			break;
 		}
@@ -2087,9 +2087,9 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 
 		if (exists) {
 			err = fiemap_fill_next_extent(fieinfo,
-				(__u64)cbex.ec_block << blksize_bits,
-				(__u64)cbex.ec_start << blksize_bits,
-				(__u64)cbex.ec_len << blksize_bits,
+				(__u64)newex.ec_block << blksize_bits,
+				(__u64)newex.ec_start << blksize_bits,
+				(__u64)newex.ec_len << blksize_bits,
 				flags);
 			if (err < 0)
 				break;
@@ -2099,7 +2099,7 @@ static int ext4_fill_fiemap_extents(struct inode *inode,
 			}
 		}
 
-		block = cbex.ec_block + cbex.ec_len;
+		block = newex.ec_block + newex.ec_len;
 	}
 
 	if (path) {
