@@ -108,27 +108,27 @@ static int wl18xx_scan_send(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (cmd->active[0]) {
 		u8 band = IEEE80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-						 cmd->role_id, band,
-						 req->ssids[0].ssid,
-						 req->ssids[0].ssid_len,
-						 req->ie,
-						 req->ie_len,
-						 false);
+				 cmd->role_id, band,
+				 req->ssids ? req->ssids[0].ssid : NULL,
+				 req->ssids ? req->ssids[0].ssid_len : 0,
+				 req->ie,
+				 req->ie_len,
+				 false);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
 			goto out;
 		}
 	}
 
-	if (cmd->active[1]) {
+	if (cmd->active[1] || cmd->dfs) {
 		u8 band = IEEE80211_BAND_5GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-						 cmd->role_id, band,
-						 req->ssids[0].ssid,
-						 req->ssids[0].ssid_len,
-						 req->ie,
-						 req->ie_len,
-						 false);
+				 cmd->role_id, band,
+				 req->ssids ? req->ssids[0].ssid : NULL,
+				 req->ssids ? req->ssids[0].ssid_len : 0,
+				 req->ie,
+				 req->ie_len,
+				 false);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
 			goto out;
@@ -230,27 +230,27 @@ int wl18xx_scan_sched_scan_config(struct wl1271 *wl,
 	if (cmd->active[0]) {
 		u8 band = IEEE80211_BAND_2GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-						 cmd->role_id, band,
-						 req->ssids[0].ssid,
-						 req->ssids[0].ssid_len,
-						 ies->ie[band],
-						 ies->len[band],
-						 true);
+				 cmd->role_id, band,
+				 req->ssids ? req->ssids[0].ssid : NULL,
+				 req->ssids ? req->ssids[0].ssid_len : 0,
+				 ies->ie[band],
+				 ies->len[band],
+				 true);
 		if (ret < 0) {
 			wl1271_error("2.4GHz PROBE request template failed");
 			goto out;
 		}
 	}
 
-	if (cmd->active[1]) {
+	if (cmd->active[1] || cmd->dfs) {
 		u8 band = IEEE80211_BAND_5GHZ;
 		ret = wl12xx_cmd_build_probe_req(wl, wlvif,
-						 cmd->role_id, band,
-						 req->ssids[0].ssid,
-						 req->ssids[0].ssid_len,
-						 ies->ie[band],
-						 ies->len[band],
-						 true);
+				 cmd->role_id, band,
+				 req->ssids ? req->ssids[0].ssid : NULL,
+				 req->ssids ? req->ssids[0].ssid_len : 0,
+				 ies->ie[band],
+				 ies->len[band],
+				 true);
 		if (ret < 0) {
 			wl1271_error("5GHz PROBE request template failed");
 			goto out;
