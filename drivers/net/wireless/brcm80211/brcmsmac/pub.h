@@ -176,6 +176,7 @@ struct brcms_pub {
 	bool phy_11ncapable;	/* the PHY/HW is capable of 802.11N */
 
 	struct wl_cnt *_cnt;	/* low-level counters in driver */
+	struct dentry *dbgfs_dir;
 };
 
 enum wlc_par_id {

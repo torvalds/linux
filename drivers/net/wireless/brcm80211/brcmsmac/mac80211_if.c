@@ -846,8 +846,10 @@ static void brcms_free(struct brcms_info *wl)
 	/* kill dpc */
 	tasklet_kill(&wl->tasklet);
 
-	if (wl->pub)
+	if (wl->pub) {
+		brcms_debugfs_detach(wl->pub);
 		brcms_c_module_unregister(wl->pub, "linux", wl);
+	}
 
 	/* free common resources */
 	if (wl->wlc) {
@@ -1077,6 +1079,8 @@ static struct brcms_info *brcms_attach(struct bcma_device *pdev)
 	    regulatory_hint(wl->wiphy, wl->pub->srom_ccode))
 		wiphy_err(wl->wiphy, "%s: regulatory hint failed\n", __func__);
 
+	brcms_debugfs_attach(wl->pub);
+	brcms_debugfs_create_files(wl->pub);
 	n_adapters_found++;
 	return wl;
 
@@ -1185,6 +1189,7 @@ static DECLARE_WORK(brcms_driver_work, brcms_driver_init);
 
 static int __init brcms_module_init(void)
 {
+	brcms_debugfs_init();
 	if (!schedule_work(&brcms_driver_work))
 		return -EBUSY;
 
@@ -1202,6 +1207,7 @@ static void __exit brcms_module_exit(void)
 {
 	cancel_work_sync(&brcms_driver_work);
 	bcma_driver_unregister(&brcms_bcma_driver);
+	brcms_debugfs_exit();
 }
 
 module_init(brcms_module_init);

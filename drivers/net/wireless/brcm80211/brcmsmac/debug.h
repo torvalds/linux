@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2012 Broadcom Corporation
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
+ * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
+ * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+ * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
 #ifndef _BRCMS_DEBUG_H_
 #define _BRCMS_DEBUG_H_
 
@@ -48,5 +63,13 @@ void __brcms_dbg(struct device *dev, u32 level, const char *func,
 #define brcms_dbg_int(core, f, a...)		brcms_dbg(core, BRCM_DL_INT, f, ##a)
 #define brcms_dbg_dma(core, f, a...)		brcms_dbg(core, BRCM_DL_DMA, f, ##a)
 #define brcms_dbg_ht(core, f, a...)		brcms_dbg(core, BRCM_DL_HT, f, ##a)
+
+struct brcms_pub;
+void brcms_debugfs_init(void);
+void brcms_debugfs_exit(void);
+int brcms_debugfs_attach(struct brcms_pub *drvr);
+void brcms_debugfs_detach(struct brcms_pub *drvr);
+struct dentry *brcms_debugfs_get_devdir(struct brcms_pub *drvr);
+void brcms_debugfs_create_files(struct brcms_pub *drvr);
 
 #endif /* _BRCMS_DEBUG_H_ */
