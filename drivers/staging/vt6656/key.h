@@ -60,7 +60,7 @@ typedef struct tagSKeyItem
     BOOL        bKeyValid;
 	u32 uKeyLength;
     BYTE        abyKey[MAX_KEY_LEN];
-    QWORD       KeyRSC;
+	u64 KeyRSC;
     DWORD       dwTSC47_16;
     WORD        wTSC15_0;
     BYTE        byCipherSuite;
@@ -108,7 +108,7 @@ BOOL KeybSetKey(
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
 	u32 uKeyLength,
-    PQWORD          pKeyRSC,
+	u64 *KeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     );
@@ -147,7 +147,7 @@ BOOL KeybSetDefaultKey(
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
 	u32 uKeyLength,
-    PQWORD          pKeyRSC,
+	u64 *KeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     );
@@ -157,7 +157,7 @@ BOOL KeybSetAllGroupKey(
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
 	u32 uKeyLength,
-    PQWORD          pKeyRSC,
+	u64 *KeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     );

@@ -48,8 +48,7 @@ typedef struct tagSINTData {
 	BYTE byTSR3;
 	BYTE byPkt3;
 	WORD wTime3;
-	u32 dwLoTSF;
-	u32 dwHiTSF;
+	u64 qwTSF;
 	BYTE byISR0;
 	BYTE byISR1;
 	BYTE byRTSSuccess;

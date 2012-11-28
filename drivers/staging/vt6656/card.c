@@ -654,28 +654,18 @@ BYTE CARDbyGetPktType(void *pDeviceHandler)
  * Return Value: TSF Offset value
  *
  */
-QWORD CARDqGetTSFOffset (BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2)
+u64 CARDqGetTSFOffset(BYTE byRxRate, u64 qwTSF1, u64 qwTSF2)
 {
-    QWORD   qwTSFOffset;
-    WORD    wRxBcnTSFOffst = 0;
+	u64 qwTSFOffset = 0;
+	WORD wRxBcnTSFOffst = 0;
 
-    HIDWORD(qwTSFOffset) = 0;
-    LODWORD(qwTSFOffset) = 0;
+	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate % MAX_RATE];
 
-    wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate%MAX_RATE];
-    (qwTSF2).u.dwLowDword += (DWORD)(wRxBcnTSFOffst);
-    if ((qwTSF2).u.dwLowDword < (DWORD)(wRxBcnTSFOffst)) {
-        (qwTSF2).u.dwHighDword++;
-    }
-    LODWORD(qwTSFOffset) = LODWORD(qwTSF1) - LODWORD(qwTSF2);
-    if (LODWORD(qwTSF1) < LODWORD(qwTSF2)) {
-        // if borrow needed
-        HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2) - 1 ;
-    }
-    else {
-        HIDWORD(qwTSFOffset) = HIDWORD(qwTSF1) - HIDWORD(qwTSF2);
-    };
-    return (qwTSFOffset);
+	qwTSF2 += (u64)wRxBcnTSFOffst;
+
+	qwTSFOffset = qwTSF1 - qwTSF2;
+
+	return qwTSFOffset;
 }
 
 
@@ -696,32 +686,26 @@ QWORD CARDqGetTSFOffset (BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2)
  *
  */
 void CARDvAdjustTSF(void *pDeviceHandler, BYTE byRxRate,
-		    QWORD qwBSSTimestamp, QWORD qwLocalTSF)
+		u64 qwBSSTimestamp, u64 qwLocalTSF)
 {
 
     PSDevice        pDevice = (PSDevice) pDeviceHandler;
-    QWORD           qwTSFOffset;
-    DWORD           dwTSFOffset1,dwTSFOffset2;
+	u64 qwTSFOffset = 0;
     BYTE            pbyData[8];
 
-    HIDWORD(qwTSFOffset) = 0;
-    LODWORD(qwTSFOffset) = 0;
 
     qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp, qwLocalTSF);
     // adjust TSF
     // HW's TSF add TSF Offset reg
-    dwTSFOffset1 = LODWORD(qwTSFOffset);
-    dwTSFOffset2 = HIDWORD(qwTSFOffset);
 
-
-    pbyData[0] = (BYTE)dwTSFOffset1;
-    pbyData[1] = (BYTE)(dwTSFOffset1>>8);
-    pbyData[2] = (BYTE)(dwTSFOffset1>>16);
-    pbyData[3] = (BYTE)(dwTSFOffset1>>24);
-    pbyData[4] = (BYTE)dwTSFOffset2;
-    pbyData[5] = (BYTE)(dwTSFOffset2>>8);
-    pbyData[6] = (BYTE)(dwTSFOffset2>>16);
-    pbyData[7] = (BYTE)(dwTSFOffset2>>24);
+	pbyData[0] = (u8)qwTSFOffset;
+	pbyData[1] = (u8)(qwTSFOffset >> 8);
+	pbyData[2] = (u8)(qwTSFOffset >> 16);
+	pbyData[3] = (u8)(qwTSFOffset >> 24);
+	pbyData[4] = (u8)(qwTSFOffset >> 32);
+	pbyData[5] = (u8)(qwTSFOffset >> 40);
+	pbyData[6] = (u8)(qwTSFOffset >> 48);
+	pbyData[7] = (u8)(qwTSFOffset >> 56);
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_SET_TSFTBTT,
@@ -745,12 +729,11 @@ void CARDvAdjustTSF(void *pDeviceHandler, BYTE byRxRate,
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-BOOL CARDbGetCurrentTSF(void *pDeviceHandler, PQWORD pqwCurrTSF)
+BOOL CARDbGetCurrentTSF(void *pDeviceHandler, u64 *pqwCurrTSF)
 {
-    PSDevice    pDevice = (PSDevice) pDeviceHandler;
+	PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
-    LODWORD(*pqwCurrTSF) = LODWORD(pDevice->qwCurrTSF);
-    HIDWORD(*pqwCurrTSF) = HIDWORD(pDevice->qwCurrTSF);
+	*pqwCurrTSF = pDevice->qwCurrTSF;
 
     return(TRUE);
 }
@@ -773,8 +756,7 @@ BOOL CARDbClearCurrentTSF(void *pDeviceHandler)
 
     MACvRegBitsOn(pDevice,MAC_REG_TFTCTL,TFTCTL_TSFCNTRST);
 
-    LODWORD(pDevice->qwCurrTSF) = 0;
-    HIDWORD(pDevice->qwCurrTSF) = 0;
+	pDevice->qwCurrTSF = 0;
 
     return(TRUE);
 }
@@ -793,7 +775,7 @@ BOOL CARDbClearCurrentTSF(void *pDeviceHandler)
  * Return Value: TSF value of next Beacon
  *
  */
-QWORD CARDqGetNextTBTT (QWORD qwTSF, WORD wBeaconInterval)
+u64 CARDqGetNextTBTT(u64 qwTSF, WORD wBeaconInterval)
 {
 
     unsigned int    uLowNextTBTT;
@@ -802,18 +784,19 @@ QWORD CARDqGetNextTBTT (QWORD qwTSF, WORD wBeaconInterval)
 
     uBeaconInterval = wBeaconInterval * 1024;
     // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
-    uLowNextTBTT = (LODWORD(qwTSF) >> 10) << 10;
-    uLowRemain = (uLowNextTBTT) % uBeaconInterval;
-    uHighRemain = ((0x80000000 % uBeaconInterval)* 2 * HIDWORD(qwTSF))
-                  % uBeaconInterval;
-    uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
-    uLowRemain = uBeaconInterval - uLowRemain;
+	uLowNextTBTT = ((qwTSF & 0xffffffffU) >> 10) << 10;
+	uLowRemain = (uLowNextTBTT) % uBeaconInterval;
+	uHighRemain = ((0x80000000 % uBeaconInterval) * 2 * (u32)(qwTSF >> 32))
+		% uBeaconInterval;
+	uLowRemain = (uHighRemain + uLowRemain) % uBeaconInterval;
+	uLowRemain = uBeaconInterval - uLowRemain;
 
     // check if carry when add one beacon interval
-    if ((~uLowNextTBTT) < uLowRemain)
-        HIDWORD(qwTSF) ++ ;
+	if ((~uLowNextTBTT) < uLowRemain)
+		qwTSF = ((qwTSF >> 32) + 1) << 32;
 
-    LODWORD(qwTSF) = uLowNextTBTT + uLowRemain;
+	qwTSF = (qwTSF & 0xffffffff00000000U) |
+		(u64)(uLowNextTBTT + uLowRemain);
 
     return (qwTSF);
 }
@@ -837,28 +820,22 @@ void CARDvSetFirstNextTBTT(void *pDeviceHandler, WORD wBeaconInterval)
 {
 
     PSDevice        pDevice = (PSDevice) pDeviceHandler;
-    QWORD           qwNextTBTT;
-    DWORD           dwLoTBTT,dwHiTBTT;
-    BYTE            pbyData[8];
+	u64 qwNextTBTT = 0;
+	BYTE            pbyData[8];
 
-    HIDWORD(qwNextTBTT) = 0;
-    LODWORD(qwNextTBTT) = 0;
-    CARDbClearCurrentTSF(pDevice);
+	CARDbClearCurrentTSF(pDevice);
     //CARDbGetCurrentTSF(pDevice, &qwNextTBTT); //Get Local TSF counter
-    qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
+	qwNextTBTT = CARDqGetNextTBTT(qwNextTBTT, wBeaconInterval);
     // Set NextTBTT
 
-    dwLoTBTT = LODWORD(qwNextTBTT);
-    dwHiTBTT = HIDWORD(qwNextTBTT);
-
-    pbyData[0] = (BYTE)dwLoTBTT;
-    pbyData[1] = (BYTE)(dwLoTBTT>>8);
-    pbyData[2] = (BYTE)(dwLoTBTT>>16);
-    pbyData[3] = (BYTE)(dwLoTBTT>>24);
-    pbyData[4] = (BYTE)dwHiTBTT;
-    pbyData[5] = (BYTE)(dwHiTBTT>>8);
-    pbyData[6] = (BYTE)(dwHiTBTT>>16);
-    pbyData[7] = (BYTE)(dwHiTBTT>>24);
+	pbyData[0] = (u8)qwNextTBTT;
+	pbyData[1] = (u8)(qwNextTBTT >> 8);
+	pbyData[2] = (u8)(qwNextTBTT >> 16);
+	pbyData[3] = (u8)(qwNextTBTT >> 24);
+	pbyData[4] = (u8)(qwNextTBTT >> 32);
+	pbyData[5] = (u8)(qwNextTBTT >> 40);
+	pbyData[6] = (u8)(qwNextTBTT >> 48);
+	pbyData[7] = (u8)(qwNextTBTT >> 56);
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_SET_TSFTBTT,
@@ -887,27 +864,24 @@ void CARDvSetFirstNextTBTT(void *pDeviceHandler, WORD wBeaconInterval)
  * Return Value: none
  *
  */
-void CARDvUpdateNextTBTT(void *pDeviceHandler, QWORD qwTSF,
+void CARDvUpdateNextTBTT(void *pDeviceHandler, u64 qwTSF,
 			 WORD wBeaconInterval)
 {
     PSDevice        pDevice = (PSDevice) pDeviceHandler;
-    DWORD           dwLoTBTT,dwHiTBTT;
     BYTE            pbyData[8];
 
     qwTSF = CARDqGetNextTBTT(qwTSF, wBeaconInterval);
 
     // Set NextTBTT
-    dwLoTBTT = LODWORD(qwTSF);
-    dwHiTBTT = HIDWORD(qwTSF);
 
-    pbyData[0] = (BYTE)dwLoTBTT;
-    pbyData[1] = (BYTE)(dwLoTBTT>>8);
-    pbyData[2] = (BYTE)(dwLoTBTT>>16);
-    pbyData[3] = (BYTE)(dwLoTBTT>>24);
-    pbyData[4] = (BYTE)dwHiTBTT;
-    pbyData[5] = (BYTE)(dwHiTBTT>>8);
-    pbyData[6] = (BYTE)(dwHiTBTT>>16);
-    pbyData[7] = (BYTE)(dwHiTBTT>>24);
+	pbyData[0] = (u8)qwTSF;
+	pbyData[1] = (u8)(qwTSF >> 8);
+	pbyData[2] = (u8)(qwTSF >> 16);
+	pbyData[3] = (u8)(qwTSF >> 24);
+	pbyData[4] = (u8)(qwTSF >> 32);
+	pbyData[5] = (u8)(qwTSF >> 40);
+	pbyData[6] = (u8)(qwTSF >> 48);
+	pbyData[7] = (u8)(qwTSF >> 56);
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_SET_TSFTBTT,
@@ -918,7 +892,8 @@ void CARDvUpdateNextTBTT(void *pDeviceHandler, QWORD qwTSF,
                         );
 
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Card:Update Next TBTT[%8xh:%8xh] \n",(int)HIDWORD(qwTSF), (int)LODWORD(qwTSF));
+	DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO
+		"Card:Update Next TBTT[%8lx]\n", (unsigned long)qwTSF);
 
     return;
 }

@@ -67,14 +67,14 @@ void CARDvUpdateBasicTopRate(void *pDeviceHandler);
 void CARDbAddBasicRate(void *pDeviceHandler, WORD wRateIdx);
 BOOL CARDbIsOFDMinBasicRate(void *pDeviceHandler);
 void CARDvAdjustTSF(void *pDeviceHandler, BYTE byRxRate,
-		    QWORD qwBSSTimestamp, QWORD qwLocalTSF);
-BOOL CARDbGetCurrentTSF(void *pDeviceHandler, PQWORD pqwCurrTSF);
+		u64 qwBSSTimestamp, u64 qwLocalTSF);
+BOOL CARDbGetCurrentTSF(void *pDeviceHandler, u64 *pqwCurrTSF);
 BOOL CARDbClearCurrentTSF(void *pDeviceHandler);
 void CARDvSetFirstNextTBTT(void *pDeviceHandler, WORD wBeaconInterval);
-void CARDvUpdateNextTBTT(void *pDeviceHandler, QWORD qwTSF,
+void CARDvUpdateNextTBTT(void *pDeviceHandler, u64 qwTSF,
 			 WORD wBeaconInterval);
-QWORD CARDqGetNextTBTT(QWORD qwTSF, WORD wBeaconInterval);
-QWORD CARDqGetTSFOffset(BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2);
+u64 CARDqGetNextTBTT(u64 qwTSF, WORD wBeaconInterval);
+u64 CARDqGetTSFOffset(BYTE byRxRate, u64 qwTSF1, u64 qwTSF2);
 BOOL CARDbRadioPowerOff(void *pDeviceHandler);
 BOOL CARDbRadioPowerOn(void *pDeviceHandler);
 BYTE CARDbyGetPktType(void *pDeviceHandler);

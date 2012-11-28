@@ -74,7 +74,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 	DWORD dwKeyIndex = 0;
 	BYTE abyKey[MAX_KEY_LEN];
 	BYTE abySeq[MAX_KEY_LEN];
-	QWORD KeyRSC;
+	u64 KeyRSC;
 	BYTE byKeyDecMode = KEY_CTL_WEP;
 	int ret = 0;
 	int uu;
@@ -136,9 +136,9 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 	if (param->u.wpa_key.seq_len > 0) {
 		for (ii = 0 ; ii < param->u.wpa_key.seq_len ; ii++) {
 			if (ii < 4)
-				LODWORD(KeyRSC) |= (abySeq[ii] << (ii * 8));
+				KeyRSC |= (abySeq[ii] << (ii * 8));
 			else
-				HIDWORD(KeyRSC) |= (abySeq[ii] << ((ii-4) * 8));
+				KeyRSC |= (abySeq[ii] << ((ii-4) * 8));
 		}
 		dwKeyIndex |= 1 << 29;
 	}
@@ -203,7 +203,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 
 		if ((KeybSetAllGroupKey(pDevice, &(pDevice->sKey), dwKeyIndex,
 							param->u.wpa_key.key_len,
-							(PQWORD) &(KeyRSC),
+							&KeyRSC,
 							(PBYTE)abyKey,
 							byKeyDecMode
 					) == TRUE) &&
@@ -211,7 +211,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 					&(pDevice->sKey),
 					dwKeyIndex,
 					param->u.wpa_key.key_len,
-					(PQWORD) &(KeyRSC),
+					&KeyRSC,
 					(PBYTE)abyKey,
 					byKeyDecMode
 				) == TRUE) ) {
@@ -234,7 +234,7 @@ int wpa_set_keys(PSDevice pDevice, void *ctx)
 		}
 		if (KeybSetKey(pDevice, &(pDevice->sKey), &param->addr[0],
 				dwKeyIndex, param->u.wpa_key.key_len,
-				(PQWORD) &(KeyRSC), (PBYTE)abyKey, byKeyDecMode
+				&KeyRSC, (PBYTE)abyKey, byKeyDecMode
 				) == TRUE) {
 			DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Pairwise Key Set\n");
 		} else {

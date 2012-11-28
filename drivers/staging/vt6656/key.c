@@ -224,7 +224,7 @@ BOOL KeybSetKey(
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
 	u32 uKeyLength,
-    PQWORD          pKeyRSC,
+	u64 *KeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     )
@@ -286,13 +286,11 @@ BOOL KeybSetKey(
             }
             MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (PDWORD)pKey->abyKey);
 
-            if ((dwKeyIndex & USE_KEYRSC) == 0) {
-                // RSC set by NIC
-		    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-            }
-            else {
-                memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
-            }
+		if ((dwKeyIndex & USE_KEYRSC) == 0)
+			pKey->KeyRSC = 0; /* RSC set by NIC */
+		else
+			pKey->KeyRSC = *KeyRSC;
+
             pKey->dwTSC47_16 = 0;
             pKey->wTSC15_0 = 0;
 
@@ -356,13 +354,11 @@ BOOL KeybSetKey(
         }
         MACvSetKeyEntry(pDevice, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (PDWORD)pKey->abyKey);
 
-        if ((dwKeyIndex & USE_KEYRSC) == 0) {
-            // RSC set by NIC
-		memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-        }
-        else {
-            memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
-        }
+		if ((dwKeyIndex & USE_KEYRSC) == 0)
+			pKey->KeyRSC = 0; /* RSC set by NIC */
+		else
+			pKey->KeyRSC = *KeyRSC;
+
         pKey->dwTSC47_16 = 0;
         pKey->wTSC15_0 = 0;
 
@@ -676,7 +672,7 @@ BOOL KeybSetDefaultKey(
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
 	u32 uKeyLength,
-    PQWORD          pKeyRSC,
+	u64 *KeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     )
@@ -742,12 +738,12 @@ BOOL KeybSetDefaultKey(
 
     MACvSetKeyEntry(pDevice, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (PDWORD) pKey->abyKey);
 
-    if ((dwKeyIndex & USE_KEYRSC) == 0) {
-        // RSC set by NIC
-	    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-    } else {
-        memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
-    }
+		if ((dwKeyIndex & USE_KEYRSC) == 0)
+			pKey->KeyRSC = 0; /* RSC set by NIC */
+		else
+			pKey->KeyRSC = *KeyRSC;
+
+
     pKey->dwTSC47_16 = 0;
     pKey->wTSC15_0 = 0;
 
@@ -792,7 +788,7 @@ BOOL KeybSetAllGroupKey(
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
 	u32 uKeyLength,
-    PQWORD          pKeyRSC,
+	u64 *KeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     )
@@ -847,13 +843,11 @@ BOOL KeybSetAllGroupKey(
 
             MACvSetKeyEntry(pDevice, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (PDWORD) pKey->abyKey);
 
-            if ((dwKeyIndex & USE_KEYRSC) == 0) {
-                // RSC set by NIC
-		    memset(&(pKey->KeyRSC), 0, sizeof(QWORD));
-            }
-            else {
-                memcpy(&(pKey->KeyRSC), pKeyRSC,  sizeof(QWORD));
-            }
+		if ((dwKeyIndex & USE_KEYRSC) == 0)
+			pKey->KeyRSC = 0; /* RSC set by NIC */
+		else
+			pKey->KeyRSC = *KeyRSC;
+
             pKey->dwTSC47_16 = 0;
             pKey->wTSC15_0 = 0;
 

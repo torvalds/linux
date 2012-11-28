@@ -512,14 +512,12 @@ static int hostap_set_encryption(PSDevice pDevice,
         } else {
             // 8021x enable, individual key
             dwKeyIndex |= (1 << 30); // set pairwise key
-            if (KeybSetKey(pDevice,
-                           &(pDevice->sKey),
-                           &param->sta_addr[0],
-                           dwKeyIndex & ~(USE_KEYRSC),
-                           param->u.crypt.key_len,
-                           (PQWORD) &(KeyRSC),
-                           (PBYTE)abyKey,
-                            KEY_CTL_WEP
+		if (KeybSetKey(pDevice, &(pDevice->sKey),
+			&param->sta_addr[0],
+			dwKeyIndex & ~(USE_KEYRSC),
+			param->u.crypt.key_len,
+			&KeyRSC, (PBYTE)abyKey,
+			KEY_CTL_WEP
                            ) == TRUE) {
 
 
@@ -574,7 +572,7 @@ static int hostap_set_encryption(PSDevice pDevice,
                            &(pDevice->sKey),
                            dwKeyIndex,
                            param->u.crypt.key_len,
-                           (PQWORD) &(KeyRSC),
+			&KeyRSC,
                            abyKey,
                            byKeyDecMode
                           );
@@ -587,7 +585,7 @@ static int hostap_set_encryption(PSDevice pDevice,
                        &param->sta_addr[0],
                        dwKeyIndex,
                        param->u.crypt.key_len,
-                       (PQWORD) &(KeyRSC),
+			&KeyRSC,
                        (PBYTE)abyKey,
                         byKeyDecMode
                        ) == TRUE) {

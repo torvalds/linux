@@ -142,8 +142,8 @@ typedef struct tagKnownBSS {
     unsigned int            uClearCount;
 //    BYTE            abyIEs[WLAN_BEACON_FR_MAXLEN];
     unsigned int            uIELength;
-    QWORD           qwBSSTimestamp;
-    QWORD           qwLocalTSF;     // local TSF timer
+	u64 qwBSSTimestamp;
+	u64 qwLocalTSF;/* local TSF timer */
 
     CARD_PHY_TYPE   eNetworkTypeInUse;
 
@@ -239,7 +239,7 @@ void BSSvClearBSSList(void *hDeviceContext, BOOL bKeepCurrBSSID);
 
 BOOL BSSbInsertToBSSList(void *hDeviceContext,
 			 PBYTE abyBSSIDAddr,
-			 QWORD qwTimestamp,
+			u64 qwTimestamp,
 			 WORD wBeaconInterval,
 			 WORD wCapInfo,
 			 BYTE byCurrChannel,
@@ -256,7 +256,7 @@ BOOL BSSbInsertToBSSList(void *hDeviceContext,
 			 void *pRxPacketContext);
 
 BOOL BSSbUpdateToBSSList(void *hDeviceContext,
-			 QWORD qwTimestamp,
+			u64 qwTimestamp,
 			 WORD wBeaconInterval,
 			 WORD wCapInfo,
 			 BYTE byCurrChannel,

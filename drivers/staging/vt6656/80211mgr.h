@@ -526,7 +526,7 @@ typedef struct tagWLAN_FR_BEACON {
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     // fixed fields
-    PQWORD                  pqwTimestamp;
+	u64 *pqwTimestamp;
     PWORD                   pwBeaconInterval;
     PWORD                   pwCapInfo;
     /*-- info elements ----------*/
@@ -683,7 +683,7 @@ typedef struct tagWLAN_FR_PROBERESP {
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PQWORD                  pqwTimestamp;
+	u64 *pqwTimestamp;
     PWORD                   pwBeaconInterval;
     PWORD                   pwCapInfo;
     /*-- info elements ----------*/

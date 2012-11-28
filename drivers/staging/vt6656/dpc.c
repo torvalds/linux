@@ -328,7 +328,7 @@ RXbBulkInProcessData (
     PBYTE           pbyRsr;
     PBYTE           pbyNewRsr;
     PBYTE           pbyRSSI;
-    PQWORD          pqwTSFTime;
+	u64 *pqwTSFTime;
     PBYTE           pbyFrame;
     BOOL            bDeFragRx = FALSE;
     unsigned int            cbHeaderOffset;
@@ -411,7 +411,7 @@ RXbBulkInProcessData (
 
     wPLCPwithPadding = ( (*pwPLCP_Length / 4) + ( (*pwPLCP_Length % 4) ? 1:0 ) ) *4;
 
-    pqwTSFTime = (PQWORD) (pbyDAddress + 8 + wPLCPwithPadding);
+	pqwTSFTime = (u64 *)(pbyDAddress + 8 + wPLCPwithPadding);
   if(pDevice->byBBType == BB_TYPE_11G)  {
       pby3SQ = pbyDAddress + 8 + wPLCPwithPadding + 12;
       pbySQ = pby3SQ;
@@ -598,8 +598,7 @@ RXbBulkInProcessData (
             pRxPacket->cbMPDULen = FrameSize;
             pRxPacket->uRSSI = *pbyRSSI;
             pRxPacket->bySQ = *pbySQ;
-            HIDWORD(pRxPacket->qwLocalTSF) = cpu_to_le32(HIDWORD(*pqwTSFTime));
-            LODWORD(pRxPacket->qwLocalTSF) = cpu_to_le32(LODWORD(*pqwTSFTime));
+		pRxPacket->qwLocalTSF = cpu_to_le64(*pqwTSFTime);
             if (bIsWEP) {
                 // strip IV
                 pbyData1 = WLAN_HDR_A3_DATA_PTR(pbyFrame);
@@ -910,7 +909,7 @@ RXbBulkInProcessData (
             RSC = dwRxTSC47_16;
             RSC <<= 16;
             RSC += wRxTSC15_0;
-            memcpy(&(pKey->KeyRSC), &RSC,  sizeof(QWORD));
+		memcpy(&(pKey->KeyRSC), &RSC,  sizeof(u64));
 
             if ( (pDevice->sMgmtObj.eCurrMode == WMAC_MODE_ESS_STA) &&
                  (pDevice->sMgmtObj.eCurrState == WMAC_STATE_ASSOC)) {

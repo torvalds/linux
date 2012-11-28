@@ -527,7 +527,7 @@ typedef struct __device_info {
     // 802.11 management
     SMgmtObject                 sMgmtObj;
 
-    QWORD                       qwCurrTSF;
+	u64 qwCurrTSF;
     unsigned int                        cbBulkInMax;
     BOOL                        bPSRxBeacon;
 

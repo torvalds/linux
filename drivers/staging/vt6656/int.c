@@ -179,8 +179,7 @@ void INTnsProcessData(PSDevice pDevice)
 							NULL);
 			}
 		}
-		LODWORD(pDevice->qwCurrTSF) = pINTData->dwLoTSF;
-		HIDWORD(pDevice->qwCurrTSF) = pINTData->dwHiTSF;
+		pDevice->qwCurrTSF = cpu_to_le64(pINTData->qwTSF);
 		/*DBG_PRN_GRP01(("ISR0 = %02x ,
 		  LoTsf =  %08x,
 		  HiTsf =  %08x\n",
