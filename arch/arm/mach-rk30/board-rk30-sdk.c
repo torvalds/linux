@@ -1036,7 +1036,7 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
         .iomux          = {
             .name       = RK29SDK_SD_CARD_DETECT_PIN_NAME,
             .fgpio      = RK29SDK_SD_CARD_DETECT_IOMUX_FGPIO,
-            .fmux       = GPIO3B_SDMMC0_DETECT_N,
+            .fmux       = RK29SDK_SD_CARD_DETECT_IOMUX_FMUX,
         },
     }, 
     
