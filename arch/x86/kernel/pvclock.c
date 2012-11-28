@@ -19,21 +19,6 @@
 #include <linux/percpu.h>
 #include <asm/pvclock.h>
 
-/*
- * These are perodically updated
- *    xen: magic shared_info page
- *    kvm: gpa registered via msr
- * and then copied here.
- */
-struct pvclock_shadow_time {
-	u64 tsc_timestamp;     /* TSC at last update of time vals.  */
-	u64 system_timestamp;  /* Time, in nanosecs, since boot.    */
-	u32 tsc_to_nsec_mul;
-	int tsc_shift;
-	u32 version;
-	u8  flags;
-};
-
 static u8 valid_flags __read_mostly = 0;
 
 void pvclock_set_flags(u8 flags)
@@ -41,32 +26,11 @@ void pvclock_set_flags(u8 flags)
 	valid_flags = flags;
 }
 
-static u64 pvclock_get_nsec_offset(struct pvclock_shadow_time *shadow)
+static u64 pvclock_get_nsec_offset(const struct pvclock_vcpu_time_info *src)
 {
-	u64 delta = native_read_tsc() - shadow->tsc_timestamp;
-	return pvclock_scale_delta(delta, shadow->tsc_to_nsec_mul,
-				   shadow->tsc_shift);
-}
-
-/*
- * Reads a consistent set of time-base values from hypervisor,
- * into a shadow data area.
- */
-static unsigned pvclock_get_time_values(struct pvclock_shadow_time *dst,
-					struct pvclock_vcpu_time_info *src)
-{
-	do {
-		dst->version = src->version;
-		rmb();		/* fetch version before data */
-		dst->tsc_timestamp     = src->tsc_timestamp;
-		dst->system_timestamp  = src->system_time;
-		dst->tsc_to_nsec_mul   = src->tsc_to_system_mul;
-		dst->tsc_shift         = src->tsc_shift;
-		dst->flags             = src->flags;
-		rmb();		/* test version after fetching data */
-	} while ((src->version & 1) || (dst->version != src->version));
-
-	return dst->version;
+	u64 delta = native_read_tsc() - src->tsc_timestamp;
+	return pvclock_scale_delta(delta, src->tsc_to_system_mul,
+				   src->tsc_shift);
 }
 
 unsigned long pvclock_tsc_khz(struct pvclock_vcpu_time_info *src)
@@ -90,21 +54,22 @@ void pvclock_resume(void)
 
 cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 {
-	struct pvclock_shadow_time shadow;
 	unsigned version;
 	cycle_t ret, offset;
 	u64 last;
+	u8 flags;
 
 	do {
-		version = pvclock_get_time_values(&shadow, src);
+		version = src->version;
 		rdtsc_barrier();
-		offset = pvclock_get_nsec_offset(&shadow);
-		ret = shadow.system_timestamp + offset;
+		offset = pvclock_get_nsec_offset(src);
+		ret = src->system_time + offset;
+		flags = src->flags;
 		rdtsc_barrier();
-	} while (version != src->version);
+	} while ((src->version & 1) || version != src->version);
 
 	if ((valid_flags & PVCLOCK_TSC_STABLE_BIT) &&
-		(shadow.flags & PVCLOCK_TSC_STABLE_BIT))
+		(flags & PVCLOCK_TSC_STABLE_BIT))
 		return ret;
 
 	/*
