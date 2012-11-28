@@ -811,47 +811,27 @@ static int ttm_mem_evict_first(struct ttm_bo_device *bdev,
 	struct ttm_bo_global *glob = bdev->glob;
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
 	struct ttm_buffer_object *bo;
-	int ret, put_count = 0;
+	int ret = -EBUSY, put_count;
 
-retry:
 	spin_lock(&glob->lru_lock);
-	if (list_empty(&man->lru)) {
-		spin_unlock(&glob->lru_lock);
-		return -EBUSY;
+	list_for_each_entry(bo, &man->lru, lru) {
+		ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
+		if (!ret)
+			break;
 	}
 
-	bo = list_first_entry(&man->lru, struct ttm_buffer_object, lru);
-	kref_get(&bo->list_kref);
-
-	if (!list_empty(&bo->ddestroy)) {
-		ret = ttm_bo_reserve_locked(bo, interruptible, no_wait_reserve, false, 0);
-		if (!ret)
-			ret = ttm_bo_cleanup_refs_and_unlock(bo, interruptible,
-							     no_wait_gpu);
-		else
-			spin_unlock(&glob->lru_lock);
-
-		kref_put(&bo->list_kref, ttm_bo_release_list);
-
+	if (ret) {
+		spin_unlock(&glob->lru_lock);
 		return ret;
 	}
 
-	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
+	kref_get(&bo->list_kref);
 
-	if (unlikely(ret == -EBUSY)) {
-		spin_unlock(&glob->lru_lock);
-		if (likely(!no_wait_reserve))
-			ret = ttm_bo_wait_unreserved(bo, interruptible);
-
+	if (!list_empty(&bo->ddestroy)) {
+		ret = ttm_bo_cleanup_refs_and_unlock(bo, interruptible,
+						     no_wait_gpu);
 		kref_put(&bo->list_kref, ttm_bo_release_list);
-
-		/**
-		 * We *need* to retry after releasing the lru lock.
-		 */
-
-		if (unlikely(ret != 0))
-			return ret;
-		goto retry;
+		return ret;
 	}
 
 	put_count = ttm_bo_del_from_lru(bo);
