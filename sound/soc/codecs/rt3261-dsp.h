@@ -13,7 +13,7 @@
 #define __RT3261_DSP_H__
 
 /* Debug String Length */
-#define RT3261_DSP_REG_DISP_LEN 12
+#define RT3261_DSP_REG_DISP_LEN 25
 
 enum {
 	RT3261_DSP_DIS,
