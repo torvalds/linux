@@ -325,9 +325,6 @@ config X86_INVD_BUG
 	def_bool y
 	depends on M486
 
-config X86_WP_WORKS_OK
-	def_bool y
-
 config X86_POPAD_OK
 	def_bool y
 	depends on X86_32
