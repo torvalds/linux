@@ -32,11 +32,9 @@
 
 #include "e1000.h"
 
-/*
- * This is the only thing that needs to be changed to adjust the
+/* This is the only thing that needs to be changed to adjust the
  * maximum number of ports that the driver can manage.
  */
-
 #define E1000_MAX_NIC 32
 
 #define OPTION_UNSET   -1
@@ -49,12 +47,10 @@ module_param(copybreak, uint, 0644);
 MODULE_PARM_DESC(copybreak,
 	"Maximum size of packet that is copied to a new buffer on receive");
 
-/*
- * All parameters are treated the same, as an integer array of values.
+/* All parameters are treated the same, as an integer array of values.
  * This macro just reduces the need to repeat the same declaration code
  * over and over (plus this helps to avoid typo bugs).
  */
-
 #define E1000_PARAM_INIT { [0 ... E1000_MAX_NIC] = OPTION_UNSET }
 #define E1000_PARAM(X, desc)					\
 	static int __devinitdata X[E1000_MAX_NIC+1]		\
@@ -63,8 +59,7 @@ MODULE_PARM_DESC(copybreak,
 	module_param_array_named(X, X, int, &num_##X, 0);	\
 	MODULE_PARM_DESC(X, desc);
 
-/*
- * Transmit Interrupt Delay in units of 1.024 microseconds
+/* Transmit Interrupt Delay in units of 1.024 microseconds
  * Tx interrupt delay needs to typically be set to something non-zero
  *
  * Valid Range: 0-65535
@@ -74,8 +69,7 @@ E1000_PARAM(TxIntDelay, "Transmit Interrupt Delay");
 #define MAX_TXDELAY 0xFFFF
 #define MIN_TXDELAY 0
 
-/*
- * Transmit Absolute Interrupt Delay in units of 1.024 microseconds
+/* Transmit Absolute Interrupt Delay in units of 1.024 microseconds
  *
  * Valid Range: 0-65535
  */
@@ -84,8 +78,7 @@ E1000_PARAM(TxAbsIntDelay, "Transmit Absolute Interrupt Delay");
 #define MAX_TXABSDELAY 0xFFFF
 #define MIN_TXABSDELAY 0
 
-/*
- * Receive Interrupt Delay in units of 1.024 microseconds
+/* Receive Interrupt Delay in units of 1.024 microseconds
  * hardware will likely hang if you set this to anything but zero.
  *
  * Valid Range: 0-65535
@@ -94,8 +87,7 @@ E1000_PARAM(RxIntDelay, "Receive Interrupt Delay");
 #define MAX_RXDELAY 0xFFFF
 #define MIN_RXDELAY 0
 
-/*
- * Receive Absolute Interrupt Delay in units of 1.024 microseconds
+/* Receive Absolute Interrupt Delay in units of 1.024 microseconds
  *
  * Valid Range: 0-65535
  */
@@ -103,8 +95,7 @@ E1000_PARAM(RxAbsIntDelay, "Receive Absolute Interrupt Delay");
 #define MAX_RXABSDELAY 0xFFFF
 #define MIN_RXABSDELAY 0
 
-/*
- * Interrupt Throttle Rate (interrupts/sec)
+/* Interrupt Throttle Rate (interrupts/sec)
  *
  * Valid Range: 100-100000 or one of: 0=off, 1=dynamic, 3=dynamic conservative
  */
@@ -113,8 +104,7 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define MAX_ITR 100000
 #define MIN_ITR 100
 
-/*
- * IntMode (Interrupt Mode)
+/* IntMode (Interrupt Mode)
  *
  * Valid Range: varies depending on kernel configuration & hardware support
  *
@@ -132,8 +122,7 @@ E1000_PARAM(IntMode, "Interrupt Mode");
 #define MAX_INTMODE	2
 #define MIN_INTMODE	0
 
-/*
- * Enable Smart Power Down of the PHY
+/* Enable Smart Power Down of the PHY
  *
  * Valid Range: 0, 1
  *
@@ -141,8 +130,7 @@ E1000_PARAM(IntMode, "Interrupt Mode");
  */
 E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
 
-/*
- * Enable Kumeran Lock Loss workaround
+/* Enable Kumeran Lock Loss workaround
  *
  * Valid Range: 0, 1
  *
@@ -150,8 +138,7 @@ E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
  */
 E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
 
-/*
- * Write Protect NVM
+/* Write Protect NVM
  *
  * Valid Range: 0, 1
  *
@@ -159,8 +146,7 @@ E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
  */
 E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lead to corrupted NVM]");
 
-/*
- * Enable CRC Stripping
+/* Enable CRC Stripping
  *
  * Valid Range: 0, 1
  *
@@ -351,8 +337,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		if (num_InterruptThrottleRate > bd) {
 			adapter->itr = InterruptThrottleRate[bd];
 
-			/*
-			 * Make sure a message is printed for non-special
+			/* Make sure a message is printed for non-special
 			 * values. And in case of an invalid option, display
 			 * warning, use default and go through itr/itr_setting
 			 * adjustment logic below
@@ -361,14 +346,12 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 			    e1000_validate_option(&adapter->itr, &opt, adapter))
 				adapter->itr = opt.def;
 		} else {
-			/*
-			 * If no option specified, use default value and go
+			/* If no option specified, use default value and go
 			 * through the logic below to adjust itr/itr_setting
 			 */
 			adapter->itr = opt.def;
 
-			/*
-			 * Make sure a message is printed for non-special
+			/* Make sure a message is printed for non-special
 			 * default values
 			 */
 			if (adapter->itr > 4)
@@ -400,8 +383,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 				 opt.name);
 			break;
 		default:
-			/*
-			 * Save the setting, because the dynamic bits
+			/* Save the setting, because the dynamic bits
 			 * change itr.
 			 *
 			 * Clear the lower two bits because
