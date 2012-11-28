@@ -1501,7 +1501,7 @@ static int wl18xx_setup(struct wl1271 *wl)
 
 	wl->rtable = wl18xx_rtable;
 	wl->num_tx_desc = WL18XX_NUM_TX_DESCRIPTORS;
-	wl->num_rx_desc = WL18XX_NUM_TX_DESCRIPTORS;
+	wl->num_rx_desc = WL18XX_NUM_RX_DESCRIPTORS;
 	wl->num_channels = 2;
 	wl->num_mac_addr = WL18XX_NUM_MAC_ADDRESSES;
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
