@@ -461,7 +461,6 @@ bmdevs_of_probe(struct device *dev,
 	struct  device_node *np_bat_supply;
 	struct	abx500_bm_data *bat;
 	const char *btech;
-	char bat_tech[8];
 	int i, thermistor;
 
 	*battery = &ab8500_bm_data;
@@ -488,12 +487,9 @@ bmdevs_of_probe(struct device *dev,
 		"stericsson,battery-type", NULL);
 	if (!btech) {
 		dev_warn(dev, "missing property battery-name/type\n");
-		strcpy(bat_tech, "UNKNOWN");
-	} else {
-		strcpy(bat_tech, btech);
+		return -EINVAL;
 	}
-
-	if (strncmp(bat_tech, "LION", 4) == 0) {
+	if (strncmp(btech, "LION", 4) == 0) {
 		bat->no_maintenance  = true;
 		bat->chg_unknown_bat = true;
 		bat->bat_type[BATTERY_UNKNOWN].charge_full_design = 2600;
@@ -508,7 +504,7 @@ bmdevs_of_probe(struct device *dev,
 		if (thermistor == NTC_EXTERNAL) {
 			btype->batres_tbl =
 				temp_to_batres_tbl_ext_thermistor;
-		} else if (strncmp(bat_tech, "LION", 4) == 0) {
+		} else if (strncmp(btech, "LION", 4) == 0) {
 			btype->batres_tbl =
 				temp_to_batres_tbl_9100;
 		} else {
