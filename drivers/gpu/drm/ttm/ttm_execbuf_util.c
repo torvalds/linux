@@ -213,8 +213,8 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 	driver = bdev->driver;
 	glob = bo->glob;
 
-	spin_lock(&bdev->fence_lock);
 	spin_lock(&glob->lru_lock);
+	spin_lock(&bdev->fence_lock);
 
 	list_for_each_entry(entry, list, head) {
 		bo = entry->bo;
@@ -223,8 +223,8 @@ void ttm_eu_fence_buffer_objects(struct list_head *list, void *sync_obj)
 		ttm_bo_unreserve_locked(bo);
 		entry->reserved = false;
 	}
-	spin_unlock(&glob->lru_lock);
 	spin_unlock(&bdev->fence_lock);
+	spin_unlock(&glob->lru_lock);
 
 	list_for_each_entry(entry, list, head) {
 		if (entry->old_sync_obj)

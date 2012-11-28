@@ -500,27 +500,17 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
 	struct ttm_bo_global *glob = bo->glob;
-	struct ttm_bo_driver *driver;
+	struct ttm_bo_driver *driver = bdev->driver;
 	void *sync_obj = NULL;
 	int put_count;
 	int ret;
 
+	spin_lock(&glob->lru_lock);
+	ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
+
 	spin_lock(&bdev->fence_lock);
 	(void) ttm_bo_wait(bo, false, false, true);
-	if (!bo->sync_obj) {
-
-		spin_lock(&glob->lru_lock);
-
-		/**
-		 * Lock inversion between bo:reserve and bdev::fence_lock here,
-		 * but that's OK, since we're only trylocking.
-		 */
-
-		ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
-
-		if (unlikely(ret == -EBUSY))
-			goto queue;
-
+	if (!ret && !bo->sync_obj) {
 		spin_unlock(&bdev->fence_lock);
 		put_count = ttm_bo_del_from_lru(bo);
 
@@ -530,18 +520,19 @@ static void ttm_bo_cleanup_refs_or_queue(struct ttm_buffer_object *bo)
 		ttm_bo_list_ref_sub(bo, put_count, true);
 
 		return;
-	} else {
-		spin_lock(&glob->lru_lock);
 	}
-queue:
-	driver = bdev->driver;
 	if (bo->sync_obj)
 		sync_obj = driver->sync_obj_ref(bo->sync_obj);
+	spin_unlock(&bdev->fence_lock);
+
+	if (!ret) {
+		atomic_set(&bo->reserved, 0);
+		wake_up_all(&bo->event_queue);
+	}
 
 	kref_get(&bo->list_kref);
 	list_add_tail(&bo->ddestroy, &bdev->ddestroy);
 	spin_unlock(&glob->lru_lock);
-	spin_unlock(&bdev->fence_lock);
 
 	if (sync_obj) {
 		driver->sync_obj_flush(sync_obj);
