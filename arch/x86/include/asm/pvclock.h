@@ -74,6 +74,12 @@ unsigned __pvclock_read_cycles(const struct pvclock_vcpu_time_info *src,
 	u8 ret_flags;
 
 	version = src->version;
+	/* Note: emulated platforms which do not advertise SSE2 support
+	 * result in kvmclock not using the necessary RDTSC barriers.
+	 * Without barriers, it is possible that RDTSC instruction reads from
+	 * the time stamp counter outside rdtsc_barrier protected section
+	 * below, resulting in violation of monotonicity.
+	 */
 	rdtsc_barrier();
 	offset = pvclock_get_nsec_offset(src);
 	ret = src->system_time + offset;
