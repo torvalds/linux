@@ -896,27 +896,22 @@ static void brcms_remove(struct bcma_device *pdev)
 static irqreturn_t brcms_isr(int irq, void *dev_id)
 {
 	struct brcms_info *wl;
-	bool ours, wantdpc;
+	irqreturn_t ret = IRQ_NONE;
 
 	wl = (struct brcms_info *) dev_id;
 
 	spin_lock(&wl->isr_lock);
 
 	/* call common first level interrupt handler */
-	ours = brcms_c_isr(wl->wlc, &wantdpc);
-	if (ours) {
-		/* if more to do... */
-		if (wantdpc) {
-
-			/* ...and call the second level interrupt handler */
-			/* schedule dpc */
-			tasklet_schedule(&wl->tasklet);
-		}
+	if (brcms_c_isr(wl->wlc)) {
+		/* schedule second level handler */
+		tasklet_schedule(&wl->tasklet);
+		ret = IRQ_HANDLED;
 	}
 
 	spin_unlock(&wl->isr_lock);
 
-	return IRQ_RETVAL(ours);
+	return ret;
 }
 
 /*

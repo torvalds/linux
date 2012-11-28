@@ -2546,10 +2546,6 @@ static inline u32 wlc_intstatus(struct brcms_c_info *wlc, bool in_isr)
 	if (macintstatus == 0)
 		return 0;
 
-	/* interrupts are already turned off for CFE build
-	 * Caution: For CFE Turning off the interrupts again has some undesired
-	 * consequences
-	 */
 	/* turn off the interrupts */
 	bcma_write32(core, D11REGOFFS(macintmask), 0);
 	(void)bcma_read32(core, D11REGOFFS(macintmask));
@@ -2592,16 +2588,14 @@ bool brcms_c_intrsupd(struct brcms_c_info *wlc)
 
 /*
  * First-level interrupt processing.
- * Return true if this was our interrupt, false otherwise.
- * *wantdpc will be set to true if further brcms_c_dpc() processing is required,
+ * Return true if this was our interrupt
+ * and if further brcms_c_dpc() processing is required,
  * false otherwise.
  */
-bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc)
+bool brcms_c_isr(struct brcms_c_info *wlc)
 {
 	struct brcms_hardware *wlc_hw = wlc->hw;
 	u32 macintstatus;
-
-	*wantdpc = false;
 
 	if (!wlc_hw->up || !wlc->macintmask)
 		return false;
@@ -2609,15 +2603,15 @@ bool brcms_c_isr(struct brcms_c_info *wlc, bool *wantdpc)
 	/* read and clear macintstatus and intstatus registers */
 	macintstatus = wlc_intstatus(wlc, true);
 
-	if (macintstatus == 0xffffffff)
+	if (macintstatus == 0xffffffff) {
 		brcms_err(wlc_hw->d11core,
 			  "DEVICEREMOVED detected in the ISR code path\n");
+		return false;
+	}
 
 	/* it is not for us */
 	if (macintstatus == 0)
 		return false;
-
-	*wantdpc = true;
 
 	/* save interrupt status bits */
 	wlc->macintstatus = macintstatus;
