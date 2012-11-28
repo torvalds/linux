@@ -668,6 +668,20 @@ void gic_raise_softirq(const struct cpumask *mask, unsigned int irq)
 
 #ifdef CONFIG_BL_SWITCHER
 /*
+ * gic_send_sgi - send a SGI directly to given CPU interface number
+ *
+ * cpu_id: the ID for the destination CPU interface
+ * irq: the IPI number to send a SGI for
+ */
+void gic_send_sgi(unsigned int cpu_id, unsigned int irq)
+{
+	BUG_ON(cpu_id >= NR_GIC_CPU_IF);
+	cpu_id = 1 << cpu_id;
+	/* this always happens on GIC0 */
+	writel_relaxed((cpu_id << 16) | irq, gic_data_dist_base(&gic_data[0]) + GIC_DIST_SOFTINT);
+}
+
+/*
  * gic_get_cpu_id - get the CPU interface ID for the specified CPU
  *
  * @cpu: the logical CPU number to get the GIC ID for.
