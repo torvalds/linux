@@ -169,8 +169,9 @@ static void hauppauge_eeprom(struct au0828_dev *dev, u8 *eeprom_data)
 	case 72231: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
 	case 72241: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72251: /* WinTV-HVR950q (Retail, IR, ATSC/QAM and analog video */
-	case 72261: /* WinTV-HVR950q (OEM, IR, ATSC/QAM and analog video */
-	case 72281: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
+	case 72261: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72271: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
+	case 72281: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM and analog video */
 	case 72301: /* WinTV-HVR850 (Retail, IR, ATSC and analog video */
 	case 72500: /* WinTV-HVR950q (OEM, No IR, ATSC/QAM */
 		break;
