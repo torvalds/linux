@@ -96,7 +96,6 @@ config PINCTRL_MMP2
 	bool "MMP2 pin controller driver"
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
-	select PINCONF
 
 config PINCTRL_MXS
 	bool
@@ -133,13 +132,11 @@ config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
-	select PINCONF
 
 config PINCTRL_PXA910
 	bool "PXA910 pin controller driver"
 	depends on ARCH_MMP
 	select PINCTRL_PXA3xx
-	select PINCONF
 
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
