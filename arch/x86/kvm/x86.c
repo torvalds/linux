@@ -1103,12 +1103,40 @@ static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 	return tsc;
 }
 
+void kvm_track_tsc_matching(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_X86_64
+	bool vcpus_matched;
+	bool do_request = false;
+	struct kvm_arch *ka = &vcpu->kvm->arch;
+	struct pvclock_gtod_data *gtod = &pvclock_gtod_data;
+
+	vcpus_matched = (ka->nr_vcpus_matched_tsc + 1 ==
+			 atomic_read(&vcpu->kvm->online_vcpus));
+
+	if (vcpus_matched && gtod->clock.vclock_mode == VCLOCK_TSC)
+		if (!ka->use_master_clock)
+			do_request = 1;
+
+	if (!vcpus_matched && ka->use_master_clock)
+			do_request = 1;
+
+	if (do_request)
+		kvm_make_request(KVM_REQ_MASTERCLOCK_UPDATE, vcpu);
+
+	trace_kvm_track_tsc(vcpu->vcpu_id, ka->nr_vcpus_matched_tsc,
+			    atomic_read(&vcpu->kvm->online_vcpus),
+		            ka->use_master_clock, gtod->clock.vclock_mode);
+#endif
+}
+
 void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 {
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
 	s64 usdiff;
+	bool matched;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
@@ -1151,6 +1179,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 			offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
 			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}
+		matched = true;
 	} else {
 		/*
 		 * We split periods of matched TSC writes into generations.
@@ -1165,6 +1194,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 		kvm->arch.cur_tsc_nsec = ns;
 		kvm->arch.cur_tsc_write = data;
 		kvm->arch.cur_tsc_offset = offset;
+		matched = false;
 		pr_debug("kvm: new tsc generation %u, clock %llu\n",
 			 kvm->arch.cur_tsc_generation, data);
 	}
@@ -1188,6 +1218,15 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 
 	kvm_x86_ops->write_tsc_offset(vcpu, offset);
 	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
+
+	spin_lock(&kvm->arch.pvclock_gtod_sync_lock);
+	if (matched)
+		kvm->arch.nr_vcpus_matched_tsc++;
+	else
+		kvm->arch.nr_vcpus_matched_tsc = 0;
+
+	kvm_track_tsc_matching(vcpu);
+	spin_unlock(&kvm->arch.pvclock_gtod_sync_lock);
 }
 
 EXPORT_SYMBOL_GPL(kvm_write_tsc);
@@ -1279,8 +1318,9 @@ static bool kvm_get_time_and_clockread(s64 *kernel_ns, cycle_t *cycle_now)
 
 /*
  *
- * Assuming a stable TSC across physical CPUS, the following condition
- * is possible. Each numbered line represents an event visible to both
+ * Assuming a stable TSC across physical CPUS, and a stable TSC
+ * across virtual CPUs, the following condition is possible.
+ * Each numbered line represents an event visible to both
  * CPUs at the next numbered event.
  *
  * "timespecX" represents host monotonic time. "tscX" represents
@@ -1313,7 +1353,7 @@ static bool kvm_get_time_and_clockread(s64 *kernel_ns, cycle_t *cycle_now)
  * copy of host monotonic time values. Update that master copy
  * in lockstep.
  *
- * Rely on synchronization of host TSCs for monotonicity.
+ * Rely on synchronization of host TSCs and guest TSCs for monotonicity.
  *
  */
 
@@ -1322,20 +1362,27 @@ static void pvclock_update_vm_gtod_copy(struct kvm *kvm)
 #ifdef CONFIG_X86_64
 	struct kvm_arch *ka = &kvm->arch;
 	int vclock_mode;
+	bool host_tsc_clocksource, vcpus_matched;
+
+	vcpus_matched = (ka->nr_vcpus_matched_tsc + 1 ==
+			atomic_read(&kvm->online_vcpus));
 
 	/*
 	 * If the host uses TSC clock, then passthrough TSC as stable
 	 * to the guest.
 	 */
-	ka->use_master_clock = kvm_get_time_and_clockread(
+	host_tsc_clocksource = kvm_get_time_and_clockread(
 					&ka->master_kernel_ns,
 					&ka->master_cycle_now);
+
+	ka->use_master_clock = host_tsc_clocksource & vcpus_matched;
 
 	if (ka->use_master_clock)
 		atomic_set(&kvm_guest_has_master_clock, 1);
 
 	vclock_mode = pvclock_gtod_data.clock.vclock_mode;
-	trace_kvm_update_master_clock(ka->use_master_clock, vclock_mode);
+	trace_kvm_update_master_clock(ka->use_master_clock, vclock_mode,
+					vcpus_matched);
 #endif
 }
 

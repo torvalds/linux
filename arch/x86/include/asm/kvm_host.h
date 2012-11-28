@@ -561,6 +561,7 @@ struct kvm_arch {
 	u64 cur_tsc_write;
 	u64 cur_tsc_offset;
 	u8  cur_tsc_generation;
+	int nr_vcpus_matched_tsc;
 
 	spinlock_t pvclock_gtod_sync_lock;
 	bool use_master_clock;
