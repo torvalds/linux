@@ -99,9 +99,9 @@ struct sh_pfc_soc_info {
 	struct pinmux_range mark;
 	struct pinmux_range function;
 
-	unsigned first_gpio, last_gpio;
-
 	struct pinmux_gpio *gpios;
+	unsigned int nr_gpios;
+
 	struct pinmux_cfg_reg *cfg_regs;
 	struct pinmux_data_reg *data_regs;
 

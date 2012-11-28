@@ -336,7 +336,7 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 {
 	int i;
 
-	pmx->nr_pads = pfc->info->last_gpio - pfc->info->first_gpio + 1;
+	pmx->nr_pads = pfc->info->nr_gpios;
 
 	pmx->pads = devm_kzalloc(pfc->dev, sizeof(*pmx->pads) * pmx->nr_pads,
 				 GFP_KERNEL);
@@ -345,17 +345,11 @@ static int sh_pfc_map_gpios(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 		return -ENOMEM;
 	}
 
-	/*
-	 * We don't necessarily have a 1:1 mapping between pin and linux
-	 * GPIO number, as the latter maps to the associated enum_id.
-	 * Care needs to be taken to translate back to pin space when
-	 * dealing with any pin configurations.
-	 */
 	for (i = 0; i < pmx->nr_pads; i++) {
 		struct pinctrl_pin_desc *pin = pmx->pads + i;
 		struct pinmux_gpio *gpio = pfc->info->gpios + i;
 
-		pin->number = pfc->info->first_gpio + i;
+		pin->number = i;
 		pin->name = gpio->name;
 
 		/* XXX */
@@ -421,9 +415,9 @@ int sh_pfc_register_pinctrl(struct sh_pfc *pfc)
 
 	pmx->range.name = DRV_NAME,
 	pmx->range.id = 0;
-	pmx->range.npins = pfc->info->last_gpio - pfc->info->first_gpio + 1;
-	pmx->range.base = pfc->info->first_gpio;
-	pmx->range.pin_base = pfc->info->first_gpio;
+	pmx->range.npins = pfc->info->nr_gpios;
+	pmx->range.base = 0;
+	pmx->range.pin_base = 0;
 
 	pinctrl_add_gpio_range(pmx->pctl, &pmx->range);
 

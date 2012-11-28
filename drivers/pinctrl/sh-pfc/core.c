@@ -260,7 +260,7 @@ static void sh_pfc_setup_data_regs(struct sh_pfc *pfc)
 	struct pinmux_data_reg *drp;
 	int k;
 
-	for (k = pfc->info->first_gpio; k <= pfc->info->last_gpio; k++)
+	for (k = 0; k < pfc->info->nr_gpios; k++)
 		sh_pfc_setup_data_reg(pfc, k);
 
 	k = 0;

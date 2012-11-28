@@ -2597,10 +2597,9 @@ struct sh_pfc_soc_info r8a7740_pinmux_info = {
 	.function	= { PINMUX_FUNCTION_BEGIN,
 			    PINMUX_FUNCTION_END },
 
-	.first_gpio	= GPIO_PORT0,
-	.last_gpio	= GPIO_FN_TRACEAUD_FROM_MEMC,
-
 	.gpios		= pinmux_gpios,
+	.nr_gpios	= ARRAY_SIZE(pinmux_gpios),
+
 	.cfg_regs	= pinmux_config_regs,
 	.data_regs	= pinmux_data_regs,
 

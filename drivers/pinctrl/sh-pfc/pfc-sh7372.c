@@ -1643,10 +1643,9 @@ struct sh_pfc_soc_info sh7372_pinmux_info = {
 	.mark = { PINMUX_MARK_BEGIN, PINMUX_MARK_END },
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
 
-	.first_gpio = GPIO_PORT0,
-	.last_gpio = GPIO_FN_SDENC_DV_CLKI,
-
 	.gpios = pinmux_gpios,
+	.nr_gpios = ARRAY_SIZE(pinmux_gpios),
+
 	.cfg_regs = pinmux_config_regs,
 	.data_regs = pinmux_data_regs,
 

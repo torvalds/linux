@@ -130,12 +130,10 @@ static void sh_pfc_gpio_setup(struct sh_pfc_chip *chip)
 	gc->set = sh_gpio_set;
 	gc->to_irq = sh_gpio_to_irq;
 
-	WARN_ON(pfc->info->first_gpio != 0); /* needs testing */
-
 	gc->label = pfc->info->name;
 	gc->owner = THIS_MODULE;
-	gc->base = pfc->info->first_gpio;
-	gc->ngpio = (pfc->info->last_gpio - pfc->info->first_gpio) + 1;
+	gc->base = 0;
+	gc->ngpio = pfc->info->nr_gpios;
 }
 
 int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
@@ -157,9 +155,8 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 
 	pfc->gpio = chip;
 
-	pr_info("%s handling gpio %d -> %d\n",
-		pfc->info->name, pfc->info->first_gpio,
-		pfc->info->last_gpio);
+	pr_info("%s handling gpio 0 -> %u\n",
+		pfc->info->name, pfc->info->nr_gpios - 1);
 
 	return 0;
 }
