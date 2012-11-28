@@ -359,7 +359,6 @@ struct brcmf_pno_scanresults_le {
  * @active_scan: current scan mode.
  * @sched_escan: e-scan for scheduled scan support running.
  * @ibss_starter: indicates this sta is ibss starter.
- * @link_up: link/connection up flag.
  * @pwr_save: indicate whether dongle to support power save mode.
  * @dongle_up: indicate whether dongle up or not.
  * @roam_on: on/off switch for dongle self-roaming.
@@ -391,7 +390,6 @@ struct brcmf_cfg80211_info {
 	bool active_scan;
 	bool sched_escan;
 	bool ibss_starter;
-	bool link_up;
 	bool pwr_save;
 	bool dongle_up;
 	bool roam_on;
