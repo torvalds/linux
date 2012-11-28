@@ -3206,7 +3206,6 @@ int ext4_calculate_overhead(struct super_block *sb)
 	ext4_fsblk_t overhead = 0;
 	char *buf = (char *) get_zeroed_page(GFP_KERNEL);
 
-	memset(buf, 0, PAGE_SIZE);
 	if (!buf)
 		return -ENOMEM;
 
