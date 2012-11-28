@@ -460,7 +460,8 @@ xfs_log_reserve(
 	tic->t_trans_type = t_type;
 	*ticp = tic;
 
-	xlog_grant_push_ail(log, tic->t_unit_res * tic->t_cnt);
+	xlog_grant_push_ail(log, tic->t_cnt ? tic->t_unit_res * tic->t_cnt
+					    : tic->t_unit_res);
 
 	trace_xfs_log_reserve(log, tic);
 
