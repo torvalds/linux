@@ -135,11 +135,20 @@ static void tegra_drm_disable_vblank(struct drm_device *drm, int pipe)
 		tegra_dc_disable_vblank(dc);
 }
 
+static void tegra_drm_preclose(struct drm_device *drm, struct drm_file *file)
+{
+	struct drm_crtc *crtc;
+
+	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head)
+		tegra_dc_cancel_page_flip(crtc, file);
+}
+
 struct drm_driver tegra_drm_driver = {
 	.driver_features = DRIVER_BUS_PLATFORM | DRIVER_MODESET | DRIVER_GEM,
 	.load = tegra_drm_load,
 	.unload = tegra_drm_unload,
 	.open = tegra_drm_open,
+	.preclose = tegra_drm_preclose,
 	.lastclose = tegra_drm_lastclose,
 
 	.get_vblank_counter = tegra_drm_get_vblank_counter,

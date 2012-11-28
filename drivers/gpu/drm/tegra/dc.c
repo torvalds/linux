@@ -183,7 +183,72 @@ void tegra_dc_disable_vblank(struct tegra_dc *dc)
 	spin_unlock_irqrestore(&dc->lock, flags);
 }
 
+static void tegra_dc_finish_page_flip(struct tegra_dc *dc)
+{
+	struct drm_device *drm = dc->base.dev;
+	struct drm_crtc *crtc = &dc->base;
+	struct drm_gem_cma_object *gem;
+	unsigned long flags, base;
+
+	if (!dc->event)
+		return;
+
+	gem = drm_fb_cma_get_gem_obj(crtc->fb, 0);
+
+	/* check if new start address has been latched */
+	tegra_dc_writel(dc, READ_MUX, DC_CMD_STATE_ACCESS);
+	base = tegra_dc_readl(dc, DC_WINBUF_START_ADDR);
+	tegra_dc_writel(dc, 0, DC_CMD_STATE_ACCESS);
+
+	if (base == gem->paddr + crtc->fb->offsets[0]) {
+		spin_lock_irqsave(&drm->event_lock, flags);
+		drm_send_vblank_event(drm, dc->pipe, dc->event);
+		drm_vblank_put(drm, dc->pipe);
+		dc->event = NULL;
+		spin_unlock_irqrestore(&drm->event_lock, flags);
+	}
+}
+
+void tegra_dc_cancel_page_flip(struct drm_crtc *crtc, struct drm_file *file)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	struct drm_device *drm = crtc->dev;
+	unsigned long flags;
+
+	spin_lock_irqsave(&drm->event_lock, flags);
+
+	if (dc->event && dc->event->base.file_priv == file) {
+		dc->event->base.destroy(&dc->event->base);
+		drm_vblank_put(drm, dc->pipe);
+		dc->event = NULL;
+	}
+
+	spin_unlock_irqrestore(&drm->event_lock, flags);
+}
+
+static int tegra_dc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
+			      struct drm_pending_vblank_event *event)
+{
+	struct tegra_dc *dc = to_tegra_dc(crtc);
+	struct drm_device *drm = crtc->dev;
+
+	if (dc->event)
+		return -EBUSY;
+
+	if (event) {
+		event->pipe = dc->pipe;
+		dc->event = event;
+		drm_vblank_get(drm, dc->pipe);
+	}
+
+	tegra_dc_set_base(dc, 0, 0, fb);
+	crtc->fb = fb;
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
+	.page_flip = tegra_dc_page_flip,
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = drm_crtc_cleanup,
 };
@@ -665,6 +730,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *data)
 		dev_dbg(dc->dev, "%s(): vertical blank\n", __func__);
 		*/
 		drm_handle_vblank(dc->base.dev, dc->pipe);
+		tegra_dc_finish_page_flip(dc);
 	}
 
 	if (status & (WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT)) {
