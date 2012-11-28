@@ -331,6 +331,7 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 	u8 density;
 	an = (struct ath_node *)sta->drv_priv;
 
+	an->sc = sc;
 	an->sta = sta;
 	an->vif = vif;
 
@@ -2275,7 +2276,12 @@ struct ieee80211_ops ath9k_ops = {
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 	.get_et_sset_count  = ath9k_get_et_sset_count,
-	.get_et_stats  = ath9k_get_et_stats,
-	.get_et_strings  = ath9k_get_et_strings,
+	.get_et_stats       = ath9k_get_et_stats,
+	.get_et_strings     = ath9k_get_et_strings,
+#endif
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+	.sta_add_debugfs    = ath9k_sta_add_debugfs,
+	.sta_remove_debugfs = ath9k_sta_remove_debugfs,
 #endif
 };

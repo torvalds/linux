@@ -259,6 +259,7 @@ struct ath_atx_tid {
 };
 
 struct ath_node {
+	struct ath_softc *sc;
 	struct ieee80211_sta *sta; /* station struct we're part of */
 	struct ieee80211_vif *vif; /* interface with which we're associated */
 	struct ath_atx_tid tid[IEEE80211_NUM_TIDS];
@@ -269,6 +270,10 @@ struct ath_node {
 	u8 mpdudensity;
 
 	bool sleeping;
+
+#if defined(CONFIG_MAC80211_DEBUGFS) && defined(CONFIG_ATH9K_DEBUGFS)
+	struct dentry *node_stat;
+#endif
 };
 
 #define AGGR_CLEANUP         BIT(1)
