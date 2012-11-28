@@ -89,16 +89,6 @@
 #define QLCNIC_CT_DEFAULT_RX_BUF_LEN	2048
 #define QLCNIC_LRO_BUFFER_EXTRA		2048
 
-/* Opcodes to be used with the commands */
-#define TX_ETHER_PKT	0x01
-#define TX_TCP_PKT	0x02
-#define TX_UDP_PKT	0x03
-#define TX_IP_PKT	0x04
-#define TX_TCP_LSO	0x05
-#define TX_TCP_LSO6	0x06
-#define TX_TCPV6_PKT	0x0b
-#define TX_UDPV6_PKT	0x0c
-
 /* Tx defines */
 #define QLCNIC_MAX_FRAGS_PER_TX	14
 #define MAX_TSO_HEADER_DESC	2
@@ -147,28 +137,6 @@
  * Added fileds of tcpHdrSize and ipHdrSize, The driver needs to do it only when
  * we are doing LSO (above the 1500 size packet) only.
  */
-
-#define FLAGS_VLAN_TAGGED	0x10
-#define FLAGS_VLAN_OOB		0x40
-
-#define qlcnic_set_tx_vlan_tci(cmd_desc, v)	\
-	(cmd_desc)->vlan_TCI = cpu_to_le16(v);
-#define qlcnic_set_cmd_desc_port(cmd_desc, var)	\
-	((cmd_desc)->port_ctxid |= ((var) & 0x0F))
-#define qlcnic_set_cmd_desc_ctxid(cmd_desc, var)	\
-	((cmd_desc)->port_ctxid |= ((var) << 4 & 0xF0))
-
-#define qlcnic_set_tx_port(_desc, _port) \
-	((_desc)->port_ctxid = ((_port) & 0xf) | (((_port) << 4) & 0xf0))
-
-#define qlcnic_set_tx_flags_opcode(_desc, _flags, _opcode) \
-	((_desc)->flags_opcode |= \
-	cpu_to_le16(((_flags) & 0x7f) | (((_opcode) & 0x3f) << 7)))
-
-#define qlcnic_set_tx_frags_len(_desc, _frags, _len) \
-	((_desc)->nfrags__length = \
-	cpu_to_le32(((_frags) & 0xff) | (((_len) & 0xffffff) << 8)))
-
 struct cmd_desc_type0 {
 	u8 tcp_hdr_offset;	/* For LSO only */
 	u8 ip_hdr_offset;	/* For LSO only */
@@ -202,65 +170,6 @@ struct rcv_desc {
 	__le32 buffer_length;	/* allocated buffer length (usually 2K) */
 	__le64 addr_buffer;
 } __packed;
-
-/* opcode field in status_desc */
-#define QLCNIC_SYN_OFFLOAD	0x03
-#define QLCNIC_RXPKT_DESC  	0x04
-#define QLCNIC_OLD_RXPKT_DESC	0x3f
-#define QLCNIC_RESPONSE_DESC	0x05
-#define QLCNIC_LRO_DESC  	0x12
-
-/* for status field in status_desc */
-#define STATUS_CKSUM_LOOP	0
-#define STATUS_CKSUM_OK		2
-
-/* owner bits of status_desc */
-#define STATUS_OWNER_HOST	(0x1ULL << 56)
-#define STATUS_OWNER_PHANTOM	(0x2ULL << 56)
-
-/* Status descriptor:
-   0-3 port, 4-7 status, 8-11 type, 12-27 total_length
-   28-43 reference_handle, 44-47 protocol, 48-52 pkt_offset
-   53-55 desc_cnt, 56-57 owner, 58-63 opcode
- */
-#define qlcnic_get_sts_port(sts_data)	\
-	((sts_data) & 0x0F)
-#define qlcnic_get_sts_status(sts_data)	\
-	(((sts_data) >> 4) & 0x0F)
-#define qlcnic_get_sts_type(sts_data)	\
-	(((sts_data) >> 8) & 0x0F)
-#define qlcnic_get_sts_totallength(sts_data)	\
-	(((sts_data) >> 12) & 0xFFFF)
-#define qlcnic_get_sts_refhandle(sts_data)	\
-	(((sts_data) >> 28) & 0xFFFF)
-#define qlcnic_get_sts_prot(sts_data)	\
-	(((sts_data) >> 44) & 0x0F)
-#define qlcnic_get_sts_pkt_offset(sts_data)	\
-	(((sts_data) >> 48) & 0x1F)
-#define qlcnic_get_sts_desc_cnt(sts_data)	\
-	(((sts_data) >> 53) & 0x7)
-#define qlcnic_get_sts_opcode(sts_data)	\
-	(((sts_data) >> 58) & 0x03F)
-
-#define qlcnic_get_lro_sts_refhandle(sts_data) 	\
-	((sts_data) & 0x0FFFF)
-#define qlcnic_get_lro_sts_length(sts_data)	\
-	(((sts_data) >> 16) & 0x0FFFF)
-#define qlcnic_get_lro_sts_l2_hdr_offset(sts_data)	\
-	(((sts_data) >> 32) & 0x0FF)
-#define qlcnic_get_lro_sts_l4_hdr_offset(sts_data)	\
-	(((sts_data) >> 40) & 0x0FF)
-#define qlcnic_get_lro_sts_timestamp(sts_data)	\
-	(((sts_data) >> 48) & 0x1)
-#define qlcnic_get_lro_sts_type(sts_data)	\
-	(((sts_data) >> 49) & 0x7)
-#define qlcnic_get_lro_sts_push_flag(sts_data)		\
-	(((sts_data) >> 52) & 0x1)
-#define qlcnic_get_lro_sts_seq_number(sts_data)		\
-	((sts_data) & 0x0FFFFFFFF)
-#define qlcnic_get_lro_sts_mss(sts_data1)		\
-	((sts_data1 >> 32) & 0x0FFFF)
-
 
 struct status_desc {
 	__le64 status_desc_data[2];
@@ -1648,6 +1557,15 @@ int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, u8, u8, u8);
 int qlcnic_get_mac_stats(struct qlcnic_adapter *, struct qlcnic_mac_statistics *);
 extern int qlcnic_config_tso;
 
+int qlcnic_napi_add(struct qlcnic_adapter *, struct net_device *);
+void qlcnic_napi_del(struct qlcnic_adapter *adapter);
+void qlcnic_napi_enable(struct qlcnic_adapter *adapter);
+void qlcnic_napi_disable(struct qlcnic_adapter *adapter);
+int qlcnic_alloc_sds_rings(struct qlcnic_recv_context *, int);
+void qlcnic_free_sds_rings(struct qlcnic_recv_context *);
+void qlcnic_free_tx_rings(struct qlcnic_adapter *);
+int qlcnic_alloc_tx_rings(struct qlcnic_adapter *, struct net_device *);
+
 /*
  * QLOGIC Board information
  */
@@ -1692,6 +1610,21 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 	else
 		return tx_ring->sw_consumer + tx_ring->num_desc -
 				tx_ring->producer;
+}
+
+static inline void qlcnic_disable_int(struct qlcnic_host_sds_ring *sds_ring)
+{
+	writel(0, sds_ring->crb_intr_mask);
+}
+
+static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
+{
+	struct qlcnic_adapter *adapter = sds_ring->adapter;
+
+	writel(0x1, sds_ring->crb_intr_mask);
+
+	if (!QLCNIC_IS_MSI_FAMILY(adapter))
+		writel(0xfbff, adapter->tgt_mask_reg);
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
