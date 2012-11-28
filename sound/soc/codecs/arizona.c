@@ -985,6 +985,9 @@ int arizona_set_fll(struct arizona_fll *fll, int source,
 		if (ena)
 			pm_runtime_put_autosuspend(arizona->dev);
 
+		fll->fref = Fref;
+		fll->fout = Fout;
+
 		return 0;
 	}
 
