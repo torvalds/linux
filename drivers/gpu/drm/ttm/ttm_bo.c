@@ -1813,41 +1813,25 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	uint32_t swap_placement = (TTM_PL_FLAG_CACHED | TTM_PL_FLAG_SYSTEM);
 
 	spin_lock(&glob->lru_lock);
-	while (ret == -EBUSY) {
-		if (unlikely(list_empty(&glob->swap_lru))) {
-			spin_unlock(&glob->lru_lock);
-			return -EBUSY;
-		}
-
-		bo = list_first_entry(&glob->swap_lru,
-				      struct ttm_buffer_object, swap);
-		kref_get(&bo->list_kref);
-
-		if (!list_empty(&bo->ddestroy)) {
-			ttm_bo_reserve_locked(bo, false, false, false, 0);
-			ttm_bo_cleanup_refs_and_unlock(bo, false, false);
-
-			kref_put(&bo->list_kref, ttm_bo_release_list);
-			spin_lock(&glob->lru_lock);
-			continue;
-		}
-
-		/**
-		 * Reserve buffer. Since we unlock while sleeping, we need
-		 * to re-check that nobody removed us from the swap-list while
-		 * we slept.
-		 */
-
+	list_for_each_entry(bo, &glob->swap_lru, swap) {
 		ret = ttm_bo_reserve_locked(bo, false, true, false, 0);
-		if (unlikely(ret == -EBUSY)) {
-			spin_unlock(&glob->lru_lock);
-			ttm_bo_wait_unreserved(bo, false);
-			kref_put(&bo->list_kref, ttm_bo_release_list);
-			spin_lock(&glob->lru_lock);
-		}
+		if (!ret)
+			break;
 	}
 
-	BUG_ON(ret != 0);
+	if (ret) {
+		spin_unlock(&glob->lru_lock);
+		return ret;
+	}
+
+	kref_get(&bo->list_kref);
+
+	if (!list_empty(&bo->ddestroy)) {
+		ret = ttm_bo_cleanup_refs_and_unlock(bo, false, false);
+		kref_put(&bo->list_kref, ttm_bo_release_list);
+		return ret;
+	}
+
 	put_count = ttm_bo_del_from_lru(bo);
 	spin_unlock(&glob->lru_lock);
 
