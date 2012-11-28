@@ -944,14 +944,86 @@ static u32 cfg80211_calculate_bitrate_60g(struct rate_info *rate)
 	return __mcs2bitrate[rate->mcs];
 }
 
+static u32 cfg80211_calculate_bitrate_vht(struct rate_info *rate)
+{
+	static const u32 base[4][10] = {
+		{   6500000,
+		   13000000,
+		   19500000,
+		   26000000,
+		   39000000,
+		   52000000,
+		   58500000,
+		   65000000,
+		   78000000,
+		   0,
+		},
+		{  13500000,
+		   27000000,
+		   40500000,
+		   54000000,
+		   81000000,
+		  108000000,
+		  121500000,
+		  135000000,
+		  162000000,
+		  180000000,
+		},
+		{  29300000,
+		   58500000,
+		   87800000,
+		  117000000,
+		  175500000,
+		  234000000,
+		  263300000,
+		  292500000,
+		  351000000,
+		  390000000,
+		},
+		{  58500000,
+		  117000000,
+		  175500000,
+		  234000000,
+		  351000000,
+		  468000000,
+		  526500000,
+		  585000000,
+		  702000000,
+		  780000000,
+		},
+	};
+	u32 bitrate;
+	int idx;
+
+	if (WARN_ON_ONCE(rate->mcs > 9))
+		return 0;
+
+	idx = rate->flags & (RATE_INFO_FLAGS_160_MHZ_WIDTH |
+			     RATE_INFO_FLAGS_80P80_MHZ_WIDTH) ? 3 :
+		  rate->flags & RATE_INFO_FLAGS_80_MHZ_WIDTH ? 2 :
+		  rate->flags & RATE_INFO_FLAGS_40_MHZ_WIDTH ? 1 : 0;
+
+	bitrate = base[idx][rate->mcs];
+	bitrate *= rate->nss;
+
+	if (rate->flags & RATE_INFO_FLAGS_SHORT_GI)
+		bitrate = (bitrate / 9) * 10;
+
+	/* do NOT round down here */
+	return (bitrate + 50000) / 100000;
+}
+
 u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 {
 	int modulation, streams, bitrate;
 
-	if (!(rate->flags & RATE_INFO_FLAGS_MCS))
+	if (!(rate->flags & RATE_INFO_FLAGS_MCS) &&
+	    !(rate->flags & RATE_INFO_FLAGS_VHT_MCS))
 		return rate->legacy;
 	if (rate->flags & RATE_INFO_FLAGS_60G)
 		return cfg80211_calculate_bitrate_60g(rate);
+	if (rate->flags & RATE_INFO_FLAGS_VHT_MCS)
+		return cfg80211_calculate_bitrate_vht(rate);
 
 	/* the formula below does only work for MCS values smaller than 32 */
 	if (WARN_ON_ONCE(rate->mcs >= 32))
@@ -979,6 +1051,106 @@ u32 cfg80211_calculate_bitrate(struct rate_info *rate)
 	return (bitrate + 50000) / 100000;
 }
 EXPORT_SYMBOL(cfg80211_calculate_bitrate);
+
+int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
+			  enum ieee80211_p2p_attr_id attr,
+			  u8 *buf, unsigned int bufsize)
+{
+	u8 *out = buf;
+	u16 attr_remaining = 0;
+	bool desired_attr = false;
+	u16 desired_len = 0;
+
+	while (len > 0) {
+		unsigned int iedatalen;
+		unsigned int copy;
+		const u8 *iedata;
+
+		if (len < 2)
+			return -EILSEQ;
+		iedatalen = ies[1];
+		if (iedatalen + 2 > len)
+			return -EILSEQ;
+
+		if (ies[0] != WLAN_EID_VENDOR_SPECIFIC)
+			goto cont;
+
+		if (iedatalen < 4)
+			goto cont;
+
+		iedata = ies + 2;
+
+		/* check WFA OUI, P2P subtype */
+		if (iedata[0] != 0x50 || iedata[1] != 0x6f ||
+		    iedata[2] != 0x9a || iedata[3] != 0x09)
+			goto cont;
+
+		iedatalen -= 4;
+		iedata += 4;
+
+		/* check attribute continuation into this IE */
+		copy = min_t(unsigned int, attr_remaining, iedatalen);
+		if (copy && desired_attr) {
+			desired_len += copy;
+			if (out) {
+				memcpy(out, iedata, min(bufsize, copy));
+				out += min(bufsize, copy);
+				bufsize -= min(bufsize, copy);
+			}
+
+
+			if (copy == attr_remaining)
+				return desired_len;
+		}
+
+		attr_remaining -= copy;
+		if (attr_remaining)
+			goto cont;
+
+		iedatalen -= copy;
+		iedata += copy;
+
+		while (iedatalen > 0) {
+			u16 attr_len;
+
+			/* P2P attribute ID & size must fit */
+			if (iedatalen < 3)
+				return -EILSEQ;
+			desired_attr = iedata[0] == attr;
+			attr_len = get_unaligned_le16(iedata + 1);
+			iedatalen -= 3;
+			iedata += 3;
+
+			copy = min_t(unsigned int, attr_len, iedatalen);
+
+			if (desired_attr) {
+				desired_len += copy;
+				if (out) {
+					memcpy(out, iedata, min(bufsize, copy));
+					out += min(bufsize, copy);
+					bufsize -= min(bufsize, copy);
+				}
+
+				if (copy == attr_len)
+					return desired_len;
+			}
+
+			iedata += copy;
+			iedatalen -= copy;
+			attr_remaining = attr_len - copy;
+		}
+
+ cont:
+		len -= ies[1] + 2;
+		ies += ies[1] + 2;
+	}
+
+	if (attr_remaining && desired_attr)
+		return -EILSEQ;
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL(cfg80211_get_p2p_attr);
 
 int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 				 u32 beacon_int)

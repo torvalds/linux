@@ -11269,10 +11269,31 @@ static const struct libipw_geo ipw_geos[] = {
 	 }
 };
 
+static void ipw_set_geo(struct ipw_priv *priv)
+{
+	int j;
+
+	for (j = 0; j < ARRAY_SIZE(ipw_geos); j++) {
+		if (!memcmp(&priv->eeprom[EEPROM_COUNTRY_CODE],
+			    ipw_geos[j].name, 3))
+			break;
+	}
+
+	if (j == ARRAY_SIZE(ipw_geos)) {
+		IPW_WARNING("SKU [%c%c%c] not recognized.\n",
+			    priv->eeprom[EEPROM_COUNTRY_CODE + 0],
+			    priv->eeprom[EEPROM_COUNTRY_CODE + 1],
+			    priv->eeprom[EEPROM_COUNTRY_CODE + 2]);
+		j = 0;
+	}
+
+	libipw_set_geo(priv->ieee, &ipw_geos[j]);
+}
+
 #define MAX_HW_RESTARTS 5
 static int ipw_up(struct ipw_priv *priv)
 {
-	int rc, i, j;
+	int rc, i;
 
 	/* Age scan list entries found before suspend */
 	if (priv->suspend_time) {
@@ -11310,22 +11331,7 @@ static int ipw_up(struct ipw_priv *priv)
 		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
 		memcpy(priv->net_dev->perm_addr, priv->mac_addr, ETH_ALEN);
 
-		for (j = 0; j < ARRAY_SIZE(ipw_geos); j++) {
-			if (!memcmp(&priv->eeprom[EEPROM_COUNTRY_CODE],
-				    ipw_geos[j].name, 3))
-				break;
-		}
-		if (j == ARRAY_SIZE(ipw_geos)) {
-			IPW_WARNING("SKU [%c%c%c] not recognized.\n",
-				    priv->eeprom[EEPROM_COUNTRY_CODE + 0],
-				    priv->eeprom[EEPROM_COUNTRY_CODE + 1],
-				    priv->eeprom[EEPROM_COUNTRY_CODE + 2]);
-			j = 0;
-		}
-		if (libipw_set_geo(priv->ieee, &ipw_geos[j])) {
-			IPW_WARNING("Could not set geography.");
-			return 0;
-		}
+		ipw_set_geo(priv);
 
 		if (priv->status & STATUS_RF_KILL_SW) {
 			IPW_WARNING("Radio disabled by module parameter.\n");

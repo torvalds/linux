@@ -344,7 +344,7 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
 		return -EADDRINUSE;
 
 	if (pipe != NFC_HCI_INVALID_PIPE)
-		goto pipe_is_open;
+		goto open_pipe;
 
 	switch (dest_gate) {
 	case NFC_HCI_LINK_MGMT_GATE:
@@ -361,6 +361,7 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
 		break;
 	}
 
+open_pipe:
 	r = nfc_hci_open_pipe(hdev, pipe);
 	if (r < 0) {
 		if (pipe_created)
@@ -371,7 +372,6 @@ int nfc_hci_connect_gate(struct nfc_hci_dev *hdev, u8 dest_host, u8 dest_gate,
 		return r;
 	}
 
-pipe_is_open:
 	hdev->gate2pipe[dest_gate] = pipe;
 
 	return 0;

@@ -65,7 +65,7 @@ static inline void rate_control_rate_init(struct sta_info *sta)
 		return;
 	}
 
-	sband = local->hw.wiphy->bands[chanctx_conf->channel->band];
+	sband = local->hw.wiphy->bands[chanctx_conf->def.chan->band];
 	rcu_read_unlock();
 
 	ref->ops->rate_init(ref->priv, sband, ista, priv_sta);

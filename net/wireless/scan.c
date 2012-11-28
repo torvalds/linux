@@ -771,6 +771,38 @@ cfg80211_bss_update(struct cfg80211_registered_device *dev,
 	return found;
 }
 
+static struct ieee80211_channel *
+cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
+			 struct ieee80211_channel *channel)
+{
+	const u8 *tmp;
+	u32 freq;
+	int channel_number = -1;
+
+	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
+	if (tmp && tmp[1] == 1) {
+		channel_number = tmp[2];
+	} else {
+		tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie, ielen);
+		if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
+			struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
+
+			channel_number = htop->primary_chan;
+		}
+	}
+
+	if (channel_number < 0)
+		return channel;
+
+	freq = ieee80211_channel_to_frequency(channel_number, channel->band);
+	channel = ieee80211_get_channel(wiphy, freq);
+	if (!channel)
+		return NULL;
+	if (channel->flags & IEEE80211_CHAN_DISABLED)
+		return NULL;
+	return channel;
+}
+
 struct cfg80211_bss*
 cfg80211_inform_bss(struct wiphy *wiphy,
 		    struct ieee80211_channel *channel,
@@ -788,6 +820,10 @@ cfg80211_inform_bss(struct wiphy *wiphy,
 
 	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
 			(signal < 0 || signal > 100)))
+		return NULL;
+
+	channel = cfg80211_get_bss_channel(wiphy, ie, ielen, channel);
+	if (!channel)
 		return NULL;
 
 	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
@@ -839,10 +875,12 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 			  s32 signal, gfp_t gfp)
 {
 	struct cfg80211_internal_bss *res;
-
 	size_t ielen = len - offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
 	size_t privsz;
+
+	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
+			offsetof(struct ieee80211_mgmt, u.beacon.variable));
 
 	trace_cfg80211_inform_bss_frame(wiphy, channel, mgmt, len, signal);
 
@@ -860,6 +898,11 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 		return NULL;
 
 	privsz = wiphy->bss_priv_size;
+
+	channel = cfg80211_get_bss_channel(wiphy, mgmt->u.beacon.variable,
+					   ielen, channel);
+	if (!channel)
+		return NULL;
 
 	res = kzalloc(sizeof(*res) + privsz + ielen, gfp);
 	if (!res)

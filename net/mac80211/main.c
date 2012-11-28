@@ -95,11 +95,13 @@ static void ieee80211_reconfig_filter(struct work_struct *work)
 
 static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 {
+	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_channel *chan;
 	u32 changed = 0;
 	int power;
 	enum nl80211_channel_type channel_type;
 	u32 offchannel_flag;
+	bool scanning = false;
 
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (local->scan_channel) {
@@ -113,7 +115,7 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 			channel_type = NL80211_CHAN_NO_HT;
 	} else if (local->tmp_channel) {
 		chan = local->tmp_channel;
-		channel_type = local->tmp_channel_type;
+		channel_type = NL80211_CHAN_NO_HT;
 	} else {
 		chan = local->_oper_channel;
 		channel_type = local->_oper_channel_type;
@@ -146,16 +148,18 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	if (test_bit(SCAN_SW_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_HW_SCANNING, &local->scanning) ||
-	    !local->ap_power_level)
-		power = chan->max_power;
-	else
-		power = min(chan->max_power, local->ap_power_level);
+	scanning = test_bit(SCAN_SW_SCANNING, &local->scanning) ||
+		   test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
+		   test_bit(SCAN_HW_SCANNING, &local->scanning);
+	power = chan->max_power;
 
-	if (local->user_power_level >= 0)
-		power = min(power, local->user_power_level);
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (!rcu_access_pointer(sdata->vif.chanctx_conf))
+			continue;
+		power = min(power, sdata->vif.bss_conf.txpower);
+	}
+	rcu_read_unlock();
 
 	if (local->hw.conf.power_level != power) {
 		changed |= IEEE80211_CONF_CHANGE_POWER;
@@ -600,7 +604,8 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
 			   NL80211_FEATURE_SAE |
-			   NL80211_FEATURE_HT_IBSS;
+			   NL80211_FEATURE_HT_IBSS |
+			   NL80211_FEATURE_VIF_TXPOWER;
 
 	if (!ops->hw_scan)
 		wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN |
@@ -633,7 +638,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.radiotap_mcs_details = IEEE80211_RADIOTAP_MCS_HAVE_MCS |
 					 IEEE80211_RADIOTAP_MCS_HAVE_GI |
 					 IEEE80211_RADIOTAP_MCS_HAVE_BW;
-	local->user_power_level = -1;
+	local->user_power_level = IEEE80211_UNSET_POWER_LEVEL;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
 
 	INIT_LIST_HEAD(&local->interfaces);
@@ -793,10 +798,9 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			local->_oper_channel = &sband->channels[0];
 			local->hw.conf.channel_type = NL80211_CHAN_NO_HT;
 		}
-		if (!local->monitor_channel) {
-			local->monitor_channel = &sband->channels[0];
-			local->monitor_channel_type = NL80211_CHAN_NO_HT;
-		}
+		cfg80211_chandef_create(&local->monitor_chandef,
+					&sband->channels[0],
+					NL80211_CHAN_NO_HT);
 		channels += sband->n_channels;
 
 		if (max_bitrates < sband->n_bitrates)
@@ -879,9 +883,21 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (supp_ht)
 		local->scan_ies_len += 2 + sizeof(struct ieee80211_ht_cap);
 
-	if (supp_vht)
+	if (supp_vht) {
 		local->scan_ies_len +=
 			2 + sizeof(struct ieee80211_vht_cap);
+
+		/*
+		 * (for now at least), drivers wanting to use VHT must
+		 * support channel contexts, as they contain all the
+		 * necessary VHT information and the global hw config
+		 * doesn't (yet)
+		 */
+		if (WARN_ON(!local->use_chanctx)) {
+			result = -EINVAL;
+			goto fail_wiphy_register;
+		}
+	}
 
 	if (!local->ops->hw_scan) {
 		/* For hw_scan, driver needs to set these up. */

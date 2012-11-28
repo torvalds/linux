@@ -238,7 +238,7 @@ static void mwifiex_usb_tx_complete(struct urb *urb)
 	} else {
 		dev_dbg(adapter->dev, "%s: DATA\n", __func__);
 		atomic_dec(&card->tx_data_urb_pending);
-		mwifiex_write_data_complete(adapter, context->skb,
+		mwifiex_write_data_complete(adapter, context->skb, 0,
 					    urb->status ? -1 : 0);
 	}
 

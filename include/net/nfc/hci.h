@@ -149,6 +149,8 @@ void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
 
 void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
 
+int nfc_hci_result_to_errno(u8 result);
+
 /* Host IDs */
 #define NFC_HCI_HOST_CONTROLLER_ID	0x00
 #define NFC_HCI_TERMINAL_HOST_ID	0x01
@@ -235,5 +237,6 @@ int nfc_hci_send_response(struct nfc_hci_dev *hdev, u8 gate, u8 response,
 int nfc_hci_send_event(struct nfc_hci_dev *hdev, u8 gate, u8 event,
 		       const u8 *param, size_t param_len);
 int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate);
+u32 nfc_hci_sak_to_protocol(u8 sak);
 
 #endif /* __NET_HCI_H */

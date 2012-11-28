@@ -337,7 +337,7 @@ void rtl_cam_del_entry(struct ieee80211_hw *hw, u8 *sta_addr)
 		if (((bitmap & BIT(0)) == BIT(0)) &&
 		    (memcmp(addr, sta_addr, ETH_ALEN) == 0)) {
 			/* Remove from HW Security CAM */
-			memset(rtlpriv->sec.hwsec_cam_sta_addr[i], 0, ETH_ALEN);
+			eth_zero_addr(rtlpriv->sec.hwsec_cam_sta_addr[i]);
 			rtlpriv->sec.hwsec_cam_bitmap &= ~(BIT(0) << i);
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
 				 "del CAM entry %d\n", i);

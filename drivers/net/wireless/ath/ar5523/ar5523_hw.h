@@ -161,7 +161,7 @@ struct ar5523_rx_desc {
 
 struct ar5523_tx_desc {
 	__be32	msglen;
-	__be32	msgid;		/* msg id (supplied by host) */
+	u32	msgid;		/* msg id (supplied by host) */
 	__be32	type;		/* opcode: WDMSG_SEND or WDCMSG_FLUSH */
 	__be32	txqid;		/* tx queue id and flags */
 #define	UATH_TXQID_MASK		0x0f

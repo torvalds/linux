@@ -424,9 +424,9 @@ int rt2x00mac_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return 0;
 
-	ieee80211_iterate_active_interfaces_atomic(rt2x00dev->hw,
-						   rt2x00mac_set_tim_iter,
-						   rt2x00dev);
+	ieee80211_iterate_active_interfaces_atomic(
+		rt2x00dev->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		rt2x00mac_set_tim_iter, rt2x00dev);
 
 	/* queue work to upodate the beacon template */
 	ieee80211_queue_work(rt2x00dev->hw, &rt2x00dev->intf_work);

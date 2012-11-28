@@ -2561,11 +2561,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 			pCap->hw_caps |= ATH9K_HW_CAP_ANT_DIV_COMB;
 	}
 
-	if (AR_SREV_9485_10(ah)) {
-		pCap->pcie_lcr_extsync_en = true;
-		pCap->pcie_lcr_offset = 0x80;
-	}
-
 	if (ath9k_hw_dfs_tested(ah))
 		pCap->hw_caps |= ATH9K_HW_CAP_DFS;
 

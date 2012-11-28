@@ -511,7 +511,7 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 		return;
 
 	IWL_DEBUG_INFO(priv, "device request: flush all tx frames\n");
-	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
+	iwlagn_dev_txfifo_flush(priv);
 }
 
 /*
@@ -1191,8 +1191,6 @@ static void iwl_option_config(struct iwl_priv *priv)
 
 static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
-	priv->eeprom_data->sku = priv->eeprom_data->sku;
-
 	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE &&
 	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
@@ -1204,7 +1202,7 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
+	IWL_DEBUG_INFO(priv, "Device SKU: 0x%X\n", priv->eeprom_data->sku);
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(priv->eeprom_data->valid_tx_ant);
@@ -1214,9 +1212,9 @@ static int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 		priv->hw_params.rx_chains_num =
 			num_of_ant(priv->eeprom_data->valid_rx_ant);
 
-	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-		 priv->eeprom_data->valid_tx_ant,
-		 priv->eeprom_data->valid_rx_ant);
+	IWL_DEBUG_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+		       priv->eeprom_data->valid_tx_ant,
+		       priv->eeprom_data->valid_rx_ant);
 
 	return 0;
 }
@@ -1231,7 +1229,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	struct iwl_op_mode *op_mode;
 	u16 num_mac;
 	u32 ucode_flags;
-	struct iwl_trans_config trans_cfg;
+	struct iwl_trans_config trans_cfg = {};
 	static const u8 no_reclaim_cmds[] = {
 		REPLY_RX_PHY_CMD,
 		REPLY_RX_MPDU_CMD,
@@ -1506,10 +1504,6 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	iwlagn_mac_unregister(priv);
 
 	iwl_tt_exit(priv);
-
-	/*This will stop the queues, move the device to low power state */
-	priv->ucode_loaded = false;
-	iwl_trans_stop_device(priv->trans);
 
 	kfree(priv->eeprom_blob);
 	iwl_free_eeprom_data(priv->eeprom_data);
@@ -1925,8 +1919,6 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	/* Keep the restart process from trying to send host
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->status);
-
-	wake_up(&priv->trans->wait_command_queue);
 
 	if (!ondemand) {
 		/*

@@ -331,7 +331,7 @@ struct ath_tx_stats {
 	u32 skb_success;
 	u32 skb_failed;
 	u32 cab_queued;
-	u32 queue_stats[WME_NUM_AC];
+	u32 queue_stats[IEEE80211_NUM_ACS];
 };
 
 struct ath_rx_stats {
@@ -493,7 +493,7 @@ struct ath9k_htc_priv {
 
 	int beaconq;
 	int cabq;
-	int hwq_map[WME_NUM_AC];
+	int hwq_map[IEEE80211_NUM_ACS];
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;

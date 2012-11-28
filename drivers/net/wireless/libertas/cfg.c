@@ -436,19 +436,19 @@ static int lbs_add_wpa_tlv(u8 *tlv, const u8 *ie, u8 ie_len)
  */
 
 static int lbs_cfg_set_monitor_channel(struct wiphy *wiphy,
-				       struct ieee80211_channel *channel,
-				       enum nl80211_channel_type channel_type)
+				       struct cfg80211_chan_def *chandef)
 {
 	struct lbs_private *priv = wiphy_priv(wiphy);
 	int ret = -ENOTSUPP;
 
 	lbs_deb_enter_args(LBS_DEB_CFG80211, "freq %d, type %d",
-			   channel->center_freq, channel_type);
+			   chandef->chan->center_freq,
+			   cfg80211_get_chandef_type(chandef));
 
-	if (channel_type != NL80211_CHAN_NO_HT)
+	if (cfg80211_get_chandef_type(chandef) != NL80211_CHAN_NO_HT)
 		goto out;
 
-	ret = lbs_set_channel(priv, channel->hw_value);
+	ret = lbs_set_channel(priv, chandef->chan->hw_value);
 
  out:
 	lbs_deb_leave_args(LBS_DEB_CFG80211, "ret %d", ret);
@@ -1734,7 +1734,7 @@ static void lbs_join_post(struct lbs_private *priv,
 	/* Fake DS channel IE */
 	*fake++ = WLAN_EID_DS_PARAMS;
 	*fake++ = 1;
-	*fake++ = params->channel->hw_value;
+	*fake++ = params->chandef.chan->hw_value;
 	/* Fake IBSS params IE */
 	*fake++ = WLAN_EID_IBSS_PARAMS;
 	*fake++ = 2;
@@ -1755,7 +1755,7 @@ static void lbs_join_post(struct lbs_private *priv,
 	lbs_deb_hex(LBS_DEB_CFG80211, "IE", fake_ie, fake - fake_ie);
 
 	bss = cfg80211_inform_bss(priv->wdev->wiphy,
-				  params->channel,
+				  params->chandef.chan,
 				  bssid,
 				  0,
 				  capability,
@@ -1833,7 +1833,7 @@ static int lbs_ibss_join_existing(struct lbs_private *priv,
 	cmd.bss.beaconperiod = cpu_to_le16(params->beacon_interval);
 	cmd.bss.ds.header.id = WLAN_EID_DS_PARAMS;
 	cmd.bss.ds.header.len = 1;
-	cmd.bss.ds.channel = params->channel->hw_value;
+	cmd.bss.ds.channel = params->chandef.chan->hw_value;
 	cmd.bss.ibss.header.id = WLAN_EID_IBSS_PARAMS;
 	cmd.bss.ibss.header.len = 2;
 	cmd.bss.ibss.atimwindow = 0;
@@ -1942,7 +1942,7 @@ static int lbs_ibss_start_new(struct lbs_private *priv,
 	cmd.ibss.atimwindow = 0;
 	cmd.ds.header.id = WLAN_EID_DS_PARAMS;
 	cmd.ds.header.len = 1;
-	cmd.ds.channel = params->channel->hw_value;
+	cmd.ds.channel = params->chandef.chan->hw_value;
 	/* Only v8 and below support setting probe delay */
 	if (MRVL_FW_MAJOR_REV(priv->fwrelease) <= 8)
 		cmd.probedelay = cpu_to_le16(CMD_SCAN_PROBE_DELAY_TIME);
@@ -1987,18 +1987,18 @@ static int lbs_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 
 	lbs_deb_enter(LBS_DEB_CFG80211);
 
-	if (!params->channel) {
+	if (!params->chandef.chan) {
 		ret = -ENOTSUPP;
 		goto out;
 	}
 
-	ret = lbs_set_channel(priv, params->channel->hw_value);
+	ret = lbs_set_channel(priv, params->chandef.chan->hw_value);
 	if (ret)
 		goto out;
 
 	/* Search if someone is beaconing. This assumes that the
 	 * bss list is populated already */
-	bss = cfg80211_get_bss(wiphy, params->channel, params->bssid,
+	bss = cfg80211_get_bss(wiphy, params->chandef.chan, params->bssid,
 		params->ssid, params->ssid_len,
 		WLAN_CAPABILITY_IBSS, WLAN_CAPABILITY_IBSS);
 

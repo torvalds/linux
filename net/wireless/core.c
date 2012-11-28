@@ -326,6 +326,8 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 	mutex_init(&rdev->devlist_mtx);
 	mutex_init(&rdev->sched_scan_mtx);
 	INIT_LIST_HEAD(&rdev->wdev_list);
+	INIT_LIST_HEAD(&rdev->beacon_registrations);
+	spin_lock_init(&rdev->beacon_registrations_lock);
 	spin_lock_init(&rdev->bss_lock);
 	INIT_LIST_HEAD(&rdev->bss_list);
 	INIT_WORK(&rdev->scan_done_wk, __cfg80211_scan_done);
@@ -698,10 +700,15 @@ EXPORT_SYMBOL(wiphy_unregister);
 void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 {
 	struct cfg80211_internal_bss *scan, *tmp;
+	struct cfg80211_beacon_registration *reg, *treg;
 	rfkill_destroy(rdev->rfkill);
 	mutex_destroy(&rdev->mtx);
 	mutex_destroy(&rdev->devlist_mtx);
 	mutex_destroy(&rdev->sched_scan_mtx);
+	list_for_each_entry_safe(reg, treg, &rdev->beacon_registrations, list) {
+		list_del(&reg->list);
+		kfree(reg);
+	}
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
 	kfree(rdev);

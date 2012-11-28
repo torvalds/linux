@@ -32,6 +32,17 @@ config RTL8192DE
 
 	If you choose to build it as a module, it will be called rtl8192de
 
+config RTL8723AE
+	tristate "Realtek RTL8723AE PCIe Wireless Network Adapter"
+	depends on MAC80211 && PCI && EXPERIMENTAL
+	select FW_LOADER
+	select RTLWIFI
+	---help---
+	This is the driver for Realtek RTL8723AE 802.11n PCIe
+	wireless network adapters.
+
+	If you choose to build it as a module, it will be called rtl8723ae
+
 config RTL8192CU
 	tristate "Realtek RTL8192CU/RTL8188CU USB Wireless Network Adapter"
 	depends on MAC80211 && USB

@@ -168,10 +168,13 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
-#ifndef CONFIG_IWLWIFI_EXPERIMENTAL_MFP
-	/* enable 11w if the uCode advertise */
-	if (capa->flags & IWL_UCODE_TLV_FLAGS_MFP)
-#endif /* !CONFIG_IWLWIFI_EXPERIMENTAL_MFP */
+	/*
+	 * Enable 11w if advertised by firmware and software crypto
+	 * is not enabled (as the firmware will interpret some mgmt
+	 * packets, so enabling it with software crypto isn't safe)
+	 */
+	if (priv->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_MFP &&
+	    !iwlwifi_mod_params.sw_crypto)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
 
 	hw->sta_data_size = sizeof(struct iwl_station_priv);
@@ -1019,7 +1022,7 @@ static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 	 */
 	if (drop) {
 		IWL_DEBUG_MAC80211(priv, "send flush command\n");
-		if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
+		if (iwlagn_txfifo_flush(priv)) {
 			IWL_ERR(priv, "flush request fail\n");
 			goto done;
 		}
@@ -1032,8 +1035,8 @@ done:
 }
 
 static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
 				     struct ieee80211_channel *channel,
-				     enum nl80211_channel_type channel_type,
 				     int duration)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
@@ -1065,7 +1068,6 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	}
 
 	priv->hw_roc_channel = channel;
-	priv->hw_roc_chantype = channel_type;
 	/* convert from ms to TU */
 	priv->hw_roc_duration = DIV_ROUND_UP(1000 * duration, 1024);
 	priv->hw_roc_start_notified = false;

@@ -50,18 +50,19 @@ static void ar5523_read_reply(struct ar5523 *ar, struct ar5523_cmd_hdr *hdr,
 			      struct ar5523_tx_cmd *cmd)
 {
 	int dlen, olen;
-	u32 *rp;
+	__be32 *rp;
 
-	dlen = hdr->len - sizeof(*hdr);
+	dlen = be32_to_cpu(hdr->len) - sizeof(*hdr);
 
 	if (dlen < 0) {
 		WARN_ON(1);
 		goto out;
 	}
 
-	ar5523_dbg(ar, "Code = %d len = %d\n", hdr->code & 0xff, dlen);
+	ar5523_dbg(ar, "Code = %d len = %d\n", be32_to_cpu(hdr->code) & 0xff,
+		   dlen);
 
-	rp = (u32 *)(hdr + 1);
+	rp = (__be32 *)(hdr + 1);
 	if (dlen >= sizeof(u32)) {
 		olen = be32_to_cpu(rp[0]);
 		dlen -= sizeof(u32);
@@ -95,6 +96,7 @@ static void ar5523_cmd_rx_cb(struct urb *urb)
 	struct ar5523_tx_cmd *cmd = &ar->tx_cmd;
 	struct ar5523_cmd_hdr *hdr = ar->rx_cmd_buf;
 	int dlen;
+	u32 code, hdrlen;
 
 	if (urb->status) {
 		if (urb->status != -ESHUTDOWN)
@@ -110,15 +112,15 @@ static void ar5523_cmd_rx_cb(struct urb *urb)
 	ar5523_dbg(ar, "%s code %02x priv %d\n", __func__,
 		   be32_to_cpu(hdr->code) & 0xff, hdr->priv);
 
-	hdr->code = be32_to_cpu(hdr->code);
-	hdr->len = be32_to_cpu(hdr->len);
+	code = be32_to_cpu(hdr->code);
+	hdrlen = be32_to_cpu(hdr->len);
 
-	switch (hdr->code & 0xff) {
+	switch (code & 0xff) {
 	default:
 		/* reply to a read command */
 		if (hdr->priv != AR5523_CMD_ID) {
 			ar5523_err(ar, "Unexpected command id: %02x\n",
-				   hdr->code & 0xff);
+				   code & 0xff);
 			goto skip;
 		}
 		ar5523_read_reply(ar, hdr, cmd);
@@ -147,7 +149,7 @@ static void ar5523_cmd_rx_cb(struct urb *urb)
 	case WDCMSG_TARGET_START:
 		/* This command returns a bogus id so it needs special
 		   handling */
-		dlen = hdr->len - sizeof(*hdr);
+		dlen = hdrlen - sizeof(*hdr);
 		if (dlen != (int)sizeof(u32)) {
 			ar5523_err(ar, "Invalid reply to WDCMSG_TARGET_START");
 			return;
@@ -303,7 +305,7 @@ static int ar5523_config(struct ar5523 *ar, u32 reg, u32 val)
 
 	write.reg = cpu_to_be32(reg);
 	write.len = cpu_to_be32(0);	/* 0 = single write */
-	*(u32 *)write.data = cpu_to_be32(val);
+	*(__be32 *)write.data = cpu_to_be32(val);
 
 	error = ar5523_cmd_write(ar, WDCMSG_TARGET_SET_CONFIG, &write,
 				 3 * sizeof(u32), 0);
@@ -335,29 +337,30 @@ static int ar5523_get_status(struct ar5523 *ar, u32 which, void *odata,
 			     int olen)
 {
 	int error;
+	__be32 which_be;
 
-	which = cpu_to_be32(which);
+	which_be = cpu_to_be32(which);
 	error = ar5523_cmd_read(ar, WDCMSG_TARGET_GET_STATUS,
-	    &which, sizeof(which), odata, olen, AR5523_CMD_FLAG_MAGIC);
+	    &which_be, sizeof(which_be), odata, olen, AR5523_CMD_FLAG_MAGIC);
 	if (error != 0)
-		ar5523_err(ar, "could not read EEPROM offset 0x%02x\n",
-			   be32_to_cpu(which));
+		ar5523_err(ar, "could not read EEPROM offset 0x%02x\n", which);
 	return error;
 }
 
 static int ar5523_get_capability(struct ar5523 *ar, u32 cap, u32 *val)
 {
 	int error;
+	__be32 cap_be, val_be;
 
-	cap = cpu_to_be32(cap);
-	error = ar5523_cmd_read(ar, WDCMSG_TARGET_GET_CAPABILITY,
-	    &cap, sizeof(cap), val, sizeof(u32), AR5523_CMD_FLAG_MAGIC);
+	cap_be = cpu_to_be32(cap);
+	error = ar5523_cmd_read(ar, WDCMSG_TARGET_GET_CAPABILITY, &cap_be,
+				sizeof(cap_be), &val_be, sizeof(__be32),
+				AR5523_CMD_FLAG_MAGIC);
 	if (error != 0) {
-		ar5523_err(ar, "could not read capability %u\n",
-			   be32_to_cpu(cap));
+		ar5523_err(ar, "could not read capability %u\n", cap);
 		return error;
 	}
-	*val = be32_to_cpu(*val);
+	*val = be32_to_cpu(val_be);
 	return error;
 }
 
@@ -1193,8 +1196,8 @@ static void ar5523_create_rateset(struct ar5523 *ar,
 	if (!sta) {
 		ar5523_info(ar, "STA not found. Cannot set rates\n");
 		sta_rate_set = bss_conf->basic_rates;
-	}
-	sta_rate_set = sta->supp_rates[ar->hw->conf.channel->band];
+	} else
+		sta_rate_set = sta->supp_rates[ar->hw->conf.channel->band];
 
 	ar5523_dbg(ar, "sta rate_set = %08x\n", sta_rate_set);
 
@@ -1789,18 +1792,7 @@ static struct usb_driver ar5523_driver = {
 	.disconnect	= ar5523_disconnect,
 };
 
-static int __init ar5523_init(void)
-{
-	return usb_register(&ar5523_driver);
-}
-
-static void __exit ar5523_exit(void)
-{
-	usb_deregister(&ar5523_driver);
-}
+module_usb_driver(ar5523_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_FIRMWARE(AR5523_FIRMWARE_FILE);
-
-module_init(ar5523_init);
-module_exit(ar5523_exit);

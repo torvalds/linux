@@ -796,7 +796,7 @@ void b43_rx(struct b43_wldev *dev, struct sk_buff *skb, const void *_rxhdr)
 		status.mactime += mactime;
 		if (low_mactime_now <= mactime)
 			status.mactime -= 0x10000;
-		status.flag |= RX_FLAG_MACTIME_MPDU;
+		status.flag |= RX_FLAG_MACTIME_START;
 	}
 
 	chanid = (chanstat & B43_RX_CHAN_ID) >> B43_RX_CHAN_ID_SHIFT;

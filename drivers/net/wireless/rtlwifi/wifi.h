@@ -350,6 +350,11 @@ enum rt_oem_id {
 	RT_CID_819x_WNC_COREGA = 31,
 	RT_CID_819x_Foxcoon = 32,
 	RT_CID_819x_DELL = 33,
+	RT_CID_819x_PRONETS = 34,
+	RT_CID_819x_Edimax_ASUS = 35,
+	RT_CID_NETGEAR = 36,
+	RT_CID_PLANEX = 37,
+	RT_CID_CC_C = 38,
 };
 
 enum hw_descs {
@@ -505,6 +510,7 @@ enum rtl_var_map {
 	RTL_IMR_ROK,		/*Receive DMA OK Interrupt */
 	RTL_IBSS_INT_MASKS,	/*(RTL_IMR_BcnInt | RTL_IMR_TBDOK |
 				 * RTL_IMR_TBDER) */
+	RTL_IMR_C2HCMD,		/*fw interrupt*/
 
 	/*CCK Rates, TxHT = 0 */
 	RTL_RC_CCK_RATE1M,
@@ -659,6 +665,11 @@ enum ba_action {
 	ACT_ADDBAREQ = 0,
 	ACT_ADDBARSP = 1,
 	ACT_DELBA = 2,
+};
+
+enum rt_polarity_ctl {
+	RT_POLARITY_LOW_ACT = 0,
+	RT_POLARITY_HIGH_ACT = 1,
 };
 
 struct octet_string {
@@ -903,6 +914,8 @@ struct rtl_phy {
 	u8 num_total_rfpath;
 	struct phy_parameters hwparam_tables[MAX_TAB];
 	u16 rf_pathmap;
+
+	enum rt_polarity_ctl polarity_ctl;
 };
 
 #define MAX_TID_COUNT				9
@@ -1042,13 +1055,64 @@ struct rtl_mac {
 	/*QOS & EDCA */
 	struct ieee80211_tx_queue_params edca_param[RTL_MAC80211_NUM_QUEUE];
 	struct rtl_qos_parameters ac[AC_MAX];
+
+	/* counters */
+	u64 last_txok_cnt;
+	u64 last_rxok_cnt;
+	u32 last_bt_edca_ul;
+	u32 last_bt_edca_dl;
+};
+
+struct btdm_8723 {
+	bool all_off;
+	bool agc_table_en;
+	bool adc_back_off_on;
+	bool b2_ant_hid_en;
+	bool low_penalty_rate_adaptive;
+	bool rf_rx_lpf_shrink;
+	bool reject_aggre_pkt;
+	bool tra_tdma_on;
+	u8 tra_tdma_nav;
+	u8 tra_tdma_ant;
+	bool tdma_on;
+	u8 tdma_ant;
+	u8 tdma_nav;
+	u8 tdma_dac_swing;
+	u8 fw_dac_swing_lvl;
+	bool ps_tdma_on;
+	u8 ps_tdma_byte[5];
+	bool pta_on;
+	u32 val_0x6c0;
+	u32 val_0x6c8;
+	u32 val_0x6cc;
+	bool sw_dac_swing_on;
+	u32 sw_dac_swing_lvl;
+	u32 wlan_act_hi;
+	u32 wlan_act_lo;
+	u32 bt_retry_index;
+	bool dec_bt_pwr;
+	bool ignore_wlan_act;
+};
+
+struct bt_coexist_8723 {
+	u32 high_priority_tx;
+	u32 high_priority_rx;
+	u32 low_priority_tx;
+	u32 low_priority_rx;
+	u8 c2h_bt_info;
+	bool c2h_bt_info_req_sent;
+	bool c2h_bt_inquiry_page;
+	u32 bt_inq_page_start_time;
+	u8 bt_retry_cnt;
+	u8 c2h_bt_info_original;
+	u8 bt_inquiry_page_cnt;
+	struct btdm_8723 btdm;
 };
 
 struct rtl_hal {
 	struct ieee80211_hw *hw;
-
+	struct bt_coexist_8723 hal_coex_8723;
 	bool up_first_time;
-	bool first_init;
 	bool being_init_adapter;
 	bool bbrf_ready;
 
@@ -1312,6 +1376,7 @@ struct rtl_ps_ctl {
 };
 
 struct rtl_stats {
+	u8 psaddr[ETH_ALEN];
 	u32 mac_time[2];
 	s8 rssi;
 	u8 signal;
@@ -1503,6 +1568,7 @@ struct rtl_hal_ops {
 	void (*phy_lc_calibrate) (struct ieee80211_hw *hw, bool is2t);
 	void (*phy_set_bw_mode_callback) (struct ieee80211_hw *hw);
 	void (*dm_dynamic_txpower) (struct ieee80211_hw *hw);
+	void (*c2h_command_handle) (struct ieee80211_hw *hw);
 	void (*bt_wifi_media_status_notify) (struct ieee80211_hw *hw,
 					     bool mstate);
 	void (*bt_coex_off_before_lps) (struct ieee80211_hw *hw);
@@ -1784,9 +1850,22 @@ struct rtl_priv {
 	struct dig_t dm_digtable;
 	struct ps_t dm_pstable;
 
-	/* data buffer pointer for USB reads */
-	__le32 *usb_data;
-	int usb_data_index;
+	/* section shared by individual drivers */
+	union {
+		struct {	/* data buffer pointer for USB reads */
+			__le32 *usb_data;
+			int usb_data_index;
+			bool initialized;
+		};
+		struct {	/* section for 8723ae */
+			bool reg_init;	/* true if regs saved */
+			u32 reg_874;
+			u32 reg_c70;
+			u32 reg_85c;
+			u32 reg_a74;
+			bool bt_operation_on;
+		};
+	};
 
 	/*This must be the last item so
 	   that it points to the data allocated
@@ -1818,6 +1897,7 @@ enum bt_co_type {
 	BT_CSR_BC4 = 3,
 	BT_CSR_BC8 = 4,
 	BT_RTL8756 = 5,
+	BT_RTL8723A = 6,
 };
 
 enum bt_cur_state {
@@ -1876,13 +1956,27 @@ struct bt_coexist_info {
 
 	bool fw_coexist_all_off;
 	bool sw_coexist_all_off;
-	u32 current_state;
+	bool hw_coexist_all_off;
+	u32 cstate;
 	u32 previous_state;
+	u32 cstate_h;
+	u32 previous_state_h;
+
 	u8 bt_pre_rssi_state;
+	u8 bt_pre_rssi_state1;
 
 	u8 reg_bt_iso;
 	u8 reg_bt_sco;
+	bool balance_on;
+	u8 bt_active_zero_cnt;
+	bool cur_bt_disabled;
+	bool pre_bt_disabled;
 
+	u8 bt_profile_case;
+	u8 bt_profile_action;
+	bool bt_busy;
+	bool hold_for_bt_operation;
+	u8 lps_counter;
 };
 
 

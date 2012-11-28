@@ -276,8 +276,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		dev_dbg(adapter->dev, "info: SSID found in scan list ... "
 				      "associating...\n");
 
-		if (!netif_queue_stopped(priv->netdev))
-			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))
 			netif_carrier_off(priv->netdev);
 
@@ -318,8 +317,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 		ret = mwifiex_check_network_compatibility(priv, bss_desc);
 
-		if (!netif_queue_stopped(priv->netdev))
-			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
+		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 		if (netif_carrier_ok(priv->netdev))
 			netif_carrier_off(priv->netdev);
 
@@ -1046,7 +1044,6 @@ mwifiex_get_ver_ext(struct mwifiex_private *priv)
 int
 mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 			   struct ieee80211_channel *chan,
-			   enum nl80211_channel_type *ct,
 			   unsigned int duration)
 {
 	struct host_cmd_ds_remain_on_chan roc_cfg;
@@ -1056,7 +1053,7 @@ mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 	roc_cfg.action = cpu_to_le16(action);
 	if (action == HostCmd_ACT_GEN_SET) {
 		roc_cfg.band_cfg = chan->band;
-		sc = mwifiex_chan_type_to_sec_chan_offset(*ct);
+		sc = mwifiex_chan_type_to_sec_chan_offset(NL80211_CHAN_NO_HT);
 		roc_cfg.band_cfg |= (sc << 2);
 
 		roc_cfg.channel =

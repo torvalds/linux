@@ -131,6 +131,8 @@
 
 #define IEEE80211_MAX_MESH_ID_LEN	32
 
+#define IEEE80211_NUM_TIDS		16
+
 #define IEEE80211_QOS_CTL_LEN		2
 /* 1d tag mask */
 #define IEEE80211_QOS_CTL_TAG1D_MASK		0x0007
@@ -666,6 +668,21 @@ struct ieee80211_meshconf_ie {
 } __attribute__ ((packed));
 
 /**
+ * enum mesh_config_capab_flags - Mesh Configuration IE capability field flags
+ *
+ * @IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS: STA is willing to establish
+ *	additional mesh peerings with other mesh STAs
+ * @IEEE80211_MESHCONF_CAPAB_FORWARDING: the STA forwards MSDUs
+ * @IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING: TBTT adjustment procedure
+ *	is ongoing
+ */
+enum mesh_config_capab_flags {
+	IEEE80211_MESHCONF_CAPAB_ACCEPT_PLINKS		= 0x01,
+	IEEE80211_MESHCONF_CAPAB_FORWARDING		= 0x08,
+	IEEE80211_MESHCONF_CAPAB_TBTT_ADJUSTING		= 0x20,
+};
+
+/**
  * struct ieee80211_rann_ie
  *
  * This structure refers to "Root Announcement information element"
@@ -905,6 +922,38 @@ struct ieee80211_tdls_data {
 	} u;
 } __packed;
 
+/*
+ * Peer-to-Peer IE attribute related definitions.
+ */
+/**
+ * enum ieee80211_p2p_attr_id - identifies type of peer-to-peer attribute.
+ */
+enum ieee80211_p2p_attr_id {
+	IEEE80211_P2P_ATTR_STATUS = 0,
+	IEEE80211_P2P_ATTR_MINOR_REASON,
+	IEEE80211_P2P_ATTR_CAPABILITY,
+	IEEE80211_P2P_ATTR_DEVICE_ID,
+	IEEE80211_P2P_ATTR_GO_INTENT,
+	IEEE80211_P2P_ATTR_GO_CONFIG_TIMEOUT,
+	IEEE80211_P2P_ATTR_LISTEN_CHANNEL,
+	IEEE80211_P2P_ATTR_GROUP_BSSID,
+	IEEE80211_P2P_ATTR_EXT_LISTEN_TIMING,
+	IEEE80211_P2P_ATTR_INTENDED_IFACE_ADDR,
+	IEEE80211_P2P_ATTR_MANAGABILITY,
+	IEEE80211_P2P_ATTR_CHANNEL_LIST,
+	IEEE80211_P2P_ATTR_ABSENCE_NOTICE,
+	IEEE80211_P2P_ATTR_DEVICE_INFO,
+	IEEE80211_P2P_ATTR_GROUP_INFO,
+	IEEE80211_P2P_ATTR_GROUP_ID,
+	IEEE80211_P2P_ATTR_INTERFACE,
+	IEEE80211_P2P_ATTR_OPER_CHANNEL,
+	IEEE80211_P2P_ATTR_INVITE_FLAGS,
+	/* 19 - 220: Reserved */
+	IEEE80211_P2P_ATTR_VENDOR_SPECIFIC = 221,
+
+	IEEE80211_P2P_ATTR_MAX
+};
+
 /**
  * struct ieee80211_bar - HT Block Ack Request
  *
@@ -1114,11 +1163,13 @@ struct ieee80211_ht_operation {
  *	STA can receive. Rate expressed in units of 1 Mbps.
  *	If this field is 0 this value should not be used to
  *	consider the highest RX data rate supported.
+ *	The top 3 bits of this field are reserved.
  * @tx_mcs_map: TX MCS map 2 bits for each stream, total 8 streams
  * @tx_highest: Indicates highest long GI VHT PPDU data rate
  *	STA can transmit. Rate expressed in units of 1 Mbps.
  *	If this field is 0 this value should not be used to
  *	consider the highest TX data rate supported.
+ *	The top 3 bits of this field are reserved.
  */
 struct ieee80211_vht_mcs_info {
 	__le16 rx_mcs_map;
@@ -1126,6 +1177,27 @@ struct ieee80211_vht_mcs_info {
 	__le16 tx_mcs_map;
 	__le16 tx_highest;
 } __packed;
+
+/**
+ * enum ieee80211_vht_mcs_support - VHT MCS support definitions
+ * @IEEE80211_VHT_MCS_SUPPORT_0_7: MCSes 0-7 are supported for the
+ *	number of streams
+ * @IEEE80211_VHT_MCS_SUPPORT_0_8: MCSes 0-8 are supported
+ * @IEEE80211_VHT_MCS_SUPPORT_0_9: MCSes 0-9 are supported
+ * @IEEE80211_VHT_MCS_NOT_SUPPORTED: This number of streams isn't supported
+ *
+ * These definitions are used in each 2-bit subfield of the @rx_mcs_map
+ * and @tx_mcs_map fields of &struct ieee80211_vht_mcs_info, which are
+ * both split into 8 subfields by number of streams. These values indicate
+ * which MCSes are supported for the number of streams the value appears
+ * for.
+ */
+enum ieee80211_vht_mcs_support {
+	IEEE80211_VHT_MCS_SUPPORT_0_7	= 0,
+	IEEE80211_VHT_MCS_SUPPORT_0_8	= 1,
+	IEEE80211_VHT_MCS_SUPPORT_0_9	= 2,
+	IEEE80211_VHT_MCS_NOT_SUPPORTED	= 3,
+};
 
 /**
  * struct ieee80211_vht_cap - VHT capabilities

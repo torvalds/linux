@@ -30,8 +30,6 @@
 #define TKIP_ICV_LEN		4
 #define CMAC_PN_LEN		6
 
-#define NUM_RX_DATA_QUEUES	16
-
 struct ieee80211_local;
 struct ieee80211_sub_if_data;
 struct sta_info;
@@ -82,17 +80,17 @@ struct ieee80211_key {
 			struct tkip_ctx tx;
 
 			/* last received RSC */
-			struct tkip_ctx rx[NUM_RX_DATA_QUEUES];
+			struct tkip_ctx rx[IEEE80211_NUM_TIDS];
 		} tkip;
 		struct {
 			atomic64_t tx_pn;
 			/*
 			 * Last received packet number. The first
-			 * NUM_RX_DATA_QUEUES counters are used with Data
+			 * IEEE80211_NUM_TIDS counters are used with Data
 			 * frames and the last counter is used with Robust
 			 * Management frames.
 			 */
-			u8 rx_pn[NUM_RX_DATA_QUEUES + 1][CCMP_PN_LEN];
+			u8 rx_pn[IEEE80211_NUM_TIDS + 1][CCMP_PN_LEN];
 			struct crypto_cipher *tfm;
 			u32 replays; /* dot11RSNAStatsCCMPReplays */
 		} ccmp;

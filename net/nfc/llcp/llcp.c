@@ -656,6 +656,8 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 		if (llcp_sock == NULL && nfc_llcp_ptype(skb) == LLCP_PDU_I) {
 			nfc_llcp_send_symm(local->dev);
 		} else {
+			struct sk_buff *copy_skb = NULL;
+			u8 ptype = nfc_llcp_ptype(skb);
 			int ret;
 
 			pr_debug("Sending pending skb\n");
@@ -663,22 +665,29 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 				       DUMP_PREFIX_OFFSET, 16, 1,
 				       skb->data, skb->len, true);
 
+			if (ptype == LLCP_PDU_I)
+				copy_skb = skb_copy(skb, GFP_ATOMIC);
+
 			nfc_llcp_send_to_raw_sock(local, skb,
 						  NFC_LLCP_DIRECTION_TX);
 
 			ret = nfc_data_exchange(local->dev, local->target_idx,
 						skb, nfc_llcp_recv, local);
 
-			if (!ret && nfc_llcp_ptype(skb) == LLCP_PDU_I) {
-				skb = skb_get(skb);
-				skb_queue_tail(&llcp_sock->tx_pending_queue,
-					       skb);
+			if (ret) {
+				kfree_skb(copy_skb);
+				goto out;
 			}
+
+			if (ptype == LLCP_PDU_I && copy_skb)
+				skb_queue_tail(&llcp_sock->tx_pending_queue,
+					       copy_skb);
 		}
 	} else {
 		nfc_llcp_send_symm(local->dev);
 	}
 
+out:
 	mod_timer(&local->link_timer,
 		  jiffies + msecs_to_jiffies(2 * local->remote_lto));
 }

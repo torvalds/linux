@@ -5157,6 +5157,7 @@ F:	net/nfc/
 F:	include/linux/nfc.h
 F:	include/net/nfc/
 F:	drivers/nfc/
+F:	include/linux/platform_data/pn544.h
 
 NFS, SUNRPC, AND LOCKD CLIENTS
 M:	Trond Myklebust <Trond.Myklebust@netapp.com>

@@ -136,7 +136,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
  *  1. acquire mutex before calling
  *  2. make sure rf is on and not in exit state
  */
-int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+int iwlagn_txfifo_flush(struct iwl_priv *priv)
 {
 	struct iwl_txfifo_flush_cmd flush_cmd;
 	struct iwl_host_cmd cmd = {
@@ -146,35 +146,34 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		.data = { &flush_cmd, },
 	};
 
-	might_sleep();
-
 	memset(&flush_cmd, 0, sizeof(flush_cmd));
-	if (flush_control & BIT(IWL_RXON_CTX_BSS))
-		flush_cmd.fifo_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
-				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
-				 IWL_SCD_MGMT_MSK;
-	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
-	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
-		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
-				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
-				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
-				IWL_PAN_SCD_MULTICAST_MSK;
+
+	flush_cmd.queue_control = IWL_SCD_VO_MSK | IWL_SCD_VI_MSK |
+				  IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
+				  IWL_SCD_MGMT_MSK;
+	if ((priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
+		flush_cmd.queue_control |= IWL_PAN_SCD_VO_MSK |
+					   IWL_PAN_SCD_VI_MSK |
+					   IWL_PAN_SCD_BE_MSK |
+					   IWL_PAN_SCD_BK_MSK |
+					   IWL_PAN_SCD_MGMT_MSK |
+					   IWL_PAN_SCD_MULTICAST_MSK;
 
 	if (priv->eeprom_data->sku & EEPROM_SKU_CAP_11N_ENABLE)
-		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
+		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
 
-	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
-		       flush_cmd.fifo_control);
-	flush_cmd.flush_control = cpu_to_le16(flush_control);
+	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
+		       flush_cmd.queue_control);
+	flush_cmd.flush_control = cpu_to_le16(IWL_DROP_ALL);
 
 	return iwl_dvm_send_cmd(priv, &cmd);
 }
 
-void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
+void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)
 {
 	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
-	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
+	if (iwlagn_txfifo_flush(priv)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}

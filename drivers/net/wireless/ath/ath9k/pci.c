@@ -96,17 +96,6 @@ static bool ath_pci_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 	return true;
 }
 
-static void ath_pci_extn_synch_enable(struct ath_common *common)
-{
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
-	struct pci_dev *pdev = to_pci_dev(sc->dev);
-	u8 lnkctl;
-
-	pci_read_config_byte(pdev, sc->sc_ah->caps.pcie_lcr_offset, &lnkctl);
-	lnkctl |= PCI_EXP_LNKCTL_ES;
-	pci_write_config_byte(pdev, sc->sc_ah->caps.pcie_lcr_offset, lnkctl);
-}
-
 /* Need to be called after we discover btcoex capabilities */
 static void ath_pci_aspm_init(struct ath_common *common)
 {
@@ -153,7 +142,6 @@ static const struct ath_bus_ops ath_pci_bus_ops = {
 	.ath_bus_type = ATH_PCI,
 	.read_cachesize = ath_pci_read_cachesize,
 	.eeprom_read = ath_pci_eeprom_read,
-	.extn_synch_en = ath_pci_extn_synch_enable,
 	.aspm_init = ath_pci_aspm_init,
 };
 

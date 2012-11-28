@@ -28,13 +28,6 @@
 #define WME_MAX_BA              WME_BA_BMP_SIZE
 #define ATH_TID_MAX_BUFS        (2 * WME_MAX_BA)
 
-/* These must match mac80211 skb queue mapping numbers */
-#define WME_AC_VO   0
-#define WME_AC_VI   1
-#define WME_AC_BE   2
-#define WME_AC_BK   3
-#define WME_NUM_AC  4
-
 #define ATH_RSSI_DUMMY_MARKER   0x127
 #define ATH_RSSI_LPF_LEN 		10
 #define RSSI_LPF_THRESHOLD		-20

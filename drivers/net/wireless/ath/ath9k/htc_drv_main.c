@@ -127,8 +127,9 @@ static void ath9k_htc_vif_reconfig(struct ath9k_htc_priv *priv)
 	priv->rearm_ani = false;
 	priv->reconfig_beacon = false;
 
-	ieee80211_iterate_active_interfaces_atomic(priv->hw,
-						   ath9k_htc_vif_iter, priv);
+	ieee80211_iterate_active_interfaces_atomic(
+		priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_htc_vif_iter, priv);
 	if (priv->rearm_ani)
 		ath9k_htc_start_ani(priv);
 
@@ -165,8 +166,9 @@ static void ath9k_htc_set_bssid_mask(struct ath9k_htc_priv *priv,
 		ath9k_htc_bssid_iter(&iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(priv->hw, ath9k_htc_bssid_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_htc_bssid_iter, &iter_data);
 
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
@@ -1144,8 +1146,9 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	 */
 	if ((vif->type == NL80211_IFTYPE_AP) && (priv->num_ap_vif == 0)) {
 		priv->rearm_ani = false;
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-						   ath9k_htc_vif_iter, priv);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_vif_iter, priv);
 		if (!priv->rearm_ani)
 			ath9k_htc_stop_ani(priv);
 	}
@@ -1346,7 +1349,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	mutex_lock(&priv->mutex);
@@ -1373,7 +1376,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	}
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
-	    (qnum == priv->hwq_map[WME_AC_BE]))
+	    (qnum == priv->hwq_map[IEEE80211_AC_BE]))
 		    ath9k_htc_beaconq_config(priv);
 out:
 	ath9k_htc_ps_restore(priv);
@@ -1466,8 +1469,9 @@ static void ath9k_htc_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 static void ath9k_htc_choose_set_bssid(struct ath9k_htc_priv *priv)
 {
 	if (priv->num_sta_assoc_vif == 1) {
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-							   ath9k_htc_bss_iter, priv);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_bss_iter, priv);
 		ath9k_htc_set_bssid(priv);
 	}
 }
