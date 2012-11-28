@@ -47,7 +47,7 @@
 
 #include "igbvf.h"
 
-#define DRV_VERSION "2.0.1-k"
+#define DRV_VERSION "2.0.2-k"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
 static const char igbvf_driver_string[] =
@@ -107,12 +107,19 @@ static void igbvf_receive_skb(struct igbvf_adapter *adapter,
                               struct sk_buff *skb,
                               u32 status, u16 vlan)
 {
+	u16 vid;
+
 	if (status & E1000_RXD_STAT_VP) {
-		u16 vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		if ((adapter->flags & IGBVF_FLAG_RX_LB_VLAN_BSWAP) &&
+		    (status & E1000_RXDEXT_STATERR_LB))
+			vid = be16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
+		else
+			vid = le16_to_cpu(vlan) & E1000_RXD_SPC_VLAN_MASK;
 		if (test_bit(vid, adapter->active_vlans))
 			__vlan_hwaccel_put_tag(skb, vid);
 	}
-	netif_receive_skb(skb);
+
+	napi_gro_receive(&adapter->rx_ring->napi, skb);
 }
 
 static inline void igbvf_rx_checksum_adv(struct igbvf_adapter *adapter,
@@ -2766,6 +2773,10 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 
 	/* reset the hardware with the new settings */
 	igbvf_reset(adapter);
+
+	/* set hardware-specific flags */
+	if (adapter->hw.mac.type == e1000_vfadapt_i350)
+		adapter->flags |= IGBVF_FLAG_RX_LB_VLAN_BSWAP;
 
 	strcpy(netdev->name, "eth%d");
 	err = register_netdev(netdev);

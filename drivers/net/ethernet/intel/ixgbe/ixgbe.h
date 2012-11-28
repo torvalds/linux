@@ -483,6 +483,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
 #define IXGBE_FLAG2_PTP_ENABLED			(u32)(1 << 10)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 11)
+#define IXGBE_FLAG2_BRIDGE_MODE_VEB		(u32)(1 << 12)
 
 	/* Tx fast path data */
 	int num_tx_queues;

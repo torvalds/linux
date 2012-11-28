@@ -1589,8 +1589,7 @@ void igb_reset(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_fc_info *fc = &hw->fc;
-	u32 pba = 0, tx_space, min_tx_space, min_rx_space;
-	u16 hwm;
+	u32 pba = 0, tx_space, min_tx_space, min_rx_space, hwm;
 
 	/* Repartition Pba for greater than 9k mtu
 	 * To take effect CTRL.RST is required.
@@ -1665,7 +1664,7 @@ void igb_reset(struct igb_adapter *adapter)
 	hwm = min(((pba << 10) * 9 / 10),
 			((pba << 10) - 2 * adapter->max_frame_size));
 
-	fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
+	fc->high_water = hwm & 0xFFFFFFF0;	/* 16-byte granularity */
 	fc->low_water = fc->high_water - 16;
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;

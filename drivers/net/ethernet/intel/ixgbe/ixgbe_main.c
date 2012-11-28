@@ -63,11 +63,7 @@ char ixgbe_default_device_descr[] =
 static char ixgbe_default_device_descr[] =
 			      "Intel(R) 10 Gigabit Network Connection";
 #endif
-#define MAJ 3
-#define MIN 9
-#define BUILD 15
-#define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
-	__stringify(BUILD) "-k"
+#define DRV_VERSION "3.11.33-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
 static const char ixgbe_copyright[] =
 				"Copyright (c) 1999-2012 Intel Corporation.";
@@ -703,6 +699,7 @@ static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_hw_stats *hwstats = &adapter->stats;
 	u32 xoff[8] = {0};
+	u8 tc;
 	int i;
 	bool pfc_en = adapter->dcb_cfg.pfc_mode_enable;
 
@@ -716,21 +713,26 @@ static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 
 	/* update stats for each tc, only valid with PFC enabled */
 	for (i = 0; i < MAX_TX_PACKET_BUFFERS; i++) {
+		u32 pxoffrxc;
+
 		switch (hw->mac.type) {
 		case ixgbe_mac_82598EB:
-			xoff[i] = IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
+			pxoffrxc = IXGBE_READ_REG(hw, IXGBE_PXOFFRXC(i));
 			break;
 		default:
-			xoff[i] = IXGBE_READ_REG(hw, IXGBE_PXOFFRXCNT(i));
+			pxoffrxc = IXGBE_READ_REG(hw, IXGBE_PXOFFRXCNT(i));
 		}
-		hwstats->pxoffrxc[i] += xoff[i];
+		hwstats->pxoffrxc[i] += pxoffrxc;
+		/* Get the TC for given UP */
+		tc = netdev_get_prio_tc_map(adapter->netdev, i);
+		xoff[tc] += pxoffrxc;
 	}
 
 	/* disarm tx queues that have received xoff frames */
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct ixgbe_ring *tx_ring = adapter->tx_ring[i];
-		u8 tc = tx_ring->dcb_tc;
 
+		tc = tx_ring->dcb_tc;
 		if (xoff[tc])
 			clear_bit(__IXGBE_HANG_CHECK_ARMED, &tx_ring->state);
 	}
@@ -3170,14 +3172,6 @@ void ixgbe_configure_rx_ring(struct ixgbe_adapter *adapter,
 	ixgbe_configure_srrctl(adapter, ring);
 	ixgbe_configure_rscctl(adapter, ring);
 
-	/* If operating in IOV mode set RLPML for X540 */
-	if ((adapter->flags & IXGBE_FLAG_SRIOV_ENABLED) &&
-	    hw->mac.type == ixgbe_mac_X540) {
-		rxdctl &= ~IXGBE_RXDCTL_RLPMLMASK;
-		rxdctl |= ((ring->netdev->mtu + ETH_HLEN +
-			    ETH_FCS_LEN + VLAN_HLEN) | IXGBE_RXDCTL_RLPML_EN);
-	}
-
 	if (hw->mac.type == ixgbe_mac_82598EB) {
 		/*
 		 * enable cache line friendly hardware writes:
@@ -3249,6 +3243,8 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset ^ 1), reg_offset - 1);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset), (~0) << vf_shift);
 	IXGBE_WRITE_REG(hw, IXGBE_VFTE(reg_offset ^ 1), reg_offset - 1);
+	if (adapter->flags2 & IXGBE_FLAG2_BRIDGE_MODE_VEB)
+		IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 
 	/* Map PF MAC address in RAR Entry 0 to first pool following VFs */
 	hw->mac.ops.set_vmdq(hw, 0, VMDQ_P(0));
@@ -7041,11 +7037,13 @@ static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
 			continue;
 
 		mode = nla_get_u16(attr);
-		if (mode == BRIDGE_MODE_VEPA)
+		if (mode == BRIDGE_MODE_VEPA) {
 			reg = 0;
-		else if (mode == BRIDGE_MODE_VEB)
+			adapter->flags2 &= ~IXGBE_FLAG2_BRIDGE_MODE_VEB;
+		} else if (mode == BRIDGE_MODE_VEB) {
 			reg = IXGBE_PFDTXGSWC_VT_LBEN;
-		else
+			adapter->flags2 |= IXGBE_FLAG2_BRIDGE_MODE_VEB;
+		} else
 			return -EINVAL;
 
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_PFDTXGSWC, reg);
@@ -7066,7 +7064,7 @@ static int ixgbe_ndo_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
 		return 0;
 
-	if (IXGBE_READ_REG(&adapter->hw, IXGBE_PFDTXGSWC) & 1)
+	if (adapter->flags2 & IXGBE_FLAG2_BRIDGE_MODE_VEB)
 		mode = BRIDGE_MODE_VEB;
 	else
 		mode = BRIDGE_MODE_VEPA;
