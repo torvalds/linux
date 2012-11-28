@@ -21,7 +21,9 @@ enum efx_hwmon_type {
 	EFX_HWMON_UNKNOWN,
 	EFX_HWMON_TEMP,         /* temperature */
 	EFX_HWMON_COOL,         /* cooling device, probably a heatsink */
-	EFX_HWMON_IN            /* input voltage */
+	EFX_HWMON_IN,		/* voltage */
+	EFX_HWMON_CURR,		/* current */
+	EFX_HWMON_POWER,	/* power */
 };
 
 static const struct {
@@ -29,23 +31,52 @@ static const struct {
 	enum efx_hwmon_type hwmon_type;
 	int port;
 } efx_mcdi_sensor_type[] = {
-#define SENSOR(name, label, hwmon_type, port)			\
-	[MC_CMD_SENSOR_##name] = { label, hwmon_type, port }
-	SENSOR(CONTROLLER_TEMP,	   "Controller temp.",	   EFX_HWMON_TEMP, -1),
-	SENSOR(PHY_COMMON_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, -1),
-	SENSOR(CONTROLLER_COOLING, "Controller cooling",   EFX_HWMON_COOL, -1),
-	SENSOR(PHY0_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, 0),
-	SENSOR(PHY0_COOLING,	   "PHY cooling",	   EFX_HWMON_COOL, 0),
-	SENSOR(PHY1_TEMP,	   "PHY temp.",		   EFX_HWMON_TEMP, 1),
-	SENSOR(PHY1_COOLING,	   "PHY cooling",	   EFX_HWMON_COOL, 1),
-	SENSOR(IN_1V0,		   "1.0V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_1V2,		   "1.2V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_1V8,		   "1.8V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_2V5,		   "2.5V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_3V3,		   "3.3V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_12V0,		   "12.0V supply",	   EFX_HWMON_IN,   -1),
-	SENSOR(IN_1V2A,		   "1.2V analogue supply", EFX_HWMON_IN,   -1),
-	SENSOR(IN_VREF,		   "ref. voltage",	   EFX_HWMON_IN,   -1),
+#define SENSOR(name, label, hwmon_type, port)				\
+	[MC_CMD_SENSOR_##name] = { label, EFX_HWMON_ ## hwmon_type, port }
+	SENSOR(CONTROLLER_TEMP,		"Controller ext. temp.",    TEMP,  -1),
+	SENSOR(PHY_COMMON_TEMP,		"PHY temp.",		    TEMP,  -1),
+	SENSOR(CONTROLLER_COOLING,	"Controller cooling",	    COOL,  -1),
+	SENSOR(PHY0_TEMP,		"PHY temp.",		    TEMP,  0),
+	SENSOR(PHY0_COOLING,		"PHY cooling",		    COOL,  0),
+	SENSOR(PHY1_TEMP,		"PHY temp.",		    TEMP,  1),
+	SENSOR(PHY1_COOLING,		"PHY cooling",		    COOL,  1),
+	SENSOR(IN_1V0,			"1.0V supply",		    IN,    -1),
+	SENSOR(IN_1V2,			"1.2V supply",		    IN,    -1),
+	SENSOR(IN_1V8,			"1.8V supply",		    IN,    -1),
+	SENSOR(IN_2V5,			"2.5V supply",		    IN,    -1),
+	SENSOR(IN_3V3,			"3.3V supply",		    IN,    -1),
+	SENSOR(IN_12V0,			"12.0V supply",		    IN,    -1),
+	SENSOR(IN_1V2A,			"1.2V analogue supply",	    IN,    -1),
+	SENSOR(IN_VREF,			"ref. voltage",		    IN,    -1),
+	SENSOR(OUT_VAOE,		"AOE power supply",	    IN,    -1),
+	SENSOR(AOE_TEMP,		"AOE temp.",		    TEMP,  -1),
+	SENSOR(PSU_AOE_TEMP,		"AOE PSU temp.",	    TEMP,  -1),
+	SENSOR(PSU_TEMP,		"Controller PSU temp.",	    TEMP,  -1),
+	SENSOR(FAN_0,			NULL,			    COOL,  -1),
+	SENSOR(FAN_1,			NULL,			    COOL,  -1),
+	SENSOR(FAN_2,			NULL,			    COOL,  -1),
+	SENSOR(FAN_3,			NULL,			    COOL,  -1),
+	SENSOR(FAN_4,			NULL,			    COOL,  -1),
+	SENSOR(IN_VAOE,			"AOE input supply",	    IN,    -1),
+	SENSOR(OUT_IAOE,		"AOE output current",	    CURR,  -1),
+	SENSOR(IN_IAOE,			"AOE input current",	    CURR,  -1),
+	SENSOR(NIC_POWER,		"Board power use",	    POWER, -1),
+	SENSOR(IN_0V9,			"0.9V supply",		    IN,    -1),
+	SENSOR(IN_I0V9,			"0.9V input current",	    CURR,  -1),
+	SENSOR(IN_I1V2,			"1.2V input current",	    CURR,  -1),
+	SENSOR(IN_0V9_ADC,		"0.9V supply (at ADC)",	    IN,    -1),
+	SENSOR(CONTROLLER_2_TEMP,	"Controller ext. temp. 2",  TEMP,  -1),
+	SENSOR(VREG_INTERNAL_TEMP,	"Voltage regulator temp.",  TEMP,  -1),
+	SENSOR(VREG_0V9_TEMP,		"0.9V regulator temp.",     TEMP,  -1),
+	SENSOR(VREG_1V2_TEMP,		"1.2V regulator temp.",     TEMP,  -1),
+	SENSOR(CONTROLLER_VPTAT,       "Controller int. temp. raw", IN,    -1),
+	SENSOR(CONTROLLER_INTERNAL_TEMP, "Controller int. temp.",   TEMP,  -1),
+	SENSOR(CONTROLLER_VPTAT_EXTADC,
+			      "Controller int. temp. raw (at ADC)", IN,    -1),
+	SENSOR(CONTROLLER_INTERNAL_TEMP_EXTADC,
+				 "Controller int. temp. (via ADC)", TEMP,  -1),
+	SENSOR(AMBIENT_TEMP,		"Ambient temp.",	    TEMP,  -1),
+	SENSOR(AIRFLOW,			"Air flow raw",		    IN,    -1),
 #undef SENSOR
 };
 
@@ -160,9 +191,19 @@ static ssize_t efx_mcdi_mon_show_value(struct device *dev,
 
 	value = EFX_DWORD_FIELD(entry, MC_CMD_SENSOR_VALUE_ENTRY_TYPEDEF_VALUE);
 
-	/* Convert temperature from degrees to milli-degrees Celsius */
-	if (mon_attr->hwmon_type == EFX_HWMON_TEMP)
+	switch (mon_attr->hwmon_type) {
+	case EFX_HWMON_TEMP:
+		/* Convert temperature from degrees to milli-degrees Celsius */
 		value *= 1000;
+		break;
+	case EFX_HWMON_POWER:
+		/* Convert power from watts to microwatts */
+		value *= 1000000;
+		break;
+	default:
+		/* No conversion needed */
+		break;
+	}
 
 	return sprintf(buf, "%u\n", value);
 }
@@ -177,9 +218,19 @@ static ssize_t efx_mcdi_mon_show_limit(struct device *dev,
 
 	value = mon_attr->limit_value;
 
-	/* Convert temperature from degrees to milli-degrees Celsius */
-	if (mon_attr->hwmon_type == EFX_HWMON_TEMP)
+	switch (mon_attr->hwmon_type) {
+	case EFX_HWMON_TEMP:
+		/* Convert temperature from degrees to milli-degrees Celsius */
 		value *= 1000;
+		break;
+	case EFX_HWMON_POWER:
+		/* Convert power from watts to microwatts */
+		value *= 1000000;
+		break;
+	default:
+		/* No conversion needed */
+		break;
+	}
 
 	return sprintf(buf, "%u\n", value);
 }
@@ -243,8 +294,8 @@ efx_mcdi_mon_add_attr(struct efx_nic *efx, const char *name,
 
 int efx_mcdi_mon_probe(struct efx_nic *efx)
 {
+	unsigned int n_temp = 0, n_cool = 0, n_in = 0, n_curr = 0, n_power = 0;
 	struct efx_mcdi_mon *hwmon = efx_mcdi_mon(efx);
-	unsigned int n_temp = 0, n_cool = 0, n_in = 0;
 	MCDI_DECLARE_BUF(inbuf, MC_CMD_SENSOR_INFO_EXT_IN_LEN);
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_SENSOR_INFO_OUT_LENMAX);
 	unsigned int n_pages, n_sensors, n_attrs, page;
@@ -380,6 +431,14 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 			hwmon_prefix = "in";
 			hwmon_index = n_in++; /* 0-based */
 			break;
+		case EFX_HWMON_CURR:
+			hwmon_prefix = "curr";
+			hwmon_index = ++n_curr; /* 1-based */
+			break;
+		case EFX_HWMON_POWER:
+			hwmon_prefix = "power";
+			hwmon_index = ++n_power; /* 1-based */
+			break;
 		}
 
 		min1 = MCDI_ARRAY_FIELD(outbuf, SENSOR_ENTRY,
@@ -399,13 +458,15 @@ int efx_mcdi_mon_probe(struct efx_nic *efx)
 			if (rc)
 				goto fail;
 
-			snprintf(name, sizeof(name), "%s%u_min",
-				 hwmon_prefix, hwmon_index);
-			rc = efx_mcdi_mon_add_attr(
-				efx, name, efx_mcdi_mon_show_limit,
-				i, type, min1);
-			if (rc)
-				goto fail;
+			if (hwmon_type != EFX_HWMON_POWER) {
+				snprintf(name, sizeof(name), "%s%u_min",
+					 hwmon_prefix, hwmon_index);
+				rc = efx_mcdi_mon_add_attr(
+					efx, name, efx_mcdi_mon_show_limit,
+					i, type, min1);
+				if (rc)
+					goto fail;
+			}
 
 			snprintf(name, sizeof(name), "%s%u_max",
 				 hwmon_prefix, hwmon_index);
