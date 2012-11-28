@@ -250,7 +250,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "%s base at 0x%08lx clock rate %u MHz\n",
 		 mmc_hostname(host->mmc), (unsigned long)
 		 (platform_get_resource(pdev, IORESOURCE_MEM, 0)->start),
-		 mmc_data->hclk / 1000000);
+		 host->mmc->f_max / 1000000);
 
 	return ret;
 
