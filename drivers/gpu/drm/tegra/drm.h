@@ -64,6 +64,7 @@ struct tegra_output;
 
 struct tegra_dc {
 	struct host1x_client client;
+	spinlock_t lock;
 
 	struct host1x *host1x;
 	struct device *dev;
@@ -130,6 +131,8 @@ struct tegra_dc_window {
 extern unsigned int tegra_dc_format(uint32_t format);
 extern int tegra_dc_setup_window(struct tegra_dc *dc, unsigned int index,
 				 const struct tegra_dc_window *window);
+extern void tegra_dc_enable_vblank(struct tegra_dc *dc);
+extern void tegra_dc_disable_vblank(struct tegra_dc *dc);
 
 struct tegra_output_ops {
 	int (*enable)(struct tegra_output *output);

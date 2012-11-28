@@ -157,6 +157,32 @@ static int tegra_dc_set_base(struct tegra_dc *dc, int x, int y,
 	return 0;
 }
 
+void tegra_dc_enable_vblank(struct tegra_dc *dc)
+{
+	unsigned long value, flags;
+
+	spin_lock_irqsave(&dc->lock, flags);
+
+	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	value |= VBLANK_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
+}
+
+void tegra_dc_disable_vblank(struct tegra_dc *dc)
+{
+	unsigned long value, flags;
+
+	spin_lock_irqsave(&dc->lock, flags);
+
+	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
+	value &= ~VBLANK_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
+
+	spin_unlock_irqrestore(&dc->lock, flags);
+}
+
 static const struct drm_crtc_funcs tegra_crtc_funcs = {
 	.set_config = drm_crtc_helper_set_config,
 	.destroy = drm_crtc_cleanup,
@@ -485,6 +511,8 @@ static int tegra_crtc_mode_set(struct drm_crtc *crtc,
 	unsigned long div, value;
 	int err;
 
+	drm_vblank_pre_modeset(crtc->dev, dc->pipe);
+
 	err = tegra_crtc_setup_clk(crtc, mode, &div);
 	if (err) {
 		dev_err(dc->dev, "failed to setup clock for CRTC: %d\n", err);
@@ -585,31 +613,23 @@ static void tegra_crtc_prepare(struct drm_crtc *crtc)
 	tegra_dc_writel(dc, value, DC_DISP_DISP_MEM_HIGH_PRIORITY_TIMER);
 
 	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	value = VBLANK_INT | WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
 	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
+
+	value = WIN_A_UF_INT | WIN_B_UF_INT | WIN_C_UF_INT;
+	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
 }
 
 static void tegra_crtc_commit(struct drm_crtc *crtc)
 {
 	struct tegra_dc *dc = to_tegra_dc(crtc);
-	unsigned long update_mask;
 	unsigned long value;
 
-	update_mask = GENERAL_ACT_REQ | WIN_A_ACT_REQ;
+	value = GENERAL_ACT_REQ | WIN_A_ACT_REQ |
+		GENERAL_UPDATE | WIN_A_UPDATE;
 
-	tegra_dc_writel(dc, update_mask << 8, DC_CMD_STATE_CONTROL);
+	tegra_dc_writel(dc, value, DC_CMD_STATE_CONTROL);
 
-	value = tegra_dc_readl(dc, DC_CMD_INT_ENABLE);
-	value |= FRAME_END_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_ENABLE);
-
-	value = tegra_dc_readl(dc, DC_CMD_INT_MASK);
-	value |= FRAME_END_INT;
-	tegra_dc_writel(dc, value, DC_CMD_INT_MASK);
-
-	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
+	drm_vblank_post_modeset(crtc->dev, dc->pipe);
 }
 
 static void tegra_crtc_load_lut(struct drm_crtc *crtc)
@@ -626,7 +646,7 @@ static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
 	.load_lut = tegra_crtc_load_lut,
 };
 
-static irqreturn_t tegra_drm_irq(int irq, void *data)
+static irqreturn_t tegra_dc_irq(int irq, void *data)
 {
 	struct tegra_dc *dc = data;
 	unsigned long status;
@@ -971,7 +991,7 @@ static int tegra_dc_drm_init(struct host1x_client *client,
 			dev_err(dc->dev, "debugfs setup failed: %d\n", err);
 	}
 
-	err = devm_request_irq(dc->dev, dc->irq, tegra_drm_irq, 0,
+	err = devm_request_irq(dc->dev, dc->irq, tegra_dc_irq, 0,
 			       dev_name(dc->dev), dc);
 	if (err < 0) {
 		dev_err(dc->dev, "failed to request IRQ#%u: %d\n", dc->irq,
@@ -1020,6 +1040,7 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	if (!dc)
 		return -ENOMEM;
 
+	spin_lock_init(&dc->lock);
 	INIT_LIST_HEAD(&dc->list);
 	dc->dev = &pdev->dev;
 
