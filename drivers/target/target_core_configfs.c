@@ -2496,7 +2496,7 @@ static struct config_group *target_core_make_subdev(
 
 	dev_cg = &dev->dev_group;
 
-	dev_cg->default_groups = kzalloc(sizeof(struct config_group *) * 7,
+	dev_cg->default_groups = kzalloc(sizeof(struct config_group *) * 6,
 			GFP_KERNEL);
 	if (!dev_cg->default_groups)
 		goto out_free_device;
