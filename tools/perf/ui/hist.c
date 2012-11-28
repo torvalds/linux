@@ -389,10 +389,13 @@ static int hpp__width_formula(struct perf_hpp *hpp __maybe_unused)
 
 static int hpp__entry_formula(struct perf_hpp *hpp, struct hist_entry *he)
 {
+	struct hist_entry *pair = hist_entry__next_pair(he);
 	const char *fmt = symbol_conf.field_sep ? "%s" : "%-70s";
 	char buf[96] = " ";
 
-	perf_diff__formula(buf, sizeof(buf), he);
+	if (pair)
+		perf_diff__formula(he, pair, buf, sizeof(buf));
+
 	return scnprintf(hpp->buf, hpp->size, fmt, buf);
 }
 

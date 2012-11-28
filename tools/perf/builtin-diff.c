@@ -184,13 +184,9 @@ s64 perf_diff__compute_wdiff(struct hist_entry *he, struct hist_entry *pair)
 	return he->diff.wdiff;
 }
 
-static int formula_delta(struct hist_entry *he, char *buf, size_t size)
+static int formula_delta(struct hist_entry *he, struct hist_entry *pair,
+			 char *buf, size_t size)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
-
-	if (!pair)
-		return -1;
-
 	return scnprintf(buf, size,
 			 "(%" PRIu64 " * 100 / %" PRIu64 ") - "
 			 "(%" PRIu64 " * 100 / %" PRIu64 ")",
@@ -198,41 +194,36 @@ static int formula_delta(struct hist_entry *he, char *buf, size_t size)
 			  pair->stat.period, pair->hists->stats.total_period);
 }
 
-static int formula_ratio(struct hist_entry *he, char *buf, size_t size)
+static int formula_ratio(struct hist_entry *he, struct hist_entry *pair,
+			 char *buf, size_t size)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
 	double new_period = he->stat.period;
-	double old_period = pair ? pair->stat.period : 0;
-
-	if (!pair)
-		return -1;
+	double old_period = pair->stat.period;
 
 	return scnprintf(buf, size, "%.0F / %.0F", new_period, old_period);
 }
 
-static int formula_wdiff(struct hist_entry *he, char *buf, size_t size)
+static int formula_wdiff(struct hist_entry *he, struct hist_entry *pair,
+			 char *buf, size_t size)
 {
-	struct hist_entry *pair = hist_entry__next_pair(he);
 	u64 new_period = he->stat.period;
-	u64 old_period = pair ? pair->stat.period : 0;
-
-	if (!pair)
-		return -1;
+	u64 old_period = pair->stat.period;
 
 	return scnprintf(buf, size,
 		  "(%" PRIu64 " * " "%" PRId64 ") - (%" PRIu64 " * " "%" PRId64 ")",
 		  new_period, compute_wdiff_w2, old_period, compute_wdiff_w1);
 }
 
-int perf_diff__formula(char *buf, size_t size, struct hist_entry *he)
+int perf_diff__formula(struct hist_entry *he, struct hist_entry *pair,
+		       char *buf, size_t size)
 {
 	switch (compute) {
 	case COMPUTE_DELTA:
-		return formula_delta(he, buf, size);
+		return formula_delta(he, pair, buf, size);
 	case COMPUTE_RATIO:
-		return formula_ratio(he, buf, size);
+		return formula_ratio(he, pair, buf, size);
 	case COMPUTE_WEIGHTED_DIFF:
-		return formula_wdiff(he, buf, size);
+		return formula_wdiff(he, pair, buf, size);
 	default:
 		BUG_ON(1);
 	}
