@@ -949,7 +949,6 @@ static void fwserial_destroy(struct kref *kref)
 
 	for (j = 0; j < num_ports; ++j) {
 		fw_core_remove_address_handler(&ports[j]->rx_handler);
-		dma_fifo_free(&ports[j]->tx_fifo);
 		tty_port_destroy(&ports[j]->port);
 		kfree(ports[j]);
 	}
