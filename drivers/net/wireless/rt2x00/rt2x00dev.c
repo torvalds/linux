@@ -1183,6 +1183,13 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	rt2x00dev->hw->vif_data_size = sizeof(struct rt2x00_intf);
 
 	/*
+	 * rt2x00 devices can only use the last n bits of the MAC address
+	 * for virtual interfaces.
+	 */
+	rt2x00dev->hw->wiphy->addr_mask[ETH_ALEN - 1] =
+		(rt2x00dev->ops->max_ap_intf - 1);
+
+	/*
 	 * Determine which operating modes are supported, all modes
 	 * which require beaconing, depend on the availability of
 	 * beacon entries.
