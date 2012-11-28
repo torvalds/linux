@@ -530,7 +530,7 @@ void radeon_bo_get_tiling_flags(struct radeon_bo *bo,
 int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 				bool force_drop)
 {
-	BUG_ON(!radeon_bo_is_reserved(bo));
+	BUG_ON(!radeon_bo_is_reserved(bo) && !force_drop);
 
 	if (!(bo->tiling_flags & RADEON_TILING_SURFACE))
 		return 0;
