@@ -2627,7 +2627,12 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 			kvm_x86_ops->write_tsc_offset(vcpu, offset);
 			vcpu->arch.tsc_catchup = 1;
 		}
-		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
+		/*
+		 * On a host with synchronized TSC, there is no need to update
+		 * kvmclock on vcpu->cpu migration
+		 */
+		if (!vcpu->kvm->arch.use_master_clock || vcpu->cpu == -1)
+			kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 		if (vcpu->cpu != cpu)
 			kvm_migrate_timers(vcpu);
 		vcpu->cpu = cpu;
