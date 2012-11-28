@@ -367,11 +367,14 @@ static void functionfs_closed_callback(struct ffs_data *ffs)
 	mutex_unlock(&dev->mutex);
 }
 
-static int functionfs_check_dev_callback(const char *dev_name)
+static void *functionfs_acquire_dev_callback(const char *dev_name)
 {
 	return 0;
 }
 
+static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
+{
+}
 
 struct adb_data {
 	bool opened;
@@ -1362,7 +1365,7 @@ static int android_bind(struct usb_composite_dev *cdev)
 {
 	struct android_dev *dev = _android_dev;
 	struct usb_gadget	*gadget = cdev->gadget;
-	int			gcnum, id, ret;
+	int			id, ret;
 
 	/*
 	 * Start disconnected. Userspace will connect the gadget once
@@ -1399,15 +1402,6 @@ static int android_bind(struct usb_composite_dev *cdev)
 		return id;
 	strings_dev[STRING_SERIAL_IDX].id = id;
 	device_desc.iSerialNumber = id;
-
-	gcnum = usb_gadget_controller_number(gadget);
-	if (gcnum >= 0)
-		device_desc.bcdDevice = cpu_to_le16(0x0200 + gcnum);
-	else {
-		pr_warning("%s: controller '%s' not recognized\n",
-			longname, gadget->name);
-		device_desc.bcdDevice = __constant_cpu_to_le16(0x9999);
-	}
 
 	usb_gadget_set_selfpowered(gadget);
 	dev->cdev = cdev;
