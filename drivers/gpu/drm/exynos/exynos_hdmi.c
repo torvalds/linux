@@ -2003,6 +2003,24 @@ static void hdmiphy_conf_reset(struct hdmi_context *hdata)
 	mdelay(10);
 }
 
+static void hdmiphy_poweron(struct hdmi_context *hdata)
+{
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	if (hdata->type == HDMI_TYPE14)
+		hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, 0,
+			HDMI_PHY_POWER_OFF_EN);
+}
+
+static void hdmiphy_poweroff(struct hdmi_context *hdata)
+{
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	if (hdata->type == HDMI_TYPE14)
+		hdmi_reg_writemask(hdata, HDMI_PHY_CON_0, ~0,
+			HDMI_PHY_POWER_OFF_EN);
+}
+
 static void hdmiphy_conf_apply(struct hdmi_context *hdata)
 {
 	const u8 *hdmiphy_data;
@@ -2175,6 +2193,8 @@ static void hdmi_poweron(struct hdmi_context *hdata)
 	clk_enable(res->hdmiphy);
 	clk_enable(res->hdmi);
 	clk_enable(res->sclk_hdmi);
+
+	hdmiphy_poweron(hdata);
 }
 
 static void hdmi_poweroff(struct hdmi_context *hdata)
@@ -2193,6 +2213,7 @@ static void hdmi_poweroff(struct hdmi_context *hdata)
 	 * its reset state seems to meet the condition.
 	 */
 	hdmiphy_conf_reset(hdata);
+	hdmiphy_poweroff(hdata);
 
 	clk_disable(res->sclk_hdmi);
 	clk_disable(res->hdmi);
