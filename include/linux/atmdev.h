@@ -99,6 +99,7 @@ struct atm_vcc {
 	struct atm_dev	*dev;		/* device back pointer */
 	struct atm_qos	qos;		/* QOS */
 	struct atm_sap	sap;		/* SAP */
+	void (*release_cb)(struct atm_vcc *vcc); /* release_sock callback */
 	void (*push)(struct atm_vcc *vcc,struct sk_buff *skb);
 	void (*pop)(struct atm_vcc *vcc,struct sk_buff *skb); /* optional */
 	int (*push_oam)(struct atm_vcc *vcc,void *cell);

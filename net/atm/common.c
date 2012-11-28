@@ -126,10 +126,19 @@ static void vcc_write_space(struct sock *sk)
 	rcu_read_unlock();
 }
 
+static void vcc_release_cb(struct sock *sk)
+{
+	struct atm_vcc *vcc = atm_sk(sk);
+
+	if (vcc->release_cb)
+		vcc->release_cb(vcc);
+}
+
 static struct proto vcc_proto = {
 	.name	  = "VCC",
 	.owner	  = THIS_MODULE,
 	.obj_size = sizeof(struct atm_vcc),
+	.release_cb = vcc_release_cb,
 };
 
 int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
@@ -158,6 +167,7 @@ int vcc_create(struct net *net, struct socket *sock, int protocol, int family)
 	vcc->pop = NULL;
 	vcc->owner = NULL;
 	vcc->push_oam = NULL;
+	vcc->release_cb = NULL;
 	vcc->vpi = vcc->vci = 0; /* no VCI/VPI yet */
 	vcc->atm_options = vcc->aal_options = 0;
 	sk->sk_destruct = vcc_sock_destruct;
