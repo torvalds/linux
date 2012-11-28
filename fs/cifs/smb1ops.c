@@ -766,7 +766,6 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
 	struct tcon_link *tlink = NULL;
 	struct cifs_tcon *tcon;
-	FILE_BASIC_INFO info_buf;
 
 	/* if the file is already open for write, just use that fileid */
 	open_file = find_writable_file(cinode, true);
@@ -817,7 +816,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	netpid = current->tgid;
 
 set_via_filehandle:
-	rc = CIFSSMBSetFileInfo(xid, tcon, &info_buf, netfid, netpid);
+	rc = CIFSSMBSetFileInfo(xid, tcon, buf, netfid, netpid);
 	if (!rc)
 		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
 
