@@ -26,6 +26,10 @@ static void bss_release(struct kref *ref)
 	struct cfg80211_internal_bss *bss;
 
 	bss = container_of(ref, struct cfg80211_internal_bss, ref);
+
+	if (WARN_ON(atomic_read(&bss->hold)))
+		return;
+
 	if (bss->pub.free_priv)
 		bss->pub.free_priv(&bss->pub);
 
@@ -33,8 +37,6 @@ static void bss_release(struct kref *ref)
 		kfree(bss->pub.beacon_ies);
 	if (bss->proberesp_ies_allocated)
 		kfree(bss->pub.proberesp_ies);
-
-	BUG_ON(atomic_read(&bss->hold));
 
 	kfree(bss);
 }
