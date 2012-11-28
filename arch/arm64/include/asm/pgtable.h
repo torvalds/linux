@@ -159,6 +159,8 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
 {
 	if (pte_present_exec_user(pte))
 		__sync_icache_dcache(pte, addr);
+	if (!pte_dirty(pte))
+		pte = pte_wrprotect(pte);
 	set_pte(ptep, pte);
 }
 
