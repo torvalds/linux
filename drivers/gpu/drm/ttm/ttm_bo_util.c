@@ -43,7 +43,7 @@ void ttm_bo_free_old_node(struct ttm_buffer_object *bo)
 }
 
 int ttm_bo_move_ttm(struct ttm_buffer_object *bo,
-		    bool evict, bool no_wait_reserve,
+		    bool evict,
 		    bool no_wait_gpu, struct ttm_mem_reg *new_mem)
 {
 	struct ttm_tt *ttm = bo->ttm;
@@ -314,7 +314,7 @@ static int ttm_copy_ttm_io_page(struct ttm_tt *ttm, void *dst,
 }
 
 int ttm_bo_move_memcpy(struct ttm_buffer_object *bo,
-		       bool evict, bool no_wait_reserve, bool no_wait_gpu,
+		       bool evict, bool no_wait_gpu,
 		       struct ttm_mem_reg *new_mem)
 {
 	struct ttm_bo_device *bdev = bo->bdev;
@@ -611,7 +611,7 @@ EXPORT_SYMBOL(ttm_bo_kunmap);
 
 int ttm_bo_move_accel_cleanup(struct ttm_buffer_object *bo,
 			      void *sync_obj,
-			      bool evict, bool no_wait_reserve,
+			      bool evict,
 			      bool no_wait_gpu,
 			      struct ttm_mem_reg *new_mem)
 {

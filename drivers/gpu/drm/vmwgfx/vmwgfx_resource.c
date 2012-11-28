@@ -1018,7 +1018,7 @@ int vmw_resource_check_buffer(struct vmw_resource *res,
 	backup_dirty = res->backup_dirty;
 	ret = ttm_bo_validate(&res->backup->base,
 			      res->func->backup_placement,
-			      true, false, false);
+			      true, false);
 
 	if (unlikely(ret != 0))
 		goto out_no_validate;

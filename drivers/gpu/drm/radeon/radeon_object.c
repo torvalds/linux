@@ -250,7 +250,7 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 	}
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (likely(r == 0)) {
 		bo->pin_count = 1;
 		if (gpu_addr != NULL)
@@ -279,7 +279,7 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 		return 0;
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
-	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false, false);
+	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);
 	if (unlikely(r != 0))
 		dev_err(bo->rdev->dev, "%p validate failed for unpin\n", bo);
 	return r;
@@ -365,7 +365,7 @@ int radeon_bo_list_validate(struct list_head *head)
 		retry:
 			radeon_ttm_placement_from_domain(bo, domain);
 			r = ttm_bo_validate(&bo->tbo, &bo->placement,
-						true, false, false);
+						true, false);
 			if (unlikely(r)) {
 				if (r != -ERESTARTSYS && domain == RADEON_GEM_DOMAIN_VRAM) {
 					domain |= RADEON_GEM_DOMAIN_GTT;
@@ -585,7 +585,7 @@ int radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 			/* hurrah the memory is not visible ! */
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_VRAM);
 			rbo->placement.lpfn = rdev->mc.visible_vram_size >> PAGE_SHIFT;
-			r = ttm_bo_validate(bo, &rbo->placement, false, true, false);
+			r = ttm_bo_validate(bo, &rbo->placement, false, false);
 			if (unlikely(r != 0))
 				return r;
 			offset = bo->mem.start << PAGE_SHIFT;

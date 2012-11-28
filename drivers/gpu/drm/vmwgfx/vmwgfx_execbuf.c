@@ -1245,7 +1245,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 * used as a GMR, this will return -ENOMEM.
 	 */
 
-	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, true, false, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_gmr_placement, true, false);
 	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
@@ -1255,7 +1255,7 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	 */
 
 	DRM_INFO("Falling through to VRAM.\n");
-	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false, false);
+	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false);
 	return ret;
 }
 

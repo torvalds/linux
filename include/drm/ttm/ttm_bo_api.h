@@ -337,7 +337,6 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  * @bo: The buffer object.
  * @placement: Proposed placement for the buffer object.
  * @interruptible: Sleep interruptible if sleeping.
- * @no_wait_reserve: Return immediately if other buffers are busy.
  * @no_wait_gpu: Return immediately if the GPU is busy.
  *
  * Changes placement and caching policy of the buffer object
@@ -350,7 +349,7 @@ extern int ttm_bo_wait(struct ttm_buffer_object *bo, bool lazy,
  */
 extern int ttm_bo_validate(struct ttm_buffer_object *bo,
 				struct ttm_placement *placement,
-				bool interruptible, bool no_wait_reserve,
+				bool interruptible,
 				bool no_wait_gpu);
 
 /**
