@@ -1044,11 +1044,17 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 	s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
 	while (!(*fatal)
 	       && (s1 & TXS_V)) {
+		/* !give others some time to run! */
+		if (n >= max_tx_num) {
+			morepending = true;
+			break;
+		}
 
 		if (s1 == 0xffffffff) {
 			brcms_err(core, "wl%d: %s: dead chip\n", wlc_hw->unit,
 				  __func__);
-			return morepending;
+			*fatal = true;
+			return false;
 		}
 		s2 = bcma_read32(core, D11REGOFFS(frmtxstatus2));
 
@@ -1060,17 +1066,12 @@ brcms_b_txstatus(struct brcms_hardware *wlc_hw, bool bound, bool *fatal)
 
 		*fatal = brcms_c_dotxstatus(wlc_hw->wlc, txs);
 
-		/* !give others some time to run! */
-		if (++n >= max_tx_num)
-			break;
 		s1 = bcma_read32(core, D11REGOFFS(frmtxstatus));
+		n++;
 	}
 
 	if (*fatal)
-		return 0;
-
-	if (n >= max_tx_num)
-		morepending = true;
+		return false;
 
 	return morepending;
 }
@@ -7631,16 +7632,19 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 
 	uint n = 0;
 	uint bound_limit = bound ? RXBND : -1;
+	bool morepending;
 
 	skb_queue_head_init(&recv_frames);
 
 	/* gather received frames */
-	while (dma_rx(wlc_hw->di[fifo], &recv_frames)) {
-
+	do {
 		/* !give others some time to run! */
-		if (++n >= bound_limit)
+		if (n >= bound_limit)
 			break;
-	}
+
+		morepending = dma_rx(wlc_hw->di[fifo], &recv_frames);
+		n++;
+	} while (morepending);
 
 	/* post more rbufs */
 	dma_rxfill(wlc_hw->di[fifo]);
@@ -7670,7 +7674,7 @@ brcms_b_recv(struct brcms_hardware *wlc_hw, uint fifo, bool bound)
 		brcms_c_recv(wlc_hw->wlc, p);
 	}
 
-	return n >= bound_limit;
+	return morepending;
 }
 
 /* second-level interrupt processing
