@@ -44,8 +44,10 @@ TRACE_EVENT(rcu_utilization,
  * of a new grace period or the end of an old grace period ("cpustart"
  * and "cpuend", respectively), a CPU passing through a quiescent
  * state ("cpuqs"), a CPU coming online or going offline ("cpuonl"
- * and "cpuofl", respectively), and a CPU being kicked for being too
- * long in dyntick-idle mode ("kick").
+ * and "cpuofl", respectively), a CPU being kicked for being too
+ * long in dyntick-idle mode ("kick"), a CPU accelerating its new
+ * callbacks to RCU_NEXT_READY_TAIL ("AccReadyCB"), and a CPU
+ * accelerating its new callbacks to RCU_WAIT_TAIL ("AccWaitCB").
  */
 TRACE_EVENT(rcu_grace_period,
 

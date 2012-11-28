@@ -1168,6 +1168,12 @@ static void rcu_accelerate_cbs(struct rcu_state *rsp, struct rcu_node *rnp,
 		rdp->nxttail[i] = rdp->nxttail[RCU_NEXT_TAIL];
 		rdp->nxtcompleted[i] = c;
 	}
+
+	/* Trace depending on how much we were able to accelerate. */
+	if (!*rdp->nxttail[RCU_WAIT_TAIL])
+		trace_rcu_grace_period(rsp->name, rdp->gpnum, "AccWaitCB");
+	else
+		trace_rcu_grace_period(rsp->name, rdp->gpnum, "AccReadyCB");
 }
 
 /*
