@@ -1078,7 +1078,12 @@ static bool wl18xx_is_mimo_supported(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
 
-	return priv->conf.phy.number_of_assembled_ant2_4 >= 2;
+	/* only support MIMO with multiple antennas, and when SISO
+	 * is not forced through config
+	 */
+	return (priv->conf.phy.number_of_assembled_ant2_4 >= 2) &&
+	       (priv->conf.ht.mode != HT_MODE_WIDE) &&
+	       (priv->conf.ht.mode != HT_MODE_SISO20);
 }
 
 /*
