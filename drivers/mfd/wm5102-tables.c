@@ -2330,6 +2330,9 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 
 static bool wm5102_volatile_register(struct device *dev, unsigned int reg)
 {
+	if (reg > 0xffff)
+		return true;
+
 	switch (reg) {
 	case ARIZONA_SOFTWARE_RESET:
 	case ARIZONA_DEVICE_REVISION:
