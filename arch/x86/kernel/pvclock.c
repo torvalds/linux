@@ -97,10 +97,10 @@ cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 
 	do {
 		version = pvclock_get_time_values(&shadow, src);
-		barrier();
+		rdtsc_barrier();
 		offset = pvclock_get_nsec_offset(&shadow);
 		ret = shadow.system_timestamp + offset;
-		barrier();
+		rdtsc_barrier();
 	} while (version != src->version);
 
 	if ((valid_flags & PVCLOCK_TSC_STABLE_BIT) &&
