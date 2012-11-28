@@ -1825,9 +1825,11 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 {
 	struct srp_tsk_mgmt *srp_tsk;
 	struct se_cmd *cmd;
+	struct se_session *sess = ch->sess;
 	uint64_t unpacked_lun;
+	uint32_t tag = 0;
 	int tcm_tmr;
-	int res;
+	int rc;
 
 	BUG_ON(!send_ioctx);
 
@@ -1846,28 +1848,25 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 			TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
 		goto fail;
 	}
-	transport_init_se_cmd(&send_ioctx->cmd, &srpt_target->tf_ops, ch->sess,
-			0, DMA_NONE, MSG_SIMPLE_TAG, send_ioctx->sense_data);
+	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_tsk->lun,
+				       sizeof(srp_tsk->lun));
 
-	res = core_tmr_alloc_req(cmd, NULL, tcm_tmr, GFP_KERNEL);
-	if (res < 0) {
+	if (srp_tsk->tsk_mgmt_func == SRP_TSK_ABORT_TASK) {
+		rc = srpt_rx_mgmt_fn_tag(send_ioctx, srp_tsk->task_tag);
+		if (rc < 0) {
+			send_ioctx->cmd.se_tmr_req->response =
+					TMR_TASK_DOES_NOT_EXIST;
+			goto fail;
+		}
+		tag = srp_tsk->task_tag;
+	}
+	rc = target_submit_tmr(&send_ioctx->cmd, sess, NULL, unpacked_lun,
+				srp_tsk, tcm_tmr, GFP_KERNEL, tag,
+				TARGET_SCF_ACK_KREF);
+	if (rc != 0) {
 		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
 		goto fail;
 	}
-
-	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_tsk->lun,
-				       sizeof(srp_tsk->lun));
-	res = transport_lookup_tmr_lun(&send_ioctx->cmd, unpacked_lun);
-	if (res) {
-		pr_debug("rejecting TMR for LUN %lld\n", unpacked_lun);
-		send_ioctx->cmd.se_tmr_req->response = TMR_LUN_DOES_NOT_EXIST;
-		goto fail;
-	}
-
-	if (srp_tsk->tsk_mgmt_func == SRP_TSK_ABORT_TASK)
-		srpt_rx_mgmt_fn_tag(send_ioctx, srp_tsk->task_tag);
-
-	transport_generic_handle_tmr(&send_ioctx->cmd);
 	return;
 fail:
 	transport_send_check_condition_and_sense(cmd, 0, 0); // XXX:
