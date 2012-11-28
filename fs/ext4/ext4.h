@@ -57,6 +57,16 @@
 #define ext4_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
+/*
+ * Turn on EXT_DEBUG to get lots of info about extents operations.
+ */
+#define EXT_DEBUG__
+#ifdef EXT_DEBUG
+#define ext_debug(fmt, ...)	printk(fmt, ##__VA_ARGS__)
+#else
+#define ext_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+#endif
+
 #define EXT4_ERROR_INODE(inode, fmt, a...) \
 	ext4_error_inode((inode), __func__, __LINE__, 0, (fmt), ## a)
 
@@ -2399,6 +2409,9 @@ extern int ext4_check_blockref(const char *, unsigned int,
 			       struct inode *, __le32 *, unsigned int);
 
 /* extents.c */
+struct ext4_ext_path;
+struct ext4_extent;
+
 extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
 extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
 extern int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks,
@@ -2416,8 +2429,27 @@ extern int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 			  ssize_t len);
 extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
 			   struct ext4_map_blocks *map, int flags);
+extern int ext4_ext_calc_metadata_amount(struct inode *inode,
+					 ext4_lblk_t lblocks);
+extern int ext4_extent_tree_init(handle_t *, struct inode *);
+extern int ext4_ext_calc_credits_for_single_extent(struct inode *inode,
+						   int num,
+						   struct ext4_ext_path *path);
+extern int ext4_can_extents_be_merged(struct inode *inode,
+				      struct ext4_extent *ex1,
+				      struct ext4_extent *ex2);
+extern int ext4_ext_insert_extent(handle_t *, struct inode *,
+				  struct ext4_ext_path *,
+				  struct ext4_extent *, int);
+extern struct ext4_ext_path *ext4_ext_find_extent(struct inode *, ext4_lblk_t,
+						  struct ext4_ext_path *);
+extern void ext4_ext_drop_refs(struct ext4_ext_path *);
+extern int ext4_ext_check_inode(struct inode *inode);
+extern int ext4_find_delalloc_cluster(struct inode *inode, ext4_lblk_t lblk);
 extern int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			__u64 start, __u64 len);
+
+
 /* move_extent.c */
 extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
@@ -2504,7 +2536,5 @@ extern int ext4_resize_begin(struct super_block *sb);
 extern void ext4_resize_end(struct super_block *sb);
 
 #endif	/* __KERNEL__ */
-
-#include "ext4_extents.h"
 
 #endif	/* _EXT4_H */
