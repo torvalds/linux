@@ -606,14 +606,6 @@ static void __kick_osd_requests(struct ceph_osd_client *osdc,
 	}
 }
 
-static void kick_osd_requests(struct ceph_osd_client *osdc,
-			      struct ceph_osd *kickosd)
-{
-	mutex_lock(&osdc->request_mutex);
-	__kick_osd_requests(osdc, kickosd);
-	mutex_unlock(&osdc->request_mutex);
-}
-
 /*
  * If the osd connection drops, we need to resubmit all requests.
  */
@@ -627,7 +619,9 @@ static void osd_reset(struct ceph_connection *con)
 	dout("osd_reset osd%d\n", osd->o_osd);
 	osdc = osd->o_osdc;
 	down_read(&osdc->map_sem);
-	kick_osd_requests(osdc, osd);
+	mutex_lock(&osdc->request_mutex);
+	__kick_osd_requests(osdc, osd);
+	mutex_unlock(&osdc->request_mutex);
 	send_queued(osdc);
 	up_read(&osdc->map_sem);
 }
@@ -1091,12 +1085,10 @@ static void handle_timeout(struct work_struct *work)
 {
 	struct ceph_osd_client *osdc =
 		container_of(work, struct ceph_osd_client, timeout_work.work);
-	struct ceph_osd_request *req, *last_req = NULL;
+	struct ceph_osd_request *req;
 	struct ceph_osd *osd;
-	unsigned long timeout = osdc->client->options->osd_timeout * HZ;
 	unsigned long keepalive =
 		osdc->client->options->osd_keepalive_timeout * HZ;
-	unsigned long last_stamp = 0;
 	struct list_head slow_osds;
 	dout("timeout\n");
 	down_read(&osdc->map_sem);
@@ -1104,37 +1096,6 @@ static void handle_timeout(struct work_struct *work)
 	ceph_monc_request_next_osdmap(&osdc->client->monc);
 
 	mutex_lock(&osdc->request_mutex);
-
-	/*
-	 * reset osds that appear to be _really_ unresponsive.  this
-	 * is a failsafe measure.. we really shouldn't be getting to
-	 * this point if the system is working properly.  the monitors
-	 * should mark the osd as failed and we should find out about
-	 * it from an updated osd map.
-	 */
-	while (timeout && !list_empty(&osdc->req_lru)) {
-		req = list_entry(osdc->req_lru.next, struct ceph_osd_request,
-				 r_req_lru_item);
-
-		/* hasn't been long enough since we sent it? */
-		if (time_before(jiffies, req->r_stamp + timeout))
-			break;
-
-		/* hasn't been long enough since it was acked? */
-		if (req->r_request->ack_stamp == 0 ||
-		    time_before(jiffies, req->r_request->ack_stamp + timeout))
-			break;
-
-		BUG_ON(req == last_req && req->r_stamp == last_stamp);
-		last_req = req;
-		last_stamp = req->r_stamp;
-
-		osd = req->r_osd;
-		BUG_ON(!osd);
-		pr_warning(" tid %llu timed out on osd%d, will reset osd\n",
-			   req->r_tid, osd->o_osd);
-		__kick_osd_requests(osdc, osd);
-	}
 
 	/*
 	 * ping osds that are a bit slow.  this ensures that if there
