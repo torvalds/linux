@@ -142,7 +142,7 @@ static void free_sta_work(struct work_struct *wk)
 	 * drivers have to handle aggregation stop being requested, followed
 	 * directly by station destruction.
 	 */
-	for (i = 0; i < STA_TID_NUM; i++) {
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		tid_tx = rcu_dereference_raw(sta->ampdu_mlme.tid_tx[i]);
 		if (!tid_tx)
 			continue;
@@ -330,7 +330,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	for (i = 0; i < STA_TID_NUM; i++) {
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		/*
 		 * timer_to_tid must be initialized with identity mapping
 		 * to enable session_timer's data differentiation. See
@@ -343,7 +343,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 		skb_queue_head_init(&sta->tx_filtered[i]);
 	}
 
-	for (i = 0; i < NUM_RX_DATA_QUEUES; i++)
+	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
 
 	sta_dbg(sdata, "Allocated STA %pM\n", sta->sta.addr);
@@ -986,7 +986,7 @@ void ieee80211_sta_ps_deliver_wakeup(struct sta_info *sta)
 
 	clear_sta_flag(sta, WLAN_STA_SP);
 
-	BUILD_BUG_ON(BITS_TO_LONGS(STA_TID_NUM) > 1);
+	BUILD_BUG_ON(BITS_TO_LONGS(IEEE80211_NUM_TIDS) > 1);
 	sta->driver_buffered_tids = 0;
 
 	if (!(local->hw.flags & IEEE80211_HW_AP_LINK_PS))
@@ -1092,7 +1092,7 @@ static void ieee80211_send_null_response(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	ieee80211_xmit(sdata, skb, chanctx_conf->channel->band);
+	ieee80211_xmit(sdata, skb, chanctx_conf->def.chan->band);
 	rcu_read_unlock();
 }
 
@@ -1374,7 +1374,7 @@ void ieee80211_sta_set_buffered(struct ieee80211_sta *pubsta,
 {
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 
-	if (WARN_ON(tid >= STA_TID_NUM))
+	if (WARN_ON(tid >= IEEE80211_NUM_TIDS))
 		return;
 
 	if (buffered)

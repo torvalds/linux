@@ -69,7 +69,6 @@
 
 #include "iwl-trans.h"
 #include "iwl-drv.h"
-#include "iwl-trans.h"
 
 #include "cfg.h"
 #include "internal.h"

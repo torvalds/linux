@@ -200,43 +200,6 @@ enum wlc_par_id {
 /* WL11N Support */
 #define AMPDU_AGG_HOST	1
 
-/* pri is priority encoded in the packet. This maps the Packet priority to
- * enqueue precedence as defined in wlc_prec_map
- */
-extern const u8 wlc_prio2prec_map[];
-#define BRCMS_PRIO_TO_PREC(pri)	wlc_prio2prec_map[(pri) & 7]
-
-#define	BRCMS_PREC_COUNT	16	/* Max precedence level implemented */
-
-/* Mask to describe all precedence levels */
-#define BRCMS_PREC_BMP_ALL		MAXBITVAL(BRCMS_PREC_COUNT)
-
-/*
- * This maps priority to one precedence higher - Used by PS-Poll response
- * packets to simulate enqueue-at-head operation, but still maintain the
- * order on the queue
- */
-#define BRCMS_PRIO_TO_HI_PREC(pri)	min(BRCMS_PRIO_TO_PREC(pri) + 1,\
-					    BRCMS_PREC_COUNT - 1)
-
-/* Define a bitmap of precedences comprised by each AC */
-#define BRCMS_PREC_BMP_AC_BE	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BE)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_BE)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_EE)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_EE)))
-#define BRCMS_PREC_BMP_AC_BK	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_BK)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_BK)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NONE)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NONE)))
-#define BRCMS_PREC_BMP_AC_VI	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_CL)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_CL)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_VI)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VI)))
-#define BRCMS_PREC_BMP_AC_VO	(NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_VO)) | \
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_VO)) |	\
-			NBITVAL(BRCMS_PRIO_TO_PREC(PRIO_8021D_NC)) |	\
-			NBITVAL(BRCMS_PRIO_TO_HI_PREC(PRIO_8021D_NC)))
-
 /* network protection config */
 #define	BRCMS_PROT_G_SPEC		1	/* SPEC g protection */
 #define	BRCMS_PROT_G_OVR		2	/* SPEC g prot override */

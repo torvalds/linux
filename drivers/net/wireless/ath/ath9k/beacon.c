@@ -46,7 +46,7 @@ static void ath9k_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmax = 0;
 	} else {
 		/* Adhoc mode; important thing is to use 2x cwmin. */
-		txq = sc->tx.txq_map[WME_AC_BE];
+		txq = sc->tx.txq_map[IEEE80211_AC_BE];
 		ath9k_hw_get_txq_props(ah, txq->axq_qnum, &qi_be);
 		qi.tqi_aifs = qi_be.tqi_aifs;
 		if (ah->slottime == ATH9K_SLOT_TIME_20)

@@ -613,7 +613,7 @@ void
 il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
-	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rx_status rx_status = {};
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
 	struct il_rx_phy_res *phy_res;
 	__le32 rx_pkt_status;
@@ -686,7 +686,7 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 	/* TSF isn't reliable. In order to allow smooth user experience,
 	 * this W/A doesn't propagate it to the mac80211 */
-	/*rx_status.flag |= RX_FLAG_MACTIME_MPDU; */
+	/*rx_status.flag |= RX_FLAG_MACTIME_START; */
 
 	il->ucode_beacon_time = le32_to_cpu(phy_res->beacon_time_stamp);
 

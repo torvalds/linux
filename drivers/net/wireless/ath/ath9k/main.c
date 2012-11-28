@@ -331,11 +331,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 	u8 density;
 	an = (struct ath_node *)sta->drv_priv;
 
-#ifdef CONFIG_ATH9K_DEBUGFS
-	spin_lock(&sc->nodes_lock);
-	list_add(&an->list, &sc->nodes);
-	spin_unlock(&sc->nodes_lock);
-#endif
 	an->sta = sta;
 	an->vif = vif;
 
@@ -351,13 +346,6 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 {
 	struct ath_node *an = (struct ath_node *)sta->drv_priv;
-
-#ifdef CONFIG_ATH9K_DEBUGFS
-	spin_lock(&sc->nodes_lock);
-	list_del(&an->list);
-	spin_unlock(&sc->nodes_lock);
-	an->sta = NULL;
-#endif
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ath_tx_node_cleanup(sc, an);
@@ -494,17 +482,6 @@ irqreturn_t ath_isr(int irq, void *dev)
 	if (status & SCHED_INTR)
 		sched = true;
 
-#ifdef CONFIG_PM_SLEEP
-	if (status & ATH9K_INT_BMISS) {
-		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
-			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
-			atomic_inc(&sc->wow_got_bmiss_intr);
-			atomic_dec(&sc->wow_sleep_proc_intr);
-		}
-	ath_dbg(common, INTERRUPT, "beacon miss interrupt\n");
-	}
-#endif
-
 	/*
 	 * If a FATAL or RXORN interrupt is received, we have to reset the
 	 * chip immediately.
@@ -523,7 +500,15 @@ irqreturn_t ath_isr(int irq, void *dev)
 
 		goto chip_reset;
 	}
-
+#ifdef CONFIG_PM_SLEEP
+	if (status & ATH9K_INT_BMISS) {
+		if (atomic_read(&sc->wow_sleep_proc_intr) == 0) {
+			ath_dbg(common, ANY, "during WoW we got a BMISS\n");
+			atomic_inc(&sc->wow_got_bmiss_intr);
+			atomic_dec(&sc->wow_sleep_proc_intr);
+		}
+	}
+#endif
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
 
@@ -685,9 +670,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	ath9k_cmn_init_crypto(sc->sc_ah);
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
-
-	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
-		common->bus_ops->extn_synch_en(common);
 
 	mutex_unlock(&sc->mutex);
 
@@ -924,8 +906,9 @@ void ath9k_calculate_iter_data(struct ieee80211_hw *hw,
 		ath9k_vif_iter(iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(sc->hw, ath9k_vif_iter,
-						   iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_vif_iter, iter_data);
 }
 
 /* Called with sc->mutex held. */
@@ -975,8 +958,9 @@ static void ath9k_calculate_summary_state(struct ieee80211_hw *hw,
 	if (ah->opmode == NL80211_IFTYPE_STATION &&
 	    old_opmode == NL80211_IFTYPE_AP &&
 	    test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags)) {
-		ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   ath9k_sta_vif_iter, sc);
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_sta_vif_iter, sc);
 	}
 }
 
@@ -1329,7 +1313,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	txq = sc->tx.txq_map[queue];
@@ -1505,8 +1489,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				clear_bit(SC_OP_BEACONS, &sc->sc_flags);
 		}
 
-		ieee80211_iterate_active_interfaces_atomic(sc->hw,
-						   ath9k_bss_assoc_iter, sc);
+		ieee80211_iterate_active_interfaces_atomic(
+			sc->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_bss_assoc_iter, sc);
 
 		if (!test_bit(SC_OP_PRIM_STA_VIF, &sc->sc_flags) &&
 		    ah->opmode == NL80211_IFTYPE_STATION) {
@@ -1956,13 +1941,12 @@ static int ath9k_get_et_sset_count(struct ieee80211_hw *hw,
 	return 0;
 }
 
-#define PR_QNUM(_n) (sc->tx.txq_map[_n]->axq_qnum)
 #define AWDATA(elem)							\
 	do {								\
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].elem; \
-		data[i++] = sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].elem; \
+		data[i++] = sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].elem; \
 	} while (0)
 
 #define AWDATA_RX(elem)						\
@@ -1977,14 +1961,14 @@ static void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	int i = 0;
 
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].tx_pkts_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].tx_pkts_all);
-	data[i++] = (sc->debug.stats.txstats[PR_QNUM(WME_AC_BE)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_BK)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VI)].tx_bytes_all +
-		     sc->debug.stats.txstats[PR_QNUM(WME_AC_VO)].tx_bytes_all);
+	data[i++] = (sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_pkts_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_pkts_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_pkts_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_pkts_all);
+	data[i++] = (sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BE)].tx_bytes_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_BK)].tx_bytes_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VI)].tx_bytes_all +
+		     sc->debug.stats.txstats[PR_QNUM(IEEE80211_AC_VO)].tx_bytes_all);
 	AWDATA_RX(rx_pkts_all);
 	AWDATA_RX(rx_bytes_all);
 

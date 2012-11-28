@@ -178,48 +178,13 @@ static void hci_reset_req(struct hci_dev *hdev, unsigned long opt)
 
 static void bredr_init(struct hci_dev *hdev)
 {
-	struct hci_cp_delete_stored_link_key cp;
-	__le16 param;
-	__u8 flt_type;
-
 	hdev->flow_ctl_mode = HCI_FLOW_CTL_MODE_PACKET_BASED;
-
-	/* Mandatory initialization */
 
 	/* Read Local Supported Features */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_FEATURES, 0, NULL);
 
 	/* Read Local Version */
 	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_VERSION, 0, NULL);
-
-	/* Read Buffer Size (ACL mtu, max pkt, etc.) */
-	hci_send_cmd(hdev, HCI_OP_READ_BUFFER_SIZE, 0, NULL);
-
-	/* Read BD Address */
-	hci_send_cmd(hdev, HCI_OP_READ_BD_ADDR, 0, NULL);
-
-	/* Read Class of Device */
-	hci_send_cmd(hdev, HCI_OP_READ_CLASS_OF_DEV, 0, NULL);
-
-	/* Read Local Name */
-	hci_send_cmd(hdev, HCI_OP_READ_LOCAL_NAME, 0, NULL);
-
-	/* Read Voice Setting */
-	hci_send_cmd(hdev, HCI_OP_READ_VOICE_SETTING, 0, NULL);
-
-	/* Optional initialization */
-
-	/* Clear Event Filters */
-	flt_type = HCI_FLT_CLEAR_ALL;
-	hci_send_cmd(hdev, HCI_OP_SET_EVENT_FLT, 1, &flt_type);
-
-	/* Connection accept timeout ~20 secs */
-	param = __constant_cpu_to_le16(0x7d00);
-	hci_send_cmd(hdev, HCI_OP_WRITE_CA_TIMEOUT, 2, &param);
-
-	bacpy(&cp.bdaddr, BDADDR_ANY);
-	cp.delete_all = 1;
-	hci_send_cmd(hdev, HCI_OP_DELETE_STORED_LINK_KEY, sizeof(cp), &cp);
 }
 
 static void amp_init(struct hci_dev *hdev)
@@ -271,14 +236,6 @@ static void hci_init_req(struct hci_dev *hdev, unsigned long opt)
 		BT_ERR("Unknown device type %d", hdev->dev_type);
 		break;
 	}
-}
-
-static void hci_le_init_req(struct hci_dev *hdev, unsigned long opt)
-{
-	BT_DBG("%s", hdev->name);
-
-	/* Read LE buffer size */
-	hci_send_cmd(hdev, HCI_OP_LE_READ_BUFFER_SIZE, 0, NULL);
 }
 
 static void hci_scan_req(struct hci_dev *hdev, unsigned long opt)
@@ -477,6 +434,8 @@ bool hci_inquiry_cache_update(struct hci_dev *hdev, struct inquiry_data *data,
 
 	BT_DBG("cache %p, %pMR", cache, &data->bdaddr);
 
+	hci_remove_remote_oob_data(hdev, &data->bdaddr);
+
 	if (ssp)
 		*ssp = data->ssp_mode;
 
@@ -637,6 +596,99 @@ done:
 	return err;
 }
 
+static u8 create_ad(struct hci_dev *hdev, u8 *ptr)
+{
+	u8 ad_len = 0, flags = 0;
+	size_t name_len;
+
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
+		flags |= LE_AD_GENERAL;
+
+	if (!lmp_bredr_capable(hdev))
+		flags |= LE_AD_NO_BREDR;
+
+	if (lmp_le_br_capable(hdev))
+		flags |= LE_AD_SIM_LE_BREDR_CTRL;
+
+	if (lmp_host_le_br_capable(hdev))
+		flags |= LE_AD_SIM_LE_BREDR_HOST;
+
+	if (flags) {
+		BT_DBG("adv flags 0x%02x", flags);
+
+		ptr[0] = 2;
+		ptr[1] = EIR_FLAGS;
+		ptr[2] = flags;
+
+		ad_len += 3;
+		ptr += 3;
+	}
+
+	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID) {
+		ptr[0] = 2;
+		ptr[1] = EIR_TX_POWER;
+		ptr[2] = (u8) hdev->adv_tx_power;
+
+		ad_len += 3;
+		ptr += 3;
+	}
+
+	name_len = strlen(hdev->dev_name);
+	if (name_len > 0) {
+		size_t max_len = HCI_MAX_AD_LENGTH - ad_len - 2;
+
+		if (name_len > max_len) {
+			name_len = max_len;
+			ptr[1] = EIR_NAME_SHORT;
+		} else
+			ptr[1] = EIR_NAME_COMPLETE;
+
+		ptr[0] = name_len + 1;
+
+		memcpy(ptr + 2, hdev->dev_name, name_len);
+
+		ad_len += (name_len + 2);
+		ptr += (name_len + 2);
+	}
+
+	return ad_len;
+}
+
+int hci_update_ad(struct hci_dev *hdev)
+{
+	struct hci_cp_le_set_adv_data cp;
+	u8 len;
+	int err;
+
+	hci_dev_lock(hdev);
+
+	if (!lmp_le_capable(hdev)) {
+		err = -EINVAL;
+		goto unlock;
+	}
+
+	memset(&cp, 0, sizeof(cp));
+
+	len = create_ad(hdev, cp.data);
+
+	if (hdev->adv_data_len == len &&
+	    memcmp(cp.data, hdev->adv_data, len) == 0) {
+		err = 0;
+		goto unlock;
+	}
+
+	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+	hdev->adv_data_len = len;
+
+	cp.length = len;
+	err = hci_send_cmd(hdev, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
+
+unlock:
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 /* ---- HCI ioctl helpers ---- */
 
 int hci_dev_open(__u16 dev)
@@ -687,10 +739,6 @@ int hci_dev_open(__u16 dev)
 
 		ret = __hci_request(hdev, hci_init_req, 0, HCI_INIT_TIMEOUT);
 
-		if (lmp_host_le_capable(hdev))
-			ret = __hci_request(hdev, hci_le_init_req, 0,
-					    HCI_INIT_TIMEOUT);
-
 		clear_bit(HCI_INIT, &hdev->flags);
 	}
 
@@ -698,6 +746,7 @@ int hci_dev_open(__u16 dev)
 		hci_dev_hold(hdev);
 		set_bit(HCI_UP, &hdev->flags);
 		hci_notify(hdev, HCI_DEV_UP);
+		hci_update_ad(hdev);
 		if (!test_bit(HCI_SETUP, &hdev->dev_flags) &&
 		    mgmt_valid_hdev(hdev)) {
 			hci_dev_lock(hdev);
@@ -1039,10 +1088,17 @@ int hci_get_dev_info(void __user *arg)
 	di.type     = (hdev->bus & 0x0f) | (hdev->dev_type << 4);
 	di.flags    = hdev->flags;
 	di.pkt_type = hdev->pkt_type;
-	di.acl_mtu  = hdev->acl_mtu;
-	di.acl_pkts = hdev->acl_pkts;
-	di.sco_mtu  = hdev->sco_mtu;
-	di.sco_pkts = hdev->sco_pkts;
+	if (lmp_bredr_capable(hdev)) {
+		di.acl_mtu  = hdev->acl_mtu;
+		di.acl_pkts = hdev->acl_pkts;
+		di.sco_mtu  = hdev->sco_mtu;
+		di.sco_pkts = hdev->sco_pkts;
+	} else {
+		di.acl_mtu  = hdev->le_mtu;
+		di.acl_pkts = hdev->le_pkts;
+		di.sco_mtu  = 0;
+		di.sco_pkts = 0;
+	}
 	di.link_policy = hdev->link_policy;
 	di.link_mode   = hdev->link_mode;
 
@@ -1617,6 +1673,9 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 
 	BT_DBG("%s", hdev->name);
 
+	if (test_bit(HCI_LE_PERIPHERAL, &hdev->dev_flags))
+		return -ENOTSUPP;
+
 	if (work_busy(&hdev->le_scan))
 		return -EINPROGRESS;
 
@@ -1643,6 +1702,8 @@ struct hci_dev *hci_alloc_dev(void)
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 	hdev->io_capability = 0x03; /* No Input No Output */
+	hdev->inq_tx_power = HCI_TX_POWER_INVALID;
+	hdev->adv_tx_power = HCI_TX_POWER_INVALID;
 
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;

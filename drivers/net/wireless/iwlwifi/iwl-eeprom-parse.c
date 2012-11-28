@@ -889,8 +889,8 @@ int iwl_eeprom_check_version(struct iwl_eeprom_data *data,
 {
 	if (data->eeprom_version >= trans->cfg->eeprom_ver ||
 	    data->calib_version >= trans->cfg->eeprom_calib_ver) {
-		IWL_INFO(trans, "device EEPROM VER=0x%x, CALIB=0x%x\n",
-			 data->eeprom_version, data->calib_version);
+		IWL_DEBUG_INFO(trans, "device EEPROM VER=0x%x, CALIB=0x%x\n",
+			       data->eeprom_version, data->calib_version);
 		return 0;
 	}
 

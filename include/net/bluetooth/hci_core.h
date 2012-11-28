@@ -278,6 +278,10 @@ struct hci_dev {
 	struct work_struct	le_scan;
 	struct le_scan_params	le_scan_params;
 
+	__s8			adv_tx_power;
+	__u8			adv_data[HCI_MAX_AD_LENGTH];
+	__u8			adv_data_len;
+
 	int (*open)(struct hci_dev *hdev);
 	int (*close)(struct hci_dev *hdev);
 	int (*flush)(struct hci_dev *hdev);
@@ -355,6 +359,7 @@ struct hci_chan {
 	struct hci_conn *conn;
 	struct sk_buff_head data_q;
 	unsigned int	sent;
+	__u8		state;
 };
 
 extern struct list_head hci_dev_list;
@@ -682,7 +687,7 @@ static inline uint8_t __hci_num_ctrl(void)
 }
 
 struct hci_dev *hci_dev_get(int index);
-struct hci_dev *hci_get_route(bdaddr_t *src, bdaddr_t *dst);
+struct hci_dev *hci_get_route(bdaddr_t *dst, bdaddr_t *src);
 
 struct hci_dev *hci_alloc_dev(void);
 void hci_free_dev(struct hci_dev *hdev);
@@ -731,6 +736,8 @@ int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 								u8 *randomizer);
 int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
 
+int hci_update_ad(struct hci_dev *hdev);
+
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
 int hci_recv_frame(struct sk_buff *skb);
@@ -747,18 +754,29 @@ void hci_conn_del_sysfs(struct hci_conn *conn);
 #define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->dev.parent = (pdev))
 
 /* ----- LMP capabilities ----- */
-#define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
 #define lmp_encrypt_capable(dev)   ((dev)->features[0] & LMP_ENCRYPT)
+#define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
+#define lmp_hold_capable(dev)      ((dev)->features[0] & LMP_HOLD)
 #define lmp_sniff_capable(dev)     ((dev)->features[0] & LMP_SNIFF)
-#define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
+#define lmp_park_capable(dev)      ((dev)->features[1] & LMP_PARK)
+#define lmp_inq_rssi_capable(dev)  ((dev)->features[3] & LMP_RSSI_INQ)
 #define lmp_esco_capable(dev)      ((dev)->features[3] & LMP_ESCO)
+#define lmp_bredr_capable(dev)     (!((dev)->features[4] & LMP_NO_BREDR))
+#define lmp_le_capable(dev)        ((dev)->features[4] & LMP_LE)
+#define lmp_sniffsubr_capable(dev) ((dev)->features[5] & LMP_SNIFF_SUBR)
+#define lmp_pause_enc_capable(dev) ((dev)->features[5] & LMP_PAUSE_ENC)
+#define lmp_ext_inq_capable(dev)   ((dev)->features[6] & LMP_EXT_INQ)
+#define lmp_le_br_capable(dev)     ((dev)->features[6] & LMP_SIMUL_LE_BR)
 #define lmp_ssp_capable(dev)       ((dev)->features[6] & LMP_SIMPLE_PAIR)
 #define lmp_no_flush_capable(dev)  ((dev)->features[6] & LMP_NO_FLUSH)
-#define lmp_le_capable(dev)        ((dev)->features[4] & LMP_LE)
-#define lmp_bredr_capable(dev)     (!((dev)->features[4] & LMP_NO_BREDR))
+#define lmp_lsto_capable(dev)      ((dev)->features[7] & LMP_LSTO)
+#define lmp_inq_tx_pwr_capable(dev) ((dev)->features[7] & LMP_INQ_TX_PWR)
+#define lmp_ext_feat_capable(dev)  ((dev)->features[7] & LMP_EXTFEATURES)
 
 /* ----- Extended LMP capabilities ----- */
+#define lmp_host_ssp_capable(dev)  ((dev)->host_features[0] & LMP_HOST_SSP)
 #define lmp_host_le_capable(dev)   ((dev)->host_features[0] & LMP_HOST_LE)
+#define lmp_host_le_br_capable(dev) ((dev)->host_features[0] & LMP_HOST_LE_BREDR)
 
 /* ----- HCI protocols ----- */
 static inline int hci_proto_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr,
@@ -877,7 +895,7 @@ struct hci_cb {
 
 static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 {
-	struct list_head *p;
+	struct hci_cb *cb;
 	__u8 encrypt;
 
 	hci_proto_auth_cfm(conn, status);
@@ -888,8 +906,7 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 	encrypt = (conn->link_mode & HCI_LM_ENCRYPT) ? 0x01 : 0x00;
 
 	read_lock(&hci_cb_list_lock);
-	list_for_each(p, &hci_cb_list) {
-		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
+	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
@@ -899,7 +916,7 @@ static inline void hci_auth_cfm(struct hci_conn *conn, __u8 status)
 static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
 								__u8 encrypt)
 {
-	struct list_head *p;
+	struct hci_cb *cb;
 
 	if (conn->sec_level == BT_SECURITY_SDP)
 		conn->sec_level = BT_SECURITY_LOW;
@@ -910,8 +927,7 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
 	hci_proto_encrypt_cfm(conn, status, encrypt);
 
 	read_lock(&hci_cb_list_lock);
-	list_for_each(p, &hci_cb_list) {
-		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
+	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->security_cfm)
 			cb->security_cfm(conn, status, encrypt);
 	}
@@ -920,11 +936,10 @@ static inline void hci_encrypt_cfm(struct hci_conn *conn, __u8 status,
 
 static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
 {
-	struct list_head *p;
+	struct hci_cb *cb;
 
 	read_lock(&hci_cb_list_lock);
-	list_for_each(p, &hci_cb_list) {
-		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
+	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->key_change_cfm)
 			cb->key_change_cfm(conn, status);
 	}
@@ -934,11 +949,10 @@ static inline void hci_key_change_cfm(struct hci_conn *conn, __u8 status)
 static inline void hci_role_switch_cfm(struct hci_conn *conn, __u8 status,
 								__u8 role)
 {
-	struct list_head *p;
+	struct hci_cb *cb;
 
 	read_lock(&hci_cb_list_lock);
-	list_for_each(p, &hci_cb_list) {
-		struct hci_cb *cb = list_entry(p, struct hci_cb, list);
+	list_for_each_entry(cb, &hci_cb_list, list) {
 		if (cb->role_switch_cfm)
 			cb->role_switch_cfm(conn, status, role);
 	}

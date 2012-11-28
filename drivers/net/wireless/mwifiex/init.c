@@ -388,9 +388,17 @@ void mwifiex_wake_up_net_dev_queue(struct net_device *netdev,
 					struct mwifiex_adapter *adapter)
 {
 	unsigned long dev_queue_flags;
+	unsigned int i;
 
 	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
-	netif_tx_wake_all_queues(netdev);
+
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(netdev, i);
+
+		if (netif_tx_queue_stopped(txq))
+			netif_tx_wake_queue(txq);
+	}
+
 	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
 }
 
@@ -401,9 +409,17 @@ void mwifiex_stop_net_dev_queue(struct net_device *netdev,
 					struct mwifiex_adapter *adapter)
 {
 	unsigned long dev_queue_flags;
+	unsigned int i;
 
 	spin_lock_irqsave(&adapter->queue_lock, dev_queue_flags);
-	netif_tx_stop_all_queues(netdev);
+
+	for (i = 0; i < netdev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(netdev, i);
+
+		if (!netif_tx_queue_stopped(txq))
+			netif_tx_stop_queue(txq);
+	}
+
 	spin_unlock_irqrestore(&adapter->queue_lock, dev_queue_flags);
 }
 

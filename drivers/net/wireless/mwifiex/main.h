@@ -371,7 +371,6 @@ struct wps {
 struct mwifiex_roc_cfg {
 	u64 cookie;
 	struct ieee80211_channel chan;
-	enum nl80211_channel_type chan_type;
 };
 
 struct mwifiex_adapter;
@@ -440,6 +439,7 @@ struct mwifiex_private {
 	u8 wmm_enabled;
 	u8 wmm_qosinfo;
 	struct mwifiex_wmm_desc wmm;
+	atomic_t wmm_tx_pending[IEEE80211_NUM_ACS];
 	struct list_head sta_list;
 	/* spin lock for associated station list */
 	spinlock_t sta_list_spinlock;
@@ -600,6 +600,7 @@ struct mwifiex_if_ops {
 	int (*event_complete) (struct mwifiex_adapter *, struct sk_buff *);
 	int (*data_complete) (struct mwifiex_adapter *, struct sk_buff *);
 	int (*dnld_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
+	void (*card_reset) (struct mwifiex_adapter *);
 };
 
 struct mwifiex_adapter {
@@ -788,7 +789,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		       struct mwifiex_tx_param *tx_param);
 int mwifiex_send_null_packet(struct mwifiex_private *priv, u8 flags);
 int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
-				struct sk_buff *skb, int status);
+				struct sk_buff *skb, int aggr, int status);
 void mwifiex_clean_txrx(struct mwifiex_private *priv);
 u8 mwifiex_check_last_packet_indication(struct mwifiex_private *priv);
 void mwifiex_check_ps_cond(struct mwifiex_adapter *adapter);
@@ -1016,7 +1017,6 @@ int mwifiex_get_ver_ext(struct mwifiex_private *priv);
 
 int mwifiex_remain_on_chan_cfg(struct mwifiex_private *priv, u16 action,
 			       struct ieee80211_channel *chan,
-			       enum nl80211_channel_type *channel_type,
 			       unsigned int duration);
 
 int mwifiex_set_bss_role(struct mwifiex_private *priv, u8 bss_role);

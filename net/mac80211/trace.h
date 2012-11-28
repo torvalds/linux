@@ -28,16 +28,21 @@
 #define VIF_PR_FMT	" vif:%s(%d%s)"
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
-#define CHANCTX_ENTRY	__field(int, freq)					\
-			__field(int, chantype)					\
+#define CHANCTX_ENTRY	__field(u32, control_freq)				\
+			__field(u32, chan_width)				\
+			__field(u32, center_freq1)				\
+			__field(u32, center_freq2)				\
 			__field(u8, rx_chains_static)				\
 			__field(u8, rx_chains_dynamic)
-#define CHANCTX_ASSIGN	__entry->freq = ctx->conf.channel->center_freq;		\
-			__entry->chantype = ctx->conf.channel_type;		\
+#define CHANCTX_ASSIGN	__entry->control_freq = ctx->conf.def.chan->center_freq;\
+			__entry->chan_width = ctx->conf.def.width;		\
+			__entry->center_freq1 = ctx->conf.def.center_freq1;	\
+			__entry->center_freq2 = ctx->conf.def.center_freq2;	\
 			__entry->rx_chains_static = ctx->conf.rx_chains_static;	\
 			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
-#define CHANCTX_PR_FMT	" freq:%d MHz chantype:%d chains:%d/%d"
-#define CHANCTX_PR_ARG	__entry->freq, __entry->chantype,			\
+#define CHANCTX_PR_FMT	" control:%d MHz width:%d center: %d/%d MHz chains:%d/%d"
+#define CHANCTX_PR_ARG	__entry->control_freq, __entry->chan_width,		\
+			__entry->center_freq1, __entry->center_freq2,		\
 			__entry->rx_chains_static, __entry->rx_chains_dynamic
 
 
@@ -334,7 +339,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u16, ht_operation_mode)
 		__field(s32, cqm_rssi_thold);
 		__field(s32, cqm_rssi_hyst);
-		__field(u32, channel_type);
+		__field(u32, channel_width);
+		__field(u32, channel_cfreq1);
 		__dynamic_array(u32, arp_addr_list, info->arp_addr_cnt);
 		__field(bool, arp_filter_enabled);
 		__field(bool, qos);
@@ -342,6 +348,9 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(bool, ps);
 		__dynamic_array(u8, ssid, info->ssid_len);
 		__field(bool, hidden_ssid);
+		__field(int, txpower)
+		__field(u8, p2p_ctwindow)
+		__field(bool, p2p_oppps)
 	),
 
 	TP_fast_assign(
@@ -367,7 +376,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->ht_operation_mode = info->ht_operation_mode;
 		__entry->cqm_rssi_thold = info->cqm_rssi_thold;
 		__entry->cqm_rssi_hyst = info->cqm_rssi_hyst;
-		__entry->channel_type = info->channel_type;
+		__entry->channel_width = info->chandef.width;
+		__entry->channel_cfreq1 = info->chandef.center_freq1;
 		memcpy(__get_dynamic_array(arp_addr_list), info->arp_addr_list,
 		       sizeof(u32) * info->arp_addr_cnt);
 		__entry->arp_filter_enabled = info->arp_filter_enabled;
@@ -376,6 +386,9 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->ps = info->ps;
 		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
 		__entry->hidden_ssid = info->hidden_ssid;
+		__entry->txpower = info->txpower;
+		__entry->p2p_ctwindow = info->p2p_ctwindow;
+		__entry->p2p_oppps = info->p2p_oppps;
 	),
 
 	TP_printk(
@@ -1013,62 +1026,37 @@ TRACE_EVENT(drv_get_antenna,
 );
 
 TRACE_EVENT(drv_remain_on_channel,
-	TP_PROTO(struct ieee80211_local *local, struct ieee80211_channel *chan,
-		 enum nl80211_channel_type chantype, unsigned int duration),
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_channel *chan,
+		 unsigned int duration),
 
-	TP_ARGS(local, chan, chantype, duration),
+	TP_ARGS(local, sdata, chan, duration),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(int, center_freq)
-		__field(int, channel_type)
 		__field(unsigned int, duration)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->center_freq = chan->center_freq;
-		__entry->channel_type = chantype;
 		__entry->duration = duration;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " freq:%dMHz duration:%dms",
-		LOCAL_PR_ARG, __entry->center_freq, __entry->duration
+		LOCAL_PR_FMT  VIF_PR_FMT " freq:%dMHz duration:%dms",
+		LOCAL_PR_ARG, VIF_PR_ARG,
+		__entry->center_freq, __entry->duration
 	)
 );
 
 DEFINE_EVENT(local_only_evt, drv_cancel_remain_on_channel,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)
-);
-
-TRACE_EVENT(drv_offchannel_tx,
-	TP_PROTO(struct ieee80211_local *local, struct sk_buff *skb,
-		 struct ieee80211_channel *chan,
-		 enum nl80211_channel_type channel_type,
-		 unsigned int wait),
-
-	TP_ARGS(local, skb, chan, channel_type, wait),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		__field(int, center_freq)
-		__field(int, channel_type)
-		__field(unsigned int, wait)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		__entry->center_freq = chan->center_freq;
-		__entry->channel_type = channel_type;
-		__entry->wait = wait;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT " freq:%dMHz, wait:%dms",
-		LOCAL_PR_ARG, __entry->center_freq, __entry->wait
-	)
 );
 
 TRACE_EVENT(drv_set_ringparam,
@@ -1394,6 +1382,48 @@ DEFINE_EVENT(local_sdata_chanctx, drv_unassign_vif_chanctx,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_chanctx *ctx),
 	TP_ARGS(local, sdata, ctx)
+);
+
+TRACE_EVENT(drv_start_ap,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_bss_conf *info),
+
+	TP_ARGS(local, sdata, info),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u8, dtimper)
+		__field(u16, bcnint)
+		__dynamic_array(u8, ssid, info->ssid_len);
+		__field(bool, hidden_ssid);
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->dtimper = info->dtim_period;
+		__entry->bcnint = info->beacon_int;
+		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
+		__entry->hidden_ssid = info->hidden_ssid;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG
+	)
+);
+
+DEFINE_EVENT(local_sdata_evt, drv_stop_ap,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata),
+	TP_ARGS(local, sdata)
+);
+
+DEFINE_EVENT(local_only_evt, drv_restart_complete,
+	TP_PROTO(struct ieee80211_local *local),
+	TP_ARGS(local)
 );
 
 /*

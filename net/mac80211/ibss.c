@@ -51,7 +51,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct cfg80211_bss *bss;
 	u32 bss_change;
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
-	enum nl80211_channel_type channel_type;
+	struct cfg80211_chan_def chandef;
 
 	lockdep_assert_held(&ifibss->mtx);
 
@@ -79,12 +79,14 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	sdata->drop_unencrypted = capability & WLAN_CAPABILITY_PRIVACY ? 1 : 0;
 
-	channel_type = ifibss->channel_type;
-	if (!cfg80211_can_beacon_sec_chan(local->hw.wiphy, chan, channel_type))
-		channel_type = NL80211_CHAN_HT20;
+	cfg80211_chandef_create(&chandef, chan, ifibss->channel_type);
+	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef)) {
+		chandef.width = NL80211_CHAN_WIDTH_20;
+		chandef.center_freq1 = chan->center_freq;
+	}
 
 	ieee80211_vif_release_channel(sdata);
-	if (ieee80211_vif_use_channel(sdata, chan, channel_type,
+	if (ieee80211_vif_use_channel(sdata, &chandef,
 				      ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
@@ -158,7 +160,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		       ifibss->ie, ifibss->ie_len);
 
 	/* add HT capability and information IEs */
-	if (channel_type && sband->ht_cap.ht_supported) {
+	if (chandef.width != NL80211_CHAN_WIDTH_20_NOHT &&
+	    sband->ht_cap.ht_supported) {
 		pos = skb_put(skb, 4 +
 				   sizeof(struct ieee80211_ht_cap) +
 				   sizeof(struct ieee80211_ht_operation));
@@ -170,7 +173,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		 * keep them at 0
 		 */
 		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
-						 chan, channel_type, 0);
+						 &chandef, 0);
 	}
 
 	if (local->hw.queues >= IEEE80211_NUM_ACS) {
@@ -326,7 +329,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (WARN_ON_ONCE(!chanctx_conf))
 		return NULL;
-	band = chanctx_conf->channel->band;
+	band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
 	sta = sta_info_alloc(sdata, addr, GFP_KERNEL);
@@ -374,11 +377,13 @@ static void ieee80211_rx_mgmt_auth_ibss(struct ieee80211_sub_if_data *sdata,
 	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
 	auth_transaction = le16_to_cpu(mgmt->u.auth.auth_transaction);
 
-	if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
-		return;
 	ibss_dbg(sdata,
 		 "RX Auth SA=%pM DA=%pM BSSID=%pM (auth_transaction=%d)\n",
 		 mgmt->sa, mgmt->da, mgmt->bssid, auth_transaction);
+
+	if (auth_alg != WLAN_AUTH_OPEN || auth_transaction != 1)
+		return;
+
 	sta_info_destroy_addr(sdata, mgmt->sa);
 	sta = ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa, 0, false);
 	rcu_read_unlock();
@@ -473,9 +478,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		    sdata->u.ibss.channel_type != NL80211_CHAN_NO_HT) {
 			/* we both use HT */
 			struct ieee80211_sta_ht_cap sta_ht_cap_new;
-			enum nl80211_channel_type channel_type =
-				ieee80211_ht_oper_to_channel_type(
-							elems->ht_operation);
+			struct cfg80211_chan_def chandef;
+
+			ieee80211_ht_oper_to_chandef(channel,
+						     elems->ht_operation,
+						     &chandef);
 
 			ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 							  elems->ht_cap_elem,
@@ -485,9 +492,9 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			 * fall back to HT20 if we don't use or use
 			 * the other extension channel
 			 */
-			if (!(channel_type == NL80211_CHAN_HT40MINUS ||
-			      channel_type == NL80211_CHAN_HT40PLUS) ||
-			    channel_type != sdata->u.ibss.channel_type)
+			if (chandef.width != NL80211_CHAN_WIDTH_40 ||
+			    cfg80211_get_chandef_type(&chandef) !=
+						sdata->u.ibss.channel_type)
 				sta_ht_cap_new.cap &=
 					~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
@@ -543,30 +550,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (ether_addr_equal(cbss->bssid, sdata->u.ibss.bssid))
 		goto put_bss;
 
-	if (rx_status->flag & RX_FLAG_MACTIME_MPDU) {
-		/*
-		 * For correct IBSS merging we need mactime; since mactime is
-		 * defined as the time the first data symbol of the frame hits
-		 * the PHY, and the timestamp of the beacon is defined as "the
-		 * time that the data symbol containing the first bit of the
-		 * timestamp is transmitted to the PHY plus the transmitting
-		 * STA's delays through its local PHY from the MAC-PHY
-		 * interface to its interface with the WM" (802.11 11.1.2)
-		 * - equals the time this bit arrives at the receiver - we have
-		 * to take into account the offset between the two.
-		 *
-		 * E.g. at 1 MBit that means mactime is 192 usec earlier
-		 * (=24 bytes * 8 usecs/byte) than the beacon timestamp.
-		 */
-		int rate;
-
-		if (rx_status->flag & RX_FLAG_HT)
-			rate = 65; /* TODO: HT rates */
-		else
-			rate = local->hw.wiphy->bands[band]->
-				bitrates[rx_status->rate_idx].bitrate;
-
-		rx_timestamp = rx_status->mactime + (24 * 8 * 10 / rate);
+	if (ieee80211_have_rx_timestamp(rx_status)) {
+		/* time when timestamp field was received */
+		rx_timestamp =
+			ieee80211_calculate_rx_timestamp(local, rx_status,
+							 len + FCS_LEN, 24);
 	} else {
 		/*
 		 * second best option: get current TSF
@@ -630,7 +618,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 		rcu_read_unlock();
 		return;
 	}
-	band = chanctx_conf->channel->band;
+	band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
@@ -1095,8 +1083,9 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
 
-	sdata->u.ibss.channel = params->channel;
-	sdata->u.ibss.channel_type = params->channel_type;
+	sdata->u.ibss.channel = params->chandef.chan;
+	sdata->u.ibss.channel_type =
+		cfg80211_get_chandef_type(&params->chandef);
 	sdata->u.ibss.fixed_channel = params->channel_fixed;
 
 	if (params->ie) {

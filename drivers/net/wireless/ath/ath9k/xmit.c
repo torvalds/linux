@@ -1354,10 +1354,10 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath9k_tx_queue_info qi;
 	static const int subtype_txq_to_hwq[] = {
-		[WME_AC_BE] = ATH_TXQ_AC_BE,
-		[WME_AC_BK] = ATH_TXQ_AC_BK,
-		[WME_AC_VI] = ATH_TXQ_AC_VI,
-		[WME_AC_VO] = ATH_TXQ_AC_VO,
+		[IEEE80211_AC_BE] = ATH_TXQ_AC_BE,
+		[IEEE80211_AC_BK] = ATH_TXQ_AC_BK,
+		[IEEE80211_AC_VI] = ATH_TXQ_AC_VI,
+		[IEEE80211_AC_VO] = ATH_TXQ_AC_VO,
 	};
 	int axq_qnum, i;
 
@@ -2319,6 +2319,8 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		ath_txq_lock(sc, txq);
 
+		TX_STAT_INC(txq->axq_qnum, txprocdesc);
+
 		if (list_empty(&txq->txq_fifo[txq->txq_tailidx])) {
 			ath_txq_unlock(sc, txq);
 			return;
@@ -2464,7 +2466,7 @@ void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 	}
 
 	for (acno = 0, ac = &an->ac[acno];
-	     acno < WME_NUM_AC; acno++, ac++) {
+	     acno < IEEE80211_NUM_ACS; acno++, ac++) {
 		ac->sched    = false;
 		ac->txq = sc->tx.txq_map[acno];
 		INIT_LIST_HEAD(&ac->tid_q);

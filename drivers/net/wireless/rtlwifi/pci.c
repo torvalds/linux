@@ -1309,12 +1309,19 @@ static bool rtl_pci_tx_chk_waitq_insert(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_sta_info *sta_entry = NULL;
 	u8 tid = rtl_get_tid(skb);
+	__le16 fc = rtl_get_fc(skb);
 
 	if (!sta)
 		return false;
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
 
 	if (!rtlpriv->rtlhal.earlymode_enable)
+		return false;
+	if (ieee80211_is_nullfunc(fc))
+		return false;
+	if (ieee80211_is_qos_nullfunc(fc))
+		return false;
+	if (ieee80211_is_pspoll(fc))
 		return false;
 	if (sta_entry->tids[tid].agg.agg_state != RTL_AGG_OPERATIONAL)
 		return false;
@@ -1357,10 +1364,8 @@ static int rtl_pci_tx(struct ieee80211_hw *hw,
 	u8 own;
 	u8 temp_one = 1;
 
-	if (ieee80211_is_auth(fc)) {
-		RT_TRACE(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
-		rtl_ips_nic_on(hw);
-	}
+	if (ieee80211_is_mgmt(fc))
+		rtl_tx_mgmt_proc(hw, skb);
 
 	if (rtlpriv->psc.sw_ps_enabled) {
 		if (ieee80211_is_data(fc) && !ieee80211_is_nullfunc(fc) &&
@@ -1628,7 +1633,7 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 				 "8192 PCI-E is found - vid/did=%x/%x\n",
 				 venderid, deviceid);
 			rtlhal->hw_type = HARDWARE_TYPE_RTL8192E;
-			break;
+			return false;
 		case RTL_PCI_REVISION_ID_8192SE:
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
 				 "8192SE is found - vid/did=%x/%x\n",
@@ -1643,6 +1648,11 @@ static bool _rtl_pci_find_adapter(struct pci_dev *pdev,
 			break;
 
 		}
+	} else if (deviceid == RTL_PCI_8723AE_DID) {
+		rtlhal->hw_type = HARDWARE_TYPE_RTL8723AE;
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
+			 "8723AE PCI-E is found - "
+			 "vid/did=%x/%x\n", venderid, deviceid);
 	} else if (deviceid == RTL_PCI_8192CET_DID ||
 		   deviceid == RTL_PCI_8192CE_DID ||
 		   deviceid == RTL_PCI_8191CE_DID ||

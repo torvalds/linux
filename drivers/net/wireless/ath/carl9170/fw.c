@@ -28,11 +28,6 @@
 #include "fwcmd.h"
 #include "version.h"
 
-#define MAKE_STR(symbol) #symbol
-#define TO_STR(symbol) MAKE_STR(symbol)
-#define CARL9170FW_API_VER_STR TO_STR(CARL9170FW_API_MAX_VER)
-MODULE_VERSION(CARL9170FW_API_VER_STR ":" CARL9170FW_VERSION_GIT);
-
 static const u8 otus_magic[4] = { OTUS_MAGIC };
 
 static const void *carl9170_fw_find_desc(struct ar9170 *ar, const u8 descid[4],

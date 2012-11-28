@@ -27,9 +27,6 @@ void ath_tx_complete_poll_work(struct work_struct *work)
 	struct ath_txq *txq;
 	int i;
 	bool needreset = false;
-#ifdef CONFIG_ATH9K_DEBUGFS
-	sc->tx_complete_poll_work_seen++;
-#endif
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++)
 		if (ATH_TXQ_SETUP(sc, i)) {
@@ -211,7 +208,7 @@ static bool ath_paprd_send_frame(struct ath_softc *sc, struct sk_buff *skb, int 
 	int time_left;
 
 	memset(&txctl, 0, sizeof(txctl));
-	txctl.txq = sc->tx.txq_map[WME_AC_BE];
+	txctl.txq = sc->tx.txq_map[IEEE80211_AC_BE];
 
 	memset(tx_info, 0, sizeof(*tx_info));
 	tx_info->band = hw->conf.channel->band;

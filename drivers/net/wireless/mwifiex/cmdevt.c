@@ -949,6 +949,9 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 	}
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
 		mwifiex_init_fw_complete(adapter);
+
+	if (adapter->if_ops.card_reset)
+		adapter->if_ops.card_reset(adapter);
 }
 
 /*

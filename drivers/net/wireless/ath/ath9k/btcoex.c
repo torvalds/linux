@@ -49,6 +49,7 @@ static const u32 mci_wlan_weights[ATH_BTCOEX_STOMP_MAX]
 	{ 0x01017d01, 0x3b3b3b01, 0x3b3b3b01, 0x3b3b3b3b }, /* STOMP_LOW */
 	{ 0x01017d01, 0x01010101, 0x01010101, 0x01010101 }, /* STOMP_NONE */
 	{ 0x01017d01, 0x013b0101, 0x3b3b0101, 0x3b3b013b }, /* STOMP_LOW_FTP */
+	{ 0xffffff01, 0xffffffff, 0xffffff01, 0xffffffff }, /* STOMP_AUDIO */
 };
 
 void ath9k_hw_init_btcoex_hw(struct ath_hw *ah, int qnum)

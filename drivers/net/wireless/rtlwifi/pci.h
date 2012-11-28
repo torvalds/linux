@@ -79,6 +79,7 @@
 #define RTL_PCI_8173_DID	0x8173	/*8191 SE Crab */
 #define RTL_PCI_8172_DID	0x8172	/*8191 SE RE */
 #define RTL_PCI_8171_DID	0x8171	/*8191 SE Unicron */
+#define RTL_PCI_8723AE_DID	0x8723	/*8723AE */
 #define RTL_PCI_0045_DID	0x0045	/*8190 PCI for Ceraga */
 #define RTL_PCI_0046_DID	0x0046	/*8190 Cardbus for Ceraga */
 #define RTL_PCI_0044_DID	0x0044	/*8192e PCIE for Ceraga */
@@ -152,6 +153,7 @@ struct rtl8192_rx_ring {
 
 struct rtl_pci {
 	struct pci_dev *pdev;
+	bool irq_enabled;
 
 	bool driver_is_goingto_unload;
 	bool up_first_time;

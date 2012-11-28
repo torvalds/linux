@@ -33,6 +33,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *sta;
+	struct ieee80211_chanctx *ctx;
 
 	if (!local->open_count)
 		goto suspend;
@@ -135,14 +136,55 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 		ieee80211_bss_info_change_notify(sdata,
 			BSS_CHANGED_BEACON_ENABLED);
 
-		/* the interface is leaving the channel and is removed */
-		ieee80211_vif_release_channel(sdata);
+		if (sdata->vif.type == NL80211_IFTYPE_AP &&
+		    rcu_access_pointer(sdata->u.ap.beacon))
+			drv_stop_ap(local, sdata);
+
+		if (local->use_chanctx) {
+			struct ieee80211_chanctx_conf *conf;
+
+			mutex_lock(&local->chanctx_mtx);
+			conf = rcu_dereference_protected(
+					sdata->vif.chanctx_conf,
+					lockdep_is_held(&local->chanctx_mtx));
+			if (conf) {
+				ctx = container_of(conf,
+						   struct ieee80211_chanctx,
+						   conf);
+				drv_unassign_vif_chanctx(local, sdata, ctx);
+			}
+
+			mutex_unlock(&local->chanctx_mtx);
+		}
 		drv_remove_interface(local, sdata);
 	}
 
 	sdata = rtnl_dereference(local->monitor_sdata);
-	if (sdata)
+	if (sdata) {
+		if (local->use_chanctx) {
+			struct ieee80211_chanctx_conf *conf;
+
+			mutex_lock(&local->chanctx_mtx);
+			conf = rcu_dereference_protected(
+					sdata->vif.chanctx_conf,
+					lockdep_is_held(&local->chanctx_mtx));
+			if (conf) {
+				ctx = container_of(conf,
+						   struct ieee80211_chanctx,
+						   conf);
+				drv_unassign_vif_chanctx(local, sdata, ctx);
+			}
+
+			mutex_unlock(&local->chanctx_mtx);
+		}
+
 		drv_remove_interface(local, sdata);
+	}
+
+	mutex_lock(&local->chanctx_mtx);
+	list_for_each_entry(ctx, &local->chanctx_list, list)
+		drv_remove_chanctx(local, ctx);
+	mutex_unlock(&local->chanctx_mtx);
 
 	/* stop hardware - this must stop RX */
 	if (local->open_count)

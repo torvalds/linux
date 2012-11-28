@@ -56,6 +56,9 @@ struct ieee80211_local;
 #define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
 #define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
 
+/* power level hasn't been configured (or set to automatic) */
+#define IEEE80211_UNSET_POWER_LEVEL	INT_MIN
+
 /*
  * Some APs experience problems when working with U-APSD. Decrease the
  * probability of that happening by using legacy mode for all ACs but VO.
@@ -345,7 +348,6 @@ struct ieee80211_roc_work {
 	struct ieee80211_sub_if_data *sdata;
 
 	struct ieee80211_channel *chan;
-	enum nl80211_channel_type chan_type;
 
 	bool started, abort, hw_begun, notified;
 
@@ -353,7 +355,7 @@ struct ieee80211_roc_work {
 
 	u32 duration, req_duration;
 	struct sk_buff *frame;
-	u64 mgmt_tx_cookie;
+	u64 cookie, mgmt_tx_cookie;
 };
 
 /* flags used in struct ieee80211_if_managed.flags */
@@ -361,7 +363,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_BEACON_POLL	= BIT(0),
 	IEEE80211_STA_CONNECTION_POLL	= BIT(1),
 	IEEE80211_STA_CONTROL_PORT	= BIT(2),
-	IEEE80211_STA_DISABLE_11N	= BIT(4),
+	IEEE80211_STA_DISABLE_HT	= BIT(4),
 	IEEE80211_STA_CSA_RECEIVED	= BIT(5),
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
@@ -469,6 +471,8 @@ struct ieee80211_if_managed {
 	int wmm_last_param_set;
 
 	u8 use_4addr;
+
+	u8 p2p_noa_index;
 
 	/* Signal strength from the last Beacon frame in the current BSS. */
 	int last_beacon_signal;
@@ -743,6 +747,9 @@ struct ieee80211_sub_if_data {
 	u8 needed_rx_chains;
 	enum ieee80211_smps_mode smps_mode;
 
+	int user_power_level; /* in dBm */
+	int ap_power_level; /* in dBm */
+
 	/*
 	 * AP this belongs to: self in AP mode and
 	 * corresponding AP in VLAN mode, NULL for
@@ -792,7 +799,7 @@ ieee80211_get_sdata_band(struct ieee80211_sub_if_data *sdata)
 	rcu_read_lock();
 	chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
 	if (!WARN_ON(!chanctx_conf))
-		band = chanctx_conf->channel->band;
+		band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
 	return band;
@@ -1040,7 +1047,6 @@ struct ieee80211_local {
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
-	enum nl80211_channel_type tmp_channel_type;
 
 	/* channel contexts */
 	struct list_head chanctx_list;
@@ -1117,8 +1123,7 @@ struct ieee80211_local {
 	int dynamic_ps_user_timeout;
 	bool disable_dynamic_ps;
 
-	int user_power_level; /* in dBm */
-	int ap_power_level; /* in dBm */
+	int user_power_level; /* in dBm, for all interfaces */
 
 	enum ieee80211_smps_mode smps_mode;
 
@@ -1137,6 +1142,7 @@ struct ieee80211_local {
 	struct list_head roc_list;
 	struct work_struct hw_roc_start, hw_roc_done;
 	unsigned long hw_roc_start_time;
+	u64 roc_cookie_counter;
 
 	struct idr ack_status_frames;
 	spinlock_t ack_status_lock;
@@ -1150,8 +1156,7 @@ struct ieee80211_local {
 
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
-	struct ieee80211_channel *monitor_channel;
-	enum nl80211_channel_type monitor_channel_type;
+	struct cfg80211_chan_def monitor_chandef;
 };
 
 static inline struct ieee80211_sub_if_data *
@@ -1251,7 +1256,18 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 	       is_broadcast_ether_addr(raddr);
 }
 
+static inline bool
+ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
+{
+	WARN_ON_ONCE(status->flag & RX_FLAG_MACTIME_START &&
+		     status->flag & RX_FLAG_MACTIME_END);
+	return status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END);
+}
 
+u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
+				     struct ieee80211_rx_status *status,
+				     unsigned int mpdu_len,
+				     unsigned int mpdu_offset);
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
@@ -1364,6 +1380,9 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset);
 int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up);
 void ieee80211_sdata_stop(struct ieee80211_sub_if_data *sdata);
+
+bool __ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
+void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata);
 
 static inline bool ieee80211_sdata_running(struct ieee80211_sub_if_data *sdata)
 {
@@ -1496,7 +1515,7 @@ static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 	}
 
 	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
-				    chanctx_conf->channel->band);
+				    chanctx_conf->def.chan->band);
 	rcu_read_unlock();
 }
 
@@ -1585,8 +1604,7 @@ size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);
 u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			      u16 cap);
 u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
-			       struct ieee80211_channel *channel,
-			       enum nl80211_channel_type channel_type,
+			       const struct cfg80211_chan_def *chandef,
 			       u16 prot_mode);
 u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 			       u32 cap);
@@ -1598,13 +1616,13 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
 				enum ieee80211_band band);
 
 /* channel management */
-enum nl80211_channel_type
-ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper);
+void ieee80211_ht_oper_to_chandef(struct ieee80211_channel *control_chan,
+				  struct ieee80211_ht_operation *ht_oper,
+				  struct cfg80211_chan_def *chandef);
 
 int __must_check
 ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
-			  struct ieee80211_channel *channel,
-			  enum nl80211_channel_type channel_type,
+			  const struct cfg80211_chan_def *chandef,
 			  enum ieee80211_chanctx_mode mode);
 void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
 

@@ -1075,14 +1075,11 @@ static void iwlagn_count_tx_err_status(struct iwl_priv *priv, u16 status)
 
 static void iwlagn_set_tx_status(struct iwl_priv *priv,
 				 struct ieee80211_tx_info *info,
-				 struct iwlagn_tx_resp *tx_resp,
-				 bool is_agg)
+				 struct iwlagn_tx_resp *tx_resp)
 {
-	u16  status = le16_to_cpu(tx_resp->status.status);
+	u16 status = le16_to_cpu(tx_resp->status.status);
 
 	info->status.rates[0].count = tx_resp->failure_frame + 1;
-	if (is_agg)
-		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 	info->flags |= iwl_tx_status_to_mac80211(status);
 	iwlagn_hwrate_to_tx_control(priv, le32_to_cpu(tx_resp->rate_n_flags),
 				    info);
@@ -1231,7 +1228,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			if (is_agg && !iwl_is_tx_success(status))
 				info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 			iwlagn_set_tx_status(priv, IEEE80211_SKB_CB(skb),
-				     tx_resp, is_agg);
+				     tx_resp);
 			if (!is_agg)
 				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
 

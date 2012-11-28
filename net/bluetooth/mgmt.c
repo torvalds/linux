@@ -222,7 +222,7 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
 
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_STATUS);
+	hdr->opcode = __constant_cpu_to_le16(MGMT_EV_CMD_STATUS);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev));
 
@@ -253,7 +253,7 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 
 	hdr = (void *) skb_put(skb, sizeof(*hdr));
 
-	hdr->opcode = cpu_to_le16(MGMT_EV_CMD_COMPLETE);
+	hdr->opcode = __constant_cpu_to_le16(MGMT_EV_CMD_COMPLETE);
 	hdr->index = cpu_to_le16(index);
 	hdr->len = cpu_to_le16(sizeof(*ev) + rp_len);
 
@@ -377,15 +377,15 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	u32 settings = 0;
 
 	settings |= MGMT_SETTING_POWERED;
-	settings |= MGMT_SETTING_CONNECTABLE;
-	settings |= MGMT_SETTING_FAST_CONNECTABLE;
-	settings |= MGMT_SETTING_DISCOVERABLE;
 	settings |= MGMT_SETTING_PAIRABLE;
 
 	if (lmp_ssp_capable(hdev))
 		settings |= MGMT_SETTING_SSP;
 
 	if (lmp_bredr_capable(hdev)) {
+		settings |= MGMT_SETTING_CONNECTABLE;
+		settings |= MGMT_SETTING_FAST_CONNECTABLE;
+		settings |= MGMT_SETTING_DISCOVERABLE;
 		settings |= MGMT_SETTING_BREDR;
 		settings |= MGMT_SETTING_LINK_SECURITY;
 	}
@@ -485,7 +485,7 @@ static void create_eir(struct hci_dev *hdev, u8 *data)
 		ptr += (name_len + 2);
 	}
 
-	if (hdev->inq_tx_power) {
+	if (hdev->inq_tx_power != HCI_TX_POWER_INVALID) {
 		ptr[0] = 2;
 		ptr[1] = EIR_TX_POWER;
 		ptr[2] = (u8) hdev->inq_tx_power;
@@ -566,7 +566,7 @@ static int update_eir(struct hci_dev *hdev)
 	if (!hdev_is_powered(hdev))
 		return 0;
 
-	if (!(hdev->features[6] & LMP_EXT_INQ))
+	if (!lmp_ext_inq_capable(hdev))
 		return 0;
 
 	if (!test_bit(HCI_SSP_ENABLED, &hdev->dev_flags))
@@ -833,7 +833,7 @@ static int mgmt_event(u16 event, struct hci_dev *hdev, void *data, u16 data_len,
 	if (hdev)
 		hdr->index = cpu_to_le16(hdev->id);
 	else
-		hdr->index = cpu_to_le16(MGMT_INDEX_NONE);
+		hdr->index = __constant_cpu_to_le16(MGMT_INDEX_NONE);
 	hdr->len = cpu_to_le16(data_len);
 
 	if (data)
@@ -867,6 +867,10 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_bredr_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
+				 MGMT_STATUS_NOT_SUPPORTED);
 
 	timeout = __le16_to_cpu(cp->timeout);
 	if (!cp->val && timeout > 0)
@@ -962,6 +966,10 @@ static int set_connectable(struct sock *sk, struct hci_dev *hdev, void *data,
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_bredr_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_CONNECTABLE,
+				  MGMT_STATUS_NOT_SUPPORTED);
 
 	hci_dev_lock(hdev);
 
@@ -1060,6 +1068,10 @@ static int set_link_security(struct sock *sk, struct hci_dev *hdev, void *data,
 	int err;
 
 	BT_DBG("request for %s", hdev->name);
+
+	if (!lmp_bredr_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_LINK_SECURITY,
+				  MGMT_STATUS_NOT_SUPPORTED);
 
 	hci_dev_lock(hdev);
 
@@ -1214,7 +1226,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	val = !!cp->val;
-	enabled = !!(hdev->host_features[0] & LMP_HOST_LE);
+	enabled = !!lmp_host_le_capable(hdev);
 
 	if (!hdev_is_powered(hdev) || val == enabled) {
 		bool changed = false;
@@ -1250,7 +1262,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	if (val) {
 		hci_cp.le = val;
-		hci_cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
+		hci_cp.simul = !!lmp_le_br_capable(hdev);
 	}
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
@@ -2596,6 +2608,10 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	BT_DBG("%s", hdev->name);
 
+	if (!lmp_bredr_capable(hdev))
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
+				  MGMT_STATUS_NOT_SUPPORTED);
+
 	if (!hdev_is_powered(hdev))
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_FAST_CONNECTABLE,
 				  MGMT_STATUS_NOT_POWERED);
@@ -2873,6 +2889,21 @@ static void settings_rsp(struct pending_cmd *cmd, void *data)
 	mgmt_pending_free(cmd);
 }
 
+static int set_bredr_scan(struct hci_dev *hdev)
+{
+	u8 scan = 0;
+
+	if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
+		scan |= SCAN_PAGE;
+	if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
+		scan |= SCAN_INQUIRY;
+
+	if (!scan)
+		return 0;
+
+	return hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
+}
+
 int mgmt_powered(struct hci_dev *hdev, u8 powered)
 {
 	struct cmd_lookup match = { NULL, hdev };
@@ -2884,17 +2915,8 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 	mgmt_pending_foreach(MGMT_OP_SET_POWERED, hdev, settings_rsp, &match);
 
 	if (powered) {
-		u8 scan = 0;
-
-		if (test_bit(HCI_CONNECTABLE, &hdev->dev_flags))
-			scan |= SCAN_PAGE;
-		if (test_bit(HCI_DISCOVERABLE, &hdev->dev_flags))
-			scan |= SCAN_INQUIRY;
-
-		if (scan)
-			hci_send_cmd(hdev, HCI_OP_WRITE_SCAN_ENABLE, 1, &scan);
-
-		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags)) {
+		if (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
+		    !lmp_host_ssp_capable(hdev)) {
 			u8 ssp = 1;
 
 			hci_send_cmd(hdev, HCI_OP_WRITE_SSP_MODE, 1, &ssp);
@@ -2904,15 +2926,24 @@ int mgmt_powered(struct hci_dev *hdev, u8 powered)
 			struct hci_cp_write_le_host_supported cp;
 
 			cp.le = 1;
-			cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
+			cp.simul = !!lmp_le_br_capable(hdev);
 
-			hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED,
-				     sizeof(cp), &cp);
+			/* Check first if we already have the right
+			 * host state (host features set)
+			 */
+			if (cp.le != !!lmp_host_le_capable(hdev) ||
+			    cp.simul != !!lmp_host_le_br_capable(hdev))
+				hci_send_cmd(hdev,
+					     HCI_OP_WRITE_LE_HOST_SUPPORTED,
+					     sizeof(cp), &cp);
 		}
 
-		update_class(hdev);
-		update_name(hdev, hdev->dev_name);
-		update_eir(hdev);
+		if (lmp_bredr_capable(hdev)) {
+			set_bredr_scan(hdev);
+			update_class(hdev);
+			update_name(hdev, hdev->dev_name);
+			update_eir(hdev);
+		}
 	} else {
 		u8 status = MGMT_STATUS_NOT_POWERED;
 		mgmt_pending_foreach(0, hdev, cmd_status_rsp, &status);
@@ -3361,7 +3392,7 @@ static int clear_eir(struct hci_dev *hdev)
 {
 	struct hci_cp_write_eir cp;
 
-	if (!(hdev->features[6] & LMP_EXT_INQ))
+	if (!lmp_ext_inq_capable(hdev))
 		return 0;
 
 	memset(hdev->eir, 0, sizeof(hdev->eir));
@@ -3493,7 +3524,12 @@ send_event:
 		err = mgmt_event(MGMT_EV_LOCAL_NAME_CHANGED, hdev, &ev,
 				 sizeof(ev), cmd ? cmd->sk : NULL);
 
-	update_eir(hdev);
+	/* EIR is taken care of separately when powering on the
+	 * adapter so only update them here if this is a name change
+	 * unrelated to power on.
+	 */
+	if (!test_bit(HCI_INIT, &hdev->flags))
+		update_eir(hdev);
 
 failed:
 	if (cmd)
@@ -3588,9 +3624,9 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	ev->addr.type = link_to_bdaddr(link_type, addr_type);
 	ev->rssi = rssi;
 	if (cfm_name)
-		ev->flags |= cpu_to_le32(MGMT_DEV_FOUND_CONFIRM_NAME);
+		ev->flags |= __constant_cpu_to_le32(MGMT_DEV_FOUND_CONFIRM_NAME);
 	if (!ssp)
-		ev->flags |= cpu_to_le32(MGMT_DEV_FOUND_LEGACY_PAIRING);
+		ev->flags |= __constant_cpu_to_le32(MGMT_DEV_FOUND_LEGACY_PAIRING);
 
 	if (eir_len > 0)
 		memcpy(ev->eir, eir, eir_len);

@@ -150,7 +150,7 @@ enum iwl_led_mode {
 struct iwl_base_params {
 	int eeprom_size;
 	int num_of_queues;	/* def: HW dependent */
-	/* for iwl_apm_init() */
+	/* for iwl_pcie_apm_init() */
 	u32 pll_cfg_val;
 
 	const u16 max_ll_items;

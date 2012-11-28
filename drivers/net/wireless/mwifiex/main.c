@@ -282,6 +282,7 @@ exit_main_proc:
 		mwifiex_shutdown_drv(adapter);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(mwifiex_main_process);
 
 /*
  * This function frees the adapter structure.
@@ -412,49 +413,6 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function fills a driver buffer.
- *
- * The function associates a given SKB with the provided driver buffer
- * and also updates some of the SKB parameters, including IP header,
- * priority and timestamp.
- */
-static void
-mwifiex_fill_buffer(struct sk_buff *skb)
-{
-	struct ethhdr *eth;
-	struct iphdr *iph;
-	struct timeval tv;
-	u8 tid = 0;
-
-	eth = (struct ethhdr *) skb->data;
-	switch (eth->h_proto) {
-	case __constant_htons(ETH_P_IP):
-		iph = ip_hdr(skb);
-		tid = IPTOS_PREC(iph->tos);
-		pr_debug("data: packet type ETH_P_IP: %04x, tid=%#x prio=%#x\n",
-			 eth->h_proto, tid, skb->priority);
-		break;
-	case __constant_htons(ETH_P_ARP):
-		pr_debug("data: ARP packet: %04x\n", eth->h_proto);
-	default:
-		break;
-	}
-/* Offset for TOS field in the IP header */
-#define IPTOS_OFFSET 5
-	tid = (tid >> IPTOS_OFFSET);
-	skb->priority = tid;
-	/* Record the current time the packet was queued; used to
-	   determine the amount of time the packet was queued in
-	   the driver before it was sent to the firmware.
-	   The delay is then sent along with the packet to the
-	   firmware for aggregate delay calculation for stats and
-	   MSDU lifetime expiry.
-	 */
-	do_gettimeofday(&tv);
-	skb->tstamp = timeval_to_ktime(tv);
-}
-
-/*
  * CFG802.11 network device handler for open.
  *
  * Starts the data queue.
@@ -488,16 +446,22 @@ mwifiex_close(struct net_device *dev)
  */
 int mwifiex_queue_tx_pkt(struct mwifiex_private *priv, struct sk_buff *skb)
 {
-	mwifiex_wmm_add_buf_txqueue(priv, skb);
+	struct netdev_queue *txq;
+	int index = mwifiex_1d_to_wmm_queue[skb->priority];
+
+	if (atomic_inc_return(&priv->wmm_tx_pending[index]) >= MAX_TX_PENDING) {
+		txq = netdev_get_tx_queue(priv->netdev, index);
+		if (!netif_tx_queue_stopped(txq)) {
+			netif_tx_stop_queue(txq);
+			dev_dbg(priv->adapter->dev, "stop queue: %d\n", index);
+		}
+	}
+
 	atomic_inc(&priv->adapter->tx_pending);
+	mwifiex_wmm_add_buf_txqueue(priv, skb);
 
 	if (priv->adapter->scan_delay_cnt)
 		atomic_set(&priv->adapter->is_tx_received, true);
-
-	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
-		mwifiex_set_trans_start(priv->netdev);
-		mwifiex_stop_net_dev_queue(priv->netdev, priv->adapter);
-	}
 
 	queue_work(priv->adapter->workqueue, &priv->adapter->main_work);
 
@@ -513,6 +477,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
+	struct timeval tv;
 
 	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
 		jiffies, priv->bss_type, priv->bss_num);
@@ -550,7 +515,16 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 	tx_info->bss_num = priv->bss_num;
 	tx_info->bss_type = priv->bss_type;
-	mwifiex_fill_buffer(skb);
+
+	/* Record the current time the packet was queued; used to
+	 * determine the amount of time the packet was queued in
+	 * the driver before it was sent to the firmware.
+	 * The delay is then sent along with the packet to the
+	 * firmware for aggregate delay calculation for stats and
+	 * MSDU lifetime expiry.
+	 */
+	do_gettimeofday(&tv);
+	skb->tstamp = timeval_to_ktime(tv);
 
 	mwifiex_queue_tx_pkt(priv, skb);
 
@@ -630,6 +604,13 @@ static struct net_device_stats *mwifiex_get_stats(struct net_device *dev)
 	return &priv->stats;
 }
 
+static u16
+mwifiex_netdev_select_wmm_queue(struct net_device *dev, struct sk_buff *skb)
+{
+	skb->priority = cfg80211_classify8021d(skb);
+	return mwifiex_1d_to_wmm_queue[skb->priority];
+}
+
 /* Network device handlers */
 static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_open = mwifiex_open,
@@ -639,6 +620,7 @@ static const struct net_device_ops mwifiex_netdev_ops = {
 	.ndo_tx_timeout = mwifiex_tx_timeout,
 	.ndo_get_stats = mwifiex_get_stats,
 	.ndo_set_rx_mode = mwifiex_set_multicast_list,
+	.ndo_select_queue = mwifiex_netdev_select_wmm_queue,
 };
 
 /*
@@ -838,9 +820,7 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	for (i = 0; i < adapter->priv_num; i++) {
 		priv = adapter->priv[i];
 		if (priv && priv->netdev) {
-			if (!netif_queue_stopped(priv->netdev))
-				mwifiex_stop_net_dev_queue(priv->netdev,
-							   adapter);
+			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 			if (netif_carrier_ok(priv->netdev))
 				netif_carrier_off(priv->netdev);
 		}

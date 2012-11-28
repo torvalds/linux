@@ -391,7 +391,7 @@ static void rate_idx_match_mask(struct ieee80211_tx_rate *rate,
 			return;
 
 		/* if HT BSS, and we handle a data frame, also try HT rates */
-		if (txrc->bss_conf->channel_type == NL80211_CHAN_NO_HT)
+		if (txrc->bss_conf->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 			return;
 
 		fc = hdr->frame_control;
@@ -408,8 +408,7 @@ static void rate_idx_match_mask(struct ieee80211_tx_rate *rate,
 
 		alt_rate.flags |= IEEE80211_TX_RC_MCS;
 
-		if ((txrc->bss_conf->channel_type == NL80211_CHAN_HT40MINUS) ||
-		    (txrc->bss_conf->channel_type == NL80211_CHAN_HT40PLUS))
+		if (txrc->bss_conf->chandef.width == NL80211_CHAN_WIDTH_40)
 			alt_rate.flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
 
 		if (rate_idx_match_mcs_mask(&alt_rate, mcs_mask)) {

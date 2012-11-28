@@ -714,7 +714,6 @@ bool ar9003_mci_start_reset(struct ath_hw *ah, struct ath9k_channel *chan)
 
 	return true;
 }
-EXPORT_SYMBOL(ar9003_mci_start_reset);
 
 int ar9003_mci_end_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 			 struct ath9k_hw_cal_data *caldata)

@@ -306,7 +306,7 @@ TRACE_EVENT(iwlwifi_dev_rx_data,
 			memcpy(__get_dynamic_array(data),
 			       ((u8 *)rxbuf) + offs, len - offs);
 	),
-	TP_printk("[%s] TX frame data", __get_str(dev))
+	TP_printk("[%s] RX frame data", __get_str(dev))
 );
 
 #undef TRACE_SYSTEM
