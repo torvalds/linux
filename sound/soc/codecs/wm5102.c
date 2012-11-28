@@ -1459,7 +1459,7 @@ static int __devinit wm5102_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct wm5102_priv *wm5102;
-	int i;
+	int i, ret;
 
 	wm5102 = devm_kzalloc(&pdev->dev, sizeof(struct wm5102_priv),
 			      GFP_KERNEL);
@@ -1477,6 +1477,10 @@ static int __devinit wm5102_probe(struct platform_device *pdev)
 	wm5102->core.adsp[0].regmap = arizona->regmap;
 	wm5102->core.adsp[0].mem = wm5102_dsp1_regions;
 	wm5102->core.adsp[0].num_mems = ARRAY_SIZE(wm5102_dsp1_regions);
+
+	ret = wm_adsp2_init(&wm5102->core.adsp[0], true);
+	if (ret != 0)
+		return ret;
 
 	for (i = 0; i < ARRAY_SIZE(wm5102->fll); i++)
 		wm5102->fll[i].vco_mult = 1;
