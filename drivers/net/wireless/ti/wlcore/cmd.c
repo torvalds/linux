@@ -328,6 +328,8 @@ int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 			wl->fw_status_2->counters.tx_lnk_free_pkts[link];
 	wl->links[link].wlvif = wlvif;
 	*hlid = link;
+
+	wl->active_link_count++;
 	return 0;
 }
 
@@ -357,6 +359,8 @@ void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 	wl->links[*hlid].wlvif = NULL;
 
 	*hlid = WL12XX_INVALID_LINK_ID;
+	wl->active_link_count--;
+	WARN_ON_ONCE(wl->active_link_count < 0);
 }
 
 static u8 wlcore_get_native_channel_type(u8 nl_channel_type)

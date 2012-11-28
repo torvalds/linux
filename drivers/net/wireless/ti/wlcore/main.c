@@ -334,10 +334,10 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
 					struct wl12xx_vif *wlvif,
 					u8 hlid, u8 tx_pkts)
 {
-	bool fw_ps, single_sta;
+	bool fw_ps, single_link;
 
 	fw_ps = test_bit(hlid, (unsigned long *)&wl->ap_fw_ps_map);
-	single_sta = (wl->active_sta_count == 1);
+	single_link = (wl->active_link_count == 1);
 
 	/*
 	 * Wake up from high level PS if the STA is asleep with too little
@@ -348,10 +348,10 @@ static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
 
 	/*
 	 * Start high-level PS if the STA is asleep with enough blocks in FW.
-	 * Make an exception if this is the only connected station. In this
-	 * case FW-memory congestion is not a problem.
+	 * Make an exception if this is the only connected link. In this
+	 * case FW-memory congestion is less of a problem.
 	 */
-	else if (!single_sta && fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
+	else if (!single_link && fw_ps && tx_pkts >= WL1271_PS_STA_MAX_PACKETS)
 		wl12xx_ps_link_start(wl, wlvif, hlid, true);
 }
 
@@ -1890,6 +1890,7 @@ static void wlcore_op_stop_locked(struct wl1271 *wl)
 	memset(wl->roc_map, 0, sizeof(wl->roc_map));
 	memset(wl->session_ids, 0, sizeof(wl->session_ids));
 	wl->active_sta_count = 0;
+	wl->active_link_count = 0;
 
 	/* The system link is always allocated */
 	wl->links[WL12XX_SYSTEM_HLID].allocated_pkts = 0;
@@ -5728,6 +5729,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 	wl->platform_quirks = 0;
 	wl->system_hlid = WL12XX_SYSTEM_HLID;
 	wl->active_sta_count = 0;
+	wl->active_link_count = 0;
 	wl->fwlog_size = 0;
 	init_waitqueue_head(&wl->fwlog_waitq);
 

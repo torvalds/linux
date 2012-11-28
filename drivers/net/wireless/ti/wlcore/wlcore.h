@@ -369,6 +369,9 @@ struct wl1271 {
 	 */
 	struct wl1271_link links[WL12XX_MAX_LINKS];
 
+	/* number of currently active links */
+	int active_link_count;
+
 	/* Fast/slow links bitmap according to FW */
 	u32 fw_fast_lnk_map;
 
