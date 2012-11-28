@@ -1150,7 +1150,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 
 	/* Keep irq disabled to prevent changes to the clock */
 	local_irq_save(flags);
-	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v);
+	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v, native_read_tsc());
 	kernel_ns = get_kernel_ns();
 	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
 	if (unlikely(this_tsc_khz == 0)) {
@@ -5338,7 +5338,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 	if (hw_breakpoint_active())
 		hw_breakpoint_restore();
 
-	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu);
+	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu,
+							   native_read_tsc());
 
 	vcpu->mode = OUTSIDE_GUEST_MODE;
 	smp_wmb();
