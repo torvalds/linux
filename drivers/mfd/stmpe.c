@@ -953,13 +953,6 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 			else
 				icr |= STMPE_ICR_LSB_HIGH;
 		}
-
-		if (stmpe->pdata->irq_invert_polarity) {
-			if (id == STMPE801_ID)
-				icr ^= STMPE801_REG_SYS_CTRL_INT_HI;
-			else
-				icr ^= STMPE_ICR_LSB_HIGH;
-		}
 	}
 
 	if (stmpe->pdata->autosleep) {

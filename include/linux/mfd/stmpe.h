@@ -190,7 +190,6 @@ struct stmpe_ts_platform_data {
  * @id: device id to distinguish between multiple STMPEs on the same board
  * @blocks: bitmask of blocks to enable (use STMPE_BLOCK_*)
  * @irq_trigger: IRQ trigger to use for the interrupt to the host
- * @irq_invert_polarity: IRQ line is connected with reversed polarity
  * @autosleep: bool to enable/disable stmpe autosleep
  * @autosleep_timeout: inactivity timeout in milliseconds for autosleep
  * @irq_base: base IRQ number.  %STMPE_NR_IRQS irqs will be used, or
@@ -207,7 +206,6 @@ struct stmpe_platform_data {
 	unsigned int blocks;
 	int irq_base;
 	unsigned int irq_trigger;
-	bool irq_invert_polarity;
 	bool autosleep;
 	bool irq_over_gpio;
 	int irq_gpio;
