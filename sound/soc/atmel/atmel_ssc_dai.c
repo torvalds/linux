@@ -729,7 +729,7 @@ static int asoc_ssc_init(struct device *dev)
 		goto err;
 	}
 
-	ret = atmel_pcm_platform_register(dev);
+	ret = atmel_pcm_pdc_platform_register(dev);
 	if (ret) {
 		dev_err(dev, "Could not register PCM: %d\n", ret);
 		goto err_unregister_dai;
@@ -745,7 +745,7 @@ err:
 
 static void asoc_ssc_exit(struct device *dev)
 {
-	atmel_pcm_platform_unregister(dev);
+	atmel_pcm_pdc_platform_unregister(dev);
 	snd_soc_unregister_dai(dev);
 }
 
