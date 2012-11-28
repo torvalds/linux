@@ -588,14 +588,16 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 
 		ret = regmap_update_bits(dsp->regmap,
 					 dsp->base + ADSP2_CONTROL,
-					 ADSP2_SYS_ENA | ADSP2_START, 0);
+					 ADSP2_CORE_ENA | ADSP2_START,
+					 ADSP2_CORE_ENA | ADSP2_START);
 		if (ret != 0)
 			goto err;
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-				   ADSP2_SYS_ENA | ADSP2_START, 0);
+				   ADSP2_SYS_ENA | ADSP2_CORE_ENA |
+				   ADSP2_START, 0);
 
 		if (dsp->dvfs) {
 			ret = regulator_set_voltage(dsp->dvfs, 1200000,
@@ -620,7 +622,7 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 	return 0;
 err:
 	regmap_update_bits(dsp->regmap, dsp->base + ADSP2_CONTROL,
-			   ADSP2_SYS_ENA | ADSP2_START, 0);
+			   ADSP2_SYS_ENA | ADSP2_CORE_ENA | ADSP2_START, 0);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm_adsp2_event);
