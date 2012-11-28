@@ -1566,6 +1566,17 @@ void qlcnic_free_sds_rings(struct qlcnic_recv_context *);
 void qlcnic_free_tx_rings(struct qlcnic_adapter *);
 int qlcnic_alloc_tx_rings(struct qlcnic_adapter *, struct net_device *);
 
+void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter);
+void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter);
+void qlcnic_create_diag_entries(struct qlcnic_adapter *adapter);
+void qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter);
+int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
+int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
+void qlcnic_set_vlan_config(struct qlcnic_adapter *,
+			    struct qlcnic_esw_func_cfg *);
+void qlcnic_set_eswitch_port_features(struct qlcnic_adapter *,
+				      struct qlcnic_esw_func_cfg *);
+
 /*
  * QLOGIC Board information
  */
