@@ -1251,7 +1251,6 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm->vmcb_pa = page_to_pfn(page) << PAGE_SHIFT;
 	svm->asid_generation = 0;
 	init_vmcb(svm);
-	kvm_write_tsc(&svm->vcpu, 0);
 
 	err = fx_init(&svm->vcpu);
 	if (err)

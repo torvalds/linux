@@ -1853,6 +1853,7 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, u32 id)
 	atomic_inc(&kvm->online_vcpus);
 
 	mutex_unlock(&kvm->lock);
+	kvm_arch_vcpu_postcreate(vcpu);
 	return r;
 
 unlock_vcpu_destroy:

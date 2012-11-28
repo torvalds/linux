@@ -439,6 +439,11 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 	return vcpu;
 }
 
+int kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu)
+{
+	return 0;
+}
+
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
 	/* Make sure we're not using the vcpu anymore */

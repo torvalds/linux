@@ -3896,8 +3896,6 @@ static int vmx_vcpu_setup(struct vcpu_vmx *vmx)
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~0UL);
 	set_cr4_guest_host_mask(vmx);
 
-	kvm_write_tsc(&vmx->vcpu, 0);
-
 	return 0;
 }
 
