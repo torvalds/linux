@@ -25,9 +25,9 @@ int qlcnicvf_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 	return -EOPNOTSUPP;
 }
 
-static ssize_t
-qlcnic_store_bridged_mode(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t qlcnic_store_bridged_mode(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t len)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long new;
@@ -49,9 +49,9 @@ err_out:
 	return ret;
 }
 
-static ssize_t
-qlcnic_show_bridged_mode(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t qlcnic_show_bridged_mode(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int bridged_mode = 0;
@@ -62,9 +62,9 @@ qlcnic_show_bridged_mode(struct device *dev,
 	return sprintf(buf, "%d\n", bridged_mode);
 }
 
-static ssize_t
-qlcnic_store_diag_mode(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t qlcnic_store_diag_mode(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t len)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	unsigned long new;
@@ -78,19 +78,17 @@ qlcnic_store_diag_mode(struct device *dev,
 	return len;
 }
 
-static ssize_t
-qlcnic_show_diag_mode(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t qlcnic_show_diag_mode(struct device *dev,
+				     struct device_attribute *attr, char *buf)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n",
-			!!(adapter->flags & QLCNIC_DIAG_ENABLED));
+		       !!(adapter->flags & QLCNIC_DIAG_ENABLED));
 }
 
-static int
-qlcnic_validate_beacon(struct qlcnic_adapter *adapter, u16 beacon, u8 *state,
-			u8 *rate)
+static int qlcnic_validate_beacon(struct qlcnic_adapter *adapter, u16 beacon,
+				  u8 *state, u8 *rate)
 {
 	*rate = LSB(beacon);
 	*state = MSB(beacon);
@@ -100,8 +98,9 @@ qlcnic_validate_beacon(struct qlcnic_adapter *adapter, u16 beacon, u8 *state,
 	if (!*state) {
 		*rate = __QLCNIC_MAX_LED_RATE;
 		return 0;
-	} else if (*state > __QLCNIC_MAX_LED_STATE)
+	} else if (*state > __QLCNIC_MAX_LED_STATE) {
 		return -EINVAL;
+	}
 
 	if ((!*rate) || (*rate > __QLCNIC_MAX_LED_RATE))
 		return -EINVAL;
@@ -109,9 +108,9 @@ qlcnic_validate_beacon(struct qlcnic_adapter *adapter, u16 beacon, u8 *state,
 	return 0;
 }
 
-static ssize_t
-qlcnic_store_beacon(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t len)
+static ssize_t qlcnic_store_beacon(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t len)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int max_sds_rings = adapter->max_sds_rings;
@@ -120,8 +119,8 @@ qlcnic_store_beacon(struct device *dev,
 	int err;
 
 	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		dev_warn(dev, "LED test not supported for non "
-				"privilege function\n");
+		dev_warn(dev,
+			 "LED test not supported in non privileged mode\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -174,18 +173,16 @@ qlcnic_store_beacon(struct device *dev,
 	return err;
 }
 
-static ssize_t
-qlcnic_show_beacon(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t qlcnic_show_beacon(struct device *dev,
+				  struct device_attribute *attr, char *buf)
 {
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 
 	return sprintf(buf, "%d\n", adapter->ahw->beacon_state);
 }
 
-static int
-qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
-		loff_t offset, size_t size)
+static int qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
+				     loff_t offset, size_t size)
 {
 	size_t crb_size = 4;
 
@@ -194,7 +191,7 @@ qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
 
 	if (offset < QLCNIC_PCI_CRBSPACE) {
 		if (ADDR_IN_RANGE(offset, QLCNIC_PCI_CAMQM,
-					QLCNIC_PCI_CAMQM_END))
+				  QLCNIC_PCI_CAMQM_END))
 			crb_size = 8;
 		else
 			return -EINVAL;
@@ -206,10 +203,9 @@ qlcnic_sysfs_validate_crb(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static ssize_t
-qlcnic_sysfs_read_crb(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_read_crb(struct file *filp, struct kobject *kobj,
+				     struct bin_attribute *attr, char *buf,
+				     loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -231,10 +227,9 @@ qlcnic_sysfs_read_crb(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_write_crb(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_write_crb(struct file *filp, struct kobject *kobj,
+				      struct bin_attribute *attr, char *buf,
+				      loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -256,9 +251,8 @@ qlcnic_sysfs_write_crb(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static int
-qlcnic_sysfs_validate_mem(struct qlcnic_adapter *adapter,
-		loff_t offset, size_t size)
+static int qlcnic_sysfs_validate_mem(struct qlcnic_adapter *adapter,
+				     loff_t offset, size_t size)
 {
 	if (!(adapter->flags & QLCNIC_DIAG_ENABLED))
 		return -EIO;
@@ -269,10 +263,9 @@ qlcnic_sysfs_validate_mem(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static ssize_t
-qlcnic_sysfs_read_mem(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_read_mem(struct file *filp, struct kobject *kobj,
+				     struct bin_attribute *attr, char *buf,
+				     loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -291,10 +284,9 @@ qlcnic_sysfs_read_mem(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
+				      struct bin_attribute *attr, char *buf,
+				      loff_t offset, size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -313,20 +305,17 @@ qlcnic_sysfs_write_mem(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static int
-validate_pm_config(struct qlcnic_adapter *adapter,
-			struct qlcnic_pm_func_cfg *pm_cfg, int count)
+static int validate_pm_config(struct qlcnic_adapter *adapter,
+			      struct qlcnic_pm_func_cfg *pm_cfg, int count)
 {
-
-	u8 src_pci_func, s_esw_id, d_esw_id;
-	u8 dest_pci_func;
+	u8 src_pci_func, s_esw_id, d_esw_id, dest_pci_func;
 	int i;
 
 	for (i = 0; i < count; i++) {
 		src_pci_func = pm_cfg[i].pci_func;
 		dest_pci_func = pm_cfg[i].dest_npar;
-		if (src_pci_func >= QLCNIC_MAX_PCI_FUNC
-				|| dest_pci_func >= QLCNIC_MAX_PCI_FUNC)
+		if (src_pci_func >= QLCNIC_MAX_PCI_FUNC ||
+		    dest_pci_func >= QLCNIC_MAX_PCI_FUNC)
 			return QL_STATUS_INVALID_PARAM;
 
 		if (adapter->npars[src_pci_func].type != QLCNIC_TYPE_NIC)
@@ -340,15 +329,16 @@ validate_pm_config(struct qlcnic_adapter *adapter,
 
 		if (s_esw_id != d_esw_id)
 			return QL_STATUS_INVALID_PARAM;
-
 	}
 	return 0;
 
 }
 
-static ssize_t
-qlcnic_sysfs_write_pm_config(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_write_pm_config(struct file *filp,
+					    struct kobject *kobj,
+					    struct bin_attribute *attr,
+					    char *buf, loff_t offset,
+					    size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -361,7 +351,7 @@ qlcnic_sysfs_write_pm_config(struct file *filp, struct kobject *kobj,
 	if (rem)
 		return QL_STATUS_INVALID_PARAM;
 
-	pm_cfg = (struct qlcnic_pm_func_cfg *) buf;
+	pm_cfg = (struct qlcnic_pm_func_cfg *)buf;
 
 	ret = validate_pm_config(adapter, pm_cfg, count);
 	if (ret)
@@ -370,8 +360,8 @@ qlcnic_sysfs_write_pm_config(struct file *filp, struct kobject *kobj,
 		pci_func = pm_cfg[i].pci_func;
 		action = !!pm_cfg[i].action;
 		id = adapter->npars[pci_func].phy_port;
-		ret = qlcnic_config_port_mirroring(adapter, id,
-						action, pci_func);
+		ret = qlcnic_config_port_mirroring(adapter, id, action,
+						   pci_func);
 		if (ret)
 			return ret;
 	}
@@ -385,9 +375,11 @@ qlcnic_sysfs_write_pm_config(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_read_pm_config(struct file *filp, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_read_pm_config(struct file *filp,
+					   struct kobject *kobj,
+					   struct bin_attribute *attr,
+					   char *buf, loff_t offset,
+					   size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -409,9 +401,8 @@ qlcnic_sysfs_read_pm_config(struct file *filp, struct kobject *kobj,
 	return size;
 }
 
-static int
-validate_esw_config(struct qlcnic_adapter *adapter,
-	struct qlcnic_esw_func_cfg *esw_cfg, int count)
+static int validate_esw_config(struct qlcnic_adapter *adapter,
+			       struct qlcnic_esw_func_cfg *esw_cfg, int count)
 {
 	u32 op_mode;
 	u8 pci_func;
@@ -424,14 +415,15 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 		if (pci_func >= QLCNIC_MAX_PCI_FUNC)
 			return QL_STATUS_INVALID_PARAM;
 
-		if (adapter->op_mode == QLCNIC_MGMT_FUNC)
+		if (adapter->op_mode == QLCNIC_MGMT_FUNC) {
 			if (adapter->npars[pci_func].type != QLCNIC_TYPE_NIC)
 				return QL_STATUS_INVALID_PARAM;
+		}
 
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
 			if (QLC_DEV_GET_DRV(op_mode, pci_func) !=
-						QLCNIC_NON_PRIV_FUNC) {
+					    QLCNIC_NON_PRIV_FUNC) {
 				if (esw_cfg[i].mac_anti_spoof != 0)
 					return QL_STATUS_INVALID_PARAM;
 				if (esw_cfg[i].mac_override != 1)
@@ -457,9 +449,11 @@ validate_esw_config(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static ssize_t
-qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_write_esw_config(struct file *file,
+					     struct kobject *kobj,
+					     struct bin_attribute *attr,
+					     char *buf, loff_t offset,
+					     size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -473,15 +467,16 @@ qlcnic_sysfs_write_esw_config(struct file *file, struct kobject *kobj,
 	if (rem)
 		return QL_STATUS_INVALID_PARAM;
 
-	esw_cfg = (struct qlcnic_esw_func_cfg *) buf;
+	esw_cfg = (struct qlcnic_esw_func_cfg *)buf;
 	ret = validate_esw_config(adapter, esw_cfg, count);
 	if (ret)
 		return ret;
 
 	for (i = 0; i < count; i++) {
-		if (adapter->op_mode == QLCNIC_MGMT_FUNC)
+		if (adapter->op_mode == QLCNIC_MGMT_FUNC) {
 			if (qlcnic_config_switch_port(adapter, &esw_cfg[i]))
 				return QL_STATUS_INVALID_PARAM;
+		}
 
 		if (adapter->ahw->pci_func != esw_cfg[i].pci_func)
 			continue;
@@ -531,9 +526,11 @@ out:
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_read_esw_config(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_read_esw_config(struct file *file,
+					    struct kobject *kobj,
+					    struct bin_attribute *attr,
+					    char *buf, loff_t offset,
+					    size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -555,9 +552,9 @@ qlcnic_sysfs_read_esw_config(struct file *file, struct kobject *kobj,
 	return size;
 }
 
-static int
-validate_npar_config(struct qlcnic_adapter *adapter,
-				struct qlcnic_npar_func_cfg *np_cfg, int count)
+static int validate_npar_config(struct qlcnic_adapter *adapter,
+				struct qlcnic_npar_func_cfg *np_cfg,
+				int count)
 {
 	u8 pci_func, i;
 
@@ -576,9 +573,11 @@ validate_npar_config(struct qlcnic_adapter *adapter,
 	return 0;
 }
 
-static ssize_t
-qlcnic_sysfs_write_npar_config(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_write_npar_config(struct file *file,
+					      struct kobject *kobj,
+					      struct bin_attribute *attr,
+					      char *buf, loff_t offset,
+					      size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -592,7 +591,7 @@ qlcnic_sysfs_write_npar_config(struct file *file, struct kobject *kobj,
 	if (rem)
 		return QL_STATUS_INVALID_PARAM;
 
-	np_cfg = (struct qlcnic_npar_func_cfg *) buf;
+	np_cfg = (struct qlcnic_npar_func_cfg *)buf;
 	ret = validate_npar_config(adapter, np_cfg, count);
 	if (ret)
 		return ret;
@@ -615,9 +614,12 @@ qlcnic_sysfs_write_npar_config(struct file *file, struct kobject *kobj,
 	return size;
 
 }
-static ssize_t
-qlcnic_sysfs_read_npar_config(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+
+static ssize_t qlcnic_sysfs_read_npar_config(struct file *file,
+					     struct kobject *kobj,
+					     struct bin_attribute *attr,
+					     char *buf, loff_t offset,
+					     size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -628,7 +630,7 @@ qlcnic_sysfs_read_npar_config(struct file *file, struct kobject *kobj,
 	if (size != sizeof(np_cfg))
 		return QL_STATUS_INVALID_PARAM;
 
-	for (i = 0; i < QLCNIC_MAX_PCI_FUNC ; i++) {
+	for (i = 0; i < QLCNIC_MAX_PCI_FUNC; i++) {
 		if (adapter->npars[i].type != QLCNIC_TYPE_NIC)
 			continue;
 		ret = qlcnic_get_nic_info(adapter, &nic_info, i);
@@ -639,7 +641,7 @@ qlcnic_sysfs_read_npar_config(struct file *file, struct kobject *kobj,
 		np_cfg[i].op_mode = (u8)nic_info.op_mode;
 		np_cfg[i].port_num = nic_info.phys_port;
 		np_cfg[i].fw_capab = nic_info.capabilities;
-		np_cfg[i].min_bw = nic_info.min_tx_bw ;
+		np_cfg[i].min_bw = nic_info.min_tx_bw;
 		np_cfg[i].max_bw = nic_info.max_tx_bw;
 		np_cfg[i].max_tx_queues = nic_info.max_tx_ques;
 		np_cfg[i].max_rx_queues = nic_info.max_rx_ques;
@@ -648,9 +650,11 @@ qlcnic_sysfs_read_npar_config(struct file *file, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_get_port_stats(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_get_port_stats(struct file *file,
+					   struct kobject *kobj,
+					   struct bin_attribute *attr,
+					   char *buf, loff_t offset,
+					   size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -665,12 +669,12 @@ qlcnic_sysfs_get_port_stats(struct file *file, struct kobject *kobj,
 
 	memset(&port_stats, 0, size);
 	ret = qlcnic_get_port_stats(adapter, offset, QLCNIC_QUERY_RX_COUNTER,
-								&port_stats.rx);
+				    &port_stats.rx);
 	if (ret)
 		return ret;
 
 	ret = qlcnic_get_port_stats(adapter, offset, QLCNIC_QUERY_TX_COUNTER,
-								&port_stats.tx);
+				    &port_stats.tx);
 	if (ret)
 		return ret;
 
@@ -678,9 +682,11 @@ qlcnic_sysfs_get_port_stats(struct file *file, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_get_esw_stats(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_get_esw_stats(struct file *file,
+					  struct kobject *kobj,
+					  struct bin_attribute *attr,
+					  char *buf, loff_t offset,
+					  size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -695,12 +701,12 @@ qlcnic_sysfs_get_esw_stats(struct file *file, struct kobject *kobj,
 
 	memset(&esw_stats, 0, size);
 	ret = qlcnic_get_eswitch_stats(adapter, offset, QLCNIC_QUERY_RX_COUNTER,
-								&esw_stats.rx);
+				       &esw_stats.rx);
 	if (ret)
 		return ret;
 
 	ret = qlcnic_get_eswitch_stats(adapter, offset, QLCNIC_QUERY_TX_COUNTER,
-								&esw_stats.tx);
+				       &esw_stats.tx);
 	if (ret)
 		return ret;
 
@@ -708,9 +714,11 @@ qlcnic_sysfs_get_esw_stats(struct file *file, struct kobject *kobj,
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_clear_esw_stats(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_clear_esw_stats(struct file *file,
+					    struct kobject *kobj,
+					    struct bin_attribute *attr,
+					    char *buf, loff_t offset,
+					    size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -720,23 +728,24 @@ qlcnic_sysfs_clear_esw_stats(struct file *file, struct kobject *kobj,
 		return QL_STATUS_INVALID_PARAM;
 
 	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_ESWITCH, offset,
-						QLCNIC_QUERY_RX_COUNTER);
+				     QLCNIC_QUERY_RX_COUNTER);
 	if (ret)
 		return ret;
 
 	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_ESWITCH, offset,
-						QLCNIC_QUERY_TX_COUNTER);
+				     QLCNIC_QUERY_TX_COUNTER);
 	if (ret)
 		return ret;
 
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_clear_port_stats(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_clear_port_stats(struct file *file,
+					     struct kobject *kobj,
+					     struct bin_attribute *attr,
+					     char *buf, loff_t offset,
+					     size_t size)
 {
-
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
 	int ret;
@@ -745,21 +754,23 @@ qlcnic_sysfs_clear_port_stats(struct file *file, struct kobject *kobj,
 		return QL_STATUS_INVALID_PARAM;
 
 	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_PORT, offset,
-						QLCNIC_QUERY_RX_COUNTER);
+				     QLCNIC_QUERY_RX_COUNTER);
 	if (ret)
 		return ret;
 
 	ret = qlcnic_clear_esw_stats(adapter, QLCNIC_STATS_PORT, offset,
-						QLCNIC_QUERY_TX_COUNTER);
+				     QLCNIC_QUERY_TX_COUNTER);
 	if (ret)
 		return ret;
 
 	return size;
 }
 
-static ssize_t
-qlcnic_sysfs_read_pci_config(struct file *file, struct kobject *kobj,
-	struct bin_attribute *attr, char *buf, loff_t offset, size_t size)
+static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
+					    struct kobject *kobj,
+					    struct bin_attribute *attr,
+					    char *buf, loff_t offset,
+					    size_t size)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
@@ -874,7 +885,7 @@ void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter)
 	if (adapter->capabilities & QLCNIC_FW_CAPABILITY_BDG)
 		if (device_create_file(dev, &dev_attr_bridged_mode))
 			dev_warn(dev,
-				"failed to create bridged_mode sysfs entry\n");
+				 "failed to create bridged_mode sysfs entry\n");
 }
 
 void qlcnic_remove_sysfs_entries(struct qlcnic_adapter *adapter)
