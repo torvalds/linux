@@ -106,8 +106,8 @@ static struct workqueue_struct *reset_workqueue;
  *
  * This is only used in MSI-X interrupt mode
  */
-static unsigned int separate_tx_channels;
-module_param(separate_tx_channels, uint, 0444);
+static bool separate_tx_channels;
+module_param(separate_tx_channels, bool, 0444);
 MODULE_PARM_DESC(separate_tx_channels,
 		 "Use separate channels for TX and RX");
 
@@ -160,8 +160,8 @@ static unsigned int rss_cpus;
 module_param(rss_cpus, uint, 0444);
 MODULE_PARM_DESC(rss_cpus, "Number of CPUs to use for Receive-Side Scaling");
 
-static int phy_flash_cfg;
-module_param(phy_flash_cfg, int, 0644);
+static bool phy_flash_cfg;
+module_param(phy_flash_cfg, bool, 0644);
 MODULE_PARM_DESC(phy_flash_cfg, "Set PHYs into reflash mode initially");
 
 static unsigned irq_adapt_low_thresh = 8000;
