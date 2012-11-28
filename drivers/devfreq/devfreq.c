@@ -235,6 +235,7 @@ void devfreq_monitor_start(struct devfreq *devfreq)
 		queue_delayed_work(devfreq_wq, &devfreq->work,
 			msecs_to_jiffies(devfreq->profile->polling_ms));
 }
+EXPORT_SYMBOL(devfreq_monitor_start);
 
 /**
  * devfreq_monitor_stop() - Stop load monitoring of a devfreq instance
@@ -248,6 +249,7 @@ void devfreq_monitor_stop(struct devfreq *devfreq)
 {
 	cancel_delayed_work_sync(&devfreq->work);
 }
+EXPORT_SYMBOL(devfreq_monitor_stop);
 
 /**
  * devfreq_monitor_suspend() - Suspend load monitoring of a devfreq instance
@@ -273,6 +275,7 @@ void devfreq_monitor_suspend(struct devfreq *devfreq)
 	mutex_unlock(&devfreq->lock);
 	cancel_delayed_work_sync(&devfreq->work);
 }
+EXPORT_SYMBOL(devfreq_monitor_suspend);
 
 /**
  * devfreq_monitor_resume() - Resume load monitoring of a devfreq instance
@@ -297,6 +300,7 @@ void devfreq_monitor_resume(struct devfreq *devfreq)
 out:
 	mutex_unlock(&devfreq->lock);
 }
+EXPORT_SYMBOL(devfreq_monitor_resume);
 
 /**
  * devfreq_interval_update() - Update device devfreq monitoring interval
@@ -343,6 +347,7 @@ void devfreq_interval_update(struct devfreq *devfreq, unsigned int *delay)
 out:
 	mutex_unlock(&devfreq->lock);
 }
+EXPORT_SYMBOL(devfreq_interval_update);
 
 /**
  * devfreq_notifier_call() - Notify that the device frequency requirements
