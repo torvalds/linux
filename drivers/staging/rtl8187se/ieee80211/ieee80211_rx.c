@@ -292,7 +292,7 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
 static inline int
-ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
+ieee80211_rx_frame_decrypt(struct ieee80211_device *ieee, struct sk_buff *skb,
 			   struct ieee80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_4addr *hdr;
@@ -337,7 +337,7 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 
 /* Called only as a tasklet (software IRQ), by ieee80211_rx */
 static inline int
-ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *skb,
+ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device *ieee, struct sk_buff *skb,
 			     int keyidx, struct ieee80211_crypt_data *crypt)
 {
 	struct ieee80211_hdr_4addr *hdr;
@@ -841,7 +841,7 @@ static inline void ieee80211_extract_country_ie(
 	struct ieee80211_device *ieee,
 	struct ieee80211_info_element *info_element,
 	struct ieee80211_network *network,
-	u8 * addr2
+	u8 *addr2
 )
 {
 	if (IS_DOT11D_ENABLE(ieee)) {
@@ -1187,7 +1187,7 @@ inline int ieee80211_network_init(
 
 static inline int is_same_network(struct ieee80211_network *src,
 				  struct ieee80211_network *dst,
-				  struct ieee80211_device * ieee)
+				  struct ieee80211_device *ieee)
 {
 	/* A network is only a duplicate if the channel, BSSID, ESSID
 	 * and the capability field (in particular IBSS and BSS) all match.
