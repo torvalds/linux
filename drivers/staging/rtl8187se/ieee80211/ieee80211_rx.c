@@ -505,13 +505,11 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 //YJ,add,080828,for keep alive
 	if ((fc & IEEE80211_FCTL_TODS) != IEEE80211_FCTL_TODS) {
-		if (!memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN)) {
+		if (!memcmp(hdr->addr1, dev->dev_addr, ETH_ALEN))
 			ieee->NumRxUnicast++;
-		}
 	} else {
-		if (!memcmp(hdr->addr3, dev->dev_addr, ETH_ALEN)) {
+		if (!memcmp(hdr->addr3, dev->dev_addr, ETH_ALEN))
 			ieee->NumRxUnicast++;
-		}
 	}
 //YJ,add,080828,for keep alive,end
 
@@ -611,9 +609,8 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 				type, stype, skb->len);
 		goto rx_dropped;
 	}
-	if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN)) {
+	if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN))
 		goto rx_dropped;
-	}
 
 	ieee->NumRxDataInPeriod++;
 	ieee->NumRxOkTotal++;
@@ -806,27 +803,27 @@ static inline int ieee80211_SignalStrengthTranslate(
 	int RetSS;
 
 	// Step 1. Scale mapping.
-	if (CurrSS >= 71 && CurrSS <= 100) {
+	if (CurrSS >= 71 && CurrSS <= 100)
 		RetSS = 90 + ((CurrSS - 70) / 3);
-	} else if (CurrSS >= 41 && CurrSS <= 70) {
+	else if (CurrSS >= 41 && CurrSS <= 70)
 		RetSS = 78 + ((CurrSS - 40) / 3);
-	} else if (CurrSS >= 31 && CurrSS <= 40) {
+	else if (CurrSS >= 31 && CurrSS <= 40)
 		RetSS = 66 + (CurrSS - 30);
-	} else if (CurrSS >= 21 && CurrSS <= 30) {
+	else if (CurrSS >= 21 && CurrSS <= 30)
 		RetSS = 54 + (CurrSS - 20);
-	} else if (CurrSS >= 5 && CurrSS <= 20) {
+	else if (CurrSS >= 5 && CurrSS <= 20)
 		RetSS = 42 + (((CurrSS - 5) * 2) / 3);
-	} else if (CurrSS == 4) {
+	else if (CurrSS == 4)
 		RetSS = 36;
-	} else if (CurrSS == 3) {
+	else if (CurrSS == 3)
 		RetSS = 27;
-	} else if (CurrSS == 2) {
+	else if (CurrSS == 2)
 		RetSS = 18;
-	} else if (CurrSS == 1) {
+	else if (CurrSS == 1)
 		RetSS = 9;
-	} else {
+	else
 		RetSS = CurrSS;
-	}
+
 	//RT_TRACE(COMP_DBG, DBG_LOUD, ("##### After Mapping:  LastSS: %d, CurrSS: %d, RetSS: %d\n", LastSS, CurrSS, RetSS));
 
 	// Step 2. Smoothing.
@@ -848,9 +845,8 @@ static inline void ieee80211_extract_country_ie(
 			memcpy(network->CountryIeBuf, info_element->data, info_element->len);
 			network->CountryIeLen = info_element->len;
 
-			if (!IS_COUNTRY_IE_VALID(ieee)) {
+			if (!IS_COUNTRY_IE_VALID(ieee))
 				Dot11d_UpdateCountryIe(ieee, addr2, info_element->len, info_element->data);
-			}
 		}
 
 		//
@@ -858,9 +854,8 @@ static inline void ieee80211_extract_country_ie(
 		// some AP (e.g. Cisco 1242) don't include country IE in their
 		// probe response frame.
 		//
-		if (IS_EQUAL_CIE_SRC(ieee, addr2)) {
+		if (IS_EQUAL_CIE_SRC(ieee, addr2))
 			UPDATE_CIE_WATCHDOG(ieee);
-		}
 	}
 
 }
@@ -1058,9 +1053,9 @@ inline int ieee80211_network_init(
 			//	info_element->data[3+offset] ,
 			//	info_element->data[3+offset] & (1<<(ieee->assoc_id%8)));
 
-			if (info_element->data[3+offset] & (1<<(ieee->assoc_id%8))) {
+			if (info_element->data[3+offset] & (1<<(ieee->assoc_id%8)))
 				network->dtim_data |= IEEE80211_DTIM_UCAST;
-			}
+
 			break;
 
 		case MFIE_TYPE_IBSS_SET:
@@ -1094,9 +1089,8 @@ inline int ieee80211_network_init(
 			    info_element->data[4] == 0x02) {
 				network->Turbo_Enable = 1;
 			}
-			if (1 == stats->nic_type) {//nic 87
+			if (1 == stats->nic_type) //nic 87
 				break;
-			}
 
 			if (info_element->len >= 5  &&
 			    info_element->data[0] == 0x00 &&
@@ -1210,9 +1204,8 @@ inline void update_network(struct ieee80211_network *dst,
 	unsigned char quality = src->stats.signalstrength;
 	unsigned char signal = 0;
 	unsigned char noise = 0;
-        if (dst->stats.signalstrength > 0) {
+        if (dst->stats.signalstrength > 0)
                 quality = (dst->stats.signalstrength * 5 + src->stats.signalstrength + 5)/6;
-        }
 	signal = ieee80211_TranslateToDbm(quality);
 	//noise = signal - src->stats.noise;
 	if (dst->stats.noise > 0)
