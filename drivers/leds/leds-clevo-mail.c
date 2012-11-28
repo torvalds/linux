@@ -1,3 +1,4 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 
@@ -26,7 +27,7 @@ static struct platform_device *pdev;
 
 static int __init clevo_mail_led_dmi_callback(const struct dmi_system_id *id)
 {
-	printk(KERN_INFO KBUILD_MODNAME ": '%s' found\n", id->ident);
+	pr_info("'%s' found\n", id->ident);
 	return 1;
 }
 
@@ -135,8 +136,7 @@ static int clevo_mail_led_blink(struct led_classdev *led_cdev,
 		status = 0;
 
 	} else {
-		printk(KERN_DEBUG KBUILD_MODNAME
-		       ": clevo_mail_led_blink(..., %lu, %lu),"
+		pr_debug("clevo_mail_led_blink(..., %lu, %lu),"
 		       " returning -EINVAL (unsupported)\n",
 		       *delay_on, *delay_off);
 	}
@@ -183,7 +183,7 @@ static int __init clevo_mail_led_init(void)
 		count = dmi_check_system(clevo_mail_led_dmi_table);
 	} else {
 		count = 1;
-		printk(KERN_ERR KBUILD_MODNAME ": Skipping DMI detection. "
+		pr_err("Skipping DMI detection. "
 		       "If the driver works on your hardware please "
 		       "report model and the output of dmidecode in tracker "
 		       "at http://sourceforge.net/projects/clevo-mailled/\n");
@@ -197,8 +197,7 @@ static int __init clevo_mail_led_init(void)
 		error = platform_driver_probe(&clevo_mail_led_driver,
 					      clevo_mail_led_probe);
 		if (error) {
-			printk(KERN_ERR KBUILD_MODNAME
-			       ": Can't probe platform driver\n");
+			pr_err("Can't probe platform driver\n");
 			platform_device_unregister(pdev);
 		}
 	} else
